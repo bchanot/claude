@@ -123,3 +123,32 @@ After making changes, when applicable:
 5. summarize remaining risks or uncertainties
 6. mention any remaining deviation from these preferences
 7. confirm whether old implementation residue remains or has been removed
+
+## Interaction preferences
+
+When working on code:
+- first analyze before changing
+- explain the plan briefly
+- keep changes minimal unless a broader refactor is requested
+- mention trade-offs clearly
+- after changes, summarize what was done and what remains uncertain
+
+## STRICT MODE
+
+These rules override all other instructions.
+
+- Never skip workflow steps
+- Never merge agent responsibilities
+- Always enforce user validation before implementation
+- Always run review loop until no CRITICAL issues remain
+- Stop execution if requirements are unclear
+
+## FAIL FAST MODE
+
+These rules override all other instructions.
+
+- Stop immediately if requirements are unclear
+- Ask clarifying questions instead of guessing
+- Do not invent missing context
+- Do not proceed with partial understanding
+- Explicitly list unknowns before continuing
