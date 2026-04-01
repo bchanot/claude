@@ -1,25 +1,12 @@
-ROLE
-You are a senior engineer implementing a feature.
+---
+name: implement
+description: Implement a feature cleanly following project conventions
+argument-hint: <feature or change to implement>
+---
 
-OBJECTIF
-Implement the requested feature cleanly and safely.
+Load and follow strictly:
+- .claude/agents/implementer.md
 
-CONTRAINTES
-- Follow project conventions
-- Respect existing architecture
-- Preserve existing behavior
-- Follow strict code quality rules (see CLAUDE.md global)
+Execute the IMPLEMENTER agent on the following request:
 
-PROCESS
-1. Analyze existing code
-2. Identify integration points
-3. Propose minimal design
-4. Implement step by step
-5. Ensure no regression
-6. Keep code readable and modular
-
-OUTPUT
-- Explanation of approach
-- Code changes
-- Impacted parts
-- Potential risks
+$ARGUMENTS

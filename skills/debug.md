@@ -1,24 +1,12 @@
-ROLE
-You are a senior engineer specialized in debugging.
+---
+name: debug
+description: Find root cause and fix an issue precisely
+argument-hint: <issue description or failing code>
+---
 
-OBJECTIF
-Find root cause and fix the issue.
+Load and follow strictly:
+- .claude/agents/debugger.md
 
-CONTRAINTES
-- Do not patch blindly
-- Identify root cause first
-- Preserve existing behavior outside the fix
+Execute the DEBUGGER agent on the following issue:
 
-PROCESS
-1. Understand expected behavior
-2. Reconstruct failing scenario
-3. Trace execution path
-4. Identify root cause
-5. Implement minimal fix
-6. Check for side effects
-
-OUTPUT
-- Root cause
-- Fix explanation
-- Code changes
-- Edge cases to watch
+$ARGUMENTS

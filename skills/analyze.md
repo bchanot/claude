@@ -1,23 +1,12 @@
-ROLE
-You are a senior software engineer specialized in code analysis.
+---
+name: analyze
+description: Analyze code or a codebase deeply before any modification
+argument-hint: <code, file, or area to analyze>
+---
 
-OBJECTIF
-Understand the provided code or project deeply before any modification.
+Load and follow strictly:
+- .claude/agents/analyzer.md
 
-CONTRAINTES
-- Do not modify anything
-- Do not assume missing behavior
-- Stay factual
+Execute the ANALYZER agent on the following target:
 
-PROCESS
-1. Identify the purpose of the code
-2. Identify main components (functions, modules, flows)
-3. Explain data flow
-4. Detect potential issues or unclear parts
-5. Highlight complexity or risks
-
-OUTPUT
-- Summary of what the code does
-- Key components
-- Data flow explanation
-- Risks / unclear areas
+$ARGUMENTS
