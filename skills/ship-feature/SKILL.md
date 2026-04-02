@@ -1,14 +1,14 @@
 ---
 name: ship-feature
-description: Implémente une feature end-to-end via orchestration multi-agents. Analyse → Design → Validation → Implémentation → Review → Tests.
-argument-hint: <description de la feature à implémenter>
+description: Ship a feature end-to-end via multi-agent orchestration. Analyze → Design → Validate → Implement → Review → Test.
+argument-hint: <feature description>
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 ---
 
-# ORCHESTRATEUR : SHIP FEATURE
+# ORCHESTRATOR: SHIP FEATURE
 
-Charge et applique strictement :
+Load and follow strictly:
 - .claude/agents/analyzer.md
 - .claude/agents/designer.md
 - .claude/agents/implementer.md
@@ -26,60 +26,60 @@ $ARGUMENTS
 ## WORKFLOW
 
 ### 1. ANALYZER
-Analyser le contexte existant pertinent à la feature.
+Analyze the existing context relevant to the feature.
 
 ### 2. DESIGNER
-Concevoir la solution sur la base de l'analyse.
+Design the solution based on the analysis.
 
-### 3. VALIDATION GATE — STOP OBLIGATOIRE
-- Présenter le design clairement à l'utilisateur
-- Demander une approbation explicite
-- **NE PAS CONTINUER sans réponse**
+### 3. VALIDATION GATE — MANDATORY STOP
+- Present the design clearly to the user
+- Ask for explicit approval
+- **DO NOT CONTINUE without a response**
 
-SI changements demandés :
-- Appeler DESIGNER avec le feedback
-- Répéter la validation
+IF changes requested:
+- Call DESIGNER with feedback
+- Repeat validation
 
-SI approuvé → continuer
+IF approved → continue
 
 ### 4. IMPLEMENTER
-Implémenter selon le design validé.
+Implement according to the validated design.
 
 ### 5. REVIEWER
-Review stricte du code produit.
+Strict review of the produced code.
 
-### 6. FIX LOOP — max 3 itérations
+### 6. FIX LOOP — max 3 iterations
 
-SI CRITICAL issues :
-- Appeler IMPLEMENTER avec les corrections
-- Appeler REVIEWER
-- Incrémenter le compteur
+IF CRITICAL issues:
+- Call IMPLEMENTER with fixes
+- Call REVIEWER again
+- Increment iteration counter
 
-SI compteur > 3 :
+IF counter > 3:
 - STOP
-- Escalader à l'utilisateur avec les issues bloquantes
+- Escalate to user with blocking issues
 
-SI seulement IMPORTANT ou MINOR :
-- Continuer mais les lister dans l'output final
+IF only IMPORTANT or MINOR issues:
+- Continue but list them in final output
 
 ### 7. TESTER
-Générer et exécuter les tests de la feature.
+Generate and run tests for the feature.
 
 ---
 
 ## RULES
 
-- Ne jamais sauter l'analyse
-- Ne jamais sauter la validation
-- Ne jamais implémenter sans approbation
-- Garder les agents isolés dans leurs responsabilités
-- Appliquer les normes CLAUDE.md strictement
+- Never skip analysis
+- Never skip validation
+- Never implement without approval
+- Keep agents isolated in their responsibilities
+- Enforce CLAUDE.md norms strictly
 
 ---
 
-## OUTPUT FINAL
+## FINAL OUTPUT
 
-- Design validé
-- Implémentation finale
-- Résumé de la review
-- Plan de tests et résultats
+- Validated design
+- Final implementation
+- Review summary
+- Test plan and results

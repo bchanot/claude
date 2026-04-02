@@ -1,14 +1,14 @@
 ---
 name: init-project
-description: Initialise un projet complet from scratch. Structure, stack, fichiers de base, conventions. Orchestration complète avec validation utilisateur.
-argument-hint: <description ou idée de projet>
+description: Initialize a complete project from scratch. Structure, stack, base files, conventions. Full orchestration with user validation.
+argument-hint: <project idea or description>
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 ---
 
-# ORCHESTRATEUR : INIT PROJECT
+# ORCHESTRATOR: INIT PROJECT
 
-Charge et applique strictement :
+Load and follow strictly:
 - .claude/agents/analyzer.md
 - .claude/agents/designer.md
 - .claude/agents/implementer.md
@@ -17,7 +17,7 @@ Charge et applique strictement :
 
 ---
 
-## PROJET
+## PROJECT
 
 $ARGUMENTS
 
@@ -26,72 +26,72 @@ $ARGUMENTS
 ## WORKFLOW
 
 ### 1. ANALYZER
-Comprendre :
-- Type de projet (web app, API, lib, CLI, etc.)
-- Contraintes et préférences de stack
-- Repo existant (si applicable)
-- Décisions critiques manquantes
+Understand:
+- Project type (web app, API, lib, CLI, etc.)
+- Constraints and stack preferences
+- Existing repo (if any)
+- Missing critical decisions
 
 ### 2. DESIGNER
-Définir :
+Define:
 - Architecture
-- Stack technique
-- Structure des dossiers
-- Modules clés
-- Conventions du projet
+- Tech stack
+- Folder structure
+- Key modules
+- Project conventions
 
-### 3. VALIDATION GATE — STOP OBLIGATOIRE
-Présenter :
-- Stack choisie
+### 3. VALIDATION GATE — MANDATORY STOP
+Present:
+- Chosen stack
 - Architecture
-- Structure des dossiers
+- Folder structure
 
-Demander approbation explicite.
-**NE PAS CONTINUER sans réponse.**
+Ask for explicit approval.
+**DO NOT CONTINUE without a response.**
 
-SI changements → retour au DESIGNER
+IF changes requested → return to DESIGNER
 
-SI approuvé → continuer
+IF approved → continue
 
 ### 4. IMPLEMENTER
-Créer :
-- Structure des dossiers
-- Fichiers de config (build, lint, format)
-- CLAUDE.md du projet (depuis templates/project-CLAUDE.md)
+Create:
+- Folder structure
+- Config files (build, lint, format)
+- Project CLAUDE.md (from templates/project-CLAUDE.md)
 - README.md
-- Code de base (entry point, modules principaux)
-- Structure de tests
+- Base code (entry point, main modules)
+- Test structure
 
 ### 5. REVIEWER
-Valider :
-- Cohérence de la structure
-- Scalabilité
-- Mauvaises décisions initiales
+Validate:
+- Structure coherence
+- Scalability
+- Bad initial decisions
 
-### 6. FIX LOOP — max 3 itérations
+### 6. FIX LOOP — max 3 iterations
 
-SI CRITICAL issues :
-- Appeler IMPLEMENTER avec les corrections
-- Appeler REVIEWER
-- Incrémenter le compteur
+IF CRITICAL issues:
+- Call IMPLEMENTER with fixes
+- Call REVIEWER again
+- Increment iteration counter
 
-SI compteur > 3 :
+IF counter > 3:
 - STOP
-- Escalader à l'utilisateur
+- Escalate to user
 
-SI seulement IMPORTANT ou MINOR :
-- Continuer mais lister dans l'output final
+IF only IMPORTANT or MINOR issues:
+- Continue but list in final output
 
 ### 7. TESTER
-Définir :
-- Comment valider le setup initial
-- Premiers scénarios de test
+Define:
+- How to validate the initial setup
+- First test scenarios
 
 ---
 
-## OUTPUT FINAL
+## FINAL OUTPUT
 
-- Structure du projet créée
-- Instructions de setup
-- Code initial
-- Prochaines étapes recommandées
+- Created project structure
+- Setup instructions
+- Initial code
+- Recommended next steps
