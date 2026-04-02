@@ -1,0 +1,106 @@
+# ============================================================
+# .claudeignore — files Claude cannot read or use as context
+# Same syntax as .gitignore
+# ============================================================
+
+# ---- Secrets & credentials --------------------------------
+.env
+.env.*
+!.env.example
+secrets/
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+credentials
+credentials.json
+service-account*.json
+*-credentials.json
+.netrc
+.pgpass
+.my.cnf
+
+# ---- SSH --------------------------------------------------
+.ssh/
+id_rsa*
+id_ed25519*
+*.pub
+
+# ---- Cloud provider credentials ---------------------------
+.aws/
+.azure/
+.gcloud/
+gcloud-credentials*
+
+# ---- Build artifacts & caches ----------------------------
+node_modules/
+dist/
+build/
+.next/
+.nuxt/
+out/
+target/
+__pycache__/
+*.pyc
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+*.egg-info/
+.eggs/
+vendor/
+.cargo/registry/
+.gradle/
+.m2/
+
+# ---- Binary & media files --------------------------------
+*.png
+*.jpg
+*.jpeg
+*.gif
+*.webp
+*.ico
+*.svg
+*.mp4
+*.mp3
+*.pdf
+*.zip
+*.tar
+*.tar.gz
+*.tgz
+*.rar
+*.7z
+*.dmg
+*.exe
+*.dll
+*.so
+*.dylib
+*.wasm
+
+# ---- IDE & OS --------------------------------------------
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ---- Logs & local databases ------------------------------
+*.log
+logs/
+*.sqlite
+*.sqlite3
+*.db
+
+# ---- Lock files (optional — remove if you want Claude to read them) --
+# package-lock.json
+# yarn.lock
+# Cargo.lock
+# poetry.lock
+
+# ---- Large generated files --------------------------------
+coverage/
+.nyc_output/
+*.lcov

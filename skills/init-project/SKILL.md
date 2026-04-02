@@ -150,16 +150,43 @@ The SCAFFOLDER will, in order:
    - How to run tests
    - Environment configuration
 
-3. **Scaffold structure** — create every folder and file from
+3. **Generate Claude Code settings** — create `.claude/` with:
+
+   a. **`.claude/settings.json`** — from `~/.claude/templates/settings/settings.json`.
+      Adapt the `allow` rules to the actual project stack:
+      - Keep only the tool blocks relevant to this stack
+      - Add any stack-specific commands not already in the template
+      - Add project-specific `ask` rules (deploy targets, DB commands)
+      - Leave `deny` empty — global deny rules live in `~/.claude/settings.json`
+
+   b. **`.claudeignore`** — from `~/.claude/templates/settings/.claudeignore`.
+      Extend with project-specific exclusions:
+      - Stack-specific build artifacts not already covered
+      - Sensitive file patterns specific to this project
+      - Directories identified in the DESIGN as generated or cache
+
+   c. After creating these files, print:
+      ```
+      ⚙️  SETTINGS SETUP
+      .claude/settings.json  created — project-level permissions
+      .claudeignore          created — file exclusions for Claude
+
+      Manual step required:
+      Copy ~/.claude/templates/settings/settings.local.json
+      to .claude/settings.local.json and add it to .gitignore.
+      This file is personal and must not be committed.
+      ```
+
+4. **Scaffold structure** — create every folder and file from
    the DESIGN with real content.
 
-4. **Implement v1 features** — real working code for every
+5. **Implement v1 features** — real working code for every
    feature in the PROJECT BRIEF. No stubs. No TODOs.
 
-5. **Write initial tests** — at minimum one happy path and one
+6. **Write initial tests** — at minimum one happy path and one
    edge case per module.
 
-6. **Install and build** — actually run the install command,
+7. **Install and build** — actually run the install command,
    build, and test suite. Fix any failures before reporting.
 
 ---
@@ -256,5 +283,6 @@ NEXT STEPS
 
 CLAUDE.md        : ✅ complete
 README.md        : ✅ Windows / Linux / macOS
+SETTINGS         : ✅ .claude/settings.json + .claudeignore generated
 ================================================================
 ```

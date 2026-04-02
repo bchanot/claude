@@ -32,10 +32,12 @@ Clone the repo and symlink it into `~/.claude/`:
 git clone git@github.com:youruser/claude-config.git ~/claude-config
 
 mkdir -p ~/.claude
+rm -rf ~/claude/agents ~/claude/skills ~/claude/CLAUDE.md ~/claude/settings.json
 
 ln -sf ~/claude-config/agents    ~/.claude/agents
 ln -sf ~/claude-config/skills    ~/.claude/skills
 ln -sf ~/claude-config/CLAUDE.md ~/.claude/CLAUDE.md
+ln -sf ~/claude-config/settings.json ~/.claude/settings.json
 ```
 
 Symlinks mean any update to this repo is immediately active — no manual sync needed.
@@ -82,7 +84,128 @@ Standalone skills (`/analyze`, `/debug`, etc.) invoke a single specialized agent
             └── tester      → define test strategy
 ```
 
+## Settings and permissions
+
+Claude Code uses three settings files to control what it can and cannot do.
+Each file has a different scope and purpose.
+
+### `~/.claude/settings.json` — global rules (all projects)
+
+**What it contains and why:**
+
+| Section | What it blocks / controls |
+|---|---|
+| `deny` — secrets | Prevents Claude from reading `.env`, `.pem`, `.key`, SSH keys, cloud credentials |
+| `deny` — destructive Bash | Blocks `rm -rf`, `git push --force`, `git reset --hard`, `chmod 777` |
+| `deny` — system access | Blocks `sudo`, `ssh`, `scp`, `netcat`, `crontab`, `systemctl` |
+| `deny` — code injection | Blocks `curl \| bash`, `wget \| sh` patterns |
+| `ask` — risky but needed | Prompts before `git push`, `docker run`, `brew/apt install` |
+| `allow` — safe read ops | Auto-approves `git status/log/diff`, `ls`, `cat`, `grep`, `find` |
+| `disableBypassPermissionsMode` | Prevents switching to "no prompts at all" mode mid-session |
+
+These rules apply to every project on your machine. They cannot be
+overridden by project-level settings — **deny always wins globally**.
+
 ---
+
+### `.claude/settings.json` — project rules (committed to git)
+
+Copy the project template into each new project:
+
+```bash
+mkdir -p .claude
+cp ~/claude-config/templates/settings/settings.json .claude/settings.json
+```
+
+**What it contains and why:**
+
+| Section | What it allows / controls |
+|---|---|
+| `allow` — build commands | Auto-approves `npm run *`, `cargo build/test`, `make`, `pytest`, `flutter *`, etc. |
+| `allow` — language tools | Auto-approves formatters, linters, type checkers (ruff, mypy, clippy...) |
+| `allow` — runtime commands | Auto-approves `node`, `python`, `php`, `dart` within the project |
+| `ask` — database commands | Prompts before `psql`, `mysql`, `mongosh`, `redis-cli` |
+| `ask` — deploy commands | Prompts before `make deploy`, `npm run deploy`, `cargo publish` |
+
+Only put project-specific rules here. Generic security rules belong
+in `~/.claude/settings.json`, not repeated per project.
+
+Shared with the team via git — keep it stack-appropriate and avoid
+personal paths or machine-specific commands.
+
+---
+
+### `.claude/settings.local.json` — personal overrides (never committed)
+
+Copy the template and add to `.gitignore`:
+
+```bash
+cp ~/claude-config/templates/settings/settings.local.json .claude/settings.local.json
+echo ".claude/settings.local.json" >> .gitignore
+```
+
+**What it contains and why:**
+
+| Section | What it controls |
+|---|---|
+| `allow` — trusted WebFetch | Auto-approves fetching from specific doc domains (docs.rs, MDN, flutter.dev...) |
+| `additionalDirectories` | Grants Claude access to directories outside the project root (personal shared libs, etc.) |
+| Personal overrides | Any rule you want on your machine that shouldn't affect teammates |
+
+This file has the highest priority of all file-based settings.
+Use it for anything environment-specific or personal.
+
+---
+
+### `.claudeignore` — hard file exclusion (committed to git)
+
+Copy to each project root:
+
+```bash
+cp ~/claude-config/templates/settings/.claudeignore .claudeignore
+```
+
+**What it does and why it is different from `deny` rules:**
+
+`deny` rules in `settings.json` block specific tools from accessing files.
+`.claudeignore` goes further — it removes files from Claude's awareness
+entirely, regardless of which tool is used.
+
+| Excluded by default | Why |
+|---|---|
+| `.env`, `.env.*` | Secrets must never appear in Claude's context |
+| `*.pem`, `*.key`, `*.p12` | Private keys and certificates |
+| `id_rsa*`, `id_ed25519*`, `.ssh/` | SSH credentials |
+| `.aws/`, `.azure/`, `.gcloud/` | Cloud provider credentials |
+| `node_modules/`, `dist/`, `build/` | Generated artifacts — noise, no value |
+| `*.png`, `*.jpg`, `*.pdf`, `*.zip`... | Binaries Claude cannot process usefully |
+| `*.log`, `*.sqlite`, `*.db` | Runtime state, not source |
+
+A `.env` file excluded via `.claudeignore` cannot be read by Claude even
+if a `Bash(cat .env)` would otherwise be allowed. Use both layers for
+defense in depth.
+
+---
+
+### Precedence summary
+
+```
+Highest
+  managed-settings.json   — enterprise-wide, cannot be overridden
+  CLI flags               — --allowedTools / --disallowedTools (session only)
+  settings.local.json     — personal machine overrides
+  settings.json           — project rules (team, committed)
+  ~/.claude/settings.json — global user rules
+Lowest
+
+DENY always wins over ALLOW at any level.
+.claudeignore applies independently of all permission rules.
+```
+
+---
+
+---
+
 
 ## Per-project setup
 

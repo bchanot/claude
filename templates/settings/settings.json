@@ -1,0 +1,81 @@
+{
+  "_readme": "Project-level settings — commit this file. Extends ~/.claude/settings.json. Only put project-specific rules here.",
+
+  "permissions": {
+
+    "allow": [
+
+      "Bash(npm run *)",
+      "Bash(npm install)",
+      "Bash(npm ci)",
+
+      "Bash(yarn *)",
+      "Bash(pnpm *)",
+
+      "Bash(cargo build*)",
+      "Bash(cargo test*)",
+      "Bash(cargo run*)",
+      "Bash(cargo check*)",
+      "Bash(cargo clippy*)",
+      "Bash(cargo fmt*)",
+      "Bash(cargo clean*)",
+
+      "Bash(go build *)",
+      "Bash(go test *)",
+      "Bash(go run *)",
+      "Bash(go fmt *)",
+      "Bash(go mod *)",
+      "Bash(go vet *)",
+      "Bash(go generate *)",
+
+      "Bash(python *)",
+      "Bash(python3 *)",
+      "Bash(pytest *)",
+      "Bash(pip install *)",
+      "Bash(pip install -r *)",
+      "Bash(uv *)",
+      "Bash(ruff *)",
+      "Bash(black *)",
+      "Bash(mypy *)",
+      "Bash(alembic *)",
+
+      "Bash(make)",
+      "Bash(make *)",
+
+      "Bash(php *)",
+      "Bash(composer *)",
+      "Bash(wp *)",
+
+      "Bash(flutter *)",
+      "Bash(dart *)",
+
+      "Bash(docker build *)",
+      "Bash(docker ps*)",
+      "Bash(docker images*)",
+      "Bash(docker logs *)",
+      "Bash(docker stop *)",
+      "Bash(docker rm *)",
+
+      "Bash(node *)",
+      "Bash(ts-node *)",
+      "Bash(tsx *)",
+      "Bash(npx *)",
+
+      "Bash(norminette*)"
+    ],
+
+    "ask": [
+
+      "Bash(make deploy*)",
+      "Bash(npm run deploy*)",
+      "Bash(cargo publish*)",
+
+      "Bash(psql *)",
+      "Bash(mysql *)",
+      "Bash(mongosh *)",
+      "Bash(redis-cli *)"
+    ],
+
+    "deny": []
+  }
+}

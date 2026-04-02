@@ -1,0 +1,163 @@
+{
+  "_readme": "Global user settings — place at ~/.claude/settings.json. Applies to ALL projects. Never commit this file.",
+
+  "cleanupPeriodDays": 30,
+
+  "permissions": {
+
+    "defaultMode": "default",
+
+    "disableBypassPermissionsMode": "disable",
+
+    "deny": [
+
+      "Bash(rm -rf *)",
+      "Bash(rm -rf /*)",
+      "Bash(rmdir *)",
+
+      "Bash(git push --force*)",
+      "Bash(git push -f*)",
+      "Bash(git reset --hard*)",
+      "Bash(git clean -fd*)",
+
+      "Bash(sudo rm*)",
+      "Bash(sudo chmod*)",
+      "Bash(sudo chown*)",
+      "Bash(sudo dd*)",
+      "Bash(su *)",
+
+      "Bash(curl * | bash)",
+      "Bash(wget * | bash)",
+      "Bash(curl * | sh)",
+      "Bash(wget * | sh)",
+
+      "Bash(chmod 777 *)",
+      "Bash(chmod -R 777 *)",
+
+      "Bash(ssh *)",
+      "Bash(scp *)",
+      "Bash(rsync *)",
+      "Bash(nc *)",
+      "Bash(netcat *)",
+
+      "Bash(kill -9 *)",
+      "Bash(killall *)",
+      "Bash(pkill *)",
+
+      "Bash(crontab *)",
+      "Bash(systemctl *)",
+      "Bash(service *)",
+
+      "Bash(npm install -g *)",
+
+      "Read(**/.env)",
+      "Read(**/.env.*)",
+      "Read(**/secrets/**)",
+      "Read(**/*.pem)",
+      "Read(**/*.key)",
+      "Read(**/*.p12)",
+      "Read(**/*.pfx)",
+      "Read(**/id_rsa*)",
+      "Read(**/id_ed25519*)",
+      "Read(**/.ssh/**)",
+      "Read(**/credentials)",
+      "Read(**/credentials.json)",
+      "Read(**/.aws/credentials)",
+      "Read(**/.azure/**)",
+
+      "Write(**/.env)",
+      "Write(**/.env.*)",
+      "Write(**/secrets/**)",
+      "Write(**/*.pem)",
+      "Write(**/*.key)"
+    ],
+
+    "ask": [
+
+      "Bash(git push *)",
+      "Bash(git push)",
+
+      "Bash(docker run *)",
+      "Bash(docker exec *)",
+      "Bash(docker-compose up*)",
+      "Bash(docker compose up*)",
+
+      "Bash(brew install *)",
+      "Bash(apt install *)",
+      "Bash(apt-get install *)",
+      "Bash(dnf install *)",
+      "Bash(pacman -S *)",
+
+      "WebSearch",
+      "WebFetch"
+    ],
+
+    "allow": [
+
+      "Bash(git status)",
+      "Bash(git log*)",
+      "Bash(git diff*)",
+      "Bash(git branch*)",
+      "Bash(git fetch*)",
+      "Bash(git pull*)",
+      "Bash(git add *)",
+      "Bash(git commit*)",
+      "Bash(git checkout *)",
+      "Bash(git switch *)",
+      "Bash(git stash*)",
+      "Bash(git tag*)",
+      "Bash(git show*)",
+
+      "Bash(ls *)",
+      "Bash(ls)",
+      "Bash(find *)",
+      "Bash(cat *)",
+      "Bash(head *)",
+      "Bash(tail *)",
+      "Bash(grep *)",
+      "Bash(rg *)",
+      "Bash(fd *)",
+      "Bash(wc *)",
+      "Bash(echo *)",
+      "Bash(pwd)",
+      "Bash(which *)",
+      "Bash(type *)",
+      "Bash(env)",
+      "Bash(printenv *)",
+      "Bash(whoami)",
+      "Bash(uname *)",
+
+      "Bash(mkdir -p *)",
+      "Bash(touch *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
+
+      "Bash(jq *)",
+      "Bash(yq *)",
+      "Bash(sed *)",
+      "Bash(awk *)",
+      "Bash(sort *)",
+      "Bash(uniq *)",
+      "Bash(xargs *)",
+      "Bash(tr *)",
+      "Bash(cut *)",
+      "Bash(diff *)",
+
+      "Read(**/*.md)",
+      "Read(**/*.txt)",
+      "Read(**/*.json)",
+      "Read(**/*.yaml)",
+      "Read(**/*.yml)",
+      "Read(**/*.toml)",
+      "Read(**/*.lock)",
+      "Read(**/*.gitignore)",
+      "Read(**/*.dockerignore)",
+      "Read(**/.claudeignore)",
+      "Read(**/Makefile)",
+      "Read(**/Dockerfile*)",
+      "Read(**/docker-compose*)"
+    ],
+
+    "additionalDirectories": []
+  }
+}
