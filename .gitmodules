@@ -1,0 +1,5 @@
+[submodule "skills-external/gstack"]
+	path = skills-external/gstack
+	url = https://github.com/garrytan/gstack.git
+	branch = main
+	shallow = true

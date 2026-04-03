@@ -35,7 +35,42 @@ $ARGUMENTS
 
 ---
 
-### STEP 0 — PLUGIN CHECK
+### STEP 0a — BRANCH SETUP
+
+Load the BRANCH SETUP section from: `.claude/agents/git-workflow.md`
+
+Before anything else, ensure we are NOT on a protected branch.
+
+```bash
+git branch --show-current
+```
+
+**If on `main`, `master`, `develop`, or any protected branch:**
+
+Derive a branch slug from the initial request:
+- Take the first 3–4 meaningful words
+- Lowercase, hyphen-separated
+- Max 50 chars
+
+```bash
+git fetch origin
+git pull origin <current> --ff-only 2>/dev/null || true
+git checkout -b feature/<project-slug>
+```
+
+Print: `✅ Working branch created: feature/<project-slug>`
+
+**If already on a feature branch:**
+Run the CONFLICT-SAFE REBASE procedure from git-workflow.md
+to sync with main before starting.
+
+Print: `✅ Branch: <current> (synced with main)`
+
+**Do not proceed until the branch is clean and ready.**
+
+---
+
+### STEP 0b — PLUGIN CHECK
 
 Load and follow: `.claude/agents/plugin-advisor.md`
 
@@ -53,7 +88,7 @@ B) Type "force" to proceed without them
 ================================================================
 ```
 **STOP. Wait for user response.**
-- Re-run → restart from STEP 0
+- Re-run → restart from STEP 0b
 - "force" → note missing plugins, continue to STEP 1
 
 **If `ACTION REQUIRED: NO`:**
@@ -306,7 +341,8 @@ SYNC mode — no stop required. The readme-updater:
 
 ## RULES
 
-- Never skip STEP 0 — plugin check is mandatory.
+- Never skip STEP 0a — branch setup is mandatory. Never commit on main/master.
+- Never skip STEP 0b — plugin check is mandatory.
 - Never skip STEP 1 — no assumptions about missing info.
 - Never implement without explicit user approval at STEP 4.
 - Never implement without explicit user approval at STEP 7.

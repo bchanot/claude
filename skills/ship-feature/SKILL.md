@@ -33,7 +33,48 @@ $ARGUMENTS
 
 ---
 
-### STEP 0 — PLUGIN CHECK (mandatory gate)
+### STEP 0a — BRANCH SETUP
+
+Load the BRANCH SETUP section from: `.claude/agents/git-workflow.md`
+
+```bash
+git branch --show-current
+```
+
+**If on `main`, `master`, `develop`, or any protected branch:**
+
+Derive a branch slug from the feature request:
+- Take the first 3–4 meaningful words from $ARGUMENTS
+- Lowercase, hyphen-separated, max 50 chars
+- Prefix with `feature/`
+
+```bash
+git fetch origin
+git pull origin <current> --ff-only 2>/dev/null || true
+git checkout -b feature/<feature-slug>
+```
+
+Print: `✅ Working branch created: feature/<feature-slug>`
+
+**If already on a feature/bugfix/hotfix branch:**
+Run the CONFLICT-SAFE REBASE procedure from git-workflow.md
+to sync with the base branch before implementing.
+
+Print: `✅ Branch: <current> (synced)`
+
+**Special case — bugfix on a feature branch:**
+If the user explicitly says "bugfix" or "fix" in the request AND
+the current branch is a feature branch:
+```bash
+git checkout -b bugfix/<bug-slug>
+```
+Creates the bugfix branch FROM the feature branch — correct hierarchy.
+
+**Do not proceed until the branch is clean.**
+
+---
+
+### STEP 0b — PLUGIN CHECK (mandatory gate)
 
 Load and follow: `.claude/agents/plugin-advisor.md`
 
@@ -64,7 +105,7 @@ Options:
 ```
 
 Wait for user response.
-- If user re-runs `/ship-feature` → start from STEP 0 again
+- If user re-runs `/ship-feature` → start from STEP 0a again
 - If user types "force" → note missing plugins and continue to STEP 1
 
 **If the advisor output says `ACTION REQUIRED: NO`:**
@@ -157,9 +198,40 @@ SYNC mode — no stop required. The readme-updater:
 
 ---
 
+### STEP 9 — CREATE PR (optional gate)
+
+Ask the user:
+```
+================================================================
+SHIP FEATURE — PR CREATION
+================================================================
+Feature is implemented, tested, and README is synced.
+
+Create a PR/MR now?
+  yes    → run /git-pr and open a draft PR
+  no     → stop here, you can run /git-pr manually later
+================================================================
+```
+
+**STOP — wait for user response.**
+
+IF yes:
+  Load and follow: `.claude/agents/git-workflow.md`
+  The git-workflow agent will:
+  - Show all changes since branch start (retroactive)
+  - Propose a commit plan for approval
+  - Push and create a draft PR/MR on GitHub/GitLab/Gogs/Gitea
+
+IF no:
+  Print: `✅ Feature shipped. Run /git-pr when ready to open a PR.`
+  Stop.
+
+---
+
 ## RULES
 
-- Never skip STEP 0 — plugin check is mandatory.
+- Never skip STEP 0a — branch setup is mandatory. Never implement on main/master.
+- Never skip STEP 0b — plugin check is mandatory.
 - Never skip brainstorming.
 - Never implement without explicit user approval of the plan.
 - Keep subagents isolated — no shared context between tasks.
