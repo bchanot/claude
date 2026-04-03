@@ -1,281 +1,381 @@
 # claude-config
 
-Global Claude Code configuration — agents, skills, and project templates.
+Global Claude Code configuration — agents, skills, plugins, and project templates.
 
 ---
 
 ## Overview
 
-This repo contains the global Claude Code setup used across all projects.
+This repo is your personal Claude Code setup, versioned and reproducible across machines.
 
 ```
 claude-config/
 ├── CLAUDE.md              # Global coding preferences (style, rules, workflow)
-├── agents/                # Specialized agent definitions (called by skills or orchestrators)
-├── skills/                # Slash commands (/analyze, /debug, /ship-feature, ...)
+├── settings.json          # Global permissions (deny/ask/allow + enabledPlugins)
+├── install-plugins.sh     # One-shot installer: prerequisites + all plugins
+├── link.sh                # Symlinks this repo into ~/.claude/
+├── hooks/
+│   └── session-start.sh   # Shows toggle plugin status at every session start
+├── agents/
+│   ├── analyzer.md        # Factual codebase analysis (read-only)
+│   ├── interviewer.md     # Project questionnaire → PROJECT BRIEF
+│   ├── plugin-advisor.md  # Plugin check: detect mismatches, recommend actions
+│   ├── readme-updater.md  # Update README from git history + codebase
+│   ├── refactorer.md      # Surgical refactoring with norm enforcement
+│   └── scaffolder.md      # Full project generation (CLAUDE.md, README, code)
+├── skills/
+│   ├── analyze/           # /analyze — deep factual analysis
+│   ├── init-project/      # /init-project — full project initialization
+│   ├── plugin-check/      # /plugin-check — check plugin config vs project needs
+│   ├── readme/            # /readme — update README from current state
+│   ├── refactor/          # /refactor — improve code without changing behavior
+│   └── ship-feature/      # /ship-feature — ship a feature end-to-end
 └── templates/
-    └── project-CLAUDE.md  # Template for per-project .claude/CLAUDE.md
+    ├── project-CLAUDE.md  # Template for per-project CLAUDE.md
+    └── settings/
+        ├── home-settings.json    # Template for ~/.claude/settings.json
+        ├── settings.json         # Template for project .claude/settings.json
+        ├── settings.local.json   # Template for personal .claude/settings.local.json
+        ├── .claudeignore         # Template for project .claudeignore
+        └── SETTINGS.md           # Full settings reference
 ```
 
 **Architecture principle:**
-- `skills/` = entry points you invoke manually via `/skill-name`
-- `agents/` = execution units called by skills or by orchestrator agents
-- A skill delegates to one or more agents — it never contains logic itself
+- `skills/` = entry points you invoke via `/skill-name`
+- `agents/` = execution units called by skills (never invoked directly by user)
+- Custom skills use **Superpowers** agents for implementation phases
+- **Plugins** (Superpowers, GStack, GSD, etc.) install separately and complement custom skills
 
 ---
 
-## Installation
-
-Clone the repo and symlink it into `~/.claude/`:
+## Fresh install (new machine)
 
 ```bash
+# 1. Clone this repo
 git clone git@github.com:youruser/claude-config.git ~/claude-config
 
-mkdir -p ~/.claude
-rm -rf ~/claude/agents ~/claude/skills ~/claude/CLAUDE.md ~/claude/settings.json
+# 2. Symlink into ~/.claude/
+cd ~/claude-config && bash link.sh
 
-ln -sf ~/claude-config/agents    ~/.claude/agents
-ln -sf ~/claude-config/skills    ~/.claude/skills
-ln -sf ~/claude-config/CLAUDE.md ~/.claude/CLAUDE.md
-ln -sf ~/claude-config/settings.json ~/.claude/settings.json
+# 3. Install prerequisites + all plugins (detects OS, installs git/Node/Rust/Python)
+bash ~/claude-config/install-plugins.sh
+
+# 4. Add Context7 API key (free at context7.com) — manual step
+claude mcp add --scope user context7 -- npx -y @upstash/context7-mcp --api-key YOUR_KEY
+
+# 5. Restart Claude Code then run /reload-plugins
 ```
 
-Symlinks mean any update to this repo is immediately active — no manual sync needed.
-
-Verify the skills are loaded:
-
-```bash
-claude
-/skills
-```
-
-You should see all custom skills listed (`analyze`, `debug`, `ship-feature`, etc.).
+The install script handles: git, Node.js 22, Rust/Cargo, Python 3, RTK, GStack, GSD,
+and all marketplace plugins on Linux (apt/dnf/pacman) and macOS (brew).
 
 ---
 
 ## Available slash commands
 
+### Custom skills (this repo)
+
 | Command | Description |
 |---|---|
-| `/analyze` | Deep analysis of code or a codebase before any modification |
-| `/architect` | Design a robust and scalable system architecture |
-| `/debug` | Find root cause and fix an issue precisely |
-| `/implement` | Implement a feature following project conventions |
-| `/refactor` | Improve code quality without changing behavior |
-| `/review` | Strict code review with severity-graded issues |
-| `/init-project` | Initialize a complete project from scratch (orchestrator) |
-| `/ship-feature` | Deliver a feature end-to-end via multi-agent pipeline (orchestrator) |
+| `/analyze` | Deep factual analysis of code before any modification |
+| `/refactor` | Improve code quality without changing behavior (strict norms) |
+| `/readme` | Full README audit — diff vs codebase, mandatory stop, surgical updates |
+| `/plugin-check` | Check active plugins vs project needs — recommend enable/disable |
+| `/init-project` | Initialize a complete project from scratch (full orchestrator) |
+| `/ship-feature` | Ship a feature end-to-end with validation gates (full orchestrator) |
 
-Orchestrators (`/init-project`, `/ship-feature`) coordinate multiple agents sequentially with validation gates.
-Standalone skills (`/analyze`, `/debug`, etc.) invoke a single specialized agent.
+### Superpowers skills (auto-invoked or explicit)
+
+| Command | When it auto-activates |
+|---|---|
+| `/superpowers:brainstorm` | When you describe something to build |
+| `/superpowers:write-plan` | After design is approved |
+| `/superpowers:execute-plan` | With an approved plan |
+| `systematic-debugging` | Auto — when debugging |
+| `test-driven-development` | Auto — when implementing |
+| `requesting-code-review` | Auto — after a feature step |
+
+### GStack skills (Garry Tan — full-product projects only)
+
+> Install: `git clone https://github.com/garrytan/gstack ~/.claude/skills/gstack && cd ~/.claude/skills/gstack && ./setup`
+> **Use when:** project has UI + design + deploy + browser QA. Skip for backend/lib/CLI projects.
+
+| Command | Description |
+|---|---|
+| `/office-hours` | Discovery consultant — scope and challenge before code |
+| `/plan-ceo-review` | CEO challenges product scope and feature value |
+| `/plan-eng-review` | Staff engineer locks architecture decisions |
+| `/design-consultation` | Build a design system from scratch |
+| `/design-shotgun` | Generate multiple visual variants for comparison |
+| `/design-html` | Turn approved mockup into production HTML |
+| `/review` | Code review (GStack version) |
+| `/ship` | One-command: test → build → deploy |
+| `/qa` | QA with real Chrome browser automation |
+| `/browse` | Headless Chrome web navigation |
+| `/careful` | Activate safety guardrails |
+| `/freeze` | Lock edits to current directory |
+| `/retro` | Engineering retrospective |
+| `/gstack-upgrade` | Self-update GStack |
+
+### GSD skills (glittercowboy — multi-session large features)
+
+> Install: `npx get-shit-done-cc --claude --global`
+> **Use when:** feature spans multiple days/sessions. Each session starts fresh with full context from previous phases.
+
+| Command | Description |
+|---|---|
+| `/gsd:discuss-phase` | Refine spec for a phase through conversation |
+| `/gsd:plan-phase` | Generate hierarchical phase plan |
+| `/gsd:execute-phase` | Execute phase in an isolated context window |
+| `/gsd:ship` | Create PR from verified work |
+| `/gsd:next` | Auto-advance to the next phase |
+
+### Other plugin commands
+
+| Command | Plugin | Description |
+|---|---|---|
+| `/pr-review-toolkit:review-pr` | pr-review-toolkit | Multi-agent PR review (6 specialized agents) |
+| `/context7:docs <lib>` | context7 | Manual doc lookup for a specific library |
 
 ---
 
-## Agent pipeline (ship-feature)
+## Orchestrators in detail
+
+### `/init-project`
+
+Same rigor as `/ship-feature`. Two validation gates. Full TDD subagent pipeline for v1 features.
+The Scaffolder only creates the skeleton (no features, no README).
+readme-updater handles the README in two passes: CREATE then SYNC.
 
 ```
-/ship-feature <request>
-    └── ship-feature (orchestrator)
-            ├── analyzer    → understand the problem
-            ├── designer    → design the solution
-            ├── [validation gate — waits for user approval]
-            ├── implementer → write the code
-            ├── reviewer    → review loop (max 3 iterations)
-            └── tester      → define test strategy
+/init-project <project idea>
+    │
+    ├── STEP 0:  PLUGIN CHECK (plugin-advisor)        ← blocks if wrong plugins
+    ├── STEP 1:  INTERVIEWER (custom)                 → PROJECT BRIEF
+    ├── STEP 2:  ANALYZER (custom)                    → ANALYSIS REPORT
+    ├── STEP 3:  superpowers:brainstorming             → VALIDATED DESIGN
+    ├── STEP 4:  VALIDATION GATE #1                   → approve architecture
+    ├── STEP 5:  SCAFFOLDER (custom)                  → skeleton only (CLAUDE.md +
+    │                                                    settings + structure +
+    │                                                    empty entry points, NO features,
+    │                                                    NO README)
+    ├── STEP 5b: README-UPDATER create mode (custom)  → CREATE README from CLAUDE.md
+    ├── STEP 6:  superpowers:writing-plans             → decompose v1 features into tasks
+    ├── STEP 7:  VALIDATION GATE #2                   → approve task plan
+    ├── STEP 8:  superpowers:subagent-driven (TDD)    → implement each feature (isolated)
+    ├── STEP 9:  ANALYZER (custom)                    → regression + deviation check
+    ├── STEP 10: superpowers:requesting-review         → full code review
+    ├── STEP 11: superpowers:finishing-branch          → cleanup + build + tests
+    └── STEP 12: README-UPDATER sync mode (custom)    → sync README with implementation
 ```
+
+### `/ship-feature`
+
+```
+/ship-feature <feature description>
+    │
+    ├── STEP 0: PLUGIN CHECK (plugin-advisor) ← blocks if wrong plugins active
+    ├── STEP 1: superpowers:brainstorming     → VALIDATED DESIGN
+    ├── STEP 2: superpowers:writing-plans     → task plan
+    ├── STEP 3: VALIDATION GATE               → user approval required
+    ├── STEP 4: superpowers:subagent-driven   → implementation (TDD)
+    ├── STEP 5: ANALYZER (custom)             → regression / deviation check
+    ├── STEP 6: superpowers:requesting-review → code review
+    └── STEP 7: superpowers:finishing-branch  → cleanup
+```
+
+### `/plugin-check`
+
+Standalone command you can run at any time to audit your plugin config
+against what you're about to do. Also embedded as STEP 0 in both orchestrators.
+
+```
+/plugin-check "I want to build a React + FastAPI SaaS"
+
+→ Detects active plugins
+→ Analyzes signals: frontend? design? QA? multi-session? fast-evolving libs?
+→ Produces recommendation table
+→ Blocks with OPTIONS if critical plugins are missing
+→ Or confirms "proceed" if config is optimal
+```
+
+---
+
+## Plugins reference
+
+All plugins below are installed by `install-plugins.sh`.
+
+### Quick reference
+
+The mechanism: Claude Code loads every active skill's **description** into a shared context budget
+at session start (default 8000 chars). Even if you never invoke the skill, its description
+is already consuming tokens. **Disabling a plugin prevents its descriptions from loading entirely.**
+
+A `hooks/session-start.sh` hook shows the current toggle status at the start of every session.
+Run `/plugin-check` anytime to get a full recommendation for the current project type.
+
+| Plugin | Status | Passive cost | When to toggle ON | Installed by |
+|---|---|---|---|---|
+| **security-guidance** | ✅ ALWAYS ON | 0 tokens (hook only) | — | marketplace |
+| **RTK** | ✅ ALWAYS ON | 0 tokens (hook only) | — | cargo + rtk init |
+| **Superpowers** | ✅ ALWAYS ON | ~600–1000 tokens | — auto-activates when relevant | marketplace |
+| **skill-creator** | ✅ ALWAYS ON | ~100 tokens | — | marketplace |
+| **pr-review-toolkit** | ✅ ALWAYS ON | ~300 tokens | — use `/pr-review-toolkit:review-pr` | marketplace |
+| **GStack** | 🔄 TOGGLE | ~2500–3000 tokens | Full-product: UI + design + deploy + browser QA | git clone |
+| **GSD** | 🔄 TOGGLE | ~500–800 tokens | Feature spanning multiple days/sessions | npx |
+| **frontend-design** | 🔄 TOGGLE | ~200 tokens | Any project with a UI | marketplace |
+| **ui-ux-pro-max** | 🔄 TOGGLE | ~400 tokens | Design system, color/typography choices | marketplace |
+| **Context7 MCP** | 🔄 TOGGLE | ~200 tokens | Fast-evolving libs (Next.js, React, Prisma…) | MCP manual |
+
+**Rule:** toggle plugins are OFF by default. `/plugin-check` signals when to enable them.
+If you use `/init-project` or `/ship-feature`, plugin-check runs automatically as STEP 0.
+
+### Disabling a plugin for a specific project
+
+```bash
+# In Claude Code
+/plugin
+# → Find the plugin → toggle off for this scope
+```
+
+Or in the project's `.claude/settings.json`:
+```json
+{
+  "enabledPlugins": {
+    "gstack@gstack": false,
+    "gsd@gsd": false
+  }
+}
+```
+
+### Enabling a plugin for a specific project (so teammates can install it)
+
+```json
+{
+  "enabledPlugins": {
+    "ui-ux-pro-max@ui-ux-pro-max-skill": true
+  },
+  "extraKnownMarketplaces": {
+    "ui-ux-pro-max-skill": {
+      "source": {
+        "source": "github",
+        "repo": "nextlevelbuilder/ui-ux-pro-max-skill"
+      }
+    }
+  }
+}
+```
+
+---
 
 ## Settings and permissions
 
-Claude Code uses three settings files to control what it can and cannot do.
-Each file has a different scope and purpose.
-
-### `~/.claude/settings.json` — global rules (all projects)
-
-**What it contains and why:**
-
-| Section | What it blocks / controls |
-|---|---|
-| `deny` — secrets | Prevents Claude from reading `.env`, `.pem`, `.key`, SSH keys, cloud credentials |
-| `deny` — destructive Bash | Blocks `rm -rf`, `git push --force`, `git reset --hard`, `chmod 777` |
-| `deny` — system access | Blocks `sudo`, `ssh`, `scp`, `netcat`, `crontab`, `systemctl` |
-| `deny` — code injection | Blocks `curl \| bash`, `wget \| sh` patterns |
-| `ask` — risky but needed | Prompts before `git push`, `docker run`, `brew/apt install` |
-| `allow` — safe read ops | Auto-approves `git status/log/diff`, `ls`, `cat`, `grep`, `find` |
-| `disableBypassPermissionsMode` | Prevents switching to "no prompts at all" mode mid-session |
-
-These rules apply to every project on your machine. They cannot be
-overridden by project-level settings — **deny always wins globally**.
-
----
-
-### `.claude/settings.json` — project rules (committed to git)
-
-Copy the project template into each new project:
-
-```bash
-mkdir -p .claude
-cp ~/claude-config/templates/settings/settings.json .claude/settings.json
-```
-
-**What it contains and why:**
-
-| Section | What it allows / controls |
-|---|---|
-| `allow` — build commands | Auto-approves `npm run *`, `cargo build/test`, `make`, `pytest`, `flutter *`, etc. |
-| `allow` — language tools | Auto-approves formatters, linters, type checkers (ruff, mypy, clippy...) |
-| `allow` — runtime commands | Auto-approves `node`, `python`, `php`, `dart` within the project |
-| `ask` — database commands | Prompts before `psql`, `mysql`, `mongosh`, `redis-cli` |
-| `ask` — deploy commands | Prompts before `make deploy`, `npm run deploy`, `cargo publish` |
-
-Only put project-specific rules here. Generic security rules belong
-in `~/.claude/settings.json`, not repeated per project.
-
-Shared with the team via git — keep it stack-appropriate and avoid
-personal paths or machine-specific commands.
-
----
-
-### `.claude/settings.local.json` — personal overrides (never committed)
-
-Copy the template and add to `.gitignore`:
-
-```bash
-cp ~/claude-config/templates/settings/settings.local.json .claude/settings.local.json
-echo ".claude/settings.local.json" >> .gitignore
-```
-
-**What it contains and why:**
-
-| Section | What it controls |
-|---|---|
-| `allow` — trusted WebFetch | Auto-approves fetching from specific doc domains (docs.rs, MDN, flutter.dev...) |
-| `additionalDirectories` | Grants Claude access to directories outside the project root (personal shared libs, etc.) |
-| Personal overrides | Any rule you want on your machine that shouldn't affect teammates |
-
-This file has the highest priority of all file-based settings.
-Use it for anything environment-specific or personal.
-
----
-
-### `.claudeignore` — hard file exclusion (committed to git)
-
-Copy to each project root:
-
-```bash
-cp ~/claude-config/templates/settings/.claudeignore .claudeignore
-```
-
-**What it does and why it is different from `deny` rules:**
-
-`deny` rules in `settings.json` block specific tools from accessing files.
-`.claudeignore` goes further — it removes files from Claude's awareness
-entirely, regardless of which tool is used.
-
-| Excluded by default | Why |
-|---|---|
-| `.env`, `.env.*` | Secrets must never appear in Claude's context |
-| `*.pem`, `*.key`, `*.p12` | Private keys and certificates |
-| `id_rsa*`, `id_ed25519*`, `.ssh/` | SSH credentials |
-| `.aws/`, `.azure/`, `.gcloud/` | Cloud provider credentials |
-| `node_modules/`, `dist/`, `build/` | Generated artifacts — noise, no value |
-| `*.png`, `*.jpg`, `*.pdf`, `*.zip`... | Binaries Claude cannot process usefully |
-| `*.log`, `*.sqlite`, `*.db` | Runtime state, not source |
-
-A `.env` file excluded via `.claudeignore` cannot be read by Claude even
-if a `Bash(cat .env)` would otherwise be allowed. Use both layers for
-defense in depth.
-
----
-
-### Precedence summary
+### File hierarchy
 
 ```
 Highest
-  managed-settings.json   — enterprise-wide, cannot be overridden
-  CLI flags               — --allowedTools / --disallowedTools (session only)
-  settings.local.json     — personal machine overrides
-  settings.json           — project rules (team, committed)
-  ~/.claude/settings.json — global user rules
+  managed-settings.json        — enterprise, cannot be overridden
+  CLI flags                    — --allowedTools / --disallowedTools (session only)
+  .claude/settings.local.json  — personal machine overrides (gitignored)
+  .claude/settings.json        — project rules (committed to project repo)
+  ~/.claude/settings.json      — global user rules (this repo's settings.json)
 Lowest
 
 DENY always wins over ALLOW at any level.
 .claudeignore applies independently of all permission rules.
 ```
 
----
+### Global settings (this repo's `settings.json`)
 
----
+| Section | Purpose |
+|---|---|
+| `deny` — secrets | Blocks `.env`, `.pem`, `.key`, SSH keys, cloud credentials |
+| `deny` — destructive | Blocks `rm -rf`, `git push --force`, `chmod 777` |
+| `deny` — system | Blocks `sudo`, `ssh`, `scp`, `crontab`, `systemctl` |
+| `deny` — injection | Blocks `curl \| bash`, `wget \| sh` |
+| `ask` — risky | Prompts before `git push`, `docker run`, package managers |
+| `allow` — safe reads | Auto-approves git read-only, `ls`, `cat`, `grep`, `find` |
+| `disableBypassPermissionsMode` | Prevents YOLO mode globally |
 
-
-## Per-project setup
-
-Each project gets its own `.claude/CLAUDE.md` for local context and overrides.
+### Per-project setup
 
 ```bash
-# In your project root
+cd your-project
 mkdir -p .claude
+
+# Project settings (commit to project git)
+cp ~/claude-config/templates/settings/settings.json .claude/settings.json
+
+# Personal overrides (never commit — gitignore it)
+cp ~/claude-config/templates/settings/settings.local.json .claude/settings.local.json
+echo ".claude/settings.local.json" >> .gitignore
+
+# Hard file exclusions (commit to project git)
+cp ~/claude-config/templates/settings/.claudeignore .claudeignore
+
+# Project CLAUDE.md (commit to project git)
 cp ~/claude-config/templates/project-CLAUDE.md .claude/CLAUDE.md
 ```
-
-Then fill in the relevant sections: build commands, test commands, conventions,
-architecture, and any exceptions to global rules.
-
-**Override rules:**
-- Local `.claude/` takes precedence over global `~/.claude/` for identical filenames
-- Files not defined locally fall back to global automatically
-- Use local overrides only for project-specific deviations — keep global rules generic
 
 ---
 
 ## Updating
 
+### This repo
 ```bash
-cd ~/claude-config
-git pull
+cd ~/claude-config && git pull
+# Symlinks → changes active immediately
 ```
 
-Changes are immediately active via symlinks. No restart needed for agents and skills
-(Claude Code reloads them at the start of each session).
+### GStack
+```bash
+/gstack-upgrade        # inside Claude Code
+# or manually:
+git -C ~/.claude/skills/gstack pull && cd ~/.claude/skills/gstack && ./setup
+```
+
+### Marketplace plugins
+```bash
+/plugin marketplace update    # inside Claude Code
+```
+
+### RTK
+```bash
+cargo install --git https://github.com/rtk-ai/rtk --force
+```
 
 ---
 
-## Adding a new skill or agent
+## Adding a new custom skill
 
-**New standalone skill** (single agent):
-
-1. Create `agents/myagent.md` — define role, tasks, rules, output format
-2. Create `skills/myskill.md`:
+1. Create `agents/myagent.md` — role, tasks, rules, output format
+2. Create `skills/myskill/SKILL.md`:
 
 ```markdown
 ---
 name: myskill
-description: One-line description of what this skill does
-argument-hint: <what to pass as argument>
+description: What this skill does — front-load the key use case (max 250 chars)
+argument-hint: <what to pass>
+disable-model-invocation: true
 ---
 
 Load and follow strictly:
 - .claude/agents/myagent.md
 
-Execute the MYAGENT agent on the following request:
+Execute MYAGENT on:
 
 $ARGUMENTS
 ```
 
-**New orchestrator skill** (multiple agents):
-
-1. Create `agents/myorchestrator.md` — define the workflow and agent call sequence
-2. Create `skills/myorchestrator.md` referencing all involved agents
+3. Or use `/skill-creator` to generate a skill from conversation.
 
 ---
 
-## Extending per project
+## Per-project agent overrides
 
-If a project needs a modified version of an agent, place it in `.claude/agents/`:
+Override any global agent for a specific project:
 
 ```bash
-# Override the implementer for a specific project
-cp ~/claude-config/agents/implementer.md .claude/agents/implementer.md
-# Edit to add project-specific constraints
+cp ~/claude-config/agents/refactorer.md .claude/agents/refactorer.md
+# Edit .claude/agents/refactorer.md — the local version takes precedence
 ```
-
-The local version takes precedence. All other agents continue to load from global.

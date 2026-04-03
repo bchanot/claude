@@ -1,6 +1,6 @@
 ---
 name: init-project
-description: Initialize a complete project from scratch. Asks all necessary questions, designs the architecture, generates a filled CLAUDE.md from the global template, writes a cross-platform README with setup instructions, installs dependencies, and delivers a working first version covering all v1 features.
+description: Initialize a complete project from scratch. Plugin check → interview → analyze → design → validate → scaffold skeleton → plan v1 features → validate plan → implement (TDD, subagents) → analyze → review → finish. Same implementation rigor as ship-feature.
 argument-hint: <project idea or description>
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
@@ -8,15 +8,20 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 
 # ORCHESTRATOR: INIT PROJECT
 
-## AGENTS LOADED
+## AGENTS AND SKILLS LOADED
 
-Load and follow strictly:
-- .claude/agents/interviewer.md
-- .claude/agents/analyzer.md
-- .claude/agents/designer.md
-- .claude/agents/scaffolder.md
-- .claude/agents/reviewer.md
-- .claude/agents/tester.md
+Custom agents (this config):
+- .claude/agents/plugin-advisor.md   ← plugin configuration check
+- .claude/agents/interviewer.md      ← project questionnaire
+- .claude/agents/analyzer.md         ← risk/constraint analysis
+- .claude/agents/scaffolder.md       ← project skeleton (NO features, skeleton only)
+
+Superpowers skills (design + implementation):
+- superpowers:brainstorming                 ← architecture design
+- superpowers:writing-plans                 ← v1 feature decomposition
+- superpowers:subagent-driven-development   ← isolated TDD implementation
+- superpowers:requesting-code-review        ← final review
+- superpowers:finishing-a-development-branch ← cleanup + verification
 
 ---
 
@@ -30,66 +35,91 @@ $ARGUMENTS
 
 ---
 
+### STEP 0 — PLUGIN CHECK
+
+Load and follow: `.claude/agents/plugin-advisor.md`
+
+Feed it the initial request above.
+
+**If `ACTION REQUIRED: YES`:**
+```
+================================================================
+⚠️  PLUGIN CHECK — ACTION REQUIRED
+================================================================
+[paste full RECOMMENDATIONS block]
+----------------------------------------------------------------
+A) Enable recommended plugins then re-run /init-project
+B) Type "force" to proceed without them
+================================================================
+```
+**STOP. Wait for user response.**
+- Re-run → restart from STEP 0
+- "force" → note missing plugins, continue to STEP 1
+
+**If `ACTION REQUIRED: NO`:**
+Print one line and continue:
+`✅ Plugin check passed — [active plugins]`
+
+---
+
 ### STEP 1 — INTERVIEWER
 
-Run the INTERVIEWER agent.
+Load and follow: `.claude/agents/interviewer.md`
 
-Using the initial request above as a starting point:
-- Identify which information is already clearly provided.
-- Ask only what is genuinely missing or ambiguous.
-- Present all remaining questions in a single structured block.
+Identify what is already provided in the initial request.
+Ask only what is genuinely missing. Single structured block of questions.
 
-**MANDATORY STOP — do not continue until the user has answered.**
+**MANDATORY STOP — do not continue until user has answered.**
 
-After receiving answers, produce the PROJECT BRIEF as defined
-in interviewer.md. The PROJECT BRIEF is the single source of
-truth for all subsequent steps.
+Produce the PROJECT BRIEF. This is the single source of truth
+for all subsequent steps.
 
 ---
 
 ### STEP 2 — ANALYZER
 
-Run the ANALYZER agent on the PROJECT BRIEF.
+Load and follow: `.claude/agents/analyzer.md`
 
-Focus on:
-- Existing repo or code to integrate (if any)
+Analyze the PROJECT BRIEF:
+- Existing repo or code to integrate
 - Stack constraints and compatibility issues
-- Infrastructure or environment constraints
+- Infrastructure constraints
 - Risks that could affect the design
-- Any open decisions listed in the PROJECT BRIEF
+- Open decisions from the PROJECT BRIEF
 
-Output an ANALYSIS REPORT.
+Produce an ANALYSIS REPORT.
 
 ---
 
-### STEP 3 — DESIGNER
+### STEP 3 — ARCHITECTURE DESIGN
 
-Run the DESIGNER agent using the PROJECT BRIEF and ANALYSIS REPORT.
+Invoke skill: `superpowers:brainstorming`
+
+Feed it the PROJECT BRIEF + ANALYSIS REPORT.
 
 Produce a complete DESIGN covering:
-- Final tech stack with exact versions
+- Finalized tech stack with exact versions
 - Complete folder structure (full tree)
 - Module responsibilities and data flow
-- Key interfaces and data models
-- Config and tooling setup (lint, format, CI)
-- Test strategy and tooling
+- Key interfaces and data models (signatures only — no implementation)
+- Config and tooling setup
+- Test strategy
 - Any open decisions resolved with justification
-- Prerequisites list (what must be installed on the dev machine)
+- Prerequisites list (what must be installed on dev machine)
 
 ---
 
-### STEP 4 — VALIDATION GATE
+### STEP 4 — VALIDATION GATE #1 — ARCHITECTURE
 
-**MANDATORY STOP — present the following to the user and wait
-for explicit approval before proceeding.**
+**MANDATORY STOP — present to the user and wait for approval.**
 
 ```
 ================================================================
-INIT PROJECT — VALIDATION GATE
+INIT PROJECT — ARCHITECTURE VALIDATION
 ================================================================
 
-PROJECT BRIEF SUMMARY
----------------------
+PROJECT SUMMARY
+---------------
 <3–5 line recap of what will be built>
 
 STACK
@@ -106,7 +136,8 @@ FOLDER STRUCTURE
 
 V1 FEATURES TO IMPLEMENT
 -------------------------
-<numbered list from PROJECT BRIEF>
+<numbered list from PROJECT BRIEF — these will be implemented
+ in the pipeline AFTER the skeleton is scaffolded>
 
 CONVENTIONS
 -----------
@@ -117,135 +148,172 @@ EXCEPTIONS TO GLOBAL RULES
 <list or "none">
 
 ================================================================
-Approve this plan? (yes / request changes)
+Approve this architecture? (yes / request changes)
 ================================================================
 ```
 
-IF user requests changes:
-- Return to STEP 3 (DESIGNER) with the feedback.
-- Repeat STEP 4.
-
-IF approved → proceed to STEP 5.
+IF changes → return to STEP 3.
+IF approved → proceed.
 
 ---
 
-### STEP 5 — SCAFFOLDER
+### STEP 5 — SCAFFOLD SKELETON
 
-Run the SCAFFOLDER agent with:
-- The full PROJECT BRIEF
-- The approved DESIGN
-- Reference to `~/.claude/templates/project-CLAUDE.md`
-- Reference to `~/.claude/CLAUDE.md`
+Load and follow: `.claude/agents/scaffolder.md`
 
-The SCAFFOLDER will, in order:
+Pass to the scaffolder:
+- Full PROJECT BRIEF
+- Approved DESIGN
+- `~/.claude/templates/project-CLAUDE.md`
+- `~/.claude/CLAUDE.md`
 
-1. **Generate CLAUDE.md** — fill the global template with real
-   content from the PROJECT BRIEF. No placeholders. No examples.
+The scaffolder creates:
+1. `CLAUDE.md` — filled from global template, no placeholders
+2. `.claude/settings.json` — adapted to this stack
+3. `.claudeignore` — extended for this project
+4. Complete folder structure
+5. Config files (package.json, Cargo.toml, etc.)
+6. Empty entry points and module files (structure only, no business logic)
+7. `.gitignore`, `.env.example`
 
-2. **Generate README.md** — cross-platform setup instructions
-   (Windows / Linux / macOS) covering:
-   - All prerequisites with exact versions and install commands
-   - Step-by-step installation
-   - How to run in development and production
-   - How to run tests
-   - Environment configuration
+**The scaffolder does NOT create the README and does NOT implement any features.**
+README is handled by readme-updater (STEP 5b).
+Features are handled by the implementation pipeline (STEPs 6–9).
 
-3. **Generate Claude Code settings** — create `.claude/` with:
-
-   a. **`.claude/settings.json`** — from `~/.claude/templates/settings/settings.json`.
-      Adapt the `allow` rules to the actual project stack:
-      - Keep only the tool blocks relevant to this stack
-      - Add any stack-specific commands not already in the template
-      - Add project-specific `ask` rules (deploy targets, DB commands)
-      - Leave `deny` empty — global deny rules live in `~/.claude/settings.json`
-
-   b. **`.claudeignore`** — from `~/.claude/templates/settings/.claudeignore`.
-      Extend with project-specific exclusions:
-      - Stack-specific build artifacts not already covered
-      - Sensitive file patterns specific to this project
-      - Directories identified in the DESIGN as generated or cache
-
-   c. After creating these files, print:
-      ```
-      ⚙️  SETTINGS SETUP
-      .claude/settings.json  created — project-level permissions
-      .claudeignore          created — file exclusions for Claude
-
-      Manual step required:
-      Copy ~/.claude/templates/settings/settings.local.json
-      to .claude/settings.local.json and add it to .gitignore.
-      This file is personal and must not be committed.
-      ```
-
-4. **Scaffold structure** — create every folder and file from
-   the DESIGN with real content.
-
-5. **Implement v1 features** — real working code for every
-   feature in the PROJECT BRIEF. No stubs. No TODOs.
-
-6. **Write initial tests** — at minimum one happy path and one
-   edge case per module.
-
-7. **Install and build** — actually run the install command,
-   build, and test suite. Fix any failures before reporting.
+The scaffolder must verify: `git init` + build passes on empty project.
 
 ---
 
-### STEP 6 — REVIEWER
+### STEP 5b — CREATE README
 
-Run the REVIEWER agent on the scaffolded project.
+Load and follow: `.claude/agents/readme-updater.md`
 
-Review scope:
-- Structure coherence vs approved DESIGN
+Context: `README.md` does not exist yet → CREATE mode activates automatically.
+
+The readme-updater reads `CLAUDE.md`, the folder structure, and manifests
+to generate the full README (About, Prerequisites with OS-specific install
+commands, Installation, Running, Project structure, Configuration, Contributing).
+
+No stop required — prints confirmation and continues immediately.
+
+---
+
+### STEP 6 — PLAN V1 FEATURES
+
+Invoke skill: `superpowers:writing-plans`
+
+Using the PROJECT BRIEF v1 features list and the scaffolded skeleton as context:
+- Break each v1 feature into granular tasks (2–5 min each)
+- Each task must reference exact file paths from the scaffolded structure
+- Each task must include: what to implement, expected behavior, verification steps
+- Apply TDD: tests are written before implementation code
+
+---
+
+### STEP 7 — VALIDATION GATE #2 — IMPLEMENTATION PLAN
+
+**MANDATORY STOP — present the plan to the user.**
+
+```
+================================================================
+INIT PROJECT — IMPLEMENTATION PLAN VALIDATION
+================================================================
+
+SKELETON STATUS : ✅ build passes
+V1 FEATURES     : <N> features → <M> tasks
+
+<numbered task list with file paths>
+
+================================================================
+Approve this plan and start implementation? (yes / request changes)
+================================================================
+```
+
+IF changes → return to STEP 6.
+IF approved → proceed.
+
+---
+
+### STEP 8 — IMPLEMENT V1 FEATURES
+
+Invoke skill: `superpowers:subagent-driven-development`
+
+Execute each task with isolated subagents.
+Mandatory TDD: `superpowers:test-driven-development` applies.
+Two-stage review per task: spec compliance → code quality.
+
+Each subagent works on a clean context with:
+- The task description
+- Relevant file paths
+- PROJECT BRIEF context
+- CLAUDE.md conventions
+
+---
+
+### STEP 9 — ANALYZE
+
+Load and follow: `.claude/agents/analyzer.md`
+
+Run the ANALYZER on the completed implementation:
+- Verify no regressions
+- Verify no plan deviations
+- Verify no stale scaffold code left (empty files not yet populated)
+- Verify conventions are respected
+
+---
+
+### STEP 10 — CODE REVIEW
+
+Invoke skill: `superpowers:requesting-code-review`
+
+Full review scope:
 - Code quality vs CLAUDE.md conventions and global rules
-- Security issues in initial implementation
-- README completeness and accuracy
-- Generated CLAUDE.md completeness (no placeholder left)
+- Security issues
 - Missing or incomplete v1 features
+- README accuracy
+- Generated CLAUDE.md completeness (no placeholder remaining)
+- Test coverage
+
+Fix all CRITICAL issues before proceeding.
 
 ---
 
-### STEP 7 — FIX LOOP
+### STEP 11 — FINISH
 
-Maximum 3 iterations.
+Invoke skill: `superpowers:finishing-a-development-branch`
 
-IF CRITICAL issues found:
-- Run SCAFFOLDER with the list of issues to fix.
-- Run REVIEWER again.
-- Increment iteration counter.
-
-IF counter > 3:
-- STOP.
-- Present blocking issues to the user and ask how to proceed.
-
-IF only IMPORTANT or MINOR issues:
-- Proceed to STEP 8.
-- List all remaining issues in the final output.
+Verify:
+- All tests pass
+- Build is clean
+- No leftover scaffold placeholders
+- Initial commit prepared
 
 ---
 
-### STEP 8 — TESTER
+### STEP 12 — SYNC README
 
-Run the TESTER agent on the scaffolded project.
+Load and follow: `.claude/agents/readme-updater.md`
 
-Produce:
-- Verification that existing tests cover v1 features
-- Additional test cases for identified edge cases
-- Regression risk assessment
-- Confirmation that the test command in CLAUDE.md is correct
+Context: call with argument "sync".
+
+SYNC mode — no stop required. The readme-updater:
+- Detects any drift between README and the implemented code
+- Updates commands, env vars, folder structure if changed during implementation
+- Adds a `## Recent changes` entry summarizing v1 features
+- Prints one-line confirmation
 
 ---
 
 ## RULES
 
-- Never skip the INTERVIEWER step.
-- Never start design or implementation with unanswered questions.
-- Never implement without explicit user approval of the DESIGN.
-- The generated CLAUDE.md must be complete — no placeholders.
-- The README must work on Windows, Linux, and macOS.
-- The first version must install, build, and run.
-  A broken scaffold is not acceptable output.
-- Keep agents isolated in their responsibilities.
+- Never skip STEP 0 — plugin check is mandatory.
+- Never skip STEP 1 — no assumptions about missing info.
+- Never implement without explicit user approval at STEP 4.
+- Never implement without explicit user approval at STEP 7.
+- The scaffolder only creates the skeleton — zero business logic.
+- All feature implementation goes through the subagent pipeline (STEP 8).
+- Apply CLAUDE.md norms throughout.
+- A broken skeleton or a broken build is not acceptable output.
 
 ---
 
@@ -256,11 +324,10 @@ Produce:
 PROJECT INITIALIZED: <project name>
 ================================================================
 
-LOCATION         : <project root path>
-STACK            : <finalized stack>
-INSTALL          : ✅ / ❌ <error>
-BUILD            : ✅ / ❌ <error>
-TESTS            : ✅ <N> passing / ❌ <detail>
+LOCATION    : <project root>
+STACK       : <finalized stack>
+BUILD       : ✅ / ❌ <e>
+TESTS       : ✅ <N> passing / ❌ <detail>
 
 V1 FEATURES
 -----------
@@ -270,19 +337,14 @@ V1 FEATURES
 
 REMAINING ISSUES
 ----------------
-<IMPORTANT and MINOR issues from reviewer, or "none">
+<IMPORTANT and MINOR issues, or "none">
 
 QUICK START
 -----------
-<exact commands to get the project running right now>
+<exact commands to run the project right now>
 
-NEXT STEPS
-----------
-1. <recommended first action>
-2. <recommended second action>
-
-CLAUDE.md        : ✅ complete
-README.md        : ✅ Windows / Linux / macOS
-SETTINGS         : ✅ .claude/settings.json + .claudeignore generated
+CLAUDE.md  : ✅ complete
+README.md  : ✅ created (STEP 5b) + synced (STEP 12)
+SETTINGS   : ✅ .claude/settings.json + .claudeignore generated
 ================================================================
 ```

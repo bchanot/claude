@@ -1,9 +1,25 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# Symlink this repo into ~/.claude/
+# Run once after cloning on a new machine.
 
-mkdir -p ~/.claude
-rm -rf ~/claude/agents ~/claude/skills ~/claude/CLAUDE.md ~/claude/settings.json
+set -euo pipefail
 
-ln -sf ~/claude-config/agents    ~/.claude/agents
-ln -sf ~/claude-config/skills    ~/.claude/skills
-ln -sf ~/claude-config/CLAUDE.md ~/.claude/CLAUDE.md
-ln -sf ~/claude-config/settings.json ~/.claude/settings.json
+REPO="$(cd "$(dirname "$0")" && pwd)"
+CLAUDE="$HOME/.claude"
+
+mkdir -p "$CLAUDE"
+
+# Core config files
+ln -sf "$REPO/CLAUDE.md"      "$CLAUDE/CLAUDE.md"
+ln -sf "$REPO/settings.json"  "$CLAUDE/settings.json"
+
+# Agents and skills
+ln -sf "$REPO/agents"    "$CLAUDE/agents"
+ln -sf "$REPO/skills"    "$CLAUDE/skills"
+
+# Hooks
+mkdir -p "$CLAUDE/hooks"
+ln -sf "$REPO/hooks/session-start.sh" "$CLAUDE/hooks/session-start.sh"
+
+echo "✅ Symlinks created in ~/.claude/"
+echo "   Run: bash install-plugins.sh"

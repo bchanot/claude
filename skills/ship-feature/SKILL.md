@@ -1,6 +1,6 @@
 ---
 name: ship-feature
-description: Ship a feature end-to-end via multi-agent orchestration. Analyze → Design → Validate → Implement → Review → Test.
+description: Ship a feature end-to-end using the Superpowers workflow. Starts with a plugin check, then Brainstorm → Plan → Implement (subagent-driven) → Review → Finish branch.
 argument-hint: <feature description>
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
@@ -8,16 +8,22 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 
 # ORCHESTRATOR: SHIP FEATURE
 
-Load and follow strictly:
-- .claude/agents/analyzer.md
-- .claude/agents/designer.md
-- .claude/agents/implementer.md
-- .claude/agents/reviewer.md
-- .claude/agents/tester.md
+## AGENTS AND SKILLS LOADED
+
+Custom agents (this config):
+- .claude/agents/plugin-advisor.md   ← plugin configuration check
+- .claude/agents/analyzer.md         ← post-implementation verification
+
+Superpowers skills:
+- superpowers:brainstorming
+- superpowers:writing-plans
+- superpowers:subagent-driven-development
+- superpowers:requesting-code-review
+- superpowers:finishing-a-development-branch
 
 ---
 
-## FEATURE
+## FEATURE REQUEST
 
 $ARGUMENTS
 
@@ -25,61 +31,153 @@ $ARGUMENTS
 
 ## WORKFLOW
 
-### 1. ANALYZER
-Analyze the existing context relevant to the feature.
+---
 
-### 2. DESIGNER
-Design the solution based on the analysis.
+### STEP 0 — PLUGIN CHECK (mandatory gate)
 
-### 3. VALIDATION GATE — MANDATORY STOP
-- Present the design clearly to the user
-- Ask for explicit approval
-- **DO NOT CONTINUE without a response**
+Load and follow: `.claude/agents/plugin-advisor.md`
 
-IF changes requested:
-- Call DESIGNER with feedback
-- Repeat validation
+Feed it the feature request above as context for signal detection.
 
-IF approved → continue
+The advisor will:
+1. Detect which plugins are currently active
+2. Analyze the feature description for signals
+3. Produce a recommendation table
 
-### 4. IMPLEMENTER
-Implement according to the validated design.
+**If the advisor output says `ACTION REQUIRED: YES`:**
 
-### 5. REVIEWER
-Strict review of the produced code.
+Print this block and STOP COMPLETELY:
 
-### 6. FIX LOOP — max 3 iterations
+```
+================================================================
+⚠️  PLUGIN CHECK — ACTION REQUIRED
+================================================================
 
-IF CRITICAL issues:
-- Call IMPLEMENTER with fixes
-- Call REVIEWER again
-- Increment iteration counter
+[paste the full RECOMMENDATIONS block from the advisor]
 
-IF counter > 3:
-- STOP
-- Escalate to user with blocking issues
+----------------------------------------------------------------
+Options:
+  A) Enable the recommended plugins, then re-run /ship-feature
+  B) Type "force" to proceed without the recommended plugins
+     (you will miss capabilities — see warnings above)
+================================================================
+```
 
-IF only IMPORTANT or MINOR issues:
-- Continue but list them in final output
+Wait for user response.
+- If user re-runs `/ship-feature` → start from STEP 0 again
+- If user types "force" → note missing plugins and continue to STEP 1
 
-### 7. TESTER
-Generate and run tests for the feature.
+**If the advisor output says `ACTION REQUIRED: NO`:**
+Print one line and continue immediately:
+```
+✅ Plugin check passed — [active plugins in one line]
+```
+
+---
+
+### STEP 1 — BRAINSTORM
+Invoke skill: `superpowers:brainstorming`
+
+Refine the feature request into a validated design through
+Socratic questioning. Do not proceed until the design is approved.
+
+---
+
+### STEP 2 — PLAN
+Invoke skill: `superpowers:writing-plans`
+
+Break the approved design into granular tasks (2–5 min each).
+Each task must have: exact file paths, complete code, verification steps.
+
+---
+
+### STEP 3 — VALIDATION GATE
+
+**MANDATORY STOP — present the plan to the user.**
+
+```
+================================================================
+SHIP FEATURE — VALIDATION GATE
+================================================================
+FEATURE  : <name>
+TASKS    : <count>
+<numbered task list>
+================================================================
+Approve and execute? (yes / request changes)
+================================================================
+```
+
+IF changes → return to STEP 2.
+IF approved → proceed.
+
+---
+
+### STEP 4 — IMPLEMENT
+Invoke skill: `superpowers:subagent-driven-development`
+
+Execute each task with isolated subagents.
+Two-stage review per task: spec compliance → code quality.
+
+---
+
+### STEP 5 — ANALYZE (custom)
+Load and follow: `.claude/agents/analyzer.md`
+
+Run the ANALYZER on the produced implementation.
+Verify no regressions, no stale code, no plan deviations.
+
+---
+
+### STEP 6 — CODE REVIEW
+Invoke skill: `superpowers:requesting-code-review`
+
+Dispatch the code-reviewer agent on the full implementation.
+Fix any CRITICAL issues before proceeding.
+
+---
+
+### STEP 7 — FINISH BRANCH
+Invoke skill: `superpowers:finishing-a-development-branch`
+
+Verify all tests pass, cleanup, prepare for merge.
+
+---
+
+### STEP 8 — SYNC README
+
+Load and follow: `.claude/agents/readme-updater.md`
+
+Context: call with argument "sync".
+
+SYNC mode — no stop required. The readme-updater:
+- Detects any drift between README and the new feature
+- Updates commands, env vars, folder structure if changed
+- Adds a `## Recent changes` entry with the shipped feature
+- Prints one-line confirmation
 
 ---
 
 ## RULES
 
-- Never skip analysis
-- Never skip validation
-- Never implement without approval
-- Keep agents isolated in their responsibilities
-- Enforce CLAUDE.md norms strictly
+- Never skip STEP 0 — plugin check is mandatory.
+- Never skip brainstorming.
+- Never implement without explicit user approval of the plan.
+- Keep subagents isolated — no shared context between tasks.
+- Apply CLAUDE.md norms throughout.
 
 ---
 
 ## FINAL OUTPUT
 
-- Validated design
-- Final implementation
-- Review summary
-- Test plan and results
+```
+================================================================
+FEATURE SHIPPED: <name>
+================================================================
+TASKS COMPLETED : <N>/<N>
+TESTS           : ✅ passing / ❌ <detail>
+REVIEW          : APPROVED / CHANGES REQUIRED
+
+REMAINING ISSUES (IMPORTANT/MINOR):
+- <issue or "none">
+================================================================
+```

@@ -1,55 +1,40 @@
 {
-  "_readme": "Global user settings — place at ~/.claude/settings.json. Applies to ALL projects. Never commit this file.",
-
+  "_readme": "Global user settings \u2014 place at ~/.claude/settings.json. Applies to ALL projects. Never commit this file.",
   "cleanupPeriodDays": 30,
-
   "permissions": {
-
     "defaultMode": "default",
-
     "disableBypassPermissionsMode": "disable",
-
     "deny": [
-
       "Bash(rm -rf *)",
       "Bash(rm -rf /*)",
       "Bash(rmdir *)",
-
       "Bash(git push --force*)",
       "Bash(git push -f*)",
       "Bash(git reset --hard*)",
       "Bash(git clean -fd*)",
-
       "Bash(sudo rm*)",
       "Bash(sudo chmod*)",
       "Bash(sudo chown*)",
       "Bash(sudo dd*)",
       "Bash(su *)",
-
       "Bash(curl * | bash)",
       "Bash(wget * | bash)",
       "Bash(curl * | sh)",
       "Bash(wget * | sh)",
-
       "Bash(chmod 777 *)",
       "Bash(chmod -R 777 *)",
-
       "Bash(ssh *)",
       "Bash(scp *)",
       "Bash(rsync *)",
       "Bash(nc *)",
       "Bash(netcat *)",
-
       "Bash(kill -9 *)",
       "Bash(killall *)",
       "Bash(pkill *)",
-
       "Bash(crontab *)",
       "Bash(systemctl *)",
       "Bash(service *)",
-
       "Bash(npm install -g *)",
-
       "Read(**/.env)",
       "Read(**/.env.*)",
       "Read(**/secrets/**)",
@@ -64,36 +49,28 @@
       "Read(**/credentials.json)",
       "Read(**/.aws/credentials)",
       "Read(**/.azure/**)",
-
       "Write(**/.env)",
       "Write(**/.env.*)",
       "Write(**/secrets/**)",
       "Write(**/*.pem)",
       "Write(**/*.key)"
     ],
-
     "ask": [
-
       "Bash(git push *)",
       "Bash(git push)",
-
       "Bash(docker run *)",
       "Bash(docker exec *)",
       "Bash(docker-compose up*)",
       "Bash(docker compose up*)",
-
       "Bash(brew install *)",
       "Bash(apt install *)",
       "Bash(apt-get install *)",
       "Bash(dnf install *)",
       "Bash(pacman -S *)",
-
       "WebSearch",
       "WebFetch"
     ],
-
     "allow": [
-
       "Bash(git status)",
       "Bash(git log*)",
       "Bash(git diff*)",
@@ -107,7 +84,6 @@
       "Bash(git stash*)",
       "Bash(git tag*)",
       "Bash(git show*)",
-
       "Bash(ls *)",
       "Bash(ls)",
       "Bash(find *)",
@@ -126,12 +102,10 @@
       "Bash(printenv *)",
       "Bash(whoami)",
       "Bash(uname *)",
-
       "Bash(mkdir -p *)",
       "Bash(touch *)",
       "Bash(cp *)",
       "Bash(mv *)",
-
       "Bash(jq *)",
       "Bash(yq *)",
       "Bash(sed *)",
@@ -142,7 +116,6 @@
       "Bash(tr *)",
       "Bash(cut *)",
       "Bash(diff *)",
-
       "Read(**/*.md)",
       "Read(**/*.txt)",
       "Read(**/*.json)",
@@ -157,7 +130,18 @@
       "Read(**/Dockerfile*)",
       "Read(**/docker-compose*)"
     ],
-
     "additionalDirectories": []
+  },
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/session-start.sh"
+          }
+        ]
+      }
+    ]
   }
 }
