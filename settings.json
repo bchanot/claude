@@ -1,5 +1,5 @@
 {
-  "_readme": "Global user settings \u2014 place at ~/.claude/settings.json. Applies to ALL projects. Never commit this file.",
+  "_readme": "Global user settings — place at ~/.claude/settings.json. Applies to ALL projects. Never commit this file.",
   "cleanupPeriodDays": 30,
   "permissions": {
     "defaultMode": "default",
@@ -53,7 +53,35 @@
       "Write(**/.env.*)",
       "Write(**/secrets/**)",
       "Write(**/*.pem)",
-      "Write(**/*.key)"
+      "Write(**/*.key)",
+      "Bash(bash -c *)",
+      "Bash(eval *)",
+      "Bash(exec *)",
+      "Bash(find * -delete*)",
+      "Bash(find * -exec rm*)",
+      "Bash(find * -execdir rm*)",
+      "Bash(perl -e *)",
+      "Bash(ruby -e *)",
+      "Bash(cat .env)",
+      "Bash(cat .env.*)",
+      "Bash(cat */.env)",
+      "Bash(cat */.env.*)",
+      "Bash(cat */secrets/*)",
+      "Bash(cat */*.pem)",
+      "Bash(cat */*.key)",
+      "Bash(cat */id_rsa*)",
+      "Bash(cat */id_ed25519*)",
+      "Bash(cat */.aws/credentials)",
+      "Bash(head .env)",
+      "Bash(head .env.*)",
+      "Bash(tail .env)",
+      "Bash(tail .env.*)",
+      "Bash(less .env)",
+      "Bash(less .env.*)",
+      "Bash(more .env)",
+      "Bash(more .env.*)",
+      "Bash(grep * .env)",
+      "Bash(grep * .env.*)"
     ],
     "ask": [
       "Bash(git push *)",
@@ -68,7 +96,10 @@
       "Bash(dnf install *)",
       "Bash(pacman -S *)",
       "WebSearch",
-      "WebFetch"
+      "WebFetch",
+      "Bash(xargs *)",
+      "Bash(sed -i *)",
+      "Bash(sed -i'' *)"
     ],
     "allow": [
       "Bash(git status)",
@@ -112,7 +143,6 @@
       "Bash(awk *)",
       "Bash(sort *)",
       "Bash(uniq *)",
-      "Bash(xargs *)",
       "Bash(tr *)",
       "Bash(cut *)",
       "Bash(diff *)",

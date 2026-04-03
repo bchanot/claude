@@ -123,6 +123,7 @@ ACTION REQUIRED? [YES — resolve blocking issues first] / [NO — proceed]
 ## THRESHOLDS
 
 **Block and require action if:**
+- Superpowers is not active (required by /init-project and /ship-feature orchestrators — install command: `claude plugin marketplace add obra/superpowers-marketplace && claude plugin install --scope user superpowers@superpowers-marketplace`)
 - Project has significant frontend AND frontend-design + ui-ux-pro-max are both disabled
 - Project uses Next.js/React/Prisma/Supabase AND context7 is not configured
 - Project is full-product (UI + deploy + QA) AND gstack is not installed

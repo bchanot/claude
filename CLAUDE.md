@@ -135,6 +135,9 @@ When working on code:
 
 ## STRICT MODE
 
+These rules are always active in orchestrator skills (/init-project,
+/ship-feature) and during code review. They apply automatically.
+
 These rules override all other instructions.
 
 - Never skip workflow steps
@@ -144,6 +147,8 @@ These rules override all other instructions.
 - Stop execution if requirements are unclear
 
 ## FAIL FAST MODE
+
+These rules are always active in every interaction. They apply automatically.
 
 These rules override all other instructions.
 

@@ -1,7 +1,9 @@
 ---
 name: analyze
-description: Analyze code or a codebase deeply before any modification
+description: Deep factual code analysis — read-only, no solutions proposed
 argument-hint: <code, file, or area to analyze>
+disable-model-invocation: true
+allowed-tools: Read, Grep, Glob, Bash
 ---
 
 Load and follow strictly:

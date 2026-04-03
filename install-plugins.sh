@@ -16,6 +16,31 @@ err()  { echo -e "${RED}✗${NC} $1"; }
 
 REPO="$(cd "$(dirname "$0")" && pwd)"
 
+# Log to file for post-mortem debugging (terminal output unchanged)
+LOG_FILE="$REPO/install-$(date +%Y%m%d-%H%M%S).log"
+exec > >(tee -a "$LOG_FILE") 2>&1
+
+# Load shared detection library
+# shellcheck source=lib/detect-plugins.sh
+source "$REPO/lib/detect-plugins.sh"
+
+# Read pinned version from plugins.lock.json
+# Usage: pinned_version "rtk" → prints version string or "latest"
+pinned_version() {
+  local key="$1"
+  if [ -f "$REPO/plugins.lock.json" ] && command -v python3 &>/dev/null; then
+    python3 -c "
+import json, sys
+with open('$REPO/plugins.lock.json') as f:
+    d = json.load(f)
+v = d.get('$key', {}).get('version', 'latest')
+print(v)
+" 2>/dev/null || echo "latest"
+  else
+    echo "latest"
+  fi
+}
+
 # ============================================================
 # DETECT OS
 # ============================================================
@@ -128,52 +153,9 @@ fi
 echo ""
 
 # ============================================================
-# STEP 2 — GIT CLI TOOLS (gh + glab for /git-pr)
+# STEP 2 — GSTACK SUBMODULE
 # ============================================================
-echo "── Step 2: Git CLI tools ────────────────────────────────────"
-echo ""
-
-# --- gh (GitHub CLI) ---
-if command -v gh &>/dev/null; then
-  ok "gh $(gh --version | head -1 | awk '{print $3}')"
-else
-  info "Installing gh (GitHub CLI)..."
-  case $OS in
-    macos)     brew install gh ;;
-    linux-apt) type -p curl > /dev/null || sudo apt-get install -y curl
-               curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg | sudo dd of=/usr/share/keyrings/githubcli-archive-keyring.gpg
-               echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list
-               sudo apt-get update && sudo apt-get install -y gh ;;
-    linux-dnf) sudo dnf install -y gh ;;
-    linux-pacman) sudo pacman -S --noconfirm github-cli ;;
-    *) warn "Cannot auto-install gh on $OS — install from https://cli.github.com" ;;
-  esac
-  command -v gh &>/dev/null && ok "gh installed" || warn "gh not installed — GitHub PRs will use API fallback"
-fi
-
-# --- glab (GitLab CLI) ---
-if command -v glab &>/dev/null; then
-  ok "glab $(glab --version | head -1)"
-else
-  info "Installing glab (GitLab CLI)..."
-  case $OS in
-    macos)     brew install glab ;;
-    linux-apt) curl -s https://raw.githubusercontent.com/profclems/glab/trunk/scripts/install.sh | sudo bash ;;
-    linux-dnf) sudo dnf install -y glab ;;
-    linux-pacman) sudo pacman -S --noconfirm glab ;;
-    *) warn "Cannot auto-install glab on $OS — install from https://gitlab.com/gitlab-org/cli" ;;
-  esac
-  command -v glab &>/dev/null && ok "glab installed" || warn "glab not installed — GitLab MRs will use API fallback"
-fi
-
-warn "Gogs/Gitea: set GOGS_TOKEN or GITEA_TOKEN in your shell profile"
-echo "  export GOGS_TOKEN="your-token"  # add to ~/.zshrc or ~/.bashrc"
-echo ""
-
-# ============================================================
-# STEP 3 — GSTACK SUBMODULE
-# ============================================================
-echo "── Step 3: GStack submodule ─────────────────────────────────"
+echo "── Step 2: GStack submodule ─────────────────────────────────"
 echo ""
 # Note: GStack is managed as a git submodule in this repo.
 # It lives at skills-external/gstack/ and is symlinked to ~/.claude/skills/gstack/
@@ -198,10 +180,12 @@ fi
 if [ -d "$GSTACK_DIR" ]; then
   info "Running GStack setup..."
   cd "$GSTACK_DIR" && ./setup && cd - > /dev/null
-  # Ensure symlink from link.sh is in place
-  mkdir -p "$HOME/.claude/skills"
-  ln -sf "$GSTACK_DIR" "$HOME/.claude/skills/gstack" 2>/dev/null || true
-  ok "GStack ready at ~/.claude/skills/gstack (→ submodule)"
+  # Symlinks are handled by link.sh — verify it was run
+  if [ -L "$HOME/.claude/skills/gstack" ]; then
+    ok "GStack ready (submodule initialized, symlink OK)"
+  else
+    warn "GStack submodule ready but not symlinked — run: bash link.sh"
+  fi
 else
   warn "GStack submodule directory not found after init — check .gitmodules"
 fi
@@ -211,13 +195,19 @@ echo ""
 # ============================================================
 # STEP 3 — RTK
 # ============================================================
-echo "── Step 4: RTK — Rust Token Killer ─────────────────────────"
+echo "── Step 3: RTK — Rust Token Killer ─────────────────────────"
 echo ""
 if command -v rtk &>/dev/null; then
   ok "rtk already installed ($(rtk --version 2>/dev/null | head -1))"
 else
-  info "Installing RTK..."
-  cargo install --git https://github.com/rtk-ai/rtk
+  RTK_VER=$(pinned_version "rtk")
+  if [ "$RTK_VER" != "latest" ]; then
+    info "Installing RTK $RTK_VER (pinned in plugins.lock.json)..."
+    cargo install --git https://github.com/rtk-ai/rtk --tag "$RTK_VER"
+  else
+    info "Installing RTK (latest — consider pinning in plugins.lock.json)..."
+    cargo install --git https://github.com/rtk-ai/rtk
+  fi
 fi
 info "Configuring RTK PreToolUse hook (global)..."
 rtk init -g --auto-patch
@@ -227,10 +217,17 @@ echo ""
 # ============================================================
 # STEP 4 — GSD
 # ============================================================
-echo "── Step 5: GSD — get-shit-done ─────────────────────────────"
+echo "── Step 4: GSD — get-shit-done ─────────────────────────────"
 echo ""
 info "Installing GSD globally..."
-npx get-shit-done-cc --claude --global --auto
+GSD_VER=$(pinned_version "gsd")
+if [ "$GSD_VER" != "latest" ]; then
+  info "Version $GSD_VER (pinned in plugins.lock.json)"
+  npx "get-shit-done-cc@$GSD_VER" --claude --global --auto
+else
+  info "Version: latest (consider pinning in plugins.lock.json)"
+  npx get-shit-done-cc --claude --global --auto
+fi
 ok "GSD installed"
 echo ""
 
@@ -239,7 +236,7 @@ echo ""
 # ============================================================
 # All claude plugin install commands use --scope user to ensure
 # they install to ~/.claude/plugins/ regardless of working directory.
-echo "── Step 6: Marketplace plugins (scope: user) ────────────────"
+echo "── Step 5: Marketplace plugins (scope: user) ────────────────"
 echo ""
 
 install_plugin() {
@@ -276,7 +273,7 @@ echo ""
 # ============================================================
 # STEP 6 — CONTEXT7 MCP (manual — requires API key)
 # ============================================================
-echo "── Step 7: Context7 MCP ─────────────────────────────────────"
+echo "── Step 6: Context7 MCP ─────────────────────────────────────"
 echo ""
 if claude mcp list 2>/dev/null | grep -q "context7"; then
   ok "Context7 MCP already configured"
@@ -316,7 +313,6 @@ echo ""
 echo "  All plugins installed at: user scope (~/.claude/plugins/)"
 echo "  GStack at: ~/.claude/skills/gstack/ (symlink → submodule)"
 echo ""
-echo "  → Authenticate: gh auth login (GitHub) / glab auth login (GitLab)"
 echo "  → Restart Claude Code"
 echo "  → Run /reload-plugins"
 echo ""

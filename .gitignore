@@ -1,0 +1,19 @@
+# ── claude-config repo ignores ──
+
+# Symlink created by link.sh (GStack submodule target)
+skills/gstack
+
+# Install logs
+install-*.log
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors
+*.swp
+*.swo
+*~
+.idea/
+.vscode/
