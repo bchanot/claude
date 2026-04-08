@@ -322,14 +322,16 @@ install_plugin() {
   fi
 }
 
-# Official Anthropic (always on)
-# Add the official marketplace so CC knows the source; no-op if already registered or built-in
-info "Adding official Anthropic plugins marketplace..."
-claude plugin marketplace add anthropic/claude-plugins-official 2>/dev/null || true
-install_plugin "security-guidance"  "claude-plugins-official"
-install_plugin "frontend-design"    "claude-plugins-official"
-install_plugin "skill-creator"      "claude-plugins-official"
-install_plugin "pr-review-toolkit"  "claude-plugins-official"
+# Official Anthropic (always on)=
+
+# pr-review-toolkit — installer depuis le vrai repo si nécessaire
+if ! claude plugin list 2>/dev/null | grep -qi "pr-review"; then
+  info "Installing pr-review-toolkit from GitHub..."
+  claude plugin install --scope user https://github.com/anthropic-community/pr-review-toolkit 2>/dev/null \
+    || warn "pr-review-toolkit — not available as plugin, use as slash command or skill instead"
+else
+  ok "pr-review-toolkit (already installed)"
+fi
 
 echo ""
 
