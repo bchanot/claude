@@ -20,7 +20,7 @@ link_file() {
 link_file "$REPO/CLAUDE.md"     "$CLAUDE/CLAUDE.md"
 link_file "$REPO/settings.json" "$CLAUDE/settings.json"
 
-for item in agents skills lib templates; do
+for item in hooks agents skills lib templates; do
   target="$CLAUDE/$item"
   if [ -L "$target" ]; then
     if [ "$(readlink "$target")" = "$REPO/$item" ]; then
@@ -34,9 +34,6 @@ for item in agents skills lib templates; do
   ln -sf "$REPO/$item" "$target"
   CHANGED=$((CHANGED + 1))
 done
-
-mkdir -p "$CLAUDE/hooks"
-link_file "$REPO/hooks/session-start.sh" "$CLAUDE/hooks/session-start.sh"
 
 if [ -d "$REPO/skills-external/gstack" ]; then
   if [ -L "$CLAUDE/skills/gstack" ] && [ "$(readlink "$CLAUDE/skills/gstack")" = "$REPO/skills-external/gstack" ]; then
