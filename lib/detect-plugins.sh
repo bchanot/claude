@@ -24,6 +24,11 @@ detect_superpowers() {
   return 1
 }
 
+detect_security_guidance() {
+  local cache_dir="$HOME/.claude/plugins/cache"
+  [ -d "$cache_dir" ] && ls "$cache_dir" 2>/dev/null | grep -qi "security-guidance"
+}
+
 
 # --- Toggle plugins ---
 
@@ -37,12 +42,16 @@ detect_gsd() {
   command -v gsd &>/dev/null
 }
 
-# NOTE: frontend-design is a built-in Claude Code skill (/mnt/skills/public/frontend-design/).
-# It is always available and does not need detection. No detect_frontend_design() function needed.
-# NOTE: skill-creator is a built-in Claude Code skill (/mnt/skills/examples/skill-creator/).
-# It is always available and does not need detection. No detect_skill_creator() function needed.
-# NOTE: security-guidance does not exist as a plugin. RTK covers security hooks.
-# NOTE: pr-review-toolkit does not exist as a marketplace plugin.
+detect_frontend_design() {
+  local cache_dir="$HOME/.claude/plugins/cache"
+  [ -d "$cache_dir" ] && ls "$cache_dir" 2>/dev/null | grep -qi "frontend-design"
+}
+
+detect_plugin_dev() {
+  # plugin-dev replaces the old "skill-creator" reference
+  local cache_dir="$HOME/.claude/plugins/cache"
+  [ -d "$cache_dir" ] && ls "$cache_dir" 2>/dev/null | grep -qi "plugin-dev"
+}
 
 detect_uiux_pro_max() {
   local cache_dir="$HOME/.claude/plugins/cache"

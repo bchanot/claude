@@ -322,11 +322,14 @@ install_plugin() {
   fi
 }
 
-# Built-in Claude Code skills (no install needed)
-ok "frontend-design — built-in Claude Code skill (always available)"
-ok "skill-creator — built-in Claude Code skill (always available)"
-ok "security-guidance — covered by RTK hook (no separate plugin exists)"
-warn "pr-review-toolkit — no marketplace plugin exists; removed from install"
+# Anthropic bundled plugins (from anthropics/claude-code repo)
+# These are NOT in claude-plugins-official — they require the claude-code marketplace
+info "Adding Anthropic bundled plugins marketplace..."
+claude plugin marketplace add anthropics/claude-code 2>/dev/null || true
+install_plugin "security-guidance"  "claude-code-plugins"
+install_plugin "frontend-design"    "claude-code-plugins"
+install_plugin "pr-review-toolkit"  "claude-code-plugins"
+install_plugin "plugin-dev"         "claude-code-plugins"
 
 echo ""
 
@@ -371,16 +374,16 @@ echo "║                     Install Summary                     ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
 echo "  ALWAYS ON (installed at user scope):"
+echo "    ✅ security-guidance   — PreToolUse security hook (0 tokens) [claude-code-plugins]"
 echo "    ✅ rtk                 — token compression hook (0 tokens)"
 echo "    ✅ superpowers         — brainstorm/plan/implement/debug workflow"
-echo ""
-echo "  BUILT-IN (Claude Code skills — always available, no install needed):"
-echo "    🔵 frontend-design     — /mnt/skills/public/frontend-design/"
-echo "    🔵 skill-creator       — /mnt/skills/examples/skill-creator/"
 echo ""
 echo "  TOGGLE (installed but start OFF — /plugin-check recommends when needed):"
 echo "    🔄 gstack              — ~/.claude/skills/gstack/ (→ submodule)"
 echo "    🔄 gsd v2              — standalone CLI 'gsd' (gsd-pi, not a Claude Code plugin)"
+echo "    🔄 plugin-dev          — create plugins/skills (~100 tokens) [claude-code-plugins]"
+echo "    🔄 pr-review-toolkit   — /pr-review-toolkit:review-pr (~300 tokens) [claude-code-plugins]"
+echo "    🔄 frontend-design     — UI design skill (~200 tokens) [claude-code-plugins]"
 echo "    🔄 ui-ux-pro-max       — user scope (~400 tokens)"
 echo "    🔄 context7 MCP        — see Step 7 above (~200 tokens)"
 echo "    🔄 ruflo MCP           — see Step 5 above (~500-1500 tokens, enterprise only)"

@@ -8,20 +8,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [3.3.0] — 2026-04-08
 
-### Breaking
-- `security-guidance` removed — never existed as a marketplace plugin (`anthropic/claude-plugins-official` is a non-existent repo). RTK covers security hooks.
-- `pr-review-toolkit` removed — same non-existent marketplace. No replacement available.
-- `frontend-design` reclassified from TOGGLE plugin to **built-in Claude Code skill** (`/mnt/skills/public/frontend-design/`). Always available, 0 token cost, not toggleable.
-- `skill-creator` reclassified from TOGGLE plugin to **built-in Claude Code skill** (`/mnt/skills/examples/skill-creator/`). Always available, 0 token cost, not toggleable.
-- `anthropic/claude-plugins-official` marketplace reference removed from `install-plugins.sh` — this GitHub repo does not exist.
+### Fixed
+- `install-plugins.sh`: marketplace org was `anthropic` (missing 's') — corrected to `anthropics`
+- `install-plugins.sh`: plugins `security-guidance`, `frontend-design`, `pr-review-toolkit` were installed from non-existent marketplace `claude-plugins-official` — corrected to `claude-code-plugins` (from `anthropics/claude-code` repo)
+- `install-plugins.sh`: `skill-creator` plugin does not exist — replaced with `plugin-dev@claude-code-plugins` (correct plugin name)
 
 ### Changed
-- `install-plugins.sh`: fake marketplace block replaced with built-in skill notes; install summary updated
-- `lib/detect-plugins.sh`: `detect_frontend_design()` removed (built-in skill, always available); notes added for all removed plugins
-- `hooks/session-start.sh`: `frontend_design` removed from toggle loop; `security-guidance` removed from always-on display; new `🔵 BUILT-IN` line shows `frontend-design skill-creator`; token cost estimate no longer counts frontend-design
-- `agents/plugin-advisor.md`: decision table, compatibility matrix, recommended sets, conditional rules all updated — frontend-design and skill-creator marked as built-in (0t, not toggleable); security-guidance and pr-review-toolkit removed; passive cost estimates recalculated
-- `README.md`: plugin reference table split into installable plugins + built-in skills; compatibility matrix updated; recommended sets recalculated; removed pr-review-toolkit from slash commands; added "Removed plugins" note explaining what happened
-- `USAGE.md`: all references updated — quick reference, case studies, session-start boxes, signal→plugin table
+- `install-plugins.sh`: adds `anthropics/claude-code` marketplace before installing bundled plugins; install summary updated with correct marketplace sources
+- `lib/detect-plugins.sh`: added `detect_security_guidance()`, `detect_plugin_dev()` functions; removed reference to non-existent `detect_skill_creator`
+- `hooks/session-start.sh`: added `plugin_dev` to toggle loop and token cost estimate
+- `agents/plugin-advisor.md`: all references to `skill-creator` → `plugin-dev`; signal `skill-creation` now recommends `plugin-dev ON`
+- `README.md`: plugin table updated with correct marketplace sources per plugin; new "Marketplaces" subsection documenting all 4 marketplace sources and manual install commands; `/plugin-dev:create-plugin` replaces `/skill-creator`
+- `USAGE.md`: all references to `skill-creator` → `plugin-dev`
 - `version.txt`: 3.2.1 → 3.3.0
 
 ## [3.2.1] — 2026-04-07

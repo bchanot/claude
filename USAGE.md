@@ -96,10 +96,9 @@ Tu veux...
 ## Les plugins — décision rapide
 
 ```
-Toujours actifs (0 token) : rtk
-Built-in (toujours disponible, 0 token) : frontend-design, skill-creator
+Toujours actifs (0 token) : security-guidance, rtk
 
-Projet avec interface     → frontend-design déjà disponible (built-in)
+Projet avec interface     → frontend-design ON
 Design élaboré/system     → ui-ux-pro-max ON
 Deploy + QA browser       → gstack ON
 Next.js/React/Prisma      → context7 ON (WARN si absent, pas BLOCK)
@@ -224,7 +223,7 @@ cd mon-projet-existant/
 /plugin-check "App mobile React Native Expo liste de courses, offline-first, SQLite, notifications push"
 
 → SIGNALS: frontend (mobile), fast-libs (Expo SDK)
-→ NOTE: frontend-design available (built-in, 0t)
+→ ENABLE: frontend-design (composants RN)
 → WARN: context7 si Expo SDK 51+ utilisé (fast-libs)
 → OFF: gstack (mobile, pas de browser QA), ui-ux-pro-max (optionnel)
 → BLOCKING: none
@@ -302,7 +301,7 @@ gsd
 /plugin-check "Site vitrine Next.js 14 studio photo, design élaboré, animations Framer Motion, galerie, dark mode, SEO"
 
 → SIGNALS: frontend, design-system, fast-libs(Next.js)
-→ NOTE: frontend-design available (built-in, 0t)
+→ ENABLE: frontend-design (~200t)
 → ENABLE: ui-ux-pro-max (~400t) — "design élaboré" signal fort
 → WARN: context7 non configuré → taper "force" pour continuer (ou configurer avant)
 → OFF: gstack (vitrine statique, pas de deploy complexe)
@@ -356,8 +355,7 @@ Sans ui-ux-pro-max : "Tailwind avec palette neutre, Inter". La différence est v
 /plugin-check "Jeu de puzzle web React + FastAPI + PostgreSQL. Auth JWT, collection de cartes, boutique in-app, leaderboard. Multi-session, dev sur plusieurs semaines."
 
 → SIGNALS: frontend, fast-libs(React), deploy, multi-session
-→ NOTE: frontend-design available (built-in, 0t)
-→ ENABLE: context7
+→ ENABLE: frontend-design, context7
 → ENABLE: ui-ux-pro-max (cartes visuelles, cohérence design)
 → CLI: gsd v2 RECOMMANDÉ (multi-session détecté)
 → OPTIONAL: gstack si deploy CI + browser QA prévus
@@ -456,7 +454,7 @@ ONBOARD COMPLETE: mycli
 /plugin-check "Rust CLI, pas de frontend, pas de deploy"
 
 → SIGNALS: none (CLI pur)
-→ DISABLE: ui-ux-pro-max, gstack, context7
+→ DISABLE: frontend-design, ui-ux-pro-max, gstack, context7
 → KEEP: superpowers
 → COST: ~800t (minimal)
 → ACTION REQUIRED? NO
@@ -521,7 +519,7 @@ DO NOT TOUCH:
 
 → SIGNALS: none (CLI pur, pas de deploy, pas de frontend)
 → KEEP: superpowers
-→ DISABLE: ui-ux-pro-max, gstack, context7, ruflo
+→ DISABLE: frontend-design, ui-ux-pro-max, gstack, context7, ruflo
 → COST: ~800t (base seulement)
 → ACTION REQUIRED? NO
 ```
@@ -803,7 +801,7 @@ OPTIONS:
 SIGNALS: mobile (React Native + Expo détectés)
 
 RECOMMENDATIONS:
-  ℹ️  NOTE    : frontend-design available (built-in, 0t)
+  ⚡ ENABLE  : frontend-design — composants React Native (~200t)
   ⚠️  DISABLE : gstack — mobile, pas de browser QA ni deploy web
   ℹ️  OPTIONAL: ui-ux-pro-max — uniquement si design system complexe
   ℹ️  NOTE    : Docker N/A pour les apps mobiles
@@ -847,7 +845,7 @@ COST: ~800t
 
 RECOMMENDATIONS:
   ✅ KEEP   : superpowers
-  ⚠️ DISABLE: ui-ux-pro-max, gstack, context7, ruflo
+  ⚠️ DISABLE: frontend-design, ui-ux-pro-max, gstack, context7, ruflo
 BLOCKING: none → "proceed"
 
 → Scaffolder: cargo check comme verify (pas cargo build)
@@ -937,7 +935,7 @@ SIGNALS: monorepo, frontend(apps/web/), fast-libs(Next.js), deploy(apps/api/)
 
 RECOMMENDATIONS:
   OK KEEP   : superpowers
-  NOTE      : frontend-design available (built-in, 0t)
+  ENABLE    : frontend-design — apps/web/ uniquement (~200t)
   WARN      : context7 — Next.js detecte dans apps/web/
   DISABLE   : gstack — apps/api/ n'a pas de browser-qa
               (NOTE: gstack aurait ete recommande si browser-qa present)
@@ -975,13 +973,13 @@ L'utilisateur voit exactement ce qui manque et la commande pour corriger.
 
 ### Cas J — session-start : box ne deborde pas avec 5 plugins actifs
 
-**Avant v2.3.0 :** avec `gstack ui-ux-pro-max context7 ruflo` tous actifs, la ligne `ON` depassait la largeur de la box.
+**Avant v2.3.0 :** avec `gstack frontend-design ui-ux-pro-max context7 ruflo` tous actifs, la ligne `ON` depassait la largeur de la box.
 
 **Avec v2.3.0 :**
 ```
 ┌─ Claude Code config ──────────────────────────────────┐
-│  ✅ ON  : rtk superpowers            │
-│  🟢 ON  : gstack ui-ux-pro-max context7...      │  <- tronque a 37+...
+│  ✅ ON  : security-guidance rtk superpowers            │
+│  🟢 ON  : gstack frontend-design ui-ux-pro-ma...      │  <- tronque a 37+...
 │  ⚫ OFF : none                                         │
 │  💰 ~5350t passif (48% budget)                        │
 │  📦 v2.3.0                                            │
@@ -1034,7 +1032,7 @@ PROJECT STATUS
 
 CONFIG
   Version   : v2.4.0
-  Plugins ON: superpowers, context7 (~1000t)
+  Plugins ON: superpowers, frontend-design, context7 (~1200t)
   GSD v2    : installed (2.64.0)
 
 PROJECT
@@ -1080,7 +1078,7 @@ SIGNALS: monorepo (upstream), frontend, fast-libs(Next.js)
 NOTE: dans apps/web/ d'un monorepo (détecté via parent dir)
 
 RECOMMENDATIONS:
-  NOTE: frontend-design available (built-in, 0t) — apps/web/ uniquement
+  ENABLE: frontend-design — apps/web/ uniquement
   WARN: context7 — Next.js détecté
   DISABLE: gstack — pas de browser-qa dans ce package
 ```
@@ -1114,13 +1112,13 @@ Le compteur `5/6 OK` indique exactement le problème sans lire toutes les lignes
 
 ### Cas O — session-start avec 5 toggles actifs
 
-**Avant v2.4.0 :** avec gstack + ui-ux-pro-max + context7 + ruflo actifs, la ligne débordait la box.
+**Avant v2.4.0 :** avec gstack + frontend-design + ui-ux-pro-max + context7 + ruflo actifs, la ligne débordait la box.
 
 **Avec v2.4.0 :**
 ```
 ┌─ Claude Code config ──────────────────────────────────┐
-│  ✅ ON  : rtk superpowers            │
-│  🟢 ON  : gstack ui-ux-pro-max +2 more              │
+│  ✅ ON  : security-guidance rtk superpowers            │
+│  🟢 ON  : gstack frontend-design +3 more              │
 │  ⚫ OFF : none                                         │
 │  💰 ~5350t passif (48% budget)                        │
 │  📦 v2.4.0                                            │
@@ -1149,7 +1147,7 @@ PROJECT STATUS
 
 CONFIG
   Version   : v2.5.0
-  Plugins ON: superpowers, context7 (~1000t)
+  Plugins ON: superpowers, frontend-design, context7 (~1200t)
   GSD v2    : installed (2.64.0)
 
 PROJECT
@@ -1330,14 +1328,14 @@ Sans ce check : `/status` chargerait un agent inexistant → erreur cryptique.
 
 ### Cas T — session-start avec 6 plugins actifs (tous affichés)
 
-**Avant v2.5.0 :** `gstack ui-ux-pro-max +3 more` — 4 plugins masqués.
+**Avant v2.5.0 :** `gstack frontend-design +4 more` — 4 plugins masqués.
 
 **Avec v2.5.0 :**
 ```
 ┌─ Claude Code config ──────────────────────────────────┐
-│  ✅ ON  : rtk superpowers            │
-│  🟢 ON  : gstack ui-ux-pro-max context7│
-│         + ruflo                          │
+│  ✅ ON  : security-guidance rtk superpowers            │
+│  🟢 ON  : gstack frontend-design ui-ux-pro-max context7│
+│         + ruflo plugin-dev                          │
 │  ⚫ OFF : none                                         │
 │  💰 ~5750t passif (52% budget)                        │
 │  📦 v2.5.0                                            │
@@ -1384,7 +1382,7 @@ COST: ~800t (superpowers seul)
 
 RECOMMENDATIONS:
   OK KEEP   : superpowers (peut être utile pour brainstorm initial)
-  DISABLE   : ui-ux-pro-max, gstack, context7, ruflo
+  DISABLE   : frontend-design, ui-ux-pro-max, gstack, context7, ruflo
   NOTE      : Pour un firmware vraiment simple (hotfix, modification ciblée),
               même superpowers peut être désactivé → ~0t passif
 ```
@@ -1504,9 +1502,9 @@ Developer se réoriente instantanément — pas de risque d'implémenter sur la 
 
 ```
 ┌─ Claude Code config ──────────────────────────────────┐
-│  ✅ ON  : rtk superpowers            │
-│  🟢 ON  : gstack ui-ux-pro-max context7│
-│             ruflo                        │
+│  ✅ ON  : security-guidance rtk superpowers            │
+│  🟢 ON  : gstack frontend-design ui-ux-pro-max context7│
+│             ruflo plugin-dev                        │
 │  ⚫ OFF : none                                         │
 │  💰 ~5750t passif (52% budget)                        │
 │  📦 v2.6.0                                            │
@@ -1615,9 +1613,19 @@ Si `lib/` n'est pas un symlink vers le repo, `detect-plugins.sh` sourcé est la 
 
 ---
 
-### Cas Z5 — ~~plugin-advisor warn sur skill-creator inactif~~ (obsolète depuis v3.3.0)
+### Cas Z5 — plugin-advisor warn sur plugin-dev inactif
 
-> **Obsolète :** `skill-creator` est désormais un skill built-in de Claude Code (toujours disponible, 0 token). Il n'est plus toggleable et n'apparaît plus dans les recommandations enable/disable du plugin-advisor.
+**Contexte :** projet React SaaS, `plugin-dev` resté actif par oubli.
+
+```
+/plugin-check "React SaaS avec FastAPI"
+
+SIGNALS: frontend, deploy, fast-libs(React)
+
+WARN: plugin-dev ON — aucun signal skill-creation détecté
+      → ~100t économisés si désactivé
+      → Activer uniquement quand vous créez des skills custom
+```
 
 ---
 
@@ -1629,7 +1637,7 @@ Si `lib/` n'est pas un symlink vers le repo, `detect-plugins.sh` sourcé est la 
 SIGNALS: simple, embedded
 COST: ~800t (superpowers seul)
 
-DISABLE: ui-ux-pro-max, gstack, context7, ruflo
+DISABLE: frontend-design, ui-ux-pro-max, gstack, context7, ruflo, plugin-dev
 NOTE: Pour hotfix ultra-ciblé, superpowers aussi optionnel
 ```
 
@@ -1689,7 +1697,7 @@ NOTE: embedded project detected — minimal plugin footprint
 
 RECOMMENDATIONS:
   superpowers OPTIONAL
-  DISABLE: tout le reste (gstack, context7, ruflo)
+  DISABLE: tout le reste (frontend-design, gstack, context7, ruflo, plugin-dev)
   gsd v2: NOT recommended
 
 Workflow: /analyze src/wifi_driver.c → /ship-feature si multi-fichiers
@@ -1746,7 +1754,7 @@ SIGNALS: embedded (platformio.ini)
 NOTE: embedded project detected — minimal plugin footprint
 
 KEEP   : superpowers (optional)
-DISABLE: ui-ux-pro-max, gstack, context7, ruflo
+DISABLE: frontend-design, ui-ux-pro-max, gstack, context7, ruflo, plugin-dev
 gsd v2 : NOT recommended (sessions courtes, tâches atomiques)
 ```
 
@@ -2000,7 +2008,7 @@ Budget Pro note:
 ```
 Description contient...    →  Plugin
 ─────────────────────────────────────────────────────
-React / Vue / Svelte       →  frontend-design (built-in)
+React / Vue / Svelte       →  frontend-design ON
 Next.js 13+ / App Router   →  context7 WARN
 Prisma / Supabase          →  context7 ON
 "design élaboré" / tokens  →  ui-ux-pro-max ON
@@ -2008,6 +2016,6 @@ Docker + QA browser        →  gstack ON
 "plusieurs semaines"       →  gsd v2 CLI
 "5+ agents parallèles"     →  ruflo ON
 Rust / Python / Go / C     →  tout OFF sauf superpowers
-Mobile / Flutter / RN      →  frontend-design (built-in), gstack OFF
+Mobile / Flutter / RN      →  frontend-design ON, gstack OFF
 Hotfix / script rapide     →  tout OFF sauf superpowers
 ```

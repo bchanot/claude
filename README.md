@@ -223,6 +223,7 @@ gsd          # then inside the session:
 
 | Command | Plugin | Description |
 |---|---|---|
+| `/pr-review-toolkit:review-pr` | pr-review-toolkit | Multi-agent PR review (6 specialized agents) |
 | `/context7:docs <lib>` | context7 | Manual doc lookup for a specific library |
 
 ---
@@ -368,6 +369,7 @@ Warns if ruflo is active with no multi-agent signal, or if GSD v2 CLI is not ins
 
 | Pair | Relation | Notes |
 |---|---|---|
+| frontend-design ↔ ui-ux-pro-max | ⚠️ Overlap | Keep both for design-heavy. Drop ui-ux-pro-max for simple UI. |
 | gstack ↔ gsd v2 | ✅ Complementary | Different scopes — CC workflow vs CLI orchestration |
 | gstack ↔ ruflo | ⚠️ Overlap | Both orchestrate multi-step work. Use one or the other. ~3250-4250t combined. |
 | gsd v2 ↔ ruflo | ⚠️ Overlap | Sequential (GSD) vs parallel swarm (ruflo). Pick based on need. |
@@ -375,25 +377,21 @@ Warns if ruflo is active with no multi-agent signal, or if GSD v2 CLI is not ins
 | superpowers ↔ gstack | ✅ Complementary | Used together by orchestrators |
 | context7 ↔ any | ✅ Independent | Doc lookup MCP — always safe to combine |
 
-> **Built-in skills** (always available, 0 tokens, not toggleable):
-> `frontend-design` and `skill-creator` are built-in Claude Code skills. They complement all plugins without conflict.
-
 ### Recommended sets by project type
 
 | Project type | Plugins ON | OFF | Passive cost |
 |---|---|---|---|
-| Backend API / microservice | superpowers, context7* | ui-ux-pro-max, gstack, ruflo | ~800t |
-| Frontend SPA / SSR | superpowers, ui-ux-pro-max, context7 | gstack, ruflo | ~1400t |
-| Full-stack SaaS | superpowers, gstack, ui-ux-pro-max, context7 | ruflo | ~4150t |
+| Backend API / microservice | superpowers, context7* | frontend-design, ui-ux-pro-max, gstack, ruflo | ~800t |
+| Frontend SPA / SSR | superpowers, frontend-design, ui-ux-pro-max, context7 | gstack, ruflo | ~1600t |
+| Full-stack SaaS | superpowers, gstack, frontend-design, ui-ux-pro-max, context7 | ruflo | ~4400t |
 | CLI tool / library | superpowers | all toggles | ~800t |
 | Multi-session large feature | superpowers + gsd v2 CLI (external) | ruflo | ~800t CC |
 | Quick fix / hotfix | superpowers | all toggles | ~800t |
-| Design system / component lib | superpowers, ui-ux-pro-max | gstack, ruflo, gsd | ~1200t |
+| Design system / component lib | superpowers, frontend-design, ui-ux-pro-max | gstack, ruflo, gsd | ~1600t |
 | Enterprise multi-agent | superpowers, ruflo + gsd v2 CLI (external) | others | ~2300t CC |
 
 > *context7 only if using fast-evolving libs (Next.js, React 18+, Prisma, Supabase)
-> rtk is ALWAYS ON (0 tokens) — omitted from estimates
-> frontend-design and skill-creator are built-in Claude Code skills (0 tokens, always available) — omitted from recommendations
+> security-guidance and rtk are ALWAYS ON (0 tokens) — omitted from estimates
 
 ---
 
@@ -412,31 +410,46 @@ Run `/plugin-check` anytime to get a recommendation for the current project type
 
 | Plugin | Status | Passive cost | When to use | Installed by |
 |---|---|---|---|---|
+| **security-guidance** | ✅ ALWAYS ON | 0 tokens (hook only) | — | claude-code-plugins |
 | **RTK** | ✅ ALWAYS ON | 0 tokens (hook only) | — | cargo (pinned in plugins.lock.json) |
-| **Superpowers** | ✅ REQUIRED | ~600–1000 tokens | — required by orchestrators | marketplace |
+| **Superpowers** | ✅ REQUIRED | ~600–1000 tokens | — required by orchestrators | superpowers-marketplace |
 | **GStack** | 🔄 TOGGLE | ~2500–3000 tokens | Full-product: UI + design + deploy + browser QA | git submodule |
 | **GSD v2** | 🖥️ CLI | 0 tokens (external CLI) | Multi-day features, crash recovery, cost tracking, parallel workers | npm (pinned in plugins.lock.json) |
 | **ruflo** | 🔄 TOGGLE | ~500–1500 tokens | Enterprise multi-agent swarm (5+ concurrent agents) | npm + MCP manual |
-| **ui-ux-pro-max** | 🔄 TOGGLE | ~400 tokens | Design system, color/typography choices | marketplace |
+| **plugin-dev** | 🔄 TOGGLE | ~100 tokens | Creating plugins or custom skills | claude-code-plugins |
+| **pr-review-toolkit** | 🔄 TOGGLE | ~300 tokens | PR review sessions | claude-code-plugins |
+| **frontend-design** | 🔄 TOGGLE | ~200 tokens | Any project with a UI | claude-code-plugins |
+| **ui-ux-pro-max** | 🔄 TOGGLE | ~400 tokens | Design system, color/typography choices | ui-ux-pro-max-skill |
 | **Context7 MCP** | 🔄 TOGGLE | ~200 tokens | Fast-evolving libs (Next.js, React, Prisma…) | MCP manual |
-
-**Built-in Claude Code skills (always available, 0 tokens, no install needed):**
-
-| Skill | Location | Description |
-|---|---|---|
-| **frontend-design** | `/mnt/skills/public/frontend-design/` | UI design guidance — loaded on demand when relevant |
-| **skill-creator** | `/mnt/skills/examples/skill-creator/` | Create custom skills from conversation — loaded on demand |
-
-These built-in skills are always available and cannot be toggled on/off. They have zero passive token cost
-(loaded on demand only). Use them naturally — Claude Code activates them when the context matches.
-
-> **Removed plugins** (previously listed but never existed as installable plugins):
-> - `security-guidance` — was listed as a marketplace plugin but the marketplace `anthropic/claude-plugins-official` does not exist. RTK covers security hooks.
-> - `pr-review-toolkit` — same non-existent marketplace. No replacement available.
 
 **Rule:** toggle plugins are OFF by default. `/plugin-check` signals when to enable them.
 If you use `/init-project` or `/ship-feature`, plugin-check runs automatically as STEP 0
 and **blocks if Superpowers is not active**.
+
+### Marketplaces
+
+Plugins are installed from GitHub-hosted marketplaces. Three are used by this config:
+
+| Marketplace | GitHub repo | Plugins | Auto-available |
+|---|---|---|---|
+| `claude-plugins-official` | `anthropics/claude-plugins-official` | Anthropic-curated third-party plugins | ✅ yes |
+| `claude-code-plugins` | `anthropics/claude-code` | Anthropic bundled plugins (security-guidance, frontend-design, pr-review-toolkit, plugin-dev) | ❌ add manually |
+| `superpowers-marketplace` | `obra/superpowers-marketplace` | Superpowers workflow plugin | ❌ add manually |
+| `ui-ux-pro-max-skill` | `nextlevelbuilder/ui-ux-pro-max-skill` | UI/UX Pro Max design plugin | ❌ add manually |
+
+`install-plugins.sh` adds all required marketplaces automatically.
+
+**Manual install example:**
+```bash
+# Add the marketplace (once)
+claude plugin marketplace add anthropics/claude-code
+
+# Install a plugin from it
+claude plugin install --scope user frontend-design@claude-code-plugins
+
+# Browse all available plugins
+/plugin   # → Discover tab
+```
 
 ### Version pinning
 
@@ -635,7 +648,7 @@ Execute on:
 $ARGUMENTS
 ```
 
-3. Or use `/skill-creator` to generate a skill from conversation.
+3. Or use `/plugin-dev:create-plugin` to generate a skill from conversation.
 
 ---
 
