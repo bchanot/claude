@@ -48,11 +48,10 @@ unset _lib
 TOGGLE_ACTIVE=()
 TOGGLE_INACTIVE=()
 
-for plugin in gstack uiux_pro_max frontend_design context7 ruflo; do
+for plugin in gstack uiux_pro_max context7 ruflo; do
   # Map function name to display name
   case "$plugin" in
     uiux_pro_max)    display="ui-ux-pro-max" ;;
-    frontend_design) display="frontend-design" ;;
     *)               display="$plugin" ;;
   esac
 
@@ -88,7 +87,6 @@ unset _claude_real _repo_dir
 _passive_t=0
 detect_superpowers 2>/dev/null && _passive_t=$((_passive_t + 800))
 detect_gstack      2>/dev/null && _passive_t=$((_passive_t + 2750))
-detect_frontend_design 2>/dev/null && _passive_t=$((_passive_t + 200))
 detect_uiux_pro_max    2>/dev/null && _passive_t=$((_passive_t + 400))
 detect_context7    2>/dev/null && _passive_t=$((_passive_t + 200))
 detect_ruflo       2>/dev/null && _passive_t=$((_passive_t + 1000))
@@ -104,7 +102,8 @@ unset _passive_t _budget_pct
 
 echo ""
 echo "┌─ Claude Code config ──────────────────────────────────┐"
-printf "│  ✅ ON  : %-40s│\n" "security-guidance rtk superpowers"
+printf "│  ✅ ON  : %-40s│\n" "rtk superpowers"
+printf "│  🔵 BUILT-IN: %-35s│\n" "frontend-design skill-creator"
 # Plugin display — all plugins shown, split across 2 lines if >4
 _active_count=${#TOGGLE_ACTIVE[@]}
 _inactive_count=${#TOGGLE_INACTIVE[@]}

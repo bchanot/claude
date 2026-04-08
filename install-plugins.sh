@@ -322,16 +322,11 @@ install_plugin() {
   fi
 }
 
-# Official Anthropic (always on)=
-
-# pr-review-toolkit — installer depuis le vrai repo si nécessaire
-if ! claude plugin list 2>/dev/null | grep -qi "pr-review"; then
-  info "Installing pr-review-toolkit from GitHub..."
-  claude plugin install --scope user https://github.com/anthropic-community/pr-review-toolkit 2>/dev/null \
-    || warn "pr-review-toolkit — not available as plugin, use as slash command or skill instead"
-else
-  ok "pr-review-toolkit (already installed)"
-fi
+# Built-in Claude Code skills (no install needed)
+ok "frontend-design — built-in Claude Code skill (always available)"
+ok "skill-creator — built-in Claude Code skill (always available)"
+ok "security-guidance — covered by RTK hook (no separate plugin exists)"
+warn "pr-review-toolkit — no marketplace plugin exists; removed from install"
 
 echo ""
 
@@ -376,16 +371,16 @@ echo "║                     Install Summary                     ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
 echo "  ALWAYS ON (installed at user scope):"
-echo "    ✅ security-guidance   — PreToolUse security hook (0 tokens)"
 echo "    ✅ rtk                 — token compression hook (0 tokens)"
 echo "    ✅ superpowers         — brainstorm/plan/implement/debug workflow"
+echo ""
+echo "  BUILT-IN (Claude Code skills — always available, no install needed):"
+echo "    🔵 frontend-design     — /mnt/skills/public/frontend-design/"
+echo "    🔵 skill-creator       — /mnt/skills/examples/skill-creator/"
 echo ""
 echo "  TOGGLE (installed but start OFF — /plugin-check recommends when needed):"
 echo "    🔄 gstack              — ~/.claude/skills/gstack/ (→ submodule)"
 echo "    🔄 gsd v2              — standalone CLI 'gsd' (gsd-pi, not a Claude Code plugin)"
-echo "    🔄 skill-creator       — create skills from conversation (~100 tokens)"
-echo "    🔄 pr-review-toolkit   — /pr-review-toolkit:review-pr (~300 tokens)"
-echo "    🔄 frontend-design     — user scope (~200 tokens)"
 echo "    🔄 ui-ux-pro-max       — user scope (~400 tokens)"
 echo "    🔄 context7 MCP        — see Step 7 above (~200 tokens)"
 echo "    🔄 ruflo MCP           — see Step 5 above (~500-1500 tokens, enterprise only)"
