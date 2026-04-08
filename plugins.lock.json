@@ -2,23 +2,22 @@
   "_readme": "Pinned versions for reproducible installs. Update versions deliberately, then run install-plugins.sh.",
   "rtk": {
     "source": "https://github.com/rtk-ai/rtk",
-    "install_cmd": "cargo install --git https://github.com/rtk-ai/rtk --tag {version}",
     "version": "v0.34.3",
     "note": "Check latest at https://github.com/rtk-ai/rtk/releases before updating"
   },
   "gsd": {
-    "source": "npm:get-shit-done-cc",
-    "install_cmd": "npx get-shit-done-cc@{version} --claude --global --auto",
-    "version": "1.30.0",
-    "note": "Check latest at https://www.npmjs.com/package/get-shit-done-cc before updating"
+    "source": "npm:gsd-pi",
+    "version": "2.64.0",
+    "note": "Check latest at https://www.npmjs.com/package/gsd-pi before updating. GSD v2 is a standalone CLI (Pi SDK), not a Claude Code plugin. Run 'gsd' in terminal, not '/gsd' in Claude Code."
   },
   "gstack": {
     "source": "https://github.com/garrytan/gstack.git",
     "managed_by": "git submodule",
     "note": "Version controlled by submodule pointer in .gitmodules. Update: git submodule update --remote"
   },
-  "node": {
-    "minimum": "18",
-    "recommended": "22"
+  "ruflo": {
+    "source": "npm:ruflo",
+    "version": "3.5.58",
+    "note": "Enterprise multi-agent MCP server (formerly claude-flow). Requires manual MCP config after install. Check latest at https://www.npmjs.com/package/ruflo before updating."
   }
 }

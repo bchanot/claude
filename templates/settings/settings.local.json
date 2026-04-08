@@ -1,5 +1,4 @@
 {
-  "_readme": "Personal local overrides — DO NOT commit. Add .claude/settings.local.json to .gitignore. Highest priority after CLI flags.",
 
   "permissions": {
 

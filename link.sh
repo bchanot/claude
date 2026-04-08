@@ -1,47 +1,57 @@
 #!/usr/bin/env bash
 # Symlink this repo into ~/.claude/
-# Run once after cloning on a new machine.
-
 set -euo pipefail
 
 REPO="$(cd "$(dirname "$0")" && pwd)"
 CLAUDE="$HOME/.claude"
+CHANGED=0
 
 mkdir -p "$CLAUDE"
 
-# Core config files (plain files — ln -sf handles these correctly)
-ln -sf "$REPO/CLAUDE.md"      "$CLAUDE/CLAUDE.md"
-ln -sf "$REPO/settings.json"  "$CLAUDE/settings.json"
+link_file() {
+  local src="$1" dst="$2"
+  if [ -L "$dst" ] && [ "$(readlink "$dst")" = "$src" ]; then
+    return  # already correct
+  fi
+  ln -sf "$src" "$dst"
+  CHANGED=$((CHANGED + 1))
+}
 
-# Agents and skills — must handle the case where target exists
-# as a real directory (ln -sf would create a link INSIDE the dir
-# instead of replacing it)
-for item in agents skills lib; do
+link_file "$REPO/CLAUDE.md"     "$CLAUDE/CLAUDE.md"
+link_file "$REPO/settings.json" "$CLAUDE/settings.json"
+
+for item in agents skills lib templates; do
   target="$CLAUDE/$item"
   if [ -L "$target" ]; then
-    # Stale symlink from a previous run — remove before recreating
+    if [ "$(readlink "$target")" = "$REPO/$item" ]; then
+      continue  # already correct
+    fi
     rm -f "$target"
   elif [ -d "$target" ]; then
-    echo "⚠️  ~/.claude/$item is a real directory (not a symlink)."
-    echo "   Rename or remove it, then re-run link.sh."
-    echo "   Skipping $item to avoid data loss."
+    echo "⚠️  ~/.claude/$item is a real directory. Rename or remove it, then re-run link.sh."
     continue
   fi
   ln -sf "$REPO/$item" "$target"
+  CHANGED=$((CHANGED + 1))
 done
 
-# Hooks
 mkdir -p "$CLAUDE/hooks"
-ln -sf "$REPO/hooks/session-start.sh" "$CLAUDE/hooks/session-start.sh"
+link_file "$REPO/hooks/session-start.sh" "$CLAUDE/hooks/session-start.sh"
 
-# GStack (submodule) — symlink into ~/.claude/skills/ (which points to repo/skills/)
-# The submodule must be initialized first (done by install-plugins.sh)
 if [ -d "$REPO/skills-external/gstack" ]; then
-  ln -sf "$REPO/skills-external/gstack" "$CLAUDE/skills/gstack"
-  echo "✅ GStack symlinked from submodule"
+  if [ -L "$CLAUDE/skills/gstack" ] && [ "$(readlink "$CLAUDE/skills/gstack")" = "$REPO/skills-external/gstack" ]; then
+    : # already correct
+  else
+    ln -sf "$REPO/skills-external/gstack" "$CLAUDE/skills/gstack"
+    CHANGED=$((CHANGED + 1))
+  fi
 else
   echo "⚠️  GStack submodule not found — run: git submodule update --init"
 fi
 
-echo "✅ Symlinks created in ~/.claude/"
+if [ "$CHANGED" -eq 0 ]; then
+  echo "✅ All symlinks already up to date."
+else
+  echo "✅ $CHANGED symlink(s) updated in ~/.claude/"
+fi
 echo "   Next: bash install-plugins.sh"

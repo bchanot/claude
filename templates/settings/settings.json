@@ -1,5 +1,4 @@
 {
-  "_readme": "Project-level settings — commit this file. Extends ~/.claude/settings.json. Only put project-specific rules here.",
 
   "permissions": {
 
@@ -53,18 +52,20 @@
       "Bash(docker ps*)",
       "Bash(docker images*)",
       "Bash(docker logs *)",
-      "Bash(docker stop *)",
-      "Bash(docker rm *)",
 
       "Bash(node *)",
       "Bash(ts-node *)",
       "Bash(tsx *)",
-      "Bash(npx *)",
 
       "Bash(norminette*)"
     ],
 
     "ask": [
+
+      "Bash(npx *)",
+
+      "Bash(docker stop *)",
+      "Bash(docker rm *)",
 
       "Bash(make deploy*)",
       "Bash(npm run deploy*)",

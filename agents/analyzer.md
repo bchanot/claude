@@ -67,3 +67,52 @@ OPEN QUESTIONS:
 ```
 
 Update project memory with discovered patterns and conventions.
+
+---
+
+## DEBUG MODE
+
+Activated when called with a failing test, error output, or broken build as target.
+
+### INPUTS EXPECTED
+- Exact error message or stack trace
+- File(s) involved
+- Last action that triggered the failure
+
+### PROCESS
+1. Read all files mentioned in the error (no guessing)
+2. Trace execution path from entry point to failure site
+3. Identify the exact line/expression that produces the error
+4. List all state at the point of failure (vars, imports, types)
+
+### OUTPUT FORMAT (DEBUG MODE)
+
+```
+DEBUG ANALYSIS: <error summary in one line>
+
+ERROR:
+  <exact message, file, line>
+
+TRACE:
+  <entry point> → <call chain> → <failure site>
+
+ROOT CAUSE HYPOTHESES (ordered by probability):
+  1. [HIGH] <specific hypothesis> — evidence: <what in the code supports this>
+  2. [MED]  <specific hypothesis> — evidence: <what in the code supports this>
+  3. [LOW]  <specific hypothesis> — evidence: <what in the code supports this>
+
+AFFECTED FILES:
+  - <file>: <what role it plays in the failure>
+
+WHAT TO VERIFY NEXT:
+  - <concrete check #1> — expected result if hypothesis 1 is correct
+  - <concrete check #2>
+
+DO NOT TOUCH:
+  - <file or logic that is NOT the cause, to avoid regression>
+```
+
+Rules in DEBUG MODE:
+- Never propose a fix. Only diagnose.
+- Never touch files.
+- Stop after the report. The orchestrator or user decides next steps.

@@ -18,7 +18,12 @@ REPO="$(cd "$(dirname "$0")" && pwd)"
 
 # Log to file for post-mortem debugging (terminal output unchanged)
 LOG_FILE="$REPO/install-$(date +%Y%m%d-%H%M%S).log"
-exec > >(tee -a "$LOG_FILE") 2>&1
+if touch "$LOG_FILE" 2>/dev/null; then
+  exec > >(tee -a "$LOG_FILE") 2>&1
+  info "Logging to $LOG_FILE"
+else
+  warn "Cannot write log to $REPO — continuing without log file"
+fi
 
 # Load shared detection library
 # shellcheck source=lib/detect-plugins.sh
@@ -179,7 +184,15 @@ fi
 
 if [ -d "$GSTACK_DIR" ]; then
   info "Running GStack setup..."
-  cd "$GSTACK_DIR" && ./setup && cd - > /dev/null
+  if [ -x "$GSTACK_DIR/setup" ]; then
+    if (cd "$GSTACK_DIR" && ./setup) 2>/dev/null; then
+      : # setup succeeded
+    else
+      warn "GStack ./setup failed — submodule present but setup incomplete"
+    fi
+  else
+    warn "GStack ./setup not found or not executable — skipping"
+  fi
   # Symlinks are handled by link.sh — verify it was run
   if [ -L "$HOME/.claude/skills/gstack" ]; then
     ok "GStack ready (submodule initialized, symlink OK)"
@@ -209,34 +222,77 @@ else
     cargo install --git https://github.com/rtk-ai/rtk
   fi
 fi
-info "Configuring RTK PreToolUse hook (global)..."
-rtk init -g --auto-patch
-ok "RTK configured"
-echo ""
-
-# ============================================================
-# STEP 4 — GSD
-# ============================================================
-echo "── Step 4: GSD — get-shit-done ─────────────────────────────"
-echo ""
-info "Installing GSD globally..."
-GSD_VER=$(pinned_version "gsd")
-if [ "$GSD_VER" != "latest" ]; then
-  info "Version $GSD_VER (pinned in plugins.lock.json)"
-  npx "get-shit-done-cc@$GSD_VER" --claude --global --auto
+# Only init if not already configured (avoids overwriting custom RTK config)
+if ! grep -q "rtk" "$HOME/.claude/settings.json" 2>/dev/null; then
+  info "Configuring RTK PreToolUse hook (global)..."
+  rtk init -g --auto-patch
+  ok "RTK configured"
 else
-  info "Version: latest (consider pinning in plugins.lock.json)"
-  npx get-shit-done-cc --claude --global --auto
+  ok "RTK hook already present in settings.json — skipping init"
 fi
-ok "GSD installed"
 echo ""
 
 # ============================================================
-# STEP 5 — MARKETPLACE PLUGINS (user scope, explicit)
+# STEP 4 — GSD v2
+# ============================================================
+# GSD v2 (gsd-pi) is a standalone CLI built on the Pi SDK.
+# It is NOT a Claude Code plugin — it runs as an external process ('gsd' command).
+# Usage: run 'gsd' in your terminal from a project directory.
+# Slash commands (/gsd auto, /gsd status, etc.) are internal to a GSD session.
+echo "── Step 4: GSD v2 — gsd-pi ─────────────────────────────────"
+echo ""
+if command -v gsd &>/dev/null; then
+  ok "gsd already installed ($(gsd --version 2>/dev/null | head -1 || echo 'installed'))"
+else
+  GSD_VER=$(pinned_version "gsd")
+  if [ "$GSD_VER" != "latest" ]; then
+    info "Installing gsd-pi@${GSD_VER} (pinned in plugins.lock.json)..."
+    npm install -g "gsd-pi@${GSD_VER}"
+  else
+    info "Installing gsd-pi@latest (consider pinning in plugins.lock.json)..."
+    npm install -g gsd-pi
+  fi
+  command -v gsd &>/dev/null && ok "GSD v2 installed ($(gsd --version 2>/dev/null | head -1))" \
+    || err "GSD v2 install failed — check npm output above"
+fi
+echo ""
+
+# ============================================================
+# STEP 5 — RUFLO MCP (manual — requires npm install + MCP config)
+# ============================================================
+# Ruflo is an enterprise multi-agent orchestration MCP server (formerly claude-flow).
+# 310+ MCP tools, 100+ agent types, WASM kernel, self-learning architecture.
+# Use only for projects requiring complex multi-agent coordination.
+# Default install ~340MB. Minimal: npm install -g ruflo@latest --omit=optional (~15s)
+echo "── Step 5: Ruflo MCP ────────────────────────────────────────"
+echo ""
+if detect_ruflo; then
+  ok "Ruflo MCP already configured"
+else
+  warn "Ruflo requires manual setup — cannot auto-install (enterprise tool)"
+  echo ""
+  echo "  Steps:"
+  echo "  1. Install the package:"
+  echo "     npm install -g ruflo@latest             # full (~340MB)"
+  echo "     npm install -g ruflo@latest --omit=optional  # minimal"
+  echo ""
+  echo "  2. Register as MCP server in Claude Code:"
+  echo "     claude mcp add --scope user ruflo -- npx ruflo mcp start"
+  echo ""
+  echo "  3. Verify:"
+  echo "     claude mcp list | grep ruflo"
+  echo ""
+  echo "  Or use the automated installer:"
+  echo "     curl -fsSL https://cdn.jsdelivr.net/gh/ruvnet/ruflo@main/scripts/install.sh | bash -s -- --full"
+  echo ""
+fi
+
+# ============================================================
+# STEP 6 — MARKETPLACE PLUGINS (user scope, explicit)
 # ============================================================
 # All claude plugin install commands use --scope user to ensure
 # they install to ~/.claude/plugins/ regardless of working directory.
-echo "── Step 5: Marketplace plugins (scope: user) ────────────────"
+echo "── Step 6: Marketplace plugins (scope: user) ────────────────"
 echo ""
 
 install_plugin() {
@@ -273,7 +329,7 @@ echo ""
 # ============================================================
 # STEP 6 — CONTEXT7 MCP (manual — requires API key)
 # ============================================================
-echo "── Step 6: Context7 MCP ─────────────────────────────────────"
+echo "── Step 7: Context7 MCP ─────────────────────────────────────"
 echo ""
 if claude mcp list 2>/dev/null | grep -q "context7"; then
   ok "Context7 MCP already configured"
@@ -281,7 +337,7 @@ else
   warn "Context7 requires a free API key — cannot auto-install"
   echo ""
   echo "  Steps:"
-  echo "  1. Get a free key at https://context7.com"
+  echo "  1. Get a free key at https://upstash.com"
   echo "  2. Run:"
   echo "     claude mcp add --scope user context7 -- \\"
   echo "       npx -y @upstash/context7-mcp --api-key YOUR_KEY"
@@ -296,23 +352,23 @@ echo "╔═══════════════════════�
 echo "║                     Install Summary                     ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
-echo "  ALWAYS ON (installed at user scope, ~10 tokens/session each):"
+echo "  ALWAYS ON (installed at user scope):"
 echo "    ✅ security-guidance   — PreToolUse security hook (0 tokens)"
 echo "    ✅ rtk                 — token compression hook (0 tokens)"
 echo "    ✅ superpowers         — brainstorm/plan/implement/debug workflow"
-echo "    ✅ skill-creator       — create skills from conversation"
-echo "    ✅ pr-review-toolkit   — /pr-review-toolkit:review-pr"
 echo ""
 echo "  TOGGLE (installed but start OFF — /plugin-check recommends when needed):"
 echo "    🔄 gstack              — ~/.claude/skills/gstack/ (→ submodule)"
-echo "    🔄 gsd                 — ~/.claude/skills/ (npx)"
-echo "    🔄 frontend-design     — user scope"
-echo "    🔄 ui-ux-pro-max       — user scope"
-echo "    🔄 context7 MCP        — see Step 6 above"
+echo "    🔄 gsd v2              — standalone CLI 'gsd' (gsd-pi, not a Claude Code plugin)"
+echo "    🔄 skill-creator       — create skills from conversation (~100 tokens)"
+echo "    🔄 pr-review-toolkit   — /pr-review-toolkit:review-pr (~300 tokens)"
+echo "    🔄 frontend-design     — user scope (~200 tokens)"
+echo "    🔄 ui-ux-pro-max       — user scope (~400 tokens)"
+echo "    🔄 context7 MCP        — see Step 7 above (~200 tokens)"
+echo "    🔄 ruflo MCP           — see Step 5 above (~500-1500 tokens, enterprise only)"
 echo ""
 echo "  All plugins installed at: user scope (~/.claude/plugins/)"
 echo "  GStack at: ~/.claude/skills/gstack/ (symlink → submodule)"
 echo ""
-echo "  → Restart Claude Code"
-echo "  → Run /reload-plugins"
+echo "  → Restart Claude Code — plugins load automatically"
 echo ""

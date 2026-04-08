@@ -8,176 +8,112 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 
 # ORCHESTRATOR: SHIP FEATURE
 
-## AGENTS AND SKILLS LOADED
-
-Custom agents (this config):
-- .claude/agents/plugin-advisor.md   ← plugin configuration check
-- .claude/agents/analyzer.md         ← post-implementation verification
-
-Superpowers skills:
-- superpowers:brainstorming
-- superpowers:writing-plans
-- superpowers:subagent-driven-development
-- superpowers:requesting-code-review
-- superpowers:finishing-a-development-branch
-
----
-
-## FEATURE REQUEST
-
+## REQUEST
 $ARGUMENTS
 
 ---
 
-## WORKFLOW
+## STEP 0 — PLUGIN CHECK
+Load `$HOME/.claude/agents/plugin-advisor.md`. Feed request.
+- ACTION REQUIRED → show RECOMMENDATIONS, offer: A) fix plugins B) type "force". STOP.
+- OK → `✅ Plugin check passed — [active plugins]`, continue.
 
----
-
-### STEP 0 — PLUGIN CHECK (mandatory gate)
-
-Load and follow: `.claude/agents/plugin-advisor.md`
-
-Feed it the feature request above as context for signal detection.
-
-The advisor will:
-1. Detect which plugins are currently active
-2. Analyze the feature description for signals
-3. Produce a recommendation table
-
-**If the advisor output says `ACTION REQUIRED: YES`:**
-
-Print this block and STOP COMPLETELY:
-
+## STEP 0b — PROJECT CONTEXT CHECK
+Verify the project has a `CLAUDE.md` and print a brief orientation summary:
+```bash
+ls CLAUDE.md .claude/CLAUDE.md 2>/dev/null | head -1
+git branch --show-current 2>/dev/null || echo "not a git repo"
+git log --oneline -3 --format="%h %<(50,trunc)%s" 2>/dev/null || true
+ls .gsd/ROADMAP.md 2>/dev/null | head -1
 ```
-================================================================
-⚠️  PLUGIN CHECK — ACTION REQUIRED
-================================================================
+- **CLAUDE.md found** → read it silently, then print orientation header (informational, not a gate):
+  ```
+  📋 PROJECT CONTEXT
+  Project : <name from CLAUDE.md>
+  Stack   : <stack from CLAUDE.md>
+  Branch  : <current git branch>
+  Recent  : <last 3 commit messages>
+  GSD     : <current milestone if .gsd/ROADMAP.md exists, else "not initialized">
+  ```
+  Continue to STEP 1.
+- **Not found** →
+  Print: "⚠️ No CLAUDE.md found in this directory.
+  This project has not been onboarded into claude-config.
+  Run `/onboard` first to generate CLAUDE.md and project settings,
+  then re-run `/ship-feature`."
+  STOP.
 
-[paste the full RECOMMENDATIONS block from the advisor]
+## STEP 1 — BRAINSTORM
+Invoke `superpowers:brainstorming`. Refine request into validated design via Socratic questioning. Don't proceed until design approved.
 
-----------------------------------------------------------------
-Options:
-  A) Enable the recommended plugins, then re-run /ship-feature
-  B) Type "force" to proceed without the recommended plugins
-     (you will miss capabilities — see warnings above)
-================================================================
+## STEP 2 — PLAN
+Invoke `superpowers:writing-plans`. Break design into tasks (2-5 min each). Each task: exact file paths, full code, verification steps.
+
+## STEP 3 — VALIDATION GATE ★ MANDATORY STOP
 ```
-
-Wait for user response.
-- If user re-runs `/ship-feature` → start from STEP 0 again
-- If user types "force" → note missing plugins and continue to STEP 1
-
-**If the advisor output says `ACTION REQUIRED: NO`:**
-Print one line and continue immediately:
-```
-✅ Plugin check passed — [active plugins in one line]
-```
-
----
-
-### STEP 1 — BRAINSTORM
-Invoke skill: `superpowers:brainstorming`
-
-Refine the feature request into a validated design through
-Socratic questioning. Do not proceed until the design is approved.
-
----
-
-### STEP 2 — PLAN
-Invoke skill: `superpowers:writing-plans`
-
-Break the approved design into granular tasks (2–5 min each).
-Each task must have: exact file paths, complete code, verification steps.
-
----
-
-### STEP 3 — VALIDATION GATE
-
-**MANDATORY STOP — present the plan to the user.**
-
-```
-================================================================
 SHIP FEATURE — VALIDATION GATE
-================================================================
-FEATURE  : <name>
-TASKS    : <count>
+FEATURE: <n> | TASKS: <count>
 <numbered task list>
-================================================================
 Approve and execute? (yes / request changes)
-================================================================
 ```
+Changes → back to STEP 2. Approved → continue.
 
-IF changes → return to STEP 2.
-IF approved → proceed.
+## STEP 4 — IMPLEMENT
+Invoke `superpowers:subagent-driven-development`. Isolated subagents. 2-stage review per task: spec compliance → code quality.
 
----
+## STEP 4b — ERROR RECOVERY (if STEP 4 fails)
+If a subagent returns a build error, failing test, or type error:
+1. Load `$HOME/.claude/agents/analyzer.md` in DEBUG MODE on the exact error output.
+   Produce: root cause hypotheses (ordered), affected files, what NOT to touch.
+2. Present gate:
+```
+SHIP FEATURE — ERROR IN STEP 4
+TASK    : <task name that failed>
+ERROR   : <one-line summary>
+HYPOTHESES:
+  1. [HIGH] <cause> — evidence: <…>
+  2. [MED]  <cause> — evidence: <…>
+OPTIONS :
+  A) Apply fix for hypothesis 1 and re-run this task
+  B) Skip this task and continue with remaining tasks
+  C) Abort feature — preserve work done so far
+```
+3. Wait for user choice. Do NOT auto-fix. Do NOT proceed without explicit approval.
+4. If A → apply minimal fix, re-run STEP 4 for the failed task only. Max 2 retry attempts.
+   If still failing after 2 → fall back to options B or C.
+   If B → before skipping: scan remaining task list for tasks that depend on the failed task
+     (look for references to the same file or function in subsequent tasks).
+     If dependents found → present: "Tasks [N, M] depend on the skipped task.
+       Skip them too? (yes / keep and accept partial implementation)"
+     If no dependents → skip cleanly and continue.
 
-### STEP 4 — IMPLEMENT
-Invoke skill: `superpowers:subagent-driven-development`
+## STEP 5 — ANALYZE
+Load `$HOME/.claude/agents/analyzer.md`. Check: no regressions, no stale code, no plan deviations.
 
-Execute each task with isolated subagents.
-Two-stage review per task: spec compliance → code quality.
+## STEP 6 — CODE REVIEW
+Invoke `superpowers:requesting-code-review`. Fix all CRITICAL before proceeding.
 
----
+## STEP 7 — FINISH
+Invoke `superpowers:finishing-a-development-branch`. Tests pass, build clean, ready to merge.
 
-### STEP 5 — ANALYZE (custom)
-Load and follow: `.claude/agents/analyzer.md`
-
-Run the ANALYZER on the produced implementation.
-Verify no regressions, no stale code, no plan deviations.
-
----
-
-### STEP 6 — CODE REVIEW
-Invoke skill: `superpowers:requesting-code-review`
-
-Dispatch the code-reviewer agent on the full implementation.
-Fix any CRITICAL issues before proceeding.
-
----
-
-### STEP 7 — FINISH BRANCH
-Invoke skill: `superpowers:finishing-a-development-branch`
-
-Verify all tests pass, cleanup, prepare for merge.
-
----
-
-### STEP 8 — SYNC README
-
-Load and follow: `.claude/agents/readme-updater.md`
-
-Context: call with argument "sync".
-
-SYNC mode — no stop required. The readme-updater:
-- Detects any drift between README and the new feature
-- Updates commands, env vars, folder structure if changed
-- Adds a `## Recent changes` entry with the shipped feature
-- Prints one-line confirmation
+## STEP 8 — SYNC README
+Load `$HOME/.claude/agents/readme-updater.md` with arg `sync`. Update cmds/vars/structure, add recent changes entry.
 
 ---
 
 ## RULES
-
-- Never skip STEP 0 — plugin check is mandatory.
-- Never skip brainstorming.
-- Never implement without explicit user approval of the plan.
-- Keep subagents isolated — no shared context between tasks.
-- Apply CLAUDE.md norms throughout.
+- No skipping steps. No merged agent responsibilities.
+- No implement without user approval at STEP 3.
+- Subagents isolated — no shared context between tasks.
+- Fix all CRITICAL review issues before proceeding.
+- Stop if requirements unclear at any step.
+- STEP 4 errors → STEP 4b gate required before any fix. Never auto-patch a failing subagent.
 
 ---
 
 ## FINAL OUTPUT
-
 ```
-================================================================
-FEATURE SHIPPED: <name>
-================================================================
-TASKS COMPLETED : <N>/<N>
-TESTS           : ✅ passing / ❌ <detail>
-REVIEW          : APPROVED / CHANGES REQUIRED
-
-REMAINING ISSUES (IMPORTANT/MINOR):
-- <issue or "none">
-================================================================
+FEATURE SHIPPED: <n>
+TASKS: <N>/<N> | TESTS: ✅/❌ | REVIEW: APPROVED/CHANGES REQUIRED
+REMAINING ISSUES: <list or none>
 ```

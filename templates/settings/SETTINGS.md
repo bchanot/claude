@@ -1,69 +1,4 @@
-# Claude Code — Settings Reference
-
-## Where each file goes
-
-```
-~/.claude/
-├── settings.json          ← home-settings.json (renamed) — global, NEVER commit
-│
-mon-projet/
-└── .claude/
-    ├── settings.json      ← settings.json — project rules, commit to git
-    └── settings.local.json← settings.local.json — personal, gitignored
-```
-
-Add to your project `.gitignore`:
-```
-.claude/settings.local.json
-```
-
----
-
-## Precedence (highest → lowest)
-
-```
-managed-settings.json     system-wide, cannot be overridden
-  └── CLI flags            --allowedTools, --disallowedTools (session only)
-        └── settings.local.json   personal local
-              └── settings.json   project (team)
-                    └── ~/.claude/settings.json   global user
-```
-
-**DENY always wins over ALLOW, regardless of level.**
-
----
-
-## What goes where
-
-| Rule type | File |
-|---|---|
-| Deny secrets, SSH, rm -rf, sudo | `~/.claude/settings.json` |
-| Deny git push --force, curl\|bash | `~/.claude/settings.json` |
-| Ask git push, docker run, deploy | `~/.claude/settings.json` |
-| Ask package managers (brew, apt) | `~/.claude/settings.json` |
-| Allow git read-only, ls, cat, grep | `~/.claude/settings.json` |
-| Allow npm/cargo/make/pytest... | `.claude/settings.json` (project) |
-| Ask psql, mysql, redis-cli | `.claude/settings.json` (project) |
-| Allow specific WebFetch domains | `.claude/settings.local.json` |
-| Personal additionalDirectories | `.claude/settings.local.json` |
-
----
-
-## defaultMode values
-
-| Value | Behavior | When to use |
-|---|---|---|
-| `default` | Prompts on first use of each tool | Normal development |
-| `acceptEdits` | Auto-accepts file edits, prompts for Bash | Trusting sessions |
-| `plan` | Read-only — Claude plans, cannot execute | Code review, audit |
-| `bypassPermissions` | Skips all prompts — **dangerous** | CI/CD only, sandboxed env |
-
-Disable bypass permanently (set in `~/.claude/settings.json`):
-```json
-{ "permissions": { "disableBypassPermissionsMode": "disable" } }
-```
-
----
+# Claude Code — Settings Rule Syntax
 
 ## Rule syntax
 
@@ -83,14 +18,10 @@ Disable bypass permanently (set in `~/.claude/settings.json`):
 "Write(**/*.key)"          // deny writing any .key file
 ```
 
-### WebFetch
+### WebFetch / WebSearch
 ```json
 "WebFetch(domain:docs.rs)" // specific domain only
-"WebFetch"                  // all web fetches (no sub-pattern)
-```
-
-### WebSearch
-```json
+"WebFetch"                  // all web fetches
 "WebSearch"                 // no sub-patterns supported
 ```
 
@@ -99,31 +30,26 @@ Disable bypass permanently (set in `~/.claude/settings.json`):
 "Agent(explorer)"
 "Skill(deploy *)"
 "mcp__github__*"           // all tools from github MCP server
-"mcp__playwright__navigate"
 ```
 
----
+## defaultMode values
+
+| Value | Behavior | When to use |
+|---|---|---|
+| `default` | Prompts on first use of each tool | Normal development |
+| `acceptEdits` | Auto-accepts file edits, prompts for Bash | Trusting sessions |
+| `plan` | Read-only — Claude plans, cannot execute | Code review, audit |
+| `bypassPermissions` | Skips all prompts — **dangerous** | CI/CD only, sandboxed env |
 
 ## Security notes
 
-- `Read(**/.env)` only blocks the Read tool.
-  `Bash(cat .env)` bypasses it unless you also deny that Bash command.
-  → Use `.claudeignore` for hard file exclusion.
-
-- `disableBypassPermissionsMode: "disable"` prevents switching to
-  bypass mode mid-session — set it in `~/.claude/settings.json`.
-
-- Prefer `ask` over `allow` for anything touching external systems
-  (git push, deploy, database commands, package install).
-
-- `deny` rules in `~/.claude/settings.json` cannot be overridden
-  by project-level `allow` rules — deny always wins globally.
-
----
+- `Read(**/.env)` only blocks the Read tool. `Bash(cat .env)` bypasses it unless separately denied.
+  → Use `.claudeignore` for hard file exclusion regardless of tool.
+- `disableBypassPermissionsMode: "disable"` prevents switching to bypass mode mid-session.
+- Prefer `ask` over `allow` for anything touching external systems.
+- `deny` in `~/.claude/settings.json` cannot be overridden by project-level `allow` — deny always wins.
 
 ## managed-settings.json (enterprise)
-
-Cannot be overridden by any user or project setting.
 
 | OS | Path |
 |---|---|

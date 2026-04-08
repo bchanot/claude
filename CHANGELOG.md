@@ -6,6 +6,338 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [3.2.1] — 2026-04-07
+
+### Fixed
+- `agents/plugin-advisor.md`: 4 signals had entries in the signal table but no conditional rule — added rules for `skill-creation`, `browser-qa`, `design-system`, and `complex-arch`
+
+### Changed
+- `version.txt`: 3.2.0 → 3.2.1
+
+## [3.2.0] — 2026-04-07
+
+### Fixed
+- `doctor.sh`: EXPECTED_SKILLS pass message uses `${#EXPECTED_SKILLS[@]}` (dynamic count) instead of hardcoded 9
+- `agents/plugin-advisor.md`: `setup.py` and `pyproject.toml` added as counterindicators for embedded signal — prevents Python C-extensions from false-triggering embedded
+- `agents/status-reporter.md`: PHP phpunit added to manifest fallback (`composer.json` → `./vendor/bin/phpunit`)
+- `skills/health/SKILL.md`: post-result guidance added — CRITICAL/WARNING/errors/warnings/all-pass handling
+
+### Added
+- `USAGE.md`: "Erreurs fréquentes" — embedded signal not detected entry
+
+### Changed
+- `version.txt`: 3.1.0 → 3.2.0
+
+## [3.1.0] — 2026-04-07
+
+### Fixed
+- `agents/plugin-advisor.md`: `Makefile` restored as embedded indicator — `Makefile` + `src/*.c` + no Node/Rust/Go manifest = embedded; `.c` files alone still not sufficient (Rust FFI counterindicated)
+- `agents/onboarder.md`: PHASE 6 — check `command -v gsd` before generating ROADMAP.md; if absent, ROADMAP.md still generated with install instructions; same pattern as init-project STEP 13
+
+### Added
+- `doctor.sh`: expected skills check — verifies all 9 skills (analyze, health, init-project, onboard, plugin-check, readme, refactor, ship-feature, status) present in `~/.claude/skills/`
+- `skills/analyze/SKILL.md`: description updated to mention DEBUG mode (read-only analysis OR error/stack trace → DEBUG mode)
+- `USAGE.md`: token cost estimates on workflow patterns (Pattern A ~3000-5000t, B ~1500-2500t/session, D ~500-800t, E ~600-900t); budget note at top of Patterns section
+
+### Changed
+- `version.txt`: 3.0.0 → 3.1.0
+
+## [3.0.0] — 2026-04-07
+
+### Fixed
+- `agents/plugin-advisor.md`: embedded false positive removed — `src/*.c` alone no longer triggers embedded signal (Rust FFI projects have .c files); only `platformio.ini` or `*.ld`/`*.lds` linker scripts are reliable triggers
+- `agents/status-reporter.md`: flat awk scoped to `## Milestone` headings — no longer matches `## Prerequisites`, `## Notes`, or other non-milestone `##` headings in ROADMAP.md
+
+### Added
+- `agents/status-reporter.md`: Go test runner in manifest fallback (`go.mod` → "go test ./...")
+- `USAGE.md`: GSD v2 active/interrupted node in decision tree — /gsd auto, /gsd steer, /gsd forensics
+- `skills/analyze/SKILL.md`: argument-hint updated to mention DEBUG mode (pass error/stack trace)
+
+### Breaking
+- `agents/plugin-advisor.md`: embedded detection no longer triggers on C/C++ files alone — projects relying on .c file detection must add `platformio.ini` or a `*.ld` linker script
+
+### Changed
+- `version.txt`: 2.9.0 → 3.0.0
+
+## [2.9.0] — 2026-04-07
+
+### Fixed
+- `agents/plugin-advisor.md`: PHASE 1 — filesystem embedded detection added (platformio.ini, *.ld linker scripts, src/*.c without package.json/Dockerfile); signal description updated
+- `agents/status-reporter.md`: PHASE 3 — flat ROADMAP fallback awk command for milestones with tasks directly under ## (no ### slices); marked with "(flat)" in output
+- `agents/status-reporter.md`: pytest cache parsing — JSON `{}` = "all passing" instead of "0 failing"; uses python3 for proper JSON parse instead of `cat | head`
+
+### Added
+- `USAGE.md`: analyze → refactor → analyze cycle documented in decision tree (refactoring profond)
+- `README.md`: link to USAGE.md in intro section
+
+### Changed
+- `version.txt`: 2.8.0 → 2.9.0
+
+## [2.8.0] — 2026-04-07
+
+### Fixed
+- `agents/status-reporter.md`: awk milestone detection uses `index()` instead of regex negation — portable across macOS nawk and GNU awk
+- `agents/status-reporter.md`: Tests field fallback improved — shows "run '<cmd>' to check" when no result found but test manifest exists; shows "N/A" only when no test infrastructure at all
+
+### Added
+- `agents/plugin-advisor.md`: `embedded` signal added — firmware/bare-metal/microcontroller detection; DECISION TABLE row; conditional rule disabling all toggles, superpowers optional
+- `doctor.sh`: agents pass message now lists all 8 agent names inline for quick visual confirmation
+- `USAGE.md`: section "Quel skill utiliser ?" — decision tree for all 9 skills with quick-reference table
+- `README.md`: `/status` added to Maintenance Diagnostic section alongside `/health`
+
+### Changed
+- `version.txt`: 2.7.0 → 2.8.0
+
+## [2.7.0] — 2026-04-07
+
+### Fixed
+- `agents/status-reporter.md`: milestone detection algorithm — uses `awk` to find first `##` heading with pending `###` slices (top-to-bottom scan), not `tail -5` of all `##` headings
+- `skills/ship-feature/SKILL.md`: `git log` now uses `--format="%h %<(50,trunc)%s"` to truncate long commit messages at 50 chars
+
+### Added
+- `agents/status-reporter.md`: PHASE 2 — best-effort build/test status check (pytest cache, Jest coverage, log files); `Tests` field in output
+- `doctor.sh`: `check_symlink "lib"` added; `_EXPECTED_LINKS` updated 6 → 7
+- `agents/plugin-advisor.md`: `skill-creation` signal added to PHASE 2; WARN rule if skill-creator active without skill-creation signal
+- `USAGE.md`: Exemple 9 — firmware C/C++ STM32, workflow minimaliste sans superpowers ni GSD
+
+### Changed
+- `version.txt`: 2.6.0 → 2.7.0
+
+## [2.6.0] — 2026-04-07
+
+### Fixed
+- `agents/status-reporter.md`: PHASE 3 now counts slices (### headings) not tasks (- [ ]) — correct progress metric matching GSD v2 dashboard
+- `hooks/session-start.sh`: continuation line uses 13-space prefix (verified 60 bytes) for consistent box alignment
+- `agents/onboarder.md`: PHASE 5b clarifies .gitignore target path per mode (A=workspace root, B=PACKAGE_ROOT, C=per-package)
+
+### Added
+- `skills/ship-feature/SKILL.md`: STEP 0b now prints PROJECT CONTEXT header when CLAUDE.md found — project name, stack, current branch, last 3 commits, GSD milestone
+- `USAGE.md`: Exemple 8 — full session resume workflow with /status + GSD v2 step mode + /gsd discuss
+
+### Changed
+- `version.txt`: 2.5.0 → 2.6.0
+
+## [2.5.0] — 2026-04-07
+
+### Fixed
+- `skills/init-project/SKILL.md`: STEP 1 — checks both `CLAUDE.md` and `.claude/CLAUDE.md`; pre-fills interview from either location
+- `agents/status-reporter.md`: PHASE 3 GSD — replaced fragile `STATUS.md` read with robust ROADMAP.md checkbox parsing; handles missing ROADMAP.md; never reads binary `state.db`
+- `agents/onboarder.md`: PHASE 5b added — .gitignore safety check; appends `.claude/settings.local.json` to existing .gitignore or creates minimal one; applies to all monorepo options
+
+### Added
+- `doctor.sh`: expected agents check in Consistency section — warns if any of 8 expected `.md` agent files are missing from `~/.claude/agents/`
+- `README.md` + `USAGE.md`: `/status` added to Pattern B (multi-session) and Pattern C (onboarding) workflows
+- `hooks/session-start.sh`: 2-line display for >4 active/inactive plugins — all plugin names shown, split at 4 per line
+
+### Changed
+- `version.txt`: 2.4.0 → 2.5.0
+
+## [2.4.0] — 2026-04-07
+
+### Fixed
+- `skills/init-project/SKILL.md`: STEP 1 — reads existing CLAUDE.md if present; pre-fills interview answers already documented; asks only genuinely missing fields
+- `agents/onboarder.md`: Option B fully implemented — explicit PACKAGE_ROOT scoping; all PHASE 3-5 paths relative to selected package; no root CLAUDE.md generated
+- `agents/plugin-advisor.md`: upstream monorepo detection in PHASE 1 — checks `../turbo.json`, `../pnpm-workspace.yaml`, `../../turbo.json` for sub-package context; signal table updated to describe upstream detection
+
+### Added
+- `agents/status-reporter.md` + `skills/status/SKILL.md`: new `/status` skill — consolidated read-only snapshot (plugins + token cost + git state + recent commits + GSD v2 milestone)
+- `USAGE.md`: section "Erreurs fréquentes" — quick-reference table of 14 common errors with causes and solutions
+- `doctor.sh`: symlink counter — reports `N/6 OK` after symlink checks
+- `hooks/session-start.sh`: `+N more` display — shows first 2 active/inactive plugins + count of remaining instead of truncated string
+- `README.md`: /status added to skill table and file tree
+
+### Changed
+- `version.txt`: 2.3.0 → 2.4.0
+
+## [2.3.0] — 2026-04-07
+
+### Fixed
+- `skills/ship-feature/SKILL.md`: STEP 0b added — checks for CLAUDE.md before starting; blocks with `/onboard` instruction if missing
+- `skills/ship-feature/SKILL.md`: STEP 4b option B enhanced — scans remaining tasks for dependents before skipping a failed task; prompts to skip dependent tasks too
+- `agents/onboarder.md`: Option C (sequential monorepo onboarding) fully implemented — iterates all packages, generates per-package CLAUDE.md + settings + .claudeignore, summary table, optional root ROADMAP.md
+- `agents/plugin-advisor.md`: `monorepo` signal added to PHASE 1 detection (turbo.json, pnpm-workspace, nx.json), PHASE 2 signal table, DECISION TABLE, and conditional rules — recommends plugins per-package, not for the whole repo
+- `doctor.sh`: `check_symlink "templates"` added — detects missing templates/ symlink (pre-v2.0.0 installations)
+- `hooks/session-start.sh`: ACTIVE_STR and INACTIVE_STR truncated to 37 chars + `…` indicator when overflow detected
+
+### Added
+- `USAGE.md`: Exemple 7 — refactoring module Python legacy; full `/analyze` → `/refactor` → `/analyze` cycle; shows report-before-modify behavior and test-first recommendation
+
+### Changed
+- `version.txt`: 2.2.0 → 2.3.0
+
+## [2.2.0] — 2026-04-07
+
+### Fixed (bugs identified via case study simulation)
+- `skills/init-project/SKILL.md`: STEP 13 — guard `command -v gsd` before running `gsd init`; prints install instructions if GSD v2 not in PATH instead of failing silently
+- `skills/ship-feature/SKILL.md`: STEP 4b added — structured error recovery when a subagent fails (build error, failing test, type error); DEBUG mode analysis + user gate before any fix; max 2 retry attempts; never auto-patches
+- `agents/onboarder.md`: monorepo detection added (PHASE 1) — detects `apps/`, `packages/`, `pnpm-workspace.yaml`, `turbo.json`, `nx.json`, `lerna.json`; interactive gate (onboard whole workspace / single package / each separately)
+- `agents/plugin-advisor.md`: `mobile` signal added to PHASE 2 signal table + DECISION TABLE + conditional rules — React Native / Expo / Flutter explicitly handled; gstack disabled for mobile, Docker N/A
+- `doctor.sh`: GStack `skills/` subdirectory check added after symlink verification — warns if GStack is symlinked but has no skills (needs `./setup`)
+- `hooks/session-start.sh`: TOKEN_WARN truncated to 44 chars to prevent box overflow with emoji width
+
+### Added
+- `USAGE.md`: Exemple 6 — CLI Rust from scratch; illustrates minimal workflow (superpowers only, no frontend plugins, cargo check as verify, no GSD v2)
+
+### Changed
+- `version.txt`: 2.1.0 → 2.2.0
+
+## [2.1.0] — 2026-04-07
+
+### Added
+- `agents/scaffolder.md`: React Native/Expo + Flutter support — PHASE 0 (Docker exclusion), PHASE 3 (stack templates), PHASE 4 (install commands), PHASE 5 (verify commands per stack)
+- `agents/analyzer.md`: DEBUG MODE section — structured error diagnosis with root cause hypotheses, trace, and affected files
+- `agents/onboarder.md`: new agent — onboard existing projects (discovery → interview → CLAUDE.md + settings + .claudeignore + optional GSD v2 ROADMAP)
+- `skills/onboard/SKILL.md`: new skill `/onboard` invoking the onboarder agent
+- `skills/init-project/SKILL.md`: STEP 13 (optional) — propose GSD v2 init at end of init-project when multi-session signal detected
+- `Makefile`: `make onboard` target
+- `README.md`: Workflow patterns section (5 patterns: new short, new long, onboarding, hotfix, refactor); /onboard in skill table and tree; make onboard in maintenance
+
+### Fixed
+- `agents/plugin-advisor.md`: "Next.js + context7 not configured" moved from BLOCK → WARN with force option — Context7 requires manual API key, should not hard-block project start
+- `lib/detect-plugins.sh`: `detect_ruflo()` now uses 3-level fallback (npm binary → MCP config grep + ruvnet/claude-flow variants → `claude mcp list`)
+- `hooks/session-start.sh`: passive token cost estimate added to session display — warns at >25%, alerts at >50% of Pro session budget
+
+### Changed
+- `version.txt`: 2.0.0 → 2.1.0
+
+## [2.0.0] — 2026-04-06
+
+### Breaking
+- GSD v1 (`glittercowboy/get-shit-done-cc`) removed entirely
+- GSD v1 commands (`/gsd:discuss-phase`, `/gsd:plan-phase`, `/gsd:execute-phase`, `/gsd:ship`, `/gsd:next`) no longer available — these were Claude Code slash commands; they do not exist in v2
+- GSD v2 (`gsd-pi`) is a standalone CLI (Pi SDK), not a Claude Code plugin — usage model is entirely different
+
+### Added
+- **GSD v2 integration** (`gsd-build/gsd-2`, npm: `gsd-pi` 2.64.0) — standalone CLI with autonomous mode (`/gsd auto`), state machine per-task execution, crash recovery, cost tracking, parallel workers, worktree isolation
+- **Ruflo plugin** (`ruvnet/ruflo`, npm: `ruflo` 3.5.58) — enterprise multi-agent MCP server (formerly claude-flow), 310+ tools, 100+ agent types, WASM kernel; 🔄 TOGGLE, ~500-1500t passive
+- **Full plugin compatibility matrix** in `agents/plugin-advisor.md` — all 12 plugins analyzed pairwise, conditional rules, recommended sets by project type
+- **Ruflo auto-detection** in `lib/detect-plugins.sh`, `doctor.sh`, `hooks/session-start.sh`
+- **GSD v2 CLI status** in `session-start.sh` — dedicated `🖥️  CLI` line (separate from CC plugin toggles)
+- **8 new deny rules** in `settings.json`: `source /dev/stdin`, `mkfifo *`, `python3 -c *`, `node -e *`, `xargs * .env*`, `tar * .env*`, `zip * .env*`, `base64 .env*` — covers runtime secret access and exfiltration vectors
+- **`disableAutoMode: "disable"`** added to global `settings.json` # TODO: VERIFY syntax in CC v2.1.89
+- **`templates/` symlink** in `link.sh` — `~/.claude/templates/` now resolves correctly for scaffolder and init-project
+- **Token budget breakdown** in `doctor.sh` — CLAUDE.md + skill descriptions + plugin passive cost, thresholds vs Pro session budget (~11k tokens/5h)
+- **GStack pinning warning** in `doctor.sh` and `update-all.sh` (confirmation prompt before `--remote` update)
+- **GStack false-positive fix** in `doctor.sh` — submodule check now requires `.git` presence, not just directory existence
+- Ruflo install instructions in `install-plugins.sh` (Step 5, manual — enterprise tool)
+- Ruflo update step in `update-all.sh`
+- GSD v2 update step in `update-all.sh`
+
+### Changed
+- `plugins.lock.json`: GSD v1 (`npm:get-shit-done-cc`) → GSD v2 (`npm:gsd-pi` 2.64.0); ruflo (`npm:ruflo` 3.5.58) added
+- `install-plugins.sh`: STEP 4 GSD v2 (`npm install -g gsd-pi`), STEP 5 ruflo (manual instructions), steps renumbered 6-7
+- `lib/detect-plugins.sh`: `detect_gsd()` now checks `command -v gsd` (not `~/.claude/skills/` grep); `detect_ruflo()` added
+- `doctor.sh`: GSD v2 check, ruflo check, GStack false-positive fix, GStack pinning warning, EXPECTED_DENY 92→100, token budget Pro-aware with breakdown, `readlink -f` portability fix
+- `hooks/session-start.sh`: GSD v2 removed from toggle loop → dedicated `🖥️  CLI` line; ruflo added to toggle loop
+- `update-all.sh`: GStack confirmation prompt, GSD v2 update step, ruflo update step, steps renumbered 1-7
+- `agents/plugin-advisor.md`: complete rewrite — PHASE 1 detection (GSD v2, ruflo), PHASE 2 signal table, full compatibility matrix, conditional rules, recommended sets by project type, WARN/BLOCK updated
+- `link.sh`: `templates/` added to symlink loop
+- `settings.json`: 92→100 deny rules, `disableAutoMode` added
+- `README.md`: comprehensive update — GSD v2 full usage guide, ruflo install/usage, plugin compatibility matrix section, updated plugin table (GSD v2 as CLI, ruflo as TOGGLE), version pinning examples, troubleshooting entries for GSD v2 and ruflo, Known Limitations updated
+- `version.txt`: 1.0.4 → 2.0.0
+
+### Fixed
+- `link.sh`: `templates/` not symlinked — scaffolder and init-project now find `~/.claude/templates/project-CLAUDE.md`
+- `doctor.sh`: GStack submodule check was a false positive when directory existed but submodule was uninitialised
+- `doctor.sh`: `readlink -f` fallback made explicit for BSD macOS compatibility
+- `doctor.sh`: token budget used incorrect "~8000 tokens" reference — now uses Pro session budget (~11k)
+- `doctor.sh`: EXPECTED_DENY hardcoded at 92 — updated to 100 after new deny rules
+- `update-all.sh`: GStack update had no confirmation prompt — added; GStack step structure had mismatched `if/fi`
+- `agents/plugin-advisor.md`: GSD detection used `ls ~/.claude/skills/ | grep gsd` — broken for v2 (CLI not a skill)
+- `hooks/session-start.sh`: GSD v2 (standalone CLI) was in the CC plugin toggle loop — incorrect, moved to dedicated CLI line
+
+## [1.0.4] — 2026-04-05
+
+### Fixed
+- `skills/*/SKILL.md`: agent paths changed from `.claude/agents/` to `$HOME/.claude/agents/` — unambiguous user-scope resolution regardless of working directory
+- `hooks/session-start.sh`: `CONFIG_VERSION` now displayed in session-start box (was computed but never shown)
+- `settings.json` + templates: removed non-standard `_readme` key (silently ignored by Claude Code but triggers schema warnings)
+- `agents/plugin-advisor.md`: RTK detection re-added in PHASE 1 (was removed in v1.0.3 compression)
+- `skills/health/SKILL.md`: fallback command simplified — removed 3-level quote nesting
+- `install-plugins.sh`: removed duplicate "→ Restart Claude Code" line
+
+### Changed
+- README: Superpowers command table now shows actual skill names (`superpowers:brainstorming`, `superpowers:writing-plans`, `superpowers:subagent-driven-development`, etc.)
+- README: install step 6 — replaced `/reload-plugins` (nonexistent command) with "Restart Claude Code — plugins load automatically"
+- README: Context7 API key URL corrected from `context7.com` to `upstash.com`
+- README: Known Limitations — clarified agent frontmatter fields ARE enforced in v2.1.x; added `disableAutoMode` note
+- README: Makefile command list in Maintenance section now includes `make new-skill`
+- `lib/detect-plugins.sh`: `detect_context7()` no longer spawns `claude` CLI — reads `~/.claude.json` and `~/.mcp.json` directly (no subprocess overhead at session start)
+
+## [1.0.3] — 2026-04-05
+
+### Token savings (~57% reduction across agents/skills)
+- `CLAUDE.md`: 1414t → 418t (-70%) — rewritten as dense rule list, no prose padding
+- `agents/plugin-advisor.md`: 1251t → 536t (-57%) — DECISION MATRIX removed (duplicated THRESHOLDS), output template compressed
+- `agents/interviewer.md`: 1088t → 438t (-60%) — PROJECT BRIEF ASCII art → compact YAML-style, question groups flattened
+- `agents/readme-updater.md`: 2224t → 792t (-64%) — Docker detection unified to one block, template skeleton condensed, phases as tight checklists
+- `agents/scaffolder.md`: 2402t → 1041t (-57%) — Dockerfile/compose templates replaced by 3-line descriptions, Phase 0 compressed
+- `skills/init-project/SKILL.md`: 2452t → 915t (-63%) — AGENTS LOADED section removed, each STEP condensed to 2-4 lines
+- `skills/ship-feature/SKILL.md`: 1236t → 537t (-57%) — same treatment as init-project
+
+### Changed behavior
+- `agents/interviewer.md`: if prompt already contains name + purpose + stack + features + architecture → generate BRIEF directly, no questions asked
+- `agents/readme-updater.md`: Docker detection defined once at top, referenced in all modes (no duplication)
+- `hooks/session-start.sh`: always-on plugins (security-guidance, rtk, superpowers) now explicitly shown in session start display
+- `skills/health/SKILL.md`: fallback path when `~/.claude/doctor.sh` not found (follows CLAUDE.md symlink to locate repo)
+- `skills/plugin-check/SKILL.md`: argument-hint now shows concrete example
+
+### Added
+- `Makefile`: `make new-skill name=<n>` — scaffolds agent + skill files from template in one command
+- `templates/project-CLAUDE.md`: inline examples per section (FastAPI-based) — usable without /init-project
+- README: bundled skills section (`/batch`, `/debug`, `/simplify`)
+- README: accurate progressive loading explanation (description only at startup, body on-demand)
+- `link.sh`: idempotent — reports "already up to date" or count of updated symlinks
+
+## [1.0.2] — 2026-04-04
+
+### Security
+- `Bash(git add .env*)` and `Bash(git add **/.env*)` added to deny — prevents staging secrets
+- `Bash(cp **/id_rsa*)`, `Bash(cp **/id_ed25519*)`, `Bash(cp **/.ssh/*)` added to deny — closes SSH key copy bypass
+- `deny` total: 87 → 92 rules
+- `npx *` moved from allow to ask in project template settings — arbitrary npm package execution now requires confirmation
+- `docker stop *` and `docker rm *` moved from allow to ask in project template settings
+
+### Changed
+- `skill-creator` and `pr-review-toolkit` reclassified from ALWAYS ON to TOGGLE — saves ~400 tokens/session by default
+- `agents/scaffolder.md`: removed Go, PHP/WordPress, Flutter/Dart stack templates (unused)
+- `CLAUDE.md`: STRICT MODE section removed — rules inlined into `skills/init-project/SKILL.md` and `skills/ship-feature/SKILL.md` where they apply, reducing global context weight
+- `CLAUDE.md`: FAIL FAST MODE cleaned up (removed contradictory "override all" claim)
+- `agents/readme-updater.md`: mode detection changed from substring match to exact first-word match — `/readme update X` no longer silently triggers SYNC mode
+- `templates/settings/SETTINGS.md`: stripped sections duplicating README (precedence table, what-goes-where) — 132 → 58 lines
+- `plugins.lock.json`: removed unused `install_cmd` and `node` fields
+- README: GStack 14-command table collapsed to a single reference line
+- README: plugin table updated to reflect new toggle status
+
+### Fixed
+- `install-plugins.sh`: GStack `./setup` now runs in subshell with existence+executable guard (same fix as update-all.sh)
+- `install-plugins.sh`: log setup guarded against read-only filesystem — no longer crashes before output
+- `install-plugins.sh`: `rtk init -g` now skipped if RTK hook already present in settings.json
+- `doctor.sh`: CRLF detection ported from `grep -qP` (Linux-only) to `grep -c $'\r'` (portable macOS/Linux)
+- `doctor.sh`: token budget breakdown now lists top consumers per file when estimate exceeds 2000 tokens
+- `lib/detect-plugins.sh`: removed three never-called functions (`detect_security_guidance`, `detect_skill_creator`, `detect_pr_review_toolkit`)
+- `hooks/session-start.sh`: removed unreachable inline fallback — replaced with clean exit message
+
+## [1.0.1] — 2026-04-03
+
+### Security
+- `env` and `printenv *` moved from allow to deny — blocks secret exposure via process environment
+- `export *` added to deny — prevents environment variable injection
+- `cp .env*`, `cp **/.env*`, `mv .env*`, `mv **/.env*` added to deny — closes copy-then-read bypass on secret files
+- `cp **/secrets/*`, `mv **/secrets/*` added to deny — extends secret move protection to secrets/ directory
+- `sed *` moved from allow to ask — all sed (including in-place `-i`) now requires confirmation
+- `sed -i *` and `sed -i'' *` removed from ask (consolidated into `sed *`)
+
+### Changed
+- `git stash*` (broad allow) split into safe variants in allow (`git stash`, `push*`, `list*`, `show*`) and destructive variants in ask (`pop*`, `drop*`, `clear`)
+- `doctor.sh` token budget estimate now uses full skill/agent file sizes instead of description-only char count — produces accurate token estimates (~4 chars/token)
+- `doctor.sh` deny rule count now checks against expected value (87) and warns on mismatch
+- `doctor.sh` python3 one-liner wrapped in `|| echo "?"` — diagnosis no longer crashes on missing python3
+
+### Fixed
+- `update-all.sh` GStack `./setup` now runs in a subshell — upstream setup failure no longer crashes the update script mid-execution under `set -euo pipefail`
+- `update-all.sh` guards `./setup` existence and executable bit before invoking it
+
 ## [1.0.0] — 2025-04-03
 
 ### Added

@@ -7,7 +7,7 @@ allowed-tools: Read, Write, Edit, Grep, Glob, Bash
 ---
 
 Load and follow strictly:
-- .claude/agents/refactorer.md
+- $HOME/.claude/agents/refactorer.md
 
 Execute the REFACTORER agent on the following target:
 

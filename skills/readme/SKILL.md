@@ -7,7 +7,7 @@ allowed-tools: Read, Write, Edit, Bash, Glob, Grep
 ---
 
 Load and follow strictly:
-- .claude/agents/readme-updater.md
+- $HOME/.claude/agents/readme-updater.md
 
 Execute the README UPDATER on this project.
 

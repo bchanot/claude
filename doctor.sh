@@ -29,6 +29,9 @@ echo ""
 # 1. Core symlinks
 # ────────────────────────────────────────────────────────────
 echo "── Symlinks ──"
+# Expected: CLAUDE.md, settings.json, agents, skills, templates, hooks/session-start.sh
+_EXPECTED_LINKS=7
+_LINK_PASS=0
 
 check_symlink() {
   local name="$1"
@@ -40,12 +43,13 @@ check_symlink() {
   fi
 
   if [ -L "$target" ]; then
+    # readlink -f is not available on macOS BSD — use -f with fallback
     local real
-    real=$(readlink -f "$target" 2>/dev/null || readlink "$target")
+    real=$(readlink -f "$target" 2>/dev/null) || real=$(readlink "$target")
     if [ ! -e "$real" ]; then
       fail "~/.claude/$name → $real — BROKEN SYMLINK"
     else
-      pass "~/.claude/$name"
+      pass "~/.claude/$name"; _LINK_PASS=$((_LINK_PASS + 1))
     fi
   else
     warn "~/.claude/$name exists but is NOT a symlink (expected symlink to repo)"
@@ -56,7 +60,11 @@ check_symlink "CLAUDE.md"
 check_symlink "settings.json"
 check_symlink "agents"
 check_symlink "skills"
+check_symlink "templates"
+check_symlink "lib"
 check_symlink "hooks/session-start.sh"
+info "Symlinks: ${_LINK_PASS}/${_EXPECTED_LINKS} OK"
+unset _EXPECTED_LINKS _LINK_PASS
 
 echo ""
 
@@ -65,16 +73,27 @@ echo ""
 # ────────────────────────────────────────────────────────────
 echo "── GStack submodule ──"
 
-if [ -d "$REPO/skills-external/gstack" ] || [ -f "$REPO/skills-external/gstack/.git" ]; then
-  pass "Submodule present at skills-external/gstack"
+GSTACK_DIR="$REPO/skills-external/gstack"
+if [ -f "$GSTACK_DIR/.git" ] || [ -d "$GSTACK_DIR/.git" ]; then
+  pass "Submodule initialized at skills-external/gstack"
+  warn "GStack tracks branch = main (no commit hash pin). Review upstream before updating."
+elif [ -d "$GSTACK_DIR" ]; then
+  warn "skills-external/gstack exists but submodule not initialized — run: git submodule update --init"
 else
-  warn "Submodule not initialized — run: git submodule update --init"
+  warn "GStack submodule missing — run: git submodule update --init"
 fi
 
 if [ -L "$HOME/.claude/skills/gstack" ]; then
   real=$(readlink -f "$HOME/.claude/skills/gstack" 2>/dev/null || readlink "$HOME/.claude/skills/gstack")
   if [ -d "$real" ]; then
     pass "Symlink OK → $real"
+    # Check for skills/ subdirectory (referenced by plugin-advisor PHASE 1)
+    gstack_skills_count=$(ls "$HOME/.claude/skills/gstack/skills/" 2>/dev/null | wc -l | tr -d ' ')
+    if [ "${gstack_skills_count:-0}" -gt 0 ]; then
+      pass "GStack: ${gstack_skills_count} skills available"
+    else
+      warn "GStack symlink OK but no skills/ subdirectory found — may need: cd skills-external/gstack && ./setup"
+    fi
   else
     fail "Symlink broken → $real"
   fi
@@ -149,6 +168,18 @@ else
   info "Context7 MCP not configured (optional — needed for fast-evolving libs)"
 fi
 
+if detect_gsd; then
+  pass "GSD v2 installed ($(gsd --version 2>/dev/null | head -1 || echo 'gsd'))"
+else
+  info "GSD v2 not installed (optional — run: npm install -g gsd-pi)"
+fi
+
+if detect_ruflo; then
+  pass "Ruflo MCP configured"
+else
+  info "Ruflo MCP not configured (optional — enterprise multi-agent orchestration)"
+fi
+
 echo ""
 
 # ────────────────────────────────────────────────────────────
@@ -170,7 +201,17 @@ with open('$SETTINGS') as f:
     d = json.load(f)
 print(len(d.get('permissions',{}).get('deny',[])))
 " 2>/dev/null || echo "?")
-  pass "Deny rules: $DENY_COUNT"
+
+  if [ "$DENY_COUNT" = "?" ]; then
+    warn "Could not parse deny count (python3 unavailable or JSON parse error)"
+  else
+    EXPECTED_DENY=100
+    if [ "$DENY_COUNT" -eq "$EXPECTED_DENY" ] 2>/dev/null; then
+      pass "Deny rules: $DENY_COUNT"
+    else
+      warn "Deny rules: $DENY_COUNT (expected $EXPECTED_DENY) — settings may have been manually modified"
+    fi
+  fi
 else
   fail "~/.claude/settings.json not found"
 fi
@@ -181,29 +222,66 @@ echo ""
 # 6. Token budget estimate
 # ────────────────────────────────────────────────────────────
 echo "── Token budget estimate ──"
+# Reference: Claude Code Pro plan ~11k tokens/5h session (session budget, not context window).
+# Seuils: WARNING >15%, CRITICAL >30% of session budget.
 
-TOTAL_CHARS=0
+CLAUDE_MD_CHARS=$(wc -c < "$REPO/CLAUDE.md" 2>/dev/null || echo 0)
+CLAUDE_MD_TOKENS=$((CLAUDE_MD_CHARS / 4))
 
-# Skill descriptions
+# Skill descriptions only (frontmatter description field — loaded passively at startup)
+SKILL_DESC_CHARS=0
 for f in "$HOME/.claude/skills/"*/SKILL.md; do
   [ -f "$f" ] || continue
-  desc=$(sed -n 's/^description: //p' "$f" 2>/dev/null || true)
-  TOTAL_CHARS=$((TOTAL_CHARS + ${#desc}))
+  desc=$(grep "^description:" "$f" 2>/dev/null | head -1 | sed 's/^description: *//' )
+  SKILL_DESC_CHARS=$((SKILL_DESC_CHARS + ${#desc}))
 done
+SKILL_DESC_TOKENS=$((SKILL_DESC_CHARS / 4))
+SKILL_COUNT=$(find "$HOME/.claude/skills/" -maxdepth 2 -name "SKILL.md" 2>/dev/null | wc -l | tr -d ' ')
 
-# Agent descriptions
-for f in "$HOME/.claude/agents/"*.md; do
-  [ -f "$f" ] || continue
-  desc=$(sed -n '/^---$/,/^---$/{ s/^description: //p }' "$f" 2>/dev/null || true)
-  TOTAL_CHARS=$((TOTAL_CHARS + ${#desc}))
-done
+# Plugin passive cost estimates (tokens)
+PLUGIN_TOKENS=0
+if detect_superpowers 2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 800)); fi
+if detect_gstack      2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 2750)); fi
+if detect_frontend_design 2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 200)); fi
+if detect_uiux_pro_max    2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 400)); fi
+if detect_context7    2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 200)); fi
+if detect_ruflo       2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 1000)); fi
 
-if [ "$TOTAL_CHARS" -gt 6000 ]; then
-  warn "Custom descriptions: ~${TOTAL_CHARS} chars (budget ~8000) — risk of truncation"
-elif [ "$TOTAL_CHARS" -gt 4000 ]; then
-  info "Custom descriptions: ~${TOTAL_CHARS} chars (within budget, moderate margin)"
+TOTAL_TOKENS=$((CLAUDE_MD_TOKENS + SKILL_DESC_TOKENS + PLUGIN_TOKENS))
+SESSION_BUDGET=11000
+PCT=$((TOTAL_TOKENS * 100 / SESSION_BUDGET))
+
+echo ""
+echo "  CLAUDE.md:           ~${CLAUDE_MD_TOKENS}t"
+echo "  Skill descriptions:  ~${SKILL_DESC_TOKENS}t  (${SKILL_COUNT} skills)"
+echo "  Plugin passive cost: ~${PLUGIN_TOKENS}t  (active plugins)"
+echo "  ─────────────────────────────────────────"
+info "  Total:               ~${TOTAL_TOKENS}t"
+info "  Session budget (Pro): ${SESSION_BUDGET}t"
+info "  Usage:               ~${PCT}%"
+echo ""
+
+if [ "$PCT" -gt 30 ]; then
+  warn "CRITICAL: ${PCT}% of session budget — /plugin-check to disable unused plugins"
+elif [ "$PCT" -gt 15 ]; then
+  warn "WARNING: ${PCT}% of session budget — consider disabling unused toggle plugins"
 else
-  pass "Custom descriptions: ~${TOTAL_CHARS} chars (comfortable)"
+  pass "Budget: ${PCT}% (comfortable)"
+fi
+
+# Per-file breakdown (skill bodies — loaded on demand, shown for awareness)
+if [ "$TOTAL_TOKENS" -gt 2000 ]; then
+  info "Skill/agent bodies (loaded on demand, >200t each):"
+  for f in "$HOME/.claude/skills/"*/SKILL.md "$HOME/.claude/agents/"*.md; do
+    [ -f "$f" ] || continue
+    size=$(wc -c < "$f" 2>/dev/null || echo 0)
+    tokens=$((size / 4))
+    if [ "$tokens" -gt 200 ]; then
+      label=$(basename "$(dirname "$f")" 2>/dev/null)
+      [ "$label" = "." ] && label=$(basename "$f")
+      info "  ~${tokens}t  ${label}"
+    fi
+  done
 fi
 
 echo ""
@@ -228,11 +306,45 @@ else
   warn "Skills missing disable-model-invocation: ${MISSING_DMI[*]}"
 fi
 
-# Check CRLF
+# Check expected skills are present
+EXPECTED_SKILLS=(
+  "analyze" "health" "init-project" "onboard" "plugin-check"
+  "readme" "refactor" "ship-feature" "status"
+)
+MISSING_SKILLS=()
+for skill in "${EXPECTED_SKILLS[@]}"; do
+  if [ ! -f "$HOME/.claude/skills/${skill}/SKILL.md" ]; then
+    MISSING_SKILLS+=("${skill}/")
+  fi
+done
+if [ ${#MISSING_SKILLS[@]} -eq 0 ]; then
+  pass "All ${#EXPECTED_SKILLS[@]} expected skills present (analyze, health, init-project, onboard, plugin-check, readme, refactor, ship-feature, status)"
+else
+  warn "Missing skills: ${MISSING_SKILLS[*]} — run: bash link.sh"
+fi
+
+# Check expected agents are present
+EXPECTED_AGENTS=(
+  "analyzer" "interviewer" "plugin-advisor" "readme-updater"
+  "refactorer" "scaffolder" "onboarder" "status-reporter"
+)
+MISSING_AGENTS=()
+for agent in "${EXPECTED_AGENTS[@]}"; do
+  if [ ! -f "$HOME/.claude/agents/${agent}.md" ]; then
+    MISSING_AGENTS+=("${agent}.md")
+  fi
+done
+if [ ${#MISSING_AGENTS[@]} -eq 0 ]; then
+  pass "All 8 agents present (analyzer, interviewer, plugin-advisor, readme-updater, refactorer, scaffolder, onboarder, status-reporter)"
+else
+  warn "Missing agents: ${MISSING_AGENTS[*]} — run: bash link.sh"
+fi
+
+# Check CRLF — portable: grep -P not available on macOS BSD grep
 CRLF_FILES=()
 for f in "$REPO"/*.md "$REPO"/agents/*.md "$REPO"/skills/*/SKILL.md; do
   [ -f "$f" ] || continue
-  if grep -qP '\r' "$f" 2>/dev/null; then
+  if grep -c $'\r' "$f" 2>/dev/null | grep -q "^[^0]"; then
     CRLF_FILES+=("$(basename "$f")")
   fi
 done

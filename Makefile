@@ -1,12 +1,12 @@
-.PHONY: help install link doctor update
+.PHONY: help install link doctor update new-skill
 
 help: ## Show available commands
-	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  make %-12s %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  make %-14s %s\n", $$1, $$2}'
 
 install: link ## Full install: symlinks + prerequisites + plugins
 	bash install-plugins.sh
 
-link: ## Create symlinks into ~/.claude/
+link: ## Create/update symlinks into ~/.claude/
 	bash link.sh
 
 doctor: ## Run setup diagnostic
@@ -14,3 +14,20 @@ doctor: ## Run setup diagnostic
 
 update: ## Update config, submodules, plugins, and verify
 	bash update-all.sh
+
+onboard: link ## Onboard an existing project (run from the project directory)
+	@echo "Open Claude Code in your project directory and run: /onboard"
+	@echo "Or with hints: /onboard Python FastAPI monorepo"
+
+new-skill: ## Create a new skill scaffold (usage: make new-skill name=myskill)
+	@test -n "$(name)" || (echo "Usage: make new-skill name=myskill" && exit 1)
+	@mkdir -p agents skills/$(name)
+	@if [ ! -f agents/$(name).md ]; then \
+		printf -- '---\nname: $(name)\ndescription: <what this agent does — keep under 200 chars>\ntools: Read, Grep, Glob, Bash\nmodel: sonnet\n---\n\n# $(name)\n\n## ROLE\n<role>\n\n## TASKS\n- <task>\n\n## RULES\n- <rule>\n\n## OUTPUT\n```\n<format>\n```\n' > agents/$(name).md; \
+		echo "✅ Created agents/$(name).md"; \
+	else echo "⚠️  agents/$(name).md already exists"; fi
+	@if [ ! -f skills/$(name)/SKILL.md ]; then \
+		printf -- '---\nname: $(name)\ndescription: <what this skill does — front-load key use case, max 250 chars>\nargument-hint: <what to pass>\ndisable-model-invocation: true\nallowed-tools: Read, Grep, Glob, Bash\n---\n\nLoad and follow strictly:\n- .claude/agents/$(name).md\n\nExecute on:\n\n$$ARGUMENTS\n' > skills/$(name)/SKILL.md; \
+		echo "✅ Created skills/$(name)/SKILL.md"; \
+	else echo "⚠️  skills/$(name)/SKILL.md already exists"; fi
+	@echo "   Edit both files, then run: bash link.sh"

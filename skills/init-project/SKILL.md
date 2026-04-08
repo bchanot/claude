@@ -8,343 +8,120 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 
 # ORCHESTRATOR: INIT PROJECT
 
-## AGENTS AND SKILLS LOADED
-
-Custom agents (this config):
-- .claude/agents/plugin-advisor.md   ← plugin configuration check
-- .claude/agents/interviewer.md      ← project questionnaire
-- .claude/agents/analyzer.md         ← risk/constraint analysis
-- .claude/agents/scaffolder.md       ← project skeleton (NO features, skeleton only)
-
-Superpowers skills (design + implementation):
-- superpowers:brainstorming                 ← architecture design
-- superpowers:writing-plans                 ← v1 feature decomposition
-- superpowers:subagent-driven-development   ← isolated TDD implementation
-- superpowers:requesting-code-review        ← final review
-- superpowers:finishing-a-development-branch ← cleanup + verification
-
----
-
-## INITIAL REQUEST
-
+## REQUEST
 $ARGUMENTS
 
 ---
 
-## WORKFLOW
+## STEP 0 — PLUGIN CHECK
+Load `$HOME/.claude/agents/plugin-advisor.md`. Feed request.
+- ACTION REQUIRED → show RECOMMENDATIONS block, offer: A) fix plugins B) type "force". STOP.
+- OK → `✅ Plugin check passed — [active plugins]`, continue.
 
----
-
-### STEP 0 — PLUGIN CHECK
-
-Load and follow: `.claude/agents/plugin-advisor.md`
-
-Feed it the initial request above.
-
-**If `ACTION REQUIRED: YES`:**
+## STEP 1 — INTERVIEW
+Before loading the interviewer, check for an existing CLAUDE.md:
+```bash
+ls CLAUDE.md .claude/CLAUDE.md 2>/dev/null | head -1
 ```
-================================================================
-⚠️  PLUGIN CHECK — ACTION REQUIRED
-================================================================
-[paste full RECOMMENDATIONS block]
-----------------------------------------------------------------
-A) Enable recommended plugins then re-run /init-project
-B) Type "force" to proceed without them
-================================================================
+- **Found** (either `CLAUDE.md` or `.claude/CLAUDE.md`) → read it silently.
+  Pre-fill all interview answers already documented (stack, purpose, features, conventions).
+  Load `$HOME/.claude/agents/interviewer.md` and ask ONLY what is genuinely missing.
+  Print: "📄 Existing CLAUDE.md found — using as context."
+- **Not found** → standard mode: load `$HOME/.claude/agents/interviewer.md`,
+  ask all unanswered questions.
+
+In both cases: MANDATORY STOP until user answers remaining questions. Produce PROJECT BRIEF.
+
+## STEP 2 — ANALYZE
+Load `$HOME/.claude/agents/analyzer.md`. Analyze BRIEF: existing code, stack constraints, infra risks, open decisions. Produce ANALYSIS REPORT.
+
+## STEP 3 — DESIGN
+Invoke `superpowers:brainstorming` with BRIEF + ANALYSIS REPORT.
+Produce DESIGN: stack+versions, full folder tree, module responsibilities, data flow, interfaces (signatures only), config+tooling, test strategy, resolved decisions, prereqs list.
+
+## STEP 4 — VALIDATION GATE #1 ★ MANDATORY STOP
+Present:
 ```
-**STOP. Wait for user response.**
-- Re-run → restart from STEP 0
-- "force" → note missing plugins, continue to STEP 1
-
-**If `ACTION REQUIRED: NO`:**
-Print one line and continue:
-`✅ Plugin check passed — [active plugins]`
-
----
-
-### STEP 1 — INTERVIEWER
-
-Load and follow: `.claude/agents/interviewer.md`
-
-Identify what is already provided in the initial request.
-Ask only what is genuinely missing. Single structured block of questions.
-
-**MANDATORY STOP — do not continue until user has answered.**
-
-Produce the PROJECT BRIEF. This is the single source of truth
-for all subsequent steps.
-
----
-
-### STEP 2 — ANALYZER
-
-Load and follow: `.claude/agents/analyzer.md`
-
-Analyze the PROJECT BRIEF:
-- Existing repo or code to integrate
-- Stack constraints and compatibility issues
-- Infrastructure constraints
-- Risks that could affect the design
-- Open decisions from the PROJECT BRIEF
-
-Produce an ANALYSIS REPORT.
-
----
-
-### STEP 3 — ARCHITECTURE DESIGN
-
-Invoke skill: `superpowers:brainstorming`
-
-Feed it the PROJECT BRIEF + ANALYSIS REPORT.
-
-Produce a complete DESIGN covering:
-- Finalized tech stack with exact versions
-- Complete folder structure (full tree)
-- Module responsibilities and data flow
-- Key interfaces and data models (signatures only — no implementation)
-- Config and tooling setup
-- Test strategy
-- Any open decisions resolved with justification
-- Prerequisites list (what must be installed on dev machine)
-
----
-
-### STEP 4 — VALIDATION GATE #1 — ARCHITECTURE
-
-**MANDATORY STOP — present to the user and wait for approval.**
-
-```
-================================================================
 INIT PROJECT — ARCHITECTURE VALIDATION
-================================================================
-
-PROJECT SUMMARY
----------------
-<3–5 line recap of what will be built>
-
-STACK
------
-<finalized stack with versions>
-
-PREREQUISITES TO INSTALL
--------------------------
-<list of tools / runtimes / services with versions>
-
-FOLDER STRUCTURE
-----------------
-<full tree from the DESIGN>
-
-V1 FEATURES TO IMPLEMENT
--------------------------
-<numbered list from PROJECT BRIEF — these will be implemented
- in the pipeline AFTER the skeleton is scaffolded>
-
-CONVENTIONS
------------
-<naming, doc style, test strategy>
-
-EXCEPTIONS TO GLOBAL RULES
----------------------------
-<list or "none">
-
-================================================================
-Approve this architecture? (yes / request changes)
-================================================================
+PROJECT : <3-5 line recap>
+STACK   : <versions>
+PREREQS : <install list>
+TREE    : <folder tree>
+V1 FEATURES: <numbered list>
+CONVENTIONS: <naming, doc, test>
+EXCEPTIONS : <list or none>
+Approve? (yes / request changes)
 ```
+Changes → back to STEP 3. Approved → continue.
 
-IF changes → return to STEP 3.
-IF approved → proceed.
+## STEP 5 — SCAFFOLD
+Load `$HOME/.claude/agents/scaffolder.md`. Pass: BRIEF + DESIGN + `~/.claude/templates/project-CLAUDE.md` + `~/.claude/CLAUDE.md`.
+Creates: CLAUDE.md, settings, structure, config, empty entry points, .gitignore, .env.example. NO README, NO features.
+Verify: `git init` + build passes.
 
----
+## STEP 5b — CREATE README
+Load `$HOME/.claude/agents/readme-updater.md`. README.md missing → CREATE mode auto. No stop.
 
-### STEP 5 — SCAFFOLD SKELETON
+## STEP 6 — PLAN
+Invoke `superpowers:writing-plans` with BRIEF + skeleton.
+Granular tasks (2-5 min each), exact file paths, TDD: tests before code.
 
-Load and follow: `.claude/agents/scaffolder.md`
-
-Pass to the scaffolder:
-- Full PROJECT BRIEF
-- Approved DESIGN
-- `~/.claude/templates/project-CLAUDE.md`
-- `~/.claude/CLAUDE.md`
-
-The scaffolder creates:
-1. `CLAUDE.md` — filled from global template, no placeholders
-2. `.claude/settings.json` — adapted to this stack
-3. `.claudeignore` — extended for this project
-4. Complete folder structure
-5. Config files (package.json, Cargo.toml, etc.)
-6. Empty entry points and module files (structure only, no business logic)
-7. `.gitignore`, `.env.example`
-
-**The scaffolder does NOT create the README and does NOT implement any features.**
-README is handled by readme-updater (STEP 5b).
-Features are handled by the implementation pipeline (STEPs 6–9).
-
-The scaffolder must verify: `git init` + build passes on empty project.
-
----
-
-### STEP 5b — CREATE README
-
-Load and follow: `.claude/agents/readme-updater.md`
-
-Context: `README.md` does not exist yet → CREATE mode activates automatically.
-
-The readme-updater reads `CLAUDE.md`, the folder structure, and manifests
-to generate the full README (About, Prerequisites with OS-specific install
-commands, Installation, Running, Project structure, Configuration, Contributing).
-
-No stop required — prints confirmation and continues immediately.
-
----
-
-### STEP 6 — PLAN V1 FEATURES
-
-Invoke skill: `superpowers:writing-plans`
-
-Using the PROJECT BRIEF v1 features list and the scaffolded skeleton as context:
-- Break each v1 feature into granular tasks (2–5 min each)
-- Each task must reference exact file paths from the scaffolded structure
-- Each task must include: what to implement, expected behavior, verification steps
-- Apply TDD: tests are written before implementation code
-
----
-
-### STEP 7 — VALIDATION GATE #2 — IMPLEMENTATION PLAN
-
-**MANDATORY STOP — present the plan to the user.**
-
+## STEP 7 — VALIDATION GATE #2 ★ MANDATORY STOP
 ```
-================================================================
-INIT PROJECT — IMPLEMENTATION PLAN VALIDATION
-================================================================
-
-SKELETON STATUS : ✅ build passes
-V1 FEATURES     : <N> features → <M> tasks
-
-<numbered task list with file paths>
-
-================================================================
-Approve this plan and start implementation? (yes / request changes)
-================================================================
+INIT PROJECT — IMPLEMENTATION PLAN
+SKELETON: ✅ build passes
+FEATURES: <N> → <M> tasks
+<numbered task list with paths>
+Approve and start? (yes / request changes)
 ```
+Changes → back to STEP 6. Approved → continue.
 
-IF changes → return to STEP 6.
-IF approved → proceed.
+## STEP 8 — IMPLEMENT
+Invoke `superpowers:subagent-driven-development`. Isolated subagents, TDD, 2-stage review per task.
 
----
+## STEP 9 — ANALYZE
+Load `$HOME/.claude/agents/analyzer.md`. Check: no regressions, no deviations, no stale scaffold, conventions respected.
 
-### STEP 8 — IMPLEMENT V1 FEATURES
+## STEP 10 — CODE REVIEW
+Invoke `superpowers:requesting-code-review`. Fix all CRITICAL before proceeding.
 
-Invoke skill: `superpowers:subagent-driven-development`
+## STEP 11 — FINISH
+Invoke `superpowers:finishing-a-development-branch`. Tests pass, build clean, no placeholders, initial commit ready.
 
-Execute each task with isolated subagents.
-Mandatory TDD: `superpowers:test-driven-development` applies.
-Two-stage review per task: spec compliance → code quality.
+## STEP 12 — SYNC README
+Load `$HOME/.claude/agents/readme-updater.md` with arg `sync`. Detect drift, update cmds/vars/structure, add recent changes entry.
 
-Each subagent works on a clean context with:
-- The task description
-- Relevant file paths
-- PROJECT BRIEF context
-- CLAUDE.md conventions
-
----
-
-### STEP 9 — ANALYZE
-
-Load and follow: `.claude/agents/analyzer.md`
-
-Run the ANALYZER on the completed implementation:
-- Verify no regressions
-- Verify no plan deviations
-- Verify no stale scaffold code left (empty files not yet populated)
-- Verify conventions are respected
-
----
-
-### STEP 10 — CODE REVIEW
-
-Invoke skill: `superpowers:requesting-code-review`
-
-Full review scope:
-- Code quality vs CLAUDE.md conventions and global rules
-- Security issues
-- Missing or incomplete v1 features
-- README accuracy
-- Generated CLAUDE.md completeness (no placeholder remaining)
-- Test coverage
-
-Fix all CRITICAL issues before proceeding.
-
----
-
-### STEP 11 — FINISH
-
-Invoke skill: `superpowers:finishing-a-development-branch`
-
-Verify:
-- All tests pass
-- Build is clean
-- No leftover scaffold placeholders
-- Initial commit prepared
-
----
-
-### STEP 12 — SYNC README
-
-Load and follow: `.claude/agents/readme-updater.md`
-
-Context: call with argument "sync".
-
-SYNC mode — no stop required. The readme-updater:
-- Detects any drift between README and the implemented code
-- Updates commands, env vars, folder structure if changed during implementation
-- Adds a `## Recent changes` entry summarizing v1 features
-- Prints one-line confirmation
+## STEP 13 — GSD v2 INIT (optional)
+If `multi-session` signal was detected in STEP 0 OR the project has >3 planned milestones:
+Ask: "Initialize GSD v2 for multi-session management? (yes / skip)"
+- `yes` →
+  1. First check: `command -v gsd` — if not found:
+     Print: "⚠️ GSD v2 not installed. Run `npm install -g gsd-pi` then re-run `/onboard add gsd` or `/ship-feature` to initialize later."
+     Do NOT attempt `gsd init`. Skip to RULES.
+  2. If `gsd` is in PATH: run `gsd init` in the project directory to create `.gsd/` and `ROADMAP.md`.
+     Populate ROADMAP.md with milestones from BRIEF (v1 features + any beyond-v1 items).
+     Print: "✅ GSD v2 initialized — run `gsd` in terminal then `/gsd auto` to work autonomously."
+- `skip` → print: "GSD v2 skipped — use `/ship-feature` for individual features."
 
 ---
 
 ## RULES
-
-- Never skip STEP 0 — plugin check is mandatory.
-- Never skip STEP 1 — no assumptions about missing info.
-- Never implement without explicit user approval at STEP 4.
-- Never implement without explicit user approval at STEP 7.
-- The scaffolder only creates the skeleton — zero business logic.
-- All feature implementation goes through the subagent pipeline (STEP 8).
-- Apply CLAUDE.md norms throughout.
-- A broken skeleton or a broken build is not acceptable output.
+- No skipping steps. No merged agent responsibilities.
+- No implement without user approval at STEP 4 and STEP 7.
+- Scaffolder = skeleton only, zero logic.
+- Features → subagent pipeline only.
+- Broken build = unacceptable output.
+- Fix all CRITICAL review issues before proceeding.
+- Stop if requirements unclear at any step.
 
 ---
 
 ## FINAL OUTPUT
-
 ```
-================================================================
-PROJECT INITIALIZED: <project name>
-================================================================
-
-LOCATION    : <project root>
-STACK       : <finalized stack>
-BUILD       : ✅ / ❌ <e>
-TESTS       : ✅ <N> passing / ❌ <detail>
-
-V1 FEATURES
------------
-✅ <feature>
-✅ <feature>
-⚠️ <feature> — partial: <reason>
-
-REMAINING ISSUES
-----------------
-<IMPORTANT and MINOR issues, or "none">
-
-QUICK START
------------
-<exact commands to run the project right now>
-
-CLAUDE.md  : ✅ complete
-README.md  : ✅ created (STEP 5b) + synced (STEP 12)
-SETTINGS   : ✅ .claude/settings.json + .claudeignore generated
-================================================================
+PROJECT INITIALIZED: <n>
+LOCATION: <path> | STACK: <stack> | BUILD: ✅/❌ | TESTS: ✅<N>/❌
+V1 FEATURES: ✅<f> / ⚠️<f> partial: <reason>
+REMAINING ISSUES: <list or none>
+QUICK START: <exact cmds>
+CLAUDE.md ✅ | README ✅ | SETTINGS ✅
 ```
