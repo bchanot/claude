@@ -701,6 +701,16 @@ Symlinks are broken. `cd` into your config repo and run `bash link.sh`, then ver
 Run `bash link.sh` and verify: `ls -la ~/.claude/skills/gstack`.
 If missing: `cd` into your config repo and run `git submodule update --init`.
 
+### GStack submodule "directory not found after init"
+The submodule is not registered in `.gitmodules` (never added). Fix:
+```bash
+cd ~/Documents/claude   # chemin de ton config repo
+git submodule add https://github.com/garrytan/gstack skills-external/gstack
+git submodule update --init --recursive
+bash link.sh
+git add .gitmodules skills-external/gstack && git commit -m "chore: add gstack submodule"
+```
+
 ### link.sh warns "is a real directory"
 If `~/.claude/agents/`, `~/.claude/skills/`, `~/.claude/lib/`, or `~/.claude/templates/` exist as real
 directories, the script skips them to avoid data loss. Rename or remove the directory, then re-run `link.sh`.

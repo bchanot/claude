@@ -94,10 +94,10 @@ fi
 NODE_OK=false
 if command -v node &>/dev/null; then
   NODE_VER=$(node --version | sed 's/v//' | cut -d. -f1)
-  if [ "$NODE_VER" -ge 18 ]; then
+  if [ "$NODE_VER" -ge 22 ]; then
     ok "Node.js $(node --version)"; NODE_OK=true
   else
-    warn "Node.js $(node --version) is too old (need >=18)"
+    warn "Node.js $(node --version) is too old (need >=22 — GSD v2 requires it)"
   fi
 fi
 if [ "$NODE_OK" = false ]; then
@@ -298,10 +298,16 @@ echo ""
 install_plugin() {
   local name="$1"
   local source="$2"
+  if claude plugin list 2>/dev/null | grep -qi "^\s*$name"; then
+    ok "$name (already installed)"
+    return
+  fi
   info "Installing $name..."
-  claude plugin install --scope user "$name@$source" 2>/dev/null \
-    && ok "$name" \
-    || warn "$name — skipped (already installed or failed)"
+  if claude plugin install --scope user "$name@$source" 2>/dev/null; then
+    ok "$name"
+  else
+    err "$name — FAILED (run manually: claude plugin install --scope user $name@$source)"
+  fi
 }
 
 # Official Anthropic (always on)
