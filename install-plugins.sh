@@ -183,12 +183,25 @@ if [ ! -d "$GSTACK_DIR/.git" ] && [ ! -f "$GSTACK_DIR/.git" ]; then
 fi
 
 if [ -d "$GSTACK_DIR" ]; then
+  # --- bun (required by GStack ./setup) ---
+  if ! command -v bun &>/dev/null; then
+    info "Installing bun (required by GStack)..."
+    BUN_VERSION="1.3.10"
+    tmpfile=$(mktemp)
+    curl -fsSL "https://bun.sh/install" -o "$tmpfile"
+    BUN_VERSION="$BUN_VERSION" bash "$tmpfile" && rm -f "$tmpfile"
+    export PATH="$HOME/.bun/bin:$PATH"
+    command -v bun &>/dev/null && ok "bun $(bun --version)" || err "bun install failed"
+  else
+    ok "bun $(bun --version)"
+  fi
+
   info "Running GStack setup..."
   if [ -x "$GSTACK_DIR/setup" ]; then
-    if (cd "$GSTACK_DIR" && ./setup) 2>/dev/null; then
+    if (cd "$GSTACK_DIR" && ./setup); then
       : # setup succeeded
     else
-      warn "GStack ./setup failed — submodule present but setup incomplete"
+      warn "GStack ./setup failed — check output above"
     fi
   else
     warn "GStack ./setup not found or not executable — skipping"
@@ -269,22 +282,21 @@ echo ""
 if detect_ruflo; then
   ok "Ruflo MCP already configured"
 else
-  warn "Ruflo requires manual setup — cannot auto-install (enterprise tool)"
-  echo ""
-  echo "  Steps:"
-  echo "  1. Install the package:"
-  echo "     npm install -g ruflo@latest             # full (~340MB)"
-  echo "     npm install -g ruflo@latest --omit=optional  # minimal"
-  echo ""
-  echo "  2. Register as MCP server in Claude Code:"
-  echo "     claude mcp add --scope user ruflo -- npx ruflo mcp start"
-  echo ""
-  echo "  3. Verify:"
-  echo "     claude mcp list | grep ruflo"
-  echo ""
-  echo "  Or use the automated installer:"
-  echo "     curl -fsSL https://cdn.jsdelivr.net/gh/ruvnet/ruflo@main/scripts/install.sh | bash -s -- --full"
-  echo ""
+  info "Installing Ruflo MCP (minimal, --omit=optional ~40MB)..."
+  if npm install -g ruflo@latest --omit=optional; then
+    ok "ruflo npm package installed"
+    info "Registering Ruflo as MCP server..."
+    if claude mcp add --scope user ruflo -- npx ruflo mcp start 2>/dev/null; then
+      ok "Ruflo MCP registered"
+    else
+      warn "Ruflo MCP registration failed or already registered"
+      echo "  Run manually: claude mcp add --scope user ruflo -- npx ruflo mcp start"
+    fi
+  else
+    err "Ruflo npm install failed"
+    echo "  Fallback — run the official installer:"
+    echo "  curl -fsSL https://cdn.jsdelivr.net/gh/ruvnet/ruflo@main/scripts/install.sh | bash -s -- --full"
+  fi
 fi
 
 # ============================================================
@@ -298,7 +310,7 @@ echo ""
 install_plugin() {
   local name="$1"
   local source="$2"
-  if claude plugin list 2>/dev/null | grep -qi "^\s*$name"; then
+  if claude plugin list 2>/dev/null | grep -qi "$name"; then
     ok "$name (already installed)"
     return
   fi
@@ -311,6 +323,9 @@ install_plugin() {
 }
 
 # Official Anthropic (always on)
+# Add the official marketplace so CC knows the source; no-op if already registered or built-in
+info "Adding official Anthropic plugins marketplace..."
+claude plugin marketplace add anthropic/claude-plugins-official 2>/dev/null || true
 install_plugin "security-guidance"  "claude-plugins-official"
 install_plugin "frontend-design"    "claude-plugins-official"
 install_plugin "skill-creator"      "claude-plugins-official"
