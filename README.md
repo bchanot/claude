@@ -190,10 +190,10 @@ gsd          # then inside the session:
 | Cost tracking | None | Per-unit token/cost ledger |
 | Git strategy | LLM writes git commands | Worktree isolation, squash merge |
 
-### Ruflo MCP (enterprise multi-agent orchestration)
+### Ruflo CLI (enterprise multi-agent orchestration)
 
-> Ruflo (formerly claude-flow) is a heavy enterprise MCP server — 310+ tools, 100+ agent types,
-> WASM kernel, self-learning architecture. ~500-1500 tokens passive cost when active.
+> Ruflo (formerly claude-flow) is a heavy enterprise multi-agent orchestration CLI — 310+ tools, 100+ agent types,
+> WASM kernel, self-learning architecture. ~500-1500 tokens passive cost when hooks active.
 >
 > **Use when:** project explicitly requires coordinating 5+ specialized agents simultaneously,
 > parallel swarm execution, or enterprise-grade multi-agent orchestration.
@@ -201,16 +201,20 @@ gsd          # then inside the session:
 >
 > **Install:**
 > ```bash
-> # Full install (~340MB)
-> npm install -g ruflo@latest
-> # Or minimal (faster, no ML/embeddings)
+> # Minimal install (~40MB, no ML/embeddings)
 > npm install -g ruflo@latest --omit=optional
 >
-> # Register as MCP server in Claude Code
-> claude mcp add --scope user ruflo -- npx ruflo mcp start
+> # Initialize in your project
+> ruflo init --wizard
+>
+> # Useful commands
+> ruflo agent spawn -t coder     # spawn a coding agent
+> ruflo swarm init                # start a swarm
+> ruflo memory search -q "..."   # search vector memory
+> ruflo doctor                    # diagnostics
 >
 > # Verify
-> claude mcp list | grep ruflo
+> ruflo --version
 > ```
 
 ### Bundled skills (Claude Code built-in, always available)
@@ -417,7 +421,7 @@ Run `/plugin-check` anytime to get a recommendation for the current project type
 | **Superpowers** | ✅ REQUIRED | ~600–1000 tokens | — required by orchestrators | superpowers-marketplace |
 | **GStack** | 🔄 TOGGLE | ~2500–3000 tokens | Full-product: UI + design + deploy + browser QA | git submodule |
 | **GSD v2** | 🖥️ CLI | 0 tokens (external CLI) | Multi-day features, crash recovery, cost tracking, parallel workers | npm (pinned in plugins.lock.json) |
-| **ruflo** | 🔄 TOGGLE | ~500–1500 tokens | Enterprise multi-agent swarm (5+ concurrent agents) | npm + MCP manual |
+| **ruflo** | 🔄 TOGGLE | ~500–1500 tokens | Enterprise multi-agent swarm (5+ concurrent agents) | npm (CLI) |
 | **plugin-dev** | 🔄 TOGGLE | ~100 tokens | Creating plugins or custom skills | claude-code-plugins |
 | **pr-review-toolkit** | 🔄 TOGGLE | ~300 tokens | PR review sessions | claude-code-plugins |
 | **frontend-design** | 🔄 TOGGLE | ~200 tokens | Any project with a UI | claude-code-plugins |
@@ -604,7 +608,7 @@ bash update-all.sh
 npm install -g gsd-pi@2.64.0
 ```
 
-#### Ruflo MCP
+#### Ruflo CLI
 ```bash
 # Uses the version pinned in plugins.lock.json
 bash update-all.sh
@@ -754,11 +758,11 @@ gsd          # start a session
 /gsd migrate # migrate .planning → .gsd format
 ```
 
-### Ruflo MCP not detected by doctor.sh
-Ruflo must be registered as an MCP server. Run:
+### Ruflo CLI not detected by doctor.sh
+Ruflo must be installed globally. Run:
 ```bash
-claude mcp add --scope user ruflo -- npx ruflo mcp start
-claude mcp list | grep ruflo
+npm install -g ruflo@latest --omit=optional
+ruflo --version
 ```
 
 ### Token budget exceeded — skills truncated at session start

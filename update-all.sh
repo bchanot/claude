@@ -113,9 +113,9 @@ else
   warn "GSD v2 not installed — skipping (run: npm install -g gsd-pi)"
 fi
 
-# ── 5. Update Ruflo MCP (if installed) ──
+# ── 5. Update Ruflo CLI (if installed) ──
 echo ""
-echo "── Updating Ruflo MCP..."
+echo "── Updating Ruflo CLI..."
 if command -v ruflo &>/dev/null || detect_ruflo; then
   RUFLO_VER=""
   if [ -f "$REPO/plugins.lock.json" ] && command -v python3 &>/dev/null; then

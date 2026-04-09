@@ -1995,7 +1995,7 @@ Budget Pro note:
 | `/init-project` pose des questions déjà dans le prompt | Prompt incomplet (stack ou features manquants) | Ajouter stack, features v1, et conventions dans le prompt initial |
 | STEP 13 `gsd init` : "command not found" | GSD v2 non installé au moment de init-project | `npm install -g gsd-pi`, puis `/onboard add gsd` |
 | Plugin-check recommande plugins web sur firmware | signal `embedded` non détecté | Vérifier: `platformio.ini` ou `*.ld` présent, ou `Makefile` + `.c` + pas de `package.json`/`Cargo.toml`/`setup.py` |
-| `detect_ruflo` retourne faux positif | `claude-flow` ou `ruvnet` dans un autre fichier config | Inspecter `~/.claude.json` et `~/.mcp.json` manuellement |
+| `detect_ruflo` retourne faux positif | Ancien MCP config resté dans `~/.claude.json` | Vérifier que `ruflo --version` fonctionne ; ignore les vieux configs MCP |
 | `doctor.sh` : deny rules count mismatch | `settings.json` modifié manuellement | Vérifier avec `python3 -c "import json; print(len(json.load(open('~/.claude/settings.json'))['permissions']['deny']))"` — attendu : 100 |
 | Subagent échoue en STEP 4, pas de guidance | Version < v2.2.0 | Mettre à jour, le STEP 4b est ajouté en v2.2.0 |
 | `/analyze` ne passe pas en mode DEBUG | L'erreur n'est pas passée en argument | Copier l'erreur exacte dans l'argument : `/analyze "FAILED test_foo — TypeError: ..."`|

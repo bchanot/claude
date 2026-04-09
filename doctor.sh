@@ -175,9 +175,9 @@ else
 fi
 
 if detect_ruflo; then
-  pass "Ruflo MCP configured"
+  pass "Ruflo CLI installed ($(ruflo --version 2>/dev/null | head -1 || echo 'installed'))"
 else
-  info "Ruflo MCP not configured (optional — enterprise multi-agent orchestration)"
+  info "Ruflo CLI not installed (optional — enterprise multi-agent: npm install -g ruflo@latest --omit=optional)"
 fi
 
 echo ""

@@ -64,13 +64,6 @@ detect_context7() {
 }
 
 detect_ruflo() {
-  # 1. Fast: check npm global binary
-  command -v ruflo &>/dev/null && return 0
-  # 2. Fast: check MCP config files (ruflo or ruvnet/claude-flow variants)
-  for _cfg in "$HOME/.claude.json" "$HOME/.mcp.json"; do
-    [ -f "$_cfg" ] && grep -qi "ruflo\|ruvnet\|claude-flow" "$_cfg" 2>/dev/null && return 0
-  done
-  # 3. Slow fallback: claude mcp list (only if fast checks fail, spawns subprocess)
-  command -v claude &>/dev/null && claude mcp list 2>/dev/null | grep -qi "ruflo" && return 0
-  return 1
+  # Ruflo CLI — installed globally via npm
+  command -v ruflo &>/dev/null
 }

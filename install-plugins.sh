@@ -271,32 +271,33 @@ fi
 echo ""
 
 # ============================================================
-# STEP 5 — RUFLO MCP (manual — requires npm install + MCP config)
+# STEP 5 — RUFLO CLI (enterprise multi-agent orchestration)
 # ============================================================
-# Ruflo is an enterprise multi-agent orchestration MCP server (formerly claude-flow).
-# 310+ MCP tools, 100+ agent types, WASM kernel, self-learning architecture.
+# Ruflo (formerly claude-flow) is an enterprise multi-agent orchestration CLI.
+# 310+ tools, 100+ agent types, WASM kernel, self-learning architecture.
 # Use only for projects requiring complex multi-agent coordination.
 # Default install ~340MB. Minimal: npm install -g ruflo@latest --omit=optional (~15s)
-echo "── Step 5: Ruflo MCP ────────────────────────────────────────"
+echo "── Step 5: Ruflo CLI ──────────────────────────────────────"
 echo ""
 if detect_ruflo; then
-  ok "Ruflo MCP already configured"
+  ok "Ruflo CLI already installed ($(ruflo --version 2>/dev/null | head -1 || echo 'installed'))"
 else
-  info "Installing Ruflo MCP (minimal, --omit=optional ~40MB)..."
-  if npm install -g ruflo@latest --omit=optional; then
-    ok "ruflo npm package installed"
-    info "Registering Ruflo as MCP server..."
-    if claude mcp add --scope user ruflo -- npx ruflo mcp start 2>/dev/null; then
-      ok "Ruflo MCP registered"
-    else
-      warn "Ruflo MCP registration failed or already registered"
-      echo "  Run manually: claude mcp add --scope user ruflo -- npx ruflo mcp start"
-    fi
+  RUFLO_VER=$(pinned_version "ruflo")
+  if [ "$RUFLO_VER" != "latest" ]; then
+    info "Installing ruflo@${RUFLO_VER} (pinned, minimal --omit=optional)..."
+    npm install -g "ruflo@${RUFLO_VER}" --omit=optional
   else
-    err "Ruflo npm install failed"
-    echo "  Fallback — run the official installer:"
-    echo "  curl -fsSL https://cdn.jsdelivr.net/gh/ruvnet/ruflo@main/scripts/install.sh | bash -s -- --full"
+    info "Installing ruflo@latest (minimal --omit=optional)..."
+    npm install -g ruflo@latest --omit=optional
   fi
+  command -v ruflo &>/dev/null && ok "Ruflo CLI installed ($(ruflo --version 2>/dev/null | head -1))" \
+    || err "Ruflo install failed — run manually: npm install -g ruflo@latest --omit=optional"
+fi
+if command -v ruflo &>/dev/null; then
+  info "Init in a project: ruflo init --wizard"
+  info "Spawn agent: ruflo agent spawn -t coder"
+  info "Start swarm: ruflo swarm init"
+  info "Diagnostics: ruflo doctor"
 fi
 
 # ============================================================
@@ -394,7 +395,7 @@ echo "    🔄 pr-review-toolkit   — /pr-review-toolkit:review-pr (~300 tokens
 echo "    🔄 frontend-design     — UI design skill (~200 tokens) [claude-code-plugins]"
 echo "    🔄 ui-ux-pro-max       — user scope (~400 tokens)"
 echo "    🔄 context7 CLI        — ctx7 (npm global, standalone or MCP setup)"
-echo "    🔄 ruflo MCP           — see Step 5 above (~500-1500 tokens, enterprise only)"
+echo "    🔄 ruflo CLI           — enterprise multi-agent orchestration (~500-1500 tokens)"
 echo ""
 echo "  All plugins installed at: user scope (~/.claude/plugins/)"
 echo "  GStack at: ~/.claude/skills/gstack/ (symlink → submodule)"

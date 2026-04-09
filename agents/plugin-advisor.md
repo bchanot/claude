@@ -21,8 +21,8 @@ claude plugin list 2>/dev/null || echo "plugin-list-unavailable"
 # GStack skills count (toggle CC plugin)
 ls $HOME/.claude/skills/gstack/skills/ 2>/dev/null | wc -l || echo "0"
 
-# MCP servers
-claude mcp list 2>/dev/null | grep -E "ruflo" || echo "no-mcp"
+# Ruflo CLI
+command -v ruflo &>/dev/null && ruflo --version 2>/dev/null | head -1 || echo "ruflo-not-installed"
 
 # Context7 CLI
 command -v ctx7 &>/dev/null && ctx7 --version 2>/dev/null | head -1 || echo "ctx7-not-installed"
@@ -30,7 +30,6 @@ command -v ctx7 &>/dev/null && ctx7 --version 2>/dev/null | head -1 || echo "ctx
 # Standalone CLIs
 command -v gsd &>/dev/null && gsd --version 2>/dev/null | head -1 || echo "gsd-not-installed"
 command -v rtk &>/dev/null && rtk --version 2>/dev/null | head -1 || echo "rtk-not-installed"
-command -v ruflo &>/dev/null && ruflo --version 2>/dev/null | head -1 || echo "ruflo-cli-not-in-path"
 
 # Project signals (run from project root)
 ls package.json pyproject.toml Cargo.toml go.mod 2>/dev/null | head -5
@@ -108,7 +107,7 @@ ACTION REQUIRED? YES / NO
 | `deploy` + `browser-qa` | gstack | — | Full-product workflow |
 | `multi-session` | gsd v2 CLI | — | Run `gsd` in terminal, not CC plugin |
 | `fast-libs` | context7 | — | Doc freshness critical |
-| `multi-agent` + `complex-arch` | ruflo (MCP) | — | Only if genuine swarm needed |
+| `multi-agent` + `complex-arch` | ruflo (CLI) | — | Only if genuine swarm needed |
 | `simple` / single-session | — | gsd, gstack, ruflo, ui-ux-pro-max | Saves ~3000-5000t |
 | `embedded` / firmware | — | all toggles; superpowers optional | workflow: /analyze → edit or /ship-feature |
 | backend/lib/CLI only | — | frontend-design, ui-ux-pro-max, gstack | ~3100t saved |
@@ -116,7 +115,7 @@ ACTION REQUIRED? YES / NO
 
 **GSD v2 note:** `gsd-pi` is a standalone CLI (Pi SDK), not a Claude Code plugin. Zero passive token cost in CC sessions. Recommend when: feature > 1 day, multiple isolated context windows needed, crash recovery, cost tracking, or parallel workers. Usage: `gsd` in terminal → `/gsd auto`.
 
-**Ruflo note:** `ruflo` is a heavy MCP server (310+ tools, ~500-1500t passive). Only recommend when the project explicitly requires coordinating 5+ specialized agents simultaneously or swarm/parallel-orchestration architecture. For standard multi-session work, GSD v2 is sufficient and lighter.
+**Ruflo note:** `ruflo` is a heavy CLI tool (310+ tools, ~500-1500t passive when hooks active). Only recommend when the project explicitly requires coordinating 5+ specialized agents simultaneously or swarm/parallel-orchestration architecture. For standard multi-session work, GSD v2 is sufficient and lighter. Install: `npm install -g ruflo@latest --omit=optional`. Init: `ruflo init --wizard`.
 
 ---
 
@@ -128,7 +127,7 @@ ACTION REQUIRED? YES / NO
 |---|---|---|
 | frontend-design ↔ ui-ux-pro-max | ⚠️ Overlap | Both do UI styling. Keep both for design-heavy projects; drop ui-ux-pro-max for simple UIs. ~600t combined. |
 | gstack ↔ gsd v2 | ✅ Complementary | GStack = full-product CC workflow. GSD v2 = multi-session CLI. Different scopes, no conflict. |
-| gstack ↔ ruflo | ⚠️ Overlap | Both orchestrate multi-step workflows. GStack is CC-native; ruflo is MCP swarm. High combined overhead (~3250-4250t). Use one or the other. |
+| gstack ↔ ruflo | ⚠️ Overlap | Both orchestrate multi-step workflows. GStack is CC-native; ruflo is CLI swarm. High combined overhead (~3250-4250t). Use one or the other. |
 | gsd v2 ↔ ruflo | ⚠️ Overlap | GSD v2 = sequential session pipeline. Ruflo = parallel agent swarm. Pick one per project; ruflo only if genuinely parallel work needed. |
 | superpowers ↔ gsd v2 | ✅ Complementary | Superpowers = single-session execution. GSD v2 = multi-session CLI orchestration. No conflict. |
 | superpowers ↔ gstack | ✅ Complementary | Used together in /init-project and /ship-feature. Superpowers = engine, GStack = full-product skills. |
@@ -188,7 +187,7 @@ RULE: IF "fast-libs" (Next.js/React 18+/Prisma/Supabase/Drizzle):
   → context7 ON (~200t)
 
 RULE: IF "multi-agent" AND "complex-arch":
-  → ruflo MCP ON (~500-1500t)
+  → ruflo CLI ON (~500-1500t)
   → IF gstack also ON: WARN overlap (~3250-4250t combined)
 
 RULE: IF "simple" OR "hotfix":
@@ -224,7 +223,7 @@ RULE: IF `design-system` signal (tokens, theme files, Storybook present):
   → WARN if both are OFF with this signal: significant design gap
 
 RULE: IF `complex-arch` signal (multiple services, event bus, distributed system):
-  → ruflo MCP ON (~500-1500t)
+  → ruflo CLI ON (~500-1500t)
   → gsd v2 CLI recommended for multi-session coordination
   → IF gstack also ON: WARN combined cost ~3250-4250t — consider disabling one
 ```
