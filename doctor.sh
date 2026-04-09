@@ -163,9 +163,9 @@ else
 fi
 
 if detect_context7; then
-  pass "Context7 MCP configured"
+  pass "Context7 CLI (ctx7) installed"
 else
-  info "Context7 MCP not configured (optional — needed for fast-evolving libs)"
+  info "Context7 CLI not installed (optional — needed for fast-evolving libs: npm install -g ctx7)"
 fi
 
 if detect_gsd; then

@@ -80,8 +80,10 @@ bash link.sh
 # 3. Install prerequisites + all plugins (detects OS, reads pinned versions from plugins.lock.json)
 bash install-plugins.sh
 
-# 4. Add Context7 API key (free at upstash.com) — manual step
-claude mcp add --scope user context7 -- npx -y @upstash/context7-mcp --api-key YOUR_KEY
+# 4. Context7 CLI (optional — for fast-evolving libs like Next.js, React, Prisma)
+npm install -g ctx7
+ctx7 setup --claude    # configures MCP + rules for Claude Code (OAuth login)
+# Or use standalone: ctx7 docs /vercel/next.js "middleware"
 
 # 5. Verify setup
 bash doctor.sh
@@ -224,7 +226,7 @@ gsd          # then inside the session:
 | Command | Plugin | Description |
 |---|---|---|
 | `/pr-review-toolkit:review-pr` | pr-review-toolkit | Multi-agent PR review (6 specialized agents) |
-| `/context7:docs <lib>` | context7 | Manual doc lookup for a specific library |
+| `/context7:docs <lib>` | context7 | Manual doc lookup for a specific library (via ctx7 CLI) |
 
 ---
 
@@ -375,7 +377,7 @@ Warns if ruflo is active with no multi-agent signal, or if GSD v2 CLI is not ins
 | gsd v2 ↔ ruflo | ⚠️ Overlap | Sequential (GSD) vs parallel swarm (ruflo). Pick based on need. |
 | superpowers ↔ gsd v2 | ✅ Complementary | Single-session engine + multi-session CLI = no conflict |
 | superpowers ↔ gstack | ✅ Complementary | Used together by orchestrators |
-| context7 ↔ any | ✅ Independent | Doc lookup MCP — always safe to combine |
+| context7 ↔ any | ✅ Independent | Doc lookup CLI (ctx7) — always safe to combine |
 
 ### Recommended sets by project type
 
@@ -420,7 +422,7 @@ Run `/plugin-check` anytime to get a recommendation for the current project type
 | **pr-review-toolkit** | 🔄 TOGGLE | ~300 tokens | PR review sessions | claude-code-plugins |
 | **frontend-design** | 🔄 TOGGLE | ~200 tokens | Any project with a UI | claude-code-plugins |
 | **ui-ux-pro-max** | 🔄 TOGGLE | ~400 tokens | Design system, color/typography choices | ui-ux-pro-max-skill |
-| **Context7 MCP** | 🔄 TOGGLE | ~200 tokens | Fast-evolving libs (Next.js, React, Prisma…) | MCP manual |
+| **Context7 CLI** | 🔄 TOGGLE | ~200 tokens | Fast-evolving libs (Next.js, React, Prisma…) | npm (ctx7) + optional ctx7 setup --claude |
 
 **Rule:** toggle plugins are OFF by default. `/plugin-check` signals when to enable them.
 If you use `/init-project` or `/ship-feature`, plugin-check runs automatically as STEP 0

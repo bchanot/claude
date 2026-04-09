@@ -22,7 +22,10 @@ claude plugin list 2>/dev/null || echo "plugin-list-unavailable"
 ls $HOME/.claude/skills/gstack/skills/ 2>/dev/null | wc -l || echo "0"
 
 # MCP servers
-claude mcp list 2>/dev/null | grep -E "context7|ruflo" || echo "no-mcp"
+claude mcp list 2>/dev/null | grep -E "ruflo" || echo "no-mcp"
+
+# Context7 CLI
+command -v ctx7 &>/dev/null && ctx7 --version 2>/dev/null | head -1 || echo "ctx7-not-installed"
 
 # Standalone CLIs
 command -v gsd &>/dev/null && gsd --version 2>/dev/null | head -1 || echo "gsd-not-installed"
@@ -130,7 +133,7 @@ ACTION REQUIRED? YES / NO
 | superpowers ↔ gsd v2 | ✅ Complementary | Superpowers = single-session execution. GSD v2 = multi-session CLI orchestration. No conflict. |
 | superpowers ↔ gstack | ✅ Complementary | Used together in /init-project and /ship-feature. Superpowers = engine, GStack = full-product skills. |
 | superpowers ↔ ruflo | ⚠️ Overlap | Both can orchestrate agent sub-tasks. Together only for advanced hybrid setups. |
-| context7 ↔ any | ✅ Independent | Doc lookup MCP, no workflow overlap. Always safe to combine. |
+| context7 ↔ any | ✅ Independent | Doc lookup CLI (ctx7), no workflow overlap. Always safe to combine. |
 | plugin-dev ↔ superpowers | ⚠️ Minor overlap | Superpowers can create skills too. Keep plugin-dev only when actively building new plugins/skills. |
 | frontend-design ↔ gstack | ✅ Complementary | GStack = deploy/QA layer; frontend-design = UI quality layer. Different concerns. |
 | pr-review-toolkit ↔ superpowers | ✅ Complementary | superpowers:requesting-code-review and /pr-review-toolkit:review-pr cover different review styles. |
@@ -243,8 +246,9 @@ RULE: IF `complex-arch` signal (multiple services, event bus, distributed system
 - Total passive cost > 5500t (~50% of Pro session budget)
 - **Next.js/React 18+/Prisma/Supabase detected + context7 not configured**
   → Risk: Claude may generate code using outdated APIs (App Router changes frequently)
-  → Fix: `claude mcp add --scope user context7 -- npx -y @upstash/context7-mcp --api-key KEY`
-  → Free key: https://upstash.com
+  → Fix: `npm install -g ctx7 && ctx7 setup --claude`
+  → Or standalone: `ctx7 docs /vercel/next.js "middleware"`
+  → Free higher rate limits: `ctx7 login` (OAuth) or API key from context7.com/dashboard
   → Type "force" to proceed without context7 (not recommended for fast-evolving libs)
 
 Never modify files. If action required → stop and wait. If not → say "proceed".

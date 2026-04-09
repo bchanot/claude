@@ -19,5 +19,10 @@
     "source": "npm:ruflo",
     "version": "3.5.58",
     "note": "Enterprise multi-agent MCP server (formerly claude-flow). Requires manual MCP config after install. Check latest at https://www.npmjs.com/package/ruflo before updating."
+  },
+  "ctx7": {
+    "source": "npm:ctx7",
+    "version": "latest",
+    "note": "Context7 CLI \u2014 doc lookup for fast-evolving libs. Install: npm install -g ctx7. Setup for Claude Code: ctx7 setup --claude. Standalone: ctx7 docs /vercel/next.js \"middleware\"."
   }
 }

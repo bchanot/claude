@@ -59,17 +59,8 @@ detect_uiux_pro_max() {
 }
 
 detect_context7() {
-  # Fast check: read ~/.claude.json (MCP config) without spawning the claude CLI
-  local cfg="$HOME/.claude.json"
-  if [ -f "$cfg" ]; then
-    grep -q "context7" "$cfg" 2>/dev/null && return 0
-  fi
-  # Fallback: ~/.mcp.json (project-scoped MCP config at user level)
-  local mcp="$HOME/.mcp.json"
-  if [ -f "$mcp" ]; then
-    grep -q "context7" "$mcp" 2>/dev/null && return 0
-  fi
-  return 1
+  # Context7 CLI (ctx7) — installed globally via npm
+  command -v ctx7 &>/dev/null
 }
 
 detect_ruflo() {

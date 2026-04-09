@@ -348,21 +348,29 @@ install_plugin "ui-ux-pro-max" "ui-ux-pro-max-skill"
 echo ""
 
 # ============================================================
-# STEP 6 — CONTEXT7 MCP (manual — requires API key)
+# STEP 6 — CONTEXT7 CLI (ctx7)
 # ============================================================
-echo "── Step 7: Context7 MCP ─────────────────────────────────────"
+echo "── Step 7: Context7 CLI ─────────────────────────────────────"
 echo ""
-if claude mcp list 2>/dev/null | grep -q "context7"; then
-  ok "Context7 MCP already configured"
+if command -v ctx7 &>/dev/null; then
+  ok "ctx7 already installed ($(ctx7 --version 2>/dev/null | head -1 || echo 'installed'))"
 else
-  warn "Context7 requires a free API key — cannot auto-install"
-  echo ""
-  echo "  Steps:"
-  echo "  1. Get a free key at https://upstash.com"
-  echo "  2. Run:"
-  echo "     claude mcp add --scope user context7 -- \\"
-  echo "       npx -y @upstash/context7-mcp --api-key YOUR_KEY"
-  echo ""
+  CTX7_VER=$(pinned_version "ctx7")
+  if [ "$CTX7_VER" != "latest" ]; then
+    info "Installing ctx7@${CTX7_VER} (pinned in plugins.lock.json)..."
+    npm install -g "ctx7@${CTX7_VER}"
+  else
+    info "Installing ctx7@latest (consider pinning in plugins.lock.json)..."
+    npm install -g ctx7
+  fi
+  command -v ctx7 &>/dev/null && ok "ctx7 installed ($(ctx7 --version 2>/dev/null | head -1))" \
+    || err "ctx7 install failed — run manually: npm install -g ctx7"
+fi
+# Suggest setup for Claude Code integration (optional — ctx7 also works standalone)
+if command -v ctx7 &>/dev/null; then
+  info "Run 'ctx7 setup --claude' to configure Context7 for Claude Code"
+  info "Or use ctx7 standalone: ctx7 docs /vercel/next.js \"middleware\""
+  info "Free higher rate limits: ctx7 login (OAuth) or --api-key from context7.com/dashboard"
 fi
 
 # ============================================================
@@ -385,7 +393,7 @@ echo "    🔄 plugin-dev          — create plugins/skills (~100 tokens) [clau
 echo "    🔄 pr-review-toolkit   — /pr-review-toolkit:review-pr (~300 tokens) [claude-code-plugins]"
 echo "    🔄 frontend-design     — UI design skill (~200 tokens) [claude-code-plugins]"
 echo "    🔄 ui-ux-pro-max       — user scope (~400 tokens)"
-echo "    🔄 context7 MCP        — see Step 7 above (~200 tokens)"
+echo "    🔄 context7 CLI        — ctx7 (npm global, standalone or MCP setup)"
 echo "    🔄 ruflo MCP           — see Step 5 above (~500-1500 tokens, enterprise only)"
 echo ""
 echo "  All plugins installed at: user scope (~/.claude/plugins/)"
