@@ -1,1 +1,0 @@
-/home/bchanot-ubuntu/Documents/claude/skills-external/gstack/design-shotgun/SKILL.md

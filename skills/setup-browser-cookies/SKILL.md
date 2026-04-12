@@ -1,1 +1,0 @@
-/home/bchanot-ubuntu/Documents/claude/skills-external/gstack/setup-browser-cookies/SKILL.md

@@ -1,1 +1,0 @@
-/home/bchanot-ubuntu/Documents/claude/skills-external/gstack/plan-design-review/SKILL.md

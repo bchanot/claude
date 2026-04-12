@@ -1,1 +1,0 @@
-/home/bchanot-ubuntu/Documents/claude/skills-external/gstack/open-gstack-browser/SKILL.md
