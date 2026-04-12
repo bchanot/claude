@@ -74,12 +74,41 @@ Detect signals from the project description and filesystem scan:
 
 ---
 
+## PHASE 2.5 — COMPLEXITY ASSESSMENT
+
+Rate project complexity 0-100% to decide tool depth.
+Factors (weighted):
+
+| Factor | Weight | Low (0-30) | Med (30-70) | High (70-100) |
+|---|---|---|---|---|
+| Data model | 25% | Static pages, no DB | Simple CRUD, 1 DB | Relations, multi-DB, sessions, auth |
+| Business logic | 25% | Display only | Forms, validation | Algorithms, real-time, social, payments |
+| Integration surface | 20% | Standalone | 1-2 APIs | OAuth, webhooks, queues, 3rd-party SDKs |
+| Frontend complexity | 15% | None or static | SPA, basic routing | Design system, animations, a11y, i18n |
+| Infra/deploy | 15% | Local only | Single deploy target | Multi-env, CI/CD, containers, monitoring |
+
+**Score thresholds:**
+- **0-30% (simple)**: superpowers only. No gstack, no gsd, no ctx7, no graphify.
+  _Examples: site vitrine, landing page, script CLI, simple CRUD._
+- **30-60% (moderate)**: + context7 if fast-libs, + graphify after implementation.
+  _Examples: blog with auth, dashboard with charts, API with validation._
+- **60-85% (complex)**: + gstack if browser-QA, + gsd if multi-session, + graphify both passes.
+  _Examples: SaaS with billing, game with social features, e-commerce._
+- **85-100% (enterprise)**: all tools justified. Consider ruflo only if explicitly requested.
+  _Examples: multi-service platform, real-time collab app, marketplace._
+
+Output: `COMPLEXITY: <score>% — <label>` with one-line justification.
+
+---
+
 ## PHASE 3 — OUTPUT
 
 ```
 PLUGIN CHECK
 ACTIVE: [plugin — status, one line each]
 SIGNALS: [detected signals]
+COMPLEXITY: <score>% — <simple|moderate|complex|enterprise>
+PLAN: <Max|Pro|Free> (budget: ~<N>t passive tokens)
 COST ESTIMATE: ~Xt passive tokens (all active plugins combined)
 
 RECOMMENDATIONS:
@@ -94,6 +123,23 @@ BLOCKING: [issues] or none
 ACTION REQUIRED? YES / NO
 ```
 
+## PHASE 4 — AUTO-ACTIVATION (when called from /init-project or /ship-feature)
+
+After presenting RECOMMENDATIONS, if any plugin has ⚡ ENABLE status:
+1. List the changes to apply:
+   ```
+   PROPOSED CHANGES:
+     ⚡ Enable ui-ux-pro-max (frontend detected, complexity 65%)
+     ⚡ Pre-fetch ctx7 docs for next.js, prisma
+     ⚠️  Disable ruflo (not needed, saves ~1000t)
+   Apply these changes? (yes / no / customize)
+   ```
+2. On "yes" → apply changes (rename .disabled dirs, update MCP config).
+3. On "customize" → user picks which to apply.
+4. On "no" → proceed with current config.
+
+**Never auto-activate without showing the list and getting confirmation.**
+
 ---
 
 ## DECISION TABLE
@@ -107,7 +153,7 @@ ACTION REQUIRED? YES / NO
 | `deploy` + `browser-qa` | gstack | — | Full-product workflow |
 | `multi-session` | gsd v2 CLI | — | Run `gsd` in terminal, not CC plugin |
 | `fast-libs` | context7 | — | Doc freshness critical |
-| `multi-agent` + `complex-arch` | ruflo (CLI) | — | Only if genuine swarm needed |
+| `multi-agent` + `complex-arch` | gsd v2 CLI | ruflo (unless explicitly requested) | GSD v2 preferred; ruflo only on explicit user request |
 | `simple` / single-session | — | gsd, gstack, ruflo, ui-ux-pro-max | Saves ~3000-5000t |
 | `embedded` / firmware | — | all toggles; superpowers optional | workflow: /analyze → edit or /ship-feature |
 | backend/lib/CLI only | — | frontend-design, ui-ux-pro-max, gstack | ~3100t saved |
@@ -151,7 +197,7 @@ ACTION REQUIRED? YES / NO
 | Quick fix / hotfix | superpowers | all toggles | ~800t |
 | Design system / component lib | superpowers, frontend-design, ui-ux-pro-max | gstack, ruflo, gsd | ~1600t |
 | Fast-evolving libs (Next.js etc.) | superpowers, context7, frontend-design | ruflo | ~1200t |
-| Enterprise multi-agent orchestration | superpowers, ruflo + gsd v2 (external) | plugin-dev | ~2300t CC |
+| Enterprise multi-agent orchestration | superpowers + gsd v2 (external) | ruflo (unless explicit), plugin-dev | ~800t CC |
 
 > security-guidance and rtk are ALWAYS ON (0 tokens) — omitted from cost estimates for clarity.
 
@@ -187,8 +233,9 @@ RULE: IF "fast-libs" (Next.js/React 18+/Prisma/Supabase/Drizzle):
   → context7 ON (~200t)
 
 RULE: IF "multi-agent" AND "complex-arch":
-  → ruflo CLI ON (~500-1500t)
-  → IF gstack also ON: WARN overlap (~3250-4250t combined)
+  → gsd v2 CLI recommended (0t passive, multi-session coordination)
+  → ruflo CLI OFF by default — only enable if user explicitly requests swarm/parallel orchestration
+  → IF user explicitly requests ruflo AND gstack also ON: WARN overlap (~3250-4250t combined)
 
 RULE: IF "simple" OR "hotfix":
   → Disable all toggles. ~800t base only.
@@ -242,7 +289,7 @@ RULE: IF `complex-arch` signal (multiple services, event bus, distributed system
 - gstack ON + ruflo ON simultaneously (overlap, ~3250-4250t)
 - ruflo ON with no multi-agent signal detected
 - Multi-session feature + `gsd` CLI not installed → `npm install -g gsd-pi`
-- Total passive cost > 5500t (~50% of Pro session budget)
+- Total passive cost > 50% of plan budget (Pro: ~5500t, Max: ~10000t, Free: ~2500t)
 - **Next.js/React 18+/Prisma/Supabase detected + context7 not configured**
   → Risk: Claude may generate code using outdated APIs (App Router changes frequently)
   → Fix: `npm install -g ctx7 && ctx7 setup --claude`

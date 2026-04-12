@@ -86,25 +86,43 @@ fi
 REPO_DIR="${_repo_dir:-}"
 unset _claude_real _repo_dir
 
-# Quick passive token cost estimate (Pro session budget = ~11k tokens)
+# Detect plan and set passive token budget
+PLAN=$(detect_plan 2>/dev/null || echo "pro")
+case "$PLAN" in
+  max)  _budget=20000; PLAN_LABEL="Max" ;;
+  pro)  _budget=11000; PLAN_LABEL="Pro" ;;
+  free) _budget=5000;  PLAN_LABEL="Free" ;;
+  *)    _budget=11000; PLAN_LABEL="Pro" ;;
+esac
+
+# Quick passive token cost estimate
+# Only count plugins that are ACTIVE (detected as ON), not just installed
 _passive_t=0
 detect_superpowers 2>/dev/null && _passive_t=$((_passive_t + 800))
-detect_gstack      2>/dev/null && _passive_t=$((_passive_t + 2750))
-detect_frontend_design 2>/dev/null && _passive_t=$((_passive_t + 200))
-detect_plugin_dev  2>/dev/null && _passive_t=$((_passive_t + 100))
-detect_uiux_pro_max    2>/dev/null && _passive_t=$((_passive_t + 400))
-detect_context7    2>/dev/null && _passive_t=$((_passive_t + 200))
-detect_ruflo       2>/dev/null && _passive_t=$((_passive_t + 1000))
-detect_graphifyy   2>/dev/null && _passive_t=$((_passive_t + 300))
-_budget_pct=$((_passive_t * 100 / 11000))
+
+# Token costs for toggle plugins — map display name to cost
+declare -A _plugin_costs=(
+  [gstack]=2750
+  [ui-ux-pro-max]=400
+  [frontend-design]=200
+  [plugin-dev]=100
+  [context7]=200
+  [ruflo]=1000
+  [graphifyy]=300
+)
+for _p in "${TOGGLE_ACTIVE[@]}"; do
+  _cost="${_plugin_costs[$_p]:-0}"
+  _passive_t=$((_passive_t + _cost))
+done
+_budget_pct=$((_passive_t * 100 / _budget))
 if [ "$_budget_pct" -gt 50 ]; then
-  TOKEN_WARN="⚠️  ~${_passive_t}t passif (${_budget_pct}% budget)"
+  TOKEN_WARN="⚠️  ~${_passive_t}t passif (${_budget_pct}% budget $PLAN_LABEL)"
 elif [ "$_budget_pct" -gt 25 ]; then
-  TOKEN_WARN="~${_passive_t}t passif (${_budget_pct}% budget)"
+  TOKEN_WARN="~${_passive_t}t passif (${_budget_pct}% budget $PLAN_LABEL)"
 else
   TOKEN_WARN=""
 fi
-unset _passive_t _budget_pct
+unset _passive_t _budget_pct _budget
 
 echo ""
 echo "┌─ Claude Code config ──────────────────────────────────┐"

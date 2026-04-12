@@ -13,10 +13,11 @@ $ARGUMENTS
 
 ---
 
-## STEP 0 — PLUGIN CHECK
+## STEP 0 — PLUGIN CHECK + AUTO-ACTIVATE
 Load `$HOME/.claude/agents/plugin-advisor.md`. Feed request.
-- ACTION REQUIRED → show RECOMMENDATIONS, offer: A) fix plugins B) type "force". STOP.
-- OK → `✅ Plugin check passed — [active plugins]`, continue.
+- ACTION REQUIRED → show RECOMMENDATIONS block, offer: A) fix plugins B) type "force". STOP.
+- PROPOSED CHANGES exist → show list, ask "Apply? (yes / no / customize)". Apply on confirm.
+- OK → `✅ Plugin check passed — [active plugins] — complexity: <score>%`, continue.
 
 ## STEP 0b — PROJECT CONTEXT CHECK
 Verify the project has a `CLAUDE.md` and print a brief orientation summary:
@@ -42,6 +43,23 @@ ls .gsd/ROADMAP.md 2>/dev/null | head -1
   Run `/onboard` first to generate CLAUDE.md and project settings,
   then re-run `/ship-feature`."
   STOP.
+
+## STEP 0c — CTX7 CACHE CHECK (if fast-libs in project)
+Check if the project uses fast-evolving libs (scan `package.json` for next, react, prisma, supabase, drizzle, expo):
+1. If `.ctx7-cache/` exists with recent files (<7 days old) → print `📚 ctx7 cache found: <libs>` and continue.
+2. If `.ctx7-cache/` missing or stale AND `ctx7` is installed AND fast-libs detected:
+   ```bash
+   mkdir -p .ctx7-cache
+   # Fetch docs for each detected fast-lib (adapt to actual deps):
+   ctx7 docs /vercel/next.js "app router middleware routing" > .ctx7-cache/nextjs-core.md 2>/dev/null || true
+   ctx7 docs /prisma/prisma "schema client queries" > .ctx7-cache/prisma-core.md 2>/dev/null || true
+   ```
+   Print: `📚 ctx7 docs pre-fetched for: <libs>`
+3. If no fast-libs or `ctx7` not installed → skip silently.
+
+During implementation (STEP 4), when making decisions about fast-lib APIs:
+- Read the relevant `.ctx7-cache/<lib>.md` file before writing code.
+- This avoids repeated ctx7 calls and keeps docs available without context cost.
 
 ## STEP 1 — BRAINSTORM
 Invoke `superpowers:brainstorming`. Refine request into validated design via Socratic questioning. Don't proceed until design approved.

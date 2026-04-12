@@ -13,10 +13,11 @@ $ARGUMENTS
 
 ---
 
-## STEP 0 — PLUGIN CHECK
+## STEP 0 — PLUGIN CHECK + AUTO-ACTIVATE
 Load `$HOME/.claude/agents/plugin-advisor.md`. Feed request.
 - ACTION REQUIRED → show RECOMMENDATIONS block, offer: A) fix plugins B) type "force". STOP.
-- OK → `✅ Plugin check passed — [active plugins]`, continue.
+- PROPOSED CHANGES exist → show list, ask "Apply? (yes / no / customize)". Apply on confirm.
+- OK → `✅ Plugin check passed — [active plugins] — complexity: <score>%`, continue.
 
 ## STEP 1 — INTERVIEW
 Before loading the interviewer, check for an existing CLAUDE.md:
@@ -62,6 +63,30 @@ Verify: `git init` + build passes.
 ## STEP 5b — CREATE README
 Load `$HOME/.claude/agents/readme-updater.md`. README.md missing → CREATE mode auto. No stop.
 
+## STEP 5c — CTX7 PRE-FETCH (if fast-libs detected)
+If `fast-libs` signal was detected in STEP 0 (Next.js, React 18+, Prisma, Supabase, Drizzle, etc.):
+1. Create `.ctx7-cache/` directory in project root.
+2. For each detected fast-lib, fetch core docs:
+   ```bash
+   mkdir -p .ctx7-cache
+   # Example for detected libs — adapt to actual deps:
+   ctx7 docs /vercel/next.js "app router middleware routing" > .ctx7-cache/nextjs-core.md 2>/dev/null || true
+   ctx7 docs /prisma/prisma "schema client queries" > .ctx7-cache/prisma-core.md 2>/dev/null || true
+   ```
+3. Add `.ctx7-cache/` to `.gitignore` (local dev cache, not committed).
+4. Print: `📚 ctx7 docs pre-fetched for: <libs>. Cache at .ctx7-cache/`
+If `ctx7` not installed or no fast-libs → skip silently.
+
+## STEP 5d — GRAPHIFY SCAFFOLD (light pass)
+If `graphify` CLI is installed AND complexity >= 30%:
+1. Run light graphify on the scaffold:
+   ```bash
+   graphify . --output graphify-out --mode quick 2>/dev/null || true
+   ```
+2. Add `graphify-out/` to `.gitignore` if not already present.
+3. Print: `🔗 Scaffold graph generated at graphify-out/`
+If `graphify` not installed or complexity < 30% → skip silently.
+
 ## STEP 6 — PLAN
 Invoke `superpowers:writing-plans` with BRIEF + skeleton.
 Granular tasks (2-5 min each), exact file paths, TDD: tests before code.
@@ -78,6 +103,15 @@ Changes → back to STEP 6. Approved → continue.
 
 ## STEP 8 — IMPLEMENT
 Invoke `superpowers:subagent-driven-development`. Isolated subagents, TDD, 2-stage review per task.
+
+## STEP 8b — GRAPHIFY FULL (after implementation)
+If `graphify` CLI is installed AND complexity >= 30%:
+1. Run full graphify on the implemented project:
+   ```bash
+   graphify . --output graphify-out 2>/dev/null || true
+   ```
+2. Print: `🔗 Full project graph updated at graphify-out/`
+If `graphify` not installed or complexity < 30% → skip silently.
 
 ## STEP 9 — ANALYZE
 Load `$HOME/.claude/agents/analyzer.md`. Check: no regressions, no deviations, no stale scaffold, conventions respected.

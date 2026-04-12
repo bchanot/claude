@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Claude Code statusline — folder, git branch, model, context %
+# Claude Code statusline — model, folder, branch, plan, context bar, session start
 # Receives JSON on stdin from Claude Code.
 
 INPUT=$(cat)
@@ -17,6 +17,28 @@ if [ -d "$DIR" ]; then
   BRANCH=$(git -C "$DIR" branch --show-current 2>/dev/null)
 fi
 BRANCH_STR="${BRANCH:+ ($BRANCH)}"
+
+# Plan detection (reuse shared lib)
+_lib="$(dirname "${BASH_SOURCE[0]}")/../lib/detect-plugins.sh"
+if [ -f "$_lib" ]; then
+  source "$_lib"
+  PLAN=$(detect_plan 2>/dev/null || echo "pro")
+else
+  PLAN="pro"
+fi
+PLAN_UPPER=$(echo "$PLAN" | tr '[:lower:]' '[:upper:]' | head -c1)$(echo "$PLAN" | tail -c+2)
+
+# Session duration (from total_duration_ms)
+DURATION_MS=$(echo "$INPUT" | jq -r \
+  '.cost.total_duration_ms // 0' | cut -d. -f1)
+DURATION_S=$((DURATION_MS / 1000))
+if [ "$DURATION_S" -ge 3600 ]; then
+  DURATION="$((DURATION_S / 3600))h$((DURATION_S % 3600 / 60))m"
+elif [ "$DURATION_S" -ge 60 ]; then
+  DURATION="$((DURATION_S / 60))m"
+else
+  DURATION="<1m"
+fi
 
 # Progress bar (20 chars wide)
 WIDTH=20
@@ -45,4 +67,4 @@ fi
 RESET="\033[0m"
 
 # Output: single line
-echo -e "$MODEL | $FOLDER${BRANCH_STR} | ${COLOR}${BAR}${RESET} ${PCT}%"
+echo -e "$MODEL | $FOLDER${BRANCH_STR} | $PLAN_UPPER | ${COLOR}${BAR}${RESET} ${PCT}% | ${DURATION}"
