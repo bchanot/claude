@@ -180,6 +180,12 @@ else
   info "Ruflo CLI not installed (optional — enterprise multi-agent: npm install -g ruflo@latest --omit=optional)"
 fi
 
+if detect_graphifyy; then
+  pass "Graphifyy installed (graphify CLI)"
+else
+  info "Graphifyy not installed (optional — codebase knowledge graph: pipx install graphifyy)"
+fi
+
 echo ""
 
 # ────────────────────────────────────────────────────────────
@@ -246,6 +252,7 @@ if detect_frontend_design 2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 200
 if detect_uiux_pro_max    2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 400)); fi
 if detect_context7    2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 200)); fi
 if detect_ruflo       2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 1000)); fi
+if detect_graphifyy   2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 300)); fi
 
 TOTAL_TOKENS=$((CLAUDE_MD_TOKENS + SKILL_DESC_TOKENS + PLUGIN_TOKENS))
 SESSION_BUDGET=11000

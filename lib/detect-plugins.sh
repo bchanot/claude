@@ -67,3 +67,8 @@ detect_ruflo() {
   # Ruflo CLI — installed globally via npm
   command -v ruflo &>/dev/null
 }
+
+detect_graphifyy() {
+  # Graphifyy — codebase knowledge graph, installed via pipx
+  command -v graphify &>/dev/null
+}

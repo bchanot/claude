@@ -48,7 +48,7 @@ unset _lib
 TOGGLE_ACTIVE=()
 TOGGLE_INACTIVE=()
 
-for plugin in gstack uiux_pro_max frontend_design plugin_dev context7 ruflo; do
+for plugin in gstack uiux_pro_max frontend_design plugin_dev context7 ruflo graphifyy; do
   # Map function name to display name
   case "$plugin" in
     uiux_pro_max)    display="ui-ux-pro-max" ;;
@@ -83,6 +83,7 @@ if [ -n "$_claude_real" ]; then
 else
   CONFIG_VERSION="?"
 fi
+REPO_DIR="${_repo_dir:-}"
 unset _claude_real _repo_dir
 
 # Quick passive token cost estimate (Pro session budget = ~11k tokens)
@@ -94,6 +95,7 @@ detect_plugin_dev  2>/dev/null && _passive_t=$((_passive_t + 100))
 detect_uiux_pro_max    2>/dev/null && _passive_t=$((_passive_t + 400))
 detect_context7    2>/dev/null && _passive_t=$((_passive_t + 200))
 detect_ruflo       2>/dev/null && _passive_t=$((_passive_t + 1000))
+detect_graphifyy   2>/dev/null && _passive_t=$((_passive_t + 300))
 _budget_pct=$((_passive_t * 100 / 11000))
 if [ "$_budget_pct" -gt 50 ]; then
   TOKEN_WARN="⚠️  ~${_passive_t}t passif (${_budget_pct}% budget)"
@@ -141,6 +143,16 @@ unset _active_count _inactive_count
 printf "│  🖥️  CLI : %-40s│\n" "$GSD_STATUS"
 [ -n "$TOKEN_WARN" ] && printf "│  💰 %-44s│\n" "${TOKEN_WARN:0:44}"
 printf "│  📦 v%-45s│\n" "$CONFIG_VERSION"
+# Version check: compare local vs remote (non-blocking)
+_remote_ver=""
+if [ -n "$REPO_DIR" ] && [ -d "$REPO_DIR/.git" ]; then
+  _remote_ver=$(cd "$REPO_DIR" 2>/dev/null && git fetch origin --quiet 2>/dev/null && git show origin/master:version.txt 2>/dev/null || true)
+fi
+if [ -n "$_remote_ver" ] && [ "$_remote_ver" != "$CONFIG_VERSION" ]; then
+  printf "│  🔄 update available: v%-27s│\n" "$_remote_ver"
+fi
+unset _remote_ver REPO_DIR
+
 echo "│  💡 /plugin-check  before starting a new project  │"
 echo "│  🩺 /health  to run full diagnostic               │"
 echo "└───────────────────────────────────────────────────┘"

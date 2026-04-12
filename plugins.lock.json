@@ -18,11 +18,17 @@
   "ruflo": {
     "source": "npm:ruflo",
     "version": "3.5.58",
-    "note": "Enterprise multi-agent MCP server (formerly claude-flow). Requires manual MCP config after install. Check latest at https://www.npmjs.com/package/ruflo before updating."
+    "note": "Enterprise multi-agent orchestration CLI (formerly claude-flow). Standalone CLI, not an MCP server. Check latest at https://www.npmjs.com/package/ruflo before updating."
   },
   "ctx7": {
     "source": "npm:ctx7",
     "version": "latest",
-    "note": "Context7 CLI \u2014 doc lookup for fast-evolving libs. Install: npm install -g ctx7. Setup for Claude Code: ctx7 setup --claude. Standalone: ctx7 docs /vercel/next.js \"middleware\"."
+    "note": "Context7 CLI — doc lookup for fast-evolving libs. Standalone CLI, not an MCP server. Install: npm install -g ctx7. Standalone: ctx7 docs /vercel/next.js \"middleware\"."
+  },
+  "graphifyy": {
+    "source": "pypi:graphifyy",
+    "version": "latest",
+    "managed_by": "pipx",
+    "note": "Codebase knowledge graph. CLI is 'graphify'. Install: pipx install graphifyy && graphify install && graphify claude install. Adds PreToolUse hook for Glob/Grep."
   }
 }

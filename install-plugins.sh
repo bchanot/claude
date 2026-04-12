@@ -147,6 +147,21 @@ else
   esac
 fi
 
+# --- pipx (for Graphifyy) ---
+if command -v pipx &>/dev/null; then
+  ok "pipx $(pipx --version 2>/dev/null)"
+else
+  info "Installing pipx..."
+  case $OS in
+    macos)        brew install pipx ;;
+    linux-apt)    sudo apt-get install -y pipx ;;
+    linux-dnf)    sudo dnf install -y pipx ;;
+    linux-pacman) sudo pacman -S --noconfirm python-pipx ;;
+    *) warn "Cannot auto-install pipx on $OS" ;;
+  esac
+  pipx ensurepath 2>/dev/null || true
+fi
+
 # --- Claude Code CLI ---
 if command -v claude &>/dev/null; then
   ok "Claude Code $(claude --version 2>/dev/null | head -1)"
@@ -349,7 +364,7 @@ install_plugin "ui-ux-pro-max" "ui-ux-pro-max-skill"
 echo ""
 
 # ============================================================
-# STEP 6 — CONTEXT7 CLI (ctx7)
+# STEP 7 — CONTEXT7 CLI (ctx7)
 # ============================================================
 echo "── Step 7: Context7 CLI ─────────────────────────────────────"
 echo ""
@@ -375,6 +390,28 @@ if command -v ctx7 &>/dev/null; then
 fi
 
 # ============================================================
+# STEP 8 — GRAPHIFYY (codebase knowledge graph)
+# ============================================================
+echo "── Step 8: Graphifyy — Knowledge Graph ──────────────────────"
+echo ""
+if command -v graphify &>/dev/null; then
+  ok "graphify already installed"
+else
+  info "Installing graphifyy via pipx..."
+  pipx install graphifyy 2>/dev/null \
+    && ok "graphifyy installed" \
+    || err "graphifyy install failed — run manually: pipx install graphifyy"
+fi
+if command -v graphify &>/dev/null; then
+  info "Running graphify install (dependencies)..."
+  graphify install 2>/dev/null || warn "graphify install failed — run manually"
+  info "Configuring Claude Code integration..."
+  graphify claude install 2>/dev/null || warn "graphify claude install failed — run manually"
+  ok "Graphifyy configured for Claude Code"
+fi
+echo ""
+
+# ============================================================
 # SUMMARY
 # ============================================================
 echo ""
@@ -396,6 +433,7 @@ echo "    🔄 frontend-design     — UI design skill (~200 tokens) [claude-cod
 echo "    🔄 ui-ux-pro-max       — user scope (~400 tokens)"
 echo "    🔄 context7 CLI        — ctx7 (npm global, standalone or MCP setup)"
 echo "    🔄 ruflo CLI           — enterprise multi-agent orchestration (~500-1500 tokens)"
+echo "    🔄 graphifyy           — codebase knowledge graph (pipx, PreToolUse hook)"
 echo ""
 echo "  All plugins installed at: user scope (~/.claude/plugins/)"
 echo "  GStack at: ~/.claude/skills/gstack/ (symlink → submodule)"
