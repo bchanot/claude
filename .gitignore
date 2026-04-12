@@ -3,6 +3,13 @@
 # Symlink created by link.sh (GStack submodule target)
 skills/gstack
 
+# Local project config (per-machine, not shared)
+.claude/
+
+# Generated outputs
+graphify-out/
+.ctx7-cache/
+
 # Install logs
 install-*.log
 
