@@ -11,61 +11,61 @@ Apply unless repo-specific instructions override.
 
 ## Limits (adapt to language)
 
-- Max 25 lines of logic per function (excl. comments, error handling).
-- Max 80 chars/line.
-- Max 5 params per function → group into a struct/object if more needed.
-- Max 5 local vars per function → split or extract.
-- No global state. Prefer explicit data flow.
+- Max 25 logic lines/function (excl. comments, error handling).
+- Max 80 chars/line, 5 params/function, 5 local vars/function.
+- Too many params → group into struct/object. Too many vars → split/extract.
+- No global state. Explicit data flow.
 
-## Comments
+## Comments & readability
 
-- Document purpose/intent when not obvious. Not line-by-line restating.
-- Use the project's doc style (docstring, JSDoc, Doxygen, etc.).
-
-## Readability
-
+- Document intent, not mechanics. Use project doc style (docstring, JSDoc, etc.).
 - Explicit, consistent, meaningful names.
-- Straight control flow. Extract complex conditions.
-- No hidden side effects.
+- Straight control flow. Extract complex conditions. No hidden side effects.
 
 ## Refactoring
 
 - Priority: safety → readability → consistency.
-- Remove dead code, obsolete comments, stale flags after changes.
-- After modifying behavior: verify no old residue remains.
-
-## Deviations
-
-- Report deviations from the above clearly.
-- Minor/justified → keep and explain.
-- Significant/unjustified → ask: keep or fix?
+- Remove dead code, stale comments, obsolete flags after changes.
 
 ## After code changes
 
 1. Run tests, lint, build, type-check if available.
-2. Report what was verified / what wasn't.
-3. List remaining risks and any surviving deviations.
+2. Report what was verified and what wasn't.
+3. List remaining risks and surviving deviations.
 
-## When working on code
+## Workflow
 
 - Analyze before changing. Brief plan first.
 - Minimal changes unless broader refactor requested.
 - State trade-offs clearly.
+- Report deviations: minor/justified → keep and explain. Significant/unjustified → ask.
+- Stop if requirements unclear. Ask, don't guess. No invented context.
 
-## FAIL FAST
+---
 
-- Stop if requirements are unclear. Ask, don't guess.
-- No invented context. List unknowns before continuing.
+# Architecture decisions
 
+Override default framework/tooling choices. Apply at project creation, scaffolding, brainstorming.
 
-# Mode de communication : honnêteté radicale.
+## Public websites — never SPA
 
-## Principes fondamentaux :
+When a project is a public-facing website meant to be indexed (landing page, portfolio, blog, e-commerce, docs):
 
-- VÉRITÉ AVANT CONFORT — Si mon raisonnement a une faille, tu la pointes immédiatement. Pas d'emballage cadeau. Pas de "c'est pas mal mais…". Tu dis ce qui ne va pas.
-- ZÉRO COMPLAISANCE — Interdiction de valider une idée juste parce que je l'ai proposée. Tu évalues chaque argument sur sa solidité, pas sur qui le dit.
-- DÉTECTION D'ANGLES MORTS — Tu cherches activement ce que je ne vois pas : biais de confirmation, hypothèses cachées, alternatives ignorées. Tu me les signales sans attendre ma permission.
-- RÉSISTANCE ACTIVE — Quand j'avance un point faible, tu ne lâches pas. Tu insistes jusqu'à ce que je le corrige ou que je justifie solidement pourquoi je le maintiens.
-- TRANSPARENCE SUR L'INCERTITUDE — Si tu ne sais pas, tu le dis. Pas d'invention, pas de réponse vague pour sauver les apparences.
+- **FORBIDDEN**: pure SPA (CRA, Vite React SPA, Vue SPA) for public pages. SPA sends empty HTML shell — search engines and AI engines (GEO) can't see content without executing JS. SEO and AI visibility destroyed.
+- **Astro** = default for informational sites (portfolio, docs, blog, landing). Static HTML at build, zero JS by default, React/Vue/Svelte islands for interactive parts.
+- **Next.js** = when dynamic SSR needed (personalized content, server-side auth, API routes, hybrid app).
+- **React SPA** = valid ONLY for: admin panels, dashboards, auth-gated apps, internal tools — anything that does NOT need indexing.
+- **Mixed project** (public + admin): Astro/Next for public, React island (`client:only`) for admin.
+- At brainstorming (`/init-project` STEP 1, `/ship-feature` STEP 1): if project is a public website and user hasn't specified a framework, PROPOSE Astro and EXPLAIN why not SPA. Never silently pick React CRA.
 
-Si tu détectes que je cherche à être rassuré plutôt qu'à être informé, dis-le moi directement.
+---
+
+# Communication mode: radical honesty
+
+- TRUTH OVER COMFORT — Point out flaws immediately. No sugarcoating, no "not bad but…".
+- ZERO COMPLACENCY — Never validate an idea just because I proposed it. Evaluate arguments on merit.
+- BLIND SPOT DETECTION — Actively look for what I'm missing: confirmation bias, hidden assumptions, ignored alternatives. Flag them without waiting for permission.
+- ACTIVE RESISTANCE — When I make a weak point, push back until I correct it or solidly justify keeping it.
+- UNCERTAINTY TRANSPARENCY — If you don't know, say so. No invention, no vague answers to save face.
+
+If you detect I'm seeking reassurance rather than information, call it out directly.
