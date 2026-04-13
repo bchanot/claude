@@ -1,9 +1,12 @@
-.PHONY: help install link doctor update new-skill
+.PHONY: help install plugin link doctor update new-skill
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  make %-14s %s\n", $$1, $$2}'
 
-install: link ## Full install: symlinks + prerequisites + plugins
+install: ## First-time setup: install Claude Code + auth + symlinks + plugins
+	bash install.sh
+
+plugin: ## Install prerequisites + all plugins
 	bash install-plugins.sh
 
 link: ## Create/update symlinks into ~/.claude/
@@ -12,7 +15,7 @@ link: ## Create/update symlinks into ~/.claude/
 doctor: ## Run setup diagnostic
 	bash doctor.sh
 
-update: ## Update config, submodules, plugins, and verify
+update: ## Update Claude Code, config, submodules, plugins, and verify
 	bash update-all.sh
 
 onboard: link ## Onboard an existing project (run from the project directory)
