@@ -215,6 +215,9 @@
     "type": "command",
     "command": "bash ~/.claude/hooks/statusline.sh"
   },
+  "enabledPlugins": {
+    "example-skills@anthropic-agent-skills": true
+  },
   "extraKnownMarketplaces": {
     "claude-code-plugins": {
       "source": {
@@ -240,8 +243,5 @@
         "repo": "anthropics/skills"
       }
     }
-  },
-  "enabledPlugins": {
-    "example-skills@anthropic-agent-skills": true
   }
 }
