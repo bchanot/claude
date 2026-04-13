@@ -342,8 +342,13 @@ install_plugin() {
 # These are NOT in claude-plugins-official — they require the claude-code marketplace
 info "Adding Anthropic bundled plugins marketplace..."
 claude plugin marketplace add anthropics/claude-code 2>/dev/null || true
+
+info "Adding Anthropic skills marketplace..."
+claude plugin marketplace add anthropics/skills 2>/dev/null || true
 install_plugin "security-guidance"  "claude-code-plugins"
-install_plugin "skill-creator"  "claude-code-plugins"
+# skill-creator is in "example-skills" plugin from anthropics/skills marketplace
+# (not in claude-code marketplace — it's a separate repo)
+install_plugin "example-skills"     "anthropic-agent-skills"
 # install_plugin "frontend-design"    "claude-code-plugins"
 install_plugin "pr-review-toolkit"  "claude-code-plugins"
 install_plugin "plugin-dev"         "claude-code-plugins"
