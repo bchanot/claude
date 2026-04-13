@@ -41,6 +41,9 @@ skills/setup-deploy
 skills/ship
 skills/unfreeze
 
+# Emil Design Engineering skill symlink — auto-created by link.sh
+skills/emil-design-eng
+
 # Local project config (per-machine, not shared)
 .claude/
 

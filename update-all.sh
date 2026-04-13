@@ -207,7 +207,22 @@ else
   info "graphifyy not installed — skipping"
 fi
 
-# ── 8. Update marketplace plugins ──
+# ── 8. Update Emil Design Engineering skill ──
+echo ""
+echo "── Updating Emil Design Engineering..."
+EMIL_DIR="$REPO/skills-external/emil-design-eng"
+EMIL_URL="https://raw.githubusercontent.com/emilkowalski/skill/main/skills/emil-design-eng/SKILL.md"
+if [ -d "$EMIL_DIR" ]; then
+  info "Fetching latest SKILL.md from emilkowalski/skill..."
+  curl -fsSL "$EMIL_URL" -o "$EMIL_DIR/SKILL.md.tmp" \
+    && mv "$EMIL_DIR/SKILL.md.tmp" "$EMIL_DIR/SKILL.md" \
+    && ok "emil-design-eng updated" \
+    || warn "emil-design-eng update failed"
+else
+  info "emil-design-eng not installed — skipping (run: make plugin)"
+fi
+
+# ── 9. Update marketplace plugins ──
 echo ""
 echo "── Updating marketplace plugins..."
 if command -v claude &>/dev/null; then
@@ -228,11 +243,11 @@ else
   warn "Claude Code not found — skipping plugin update"
 fi
 
-# ── 9. Refresh symlinks ──
+# ── 10. Refresh symlinks ──
 echo ""
 echo "── Refreshing symlinks..."
 bash "$REPO/link.sh"
 
-# ── 10. Run doctor ──
+# ── 11. Run doctor ──
 echo ""
 bash "$REPO/doctor.sh"

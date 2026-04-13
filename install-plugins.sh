@@ -413,6 +413,30 @@ fi
 echo ""
 
 # ============================================================
+# STEP 9 — EMIL DESIGN ENG (UI polish / animation skill)
+# ============================================================
+echo "── Step 9: Emil Design Engineering ─────────────────────────"
+echo ""
+EMIL_DIR="$REPO/skills-external/emil-design-eng"
+EMIL_URL="https://raw.githubusercontent.com/emilkowalski/skill/main/skills/emil-design-eng/SKILL.md"
+mkdir -p "$EMIL_DIR"
+if [ -f "$EMIL_DIR/SKILL.md" ]; then
+  ok "emil-design-eng already downloaded"
+else
+  info "Downloading SKILL.md from emilkowalski/skill..."
+  curl -fsSL "$EMIL_URL" -o "$EMIL_DIR/SKILL.md" \
+    && ok "emil-design-eng installed" \
+    || err "emil-design-eng download failed — try: curl -fsSL $EMIL_URL -o $EMIL_DIR/SKILL.md"
+fi
+# Symlink handled by link.sh
+if [ -L "$HOME/.claude/skills/emil-design-eng" ]; then
+  ok "emil-design-eng symlink OK"
+else
+  info "Symlinking — will be created by link.sh"
+fi
+echo ""
+
+# ============================================================
 # SUMMARY
 # ============================================================
 echo ""
@@ -435,9 +459,11 @@ echo "    🔄 ui-ux-pro-max       — user scope (~400 tokens)"
 echo "    🔄 context7 CLI        — ctx7 (npm global, standalone or MCP setup)"
 echo "    🔄 ruflo CLI           — enterprise multi-agent orchestration (~500-1500 tokens)"
 echo "    🔄 graphifyy           — codebase knowledge graph (pipx, PreToolUse hook)"
+echo "    🔄 emil-design-eng     — UI polish, animations, component craft (curl → symlink)"
 echo ""
 echo "  All plugins installed at: user scope (~/.claude/plugins/)"
 echo "  GStack at: ~/.claude/skills/gstack/ (symlink → submodule)"
+echo "  Emil Design Eng at: ~/.claude/skills/emil-design-eng/ (symlink → skills-external)"
 echo ""
 echo "  → Restart Claude Code — plugins load automatically"
 echo ""

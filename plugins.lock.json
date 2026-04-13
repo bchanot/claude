@@ -30,5 +30,11 @@
     "version": "latest",
     "managed_by": "pipx",
     "note": "Codebase knowledge graph. CLI is 'graphify'. Install: pipx install graphifyy && graphify install && graphify claude install. Adds PreToolUse hook for Glob/Grep."
+  },
+  "emil-design-eng": {
+    "source": "https://github.com/emilkowalski/skill",
+    "path": "skills/emil-design-eng/SKILL.md",
+    "managed_by": "curl",
+    "note": "Emil Kowalski's design engineering skill — UI polish, animations, component craft. Downloaded to skills-external/emil-design-eng/, symlinked by link.sh."
   }
 }

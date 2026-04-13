@@ -46,6 +46,17 @@ else
   echo "⚠️  GStack submodule not found — run: git submodule update --init"
 fi
 
+if [ -d "$REPO/skills-external/emil-design-eng" ]; then
+  if [ -L "$CLAUDE/skills/emil-design-eng" ] && [ "$(readlink "$CLAUDE/skills/emil-design-eng")" = "$REPO/skills-external/emil-design-eng" ]; then
+    : # already correct
+  else
+    ln -sf "$REPO/skills-external/emil-design-eng" "$CLAUDE/skills/emil-design-eng"
+    CHANGED=$((CHANGED + 1))
+  fi
+else
+  echo "⚠️  emil-design-eng not found — run: make plugin"
+fi
+
 if [ "$CHANGED" -eq 0 ]; then
   echo "✅ All symlinks already up to date."
 else
