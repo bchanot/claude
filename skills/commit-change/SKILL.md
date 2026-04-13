@@ -57,31 +57,10 @@ Common groupings:
 - Unrelated bug fixes = each gets its own commit
 - Formatting/style changes = separate from logic changes
 
-### Phase 3: Present the plan
+### Phase 3: Execute commits
 
-Before committing anything, present a clear plan to the user:
-
-```
-Proposed commits (in order):
-
-1. fix(auth): handle expired tokens in refresh flow
-   - src/auth/refresh.ts (modified)
-   - src/auth/refresh.test.ts (modified)
-
-2. feat(api): add pagination to /users endpoint  
-   - src/routes/users.ts (modified)
-   - src/routes/users.test.ts (new)
-
-3. chore: update eslint config
-   - .eslintrc.json (modified)
-```
-
-Ask the user to confirm, modify the grouping, or adjust commit messages
-before proceeding.
-
-### Phase 4: Execute commits
-
-For each approved commit group, in order:
+Proceed directly — no confirmation needed. For each logical commit group,
+in order:
 
 1. Stage only the files for that commit: `git add <specific-files>`
    - For partially changed files that belong to multiple commits, use
