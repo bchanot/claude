@@ -155,13 +155,27 @@ After presenting RECOMMENDATIONS, if any plugin has ⚡ ENABLE status:
 | `fast-libs` | context7 | — | Doc freshness critical |
 | `multi-agent` + `complex-arch` | gsd v2 CLI | ruflo (unless explicitly requested) | GSD v2 preferred; ruflo only on explicit user request |
 | `simple` / single-session | — | gsd, gstack, ruflo, ui-ux-pro-max | Saves ~3000-5000t |
-| `embedded` / firmware | — | all toggles; superpowers optional | workflow: /analyze → edit or /ship-feature |
+| `embedded` / firmware | — | all toggles; superpowers optional | workflow: /analyze → /hotfix or /bugfix or /ship-feature |
 | backend/lib/CLI only | — | frontend-design, ui-ux-pro-max, gstack | ~3100t saved |
-| small project / hotfix | — | gstack, ruflo, gsd | Overhead exceeds value |
+| small project / hotfix | — | gstack, ruflo, gsd | Use /hotfix, /bugfix, or /feat |
 
 **GSD v2 note:** `gsd-pi` is a standalone CLI (Pi SDK), not a Claude Code plugin. Zero passive token cost in CC sessions. Recommend when: feature > 1 day, multiple isolated context windows needed, crash recovery, cost tracking, or parallel workers. Usage: `gsd` in terminal → `/gsd auto`.
 
 **Ruflo note:** `ruflo` is a heavy CLI tool (310+ tools, ~500-1500t passive when hooks active). Only recommend when the project explicitly requires coordinating 5+ specialized agents simultaneously or swarm/parallel-orchestration architecture. For standard multi-session work, GSD v2 is sufficient and lighter. Install: `npm install -g ruflo@latest --omit=optional`. Init: `ruflo init --wizard`.
+
+### Skill routing by task size
+
+When the plugin-advisor detects a `simple` or `hotfix` signal, suggest the appropriate lightweight skill instead of heavy orchestrators:
+
+| Task | Skill | When to use | Overhead |
+|---|---|---|---|
+| Typo, CSS fix, wrong value, missing import | `/hotfix` | Root cause obvious, 1-2 files max | ~30s |
+| Bug with unclear root cause, multi-file | `/bugfix` | Needs investigation before fixing, up to ~5 files | ~3 min |
+| Small feature, 1-5 files | `/feat` | Well-scoped addition, no design needed | ~2 min |
+| Large feature, design decisions needed | `/ship-feature` | Multi-file, needs brainstorm + plan + review | ~10 min |
+| New project from scratch | `/init-project` | Full project setup with scaffolding | ~15 min |
+
+**Escalation path:** `/hotfix` → `/bugfix` → `/ship-feature` (bugs), `/feat` → `/ship-feature` (features). Each skill documents when to escalate to the next level.
 
 ---
 
@@ -245,7 +259,7 @@ RULE: IF "embedded" signal (firmware, bare-metal, microcontroller, or Makefile+C
   → superpowers OPTIONAL: useful for initial design brainstorm on complex drivers,
     but unnecessary for single-function patches — user decides
   → GSD v2 CLI: not recommended (sessions are short, tasks are atomic)
-  → Recommend workflow: /analyze <file> → Edit direct (hotfix) or /ship-feature (multi-file)
+  → Recommend workflow: /analyze <file> → /hotfix (patch) or /bugfix (investigation) or /ship-feature (multi-file)
   → NOTE: print "embedded project detected — minimal plugin footprint recommended"
 
 RULE: IF gstack ON AND ruflo ON:
