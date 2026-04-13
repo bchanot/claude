@@ -343,8 +343,7 @@ install_plugin() {
 info "Adding Anthropic bundled plugins marketplace..."
 claude plugin marketplace add anthropics/claude-code 2>/dev/null || true
 install_plugin "security-guidance"  "claude-code-plugins"
-# frontend-design: DISABLED — doublon with ui-ux-pro-max (2026-04-12)
-# To re-enable: uncomment line below + remove .disabled suffix from cache
+install_plugin "skill-creator"  "claude-code-plugins"
 # install_plugin "frontend-design"    "claude-code-plugins"
 install_plugin "pr-review-toolkit"  "claude-code-plugins"
 install_plugin "plugin-dev"         "claude-code-plugins"
