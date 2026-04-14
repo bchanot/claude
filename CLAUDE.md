@@ -44,19 +44,29 @@ Apply unless repo-specific instructions override.
 ---
 
 # Architecture decisions
-
+ 
 Override default framework/tooling choices. Apply at project creation, scaffolding, brainstorming.
-
+ 
 ## Public websites — never SPA
-
+ 
 When a project is a public-facing website meant to be indexed (landing page, portfolio, blog, e-commerce, docs):
-
+ 
 - **FORBIDDEN**: pure SPA (CRA, Vite React SPA, Vue SPA) for public pages. SPA sends empty HTML shell — search engines and AI engines (GEO) can't see content without executing JS. SEO and AI visibility destroyed.
 - **Astro** = default for informational sites (portfolio, docs, blog, landing). Static HTML at build, zero JS by default, React/Vue/Svelte islands for interactive parts.
 - **Next.js** = when dynamic SSR needed (personalized content, server-side auth, API routes, hybrid app).
 - **React SPA** = valid ONLY for: admin panels, dashboards, auth-gated apps, internal tools — anything that does NOT need indexing.
 - **Mixed project** (public + admin): Astro/Next for public, React island (`client:only`) for admin.
 - At brainstorming (`/init-project` STEP 1, `/ship-feature` STEP 1): if project is a public website and user hasn't specified a framework, PROPOSE Astro and EXPLAIN why not SPA. Never silently pick React CRA.
+ 
+## Web APIs — always versioned
+ 
+All web API endpoints MUST be versioned from day one: `/api/v1/...`, `/api/v2/...`.
+ 
+- New project → start at `/api/v1/`. No bare `/api/` routes.
+- Breaking changes → new version (`v2`). Old version stays functional — clients migrate at their own pace.
+- Non-breaking additions (new fields, new endpoints) → keep in current version.
+- Each version is a self-contained contract. Never modify existing version behavior to match a newer one.
+- Router structure must reflect versioning explicitly (e.g. `api/v1/routes/`, `api/v2/routes/` or equivalent namespace/prefix pattern for the language/framework used).
 
 ---
 
