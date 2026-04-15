@@ -15,11 +15,6 @@
     "managed_by": "git submodule",
     "note": "Version controlled by submodule pointer in .gitmodules. Update: git submodule update --remote"
   },
-  "ruflo": {
-    "source": "npm:ruflo",
-    "version": "3.5.58",
-    "note": "Enterprise multi-agent orchestration CLI (formerly claude-flow). Standalone CLI, not an MCP server. Check latest at https://www.npmjs.com/package/ruflo before updating."
-  },
   "ctx7": {
     "source": "npm:ctx7",
     "version": "latest",

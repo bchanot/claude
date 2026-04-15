@@ -21,9 +21,6 @@ claude plugin list 2>/dev/null || echo "plugin-list-unavailable"
 # GStack skills count (toggle CC plugin)
 ls $HOME/.claude/skills/gstack/skills/ 2>/dev/null | wc -l || echo "0"
 
-# Ruflo CLI
-command -v ruflo &>/dev/null && ruflo --version 2>/dev/null | head -1 || echo "ruflo-not-installed"
-
 # Context7 CLI
 command -v ctx7 &>/dev/null && ctx7 --version 2>/dev/null | head -1 || echo "ctx7-not-installed"
 
@@ -94,7 +91,7 @@ Factors (weighted):
   _Examples: blog with auth, dashboard with charts, API with validation._
 - **60-85% (complex)**: + gstack if browser-QA, + gsd if multi-session, + graphify both passes.
   _Examples: SaaS with billing, game with social features, e-commerce._
-- **85-100% (enterprise)**: all tools justified. Consider ruflo only if explicitly requested.
+- **85-100% (enterprise)**: all tools justified.
   _Examples: multi-service platform, real-time collab app, marketplace._
 
 Output: `COMPLEXITY: <score>% — <label>` with one-line justification.
@@ -131,7 +128,6 @@ After presenting RECOMMENDATIONS, if any plugin has ⚡ ENABLE status:
    PROPOSED CHANGES:
      ⚡ Enable ui-ux-pro-max (frontend detected, complexity 65%)
      ⚡ Pre-fetch ctx7 docs for next.js, prisma
-     ⚠️  Disable ruflo (not needed, saves ~1000t)
    Apply these changes? (yes / no / customize)
    ```
 2. On "yes" → apply changes (rename .disabled dirs, update MCP config).
@@ -146,22 +142,20 @@ After presenting RECOMMENDATIONS, if any plugin has ⚡ ENABLE status:
 
 | Signal | Enable / Use | Disable / Skip | Notes |
 |---|---|---|---|
-| `frontend` | frontend-design, ui-ux-pro-max | — | Both complement each other |
-| `mobile` (React Native/Expo/Flutter) | frontend-design | gstack (no browser QA), Docker N/A | ui-ux-pro-max optional |
+| `frontend` | ui-ux-pro-max | — | UI design and polish |
+| `mobile` (React Native/Expo/Flutter) | — | gstack (no browser QA), Docker N/A | ui-ux-pro-max optional |
 | `monorepo` | per-package plugin recommendations | avoid recommending gstack for whole repo if only one package has browser QA | Specify which plugin applies to which package |
-| `design-system` | frontend-design, ui-ux-pro-max | — | High overlap but both useful |
+| `design-system` | ui-ux-pro-max | — | Design tokens, theme, Storybook |
 | `deploy` + `browser-qa` | gstack | — | Full-product workflow |
 | `multi-session` | gsd v2 CLI | — | Run `gsd` in terminal, not CC plugin |
 | `fast-libs` | context7 | — | Doc freshness critical |
-| `multi-agent` + `complex-arch` | gsd v2 CLI | ruflo (unless explicitly requested) | GSD v2 preferred; ruflo only on explicit user request |
-| `simple` / single-session | — | gsd, gstack, ruflo, ui-ux-pro-max | Saves ~3000-5000t |
+| `multi-agent` + `complex-arch` | gsd v2 CLI | — | GSD v2 preferred for multi-session coordination |
+| `simple` / single-session | — | gsd, gstack, ui-ux-pro-max | Saves ~3000-5000t |
 | `embedded` / firmware | — | all toggles; superpowers optional | workflow: /analyze → /hotfix or /bugfix or /ship-feature |
-| backend/lib/CLI only | — | frontend-design, ui-ux-pro-max, gstack | ~3100t saved |
-| small project / hotfix | — | gstack, ruflo, gsd | Use /hotfix, /bugfix, or /feat |
+| backend/lib/CLI only | — | ui-ux-pro-max, gstack | ~3100t saved |
+| small project / hotfix | — | gstack, gsd | Use /hotfix, /bugfix, or /feat |
 
 **GSD v2 note:** `gsd-pi` is a standalone CLI (Pi SDK), not a Claude Code plugin. Zero passive token cost in CC sessions. Recommend when: feature > 1 day, multiple isolated context windows needed, crash recovery, cost tracking, or parallel workers. Usage: `gsd` in terminal → `/gsd auto`.
-
-**Ruflo note:** `ruflo` is a heavy CLI tool (310+ tools, ~500-1500t passive when hooks active). Only recommend when the project explicitly requires coordinating 5+ specialized agents simultaneously or swarm/parallel-orchestration architecture. For standard multi-session work, GSD v2 is sufficient and lighter. Install: `npm install -g ruflo@latest --omit=optional`. Init: `ruflo init --wizard`.
 
 ### Skill routing by task size
 
@@ -185,16 +179,12 @@ When the plugin-advisor detects a `simple` or `hotfix` signal, suggest the appro
 
 | Pair | Relation | Verdict |
 |---|---|---|
-| frontend-design ↔ ui-ux-pro-max | ⚠️ Overlap | Both do UI styling. Keep both for design-heavy projects; drop ui-ux-pro-max for simple UIs. ~600t combined. |
 | gstack ↔ gsd v2 | ✅ Complementary | GStack = full-product CC workflow. GSD v2 = multi-session CLI. Different scopes, no conflict. |
-| gstack ↔ ruflo | ⚠️ Overlap | Both orchestrate multi-step workflows. GStack is CC-native; ruflo is CLI swarm. High combined overhead (~3250-4250t). Use one or the other. |
-| gsd v2 ↔ ruflo | ⚠️ Overlap | GSD v2 = sequential session pipeline. Ruflo = parallel agent swarm. Pick one per project; ruflo only if genuinely parallel work needed. |
 | superpowers ↔ gsd v2 | ✅ Complementary | Superpowers = single-session execution. GSD v2 = multi-session CLI orchestration. No conflict. |
 | superpowers ↔ gstack | ✅ Complementary | Used together in /init-project and /ship-feature. Superpowers = engine, GStack = full-product skills. |
-| superpowers ↔ ruflo | ⚠️ Overlap | Both can orchestrate agent sub-tasks. Together only for advanced hybrid setups. |
 | context7 ↔ any | ✅ Independent | Doc lookup CLI (ctx7), no workflow overlap. Always safe to combine. |
 | plugin-dev ↔ superpowers | ⚠️ Minor overlap | Superpowers can create skills too. Keep plugin-dev only when actively building new plugins/skills. |
-| frontend-design ↔ gstack | ✅ Complementary | GStack = deploy/QA layer; frontend-design = UI quality layer. Different concerns. |
+| ui-ux-pro-max ↔ gstack | ✅ Complementary | GStack = deploy/QA layer; ui-ux-pro-max = UI quality layer. Different concerns. |
 | pr-review-toolkit ↔ superpowers | ✅ Complementary | superpowers:requesting-code-review and /pr-review-toolkit:review-pr cover different review styles. |
 | rtk ↔ any | ✅ Independent | Hook-only token compression. Zero interaction with any plugin. |
 | security-guidance ↔ any | ✅ Independent | Hook-only security rules. Zero interaction. |
@@ -203,15 +193,15 @@ When the plugin-advisor detects a `simple` or `hotfix` signal, suggest the appro
 
 | Project type | Plugins ON | OFF | Passive cost |
 |---|---|---|---|
-| Backend API / microservice | superpowers, context7 (if fast libs) | frontend-design, ui-ux-pro-max, gstack, ruflo | ~800t |
-| Frontend SPA / SSR | superpowers, frontend-design, ui-ux-pro-max, context7 | gstack, ruflo | ~1600t |
-| Full-stack SaaS | superpowers, gstack, frontend-design, ui-ux-pro-max, context7 | ruflo | ~4400t |
+| Backend API / microservice | superpowers, context7 (if fast libs) | ui-ux-pro-max, gstack | ~800t |
+| Frontend SPA / SSR | superpowers, ui-ux-pro-max, context7 | gstack | ~1400t |
+| Full-stack SaaS | superpowers, gstack, ui-ux-pro-max, context7 | — | ~4200t |
 | CLI tool / library | superpowers | all toggles | ~800t |
-| Multi-session large feature | superpowers + gsd v2 CLI (external) | ruflo (unless parallel) | ~800t CC |
+| Multi-session large feature | superpowers + gsd v2 CLI (external) | — | ~800t CC |
 | Quick fix / hotfix | superpowers | all toggles | ~800t |
-| Design system / component lib | superpowers, frontend-design, ui-ux-pro-max | gstack, ruflo, gsd | ~1600t |
-| Fast-evolving libs (Next.js etc.) | superpowers, context7, frontend-design | ruflo | ~1200t |
-| Enterprise multi-agent orchestration | superpowers + gsd v2 (external) | ruflo (unless explicit), plugin-dev | ~800t CC |
+| Design system / component lib | superpowers, ui-ux-pro-max | gstack, gsd | ~1200t |
+| Fast-evolving libs (Next.js etc.) | superpowers, context7 | — | ~1000t |
+| Enterprise multi-agent orchestration | superpowers + gsd v2 (external) | plugin-dev | ~800t CC |
 
 > security-guidance and rtk are ALWAYS ON (0 tokens) — omitted from cost estimates for clarity.
 
@@ -219,7 +209,6 @@ When the plugin-advisor detects a `simple` or `hotfix` signal, suggest the appro
 
 ```
 RULE: IF "mobile" signal (React Native/Expo/Flutter detected):
-  → frontend-design ON (~200t) — mobile UI components
   → gstack OFF — no browser QA on mobile
   → Docker NOT relevant — no server-side containerization for mobile
   → ui-ux-pro-max OPTIONAL (~400t) — only if design system complexity is high
@@ -227,14 +216,12 @@ RULE: IF "mobile" signal (React Native/Expo/Flutter detected):
 RULE: IF "monorepo" signal detected:
   → scan each top-level package individually for frontend/deploy/fast-libs signals
   → recommend plugins per-package, NOT for the whole repo
-  → if only apps/web/ has frontend: enable frontend-design for web package only
   → if only apps/api/ has deploy: gstack only if apps/api/ has browser QA too
   → NOTE in output: "Plugin X recommended for apps/web/ — disable for apps/api/"
   → passive cost estimate = highest-cost package profile (other packages add nothing)
 
 RULE: IF "frontend" signal OR .tsx/.jsx count > 0:
-  → frontend-design ON (~200t)
-  → ui-ux-pro-max ON if "design-system" signal (~400t additional)
+  → ui-ux-pro-max ON if "design-system" signal (~400t)
 
 RULE: IF "deploy" AND "browser-qa" signals:
   → gstack ON (~2750t) — full-product workflow
@@ -248,23 +235,17 @@ RULE: IF "fast-libs" (Next.js/React 18+/Prisma/Supabase/Drizzle):
 
 RULE: IF "multi-agent" AND "complex-arch":
   → gsd v2 CLI recommended (0t passive, multi-session coordination)
-  → ruflo CLI OFF by default — only enable if user explicitly requests swarm/parallel orchestration
-  → IF user explicitly requests ruflo AND gstack also ON: WARN overlap (~3250-4250t combined)
 
 RULE: IF "simple" OR "hotfix":
   → Disable all toggles. ~800t base only.
 
 RULE: IF "embedded" signal (firmware, bare-metal, microcontroller, or Makefile+C without Node/Rust/Go):
-  → Disable ALL toggles including gstack, context7, ruflo, plugin-dev
+  → Disable ALL toggles including gstack, context7, plugin-dev
   → superpowers OPTIONAL: useful for initial design brainstorm on complex drivers,
     but unnecessary for single-function patches — user decides
   → GSD v2 CLI: not recommended (sessions are short, tasks are atomic)
   → Recommend workflow: /analyze <file> → /hotfix (patch) or /bugfix (investigation) or /ship-feature (multi-file)
   → NOTE: print "embedded project detected — minimal plugin footprint recommended"
-
-RULE: IF gstack ON AND ruflo ON:
-  → WARN: functional overlap on multi-step orchestration
-  → Suggest: gstack for CC-native workflow, ruflo only if parallel swarm needed
 
 RULE: IF plugin-dev ON AND no `skill-creation` signal detected:
   → WARN: plugin-dev active but no skill-creation signal (~100t saved if disabled)
@@ -279,14 +260,11 @@ RULE: IF `browser-qa` signal (e2e tests, Playwright/Cypress/Puppeteer in deps):
   → context7 OPTIONAL (depends on framework version)
 
 RULE: IF `design-system` signal (tokens, theme files, Storybook present):
-  → frontend-design ON (~200t)
   → ui-ux-pro-max ON (~400t)
-  → WARN if both are OFF with this signal: significant design gap
+  → WARN if OFF with this signal: significant design gap
 
 RULE: IF `complex-arch` signal (multiple services, event bus, distributed system):
-  → ruflo CLI ON (~500-1500t)
   → gsd v2 CLI recommended for multi-session coordination
-  → IF gstack also ON: WARN combined cost ~3250-4250t — consider disabling one
 ```
 
 ---
@@ -294,14 +272,11 @@ RULE: IF `complex-arch` signal (multiple services, event bus, distributed system
 ## BLOCK if
 
 - Superpowers not active → install: `claude plugin marketplace add obra/superpowers-marketplace && claude plugin install --scope user superpowers@superpowers-marketplace`
-- Significant frontend signal + frontend-design AND ui-ux-pro-max both off
 - Full-product (UI+deploy+QA) + gstack not installed
 
 ## WARN (no block)
 
 - Active toggle plugins not needed for this task (dead passive cost)
-- gstack ON + ruflo ON simultaneously (overlap, ~3250-4250t)
-- ruflo ON with no multi-agent signal detected
 - Multi-session feature + `gsd` CLI not installed → `npm install -g gsd-pi`
 - Total passive cost > 50% of plan budget (Pro: ~5500t, Max: ~10000t, Free: ~2500t)
 - **Next.js/React 18+/Prisma/Supabase detected + context7 not configured**

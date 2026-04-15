@@ -286,41 +286,11 @@ fi
 echo ""
 
 # ============================================================
-# STEP 5 — RUFLO CLI (enterprise multi-agent orchestration)
-# ============================================================
-# Ruflo (formerly claude-flow) is an enterprise multi-agent orchestration CLI.
-# 310+ tools, 100+ agent types, WASM kernel, self-learning architecture.
-# Use only for projects requiring complex multi-agent coordination.
-# Default install ~340MB. Minimal: npm install -g ruflo@latest --omit=optional (~15s)
-echo "── Step 5: Ruflo CLI ──────────────────────────────────────"
-echo ""
-if detect_ruflo; then
-  ok "Ruflo CLI already installed ($(ruflo --version 2>/dev/null | head -1 || echo 'installed'))"
-else
-  RUFLO_VER=$(pinned_version "ruflo")
-  if [ "$RUFLO_VER" != "latest" ]; then
-    info "Installing ruflo@${RUFLO_VER} (pinned, minimal --omit=optional)..."
-    npm install -g "ruflo@${RUFLO_VER}" --omit=optional
-  else
-    info "Installing ruflo@latest (minimal --omit=optional)..."
-    npm install -g ruflo@latest --omit=optional
-  fi
-  command -v ruflo &>/dev/null && ok "Ruflo CLI installed ($(ruflo --version 2>/dev/null | head -1))" \
-    || err "Ruflo install failed — run manually: npm install -g ruflo@latest --omit=optional"
-fi
-if command -v ruflo &>/dev/null; then
-  info "Init in a project: ruflo init --wizard"
-  info "Spawn agent: ruflo agent spawn -t coder"
-  info "Start swarm: ruflo swarm init"
-  info "Diagnostics: ruflo doctor"
-fi
-
-# ============================================================
-# STEP 6 — MARKETPLACE PLUGINS (user scope, explicit)
+# STEP 5 — MARKETPLACE PLUGINS (user scope, explicit)
 # ============================================================
 # All claude plugin install commands use --scope user to ensure
 # they install to ~/.claude/plugins/ regardless of working directory.
-echo "── Step 6: Marketplace plugins (scope: user) ────────────────"
+echo "── Step 5: Marketplace plugins (scope: user) ────────────────"
 echo ""
 
 install_plugin() {
@@ -349,7 +319,6 @@ install_plugin "security-guidance"  "claude-code-plugins"
 # skill-creator is in "example-skills" plugin from anthropics/skills marketplace
 # (not in claude-code marketplace — it's a separate repo)
 install_plugin "example-skills"     "anthropic-agent-skills"
-# install_plugin "frontend-design"    "claude-code-plugins"
 install_plugin "pr-review-toolkit"  "claude-code-plugins"
 install_plugin "plugin-dev"         "claude-code-plugins"
 
@@ -370,9 +339,9 @@ install_plugin "ui-ux-pro-max" "ui-ux-pro-max-skill"
 echo ""
 
 # ============================================================
-# STEP 7 — CONTEXT7 CLI (ctx7)
+# STEP 6 — CONTEXT7 CLI (ctx7)
 # ============================================================
-echo "── Step 7: Context7 CLI ─────────────────────────────────────"
+echo "── Step 6: Context7 CLI ─────────────────────────────────────"
 echo ""
 if command -v ctx7 &>/dev/null; then
   ok "ctx7 already installed ($(ctx7 --version 2>/dev/null | head -1 || echo 'installed'))"
@@ -396,9 +365,9 @@ if command -v ctx7 &>/dev/null; then
 fi
 
 # ============================================================
-# STEP 8 — GRAPHIFYY (codebase knowledge graph)
+# STEP 7 — GRAPHIFYY (codebase knowledge graph)
 # ============================================================
-echo "── Step 8: Graphifyy — Knowledge Graph ──────────────────────"
+echo "── Step 7: Graphifyy — Knowledge Graph ──────────────────────"
 echo ""
 if command -v graphify &>/dev/null; then
   ok "graphify already installed"
@@ -418,9 +387,9 @@ fi
 echo ""
 
 # ============================================================
-# STEP 9 — EMIL DESIGN ENG (UI polish / animation skill)
+# STEP 8 — EMIL DESIGN ENG (UI polish / animation skill)
 # ============================================================
-echo "── Step 9: Emil Design Engineering ─────────────────────────"
+echo "── Step 8: Emil Design Engineering ─────────────────────────"
 echo ""
 EMIL_DIR="$REPO/skills-external/emil-design-eng"
 EMIL_URL="https://raw.githubusercontent.com/emilkowalski/skill/main/skills/emil-design-eng/SKILL.md"
@@ -442,9 +411,9 @@ fi
 echo ""
 
 # ============================================================
-# STEP 10 — SHELL CONFIG (alias + env vars)
+# STEP 9 — SHELL CONFIG (alias + env vars)
 # ============================================================
-echo "── Step 10: Claude Code shell config (alias + env vars) ────"
+echo "── Step 9: Claude Code shell config (alias + env vars) ─────"
 echo ""
 
 # Detect shell profile
@@ -506,10 +475,8 @@ echo "    🔄 gstack              — ~/.claude/skills/gstack/ (→ submodule)"
 echo "    🔄 gsd v2              — standalone CLI 'gsd' (gsd-pi, not a Claude Code plugin)"
 echo "    🔄 plugin-dev          — create plugins/skills (~100 tokens) [claude-code-plugins]"
 echo "    🔄 pr-review-toolkit   — /pr-review-toolkit:review-pr (~300 tokens) [claude-code-plugins]"
-echo "    🔄 frontend-design     — UI design skill (~200 tokens) [claude-code-plugins]"
 echo "    🔄 ui-ux-pro-max       — user scope (~400 tokens)"
 echo "    🔄 context7 CLI        — ctx7 (npm global, standalone or MCP setup)"
-echo "    🔄 ruflo CLI           — enterprise multi-agent orchestration (~500-1500 tokens)"
 echo "    🔄 graphifyy           — codebase knowledge graph (pipx, PreToolUse hook)"
 echo "    🔄 emil-design-eng     — UI polish, animations, component craft (curl → symlink)"
 echo ""

@@ -140,35 +140,7 @@ else
   warn "GSD v2 not installed — skipping (run: npm install -g gsd-pi)"
 fi
 
-# ── 5. Update Ruflo CLI (if installed) ──
-echo ""
-echo "── Updating Ruflo CLI..."
-if command -v ruflo &>/dev/null || (type detect_ruflo &>/dev/null && detect_ruflo); then
-  RUFLO_VER=""
-  if [ -f "$REPO/plugins.lock.json" ] && command -v python3 &>/dev/null; then
-    RUFLO_VER=$(python3 -c "
-import json
-with open('$REPO/plugins.lock.json') as f:
-    d = json.load(f)
-print(d.get('ruflo',{}).get('version',''))
-" 2>/dev/null || true)
-  fi
-
-  if [ -n "$RUFLO_VER" ] && [ "$RUFLO_VER" != "latest" ]; then
-    info "Pinned version: $RUFLO_VER"
-    npm install -g "ruflo@${RUFLO_VER}" 2>/dev/null \
-      && ok "Ruflo updated to $RUFLO_VER" \
-      || warn "Ruflo update failed"
-  else
-    npm install -g ruflo@latest 2>/dev/null \
-      && ok "Ruflo updated (latest)" \
-      || warn "Ruflo update failed"
-  fi
-else
-  info "Ruflo not installed — skipping"
-fi
-
-# ── 6. Update Context7 CLI ──
+# ── 5. Update Context7 CLI ──
 echo ""
 echo "── Updating Context7 CLI..."
 if command -v ctx7 &>/dev/null; then
@@ -196,7 +168,7 @@ else
   info "ctx7 not installed — skipping"
 fi
 
-# ── 7. Update Graphifyy ──
+# ── 6. Update Graphifyy ──
 echo ""
 echo "── Updating Graphifyy..."
 if command -v graphify &>/dev/null; then
@@ -207,7 +179,7 @@ else
   info "graphifyy not installed — skipping"
 fi
 
-# ── 8. Update Emil Design Engineering skill ──
+# ── 7. Update Emil Design Engineering skill ──
 echo ""
 echo "── Updating Emil Design Engineering..."
 EMIL_DIR="$REPO/skills-external/emil-design-eng"
@@ -222,7 +194,7 @@ else
   info "emil-design-eng not installed — skipping (run: make plugin)"
 fi
 
-# ── 9. Update marketplace plugins ──
+# ── 8. Update marketplace plugins ──
 echo ""
 echo "── Updating marketplace plugins..."
 if command -v claude &>/dev/null; then
@@ -243,11 +215,11 @@ else
   warn "Claude Code not found — skipping plugin update"
 fi
 
-# ── 10. Refresh symlinks ──
+# ── 9. Refresh symlinks ──
 echo ""
 echo "── Refreshing symlinks..."
 bash "$REPO/link.sh"
 
-# ── 11. Run doctor ──
+# ── 10. Run doctor ──
 echo ""
 bash "$REPO/doctor.sh"

@@ -48,11 +48,10 @@ unset _lib
 TOGGLE_ACTIVE=()
 TOGGLE_INACTIVE=()
 
-for plugin in gstack uiux_pro_max frontend_design plugin_dev context7 ruflo graphifyy; do
+for plugin in gstack uiux_pro_max plugin_dev context7 graphifyy; do
   # Map function name to display name
   case "$plugin" in
     uiux_pro_max)    display="ui-ux-pro-max" ;;
-    frontend_design) display="frontend-design" ;;
     plugin_dev)      display="plugin-dev" ;;
     *)               display="$plugin" ;;
   esac
@@ -104,10 +103,8 @@ detect_superpowers 2>/dev/null && _passive_t=$((_passive_t + 800))
 declare -A _plugin_costs=(
   [gstack]=2750
   [ui-ux-pro-max]=400
-  [frontend-design]=200
   [plugin-dev]=100
   [context7]=200
-  [ruflo]=1000
   [graphifyy]=300
 )
 for _p in "${TOGGLE_ACTIVE[@]}"; do

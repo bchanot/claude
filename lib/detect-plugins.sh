@@ -42,11 +42,6 @@ detect_gsd() {
   command -v gsd &>/dev/null
 }
 
-detect_frontend_design() {
-  local cache_dir="$HOME/.claude/plugins/cache"
-  [ -d "$cache_dir" ] && ls "$cache_dir" 2>/dev/null | grep -qi "frontend-design"
-}
-
 detect_plugin_dev() {
   # plugin-dev replaces the old "skill-creator" reference
   local cache_dir="$HOME/.claude/plugins/cache"
@@ -61,11 +56,6 @@ detect_uiux_pro_max() {
 detect_context7() {
   # Context7 CLI (ctx7) — installed globally via npm
   command -v ctx7 &>/dev/null
-}
-
-detect_ruflo() {
-  # Ruflo CLI — installed globally via npm
-  command -v ruflo &>/dev/null
 }
 
 detect_graphifyy() {

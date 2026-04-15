@@ -130,12 +130,10 @@ Tu veux...
 ```
 Toujours actifs (0 token) : security-guidance, rtk
 
-Projet avec interface     → frontend-design ON
 Design élaboré/system     → ui-ux-pro-max ON
 Deploy + QA browser       → gstack ON
 Next.js/React/Prisma      → context7 ON (WARN si absent, pas BLOCK)
 Multi-session (>1 jour)   → gsd v2 CLI (gsd dans terminal)
-Swarm 5+ agents parallèles → ruflo ON
 
 Backend/CLI seulement     → tout OFF sauf superpowers
 Hotfix/quick fix          → tout OFF sauf superpowers
@@ -276,7 +274,6 @@ cd mon-projet-existant/
 /plugin-check "App mobile React Native Expo liste de courses, offline-first, SQLite, notifications push"
 
 → SIGNALS: frontend (mobile), fast-libs (Expo SDK)
-→ ENABLE: frontend-design (composants RN)
 → WARN: context7 si Expo SDK 51+ utilisé (fast-libs)
 → OFF: gstack (mobile, pas de browser QA), ui-ux-pro-max (optionnel)
 → BLOCKING: none
@@ -354,7 +351,6 @@ gsd
 /plugin-check "Site vitrine Next.js 14 studio photo, design élaboré, animations Framer Motion, galerie, dark mode, SEO"
 
 → SIGNALS: frontend, design-system, fast-libs(Next.js)
-→ ENABLE: frontend-design (~200t)
 → ENABLE: ui-ux-pro-max (~400t) — "design élaboré" signal fort
 → WARN: context7 non configuré → taper "force" pour continuer (ou configurer avant)
 → OFF: gstack (vitrine statique, pas de deploy complexe)
@@ -408,7 +404,7 @@ Sans ui-ux-pro-max : "Tailwind avec palette neutre, Inter". La différence est v
 /plugin-check "Jeu de puzzle web React + FastAPI + PostgreSQL. Auth JWT, collection de cartes, boutique in-app, leaderboard. Multi-session, dev sur plusieurs semaines."
 
 → SIGNALS: frontend, fast-libs(React), deploy, multi-session
-→ ENABLE: frontend-design, context7
+→ ENABLE: context7
 → ENABLE: ui-ux-pro-max (cartes visuelles, cohérence design)
 → CLI: gsd v2 RECOMMANDÉ (multi-session détecté)
 → OPTIONAL: gstack si deploy CI + browser QA prévus
@@ -507,7 +503,7 @@ ONBOARD COMPLETE: mycli
 /plugin-check "Rust CLI, pas de frontend, pas de deploy"
 
 → SIGNALS: none (CLI pur)
-→ DISABLE: frontend-design, ui-ux-pro-max, gstack, context7
+→ DISABLE: ui-ux-pro-max, gstack, context7
 → KEEP: superpowers
 → COST: ~800t (minimal)
 → ACTION REQUIRED? NO
@@ -570,7 +566,7 @@ DO NOT TOUCH:
 
 → SIGNALS: none (CLI pur, pas de deploy, pas de frontend)
 → KEEP: superpowers
-→ DISABLE: frontend-design, ui-ux-pro-max, gstack, context7, ruflo
+→ DISABLE: ui-ux-pro-max, gstack, context7
 → COST: ~800t (base seulement)
 → ACTION REQUIRED? NO
 ```
@@ -783,7 +779,7 @@ PROJECT STATUS
 
 CONFIG
   Version   : v2.5.0
-  Plugins ON: superpowers, frontend-design, context7 (~1200t)
+  Plugins ON: superpowers, context7 (~1000t)
   GSD v2    : installed (2.64.0)
 
 PROJECT
@@ -882,7 +878,7 @@ COST: ~800t (superpowers seul)
 
 RECOMMENDATIONS:
   OK KEEP   : superpowers (peut être utile pour brainstorm initial)
-  DISABLE   : frontend-design, ui-ux-pro-max, gstack, context7, ruflo
+  DISABLE   : ui-ux-pro-max, gstack, context7
   NOTE      : Pour un firmware vraiment simple (hotfix, modification ciblée),
               même superpowers peut être désactivé → ~0t passif
 ```
@@ -948,14 +944,12 @@ STEP 4 — IMPLEMENT (subagents légers, modifications chirurgicales)
 ```
 Description contient...    →  Plugin
 ─────────────────────────────────────────────────────
-React / Vue / Svelte       →  frontend-design ON
 Next.js 13+ / App Router   →  context7 WARN
 Prisma / Supabase          →  context7 ON
 "design élaboré" / tokens  →  ui-ux-pro-max ON
 Docker + QA browser        →  gstack ON
 "plusieurs semaines"       →  gsd v2 CLI
-"5+ agents parallèles"     →  ruflo ON
 Rust / Python / Go / C     →  tout OFF sauf superpowers
-Mobile / Flutter / RN      →  frontend-design ON, gstack OFF
+Mobile / Flutter / RN      →  gstack OFF
 Hotfix / script rapide     →  tout OFF sauf superpowers
 ```

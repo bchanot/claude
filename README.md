@@ -20,7 +20,7 @@ claude-config/
 ├── doctor.sh              # Setup diagnostic — checks symlinks, plugins, permissions, token budget
 ├── update-all.sh          # One-command update for all components
 ├── Makefile               # Unified entry point: make install / doctor / update
-├── plugins.lock.json      # Version pinning for non-marketplace dependencies (RTK, GSD v2, ruflo)
+├── plugins.lock.json      # Version pinning for non-marketplace dependencies (RTK, GSD v2)
 ├── version.txt            # Semver version of this config
 ├── CHANGELOG.md           # Release history
 ├── lib/
@@ -80,7 +80,7 @@ claude-config/
 - `lib/` = shared shell functions sourced by scripts (plugin detection)
 - `templates/` = symlinked to `~/.claude/templates/` — copy into projects via per-project setup
 - Custom skills use **Superpowers** agents for implementation phases (required — auto-detected)
-- **Plugins** (Superpowers, GStack, GSD v2, ruflo, etc.) install separately and complement custom skills
+- **Plugins** (Superpowers, GStack, GSD v2, etc.) install separately and complement custom skills
 
 ---
 
@@ -168,12 +168,6 @@ Install output is logged to `install-YYYYMMDD-HHMMSS.log` in the repo directory 
 > Standalone TypeScript CLI for multi-session work: crash recovery, per-unit cost tracking, parallel workers,
 > context-fresh execution per task. Not a Claude Code plugin — runs as an external process.
 > Docs: [github.com/gsd-build/gsd-2](https://github.com/gsd-build/gsd-2)
-
-### Ruflo CLI — OFF (disabled by default)
-
-> Enterprise multi-agent orchestration CLI (310+ tools, WASM kernel, self-learning architecture).
-> Heavy: ~500-1500 tokens passive cost. For standard multi-session work, GSD v2 is lighter and sufficient.
-> Docs: [github.com/ruflo-ai/ruflo](https://github.com/ruflo-ai/ruflo)
 
 ### Bundled skills (Claude Code built-in, always available)
 
@@ -330,7 +324,7 @@ against what you're about to do. Also embedded as STEP 0 in both orchestrators.
 
 Blocks if Superpowers is not active (required by orchestrators).
 Blocks if critical project-specific plugins are missing (frontend tools, Context7, GStack).
-Warns if ruflo is active with no multi-agent signal, or if GSD v2 CLI is not installed for multi-session work.
+Warns if GSD v2 CLI is not installed for multi-session work.
 
 ```
 /plugin-check "I want to build a React + FastAPI SaaS"
@@ -339,7 +333,7 @@ Warns if ruflo is active with no multi-agent signal, or if GSD v2 CLI is not ins
 → Scans filesystem for project signals (frontend? design? deploy? multi-agent?)
 → Applies compatibility matrix
 → Produces recommendation table with passive cost estimate
-→ Warns about plugin conflicts (gstack + ruflo, etc.)
+→ Warns about plugin conflicts
 → Blocks with OPTIONS if critical plugins are missing
 → Or confirms "proceed" if config is optimal
 ```
@@ -352,10 +346,7 @@ Warns if ruflo is active with no multi-agent signal, or if GSD v2 CLI is not ins
 
 | Pair | Relation | Notes |
 |---|---|---|
-| frontend-design ↔ ui-ux-pro-max | ⚠️ Overlap | Keep both for design-heavy. Drop ui-ux-pro-max for simple UI. |
 | gstack ↔ gsd v2 | ✅ Complementary | Different scopes — CC workflow vs CLI orchestration |
-| gstack ↔ ruflo | ⚠️ Overlap | Both orchestrate multi-step work. Use one or the other. ~3250-4250t combined. |
-| gsd v2 ↔ ruflo | ⚠️ Overlap | Sequential (GSD) vs parallel swarm (ruflo). Pick based on need. |
 | superpowers ↔ gsd v2 | ✅ Complementary | Single-session engine + multi-session CLI = no conflict |
 | superpowers ↔ gstack | ✅ Complementary | Used together by orchestrators |
 | context7 ↔ any | ✅ Independent | Doc lookup CLI (ctx7) — always safe to combine |
@@ -364,14 +355,14 @@ Warns if ruflo is active with no multi-agent signal, or if GSD v2 CLI is not ins
 
 | Project type | Plugins ON | OFF | Passive cost |
 |---|---|---|---|
-| Backend API / microservice | superpowers, context7* | frontend-design, ui-ux-pro-max, gstack, ruflo | ~800t |
-| Frontend SPA / SSR | superpowers, frontend-design, ui-ux-pro-max, context7 | gstack, ruflo | ~1600t |
-| Full-stack SaaS | superpowers, gstack, frontend-design, ui-ux-pro-max, context7 | ruflo | ~4400t |
+| Backend API / microservice | superpowers, context7* | ui-ux-pro-max, gstack | ~800t |
+| Frontend SPA / SSR | superpowers, ui-ux-pro-max, context7 | gstack | ~1400t |
+| Full-stack SaaS | superpowers, gstack, ui-ux-pro-max, context7 | — | ~4200t |
 | CLI tool / library | superpowers | all toggles | ~800t |
-| Multi-session large feature | superpowers + gsd v2 CLI (external) | ruflo | ~800t CC |
+| Multi-session large feature | superpowers + gsd v2 CLI (external) | — | ~800t CC |
 | Quick fix / hotfix | superpowers | all toggles | ~800t |
-| Design system / component lib | superpowers, frontend-design, ui-ux-pro-max | gstack, ruflo, gsd | ~1600t |
-| Enterprise multi-agent | superpowers, ruflo + gsd v2 CLI (external) | others | ~2300t CC |
+| Design system / component lib | superpowers, ui-ux-pro-max | gstack, gsd | ~1200t |
+| Enterprise multi-agent | superpowers + gsd v2 CLI (external) | others | ~800t CC |
 
 > *context7 only if using fast-evolving libs (Next.js, React 18+, Prisma, Supabase)
 > security-guidance and rtk are ALWAYS ON (0 tokens) — omitted from estimates
@@ -449,10 +440,8 @@ Run `/plugin-check` anytime to get a recommendation for the current project type
 | **Superpowers** | ✅ REQUIRED | ~600–1000 tokens | — required by orchestrators | superpowers-marketplace |
 | **GStack** | 🔄 TOGGLE | ~2500–3000 tokens | Full-product: UI + design + deploy + browser QA | git submodule |
 | **GSD v2** | 🖥️ CLI | 0 tokens (external CLI) | Multi-day features, crash recovery, cost tracking, parallel workers | npm (pinned in plugins.lock.json) |
-| **ruflo** | ⚫ OFF (disabled) | ~500–1500 tokens | Enterprise multi-agent swarm (5+ concurrent agents) | npm (CLI) |
 | **plugin-dev** | 🔄 TOGGLE | ~100 tokens | Creating plugins or custom skills | claude-code-plugins |
 | **pr-review-toolkit** | 🔄 TOGGLE | ~300 tokens | PR review sessions | claude-code-plugins |
-| **frontend-design** | 🔄 TOGGLE | ~200 tokens | Any project with a UI | claude-code-plugins |
 | **ui-ux-pro-max** | 🔄 TOGGLE | ~400 tokens | Design system, color/typography choices | ui-ux-pro-max-skill |
 | **Context7 CLI** | 🔄 TOGGLE | ~200 tokens | Fast-evolving libs (Next.js, React, Prisma…) | npm (ctx7 CLI) |
 
@@ -467,7 +456,7 @@ Plugins are installed from GitHub-hosted marketplaces. Three are used by this co
 | Marketplace | GitHub repo | Plugins | Auto-available |
 |---|---|---|---|
 | `claude-plugins-official` | `anthropics/claude-plugins-official` | Anthropic-curated third-party plugins | ✅ yes |
-| `claude-code-plugins` | `anthropics/claude-code` | Anthropic bundled plugins (security-guidance, frontend-design, pr-review-toolkit, plugin-dev) | ❌ add manually |
+| `claude-code-plugins` | `anthropics/claude-code` | Anthropic bundled plugins (security-guidance, pr-review-toolkit, plugin-dev) | ❌ add manually |
 | `superpowers-marketplace` | `obra/superpowers-marketplace` | Superpowers workflow plugin | ❌ add manually |
 | `ui-ux-pro-max-skill` | `nextlevelbuilder/ui-ux-pro-max-skill` | UI/UX Pro Max design plugin | ❌ add manually |
 
@@ -479,7 +468,7 @@ Plugins are installed from GitHub-hosted marketplaces. Three are used by this co
 claude plugin marketplace add anthropics/claude-code
 
 # Install a plugin from it
-claude plugin install --scope user frontend-design@claude-code-plugins
+claude plugin install --scope user pr-review-toolkit@claude-code-plugins
 
 # Browse all available plugins
 /plugin   # → Discover tab
@@ -493,7 +482,6 @@ Non-marketplace tools are pinned in `plugins.lock.json`:
 {
   "rtk":             { "source": "https://github.com/rtk-ai/rtk", "version": "v0.34.3" },
   "gsd":             { "source": "npm:gsd-pi",  "version": "2.64.0" },
-  "ruflo":           { "source": "npm:ruflo",   "version": "3.5.58" },
   "ctx7":            { "source": "npm:ctx7",    "version": "latest" },
   "graphifyy":       { "source": "pypi:graphifyy", "managed_by": "pipx" },
   "emil-design-eng": { "source": "https://github.com/emilkowalski/skill", "managed_by": "curl" }
@@ -597,7 +585,7 @@ cp "$CONF/templates/project-CLAUDE.md" CLAUDE.md
 # From the repo directory
 bash update-all.sh
 # Updates Claude CLI, pulls config, prompts before updating GStack (tracks main),
-# updates RTK + GSD v2 (pinned), updates ruflo if installed, updates ctx7 + graphifyy,
+# updates RTK + GSD v2 (pinned), updates ctx7 + graphifyy,
 # refreshes marketplace plugins, refreshes symlinks, runs doctor
 ```
 
@@ -608,7 +596,7 @@ git pull          # this repo — symlinks make changes active immediately
 bash link.sh      # refresh symlinks if needed
 ```
 
-All third-party tools (RTK, GSD v2, ruflo, GStack, ctx7, marketplace plugins) are updated
+All third-party tools (RTK, GSD v2, GStack, ctx7, marketplace plugins) are updated
 automatically by `update-all.sh`. Versions are pinned in `plugins.lock.json`.
 
 ---
@@ -703,7 +691,7 @@ make new-skill name=myskill  # scaffold agent + skill files
 ```
 
 `doctor.sh` checks 7 axes: symlinks, GStack submodule (with pinning warning), prerequisites
-(git, Node, Cargo, Python, Claude Code), plugins (RTK, Superpowers, Context7, GSD v2, ruflo),
+(git, Node, Cargo, Python, Claude Code), plugins (RTK, Superpowers, Context7, GSD v2),
 permissions (deny count, bypass mode), token budget (breakdown vs Pro session budget), and
 config consistency (frontmatter, CRLF detection).
 

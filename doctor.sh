@@ -174,12 +174,6 @@ else
   info "GSD v2 not installed (optional — run: npm install -g gsd-pi)"
 fi
 
-if detect_ruflo; then
-  pass "Ruflo CLI installed ($(ruflo --version 2>/dev/null | head -1 || echo 'installed'))"
-else
-  info "Ruflo CLI not installed (optional — enterprise multi-agent: npm install -g ruflo@latest --omit=optional)"
-fi
-
 if detect_graphifyy; then
   pass "Graphifyy installed (graphify CLI)"
 else
@@ -248,10 +242,8 @@ SKILL_COUNT=$(find "$HOME/.claude/skills/" -maxdepth 2 -name "SKILL.md" 2>/dev/n
 PLUGIN_TOKENS=0
 if detect_superpowers 2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 800)); fi
 if detect_gstack      2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 2750)); fi
-if detect_frontend_design 2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 200)); fi
 if detect_uiux_pro_max    2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 400)); fi
 if detect_context7    2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 200)); fi
-if detect_ruflo       2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 1000)); fi
 if detect_graphifyy   2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 300)); fi
 
 TOTAL_TOKENS=$((CLAUDE_MD_TOKENS + SKILL_DESC_TOKENS + PLUGIN_TOKENS))
