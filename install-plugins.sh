@@ -442,9 +442,9 @@ fi
 echo ""
 
 # ============================================================
-# STEP 10 — SHELL ENV VARS (effort + thinking)
+# STEP 10 — SHELL CONFIG (alias + env vars)
 # ============================================================
-echo "── Step 10: Claude Code environment variables ──────────────"
+echo "── Step 10: Claude Code shell config (alias + env vars) ────"
 echo ""
 
 # Detect shell profile
@@ -457,13 +457,21 @@ fi
 # Fallback to .profile (works with sh, dash, etc.)
 [ -z "$SHELL_PROFILE" ] && SHELL_PROFILE="$HOME/.profile"
 
-CLAUDE_ENVS=(
-  'export CLAUDE_EFFORT=max'
+CLAUDE_LINES=(
+  "alias claude='claude --effort max'"
   'export CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1'
 )
 
+# Clean up old CLAUDE_EFFORT env var if present (replaced by alias)
+if grep -qF 'export CLAUDE_EFFORT=max' "$SHELL_PROFILE" 2>/dev/null; then
+  sed -i '/export CLAUDE_EFFORT=max/d' "$SHELL_PROFILE"
+  # Also remove orphaned comment lines left by previous installs
+  sed -i '/^# Claude Code — added by install-plugins.sh$/{ N; /^\n$/d; }' "$SHELL_PROFILE"
+  info "Removed old CLAUDE_EFFORT=max from $SHELL_PROFILE (replaced by alias)"
+fi
+
 ADDED=0
-for line in "${CLAUDE_ENVS[@]}"; do
+for line in "${CLAUDE_LINES[@]}"; do
   if grep -qF "$line" "$SHELL_PROFILE" 2>/dev/null; then
     ok "$line (already in $SHELL_PROFILE)"
   else
