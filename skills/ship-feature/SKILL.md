@@ -114,8 +114,10 @@ Invoke `superpowers:requesting-code-review`. Fix all CRITICAL before proceeding.
 ## STEP 7 — FINISH
 Invoke `superpowers:finishing-a-development-branch`. Tests pass, build clean, ready to merge.
 
-## STEP 8 — SYNC README
-Load `$HOME/.claude/agents/readme-updater.md` with arg `sync`. Update cmds/vars/structure, add recent changes entry.
+## STEP 8 — DOC SYNC
+Load `$HOME/.claude/agents/doc-syncer.md`.
+Execute in automatic mode:
+`auto-mode scope: <list of files modified during this session>`
 
 ---
 

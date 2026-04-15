@@ -119,5 +119,13 @@ INSTALL  : ✅ / ❌ <error>
 BUILD    : ✅ / ❌ <error>
 DOCKER BUILD: ✅ / ⚠️ not verified / N/A
 STRUCTURE: <tree>
-READY: <N> v1 features | entry points ✅ | config ✅ | CLAUDE.md ✅ | README → readme-updater | settings ✅
+READY: <N> v1 features | entry points ✅ | config ✅ | CLAUDE.md ✅ | README → doc-syncer | settings ✅
 ```
+
+---
+
+## PHASE 6 — DOC SYNC (automatic)
+
+Load `$HOME/.claude/agents/doc-syncer.md`.
+Execute in automatic mode:
+`auto-mode scope: <list of all files created during scaffolding>`
