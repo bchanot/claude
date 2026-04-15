@@ -73,10 +73,20 @@ For each file in `DOC_FILES`:
    ```
    Look for: new/renamed/deleted functions, new config keys,
    new CLI flags, changed endpoints, breaking changes,
-   dependency adds/removes/upgrades.
+   dependency adds/removes/upgrades,
+   **new features added**, **features removed or deprecated**.
 
 4. Cross-reference each change against the doc's content.
    Read the doc file and check if the change is reflected.
+
+5. **Feature delta detection** — compare what the code provides
+   vs what the docs describe:
+   - Scan for new entry points, routes, commands, skills, or
+     modules that have no corresponding doc section → ADDED.
+   - Scan docs for references to functions, files, endpoints,
+     or features that no longer exist in the codebase → REMOVED.
+   - Use `git diff --stat` between last doc edit and HEAD to
+     identify files added (`A`) or deleted (`D`).
 
 ### STEP 3 — ANALYSIS PER DOC TYPE
 
@@ -85,6 +95,12 @@ Apply doc-specific checks:
 **README.md**
 - Install steps: do commands still match package manifest and CLAUDE.md?
 - Feature list: does it cover current functionality?
+  - **Added features:** new skills, commands, endpoints, or modules
+    present in code but missing from the feature list → tag AUTO
+    if name/description is obvious, HUMAN if wording needs judgment.
+  - **Removed features:** entries in the feature list that reference
+    code, files, or endpoints that no longer exist → tag AUTO for
+    removal, HUMAN if the feature was deprecated (needs migration note).
 - Examples: do code snippets match current API/signatures?
 - Prerequisites: are versions and tools still accurate?
 - Docker section: present if Docker is used, absent if not?
@@ -149,10 +165,19 @@ Last updated: <date> (<N commits since>)
 
 Tagging rules:
 - **AUTO** — factual update Claude can write: command changed,
-  var renamed, param added, version bumped, file moved.
+  var renamed, param added, version bumped, file moved,
+  dead reference removed, new entry point added to a list.
 - **HUMAN** — needs business context or judgment: feature
   description wording, architecture rationale, changelog entry
-  content, new section creation.
+  content, new section creation, deprecation notices.
+
+Feature delta tags:
+- **[ADDED]** — feature exists in code but not in docs.
+  AUTO if it's a list entry (add name + one-line description).
+  HUMAN if it needs a new section or paragraph.
+- **[REMOVED]** — feature documented but no longer in code.
+  AUTO if it's a list entry to delete.
+  HUMAN if it needs a deprecation note or migration guidance.
 
 CHANGELOG entries are always tagged HUMAN — version bump and
 release notes are human decisions.
@@ -224,11 +249,17 @@ could be affected by the scoped changes. No full git scan —
 compare the doc content directly against the current state of
 the modified files.
 
+Also check for feature deltas in the scoped files:
+- New files added → is the feature/module documented?
+- Files deleted → are there doc references to remove?
+- New exports, routes, commands → listed in relevant docs?
+
 Categorize findings:
 - **NONE** — no drift detected
-- **MINOR** — factual correction (command, param, path, version)
+- **MINOR** — factual correction (command, param, path, version),
+  dead reference to remove, new list entry to add
 - **SIGNIFICANT** — new feature undocumented, section outdated,
-  breaking change not reflected
+  breaking change not reflected, feature removed without doc update
 
 ### STEP A4 — ACT
 
