@@ -20,10 +20,9 @@ List only **user-created** skills from `~/.claude/skills/`, excluding framework
 
 ## How to detect user-created skills
 
-Use git history to identify skills added in bulk commits (framework installs).
-A skill is considered **framework** if its SKILL.md was first added in a commit
-that also added 5+ other SKILL.md files. User-created skills are added in small
-commits (1-3 SKILL.md files at a time).
+A skill is **personal** if its SKILL.md references an agent file from
+`~/.claude/agents/`. All user-created skills delegate work to a dedicated agent,
+while framework/gstack skills do not.
 
 Run this command to get the list of personal skills:
 
@@ -33,10 +32,9 @@ for dir in ~/.claude/skills/*/; do
   skill=$(basename "${dir%/}")
   skill_file="${dir}SKILL.md"
   [ -f "$skill_file" ] || continue
-  commit=$(git -C ~/Documents/claude log --diff-filter=A --format='%H' -1 -- "skills/${skill}/SKILL.md" 2>/dev/null)
-  [ -z "$commit" ] && continue
-  count=$(git -C ~/Documents/claude diff-tree --no-commit-id --name-only -r "$commit" -- 'skills/*/SKILL.md' 2>/dev/null | wc -l)
-  [ "$count" -le 3 ] && echo "$skill"
+  if [ "$skill" = "skills-perso" ] || grep -qE '\$HOME/\.claude/agents/|~/\.claude/agents/|\.claude/agents/' "$skill_file" 2>/dev/null; then
+    echo "$skill"
+  fi
 done
 ```
 
@@ -45,20 +43,21 @@ done
 1. Run the detection command above to get the list of personal skill names.
 2. For each personal skill, read the first 15 lines of its `SKILL.md`.
 3. Extract `name` and `description` from the YAML frontmatter.
-4. Display a clean table with two columns: **Skill** and **Description** (first line of description only, trimmed).
-5. At the end, show the total count of personal skills (and mention how many framework skills were excluded).
+4. Also extract the agent file it references (the `.md` filename from `~/.claude/agents/`).
+5. Display a clean table with three columns: **Skill**, **Agent**, and **Description** (first line of description only, trimmed).
+6. At the end, show the total count of personal skills (and mention how many framework skills were excluded).
 
 ## Output format
 
 ```
 ## Personal Skills (~/.claude/skills/)
 
-| Skill | Description |
-|-------|-------------|
-| feat  | Small feature implementation (1-5 files)... |
-| ...   | ... |
+| Skill | Agent | Description |
+|-------|-------|-------------|
+| feat  | feater.md | Small feature implementation (1-5 files)... |
+| ...   | ... | ... |
 
-**Total: N personal skills** (M framework skills excluded)
+**Total: N personal skills** (M framework/external skills excluded)
 ```
 
 Keep descriptions to one line (~80 chars max, truncate with "..." if needed).
