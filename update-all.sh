@@ -6,7 +6,7 @@
 # ============================================================
 set -euo pipefail
 
-RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
+GREEN='\033[0;32m'; YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
 ok()   { echo -e "${GREEN}✓${NC} $1"; }
 warn() { echo -e "${YELLOW}⚠${NC}  $1"; }
 info() { echo -e "${BLUE}→${NC} $1"; }
@@ -97,15 +97,19 @@ print(d.get('rtk',{}).get('version',''))
   if [ -n "$RTK_VERSION" ] && [ "$RTK_VERSION" != "latest" ]; then
     info "Pinned version: $RTK_VERSION"
     info "Compiling from source — this may take a few minutes..."
-    cargo install --git https://github.com/rtk-ai/rtk --tag "$RTK_VERSION" --force \
-      && ok "RTK updated to $RTK_VERSION" \
-      || warn "RTK update failed"
+    if cargo install --git https://github.com/rtk-ai/rtk --tag "$RTK_VERSION" --force; then
+      ok "RTK updated to $RTK_VERSION"
+    else
+      warn "RTK update failed"
+    fi
   else
     info "No pinned version — installing latest"
     info "Compiling from source — this may take a few minutes..."
-    cargo install --git https://github.com/rtk-ai/rtk --force \
-      && ok "RTK updated (latest)" \
-      || warn "RTK update failed"
+    if cargo install --git https://github.com/rtk-ai/rtk --force; then
+      ok "RTK updated (latest)"
+    else
+      warn "RTK update failed"
+    fi
   fi
 else
   warn "Cargo not available — skipping RTK"
@@ -127,14 +131,18 @@ print(d.get('gsd',{}).get('version',''))
 
   if [ -n "$GSD_VER" ] && [ "$GSD_VER" != "latest" ]; then
     info "Pinned version: $GSD_VER"
-    npm install -g "gsd-pi@${GSD_VER}" 2>/dev/null \
-      && ok "GSD v2 updated to $GSD_VER" \
-      || warn "GSD v2 update failed"
+    if npm install -g "gsd-pi@${GSD_VER}" 2>/dev/null; then
+      ok "GSD v2 updated to $GSD_VER"
+    else
+      warn "GSD v2 update failed"
+    fi
   else
     info "No pinned version — installing latest"
-    npm install -g gsd-pi 2>/dev/null \
-      && ok "GSD v2 updated (latest)" \
-      || warn "GSD v2 update failed"
+    if npm install -g gsd-pi 2>/dev/null; then
+      ok "GSD v2 updated (latest)"
+    else
+      warn "GSD v2 update failed"
+    fi
   fi
 else
   warn "GSD v2 not installed — skipping (run: npm install -g gsd-pi)"
@@ -156,13 +164,17 @@ print(d.get('ctx7',{}).get('version',''))
 
   if [ -n "$CTX7_VER" ] && [ "$CTX7_VER" != "latest" ]; then
     info "Pinned version: $CTX7_VER"
-    npm install -g "ctx7@${CTX7_VER}" 2>/dev/null \
-      && ok "ctx7 updated to $CTX7_VER" \
-      || warn "ctx7 update failed"
+    if npm install -g "ctx7@${CTX7_VER}" 2>/dev/null; then
+      ok "ctx7 updated to $CTX7_VER"
+    else
+      warn "ctx7 update failed"
+    fi
   else
-    npm install -g ctx7@latest 2>/dev/null \
-      && ok "ctx7 updated (latest)" \
-      || warn "ctx7 update failed"
+    if npm install -g ctx7@latest 2>/dev/null; then
+      ok "ctx7 updated (latest)"
+    else
+      warn "ctx7 update failed"
+    fi
   fi
 else
   info "ctx7 not installed — skipping"
@@ -172,9 +184,11 @@ fi
 echo ""
 echo "── Updating Graphifyy..."
 if command -v graphify &>/dev/null; then
-  pipx upgrade graphifyy 2>/dev/null \
-    && ok "graphifyy updated" \
-    || warn "graphifyy update failed — try: pipx upgrade graphifyy"
+  if pipx upgrade graphifyy 2>/dev/null; then
+    ok "graphifyy updated"
+  else
+    warn "graphifyy update failed — try: pipx upgrade graphifyy"
+  fi
 else
   info "graphifyy not installed — skipping"
 fi
@@ -186,10 +200,12 @@ EMIL_DIR="$REPO/skills-external/emil-design-eng"
 EMIL_URL="https://raw.githubusercontent.com/emilkowalski/skill/main/skills/emil-design-eng/SKILL.md"
 if [ -d "$EMIL_DIR" ]; then
   info "Fetching latest SKILL.md from emilkowalski/skill..."
-  curl -fsSL "$EMIL_URL" -o "$EMIL_DIR/SKILL.md.tmp" \
-    && mv "$EMIL_DIR/SKILL.md.tmp" "$EMIL_DIR/SKILL.md" \
-    && ok "emil-design-eng updated" \
-    || warn "emil-design-eng update failed"
+  if curl -fsSL "$EMIL_URL" -o "$EMIL_DIR/SKILL.md.tmp" \
+    && mv "$EMIL_DIR/SKILL.md.tmp" "$EMIL_DIR/SKILL.md"; then
+    ok "emil-design-eng updated"
+  else
+    warn "emil-design-eng update failed"
+  fi
 else
   info "emil-design-eng not installed — skipping (run: make plugin)"
 fi
@@ -204,9 +220,11 @@ if command -v claude &>/dev/null; then
     while IFS= read -r _p; do
       _name="${_p%%@*}"
       info "Updating $_name..."
-      claude plugin update "$_name" 2>/dev/null \
-        && ok "$_name updated" \
-        || warn "$_name update failed"
+      if claude plugin update "$_name" 2>/dev/null; then
+        ok "$_name updated"
+      else
+        warn "$_name update failed"
+      fi
     done <<< "$_plugins"
   else
     info "No marketplace plugins installed — skipping"
@@ -215,11 +233,47 @@ else
   warn "Claude Code not found — skipping plugin update"
 fi
 
-# ── 9. Refresh symlinks ──
+# ── 9. Update shellcheck ──
+echo ""
+echo "── Updating shellcheck..."
+if command -v shellcheck &>/dev/null; then
+  # Detect OS for package manager update
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    if brew upgrade shellcheck 2>/dev/null; then
+      ok "shellcheck updated"
+    else
+      ok "shellcheck already up to date"
+    fi
+  elif command -v apt-get &>/dev/null; then
+    if sudo apt-get install -y --only-upgrade shellcheck 2>/dev/null; then
+      ok "shellcheck updated"
+    else
+      ok "shellcheck already up to date"
+    fi
+  elif command -v dnf &>/dev/null; then
+    if sudo dnf upgrade -y shellcheck 2>/dev/null; then
+      ok "shellcheck updated"
+    else
+      ok "shellcheck already up to date"
+    fi
+  elif command -v pacman &>/dev/null; then
+    if sudo pacman -S --noconfirm shellcheck 2>/dev/null; then
+      ok "shellcheck updated"
+    else
+      ok "shellcheck already up to date"
+    fi
+  else
+    info "shellcheck installed via binary — update manually"
+  fi
+else
+  info "shellcheck not installed — skipping (run: make plugin)"
+fi
+
+# ── 10. Refresh symlinks ──
 echo ""
 echo "── Refreshing symlinks..."
 bash "$REPO/link.sh"
 
-# ── 10. Run doctor ──
+# ── 11. Run doctor ──
 echo ""
 bash "$REPO/doctor.sh"

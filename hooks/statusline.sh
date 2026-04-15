@@ -21,6 +21,7 @@ BRANCH_STR="${BRANCH:+ ($BRANCH)}"
 # Plan detection (reuse shared lib)
 _lib="$(dirname "${BASH_SOURCE[0]}")/../lib/detect-plugins.sh"
 if [ -f "$_lib" ]; then
+  # shellcheck source=../lib/detect-plugins.sh
   source "$_lib"
   PLAN=$(detect_plan 2>/dev/null || echo "pro")
 else

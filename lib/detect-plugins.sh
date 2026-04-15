@@ -17,7 +17,7 @@ detect_superpowers() {
   # Fast check: filesystem (plugin cache)
   local cache_dir="$HOME/.claude/plugins/cache"
   if [ -d "$cache_dir" ]; then
-    ls "$cache_dir" 2>/dev/null | grep -qi "superpowers" && return 0
+    compgen -G "$cache_dir"/*superpowers* &>/dev/null && return 0
   fi
   # Slow fallback: CLI (only if fast check fails)
   claude plugin list 2>/dev/null | grep -qi "superpowers" && return 0
@@ -26,7 +26,7 @@ detect_superpowers() {
 
 detect_security_guidance() {
   local cache_dir="$HOME/.claude/plugins/cache"
-  [ -d "$cache_dir" ] && ls "$cache_dir" 2>/dev/null | grep -qi "security-guidance"
+  [ -d "$cache_dir" ] && compgen -G "$cache_dir"/*security-guidance* &>/dev/null
 }
 
 
@@ -45,12 +45,12 @@ detect_gsd() {
 detect_plugin_dev() {
   # plugin-dev replaces the old "skill-creator" reference
   local cache_dir="$HOME/.claude/plugins/cache"
-  [ -d "$cache_dir" ] && ls "$cache_dir" 2>/dev/null | grep -qi "plugin-dev"
+  [ -d "$cache_dir" ] && compgen -G "$cache_dir"/*plugin-dev* &>/dev/null
 }
 
 detect_uiux_pro_max() {
   local cache_dir="$HOME/.claude/plugins/cache"
-  [ -d "$cache_dir" ] && ls "$cache_dir" 2>/dev/null | grep -qi "ui-ux-pro-max"
+  [ -d "$cache_dir" ] && compgen -G "$cache_dir"/*ui-ux-pro-max* &>/dev/null
 }
 
 detect_context7() {

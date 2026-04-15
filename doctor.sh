@@ -38,7 +38,7 @@ check_symlink() {
   local target="$HOME/.claude/$name"
 
   if [ ! -e "$target" ] && [ ! -L "$target" ]; then
-    fail "~/.claude/$name — MISSING"
+    fail "$HOME/.claude/$name — MISSING"
     return
   fi
 
@@ -47,12 +47,12 @@ check_symlink() {
     local real
     real=$(readlink -f "$target" 2>/dev/null) || real=$(readlink "$target")
     if [ ! -e "$real" ]; then
-      fail "~/.claude/$name → $real — BROKEN SYMLINK"
+      fail "$HOME/.claude/$name → $real — BROKEN SYMLINK"
     else
-      pass "~/.claude/$name"; _LINK_PASS=$((_LINK_PASS + 1))
+      pass "$HOME/.claude/$name"; _LINK_PASS=$((_LINK_PASS + 1))
     fi
   else
-    warn "~/.claude/$name exists but is NOT a symlink (expected symlink to repo)"
+    warn "$HOME/.claude/$name exists but is NOT a symlink (expected symlink to repo)"
   fi
 }
 
@@ -88,7 +88,7 @@ if [ -L "$HOME/.claude/skills/gstack" ]; then
   if [ -d "$real" ]; then
     pass "Symlink OK → $real"
     # Check for skills/ subdirectory (referenced by plugin-advisor PHASE 1)
-    gstack_skills_count=$(ls "$HOME/.claude/skills/gstack/skills/" 2>/dev/null | wc -l | tr -d ' ')
+    gstack_skills_count=$(find "$HOME/.claude/skills/gstack/skills/" -maxdepth 1 -mindepth 1 2>/dev/null | wc -l | tr -d ' ')
     if [ "${gstack_skills_count:-0}" -gt 0 ]; then
       pass "GStack: ${gstack_skills_count} skills available"
     else
@@ -213,7 +213,7 @@ print(len(d.get('permissions',{}).get('deny',[])))
     fi
   fi
 else
-  fail "~/.claude/settings.json not found"
+  fail "$HOME/.claude/settings.json not found"
 fi
 
 echo ""

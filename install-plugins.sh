@@ -50,15 +50,14 @@ print(v)
 # DETECT OS
 # ============================================================
 OS="unknown"
-PKG=""
 if [[ "$OSTYPE" == "darwin"* ]]; then
   OS="macos"
 elif command -v apt-get &>/dev/null; then
-  OS="linux-apt"; PKG="apt-get"
+  OS="linux-apt"
 elif command -v dnf &>/dev/null; then
-  OS="linux-dnf"; PKG="dnf"
+  OS="linux-dnf"
 elif command -v pacman &>/dev/null; then
-  OS="linux-pacman"; PKG="pacman"
+  OS="linux-pacman"
 fi
 
 echo ""
@@ -120,7 +119,11 @@ if [ "$NODE_OK" = false ]; then
       ;;
     *) warn "Cannot auto-install Node.js on $OS — install from https://nodejs.org" ;;
   esac
-  command -v node &>/dev/null && ok "Node.js $(node --version)" || err "Node.js install failed"
+  if command -v node &>/dev/null; then
+    ok "Node.js $(node --version)"
+  else
+    err "Node.js install failed"
+  fi
 fi
 
 # --- Rust + Cargo (for RTK) ---
@@ -160,6 +163,34 @@ else
     *) warn "Cannot auto-install pipx on $OS" ;;
   esac
   pipx ensurepath 2>/dev/null || true
+fi
+
+# --- shellcheck ---
+if command -v shellcheck &>/dev/null; then
+  ok "shellcheck $(shellcheck --version 2>/dev/null | grep '^version:' | awk '{print $2}')"
+else
+  info "Installing shellcheck..."
+  case $OS in
+    macos)        brew install shellcheck ;;
+    linux-apt)    sudo apt-get install -y shellcheck ;;
+    linux-dnf)    sudo dnf install -y shellcheck ;;
+    linux-pacman) sudo pacman -S --noconfirm shellcheck ;;
+    *)
+      # Binary fallback for systems without package manager access
+      ARCH=$(uname -m)
+      if curl -sL "https://github.com/koalaman/shellcheck/releases/download/v0.10.0/shellcheck-v0.10.0.linux.${ARCH}.tar.xz" | tar -xJ --strip-components=1 -C "$HOME/.local/bin" "shellcheck-v0.10.0/shellcheck" 2>/dev/null; then
+        chmod +x "$HOME/.local/bin/shellcheck"
+        ok "shellcheck installed (binary fallback)"
+      else
+        warn "Cannot auto-install shellcheck on $OS"
+      fi
+      ;;
+  esac
+  if command -v shellcheck &>/dev/null; then
+    ok "shellcheck installed"
+  else
+    warn "shellcheck install failed"
+  fi
 fi
 
 # --- Claude Code CLI ---
@@ -206,7 +237,11 @@ if [ -d "$GSTACK_DIR" ]; then
     curl -fsSL "https://bun.sh/install" -o "$tmpfile"
     BUN_VERSION="$BUN_VERSION" bash "$tmpfile" && rm -f "$tmpfile"
     export PATH="$HOME/.bun/bin:$PATH"
-    command -v bun &>/dev/null && ok "bun $(bun --version)" || err "bun install failed"
+    if command -v bun &>/dev/null; then
+      ok "bun $(bun --version)"
+    else
+      err "bun install failed"
+    fi
   else
     ok "bun $(bun --version)"
   fi
@@ -280,8 +315,11 @@ else
     info "Installing gsd-pi@latest (consider pinning in plugins.lock.json)..."
     npm install -g gsd-pi
   fi
-  command -v gsd &>/dev/null && ok "GSD v2 installed ($(gsd --version 2>/dev/null | head -1))" \
-    || err "GSD v2 install failed — check npm output above"
+  if command -v gsd &>/dev/null; then
+    ok "GSD v2 installed ($(gsd --version 2>/dev/null | head -1))"
+  else
+    err "GSD v2 install failed — check npm output above"
+  fi
 fi
 echo ""
 
@@ -354,8 +392,11 @@ else
     info "Installing ctx7@latest (consider pinning in plugins.lock.json)..."
     npm install -g ctx7
   fi
-  command -v ctx7 &>/dev/null && ok "ctx7 installed ($(ctx7 --version 2>/dev/null | head -1))" \
-    || err "ctx7 install failed — run manually: npm install -g ctx7"
+  if command -v ctx7 &>/dev/null; then
+    ok "ctx7 installed ($(ctx7 --version 2>/dev/null | head -1))"
+  else
+    err "ctx7 install failed — run manually: npm install -g ctx7"
+  fi
 fi
 # Suggest setup for Claude Code integration (optional — ctx7 also works standalone)
 if command -v ctx7 &>/dev/null; then
@@ -373,9 +414,11 @@ if command -v graphify &>/dev/null; then
   ok "graphify already installed"
 else
   info "Installing graphifyy via pipx..."
-  pipx install graphifyy 2>/dev/null \
-    && ok "graphifyy installed" \
-    || err "graphifyy install failed — run manually: pipx install graphifyy"
+  if pipx install graphifyy 2>/dev/null; then
+    ok "graphifyy installed"
+  else
+    err "graphifyy install failed — run manually: pipx install graphifyy"
+  fi
 fi
 if command -v graphify &>/dev/null; then
   info "Running graphify install (dependencies)..."
@@ -398,9 +441,11 @@ if [ -f "$EMIL_DIR/SKILL.md" ]; then
   ok "emil-design-eng already downloaded"
 else
   info "Downloading SKILL.md from emilkowalski/skill..."
-  curl -fsSL "$EMIL_URL" -o "$EMIL_DIR/SKILL.md" \
-    && ok "emil-design-eng installed" \
-    || err "emil-design-eng download failed — try: curl -fsSL $EMIL_URL -o $EMIL_DIR/SKILL.md"
+  if curl -fsSL "$EMIL_URL" -o "$EMIL_DIR/SKILL.md"; then
+    ok "emil-design-eng installed"
+  else
+    err "emil-design-eng download failed — try: curl -fsSL $EMIL_URL -o $EMIL_DIR/SKILL.md"
+  fi
 fi
 # Symlink handled by link.sh
 if [ -L "$HOME/.claude/skills/emil-design-eng" ]; then
@@ -444,9 +489,11 @@ for line in "${CLAUDE_LINES[@]}"; do
   if grep -qF "$line" "$SHELL_PROFILE" 2>/dev/null; then
     ok "$line (already in $SHELL_PROFILE)"
   else
-    echo "" >> "$SHELL_PROFILE"
-    echo "# Claude Code — added by install-plugins.sh" >> "$SHELL_PROFILE"
-    echo "$line" >> "$SHELL_PROFILE"
+    {
+      echo ""
+      echo "# Claude Code — added by install-plugins.sh"
+      echo "$line"
+    } >> "$SHELL_PROFILE"
     ok "$line → $SHELL_PROFILE"
     ADDED=1
   fi
