@@ -31,6 +31,13 @@ git log --oneline -3
   "This looks deeper than a hotfix. Load `$HOME/.claude/agents/bugfixer.md`
   and run the BUGFIXER agent on this target."
 
+## STEP 1.5 — DESIGN GATE
+
+Follow `$HOME/.claude/lib/design-gate.md`:
+- Scan $ARGUMENTS and target files for design/UI/style signals (CSS, component, styling, animation).
+- If signals found and `ui-ux-pro-max` inactive → ask user to activate.
+- If no signals → skip (zero overhead).
+
 ## STEP 2 — FIX
 
 Apply the minimal change that fixes the bug:
@@ -72,7 +79,7 @@ Execute in automatic mode:
 ## RULES
 - Max 2 files changed. If more needed → `/bugfix`.
 - No refactoring. No "while we're here" improvements.
-- No plugin check (overhead > value for a hotfix).
+- Design gate only if CSS/style signals detected. See STEP 1.5.
 - If root cause is unclear → escalate to `/bugfix`.
 - If fix touches >5 lines of logic → reconsider if this is
   truly a hotfix.

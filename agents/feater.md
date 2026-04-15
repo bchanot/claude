@@ -39,6 +39,13 @@ Print a one-line scope confirmation:
 FEAT: <feature name> — ~<N> files, <brief approach>
 ```
 
+## STEP 0.5 — DESIGN GATE
+
+Follow `$HOME/.claude/lib/design-gate.md`:
+- Scan $ARGUMENTS and target files for design/UI/style signals.
+- If signals found and `ui-ux-pro-max` inactive → ask user to activate.
+- If no signals → skip (zero overhead).
+
 ## STEP 1 — MINI-PLAN
 
 Quick mental model, not a formal plan document:
@@ -116,7 +123,7 @@ Execute in automatic mode:
 
 ## RULES
 - Max 5 files. If more needed → `/ship-feature`.
-- No plugin check (not an orchestrator).
+- Design gate only (not full plugin check). See STEP 0.5.
 - No brainstorm/design phase (if needed → `/ship-feature`).
 - No subagents — direct implementation.
 - Keep scope tight. If scope creep happens mid-work, stop

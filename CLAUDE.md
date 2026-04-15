@@ -159,3 +159,10 @@ Key routing rules:
 - Security audit → invoke cso
 - Initialize new project from scratch → invoke init-project
 - Onboard existing project → invoke onboard
+
+Design gate (automatic):
+All lightweight skills (feat, hotfix, bugfix) include a design gate that auto-detects
+UI/style signals in the task. If design signals found and ui-ux-pro-max is inactive,
+the agent asks the user whether to activate it before proceeding.
+Gate spec: lib/design-gate.md. Orchestrators (ship-feature, init-project) already
+handle this via their STEP 0 plugin-check.

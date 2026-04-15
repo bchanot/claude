@@ -165,11 +165,13 @@ When the plugin-advisor detects a `simple` or `hotfix` signal, suggest the appro
 |---|---|---|---|
 | Typo, CSS fix, wrong value, missing import | `/hotfix` | Root cause obvious, 1-2 files max | ~30s |
 | Bug with unclear root cause, multi-file | `/bugfix` | Needs investigation before fixing, up to ~5 files | ~3 min |
-| Small feature, 1-5 files | `/feat` | Well-scoped addition, no design needed | ~2 min |
+| Small feature, 1-5 files | `/feat` | Well-scoped addition, design gate included | ~2 min |
 | Large feature, design decisions needed | `/ship-feature` | Multi-file, needs brainstorm + plan + review | ~10 min |
 | New project from scratch | `/init-project` | Full project setup with scaffolding | ~15 min |
 
 **Escalation path:** `/hotfix` → `/bugfix` → `/ship-feature` (bugs), `/feat` → `/ship-feature` (features). Each skill documents when to escalate to the next level.
+
+**Design gate:** `/feat`, `/hotfix`, and `/bugfix` include a lightweight design gate (`lib/design-gate.md`) that auto-detects UI/style signals and asks the user to activate `ui-ux-pro-max` if inactive. This covers the gap where lightweight skills previously had no plugin awareness for design tasks.
 
 ---
 

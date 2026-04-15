@@ -22,3 +22,11 @@
 ## Skill /doc
 - [x] Mettre à jour doc-syncer.md pour gérer ajouts/suppressions de features
 - [x] Mettre à jour SKILL.md description pour mentionner feature delta
+
+## Auto-activation ui-ux-pro-max sur détection design
+- [x] Créer `lib/design-gate.md` — snippet réutilisable (detect design signals + ask to activate ui-ux-pro-max)
+- [x] Intégrer dans feater.md — STEP 0.5 entre scope check et mini-plan
+- [x] Intégrer dans hotfixer.md — STEP 1.5 (si CSS/style/animation)
+- [x] Intégrer dans bugfixer.md — STEP 1.5 (si bug UI/style)
+- [x] Mettre à jour plugin-advisor.md — PHASE 4 : cohérence avec le design gate
+- [x] Mettre à jour CLAUDE.md skill routing — documenter le comportement auto

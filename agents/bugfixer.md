@@ -34,6 +34,13 @@ Identify:
 git log --oneline -20 --all -- <suspected files>
 ```
 
+## STEP 1.5 — DESIGN GATE
+
+Follow `$HOME/.claude/lib/design-gate.md`:
+- Scan $ARGUMENTS and target files for design/UI/style signals (CSS, component, layout, animation).
+- If signals found and `ui-ux-pro-max` inactive → ask user to activate.
+- If no signals → skip (zero overhead).
+
 ## STEP 2 — INVESTIGATE
 
 Trace the bug from symptom to root cause:
@@ -126,7 +133,7 @@ Execute in automatic mode:
 
 ## RULES
 - No fix without understanding the root cause first.
-- No plugin check (lightweight skill, not an orchestrator).
+- Design gate only if UI/style signals detected. See STEP 1.5.
 - If investigation reveals a design flaw requiring significant
   refactoring → stop, explain, suggest `/ship-feature` for the
   proper fix.
