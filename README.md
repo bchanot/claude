@@ -14,6 +14,7 @@ This repo is your personal Claude Code setup, versioned and reproducible across 
 claude-config/
 ├── CLAUDE.md              # Global coding preferences (style, rules, workflow)
 ├── settings.json          # Global permissions (100 deny / 18 ask / 57 allow rules)
+├── install.sh             # Bootstrap: Claude Code CLI + auth + shell env vars + link + plugins
 ├── install-plugins.sh     # One-shot installer: prerequisites + all plugins (reads plugins.lock.json)
 ├── link.sh                # Symlinks this repo into ~/.claude/
 ├── doctor.sh              # Setup diagnostic — checks symlinks, plugins, permissions, token budget
@@ -25,29 +26,45 @@ claude-config/
 ├── lib/
 │   └── detect-plugins.sh  # Shared plugin detection — sourced by all scripts
 ├── hooks/
-│   └── session-start.sh   # Health check + toggle plugin status at session start
+│   ├── session-start.sh   # Health check + toggle plugin status at session start
+│   ├── statusline.sh      # Claude Code status line configuration
+│   └── rtk-rewrite.sh     # RTK hook for code rewrites
 ├── skills-external/
 │   └── gstack/            # Git submodule — garrytan/gstack (symlinked to ~/.claude/skills/gstack)
 ├── .gitmodules            # Submodule declaration
 ├── agents/
 │   ├── analyzer.md        # Factual codebase analysis (read-only)
+│   ├── bugfixer.md        # Structured bug fix with root cause investigation
+│   ├── code-cleaner.md    # Dead code removal, style/norm enforcement
+│   ├── commit-changer.md  # Smart commit grouping from staged/unstaged changes
+│   ├── doc-syncer.md      # Detect stale docs, audit, and patch
+│   ├── feater.md          # Small feature implementation (1-5 files)
+│   ├── hotfixer.md        # Quick fix for superficial bugs (max 2 files)
 │   ├── interviewer.md     # Project questionnaire → PROJECT BRIEF
 │   ├── onboarder.md       # Onboard existing project — CLAUDE.md, settings, optional GSD ROADMAP
-│   ├── status-reporter.md  # Consolidated project status — read-only snapshot
 │   ├── plugin-advisor.md  # Plugin check: detect signals, apply compatibility matrix, block if needed
-│   ├── readme-updater.md  # Update README from git history + codebase
 │   ├── refactorer.md      # Surgical refactoring with norm enforcement
-│   └── scaffolder.md      # Full project generation (CLAUDE.md, README, code)
+│   ├── scaffolder.md      # Full project generation (CLAUDE.md, README, code)
+│   ├── seo-analyzer.md    # Full SEO/GEO audit and fix
+│   └── status-reporter.md # Consolidated project status — read-only snapshot
 ├── skills/
 │   ├── analyze/           # /analyze — deep factual analysis
+│   ├── bugfix/            # /bugfix — structured bug fix with root cause investigation
+│   ├── code-clean/        # /code-clean — dead code removal, style enforcement
+│   ├── commit-change/     # /commit-change — smart commit grouping
+│   ├── doc/               # /doc — documentation audit and sync
+│   ├── feat/              # /feat — small feature implementation (1-5 files)
+│   ├── graphify/          # /graphify — codebase knowledge graph navigation
 │   ├── health/            # /health — run setup diagnostic
+│   ├── hotfix/            # /hotfix — quick fix for superficial bugs
 │   ├── init-project/      # /init-project — full project initialization
 │   ├── onboard/           # /onboard — onboard existing project into claude-config
-│   ├── status/            # /status — consolidated project snapshot
 │   ├── plugin-check/      # /plugin-check — check plugin config vs project needs
-│   ├── readme/            # /readme — update README from current state
 │   ├── refactor/          # /refactor — improve code without changing behavior
-│   └── ship-feature/      # /ship-feature — ship a feature end-to-end
+│   ├── seo/               # /seo — full SEO/GEO audit and optimization
+│   ├── ship-feature/      # /ship-feature — ship a feature end-to-end
+│   ├── skills-perso/      # /skills-perso — list personal (user-created) skills
+│   └── status/            # /status — consolidated project snapshot
 └── templates/
     ├── project-CLAUDE.md  # Template for per-project CLAUDE.md
     └── settings/
@@ -74,11 +91,11 @@ claude-config/
 git clone --recurse-submodules git@github.com:youruser/claude-config.git
 cd claude-config
 
-# 2. Symlink into ~/.claude/
-bash link.sh
-
-# 3. Install prerequisites + all plugins (detects OS, reads pinned versions from plugins.lock.json)
-bash install-plugins.sh
+# 2. Bootstrap (installs Claude Code CLI, authenticates, sets up shell env vars, then runs link.sh + install-plugins.sh)
+bash install.sh
+# Or step by step:
+#   bash link.sh                # symlink into ~/.claude/
+#   bash install-plugins.sh     # prerequisites + all plugins
 
 # 4. Context7 CLI (optional — for fast-evolving libs like Next.js, React, Prisma)
 npm install -g ctx7
@@ -111,13 +128,22 @@ Install output is logged to `install-YYYYMMDD-HHMMSS.log` in the repo directory 
 | Command | Description |
 |---|---|
 | `/analyze` | Deep factual analysis of code before any modification |
-| `/refactor` | Improve code quality without changing behavior (strict norms) |
-| `/readme` | Full README audit — diff vs codebase, mandatory stop, surgical updates |
-| `/plugin-check` | Check active plugins vs project needs — recommend enable/disable |
-| `/init-project` | Initialize a complete project from scratch (full orchestrator) |
-| `/ship-feature` | Ship a feature end-to-end with validation gates (full orchestrator) |
+| `/bugfix` | Structured bug fix with root cause investigation |
+| `/code-clean` | Dead code removal, style/norm enforcement |
+| `/commit-change` | Smart commit grouping from staged/unstaged changes |
+| `/doc` | Documentation audit and sync — detect stale docs, patch |
+| `/feat` | Small feature implementation (1-5 files, lightweight) |
+| `/graphify` | Codebase knowledge graph — navigation for large-scope tasks |
 | `/health` | Run setup diagnostic — check symlinks, plugins, permissions, token budget |
+| `/hotfix` | Quick fix for superficial bugs (typos, CSS, config — max 2 files) |
+| `/init-project` | Initialize a complete project from scratch (full orchestrator) |
 | `/onboard` | Onboard an existing project — generate CLAUDE.md, settings, optional GSD v2 ROADMAP |
+| `/plugin-check` | Check active plugins vs project needs — recommend enable/disable |
+| `/refactor` | Improve code quality without changing behavior (strict norms) |
+| `/seo` | Full SEO/GEO audit and optimization |
+| `/ship-feature` | Ship a feature end-to-end with validation gates (full orchestrator) |
+| `/skills-perso` | List personal (user-created) skills |
+| `/status` | Consolidated project snapshot — plugins, git, GSD milestone |
 
 ### Superpowers skills (auto-invoked or explicit)
 
@@ -272,9 +298,11 @@ cd mon-projet-existant/
 
 ### Pattern D — Hotfix / modification ponctuelle
 ```
-# Pas de /init-project, pas de GSD
-/analyze src/module-cible.py   → rapport factuel sans solution
-/ship-feature "corriger X"     → brainstorm + plan + gate + impl + review
+# Bug superficiel (typo, mauvais import, CSS cassé — max 2 fichiers, cause évidente) :
+/hotfix "le bouton submit est invisible sur mobile"
+
+# Bug plus complexe (investigation root cause nécessaire) :
+/bugfix "les notifications ne partent plus depuis mardi"
 ```
 
 ### Pattern E — Refactoring ciblé
@@ -282,6 +310,23 @@ cd mon-projet-existant/
 /analyze src/legacy.py         → liste les violations
 /refactor src/legacy.py        → corrections sans changement de comportement
 ```
+
+### Pattern F — Petite feature (1-5 fichiers)
+```
+# Pas d'orchestration lourde, pas de brainstorming superpowers
+/feat "ajouter un endpoint GET /api/v1/users/:id/stats"
+# → planning léger, implémentation directe, tests
+```
+
+### Choisir entre /ship-feature, /feat, /hotfix et /bugfix
+
+| Critère | /ship-feature | /feat | /bugfix | /hotfix |
+|---|---|---|---|---|
+| Scope | Feature complète | 1-5 fichiers | Bug complexe | Bug superficiel |
+| Orchestration | Superpowers pipeline | Léger | Investigation | Direct |
+| Fichiers touchés | Illimité | ≤ 5 | Variable | ≤ 2 |
+| Validation gate | Oui | Non | Non | Non |
+| Code review | Auto (superpowers) | Non | Régression test | Non |
 
 ### Choisir entre /ship-feature et gsd auto
 
@@ -459,13 +504,16 @@ claude plugin install --scope user frontend-design@claude-code-plugins
 
 ### Version pinning
 
-RTK, GSD v2, and ruflo versions are pinned in `plugins.lock.json`:
+Non-marketplace tools are pinned in `plugins.lock.json`:
 
 ```json
 {
-  "rtk":   { "source": "https://github.com/rtk-ai/rtk", "version": "v0.34.3" },
-  "gsd":   { "source": "npm:gsd-pi",  "version": "2.64.0" },
-  "ruflo": { "source": "npm:ruflo",   "version": "3.5.58" }
+  "rtk":             { "source": "https://github.com/rtk-ai/rtk", "version": "v0.34.3" },
+  "gsd":             { "source": "npm:gsd-pi",  "version": "2.64.0" },
+  "ruflo":           { "source": "npm:ruflo",   "version": "3.5.58" },
+  "ctx7":            { "source": "npm:ctx7",    "version": "latest" },
+  "graphifyy":       { "source": "pypi:graphifyy", "managed_by": "pipx" },
+  "emil-design-eng": { "source": "https://github.com/emilkowalski/skill", "managed_by": "curl" }
 }
 ```
 
@@ -565,8 +613,9 @@ cp "$CONF/templates/project-CLAUDE.md" CLAUDE.md
 ```bash
 # From the repo directory
 bash update-all.sh
-# Pulls config, prompts before updating GStack (tracks main), updates RTK + GSD v2 (pinned),
-# updates ruflo if installed, refreshes symlinks, runs doctor
+# Updates Claude CLI, pulls config, prompts before updating GStack (tracks main),
+# updates RTK + GSD v2 (pinned), updates ruflo if installed, updates ctx7 + graphifyy,
+# refreshes marketplace plugins, refreshes symlinks, runs doctor
 ```
 
 ### Manual updates
@@ -685,7 +734,8 @@ bash doctor.sh
 # Unified commands via Makefile (from the repo directory)
 make doctor     # diagnostic
 make update     # pull + submodules + symlinks + doctor
-make install    # link.sh + install-plugins.sh
+make install    # bootstrap: Claude Code CLI + auth + symlinks + plugins
+make plugin     # install prerequisites + all plugins only
 make onboard    # reminder to run /onboard in Claude Code
 make new-skill name=myskill  # scaffold agent + skill files
 ```

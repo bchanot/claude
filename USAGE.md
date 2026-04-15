@@ -28,7 +28,16 @@ Tu veux...
 │    → /onboard
 │
 ├─ Ajouter une feature à un projet existant ?
-│    → /ship-feature "description"
+│    ├─ Feature complète (multi-fichiers, orchestration) ?
+│    │    → /ship-feature "description"
+│    └─ Petite feature (1-5 fichiers, rapide) ?
+│         → /feat "description"
+│
+├─ Corriger un bug ?
+│    ├─ Bug superficiel (typo, CSS, config, max 2 fichiers) ?
+│    │    → /hotfix "description"
+│    └─ Bug complexe (investigation root cause nécessaire) ?
+│         → /bugfix "description"
 │
 ├─ Reprendre après une pause / orienter la session ?
 │    → /status
@@ -38,14 +47,20 @@ Tu veux...
 │    → (mode DEBUG si tu passes une erreur/stack trace)
 │
 ├─ Améliorer la qualité sans changer le comportement ?
-│    → /refactor src/module.py
-│    ⚠️  Pour un refactoring profond (module entier) :
-│       /analyze src/module/   ← rapport de violations d'abord
-│       /refactor src/module/  ← corrections sur rapport
-│       /analyze src/module/   ← vérification après (cycle complet)
+│    ├─ Refactoring ciblé (un fichier/module) ?
+│    │    → /refactor src/module.py
+│    │    ⚠️  Pour un refactoring profond (module entier) :
+│    │       /analyze src/module/   ← rapport de violations d'abord
+│    │       /refactor src/module/  ← corrections sur rapport
+│    │       /analyze src/module/   ← vérification après (cycle complet)
+│    └─ Dead code, violations de style (codebase-wide) ?
+│         → /code-clean
 │
-├─ Vérifier/mettre à jour le README ?
-│    → /readme
+├─ Docs périmées / vérifier la sync code↔docs ?
+│    → /doc                    ← audit complet tous les fichiers .md
+│
+├─ Optimiser le SEO/GEO ?
+│    → /seo
 │
 ├─ Vérifier si les plugins sont bien configurés ?
 │    → /plugin-check "description du projet"
@@ -67,11 +82,19 @@ Tu veux...
 |---|---|
 | Tout nouveau | `/init-project` |
 | Code existant sans config | `/onboard` |
-| Feature à ajouter | `/ship-feature` |
+| Feature complète | `/ship-feature` |
+| Petite feature (1-5 fichiers) | `/feat` |
+| Bug superficiel (typo, CSS) | `/hotfix` |
+| Bug complexe (root cause) | `/bugfix` |
 | Reprise de session | `/status` |
 | Debug / comprendre | `/analyze` |
-| Nettoyage code | `/refactor` |
-| Doc périmée | `/readme` |
+| Nettoyage code ciblé | `/refactor` |
+| Dead code / style codebase | `/code-clean` |
+| Docs périmées | `/doc` |
+| SEO/GEO audit | `/seo` |
+| Commit structuré | `/commit-change` |
+| Navigation codebase large | `/graphify` |
+| Lister ses skills | `/skills-perso` |
 | Plugins OK ? | `/plugin-check` |
 | Rien ne marche | `/health` |
 
@@ -83,13 +106,22 @@ Tu veux...
 |---|---|---|
 | `/init-project` | Nouveau projet from scratch | 12-13 steps, deux gates obligatoires |
 | `/ship-feature` | Feature sur projet existant | 8 steps, une gate |
+| `/feat` | Petite feature (1-5 fichiers) | Léger, pas d'orchestration lourde |
+| `/bugfix` | Bug avec investigation root cause | Hypothèses, diagnostic, fix minimal |
+| `/hotfix` | Bug superficiel (typo, CSS, config) | Max 2 fichiers, cause évidente |
 | `/onboard` | Projet existant non géré par ce config | Génère CLAUDE.md + settings |
 | `/plugin-check` | Avant de démarrer tout travail | Aussi embarqué en STEP 0 des orchestrateurs |
 | `/analyze` | Comprendre du code avant de le modifier | Read-only, aucune solution proposée |
 | `/analyze` + erreur | Diagnostiquer un test/build qui échoue | Mode DEBUG : hypothèses ordonnées |
 | `/refactor` | Améliorer un fichier sans changer le comportement | Rapport de violations d'abord, modif ensuite |
-| `/readme` | Après une série de features | AUDIT : compare README vs code réel |
+| `/code-clean` | Dead code, violations de style | Audit + rapport, fixes après approbation |
+| `/doc` | Docs périmées après des changements | Audit drift code↔docs, patch chirurgical |
+| `/seo` | Audit SEO/GEO complet | Détecte framework, audite meta/OG/sitemap |
+| `/commit-change` | Commits bien structurés | Groupe les changements par unité logique |
+| `/graphify` | Navigation codebase large-scope | Knowledge graph, pour tâches multi-fichiers |
+| `/skills-perso` | Lister ses skills personnels | Skills créés dans ~/.claude/skills/ |
 | `/health` | Quand quelque chose ne fonctionne pas | Lance doctor.sh |
+| `/status` | Reprendre après une pause | Snapshot : plugins, git, GSD milestone |
 
 ---
 
@@ -186,12 +218,14 @@ cd mon-projet-existant/
 /ship-feature "prochaine feature"
 ```
 
-### Pattern D — Hotfix / modification chirurgicale · ~500-800t
+### Pattern D — Hotfix / bugfix · ~200-800t
 
 ```
-# Pas de /init-project, pas de GSD, pas de plugin lourd
-/analyze src/module-bugue.py   # comprendre sans modifier
-/ship-feature "corriger X"     # pipeline complet mais ciblé
+# Bug superficiel (typo, CSS, config, max 2 fichiers, cause évidente) :
+/hotfix "le bouton submit est invisible sur mobile"    # ~200t
+
+# Bug complexe (investigation root cause nécessaire) :
+/bugfix "les notifications ne partent plus depuis mardi"   # ~500-800t
 ```
 
 ### Pattern E — Debug d'erreur de build/test · ~600-900t
@@ -207,6 +241,25 @@ cd mon-projet-existant/
 # Puis si fix nécessaire :
 /ship-feature "corriger le test_create_order — cause: champ quantity manquant"
 ```
+
+### Pattern F — Petite feature (1-5 fichiers) · ~300-600t
+
+```
+# Feature simple, pas d'orchestration lourde
+/feat "ajouter un endpoint GET /api/v1/users/:id/stats"
+# → planning léger, implémentation directe, tests
+# Pas de brainstorming superpowers, pas de gate de validation
+```
+
+**Choisir entre /ship-feature et /feat :**
+
+| Critère | `/ship-feature` | `/feat` |
+|---|---|---|
+| Scope | Feature complète, multi-fichiers | 1-5 fichiers max |
+| Orchestration | Pipeline superpowers complet | Planning léger, direct |
+| Gate de validation | Oui | Non |
+| Code review auto | Oui (superpowers) | Non |
+| Tokens estimés | ~1500-3000t | ~300-600t |
 
 ---
 

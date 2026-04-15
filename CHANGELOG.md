@@ -4,7 +4,38 @@ All notable changes to claude-config will be documented in this file.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
-## [Unreleased]
+## [3.4.0] — 2026-04-15
+
+### Added
+- **9 new skills**: `/bugfix`, `/code-clean`, `/commit-change`, `/doc`, `/feat`, `/graphify`, `/hotfix`, `/seo`, `/skills-perso`
+- **7 new agents**: `bugfixer.md`, `code-cleaner.md`, `commit-changer.md`, `doc-syncer.md`, `feater.md`, `hotfixer.md`, `seo-analyzer.md`
+- `install.sh`: bootstrap script — installs Claude Code CLI, authenticates, sets up shell env vars, then runs link.sh + install-plugins.sh
+- `hooks/statusline.sh`: Claude Code status line configuration hook
+- `hooks/rtk-rewrite.sh`: RTK hook for code rewrites
+- `plugins.lock.json`: ctx7, graphifyy, and emil-design-eng entries added
+- `skills-perso`: lists personal (user-created) skills from `~/.claude/skills/`
+- `.graphifyignore`: excludes gstack submodule and install logs from graphify indexing
+
+### Changed
+- `Makefile`: `install` target now runs `install.sh` (bootstrap); new `plugin` target runs `install-plugins.sh` only
+- `update-all.sh`: now also updates Claude CLI, ctx7, graphifyy, and marketplace plugins
+- `install-plugins.sh`: added emil-design-eng skill download step; fixed skill-creator install to use `anthropics/skills` marketplace
+- `skills/`: logic extracted from inline SKILL.md into standalone agent `.md` files — skills now delegate to agents
+- `skills/commit-change/`: renamed from `git-smart-commit`; confirmation step removed
+- `settings.json`: keys reordered for readability
+- `CLAUDE.md`: added architecture decisions (no SPA for public sites, versioned APIs, security defaults), communication mode (radical honesty), graphify context navigation guidelines
+- `README.md`: file tree, skill table, install section, plugins.lock section, Makefile targets, update-all description all updated for new skills/agents
+- `USAGE.md`: command table expanded (9 → 18), decision tree restructured with lightweight skill routing
+- `version.txt`: 3.3.0 → 3.4.0
+
+### Removed
+- `agents/readme-updater.md`: replaced by `agents/doc-syncer.md` (broader scope — all docs, not just README)
+- `skills/readme/`: replaced by `skills/doc/`
+
+### Fixed
+- `skills-perso`: YAML description parsing handles both inline and block formats; detects personal skills via agent reference; excludes framework/gstack skills from listing
+- `install-plugins.sh`: skill-creator install corrected to use `anthropics/skills` marketplace
+- GStack skill symlinks untracked from git — auto-created by `install-plugins.sh`
 
 ## [3.3.0] — 2026-04-08
 
