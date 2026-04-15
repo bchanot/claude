@@ -41,8 +41,10 @@ done
 ## Steps
 
 1. Run the detection command above to get the list of personal skill names.
-2. For each personal skill, read the first 15 lines of its `SKILL.md`.
-3. Extract `name` and `description` from the YAML frontmatter.
+2. For each personal skill, read the first 20 lines of its `SKILL.md`.
+3. Extract `description` from the YAML frontmatter. Handle BOTH formats:
+   - **Inline**: `description: Some text here` → take everything after `description: `
+   - **Block scalar**: `description: |` → take the next indented line, trimmed
 4. Also extract the agent file it references (the `.md` filename from `~/.claude/agents/`).
 5. Display a clean table with three columns: **Skill**, **Agent**, and **Description** (first line of description only, trimmed).
 6. At the end, show the total count of personal skills (and mention how many framework skills were excluded).
