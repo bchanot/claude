@@ -44,13 +44,17 @@ claude-config/
 git clone --recurse-submodules git@github.com:youruser/claude-config.git
 cd claude-config
 
-# 2. Bootstrap (CLI + auth + symlinks + plugins)
+# 2. Create a free Context7 account at https://context7.com/
+#    Copy your API key and set it:
+export CONTEXT7_API_KEY="your-key-here"
+
+# 3. Bootstrap (CLI + auth + symlinks + plugins)
 bash install.sh
 
-# 3. Verify setup
+# 4. Verify setup
 bash doctor.sh
 
-# 4. Restart Claude Code — plugins load automatically
+# 5. Restart Claude Code — plugins load automatically
 ```
 
 All scripts use their own location to find the repo — run them from anywhere.
@@ -68,7 +72,7 @@ Install output is logged to `install-YYYYMMDD-HHMMSS.log`.
 | **RTK** | Plugin (always on) | Code rewrite hook. Zero passive cost. | [rtk-ai/rtk](https://github.com/rtk-ai/rtk) |
 | **security-guidance** | Plugin (always on) | Security hook. Zero passive cost. | [anthropics/claude-code](https://github.com/anthropics/claude-code) |
 | **ui-ux-pro-max** | Plugin (toggle) | Design system, color/typography choices. Enable for design-heavy projects. | [nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) |
-| **Context7** | Plugin (toggle) | Fast-evolving libs doc lookup (Next.js, React, Prisma...). | `npm install -g ctx7` |
+| **Context7** | Plugin (toggle) | Fast-evolving libs doc lookup (Next.js, React, Prisma...). Requires a free account + API key (see install). | [context7.com](https://context7.com/) |
 | **pr-review-toolkit** | Plugin (toggle) | Multi-agent PR review. | [anthropics/claude-code](https://github.com/anthropics/claude-code) |
 | **Graphify** | Python CLI | Codebase → knowledge graph → navigable wiki. Helps Claude map and search projects efficiently. | [pypi: graphifyy](https://pypi.org/project/graphifyy/) |
 
