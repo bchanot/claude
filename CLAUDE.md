@@ -50,11 +50,10 @@ Apply unless repo-specific instructions override.
 3. Track → mark done as you go.
 4. Summarize → high-level summary at each major step.
 
--## Context Navigation
--When you need to understand the codebase, docs, or any files in this project:
--1. ALWAYS query the knowledge graph first: `/graphify query "your question"`
--2. Only read raw files if I explicitly say "read the file" or "look at the raw file"
--3. Use `graphify-out/wiki/index.md` as your navigation entrypoint for browsing structure
+## Context Navigation (graphify)
+- Use `/graphify query` ONLY for large-scope tasks: multi-file features, complex bug investigations, architectural changes, major refactors.
+- For small tasks (hotfix, typo, single-file change, quick lookup): read files directly — do NOT invoke graphify.
+- When graphify is used, `graphify-out/wiki/index.md` is the navigation entrypoint.
 
 ---
 
