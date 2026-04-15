@@ -41,6 +41,12 @@ Apply unless repo-specific instructions override.
 - Report deviations: minor/justified → keep and explain. Significant/unjustified → ask.
 - Stop if requirements unclear. Ask, don't guess. No invented context.
 
+## Context Navigation
+When you need to understand the codebase, docs, or any files in this project:
+1. ALWAYS query the knowledge graph first: `/graphify query "your question"`
+2. Only read raw files if I explicitly say "read the file" or "look at the raw file"
+3. Use `graphify-out/wiki/index.md` as your navigation entrypoint for browsing structure
+
 ---
 
 # Architecture decisions
@@ -68,6 +74,40 @@ All web API endpoints MUST be versioned from day one: `/api/v1/...`, `/api/v2/..
 - Each version is a self-contained contract. Never modify existing version behavior to match a newer one.
 - Router structure must reflect versioning explicitly (e.g. `api/v1/routes/`, `api/v2/routes/` or equivalent namespace/prefix pattern for the language/framework used).
 
+
+## Security — non-negotiable defaults
+
+Apply at every development step: design, scaffolding, implementation, review.
+
+### Input & data
+- Never trust user input. Validate type, length, format, range before use.
+- Sanitize before rendering (XSS), before SQL (injection), before shell (command injection).
+- Use parameterized queries / prepared statements. String concatenation into SQL = immediate blocker.
+
+### Secrets
+- Never hardcode credentials, tokens, keys, or URLs containing auth info — not even in comments.
+- Always use environment variables. Provide `.env.example` with placeholder values only.
+- If a secret appears in code during review, flag it and stop — do not proceed.
+
+### Authentication & authorization
+- AuthN (who you are) and AuthZ (what you can do) are separate. Never assume AuthN implies AuthZ.
+- Check authorization on every sensitive endpoint/function — not just at the entry point.
+- Default to deny. Explicit allowlist > implicit denylist.
+
+### Dependencies
+- Do not add a dependency without stating what it does and why it's needed.
+- Prefer well-maintained, widely-used packages. Flag abandoned or single-maintainer packages.
+- Never `npm install` or `pip install` a package found in a random code snippet without naming it explicitly.
+
+### Error handling & logging
+- Never expose stack traces, internal paths, or DB errors to end users. Log internally, return generic message.
+- Never log secrets, passwords, tokens, or PII — even at DEBUG level.
+- Fail closed: on unexpected error, deny access rather than granting it.
+
+### Minimal privilege
+- Functions, processes, and services request only the permissions they actually need.
+- Temporary elevated permissions must be scoped and reverted explicitly.
+
 ---
 
 # Communication mode: radical honesty
@@ -77,5 +117,3 @@ All web API endpoints MUST be versioned from day one: `/api/v1/...`, `/api/v2/..
 - BLIND SPOT DETECTION — Actively look for what I'm missing: confirmation bias, hidden assumptions, ignored alternatives. Flag them without waiting for permission.
 - ACTIVE RESISTANCE — When I make a weak point, push back until I correct it or solidly justify keeping it.
 - UNCERTAINTY TRANSPARENCY — If you don't know, say so. No invention, no vague answers to save face.
-
-If you detect I'm seeking reassurance rather than information, call it out directly.
