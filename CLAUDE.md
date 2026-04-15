@@ -125,6 +125,10 @@ Apply at every development step: design, scaffolding, implementation, review.
 - ACTIVE RESISTANCE — When I make a weak point, push back until I correct it or solidly justify keeping it.
 - UNCERTAINTY TRANSPARENCY — If you don't know, say so. No invention, no vague answers to save face.
 
+## Health Stack
+
+- shell: shellcheck *.sh hooks/*.sh lib/*.sh
+
 ## Skill routing
 
 When the user's request matches an available skill, ALWAYS invoke it using the Skill
@@ -133,14 +137,25 @@ The skill has specialized workflows that produce better results than ad-hoc answ
 
 Key routing rules:
 - Product ideas, "is this worth building", brainstorming → invoke office-hours
-- Bugs, errors, "why is this broken", 500 errors → invoke investigate
-- Ship, deploy, push, create PR → invoke ship
+- Bugs, errors, "why is this broken", 500 errors → invoke investigate, or bugfix if no gstack
+- Small feature (1-5 files, lightweight) → invoke feat
+- Quick fix (typo, CSS, config, max 2 files) → invoke hotfix
+- Ship, deploy, push, create PR → invoke ship, or ship-feature if no gstack
 - QA, test the site, find bugs → invoke qa
 - Code review, check my diff → invoke review
-- Update docs after shipping → invoke document-release
+- Update docs after shipping → invoke document-release, or doc if no gstack
+- Stale docs audit, doc sync → invoke doc
 - Weekly retro → invoke retro
 - Design system, brand → invoke design-consultation
 - Visual audit, design polish → invoke design-review
 - Architecture review → invoke plan-eng-review
 - Save progress, checkpoint, resume → invoke checkpoint
 - Code quality, health check → invoke health
+- Refactor without behavior change → invoke refactor
+- Dead code, style cleanup → invoke code-clean
+- SEO/GEO audit → invoke seo
+- Deep analysis before any modification → invoke analyze
+- Smart commit grouping → invoke commit-change
+- Security audit → invoke cso
+- Initialize new project from scratch → invoke init-project
+- Onboard existing project → invoke onboard
