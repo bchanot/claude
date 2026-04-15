@@ -2,7 +2,7 @@
 
 Global Claude Code configuration — agents, skills, plugins, and project templates.
 
-> **Guide d'utilisation complet :** voir [`USAGE.md`](./USAGE.md) — workflows typiques, exemples par type de projet (mobile, web, CLI, firmware, monorepo), arbre de décision "quel skill utiliser ?", cas de figure validés, et table des erreurs fréquentes.
+> **Guide d'utilisation complet :** voir [`USAGE.md`](./USAGE.md) — workflows typiques, exemples par type de projet (mobile, web, CLI, firmware, monorepo), arbre de décision "quel skill utiliser ?".
 
 ---
 
@@ -97,10 +97,10 @@ bash install.sh
 #   bash link.sh                # symlink into ~/.claude/
 #   bash install-plugins.sh     # prerequisites + all plugins
 
-# 4. Context7 CLI (optional — for fast-evolving libs like Next.js, React, Prisma)
+# 4. Context7 CLI (optional — fast-evolving libs docs lookup)
 npm install -g ctx7
-ctx7 setup --claude    # configures MCP + rules for Claude Code (OAuth login)
-# Or use standalone: ctx7 docs /vercel/next.js "middleware"
+ctx7 setup --claude    # configures rules for Claude Code
+# Higher rate limits: ctx7 login (OAuth) or use --api-key from context7.com/dashboard
 
 # 5. Verify setup
 bash doctor.sh
@@ -158,90 +158,22 @@ Install output is logged to `install-YYYYMMDD-HHMMSS.log` in the repo directory 
 | `superpowers:requesting-code-review` | Auto — after a feature step |
 | `superpowers:finishing-a-development-branch` | After review is approved |
 
-### GStack skills (Garry Tan — full-product projects only)
+### GStack (Garry Tan — full-product projects only)
 
-> Installed as a git submodule at `skills-external/gstack/`, symlinked to `~/.claude/skills/gstack/`.
-> **Use when:** project has UI + design + deploy + browser QA. Skip for backend/lib/CLI projects.
-> Full command reference: `~/.claude/skills/gstack/README.md` or run `/office-hours` to start.
+> Full-product workflow skills for UI + design + deploy + browser QA. Installed as a git submodule.
+> Skip for backend/lib/CLI projects. Docs: [github.com/garrytan/gstack](https://github.com/garrytan/gstack)
 
 ### GSD v2 — standalone CLI (multi-session large features)
 
-> **Architecture change from v1:** GSD v2 (`gsd-pi`) is a standalone TypeScript CLI built on the Pi SDK.
-> It is **not** a Claude Code plugin — it runs as an external process with its own session management.
-> The `/gsd ...` commands are GSD-internal and are typed inside a `gsd` terminal session, not in Claude Code.
->
-> **Install:** `npm install -g gsd-pi` (pinned version in `plugins.lock.json`)
->
-> **Use when:** a feature spans multiple days/sessions, you need crash recovery, cost tracking per unit,
-> parallel workers across milestones, or automatic context-fresh execution per task.
+> Standalone TypeScript CLI for multi-session work: crash recovery, per-unit cost tracking, parallel workers,
+> context-fresh execution per task. Not a Claude Code plugin — runs as an external process.
+> Docs: [github.com/gsd-build/gsd-2](https://github.com/gsd-build/gsd-2)
 
-```bash
-# Start a GSD session in your terminal (from your project directory)
-gsd
+### Ruflo CLI — OFF (disabled by default)
 
-# Or jump straight to autonomous mode — walk away and come back to built software
-gsd          # then inside the session:
-/gsd auto    # autonomous mode: research → plan → execute → commit → repeat
-/gsd         # step mode: pause between each unit for review
-/gsd status  # progress dashboard
-/gsd discuss # talk through architecture decisions
-/gsd quick   # atomic quick task without full planning overhead
-```
-
-**Key commands inside a GSD session:**
-
-| Command | Description |
-|---|---|
-| `/gsd auto` | Autonomous mode — research, plan, execute, commit, repeat until milestone done |
-| `/gsd` or `/gsd next` | Step mode — execute one unit at a time, pause between each |
-| `/gsd quick` | Quick atomic task with GSD guarantees (no full planning overhead) |
-| `/gsd stop` | Stop auto mode gracefully |
-| `/gsd status` | Progress dashboard (token usage, cost, milestone progress) |
-| `/gsd discuss` | Discuss architecture decisions (works alongside auto mode) |
-| `/gsd steer` | Hard-steer plan documents during execution |
-| `/gsd prefs` | Model selection, timeouts, budget ceiling |
-| `/gsd doctor` | Runtime health checks |
-| `/gsd migrate` | Migrate a v1 `.planning` directory to `.gsd` format |
-| `/gsd export --html` | Generate self-contained HTML report for a milestone |
-| `/worktree` | Git worktree lifecycle — create, switch, merge, remove |
-
-**GSD v2 vs v1:**
-
-| | v1 (deprecated) | v2 (current) |
-|---|---|---|
-| Runtime | Claude Code slash commands | Standalone CLI (Pi SDK) |
-| Context management | None — fills up | Fresh session per task |
-| Auto mode | LLM self-loop | State machine with `.gsd/` files |
-| Crash recovery | None | Lock files + session forensics |
-| Cost tracking | None | Per-unit token/cost ledger |
-| Git strategy | LLM writes git commands | Worktree isolation, squash merge |
-
-### Ruflo CLI (enterprise multi-agent orchestration)
-
-> Ruflo (formerly claude-flow) is a heavy enterprise multi-agent orchestration CLI — 310+ tools, 100+ agent types,
-> WASM kernel, self-learning architecture. ~500-1500 tokens passive cost when hooks active.
->
-> **Use when:** project explicitly requires coordinating 5+ specialized agents simultaneously,
-> parallel swarm execution, or enterprise-grade multi-agent orchestration.
-> **For standard multi-session work, GSD v2 is sufficient and much lighter.**
->
-> **Install:**
-> ```bash
-> # Minimal install (~40MB, no ML/embeddings)
-> npm install -g ruflo@latest --omit=optional
->
-> # Initialize in your project
-> ruflo init --wizard
->
-> # Useful commands
-> ruflo agent spawn -t coder     # spawn a coding agent
-> ruflo swarm init                # start a swarm
-> ruflo memory search -q "..."   # search vector memory
-> ruflo doctor                    # diagnostics
->
-> # Verify
-> ruflo --version
-> ```
+> Enterprise multi-agent orchestration CLI (310+ tools, WASM kernel, self-learning architecture).
+> Heavy: ~500-1500 tokens passive cost. For standard multi-session work, GSD v2 is lighter and sufficient.
+> Docs: [github.com/ruflo-ai/ruflo](https://github.com/ruflo-ai/ruflo)
 
 ### Bundled skills (Claude Code built-in, always available)
 
@@ -446,6 +378,57 @@ Warns if ruflo is active with no multi-agent signal, or if GSD v2 CLI is not ins
 
 ---
 
+## Intelligent self-management
+
+This config doesn't just provide tools — it manages itself. The interconnection between plugins, skills, and agents creates an autonomous quality layer.
+
+### Plugin advisor — automatic configuration
+
+`/plugin-check` (or STEP 0 in orchestrators) analyzes your project and recommends the optimal plugin configuration:
+
+- **Signal detection:** scans filesystem for project type signals (frontend frameworks, mobile SDKs, embedded toolchains, monorepo markers, deploy configs)
+- **Compatibility matrix:** knows which plugins overlap, complement, or conflict with each other
+- **Cost awareness:** estimates passive token cost per plugin combination and warns when approaching budget limits
+- **Blocking gate:** orchestrators (`/init-project`, `/ship-feature`) refuse to start if critical plugins are missing
+
+### Token budget management
+
+Every plugin has a passive cost (loaded at session start). The system tracks this:
+
+- `session-start.sh` hook displays current passive cost and % of session budget at every session start
+- `/health` and `doctor.sh` provide detailed token budget breakdowns
+- `/plugin-check` recommends disabling unnecessary plugins to reclaim budget
+- Rule: toggle plugins are OFF by default — only enabled when project signals justify the cost
+
+### Tool and skill synergies
+
+Skills and tools are designed to work together, not in isolation:
+
+| Synergy | How it works |
+|---|---|
+| `/plugin-check` → `/init-project` | Plugin-check runs as STEP 0, blocks if config is wrong |
+| `/analyze` → `/refactor` | Analyzer produces violation report, refactorer uses it as input |
+| `/status` → `gsd auto` | Status shows GSD milestone progress, informs session resumption |
+| `/init-project` STEP 13 → GSD v2 | Orchestrator detects multi-session need, proposes GSD init |
+| `/ship-feature` STEP 0b → `/onboard` | Detects missing CLAUDE.md, redirects to onboarding first |
+| `doctor.sh` → `link.sh` | Doctor diagnoses broken symlinks, link.sh fixes them |
+| `/doc` → auto-mode | Other skills can trigger doc-sync automatically after changes |
+| Superpowers → custom agents | Orchestrators use Superpowers for brainstorm/plan/review phases, custom agents for analysis/scaffolding |
+
+### Passive vs active cost model
+
+```
+Passive (always loaded):        Active (loaded on demand):
+├─ CLAUDE.md (~420t)            ├─ Skill body (when /skill invoked)
+├─ Plugin descriptions          ├─ Agent content (when skill loads agent)
+├─ Hook configs                 └─ Context7 docs (when ctx7 queried)
+└─ Session-start output
+```
+
+The system minimizes passive cost by loading skill bodies and agent content only when invoked. Plugin descriptions are the main passive cost lever — hence why `/plugin-check` exists.
+
+---
+
 ## Plugins reference
 
 All plugins below are installed by `install-plugins.sh`.
@@ -466,12 +449,12 @@ Run `/plugin-check` anytime to get a recommendation for the current project type
 | **Superpowers** | ✅ REQUIRED | ~600–1000 tokens | — required by orchestrators | superpowers-marketplace |
 | **GStack** | 🔄 TOGGLE | ~2500–3000 tokens | Full-product: UI + design + deploy + browser QA | git submodule |
 | **GSD v2** | 🖥️ CLI | 0 tokens (external CLI) | Multi-day features, crash recovery, cost tracking, parallel workers | npm (pinned in plugins.lock.json) |
-| **ruflo** | 🔄 TOGGLE | ~500–1500 tokens | Enterprise multi-agent swarm (5+ concurrent agents) | npm (CLI) |
+| **ruflo** | ⚫ OFF (disabled) | ~500–1500 tokens | Enterprise multi-agent swarm (5+ concurrent agents) | npm (CLI) |
 | **plugin-dev** | 🔄 TOGGLE | ~100 tokens | Creating plugins or custom skills | claude-code-plugins |
 | **pr-review-toolkit** | 🔄 TOGGLE | ~300 tokens | PR review sessions | claude-code-plugins |
 | **frontend-design** | 🔄 TOGGLE | ~200 tokens | Any project with a UI | claude-code-plugins |
 | **ui-ux-pro-max** | 🔄 TOGGLE | ~400 tokens | Design system, color/typography choices | ui-ux-pro-max-skill |
-| **Context7 CLI** | 🔄 TOGGLE | ~200 tokens | Fast-evolving libs (Next.js, React, Prisma…) | npm (ctx7) + optional ctx7 setup --claude |
+| **Context7 CLI** | 🔄 TOGGLE | ~200 tokens | Fast-evolving libs (Next.js, React, Prisma…) | npm (ctx7 CLI) |
 
 **Rule:** toggle plugins are OFF by default. `/plugin-check` signals when to enable them.
 If you use `/init-project` or `/ship-feature`, plugin-check runs automatically as STEP 0
@@ -620,56 +603,13 @@ bash update-all.sh
 
 ### Manual updates
 
-#### This repo
 ```bash
-git pull
-# Symlinks → changes active immediately
+git pull          # this repo — symlinks make changes active immediately
+bash link.sh      # refresh symlinks if needed
 ```
 
-#### GStack (submodule)
-```bash
-# Option A — inside Claude Code (recommended)
-/gstack-upgrade
-
-# Option B — via submodule (from the repo directory)
-# Note: GStack tracks branch = main, review upstream commits before updating
-git submodule update --remote skills-external/gstack
-cd skills-external/gstack && ./setup
-git add skills-external/gstack
-git commit -m "chore: update gstack to latest"
-```
-
-#### RTK
-```bash
-# Uses the version pinned in plugins.lock.json
-bash update-all.sh
-
-# Or manually
-cargo install --git https://github.com/rtk-ai/rtk --tag v0.34.3 --force
-```
-
-#### GSD v2
-```bash
-# Uses the version pinned in plugins.lock.json
-bash update-all.sh
-
-# Or manually
-npm install -g gsd-pi@2.64.0
-```
-
-#### Ruflo CLI
-```bash
-# Uses the version pinned in plugins.lock.json
-bash update-all.sh
-
-# Or manually
-npm install -g ruflo@3.5.58
-```
-
-#### Marketplace plugins
-```bash
-/plugin marketplace update    # inside Claude Code
-```
+All third-party tools (RTK, GSD v2, ruflo, GStack, ctx7, marketplace plugins) are updated
+automatically by `update-all.sh`. Versions are pinned in `plugins.lock.json`.
 
 ---
 
@@ -704,6 +644,28 @@ $ARGUMENTS
 ```
 
 3. Or use `/plugin-dev:create-plugin` to generate a skill from conversation.
+
+---
+
+## Personal skills (skills-perso)
+
+List your personal skills (created in `~/.claude/skills/`) with:
+```
+/skills-perso
+```
+
+This lists all skills you've created outside of this repo — useful to remember what custom skills are available across projects.
+
+To create a personal skill:
+```bash
+# Quick way (from this repo)
+make new-skill name=myskill
+bash link.sh
+
+# Or manually
+mkdir -p ~/.claude/skills/myskill/
+# Create SKILL.md with frontmatter (see "Adding a new custom skill" above)
+```
 
 ---
 
@@ -750,99 +712,3 @@ and displays toggle plugin status, GSD v2 CLI status, with `/plugin-check` and `
 
 Both scripts source `lib/detect-plugins.sh` for consistent plugin detection logic.
 
-### Updating
-
-```bash
-# One-command update (from the repo directory)
-bash update-all.sh
-
-# Or step by step
-git pull                                                # this repo
-# GStack: prompts for confirmation (tracks main branch)
-git submodule update --remote skills-external/gstack
-bash link.sh                                            # refresh symlinks
-bash doctor.sh                                          # verify
-```
-
----
-
-## Troubleshooting
-
-### "command not found" after install
-Restart your shell or run `source ~/.bashrc` / `source ~/.zshrc`.
-
-### Orchestrator blocks at STEP 0 — Superpowers missing
-Install: `claude plugin marketplace add obra/superpowers-marketplace && claude plugin install --scope user superpowers@superpowers-marketplace`
-Then re-run the orchestrator.
-
-### "agent not found" or hallucinated agent content
-Symlinks are broken. `cd` into your config repo and run `bash link.sh`, then verify with `bash doctor.sh`.
-
-### GStack skills not showing up
-Run `bash link.sh` and verify: `ls -la ~/.claude/skills/gstack`.
-If missing: `cd` into your config repo and run `git submodule update --init`.
-
-### GStack submodule "directory not found after init"
-The submodule is not registered in `.gitmodules` (never added). Fix:
-```bash
-cd ~/Documents/claude   # chemin de ton config repo
-git submodule add https://github.com/garrytan/gstack skills-external/gstack
-git submodule update --init --recursive
-bash link.sh
-git add .gitmodules skills-external/gstack && git commit -m "chore: add gstack submodule"
-```
-
-### link.sh warns "is a real directory"
-If `~/.claude/agents/`, `~/.claude/skills/`, `~/.claude/lib/`, or `~/.claude/templates/` exist as real
-directories, the script skips them to avoid data loss. Rename or remove the directory, then re-run `link.sh`.
-
-### GSD v2 — "command not found: gsd"
-npm's global bin directory is not in `$PATH`. Run `npm prefix -g` to find it, then add `$(npm prefix -g)/bin`
-to your PATH. See the [GSD troubleshooting guide](https://github.com/gsd-build/gsd-2/blob/main/docs/troubleshooting.md).
-
-### GSD v2 — migrating from v1 projects
-If you have old projects with `.planning` directories from GSD v1, migrate them:
-```bash
-cd your-project
-gsd          # start a session
-/gsd migrate # migrate .planning → .gsd format
-```
-
-### Ruflo CLI not detected by doctor.sh
-Ruflo must be installed globally. Run:
-```bash
-npm install -g ruflo@latest --omit=optional
-ruflo --version
-```
-
-### Token budget exceeded — skills truncated at session start
-Too many plugins active. Run `/plugin-check` to optimize.
-Run `bash doctor.sh` for a token budget breakdown (vs Pro ~11k session budget).
-
-### settings.json not applying
-Check precedence: deny always wins over allow at any level. `.claudeignore` overrides all permission rules.
-Verify deny count: `cat ~/.claude/settings.json | python3 -c "import json,sys; print(len(json.load(sys.stdin)['permissions']['deny']))"`
-Expected: 100 deny rules.
-
-### Claude reads .env despite deny rules
-The `Read(**/.env)` deny rule blocks the Read tool. `Bash(cat .env)` and similar commands have separate
-deny rules (included in this config). For hard exclusion regardless of tool, use `.claudeignore`.
-
-### install-plugins.sh failed — where are the logs?
-Check `install-YYYYMMDD-HHMMSS.log` in your config repo directory.
-
----
-
-## Known limitations
-
-- **Deny rules are pattern-based, not sandboxed.** Core bypass vectors (`bash -c`, `eval`, `python3 -c *`, `node -e *`, `source /dev/stdin`, `mkfifo *`, `xargs * .env*`, `base64 .env*`) are blocked. Process substitution (`<(cmd)`, `>(cmd)`), here strings (`<<<`), and `/dev/fd/*` access remain possible without explicit patterns — `.claudeignore` is the only hard file exclusion mechanism.
-- **`disableAutoMode` syntax not verified** against CC v2.1.89 — added as `"disableAutoMode": "disable"` by analogy with `disableBypassPermissionsMode`. # TODO: VERIFY
-- **Superpowers is a hard dependency** for `/init-project` and `/ship-feature`. The plugin-advisor (STEP 0) auto-detects and blocks if missing, with install instructions. No manual fallback mode.
-- **Marketplace plugin versions are not pinned.** They install latest. Non-marketplace tools (RTK, GSD v2, ruflo) are pinned in `plugins.lock.json`.
-- **Token budget:** `CLAUDE.md` loads in full every session (~420t). Skill bodies load on-demand. Plugin descriptions load passively. With all toggles active, passive plugin cost can reach ~50% of the Pro session budget (~11k tokens/5h). Run `/health` or `bash doctor.sh` for a breakdown.
-- **GSD v2 is a standalone CLI**, not a Claude Code plugin. `/gsd ...` commands are GSD-internal and do not work in the Claude Code slash command bar.
-- **Ruflo is heavy** (~340MB default, ~500-1500t passive tokens). Only enable for genuine enterprise multi-agent needs. For multi-session work, GSD v2 is lighter and sufficient.
-- **Agent frontmatter fields** `model`, `memory`, `effort` are enforced by Claude Code v2.1.x.
-- **`bypassPermissions` mode is disabled** via `disableBypassPermissionsMode`.
-- **GStack submodule is pinned to `branch = main`**, not a commit hash. `update-all.sh` now prompts for confirmation before updating. Review upstream commits before accepting.
-- **`disable-model-invocation: true` on orchestrator skills** (`/init-project`, `/ship-feature`): behavior when a skill with this flag invokes sub-agents via loaded agent files has not been fully verified in CC v2.1.89. # TODO: VERIFY
