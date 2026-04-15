@@ -188,6 +188,29 @@ This applies in all modes — the path is always the same directory as the gener
 
 ---
 
+## PHASE 5c — tasks/ scaffold
+
+```bash
+ls tasks/LESSONS.md tasks/TODO.md 2>/dev/null
+```
+
+- **Both exist** → nothing to do. ✅
+- **tasks/TODO.md missing** → create it with:
+```
+  # TODO
+  <!-- Claude writes tasks here before implementing. Format: - [ ] task -->
+```
+- **tasks/LESSONS.md missing** → create it with:
+```
+  # Lessons learned
+  <!-- Format: [date] | what went wrong | rule to avoid it -->
+```
+- Print: "📋 tasks/TODO.md and tasks/LESSONS.md ready."
+
+Applies in all modes (single project, Option A, B, C). Path = same directory as generated `CLAUDE.md`.
+
+---
+
 ## PHASE 6 — GSD v2 ROADMAP (optional)
 
 Ask: "Generate a GSD v2 ROADMAP.md for multi-session feature management? (yes / skip)"

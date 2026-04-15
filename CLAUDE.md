@@ -3,77 +3,85 @@
 Apply unless repo-specific instructions override.
 
 ## Code style
-
 - Simple, readable, maintainable > clever or compact.
 - One responsibility per function/method.
 - Preserve existing behavior unless asked otherwise.
-- Scope changes to the task. No unrelated edits.
+- Scope changes to task. No unrelated edits.
 
 ## Limits (adapt to language)
-
-- Max 25 logic lines/function (excl. comments, error handling).
-- Max 80 chars/line, 5 params/function, 5 local vars/function.
-- Too many params → group into struct/object. Too many vars → split/extract.
+- Max 25 logic lines/function, 80 chars/line, 5 params, 5 local vars (excl. comments, error handling).
+- Too many params → struct/object. Too many vars → split/extract.
 - No global state. Explicit data flow.
 
 ## Comments & readability
-
 - Document intent, not mechanics. Use project doc style (docstring, JSDoc, etc.).
-- Explicit, consistent, meaningful names.
-- Straight control flow. Extract complex conditions. No hidden side effects.
+- Explicit, consistent, meaningful names. Straight control flow. No hidden side effects.
 
 ## Refactoring
-
 - Priority: safety → readability → consistency.
 - Remove dead code, stale comments, obsolete flags after changes.
+- Non-trivial change: ask "more elegant solution exists?" Hacky fix → rebuild cleanly. Don't over-engineer.
+
+## Session start
+1. Read `tasks/LESSONS.md` — apply all lessons before touching anything.
+2. Read `tasks/TODO.md` — understand current state.
+3. If neither exists, create both before starting.
+
+## Workflow
+- Non-trivial task (3+ steps): write plan in `tasks/TODO.md` first. Confirm before implementing.
+- Minimal changes unless broader refactor requested. State trade-offs.
+- Use sub-agents to keep main context clean — one task per sub-agent. Invest more compute on hard problems.
+- One question upfront if needed — never interrupt mid-task. *(Exception: orchestrators' mandatory validation gates — example, /init-project STEP 4/7, /ship-feature STEP 3 — are exempt.)*
+- Bug received → fix directly: check logs, find root cause, resolve autonomously.
+- If something goes wrong: STOP and re-plan — never push through.
+- Report deviations: minor/justified → explain. Significant/unjustified → ask.
+- Root causes only. No temporary fixes. Never assume — verify paths, APIs, variables before use.
 
 ## After code changes
-
 1. Run tests, lint, build, type-check if available.
 2. Report what was verified and what wasn't.
 3. List remaining risks and surviving deviations.
+4. Never mark complete without proof it works. Bar: "would a staff engineer approve this?"
+5. After any correction: append to `tasks/LESSONS.md` — `[date] | what went wrong | rule to avoid it`.
 
-## Workflow
+## Task tracking (`tasks/TODO.md`)
+1. Plan → write before implementing.
+2. Confirm → explicit approval before starting.
+3. Track → mark done as you go.
+4. Summarize → high-level summary at each major step.
 
-- Analyze before changing. Brief plan first.
-- Minimal changes unless broader refactor requested.
-- State trade-offs clearly.
-- Report deviations: minor/justified → keep and explain. Significant/unjustified → ask.
-- Stop if requirements unclear. Ask, don't guess. No invented context.
-
-## Context Navigation
-When you need to understand the codebase, docs, or any files in this project:
-1. ALWAYS query the knowledge graph first: `/graphify query "your question"`
-2. Only read raw files if I explicitly say "read the file" or "look at the raw file"
-3. Use `graphify-out/wiki/index.md` as your navigation entrypoint for browsing structure
+-## Context Navigation
+-When you need to understand the codebase, docs, or any files in this project:
+-1. ALWAYS query the knowledge graph first: `/graphify query "your question"`
+-2. Only read raw files if I explicitly say "read the file" or "look at the raw file"
+-3. Use `graphify-out/wiki/index.md` as your navigation entrypoint for browsing structure
 
 ---
 
 # Architecture decisions
- 
+
 Override default framework/tooling choices. Apply at project creation, scaffolding, brainstorming.
- 
+
 ## Public websites — never SPA
- 
+
 When a project is a public-facing website meant to be indexed (landing page, portfolio, blog, e-commerce, docs):
- 
+
 - **FORBIDDEN**: pure SPA (CRA, Vite React SPA, Vue SPA) for public pages. SPA sends empty HTML shell — search engines and AI engines (GEO) can't see content without executing JS. SEO and AI visibility destroyed.
 - **Astro** = default for informational sites (portfolio, docs, blog, landing). Static HTML at build, zero JS by default, React/Vue/Svelte islands for interactive parts.
 - **Next.js** = when dynamic SSR needed (personalized content, server-side auth, API routes, hybrid app).
 - **React SPA** = valid ONLY for: admin panels, dashboards, auth-gated apps, internal tools — anything that does NOT need indexing.
 - **Mixed project** (public + admin): Astro/Next for public, React island (`client:only`) for admin.
 - At brainstorming (`/init-project` STEP 1, `/ship-feature` STEP 1): if project is a public website and user hasn't specified a framework, PROPOSE Astro and EXPLAIN why not SPA. Never silently pick React CRA.
- 
+
 ## Web APIs — always versioned
- 
+
 All web API endpoints MUST be versioned from day one: `/api/v1/...`, `/api/v2/...`.
- 
+
 - New project → start at `/api/v1/`. No bare `/api/` routes.
 - Breaking changes → new version (`v2`). Old version stays functional — clients migrate at their own pace.
 - Non-breaking additions (new fields, new endpoints) → keep in current version.
 - Each version is a self-contained contract. Never modify existing version behavior to match a newer one.
-- Router structure must reflect versioning explicitly (e.g. `api/v1/routes/`, `api/v2/routes/` or equivalent namespace/prefix pattern for the language/framework used).
-
+- Router structure must reflect versioning explicitly (e.g. `api/v1/routes/`, `api/v2/routes/`).
 
 ## Security — non-negotiable defaults
 

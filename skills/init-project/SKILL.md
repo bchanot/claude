@@ -57,7 +57,7 @@ Changes → back to STEP 3. Approved → continue.
 
 ## STEP 5 — SCAFFOLD
 Load `$HOME/.claude/agents/scaffolder.md`. Pass: BRIEF + DESIGN + `~/.claude/templates/project-CLAUDE.md` + `~/.claude/CLAUDE.md`.
-Creates: CLAUDE.md, settings, structure, config, empty entry points, .gitignore, .env.example. NO README, NO features.
+Creates: CLAUDE.md, settings, structure, config, empty entry points, .gitignore, .env.example, tasks/TODO.md, tasks/LESSONS.md. NO README, NO features.
 Verify: `git init` + build passes.
 
 ## STEP 5b — CREATE README
