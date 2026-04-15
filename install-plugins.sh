@@ -442,6 +442,45 @@ fi
 echo ""
 
 # ============================================================
+# STEP 10 — SHELL ENV VARS (effort + thinking)
+# ============================================================
+echo "── Step 10: Claude Code environment variables ──────────────"
+echo ""
+
+# Detect shell profile
+SHELL_PROFILE=""
+if [ -n "${ZSH_VERSION:-}" ] || [ "$(basename "$SHELL" 2>/dev/null)" = "zsh" ]; then
+  SHELL_PROFILE="$HOME/.zshrc"
+elif [ -n "${BASH_VERSION:-}" ] || [ "$(basename "$SHELL" 2>/dev/null)" = "bash" ]; then
+  SHELL_PROFILE="$HOME/.bashrc"
+fi
+# Fallback to .profile (works with sh, dash, etc.)
+[ -z "$SHELL_PROFILE" ] && SHELL_PROFILE="$HOME/.profile"
+
+CLAUDE_ENVS=(
+  'export CLAUDE_EFFORT=max'
+  'export CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1'
+)
+
+ADDED=0
+for line in "${CLAUDE_ENVS[@]}"; do
+  if grep -qF "$line" "$SHELL_PROFILE" 2>/dev/null; then
+    ok "$line (already in $SHELL_PROFILE)"
+  else
+    echo "" >> "$SHELL_PROFILE"
+    echo "# Claude Code — added by install-plugins.sh" >> "$SHELL_PROFILE"
+    echo "$line" >> "$SHELL_PROFILE"
+    ok "$line → $SHELL_PROFILE"
+    ADDED=1
+  fi
+done
+
+if [ "$ADDED" -eq 1 ]; then
+  info "Restart your shell or run: source $SHELL_PROFILE"
+fi
+echo ""
+
+# ============================================================
 # SUMMARY
 # ============================================================
 echo ""
