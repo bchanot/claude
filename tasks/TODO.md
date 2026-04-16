@@ -30,3 +30,13 @@
 - [x] Intégrer dans bugfixer.md — STEP 1.5 (si bug UI/style)
 - [x] Mettre à jour plugin-advisor.md — PHASE 4 : cohérence avec le design gate
 - [x] Mettre à jour CLAUDE.md skill routing — documenter le comportement auto
+
+## Refonte agents/seo-analyzer.md
+- [x] Lire agent actuel + plugin-advisor + interviewer + feater + hotfixer + analyzer
+- [x] Réécrire l'agent complet v1 (11 étapes)
+- [x] Ajouter orchestration sub-agents (hotfixer/feater) + triage par batches
+- [x] Déplacer plugin-advisor après détection stack (STEP 3 au lieu de STEP 0)
+- [x] Ajouter 2 niveaux d'audit (LOCAL code-only / FULL live+externe)
+- [x] Adapter scoring, legal, GEO aux deux niveaux
+- [x] Renumeroter proprement (0-14) + corriger toutes les refs internes
+- [ ] Commit
