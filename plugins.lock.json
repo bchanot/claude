@@ -2,7 +2,7 @@
   "_readme": "Pinned versions for reproducible installs. Update versions deliberately, then run install-plugins.sh.",
   "rtk": {
     "source": "https://github.com/rtk-ai/rtk",
-    "version": "v0.34.3",
+    "version": "latest",
     "note": "Check latest at https://github.com/rtk-ai/rtk/releases before updating"
   },
   "gsd": {
