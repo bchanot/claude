@@ -53,7 +53,8 @@ Apply unless repo-specific instructions override.
 ## Context Navigation (graphify)
 - Use `/graphify query` ONLY for large-scope tasks: multi-file features, complex bug investigations, architectural changes, major refactors.
 - For small tasks (hotfix, typo, single-file change, quick lookup): read files directly — do NOT invoke graphify.
-- When graphify is used, `graphify-out/wiki/index.md` is the navigation entrypoint.
+- Before answering architecture/codebase questions, read `graphify-out/GRAPH_REPORT.md` for god nodes and community structure. If `graphify-out/wiki/index.md` exists, use it as navigation entrypoint.
+- After modifying code files, run `/graphify <path> --update` to keep the graph current (AST-only, no API cost for code-only changes).
 
 ---
 
