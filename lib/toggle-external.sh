@@ -78,6 +78,11 @@ disable_tool() {
       local moved=0
       while read -r name; do
         [ -e "$SKILLS_DIR/$name" ] || continue
+        # Clobber any stale destination. gstack ./setup now creates
+        # skills/<name>/ as directories, so mv onto an existing dir
+        # would nest it (gstack__<name>/<name>/) instead of renaming.
+        # Content is symlinks to the submodule — `gstack ./setup` regenerates.
+        rm -rf "$DISABLED_DIR/gstack__$name"
         mv "$SKILLS_DIR/$name" "$DISABLED_DIR/gstack__$name"
         moved=$((moved + 1))
       done < <(gstack_skills)
@@ -85,6 +90,7 @@ disable_tool() {
       ;;
     emil-design-eng|darwin-skill|find-skills)
       if [ -e "$SKILLS_DIR/$tool" ]; then
+        rm -rf "${DISABLED_DIR:?}/${tool:?}"
         mv "$SKILLS_DIR/$tool" "$DISABLED_DIR/$tool"
         ok "$tool disabled"
       else
@@ -105,6 +111,7 @@ enable_tool() {
           [ -e "$entry" ] || continue
           local name
           name="$(basename "$entry" | sed 's/^gstack__//')"
+          rm -rf "${SKILLS_DIR:?}/${name:?}"
           mv "$entry" "$SKILLS_DIR/$name"
           moved=$((moved + 1))
         done
@@ -117,6 +124,7 @@ enable_tool() {
       ;;
     emil-design-eng|darwin-skill|find-skills)
       if [ -e "$DISABLED_DIR/$tool" ]; then
+        rm -rf "${SKILLS_DIR:?}/${tool:?}"
         mv "$DISABLED_DIR/$tool" "$SKILLS_DIR/$tool"
         ok "$tool enabled"
       elif [ -e "$SKILLS_DIR/$tool" ]; then
