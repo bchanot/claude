@@ -7,6 +7,12 @@
 extract content via `/llms.txt`. A Search Engine Land study (2025) found
 8 of 9 sites saw no measurable traffic change after adoption.
 
+**Not to be confused with `/ai.txt`**: some blog posts and AI-generated
+articles recommend a file named `/ai.txt` or `/about-data`. These are
+NOT real standards — no spec exists, no AI engine reads them. If someone
+asks about `/ai.txt`, the correct answer is "use `llms.txt` instead, it
+is the only emerging proposed standard (Jeremy Howard, Sept 2024)".
+
 **Why include it anyway**:
 - Low cost (small static file).
 - Real value for developer-facing sites — AI coding assistants (Cursor,

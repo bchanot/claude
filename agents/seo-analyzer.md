@@ -95,6 +95,57 @@ Rails, Django, other.
 
 Record rendering: **SSR / SSG / SPA / hybrid / ISR**.
 
+### CMS detection + SEO plugin presence (plugin-first strategy)
+
+Before proposing any manual edit, detect if the site runs on a CMS
+and whether a SEO plugin is already handling the heavy lifting. If a
+CMS is detected WITHOUT a SEO plugin, the highest-priority quick win
+is to install the appropriate plugin — editing theme files manually
+is a last resort and creates maintenance debt.
+
+```bash
+# WordPress signals
+[ -f wp-config.php ] && echo "CMS: WordPress"
+ls wp-content/plugins 2>/dev/null | head -20
+# Common SEO plugins
+ls wp-content/plugins 2>/dev/null | grep -iE "yoast|wordpress-seo|seo-by-rank-math|rank-math|seopress|all-in-one-seo|aioseo|squirrly|slim-seo"
+
+# Drupal signals
+[ -f core/CHANGELOG.txt ] && echo "CMS: Drupal"
+find . -maxdepth 3 -name "*.info.yml" 2>/dev/null | xargs -I{} grep -l "yoast_seo\|metatag\|pathauto\|simple_sitemap" {} 2>/dev/null | head -5
+
+# Magento / Shopify / PrestaShop / Joomla signals
+[ -f composer.json ] && grep -iE "magento|shopify|prestashop|joomla" composer.json 2>/dev/null
+[ -f config.xml ] && echo "CMS: Magento (likely)"
+[ -f configuration.php ] && grep -q "JConfig" configuration.php 2>/dev/null && echo "CMS: Joomla"
+# Shopify: detected via theme files (shopify.theme.toml, config/settings_data.json)
+[ -f config/settings_data.json ] && [ -d sections ] && echo "CMS: Shopify (theme source)"
+
+# Ghost signals
+[ -f config.production.json ] && grep -q "ghost" config.production.json 2>/dev/null && echo "CMS: Ghost"
+
+# Webflow / Wix / Squarespace: usually hosted — detected only via live HTML
+# (FULL depth check: curl home page and look for meta generator tag)
+```
+
+Record:
+```
+CMS CONTEXT
+CMS              : WordPress | Drupal | Magento | Shopify | Joomla | PrestaShop | Ghost | Webflow | Wix | Squarespace | none (custom)
+SEO PLUGIN       : <name + version> | ABSENT | N/A (not CMS)
+PLUGIN COVERAGE  : meta | sitemap | OG | JSON-LD | breadcrumbs | redirects | <list>
+GAP              : <what the plugin does NOT cover — the agent will touch that>
+RECOMMENDATION   : KEEP & CONFIGURE plugin | INSTALL <plugin> (P0 quick win) | MANUAL EDITS (no CMS)
+```
+
+**Decision rule**:
+- CMS + SEO plugin present → CONFIGURE it via admin UI (settings). Do
+  NOT duplicate its output by editing theme files.
+- CMS + no SEO plugin → emit P0 quick win in STEP 10: "Install
+  <recommended plugin>" with direct link + automation catalog refs.
+  Manual theme edits only on concerns the plugin does not cover.
+- No CMS (custom code) → full manual edit via hotfixer/feater as usual.
+
 ### Infrastructure signals
 
 ```bash
@@ -329,13 +380,36 @@ Each embedded or self-hosted video should have:
 - `<track kind="captions">` if self-hosted
 - Thumbnail with OG image or structured data
 
-### Internal linking
+### Internal linking + topic clusters (silos sémantiques)
 
 Sample critical pages. Check:
 - Every important page reachable within 3 clicks from homepage?
 - Navigation consistent?
 - Footer has key legal + service links?
 - Orphan pages (no inbound internal links)?
+
+**Topic clusters (silos sémantiques)** — beyond basic navigation,
+evaluate whether the site organises content into topical silos:
+- **Pillar page** (broad topic, e.g. "Guide complet SEO local") —
+  authoritative, long-form, targets head keyword.
+- **Cluster pages** (narrow sub-topics, e.g. "Comment optimiser GMB",
+  "NAP cohérent") — each links TO the pillar + back is linked FROM
+  the pillar.
+- **Cross-cluster links** — minimized; each silo should be internally
+  cohesive.
+
+Why this matters for both classical SEO and GEO:
+- Classical: Google uses topical authority as ranking signal (2024+
+  Helpful Content + E-E-A-T). Clustered sites rank entire clusters,
+  not just individual pages.
+- GEO: AI engines extract the whole cluster when answering a query
+  — a well-linked cluster gets cited more often than isolated pages.
+
+Flag:
+- Pages listed in nav but not linked from related content (orphans
+  within their topic)
+- Pillar pages lacking inbound links from their clusters
+- Excessive cross-cluster linking (dilutes topical authority)
 
 ### Accessibility signals (a11y contributes to ranking)
 
@@ -543,6 +617,21 @@ For each:
 
 AUTO items are a commitment, not a suggestion.
 
+**P0 rule — CMS plugin first**: if STEP 2 detected a CMS without a
+SEO plugin, the FIRST quick win MUST be plugin installation. Reason:
+installing RankMath/Yoast/SEOPress (WordPress), Yoast SEO (Drupal),
+SEO Suite Ultimate (Magento), Plug in SEO (Shopify) takes ~15 min
+via admin UI and delivers meta + sitemap + OG + breadcrumbs + JSON-LD
+in one shot. Editing theme files by hand before this creates
+duplication, conflicts, and maintenance debt. See
+`~/.claude/agents/resources/automation-catalog.md` CMS plugins
+section for the exact install path per CMS.
+
+**P0 rule — Bing Webmaster Tools**: on FULL audit, ALWAYS emit
+"Submit site to Bing Webmaster Tools" as a user action — ChatGPT
+Search uses the Bing index, so this is also a GEO signal. See
+automation-catalog.md for IndexNow + Bing.
+
 ### Medium term (1-3 months)
 City/service pages (30/70 rule: 30% shared, 70% unique per city),
 blog launch, review campaigns, citation cleanup, image optimization
@@ -682,7 +771,14 @@ Include in every sub-agent prompt:
 - **SvelteKit** — `<svelte:head>` or `+layout.server.ts` load. Custom sitemap endpoint.
 - **Static HTML / PHP** — edit `<head>` directly. `.htaccess` for redirects.
 - **React SPA** — flag SEO severely limited without SSR. `react-helmet` helps metadata but content indexation breaks. Recommend migration to Next.js/Astro. Note this in §0 (major alerts).
-- **WordPress** — Yoast/RankMath/SEOPress handle meta + sitemap. Do not duplicate.
+- **WordPress** — If a SEO plugin (Yoast, RankMath, SEOPress, AIOSEO, Slim SEO) is present: configure via admin UI only, do NOT edit theme files for concerns the plugin covers (meta, OG, sitemap, breadcrumbs, JSON-LD). If ABSENT: P0 quick win = install plugin before any manual edit. Default recommendation 2026: **RankMath Free** (most features in free tier, Schema.org and GEO-aware).
+- **Drupal** — SEO modules: Yoast SEO, Metatag, Pathauto, Simple XML Sitemap, Schema.org Metatag. If present: configure modules. If absent: P0 = enable Metatag + Simple XML Sitemap + Pathauto (core SEO stack).
+- **Magento (1/2)** — Native SEO decent but limited. Recommended: **SEO Suite Ultimate (Mageworx)** or **Mirasvit SEO Suite**. Configure URL rewrites, meta templates, rich snippets in admin.
+- **Shopify** — Editing: theme files (`theme.liquid`, `product.liquid`, `article.liquid`). Plugins: **Plug in SEO**, **SEO Manager**, **Smart SEO** auto-handle most items. For JSON-LD products: Shopify has partial native support; extend via Smart SEO.
+- **PrestaShop** — Native SEO OK. Modules: **PrestaShop SEO Expert**, **JMarket SEO**, built-in meta editors. Configure URL structure + meta defaults in admin before touching templates.
+- **Joomla** — SEO extensions: **JoomSEF**, **sh404SEF**, **4SEO**. Configure in admin.
+- **Ghost** — Native SEO strong (meta + OG + JSON-LD out of box). Usually no plugin needed; handle gaps via `default.hbs` edits.
+- **Wix / Squarespace / Webflow (hosted CMS)** — No theme file access. ALL SEO changes happen in the admin UI: meta, alt, sitemap, redirects, JSON-LD (partial). Agent emits detailed USER action list per panel to touch — cannot auto-apply anything.
 
 ### Landing page rule
 
@@ -858,6 +954,13 @@ PROCHAINE ETAPE : <highest-priority>
 ### Scope
 - **Autonomous fixes = markup, assets, config, legal pages.** Never
   change business logic, layout, styles, routing unless confirmed.
+- **Shared-file edit discipline.** On template files shared with
+  `geo-analyzer` (Layout.astro, index.html, base.html.twig, etc.),
+  your sub-agents (`hotfixer`/`feater`) MUST use `Edit` with a narrow
+  `old_string` targeting ONLY your owned concern (meta tags). NEVER
+  `Write` on shared templates. `Write` is reserved for files you
+  solely own: sitemap.xml, .htaccess, legal pages, new city/service
+  pages. Full-template refactor → escalate as user action in §11.
 - **Landing page protection.** Zero visible change except meta tags,
   footer links, JSON-LD, image optimization.
 - **Preserve existing valid SEO.** Don't rewrite correct tags.

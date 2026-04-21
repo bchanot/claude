@@ -120,8 +120,38 @@ their dispatch prompts:
 | Video transcripts | **seo-analyzer** (user action) | |
 
 If either agent detects a finding in a file it doesn't own, it emits
-a "CROSS-AGENT NOTE" in its envelope; the dispatcher forwards it to
-the owning agent at merge time. No direct cross-agent fix.
+a "CROSS-AGENT NOTE" in its envelope. The dispatcher does NOT re-spawn
+the owning agent (both have finished by merge time). Instead, cross-agent
+findings are escalated into `SEO.md §11 — Actions utilisateur requises`
+with an explicit "Automatisation possible avec: ..." block pulled from
+`automation-catalog.md`. This is the Option B resolution (chosen by
+user): simpler than a coordinator agent, aligns with the "every user
+action lists automation" rule, and avoids architectural complexity.
+
+### Shared-file edit discipline (prevents last-writer-wins)
+
+Ownership is by *concern*, not by *file*. A single template
+(`Layout.astro`, `index.html`, `base.html.twig`, `_document.tsx`…)
+typically contains BOTH concerns simultaneously:
+  - meta tags (seo-analyzer)
+  - JSON-LD blocks (geo-analyzer)
+
+When the agents' sub-agents (hotfixer/feater) run in parallel they
+could both target the same physical file. To avoid a `Write`-based
+last-writer-wins scenario:
+
+**Rule** (embedded in both agent dispatch prompts below):
+
+> On any shared template file (anything containing multiple owned
+> concerns), use the `Edit` tool with a **narrow, targeted** `old_string`
+> that encloses ONLY your owned concern. NEVER use `Write` (full-file
+> rewrite) on a shared template. `Write` is reserved for files you
+> are the sole owner of (sitemap.xml, robots.txt, llms.txt, legal
+> pages, new city pages, .htaccess).
+
+If a sub-agent determines `Edit` is insufficient (e.g. full template
+refactor needed), it must STOP and escalate as a cross-agent note —
+the dispatcher handles via §11 user action instead.
 
 ## STEP 1 — Spawn both agents IN PARALLEL
 
@@ -161,8 +191,20 @@ FILE OWNERSHIP (authoritative, prevents parallel-edit conflicts):
 - YOU READ-ONLY: robots.txt (geo-analyzer owns), JSON-LD blocks
   (geo-analyzer owns structure; you flag NAP inconsistencies), llms.txt.
 - CROSS-AGENT NOTES: if you find issues in files you don't own, emit
-  them in your envelope under "CROSS-AGENT NOTES TO geo-analyzer:"
-  — the dispatcher forwards.
+  them in your envelope under "CROSS-AGENT NOTES TO geo-analyzer:".
+  Dispatcher escalates each note to SEO.md §11 as user action (with
+  automation options). Do NOT attempt direct cross-agent fix.
+
+SHARED-FILE EDIT DISCIPLINE (last-writer-wins prevention):
+- On shared templates (Layout.astro, index.html, base.html.twig, etc.)
+  where meta tags + JSON-LD coexist, your sub-agents (hotfixer/feater)
+  MUST use `Edit` with a targeted `old_string` enclosing ONLY your
+  concern (meta tags). NEVER use `Write` (full-file rewrite) on shared
+  templates.
+- `Write` is allowed only on files where you are the sole owner:
+  sitemap.xml, .htaccess, legal pages, new city/service pages.
+- If full-template refactor is needed, STOP and emit as a cross-agent
+  note → user action in §11.
 
 Execute your agent spec at ~/.claude/agents/seo-analyzer.md starting
 at STEP 2 (skip STEP 0 and STEP 1 — context is provided above).
@@ -196,8 +238,20 @@ FILE OWNERSHIP (authoritative, prevents parallel-edit conflicts):
 - YOU READ-ONLY: sitemap.xml, .htaccess, meta tags, heading structure
   (seo-analyzer owns structure), legal pages, images, hreflang.
 - CROSS-AGENT NOTES: if you find issues in files you don't own, emit
-  them in your envelope under "CROSS-AGENT NOTES TO seo-analyzer:"
-  — the dispatcher forwards.
+  them in your envelope under "CROSS-AGENT NOTES TO seo-analyzer:".
+  Dispatcher escalates each note to SEO.md §11 as user action (with
+  automation options). Do NOT attempt direct cross-agent fix.
+
+SHARED-FILE EDIT DISCIPLINE (last-writer-wins prevention):
+- On shared templates (Layout.astro, index.html, base.html.twig, etc.)
+  where meta tags + JSON-LD coexist, your sub-agents (hotfixer/feater)
+  MUST use `Edit` with a targeted `old_string` enclosing ONLY your
+  concern (JSON-LD block). NEVER use `Write` (full-file rewrite) on
+  shared templates.
+- `Write` is allowed only on files where you are the sole owner:
+  robots.txt, llms.txt, llms-full.txt.
+- If full-template refactor is needed, STOP and emit as a cross-agent
+  note → user action in §11.
 
 Execute your agent spec at ~/.claude/agents/geo-analyzer.md starting
 at STEP 2 (skip STEP 0 and STEP 1 — context is provided above).
@@ -311,6 +365,29 @@ Legal compliance). Merge rule:
 - **Conflicting findings**: rare — if one agent says "remove schema X"
   and the other says "keep schema X", flag explicitly in §0 and let
   the user decide
+
+### CROSS-AGENT NOTES handling (Option B — §11 escalation)
+
+When an envelope contains a `CROSS-AGENT NOTES TO <other-agent>:`
+block, the dispatcher:
+
+1. Does NOT re-spawn the target agent (it has finished).
+2. Converts each note into a §11 user action entry with the format:
+   ```
+   ### <action title> (cross-agent note from <source-agent>)
+
+   **Contexte:** <source-agent> a détecté ce point dans un fichier
+   appartenant à <target-agent>, mais l'audit parallèle s'est terminé
+   avant échange.
+
+   **Action:** <what to do>
+
+   **Automatisation possible avec:** <pull from automation-catalog.md>
+
+   **Effort manuel:** <estimate>
+   ```
+3. Tags it visibly in §0 if it's a legal/compliance blocker.
+4. Keeps these notes visible on re-run — they don't silently vanish.
 
 ## STEP 3 — Console summary
 

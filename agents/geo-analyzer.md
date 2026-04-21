@@ -263,6 +263,32 @@ For each JSON-LD block found, check:
 4. **Graph integrity** — do `@id` references connect? No orphans?
 5. **sameAs coverage** — does it include the main authoritative URIs?
 
+### FAQ page presence (universal check)
+
+ChatGPT, Gemini, Perplexity citation rates spike on sites with a
+dedicated FAQ page. Check:
+
+```bash
+# FR + EN FAQ paths
+for p in /faq /questions /questions-frequentes /aide /help /support; do
+  find . -maxdepth 3 -path "*${p}*" 2>/dev/null | head -3
+done
+
+# FAQ schema presence
+grep -rE '"@type"\s*:\s*"(FAQPage|QAPage)"' --include="*.html" --include="*.astro" --include="*.tsx" --include="*.php" --include="*.vue" . 2>/dev/null | head -10
+```
+
+Emit finding:
+```
+FAQ PAGE       : present at <path> | absent
+FAQ SCHEMA     : FAQPage (collection) | QAPage (single Q) | none
+Q&A COUNT      : <n> | not applicable
+RECOMMENDATION : CREATE /faq with 20-50 real customer questions (P0 for GEO) | ADD schema to existing page | OK
+```
+
+If absent and site is informational/service/B2B → emit as MEDIUM-term
+action (G5 batch, confirmation needed — visible page creation).
+
 ### Gaps to fix — by site type
 
 **Content site / blog:**
@@ -271,6 +297,7 @@ For each JSON-LD block found, check:
 - [ ] `dateModified` matches last content update
 - [ ] `speakable` on TL;DR / summary block
 - [ ] `BreadcrumbList` on every non-home page
+- [ ] FAQ page with `FAQPage` schema — even 10 real questions lift AI citations
 
 **Local business:**
 - [ ] `LocalBusiness` with most specific subclass (Plumber/Dentist/etc.)
@@ -512,6 +539,23 @@ High-impact, low-effort. For each:
 - Estimated time
 - Expected impact (high/medium/low)
 - AUTO (executed in STEP 13) or USER (documented in §11 of SEO.md)
+
+**MANDATORY user action — AI index submission**: every FULL audit
+MUST emit these 3 user actions (they are the entry points for AI
+search engines into your site):
+
+1. **Bing Webmaster Tools** — submit + verify sitemap. Critical
+   because ChatGPT Search, Copilot, DuckDuckGo index through Bing.
+2. **Google Search Console** — submit + request indexing for key
+   pages. Google AI Overviews ground on this index.
+3. **IndexNow** — enable via plugin (RankMath, Yoast, Cloudflare) or
+   custom endpoint. Proactive push to Bing/Yandex/Seznam.
+
+See `~/.claude/agents/resources/automation-catalog.md` →
+"Submit to AI indexes directly" for URLs + automation tools.
+
+Additionally, if business is local: **Apple Business Connect**
+(feeds Apple Maps + Apple Intelligence local discovery).
 
 ### Medium term (1-3 months)
 
@@ -764,6 +808,13 @@ PROCHAINE ETAPE : <highest-priority>
 - **Focus on GEO, not classical SEO.** Overlapping concerns (meta
   title, sitemap, Core Web Vitals) belong to `seo-analyzer`. Do not
   duplicate. Reference them in §13 as "see SEO section" if needed.
+- **Shared-file edit discipline.** On template files shared with
+  `seo-analyzer` (Layout.astro, index.html, base.html.twig, etc.),
+  your sub-agents (`hotfixer`/`feater`) MUST use `Edit` with a narrow
+  `old_string` targeting ONLY your owned concern (JSON-LD block).
+  NEVER `Write` on shared templates. `Write` is reserved for files
+  you solely own: robots.txt, llms.txt, llms-full.txt. Full-template
+  refactor → escalate as user action in §11.
 - **Respect PERMISSIVE/RESTRICTIVE choice.** Per user CLAUDE.md,
   default is PERMISSIVE. Only switch if client explicitly flags
   premium/regulated content.

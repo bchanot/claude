@@ -52,11 +52,38 @@ See `ai-visibility-tools.md`. Summary:
 - **OtterlyAI, Peec AI, Trendos, ZipTie, HubSpot AEO, SE Ranking** — commercial
 - **Manual spreadsheet + 20 queries/mois** — free, ~1h/mois
 
-### Submit to AI indexes directly
+### Submit to AI indexes directly (MANDATORY user action on FULL audit)
 
-- **Bing Webmaster Tools** → submits to Bing + Copilot + ChatGPT Search (which uses Bing index)
-- **IndexNow protocol** (indexnow.org) → proactive ping to Bing/Yandex
-- **Google Search Console + URL Inspection** → request indexing (no ChatGPT index direct submit exists in 2026)
+AI engines read from these indexes:
+- ChatGPT Search, Copilot, DuckDuckGo, Ecosia → **Bing index**
+- Google AI Overviews, Gemini (grounding mode) → **Google index**
+- Perplexity, Brave AI → **own crawlers + Bing fallback**
+
+Therefore: submit to GSC + Bing Webmaster minimum on every FULL audit.
+
+- **Bing Webmaster Tools** (FREE) — https://www.bing.com/webmasters
+  Critical because ChatGPT Search, Copilot, DuckDuckGo all use Bing.
+  Features: URL inspection, sitemap submission, keyword research, SEO
+  reports, IndexNow API integration. Plugin for WordPress available.
+  Setup: 10 min (verify domain via meta tag or DNS).
+- **Google Search Console** (FREE) — https://search.google.com/search-console
+  Covers Google search + AI Overviews grounding. URL inspection tool
+  requests live re-indexing (faster than waiting for crawl).
+- **IndexNow protocol** (FREE) — https://www.indexnow.org
+  Proactive ping to Bing + Yandex + Seznam + DuckDuckGo. One-line
+  API call per URL change. Plugins: Yoast (built-in), RankMath,
+  Cloudflare (zone-level), Cloudflare Workers snippet. For custom
+  sites: `curl` POST to `https://api.indexnow.org/indexnow`.
+- **Brave Web Discovery** (FREE) — enable in Brave browser settings
+  → "Aider Brave Search à découvrir du contenu". Visit your site in
+  Brave browser to help its indexation. Brave Search uses this for
+  index discovery, and Brave AI answers pull from Brave Search.
+- **Kagi submit** (requires Kagi account) — smaller audience but
+  growing for privacy-focused search.
+- **Apple Business Connect** → Apple Maps + Apple Intelligence local
+  discovery. Free but requires Apple ID. https://businessconnect.apple.com
+- No direct "submit to ChatGPT" exists in 2026 — submission to Bing
+  is the canonical path.
 
 ### Maintain llms.txt / llms-full.txt
 
@@ -113,12 +140,121 @@ typically batch D (structural change, user approval needed).
 - **SEOClarity** (enterprise) → content decay tracking
 - **Manual** — spreadsheet of top 50 pages + quarterly review cycle
 
+## CMS plugin-first — install before editing templates
+
+**Rule**: when the site runs on a CMS, the highest-priority SEO action
+is to install/configure the SEO plugin. Manual template edits
+duplicate the plugin's output and create maintenance debt.
+
+### WordPress (2026 recommendations)
+
+- **RankMath Free** — default recommendation. Most features in free
+  tier, including Schema.org (Article, LocalBusiness, FAQ, HowTo,
+  Product), breadcrumbs, sitemap, redirect manager, GSC integration,
+  GEO-aware (content AI score).
+  Install: Plugins → Add New → "Rank Math SEO" → Install → Activate.
+  Setup wizard: ~10 min.
+- **Yoast SEO Free** — most popular. Strong for meta + sitemap +
+  readability. Schema.org basic in free, extended in Premium (99 USD/an).
+- **Yoast SEO Premium** (99 USD/an) — redirect manager, internal
+  linking suggestions, multiple focus keywords.
+- **SEOPress Free** — French origin, GDPR-friendly, good Schema.org
+  coverage.
+- **SEOPress Pro** (49-99 EUR/an) — white-label, WooCommerce Schema,
+  Google Analytics integration.
+- **AIOSEO (All-in-One SEO)** — older player, solid baseline.
+- **Slim SEO** — minimalist, auto-configuration, good for sites that
+  need SEO without admin complexity.
+
+Recommendation if unsure: **RankMath Free** → upgrade to RankMath Pro
+(59 USD/an) only if Analytics integration or Schema Pro needed.
+
+### Shopify
+
+- **Plug in SEO** (free + 20 USD/mois) — scans store for SEO issues,
+  suggests fixes, handles meta templates for products/collections.
+- **Smart SEO** (10-30 USD/mois) — auto-generates alt tags, meta
+  tags, JSON-LD (Product, Organization, Breadcrumbs).
+- **SEO Manager** (20 USD/mois) — image SEO, structured data, 404
+  redirects.
+- **Avada SEO** — newer, good GEO-aware features.
+- Shopify native: configure via Admin → Online Store → Preferences
+  (title, meta description, homepage), + per-product meta fields.
+
+### Drupal (7/8/9/10)
+
+Core SEO stack (install as modules, free):
+- **Metatag** — meta tags (OG, Twitter Card, canonical)
+- **Simple XML Sitemap** — sitemap generation
+- **Pathauto** — clean URLs
+- **Schema.org Metatag** — JSON-LD Schema.org output
+- **Yoast SEO Drupal** — on-page readability + focus keyword analysis
+- **Redirect** — 301 redirects
+- **Google Analytics** — GA4 integration
+
+### Magento 1 / 2
+
+Native Magento SEO is decent but limited. Paid extensions dominate:
+- **SEO Suite Ultimate (Mageworx)** — canonical, URL rewrites, rich
+  snippets, meta templates (~250-500 EUR one-time)
+- **Mirasvit SEO Suite** — similar scope, 149-399 USD
+- **Amasty SEO Toolkit** — HTML sitemap, rich snippets, meta
+  templates
+- Free basics: configure native URL rewrites + meta defaults in
+  System → Configuration → Catalog → SEO
+
+### PrestaShop
+
+- **PrestaShop SEO Expert** (free + paid) — meta templates, rich
+  snippets, image alt rules
+- **JMarket SEO Pack** — structured data + breadcrumbs
+- **Advanced SEO** module — meta per category/product with
+  placeholders
+- Native: Configure → Shop Parameters → Traffic & SEO
+
+### Joomla
+
+- **JoomSEF** — URL rewriting + meta management
+- **sh404SEF** — commercial (~60 EUR/year), full SEO suite
+- **4SEO** — native integration, comprehensive
+- **OSMap** — sitemap generator (free)
+
+### Ghost
+
+Native SEO is strong (meta + OG + Twitter Card + JSON-LD Article/Author
+out of box). Customization via theme `default.hbs` + routes.yaml.
+Plugins unnecessary for most sites.
+
+### Wix / Squarespace / Webflow (hosted CMS)
+
+**No theme file access.** All SEO changes happen in the admin UI:
+- **Wix** — SEO panel per page; Wix SEO Wiz for guided setup;
+  redirects in Settings → Custom Domain → URL Redirects.
+- **Squarespace** — Per-page SEO tab (title, description, image);
+  sitewide in Settings → Marketing → SEO; URL slugs editable.
+- **Webflow** — Page Settings per page (meta title, description,
+  OG image); sitemap at `/sitemap.xml` (auto); robots.txt in Project
+  Settings → SEO.
+
+Agent cannot auto-apply anything on these platforms — emit detailed
+USER action list per panel.
+
+### Extension of this catalog for NEW CMS
+
+If detected CMS not listed above, agent runs WebSearch:
+```
+web_search: <CMS name> best SEO plugin 2026
+```
+and emits findings with pricing in the report.
+
+---
+
 ## Technical SEO actions
 
 ### Generate sitemaps
 
 - **Framework plugin** — `@astrojs/sitemap`, `next-sitemap`, `@nuxtjs/sitemap`, `rails-sitemap-generator`, etc.
-- **Yoast / RankMath** (WordPress) → auto-generate
+- **Yoast / RankMath / SEOPress** (WordPress) → auto-generate (see CMS plugins section above)
 - **Screaming Frog** (200 GBP/an) → crawler-based generation
 - Manual: only as last resort, hand-maintained sitemaps go stale fast
 
