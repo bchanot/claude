@@ -187,7 +187,6 @@
     "disableAutoMode": "disable",
     "additionalDirectories": []
   },
-  "model": "opus",
   "hooks": {
     "SessionStart": [
       {
