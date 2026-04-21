@@ -159,7 +159,7 @@ Key routing rules:
 - Smart commit grouping → invoke commit-change
 - Security audit → invoke cso
 - Initialize new project from scratch → invoke init-project
-- Onboard existing project → invoke onboard
+- Onboard existing project (config + archetype detection + full audit pipeline + backlog) → invoke onboard
 
 Design gate (automatic):
 All lightweight skills (feat, hotfix, bugfix) include a design gate that auto-detects

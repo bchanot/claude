@@ -195,26 +195,60 @@ gsd                  # relancer
 /gsd auto            # reprend depuis l'état sauvegardé dans .gsd/
 ```
 
-### Pattern C — Projet existant (onboarding) · ~500-1000t (onboard) + normal ensuite
+### Pattern C — Projet existant (onboarding + audit complet) · ~3000-8000t (onboard full pipeline)
+
+`/onboard` est un **orchestrateur** qui fait bien plus que générer une config :
 
 ```
 cd mon-projet-existant/
 
 # Dans Claude Code :
 /onboard
-# → Scanne le projet (stack, structure, commandes, deps)
-# → Pose seulement les questions manquantes
-# → Génère CLAUDE.md, .claude/settings.json, .claudeignore
-# → Option : ROADMAP.md pour GSD v2
-
-/status              # confirmer que l'onboarding est complet + vue d'ensemble
-
-# Configurer les plugins pour ce projet
-/plugin-check "type du projet"
-
-# Reprendre le développement normalement
-/ship-feature "prochaine feature"
 ```
+
+**Pipeline exécuté par /onboard** (STEP 0 → STEP 9) :
+
+| STEP | Action | Livrable |
+|---|---|---|
+| 0  | plugin-advisor — détection signaux + activation plugins | recommandations plugins |
+| 1  | Archetype detection (scan ~/.claude/lib/project-archetypes/*.md) | archétype SELECTED + implications auto |
+| 1b | Gate monorepo (A/B/C si détecté) | mode choisi |
+| 2  | Config baseline (onboarder agent) | CLAUDE.md, settings.json, .claudeignore, tasks/ |
+| 3  | Interview deep = business minimum (users, deadlines, équipe, légal, perfs) + adaptative par archétype | brief enrichi |
+| 3.5| ctx7 doc audit — fast-libs détectées, cache pré-fetché si besoin | .ctx7-cache/ |
+| 4  | Graphify (si complexity ≥ 30%) | graphify-out/GRAPH_REPORT.md |
+| 5  | Analyze read-only (analyzer agent) | .onboard-audit/analyze.md |
+| 6  | Audits parallèles selon archétype : | .onboard-audit/*.md (9 fichiers max) |
+|    |   — dette tech (code-cleaner) |
+|    |   — sécurité (cso si gstack ON, sinon OWASP fallback) |
+|    |   — docs drift (doc-syncer) |
+|    |   — SEO + GEO (si public) |
+|    |   — design UI/UX (si frontend) |
+|    |   — performance (Lighthouse ou static bundle audit) |
+|    |   — accessibilité (axe ou static a11y audit) |
+| 7  | Synthèse structurée dans tasks/ | ONBOARD_REPORT, AUDIT_GOOD, AUDIT_ISSUES, AUDIT_PROPOSALS |
+| 8  | Validation gate utilisateur | choix A/B/C/D/E |
+| 9  | Backlog tasks/TODO.md séquencé avec /skill recommandé par tâche | TODO.md |
+
+**Hints optionnels :**
+```
+/onboard "Python FastAPI"              # hint stack
+/onboard force-archetype:wordpress     # override detection
+/onboard add gsd                       # générer ROADMAP.md pour GSD v2 (seul)
+```
+
+**Après /onboard :**
+```
+# Ouvrir le rapport exécutif
+cat tasks/ONBOARD_REPORT.md
+
+# Démarrer la première tâche P0 avec le skill recommandé
+# (indiqué dans tasks/TODO.md)
+/hotfix "<titre P0>"   # ou /feat, /ship-feature, /bugfix selon le cas
+```
+
+**Archétypes supportés (P1)** : static-html, wordpress, nextjs-app-router, astro-static, react-spa, rest-api-node, rest-api-python, cli-tool, library, dotfiles-meta.
+Ajouter un archétype : créer `~/.claude/lib/project-archetypes/<name>.md` (voir `_TEMPLATE.md`).
 
 ### Pattern D — Hotfix / bugfix · ~200-800t
 
