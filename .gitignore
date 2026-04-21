@@ -40,6 +40,11 @@ skills/setup-browser-cookies
 skills/setup-deploy
 skills/ship
 skills/unfreeze
+skills/benchmark-models
+skills/context-restore
+skills/context-save
+skills/make-pdf
+skills/plan-tune
 
 # Emil Design Engineering skill symlink — auto-created by link.sh
 skills/emil-design-eng
