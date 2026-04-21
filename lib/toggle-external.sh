@@ -8,6 +8,8 @@
 # as symlinks inside skills/. This script moves those symlinks
 # to/from skills-disabled/ so Claude Code stops/starts scanning them.
 #
+# MCP servers are toggled via `claude mcp add|remove` (not symlinks).
+#
 # Usage:
 #   toggle-external.sh list
 #   toggle-external.sh status <tool>
@@ -19,6 +21,7 @@
 #   emil-design-eng   — single symlink → skills-external/emil-design-eng
 #   darwin-skill      — single symlink → ~/.agents/skills/darwin-skill
 #   find-skills       — single symlink → ~/.agents/skills/find-skills
+#   magic             — 21st-dev Magic MCP server (API key in .env)
 # ============================================================
 set -euo pipefail
 
@@ -32,7 +35,18 @@ warn() { echo -e "${YELLOW}⚠${NC}  $1"; }
 err()  { echo -e "${RED}✗${NC} $1"; }
 
 # All non-plugin tools this script can toggle.
-MANAGED_TOOLS=(gstack emil-design-eng darwin-skill find-skills)
+MANAGED_TOOLS=(gstack emil-design-eng darwin-skill find-skills magic)
+
+# Load MAGIC_API_KEY (and any other secrets) from $REPO/.env if present.
+# Called only by the magic branch — other tools don't need env vars.
+load_env() {
+  if [ -z "${MAGIC_API_KEY:-}" ] && [ -f "$REPO/.env" ]; then
+    set -a
+    # shellcheck source=/dev/null
+    source "$REPO/.env"
+    set +a
+  fi
+}
 
 # Prints the names (directory basenames) that belong to "gstack".
 # Source of truth: skills-external/gstack/*/SKILL.md. The repo's
@@ -65,6 +79,14 @@ status_tool() {
       [ -d "$HOME/.agents/skills/$tool" ] || { echo "missing"; return; }
       [ -e "$SKILLS_DIR/$tool" ] && echo "enabled" || echo "disabled"
       ;;
+    magic)
+      command -v claude >/dev/null || { echo "missing"; return; }
+      if claude mcp list 2>/dev/null | grep -q '^magic:'; then
+        echo "enabled"
+      else
+        echo "disabled"
+      fi
+      ;;
     *)
       echo "unknown"; return 1 ;;
   esac
@@ -95,6 +117,14 @@ disable_tool() {
         ok "$tool disabled"
       else
         warn "$tool already disabled"
+      fi
+      ;;
+    magic)
+      if [ "$(status_tool magic)" = "enabled" ]; then
+        claude mcp remove magic -s user >/dev/null
+        ok "magic disabled"
+      else
+        warn "magic already disabled"
       fi
       ;;
     *) err "Unknown tool: $tool"; return 1 ;;
@@ -133,6 +163,21 @@ enable_tool() {
         err "$tool not installed — run: make plugin"
         return 1
       fi
+      ;;
+    magic)
+      load_env
+      if [ -z "${MAGIC_API_KEY:-}" ]; then
+        err "MAGIC_API_KEY not set — add it to $REPO/.env (template: .env.example)"
+        return 1
+      fi
+      if [ "$(status_tool magic)" = "enabled" ]; then
+        warn "magic already enabled"
+        return 0
+      fi
+      claude mcp add magic --scope user \
+        --env API_KEY="$MAGIC_API_KEY" \
+        -- npx -y @21st-dev/magic@latest
+      ok "magic enabled (user scope)"
       ;;
     *) err "Unknown tool: $tool"; return 1 ;;
   esac

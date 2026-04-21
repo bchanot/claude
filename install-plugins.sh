@@ -501,6 +501,38 @@ fi
 echo ""
 
 # ============================================================
+# STEP 8.7 — MAGIC MCP (21st-dev) — installed but DISABLED by default
+# ============================================================
+# Magic MCP is a stdio MCP server providing UI component generation
+# from 21st.dev. Toggled via lib/toggle-external.sh (same interface as
+# gstack, emil-design-eng, etc.). Registered in Claude Code user scope.
+#
+# Default policy: DISABLED at install time. Rationale: MCP tools load
+# into every Claude Code session and consume context tokens. Enable
+# only when you're actively using Magic.
+#
+# API key: read from $REPO/.env (MAGIC_API_KEY=...) — NEVER committed.
+# Template: $REPO/.env.example. Get a key at https://21st.dev/magic
+echo "── Step 8.7: Magic MCP (21st-dev) ──────────────────────────"
+echo ""
+if [ -x "$REPO/lib/toggle-external.sh" ]; then
+  MAGIC_STATUS="$(bash "$REPO/lib/toggle-external.sh" status magic 2>/dev/null || echo missing)"
+  if [ "$MAGIC_STATUS" = "enabled" ]; then
+    info "Disabling magic MCP by default (enable on demand)..."
+    bash "$REPO/lib/toggle-external.sh" disable magic >/dev/null
+    ok "magic MCP disabled — enable with: bash lib/toggle-external.sh enable magic"
+  else
+    ok "magic MCP disabled (default)"
+  fi
+  if [ ! -f "$REPO/.env" ] || ! grep -q '^MAGIC_API_KEY=' "$REPO/.env" 2>/dev/null; then
+    warn "MAGIC_API_KEY not found in $REPO/.env — copy .env.example and set your key before enabling"
+  fi
+else
+  warn "lib/toggle-external.sh not found or not executable — skipping"
+fi
+echo ""
+
+# ============================================================
 # STEP 9 — SHELL CONFIG (alias + env vars)
 # ============================================================
 echo "── Step 9: Claude Code shell config (alias + env vars) ─────"
@@ -573,6 +605,7 @@ echo "    🔄 graphifyy           — codebase knowledge graph (pipx, PreToolUs
 echo "    🔄 emil-design-eng     — UI polish, animations, component craft (curl → symlink)"
 echo "    🔄 darwin-skill        — autonomous skill optimizer (npx skills, ~/.agents/skills/)"
 echo "    🔄 find-skills         — skill discovery helper (npx skills, ~/.agents/skills/)"
+echo "    🔄 magic MCP           — 21st-dev UI generation MCP (toggle: lib/toggle-external.sh enable magic)"
 echo ""
 echo "  All plugins installed at: user scope (~/.claude/plugins/)"
 echo "  GStack skills symlinked individually into ~/.claude/skills/ (→ submodule)"

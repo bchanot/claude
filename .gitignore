@@ -66,6 +66,10 @@ graphify-out/
 # Install logs
 install-*.log
 
+# Local secrets (MCP API keys etc.) — use .env.example as template
+.env
+.env.local
+
 # OS
 .DS_Store
 Thumbs.db
