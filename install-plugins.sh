@@ -256,11 +256,18 @@ if [ -d "$GSTACK_DIR" ]; then
   else
     warn "GStack ./setup not found or not executable — skipping"
   fi
-  # Symlinks are handled by link.sh — verify it was run
-  if [ -L "$HOME/.claude/skills/gstack" ]; then
-    ok "GStack ready (submodule initialized, symlink OK)"
+
+  # Default policy: gstack is installed but DISABLED — enable on demand
+  # via `bash lib/toggle-external.sh enable gstack`. Rationale: gstack
+  # ships ~40 skills that all load into context; keep them off until
+  # the user signals a project where they matter (browser QA, deploy).
+  if [ -x "$REPO/lib/toggle-external.sh" ] \
+     && [ "$(bash "$REPO/lib/toggle-external.sh" status gstack 2>/dev/null)" = "enabled" ]; then
+    info "Disabling gstack by default (no context cost until enabled)..."
+    bash "$REPO/lib/toggle-external.sh" disable gstack >/dev/null
+    ok "gstack installed, disabled — enable with: bash lib/toggle-external.sh enable gstack"
   else
-    warn "GStack submodule ready but not symlinked — run: bash link.sh"
+    ok "GStack ready (submodule initialized, symlinks staged)"
   fi
 else
   warn "GStack submodule directory not found after init — check .gitmodules"
@@ -556,7 +563,7 @@ echo "    ✅ rtk                 — token compression hook (0 tokens)"
 echo "    ✅ superpowers         — brainstorm/plan/implement/debug workflow"
 echo ""
 echo "  TOGGLE (installed but start OFF — /plugin-check recommends when needed):"
-echo "    🔄 gstack              — ~/.claude/skills/gstack/ (→ submodule)"
+echo "    🔄 gstack              — disabled by default (toggle: lib/toggle-external.sh enable gstack)"
 echo "    🔄 gsd v2              — standalone CLI 'gsd' (gsd-pi, not a Claude Code plugin)"
 echo "    🔄 plugin-dev          — create plugins/skills (~100 tokens) [claude-code-plugins]"
 echo "    🔄 pr-review-toolkit   — /pr-review-toolkit:review-pr (~300 tokens) [claude-code-plugins]"

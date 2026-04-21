@@ -60,6 +60,14 @@ echo ""
 printf "  Proceed with GStack update? [y/N] "
 read -r _gstack_confirm
 if [[ "$_gstack_confirm" =~ ^[Yy]$ ]]; then
+  # Capture gstack state before the update so we can restore it after
+  # ./setup runs (setup re-creates every symlink; without this, an
+  # update would silently re-enable a tool the user had disabled).
+  _gstack_state="unknown"
+  if [ -x "$REPO/lib/toggle-external.sh" ]; then
+    _gstack_state=$(bash "$REPO/lib/toggle-external.sh" status gstack 2>/dev/null || echo "unknown")
+  fi
+
   if git submodule update --remote skills-external/gstack 2>/dev/null; then
     if [ -d "skills-external/gstack" ]; then
       if [ -x "skills-external/gstack/setup" ]; then
@@ -75,6 +83,12 @@ if [[ "$_gstack_confirm" =~ ^[Yy]$ ]]; then
     fi
   else
     warn "GStack submodule update failed — run: git submodule update --init"
+  fi
+
+  # Restore prior enabled/disabled state
+  if [ "$_gstack_state" = "disabled" ] && [ -x "$REPO/lib/toggle-external.sh" ]; then
+    bash "$REPO/lib/toggle-external.sh" disable gstack >/dev/null
+    info "gstack was disabled before update — restored to disabled"
   fi
 else
   info "GStack update skipped"
