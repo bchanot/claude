@@ -456,6 +456,44 @@ fi
 echo ""
 
 # ============================================================
+# STEP 8.5 — EXTERNAL SKILLS (npx skills add …)
+# ============================================================
+# Cross-agent skills distributed via the `skills` npm package
+# (vercel-labs/skills). Installed into ~/.agents/skills/ and
+# symlinked into $REPO/skills/ by link.sh using absolute paths.
+echo "── Step 8.5: External skills via npx ──────────────────────"
+echo ""
+
+NPX_SKILLS=(
+  "alchaincyf/darwin-skill"
+  "alchaincyf/find-skills"
+)
+
+if ! command -v npx &>/dev/null; then
+  warn "npx not available — skipping external skills"
+else
+  for _src in "${NPX_SKILLS[@]}"; do
+    _name="${_src##*/}"
+    _dst="$HOME/.agents/skills/$_name"
+    if [ -d "$_dst" ]; then
+      ok "$_name already installed ($_dst)"
+      continue
+    fi
+    info "Installing $_name via: npx -y skills add $_src"
+    if npx -y skills add "$_src" 2>/dev/null; then
+      if [ -d "$_dst" ]; then
+        ok "$_name installed"
+      else
+        warn "$_name installed but not at expected path $_dst"
+      fi
+    else
+      err "$_name install failed — run manually: npx -y skills add $_src"
+    fi
+  done
+fi
+echo ""
+
+# ============================================================
 # STEP 9 — SHELL CONFIG (alias + env vars)
 # ============================================================
 echo "── Step 9: Claude Code shell config (alias + env vars) ─────"
@@ -526,10 +564,13 @@ echo "    🔄 ui-ux-pro-max       — user scope (~400 tokens)"
 echo "    🔄 context7 CLI        — ctx7 (npm global, standalone or MCP setup)"
 echo "    🔄 graphifyy           — codebase knowledge graph (pipx, PreToolUse hook)"
 echo "    🔄 emil-design-eng     — UI polish, animations, component craft (curl → symlink)"
+echo "    🔄 darwin-skill        — autonomous skill optimizer (npx skills, ~/.agents/skills/)"
+echo "    🔄 find-skills         — skill discovery helper (npx skills, ~/.agents/skills/)"
 echo ""
 echo "  All plugins installed at: user scope (~/.claude/plugins/)"
-echo "  GStack at: ~/.claude/skills/gstack/ (symlink → submodule)"
+echo "  GStack skills symlinked individually into ~/.claude/skills/ (→ submodule)"
 echo "  Emil Design Eng at: ~/.claude/skills/emil-design-eng/ (symlink → skills-external)"
+echo "  npx skills at: ~/.agents/skills/ (symlinked into ~/.claude/skills/)"
 echo ""
 echo "  → Restart Claude Code — plugins load automatically"
 echo ""

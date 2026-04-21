@@ -210,6 +210,32 @@ else
   info "emil-design-eng not installed — skipping (run: make plugin)"
 fi
 
+# ── 7.5. Update external skills (npx skills) ──
+echo ""
+echo "── Updating external skills (npx skills)..."
+if command -v npx &>/dev/null; then
+  NPX_SKILLS=(
+    "alchaincyf/darwin-skill"
+    "alchaincyf/find-skills"
+  )
+  for _src in "${NPX_SKILLS[@]}"; do
+    _name="${_src##*/}"
+    if [ ! -d "$HOME/.agents/skills/$_name" ]; then
+      info "$_name not installed — skipping (run: make plugin)"
+      continue
+    fi
+    # `skills add` is idempotent and pulls latest from the source repo,
+    # which is the closest thing to an update operation the CLI exposes.
+    if npx -y skills add "$_src" 2>/dev/null; then
+      ok "$_name refreshed from $_src"
+    else
+      warn "$_name refresh failed — run manually: npx -y skills add $_src"
+    fi
+  done
+else
+  info "npx not available — skipping external skills"
+fi
+
 # ── 8. Update marketplace plugins ──
 echo ""
 echo "── Updating marketplace plugins..."
@@ -220,7 +246,9 @@ if command -v claude &>/dev/null; then
     while IFS= read -r _p; do
       _name="${_p%%@*}"
       info "Updating $_name..."
-      if claude plugin update "$_name" 2>/dev/null; then
+      # Pass the full "name@marketplace" spec — the CLI rejects
+      # the bare name when several marketplaces are registered.
+      if claude plugin update "$_p" 2>/dev/null; then
         ok "$_name updated"
       else
         warn "$_name update failed"

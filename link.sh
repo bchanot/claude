@@ -57,6 +57,27 @@ else
   echo "⚠️  emil-design-eng not found — run: make plugin"
 fi
 
+# External skills installed via `npx skills add` live under
+# $HOME/.agents/skills/. We symlink them into $REPO/skills/ with
+# absolute paths so the link stays valid regardless of where the
+# repo is cloned (relative ../../ paths broke on repos deeper than
+# one level below $HOME).
+NPX_EXTERNAL_SKILLS=(darwin-skill find-skills)
+for _ext in "${NPX_EXTERNAL_SKILLS[@]}"; do
+  _target="$HOME/.agents/skills/$_ext"
+  _link="$REPO/skills/$_ext"
+  if [ ! -d "$_target" ]; then
+    echo "⚠️  $_ext not installed at $_target — run: make plugin"
+    continue
+  fi
+  if [ -L "$_link" ] && [ "$(readlink "$_link")" = "$_target" ]; then
+    continue
+  fi
+  rm -f "$_link"
+  ln -sf "$_target" "$_link"
+  CHANGED=$((CHANGED + 1))
+done
+
 if [ "$CHANGED" -eq 0 ]; then
   echo "✅ All symlinks already up to date."
 else

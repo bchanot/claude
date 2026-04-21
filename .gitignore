@@ -44,6 +44,10 @@ skills/unfreeze
 # Emil Design Engineering skill symlink — auto-created by link.sh
 skills/emil-design-eng
 
+# External skills installed via `npx skills add` — auto-created by link.sh
+skills/darwin-skill
+skills/find-skills
+
 # Local project config (per-machine, not shared)
 .claude/
 
