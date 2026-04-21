@@ -35,14 +35,18 @@ for item in hooks agents skills lib templates; do
   CHANGED=$((CHANGED + 1))
 done
 
-if [ -d "$REPO/skills-external/gstack" ]; then
-  if [ -L "$CLAUDE/skills/gstack" ] && [ "$(readlink "$CLAUDE/skills/gstack")" = "$REPO/skills-external/gstack" ]; then
-    : # already correct
-  else
-    ln -sf "$REPO/skills-external/gstack" "$CLAUDE/skills/gstack"
-    CHANGED=$((CHANGED + 1))
-  fi
-else
+# GStack is exposed via per-skill symlinks under skills/ (browse,
+# canary, autoplan, design-review, …) created by gstack's own
+# `./setup`. A global `skills/gstack -> skills-external/gstack/`
+# symlink duplicated the top-level gstack SKILL.md alongside those
+# individual skills, producing two entries with the same description
+# ("Fast headless browser for QA testing…"). Remove any stale global
+# link — only per-skill entries remain.
+if [ -L "$REPO/skills/gstack" ] || [ -L "$CLAUDE/skills/gstack" ]; then
+  rm -f "$REPO/skills/gstack" "$CLAUDE/skills/gstack"
+  CHANGED=$((CHANGED + 1))
+fi
+if [ ! -d "$REPO/skills-external/gstack" ]; then
   echo "⚠️  GStack submodule not found — run: git submodule update --init"
 fi
 

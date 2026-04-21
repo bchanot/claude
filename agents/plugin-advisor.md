@@ -18,8 +18,10 @@ Detect active plugins and project signals. Recommend enable/disable. Apply compa
 # Claude Code plugins
 claude plugin list 2>/dev/null || echo "plugin-list-unavailable"
 
-# GStack skills count (toggle CC plugin)
-ls $HOME/.claude/skills/gstack/skills/ 2>/dev/null | wc -l || echo "0"
+# External (non-marketplace) tools status — gstack, emil-design-eng,
+# darwin-skill, find-skills. Managed by lib/toggle-external.sh since
+# `claude plugin enable|disable` does not apply to them.
+bash "$HOME/.claude/lib/toggle-external.sh" list 2>/dev/null || echo "toggle-external-unavailable"
 
 # Context7 CLI
 command -v ctx7 &>/dev/null && ctx7 --version 2>/dev/null | head -1 || echo "ctx7-not-installed"
@@ -270,6 +272,23 @@ RULE: IF `complex-arch` signal (multiple services, event bus, distributed system
 ```
 
 ---
+
+## TOGGLING EXTERNAL TOOLS
+
+Marketplace plugins toggle via `claude plugin enable|disable <name>@<marketplace>`.
+Non-marketplace tools (gstack per-skill symlinks, emil-design-eng, darwin-skill,
+find-skills) toggle via `bash $HOME/.claude/lib/toggle-external.sh enable|disable <tool>`.
+
+When a recommendation flips the state of one of those tools, emit the exact
+command — never write files directly.
+
+```
+# Enable gstack for a browser-QA signal:
+bash $HOME/.claude/lib/toggle-external.sh enable gstack
+
+# Disable darwin-skill when passive cost is too high for a hotfix:
+bash $HOME/.claude/lib/toggle-external.sh disable darwin-skill
+```
 
 ## BLOCK if
 

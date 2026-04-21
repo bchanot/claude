@@ -33,7 +33,10 @@ detect_security_guidance() {
 # --- Toggle plugins ---
 
 detect_gstack() {
-  [ -d "$HOME/.claude/skills/gstack" ]
+  # gstack is exposed via per-skill symlinks (browse, canary, qa, …);
+  # the legacy top-level symlink was removed to avoid duplicate entries.
+  # Detect by checking any of its individual skills.
+  [ -L "$HOME/.claude/skills/browse" ] || [ -L "$HOME/.claude/skills/qa" ]
 }
 
 detect_gsd() {

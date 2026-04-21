@@ -48,6 +48,9 @@ skills/emil-design-eng
 skills/darwin-skill
 skills/find-skills
 
+# Staging area used by lib/toggle-external.sh when disabling a tool
+skills-disabled/
+
 # Local project config (per-machine, not shared)
 .claude/
 
