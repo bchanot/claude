@@ -28,7 +28,9 @@ Apply unless repo-specific instructions override.
 3. If neither exists, create both before starting.
 
 ## Workflow
-- Non-trivial task (3+ steps): write plan in `tasks/TODO.md` first. Confirm before implementing.
+- Write/modify task touching logic (new behavior, control flow, state, API, dependencies): plan in `tasks/TODO.md` first, decomposed into subtasks. Task count doesn't matter — one complex task still requires a plan. When in doubt about complexity, skip the plan (be pragmatic).
+- Confirm before implementing only when real trade-offs exist (multiple valid approaches, breaking change, destructive action) — otherwise proceed.
+- Exempt from `TODO.md`: pure reads, explanations, questions, typos, cosmetic CSS tweaks, single config-value changes. Aligns with `/hotfix` scope (≤2 files, obvious fix).
 - Minimal changes unless broader refactor requested. State trade-offs.
 - Use sub-agents to keep main context clean — one task per sub-agent. Invest more compute on hard problems.
 - One question upfront if needed — never interrupt mid-task. *(Exception: orchestrators' mandatory validation gates — example, /init-project STEP 4/7, /ship-feature STEP 3 — are exempt.)*
@@ -45,10 +47,13 @@ Apply unless repo-specific instructions override.
 5. After any correction: append to `tasks/LESSONS.md` — `[date] | what went wrong | rule to avoid it`.
 
 ## Task tracking (`tasks/TODO.md`)
-1. Plan → write before implementing.
-2. Confirm → explicit approval before starting.
-3. Track → mark done as you go.
-4. Summarize → high-level summary at each major step.
+
+Applies to any write/modify task touching logic, regardless of task count. Skip for reads and trivial edits (see Workflow).
+
+1. Plan → write the task in `tasks/TODO.md` before touching code.
+2. Decompose → split each complex task into subtasks (one subtask = one coherent change).
+3. Track → check off subtasks as you go.
+4. Summarize → high-level summary at each milestone.
 
 ## Context Navigation (graphify)
 - Use `/graphify query` ONLY for large-scope tasks: multi-file features, complex bug investigations, architectural changes, major refactors.
