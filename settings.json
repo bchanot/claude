@@ -216,7 +216,8 @@
     "command": "bash ~/.claude/hooks/statusline.sh"
   },
   "enabledPlugins": {
-    "example-skills@anthropic-agent-skills": true
+    "example-skills@anthropic-agent-skills": true,
+    "ui-ux-pro-max@ui-ux-pro-max-skill": true
   },
   "extraKnownMarketplaces": {
     "claude-code-plugins": {

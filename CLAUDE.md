@@ -146,8 +146,8 @@ Key routing rules:
 - Update docs after shipping → invoke document-release, or doc if no gstack
 - Stale docs audit, doc sync → invoke doc
 - Weekly retro → invoke retro
-- Design system, brand → invoke design-consultation
-- Visual audit, design polish → invoke design-review
+- Design system, brand → invoke design-consultation and use ui-ux-pro-max if available
+- Visual audit, design polish → invoke design-review which call ui-ux-pro-max
 - Architecture review → invoke plan-eng-review
 - Save progress, checkpoint, resume → invoke checkpoint
 - Code quality, health check → invoke health
