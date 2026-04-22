@@ -208,7 +208,7 @@ Print : `🔗 Knowledge graph : graphify-out/GRAPH_REPORT.md (N nodes, M edges)`
 
 ---
 
-## STEP 4.5 — AUDIT WORKSPACE
+## STEP 4.5 — AUDIT WORKSPACE + ARCHETYPE CONTEXT
 
 Créer le dossier transitoire `.onboard-audit/` à la racine projet :
 
@@ -220,6 +220,33 @@ grep -q '^\.onboard-audit/' .gitignore 2>/dev/null || \
 ```
 
 Ce dossier contient les sorties brutes des audits (L3a+L3b). STEP 7 (L4) les synthétise vers `tasks/`. Peut être supprimé après L4 sans perte.
+
+### Injection contexte archétype
+
+Extraire de `~/.claude/lib/project-archetypes/<archetype>.md` les blocs qui rendent les audits sécu/dette **vraiment contextuels** (pas de checklist web injectée sur du firmware). Écrire dans `.onboard-audit/archetype-context.md` :
+
+```bash
+ARCH_FILE="$HOME/.claude/lib/project-archetypes/<archetype>.md"
+OUT=".onboard-audit/archetype-context.md"
+
+{
+  echo "# Archetype context — <archetype>"
+  echo
+  # Frontmatter: name, category, public, database
+  echo "## Profile"
+  awk '/^---$/{n++; next} n==1' "$ARCH_FILE" | grep -E '^(name|category|public|database):'
+  echo
+  # Section "## Implications" (contient "Surface sécurité")
+  echo "## Implications"
+  awk '/^## Implications/{p=1; next} p && /^## [A-Z]/{p=0} p' "$ARCH_FILE"
+  echo
+  # Section "## Typical pain points" (source vérité pour audits adaptatifs)
+  echo "## Typical pain points"
+  awk '/^## Typical pain points/{p=1; next} p && /^## [A-Z]/{p=0} p' "$ARCH_FILE"
+} > "$OUT"
+```
+
+Ce fichier est lu par les prompts cso/analyze/code-clean pour cibler leurs checks sur les vulnérabilités **réellement applicables** à l'archétype (ex: buffer overflow + secure boot pour `firmware-embedded`, supply chain + export leakage pour `library`, XSS + CSRF pour `nextjs-app-router`).
 
 ---
 
@@ -311,35 +338,99 @@ Agent(
 bash $HOME/.claude/lib/toggle-external.sh list 2>/dev/null | grep -E "^gstack\s+(enabled|on)"
 ```
 
-- **gstack ON** → invoquer le skill cso via Skill tool :
+- **gstack ON** → invoquer le skill cso via Skill tool en lui passant le contexte archétype :
   ```
-  Skill(skill="cso", args="comprehensive --report-only --output .onboard-audit/cso.md")
+  Skill(skill="cso", args="comprehensive --report-only --output .onboard-audit/cso.md --archetype <archetype> --context-file .onboard-audit/archetype-context.md")
   ```
-  Note : le skill cso écrit son rapport lui-même ; on redirige via `--output` si supporté, sinon on capture la sortie et on écrit `.onboard-audit/cso.md` dans le skill parent.
+  Note : le skill cso écrit son rapport lui-même ; on redirige via `--output` si supporté, sinon on capture la sortie et on écrit `.onboard-audit/cso.md` dans le skill parent. Les flags `--archetype` / `--context-file` informent le skill même s'il ne les consomme pas nativement (lisibilité + compat future).
 
-- **gstack OFF** → fallback via Agent general-purpose :
+- **gstack OFF** → fallback via Agent general-purpose, prompt **archetype-adaptive** :
   ```
   Agent(
     subagent_type="general-purpose",
-    description="Onboard — security audit fallback",
+    description="Onboard — security audit fallback (archetype-adaptive)",
     prompt="""
     READ-ONLY security audit. No file modifications.
-    Target: <PROJECT_ROOT>. ARCHETYPE: <archetype>. Stack: <stack>.
-    Coverage (OWASP-aligned + supply chain):
-      1. Secrets in repo (git grep for API_KEY, TOKEN, PASSWORD, .env committed)
-      2. Dependencies with known vulns (npm audit / pip-audit / cargo audit if available, non-destructive)
-      3. SQL injection risks (string-concat queries — grep for 'SELECT.*\\+' patterns)
-      4. XSS risks (dangerouslySetInnerHTML, v-html, innerHTML, template render unsanitized)
-      5. Authentication (hardcoded tokens, weak hash, missing rate limits)
-      6. CORS / CSP misconfig
-      7. Outdated runtime (Node <18, Python <3.9, PHP <8.1, etc.)
-      8. .env.example exists? .env committed?
-      9. Missing SECURITY.md
-      10. Docker image base (scratch vs latest vs pinned) if Dockerfile present
-    Write report to `<PROJECT_ROOT>/.onboard-audit/cso.md` with sections above,
-    each issue cite fichier:ligne, sévérité Critique/Haute/Moyenne/Basse.
-    Note en haut du rapport : "FALLBACK MODE — gstack cso skill not active, coverage limited."
-    Max 500 lignes.
+    Target: <PROJECT_ROOT>. ARCHETYPE: <archetype>. Category: <category>. Stack: <stack>.
+
+    STEP 0 — Lire <PROJECT_ROOT>/.onboard-audit/archetype-context.md.
+    Il contient : le profil de l'archétype (category, public, database), les "Implications" (dont
+    "Surface sécurité"), et les "Typical pain points" applicables. **Tous les checks ci-dessous
+    doivent être filtrés/priorisés selon ce contexte — ne pas chercher du XSS dans du firmware.**
+
+    Checks UNIVERSELS (toujours, quel que soit l'archétype) :
+      1. Secrets en repo : git grep -iE '(API_KEY|TOKEN|PASSWORD|SECRET|PRIVATE_KEY)\\s*=' -- ':!*.md'
+      2. `.env` committé ? `.env.example` présent avec placeholders ?
+      3. Dépendances avec failles connues (npm audit / pip-audit / cargo audit / govulncheck — non-destructif)
+      4. Runtime obsolète (Node <20, Python <3.10, PHP <8.2, Go <1.21, Rust MSRV documenté ?)
+      5. Présence d'un SECURITY.md (politique disclosure)
+      6. Si Dockerfile : image de base pinnée (pas `latest`), user non-root, multi-stage ?
+
+    Checks CONDITIONNELS (appliquer SI et seulement si la catégorie matche) :
+
+    ─── category ∈ {framework, api, ecommerce, cms} (web surface) ───
+      - SQL injection : chaînes concaténées dans queries (grep 'SELECT.*\\+', f-strings SQL, string interp)
+      - XSS : dangerouslySetInnerHTML, v-html, innerHTML, `{{{...}}}`, template render non-échappé
+      - AuthN/AuthZ : tokens en dur, JWT sans signature vérifiée, sessions sans flags Secure/HttpOnly/SameSite
+      - CORS : `Access-Control-Allow-Origin: *` sur routes auth
+      - CSP : présence d'un header / meta, pas de `unsafe-inline` / `unsafe-eval`
+      - HTTPS : redirect http→https forcé, HSTS header, cookies avec flag Secure
+      - CSRF : tokens anti-CSRF sur forms mutants (POST/PUT/DELETE)
+      - Rate limiting sur endpoints sensibles (login, reset password, signup)
+      - Path traversal : `../` non validé sur uploads / file serving
+
+    ─── category == embedded (firmware / MCU) ───
+      - Buffer overflows : `strcpy`, `strcat`, `sprintf`, `gets` sans bounds check
+      - `malloc` dans ISR ou section critique
+      - Stack size suffisant ? Watchdog activé ?
+      - Secure Boot activé ? Firmware signing ?
+      - OTA : signature vérifiée avant flash ?
+      - JTAG / SWD fuses disable en prod ?
+      - Debug logs (`printf` UART) actifs en release ?
+      - Secrets / keys compilés en dur (extractibles par flash dump) ?
+      - Flags compilateur : `-Wall -Wextra -Werror` + `-fstack-protector-strong` ?
+      - Downgrade attacks : version min du firmware vérifiée avant OTA ?
+
+    ─── category == library (package réutilisable) ───
+      - Supply chain : deps transitives avec CVEs (audit strict)
+      - Exports publics : leakage depuis internes (`export *` abusif, __init__.py qui ré-exporte tout) ?
+      - Types lâches : `any` en TypeScript sur surface publique, `py.typed` manquant, `#[non_exhaustive]` oublié sur enums Rust publics
+      - Semver : changelog cohérent ? Breaking changes documentés ?
+      - SECURITY.md disclosure policy obligatoire
+
+    ─── category == cli ───
+      - Argument injection : `exec`/`spawn`/`subprocess` avec interpolation d'args user sans quoting
+      - Path traversal : paths user-fournis sans normalisation
+      - Privilèges : nécessite sudo/admin ? Scope minimal ?
+      - Binaires deps (git, docker, ffmpeg) : version vérifiée avant exec ?
+      - Signal handling : SIGINT → cleanup propre (pas de state corruption) ?
+
+    ─── category == infra (terraform / docker-compose / k8s) ───
+      - Credentials hardcodées dans `.tf`, `docker-compose.yml`, helm values
+      - Terraform state committé (`terraform.tfstate`, `*.tfstate.backup`) ?
+      - IAM policies avec wildcards (`"Action": "*"`, `"Resource": "*"`) ?
+      - Secrets : secret manager (Vault/KMS/SSM) vs env var brute ?
+      - Network : security groups / firewalls ouverts (0.0.0.0/0) ?
+
+    ─── category == data-science (notebooks) ───
+      - `.ipynb` committés avec outputs contenant creds DB ou PII
+      - Datasets avec PII non anonymisées committés
+      - Notebook en prod (`.ipynb` exécuté directement) vs extraction en module ?
+
+    ─── category == desktop (Electron / Tauri) ───
+      - `nodeIntegration: true` + `contextIsolation: false` = RCE via XSS renderer
+      - `webSecurity: false` — ne jamais désactiver
+      - IPC : channels non validés côté main
+      - Auto-updater : signature vérifiée ?
+
+    Pour chaque issue trouvée : fichier:ligne, sévérité (Critique/Haute/Moyenne/Basse), rattachement
+    explicite au pain point de l'archétype si c'est un mapping direct.
+
+    Write report to `<PROJECT_ROOT>/.onboard-audit/cso.md` avec :
+      - En-tête : "ARCHETYPE-ADAPTIVE mode — checklist tuned for <archetype> (<category>). gstack cso skill not active."
+      - Section "Universal" puis sections conditionnelles effectivement exécutées
+      - Sections non applicables : ne PAS les inclure (pas de "N/A — skip")
+    Max 600 lignes (plus large que default pour accommoder les checks archetype-spécifiques).
     """
   )
   ```

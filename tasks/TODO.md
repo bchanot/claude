@@ -40,3 +40,11 @@
 - [x] Adapter scoring, legal, GEO aux deux niveaux
 - [x] Renumeroter proprement (0-14) + corriger toutes les refs internes
 - [ ] Commit
+
+## /onboard — cso archetype-aware
+Problème : prompt cso fallback est non-adaptatif — cherche XSS/SQLi/CORS même sur firmware.
+Objectif : charger `## Typical pain points` + `Surface sécurité` de l'archétype et les injecter dans le prompt cso.
+- [x] STEP 4.5 → ajouter extraction de archetype-context.md (pain points + Surface sécurité + category) — validé sur firmware-embedded / nextjs-app-router / library
+- [x] STEP 6 dispatch cso fallback → re-écrire prompt : universal checks + sections conditionnelles par category (web / embedded / library / cli / infra / data / desktop)
+- [x] STEP 6 dispatch cso gstack ON → passer `--archetype <name> --context-file .onboard-audit/archetype-context.md` dans args
+- [ ] OUT-OF-SCOPE ce fix : étendre le pattern à analyze/code-clean/doc (déjà reçoivent `ARCHETYPE: <name>`, juste pas le context-file). À faire dans un 2e passage si besoin.
