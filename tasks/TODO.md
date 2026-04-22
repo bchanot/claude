@@ -67,3 +67,42 @@ Subtasks :
 - [x] Mettre à jour `skills/harden/SKILL.md` — W3C/a11y redirigé vers /validate
 - [x] Mettre à jour `skills/seo/SKILL.md` — cross-ref /validate pour W3C/WCAG
 - [x] Grep cohérence : refs /validate correctes, skill détecté par la harness
+
+## Helper `--help` / `help` sur tous les skills (option C)
+Problème : aucun skill ne gère `--help` aujourd'hui. `argument-hint` affiche juste la syntaxe en autocomplétion, pas de description/exemples. L'utilisateur doit lire le SKILL.md ou deviner.
+
+Objectif : `/<skill> --help` (ou `/<skill> help`) affiche un bloc standardisé (description, args, exemples, cross-refs) et exit SANS dispatcher l'agent ni modifier quoi que ce soit.
+
+Design :
+- **Lib partagée** : créer `skills/lib/help-handler.md` — snippet réutilisable "if $ARGUMENTS contains --help|help|-h, extract frontmatter fields (description, argument-hint, cross-refs) + afficher bloc d'aide standardisé + STOP".
+- **Format d'aide** standardisé :
+  ```
+  /<skill> — <titre court>
+
+  DESCRIPTION
+    <extrait de la frontmatter description, dépouillé des Triggers>
+
+  USAGE
+    /<skill> <argument-hint>
+
+  ARGUMENTS
+    <liste détaillée de chaque flag avec son effet — nouvelle section
+     dans les SKILL.md, ou parsée depuis STEP 0 arg parsing>
+
+  EXAMPLES
+    <3-4 exemples concrets>
+
+  SEE ALSO
+    <extrait des "For X → use /Y" de la frontmatter>
+  ```
+- **Intégration** : ajouter STEP 0.5 ("Handle --help") dans chaque SKILL.md juste après STEP 0 parsing args. Ordre : parse args → check --help → si oui afficher + exit → sinon continuer.
+- **Skills à patcher** : `~/Documents/claude/skills/` = ~20 skills persos + skills-perso list pour référence. Ne PAS toucher skills-external/gstack (ownership externe) ni example-skills.
+
+Subtasks :
+- [ ] Créer `skills/lib/help-handler.md` — snippet réutilisable (détection + extraction + affichage)
+- [ ] Définir format d'aide standard + section "ARGUMENTS" vs reuse de argument-hint
+- [ ] Décider : sections ARGUMENTS/EXAMPLES doivent-elles être dans la frontmatter (nouveau champ YAML) ou dans le corps du SKILL.md (nouvelle section `## Help`) ?
+- [ ] Patcher un skill pilote (`/validate`) — valider UX
+- [ ] Patcher les skills perso restants : analyze, bugfix, code-clean, commit-change, doc, feat, geo, graphify, harden, hotfix, init-project, make-pdf, onboard, plan-tune, plugin-check, refactor, seo, ship-feature, skills-perso, status, benchmark-models, context-save, context-restore
+- [ ] Mettre à jour `~/.claude/CLAUDE.md` — mentionner convention --help disponible sur tous les skills perso
+- [ ] Note : skills-external/gstack ont leur propre convention, ne pas toucher
