@@ -17,6 +17,8 @@ description: |
   "AI search", "GEO", "llms.txt", "ChatGPT visibility", "Perplexity",
   "Google AI Overview".
   For GEO-only audit → use /geo.
+  For W3C HTML/CSS validity + WCAG a11y → use /validate (syntactic conformance,
+  not ranking signals).
   For code-only bugs → use /bugfix. For feature work → use /feat.
 argument-hint: optional keywords/scope, e.g. "local SEO plombier 91 94 77" or "SaaS B2B content strategy"
 allowed-tools:

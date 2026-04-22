@@ -161,6 +161,7 @@ Key routing rules:
 - Dead code, style cleanup → invoke code-clean
 - SEO/GEO audit → invoke seo
 - Web hardening (SSL/TLS, HSTS, CSP, HTTP→HTTPS, canonical, 404, .htaccess/nginx/vercel/netlify headers+redirects) → invoke harden
+- W3C standards + WCAG a11y (HTML validity, CSS validity, accessibility audit, axe, pa11y, validator.w3.org, normes W3C) → invoke validate
 - Deep analysis before any modification → invoke analyze
 - Smart commit grouping → invoke commit-change
 - Security audit (secrets, deps CVE, OWASP code-level) → invoke cso

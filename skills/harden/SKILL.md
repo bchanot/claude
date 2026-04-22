@@ -352,7 +352,8 @@ Agent(
     - Legal pages (mentions légales, CGV, privacy) — unless the issue is
       a security-header gap on those pages, not their content
     - Content quality, keyword density, readability
-    - a11y / WCAG (owned by /onboard a11y dispatch)
+    - a11y / WCAG (owned by /validate — W3C + WCAG audit)
+    - W3C HTML / CSS syntactic validity (owned by /validate)
 
   If you detect an out-of-scope issue, DROP IT silently. Do NOT mention
   it even as a "note". Stay focused.

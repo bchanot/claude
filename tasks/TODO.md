@@ -48,3 +48,22 @@ Objectif : charger `## Typical pain points` + `Surface sécurité` de l'archéty
 - [x] STEP 6 dispatch cso fallback → re-écrire prompt : universal checks + sections conditionnelles par category (web / embedded / library / cli / infra / data / desktop)
 - [x] STEP 6 dispatch cso gstack ON → passer `--archetype <name> --context-file .onboard-audit/archetype-context.md` dans args
 - [ ] OUT-OF-SCOPE ce fix : étendre le pattern à analyze/code-clean/doc (déjà reçoivent `ARCHETYPE: <name>`, juste pas le context-file). À faire dans un 2e passage si besoin.
+
+## /validate — nouveau skill W3C + WCAG (option A)
+Scope : W3C HTML validity (validator.nu API) + W3C CSS validity (jigsaw API) + WCAG a11y (axe-core CLI / pa11y / WAVE API / fallback statique). Même pattern que /harden (audit par défaut, --fix avec confirmation A/B/C/D). Rapport = VALIDATE.md racine. Complémentaire à /onboard (qui audite a11y au setup initial — /validate est l'outil on-demand réutilisable).
+
+Design décisions :
+- **Agent dédié** : `agents/validator-analyzer.md` (nouveau). Pas de réutilisation de seo-analyzer — scope différent (validité syntaxique vs indexabilité).
+- **Depth** : LOCAL (fichiers HTML/CSS statiques, tools npm locaux si dispo) | FULL (URL live + APIs distantes W3C/WAVE).
+- **External validators** : validator.nu/?out=json (HTML), jigsaw.w3.org/css-validator (CSS), WAVE API optionnelle (quota gratuit ~100/mois), axe-cli local, pa11y-cli local.
+- **Tools fallback order** : npm tools locaux → APIs distantes → agent général statique (cas onboard). Aucun install forcé.
+- **--fix conservateur** : `alt=""` sur images décoratives évidentes, `lang` sur `<html>`, fermetures de tags manquantes, sauts de niveau heading renumérotés. PAS : labels forms, contraste couleurs, landmarks (demandent décision humaine).
+- **Out of scope** : meta tags/SEO → /seo ; JSON-LD → /geo ; security headers → /harden ; code linting générique (ESLint/Prettier) → hors scope web standards.
+
+Subtasks :
+- [x] Créer `agents/validator-analyzer.md` — spec 6 étapes (478 lignes)
+- [x] Créer `skills/validate/SKILL.md` — dispatcher (378 lignes)
+- [x] Ajouter routage `/validate` dans `~/.claude/CLAUDE.md` section "Skill routing"
+- [x] Mettre à jour `skills/harden/SKILL.md` — W3C/a11y redirigé vers /validate
+- [x] Mettre à jour `skills/seo/SKILL.md` — cross-ref /validate pour W3C/WCAG
+- [x] Grep cohérence : refs /validate correctes, skill détecté par la harness
