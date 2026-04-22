@@ -160,9 +160,10 @@ Key routing rules:
 - Refactor without behavior change → invoke refactor
 - Dead code, style cleanup → invoke code-clean
 - SEO/GEO audit → invoke seo
+- Web hardening (SSL/TLS, HSTS, CSP, HTTP→HTTPS, canonical, 404, .htaccess/nginx/vercel/netlify headers+redirects) → invoke harden
 - Deep analysis before any modification → invoke analyze
 - Smart commit grouping → invoke commit-change
-- Security audit → invoke cso
+- Security audit (secrets, deps CVE, OWASP code-level) → invoke cso
 - Initialize new project from scratch → invoke init-project
 - Onboard existing project (config + archetype detection + full audit pipeline + backlog) → invoke onboard
 
