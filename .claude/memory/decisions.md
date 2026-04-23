@@ -24,6 +24,7 @@ rules:
 |----|------|-------|--------|
 | BDR-001 | 2026-04-22 | --help helper uniforme via hook post-start (option C) | accepted |
 | BDR-002 | 2026-04-23 | Restructurer tasks/ + memory + audits sous .claude/ | accepted |
+| BDR-003 | 2026-04-23 | Gitignore pattern wildcard + négations pour .claude/ | accepted |
 
 ---
 
@@ -49,3 +50,15 @@ rules:
   - Utiliser `.claude/agent-memory/` pour tout — refusée : `agent-memory/` a un rôle distinct (déjà utilisé par d'autres outils).
   - Rituel uniquement en texte aspirationnel dans CLAUDE.md — refusée : zéro garantie d'exécution, les registres resteraient vides.
   - Hook `Stop` pour poser les 3 questions à chaque tour — refusée : trop bruyant.
+
+## BDR-003 — Gitignore pattern wildcard + négations pour `.claude/`
+
+- **Date** : 2026-04-23
+- **Statut** : accepted
+- **Décision** : utiliser `.claude/*` (wildcard match des enfants immédiats) + négations `!.claude/tasks/`, `!.claude/memory/`, etc., plutôt que `.claude/` (ignore récursif).
+- **Pourquoi** : quand un parent est ignoré via `.claude/`, git n'entre pas dans le dossier (pour la perf) et les négations sur les enfants sont **ignorées** — c'est documenté dans `gitignore(5)`. Avec `.claude/*`, git match chaque enfant individuellement, ce qui rend les négations actives.
+- **Alternatives rejetées** :
+  - `.claude/` + `!.claude/tasks/` (naïf) — refusée : les négations n'ont aucun effet, tout reste ignoré.
+  - Retirer `.claude/` du gitignore entièrement — refusée : `.claude/settings.local.json` et `.claude/agent-memory/` doivent rester ignorés (per-machine).
+  - Ajouter les paths à tracker dans `.gitattributes` ou un outil externe — refusée : over-engineering, git gère nativement.
+- **Référence** : commit `499cd07`, `git check-ignore -v` vérifié sur 4 paths (2 trackés, 2 ignorés).
