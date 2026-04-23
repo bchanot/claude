@@ -141,7 +141,7 @@ Do NOT call the `/refactor` skill — invoke the agent directly.
 
 If cleanup reveals actual bugs (not style issues — real defects):
 
-- Append each bug to `BUGS-FOUND.md` at project root:
+- Append each bug to `.claude/audits/BUGS-FOUND.md` (run `mkdir -p .claude/audits` first):
   ```
   ## [date] Bug found during code-clean
   - **File**: <file:line>
@@ -178,7 +178,7 @@ REFACTORED:
 SKIPPED (user decision):
 - <item> — <reason>
 
-BUGS FOUND: <N> (logged to BUGS-FOUND.md)
+BUGS FOUND: <N> (logged to .claude/audits/BUGS-FOUND.md)
 
 TESTS: passing / no test suite / <failures>
 ```
@@ -192,7 +192,7 @@ TESTS: passing / no test suite / <failures>
 - No "while we're here" scope creep. Only fix approved items.
 - Exported/public API symbols require explicit per-item user confirmation
   before deletion — even if they appear unused.
-- Bugs go to BUGS-FOUND.md, not fixed in this workflow.
+- Bugs go to .claude/audits/BUGS-FOUND.md, not fixed in this workflow.
 - If the codebase has no tests and the changes are non-trivial,
   warn the user about the risk before executing.
 - No plugin check (lightweight skill, not an orchestrator).

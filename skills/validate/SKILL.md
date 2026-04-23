@@ -4,7 +4,7 @@ description: |
   Web standards audit — W3C HTML validity (validator.nu), W3C CSS
   validity (jigsaw.w3.org/css-validator), WCAG 2.1 accessibility
   (axe-core, pa11y, WAVE API). Dedicated to syntactic and
-  accessibility conformance. Produces VALIDATE.md at project root.
+  accessibility conformance. Produces .claude/audits/VALIDATE.md.
   Dispatches the validator-analyzer agent with a STRICT scope
   filter — no meta/OG/JSON-LD/CWV/security-header noise.
   Trigger: "validate", "validation", "w3c", "html validity",
@@ -220,7 +220,7 @@ Agent(
       "READY TO APPLY — awaiting dispatcher confirmation" at the end
       of §5. Do NOT apply any Edit/Write — the dispatcher handles STEP 3.
 
-  Output: write <PROJECT_ROOT>/VALIDATE.md per the structure in your
+  Output: write <PROJECT_ROOT>/.claude/audits/VALIDATE.md (run `mkdir -p .claude/audits` first) per the structure in your
   spec (sections 0-8, score XX/100).
   """
 )
@@ -231,23 +231,23 @@ Agent(
 ## STEP 2 — Verify output
 
 ```bash
-test -s VALIDATE.md && wc -l VALIDATE.md || echo "MISSING VALIDATE.md"
+test -s .claude/audits/VALIDATE.md && wc -l .claude/audits/VALIDATE.md || echo "MISSING .claude/audits/VALIDATE.md"
 ```
 
 If missing or empty :
 ```
-⚠️  validator-analyzer did not produce VALIDATE.md. Options :
+⚠️  validator-analyzer did not produce .claude/audits/VALIDATE.md. Options :
   A) Retry with same scope
   B) Downgrade to LOCAL and retry (if FULL failed on network)
   C) Abort
 ```
 
-Extract the score and critical-alert count from VALIDATE.md for the
+Extract the score and critical-alert count from `.claude/audits/VALIDATE.md` for the
 console summary :
 
 ```bash
-grep -oE '\*\*Score\*\*\s+:\s+[0-9]+ / 100' VALIDATE.md | head -1
-grep -c '^### \[Critique\]' VALIDATE.md
+grep -oE '\*\*Score\*\*\s+:\s+[0-9]+ / 100' .claude/audits/VALIDATE.md | head -1
+grep -c '^### \[Critique\]' .claude/audits/VALIDATE.md
 ```
 
 ---
@@ -256,7 +256,7 @@ grep -c '^### \[Critique\]' VALIDATE.md
 
 Skip this step if `MODE=audit`.
 
-If VALIDATE.md ends with `READY TO APPLY — awaiting dispatcher confirmation` :
+If `.claude/audits/VALIDATE.md` ends with `READY TO APPLY — awaiting dispatcher confirmation` :
 
 1. Parse the `## 5. Fix bundle` section.
 2. Group by file. For each group, show the combined diff to the user.
@@ -276,7 +276,7 @@ Options :
   A) Apply all
   B) Review each diff before applying
   C) Apply only Critique + Haute
-  D) Abort — keep VALIDATE.md as audit report
+  D) Abort — keep .claude/audits/VALIDATE.md as audit report
 ```
 
 4. On `A` : apply each bundle via `Edit` (targeted `old_string` /
@@ -284,7 +284,7 @@ Options :
    overwriting /seo or /geo content — meta tags, JSON-LD).
 5. On `B` : for each diff, show and ask yes/no/skip.
 6. On `C` : filter to Critique + Haute, then behave as `A`.
-7. On `D` : stop, leave VALIDATE.md untouched.
+7. On `D` : stop, leave `.claude/audits/VALIDATE.md` untouched.
 
 After applying, append a `## 8. Changes applied` section with
 commit-ready summary lines :
@@ -322,7 +322,7 @@ URL              : <url or static>
 Depth            : LOCAL | FULL
 Mode             : audit | fix
 Score            : XX / 100  (<before> → <after> if fix applied)
-Report           : VALIDATE.md
+Report           : .claude/audits/VALIDATE.md
 
 BREAKDOWN :
   W3C HTML         : <N errors / M warnings>
@@ -367,8 +367,7 @@ Install for better LOCAL coverage :
 - **External validators are authoritative on live URLs.** validator.nu
   and jigsaw are the W3C backends. If a local tool disagrees with
   them, trust the W3C backend; flag the divergence as a finding.
-- **One report file.** `VALIDATE.md` at project root (or
-  `docs/VALIDATE.md` if that convention exists). On re-run, move
+- **One report file.** `.claude/audits/VALIDATE.md`. On re-run, move
   previous content to a `## Historique` section, do not overwrite
   silently.
 - **Cache dir.** `.validate-cache/` (gitignored) stores raw tool

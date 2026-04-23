@@ -37,9 +37,9 @@ $ARGUMENTS
 
 ## Note on integration
 
-If `SEO.md` already exists at project root, the geo-analyzer will
+If `.claude/audits/SEO.md` already exists, the geo-analyzer will
 merge its findings into that file's `§7 — Optimisation GEO / IA`
 section (rather than writing a separate `GEO.md`). This keeps a
 single consolidated report when both /seo and /geo have been run.
 
-If no `SEO.md` exists, the agent writes `GEO.md` at project root.
+If no `.claude/audits/SEO.md` exists, the agent writes `.claude/audits/GEO.md` (run `mkdir -p .claude/audits` first).

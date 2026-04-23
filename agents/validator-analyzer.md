@@ -1,6 +1,6 @@
 ---
 name: validator-analyzer
-description: Web standards audit agent — W3C HTML validity (validator.nu), W3C CSS validity (jigsaw.w3.org), WCAG 2.1 accessibility (axe-core, pa11y, WAVE). Dispatched from /validate. Produces scored VALIDATE.md report with concrete diffs for auto-fixable issues and user actions for judgment-required fixes. Complementary to /harden (security), /seo (indexability), /geo (AI extraction).
+description: Web standards audit agent — W3C HTML validity (validator.nu), W3C CSS validity (jigsaw.w3.org), WCAG 2.1 accessibility (axe-core, pa11y, WAVE). Dispatched from /validate. Produces scored .claude/audits/VALIDATE.md report with concrete diffs for auto-fixable issues and user actions for judgment-required fixes. Complementary to /harden (security), /seo (indexability), /geo (AI extraction).
 tools: Read, Edit, Write, Bash, Grep, Glob, WebFetch
 ---
 
@@ -287,7 +287,7 @@ RGAA 4.1 (French public sector).
 
 ---
 
-## STEP 4 — Score + VALIDATE.md
+## STEP 4 — Score + .claude/audits/VALIDATE.md
 
 ### Scoring
 
@@ -306,7 +306,7 @@ Base 100. Deductions :
 
 Clamp to [0, 100].
 
-### Report structure — write to `<PROJECT_ROOT>/VALIDATE.md`
+### Report structure — write to `<PROJECT_ROOT>/.claude/audits/VALIDATE.md` (run `mkdir -p .claude/audits` first)
 
 ```markdown
 # Validation Report — <project name>
@@ -455,7 +455,7 @@ READY TO APPLY — awaiting dispatcher confirmation
 - **Single agent, narrow scope.** W3C HTML + W3C CSS + WCAG 2.1 only.
   Drop anything else (meta tags, JSON-LD, perf, security, generic linting).
 - **Degrade gracefully.** Missing tools → fall back to static checks.
-  Never fail hard. Always produce VALIDATE.md, even in degraded mode.
+  Never fail hard. Always produce .claude/audits/VALIDATE.md, even in degraded mode.
 - **Framework awareness.** For SPA/JS frameworks (Next/Astro/Vite/
   SvelteKit/Nuxt), validate built output (`dist/`, `_site/`, `build/`,
   `out/`), not JSX/TSX source. Note "Validated against built HTML at
@@ -464,8 +464,7 @@ READY TO APPLY — awaiting dispatcher confirmation
   STOP, return control via `READY TO APPLY`.
 - **Cite evidence.** Every finding : `file:line` + tool output quote.
   Empty findings or hand-waving = bug.
-- **One report.** `VALIDATE.md` at project root (or `docs/VALIDATE.md`
-  if convention exists). On re-run, move previous content to a
+- **One report.** `.claude/audits/VALIDATE.md`. On re-run, move previous content to a
   `## Historique` section — do not overwrite silently.
 - **External validators are authoritative.** If validator.nu disagrees
   with `html-validate`, trust validator.nu. If jigsaw disagrees with

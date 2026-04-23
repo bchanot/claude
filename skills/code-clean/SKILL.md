@@ -7,7 +7,7 @@ description: |
   Trigger: "code-clean", "clean up the code", "remove dead code",
   "enforce code style", "cleanup", "nettoyage du code", "code hygiene".
   For targeted refactoring without audit → use /refactor instead.
-  For bug fixes discovered during cleanup → logged to BUGS-FOUND.md, not fixed here.
+  For bug fixes discovered during cleanup → logged to .claude/audits/BUGS-FOUND.md, not fixed here.
 argument-hint: <file, directory, or blank for entire project>
 disable-model-invocation: false
 allowed-tools:

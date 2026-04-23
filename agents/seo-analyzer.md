@@ -877,7 +877,7 @@ SEO AGENT RESULT (depth: <LOCAL|FULL>)
 ```
 
 **If standalone `/seo` on a project without `/geo`**: write/update
-`SEO.md` at project root. Structure matches classic format, with §7
+`.claude/audits/SEO.md` (run `mkdir -p .claude/audits` first). Structure matches classic format, with §7
 (GEO) marked as "Not audited — run /geo for GEO/AI optimization".
 
 ```markdown

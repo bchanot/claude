@@ -8,7 +8,7 @@ description: |
   (.htaccess, nginx.conf, netlify.toml, vercel.json, _headers, _redirects,
   wrangler.toml). Dispatches the seo-analyzer agent with a STRICT scope
   filter — no meta/OG/JSON-LD/sitemap/CWV/headings/alt/i18n noise.
-  Produces HARDEN.md at project root.
+  Produces .claude/audits/HARDEN.md.
   Trigger: "harden", "web hardening", "ssl audit", "https audit",
   "hsts", "csp", "security headers", "http to https", "redirect audit",
   "htaccess audit", "404 page", "canonical audit", "transport security",
@@ -366,7 +366,7 @@ Agent(
       "READY TO APPLY — awaiting dispatcher confirmation" at the end.
       Do NOT apply any Edit/Write — the dispatcher handles STEP 3.
 
-  OUTPUT — write to <PROJECT_ROOT>/HARDEN.md :
+  OUTPUT — write to <PROJECT_ROOT>/.claude/audits/HARDEN.md (run `mkdir -p .claude/audits` first) :
 
     # Web Hardening Report — <project_name>
 
@@ -504,18 +504,18 @@ cached (now-READY) SSL Labs result.
 ## STEP 2 — Verify output
 
 ```bash
-test -s HARDEN.md && wc -l HARDEN.md || echo "MISSING HARDEN.md"
+test -s .claude/audits/HARDEN.md && wc -l .claude/audits/HARDEN.md || echo "MISSING .claude/audits/HARDEN.md"
 ```
 
 If missing or empty :
 ```
-⚠️  seo-analyzer did not produce HARDEN.md. Options:
+⚠️  seo-analyzer did not produce .claude/audits/HARDEN.md. Options:
   A) Retry with same scope
   B) Downgrade to LOCAL and retry (if FULL failed on network)
   C) Abort
 ```
 
-Extract the score and critical-alert count from HARDEN.md for the console summary.
+Extract the score and critical-alert count from `.claude/audits/HARDEN.md` for the console summary.
 
 ---
 
@@ -523,9 +523,9 @@ Extract the score and critical-alert count from HARDEN.md for the console summar
 
 Skip this step if MODE=audit.
 
-If MODE=fix and HARDEN.md ends with `READY TO APPLY — awaiting dispatcher confirmation` :
+If MODE=fix and `.claude/audits/HARDEN.md` ends with `READY TO APPLY — awaiting dispatcher confirmation` :
 
-1. Parse the `## 8. Fix bundle` section from HARDEN.md.
+1. Parse the `## 8. Fix bundle` section from `.claude/audits/HARDEN.md`.
 2. Group by file. For each group, show the combined diff to the user.
 3. Ask :
    ```
@@ -539,15 +539,15 @@ If MODE=fix and HARDEN.md ends with `READY TO APPLY — awaiting dispatcher conf
      A) Apply all
      B) Review each diff before applying
      C) Apply only Critique severity
-     D) Abort — keep HARDEN.md as audit report
+     D) Abort — keep .claude/audits/HARDEN.md as audit report
    ```
 4. On `A` : apply each bundle via Edit (targeted old_string/new_string,
    never full-file Write on shared templates).
 5. On `B` : for each diff, show and ask yes/no/skip.
 6. On `C` : filter to Critique-only, then behave as `A`.
-7. On `D` : stop, leave HARDEN.md untouched.
+7. On `D` : stop, leave `.claude/audits/HARDEN.md` untouched.
 
-After applying : append a `## 10. Changes applied` section to HARDEN.md
+After applying : append a `## 10. Changes applied` section to `.claude/audits/HARDEN.md`
 with commit-ready summary lines.
 
 Never apply fixes without explicit confirmation. Never use `--no-verify`
@@ -563,8 +563,8 @@ URL              : <url or static>
 Depth            : LOCAL | FULL
 Mode             : audit | fix
 Score            : XX / 100  (<before> → <after> if fix applied)
-Critical alerts  : <N>  (voir HARDEN.md § 0)
-Report           : HARDEN.md
+Critical alerts  : <N>  (voir .claude/audits/HARDEN.md § 0)
+Report           : .claude/audits/HARDEN.md
 
 EXTERNAL VALIDATORS (FULL only) :
   Mozilla Observatory   : <Grade>   (score/135)
@@ -613,6 +613,5 @@ NEXT STEPS :
 - **SSL Labs can be slow and fail-soft.** 180s poll cap. If TIMEOUT,
   note it in HARDEN.md and move on. Cached result auto-hits on next run
   via `maxAge=24`. Never block the whole audit waiting on SSL Labs.
-- **One report file.** `HARDEN.md` at project root (or `docs/HARDEN.md`
-  if that convention exists). On re-run, move previous content to a
+- **One report file.** `.claude/audits/HARDEN.md`. On re-run, move previous content to a
   `## Historique` section, do not overwrite silently.

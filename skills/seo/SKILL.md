@@ -5,7 +5,7 @@ description: |
   Runs the seo-analyzer (classical search — Google, Bing, DuckDuckGo)
   and geo-analyzer (AI search — ChatGPT, Perplexity, Claude, Gemini,
   Google AI Overviews, Copilot) IN PARALLEL, then consolidates their
-  output into a unified SEO.md report.
+  output into a unified .claude/audits/SEO.md report.
   Covers: meta, OG, JSON-LD (classical + GEO-optimised schemas),
   sitemap, robots.txt (including AI crawlers), llms.txt, headings,
   alt attrs, canonicals, hreflang, Core Web Vitals, entity SEO
@@ -36,7 +36,7 @@ allowed-tools:
 # /seo — parallel SEO + GEO dispatcher
 
 This skill orchestrates TWO specialist agents running in parallel, then
-merges their output into a single `SEO.md` report. It is the main
+merges their output into a single `.claude/audits/SEO.md` report. It is the main
 entry point for any SEO/GEO work on a web project.
 
 ## STEP 0 — Collect shared context (ONCE)
@@ -267,8 +267,8 @@ the dispatcher will merge your output with seo-analyzer's output.
 ## STEP 2 — Merge envelopes into SEO.md
 
 Both agents return structured envelopes keyed by SEO.md section
-numbers. Consolidate them into a single `SEO.md` at project root
-(or `docs/SEO.md` if that convention exists).
+numbers. Consolidate them into `.claude/audits/SEO.md`
+(run `mkdir -p .claude/audits` first).
 
 ### Combined score calculation
 
