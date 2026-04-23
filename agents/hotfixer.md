@@ -74,6 +74,18 @@ Load `$HOME/.claude/agents/doc-syncer.md`.
 Execute in automatic mode:
 `auto-mode scope: <list of files modified during this session>`
 
+## STEP 5 — CAPITALIZE (memory registries, lightweight)
+
+Hotfixes are often trivial (typo, config, import) — skip by default. But if the fix revealed something non-obvious:
+
+- Wrong default that should never have been merged → propose `LRN-XXX` in `.claude/memory/learnings.md`.
+- Bug that cost real time to locate despite being "superficial" → propose `BLK-XXX` in `.claude/memory/blockers.md` (status: resolved).
+
+Default behaviour: `CAPITALIZE: hotfix trivial, skip` (no prompt, no output).
+Ask the user only when there is an actual candidate to propose.
+
+Always append a 1-line entry to today's heading in `.claude/memory/journal.md` (even trivial hotfix — journal is timeline, not signal).
+
 ---
 
 ## RULES

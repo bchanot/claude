@@ -119,6 +119,32 @@ Load `$HOME/.claude/agents/doc-syncer.md`.
 Execute in automatic mode:
 `auto-mode scope: <list of files modified during this session>`
 
+## STEP 9 — CAPITALIZE (memory registries)
+Feature shipped implies at least one design decision worth capturing. Run this before declaring done:
+
+1. Scan conversation context for:
+   - **Design / architecture choices with rationale** → candidate for `decisions.md` (BDR-XXX).
+   - **Reusable patterns, surprising discoveries** → candidate for `learnings.md` (LRN-XXX).
+   - **Dead-ends with identified root cause** → candidate for `blockers.md` (BLK-XXX).
+2. For each candidate, pre-fill a full entry (ID, date, title, body per registry schema) from conversation context.
+3. Present them grouped:
+   ```
+   CAPITALIZE — registres proposés
+   
+   [ decisions.md ]
+     BDR-XXX — <titre> — <1-line why>
+   [ learnings.md ]
+     LRN-XXX — <pattern>
+   [ blockers.md ]
+     (aucun)
+   
+   Valider lesquels ? (all / <IDs> / edit / skip)
+   ```
+4. Append approved entries to the registries. Update the Index table at the top of each file.
+5. Append a one-line entry to `.claude/memory/journal.md` under today's date heading (`## YYYY-MM-DD`).
+
+If nothing substantive to log → print `CAPITALIZE: rien à logger (travail trivial)` and skip.
+
 ---
 
 ## RULES

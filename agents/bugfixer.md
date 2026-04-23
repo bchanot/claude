@@ -129,6 +129,27 @@ Load `$HOME/.claude/agents/doc-syncer.md`.
 Execute in automatic mode:
 `auto-mode scope: <list of files modified during this session>`
 
+## STEP 7 — CAPITALIZE (memory registries)
+
+A bugfix with an understood root cause is almost always worth one entry:
+
+1. Propose a `BLK-XXX` entry in `.claude/memory/blockers.md` pre-filled from STEP 3 diagnosis:
+   - `friction` = symptom
+   - `real_cause` = root cause identified
+   - `solution` = the fix applied
+   - `status` = resolved
+2. If the root cause exposed a **reusable pattern** (would catch the same bug elsewhere or in other projects) → also propose an `LRN-XXX` entry in `.claude/memory/learnings.md`.
+3. Present as:
+   ```
+   CAPITALIZE — proposé
+     BLK-XXX — <friction> — resolved
+     [LRN-XXX — <pattern>]   (optionnel)
+   Valider ? (all / blockers-only / edit / skip)
+   ```
+4. Append approved entries + update the Index. Add a line to today's heading in `.claude/memory/journal.md`.
+
+If the bug was trivial and the root cause not transferable → skip with `CAPITALIZE: trivial, skip`.
+
 ---
 
 ## RULES

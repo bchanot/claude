@@ -119,6 +119,25 @@ Load `$HOME/.claude/agents/doc-syncer.md`.
 Execute in automatic mode:
 `auto-mode scope: <list of files modified during this session>`
 
+## STEP 6 — CAPITALIZE (memory registries)
+
+A small feature may or may not involve a design choice. Scan the work for:
+
+- **Non-trivial design choice** (even small: a library pick, a naming convention, a data-model tradeoff) → propose `BDR-XXX` in `.claude/memory/decisions.md` with alternatives considered.
+- **Reusable pattern or gotcha encountered** → propose `LRN-XXX` in `.claude/memory/learnings.md`.
+
+Present the candidates grouped:
+```
+CAPITALIZE — proposé
+  [decisions.md]   BDR-XXX — <titre> (optionnel)
+  [learnings.md]   LRN-XXX — <pattern> (optionnel)
+Valider ? (all / <IDs> / edit / skip)
+```
+
+Always append a 1-line entry to today's heading in `.claude/memory/journal.md`.
+
+If no substantive capture candidate → skip with `CAPITALIZE: rien à logger`.
+
 ---
 
 ## RULES

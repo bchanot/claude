@@ -100,3 +100,29 @@ when the diff alone isn't self-explanatory.
   artificially split what was done as one action
 - **Sensitive files** (.env, credentials, keys): warn the user and
   exclude them from commits by default
+
+### Phase 4: Capitalize (memory registries)
+
+After all commits are created, inspect the set as a whole:
+
+- Any commit that represents a **design/architecture choice** (new dependency,
+  refactor with rationale, API shape decision) → propose an entry in
+  `.claude/memory/decisions.md` (BDR-XXX) with pre-filled alternatives.
+- Any commit that resolves a **non-trivial bug with a root cause** → propose
+  an entry in `.claude/memory/blockers.md` (BLK-XXX, status: resolved).
+- Any commit whose content taught something **reusable beyond the immediate fix**
+  (a pattern, a gotcha, a surprising API behaviour) → propose an entry in
+  `.claude/memory/learnings.md` (LRN-XXX).
+
+Present grouped candidates:
+```
+CAPITALIZE — depuis les <N> commits créés
+  [decisions.md]   BDR-XXX — <titre> (ref commit <hash>)
+  [blockers.md]    BLK-XXX — <friction> — resolved (ref commit <hash>)
+  [learnings.md]   LRN-XXX — <pattern>
+Valider ? (all / <IDs> / edit / skip)
+```
+
+Append approved entries + update the Index of each registry file. Add a line to today's heading in `.claude/memory/journal.md` summarising the commit batch.
+
+If all commits are pure chore/docs/style with nothing to log → skip with `CAPITALIZE: rien à logger`.
