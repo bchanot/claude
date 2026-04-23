@@ -213,7 +213,7 @@ cd mon-projet-existant/
 | 0  | plugin-advisor — détection signaux + activation plugins | recommandations plugins |
 | 1  | Archetype detection (scan ~/.claude/lib/project-archetypes/*.md) | archétype SELECTED + implications auto |
 | 1b | Gate monorepo (A/B/C si détecté) | mode choisi |
-| 2  | Config baseline (onboarder agent) | CLAUDE.md, settings.json, .claudeignore, tasks/ |
+| 2  | Config baseline (onboarder agent) | CLAUDE.md, settings.json, .claudeignore, .claude/tasks/ + .claude/memory/ + .claude/audits/ |
 | 3  | Interview deep = business minimum (users, deadlines, équipe, légal, perfs) + adaptative par archétype | brief enrichi |
 | 3.5| ctx7 doc audit — fast-libs détectées, cache pré-fetché si besoin | .ctx7-cache/ |
 | 4  | Graphify (si complexity ≥ 30%) | graphify-out/GRAPH_REPORT.md |
@@ -226,9 +226,9 @@ cd mon-projet-existant/
 |    |   — design UI/UX (si frontend) |
 |    |   — performance (Lighthouse ou static bundle audit) |
 |    |   — accessibilité (axe ou static a11y audit) |
-| 7  | Synthèse structurée dans tasks/ | ONBOARD_REPORT, AUDIT_GOOD, AUDIT_ISSUES, AUDIT_PROPOSALS |
+| 7  | Synthèse structurée dans .claude/audits/ | ONBOARD_REPORT, AUDIT_GOOD, AUDIT_ISSUES, AUDIT_PROPOSALS |
 | 8  | Validation gate utilisateur | choix A/B/C/D/E |
-| 9  | Backlog tasks/TODO.md séquencé avec /skill recommandé par tâche | TODO.md |
+| 9  | Backlog .claude/tasks/TODO.md séquencé avec /skill recommandé par tâche | .claude/tasks/TODO.md |
 
 **Hints optionnels :**
 ```
@@ -240,10 +240,10 @@ cd mon-projet-existant/
 **Après /onboard :**
 ```
 # Ouvrir le rapport exécutif
-cat tasks/ONBOARD_REPORT.md
+cat .claude/audits/ONBOARD_REPORT.md
 
 # Démarrer la première tâche P0 avec le skill recommandé
-# (indiqué dans tasks/TODO.md)
+# (indiqué dans .claude/tasks/TODO.md)
 /hotfix "<titre P0>"   # ou /feat, /ship-feature, /bugfix selon le cas
 ```
 
