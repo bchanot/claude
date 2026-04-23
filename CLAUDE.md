@@ -23,14 +23,14 @@ Apply unless repo-specific instructions override.
 - Non-trivial change: ask "more elegant solution exists?" Hacky fix → rebuild cleanly. Don't over-engineer.
 
 ## Session start
-1. Read `tasks/LESSONS.md` — apply all lessons before touching anything.
-2. Read `tasks/TODO.md` — understand current state.
-3. If neither exists, create both before starting.
+1. Read `.claude/memory/` — the 5 registries (decisions, learnings, blockers, journal, evals). Apply before touching anything.
+2. Read `.claude/tasks/TODO.md` — understand current state.
+3. If `.claude/memory/` or `.claude/tasks/TODO.md` is missing, create before starting (templates at `~/.claude/templates/memory/`).
 
 ## Workflow
-- Write/modify task touching logic (new behavior, control flow, state, API, dependencies): plan in `tasks/TODO.md` first, decomposed into subtasks. Task count doesn't matter — one complex task still requires a plan. When in doubt about complexity, skip the plan (be pragmatic).
+- Write/modify task touching logic (new behavior, control flow, state, API, dependencies): plan in `.claude/tasks/TODO.md` first, decomposed into subtasks. Task count doesn't matter — one complex task still requires a plan. When in doubt about complexity, skip the plan (be pragmatic).
 - Confirm before implementing only when real trade-offs exist (multiple valid approaches, breaking change, destructive action) — otherwise proceed.
-- Exempt from `TODO.md`: pure reads, explanations, questions, typos, cosmetic CSS tweaks, single config-value changes. Aligns with `/hotfix` scope (≤2 files, obvious fix).
+- Exempt from `.claude/tasks/TODO.md`: pure reads, explanations, questions, typos, cosmetic CSS tweaks, single config-value changes. Aligns with `/hotfix` scope (≤2 files, obvious fix).
 - Minimal changes unless broader refactor requested. State trade-offs.
 - Use sub-agents to keep main context clean — one task per sub-agent. Invest more compute on hard problems.
 - One question upfront if needed — never interrupt mid-task. *(Exception: orchestrators' mandatory validation gates — example, /init-project STEP 4/7, /ship-feature STEP 3 — are exempt.)*
@@ -44,16 +44,45 @@ Apply unless repo-specific instructions override.
 2. Report what was verified and what wasn't.
 3. List remaining risks and surviving deviations.
 4. Never mark complete without proof it works. Bar: "would a staff engineer approve this?"
-5. After any correction: append to `tasks/LESSONS.md` — `[date] | what went wrong | rule to avoid it`.
+5. After any correction or notable event, capitalize to the right registry in `.claude/memory/` (see "Memory registries" section below).
 
-## Task tracking (`tasks/TODO.md`)
+## Task tracking (`.claude/tasks/TODO.md`)
 
 Applies to any write/modify task touching logic, regardless of task count. Skip for reads and trivial edits (see Workflow).
 
-1. Plan → write the task in `tasks/TODO.md` before touching code.
+1. Plan → write the task in `.claude/tasks/TODO.md` before touching code.
 2. Decompose → split each complex task into subtasks (one subtask = one coherent change).
 3. Track → check off subtasks as you go.
 4. Summarize → high-level summary at each milestone.
+
+## Memory registries (`.claude/memory/`)
+
+Five append-only registries persist across sessions. Read all at session start. Capitalize during/after work.
+
+| File | ID format | Purpose |
+|------|-----------|---------|
+| `decisions.md` | BDR-XXX | Design/architecture choices with rationale + alternatives + status |
+| `learnings.md` | LRN-XXX | Reusable patterns observed + context + future application (replaces LESSONS) |
+| `blockers.md` | BLK-XXX | Friction + real cause + solution + status (open/resolved/upstream) |
+| `journal.md` | date heading | 3-5 lines/session — what was done, decided, blocked |
+| `evals.md` | EVAL-XXX | Quality check of Claude's output + method + anomalies + action |
+
+**Routing — what goes where:**
+- Choice with tradeoffs you'd defend → `decisions.md`.
+- Pattern worth reusing → `learnings.md`.
+- Dead end with root cause identified → `blockers.md`.
+- One-line log of the session → `journal.md`.
+- Did Claude's output actually work? → `evals.md`.
+
+**Proactive capitalization (Claude's responsibility):**
+After any substantive work milestone (bug fix with real root cause, feature shipped, non-trivial commit, design choice, surprising discovery, dead end with lesson), **offer to capitalize inline** — do NOT wait for the user to remember. Use the appropriate registry; pre-fill the entry from conversation context; let the user approve/edit before writing.
+
+Completion skills (`/ship-feature`, `/feat`, `/bugfix`, `/hotfix`, `/commit-change`) include a CAPITALIZE step that automates this.
+
+**Session-close ritual** (invoke manually via `/close`, or answer inline when asked):
+1. What did I decide? → `decisions.md` (if non-trivial).
+2. What did I learn? → `learnings.md` (if reusable).
+3. What am I blocked on? → `blockers.md`.
 
 ## Context Navigation (graphify)
 - Use `/graphify query` ONLY for large-scope tasks: multi-file features, complex bug investigations, architectural changes, major refactors.
