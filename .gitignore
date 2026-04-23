@@ -57,7 +57,15 @@ skills/find-skills
 skills-disabled/
 
 # Local project config (per-machine, not shared)
-.claude/
+.claude/*
+!.claude/tasks/
+!.claude/memory/
+!.claude/audits/
+!.claude/settings.json
+# But keep local stuff ignored within .claude/
+.claude/settings.local.json
+.claude/agent-memory/
+.claude/gstack/
 
 # Generated outputs
 graphify-out/
