@@ -25,19 +25,19 @@ rules:
 
 ---
 
-## LRN-001 — `rtk` shape-compression breaks downstream parsers
+## LRN-001 — `rtk` shape-compression silently breaks downstream parsers
 
-- **Date** : 2026-04-22
-- **Pattern** : quand un outil de tracking (`rtk`) intercepte stdout et retourne une représentation schématisée/compressée au lieu du payload brut, tout parseur en aval casse silencieusement — parce que l'utilisateur (ou le LLM) ne voit jamais la sortie `rtk`, seulement l'erreur du parseur.
-- **Contexte** : `rtk curl` remplace la sortie JSON brute par une version tokenisée, indépendamment du TTY vs pipe. Les hooks Claude Code réécrivent `curl` → `rtk curl` automatiquement, donc impossible à prévoir sans connaître le hook.
-- **Application future** : pour tout outil qui auto-réécrit des commandes standard, vérifier explicitement le comportement en pipe. Workaround documenté : `exclude_commands=["curl"]` dans `~/.config/rtk/config.toml`, ou `rtk proxy`. Voir `BLK-001`.
+- **Date**: 2026-04-22
+- **Pattern**: when a tracking tool (`rtk`) intercepts stdout and returns a schematized/compressed representation instead of the raw payload, every downstream parser breaks silently — because the user (or the LLM) never sees `rtk`'s output, only the parser error.
+- **Context**: `rtk curl` replaces raw JSON output with a tokenized version, regardless of TTY vs pipe. Claude Code hooks auto-rewrite `curl` → `rtk curl`, so the behavior is impossible to anticipate without knowing the hook.
+- **Future application**: for any tool that auto-rewrites standard commands, explicitly verify pipe behavior. Documented workaround: `exclude_commands=["curl"]` in `~/.config/rtk/config.toml`, or `rtk proxy`. See `BLK-001`.
 
 ## LRN-002 — Moving report-file paths requires grepping bash READS, not just WRITES
 
-- **Date** : 2026-04-23
-- **Pattern** : quand on déplace le chemin d'écriture d'un fichier généré (rapport, artefact, cache), il faut aussi grepper les endroits qui LISENT ce fichier — pas seulement ceux qui l'écrivent. Les dispatchers (skills orchestrateurs qui dispatchent à un agent puis parsent le résultat) contiennent typiquement des commandes bash `test -s X.md`, `grep ... X.md`, `wc -l X.md` — ces refs sont invisibles si on ne grep que pour la chaîne "write" ou "output path".
-- **Contexte** : refactor `.claude/audits/` (commit `5c5e82c`). 1er pass : j'ai mis à jour les write paths dans 5 skills (seo/geo/harden/validate/code-clean) et 3 agents. Le user a demandé une verify-gate. Lui a re-grep, trouvé 10+ refs bash bare (ex: `test -s HARDEN.md`, `grep -oE ... VALIDATE.md`) que j'avais manquées — les dispatchers étaient cassés (ils cherchaient à la racine, agent écrivait dans `.claude/audits/`). Corrigé au commit `5c5e82c` (inclus dans le même commit).
-- **Application future** :
-  - Avant de déclarer "migration complète" d'un chemin de fichier, grep le **basename** (`grep -rn "HARDEN\.md"`) en plus du chemin complet — pour catcher les usages bash bare.
-  - Si le fichier est utilisé dans des pipelines (`test`, `grep`, `wc`, `cat`, `head`), chercher ces verbes explicitement.
-  - **Verify-gates sauvent** : un tour de plus demandé par l'user m'a fait re-grep de façon exhaustive. Sans ça, deux dispatchers auraient été cassés en prod.
+- **Date**: 2026-04-23
+- **Pattern**: when moving the write path of a generated file (report, artifact, cache), you must also grep the places that READ that file — not only those that write it. Dispatchers (orchestrator skills that dispatch to an agent and then parse the result) typically contain bash commands like `test -s X.md`, `grep ... X.md`, `wc -l X.md` — these refs are invisible if you only grep for "write" or "output path".
+- **Context**: `.claude/audits/` refactor (commit `5c5e82c`). First pass: I updated write paths across 5 skills (seo/geo/harden/validate/code-clean) and 3 agents. The user asked for a verify-gate. They re-grepped and found 10+ bare bash refs (e.g. `test -s HARDEN.md`, `grep -oE ... VALIDATE.md`) I had missed — the dispatchers were broken (looking at project root while the agent was writing to `.claude/audits/`). Fixed in commit `5c5e82c` (bundled with the same commit).
+- **Future application**:
+  - Before declaring a file-path migration "complete", grep the **basename** (`grep -rn "HARDEN\.md"`) in addition to the full path — to catch bare bash usages.
+  - If the file is used in pipelines (`test`, `grep`, `wc`, `cat`, `head`), search for those verbs explicitly.
+  - **Verify-gates save work**: one extra round asked by the user forced exhaustive re-grepping. Without it, two dispatchers would have shipped broken.

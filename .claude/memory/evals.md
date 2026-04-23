@@ -21,14 +21,14 @@ rules:
 
 | ID | Date | Output | Action |
 |----|------|--------|--------|
-| EVAL-001 | 2026-04-23 | Plan de restructuration .claude/ (STEP 2 de ship-feature) | keep |
+| EVAL-001 | 2026-04-23 | `.claude/` restructure plan (ship-feature STEP 2) | keep |
 
 ---
 
-## EVAL-001 — Plan de restructuration `.claude/`
+## EVAL-001 — `.claude/` restructure plan
 
-- **Date** : 2026-04-23
-- **Output** : plan 21 tâches pour migrer `tasks/` vers `.claude/tasks/` + créer `.claude/memory/` + `.claude/audits/` + intégrer CAPITALIZE dans 5 skills + créer `/close`.
-- **Méthode** : relecture manuelle des 5 skills/agents impactés, vérification que rtk est path-agnostic, symlink `~/.claude/CLAUDE.md` → projet confirmé (un seul fichier à éditer). Radical-honesty check sur le ritual "session-close" : confirmé comme aspirationnel sans intégration dans les skills → scope élargi à Option D.
-- **Anomalies** : aucune bloquante. Note : `tasks/LESSONS.md` était vide (101B, juste un header) — migration vers `learnings.md` symbolique.
-- **Action** : keep — plan validé, prêt pour exécution.
+- **Date**: 2026-04-23
+- **Output**: 21-task plan to migrate `tasks/` to `.claude/tasks/` + create `.claude/memory/` + `.claude/audits/` + integrate CAPITALIZE across 5 skills + add `/close` skill.
+- **Method**: manual review of the 5 impacted skills/agents; verified `rtk` is path-agnostic; confirmed `~/.claude/CLAUDE.md` symlinks to the project (single file to edit). Radical-honesty check on the session-close ritual: confirmed aspirational without skill integration → scope expanded to Option D.
+- **Anomalies**: none blocking. Note: `tasks/LESSONS.md` was empty (101B, header only) — migration to `learnings.md` is symbolic.
+- **Action**: keep — plan validated, ready for execution.

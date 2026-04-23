@@ -13,10 +13,11 @@ rules:
 
 ## 2026-04-23
 
-- Restructuré l'arborescence : `tasks/` → `.claude/tasks/`, créé `.claude/memory/` (5 registres) + `.claude/audits/`.
-- Adapté CLAUDE.md + skills `onboard`, `init-project` + agent `onboarder` + `lib/project-archetypes/dotfiles-meta.md`.
-- Ajouté un step CAPITALIZE dans `ship-feature`, `bugfix`, `hotfix`, `feat`, `commit-change` + créé skill `/close` pour rituel de fin de session.
-- 2e verify-gate user → bugs catchés : `.gitignore` cassait le tracking (fixé BDR-003), dispatchers bash harden/validate cassés après le move audit (LRN-002).
-- Audits routés vers `.claude/audits/` (seo/geo/harden/validate/code-clean) + `MIGRATION.md` écrit pour projets existants.
-- 9 commits atomiques (`c721a36..a9606aa`) via `/commit-change` — première exécution réelle de la Phase 4 CAPITALIZE.
-- Décisions actées : BDR-002, BDR-003. Learnings : LRN-002. Blockers : BLK-002.
+- Restructured tree: `tasks/` → `.claude/tasks/`, created `.claude/memory/` (5 registries) + `.claude/audits/`.
+- Adapted CLAUDE.md + skills `onboard`, `init-project` + agent `onboarder` + `lib/project-archetypes/dotfiles-meta.md`.
+- Added CAPITALIZE step in `ship-feature`, `bugfix`, `hotfix`, `feat`, `commit-change` + created `/close` skill for the session-end ritual.
+- 2nd user verify-gate caught bugs: `.gitignore` was breaking tracking (fixed in BDR-003); harden/validate dispatcher bash was broken after the audit move (LRN-002).
+- Audits routed to `.claude/audits/` (seo/geo/harden/validate/code-clean) + `MIGRATION.md` written for existing projects.
+- 9 atomic commits (`c721a36..a9606aa`) via `/commit-change` — first real execution of Phase 4 CAPITALIZE.
+- Decisions logged: BDR-002, BDR-003. Learnings: LRN-002. Blockers: BLK-002.
+- English-only rule enforced in all CAPITALIZE specs (commit `bfcca72`); 9 existing entries retrofitted to English in follow-up commit.
