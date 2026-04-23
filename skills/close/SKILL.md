@@ -136,3 +136,4 @@ Prochaine session : lire `.claude/memory/` au démarrage pour rappel.
 - Never overwrite existing entries — append-only.
 - If the user says `skip-all` → still write the journal line and exit.
 - If `.claude/memory/` is missing → STOP at STEP 0, do not create it here (onboard / init-project responsibility).
+- **Language rule**: written entries are ALWAYS in English (see CLAUDE.md "Memory registries" § Language). The 3-question prompt may mirror the user's language; the appended entries must not.

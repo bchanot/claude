@@ -143,7 +143,9 @@ Feature shipped implies at least one design decision worth capturing. Run this b
 4. Append approved entries to the registries. Update the Index table at the top of each file.
 5. Append a one-line entry to `.claude/memory/journal.md` under today's date heading (`## YYYY-MM-DD`).
 
-If nothing substantive to log → print `CAPITALIZE: rien à logger (travail trivial)` and skip.
+**Language rule**: written entries are ALWAYS in English (see CLAUDE.md "Memory registries" § Language). The interactive gate above may mirror the user's language; the appended entries must not.
+
+If nothing substantive to log → print `CAPITALIZE: nothing substantive to log` and skip.
 
 ---
 

@@ -67,6 +67,9 @@ Five append-only registries persist across sessions. Read all at session start. 
 | `journal.md` | date heading | 3-5 lines/session — what was done, decided, blocked |
 | `evals.md` | EVAL-XXX | Quality check of Claude's output + method + anomalies + action |
 
+**Language — registries are ALWAYS written in English:**
+All persisted entries (decisions, learnings, blockers, journal, evals) must be in English. Rationale: consistent vocabulary for re-read efficiency, lower token cost, easier cross-project reuse. User-facing CAPITALIZE prompts may mirror the user's language; only the final written entry is English.
+
 **Routing — what goes where:**
 - Choice with tradeoffs you'd defend → `decisions.md`.
 - Pattern worth reusing → `learnings.md`.

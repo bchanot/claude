@@ -136,7 +136,9 @@ Valider ? (all / <IDs> / edit / skip)
 
 Always append a 1-line entry to today's heading in `.claude/memory/journal.md`.
 
-If no substantive capture candidate → skip with `CAPITALIZE: rien à logger`.
+**Language rule**: written entries are ALWAYS in English (see CLAUDE.md "Memory registries" § Language). The interactive gate may mirror the user's language; the appended entries must not.
+
+If no substantive capture candidate → skip with `CAPITALIZE: nothing to log`.
 
 ---
 

@@ -148,6 +148,8 @@ A bugfix with an understood root cause is almost always worth one entry:
    ```
 4. Append approved entries + update the Index. Add a line to today's heading in `.claude/memory/journal.md`.
 
+**Language rule**: written entries are ALWAYS in English (see CLAUDE.md "Memory registries" § Language). The interactive gate may mirror the user's language; the appended entries must not.
+
 If the bug was trivial and the root cause not transferable → skip with `CAPITALIZE: trivial, skip`.
 
 ---

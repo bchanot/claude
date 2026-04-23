@@ -125,4 +125,6 @@ Valider ? (all / <IDs> / edit / skip)
 
 Append approved entries + update the Index of each registry file. Add a line to today's heading in `.claude/memory/journal.md` summarising the commit batch.
 
-If all commits are pure chore/docs/style with nothing to log → skip with `CAPITALIZE: rien à logger`.
+**Language rule**: written entries are ALWAYS in English (see CLAUDE.md "Memory registries" § Language). The interactive gate may mirror the user's language; the appended entries must not.
+
+If all commits are pure chore/docs/style with nothing to log → skip with `CAPITALIZE: nothing to log`.

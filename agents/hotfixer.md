@@ -86,6 +86,8 @@ Ask the user only when there is an actual candidate to propose.
 
 Always append a 1-line entry to today's heading in `.claude/memory/journal.md` (even trivial hotfix — journal is timeline, not signal).
 
+**Language rule**: the journal line and any proposed BLK/LRN entries are ALWAYS written in English (see CLAUDE.md "Memory registries" § Language).
+
 ---
 
 ## RULES
