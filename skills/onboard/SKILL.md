@@ -1,6 +1,6 @@
 ---
 name: onboard
-description: Onboard an existing project — detects archetype, installs claude-config, runs full audit (dette/SEO-GEO/UI-UX/perf/sécu/a11y/doc), produces improvement plan in ./tasks/. Use on repos not created via /init-project.
+description: Onboard an existing project — detects archetype, installs claude-config, runs full audit (dette/SEO-GEO/UI-UX/perf/sécu/a11y/doc), produces improvement plan in .claude/audits/ + .claude/tasks/. Use on repos not created via /init-project.
 argument-hint: [optional hints: "Python FastAPI" | "add gsd" | "Next.js monorepo" | "force-archetype:wordpress"]
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep
@@ -96,7 +96,7 @@ L'agent génère :
 - `.claude/settings.json`
 - `.claudeignore`
 - `.gitignore` (safety check)
-- `tasks/TODO.md`, `tasks/LESSONS.md`
+- `.claude/tasks/TODO.md`, `.claude/memory/{decisions,learnings,blockers,journal,evals}.md`
 - **Pas encore** `ROADMAP.md` (décision STEP 9)
 
 Si `CLAUDE.md` existe déjà : lire son contenu, ne PAS écraser — fusionner après STEP 3.
@@ -219,7 +219,7 @@ grep -q '^\.onboard-audit/' .gitignore 2>/dev/null || \
   printf '\n# onboard audit raw outputs (consumed by /onboard STEP 7)\n.onboard-audit/\n' >> .gitignore
 ```
 
-Ce dossier contient les sorties brutes des audits (L3a+L3b). STEP 7 (L4) les synthétise vers `tasks/`. Peut être supprimé après L4 sans perte.
+Ce dossier contient les sorties brutes des audits (L3a+L3b). STEP 7 (L4) les synthétise vers `.claude/audits/` (rapports) et `.claude/tasks/` (backlog). Peut être supprimé après L4 sans perte.
 
 ### Injection contexte archétype
 
@@ -677,25 +677,25 @@ done
 
 ---
 
-## STEP 7 — SYNTHÈSE dans `tasks/`
+## STEP 7 — SYNTHÈSE dans `.claude/audits/`
 
-À partir des rapports bruts dans `.onboard-audit/`, générer 4 fichiers structurés dans `tasks/`.
+À partir des rapports bruts dans `.onboard-audit/`, générer 4 fichiers structurés dans `.claude/audits/`.
 
 Spawn un subagent synthétiseur (isolé, chargé uniquement du contenu de `.onboard-audit/`) :
 
 ```
 Agent(
   subagent_type="general-purpose",
-  description="Onboard — synthèse vers tasks/",
+  description="Onboard — synthèse vers .claude/audits/",
   prompt="""
   Lire tous les fichiers de <PROJECT_ROOT>/.onboard-audit/ :
     - analyze.md, code-clean.md, cso.md, doc.md (toujours)
     - seo.md, geo.md, design.md, perf.md, a11y.md (si présents)
   Contexte : archetype=<archetype>, public=<bool>, stack=<stack>, brief_interview=<summary>.
 
-  Produire 4 fichiers dans <PROJECT_ROOT>/tasks/ :
+  Produire 4 fichiers dans <PROJECT_ROOT>/.claude/audits/ :
 
-  ═══ 1. tasks/ONBOARD_REPORT.md — synthèse exécutive ═══
+  ═══ 1. .claude/audits/ONBOARD_REPORT.md — synthèse exécutive ═══
   Structure :
     # Onboard Report — <project_name>
     ## Profile
@@ -714,12 +714,12 @@ Agent(
       | design          | ...
       | perf            | ...
       | a11y            | ...
-    ## Top 5 priorités (choisies depuis AUDIT_ISSUES par score sévérité × impact projet)
+    ## Top 5 priorités (choisies depuis .claude/audits/AUDIT_ISSUES.md par score sévérité × impact projet)
       1. [P0 Critique] <titre> — <domaine> — <impact en 1 phrase>
       2. ...
     ## Prochaines étapes (pointeurs vers les 3 autres fichiers)
 
-  ═══ 2. tasks/AUDIT_GOOD.md — ce qui va ═══
+  ═══ 2. .claude/audits/AUDIT_GOOD.md — ce qui va ═══
   Inventaire positif par domaine. Ce qu'il faut PROTÉGER en modifiant le reste.
   Structure:
     # Audit — Ce qui va
@@ -729,7 +729,7 @@ Agent(
       - <forces>
     ## [domaine par domaine]
 
-  ═══ 3. tasks/AUDIT_ISSUES.md — ce qui ne va pas ═══
+  ═══ 3. .claude/audits/AUDIT_ISSUES.md — ce qui ne va pas ═══
   Listing par sévérité descendante (Critique → Basse).
   Structure:
     # Audit — Ce qui ne va pas
@@ -744,7 +744,7 @@ Agent(
     ## Basse
   Ne pas inventer, ne citer QUE ce qui est dans .onboard-audit/.
 
-  ═══ 4. tasks/AUDIT_PROPOSALS.md — propositions ═══
+  ═══ 4. .claude/audits/AUDIT_PROPOSALS.md — propositions ═══
   Pour CHAQUE issue Critique et Haute du fichier ISSUES : proposer au minimum 2 options,
   avec tradeoffs. Pour les issues Moyennes : 1 option suffit.
   Structure:
@@ -774,7 +774,7 @@ Agent(
 )
 ```
 
-Vérifier que les 4 fichiers `tasks/ONBOARD_REPORT.md`, `tasks/AUDIT_GOOD.md`, `tasks/AUDIT_ISSUES.md`, `tasks/AUDIT_PROPOSALS.md` existent et sont non vides.
+Vérifier que les 4 fichiers `.claude/audits/ONBOARD_REPORT.md`, `.claude/audits/AUDIT_GOOD.md`, `.claude/audits/AUDIT_ISSUES.md`, `.claude/audits/AUDIT_PROPOSALS.md` existent et sont non vides.
 
 ---
 
@@ -789,7 +789,7 @@ Archétype: <name>
 Stack: <stack>
 Scores: dette:<X> · sécu:<X> · doc:<X>  [· seo:<X> · geo:<X> · design:<X> · perf:<X> · a11y:<X>]
 
-📂 Fichiers produits dans tasks/ :
+📂 Fichiers produits dans .claude/audits/ :
   - ONBOARD_REPORT.md    (synthèse exécutive)
   - AUDIT_GOOD.md        (ce qui va)
   - AUDIT_ISSUES.md      (ce qui ne va pas, par sévérité)
@@ -802,13 +802,13 @@ TOP 5 PRIORITÉS :
   4. [P1 Haute]    <titre>
   5. [P2 Moyenne]  <titre>
 
-Prochaine étape : générer tasks/TODO.md depuis AUDIT_PROPOSALS.md approuvé.
+Prochaine étape : générer .claude/tasks/TODO.md depuis .claude/audits/AUDIT_PROPOSALS.md approuvé.
 
 Options :
   A) Lire d'abord les 4 fichiers, je reviens te le dire (STOP)
-  B) Tout est OK, génère TODO.md depuis toutes les propositions recommandées
-  C) Je veux éditer AUDIT_PROPOSALS.md avant de générer TODO.md (indiquer ce à changer)
-  D) Réduire le scope — ne garder que P0 Critique dans TODO.md
+  B) Tout est OK, génère .claude/tasks/TODO.md depuis toutes les propositions recommandées
+  C) Je veux éditer .claude/audits/AUDIT_PROPOSALS.md avant de générer .claude/tasks/TODO.md (indiquer ce à changer)
+  D) Réduire le scope — ne garder que P0 Critique dans .claude/tasks/TODO.md
   E) Abort — je n'utilise pas le backlog auto
 
 Choix ? (A / B / C / D / E)
@@ -818,15 +818,15 @@ Choix ? (A / B / C / D / E)
 
 - **A** → stop ici, l'utilisateur relira et reviendra avec `/onboard continue`.
 - **B** → continuer STEP 9 avec toutes les recommandations.
-- **C** → demander les changements spécifiques, les appliquer dans AUDIT_PROPOSALS.md, puis re-présenter la gate.
+- **C** → demander les changements spécifiques, les appliquer dans .claude/audits/AUDIT_PROPOSALS.md, puis re-présenter la gate.
 - **D** → continuer STEP 9 avec seulement les P0.
-- **E** → arrêter sans générer TODO.md, print "Onboard rapport figé dans tasks/ — tu peux t'en servir à la main ensuite."
+- **E** → arrêter sans générer .claude/tasks/TODO.md, print "Onboard rapport figé dans .claude/audits/ — tu peux t'en servir à la main ensuite."
 
 ---
 
-## STEP 9 — BACKLOG → tasks/TODO.md
+## STEP 9 — BACKLOG → .claude/tasks/TODO.md
 
-Lire `tasks/AUDIT_PROPOSALS.md` (avec les "Recommandations" sélectionnées par l'utilisateur). Pour chaque proposition recommandée, générer une entrée dans `tasks/TODO.md` :
+Lire `.claude/audits/AUDIT_PROPOSALS.md` (avec les "Recommandations" sélectionnées par l'utilisateur). Pour chaque proposition recommandée, générer une entrée dans `.claude/tasks/TODO.md` :
 
 Format :
 ```
@@ -838,7 +838,7 @@ Format :
 ## P0 — Critique
 - [ ] [P0] [/hotfix] — <titre>
       Fichiers: <paths>
-      Source: AUDIT_PROPOSALS.md § "<titre>"
+      Source: .claude/audits/AUDIT_PROPOSALS.md § "<titre>"
       Option recommandée: <A/B/C>
 - [ ] [P0] [/bugfix] — <titre>
       Fichiers: ...
@@ -871,7 +871,7 @@ Format :
 | Audit SEO/GEO à re-lancer après corrections | `/seo` ou `/geo` |
 | Audit docs à re-sync après changement | `/doc` |
 
-Ne PAS écraser `tasks/TODO.md` s'il contient déjà du contenu utilisateur : append avec un séparateur :
+Ne PAS écraser `.claude/tasks/TODO.md` s'il contient déjà du contenu utilisateur : append avec un séparateur :
 ```
 <contenu existant>
 
@@ -883,8 +883,8 @@ Ne PAS écraser `tasks/TODO.md` s'il contient déjà du contenu utilisateur : ap
 
 Print :
 ```
-✅ tasks/TODO.md mis à jour — <N> tâches ajoutées (<P0>/<P1>/<P2>/<P3>)
-Pour démarrer : lire tasks/TODO.md, choisir une tâche P0, lancer le /skill indiqué.
+✅ .claude/tasks/TODO.md mis à jour — <N> tâches ajoutées (<P0>/<P1>/<P2>/<P3>)
+Pour démarrer : lire .claude/tasks/TODO.md, choisir une tâche P0, lancer le /skill indiqué.
 ```
 
 ---
@@ -912,7 +912,7 @@ Pour démarrer : lire tasks/TODO.md, choisir une tâche P0, lancer le /skill ind
 ONBOARD COMPLETE: <project name>
 ARCHETYPE    : <name> (confiance: <niveau>)
 STACK        : <stack>
-CONFIG       : ✅ CLAUDE.md, settings.json, .claudeignore, tasks/
+CONFIG       : ✅ CLAUDE.md, settings.json, .claudeignore, .claude/{tasks,memory,audits}/
 CTX7 CACHE   : ✅ [libs] | ⚠️ not installed | — N/A
 GRAPHIFY     : ✅ graphify-out/ | ⚠️ not installed | — skipped (simple)
 AUDITS       :
@@ -925,15 +925,15 @@ AUDITS       :
   ✅ accessibilité       (.onboard-audit/a11y.md)                [si frontend]
 
 SYNTHÈSE     :
-  ✅ tasks/ONBOARD_REPORT.md       (exécutif)
-  ✅ tasks/AUDIT_GOOD.md
-  ✅ tasks/AUDIT_ISSUES.md         (par sévérité)
-  ✅ tasks/AUDIT_PROPOSALS.md      (options + tradeoffs)
-  ✅ tasks/TODO.md                 (backlog priorisé avec skill recommandé)
+  ✅ .claude/audits/ONBOARD_REPORT.md       (exécutif)
+  ✅ .claude/audits/AUDIT_GOOD.md
+  ✅ .claude/audits/AUDIT_ISSUES.md         (par sévérité)
+  ✅ .claude/audits/AUDIT_PROPOSALS.md      (options + tradeoffs)
+  ✅ .claude/tasks/TODO.md                  (backlog priorisé avec skill recommandé)
 
 NEXT STEPS   :
-  1. Ouvrir tasks/ONBOARD_REPORT.md — overview complète
-  2. Démarrer par la première tâche P0 de tasks/TODO.md avec le skill indiqué
+  1. Ouvrir .claude/audits/ONBOARD_REPORT.md — overview complète
+  2. Démarrer par la première tâche P0 de .claude/tasks/TODO.md avec le skill indiqué
   3. /onboard add gsd — générer ROADMAP.md pour multi-session si besoin
   4. .onboard-audit/ peut être supprimé (raw data consommée en synthèse)
 ```

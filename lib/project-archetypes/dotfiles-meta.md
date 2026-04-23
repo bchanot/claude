@@ -111,5 +111,7 @@ skills/            (skills custom)
 hooks/             (hooks projet, pas git)
 templates/         (templates config fournis)
 lib/               (helpers shell)
-tasks/
+.claude/tasks/
+.claude/memory/
+.claude/audits/
 ```

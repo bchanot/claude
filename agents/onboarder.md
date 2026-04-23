@@ -1,6 +1,6 @@
 ---
 name: onboarder
-description: Generate claude-config files (CLAUDE.md, settings.json, .claudeignore, .gitignore safety, tasks/) for an existing project. Pure config generator — no interview, no audit. Called by /onboard orchestrator.
+description: Generate claude-config files (CLAUDE.md, settings.json, .claudeignore, .gitignore safety, .claude/tasks/ + .claude/memory/ + .claude/audits/) for an existing project. Pure config generator — no interview, no audit. Called by /onboard orchestrator.
 tools: Read, Write, Edit, Bash, Glob, Grep
 model: sonnet
 ---
@@ -101,22 +101,19 @@ grep -q 'settings.local.json' ${PROJECT_ROOT}/.gitignore 2>/dev/null && echo "ha
 
 ---
 
-## PHASE 5 — tasks/ scaffold
+## PHASE 5 — .claude/tasks/ + .claude/memory/ + .claude/audits/ scaffold
 
 ```bash
-ls ${PROJECT_ROOT}/tasks/LESSONS.md ${PROJECT_ROOT}/tasks/TODO.md 2>/dev/null
+ls ${PROJECT_ROOT}/.claude/tasks/TODO.md ${PROJECT_ROOT}/.claude/memory/ 2>/dev/null
 ```
 
-- **tasks/TODO.md missing** → create with header:
+- **.claude/tasks/TODO.md missing** → `mkdir -p ${PROJECT_ROOT}/.claude/tasks` then create with header:
   ```
   # TODO
   <!-- Claude writes tasks here before implementing. Format: - [ ] task -->
   ```
-- **tasks/LESSONS.md missing** → create with header:
-  ```
-  # Lessons learned
-  <!-- Format: [date] | what went wrong | rule to avoid it -->
-  ```
+- **.claude/memory/ missing** → `mkdir -p ${PROJECT_ROOT}/.claude/memory`, then for each of the 5 registries (`decisions.md`, `learnings.md`, `blockers.md`, `journal.md`, `evals.md`): if the file does not exist in `${PROJECT_ROOT}/.claude/memory/`, copy from `~/.claude/templates/memory/<name>.md` (YAML schema + empty index + inline template comment). If a registry file already exists → skip (do NOT overwrite).
+- **.claude/audits/ missing** → `mkdir -p ${PROJECT_ROOT}/.claude/audits` (empty — populated later by `/onboard` audit phase).
 
 **Do NOT overwrite existing content.**
 
@@ -144,8 +141,13 @@ FILES WRITTEN:
   ✅ .claude/settings.json
   ✅ .claudeignore
   ✅ .gitignore (created | updated | unchanged)
-  ✅ tasks/TODO.md (created | unchanged)
-  ✅ tasks/LESSONS.md (created | unchanged)
+  ✅ .claude/tasks/TODO.md              (created | unchanged)
+  ✅ .claude/memory/decisions.md        (created | unchanged)
+  ✅ .claude/memory/learnings.md        (created | unchanged)
+  ✅ .claude/memory/blockers.md         (created | unchanged)
+  ✅ .claude/memory/journal.md          (created | unchanged)
+  ✅ .claude/memory/evals.md            (created | unchanged)
+  ✅ .claude/audits/                    (created | unchanged)
   [✅ ROADMAP.md]   (if generate_roadmap)
 ```
 
