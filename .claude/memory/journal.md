@@ -21,3 +21,9 @@ rules:
 - 9 atomic commits (`c721a36..a9606aa`) via `/commit-change` — first real execution of Phase 4 CAPITALIZE.
 - Decisions logged: BDR-002, BDR-003. Learnings: LRN-002. Blockers: BLK-002.
 - English-only rule enforced in all CAPITALIZE specs (commit `bfcca72`); 9 existing entries retrofitted to English in follow-up commit.
+
+## 2026-04-27
+
+- Settings: switched `permissions.defaultMode` from `"default"` to `"auto"` and dropped `disableAutoMode: "disable"` (BDR-004); reorganised top-level keys and added `effortLevel: "xhigh"`; removed stale root `TODO.md` (already migrated to `.claude/tasks/TODO.md`).
+- Learning: Claude Code `disable*` settings use the sentinel string `"disable"`, not a boolean (LRN-003).
+- 3 atomic commits (`f7f033f..1421578`) via `/commit-change`.

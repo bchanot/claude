@@ -25,6 +25,7 @@ rules:
 | BDR-001 | 2026-04-22 | Uniform --help helper via session-start hook (option C) | accepted |
 | BDR-002 | 2026-04-23 | Move tasks/ + introduce memory + audits under .claude/ | accepted |
 | BDR-003 | 2026-04-23 | Gitignore wildcard + negations pattern for .claude/ | accepted |
+| BDR-004 | 2026-04-27 | Adopt auto permission mode as default | accepted |
 
 ---
 
@@ -62,3 +63,17 @@ rules:
   - Drop `.claude/` from gitignore entirely — rejected: `.claude/settings.local.json` and `.claude/agent-memory/` must stay ignored (per-machine).
   - Track paths via `.gitattributes` or an external tool — rejected: over-engineering, git handles this natively.
 - **Reference**: commit `499cd07`, `git check-ignore -v` verified on 4 paths (2 tracked, 2 ignored).
+
+## BDR-004 — Adopt auto permission mode as default
+
+- **Date**: 2026-04-27
+- **Status**: accepted
+- **Decision**: set `permissions.defaultMode` to `"auto"` in user-scope `settings.json` and drop `disableAutoMode: "disable"`. Auto mode runs a classifier on every action and blocks risky operations (`curl|bash`, prod deploys, force push, IAM grants, mass deletes, exfiltration to external endpoints) while auto-approving local edits, lockfile-declared dep installs, and read-only HTTP.
+- **Why**: prompt fatigue under `default` mode is significant on multi-step autonomous work. Auto mode keeps a safety net (classifier review) without the per-tool friction. The classifier also re-evaluates conversation-stated boundaries ("don't push", "wait for review") on every check, so verbal constraints carry weight.
+- **Alternatives rejected**:
+  - Keep `default` — too many prompts, breaks flow on long tasks.
+  - `acceptEdits` — eliminates prompts but no classifier, blanket trust on Bash beyond filesystem helpers.
+  - `bypassPermissions` — skips all checks, no prompt-injection guard. Only for isolated containers.
+  - `dontAsk` — full denylist, breaks anything not pre-approved. Suited to CI, not interactive work.
+- **Caveats**: requires Claude Code v2.1.83+, plan ≠ Pro (Max/Team/Enterprise/API only), Sonnet 4.6 / Opus 4.6 / Opus 4.7, Anthropic API provider. On entering auto mode, blanket allow rules (`Bash(*)`, `Bash(python*)`, package-manager run, `Agent`) are dropped and restored on exit.
+- **Reference**: commit `1421578`.

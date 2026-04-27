@@ -22,6 +22,7 @@ rules:
 |----|------|---------|------------|
 | LRN-001 | 2026-04-22 | `rtk` shape-compression breaks pipes | any pipeline chaining `rtk curl/cat/read` into `jq`, `python -c`, `awk` |
 | LRN-002 | 2026-04-23 | Moving report-file paths requires grepping bash READS, not just WRITES | any refactor that moves a generated file used by a dispatcher |
+| LRN-003 | 2026-04-27 | Claude Code `disable*` settings use sentinel string `"disable"`, not boolean | any change to `permissions.defaultMode` or related blocker keys |
 
 ---
 
@@ -41,3 +42,14 @@ rules:
   - Before declaring a file-path migration "complete", grep the **basename** (`grep -rn "HARDEN\.md"`) in addition to the full path — to catch bare bash usages.
   - If the file is used in pipelines (`test`, `grep`, `wc`, `cat`, `head`), search for those verbs explicitly.
   - **Verify-gates save work**: one extra round asked by the user forced exhaustive re-grepping. Without it, two dispatchers would have shipped broken.
+
+## LRN-003 — Claude Code `disable*` settings use the sentinel string `"disable"`, not a boolean
+
+- **Date**: 2026-04-27
+- **Pattern**: Claude Code blocker-style settings (`disableAutoMode`, `disableBypassPermissionsMode`) use the literal string `"disable"` as a sentinel. The key being absent means the feature is available; the value `"disable"` is what turns the blocker on. Any other value (including `false`, `true`, `null`) has no effect — the doc explicitly states this.
+- **Context**: switching `permissions.defaultMode` to `"auto"` while `disableAutoMode: "disable"` was still present would have failed at startup ("auto mode unavailable"). The naming `disable<Foo>: "disable"` reads ambiguously — easy to assume it's a boolean toggle and leave the key in place.
+- **Future application**:
+  - Before changing `defaultMode`, audit the matching `disable*` key in the same `permissions` block. If present with value `"disable"`, remove it.
+  - Same logic for `bypassPermissions` mode and `disableBypassPermissionsMode`.
+  - Don't trust the doc's naming — read the value semantics. Sentinel strings beat booleans here because the harness can distinguish "unset" from "explicitly off" (admin policy).
+- **Reference**: commit `1421578`, doc `https://code.claude.com/docs/en/settings`.
