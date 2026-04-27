@@ -26,6 +26,7 @@ rules:
 | BDR-002 | 2026-04-23 | Move tasks/ + introduce memory + audits under .claude/ | accepted |
 | BDR-003 | 2026-04-23 | Gitignore wildcard + negations pattern for .claude/ | accepted |
 | BDR-004 | 2026-04-27 | Adopt auto permission mode as default | accepted |
+| BDR-005 | 2026-04-27 | `motion` as default animation library; advisor stays read-only | accepted |
 
 ---
 
@@ -77,3 +78,20 @@ rules:
   - `dontAsk` — full denylist, breaks anything not pre-approved. Suited to CI, not interactive work.
 - **Caveats**: requires Claude Code v2.1.83+, plan ≠ Pro (Max/Team/Enterprise/API only), Sonnet 4.6 / Opus 4.6 / Opus 4.7, Anthropic API provider. On entering auto mode, blanket allow rules (`Bash(*)`, `Bash(python*)`, package-manager run, `Agent`) are dropped and restored on exit.
 - **Reference**: commit `1421578`.
+
+## BDR-005 — `motion` as default animation library; advisor stays read-only
+
+- **Date**: 2026-04-27
+- **Status**: accepted
+- **Decision**: when a project's stack supports it, the framework installs `motion` (or `motion-v` for Vue 3 / Nuxt) as the default animation library. Install is **automatic** in `/init-project` STEP 5e (post-scaffold) and **opt-in** in `/onboard` STEP 2.5 (existing projects). `plugin-advisor` only **detects and reports** the status — it never runs `npm install` itself. Detection logic lives in `lib/animation-lib-check.sh` (sourced by all three layers).
+- **Why**: framer-motion was rebranded `motion` in November 2024 (single package supporting React `motion/react`, Svelte, vanilla JS; `motion-v` is the parallel package for Vue). Baking the new name in now avoids legacy-import sprawl across new projects. The split init-vs-onboard behavior follows the trust gradient: at init, the user has just validated the entire scaffold so silent install is fine; at onboard, we are touching an existing `package.json`, which is invasive without explicit consent. Plugin-advisor was kept read-only to preserve its "Never modify files" contract (PHASE 4 already mutates plugin state with confirmation; piling npm installs on top would blur its responsibility).
+- **Alternatives rejected**:
+  - Pin `framer-motion` (legacy name) — rejected: the package is in maintenance mode, every new project would inherit the old import path.
+  - Auto-install during `/onboard` without asking — rejected: silently adds a runtime dep + ~50 KB gzip to a project the user did not ask to modify.
+  - Make `plugin-advisor` install missing libs — rejected: violates its read-only spec and breaks separation of concerns (advisor advises; orchestrators mutate).
+  - React-only scope — rejected: Vue/Svelte teams should also benefit; `motion-v` makes the Vue case clean.
+- **Eligibility rules** (helper output):
+  - `eligible|motion`: React, Next.js, Remix, Astro+React, Svelte/SvelteKit
+  - `eligible|motion-v`: Vue 3, Nuxt
+  - `no|-`: backend, CLI, embedded, Flutter, static HTML, **React Native** (use `react-native-reanimated`), Astro without UI integration, no `package.json`
+- **Reference**: helper at `lib/animation-lib-check.sh`; integration in `skills/init-project/SKILL.md` STEP 5e, `skills/onboard/SKILL.md` STEP 2.5, `agents/plugin-advisor.md` PHASE 1/2/3, `lib/design-gate.md`.

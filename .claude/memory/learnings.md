@@ -23,6 +23,7 @@ rules:
 | LRN-001 | 2026-04-22 | `rtk` shape-compression breaks pipes | any pipeline chaining `rtk curl/cat/read` into `jq`, `python -c`, `awk` |
 | LRN-002 | 2026-04-23 | Moving report-file paths requires grepping bash READS, not just WRITES | any refactor that moves a generated file used by a dispatcher |
 | LRN-003 | 2026-04-27 | Claude Code `disable*` settings use sentinel string `"disable"`, not boolean | any change to `permissions.defaultMode` or related blocker keys |
+| LRN-004 | 2026-04-27 | `framer-motion` was rebranded `motion` in Nov 2024 — different packages per framework | any new project recommending an animation lib; auditing legacy imports |
 
 ---
 
@@ -53,3 +54,16 @@ rules:
   - Same logic for `bypassPermissions` mode and `disableBypassPermissionsMode`.
   - Don't trust the doc's naming — read the value semantics. Sentinel strings beat booleans here because the harness can distinguish "unset" from "explicitly off" (admin policy).
 - **Reference**: commit `1421578`, doc `https://code.claude.com/docs/en/settings`.
+
+## LRN-004 — `framer-motion` rebranded `motion` (Nov 2024) — different packages per framework
+
+- **Date**: 2026-04-27
+- **Pattern**: `framer-motion` was renamed `motion` in November 2024. The rename is not just cosmetic: it bundles React (`motion/react`), Svelte, and vanilla-JS support under a single npm package, while Vue gets its own parallel package `motion-v`. The legacy package `framer-motion` still installs and works but is in maintenance mode — recommending it in a new framework default would lock projects into legacy import paths from day one. Detection of "is animation already covered" must therefore include both names plus the broader anim ecosystem (`gsap`, `lottie-react`, `react-spring`, `popmotion`, `@formkit/auto-animate`) to avoid double-installs.
+- **Context**: building animation-lib auto-install in `/init-project` and `/onboard`. Initial user phrasing was "framer-motion" (the old name they remembered). Picking the package name without verifying the rename would have shipped legacy imports in every new scaffold.
+- **Future application**:
+  - For React / Next.js / Remix / Astro+React / Svelte: `motion` (`import { motion } from 'motion/react'`).
+  - For Vue 3 / Nuxt: `motion-v` (separate package, separate API).
+  - For React Native: do NOT recommend `motion` — use `react-native-reanimated` (motion targets the DOM).
+  - When auditing existing projects, check both `framer-motion` and `motion` keys in `package.json` deps; treat either as "animation already covered".
+  - Before adopting any "industry default" lib in a framework, verify the canonical package name is current — naming churn (rebrand, scope change `@org/lib`, fork) is common in JS land.
+- **Reference**: helper `lib/animation-lib-check.sh`, BDR-005.
