@@ -1,6 +1,5 @@
 {
   "cleanupPeriodDays": 30,
-  "remoteControlAtStartup": true,
   "permissions": {
     "allow": [
       "Bash(git status)",
@@ -244,5 +243,7 @@
         "repo": "anthropics/skills"
       }
     }
-  }
+  },
+  "remoteControlAtStartup": true,
+  "effortLevel": "xhigh"
 }
