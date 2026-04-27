@@ -87,6 +87,33 @@ If `graphify` CLI is installed AND complexity >= 30%:
 3. Print: `🔗 Scaffold graph generated at graphify-out/`
 If `graphify` not installed or complexity < 30% → skip silently.
 
+## STEP 5e — ANIMATION LIB (auto-install)
+Install `motion` (ex-`framer-motion`, rebranded Nov 2024) when the stack supports it.
+The scaffold has just been validated by the user, so install proceeds silently.
+
+```bash
+source "$HOME/.claude/lib/animation-lib-check.sh"
+if result=$(detect_anim_eligibility); then
+  pkg=$(echo "$result" | cut -d'|' -f2)
+  if ! is_anim_lib_installed >/dev/null; then
+    cmd=$(recommend_anim_install_cmd "$pkg")
+    echo "🎬 Installing animation lib: $cmd"
+    eval "$cmd"
+  else
+    installed=$(is_anim_lib_installed)
+    echo "🎬 Animation lib already present: $installed — skipping install"
+  fi
+else
+  echo "🎬 Animation lib: stack not eligible — skipping ($(echo "$result" | cut -d'|' -f3))"
+fi
+```
+
+Rules:
+- `motion` for React-family / Svelte / vanilla JS stacks.
+- `motion-v` for Vue 3 / Nuxt.
+- React Native, Flutter, backend, embedded, static HTML → skipped.
+- If another animation lib (gsap, lottie-react, react-spring, …) is already present → skipped.
+
 ## STEP 6 — PLAN
 Invoke `superpowers:writing-plans` with BRIEF + skeleton.
 Granular tasks (2-5 min each), exact file paths, TDD: tests before code.

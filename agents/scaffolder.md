@@ -89,6 +89,10 @@ Add `COMPOSE_PROJECT_NAME=<slug>` to `.env.example`.
 On failure: read error → fix config → retry once → if still failing: report and stop.
 If DOCKER_RELEVANT: `docker --version && docker compose version` — failure is warning, not blocker.
 
+> **Note**: do NOT install `motion` / `motion-v` / animation libs here.
+> The init-project orchestrator handles that in STEP 5e via
+> `lib/animation-lib-check.sh`. Scaffolder stays language-agnostic.
+
 ---
 
 ## PHASE 5 — VERIFY BUILD

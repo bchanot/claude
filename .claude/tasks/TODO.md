@@ -68,6 +68,27 @@ Subtasks :
 - [x] Mettre à jour `skills/seo/SKILL.md` — cross-ref /validate pour W3C/WCAG
 - [x] Grep cohérence : refs /validate correctes, skill détecté par la harness
 
+## Animation lib (`motion`) — install + détection
+
+Problème : `motion` (ex-`framer-motion`, rebrandé nov 2024) n'est ni installé par les scripts ni détecté par plugin-advisor / design-gate. Ajouter détection + install conditionnel.
+
+Décisions :
+- **Package** : `motion` (npm `motion`, import `motion/react`). `motion-v` pour Vue 3 (package séparé). Svelte/vanilla → `motion`.
+- **Éligibilité** : tout projet qui peut consommer l'API. ✅ React/Next/Remix/Astro+React, Vue3/Nuxt, Svelte. ❌ Backend, CLI, embedded, Flutter, WordPress/Drupal/Strapi, RN (réservé `react-native-reanimated`).
+- **init-project** STEP 5 : auto-install si éligible + absent (l'utilisateur a déjà validé scaffold).
+- **onboard** STEP 2.5 : propose + attendre OK (projet existant, opt-in).
+- **plugin-advisor** : read-only — détecte + reporte ("✅ motion installed" ou "ℹ️ eligible but absent — run /onboard").
+- **design-gate** : ajouter motion/motion-v/framer-motion (legacy) dans filesystem signals.
+
+Subtasks :
+- [x] Créer `lib/animation-lib-check.sh` — fonctions `detect_anim_eligibility()` + `is_anim_lib_installed()` + `recommend_anim_install_cmd()`
+- [x] Patcher `agents/scaffolder.md` PHASE 4 — note (le scaffolder n'installe PAS, l'orchestrateur init-project STEP 5e gère)
+- [x] Patcher `skills/init-project/SKILL.md` — STEP 5e ANIMATION LIB (auto-install si éligible)
+- [x] Patcher `skills/onboard/SKILL.md` — STEP 2.5 ANIMATION LIB (propose + attendre yes/skip)
+- [x] Patcher `agents/plugin-advisor.md` PHASE 1 (sourcing du helper) + PHASE 2 (signaux `anim-lib-eligible`/`anim-lib-installed`) + PHASE 3 (section ANIMATION LIB read-only)
+- [x] Patcher `lib/design-gate.md` — ajouter motion/motion-v/framer-motion + autres anim-libs dans filesystem signals
+- [x] Tester : shellcheck OK ; matrix React/Vue/RN/backend/with-motion/no-package/pnpm tous corrects
+
 ## Helper `--help` / `help` sur tous les skills (option C)
 Problème : aucun skill ne gère `--help` aujourd'hui. `argument-hint` affiche juste la syntaxe en autocomplétion, pas de description/exemples. L'utilisateur doit lire le SKILL.md ou deviner.
 

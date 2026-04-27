@@ -103,6 +103,38 @@ Si `CLAUDE.md` existe déjà : lire son contenu, ne PAS écraser — fusionner a
 
 ---
 
+## STEP 2.5 — ANIMATION LIB (propose, opt-in)
+Vérifier si le stack peut consommer `motion` (ex-`framer-motion`, rebranded nov 2024)
+et proposer l'install si absent. **Aucun install sans confirmation utilisateur** —
+on ajoute une dep à un projet existant.
+
+```bash
+source "$HOME/.claude/lib/animation-lib-check.sh"
+result=$(detect_anim_eligibility)
+status=$(echo "$result" | cut -d'|' -f1)
+pkg=$(echo "$result" | cut -d'|' -f2)
+reason=$(echo "$result" | cut -d'|' -f3)
+```
+
+Cas :
+- **`status=eligible` AND aucune lib anim détectée** → proposer :
+  ```
+  🎬 ANIMATION LIB
+  Stack: <reason>. Aucune lib d'animation détectée.
+  Install `<cmd>` ? (yes / skip)
+  ```
+  Sur `yes` → exécuter `recommend_anim_install_cmd "$pkg"` puis confirmer.
+  Sur `skip` → continuer silencieusement.
+
+- **`status=eligible` AND une lib anim déjà présente** (motion, framer-motion, gsap, lottie, react-spring, popmotion, auto-animate) → log info uniquement :
+  ```
+  🎬 Animation lib déjà présente : <lib> — pas d'action.
+  ```
+
+- **`status=no`** → skip silencieusement (raison loggée seulement en mode verbose).
+
+---
+
 ## STEP 3 — DEEP INTERVIEW
 
 L'orchestrateur pilote directement l'interview (l'agent `interviewer.md` est laissé pour `/init-project` où le BRIEF format est attendu ; ici on reste en markdown libre dans la CLAUDE.md).

@@ -35,6 +35,13 @@ ls package.json pyproject.toml Cargo.toml go.mod 2>/dev/null | head -5
 grep -rl "next\|react\|vue\|prisma\|supabase" package.json 2>/dev/null | head -3 || true
 find . -name "*.tsx" -o -name "*.jsx" 2>/dev/null | head -3 | wc -l
 find . -name "docker-compose*" -o -name "Dockerfile" 2>/dev/null | head -3 | wc -l
+
+# Animation lib status (motion / motion-v) — read-only detection
+if [ -f "$HOME/.claude/lib/animation-lib-check.sh" ]; then
+  source "$HOME/.claude/lib/animation-lib-check.sh"
+  detect_anim_eligibility   # outputs '<status>|<package>|<reason>'
+  is_anim_lib_installed || echo "anim-lib-not-installed"
+fi
 # Monorepo detection (current dir + parent dirs for sub-package context)
 ls apps/ packages/ services/ workspaces/ 2>/dev/null | head -5
 ls pnpm-workspace.yaml turbo.json nx.json lerna.json 2>/dev/null
@@ -70,6 +77,8 @@ Detect signals from the project description and filesystem scan:
 | `skill-creation` | "create a skill", "new skill", "custom skill", `/plugin-dev:create-plugin` in description |
 | `embedded` | "firmware", "bare-metal", "microcontroller", "STM32", "ESP32", "RTOS", "driver", "kernel", "bootloader" in description; **or** `platformio.ini` present; **or** linker script (`*.ld`, `*.lds`) present; **or** `Makefile` + `src/*.c` + no `package.json`/`Cargo.toml`/`go.mod`/`setup.py`/`pyproject.toml` (C project without standard ecosystems). Note: `.c` files with a Rust/Node/Go manifest = FFI binding, NOT embedded. |
 | `simple` | single file, hotfix, quick script, no frontend, no deploy |
+| `anim-lib-eligible` | output of `detect_anim_eligibility` starts with `eligible|` (React/Vue/Svelte stack) |
+| `anim-lib-installed` | `is_anim_lib_installed` returns 0 (any of motion / motion-v / framer-motion / gsap / lottie-react / react-spring / popmotion / auto-animate present) |
 
 ---
 
@@ -117,10 +126,19 @@ RECOMMENDATIONS:
   ℹ️  OPTIONAL: [plugin] — [marginal benefit, low priority]
   🖥️  CLI     : [gsd v2] — [run 'gsd' in terminal if multi-session]
 
+ANIMATION LIB:
+  ✅ <lib> installed                                     (anim-lib-installed)
+  ℹ️  eligible (<reason>) — install via /onboard or /init  (eligible, not installed)
+  —  not eligible (<reason>)                              (no UI framework / RN / backend)
+
 CONFLICTS: [plugin A ↔ plugin B — overlap on X] or none
 BLOCKING: [issues] or none
 ACTION REQUIRED? YES / NO
 ```
+
+> ANIMATION LIB is **read-only** in this report. The advisor never installs
+> packages itself — it just states the status. Installation happens in
+> `/init-project` STEP 5e (auto) or `/onboard` STEP 2.5 (opt-in).
 
 ## PHASE 4 — AUTO-ACTIVATION (when called from /init-project or /ship-feature)
 

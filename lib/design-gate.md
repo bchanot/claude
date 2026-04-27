@@ -21,6 +21,7 @@ Check BOTH the task description AND the filesystem:
 - `tailwind.config` or `postcss.config` present in project root
 - `tokens/`, `theme/`, or `design-system/` directory exists
 - Storybook config (`.storybook/`) present
+- Animation lib in `package.json` deps: `motion`, `motion-v`, `framer-motion` (legacy), `gsap`, `@gsap/react`, `lottie-react`, `react-spring`, `popmotion`, `@formkit/auto-animate`
 
 ## DECISION
 
