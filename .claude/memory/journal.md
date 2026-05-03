@@ -28,3 +28,10 @@ rules:
 - Learning: Claude Code `disable*` settings use the sentinel string `"disable"`, not a boolean (LRN-003).
 - 3 atomic commits (`f7f033f..1421578`) via `/commit-change`.
 - Animation lib autoflow added: new helper `lib/animation-lib-check.sh` + STEP 5e in `/init-project` (auto-install) + STEP 2.5 in `/onboard` (opt-in) + read-only detection in `plugin-advisor` PHASE 1/2/3 + signal in `lib/design-gate.md` + scaffolder note. `motion` chosen over legacy `framer-motion` (BDR-005, LRN-004).
+
+## 2026-05-03
+
+- Added `JuliusBrussee/caveman` as 4th always-on plugin (BDR-006). Full install: plugin + standalone hooks + caveman-shrink MCP scaffold (snippet only, not auto-registered — proxy needs upstream wrapper, LRN-006).
+- Discovered two co-masking bugs: `claude plugin install` doesn't enable (LRN-005) and `session-start.sh` was hardcoding "✅ ON: security-guidance rtk superpowers" regardless of actual state. Added `enable_plugin()` helper + `plugin_enabled()` detector reading `enabledPlugins` from `settings.json`. Banner now reflects reality.
+- Side fix: doctor.sh exited under `set -euo pipefail` when gstack/skills/ was missing — wrapped find in brace + `|| true`.
+- 3 atomic commits (`0184818..2ec7935`).

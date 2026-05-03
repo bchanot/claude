@@ -24,6 +24,8 @@ rules:
 | LRN-002 | 2026-04-23 | Moving report-file paths requires grepping bash READS, not just WRITES | any refactor that moves a generated file used by a dispatcher |
 | LRN-003 | 2026-04-27 | Claude Code `disable*` settings use sentinel string `"disable"`, not boolean | any change to `permissions.defaultMode` or related blocker keys |
 | LRN-004 | 2026-04-27 | `framer-motion` was rebranded `motion` in Nov 2024 — different packages per framework | any new project recommending an animation lib; auditing legacy imports |
+| LRN-005 | 2026-05-03 | `claude plugin install` does NOT enable — separate `claude plugin enable` required | every plugin installer that targets ALWAYS-ON status |
+| LRN-006 | 2026-05-03 | `caveman-shrink` (and any MCP middleware proxy) is non-functional without an upstream wrapper | any MCP middleware/proxy package — never `claude mcp add` it bare |
 
 ---
 
@@ -67,3 +69,29 @@ rules:
   - When auditing existing projects, check both `framer-motion` and `motion` keys in `package.json` deps; treat either as "animation already covered".
   - Before adopting any "industry default" lib in a framework, verify the canonical package name is current — naming churn (rebrand, scope change `@org/lib`, fork) is common in JS land.
 - **Reference**: helper `lib/animation-lib-check.sh`, BDR-005.
+
+## LRN-005 — `claude plugin install` does NOT enable — `claude plugin enable` is a separate step
+
+- **Date**: 2026-05-03
+- **Pattern**: the Claude Code CLI splits "available" from "active" for marketplace plugins. `claude plugin install --scope user name@source` only copies the plugin into `~/.claude/plugins/cache/<marketplace>/<plugin>/<version>/`. It does NOT write `name@source: true` into the user's `settings.json:enabledPlugins` map. Without an explicit `claude plugin enable name@source`, the plugin sits dormant — installed but unloaded. This is symmetric with `claude plugin disable`, which keeps the cache and only removes the enabledPlugins entry.
+- **Context**: discovered while auditing why `security-guidance` and `superpowers` were ✘ disabled in `claude plugin list` despite the project's `install-plugins.sh` summary banner declaring them "ALWAYS ON". Root cause: `install_plugin()` only ran `claude plugin install`, never `enable`. The bug had stayed invisible because a hardcoded `printf "│  ✅ ON  : security-guidance rtk superpowers │"` in `session-start.sh` printed the same names regardless of actual state — the lying banner agreed with the lying install.
+- **Future application**:
+  - For any plugin meant to be ALWAYS ON, follow `claude plugin install` with `claude plugin enable name@source` (idempotent — no-op if already enabled).
+  - Detect "actually enabled" via `enabledPlugins[name@source] === true` in `settings.json`, NOT by the presence of the cache dir. The pattern is implemented in `lib/detect-plugins.sh:plugin_enabled()` (filesystem grep, no subprocess).
+  - Any banner / status display that claims a plugin is on must read state, never hardcode names. Hardcoded labels turn a single bug into two co-conspiring bugs that mask each other.
+- **Reference**: commit `2ec7935`, `lib/detect-plugins.sh:plugin_enabled`, `install-plugins.sh:enable_plugin()`.
+
+## LRN-006 — `caveman-shrink` (and any MCP middleware proxy) needs an upstream wrapper to function
+
+- **Date**: 2026-05-03
+- **Pattern**: some MCP packages are middleware proxies, not standalone servers. They wrap an upstream MCP server and transform its responses (e.g. `caveman-shrink` compresses prose fields). Running them bare via `claude mcp add proxy-name -- npx -y proxy-pkg` registers a server that errors immediately with "missing upstream command" — every health check fails, and Claude Code reports the MCP as broken until a human intervenes. The CLI `claude mcp add` doesn't validate that the configured command launches a working stdio MCP, so the bad registration silently lands.
+- **Context**: when adding caveman, the upstream installer auto-registers `claude mcp add caveman-shrink -- npx -y caveman-shrink` and prints "registered. wrap an upstream by editing the mcpServers entry". Following that flow leaves the user with a permanently failing MCP entry until they realize they have to edit `~/.claude.json` manually.
+- **Future application**:
+  - For any MCP that is a proxy/middleware (read package docs for "upstream", "wraps", "proxy"), register it under a DERIVED name `<proxy>-<upstream>` with the upstream baked into the args. Example for caveman-shrink wrapping the filesystem server:
+    ```
+    claude mcp add caveman-shrink-fs --scope user -- \
+      npx -y caveman-shrink npx -y @modelcontextprotocol/server-filesystem /path
+    ```
+  - Detection of "is this MCP correctly set up?" must look for the derived name (`caveman-shrink-*`), not the bare proxy name. Bare-name registration is treated as broken.
+  - Default install scripts should NOT auto-register middleware MCPs — print the snippet for the user to choose an upstream. See `install-plugins.sh` STEP 5.5.
+- **Reference**: commit `9b20b84`, `lib/detect-plugins.sh:detect_caveman_shrink`, `install-plugins.sh` STEP 5.5 MCP block.

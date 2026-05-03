@@ -27,6 +27,7 @@ rules:
 | BDR-003 | 2026-04-23 | Gitignore wildcard + negations pattern for .claude/ | accepted |
 | BDR-004 | 2026-04-27 | Adopt auto permission mode as default | accepted |
 | BDR-005 | 2026-04-27 | `motion` as default animation library; advisor stays read-only | accepted |
+| BDR-006 | 2026-05-03 | Caveman as 4th always-on plugin (output compression) | accepted |
 
 ---
 
@@ -95,3 +96,19 @@ rules:
   - `eligible|motion-v`: Vue 3, Nuxt
   - `no|-`: backend, CLI, embedded, Flutter, static HTML, **React Native** (use `react-native-reanimated`), Astro without UI integration, no `package.json`
 - **Reference**: helper at `lib/animation-lib-check.sh`; integration in `skills/init-project/SKILL.md` STEP 5e, `skills/onboard/SKILL.md` STEP 2.5, `agents/plugin-advisor.md` PHASE 1/2/3, `lib/design-gate.md`.
+
+## BDR-006 — Caveman as 4th always-on plugin (output compression)
+
+- **Date**: 2026-05-03
+- **Status**: accepted
+- **Decision**: install `JuliusBrussee/caveman` in the always-on tier alongside `security-guidance`, `superpowers`, and `rtk`. "Full" install = plugin (`/caveman` + cavecrew agents + plugin-scoped SessionStart/UserPromptSubmit hooks) + standalone hooks (statusline + stats badge in `~/.claude/hooks/`) + `caveman-shrink` MCP scaffold (NOT auto-registered — proxy needs upstream wrapper). `install-plugins.sh` STEP 5.5 calls `enable_plugin "caveman" "caveman"` to write it into `enabledPlugins`. Hook paths in `settings.json` are normalized to `~/.claude/hooks/...` post-install so this user's home dir doesn't leak across machines.
+- **Why**: caveman compresses Claude's output ~75% via caveman-speak while preserving technical substance. Symmetrical with rtk (input compression hook) — rtk shrinks tool I/O, caveman shrinks model output. Both hooks pay zero passive cost in a clean session and amortize across long runs. Always-on is justified: the plugin auto-deactivates with phrases like "stop caveman" / "normal mode", so toggle would be friction without benefit.
+- **Alternatives rejected**:
+  - Toggle plugin (start OFF) — rejected: misses the by-default benefit; the user would need to remember `claude plugin enable caveman@caveman` per session, which negates the auto-compression value.
+  - `--minimal` install (plugin only) — rejected: loses the standalone stats badge that surfaces token-saving telemetry.
+  - `--all` install (adds per-repo `caveman-rules.md` etc. into `$PWD`) — rejected: would litter THIS config repo (the cwd at install time) with rule files meant for project repos. Let users opt in per-repo when they want it.
+  - Auto-register `caveman-shrink` MCP — rejected: the proxy errors with "missing upstream command" without an upstream MCP to wrap, fails health checks. Print a snippet instead and let the user pick which upstream they want compressed (filesystem, github, …).
+- **Caveats**:
+  - Caveman's `hooks/install.sh` writes absolute paths (`$HOME/.claude/hooks/caveman-*.js`) into `settings.json`. Since `settings.json` is symlinked into the repo, the absolute path would commit a username. STEP 5.5 runs a Python post-process to rewrite to portable `~/.claude/hooks/...` form (bash expands `~` before passing to `node`).
+  - Caveman's hook files materialize in `hooks/` (the repo dir, not `~/.claude/hooks/`) because the latter is a symlink. They're added to `.gitignore` to prevent accidental commit of user-scope state.
+- **Reference**: install-plugins.sh STEP 5.5, lib/detect-plugins.sh `detect_caveman*` + `plugin_enabled`, doctor.sh caveman block, commit `9b20b84`.
