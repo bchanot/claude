@@ -390,6 +390,7 @@ claude plugin marketplace add anthropics/claude-code 2>/dev/null || true
 info "Adding Anthropic skills marketplace..."
 claude plugin marketplace add anthropics/skills 2>/dev/null || true
 install_plugin "security-guidance"  "claude-code-plugins"
+enable_plugin  "security-guidance"  "claude-code-plugins"
 # skill-creator is in "example-skills" plugin from anthropics/skills marketplace
 # (not in claude-code marketplace — it's a separate repo)
 install_plugin "example-skills"     "anthropic-agent-skills"
@@ -402,6 +403,7 @@ echo ""
 info "Adding Superpowers marketplace..."
 claude plugin marketplace add obra/superpowers-marketplace 2>/dev/null || true
 install_plugin "superpowers" "superpowers-marketplace"
+enable_plugin  "superpowers" "superpowers-marketplace"
 
 echo ""
 

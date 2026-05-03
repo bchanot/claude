@@ -123,7 +123,29 @@ unset _passive_t _budget_pct _budget
 
 echo ""
 echo "┌─ Claude Code config ──────────────────────────────────┐"
-printf "│  ✅ ON  : %-40s│\n" "security-guidance rtk superpowers"
+# "ALWAYS ON" row — actual state, not hardcoded. RTK is a binary on PATH;
+# the others are marketplace plugins whose state lives in
+# settings.json:enabledPlugins. Anything missing/disabled is omitted so
+# the user sees the real picture instead of a misleading literal.
+ALWAYS_ON=()
+detect_rtk &>/dev/null && ALWAYS_ON+=("rtk")
+plugin_enabled "security-guidance@claude-code-plugins"  && ALWAYS_ON+=("security-guidance")
+plugin_enabled "superpowers@superpowers-marketplace"    && ALWAYS_ON+=("superpowers")
+plugin_enabled "caveman@caveman"                        && ALWAYS_ON+=("caveman")
+ALWAYS_ON_STR="${ALWAYS_ON[*]:-none}"
+# Same 40-char-width split policy as the toggle row below — keeps the
+# right border aligned when 4 always-on plugins overflow the field.
+if [ "${#ALWAYS_ON_STR}" -le 40 ]; then
+  printf "│  ✅ ON  : %-40s│\n" "$ALWAYS_ON_STR"
+else
+  _ao_line1="${ALWAYS_ON[0]} ${ALWAYS_ON[1]} ${ALWAYS_ON[2]:-}"
+  _ao_rest=("${ALWAYS_ON[@]:3}")
+  _ao_line2="${_ao_rest[*]}"
+  printf "│  ✅ ON  : %-40s│\n" "$_ao_line1"
+  printf "│             %-40s│\n" "$_ao_line2"
+  unset _ao_line1 _ao_line2 _ao_rest
+fi
+unset ALWAYS_ON ALWAYS_ON_STR
 # Plugin display — all plugins shown, split across 2 lines if >4
 _active_count=${#TOGGLE_ACTIVE[@]}
 _inactive_count=${#TOGGLE_INACTIVE[@]}
