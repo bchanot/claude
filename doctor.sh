@@ -87,8 +87,10 @@ if [ -L "$HOME/.claude/skills/gstack" ]; then
   real=$(readlink -f "$HOME/.claude/skills/gstack" 2>/dev/null || readlink "$HOME/.claude/skills/gstack")
   if [ -d "$real" ]; then
     pass "Symlink OK → $real"
-    # Check for skills/ subdirectory (referenced by plugin-advisor PHASE 1)
-    gstack_skills_count=$(find "$HOME/.claude/skills/gstack/skills/" -maxdepth 1 -mindepth 1 2>/dev/null | wc -l | tr -d ' ')
+    # Check for skills/ subdirectory (referenced by plugin-advisor PHASE 1).
+    # `|| echo 0` is required because under `set -o pipefail`, a missing
+    # gstack/skills/ dir makes find exit non-zero, killing the script.
+    gstack_skills_count=$( { find "$HOME/.claude/skills/gstack/skills/" -maxdepth 1 -mindepth 1 2>/dev/null || true; } | wc -l | tr -d ' ')
     if [ "${gstack_skills_count:-0}" -gt 0 ]; then
       pass "GStack: ${gstack_skills_count} skills available"
     else
