@@ -224,6 +224,36 @@ else
   info "emil-design-eng not installed — skipping (run: make plugin)"
 fi
 
+# ── 7.4. Update Caveman (hooks + MCP shrink) ──
+# Plugin updates are handled by the marketplace plugin update loop below
+# (step 8). This step refreshes the standalone hook files (statusline +
+# stats badge) that live outside the plugin in ~/.claude/hooks/.
+echo ""
+echo "── Updating Caveman extras (hooks + MCP shrink)..."
+if [ -f "$HOME/.claude/hooks/caveman-statusline.sh" ]; then
+  CAVEMAN_HOOKS_URL="https://raw.githubusercontent.com/JuliusBrussee/caveman/main/hooks/install.sh"
+  CAVEMAN_HOOKS_TMP="$(mktemp -t caveman-hooks-XXXXXX.sh)"
+  if curl -fsSL "$CAVEMAN_HOOKS_URL" -o "$CAVEMAN_HOOKS_TMP" \
+     && bash "$CAVEMAN_HOOKS_TMP" --force 2>/dev/null; then
+    ok "Caveman hooks refreshed"
+  else
+    warn "Caveman hooks refresh failed — re-run install-plugins.sh"
+  fi
+  rm -f "$CAVEMAN_HOOKS_TMP"
+else
+  info "Caveman hooks not installed — skipping (run: make plugin)"
+fi
+# MCP shrink uses 'npx -y caveman-shrink' which always fetches latest from
+# npm at invocation time — no explicit update needed. We only check for
+# user-defined wrappers (caveman-shrink-*), since the bare proxy fails
+# health checks without an upstream.
+if command -v claude &>/dev/null \
+   && claude mcp list 2>/dev/null | grep -q '^caveman-shrink-'; then
+  ok "caveman-shrink wrappers detected (auto-update via npx -y)"
+else
+  info "caveman-shrink not wrapped — manual setup (see install-plugins.sh STEP 5.5)"
+fi
+
 # ── 7.5. Update external skills (npx skills) ──
 echo ""
 echo "── Updating external skills (npx skills)..."

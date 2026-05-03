@@ -182,6 +182,22 @@ else
   info "Graphifyy not installed (optional — codebase knowledge graph: pipx install graphifyy)"
 fi
 
+if detect_caveman; then
+  pass "Caveman plugin installed"
+  if detect_caveman_hooks; then
+    pass "Caveman standalone hooks (statusline + stats) installed"
+  else
+    warn "Caveman plugin OK but standalone hooks missing — re-run install-plugins.sh"
+  fi
+  if detect_caveman_shrink; then
+    pass "caveman-shrink MCP wrapper registered (custom upstream)"
+  else
+    info "caveman-shrink MCP not wrapped — manual setup (proxy, needs upstream): see install-plugins.sh STEP 5.5"
+  fi
+else
+  info "Caveman not installed (optional — output compression ~75%: run install-plugins.sh)"
+fi
+
 echo ""
 
 # ────────────────────────────────────────────────────────────
@@ -247,6 +263,7 @@ if detect_gstack      2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 2750));
 if detect_uiux_pro_max    2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 400)); fi
 if detect_context7    2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 200)); fi
 if detect_graphifyy   2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 300)); fi
+if detect_caveman     2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 300)); fi
 
 TOTAL_TOKENS=$((CLAUDE_MD_TOKENS + SKILL_DESC_TOKENS + PLUGIN_TOKENS))
 SESSION_BUDGET=11000

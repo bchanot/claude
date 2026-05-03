@@ -56,6 +56,18 @@ skills/find-skills
 # Staging area used by lib/toggle-external.sh when disabling a tool
 skills-disabled/
 
+# Caveman runtime hook files — deployed by caveman hooks/install.sh into
+# ~/.claude/hooks/ (which is a symlink to this repo's hooks/), so they
+# materialize here. They are user-scope state, not repo source.
+hooks/caveman-activate.js
+hooks/caveman-config.js
+hooks/caveman-mode-tracker.js
+hooks/caveman-stats.js
+hooks/caveman-statusline.sh
+hooks/package.json
+hooks/package-lock.json
+hooks/node_modules/
+
 # Local project config (per-machine, not shared)
 .claude/*
 !.claude/tasks/
