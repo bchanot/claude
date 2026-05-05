@@ -23,6 +23,11 @@ claude plugin list 2>/dev/null || echo "plugin-list-unavailable"
 # `claude plugin enable|disable` does not apply to them.
 bash "$HOME/.claude/lib/toggle-external.sh" list 2>/dev/null || echo "toggle-external-unavailable"
 
+# Active skill profile — design / dev / qa / audit / minimal / custom.
+# Profiles partition gstack + personal skills by purpose. See
+# lib/profile.sh and lib/profiles/*.profile.
+bash "$HOME/.claude/lib/profile.sh" current 2>/dev/null || echo "profile-unavailable"
+
 # Context7 CLI
 command -v ctx7 &>/dev/null && ctx7 --version 2>/dev/null | head -1 || echo "ctx7-not-installed"
 
@@ -114,6 +119,7 @@ Output: `COMPLEXITY: <score>% — <label>` with one-line justification.
 ```
 PLUGIN CHECK
 ACTIVE: [plugin — status, one line each]
+PROFILE: [active skill profile — name + match%, or "custom"]
 SIGNALS: [detected signals]
 COMPLEXITY: <score>% — <simple|moderate|complex|enterprise>
 PLAN: <Max|Pro|Free> (budget: ~<N>t passive tokens)
@@ -307,6 +313,40 @@ bash $HOME/.claude/lib/toggle-external.sh enable gstack
 # Disable darwin-skill when passive cost is too high for a hotfix:
 bash $HOME/.claude/lib/toggle-external.sh disable darwin-skill
 ```
+
+### Skill profiles (fine-grained partitioning, with plugin + MCP toggle)
+
+For task-shaped activation (web only, seo only, backend only, design only,
+etc.) prefer `lib/profile.sh` over toggling all of gstack at once. Profiles
+activate a curated subset of skills + plugins + MCPs and disable the rest of
+gstack + managed plugins — sessions stay focused and passive token cost drops.
+
+`profile set <name>` actually toggles plugins (`claude plugin enable|disable`)
+and MCPs (delegates to `lib/toggle-external.sh` for `magic`) — not just
+advisory. Always-on plugins (`caveman`, `security-guidance`, `superpowers`)
+are protected. Managed plugins that `set` may toggle:
+`ui-ux-pro-max@ui-ux-pro-max-skill`, `plugin-dev@claude-code-plugins`,
+`pr-review-toolkit@claude-code-plugins`. Other plugins are never auto-toggled.
+
+When the project signal matches one of the canonical profiles, recommend the
+matching `profile set` command:
+
+| Signal | Recommended profile | Command |
+|---|---|---|
+| `frontend` public website (no backend, no SEO focus) | `web` | `bash $HOME/.claude/lib/profile.sh set web` |
+| audit-only: SEO + GEO + W3C + WCAG | `seo` | `bash $HOME/.claude/lib/profile.sh set seo` |
+| public website end-to-end (build + audit) | `web-full` | `bash $HOME/.claude/lib/profile.sh set web-full` |
+| backend / API / system / library (no UI, no SEO) | `backend` | `bash $HOME/.claude/lib/profile.sh set backend` |
+| `design-system` (heavy UI work, no dev) | `design` | `bash $HOME/.claude/lib/profile.sh set design` |
+| `simple` / hotfix / typical dev session | `dev` | `bash $HOME/.claude/lib/profile.sh set dev` |
+| `browser-qa` (e2e tests, no design work) | `qa` | `bash $HOME/.claude/lib/profile.sh set qa` |
+| comprehensive audit (security + SEO + perf) | `audit` | `bash $HOME/.claude/lib/profile.sh set audit` |
+| narrow session, minimal noise | `minimal` | `bash $HOME/.claude/lib/profile.sh set minimal` |
+
+To restore the full skill set: `bash $HOME/.claude/lib/profile.sh reset`.
+Plugin state is NOT touched by reset — re-enable a managed plugin manually
+or by applying a profile that lists it (e.g. `apply web` to restore
+`ui-ux-pro-max`).
 
 ## BLOCK if
 

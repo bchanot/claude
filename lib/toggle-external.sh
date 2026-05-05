@@ -22,6 +22,12 @@
 #   darwin-skill      — single symlink → ~/.agents/skills/darwin-skill
 #   find-skills       — single symlink → ~/.agents/skills/find-skills
 #   magic             — 21st-dev Magic MCP server (API key in .env)
+#
+# For fine-grained activation (only design skills, only qa skills, only
+# audit skills, etc.) instead of all-or-nothing gstack toggling, use:
+#   bash lib/profile.sh list
+#   bash lib/profile.sh set <design|dev|qa|audit|minimal>
+#   bash lib/profile.sh reset
 # ============================================================
 set -euo pipefail
 

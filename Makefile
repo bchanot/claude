@@ -1,4 +1,4 @@
-.PHONY: help install plugin link doctor update new-skill
+.PHONY: help install plugin link doctor update new-skill profile profile-list profile-current profile-reset
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  make %-14s %s\n", $$1, $$2}'
@@ -21,6 +21,18 @@ update: ## Update Claude Code, config, submodules, plugins, and verify
 onboard: link ## Onboard an existing project (run from the project directory)
 	@echo "Open Claude Code in your project directory and run: /onboard"
 	@echo "Or with hints: /onboard Python FastAPI monorepo"
+
+profile: ## Run profile.sh (usage: make profile cmd="set design")
+	@bash lib/profile.sh $(cmd)
+
+profile-list: ## List skill profiles (design, dev, qa, audit, minimal)
+	@bash lib/profile.sh list
+
+profile-current: ## Detect which skill profile is currently active
+	@bash lib/profile.sh current
+
+profile-reset: ## Re-enable all gstack skills (undo any profile set)
+	@bash lib/profile.sh reset
 
 new-skill: ## Create a new skill scaffold (usage: make new-skill name=myskill)
 	@test -n "$(name)" || (echo "Usage: make new-skill name=myskill" && exit 1)
