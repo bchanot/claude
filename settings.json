@@ -236,7 +236,7 @@
     "command": "bash ~/.claude/hooks/statusline.sh"
   },
   "enabledPlugins": {
-    "example-skills@anthropic-agent-skills": true,
+    "example-skills@anthropic-agent-skills": false,
     "ui-ux-pro-max@ui-ux-pro-max-skill": true,
     "caveman@caveman": true,
     "security-guidance@claude-code-plugins": true,
