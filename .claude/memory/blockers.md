@@ -9,9 +9,9 @@ schema:
   solution: string (workaround or fix)
   status: [open | resolved | upstream]
 rules:
-  - Open a blocker as soon as friction > 15 min wasted. Close it with a real cause, not "moved on".
-  - Link to upstream issue / PR / commit when applicable.
-  - If cause is a bug in a dependency, set status upstream with a pointer to the tracker.
+  - Open blocker when friction > 15 min wasted. Close with real cause, not "moved on".
+  - Link upstream issue / PR / commit when applicable.
+  - Cause is bug in dependency → status upstream with pointer to tracker.
 ---
 
 # Blockers registry (BLK)
@@ -28,7 +28,7 @@ rules:
 ## BLK-001 — `rtk curl` returns compressed schema in pipes
 
 - **Date**: 2026-04-22
-- **Friction**: any pipeline like `rtk curl ... | python -c "json.load(sys.stdin)"` (or `jq`, `awk`) fails without a clear error message.
+- **Friction**: pipelines like `rtk curl ... | python -c "json.load(sys.stdin)"` (or `jq`, `awk`) fail without clear error.
 - **Real cause**: `rtk curl` auto-compresses stdout regardless of TTY — documented in `.claude/tasks/rtk-upstream-issue.md`.
 - **Solution**:
   - Short-term workaround: `exclude_commands=["curl"]` in `~/.config/rtk/config.toml`.
@@ -39,9 +39,9 @@ rules:
 ## BLK-002 — `rmdir` denied in sandbox on empty directory
 
 - **Date**: 2026-04-23
-- **Friction**: couldn't delete `./tasks/` after emptying it (post-migration to `.claude/tasks/`). `rmdir tasks` and `rm -r tasks` returned "Permission denied" even with an empty dir and non-destructive intent.
-- **Real cause**: the Claude Code sandbox blocks destructive commands (`rm`, `rmdir`, `rm -rf`) by default via the harness permission gate, regardless of actual semantics. `git rm` through `git` passed (commit `c721a36`) — git is treated as a non-destructive tool.
+- **Friction**: couldn't delete `./tasks/` after emptying (post-migration to `.claude/tasks/`). `rmdir tasks` and `rm -r tasks` returned "Permission denied" even with empty dir and non-destructive intent.
+- **Real cause**: Claude Code sandbox blocks destructive commands (`rm`, `rmdir`, `rm -rf`) by default via harness permission gate, regardless of actual semantics. `git rm` through `git` passed (commit `c721a36`) — git treated as non-destructive tool.
 - **Solution**:
-  - This session: `git rm tasks/*.md` handled files individually (via `git rm`, which cleared the gate). Git then auto-detected renames to `.claude/tasks/`, so the `tasks/` directory was removed implicitly at commit time.
-  - If the dir persists empty after `git rm`: ask the user to run `rmdir tasks` manually.
+  - This session: `git rm tasks/*.md` handled files individually (via `git rm`, cleared gate). Git auto-detected renames to `.claude/tasks/`, so `tasks/` directory removed implicitly at commit time.
+  - If dir persists empty after `git rm`: ask user to run `rmdir tasks` manually.
 - **Status**: resolved (fixed via `git rm` + rename auto-detection; no `rmdir` needed in practice).

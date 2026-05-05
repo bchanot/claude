@@ -28,7 +28,7 @@ rules:
 ## EVAL-001 — `.claude/` restructure plan
 
 - **Date**: 2026-04-23
-- **Output**: 21-task plan to migrate `tasks/` to `.claude/tasks/` + create `.claude/memory/` + `.claude/audits/` + integrate CAPITALIZE across 5 skills + add `/close` skill.
-- **Method**: manual review of the 5 impacted skills/agents; verified `rtk` is path-agnostic; confirmed `~/.claude/CLAUDE.md` symlinks to the project (single file to edit). Radical-honesty check on the session-close ritual: confirmed aspirational without skill integration → scope expanded to Option D.
-- **Anomalies**: none blocking. Note: `tasks/LESSONS.md` was empty (101B, header only) — migration to `learnings.md` is symbolic.
+- **Output**: 21-task plan migrate `tasks/` to `.claude/tasks/` + create `.claude/memory/` + `.claude/audits/` + integrate CAPITALIZE across 5 skills + add `/close` skill.
+- **Method**: manual review of 5 impacted skills/agents; verified `rtk` path-agnostic; confirmed `~/.claude/CLAUDE.md` symlinks to project (single file edit). Radical-honesty check on session-close ritual: confirmed aspirational without skill integration → scope expanded to Option D.
+- **Anomalies**: none blocking. Note: `tasks/LESSONS.md` empty (101B, header only) — migration to `learnings.md` symbolic.
 - **Action**: keep — plan validated, ready for execution.
