@@ -44,3 +44,10 @@ rules:
 - Tested end-to-end: list/show/current/diff/set/reset/apply all green; shellcheck clean; symlink state restored after reset.
 - Profile system v2 (BDR-008): extended `profile.sh` to toggle Claude plugins (`claude plugin enable|disable`) + MCP servers (`magic` via `lib/toggle-external.sh`). Added 4 new profiles: `web`, `seo`, `web-full`, `backend`. Refined existing profiles to use `plugin@<marketplace>` syntax + `cli` entries. Always-on plugins protected by `MANAGED_PLUGINS` allowlist + `PROTECTED_PLUGINS` denylist.
 - Verified: `set web` enables ui-ux-pro-max + magic; `set seo` disables ui-ux-pro-max; `set minimal` disables ui-ux-pro-max but spares caveman/security-guidance/superpowers. `current` heuristic respects ties (web-full beats web at 100%).
+
+## 2026-05-05
+
+- Mandated caveman format on all `.claude/memory/*.md` writes (BDR-009). Rule added to CLAUDE.md "Memory registries" section. Self-applied: CLAUDE.md prose compressed in same pass.
+- Compressed 5 existing registries via `/caveman:compress` (decisions, learnings, blockers, journal, evals) — ~40% input-token reduction per session-start load.
+- Side chores: disabled `example-skills@anthropic-agent-skills` plugin in settings.json; gitignored `*.original.md` compress backups (recoverable via git history).
+- 4 atomic commits (`0275eed..639486a`) via `/commit-change`.

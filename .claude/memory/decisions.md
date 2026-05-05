@@ -28,6 +28,9 @@ rules:
 | BDR-004 | 2026-04-27 | Adopt auto permission mode as default | accepted |
 | BDR-005 | 2026-04-27 | `motion` as default animation library; advisor stays read-only | accepted |
 | BDR-006 | 2026-05-03 | Caveman as 4th always-on plugin (output compression) | accepted |
+| BDR-007 | 2026-05-04 | Skill profiles partition gstack by usage (design / dev / qa / audit / minimal) | accepted |
+| BDR-008 | 2026-05-04 | Profile system v2: extend to plugins + MCPs + CLIs (web/seo/web-full/backend) | accepted |
+| BDR-009 | 2026-05-05 | Mandate caveman format on .claude/memory/ registries | accepted |
 
 ---
 
@@ -150,3 +153,21 @@ rules:
   - `cmd_show` widened TYPE column to 30 chars to fit `plugin@ui-ux-pro-max-skill` without breaking alignment.
   - `mcp magic` toggle delegates to `lib/toggle-external.sh enable magic` which requires `MAGIC_API_KEY` in `.env`. If key missing, profile.sh prints info line and continues — rest of profile still applies.
 - **Reference**: `lib/profile.sh` (`MANAGED_PLUGINS`/`PROTECTED_PLUGINS` arrays, `skill_status` plugin@/cli/mcp branches, `enable_skill`/`disable_skill` plugin@ + mcp branches, `cmd_set` plugin disable loop, `cmd_current` available-counting), `lib/profiles/{web,seo,web-full,backend}.profile`, refined `lib/profiles/{design,dev,qa,audit}.profile` (use `plugin@<marketplace>` syntax + `cli` entries), `skills/profile/SKILL.md` (updated profile table + mechanism table), `agents/plugin-advisor.md` (extended profile recommendation table).
+
+## BDR-009 — Mandate caveman format on .claude/memory/ registries
+
+- **Date**: 2026-05-05
+- **Status**: accepted
+- **Decision**: all writes to `.claude/memory/*.md` (decisions, learnings, blockers, journal, evals) MUST use caveman style — drop articles (a/an/the), drop filler (just/really/basically/actually/simply), fragments OK, short synonyms (big not extensive, fix not "implement a solution for"). Keep technical terms exact, code blocks unchanged, error messages quoted exact, IDs (BDR-XXX, LRN-XXX, BLK-XXX, EVAL-XXX) and dates unchanged. Pattern: `[thing] [action] [reason]. [next step].` Rule added to `CLAUDE.md` "Memory registries" section. Applied retroactively to existing 5 registries via `/caveman:compress`. Pre-compression backups saved as `*.original.md` (gitignored).
+- **Why**: registries loaded every session start (per CLAUDE.md "Session start" step 1) — every token compressed cuts permanent input cost. Measured ~40% input-token reduction across 5 files (164→97 lines on average per registry). Caveman style preserves all technical substance (code, IDs, error strings, refs) while dropping prose padding that no engineer needs at re-read. Rule mirrors English-only rule that already governs registries — both about read-efficiency, not aesthetics.
+- **Alternatives rejected**:
+  - Compress only on new entries, leave existing prose untouched — rejected: every session-start still pays 40% prose tax on legacy entries (largest part of file). Mixed-style file harder to scan than uniform compressed file.
+  - Use lighter compression (drop only fillers, keep articles) — rejected: half-measure. Caveman lite saves ~15%, full saves ~40%. Cost identical (one /caveman:compress run).
+  - Move registries to JSON/YAML for max density — rejected: registries are narrative (BDR rationale, LRN context). YAML/JSON would lose nuance, force schema rigidity. Caveman keeps prose readable, just compressed.
+  - Skip rule, rely on writers to compress organically — rejected: untested writers (skills, future agents) revert to verbose prose. Explicit rule + caveman-mode-active hook ensures consistency without per-skill enforcement.
+- **Caveats**:
+  - Code blocks, error strings, commit refs, IDs, dates, file paths MUST stay byte-exact — caveman applies to prose only.
+  - User-facing CAPITALIZE prompts may stay verbose / mirror user language; rule applies only to written entry.
+  - `*.original.md` backups gitignored (BDR-009 commit `639486a`) — recoverable via git history of pre-compression commit.
+  - Existing registries entries compressed in commit `e4a9259`; new entries written caveman from start (BDR-009 itself is first such entry).
+- **Reference**: `CLAUDE.md` "Format — registries ALWAYS caveman" section, commits `520188a` (rule added), `e4a9259` (5 registries compressed), `639486a` (gitignore backups).
