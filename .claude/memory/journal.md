@@ -35,3 +35,12 @@ rules:
 - Discovered two co-masking bugs: `claude plugin install` doesn't enable (LRN-005) and `session-start.sh` was hardcoding "✅ ON: security-guidance rtk superpowers" regardless of actual state. Added `enable_plugin()` helper + `plugin_enabled()` detector reading `enabledPlugins` from `settings.json`. Banner now reflects reality.
 - Side fix: doctor.sh exited under `set -euo pipefail` when gstack/skills/ was missing — wrapped find in brace + `|| true`.
 - 3 atomic commits (`0184818..2ec7935`).
+
+## 2026-05-04
+
+- Built skill profile system (BDR-007): `lib/profile.sh` + `lib/profiles/{design,dev,qa,audit,minimal}.profile` partition gstack + personal skills by purpose. Activation toggles symlinks `skills/` ↔ `skills-disabled/`.
+- Wired into `agents/plugin-advisor.md` (DETECT call to `profile.sh current` + new `PROFILE` line in OUTPUT + new "Skill profiles" subsection in TOGGLING EXTERNAL TOOLS), `lib/toggle-external.sh` (header pointer), `Makefile` (4 targets), and `skills/profile/SKILL.md` (`/profile` slash command).
+- `cmd_current` honestly reports "full" when no `gstack__*` entry exists in `skills-disabled/` — avoids the "100% match" trap when the full gstack is on.
+- Tested end-to-end: list/show/current/diff/set/reset/apply all green; shellcheck clean; symlink state restored after reset.
+- Profile system v2 (BDR-008): extended `profile.sh` to actually toggle Claude plugins (`claude plugin enable|disable`) and MCP servers (`magic` via `lib/toggle-external.sh`). Added 4 new profiles: `web`, `seo`, `web-full`, `backend`. Refined existing profiles to use `plugin@<marketplace>` syntax + `cli` entries. Always-on plugins protected by `MANAGED_PLUGINS` allowlist + `PROTECTED_PLUGINS` denylist.
+- Verified: `set web` enables ui-ux-pro-max + magic; `set seo` disables ui-ux-pro-max; `set minimal` disables ui-ux-pro-max but spares caveman/security-guidance/superpowers. `current` heuristic respects ties (web-full beats web at 100%).

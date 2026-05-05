@@ -127,3 +127,29 @@ Subtasks :
 - [ ] Patcher les skills perso restants : analyze, bugfix, code-clean, commit-change, doc, feat, geo, graphify, harden, hotfix, init-project, make-pdf, onboard, plan-tune, plugin-check, refactor, seo, ship-feature, skills-perso, status, benchmark-models, context-save, context-restore
 - [ ] Mettre à jour `~/.claude/CLAUDE.md` — mentionner convention --help disponible sur tous les skills perso
 - [ ] Note : skills-external/gstack ont leur propre convention, ne pas toucher
+
+## Skill profiles (partition gstack par usage)
+- [x] Plan
+- [x] `lib/profile.sh` — list/show/current/apply/set/reset/diff via symlink toggle
+- [x] `lib/profiles/{design,dev,qa,audit,minimal}.profile` — 5 profils
+- [x] `skills/profile/SKILL.md` — slash command `/profile`
+- [x] Wire `agents/plugin-advisor.md` — DETECT call profile.sh current + OUTPUT line PROFILE + nouvelle section "Skill profiles" dans TOGGLING EXTERNAL TOOLS
+- [x] Wire `lib/toggle-external.sh` — header pointer vers profile.sh
+- [x] `Makefile` — targets profile/profile-list/profile-current/profile-reset
+- [x] Tests : list/show/current/diff/set/reset/apply tous OK, shellcheck propre, symlinks bien restaurés après reset
+
+## Profile system v2 — extension plugins/MCPs/CLIs
+- [x] Inventaire complet : 7 plugins (4 ON / 3 OFF), 0 MCP local, 4 CLIs installés
+- [x] Définir `MANAGED_PLUGINS` (ui-ux-pro-max, plugin-dev, pr-review-toolkit) + `PROTECTED_PLUGINS` (caveman, security-guidance, superpowers)
+- [x] `profile.sh` étendu : nouveau type `plugin@<marketplace>` (auto-toggle via `claude plugin enable/disable`), `mcp` (delegate à toggle-external.sh pour magic), `cli` (advisory only)
+- [x] `cmd_set` désactive aussi les MANAGED_PLUGINS hors profil
+- [x] `cmd_reset` ne touche PAS aux plugins (info line explicite — re-enable manuel ou via apply)
+- [x] `cmd_current` : compte `enabled` + `installed`, tiebreaker = total le plus grand
+- [x] `cmd_show` : colonne TYPE élargie à 30 chars pour `plugin@ui-ux-pro-max-skill`
+- [x] 4 nouveaux profils : `web`, `seo`, `web-full`, `backend`
+- [x] Profils existants raffinés (design, dev, qa, audit) avec `plugin@<marketplace>` + `cli`
+- [x] `skills/profile/SKILL.md` : table profils mise à jour + table mécanisme par type
+- [x] `agents/plugin-advisor.md` : table de recommandations étendue avec web/seo/web-full/backend
+- [x] Tests : `set web` enable ui-ux-pro-max+magic, `set seo` disable ui-ux-pro-max, `set minimal` épargne always-on, `reset` restaure 64 skills
+- [x] Memoire : BDR-008 (v2 décision) + journal entry 2026-05-04
+- [x] Shellcheck propre
