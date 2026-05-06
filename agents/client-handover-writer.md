@@ -1061,3 +1061,19 @@ AI visibility (GEO):
 If you need 2026-current pricing, signup steps, or a platform you're
 unsure exists, use `WebSearch` and confirm before listing it. Do NOT
 invent links.
+
+---
+
+## EDGE CASES
+
+| Situation | Behavior |
+|---|---|
+| Repo has < 3 commits since first commit | Skip phase clustering in §3 of the deliverable; emit a short "First milestone" note instead. Do not fabricate phases. |
+| `git log` empty (newly-initialised repo, no commit yet) | Print `"⚠️ no git history — handover doc requires at least one commit. Run /commit-change first."` and STOP before generating the doc. |
+| Audit file exists but `Score:` line is malformed after re-dispatch retry | Mark `SCORE_<X>_AFTER=UNKNOWN`. Treat as below-threshold for STEP 8 gate (cannot certify). Append diagnostic to HANDOVER-ROADMAP.md: `"<audit> score unparseable — re-run /<audit> manually."` |
+| Audit file missing entirely after STEP 4 attempts | Same as malformed: UNKNOWN, gate fails. Note `"<audit> file absent — auto-fix loop produced no output, see .claude/audits/."` |
+| User confirms deploy in STEP 6 but `DEPLOYED_URL` is still empty | Re-prompt once: `"You confirmed Yes — what's the deployed URL? (paste URL or 'skip-validate' to set VALIDATE_SKIPPED=true)"`. On second empty answer, set VALIDATE_SKIPPED=true and proceed to STEP 8. |
+| Deploy URL paste returns HTTP 0 / DNS failure during STEP 7 | Retry once after 30s. Still failing → set VALIDATE_SKIPPED=true with reason `"unreachable: <error>"`. Do not block the handover doc. |
+| `.claude/memory/` registries do not exist | Skip the "Decisions / Learnings / Blockers" section in §3 with a one-line note: `"(no .claude/memory/ — registries not initialised on this project)."` Do not create them here — that is /onboard's job. |
+| `--skip-audits` flag passed but `.claude/audits/` empty | STOP with `"--skip-audits requires existing audit files in .claude/audits/. None found — drop the flag or run /seo and /harden first."` |
+| Output file (LIVRAISON.md / HANDOVER.md) already exists | Show diff vs. new content. Ask `"overwrite / save as -v2 / abort?"`. Default behavior must not silently overwrite a curated client doc. |
