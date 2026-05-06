@@ -20,22 +20,58 @@ List only **user-created** skills from `~/.claude/skills/`, excluding framework
 
 ## How to detect user-created skills
 
-A skill is **personal** if its SKILL.md references an agent file from
-`~/.claude/agents/`. All user-created skills delegate work to a dedicated agent,
-while framework/gstack skills do not.
+A skill is **personal** if it satisfies AT LEAST ONE of these signals (in priority order):
+
+1. **Explicit marker** — frontmatter contains `owner: user` (preferred — unambiguous, future-proof)
+2. **Agent-reference heuristic** — SKILL.md body references an agent file from `~/.claude/agents/` on a non-comment line
+3. **Allowlist** — skill name is in the explicit allowlist below (for self-contained personal skills that do not delegate)
+
+Allowlist of self-contained personal skills (no agent delegation): `skills-perso`.
+
+Framework / gstack skills always FAIL all three signals — that is how they are excluded.
 
 Run this command to get the list of personal skills:
 
 ```bash
+ALLOWLIST="skills-perso"
+
+is_personal() {
+  local skill_file="$1" skill_name="$2"
+  # Signal 1: explicit marker
+  if grep -qE '^owner:[[:space:]]*user\b' "$skill_file" 2>/dev/null; then
+    return 0
+  fi
+  # Signal 2: agent reference on a non-comment line
+  if grep -nE '\$HOME/\.claude/agents/|~/\.claude/agents/|\.claude/agents/' "$skill_file" 2>/dev/null \
+     | grep -vE '^[0-9]+:[[:space:]]*(#|<!--|//)' \
+     | grep -q .; then
+    return 0
+  fi
+  # Signal 3: allowlist
+  for allowed in $ALLOWLIST; do
+    [ "$skill_name" = "$allowed" ] && return 0
+  done
+  return 1
+}
+
+found=0
 for dir in ~/.claude/skills/*/; do
-  [ -L "${dir%/}" ] && continue
+  [ -L "${dir%/}" ] && continue        # skip symlinks (external)
   skill=$(basename "${dir%/}")
   skill_file="${dir}SKILL.md"
   [ -f "$skill_file" ] || continue
-  if [ "$skill" = "skills-perso" ] || grep -qE '\$HOME/\.claude/agents/|~/\.claude/agents/|\.claude/agents/' "$skill_file" 2>/dev/null; then
+  if is_personal "$skill_file" "$skill"; then
     echo "$skill"
+    found=$((found + 1))
   fi
 done
+
+if [ "$found" -eq 0 ]; then
+  echo "⚠️ No personal skills detected. Either only framework skills installed," >&2
+  echo "   or no SKILL.md carries 'owner: user' marker / agent reference." >&2
+  echo "   To mark a skill as personal, add 'owner: user' to its frontmatter." >&2
+  exit 1
+fi
 ```
 
 ## Steps
