@@ -25,18 +25,29 @@ git log --oneline -3
 
 Read the relevant existing code to understand the context.
 
-**Escalate to `/ship-feature` if:**
-- The feature needs >5 files of new/modified code
-- It requires architectural decisions or design tradeoffs
-- It involves new dependencies or infrastructure changes
-- The user isn't sure what they want (needs brainstorming)
+### Decision rules (apply in order — first match wins)
 
-**Downgrade — load `$HOME/.claude/agents/hotfixer.md` if:**
-- It's really just adding a missing field, config value, etc.
+| Rule | Trigger | Action |
+|---|---|---|
+| 1 | Estimated diff < 2 files AND no logic (config value, copy fix, missing field) | DOWNGRADE → load `$HOME/.claude/agents/hotfixer.md` |
+| 2 | New external dependency (`npm install <x>`, `pip install`, `cargo add`) required | ESCALATE → `/ship-feature` (dep choices need design gate) |
+| 3 | New route family / new top-level module / new DB migration | ESCALATE → `/ship-feature` |
+| 4 | Estimated diff > 5 files | ESCALATE → `/ship-feature` |
+| 5 | User wording is uncertain ("not sure how", "what do you think") | ESCALATE → `/ship-feature` (needs brainstorming) |
+| 6 | UI feature on a stack with a design system AND `ui-ux-pro-max` inactive | Proceed in `/feat`, but flag it in STEP 0.5 design gate |
+| 7 | Otherwise | PROCEED in `/feat` |
 
-Print a one-line scope confirmation:
+### Worked examples
+
+- "Add `/health` endpoint returning `{status:"ok",version}`" → 1-2 files, no new dep, route added to existing router → **PROCEED**.
+- "Add a dark-mode toggle bound to `prefers-color-scheme`" → 2-3 files, design system exists → **PROCEED** (design gate triggers in STEP 0.5).
+- "Add OAuth login (Google + GitHub providers)" → new deps, new routes, secrets handling → **ESCALATE** to `/ship-feature`.
+- "Show a 'New' badge on items created this week" → 1-2 files, pure UI predicate → **PROCEED**.
+- "Fix copy: 'Sign In' → 'Sign in'" in 1 file → **DOWNGRADE** to `/hotfix`.
+
+Print a one-line scope confirmation (use the rule that fired):
 ```
-FEAT: <feature name> — ~<N> files, <brief approach>
+FEAT: <feature name> — rule <N>, ~<N> files, <brief approach>
 ```
 
 ## STEP 0.5 — DESIGN GATE
