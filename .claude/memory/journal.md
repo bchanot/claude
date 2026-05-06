@@ -51,3 +51,10 @@ rules:
 - Compressed 5 existing registries via `/caveman:compress` (decisions, learnings, blockers, journal, evals) — ~40% input-token reduction per session-start load.
 - Side chores: disabled `example-skills@anthropic-agent-skills` plugin in settings.json; gitignored `*.original.md` compress backups (recoverable via git history).
 - 4 atomic commits (`0275eed..639486a`) via `/commit-change`.
+
+## 2026-05-06
+
+- darwin-skill round 1 across 18 personal skills. Mean 83.4 → 88.7 (+5.3). 16 keeps, 2 reverts (code-clean, doc — D2 dry_run noise). Branch `auto-optimize/skills-20260506-1730`. 22 commits, 35 files changed.
+- Top gains (analyze +18.5, skills-perso +11.9, refactor +11.0, hotfix +9.0) all from same shape: edge-case table in agent file. Captured as LRN-008.
+- LRN-009: dry_run ratchet too strict for skills already >91; LRN-010: `~/.claude/skills,agents` symlink to Documents/claude — git operations must run from there.
+- Audit report `.claude/audits/DARWIN-SKILL-OPTIMIZATION.md`. Eval log `~/.agents/skills/darwin-skill/results.tsv` (38 rows). Branch awaits manual review before merge.
