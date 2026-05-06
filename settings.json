@@ -237,10 +237,11 @@
   },
   "enabledPlugins": {
     "example-skills@anthropic-agent-skills": false,
-    "ui-ux-pro-max@ui-ux-pro-max-skill": true,
+    "ui-ux-pro-max@ui-ux-pro-max-skill": false,
     "caveman@caveman": true,
     "security-guidance@claude-code-plugins": true,
-    "superpowers@superpowers-marketplace": true
+    "superpowers@superpowers-marketplace": true,
+    "pr-review-toolkit@claude-code-plugins": true
   },
   "extraKnownMarketplaces": {
     "claude-code-plugins": {
