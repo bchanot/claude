@@ -174,3 +174,20 @@ Rules:
 - Never propose changes or solutions.
 - If any data is unavailable, print "N/A" — do not guess.
 - Keep output under 40 lines.
+
+---
+
+## ERROR HANDLING
+
+The report is best-effort: a single failing data source must not abort the whole snapshot.
+
+| Failure | Behavior |
+|---|---|
+| Permission denied on `git` (sandbox/CI without `.git` access) | Mark `Branch: N/A (permission denied)`, `Uncommitted: N/A`, `RECENT COMMITS: N/A`. Continue to PROJECT/GSD sections. |
+| Permission denied on `~/.claude/plugins/cache` or `~/.claude.json` | Mark `Plugins ON: unknown (cannot read cache)`. Continue. |
+| `.gsd/ROADMAP.md` exists but unparseable (malformed checkboxes, encoding issue) | Mark `Progress: N/A (ROADMAP.md unreadable)`, do NOT abort the section — still print `Status: initialized` and `Milestone: N/A`. |
+| `package.json` / `pyproject.toml` parse error | Mark `Tests: N/A (manifest parse error)`. Continue. |
+| `python3` not available in PATH | Skip the python parsing fallbacks; rely on log files + bash-only checks. Mark Tests as `unknown` if no log found. |
+| All sections fail | Print a minimal envelope with each section showing `N/A (data source unavailable)` and a one-line `DIAGNOSTIC: <which sources failed>` footer. Exit code 0 (status reporter never blocks). |
+
+Self-check before emit: every block in OUTPUT FORMAT must produce at least 1 line, even on full failure. If a block would render empty, replace it with `<N/A — see DIAGNOSTIC>` rather than omitting the block.
