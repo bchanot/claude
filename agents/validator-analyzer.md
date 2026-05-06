@@ -67,6 +67,55 @@ validating, or use FULL mode with production URL."
 
 ---
 
+## RETRY POLICY (external APIs — validator.nu, jigsaw, WAVE)
+
+External W3C / WAVE endpoints occasionally return 429 (rate-limit), 5xx, or time
+out. Wrap every external call in this helper instead of raw `curl`:
+
+```bash
+mkdir -p .validate-cache
+fetch_validate() {
+  local url="$1" outfile="$2" attempt
+  for attempt in 1 2 3; do
+    http=$(curl -sL --max-time 60 -w '%{http_code}' -o "$outfile.tmp" "$url")
+    case "$http" in
+      2*)  mv "$outfile.tmp" "$outfile"; return 0 ;;
+      429) sleep $((attempt * 5)) ;;     # exponential-ish backoff
+      5*)  sleep $((attempt * 3)) ;;
+      *)   break ;;                       # 4xx (other) — do not retry
+    esac
+  done
+  rm -f "$outfile.tmp"
+  # Reuse a recent cached response (≤24 h old) if present
+  if [ -f "$outfile" ] && [ "$(find "$outfile" -mmin -1440 -print 2>/dev/null)" ]; then
+    echo "↻ external API failed, reusing cached $outfile (<24h old)"
+    return 0
+  fi
+  echo "⚠️ external API unreachable (HTTP $http), no cache available — degrade to LOCAL mode"
+  return 1
+}
+```
+
+Behavior matrix:
+
+| Status | Action |
+|---|---|
+| 2xx | Use response, cache, continue |
+| 429 (rate limit) | Backoff 5s / 10s / 15s, retry up to 3 times |
+| 5xx | Backoff 3s / 6s / 9s, retry up to 3 times |
+| 4xx (other) | Do not retry — likely a real input error |
+| All retries fail | Reuse cached `.validate-cache/<file>.json` if ≤24h old |
+| No cache, no response | Append a `[degraded]` flag to that section in VALIDATE.md and downgrade that step to LOCAL/static fallback |
+
+WAVE-specific: if the API key is exhausted (HTTP 403 + body containing
+`"credit"`), do NOT retry. Append to VALIDATE.md §6 user actions:
+`"WAVE quota exhausted — top up at https://wave.webaim.org/api or set WAVE_API_KEY to a different account."`
+
+All STEP 1/2/3 external calls below MUST go through `fetch_validate` rather
+than calling `curl` directly — replace the inline `curl -sL --max-time 60` lines.
+
+---
+
 ## STEP 1 — W3C HTML validity
 
 ### FULL mode (URL-based)
