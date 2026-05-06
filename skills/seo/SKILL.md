@@ -39,6 +39,15 @@ This skill orchestrates TWO specialist agents running in parallel, then
 merges their output into a single `.claude/audits/SEO.md` report. It is the main
 entry point for any SEO/GEO work on a web project.
 
+## Resources
+
+- `resources/depth-matrix.md` — depth-decision rules (LOCAL vs FULL),
+  score-weight table per axis, dedup rules with sibling skills (/validate,
+  /harden), and the envelope schema for `.claude/audits/SEO.md`.
+
+Read `resources/depth-matrix.md` at the start of STEP 0 — it pre-answers
+several questions and keeps token cost down by removing repeated explanations.
+
 ## STEP 0 — Collect shared context (ONCE)
 
 Before spawning any agent, collect the context both agents need.
