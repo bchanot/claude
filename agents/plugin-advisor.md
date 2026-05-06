@@ -162,6 +162,55 @@ After presenting RECOMMENDATIONS, if any plugin has ⚡ ENABLE status:
 
 **Never auto-activate without showing the list and getting confirmation.**
 
+### Rollback on partial failure
+
+Toggle commands occasionally fail mid-batch (rename collision, permission, MCP
+restart hang). Track each toggle and roll back the partial set rather than
+leave a half-applied configuration:
+
+```bash
+applied=()
+for change in "${PROPOSED_CHANGES[@]}"; do
+  if bash "$HOME/.claude/lib/toggle-external.sh" enable "$change"; then
+    applied+=("$change")
+  else
+    echo "❌ failed to enable $change — rolling back ${#applied[@]} prior change(s)"
+    for prior in "${applied[@]}"; do
+      bash "$HOME/.claude/lib/toggle-external.sh" disable "$prior" \
+        || echo "⚠️ rollback of $prior also failed — manual cleanup required: see ~/.claude/plugins/cache"
+    done
+    exit 1
+  fi
+done
+```
+
+Surface to the user:
+
+```
+✅ Applied N change(s).
+```
+
+Or, on failure:
+
+```
+⚠️ Toggle failed at change <name>. Rolled back the N prior change(s).
+   To inspect manually: ls ~/.claude/plugins/cache; bash ~/.claude/lib/toggle-external.sh list
+   Re-run /plugin-check after fixing the underlying cause (e.g. permissions).
+```
+
+### Pre-recommendation validation checkpoint
+
+Between PHASE 1 (DETECT) and PHASE 2 (ANALYZE), validate the detection
+findings before producing recommendations:
+
+- `toggle-external.sh list` returned non-empty AND each listed plugin's
+  directory exists in `~/.claude/plugins/cache` or `~/.agents/skills/`.
+- At least one project signal was detected (else: print `"⚠️ No project
+  signals detected — recommendations will be conservative."` and continue).
+- If `toggle-external.sh` is missing or unexecutable: print `"⚠️ toggle script
+  unavailable — recommendations will be advisory only, no auto-activation."`
+  and skip PHASE 4 entirely.
+
 ---
 
 ## DECISION TABLE
