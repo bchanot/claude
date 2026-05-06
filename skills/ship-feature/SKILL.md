@@ -159,6 +159,23 @@ If nothing substantive to log → print `CAPITALIZE: nothing substantive to log`
 
 ---
 
+## FAILURE PATHS (orchestrator-level)
+
+The pipeline must handle these without aborting silently:
+
+| Situation | Behavior |
+|---|---|
+| STEP 0b — `CLAUDE.md` missing | STOP with the printed message ("Run `/onboard` first…"). Do not proceed. |
+| STEP 0c — `ctx7` not installed but fast-libs detected | Skip pre-fetch silently. During STEP 4, log `📚 ctx7 cache miss for <lib>` and continue with vanilla model knowledge. |
+| STEP 1 — brainstorming returns "design unclear" twice | Escalate: ask user "Switch to /init-project (greenfield-style design) or refine the feature request?" |
+| STEP 3 — user replies "request changes" | Loop back to STEP 2 with user's notes. Cap at 3 iterations; on the 3rd "request changes" without approval, ask "Pause and rescope this feature?" |
+| STEP 4 — subagent crashes (tool error, not test failure) | Treat as STEP 4b error path, present hypothesis-led gate. |
+| STEP 4b — option A retried 2× still failing | Force fall-through to B or C. Do not loop a 3rd time. |
+| STEP 6 — review returns CRITICAL items | Loop back to STEP 4 for those items only. Cap at 2 review-cycle iterations; if still CRITICAL, escalate. |
+| STEP 9 — `.claude/memory/` missing | Create the registry files from `~/.claude/templates/memory/` first, then proceed. |
+
+---
+
 ## FINAL OUTPUT
 ```
 FEATURE SHIPPED: <n>
