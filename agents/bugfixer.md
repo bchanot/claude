@@ -98,13 +98,44 @@ Apply the fix following the plan:
 
 ## STEP 5 — VERIFY + COMMIT
 
-1. Run the full relevant test suite:
+1. Run the full relevant test suite. Detection cascade (run the first that resolves):
    ```bash
-   # detect and run tests
+   # JS/TS — package.json scripts.test
+   test -f package.json && jq -r '.scripts.test // empty' package.json | head -1
+   # Python — pytest config
+   ( test -f pyproject.toml && grep -qE '^\[tool\.pytest' pyproject.toml ) && echo "pytest"
+   test -f pytest.ini && echo "pytest"
+   # Rust
+   test -f Cargo.toml && echo "cargo test"
+   # Go
+   test -f go.mod && echo "go test ./..."
+   # Make
+   test -f Makefile && grep -qE '^test:' Makefile && echo "make test"
    ```
-2. If a build step exists, verify it passes.
+2. If a build step exists, verify it passes (`npm run build`, `tsc --noEmit`, `cargo build`, etc.).
 3. Check for regressions in related functionality.
-4. Commit using conventional format:
+4. **Pre-commit confirmation gate.** Before running `git commit`, present the diff
+   summary and the proposed message, then wait for approval:
+
+   ```
+   BUGFIX — READY TO COMMIT
+   FILE(S) : <list>
+   DIFF    : <git diff --stat>
+   MESSAGE :
+     fix(<scope>): <root cause description>
+
+     <what was wrong and why>
+     <what the fix does>
+
+   Commit now? (yes / edit message / skip / amend last)
+   ```
+
+   - `yes` → run `git commit`.
+   - `edit message` → user provides corrected message; redraw gate.
+   - `skip` → leave changes uncommitted, exit cleanly.
+   - `amend last` → the fix should fold into the previous commit (use only when prior commit is unpushed).
+
+5. Commit using conventional format (after approval):
    ```
    fix(<scope>): <root cause description>
 
@@ -113,7 +144,7 @@ Apply the fix following the plan:
 
    Co-Authored-By: Claude <noreply@anthropic.com>
    ```
-5. Print summary:
+6. Print summary:
    ```
    BUGFIX COMPLETE
    BUG        : <symptom>
