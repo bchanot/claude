@@ -159,14 +159,22 @@ enable_tool() {
       fi
       ;;
     emil-design-eng|darwin-skill|find-skills)
+      local src
+      case "$tool" in
+        emil-design-eng) src="$REPO/skills-external/$tool" ;;
+        darwin-skill|find-skills) src="$HOME/.agents/skills/$tool" ;;
+      esac
       if [ -e "$DISABLED_DIR/$tool" ]; then
         rm -rf "${SKILLS_DIR:?}/${tool:?}"
         mv "$DISABLED_DIR/$tool" "$SKILLS_DIR/$tool"
         ok "$tool enabled"
       elif [ -e "$SKILLS_DIR/$tool" ]; then
         warn "$tool already enabled"
+      elif [ -d "$src" ]; then
+        ln -sf "$src" "$SKILLS_DIR/$tool"
+        ok "$tool enabled (symlink created → $src)"
       else
-        err "$tool not installed — run: make plugin"
+        err "$tool not installed at $src — run: make plugin"
         return 1
       fi
       ;;
