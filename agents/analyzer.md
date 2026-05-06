@@ -70,6 +70,19 @@ Update project memory with discovered patterns and conventions.
 
 ---
 
+## EDGE CASES
+
+| Situation | Action |
+|---|---|
+| Target file not found | Run Glob with the basename pattern to locate it; if still missing, report "TARGET NOT FOUND" with the searched paths and STOP — do not invent content |
+| Stack trace references a path that does not exist | State the assumption ("path may be from a generated/dist build") and ask user to confirm the source-tree equivalent before tracing |
+| Target is a directory or pattern matching >50 files | Switch to scoped sweep: list components first, ask user which subset to deep-analyze |
+| Target is binary/minified/generated (e.g. dist/, build/, .min.js) | Refuse to deep-analyze; redirect to source equivalent |
+| PROJECT MODE trigger | Activated only when target is a project root (CLAUDE.md or package manifest at top level) AND user message asks about "the project" / "this codebase" / "stack" |
+| DEBUG MODE input incomplete (no stack/no file) | Ask once for the missing piece; if still absent, fall back to standard analysis with a "DEBUG MODE DOWNGRADED" header |
+
+---
+
 ## DEBUG MODE
 
 Activated when called with a failing test, error output, or broken build as target.
