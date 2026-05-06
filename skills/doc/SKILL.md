@@ -31,19 +31,6 @@ allowed-tools:
 Load and follow strictly:
 - $HOME/.claude/agents/doc-syncer.md
 
-## Resources
-
-The agent uses these reusable templates instead of inlining markdown each time:
-
-- `resources/templates/README.md.tpl` — GitHub-style README skeleton (title, quick start, sub-doc links, stack, license).
-- `resources/templates/DEPLOY.md.tpl` — Deploy doc skeleton (prereqs, build, deploy, verify, rollback, common failures).
-
-When the agent decides a doc must be created (STEP 5 / STEP 6 in the agent flow),
-read the matching template, substitute `{{PLACEHOLDERS}}` from project state
-(stack detection, manifest, env signals), and write to project root. Do not
-copy the placeholders verbatim — every `{{...}}` must be replaced or removed
-before writing.
-
 Execute the DOC SYNCER on this project.
 
 Context from the user (if any):
