@@ -60,10 +60,34 @@ Guidelines:
 - **Order matters.** Commits should read in the order work happened.
   Earlier steps first.
 
+### Phase 2.5: Checkpoint — present plan, get approval
+
+Before any `git add` or `git commit` runs, present the reconstructed plan:
+
+```
+COMMIT PLAN — <N> step(s) from working tree
+
+  1. <type>(<scope>): <short description>
+     files: <a.ts, b.css, c.md>
+  2. <type>(<scope>): <short description>
+     files: <d.py>
+  ...
+
+Approve? (all / <numbers> / edit <n> / skip)
+```
+
+- `all` → execute the full plan in Phase 3.
+- `<numbers>` (e.g. `1,3`) → execute only the selected steps.
+- `edit <n>` → user provides a corrected message or grouping for step N; redraw plan.
+- `skip` → exit cleanly, no commits created.
+
+This gate is mandatory. Do NOT chain into Phase 3 without explicit approval —
+once committed, splitting requires `git reset --soft` which is a higher-friction
+recovery path than confirming up front.
+
 ### Phase 3: Execute commits
 
-Proceed directly — no confirmation needed. For each development step,
-in chronological order:
+After approval in Phase 2.5, for each approved step in chronological order:
 
 1. Stage only the files for that step: `git add <specific-files>`
    - If a single file has changes belonging to different steps and
