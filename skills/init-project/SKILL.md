@@ -13,6 +13,22 @@ $ARGUMENTS
 
 ---
 
+## PROGRESS PROTOCOL
+
+Every STEP must announce itself with a header BEFORE its work block, so the
+user always sees where they are in the 13-step pipeline:
+
+```
+━━━ STEP <N>/13 — <TITLE> ━━━  (~<estimated minutes>)
+why: <one sentence — what's at risk if this step is skipped>
+```
+
+Long-running steps (5 SCAFFOLD, 5d GRAPHIFY, 8 IMPLEMENT) must print a 1-line
+liveness ping every ~30 s of agent work — `… still working: <last action>` —
+so the user does not assume Claude has hung.
+
+---
+
 ## STEP 0 — PLUGIN CHECK + AUTO-ACTIVATE
 Load `$HOME/.claude/agents/plugin-advisor.md`. Feed request.
 - ACTION REQUIRED → show RECOMMENDATIONS block, offer: A) fix plugins B) type "force". STOP.
@@ -178,6 +194,22 @@ Ask: "Initialize GSD v2 for multi-session management? (yes / skip)"
 ---
 
 ## FINAL OUTPUT
+
+Two-part output: human recap first, then status table.
+
+### Plain-language recap (2-4 lines)
+
+Write 2-4 sentences a non-technical reader could scan: what was built, what
+stack it runs on, whether everything passed, and what to run first. Example:
+
+```
+Your <stack> project "<n>" is ready. Build passes, <N> tests green, V1 features
+implemented. Open the project with the command shown below to start the dev
+server. Anything that's still pending is listed under REMAINING.
+```
+
+### Status table
+
 ```
 PROJECT INITIALIZED: <n>
 LOCATION: <path> | STACK: <stack> | BUILD: ✅/❌ | TESTS: ✅<N>/❌
