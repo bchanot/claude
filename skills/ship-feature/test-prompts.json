@@ -1,0 +1,5 @@
+[
+  {"id": 1, "prompt": "Ship feature: add OAuth login with Google and GitHub providers", "expected": "Plugin check, context check, design via brainstorming, plan via writing-plans, validation gate, implement TDD, review, finish branch"},
+  {"id": 2, "prompt": "Ship: notification system with email + in-app + push channels", "expected": "Heavy orchestrator path, design covers 3 channels, plan with subagent-driven-development, full pipeline"},
+  {"id": 3, "prompt": "Ajoute la fonctionnalite de partage social sur les articles du blog", "expected": "FR trigger, plugin check, design, validate gate, implement, review, finish"}
+]

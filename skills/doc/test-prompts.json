@@ -1,0 +1,5 @@
+[
+  {"id": 1, "prompt": "Are the docs up to date? Audit and sync.", "expected": "Auto-detect existing docs, cross-reference git history for drift, propose patches for added/removed features, get approval, apply"},
+  {"id": 2, "prompt": "Should I have a DEPLOY doc?", "expected": "Stack-aware decision: detect deploy complexity, propose DEPLOY.md only if non-trivial (Docker/k8s/multi-stage), skip if trivial"},
+  {"id": 3, "prompt": "Update README", "expected": "Enforce GitHub-style README layout (title, quick start, links to sub-docs), reflect current project state, ask before writing"}
+]

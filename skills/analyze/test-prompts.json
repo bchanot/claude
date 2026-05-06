@@ -1,0 +1,5 @@
+[
+  {"id": 1, "prompt": "Analyze src/auth/login.ts — explain how it handles failed attempts and rate limiting", "expected": "Read-only factual report: control flow, side effects, rate limit mechanism, no fix proposals"},
+  {"id": 2, "prompt": "TypeError: Cannot read property 'id' of undefined at UserService.getUser (services/user.ts:42)", "expected": "DEBUG mode: hypotheses, file inspection, root cause analysis, no code modification"},
+  {"id": 3, "prompt": "Explain how the request middleware chain processes auth tokens in this Express app", "expected": "Trace through middleware files, list order of execution, identify token validation point"}
+]

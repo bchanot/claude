@@ -1,0 +1,5 @@
+[
+  {"id": 1, "prompt": "Audit my site for AI search engines — ChatGPT, Perplexity, Google AI Overviews", "expected": "Audit AI crawler directives, llms.txt, schemas (QAPage, Speakable, HowTo), entity SEO (Wikidata, sameAs), content shape, output GEO.md"},
+  {"id": 2, "prompt": "Vérifie ma visibilité IA et fais les optimisations llms.txt + entity SEO", "expected": "FR trigger, focus llms.txt + Wikidata + sameAs + @id, apply fixes, merge into SEO.md if exists"},
+  {"id": 3, "prompt": "Optimize for Google AI Overview specifically", "expected": "Focus on definition lead, TL;DR, Q→A structure, citable stats, freshness signals — output prioritized fixes"}
+]

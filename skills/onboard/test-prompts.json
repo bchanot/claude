@@ -1,0 +1,5 @@
+[
+  {"id": 1, "prompt": "Onboard this existing project — it's a Next.js app already deployed", "expected": "Plugin check → archetype detection (next-js-public) → monorepo gate → baseline config → interview gaps → audits pipeline → backlog at .claude/audits/ + .claude/tasks/"},
+  {"id": 2, "prompt": "Onboard with hint: WordPress theme, force-archetype:wordpress", "expected": "Skip detection, use wordpress archetype directly, run wordpress-specific audit pipeline"},
+  {"id": 3, "prompt": "Onboard the apps/web package only", "expected": "Detect monorepo, present A/B/C options, accept B with package name, set PROJECT_ROOT to apps/web, run pipeline"}
+]

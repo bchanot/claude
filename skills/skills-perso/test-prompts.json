@@ -1,0 +1,5 @@
+[
+  {"id": 1, "prompt": "List my personal skills", "expected": "Run detection bash command, exclude symlinks, exclude framework skills, output table: Skill | Agent | Description, total count"},
+  {"id": 2, "prompt": "Mes skills perso", "expected": "FR trigger, same output: filtered to user-created skills only (those referencing ~/.claude/agents/)"},
+  {"id": 3, "prompt": "Quels skills j'ai ecrit moi-meme", "expected": "Detect personal skills via agent-reference heuristic, list with one-line description, exclude gstack/external"}
+]

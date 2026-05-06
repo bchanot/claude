@@ -1,0 +1,5 @@
+[
+  {"id": 1, "prompt": "Validate https://example.com - full W3C + WCAG audit", "expected": "Full mode: validator.nu HTML, jigsaw CSS, axe/pa11y/WAVE WCAG, output VALIDATE.md with concrete diffs and user actions"},
+  {"id": 2, "prompt": "Audit a11y de mon site, conformite WCAG 2.1 AA", "expected": "FR trigger, focus WCAG 2.1 AA, run axe + pa11y, drop out-of-scope items (meta/SEO), output a11y findings only"},
+  {"id": 3, "prompt": "Quick HTML+CSS validity check, local only, no external calls", "expected": "Local mode: html-validate, stylelint, axe-core CLI on built HTML, no API calls"}
+]

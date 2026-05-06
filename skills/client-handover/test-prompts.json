@@ -1,0 +1,5 @@
+[
+  {"id": 1, "prompt": "Generate the client handover doc for this site. The project is done, ready to ship.", "expected": "Run pipeline: SEO+harden audits with auto-fix loops to ≥17/20, commit/push, pause for deploy, validate live, write LIVRAISON.md with before/after scores"},
+  {"id": 2, "prompt": "Livraison client en français pour le site du plombier — c'est un local business à Paris", "expected": "Pipeline FR, append local-business NAP checklist (Google Business, Pages Jaunes, Yelp, Apple Maps), write LIVRAISON.md"},
+  {"id": 3, "prompt": "Skip the audits, just write the handover doc from existing audit files", "expected": "Recognize --skip-audits flag, jump to doc generation, read existing .claude/audits/ + memory/ registries, output deliverable"}
+]

@@ -1,0 +1,5 @@
+[
+  {"id": 1, "prompt": "Refactor src/services/payment.ts — it's gotten messy", "expected": "Read file, apply project norms (≤25 logic lines/function, ≤80 chars/line, ≤5 params), preserve external behavior, run tests after"},
+  {"id": 2, "prompt": "Refactor the calculateOrderTotal function — too long, too many vars", "expected": "Extract sub-functions, name explicit, no behavior change, verify tests still pass"},
+  {"id": 3, "prompt": "Clean up the auth module without changing behavior", "expected": "Module-level refactor, dead code removal, consistency, all original public API preserved"}
+]

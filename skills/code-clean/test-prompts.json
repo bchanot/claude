@@ -1,0 +1,5 @@
+[
+  {"id": 1, "prompt": "Clean up the codebase — remove dead code and enforce style", "expected": "Two-phase: audit report first (read-only), wait for approval, then execute approved fixes via refactorer agent"},
+  {"id": 2, "prompt": "Cleanup just the src/utils/ folder", "expected": "Scoped audit of src/utils/ only, list dead code + style violations, get approval, fix"},
+  {"id": 3, "prompt": "Find dead code in this project but don't change anything yet", "expected": "Audit-only mode: produce report at .claude/audits/, do not execute fixes, BUGS-FOUND.md if bugs detected"}
+]

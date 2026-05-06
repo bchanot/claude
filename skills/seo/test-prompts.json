@@ -1,0 +1,5 @@
+[
+  {"id": 1, "prompt": "Audit SEO complet pour mon site — c'est un plombier à Paris 91/94/77", "expected": "Ask LOCAL/FULL, collect business context, run seo-analyzer + geo-analyzer in parallel, merge into SEO.md, NAP local checklist"},
+  {"id": 2, "prompt": "Optimize for search — JSON-LD, sitemap, robots.txt, llms.txt", "expected": "Run both agents, focus structured data + indexability, apply fixes if aggressive mode"},
+  {"id": 3, "prompt": "Quick SEO check, code-only, no live calls", "expected": "Default LOCAL depth, skip CWV/external, run both analyzers on code, output SEO.md"}
+]

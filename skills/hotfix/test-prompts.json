@@ -1,0 +1,5 @@
+[
+  {"id": 1, "prompt": "Typo in homepage hero: 'Welcom to our site' should be 'Welcome to our site'", "expected": "Direct grep+edit, 1 file, no investigation, immediate fix"},
+  {"id": 2, "prompt": "Button color is blue, should match the new brand red #C8102E", "expected": "1-2 file CSS fix, locate selector, update color, verify"},
+  {"id": 3, "prompt": "Missing import for `useEffect` in src/components/Profile.tsx — build fails", "expected": "Add import line, no other changes, run build to verify"}
+]

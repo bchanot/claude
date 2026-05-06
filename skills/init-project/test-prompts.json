@@ -1,0 +1,5 @@
+[
+  {"id": 1, "prompt": "Init a new project: a SaaS landing page in Astro with a contact form and blog", "expected": "Plugin check → interview (skip if CLAUDE.md exists) → analyze → design → VALIDATION GATE 1 → scaffold → README → plan → VALIDATION GATE 2 → implement TDD → review → finish"},
+  {"id": 2, "prompt": "Crée un nouveau projet : API REST FastAPI avec auth JWT et PostgreSQL", "expected": "FR trigger, full pipeline, propose Astro? No (API not public website), validate Python+FastAPI stack, scaffold to working build"},
+  {"id": 3, "prompt": "Init project — portfolio site with blog, deployed on Vercel", "expected": "Recognize public website signal → propose Astro (not React SPA), validate at gate 1, scaffold static-first"}
+]

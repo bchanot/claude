@@ -1,0 +1,5 @@
+[
+  {"id": 1, "prompt": "Commit my changes — I've been working on multiple features", "expected": "Analyze working dir (staged+unstaged+untracked), group by logical unit, propose commits in retrace order, ask before committing"},
+  {"id": 2, "prompt": "Smart commit everything I have pending", "expected": "Same as above: atomic logical commits, conventional commit messages, never bundle unrelated changes"},
+  {"id": 3, "prompt": "Analyse et commit", "expected": "FR trigger recognized, same workflow, output final list of commits created"}
+]

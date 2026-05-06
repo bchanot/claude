@@ -1,0 +1,5 @@
+[
+  {"id": 1, "prompt": "What's the status of this project?", "expected": "Run status-reporter, output snapshot: plugins active, token cost, git branch+state, recent commits, GSD milestone, build/test status"},
+  {"id": 2, "prompt": "Status check, I just got back to work", "expected": "Same snapshot, useful for orient-quickly use case after break, no modifications"},
+  {"id": 3, "prompt": "Show me where we are", "expected": "Read-only consolidated report, no other actions"}
+]

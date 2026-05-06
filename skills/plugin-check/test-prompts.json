@@ -1,0 +1,5 @@
+[
+  {"id": 1, "prompt": "Check active plugins for: React + FastAPI app", "expected": "Audit current plugins, recommend enable/disable based on stack signals, produce PLUGIN ADVISOR REPORT"},
+  {"id": 2, "prompt": "Plugin check before I start a Rust CLI project, no frontend", "expected": "Recognize CLI-only context, recommend disabling ui-ux-pro-max + context7-frontend, keep core dev tools"},
+  {"id": 3, "prompt": "Audit my plugins", "expected": "No context provided → scan current dir for stack signals or ask, then produce report"}
+]

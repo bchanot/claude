@@ -1,0 +1,5 @@
+[
+  {"id": 1, "prompt": "Users can't log in after we deployed yesterday. Auth returns 401 even with valid credentials. Investigate and fix.", "expected": "Hypothesis-driven investigation, identify root cause, write fix plan, apply minimal scoped fix, regression test"},
+  {"id": 2, "prompt": "Webhook events from Stripe fail intermittently with signature mismatch errors. Find the cause and fix it.", "expected": "Investigate signature validation, identify intermittent cause (timing/parsing/raw body), apply fix"},
+  {"id": 3, "prompt": "The shopping cart total is wrong by $0.01 sometimes when discounts apply. Find why.", "expected": "Investigate floating-point or rounding issue, identify exact branch, propose precise fix"}
+]
