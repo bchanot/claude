@@ -38,34 +38,69 @@ Follow `$HOME/.claude/lib/design-gate.md`:
 - If signals found and `ui-ux-pro-max` inactive → ask user to activate.
 - If no signals → skip (zero overhead).
 
-## STEP 2 — FIX
+## STEP 2 — PRE-FLIGHT + FIX
+
+### Pre-flight (mandatory)
+
+Before editing, snapshot current state so revert is possible:
+
+```bash
+git diff HEAD --stat   # confirm working tree is clean OR carries only the
+                       # in-progress hotfix area; if unrelated dirty files are
+                       # present, ask user whether to stash them first
+git rev-parse HEAD     # capture the SHA to revert to on failure
+```
+
+If the working tree contains unrelated uncommitted changes the user has not
+mentioned: STOP and ask `"working tree dirty: stash and continue, or abort?"`.
+
+### Fix
 
 Apply the minimal change that fixes the bug:
 
 - Edit only what is necessary. No refactoring, no cleanup.
-- If tests exist for the affected code, run them:
+- If tests exist for the affected code, run them. Detection cascade:
   ```bash
-  # detect and run relevant tests
+  # JS/TS
+  test -f package.json && jq -r '.scripts.test // empty' package.json | head -1
+  # Python
+  test -f pyproject.toml && grep -qE '^\[tool\.pytest' pyproject.toml && echo "pytest"
+  test -f pytest.ini && echo "pytest"
+  # Rust
+  test -f Cargo.toml && echo "cargo test"
+  # Go
+  test -f go.mod && echo "go test ./..."
+  # Make
+  test -f Makefile && grep -qE '^test:' Makefile && echo "make test"
   ```
-- If a build step exists, verify it still passes.
+  Run whichever one resolves; if none → continue to smoke check below.
+- Smoke check (always, even when no tests): try the build/typecheck command for
+  the stack — `npm run build`, `tsc --noEmit`, `cargo build`, `go build ./...`,
+  `python -c "import <pkg>"` — to confirm the fix did not break compilation.
 
 ## STEP 3 — VERIFY + COMMIT
 
 1. Verify the fix:
    - Run the test suite or the specific test if available.
-   - If no tests: explain what you verified manually.
-2. Commit using conventional format:
+   - If no tests: smoke check from STEP 2 must have passed.
+2. **Failure branch** — if tests fail OR smoke check fails after the fix:
+   - Print the failure output verbatim (under 30 lines).
+   - Run `git restore .` to revert the working-tree edits to the pre-flight SHA.
+     (Files were not yet staged — restore is safe.)
+   - STOP and tell user: `"Hotfix introduced a regression. Reverted. Escalate to /bugfix or /analyze for deeper investigation."`
+   - Do NOT commit a broken fix.
+3. Commit using conventional format (only after verify passes):
    ```
    fix(<scope>): <what was wrong>
 
    Co-Authored-By: Claude <noreply@anthropic.com>
    ```
-3. Print summary:
+4. Print summary:
    ```
    HOTFIX APPLIED
    FILE(S) : <changed files>
    FIX     : <one-line description>
-   VERIFIED: <test name or manual check>
+   VERIFIED: <test name or smoke check that passed>
    ```
 
 ## STEP 4 — DOC SYNC (automatic)
