@@ -110,25 +110,6 @@ Present the report. Ask the user:
 If the user says "all" or "go ahead" → approve everything.
 If the user cherry-picks → execute only approved items.
 
-#### Empty-approval branch
-
-If the user denies every item, replies "skip", "none", "don't fix anything", or
-declines to approve any item:
-
-1. Print:
-   ```
-   CODE-CLEAN — NO-OP
-   APPROVED: 0 items
-   ACTION  : audit only — no files modified
-   ```
-2. Skip Phase 2 entirely. Do NOT run STEP 4–7.
-3. Still write the audit report to `.claude/audits/CODE-CLEAN.md` so the
-   findings are recorded for next session.
-4. Still write `.claude/audits/BUGS-FOUND.md` if STEP 3 detected real bugs
-   (those are signal regardless of cleanup approval).
-5. Exit cleanly with summary `"Audit recorded. No changes applied."` — do not
-   warn or escalate. The user's "no" is a valid outcome.
-
 ---
 
 ## PHASE 2 — EXECUTION (after approval)
