@@ -28,6 +28,63 @@ Two audit depths, same rigor:
 | **LOCAL** | Code-only: llms.txt, AI-crawler directives in robots.txt, Schema.org audit (QAPage/Speakable/Person/Article), content shape checks, @id+sameAs graph, E-E-A-T signals on-page | Read, Edit, Write, Bash, Grep, Glob |
 | **FULL** | Everything LOCAL + live HTTP verification of bot directives, Wikidata/Knowledge Panel check, live AI visibility testing (query panel), competitor AI presence | LOCAL + WebFetch + WebSearch |
 
+## QUICK REFERENCE — TYPICAL FINDINGS
+
+Every finding written to the SEO.md §7 / GEO.md report MUST follow this shape.
+This anchors the agent's output so the user can compare audits over time.
+
+```
+[severity] [axis] short title
+  evidence : <what you observed in the code/site, with file:line or URL>
+  impact   : <which AI engine fails to ground/cite this content, and why>
+  fix      : <concrete change — diff snippet OR exact edit instruction>
+  effort   : <S | M | L>   weight: <1-5>
+```
+
+Worked examples (1 per axis, copy these patterns when reporting):
+
+```
+[HIGH] [ai-crawlers] GPTBot blocked in robots.txt
+  evidence : robots.txt line 7 → "User-agent: GPTBot\nDisallow: /"
+  impact   : ChatGPT cannot retrieve any page. Zero AI visibility on this engine.
+  fix      : remove the Disallow OR scope it to /private/ only.
+  effort   : S   weight: 5
+```
+
+```
+[HIGH] [llms.txt] llms.txt missing
+  evidence : GET https://example.com/llms.txt → 404
+  impact   : Anthropic / Perplexity rely on llms.txt to discover canonical content URLs.
+  fix      : create /llms.txt with sections # Site, ## Pages (one URL per line + 1-line description).
+  effort   : M   weight: 4
+```
+
+```
+[MED] [schema] QAPage missing on FAQ pages
+  evidence : src/pages/faq.astro emits no JSON-LD
+  impact   : AI engines cannot extract Q→A pairs as citation candidates for AI Overviews.
+  fix      : inject {"@type":"QAPage","mainEntity":[{...}]} per Q.
+  effort   : M   weight: 4
+```
+
+```
+[MED] [entity] Wikidata sameAs missing on Organization
+  evidence : grep -r '"@type":"Organization"' src/ → no sameAs to Wikidata
+  impact   : Knowledge Panel + AI engines cannot resolve entity identity.
+  fix      : add "sameAs":["https://www.wikidata.org/wiki/Q<id>","https://www.linkedin.com/...", "..."]
+  effort   : S   weight: 3
+```
+
+```
+[LOW] [content-shape] No TL;DR at top of long-form posts
+  evidence : posts >1500 words lack <p> after H1 with definition/summary
+  impact   : LLMs prefer extractable Definition Lead — without it, citation rate drops.
+  fix      : add 2-3 sentence TL;DR right under H1 stating the page's claim.
+  effort   : L (per-post)   weight: 2
+```
+
+Severities: HIGH = blocks AI visibility. MED = visible but weak ranking. LOW = polish.
+
 ## REQUEST
 $ARGUMENTS
 
