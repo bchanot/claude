@@ -190,7 +190,9 @@ fresh in `.claude/audits/`).
 
 If a fresh `.claude/audits/SEO.md` or `.claude/audits/HARDEN.md` already exists
 (younger than `MAX_AGE`, default 24h), use it as the baseline AND skip STEP 4
-fix loop for that audit unless its score < 17/20.
+fix loop for that audit unless its score < 17/20. For SEO.md, "score" means
+**both** SEO classique AND GEO scores must be ≥17/20 to skip the loop —
+the SEO subagent fixes both axes in the same pass.
 
 ```bash
 mkdir -p .claude/audits
@@ -214,7 +216,7 @@ For web projects, dispatch in **a single message with two parallel Agent calls**
 
 | Audit (web)   | Subagent          | Prompt template |
 |---------------|-------------------|-----------------|
-| SEO + GEO     | `general-purpose` | "Read `~/.claude/skills/seo/SKILL.md` and execute it on this project. The /seo skill runs SEO + GEO in parallel and writes a unified report to `.claude/audits/SEO.md`. Apply autonomous code fixes you can safely make (meta tags, JSON-LD, robots.txt, sitemap.xml, llms.txt, alt attrs, canonical tags). At the top of the report include exactly one line: `Score: X/20` (or `X/100` — the agent will normalize). Return when the report file is written." |
+| SEO + GEO     | `general-purpose` | "Read `~/.claude/skills/seo/SKILL.md` and execute it on this project. The /seo skill runs SEO + GEO in parallel and writes a unified report to `.claude/audits/SEO.md`. Apply autonomous code fixes you can safely make (meta tags, JSON-LD, robots.txt, sitemap.xml, llms.txt, alt attrs, canonical tags). At the top of the report, the /seo skill MUST emit two distinct labeled score lines (already specified in its SKILL.md §1): `Score SEO (classique) : X.X / 20` and `Score GEO (IA) : X.X / 20`, plus the weighted global. The handover orchestrator parses SEO and GEO separately, so do not collapse them into a single `Score:` line. Return when the report file is written." |
 | HARDEN        | `general-purpose` | "Read `~/.claude/skills/harden/SKILL.md` and execute it on this project. Apply autonomous code fixes (security headers in vercel.json/netlify.toml/.htaccess/nginx.conf, HSTS, CSP defaults, HTTP→HTTPS redirects, canonical, 404 page). Write report to `.claude/audits/HARDEN.md` with `Score: X/20` (or `X/100`) at the top. Return when the report file is written." |
 
 Non-web variant:
@@ -227,25 +229,70 @@ Wait for both subagents to complete (parallel return).
 
 ### Parse baseline scores
 
+The `/seo` skill writes a unified `.claude/audits/SEO.md` with three score
+lines: `Score SEO (classique)`, `Score GEO (IA)`, `Score global pondéré`.
+The handover doc reports SEO and GEO separately (see STEP 8 + STEP 12 §4)
+and **gates them independently** — both must reach ≥17/20 for the
+pipeline to pass. Extract each as a distinct variable.
+
 ```bash
+# Generic extractor: matches any "Score: X/20" or "X/20" or "X/100" line.
+# Use for HARDEN, VALIDATE, CSO (single-score reports).
 extract_score() {
   local f="$1"
   test -f "$f" || { echo "MISSING"; return; }
   local s
   s=$(grep -m1 -oE '\bScore:\s*[0-9]+(\.[0-9]+)?\s*/\s*(20|100)\b' "$f" | head -1)
-  [ -z "$s" ] && s=$(grep -m1 -oE '\b[0-9]+(\.[0-9]+)?/20\b' "$f" | head -1)
-  [ -z "$s" ] && s=$(grep -m1 -oE '\b[0-9]+(\.[0-9]+)?/100\b' "$f" | head -1)
+  [ -z "$s" ] && s=$(grep -m1 -oE '\b[0-9]+(\.[0-9]+)?\s*/\s*20\b' "$f" | head -1)
+  [ -z "$s" ] && s=$(grep -m1 -oE '\b[0-9]+(\.[0-9]+)?\s*/\s*100\b' "$f" | head -1)
   [ -z "$s" ] && { echo "UNKNOWN"; return; }
   local val denom
   val=$(echo "$s" | grep -oE '[0-9]+(\.[0-9]+)?' | head -1)
-  denom=$(echo "$s" | grep -oE '/[0-9]+' | tr -d '/')
+  denom=$(echo "$s" | grep -oE '/\s*[0-9]+' | tr -d '/ ')
   if [ "$denom" = "100" ]; then
     val=$(awk "BEGIN { printf \"%.2f\", $val/5 }")
   fi
   echo "$val"
 }
 
-SCORE_SEO_BEFORE=$(extract_score .claude/audits/SEO.md)
+# Labeled extractor: pulls the score from a specific labeled line
+# (e.g. "Score SEO" or "Score GEO" inside SEO.md).
+# Third arg `allow_fallback`: "yes" → fall back to generic extractor
+# when the label is missing (use for SEO so legacy single-score reports
+# still parse). "no" → return UNKNOWN if label missing.
+# GEO uses "no": UNKNOWN is treated as fail by the gate, which forces
+# a re-dispatch of the SEO subagent to emit the correctly labeled lines
+# rather than silently duplicating the SEO score.
+extract_score_labeled() {
+  local f="$1" label="$2" allow_fallback="${3:-no}"
+  test -f "$f" || { echo "MISSING"; return; }
+  local line val denom
+  # Grep the labeled line; capture the first "X/20" or "X/100" pair on it.
+  line=$(grep -m1 -iE "$label[^0-9/]*[0-9]+(\.[0-9]+)?\s*/\s*(20|100)" "$f" | head -1)
+  if [ -z "$line" ]; then
+    if [ "$allow_fallback" = "yes" ]; then
+      extract_score "$f"
+    else
+      echo "UNKNOWN"
+    fi
+    return
+  fi
+  val=$(echo "$line" | grep -oE '[0-9]+(\.[0-9]+)?\s*/\s*(20|100)' | head -1 \
+        | grep -oE '[0-9]+(\.[0-9]+)?' | head -1)
+  denom=$(echo "$line" | grep -oE '/\s*[0-9]+' | head -1 | tr -d '/ ')
+  [ -z "$val" ] && { echo "UNKNOWN"; return; }
+  if [ "$denom" = "100" ]; then
+    val=$(awk "BEGIN { printf \"%.2f\", $val/5 }")
+  fi
+  echo "$val"
+}
+
+# SEO falls back to generic if label missing (legacy SEO.md compat).
+# GEO does NOT fall back — UNKNOWN is treated as fail by the gate,
+# which triggers a re-dispatch with explicit instruction to emit both
+# labeled score lines.
+SCORE_SEO_BEFORE=$(extract_score_labeled .claude/audits/SEO.md "Score SEO" yes)
+SCORE_GEO_BEFORE=$(extract_score_labeled .claude/audits/SEO.md "Score GEO" no)
 SCORE_HARDEN_BEFORE=$(extract_score .claude/audits/HARDEN.md)
 # (non-web)
 # SCORE_CSO_BEFORE=$(extract_score .claude/audits/CSO.md)
@@ -258,33 +305,56 @@ Store these for the final doc's before/after table.
 ## STEP 4 — FIX LOOPS (parallel, bounded)
 
 Skip if `--skip-fix-loop` or `--skip-audits`. Skip per-audit if its
-`*_BEFORE` is already `≥17/20`.
+`*_BEFORE` is already `≥17/20`. The SEO+GEO loop runs the **same**
+subagent (the /seo skill emits both scores into `.claude/audits/SEO.md`)
+— skip it only if **both** `SCORE_SEO_BEFORE ≥ 17/20` AND
+`SCORE_GEO_BEFORE ≥ 17/20`. If either is below threshold, the loop
+runs.
 
 ### Loop structure (per audit, runs concurrently with the other audit's loop)
 
 ```
 MAX_ITERATIONS = 5  (override via --max-iterations N)
 iteration = 1
-while score < 17/20 and iteration ≤ MAX_ITERATIONS:
+# SEO+GEO loop continues while EITHER score is below threshold.
+# HARDEN/CSO/VALIDATE loops use only their own score.
+while (audit == "SEO" ? (SCORE_SEO < 17 OR SCORE_GEO < 17) : score < 17) \
+      and iteration ≤ MAX_ITERATIONS:
     re-dispatch the audit subagent with iteration context (see prompt below)
-    re-parse score from the updated audit file
-    if score == previous score and no files changed → break (no progress)
+    re-parse score(s) from the updated audit file
+    if no scores improved AND no files changed → break (no progress)
     iteration += 1
 ```
 
-### Re-dispatch prompt template (SEO loop)
+### Re-dispatch prompt template (SEO + GEO loop)
 
 Send to `general-purpose` subagent:
 
 > Read `~/.claude/skills/seo/SKILL.md` and re-run it on this project.
-> Previous score: **`<SCORE_SEO_PREVIOUS>`/20** — below threshold of 17/20.
-> Iteration `<N>` of `<MAX_ITERATIONS>`.
+> Previous scores:
+> - **SEO classique: `<SCORE_SEO_PREVIOUS>`/20** (threshold 17/20 — `<PASS|FAIL>`)
+> - **GEO (IA): `<SCORE_GEO_PREVIOUS>`/20** (threshold 17/20 — `<PASS|FAIL>`)
+>
+> Iteration `<N>` of `<MAX_ITERATIONS>`. Both axes are gated independently;
+> the orchestrator continues to loop while EITHER score is below 17/20.
+>
 > Read `.claude/audits/SEO.md` for the current issue list. Apply ALL safe
-> autonomous fixes (do not skip "easy" ones). For each fix applied, append
-> a line to `.claude/audits/SEO-FIX-LOG.md` (format: `iter<N>: <issue> →
-> <file:line> — <action>`). Update `.claude/audits/SEO.md` with new score.
-> Do NOT ask the user; apply or skip with one-line justification in the
-> fix log.
+> autonomous fixes (do not skip "easy" ones). Prioritize fixes for the
+> axis currently below threshold:
+> - SEO classique fixes: meta tags, headings, canonical, sitemap.xml,
+>   alt attrs, internal linking, Core Web Vitals hints.
+> - GEO (IA) fixes: llms.txt / llms-full.txt, robots.txt entries for AI
+>   crawlers (GPTBot, ClaudeBot, PerplexityBot, etc.), Schema.org for AI
+>   extraction (QAPage, Speakable, Person+Article, HowTo, Organization
+>   graph), entity SEO (sameAs, @id), TL;DR / definition-lead content
+>   shape, citable stats markup, freshness signals.
+>
+> For each fix applied, append a line to `.claude/audits/SEO-FIX-LOG.md`
+> (format: `iter<N>: [SEO|GEO] <issue> → <file:line> — <action>`). Update
+> `.claude/audits/SEO.md` with the new scores — both labeled lines MUST
+> be present: `Score SEO (classique) : X.X / 20` and
+> `Score GEO (IA) : X.X / 20`, plus the weighted global. Do NOT ask the
+> user; apply or skip with one-line justification in the fix log.
 
 ### Re-dispatch prompt template (HARDEN loop)
 
@@ -342,11 +412,21 @@ AskUserQuestion:
        (will be marked as caveat in client doc)
 ```
 
+For the SEO + GEO loop (single subagent, two gated scores), label the
+prompt with **both** axis scores when one or both are below threshold,
+e.g. `"SEO+GEO loop stuck — SEO classique 17.2/20 ✅, GEO (IA)
+14.5/20 ❌ — after 5 iterations. ..."`. Option C overrides only the
+axis the user names (SEO, GEO, or both) — record per-axis overrides
+in `.claude/audits/THRESHOLD-OVERRIDE.md`.
+
 Per user instructions (radical honesty, no temp fixes), **default
 recommendation is B**. Only choose C with explicit user consent.
 
 After loops finish (success, stall, or override), capture:
-- Web: `SCORE_SEO_AFTER`, `SCORE_HARDEN_AFTER`
+- Web: `SCORE_SEO_AFTER`, `SCORE_GEO_AFTER`, `SCORE_HARDEN_AFTER`
+  - `SCORE_SEO_AFTER=$(extract_score_labeled .claude/audits/SEO.md "Score SEO" yes)`
+  - `SCORE_GEO_AFTER=$(extract_score_labeled .claude/audits/SEO.md "Score GEO" no)`
+  - `SCORE_HARDEN_AFTER=$(extract_score .claude/audits/HARDEN.md)`
 - Non-web: `SCORE_CSO_AFTER`
 
 ---
@@ -487,11 +567,18 @@ Compute final score table.
 
 **Web project:**
 
-| Audit    | Before                    | After                  | Status         |
-|----------|---------------------------|------------------------|----------------|
-| SEO      | `SCORE_SEO_BEFORE`/20     | `SCORE_SEO_AFTER`/20   | ✅ ≥17 / ❌ <17 |
-| HARDEN   | `SCORE_HARDEN_BEFORE`/20  | `SCORE_HARDEN_AFTER`/20| ✅ / ❌         |
-| VALIDATE | —                         | `SCORE_VALIDATE_AFTER`/20 | ✅ / ❌ / SKIPPED |
+| Audit             | Before                    | After                       | Status            |
+|-------------------|---------------------------|-----------------------------|-------------------|
+| SEO (classique)   | `SCORE_SEO_BEFORE`/20     | `SCORE_SEO_AFTER`/20        | ✅ ≥17 / ❌ <17    |
+| GEO (IA)          | `SCORE_GEO_BEFORE`/20     | `SCORE_GEO_AFTER`/20        | ✅ ≥17 / ❌ <17    |
+| HARDEN            | `SCORE_HARDEN_BEFORE`/20  | `SCORE_HARDEN_AFTER`/20     | ✅ ≥17 / ❌ <17    |
+| VALIDATE          | —                         | `SCORE_VALIDATE_AFTER`/20   | ✅ / ❌ / SKIPPED   |
+
+SEO classique and GEO (IA) are gated independently — both must reach
+≥17/20. Reaching the GEO threshold is harder than SEO classique on
+many sites because AI-extraction signals (llms.txt, Speakable, QAPage,
+entity SEO) are still emerging — expect more fix-loop iterations on
+GEO than on SEO.
 
 **Non-web project:**
 
@@ -501,25 +588,43 @@ Compute final score table.
 
 ### Gate rule
 
-Web: `ALL_PASS = (SEO_AFTER ≥ 17/20) AND (HARDEN_AFTER ≥ 17/20) AND (VALIDATE_AFTER ≥ 17/20 OR VALIDATE_SKIPPED)`
+Web: `ALL_PASS = (SEO_AFTER ≥ 17/20) AND (GEO_AFTER ≥ 17/20) AND (HARDEN_AFTER ≥ 17/20) AND (VALIDATE_AFTER ≥ 17/20 OR VALIDATE_SKIPPED)`
 
 Non-web: `ALL_PASS = (CSO_AFTER ≥ 17/20)`
+
+**GEO gate note**: `SCORE_GEO_AFTER = "UNKNOWN"` is treated as **fail** —
+this typically happens when the SEO subagent produced a legacy single-score
+SEO.md without the labeled `Score GEO (IA)` line. The orchestrator
+re-dispatches the SEO subagent with an explicit instruction to emit both
+labeled lines (see "Threshold strictness" below).
 
 ### Threshold strictness
 
 Use the raw normalized score. **No rounding.** 16.9/20 fails. 17.0/20 passes.
-A score reported as `UNKNOWN` (no parseable `Score:` line in the audit
+A score reported as `UNKNOWN` (no parseable score line in the audit
 file) is treated as **fail** — re-dispatch the audit subagent with an
-explicit instruction to add a `Score: X/20` line at the top of its
-report. Do not assume a passing score.
+explicit instruction to add the score lines and re-run the audit.
+Do not assume a passing score.
+
+For `.claude/audits/SEO.md` specifically, the re-dispatch must demand
+**both** labeled lines:
+- `Score SEO (classique) : X.X / 20`
+- `Score GEO (IA) : X.X / 20`
+
+A single generic `Score: X/20` line is insufficient — the gate will
+still mark `SCORE_GEO_AFTER = UNKNOWN` and fail.
+
+For `.claude/audits/HARDEN.md` and `.claude/audits/CSO.md`, a single
+`Score: X/20` (or `X/100`) at the top of the report is sufficient.
 
 ### Override transparency
 
 If the user chose option C (override threshold) at any STEP 4 escalation,
 write `.claude/audits/THRESHOLD-OVERRIDE.md` documenting:
-- Which audit(s) were overridden
+- Which audit(s) were overridden — for the SEO+GEO loop, list the axes
+  separately (e.g. `SEO classique: NOT overridden, GEO (IA): overridden`)
 - Final score reached vs threshold
-- Top 3 unresolved issues per audit
+- Top 3 unresolved issues per axis
 - User's stated reason
 
 This file is referenced in §7 of the client doc ("Ce qui reste à faire ou
@@ -539,7 +644,8 @@ Score table:
 <the table above>
 
 Below-threshold audits:
-- SEO: <score>/20 — <top 3 remaining issues, one-line each>
+- SEO (classique): <score>/20 — <top 3 remaining issues, one-line each>
+- GEO (IA): <score>/20 — <top 3 remaining issues, one-line each>
 - HARDEN: <score>/20 — <top 3 remaining issues>
 - VALIDATE: <score>/20 — <top 3 remaining issues>
 
@@ -561,24 +667,36 @@ Trigger: per-audit threshold violated (rule: every audit must be ≥17/20)
 
 ## Score breakdown
 
-| Audit    | Before | After | Δ   | Status            |
-|----------|--------|-------|-----|-------------------|
-| SEO      | 14.4   | 16.2  | +1.8| ❌ BELOW_THRESHOLD |
-| HARDEN   | 12.0   | 18.0  | +6.0| ✅ OK              |
-| VALIDATE | —      | 15.5  | —   | ❌ BELOW_THRESHOLD |
+| Audit             | Before | After | Δ   | Status            |
+|-------------------|--------|-------|-----|-------------------|
+| SEO (classique)   | 14.4   | 16.2  | +1.8| ❌ BELOW_THRESHOLD |
+| GEO (IA)          | 11.0   | 13.5  | +2.5| ❌ BELOW_THRESHOLD |
+| HARDEN            | 12.0   | 18.0  | +6.0| ✅ OK              |
+| VALIDATE          | —      | 15.5  | —   | ❌ BELOW_THRESHOLD |
 
 ## Remaining issues per audit
 
-### SEO (<score>/20)
+### SEO classique (<score>/20)
 
-[Extract from `.claude/audits/SEO.md` — the issues NOT auto-fixed.
-Sort by score-gain potential. For each:]
+[Extract from `.claude/audits/SEO.md` — the SEO classical issues NOT
+auto-fixed. Sort by score-gain potential. For each:]
 
 1. [TYPE] short title
    - File: `path:line`
    - Fix: <one sentence>
    - Score gain: +X.X/20
    - Why automatic fix didn't work: <reason — needs judgment, external account, manual content>
+
+### GEO / IA (<score>/20)
+
+[Extract from `.claude/audits/SEO.md` (GEO sections — §7.x) — the GEO
+issues NOT auto-fixed. Same per-item format as SEO above. GEO is
+gated independently at ≥17/20; below-threshold GEO blocks the handover
+just like SEO classique. Common GEO blockers: missing llms.txt /
+llms-full.txt, AI crawler robots.txt rules absent, no Schema.org for
+AI extraction (QAPage, Speakable, HowTo, Organization graph), no
+entity links (sameAs, Wikidata @id), content shape unsuited for LLM
+extraction (no TL;DR, no definition lead, no Q→A blocks).]
 
 ### HARDEN (<score>/20)
 ... (same format)
@@ -664,8 +782,9 @@ If `$ARGUMENTS` does NOT contain `--include-deploy` or `--skip-deploy`:
 
 ```
 Re-grounding: project = <name>, branch = <current>, all audits passed
-(web: SEO <score>/20, HARDEN <score>/20, VALIDATE <score>/20 |
-non-web: CSO <score>/20). Generating client handover document.
+(web: SEO classique <score>/20, GEO IA <score>/20, HARDEN <score>/20,
+VALIDATE <score>/20 | non-web: CSO <score>/20). Generating client
+handover document.
 
 Le client va recevoir un document qui explique ce qui a été fait. Tu veux
 qu'on ajoute aussi un chapitre qui lui explique comment construire et
@@ -725,21 +844,32 @@ Tone: friendly, concrete, no jargon. One short paragraph per idea.
 
 ## 4. État de santé du site (avant / après)
 
-[NEW SECTION — score table from STEP 8.]
+[NEW SECTION — score table from STEP 8. SEO classique and GEO (IA) are
+shown on separate rows so the client sees both axes explicitly.]
 
 Avant la passe finale → après la passe finale (cette semaine) :
 
-| Domaine                      | Avant      | Après      | Statut |
-|------------------------------|-----------:|-----------:|:------:|
-| Référencement Google + IA    | <X.X>/20   | <Y.Y>/20   | ✅     |
-| Sécurité du site             | <X.X>/20   | <Y.Y>/20   | ✅     |
-| Conformité technique (W3C)   | —          | <Z.Z>/20   | ✅     |
+| Domaine                                  | Avant      | Après      | Statut |
+|------------------------------------------|-----------:|-----------:|:------:|
+| Référencement Google (SEO classique)     | <X.X>/20   | <Y.Y>/20   | ✅     |
+| Visibilité IA (GEO — ChatGPT, Perplexity)| <X.X>/20   | <Y.Y>/20   | ✅     |
+| Sécurité du site                         | <X.X>/20   | <Y.Y>/20   | ✅     |
+| Conformité technique (W3C)               | —          | <Z.Z>/20   | ✅     |
 
-[If LANG=en: "Site health (before / after)" with same columns.]
+[If LANG=en: "Site health (before / after)" with the same columns.
+Use these column labels: "Domain" / "Before" / "After" / "Status".
+Row labels: "Google search (classical SEO)", "AI visibility (GEO —
+ChatGPT, Perplexity)", "Site security", "Technical compliance (W3C)".]
 
 Plain explanation under the table:
-- **Référencement** = comment Google et les IA (ChatGPT, Perplexity)
-  trouvent et comprennent votre site.
+- **Référencement Google (SEO classique)** = comment Google, Bing et
+  les autres moteurs traditionnels trouvent et classent votre site.
+  C'est ce qui amène la majorité du trafic aujourd'hui.
+- **Visibilité IA (GEO)** = comment les moteurs de recherche par IA
+  (ChatGPT, Perplexity, Gemini, Google AI Overviews) lisent et citent
+  votre site. Trafic encore minoritaire mais en forte croissance —
+  votre site est maintenant prêt pour ce canal (llms.txt, données
+  structurées pour extraction IA, signaux d'entité).
 - **Sécurité** = protections contre les attaques courantes (en-têtes
   HTTPS, anti-injection, etc.).
 - **Conformité technique** = respect des standards web (HTML, CSS,
@@ -748,7 +878,7 @@ Plain explanation under the table:
 
 [If any score had a notable jump, add a one-liner: "La sécurité est passée
 de 12 à 18 — on a ajouté les en-têtes manquants et forcé le passage en
-HTTPS."]
+HTTPS." Do the same for SEO and GEO independently if either jumped.]
 
 ## 5. Les choix importants qu'on a faits
 

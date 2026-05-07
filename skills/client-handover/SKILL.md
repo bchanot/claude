@@ -41,7 +41,7 @@ Execute the CLIENT HANDOVER WRITER agent on this project.
 The agent runs a **ship-and-handover pipeline** with explicit gates:
 
 1. **PRE-FLIGHT** — Detect git repo, project root, language, project type, web sub-type, NAP signals, stack.
-2. **BASELINE AUDITS** — Run /seo (SEO+GEO) and /harden in parallel. Capture initial scores (`SCORE_SEO_BEFORE`, `SCORE_HARDEN_BEFORE`).
+2. **BASELINE AUDITS** — Run /seo (SEO+GEO) and /harden in parallel. Capture initial scores (`SCORE_SEO_BEFORE`, `SCORE_GEO_BEFORE`, `SCORE_HARDEN_BEFORE`).
 3. **FIX LOOPS (parallel, bounded)** — For each audit < 17/20:
    - Re-invoke the audit subagent with explicit instruction to apply auto-fixes.
    - Re-score.
@@ -50,9 +50,9 @@ The agent runs a **ship-and-handover pipeline** with explicit gates:
 4. **COMMIT + PUSH** — If files changed during fix loops, run /commit-change (atomic logical commits) then `git push`.
 5. **DEPLOY PAUSE** — List exact deploy artifacts: changed files since baseline, deploy hints from project (vercel.json, netlify.toml, Dockerfile, .github/workflows/deploy.yml, etc.), and the deploy process in plain words. Use AskUserQuestion: "Deploy done? (Yes / Not yet / Skip validate)". Block until Yes or Skip.
 6. **/validate (live site)** — Run validator-analyzer against the deployed URL. Capture `SCORE_VALIDATE`.
-7. **GATE — per-audit threshold ≥17/20** — Compute final `SCORE_*_AFTER` for SEO, HARDEN, VALIDATE. If ANY < 17/20: STOP. Generate `.claude/audits/HANDOVER-ROADMAP.md` with prioritized analysis of what's blocking each below-threshold audit. Do NOT write the client deliverable. Report to user.
+7. **GATE — per-axis threshold ≥17/20** — Compute final `SCORE_*_AFTER` for SEO classique, GEO (IA), HARDEN, VALIDATE. If ANY < 17/20: STOP. Generate `.claude/audits/HANDOVER-ROADMAP.md` with prioritized analysis of what's blocking each below-threshold axis. Do NOT write the client deliverable. Report to user.
 8. **DOC GENERATION (only if all scores ≥17/20)** — Read `.claude/memory/` registries + full git history. Ask whether to include build/deploy chapter. Synthesize concise client deliverable with:
-   - Before/after score table (SEO, HARDEN, VALIDATE — values + delta).
+   - Before/after score table with SEO classique and GEO (IA) on separate rows, plus HARDEN and VALIDATE — values + delta. SEO classique, GEO, HARDEN and VALIDATE are gated independently — each must reach ≥17/20 for the pipeline to pass.
    - Plain-language summary of all changes since first commit.
    - **Owner responsibilities** section: explicit checklist of what the client must do / maintain (SEO platforms, content updates, monitoring, deploy if self-hosted).
    - Optional build/deploy chapter.
