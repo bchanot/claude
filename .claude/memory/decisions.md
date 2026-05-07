@@ -32,6 +32,7 @@ rules:
 | BDR-008 | 2026-05-04 | Profile system v2: extend to plugins + MCPs + CLIs (web/seo/web-full/backend) | accepted |
 | BDR-009 | 2026-05-05 | Mandate caveman format on .claude/memory/ registries | accepted |
 | BDR-010 | 2026-05-07 | Gate GEO independently at ≥17/20 in client-handover pipeline | accepted |
+| BDR-011 | 2026-05-07 | Client handover deliverable: 4-chapter structure + ZenQuality branded HTML/PDF | accepted |
 
 ---
 
@@ -190,3 +191,24 @@ rules:
   - Backward compat split: `extract_score_labeled` SEO uses `allow_fallback=yes` (legacy single-score parses as SEO classique); GEO uses `allow_fallback=no` (no silent duplicate of SEO score).
   - Loop logic axis-aware: `while (SEO < 17 OR GEO < 17) AND iter ≤ MAX`. Re-dispatch prompt labels both scores with PASS/FAIL + lists axis-specific fixes (SEO: meta/canonical/sitemap; GEO: llms.txt/Schema AI/entity SEO).
 - **Reference**: commit `5569a80`, `agents/client-handover-writer.md` (STEP 3 `extract_score_labeled`, STEP 4 axis-aware loop + re-dispatch prompt, STEP 8 gate rule + score table + threshold strictness, STEP 12 §4 client doc table), `skills/client-handover/SKILL.md`.
+
+## BDR-011 — Client handover deliverable: 4-chapter structure + ZenQuality branded HTML/PDF
+
+- **Date**: 2026-05-07
+- **Status**: accepted
+- **Decision**: client handover doc restructured to 4 chapters — §1 *Ce qu'il fallait faire (et pourquoi)* (briefing+motivation, 100–180 words), §2 *Ce qui a été fait* (lay summary, **≤300 words hard cap, zero jargon, no internal tool/skill names**), §3 *Ce qui vous reste à faire* (action-only checklist with cadences), §4 *Détails techniques (pour les curieux)* (scores, key choices, phases, optional glossary — internal labels allowed here only). Plus optional §5 (external platforms, web), §6 (build & deploy). Replaces old 9-section structure. Output now triple: `LIVRAISON.md` (editable source) + `LIVRAISON.html` (always, branded) + `LIVRAISON.pdf` (when PDF engine on host). HTML/PDF use ZenQuality identity — green palette `#1A3A25 / #2D5A3D / #4A7C59 / #87A878`, cream BG `#F5F0EB`, fonts Inter (body) + Playfair Display (headings), cover page with logo + tagline "La sérénité numérique, la qualité en plus", running header (project name) + footer (page N/M, `ZenQuality — zenquality.fr`). Renderer cascade: MD→HTML via pandoc > python markdown > `npx marked`; HTML→PDF via weasyprint > wkhtmltopdf > chromium > headless Chrome. STEP 15 enforces gates before render: chapter 2 word count ≤300 (`wc -w`) AND forbidden-token grep on chapters 1–3 (no `/seo`, `/harden`, `/validate`, `/cso`, `seo-analyzer`, `SEO.md`, `SCORE_*`, etc.).
+- **Why**: client reads top-down, may stop after §2 — old 9 sections diluted the read. Bare markdown unreadable by non-tech client. Branded PDF = professional deliverable matching company identity (ZenQuality), suitable to email/print/sign. Per-section gates prevent regression to skill-name leaks or jargon bloat.
+- **Alternatives rejected**:
+  - Keep 9-chapter structure + bolt PDF wrapper on top — rejected: doesn't fix dilution + leak risk; client still scans through "Lessons learned (optional)" / "Pour aller plus loin" before useful actions.
+  - Render PDF only (no HTML intermediate) — rejected: no fallback if engine missing; HTML doubles as browser preview + manual print-to-PDF route. Triple output (`md` + `html` + `pdf`) covers all cases.
+  - Single PDF engine (e.g. weasyprint only) — rejected: assumes Python installed; cascade gives graceful degradation. Order chosen: weasyprint (best CSS), wkhtmltopdf (mature), chromium (always-bundled on dev hosts).
+  - Pandoc with custom template only — rejected: pandoc often not installed (was missing on this host); shell cascade with multiple converters more portable.
+  - Soft 300-word target — rejected: without hard `wc -w` gate, drift inevitable. Cap+gate forces rewrite when over.
+- **Caveats**:
+  - Word-count + leak gates run at STEP 15 *after* synthesis, not during. Worst case: re-write step needed. Acceptable trade-off vs in-flight enforcement (would require word counter inside agent prompt — fragile).
+  - ZenQuality logo URL hardcoded as `https://zenquality.fr/logo-horizontal.svg`; `LOGO_URL` env var allows local file override (bake into PDF for offline robustness if branding changes / SVG breaks).
+  - PDF cascade detects via `command -v` only — assumes engines on `$PATH`. Custom installs need `$PATH` adjusted before invocation.
+  - Bash heredoc + stdin-pipe collision bug in v1 (silent empty output) — fixed via env-var pass-through (LRN-012).
+  - Renderer always outputs HTML + tries PDF; on PDF failure exits 2, prints install hints. STEP 16 reports `PDF: NOT GENERATED` with hints in final report.
+  - Optional glossary in §4.4 listed terms (HSTS, CSP, WCAG, Schema.org, llms.txt, SEO/GEO) — only renders if ≥4 of these appear in §4 body.
+- **Reference**: commit `e06b52a`, `agents/client-handover-writer.md` (STEP 12 4-chapter doc structure + tone rules, STEP 15 word-count + leak gates, STEP 16 RENDER pipeline, STEP 17 final report), `skills/client-handover/scripts/handover-to-pdf.sh` (cascade renderer), `skills/client-handover/resources/branding/zenquality.css` (ZenQuality print stylesheet), `skills/client-handover/resources/branding/zenquality-template.html` (HTML wrapper with placeholders).
