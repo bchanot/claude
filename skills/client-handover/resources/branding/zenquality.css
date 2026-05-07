@@ -1,0 +1,438 @@
+/*
+ * ZenQuality — client handover stylesheet
+ * Used to render LIVRAISON.md / HANDOVER.md as a branded HTML/PDF.
+ * Source brand tokens: zenquality.fr (CSS custom properties extracted from
+ * the live site) — Inter (body) + Playfair Display (headings), green palette.
+ */
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap');
+
+:root {
+  --green-dark: #1A3A25;
+  --green-forest: #2D5A3D;
+  --green-moss: #4A7C59;
+  --green-sage: #87A878;
+  --black-deep: #0A0A0A;
+  --black-soft: #1A1A1A;
+  --gray-dark: #2A2A2A;
+  --gray-mid: #666666;
+  --gray-light: #B0B0B0;
+  --white-cream: #F5F0EB;
+  --white-pure: #FFFFFF;
+
+  --status-ok: #2D5A3D;
+  --status-warn: #b58900;
+  --status-fail: #a83232;
+}
+
+@page {
+  size: A4;
+  margin: 22mm 18mm 22mm 18mm;
+  @top-right {
+    content: string(doctitle);
+    font-family: 'Inter', sans-serif;
+    font-size: 8.5pt;
+    color: var(--green-moss);
+  }
+  @bottom-right {
+    content: counter(page) " / " counter(pages);
+    font-family: 'Inter', sans-serif;
+    font-size: 8.5pt;
+    color: var(--gray-mid);
+  }
+  @bottom-left {
+    content: "ZenQuality — zenquality.fr";
+    font-family: 'Inter', sans-serif;
+    font-size: 8.5pt;
+    color: var(--gray-mid);
+  }
+}
+
+@page :first {
+  margin: 0;
+  @top-right { content: ""; }
+  @bottom-right { content: ""; }
+  @bottom-left { content: ""; }
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-size: 10.5pt;
+  line-height: 1.6;
+  color: var(--black-deep);
+  background: var(--white-pure);
+}
+
+/* ============ COVER PAGE ============ */
+.cover {
+  page-break-after: always;
+  height: 297mm;
+  width: 210mm;
+  padding: 35mm 22mm 22mm 22mm;
+  background:
+    radial-gradient(ellipse at top right, rgba(135, 168, 120, 0.18) 0%, transparent 55%),
+    radial-gradient(ellipse at bottom left, rgba(74, 124, 89, 0.10) 0%, transparent 55%),
+    var(--white-cream);
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  page: cover;
+}
+
+.cover::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 8mm;
+  background: linear-gradient(90deg, var(--green-dark), var(--green-forest), var(--green-moss));
+}
+
+.cover-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+}
+
+.cover-logo {
+  width: 55mm;
+  height: auto;
+  max-height: 30mm;
+  object-fit: contain;
+}
+
+.cover-tagline {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 10pt;
+  font-style: italic;
+  color: var(--green-forest);
+  text-align: right;
+  max-width: 70mm;
+  margin-top: 6mm;
+}
+
+.cover-body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  margin: -10mm 0 0 0;
+}
+
+.cover-eyebrow {
+  font-family: 'Inter', sans-serif;
+  font-size: 9pt;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--green-moss);
+  margin-bottom: 6mm;
+}
+
+.cover-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 34pt;
+  font-weight: 700;
+  color: var(--green-dark);
+  line-height: 1.1;
+  margin: 0 0 6mm 0;
+  letter-spacing: -0.015em;
+}
+
+.cover-subtitle {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 16pt;
+  font-weight: 400;
+  font-style: italic;
+  color: var(--green-forest);
+  margin: 0 0 18mm 0;
+  max-width: 140mm;
+}
+
+.cover-meta {
+  font-family: 'Inter', sans-serif;
+  font-size: 10.5pt;
+  color: var(--black-soft);
+  line-height: 1.9;
+  border-left: 2px solid var(--green-moss);
+  padding-left: 5mm;
+}
+
+.cover-meta strong {
+  color: var(--green-dark);
+  font-weight: 600;
+  display: inline-block;
+  min-width: 25mm;
+}
+
+.cover-footer {
+  font-family: 'Inter', sans-serif;
+  font-size: 9pt;
+  color: var(--gray-mid);
+  border-top: 1px solid var(--green-sage);
+  padding-top: 5mm;
+  display: flex;
+  justify-content: space-between;
+}
+
+.cover-footer a {
+  color: var(--green-forest);
+  text-decoration: none;
+  font-weight: 500;
+}
+
+.cover-footer a:hover { color: var(--green-dark); }
+
+/* ============ DOCUMENT BODY ============ */
+.content {
+  string-set: doctitle attr(data-title);
+}
+
+h1 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 22pt;
+  font-weight: 700;
+  color: var(--green-dark);
+  margin: 0 0 6mm 0;
+  page-break-after: avoid;
+  string-set: doctitle content();
+}
+
+h2 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 17pt;
+  font-weight: 600;
+  color: var(--green-forest);
+  margin: 12mm 0 4mm 0;
+  padding-bottom: 2.5mm;
+  border-bottom: 2px solid var(--green-sage);
+  page-break-before: always;
+  page-break-after: avoid;
+}
+
+.content > h2:first-of-type,
+h2.no-break,
+h2.continue {
+  page-break-before: auto;
+}
+
+h3 {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-size: 13.5pt;
+  font-weight: 600;
+  color: var(--green-forest);
+  margin: 8mm 0 3mm 0;
+  page-break-after: avoid;
+}
+
+h4 {
+  font-family: 'Inter', sans-serif;
+  font-size: 10pt;
+  font-weight: 600;
+  color: var(--green-moss);
+  margin: 6mm 0 2mm 0;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  page-break-after: avoid;
+}
+
+p { margin: 0 0 3mm 0; }
+p, li { orphans: 3; widows: 3; }
+
+ul, ol { margin: 0 0 3mm 0; padding-left: 6mm; }
+ul li, ol li { margin: 0 0 1.5mm 0; }
+
+ul li::marker { color: var(--green-moss); }
+ol li::marker { color: var(--green-moss); font-weight: 600; }
+
+strong { color: var(--green-dark); font-weight: 600; }
+
+em { color: var(--green-forest); font-style: italic; }
+
+blockquote {
+  border-left: 3px solid var(--green-moss);
+  padding: 3mm 5mm;
+  margin: 4mm 0;
+  background: var(--white-cream);
+  color: var(--gray-dark);
+  font-style: italic;
+  page-break-inside: avoid;
+}
+
+blockquote p:last-child { margin-bottom: 0; }
+
+a { color: var(--green-forest); text-decoration: underline; text-decoration-thickness: 0.5pt; text-underline-offset: 1.5pt; }
+a:hover { color: var(--green-dark); }
+
+code {
+  font-family: 'JetBrains Mono', 'Fira Code', Menlo, monospace;
+  font-size: 9pt;
+  background: var(--white-cream);
+  padding: 0.5mm 1.5mm;
+  border-radius: 1mm;
+  color: var(--green-dark);
+}
+
+pre {
+  background: var(--white-cream);
+  padding: 4mm 5mm;
+  border-radius: 1.5mm;
+  border-left: 3px solid var(--green-moss);
+  font-size: 8.5pt;
+  line-height: 1.45;
+  white-space: pre-wrap;
+  word-wrap: break-word;
+  page-break-inside: avoid;
+  margin: 4mm 0;
+}
+
+pre code { background: none; padding: 0; color: var(--black-deep); font-size: inherit; }
+
+/* ============ TABLES ============ */
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 4mm 0;
+  font-size: 9.5pt;
+  page-break-inside: avoid;
+}
+
+th {
+  font-family: 'Inter', sans-serif;
+  background: var(--green-forest);
+  color: var(--white-pure);
+  text-align: left;
+  padding: 2.5mm 3mm;
+  font-weight: 600;
+  font-size: 9pt;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  border-bottom: 0;
+}
+
+td {
+  padding: 2.5mm 3mm;
+  border-bottom: 1px solid var(--green-sage);
+  vertical-align: top;
+}
+
+tr:nth-child(even) td { background: rgba(245, 240, 235, 0.55); }
+
+/* Numeric / status cols of score tables auto-detected via header text */
+table th:nth-child(2),
+table th:nth-child(3),
+table th:nth-child(4),
+table td:nth-child(2),
+table td:nth-child(3),
+table td:nth-child(4) {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+table th:last-child,
+table td:last-child {
+  text-align: center;
+}
+
+/* ============ CHECKLISTS ============ */
+ul.checklist,
+ul.task-list {
+  list-style: none;
+  padding-left: 0;
+}
+
+ul.checklist li,
+ul.task-list li {
+  padding-left: 8mm;
+  position: relative;
+  margin-bottom: 2.5mm;
+}
+
+ul.checklist li::before,
+ul.task-list li::before,
+li input[type="checkbox"] + *,
+li.task-list-item::before {
+  content: "☐";
+  position: absolute;
+  left: 0;
+  color: var(--green-moss);
+  font-size: 12pt;
+  line-height: 1;
+}
+
+input[type="checkbox"] {
+  display: none;
+}
+
+input[type="checkbox"]:checked + label::before {
+  content: "☑";
+  color: var(--green-forest);
+}
+
+/* ============ CALLOUTS ============ */
+.callout {
+  padding: 4mm 6mm;
+  margin: 4mm 0;
+  border-radius: 2mm;
+  page-break-inside: avoid;
+  font-size: 10pt;
+}
+
+.callout.info {
+  background: var(--white-cream);
+  border-left: 4px solid var(--green-moss);
+}
+
+.callout.warn {
+  background: #fdf6e3;
+  border-left: 4px solid var(--status-warn);
+}
+
+.callout.success {
+  background: rgba(135, 168, 120, 0.14);
+  border-left: 4px solid var(--green-forest);
+}
+
+.callout-title {
+  font-family: 'Inter', sans-serif;
+  font-weight: 600;
+  font-size: 10pt;
+  color: var(--green-dark);
+  margin-bottom: 2mm;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+/* ============ SECTION DIVIDERS ============ */
+hr {
+  border: none;
+  border-top: 1px solid var(--green-sage);
+  margin: 8mm 0;
+}
+
+/* ============ STATUS PILLS (used by text replacement) ============ */
+.status-ok    { color: var(--status-ok);   font-weight: 600; }
+.status-warn  { color: var(--status-warn); font-weight: 600; }
+.status-fail  { color: var(--status-fail); font-weight: 600; }
+
+/* ============ LINK BEHAVIOR IN PRINT ============ */
+@media print {
+  a[href^="http"]::after {
+    content: " (" attr(href) ")";
+    font-size: 7.5pt;
+    color: var(--gray-mid);
+    font-style: italic;
+    font-weight: 400;
+  }
+  a[href^="#"]::after,
+  a[href^="mailto:"]::after,
+  a[href^="tel:"]::after,
+  .cover a::after,
+  table a::after { content: ""; }
+}

@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="{{LANG}}">
+<head>
+  <meta charset="UTF-8">
+  <title>{{TITLE}}</title>
+  <style>
+{{CSS}}
+  </style>
+</head>
+<body>
+
+<section class="cover">
+  <div class="cover-header">
+    <img class="cover-logo" src="{{LOGO_URL}}" alt="ZenQuality">
+    <div class="cover-tagline">La sérénité numérique,<br>la qualité en plus</div>
+  </div>
+
+  <div class="cover-body">
+    <div class="cover-eyebrow">{{EYEBROW}}</div>
+    <h1 class="cover-title">{{COVER_TITLE}}</h1>
+    <p class="cover-subtitle">{{COVER_SUBTITLE}}</p>
+
+    <div class="cover-meta">
+      <div><strong>{{LABEL_CLIENT}}</strong> {{CLIENT_NAME}}</div>
+      <div><strong>{{LABEL_PROJECT}}</strong> {{PROJECT_NAME}}</div>
+      <div><strong>{{LABEL_DATE}}</strong> {{DATE_HUMAN}}</div>
+      <div><strong>{{LABEL_PERIOD}}</strong> {{PROJECT_PERIOD}}</div>
+      <div><strong>{{LABEL_URL}}</strong> <a href="{{PROJECT_URL}}">{{PROJECT_URL}}</a></div>
+    </div>
+  </div>
+
+  <div class="cover-footer">
+    <span>ZenQuality — {{LABEL_PREPARED_BY}}</span>
+    <a href="https://zenquality.fr">zenquality.fr</a>
+  </div>
+</section>
+
+<main class="content" data-title="{{TITLE}}">
+{{CONTENT}}
+</main>
+
+</body>
+</html>

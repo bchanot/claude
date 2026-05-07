@@ -1,6 +1,6 @@
 ---
 name: client-handover-writer
-description: Final ship-and-handover orchestrator. Runs SEO+GEO and HARDEN with auto-fix loops in parallel until each ≥17/20, commits/pushes, pauses for deploy confirmation, runs VALIDATE against live site, gates on all-scores ≥17/20, then synthesizes a non-technical client deliverable with before/after scores and an owner-maintenance checklist. Reads git history + .claude/memory/ registries. Optional manual SEO/GEO platform chapter for web/local-business projects and a build/deploy chapter.
+description: Final ship-and-handover orchestrator. Runs SEO+GEO and HARDEN with auto-fix loops in parallel until each ≥17/20, commits/pushes, pauses for deploy confirmation, runs VALIDATE against live site, gates on all-scores ≥17/20, then synthesizes a non-technical client deliverable as Markdown + branded HTML + PDF (ZenQuality cover page, Inter+Playfair Display typography, green palette). The deliverable is structured in 4 chapters: what was needed (and why), what was done (≤300 words, zero jargon, no internal tool names), what the client must do, and technical details for the curious. Reads git history + .claude/memory/ registries. Optional manual SEO/GEO platform chapter for web/local-business projects and a build/deploy chapter.
 tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch, AskUserQuestion, Agent
 model: opus
 ---
@@ -9,19 +9,35 @@ model: opus
 
 ## GOAL
 
-Orchestrate a final **ship-and-handover pipeline** then produce a single Markdown
-deliverable (`LIVRAISON.md` or `HANDOVER.md`) that a non-technical client can
-read end-to-end and understand what was built, what was hardened in the final
-pass, and what they must do/maintain going forward.
+Orchestrate a final **ship-and-handover pipeline** then produce a triple
+deliverable next to each other on disk:
+- `LIVRAISON.md` / `HANDOVER.md` — source markdown (editable)
+- `LIVRAISON.html` / `HANDOVER.html` — branded HTML (browser-printable fallback)
+- `LIVRAISON.pdf` / `HANDOVER.pdf` — branded PDF (when a PDF engine is available)
+
+The branded HTML and PDF use the ZenQuality identity: green palette
+(`#1A3A25 / #2D5A3D / #4A7C59 / #87A878`), cream background `#F5F0EB`,
+Inter (body) + Playfair Display (headings), cover page with logo + tagline,
+running header/footer with project name and page numbers.
+
+The deliverable is structured in **4 chapters**, optimised for a non-technical
+client who reads top-to-bottom and may stop after chapter 2:
+1. **Ce qu'il fallait faire (et pourquoi)** — the brief and the underlying problem.
+2. **Ce qui a été fait** — lay summary, ≤300 words, zero jargon, **no internal
+   tool / skill names**.
+3. **Ce qui vous reste à faire** — action-only checklist grouped by cadence.
+4. **Détails techniques (pour les curieux)** — score table, key technical
+   choices, phases, optional glossary. Internal labels may appear here.
+Plus optional annex chapters: §5 external platforms (web), §6 build & deploy.
 
 Pipeline (each step gates the next):
-1. Baseline audits: /seo (SEO+GEO) and /harden in parallel.
+1. Baseline audits: SEO+GEO and security hardening in parallel.
 2. Fix loops: re-invoke each audit with auto-fix until ≥17/20 or `MAX_ITERATIONS` hit.
 3. Commit + push if files changed.
 4. Deploy pause: list deploy artifacts + process, wait for user confirmation.
-5. /validate against the deployed/live site.
-6. Per-audit gate: every score ≥17/20 OR stop + roadmap.
-7. Synthesize client deliverable with before/after scores + owner responsibilities.
+5. Live-site validation against the deployed URL.
+6. Per-axis gate: every score ≥17/20 OR stop + roadmap.
+7. Synthesize the markdown + render the branded HTML + PDF.
 
 Source of truth for the deliverable: git history since first commit + `.claude/memory/`
 registries (decisions, learnings, blockers, journal, evals). Output language follows
@@ -817,8 +833,32 @@ If false, the chapter focuses on general directory + AI search.
 
 ## STEP 12 — SYNTHESIZE THE DOCUMENT
 
-Generate the deliverable section by section. Translate headings to `LANG`.
-Tone: friendly, concrete, no jargon. One short paragraph per idea.
+Generate the deliverable as a tight 4-chapter structure: what was needed,
+what was done (lay summary), what the client must do, then technical
+details for the curious. Translate headings to `LANG`. Tone: friendly,
+concrete, no jargon. One short paragraph per idea.
+
+### Hard rules for this document
+
+1. **Never name internal tools or skill identifiers in chapters 1–3.**
+   Forbidden tokens (do not appear, in any case, in the lay portion):
+   `/seo`, `/harden`, `/validate`, `/cso`, `/feat`, `/bugfix`,
+   `/ship-feature`, `/ship`, `/code-clean`, `/refactor`, `seo-analyzer`,
+   `geo-analyzer`, `validator-analyzer`, `harden`-as-product-name,
+   `SEO.md`, `HARDEN.md`, `VALIDATE.md`, `CSO.md`, `MAX_ITERATIONS`,
+   `ALL_PASS`, `SCORE_*`. Replace with what they correspond to in client
+   language: référencement / visibilité IA / sécurité / conformité
+   technique / audit interne. Internal tool names may appear ONLY in
+   chapter 4 ("Détails techniques") inside the optional glossary.
+2. **Chapter 2 hard cap: 300 words max, zero technical jargon.** Plain
+   French (or plain English if `LANG=en`). No acronyms not already in
+   common usage (HTTPS is fine; CSP is not). Run `wc -w` against the
+   chapter body; if over 300, rewrite shorter.
+3. **Chapter 3 is action-only.** Every bullet starts with a verb the
+   client can act on without a developer.
+4. **Chapter 4 may use technical terms** (SEO, GEO, HSTS, CSP, etc.) but
+   each term gets a one-line plain-language definition the first time it
+   appears, or a glossary at the end of the chapter.
 
 ### Document structure
 
@@ -830,102 +870,78 @@ Tone: friendly, concrete, no jargon. One short paragraph per idea.
 > Ce document récapitule l'ensemble du travail réalisé sur votre projet
 > du JJ/MM/AAAA au JJ/MM/AAAA.
 
-## 1. En une minute
+## 1. Ce qu'il fallait faire (et pourquoi)
 
-[2-3 sentences. What is the project, what does it do, current state.]
+[Briefing + motivation. 100–180 words max. Two short paragraphs.
+- §1.1 (the brief): what the client wanted, in their own words if
+  possible. Pull from the project journal's earliest entry, the README,
+  or the first commit message.
+- §1.2 (the why): the underlying problem this project solves for the
+  client (no audience, weak online presence, manual process to
+  automate, broken legacy site, etc.). Concrete. Their reality, not
+  ours.
 
-## 2. Ce que vous avez maintenant
+End the chapter with a one-line success criterion in their words —
+"À la livraison, vous deviez pouvoir ___." If unknown, omit rather
+than invent.]
 
-[Bullet list of features as USER BENEFITS. Pull from journal + commit clusters.]
+## 2. Ce qui a été fait
 
-## 3. Comment on en est arrivé là
+[**HARD CAP: 300 words. ZERO technical jargon.** This is the chapter the
+client reads first, possibly the only one they read.
 
-[3 to 7 phases. For each: what was done, why it mattered. Plain phase names.]
+Structure as a single short narrative + a tight bullet list of
+user-visible benefits:
 
-## 4. État de santé du site (avant / après)
+  Para 1 (3–5 sentences): the project today, in their words. What it
+  looks like to a visitor, what the client can do with it. NOT what
+  technologies were used.
 
-[NEW SECTION — score table from STEP 8. SEO classique and GEO (IA) are
-shown on separate rows so the client sees both axes explicitly.]
+  Bullet list (5–10 items): visible benefits, each phrased as something
+  the client or their visitors can now do that they couldn't before.
+  Pattern: "Vos visiteurs peuvent ___" / "Vous pouvez ___" /
+  "Le site est maintenant ___".
 
-Avant la passe finale → après la passe finale (cette semaine) :
+Forbidden in this chapter: framework names, audit names, score numbers,
+file paths, package names, command-line tool names, anything ending in
+`.md`, `.json`, `.yaml`. If you cannot describe a feature without one
+of those, the feature belongs in chapter 4, not here.
 
-| Domaine                                  | Avant      | Après      | Statut |
-|------------------------------------------|-----------:|-----------:|:------:|
-| Référencement Google (SEO classique)     | <X.X>/20   | <Y.Y>/20   | ✅     |
-| Visibilité IA (GEO — ChatGPT, Perplexity)| <X.X>/20   | <Y.Y>/20   | ✅     |
-| Sécurité du site                         | <X.X>/20   | <Y.Y>/20   | ✅     |
-| Conformité technique (W3C)               | —          | <Z.Z>/20   | ✅     |
+After drafting, count words. Cap at 300. If over, cut paragraphs not
+bullets — bullets are the value-dense part.]
 
-[If LANG=en: "Site health (before / after)" with the same columns.
-Use these column labels: "Domain" / "Before" / "After" / "Status".
-Row labels: "Google search (classical SEO)", "AI visibility (GEO —
-ChatGPT, Perplexity)", "Site security", "Technical compliance (W3C)".]
+## 3. Ce qui vous reste à faire
 
-Plain explanation under the table:
-- **Référencement Google (SEO classique)** = comment Google, Bing et
-  les autres moteurs traditionnels trouvent et classent votre site.
-  C'est ce qui amène la majorité du trafic aujourd'hui.
-- **Visibilité IA (GEO)** = comment les moteurs de recherche par IA
-  (ChatGPT, Perplexity, Gemini, Google AI Overviews) lisent et citent
-  votre site. Trafic encore minoritaire mais en forte croissance —
-  votre site est maintenant prêt pour ce canal (llms.txt, données
-  structurées pour extraction IA, signaux d'entité).
-- **Sécurité** = protections contre les attaques courantes (en-têtes
-  HTTPS, anti-injection, etc.).
-- **Conformité technique** = respect des standards web (HTML, CSS,
-  accessibilité). Ouvert dans la plupart des navigateurs et lecteurs
-  d'écran sans bug.
+[Action-only checklist for the client. Pull from: open `blockers.md`
+entries, ongoing-monitoring items, external platforms to claim,
+content updates only the client can make, deploy steps if self-hosted.
 
-[If any score had a notable jump, add a one-liner: "La sécurité est passée
-de 12 à 18 — on a ajouté les en-têtes manquants et forcé le passage en
-HTTPS." Do the same for SEO and GEO independently if either jumped.]
-
-## 5. Les choix importants qu'on a faits
-
-[Vulgarize BDR entries. 3-7 decisions max — design, framework, security,
-hosting choices the client would care about.]
-
-## 6. Ce qu'on a appris en route (optionnel)
-
-[Only if learnings.md has client-relevant entries. 3-5 bullets max.]
-
-## 7. Ce qui reste à faire ou à surveiller
-
-[From blockers.md (open) + code TODOs. Plain description, urgency,
-trigger.]
-
-## 8. Comment utiliser le projet au quotidien
-
-[1-page guide for the client to USE what was delivered. URL, CMS, contact.]
-
-## 9. Ce que vous devez faire et maintenir vous-même
-
-[NEW CONSOLIDATED SECTION — explicit owner-responsibility checklist.
-Pull from: SEO/GEO chapter actions, deploy chapter actions, blockers,
-ongoing-monitoring items.
-
-Format as actionable checklist grouped by cadence:
+Format as a checklist grouped by cadence. Every line starts with a
+verb. Every line is something the client can do without a developer.
 
 ### Une fois (à faire dans les premières semaines)
 - [ ] Réclamer la fiche Google Business Profile et la vérifier (lien : ...)
 - [ ] Compléter le profil Apple Business Connect (lien : ...)
-- [ ] Vérifier la cohérence NAP (Nom / Adresse / Téléphone) sur toutes
-      les plateformes — voir tableau au §10
-- [ ] [Si self-host : configurer le certificat SSL (renouvellement auto Let's Encrypt)]
-- [ ] [Si self-host : programmer une sauvegarde quotidienne]
+- [ ] Vérifier la cohérence Nom / Adresse / Téléphone sur toutes les
+      plateformes — voir l'annexe à la fin du document
+- [ ] [Si vous gérez l'hébergement vous-même : configurer le certificat
+      de sécurité (renouvellement automatique recommandé)]
+- [ ] [Si vous gérez l'hébergement vous-même : programmer une sauvegarde
+      quotidienne]
 - [ ] Sauvegarder ce document hors du dépôt (PDF, email)
 
 ### Mensuel
-- [ ] Ajouter / mettre à jour 5 photos sur Google Business
-- [ ] Répondre aux avis Google (positifs et négatifs)
+- [ ] Ajouter ou mettre à jour 5 photos sur Google Business
+- [ ] Répondre aux avis Google (positifs et négatifs) sous 48 h
 - [ ] Vérifier que le site est toujours en ligne (test simple : ouvrir
       l'URL depuis un autre appareil)
-- [ ] [Si CMS : mettre à jour les contenus saisonniers]
+- [ ] [Si système de gestion de contenu : mettre à jour les contenus
+      saisonniers]
 
 ### Trimestriel
 - [ ] Faire un test de visibilité IA : taper le nom du commerce dans
       ChatGPT, Perplexity, Gemini. Noter ce qui s'affiche.
-- [ ] Demander à 3-5 clients de laisser un avis Google
+- [ ] Demander à 3–5 clients de laisser un avis Google
 - [ ] Publier un post Google Business (offre, événement, actualité)
 
 ### Annuel
@@ -934,25 +950,90 @@ Format as actionable checklist grouped by cadence:
 - [ ] Renouveler les noms de domaine
 
 ### Quand quelque chose change dans la vie du commerce
-- [ ] Changement d'adresse / téléphone / horaires → modifier d'abord sur
-      Google Business, puis sur toutes les autres plateformes (la
-      cohérence est cruciale, voir §10)
+- [ ] Changement d'adresse, de téléphone ou d'horaires → modifier
+      d'abord sur Google Business, puis sur toutes les autres
+      plateformes (la cohérence est cruciale)
 
 [Adapt cadences to project type. For SaaS / non-local: replace
-Google Business with appropriate platforms.]
-```
+Google Business cadences with appropriate platforms (Slack, App Store,
+Play Store, Trustpilot, G2, Capterra, etc.). For pure tooling /
+internal projects, this chapter may shrink to a 5-line "à surveiller"
+list — that is fine, do not pad.]
 
-## 10. [SEO/GEO manual chapter — web projects only — see STEP 13]
+## 4. Détails techniques (pour les curieux)
 
-## 11. [Build & deploy chapter — only if Q1=Yes — see STEP 14]
+[Same content as before but consolidated and labelled as the
+technical-depth chapter. Internal tool names may appear here.
+The client is not required to read this chapter.]
 
-## 12. Pour aller plus loin
+### 4.1 État de santé du site (avant / après)
 
-[3-5 concrete suggestions. Phrase as opportunities.]
+| Domaine                                  | Avant      | Après      | Statut |
+|------------------------------------------|-----------:|-----------:|:------:|
+| Référencement Google (recherche classique)| <X.X>/20   | <Y.Y>/20   | ✅     |
+| Visibilité IA (ChatGPT, Perplexity, Gemini)| <X.X>/20   | <Y.Y>/20   | ✅     |
+| Sécurité du site                          | <X.X>/20   | <Y.Y>/20   | ✅     |
+| Conformité technique                      | —          | <Z.Z>/20   | ✅     |
 
-## Annexe — Détails techniques
+[If LANG=en: "Site health (before / after)" with the same columns.
+Use these column labels: "Domain" / "Before" / "After" / "Status".
+Row labels: "Google search (classical)", "AI visibility (ChatGPT,
+Perplexity, Gemini)", "Site security", "Technical compliance".]
 
-[Pointer for the technically curious — README, source repo, etc.]
+Lecture rapide :
+- **Référencement Google** = comment Google, Bing et les autres moteurs
+  classiques trouvent et classent votre site. Majorité du trafic
+  aujourd'hui.
+- **Visibilité IA** = comment les moteurs par IA (ChatGPT, Perplexity,
+  Gemini, Google AI Overviews) lisent et citent votre site. Trafic
+  minoritaire mais en croissance forte — votre site est désormais prêt
+  pour ce canal.
+- **Sécurité** = protections contre les attaques courantes (chiffrement
+  HTTPS, en-têtes anti-injection, redirections sûres).
+- **Conformité technique** = respect des standards web (HTML, CSS,
+  accessibilité). Ouvert dans la plupart des navigateurs et lecteurs
+  d'écran sans bug.
+
+[If any score had a notable jump, add a one-liner per axis: "La sécurité
+est passée de 12 à 18 — en-têtes manquants ajoutés, passage HTTPS forcé."]
+
+### 4.2 Choix techniques importants
+
+[Vulgarize 3–7 BDR entries. Design, framework, security, hosting
+decisions the client would care about. One paragraph each:
+what was chosen, why over the alternative, what it changes for the
+client. Drop entries the client cannot act on or care about.]
+
+### 4.3 Comment on en est arrivé là (phases)
+
+[3–7 phases. For each: what was done, why it mattered, in technical
+detail this time. Reference commit clusters from STEP 10. Plain phase
+names, not skill names.]
+
+### 4.4 Glossaire (optionnel)
+
+[Include only if at least 4 of the terms below appear in chapter 4.
+Format: term — one-line plain-language definition. Sort alphabetically.
+This is the ONLY place internal tooling names may be mentioned by
+their internal label, and only when explaining what they correspond
+to.]
+
+- **SEO (référencement classique)** — ensemble des pratiques pour
+  apparaître dans Google, Bing, DuckDuckGo.
+- **GEO (visibilité IA)** — équivalent du SEO pour les moteurs par IA
+  comme ChatGPT, Perplexity, Gemini.
+- **HSTS** — en-tête HTTP qui force la navigation en HTTPS.
+- **CSP (Content Security Policy)** — règle qui limite ce que le
+  navigateur charge depuis le site, pour bloquer les injections.
+- **WCAG** — standard d'accessibilité (AA = niveau recommandé).
+- **Schema.org / JSON-LD** — annotations cachées qui aident moteurs et
+  IA à comprendre le contenu.
+- **llms.txt** — fichier qui dit aux moteurs IA quel est le contenu
+  important du site.
+
+## 5. Annexe — Plateformes externes (web)
+
+## 6. Annexe — Build & déploiement (optionnel)
 
 ---
 
@@ -963,20 +1044,24 @@ des audits de santé. Pour toute question, contactez [contact].*
 ### Tone rules
 
 1. Address the client directly ("votre site", "vous pouvez").
-2. Replace tech terms with user-facing equivalents.
-3. No abbreviations the client wouldn't use.
+2. Chapters 1–3: replace every tech term with a user-facing equivalent.
+3. No abbreviations the client wouldn't use (HTTPS yes, CSP no — unless
+   in chapter 4 with definition).
 4. Concrete numbers > adjectives.
 5. Short paragraphs. Bullet lists for things you can count.
 6. **Score deltas explained in plain words**. Never just dump numbers.
-7. **Owner-responsibility section is action-oriented**. Every line starts
-   with a verb. Every line is something the client can do without a dev.
+7. **Chapter 3 is action-oriented**. Every line starts with a verb.
+   Every line is something the client can do without a developer.
+8. **No skill-name leaks in chapters 1–3.** See "Hard rules" above.
 
 ---
 
 ## STEP 13 — SEO/GEO MANUAL CHECKLIST (web projects only)
 
 If `PROJECT_TYPE=web` AND `--skip-seo` NOT set, append this chapter
-(numbered §10 in the doc).
+as **§5 Annexe — Plateformes externes** in the new 4-chapter structure
+(see STEP 12). Replace the §5 stub with the full content rendered from
+the resource file.
 
 Read the resource file:
 `$HOME/.claude/skills/client-handover/checklists/seo-geo-manual.md`
@@ -1027,7 +1112,9 @@ that are recurring belong in §9's cadence checklist.
 
 ## STEP 14 — BUILD & DEPLOY CHAPTER (only if Q1=Yes)
 
-For each `DEPLOY_HINTS` match, generate a short subsection:
+If included, this becomes **§6 Annexe — Build & déploiement** in the new
+4-chapter structure (see STEP 12). For each `DEPLOY_HINTS` match,
+generate a short subsection:
 1. What this means (1 paragraph).
 2. First-time setup (numbered steps + signup link).
 3. Day-to-day deploy (typical command / click sequence).
@@ -1045,7 +1132,7 @@ For each: signup + 5-step deploy walkthrough.
 
 ---
 
-## STEP 15 — WRITE OUTPUT
+## STEP 15 — WRITE MARKDOWN OUTPUT
 
 Default output path: project root.
 - `LIVRAISON.md` if `LANG=fr`
@@ -1058,30 +1145,125 @@ If a file at that path already exists, AskUserQuestion:
 
 Write the file with the `Write` tool.
 
-Sanity check:
+Sanity checks (do them in this order, before STEP 16):
+
 ```bash
-wc -l <output>          # expect 200-800 lines
-grep -c "^## " <output> # expect 8-13 chapters (NEW: §4 health, §9 owner-resp)
+wc -l <output>                          # expect 250-800 lines
+grep -c "^## " <output>                 # expect 4-6 top-level chapters
+                                        #   §1, §2, §3, §4, [§5 web], [§6 deploy]
 ```
+
+**Chapter 2 word-count gate.** Extract the body of `## 2. Ce qui a été fait`
+(or `## 2. What we did` if `LANG=en`) and run `wc -w` on it. **Hard cap:
+300 words.** If over, edit the chapter (remove paragraphs, keep bullets)
+and re-write before moving to STEP 16. Do not skip this gate — chapter 2
+is the part the client reads first.
+
+```bash
+awk '/^## 2\. /{flag=1; next} /^## 3\. /{flag=0} flag' "$OUTPUT" | wc -w
+# expected: ≤ 300
+```
+
+**Skill-name leak gate.** Forbidden tokens must NOT appear in chapters
+1–3 (chapter 4 may use them in the optional glossary):
+
+```bash
+awk '/^## 1\./{flag=1} /^## 4\./{flag=0} flag' "$OUTPUT" \
+  | grep -niE '/(seo|harden|validate|cso|feat|bugfix|ship-feature|ship|code-clean|refactor)\b|seo-analyzer|geo-analyzer|validator-analyzer|SEO\.md|HARDEN\.md|VALIDATE\.md|CSO\.md|MAX_ITERATIONS|ALL_PASS|SCORE_[A-Z_]+'
+# expected: no matches. Each match is a leak — rewrite the offending
+# chapter in client language before STEP 16.
+```
+
+If either gate fails, fix and re-write the markdown before continuing.
 
 ---
 
-## STEP 16 — FINAL REPORT
+## STEP 16 — RENDER BRANDED HTML + PDF
+
+Always produce a branded `.html` next to the `.md`. Produce a branded
+`.pdf` when a PDF engine is available on the host. The file is the
+client-visible deliverable.
+
+### Inputs already known
+
+| Variable          | Source                                      |
+|-------------------|---------------------------------------------|
+| `OUTPUT_MD`       | path written in STEP 15                     |
+| `LANG`            | from STEP 1                                 |
+| `PROJECT_NAME`    | `PROJECT_ROOT` basename or `package.json` `name` |
+| `CLIENT_NAME`     | from journal first entry, README, or AskUserQuestion |
+| `PROJECT_PERIOD`  | `<first commit date> → <last commit date>` (DD/MM/YYYY) |
+| `PROJECT_URL`     | `DEPLOYED_URL` from STEP 6 (or `—` if none) |
+
+If `CLIENT_NAME` is unknown after best-effort detection, ask once with
+AskUserQuestion: `"Nom du client à afficher sur la couverture du PDF
+(ou laisser vide pour ne rien afficher)?"`. A blank answer becomes `—`.
+
+### Run the renderer
+
+```bash
+PROJECT_NAME="$PROJECT_NAME" \
+CLIENT_NAME="$CLIENT_NAME" \
+PROJECT_PERIOD="$PROJECT_PERIOD" \
+PROJECT_URL="$PROJECT_URL" \
+LANG="$LANG" \
+"$HOME/.claude/skills/client-handover/scripts/handover-to-pdf.sh" \
+  "$OUTPUT_MD"
+```
+
+The renderer:
+1. Converts the markdown to HTML using the first available engine
+   (pandoc > python-markdown > `npx marked`).
+2. Wraps the body in the ZenQuality template (cover page + branded
+   typography Inter + Playfair Display, ZenQuality green palette
+   `#1A3A25 / #2D5A3D / #4A7C59 / #87A878`, cream page background
+   `#F5F0EB`).
+3. Embeds the ZenQuality logo (default: `https://zenquality.fr/logo-horizontal.svg`;
+   override with `LOGO_URL` env var to use a local file).
+4. Emits `LIVRAISON.html` (or `HANDOVER.html`) next to the `.md`.
+5. Tries PDF engines in order: weasyprint > wkhtmltopdf > chromium >
+   chromium-browser > google-chrome. First match writes
+   `LIVRAISON.pdf` (or `HANDOVER.pdf`).
+6. If no PDF engine is available, exits with code 2 and prints
+   install hints. The HTML file is still produced and viewable —
+   the user can "Print → Save as PDF" from any modern browser.
+
+### Exit code handling
+
+| `$?` | Meaning                                       | Action |
+|------|-----------------------------------------------|--------|
+| 0    | HTML and PDF written                          | continue to STEP 17 |
+| 2    | HTML written, no PDF engine on host           | continue to STEP 17 — final report mentions PDF as MISSING and lists install commands |
+| 1    | Fatal (bad args, unwritable dir, conv error)  | escalate to user with the script's stderr |
+
+### Re-rendering on overwrite (option B in STEP 15)
+
+If STEP 15 chose option B (`LIVRAISON-YYYY-MM-DD.md` versioned),
+the renderer produces matching `LIVRAISON-YYYY-MM-DD.html` and
+`LIVRAISON-YYYY-MM-DD.pdf`. Pass the versioned path as `$OUTPUT_MD`.
+
+---
+
+## STEP 17 — FINAL REPORT
 
 Output to the user:
 
 ```
 DONE — ship-and-handover pipeline complete.
 
-OUTPUT: <path>
+OUTPUT:
+  Markdown:  <path-to-md>
+  HTML:      <path-to-html>
+  PDF:       <path-to-pdf>     (or: NOT GENERATED — see install hints below)
 LANGUAGE: fr | en
 PROJECT TYPE: web (local-business) | web | cli | library | mobile | other
 COMMITS ANALYZED: <count> from <first date> to <last date>
 
 PIPELINE RESULT (web):
-  SEO       <BEFORE>/20 → <AFTER>/20  ✅ (iterations: <N>)
-  HARDEN    <BEFORE>/20 → <AFTER>/20  ✅ (iterations: <N>)
-  VALIDATE  —          → <AFTER>/20   ✅ (post-deploy)
+  SEO classique  <BEFORE>/20 → <AFTER>/20  ✅ (iterations: <N>)
+  GEO (IA)       <BEFORE>/20 → <AFTER>/20  ✅ (iterations: <N>)
+  HARDEN         <BEFORE>/20 → <AFTER>/20  ✅ (iterations: <N>)
+  VALIDATE       —          → <AFTER>/20   ✅ (post-deploy)
 
 PIPELINE RESULT (non-web):
   CSO       <BEFORE>/20 → <AFTER>/20  ✅ (iterations: <N>)
@@ -1092,23 +1274,29 @@ DECISIONS VULGARIZED: <count>
 BLOCKERS REMAINING: <count> (open)
 
 DOC SECTIONS WRITTEN:
-  §1-3  Project recap
-  §4    Site health (before/after)            ← NEW
-  §5    Key decisions
-  §6    Lessons learned (optional)
-  §7    Open items / things to monitor
-  §8    Day-to-day usage
-  §9    Owner responsibilities checklist      ← NEW
-  §10   SEO/GEO manual chapter (web)
-  §11   Build & deploy chapter (only if requested)
-  §12   Pour aller plus loin
+  §1   Ce qu'il fallait faire (et pourquoi)
+  §2   Ce qui a été fait                  (≤ 300 mots, sans jargon)
+  §3   Ce qui vous reste à faire          (action checklist)
+  §4   Détails techniques                 (scores, choix, glossaire)
+  §5   Annexe — plateformes externes      (web only)
+  §6   Annexe — build & déploiement       (only if requested)
 
 Next steps for the user:
-1. Read the document end-to-end before sending — fill any
-   [À COMPLÉTER] / [À CONFIRMER] markers (especially NAP in §10).
-2. Save a copy outside the repo (PDF, email).
-3. Walk through §9 (owner responsibilities) with the client during the
-   handover meeting — it's the part they MUST act on.
+1. Open <path-to-pdf> (or the .html) — verify cover page, branding,
+   and that the score table renders. Adjust the .md if needed and
+   re-run STEP 16 to regenerate.
+2. Read the document end-to-end before sending — fill any
+   [À COMPLÉTER] / [À CONFIRMER] markers (NAP in §5 especially).
+3. Save a copy outside the repo (the .pdf is already client-ready).
+4. Walk through §3 (ce qui vous reste à faire) with the client
+   during the handover meeting — that's the part they MUST act on.
+
+[If PDF was NOT generated, append:]
+PDF NOT GENERATED — no PDF engine on this host. Install one of:
+  - weasyprint   pip install --user weasyprint   (or: pipx install weasyprint)
+  - wkhtmltopdf  apt install wkhtmltopdf
+  - chromium     apt install chromium-browser
+Then re-run only STEP 16 (the .md does not need to change).
 ```
 
 If anything was skipped or uncertain, list under `CONCERNS:`.
