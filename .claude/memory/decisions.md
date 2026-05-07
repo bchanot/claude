@@ -31,6 +31,7 @@ rules:
 | BDR-007 | 2026-05-04 | Skill profiles partition gstack by usage (design / dev / qa / audit / minimal) | accepted |
 | BDR-008 | 2026-05-04 | Profile system v2: extend to plugins + MCPs + CLIs (web/seo/web-full/backend) | accepted |
 | BDR-009 | 2026-05-05 | Mandate caveman format on .claude/memory/ registries | accepted |
+| BDR-010 | 2026-05-07 | Gate GEO independently at ≥17/20 in client-handover pipeline | accepted |
 
 ---
 
@@ -171,3 +172,21 @@ rules:
   - `*.original.md` backups gitignored (BDR-009 commit `639486a`) — recoverable via git history of pre-compression commit.
   - Existing registries entries compressed in commit `e4a9259`; new entries written caveman from start (BDR-009 itself is first such entry).
 - **Reference**: `CLAUDE.md` "Format — registries ALWAYS caveman" section, commits `520188a` (rule added), `e4a9259` (5 registries compressed), `639486a` (gitignore backups).
+
+## BDR-010 — Gate GEO independently at ≥17/20 in client-handover pipeline
+
+- **Date**: 2026-05-07
+- **Status**: accepted
+- **Decision**: client-handover gates SEO classique AND GEO (IA) independently — both must reach `≥17/20`. Was: combined display only, gate fired on first `/20` line found (de facto SEO classique alone). Now: `ALL_PASS = (SEO_AFTER ≥ 17) AND (GEO_AFTER ≥ 17) AND (HARDEN_AFTER ≥ 17) AND (VALIDATE_AFTER ≥ 17 OR SKIPPED)`. SEO subagent re-dispatched if either axis below threshold (same agent fixes both). Score table + roadmap + client doc §4 split rows accordingly.
+- **Why**: handover deliverable claims "site ready" — bar must hold on classical search (Google/Bing) AND AI search (ChatGPT/Perplexity) given AI traffic growth. Combined gate (e.g. global pondéré ≥17) lets GEO stay weak while combined passes — false confidence shipped to client. Independent gates close gap.
+- **Alternatives rejected**:
+  - Gate on `Score global pondéré ≥17` only — rejected: SEO=20 + GEO=10 → global=18 → passes despite GEO=10. Same false-confidence issue.
+  - Keep GEO informational (Phase A initial design) — rejected: breaks "every gated audit ≥17 or stop" rule. Two-tier system (gated vs informational) confuses client + breaks score-table semantics.
+  - Lower GEO threshold to ≥15 — rejected by user: weakens signal. Real fix is optimize GEO, not lower bar.
+  - Split into two parallel subagents (one SEO, one GEO) — rejected: /seo skill runs both inside one envelope-merge dispatcher. Splitting at handover layer duplicates context discovery (STEP 0) + doubles wall-clock.
+- **Caveats**:
+  - GEO ≥17 hard on existing sites — most lack llms.txt, Speakable/QAPage Schema, entity SEO (sameAs/Wikidata @id), TL;DR/Q→A content shape. Expect more fix-loop iterations on GEO than SEO. Override option C still per-axis with explicit user consent.
+  - `SCORE_GEO_AFTER = "UNKNOWN"` treated as fail — legacy single-score SEO.md triggers re-dispatch with explicit demand for both labeled lines (`Score SEO (classique) : X.X / 20` + `Score GEO (IA) : X.X / 20`).
+  - Backward compat split: `extract_score_labeled` SEO uses `allow_fallback=yes` (legacy single-score parses as SEO classique); GEO uses `allow_fallback=no` (no silent duplicate of SEO score).
+  - Loop logic axis-aware: `while (SEO < 17 OR GEO < 17) AND iter ≤ MAX`. Re-dispatch prompt labels both scores with PASS/FAIL + lists axis-specific fixes (SEO: meta/canonical/sitemap; GEO: llms.txt/Schema AI/entity SEO).
+- **Reference**: commit `5569a80`, `agents/client-handover-writer.md` (STEP 3 `extract_score_labeled`, STEP 4 axis-aware loop + re-dispatch prompt, STEP 8 gate rule + score table + threshold strictness, STEP 12 §4 client doc table), `skills/client-handover/SKILL.md`.

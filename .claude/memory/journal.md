@@ -58,3 +58,9 @@ rules:
 - Top gains (analyze +18.5, skills-perso +11.9, refactor +11.0, hotfix +9.0) all from same shape: edge-case table in agent file. Captured as LRN-008.
 - LRN-009: dry_run ratchet too strict for skills already >91; LRN-010: `~/.claude/skills,agents` symlink to Documents/claude — git operations must run from there.
 - Audit report `.claude/audits/DARWIN-SKILL-OPTIMIZATION.md`. Eval log `~/.agents/skills/darwin-skill/results.tsv` (38 rows). Branch awaits manual review before merge.
+
+## 2026-05-07
+
+- /client-handover gates SEO classique + GEO (IA) independently at ≥17/20 (BDR-010). Was: combined display only, gate fired on SEO alone. Now: 4-axis gate (SEO, GEO, HARDEN, VALIDATE), axis-aware fix loop, per-axis override transparency.
+- Pattern captured as LRN-011: single subagent emits N gated scores → labeled extraction + axis-aware loop + per-axis escalation. Generalizes to future multi-metric audits (e.g. /harden split TLS/headers/redirects).
+- 1 atomic commit `5569a80` (`feat(client-handover): split SEO + GEO scores, gate GEO at ≥17/20`). Bash unit tested `extract_score_labeled` on 4 cases (new format, /100 normalize, legacy fallback, GEO UNKNOWN strict) — all OK.
