@@ -248,6 +248,25 @@ ul li, ol li { margin: 0 0 1.5mm 0; }
 ul li::marker { color: var(--green-moss); }
 ol li::marker { color: var(--green-moss); font-weight: 600; }
 
+/* ============ PAGE-BREAK HARDENING ============ */
+/* Keep each list item intact across pages — prevents the bullet/marker
+   from staying on the previous page while the text reflows to the next
+   (historical cause of "trailing word + leading bullet" superposition). */
+li {
+  page-break-inside: avoid;
+  break-inside: avoid;
+}
+/* Tie the first block after a heading to the heading itself so a page
+   break never splits "heading + intro" or "heading + first list item"
+   across two pages. */
+h1 + p, h1 + ul, h1 + ol,
+h2 + p, h2 + ul, h2 + ol,
+h3 + p, h3 + ul, h3 + ol,
+h4 + p, h4 + ul, h4 + ol {
+  page-break-before: avoid;
+  break-before: avoid;
+}
+
 strong { color: var(--green-dark); font-weight: 600; }
 
 em { color: var(--green-forest); font-style: italic; }
@@ -430,6 +449,17 @@ hr {
   a[href^="#"]::after,
   a[href^="mailto:"]::after,
   a[href^="tel:"]::after,
+  a.bare-url::after,
   .cover a::after,
   table a::after { content: ""; }
+  /* Belt-and-braces: prevent the ::after URL pseudo-element from breaking
+     across pages or columns and overlapping the next block (root cause of
+     historical "text superposition" bugs on long URLs). */
+  a[href^="http"]::after {
+    white-space: nowrap;
+    page-break-before: avoid;
+    page-break-inside: avoid;
+    break-before: avoid;
+    break-inside: avoid;
+  }
 }

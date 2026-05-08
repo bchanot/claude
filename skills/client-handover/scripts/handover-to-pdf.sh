@@ -146,6 +146,54 @@ print(markdown.markdown(
 
 BODY_HTML="$(md_to_html_body "$SRC_MD")"
 
+# Tag anchors whose visible text equals their href (auto-linked bare URLs)
+# so the print stylesheet skips the "(href)" pseudo-element duplication.
+# Without this, "[https://x.com/](https://x.com/)" or a bare URL renders as
+# "https://x.com/ (https://x.com/)" and the trailing duplicate wraps onto
+# the next line, overlapping the following block.
+tag_bare_url_links() {
+  # Pass HTML via env var so the heredoc can be the python script.
+  HQ_RAW_HTML="$1" python3 <<'PY'
+import os, sys, re, html as html_lib
+
+src = os.environ.get("HQ_RAW_HTML", "")
+
+def normalize(u: str) -> str:
+    return html_lib.unescape(u).strip().rstrip('/').lower()
+
+# Match <a ...href="X"...>TEXT</a> with no nested tags inside the anchor.
+ANCHOR_RE = re.compile(
+    r'<a\b([^>]*?)\bhref="([^"]+)"([^>]*)>([^<]*)</a>',
+    flags=re.IGNORECASE,
+)
+
+def repl(m: re.Match) -> str:
+    pre_attrs, href, post_attrs, text = m.groups()
+    if normalize(href) != normalize(text):
+        return m.group(0)
+    attrs = (pre_attrs or "") + (post_attrs or "")
+    class_re = re.compile(r'\bclass="([^"]*)"', flags=re.IGNORECASE)
+    cm = class_re.search(attrs)
+    if cm:
+        existing = cm.group(1)
+        if "bare-url" in existing.split():
+            new_attrs = attrs
+        else:
+            new_attrs = class_re.sub(
+                f'class="{existing} bare-url"', attrs, count=1
+            )
+    else:
+        new_attrs = attrs.rstrip() + ' class="bare-url"'
+    return f'<a{new_attrs} href="{href}">{text}</a>'
+
+sys.stdout.write(ANCHOR_RE.sub(repl, src))
+PY
+}
+
+if command -v python3 >/dev/null 2>&1; then
+  BODY_HTML="$(tag_bare_url_links "$BODY_HTML")"
+fi
+
 # ---------------------------- WRAP HTML ----------------------------
 
 CSS_CONTENT="$(cat "$BRANDING_DIR/zenquality.css")"
