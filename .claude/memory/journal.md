@@ -68,3 +68,11 @@ rules:
 - STEP 15 hard gates: chapter 2 word count ≤300 (`wc -w`) + forbidden-token grep (no `/seo`, `/harden`, `/validate`, `SEO.md`, `SCORE_*` etc. in chapters 1–3). Chapter 4 may use them in glossary.
 - LRN-012 captured: bash heredoc + stdin pipe collision (`printf | python3 - <<'PY' ... PY`) silently drops piped data — heredoc wins stdin. Diagnose via `bash -x`. Fix: pass via env var or file path, never via stdin combined with heredoc. Hit during v1 `handover-to-pdf.sh`, fixed before commit.
 - 1 atomic commit `e06b52a` (`feat(client-handover): 4-chapter doc structure + branded HTML/PDF rendering`). End-to-end tested with synthetic boulangerie handover (179w chapter 2, no leaks, HTML 11KB + PDF 33KB via weasyprint).
+### 2026-05-07 — /client-handover PDF rendering bugfix
+
+- Fixed 3 bugs in `/client-handover` PDF generation reported on `LIVRAISON.pdf` test render.
+- **Bug 1** (critical): MD→HTML converter chain — host had no pandoc, no python-markdown, fell to `npx marked < "$src"` which dumped marked CLI's own `cli.js` source instead of converting (marked 16.x stdin regression). PDF was 2 pages of marked binary source. Fix: `npx --yes marked --gfm -i "$src"`. → LRN-013.
+- **Bug 2**: cover bg was cream `#F5F0EB` with 8mm green stripe — washed out. Final state after iteration: `--white-pure` bg + subtle radial sage/forest tints + `--black-deep` text + `--green-forest` accents (eyebrow/meta labels/footer/border). Solid green-dark tried first then rejected (too heavy for long client doc). → BDR-012.
+- **Bug 3**: SVG logo `logo-horizontal.svg` blended into cream bg. Default `LOGO_URL` switched to `https://zenquality.fr/assets/logo-horizontal-1024.png` (URL provided by user). High contrast on white bg.
+- Verified: regenerated `LIVRAISON.pdf` → 164 KB, 19 pages, full content rendered, white cover with black title + green-forest accents + visible PNG logo.
+- Files touched: `skills/client-handover/scripts/handover-to-pdf.sh`, `skills/client-handover/resources/branding/zenquality.css`, `agents/client-handover-writer.md`.

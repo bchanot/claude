@@ -212,3 +212,15 @@ rules:
   - Renderer always outputs HTML + tries PDF; on PDF failure exits 2, prints install hints. STEP 16 reports `PDF: NOT GENERATED` with hints in final report.
   - Optional glossary in §4.4 listed terms (HSTS, CSP, WCAG, Schema.org, llms.txt, SEO/GEO) — only renders if ≥4 of these appear in §4 body.
 - **Reference**: commit `e06b52a`, `agents/client-handover-writer.md` (STEP 12 4-chapter doc structure + tone rules, STEP 15 word-count + leak gates, STEP 16 RENDER pipeline, STEP 17 final report), `skills/client-handover/scripts/handover-to-pdf.sh` (cascade renderer), `skills/client-handover/resources/branding/zenquality.css` (ZenQuality print stylesheet), `skills/client-handover/resources/branding/zenquality-template.html` (HTML wrapper with placeholders).
+---
+
+## BDR-012 — client-handover cover: white bg + green accents + PNG logo default
+
+- **Date**: 2026-05-07
+- **Context**: original `.cover` CSS used cream `--white-cream` (#F5F0EB) bg + 8mm green stripe top. Washed out. SVG logo `logo-horizontal.svg` blended into cream bg = low contrast. User feedback: "couleur du fond n'est pas bon", "utiliser une icone non white". Tried green-dark bg first (rejected — too heavy for client-facing doc, hurt readability of long meta block).
+- **Choice**: `.cover` bg → `--white-pure` with two subtle radial tints (sage top-right rgba(135,168,120,0.18), green-forest bottom-left rgba(45,90,61,0.06)). Body text → `--black-deep`. Title `--black-deep`. Eyebrow/meta labels/footer → `--green-forest` (medium green). Meta border-left + meta-strong → `--green-forest`. Removed `.cover::before` 8mm stripe. Default `LOGO_URL` → `https://zenquality.fr/assets/logo-horizontal-1024.png`.
+- **Alt rejected**: (a) cream `#F5F0EB` bg — washed-out, original problem. (b) solid green-dark bg — too heavy, hurt long-text readability, felt like marketing brochure not deliverable. (c) generic white + black — no brand signal.
+- **Why**: light theme with green accents matches zenquality.fr without overpowering. White bg keeps long client-facing text readable. Green-forest on white = WCAG AA contrast + brand cue. Subtle radial gradients add depth without weight.
+- **Status**: shipped.
+- **How to apply**: ZenQuality client-facing print docs default to white bg + green-forest accents. Body interior keeps cream `--white-cream` as accent (code blocks, blockquote bg) — not as page bg. Solid green-dark reserved for marketing covers, not deliverables.
+- **Reference**: `skills/client-handover/resources/branding/zenquality.css` `.cover` block (line 71-86 bg, 119-149 typography); `scripts/handover-to-pdf.sh` line 107 (LOGO_URL default); `agents/client-handover-writer.md` line 1218-1222 (doc updated).
