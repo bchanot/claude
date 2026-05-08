@@ -1216,9 +1216,12 @@ The renderer:
    (pandoc > python-markdown > `npx marked`).
 2. Wraps the body in the ZenQuality template (cover page + branded
    typography Inter + Playfair Display, ZenQuality green palette
-   `#1A3A25 / #2D5A3D / #4A7C59 / #87A878`, cream page background
-   `#F5F0EB`).
-3. Embeds the ZenQuality logo (default: `https://zenquality.fr/logo-horizontal.svg`;
+   `#1A3A25 / #2D5A3D / #4A7C59 / #87A878`, **white cover**
+   (`--white-pure`) with black-deep title and green-forest accents
+   (eyebrow, meta labels, footer); subtle radial sage + forest tints
+   add depth. Cream `#F5F0EB` reserved for body code/blockquote
+   accents — not page bg).
+3. Embeds the ZenQuality logo (default: `https://zenquality.fr/assets/logo-horizontal-1024.png`;
    override with `LOGO_URL` env var to use a local file).
 4. Emits `LIVRAISON.html` (or `HANDOVER.html`) next to the `.md`.
 5. Tries PDF engines in order: weasyprint > wkhtmltopdf > chromium >

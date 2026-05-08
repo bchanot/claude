@@ -75,23 +75,14 @@ html, body {
   padding: 35mm 22mm 22mm 22mm;
   background:
     radial-gradient(ellipse at top right, rgba(135, 168, 120, 0.18) 0%, transparent 55%),
-    radial-gradient(ellipse at bottom left, rgba(74, 124, 89, 0.10) 0%, transparent 55%),
-    var(--white-cream);
+    radial-gradient(ellipse at bottom left, rgba(45, 90, 61, 0.06) 0%, transparent 55%),
+    var(--white-pure);
+  color: var(--black-deep);
   position: relative;
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   page: cover;
-}
-
-.cover::before {
-  content: "";
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  height: 8mm;
-  background: linear-gradient(90deg, var(--green-dark), var(--green-forest), var(--green-moss));
 }
 
 .cover-header {
@@ -131,7 +122,7 @@ html, body {
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.18em;
-  color: var(--green-moss);
+  color: var(--green-forest);
   margin-bottom: 6mm;
 }
 
@@ -139,7 +130,7 @@ html, body {
   font-family: 'Playfair Display', Georgia, serif;
   font-size: 34pt;
   font-weight: 700;
-  color: var(--green-dark);
+  color: var(--black-deep);
   line-height: 1.1;
   margin: 0 0 6mm 0;
   letter-spacing: -0.015em;
@@ -158,36 +149,42 @@ html, body {
 .cover-meta {
   font-family: 'Inter', sans-serif;
   font-size: 10.5pt;
-  color: var(--black-soft);
+  color: var(--black-deep);
   line-height: 1.9;
-  border-left: 2px solid var(--green-moss);
+  border-left: 2px solid var(--green-forest);
   padding-left: 5mm;
 }
 
 .cover-meta strong {
-  color: var(--green-dark);
+  color: var(--green-forest);
   font-weight: 600;
   display: inline-block;
   min-width: 25mm;
 }
 
+.cover-meta a {
+  color: var(--black-deep);
+  text-decoration: underline;
+  text-decoration-color: rgba(45, 90, 61, 0.6);
+}
+
 .cover-footer {
   font-family: 'Inter', sans-serif;
   font-size: 9pt;
-  color: var(--gray-mid);
-  border-top: 1px solid var(--green-sage);
+  color: var(--green-forest);
+  border-top: 1px solid rgba(45, 90, 61, 0.4);
   padding-top: 5mm;
   display: flex;
   justify-content: space-between;
 }
 
 .cover-footer a {
-  color: var(--green-forest);
+  color: var(--black-deep);
   text-decoration: none;
   font-weight: 500;
 }
 
-.cover-footer a:hover { color: var(--green-dark); }
+.cover-footer a:hover { color: var(--green-forest); }
 
 /* ============ DOCUMENT BODY ============ */
 .content {

@@ -86,6 +86,14 @@ hooks/node_modules/
 graphify-out/
 .ctx7-cache/
 
+# /client-handover test artifacts (project-local renders)
+LIVRAISON.md
+LIVRAISON.html
+LIVRAISON.pdf
+HANDOVER.md
+HANDOVER.html
+HANDOVER.pdf
+
 # Install logs
 install-*.log
 

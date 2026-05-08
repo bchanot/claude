@@ -104,7 +104,7 @@ PROJECT_PERIOD_RESOLVED="${PROJECT_PERIOD:-—}"
 PROJECT_URL_RESOLVED="${PROJECT_URL:-—}"
 COVER_TITLE_RESOLVED="${COVER_TITLE:-$PROJECT_NAME_RESOLVED}"
 COVER_SUBTITLE_RESOLVED="${COVER_SUBTITLE:-$DEFAULT_SUBTITLE}"
-LOGO_URL_RESOLVED="${LOGO_URL:-https://zenquality.fr/logo-horizontal.svg}"
+LOGO_URL_RESOLVED="${LOGO_URL:-https://zenquality.fr/assets/logo-horizontal-1024.png}"
 
 if command -v date >/dev/null 2>&1; then
   if [ "$LANG_CODE" = "fr" ]; then
@@ -135,7 +135,9 @@ print(markdown.markdown(
     return
   fi
   if command -v npx >/dev/null 2>&1; then
-    npx --yes marked < "$src"
+    # marked CLI 16.x ignores stdin and dumps its own cli.js source —
+    # always pass the file via -i to get correct output.
+    npx --yes marked --gfm -i "$src"
     return
   fi
   echo "error: no Markdown converter available (need pandoc, python3+markdown, or npx)" >&2
