@@ -372,7 +372,6 @@ ul.task-list li {
 
 ul.checklist li::before,
 ul.task-list li::before,
-li input[type="checkbox"] + *,
 li.task-list-item::before {
   content: "☐";
   position: absolute;
@@ -382,13 +381,28 @@ li.task-list-item::before {
   line-height: 1;
 }
 
-input[type="checkbox"] {
-  display: none;
+/* Pandoc GFM emits <li><input disabled type="checkbox"> text...</li> with
+   no wrapper class. Render the native checkbox inline (small, green) and
+   leave inline elements (<a>, <code>, <strong>) that follow it untouched.
+   Earlier rule `li input[type="checkbox"] + *` mistakenly absolutely-
+   positioned the first element sibling after the checkbox, yanking links
+   and code spans out of flow and overlapping adjacent content. */
+li > input[type="checkbox"] {
+  appearance: none;
+  -webkit-appearance: none;
+  display: inline-block;
+  width: 3mm;
+  height: 3mm;
+  margin: 0 1.5mm 0 0;
+  border: 0.4mm solid var(--green-moss);
+  border-radius: 0.5mm;
+  vertical-align: middle;
+  background: transparent;
 }
 
-input[type="checkbox"]:checked + label::before {
-  content: "☑";
-  color: var(--green-forest);
+li > input[type="checkbox"]:checked {
+  background: var(--green-forest);
+  border-color: var(--green-forest);
 }
 
 /* ============ CALLOUTS ============ */
