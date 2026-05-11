@@ -154,9 +154,23 @@ After each write, regenerate Index from body when rows changed.
 ## STEP 4 — VERIFY
 
 ```bash
+# Filename → ID-prefix map. Hard-mapped because filenames don't share
+# their first 3 chars with the prefix (decisions → BDR, not DEC).
+# v1 bug: derived prefix via `basename | cut -c1-3` → never matched,
+# verify printed false-clean signal. Fixed in v1.1 (TDD found it).
+declare -A PREFIX_MAP=(
+  [decisions]=BDR
+  [learnings]=LRN
+  [blockers]=BLK
+  [evals]=EVAL
+)
+
 # All body entries have Index rows; no orphans
-for f in .claude/memory/decisions.md .claude/memory/learnings.md .claude/memory/blockers.md; do
-  prefix=$(basename "$f" .md | tr a-z A-Z | cut -c1-3)
+for fname in decisions learnings blockers evals; do
+  f=".claude/memory/${fname}.md"
+  [ -f "$f" ] || continue
+  prefix="${PREFIX_MAP[$fname]}"
+
   /usr/bin/grep -oE "^## (${prefix})-[0-9]+" "$f" | while read marker; do
     id="${marker##\#\# }"
     /usr/bin/grep -q "^| ${id} " "$f" || echo "MISSING INDEX: $id in $f"
@@ -166,8 +180,9 @@ for f in .claude/memory/decisions.md .claude/memory/learnings.md .claude/memory/
     /usr/bin/grep -q "^## ${id} " "$f" || echo "ORPHAN INDEX: $id in $f"
   done
 done
+echo "(blank above = OK)"
 
-wc -l .claude/memory/*.md
+wc -l .claude/memory/*.md | grep -v "\.original\.md"
 ```
 
 Report:
