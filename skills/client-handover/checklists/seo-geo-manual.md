@@ -47,15 +47,16 @@ manquante dans l'adresse) divise votre visibilité Google.
 Choisissez UNE seule version officielle de chaque champ et utilisez-la
 **à l'identique partout** :
 
-| Champ          | Valeur officielle à utiliser partout                       |
-|----------------|------------------------------------------------------------|
-| Nom commercial | [À COMPLÉTER — exactement comme sur le Kbis]              |
-| Adresse        | [À COMPLÉTER — n° rue, code postal, ville]                |
-| Téléphone      | [À COMPLÉTER — format: +33 X XX XX XX XX]                |
-| Email pro      | [À COMPLÉTER]                                             |
-| Site web       | [À COMPLÉTER — avec le https://]                          |
-| Horaires       | [À COMPLÉTER — ligne par jour, format 24h: 09:00–18:00]   |
-| Catégorie      | [À COMPLÉTER — la principale, ex: "Restaurant italien"]   |
+| Champ              | Valeur officielle à utiliser partout                       |
+|--------------------|------------------------------------------------------------|
+| Nom commercial     | [À COMPLÉTER — exactement comme sur le Kbis]              |
+| Adresse            | [À COMPLÉTER — n° rue, code postal, ville]                |
+| Téléphone          | [À COMPLÉTER — format: +33 X XX XX XX XX]                |
+| Email pro          | [À COMPLÉTER]                                             |
+| Site web           | [À COMPLÉTER — avec le https://]                          |
+| Catégorie          | [À COMPLÉTER — la principale, ex: "Restaurant italien"]   |
+| Description courte | [À COMPLÉTER — 1-2 phrases, voir hero / meta description du site, à recopier identique partout (Google Business, Bing, Apple, annuaires)] |
+| Horaires           | [À COMPLÉTER — ligne par jour, format 24h: 09:00–18:00]   |
 
 Notez ces informations dans un fichier que vous gardez à portée de main —
 vous allez les recopier 10 fois.
@@ -217,8 +218,13 @@ Google vous remonte.
   https://search.google.com/search-console
 - **Google Business Insights** — accessible depuis votre fiche Google
   Business Profile, montre les recherches qui mènent à vous.
-- **BrightLocal Free Tools** — vérifier la cohérence de votre NAP sur
-  les annuaires : https://www.brightlocal.com/free-local-tools/
+- **Moz Local — Citation Checker (gratuit)** — audit 60 s qui vérifie
+  la cohérence NAP de votre fiche sur 50+ annuaires (Google Business,
+  Apple Plans, Yelp, Pages Jaunes, etc.) et signale doublons et
+  incohérences : https://moz.com/local (cliquer « Check My Listing »
+  ou « Get Free Audit » en page d'accueil — pas de carte bancaire
+  demandée). Remplace l'ancien outil BrightLocal Free Tools (page
+  retirée par BrightLocal en 2026, service maintenant payant).
 - **PageSpeed Insights** — vérifier que le site reste rapide :
   https://pagespeed.web.dev/
 
@@ -261,15 +267,16 @@ Google visibility.
 Pick ONE official version of each field and use it **identically
 everywhere**:
 
-| Field            | Official value to use everywhere                |
-|------------------|--------------------------------------------------|
-| Business name    | [TO FILL — exactly as registered]               |
-| Address          | [TO FILL — street, city, ZIP, country]          |
-| Phone            | [TO FILL — format: +1 XXX XXX XXXX]             |
-| Pro email        | [TO FILL]                                       |
-| Website          | [TO FILL — with https://]                       |
-| Hours            | [TO FILL — per day, 24h format: 09:00-18:00]    |
-| Primary category | [TO FILL — e.g., "Italian restaurant"]          |
+| Field             | Official value to use everywhere                |
+|-------------------|--------------------------------------------------|
+| Business name     | [TO FILL — exactly as registered]               |
+| Address           | [TO FILL — street, city, ZIP, country]          |
+| Phone             | [TO FILL — format: +1 XXX XXX XXXX]             |
+| Pro email         | [TO FILL]                                       |
+| Website           | [TO FILL — with https://]                       |
+| Primary category  | [TO FILL — e.g., "Italian restaurant"]          |
+| Short description | [TO FILL — 1-2 sentences, lift from site hero / meta description, paste identically everywhere (Google Business, Bing, Apple, directories)] |
+| Hours             | [TO FILL — per day, 24h format: 09:00-18:00]    |
 
 Save these in a file you can reach in two clicks. You will copy them 10
 times.
@@ -422,8 +429,13 @@ results. More reviews (positive AND recent) = higher Google ranking.
   https://search.google.com/search-console
 - **Google Business Insights** — inside your Google Business Profile,
   shows what searches lead to you.
-- **BrightLocal Free Tools** — verify NAP consistency across directories:
-  https://www.brightlocal.com/free-local-tools/
+- **Moz Local — Citation Checker (free)** — 60-second audit checking
+  NAP consistency across 50+ directories (Google Business, Apple
+  Maps, Yelp, etc.) and flagging duplicates and inconsistencies:
+  https://moz.com/local (click "Check My Listing" or "Get Free
+  Audit" on the homepage — no credit card required). Replaces the
+  former BrightLocal Free Tools (page removed by BrightLocal in
+  2026, service now paid-only).
 - **PageSpeed Insights** — confirm site stays fast:
   https://pagespeed.web.dev/
 
