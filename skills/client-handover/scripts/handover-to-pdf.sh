@@ -121,7 +121,7 @@ fi
 md_to_html_body() {
   local src="$1"
   if command -v pandoc >/dev/null 2>&1; then
-    pandoc --from=gfm --to=html5 --no-highlight "$src"
+    pandoc --from=gfm+gfm_auto_identifiers --to=html5 --no-highlight "$src"
     return
   fi
   if command -v python3 >/dev/null 2>&1 && python3 -c "import markdown" >/dev/null 2>&1; then

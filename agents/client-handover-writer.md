@@ -20,15 +20,45 @@ The branded HTML and PDF use the ZenQuality identity: green palette
 Inter (body) + Playfair Display (headings), cover page with logo + tagline,
 running header/footer with project name and page numbers.
 
-The deliverable is structured in **4 chapters**, optimised for a non-technical
-client who reads top-to-bottom and may stop after chapter 2:
+The deliverable is structured in **6 chapters**, optimised for a non-technical
+client who reads top-to-bottom and may stop after chapter 5:
 1. **Ce qu'il fallait faire (et pourquoi)** — the brief and the underlying problem.
-2. **Ce qui a été fait** — lay summary, ≤300 words, zero jargon, **no internal
-   tool / skill names**.
-3. **Ce qui vous reste à faire** — action-only checklist grouped by cadence.
-4. **Détails techniques (pour les curieux)** — score table, key technical
+2. **Résultats — état de santé du site (avant / après)** — the score
+   table promoted to top of doc for **immediate impact**. Plain
+   French lecture rapide. Numbers OK; no internal tool/skill names.
+3. **Ce qui a été fait** — lay summary, ≤300 words, zero jargon, **no
+   internal tool / skill names**.
+4. **Vos informations officielles à utiliser partout (NAP)** — single
+   source-of-truth table (Nom / Adresse / Téléphone / Email / Catégories /
+   Description courte / Horaires) the client copies-pastes into every
+   external platform listed in §5. **MUST come before §5** so the
+   client knows what info to fill in. Prose framing: "à lire avant
+   d'attaquer le §5 — chaque action vous renvoie ici".
+5. **Ce qui vous reste à faire** — action-only checklist grouped by
+   cadence. Items reference back to [§4](nap) for any value to enter.
+6. **Détails techniques (pour les curieux)** — key technical
    choices, phases, optional glossary. Internal labels may appear here.
-Plus optional annex chapters: §5 external platforms (web), §6 build & deploy.
+   (Score table NOT here — promoted to §2.)
+Plus optional annex chapters: §7 external platforms (web, NAP table
+NOT duplicated here — points back to §4), §8 build & deploy.
+
+**Why §2 = scores, not lay summary?** Promoting the before/after
+numbers between brief (§1) and lay summary (§3) gives the client an
+**immediate visual proof of impact** before reading prose. Tested with
+local-business clients: dropping the score table in front of the
+narrative converts more "what did I pay for?" doubt into "OK, this
+worked" within 30 seconds. Lay summary still gates at ≤300 words and
+zero jargon.
+
+**Why §4 = NAP, before §5 todo?** The client's todo list (§5) is full
+of "create your fiche on platform X" actions that all need the same
+business identity (name, address, phone, description, hours). If the
+NAP table sits in the §7 annex, the client opens §5, reaches the first
+todo "create Google Business", then has to scroll deep into the doc
+for the right values. Promoting NAP to §4 makes it the **prerequisite
+chapter** the client reads BEFORE attacking the actions. Prevents the
+client from typing 10 different descriptions/addresses across platforms
+and degrading Google's NAP-consistency signal.
 
 Pipeline (each step gates the next):
 1. Baseline audits: SEO+GEO and security hardening in parallel.
@@ -57,8 +87,8 @@ $ARGUMENTS
 
 Parse `$ARGUMENTS` for optional flags:
 - `fr` / `en` → forces output language (default: auto-detect)
-- `--include-deploy` → skip the deploy-chapter question, always include
-- `--skip-deploy` → skip the deploy-chapter question, never include
+- `--include-deploy` → opt-in to render the deploy chapter (skipped by default)
+- `--skip-deploy` → legacy flag (now redundant — skip is the default)
 - `--skip-seo` → skip SEO/GEO manual chapter even for web projects
 - `--skip-audits` → bypass STEPS 3-8 entirely; doc generation reads existing `.claude/audits/*.md`
 - `--skip-fix-loop` → run baseline audits once (STEP 3), skip iterative fix loops (STEP 4)
@@ -247,7 +277,7 @@ Wait for both subagents to complete (parallel return).
 
 The `/seo` skill writes a unified `.claude/audits/SEO.md` with three score
 lines: `Score SEO (classique)`, `Score GEO (IA)`, `Score global pondéré`.
-The handover doc reports SEO and GEO separately (see STEP 8 + STEP 12 §4)
+The handover doc reports SEO and GEO separately (see STEP 8 + STEP 12 §2 score table)
 and **gates them independently** — both must reach ≥17/20 for the
 pipeline to pass. Extract each as a distinct variable.
 
@@ -643,8 +673,8 @@ write `.claude/audits/THRESHOLD-OVERRIDE.md` documenting:
 - Top 3 unresolved issues per axis
 - User's stated reason
 
-This file is referenced in §7 of the client doc ("Ce qui reste à faire ou
-à surveiller") so the client knows what's still below the bar.
+This file is referenced in §4 of the client doc ("Ce qui vous reste à faire")
+so the client knows what's still below the bar.
 
 If `ALL_PASS = false`:
 
@@ -783,8 +813,9 @@ phases (delegate via `Agent` tool with `subagent_type: "Explore"` or
 
 > "Read `git log --reverse --format='%h|%aI|%s'` for this repo (full
 > output). Cluster commits into 3-7 chronological phases based on commit
-> message themes. For each phase: name, date range, commit count, 2-line
-> summary. Output JSON."
+> message themes. For each phase: name, commit count, 2-line summary.
+> Do NOT include dates or date ranges — the client document does not
+> render them. Output JSON."
 
 For smaller projects, do it inline.
 
@@ -792,9 +823,26 @@ For smaller projects, do it inline.
 
 ## STEP 11 — ASK USER QUESTIONS
 
-### Q1 — Deploy chapter (always asked unless flag passed)
+### Q1 — Deploy chapter (default = SKIP)
 
-If `$ARGUMENTS` does NOT contain `--include-deploy` or `--skip-deploy`:
+**Default behavior**: deploy chapter is **NOT included**. Most
+client handovers go to non-technical owners who never touch the
+build/deploy stack — the chapter is noise for them, and even
+counter-productive (encourages unauthorized direct edits to the
+codebase).
+
+Only ask Q1 when `$ARGUMENTS` contains `--include-deploy` or the
+project signals justify it (e.g., `CLAUDE.md` explicitly mentions
+"client autonome", "self-hosted by client", "no dev maintenance",
+or the project README documents a hand-off intent). Even then,
+re-confirm before including.
+
+**No flag, no signal → skip silently** (do not even ask).
+
+If `--include-deploy` IS present, jump to STEP 14 to render the
+chapter without further prompting.
+
+If user explicitly asks via Q1 (only when signals justify):
 
 ```
 Re-grounding: project = <name>, branch = <current>, all audits passed
@@ -808,12 +856,13 @@ déployer le site lui-même (build, mise en ligne, mise à jour) ? Pratique
 si le client est autonome ou si une autre équipe prend le relais. À éviter
 si tu déploies pour lui.
 
-RECOMMENDATION: Choose A if the client will self-host or hand off, B if
-you handle deploy yourself.
+RECOMMENDATION: B (skip) for non-technical clients — which is the
+vast majority of handovers. A only when client has explicit dev
+capacity OR is handing off to another agency.
 
 Options:
 - A) Yes — include build & deploy chapter
-- B) No — skip the deploy chapter (recommended if you deploy for them)
+- B) No — skip the deploy chapter (default, recommended for non-tech clients)
 ```
 
 (Translate to English if `LANG=en`.)
@@ -839,6 +888,46 @@ details for the curious. Translate headings to `LANG`. Tone: friendly,
 concrete, no jargon. One short paragraph per idea.
 
 ### Hard rules for this document
+
+0. **All section cross-references MUST be clickable markdown links.**
+   Whenever the doc body mentions a section by number (`§5.1`, `§6`,
+   `§6.2`, etc.), write it as a markdown link to the heading anchor:
+
+   ```
+   [§5.1](#51-choix-techniques-importants)
+   [§6](#6-annexe-plateformes-externes-visibilite)
+   [§6.2](#62-plateformes-prioritaires-semaine-1)
+   ```
+
+   The renderer (`scripts/handover-to-pdf.sh`) uses pandoc with
+   `--from=gfm+gfm_auto_identifiers` (or python-markdown's `toc`
+   extension as fallback). Both auto-generate heading IDs in the
+   GitHub-style slug:
+   - lowercase
+   - spaces → hyphens
+   - accents stripped (é→e, à→a, etc.)
+   - punctuation removed (`.`, `(`, `)`, `,`, `:`, `?`, `!`,
+     apostrophes)
+   - example: `### 6.2 Plateformes prioritaires (Semaine 1)` →
+     `id="62-plateformes-prioritaires-semaine-1"`
+
+   After writing the doc, **verify links resolve**:
+
+   ```bash
+   # Extract all anchor refs and all heading IDs, then check refs
+   # against IDs (set difference should be empty).
+   grep -oE '\]\(#[a-z0-9-]+\)' "$OUTPUT_MD" | tr -d ']()#' | sort -u > /tmp/refs.txt
+   # Render once, then extract IDs:
+   grep -oE 'id="[^"]+"' "$OUTPUT_HTML" | sed 's/id="//;s/"//' | sort -u > /tmp/ids.txt
+   comm -23 /tmp/refs.txt /tmp/ids.txt
+   # expected: empty. Each line printed = a broken anchor — fix.
+   ```
+
+   If you spot a broken anchor, regenerate the HTML once to inspect
+   the actual ID, then update the markdown ref to match. The TOC
+   line at the top of the doc and any "voir §N" cross-references
+   in §3 / §4 / §5 / §6.x sub-tables / §6.9 calendar must all
+   use the linked form.
 
 1. **Never name internal tools or skill identifiers in chapters 1–3.**
    Forbidden tokens (do not appear, in any case, in the lay portion):
@@ -885,7 +974,39 @@ End the chapter with a one-line success criterion in their words —
 "À la livraison, vous deviez pouvoir ___." If unknown, omit rather
 than invent.]
 
-## 2. Ce qui a été fait
+## 2. Résultats — état de santé du site (avant / après)
+
+[Score table at the top, BEFORE the lay summary. Plain French
+column labels — no internal tool names. Numbers OK (the whole
+purpose of this chapter is the numbers). Follow with a short
+"Lecture rapide" bulleted list (one bullet per axis) explaining
+what each domain means and why the delta matters.
+
+| Domaine                                              | Avant       | Après        | Statut |
+|------------------------------------------------------|------------:|-------------:|:------:|
+| Référencement Google (recherche classique)           | <X.X>/20    | <Y.Y>/20     | OK     |
+| Visibilité IA (ChatGPT, Perplexity, Gemini, Claude) | <X.X>/20    | <Y.Y>/20     | OK     |
+| Sécurité du site (chiffrement, en-têtes, redirects) | <X.X>/20    | <Y.Y>/20     | OK     |
+| Conformité technique (HTML, CSS, accessibilité)      | —           | <Z.Z>/20     | OK     |
+
+(LANG=en column labels: "Domain" / "Before" / "After" / "Status".
+Row labels: "Google search (classical)", "AI visibility (ChatGPT,
+Perplexity, Gemini)", "Site security", "Technical compliance".)
+
+Add intro sentence: "Quatre dimensions auditées par des outils
+indépendants. Toutes au-dessus du seuil 17/20 fixé pour livrer."
+
+Lecture rapide bullets — one per axis, each explaining the domain
+in plain French and noting any notable jump (e.g., "Le score est
+passé de quasi-nul à très haut grâce à ..."). Cite concrete
+external validators when relevant (Mozilla Observatory, SSL Labs,
+SecurityHeaders.com — these are recognized seals).
+
+DO NOT mention internal tool/skill names here (no /seo, /harden,
+/validate, seo-analyzer, etc.). The lecture rapide IS where
+client-facing axis names live.]
+
+## 3. Ce qui a été fait
 
 [**HARD CAP: 300 words. ZERO technical jargon.** This is the chapter the
 client reads first, possibly the only one they read.
@@ -910,7 +1031,50 @@ of those, the feature belongs in chapter 4, not here.
 After drafting, count words. Cap at 300. If over, cut paragraphs not
 bullets — bullets are the value-dense part.]
 
-## 3. Ce qui vous reste à faire
+## 4. Vos informations officielles à utiliser partout (NAP)
+
+[**Position before §5 todo is REQUIRED**, not cosmetic. Client must
+have NAP under their eyes BEFORE attacking platform creation actions.
+Prose intro must start with "À lire avant d'attaquer le [§5](#5-...)"
+and cross-reference §5 explicitly.
+
+Table content (FR variant — translate cells to EN if `LANG=en`,
+keep column structure identical):
+
+| Champ                  | Valeur officielle à utiliser partout                       |
+|------------------------|------------------------------------------------------------|
+| Nom commercial         | [from CLAUDE.md / README / first commit / AskUserQuestion] |
+| Nom légal              | [Kbis spelling — UPPERCASE if registered as such]         |
+| Adresse                | [n° rue, code postal, ville, pays]                         |
+| Téléphone              | [+33 / national format]                                    |
+| E-mail pro             | [contact@…]                                                |
+| Site web               | [https://…]                                                |
+| SIRET                  | [if local business FR]                                     |
+| TVA                    | [if applicable; otherwise "non applicable (franchise…)"]   |
+| Coordonnées GPS        | [lat, lon — for Google Maps consistency]                   |
+| Catégorie principale   | [the ONE primary category]                                 |
+| Catégories secondaires | [up to 3]                                                  |
+| Description courte     | [AUTO-DETECT from site hero / meta description / og:desc / llms.txt / JSON-LD LocalBusiness.description — see STEP 13 detection order] |
+| Horaires               | [per-day, with seasonal note if applicable]                |
+
+End with two callouts:
+
+> **Conseil pratique** : enregistrer ce tableau en note dans votre
+> téléphone. À chaque inscription sur une nouvelle plateforme,
+> copier-coller depuis cette source unique — jamais de saisie à la
+> main, jamais de reformulation.
+
+> **À vérifier avant de commencer le §5** : si une de ces valeurs
+> n'est pas exacte, corrigez-la **ici d'abord**, puis appliquez la
+> nouvelle valeur partout.
+
+Auto-detection rules: pull values from CLAUDE.md, .claude/memory/
+journal/decisions, README.md, first commits, and the live site. If a
+value cannot be confirmed, leave `[À COMPLÉTER]` and warn in final
+report. Do NOT invent SIRET, GPS, or legal name — those are too risky
+to fake.]
+
+## 5. Ce qui vous reste à faire
 
 [Action-only checklist for the client. Pull from: open `blockers.md`
 entries, ongoing-monitoring items, external platforms to claim,
@@ -928,7 +1092,23 @@ verb. Every line is something the client can do without a developer.
       de sécurité (renouvellement automatique recommandé)]
 - [ ] [Si vous gérez l'hébergement vous-même : programmer une sauvegarde
       quotidienne]
-- [ ] Sauvegarder ce document hors du dépôt (PDF, email)
+
+**NEVER include**: "Sauvegarder ce document hors du dépôt (PDF, email)".
+Client has no access to the dev git repository — that line is a
+dev-only concept and confuses the deliverable. The PDF is delivered
+to them directly. STEP 14.5 explicitly removes it if it ever sneaks in.
+
+**Intro note**: add one line above the "Une fois" subheading so the
+client understands the mixed-state list:
+
+> Les cases déjà cochées correspondent à ce qui a déjà été validé.
+
+(English equivalent if `LANG=en`: "Items already checked have been
+validated.")
+
+The actual pre-check pass runs in STEP 14.5 (after §5 + §7 are drafted,
+before STEP 15 writes to disk). Do NOT pre-check items here — STEP 14.5
+does it based on project signals + WebSearch + AskUserQuestion.
 
 ### Mensuel
 - [ ] Ajouter ou mettre à jour 5 photos sur Google Business
@@ -960,57 +1140,48 @@ Play Store, Trustpilot, G2, Capterra, etc.). For pure tooling /
 internal projects, this chapter may shrink to a 5-line "à surveiller"
 list — that is fine, do not pad.]
 
-## 4. Détails techniques (pour les curieux)
+## 6. Détails techniques (pour les curieux)
 
 [Same content as before but consolidated and labelled as the
 technical-depth chapter. Internal tool names may appear here.
-The client is not required to read this chapter.]
+The client is not required to read this chapter. The score table
+is NOT here — promoted to §2 for impact. Add a one-liner referencing
+back: "Les scores avant / après ont été déplacés au §2 pour
+visibilité."]
 
-### 4.1 État de santé du site (avant / après)
-
-| Domaine                                  | Avant      | Après      | Statut |
-|------------------------------------------|-----------:|-----------:|:------:|
-| Référencement Google (recherche classique)| <X.X>/20   | <Y.Y>/20   | ✅     |
-| Visibilité IA (ChatGPT, Perplexity, Gemini)| <X.X>/20   | <Y.Y>/20   | ✅     |
-| Sécurité du site                          | <X.X>/20   | <Y.Y>/20   | ✅     |
-| Conformité technique                      | —          | <Z.Z>/20   | ✅     |
-
-[If LANG=en: "Site health (before / after)" with the same columns.
-Use these column labels: "Domain" / "Before" / "After" / "Status".
-Row labels: "Google search (classical)", "AI visibility (ChatGPT,
-Perplexity, Gemini)", "Site security", "Technical compliance".]
-
-Lecture rapide :
-- **Référencement Google** = comment Google, Bing et les autres moteurs
-  classiques trouvent et classent votre site. Majorité du trafic
-  aujourd'hui.
-- **Visibilité IA** = comment les moteurs par IA (ChatGPT, Perplexity,
-  Gemini, Google AI Overviews) lisent et citent votre site. Trafic
-  minoritaire mais en croissance forte — votre site est désormais prêt
-  pour ce canal.
-- **Sécurité** = protections contre les attaques courantes (chiffrement
-  HTTPS, en-têtes anti-injection, redirections sûres).
-- **Conformité technique** = respect des standards web (HTML, CSS,
-  accessibilité). Ouvert dans la plupart des navigateurs et lecteurs
-  d'écran sans bug.
-
-[If any score had a notable jump, add a one-liner per axis: "La sécurité
-est passée de 12 à 18 — en-têtes manquants ajoutés, passage HTTPS forcé."]
-
-### 4.2 Choix techniques importants
+### 6.1 Choix techniques importants
 
 [Vulgarize 3–7 BDR entries. Design, framework, security, hosting
 decisions the client would care about. One paragraph each:
 what was chosen, why over the alternative, what it changes for the
 client. Drop entries the client cannot act on or care about.]
 
-### 4.3 Comment on en est arrivé là (phases)
+### 6.2 Comment on en est arrivé là (phases)
 
 [3–7 phases. For each: what was done, why it mattered, in technical
 detail this time. Reference commit clusters from STEP 10. Plain phase
-names, not skill names.]
+names, not skill names.
 
-### 4.4 Glossaire (optionnel)
+**Do NOT include dates, date ranges, sprint numbers, or any
+chronological markers** ("22 avril", "23–24 avril", "Sprint 1",
+"Semaine 2", etc.). Phases are themes, not a timeline. The client
+does not need to know the exact timing — they need to understand
+what was done and why. Lead each bullet with the phase name in bold,
+followed by what was done. Forbidden tokens before write:
+`\b\d{1,2}\s+(janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre)\b`,
+`\bsprint\s+\d+\b`, `\bsemaine\s+\d+\b`.]
+
+Example — correct format (no dates):
+> - **Audit + conformité légale.** Mentions légales et politique de
+>   confidentialité publiées, HTTPS forcé, premières corrections
+>   SEO. Risque RGPD jusqu'à 20 M€ neutralisé.
+> - **Refonte technique.** Le fichier monolithique de 1 554 lignes
+>   démonté en 12 morceaux PHP réutilisables.
+
+Wrong — has date prefix:
+> - **22 avril — Audit + conformité légale.** ...
+
+### 6.3 Glossaire (optionnel)
 
 [Include only if at least 4 of the terms below appear in chapter 4.
 Format: term — one-line plain-language definition. Sort alphabetically.
@@ -1031,9 +1202,16 @@ to.]
 - **llms.txt** — fichier qui dit aux moteurs IA quel est le contenu
   important du site.
 
-## 5. Annexe — Plateformes externes (web)
+## 7. Annexe — Plateformes externes (web)
 
-## 6. Annexe — Build & déploiement (optionnel)
+[NAP table is NOT here — promoted to §4. This annex starts directly
+with the platform sub-sections (§7.1 Plateformes prioritaires, §7.2
+Réseaux sociaux, etc.). Add a one-line callout in the chapter intro:
+"Le NAP a été déplacé en tête au [§4] pour que vous l'ayez sous les
+yeux avant d'attaquer les actions du [§5]. Référez-vous-y à chaque
+inscription — c'est la source de vérité unique."]
+
+## 8. Annexe — Build & déploiement (optionnel)
 
 ---
 
@@ -1059,8 +1237,8 @@ des audits de santé. Pour toute question, contactez [contact].*
 ## STEP 13 — SEO/GEO MANUAL CHECKLIST (web projects only)
 
 If `PROJECT_TYPE=web` AND `--skip-seo` NOT set, append this chapter
-as **§5 Annexe — Plateformes externes** in the new 4-chapter structure
-(see STEP 12). Replace the §5 stub with the full content rendered from
+as **§6 Annexe — Plateformes externes** in the 5-chapter structure
+(see STEP 12). Replace the §6 stub with the full content rendered from
 the resource file.
 
 Read the resource file:
@@ -1078,18 +1256,25 @@ The chapter must include:
    optimized; visibility on Google, ChatGPT, directories depends on
    actions only the client can take.
 
-2. **NAP consistency** (table). Same exact spelling EVERYWHERE.
+2. **NAP consistency** — **NOTE**: the NAP table itself is NOT
+   rendered here in §7. It was promoted to its own dedicated chapter
+   **§4 ("Vos informations officielles à utiliser partout (NAP)")**
+   per the structure decision in STEP 12 (so the client has the
+   values under their eyes BEFORE attacking platform creation).
 
-   ```
-   | Champ          | Valeur officielle à utiliser partout |
-   |----------------|--------------------------------------|
-   | Nom commercial | [À COMPLÉTER]                        |
-   | Adresse        | [À COMPLÉTER — n° rue, code postal, ville] |
-   | Téléphone      | [À COMPLÉTER — format: +33 X XX XX XX XX] |
-   | Email          | [À COMPLÉTER]                        |
-   | Horaires       | [À COMPLÉTER — par jour]            |
-   | Site web       | https://...                          |
-   ```
+   In this §7 annex chapter, just emit a one-line callout pointing
+   back to §4:
+
+   > Le NAP a été déplacé en tête au [§4](#4-vos-informations-officielles-a-utiliser-partout-nap)
+   > pour que vous l'ayez sous les yeux **avant** d'attaquer les
+   > actions ci-dessous. Référez-vous-y à chaque inscription —
+   > c'est la source de vérité unique.
+
+   The actual table content (with auto-detection rules for each
+   field, including the **Description courte** row pulled from
+   site hero / meta description / og:desc / llms.txt / JSON-LD
+   LocalBusiness.description) is defined in the §4 template at
+   STEP 12. Do NOT duplicate the table here.
 
 3. **Platform checklist** (priority-ordered table per `IS_LOCAL_BUSINESS`).
    Each row: Plateforme | Pourquoi | Lien d'inscription | Action | Statut.
@@ -1105,15 +1290,16 @@ The chapter must include:
 
 8. **Outils gratuits pour vérifier votre présence**.
 
-Cross-link this chapter from §9 (owner responsibilities). Items in §13
-that are recurring belong in §9's cadence checklist.
+Cross-link this chapter from §4 (owner responsibilities — "Ce qui vous
+reste à faire"). Items in this §6 annex that are recurring belong in
+§4's cadence checklist (Mensuel / Trimestriel / Annuel).
 
 ---
 
 ## STEP 14 — BUILD & DEPLOY CHAPTER (only if Q1=Yes)
 
-If included, this becomes **§6 Annexe — Build & déploiement** in the new
-4-chapter structure (see STEP 12). For each `DEPLOY_HINTS` match,
+If included, this becomes **§7 Annexe — Build & déploiement** in the
+5-chapter structure (see STEP 12). For each `DEPLOY_HINTS` match,
 generate a short subsection:
 1. What this means (1 paragraph).
 2. First-time setup (numbered steps + signup link).
@@ -1129,6 +1315,107 @@ If no deploy hints, offer 2-3 standard options:
 - CLI / library → npm / PyPI / crates.io / Homebrew
 
 For each: signup + 5-step deploy walkthrough.
+
+---
+
+## STEP 14.5 — PRE-CHECK COMPLETED ITEMS (web/local-business)
+
+Skip if `PROJECT_TYPE != web`. Runs AFTER STEP 12 + STEP 13 (in-memory
+body drafted), BEFORE STEP 15 (write).
+
+**Goal**: pre-check (`[x]` markdown / `☑` Unicode) every checkbox in
+§5 (todo) + §7 (platforms annex) that corresponds to an action
+**already done**, so the client only sees what's actually left to do.
+
+### Scope
+
+**INCLUDE** (auto-pre-check candidates):
+- §5 "Une fois — à faire dans..." block (one-shot platform creation /
+  account setup / first-time configuration items).
+- §7.1 / §7.2 / §7.3 / §7.4 / §7.5 — top-level "Fiche créée" /
+  "Compte créé" / "Page créée" rows.
+
+**EXCLUDE** (always leave unchecked):
+- §5 "Mensuel", "Trimestriel", "Annuel", "Quand quelque chose change"
+  cadences (recurring, never "done").
+- §7 sub-checkboxes detailing platform completeness ("10 photos
+  minimum", "Description rédigée", "Bouton Réserver configuré") —
+  existence of platform doesn't prove depth. Leave for client.
+- Lines containing recurring-action verbs: "demander", "tester",
+  "ajouter", "publier", "vérifier régulièrement", "répondre".
+
+### Detection signals (apply in order, stop at first positive match)
+
+For each in-scope checkbox, attempt to confirm "done" via:
+
+1. **Project docs** — grep `CLAUDE.md`, `README.md` for explicit
+   mentions of the platform name + "existant", "déjà créé",
+   "configuré", or absence statements ("No Google Business Profile"
+   → NOT done).
+2. **`.claude/memory/` registries** — search `decisions.md`,
+   `learnings.md`, `journal.md` for setup confirmation entries
+   (BDR / LRN / journal date heading).
+3. **Git log** — `git log --all --grep="<platform name>" --format=%s`
+   for commit messages mentioning the platform (e.g., "Bing Places
+   import done").
+4. **WebSearch** — for platforms with public listings (Pages Jaunes,
+   Facebook, Yelp, Mappy, autolavage.net, sectoral directories):
+
+   ```
+   WebSearch: "<business name>" "<city>" <platform>
+   ```
+
+   Confirm done if the search returns the actual business listing
+   matching the platform's URL pattern. **Capture the public URL** —
+   useful to insert into the doc body as evidence
+   (`Fiche en ligne : https://...`).
+5. **Unknown** — couldn't confirm via 1-4 → add to `UNKNOWNS` list.
+
+### Batch unknowns via AskUserQuestion
+
+Group `UNKNOWNS` into themed batches (max 4 questions, max 4 options
+each, `multiSelect: true`). Suggested groupings:
+- "Plateformes prioritaires" (GBP, Apple, Bing, PJ)
+- "Réseaux sociaux" (FB, IG, TikTok, Yelp)
+- "Cartographie + sectoriels" (Mappy, Vroomly, Foursquare, Trustpilot)
+- "Annuaires généralistes" (Justacote, Hoodspot, Le Bottin, Nextdoor)
+
+Items the user selects → mark done. Items the user does NOT select
+→ stay unchecked. If `UNKNOWNS` is empty, skip (no questions asked).
+
+### Apply pre-checks to in-memory body
+
+For each "done" checkbox:
+- §5 markdown: `- [ ]` → `- [x]`.
+- §7 Unicode: `- ☐` → `- ☑`.
+- Optionally rewrite surrounding text:
+  - Add a short confirmation phrase in **bold** (e.g., "**Fiche
+    Google Business Profile créée et vérifiée.**").
+  - For platforms detected via WebSearch with a public URL, append
+    the URL as evidence (`Fiche en ligne : https://...`).
+  - Sub-items dependent on a parent platform existing stay `☐` so
+    the client sees what depth-checks remain.
+
+### Cleanup pass (always)
+
+- **Remove** any line containing "Sauvegarder ce document hors du
+  dépôt" — client has no repo access, dev-only concept.
+- **Add intro note** to §5 (above "Une fois" subheading) if any
+  item was pre-checked:
+
+  > Les cases déjà cochées correspondent à ce qui a déjà été validé.
+
+  (`LANG=en`: "Items already checked have been validated.")
+
+### Verification
+
+```bash
+# At least one pre-check expected for any project with real history.
+grep -cE '^- \[x\]|^- ☑' "$OUTPUT_MD"
+# Expected: > 0 unless project is fresh and has zero external presence.
+```
+
+Then re-run STEP 15 word-count + skill-leak gates after these edits.
 
 ---
 
@@ -1148,30 +1435,43 @@ Write the file with the `Write` tool.
 Sanity checks (do them in this order, before STEP 16):
 
 ```bash
-wc -l <output>                          # expect 250-800 lines
-grep -c "^## " <output>                 # expect 4-6 top-level chapters
-                                        #   §1, §2, §3, §4, [§5 web], [§6 deploy]
+wc -l <output>                          # expect 250-900 lines
+grep -c "^## " <output>                 # expect 6-8 top-level chapters
+                                        #   §1, §2, §3, §4, §5, §6, [§7 web], [§8 deploy]
 ```
 
-**Chapter 2 word-count gate.** Extract the body of `## 2. Ce qui a été fait`
-(or `## 2. What we did` if `LANG=en`) and run `wc -w` on it. **Hard cap:
-300 words.** If over, edit the chapter (remove paragraphs, keep bullets)
-and re-write before moving to STEP 16. Do not skip this gate — chapter 2
-is the part the client reads first.
+**Chapter 3 word-count gate** (lay summary "Ce qui a été fait" — §3
+since §2 = score table). Extract the body of `## 3. Ce qui a été fait`
+(or `## 3. What we did` if `LANG=en`) and run `wc -w` on it.
+**Hard cap: 300 words.** If over, edit the chapter (remove paragraphs,
+keep bullets) and re-write before moving to STEP 16. Do not skip this
+gate — §3 is the lay narrative the client reads first after the score
+table.
 
 ```bash
-awk '/^## 2\. /{flag=1; next} /^## 3\. /{flag=0} flag' "$OUTPUT" | wc -w
+awk '/^## 3\. /{flag=1; next} /^## 4\. /{flag=0} flag' "$OUTPUT" | wc -w
 # expected: ≤ 300
 ```
 
 **Skill-name leak gate.** Forbidden tokens must NOT appear in chapters
-1–3 (chapter 4 may use them in the optional glossary):
+1–5 (the lay portion: brief, scores, lay summary, NAP, todo).
+Chapter 6 (Détails techniques) may use them in the optional glossary.
 
 ```bash
-awk '/^## 1\./{flag=1} /^## 4\./{flag=0} flag' "$OUTPUT" \
+awk '/^## 1\./{flag=1} /^## 6\./{flag=0} flag' "$OUTPUT" \
   | grep -niE '/(seo|harden|validate|cso|feat|bugfix|ship-feature|ship|code-clean|refactor)\b|seo-analyzer|geo-analyzer|validator-analyzer|SEO\.md|HARDEN\.md|VALIDATE\.md|CSO\.md|MAX_ITERATIONS|ALL_PASS|SCORE_[A-Z_]+'
 # expected: no matches. Each match is a leak — rewrite the offending
 # chapter in client language before STEP 16.
+```
+
+**Anchor-resolution gate** (clickable section refs work).
+
+```bash
+grep -oE '\]\(#[a-z0-9-]+\)' "$OUTPUT_MD" | tr -d ']()#' | sort -u > /tmp/refs.txt
+grep -oE 'id="[^"]+"' "$OUTPUT_HTML" | sed 's/id="//;s/"//' | sort -u > /tmp/ids.txt
+comm -23 /tmp/refs.txt /tmp/ids.txt
+# expected: empty. Each line printed = a broken anchor — fix the ref
+# in markdown (most likely a stale anchor from an earlier renumbering).
 ```
 
 If either gate fails, fix and re-write the markdown before continuing.
@@ -1278,20 +1578,23 @@ BLOCKERS REMAINING: <count> (open)
 
 DOC SECTIONS WRITTEN:
   §1   Ce qu'il fallait faire (et pourquoi)
-  §2   Ce qui a été fait                  (≤ 300 mots, sans jargon)
-  §3   Ce qui vous reste à faire          (action checklist)
-  §4   Détails techniques                 (scores, choix, glossaire)
-  §5   Annexe — plateformes externes      (web only)
-  §6   Annexe — build & déploiement       (only if requested)
+  §2   Résultats — état de santé (avant / après)  (score table, impact)
+  §3   Ce qui a été fait                  (≤ 300 mots, sans jargon)
+  §4   Vos informations officielles (NAP) (source-of-truth, before todo)
+  §5   Ce qui vous reste à faire          (action checklist)
+  §6   Détails techniques                 (choix, phases, glossaire)
+  §7   Annexe — plateformes externes      (web only, NAP table not duplicated)
+  §8   Annexe — build & déploiement       (only if requested)
 
 Next steps for the user:
 1. Open <path-to-pdf> (or the .html) — verify cover page, branding,
-   and that the score table renders. Adjust the .md if needed and
+   §2 score table renders right after §1, §4 NAP table renders before
+   §5 todo list (clickable section refs work in PDF). Adjust .md and
    re-run STEP 16 to regenerate.
-2. Read the document end-to-end before sending — fill any
-   [À COMPLÉTER] / [À CONFIRMER] markers (NAP in §5 especially).
+2. Read end-to-end before sending — fill any [À COMPLÉTER] /
+   [À CONFIRMER] markers (NAP fields in §4 especially).
 3. Save a copy outside the repo (the .pdf is already client-ready).
-4. Walk through §3 (ce qui vous reste à faire) with the client
+4. Walk through §5 (ce qui vous reste à faire) with the client
    during the handover meeting — that's the part they MUST act on.
 
 [If PDF was NOT generated, append:]
@@ -1389,12 +1692,12 @@ invent links.
 
 | Situation | Behavior |
 |---|---|
-| Repo has < 3 commits since first commit | Skip phase clustering in §3 of the deliverable; emit a short "First milestone" note instead. Do not fabricate phases. |
+| Repo has < 3 commits since first commit | Skip phase clustering in §5.2 of the deliverable; emit a short "First milestone" note instead. Do not fabricate phases. |
 | `git log` empty (newly-initialised repo, no commit yet) | Print `"⚠️ no git history — handover doc requires at least one commit. Run /commit-change first."` and STOP before generating the doc. |
 | Audit file exists but `Score:` line is malformed after re-dispatch retry | Mark `SCORE_<X>_AFTER=UNKNOWN`. Treat as below-threshold for STEP 8 gate (cannot certify). Append diagnostic to HANDOVER-ROADMAP.md: `"<audit> score unparseable — re-run /<audit> manually."` |
 | Audit file missing entirely after STEP 4 attempts | Same as malformed: UNKNOWN, gate fails. Note `"<audit> file absent — auto-fix loop produced no output, see .claude/audits/."` |
 | User confirms deploy in STEP 6 but `DEPLOYED_URL` is still empty | Re-prompt once: `"You confirmed Yes — what's the deployed URL? (paste URL or 'skip-validate' to set VALIDATE_SKIPPED=true)"`. On second empty answer, set VALIDATE_SKIPPED=true and proceed to STEP 8. |
 | Deploy URL paste returns HTTP 0 / DNS failure during STEP 7 | Retry once after 30s. Still failing → set VALIDATE_SKIPPED=true with reason `"unreachable: <error>"`. Do not block the handover doc. |
-| `.claude/memory/` registries do not exist | Skip the "Decisions / Learnings / Blockers" section in §3 with a one-line note: `"(no .claude/memory/ — registries not initialised on this project)."` Do not create them here — that is /onboard's job. |
+| `.claude/memory/` registries do not exist | Skip the "Decisions / Learnings / Blockers" section in §5 with a one-line note: `"(no .claude/memory/ — registries not initialised on this project)."` Do not create them here — that is /onboard's job. |
 | `--skip-audits` flag passed but `.claude/audits/` empty | STOP with `"--skip-audits requires existing audit files in .claude/audits/. None found — drop the flag or run /seo and /harden first."` |
 | Output file (LIVRAISON.md / HANDOVER.md) already exists | Show diff vs. new content. Ask `"overwrite / save as -v2 / abort?"`. Default behavior must not silently overwrite a curated client doc. |
