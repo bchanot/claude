@@ -1,25 +1,16 @@
 ---
 name: seo
 description: |
-  Full SEO + GEO audit and optimization for any web project.
-  Runs the seo-analyzer (classical search — Google, Bing, DuckDuckGo)
-  and geo-analyzer (AI search — ChatGPT, Perplexity, Claude, Gemini,
-  Google AI Overviews, Copilot) IN PARALLEL, then consolidates their
-  output into a unified .claude/audits/SEO.md report.
-  Covers: meta, OG, JSON-LD (classical + GEO-optimised schemas),
-  sitemap, robots.txt (including AI crawlers), llms.txt, headings,
-  alt attrs, canonicals, hreflang, Core Web Vitals, entity SEO
-  (Wikidata, sameAs, Knowledge Panel), content shape for AI extraction,
-  AI visibility monitoring.
-  Trigger: "seo", "referencement", "optimize for search", "audit SEO",
-  "meta tags", "structured data", "JSON-LD", "sitemap", "robots.txt",
-  "Google ranking", "local SEO", "referencement local", "fiche Google",
-  "AI search", "GEO", "llms.txt", "ChatGPT visibility", "Perplexity",
-  "Google AI Overview".
-  For GEO-only audit → use /geo.
-  For W3C HTML/CSS validity + WCAG a11y → use /validate (syntactic conformance,
-  not ranking signals).
-  For code-only bugs → use /bugfix. For feature work → use /feat.
+  Use when a web project needs SEO + GEO audit or optimization — classical
+  search (Google, Bing, DuckDuckGo) AND AI search (ChatGPT, Perplexity,
+  Claude, Gemini, AI Overviews, Copilot). Parallel multi-agent orchestrator:
+  dispatches seo-analyzer + geo-analyzer concurrently, merges envelopes into
+  .claude/audits/SEO.md.
+  Triggers: "seo", "referencement", "audit SEO", "meta tags",
+  "structured data", "JSON-LD", "sitemap", "robots.txt", "Google ranking",
+  "local SEO", "AI search", "GEO", "llms.txt", "ChatGPT visibility",
+  "Perplexity", "Google AI Overview".
+  For GEO only → /geo. For W3C/a11y → /validate. For bugs → /bugfix.
 argument-hint: optional keywords/scope, e.g. "local SEO plombier 91 94 77" or "SaaS B2B content strategy"
 allowed-tools:
   - Read

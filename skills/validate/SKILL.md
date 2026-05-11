@@ -1,20 +1,14 @@
 ---
 name: validate
 description: |
-  Web standards audit — W3C HTML validity (validator.nu), W3C CSS
-  validity (jigsaw.w3.org/css-validator), WCAG 2.1 accessibility
-  (axe-core, pa11y, WAVE API). Dedicated to syntactic and
-  accessibility conformance. Produces .claude/audits/VALIDATE.md.
-  Dispatches the validator-analyzer agent with a STRICT scope
-  filter — no meta/OG/JSON-LD/CWV/security-header noise.
-  Trigger: "validate", "validation", "w3c", "html validity",
-  "css validity", "wcag", "accessibility", "a11y audit", "axe",
-  "pa11y", "wave", "validator.w3.org", "nu validator",
-  "validation html", "accessibilité", "audit a11y", "audit wcag",
-  "normes w3c", "conformité web", "validité html css".
-  For security hardening (CSP, HSTS, 404) → use /harden.
-  For SEO/indexability (meta, sitemap, JSON-LD) → use /seo.
-  For AI engines (llms.txt, QAPage, entity SEO) → use /geo.
+  Use when a web project needs W3C HTML/CSS validity check or WCAG 2.1
+  accessibility audit. Dispatches the validator-analyzer agent with a
+  STRICT scope filter (no meta/OG/JSON-LD/CWV/security-header noise).
+  Triggers: "validate", "validation", "w3c", "html validity",
+  "css validity", "wcag", "accessibility", "a11y audit", "axe", "pa11y",
+  "wave", "validator.w3.org", "nu validator", "accessibilité",
+  "audit a11y", "audit wcag", "normes w3c", "conformité web".
+  For CSP/HSTS/404 → /harden. For meta/sitemap → /seo. For AI engines → /geo.
 argument-hint: [URL] [--fix] [--local|--full] [--no-external]
 allowed-tools:
   - Read

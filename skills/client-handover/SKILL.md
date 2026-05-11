@@ -1,28 +1,14 @@
 ---
 name: client-handover
 description: |
-  Final ship-and-handover orchestrator. End-to-end pipeline that hardens the
-  project, commits, pauses for deploy, validates the live site, and only then
-  generates the non-technical client deliverable as Markdown + branded HTML +
-  PDF (ZenQuality identity: green palette, Inter + Playfair Display fonts,
-  cover page with logo and tagline). The deliverable uses a 4-chapter
-  structure: §1 what was needed and why, §2 what was done (≤300 words, zero
-  jargon, no internal tool/skill names), §3 what the client must do (action
-  checklist), §4 technical details for the curious (scores, key choices,
-  glossary). Pipeline: (1) /seo (SEO+GEO) and /harden run in parallel with
-  auto-fix loops until each score ≥17/20, (2) /commit-change + push if
-  changes made, (3) pause to tell user what to deploy and wait for
-  confirmation, (4) /validate against the live site, (5) per-axis gate
-  ≥17/20 — stop and analyze if any below, (6) write client doc + render
-  branded HTML/PDF. Reads git history + .claude/memory/ registries. For
-  local-business projects, appends manual SEO/GEO platform checklist (NAP
-  consistency across Google Business, Pages Jaunes, Yelp, Facebook,
-  Instagram, TikTok, Apple Maps, Bing Places, TripAdvisor, etc.). Asks
-  whether to include build/deploy chapter.
-  Trigger: "client handover", "compte rendu client", "livraison client",
-  "synthese projet", "rapport client", "deliverable", "summary for client",
-  "recap projet", "handover doc", "livrable", "ship and handover",
-  "finaliser et livrer".
+  Use when finalizing a project for non-technical client delivery — needs
+  final audits, deploy validation against live site, and a branded
+  deliverable (Markdown + HTML + PDF). Multi-agent orchestrator: dispatches
+  client-handover-writer which spawns parallel /seo + /harden subagents,
+  then /validate, then writes the deliverable.
+  Triggers: "client handover", "compte rendu client", "livraison client",
+  "rapport client", "deliverable", "summary for client", "handover doc",
+  "livrable", "ship and handover", "finaliser et livrer".
 argument-hint: [optional: language fr|en, --include-deploy, --skip-deploy, --skip-seo, --skip-audits, --skip-fix-loop, --max-iterations N, --audit-max-age <duration>, --output <path>]
 disable-model-invocation: false
 allowed-tools:

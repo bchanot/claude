@@ -1,6 +1,6 @@
 ---
 name: onboard
-description: Onboard an existing repo — detect archetype, install claude-config, run full audit (debt/SEO/GEO/UI-UX/perf/security/a11y/docs), output prioritized improvement plan in .claude/audits/ + .claude/tasks/. Use on repos not created via /init-project.
+description: Use when bringing an existing repo into the claude-config framework — needs archetype detection, config install, full multi-axis audit (debt/SEO/GEO/UI-UX/perf/security/a11y/docs), and prioritized backlog. Multi-agent orchestrator. Do NOT use for repos created via /init-project. Triggers: "onboard", "onboard project", "audit existing repo", "setup existing project".
 argument-hint: [optional hints: "Python FastAPI" | "add gsd" | "Next.js monorepo" | "force-archetype:wordpress"]
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep

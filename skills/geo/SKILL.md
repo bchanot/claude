@@ -1,20 +1,15 @@
 ---
 name: geo
 description: |
-  Standalone GEO (Generative Engine Optimization) audit for AI search
-  engines: ChatGPT, Perplexity, Claude, Gemini, Google AI Overviews,
-  Microsoft Copilot, Brave AI, DuckAssist, You.com, Apple Intelligence.
-  Audits AI crawler directives, llms.txt / llms-full.txt, Schema.org
-  types optimised for AI extraction (QAPage, Speakable, Person+Article,
-  HowTo, Organization graph), entity SEO (Wikidata, sameAs, @id,
-  Knowledge Panel), content shape for LLM extraction (Definition Lead,
-  TL;DR, Q→A structure, citable stats, freshness), and live AI
-  visibility monitoring.
-  For full SEO + GEO combined audit → use /seo (runs seo + geo in parallel).
-  For classical SEO only → use /seo and skip the GEO section.
-  Trigger: "geo", "AI search", "ChatGPT visibility", "Perplexity optimisation",
-  "llms.txt", "AI crawlers", "Google AI Overview", "entity SEO", "Wikidata",
-  "generative engine optimization", "référencement IA", "optimisation IA".
+  Use when a web project needs AI-search visibility audit — ChatGPT,
+  Perplexity, Claude, Gemini, AI Overviews, Copilot, Brave AI, DuckAssist,
+  You.com, Apple Intelligence. Standalone GEO; dispatches the geo-analyzer
+  agent.
+  Triggers: "geo", "AI search", "ChatGPT visibility", "Perplexity
+  optimisation", "llms.txt", "AI crawlers", "Google AI Overview",
+  "entity SEO", "Wikidata", "generative engine optimization",
+  "référencement IA", "optimisation IA".
+  For combined SEO+GEO → /seo.
 argument-hint: optional keywords/scope, e.g. "SaaS B2B content GEO" or "audit llms.txt et entity SEO"
 allowed-tools:
   - Read

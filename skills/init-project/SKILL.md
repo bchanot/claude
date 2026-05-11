@@ -1,6 +1,6 @@
 ---
 name: init-project
-description: Full project init: interview → design → scaffold → implement (TDD). Two validation gates.
+description: Use when initializing a brand-new project from scratch — needs interview, design, scaffold, and TDD implementation. Multi-agent orchestrator: plugin-advisor + interviewer + analyzer + scaffolder with two validation gates. Triggers: "init project", "new project", "start project from scratch", "scaffold project", "init-project".
 argument-hint: <project idea or description>
 disable-model-invocation: true
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
