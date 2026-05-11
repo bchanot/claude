@@ -32,7 +32,10 @@ rules:
 | BDR-008 | 2026-05-04 | Profile system v2: extend to plugins + MCPs + CLIs (web/seo/web-full/backend) | accepted |
 | BDR-009 | 2026-05-05 | Mandate caveman format on .claude/memory/ registries | accepted |
 | BDR-010 | 2026-05-07 | Gate GEO independently at ≥17/20 in client-handover pipeline | accepted |
-| BDR-011 | 2026-05-07 | Client handover deliverable: 4-chapter structure + ZenQuality branded HTML/PDF | accepted |
+| BDR-011 | 2026-05-07 | Client handover deliverable: 4-chapter structure + ZenQuality branded HTML/PDF | superseded by BDR-013 |
+| BDR-012 | 2026-05-07 | client-handover cover: white bg + green accents + PNG logo default | accepted |
+| BDR-013 | 2026-05-11 | client-handover: 6-chapter doc — promote scores §2 + NAP §4 | accepted |
+| BDR-014 | 2026-05-11 | Personal SKILL.md descriptions: "Use when [triggers]…" pattern + 1024-char spec limit | accepted |
 
 ---
 
@@ -224,3 +227,40 @@ rules:
 - **Status**: shipped.
 - **How to apply**: ZenQuality client-facing print docs default to white bg + green-forest accents. Body interior keeps cream `--white-cream` as accent (code blocks, blockquote bg) — not as page bg. Solid green-dark reserved for marketing covers, not deliverables.
 - **Reference**: `skills/client-handover/resources/branding/zenquality.css` `.cover` block (line 71-86 bg, 119-149 typography); `scripts/handover-to-pdf.sh` line 107 (LOGO_URL default); `agents/client-handover-writer.md` line 1218-1222 (doc updated).
+
+---
+
+## BDR-013 — client-handover: 6-chapter doc — promote scores §2 + NAP §4
+
+- **Date**: 2026-05-11
+- **Status**: accepted (supersedes BDR-011 4-chapter structure)
+- **Decision**: deliverable restructured 4→6 chapters. §1 brief+why (100–180 words). **§2 NEW = score table (avant/après)** promoted from old §4 technical annex to top of doc. §3 = lay summary ≤300 words zero jargon (formerly §2). **§4 NEW = NAP single-source-of-truth table** (Nom/Adresse/Téléphone/Email/Catégorie/Description courte/Horaires) promoted from §7 annex. §5 = action checklist by cadence (formerly §3). §6 = tech details for curious (formerly §4, score table removed — now in §2). §7/§8 still optional annexes (external platforms, build+deploy).
+- **Why**: local-business client opens deliverable, scans first 30s — needs **immediate visual proof of impact** (scores §2) before reading prose. Tested with handover clients: scores up-front converts "what did I pay for?" doubt within 30 seconds. NAP §4 prerequisite chapter before §5 todo list — client's todos reference NAP values constantly ("create Google Business with these values"); if NAP buried in §7 annex, client scrolls deep mid-todo, types inconsistent values across platforms, degrades Google NAP-consistency signal.
+- **Alternatives rejected**:
+  - Keep 4-chapter + add score sentence inside §2 prose — rejected: lost the visual proof-of-impact moment, table reads stronger than prose.
+  - Keep NAP in §7 external-platforms annex — rejected: client types 10 different descriptions/addresses while working through §5 todos before reaching §7.
+  - Compact 3-chapter doc with scores+NAP inline — rejected: too dense, kills lay-summary flow + chapter 3 word-count gate harder to enforce.
+  - Two-doc deliverable (summary PDF + NAP/todos PDF) — rejected: doubles attachments, client opens only one.
+- **Caveats**:
+  - Forbidden-token grep gate at STEP 15 now covers §1–§3 (was §1–§3 already, no change). §4 NAP table contains only client input placeholders [À COMPLÉTER] — no tool/skill leak risk.
+  - Pandoc requires `gfm+gfm_auto_identifiers` extension to resolve `[§4](#nap)` internal links (LRN-014).
+  - §2 score lecture-rapide must stay plain French — numbers OK but no internal labels (`Score SEO classique` allowed because vulgarized; `seo-analyzer`/`SEO.md` forbidden).
+- **Reference**: commit `b15b275`, `agents/client-handover-writer.md` (chapter list lines 20–60, prose framing §2 + §4 rationale lines 30–55, STEP 12 template), `skills/client-handover/scripts/handover-to-pdf.sh` line 121 (pandoc gfm_auto_identifiers).
+
+---
+
+## BDR-014 — Personal SKILL.md descriptions: "Use when [triggers]…" pattern + 1024-char spec limit
+
+- **Date**: 2026-05-11
+- **Status**: accepted
+- **Decision**: all personal SKILL.md descriptions must follow `Use when [specific triggering conditions and symptoms]` pattern. Workflow summaries forbidden in description (e.g. `Ship feature: design → plan → implement → review`). Frontmatter total ≤1024 chars per agentskills.io spec. Workflow detail belongs in SKILL.md body, not description. Triggers list compressed and deduped.
+- **Why**: superpowers:writing-skills documented (with test evidence) that workflow summaries in description create **shortcut risk** — Claude reads description, treats it as the skill, and skips reading the body. Test case: description "code review between tasks" caused Claude to do ONE review when skill flowchart had TWO. Removing workflow summary → Claude read flowchart, did 2 reviews. Description's job is to TRIGGER retrieval, not to BE the skill. 1024-char cap is the platform spec limit (agentskills.io/specification); 5 personal skills (client-handover, doc, seo, geo, validate) were 1050–1920 chars — non-compliant.
+- **Alternatives rejected**:
+  - Free-form descriptions (status quo) — rejected: drift + shortcut risk, 5 skills already spec-violating.
+  - Hard cap ≤500 chars per writing-skills target — preferred for new skills but hard retrofit on multi-language trigger lists (FR+EN keywords blow past 500). Use 1024 as enforced ceiling, ≤500 as aspirational.
+  - Per-skill judgment with no rule — rejected: inconsistent, no enforcement gate.
+  - Move trigger keywords to body — rejected: triggers in description is what Claude uses for routing; body content doesn't help routing.
+- **Caveats**:
+  - Orchestrators still describe orchestration role explicitly (e.g. client-handover: "Multi-agent orchestrator: dispatches the client-handover-writer agent which spawns parallel /seo + /harden subagents") — that's role identification, not workflow summary.
+  - Other 10 personal skills (analyze, bugfix, code-clean, commit-change, feat, hotfix, plugin-check, refactor, status, skills-perso) still partially summarize workflow but stay under 1024 chars. Not retrofitted in this pass — flagged for follow-up only if shortcut symptoms observed.
+- **Reference**: commit `1da6a31`, 8 SKILL.md files (client-handover, doc, geo, seo, validate, ship-feature, init-project, onboard), superpowers:writing-skills "CSO" section, agentskills.io/specification.

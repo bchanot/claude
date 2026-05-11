@@ -76,3 +76,14 @@ rules:
 - **Bug 3**: SVG logo `logo-horizontal.svg` blended into cream bg. Default `LOGO_URL` switched to `https://zenquality.fr/assets/logo-horizontal-1024.png` (URL provided by user). High contrast on white bg.
 - Verified: regenerated `LIVRAISON.pdf` → 164 KB, 19 pages, full content rendered, white cover with black title + green-forest accents + visible PNG logo.
 - Files touched: `skills/client-handover/scripts/handover-to-pdf.sh`, `skills/client-handover/resources/branding/zenquality.css`, `agents/client-handover-writer.md`.
+
+## 2026-05-11
+
+- Personal-skills orchestrator audit via `/darwin-skill`. 18 skills classified: 5 true orchestrators (ship-feature, seo, init-project, onboard, client-handover) + 12 single-delegation (justified — 6 agents reused multi-place) + 1 self-contained (skills-perso). All orchestrators verified doing real multi-agent dispatch.
+- `client-handover` pattern is skill→1 agent→subagents (3-level indirection) vs other 4 orchestrators' skill→multi-agent (2-level). Justified by agent complexity (1703 lines) — moving orchestration into SKILL.md would bloat. Description updated to make orchestrator role explicit.
+- `/seo`, `/harden`, `/validate` execution verified inside client-handover-writer agent — dispatches general-purpose subagents reading the target skill files. Real parallelization, not sequential.
+- Description CSO fix per `/writing-skills`: 5 skills had frontmatter >1024 chars (client-handover 1920, doc 1390, seo 1378, geo 1189, validate 1050) — all compressed under spec. 3 orchestrators (ship-feature, init-project, onboard) had workflow-summary descriptions (shortcut risk) — rewritten to "Use when [triggers]…" pattern. Captured as BDR-014.
+- client-handover deliverable restructured 4→6 chapters (BDR-013 supersedes BDR-011): scores promoted to §2 for 30s visual-proof-of-impact, NAP table promoted to §4 as prerequisite before §5 todos. Pandoc bumped to `gfm+gfm_auto_identifiers` for internal anchor links (LRN-014).
+- NAP checklist polish (commit `abd2612`): added "Description courte" field + replaced retired BrightLocal Free Tools with Moz Local Citation Checker (LRN-015).
+- CSS bugfix (commit `465fe9e`): pandoc GFM checkbox markup `<li><input ...> text…</li>` has no wrapper class, adjacent-sibling rule `li input + *` yanks `<a>`/`<code>` siblings out of flow. Fixed by targeting `li > input[type="checkbox"]` directly. Captured as LRN-016.
+- 4 atomic commits `b15b275..1da6a31` via `/commit-change`. Decisions BDR-013, BDR-014 + learnings LRN-014, LRN-015, LRN-016 capitalized. Pre-existing BDR-012 + LRN-013 Index rows backfilled (prior session entries existed in body but missing from Index).

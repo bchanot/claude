@@ -32,6 +32,10 @@ rules:
 | LRN-010 | 2026-05-06 | `~/.claude/skills,agents` symlink to Documents/claude — git from `~/.claude` fails | any optimization or batch edit on personal skills/agents |
 | LRN-011 | 2026-05-07 | Single subagent emits N independently-gated scores → labeled extraction + axis-aware loop + per-axis escalation | any audit pipeline shipping multiple gated metrics from one subagent |
 | LRN-012 | 2026-05-07 | Bash heredoc + stdin pipe collision = silent empty output | any shell pipeline piping data into `python3 - <<'PY' ... PY` (or any heredoc'd interpreter) |
+| LRN-013 | 2026-05-07 | marked CLI 16.x ignore stdin, dump own cli.js source | any shell MD→HTML via npx marked — use `-i FILE` not stdin |
+| LRN-014 | 2026-05-11 | Pandoc base gfm strips header id attrs — need `gfm+gfm_auto_identifiers` | any MD→HTML/PDF with cross-references (`[§4](#nap)`) via pandoc |
+| LRN-015 | 2026-05-11 | BrightLocal Free Tools retired 2026 — Moz Local Citation Checker is free replacement | client SEO/NAP docs — re-validate tool URLs + free-tier status annually |
+| LRN-016 | 2026-05-11 | Pandoc GFM checkbox markup breaks adjacent-sibling CSS — target `li > input` directly | styling task-list checkboxes in pandoc-rendered HTML/PDF |
 
 ---
 
@@ -188,3 +192,43 @@ rules:
 - **Why**: do not assume marked CLI accepts stdin like awk/jq/sed. Check actual conversion output before shipping any MD→HTML renderer.
 - **How to apply**: any shell md→html using marked CLI must call `npx --yes marked --gfm -i "$src"`. Keep pandoc + python-markdown ahead in fallback chain — more stable. Smoke-test: render small MD, grep output for known content; fail loudly if mismatch.
 - **Reference**: `skills/client-handover/scripts/handover-to-pdf.sh` line ~140 (npx fallback fixed). Commit fixing bug.
+
+---
+
+## LRN-014 — Pandoc base gfm strips header id attrs — need gfm+gfm_auto_identifiers
+
+- **Date**: 2026-05-11
+- **Pattern**: `pandoc --from=gfm --to=html5` does NOT auto-generate `id` attributes on header elements. Internal anchor links like `[§4 NAP](#nap)` become dead refs in rendered HTML/PDF. Symptom: rendered doc has `<h2>NAP</h2>` (no `id`), browser/PDF anchor resolves nowhere, user clicks link and goes nowhere. Enable id auto-gen by switching to `--from=gfm+gfm_auto_identifiers` — pandoc then emits `<h2 id="nap">NAP</h2>` (kebab-case slug from header text).
+- **Context**: `skills/client-handover/scripts/handover-to-pdf.sh` MD→HTML cascade. 6-chapter handover doc added internal cross-references between chapters (§5 todo references back to §4 NAP table for values). Default `--from=gfm` produced HTML with no header ids — internal links dead. Discovered after rendering test handover, clicking link in PDF, going to top of doc instead of NAP section.
+- **Future application**:
+  - Any pandoc MD→HTML pipeline with `[text](#anchor)` cross-references → enable `gfm_auto_identifiers` extension explicitly.
+  - Smoke-test internal anchors before shipping any renderer: render → `grep -E 'id="[^"]+"' out.html` → confirm headers have ids.
+  - Slug rules: pandoc lowercases + replaces non-alpha with `-`, e.g. `## §4 NAP table` → `id="ss-4-nap-table"`. If you control header text, keep slugs predictable.
+- **Reference**: `skills/client-handover/scripts/handover-to-pdf.sh` line 121 (`--from=gfm+gfm_auto_identifiers`). Commit `b15b275`.
+
+---
+
+## LRN-015 — BrightLocal Free Tools retired 2026, Moz Local Citation Checker is free replacement
+
+- **Date**: 2026-05-11
+- **Pattern**: SEO/NAP tool landscape churns yearly. BrightLocal Free Tools page (`brightlocal.com/free-local-tools/`) retired in 2026 — service now paid-only. Moz Local Citation Checker (`moz.com/local`, "Check My Listing" / "Get Free Audit") is current free replacement: 60s NAP-consistency audit across 50+ directories (Google Business, Apple Maps, Yelp, Pages Jaunes, Bing Places), no credit card required.
+- **Context**: client-handover NAP checklist (FR + EN versions) recommended brightlocal.com free tools — link dead, page redirects to paid tier. Caught during handover-doc render. Swapped both language versions to Moz Local with explicit "no credit card" note + path through homepage (button labels can change, URL `moz.com/local` is stable).
+- **Future application**:
+  - Any client-facing doc recommending "free SEO/NAP tools" → verify URLs alive + tool still free annually. SEO vendors churn free tiers regularly.
+  - Prefer linking to vendor homepage + naming the button ("click Check My Listing") over deep links to specific tool URLs. Vendor URLs deprecate; homepages persist.
+  - Maintain a short list of "verified-recent" free tools in the handover skill rather than rediscovering on each render.
+- **Reference**: `skills/client-handover/checklists/seo-geo-manual.md` (FR section line ~218, EN section line ~429). Commit `abd2612`.
+
+---
+
+## LRN-016 — Pandoc GFM checkbox markup breaks adjacent-sibling CSS — target `li > input` directly
+
+- **Date**: 2026-05-11
+- **Pattern**: pandoc GFM emits task-list checkboxes as `<li><input disabled type="checkbox"> text…</li>` with **no wrapper class** and **no list-item class**. Adjacent-sibling CSS rule `li input[type="checkbox"] + *` absolutely-positions the first element sibling AFTER the input — typically `<a>`, `<code>`, `<strong>`, or `<em>` inside the bullet text. Effect: that inline element gets yanked out of flow, overlaps adjacent content in rendered PDF. Symptom: PDF has links/code-spans visibly overlapping subsequent text.
+- **Context**: `skills/client-handover/resources/branding/zenquality.css` task-list styling. Initial rule tried to render custom checkbox box via `+ *` selector targeting the first sibling after `<input>`. Worked when bullet was plain text (no inline elements), broke when bullet contained `<a href="...">` or `<code>…</code>` — those got absolutely-positioned. Caught in rendered LIVRAISON.pdf — checkbox icons OK but link/code text overlapped neighbors.
+- **Future application**:
+  - For pandoc GFM checkbox styling, target `li > input[type="checkbox"]` directly. Style native `<input>` via `appearance: none` + custom box rendering (background, border, size) on the input itself.
+  - Avoid `+ *` and other sibling-selector tricks on bare-input markup — pandoc gives no wrapper to anchor to, siblings vary per bullet content.
+  - Render checklist with realistic content (`<a>`, `<code>`, `<strong>`) before signing off — bare text bullets won't surface the bug.
+  - Symptom signature: rendered PDF has overlapping inline elements ONLY in task lists — points to a sibling-selector rule firing on inline content.
+- **Reference**: `skills/client-handover/resources/branding/zenquality.css` `li > input[type="checkbox"]` rule + `li.task-list-item::before` (lines 372–410). Commit `465fe9e`.
