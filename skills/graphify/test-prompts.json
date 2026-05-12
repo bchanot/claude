@@ -1,0 +1,5 @@
+[
+  {"id": 1, "prompt": "/graphify .", "expected": "Skill runs full pipeline on CWD: ensures graphify python installed, detects files into categories (code/docs/papers/images/video), shows clean corpus summary, dispatches AST + parallel semantic subagents (general-purpose, NOT Explore), merges chunks, builds graph + communities, writes graph.json + GRAPH_REPORT.md + interactive HTML in graphify-out/."},
+  {"id": 2, "prompt": "how does AuthModule relate to the Database layer in this codebase?", "expected": "Skill recognizes a cross-module architecture question on a graphified project — runs `graphify path 'AuthModule' 'Database'` (or `graphify query` if path is too literal) to traverse EXTRACTED + INFERRED edges instead of grepping files, then narrates the connection."},
+  {"id": 3, "prompt": "/graphify https://github.com/anthropics/anthropic-sdk-python https://github.com/openai/openai-python", "expected": "Skill executes Step 0 multi-repo flow: `graphify clone` each URL into ~/.graphify/repos/<owner>/<repo>, runs the pipeline on each, then `graphify merge-graphs` into a single cross-repo-graph.json with `repo` attribute on each node."}
+]
