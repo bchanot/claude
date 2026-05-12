@@ -18,9 +18,12 @@ allowed-tools:
   - AskUserQuestion
 ---
 
-Load and follow strictly:
-- $HOME/.claude/agents/commit-changer.md
+Load and follow strictly: `$HOME/.claude/agents/commit-changer.md`.
 
-Execute the COMMIT-CHANGER agent on the current working directory.
+If unreachable, emit `Commit-changer agent missing.` and STOP. Never auto-commit blind — a wrong group is harder to undo than not committing.
+
+Pre-flight checks (the agent should also perform, but flag here):
+- Detached HEAD or unmerged conflicts → STOP, report state.
+- Identity unconfigured (`git config user.email` empty) → STOP, ask user.
 
 $ARGUMENTS
