@@ -1,0 +1,5 @@
+[
+  {"id": 1, "prompt": "prune memory — registres trop longs", "expected": "Skill runs PRECHECK (refuses if working tree dirty on .claude/memory/), audits all 5 registries for A) obsolete/superseded entries B) similar merge candidates C) bloated prose D) Index drift, presents the per-registry PRUNE PLAN with category-level approval gate, applies only approved changes (mark-superseded never hard-delete), then runs Index sanity verify at STEP 4."},
+  {"id": 2, "prompt": "/prune-memory decisions", "expected": "Skill filters audit to decisions.md only — leaves learnings/blockers/journal/evals untouched, presents plan for that single registry, and exits cleanly after applying approved changes with the same append-only + caveman rules."},
+  {"id": 3, "prompt": "compresse les memoires — mais j'ai des changements pas commités dans .claude/memory/", "expected": "STEP 0 PRECHECK detects dirty working tree on registry files and STOPS immediately: 'Commit or stash pending changes in .claude/memory/ first. Skill writes in-place. Git is the only backup.' — no writes, no plan."}
+]

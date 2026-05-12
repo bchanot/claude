@@ -1,0 +1,5 @@
+[
+  {"id": 1, "prompt": "ferme la session", "expected": "Skill runs PRECHECK on .claude/memory/, gathers git log + diff + status, presents the 3-question ritual (decided/learned/blocked) with pre-filled drafts from conversation context, waits for approval, then appends approved entries (English, caveman) to decisions.md/learnings.md/blockers.md plus one journal line."},
+  {"id": 2, "prompt": "close — retro rapide avant que je parte", "expected": "Same 3-question ritual; if a registry has nothing notable to log, skill emits '(rien à logger cette session)' for that question and still writes the journal timeline line under today's date heading."},
+  {"id": 3, "prompt": "checkpoint memory — but .claude/memory/ doesn't exist in this repo", "expected": "PRECHECK detects missing .claude/memory/, STOPS with the warning telling user to run /onboard or /init-project first — does NOT create the directory itself."}
+]

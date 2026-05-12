@@ -99,3 +99,20 @@ fi
 ```
 
 Keep descriptions to one line (~80 chars max, truncate with "..." if needed).
+
+## Known limits of the detection heuristic
+
+- **False positive (rare):** agent references buried in fenced code blocks
+  (` ``` ... ``` `) match Signal 2 even though they are not active delegations.
+  Mitigation: skill author adds `owner: user` (Signal 1) — explicit always wins.
+- **False negative:** personal skills that delegate to agents under non-standard
+  paths (e.g. `~/.config/myagents/`, `agents-shared/`) won't match Signal 2.
+  Mitigation: same — add `owner: user` to frontmatter.
+- **Frontmatter malformed / missing:** `is_personal()` returns false (skill
+  silently excluded). The "0 personal skills detected" diagnostic catches the
+  zero case but not partial misses.
+- **Description extract edge cases:** plain multi-line YAML (no `|`/`>`) is
+  read as first line only. For users of `description: |` block scalars this is
+  intended; otherwise inspect raw `SKILL.md` if a description looks truncated.
+- **Override:** to force-include a framework skill, fork it into `~/.claude/skills/`
+  and add `owner: user`. The fork is then yours to maintain.
