@@ -36,6 +36,8 @@ rules:
 | LRN-014 | 2026-05-11 | Pandoc base gfm strips header id attrs — need `gfm+gfm_auto_identifiers` | any MD→HTML/PDF with cross-references (`[§4](#nap)`) via pandoc |
 | LRN-015 | 2026-05-11 | BrightLocal Free Tools retired 2026 — Moz Local Citation Checker is free replacement | client SEO/NAP docs — re-validate tool URLs + free-tier status annually |
 | LRN-016 | 2026-05-11 | Pandoc GFM checkbox markup breaks adjacent-sibling CSS — target `li > input` directly | styling task-list checkboxes in pandoc-rendered HTML/PDF |
+| LRN-017 | 2026-05-12 | Thin-dispatcher SKILL.md round-1 win = fallback + frontmatter triggers (+15 to +30) | any `/darwin-skill` round-1 on a dispatcher SKILL.md |
+| LRN-018 | 2026-05-12 | Darwin eval subagents drift on total math — recompute in main thread | any subagent-driven SKILL.md rescore |
 
 ---
 
@@ -232,3 +234,34 @@ rules:
   - Render checklist with realistic content (`<a>`, `<code>`, `<strong>`) before signing off — bare text bullets won't surface the bug.
   - Symptom signature: rendered PDF has overlapping inline elements ONLY in task lists — points to a sibling-selector rule firing on inline content.
 - **Reference**: `skills/client-handover/resources/branding/zenquality.css` `li > input[type="checkbox"]` rule + `li.task-list-item::before` (lines 372–410). Commit `465fe9e`.
+
+---
+
+## LRN-017 — Thin-dispatcher SKILL.md round-1 win = fallback + frontmatter triggers (+15 to +30)
+
+- **Date**: 2026-05-12
+- **Pattern**: thin-dispatcher SKILL.md (delegates to `agents/<x>.md`, body 15-30 lines, no inline workflow) scores low on darwin rubric (45-70) because dims D2/D3/D4/D5 punish empty body. Round-1 universal fix:
+  1. Add fallback clause — `If $HOME/.claude/agents/<x>.md unreachable, emit "<X> agent missing." and STOP. Never improvise — silent behavior change is unsafe.`
+  2. Add triggers to frontmatter `description` — explicit `Triggers: "<keyword>", "<synonym>", "<i18n variant>".`
+  3. For destructive skills (refactor, commit-change): add safety rationale + pre-flight check stub.
+  Δ +13 to +31 observed: status 45.3→76.2 (+30.9), refactor 48.4→74.3 (+25.9), plugin-check 59.2→76.8 (+17.6), commit-change 69.6→83.5 (+13.9). 150% byte cap tight — trim aggressively.
+- **Context**: `/darwin-skill` run 2026-05-12, branch `auto-optimize/20260512-1319` merged to master, 5 commits. skills-perso (66.4→80.1, +13.7) NOT a dispatcher — different patch (Known-limits subsection on the heuristic).
+- **Future application**:
+  - Any darwin round-1 on a dispatcher SKILL.md → skip diagnosis, apply this template directly. Saves one eval cycle.
+  - After round 1, gains flatten near 75-80 → pivot to next-lowest skill, do not grind rounds 2-3 on same target.
+  - For thin originals (<500B), 150% cap is the binding constraint — pre-trim drafts before committing.
+- **Reference**: `.claude/audits/DARWIN-SKILL-2026-05-12.md`. Commits `512df48`..`134561d`. results.tsv at `~/.agents/skills/darwin-skill/results.tsv`.
+
+---
+
+## LRN-018 — Darwin eval subagents drift on total math — recompute in main thread
+
+- **Date**: 2026-05-12
+- **Pattern**: analyzer subagents asked to score SKILL.md and compute weighted total drift on the formula. Two recurring errors: (a) divide `Σ(dim×weight)` by `100` instead of `10` (off by factor 10 — produces 6.17 instead of 61.7, then sometimes the subagent silently re-multiplies); (b) use D8 weight 7 instead of the spec value 25 (status: spec says D8 weight = 25, easy to confuse with D4 weight = 7). Per-dim judgments themselves stable across runs; computed totals unreliable.
+- **Context**: 5 round-1 evals during darwin 2026-05-12. Refactor subagent computed 743÷10 correctly in scratch but wrote `617/100 = 61.7` — actual correct total 74.3. Subsequent prompts explicitly stating "D8 weight is 25" cleared the second error.
+- **Future application**:
+  - Prompt subagent for dim scores only, not weighted total. Main thread computes `Σ(dim_i × weight_i) / 10` deterministically.
+  - If subagent must compute, include weight table in prompt AND show example computation for one row.
+  - When comparing baseline vs round-N, use main-thread recomputed totals on BOTH sides, not the two subagents' self-reported numbers.
+  - Score recalibration between baseline subagent and round-1 subagent is real (independent re-anchoring) — first-round Δ tends to overstate improvement. Direction reliable, magnitude noisy.
+- **Reference**: see "Methodology notes" section of `.claude/audits/DARWIN-SKILL-2026-05-12.md`.

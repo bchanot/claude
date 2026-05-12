@@ -22,6 +22,7 @@ rules:
 |----|------|---------|--------|
 | BLK-001 | 2026-04-22 | `rtk curl` breaks JSON pipelines | upstream |
 | BLK-002 | 2026-04-23 | `rmdir` denied in sandbox on empty directory | resolved |
+| BLK-003 | 2026-05-12 | `scripts/screenshot.mjs` hardcoded macOS path blocks PNG cards on Linux | upstream |
 
 ---
 
@@ -45,3 +46,14 @@ rules:
   - This session: `git rm tasks/*.md` handled files individually (via `git rm`, cleared gate). Git auto-detected renames to `.claude/tasks/`, so `tasks/` directory removed implicitly at commit time.
   - If dir persists empty after `git rm`: ask user to run `rmdir tasks` manually.
 - **Status**: resolved (fixed via `git rm` + rename auto-detection; no `rmdir` needed in practice).
+## BLK-003 — `scripts/screenshot.mjs` hardcoded macOS path blocks PNG cards on Linux
+
+- **Date**: 2026-05-12
+- **Friction**: `/darwin-skill` Phase 3 generates result cards via `node ~/.agents/skills/darwin-skill/scripts/screenshot.mjs <html> <png>`. On Linux: script fails immediately — `require('/Users/alchain/.npm-global/lib/node_modules/playwright/node_modules/playwright-core')` resolves to a non-existent macOS user path. No PNG cards produced; Phase 3 falls back to markdown report only.
+- **Real cause**: upstream `alchaincyf/darwin-skill` author dev'd on macOS, shipped absolute path to their own homedir's global npm install of playwright. Zero portability layer (no PATH lookup, no `playwright` bare require, no fallback to `npx`).
+- **Solution**:
+  - Workaround (used 2026-05-12): skip PNG generation, deliver markdown + HTML cards (HTML viewable in browser without playwright).
+  - Local patch: `npm i -g playwright` then replace `require('/Users/alchain/...')` with `require('playwright')`. Two lines edit.
+  - Spec-documented fallback: `npx playwright screenshot "file:///path/to/card.html#<theme>" out.png --viewport-size=960,1280 --wait-for-timeout=2000` — works without modifying the file, costs ~150MB chromium download.
+  - PR upstream to `github.com/alchaincyf/darwin-skill` once tested.
+- **Status**: upstream (third-party skill at `~/.agents/skills/darwin-skill/scripts/screenshot.mjs`, not in any of our repos).

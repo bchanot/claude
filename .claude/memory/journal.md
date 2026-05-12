@@ -87,3 +87,15 @@ rules:
 - NAP checklist polish (commit `abd2612`): added "Description courte" field + replaced retired BrightLocal Free Tools with Moz Local Citation Checker (LRN-015).
 - CSS bugfix (commit `465fe9e`): pandoc GFM checkbox markup `<li><input ...> text…</li>` has no wrapper class, adjacent-sibling rule `li input + *` yanks `<a>`/`<code>` siblings out of flow. Fixed by targeting `li > input[type="checkbox"]` directly. Captured as LRN-016.
 - 4 atomic commits `b15b275..1da6a31` via `/commit-change`. Decisions BDR-013, BDR-014 + learnings LRN-014, LRN-015, LRN-016 capitalized. Pre-existing BDR-012 + LRN-013 Index rows backfilled (prior session entries existed in body but missing from Index).
+
+## 2026-05-12
+
+- Ran `/darwin-skill` full pipeline on cwd repo (real skill source, not `~/.claude/skills/` runtime mirror). Baseline scored 23 personal skills + 5 broken gstack symlinks excluded. Avg baseline 75.6.
+- Phase 2 round 1 on bottom 5: status 45.3→76.2 (+30.9), refactor 48.4→74.3 (+25.9), plugin-check 59.2→76.8 (+17.6), skills-perso 66.4→80.1 (+13.7), commit-change 69.6→83.5 (+13.9). All KEEP. Avg 58.0→78.2 (+20.2/skill).
+- Rounds 2-3 skipped — diminishing returns past round 1 on dispatcher pattern. graphify (29.0, 62KB SKILL.md) deferred to Phase 2.5 exploratory rewrite per user.
+- Pattern observed: thin-dispatcher round-1 invariant = fallback + frontmatter triggers. Replicable across the 4 dispatchers tested. Captured as LRN-017.
+- Methodology gotcha: darwin eval subagents drift on total math (factor-10 errors, D8 weight 7 vs 25). Direction reliable, magnitude noisy. Captured as LRN-018. Recompute totals in main thread going forward.
+- BDR-015: broken gstack symlinks (5 dirs) excluded from darwin scope — external ownership + missing targets.
+- BLK-003: `scripts/screenshot.mjs` hardcoded macOS path → PNG cards skipped on Linux. Markdown report + 5 new test-prompts.json + 5 optimized SKILL.md only. Upstream issue, workaround in place.
+- Branch `auto-optimize/20260512-1319` merged via `--no-ff` to master. 6 commits land. Report at `.claude/audits/DARWIN-SKILL-2026-05-12.md`. results.tsv at `~/.agents/skills/darwin-skill/results.tsv` (33 rows).
+- Pre-existing uncommitted `agents/doc-syncer.md` (mtime 15:33, before session) NOT touched — left for the work session that owns it.

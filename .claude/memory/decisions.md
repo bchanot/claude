@@ -36,6 +36,7 @@ rules:
 | BDR-012 | 2026-05-07 | client-handover cover: white bg + green accents + PNG logo default | accepted |
 | BDR-013 | 2026-05-11 | client-handover: 6-chapter doc — promote scores §2 + NAP §4 | accepted |
 | BDR-014 | 2026-05-11 | Personal SKILL.md descriptions: "Use when [triggers]…" pattern + 1024-char spec limit | accepted |
+| BDR-015 | 2026-05-12 | Exclude broken gstack symlinks from /darwin-skill scope (external ownership) | accepted |
 
 ---
 
@@ -264,3 +265,20 @@ rules:
   - Orchestrators still describe orchestration role explicitly (e.g. client-handover: "Multi-agent orchestrator: dispatches the client-handover-writer agent which spawns parallel /seo + /harden subagents") — that's role identification, not workflow summary.
   - Other 10 personal skills (analyze, bugfix, code-clean, commit-change, feat, hotfix, plugin-check, refactor, status, skills-perso) still partially summarize workflow but stay under 1024 chars. Not retrofitted in this pass — flagged for follow-up only if shortcut symptoms observed.
 - **Reference**: commit `1da6a31`, 8 SKILL.md files (client-handover, doc, geo, seo, validate, ship-feature, init-project, onboard), superpowers:writing-skills "CSO" section, agentskills.io/specification.
+
+---
+
+## BDR-015 — Exclude broken gstack symlinks from /darwin-skill scope (external ownership)
+
+- **Date**: 2026-05-12
+- **Status**: accepted
+- **Decision**: 5 dirs in `~/Documents/claude/skills/` whose `SKILL.md` symlinks point to non-existent gstack paths (`skills-external/gstack/<name>/SKILL.md` missing) — `benchmark-models`, `context-restore`, `context-save`, `make-pdf`, `plan-tune` — are excluded from `/darwin-skill` baseline + optimization. Marked `status=error` in `results.tsv` with note `broken gstack symlink — out of scope`. NOT scored, NOT optimized, NOT deleted.
+- **Why**: darwin-skill constraint #1 forbids changing a skill's core function — implies external/gstack-owned skills are out of scope. Symlinks resolve to `skills-external/gstack` which is third-party submodule. Plus the targets are broken — gstack's actual layout (`benchmark/`, `health/`, `qa/`, etc.) doesn't include these 5 names, suggesting upstream rename or removal. Repairing them is a separate triage task, not darwin's concern.
+- **Alternatives rejected**:
+  - Fix symlinks first then darwin-optimize → out of scope, blocks the optimization queue on gstack archaeology.
+  - Score them with `FILE_NOT_FOUND` and include in averages → biases stats, mixes signal with infrastructure issue.
+  - Optimize the gstack source files directly → external ownership, never modify.
+  - Delete the broken symlinks → would obscure that the user once expected these to exist; leave for triage.
+- **Caveats**:
+  - If/when symlinks are repaired (real gstack target exists), re-run baseline to bring them in scope.
+  - Bigger picture: `benchmark-models` looks like a deliberate rename of gstack's `benchmark` to disambiguate from the gstack-skill called `/benchmark`. Could be a planned migration that stalled. Worth a one-line ticket separate from darwin.
