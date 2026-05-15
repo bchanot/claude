@@ -223,41 +223,113 @@ by STEP 5/6 if creation needed).
 
 If `README.md ∉ DOC_FILES`:
 
-README is mandatory. Propose creation using typical GitHub layout —
-include only sections relevant to detected `STACK` and
-`DEPLOY_COMPLEXITY`. Use real project data (manifest name,
-description, install/run commands). No placeholders.
+**README is MANDATORY. Always create it — never gate on user approval.**
+A repo without a README is an immediate "this looks abandoned" signal
+to anyone landing on it. If the previous maintainer opted out (e.g.
+`CLAUDE.md` carries an "Exceptions: No README at scaffold" line),
+override that opt-out and strike through the exception in `CLAUDE.md`
+during patching.
 
-Proposed template (HUMAN approval required):
+Render the template below using real project data only:
+- `<project-name>` ← manifest `name` (humanise: `nuit-folle` → `Nuit Folle`)
+- one-line description ← manifest `description`, else first paragraph
+  of CLAUDE.md project overview, else "Mobile-first / web / CLI / …
+  project. Replace this line with a concrete pitch." (clearly flagged
+  as a placeholder so the user replaces it)
+- feature bullets ← top-level entry points / routes / skills / CLI
+  commands discovered in the codebase (names + 1-line description each)
+- stack list ← `STACK` detected in STEP 2 with versions from manifest
+- install + run commands ← exact `npm scripts` / `pyproject.toml` /
+  `Cargo.toml` / `Makefile` targets (no invented commands)
+- documentation cross-links ← only existing or freshly-proposed files
+- license ← `LICENSE` file SPDX header if present, manifest `license`
+  field if present, else "Not specified — set one before public release"
+  (explicit gap, not a placeholder)
+
+The template includes a **"Quick start (dev)"** section that is the
+sole user-facing entry-point for local development. Production deploy
+guidance lives in `DEPLOY.md`; the README only links to it.
 
 ```markdown
-# <project-name>
+# <Project Name>
 
-<one-line description from manifest or git remote>
+<one-line description from manifest or CLAUDE.md project overview>
+
+---
 
 ## Features
-- <bullet from detected entry points / commands>
-- <bullet>
 
-## Quick Start
+- **<feature>** — <one-line>
+- **<feature>** — <one-line>
+(infer from entry points, routes, commands, top-level modules)
+
+## Stack
+
+- <Language> <version> (manifest)
+- <Framework> <version>
+- <Notable libs>
+- <Build tool / test runner / linter>
+
+## Quick start (dev)
+
+Single-process, no Docker — fastest path to a running app:
+
 \`\`\`bash
-<install command from detected stack>
-<run command from detected stack>
+<install command from manifest>
+<run command(s) from manifest>
 \`\`\`
 
-## Documentation
-- [Install](INSTALL.md)            <!-- only if exists or proposed -->
-- [Configure](CONFIGURE.md)        <!-- only if exists or proposed -->
-- [Usage](USAGE.md)                <!-- only if exists or proposed -->
-- [Deploy](DEPLOY.md)              <!-- only if DEPLOY_COMPLEXITY == NON_TRIVIAL -->
-- [Contributing](CONTRIBUTING.md)  <!-- only if exists -->
-- [Changelog](CHANGELOG.md)        <!-- only if exists -->
+<If a docker-compose dev override exists:>
+Docker-compose dev — matches the production topology with hot reload:
 
-## License
-<from LICENSE file or manifest, else HUMAN>
+\`\`\`bash
+<dev compose command>
+\`\`\`
+
+<1-2 lines about local→backend wiring, defaults, common gotchas>
+
+For **production deployment** — provisioning, firewall, TLS, backups,
+hardening — see [DEPLOY.md](DEPLOY.md).
+
+## Verifying a change
+
+\`\`\`bash
+<typecheck command>     # only list those that actually exist in the manifest
+<lint command>
+<test command>
+\`\`\`
+
+<one-line baseline expectation, e.g. "X tests pass today">
+
+## Build & deploy
+
+<For each top-level build/deploy script in the manifest, one line.>
+<If DEPLOY_COMPLEXITY == NON_TRIVIAL: link to DEPLOY.md.>
+
+## Documentation
+
+- [<root doc>](<root doc>)            (only if exists or proposed)
+- [CLAUDE.md](CLAUDE.md)               (only if exists)
+- [DEPLOY.md](DEPLOY.md)               (only if DEPLOY_COMPLEXITY == NON_TRIVIAL)
+- [Contributing](CONTRIBUTING.md)      (only if exists)
+- [Changelog](CHANGELOG.md)            (only if exists)
+
+## Project layout (top-level)
+
+\`\`\`
+<top-level directory tree, 1 line per dir, generated from `ls -d */`>
+\`\`\`
+
+## Status
+
+<Pre-1.0 / Beta / Stable — pulled from manifest `version` and a 1-line
+state line. Note the license situation explicitly if absent.>
 ```
 
-Tag overall as HUMAN — user validates before write.
+Tag as **AUTO** — create on first audit. Surface the rendered README in
+the validation gate before writing so the user can `edit` if needed,
+but do NOT skip creation; "skip" should not be an offered option on
+README bootstrap.
 
 ### STEP 6 — DEPLOY.md GATE
 
@@ -266,8 +338,204 @@ Tag overall as HUMAN — user validates before write.
 | `DEPLOY_COMPLEXITY == NONE` | Skip. Don't propose DEPLOY.md. |
 | `DEPLOY_COMPLEXITY == TRIVIAL` AND no DEPLOY.md | Skip. Suggest one-paragraph "Deploy" section in README. HUMAN. |
 | `DEPLOY_COMPLEXITY == TRIVIAL` AND DEPLOY.md exists | Suggest deletion or inlining into README. HUMAN. |
-| `DEPLOY_COMPLEXITY == NON_TRIVIAL` AND no DEPLOY.md | Propose creation. HUMAN. Template based on detected artifacts (Docker → image build + run + env; fly.toml → `fly deploy` + secrets; workflows → branch trigger + manual approval; k8s → kubectl apply + namespace + rollout). |
-| `DEPLOY_COMPLEXITY == NON_TRIVIAL` AND DEPLOY.md exists | Apply standard drift detection (STEP 3-4). |
+| `DEPLOY_COMPLEXITY == NON_TRIVIAL` AND no DEPLOY.md | Propose creation using the full prod-only template below. HUMAN approval. |
+| `DEPLOY_COMPLEXITY == NON_TRIVIAL` AND DEPLOY.md exists | Apply standard drift detection (STEP 3-4). Verify the existing file covers the 14 sections below; surface missing sections as drift items. |
+
+**DEPLOY.md is PROD-ONLY.** Dev quick-start lives in README.md
+("Quick start (dev)" section); DEPLOY.md never duplicates it. If the
+existing DEPLOY.md contains a "Local development" / "Dev setup" /
+similar section, flag it as drift and propose moving its content into
+README.md while removing the section from DEPLOY.md.
+
+#### DEPLOY.md template — 14 sections (NON_TRIVIAL)
+
+Mirror the conventional VPS-deploy structure (reference: a Scaleway
+DEV1-S walkthrough; the same shape works on any provider). Drop
+sections that don't apply (e.g. "Managed DB" if the app has no DB).
+Each section uses real project data (env vars from `.env.example` or
+`.env`, container names from `docker-compose.yml`, scripts from
+`scripts/`, ports from `Dockerfile EXPOSE` / `compose ports`).
+
+```markdown
+# Deploy
+
+<1-paragraph topology summary: containers, host TLS terminator,
+public ingress, internal hops.>
+
+---
+
+## What gets deployed
+
+| Service | Image source | Port (host) | Role |
+| ... | ... | ... | ... |
+
+<Add a note on which ports are publicly bound vs loopback-only.>
+
+---
+
+## Required environment
+
+<Table of env vars expected on the VPS in `.env` — secrets, rate limits,
+provider keys, CORS origin, web-port override, build-time frontend URL.
+Pull names from the actual code (server.js, lib/api.ts, etc.).>
+
+---
+
+## Provision the VPS
+
+<Specs table (CPU/RAM/disk/OS recommended minimums). DNS A record.
+SSH key. Baseline apt-get / pkg packages (git, curl, ufw, fail2ban,
+ca-certificates). Optional cloud-provider CLI shortcut.>
+
+---
+
+## Firewall (two layers)
+
+### Layer 1 — cloud provider security group
+<Allow-list table: SSH from your IP, 80, 443 from anywhere; deny rest.
+Cheats per provider (Scaleway / Hetzner / OVH / DO / Vultr).>
+
+### Layer 2 — UFW on the VM
+<`ufw default deny incoming` + allow 22/80/443 + enable.>
+
+---
+
+## Install Docker (production-tuned)
+
+<`curl get.docker.com | sh`. `/etc/docker/daemon.json` with
+`json-file` log driver capped (max-size + max-file) and
+`live-restore: true`. Enable + restart.>
+
+---
+
+## First-time VPS setup
+
+<Clone, .env, `compose up --build -d`, loopback sanity curl. Assumes
+the prep chapters above are done; keep this short.>
+
+---
+
+## Routine deploys
+
+<`npm run deploy` / `bash scripts/deploy.sh` flow + manual VPS-side
+fallback (git fetch + reset + compose up).>
+
+---
+
+## Data persistence
+
+<Which volumes are mounted (named or bind), what files live there,
+backup recipe pointer to next section.>
+
+---
+
+## Backups (cron + retention)
+
+### One-shot script
+<`/opt/backup-<project>.sh` — `docker cp` volume contents, tar+gzip,
+rotation by mtime, log file.>
+
+### Cron
+<crontab line, daily 03:00–04:00, log path.>
+
+### Off-VPS storage (optional but recommended)
+<rsync + S3-compatible push.>
+
+### Restore
+<compose stop + docker cp + compose start, with verification curl.>
+
+---
+
+## Behind a domain + TLS reverse proxy
+
+### Option A — host nginx + Certbot
+<DNS + UFW + nginx server block + `certbot --nginx` + timer status.>
+
+#### Security headers (Option A only)
+<HSTS w/ preload, X-Content-Type-Options nosniff, X-Frame-Options DENY,
+Referrer-Policy strict-origin-when-cross-origin, Permissions-Policy
+locked-down, CSP minimal-but-framework-compatible. Verify via curl +
+securityheaders.com / ssllabs.com.>
+
+### Option B — Caddy (auto-TLS, single file)
+<apt + Caddyfile snippet.>
+
+### Backend CORS
+<env var name + restart procedure + cross-origin curl to verify lockdown.>
+
+### Frontend API base URL
+<Only if the frontend has a build-time API URL var. Document the value
+to set (empty string for same-origin or full URL for split-host) and
+the seam (Dockerfile ARG + compose build-args).>
+
+### Sanity checks
+<TLS redirect curl, healthcheck curls, `nc -zv <vps-ip> <port>` to
+confirm internal ports are NOT publicly bound.>
+
+---
+
+## Post-deploy hardening
+
+### 1. Non-root deploy user
+<adduser + usermod -aG docker + ssh key copy + sudo NOPASSWD.>
+
+### 2. Disable root + password SSH
+<`sshd_config`: PermitRootLogin prohibit-password, PasswordAuthentication no.>
+
+### 3. (Optional) Move SSH off port 22
+<port change order: open new in UFW + cloud SG BEFORE removing 22.>
+
+### 4. Unattended security upgrades
+<apt-get install unattended-upgrades + dpkg-reconfigure.>
+
+### 5. fail2ban
+<systemctl enable + status verification.>
+
+### 6. Final lockdown check
+<nmap from outside, password-SSH attempt expected rejected.>
+
+---
+
+## Rollback
+
+<git reset to known-good SHA + compose up --build + restore data if
+the bad deploy corrupted state.>
+
+---
+
+## Health checks
+
+<URL → expected response table, hit on the public hostname behind TLS
+or on `127.0.0.1:<WEB_PORT>` if no reverse proxy yet.>
+
+---
+
+## Troubleshooting
+
+<9–10 common failures, each as a sub-section with a diagnosis recipe:
+- container won't start
+- 5xx from the API
+- CORS rejected in browser
+- 502 bad gateway from host nginx
+- SSL renewal failed
+- volume / data unexpectedly empty
+- disk full
+- restart loop
+- container log explosion>
+
+---
+
+## Operational notes
+
+<Log destinations, log volume cap reminder, manual prune commands,
+key-rotation procedure, anything provider-specific.>
+```
+
+If `DEPLOY_COMPLEXITY == NON_TRIVIAL` AND a DEPLOY.md already exists
+but is missing 3+ of these 14 sections, surface each missing section
+as a separate `[HUMAN]` drift item in STEP 7 with a 1-line description
+of what the section should cover for this project. Do not patch them
+automatically — production deploy guidance is judgement-heavy.
 
 ### STEP 7 — REPORT
 
@@ -320,8 +588,11 @@ Last updated: <date> (<N commits since>)
 - `[REMOVED]` — feature in docs, not in code. AUTO for list entry
   to delete, HUMAN if needs deprecation note.
 
-CHANGELOG entries always HUMAN. README/DEPLOY creation always
-HUMAN.
+CHANGELOG entries always HUMAN. DEPLOY.md creation always HUMAN.
+**README.md creation is AUTO** — always render and write, never gate
+on user input. The validation gate (STEP 8) still surfaces the
+rendered file so the user can edit before write, but "skip" is not an
+option for README bootstrap; it is mandatory.
 
 If no drift in any doc and no missing required doc:
 `DOC SYNC: all docs current` and stop.
@@ -332,12 +603,21 @@ If no drift in any doc and no missing required doc:
 DOC SYNC — VALIDATION GATE
 AUTO items   : <count> (Claude will patch these)
 HUMAN items  : <count> (listed above for review)
-CREATE items : <count> (README/DEPLOY proposals)
+CREATE items : <count>
+  - README.md     (AUTO — will be written; `edit` to refine the rendered draft)
+  - DEPLOY.md     (HUMAN — approve before write)
+  - …
 REMOVE items : <count>
 
-Apply AUTO patches?      (yes / select items / cancel)
-Apply HUMAN/CREATE items? (per-item: yes / no / edit)
+Apply AUTO patches?              (yes / select items / cancel)
+Apply HUMAN items?               (per-item: yes / no / edit)
+Apply CREATE items?              (per-item: yes / edit / no — README has no `no`)
 ```
+
+README.md CREATE is unconditional: the only valid responses are `yes`
+(write the rendered draft as-is) or `edit` (revise the draft, then
+write). Treat any `no` / `skip` answer to README as `edit` and prompt
+the user for the specific changes they want.
 
 Wait for explicit approval. Do not proceed without it.
 
@@ -391,6 +671,13 @@ Map modified files to relevant docs:
 
 If no relevant docs exist for changed files → exit silently.
 
+**Exception — README absence**: in AUTO MODE, if README.md is missing
+AND any code/config file was modified this session, treat it as a
+SIGNIFICANT item in STEP A4 and surface a "README missing — propose
+creation" line with the rendered draft (per STEP 5 template). Auto
+mode does NOT auto-write CREATE items; the rendered draft is shown so
+the user can approve in one step at end-of-session.
+
 ### STEP A3 — QUICK DRIFT CHECK
 
 For each relevant doc, read it and check only sections affected
@@ -429,12 +716,21 @@ Categorize:
 ## RULES
 - Never invent content. Only sync what changed in code.
 - Never fabricate examples, feature descriptions, explanations.
-- Doc creation (README, DEPLOY) requires HUMAN approval and uses
-  real project data only.
+- README.md creation is **AUTO and unconditional** — always created
+  when missing, using real project data only (no placeholders, no
+  fabricated content). The validation gate surfaces the rendered file
+  for editing but never offers a "skip" option for README bootstrap.
+  Strike through any project-level "no README" opt-out (e.g. in
+  CLAUDE.md "Exceptions to global rules") during the same patch.
+- DEPLOY.md creation requires HUMAN approval and uses real project
+  data only. Produced only when `DEPLOY_COMPLEXITY == NON_TRIVIAL`,
+  following the 14-section template in STEP 6. Trivial deploy belongs
+  in README.
+- DEPLOY.md is **PROD-ONLY**. Dev quick-start lives in README under a
+  "Quick start (dev)" section. If an existing DEPLOY.md mixes dev and
+  prod, surface the dev section as drift and propose moving it to
+  README during the same patch round.
 - Doc list is dynamic — auto-detect, never assume fixed set.
-- DEPLOY.md only when `DEPLOY_COMPLEXITY == NON_TRIVIAL`. Trivial
-  deploy belongs in README.
-- README always required. Bootstrap if missing.
 - CHANGELOG entries: always propose, never auto-write.
 - Inline comment updates: only for files in scope, only when
   signature actually changed.
