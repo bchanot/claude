@@ -38,6 +38,7 @@ rules:
 | LRN-016 | 2026-05-11 | Pandoc GFM checkbox markup breaks adjacent-sibling CSS — target `li > input` directly | styling task-list checkboxes in pandoc-rendered HTML/PDF |
 | LRN-017 | 2026-05-12 | Thin-dispatcher SKILL.md round-1 win = fallback + frontmatter triggers (+15 to +30) | any `/darwin-skill` round-1 on a dispatcher SKILL.md |
 | LRN-018 | 2026-05-12 | Darwin eval subagents drift on total math — recompute in main thread | any subagent-driven SKILL.md rescore |
+| LRN-019 | 2026-05-15 | Deployable-project doc split: README dev-quickstart + DEPLOY 14-section prod-VPS topology | any onboard/doc-syncer/scaffold producing docs for a deployable project |
 
 ---
 
@@ -265,3 +266,18 @@ rules:
   - When comparing baseline vs round-N, use main-thread recomputed totals on BOTH sides, not the two subagents' self-reported numbers.
   - Score recalibration between baseline subagent and round-1 subagent is real (independent re-anchoring) — first-round Δ tends to overstate improvement. Direction reliable, magnitude noisy.
 - **Reference**: see "Methodology notes" section of `.claude/audits/DARWIN-SKILL-2026-05-12.md`.
+
+---
+
+## LRN-019 — Deployable-project doc split: README dev, DEPLOY prod-VPS 14 sections
+
+- **Date**: 2026-05-15
+- **Pattern**: deployable project → split docs by audience, not by topic. README = dev + features audience (one-line pitch, Features, Stack, Quick start (dev), Verifying a change, Build & deploy summary, Documentation cross-links, License). DEPLOY.md = ops/SRE audience, prod-only, 14 sections mirroring real VPS-deploy shape (topology table, env vars, VPS provisioning, two-layer firewall = cloud security group + UFW, Docker tuning = log caps + `live-restore`, first-time setup, routine deploys, persistence/volumes, backups + cron + retention, TLS = Caddy/nginx + ACME, observability = logs + healthchecks, hardening = SSH keys-only + fail2ban + unattended-upgrades, rollback, runbook). Dev quick-start NEVER in DEPLOY.md — mixed dev/prod = drift source. Trivial deploy (no Docker, no compose, no fly.toml, no k8s, no scripts/deploy.*) → fold into README, skip DEPLOY.md.
+- **Context**: applied 2026-05-15 in `agents/doc-syncer.md` STEP 5/6 rewrite. Generalizes README-vs-DEPLOY ownership drift seen across multi-maintainer repos (devs read one doc, ops read another, both edit independently, conflicts pile up). 14-section template comes from real Scaleway DEV1-S walkthrough — shape works on any provider (Scaleway, Hetzner, OVH, DO, Vultr, plain bare-metal).
+- **Future application**:
+  - Any `/onboard` / `/doc` / `/init-project` producing docs for a deployable project → apply the split directly. Don't ask user "where should dev setup go" — README, always.
+  - Existing repo has DEPLOY.md with "Local development" / "Dev setup" section → flag as drift, propose moving content to README, removing section from DEPLOY in same patch round.
+  - Existing repo has README.md mixing prod topology details (firewall, TLS, backups) → flag as drift, propose moving to DEPLOY.md.
+  - 14-section template = ceiling not floor. Drop sections that don't apply (no DB → drop "Managed DB" section, no domain → drop TLS section). Don't pad to hit 14.
+  - Audience test before merging a doc section: "would a junior dev clone-and-run with this?" → README. "Would an on-call SRE provisioning a new VPS use this?" → DEPLOY. If both → split it.
+- **Reference**: commit `7ee9b42`, `agents/doc-syncer.md` STEP 5 (README template lines 223–335), STEP 6 (DEPLOY.md 14-section template lines 338–541). Linked to [[doc-syncer-readme-auto-deploy-prod]] (BDR-016).

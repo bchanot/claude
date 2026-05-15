@@ -37,6 +37,7 @@ rules:
 | BDR-013 | 2026-05-11 | client-handover: 6-chapter doc — promote scores §2 + NAP §4 | accepted |
 | BDR-014 | 2026-05-11 | Personal SKILL.md descriptions: "Use when [triggers]…" pattern + 1024-char spec limit | accepted |
 | BDR-015 | 2026-05-12 | Exclude broken gstack symlinks from /darwin-skill scope (external ownership) | accepted |
+| BDR-016 | 2026-05-15 | doc-syncer: README AUTO+unconditional, DEPLOY.md prod-only + 14-section VPS template | accepted |
 
 ---
 
@@ -282,3 +283,24 @@ rules:
 - **Caveats**:
   - If/when symlinks are repaired (real gstack target exists), re-run baseline to bring them in scope.
   - Bigger picture: `benchmark-models` looks like a deliberate rename of gstack's `benchmark` to disambiguate from the gstack-skill called `/benchmark`. Could be a planned migration that stalled. Worth a one-line ticket separate from darwin.
+
+---
+
+## BDR-016 — doc-syncer: README AUTO+unconditional, DEPLOY.md prod-only + 14-section VPS template
+
+- **Date**: 2026-05-15
+- **Status**: accepted
+- **Decision**: `agents/doc-syncer.md` STEP 5/6/8/A4 rewritten. README creation now AUTO + unconditional in both interactive and AUTO modes. Validation gate offers only `yes` or `edit` for README — no `skip`/`no`. Any project-level "no README" opt-out (e.g. `CLAUDE.md` "Exceptions: No README at scaffold") gets struck through during same patch. README template expanded: features, Stack, Quick start (dev), Verifying a change, Build & deploy, Documentation, License — all rendered from real manifest/`.env.example`/scripts data, no placeholders. DEPLOY.md becomes prod-only, expanded into 14-section VPS-deploy structure (topology table, env vars, VPS provisioning, two-layer firewall, Docker tuning, first-time setup, routine deploys, persistence, backups, TLS, observability, hardening, rollback, runbook). Dev quick-start lives ONLY in README "Quick start (dev)" section; mixed dev/prod DEPLOY.md flagged as drift, dev content proposed for move to README during same patch round.
+- **Why**: README opt-out makes repo look abandoned to anyone landing on it — universal "always render" beats opt-in. Mixed dev/prod DEPLOY.md was drift source: devs read DEPLOY for local setup, ops read DEPLOY for prod, both edit independently, conflicts pile up. Clean audience split — README = dev + features audience, DEPLOY = ops + SRE audience — gives each doc one owner mental model. 14-section VPS template mirrors real Scaleway/Hetzner/OVH/DO/Vultr deploy shape (reference: Scaleway DEV1-S walkthrough) so the doc maps 1:1 to the runbook ops actually execute.
+- **Alternatives rejected**:
+  - Keep README gated on HUMAN approval (status quo) — rejected: opt-outs proliferated, repos shipped with no README. Friction wins.
+  - Single ARCHITECTURE+DEPLOY doc — rejected: mixed-audience doc is the drift source we're fixing. Don't recombine.
+  - Trim DEPLOY.md to single "Production" section — rejected: real VPS deploys need topology + firewall + Docker tuning + backups + TLS + observability. Single section becomes wall-of-text nobody reads.
+  - Optional README in AUTO mode (default skip) — rejected: AUTO mode purpose is friction removal. README is most-missed doc; auto-render it.
+  - Auto-write the README without surfacing draft — rejected: rendered draft still shown at validation gate so user can `edit` before write. "No skip" ≠ "no review".
+- **Caveats**:
+  - Real-project-data rule still binds — license = "Not specified — set one before public release" (explicit gap, not fabricated SPDX).
+  - 14-section DEPLOY template drops sections that don't apply (e.g. "Managed DB" if no DB). Template = ceiling not floor.
+  - If `DEPLOY_COMPLEXITY == TRIVIAL`, no DEPLOY.md created — deploy stays in README. Threshold = no Docker + no compose + no fly.toml + no k8s + no scripts/deploy.* → trivial.
+  - Existing DEPLOY.md with `Local development` / `Dev setup` section → surfaced as drift, content moved to README, section removed from DEPLOY. Not a silent rewrite.
+- **Reference**: commit `7ee9b42`, `agents/doc-syncer.md` STEP 5 (README mandatory clause + template lines 223–335), STEP 6 (14-section DEPLOY.md template lines 338–541), STEP 8 (validation gate `yes/edit` for README, `yes/no/edit` for HUMAN), STEP A4 (AUTO MODE README-missing → SIGNIFICANT). Linked to [[doc-syncer-two-doc-split]] (LRN-019).

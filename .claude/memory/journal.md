@@ -99,3 +99,10 @@ rules:
 - BLK-003: `scripts/screenshot.mjs` hardcoded macOS path → PNG cards skipped on Linux. Markdown report + 5 new test-prompts.json + 5 optimized SKILL.md only. Upstream issue, workaround in place.
 - Branch `auto-optimize/20260512-1319` merged via `--no-ff` to master. 6 commits land. Report at `.claude/audits/DARWIN-SKILL-2026-05-12.md`. results.tsv at `~/.agents/skills/darwin-skill/results.tsv` (33 rows).
 - Pre-existing uncommitted `agents/doc-syncer.md` (mtime 15:33, before session) NOT touched — left for the work session that owns it.
+
+## 2026-05-15
+
+- `/commit-change` over working tree: 2 commits land. `7ee9b42 feat(doc-syncer): README mandatory + 14-section prod-only DEPLOY.md` reworks STEP 5/6/8/A4 — README AUTO+unconditional, DEPLOY.md prod-only, 14-section VPS template. `f57a7f2 chore(settings): enable ui-ux-pro-max skill` toggles `ui-ux-pro-max@ui-ux-pro-max-skill` false → true.
+- BDR-016 capitalized — README AUTO+unconditional + DEPLOY prod-only is design decision: opt-out makes repo look abandoned, mixed dev/prod DEPLOY = drift source. README has only `yes`/`edit` at validation gate, no `skip`.
+- LRN-019 capitalized — doc split by audience (README=dev, DEPLOY=ops) generalizes across deployable projects. 14-section VPS template = ceiling not floor, drop sections that don't apply. Audience test: junior dev → README, on-call SRE → DEPLOY.
+- Skipped: `skills-external/gstack` (submodule pointer unchanged, only `.gbrain/`+`.hermes/` untracked inside), `Screenshot from 2026-05-09 02-40-42.png` (binary, default-exclude).
