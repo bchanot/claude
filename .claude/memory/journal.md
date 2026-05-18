@@ -106,3 +106,10 @@ rules:
 - BDR-016 capitalized — README AUTO+unconditional + DEPLOY prod-only is design decision: opt-out makes repo look abandoned, mixed dev/prod DEPLOY = drift source. README has only `yes`/`edit` at validation gate, no `skip`.
 - LRN-019 capitalized — doc split by audience (README=dev, DEPLOY=ops) generalizes across deployable projects. 14-section VPS template = ceiling not floor, drop sections that don't apply. Audience test: junior dev → README, on-call SRE → DEPLOY.
 - Skipped: `skills-external/gstack` (submodule pointer unchanged, only `.gbrain/`+`.hermes/` untracked inside), `Screenshot from 2026-05-09 02-40-42.png` (binary, default-exclude).
+
+## 2026-05-18
+
+- `/feat` adds `lib/profiles/full.profile` — superset of web-full + plan + dev + audit + deploy + session hygiene. Use case: `/profile set full` before `/init-project` to have brainstorm → design → architecture review → scaffold → implement → ship → audit pipeline in one session.
+- BDR-017 capitalized — `full` profile rationale: init-project covers 13 steps touching all skill families; existing profiles slice (web-full = website, dev = code, audit = audit). One named profile beats `apply web-full && apply dev && apply audit`.
+- LRN-020 capitalized — sentinel/identifier collision pattern: `cmd_current`'s "full (no profile set)" literal collided with new profile name. Rule: sentinels must be outside the entity namespace. Renamed to "none".
+- Commit `feat(profile): add full profile` — 3 files (+86 -1).

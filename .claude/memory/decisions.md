@@ -304,3 +304,20 @@ rules:
   - If `DEPLOY_COMPLEXITY == TRIVIAL`, no DEPLOY.md created — deploy stays in README. Threshold = no Docker + no compose + no fly.toml + no k8s + no scripts/deploy.* → trivial.
   - Existing DEPLOY.md with `Local development` / `Dev setup` section → surfaced as drift, content moved to README, section removed from DEPLOY. Not a silent rewrite.
 - **Reference**: commit `7ee9b42`, `agents/doc-syncer.md` STEP 5 (README mandatory clause + template lines 223–335), STEP 6 (14-section DEPLOY.md template lines 338–541), STEP 8 (validation gate `yes/edit` for README, `yes/no/edit` for HUMAN), STEP A4 (AUTO MODE README-missing → SIGNIFICANT). Linked to [[doc-syncer-two-doc-split]] (LRN-019).
+
+---
+
+## BDR-017 — `full` profile = web-full + plan + dev superset for /init-project MVP
+
+- **Date**: 2026-05-18
+- **Status**: accepted
+- **Decision**: New `lib/profiles/full.profile` covers brainstorm → design → architecture review → scaffold → implement → ship → audit pipeline in one profile. Superset of `web-full` (design + dev + seo/geo/validate/harden + perf) plus plan-mode reviews (office-hours, plan-ceo/eng/design/devex-review, autoplan), full dev stack (investigate, code-clean, land-and-deploy, setup-deploy, codex), full audit (cso), full QA (qa), docs (doc, document-release), session hygiene (close, prune-memory, status, learn, retro, careful/freeze/unfreeze/guard), and `pr-review-toolkit` plugin + `gsd` CLI. Sentinel "full" in `cmd_current` renamed to "none" to avoid collision with profile name.
+- **Why**: `/init-project` orchestrates 13 steps that touch nearly every skill family — brainstorm, plan, design, scaffold, implement, ship, audit. Existing profiles only cover a slice (web-full = website end-to-end but no plan/dev breadth, dev = code only, audit = audit only). Without a maximal profile, init-project users must either run `reset` (everything on, noisy) or piece together `apply web-full && apply dev && apply audit` (3 commands). One named profile = one command = right tool for MVP scaffolding sessions.
+- **Alternatives rejected**:
+  - Extend `web-full` to absorb plan + dev — rejected: `web-full` is "production website end-to-end"; init-project covers non-website projects too (CLI, library, backend MVP). Different semantic.
+  - Make init-project profile-agnostic (just run with all skills enabled) — rejected: noise. `/profile reset` exists for that; named profile gives explicit signal "this session is MVP-scale".
+  - Multiple sub-profiles chained — rejected: 3 `apply` commands less ergonomic than one `set full`; profile-of-profiles not supported by current schema.
+- **Caveats**:
+  - `full` excludes a few rarely-used gstack skills (devex-review, pair-agent, gstack-upgrade, skills-perso). `set full` will disable those; user can `apply <profile>` after to add back.
+  - Sentinel rename "full" → "none" is breaking for any tooling that grepped `cmd_current` output for literal "full". No known consumers in this repo.
+- **Reference**: commit message references `lib/profiles/full.profile` (new), `lib/profile.sh:421` sentinel, `skills/profile/SKILL.md` table row. Linked to [[profile-sentinel-collision]] (LRN-020).

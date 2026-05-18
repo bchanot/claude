@@ -281,3 +281,20 @@ rules:
   - 14-section template = ceiling not floor. Drop sections that don't apply (no DB → drop "Managed DB" section, no domain → drop TLS section). Don't pad to hit 14.
   - Audience test before merging a doc section: "would a junior dev clone-and-run with this?" → README. "Would an on-call SRE provisioning a new VPS use this?" → DEPLOY. If both → split it.
 - **Reference**: commit `7ee9b42`, `agents/doc-syncer.md` STEP 5 (README template lines 223–335), STEP 6 (DEPLOY.md 14-section template lines 338–541). Linked to [[doc-syncer-readme-auto-deploy-prod]] (BDR-016).
+
+---
+
+## LRN-020 — profile-sentinel-collision: literal labels in cmd output must not match profile filenames
+
+- **Date**: 2026-05-18
+- **Context**: Adding `lib/profiles/full.profile` exposed an aliasing bug in `lib/profile.sh:421`. `cmd_current` returned literal "full (all gstack skills enabled — no profile set)" when no profile was applied — a sentinel meaning "no profile active, full gstack on". With a real profile now named `full`, output became ambiguous: same word, opposite meanings (sentinel = no profile vs. profile name = canonical full set). Renamed sentinel to "none".
+- **Pattern**: when a CLI returns named identifiers from a known namespace (profiles, channels, modes), any sentinel/placeholder value MUST be outside that namespace. Reserve sentinel strings like `none`, `unset`, `default`, `<none>` — never reuse a real identifier as "absence of identifier".
+- **Where applicable**:
+  - Any `cmd_current` / `cmd_status` / `cmd_active` that reports either a real entity OR a "nothing applied" state.
+  - Profile/preset systems with named profiles.
+  - Selector outputs in shell scripts where downstream code does `[ "$x" = "<name>" ]`.
+- **How to detect early**:
+  - Before adding a new entity name to a namespace, grep the codebase for hardcoded literals matching the candidate name (`grep -rn '"full"\|"none"\|"default"' lib/`).
+  - Audit `case` statements + `echo` lines in CLI commands for namespace-reserved labels.
+- **Cost when missed**: shell-script consumers parsing the output break silently — `[ "$prof" = "full" ]` matches both meanings. User reads ambiguous status. No type system to catch it.
+- **Reference**: `lib/profile.sh:421` sentinel rename in same commit as new `full.profile`. Linked to [[profile-full-superset]] (BDR-017).
