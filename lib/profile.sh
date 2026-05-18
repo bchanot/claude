@@ -418,7 +418,7 @@ cmd_current() {
     disabled_count=$(find "$DISABLED_DIR" -maxdepth 1 -name 'gstack__*' 2>/dev/null | wc -l | tr -d ' ')
   fi
   if [ "$disabled_count" -eq 0 ]; then
-    echo "full (all gstack skills enabled — no profile set)"
+    echo "none (all gstack skills enabled — no profile set)"
     return 0
   fi
   # Pick the profile with the highest "available" ratio. An item counts as

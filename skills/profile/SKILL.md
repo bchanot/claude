@@ -34,6 +34,7 @@ carrying every gstack + personal skill in every session.
 | `web`      | Public website work — frontend + content + light dev |
 | `seo`      | SEO + GEO + W3C audit — search/AI indexability + standards |
 | `web-full` | Production website end-to-end — `web` + `seo` combined |
+| `full`     | Maximum — web-full + plan + dev for `/init-project` MVP pipeline |
 | `backend`  | Backend / API / system dev — no design, no SEO |
 | `design`   | Visual QA, design systems, mockups, polish |
 | `dev`      | Daily code work — features, fixes, refactor, ship (any stack) |
