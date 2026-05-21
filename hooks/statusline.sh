@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Claude Code statusline — model, folder, branch, plan, context bar, session start
+# Claude Code statusline — model, folder, branch, profile, effort, context bar, session start
 # Receives JSON on stdin from Claude Code.
 
 INPUT=$(cat)
@@ -18,24 +18,22 @@ if [ -d "$DIR" ]; then
 fi
 BRANCH_STR="${BRANCH:+ ($BRANCH)}"
 
-# Plan detection (reuse shared lib)
-_lib="$(dirname "${BASH_SOURCE[0]}")/../lib/detect-plugins.sh"
-if [ -f "$_lib" ]; then
-  # shellcheck source=../lib/detect-plugins.sh
-  source "$_lib"
-  PLAN=$(detect_plan 2>/dev/null || echo "pro")
-else
-  PLAN="pro"
-fi
-PLAN_UPPER=$(echo "$PLAN" | tr '[:lower:]' '[:upper:]' | head -c1)$(echo "$PLAN" | tail -c+2)
+REPO="$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 # Active profile (written by lib/profile.sh set|apply|reset to <repo>/.active-profile).
 # Read directly — `profile.sh current` is 12s+ and unusable in a statusline.
-REPO="$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROFILE="?"
 if [ -f "$REPO/.active-profile" ]; then
   PROFILE=$(head -n1 "$REPO/.active-profile" | tr -d '[:space:]')
   [ -z "$PROFILE" ] && PROFILE="?"
+fi
+
+# Effort level from settings.json (.effortLevel — set by /effort or manual edit).
+# settings.json is the source-of-truth, symlinked into ~/.claude/settings.json.
+EFFORT="?"
+if [ -f "$REPO/settings.json" ]; then
+  EFFORT=$(jq -r '.effortLevel // "?"' "$REPO/settings.json" 2>/dev/null)
+  [ -z "$EFFORT" ] && EFFORT="?"
 fi
 
 # Session duration (from total_duration_ms)
@@ -77,4 +75,4 @@ fi
 RESET="\033[0m"
 
 # Output: single line
-echo -e "$MODEL | $FOLDER${BRANCH_STR} | $PLAN_UPPER | ${PROFILE} | ${COLOR}${BAR}${RESET} ${PCT}% | ${DURATION}"
+echo -e "$MODEL | $FOLDER${BRANCH_STR} | profile: ${PROFILE} | effort: ${EFFORT} | ${COLOR}${BAR}${RESET} ${PCT}% | ${DURATION}"
