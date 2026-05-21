@@ -26,7 +26,7 @@ hotfix                            personal
 bugfix                            personal
 ship
 review
-checkpoint
+context-save
 commit-change                     personal
 refactor                          personal
 

@@ -20,5 +20,5 @@ code-clean                        personal
 commit-change                     personal
 
 # Session hygiene
-checkpoint
+context-save
 land-and-deploy

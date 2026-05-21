@@ -35,7 +35,7 @@ commit-change                     personal
 # === Ship + review + land ============================================
 ship
 review
-checkpoint
+context-save
 land-and-deploy
 setup-deploy
 

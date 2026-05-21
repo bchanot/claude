@@ -25,7 +25,7 @@ ship-feature                      personal
 hotfix                            personal
 ship                                                # gstack
 review                                              # gstack
-checkpoint                                          # gstack
+context-save                                        # gstack
 commit-change                     personal
 refactor                          personal
 

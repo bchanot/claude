@@ -16,7 +16,7 @@ analyze                           personal
 # Ship + review + land
 ship
 review
-checkpoint
+context-save
 land-and-deploy
 
 # Second opinion for hard problems
