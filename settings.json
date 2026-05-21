@@ -276,6 +276,7 @@
     }
   },
   "effortLevel": "xhigh",
+  "model": "claude-opus-4-6",
   "remoteControlAtStartup": true,
   "skipAutoPermissionPrompt": true
 }
