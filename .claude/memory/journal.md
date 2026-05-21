@@ -113,3 +113,19 @@ rules:
 - BDR-017 capitalized — `full` profile rationale: init-project covers 13 steps touching all skill families; existing profiles slice (web-full = website, dev = code, audit = audit). One named profile beats `apply web-full && apply dev && apply audit`.
 - LRN-020 capitalized — sentinel/identifier collision pattern: `cmd_current`'s "full (no profile set)" literal collided with new profile name. Rule: sentinels must be outside the entity namespace. Renamed to "none".
 - Commit `feat(profile): add full profile` — 3 files (+86 -1).
+
+## 2026-05-20
+
+- `/bugfix` on `/ship-feature` blocker — orphan wrapper at `~/.claude/commands/ship-feature.md` referenced 6 agent files; 5 deleted by refactor commits `0241e1d` + `21960e0`. Removed wrapper; skill at `~/.claude/skills/ship-feature/SKILL.md` is sole `/ship-feature` resolver.
+- BLK-004 capitalized — wrapper survived refactor because untracked in `~/.claude` git repo + never sweep-audited post-migration.
+- LRN-021 capitalized — post-refactor sweep rule: `grep -rln "agents/foo.md" ~/.claude/commands/` after any orchestrator migration. Add to `/onboard` + `/init-project` audit phase.
+
+## 2026-05-21
+
+- `/hotfix` on `/profile set full` warning — `⚠ missing: checkpoint — try: bash link.sh` despite link.sh reporting all symlinks up to date. Root cause: gstack upstream renamed `checkpoint` skill to `context-save` (shadow conflict with Claude Code native `/checkpoint` rewind alias). Five profile files (dev, backend, full, web, web-full) + `CLAUDE.md` routing line referenced dead `checkpoint` name. link.sh can't materialize a skill that no longer exists upstream → misleading next-step hint.
+- Fixed: `s/checkpoint/context-save/` in 5 profiles (commit `69c5ded`). `CLAUDE.md:193` routing line also updated locally but left uncommitted — file carries unrelated in-progress graphify section rewrite.
+- BLK-005 capitalized — gstack submodule bump can silently break profile entries; status: resolved.
+- LRN-022 capitalized — post-submodule-bump audit rule: diff `skills-external/gstack/` skill list against `lib/profiles/*.profile` entries before pushing.
+- `/hotfix` follow-up — `bash "$HOME/.claude/lib/profile.sh" current` falsely reported `none (all gstack skills enabled — no profile set)` even with profile applied + 14 gstack__* entries in repo's `skills-disabled/`. Root cause: `lib/profile.sh:43` used `cd "$(dirname $BASH_SOURCE)/.."` — default bash `cd` preserves symlinks, so `$REPO` resolved to `/home/bchanot-ubuntu/.claude` (symlink dir) instead of real repo path. `$DISABLED_DIR` then pointed at near-empty `~/.claude/skills-disabled/` (2 stale npx symlinks only). Fixed by adding `-P` to `cd` (commit `a4558ee`). `cmd_current` now correctly reports `full (100% match, 14 gstack skills disabled)`.
+- BLK-006 capitalized — `cmd_current` false-negative when invoked via `~/.claude/lib/profile.sh` symlink; status: resolved.
+- LRN-023 capitalized — `$REPO="$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"` mandatory pattern for any script meant to be invoked via a symlink into the install location.

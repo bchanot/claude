@@ -23,6 +23,7 @@ rules:
 | BLK-001 | 2026-04-22 | `rtk curl` breaks JSON pipelines | upstream |
 | BLK-002 | 2026-04-23 | `rmdir` denied in sandbox on empty directory | resolved |
 | BLK-003 | 2026-05-12 | `scripts/screenshot.mjs` hardcoded macOS path blocks PNG cards on Linux | upstream |
+| BLK-004 | 2026-05-20 | `/ship-feature` wrapper at `~/.claude/commands/` points to deleted agent files post-refactor | resolved |
 
 ---
 
@@ -57,3 +58,27 @@ rules:
   - Spec-documented fallback: `npx playwright screenshot "file:///path/to/card.html#<theme>" out.png --viewport-size=960,1280 --wait-for-timeout=2000` — works without modifying the file, costs ~150MB chromium download.
   - PR upstream to `github.com/alchaincyf/darwin-skill` once tested.
 - **Status**: upstream (third-party skill at `~/.agents/skills/darwin-skill/scripts/screenshot.mjs`, not in any of our repos).
+
+## BLK-004 — `/ship-feature` wrapper references 6 deleted agent files
+
+- **Date**: 2026-05-20
+- **Friction**: `/ship-feature` invocation loads wrapper at `~/.claude/commands/ship-feature.md`. Wrapper says `Load and follow strictly: .claude/agents/{ship-feature,analyzer,designer,implementer,reviewer,tester}.md`. 5 of 6 paths missing on disk (only `analyzer.md` survives). User hits blocker — wrapper without orchestrator.
+- **Real cause**: refactor commits `0241e1d` ("extract skill logic into standalone agent files") + `21960e0` ("changed orchestrators into skills") migrated orchestrator from `.claude/agents/ship-feature.md` into `~/.claude/skills/ship-feature/SKILL.md` and replaced custom sub-agents (designer/implementer/reviewer/tester) with superpowers skills (brainstorming, writing-plans, subagent-driven-development, requesting-code-review, finishing-a-development-branch). Wrapper at `~/.claude/commands/ship-feature.md` never updated, never deleted. Untracked file — survived all refactor commits silently.
+- **Solution**: `rm ~/.claude/commands/ship-feature.md`. Skill `~/.claude/skills/ship-feature/SKILL.md` (`name: ship-feature`, `disable-model-invocation: true`) becomes sole `/ship-feature` resolver. SKILL.md references only existing agents: `plugin-advisor.md`, `analyzer.md`, `doc-syncer.md`.
+- **Status**: resolved.
+
+## BLK-005 — `/profile set full` warns `missing: checkpoint` after gstack upstream rename
+
+- **Date**: 2026-05-21
+- **Friction**: `/profile set full` (and dev, backend, web, web-full) emits `⚠ missing: checkpoint — try: bash link.sh`. Running `bash link.sh` reports `✅ All symlinks already up to date. Next: bash install-plugins.sh` — dead-end loop. User cannot resolve the warning by following the suggested next step.
+- **Real cause**: gstack upstream renamed the `checkpoint` skill to `context-save` (Claude Code now treats `/checkpoint` as a native rewind alias, shadowing the gstack skill). New skill in `skills-external/gstack/context-save/SKILL.md` carries the description `"Formerly /checkpoint — renamed because Claude Code treats /checkpoint as a native rewind alias"`. Five `lib/profiles/*.profile` files still listed the dead name. `link.sh` only symlinks repo dirs into `~/.claude/` — it cannot materialize a skill that no longer exists upstream, so its suggested action was misleading.
+- **Solution**: `s/checkpoint/context-save/` in `lib/profiles/{dev,backend,full,web,web-full}.profile` (commit `69c5ded`). `CLAUDE.md:193` routing line `Save progress, checkpoint, resume → invoke context-save` updated locally, left uncommitted because the file holds unrelated in-progress graphify section work. Verify: `bash lib/profile.sh set full` now outputs `✓ enabled: context-save` with no warning.
+- **Status**: resolved.
+
+## BLK-006 — `bash lib/profile.sh current` false-negative when invoked via `~/.claude/lib/` symlink
+
+- **Date**: 2026-05-21
+- **Friction**: `bash "$HOME/.claude/lib/profile.sh" current` returns `none (all gstack skills enabled — no profile set)` even when a profile IS applied + 14 `gstack__*` entries sit in the repo's `skills-disabled/`. User cannot detect active profile via the official command. Same script invoked from inside the repo directory (`bash lib/profile.sh current`) returns the correct answer — invocation-path-dependent behavior is the worst kind of bug to diagnose.
+- **Real cause**: `lib/profile.sh:43` set `REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"`. Default bash `cd` preserves symlinks (logical pathname mode, `set -P` off). When the script is invoked via the `~/.claude/lib/profile.sh` symlink (link.sh wires `~/.claude/lib -> <repo>/lib`), `$BASH_SOURCE[0]` is the symlinked path, `dirname` returns `~/.claude/lib`, `cd ..` lands at `~/.claude`, and `pwd` returns the logical path `/home/bchanot-ubuntu/.claude`. `$SKILLS_DIR="$REPO/skills"` still works because `~/.claude/skills` happens to be a symlink to the repo's `skills/`. But `$DISABLED_DIR="$REPO/skills-disabled"` resolves to `~/.claude/skills-disabled` — a real sibling directory created at some earlier point containing only 2 stale npx-skill symlinks (`darwin-skill`, `find-skills`). `cmd_current` scans this near-empty dir, finds 0 `gstack__*` entries, returns the "none" sentinel.
+- **Solution**: `REPO="$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"` (commit `a4558ee`). `-P` forces physical-path resolution so `$REPO` is always the real repo path regardless of how the script is invoked. Verify: `bash "$HOME/.claude/lib/profile.sh" current` now returns `full (100% match, 14 gstack skills disabled)`.
+- **Status**: resolved. Follow-up: `~/.claude/skills-disabled/` (real dir with only `darwin-skill`/`find-skills` symlinks) is orphaned — these npx skills are already symlinked into `<repo>/skills/` by link.sh, so the disabled-side copies serve no purpose. Could be deleted to remove confusion, but harmless as-is.

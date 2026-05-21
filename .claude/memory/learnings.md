@@ -28,6 +28,7 @@ rules:
 | LRN-006 | 2026-05-03 | `caveman-shrink` (and any MCP middleware proxy) non-functional without upstream wrapper | any MCP middleware/proxy package — never `claude mcp add` it bare |
 | LRN-007 | 2026-05-06 | `toggle-external.sh enable` missed source-only state (3rd lifecycle case) | toggle scripts for tools with separate install + symlink steps |
 | LRN-008 | 2026-05-06 | Biggest skill-quality wins from edge-case tables, not workflow rewrites | any skill <85 — first check for FAILURE PATHS / EDGE CASES / ERROR HANDLING section |
+| LRN-021 | 2026-05-20 | Refactor commands→skills must sweep `~/.claude/commands/` for orphan wrappers | any refactor moving `agents/foo.md` → `skills/foo/SKILL.md`; onboard/init-project audits |
 | LRN-009 | 2026-05-06 | Dry-run scoring noise wrongly triggers reverts on already-strong skills | darwin-skill ratchet on skills >91 — relax or use real subagent eval |
 | LRN-010 | 2026-05-06 | `~/.claude/skills,agents` symlink to Documents/claude — git from `~/.claude` fails | any optimization or batch edit on personal skills/agents |
 | LRN-011 | 2026-05-07 | Single subagent emits N independently-gated scores → labeled extraction + axis-aware loop + per-axis escalation | any audit pipeline shipping multiple gated metrics from one subagent |
@@ -284,6 +285,21 @@ rules:
 
 ---
 
+## LRN-021 — Refactor migrating commands→skills must sweep `~/.claude/commands/` for orphan wrappers
+
+- **Date**: 2026-05-20
+- **Pattern**: when refactor moves orchestrator from `.claude/agents/foo.md` into `~/.claude/skills/foo/SKILL.md`, any pre-existing wrapper at `~/.claude/commands/foo.md` that references the old agent path becomes orphan. Wrapper still resolves `/foo` (slash commands take precedence over skills in dispatch), executes broken `Load and follow: .claude/agents/foo.md` instructions, fails silently or hits "file not found" mid-orchestration. Untracked files in `~/.claude/commands/` survive every refactor commit invisibly — git status in project repo never shows them.
+- **Context**: 2026-05-20, `/ship-feature` hit BLK-004. Wrapper from before refactor `21960e0` ("changed orchestrators into skills") referenced 6 agent files; 5 deleted by refactor. Wrapper untracked → never flagged for cleanup. Detected only when user invoked `/ship-feature` and read the broken `Load and follow strictly:` list.
+- **Future application**:
+  - Any commit moving orchestrator from `agents/foo.md` → `skills/foo/SKILL.md` → `grep -rln "agents/foo.md" ~/.claude/commands/` and delete stale wrappers in same commit.
+  - `/onboard` + `/init-project` must check `~/.claude/commands/` for wrappers referencing paths that no longer exist; print warning.
+  - When auditing skills (darwin-skill, /skills-perso, /profile), also list `~/.claude/commands/*.md` and cross-check each `Load and follow:` line resolves.
+  - Skills with `disable-model-invocation: true` rely on slash-dispatch — when wrapper exists, wrapper wins. Removing wrapper exposes skill directly; replacing skill behavior requires updating BOTH wrapper and SKILL.md.
+- **How to detect early**: post-refactor script — `for f in ~/.claude/commands/*.md; do grep -Eo '\.claude/agents/[a-z-]+\.md' "$f" | while read p; do test -f "$HOME/$p" || echo "ORPHAN $f → missing $p"; done; done`.
+- **Reference**: BLK-004, commits `0241e1d` + `21960e0`.
+
+---
+
 ## LRN-020 — profile-sentinel-collision: literal labels in cmd output must not match profile filenames
 
 - **Date**: 2026-05-18
@@ -298,3 +314,48 @@ rules:
   - Audit `case` statements + `echo` lines in CLI commands for namespace-reserved labels.
 - **Cost when missed**: shell-script consumers parsing the output break silently — `[ "$prof" = "full" ]` matches both meanings. User reads ambiguous status. No type system to catch it.
 - **Reference**: `lib/profile.sh:421` sentinel rename in same commit as new `full.profile`. Linked to [[profile-full-superset]] (BDR-017).
+
+---
+
+## LRN-022 — Audit `lib/profiles/*.profile` against gstack skill list after every submodule bump
+
+- **Date**: 2026-05-21
+- **Context**: 2026-05-21, `/hotfix` on BLK-005. Gstack upstream renamed `checkpoint` skill to `context-save` (shadow conflict with Claude Code native `/checkpoint` rewind alias). Five local `lib/profiles/*.profile` files referenced the dead name. Warning `⚠ missing: checkpoint — try: bash link.sh` looked actionable but link.sh cannot resurrect an upstream-deleted skill — suggested next step dead end. Misdiagnosis cost user confused round-trip before `/hotfix` traced the rename.
+- **Pattern**: profiles couple to external naming registry (`skills-external/gstack/*/`). When upstream renames or removes a skill, profiles silently break: `bash lib/profile.sh set <profile>` warns but does not fail; user has no signal at submodule-bump time. Same shape as any pinned-name reference into a vendored dep (config referring to npm subpath, k8s manifest referring to image tag, etc.).
+- **Where applicable**:
+  - Any `git submodule update` or `git pull` inside `skills-external/gstack/` — diff skill list before/after.
+  - `make plugin`, `bash install-plugins.sh` — any time external skill source moves.
+  - When `bash lib/profile.sh apply|set <name>` warns `missing: <skill>`, treat warning as ground truth: skill is genuinely absent from `skills-external/gstack/` AND `skills-disabled/`. `link.sh` cannot fix it.
+- **How to detect early**:
+  ```bash
+  # After any gstack submodule bump:
+  diff <(ls skills-external/gstack/ | grep -v '^\.' | sort) \
+       <(awk '$2 != "personal" && $2 != "external" && $2 !~ /^(plugin|mcp|cli)/ && /^[a-z]/ {print $1}' lib/profiles/*.profile | sort -u) \
+       | grep '^>'   # entries in profiles but not in gstack = stale references
+  ```
+  Run as part of post-submodule-bump audit. Pair with `bash lib/profile.sh set <each-profile>` smoke test — any `⚠ missing:` line = stale entry.
+- **Cost when missed**: every profile listing dead name emits misleading warning on `set`. User chases `link.sh` (suggested by `enable_skill` at `lib/profile.sh:191`) which silently no-ops. "try: bash link.sh" message hardcodes a fix that only applies to a different failure mode (skill exists upstream but not symlinked yet) — should differentiate. Follow-up: make missing-skill warning say "missing upstream: not in skills-external/gstack/" when applicable.
+- **Reference**: BLK-005, commit `69c5ded`. Linked to [[ship-feature-orphan-wrapper]] (LRN-021) — same shape: post-refactor stale references survive because no automated sweep catches them.
+
+---
+
+## LRN-023 — Scripts invoked via symlink must resolve `$REPO` with `cd -P` (physical path), not default `cd` (logical)
+
+- **Date**: 2026-05-21
+- **Context**: 2026-05-21, BLK-006. `lib/profile.sh:43` used `REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"`. Default `cd` preserves the logical (symlink-following) pathname, so when invoked via `bash "$HOME/.claude/lib/profile.sh"` — a symlinked entry point wired by `link.sh` — `$REPO` resolved to `/home/bchanot-ubuntu/.claude` instead of the real repo `/home/bchanot-ubuntu/Documents/claude`. `$SKILLS_DIR` happened to keep working because `~/.claude/skills` was itself a symlink to the repo, but `$DISABLED_DIR` was a real sibling directory at `~/.claude/skills-disabled` — separate from the repo's actual `skills-disabled/`. `cmd_current` scanned the wrong dir and reported `none` even when 14 gstack skills were genuinely disabled in the repo.
+- **Pattern**: any script that
+  1. computes paths relative to `$BASH_SOURCE[0]` AND
+  2. is meant to be invoked via a symlink at the install location (e.g. `~/.claude/lib/foo.sh -> <repo>/lib/foo.sh`) AND
+  3. references sibling directories that are NOT also symlinked into the install location
+
+  MUST resolve the script's home via `cd -P` (or `realpath` / `readlink -f`), never default `cd`. Default `cd` returns the logical path the user typed (or the symlinked entry point) — anything you build off that path will follow symlinks for some siblings and fall back to real directories for others, depending on whether each sibling has a symlink in the install location.
+- **Where applicable**:
+  - Any `lib/`, `bin/`, `scripts/` directory in a repo that gets symlinked into `~/.claude/`, `~/.config/`, `/usr/local/`, etc. via an install script.
+  - Specifically in this repo: `lib/profile.sh`, plus any other script that derives `$REPO`/`$ROOT` from `$BASH_SOURCE`. Audit `grep -rn 'cd "$(dirname "${BASH_SOURCE' lib/ hooks/ agents/`.
+  - Same pattern in Python (`Path(__file__).resolve().parent.parent` is the safe equivalent — `.resolve()` is the analog of `cd -P`; bare `Path(__file__).parent.parent` is the bug).
+- **How to detect early**:
+  - When writing or reviewing a `REPO=` / `ROOT=` line in a shell script: check whether the script is reachable via a symlink. If yes, `-P` is mandatory.
+  - Smoke test: from a directory OUTSIDE the repo, invoke the script via both `bash /<real-path>/script.sh` and `bash /<symlinked-path>/script.sh`. Any path the script computes should be identical between the two runs.
+  - Lint via: `grep -n 'cd "$(dirname "${BASH_SOURCE' <script>` — every match should also contain `cd -P` (or be followed by an explicit `realpath` call).
+- **Cost when missed**: state lands in two parallel directories. Reads from one, writes from the other. False-negative status reports. Worst case: silent data loss when one dir is cleaned by a tool that thinks the other is canonical.
+- **Reference**: BLK-006, commit `a4558ee`. Linked to [[gstack-rename-profile-audit]] (LRN-022) — both bugs surfaced from the same `/profile set full` invocation, but root causes are independent.
