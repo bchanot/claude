@@ -29,6 +29,15 @@ else
 fi
 PLAN_UPPER=$(echo "$PLAN" | tr '[:lower:]' '[:upper:]' | head -c1)$(echo "$PLAN" | tail -c+2)
 
+# Active profile (written by lib/profile.sh set|apply|reset to <repo>/.active-profile).
+# Read directly — `profile.sh current` is 12s+ and unusable in a statusline.
+REPO="$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+PROFILE="?"
+if [ -f "$REPO/.active-profile" ]; then
+  PROFILE=$(head -n1 "$REPO/.active-profile" | tr -d '[:space:]')
+  [ -z "$PROFILE" ] && PROFILE="?"
+fi
+
 # Session duration (from total_duration_ms)
 DURATION_MS=$(echo "$INPUT" | jq -r \
   '.cost.total_duration_ms // 0' | cut -d. -f1)
@@ -68,4 +77,4 @@ fi
 RESET="\033[0m"
 
 # Output: single line
-echo -e "$MODEL | $FOLDER${BRANCH_STR} | $PLAN_UPPER | ${COLOR}${BAR}${RESET} ${PCT}% | ${DURATION}"
+echo -e "$MODEL | $FOLDER${BRANCH_STR} | $PLAN_UPPER | ${PROFILE} | ${COLOR}${BAR}${RESET} ${PCT}% | ${DURATION}"

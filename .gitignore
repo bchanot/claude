@@ -112,3 +112,6 @@ desktop.ini
 *~
 .idea/
 .vscode/
+
+# Profile cache — written by lib/profile.sh, read by hooks/statusline.sh
+.active-profile

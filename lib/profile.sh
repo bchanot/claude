@@ -45,6 +45,7 @@ SKILLS_DIR="$REPO/skills"
 DISABLED_DIR="$REPO/skills-disabled"
 PROFILES_DIR="$REPO/lib/profiles"
 TOGGLE_EXTERNAL="$REPO/lib/toggle-external.sh"
+ACTIVE_CACHE="$REPO/.active-profile"  # statusline reads this — keep fast (single-line file, profile name only)
 
 # Plugins that are toggle-managed by `set`. Anything NOT in this list is
 # never auto-disabled — protects always-on plugins (caveman, security-guidance,
@@ -70,6 +71,14 @@ ok()   { echo -e "${GREEN}✓${NC} $1"; }
 warn() { echo -e "${YELLOW}⚠${NC}  $1"; }
 err()  { echo -e "${RED}✗${NC} $1" >&2; }
 info() { echo -e "${BLUE}ℹ${NC}  $1"; }
+
+# Persist active-profile name for fast statusline lookup (cmd_current is slow
+# — iterates every profile + every entry). Write profile name only; statusline
+# reads the file directly without re-invoking this script.
+write_active() {
+  local name="$1"
+  printf '%s\n' "$name" > "$ACTIVE_CACHE" 2>/dev/null || true
+}
 
 # ── Profile parsing ────────────────────────────────────────
 
@@ -351,6 +360,7 @@ cmd_apply() {
   while IFS=$'\t' read -r skill type; do
     enable_skill "$skill" "$type"
   done < <(read_profile "$prof")
+  write_active "$prof"
 }
 
 cmd_set() {
@@ -406,6 +416,7 @@ cmd_reset() {
   fi
   info "Plugin state NOT touched. To re-enable a managed plugin disabled by 'set',"
   info "run: claude plugin enable <name>@<marketplace>  (or: profile apply <profile>)"
+  write_active "none"
 }
 
 cmd_current() {
