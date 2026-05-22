@@ -595,6 +595,31 @@ else
 fi
 echo ""
 
+# ── Step 8b: Frontend Design (Anthropic example-skills) ───────
+echo "── Step 8b: Frontend Design (Anthropic) ────────────────────"
+echo ""
+FD_DIR="$REPO/skills-external/frontend-design"
+FD_PLUGIN_CACHE="$HOME/.claude/plugins/cache/anthropic-agent-skills/example-skills"
+FD_LATEST="$(find "$FD_PLUGIN_CACHE" -maxdepth 1 -type d 2>/dev/null | sort | tail -1)"
+mkdir -p "$FD_DIR"
+if [ -n "$FD_LATEST" ] && [ -f "$FD_LATEST/skills/frontend-design/SKILL.md" ]; then
+  cp "$FD_LATEST/skills/frontend-design/SKILL.md" "$FD_DIR/SKILL.md"
+  [ -f "$FD_LATEST/skills/frontend-design/LICENSE.txt" ] && cp "$FD_LATEST/skills/frontend-design/LICENSE.txt" "$FD_DIR/LICENSE.txt"
+  ok "frontend-design synced from anthropic-agent-skills plugin cache"
+else
+  if [ -f "$FD_DIR/SKILL.md" ]; then
+    ok "frontend-design already present (plugin cache not found for update)"
+  else
+    warn "frontend-design: anthropic-agent-skills plugin not cached — install via: claude plugin install example-skills@anthropic-agent-skills"
+  fi
+fi
+if [ -L "$HOME/.claude/skills/frontend-design" ]; then
+  ok "frontend-design symlink OK"
+else
+  info "Symlinking — will be created by link.sh"
+fi
+echo ""
+
 # ============================================================
 # STEP 8.5 — EXTERNAL SKILLS (npx skills add …)
 # ============================================================
@@ -737,6 +762,7 @@ echo "    🔄 ui-ux-pro-max       — user scope (~400 tokens)"
 echo "    🔄 context7 CLI        — ctx7 (npm global, standalone or MCP setup)"
 echo "    🔄 graphifyy           — codebase knowledge graph (pipx, PreToolUse hook)"
 echo "    🔄 emil-design-eng     — UI polish, animations, component craft (curl → symlink)"
+echo "    🔄 frontend-design     — distinctive frontend interfaces, anti-AI-slop (anthropic-agent-skills)"
 echo "    🔄 darwin-skill        — autonomous skill optimizer (npx skills, ~/.agents/skills/)"
 echo "    🔄 find-skills         — skill discovery helper (npx skills, ~/.agents/skills/)"
 echo "    🔄 magic MCP           — 21st-dev UI generation MCP (toggle: lib/toggle-external.sh enable magic)"
@@ -744,6 +770,7 @@ echo ""
 echo "  All plugins installed at: user scope (~/.claude/plugins/)"
 echo "  GStack skills symlinked individually into ~/.claude/skills/ (→ submodule)"
 echo "  Emil Design Eng at: ~/.claude/skills/emil-design-eng/ (symlink → skills-external)"
+echo "  Frontend Design at: ~/.claude/skills/frontend-design/ (symlink → skills-external)"
 echo "  npx skills at: ~/.agents/skills/ (symlinked into ~/.claude/skills/)"
 echo ""
 echo "  → Restart Claude Code — plugins load automatically"

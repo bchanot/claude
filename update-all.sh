@@ -224,6 +224,24 @@ else
   info "emil-design-eng not installed — skipping (run: make plugin)"
 fi
 
+# ── 7.1. Update Frontend Design (from anthropic-agent-skills plugin cache) ──
+echo ""
+echo "── Updating Frontend Design (Anthropic)..."
+FD_DIR="$REPO/skills-external/frontend-design"
+FD_PLUGIN_CACHE="$HOME/.claude/plugins/cache/anthropic-agent-skills/example-skills"
+FD_LATEST="$(find "$FD_PLUGIN_CACHE" -maxdepth 1 -type d 2>/dev/null | sort | tail -1)"
+if [ -d "$FD_DIR" ]; then
+  if [ -n "$FD_LATEST" ] && [ -f "$FD_LATEST/skills/frontend-design/SKILL.md" ]; then
+    cp "$FD_LATEST/skills/frontend-design/SKILL.md" "$FD_DIR/SKILL.md"
+    [ -f "$FD_LATEST/skills/frontend-design/LICENSE.txt" ] && cp "$FD_LATEST/skills/frontend-design/LICENSE.txt" "$FD_DIR/LICENSE.txt"
+    ok "frontend-design synced from plugin cache"
+  else
+    warn "frontend-design: anthropic-agent-skills cache not found — keeping current version"
+  fi
+else
+  info "frontend-design not installed — skipping (run: make plugin)"
+fi
+
 # ── 7.4. Update Caveman (hooks + MCP shrink) ──
 # Plugin updates are handled by the marketplace plugin update loop below
 # (step 8). This step refreshes the standalone hook files (statusline +

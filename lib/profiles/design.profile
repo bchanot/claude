@@ -17,8 +17,9 @@ setup-browser-cookies
 # Plan-mode review companion (taste decisions before code)
 plan-ceo-review
 
-# External: Emil Kowalski's polish philosophy
+# External: design skills
 emil-design-eng                   external
+frontend-design                   external
 
 # Plugin (auto-toggle)
 ui-ux-pro-max                     plugin@ui-ux-pro-max-skill

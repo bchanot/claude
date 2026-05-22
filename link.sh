@@ -50,16 +50,19 @@ if [ ! -d "$REPO/skills-external/gstack" ]; then
   echo "⚠️  GStack submodule not found — run: git submodule update --init"
 fi
 
-if [ -d "$REPO/skills-external/emil-design-eng" ]; then
-  if [ -L "$CLAUDE/skills/emil-design-eng" ] && [ "$(readlink "$CLAUDE/skills/emil-design-eng")" = "$REPO/skills-external/emil-design-eng" ]; then
-    : # already correct
+EXTERNAL_SKILLS=(emil-design-eng frontend-design)
+for _ext_skill in "${EXTERNAL_SKILLS[@]}"; do
+  if [ -d "$REPO/skills-external/$_ext_skill" ]; then
+    if [ -L "$CLAUDE/skills/$_ext_skill" ] && [ "$(readlink "$CLAUDE/skills/$_ext_skill")" = "$REPO/skills-external/$_ext_skill" ]; then
+      : # already correct
+    else
+      ln -sf "$REPO/skills-external/$_ext_skill" "$CLAUDE/skills/$_ext_skill"
+      CHANGED=$((CHANGED + 1))
+    fi
   else
-    ln -sf "$REPO/skills-external/emil-design-eng" "$CLAUDE/skills/emil-design-eng"
-    CHANGED=$((CHANGED + 1))
+    echo "⚠️  $_ext_skill not found — run: make plugin"
   fi
-else
-  echo "⚠️  emil-design-eng not found — run: make plugin"
-fi
+done
 
 # External skills installed via `npx skills add` live under
 # $HOME/.agents/skills/. We symlink them into $REPO/skills/ with

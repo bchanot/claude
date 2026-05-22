@@ -32,8 +32,9 @@ refactor                          personal
 # Validation companion (basic W3C/a11y check during build)
 validate                          personal
 
-# External: Emil Kowalski's polish philosophy
+# External: design skills
 emil-design-eng                   external
+frontend-design                   external
 
 # Plugin: UI/UX intelligence (auto-toggle)
 ui-ux-pro-max                     plugin@ui-ux-pro-max-skill

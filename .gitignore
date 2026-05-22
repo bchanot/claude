@@ -46,8 +46,9 @@ skills/context-save
 skills/make-pdf
 skills/plan-tune
 
-# Emil Design Engineering skill symlink — auto-created by link.sh
+# External skill symlinks — auto-created by link.sh
 skills/emil-design-eng
+skills/frontend-design
 
 # External skills installed via `npx skills add` — auto-created by link.sh
 skills/darwin-skill
