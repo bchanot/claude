@@ -309,25 +309,29 @@ echo ""
 # ────────────────────────────────────────────────────────────
 echo "── Consistency ──"
 
-# Check all skills have disable-model-invocation
+# Check owned skills have disable-model-invocation (skip external/symlinked skills)
 MISSING_DMI=()
 for f in "$HOME/.claude/skills/"*/SKILL.md; do
   [ -f "$f" ] || continue
-  name=$(basename "$(dirname "$f")")
+  dir=$(dirname "$f")
+  # Skip external skills (symlinked directory or symlinked SKILL.md — not owned by this repo)
+  [ -L "$dir" ] && continue
+  [ -L "$f" ] && continue
+  name=$(basename "$dir")
   if ! grep -q "disable-model-invocation" "$f" 2>/dev/null; then
     MISSING_DMI+=("$name")
   fi
 done
 if [ ${#MISSING_DMI[@]} -eq 0 ]; then
-  pass "All skills have disable-model-invocation"
+  pass "All owned skills have disable-model-invocation"
 else
-  warn "Skills missing disable-model-invocation: ${MISSING_DMI[*]}"
+  warn "Owned skills missing disable-model-invocation: ${MISSING_DMI[*]}"
 fi
 
 # Check expected skills are present
 EXPECTED_SKILLS=(
-  "analyze" "health" "init-project" "onboard" "plugin-check"
-  "readme" "refactor" "ship-feature" "status"
+  "analyze" "doc" "health" "init-project" "onboard" "plugin-check"
+  "refactor" "ship-feature" "status"
 )
 MISSING_SKILLS=()
 for skill in "${EXPECTED_SKILLS[@]}"; do
@@ -336,14 +340,14 @@ for skill in "${EXPECTED_SKILLS[@]}"; do
   fi
 done
 if [ ${#MISSING_SKILLS[@]} -eq 0 ]; then
-  pass "All ${#EXPECTED_SKILLS[@]} expected skills present (analyze, health, init-project, onboard, plugin-check, readme, refactor, ship-feature, status)"
+  pass "All ${#EXPECTED_SKILLS[@]} expected skills present (analyze, doc, health, init-project, onboard, plugin-check, refactor, ship-feature, status)"
 else
   warn "Missing skills: ${MISSING_SKILLS[*]} — run: bash link.sh"
 fi
 
 # Check expected agents are present
 EXPECTED_AGENTS=(
-  "analyzer" "interviewer" "plugin-advisor" "readme-updater"
+  "analyzer" "interviewer" "plugin-advisor" "doc-syncer"
   "refactorer" "scaffolder" "onboarder" "status-reporter"
 )
 MISSING_AGENTS=()
@@ -353,7 +357,7 @@ for agent in "${EXPECTED_AGENTS[@]}"; do
   fi
 done
 if [ ${#MISSING_AGENTS[@]} -eq 0 ]; then
-  pass "All 8 agents present (analyzer, interviewer, plugin-advisor, readme-updater, refactorer, scaffolder, onboarder, status-reporter)"
+  pass "All 8 agents present (analyzer, interviewer, plugin-advisor, doc-syncer, refactorer, scaffolder, onboarder, status-reporter)"
 else
   warn "Missing agents: ${MISSING_AGENTS[*]} — run: bash link.sh"
 fi
