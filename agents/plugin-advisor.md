@@ -217,10 +217,10 @@ findings before producing recommendations:
 
 | Signal | Enable / Use | Disable / Skip | Notes |
 |---|---|---|---|
-| `frontend` | ui-ux-pro-max | — | UI design and polish |
+| `frontend` | ui-ux-pro-max, frontend-design | — | UI design and polish. frontend-design = Anthropic's anti-AI-slop design skill (external, symlinked) |
 | `mobile` (React Native/Expo/Flutter) | — | gstack (no browser QA), Docker N/A | ui-ux-pro-max optional |
 | `monorepo` | per-package plugin recommendations | avoid recommending gstack for whole repo if only one package has browser QA | Specify which plugin applies to which package |
-| `design-system` | ui-ux-pro-max | — | Design tokens, theme, Storybook |
+| `design-system` | ui-ux-pro-max, frontend-design | — | Design tokens, theme, Storybook |
 | `deploy` + `browser-qa` | gstack | — | Full-product workflow |
 | `multi-session` | gsd v2 CLI | — | Run `gsd` in terminal, not CC plugin |
 | `fast-libs` | context7 | — | Doc freshness critical |
@@ -271,12 +271,12 @@ When the plugin-advisor detects a `simple` or `hotfix` signal, suggest the appro
 | Project type | Plugins ON | OFF | Passive cost |
 |---|---|---|---|
 | Backend API / microservice | superpowers, context7 (if fast libs) | ui-ux-pro-max, gstack | ~800t |
-| Frontend SPA / SSR | superpowers, ui-ux-pro-max, context7 | gstack | ~1400t |
-| Full-stack SaaS | superpowers, gstack, ui-ux-pro-max, context7 | — | ~4200t |
+| Frontend SPA / SSR | superpowers, ui-ux-pro-max, frontend-design, context7 | gstack | ~1400t |
+| Full-stack SaaS | superpowers, gstack, ui-ux-pro-max, frontend-design, context7 | — | ~4200t |
 | CLI tool / library | superpowers | all toggles | ~800t |
 | Multi-session large feature | superpowers + gsd v2 CLI (external) | — | ~800t CC |
 | Quick fix / hotfix | superpowers | all toggles | ~800t |
-| Design system / component lib | superpowers, ui-ux-pro-max | gstack, gsd | ~1200t |
+| Design system / component lib | superpowers, ui-ux-pro-max, frontend-design | gstack, gsd | ~1200t |
 | Fast-evolving libs (Next.js etc.) | superpowers, context7 | — | ~1000t |
 | Enterprise multi-agent orchestration | superpowers + gsd v2 (external) | plugin-dev | ~800t CC |
 
@@ -299,6 +299,7 @@ RULE: IF "monorepo" signal detected:
 
 RULE: IF "frontend" signal OR .tsx/.jsx count > 0:
   → ui-ux-pro-max ON if "design-system" signal (~400t)
+  → frontend-design ON (external skill, 0t passive — symlink at ~/.claude/skills/frontend-design)
 
 RULE: IF "deploy" AND "browser-qa" signals:
   → gstack ON (~2750t) — full-product workflow
@@ -338,7 +339,8 @@ RULE: IF `browser-qa` signal (e2e tests, Playwright/Cypress/Puppeteer in deps):
 
 RULE: IF `design-system` signal (tokens, theme files, Storybook present):
   → ui-ux-pro-max ON (~400t)
-  → WARN if OFF with this signal: significant design gap
+  → frontend-design ON (external skill, 0t passive)
+  → WARN if both OFF with this signal: significant design gap
 
 RULE: IF `complex-arch` signal (multiple services, event bus, distributed system):
   → gsd v2 CLI recommended for multi-session coordination

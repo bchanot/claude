@@ -27,15 +27,16 @@ Check BOTH the task description AND the filesystem:
 
 If **at least one signal** is detected:
 
-1. Check if `ui-ux-pro-max` is active:
+1. Check if `ui-ux-pro-max` and `frontend-design` are active:
    ```bash
    source "$HOME/.claude/lib/detect-plugins.sh"
-   detect_uiux_pro_max && echo "ACTIVE" || echo "INACTIVE"
+   detect_uiux_pro_max && echo "ui-ux-pro-max: ACTIVE" || echo "ui-ux-pro-max: INACTIVE"
+   [ -L "$HOME/.claude/skills/frontend-design" ] && echo "frontend-design: ACTIVE" || echo "frontend-design: INACTIVE"
    ```
 
-2. If **ACTIVE** → proceed silently. The plugin context is already available.
+2. If **both ACTIVE** → proceed silently. Design context is fully available.
 
-3. If **INACTIVE** → ask the user:
+3. If **ui-ux-pro-max INACTIVE** → ask the user:
    ```
    🎨 DESIGN DETECTED — task touches UI/styling.
    ui-ux-pro-max is not active. Activate it for design-aware guidance?
@@ -43,6 +44,12 @@ If **at least one signal** is detected:
    ```
    - On **yes** → print `⚡ Activating ui-ux-pro-max...` and proceed with design context.
    - On **no** → print `Proceeding without design plugin.` and continue normally.
+
+4. If **frontend-design INACTIVE** → warn (non-blocking):
+   ```
+   ℹ️ frontend-design skill not installed — anti-AI-slop design guidelines unavailable.
+   Install: run install-plugins.sh or symlink skills-external/frontend-design to ~/.claude/skills/frontend-design
+   ```
 
 ## IMPORTANT
 
