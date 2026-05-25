@@ -35,6 +35,7 @@ validate                          personal
 # External: design skills
 emil-design-eng                   external
 frontend-design                   external
+design-motion-principles          external
 
 # Plugin: UI/UX intelligence (auto-toggle)
 ui-ux-pro-max                     plugin@ui-ux-pro-max-skill

@@ -620,6 +620,22 @@ else
 fi
 echo ""
 
+# ── Step 8c: Design Motion Principles (kylezantos) ─────────
+echo "── Step 8c: Design Motion Principles ─────────────────────"
+echo ""
+DMP_DIR="$REPO/skills-external/design-motion-principles"
+if [ -f "$DMP_DIR/SKILL.md" ]; then
+  ok "design-motion-principles already present"
+else
+  warn "design-motion-principles: not installed — clone from https://github.com/kylezantos/design-motion-principles"
+fi
+if [ -L "$HOME/.claude/skills/design-motion-principles" ]; then
+  ok "design-motion-principles symlink OK"
+else
+  info "Symlinking — will be created by link.sh"
+fi
+echo ""
+
 # ============================================================
 # STEP 8.5 — EXTERNAL SKILLS (npx skills add …)
 # ============================================================
@@ -763,6 +779,7 @@ echo "    🔄 context7 CLI        — ctx7 (npm global, standalone or MCP setup
 echo "    🔄 graphifyy           — codebase knowledge graph (pipx, PreToolUse hook)"
 echo "    🔄 emil-design-eng     — UI polish, animations, component craft (curl → symlink)"
 echo "    🔄 frontend-design     — distinctive frontend interfaces, anti-AI-slop (anthropic-agent-skills)"
+echo "    🔄 design-motion-principles — motion/animation design, 3-designer lens (kylezantos)"
 echo "    🔄 darwin-skill        — autonomous skill optimizer (npx skills, ~/.agents/skills/)"
 echo "    🔄 find-skills         — skill discovery helper (npx skills, ~/.agents/skills/)"
 echo "    🔄 magic MCP           — 21st-dev UI generation MCP (toggle: lib/toggle-external.sh enable magic)"
@@ -771,6 +788,7 @@ echo "  All plugins installed at: user scope (~/.claude/plugins/)"
 echo "  GStack skills symlinked individually into ~/.claude/skills/ (→ submodule)"
 echo "  Emil Design Eng at: ~/.claude/skills/emil-design-eng/ (symlink → skills-external)"
 echo "  Frontend Design at: ~/.claude/skills/frontend-design/ (symlink → skills-external)"
+echo "  Design Motion Principles at: ~/.claude/skills/design-motion-principles/ (symlink → skills-external)"
 echo "  npx skills at: ~/.agents/skills/ (symlinked into ~/.claude/skills/)"
 echo ""
 echo "  → Restart Claude Code — plugins load automatically"

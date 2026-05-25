@@ -46,6 +46,7 @@ qa-only
 # === External + plugin + MCP =========================================
 emil-design-eng                   external
 frontend-design                   external
+design-motion-principles          external
 ui-ux-pro-max                     plugin@ui-ux-pro-max-skill
 magic                             mcp
 

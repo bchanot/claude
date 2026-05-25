@@ -20,6 +20,7 @@ plan-ceo-review
 # External: design skills
 emil-design-eng                   external
 frontend-design                   external
+design-motion-principles          external
 
 # Plugin (auto-toggle)
 ui-ux-pro-max                     plugin@ui-ux-pro-max-skill

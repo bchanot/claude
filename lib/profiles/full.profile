@@ -75,6 +75,7 @@ guard
 # === External + plugin + MCP =========================================
 emil-design-eng                   external
 frontend-design                   external
+design-motion-principles          external
 ui-ux-pro-max                     plugin@ui-ux-pro-max-skill
 pr-review-toolkit                 plugin@claude-code-plugins
 magic                             mcp

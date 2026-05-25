@@ -27,14 +27,15 @@ Check BOTH the task description AND the filesystem:
 
 If **at least one signal** is detected:
 
-1. Check if `ui-ux-pro-max` and `frontend-design` are active:
+1. Check if `ui-ux-pro-max`, `frontend-design`, and `design-motion-principles` are active:
    ```bash
    source "$HOME/.claude/lib/detect-plugins.sh"
    detect_uiux_pro_max && echo "ui-ux-pro-max: ACTIVE" || echo "ui-ux-pro-max: INACTIVE"
    [ -L "$HOME/.claude/skills/frontend-design" ] && echo "frontend-design: ACTIVE" || echo "frontend-design: INACTIVE"
+   [ -L "$HOME/.claude/skills/design-motion-principles" ] && echo "design-motion-principles: ACTIVE" || echo "design-motion-principles: INACTIVE"
    ```
 
-2. If **both ACTIVE** → proceed silently. Design context is fully available.
+2. If **all three ACTIVE** → proceed silently. Design context is fully available.
 
 3. If **ui-ux-pro-max INACTIVE** → ask the user:
    ```
@@ -49,6 +50,12 @@ If **at least one signal** is detected:
    ```
    ℹ️ frontend-design skill not installed — anti-AI-slop design guidelines unavailable.
    Install: run install-plugins.sh or symlink skills-external/frontend-design to ~/.claude/skills/frontend-design
+   ```
+
+5. If **design-motion-principles INACTIVE** and task mentions animation/motion/transition → warn (non-blocking):
+   ```
+   ℹ️ design-motion-principles skill not installed — motion design guidelines unavailable.
+   Install: run install-plugins.sh or symlink skills-external/design-motion-principles to ~/.claude/skills/design-motion-principles
    ```
 
 ## IMPORTANT

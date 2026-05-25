@@ -50,7 +50,7 @@ if [ ! -d "$REPO/skills-external/gstack" ]; then
   echo "⚠️  GStack submodule not found — run: git submodule update --init"
 fi
 
-EXTERNAL_SKILLS=(emil-design-eng frontend-design)
+EXTERNAL_SKILLS=(emil-design-eng frontend-design design-motion-principles)
 for _ext_skill in "${EXTERNAL_SKILLS[@]}"; do
   if [ -d "$REPO/skills-external/$_ext_skill" ]; then
     if [ -L "$CLAUDE/skills/$_ext_skill" ] && [ "$(readlink "$CLAUDE/skills/$_ext_skill")" = "$REPO/skills-external/$_ext_skill" ]; then

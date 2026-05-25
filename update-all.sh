@@ -242,6 +242,23 @@ else
   info "frontend-design not installed — skipping (run: make plugin)"
 fi
 
+# ── 7.2. Update Design Motion Principles (from GitHub) ──
+echo ""
+echo "── Updating Design Motion Principles (kylezantos)..."
+DMP_DIR="$REPO/skills-external/design-motion-principles"
+if [ -d "$DMP_DIR" ]; then
+  DMP_TMP="$(mktemp -d)"
+  if git clone --depth 1 https://github.com/kylezantos/design-motion-principles.git "$DMP_TMP" 2>/dev/null; then
+    cp -r "$DMP_TMP/skills/design-motion-principles/"* "$DMP_DIR/"
+    ok "design-motion-principles synced from GitHub"
+  else
+    warn "design-motion-principles: GitHub fetch failed — keeping current version"
+  fi
+  rm -rf "$DMP_TMP"
+else
+  info "design-motion-principles not installed — skipping"
+fi
+
 # ── 7.4. Update Caveman (hooks + MCP shrink) ──
 # Plugin updates are handled by the marketplace plugin update loop below
 # (step 8). This step refreshes the standalone hook files (statusline +
