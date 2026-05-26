@@ -50,6 +50,27 @@ if [ ! -d "$REPO/skills-external/gstack" ]; then
   echo "⚠️  GStack submodule not found — run: git submodule update --init"
 fi
 
+# GStack shared infrastructure: bin/ (CLI tools, config, analytics) and
+# browse/dist/ (compiled browse binary). Per-skill SKILL.md symlinks don't
+# expose these, but multiple skills hardcode ~/.claude/skills/gstack/bin/
+# and ~/.claude/skills/gstack/browse/dist/. Create targeted symlinks.
+GSTACK_SRC="$REPO/skills-external/gstack"
+GSTACK_DST="$CLAUDE/skills/gstack"
+if [ -d "$GSTACK_SRC/bin" ]; then
+  mkdir -p "$GSTACK_DST"
+  if [ ! -L "$GSTACK_DST/bin" ]; then
+    ln -sf "$GSTACK_SRC/bin" "$GSTACK_DST/bin"
+    CHANGED=$((CHANGED + 1))
+  fi
+fi
+if [ -d "$GSTACK_SRC/browse/dist" ]; then
+  mkdir -p "$GSTACK_DST/browse"
+  if [ ! -L "$GSTACK_DST/browse/dist" ]; then
+    ln -sf "$GSTACK_SRC/browse/dist" "$GSTACK_DST/browse/dist"
+    CHANGED=$((CHANGED + 1))
+  fi
+fi
+
 EXTERNAL_SKILLS=(emil-design-eng frontend-design design-motion-principles)
 for _ext_skill in "${EXTERNAL_SKILLS[@]}"; do
   if [ -d "$REPO/skills-external/$_ext_skill" ]; then
