@@ -57,9 +57,10 @@ canary
 qa
 qa-only
 
-# === Docs ============================================================
+# === Docs + translation ==============================================
 doc                               personal
 document-release
+pdf-translate                     personal
 
 # === Session hygiene + memory ========================================
 close                             personal
