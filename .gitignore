@@ -116,3 +116,4 @@ desktop.ini
 
 # Profile cache — written by lib/profile.sh, read by hooks/statusline.sh
 .active-profile
+.gstack/
