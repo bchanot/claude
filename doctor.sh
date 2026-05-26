@@ -309,6 +309,18 @@ echo ""
 # ────────────────────────────────────────────────────────────
 echo "── Consistency ──"
 
+# Check gstack shared infrastructure symlinks
+if [ -L "$HOME/.claude/skills/gstack/bin" ]; then
+  pass "gstack/bin/ symlink OK"
+else
+  warn "gstack/bin/ symlink missing — run: bash link.sh"
+fi
+if [ -L "$HOME/.claude/skills/gstack/browse/dist" ]; then
+  pass "gstack/browse/dist/ symlink OK"
+else
+  warn "gstack/browse/dist/ symlink missing — run: bash link.sh"
+fi
+
 # Check owned skills have disable-model-invocation (skip external/symlinked skills)
 MISSING_DMI=()
 for f in "$HOME/.claude/skills/"*/SKILL.md; do

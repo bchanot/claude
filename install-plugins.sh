@@ -269,6 +269,21 @@ if [ -d "$GSTACK_DIR" ]; then
   else
     ok "GStack ready (submodule initialized, symlinks staged)"
   fi
+
+  # GStack shared infrastructure: bin/ (CLI tools) and browse/dist/ (compiled binary).
+  # Per-skill SKILL.md symlinks don't expose these, but multiple skills hardcode
+  # ~/.claude/skills/gstack/bin/ and gstack/browse/dist/.
+  GSTACK_DST="$HOME/.claude/skills/gstack"
+  if [ -d "$GSTACK_DIR/bin" ]; then
+    mkdir -p "$GSTACK_DST"
+    [ -L "$GSTACK_DST/bin" ] || ln -sf "$GSTACK_DIR/bin" "$GSTACK_DST/bin"
+    ok "gstack/bin/ symlink OK"
+  fi
+  if [ -d "$GSTACK_DIR/browse/dist" ]; then
+    mkdir -p "$GSTACK_DST/browse"
+    [ -L "$GSTACK_DST/browse/dist" ] || ln -sf "$GSTACK_DIR/browse/dist" "$GSTACK_DST/browse/dist"
+    ok "gstack/browse/dist/ symlink OK"
+  fi
 else
   warn "GStack submodule directory not found after init — check .gitmodules"
 fi

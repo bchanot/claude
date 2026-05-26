@@ -85,6 +85,18 @@ if [[ "$_gstack_confirm" =~ ^[Yy]$ ]]; then
     warn "GStack submodule update failed — run: git submodule update --init"
   fi
 
+  # Refresh gstack shared infrastructure symlinks (bin/ + browse/dist/)
+  GSTACK_DIR="$REPO/skills-external/gstack"
+  GSTACK_DST="$HOME/.claude/skills/gstack"
+  if [ -d "$GSTACK_DIR/bin" ]; then
+    mkdir -p "$GSTACK_DST"
+    ln -sf "$GSTACK_DIR/bin" "$GSTACK_DST/bin"
+  fi
+  if [ -d "$GSTACK_DIR/browse/dist" ]; then
+    mkdir -p "$GSTACK_DST/browse"
+    ln -sf "$GSTACK_DIR/browse/dist" "$GSTACK_DST/browse/dist"
+  fi
+
   # Restore prior enabled/disabled state
   if [ "$_gstack_state" = "disabled" ] && [ -x "$REPO/lib/toggle-external.sh" ]; then
     bash "$REPO/lib/toggle-external.sh" disable gstack >/dev/null
