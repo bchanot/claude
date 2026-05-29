@@ -186,7 +186,8 @@
     "disableBypassPermissionsMode": "disable",
     "additionalDirectories": []
   },
-  "model": "claude-opus-4-6[1m]",
+  "model": "claude-opus-4-8[1m]",
+  "effortLevel": "xhigh",
   "hooks": {
     "SessionStart": [
       {
@@ -242,7 +243,7 @@
     "caveman@caveman": true,
     "security-guidance@claude-code-plugins": true,
     "superpowers@superpowers-marketplace": true,
-    "pr-review-toolkit@claude-code-plugins": false
+    "pr-review-toolkit@claude-code-plugins": true
   },
   "extraKnownMarketplaces": {
     "claude-code-plugins": {
