@@ -26,6 +26,7 @@
 #   profile.sh apply <name>          enable items in profile (additive)
 #   profile.sh set <name>            enable only profile (disables rest)
 #   profile.sh reset                 re-enable all gstack skills + managed plugins
+#   profile.sh gstack on|off         toggle gstack, keeping active-profile label
 #   profile.sh diff <a> <b>          compare two profiles
 #
 # Profile file format (lib/profiles/<name>.profile):
@@ -321,6 +322,43 @@ disable_skill() {
   esac
 }
 
+# ── Shared gstack operations ──────────────────────────────
+
+# Re-enable every gstack skill parked in skills-disabled/ (move gstack__*
+# back into skills/). Shared by cmd_reset and `gstack on`. Side effects
+# only; prints one confirmation per restored skill.
+enable_all_gstack() {
+  local entry name
+  [ -d "$DISABLED_DIR" ] || return 0
+  for entry in "$DISABLED_DIR"/gstack__*; do
+    [ -e "$entry" ] || continue
+    name="$(basename "$entry" | sed 's/^gstack__//')"
+    rm -rf "${SKILLS_DIR:?}/${name:?}"
+    mv "$entry" "$SKILLS_DIR/$name"
+    ok "re-enabled: $name"
+  done
+}
+
+# Disable gstack-origin skills not listed in the given profile. Shared by
+# cmd_set and `gstack off`. Caller is responsible for validating the profile.
+disable_gstack_not_in() {
+  local prof="$1"
+  local keep_file name
+  keep_file="$(mktemp)"
+  read_profile "$prof" | cut -f1 | sort -u > "$keep_file"
+  while read -r name; do
+    [ -n "$name" ] || continue
+    grep -qx "$name" "$keep_file" || disable_skill "$name" gstack
+  done < <(gstack_skills | sort -u)
+  rm -f "$keep_file"
+}
+
+# Count gstack skills currently parked in skills-disabled/.
+parked_gstack_count() {
+  [ -d "$DISABLED_DIR" ] || { echo 0; return 0; }
+  find "$DISABLED_DIR" -maxdepth 1 -name 'gstack__*' 2>/dev/null | wc -l | tr -d ' '
+}
+
 # ── Commands ──────────────────────────────────────────────
 
 cmd_list() {
@@ -367,28 +405,14 @@ cmd_set() {
   local prof="$1"
   info "Setting profile: $prof (exclusive — disables non-listed gstack skills + managed plugins)"
 
-  # Index of items in profile (skill names + plugin keys "name@marketplace").
-  local keep_file
-  keep_file="$(mktemp)"
-  # Skill names (col 1) — used to keep gstack skills.
-  read_profile "$prof" | cut -f1 | sort -u > "$keep_file"
-  # Plugin keys "name@marketplace" — used to keep managed plugins.
-  local plugin_keep_file
-  plugin_keep_file="$(mktemp)"
-  read_profile "$prof" | awk -F'\t' '$2 ~ /^plugin@/ { sub(/^plugin@/, "", $2); print $1"@"$2 }' | sort -u > "$plugin_keep_file"
-
   # Disable gstack-origin skills not in profile.
-  local name
-  while read -r name; do
-    [ -n "$name" ] || continue
-    if ! grep -qx "$name" "$keep_file"; then
-      disable_skill "$name" gstack
-    fi
-  done < <(gstack_skills | sort -u)
+  disable_gstack_not_in "$prof"
 
   # Disable managed plugins not in profile (PROTECTED_PLUGINS are excluded
   # by disable_skill itself — belt and suspenders).
-  local p key plugin_name marketplace
+  local plugin_keep_file p plugin_name marketplace
+  plugin_keep_file="$(mktemp)"
+  read_profile "$prof" | awk -F'\t' '$2 ~ /^plugin@/ { sub(/^plugin@/, "", $2); print $1"@"$2 }' | sort -u > "$plugin_keep_file"
   for p in "${MANAGED_PLUGINS[@]}"; do
     if ! grep -qx "$p" "$plugin_keep_file"; then
       plugin_name="${p%@*}"
@@ -396,27 +420,65 @@ cmd_set() {
       disable_skill "$plugin_name" "plugin@${marketplace}"
     fi
   done
+  rm -f "$plugin_keep_file"
 
-  rm -f "$keep_file" "$plugin_keep_file"
   # Enable everything listed in the profile.
   cmd_apply "$prof"
 }
 
 cmd_reset() {
   info "Re-enabling all gstack skills (move skills-disabled/gstack__* back)"
-  local entry name
-  if [ -d "$DISABLED_DIR" ]; then
-    for entry in "$DISABLED_DIR"/gstack__*; do
-      [ -e "$entry" ] || continue
-      name="$(basename "$entry" | sed 's/^gstack__//')"
-      rm -rf "${SKILLS_DIR:?}/${name:?}"
-      mv "$entry" "$SKILLS_DIR/$name"
-      ok "re-enabled: $name"
-    done
-  fi
+  enable_all_gstack
   info "Plugin state NOT touched. To re-enable a managed plugin disabled by 'set',"
   info "run: claude plugin enable <name>@<marketplace>  (or: profile apply <profile>)"
   write_active "none"
+}
+
+# gstack on|off — focused gstack-only toggle that keeps the active-profile
+# label intact (unlike reset, which clears it to "none"). Lets the user
+# layer all gstack on top of their current profile, or trim it back down
+# to just what the active profile needs.
+cmd_gstack() {
+  local action="${1:-}"
+  case "$action" in
+    on)
+      # Re-enable ALL gstack skills, but DON'T touch active-profile — the
+      # user is adding gstack on top of their current profile, not clearing it.
+      local parked
+      parked="$(parked_gstack_count)"
+      if [ "$parked" -eq 0 ]; then
+        info "all gstack skills already enabled"
+      else
+        enable_all_gstack
+        ok "all gstack enabled ($parked skills restored)"
+      fi
+      ;;
+    off)
+      # Disable gstack skills not needed by the active profile. Needs a real
+      # active profile to know what to keep.
+      local active
+      active="$(head -n1 "$ACTIVE_CACHE" 2>/dev/null || echo none)"
+      [ -z "$active" ] && active="none"
+      if [ "$active" = "none" ] || [ ! -f "$PROFILES_DIR/$active.profile" ]; then
+        err "no active profile — 'gstack off' needs one to know what to keep"
+        info "run: bash lib/profile.sh set <name>   then: gstack off"
+        return 1
+      fi
+      info "Disabling gstack skills not in active profile: $active"
+      disable_gstack_not_in "$active"
+      ok "gstack trimmed to profile: $active"
+      ;;
+    ""|-h|--help|help)
+      cat <<'EOF'
+profile gstack on|off — toggle gstack without losing the active-profile label
+
+  on    re-enable ALL gstack skills (keeps active-profile label)
+  off   disable gstack skills not in the active profile
+EOF
+      ;;
+    *)
+      err "Unknown gstack action: '$action' (use: on | off)"; return 1 ;;
+  esac
 }
 
 cmd_current() {
@@ -491,6 +553,7 @@ USAGE:
   profile apply <name>      enable skills in profile (additive)
   profile set <name>        enable only listed skills (disables rest of gstack)
   profile reset             re-enable all gstack skills
+  profile gstack on|off     toggle gstack only, keep active-profile label
   profile diff <a> <b>      compare two profiles
 
 PROFILES (in $PROFILES_DIR):
@@ -527,6 +590,7 @@ main() {
     apply)   [ $# -ge 2 ] || { usage; exit 1; }; cmd_apply "$2" ;;
     set)     [ $# -ge 2 ] || { usage; exit 1; }; cmd_set "$2" ;;
     reset)   cmd_reset ;;
+    gstack)  cmd_gstack "${2:-}" ;;
     diff)    [ $# -ge 3 ] || { usage; exit 1; }; cmd_diff "$2" "$3" ;;
     ""|-h|--help|help) usage ;;
     *) err "Unknown command: $cmd"; usage; exit 1 ;;

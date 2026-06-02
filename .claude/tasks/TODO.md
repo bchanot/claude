@@ -1,5 +1,18 @@
 # TODO
 
+## profile.sh — verbe `gstack on|off`
+- [x] Extraire helper `enable_all_gstack()` (boucle de cmd_reset) — anti-duplication
+- [x] Extraire helper `disable_gstack_not_in(prof)` (boucle gstack de cmd_set) — anti-duplication
+- [x] Extraire helper `parked_gstack_count()` (réutilise pattern cmd_current)
+- [x] Refactor cmd_reset + cmd_set pour utiliser les helpers (comportement préservé)
+- [x] `cmd_gstack()` : `on` = enable tout gstack (garde label active-profile), `off` = disable gstack hors profil actif
+- [x] Wire main() dispatch `gstack)` + usage() + bloc header
+- [x] Doc : SKILL.md argument-hint + exemples + output-policy (Makefile générique suffit)
+- [x] shellcheck propre + tests (help/bad-action/none-error/on/off cycle) — état live restauré exact
+- [x] Investigué "fix" full.profile : PAS un bug — curation par design (BDR-017 caveat). Aucun fix code.
+- [ ] FOLLOW-UP (BLK-007) : 6 skills gstack source (ios-*, spec) unlinkés post-bump → re-run gstack ./setup + reconcilier profils (iOS dans profils web ? probablement non)
+- [x] Capitalize : BDR-018, LRN-024, BLK-007, EVAL-002, journal 2026-06-02 + backfill index (BDR-017, BLK-005/006)
+
 ## README.md overhaul
 - [x] Plan
 - [x] Corriger section install ctx7 (retirer MCP, clarifier CLI + API key)

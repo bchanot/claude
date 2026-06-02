@@ -24,6 +24,9 @@ rules:
 | BLK-002 | 2026-04-23 | `rmdir` denied in sandbox on empty directory | resolved |
 | BLK-003 | 2026-05-12 | `scripts/screenshot.mjs` hardcoded macOS path blocks PNG cards on Linux | upstream |
 | BLK-004 | 2026-05-20 | `/ship-feature` wrapper at `~/.claude/commands/` points to deleted agent files post-refactor | resolved |
+| BLK-005 | 2026-05-21 | gstack submodule rename (checkpoint→context-save) breaks profile entries | resolved |
+| BLK-006 | 2026-05-21 | `profile.sh current` false-negative via `~/.claude` symlink (`cd` not `cd -P`) | resolved |
+| BLK-007 | 2026-06-02 | 6 gstack source skills (ios-*, spec) unlinked post-bump — invisible to profiles + `gstack on` | open |
 
 ---
 
@@ -82,3 +85,11 @@ rules:
 - **Real cause**: `lib/profile.sh:43` set `REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"`. Default bash `cd` preserves symlinks (logical pathname mode, `set -P` off). When the script is invoked via the `~/.claude/lib/profile.sh` symlink (link.sh wires `~/.claude/lib -> <repo>/lib`), `$BASH_SOURCE[0]` is the symlinked path, `dirname` returns `~/.claude/lib`, `cd ..` lands at `~/.claude`, and `pwd` returns the logical path `/home/bchanot-ubuntu/.claude`. `$SKILLS_DIR="$REPO/skills"` still works because `~/.claude/skills` happens to be a symlink to the repo's `skills/`. But `$DISABLED_DIR="$REPO/skills-disabled"` resolves to `~/.claude/skills-disabled` — a real sibling directory created at some earlier point containing only 2 stale npx-skill symlinks (`darwin-skill`, `find-skills`). `cmd_current` scans this near-empty dir, finds 0 `gstack__*` entries, returns the "none" sentinel.
 - **Solution**: `REPO="$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"` (commit `a4558ee`). `-P` forces physical-path resolution so `$REPO` is always the real repo path regardless of how the script is invoked. Verify: `bash "$HOME/.claude/lib/profile.sh" current` now returns `full (100% match, 14 gstack skills disabled)`.
 - **Status**: resolved. Follow-up: `~/.claude/skills-disabled/` (real dir with only `darwin-skill`/`find-skills` symlinks) is orphaned — these npx skills are already symlinked into `<repo>/skills/` by link.sh, so the disabled-side copies serve no purpose. Could be deleted to remove confusion, but harmless as-is.
+
+## BLK-007 — 6 gstack source skills (ios-*, spec) unlinked — invisible to profile system + `gstack on`
+
+- **Date**: 2026-06-02
+- **Friction**: `skills-external/gstack/` has 53 source skills; 6 (`ios-clean`, `ios-design-review`, `ios-fix`, `ios-qa`, `ios-sync`, `spec`) exist ONLY as source — NOT symlinked into `skills/` (enabled) nor `skills-disabled/gstack__*` (parked). So invisible to Claude AND untouched by `reset`/`gstack on` (both operate on parked `gstack__*` only). Surfaced while adding `gstack on|off`: `comm` of gstack source vs `full.profile`.
+- **Real cause**: gstack submodule bump added new skills; gstack's own `./setup` (source of truth for per-skill symlinks per link.sh) not re-run → symlinks never created. Same lifecycle gap class as [[toggle-external-source-only-state]] (LRN-007). NOT a `full.profile` bug — full curated by design (BDR-017 caveat: "full excludes rarely-used gstack skills"). Initial "full omits ios = bug" flag was WRONG, self-corrected (see EVAL-002).
+- **Solution**: re-run gstack setup to link new skills, then reconcile profiles (decide if iOS skills belong in web/dev profiles — likely NOT). Per [[gstack-rename-profile-audit]] (LRN-022): diff `skills-external/gstack/` vs `lib/profiles/*.profile` after every submodule bump. NOT auto-fixed — gstack installer domain + iOS-in-web judgment call.
+- **Status**: open. Low impact (skills unused today, never linked). Next: run gstack `./setup`, audit profile membership.

@@ -129,3 +129,11 @@ rules:
 - `/hotfix` follow-up — `bash "$HOME/.claude/lib/profile.sh" current` falsely reported `none (all gstack skills enabled — no profile set)` even with profile applied + 14 gstack__* entries in repo's `skills-disabled/`. Root cause: `lib/profile.sh:43` used `cd "$(dirname $BASH_SOURCE)/.."` — default bash `cd` preserves symlinks, so `$REPO` resolved to `/home/bchanot-ubuntu/.claude` (symlink dir) instead of real repo path. `$DISABLED_DIR` then pointed at near-empty `~/.claude/skills-disabled/` (2 stale npx symlinks only). Fixed by adding `-P` to `cd` (commit `a4558ee`). `cmd_current` now correctly reports `full (100% match, 14 gstack skills disabled)`.
 - BLK-006 capitalized — `cmd_current` false-negative when invoked via `~/.claude/lib/profile.sh` symlink; status: resolved.
 - LRN-023 capitalized — `$REPO="$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"` mandatory pattern for any script meant to be invoked via a symlink into the install location.
+
+## 2026-06-02
+
+- Added `profile gstack on|off` verb to `lib/profile.sh`. `on` = re-enable all parked gstack keeping `.active-profile` label intact (vs `reset` which clears to "none"); `off` = disable gstack not in active profile (errors if none). User wanted centralized toggle without losing profile context.
+- Extracted 3 helpers (`enable_all_gstack`/`disable_gstack_not_in`/`parked_gstack_count`); refactored `cmd_reset`+`cmd_set` to reuse — behavior preserved, 6-case test + exact state-restore assertion PASS, shellcheck CLEAN. Doc: SKILL.md argument-hint + examples + output-policy. Makefile generic `make profile cmd="gstack on"` already covers it.
+- Corrected own false flag: full.profile omitting ios-*/spec is curation by design (BDR-017 caveat), NOT a bug — caught before any edit. Surfaced real gap: 6 gstack source skills unlinked post-submodule-bump → BLK-007 (open, gstack ./setup domain, not auto-fixed).
+- Backfilled index drift: decisions (BDR-017), blockers (BLK-005/006).
+- BDR-018 + LRN-024 + BLK-007 + EVAL-002 capitalized.

@@ -8,7 +8,7 @@ description: |
   "switch to design", "set profile", "active profile", "quel profil",
   "profil design", "active les skills design", "désactive gstack",
   "réduire le bruit gstack".
-argument-hint: list | show <name> | current | apply <name> | set <name> | reset | diff <a> <b>
+argument-hint: list | show <name> | current | apply <name> | set <name> | reset | gstack on|off | diff <a> <b>
 disable-model-invocation: false
 allowed-tools:
   - Bash
@@ -81,8 +81,12 @@ bash "$HOME/.claude/lib/profile.sh" apply <name>
 # Enable only skills in profile (disables non-listed gstack skills)
 bash "$HOME/.claude/lib/profile.sh" set <name>
 
-# Re-enable every gstack skill (undo any set/apply)
+# Re-enable every gstack skill (undo any set/apply) — resets active label to "none"
 bash "$HOME/.claude/lib/profile.sh" reset
+
+# Toggle gstack only, keeping the active-profile label intact
+bash "$HOME/.claude/lib/profile.sh" gstack on    # re-enable ALL gstack on top of current profile
+bash "$HOME/.claude/lib/profile.sh" gstack off   # disable gstack skills not in the active profile
 
 # Compare two profiles
 bash "$HOME/.claude/lib/profile.sh" diff <a> <b>
@@ -101,9 +105,9 @@ bash "$HOME/.claude/lib/profile.sh" $ARGUMENTS
 
 ## Output policy
 
-- After `set` / `apply` / `reset`: show the count of skills moved + tell the
-  user to start a new Claude session to pick up the changes (Claude scans
-  `skills/` at session start).
+- After `set` / `apply` / `reset` / `gstack on|off`: show the count of skills
+  moved + tell the user to start a new Claude session to pick up the changes
+  (Claude scans `skills/` at session start).
 - After `current`: report the active profile + match percentage.
 - After `show`: render the table directly — no extra commentary unless the user
   asks.

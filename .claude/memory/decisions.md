@@ -38,6 +38,8 @@ rules:
 | BDR-014 | 2026-05-11 | Personal SKILL.md descriptions: "Use when [triggers]…" pattern + 1024-char spec limit | accepted |
 | BDR-015 | 2026-05-12 | Exclude broken gstack symlinks from /darwin-skill scope (external ownership) | accepted |
 | BDR-016 | 2026-05-15 | doc-syncer: README AUTO+unconditional, DEPLOY.md prod-only + 14-section VPS template | accepted |
+| BDR-017 | 2026-05-18 | `full` profile = web-full + plan + dev superset for /init-project MVP | accepted |
+| BDR-018 | 2026-06-02 | `profile gstack on/off` verb — toggle gstack keeping active-profile label | accepted |
 
 ---
 
@@ -321,3 +323,17 @@ rules:
   - `full` excludes a few rarely-used gstack skills (devex-review, pair-agent, gstack-upgrade, skills-perso). `set full` will disable those; user can `apply <profile>` after to add back.
   - Sentinel rename "full" → "none" is breaking for any tooling that grepped `cmd_current` output for literal "full". No known consumers in this repo.
 - **Reference**: commit message references `lib/profiles/full.profile` (new), `lib/profile.sh:421` sentinel, `skills/profile/SKILL.md` table row. Linked to [[profile-sentinel-collision]] (LRN-020).
+
+---
+
+## BDR-018 — `profile gstack on|off` verb keeps active-profile label
+
+- **Date**: 2026-06-02
+- **Status**: accepted
+- **Decision**: New `cmd_gstack()` in `lib/profile.sh`. `gstack on` = re-enable all parked gstack (move `skills-disabled/gstack__*` back), DON'T touch `.active-profile`. `gstack off` = disable gstack skills not in active profile (errors if active=none). Wired into `main()` dispatch + `usage()` + header block + `skills/profile/SKILL.md` (argument-hint + examples + output-policy).
+- **Why**: User wanted central command for "enable all gstack" + "disable gstack not needed by profile". Both ops existed (`reset`, `set`) but `reset` clobbers `.active-profile` to "none" — loses profile context in statusline. New verb does same skill-toggle WITHOUT clearing label, so user layers full gstack on top of current profile (e.g. `dev`) and statusline still reads `dev`.
+- **Alternatives rejected**:
+  - 3 new profiles (current+gstack, current+gsd, current+gsd+gstack) — rejected: `gsd` = standalone CLI (not profile-toggleable, always-on, 0 passive token), so 2 of 3 meaningless. `full` already = current+gstack+gsd advisory. `apply` already additive.
+  - Just document `reset`/`set` — rejected: user wanted clearer centralized verb + label preservation.
+- **Impl note**: extracted 3 shared helpers (`enable_all_gstack`, `disable_gstack_not_in`, `parked_gstack_count`); `cmd_reset`+`cmd_set` refactored to reuse (behavior preserved exact, verified by test). See [[dry-helper-extract-sibling-command]] (LRN-024).
+- **Reference**: `lib/profile.sh` cmd_gstack + helpers, `skills/profile/SKILL.md`. Linked to [[full-profile-superset-init-project]] (BDR-017), [[gstack-source-only-skills-unlinked]] (BLK-007).

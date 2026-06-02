@@ -40,6 +40,7 @@ rules:
 | LRN-017 | 2026-05-12 | Thin-dispatcher SKILL.md round-1 win = fallback + frontmatter triggers (+15 to +30) | any `/darwin-skill` round-1 on a dispatcher SKILL.md |
 | LRN-018 | 2026-05-12 | Darwin eval subagents drift on total math — recompute in main thread | any subagent-driven SKILL.md rescore |
 | LRN-019 | 2026-05-15 | Deployable-project doc split: README dev-quickstart + DEPLOY 14-section prod-VPS topology | any onboard/doc-syncer/scaffold producing docs for a deployable project |
+| LRN-024 | 2026-06-02 | New sibling command sharing logic → extract helper + refactor existing caller, never copy-paste; assert pre/post state equality | adding a subcommand/branch reusing logic inline in a peer command |
 
 ---
 
@@ -359,3 +360,14 @@ rules:
   - Lint via: `grep -n 'cd "$(dirname "${BASH_SOURCE' <script>` — every match should also contain `cd -P` (or be followed by an explicit `realpath` call).
 - **Cost when missed**: state lands in two parallel directories. Reads from one, writes from the other. False-negative status reports. Worst case: silent data loss when one dir is cleaned by a tool that thinks the other is canonical.
 - **Reference**: BLK-006, commit `a4558ee`. Linked to [[gstack-rename-profile-audit]] (LRN-022) — both bugs surfaced from the same `/profile set full` invocation, but root causes are independent.
+
+---
+
+## LRN-024 — New sibling command sharing logic → extract helper + refactor caller, never copy-paste
+
+- **Date**: 2026-06-02
+- **Pattern**: New `gstack on|off` needed same skill-toggle loops already inline in `cmd_reset` (enable-all-parked) + `cmd_set` (disable-not-in-profile). Copy-paste = divergence risk (gstack__ prefix logic, mktemp keep-file). Instead extracted `enable_all_gstack()` + `disable_gstack_not_in()` + `parked_gstack_count()`; refactored `cmd_reset`/`cmd_set` to call them, then added `cmd_gstack` as 3rd caller. Behavior preserved exact (code MOVED not changed).
+- **Why matters**: CLAUDE.md "more elegant solution exists?" — slight scope expansion (touch existing fns) beats duplication. Risk contained by test: snapshot original symlink state → run on/off cycle → re-park exact original → assert final == original. PASS, live env untouched.
+- **Key trick**: when mutating shared resource (symlinks, files, db), verify refactor by asserting `final_state == original_state` after a round-trip, not just "command exited 0".
+- **Applies to**: any new subcommand/branch reusing logic inline in a peer command — extract first, refactor existing caller, then add new caller. shellcheck after.
+- **Reference**: BDR-018, `lib/profile.sh` enable_all_gstack/disable_gstack_not_in/parked_gstack_count. Linked to [[gstack-on-off-verb]] (BDR-018).
