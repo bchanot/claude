@@ -8,7 +8,6 @@ skills/benchmark
 skills/browse
 skills/canary
 skills/careful
-skills/checkpoint
 skills/codex
 skills/connect-chrome
 skills/cso
@@ -45,6 +44,21 @@ skills/context-restore
 skills/context-save
 skills/make-pdf
 skills/plan-tune
+skills/spec
+skills/document-generate
+skills/landing-report
+skills/scrape
+skills/setup-gbrain
+skills/skillify
+skills/sync-gbrain
+# iOS device-farm skills (need a Mac daemon + Tailscale + iOS devices) —
+# not linked on this Linux host; ignored so they stay out of git if a
+# future gstack setup on a Mac host materializes the symlinks.
+skills/ios-clean
+skills/ios-design-review
+skills/ios-fix
+skills/ios-qa
+skills/ios-sync
 
 # External skill symlinks — auto-created by link.sh
 skills/emil-design-eng

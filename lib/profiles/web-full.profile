@@ -18,6 +18,7 @@ setup-browser-cookies
 # === Plan-mode reviews ================================================
 plan-ceo-review
 plan-eng-review
+spec
 
 # === Code work ========================================================
 feat                              personal

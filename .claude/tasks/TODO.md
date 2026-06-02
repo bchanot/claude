@@ -10,7 +10,7 @@
 - [x] Doc : SKILL.md argument-hint + exemples + output-policy (Makefile générique suffit)
 - [x] shellcheck propre + tests (help/bad-action/none-error/on/off cycle) — état live restauré exact
 - [x] Investigué "fix" full.profile : PAS un bug — curation par design (BDR-017 caveat). Aucun fix code.
-- [ ] FOLLOW-UP (BLK-007) : 6 skills gstack source (ios-*, spec) unlinkés post-bump → re-run gstack ./setup + reconcilier profils (iOS dans profils web ? probablement non)
+- [x] FOLLOW-UP (BLK-007 résolu) : linké `spec` (symlink chirurgical) + ajouté à full/web-full ; iOS NON linké (Linux, besoin Mac+Tailscale) ; `.gitignore` allowlist gstack complété (12 ajouts + checkpoint stale retiré) → `gstack on` git-clean ; LRN-025 capitalisé
 - [x] Capitalize : BDR-018, LRN-024, BLK-007, EVAL-002, journal 2026-06-02 + backfill index (BDR-017, BLK-005/006)
 
 ## README.md overhaul

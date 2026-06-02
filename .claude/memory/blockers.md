@@ -26,7 +26,7 @@ rules:
 | BLK-004 | 2026-05-20 | `/ship-feature` wrapper at `~/.claude/commands/` points to deleted agent files post-refactor | resolved |
 | BLK-005 | 2026-05-21 | gstack submodule rename (checkpoint→context-save) breaks profile entries | resolved |
 | BLK-006 | 2026-05-21 | `profile.sh current` false-negative via `~/.claude` symlink (`cd` not `cd -P`) | resolved |
-| BLK-007 | 2026-06-02 | 6 gstack source skills (ios-*, spec) unlinked post-bump — invisible to profiles + `gstack on` | open |
+| BLK-007 | 2026-06-02 | 6 gstack source skills (ios-*, spec) unlinked post-bump — invisible to profiles + `gstack on` | resolved |
 
 ---
 
@@ -91,5 +91,6 @@ rules:
 - **Date**: 2026-06-02
 - **Friction**: `skills-external/gstack/` has 53 source skills; 6 (`ios-clean`, `ios-design-review`, `ios-fix`, `ios-qa`, `ios-sync`, `spec`) exist ONLY as source — NOT symlinked into `skills/` (enabled) nor `skills-disabled/gstack__*` (parked). So invisible to Claude AND untouched by `reset`/`gstack on` (both operate on parked `gstack__*` only). Surfaced while adding `gstack on|off`: `comm` of gstack source vs `full.profile`.
 - **Real cause**: gstack submodule bump added new skills; gstack's own `./setup` (source of truth for per-skill symlinks per link.sh) not re-run → symlinks never created. Same lifecycle gap class as [[toggle-external-source-only-state]] (LRN-007). NOT a `full.profile` bug — full curated by design (BDR-017 caveat: "full excludes rarely-used gstack skills"). Initial "full omits ios = bug" flag was WRONG, self-corrected (see EVAL-002).
-- **Solution**: re-run gstack setup to link new skills, then reconcile profiles (decide if iOS skills belong in web/dev profiles — likely NOT). Per [[gstack-rename-profile-audit]] (LRN-022): diff `skills-external/gstack/` vs `lib/profiles/*.profile` after every submodule bump. NOT auto-fixed — gstack installer domain + iOS-in-web judgment call.
-- **Status**: open. Low impact (skills unused today, never linked). Next: run gstack `./setup`, audit profile membership.
+- **Solution applied** (NOT full `./setup` — surgical, no side effects): (1) Linked `spec` only — `mkdir skills/spec` + `ln -snf <abs>/skills-external/gstack/spec/SKILL.md skills/spec/SKILL.md`, matching gstack setup:440-476 (per-skill real dir + SKILL.md symlink, name from frontmatter). (2) Added `spec` to `full.profile` + `web-full.profile` planning sections (must be in active profile `full` else `set full` re-disables it). (3) iOS 5 skills deliberately NOT linked — Linux host, device-farm needs Mac daemon + Tailscale + iOS devices = dead skills + token cost. (4) Completed `.gitignore` gstack allowlist: added all 12 missing (`spec`, 5 `ios-*`, 6 parked `document-generate/landing-report/scrape/setup-gbrain/skillify/sync-gbrain`), removed stale `checkpoint` (BLK-005 rename). Reason: `gstack on` (BDR-018) moves parked skills into `skills/` — any gstack skill missing from allowlist = untracked git noise on enable.
+- **Verified**: `profile show full`+`web-full` → spec enabled; allowlist drift recheck EMPTY; spec skill now visible to Claude.
+- **Status**: resolved. iOS = intentional exclusion (re-linkable via gstack `./setup` on a Mac). See [[gstack-gitignore-allowlist-completeness]] (LRN-025).

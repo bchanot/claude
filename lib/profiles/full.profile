@@ -10,6 +10,7 @@ plan-eng-review
 plan-design-review
 plan-devex-review
 autoplan
+spec
 
 # === Design pipeline =================================================
 design-shotgun
