@@ -187,8 +187,9 @@ Key routing rules:
 - Update docs after shipping → invoke document-release, or doc if no gstack
 - Stale docs audit, doc sync → invoke doc
 - Weekly retro → invoke retro
-- Design system, brand → invoke design-consultation and use ui-ux-pro-max if available
-- Visual audit, design polish → invoke design-review which call ui-ux-pro-max
+- Design system, brand → invoke design-consultation, then full design toolchain (see "Design work" below)
+- Build UI / component / page / screen → full design toolchain (see "Design work" below)
+- Visual audit, design polish → invoke design-review + emil-design-eng lens + design-motion-principles (audit mode)
 - Architecture review → invoke plan-eng-review
 - Save progress, checkpoint, resume → invoke context-save
 - Code quality, health check → invoke health
@@ -209,6 +210,23 @@ UI/style signals in task. If design signals found and ui-ux-pro-max inactive,
 agent asks user whether to activate before proceeding.
 Gate spec: lib/design-gate.md. Orchestrators (ship-feature, init-project) already
 handle via STEP 0 plugin-check.
+
+Design work — full toolchain (tiered by scope):
+When a task touches design/UI, mobilize the available tools by scope. Reinforced by
+the design-toolchain-reminder UserPromptSubmit hook (injects this on UI signals).
+- Trivial (≤2 files, single cosmetic value, CSS tweak) → /hotfix, NO toolchain.
+- Build UI (new component, page, screen, redesign) → invoke ui-ux-pro-max (plan/build)
+  + frontend-design (anti AI-slop) + Magic MCP `/ui` (21st.dev component scaffold)
+  + emil-design-eng (polish pass, invisible details) + design-motion-principles
+  (when motion/transitions) + design-html (when static HTML / Pretext-native).
+- Design system / brand → design-consultation FIRST (aesthetic, type, color, spacing,
+  motion), THEN the build tools above.
+- Review / audit → design-review (visual QA + fix) + emil-design-eng lens
+  + design-motion-principles (audit mode, catch slop motion).
+In doubt about scope (is this a trivial tweak or a real UI change?) → do NOT silently
+skip the toolchain. Ask the user, or default to the Build tier rather than /hotfix.
+Magic MCP (@21st-dev/magic) is configured globally and costs API calls — use it for
+component generation, not micro-tweaks.
 
 ## graphify
 

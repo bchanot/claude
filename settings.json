@@ -230,6 +230,16 @@
             "statusMessage": "Tracking caveman mode..."
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/design-toolchain-reminder.sh",
+            "timeout": 5,
+            "statusMessage": "Checking design signals..."
+          }
+        ]
       }
     ]
   },
