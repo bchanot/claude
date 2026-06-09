@@ -40,6 +40,7 @@ rules:
 | BDR-016 | 2026-05-15 | doc-syncer: README AUTO+unconditional, DEPLOY.md prod-only + 14-section VPS template | accepted |
 | BDR-017 | 2026-05-18 | `full` profile = web-full + plan + dev superset for /init-project MVP | accepted |
 | BDR-018 | 2026-06-02 | `profile gstack on/off` verb — toggle gstack keeping active-profile label | accepted |
+| BDR-019 | 2026-06-09 | Remove `disable-model-invocation` repo-wide — align skills with CLAUDE.md routing | accepted |
 
 ---
 
@@ -337,3 +338,17 @@ rules:
   - Just document `reset`/`set` — rejected: user wanted clearer centralized verb + label preservation.
 - **Impl note**: extracted 3 shared helpers (`enable_all_gstack`, `disable_gstack_not_in`, `parked_gstack_count`); `cmd_reset`+`cmd_set` refactored to reuse (behavior preserved exact, verified by test). See [[dry-helper-extract-sibling-command]] (LRN-024).
 - **Reference**: `lib/profile.sh` cmd_gstack + helpers, `skills/profile/SKILL.md`. Linked to [[full-profile-superset-init-project]] (BDR-017), [[gstack-source-only-skills-unlinked]] (BLK-007).
+
+---
+
+## BDR-019 — Remove `disable-model-invocation` repo-wide, align skills with CLAUDE.md routing
+
+- **Date**: 2026-06-09
+- **Status**: accepted
+- **Decision**: Stripped `disable-model-invocation` frontmatter key from all 19 editable `skills/*/SKILL.md`. Absent key = default = model invocation ENABLED. 8 were `true` (blocked model + orchestrator routing: `status`, `plugin-check`, `analyze`, `onboard`, `refactor`, `init-project`, `pdf-translate`, `ship-feature`); 11 were `false` (already enabled, line was noise).
+- **Why**: `true` blocked model AND orchestrator from self-routing to those skills — contradicted CLAUDE.md "Skill routing" intent (e.g. "multi-file feature → ship-feature", "refactor → /refactor"). User hit it live: model detected feature intent, wanted `ship-feature`, couldn't fire. Setting binary (no per-caller granularity) → enabling orchestrator-chaining also enables model auto-fire; accepted as the cost.
+- **Alternatives rejected**:
+  - Keep `true` on 4 heavy orchestrators (`init-project`, `ship-feature`, `onboard`, `refactor`) — rejected: "destructive" framing wrong. `ship-feature` only commits + pushes a feature branch + opens PR (reversible, gated by internal STEPs); no prod deploy (that's `land-and-deploy`/`canary`). Real destructive ops (`rm -rf`, force-push, prod deploy) guarded by careful/guard hooks INDEPENDENT of this flag — verified live (`rm -rf` blocked this session). Flag bought ~0 data-safety, only suppressed auto-fire (token/time cost) while breaking routing.
+  - Remove only the 8 `true` ones — rejected: leaves 11 noise `false` lines; uniform removal cleaner.
+- **Durability**: all 8 ex-`true` skills are repo-only files (not gstack submodule) → edits not clobbered on gstack upgrade.
+- **Reference**: 18 `skills/*/SKILL.md` modified + `skills/capitalize/` new. Linked to [[disable-model-invocation-false-not-blocking]] (LRN-026).

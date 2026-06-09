@@ -10,7 +10,6 @@ description: |
   For multi-file features needing design → use /ship-feature.
   For bug fixes → use /hotfix or /bugfix.
 argument-hint: <feature description>
-disable-model-invocation: false
 allowed-tools:
   - Read
   - Edit

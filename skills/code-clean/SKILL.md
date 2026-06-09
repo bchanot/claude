@@ -9,7 +9,6 @@ description: |
   For targeted refactoring without audit → use /refactor instead.
   For bug fixes discovered during cleanup → logged to .claude/audits/BUGS-FOUND.md, not fixed here.
 argument-hint: <file, directory, or blank for entire project>
-disable-model-invocation: false
 allowed-tools:
   - Read
   - Edit

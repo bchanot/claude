@@ -8,7 +8,6 @@ description: |
   Trigger: "close", "end session", "ferme la session", "session close",
   "checkpoint memory", "what did we learn", "retro rapide", "fin de journée".
 argument-hint: (none — operates on the current conversation context)
-disable-model-invocation: false
 allowed-tools:
   - Read
   - Edit

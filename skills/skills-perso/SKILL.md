@@ -6,7 +6,6 @@ description: |
   Shows only skills the user wrote themselves.
   Trigger: "skills-perso", "mes skills", "list my skills", "quels skills", "skills perso".
 argument-hint: ""
-disable-model-invocation: false
 allowed-tools:
   - Bash
   - Read

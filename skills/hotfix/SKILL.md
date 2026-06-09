@@ -8,7 +8,6 @@ description: |
   "c'est juste un petit bug", "patch rapide".
   Do NOT use for bugs requiring investigation — use /bugfix instead.
 argument-hint: <bug description or error message>
-disable-model-invocation: false
 allowed-tools:
   - Read
   - Edit

@@ -10,7 +10,6 @@ description: |
   "rapport client", "deliverable", "summary for client", "handover doc",
   "livrable", "ship and handover", "finaliser et livrer".
 argument-hint: [optional: language fr|en, --include-deploy, --skip-deploy, --skip-seo, --skip-audits, --skip-fix-loop, --max-iterations N, --audit-max-age <duration>, --output <path>]
-disable-model-invocation: false
 allowed-tools:
   - Read
   - Write

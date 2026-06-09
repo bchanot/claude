@@ -10,7 +10,6 @@ description: |
   For obvious 1-2 file fixes → use /hotfix instead.
   For bugs that need investigation only (no fix) → use /analyze.
 argument-hint: <bug description, error message, or stack trace>
-disable-model-invocation: false
 allowed-tools:
   - Read
   - Edit

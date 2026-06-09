@@ -10,7 +10,6 @@ description: |
   "new feature not documented", "removed feature still in docs",
   "create README", "should I have a DEPLOY doc".
 argument-hint: [leave empty for full audit, or list specific files/docs to check]
-disable-model-invocation: false
 allowed-tools:
   - Read
   - Edit

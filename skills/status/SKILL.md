@@ -2,7 +2,6 @@
 name: status
 description: Consolidated project snapshot — plugins, token cost, git state, recent commits, GSD v2 milestone progress. Read-only. Run at session start or after a break. Triggers: "status", "sitrep", "where are we", "project state", "after break".
 argument-hint: (no arguments needed)
-disable-model-invocation: true
 allowed-tools: Read, Bash, Glob, Grep
 ---
 

@@ -9,7 +9,6 @@ description: |
   hygiene", "trier memoire", "nettoyer memoire", "registres trop longs",
   "compresse les memoires".
 argument-hint: [optional: decisions|learnings|blockers|journal|evals — default all 5]
-disable-model-invocation: false
 allowed-tools:
   - Read
   - Edit

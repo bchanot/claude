@@ -42,6 +42,7 @@ rules:
 | LRN-019 | 2026-05-15 | Deployable-project doc split: README dev-quickstart + DEPLOY 14-section prod-VPS topology | any onboard/doc-syncer/scaffold producing docs for a deployable project |
 | LRN-024 | 2026-06-02 | New sibling command sharing logic → extract helper + refactor existing caller, never copy-paste; assert pre/post state equality | adding a subcommand/branch reusing logic inline in a peer command |
 | LRN-025 | 2026-06-02 | `.gitignore` gstack allowlist must cover ALL toggleable skills (incl. parked) — else enabling one = untracked git noise | any toggle that moves local-symlink skills into a tracked dir; post-submodule-bump reconcile |
+| LRN-026 | 2026-06-09 | `disable-model-invocation: false` = ENABLED not blocking; only `true` blocks (model + orchestrator); binary, no per-caller | Claude Code skill frontmatter; deciding self-route/chain vs human-only entry point |
 
 ---
 
@@ -383,3 +384,13 @@ rules:
 - **Applies to**: any system where a local-only (gitignored) artifact gets MOVED into a tracked dir by a toggle. Allowlist/ignore rules must enumerate the artifact's BOTH states (parked + active). After a gstack submodule bump, reconcile THREE surfaces, not two: `lib/profiles/*.profile` (LRN-022) **AND** `.gitignore` skills allowlist **AND** decide link/no-link per skill (platform relevance — iOS skills are Mac-only).
 - **Detect**: `comm -23 <(gstack source skill names) <(grep '^skills/' .gitignore | sed 's#skills/##')` should be empty after any bump.
 - **Reference**: BLK-007, `.gitignore` gstack section. Linked to [[gstack-rename-profile-audit]] (LRN-022), [[gstack-on-off-verb]] (BDR-018).
+
+---
+
+## LRN-026 — `disable-model-invocation: false` means ENABLED, not blocked
+
+- **Date**: 2026-06-09
+- **Pattern**: frontmatter key reads as "disable?" → `false` = NOT disabled = model invocation ENABLED. Easy to misread `false` as "off/blocked"; it is the opposite. Only `true` blocks. Absent key = default = enabled. `true` blocks BOTH surfaces: model auto-routing (description-match) AND orchestrator/sub-skill chaining via the Skill tool. Binary — no per-caller granularity, so you cannot allow orchestrator-chaining while forbidding model auto-fire.
+- **Why matters**: two traps. (1) Adding `disable-model-invocation: false` thinking you block invocation — you don't, it's a no-op noise line. (2) Keeping `true` "for safety" on a skill you actually want orchestrators to chain (e.g. `ship-feature`, `refactor`) — silently breaks your own CLAUDE.md routing; the model sees the intent but can't fire. Real destructive-action safety = careful/guard hooks (block `rm -rf`/force-push live), INDEPENDENT of this flag — so `true` on an orchestrator buys ~0 data-safety, only suppresses auto-fire (token/time cost).
+- **Applies to**: any Claude Code skill frontmatter. Want skill model-routable + orchestrator-chainable → omit key (or `false`). Want human-only `/command` entry point → `true`, accepting it also blocks orchestrators. Guard genuinely dangerous ops at the hook layer, not via this flag.
+- **Reference**: BDR-019, 19 `skills/*/SKILL.md`. Linked to [[remove-disable-model-invocation-repowide]] (BDR-019).

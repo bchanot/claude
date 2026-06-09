@@ -1,7 +1,6 @@
 ---
 name: pdf-translate
 description: Use when translating a PDF (especially OCR or image-based) to another language and producing faithful HTML output. Handles image extraction, layout preservation, contextual translation, and style-matched reconstruction. Triggers on "translate this PDF", "PDF en francais", "convert PDF to HTML translated", "traduire ce document".
-disable-model-invocation: true
 ---
 
 # PDF Translate

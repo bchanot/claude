@@ -139,3 +139,10 @@ rules:
 - BDR-018 + LRN-024 + BLK-007 + EVAL-002 capitalized.
 - Treated BLK-007 (resolved). Root: gstack submodule bump added `spec` (v1.47) + iOS device-farm 5 skills (v1.43); gstack `./setup` not re-run → 6 source-only, unlinked. Decision: linked `spec` only (surgical symlink matching setup:440-476), added to `full`+`web-full` profiles; iOS NOT linked (Linux host, needs Mac daemon+Tailscale = dead skills). Completed `.gitignore` gstack allowlist (12 missing added incl. 6 parked that would noise on `gstack on`, stale `checkpoint` removed). Verified: spec enabled, allowlist drift EMPTY, profile.sh parses.
 - LRN-025 capitalized — `.gitignore` allowlist must cover ALL toggleable gstack skills (parked too), else `gstack on` surfaces untracked symlinks; reconcile profiles + gitignore + link/no-link per platform after every submodule bump.
+
+## 2026-06-09
+
+- Built `/capitalize` skill (`skills/capitalize/`) — pre-`/clear`/`/compact` flush: scan conversation → dedup vs registries → propose only NEW + uncaptured → approval gate → write all 5 registries. Distinct from `/close` (no dedup) + `/prune-memory` (curation).
+- Baseline-tested per superpowers:writing-skills: RED (no skill) double-logged one incident across LRN+BLK; GREEN (skill) passed clean on isolated fixture (2 new written, 2 dups dropped, trivial skipped, correct IDs, append-only). REFACTOR added "one incident → one primary registry" counter. Dedup half inconclusive (toy fixture eyeball-able — value shows at real registry scale).
+- Removed `disable-model-invocation` from all 19 editable skills (8 `true` blocked model+orchestrator routing incl `ship-feature`; 11 `false` were no-op noise). Aligns with CLAUDE.md routing — model/orchestrator can now self-route. Conceded own wrong "destructive" framing; real guard = careful/guard hooks.
+- BDR-019 + LRN-026 capitalized.

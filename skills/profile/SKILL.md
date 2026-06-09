@@ -9,7 +9,6 @@ description: |
   "profil design", "active les skills design", "désactive gstack",
   "réduire le bruit gstack".
 argument-hint: list | show <name> | current | apply <name> | set <name> | reset | gstack on|off | diff <a> <b>
-disable-model-invocation: false
 allowed-tools:
   - Bash
   - Read
