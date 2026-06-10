@@ -186,8 +186,7 @@
     "disableBypassPermissionsMode": "disable",
     "additionalDirectories": []
   },
-  "model": "claude-opus-4-8[1m]",
-  "effortLevel": "xhigh",
+  "model": "claude-fable-5[1m]",
   "hooks": {
     "SessionStart": [
       {
@@ -287,6 +286,7 @@
       }
     }
   },
+  "effortLevel": "xhigh",
   "remoteControlAtStartup": true,
   "skipAutoPermissionPrompt": true
 }
