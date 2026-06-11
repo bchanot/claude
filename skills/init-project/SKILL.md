@@ -76,7 +76,7 @@ Creates: CLAUDE.md, settings, structure, config, empty entry points, .gitignore,
 Verify: `git init` + build passes.
 
 ## STEP 5b — CREATE README
-Load `$HOME/.claude/agents/readme-updater.md`. README.md missing → CREATE mode auto. No stop.
+Load `$HOME/.claude/agents/doc-syncer.md` (AUTO MODE, scope: full project). README.md missing → its README bootstrap creates it. No stop.
 
 ## STEP 5c — CTX7 PRE-FETCH (if fast-libs detected)
 If `fast-libs` signal was detected in STEP 0 (Next.js, React 18+, Prisma, Supabase, Drizzle, etc.):
@@ -165,7 +165,7 @@ Invoke `superpowers:requesting-code-review`. Fix all CRITICAL before proceeding.
 Invoke `superpowers:finishing-a-development-branch`. Tests pass, build clean, no placeholders, initial commit ready.
 
 ## STEP 12 — SYNC README
-Load `$HOME/.claude/agents/readme-updater.md` with arg `sync`. Detect drift, update cmds/vars/structure, add recent changes entry.
+Load `$HOME/.claude/agents/doc-syncer.md` (AUTO MODE, scope: files changed this session). Detect drift, update cmds/vars/structure, add recent changes entry.
 
 ## STEP 13 — GSD v2 INIT (optional)
 If `multi-session` signal was detected in STEP 0 OR the project has >3 planned milestones:
