@@ -66,7 +66,10 @@ OPEN QUESTIONS:
 - <ambiguity to clarify>
 ```
 
-Update project memory with discovered patterns and conventions.
+Surface discovered patterns and conventions in the analysis output
+(CONTEXT / KEY COMPONENTS) — never write them to files yourself: the
+"Do not modify files" rule wins. Persisting to `.claude/memory/`
+happens in the main thread via the gated capitalize flow.
 
 ---
 
