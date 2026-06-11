@@ -653,6 +653,11 @@ watching, modify NOTHING: document every proposed fix in the report
 robots.txt and llms.txt untouched/uncreated. Next reachable run applies
 them after the plan gate.
 
+Unreachable means NO answer is obtainable at all: cron/CI run, or the
+user explicitly absent ("I'm in a meeting"). Being dispatched as a
+subagent by an orchestrator (e.g. /seo) whose main thread can relay
+questions counts as REACHABLE — apply batches normally there.
+
 ---
 
 ## STEP 13 — EXECUTE FIXES `[both]`
