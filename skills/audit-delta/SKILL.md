@@ -70,6 +70,11 @@ Schema:
 - File missing → first run ever: create it with all four axes `null` (create
   `.claude/audits/` if absent). Do NOT scan `.claude/audits/` for old report
   files to guess a boundary — dated reports are not checkpoints.
+- File present but unparseable (invalid JSON, merge-conflict markers) →
+  trust NO axis: show the user the corrupt content, ask repair or reset.
+  User unreachable → full codebase, **report-only**, file left exactly
+  as found (same rule as a dangling marker: corrupted state only the
+  user can repair).
 - `last_sha` null for a selected axis → first run for that axis: ask the
   user (in STEP 2's question or a follow-up) whether to audit the **full
   codebase** or start from a **given ref** (tag, SHA, `origin/main`).
@@ -167,6 +172,8 @@ AskUserQuestion: **fix all / pick which / none**.
 - User unreachable / no answer possible (headless, "I'm in a meeting") →
   audit + report ONLY. No fixes. Marker still updates (3f) — the audit
   itself is complete; findings stay `open` in the report for next time.
+  (Exception: dangling-marker and corrupted-state runs — STEP 0 — never
+  advance markers, regardless of this rule.)
 - "None" → mark findings `declined`, jump to 3f.
 
 ### 3d. FIX
@@ -185,6 +192,9 @@ Mandatory after any fix. Lint alone is NOT re-verification.
    repo's Health Stack: `shellcheck *.sh hooks/*.sh lib/*.sh`).
 3. Fail → fix → re-verify again. Max 3 cycles, then STOP and ask the
    user: keep partial / revert this axis's fixes / handle manually.
+   User unreachable at this STOP → **revert this axis's fixes** (fail
+   closed), findings back to `open`, marker untouched; record the
+   revert in the report.
 
 Only a passing re-verify (or a no-fix run) closes the axis.
 
