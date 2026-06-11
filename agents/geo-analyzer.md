@@ -645,6 +645,14 @@ Consolidate EVERY finding from STEPs 4-9 into structured batches.
 
 Print the plan before STEP 13.
 
+**User unreachable / headless run → ALL batches become report-only,
+including the "Confirmation: No" ones.** Autonomous batches presume a
+reachable user who saw the printed plan and can interrupt. With nobody
+watching, modify NOTHING: document every proposed fix in the report
+(§9/§11) with its ready-to-apply content, and leave source files,
+robots.txt and llms.txt untouched/uncreated. Next reachable run applies
+them after the plan gate.
+
 ---
 
 ## STEP 13 — EXECUTE FIXES `[both]`
