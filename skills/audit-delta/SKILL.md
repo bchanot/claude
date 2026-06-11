@@ -79,7 +79,11 @@ Schema:
   skips the entire existing codebase.
 - `last_sha` no longer exists (`git cat-file -e <sha>^{commit}` fails —
   rebase/force-push) → tell the user, ask for a replacement base. Never
-  silently fall back to a guess.
+  silently fall back to a guess. User unreachable / no answer possible →
+  audit the **full codebase, report-only** for that axis and leave its
+  marker **untouched**: a dangling marker is corrupted state only the
+  user can repair, so the question re-raises next run. (Unlike first-run
+  null — defined semantics — a broken marker never advances on a default.)
 - Markers are **per axis** because runs are partial: auditing only
   `security` today must not advance `conformity`'s marker.
 
@@ -118,6 +122,11 @@ option per axis, each showing its staleness:
 [ ] deadcode   — dead/zombie code         (last: 2026-06-04, 12 commits behind)
 [ ] security   — secrets/injection/authz  (last: 2026-06-04, 12 commits behind)
 ```
+
+User unreachable / no answer possible AND no axes in `$ARGUMENTS` →
+default to **all four axes** (null-marker axes follow STEP 0's first-run
+default: full codebase, report-only); state the defaulting in the report
+header.
 
 ## STEP 3 — PER-AXIS LOOP
 
@@ -253,6 +262,7 @@ Then offer to capitalize (per CLAUDE.md): recurring finding patterns →
 | Writing learnings/journal entries autonomously | Registries only via the gated capitalize offer. |
 | Treating an empty delta as an error | "Nothing changed" = success: report it, advance the marker. |
 | First-run axis + unreachable user → marker set to HEAD, nothing audited | Silently skips the whole codebase. Default = full codebase, report-only. |
+| Dangling marker + unreachable user → full audit, then marker advanced anyway | Marker repair needs a user-approved base. Report-only, marker untouched, ask again next run. |
 
 ## Red flags — STOP
 

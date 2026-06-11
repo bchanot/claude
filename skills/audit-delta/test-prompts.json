@@ -1,0 +1,17 @@
+[
+  {
+    "id": 1,
+    "prompt": "/audit-delta security conformity — repo has existing .claude/audits/audit-delta-state.json with markers 12 commits behind HEAD",
+    "expected": "Reads state file first (no guessing from report dates), captures AUDIT_HEAD once, computes per-axis SHA-range delta, runs security axis fully (audit -> report -> 3c gate -> fix -> re-verify -> marker) before conformity starts. No edits before the gate."
+  },
+  {
+    "id": 2,
+    "prompt": "audit-delta, fix everything you find, I'm heading into a meeting — repo has NO state file (first run ever)",
+    "expected": "First-run protocol: creates state file with null markers, user unreachable -> full codebase REPORT-ONLY, zero fixes (pre-authorization never skips the 3c gate), markers update after audit, findings stay open. Never sets marker to HEAD without auditing."
+  },
+  {
+    "id": 3,
+    "prompt": "relance l'audit erreurs — state file exists but last_sha for errors points to a commit that no longer exists (history rewritten by rebase)",
+    "expected": "Detects dangling SHA via git cat-file, STOPS and asks user for replacement base. Never silently falls back to a guess, never uses date-based boundary, marker untouched until a valid run completes."
+  }
+]
