@@ -41,6 +41,7 @@ rules:
 | BDR-017 | 2026-05-18 | `full` profile = web-full + plan + dev superset for /init-project MVP | accepted |
 | BDR-018 | 2026-06-02 | `profile gstack on/off` verb — toggle gstack keeping active-profile label | accepted |
 | BDR-019 | 2026-06-09 | Remove `disable-model-invocation` repo-wide — align skills with CLAUDE.md routing | accepted |
+| BDR-020 | 2026-06-11 | `/audit-delta`: per-axis SHA markers + always-on fix gate + unreachable-first-run = full report-only | accepted |
 
 ---
 
@@ -352,3 +353,31 @@ rules:
   - Remove only the 8 `true` ones — rejected: leaves 11 noise `false` lines; uniform removal cleaner.
 - **Durability**: all 8 ex-`true` skills are repo-only files (not gstack submodule) → edits not clobbered on gstack upgrade.
 - **Reference**: 18 `skills/*/SKILL.md` modified + `skills/capitalize/` new. Linked to [[disable-model-invocation-false-not-blocking]] (LRN-026).
+
+---
+
+## BDR-020 — `/audit-delta` design: per-axis SHA markers, always-on fix gate, unreachable-first-run = full report-only
+
+- **Date**: 2026-06-11
+- **Status**: accepted
+- **Decision**: New skill `skills/audit-delta/SKILL.md` — recurring multi-axis audit (conformity/errors/deadcode/security) scoped to delta since last run. 3 design choices: (1) state = `.claude/audits/audit-delta-state.json`, SHA marker PER AXIS (partial runs would desync single marker); (2) approval gate per axis ALWAYS fires — advance pre-auth ("fix what you find") never skips it, findings unknown at request time; user unreachable → audit + report only, no fix, marker still advances; (3) first-run axis + unreachable user → default full codebase report-only, never "from HEAD" (would skip entire existing codebase silently). Axis order fixed security→errors→conformity→deadcode (critical first, session-death safe). Re-verify = same-axis re-audit on modified files + project checks, lint alone insufficient. Built via superpowers:writing-skills TDD (RED 7 gaps / GREEN pass under pressure / REFACTOR 1 hole patched + re-tested).
+- **Alternatives rejected**:
+  - Extend `/code-clean` or `/health` — rejected: no recurrence state (health re-scans all, tracks scores not scope; code-clean one-shot), no multi-axis checkbox selection, cost not proportional to delta.
+  - 4 separate skills (1 per axis) — rejected: user wants checkbox combo in one run; shared marker protocol + gate + re-verify loop would quadruplicate.
+  - Single global marker — rejected: run "security only" then "conformity" → conformity range wrong.
+  - Date-based boundary — rejected: drifts on rebase/timezone/amend (baseline agent failure, see LRN-027).
+- **Reference**: `skills/audit-delta/SKILL.md`. Linked to [[periodic-skill-state-file]] (LRN-027), [[capitalize-skill]] (skill TDD precedent, BDR-019 era).
+
+---
+
+## BDR-021 — CLAUDE.md restructure: contradiction purge, project-specific sections labeled, critical sections never compressed
+
+- **Date**: 2026-06-12
+- **Status**: accepted
+- **Decision**: Full refactor global CLAUDE.md (commit e7e9dac), Fable 5 audit. 4 contradictions resolved (2 graphify sections merged conditional on graph.json existing; "in doubt skip plan" no longer cancels plan mandate — borderline = single-file small obvious change; deviations minor/justified→after vs significant/shaky→before; append-only reconciled with /prune-memory). 3 dead refs fixed (/caveman-compress, design-gate → ~/.claude/lib/ portable, LESSONS note). Structure: Tooling & skills + "This repo only" top-level sections — Health Stack/routing/graphify no longer nested under Communication mode. Routing +8 skills + explicit gstack-OFF rule. Compression caveman on workflow/memory/routing ONLY: **Architecture decisions + Security stay verbatim — ambiguity there costs more than tokens saved**. Net -1471 chars despite added content.
+- **Alternatives rejected**:
+  - Compress whole file incl. Security/Architecture — rejected: precision > tokens on non-negotiable rules; misread security default = real damage.
+  - Split global vs repo-specific into 2 files — rejected: symlink setup (~/.claude/CLAUDE.md → repo) means 1 file everywhere; "This repo only" section header cheaper than 2-file sync.
+  - Delete graphify section (graph.json absent) — rejected: conditional phrasing keeps rules dormant-but-ready; regenerating graph re-activates without doc edit.
+- **Durability**: heading "Design work — full toolchain (tiered by scope)" preserved verbatim — design-toolchain-reminder.sh quotes it. Norms 25/80/5/5 unchanged — audit-delta conformity axis cites them.
+- **Reference**: CLAUDE.md, commit e7e9dac. Linked to [[audit-delta-design]] (BDR-020), LRN-029 (exception edits need blanket-rule cross-ref — applied here).

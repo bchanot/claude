@@ -146,3 +146,15 @@ rules:
 - Baseline-tested per superpowers:writing-skills: RED (no skill) double-logged one incident across LRN+BLK; GREEN (skill) passed clean on isolated fixture (2 new written, 2 dups dropped, trivial skipped, correct IDs, append-only). REFACTOR added "one incident → one primary registry" counter. Dedup half inconclusive (toy fixture eyeball-able — value shows at real registry scale).
 - Removed `disable-model-invocation` from all 19 editable skills (8 `true` blocked model+orchestrator routing incl `ship-feature`; 11 `false` were no-op noise). Aligns with CLAUDE.md routing — model/orchestrator can now self-route. Conceded own wrong "destructive" framing; real guard = careful/guard hooks.
 - BDR-019 + LRN-026 capitalized.
+
+## 2026-06-11
+
+- Built `/audit-delta` skill (`skills/audit-delta/`) — recurring multi-axis audit (conformity CLAUDE.md / errors / deadcode / security), checkbox selection, scope = delta since last run via per-axis SHA markers in `.claude/audits/audit-delta-state.json`. Per axis: read-only audit → approval gate → fix → mandatory re-verify (same-axis re-audit + project checks) → marker advance. Answered user need: no existing skill covered "since last run" (health re-scans all, retro time-window, code-review branch-only).
+- TDD per superpowers:writing-skills, 4 worktree-isolated subagent tests: RED baseline 7 gaps (file-date boundary guess, prose checkpoint, single marker, no gate under "fix + meeting" pressure, lint=verify, mixed pass, auto registry writes); GREEN passed under same pressure (gate held, 0 fixes); REFACTOR found + patched unreachable-first-run hole (default full report-only, never from-HEAD); re-test pass. Worktrees cleaned.
+- BDR-020 + LRN-027 capitalized. Uncommitted — /commit-change pending.
+- Darwin run on `audit-delta`: 87.5 → 89.9, 2 rounds kept (0d2ece7 unreachable-user branches, 9fc93fa contradiction + corrupted-JSON + fail-closed revert), 8 live fixture tests + 4/4 blind-judge consensus, HL-4 stop, ff-merged to master. Result card generated. LRN-028 (baseline contamination) + LRN-029 (judges catch self-review misses) + EVAL-003 capitalized.
+- Darwin eval 26 perso skills: 5 judges structure (33.5–66.8/76), 5 full_tests. Stubs score low but execute great (substance in agents/*.md) — judge system not file. 4 confirmed bugs fixed + merged (geo headless gate ★, init-project broken ref, analyzer contradiction, onboard frontmatter); geo re-test 0 source edits, judges 2/2. Overwrote 5 existing test-prompts.json by mistake — restored. EVAL-004.
+
+## 2026-06-12
+
+- Fable 5 audit global CLAUDE.md → refactor e7e9dac: 4 contradictions (graphify x2 stale, plan-skip, deviations, append-only), 3 dead refs, restructure (Tooling & skills + This-repo-only sections), routing +8 skills + gstack-OFF rule, caveman compress non-critical only (-1471 chars net). Security/Architecture verbatim by design. BDR-021.

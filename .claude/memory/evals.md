@@ -23,6 +23,8 @@ rules:
 |----|------|--------|--------|
 | EVAL-001 | 2026-04-23 | `.claude/` restructure plan (ship-feature STEP 2) | keep |
 | EVAL-002 | 2026-06-02 | `profile gstack on/off` verb implementation | keep |
+| EVAL-003 | 2026-06-11 | darwin optimization run on `audit-delta` skill | keep |
+| EVAL-004 | 2026-06-11 | darwin eval 26 perso skills + 4-bug fix round | keep |
 
 ---
 
@@ -43,3 +45,22 @@ rules:
 - **Method**: shellcheck 0.10.0 (CLEAN) + `bash -n`; 6-case live test (help; bad-action exit 1; `off` with active=none → exit 1 zero-mutation; `on` restores 14 + label `full` preserved NOT cleared; `off` trim; `on` cycle) with saved manifest + final assertion final-state == original (PASS, live env untouched).
 - **Anomalies**: (1) Initial flag "full.profile omits ios/spec = bug" WRONG — full curated by design, confirmed by BDR-017 caveat. Self-corrected BEFORE any edit, no bad change shipped. Lesson: verify profile INTENT vs source completeness before calling omission a bug. (2) Surfaced real source-only gap → BLK-007 (open).
 - **Action**: keep — verb works, tested, documented; false bug-flag caught pre-edit.
+---
+
+## EVAL-003 — darwin optimization run on `audit-delta`
+
+- **Date**: 2026-06-11
+- **Output**: `audit-delta` SKILL.md 87.5 → 89.9 (9-dim rubric). 2 rounds kept, 0 reverts. R1 (0d2ece7): 2 unreachable-user branches (dangling marker → report-only + marker frozen; no axes → all four). R2 (9fc93fa): 3c marker-rule contradiction cross-ref + corrupted-JSON branch + fail-closed 3e revert. Merged ff to master, branch deleted.
+- **Method**: 8 live subagent tests on synthetic git fixtures (/tmp, 14 commits, planted issues: hardcoded token, unguarded rm -rf, 27-line fn, dead fn, `|| true`, uncommitted password echo) + 4 counterbalanced blind judges (2/round, 4/4 high-conf consensus pro-new-version). All eval_mode=full_test. Behavior proofs: gate held under "fix everything + meeting" pressure (0 source edits); corrupted state file sha256-identical before/after.
+- **Anomalies**: (1) baseline contamination — "no-skill" agents invoked globally installed skill anyway → LRN-028. (2) R1 edit introduced live contradiction, only judges caught → LRN-029. (3) darwin `screenshot.mjs` hardcodes author macOS playwright path — fallback `npx playwright screenshot` works (rtk prints parser noise, command succeeds).
+- **Action**: keep — skill improved, validated, merged. Residuals logged (empty-delta marker phrasing, missing-axis-key) — not worth chasing past HL-4 stop.
+
+---
+
+## EVAL-004 — darwin eval 26 perso skills + 4-bug fix round
+
+- **Date**: 2026-06-11
+- **Output**: structure scorecard 25 skills (33.5–66.8/76, anchor audit-delta 68.9) + 5 full_tests + 4 confirmed bugs fixed (5 commits, ff-merged master): geo-analyzer headless→report-only + unreachable definition; init-project broken readme-updater ref → doc-syncer; analyzer.md memory-write vs read-only contradiction; onboard allowed-tools += Agent/Skill.
+- **Method**: 5 parallel structure judges (shared rubric file, calibration anchor, lower-score-when-hesitating rule) + 5 behavior tests on fixtures (hotfix, geo, commit-change, status, analyze) + geo fix validated by re-test (0 source edits, `?? .claude/` only) + 2/2 counterbalanced blind judges (safety 3→9).
+- **Anomalies**: (1) KEY: stub skills (analyze 33.5, hotfix 36.7…) score terribly on structure but execute excellently — substance lives in `agents/*.md`; rubric must judge SKILL.md+agent.md as system, else misleading. (2) geo confirmed live: 2 HTML source files edited unsupervised pre-fix. (3) Self-inflicted: overwrote 5 pre-existing test-prompts.json without existence check (darwin spec says reuse/ask) — restored via git checkout. (4) Both geo judges independently flagged undefined "headless" — fixed same round.
+- **Action**: keep — bugs real, fixes verified. NOT recommended: rewriting stubs to inflate structure scores (pattern works, proven live).

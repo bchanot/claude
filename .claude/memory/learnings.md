@@ -43,6 +43,7 @@ rules:
 | LRN-024 | 2026-06-02 | New sibling command sharing logic → extract helper + refactor existing caller, never copy-paste; assert pre/post state equality | adding a subcommand/branch reusing logic inline in a peer command |
 | LRN-025 | 2026-06-02 | `.gitignore` gstack allowlist must cover ALL toggleable skills (incl. parked) — else enabling one = untracked git noise | any toggle that moves local-symlink skills into a tracked dir; post-submodule-bump reconcile |
 | LRN-026 | 2026-06-09 | `disable-model-invocation: false` = ENABLED not blocking; only `true` blocks (model + orchestrator); binary, no per-caller | Claude Code skill frontmatter; deciding self-route/chain vs human-only entry point |
+| LRN-027 | 2026-06-11 | Agents improvise audit boundaries from file dates when no machine state — periodic skills need machine-readable state file, never inference | any recurring/periodic skill needing "since last run" semantics |
 
 ---
 
@@ -394,3 +395,36 @@ rules:
 - **Why matters**: two traps. (1) Adding `disable-model-invocation: false` thinking you block invocation — you don't, it's a no-op noise line. (2) Keeping `true` "for safety" on a skill you actually want orchestrators to chain (e.g. `ship-feature`, `refactor`) — silently breaks your own CLAUDE.md routing; the model sees the intent but can't fire. Real destructive-action safety = careful/guard hooks (block `rm -rf`/force-push live), INDEPENDENT of this flag — so `true` on an orchestrator buys ~0 data-safety, only suppresses auto-fire (token/time cost).
 - **Applies to**: any Claude Code skill frontmatter. Want skill model-routable + orchestrator-chainable → omit key (or `false`). Want human-only `/command` entry point → `true`, accepting it also blocks orchestrators. Guard genuinely dangerous ops at the hook layer, not via this flag.
 - **Reference**: BDR-019, 19 `skills/*/SKILL.md`. Linked to [[remove-disable-model-invocation-repowide]] (BDR-019).
+
+---
+
+## LRN-027 — Periodic "since last run" skill needs machine-readable state file — agents improvise boundaries from file dates otherwise
+
+- **Date**: 2026-06-11
+- **Context**: TDD baseline for `/audit-delta` (superpowers:writing-skills RED phase, isolated worktree, no skill). Agent asked to "audit everything changed since last audit run". No recorded state → agent guessed boundary from most recent file mtime/date in `.claude/audits/` (grabbed `DARWIN-SKILL-2026-05-12.md` — darwin report, not audit checkpoint), used `git log --after=<date>` (date-based, drifts on rebase/timezone/amend), then wrote ITS checkpoint as prose inside dated report — next run must guess again, same failure loop. Also: zero approval gate under "fix what you find + I'm in meeting" pressure, shellcheck-pass called "verified", all axes one mixed pass.
+- **Pattern**: any recurring skill with "since last run" semantics MUST persist machine-readable state (JSON, SHA-based, per-dimension if partial runs possible) + skill must FORBID inference fallbacks explicitly ("do NOT scan report dates", "no `--after`"). Baseline agents fill state vacuum with plausible-wrong heuristics, confidently.
+- **Why matters**: improvised boundary = wrong scope silently. Date boundaries break on rebase. Prose checkpoints unparseable. Single marker desyncs partial runs.
+- **Applies to**: future periodic skills (audit, sync, drift-check, recurring reports). Design state file FIRST, write anti-inference rules in skill body.
+- **Reference**: `skills/audit-delta/SKILL.md` STEP 0 + Common mistakes table. Linked to [[audit-delta-design]] (BDR-020).
+
+---
+
+## LRN-028 — "No-skill" subagent baselines invalid when skill installed globally — subagents see + invoke installed skills
+
+- **Date**: 2026-06-11
+- **Context**: darwin run on `audit-delta`. 3 baseline subagents (prompt without skill) meant as no-skill control. All 3 followed skill protocol anyway — one report said "Invoked the /audit-delta skill". Skill symlinked in `~/.claude/skills/` → auto-listed in every subagent's available-skills → "baseline" = contaminated, differential comparison dead.
+- **Pattern**: control condition must REMOVE capability, not omit mention. Globally installed skills leak into all subagents. True baseline: fixture env with skill uninstalled/renamed, or isolated worktree pre-install (how audit-delta's own TDD RED phase did it — only valid baseline evidence that run).
+- **Detect**: baseline report cites skill name / follows its exact protocol → contaminated.
+- **Applies to**: darwin dim8 with/without tests, any A/B skill eval, TDD RED baselines.
+- **Reference**: darwin results.tsv 2026-06-11 baseline row. Linked to [[audit-delta-design]] (BDR-020), LRN-027.
+
+---
+
+## LRN-029 — Edit adding exception to blanket rule WILL contradict it — counterbalanced blind judges catch what self-review misses
+
+- **Date**: 2026-06-11
+- **Context**: darwin Round 1 added STEP 0 exception (dangling marker → marker frozen) to `audit-delta`. Pre-existing 3c blanket rule ("unreachable user → marker still updates") now contradicted it. Self-review missed; 4/4 independent blind judges (2 per round, doc order swapped to kill position bias) flagged the live contradiction. Round 2 fixed via explicit cross-ref exception clause in 3c.
+- **Pattern**: (1) any edit adding exception → grep doc for blanket rules covering same variable (here: marker updates), cross-ref or contradict. (2) Judge protocol that works: 2+ judges, A/B order counterbalanced, blind to version age, score named dims, require consensus. SkillLens 46.4% solo-judge accuracy is real — consensus + counterbalance compensates.
+- **Why matters**: improvement edits create inconsistency debt invisible to author in same context (darwin blacklist #1).
+- **Applies to**: skill/doc/spec edits adding branches; any self-modified artifact scoring.
+- **Reference**: commits 0d2ece7 (introduced), 9fc93fa (fixed). Linked to LRN-027.

@@ -166,3 +166,29 @@ Subtasks :
 - [x] Tests : `set web` enable ui-ux-pro-max+magic, `set seo` disable ui-ux-pro-max, `set minimal` épargne always-on, `reset` restaure 64 skills
 - [x] Memoire : BDR-008 (v2 décision) + journal entry 2026-05-04
 - [x] Shellcheck propre
+
+## /audit-delta — skill audit incrémental multi-axes (2026-06-11)
+But : 1 skill, 4 axes cochables (conformité CLAUDE.md, erreurs/améliorations,
+code mort, sécurité), scope = diff depuis dernier run (marqueur SHA persistant,
+par axe), boucle par axe : audit → gate approbation → fix → re-vérification
+obligatoire avant axe suivant. Construit via superpowers:writing-skills (TDD).
+- [x] RED : baseline subagent sans skill (worktree isolé) — 7 gaps documentés
+      (boundary par date de fichier, checkpoint en prose, pas de marqueur par
+      axe, zéro gate, lint=verify, passe unique mélangée, registres auto-écrits)
+- [x] GREEN : skills/audit-delta/SKILL.md — pass sous pression (state file
+      utilisé, gate tenu malgré "fix tout + meeting", marqueurs par axe OK)
+- [x] REFACTOR : trou trouvé (premier run + user injoignable, aucune règle) →
+      patch : défaut full codebase report-only, jamais "from HEAD" ; re-test pass
+- [x] Vérif finale : skill découvrable (~/.claude/skills/audit-delta via symlink
+      skills/), frontmatter valide, worktrees de test nettoyés
+- [x] Capitalize : BDR-020 + LRN-027 + journal 2026-06-11
+- [ ] Commit (via /commit-change quand prêt)
+
+## 2026-06-11 — darwin eval: 4 confirmed bugs fix (branch auto-optimize/*-bugfixes)
+
+- [x] geo-analyzer.md: unreachable user → ALL file fixes report-only (STEP 12/13 triage gate)
+- [x] init-project SKILL.md: repoint readme-updater.md (absent) → doc-syncer.md x2
+- [x] analyzer.md: resolve "Update project memory" vs "Do not modify files" contradiction
+- [x] onboard SKILL.md: allowed-tools += Agent, Skill (workflow STEPs 5-7 need them)
+- [x] re-test geo fixture (unreachable) → expect zero source edits; 2 blind judges on geo-analyzer diff
+- [x] commit per fix, results.tsv rows, merge if green
