@@ -42,6 +42,7 @@ rules:
 | BDR-018 | 2026-06-02 | `profile gstack on/off` verb — toggle gstack keeping active-profile label | accepted |
 | BDR-019 | 2026-06-09 | Remove `disable-model-invocation` repo-wide — align skills with CLAUDE.md routing | accepted |
 | BDR-020 | 2026-06-11 | `/audit-delta`: per-axis SHA markers + always-on fix gate + unreachable-first-run = full report-only | accepted |
+| BDR-022 | 2026-06-18 | doc-syncer scoped to public docs; `.claude/` + `CLAUDE.md` read-only context, never targets; conventions + clean mode | accepted |
 
 ---
 
@@ -381,3 +382,16 @@ rules:
   - Delete graphify section (graph.json absent) — rejected: conditional phrasing keeps rules dormant-but-ready; regenerating graph re-activates without doc edit.
 - **Durability**: heading "Design work — full toolchain (tiered by scope)" preserved verbatim — design-toolchain-reminder.sh quotes it. Norms 25/80/5/5 unchanged — audit-delta conformity axis cites them.
 - **Reference**: CLAUDE.md, commit e7e9dac. Linked to [[audit-delta-design]] (BDR-020), LRN-029 (exception edits need blanket-rule cross-ref — applied here).
+
+---
+
+## BDR-022 — doc-syncer scoped to public docs only; `.claude/` + `CLAUDE.md` read-only context
+
+- **Date**: 2026-06-18
+- **Status**: accepted
+- **Decision**: Rewrote `agents/doc-syncer.md`. Sync targets = PUBLIC docs ONLY: README, INSTALL, CONFIGURE, USAGE, DEPLOY, CONTRIBUTING, CHANGELOG, SECURITY, ARCHITECTURE, LICENSE, docs/**. `.claude/**` + `CLAUDE.md` = read-only context: agent MAY read them to understand archi/features/constraints, NEVER modifies them, NEVER lists as targets, NEVER copies their content into a public doc. Removed STEP 4 blocks auditing TODO.md / audits/*.md / decisions-learnings-blockers. Added normative CONVENTIONS (Standard-Readme, Diátaxis doc-type split, Keep a Changelog + SemVer, Conventional Commits). README lean — dropped Status + Project layout, forbids roadmap/todo/internal-state, links to Diátaxis docs not duplicate. Added CLEAN mode (`clean` arg) → propose removal of out-of-convention sections + copied-`.claude/` content from existing public docs, HUMAN-gated. Conserved: stack detection, 14-section DEPLOY gate, validation gate, AUTO/HUMAN tagging, never-invent, AUTO MODE (input `auto-mode scope:` unchanged → callers unaffected).
+- **Alternatives rejected**:
+  - Keep `.claude/` + `CLAUDE.md` as sync targets (old behavior) — rejected: leaked internal state (TODO/roadmap/decisions) into public-facing docs; doc-syncer writing under `.claude/` blurred the read-only registry boundary (registries are `/prune-memory`-curated, not doc-synced).
+  - Drop only `.claude/`, keep `CLAUDE.md` writable (old strike-through README opt-out) — rejected: CLAUDE.md = agent config not public doc, absent from the modifiable-targets list; uniform read-only treatment cleaner.
+  - Inline config table in README — rejected: violates Diátaxis (CONFIGURE.md = single config reference); README must link, not duplicate.
+- **Reference**: `agents/doc-syncer.md`, commit edff761. Extends [[doc-syncer-readme-deploy-policy]] (BDR-016, README-AUTO + DEPLOY 14-section — conserved, not superseded).
