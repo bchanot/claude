@@ -45,7 +45,10 @@ Apply unless repo-specific instructions override.
   (≤2 files, obvious fix).
 - Minimal changes unless broader refactor requested. State trade-offs.
 - Sub-agents keep main context clean — one task per sub-agent.
-  More compute on hard problems.
+  More compute on hard problems. Task fans out across independent
+  items (many files, parallel searches, multi-point checks) → delegate
+  to sub-agents, don't iterate serially. Default to delegation for
+  multi-file exploration. Counters Opus 4.8 tendency to under-delegate.
 - One question upfront if needed — never interrupt mid-task.
   *Exception: skill-mandated gates and checkpoints (orchestrator
   validation gates, approval gates, darwin checkpoints) always fire.*
