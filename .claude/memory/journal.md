@@ -158,3 +158,9 @@ rules:
 ## 2026-06-12
 
 - Fable 5 audit global CLAUDE.md → refactor e7e9dac: 4 contradictions (graphify x2 stale, plan-skip, deviations, append-only), 3 dead refs, restructure (Tooling & skills + This-repo-only sections), routing +8 skills + gstack-OFF rule, caveman compress non-critical only (-1471 chars net). Security/Architecture verbatim by design. BDR-021.
+
+## 2026-06-18
+
+- Explained `claude-agent-sdk` = lib to build YOUR own agent programs (NOT a powers-boost for the running Claude Code); pipx `--include-deps` wrong for a library (polluted PATH w/ 6 CLIs + jsonschema collision), venv is right home. Install deferred pending user's intended use.
+- Added CLAUDE.md `## Workflow` subagent-delegation rule (fan-out → delegate, not serial) countering Opus 4.8 under-delegate trait. 2 commits: bc7f657 (settings model-pin removal), 02a0ba0 (CLAUDE.md). LRN-030 capitalized.
+- Note: learnings.md Index missing LRN-028/029 rows (pre-existing gap, left untouched — out of scope).

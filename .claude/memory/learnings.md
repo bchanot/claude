@@ -44,6 +44,7 @@ rules:
 | LRN-025 | 2026-06-02 | `.gitignore` gstack allowlist must cover ALL toggleable skills (incl. parked) — else enabling one = untracked git noise | any toggle that moves local-symlink skills into a tracked dir; post-submodule-bump reconcile |
 | LRN-026 | 2026-06-09 | `disable-model-invocation: false` = ENABLED not blocking; only `true` blocks (model + orchestrator); binary, no per-caller | Claude Code skill frontmatter; deciding self-route/chain vs human-only entry point |
 | LRN-027 | 2026-06-11 | Agents improvise audit boundaries from file dates when no machine state — periodic skills need machine-readable state file, never inference | any recurring/periodic skill needing "since last run" semantics |
+| LRN-030 | 2026-06-18 | Opus 4.8 under-delegates subagents/memory/custom-tools by default — counter via explicit CLAUDE.md fan-out rule | any Opus 4.8 session; tuning delegation; inline-vs-subagent decision |
 
 ---
 
@@ -428,3 +429,14 @@ rules:
 - **Why matters**: improvement edits create inconsistency debt invisible to author in same context (darwin blacklist #1).
 - **Applies to**: skill/doc/spec edits adding branches; any self-modified artifact scoring.
 - **Reference**: commits 0d2ece7 (introduced), 9fc93fa (fixed). Linked to LRN-027.
+
+---
+
+## LRN-030 — Opus 4.8 under-delegates subagents/memory/custom-tools by default — counter with explicit fan-out rule in CLAUDE.md
+
+- **Date**: 2026-06-18
+- **Context**: User noticed Claude rarely spawns subagents. Real cause = Opus 4.8 documented behavioral trait (Anthropic migration notes, surfaced via claude-api skill): conservative reaching for capabilities needing explicit "decide-to-use" step — subagent delegation, file-based memory, custom tools — won't reach unless reasonably sure needed. Less than 4.6/4.7. Session was partly correct task-sizing (1-2 file reads → inline right), partly real under-reach.
+- **Pattern**: model-level under-delegation steerable via explicit prompt/config, NOT hard hook. Counter = CLAUDE.md `## Workflow` rule: task fans out across independent items (many files, parallel searches, multi-point checks) → delegate to subagents, don't iterate serially; default to delegation for multi-file exploration.
+- **Why matters**: long sessions grind serially + fill main context when 3 parallel agents (cavecrew-investigator / Explore) would map at once. Default tendency wastes the agents the config already defines.
+- **Applies to**: any Opus 4.8 session; tuning delegation behavior; deciding inline vs subagent. Same trait drives memory + custom-tool under-use — same counter.
+- **Reference**: commit 02a0ba0 (CLAUDE.md `## Workflow` edit).
