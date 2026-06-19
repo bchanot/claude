@@ -165,3 +165,10 @@ rules:
 - Added CLAUDE.md `## Workflow` subagent-delegation rule (fan-out → delegate, not serial) countering Opus 4.8 under-delegate trait. 2 commits: bc7f657 (settings model-pin removal), 02a0ba0 (CLAUDE.md). LRN-030 capitalized.
 - Note: learnings.md Index missing LRN-028/029 rows (pre-existing gap, left untouched — out of scope).
 - Rewrote `agents/doc-syncer.md` (commit edff761): scope = public docs only; `.claude/` + `CLAUDE.md` read-only context (never target, never copied into public doc); added CONVENTIONS (Standard-Readme/Diátaxis/Keep-a-Changelog+SemVer/Conventional Commits), lean README, CLEAN mode. Conserved stack/DEPLOY-14/gate/AUTO-MODE. BDR-022 capitalized. decisions.md Index also missing BDR-021 row (same pre-existing gap).
+
+## 2026-06-19
+
+- Merged `/close` into `/capitalize` — 2 modes (default flush + `--ritual` reflection), new STEP 2B TODO reconcile (PASS A restraint-only, PASS B explicit-capture + anti-noise filter + orientation→BDR routing), STEP 3 gate gains separate TODO block. `/close` now thin alias → `/capitalize --ritual`. BDR-023.
+- Built via superpowers:writing-skills TDD: RED v1 baseline too easy (passed) → strengthened to RED v2 (pressured) which failed on anti-noise + invented subtask + no gate → GREEN passed. Gate STOP itself untested (non-interactive harness) — flagged as skill Red flag.
+- LRN-031: skill value = gate + anti-noise + determinism, NOT re-coding what a capable agent does free; if RED baseline passes, harden the fixture before writing.
+- Docs routing synced (CLAUDE.md table + README + USAGE) in separate commit; caveman-purge WIP in those files left unstaged. Commits 9dc2b83, be0f047, 765e9d7.

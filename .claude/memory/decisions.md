@@ -43,6 +43,7 @@ rules:
 | BDR-019 | 2026-06-09 | Remove `disable-model-invocation` repo-wide — align skills with CLAUDE.md routing | accepted |
 | BDR-020 | 2026-06-11 | `/audit-delta`: per-axis SHA markers + always-on fix gate + unreachable-first-run = full report-only | accepted |
 | BDR-022 | 2026-06-18 | doc-syncer scoped to public docs; `.claude/` + `CLAUDE.md` read-only context, never targets; conventions + clean mode | accepted |
+| BDR-023 | 2026-06-19 | Merge /close into /capitalize — 2 modes + TODO reconcile; /close alias | accepted |
 
 ---
 
@@ -395,3 +396,17 @@ rules:
   - Drop only `.claude/`, keep `CLAUDE.md` writable (old strike-through README opt-out) — rejected: CLAUDE.md = agent config not public doc, absent from the modifiable-targets list; uniform read-only treatment cleaner.
   - Inline config table in README — rejected: violates Diátaxis (CONFIGURE.md = single config reference); README must link, not duplicate.
 - **Reference**: `agents/doc-syncer.md`, commit edff761. Extends [[doc-syncer-readme-deploy-policy]] (BDR-016, README-AUTO + DEPLOY 14-section — conserved, not superseded).
+
+---
+
+## BDR-023 — Merge /close into /capitalize — 2 modes + TODO reconcile; /close alias
+
+- **Date**: 2026-06-19
+- **Status**: accepted (supersedes /close-creation part of BDR-002)
+- **Decision**: `/close` merged into `/capitalize`. capitalize 2 modes: default (pre-wipe flush) + `--ritual` (adds 3-question end-of-session reflection; trigger = `--ritual` flag OR "close"/"ritual" in `$ARGUMENTS`, OR `/close`). Both modes dedup (STEP 2) + reconcile `.claude/tasks/TODO.md` (new STEP 2B). STEP 2B: PASS A done-detection = restraint rule only (flip `[ ]`→`[x]` only on clean task↔commit map; partial/umbrella/vague stay unchecked, never guess); PASS B explicit-capture + anti-noise filter (never track commit/deploy/push/release/tag) + orientation-directive→decisions.md (BDR) routing. Ritual answers go thru dedup, footer shows existing ID — unlike legacy /close (wrote fresh). STEP 3 gate gains separate TODO block; journal+handoff report TODO ops. TODO stays plain prose (caveman = registries only). `/close` kept = thin alias → `/capitalize --ritual`, zero duplicated logic.
+- **Why**: /close + /capitalize overlapped (both flush session memory), /close never deduped → re-logged on re-run. 1 skill 2 modes kills dup + gives /close dedup; TODO reconcile = new capability. Alias file (not merged-triggers-only) because /close resolves by directory name — deleting dir breaks literal `/close` command.
+- **Alternatives rejected**:
+  - Merged-triggers-only (drop close dir, fold triggers into capitalize desc) — breaks literal `/close` command (dir-name resolution).
+  - Keep 2 separate skills — duplication persists + /close never dedups.
+- **TDD**: built via superpowers:writing-skills. RED v1 baseline too easy (passed). RED v2 (pressured fixture: semantic dup + ambiguous umbrella task + parasite-as-task + orientation directive + rushed prompt) failed on anti-noise (folded push/tag into TODO) + invented subtask + no approval stop. GREEN passed. Gate STOP itself UNTESTED (non-interactive harness printed gate then proceeded "all approved") — flagged in skill Red flag + TDD note; verify on first real use.
+- **Reference**: `skills/capitalize/SKILL.md`, `skills/close/SKILL.md`, commits 9dc2b83 (skill) + be0f047 (docs routing) + 765e9d7 (PASS A trim). Linked to [[BDR-002]] (close created), [[BDR-019]] (capitalize created), [[LRN-031]] (skill-value lesson).

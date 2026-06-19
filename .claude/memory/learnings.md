@@ -45,6 +45,7 @@ rules:
 | LRN-026 | 2026-06-09 | `disable-model-invocation: false` = ENABLED not blocking; only `true` blocks (model + orchestrator); binary, no per-caller | Claude Code skill frontmatter; deciding self-route/chain vs human-only entry point |
 | LRN-027 | 2026-06-11 | Agents improvise audit boundaries from file dates when no machine state — periodic skills need machine-readable state file, never inference | any recurring/periodic skill needing "since last run" semantics |
 | LRN-030 | 2026-06-18 | Opus 4.8 under-delegates subagents/memory/custom-tools by default — counter via explicit CLAUDE.md fan-out rule | any Opus 4.8 session; tuning delegation; inline-vs-subagent decision |
+| LRN-031 | 2026-06-19 | Skill value = gate + anti-noise + determinism, not re-coding what a capable agent does free | building/reviewing any skill; writing-skills TDD fixture design |
 
 ---
 
@@ -440,3 +441,16 @@ rules:
 - **Why matters**: long sessions grind serially + fill main context when 3 parallel agents (cavecrew-investigator / Explore) would map at once. Default tendency wastes the agents the config already defines.
 - **Applies to**: any Opus 4.8 session; tuning delegation behavior; deciding inline vs subagent. Same trait drives memory + custom-tool under-use — same counter.
 - **Reference**: commit 02a0ba0 (CLAUDE.md `## Workflow` edit).
+
+---
+
+## LRN-031 — Skill value = gate + anti-noise + determinism, NOT re-coding what a capable agent does free
+
+- **Date**: 2026-06-19
+- **Pattern**: capable agent + strong CLAUDE.md already nails the easy-path (dedup, semantic-dedup, routing, done-detection) unaided. A skill earns its complexity ONLY on guarantees the agent drops under pressure: mandatory approval gate, anti-noise filters, explicit-only capture, determinism (baseline non-deterministic across runs). Re-documenting free behavior = bloat. Corollary (TDD): if no-skill RED baseline PASSES, fixture under-probes — strengthen on the value dimensions (subtle/pressured cases), never ship a skill justified by a test its absence passes. Trim each procedure to its load-bearing rule (PASS A done-detection → keep restraint rule, drop git-command how-to the agent runs anyway).
+- **Context**: built merged `/capitalize` (BDR-023) via writing-skills TDD. RED v1 baseline passed (deduped, checked done task, ignored parasite) — too easy. RED v2 (semantic dup + ambiguous umbrella task + parasite-phrased-as-task + orientation directive + rushed prompt) failed on anti-noise (folded push/tag into TODO) + invented subtask + no approval stop. Those 4 = the skill's real marginal value; rest the baseline did free.
+- **Future application**:
+  - Building/reviewing a skill → ask "does the baseline agent already do this for free?" Keep only gate + filters + determinism + non-obvious restraint rules; cut machinery re-describing capable-agent behavior.
+  - RED baseline passes without the skill → harden the fixture before writing, don't ship.
+  - Trim each procedure section to its load-bearing rule; delete how-to the agent performs anyway.
+- **Reference**: BDR-023, `skills/capitalize/SKILL.md` STEP 2B + Red flags. Linked to [[LRN-008]] (skill wins from edge-cases not workflow rewrites), [[LRN-028]] ("no-skill" baseline contamination when skill installed globally).
