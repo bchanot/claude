@@ -26,7 +26,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ### Changed
 - `/seo` split into parallel `seo` + `geo` agents with shared resources
 - `/onboard` rewritten: archetype-aware pipeline (orchestrator + config-only agent), security audit archetype-aware
-- `doc-syncer`: stack-aware audit + deploy-doc gating; later scoped to public docs only, `.claude/` read-only
+- `doc-syncer`: stack-aware audit + deploy-doc gating; later scoped to public docs only, `.claude/` read-only; sync-only ROADMAP handling — planned→shipped reconciliation from code/git, never from `.claude/`; numeric incoherence → HUMAN question
 - `CLAUDE.md`: major refactor (contradiction purge, restructure), subagent-delegation rule, design-toolchain mandate, memory-registry governance
 - Memory registries: enforced English + caveman format
 - Default model / effort settings updated

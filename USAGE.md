@@ -60,7 +60,10 @@ Tu veux...
 │    → /doc                    ← audit complet tous les fichiers .md
 │
 ├─ Optimiser le SEO/GEO ?
-│    → /seo
+│    ├─ Audit complet SEO + GEO ?
+│    │    → /seo
+│    └─ GEO uniquement (visibilité IA) ?
+│         → /geo
 │
 ├─ Vérifier si les plugins sont bien configurés ?
 │    → /plugin-check "description du projet"
@@ -98,7 +101,7 @@ Tu veux...
 | Nettoyage code ciblé | `/refactor` |
 | Dead code / style codebase | `/code-clean` |
 | Docs périmées | `/doc` |
-| SEO/GEO audit | `/seo` |
+| SEO/GEO audit | `/seo` (GEO seul → `/geo`) |
 | Commit structuré | `/commit-change` |
 | Navigation codebase large | `/graphify` |
 | Lister ses skills | `/skills-perso` |
@@ -106,6 +109,12 @@ Tu veux...
 | Audit du delta (depuis dernier run) | `/audit-delta` |
 | Flush mémoire avant /clear | `/capitalize` |
 | Curer la mémoire | `/prune-memory` |
+| Fin de session (mémoire) | `/close` |
+| Audit web (TLS, CSP, headers) | `/harden` |
+| Validité HTML/CSS + a11y | `/validate` |
+| Visibilité IA (GEO seul) | `/geo` |
+| Livraison client finale | `/client-handover` |
+| Changer profil skills | `/profile` |
 | Rien ne marche | `/health` |
 
 ---
@@ -115,7 +124,7 @@ Tu veux...
 | Commande | Quand | Notes |
 |---|---|---|
 | `/init-project` | Nouveau projet from scratch | 12-13 steps, deux gates obligatoires |
-| `/ship-feature` | Feature sur projet existant | 8 steps, une gate |
+| `/ship-feature` | Feature sur projet existant | Pipeline 9 steps, une gate |
 | `/feat` | Petite feature (1-5 fichiers) | Léger, pas d'orchestration lourde |
 | `/bugfix` | Bug avec investigation root cause | Hypothèses, diagnostic, fix minimal |
 | `/hotfix` | Bug superficiel (typo, CSS, config) | Max 2 fichiers, cause évidente |
@@ -127,6 +136,7 @@ Tu veux...
 | `/code-clean` | Dead code, violations de style | Audit + rapport, fixes après approbation |
 | `/doc` | Docs périmées après des changements | Audit drift code↔docs, patch chirurgical |
 | `/seo` | Audit SEO/GEO complet | Détecte framework, audite meta/OG/sitemap |
+| `/geo` | Audit GEO uniquement (IA) | Visibilité ChatGPT, Perplexity, Claude, Gemini… |
 | `/commit-change` | Commits bien structurés | Groupe les changements par unité logique |
 | `/graphify` | Navigation codebase large-scope | Knowledge graph, pour tâches multi-fichiers |
 | `/skills-perso` | Lister ses skills personnels | Skills créés dans ~/.claude/skills/ |
@@ -135,6 +145,11 @@ Tu veux...
 | `/audit-delta` | Audit récurrent du delta depuis le dernier run | Axes : conformité / bugs / dead code / sécurité |
 | `/capitalize` | Avant /clear ou /compact | Flush le contexte non capitalisé en mémoire |
 | `/prune-memory` | Registres trop longs / bruyants | Curation : merge, superseded, compression |
+| `/close` | Fin de session | Capitalise décisions / learnings / blockers |
+| `/harden` | Audit sécurité web (SSL, CSP, HSTS) | Projet web avec config HTTP |
+| `/validate` | Audit W3C + WCAG a11y | Avant livraison projet web |
+| `/client-handover` | Livraison client | Audits finaux + livrable brandé |
+| `/profile` | Changer le profil de skills | design / dev / qa / audit / minimal |
 
 > Cette table couvre les skills personnels principaux. Les plugins (gstack,
 > pr-review-toolkit…) et marketplaces externes en ajoutent beaucoup d'autres —
@@ -145,7 +160,7 @@ Tu veux...
 ## Les plugins — décision rapide
 
 ```
-Toujours actifs (0 token) : security-guidance, rtk
+Toujours actifs (0 token) : security-guidance, rtk, caveman
 
 Design élaboré/system     → ui-ux-pro-max ON
 Deploy + QA browser       → gstack ON

@@ -111,10 +111,16 @@ Versions are pinned in `plugins.lock.json`. To update: edit the file, then re-ru
 | `/capitalize` | Flush uncapitalized context to memory registries before /clear or /compact |
 | `/prune-memory` | Curate and compress the .claude/memory/ registries |
 | `/pdf-translate` | Translate a PDF to another language, output as HTML (via Vision) |
+| `/close` | End-of-session ritual — write decisions / learnings / blockers to memory registries |
+| `/harden` | Web hardening audit — HTTPS/TLS, HSTS, CSP, security headers |
+| `/validate` | W3C HTML/CSS validity + WCAG 2.1 accessibility audit |
+| `/geo` | GEO-only audit — AI-search visibility (ChatGPT, Perplexity, Claude, Gemini…) |
+| `/client-handover` | Final project delivery — audits + branded deliverable (Markdown / HTML / PDF) |
+| `/profile` | Activate a skill profile (design / dev / qa / audit / minimal) |
 
-> This table lists the core personal skills. Plugins (gstack, pr-review-toolkit…)
-> and external marketplaces add many more — run `/skills-perso` for your authored
-> set, or browse `skills/` for everything installed.
+> This table lists personal skills. Gstack skills (investigate, review, retro,
+> office-hours, context-save, context-restore, cso…) and marketplace plugins add
+> many more — run `/skills-perso` for your full list, or browse `skills/`.
 
 ---
 
@@ -192,7 +198,7 @@ make install                # bootstrap: CLI + auth + symlinks + plugins
 make plugin                 # install plugins only
 make link                   # create/update symlinks into ~/.claude/
 make doctor                 # diagnostic
-make update                 # pull + submodules + symlinks + doctor
+make update                 # update Claude Code, config, submodules, plugins, and verify
 make onboard                # onboard an existing project (run from its dir)
 make profile cmd="set X"    # activate a skill profile (design/dev/qa/audit/minimal/full)
 make profile-list           # list skill profiles
