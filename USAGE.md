@@ -72,6 +72,13 @@ Tu veux...
 │    → voir la progression: /gsd status
 │    → un step a échoué: /gsd forensics  (debug autonome)
 │
+├─ Auditer les changements depuis le dernier audit ?
+│    → /audit-delta            ← conformité / bugs / dead code / sécurité (scope = delta)
+│
+├─ Gérer la mémoire de session ?
+│    → /capitalize             ← flush le contexte avant /clear ou /compact
+│    → /prune-memory           ← curer / compresser les registres .claude/memory/
+│
 └─ Quelque chose ne marche pas ?
      → /health    ← diagnostic complet (symlinks, plugins, permissions, token budget)
 ```
@@ -96,6 +103,9 @@ Tu veux...
 | Navigation codebase large | `/graphify` |
 | Lister ses skills | `/skills-perso` |
 | Plugins OK ? | `/plugin-check` |
+| Audit du delta (depuis dernier run) | `/audit-delta` |
+| Flush mémoire avant /clear | `/capitalize` |
+| Curer la mémoire | `/prune-memory` |
 | Rien ne marche | `/health` |
 
 ---
@@ -122,6 +132,13 @@ Tu veux...
 | `/skills-perso` | Lister ses skills personnels | Skills créés dans ~/.claude/skills/ |
 | `/health` | Quand quelque chose ne fonctionne pas | Lance doctor.sh |
 | `/status` | Reprendre après une pause | Snapshot : plugins, git, GSD milestone |
+| `/audit-delta` | Audit récurrent du delta depuis le dernier run | Axes : conformité / bugs / dead code / sécurité |
+| `/capitalize` | Avant /clear ou /compact | Flush le contexte non capitalisé en mémoire |
+| `/prune-memory` | Registres trop longs / bruyants | Curation : merge, superseded, compression |
+
+> Cette table couvre les skills personnels principaux. Les plugins (gstack,
+> pr-review-toolkit…) et marketplaces externes en ajoutent beaucoup d'autres —
+> `/skills-perso` liste tes skills personnels.
 
 ---
 

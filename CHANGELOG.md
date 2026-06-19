@@ -4,6 +4,39 @@ All notable changes to claude-config will be documented in this file.
 
 Format follows [Keep a Changelog](https://keepachangelog.com/).
 
+## [Unreleased]
+
+<!-- DRAFT (doc-syncer): grounded in commits since 3.4.0; review wording + completeness before release. -->
+
+### Added
+- `/audit-delta` — recurring multi-axis audit (norms / bugs / dead code / security) scoped to changes since last run, with per-axis SHA markers
+- `/capitalize` — flush uncapitalized context to the memory registries before `/clear` or `/compact`
+- `/prune-memory` — curate and compress the `.claude/memory/` registries
+- `/close` — end-of-session memory ritual (decisions / learnings / blockers)
+- `/pdf-translate` — translate a PDF to another language, output as HTML (via Vision)
+- `/harden` — web hardening audit (SSL/TLS, HSTS, CSP, headers)
+- `/validate` — W3C HTML/CSS validity + WCAG accessibility audit
+- `/client-handover` — final ship + branded client deliverable (Markdown / HTML / PDF)
+- `/profile` — partition skills by usage profile (design / dev / qa / audit / minimal / full)
+- `frontend-design` and `design-motion-principles` skills (external marketplaces)
+- Project archetype library + detection for `/onboard`
+- `.claude/{tasks,memory,audits}/` governance layout + 5 memory registries (decisions, learnings, blockers, journal, evals)
+- Caveman plugin + standalone hooks (output token compression)
+
+### Changed
+- `/seo` split into parallel `seo` + `geo` agents with shared resources
+- `/onboard` rewritten: archetype-aware pipeline (orchestrator + config-only agent), security audit archetype-aware
+- `doc-syncer`: stack-aware audit + deploy-doc gating; later scoped to public docs only, `.claude/` read-only
+- `CLAUDE.md`: major refactor (contradiction purge, restructure), subagent-delegation rule, design-toolchain mandate, memory-registry governance
+- Memory registries: enforced English + caveman format
+- Default model / effort settings updated
+
+### Removed
+- `disable-model-invocation` frontmatter removed repo-wide (aligns skills with CLAUDE.md routing)
+
+### Fixed
+- Numerous skill/agent fixes across darwin optimization rounds (geo-analyzer, onboard, init-project, analyzer, plugin-check, prune-memory, …)
+
 ## [3.4.0] — 2026-04-15
 
 ### Added

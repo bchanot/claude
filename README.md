@@ -3,6 +3,7 @@
 Global Claude Code configuration — agents, skills, plugins, and project templates.
 
 > **Guide d'utilisation complet :** voir [`USAGE.md`](./USAGE.md) — workflows typiques, exemples par type de projet, arbre de décision "quel skill utiliser ?".
+> **Historique des versions :** voir [`CHANGELOG.md`](./CHANGELOG.md).
 
 ---
 
@@ -44,21 +45,25 @@ claude-config/
 git clone --recurse-submodules git@github.com:youruser/claude-config.git
 cd claude-config
 
-# 2. Create a free Context7 account at https://context7.com/
-#    Copy your API key and set it:
-export CONTEXT7_API_KEY="your-key-here"
-
-# 3. Bootstrap (CLI + auth + symlinks + plugins)
+# 2. Bootstrap (CLI + auth + symlinks + plugins)
 bash install.sh
 
-# 4. Verify setup
+# 3. Verify setup
 bash doctor.sh
 
-# 5. Restart Claude Code — plugins load automatically
+# 4. Restart Claude Code — plugins load automatically
 ```
 
 All scripts use their own location to find the repo — run them from anywhere.
 Install output is logged to `install-YYYYMMDD-HHMMSS.log`.
+
+**Optional — Context7** (fast doc lookup for React / Next.js / Prisma…): `install.sh`
+installs the `ctx7` CLI. To wire it into Claude Code:
+
+```bash
+ctx7 setup --claude        # configure Context7 for Claude Code
+ctx7 login                 # optional: OAuth / API key for higher rate limits
+```
 
 ---
 
@@ -72,7 +77,7 @@ Install output is logged to `install-YYYYMMDD-HHMMSS.log`.
 | **RTK** | Plugin (always on) | Code rewrite hook. Zero passive cost. | [rtk-ai/rtk](https://github.com/rtk-ai/rtk) |
 | **security-guidance** | Plugin (always on) | Security hook. Zero passive cost. | [anthropics/claude-code](https://github.com/anthropics/claude-code) |
 | **ui-ux-pro-max** | Plugin (toggle) | Design system, color/typography choices. Enable for design-heavy projects. | [nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) |
-| **Context7** | Plugin (toggle) | Fast-evolving libs doc lookup (Next.js, React, Prisma...). Requires a free account + API key (see install). | [context7.com](https://context7.com/) |
+| **Context7** | Plugin (toggle) | Fast-evolving libs doc lookup (Next.js, React, Prisma...). Requires a free account + API key (optional Context7 step in install). | [context7.com](https://context7.com/) |
 | **pr-review-toolkit** | Plugin (toggle) | Multi-agent PR review. | [anthropics/claude-code](https://github.com/anthropics/claude-code) |
 | **Graphify** | Python CLI | Codebase → knowledge graph → navigable wiki. Helps Claude map and search projects efficiently. | [pypi: graphifyy](https://pypi.org/project/graphifyy/) |
 | **Caveman** | Plugin (always on) + hooks | Output token compression (~75%) via caveman-speak. Full install = plugin (`/caveman`, cavecrew, caveman-commit, caveman-review, caveman-stats) + standalone hooks (statusline + stats badge). The optional `caveman-shrink` MCP proxy compresses upstream-server prose — manual config required (it wraps another MCP server). See `install-plugins.sh` STEP 5.5 for the snippet. | [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman) |
@@ -102,6 +107,14 @@ Versions are pinned in `plugins.lock.json`. To update: edit the file, then re-ru
 | `/health` | Run setup diagnostic |
 | `/status` | Consolidated project snapshot — plugins, git, GSD milestone |
 | `/skills-perso` | List personal (user-created) skills |
+| `/audit-delta` | Recurring audit of changes since last run (norms, bugs, dead code, security) |
+| `/capitalize` | Flush uncapitalized context to memory registries before /clear or /compact |
+| `/prune-memory` | Curate and compress the .claude/memory/ registries |
+| `/pdf-translate` | Translate a PDF to another language, output as HTML (via Vision) |
+
+> This table lists the core personal skills. Plugins (gstack, pr-review-toolkit…)
+> and external marketplaces add many more — run `/skills-perso` for your authored
+> set, or browse `skills/` for everything installed.
 
 ---
 
@@ -176,9 +189,15 @@ bash update-all.sh          # update all components (CLI, plugins, submodules, s
 
 # Makefile (from repo directory)
 make install                # bootstrap: CLI + auth + symlinks + plugins
+make plugin                 # install plugins only
+make link                   # create/update symlinks into ~/.claude/
 make doctor                 # diagnostic
 make update                 # pull + submodules + symlinks + doctor
-make plugin                 # install plugins only
+make onboard                # onboard an existing project (run from its dir)
+make profile cmd="set X"    # activate a skill profile (design/dev/qa/audit/minimal/full)
+make profile-list           # list skill profiles
+make profile-current        # show the active profile
+make profile-reset          # re-enable all gstack skills
 make new-skill name=myskill # scaffold agent + skill files
 ```
 
