@@ -108,10 +108,10 @@ Versions are pinned in `plugins.lock.json`. To update: edit the file, then re-ru
 | `/status` | Consolidated project snapshot — plugins, git, GSD milestone |
 | `/skills-perso` | List personal (user-created) skills |
 | `/audit-delta` | Recurring audit of changes since last run (norms, bugs, dead code, security) |
-| `/capitalize` | Flush uncapitalized context to memory registries before /clear or /compact |
+| `/capitalize` | Flush uncapitalized context + reconcile TODO before /clear or /compact (`--ritual` adds the end-of-session reflection) |
 | `/prune-memory` | Curate and compress the .claude/memory/ registries |
 | `/pdf-translate` | Translate a PDF to another language, output as HTML (via Vision) |
-| `/close` | End-of-session ritual — write decisions / learnings / blockers to memory registries |
+| `/close` | End-of-session ritual — alias for `/capitalize --ritual` (dedup + TODO reconcile + 3-question reflection) |
 | `/harden` | Web hardening audit — HTTPS/TLS, HSTS, CSP, security headers |
 | `/validate` | W3C HTML/CSS validity + WCAG 2.1 accessibility audit |
 | `/geo` | GEO-only audit — AI-search visibility (ChatGPT, Perplexity, Claude, Gemini…) |

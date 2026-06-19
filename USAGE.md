@@ -79,7 +79,7 @@ Tu veux...
 │    → /audit-delta            ← conformité / bugs / dead code / sécurité (scope = delta)
 │
 ├─ Gérer la mémoire de session ?
-│    → /capitalize             ← flush le contexte avant /clear ou /compact
+│    → /capitalize             ← flush contexte + réconcilie TODO avant /clear ou /compact
 │    → /prune-memory           ← curer / compresser les registres .claude/memory/
 │
 └─ Quelque chose ne marche pas ?
@@ -107,9 +107,9 @@ Tu veux...
 | Lister ses skills | `/skills-perso` |
 | Plugins OK ? | `/plugin-check` |
 | Audit du delta (depuis dernier run) | `/audit-delta` |
-| Flush mémoire avant /clear | `/capitalize` |
+| Flush mémoire + TODO avant /clear | `/capitalize` |
 | Curer la mémoire | `/prune-memory` |
-| Fin de session (mémoire) | `/close` |
+| Fin de session (= /capitalize --ritual) | `/close` |
 | Audit web (TLS, CSP, headers) | `/harden` |
 | Validité HTML/CSS + a11y | `/validate` |
 | Visibilité IA (GEO seul) | `/geo` |
@@ -143,9 +143,9 @@ Tu veux...
 | `/health` | Quand quelque chose ne fonctionne pas | Lance doctor.sh |
 | `/status` | Reprendre après une pause | Snapshot : plugins, git, GSD milestone |
 | `/audit-delta` | Audit récurrent du delta depuis le dernier run | Axes : conformité / bugs / dead code / sécurité |
-| `/capitalize` | Avant /clear ou /compact | Flush le contexte non capitalisé en mémoire |
+| `/capitalize` | Avant /clear ou /compact | Flush contexte non capitalisé + réconcilie .claude/tasks/TODO.md |
 | `/prune-memory` | Registres trop longs / bruyants | Curation : merge, superseded, compression |
-| `/close` | Fin de session | Capitalise décisions / learnings / blockers |
+| `/close` | Fin de session | Alias de /capitalize --ritual — dedup + TODO + réflexion 3 questions |
 | `/harden` | Audit sécurité web (SSL, CSP, HSTS) | Projet web avec config HTTP |
 | `/validate` | Audit W3C + WCAG a11y | Avant livraison projet web |
 | `/client-handover` | Livraison client | Audits finaux + livrable brandé |

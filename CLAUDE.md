@@ -122,7 +122,7 @@ Pre-fill entry from context; user approves/edits before write.
 Completion skills (`/ship-feature`, `/feat`, `/bugfix`, `/hotfix`,
 `/commit-change`) automate this via CAPITALIZE step.
 
-**Session-close ritual** (`/close`, or inline when asked):
+**Session-close ritual** (`/close` = `/capitalize --ritual`, or inline when asked):
 1. What decided? → `decisions.md` (if non-trivial).
 2. What learned? → `learnings.md` (if reusable).
 3. What blocked? → `blockers.md`.
@@ -251,8 +251,8 @@ Key routing rules:
   + design-motion-principles (audit mode)
 - Architecture review → plan-eng-review
 - Save/restore working context → context-save / context-restore
-- End-of-session ritual → close
-- Flush memory before /clear or /compact → capitalize
+- End-of-session ritual (3-question reflection) → close (= capitalize --ritual)
+- Flush memory before /clear or /compact, reconcile TODO → capitalize
 - Registries too big/noisy → prune-memory
 - Skill profiles (design/dev/qa/minimal) → profile
 - Code quality dashboard → health
