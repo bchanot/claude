@@ -410,3 +410,16 @@ rules:
   - Keep 2 separate skills — duplication persists + /close never dedups.
 - **TDD**: built via superpowers:writing-skills. RED v1 baseline too easy (passed). RED v2 (pressured fixture: semantic dup + ambiguous umbrella task + parasite-as-task + orientation directive + rushed prompt) failed on anti-noise (folded push/tag into TODO) + invented subtask + no approval stop. GREEN passed. Gate STOP itself UNTESTED (non-interactive harness printed gate then proceeded "all approved") — flagged in skill Red flag + TDD note; verify on first real use.
 - **Reference**: `skills/capitalize/SKILL.md`, `skills/close/SKILL.md`, commits 9dc2b83 (skill) + be0f047 (docs routing) + 765e9d7 (PASS A trim). Linked to [[BDR-002]] (close created), [[BDR-019]] (capitalize created), [[LRN-031]] (skill-value lesson).
+
+---
+
+## BDR-024 — `profile show --plain` = claude-free parse contract for the design gate
+
+- **Date**: 2026-06-19
+- **Status**: accepted
+- **Decision**: added `profile.sh show <name> --plain` → one `type<TAB>name` per line, grouped by type (gstack/external/personal/plugin/mcp/cli order), NO status, ZERO claude calls, derived purely from the `.profile`. Bare `show` keeps runtime status (human value) + grouped layout; `--plain` = machine path. Canonical names verbatim (`magic` stays `magic`; plugin marketplace `plugin@<mp>` collapsed to category `plugin`).
+- **Why**: upcoming design gate must derive "which profile contains tool X". Needs fast + hook-safe parse. Bare `show` calls `claude plugin list`/`claude mcp list` per plugin/mcp entry → slow + fails in non-terminal/hook context (degrades to "disabled").
+- **Alternatives rejected**:
+  - Gate re-reads `.profile` directly — duplicates `read_profile` parsing in the gate; two parsers drift.
+  - Gate parses full `show` output — pays claude calls per plugin/mcp, fragile in hook context.
+- **Reference**: `lib/profile.sh` `cmd_show` (+ `--plain` branch), `skills/profile/SKILL.md`, commit 5776195. Linked to [[BDR-018]] (prior `profile.sh` command addition).

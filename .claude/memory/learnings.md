@@ -454,3 +454,24 @@ rules:
   - RED baseline passes without the skill → harden the fixture before writing, don't ship.
   - Trim each procedure section to its load-bearing rule; delete how-to the agent performs anyway.
 - **Reference**: BDR-023, `skills/capitalize/SKILL.md` STEP 2B + Red flags. Linked to [[LRN-008]] (skill wins from edge-cases not workflow rewrites), [[LRN-028]] ("no-skill" baseline contamination when skill installed globally).
+
+---
+
+## LRN-032 — Rule has a domain; applying it outside that domain = category error — check artifact type before invoking
+
+- **Date**: 2026-06-19
+- **Context**: enriching `profile.sh list` display. Cited CLAUDE.md `80 chars/line` to justify compact counters + reject ellipsis truncation. Measured: 7/10 `list` rows still >80 (max 97) — descriptions 58-73 chars, fixed prefix 24. Truncating to hit 80 would break `list` function (at-a-glance profile compare).
+- **Pattern (general)**: every rule carries a DOMAIN. Applying it outside that domain = category error. Before invoking ANY rule, identify artifact class it governs + confirm THIS artifact is that class. Mismatch → don't apply. Never apply rules mechanically.
+- **Specific instance**: `80 chars/line` = SOURCE-CODE domain (edit readability, diffs, split terminals). CLI runtime output = displayed, not diffed/edited → out of domain. So `list` overflow OK; keep aligned left block (name+counters), descriptions run full.
+- **Future application**: invoking a limit/convention/style rule → first ask "what artifact class does this govern, is THIS that class?". Catches misapplied norms (line-length on output, lint on generated files, prose rules on data).
+- **Reference**: `lib/profile.sh` `cmd_list`, commit 5776195. Linked to [[LRN-031]] — both meta-lessons on NOT applying mechanically (LRN-031 = value of a skill; LRN-032 = domain of a rule).
+
+---
+
+## LRN-033 — Multibyte separator breaks `printf %-Ns` (byte-width) padding — pad via `${#}` char-count
+
+- **Date**: 2026-06-19
+- **Context**: `profile.sh list` ITEMS column = compact counts "12s·1p·1m·1c" using `·` (U+00B7, 2 bytes UTF-8).
+- **Pattern**: `printf '%-Ns'` pads to N BYTES, not display columns. Multibyte char → field over-counts → columns misalign (off by bytes-minus-chars). Fix: display width via `${#str}` (char-count, UTF-8-aware under multibyte locale) + pad with `printf '%*s' <gap> ''`. Alt: keep multibyte content in LAST column (no pad) — existing `cmd_list` already did this for descriptions.
+- **Future application**: aligning any column with non-ASCII (`·` `—` box-drawing, accents) → never trust `%-Ns`; use `${#}` + manual space pad, or put multibyte field last. Verify with `wc -L` (display width), not `wc -c`.
+- **Reference**: `rpad()` in `lib/profile.sh`, commit 5776195.
