@@ -85,12 +85,17 @@ for f in README.md INSTALL.md CONFIGURE.md USAGE.md DEPLOY.md \
   [ -f "$f" ] && echo "$f"
 done
 
+# ROADMAP.md — sync-ONLY: include if present, NEVER create (STEP 4 + RULES)
+[ -f ROADMAP.md ] && echo "ROADMAP.md"
+
 # docs/ tree (public docs)
 find docs -name '*.md' 2>/dev/null
 ```
 
 Store as `DOC_FILES` (existing targets) and `DOC_MISSING` (canonical
-names absent — at minimum: `README.md`).
+names absent — at minimum: `README.md`). **ROADMAP.md is sync-only:** if
+present it joins `DOC_FILES`; if absent it is NEVER added to `DOC_MISSING`
+and NEVER proposed for creation.
 
 > `.claude/` and `CLAUDE.md` MUST NOT appear in `DOC_FILES`. Read them
 > later only for context, never list them as drift targets.
@@ -241,6 +246,34 @@ analysed here — they are never targets.
 - May be informed by `.claude/memory/decisions.md` (read for context) —
   but the architectural rationale is rewritten for a public audience,
   never copied from the registry.
+
+**ROADMAP.md** *(sync-only — NEVER created by doc-syncer)*
+- doc-syncer NEVER creates ROADMAP.md and NEVER proposes its bootstrap.
+  Creation belongs to the init/onboard skills. ROADMAP.md absent →
+  propose nothing.
+- If present → standard drift detection (STEP 3) PLUS **shipped
+  reconciliation**:
+  - For each item marked planned / upcoming / unchecked, verify via CODE
+    and git commits (NEVER via `.claude/`) whether the corresponding
+    feature already exists in the repo (route, module, command, migration,
+    component, endpoint, etc.).
+  - If the code proves the item is delivered → propose moving it to the
+    "shipped / done" section (or checking the box if checklist format),
+    **preserving the existing wording**. Tag [AUTO] when the item↔code
+    mapping is obvious and factual; [HUMAN] when the match needs judgment
+    (milestone wording, partially-delivered item).
+  - ONE direction only: `planned → shipped`, justified by code existence.
+    NEVER invent new "planned" items, NEVER fill the ROADMAP with todos,
+    NEVER move shipped → planned.
+- **Never read `.claude/tasks/`** (or any `.claude/` file) to populate,
+  check, or complete ROADMAP. "Shipped" is deduced from code + git ONLY.
+  `.claude/` stays read-context, never a source of ROADMAP content.
+- **Numeric incoherence** (e.g. a milestone "22/22" matching no counter
+  found in the code) → do NOT propose replacing it with another number.
+  Surface as a [HUMAN] QUESTION, e.g.:
+  `Item <X> = <value> matches no metric found in the code (counters
+  detected: <list>). What did this milestone measure?` — let the user
+  decide; never overwrite one metric with another.
 
 **docs/**/*.md**
 - Technical accuracy: code references match reality?
@@ -599,6 +632,8 @@ Last updated: <date> (<N commits since>)
 - [AUTO]  README.md — bootstrap (lean Standard-Readme template)
 - [HUMAN] DEPLOY.md — non-trivial deploy (Docker + fly.toml)
 - ...
+> ROADMAP.md is NEVER a CREATE candidate — doc-syncer only syncs an
+> existing ROADMAP, never bootstraps one (creation = init/onboard skills).
 
 ## REMOVE / INLINE PROPOSALS
 - [HUMAN] DEPLOY.md — trivial deploy, inline into README instead
@@ -786,6 +821,15 @@ Categorize:
 - Doc list is dynamic — auto-detect from the modifiable-targets set,
   never assume a fixed file always exists.
 - CHANGELOG entries: always propose, never auto-write.
+- ROADMAP.md is **sync-only** — never created or bootstrapped by
+  doc-syncer (creation belongs to init/onboard skills). Only
+  `planned → shipped` moves, justified by code/git existence; never
+  invent planned items, never fill it with todos, never move shipped
+  back to planned.
+- ROADMAP "shipped" status is deduced from code + git ONLY — never read
+  `.claude/tasks/` (or any `.claude/`) to populate or check ROADMAP.
+- ROADMAP numeric incoherence → surface a [HUMAN] question, never
+  overwrite a metric with a guessed number.
 - CLEAN removals: only in CLEAN MODE, always HUMAN, removal-only.
 - Inline comment updates: only for files in scope, only when the
   signature actually changed.
