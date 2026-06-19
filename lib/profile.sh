@@ -21,7 +21,8 @@
 #
 # Usage:
 #   profile.sh list                  list available profiles
-#   profile.sh show <name>           show contents of a profile
+#   profile.sh show <name>           show contents of a profile (grouped by type)
+#   profile.sh show <name> --plain   parsable type+name list (no status, no claude)
 #   profile.sh current               detect which profile is active
 #   profile.sh apply <name>          enable items in profile (additive)
 #   profile.sh set <name>            enable only profile (disables rest)
@@ -130,6 +131,56 @@ gstack_skills() {
 profile_desc() {
   local file="$1"
   grep -m1 '^# DESC:' "$file" 2>/dev/null | sed 's/^# DESC:[[:space:]]*//' || true
+}
+
+# ── Counting & formatting helpers ─────────────────────────
+
+# Tally a profile's entries by category (claude-free, reads the .profile only).
+# Echo: "<skills> <plugins> <mcps> <clis>" — skills = gstack+external+personal.
+count_profile() {
+  local prof="$1" type
+  local g=0 e=0 p=0 pl=0 m=0 c=0
+  while IFS=$'\t' read -r _ type; do
+    case "$type" in
+      gstack)          g=$((g + 1)) ;;
+      external)        e=$((e + 1)) ;;
+      personal)        p=$((p + 1)) ;;
+      plugin@*|plugin) pl=$((pl + 1)) ;;
+      mcp)             m=$((m + 1)) ;;
+      cli)             c=$((c + 1)) ;;
+    esac
+  done < <(read_profile "$prof")
+  printf '%d %d %d %d\n' "$((g + e + p))" "$pl" "$m" "$c"
+}
+
+# "<n> <noun>" with a plural "s" when n != 1.
+_plur() {
+  if [ "$1" -eq 1 ]; then printf '%d %s' "$1" "$2"; else printf '%d %ss' "$1" "$2"; fi
+}
+
+# Format four category counts. style=compact -> "12s·1p·1m·1c";
+# style=long -> "12 skills · 1 plugin · 1 mcp · 1 cli". Zero categories are
+# skipped; all-zero -> "—".
+fmt_counts() {
+  local style="$1" skills="$2" pl="$3" m="$4" c="$5" out=""
+  if [ "$style" = compact ]; then
+    [ "$skills" -gt 0 ] && out="${skills}s"
+    [ "$pl" -gt 0 ] && out="${out:+$out·}${pl}p"
+    [ "$m" -gt 0 ]  && out="${out:+$out·}${m}m"
+    [ "$c" -gt 0 ]  && out="${out:+$out·}${c}c"
+  else
+    [ "$skills" -gt 0 ] && out="$(_plur "$skills" skill)"
+    [ "$pl" -gt 0 ] && out="${out:+$out · }$(_plur "$pl" plugin)"
+    [ "$m" -gt 0 ]  && out="${out:+$out · }$(_plur "$m" mcp)"
+    [ "$c" -gt 0 ]  && out="${out:+$out · }$(_plur "$c" cli)"
+  fi
+  printf '%s' "${out:-—}"
+}
+
+# Right-pad a string to display width $2 (character count, UTF-8 aware).
+rpad() {
+  local s="$1" w="$2" len=${#1}
+  if [ "$len" -lt "$w" ]; then printf '%s%*s' "$s" "$((w - len))" ''; else printf '%s' "$s"; fi
 }
 
 # ── Status detection ──────────────────────────────────────
@@ -361,33 +412,73 @@ parked_gstack_count() {
 # ── Commands ──────────────────────────────────────────────
 
 cmd_list() {
-  printf "%-12s %s\n" "PROFILE" "DESCRIPTION"
-  printf "%-12s %s\n" "-------" "-----------"
-  local f name desc
+  printf "%-9s %-13s %s\n" "PROFILE" "ITEMS" "DESCRIPTION"
+  printf "%-9s %-13s %s\n" "-------" "-----" "-----------"
+  local f name desc skills pl m c contents
   for f in "$PROFILES_DIR"/*.profile; do
     [ -f "$f" ] || continue
     name="$(basename "$f" .profile)"
     desc="$(profile_desc "$f")"
-    printf "%-12s %s\n" "$name" "${desc:--}"
+    read -r skills pl m c <<<"$(count_profile "$name")"
+    contents="$(fmt_counts compact "$skills" "$pl" "$m" "$c")"
+    printf "%-9s %s %s\n" "$name" "$(rpad "$contents" 13)" "${desc:--}"
   done
 }
 
 cmd_show() {
-  local prof="$1"
+  local prof="$1" plain=0
+  [ "${2:-}" = "--plain" ] && plain=1
   local file="$PROFILES_DIR/$prof.profile"
   [ -f "$file" ] || { err "Profile not found: $prof"; return 1; }
-  echo "Profile: $prof"
-  local desc
-  desc="$(profile_desc "$file")"
-  [ -n "$desc" ] && echo "Description: $desc"
-  echo ""
-  printf "%-25s %-30s %s\n" "ITEM" "TYPE" "STATUS"
-  printf "%-25s %-30s %s\n" "----" "----" "------"
-  local skill type status
+
+  # Snapshot entries once (claude-free): "<cat><TAB><name>", canonical name.
+  # A plugin's marketplace (plugin@<mp>) collapses to category "plugin".
+  local entries=() skill type cat
   while IFS=$'\t' read -r skill type; do
-    status="$(skill_status "$skill" "$type")"
-    printf "%-25s %-30s %s\n" "$skill" "$type" "$status"
+    case "$type" in plugin@*|plugin) cat=plugin ;; *) cat="$type" ;; esac
+    entries+=("$cat"$'\t'"$skill")
   done < <(read_profile "$prof")
+
+  # --plain: parsable contract for the design gate. One "<type><TAB><name>"
+  # per line, grouped by type, NO status, NO claude calls.
+  if [ "$plain" -eq 1 ]; then
+    local e
+    for cat in gstack external personal plugin mcp cli; do
+      for e in "${entries[@]}"; do
+        [ "${e%%$'\t'*}" = "$cat" ] && printf '%s\t%s\n' "$cat" "${e#*$'\t'}"
+      done
+    done
+    return 0
+  fi
+
+  echo "Profile: $prof"
+  local desc; desc="$(profile_desc "$file")"
+  [ -n "$desc" ] && echo "Description: $desc"
+  local skills pl m c total
+  read -r skills pl m c <<<"$(count_profile "$prof")"
+  total=$((skills + pl + m + c))
+  if [ "$total" -eq 0 ]; then
+    echo "Total: 0 items (empty — strips all gstack)"
+  else
+    echo "Total: $total items — $(fmt_counts long "$skills" "$pl" "$m" "$c")"
+  fi
+  echo ""
+
+  # Grouped by type, fixed order; empty groups skipped. Canonical name +
+  # runtime status (existing skill_status — degrades to disabled if no claude).
+  local e names status
+  for cat in gstack external personal plugin mcp cli; do
+    names=()
+    for e in "${entries[@]}"; do
+      [ "${e%%$'\t'*}" = "$cat" ] && names+=("${e#*$'\t'}")
+    done
+    [ "${#names[@]}" -eq 0 ] && continue
+    printf '%s (%d):\n' "$cat" "${#names[@]}"
+    for skill in "${names[@]}"; do
+      status="$(skill_status "$skill" "$cat")"
+      printf '  %-24s %s\n' "$skill" "$status"
+    done
+  done
 }
 
 cmd_apply() {
@@ -547,7 +638,8 @@ profile.sh — partition Claude skills by purpose
 
 USAGE:
   profile list              list all available profiles
-  profile show <name>       show profile contents + per-skill status
+  profile show <name>       show profile contents grouped by type + status
+  profile show <name> --plain  parsable type+name list (no status, no claude)
   profile current           detect which profile is currently active
   profile apply <name>      enable skills in profile (additive)
   profile set <name>        enable only listed skills (disables rest of gstack)
@@ -584,7 +676,7 @@ main() {
   local cmd="${1:-}"
   case "$cmd" in
     list)    cmd_list ;;
-    show)    [ $# -ge 2 ] || { usage; exit 1; }; cmd_show "$2" ;;
+    show)    [ $# -ge 2 ] || { usage; exit 1; }; cmd_show "$2" "${3:-}" ;;
     current) cmd_current ;;
     apply)   [ $# -ge 2 ] || { usage; exit 1; }; cmd_apply "$2" ;;
     set)     [ $# -ge 2 ] || { usage; exit 1; }; cmd_set "$2" ;;

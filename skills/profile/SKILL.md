@@ -108,8 +108,8 @@ bash "$HOME/.claude/lib/profile.sh" $ARGUMENTS
   moved + tell the user to start a new Claude session to pick up the changes
   (Claude scans `skills/` at session start).
 - After `current`: report the active profile + match percentage.
-- After `show`: render the table directly — no extra commentary unless the user
-  asks.
+- After `show`: render the grouped output directly — no extra commentary unless
+  the user asks.
 
 ## Tradeoffs to mention if asked
 
