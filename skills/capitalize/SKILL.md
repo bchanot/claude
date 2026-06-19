@@ -160,15 +160,12 @@ concatenated class names" entry.)
 
 Runs only if `.claude/tasks/TODO.md` exists (STEP 0). Two passes.
 
-**PASS A — done-detection (TODO → reality).** For each unchecked `- [ ]`, decide
-whether the session actually finished it, grounding on git (`git log`,
-`git diff HEAD`, `git show`) AND the conversation. Propose `[x]` ONLY when the
-task ↔ commit/code map is unambiguous (task "add retry-with-backoff" ↔ a commit
-that adds exactly that).
-- Partial / umbrella tasks ("harden X" covering 3 things when only 1 shipped) →
-  leave unchecked.
-- Vague tasks ("Commit", "Deploy", "test it") with no precise git evidence →
-  leave unchecked. Never check on assumption or on a guess.
+**PASS A — done-detection (TODO → reality).** Detection is free — a capable
+agent already spots the finished tasks from the STEP 1 git scan. The only rule
+worth stating is **restraint**: flip `- [ ]` → `- [x]` ONLY when the task maps
+cleanly to a commit/diff that did exactly it. Partial / umbrella tasks
+("harden X" when 1 of 3 parts shipped) and vague tasks ("Commit", "Deploy",
+"test it") with no precise git evidence stay unchecked. Never check on a guess.
 
 **PASS B — capture (conversation → TODO).** Spot explicit to-dos voiced in the
 session ("il faut X", "TODO Y", "à corriger Z", new directives) that are absent
@@ -330,6 +327,11 @@ checkpointed (ritual).
 
 ## Red flags — STOP
 
+- **The STEP 3 gate STOP has never been exercised in test** (the build harness
+  was non-interactive — it printed the gate then proceeded as "all approved").
+  On the FIRST real run, confirm STEP 3 halts and waits for approval BEFORE any
+  file write. If anything is written before you answer, the gate is broken —
+  stop and fix it. This is the skill's #1 guarantee; it is currently unverified.
 - About to append a registry entry without having grepped + read the registry
   for it → dedup skipped.
 - About to treat a reworded item as new without checking meaning → semantic
@@ -354,7 +356,12 @@ two registries on an earlier run (non-deterministic). This skill's mandatory
 gate (STEP 3), anti-noise filter (STEP 2B), explicit-only capture, and
 one-incident-one-registry rule make those deterministic.
 
-GREEN re-run on the same fixture must: stop at the gate, drop both dups (footer
-shows existing IDs), log jigsaw as ONE learning, check only the cleanly-done
-task, leave the umbrella "harden" task unchecked, add only the explicit README
-to-do, ignore the push/tag parasite, and route the GraphQL directive to BDR.
+GREEN re-run on the same fixture confirmed: drops both dups (footer shows
+existing IDs), logs jigsaw as ONE learning, checks only the cleanly-done task,
+leaves the umbrella "harden" task unchecked, adds only the explicit README
+to-do, ignores the push/tag parasite, routes the GraphQL directive to BDR.
+
+**Caveat — gate not exercised:** the STEP 3 STOP itself was NOT tested. The
+harness is non-interactive — GREEN printed the gate then proceeded as "all
+approved", so the halt-before-write behavior is unverified. See the first
+Red flag; confirm it on first real use.
