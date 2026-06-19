@@ -245,10 +245,8 @@ Key routing rules:
 - Stale docs audit, doc sync → doc
 - Recurring audit of changes since last run → audit-delta
 - Weekly retro → retro
-- Design system, brand → design-consultation, then design toolchain below
-- Build UI / component / page / screen → design toolchain below
-- Visual audit, polish → design-review + emil-design-eng
-  + design-motion-principles (audit mode)
+- Design / UI — build, design system, brand, visual audit, polish → see
+  "## Design work — full toolchain" (single source, below)
 - Architecture review → plan-eng-review
 - Save/restore working context → context-save / context-restore
 - End-of-session ritual (3-question reflection) → close (= capitalize --ritual)
@@ -271,15 +269,11 @@ gstack OFF → gstack skills (investigate, ship, qa, review, health, retro,
 office-hours, context-save…) unavailable: use the non-gstack fallback
 where listed, else say so instead of improvising.
 
-Design gate (automatic): lightweight skills (feat, hotfix, bugfix) detect
-UI/style signals; signals found + ui-ux-pro-max inactive → ask user
-before proceeding. Gate spec: `~/.claude/lib/design-gate.md`.
-Orchestrators (ship-feature, init-project) handle via STEP 0 plugin-check.
-
 ## Design work — full toolchain (tiered by scope)
 
-Task touches design/UI → mobilize tools by scope. Reinforced by
-design-toolchain-reminder hook (injects on UI signals).
+Single source for all design/UI routing. Task touches design/UI →
+mobilize tools by scope. Reinforced by design-toolchain-reminder hook
+(injects on UI signals).
 - Trivial (≤2 files, single cosmetic value) → /hotfix, NO toolchain.
 - Build UI (new component, page, screen, redesign) → ui-ux-pro-max
   (plan/build) + frontend-design (anti AI-slop) + Magic MCP `/ui`
@@ -291,6 +285,10 @@ design-toolchain-reminder hook (injects on UI signals).
   + design-motion-principles (audit mode).
 Scope doubt (trivial tweak vs real UI change?) → do NOT silently skip
 toolchain: ask user, or default to Build tier.
+Design gate (automatic): lightweight skills (feat, hotfix, bugfix) detect
+UI/style signals; signals found + ui-ux-pro-max inactive → ask user
+before proceeding. Gate spec: `~/.claude/lib/design-gate.md`.
+Orchestrators (ship-feature, init-project) handle via STEP 0 plugin-check.
 Magic MCP (@21st-dev/magic) costs API calls — component generation only,
 not micro-tweaks.
 
