@@ -372,7 +372,7 @@ install_plugin() {
 # copies the plugin into ~/.claude/plugins/cache — it does NOT register
 # it in settings.json's enabledPlugins map. Without an explicit enable,
 # the plugin sits dormant. Use this for plugins that should be ALWAYS ON
-# (security-guidance, superpowers, caveman). Idempotent: skips if already
+# (security-guidance, superpowers). Idempotent: skips if already
 # present in enabledPlugins.
 enable_plugin() {
   local name="$1"
@@ -429,107 +429,11 @@ install_plugin "ui-ux-pro-max" "ui-ux-pro-max-skill"
 
 echo ""
 
-# ============================================================
-# STEP 5.5 — CAVEMAN (full: plugin + standalone hooks + MCP shrink)
-# ============================================================
-# Caveman compresses output tokens (~75%) via caveman-speak. The "full"
-# install layers three things on top of each other:
-#   1. Plugin       — /caveman command, cavecrew subagents, mode tracker hooks
-#   2. Hooks        — statusline + stats badge written into ~/.claude/
-#   3. MCP shrink   — caveman-shrink proxy that compresses tool input tokens
-# Per-repo rule files (--with-init / --all) are skipped — they would litter
-# this config repo with caveman-rules.md noise meant for project repos.
-echo "── Step 5.5: Caveman (full: plugin + hooks + MCP shrink) ────"
-echo ""
-
-info "Adding Caveman marketplace..."
-claude plugin marketplace add JuliusBrussee/caveman 2>/dev/null || true
-install_plugin "caveman" "caveman"
-enable_plugin  "caveman" "caveman"
-
-# Standalone hooks (statusline + stats badge). The plugin already wires
-# SessionStart + UserPromptSubmit hooks from its own path; this installer
-# adds the statusLine config and ~/.claude/hooks/caveman-stats.js that
-# the plugin doesn't carry.
-CAVEMAN_HOOKS_URL="https://raw.githubusercontent.com/JuliusBrussee/caveman/main/hooks/install.sh"
-if [ -f "$HOME/.claude/hooks/caveman-statusline.sh" ] \
-   && grep -q 'caveman-statusline' "$HOME/.claude/settings.json" 2>/dev/null; then
-  ok "Caveman standalone hooks already installed"
-else
-  info "Installing Caveman standalone hooks (statusline + stats)..."
-  CAVEMAN_HOOKS_TMP="$(mktemp -t caveman-hooks-XXXXXX.sh)"
-  if curl -fsSL "$CAVEMAN_HOOKS_URL" -o "$CAVEMAN_HOOKS_TMP" \
-     && bash "$CAVEMAN_HOOKS_TMP"; then
-    ok "Caveman hooks installed"
-    # Caveman's hooks installer hardcodes the absolute home path
-    # ($HOME/.claude/hooks/caveman-*.js) into settings.json. The repo's
-    # settings.json is symlinked to ~/.claude/settings.json — committing
-    # the absolute path would leak this user's username to every machine
-    # that clones the repo. Rewrite to portable ~/.claude/hooks/... form.
-    if [ -f "$HOME/.claude/settings.json" ] && command -v python3 &>/dev/null; then
-      python3 - "$HOME/.claude/settings.json" "$HOME" <<'PY'
-import json, sys, re
-path, home = sys.argv[1], sys.argv[2]
-with open(path) as f:
-    data = json.load(f)
-def rewrite(node):
-    if isinstance(node, dict):
-        for k, v in node.items():
-            if k == "command" and isinstance(v, str) and "caveman" in v:
-                node[k] = re.sub(rf'"?{re.escape(home)}/.claude/hooks/(caveman-[^"\s]+)"?',
-                                 r'~/.claude/hooks/\1', v)
-            else:
-                rewrite(v)
-    elif isinstance(node, list):
-        for item in node:
-            rewrite(item)
-rewrite(data)
-with open(path, "w") as f:
-    json.dump(data, f, indent=2)
-PY
-      ok "Caveman hook paths normalized to ~/.claude/hooks/... (portable)"
-    fi
-  else
-    err "Caveman hooks install failed — re-run manually: bash <(curl -fsSL $CAVEMAN_HOOKS_URL)"
-  fi
-  rm -f "$CAVEMAN_HOOKS_TMP"
-fi
-
-# MCP shrink — caveman-shrink is a *proxy* that wraps an upstream MCP
-# server and compresses prose fields in its responses. It cannot run
-# standalone (it errors with "missing upstream command"). We don't auto-
-# register it: the user must pick an upstream MCP server to wrap (e.g.
-# the filesystem server, the GitHub server, …) and add a wrapped entry
-# to ~/.claude.json manually. Print the snippet so they can copy-paste.
-if claude mcp list 2>/dev/null | grep -q '^caveman-shrink-'; then
-  ok "caveman-shrink wrapper already registered (custom upstream)"
-else
-  info "caveman-shrink MCP — manual setup needed (it's a proxy, needs an upstream):"
-  cat <<'EOF'
-    Add a wrapped MCP entry to ~/.claude.json under "mcpServers", e.g.
-    to compress filesystem-server responses:
-
-    {
-      "mcpServers": {
-        "caveman-shrink-fs": {
-          "command": "npx",
-          "args": [
-            "-y", "caveman-shrink",
-            "npx", "-y", "@modelcontextprotocol/server-filesystem",
-            "/path/to/dir"
-          ]
-        }
-      }
-    }
-
-    Or via CLI (replace upstream with your target server):
-      claude mcp add caveman-shrink-fs --scope user -- \
-        npx -y caveman-shrink npx -y @modelcontextprotocol/server-filesystem /path
-EOF
-  warn "caveman-shrink not auto-registered (would fail health check without upstream)"
-fi
-
-echo ""
+# Caveman plugin removed (cleanup/caveman-always-on, v3.5.0): on a
+# subscription plan its ~75% output-token compression has no cost benefit,
+# and the plugin's always-on SessionStart/UserPromptSubmit hooks added
+# friction on validation gates and client deliverables. The unrelated
+# memory-registry terse-format convention (CLAUDE.md) is kept.
 
 # ============================================================
 # STEP 6 — CONTEXT7 CLI (ctx7)
@@ -782,7 +686,6 @@ echo "  ALWAYS ON (installed at user scope):"
 echo "    ✅ security-guidance   — PreToolUse security hook (0 tokens) [claude-code-plugins]"
 echo "    ✅ rtk                 — token compression hook (0 tokens)"
 echo "    ✅ superpowers         — brainstorm/plan/implement/debug workflow"
-echo "    ✅ caveman             — output compression (~75%) + caveman-shrink MCP (input)"
 echo ""
 echo "  TOGGLE (installed but start OFF — /plugin-check recommends when needed):"
 echo "    🔄 gstack              — disabled by default (toggle: lib/toggle-external.sh enable gstack)"

@@ -160,7 +160,7 @@ Tu veux...
 ## Les plugins — décision rapide
 
 ```
-Toujours actifs (0 token) : security-guidance, rtk, caveman
+Toujours actifs (0 token) : security-guidance, rtk
 
 Design élaboré/system     → ui-ux-pro-max ON
 Deploy + QA browser       → gstack ON

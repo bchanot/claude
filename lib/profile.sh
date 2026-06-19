@@ -15,7 +15,7 @@
 #           advisory otherwise
 #   - CLIs: advisory only (rtk, gsd, ctx7, graphify — installed externally)
 #
-# Always-on plugins (never toggled by `set`): caveman, security-guidance,
+# Always-on plugins (never toggled by `set`): security-guidance,
 # superpowers + rtk hook + .claude internal. The script refuses to disable
 # anything in PROTECTED_PLUGINS.
 #
@@ -49,7 +49,7 @@ TOGGLE_EXTERNAL="$REPO/lib/toggle-external.sh"
 ACTIVE_CACHE="$REPO/.active-profile"  # statusline reads this — keep fast (single-line file, profile name only)
 
 # Plugins that are toggle-managed by `set`. Anything NOT in this list is
-# never auto-disabled — protects always-on plugins (caveman, security-guidance,
+# never auto-disabled — protects always-on plugins (security-guidance,
 # superpowers) and unrelated user plugins. Add a plugin here only when its
 # enabled state is meaningfully driven by task type.
 MANAGED_PLUGINS=(
@@ -62,7 +62,6 @@ MANAGED_PLUGINS=(
 # they're not in the profile. (Defensive: belt-and-suspenders alongside
 # MANAGED_PLUGINS allowlist.)
 PROTECTED_PLUGINS=(
-  "caveman@caveman"
   "security-guidance@claude-code-plugins"
   "superpowers@superpowers-marketplace"
 )

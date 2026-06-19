@@ -80,7 +80,6 @@ ctx7 login                 # optional: OAuth / API key for higher rate limits
 | **Context7** | Plugin (toggle) | Fast-evolving libs doc lookup (Next.js, React, Prisma...). Requires a free account + API key (optional Context7 step in install). | [context7.com](https://context7.com/) |
 | **pr-review-toolkit** | Plugin (toggle) | Multi-agent PR review. | [anthropics/claude-code](https://github.com/anthropics/claude-code) |
 | **Graphify** | Python CLI | Codebase → knowledge graph → navigable wiki. Helps Claude map and search projects efficiently. | [pypi: graphifyy](https://pypi.org/project/graphifyy/) |
-| **Caveman** | Plugin (always on) + hooks | Output token compression (~75%) via caveman-speak. Full install = plugin (`/caveman`, cavecrew, caveman-commit, caveman-review, caveman-stats) + standalone hooks (statusline + stats badge). The optional `caveman-shrink` MCP proxy compresses upstream-server prose — manual config required (it wraps another MCP server). See `install-plugins.sh` STEP 5.5 for the snippet. | [JuliusBrussee/caveman](https://github.com/JuliusBrussee/caveman) |
 
 Versions are pinned in `plugins.lock.json`. To update: edit the file, then re-run `install-plugins.sh`.
 

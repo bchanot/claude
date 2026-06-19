@@ -31,14 +31,5 @@
     "path": "skills/emil-design-eng/SKILL.md",
     "managed_by": "curl",
     "note": "Emil Kowalski's design engineering skill — UI polish, animations, component craft. Downloaded to skills-external/emil-design-eng/, symlinked by link.sh."
-  },
-  "caveman": {
-    "source": "https://github.com/JuliusBrussee/caveman",
-    "marketplace": "JuliusBrussee/caveman",
-    "plugin_ref": "caveman@caveman",
-    "managed_by": "claude plugin + standalone hooks installer + claude mcp",
-    "extras": ["hooks (statusline + stats)", "caveman-shrink MCP proxy"],
-    "version": "latest",
-    "note": "Caveman — ~75% output token compression via caveman-speak. Full install = plugin + standalone hooks (statusline + stats badge) + caveman-shrink MCP (input compression). Updates pull via 'claude plugin update'; hooks installer is idempotent."
   }
 }

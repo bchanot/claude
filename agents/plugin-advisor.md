@@ -376,7 +376,7 @@ gstack + managed plugins — sessions stay focused and passive token cost drops.
 
 `profile set <name>` actually toggles plugins (`claude plugin enable|disable`)
 and MCPs (delegates to `lib/toggle-external.sh` for `magic`) — not just
-advisory. Always-on plugins (`caveman`, `security-guidance`, `superpowers`)
+advisory. Always-on plugins (`security-guidance`, `superpowers`)
 are protected. Managed plugins that `set` may toggle:
 `ui-ux-pro-max@ui-ux-pro-max-skill`, `plugin-dev@claude-code-plugins`,
 `pr-review-toolkit@claude-code-plugins`. Other plugins are never auto-toggled.

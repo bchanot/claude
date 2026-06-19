@@ -131,7 +131,6 @@ ALWAYS_ON=()
 detect_rtk &>/dev/null && ALWAYS_ON+=("rtk")
 plugin_enabled "security-guidance@claude-code-plugins"  && ALWAYS_ON+=("security-guidance")
 plugin_enabled "superpowers@superpowers-marketplace"    && ALWAYS_ON+=("superpowers")
-plugin_enabled "caveman@caveman"                        && ALWAYS_ON+=("caveman")
 ALWAYS_ON_STR="${ALWAYS_ON[*]:-none}"
 # Same 40-char-width split policy as the toggle row below — keeps the
 # right border aligned when 4 always-on plugins overflow the field.

@@ -66,12 +66,6 @@ detect_graphifyy() {
   command -v graphify &>/dev/null
 }
 
-detect_caveman() {
-  # Caveman — output-token compression via caveman-speak (marketplace plugin)
-  local cache_dir="$HOME/.claude/plugins/cache"
-  [ -d "$cache_dir" ] && compgen -G "$cache_dir"/*caveman* &>/dev/null
-}
-
 # True if a plugin is registered as enabled in settings.json's
 # enabledPlugins map. Filesystem only (no subprocess to claude CLI).
 # Argument is the full "name@marketplace" key.
@@ -79,19 +73,6 @@ plugin_enabled() {
   local key="$1"
   [ -f "$HOME/.claude/settings.json" ] || return 1
   grep -qE "\"${key}\"[[:space:]]*:[[:space:]]*true" "$HOME/.claude/settings.json"
-}
-
-detect_caveman_hooks() {
-  # Standalone hooks (statusline + stats) deployed by caveman hooks/install.sh
-  [ -f "$HOME/.claude/hooks/caveman-statusline.sh" ]
-}
-
-detect_caveman_shrink() {
-  # caveman-shrink is a proxy — only valid when registered with an
-  # upstream wrapper (e.g. caveman-shrink-fs:, caveman-shrink-github:).
-  # Bare 'caveman-shrink:' fails health checks and is treated as missing.
-  command -v claude &>/dev/null \
-    && claude mcp list 2>/dev/null | grep -q '^caveman-shrink-'
 }
 
 

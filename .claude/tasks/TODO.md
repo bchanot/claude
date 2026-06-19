@@ -192,3 +192,16 @@ obligatoire avant axe suivant. Construit via superpowers:writing-skills (TDD).
 - [x] onboard SKILL.md: allowed-tools += Agent, Skill (workflow STEPs 5-7 need them)
 - [x] re-test geo fixture (unreachable) → expect zero source edits; 2 blind judges on geo-analyzer diff
 - [x] commit per fix, results.tsv rows, merge if green
+
+## 2026-06-19 — cleanup/caveman-always-on (full plugin purge)
+Goal: disable caveman plugin + delete every repo dep on it. Plugin.json
+self-declares always-on hooks → "enabled w/o always-on" impossible → full
+purge. Keep memory-registry terse-format rule (separate subsystem); only
+replace dead `/caveman:compress` cmd refs w/ "Legacy entries
+(pre-format-rule): compress manually or via claude.ai on demand."
+Version 3.4.0 → 3.5.0.
+- [x] RUNTIME (user, no TTY): plugin disable + uninstall caveman@caveman; mcp list check
+- [x] PHASE 2: settings.json (2 hook blocks + enabledPlugins + marketplace); hooks/ files delete; .gitignore block; session-start.sh L134
+- [x] PHASE 3: install-plugins.sh STEP 5.5; update-all.sh block; plugins.lock.json; doctor.sh; lib/detect-plugins.sh; lib/profile.sh; plugin-advisor.md; skills/profile/SKILL.md
+- [x] PHASE 4: README row; USAGE always-on line; CHANGELOG; CLAUDE.md cmd ref; skills/capitalize+prune-memory cmd refs; version.txt
+- [x] PHASE 5: shellcheck clean (SC1091 info only); full diff reviewed → committed + merged to master

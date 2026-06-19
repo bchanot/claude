@@ -104,8 +104,8 @@ quoted exact, IDs (BDR/LRN/BLK/EVAL-XXX) + dates unchanged. Pattern:
 `[thing] [action] [reason]. [next step].` Rationale: registries load
 every session — caveman cuts ~40% input tokens, zero substance loss.
 Applies to direct writes AND skill CAPITALIZE steps (close, ship-feature,
-feat, bugfix, hotfix, commit-change). Existing entries: compress via
-`/caveman-compress <file>`.
+feat, bugfix, hotfix, commit-change). Legacy entries (pre-format-rule):
+compress manually or via claude.ai on demand.
 
 **Routing — what goes where:**
 - Choice with tradeoffs you'd defend → `decisions.md`.

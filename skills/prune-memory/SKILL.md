@@ -43,7 +43,6 @@ Operates on `.claude/memory/` in the current project (CWD). Curates the
 | When | Use |
 |------|-----|
 | Add new entry this session | `/close` |
-| Token-compress one file (not curating) | `/caveman:compress <file>` |
 | Curate: obsolete + merge + caveman | `/prune-memory` (this skill) |
 
 ## STEP 0 — PRECHECK
@@ -227,7 +226,7 @@ NEXT: review `git diff .claude/memory/`, then `/commit-change`
 | Merge produces an entry > 600 words | Re-split — merge was too greedy. Re-prompt user to keep separate. |
 | Index sanity FAILED at STEP 4 | Print exact missing/orphan IDs. Do NOT auto-fix — user re-runs or hand-edits. |
 | Caveman compression result < 20% of original AND original had code blocks | Revert that entry's compression — flag as needing manual rewrite (likely stripped technical detail). |
-| Same file already compressed in same session (e.g. via `/caveman:compress`) | Skip C-category for that file; warn user that double-pass risks technical drift. |
+| Same file already compressed in same session | Skip C-category for that file; warn user that double-pass risks technical drift. |
 
 ## Rules
 

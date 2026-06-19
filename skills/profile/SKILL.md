@@ -56,7 +56,7 @@ lists items + types:
 | `mcp` (other)           | advisory — prints manual `claude mcp add …` command |
 | `cli`                   | advisory only — reports installed/not-installed |
 
-**Always-on plugins** (`caveman`, `security-guidance`, `superpowers`) are
+**Always-on plugins** (`security-guidance`, `superpowers`) are
 protected — `set` will refuse to disable them even if the profile omits them.
 **Managed plugins** that `set` may disable when not in profile:
 `ui-ux-pro-max@ui-ux-pro-max-skill`, `plugin-dev@claude-code-plugins`,

@@ -21,7 +21,6 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 - `frontend-design` and `design-motion-principles` skills (external marketplaces)
 - Project archetype library + detection for `/onboard`
 - `.claude/{tasks,memory,audits}/` governance layout + 5 memory registries (decisions, learnings, blockers, journal, evals)
-- Caveman plugin + standalone hooks (output token compression)
 
 ### Changed
 - `/seo` split into parallel `seo` + `geo` agents with shared resources
@@ -33,6 +32,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ### Removed
 - `disable-model-invocation` frontmatter removed repo-wide (aligns skills with CLAUDE.md routing)
+- Caveman plugin always-on integration purged — plugin disabled + uninstalled; SessionStart/UserPromptSubmit hooks, standalone hook files, `install-plugins.sh` STEP 5.5, `update-all.sh` refresh step, `plugins.lock.json` entry, `doctor.sh` checks, and docs removed. On a subscription plan its ~75% output-token compression has no cost benefit, and the always-on hooks added friction on validation gates + client deliverables. The unrelated memory-registry terse-format convention is kept.
 
 ### Fixed
 - Numerous skill/agent fixes across darwin optimization rounds (geo-analyzer, onboard, init-project, analyzer, plugin-check, prune-memory, …)
