@@ -1,6 +1,13 @@
 # DESC: Design work — visual QA, design systems, mockups, polish
 # Activate when: building/reviewing UI, picking aesthetics, design tokens.
 # Companion CLIs (advisory): graphify (visual structure).
+#
+# Gate scope (design-tool-gate.sh): only the tools on the GATE-BLOCK lines
+# below trip the design gate. The rest of this profile (browser/plan/shotgun
+# tooling, graphify) is bundled for convenience but never blocks. Keep these
+# lines in sync when adding/removing a core design tool.
+# GATE-BLOCK: frontend-design ui-ux-pro-max emil-design-eng design-html
+# GATE-BLOCK: design-motion-principles design-review design-consultation magic
 
 # Core design skills (gstack)
 design-shotgun
