@@ -106,6 +106,32 @@ for _ext in "${NPX_EXTERNAL_SKILLS[@]}"; do
   CHANGED=$((CHANGED + 1))
 done
 
+# ── Local secrets: repo/.env -> ~/.claude/.env ──────────────
+# Real key lives in ~/.claude/.env (source of truth, outside the repo so the
+# secret never enters the git tree). The repo reaches it via a symlink that
+# `source "$REPO/.env"` follows transparently. Never creates/copies/prints it.
+link_env() {
+  local home_env="$CLAUDE/.env" repo_env="$REPO/.env"
+  if [ ! -f "$home_env" ]; then
+    echo "⚠️  $home_env missing — create it (the repo never stores the secret):"
+    echo "       cp \"$REPO/.env.example\" \"$home_env\" && \"\${EDITOR:-nano}\" \"$home_env\""
+    return
+  fi
+  grep -q '^MAGIC_API_KEY=' "$home_env" 2>/dev/null \
+    || echo "⚠️  $home_env has no MAGIC_API_KEY line — magic won't enable until added."
+  if [ -L "$repo_env" ]; then
+    [ "$(readlink "$repo_env")" = "$home_env" ] && return
+    ln -sf "$home_env" "$repo_env"; CHANGED=$((CHANGED + 1))
+  elif [ ! -e "$repo_env" ]; then
+    ln -sf "$home_env" "$repo_env"; CHANGED=$((CHANGED + 1))
+  else
+    echo "⚠️  $repo_env is a real file, not a symlink."
+    echo "    If it holds your secret:  mv \"$repo_env\" \"$home_env\"  then re-run link.sh"
+    echo "    Otherwise remove it so link.sh can link to $home_env."
+  fi
+}
+link_env
+
 if [ "$CHANGED" -eq 0 ]; then
   echo "✅ All symlinks already up to date."
 else

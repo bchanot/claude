@@ -75,7 +75,7 @@ Exit codes: `0` = ready (proceed) · `10` = incomplete (gate trips) · `2` = err
   - **required + manual step** → required tools the profile can't flip silently.
     **magic lands here: it TRIPS the gate** (it's required for Build), it is NOT
     a silent "optional". `/profile design` runs `toggle-external.sh` for magic,
-    which needs a valid `MAGIC_API_KEY` in `.env` — tell the user to verify it.
+    which needs a valid `MAGIC_API_KEY` in `~/.claude/.env` — tell the user to verify it.
   - Do NOT hand-activate individual tools. The profile is the unit of activation.
 - **`unverified` line** (claude CLI absent) → the state of a plugin/mcp couldn't
   be checked; it does not block. Mention it, proceed.
@@ -92,7 +92,7 @@ remedy is always `/profile <that>` — a profile, never a lone tool.
 - Remedy is ALWAYS a profile (`/profile design`), never an atomic tool toggle —
   the profile system is the single source of truth for what's active.
 - magic is REQUIRED (it trips the gate), but `/profile design` only enables it
-  if `MAGIC_API_KEY` is in `.env` — the gate says so; surface that to the user.
+  if `MAGIC_API_KEY` is in `~/.claude/.env` — the gate says so; surface that to the user.
 - The design-core set (what trips the gate) is declared in `design.profile` on
   the `# GATE-BLOCK:` line(s) — edit there to add/remove a blocking design tool,
   not in the script.

@@ -131,7 +131,7 @@ fi
 if [ "${#manual[@]}" -gt 0 ]; then
   echo "  required + manual step (API key / external install):  ${manual[*]}"
   case " ${manual[*]} " in
-    *" magic "*) echo "    magic needs MAGIC_API_KEY in .env (/profile $PROFILE runs toggle-external.sh)" ;;
+    *" magic "*) echo "    magic needs MAGIC_API_KEY in ~/.claude/.env (/profile $PROFILE runs toggle-external.sh)" ;;
   esac
 fi
 if [ "${#unverified[@]}" -gt 0 ]; then

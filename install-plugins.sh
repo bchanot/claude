@@ -618,7 +618,7 @@ if [ -x "$REPO/lib/toggle-external.sh" ]; then
     ok "magic MCP disabled (default)"
   fi
   if [ ! -f "$REPO/.env" ] || ! grep -q '^MAGIC_API_KEY=' "$REPO/.env" 2>/dev/null; then
-    warn "MAGIC_API_KEY not found in $REPO/.env — copy .env.example and set your key before enabling"
+    warn "MAGIC_API_KEY not found in ~/.claude/.env — copy .env.example there and set your key before enabling"
   fi
 else
   warn "lib/toggle-external.sh not found or not executable — skipping"

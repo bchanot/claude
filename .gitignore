@@ -98,9 +98,11 @@ HANDOVER.pdf
 # Install logs
 install-*.log
 
-# Local secrets (MCP API keys etc.) — use .env.example as template
+# Local secrets (MCP API keys etc.) — real key lives in ~/.claude/.env;
+# repo/.env is a symlink to it (created by link.sh). Never commit the secret.
 .env
-.env.local
+.env.*
+!.env.example
 
 # OS
 .DS_Store

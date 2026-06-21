@@ -181,7 +181,7 @@ enable_tool() {
     magic)
       load_env
       if [ -z "${MAGIC_API_KEY:-}" ]; then
-        err "MAGIC_API_KEY not set — add it to $REPO/.env (template: .env.example)"
+        err "MAGIC_API_KEY not set — add it to ~/.claude/.env (template: .env.example)"
         return 1
       fi
       if [ "$(status_tool magic)" = "enabled" ]; then
