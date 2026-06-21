@@ -423,3 +423,31 @@ rules:
   - Gate re-reads `.profile` directly — duplicates `read_profile` parsing in the gate; two parsers drift.
   - Gate parses full `show` output — pays claude calls per plugin/mcp, fragile in hook context.
 - **Reference**: `lib/profile.sh` `cmd_show` (+ `--plain` branch), `skills/profile/SKILL.md`, commit 5776195. Linked to [[BDR-018]] (prior `profile.sh` command addition).
+
+---
+
+## BDR-025 — Design gate = profile-based; remedy always `/profile design`; magic required-but-manual; unknown → fail-visible; claude resolved via PATH-repair
+
+- **Date**: 2026-06-21
+- **Status**: accepted
+- **Decision**: `design-tool-gate.sh` checks whether the `design` profile's design-core tools are active and, if not, points at ONE command — `/profile design`, never an atomic per-tool toggle. **tier = profil**: every non-trivial tier (Build / design-system / review) draws from the one `design` profile (a superset of all tiers) → the gate checks that profile, so ZERO hardcoded tier→tools list. Gate scope = the `# GATE-BLOCK:` allowlist in `design.profile` (only real design tools trip; bundled browser/plan/shotgun/graphify ignored). Structure + types from `profile.sh show design --plain` (BDR-024 contract); per-tool state per channel (skill symlink / `claude plugin list` / `claude mcp list` / `command -v`), mirroring `profile.sh:skill_status()`. Three outcomes: blocking/manual → INCOMPLETE exit 10; unknown-only → READY-BUT-UNVERIFIED exit 11 (fail-visible); else READY exit 0. **magic = required-but-manual** class: TRIPS the gate (NOT advisory), names the `MAGIC_API_KEY` step. **claude resolved via `ensure_claude_on_path()`** (probe known dirs + nvm glob `sort -V | tail -1` = newest, prepend the bin dir carrying claude AND node) — because `command -v claude` depends on PATH carrying the nvm bin, absent in a sanitized subshell/hook; integral to the final gate design, not a detail.
+- **Why**: single source of truth = profile system → no CLAUDE.md tier→tools dup (P3/P5 just removed it), no tool→profile map to drift. Credible gate: trips only on real design tools, not bundled infra → not ignored by reflex. magic is the load-bearing design tool, so silence on it would defeat the gate's purpose. Gate runs from hooks/skills where PATH may be sanitized → robust claude resolution is required for it to verify at all.
+- **Alternatives rejected**:
+  - Hardcoded tier→tools list — reintroduces the CLAUDE.md dup just removed; drifts when a tool is added to a profile.
+  - magic advisory (mention, don't trip) — fail-OPEN on the very tool the gate exists to catch.
+  - Strict fail-closed on unknown — false blocks when claude merely slow/unreachable → gate gets ignored. fail-VISIBLE (exit 11) chosen.
+  - Depend on `command -v claude` alone — fails in sanitized-PATH hook → unknown. Proven by `PATH=/usr/bin:/bin` test (magic-on → READY/0, magic-off → INCOMPLETE/10).
+- **Reference**: `lib/design-tool-gate.sh`, `lib/design-gate.md`, `lib/profiles/design.profile` (`# GATE-BLOCK:`), commits 3eefb8a / 4d19135 / f963318. Linked to [[BDR-024]] (the `--plain` parse contract this consumes), [[LRN-036]] (`command -v` PATH dependence, the real cause), [[LRN-037]] (proven on the real subject in real context).
+
+---
+
+## BDR-026 — Secret source-of-truth outside the repo (`~/.claude/.env`) reached via a `repo/.env` symlink
+
+- **Date**: 2026-06-21
+- **Status**: accepted
+- **Decision**: real secret lives in `~/.claude/.env` (outside the git tree); `repo/.env` is a symlink → it. `source "$REPO/.env"` follows the symlink transparently → ZERO change to any read path (`toggle-external.sh` `load_env`, `install-plugins.sh` check, gate). `link.sh` `link_env()` creates the symlink defensively: links only when `repo/.env` is absent or already the right link; a residual REAL `repo/.env` is left untouched with a migrate hint — never clobbered, so the secret can't be destroyed. Idempotent. `.gitignore` hardened to `.env` + `.env.*` + `!.env.example`. Messages point at `~/.claude/.env` (the canonical edit location).
+- **Why**: secret never enters the git tree — not as content (it's a link) nor by accident (gitignored). Even a stray `git add .` can't stage the real key. Repo stays usable: the symlink is visible/editable from the repo. Read paths follow the link → no script logic changed.
+- **Alternatives rejected**:
+  - Secret in `repo/.env`, gitignored (status quo) — one `git add -f` or a `.gitignore` slip leaks it; the secret physically sits in the tree.
+  - Scripts read `~/.claude/.env` directly — makes the symlink redundant but rewrites every read path and loses repo-local visibility.
+- **Reference**: `link.sh` `link_env()`, `.gitignore`, `lib/toggle-external.sh`, `install-plugins.sh`, `.env.example`, commits 131d0bc / f9cc866. Linked to [[BDR-025]] (magic's `MAGIC_API_KEY`, consumed by the gate's required-but-manual class).
