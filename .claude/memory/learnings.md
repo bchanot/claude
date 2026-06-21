@@ -475,3 +475,25 @@ rules:
 - **Pattern**: `printf '%-Ns'` pads to N BYTES, not display columns. Multibyte char → field over-counts → columns misalign (off by bytes-minus-chars). Fix: display width via `${#str}` (char-count, UTF-8-aware under multibyte locale) + pad with `printf '%*s' <gap> ''`. Alt: keep multibyte content in LAST column (no pad) — existing `cmd_list` already did this for descriptions.
 - **Future application**: aligning any column with non-ASCII (`·` `—` box-drawing, accents) → never trust `%-Ns`; use `${#}` + manual space pad, or put multibyte field last. Verify with `wc -L` (display width), not `wc -c`.
 - **Reference**: `rpad()` in `lib/profile.sh`, commit 5776195.
+
+---
+
+## LRN-034 — Narrated state ≠ ground truth; the missed alarm was internal contradiction — verify against git
+
+- **Date**: 2026-06-21
+- **Context**: CLAUDE.md audit reprise. Assistant first said correctly "P3 non écrit" (profile.sh pivot). User then asserted "P3 DÉJÀ appliqué" (diff-approval confused with diff-writing — user acknowledged). Assistant ACCEPTED it ("P3 clos, je n'y touche pas") without reopening git; it carried into the resume prompt as "P3 APPLIQUÉ et committé". On reprise, git log + file content (design routing still split 3×) proved P3 never applied. Eventually applied → commit 493b6b9.
+- **Cause (shared)**: origin = ambiguous user assertion (approval ≠ application, acknowledged); assistant failure = swallowing it without verification. Not one party's fault — both unverified.
+- **Lead lesson — the missed alarm was internal contradiction**: assistant had said "P3 non écrit", then accepted "P3 fait" two turns later. A claim contradicting what you said just before = loudest possible signal to re-check — and it was reconciled by quietly accepting the newer claim. THAT is the real failure.
+- **Pattern**: narrated/remembered state from ANY source (user OR assistant) is not ground truth. Approval of a diff ≠ its application.
+- **Future application**: anyone asserts "X is done" → verify (git log, file content, grep) before building on it; ESPECIALLY when it contradicts your own earlier statement, or after a context/window break. Internal contradiction → stop, re-check git, never reconcile by accepting the newer claim silently.
+- **Reference**: P3 reprise, commit 493b6b9. Linked to [[LRN-032]] (verify before applying a rule), [[LRN-035]] (check the artifact, not the claim/count).
+
+---
+
+## LRN-035 — Honest dedup: name-mention ≠ definition-instance; a dosage rule can make a "dedup" task a no-op
+
+- **Date**: 2026-06-21
+- **Context**: P4 of CLAUDE.md audit = factor "≤2 files, obvious fix" "repeated ~8×". Inspection: 4/8 = skill NAME `hotfix` in lists (not scope defs); 3/8 = context-specialized scope phrasings (routing trigger "typo, CSS, config, ≤2 files" / design "single cosmetic value" / general exemption "obvious fix" — NOT identical), 2 in protected sections (routing table, P3-consolidated design); canonical single source already created by P5 in `## Planning & TODO`. Net: factorize nothing.
+- **Pattern**: before factoring "duplication", separate name/reference mentions from actual definition instances; check whether copies are identical or context-specialized. Apply dosage (keep inline where read-in-isolation needs it; in doubt keep inline). A dedup proposal can correctly collapse to no-op — kill it by applying the rule, don't force factorization to honor the proposal.
+- **Future application**: any "X repeated N times → factor it" → audit what each occurrence IS; count real dup-of-definition, not keyword hits. Manufacturing factorization degrades local readability for zero gain.
+- **Reference**: P4 no-op, CLAUDE.md audit (commit 663b16c). Linked to [[LRN-031]] (skill value = don't re-code free behavior, don't force a procedure), [[LRN-032]] (rule has a domain).
