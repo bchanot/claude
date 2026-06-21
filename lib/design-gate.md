@@ -57,7 +57,7 @@ skill symlink, `claude plugin list`, `claude mcp list`, `command -v`. It never
 reads `disabledMcpServers` (unreliable for bi-modal servers like magic/context7).
 The core set lives in `design.profile`, not in the script or here — single source.
 
-Exit codes: `0` = ready (proceed) · `10` = incomplete (gate trips) · `2` = error.
+Exit codes: `0` = ready · `11` = ready-but-unverified (proceed, but surface it) · `10` = incomplete (gate trips) · `2` = error.
 
 ### 3. Branch on the result
 
@@ -77,8 +77,11 @@ Exit codes: `0` = ready (proceed) · `10` = incomplete (gate trips) · `2` = err
     a silent "optional". `/profile design` runs `toggle-external.sh` for magic,
     which needs a valid `MAGIC_API_KEY` in `~/.claude/.env` — tell the user to verify it.
   - Do NOT hand-activate individual tools. The profile is the unit of activation.
-- **`unverified` line** (claude CLI absent) → the state of a plugin/mcp couldn't
-  be checked; it does not block. Mention it, proceed.
+- **11 / `READY BUT UNVERIFIED`** → `claude` was unreachable, so the design
+  plugin/MCP (magic, ui-ux-pro-max) could NOT be checked. Do NOT report a plain
+  "ready": proceed only after telling the user that N tool(s) went unverified and
+  having them confirm with `claude mcp list` / `claude plugin list`. Fail-visible,
+  not fail-silent — the most important tool (magic) is exactly an unverifiable one.
 
 ### Other toolchains
 

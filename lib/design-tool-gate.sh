@@ -36,7 +36,7 @@
 # disabledMcpServers is NEVER read — unreliable for bi-modal servers
 # (magic/context7 can appear there yet be active via another channel).
 #
-# Exit: 0 = ready (proceed) · 10 = incomplete (gate trips) · 2 = error.
+# Exit: 0 = ready · 11 = ready-but-unverified (proceed, say so) · 10 = incomplete (trips) · 2 = error.
 # Usage: design-tool-gate.sh [profile]        (default profile: design)
 # ============================================================
 set -euo pipefail
@@ -112,30 +112,38 @@ while IFS=$'\t' read -r type name; do
   esac
 done <<< "$plain"
 
-# Verdict. Either class trips the gate.
-trip=0
-if [ "${#blocking[@]}" -gt 0 ] || [ "${#manual[@]}" -gt 0 ]; then trip=1; fi
-
-if [ "$trip" -eq 0 ]; then
-  echo "design toolchain: READY — profile '$PROFILE' design tools active"
-  if [ "${#unverified[@]}" -gt 0 ]; then
-    echo "  note: could not verify (claude CLI absent): ${unverified[*]}"
+# Verdict — three outcomes:
+#   blocking/manual non-empty -> INCOMPLETE (exit 10): the gate trips.
+#   only unverified non-empty -> READY BUT UNVERIFIED (exit 11): fail-VISIBLE.
+#     claude was unreachable, so the plugin/MCP (magic, ui-ux-pro-max) could
+#     not be checked. Never pass this as a silent READY — proceed, but say so.
+#   nothing pending           -> READY (exit 0).
+if [ "${#blocking[@]}" -gt 0 ] || [ "${#manual[@]}" -gt 0 ]; then
+  echo "design toolchain: INCOMPLETE"
+  if [ "${#blocking[@]}" -gt 0 ]; then
+    echo "  activate with /profile $PROFILE:  ${blocking[*]}"
   fi
-  exit 0
+  if [ "${#manual[@]}" -gt 0 ]; then
+    echo "  required + manual step (API key / external install):  ${manual[*]}"
+    case " ${manual[*]} " in
+      *" magic "*) echo "    magic needs MAGIC_API_KEY in ~/.claude/.env (/profile $PROFILE runs toggle-external.sh)" ;;
+    esac
+  fi
+  if [ "${#unverified[@]}" -gt 0 ]; then
+    echo "  also unverified (claude CLI unreachable): ${unverified[*]}"
+  fi
+  echo "  → run:  /profile $PROFILE"
+  exit 10
 fi
 
-echo "design toolchain: INCOMPLETE"
-if [ "${#blocking[@]}" -gt 0 ]; then
-  echo "  activate with /profile $PROFILE:  ${blocking[*]}"
-fi
-if [ "${#manual[@]}" -gt 0 ]; then
-  echo "  required + manual step (API key / external install):  ${manual[*]}"
-  case " ${manual[*]} " in
-    *" magic "*) echo "    magic needs MAGIC_API_KEY in ~/.claude/.env (/profile $PROFILE runs toggle-external.sh)" ;;
-  esac
-fi
 if [ "${#unverified[@]}" -gt 0 ]; then
-  echo "  unverified (claude CLI absent): ${unverified[*]}"
+  echo "design toolchain: READY BUT UNVERIFIED — ${#unverified[@]} tool(s) not checked"
+  echo "  unverified (claude CLI unreachable): ${unverified[*]}"
+  echo "  the gate could NOT confirm the design plugin/MCP (e.g. magic,"
+  echo "  ui-ux-pro-max) are active. Proceed only after checking manually:"
+  echo "      claude mcp list     claude plugin list"
+  exit 11
 fi
-echo "  → run:  /profile $PROFILE"
-exit 10
+
+echo "design toolchain: READY — profile '$PROFILE' design tools active"
+exit 0
