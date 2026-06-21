@@ -497,3 +497,15 @@ rules:
 - **Pattern**: before factoring "duplication", separate name/reference mentions from actual definition instances; check whether copies are identical or context-specialized. Apply dosage (keep inline where read-in-isolation needs it; in doubt keep inline). A dedup proposal can correctly collapse to no-op — kill it by applying the rule, don't force factorization to honor the proposal.
 - **Future application**: any "X repeated N times → factor it" → audit what each occurrence IS; count real dup-of-definition, not keyword hits. Manufacturing factorization degrades local readability for zero gain.
 - **Reference**: P4 no-op, CLAUDE.md audit (commit 663b16c). Linked to [[LRN-031]] (skill value = don't re-code free behavior, don't force a procedure), [[LRN-032]] (rule has a domain).
+
+---
+
+## LRN-036 — `command -v <cli>` in a shelled-out script depends on PATH carrying the cli's bin, NOT on the alias
+
+- **Date**: 2026-06-21
+- **Context**: design-tool-gate.sh shelled out (`bash script.sh`) by skill/hook checks `command -v claude` to verify magic + ui-ux-pro-max. Live run reported "claude absent" → unverified, though `claude mcp list` worked elsewhere same shell.
+- **Refuted hypothesis**: "claude = alias (claude→dtach_claude function), alias dies in non-interactive subshell → cause". Alias DOES die in `bash script.sh`, but HARMLESS: real binary on inherited PATH (`~/.nvm/versions/node/vX/bin/claude`), so `command -v claude` resolves it. Proven: normal `bash script.sh` → FOUND; `PATH=/usr/bin:/bin bash script.sh` → NOT FOUND. Lever = PATH, not alias.
+- **Real cause**: `command -v claude` succeeds only when PATH carries the node bin dir. Skill/hook can shell script out with sanitized PATH lacking it; nvm path version-pinned → node upgrade moves it. Either → check = unknown.
+- **Fix**: don't trust inherited PATH. `ensure_claude_on_path()` probes known dirs (`~/.claude/local`, `~/.local/bin`, `/usr/local/bin`, nvm glob `sort -V | tail -1` = newest) + prepends bin dir (carries claude AND its node runtime, same dir; claude shebang needs node). Fail-visible exit 11 = the MITIGATION/net, NOT the cause.
+- **Future application**: any script shelling out a CLI that may run from hook/subshell → resolve the binary's bin dir explicitly, don't assume interactive PATH. Test under `PATH=/usr/bin:/bin` to simulate sanitized context. Distinguish alias/function (interactive-only, never in subshell) vs real binary on PATH (what `command -v` finds in scripts).
+- **Reference**: `ensure_claude_on_path()` in `lib/design-tool-gate.sh`, commit f963318. Linked to [[LRN-034]] (narrated/plausible state ≠ ground truth — here the plausible alias theory was wrong; test the real subshell, don't accept it).
