@@ -6,7 +6,7 @@ Apply unless repo-specific instructions override.
 - Simple, readable, maintainable > clever or compact.
 - One responsibility per function/method.
 - Preserve existing behavior unless asked.
-- Scope changes to task. No unrelated edits.
+- Scope changes to task — no unrelated edits.
 
 ## Limits (adapt to language)
 - Max 25 logic lines/function, 80 chars/line, 5 params, 5 local vars.
@@ -17,14 +17,14 @@ Apply unless repo-specific instructions override.
 
 ## Comments & readability
 - Document intent, not mechanics. Use project doc style (docstring, JSDoc…).
-- Explicit, consistent, meaningful names. Straight control flow.
-  No hidden side effects.
+- Explicit, consistent, meaningful names. Straight control flow,
+  no hidden side effects.
 
 ## Refactoring
 - Priority: safety → readability → consistency.
 - Remove dead code, stale comments, obsolete flags after changes.
 - Non-trivial change: ask "more elegant solution exists?"
-  Hacky fix → rebuild clean. No over-engineering.
+  Hacky fix → rebuild clean, no over-engineering.
 
 ## Session start
 1. Read `.claude/memory/` — 5 registries (decisions, learnings, blockers,
@@ -34,50 +34,49 @@ Apply unless repo-specific instructions override.
    (templates: `~/.claude/templates/memory/`).
 
 ## Workflow
-- Task touches logic (new behavior, control flow, state, API,
-  dependencies) → plan in `.claude/tasks/TODO.md` first, decomposed into
-  subtasks. One complex task still needs plan. Borderline case (single
-  file, small obvious logic change) → skip plan, stay pragmatic.
-- Confirm before implementing ONLY when real trade-offs exist (multiple
+- Confirm before implementing only when real trade-offs exist (multiple
   valid approaches, breaking change, destructive action) — else proceed.
-- Exempt from TODO.md: pure reads, explanations, questions, typos,
-  cosmetic CSS, single config-value change. Same scope as `/hotfix`
-  (≤2 files, obvious fix).
 - Minimal changes unless broader refactor requested. State trade-offs.
 - Sub-agents keep main context clean — one task per sub-agent.
   More compute on hard problems. Task fans out across independent
   items (many files, parallel searches, multi-point checks) → delegate
   to sub-agents, don't iterate serially. Default to delegation for
   multi-file exploration. Counters Opus 4.8 tendency to under-delegate.
-- One question upfront if needed — never interrupt mid-task.
+- One question upfront if needed — don't interrupt mid-task.
   *Exception: skill-mandated gates and checkpoints (orchestrator
   validation gates, approval gates, darwin checkpoints) always fire.*
 - Bug received → fix directly: check logs, find root cause, resolve
   autonomously.
 - Something goes wrong → STOP, re-plan. Never push through.
 - Deviations: minor or clearly justified → do, explain after.
-  Significant or shaky justification → ask BEFORE deviating.
+  Significant or shaky justification → ask before deviating.
 - Root causes only. No temp fixes. Never assume — verify paths, APIs,
   variables before use.
+
+## Planning & TODO (`.claude/tasks/TODO.md`)
+
+- When to plan: task touches logic (new behavior, control flow, state,
+  API, dependencies) → write it in `.claude/tasks/TODO.md` first,
+  decomposed into subtasks. One complex task still needs a plan.
+  Borderline case (single file, small obvious logic change) → skip plan,
+  stay pragmatic.
+- Exempt (skip TODO.md): pure reads, explanations, questions, typos,
+  cosmetic CSS, single config-value change. Same scope as `/hotfix`
+  (≤2 files, obvious fix).
+- How to track, once a task qualifies:
+  1. Plan → task written before code.
+  2. Decompose → one subtask = one coherent change.
+  3. Track → check off as you go.
+  4. Summarize → high-level note at each milestone.
 
 ## After code changes
 1. Run tests, lint, build, type-check if available.
 2. Report what verified, what not.
 3. List remaining risks, surviving deviations.
-4. Never mark complete without proof it works.
+4. Don't mark complete without proof it works.
    Bar: "would staff engineer approve?"
 5. Correction or notable event → capitalize to right registry
    (see "Memory registries").
-
-## Task tracking (`.claude/tasks/TODO.md`)
-
-Any write/modify task touching logic. Skip reads + trivial edits
-(see Workflow).
-
-1. Plan → task written before code.
-2. Decompose → one subtask = one coherent change.
-3. Track → check off as you go.
-4. Summarize → high-level note at each milestone.
 
 ## Memory registries (`.claude/memory/`)
 
@@ -94,11 +93,11 @@ past entries; curation (merge, mark superseded, compress) ONLY via
 | `journal.md` | date heading | 3-5 lines/session — done, decided, blocked |
 | `evals.md` | EVAL-XXX | Quality check of Claude's output + method + anomalies + action |
 
-**Language — registries ALWAYS English.** Rationale: consistent vocab,
+**Language — registries always English.** Rationale: consistent vocab,
 lower token cost, cross-project reuse. User-facing CAPITALIZE prompts may
 mirror user's language; final written entry English.
 
-**Format — registries ALWAYS caveman.** Drop articles + filler, fragments
+**Format — registries always caveman.** Drop articles + filler, fragments
 OK, short synonyms. Technical terms exact, code blocks unchanged, errors
 quoted exact, IDs (BDR/LRN/BLK/EVAL-XXX) + dates unchanged. Pattern:
 `[thing] [action] [reason]. [next step].` Rationale: registries load
@@ -117,7 +116,7 @@ compress manually or via claude.ai on demand.
 **Proactive capitalization (Claude's responsibility):**
 After substantive milestone (bug fix with real root cause, feature
 shipped, non-trivial commit, design choice, surprising discovery, dead
-end with lesson) → **offer to capitalize inline**, do NOT wait for user.
+end with lesson) → **offer to capitalize inline**, do not wait for user.
 Pre-fill entry from context; user approves/edits before write.
 Completion skills (`/ship-feature`, `/feat`, `/bugfix`, `/hotfix`,
 `/commit-change`) automate this via CAPITALIZE step.
@@ -147,23 +146,23 @@ portfolio, blog, e-commerce, docs):
   islands for interactive parts.
 - **Next.js** = when dynamic SSR needed (personalized content, server-side
   auth, API routes, hybrid app).
-- **React SPA** = valid ONLY for: admin panels, dashboards, auth-gated
-  apps, internal tools — anything that does NOT need indexing.
+- **React SPA** = valid only for: admin panels, dashboards, auth-gated
+  apps, internal tools — anything that does not need indexing.
 - **Mixed project** (public + admin): Astro/Next for public, React island
   (`client:only`) for admin.
 - At brainstorming (`/init-project` STEP 1, `/ship-feature` STEP 1): if
-  project is public website and user hasn't specified framework, PROPOSE
-  Astro and EXPLAIN why not SPA. Never silently pick React CRA.
+  project is public website and user hasn't specified framework, propose
+  Astro and explain why not SPA. Never silently pick React CRA.
 
 ## Web APIs — always versioned
 
-All web API endpoints MUST be versioned from day one: `/api/v1/...`.
+All web API endpoints must be versioned from day one: `/api/v1/...`.
 
-- New project → start at `/api/v1/`. No bare `/api/` routes.
+- New project → start at `/api/v1/`, no bare `/api/` routes.
 - Breaking changes → new version (`v2`). Old version stays functional —
   clients migrate at own pace.
 - Non-breaking additions (new fields, new endpoints) → current version.
-- Each version is self-contained contract. Never modify existing version
+- Each version is self-contained contract. Don't modify existing version
   behavior to match newer one.
 - Router structure reflects versioning explicitly (e.g. `api/v1/routes/`).
 
@@ -230,7 +229,7 @@ Apply at every dev step: design, scaffolding, implementation, review.
 
 ## Skill routing
 
-Request matches available skill → invoke via Skill tool FIRST. No direct
+Request matches available skill → invoke via Skill tool first — no direct
 answer, no other tools before. Skill workflows beat ad-hoc answers.
 
 Key routing rules:
@@ -274,16 +273,16 @@ where listed, else say so instead of improvising.
 Single source for all design/UI routing. Task touches design/UI →
 mobilize tools by scope. Reinforced by design-toolchain-reminder hook
 (injects on UI signals).
-- Trivial (≤2 files, single cosmetic value) → /hotfix, NO toolchain.
+- Trivial (≤2 files, single cosmetic value) → /hotfix, no toolchain.
 - Build UI (new component, page, screen, redesign) → ui-ux-pro-max
   (plan/build) + frontend-design (anti AI-slop) + Magic MCP `/ui`
   (21st.dev scaffold) + emil-design-eng (polish pass)
   + design-motion-principles (when motion) + design-html (static HTML).
-- Design system / brand → design-consultation FIRST (aesthetic, type,
+- Design system / brand → design-consultation first (aesthetic, type,
   color, spacing, motion), THEN build tools above.
 - Review / audit → design-review (visual QA + fix) + emil-design-eng lens
   + design-motion-principles (audit mode).
-Scope doubt (trivial tweak vs real UI change?) → do NOT silently skip
+Scope doubt (trivial tweak vs real UI change?) → do not silently skip
 toolchain: ask user, or default to Build tier.
 Design gate (automatic): lightweight skills (feat, hotfix, bugfix) detect
 UI/style signals; signals found + ui-ux-pro-max inactive → ask user
