@@ -284,9 +284,9 @@ mobilize tools by scope. Reinforced by design-toolchain-reminder hook
   + design-motion-principles (audit mode).
 Scope doubt (trivial tweak vs real UI change?) → do not silently skip
 toolchain: ask user, or default to Build tier.
-Design gate (automatic): lightweight skills (feat, hotfix, bugfix) detect
-UI/style signals; signals found + ui-ux-pro-max inactive → ask user
-before proceeding. Gate spec: `~/.claude/lib/design-gate.md`.
+Design gate (automatic): on UI/style signals, lightweight skills (feat,
+hotfix, bugfix) run the gate spec `~/.claude/lib/design-gate.md` — it checks
+the design toolchain's real state and, if incomplete, points at `/profile design`.
 Orchestrators (ship-feature, init-project) handle via STEP 0 plugin-check.
 Magic MCP (@21st-dev/magic) costs API calls — component generation only,
 not micro-tweaks.
