@@ -34,7 +34,7 @@ Read the relevant existing code to understand the context.
 | 3 | New route family / new top-level module / new DB migration | ESCALATE → `/ship-feature` |
 | 4 | Estimated diff > 5 files | ESCALATE → `/ship-feature` |
 | 5 | User wording is uncertain ("not sure how", "what do you think") | ESCALATE → `/ship-feature` (needs brainstorming) |
-| 6 | UI feature on a stack with a design system AND `ui-ux-pro-max` inactive | Proceed in `/feat`, but flag it in STEP 0.5 design gate |
+| 6 | UI feature on a stack with a design system AND the design toolchain incomplete | Proceed in `/feat`, but flag it in STEP 0.5 design gate |
 | 7 | Otherwise | PROCEED in `/feat` |
 
 ### Worked examples
@@ -54,7 +54,8 @@ FEAT: <feature name> — rule <N>, ~<N> files, <brief approach>
 
 Follow `$HOME/.claude/lib/design-gate.md`:
 - Scan $ARGUMENTS and target files for design/UI/style signals.
-- If signals found and `ui-ux-pro-max` inactive → ask user to activate.
+- If signals found → run `design-tool-gate.sh`; if it reports INCOMPLETE,
+  tell the user to run `/profile design` before proceeding.
 - If no signals → skip (zero overhead).
 
 ## STEP 1 — MINI-PLAN

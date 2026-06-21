@@ -246,7 +246,7 @@ When the plugin-advisor detects a `simple` or `hotfix` signal, suggest the appro
 
 **Escalation path:** `/hotfix` → `/bugfix` → `/ship-feature` (bugs), `/feat` → `/ship-feature` (features). Each skill documents when to escalate to the next level.
 
-**Design gate:** `/feat`, `/hotfix`, and `/bugfix` include a lightweight design gate (`lib/design-gate.md`) that auto-detects UI/style signals and asks the user to activate `ui-ux-pro-max` if inactive. This covers the gap where lightweight skills previously had no plugin awareness for design tasks.
+**Design gate:** `/feat`, `/hotfix`, and `/bugfix` include a lightweight design gate (`lib/design-gate.md`) that auto-detects UI/style signals and, if the design toolchain is incomplete, points the user at `/profile design`. This covers the gap where lightweight skills previously had no plugin awareness for design tasks.
 
 ---
 
