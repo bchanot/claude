@@ -462,3 +462,15 @@ rules:
 - **Why**: a 1-function fallback fixes the actual blocker. Folding 9 prereqs into a 245-line lib was scope-creep for "npm missing"; user reverted it. Inline blocks stay readable + co-located with their step.
 - **Alternatives rejected**: centralized `lib/install-prereqs.sh` (commit 1ddeed1 — over-engineered for the real blocker, reverted); leave `npm` as a hard `err` (the original bug — aborts before the CLI install).
 - **Reference**: `install.sh` `install_node_via_nvm`, `install-plugins.sh` Step 1 jq, `doctor.sh`, commits b6cc8b1 / 2194b11. Linked to [[BLK-008]] (the chromium half of the same fresh-Ubuntu-26.04 session).
+
+---
+
+## BDR-028 — Hand-curated config is install-immutable (auto-revert guard) + de-vendor installer-managed skills
+
+- **Date**: 2026-06-23
+- **Status**: accepted
+- **Decision**: `install-plugins.sh` snapshots `CLAUDE.md` + `settings.json` + `.claude/settings.json` at start, restores them on EXIT (trap) → installer never mutates hand-curated config. `frontend-design` un-tracked (`git rm --cached` + gitignore `skills-external/frontend-design/`) — re-synced from the example-skills plugin cache every run, so vendoring = pure churn. npx-skills pollution (`/.agents/`, `/skills-lock.json`) gitignored, anchored so our `agents/` stays tracked.
+- **Why**: a fresh `make install` drifted all 4: graphify clobbered `CLAUDE.md` (deleted the `# This repo only` header) + injected aggressive MANDATORY pre-tool hooks; `claude plugin install` flipped `example-skills`→true + added `plugin-dev`; frontend-design diffed on every upstream update; darwin-skill polluted repo `.agents/` at project scope. Guard = these files maintained by hand+commit only; gitignore = generated artifacts never tracked.
+- **Caveat**: guard makes the 3 config files install-immutable — anything the installer SHOULD add must be committed by hand. Safe today: committed `settings.json` already carries the rtk hook (install skips init). `update-all.sh` needs no guard (only `claude plugin update`, no enable flips, no graphify reconfig).
+- **Alternatives rejected**: `git checkout` post-install (nukes legit uncommitted edits, depends on git state); surgical JSON/markdown patching (fragile); accept graphify's generic CLAUDE.md (loses curation).
+- **Reference**: `install-plugins.sh` guard block + `restore_curated_configs` trap, `.gitignore`, commits 51afe9b / 7de8761. Linked to [[LRN-039]].

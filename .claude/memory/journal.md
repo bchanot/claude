@@ -177,3 +177,6 @@ rules:
 
 - Reverted commit 1ddeed1 (centralized `lib/install-prereqs.sh`) — over-engineered for the real blocker. Replaced with minimal npm-via-nvm fallback in `install.sh` (b6cc8b1). Re-added `jq` prereq inline + `doctor.sh` fail-level (2194b11). BDR-027.
 - Diagnosed gstack chromium fail on Ubuntu 26.04: Playwright 1.58.2 doesn't list 26.04. Fix = gated `PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64`, wrapper-only (no submodule edit), install + runtime (211c7d4). Verified ldd + headless render on 26.04. BLK-008, LRN-038.
+
+- Fresh-install audit: `make install` drifted 4 repo files. Root-caused each: graphify installer clobbers `CLAUDE.md` (deletes `# This repo only` header) + injects MANDATORY hooks in `.claude/settings.json`; `claude plugin install` flips `example-skills`→true + adds `plugin-dev` in `settings.json`; example-skills `cp` churns `frontend-design`; `npx skills add` pollutes repo `.agents/` + `skills-lock.json`.
+- Fix: reverted current drift (`git checkout` 3 configs); added snapshot+trap-restore guard in `install-plugins.sh` (curated config now install-immutable); de-vendored frontend-design + gitignored `/.agents/` + `/skills-lock.json` (anchored so `agents/` stays tracked). Guard tested drift→restore. Commits 51afe9b / 7de8761. BDR-028, LRN-039.

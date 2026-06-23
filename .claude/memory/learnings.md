@@ -529,3 +529,13 @@ rules:
 - **Pattern**: `PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntuXX.04-<arch>` forces a fallback build. MUST include arch (`x64`/`arm64`) — bare `ubuntu24.04` fails ("does not support … ubuntu24.04"). Set it from the WRAPPER: `export` before the submodule's setup (install-time download) AND persist to the shell profile (runtime launch) — both paths call `getHostPlatform`. No submodule edit. Gate on real OS version (`sort -V` compare) so supported distros are untouched. Test with the LOCAL `./node_modules/.bin/playwright` — `bunx playwright` pulls the LATEST playwright (different browser revision than the local import), which masks the result.
 - **Future application**: any pinned tool that hardcodes an OS allowlist breaks on a fresh OS upgrade. Look for a host-platform override env before bumping/forking the dep. Prove the fallback binary actually runs (`ldd` = no missing libs + a real headless render), not just that the download resolves.
 - **Reference**: `install-plugins.sh` `playwright_platform_override()`, commit 211c7d4. Linked to [[BLK-008]].
+
+---
+
+## LRN-039 — Installers drift hand-curated config → snapshot+trap-restore guard; anchor gitignore for pollution
+
+- **Date**: 2026-06-23
+- **Context**: fresh Ubuntu `make install`. 3rd-party installers mutated repo files: graphify rewrote `CLAUDE.md`+hooks (every `graphify install`, Step 7), `claude plugin install` flipped `enabledPlugins`, the example-skills `cp` churned `frontend-design`, `npx skills add` wrote project-scope `.agents/` + `skills-lock.json`.
+- **Pattern**: file an installer rewrites but YOU curate → snapshot to a `mktemp -d` at start + `trap restore EXIT` (`cmp -s` before `cp`, revert only real diffs). Preserves pre-existing edits, no git dependency, idempotent, survives early-exit. Pure generated pollution → gitignore. ANCHOR the ignore (`/.agents/`, NOT `.agents/` and NOT `agents`) so it can't catch a legit sibling — our agents live in `agents/` (no dot). Verify with `git check-ignore -v <legit-dir>` that the pattern doesn't over-match.
+- **Future application**: audit a fresh install = `git status` right after `make install`; classify every drift as (a) curated → guard, or (b) pollution → anchored gitignore. Never `git checkout` to clean drift (destroys uncommitted work). Prove the guard with an isolated drift→restore test before trusting it.
+- **Reference**: `install-plugins.sh` `restore_curated_configs` + EXIT trap, `.gitignore` `/.agents/`, commits 51afe9b / 7de8761. Linked to [[BDR-028]].
