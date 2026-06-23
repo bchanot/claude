@@ -258,6 +258,35 @@ fi
 
 echo ""
 
+# gstack pins Playwright (1.58.x) which only ships browser builds for
+# ubuntu<=24.04. On a newer distro the browser install fails ("does not
+# support chromium on ubuntuXX.04"). Bump gstack's Playwright to a version
+# that supports this OS so ./setup builds the browse binary against it and
+# installs a native browser. Fires only when the pinned version genuinely
+# lacks support — idempotent across runs. Edits the submodule locally (goes
+# dirty); a `git submodule update` resets it and the next install re-applies.
+# See BLK-008 / LRN-040.
+gstack_bump_playwright_if_unsupported() {
+  [ -d "$GSTACK_DIR" ] && [ -r /etc/os-release ] || return 0
+  local ostag pwlib
+  # shellcheck disable=SC1091
+  ostag="$(. /etc/os-release 2>/dev/null; [ "${ID:-}" = ubuntu ] && printf 'ubuntu%s' "${VERSION_ID:-}")"
+  [ -n "$ostag" ] || return 0   # only the known Ubuntu case
+  pwlib="$GSTACK_DIR/node_modules/playwright-core/lib"
+  # populate node_modules at the pinned version so we can read its support list
+  ( cd "$GSTACK_DIR" && { bun install --frozen-lockfile >/dev/null 2>&1 || bun install >/dev/null 2>&1; } ) || return 0
+  if grep -rqs "$ostag" "$pwlib" 2>/dev/null; then
+    return 0   # pinned Playwright already supports this OS
+  fi
+  info "gstack's Playwright lacks $ostag support — bumping to latest (local submodule edit)..."
+  ( cd "$GSTACK_DIR" && bun add playwright@latest >/dev/null 2>&1 )
+  if grep -rqs "$ostag" "$pwlib" 2>/dev/null; then
+    ok "gstack Playwright bumped — now supports $ostag (browse binary rebuilt by ./setup)"
+  else
+    warn "Playwright bump didn't add $ostag support — gstack browser may stay unavailable"
+  fi
+}
+
 # ============================================================
 # STEP 2 — GSTACK SUBMODULE
 # ============================================================
@@ -301,14 +330,12 @@ if [ -d "$GSTACK_DIR" ]; then
     ok "bun $(bun --version)"
   fi
 
-  # NOTE: on Ubuntu newer than 24.04, gstack's ./setup can't install its
-  # Playwright browser — Playwright 1.58 has no build for it and fails fast
-  # ("does not support chromium on ubuntuXX.04"). That's non-fatal (gstack is
-  # OFF by default; the browser is only needed for /browse, /qa, screenshots).
-  # The PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04 workaround was tried and
-  # reverted: it makes Playwright download a fallback build that then HANGS at
-  # extraction on 26.04, blocking the whole install. Real fix is upstream —
-  # gstack bumping Playwright to a version that supports the OS. See BLK-008.
+  # On a distro newer than gstack's pinned Playwright supports, bump Playwright
+  # BEFORE ./setup so its frozen-lockfile install picks up the new version and
+  # the browse binary is rebuilt against it (avoids the "does not support
+  # chromium" fail). Non-fatal if it can't — gstack is OFF by default.
+  gstack_bump_playwright_if_unsupported
+
   info "Running GStack setup..."
   if [ -x "$GSTACK_DIR/setup" ]; then
     if (cd "$GSTACK_DIR" && ./setup); then
@@ -708,6 +735,14 @@ CLAUDE_LINES=(
   "alias claude='claude --effort max'"
   'export CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1'
 )
+
+# Ubuntu 24.04+ (and other distros) restrict unprivileged user namespaces via
+# AppArmor, which breaks Chromium's sandbox → gstack's browser (/browse, /qa)
+# crashes with "No usable sandbox". Persist gstack's documented opt-out, but
+# only where the restriction is actually active (precise, distro-agnostic).
+if [ "$(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null)" = "1" ]; then
+  CLAUDE_LINES+=('export GSTACK_CHROMIUM_NO_SANDBOX=1')
+fi
 
 # Clean up old CLAUDE_EFFORT env var if present (replaced by alias)
 if grep -qF 'export CLAUDE_EFFORT=max' "$SHELL_PROFILE" 2>/dev/null; then
