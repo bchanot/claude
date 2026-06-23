@@ -29,6 +29,42 @@ fi
 # shellcheck source=lib/detect-plugins.sh
 source "$REPO/lib/detect-plugins.sh"
 
+# ── Guard hand-curated config against installer drift ────────
+# graphify's installer (Step 7) rewrites CLAUDE.md + .claude/settings.json
+# (clobbers the curated graphify section + injects aggressive MANDATORY
+# hooks), and `claude plugin install` (Step 5) flips enable-states in
+# settings.json. These 3 files are maintained by hand + commit, never by
+# the installer. Snapshot them now and restore on exit so a run leaves them
+# exactly as it found them. Pre-existing local edits are preserved; only the
+# installer's drift is undone. NOTE: this makes these files install-immutable
+# — anything the installer should add to them must be committed by hand.
+GUARDED_CONFIGS=("CLAUDE.md" ".claude/settings.json" "settings.json")
+CFG_SNAPSHOT="$(mktemp -d 2>/dev/null || true)"
+
+restore_curated_configs() {
+  [ -n "$CFG_SNAPSHOT" ] || return 0
+  local f
+  for f in "${GUARDED_CONFIGS[@]}"; do
+    if [ -f "$CFG_SNAPSHOT/$f" ] && ! cmp -s "$CFG_SNAPSHOT/$f" "$REPO/$f"; then
+      cp "$CFG_SNAPSHOT/$f" "$REPO/$f"
+      info "Reverted installer drift in $f (curated config kept as committed)"
+    fi
+  done
+  rm -rf "$CFG_SNAPSHOT"
+}
+
+if [ -n "$CFG_SNAPSHOT" ]; then
+  for _cfg in "${GUARDED_CONFIGS[@]}"; do
+    if [ -f "$REPO/$_cfg" ]; then
+      mkdir -p "$CFG_SNAPSHOT/$(dirname "$_cfg")"
+      cp "$REPO/$_cfg" "$CFG_SNAPSHOT/$_cfg"
+    fi
+  done
+  trap restore_curated_configs EXIT
+else
+  warn "Config guard disabled (mktemp failed) — CLAUDE.md/settings may drift"
+fi
+
 # Read pinned version from plugins.lock.json
 # Usage: pinned_version "rtk" → prints version string or "latest"
 pinned_version() {
