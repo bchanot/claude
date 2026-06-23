@@ -474,3 +474,15 @@ rules:
 - **Caveat**: guard makes the 3 config files install-immutable — anything the installer SHOULD add must be committed by hand. Safe today: committed `settings.json` already carries the rtk hook (install skips init). `update-all.sh` needs no guard (only `claude plugin update`, no enable flips, no graphify reconfig).
 - **Alternatives rejected**: `git checkout` post-install (nukes legit uncommitted edits, depends on git state); surgical JSON/markdown patching (fragile); accept graphify's generic CLAUDE.md (loses curation).
 - **Reference**: `install-plugins.sh` guard block + `restore_curated_configs` trap, `.gitignore`, commits 51afe9b / 7de8761. Linked to [[LRN-039]].
+
+---
+
+## BDR-029 — Installer auto-fixes gstack browser on OS newer than its pinned Playwright supports
+
+- **Date**: 2026-06-23
+- **Status**: accepted
+- **Decision**: `install-plugins.sh` makes gstack's browser work on too-new distros without manual steps. (1) `gstack_bump_playwright_if_unsupported()` runs before `./setup`: if the pinned Playwright's support list lacks the running distro (grep `node_modules/playwright-core/lib` for the `ubuntuXX.04` tag), `bun add playwright@latest` in the submodule, then `./setup`'s frozen-lockfile install picks it up + rebuilds the browse binary. Idempotent (skips when already supported). (2) Persist `GSTACK_CHROMIUM_NO_SANDBOX=1` to the shell profile, gated on `sysctl kernel.apparmor_restrict_unprivileged_userns=1`.
+- **Why**: fresh `make install` on Ubuntu 26.04 must yield a working gstack browser. Submodule pins Playwright 1.58.2; upstream hasn't bumped; can't wait. Local bump in the installer = "just works" + self-heals after a `git submodule update` (re-applies next run).
+- **Caveats**: the installer EDITS the submodule (goes dirty each run on a too-new OS) — invasive, but the user chose it over waiting upstream. `bun add playwright@latest` could pull a Playwright that breaks gstack's build → non-fatal (`./setup` fail warns, install continues). The local bump is reset by `git submodule update`. The `.bashrc` env can be wiped if the user restores a hand-managed `.bashrc` (theirs is managed — the first install's lines were already lost that way).
+- **Alternatives rejected**: `PLAYWRIGHT_HOST_PLATFORM_OVERRIDE` (fallback build HANGS at extraction — [[BLK-008]]); wait for gstack upstream Playwright bump (no ETA); leave browser unavailable (user wanted it); system chromium + executablePath (needs gstack code change).
+- **Reference**: `install-plugins.sh` `gstack_bump_playwright_if_unsupported()` + Step 9 sysctl-gated env, commit 3b8ffb1. Linked to [[LRN-040]], [[BLK-008]].
