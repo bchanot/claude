@@ -119,3 +119,16 @@ desktop.ini
 # Profile cache — written by lib/profile.sh, read by hooks/statusline.sh
 .active-profile
 .gstack/
+
+# Frontend Design (Anthropic) — installed/refreshed from the example-skills
+# plugin cache by install-plugins.sh (Step 8b) and update-all.sh on every run.
+# Not vendored: tracking it produced a repo diff each time Anthropic shipped
+# an update. The source is always re-synced, so no offline copy is needed.
+skills-external/frontend-design/
+
+# npx `skills add` project-scope artifacts — darwin-skill copies itself into
+# the repo's .agents/ and writes skills-lock.json at root. Our own agents live
+# in agents/ (no dot) and stay tracked. Anchored to root so only the dotted
+# pollution dir is ignored.
+/.agents/
+/skills-lock.json
