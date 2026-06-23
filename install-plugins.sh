@@ -743,7 +743,6 @@ fi
 [ -z "$SHELL_PROFILE" ] && SHELL_PROFILE="$HOME/.profile"
 
 CLAUDE_LINES=(
-  "alias claude='claude --effort max'"
   'export CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1'
 )
 
@@ -755,12 +754,20 @@ if [ "$(sysctl -n kernel.apparmor_restrict_unprivileged_userns 2>/dev/null)" = "
   CLAUDE_LINES+=('export GSTACK_CHROMIUM_NO_SANDBOX=1')
 fi
 
-# Clean up old CLAUDE_EFFORT env var if present (replaced by alias)
+# Remove obsolete effort config — effort is now set in settings.json
+# ("effortLevel"), which supersedes both the old CLAUDE_EFFORT env var and the
+# `claude --effort max` alias (the alias would even override settings.json).
+EFFORT_CLEANED=0
 if grep -qF 'export CLAUDE_EFFORT=max' "$SHELL_PROFILE" 2>/dev/null; then
-  sed -i '/export CLAUDE_EFFORT=max/d' "$SHELL_PROFILE"
-  # Also remove orphaned comment lines left by previous installs
+  sed -i '/export CLAUDE_EFFORT=max/d' "$SHELL_PROFILE"; EFFORT_CLEANED=1
+fi
+if grep -qF "alias claude='claude --effort max'" "$SHELL_PROFILE" 2>/dev/null; then
+  sed -i "\#alias claude='claude --effort max'#d" "$SHELL_PROFILE"; EFFORT_CLEANED=1
+fi
+if [ "$EFFORT_CLEANED" -eq 1 ]; then
+  # Remove orphaned comment lines left before the deleted entries
   sed -i '/^# Claude Code — added by install-plugins.sh$/{ N; /^\n$/d; }' "$SHELL_PROFILE"
-  info "Removed old CLAUDE_EFFORT=max from $SHELL_PROFILE (replaced by alias)"
+  info "Removed obsolete effort alias/env from $SHELL_PROFILE (effort set in settings.json)"
 fi
 
 ADDED=0
