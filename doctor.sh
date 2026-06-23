@@ -127,6 +127,12 @@ else
   fail "Node.js not found"
 fi
 
+if command -v jq &>/dev/null; then
+  pass "jq $(jq --version 2>/dev/null | sed 's/^jq-//')"
+else
+  fail "jq not found — statusline & rtk-rewrite hooks require it"
+fi
+
 if command -v cargo &>/dev/null; then
   pass "Cargo $(cargo --version | awk '{print $2}')"
 else

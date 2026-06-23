@@ -193,6 +193,25 @@ else
   fi
 fi
 
+# --- jq (required by active hooks: statusline.sh, rtk-rewrite.sh) ---
+if command -v jq &>/dev/null; then
+  ok "jq $(jq --version 2>/dev/null | sed 's/^jq-//')"
+else
+  info "Installing jq..."
+  case $OS in
+    macos)        brew install jq ;;
+    linux-apt)    sudo apt-get install -y jq ;;
+    linux-dnf)    sudo dnf install -y jq ;;
+    linux-pacman) sudo pacman -S --noconfirm jq ;;
+    *) warn "Cannot auto-install jq on $OS — statusline/rtk hooks need it" ;;
+  esac
+  if command -v jq &>/dev/null; then
+    ok "jq installed"
+  else
+    warn "jq install failed — statusline & rtk-rewrite hooks require it"
+  fi
+fi
+
 # --- Claude Code CLI ---
 if command -v claude &>/dev/null; then
   ok "Claude Code $(claude --version 2>/dev/null | head -1)"
