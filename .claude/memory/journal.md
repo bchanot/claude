@@ -172,3 +172,8 @@ rules:
 - Built via superpowers:writing-skills TDD: RED v1 baseline too easy (passed) → strengthened to RED v2 (pressured) which failed on anti-noise + invented subtask + no gate → GREEN passed. Gate STOP itself untested (non-interactive harness) — flagged as skill Red flag.
 - LRN-031: skill value = gate + anti-noise + determinism, NOT re-coding what a capable agent does free; if RED baseline passes, harden the fixture before writing.
 - Docs routing synced (CLAUDE.md table + README + USAGE) in separate commit; caveman-purge WIP in those files left unstaged. Commits 9dc2b83, be0f047, 765e9d7.
+
+## 2026-06-23
+
+- Reverted commit 1ddeed1 (centralized `lib/install-prereqs.sh`) — over-engineered for the real blocker. Replaced with minimal npm-via-nvm fallback in `install.sh` (b6cc8b1). Re-added `jq` prereq inline + `doctor.sh` fail-level (2194b11). BDR-027.
+- Diagnosed gstack chromium fail on Ubuntu 26.04: Playwright 1.58.2 doesn't list 26.04. Fix = gated `PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntu24.04-x64`, wrapper-only (no submodule edit), install + runtime (211c7d4). Verified ldd + headless render on 26.04. BLK-008, LRN-038.

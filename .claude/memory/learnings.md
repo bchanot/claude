@@ -519,3 +519,13 @@ rules:
 - **Pattern**: for the load-bearing scenario, run it on the REAL subject in the REAL invocation context (prod path `$HOME/.claude/lib/...`, prod-like PATH), not a stub or a "the code path is correct" argument. A stub proves branch coverage; only the real subject proves the integration. Always add a DISCRIMINATING case — force the failure state; the check must REPORT it, not pass by default (a check that only ever passes proves nothing).
 - **Future application**: any "fixed/works" claim on a critical path → produce the real run output (command + lines + exit code) before capitalizing or shipping; don't summarize ("condition met") in place of the output. Stub/logic = necessary for branch coverage, never sufficient for the integration claim. Most rentable discipline of the whole segment: every refutation came from execution, none from reasoning.
 - **Reference**: design-gate chantier, the `PATH=/usr/bin:/bin` matrix (magic-on → READY/0, magic-off → INCOMPLETE/10), commits 4d19135 / f963318. Linked to [[LRN-036]] (the concrete instance: the PATH cause surfaced only by the real run), [[LRN-034]] (its twin — 034 = don't trust a narrated *claim*; 037 = don't trust a *stub/logic argument* as proof; both demand execution against ground truth).
+
+---
+
+## LRN-038 — Playwright host-platform override for distros newer than its hardcoded support list
+
+- **Date**: 2026-06-23
+- **Context**: fresh Ubuntu 26.04. gstack `./setup` aborted: "Playwright does not support chromium on ubuntu26.04-x64". Playwright 1.58.2's registry hardcodes `ubuntu20.04/22.04/24.04` only; a newer release → no matching build → hard error. gstack is a pinned submodule (must not edit).
+- **Pattern**: `PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=ubuntuXX.04-<arch>` forces a fallback build. MUST include arch (`x64`/`arm64`) — bare `ubuntu24.04` fails ("does not support … ubuntu24.04"). Set it from the WRAPPER: `export` before the submodule's setup (install-time download) AND persist to the shell profile (runtime launch) — both paths call `getHostPlatform`. No submodule edit. Gate on real OS version (`sort -V` compare) so supported distros are untouched. Test with the LOCAL `./node_modules/.bin/playwright` — `bunx playwright` pulls the LATEST playwright (different browser revision than the local import), which masks the result.
+- **Future application**: any pinned tool that hardcodes an OS allowlist breaks on a fresh OS upgrade. Look for a host-platform override env before bumping/forking the dep. Prove the fallback binary actually runs (`ldd` = no missing libs + a real headless render), not just that the download resolves.
+- **Reference**: `install-plugins.sh` `playwright_platform_override()`, commit 211c7d4. Linked to [[BLK-008]].

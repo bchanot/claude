@@ -451,3 +451,14 @@ rules:
   - Secret in `repo/.env`, gitignored (status quo) — one `git add -f` or a `.gitignore` slip leaks it; the secret physically sits in the tree.
   - Scripts read `~/.claude/.env` directly — makes the symlink redundant but rewrites every read path and loses repo-local visibility.
 - **Reference**: `link.sh` `link_env()`, `.gitignore`, `lib/toggle-external.sh`, `install-plugins.sh`, `.env.example`, commits 131d0bc / f9cc866. Linked to [[BDR-025]] (magic's `MAGIC_API_KEY`, consumed by the gate's required-but-manual class).
+
+---
+
+## BDR-027 — Minimal npm-via-nvm bootstrap over centralized prereq lib (reverses the reverted approach)
+
+- **Date**: 2026-06-23
+- **Status**: accepted (supersedes the reverted `lib/install-prereqs.sh` centralization, commit 1ddeed1 removed from history)
+- **Decision**: the only real bootstrap blocker = `npm` absent on fresh machine. `install.sh` now installs current LTS via nvm (`v0.39.7` → `nvm install --lts`) ONLY when node/npm missing (`install_node_via_nvm`). Keep the inline per-tool prereq blocks in `install-plugins.sh` (no shared `ensure_*` lib). Re-add `jq` inline (Step 1) + `doctor.sh` fail-level — `jq` is an active-hook dep that was never installed.
+- **Why**: a 1-function fallback fixes the actual blocker. Folding 9 prereqs into a 245-line lib was scope-creep for "npm missing"; user reverted it. Inline blocks stay readable + co-located with their step.
+- **Alternatives rejected**: centralized `lib/install-prereqs.sh` (commit 1ddeed1 — over-engineered for the real blocker, reverted); leave `npm` as a hard `err` (the original bug — aborts before the CLI install).
+- **Reference**: `install.sh` `install_node_via_nvm`, `install-plugins.sh` Step 1 jq, `doctor.sh`, commits b6cc8b1 / 2194b11. Linked to [[BLK-008]] (the chromium half of the same fresh-Ubuntu-26.04 session).
