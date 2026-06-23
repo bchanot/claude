@@ -203,6 +203,27 @@ fi
 
 echo ""
 
+# Playwright (used by gstack's browser) hardcodes a list of supported Linux
+# builds (ubuntu20.04/22.04/24.04). On a newer Ubuntu it aborts with
+# "Playwright does not support chromium on ubuntuXX.04-x64". Pinning the host
+# platform to the latest supported build makes it download a compatible
+# Chrome-for-Testing binary instead. Echoes the override value, or nothing
+# when the running distro is natively supported.
+playwright_platform_override() {
+  [ -r /etc/os-release ] || return 0
+  local ID="" VERSION_ID="" arch   # shadow globals so sourcing can't leak
+  # shellcheck disable=SC1091
+  . /etc/os-release 2>/dev/null
+  [ "${ID:-}" = "ubuntu" ] && [ -n "${VERSION_ID:-}" ] || return 0
+  # Only when newer than 24.04 (the latest build Playwright 1.58 ships).
+  [ "$(printf '%s\n24.04\n' "$VERSION_ID" | sort -V | tail -1)" != "24.04" ] || return 0
+  case "$(uname -m)" in
+    aarch64|arm64) arch="arm64" ;;
+    *)             arch="x64" ;;
+  esac
+  printf 'ubuntu24.04-%s' "$arch"
+}
+
 # ============================================================
 # STEP 2 — GSTACK SUBMODULE
 # ============================================================
@@ -244,6 +265,14 @@ if [ -d "$GSTACK_DIR" ]; then
     fi
   else
     ok "bun $(bun --version)"
+  fi
+
+  # Pin Playwright's host platform on Ubuntu newer than 24.04 so gstack's
+  # ./setup can download a working Chromium (exported into its subshell).
+  PW_OVERRIDE="$(playwright_platform_override)"
+  if [ -n "$PW_OVERRIDE" ]; then
+    export PLAYWRIGHT_HOST_PLATFORM_OVERRIDE="$PW_OVERRIDE"
+    info "Newer Ubuntu detected — pinning Playwright to $PW_OVERRIDE (browser fallback build)"
   fi
 
   info "Running GStack setup..."
@@ -645,6 +674,13 @@ CLAUDE_LINES=(
   "alias claude='claude --effort max'"
   'export CLAUDE_CODE_DISABLE_ADAPTIVE_THINKING=1'
 )
+
+# On Ubuntu newer than what Playwright supports, persist the host-platform
+# override so gstack's browser launches at runtime (not just at install).
+PW_OVERRIDE="$(playwright_platform_override)"
+if [ -n "$PW_OVERRIDE" ]; then
+  CLAUDE_LINES+=("export PLAYWRIGHT_HOST_PLATFORM_OVERRIDE=$PW_OVERRIDE")
+fi
 
 # Clean up old CLAUDE_EFFORT env var if present (replaced by alias)
 if grep -qF 'export CLAUDE_EFFORT=max' "$SHELL_PROFILE" 2>/dev/null; then
