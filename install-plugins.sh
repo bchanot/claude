@@ -707,8 +707,19 @@ if [ -x "$REPO/lib/toggle-external.sh" ]; then
   else
     ok "magic MCP disabled (default)"
   fi
-  if [ ! -f "$REPO/.env" ] || ! grep -q '^MAGIC_API_KEY=' "$REPO/.env" 2>/dev/null; then
-    warn "MAGIC_API_KEY not found in ~/.claude/.env — copy .env.example there and set your key before enabling"
+  # The key lives in ~/.claude/.env (canonical, BDR-026), reached via the
+  # repo/.env symlink that toggle-external.sh sources. Self-heal the common
+  # fresh-machine case: ~/.claude/.env was created AFTER link.sh ran, so the
+  # symlink is missing and the key looks absent though it's set.
+  HOME_ENV="$HOME/.claude/.env"
+  if [ ! -e "$REPO/.env" ] && [ -f "$HOME_ENV" ]; then
+    ln -sf "$HOME_ENV" "$REPO/.env" 2>/dev/null \
+      && info "Linked repo/.env → ~/.claude/.env (was missing)"
+  fi
+  # Tolerate optional `export ` and leading whitespace; require a value.
+  MAGIC_KEY_RE='^[[:space:]]*(export[[:space:]]+)?MAGIC_API_KEY=.'
+  if [ ! -f "$REPO/.env" ] || ! grep -qE "$MAGIC_KEY_RE" "$REPO/.env" 2>/dev/null; then
+    warn "MAGIC_API_KEY not set in ~/.claude/.env — add it (and run 'make link') before enabling magic"
   fi
 else
   warn "lib/toggle-external.sh not found or not executable — skipping"
