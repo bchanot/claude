@@ -64,3 +64,13 @@ rules:
 - **Method**: 5 parallel structure judges (shared rubric file, calibration anchor, lower-score-when-hesitating rule) + 5 behavior tests on fixtures (hotfix, geo, commit-change, status, analyze) + geo fix validated by re-test (0 source edits, `?? .claude/` only) + 2/2 counterbalanced blind judges (safety 3→9).
 - **Anomalies**: (1) KEY: stub skills (analyze 33.5, hotfix 36.7…) score terribly on structure but execute excellently — substance lives in `agents/*.md`; rubric must judge SKILL.md+agent.md as system, else misleading. (2) geo confirmed live: 2 HTML source files edited unsupervised pre-fix. (3) Self-inflicted: overwrote 5 pre-existing test-prompts.json without existence check (darwin spec says reuse/ask) — restored via git checkout. (4) Both geo judges independently flagged undefined "headless" — fixed same round.
 - **Action**: keep — bugs real, fixes verified. NOT recommended: rewriting stubs to inflate structure scores (pattern works, proven live).
+
+---
+
+## EVAL-005 — Obsolete `claude --effort max` alias missed across repeated Step 9 edits
+
+- **Date**: 2026-06-23
+- **Output checked**: install-plugins.sh Step 9 kept `alias claude='claude --effort max'` while `settings.json` sets `"effortLevel": "xhigh"` (the source of truth). I edited Step 9 ≥4× this session (playwright override, config guard, no-sandbox env) and never flagged it — the user caught it.
+- **Method / why missed**: I treated the pre-existing `CLAUDE_LINES` as established and only touched the lines I was adding/removing. Spotting the redundancy needs cross-referencing TWO config layers (shell alias vs settings.json) — a semantic check I never ran. Masked further: the user's `.bashrc` is hand-managed and the alias line wasn't even present, so it looked inert.
+- **Anomaly**: not just dead config — a CLI flag (`--effort max`) silently OVERRIDES the settings.json value (`xhigh`). Real correctness bug.
+- **Action**: when editing installer shell-config, audit EACH existing line against the current settings.json / CLAUDE.md source of truth, not only the lines being changed. Removed the alias + added cleanup. General rule: reconcile config to ONE source of truth across env/alias/settings layers.
