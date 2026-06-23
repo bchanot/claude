@@ -22,8 +22,23 @@ echo ""
 # ── 1. Check prerequisites ──
 echo "── Checking prerequisites..."
 
+# node + npm drive the Claude Code CLI install below. On a fresh machine
+# they may be absent — install the current LTS via nvm instead of aborting.
+install_node_via_nvm() {
+  info "Node.js/npm missing — installing LTS via nvm..."
+  curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+  export NVM_DIR="${NVM_DIR:-$HOME/.nvm}"
+  # shellcheck source=/dev/null
+  [ -s "$NVM_DIR/nvm.sh" ] && . "$NVM_DIR/nvm.sh"
+  nvm install --lts
+}
+
+if ! command -v node &>/dev/null || ! command -v npm &>/dev/null; then
+  install_node_via_nvm
+fi
+
 if ! command -v node &>/dev/null; then
-  err "Node.js not found. Install it first: https://nodejs.org"
+  err "Node.js install failed — install it manually: https://nodejs.org"
 fi
 
 NODE_MAJOR=$(node -v | sed 's/v//' | cut -d. -f1)
@@ -33,7 +48,7 @@ fi
 ok "Node.js $(node -v)"
 
 if ! command -v npm &>/dev/null; then
-  err "npm not found"
+  err "npm not found (expected alongside Node.js)"
 fi
 ok "npm $(npm -v)"
 
