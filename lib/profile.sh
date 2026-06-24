@@ -45,6 +45,7 @@ set -euo pipefail
 REPO="$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SKILLS_DIR="$REPO/skills"
 DISABLED_DIR="$REPO/skills-disabled"
+GSTACK_SRC="$REPO/skills-external/gstack"  # gstack submodule — source of truth for gstack skills
 PROFILES_DIR="$REPO/lib/profiles"
 TOGGLE_EXTERNAL="$REPO/lib/toggle-external.sh"
 ACTIVE_CACHE="$REPO/.active-profile"  # statusline reads this — keep fast (single-line file, profile name only)
@@ -247,8 +248,19 @@ enable_skill() {
         ok "enabled: $skill"
       elif [ -e "$SKILLS_DIR/$skill" ]; then
         : # already enabled — silent
+      elif [ -d "$GSTACK_SRC/$skill" ]; then
+        # gstack is OFF by default: its skills live only in the submodule,
+        # never pre-symlinked into skills/. A profile that lists this gstack
+        # skill activates it on demand by symlinking the submodule skill dir
+        # in. disable_gstack_not_in() parks it again when an unrelated profile
+        # is set. The gstack/bin + browse/dist infra it relies on is created
+        # by link.sh, independent of this.
+        ln -sf "$GSTACK_SRC/$skill" "$SKILLS_DIR/$skill"
+        ok "enabled: $skill (gstack on-demand)"
+      elif [ ! -d "$GSTACK_SRC" ]; then
+        warn "missing: $skill — gstack submodule absent, run: git submodule update --init"
       else
-        warn "missing: $skill — try: bash link.sh"
+        warn "missing: $skill — not found in gstack submodule ($GSTACK_SRC)"
       fi
       ;;
     external|personal)
