@@ -30,7 +30,7 @@ commit-change                     personal
 refactor                          personal
 
 # Validation companion (basic W3C/a11y check during build)
-validate                          personal
+web-validate                      personal
 
 # External: design skills
 emil-design-eng                   external

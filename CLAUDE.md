@@ -235,7 +235,7 @@ only the non-obvious cases: gstack fallbacks, disambiguation, cryptic names.
 - Architecture review → plan-eng-review
 - Before /clear or /compact → capitalize; end-of-session ritual → close
 - SEO+GEO → seo (GEO only → geo)
-- W3C + WCAG a11y (HTML/CSS validity, axe, pa11y) → validate
+- W3C + WCAG a11y (HTML/CSS validity, axe, pa11y) → web-validate
 - Security audit (secrets, CVE, OWASP) → cso
 - New project → init-project; onboard existing repo → onboard
 

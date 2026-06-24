@@ -10,7 +10,7 @@ description: |
   "structured data", "JSON-LD", "sitemap", "robots.txt", "Google ranking",
   "local SEO", "AI search", "GEO", "llms.txt", "ChatGPT visibility",
   "Perplexity", "Google AI Overview".
-  For GEO only → /geo. For W3C/a11y → /validate. For bugs → /bugfix.
+  For GEO only → /geo. For W3C/a11y → /web-validate. For bugs → /bugfix.
 argument-hint: optional keywords/scope, e.g. "local SEO plombier 91 94 77" or "SaaS B2B content strategy"
 allowed-tools:
   - Read
@@ -33,7 +33,7 @@ entry point for any SEO/GEO work on a web project.
 ## Resources
 
 - `resources/depth-matrix.md` — depth-decision rules (LOCAL vs FULL),
-  score-weight table per axis, dedup rules with sibling skills (/validate,
+  score-weight table per axis, dedup rules with sibling skills (/web-validate,
   /harden), and the envelope schema for `.claude/audits/SEO.md`.
 
 Read `resources/depth-matrix.md` at the start of STEP 0 — it pre-answers

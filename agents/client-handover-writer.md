@@ -211,7 +211,7 @@ test -f Procfile && DEPLOY_HINTS+=("Heroku: Procfile")
 test -f wrangler.toml && DEPLOY_HINTS+=("Cloudflare Workers: wrangler.toml")
 ```
 
-Also detect deployed URL (used to point /validate at the live site, STEP 7):
+Also detect deployed URL (used to point /web-validate at the live site, STEP 7):
 
 ```bash
 DEPLOYED_URL=""
@@ -255,7 +255,7 @@ is_fresh() {
 
 For non-web projects (`PROJECT_TYPE` ∈ {cli, library, mobile, other}), the
 pipeline is reduced: only run /cso (single audit, single fix loop), skip
-STEP 6 deploy pause and STEP 7 /validate. Treat /cso as the only score for
+STEP 6 deploy pause and STEP 7 /web-validate. Treat /cso as the only score for
 the gate.
 
 For web projects, dispatch in **a single message with two parallel Agent calls**:
@@ -560,24 +560,24 @@ Tailor to project deploy method (use DEPLOY_HINTS):
 ```
 AskUserQuestion:
   "Pipeline paused for deploy. Above is what's changed and how to deploy.
-   Confirm when the live site reflects the new changes (or skip /validate)."
+   Confirm when the live site reflects the new changes (or skip /web-validate)."
 
   Header: "Deploy status"
   Options:
-  - A) Deployed — proceed with /validate
+  - A) Deployed — proceed with /web-validate
   - B) Not yet — I'll come back (this stops the pipeline; re-run /client-handover later)
-  - C) Skip /validate — proceed to handover doc with VALIDATE marked SKIPPED
+  - C) Skip /web-validate — proceed to handover doc with VALIDATE marked SKIPPED
 ```
 
 If A → proceed to STEP 7. If B → exit cleanly with state report. If C →
 mark `VALIDATE_SKIPPED=true` and jump to STEP 8.
 
 If `DEPLOYED_URL` is still `[À CONFIRMER]` after option A: AskUserQuestion
-"Quelle est l'URL du site déployé pour /validate ?" — capture URL.
+"Quelle est l'URL du site déployé pour /web-validate ?" — capture URL.
 
 ---
 
-## STEP 7 — RUN /validate (live site)
+## STEP 7 — RUN /web-validate (live site)
 
 Skip if `VALIDATE_SKIPPED=true` or `PROJECT_TYPE != web` (in either case
 ensure `VALIDATE_SKIPPED=true` is set so the gate logic in STEP 8 treats
@@ -585,7 +585,7 @@ VALIDATE as not-applicable rather than failed).
 
 Dispatch `general-purpose` subagent:
 
-> Read `~/.claude/skills/validate/SKILL.md` and execute against the
+> Read `~/.claude/skills/web-validate/SKILL.md` and execute against the
 > deployed URL: `<DEPLOYED_URL>`. Audit W3C HTML validity (validator.nu),
 > W3C CSS validity (jigsaw.w3.org), WCAG 2.1 a11y (axe-core, pa11y).
 > Apply autonomous fixes ONLY in source code (the client controls deploy);
@@ -601,8 +601,8 @@ SCORE_VALIDATE_AFTER=$(extract_score .claude/audits/VALIDATE.md)
 Note: VALIDATE has no `_BEFORE` (first run is post-deploy). The before/after
 table for VALIDATE shows `—` for before, `<score>` for after.
 
-If /validate produced new fixes in source code, run STEP 5 again (mini-commit
-+ push) BEFORE moving to STEP 8 — but DO NOT loop /validate. The remaining
+If /web-validate produced new fixes in source code, run STEP 5 again (mini-commit
++ push) BEFORE moving to STEP 8 — but DO NOT loop /web-validate. The remaining
 deploy of those fixes is mentioned to the user in the final doc.
 
 ---
@@ -931,7 +931,7 @@ concrete, no jargon. One short paragraph per idea.
 
 1. **Never name internal tools or skill identifiers in chapters 1–3.**
    Forbidden tokens (do not appear, in any case, in the lay portion):
-   `/seo`, `/harden`, `/validate`, `/cso`, `/feat`, `/bugfix`,
+   `/seo`, `/harden`, `/web-validate`, `/cso`, `/feat`, `/bugfix`,
    `/ship-feature`, `/ship`, `/code-clean`, `/refactor`, `seo-analyzer`,
    `geo-analyzer`, `validator-analyzer`, `harden`-as-product-name,
    `SEO.md`, `HARDEN.md`, `VALIDATE.md`, `CSO.md`, `MAX_ITERATIONS`,
@@ -1003,7 +1003,7 @@ external validators when relevant (Mozilla Observatory, SSL Labs,
 SecurityHeaders.com — these are recognized seals).
 
 DO NOT mention internal tool/skill names here (no /seo, /harden,
-/validate, seo-analyzer, etc.). The lecture rapide IS where
+/web-validate, seo-analyzer, etc.). The lecture rapide IS where
 client-facing axis names live.]
 
 ## 3. Ce qui a été fait
@@ -1459,7 +1459,7 @@ Chapter 6 (Détails techniques) may use them in the optional glossary.
 
 ```bash
 awk '/^## 1\./{flag=1} /^## 6\./{flag=0} flag' "$OUTPUT" \
-  | grep -niE '/(seo|harden|validate|cso|feat|bugfix|ship-feature|ship|code-clean|refactor)\b|seo-analyzer|geo-analyzer|validator-analyzer|SEO\.md|HARDEN\.md|VALIDATE\.md|CSO\.md|MAX_ITERATIONS|ALL_PASS|SCORE_[A-Z_]+'
+  | grep -niE '/(seo|harden|web-validate|validate|cso|feat|bugfix|ship-feature|ship|code-clean|refactor)\b|seo-analyzer|geo-analyzer|validator-analyzer|SEO\.md|HARDEN\.md|VALIDATE\.md|CSO\.md|MAX_ITERATIONS|ALL_PASS|SCORE_[A-Z_]+'
 # expected: no matches. Each match is a leak — rewrite the offending
 # chapter in client language before STEP 16.
 ```

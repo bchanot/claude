@@ -34,7 +34,7 @@ refactor                          personal
 # === SEO / GEO / standards ===========================================
 seo                               personal
 geo                               personal
-validate                          personal
+web-validate                      personal
 harden                            personal
 analyze                           personal
 

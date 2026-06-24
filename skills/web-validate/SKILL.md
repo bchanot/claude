@@ -1,5 +1,5 @@
 ---
-name: validate
+name: web-validate
 description: |
   Use when a web project needs W3C HTML/CSS validity check or WCAG 2.1
   accessibility audit. Dispatches the validator-analyzer agent with a
@@ -21,7 +21,7 @@ allowed-tools:
   - WebFetch
 ---
 
-# /validate — web standards audit (W3C + WCAG)
+# /web-validate — web standards audit (W3C + WCAG)
 
 This skill orchestrates a narrow-scope standards audit :
 
@@ -46,20 +46,20 @@ Scope boundary :
   errors.
 
 If a finding appears in an out-of-scope area (e.g. missing meta
-description), the agent drops it silently — `/validate` stays focused.
+description), the agent drops it silently — `/web-validate` stays focused.
 
 ### Relation to other skills
 
 - `/onboard` runs an initial a11y audit at project setup (axe or
-  static checklist → `.onboard-audit/a11y.md`). `/validate` is the
+  static checklist → `.onboard-audit/a11y.md`). `/web-validate` is the
   **on-demand** equivalent, re-runnable anytime against the current
   codebase, and also covers HTML/CSS validity (which `/onboard` does
   not).
 - `/harden` audits security posture (headers, TLS, redirects).
-  `/validate` audits conformance. They share no findings.
+  `/web-validate` audits conformance. They share no findings.
 - `/seo` and `/geo` audit indexability. They may flag the same HTML
   features (alt attrs, heading structure) but from a ranking
-  perspective. `/validate` flags from a **standards** perspective
+  perspective. `/web-validate` flags from a **standards** perspective
   (WCAG SC number, W3C rule id). Findings may overlap — both reports
   are still valid.
 
@@ -95,7 +95,7 @@ CSS_COUNT=$(find . -name "*.css" \
 
 If both counts are 0 and no URL provided → abort with :
 ```
-⚠️  No HTML or CSS files found and no URL provided. /validate needs
+⚠️  No HTML or CSS files found and no URL provided. /web-validate needs
    either local files or a live URL. Re-run with --full <url>.
 ```
 
@@ -126,7 +126,7 @@ If framework is JS-based and `BUILD_DIR` is empty, warn :
 ⚠️  Framework detected : <name>. No build output found.
    HTML validity on JSX/TSX source is not meaningful.
    Options :
-     1. Run `npm run build` then re-run /validate
+     1. Run `npm run build` then re-run /web-validate
      2. Use --full <url> to audit production
      3. Continue with partial LOCAL audit (CSS + static WCAG only)
 ```
@@ -177,7 +177,7 @@ Agent(
   subagent_type="validator-analyzer",
   description="validate — W3C HTML + CSS + WCAG audit",
   prompt="""
-  Dispatched from /validate. STRICT SCOPE — W3C HTML validity + W3C
+  Dispatched from /web-validate. STRICT SCOPE — W3C HTML validity + W3C
   CSS validity + WCAG 2.1 accessibility ONLY.
 
   CONTEXT:
@@ -299,7 +299,7 @@ Fixes applied : <N>
 - [Moyenne][CSS] Removed invalid property `bakground` → `background` at line 23
 
 Verification :
-- Re-run /validate → expected score bump <before> → <after>
+- Re-run /web-validate → expected score bump <before> → <after>
 - Tests to run : a11y regression (pa11y-ci), visual snapshot
 ```
 
@@ -329,9 +329,9 @@ TOP 3 ACTIONS (by severity × user impact) :
   3. [Haute]    <title>
 
 NEXT STEPS :
-  • /validate <url> --fix         → apply recommended fixes
-  • /validate <url> --full        → re-run with live URL + remote APIs
-  • /validate --no-external       → skip third-party APIs (faster, LOCAL-like)
+  • /web-validate <url> --fix         → apply recommended fixes
+  • /web-validate <url> --full        → re-run with live URL + remote APIs
+  • /web-validate --no-external       → skip third-party APIs (faster, LOCAL-like)
   • /harden / /seo / /geo         → complementary audits (other scopes)
 
 Install for better LOCAL coverage :

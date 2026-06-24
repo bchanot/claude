@@ -10,7 +10,7 @@ analyze                           personal
 # SEO / GEO / web standards
 seo                               personal
 geo                               personal
-validate                          personal
+web-validate                      personal
 
 # Code + perf health
 health

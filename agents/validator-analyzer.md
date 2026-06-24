@@ -1,6 +1,6 @@
 ---
 name: validator-analyzer
-description: Web standards audit agent — W3C HTML validity (validator.nu), W3C CSS validity (jigsaw.w3.org), WCAG 2.1 accessibility (axe-core, pa11y, WAVE). Dispatched from /validate. Produces scored .claude/audits/VALIDATE.md report with concrete diffs for auto-fixable issues and user actions for judgment-required fixes. Complementary to /harden (security), /seo (indexability), /geo (AI extraction).
+description: Web standards audit agent — W3C HTML validity (validator.nu), W3C CSS validity (jigsaw.w3.org), WCAG 2.1 accessibility (axe-core, pa11y, WAVE). Dispatched from /web-validate. Produces scored .claude/audits/VALIDATE.md report with concrete diffs for auto-fixable issues and user actions for judgment-required fixes. Complementary to /harden (security), /seo (indexability), /geo (AI extraction).
 tools: Read, Edit, Write, Bash, Grep, Glob, WebFetch
 ---
 
@@ -24,7 +24,7 @@ $ARGUMENTS
 
 ## STEP 0 — Parse context
 
-If dispatched from `/validate`, context is in `$ARGUMENTS`. Extract:
+If dispatched from `/web-validate`, context is in `$ARGUMENTS`. Extract:
 
 - `TARGET_URL` — production URL (FULL) or "none" (LOCAL)
 - `DEPTH` — LOCAL | FULL
@@ -45,7 +45,7 @@ Standalone invocation (no dispatcher): ask ONCE as a bundled block:
 ```bash
 mkdir -p .validate-cache
 grep -q '^\.validate-cache/' .gitignore 2>/dev/null || \
-  printf '\n# /validate cache\n.validate-cache/\n' >> .gitignore
+  printf '\n# /web-validate cache\n.validate-cache/\n' >> .gitignore
 ```
 
 ### Framework detection for SPA built-output targeting
@@ -450,10 +450,10 @@ Each entry : file:line + WCAG SC reference + suggested approach.
 - What the tool chain could not verify (e.g. dynamic content loaded
   via JS in LOCAL mode, color contrast on images, screen reader flow)
 - Reason + suggested follow-up (manual test with NVDA/VoiceOver,
-  run /validate --full post-deploy, etc.)
+  run /web-validate --full post-deploy, etc.)
 
 ## 8. Changes applied (appended by dispatcher after fix confirmation)
-<Empty until /validate --fix completes STEP 3>
+<Empty until /web-validate --fix completes STEP 3>
 ```
 
 Max 600 lines. Cite file:line or tool output for every finding.
@@ -495,7 +495,7 @@ At end of §5, emit verbatim :
 READY TO APPLY — awaiting dispatcher confirmation
 ```
 
-**Do NOT apply any Edit/Write.** Dispatcher handles STEP 3 of `/validate`.
+**Do NOT apply any Edit/Write.** Dispatcher handles STEP 3 of `/web-validate`.
 
 ---
 

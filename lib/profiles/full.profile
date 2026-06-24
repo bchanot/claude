@@ -46,7 +46,7 @@ codex
 # === SEO / GEO / standards / security ================================
 seo                               personal
 geo                               personal
-validate                          personal
+web-validate                      personal
 harden                            personal
 analyze                           personal
 cso

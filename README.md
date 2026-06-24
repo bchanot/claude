@@ -112,7 +112,7 @@ Versions are pinned in `plugins.lock.json`. To update: edit the file, then re-ru
 | `/pdf-translate` | Translate a PDF to another language, output as HTML (via Vision) |
 | `/close` | End-of-session ritual — alias for `/capitalize --ritual` (dedup + TODO reconcile + 3-question reflection) |
 | `/harden` | Web hardening audit — HTTPS/TLS, HSTS, CSP, security headers |
-| `/validate` | W3C HTML/CSS validity + WCAG 2.1 accessibility audit |
+| `/web-validate` | W3C HTML/CSS validity + WCAG 2.1 accessibility audit |
 | `/geo` | GEO-only audit — AI-search visibility (ChatGPT, Perplexity, Claude, Gemini…) |
 | `/client-handover` | Final project delivery — audits + branded deliverable (Markdown / HTML / PDF) |
 | `/profile` | Activate a skill profile (design / dev / qa / audit / minimal) |

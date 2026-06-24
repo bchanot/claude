@@ -6,6 +6,6 @@ qa-only
 browse
 benchmark
 canary
-validate                          personal
+web-validate                      personal
 open-gstack-browser
 setup-browser-cookies

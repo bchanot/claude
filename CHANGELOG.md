@@ -23,6 +23,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 - `.claude/{tasks,memory,audits}/` governance layout + 5 memory registries (decisions, learnings, blockers, journal, evals)
 
 ### Changed
+- `/validate` renamed to `/web-validate` — clearer scoped name (W3C + WCAG); routing, skill profiles, cross-references, and the client-deliverable leak-guard updated (the guard still matches legacy `/validate` so older client docs stay covered)
 - `/seo` split into parallel `seo` + `geo` agents with shared resources
 - `/onboard` rewritten: archetype-aware pipeline (orchestrator + config-only agent), security audit archetype-aware
 - `doc-syncer`: stack-aware audit + deploy-doc gating; later scoped to public docs only, `.claude/` read-only; sync-only ROADMAP handling — planned→shipped reconciliation from code/git, never from `.claude/`; numeric incoherence → HUMAN question

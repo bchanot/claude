@@ -111,7 +111,7 @@ Tu veux...
 | Curer la mémoire | `/prune-memory` |
 | Fin de session (= /capitalize --ritual) | `/close` |
 | Audit web (TLS, CSP, headers) | `/harden` |
-| Validité HTML/CSS + a11y | `/validate` |
+| Validité HTML/CSS + a11y | `/web-validate` |
 | Visibilité IA (GEO seul) | `/geo` |
 | Livraison client finale | `/client-handover` |
 | Changer profil skills | `/profile` |
@@ -147,7 +147,7 @@ Tu veux...
 | `/prune-memory` | Registres trop longs / bruyants | Curation : merge, superseded, compression |
 | `/close` | Fin de session | Alias de /capitalize --ritual — dedup + TODO + réflexion 3 questions |
 | `/harden` | Audit sécurité web (SSL, CSP, HSTS) | Projet web avec config HTTP |
-| `/validate` | Audit W3C + WCAG a11y | Avant livraison projet web |
+| `/web-validate` | Audit W3C + WCAG a11y | Avant livraison projet web |
 | `/client-handover` | Livraison client | Audits finaux + livrable brandé |
 | `/profile` | Changer le profil de skills | design / dev / qa / audit / minimal |
 

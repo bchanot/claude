@@ -30,8 +30,8 @@ LOCAL caps at 20. FULL caps at 20. Never report above 20.
 
 | Finding type | Owner skill | If reported by /seo, what to do |
 |---|---|---|
-| HTML validity errors (W3C nu validator) | /validate | Drop from /seo report; note `"see /validate report for HTML validity"`. |
-| WCAG accessibility | /validate | Drop. |
+| HTML validity errors (W3C nu validator) | /web-validate | Drop from /seo report; note `"see /web-validate report for HTML validity"`. |
+| WCAG accessibility | /web-validate | Drop. |
 | Missing CSP / HSTS / 404 page / HTTP→HTTPS | /harden | Drop unless it directly affects indexability (then mention with cross-link). |
 | Wikidata / sameAs / Knowledge Panel | /seo (GEO) | Owned here. |
 | llms.txt | /seo (GEO) | Owned here. |

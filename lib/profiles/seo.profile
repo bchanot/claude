@@ -8,7 +8,7 @@ seo                               personal
 geo                               personal
 
 # W3C HTML/CSS validity + WCAG a11y
-validate                          personal
+web-validate                      personal
 
 # Web hardening (HSTS, CSP, redirects — affects ranking signals)
 harden                            personal
