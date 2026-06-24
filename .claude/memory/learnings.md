@@ -570,3 +570,23 @@ rules:
 - **Pattern**: a per-user installer that resolves its target relative to CWD (walks up for / creates `.<tool>/` in CWD) silently installs into the project tree when run from a repo that already carries such a dir. Gitignoring the junk hides it but the artifact is unreachable from `$HOME`-based consumers. Fix: run the installer from `$HOME` (`(cd "$HOME" && npx -y skills add …)`) so it targets `$HOME/.agents/skills`; clean up the repo-local copies (gitignored → safe `rm -rf`). Also fix the ordering twin: `link.sh` must re-run AFTER the install steps that produce what it symlinks (install.sh ran link FIRST; install-plugins never re-linked) — added a final `link.sh` step so `make plugin`/`make install` finish self-sufficient.
 - **Future application**: before running any `npx <x> add` / `<tool> init` / `setup` that materializes a dotfile dir, set CWD to where the artifact MUST live (usually `$HOME`), don't trust the script's default resolution. When a "X not installed" warning contradicts a "successfully installed" log line → diff the EXPECTED path vs where the log says it wrote (here log line showed `~/Documents/claude/.agents/skills/darwin-skill`). When an installer A produces inputs for symlinker B, B must run after A in the same invocation.
 - **Reference**: `install-plugins.sh` Step 8.5 (`cd "$HOME"` + parasite cleanup) + Step 10 (final `link.sh`), `update-all.sh` Step 7.5, log `install-20260623-181416.log:1399`. Extends [[LRN-039]] (BDR-028 — gitignored the symptom) + [[LRN-007]] (toggle-external source-only state) + [[LRN-041]] (install-ordering false-negative). gstack on-demand consumer = [[BDR-030]].
+
+---
+
+## LRN-043 — CLAUDE.md skill-routing: cut name-obvious lines (already in skill descriptions), keep only non-derivable signal + dense catch-all
+
+- **Date**: 2026-06-25
+- **Context**: compressing the Skill-routing block of the global CLAUDE.md. Claude already sees every skill's `description` in session context (the available-skills list). A routing line that merely restates "task X → skill named X" duplicates that description → pure token waste loaded every session.
+- **Pattern**: in a routing list, KEEP only lines carrying signal NOT derivable from the skill name — (a) conditional fallbacks (gstack ON/OFF), (b) misleading/cryptic names where name ≠ function (`validate` → W3C/WCAG, not form/data/build validation; `cso` → security audit; `plan-eng-review` → architecture review), (c) disambiguation between near-twins (feat/hotfix/bugfix by file-count). CUT the name-obvious rest, replace with ONE dense catch-all ("most skills route by name — match the request to the skill whose description fits"). GUARD: a misleading name is NOT transparent → it needs its own explicit line or it mis-routes; never cut those to save a line (user restored `validate` + `plan-eng-review` for exactly this).
+- **Future application**: compressing any routing/dispatch table whose entries the model already sees elsewhere → delete the redundant majority, keep the non-obvious minority + a generic fallback. Test each candidate cut: "is this mapping derivable from the skill name + its own description?" Yes → cut. No → keep explicit.
+- **Reference**: `~/.claude/CLAUDE.md` §Skill routing, commit ba743cf (routing block 40 → 23 lines). Linked to [[BDR-031]].
+
+---
+
+## LRN-044 — Edit/Write tools refuse to write THROUGH a symlink — pass the resolved real path
+
+- **Date**: 2026-06-25
+- **Context**: editing `~/.claude/CLAUDE.md`, a symlink → `~/Documents/claude/CLAUDE.md` (the tracked repo file). Read worked through the symlink; Edit errored: "Refusing to write through symlink … Resolve the symlink and pass the real target path explicitly."
+- **Pattern**: many of this user's `~/.claude/*` config files are symlinks INTO the claude-config repo (`~/Documents/claude/`). Edit/Write block writes through a symlink (safety against clobbering link targets); Read does not — so Read-through-link succeeds then Edit-through-link fails on the same path.
+- **Future application**: before editing any `~/.claude/...` config file, resolve it first (`readlink -f <path>`, or `ls -la` to spot the arrow). Then Read AND Edit the RESOLVED real path so the harness's read-tracking matches what you write — and `git` status/diff/commit land naturally in the repo that owns the file.
+- **Reference**: hit while editing `~/.claude/CLAUDE.md` → `~/Documents/claude/CLAUDE.md`. Linked to [[BDR-031]].

@@ -498,3 +498,15 @@ rules:
 - **Caveats**: the symlink form (`skills/<name> -> skills-external/gstack/<name>`) differs from what gstack `./setup` would create (real dir + symlinked SKILL.md) — fine here because `./setup` never populates `skills/` in this layout, so no mixed-form collision. Browse RUNTIME still needs the built binary + sandbox env ([[BDR-029]]) — on-demand makes the skill DISCOVERABLE, not the browser functional on an unsupported OS. The old "try: bash link.sh" message was wrong (link.sh never creates gstack skills) → replaced with submodule-aware messages.
 - **Alternatives rejected**: full gstack integration (make `./setup` install into `skills/`) — user picked option 1, too invasive/version-fragile; leave `full` broken with honest 1-line warning — worse UX; pre-symlink all gstack at install — violates OFF-by-default context policy.
 - **Reference**: `lib/profile.sh` `GSTACK_SRC` + `enable_skill` gstack branch. Verified: `set full` → 0 missing, 35 on-demand; `minimal`↔`full` cycle re-parks/restores; git clean (gstack symlinks gitignored, [[LRN-025]]). Linked to [[LRN-042]], [[LRN-022]], [[BDR-018]] (gstack on/off verb).
+
+---
+
+## BDR-031 — global CLAUDE.md lightening = COMPRESSION, not path-scope / externalization
+
+- **Date**: 2026-06-25
+- **Status**: accepted
+- **Decision**: lighten the universal global CLAUDE.md (`~/.claude/CLAUDE.md`, loaded every session in every project) by COMPRESSION only — denser prose, drop name-obvious routing lines, trim decorative whitespace. NOT by path-scoping rules under `~/.claude/rules/`, NOT by externalizing sections to on-demand files. Result: 317 → 275 lines.
+- **Why**: user-level path-scoped rules (`paths:` frontmatter under `~/.claude/rules/`) do NOT load in CC 2.1.190 (#21858, [[BLK-009]]) — proven by probe. Conditional/scoped loading is therefore an unreliable lever for this user; compression is the only mechanism that actually cuts every-session token cost without depending on the broken feature.
+- **Caveats**: future GLOBAL memory must stay tiny — with conditional loading broken, anything global loads in EVERY project unconditionally; fold that constraint into the global-memory design once a backup exists. Caveman pass to ~250 was explicitly DECLINED: marginal ~25-line gain vs real risk (changes the nature of instructions-to-follow; no evidence caveman is followed better than prose; CLAUDE.md is the most-edited file → caveman = painful to re-read/amend). 275 readable > 250 caveman.
+- **Alternatives rejected**: path-scoped `~/.claude/rules/` (broken, [[BLK-009]]); externalize sections to on-demand-loaded files (same conditional-load dependency); caveman to ~250 (readability + instruction-fidelity risk).
+- **Reference**: `~/.claude/CLAUDE.md` (symlink → `~/Documents/claude/CLAUDE.md`), commits ba743cf (compress routing+design+graphify) + 990318c (trim separators/blanks). Linked to [[BLK-009]], [[LRN-043]], [[LRN-044]].
