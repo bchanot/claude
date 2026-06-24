@@ -659,6 +659,11 @@ NPX_SKILLS=(
   "alchaincyf/find-skills"
 )
 
+# `skills add` resolves its target (.agents/skills/, skills-lock.json) RELATIVE
+# TO THE CWD. Running it from the repo (which carries gitignored .agents/ and
+# .claude/ dirs) makes skills land in $REPO/.agents/skills instead of
+# $HOME/.agents/skills — where link.sh expects them — and the bug is
+# self-reinforcing once $REPO/.agents exists. Always install from $HOME.
 if ! command -v npx &>/dev/null; then
   warn "npx not available — skipping external skills"
 else
@@ -669,18 +674,28 @@ else
       ok "$_name already installed ($_dst)"
       continue
     fi
-    info "Installing $_name via: npx -y skills add $_src"
-    if npx -y skills add "$_src" 2>/dev/null; then
+    info "Installing $_name via: npx -y skills add $_src (from \$HOME)"
+    if (cd "$HOME" && npx -y skills add "$_src" 2>/dev/null); then
       if [ -d "$_dst" ]; then
         ok "$_name installed"
       else
         warn "$_name installed but not at expected path $_dst"
       fi
     else
-      err "$_name install failed — run manually: npx -y skills add $_src"
+      err "$_name install failed — run manually: (cd \"\$HOME\" && npx -y skills add $_src)"
     fi
   done
 fi
+
+# Earlier runs (before this CWD fix) scattered skills into the repo's gitignored
+# .agents/skills and .claude/skills. They shadow the canonical $HOME copies and
+# confuse skill discovery — remove them. Both are gitignored, so this is safe.
+for _stray in "$REPO/.agents/skills" "$REPO/.claude/skills"; do
+  if [ -d "$_stray" ]; then
+    rm -rf "$_stray"
+    info "Removed stray repo-local skills dir: $_stray"
+  fi
+done
 echo ""
 
 # ============================================================
@@ -787,6 +802,23 @@ done
 
 if [ "$ADDED" -eq 1 ]; then
   info "Restart your shell or run: source $SHELL_PROFILE"
+fi
+echo ""
+
+# ============================================================
+# STEP 10 — REFRESH SYMLINKS (final, so this script is self-sufficient)
+# ============================================================
+# Steps 2/8/8.5 INSTALL skills (gstack submodule, emil/frontend/motion, npx
+# darwin/find-skills) that link.sh must symlink into ~/.claude/skills/. Since
+# link.sh runs BEFORE this script in install.sh, those symlinks would be missing
+# on a fresh run until link.sh is run again by hand. Re-run it here so
+# `make plugin` (and `make install`) finish complete — nothing left to do.
+echo "── Step 10: Refreshing symlinks (link.sh) ─────────────────"
+echo ""
+if [ -f "$REPO/link.sh" ]; then
+  bash "$REPO/link.sh"
+else
+  warn "link.sh not found — run it manually to create skill symlinks"
 fi
 echo ""
 

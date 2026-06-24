@@ -287,10 +287,13 @@ if command -v npx &>/dev/null; then
     fi
     # `skills add` is idempotent and pulls latest from the source repo,
     # which is the closest thing to an update operation the CLI exposes.
-    if npx -y skills add "$_src" 2>/dev/null; then
+    # Run from $HOME: the CLI resolves .agents/skills/ relative to the CWD, so
+    # running from the repo would write into $REPO/.agents/skills (gitignored)
+    # instead of $HOME/.agents/skills where link.sh expects it.
+    if (cd "$HOME" && npx -y skills add "$_src" 2>/dev/null); then
       ok "$_name refreshed from $_src"
     else
-      warn "$_name refresh failed — run manually: npx -y skills add $_src"
+      warn "$_name refresh failed — run manually: (cd \"\$HOME\" && npx -y skills add $_src)"
     fi
   done
 else
