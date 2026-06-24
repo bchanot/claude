@@ -126,8 +126,6 @@ Completion skills (`/ship-feature`, `/feat`, `/bugfix`, `/hotfix`,
 2. What learned? → `learnings.md` (if reusable).
 3. What blocked? → `blockers.md`.
 
----
-
 # Architecture decisions
 
 Override default framework/tooling choices. Apply at project creation,
@@ -137,7 +135,6 @@ scaffolding, brainstorming.
 
 When project is public-facing website meant to be indexed (landing page,
 portfolio, blog, e-commerce, docs):
-
 - **FORBIDDEN**: pure SPA (CRA, Vite React SPA, Vue SPA) for public pages.
   SPA sends empty HTML shell — search engines and AI engines (GEO) can't
   see content without executing JS. SEO and AI visibility destroyed.
@@ -157,7 +154,6 @@ portfolio, blog, e-commerce, docs):
 ## Web APIs — always versioned
 
 All web API endpoints must be versioned from day one: `/api/v1/...`.
-
 - New project → start at `/api/v1/`, no bare `/api/` routes.
 - Breaking changes → new version (`v2`). Old version stays functional —
   clients migrate at own pace.
@@ -207,8 +203,6 @@ Apply at every dev step: design, scaffolding, implementation, review.
 - Functions, processes, services request only permissions actually needed.
 - Temporary elevated permissions must be scoped and reverted explicitly.
 
----
-
 # Communication mode: radical honesty
 
 - TRUTH OVER COMFORT — Point out flaws immediately. No sugarcoating,
@@ -223,10 +217,7 @@ Apply at every dev step: design, scaffolding, implementation, review.
 - UNCERTAINTY TRANSPARENCY — If you don't know, say so. No invention,
   no vague answers to save face.
 
----
-
 # Tooling & skills
-
 ## Skill routing
 
 Request matches a skill → invoke via Skill tool first, before any direct
@@ -275,8 +266,6 @@ directly.
 - Known file / small task → read directly, no graphify.
 - `wiki/index.md` → broad-nav entry; `GRAPH_REPORT.md` → whole-architecture.
 - After editing code → `graphify update .` (AST-only, free).
-
----
 
 # This repo only (claude-config)
 
