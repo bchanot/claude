@@ -229,83 +229,52 @@ Apply at every dev step: design, scaffolding, implementation, review.
 
 ## Skill routing
 
-Request matches available skill → invoke via Skill tool first — no direct
-answer, no other tools before. Skill workflows beat ad-hoc answers.
+Request matches a skill → invoke via Skill tool first, before any direct
+answer or other tool. Most skills route by name — match the request to the
+skill whose description fits (full list is in context). Rules below cover
+only the non-obvious cases: gstack fallbacks, disambiguation, cryptic names.
 
-Key routing rules:
-- Product ideas, "worth building?", brainstorming → office-hours
-- Bugs, errors, "why broken", 500s → investigate, or bugfix if no gstack
-- Small feature (1-5 files) → feat
-- Quick fix (typo, CSS, config, ≤2 files) → hotfix
-- Ship, deploy, push, PR → ship, or ship-feature if no gstack
-- QA, test site, find bugs → qa
-- Code review, check diff → review
-- Docs update post-ship → document-release, or doc if no gstack
-- Stale docs audit, doc sync → doc
-- Recurring audit of changes since last run → audit-delta
-- Weekly retro → retro
-- Design / UI — build, design system, brand, visual audit, polish → see
-  "## Design work — full toolchain" (single source, below)
+- Product idea, "worth building?" → office-hours
+- Bug / error / 500 → investigate (bugfix if gstack off)
+- feat / hotfix / bugfix distinguished by file count → see descriptions
+- Ship / deploy / PR → ship (ship-feature if gstack off)
+- Docs post-ship → document-release (doc if gstack off); stale-doc audit → doc
+- Audit of changes since last run → audit-delta
+- Design / UI (build, system, audit, polish) → see "Design work" below
 - Architecture review → plan-eng-review
-- Save/restore working context → context-save / context-restore
-- End-of-session ritual (3-question reflection) → close (= capitalize --ritual)
-- Flush memory before /clear or /compact, reconcile TODO → capitalize
-- Registries too big/noisy → prune-memory
-- Skill profiles (design/dev/qa/minimal) → profile
-- Code quality dashboard → health
-- Refactor without behavior change → refactor
-- Dead code, style cleanup → code-clean
-- SEO/GEO audit → seo (GEO only → geo)
-- Web hardening (SSL/TLS, HSTS, CSP, redirects, headers) → harden
+- Before /clear or /compact → capitalize; end-of-session ritual → close
+- SEO+GEO → seo (GEO only → geo)
 - W3C + WCAG a11y (HTML/CSS validity, axe, pa11y) → validate
-- Deep analysis before modification → analyze
-- Smart commit grouping → commit-change
-- Security audit (secrets, deps CVE, OWASP) → cso
-- New project from scratch → init-project
-- Onboard existing repo (config + archetype + audits + backlog) → onboard
+- Security audit (secrets, CVE, OWASP) → cso
+- New project → init-project; onboard existing repo → onboard
 
-gstack OFF → gstack skills (investigate, ship, qa, review, health, retro,
-office-hours, context-save…) unavailable: use the non-gstack fallback
-where listed, else say so instead of improvising.
+gstack OFF → its skills (investigate, ship, qa, review, health, retro,
+office-hours, context-save…) are gone: use the fallback above, else say so.
 
 ## Design work — full toolchain (tiered by scope)
 
-Single source for all design/UI routing. Task touches design/UI →
-mobilize tools by scope. Reinforced by design-toolchain-reminder hook
-(injects on UI signals).
-- Trivial (≤2 files, single cosmetic value) → /hotfix, no toolchain.
-- Build UI (new component, page, screen, redesign) → ui-ux-pro-max
-  (plan/build) + frontend-design (anti AI-slop) + Magic MCP `/ui`
-  (21st.dev scaffold) + emil-design-eng (polish pass)
-  + design-motion-principles (when motion) + design-html (static HTML).
-- Design system / brand → design-consultation first (aesthetic, type,
-  color, spacing, motion), THEN build tools above.
-- Review / audit → design-review (visual QA + fix) + emil-design-eng lens
-  + design-motion-principles (audit mode).
-Scope doubt (trivial tweak vs real UI change?) → do not silently skip
-toolchain: ask user, or default to Build tier.
-Design gate (automatic): on UI/style signals, lightweight skills (feat,
-hotfix, bugfix) run the gate spec `~/.claude/lib/design-gate.md` — it checks
-the design toolchain's real state and, if incomplete, points at `/profile design`.
-Orchestrators (ship-feature, init-project) handle via STEP 0 plugin-check.
-Magic MCP (@21st-dev/magic) costs API calls — component generation only,
-not micro-tweaks.
+Trigger = UI work: editing a component/style file (.tsx/.vue/.svelte/.css…)
+OR a design/UI request — not the keyword "design" alone in a prompt. Single
+source for design routing; the design-toolchain hook reinforces it.
+- Trivial (≤2 files, one cosmetic value) → /hotfix, no toolchain.
+- Build UI (component, page, redesign) → ui-ux-pro-max + frontend-design
+  (anti-slop) + Magic MCP /ui + emil-design-eng (polish) +
+  design-motion-principles (if motion) + design-html (if static).
+- Design system / brand → design-consultation first, then the build tools.
+- Review / audit → design-review + emil-design-eng + design-motion-principles.
+Scope doubt → don't silently skip: ask, or default to Build tier.
+Gate: lightweight skills run `~/.claude/lib/design-gate.md`; orchestrators via
+plugin-check. Magic MCP costs API calls — generation, not micro-tweaks.
 
 ## graphify
 
-Knowledge-graph navigation via graphify CLI. ALL rules conditional:
-`graphify-out/graph.json` exists in the project — else skip graphify
-entirely, read files directly.
-
-- Codebase-wide question → `graphify query "<question>"` first.
-  Relationships → `graphify path "<A>" "<B>"`. Focused concept →
-  `graphify explain "<concept>"`. Scoped subgraph beats raw grep.
-- Known file/symbol lookup, small task (hotfix, typo, single file) →
-  read directly, no graphify.
-- `graphify-out/wiki/index.md` exists → broad-navigation entrypoint.
-  `GRAPH_REPORT.md` only for whole-architecture review or when
-  query/path/explain insufficient.
-- After modifying code → `graphify update .` (AST-only, no API cost).
+ALL rules apply only if `graphify-out/graph.json` exists — else read files
+directly.
+- Codebase-wide question → `graphify query`; relationships → `path A B`;
+  concept → `explain`. Scoped subgraph beats raw grep.
+- Known file / small task → read directly, no graphify.
+- `wiki/index.md` → broad-nav entry; `GRAPH_REPORT.md` → whole-architecture.
+- After editing code → `graphify update .` (AST-only, free).
 
 ---
 
