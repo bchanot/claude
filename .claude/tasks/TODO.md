@@ -1,5 +1,33 @@
 # TODO
 
+## 2026-06-23 — install self-sufficient + gstack on-demand par profil
+Goal: `make install`/`make plugin`/`make update` installent TOUT sans étape
+manuelle. Plus le profil-driven gstack on-demand (option 1 user : gstack OFF
+par défaut, mais `set <profil>` qui a besoin de gstack l'active pour ce profil).
+Root causes trouvées (logs install-20260623-181416.log) :
+- Bug A : install.sh lance link.sh (étape 5) AVANT install-plugins.sh (étape 6),
+  qui n'a jamais re-lancé link.sh → symlinks npx/externes jamais créés au 1er run
+  (LRN-022 documentait déjà le trou). update-all.sh re-link déjà (L364).
+- Bug B : `npx skills add` + gstack ./setup résolvent leur cible relativement au
+  CWD (repo) → darwin-skill atterrit dans $REPO/.agents/skills + $REPO/.claude/skills
+  au lieu de $HOME/.agents/skills. Auto-entretenu une fois $REPO/.agents créé.
+- Bug C : profile.sh "missing — try: bash link.sh" trompeur (link.sh ne crée pas
+  les skills gstack) ; full.profile liste 35 skills gstack jamais posés dans skills/.
+
+- [x] Edit 1 — install-plugins.sh Step 8.5 : `npx skills add` depuis $HOME (subshell cd)
+- [x] Edit 2 — install-plugins.sh : cleanup parasites $REPO/.agents/skills + $REPO/.claude/skills (gitignorés)
+- [x] Edit 3 — install-plugins.sh : Step 10 final re-lance `bash "$REPO/link.sh"` (idempotent)
+- [x] Edit 4 — update-all.sh Step 7.5 : `npx skills add` depuis $HOME (même Bug B)
+- [x] Edit 5 — lib/profile.sh : GSTACK_SRC var + enable_skill gstack branche on-demand
+      (symlink skills/<name> → skills-external/gstack/<name>) + message honnête
+- [x] Verif — shellcheck/bash -n propres ; migré darwin → $HOME/.agents/skills + `bash link.sh`
+      (skills/darwin-skill OK) ; `profile.sh set full` → 0 "missing", 35 gstack on-demand ;
+      cycle minimal↔full OK ; git propre (symlinks gstack gitignorés) ; profil full restauré
+- [~] Cleanup machine courante : $REPO/.claude/skills/darwin-skill + .agents/skills VIDE
+      restent (rm bloqué par garde permission .claude/) → auto-nettoyés au prochain `make plugin`
+- [x] Capitalize — LRN-042 (Bug B CWD-relatif) + BDR-030 (gstack on-demand par profil) + journal 2026-06-23
+- [ ] Commit (via /commit-change)
+
 ## profile.sh — verbe `gstack on|off`
 - [x] Extraire helper `enable_all_gstack()` (boucle de cmd_reset) — anti-duplication
 - [x] Extraire helper `disable_gstack_not_in(prof)` (boucle gstack de cmd_set) — anti-duplication
