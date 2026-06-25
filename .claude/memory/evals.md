@@ -25,6 +25,7 @@ rules:
 | EVAL-002 | 2026-06-02 | `profile gstack on/off` verb implementation | keep |
 | EVAL-003 | 2026-06-11 | darwin optimization run on `audit-delta` skill | keep |
 | EVAL-004 | 2026-06-11 | darwin eval 26 perso skills + 4-bug fix round | keep |
+| EVAL-005 | 2026-06-23 | Obsolete `claude --effort max` alias missed across Step 9 edits | correct |
 
 ---
 
