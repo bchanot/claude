@@ -49,7 +49,13 @@ Operates on `.claude/memory/` in the current project (CWD). Curates the
 
 ```bash
 test -d .claude/memory/ || { echo "no .claude/memory/ in $(pwd)"; exit 1; }
-git status --short .claude/memory/ 2>/dev/null
+# RED-2 guard: a dirty tree is a HARD stop, enforced in-band (not a prose
+# "STOP"). Git is the only backup; refuse to write over uncommitted state.
+if [ -n "$(git status --short .claude/memory/ 2>/dev/null)" ]; then
+  git status --short .claude/memory/
+  echo "DIRTY: commit or stash .claude/memory/ first. Git is the only backup."
+  exit 1
+fi
 ```
 
 If working tree is dirty on any registry file → STOP with: "Commit or
@@ -75,6 +81,11 @@ age comparisons. Today's date is in the system context.
 - Journal entries older than 180 days with zero cross-reference from
   later entries → propose collapse into 1-line month summary
   (`## YYYY-MM` heading replaces detail).
+  **SAFETY-CRITICAL EXCEPTION (deterministic):** an entry whose body holds an
+  operational permanent rule is INTOUCHABLE — never collapse, summarize, or
+  reword it, regardless of age or cross-reference. Trigger: any line with
+  `NEVER`/`ALWAYS`/`PERMANENT`, or a negation + imperative (`must not`,
+  `do not`, `never deploy`…). The detail IS the value; keep it verbatim.
 
 ### B. Similar — merge candidates
 - Two+ entries sharing root keyword in title (e.g. `pandoc`,
@@ -141,8 +152,14 @@ Order: safe → destructive.
      (accepted), references (union).
 4. **Inline caveman compression** — preserve frontmatter exactly (id,
    date, title, status, references). Rewrite prose body to fragments:
-   - Drop articles (`a`, `an`, `the`).
-   - Drop filler (`just`, `really`, `basically`, `actually`, `simply`).
+   - **NEGATION GUARD (deterministic, overrides every rule below):** never
+     rewrite a sentence containing a negation token (`not`, `never`, `no`,
+     `cannot`, or any `*n't` contraction). Keep such sentences VERBATIM —
+     dropping a filler next to a `not`/`never` can silently invert meaning.
+     Compression touches negation-free sentences only.
+   - Drop articles (`a`, `an`, `the`) — negation-free sentences only.
+   - Drop filler (`just`, `really`, `basically`, `actually`, `simply`) —
+     negation-free sentences only.
    - Short synonyms (`big` not `extensive`, `fix` not `implement a solution for`).
    - Keep code blocks, URLs, error messages, file paths VERBATIM.
    - Keep IDs (BDR-XXX, LRN-XXX, commit hashes) verbatim.
@@ -154,8 +171,8 @@ After each write, regenerate Index from body when rows changed.
 ```bash
 # Filename → ID-prefix map. Hard-mapped because filenames don't share
 # their first 3 chars with the prefix (decisions → BDR, not DEC).
-# v1 bug: derived prefix via `basename | cut -c1-3` → never matched,
-# verify printed false-clean signal. Fixed in v1.1 (TDD found it).
+# A prior version derived the prefix via `basename | cut -c1-3`, which never
+# matched any heading and made verify a no-op (false-clean signal).
 declare -A PREFIX_MAP=(
   [decisions]=BDR
   [learnings]=LRN
@@ -175,9 +192,60 @@ for fname in decisions learnings blockers evals; do
   done
   /usr/bin/grep -oE "^\| (${prefix})-[0-9]+ " "$f" | while read row; do
     id=$(echo "$row" | awk '{print $2}')
-    /usr/bin/grep -q "^## ${id} " "$f" || echo "ORPHAN INDEX: $id in $f"
+    # RED-6 fix: match id at a word boundary (space OR end-of-line) so a
+    # title-less heading "## BDR-009" is not flagged as a false orphan.
+    /usr/bin/grep -qE "^## ${id}( |\$)" "$f" || echo "ORPHAN INDEX: $id in $f"
   done
 done
+
+# RED-5 fidelity guard (count-based, per-entry x per-category). STEP 0 ensured
+# a clean tree, so git HEAD is the pre-prune backup. Fails the run if any
+# negation/permanent token COUNT drops within an entry vs HEAD -- immune to the
+# line-sharing false positives a removed-line grep produces. The STEP 3.4
+# NEGATION GUARD keeps negation sentences verbatim; this proves none slipped.
+# Journal entries are date-keyed and legitimately collapse, so the journal is
+# restricted to {never,always,permanent} -- the markers the STEP 1.A safety
+# exception protects from collapse (keys stay stable; casual not/no in a benign
+# collapsed entry is not a loss). Contraction *n't is covered upstream by A.
+census() {  # reads a registry file on stdin -> "KEY:CAT<TAB>COUNT" per entry
+  awk '
+    /^## /{ id=$2 }
+    { L=tolower($0); gsub(/[^a-z]+/," ",L); n=split(L,w," ")
+      for(i=1;i<=n;i++){ c=w[i]
+        if(c=="never")          a[id":never"]++
+        else if(c=="always")    a[id":always"]++
+        else if(c=="permanent") a[id":perm"]++
+        else if(c=="cannot")    a[id":cannot"]++
+        else if(c=="not")       a[id":not"]++
+        else if(c=="no")        a[id":no"]++ } }
+    END{ for(k in a) if(a[k]>0) print k"\t"a[k] }'
+}
+fidelity_check() {  # $1 = registry basename; returns 1 (and prints) on a drop
+  local fname="$1" f=".claude/memory/$1.md" cats drop
+  [ -f "$f" ] || return 0
+  git diff --quiet -- "$f" 2>/dev/null && return 0
+  if [ "$fname" = journal ]; then cats='never|always|perm'
+  else cats='never|always|perm|cannot|not|no'; fi
+  # Tag working "W" / HEAD "H" explicitly -- NOT NR==FNR, which misclassifies
+  # when the working census is empty (a fully-deleted safety entry = the case
+  # we most need to catch).
+  drop=$( { census < "$f"             | awk '{print "W\t"$0}'
+            git show HEAD:"$f" | census | awk '{print "H\t"$0}'
+          } | awk -F'\t' -v cats="^($cats)\$" '
+        $1=="W" { w[$2]=$3; next }
+        { n=split($2,p,":"); if (p[n] !~ cats) next
+          if ((w[$2]+0) < $3) print "  "$2" (HEAD="$3" now="(w[$2]+0)")" }')
+  if [ -n "$drop" ]; then
+    echo "FIDELITY FAIL ($f): a negation/permanent token dropped within an entry:"
+    printf '%s\n' "$drop"; return 1
+  fi
+  return 0
+}
+FIDFAIL=0
+for fname in decisions learnings blockers journal evals; do
+  fidelity_check "$fname" || FIDFAIL=1
+done
+[ "$FIDFAIL" = 1 ] && echo "Do NOT certify this run. Revert with: git checkout .claude/memory/"
 echo "(blank above = OK)"
 
 wc -l .claude/memory/*.md | grep -v "\.original\.md"
