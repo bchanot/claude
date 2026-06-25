@@ -46,6 +46,9 @@ rules:
 | LRN-027 | 2026-06-11 | Agents improvise audit boundaries from file dates when no machine state — periodic skills need machine-readable state file, never inference | any recurring/periodic skill needing "since last run" semantics |
 | LRN-030 | 2026-06-18 | Opus 4.8 under-delegates subagents/memory/custom-tools by default — counter via explicit CLAUDE.md fan-out rule | any Opus 4.8 session; tuning delegation; inline-vs-subagent decision |
 | LRN-031 | 2026-06-19 | Skill value = gate + anti-noise + determinism, not re-coding what a capable agent does free | building/reviewing any skill; writing-skills TDD fixture design |
+| LRN-046 | 2026-06-25 | Destructive skill: deterministic oracle (byte-identical / count census) > semantic judge | any destructive/irreversible skill; behavioral-oracle TDD |
+| LRN-047 | 2026-06-25 | A noisy safety guard (13/13 FP) = a guard you learn to ignore = risk → refine, don't tolerate | any guard/alert/lint that can false-positive |
+| LRN-048 | 2026-06-25 | A "0/OK/pass" must prove it LOOKED (counted both sides), else verify hard-wired to pass | any verify/test/lint reporting success |
 
 ---
 
@@ -600,3 +603,27 @@ rules:
 - **Pattern**: any rename of a command/skill/identifier must sweep regexes/allowlists/denylists that match the OLD name by exact token — leak guards, forbidden-token gates, routing dispatchers, CI greps. A prefix/suffix rename breaks anchored matches (`/oldname\b`) with zero error. Fix = alternation covering BOTH names (`web-validate|validate`), NOT replacement — old artifacts (already-shipped client docs, logs) still carry the legacy name and must stay caught.
 - **Future application**: when renaming, grep the BARE old token inside regex/test/gate files, not just `/oldname` command refs. A blind `replace_all '/old' '/new'` MISSES these because the guard stores the name inside an alternation (`|old|`), not as `/old`. For each guard found, extend to `new|old`; verify the gate line shows both names.
 - **Reference**: `agents/client-handover-writer.md:1462`, rename commit `e5e673a`. Linked to [[BDR-032]].
+
+## LRN-046 — Destructive skill: deterministic oracle > semantic judge
+
+- **Date**: 2026-06-25
+- **Pattern**: On a DESTRUCTIVE skill the binding oracle must be DETERMINISTIC (byte-identical, or count-based census per-entry × per-category), not a semantic judge. A judge false-greens twice: (a) PRESERVED-but-MUTATED content — RED-4, a "meaning preserved" collapse still rewrote a permanent safety rule; byte-identical caught it, the judge would not; (b) a 0-result that happened by CHANCE — "no negation inverted" ≠ protected, it was the dice not a guard. If the oracle must be behavioral/LLM, pair it with a deterministic check that is the gate.
+- **Context**: prune-memory v1.1 TDD (EVAL-006, skill `0a3e766`). RED-4 collapse + RED-3 compression.
+- **Future application**: any destructive/irreversible skill or safety check; any TDD whose natural oracle is an LLM judge — make the binding check deterministic, keep the judge as a secondary net.
+- **Reference**: skill `0a3e766`, `tests/run-behavioral.md`. Linked to [[EVAL-006]].
+
+## LRN-047 — A noisy safety guard is a risk, not discomfort
+
+- **Date**: 2026-06-25
+- **Pattern**: A safety guard that cries wolf (13/13 false positives on real data) is a guard you learn to IGNORE → the day of the true positive you skip it by habit. On a destructive op a noisy guard = security RISK, not annoyance → REFINE it (here line-grep → count-based census), don't tolerate. Measure the false-positive rate on REAL data, not fixtures — all-green fixtures hid the 13.
+- **Context**: prune-memory v1.1 (EVAL-006). The RED-5 line-grep fidelity guard fired 13/13 false positives on the live learnings.md (line-sharing) → replaced by a per-entry census (0 FP, proven).
+- **Future application**: any guard/alert/lint/test that can false-positive — measure FP on real data before shipping; a guard habitually ignored is worse than none.
+- **Reference**: skill `0a3e766`, `tests/run-deterministic.sh` (RED-5). Linked to [[EVAL-006]].
+
+## LRN-048 — A "0 / OK / pass" must prove it LOOKED
+
+- **Date**: 2026-06-25
+- **Pattern**: A passing result ("0 errors", "OK", "clean") must PROVE it inspected — show the work counted something on both sides (census non-zero on HEAD and WORK). Else it is a verify hard-wired to pass = the original prune-memory v1 lie (`basename | cut -c1-3` never matched any heading → verify always printed blank-OK). A 0 by inaction is indistinguishable from a 0 by correctness; force the success path to surface its coverage.
+- **Context**: prune-memory v1.1 (EVAL-006). v1 STEP-4 verify always reported OK (wrong prefix → 0 markers → blank). The fix's 0-false-positive is only trustworthy because the census was shown counting both sides.
+- **Future application**: any verify/test/lint reporting success — design the pass to surface what it examined (counts / files / lines) so a vacuous pass is visible, not silent.
+- **Reference**: skill `0a3e766`, EVAL-006 (verify-proof anomaly). Linked to [[EVAL-006]].

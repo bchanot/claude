@@ -26,6 +26,7 @@ rules:
 | EVAL-003 | 2026-06-11 | darwin optimization run on `audit-delta` skill | keep |
 | EVAL-004 | 2026-06-11 | darwin eval 26 perso skills + 4-bug fix round | keep |
 | EVAL-005 | 2026-06-23 | Obsolete `claude --effort max` alias missed across Step 9 edits | correct |
+| EVAL-006 | 2026-06-25 | prune-memory v1.1 TDD — 6 guards (0a3e766), validated on real data | keep |
 
 ---
 
@@ -75,3 +76,13 @@ rules:
 - **Method / why missed**: I treated the pre-existing `CLAUDE_LINES` as established and only touched the lines I was adding/removing. Spotting the redundancy needs cross-referencing TWO config layers (shell alias vs settings.json) — a semantic check I never ran. Masked further: the user's `.bashrc` is hand-managed and the alias line wasn't even present, so it looked inert.
 - **Anomaly**: not just dead config — a CLI flag (`--effort max`) silently OVERRIDES the settings.json value (`xhigh`). Real correctness bug.
 - **Action**: when editing installer shell-config, audit EACH existing line against the current settings.json / CLAUDE.md source of truth, not only the lines being changed. Removed the alias + added cleanup. General rule: reconcile config to ONE source of truth across env/alias/settings layers.
+
+---
+
+## EVAL-006 — prune-memory v1.1: 6 dangers TDD-closed, validated on real data
+
+- **Date**: 2026-06-25
+- **Output**: prune-memory (only DESTRUCTIVE skill, never tested before) TDD'd end-to-end. 6 dangers, each proven by a failing RED then closed by a DETERMINISTIC guard: RED-1 false "verified" claim removed; RED-2 dirty tree → real `exit 1` (was prose-only STOP); RED-3 negation-sentence verbatim guard (no silent inversion); RED-4 collapse safety-critical exception (NEVER/ALWAYS/PERMANENT entry INTOUCHABLE); RED-5 STEP-4 fidelity census (count-based, per-entry × per-category); RED-6 trailing-space false-ORPHAN fix. Guards committed in **0a3e766**; tests: `tests/run-deterministic.sh` + `run-behavioral.md` + fixtures + BACKLOG.
+- **Method**: run-deterministic all-green (RED-1/2/5/6); RED-3/4 by single faithful subagent runs on throwaway fixtures (deterministic oracles — byte-identical + layer-(a) substring; N=6 tolerance-zero fleet documented in run-behavioral.md, NOT exhausted — 1 run sufficed to prove presence then closure); REAL-data re-test on live learnings.md (602 l): fidelity 0 false-positive vs old line-grep 13, census PROVEN counting both sides (HEAD/WORK not=107/114, no=64/71, never=34/34 — no category dropped). Scope held (only learnings.md), reverted after (measurement, not a kept prune). Clean tree verified first; git + cp backup.
+- **Anomalies**: (1) SAFE ≠ USEFUL — compression (pass C) marginal on already-caveman dense content (~3.6% trim, registry GREW); real value = index-drift (D found 19 missing Index rows on the real learnings.md, measured then reverted) + merge (B), not C on dense. (2) RED-8 OPEN — fidelity proves "no negation DELETED", not "none ADDED wrongly"; visible empirically (not/no +7 in the measurement, passed under the drop-radar); remote (compression subtracts) but real. (3) RED-7 OPEN — merge LRN-014+016 maybe PRIMED by the SKILL.md example, not real overlap; verify. (4) two guard bugs caught by VALIDATION not logic: awk `\<` unsupported (mawk) → not/no counted 0; `NR==FNR` blind when working census empty = the deletion case → both fixed + re-validated. (5) REAL ANCHOR FOR PASS D — this very evals.md had EVAL-005's Index row MISSING (pre-existing drift), exactly what the skill's D pass auto-corrects; hand-backfilled in a separate `fix(memory)` commit. learnings.md likewise carries 19 missing Index rows (deferred to an intentional prune). D is NOT theoretical.
+- **Action**: keep — safe, useful for B/D, compression marginal on dense (documented limit). `Fixed in v1.1 (TDD found it)` WAS the RED-1 defect (claim of a verify never run); TDD note now TRUE (real suite passes). Patterns → LRN-046/047/048; open items → tests/BACKLOG.md (RED-7/RED-8).
