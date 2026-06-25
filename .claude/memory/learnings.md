@@ -627,3 +627,19 @@ rules:
 - **Context**: prune-memory v1.1 (EVAL-006). v1 STEP-4 verify always reported OK (wrong prefix → 0 markers → blank). The fix's 0-false-positive is only trustworthy because the census was shown counting both sides.
 - **Future application**: any verify/test/lint reporting success — design the pass to surface what it examined (counts / files / lines) so a vacuous pass is visible, not silent.
 - **Reference**: skill `0a3e766`, EVAL-006 (verify-proof anomaly). Linked to [[EVAL-006]].
+
+## LRN-049 — Non-destructive repeated nudge: stateless-minimal surface > state marker (conditional on stakes)
+
+- **Date**: 2026-06-25
+- **Pattern**: To dedup a REPEATED but NON-DESTRUCTIVE suggestion (hint/nudge/advisory in a stateless flow — gate, hook, lint note), minimize the surface (always 1 line) instead of a persistence marker. A marker buys "exactly once" but costs state (file + gitignore + location), wrong scope ("session" via a plain file = forever-per-project), and staleness with no cleanup. Goal is not "prevent re-fire" but "make re-fire cheap enough to never be noise" — strip the per-occurrence richness and there is nothing left to dedup. **Conditional on stakes**: [[LRN-046]]/[[LRN-047]] ("deterministic > behavioral", "noisy guard = risk") were forged on a DESTRUCTIVE skill where a false-green = data loss → there a deterministic marker earns its cost. Here it is a 1-line cosmetic note → re-fire is annoyance, not risk → do NOT import marker-grade infra. Same determinism requirement, opposite cost/benefit.
+- **Context**: design-gate §4 anim-lib suggestion ([[BDR-033]]). User reserved the marker-vs-refire call; winning third option was "always 1 line, stateless".
+- **Future application**: any repeated advisory in a stateless surface — first bound the noise by minimizing the surface; reach for a marker/flag-file ONLY when a missed dedup is costly (destructive, irreversible, money, security), not merely repetitive. Match the guard's cost to the stake it protects.
+- **Reference**: `lib/design-gate.md` §4, [[BDR-033]]. Conditions [[LRN-046]], [[LRN-047]].
+
+## LRN-050 — On a symlinked/live file, show-before-write is the ONLY control gate
+
+- **Date**: 2026-06-25
+- **Pattern**: When the edit target is symlinked into the live path (`~/.claude/lib/`→repo, `~/.claude/CLAUDE.md`→repo …), saving the file IS deploying it — write and go-live collapse into one act. No later deploy step catches a bad change, so the pre-write review (show the drafted diff, get explicit go) is the ONLY checkpoint before the change is in service — unlike a normal file where build/commit/deploy offers a second net. On live/symlinked targets, show→validate→write is mandatory, not courtesy; "edit silently then show" forfeits the only gate.
+- **Context**: this session twice wrote-then-showed on `lib/design-gate.md` (live via symlink). Both harmless (non-destructive), but the pattern would bite on a destructive live edit. User flagged it → inverted to show→validate→write.
+- **Future application**: before editing any file, check if it is live (`readlink -f`, compare to `~/.claude/`); if live, treat the pre-write diff as a mandatory approval gate, not an optional preview. Generalizes to any "edit = deploy" target (dotfiles, served config, hot-reloaded sources).
+- **Reference**: `lib/design-gate.md` (symlink → `~/.claude/lib/`). Sibling to [[LRN-044]] (write-through-symlink → resolve real path). Linked to [[BDR-033]].

@@ -526,3 +526,15 @@ rules:
   - NL trigger keywords ("validate"/"validation") KEPT in the description so "validate my site" still routes here.
 - **Alternatives rejected**: rename agent + artifacts too (cosmetic symmetry, ~45 extra edits, breaks audit-file family + report back-compat); blind `sed s/validate/web-validate/` (breaks third-party `html-validate`, `validator.nu`, English-verb prose — discrimination must be at the `/validate` token, proven by `.validate-cache/html-validate.json` staying intact).
 - **Reference**: commit `e5e673a` (18 files). Verified complete: `/validate` = 0 in active code (only `.claude/` history + CHANGELOG), `html-validate` = 15 intact, regex `client-handover-writer.md:1462` shows both names. Linked to [[LRN-045]], [[BDR-031]] (CLAUDE.md routing), [[LRN-043]] (validate routing line).
+
+## BDR-033 — design-gate §4: anim-lib suggestion — suggest-only, non-blocking, stateless 1-line
+
+- **Date**: 2026-06-25
+- **Status**: accepted
+- **Decision**: `lib/design-gate.md` gains §4. When a non-trivial design task hits a MOTION signal (`animation`/`transition`/`hover`/`motion`/`animate`, added to §DETECTION) AND `detect_anim_eligibility`=`eligible` AND `is_anim_lib_installed` finds none → surface ONE line suggesting the recommended `motion` pkg. Suggest-only (install ONLY on explicit consent, never auto), non-blocking (sole STOP stays §3 exit 10), stateless (ALWAYS the single line, no marker). Calls the helper — no 3rd copy of the lib list.
+- **Why**: gate runs mid-build; a 2nd blocking stop on an OPTIONAL dep = friction. Dedup goal is not "prevent re-fire" but "make the surface minimal enough that re-fire is never noise" → deterministic by construction (nothing to remember → no fragile behavioral guard, cf [[LRN-046]]/[[LRN-047]]). **Conditional to stakes**: the deduped thing here is a NON-DESTRUCTIVE 1-line cosmetic note → re-fire is annoyance, not risk, so importing marker-grade infra (file + gitignore + permanent state) is not justified. On a DESTRUCTIVE op a deterministic marker IS worth its cost — that is where [[LRN-046]]/[[LRN-047]] were forged. Same determinism bar, opposite cost/benefit; pick by stake. Self-heal: condition-3 (`is_anim_lib_installed`, 10 libs incl gsap/react-spring/lottie) kills it the instant any anim lib lands → re-fire only ever hits "eligible + pure-CSS + actively declined".
+- **Alternatives rejected**:
+  - File marker `.design-anim-suggested` (once-forever) — "session"→"forever-per-project" (1 decline = permanent silence, no cleanup but manual rm); adds write + gitignore mgmt to a non-mutating doctrine; `.claude/` tracked here → suppression leaks via git.
+  - Blocking yes/skip prompt à la `/onboard` STEP 2.5 — a 2nd STOP mid-build on an optional dep.
+  - Prose "agent remembers not to re-suggest" — fragile behavioral guard, contradicts [[LRN-046]]/[[LRN-047]].
+- **Reference**: commit `11792cc`, `lib/design-gate.md` §4 + §DETECTION (`+motion`/`+animate`). Helper `lib/animation-lib-check.sh` unchanged. Live via symlink (`~/.claude/lib/`→repo). Builds on [[BDR-005]]. See [[LRN-049]].
