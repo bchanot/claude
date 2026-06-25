@@ -12,7 +12,7 @@ Check BOTH the task description AND the filesystem:
 
 **Task description signals** (case-insensitive match on $ARGUMENTS):
 - UI keywords: `component`, `button`, `card`, `modal`, `dialog`, `tooltip`, `dropdown`, `sidebar`, `navbar`, `header`, `footer`, `layout`, `grid`, `form`, `input`, `table`
-- Style keywords: `css`, `style`, `theme`, `color`, `font`, `spacing`, `margin`, `padding`, `border`, `shadow`, `animation`, `transition`, `hover`, `responsive`, `dark mode`, `light mode`
+- Style keywords: `css`, `style`, `theme`, `color`, `font`, `spacing`, `margin`, `padding`, `border`, `shadow`, `animation`, `transition`, `hover`, `motion`, `animate`, `responsive`, `dark mode`, `light mode`
 - Design keywords: `design`, `ui`, `ux`, `visual`, `polish`, `pixel`, `figma`, `mockup`, `wireframe`, `prototype`
 - Framework UI: `tailwind`, `styled-component`, `emotion`, `chakra`, `radix`, `shadcn`, `headless`
 
@@ -82,6 +82,61 @@ Exit codes: `0` = ready · `11` = ready-but-unverified (proceed, but surface it)
   "ready": proceed only after telling the user that N tool(s) went unverified and
   having them confirm with `claude mcp list` / `claude plugin list`. Fail-visible,
   not fail-silent — the most important tool (magic) is exactly an unverifiable one.
+
+### 4. Animation library — suggest-only (fires only on a real motion signal)
+
+Orthogonal to the toolchain check above: §2-3 are about Claude's design TOOLS;
+this is about the PROJECT's runtime dep. Evaluate it only once the toolchain is
+resolved and you're actually proceeding with the build (READY, or after the user
+ran `/profile design`). Never on the INCOMPLETE stop path — that path has one
+action only (`/profile design`); don't stack an optional note on it.
+
+**Fires only when ALL THREE hold** — drop any one → no suggestion, stay silent:
+
+1. **Motion signal** — the task matched a motion keyword from §DETECTION:
+   `animation`, `transition`, `hover`, `motion`, or `animate`. A static
+   button / card / layout with no motion signal needs no anim lib → skip.
+2. **Stack eligible** — `detect_anim_eligibility` returns `eligible|…`.
+3. **No anim lib yet** — `is_anim_lib_installed` finds none.
+
+Only if condition 1 holds, run the helper for 2 and 3 — do NOT re-list packages
+here; the helper's `is_anim_lib_installed` is the single source of which libs
+count:
+
+    source "$HOME/.claude/lib/animation-lib-check.sh"
+    result=$(detect_anim_eligibility)            # '<status>|<package>|<reason>'
+    status=$(echo "$result" | cut -d'|' -f1)
+    pkg=$(echo "$result"    | cut -d'|' -f2)
+    reason=$(echo "$result" | cut -d'|' -f3)
+    if [ "$status" = "eligible" ] && ! is_anim_lib_installed >/dev/null; then
+      cmd=$(recommend_anim_install_cmd "$pkg")   # pnpm/yarn/bun/npm per lockfile
+      # → surface the one-line suggestion below. Do NOT run $cmd.
+    fi
+
+**Surface — always this single line (non-blocking, suggest-only):**
+
+    🎬 Stack motion-eligible (<reason>), no anim lib — `<cmd>`? (optional; say the word, I'll add it)
+
+**Rules:**
+
+- **Suggest-only, never auto-install.** Run `<cmd>` ONLY on explicit user
+  consent. BDR-005: mid-session + existing `package.json` = consent required —
+  same contract as `/onboard` STEP 2.5, opposite of `/init-project` STEP 5e
+  (auto-install on a just-validated fresh scaffold).
+- **Non-blocking.** Never halts the build; NOT a second gate. The toolchain stop
+  (§3, exit 10) is the only STOP. Surface the line, keep going.
+- **Stateless dedup, by construction.** The suggestion is ALWAYS the single line
+  above — no first-time-block / later-short split. That split would need session
+  state the gate doesn't have, and a file marker would persist forever (per
+  project, not per session). Determinism here comes from having nothing to
+  remember, not from a behavioral "the agent recalls it" guard. Re-fire is one
+  ignorable line, on a narrow population: condition 3 (`is_anim_lib_installed`,
+  10 libs incl gsap / react-spring / lottie) kills it the instant any anim lib
+  lands, so only "eligible + pure-CSS + actively declined" ever sees it twice.
+- **Two "motion"s (agent-facing).** The lib `motion` (npm dep, this step) ≠ the
+  skill `design-motion-principles` (`# GATE-BLOCK:` core set, §2-3). The
+  toolchain check handles the skill; this step handles the lib. Don't conflate
+  them when talking to the user.
 
 ### Other toolchains
 
