@@ -510,3 +510,19 @@ rules:
 - **Caveats**: future GLOBAL memory must stay tiny — with conditional loading broken, anything global loads in EVERY project unconditionally; fold that constraint into the global-memory design once a backup exists. Caveman pass to ~250 was explicitly DECLINED: marginal ~25-line gain vs real risk (changes the nature of instructions-to-follow; no evidence caveman is followed better than prose; CLAUDE.md is the most-edited file → caveman = painful to re-read/amend). 275 readable > 250 caveman.
 - **Alternatives rejected**: path-scoped `~/.claude/rules/` (broken, [[BLK-009]]); externalize sections to on-demand-loaded files (same conditional-load dependency); caveman to ~250 (readability + instruction-fidelity risk).
 - **Reference**: `~/.claude/CLAUDE.md` (symlink → `~/Documents/claude/CLAUDE.md`), commits ba743cf (compress routing+design+graphify) + 990318c (trim separators/blanks). Linked to [[BLK-009]], [[LRN-043]], [[LRN-044]].
+
+---
+
+## BDR-032 — skill `/validate` → `/web-validate` (rename user surface, keep internals)
+
+- **Date**: 2026-06-25
+- **Status**: accepted (shipped `e5e673a`)
+- **Decision**: rename W3C+WCAG skill `/validate` → `/web-validate` (clearer scoped name, less generic). Renamed the USER-FACING surface ONLY: folder (`git mv`), frontmatter `name`, H1, command refs, CLAUDE.md routing line, 6 `lib/profiles/*.profile` entries (FUNCTIONAL — profiles activate skills by folder name, a miss = broken activation), cross-refs (harden/seo/depth-matrix/client-handover), agent dispatch refs, README + USAGE tables. Leak-guard regex extended to `web-validate|validate` ([[LRN-045]]).
+- **Why — 4 deliberate KEEPs**:
+  - agent `validator-analyzer` name KEPT — internal, lockstep with `subagent_type=` + harness registry; rename = wider blast radius, zero discoverability gain.
+  - `.validate-cache/` + `VALIDATE.md` KEPT — names derive from the AUDIT TYPE, family `{SEO,GEO,HARDEN,CSO,VALIDATE}.md`; renaming makes VALIDATE the odd one out + orphans already-generated reports (`MIGRATION.md` cleanup loop hardcodes the name). Same logic kept the dispatch label `description="validate — ..."`.
+  - `.claude/` history KEPT (memory + completed TODO block) — append-only, true at the time. The forward-pointing OPEN TODO item was ANNOTATED additively (`désormais /web-validate`), not rewritten — append-only protects history, not pointers to future actions.
+  - CHANGELOG old entry KEPT, new "renamed" entry ADDED (Keep-a-Changelog: don't rewrite the past).
+  - NL trigger keywords ("validate"/"validation") KEPT in the description so "validate my site" still routes here.
+- **Alternatives rejected**: rename agent + artifacts too (cosmetic symmetry, ~45 extra edits, breaks audit-file family + report back-compat); blind `sed s/validate/web-validate/` (breaks third-party `html-validate`, `validator.nu`, English-verb prose — discrimination must be at the `/validate` token, proven by `.validate-cache/html-validate.json` staying intact).
+- **Reference**: commit `e5e673a` (18 files). Verified complete: `/validate` = 0 in active code (only `.claude/` history + CHANGELOG), `html-validate` = 15 intact, regex `client-handover-writer.md:1462` shows both names. Linked to [[LRN-045]], [[BDR-031]] (CLAUDE.md routing), [[LRN-043]] (validate routing line).

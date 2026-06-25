@@ -590,3 +590,13 @@ rules:
 - **Pattern**: many of this user's `~/.claude/*` config files are symlinks INTO the claude-config repo (`~/Documents/claude/`). Edit/Write block writes through a symlink (safety against clobbering link targets); Read does not — so Read-through-link succeeds then Edit-through-link fails on the same path.
 - **Future application**: before editing any `~/.claude/...` config file, resolve it first (`readlink -f <path>`, or `ls -la` to spot the arrow). Then Read AND Edit the RESOLVED real path so the harness's read-tracking matches what you write — and `git` status/diff/commit land naturally in the repo that owns the file.
 - **Reference**: hit while editing `~/.claude/CLAUDE.md` → `~/Documents/claude/CLAUDE.md`. Linked to [[BDR-031]].
+
+---
+
+## LRN-045 — Renaming a command: audit exact-name leak-guard / forbidden-token regexes
+
+- **Date**: 2026-06-25
+- **Context**: rename `/validate` → `/web-validate`. A client-deliverable leak-guard in `agents/client-handover-writer.md:1462` greps generated docs for internal tool names via `grep -niE '/(seo|harden|validate|cso|...)\b'`. The `web-` prefix means `/web-validate` no longer matches the `/validate` branch (the `/` must sit immediately before `validate`; post-rename a `-` sits there) → renamed command leaks SILENTLY into client-facing output. No error — the gate just stops catching it.
+- **Pattern**: any rename of a command/skill/identifier must sweep regexes/allowlists/denylists that match the OLD name by exact token — leak guards, forbidden-token gates, routing dispatchers, CI greps. A prefix/suffix rename breaks anchored matches (`/oldname\b`) with zero error. Fix = alternation covering BOTH names (`web-validate|validate`), NOT replacement — old artifacts (already-shipped client docs, logs) still carry the legacy name and must stay caught.
+- **Future application**: when renaming, grep the BARE old token inside regex/test/gate files, not just `/oldname` command refs. A blind `replace_all '/old' '/new'` MISSES these because the guard stores the name inside an alternation (`|old|`), not as `/old`. For each guard found, extend to `new|old`; verify the gate line shows both names.
+- **Reference**: `agents/client-handover-writer.md:1462`, rename commit `e5e673a`. Linked to [[BDR-032]].
