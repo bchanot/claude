@@ -164,7 +164,7 @@ Subtasks :
 - [ ] Créer `skills/lib/help-handler.md` — snippet réutilisable (détection + extraction + affichage)
 - [ ] Définir format d'aide standard + section "ARGUMENTS" vs reuse de argument-hint
 - [ ] Décider : sections ARGUMENTS/EXAMPLES doivent-elles être dans la frontmatter (nouveau champ YAML) ou dans le corps du SKILL.md (nouvelle section `## Help`) ?
-- [ ] Patcher un skill pilote (`/validate`) — valider UX
+- [ ] Patcher un skill pilote (`/validate`) — valider UX  _(désormais `/web-validate` — renommé e5e673a)_
 - [ ] Patcher les skills perso restants : analyze, bugfix, code-clean, commit-change, doc, feat, geo, graphify, harden, hotfix, init-project, make-pdf, onboard, plan-tune, plugin-check, refactor, seo, ship-feature, skills-perso, status, benchmark-models, context-save, context-restore
 - [ ] Mettre à jour `~/.claude/CLAUDE.md` — mentionner convention --help disponible sur tous les skills perso
 - [ ] Note : skills-external/gstack ont leur propre convention, ne pas toucher
