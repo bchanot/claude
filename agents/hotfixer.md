@@ -124,6 +124,12 @@ Always append a 1-line entry to today's heading in `.claude/memory/journal.md` (
 
 **Language rule**: the journal line and any proposed BLK/LRN entries are ALWAYS written in English (see CLAUDE.md "Memory registries" § Language).
 
+**Then commit the memory** — follow `$HOME/.claude/lib/capitalize-commit.md`: it
+surgically commits what capitalize just wrote (`.claude/memory` + `.claude/tasks`
+only, never `git add -A`) as one `chore(memory)` commit, reports the memory-commit
+hash, and no-ops if nothing was written. The always-on journal line means a
+trivial hotfix still produces a `chore(memory): journal — …` commit (Frame 2 / F3).
+
 ---
 
 ## RULES

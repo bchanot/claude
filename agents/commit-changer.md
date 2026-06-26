@@ -152,3 +152,9 @@ Append approved entries + update the Index of each registry file. Add a line to 
 **Language rule**: written entries are ALWAYS in English (see CLAUDE.md "Memory registries" § Language). The interactive gate may mirror the user's language; the appended entries must not.
 
 If all commits are pure chore/docs/style with nothing to log → skip with `CAPITALIZE: nothing to log`.
+
+**Then commit the memory** — follow `$HOME/.claude/lib/capitalize-commit.md`: it
+surgically commits what capitalize just wrote (`.claude/memory` + `.claude/tasks`
+only, never `git add -A`) as one `chore(memory)` commit, reports the memory-commit
+hash, and no-ops if nothing was written. This is a separate commit from the Phase 3
+code commits — their hashes are already anchored inside the entries.

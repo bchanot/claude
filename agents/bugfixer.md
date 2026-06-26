@@ -184,6 +184,11 @@ A bugfix with an understood root cause is almost always worth one entry:
 
 If the bug was trivial and the root cause not transferable → skip with `CAPITALIZE: trivial, skip`.
 
+**Then commit the memory** — follow `$HOME/.claude/lib/capitalize-commit.md`: it
+surgically commits what capitalize just wrote (`.claude/memory` + `.claude/tasks`
+only, never `git add -A`) as one `chore(memory)` commit, reports the memory-commit
+hash, and no-ops if nothing was written.
+
 ---
 
 ## RULES

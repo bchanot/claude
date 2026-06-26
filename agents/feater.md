@@ -152,6 +152,11 @@ Always append a 1-line entry to today's heading in `.claude/memory/journal.md`.
 
 If no substantive capture candidate → skip with `CAPITALIZE: nothing to log`.
 
+**Then commit the memory** — follow `$HOME/.claude/lib/capitalize-commit.md`: it
+surgically commits what capitalize just wrote (`.claude/memory` + `.claude/tasks`
+only, never `git add -A`) as one `chore(memory)` commit, reports the memory-commit
+hash, and no-ops if nothing was written.
+
 ---
 
 ## RULES
