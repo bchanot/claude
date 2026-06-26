@@ -161,6 +161,57 @@ Load `$HOME/.claude/agents/analyzer.md`. Check: no regressions, no deviations, n
 ## STEP 10 — CODE REVIEW
 Invoke `superpowers:requesting-code-review`. Fix all CRITICAL before proceeding.
 
+## STEP 10b — CAPITALIZE FOUNDING DECISIONS (memory registries)
+A greenfield's founding architecture decisions are the highest-value BDRs — the
+"why Astro not Next", the SPA-ban for a public site, the API-versioning policy.
+Losing them means losing the rationale of the foundations. Capture them BEFORE
+STEP 11 FINISH so the memory commit lands on the branch FINISH integrates.
+
+Capture ONLY structuring decisions, not scaffold detail:
+
+| Capitalize — founding (BDR)                                  | Skip — scaffold detail            |
+|--------------------------------------------------------------|-----------------------------------|
+| Stack / framework choice + why (Astro vs Next)               | directory names, scaffolded files |
+| Architecture pattern, data-flow shape                        | dev-tooling / formatter config    |
+| Doctrinal exclusions (public site = no SPA, API /v1 day one) | which template files were copied  |
+| Security defaults adopted; conventions binding future code   | anything reversible / obvious     |
+
+Source the candidates from: the PROJECT BRIEF (STEP 1), the DESIGN's resolved
+decisions (STEP 3), and the validated STACK / CONVENTIONS / EXCEPTIONS (STEP 4
+gate). These ARE the founding decisions — the user just approved them.
+
+**No decision → no entry.** A trivial project with no genuine structuring choice
+capitalizes NOTHING. Do NOT fabricate a BDR to fill the step. Print
+`CAPITALIZE: no founding decision to log`; the memory commit below then no-ops.
+
+1. Pre-fill a BDR-XXX entry per founding decision (id, date, title, decision,
+   why, alternatives rejected — from the DESIGN's rejected options).
+2. Present grouped:
+   ```
+   CAPITALIZE — founding decisions proposées
+   [ decisions.md ]  BDR-XXX — <decision> — <1-line why>
+   Valider lesquels ? (all / <IDs> / edit / skip)
+   ```
+3. Append approved entries + update the Index. Append a journal line under today.
+
+**Hash rule — founding decisions carry NO commit hash; use path + date only.**
+This is by nature, not an omission: a founding decision is made at DESIGN
+(STEP 3), BEFORE any code, attested by no implementing commit — there is no hash
+to anchor. Anchoring it to the unrelated scaffold commit would be a FALSE anchor
+that dilutes what `Reference: commit <hash>` means everywhere else (the commit
+that IMPLEMENTS the decision, e.g. BDR-033 → 11792cc). This is the SECOND case
+where hash-anchoring does not apply — the first being a squash-merged PR, whose
+anchored commit ceases to exist.
+
+**Language rule**: written entries are ALWAYS in English (CLAUDE.md "Memory
+registries"). The gate may mirror the user's language; entries must not.
+
+**Then commit the memory** — follow `$HOME/.claude/lib/capitalize-commit.md`: it
+surgically commits the approved founding decisions (`.claude/memory` +
+`.claude/tasks` only, never `git add -A`) as one `chore(memory)` commit, BEFORE
+STEP 11 FINISH so the memory is integrated with the branch, not stranded. If
+nothing was capitalized, the helper no-ops — no commit.
+
 ## STEP 11 — FINISH
 Invoke `superpowers:finishing-a-development-branch`. Tests pass, build clean, no placeholders, initial commit ready.
 
