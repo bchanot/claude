@@ -110,16 +110,8 @@ Load `$HOME/.claude/agents/analyzer.md`. Check: no regressions, no stale code, n
 ## STEP 6 — CODE REVIEW
 Invoke `superpowers:requesting-code-review`. Fix all CRITICAL before proceeding.
 
-## STEP 7 — FINISH
-Invoke `superpowers:finishing-a-development-branch`. Tests pass, build clean, ready to merge.
-
-## STEP 8 — DOC SYNC
-Load `$HOME/.claude/agents/doc-syncer.md`.
-Execute in automatic mode:
-`auto-mode scope: <list of files modified during this session>`
-
-## STEP 9 — CAPITALIZE (memory registries)
-Feature shipped implies at least one design decision worth capturing. Run this before declaring done:
+## STEP 7 — CAPITALIZE (memory registries)
+Feature shipped implies at least one design decision worth capturing. Run this BEFORE STEP 8 FINISH — the implementation commits (STEP 4) already exist, so the entries' hash references are valid, and the memory commit lands on the branch that FINISH integrates (otherwise it strands outside the PR):
 
 1. Scan conversation context for:
    - **Design / architecture choices with rationale** → candidate for `decisions.md` (BDR-XXX).
@@ -146,6 +138,23 @@ Feature shipped implies at least one design decision worth capturing. Run this b
 
 If nothing substantive to log → print `CAPITALIZE: nothing substantive to log` and skip.
 
+**Then commit the memory** — follow `$HOME/.claude/lib/capitalize-commit.md`: it
+surgically commits what capitalize just wrote (`.claude/memory` + `.claude/tasks`
+only, never `git add -A`) as one `chore(memory)` commit, reports the memory-commit
+hash, and no-ops if nothing was written. It runs BEFORE STEP 8 FINISH so the
+memory is integrated with the branch, not stranded outside the PR.
+
+## STEP 8 — FINISH
+Invoke `superpowers:finishing-a-development-branch`. Tests pass, build clean, ready to merge.
+
+## STEP 9 — DOC SYNC
+<!-- Stays post-FINISH = TWIN CHANTIER: doc-sync has the same PR-stranding bug
+     capitalize just fixed (artifacts written after integration). Deferred to
+     v-next; move it before FINISH then. Not fixed here to keep v1 scoped. -->
+Load `$HOME/.claude/agents/doc-syncer.md`.
+Execute in automatic mode:
+`auto-mode scope: <list of files modified during this session>`
+
 ---
 
 ## RULES
@@ -171,7 +180,7 @@ The pipeline must handle these without aborting silently:
 | STEP 4 — subagent crashes (tool error, not test failure) | Treat as STEP 4b error path, present hypothesis-led gate. |
 | STEP 4b — option A retried 2× still failing | Force fall-through to B or C. Do not loop a 3rd time. |
 | STEP 6 — review returns CRITICAL items | Loop back to STEP 4 for those items only. Cap at 2 review-cycle iterations; if still CRITICAL, escalate. |
-| STEP 9 — `.claude/memory/` missing | Create the registry files from `~/.claude/templates/memory/` first, then proceed. |
+| STEP 7 — `.claude/memory/` missing | Create the registry files from `~/.claude/templates/memory/` first, then proceed. |
 
 ---
 
