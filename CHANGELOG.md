@@ -9,6 +9,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 <!-- DRAFT (doc-syncer): grounded in commits since 3.4.0; review wording + completeness before release. -->
 
 ### Added
+- Coupled-capitalize: dev flows (feat / hotfix / bugfix / commit-change, ship-feature, init-project) auto-commit their memory in the same breath, via shared `lib/capitalize-commit.md` + `lib/memory-commit.sh` (surgical — `.claude/memory` + `.claude/tasks` only, never `git add -A`)
 - `/audit-delta` — recurring multi-axis audit (norms / bugs / dead code / security) scoped to changes since last run, with per-axis SHA markers
 - `/capitalize` — flush uncapitalized context to the memory registries before `/clear` or `/compact`
 - `/prune-memory` — curate and compress the `.claude/memory/` registries
@@ -23,6 +24,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 - `.claude/{tasks,memory,audits}/` governance layout + 5 memory registries (decisions, learnings, blockers, journal, evals)
 
 ### Changed
+- `/ship-feature`: capitalize + memory commit moved before FINISH (was after) — fixes memory committed after a push/PR and stranded outside it
+- `/init-project`: new STEP 10b captures founding architecture decisions as BDRs before FINISH
 - `/validate` renamed to `/web-validate` — clearer scoped name (W3C + WCAG); routing, skill profiles, cross-references, and the client-deliverable leak-guard updated (the guard still matches legacy `/validate` so older client docs stay covered)
 - `/seo` split into parallel `seo` + `geo` agents with shared resources
 - `/onboard` rewritten: archetype-aware pipeline (orchestrator + config-only agent), security audit archetype-aware
