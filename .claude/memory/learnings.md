@@ -49,6 +49,8 @@ rules:
 | LRN-046 | 2026-06-25 | Destructive skill: deterministic oracle (byte-identical / count census) > semantic judge | any destructive/irreversible skill; behavioral-oracle TDD |
 | LRN-047 | 2026-06-25 | A noisy safety guard (13/13 FP) = a guard you learn to ignore = risk → refine, don't tolerate | any guard/alert/lint that can false-positive |
 | LRN-048 | 2026-06-25 | A "0/OK/pass" must prove it LOOKED (counted both sides), else verify hard-wired to pass | any verify/test/lint reporting success |
+| LRN-051 | 2026-06-26 | `git commit -- pathspec` strict on no-match → filter scoped commits to changed paths | any scoped-commit automation |
+| LRN-052 | 2026-06-26 | Hash-anchoring: 2 cases it does NOT apply (pre-code founding, squash-merge) | capitalizing founding/arch decisions; squash repos |
 
 ---
 
@@ -643,3 +645,19 @@ rules:
 - **Context**: this session twice wrote-then-showed on `lib/design-gate.md` (live via symlink). Both harmless (non-destructive), but the pattern would bite on a destructive live edit. User flagged it → inverted to show→validate→write.
 - **Future application**: before editing any file, check if it is live (`readlink -f`, compare to `~/.claude/`); if live, treat the pre-write diff as a mandatory approval gate, not an optional preview. Generalizes to any "edit = deploy" target (dotfiles, served config, hot-reloaded sources).
 - **Reference**: `lib/design-gate.md` (symlink → `~/.claude/lib/`). Sibling to [[LRN-044]] (write-through-symlink → resolve real path). Linked to [[BDR-033]].
+
+## LRN-051 — `git commit -- <pathspec>` strict on no-match → filter scoped commits to changed paths
+
+- **Date**: 2026-06-26
+- **Pattern**: Automating a scoped commit (commit only subtree X), pass to `git add`/`git commit` ONLY paths with real pending changes. `git add -- <pathspec>` TOLERATES a no-match pathspec (rc 0, stages the matching ones); `git commit -- <pathspec>` is STRICT — one no-match pathspec ABORTS the whole commit (`error: pathspec '<x>' did not match any file(s) known to git`). So a clean scoped path (e.g. empty `.claude/tasks`) silently aborts the commit on most runs. Filter via `git status --porcelain -- <path>` to changed paths only. Bonus: `git commit -- pathspec` = PARTIAL commit (working-tree of those paths, ignores rest of index) → surgical-scope safety: dangling code (untracked OR pre-staged) never embarked.
+- **Context**: building `lib/memory-commit.sh`. Naive `git commit -- .claude/memory .claude/tasks` aborted whenever `.claude/tasks` was clean. Caught by real-exec test (T1/T2/T2-bis), NOT by assuming git's behavior — `add` and `commit` are NOT symmetric on pathspecs.
+- **Future application**: any "commit only subtree X" automation — filter to changed paths; rely on partial-commit for surgical scope; never assume tool behavior symmetric across sibling subcommands — exec-test it.
+- **Reference**: commit `58cb91d` (`_changed_paths` filter + T1/T2/T2-bis), `bbef41c` (stdout hash contract). See [[BDR-034]].
+
+## LRN-052 — Hash-anchoring applicability — 2 cases where `Reference: commit <hash>` does NOT apply
+
+- **Date**: 2026-06-26
+- **Pattern**: The anchoring convention (`Reference: commit <hash>`) means "the commit that IMPLEMENTS this decision" (BDR-033 → 11792cc). It does NOT apply in 2 cases: (1) a FOUNDING decision made pre-code (at design time) — attested by no implementing commit; anchoring it to the unrelated scaffold commit is a FALSE anchor. (2) a SQUASH-MERGED PR — the anchored commit ceases to exist post-squash. Forcing a hash in either case dilutes what "anchored" means everywhere else. Rule: pre-code founding decisions carry NO hash (path+date suffice); squash-merge workflows can't anchor.
+- **Context**: building init-project STEP 10b (capitalize founding architecture decisions). A founding "Astro not Next" has no implementing commit. Surfaced the BOUNDARY of the anchoring convention — completes it, not contradicts it.
+- **Future application**: capitalizing founding/architecture decisions, or working in squash-merge repos — do NOT fabricate a hash; the anchor only means something when a real implementing commit exists.
+- **Reference**: commit `df60df6` (init-project STEP 10b hash rule), `lib/capitalize-commit.md` (2-hash non-confusion). See [[BDR-034]], [[BDR-033]].

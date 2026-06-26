@@ -27,6 +27,7 @@ rules:
 | EVAL-004 | 2026-06-11 | darwin eval 26 perso skills + 4-bug fix round | keep |
 | EVAL-005 | 2026-06-23 | Obsolete `claude --effort max` alias missed across Step 9 edits | correct |
 | EVAL-006 | 2026-06-25 | prune-memory v1.1 TDD — 6 guards (0a3e766), validated on real data | keep |
+| EVAL-007 | 2026-06-26 | Coupled-capitalize machinery — TDD 13 + e2e, surgical scope proven | keep |
 
 ---
 
@@ -86,3 +87,12 @@ rules:
 - **Method**: run-deterministic all-green (RED-1/2/5/6); RED-3/4 by single faithful subagent runs on throwaway fixtures (deterministic oracles — byte-identical + layer-(a) substring; N=6 tolerance-zero fleet documented in run-behavioral.md, NOT exhausted — 1 run sufficed to prove presence then closure); REAL-data re-test on live learnings.md (602 l): fidelity 0 false-positive vs old line-grep 13, census PROVEN counting both sides (HEAD/WORK not=107/114, no=64/71, never=34/34 — no category dropped). Scope held (only learnings.md), reverted after (measurement, not a kept prune). Clean tree verified first; git + cp backup.
 - **Anomalies**: (1) SAFE ≠ USEFUL — compression (pass C) marginal on already-caveman dense content (~3.6% trim, registry GREW); real value = index-drift (D found 19 missing Index rows on the real learnings.md, measured then reverted) + merge (B), not C on dense. (2) RED-8 OPEN — fidelity proves "no negation DELETED", not "none ADDED wrongly"; visible empirically (not/no +7 in the measurement, passed under the drop-radar); remote (compression subtracts) but real. (3) RED-7 OPEN — merge LRN-014+016 maybe PRIMED by the SKILL.md example, not real overlap; verify. (4) two guard bugs caught by VALIDATION not logic: awk `\<` unsupported (mawk) → not/no counted 0; `NR==FNR` blind when working census empty = the deletion case → both fixed + re-validated. (5) REAL ANCHOR FOR PASS D — this very evals.md had EVAL-005's Index row MISSING (pre-existing drift), exactly what the skill's D pass auto-corrects; hand-backfilled in a separate `fix(memory)` commit. learnings.md likewise carries 19 missing Index rows (deferred to an intentional prune). D is NOT theoretical.
 - **Action**: keep — safe, useful for B/D, compression marginal on dense (documented limit). `Fixed in v1.1 (TDD found it)` WAS the RED-1 defect (claim of a verify never run); TDD note now TRUE (real suite passes). Patterns → LRN-046/047/048; open items → tests/BACKLOG.md (RED-7/RED-8).
+
+## EVAL-007 — Coupled-capitalize machinery (helper + include + 6 flows)
+
+- **Date**: 2026-06-26
+- **Output**: `lib/memory-commit.sh` + `lib/capitalize-commit.md` + wiring of 6 dev flows for the coupled-capitalize invariant (BDR-034).
+- **Method**: TDD — RED harness first (helper absent → fail), then 13 deterministic tests (`lib/tests/run-deterministic.sh`): T1/T2 dangling code (untracked + pre-staged) not embarked, T2-bis stale-staged memory → working-tree committed, T3 idempotent no-op, T4 fail-closed on broken git state (exit 3), T5 TODO.md in scope, T6 stdout contract 3-case (hash/empty/empty), T7 double-run = at most one commit. Plus in-vivo e2e (code commit → capitalize writes memory → include commits it: 3 commits, memory commit `.claude/` only, dangling untouched, mem_hash ≠ code_hash). `shellcheck lib/*.sh` clean.
+- **Anomalies**: (1) `git commit -- pathspec` strict-on-no-match — caught by real-exec, would have silently aborted the commit on the majority of flows (any run where one scoped path is clean) → fixed by `_changed_paths` BEFORE integration ([[LRN-051]]). (2) v1 helper emitted no clean hash → caught at include design (the reported `<hash>` would have been aspirational) → added `bbef41c` (hash→stdout, diag→stderr), proven by T6. Both caught by exec/review, not assumed.
+- **Action**: keep.
+- **Reference**: commits `58cb91d`..`df60df6`.

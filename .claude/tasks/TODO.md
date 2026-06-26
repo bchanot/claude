@@ -233,3 +233,17 @@ Version 3.4.0 → 3.5.0.
 - [x] PHASE 3: install-plugins.sh STEP 5.5; update-all.sh block; plugins.lock.json; doctor.sh; lib/detect-plugins.sh; lib/profile.sh; plugin-advisor.md; skills/profile/SKILL.md
 - [x] PHASE 4: README row; USAGE always-on line; CHANGELOG; CLAUDE.md cmd ref; skills/capitalize+prune-memory cmd refs; version.txt
 - [x] PHASE 5: shellcheck clean (SC1091 info only); full diff reviewed → committed + merged to master
+
+## 2026-06-26 — coupled-capitalize invariant v1 (Frame 2)
+Plan: [.claude/tasks/2026-06-26-coupled-capitalize-invariant.md](2026-06-26-coupled-capitalize-invariant.md)
+Goal: every dev flow commits its memory automatically (1 commit/flow) via shared
+include; ship-feature reordered (capitalize before FINISH = PR-bug fix). Hook v2,
+doc-sync twin chantier deferred. Safety in the pathspec, never `git add -A`.
+- [x] Task 1 — `lib/memory-commit.sh` + tests T1/T2/T2-bis/T3/T4/T5/T6/T7 (real exec, outputs reported) — 58cb91d + bbef41c
+- [x] Task 2 — `lib/capitalize-commit.md` include — b44791b
+- [x] Task 3 — wire feater/hotfixer/bugfixer/commit-changer — 2763678
+- [x] Task 4 — ship-feature reorder (capitalize before FINISH) — e8eff7e
+- [x] Task 5 — init-project founding-decisions capitalize (F5) — df60df6
+- [x] Task 6 — behavioral verify + shellcheck + CHANGELOG + BDR/LRN — this commit
+- [ ] v2 (deferred) — Stop hook (non-blocking, BDR-033 style) reusing the detector
+- [ ] twin chantier (deferred) — doc-sync reorder before FINISH (same PR bug)

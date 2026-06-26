@@ -44,6 +44,7 @@ rules:
 | BDR-020 | 2026-06-11 | `/audit-delta`: per-axis SHA markers + always-on fix gate + unreachable-first-run = full report-only | accepted |
 | BDR-022 | 2026-06-18 | doc-syncer scoped to public docs; `.claude/` + `CLAUDE.md` read-only context, never targets; conventions + clean mode | accepted |
 | BDR-023 | 2026-06-19 | Merge /close into /capitalize — 2 modes + TODO reconcile; /close alias | accepted |
+| BDR-034 | 2026-06-26 | Coupled-capitalize invariant v1 — memory commit auto per dev flow (Frame 2) | accepted |
 
 ---
 
@@ -538,3 +539,16 @@ rules:
   - Blocking yes/skip prompt à la `/onboard` STEP 2.5 — a 2nd STOP mid-build on an optional dep.
   - Prose "agent remembers not to re-suggest" — fragile behavioral guard, contradicts [[LRN-046]]/[[LRN-047]].
 - **Reference**: commit `11792cc`, `lib/design-gate.md` §4 + §DETECTION (`+motion`/`+animate`). Helper `lib/animation-lib-check.sh` unchanged. Live via symlink (`~/.claude/lib/`→repo). Builds on [[BDR-005]]. See [[LRN-049]].
+
+## BDR-034 — Coupled-capitalize invariant v1 — memory commit auto per dev flow (Frame 2)
+
+- **Date**: 2026-06-26
+- **Status**: accepted
+- **Decision**: Dev flows committing code now auto-commit memory same breath, via include `lib/capitalize-commit.md` + helper `lib/memory-commit.sh` (surgical: stages+commits `.claude/memory`+`.claude/tasks` only, pathspec, never `git add -A`). 4 inline flows (feat/hotfix/bugfix/commit-change) ref the include at their capitalize step; ship-feature reordered (CAPITALIZE STEP 7 before FINISH STEP 8 — fixes memory committed after push/PR + stranded outside it); init-project gains STEP 10b founding-decisions capitalize. 1 memory commit/flow (F3). Capitalize CONTENT keeps its approval gate — only the COMMIT of approved entries is automated.
+- **Why**: Real pain = the 2nd (memory) commit forgotten/manual — ~42% of recent history (17/40 commits) was emergent `chore(memory)`. Frame chosen = "couplé après-code" not "avant commit": keeps hash-anchoring (>50% entries carry `Reference: commit`) + code/memory concern separation; attacks the forgetting, not the ordering. "Capitalize before commit" rejected — inverts a deliberate property AND can't anchor the code hash (hash exists only post-commit).
+- **Alternatives rejected**:
+  - (a) each orchestrator calls capitalize-before-commit — duplicated across 5+ flows (each has bespoke inline capitalize), breaks hash-anchoring, forgettable on next skill added.
+  - (b) commit-change as the single gate — not on the path of feat/hotfix/bugfix/ship-feature/init-project (they commit inline or via external superpowers); can't detect "pending capitalize".
+  - (c) single commit chokepoint — doesn't exist; 3 distinct commit mechanisms, one external/unmodifiable (`superpowers:finishing-a-development-branch`).
+  - Frame 3 (single unified commit, drop hash) — sacrifices >50% entries' anchoring for history aesthetics.
+- **Reference**: commits `58cb91d` (helper+tests) · `bbef41c` (hash/stdout + T6/T7) · `b44791b` (include) · `2763678` (4 flows) · `e8eff7e` (ship-feature reorder) · `df60df6` (init-project). Hook (v2, Stop-hook non-blocking BDR-033-style) + doc-sync twin chantier (same PR bug, reorder before FINISH) deferred. See [[LRN-051]], [[LRN-052]], [[EVAL-007]].
