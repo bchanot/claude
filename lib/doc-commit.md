@@ -18,12 +18,13 @@ and any SIGNIFICANT-gated patch), with the code already committed.
   the doc commit strands outside the merge/PR (the exact bug this fixes). See ORDERING.
 
 doc-syncer runs IN-THREAD (the orchestrator loads it), so the list of files it patched is
-already in hand — surfaced as `PATCHED_FILES:` in doc-syncer's OUTPUT. Pass that list.
+already in hand — surfaced as `PATCHED_FILES:` in doc-syncer's OUTPUT, ONE PATH PER LINE.
+Pass each line as a SEPARATE argument (see DO step 3).
 
 ## DO
 
 1. Collect `PATCHED_FILES` — the public-doc paths doc-syncer wrote this run (its OUTPUT
-   block). Empty → nothing to commit; the helper no-ops.
+   block, ONE PATH PER LINE). Empty → nothing to commit; the helper no-ops.
 
 2. Compose — from the patch context the AGENT holds (doc-syncer ran in-thread, so the
    agent knows exactly what changed) — BOTH artifacts:
@@ -34,10 +35,18 @@ already in hand — surfaced as `PATCHED_FILES:` in doc-syncer's OUTPUT. Pass th
    Both are the AGENT's to write — the helper produces NEITHER (its only stdout is the
    hash). This is the load-bearing point of the visible surface: see the rc 0 row.
 
-3. Commit surgically via the helper, passing EXACTLY the patched files, capturing the hash:
+3. Commit surgically via the helper, passing EXACTLY the patched files — each path as a
+   SEPARATE argument (split `PATCHED_FILES` on NEWLINES only), capturing the hash:
 
-       doc_hash=$(bash "$HOME/.claude/lib/doc-commit.sh" commit "<message>" <PATCHED_FILES…>)
+       doc_hash=$(bash "$HOME/.claude/lib/doc-commit.sh" commit "<message>" "<path-1>" "<path-2>" …)
        rc=$?
+
+   SEPARATOR — the helper takes argv (no in-band separator), so a path with spaces
+   (`docs/My Guide.md`) survives as ONE argument and commits correctly (proven, T7). NEVER
+   flatten the list into a single space-joined string and re-split it: that mis-splits a
+   spaced path into garbage args, which the helper's `[ -e ]` filter then silently drops —
+   the spaced doc would strand. Newline is doc-syncer's OUTPUT format (paths carry no
+   newlines); argv is the handoff to the helper.
 
 4. REPORT BY (rc, doc_hash) — handle EVERY exit, not just success:
 

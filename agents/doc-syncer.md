@@ -719,7 +719,15 @@ CREATED      : <count> files
 REMOVED      : <count> files / sections
 HUMAN PENDING: <count> items (see report above)
 SKIPPED      : <count> (user declined)
+PATCHED_FILES: (one real path per LINE below; "(none)" if no write)
+<path created or modified this run>
+<path created or modified this run>
 ```
+
+`PATCHED_FILES` is the machine-readable handle the doc-commit step (`lib/doc-commit.md`)
+consumes — every public-doc file created or modified this run, ONE PATH PER LINE. Each line
+is passed as a SEPARATE argument to `lib/doc-commit.sh` (newline split, space-safe). It NEVER
+lists `.claude/**` or `CLAUDE.md` (never targets, BDR-022). Empty / `(none)` → doc-commit no-ops.
 
 ---
 
@@ -782,8 +790,9 @@ Categorize:
 
 ### STEP A4 — ACT
 
-- **NONE** → exit completely silent. No output.
-- **MINOR** → patch silently. One-line confirmation:
+- **NONE** → exit completely silent. No output (no `PATCHED_FILES` → the doc-commit step
+  sees an empty list and no-ops).
+- **MINOR** → patch silently. One-line confirmation per file:
   `doc-sync: patched <file> (<what changed>)`
 - **SIGNIFICANT** → surface to user before patching:
   ```
@@ -792,6 +801,16 @@ Categorize:
   Apply? (yes / no / select)
   ```
   Wait for approval.
+
+After writing in MINOR or approved-SIGNIFICANT, emit the machine-readable handle the
+doc-commit step (`lib/doc-commit.md`) consumes — ONE real path PER LINE:
+```
+PATCHED_FILES:
+<path created or modified this run>
+<path created or modified this run>
+```
+Emit ONLY when something was written; NONE stays silent. Never lists `.claude/**` or
+`CLAUDE.md` (never targets, BDR-022).
 
 ---
 

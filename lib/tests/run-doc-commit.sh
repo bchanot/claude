@@ -12,6 +12,7 @@
 #   T4  stale-staged doc (version A) → commit carries working-tree version B
 #   T5  idempotent — empty list / clean tree → no-op exit 0
 #   T6  unsafe git state (detached HEAD) → exit 3, no commit
+#   T7  path WITH A SPACE passed as one arg → committed (argv is space-safe, no separator)
 #
 # No -e: run every test and report, even after a failure.
 set -uo pipefail
@@ -156,6 +157,20 @@ run "$R" commit "docs: T6" "README.md"
 printf '    rc=%s  err=%s\n' "$RC" "$(printf '%s' "$ERR" | head -1)"
 if [ "$RC" -eq 3 ]; then ok "detached HEAD → exit 3"; else ko "expected 3, got $RC"; fi
 if [ "$(git -C "$R" rev-parse HEAD)" = "$BEFORE" ]; then ok "no commit created"; else ko "a commit was created"; fi
+rm -rf "$R"
+
+echo "T7 — path WITH A SPACE passed as one arg → committed (argv is space-safe)"
+R="$(new_repo)"
+mkdir -p "$R/docs"
+printf 'guide baseline\n' >"$R/docs/My Guide.md"
+git -C "$R" add -A; git -C "$R" commit -qm "add spaced doc"
+printf 'feature added\n' >>"$R/docs/My Guide.md"
+run "$R" commit "docs: T7 spaced" "docs/My Guide.md"
+printf '    rc=%s  out(hash)=[%s]\n' "$RC" "$OUT"
+if [ "$RC" -eq 0 ]; then ok "exit 0"; else ko "expected 0, got $RC"; fi
+if [ -n "$OUT" ]; then ok "hash printed (commit made)"; else ko "no hash"; fi
+if git -C "$R" cat-file -e "HEAD:docs/My Guide.md" 2>/dev/null; then ok "spaced path present in HEAD"; else ko "spaced path not committed"; fi
+if [ -z "$(git -C "$R" status --porcelain -- "docs/My Guide.md")" ]; then ok "spaced doc clean (embarked as ONE file, not split)"; else ko "spaced doc still dirty"; fi
 rm -rf "$R"
 
 rm -f "$ERRFILE"
