@@ -60,6 +60,18 @@ Trace the bug from symptom to root cause:
    # grep for the same pattern to assess blast radius
    ```
 
+## STEP 2.5 — MEMORY READ-BEFORE (blockers-first)
+
+Run the scan per `$HOME/.claude/lib/analyze-before-plan.md`, blockers-weighted: a resolved
+BLK may already name THIS exact root cause; an in-force BDR may constrain the fix. Emit
+RELATED MEMORY. Consumption is NATURAL — the agent emitting this IS the one writing STEP 3's
+diagnosis (reader = planner, no external skill to inject into).
+
+TEETH: STEP 3's DIAGNOSIS must name any binding prior (`PRIOR: BLK-xxx — known cause/fix`,
+or `honors BDR-xxx`) OR the RELATED MEMORY line states none bears. Reading blockers then
+diagnosing without naming a match is the read-then-ignore failure this prevents.
+`.claude/memory/` absent → guarded no-op, proceed.
+
 ## STEP 3 — HYPOTHESIZE + PLAN
 
 Present findings before fixing:

@@ -58,6 +58,13 @@ Follow `$HOME/.claude/lib/design-gate.md`:
   tell the user to run `/profile design` before proceeding.
 - If no signals → skip (zero overhead).
 
+## STEP 0.6 — MEMORY READ-BEFORE (decisions-first)
+
+Run the scan per `$HOME/.claude/lib/analyze-before-plan.md`, decisions-weighted: a BDR may
+already constrain or forbid the approach; an LRN may name a gotcha to apply. Emit RELATED
+MEMORY; feed STEP 1 MINI-PLAN. Inline consumption — reader = planner, no injection.
+`.claude/memory/` absent → guarded no-op (zero overhead on a memory-less repo).
+
 ## STEP 1 — MINI-PLAN
 
 Quick mental model, not a formal plan document:
@@ -66,6 +73,9 @@ Quick mental model, not a formal plan document:
 2. Describe the approach in 2-5 bullet points.
 3. Note any edge cases to handle.
 4. If tests exist for the area, note which tests to add/update.
+5. Disposition (from STEP 0.6): name each in-force BDR/LRN this plan honors
+   (`honors BDR-xxx by …`), or state `no in-force decision constrains this feature`.
+   A plan with neither = read-then-ignore; the disposition must surface as a trace.
 
 Print the plan as a compact checklist:
 ```

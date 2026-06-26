@@ -60,19 +60,64 @@ During implementation (STEP 4), when making decisions about fast-lib APIs:
 - Read the relevant `.ctx7-cache/<lib>.md` file before writing code.
 - This avoids repeated ctx7 calls and keeps docs available without context cost.
 
+## STEP 0d — ANALYZE BEFORE PLAN (code + memory, read-before)
+Dispatch the analyzer subagent (fresh context) on the request — it produces the
+read-before digest the plan must not form without:
+
+  Agent(subagent_type="analyzer", description="ship-feature — read-before", prompt="""
+    Read-only analysis to PRIME a feature plan (NOT debug). REQUEST: <$ARGUMENTS>.
+    1. CODE — locate the zone the feature touches: grep/glob the request's nouns /
+       identifiers across the tree → candidate files (PASS 1), read them (PASS 2).
+       >50 candidates → scoped sweep per your EDGE CASES, list zones, don't read all.
+       Too vague to locate → report ambiguous zones, do NOT block.
+    2. MEMORY — run the scan per $HOME/.claude/lib/analyze-before-plan.md, emit
+       RELATED MEMORY (disposed).
+    Output your standard ANALYSIS + RELATED MEMORY. No solutions.""")
+
+The returned digest (ANALYSIS + RELATED MEMORY) stays in the orchestrator's context — it
+is FED to STEP 1 and STEP 2 and reconciled at STEP 3. Degradation: request too vague →
+analyzer flags ambiguous zones, does not block (STEP 1 refines). `.claude/memory/` empty or
+absent → analyzer omits RELATED MEMORY (no-op); the step still returns the code ANALYSIS.
+Additive — distinct from STEP 5 ANALYZE (post-impl regression) and STEP 4b DEBUG.
+
 ## STEP 1 — BRAINSTORM
-Invoke `superpowers:brainstorming`. Refine request into validated design via Socratic questioning. Don't proceed until design approved.
+Invoke `superpowers:brainstorming` — but FEED it the STEP 0d digest as binding context,
+not the raw request alone:
+  "Feature request: <$ARGUMENTS>.
+   In-force constraints (must hold): <only the IN-FORCE + ALREADY-SEEN items from 0d's
+     RELATED MEMORY, detailed>.
+   Existing code that bears: <ANALYSIS CONTEXT / KEY COMPONENTS from 0d>.
+   Brainstorm WITHIN these — don't re-explore a direction an in-force BDR rejects or a
+   BLK already closed."
+Inject ONLY what constrains: the NON-BINDING count does NOT enter the brainstorm input
+(the injection inherits the OUTPUT filter — detail what binds, drop what doesn't).
+Consumption = INPUT INJECTION (we can't modify the external skill; we control its input).
+Refine request into validated design via Socratic questioning. Don't proceed until design approved.
 
 ## STEP 2 — PLAN
-Invoke `superpowers:writing-plans`. Break design into tasks (2-5 min each). Each task: exact file paths, full code, verification steps.
+Invoke `superpowers:writing-plans` with the validated design AND the 0d digest: every task
+must be consistent with the in-force constraints; where a task implements or affects one,
+note the ID inline. Break design into tasks (2-5 min each). Each task: exact file paths, full code, verification steps.
 
 ## STEP 3 — VALIDATION GATE ★ MANDATORY STOP
 ```
 SHIP FEATURE — VALIDATION GATE
 FEATURE: <n> | TASKS: <count>
 <numbered task list>
+
+RELATED MEMORY — disposition CLAIMED by this plan (review each):
+  - BDR-026 [in force]     — plan honors it by: <how>
+  - LRN-050 [in force]     — plan applies it by: <how>
+  - BLK-009 [already seen] — <how avoided / why N-A>
+
+Review the claims above — flag any item the plan does NOT actually honor.
 Approve and execute? (yes / request changes)
 ```
+This block EXPOSES each in-force item with the plan's CLAIMED disposition, for human
+review — it does NOT auto-detect conflicts. An agent blind to a conflict won't list it;
+forcing a per-item claim is what gives the reviewer the surface to catch it. A display,
+never a guarantee (same discipline as the memory-commit `✅<hash>`: show what's true, never
+assert a check not performed). No RELATED MEMORY from 0d → omit the block.
 Changes → back to STEP 2. Approved → continue.
 
 ## STEP 4 — IMPLEMENT
@@ -175,6 +220,8 @@ The pipeline must handle these without aborting silently:
 |---|---|
 | STEP 0b — `CLAUDE.md` missing | STOP with the printed message ("Run `/onboard` first…"). Do not proceed. |
 | STEP 0c — `ctx7` not installed but fast-libs detected | Skip pre-fetch silently. During STEP 4, log `📚 ctx7 cache miss for <lib>` and continue with vanilla model knowledge. |
+| STEP 0d — request too vague for analyzer to locate a code zone | analyzer reports ambiguous zones and does NOT block; STEP 1 brainstorm refines scope. The memory disposition is still produced. |
+| STEP 0d — `.claude/memory/` absent (project not yet onboarded) | analyzer's guarded scan no-ops (the `[ -d ]` guard fires — a bare glob would error); proceed with the code ANALYSIS alone. STEP 7 creates registries later. |
 | STEP 1 — brainstorming returns "design unclear" twice | Escalate: ask user "Switch to /init-project (greenfield-style design) or refine the feature request?" |
 | STEP 3 — user replies "request changes" | Loop back to STEP 2 with user's notes. Cap at 3 iterations; on the 3rd "request changes" without approval, ask "Pause and rescope this feature?" |
 | STEP 4 — subagent crashes (tool error, not test failure) | Treat as STEP 4b error path, present hypothesis-led gate. |

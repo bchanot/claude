@@ -31,6 +31,14 @@ git log --oneline -3
   "This looks deeper than a hotfix. Load `$HOME/.claude/agents/bugfixer.md`
   and run the BUGFIXER agent on this target."
 
+OPTIONAL — memory check (exempt by default; hotfix = obvious fix, mirror of its capitalize
+skip). For a RECURRING or urgent bug only, a quick blockers-only glance may save time:
+
+      [ -d .claude/memory ] && grep -nE '^## BLK-' .claude/memory/blockers.md   # "déjà vu ?"
+
+If a prior BLK names this bug, jump to its solution. Not mandatory; no RELATED MEMORY
+disposition required at hotfix weight.
+
 ## STEP 1.5 — DESIGN GATE
 
 Follow `$HOME/.claude/lib/design-gate.md`:

@@ -64,12 +64,38 @@ RISKS:
 
 OPEN QUESTIONS:
 - <ambiguity to clarify>
+
+RELATED MEMORY:
+- IN FORCE: <id> — <title> — <how it constrains this work> [status]   (detail each)
+- ALREADY SEEN: <BLK-id> — <title> [status]   (known cause/fix — don't re-derive)
+- NON-BINDING: <c> surfaced, none binding — <bare id refs>   (superseded / N-A — counted)
+- SELECTION: scanned <N> headings — surfaced <K> = in-force <a> + seen <b> + non-binding <c>
 ```
 
 Surface discovered patterns and conventions in the analysis output
 (CONTEXT / KEY COMPONENTS) — never write them to files yourself: the
 "Do not modify files" rule wins. Persisting to `.claude/memory/`
 happens in the main thread via the gated capitalize flow.
+
+---
+
+## RELATED MEMORY (read-before)
+
+When `.claude/memory/` exists and holds entries, run the memory-relevance scan per
+`$HOME/.claude/lib/analyze-before-plan.md` (PASS 1: grep `## <PREFIX>-` headings →
+select on titles → PASS 2: full-read only the selected bodies) and populate the
+RELATED MEMORY section of OUTPUT.
+
+The contract is DISPOSITION, not retrieval: every surfaced ID gets a verdict —
+in-force / already-seen / non-binding. Detail the binding ones (IN FORCE, ALREADY SEEN —
+they constrain the work); COUNT the non-binding (superseded / N-A) as one line with bare
+refs — a per-entry paragraph on a non-binding match dilutes the in-force ones that bite.
+A surfaced ID left undisposed is the gap this closes. You judge bearing; the main-thread
+plan decides what to DO.
+
+Read-only here too: reading registries is within Read/Grep; the "Do not modify files" rule
+still forbids any write — Index backfill or new entries are never your job. Empty or absent
+registries → omit the section (no-op).
 
 ---
 
