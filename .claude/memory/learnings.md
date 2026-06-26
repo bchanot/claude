@@ -51,6 +51,11 @@ rules:
 | LRN-048 | 2026-06-25 | A "0/OK/pass" must prove it LOOKED (counted both sides), else verify hard-wired to pass | any verify/test/lint reporting success |
 | LRN-051 | 2026-06-26 | `git commit -- pathspec` strict on no-match → filter scoped commits to changed paths | any scoped-commit automation |
 | LRN-052 | 2026-06-26 | Hash-anchoring: 2 cases it does NOT apply (pre-code founding, squash-merge) | capitalizing founding/arch decisions; squash repos |
+| LRN-053 | 2026-06-26 | Read-before teeth = verifiable disposition in the artifact, not the act of reading | any read-before / check-before wiring |
+| LRN-054 | 2026-06-26 | No deterministic oracle for "already in context" → never add a presence-skip branch | skip-if-seen optimizations over conversation state |
+| LRN-055 | 2026-06-26 | Body `## ID —` headings = drift-immune index; the `## Index` table is not | choosing a substrate to index/select over |
+| LRN-056 | 2026-06-26 | `grep PAT dir/*.md` on absent dir ERRORS (exit 2), not no-op → guard `[ -d ]` | any glob-fed scan that must no-op on nothing |
+| LRN-057 | 2026-06-26 | Match consumption mechanism to consumer (mechanical / external-cognitive / inline) | wiring any produce→consume invariant |
 
 ---
 
@@ -661,3 +666,43 @@ rules:
 - **Context**: building init-project STEP 10b (capitalize founding architecture decisions). A founding "Astro not Next" has no implementing commit. Surfaced the BOUNDARY of the anchoring convention — completes it, not contradicts it.
 - **Future application**: capitalizing founding/architecture decisions, or working in squash-merge repos — do NOT fabricate a hash; the anchor only means something when a real implementing commit exists.
 - **Reference**: commit `df60df6` (init-project STEP 10b hash rule), `lib/capitalize-commit.md` (2-hash non-confusion). See [[BDR-034]], [[BDR-033]].
+
+## LRN-053 — Read-before teeth = verifiable disposition in the artifact, not the act of reading
+
+- **Date**: 2026-06-26
+- **Pattern**: An "always read X before planning" invariant guarantees NOTHING by the read alone — "ran before the plan" proves the digest was PRODUCED, not CONSUMED. The teeth are a verifiable DISPOSITION: the plan/diagnosis must NAME each surfaced item it honors, or state none binds. [[LRN-048]] ("a 0/OK must prove it LOOKED") one step further — the guarantee is "did it STATE a verdict on each?" (checkable), not "did it look?" (not). Without the trace, even natural consumption (inline reader=planner) degrades to read-then-ignore.
+- **Context**: analyze-before-plan ([[BDR-035]]). feat's first draft ("feed the MINI-PLAN") had no forced trace → user flagged it as the link where wiring goes cosmetic; strengthened to "MINI-PLAN names in-force or states none". bugfix DIAGNOSIS names `PRIOR: BLK-xxx`.
+- **Future application**: any read-before / check-before / advisory wiring — force the consuming artifact to emit a per-item verdict; never trust "data was available" = "data was used".
+- **Reference**: `lib/analyze-before-plan.md` (OUTPUT), `agents/feater.md` STEP 0.6, `agents/bugfixer.md` STEP 2.5. Extends [[LRN-048]]. See [[BDR-035]].
+
+## LRN-054 — No deterministic oracle for "already in context" → never add a presence-skip branch
+
+- **Date**: 2026-06-26
+- **Pattern**: "Skip the work if the info is already in my context" has no clean implementation: (1) self-judgment = the behavioral guard [[LRN-046]] rejects, unreliable on long convos ([[LRN-034]]); (2) a session marker records "was read", NOT "still present" → after a compaction the body is gone but the marker says skip → FALSE-SKIP (the marker cost [[BDR-033]] priced); (3) the agent cannot grep its own context window. No presence oracle exists. Do the work unconditionally when cheap; bite on the verifiable disposition.
+- **Context**: analyze-before-plan ([[BDR-035]]). Tried to skip PASS-2 full-read for "already in context" entries; predicate had no oracle. Resolved: PASS-2 reads selected set unconditionally (~tens of transient lines, digest-only persists). A decision WRITTEN earlier same-conversation must still re-surface as in-force (content in context ≠ flow treated it as a constraint).
+- **Future application**: any "skip if already seen/in-context" optimization over conversation state — reject; no oracle. Make the work cheap+unconditional, or use a deterministic EXTERNAL ledger (not context introspection).
+- **Reference**: `lib/analyze-before-plan.md` (THE INVARIANT). Conditions [[LRN-046]], [[LRN-034]], [[BDR-033]]. See [[BDR-035]].
+
+## LRN-055 — Body `## ID —` headings are a drift-immune index; the maintained `## Index` table is not
+
+- **Date**: 2026-06-26
+- **Pattern**: When a registry keeps both per-entry `## ID — title` headings AND a hand-maintained `## Index` table, the Index DRIFTS (entries land in the body, the manual update lapses) while headings cannot (an entry IS its heading — 100% coverage by construction). Measured: decisions 11/34 (32%), learnings 21/52 (40%), blockers 2/9 (22%) missing from the Index — scattered in large blocks (e.g. decisions BDR-024–033 unindexed while the newer BDR-034 is), not an old/new split. The manual Index-update step is simply unreliable. Key any selector/scan off `grep '^## <PREFIX>-'`, never the convenience Index. Backfill (prune-memory passe D) = human-TOC hygiene, NOT a selector dependency.
+- **Context**: analyze-before-plan ([[BDR-035]]) two-pass. First instinct "reuse the Index capitalize maintains"; measuring the drift killed it — the convenient artifact was the unreliable one, the guaranteed one (headings) sat free.
+- **Future application**: choosing a substrate to index/select over — prefer what the STRUCTURE guarantees over what a step PROMISES to maintain. Verify maintained-artifact completeness before depending on it.
+- **Reference**: `lib/analyze-before-plan.md` (PASS 1). `skills/prune-memory` passe D. See [[BDR-035]].
+
+## LRN-056 — `grep PAT dir/*.md` on an absent dir ERRORS (exit 2), it does not no-op → guard with `[ -d ]`
+
+- **Date**: 2026-06-26
+- **Pattern**: A bare `grep -E PAT dir/*.md` over a glob matching nothing (dir absent, or present with no `.md`) does NOT return clean-empty — the unmatched glob is passed LITERALLY to grep, which fails: `No such file or directory`, **exit 2** (grep error). Distinct from a real no-match: grep over an existing file with no hit = **exit 1**. Verified: bare grep on absent dir → 2; `[ -d dir ] && ls dir/*.md >/dev/null 2>&1 && grep …` on absent dir → 1 (`[ -d ]` false, short-circuits, grep never runs); grep on present-but-empty registry → 1. exit 2 = grep error; exit 1 = guard-skip OR clean no-match.
+- **Context**: analyze-before-plan include ([[BDR-035]]). DO step said "absent → no-op" but the bare grep would ERROR at init-project STEP 2 (registries created STEP 5, absent at analyze). Caught by exec-test, not assumption.
+- **Future application**: any glob-fed scan that must no-op on "nothing there" — guard `[ -d dir ]` (+ file-exists) BEFORE the glob; never assume grep degrades. Exec-test the absent/empty case.
+- **Reference**: `lib/analyze-before-plan.md` (PASS 1 guard). Sibling to [[LRN-051]] (exec-test tool behavior, never assume). See [[BDR-035]].
+
+## LRN-057 — Match the consumption mechanism to the consumer (mechanical / external-cognitive / inline-cognitive)
+
+- **Date**: 2026-06-26
+- **Pattern**: When a produced artifact must be CONSUMED downstream, the mechanism depends on the consumer: (a) MECHANICAL (git merge integrating a branch) — production on the shared substrate = consumption, automatic ([[BDR-034]]'s "commit before FINISH"); (b) EXTERNAL-COGNITIVE (an unmodifiable skill like `superpowers:brainstorming`) — "produced before" ≠ "consumed"; INJECT the artifact into the consumer's INPUT at the invocation boundary (orchestrator = adapter) + a RECONCILIATION gate that EXPOSES the disposition for review (not auto-detect); (c) INLINE-COGNITIVE (same agent reads then plans) — reader=planner, same context → natural consumption, just force the trace ([[LRN-053]]). Don't import (b)'s machinery where (c) suffices, nor assume (a)'s automatism when the consumer is cognitive.
+- **Context**: analyze-before-plan ([[BDR-035]]). ship-feature brainstorm = external-cognitive → STEP 0d injection + STEP 3 expose-for-review gate; feat/bugfix = inline-cognitive → natural + trace, no injection. The asymmetry vs [[BDR-034]] (mechanical merge) was the chantier's hardest point.
+- **Future application**: wiring ANY produce→consume invariant — classify the consumer first (mechanical / external-cognitive / inline-cognitive), pick the lightest sufficient mechanism. Stops reflexively importing orchestrator-grade injection+gate where an inline trace would do.
+- **Reference**: `skills/ship-feature/SKILL.md` STEP 0d/1/2/3, `agents/bugfixer.md`+`feater.md`. Contrast [[BDR-034]] (mechanical). See [[BDR-035]], [[LRN-053]].

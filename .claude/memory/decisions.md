@@ -45,6 +45,7 @@ rules:
 | BDR-022 | 2026-06-18 | doc-syncer scoped to public docs; `.claude/` + `CLAUDE.md` read-only context, never targets; conventions + clean mode | accepted |
 | BDR-023 | 2026-06-19 | Merge /close into /capitalize — 2 modes + TODO reconcile; /close alias | accepted |
 | BDR-034 | 2026-06-26 | Coupled-capitalize invariant v1 — memory commit auto per dev flow (Frame 2) | accepted |
+| BDR-035 | 2026-06-26 | Analyze-before-plan invariant v1 — read-before bookend of coupled-capitalize | accepted |
 
 ---
 
@@ -552,3 +553,15 @@ rules:
   - (c) single commit chokepoint — doesn't exist; 3 distinct commit mechanisms, one external/unmodifiable (`superpowers:finishing-a-development-branch`).
   - Frame 3 (single unified commit, drop hash) — sacrifices >50% entries' anchoring for history aesthetics.
 - **Reference**: commits `58cb91d` (helper+tests) · `bbef41c` (hash/stdout + T6/T7) · `b44791b` (include) · `2763678` (4 flows) · `e8eff7e` (ship-feature reorder) · `df60df6` (init-project). Hook (v2, Stop-hook non-blocking BDR-033-style) + doc-sync twin chantier (same PR bug, reorder before FINISH) deferred. See [[LRN-051]], [[LRN-052]], [[EVAL-007]].
+
+## BDR-035 — Analyze-before-plan invariant v1 — read-before bookend of coupled-capitalize
+
+- **Date**: 2026-06-26
+- **Status**: accepted
+- **Decision**: Dev flows now READ related memory before planning (ship-feature also reads related code), mirroring how [[BDR-034]] made them WRITE memory after. Shared include `lib/analyze-before-plan.md` (tête-bêche of `lib/capitalize-commit.md`). Invariant = DISPOSITION, not reading: the plan must NAME each surfaced ID (in-force / already-seen / non-binding) — a verifiable trace in the artifact, not "did it look". Two-pass: grep `## <PREFIX>-` body headings → select on titles → full-read only the selected bodies. Wiring: ship-feature STEP 0d (analyzer subagent code+memory, fed to brainstorm/plan by INPUT INJECTION + STEP 3 reconciliation gate); bugfix STEP 2.5 (blockers-first); feat STEP 0.6 (decisions-first, MINI-PLAN names in-force or states none); hotfix opt-in blockers-only; init-project + onboard = no-op exceptions. Guarded no-op (`[ -d .claude/memory ]`).
+- **Why**: coupled-capitalize gave every flow a write-after; NO flow read the memory it feeds — bookend half-open. A bugfix wrote BLK at the end but never checked blockers.md for the same root cause already solved. Closes Gap B (memory, universal) + Gap A (code, ship-feature — the lone cold-planner).
+- **Alternatives rejected**:
+  - Index two-pass — `## Index` drifted on this mature repo (decisions 11/34, learnings 21/52, blockers 2/9 missing) in scattered blocks → an Index-based selector silently misses a large unpredictable fraction. Body headings drift-immune (100% coverage). See [[LRN-055]].
+  - Extend analyzer only — inline flows (feat/bugfix/hotfix) never call analyzer pre-plan → would close Gap B for none. Needed both: include + analyzer RELATED MEMORY section.
+  - PASS-2 skip-if-already-in-context — no deterministic oracle for "in context"; reintroduces the behavioral guard. See [[LRN-054]].
+- **Reference**: commit `67c6a81`, `lib/analyze-before-plan.md`, `agents/analyzer.md`. Bookend of [[BDR-034]]. See [[LRN-053]], [[LRN-054]], [[LRN-055]], [[LRN-056]], [[LRN-057]].
