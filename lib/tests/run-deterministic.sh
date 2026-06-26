@@ -110,6 +110,37 @@ printf '    committed: [%s]\n' "$committed"
 if printf '%s\n' "$committed" | grep -q '^.claude/tasks/TODO.md$'; then ok "TODO.md embarked"; else ko "TODO.md not embarked"; fi
 rm -rf "$R"
 
+echo "T6 — stdout contract: commit→hash, no-op→empty, unsafe→empty"
+R="$(new_repo)"
+printf 'CHG\n' >>"$R/.claude/memory/decisions.md"
+out="$( (cd "$R" && "$HELPER" commit "chore(memory): T6") 2>/dev/null )"
+expected="$(git -C "$R" rev-parse --short HEAD)"
+printf '    commit  stdout=[%s] HEAD=[%s]\n' "$out" "$expected"
+if [ -n "$out" ] && [ "$out" = "$expected" ]; then ok "commit emits the memory-commit hash on stdout"; else ko "hash mismatch [$out] != [$expected]"; fi
+out="$( (cd "$R" && "$HELPER" commit "chore(memory): T6-noop") 2>/dev/null )"
+printf '    no-op   stdout=[%s]\n' "$out"
+if [ -z "$out" ]; then ok "no-op emits nothing on stdout"; else ko "no-op leaked stdout [$out]"; fi
+printf 'CHG2\n' >>"$R/.claude/memory/decisions.md"
+: >"$R/.git/MERGE_HEAD"
+out="$( (cd "$R" && "$HELPER" commit "chore(memory): T6-unsafe") 2>/dev/null )"
+rc=$?
+printf '    unsafe  stdout=[%s] exit=%s\n' "$out" "$rc"
+if [ -z "$out" ] && [ "$rc" -eq 3 ]; then ok "unsafe emits nothing on stdout, exit 3"; else ko "unsafe leaked stdout [$out] or rc $rc"; fi
+rm -rf "$R"
+
+echo "T7 — double run: at most one commit (real run, not by construction)"
+R="$(new_repo)"
+printf 'ONCE\n' >>"$R/.claude/memory/decisions.md"
+base="$(git -C "$R" rev-list --count HEAD)"
+h1="$( (cd "$R" && "$HELPER" commit "chore(memory): T7-run1") 2>/dev/null )"
+after1="$(git -C "$R" rev-list --count HEAD)"
+h2="$( (cd "$R" && "$HELPER" commit "chore(memory): T7-run2") 2>/dev/null )"
+after2="$(git -C "$R" rev-list --count HEAD)"
+printf '    counts base=%s after1=%s after2=%s ; h1=[%s] h2=[%s]\n' "$base" "$after1" "$after2" "$h1" "$h2"
+if [ "$after1" -eq "$((base + 1))" ] && [ -n "$h1" ]; then ok "run1 created exactly one commit (hash emitted)"; else ko "run1 commit count wrong"; fi
+if [ "$after2" -eq "$after1" ] && [ -z "$h2" ]; then ok "run2 is a no-op (no 2nd commit, empty stdout)"; else ko "run2 was not a no-op"; fi
+rm -rf "$R"
+
 echo
 printf 'RESULT: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

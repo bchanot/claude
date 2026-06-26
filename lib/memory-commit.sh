@@ -10,6 +10,10 @@
 #   memory-commit.sh pending             # exit 0 if memory/tasks have changes, 1 if clean
 #   memory-commit.sh commit "<message>"  # surgical commit; exit 0 ok/no-op, 3 unsafe state
 #
+# Output contract for `commit`: diagnostics go to stderr; on a real commit the
+# short hash of the MEMORY commit is the ONLY thing on stdout (empty on no-op or
+# unsafe), so callers can capture it: `mem_hash=$(memory-commit.sh commit "msg")`.
+#
 # Sourceable: `memory_pending` and `commit_memory` for the v2 hook.
 
 set -uo pipefail
@@ -52,20 +56,21 @@ memory_pending() {
 }
 
 # Surgical commit of the scoped paths only. Returns 0 (ok or no-op), 3 (unsafe).
+# On a real commit, prints the memory-commit short hash to stdout (stderr = diag).
 commit_memory() {
   local msg="${1:?commit message required}"
   _in_git_repo || {
-    echo "memory-commit: not a git repo — skip"
+    echo "memory-commit: not a git repo — skip" >&2
     return 3
   }
   if _unsafe_state; then
-    echo "memory-commit: detached HEAD or merge/rebase in progress — skip (no commit)"
+    echo "memory-commit: detached HEAD or merge/rebase in progress — skip (no commit)" >&2
     return 3
   fi
   local changed
   mapfile -t changed < <(_changed_paths)
   if [ "${#changed[@]}" -eq 0 ]; then
-    echo "memory-commit: nothing pending — no-op"
+    echo "memory-commit: nothing pending — no-op" >&2
     return 0
   fi
   # Re-stage working-tree content of the scoped paths over any stale index entry,
@@ -73,10 +78,13 @@ commit_memory() {
   # commit: other staged files (dangling code) are not recorded.
   git add -- "${changed[@]}"
   if git diff --cached --quiet -- "${changed[@]}"; then
-    echo "memory-commit: only ignored/no-op changes — no-op"
+    echo "memory-commit: only ignored/no-op changes — no-op" >&2
     return 0
   fi
-  git commit -m "$msg" -- "${changed[@]}"
+  # Contract: diagnostics go to stderr; on success ONLY the memory-commit short
+  # hash goes to stdout, so a caller can do `mem_hash=$(... commit "msg")`.
+  git commit -q -m "$msg" -- "${changed[@]}"
+  git rev-parse --short HEAD
 }
 
 main() {
