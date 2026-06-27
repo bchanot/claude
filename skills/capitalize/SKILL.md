@@ -263,6 +263,48 @@ candidate was skipped or already captured.
 Reference any IDs written this run AND the TODO ops:
 `BDR-019 + LRN-026 capitalized; checked 1 done, added 1 task.`
 
+## STEP 5B — COMMIT THE CAPITALIZED MEMORY (coupled)
+
+Once the approved entries (STEP 4) and the journal line (STEP 5) are written,
+commit them — surgically, via the shared include, exactly like the 6 dev flows.
+This closes a wiring gap: `/capitalize` and `/close` predate
+`lib/capitalize-commit.md` and never called it, so a flush left memory written
+but **uncommitted** (BDR-037). STEP 3 already approved the CONTENT; only the
+COMMIT of those approved entries is automated here (the BDR-034 contract).
+
+Follow `~/.claude/lib/capitalize-commit.md`:
+
+1. Compose the message from the IDs just written + the mode:
+   - `chore(memory): <IDs> — capitalize`      (pre-wipe flush)
+   - `chore(memory): <IDs> — close ritual`    (ritual mode, via /close)
+   - `chore(memory): journal — capitalize`    (journal-only — see note)
+
+2. Commit via the helper, capturing the hash:
+
+       mem_hash=$(bash "$HOME/.claude/lib/memory-commit.sh" commit "<message>")
+       rc=$?
+
+3. Report by (rc, mem_hash):
+   - **rc 0, hash non-empty** → committed; surface `<mem_hash>` in STEP 6. This
+     is the only success path here (see the invariant below).
+   - **rc 3** → unsafe git state (detached / merge / rebase) or not a git repo:
+     memory stays in the working tree, surface the helper's stderr, do NOT retry.
+     The flush is safe on disk; STEP 6 must say NOT committed, not ✅-all.
+   - **rc 0, hash EMPTY → must NOT happen from this step.** STEP 5 always writes
+     the journal line, so memory is ALWAYS pending at 5B → the helper always has
+     ≥1 change → the hash is non-empty by construction. An empty hash here means
+     the STEP 5 journal write silently failed upstream — treat it as a bug to
+     investigate, not a normal "nothing to commit" branch.
+
+**Journal-only commit is DESIRED, not a side effect.** On `skip-all` (no registry
+entries approved) STEP 5 still writes the journal line, so 5B commits
+`chore(memory): journal — capitalize`. The journal IS memory; a session-timeline
+line is worth committing on its own — intended, mirroring the include's own
+journal-only example.
+
+Surgical scope is the helper's (stages ONLY `.claude/memory` + `.claude/tasks`,
+changed-paths-filtered, never `git add -A`). Do NOT hand-roll git here.
+
 ## STEP 6 — FINAL OUTPUT + HANDOFF
 
 ```
@@ -273,17 +315,23 @@ CAPITALIZE COMPLETE — <YYYY-MM-DD>  (<pre-wipe flush | session-close>)
   evals.md     : +<N> (EVAL-003)       | 0
   TODO.md      : checked <N>, added <M>
   journal.md   : +1 line under ## <date>
+  committed    : <mem_hash>  (chore(memory): …)   | ⚠️ NOT committed (rc 3 — see closing line)
   dropped as already-captured: LRN-023, BLK-006
   ignored as noise: push/tag release
 ```
 
 Then the mode-specific closing line:
 
-- **pre-wipe flush** → `✅ Context flushed. Safe to /clear or /compact now.`
-- **session-close ritual** → `✅ Session closed. Next session: read .claude/memory/ at startup.`
+- **pre-wipe flush** → `✅ Context flushed + committed <mem_hash>. Safe to /clear or /compact now.`
+- **session-close ritual** → `✅ Session closed + committed <mem_hash>. Next session: read .claude/memory/ at startup.`
+- **commit skipped (rc 3)** → keep the ✅ on the FLUSH but make the gap loud, never
+  buried: `✅ Context flushed — ⚠️ NOT committed (<reason: detached/merge/non-git>); entries safe on disk, commit manually.`
+  The ✅ covers the write (entries on disk); the ⚠️ marks the commit gap so it is
+  not read as "all committed".
 
 The closing line matters — confirm the wipe is safe (default) or the session is
-checkpointed (ritual).
+checkpointed (ritual), AND whether the memory was committed (5B) or left for a
+manual commit (rc 3).
 
 ## Rules
 
@@ -303,6 +351,10 @@ checkpointed (ritual).
 - **Anti-noise**: never track commit / deploy / push / release / tag.
 - **Orientation directive → decisions.md (BDR)**, not the TODO.
 - **Journal always writes**, even on `skip-all`.
+- **Commit the flush (STEP 5B)** — content gate (STEP 3) first, then the commit of
+  approved entries is automated via `lib/capitalize-commit.md` (BDR-034 contract).
+  The journal always writes → memory is always pending at 5B, so a successful run
+  always produces a commit; only an unsafe git state (rc 3) skips it.
 - **Skip trivial** for the 4 ID registries; journal excepted.
 - `.claude/memory/` missing → STOP at STEP 0, do not create the structure here.
 
