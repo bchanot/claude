@@ -10,6 +10,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ### Added
 - Coupled-capitalize: dev flows (feat / hotfix / bugfix / commit-change, ship-feature, init-project) auto-commit their memory in the same breath, via shared `lib/capitalize-commit.md` + `lib/memory-commit.sh` (surgical — `.claude/memory` + `.claude/tasks` only, never `git add -A`)
+- Coupled doc-sync: dev flows (feat / bugfix / hotfix, ship-feature, init-project) auto-commit the public docs `doc-syncer` patches, via shared `lib/doc-commit.md` + `lib/doc-commit.sh` (surgical — only the patched files, never `git add -A`, never `.claude/` / `CLAUDE.md`; refuses an out-of-scope path loudly with exit 4). `doc-syncer` surfaces `PATCHED_FILES` (one path per line) as the handoff
 - `/audit-delta` — recurring multi-axis audit (norms / bugs / dead code / security) scoped to changes since last run, with per-axis SHA markers
 - `/capitalize` — flush uncapitalized context to the memory registries before `/clear` or `/compact`
 - `/prune-memory` — curate and compress the `.claude/memory/` registries
@@ -26,6 +27,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ### Changed
 - `/ship-feature`: capitalize + memory commit moved before FINISH (was after) — fixes memory committed after a push/PR and stranded outside it
 - `/init-project`: new STEP 10b captures founding architecture decisions as BDRs before FINISH
+- `/ship-feature` + `/init-project`: DOC SYNC moved before FINISH (was after) — fixes public docs patched then left uncommitted and stranded outside the push/PR (ship-feature STEP 9→8, init-project STEP 12→10c; GSD 13→12)
 - `/validate` renamed to `/web-validate` — clearer scoped name (W3C + WCAG); routing, skill profiles, cross-references, and the client-deliverable leak-guard updated (the guard still matches legacy `/validate` so older client docs stay covered)
 - `/seo` split into parallel `seo` + `geo` agents with shared resources
 - `/onboard` rewritten: archetype-aware pipeline (orchestrator + config-only agent), security audit archetype-aware
