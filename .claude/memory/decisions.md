@@ -48,6 +48,7 @@ rules:
 | BDR-035 | 2026-06-26 | Analyze-before-plan invariant v1 — read-before bookend of coupled-capitalize | accepted |
 | BDR-036 | 2026-06-27 | Doc-sync coupled invariant — commit docs doc-syncer patches (twin of BDR-034, BUILT not reordered) | accepted |
 | BDR-037 | 2026-06-27 | v2 capitalize Stop-hook rejected → wire /capitalize+/close to the include | accepted |
+| BDR-038 | 2026-06-27 | deploy skill: per-project learning runbook, two-moment cold-resume | accepted |
 
 ---
 
@@ -595,3 +596,11 @@ rules:
   - (b) SessionEnd auto-commit (FAIT) — bypasses STEP 3 content gate, embarks half-written entries, can't report actionably.
   - (c) abandon with no redirect — leaves the real wiring gap open; fix for an unwired skill = wire it.
 - **Reference**: read-phase analysis (no hook code ever written); wiring commit (capitalize STEP 5B) follows. Completes [[BDR-034]] rollout; applies [[BDR-033]] doctrine to REJECT (not all nudges — the determinism split is [[LRN-061]]). See [[LRN-061]], [[LRN-047]], [[LRN-049]], [[LRN-054]].
+
+## BDR-038 — deploy skill: per-project learning runbook, two-moment cold-resume
+- **date**: 2026-06-27
+- **status**: accepted
+- **decision**: New `/deploy` skill = per-project runbook in `.claude/deploy/`. 5 artifacts: `PROCEDURE.md` (runbook, in-place edits), `INCIDENTS.md` (`DEP-NNN` ledger, append-only), `STATE.json` (deploy oracle, committed), `PENDING.json` (cold-resume bridge, gitignored), `NEXT.sh` (instantiated checklist, gitignored, hand-run). Two-moment spine: BEFORE (delta-instantiate `NEXT.sh` + hand back) → user deploys OUT-OF-BAND → AFTER (react: MARK success or LEARN from failure). Cold cross-session resume via `PENDING.json` (disk = only memory across the gap). Learn = atomic patch+incident (one `deploy-commit.sh` call, both files). New helper `lib/deploy-commit.sh` (allowlist `.claude/deploy/`). Built via subagent-driven-development (4 tasks).
+- **why**: deployment memory that LEARNS (runbook patched in place per failure) beats a frozen runbook; disk-bridge so a resume survives session loss.
+- **alternatives**: tag-oracle (rejected — lightweight-tag date unreliable, rebase-fragile, [[LRN-063]]); separate append-only ERRORS log (rejected — git history of `PROCEDURE.md`+`INCIDENTS.md` suffices, no `resolved-by` field); `NEXT.sh`-as-bridge (rejected — ephemeral ≠ persistent → separate `PENDING.json`); reuse doc/memory-commit (rejected — neither can commit `.claude/deploy/`, [[LRN-064]]).
+- **reference**: `skills/deploy/SKILL.md`, `lib/deploy-commit.sh`, `templates/deploy/`; branch `feat/deploy-skill` (b210e8d..79741e3, kept un-merged); spec `docs/specs/2026-06-27-deploy-skill-design.md`, plan `docs/plans/2026-06-27-deploy-skill.md`.

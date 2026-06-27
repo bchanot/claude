@@ -29,6 +29,7 @@ rules:
 | EVAL-006 | 2026-06-25 | prune-memory v1.1 TDD — 6 guards (0a3e766), validated on real data | keep |
 | EVAL-007 | 2026-06-26 | Coupled-capitalize machinery — TDD 13 + e2e, surgical scope proven | keep |
 | EVAL-008 | 2026-06-27 | Doc-sync coupled machinery — 28/28 real-exec, swap-sweep caught prior debt | keep |
+| EVAL-009 | 2026-06-27 | deploy skill subagent-driven build: multi-stage review + pressure-test net-positive | keep |
 
 ---
 
@@ -106,3 +107,9 @@ rules:
 - **Output**: 6 surgical commits `ae1f218` · `4a54a65` · `fb1f359` · `636b491` · `e81f629` · `1b01b95`. Caught + fixed a PRIOR-chantier latent ref bug (README:153, stale since e8eff7e's swap). Scope expanded mid-chantier (sweep found the inline-flow gap → 3 flows wired).
 - **Anomalies**: (1) the deferred note ("reorder only") was WRONG → corrected in read-phase before any code ([[LRN-058]]). (2) init-project PARTIAL — [[BLK-010]]/[[BLK-011]] deferred = NEW work, surfaced not papered over. Both engraved in [[BDR-036]].
 - **Action**: keep. BLK-010 (scaffold/unborn-HEAD) + BLK-011 (GSD ROADMAP post-FINISH) + MINOR-gate strengthening = separate chantiers.
+
+## EVAL-009 — deploy skill subagent-driven build: multi-stage review + pressure-test net-positive
+- **output**: `/deploy` skill (helper + SKILL.md + templates + bootstrap), built via subagent-driven-development (4 tasks; fresh implementer + per-task spec+quality review each).
+- **method**: per-task review (sonnet; opus on the keystone) + writing-skills pressure-test (fresh agent on a `PENDING.json`+moved-HEAD fixture) + final whole-branch review (opus).
+- **anomalies**: (1) the PLAN's code carried 3 latent bugs — missing `git add` for new files, SC2086 unquoted `$viol`, comment-before-shebang SC1128 — all caught by the implementer's TDD+shellcheck gate → plan-code is a DRAFT, the test gate is load-bearing. (2) the final whole-branch review caught 2 Important seam-bugs INVISIBLE to per-task reviews: target-repo `.claude/`-ignored silent no-op ([[LRN-066]]) + `NEXT.sh`-absence non-regeneration → holistic review earns its keep. (3) pressure-test confirmed the cold-resume discipline holds under temptation (the agent excluded the moved-HEAD `0034`). (4) a reviewer subagent bugged out once (user killed it) → re-dispatched clean (transient, not a finding).
+- **action**: keep. Multi-stage adversarial review + a behavioral pressure-test caught classes of bug single-pass review misses — worth the cost on a keystone skill.

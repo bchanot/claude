@@ -60,6 +60,11 @@ rules:
 | LRN-059 | 2026-06-27 | Step-number SWAP flips meanings (sweep refs) ≠ letter-suffix insertion (shifts nothing) | any pipeline renumber |
 | LRN-060 | 2026-06-27 | Fail-closed guard proven by what it REFUSES (loudly); pass dynamic lists as argv not separator-string | automated scoped-commit / destructive guards |
 | LRN-061 | 2026-06-27 | Runtime net for an unwired skill → check the wiring first (deterministic gap = fix structurally; non-det aléa = net OK, cf BDR-033) | "build a hook/watcher to catch when X isn't done" |
+| LRN-062 | 2026-06-27 | deploy first-run detection = file-existence, never `git describe` | any "first run vs incremental" tool — detect by explicit on-disk marker |
+| LRN-063 | 2026-06-27 | delta-since-marker = `git diff --name-only X HEAD` (two endpoints), never rev-list/three-dot | any delta-since-checkpoint over git — explicit two endpoints for tree diff |
+| LRN-064 | 2026-06-27 | surgical-commit helper family partitions `.claude/`; new subtree needs own allowlist sibling | adding a committable `.claude/X` subtree |
+| LRN-065 | 2026-06-27 | cross-session cold-resume skill = disk-bridge read-first (audit-delta convention) | any "do work → user acts out-of-band → resume later" skill |
+| LRN-066 | 2026-06-27 | surgical-commit must fail LOUD on git-ignored target paths (else silent no-op) | any helper relying on `git status --porcelain` to detect changes |
 
 ---
 
@@ -742,3 +747,26 @@ rules:
 - **Context**: deferred "v2 capitalize hook" ([[BDR-037]]). Read-phase killed it before code: git proved skills predate the include (oubli), memory already committed by hand 35×, orphans self-heal via `commit_memory`. The hook would've been disabled within an hour (frequent ignored nag).
 - **Future application**: any "build a hook/watcher/lint to catch when X isn't done" — first grep whether X is even WIRED at its source. Deterministic/structural gap (missing include/call) → fix structurally; reserve runtime nets for non-deterministic lapses, never to complete a rollout. Classify by determinism BEFORE building.
 - **Reference**: [[BDR-037]], [[BDR-034]] (rollout this completes), [[BDR-033]] (the GOOD net — contrast). Conditions [[LRN-047]], [[LRN-049]], [[LRN-054]].
+
+## LRN-062 — deploy first-run detection = file-existence, never `git describe`
+- **pattern**: detect "first deploy / no prior marker" by `[ -f .claude/deploy/STATE.json ]` (deterministic). NEVER `git describe --tags --match 'deploy/*'` — it errors `fatal: No names found, cannot describe anything`, exit 128, when no matching tag exists (verified git 2.53). Oracle = committed `STATE.json` holding `deployed_sha` (external ledger; never infer from context — [[LRN-054]]).
+- **context**: deploy skill design. The describe-128 result is only the REASON NOT to use describe — never the detection path.
+- **future application**: any "first run vs incremental" tool — detect by an explicit on-disk marker's existence, not by a git query that errors on the empty case.
+
+## LRN-063 — delta-since-marker = `git diff --name-only <base> HEAD` (two endpoints), never rev-list/three-dot
+- **pattern**: "files changed since marker X" = `git diff --name-only <X_sha> HEAD` — two explicit endpoints = literal tree diff. NEVER `git rev-list X..HEAD` (ancestry → phantom deltas after rebase: an orphaned marker yields the whole history). NEVER three-dot `X...HEAD` (merge-base → UNDERCOUNTS on divergence). Verified git 2.53 (linear: all forms agree; diverged: two-dot = both sides, three-dot = one side only).
+- **context**: deploy delta mechanism. Footgun: `git diff A..B` ≡ `git diff A B` (two endpoints), but `rev-list A..B` = ancestry — same `..` token, different meaning per command.
+- **future application**: any delta-since-checkpoint over git — explicit two endpoints for the tree diff (artifact list); reserve `rev-list` for commit-counting only.
+
+## LRN-064 — surgical-commit helper family partitions `.claude/`; a new subtree needs its own allowlist sibling
+- **pattern**: the surgical-commit helpers each own a `.claude/` partition by OPPOSITE rules — `memory-commit.sh` ALLOWLISTS `.claude/memory`+`.claude/tasks`; `doc-commit.sh` EXCLUDES all `.claude/**` (loud rc 4, BDR-022 — [[LRN-060]], [[BDR-036]]). So committing a NEW `.claude/` subtree (e.g. `.claude/deploy/`) can reuse NEITHER: doc-commit refuses it, memory-commit ignores it. Verified live: real `doc-commit.sh` → rc 4 on `.claude/deploy/PROCEDURE.md`. Solution: mint a sibling (`deploy-commit.sh`) with a TARGET allowlist for the new subtree — guard order = traversal `*..*` reject FIRST, then `.claude/deploy/*` allow, else refuse. Inherit rc 3 unsafe-git, short-hash stdout, changed-paths filter.
+- **future application**: adding a committable `.claude/X` subtree → new allowlist sibling, don't bend an existing helper; order the path guard traversal-first.
+
+## LRN-065 — cross-session cold-resume skill = disk-bridge read-first (audit-delta convention)
+- **pattern**: a skill that hands BACK control mid-flow (user acts out-of-band) and RESUMES — possibly in a NEW session, context gone — must carry ALL resume state on disk. A bridge file's PRESENCE = the wait-marker ("in flight, awaiting report"); STEP 0 reads it FIRST and resumes from its captured `{base, target, delta, step_reached}` WITHOUT recomputing (HEAD may have moved during the gap → "current HEAD" is wrong). Convention = audit-delta "the state file is the only memory between runs", extended from run-to-run to a MID-FLOW pause. `client-handover` only pauses in-context (synchronous), NOT cold — deploy is the first cold-resume form. A `runbook_rev` (FULL sha) does double duty: in-flow regenerate trigger + cold-resume staleness check; regenerate the instantiated artifact if ABSENT or stale. Pressure-test confirmed (fresh agent resumed from the bridge, excluded the moved-HEAD temptation).
+- **future application**: any "do work → user acts out-of-band → resume later" skill — persist a disk bridge, read it first, never recompute on resume; mark the wait by the bridge's existence, not by conversation context.
+
+## LRN-066 — surgical-commit must fail LOUD on git-ignored target paths (else silent no-op)
+- **pattern**: `git status --porcelain -- <path>` HIDES git-ignored paths → a surgical-commit helper that filters changes via porcelain SILENTLY no-ops (rc 1) when the target project ignores the path (e.g. `.claude/` wholesale) → the artifact never persists, the skill silently forgets. Fix: guard with `git check-ignore -q <path>` BEFORE the changed-filter; any passed path ignored → LOUD refusal + dedicated rc (5), never a silent no-op. Fail-closed/loud over silent. (Same porcelain mechanism as the changed-filter — [[LRN-051]].)
+- **context**: `deploy-commit.sh`; the FINAL whole-branch review caught it (per-task reviews could not — it is a skill↔target-repo seam). Applies to the whole memory/doc/deploy-commit family.
+- **future application**: any helper relying on `git status --porcelain` to detect changes — add a `git check-ignore` guard; a path that must persist but is ignored has to fail loud, not no-op.
