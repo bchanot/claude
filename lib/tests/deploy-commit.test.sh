@@ -42,4 +42,7 @@ printf 'i\n' >"$d/.claude/deploy/INCIDENTS.md"; printf '{}\n' >"$d/.claude/deplo
 check T7-atomic-rc "$?" 0
 check T7-three-files "$(git -C "$d" show --name-only --format= HEAD | grep -c deploy)" 3
 
+d=$(mkrepo); printf 'b\n' >"$d/src.txt"
+( cd "$d" && bash "$H" pending src.txt ) >/dev/null 2>&1; check T8-pending-out-of-scope-rc "$?" 4
+
 printf 'PASS=%s FAIL=%s\n' "$pass" "$fail"; [ "$fail" -eq 0 ]
