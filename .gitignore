@@ -132,3 +132,7 @@ skills-external/frontend-design/
 # pollution dir is ignored.
 /.agents/
 /skills-lock.json
+
+# deploy: transient per-deploy state (the runbook/ledger/oracle ARE committed)
+.claude/deploy/NEXT.sh
+.claude/deploy/PENDING.json
