@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # === deploy runbook (reference) — NOT run directly. Instantiated to NEXT.sh per delta. ===
-# Fixed steps run every deploy; annotated steps (@delta lines) re-instantiate from the delta.
+# Fixed steps run every deploy; # @delta: steps re-instantiate from the delta.
 # @config push_deploy_tags=false
 # NOTE grammar: glob=<pat>:each repeats the command per matching file (e.g. psql -f <each>);
 #               glob=<pat>:list runs once + lists matching files as VERIFY items; when=<pat,...> is conditional.
@@ -12,7 +12,7 @@ ssh "$DEPLOY_HOST" 'pg_dump "$DB" > ~/backups/pre-deploy-$(date +%F-%H%M).sql'  
 # 2) apply NEW migrations (one command; skill lists the delta migrations to VERIFY)
 ssh "$DEPLOY_HOST" 'supabase migration up'                                       # VERIFY: "Applied" for each
 
-# @delta:rebuild when=docker-compose*.yml,Dockerfile,*.dockerfile
+# @delta:rebuild when=docker-compose*.yml,Dockerfile,Dockerfile.*
 # 3) rebuild + restart services (only if build inputs changed)
 ssh "$DEPLOY_HOST" 'docker compose up -d --build'                                # VERIFY: docker compose ps healthy
 

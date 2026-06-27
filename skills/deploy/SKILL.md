@@ -86,7 +86,10 @@ jq dependency.
 ```
 
 `step_reached` = where the next `NEXT.sh` must start: `"awaiting-user"` = run from
-the top; a step number `X` = regenerate from step X (set after a learn at X).
+the top. A numeric `X` is used **transiently within a learn** to regenerate from
+step X; **persisted on disk it is always `"awaiting-user"`** — STEP 4 resets to
+`awaiting-user` at re-hand-back, and the `runbook_rev` staleness guard is the real
+cold-resume regenerate trigger.
 `runbook_rev` = the commit sha of `PROCEDURE.md` at instantiation; a mismatch
 versus the live runbook means `NEXT.sh` is stale and must be regenerated.
 
@@ -192,7 +195,7 @@ Author a runbook, seed the incident ledger, commit both, then proceed to STEP 1.
 | Rollback note | "One-line rollback note (optional)?" | omit if blank |
 | Push deploy tags | "`push_deploy_tags`? (true / false)" | `false` |
 
-Fill `templates/deploy/PROCEDURE.md` from answers + detected artifacts:
+**Using** `templates/deploy/PROCEDURE.md` **as base, populate** fields from interview answers + detected artifacts:
 - Substitute `$DEPLOY_HOST` with the supplied host (keep literal `$DEPLOY_HOST` if none given).
 - Include only the annotated steps whose artifact was detected; keep all fixed steps.
 - Set `# @config push_deploy_tags=<answer>` in the header.
@@ -304,6 +307,8 @@ changes a prod path).
   commit one without the other. `pick <IDs>` / `edit <ID>` apply only when
   diagnosis yields **multiple** incidents (several failing steps); each selected
   incident still commits its own patch+append together.
+- `skip-all` → leave `PENDING.json` as-is, stop, nothing learned (the deploy stays
+  failed-and-pending).
 
 **On approve — one ATOMIC commit of both files:**
 ```bash
@@ -311,10 +316,11 @@ bash lib/deploy-commit.sh commit \
   "docs(deploy): patch <step> — recovered from <err>" \
   .claude/deploy/PROCEDURE.md .claude/deploy/INCIDENTS.md
 ```
-Return codes: **0** committed (short-hash on stdout) · **1** no-op (nothing
-changed — investigate, you should have written both) · **3** unsafe git state
-(detached/merge/rebase — STOP, tell the user) · **4** out-of-scope path (you
-passed a non-`.claude/deploy/` path — fix the call) · **2** usage error.
+Return codes: **0** committed (short-hash on stdout) · **1** nothing staged — you
+wrote neither file · **3** unsafe git state (detached/merge/rebase — STOP, tell
+the user) · **4** out-of-scope path (you passed a non-`.claude/deploy/` path — fix
+the call) · **2** usage error. The helper commits whatever subset actually changed;
+patch+incident coupling is **Claude-discipline, not helper-enforced**.
 
 **This commit IS the resolution** — the commit that introduces `DEP-NNN` is its
 fix (patch + incident committed atomically). Recover later via

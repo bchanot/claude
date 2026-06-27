@@ -207,7 +207,7 @@ esac
 - [ ] **Step 4: Run the test, verify it PASSES**
 
 Run: `bash lib/tests/deploy-commit.test.sh`
-Expected: `PASS=11 FAIL=0` (exit 0).
+Expected: `PASS=12 FAIL=0` (exit 0).
 
 - [ ] **Step 5: shellcheck**
 
@@ -250,7 +250,7 @@ ssh "$DEPLOY_HOST" 'pg_dump "$DB" > ~/backups/pre-deploy-$(date +%F-%H%M).sql'  
 # 2) apply NEW migrations (one command; skill lists the delta migrations to VERIFY)
 ssh "$DEPLOY_HOST" 'supabase migration up'                                       # VERIFY: "Applied" for each
 
-# @delta:rebuild when=docker-compose*.yml,Dockerfile,*.dockerfile
+# @delta:rebuild when=docker-compose*.yml,Dockerfile,Dockerfile.*
 # 3) rebuild + restart services (only if build inputs changed)
 ssh "$DEPLOY_HOST" 'docker compose up -d --build'                                # VERIFY: docker compose ps healthy
 
@@ -297,7 +297,7 @@ curl -fsS https://$DEPLOY_HOST/health                                           
 
 - [ ] **Step 5: Verify templates are well-formed**
 
-Run: `bash -n templates/deploy/PROCEDURE.md && grep -c '@delta:' templates/deploy/PROCEDURE.md`
+Run: `bash -n templates/deploy/PROCEDURE.md && grep -c '^# @delta:' templates/deploy/PROCEDURE.md`
 Expected: no syntax error; `3` annotations.
 
 - [ ] **Step 6: Commit**
