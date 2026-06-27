@@ -15,10 +15,10 @@ $ARGUMENTS
 ## PROGRESS PROTOCOL
 
 Every STEP must announce itself with a header BEFORE its work block, so the
-user always sees where they are in the 13-step pipeline:
+user always sees where they are in the 12-step pipeline:
 
 ```
-━━━ STEP <N>/13 — <TITLE> ━━━  (~<estimated minutes>)
+━━━ STEP <N>/12 — <TITLE> ━━━  (~<estimated minutes>)
 why: <one sentence — what's at risk if this step is skipped>
 ```
 
@@ -212,13 +212,30 @@ surgically commits the approved founding decisions (`.claude/memory` +
 STEP 11 FINISH so the memory is integrated with the branch, not stranded. If
 nothing was capitalized, the helper no-ops — no commit.
 
+## STEP 10c — DOC SYNC
+Run BEFORE STEP 11 FINISH (moved here from post-FINISH). doc-syncer PATCHES public docs but
+does NOT commit them, and `finishing-a-development-branch` integrates only COMMITTED history
+— so a patch left uncommitted never reaches the merge/PR. Same PR-stranding class as the
+STEP 10b capitalize fix (BDR-034).
+
+Load `$HOME/.claude/agents/doc-syncer.md` (AUTO MODE, scope: files changed this session).
+Detect drift, update cmds/vars/structure, add recent changes entry.
+
+**Then commit the docs** — follow `$HOME/.claude/lib/doc-commit.md`: it surgically commits
+ONLY the files doc-syncer patched (its `PATCHED_FILES` output, one path per line → one argv
+arg each), never `git add -A`, never `.claude/`/`CLAUDE.md`, and no-ops if nothing was
+patched. Report per its rc table — rc 4 = a LOUD upstream BDR-022 anomaly, not a silent skip.
+
+> **Partial fix (conscious).** This commits the docs doc-sync patched, so they reach the
+> merge/PR. It does NOT fix the scaffold (STEP 5) + bootstrap-README (STEP 5b) commit gap
+> (BLK-010: no deterministic commit owner; `git worktree add -b` on an unborn HEAD) — a
+> separate chantier. After this, init-project's doc-sync is fixed but the scaffold/bootstrap
+> commit gap stays open; GSD STEP 12 still creates ROADMAP.md post-FINISH (BLK-011) — also separate.
+
 ## STEP 11 — FINISH
 Invoke `superpowers:finishing-a-development-branch`. Tests pass, build clean, no placeholders, initial commit ready.
 
-## STEP 12 — SYNC README
-Load `$HOME/.claude/agents/doc-syncer.md` (AUTO MODE, scope: files changed this session). Detect drift, update cmds/vars/structure, add recent changes entry.
-
-## STEP 13 — GSD v2 INIT (optional)
+## STEP 12 — GSD v2 INIT (optional)
 If `multi-session` signal was detected in STEP 0 OR the project has >3 planned milestones:
 Ask: "Initialize GSD v2 for multi-session management? (yes / skip)"
 - `yes` →

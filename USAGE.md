@@ -123,7 +123,7 @@ Tu veux...
 
 | Commande | Quand | Notes |
 |---|---|---|
-| `/init-project` | Nouveau projet from scratch | 12-13 steps, deux gates obligatoires |
+| `/init-project` | Nouveau projet from scratch | 11-12 steps, deux gates obligatoires |
 | `/ship-feature` | Feature sur projet existant | Pipeline 9 steps, une gate |
 | `/feat` | Petite feature (1-5 fichiers) | Léger, pas d'orchestration lourde |
 | `/bugfix` | Bug avec investigation root cause | Hypothèses, diagnostic, fix minimal |
@@ -192,9 +192,10 @@ Hotfix/quick fix          → tout OFF sauf superpowers
 # → STEP 1  : interview (skip si prompt complet)
 # → STEP 4  : ★ GATE — valider l'architecture
 # → STEP 7  : ★ GATE — valider le plan d'implémentation
-# → STEP 8-11: implémentation TDD + review + finish
-# → STEP 12 : sync README
-# → STEP 13 : propose GSD v2 si multi-session détecté
+# → STEP 8-10 : implémentation TDD + review
+# → STEP 10b-c: capitalize mémoire + sync README (avant finish)
+# → STEP 11   : finish (merge / commit initial)
+# → STEP 12   : propose GSD v2 si multi-session détecté
 
 # 3. Features suivantes
 /ship-feature "description de la feature"
@@ -203,7 +204,7 @@ Hotfix/quick fix          → tout OFF sauf superpowers
 ### Pattern B — Projet long (multi-session, plusieurs jours) · ~1500-2500t/session CC
 
 ```
-# Même départ que Pattern A, mais au STEP 13 :
+# Même départ que Pattern A, mais au STEP 12 :
 # → Répondre "yes" à "Initialize GSD v2?"
 # → ROADMAP.md est créé avec les milestones
 
@@ -399,7 +400,7 @@ Verify  : npx expo export --platform web --output-dir /tmp/expo-check --clear �
 
 **Si le projet devient long (plusieurs features sur semaines) :**
 ```
-# STEP 13 propose GSD v2 : répondre "yes"
+# STEP 12 propose GSD v2 : répondre "yes"
 # Puis dans terminal :
 gsd
 /gsd auto
@@ -500,7 +501,7 @@ Convention: snake_case Python, camelCase TypeScript."
 
 **Workflow long avec GSD v2 :**
 ```
-# Après /init-project (STEP 13 → "yes")
+# Après /init-project (STEP 12 → "yes")
 # Le ROADMAP.md généré contient :
 #   Milestone 1: Boutique in-app + Stripe
 #   Milestone 2: PvP + matchmaking
