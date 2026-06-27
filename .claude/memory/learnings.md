@@ -56,6 +56,9 @@ rules:
 | LRN-055 | 2026-06-26 | Body `## ID —` headings = drift-immune index; the `## Index` table is not | choosing a substrate to index/select over |
 | LRN-056 | 2026-06-26 | `grep PAT dir/*.md` on absent dir ERRORS (exit 2), not no-op → guard `[ -d ]` | any glob-fed scan that must no-op on nothing |
 | LRN-057 | 2026-06-26 | Match consumption mechanism to consumer (mechanical / external-cognitive / inline) | wiring any produce→consume invariant |
+| LRN-058 | 2026-06-27 | Same bug-class ≠ same fix — verify the twin shares the fix's PRECONDITION before replicating | porting a fix to a "same bug" twin |
+| LRN-059 | 2026-06-27 | Step-number SWAP flips meanings (sweep refs) ≠ letter-suffix insertion (shifts nothing) | any pipeline renumber |
+| LRN-060 | 2026-06-27 | Fail-closed guard proven by what it REFUSES (loudly); pass dynamic lists as argv not separator-string | automated scoped-commit / destructive guards |
 
 ---
 
@@ -706,3 +709,27 @@ rules:
 - **Context**: analyze-before-plan ([[BDR-035]]). ship-feature brainstorm = external-cognitive → STEP 0d injection + STEP 3 expose-for-review gate; feat/bugfix = inline-cognitive → natural + trace, no injection. The asymmetry vs [[BDR-034]] (mechanical merge) was the chantier's hardest point.
 - **Future application**: wiring ANY produce→consume invariant — classify the consumer first (mechanical / external-cognitive / inline-cognitive), pick the lightest sufficient mechanism. Stops reflexively importing orchestrator-grade injection+gate where an inline trace would do.
 - **Reference**: `skills/ship-feature/SKILL.md` STEP 0d/1/2/3, `agents/bugfixer.md`+`feater.md`. Contrast [[BDR-034]] (mechanical). See [[BDR-035]], [[LRN-053]].
+
+## LRN-058 — Same bug-class ≠ same fix: verify the twin shares the fix's PRECONDITION before replicating
+
+- **Date**: 2026-06-27
+- **Pattern**: A deferred "twin" fix ("doc-sync = same PR bug → reorder before FINISH like memory") REFUTED on inspection: memory's reorder worked because memory ALREADY committed (helper existed, only timing wrong); doc-syncer committed NOTHING → reordering uncommitted docs still misses the merge. The fix relied on a PRECONDITION (artifact already committed) the twin did NOT share. "Same symptom" ≠ "same mechanism". A read-phase grep (zero git commit in doc-syncer) caught it before any code — saved shipping an illusion-of-fix.
+- **Context**: doc-sync coupled ([[BDR-036]]). The chantier's central lesson; the user named the trap upfront ("même bug ≠ même fix").
+- **Future application**: any "fix X like we fixed Y" — NAME Y's load-bearing precondition, CONFIRM X has it, before replicating. Cheap read-phase check beats a shipped non-fix.
+- **Reference**: [[BDR-036]], [[BDR-034]].
+
+## LRN-059 — A step-number SWAP flips meanings → sweep external refs; a letter-suffix insertion shifts nothing
+
+- **Date**: 2026-06-27
+- **Pattern**: Renumbering a pipeline has two shapes, opposite ref-risk. (1) SWAP (STEP 8↔9 = FINISH↔DOC SYNC) flips what each number MEANS → every external ref can go silently false OR accidentally true; grep the WHOLE repo, read each hit individually. PROVEN: ship-feature's swap silently broke README:153 — which a PRIOR chantier's swap had ALSO broken (e8eff7e moved DOC SYNC 8→9, missed the ref) → debt COMPOUNDS across chantiers. (2) LETTER-SUFFIX insertion (10b, 0d) shifts NO existing number → breaks nothing (init-project's 10b left zero stale refs). Discipline: prefer letter-suffix insertions; on a swap do a full external sweep + per-ref verify; COMPLETE an accidentally-true ref (don't lean on the coincidence — it re-breaks at the next swap).
+- **Context**: doc-sync coupled ([[BDR-036]]). The Task-6 sweep caught README:153 (prior debt) + verified 5 USAGE refs post-swap.
+- **Future application**: any pipeline renumber — classify swap vs insertion; swap → grep+read every ref. The external sweep catches PAST chantiers' debt, not only the current one.
+- **Reference**: [[BDR-036]]. Sibling [[LRN-002]], [[LRN-045]] (grep reads not just writes).
+
+## LRN-060 — A fail-closed guard is proven by what it REFUSES (loudly); pass dynamic lists as argv, not a separator-string
+
+- **Date**: 2026-06-27
+- **Pattern**: Two robustness lessons from doc-commit. (a) The inverse-`.claude/` exclusion is a SECURITY guard (BDR-022) → test it by what it must REFUSE (forbidden path ALONE, and MIXED with legit), not only what it accepts; and refuse LOUDLY (dedicated exit 4, names the offender, refuse-ALL on mixed) — silent-filtering would MASK an upstream violation (doc-syncer surfaced a `.claude/` it must never patch). The refusal IS the alarm. (b) Pass a dynamic file list as ARGV, never a separator-joined string: argv has no in-band delimiter → a path with spaces survives as one element (proven, T7); newline is only the producer's text format the agent maps to argv. Space-join-then-resplit would mis-split + the `[ -e ]` filter then silently drops it.
+- **Context**: doc-commit.sh ([[BDR-036]]), T1a/b/c (refuse paths) + T7 (argv space-safe), all real-exec.
+- **Future application**: any automated scoped-commit / destructive guard — test the REFUSAL path + refuse loud; pass lists as argv. Same family as [[LRN-046]] (deterministic oracle for a destructive guard).
+- **Reference**: [[BDR-036]], [[LRN-051]] (changed-paths filter), [[LRN-046]].

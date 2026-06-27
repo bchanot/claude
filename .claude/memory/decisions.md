@@ -46,6 +46,7 @@ rules:
 | BDR-023 | 2026-06-19 | Merge /close into /capitalize — 2 modes + TODO reconcile; /close alias | accepted |
 | BDR-034 | 2026-06-26 | Coupled-capitalize invariant v1 — memory commit auto per dev flow (Frame 2) | accepted |
 | BDR-035 | 2026-06-26 | Analyze-before-plan invariant v1 — read-before bookend of coupled-capitalize | accepted |
+| BDR-036 | 2026-06-27 | Doc-sync coupled invariant — commit docs doc-syncer patches (twin of BDR-034, BUILT not reordered) | accepted |
 
 ---
 
@@ -565,3 +566,19 @@ rules:
   - Extend analyzer only — inline flows (feat/bugfix/hotfix) never call analyzer pre-plan → would close Gap B for none. Needed both: include + analyzer RELATED MEMORY section.
   - PASS-2 skip-if-already-in-context — no deterministic oracle for "in context"; reintroduces the behavioral guard. See [[LRN-054]].
 - **Reference**: commit `67c6a81`, `lib/analyze-before-plan.md`, `agents/analyzer.md`. Bookend of [[BDR-034]]. See [[LRN-053]], [[LRN-054]], [[LRN-055]], [[LRN-056]], [[LRN-057]].
+
+## BDR-036 — Doc-sync coupled invariant — commit the docs doc-syncer patches (twin of BDR-034, BUILT not reordered)
+
+- **Date**: 2026-06-27
+- **Status**: accepted
+- **Decision**: doc-sync flows now COMMIT the public docs doc-syncer patches, via new `lib/doc-commit.sh` (helper) + `lib/doc-commit.md` (include) — mirror of memory-commit/capitalize-commit, 4 DELTAS: (Δ1) dynamic scope = patched files as argv, not a fixed pathspec; (Δ2) INVERSE exclusion = fail-closed + loud guard rejecting `.claude/**`+`CLAUDE.md` (dedicated exit 4), opposite of memory-commit which TARGETS `.claude/`; (Δ3) no hash anchoring (docs carry no SHA, [[LRN-052]]); (Δ4) `docs:` msg. doc-syncer emits `PATCHED_FILES` (one path/line) → agent splits on newline → each as DISTINCT argv (space-safe, [[LRN-060]]). 2 orchestrators reordered DOC SYNC before FINISH (ship-feature STEP 9→8, init-project STEP 12→10c, GSD 13→12); 3 inline flows wired (feat/bugfix/hotfix DOC SYNC). Consumption MECHANICAL ([[LRN-057]] case a, = BDR-034).
+- **Why**: doc-syncer PATCHED docs but COMMITTED nothing (grep-proven, zero git commit) → push/PR path = docs stranded outside PR (orchestrators); inline = docs left dirty. Twin of [[BDR-034]] but NOT same fix: memory ALREADY had a commit helper (only mis-timed); doc-sync had NONE → had to BUILD the mechanism, not just reorder. "Reorder alone" (the deferred note's framing) REFUTED in read-phase ([[LRN-058]]).
+- **Honest scope/choices** (engraved, not glossed):
+  - (a) MINOR doc content stays NON-gated yet auto-committed — CONSCIOUS, not memory's always-gated content; the VISIBLE surface (files + AGENT-composed change summary, not a bare count) REPLACES the gate as the review surface. Strengthening the MINOR gate = separate doc-syncer chantier.
+  - (b) init-project PARTIAL — scaffold + bootstrap-README commit gap ([[BLK-010]], unborn HEAD + worktree) + GSD ROADMAP post-FINISH ([[BLK-011]]) deferred = NEW work, not replication.
+  - (c) scope EXPANDED mid-chantier via the ref-sweep to 3 inline flows — asymmetry vs memory (BDR-034 wired ALL flows) was the decider.
+- **Alternatives rejected**:
+  - Reorder-only (the deferred note) — refuted: doc-syncer commits nothing, reordering uncommitted docs still misses the merge.
+  - Static-glob scope (`*.md`/`docs/`) — over-reach onto a user-edited doc / `MIGRATION.md`; chose touched-files argv (in-thread list already in hand).
+  - Silent-filter the forbidden path — masks an upstream BDR-022 bug; guard must REFUSE-ALL loudly ([[LRN-060]]).
+- **Reference**: commits `ae1f218` (helper+tests) · `4a54a65` (include) · `fb1f359` (doc-syncer PATCHED_FILES) · `636b491` (ship-feature reorder) · `e81f629` (init-project reorder) · `1b01b95` (3 inline flows). See [[BDR-034]], [[LRN-058]], [[LRN-059]], [[LRN-060]], [[BLK-010]], [[BLK-011]], [[EVAL-008]].

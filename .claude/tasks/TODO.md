@@ -246,4 +246,21 @@ doc-sync twin chantier deferred. Safety in the pathspec, never `git add -A`.
 - [x] Task 5 — init-project founding-decisions capitalize (F5) — df60df6
 - [x] Task 6 — behavioral verify + shellcheck + CHANGELOG + BDR/LRN — this commit
 - [ ] v2 (deferred) — Stop hook (non-blocking, BDR-033 style) reusing the detector
-- [ ] twin chantier (deferred) — doc-sync reorder before FINISH (same PR bug)
+- [~] twin chantier — doc-sync → own plan (2026-06-27). NOTE: "reorder before FINISH" REFUTED — doc-syncer commits nothing, needs reorder + NEW doc-commit mechanism.
+
+## 2026-06-27 — doc-sync coupled (twin of coupled-capitalize)
+Plan: [.claude/tasks/2026-06-27-doc-sync-coupled.md](2026-06-27-doc-sync-coupled.md)
+Goal: orchestrators commit the docs doc-sync patched, on the branch, BEFORE FINISH.
+Same PR-bug class as memory, NOT same fix: doc-syncer commits nothing (proven) →
+reorder + CREATE doc-commit.sh/.md (mirror memory-commit, 4 deltas). Surface-don't-block.
+- [x] Task 1 — `lib/doc-commit.sh` + `lib/tests/run-doc-commit.sh` — 24/24 real-exec pass, shellcheck clean. T1a/b/c (guard catches .claude/+CLAUDE.md, mixed→refuse-all-loud) + T2 dynamic pathspec + T3/T4/T5/T6. Exit taxonomy 0/2/3/4 (4=scope violation).
+- [x] Task 2 — `lib/doc-commit.md` include — 4a54a65. 4-exit report table (rc 4 = loud upstream anomaly), visible surface w/ agent-composed summary (attribution locked 3×), 2 conscious acks.
+- [x] Task 3 — `agents/doc-syncer.md` `PATCHED_FILES:` OUTPUT — fb1f359. Newline (one path/line), both STEP 9 + AUTO A4; NONE silent. Separator contract aligned producer↔consumer, argv space-safe, T7 proves it (28/28). Additive, callers unaffected.
+- [x] Task 4 — ship-feature reorder — 636b491. DOC SYNC 9→8 (+doc-commit), FINISH 8→9, HTML comment deleted. Ref-coherence: 159/189 STEP 8→9 FINISH + README:152-153 illustration completed (stale since e8eff7e). Historical records left (append-only).
+- [x] Task 5 — init-project reorder — e81f629. SYNC README 12→10c (+doc-commit), GSD 13→12, /13→/12. Order 10b→10c→11→12. Ref-coherence: USAGE ×5 (table, illustration, 3 GSD refs) each verified post-swap. Latent-bug check: none (10b was non-shifting). BLK-011 record left (append-only), TODO locator→12.
+- [x] Task 6 — ref-sweep — clean (no old headers; live refs fixed in Task 4/5; historicals left; USAGE:256 non-ordering). Caught inline-flow gap → Task 6b.
+- [x] Task 6b — wire doc-commit into feat/bugfix/hotfix DOC SYNC — 1b01b95. commit-change exempt (no DOC SYNC); hotfix wired (include no-ops on empty).
+- [x] Task 7 — close: `run-doc-behavioral.md` + shellcheck clean + 28/28 + CHANGELOG + BDR-036 / LRN-058-060 / EVAL-008. surface-replaces-gate + partial-init + scope-expansion engraved honestly.
+- [ ] flagged separate — [[BLK-010]] scaffold/bootstrap commit gap (init-project, unborn HEAD + worktree)
+- [ ] flagged separate — [[BLK-011]] GSD ROADMAP.md post-FINISH (now STEP 12 after Task 5 renumber; BLK-011 record itself left at STEP 13 — append-only)
+- [ ] flagged separate — strengthen doc-sync MINOR gate (own doc-syncer chantier)

@@ -27,6 +27,8 @@ rules:
 | BLK-005 | 2026-05-21 | gstack submodule rename (checkpoint→context-save) breaks profile entries | resolved |
 | BLK-006 | 2026-05-21 | `profile.sh current` false-negative via `~/.claude` symlink (`cd` not `cd -P`) | resolved |
 | BLK-007 | 2026-06-02 | 6 gstack source skills (ios-*, spec) unlinked post-bump — invisible to profiles + `gstack on` | resolved |
+| BLK-010 | 2026-06-27 | init-project: scaffold (STEP 5) + bootstrap README (5b) have no deterministic commit owner; worktree `add -b` on unborn HEAD | open |
+| BLK-011 | 2026-06-27 | init-project STEP 13 GSD post-FINISH creates ROADMAP.md → stranded doc (3rd post-FINISH artifact) | open |
 
 ---
 
@@ -117,3 +119,23 @@ rules:
 - **Probe method**: 3-file probe — `_probe.md` (`paths: ["**/*.probe"]`, sentinel `SENTINEL_USER_RULE_LOADED`), `_probe_ctl.md` (NO `paths`, control sentinel `CONTROL_NOPATHS_LOADED`), `_probe_target.probe` (target, read in a fresh session). Result: control sentinel PRESENT in session context, path-scoped sentinel ABSENT → the path-scoped rule did not load. Probe files removed after.
 - **Status**: upstream, open. Workaround: don't rely on user-level path-scoping → keep global guidance unconditional + COMPRESSED ([[BDR-031]]). Side-note: native auto-memory = "on" but writes nothing yet (fresh machine). Re-test on CC upgrades.
 - **Reference**: GitHub #21858. Linked to [[BDR-031]], [[LRN-044]].
+
+---
+
+## BLK-010 — init-project scaffold + bootstrap README have no deterministic commit owner; worktree on unborn HEAD
+
+- **Date**: 2026-06-27
+- **Friction**: init-project scaffold (STEP 5 — CLAUDE.md, settings, config, entry points, `.gitignore`, `.env.example`, `.claude/`) + bootstrap README (STEP 5b) never get an explicit commit. Pipeline's only commits = STEP 10b memory (helper) + STEP 8 per-task implementer commits. Whether scaffold/README land in a commit = emergent: implementer-prompt.md says only "4. Commit your work", scope undefined. Greenfield deeper: STEP 8 `subagent-driven-development` requires `using-git-worktrees` → `git worktree add -b` branches from HEAD, but post-`git init` HEAD is UNBORN → add fails; the worktree skill has no unborn-HEAD path.
+- **Real cause**: no deterministic commit step between `git init` (STEP 5) and FINISH (STEP 11). scaffolder + doc-syncer both write-only (zero `git commit`). implementer commit scope unspecified. `using-git-worktrees` assumes a born HEAD.
+- **Solution**: open — own chantier (real technical weight: unborn HEAD + worktree). Candidate: explicit initial scaffold commit after STEP 5/5b before STEP 8, OR handle unborn HEAD in the worktree step. NOT cured by the doc-sync coupled chantier — that commits ONLY doc-sync's patched files and (correctly) excludes scaffold. Consequence: after doc-sync coupled, ship-feature fully fixed, init-project PARTIAL (doc-sync ok, scaffold/bootstrap still open).
+- **Status**: open
+- **Reference**: discovered in doc-sync-coupled analysis (2026-06-27). Distinct from the doc-sync twin [[BDR-034]]. Sibling [[BLK-011]]. Surfaces via analyze-before-plan bookend on any init-project commit-flow work.
+
+## BLK-011 — init-project STEP 13 GSD post-FINISH creates ROADMAP.md → stranded doc
+
+- **Date**: 2026-06-27
+- **Friction**: init-project STEP 13 (GSD v2 init) runs post-FINISH (STEP 11). `gsd init` creates `.gsd/` + `ROADMAP.md` (a public doc). Created AFTER FINISH integrates → ROADMAP never in the merge/PR. Same PR-stranding class as the doc-sync twin, 3rd post-FINISH artifact.
+- **Real cause**: artifact-producing step ordered after FINISH (= BDR-034 class). `gsd init` is a CLI mechanism distinct from doc-syncer; ROADMAP is sync-only for doc-syncer (never created by it, BDR-022 rules), so the doc-sync coupled chantier does not touch it.
+- **Solution**: open — separate thread. Candidate: reorder GSD before FINISH, or commit ROADMAP after `gsd init`. Out of scope for doc-sync coupled (different mechanism).
+- **Status**: open
+- **Reference**: discovered in doc-sync-coupled analysis (2026-06-27). Sibling [[BLK-010]] + twin [[BDR-034]].

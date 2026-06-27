@@ -28,6 +28,7 @@ rules:
 | EVAL-005 | 2026-06-23 | Obsolete `claude --effort max` alias missed across Step 9 edits | correct |
 | EVAL-006 | 2026-06-25 | prune-memory v1.1 TDD — 6 guards (0a3e766), validated on real data | keep |
 | EVAL-007 | 2026-06-26 | Coupled-capitalize machinery — TDD 13 + e2e, surgical scope proven | keep |
+| EVAL-008 | 2026-06-27 | Doc-sync coupled machinery — 28/28 real-exec, swap-sweep caught prior debt | keep |
 
 ---
 
@@ -96,3 +97,12 @@ rules:
 - **Anomalies**: (1) `git commit -- pathspec` strict-on-no-match — caught by real-exec, would have silently aborted the commit on the majority of flows (any run where one scoped path is clean) → fixed by `_changed_paths` BEFORE integration ([[LRN-051]]). (2) v1 helper emitted no clean hash → caught at include design (the reported `<hash>` would have been aspirational) → added `bbef41c` (hash→stdout, diag→stderr), proven by T6. Both caught by exec/review, not assumed.
 - **Action**: keep.
 - **Reference**: commits `58cb91d`..`df60df6`.
+
+## EVAL-008 — Doc-sync coupled machinery (helper + include + 2 reorders + 3 inline)
+
+- **Date**: 2026-06-27
+- **What checked**: `lib/doc-commit.sh` + `lib/doc-commit.md` include + doc-syncer `PATCHED_FILES` output + 2 orchestrator reorders (ship-feature, init-project) + 3 inline wirings (feat/bugfix/hotfix).
+- **Method**: 28/28 real-exec deterministic (`run-doc-commit.sh` T1a/b/c + T2–T7 — incl. inverse-exclusion REFUSE, MIXED refuse-all, argv space-safe T7), shellcheck clean, behavioral check doc (`run-doc-behavioral.md`, 2 scenarios), full external ref-sweep + per-ref verification.
+- **Output**: 6 surgical commits `ae1f218` · `4a54a65` · `fb1f359` · `636b491` · `e81f629` · `1b01b95`. Caught + fixed a PRIOR-chantier latent ref bug (README:153, stale since e8eff7e's swap). Scope expanded mid-chantier (sweep found the inline-flow gap → 3 flows wired).
+- **Anomalies**: (1) the deferred note ("reorder only") was WRONG → corrected in read-phase before any code ([[LRN-058]]). (2) init-project PARTIAL — [[BLK-010]]/[[BLK-011]] deferred = NEW work, surfaced not papered over. Both engraved in [[BDR-036]].
+- **Action**: keep. BLK-010 (scaffold/unborn-HEAD) + BLK-011 (GSD ROADMAP post-FINISH) + MINOR-gate strengthening = separate chantiers.
