@@ -173,6 +173,12 @@ Load `$HOME/.claude/agents/doc-syncer.md`.
 Execute in automatic mode:
 `auto-mode scope: <list of files modified during this session>`
 
+**Then commit the docs** — follow `$HOME/.claude/lib/doc-commit.md`: it surgically commits
+ONLY the files doc-syncer patched (its `PATCHED_FILES` output), never `git add -A`, never
+`.claude/`/`CLAUDE.md` (rc 4 = a loud BDR-022 anomaly, not a silent skip), and no-ops when
+nothing was patched — the common case for a trivial change. No FINISH in an inline flow, so
+it just commits the docs on the current branch (no ordering concern).
+
 ## STEP 7 — CAPITALIZE (memory registries)
 
 A bugfix with an understood root cause is almost always worth one entry:
