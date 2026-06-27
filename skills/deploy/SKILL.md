@@ -121,9 +121,10 @@ Read `.claude/deploy/PENDING.json` **first** (it is the only memory between runs
   "A deploy started `<started_at>` is awaiting your report (target `<target_sha>`)."
   **Do not** recompute the delta, re-read HEAD, or re-instantiate from scratch —
   the bridge is authoritative.
-  - *Staleness guard:* if `runbook_rev` ≠ the live runbook commit
-    (`git log -1 --format=%h -- .claude/deploy/PROCEDURE.md`), the on-disk
-    `NEXT.sh` is stale (a patch landed) — regenerate it from `step_reached`
+  - *Staleness guard:* if `NEXT.sh` is absent **OR** `runbook_rev` ≠ the live
+    runbook commit (`git log -1 --format=%H -- .claude/deploy/PROCEDURE.md`),
+    the on-disk `NEXT.sh` is stale or missing (a patch landed, or a cold
+    resume without regeneration) — regenerate it from `step_reached`
     (STEP 2's expansion) before reacting.
 - **`PENDING.json` absent + `PROCEDURE.md` absent → BOOTSTRAP.** No runbook yet:
   interview the project and scaffold an annotated `PROCEDURE.md` (or adopt one
@@ -164,7 +165,7 @@ Author a runbook, seed the incident ledger, commit both, then proceed to STEP 1.
    - Migration steps (`psql -f`, `migrate up`, `supabase migration`) →
      `# @delta:migrations glob=supabase/migrations/*.sql:list`
    - Build/restart steps (`docker compose`, `make build`, image push) →
-     `# @delta:rebuild when=docker-compose*.yml,Dockerfile,*.dockerfile`
+     `# @delta:rebuild when=docker-compose*.yml,Dockerfile,Dockerfile.*`
    - Dep-install steps (`npm ci`, `pip install -r`, `bundle install`) →
      `# @delta:deps when=package.json,*lock*,requirements.txt,pyproject.toml`
 4. Present the annotated draft; invite corrections before the gate.
@@ -217,14 +218,24 @@ Present the full draft `PROCEDURE.md`.
 
 1. Write `.claude/deploy/PROCEDURE.md` (Write tool — the approved draft).
 2. Seed `.claude/deploy/INCIDENTS.md` from `templates/deploy/INCIDENTS.md` (Write tool).
-3. Commit both via the allowlist helper:
+3. Ensure the target project's `.gitignore` contains `.claude/deploy/NEXT.sh` and
+   `.claude/deploy/PENDING.json` (append both if missing — these are the transient
+   artifacts that must not be committed).
+4. Check that `.claude/deploy/` is NOT git-ignored: `git check-ignore -q .claude/deploy/PROCEDURE.md`
+   (rc 0 = ignored). If ignored — e.g. the project has `.claude/` in its `.gitignore` wholesale —
+   **ABORT bootstrap**: warn the user that the runbook/oracle/ledger cannot be committed,
+   and tell them to un-ignore `.claude/deploy/` (e.g. add `!.claude/deploy/` after the
+   `.claude/` rule). Do NOT commit anything further.
+5. Commit via the allowlist helper:
    ```bash
    bash lib/deploy-commit.sh commit \
      "feat(deploy): bootstrap runbook" \
      .claude/deploy/PROCEDURE.md .claude/deploy/INCIDENTS.md
    ```
    Return codes: **0** committed · **1** no-op (investigate — both files should be new) ·
-   **3** unsafe git state (STOP, tell user) · **4** out-of-scope path · **2** usage error.
+   **3** unsafe git state (STOP, tell user) · **4** out-of-scope path ·
+   **5** a passed path is git-ignored (won't persist) — STOP, fix the target's `.gitignore` ·
+   **2** usage error OR not a git repo.
 
 **On rc=0: continue to STEP 1.** `STATE.json` absent → first deploy →
 STEP 1 sets `base_sha: null` and the full runbook fires (every fixed step and
@@ -275,7 +286,7 @@ Set the base, compute the changed-file list, capture the target.
 { "base_sha": "<STEP 1 base>", "target_sha": "<STEP 1 target>",
   "delta": [<STEP 1 file list>], "step_reached": "awaiting-user",
   "started_at": "<now, ISO-8601>",
-  "runbook_rev": "<git log -1 --format=%h -- .claude/deploy/PROCEDURE.md>" }
+  "runbook_rev": "<git log -1 --format=%H -- .claude/deploy/PROCEDURE.md>" }
 ```
 **Then HAND BACK** (AskUserQuestion): *"Run NEXT.sh step by step against prod.
 Report back: **Deployed OK** / **Failed at step X: <err>** / **Not yet**."* Then
@@ -319,7 +330,9 @@ bash lib/deploy-commit.sh commit \
 Return codes: **0** committed (short-hash on stdout) · **1** nothing staged — you
 wrote neither file · **3** unsafe git state (detached/merge/rebase — STOP, tell
 the user) · **4** out-of-scope path (you passed a non-`.claude/deploy/` path — fix
-the call) · **2** usage error. The helper commits whatever subset actually changed;
+the call) · **5** a passed path is git-ignored (won't persist) — STOP, fix the
+target's `.gitignore` · **2** usage error OR not a git repo. The helper commits
+whatever subset actually changed;
 patch+incident coupling is **Claude-discipline, not helper-enforced**.
 
 **This commit IS the resolution** — the commit that introduces `DEP-NNN` is its
@@ -327,7 +340,7 @@ fix (patch + incident committed atomically). Recover later via
 `git log -S '<DEP-NNN>' -- .claude/deploy/INCIDENTS.md`. No backfill needed.
 
 Then:
-1. Bump `PENDING.json.runbook_rev` to that commit's sha; keep `step_reached` = `X`.
+1. Bump `PENDING.json.runbook_rev` to `git rev-parse HEAD` (full sha — not the helper's short-hash stdout); keep `step_reached` = `X`.
 2. **Regenerate `NEXT.sh` from `step_reached` against the PATCHED runbook**
    (steps X…end — X+1…end never ran). This is NOT replaying one step: the bumped
    `runbook_rev` is exactly the staleness trigger — runbook changed ⇒ prior

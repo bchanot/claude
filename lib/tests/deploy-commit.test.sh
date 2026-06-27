@@ -45,4 +45,9 @@ check T7-three-files "$(git -C "$d" show --name-only --format= HEAD | grep -c de
 d=$(mkrepo); printf 'b\n' >"$d/src.txt"
 ( cd "$d" && bash "$H" pending src.txt ) >/dev/null 2>&1; check T8-pending-out-of-scope-rc "$?" 4
 
+d=$(mkrepo); printf '.claude/\n' >"$d/.gitignore"
+printf 'run\n' >"$d/.claude/deploy/PROCEDURE.md"
+( cd "$d" && bash "$H" commit "docs(deploy): t" .claude/deploy/PROCEDURE.md ) >/dev/null 2>&1
+check T9-ignored-rc "$?" 5
+
 printf 'PASS=%s FAIL=%s\n' "$pass" "$fail"; [ "$fail" -eq 0 ]

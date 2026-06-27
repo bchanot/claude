@@ -35,7 +35,7 @@ Treated as settled corollaries: user executes out-of-band; a **new** `lib/deploy
   PROCEDURE.md   reference runbook — fixed shell + `# @delta:` annotated steps   (edited IN-PLACE)
   INCIDENTS.md   DEP-NNN incident ledger: date, step, error verbatim, root cause,
                  fix (APPEND-ONLY; resolution = introducing commit, derive via git)
-  STATE          deployed SHA + timestamp + outcome — the diff oracle             (overwritten each deploy)
+  STATE.json     deployed SHA + timestamp + outcome — the diff oracle             (overwritten each deploy)
   NEXT.sh        instantiated runbook — EPHEMERAL, not committed ; run STEP-BY-STEP
                  (checklist, manual # VERIFY: gates) — never `bash NEXT.sh` unattended
 
@@ -56,9 +56,9 @@ All three facts re-run live before writing this spec; observed output recorded, 
 
 **First-deploy detection = STATE-absent, deterministic. `describe` is off the detection path.**
 ```
-[ -f .claude/deploy/STATE ]            => exit 1 (absent = first deploy)  <- THE detector
+[ -f .claude/deploy/STATE.json ]            => exit 1 (absent = first deploy)  <- THE detector
 git describe --tags --match 'deploy/*' => fatal: No names found ; exit 128 <- only the reason NOT to use describe
-[ -f .claude/deploy/STATE ]            => exit 0 (present = delta path)
+[ -f .claude/deploy/STATE.json ]            => exit 0 (present = delta path)
 ```
 
 **Delta = `git diff --name-only <STATE_SHA> HEAD`** (two explicit endpoints; no dots, so it cannot be misread as three-dot).

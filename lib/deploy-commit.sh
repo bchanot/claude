@@ -23,6 +23,8 @@ _out_of_scope() {                       # 0 = forbidden, 1 = in scope
 
 _scope_violations() { local p; for p in "$@"; do _out_of_scope "$p" && printf '%s\n' "$p"; done; }
 
+_ignored() { git check-ignore -q "$1"; }   # rc 0 = ignored
+
 _changed_only() {                       # echo passed files that actually have changes
   local p; for p in "$@"; do
     [ -n "$(git status --porcelain -- "$p" 2>/dev/null)" ] && printf '%s\n' "$p"; done
@@ -51,6 +53,12 @@ case "$cmd" in
         printf '  - %s\n' "${violations[@]}";
         echo "deploy-commit: NOTHING committed. Caller must pass only .claude/deploy/ files."; } >&2
       exit 4
+    fi
+    mapfile -t ignored_paths < <(for p in "$@"; do _ignored "$p" && printf '%s\n' "$p"; done)
+    if [ "${#ignored_paths[@]}" -gt 0 ]; then
+      { echo "deploy-commit: REFUSED — path(s) are git-ignored and will NOT persist; \`.claude/deploy/\` must be committable in this project:";
+        printf '  - %s\n' "${ignored_paths[@]}"; } >&2
+      exit 5
     fi
     _unsafe_state && { echo "deploy-commit: unsafe git state (detached/merge/rebase) — not committing" >&2; exit 3; }
     mapfile -t changed < <(_changed_only "$@")
