@@ -149,8 +149,9 @@ cd my-existing-project/
 # → STEP 0: plugin check
 # → STEP 1-2: brainstorm + plan (superpowers)
 # → STEP 3: validation gate — user approval required
-# → STEP 4-7: implement (TDD) → review → finish
-# → STEP 8: sync README
+# → STEP 4-7: implement (TDD) → review → capitalize (memory)
+# → STEP 8: sync README (doc-sync)
+# → STEP 9: finish (merge / PR)
 ```
 
 For small features (1-5 files), use `/feat` instead — no orchestration overhead.

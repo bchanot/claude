@@ -156,7 +156,7 @@ Load `$HOME/.claude/agents/analyzer.md`. Check: no regressions, no stale code, n
 Invoke `superpowers:requesting-code-review`. Fix all CRITICAL before proceeding.
 
 ## STEP 7 — CAPITALIZE (memory registries)
-Feature shipped implies at least one design decision worth capturing. Run this BEFORE STEP 8 FINISH — the implementation commits (STEP 4) already exist, so the entries' hash references are valid, and the memory commit lands on the branch that FINISH integrates (otherwise it strands outside the PR):
+Feature shipped implies at least one design decision worth capturing. Run this BEFORE STEP 9 FINISH — the implementation commits (STEP 4) already exist, so the entries' hash references are valid, and the memory commit lands on the branch that FINISH integrates (otherwise it strands outside the PR):
 
 1. Scan conversation context for:
    - **Design / architecture choices with rationale** → candidate for `decisions.md` (BDR-XXX).
@@ -186,19 +186,27 @@ If nothing substantive to log → print `CAPITALIZE: nothing substantive to log`
 **Then commit the memory** — follow `$HOME/.claude/lib/capitalize-commit.md`: it
 surgically commits what capitalize just wrote (`.claude/memory` + `.claude/tasks`
 only, never `git add -A`) as one `chore(memory)` commit, reports the memory-commit
-hash, and no-ops if nothing was written. It runs BEFORE STEP 8 FINISH so the
+hash, and no-ops if nothing was written. It runs BEFORE STEP 9 FINISH so the
 memory is integrated with the branch, not stranded outside the PR.
 
-## STEP 8 — FINISH
-Invoke `superpowers:finishing-a-development-branch`. Tests pass, build clean, ready to merge.
+## STEP 8 — DOC SYNC
+Run BEFORE STEP 9 FINISH. doc-syncer PATCHES public docs but does NOT commit them, and
+`finishing-a-development-branch` integrates only COMMITTED history — so a patch left
+uncommitted (or committed after) never reaches the merge/PR. Same PR-stranding class as the
+STEP 7 capitalize fix (BDR-034).
 
-## STEP 9 — DOC SYNC
-<!-- Stays post-FINISH = TWIN CHANTIER: doc-sync has the same PR-stranding bug
-     capitalize just fixed (artifacts written after integration). Deferred to
-     v-next; move it before FINISH then. Not fixed here to keep v1 scoped. -->
-Load `$HOME/.claude/agents/doc-syncer.md`.
-Execute in automatic mode:
+Load `$HOME/.claude/agents/doc-syncer.md`. Execute in automatic mode:
 `auto-mode scope: <list of files modified during this session>`
+
+**Then commit the docs** — follow `$HOME/.claude/lib/doc-commit.md`: it surgically commits
+ONLY the files doc-syncer patched (its `PATCHED_FILES` output, one path per line → one argv
+arg each), never `git add -A`, never `.claude/`/`CLAUDE.md`, and no-ops if nothing was
+patched. Report per its rc table — rc 4 = a LOUD upstream BDR-022 anomaly (doc-syncer
+surfaced a forbidden path), not a silent skip. It runs BEFORE FINISH so the doc commit lands
+on the branch FINISH integrates.
+
+## STEP 9 — FINISH
+Invoke `superpowers:finishing-a-development-branch`. Tests pass, build clean, ready to merge.
 
 ---
 
