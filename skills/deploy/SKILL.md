@@ -124,12 +124,111 @@ Read `.claude/deploy/PENDING.json` **first** (it is the only memory between runs
     (STEP 2's expansion) before reacting.
 - **`PENDING.json` absent + `PROCEDURE.md` absent → BOOTSTRAP.** No runbook yet:
   interview the project and scaffold an annotated `PROCEDURE.md` (or adopt one
-  the user pastes), then continue at STEP 1. *(Bootstrap is its own procedure —
-  not covered in this section.)*
+  the user pastes), then continue at STEP 1. *(See STEP 0-B below.)*
 - **`PENDING.json` absent + `PROCEDURE.md` present → FRESH.** Continue to STEP 1.
 
 First-deploy / fresh detection is **file existence only**. Never `git describe`
 (it errors when no `deploy/*` tag exists and is not the detection path).
+
+## STEP 0-B — BOOTSTRAP (no runbook yet)
+
+Entered from STEP 0 when both `PENDING.json` and `PROCEDURE.md` are absent.
+Author a runbook, seed the incident ledger, commit both, then proceed to STEP 1.
+
+**AskUserQuestion — choose path:**
+
+> "No runbook found in `.claude/deploy/PROCEDURE.md`. How do you want to create it?
+>
+> **A — Paste:** share an existing runbook (paste text, file path, or URL). I adopt
+> it verbatim and propose `@delta:` annotations for migration, build, and dep steps.
+>
+> **B — Scaffold:** I detect deploy artifacts in this repo, ask a few questions, and
+> fill the standard template."
+
+---
+
+### Path A — Paste (adopt existing runbook)
+
+1. Receive the runbook (paste, path → Read, or URL). Accept as-is.
+2. Prepend the standard header:
+   ```
+   #!/usr/bin/env bash
+   # === deploy runbook (reference) — NOT run directly. Instantiated to NEXT.sh per delta. ===
+   # Fixed steps run every deploy; annotated steps (@delta lines) re-instantiate from the delta.
+   # @config push_deploy_tags=false
+   ```
+3. Scan for migration, rebuild, and dependency steps; propose `@delta:` annotations inline:
+   - Migration steps (`psql -f`, `migrate up`, `supabase migration`) →
+     `# @delta:migrations glob=supabase/migrations/*.sql:list`
+   - Build/restart steps (`docker compose`, `make build`, image push) →
+     `# @delta:rebuild when=docker-compose*.yml,Dockerfile,*.dockerfile`
+   - Dep-install steps (`npm ci`, `pip install -r`, `bundle install`) →
+     `# @delta:deps when=package.json,*lock*,requirements.txt,pyproject.toml`
+4. Present the annotated draft; invite corrections before the gate.
+
+→ **[GATE]** below.
+
+---
+
+### Path B — Scaffold (detect + interview)
+
+**Detect artifacts** (Glob / Read only — never shell `find /`):
+
+| Check | If found | Step emitted |
+|-------|---------|--------------|
+| `supabase/migrations/*.sql` | yes | migration step with `:list` annotation |
+| `docker-compose*.yml` or `Dockerfile` | yes | rebuild step with `when=` annotation |
+| `package.json` or `*lock*` | yes | deps step with `when=package.json,*lock*` |
+| `requirements.txt` or `pyproject.toml` | yes | deps step with `when=requirements.txt,pyproject.toml` |
+| `.env*` (not `.env.example`) | yes | add `# NOTE: inject env vars` to smoke-test step |
+
+**Interview (AskUserQuestion — one prompt, all fields):**
+
+| Field | Prompt | Default / placeholder |
+|-------|--------|-----------------------|
+| SSH host | "SSH host or deploy target?" | keep as `$DEPLOY_HOST` if blank |
+| Backup command | "Backup command before migrations?" | `pg_dump "$DB" > ~/backups/pre-deploy-$(date +%F-%H%M).sql` |
+| Health-check URL | "Health-check URL (expects HTTP 200)?" | `https://$DEPLOY_HOST/health` |
+| Rollback note | "One-line rollback note (optional)?" | omit if blank |
+| Push deploy tags | "`push_deploy_tags`? (true / false)" | `false` |
+
+Fill `templates/deploy/PROCEDURE.md` from answers + detected artifacts:
+- Substitute `$DEPLOY_HOST` with the supplied host (keep literal `$DEPLOY_HOST` if none given).
+- Include only the annotated steps whose artifact was detected; keep all fixed steps.
+- Set `# @config push_deploy_tags=<answer>` in the header.
+- Append the rollback note as `# ROLLBACK: <note>` at the end if provided.
+
+→ **[GATE]** below.
+
+---
+
+### [GATE] — approve PROCEDURE.md draft (`all / edit / skip-all`)
+
+Present the full draft `PROCEDURE.md`.
+
+- `all` → approve: write files and commit (see below).
+- `edit` → revise the listed steps or annotations, re-present.
+- `skip-all` → abort bootstrap: write nothing, stop. Re-invoke `/deploy` when ready.
+
+**On approve — write + seed + commit:**
+
+1. Write `.claude/deploy/PROCEDURE.md` (Write tool — the approved draft).
+2. Seed `.claude/deploy/INCIDENTS.md` from `templates/deploy/INCIDENTS.md` (Write tool).
+3. Commit both via the allowlist helper:
+   ```bash
+   bash lib/deploy-commit.sh commit \
+     "feat(deploy): bootstrap runbook" \
+     .claude/deploy/PROCEDURE.md .claude/deploy/INCIDENTS.md
+   ```
+   Return codes: **0** committed · **1** no-op (investigate — both files should be new) ·
+   **3** unsafe git state (STOP, tell user) · **4** out-of-scope path · **2** usage error.
+
+**On rc=0: continue to STEP 1.** `STATE.json` absent → first deploy →
+STEP 1 sets `base_sha: null` and the full runbook fires (every fixed step and
+every detected `@delta:` step instantiates). Correct and expected — no special
+handling needed.
+
+---
 
 ## STEP 1 — DELTA
 
