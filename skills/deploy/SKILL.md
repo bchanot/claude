@@ -197,7 +197,7 @@ Diagnose the root cause of the step-X failure, then draft a **coupled pair**:
   repeat the failure;
 - **(b)** an append to `INCIDENTS.md` — a new `DEP-NNN`
   (`next = grep '^## DEP-' INCIDENTS.md | max+1`) with date, step, **error
-  verbatim**, root cause, fix, and `resolved-by` (filled after commit).
+  verbatim**, root cause, and fix.
 
 **[GATE] — `all / pick <IDs> / edit <ID> / skip-all`** (significant edit — it
 changes a prod path).
@@ -217,16 +217,17 @@ changed — investigate, you should have written both) · **3** unsafe git state
 (detached/merge/rebase — STOP, tell the user) · **4** out-of-scope path (you
 passed a non-`.claude/deploy/` path — fix the call) · **2** usage error.
 
+**This commit IS the resolution** — the commit that introduces `DEP-NNN` is its
+fix (patch + incident committed atomically). Recover later via
+`git log -S '<DEP-NNN>' -- .claude/deploy/INCIDENTS.md`. No backfill needed.
+
 Then:
-1. Set the new `DEP-NNN`'s `resolved-by:` to the returned short-hash. (This is a
-   metadata-only line; it rides along on the next `INCIDENTS.md` commit — do not
-   churn a second commit for it.)
-2. Bump `PENDING.json.runbook_rev` to that commit's sha; keep `step_reached` = `X`.
-3. **Regenerate `NEXT.sh` from `step_reached` against the PATCHED runbook**
+1. Bump `PENDING.json.runbook_rev` to that commit's sha; keep `step_reached` = `X`.
+2. **Regenerate `NEXT.sh` from `step_reached` against the PATCHED runbook**
    (steps X…end — X+1…end never ran). This is NOT replaying one step: the bumped
    `runbook_rev` is exactly the staleness trigger — runbook changed ⇒ prior
    `NEXT.sh` is stale ⇒ regenerate.
-4. Re-present via **STEP 2's [GATE] + hand-back** (the regenerated `NEXT.sh`;
+3. Re-present via **STEP 2's [GATE] + hand-back** (the regenerated `NEXT.sh`;
    `PENDING.json` keeps `base/target/delta`, `step_reached` back to
    `awaiting-user`).
 

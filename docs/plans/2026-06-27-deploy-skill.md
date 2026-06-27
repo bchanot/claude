@@ -36,7 +36,7 @@
 
 **§8 item 1 — tag push:** annotated tag `git tag -a deploy/<YYYY-MM-DD> <target_sha> -m "<summary>"` laid in MARK (success). **Project knob `# @config push_deploy_tags=true|false`** in the `PROCEDURE.md` header (default `false`): when true, MARK runs `git push origin deploy/<date>` — always **best-effort/non-fatal** (the push never blocks the deploy; tag is a bookmark, STATE.json is the oracle). Same-day re-deploy → suffix `-N`.
 
-**§8 item 2 — INCIDENTS ID/name:** `.claude/deploy/INCIDENTS.md`, append-only, entries `DEP-NNN` (next = `grep '^## DEP-' | max+1`), fields mirror `blockers.md`: date, step, error (verbatim), root cause, fix, → resolving commit sha. Name confirmed `INCIDENTS.md` (not `ERRORS-LEARNED.md`).
+**§8 item 2 — INCIDENTS ID/name:** `.claude/deploy/INCIDENTS.md`, append-only, entries `DEP-NNN` (next = `grep '^## DEP-' | max+1`), fields mirror `blockers.md`: date, step, error (verbatim), root cause, fix. Resolution derivable from git: the commit that adds the entry IS the fix (atomic patch+incident); recover via `git log -S 'DEP-NNN' -- .claude/deploy/INCIDENTS.md`. Name confirmed `INCIDENTS.md` (not `ERRORS-LEARNED.md`).
 
 **§8 item 3 — `@delta:` grammar:** directives on a runbook step's preceding comment line, patterns matched against the delta file list. `glob=` carries TWO required semantics (a single "checklist-only" reading was REJECTED — it breaks the game example, where step 3 runs `psql -f 0033` THEN `psql -f 0034` = one command PER file):
 - `# @delta:<name> glob=<pat>:each` — **repeat**: emit the step's command once per delta file matching `<pat>` (e.g. `psql -f <each>`).
@@ -269,13 +269,13 @@ curl -fsS https://$DEPLOY_HOST/health                                           
 # Deploy incidents (append-only) — DEP-NNN
 
 <!-- One entry per incident. Next ID = grep '^## DEP-' | max+1. Mirrors blockers.md. -->
+<!-- Resolution = the commit that adds this entry (atomic patch+incident). Recover: git log -S 'DEP-NNN' -- .claude/deploy/INCIDENTS.md -->
 <!-- ## DEP-NNN — <step> failed
      - date: YYYY-MM-DD
      - step: <runbook step + label>
      - error: `<verbatim error>`
      - cause: <root cause>
-     - fix: <what changed in PROCEDURE.md>
-     - resolved-by: <commit sha> -->
+     - fix: <what changed in PROCEDURE.md> -->
 ```
 
 - [ ] **Step 3: Record the JSON schemas** (no parsing in shell — Claude reads them in skill steps)
@@ -332,7 +332,7 @@ git commit -m "feat(deploy): runbook/ledger templates + bridge schemas + gitigno
   - "Deployed OK" → STEP 5.
   - "Failed at step X: <err>" → STEP 4.
   - "Not yet" → re-state pending, stop.
-- [ ] **STEP 4 — LEARN + [GATE] + ATOMIC COMMIT.** Diagnose. Draft: (a) in-place `PROCEDURE.md` patch to step X; (b) `INCIDENTS.md` append `DEP-NNN` (error verbatim). **[GATE]** `all / pick / edit / skip-all` (significant edit). On approve: write both, then **one atomic** `bash lib/deploy-commit.sh commit "docs(deploy): patch <step> — recovered from <err>" .claude/deploy/PROCEDURE.md .claude/deploy/INCIDENTS.md`. Set `resolved-by` to the returned sha. Then bump `PENDING.json.runbook_rev` to the new `PROCEDURE.md` commit sha (keep `step_reached` at X). **Resume = REGENERATE `NEXT.sh` from `step_reached` against the PATCHED runbook** (steps X…end — X+1…end never ran), NOT replay a single step. The bumped `runbook_rev` is exactly the trigger: runbook changed ⇒ prior `NEXT.sh` is stale ⇒ regenerate. Re-present via STEP 2's hand-back.
+- [ ] **STEP 4 — LEARN + [GATE] + ATOMIC COMMIT.** Diagnose. Draft: (a) in-place `PROCEDURE.md` patch to step X; (b) `INCIDENTS.md` append `DEP-NNN` (error verbatim). **[GATE]** `all / pick / edit / skip-all` (significant edit). On approve: write both, then **one atomic** `bash lib/deploy-commit.sh commit "docs(deploy): patch <step> — recovered from <err>" .claude/deploy/PROCEDURE.md .claude/deploy/INCIDENTS.md`. The commit that adds `DEP-NNN` IS its resolution (derive via git later). Then bump `PENDING.json.runbook_rev` to the new `PROCEDURE.md` commit sha (keep `step_reached` at X). **Resume = REGENERATE `NEXT.sh` from `step_reached` against the PATCHED runbook** (steps X…end — X+1…end never ran), NOT replay a single step. The bumped `runbook_rev` is exactly the trigger: runbook changed ⇒ prior `NEXT.sh` is stale ⇒ regenerate. Re-present via STEP 2's hand-back.
 - [ ] **STEP 5 — MARK (success).** Write `STATE.json` (`deployed_sha = PENDING.target_sha`, outcome ok, tag). `git tag -a deploy/<date> <target> -m "<summary>"`; **if `@config push_deploy_tags=true`** then `git push origin deploy/<date>` (best-effort, non-fatal). `bash lib/deploy-commit.sh commit "chore(deploy): mark <date> @ <short>" .claude/deploy/STATE.json`. **Delete `PENDING.json`** (+ `NEXT.sh`). Report.
 
 - [ ] **Verification scenarios** (dry-run walkthroughs, no prod):

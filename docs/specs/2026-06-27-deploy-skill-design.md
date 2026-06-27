@@ -34,7 +34,7 @@ Treated as settled corollaries: user executes out-of-band; a **new** `lib/deploy
 .claude/deploy/
   PROCEDURE.md   reference runbook — fixed shell + `# @delta:` annotated steps   (edited IN-PLACE)
   INCIDENTS.md   DEP-NNN incident ledger: date, step, error verbatim, root cause,
-                 fix, -> resolving commit hash                                    (APPEND-ONLY)
+                 fix (APPEND-ONLY; resolution = introducing commit, derive via git)
   STATE          deployed SHA + timestamp + outcome — the diff oracle             (overwritten each deploy)
   NEXT.sh        instantiated runbook — EPHEMERAL, not committed ; run STEP-BY-STEP
                  (checklist, manual # VERIFY: gates) — never `bash NEXT.sh` unattended
