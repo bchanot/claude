@@ -59,6 +59,7 @@ rules:
 | LRN-058 | 2026-06-27 | Same bug-class ≠ same fix — verify the twin shares the fix's PRECONDITION before replicating | porting a fix to a "same bug" twin |
 | LRN-059 | 2026-06-27 | Step-number SWAP flips meanings (sweep refs) ≠ letter-suffix insertion (shifts nothing) | any pipeline renumber |
 | LRN-060 | 2026-06-27 | Fail-closed guard proven by what it REFUSES (loudly); pass dynamic lists as argv not separator-string | automated scoped-commit / destructive guards |
+| LRN-061 | 2026-06-27 | Runtime net for an unwired skill → check the wiring first (deterministic gap = fix structurally; non-det aléa = net OK, cf BDR-033) | "build a hook/watcher to catch when X isn't done" |
 
 ---
 
@@ -733,3 +734,11 @@ rules:
 - **Context**: doc-commit.sh ([[BDR-036]]), T1a/b/c (refuse paths) + T7 (argv space-safe), all real-exec.
 - **Future application**: any automated scoped-commit / destructive guard — test the REFUSAL path + refuse loud; pass lists as argv. Same family as [[LRN-046]] (deterministic oracle for a destructive guard).
 - **Reference**: [[BDR-036]], [[LRN-051]] (changed-paths filter), [[LRN-046]].
+
+## LRN-061 — Runtime net proposed for an unwired skill → check the wiring first
+
+- **Date**: 2026-06-27
+- **Pattern**: Tempted to build a runtime guard/hook/monitor that watches for a bad OUTCOME (memory written but uncommitted)? First ask if the outcome is a MISSING WIRING, not a behavioral lapse. A per-turn Stop-hook was proposed to catch "dirty memory" — but the cause was `/capitalize`+`/close` not calling the commit include (they predate it). Fix for an unwired skill = WIRE it (deterministic, zero-noise, at source); a monitor over a wiring hole pays RECURRING cost to detect a ONE-TIME omission, and a frequent ignored nag is itself a risk ([[LRN-047]]). **NOT "runtime nets are bad"** — the split is by DETERMINISM: a MISSING WIRING is deterministic → repair structurally; a genuinely NON-DETERMINISTIC aléa → a runtime net IS the right tool. Good counter-example: [[BDR-033]] anim-lib nudge — "will the user want motion?" is unknowable statically → a stateless 1-line suggestion is correct. Same determinism test as [[LRN-046]]/[[LRN-049]], applied to the build-or-not question.
+- **Context**: deferred "v2 capitalize hook" ([[BDR-037]]). Read-phase killed it before code: git proved skills predate the include (oubli), memory already committed by hand 35×, orphans self-heal via `commit_memory`. The hook would've been disabled within an hour (frequent ignored nag).
+- **Future application**: any "build a hook/watcher/lint to catch when X isn't done" — first grep whether X is even WIRED at its source. Deterministic/structural gap (missing include/call) → fix structurally; reserve runtime nets for non-deterministic lapses, never to complete a rollout. Classify by determinism BEFORE building.
+- **Reference**: [[BDR-037]], [[BDR-034]] (rollout this completes), [[BDR-033]] (the GOOD net — contrast). Conditions [[LRN-047]], [[LRN-049]], [[LRN-054]].

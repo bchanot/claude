@@ -47,6 +47,7 @@ rules:
 | BDR-034 | 2026-06-26 | Coupled-capitalize invariant v1 — memory commit auto per dev flow (Frame 2) | accepted |
 | BDR-035 | 2026-06-26 | Analyze-before-plan invariant v1 — read-before bookend of coupled-capitalize | accepted |
 | BDR-036 | 2026-06-27 | Doc-sync coupled invariant — commit docs doc-syncer patches (twin of BDR-034, BUILT not reordered) | accepted |
+| BDR-037 | 2026-06-27 | v2 capitalize Stop-hook rejected → wire /capitalize+/close to the include | accepted |
 
 ---
 
@@ -582,3 +583,15 @@ rules:
   - Static-glob scope (`*.md`/`docs/`) — over-reach onto a user-edited doc / `MIGRATION.md`; chose touched-files argv (in-thread list already in hand).
   - Silent-filter the forbidden path — masks an upstream BDR-022 bug; guard must REFUSE-ALL loudly ([[LRN-060]]).
 - **Reference**: commits `ae1f218` (helper+tests) · `4a54a65` (include) · `fb1f359` (doc-syncer PATCHED_FILES) · `636b491` (ship-feature reorder) · `e81f629` (init-project reorder) · `1b01b95` (3 inline flows). See [[BDR-034]], [[LRN-058]], [[LRN-059]], [[LRN-060]], [[BLK-010]], [[BLK-011]], [[EVAL-008]].
+
+## BDR-037 — v2 capitalize Stop-hook REJECTED → wire /capitalize+/close to the include
+
+- **Date**: 2026-06-27
+- **Status**: accepted
+- **Decision**: Deferred "v2 hook" ([[BDR-033]]-style non-blocking stateless Stop-hook nagging dirty `.claude/memory`) REJECTED — no code written. No Claude Code event supports an end-of-session nag: `Stop` fires PER-TURN (self-defeating — would nag during /capitalize's own write→commit window, [[LRN-047]]); `SessionEnd` is debug-log-only (can't nag) + would bypass the content gate (half-written entries). Real gap ≠ forgetting → CÂBLAGE manquant: `/capitalize` + `/close` never call `lib/capitalize-commit.md`. Redirect: wire the include into `/capitalize` STEP 5B (`/close` = thin alias, follows free), same one-liner as the 6 dev flows. Content gate (STEP 3) first → commit of approved entries automated ([[BDR-034]] contract). Deterministic, zero-noise, at source.
+- **Why**: 3 git proofs — (1) memory already committed by hand 35× as pure `chore(memory)` (zero code mixed); (2) orphans self-heal — `commit_memory` stages whole `.claude/memory` dir, next flow sweeps up; (3) cost on common path (per-turn noise / non-gated commit), benefit marginal (residual self-healing) → a hook polices a discipline already in evidence. OUBLI not choice: include + helper born 2026-06-26; `/capitalize` last edit 2026-06-19 (created 2026-06-09), `/close` 2026-04-23 — skills predate the machinery 7-60d; wiring commits (`2763678`/`e8eff7e`/`df60df6`) touched neither. No control removed: the commit was never gated, just done by hand in the exact `chore(memory): <IDs> — <ctx>` style the include reproduces.
+- **Alternatives rejected**:
+  - (a) Stop per-turn memory-only wrapper — fires during the very flush it nags about → [[LRN-047]] self-defeat (frequent ignored nag = risk, not annoyance).
+  - (b) SessionEnd auto-commit (FAIT) — bypasses STEP 3 content gate, embarks half-written entries, can't report actionably.
+  - (c) abandon with no redirect — leaves the real wiring gap open; fix for an unwired skill = wire it.
+- **Reference**: read-phase analysis (no hook code ever written); wiring commit (capitalize STEP 5B) follows. Completes [[BDR-034]] rollout; applies [[BDR-033]] doctrine to REJECT (not all nudges — the determinism split is [[LRN-061]]). See [[LRN-061]], [[LRN-047]], [[LRN-049]], [[LRN-054]].
