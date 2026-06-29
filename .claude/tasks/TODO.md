@@ -262,7 +262,7 @@ reorder + CREATE doc-commit.sh/.md (mirror memory-commit, 4 deltas). Surface-don
 - [x] Task 6b — wire doc-commit into feat/bugfix/hotfix DOC SYNC — 1b01b95. commit-change exempt (no DOC SYNC); hotfix wired (include no-ops on empty).
 - [x] Task 7 — close: `run-doc-behavioral.md` + shellcheck clean + 28/28 + CHANGELOG + BDR-036 / LRN-058-060 / EVAL-008. surface-replaces-gate + partial-init + scope-expansion engraved honestly.
 - [x] RESOLVED 2026-06-29 — [[BLK-010]] closed by `gitflow_init` root commit (init-project STEP 5f): scaffold/README get a deterministic commit owner + HEAD born before the worktree step. Verified (mechanism + STEP 5f wiring + T2 test); blockers.md index+body updated.
-- [ ] flagged separate — [[BLK-011]] GSD ROADMAP.md post-FINISH (now STEP 12 after Task 5 renumber; BLK-011 record itself left at STEP 13 — append-only)
+- [x] RESOLVED 2026-06-29 — [[BLK-011]] closed by REMOVAL: init-project STEP 12 (speculative gsd auto-bootstrap) deleted → orphan never created. Negative diff, not commit-plumbing ([[LRN-072]]). See chantier below.
 - [x] DONE 2026-06-29 — doc-sync MINOR gate strengthened: ① shape-oracle [[BDR-040]] + ② masked-commit fix [[LRN-071]] (③ branch-guard deferred). See chantier below.
 
 ## 2026-06-29 — gitflow universal model + 6-repo migration (DONE)
@@ -285,5 +285,15 @@ the literal one (blocking gate on MINOR) contradicts engraved [[BDR-036]]. Scope
 - [x] ① MINOR-shape oracle — `lib/doc-shape.sh` ([[BDR-040]]) + `run-doc-shape.sh` 19/19 (boundary + env-override). Wired doc-syncer STEP A4 (escalate whole set → existing SIGNIFICANT gate; no=revert all, select=keep subset) + `doc-commit.md` ACKNOWLEDGMENTS coherence + behavioral Scenario C/D
 - [x] shellcheck clean (doc-commit.sh, doc-shape.sh, both test harnesses); coherence ref-sweep clean
 - [x] Capitalize — BDR-040 + LRN-071 + CHANGELOG (Added/Fixed) + journal 2026-06-29 (cont.)
-- [ ] FINISH — merge feature/minor-gate-strengthening → develop (awaiting explicit human signal)
+- [x] FINISH — merged feature/minor-gate-strengthening → develop (`0f0bd7f`) on explicit signal
 - [~] ③ branch-guard in doc-commit DEFERRED — duplicates protected-base predicate 3rd time (lib + hook + here); all migrated repos have the hook. Reconsider only for repos outside `gitflow init`
+
+## 2026-06-29 — BLK-011 GSD ROADMAP post-FINISH [branch bugfix/blk-011-gsd-roadmap]
+User reframed: don't plumb a commit for the stranded ROADMAP — ask if gsd belongs at init at all.
+Read refuted both option-premises (gsd ≫ roadmap; TODO ≠ gsd ROADMAP) but conclusion A held for a
+stronger reason: speculative auto-bootstrap of an unused engine at creation is bad per se ([[LRN-072]]).
+- [x] Resolve by REMOVAL — deleted init-project STEP 12 (negative diff −26/+13), not a commit helper
+- [x] Ref-coherence sweep ("test" for a removal) — header 12→11-step, 10c note, 4 USAGE refs; zero dangling STEP-12 refs repo-wide
+- [x] Scope guardrails — deliberate gsd use KEPT (onboarder PHASE 6, plugin-advisor, status-reporter)
+- [x] Capitalize — [[BLK-011]] resolved (true reason + premise trace) + [[LRN-072]] + CHANGELOG Removed + journal 2026-06-29 (cont. 2)
+- [ ] FINISH — merge bugfix/blk-011-gsd-roadmap → develop (awaiting explicit human signal)

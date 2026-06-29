@@ -229,4 +229,9 @@ rules:
 - Scope tranché ①+②, ② first, never B, ③ deferred. Built test-first (Iron Law RED→GREEN, RED shown before each GREEN).
 - ② masked-commit fix ([[LRN-071]]) — 3rd occurrence of the swallowed-commit pattern ([[LRN-066]], [[LRN-068]]/[[BLK-012]]). `doc-commit.sh` exit 5 fail-loud. RED T8 proved the masking (rc 0 + stale hash + false "committed"), GREEN 32/32.
 - ① MINOR-shape oracle ([[BDR-040]], `lib/doc-shape.sh`) — 19/19 + behavioral Scenario D. Engraved limit: structural floor, NOT semantic (reduction of RISK-1's gross cases, not elimination).
-- Branch `feature/minor-gate-strengthening`; committed code + memory; no finish yet (awaiting signal).
+- Branch `feature/minor-gate-strengthening`; committed code + memory; FINISHED → develop (`0f0bd7f`) on explicit signal. Held the merge until the explicit go — the "avis-en-question" wasn't it.
+
+## 2026-06-29 (cont. 2) — BLK-011 resolved by REMOVAL (init-project GSD bootstrap)
+- User challenge reframed the chantier: don't plumb a commit for the stranded ROADMAP — ask if gsd belongs at init AT ALL. Read REFUTED both my option-premises (gsd ≫ roadmap; TODO ≠ gsd ROADMAP) but conclusion A (remove STEP 12) held for a STRONGER reason: speculative auto-bootstrap of an unused multi-session engine at creation is bad per se. Best fix = NEGATIVE diff ([[LRN-072]]).
+- Removed init-project STEP 12 (+ header 12→11-step, 10c note, 4 USAGE coherence fixes). Coherence sweep = zero dangling STEP-12 refs (the "test" for a removal). Deliberate gsd use KEPT (onboarder PHASE 6, plugin-advisor, status-reporter). [[BLK-011]] → resolved.
+- Branch `bugfix/blk-011-gsd-roadmap`; no finish yet (awaiting signal).
