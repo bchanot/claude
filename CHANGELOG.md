@@ -38,6 +38,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 - Default model / effort settings updated
 
 ### Removed
+- `/init-project`: STEP 12 (speculative GSD v2 auto-bootstrap at project creation) removed — it ran `gsd init` AFTER FINISH, creating `ROADMAP.md` + `.gsd/` stranded outside the merge/PR (BLK-011), to bootstrap a multi-session engine that is opt-in and rarely used. Resolved by removal, not by plumbing a commit: GSD stays initializable on-demand (`/onboard add gsd`, or `gsd init` in a terminal), `/status` still reads `.gsd/`, and plugin-advisor still recommends it for multi-session work. init-project is now an 11-step pipeline
 - `disable-model-invocation` frontmatter removed repo-wide (aligns skills with CLAUDE.md routing)
 - Caveman plugin always-on integration purged — plugin disabled + uninstalled; SessionStart/UserPromptSubmit hooks, standalone hook files, `install-plugins.sh` STEP 5.5, `update-all.sh` refresh step, `plugins.lock.json` entry, `doctor.sh` checks, and docs removed. On a subscription plan its ~75% output-token compression has no cost benefit, and the always-on hooks added friction on validation gates + client deliverables. The unrelated memory-registry terse-format convention is kept.
 
