@@ -261,6 +261,18 @@ reorder + CREATE doc-commit.sh/.md (mirror memory-commit, 4 deltas). Surface-don
 - [x] Task 6 — ref-sweep — clean (no old headers; live refs fixed in Task 4/5; historicals left; USAGE:256 non-ordering). Caught inline-flow gap → Task 6b.
 - [x] Task 6b — wire doc-commit into feat/bugfix/hotfix DOC SYNC — 1b01b95. commit-change exempt (no DOC SYNC); hotfix wired (include no-ops on empty).
 - [x] Task 7 — close: `run-doc-behavioral.md` + shellcheck clean + 28/28 + CHANGELOG + BDR-036 / LRN-058-060 / EVAL-008. surface-replaces-gate + partial-init + scope-expansion engraved honestly.
-- [ ] flagged separate — [[BLK-010]] scaffold/bootstrap commit gap (init-project, unborn HEAD + worktree)
+- [x] RESOLVED 2026-06-29 — [[BLK-010]] closed by `gitflow_init` root commit (init-project STEP 5f): scaffold/README get a deterministic commit owner + HEAD born before the worktree step. Verified (mechanism + STEP 5f wiring + T2 test); blockers.md index+body updated.
 - [ ] flagged separate — [[BLK-011]] GSD ROADMAP.md post-FINISH (now STEP 12 after Task 5 renumber; BLK-011 record itself left at STEP 13 — append-only)
 - [ ] flagged separate — strengthen doc-sync MINOR gate (own doc-syncer chantier)
+
+## 2026-06-29 — gitflow universal model + 6-repo migration (DONE)
+Goal: universal gitflow across all `bchanot/*` Gitea repos. Lib built across prior sessions; migrated + hardened + dogfooded this session.
+- [x] Lib hardened at ROOT — `gitflow_init` socle-commit made FATAL + identity precheck + `migrate_local` identity guard (BLK-012 → LRN-068); 57/57 green, abort-zero-mutation proven on identity-less repo
+- [x] `lib/gitflow-migrate.sh` — probe (rights, not just identity) / local / remote, reversible→irreversible ordering, delete-master LAST
+- [x] Migrated 6 repos (faunosteo, config, bchanot-cv, zenquality, game, claude): master→main, develop, Option-1 protection, master deleted — each delete behind eyeball+GO, ZERO loss, no force/`--no-verify`, settings intact
+- [x] claude SELF-APPLIED — own committed lib migrated it; chantier landed C1 feat `167ea96` + C2 memory `1254643` + socle `620071b`; hook now governs claude
+- [x] gstack submodule dirty (BLK-008 Playwright bump) excluded via `submodule.ignore=dirty` (LRN-070), NOT reset
+- [x] Deleted merged branches: `feat/deploy-skill` (local+remote) + `cleanup/caveman-always-on` (remote)
+- [x] Dogfood PROVEN: hook whitelists `.claude/**` on main + Option-1 lets owner push (commit `1620e5b`)
+- [x] Capitalize: BDR-039 (Option-1 protection), LRN-068/069/070, BLK-010 closed + BLK-012, journal 2026-06-29 — committed + pushed on main
+- [ ] follow-up (optional) — `submodule.gstack.ignore=dirty` into committed `.gitmodules` (share across clones); zenquality `cleanup/post-smtp-fix` rename `<type>/<name>` or finish+delete
