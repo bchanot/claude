@@ -296,4 +296,13 @@ stronger reason: speculative auto-bootstrap of an unused engine at creation is b
 - [x] Ref-coherence sweep ("test" for a removal) — header 12→11-step, 10c note, 4 USAGE refs; zero dangling STEP-12 refs repo-wide
 - [x] Scope guardrails — deliberate gsd use KEPT (onboarder PHASE 6, plugin-advisor, status-reporter)
 - [x] Capitalize — [[BLK-011]] resolved (true reason + premise trace) + [[LRN-072]] + CHANGELOG Removed + journal 2026-06-29 (cont. 2)
-- [ ] FINISH — merge bugfix/blk-011-gsd-roadmap → develop (awaiting explicit human signal)
+- [x] FINISH — merged bugfix/blk-011-gsd-roadmap → develop (`ce4391a`); develop pushed to origin (6 commits, SSH)
+
+## 2026-06-29 — prune-memory hardening (RED-7/8 + index backfill) [branch bugfix/prune-memory-hardening]
+LAST of 3 chantiers. Read-first cartography confirmed RED-7/8 + measured 34-row index drift.
+- [x] RED-7 (example-priming) — fictionalized STEP-2 example to 9xx ids (live ids primed a wrong merge of complementary LRN-014/016); DETERMINISTIC test (run-deterministic.sh) per [[LRN-046]]. Caught its own ugrep false-green → /usr/bin/grep ([[LRN-074]]). [[LRN-073]]
+- [x] RED-8 (added-negation inversion) — consciously ACCEPTED as documented limit in BACKLOG ([[LRN-047]]); no fragile guard built
+- [x] Index backfill — 34 missing rows (decisions 11, learnings 21, blockers 2) composed + ID-sorted insert; drift 34→0, STEP-4 verify OK; moved pre-existing out-of-order LRN-021
+- [x] Capitalize — [[LRN-073]] + [[LRN-074]] + [[EVAL-010]] + journal 2026-06-29 (cont. 3)
+- [ ] FINISH — merge bugfix/prune-memory-hardening → develop (awaiting explicit human signal)
+- [ ] PUSH — develop → origin after the 3 chantiers land (awaiting explicit human signal)

@@ -112,21 +112,23 @@ Print one block per registry. Example:
 
 ```
 PRUNE PLAN — decisions.md (N entries → M after if approved)
+(IDs below are FICTIONAL — 9xx range, never a live registry entry — so this
+ worked example cannot PRIME a real prune. Apply the same shapes to real IDs.)
 
 [A. Obsolete — mark superseded]
-  BDR-003 — Gitignore wildcard pattern — status: proposed since 2026-03-12
+  BDR-901 — example proposed decision — status: proposed since <90+ days ago>
             → mark: status: deprecated (no follow-up after 90 days)
-  BDR-011 — Client handover 4-chapter — body says superseded by BDR-013
-            → fix Index: status = "superseded by BDR-013"
+  BDR-902 — example decision — body says superseded by BDR-903
+            → fix Index: status = "superseded by BDR-903"
 
 [B. Similar — merge]
-  LRN-014 + LRN-016 — both pandoc rendering quirks
-            → propose: merge into NEW LRN-017 ("Pandoc rendering quirks")
-              with both bodies appended + caveman pass; sources marked
-              status: superseded by LRN-017
+  LRN-901 + LRN-902 — SAME concept (two notes on the identical bug)
+            → propose: merge into NEW LRN-904 with both bodies appended +
+              caveman pass; sources marked status: superseded by LRN-904
+            (merge ONLY same-concept entries — complementary/different-angle stays split)
 
 [C. Bloated — inline caveman rewrite]
-  BDR-011 — body 612 words, filler density 7.2% → ~380 expected (-38%)
+  BDR-902 — body 612 words, filler density 7.2% → ~380 expected (-38%)
 
 [D. Index drift]
   (none)
