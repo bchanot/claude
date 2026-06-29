@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Deterministic RED suite for /prune-memory — RED-1, RED-2, RED-5, RED-6.
+# Deterministic RED suite for /prune-memory — RED-1, RED-2, RED-5, RED-6, RED-7.
 # Each MUST be red on the current (v1) skill. Pure mechanical oracles,
 # no LLM. Faithful: RED-2/RED-6 execute the REAL bash blocks extracted
 # from SKILL.md (no copy that could drift).
@@ -81,6 +81,21 @@ if printf '%s\n' "$out" | grep -qE '^ORPHAN INDEX: BDR-009'; then
   red 6 "verify emits FALSE 'ORPHAN INDEX: BDR-009' (body exists; trailing-space bug)"
 else
   green 6 "verify does not false-orphan the title-less heading"
+fi
+
+# ---- RED-7: STEP 2 plan example must use FICTIONAL ids, never live registry ids
+# Live ids in the worked example PRIME the skill to act on those exact entries on
+# real data (observed 2026-06-25: it merged the example's LRN-014 + LRN-016 on the
+# live learnings.md, though they are complementary, not overlapping). Fictional ids
+# (9xx) cannot match a real registry. Reads SKILL.md only — sandbox-safe.
+# /usr/bin/grep (not the system grep, which may be ugrep — a leading-dash pattern
+# like `-9..` is then misparsed as an option, erroring to an empty + FALSE GREEN).
+ex7="$(awk '/^PRUNE PLAN/{f=1} f{print} /^Approve per category/{f=0; exit}' "$SKILL")"
+bad7="$(printf '%s\n' "$ex7" | /usr/bin/grep -oE '(BDR|LRN|BLK|EVAL)-[0-9]+' | /usr/bin/grep -vE '9[0-9][0-9]$' | sort -u | tr '\n' ' ')"
+if [ -n "${bad7// /}" ]; then
+  red 7 "STEP 2 example uses LIVE-range ids (prime real-data ops): ${bad7% }"
+else
+  green 7 "STEP 2 example uses only fictional (9xx) ids"
 fi
 
 echo "----"
