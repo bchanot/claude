@@ -263,7 +263,7 @@ reorder + CREATE doc-commit.sh/.md (mirror memory-commit, 4 deltas). Surface-don
 - [x] Task 7 — close: `run-doc-behavioral.md` + shellcheck clean + 28/28 + CHANGELOG + BDR-036 / LRN-058-060 / EVAL-008. surface-replaces-gate + partial-init + scope-expansion engraved honestly.
 - [x] RESOLVED 2026-06-29 — [[BLK-010]] closed by `gitflow_init` root commit (init-project STEP 5f): scaffold/README get a deterministic commit owner + HEAD born before the worktree step. Verified (mechanism + STEP 5f wiring + T2 test); blockers.md index+body updated.
 - [ ] flagged separate — [[BLK-011]] GSD ROADMAP.md post-FINISH (now STEP 12 after Task 5 renumber; BLK-011 record itself left at STEP 13 — append-only)
-- [ ] flagged separate — strengthen doc-sync MINOR gate (own doc-syncer chantier)
+- [x] DONE 2026-06-29 — doc-sync MINOR gate strengthened: ① shape-oracle [[BDR-040]] + ② masked-commit fix [[LRN-071]] (③ branch-guard deferred). See chantier below.
 
 ## 2026-06-29 — gitflow universal model + 6-repo migration (DONE)
 Goal: universal gitflow across all `bchanot/*` Gitea repos. Lib built across prior sessions; migrated + hardened + dogfooded this session.
@@ -276,3 +276,14 @@ Goal: universal gitflow across all `bchanot/*` Gitea repos. Lib built across pri
 - [x] Dogfood PROVEN: hook whitelists `.claude/**` on main + Option-1 lets owner push (commit `1620e5b`)
 - [x] Capitalize: BDR-039 (Option-1 protection), LRN-068/069/070, BLK-010 closed + BLK-012, journal 2026-06-29 — committed + pushed on main
 - [ ] follow-up (optional) — `submodule.gstack.ignore=dirty` into committed `.gitmodules` (share across clones); zenquality `cleanup/post-smtp-fix` rename `<type>/<name>` or finish+delete
+
+## 2026-06-29 — MINOR-gate strengthening (doc-syncer) [branch feature/minor-gate-strengthening]
+Read-first cartography refuted the literal premise: "strengthen MINOR gate" = 3 problems;
+the literal one (blocking gate on MINOR) contradicts engraved [[BDR-036]]. Scope: ①+②, not B,
+③ deferred. Built test-first (Iron Law).
+- [x] ② fix masked commit failure — `doc-commit.sh` exit 5 fail-loud ([[LRN-071]], 3rd occurrence of the swallowed-commit pattern). RED T8 proved masking, GREEN 32/32 + taxonomy (sh header/funcdoc + `doc-commit.md` rc-5 row)
+- [x] ① MINOR-shape oracle — `lib/doc-shape.sh` ([[BDR-040]]) + `run-doc-shape.sh` 19/19 (boundary + env-override). Wired doc-syncer STEP A4 (escalate whole set → existing SIGNIFICANT gate; no=revert all, select=keep subset) + `doc-commit.md` ACKNOWLEDGMENTS coherence + behavioral Scenario C/D
+- [x] shellcheck clean (doc-commit.sh, doc-shape.sh, both test harnesses); coherence ref-sweep clean
+- [x] Capitalize — BDR-040 + LRN-071 + CHANGELOG (Added/Fixed) + journal 2026-06-29 (cont.)
+- [ ] FINISH — merge feature/minor-gate-strengthening → develop (awaiting explicit human signal)
+- [~] ③ branch-guard in doc-commit DEFERRED — duplicates protected-base predicate 3rd time (lib + hook + here); all migrated repos have the hook. Reconsider only for repos outside `gitflow init`
