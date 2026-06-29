@@ -49,6 +49,7 @@ rules:
 | BDR-036 | 2026-06-27 | Doc-sync coupled invariant — commit docs doc-syncer patches (twin of BDR-034, BUILT not reordered) | accepted |
 | BDR-037 | 2026-06-27 | v2 capitalize Stop-hook rejected → wire /capitalize+/close to the include | accepted |
 | BDR-038 | 2026-06-27 | deploy skill: per-project learning runbook, two-moment cold-resume | accepted |
+| BDR-039 | 2026-06-29 | Gitea branch protection = Option-1 owner-pushable, not require-PR | accepted |
 
 ---
 
@@ -604,3 +605,11 @@ rules:
 - **why**: deployment memory that LEARNS (runbook patched in place per failure) beats a frozen runbook; disk-bridge so a resume survives session loss.
 - **alternatives**: tag-oracle (rejected — lightweight-tag date unreliable, rebase-fragile, [[LRN-063]]); separate append-only ERRORS log (rejected — git history of `PROCEDURE.md`+`INCIDENTS.md` suffices, no `resolved-by` field); `NEXT.sh`-as-bridge (rejected — ephemeral ≠ persistent → separate `PENDING.json`); reuse doc/memory-commit (rejected — neither can commit `.claude/deploy/`, [[LRN-064]]).
 - **reference**: `skills/deploy/SKILL.md`, `lib/deploy-commit.sh`, `templates/deploy/`; branch `feat/deploy-skill` (b210e8d..79741e3, kept un-merged); spec `docs/specs/2026-06-27-deploy-skill-design.md`, plan `docs/plans/2026-06-27-deploy-skill.md`.
+
+## BDR-039 — Gitea branch protection = Option-1 owner-pushable, not require-PR
+- **date**: 2026-06-29
+- **status**: accepted
+- **decision**: Protect `main` + `develop` on every gitflow-migrated Gitea repo with **Option 1 (owner-pushable)**: `enable_push=true` + `enable_push_whitelist=true` + `push_whitelist_usernames=[owner]`. Blocks force-push, branch deletion, and pushes by non-owners — while letting the owner push their LOCAL gitflow merges directly. NOT require-PR / required-review.
+- **why**: gitflow integrates by **local directed merges** — `gitflow finish` runs `git merge --no-ff` on the owner's machine then pushes the merge commit. require-PR would REJECT those pushes: every feature/bugfix/release merge would need a manual PR, and the **hotfix fan-out** (hotfix → main + develop + each open `release/*`) becomes 3+ manual PRs per hotfix. For a solo-owner Gitea, required reviews add zero review value, only friction. Owner-pushable keeps the protection's real teeth (no force-push, no deletion, no non-owner push) without breaking the local-merge workflow. Protection is a BACKSTOP — the per-repo pre-commit hook + the "finish only on an explicit human signal" rule are the primary controls.
+- **alternatives**: require-PR + required reviews (rejected — breaks `gitflow finish`'s local merges; the 3-way hotfix fan-out becomes manual PRs; no review value for a solo owner, pure friction); no protection (rejected — leaves force-push + branch deletion + accidental non-owner push open; it is the deterministic backstop the advisory rules can't guarantee); protect `main` only (rejected — `develop` is equally a protected base in the model, needs the same force-push/deletion guard).
+- **reference**: `lib/gitflow-migrate.sh` `_protect()` (POST `/repos/{o}/{r}/branch_protections`, owner whitelist); applied to all 6 repos 2026-06-29 (journal). Hook backstop in `lib/gitflow.sh` (pre-commit); CLAUDE.md "Version control — gitflow (universal)". Pairs with [[LRN-069]] (the `git push` ASK gate at the tool-call layer).
