@@ -16,7 +16,8 @@
 #   doc-commit.sh pending <file>...            # exit 0 if any passed file has changes, 1 if clean
 #   doc-commit.sh commit "<message>" <file>... # surgical commit
 #
-# Exit codes (commit): 0 ok/no-op · 2 usage · 3 unsafe git state · 4 scope violation.
+# Exit codes (commit): 0 ok/no-op · 2 usage · 3 unsafe git state · 4 scope violation ·
+#   5 commit rejected (git commit exited non-zero — hook / protected branch / signing).
 # Output contract: diagnostics → stderr; on a real commit the short hash of the doc
 # commit is the ONLY thing on stdout (empty on no-op/abort), so callers can capture
 # it: doc_hash=$(doc-commit.sh commit "msg" README.md USAGE.md).
@@ -78,7 +79,8 @@ docs_pending() {
 }
 
 # Surgical commit of the passed doc paths only. Returns 0 (ok/no-op), 3 (unsafe),
-# 4 (scope violation). On a real commit, prints the doc-commit short hash to stdout.
+# 4 (scope violation), 5 (commit rejected by git). On a real commit, prints the
+# doc-commit short hash to stdout.
 commit_docs() {
   local msg="${1:?commit message required}"
   shift
@@ -118,7 +120,22 @@ commit_docs() {
     echo "doc-commit: only ignored/no-op changes — no-op" >&2
     return 0
   fi
-  git commit -q -m "$msg" -- "${changed[@]}"
+  # FAIL-LOUD on the commit itself. With `set -uo pipefail` (no -e), a rejected
+  # commit (pre-commit hook on a protected branch, signing failure, …) would NOT
+  # abort: the printf below would falsely claim "committed" and rev-parse would
+  # emit the PREVIOUS HEAD's hash with exit 0 — a silent masked failure. The
+  # script is fail-closed+loud on scope (exit 4); it must be the same on its own
+  # commit. Reject → loud, NO hash on stdout, exit 5 (distinct from rc 3 "could
+  # not start": rc 5 = "tried, git refused").
+  if ! git commit -q -m "$msg" -- "${changed[@]}"; then
+    {
+      echo "doc-commit: COMMIT REJECTED — git commit exited non-zero" \
+        "(pre-commit hook? protected branch? signing?)."
+      echo "doc-commit: NOTHING committed, working tree left as-is," \
+        "NO hash emitted — investigate before retry."
+    } >&2
+    return 5
+  fi
   printf 'doc-commit: committed %d file(s): %s\n' "${#changed[@]}" "${changed[*]}" >&2
   git rev-parse --short HEAD
 }

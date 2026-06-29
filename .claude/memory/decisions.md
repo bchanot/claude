@@ -50,6 +50,7 @@ rules:
 | BDR-037 | 2026-06-27 | v2 capitalize Stop-hook rejected → wire /capitalize+/close to the include | accepted |
 | BDR-038 | 2026-06-27 | deploy skill: per-project learning runbook, two-moment cold-resume | accepted |
 | BDR-039 | 2026-06-29 | Gitea branch protection = Option-1 owner-pushable, not require-PR | accepted |
+| BDR-040 | 2026-06-29 | doc-syncer MINOR-shape oracle: deterministic floor under LLM's MINOR call | accepted |
 
 ---
 
@@ -613,3 +614,13 @@ rules:
 - **why**: gitflow integrates by **local directed merges** — `gitflow finish` runs `git merge --no-ff` on the owner's machine then pushes the merge commit. require-PR would REJECT those pushes: every feature/bugfix/release merge would need a manual PR, and the **hotfix fan-out** (hotfix → main + develop + each open `release/*`) becomes 3+ manual PRs per hotfix. For a solo-owner Gitea, required reviews add zero review value, only friction. Owner-pushable keeps the protection's real teeth (no force-push, no deletion, no non-owner push) without breaking the local-merge workflow. Protection is a BACKSTOP — the per-repo pre-commit hook + the "finish only on an explicit human signal" rule are the primary controls.
 - **alternatives**: require-PR + required reviews (rejected — breaks `gitflow finish`'s local merges; the 3-way hotfix fan-out becomes manual PRs; no review value for a solo owner, pure friction); no protection (rejected — leaves force-push + branch deletion + accidental non-owner push open; it is the deterministic backstop the advisory rules can't guarantee); protect `main` only (rejected — `develop` is equally a protected base in the model, needs the same force-push/deletion guard).
 - **reference**: `lib/gitflow-migrate.sh` `_protect()` (POST `/repos/{o}/{r}/branch_protections`, owner whitelist); applied to all 6 repos 2026-06-29 (journal). Hook backstop in `lib/gitflow.sh` (pre-commit); CLAUDE.md "Version control — gitflow (universal)". Pairs with [[LRN-069]] (the `git push` ASK gate at the tool-call layer).
+
+## BDR-040 — doc-syncer MINOR-shape oracle: deterministic floor under LLM's MINOR call
+- **date**: 2026-06-29
+- **status**: accepted
+- **Problem**: doc-syncer AUTO MODE classifies drift NONE/MINOR/SIGNIFICANT by LLM judgment, no deterministic backstop. SIGNIFICANT mislabeled MINOR → silent auto-patch + auto-commit, skips the SIGNIFICANT gate (RISK-1). Follow-up [[BDR-036]] flagged.
+- **Decision**: `lib/doc-shape.sh` re-checks SHAPE of each MINOR patch BEFORE the silent auto-commit. Envelope (per path, `git diff HEAD`): adds ATX heading | added > DOC_SHAPE_MAX_ADDED (def 20) | removed > MAX_REMOVED (def 20) | new/untracked file | non-doc → EXCEEDS. Aggregate: ANY path exceeds → whole set escalates to the EXISTING SIGNIFICANT gate (STEP A4 `Apply? yes/no/select`; no=revert all, select=keep subset). Thresholds env-overridable.
+- **Oracle NOT a blocking gate (B rejected)**: [[BDR-036]] graved MINOR-non-gated as CONSCIOUS (visible surface replaces gate; blocking gate = friction disproportionate). Oracle does NOT gate genuine MINOR (auto-commit untouched, zero friction) — only re-routes shape-suspect patches. Tightens the DEFINITION of MINOR deterministically ([[LRN-046]] oracle > judge), adds no gate. Option B (human gate on every MINOR) REJECTED — contradicts [[BDR-036]], rejects the premise the reading refuted.
+- **ENGRAVED LIMIT — do not over-read the guarantee**: oracle catches STRUCTURAL/size significance, NOT semantic. A 3-line edit that CHANGES MEANING, no heading, small → still reads MINOR (rc 0) and auto-commits. Deterministic FLOOR under LLM judgment = REDUCTION of RISK-1's gross cases, NOT elimination. LLM owns the semantic call above the floor; the visible surface ([[BDR-036]]) stays the content backstop.
+- **Scope tranché**: ① oracle + ② [[LRN-071]] masked-commit fix built. ③ branch-guard (doc-commit refusing main/develop) DEFERRED — duplicates the protected-base predicate a 3rd time (lib + gitflow hook + here); migrated repos have the hook → ③ guards a state that shouldn't exist. Reconsider only for repos outside `gitflow init`.
+- **Build**: TDD RED→GREEN. run-doc-shape.sh 19/19 (incl. threshold boundary + env-override) + behavioral Scenario D. Wired doc-syncer STEP A4 + doc-commit.md ACKNOWLEDGMENTS coherence. shellcheck clean.

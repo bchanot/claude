@@ -59,8 +59,45 @@ echo "rc=$?"
 - The include treats rc 4 as an upstream BDR-022 anomaly to investigate — not a
   silent skip. The refusal IS the alarm.
 
+## Scenario C — fail-loud on a rejected commit (the masked-failure path)
+
+```bash
+# The gitflow pre-commit hook (or signing, or a protected branch) rejects the doc
+# commit. The helper must NOT report success: no false "committed", no stale hash.
+printf '#!/bin/sh\nexit 1\n' > "$R/.git/hooks/pre-commit"; chmod +x "$R/.git/hooks/pre-commit"
+printf '\n## another section\n' >> README.md
+out="$(bash "$HOME/.claude/lib/doc-commit.sh" commit "docs: rejected" "README.md")"
+echo "rc=$? out=[$out]"
+```
+
+### Expected (assert)
+- `rc=5` (commit rejected), `out` EMPTY (no stale hash leaked on stdout).
+- stderr is loud (`COMMIT REJECTED …`) — never a false `committed`.
+- HEAD did NOT move; the doc stays in the working tree, uncommitted. The orchestrator
+  must surface this and NOT proceed to FINISH as if docs landed (doc-commit.md rc 5 row).
+
+## Scenario D — MINOR-shape oracle escalates a SIGNIFICANT-in-disguise
+
+```bash
+# doc-syncer's LLM classified a drift MINOR, but the patch ADDS A SECTION HEADING —
+# structurally not a factual tweak. The oracle must overrule the MINOR call.
+printf '\n## Brand new feature\n\nA whole new capability.\n' >> USAGE.md   # the "MINOR" patch
+bash "$HOME/.claude/lib/doc-shape.sh" check "USAGE.md"; echo "rc=$?"
+```
+
+### Expected (assert)
+- `rc=1` (exceeds the MINOR envelope), stderr names the heading reason + `USAGE.md`.
+- doc-syncer STEP A4 routes this to the SIGNIFICANT gate (`Apply? yes/no/select`) instead
+  of the silent auto-commit — the deterministic oracle overrules the LLM (LRN-046).
+- A genuine factual one-liner (changed command, no heading, small) returns `rc=0` and
+  stays on the silent MINOR auto-commit path — zero friction (BDR-036 preserved).
+- The oracle is a STRUCTURAL floor: a small meaning-changing edit with no heading still
+  reads MINOR (rc 0). It reduces RISK-1's gross cases, it does not eliminate RISK-1.
+
 If Scenario A holds, the chain is coupled (docs committed in the same breath as the
 flow) and surgical (no dangling code embarked). If Scenario B holds, the guard is
-fail-closed and loud. This mirrors what feat / bugfix / hotfix do at their DOC SYNC
-step (inline-branch commit, no FINISH), and what ship-feature / init-project do at
-their DOC SYNC step BEFORE FINISH (so the doc commit reaches the merge/PR).
+fail-closed and loud. If Scenario C holds, a rejected commit fails LOUD instead of
+masking as success. If Scenario D holds, a shape-suspect MINOR is escalated to the
+human gate instead of auto-committed. This mirrors what feat / bugfix / hotfix do at
+their DOC SYNC step (inline-branch commit, no FINISH), and what ship-feature /
+init-project do at their DOC SYNC step BEFORE FINISH (so the doc commit reaches the merge/PR).

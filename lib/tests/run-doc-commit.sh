@@ -13,6 +13,8 @@
 #   T5  idempotent — empty list / clean tree → no-op exit 0
 #   T6  unsafe git state (detached HEAD) → exit 3, no commit
 #   T7  path WITH A SPACE passed as one arg → committed (argv is space-safe, no separator)
+#   T8  pre-commit hook REJECTS the commit → fail LOUD (exit 5), no stale hash on stdout,
+#       HEAD unmoved — the script must NOT report "committed" when git commit failed
 #
 # No -e: run every test and report, even after a failure.
 set -uo pipefail
@@ -171,6 +173,20 @@ if [ "$RC" -eq 0 ]; then ok "exit 0"; else ko "expected 0, got $RC"; fi
 if [ -n "$OUT" ]; then ok "hash printed (commit made)"; else ko "no hash"; fi
 if git -C "$R" cat-file -e "HEAD:docs/My Guide.md" 2>/dev/null; then ok "spaced path present in HEAD"; else ko "spaced path not committed"; fi
 if [ -z "$(git -C "$R" status --porcelain -- "docs/My Guide.md")" ]; then ok "spaced doc clean (embarked as ONE file, not split)"; else ko "spaced doc still dirty"; fi
+rm -rf "$R"
+
+echo "T8 — pre-commit hook REJECTS commit → exit 5 LOUD, no stale hash, HEAD unmoved"
+R="$(new_repo)"
+printf '#!/bin/sh\nexit 1\n' >"$R/.git/hooks/pre-commit"; chmod +x "$R/.git/hooks/pre-commit"
+BEFORE="$(git -C "$R" rev-parse HEAD)"
+printf 'feature added\n' >>"$R/README.md"
+run "$R" commit "docs: T8 rejected" "README.md"
+printf '    rc=%s  out=[%s]\n' "$RC" "$OUT"
+printf '    err: %s\n' "$(printf '%s' "$ERR" | head -1)"
+if [ "$RC" -eq 5 ]; then ok "rejected commit → exit 5"; else ko "expected 5, got $RC (commit failure swallowed = masking)"; fi
+if [ -z "$OUT" ]; then ok "stdout empty (no stale hash)"; else ko "stale hash leaked on failure: [$OUT]"; fi
+if printf '%s' "$ERR" | grep -qi 'REJECTED'; then ok "stderr is loud (REJECTED)"; else ko "stderr not loud (no REJECTED — likely a false 'committed')"; fi
+if [ "$(git -C "$R" rev-parse HEAD)" = "$BEFORE" ]; then ok "HEAD unmoved (nothing committed)"; else ko "HEAD moved despite hook reject"; fi
 rm -rf "$R"
 
 rm -f "$ERRFILE"

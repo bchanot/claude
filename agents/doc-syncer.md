@@ -792,9 +792,26 @@ Categorize:
 
 - **NONE** → exit completely silent. No output (no `PATCHED_FILES` → the doc-commit step
   sees an empty list and no-ops).
-- **MINOR** → patch silently. One-line confirmation per file:
-  `doc-sync: patched <file> (<what changed>)`
-- **SIGNIFICANT** → surface to user before patching:
+- **MINOR** → patch, then VERIFY SHAPE with the deterministic oracle BEFORE the
+  silent auto-commit. The LLM made the MINOR call; the oracle re-checks that the
+  patch's SHAPE actually holds, catching a SIGNIFICANT mislabeled MINOR (RISK-1):
+  ```
+  bash "$HOME/.claude/lib/doc-shape.sh" check <every patched path>   # all paths, ONE call
+  ```
+  - **exit 0** (within the MINOR envelope) → genuine MINOR: keep the silent patch.
+    One-line confirmation per file: `doc-sync: patched <file> (<what changed>)`.
+    Proceed to `PATCHED_FILES` + the doc-commit step.
+  - **exit 1** (shape EXCEEDS — oracle stderr names the offender(s) and why) → the
+    deterministic oracle OVERRULES the LLM's MINOR call (LRN-046). Do NOT auto-commit.
+    ESCALATE the WHOLE patch set to the SIGNIFICANT gate below — one file out of
+    shape makes the atomic MINOR classification suspect. Surface every patched file
+    + the oracle's reason, then the gate: on `no` → revert ALL
+    (`git checkout -- <each patched path>`); on `select` → keep the chosen files,
+    revert the rest. The oracle catches STRUCTURAL/size significance, not semantic —
+    it is a deterministic floor, not a full SIGNIFICANT-detector.
+  - **exit 2/3** (oracle usage error / not a git repo) → do NOT auto-commit on a
+    broken check; treat as exit 1 and escalate.
+- **SIGNIFICANT** (or a MINOR the oracle escalated) → surface to user before patching:
   ```
   DOC SYNC — drift detected after this session:
   <list of significant items with proposed fixes>

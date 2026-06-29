@@ -223,3 +223,10 @@ rules:
 - Migrated ALL 6 repos to gitflow one-by-one (faunosteo, config, bchanot-cv, zenquality, game, claude): master→main, develop, Option-1 owner-pushable protection, master deleted — each delete behind a user eyeball + GO, ZERO loss, no force/`--no-verify`, settings intact. game = already-on-main variant (no master); zenquality keeps `cleanup/post-smtp-fix` (out-of-convention, conscious); bchanot-cv adopted a pre-existing clone (surfaced, not assumed).
 - claude SELF-APPLIED (ultimate dogfood): its own committed lib migrated it. Chantier landed C1 `feat(gitflow)` 167ea96 + C2 `chore(memory)` 1254643 + socle 620071b; hook now governs claude. gstack submodule dirty (BLK-008 Playwright bump) excluded via `submodule.ignore=dirty` (LRN-070), not reset.
 - Permission insight: `Bash(export *)` deny false-positives inline-env; `git push` ASK = the real remote-write gate (LRN-069). BLK-010 CLOSED (verified `gitflow_init` root commit closes all 3 components — index+body, append-only).
+
+## 2026-06-29 (cont.) — MINOR-gate strengthening (doc-syncer)
+- Read-first cartography REFUTED the literal premise: "strengthen MINOR gate" = 3 distinct problems; the literal reading (blocking gate on MINOR, option B) contradicts engraved [[BDR-036]]. Same trap as gitflow — premise refuted by the real, not assumed.
+- Scope tranché ①+②, ② first, never B, ③ deferred. Built test-first (Iron Law RED→GREEN, RED shown before each GREEN).
+- ② masked-commit fix ([[LRN-071]]) — 3rd occurrence of the swallowed-commit pattern ([[LRN-066]], [[LRN-068]]/[[BLK-012]]). `doc-commit.sh` exit 5 fail-loud. RED T8 proved the masking (rc 0 + stale hash + false "committed"), GREEN 32/32.
+- ① MINOR-shape oracle ([[BDR-040]], `lib/doc-shape.sh`) — 19/19 + behavioral Scenario D. Engraved limit: structural floor, NOT semantic (reduction of RISK-1's gross cases, not elimination).
+- Branch `feature/minor-gate-strengthening`; committed code + memory; no finish yet (awaiting signal).
