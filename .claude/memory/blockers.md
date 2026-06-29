@@ -27,8 +27,9 @@ rules:
 | BLK-005 | 2026-05-21 | gstack submodule rename (checkpoint→context-save) breaks profile entries | resolved |
 | BLK-006 | 2026-05-21 | `profile.sh current` false-negative via `~/.claude` symlink (`cd` not `cd -P`) | resolved |
 | BLK-007 | 2026-06-02 | 6 gstack source skills (ios-*, spec) unlinked post-bump — invisible to profiles + `gstack on` | resolved |
-| BLK-010 | 2026-06-27 | init-project: scaffold (STEP 5) + bootstrap README (5b) have no deterministic commit owner; worktree `add -b` on unborn HEAD | open |
+| BLK-010 | 2026-06-27 | init-project: scaffold (STEP 5) + bootstrap README (5b) have no deterministic commit owner; worktree `add -b` on unborn HEAD | resolved (uncommitted) |
 | BLK-011 | 2026-06-27 | init-project STEP 13 GSD post-FINISH creates ROADMAP.md → stranded doc (3rd post-FINISH artifact) | open |
+| BLK-012 | 2026-06-29 | gitflow_init half-applied: socle-commit failure swallowed → hook activated on partial run → re-run self-blocks | resolved |
 
 ---
 
@@ -128,8 +129,10 @@ rules:
 - **Friction**: init-project scaffold (STEP 5 — CLAUDE.md, settings, config, entry points, `.gitignore`, `.env.example`, `.claude/`) + bootstrap README (STEP 5b) never get an explicit commit. Pipeline's only commits = STEP 10b memory (helper) + STEP 8 per-task implementer commits. Whether scaffold/README land in a commit = emergent: implementer-prompt.md says only "4. Commit your work", scope undefined. Greenfield deeper: STEP 8 `subagent-driven-development` requires `using-git-worktrees` → `git worktree add -b` branches from HEAD, but post-`git init` HEAD is UNBORN → add fails; the worktree skill has no unborn-HEAD path.
 - **Real cause**: no deterministic commit step between `git init` (STEP 5) and FINISH (STEP 11). scaffolder + doc-syncer both write-only (zero `git commit`). implementer commit scope unspecified. `using-git-worktrees` assumes a born HEAD.
 - **Solution**: open — own chantier (real technical weight: unborn HEAD + worktree). Candidate: explicit initial scaffold commit after STEP 5/5b before STEP 8, OR handle unborn HEAD in the worktree step. NOT cured by the doc-sync coupled chantier — that commits ONLY doc-sync's patched files and (correctly) excludes scaffold. Consequence: after doc-sync coupled, ship-feature fully fixed, init-project PARTIAL (doc-sync ok, scaffold/bootstrap still open).
-- **Status**: open
+- **Status**: resolved (2026-06-29; working tree uncommitted — durable only at the claude repo commit, cf [[BLK-012]]). Was "open"; closed by the gitflow chantier — see note below.
 - **Reference**: discovered in doc-sync-coupled analysis (2026-06-27). Distinct from the doc-sync twin [[BDR-034]]. Sibling [[BLK-011]]. Surfaces via analyze-before-plan bookend on any init-project commit-flow work.
+
+- **2026-06-29 — RESOLVED by the gitflow chantier**: `gitflow_init` fresh path (`_gitflow_init_fresh`: unborn HEAD → `git symbolic-ref HEAD refs/heads/main` → `git add -A` → deterministic root commit → `git branch develop`) wired at init-project **STEP 5f** (after scaffold STEP 5 + README STEP 5b, before STEP 8 implement). Closes all 3 components: (a) scaffold+README get a deterministic commit owner = the root commit (`git add -A` stages whole tree; SKILL.md STEP 5f + lines 141/249-250 "scaffold commit owner … BLK-010 closed"); (b) root commit + develop make HEAD BORN before STEP 8 → `gitflow start feature`/`worktree add -b` never hits unborn HEAD; (c) STEP 5f IS the deterministic commit step between `git init` and FINISH. Tested: gitflow-test.sh **T2 "init fresh (BLK-010 root commit)"** (root commit on main, socle IN root commit, hook tracked, tree clean). Residual (non-blocking): the generic `using-git-worktrees` skill still has no unborn-HEAD path — now MOOT (HEAD always born by STEP 5f, never reached), not patched in the skill itself.
 
 ## BLK-011 — init-project STEP 13 GSD post-FINISH creates ROADMAP.md → stranded doc
 
@@ -139,3 +142,12 @@ rules:
 - **Solution**: open — separate thread. Candidate: reorder GSD before FINISH, or commit ROADMAP after `gsd init`. Out of scope for doc-sync coupled (different mechanism).
 - **Status**: open
 - **Reference**: discovered in doc-sync-coupled analysis (2026-06-27). Sibling [[BLK-010]] + twin [[BDR-034]].
+
+## BLK-012 — gitflow_init non-transactional: socle-commit failure swallowed → hook activated on partial run → re-run self-blocks
+
+- **Date**: 2026-06-29
+- **Friction**: migrating faunosteo, `migrate_local` → `gitflow_init` half-applied TWICE. Run 1: master→main renamed, develop created, socle staged, but the socle commit died — `Author identity unknown ... unable to auto-detect email address (got 'bchanot@bchanot-server.(none)')` → tree DIRTY, exit 1. Run 2 (recovery): socle commit BLOCKED by the gitflow hook itself (`gitflow pre-commit: BLOCKED — direct commit on 'main'`), yet `init` reported `exit=0` (a lie); main still at the old tip, socle uncommitted.
+- **Real cause**: `_gitflow_init_existing` SWALLOWED the socle-commit failure — `git diff --cached --quiet || git commit` with no propagation, and the function's last stmt (`git branch develop`) returned 0, masking the dead commit. Init CONTINUED past the failed commit → ran `gitflow_activate_hook` though the socle was never committed → re-run then self-blocks (commit on main blocked by the now-active hook). Design's "idempotent" + "never self-blocked" claims hold ONLY for a clean single run; a partial run breaks both. Fresh-repo path already propagated its failure (`_gitflow_init_fresh`); existing-repo path did not — the asymmetry was the bug. Trigger upstream of it: git identity UNSET (global unset; faunosteo had no local identity, though its own history uses `Bastien Chanot <git@bchanot.fr>`).
+- **Solution**: (1) socle commit FATAL in `_gitflow_init_existing` — `if ! git diff --cached --quiet; then git commit … || { echo …; return 1; }; fi` → aborts BEFORE develop/hook-activation; (2) identity precheck at top of `gitflow_init` (fail loud, no half-apply); (3) identity guard in `gitflow-migrate.sh:migrate_local`. Recovery: set faunosteo local identity → deactivate hook → delete premature develop → reinit (socle commits with hook inactive, as designed) → main==develop @ socle, tree clean, master renamed. Verified: shellcheck clean, 57/57 tests pass, hardened init on an identity-less repo aborts rc1 with ZERO mutation.
+- **Status**: resolved (`lib/gitflow.sh` + `lib/gitflow-migrate.sh`, uncommitted working tree as of the gitflow chantier).
+- **Reference**: [[LRN-068]] (transactional-bootstrap principle). Discovered mid gitflow-migration 2026-06-29. Sibling chantier learning [[LRN-067]].
