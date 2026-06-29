@@ -42,8 +42,19 @@ rules:
 | BDR-018 | 2026-06-02 | `profile gstack on/off` verb — toggle gstack keeping active-profile label | accepted |
 | BDR-019 | 2026-06-09 | Remove `disable-model-invocation` repo-wide — align skills with CLAUDE.md routing | accepted |
 | BDR-020 | 2026-06-11 | `/audit-delta`: per-axis SHA markers + always-on fix gate + unreachable-first-run = full report-only | accepted |
+| BDR-021 | 2026-06-27 | CLAUDE.md restructure: contradiction purge, project-specific sections labeled, critical sections never compressed | accepted |
 | BDR-022 | 2026-06-18 | doc-syncer scoped to public docs; `.claude/` + `CLAUDE.md` read-only context, never targets; conventions + clean mode | accepted |
 | BDR-023 | 2026-06-19 | Merge /close into /capitalize — 2 modes + TODO reconcile; /close alias | accepted |
+| BDR-024 | 2026-06-27 | `profile show --plain` = claude-free parse contract for the design gate | accepted |
+| BDR-025 | 2026-06-27 | Design gate profile-based; remedy `/profile design`; magic required-but-manual; unknown → fail-visible; claude via PATH-repair | accepted |
+| BDR-026 | 2026-06-27 | Secret source-of-truth outside the repo (`~/.claude/.env`) reached via a `repo/.env` symlink | accepted |
+| BDR-027 | 2026-06-27 | Minimal npm-via-nvm bootstrap over a centralized prereq lib | accepted |
+| BDR-028 | 2026-06-27 | Hand-curated config install-immutable (auto-revert guard) + de-vendor installer-managed skills | accepted |
+| BDR-029 | 2026-06-27 | Installer auto-fixes gstack browser on an OS newer than its pinned Playwright supports | accepted |
+| BDR-030 | 2026-06-27 | gstack skills activated ON-DEMAND per profile, not pre-installed; OFF by default stays | accepted |
+| BDR-031 | 2026-06-27 | global CLAUDE.md lightening = COMPRESSION, not path-scope / externalization | accepted |
+| BDR-032 | 2026-06-27 | skill `/validate` → `/web-validate` (rename user surface, keep internals) | accepted |
+| BDR-033 | 2026-06-27 | design-gate §4: anim-lib suggestion — suggest-only, non-blocking, stateless 1-line | accepted |
 | BDR-034 | 2026-06-26 | Coupled-capitalize invariant v1 — memory commit auto per dev flow (Frame 2) | accepted |
 | BDR-035 | 2026-06-26 | Analyze-before-plan invariant v1 — read-before bookend of coupled-capitalize | accepted |
 | BDR-036 | 2026-06-27 | Doc-sync coupled invariant — commit docs doc-syncer patches (twin of BDR-034, BUILT not reordered) | accepted |

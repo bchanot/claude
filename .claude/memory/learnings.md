@@ -28,7 +28,6 @@ rules:
 | LRN-006 | 2026-05-03 | `caveman-shrink` (and any MCP middleware proxy) non-functional without upstream wrapper | any MCP middleware/proxy package — never `claude mcp add` it bare |
 | LRN-007 | 2026-05-06 | `toggle-external.sh enable` missed source-only state (3rd lifecycle case) | toggle scripts for tools with separate install + symlink steps |
 | LRN-008 | 2026-05-06 | Biggest skill-quality wins from edge-case tables, not workflow rewrites | any skill <85 — first check for FAILURE PATHS / EDGE CASES / ERROR HANDLING section |
-| LRN-021 | 2026-05-20 | Refactor commands→skills must sweep `~/.claude/commands/` for orphan wrappers | any refactor moving `agents/foo.md` → `skills/foo/SKILL.md`; onboard/init-project audits |
 | LRN-009 | 2026-05-06 | Dry-run scoring noise wrongly triggers reverts on already-strong skills | darwin-skill ratchet on skills >91 — relax or use real subagent eval |
 | LRN-010 | 2026-05-06 | `~/.claude/skills,agents` symlink to Documents/claude — git from `~/.claude` fails | any optimization or batch edit on personal skills/agents |
 | LRN-011 | 2026-05-07 | Single subagent emits N independently-gated scores → labeled extraction + axis-aware loop + per-axis escalation | any audit pipeline shipping multiple gated metrics from one subagent |
@@ -40,15 +39,37 @@ rules:
 | LRN-017 | 2026-05-12 | Thin-dispatcher SKILL.md round-1 win = fallback + frontmatter triggers (+15 to +30) | any `/darwin-skill` round-1 on a dispatcher SKILL.md |
 | LRN-018 | 2026-05-12 | Darwin eval subagents drift on total math — recompute in main thread | any subagent-driven SKILL.md rescore |
 | LRN-019 | 2026-05-15 | Deployable-project doc split: README dev-quickstart + DEPLOY 14-section prod-VPS topology | any onboard/doc-syncer/scaffold producing docs for a deployable project |
+| LRN-020 | 2026-05-18 | profile-sentinel-collision: literal labels in cmd output must not match profile filenames | a CLI reporting a real named-identifier OR a "nothing applied" state — keep sentinels outside the namespace (string-eq consumers break) |
+| LRN-021 | 2026-05-20 | Refactor commands→skills must sweep `~/.claude/commands/` for orphan wrappers | any refactor moving `agents/foo.md` → `skills/foo/SKILL.md`; onboard/init-project audits |
+| LRN-022 | 2026-05-21 | audit `lib/profiles/*.profile` against the gstack skill list after every submodule bump | any gstack submodule bump / external-skill-source move; a "missing:" warning = upstream rename/deletion (link.sh can't fix) |
+| LRN-023 | 2026-05-21 | scripts invoked via symlink must resolve `$REPO` with `cd -P` (physical), not logical `cd` | any script invoked via a symlink that derives its repo root from `$BASH_SOURCE` (cd -P/realpath; Python .resolve()) |
 | LRN-024 | 2026-06-02 | New sibling command sharing logic → extract helper + refactor existing caller, never copy-paste; assert pre/post state equality | adding a subcommand/branch reusing logic inline in a peer command |
 | LRN-025 | 2026-06-02 | `.gitignore` gstack allowlist must cover ALL toggleable skills (incl. parked) — else enabling one = untracked git noise | any toggle that moves local-symlink skills into a tracked dir; post-submodule-bump reconcile |
 | LRN-026 | 2026-06-09 | `disable-model-invocation: false` = ENABLED not blocking; only `true` blocks (model + orchestrator); binary, no per-caller | Claude Code skill frontmatter; deciding self-route/chain vs human-only entry point |
 | LRN-027 | 2026-06-11 | Agents improvise audit boundaries from file dates when no machine state — periodic skills need machine-readable state file, never inference | any recurring/periodic skill needing "since last run" semantics |
+| LRN-028 | 2026-06-11 | "no-skill" subagent baselines invalid when the skill is installed globally | any A/B skill eval / TDD RED baseline / darwin with-vs-without — control must REMOVE the capability, not omit mention |
+| LRN-029 | 2026-06-11 | an edit adding an exception to a blanket rule will contradict it — counterbalanced blind judges catch it | skill/doc/spec edits adding a branch/exception; scoring any self-modified artifact (counterbalanced blind judges) |
 | LRN-030 | 2026-06-18 | Opus 4.8 under-delegates subagents/memory/custom-tools by default — counter via explicit CLAUDE.md fan-out rule | any Opus 4.8 session; tuning delegation; inline-vs-subagent decision |
 | LRN-031 | 2026-06-19 | Skill value = gate + anti-noise + determinism, not re-coding what a capable agent does free | building/reviewing any skill; writing-skills TDD fixture design |
+| LRN-032 | 2026-06-19 | a rule has a domain; applying it outside = category error — check artifact type first | invoking a limit/convention/style rule — confirm it governs THIS artifact class |
+| LRN-033 | 2026-06-19 | multibyte separator breaks `printf %-Ns` byte-width padding — pad via `${#}` char-count | aligning any column with non-ASCII (·, —, box-drawing, accents) |
+| LRN-034 | 2026-06-21 | narrated state ≠ ground truth; the missed alarm was internal contradiction — verify vs git | anyone asserts "X is done" — verify (git/file/grep) before building on it |
+| LRN-035 | 2026-06-21 | honest dedup: name-mention ≠ definition-instance; a dosage rule can make "dedup" a no-op | any "X repeated N times → factor it" — audit what each occurrence IS |
+| LRN-036 | 2026-06-21 | `command -v <cli>` in a shelled-out script depends on PATH carrying the cli's bin, not the alias | any script shelling out a CLI from a hook/subshell |
+| LRN-037 | 2026-06-21 | verify the load-bearing scenario on the REAL subject in REAL context, not a stub/logic argument | any "fixed/works" claim on a critical path — produce the real run output |
+| LRN-038 | 2026-06-23 | Playwright host-platform override for distros newer than its hardcoded support list | any pinned tool with an OS allowlist breaking on a fresh OS upgrade |
+| LRN-039 | 2026-06-23 | installers drift hand-curated config → snapshot+trap-restore guard; anchor gitignore for pollution | audit a fresh install with `git status` right after `make install` |
+| LRN-040 | 2026-06-23 | OS newer than a pinned tool = TWO layers (version build + security policy) | "tool X broke after an OS upgrade" — check both build-support and OS hardening |
+| LRN-041 | 2026-06-23 | a check reading a symlink an earlier install step makes → false negative if that step's precondition unmet | any "X not found in FILE" where FILE is a symlink/derived path |
+| LRN-042 | 2026-06-23 | `npx skills add` / gstack `./setup` resolve install target RELATIVE TO CWD — repo CWD = wrong dir | before any `npx <x> add` / `<tool> init` that materializes a dotfile dir, set CWD |
+| LRN-043 | 2026-06-25 | CLAUDE.md skill-routing: cut name-obvious lines, keep only non-derivable signal + dense catch-all | compressing any routing/dispatch table whose entries the model sees elsewhere |
+| LRN-044 | 2026-06-25 | Edit/Write refuse to write THROUGH a symlink — pass the resolved real path | before editing any `~/.claude/...` config file — resolve it first |
+| LRN-045 | 2026-06-25 | renaming a command: audit exact-name leak-guard / forbidden-token regexes | when renaming, grep the BARE old token inside regex/test/gate files |
 | LRN-046 | 2026-06-25 | Destructive skill: deterministic oracle (byte-identical / count census) > semantic judge | any destructive/irreversible skill; behavioral-oracle TDD |
 | LRN-047 | 2026-06-25 | A noisy safety guard (13/13 FP) = a guard you learn to ignore = risk → refine, don't tolerate | any guard/alert/lint that can false-positive |
 | LRN-048 | 2026-06-25 | A "0/OK/pass" must prove it LOOKED (counted both sides), else verify hard-wired to pass | any verify/test/lint reporting success |
+| LRN-049 | 2026-06-25 | non-destructive repeated nudge: stateless-minimal surface > state marker (conditional on stakes) | any repeated advisory in a stateless surface — bound noise before reaching for a marker |
+| LRN-050 | 2026-06-25 | on a symlinked/live file, show-before-write is the ONLY control gate | before editing any file — check if it is live, treat pre-write diff as an approval gate |
 | LRN-051 | 2026-06-26 | `git commit -- pathspec` strict on no-match → filter scoped commits to changed paths | any scoped-commit automation |
 | LRN-052 | 2026-06-26 | Hash-anchoring: 2 cases it does NOT apply (pre-code founding, squash-merge) | capitalizing founding/arch decisions; squash repos |
 | LRN-053 | 2026-06-26 | Read-before teeth = verifiable disposition in the artifact, not the act of reading | any read-before / check-before wiring |
