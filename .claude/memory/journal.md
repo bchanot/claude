@@ -234,4 +234,11 @@ rules:
 ## 2026-06-29 (cont. 2) — BLK-011 resolved by REMOVAL (init-project GSD bootstrap)
 - User challenge reframed the chantier: don't plumb a commit for the stranded ROADMAP — ask if gsd belongs at init AT ALL. Read REFUTED both my option-premises (gsd ≫ roadmap; TODO ≠ gsd ROADMAP) but conclusion A (remove STEP 12) held for a STRONGER reason: speculative auto-bootstrap of an unused multi-session engine at creation is bad per se. Best fix = NEGATIVE diff ([[LRN-072]]).
 - Removed init-project STEP 12 (+ header 12→11-step, 10c note, 4 USAGE coherence fixes). Coherence sweep = zero dangling STEP-12 refs (the "test" for a removal). Deliberate gsd use KEPT (onboarder PHASE 6, plugin-advisor, status-reporter). [[BLK-011]] → resolved.
-- Branch `bugfix/blk-011-gsd-roadmap`; no finish yet (awaiting signal).
+- Branch `bugfix/blk-011-gsd-roadmap`; FINISHED → develop (`ce4391a`) on explicit signal; pushed develop to origin (6 commits, SSH).
+
+## 2026-06-29 (cont. 3) — prune-memory hardening (RED-7/8 + index backfill)
+- Read-first cartography (confirmed my own measurements). RED-7 (example-priming): the STEP-2 example named live LRN-014+016 and modeled merging them — verified COMPLEMENTARY, a merge the skill forbids. Fix = fictionalize example to 9xx + DETERMINISTIC test ([[LRN-046]], not flaky behavioral). [[LRN-073]].
+- RED-7 test caught its OWN false-green in real time: ugrep parsed `-9..` as an option → empty → green; fixed via /usr/bin/grep. 4th command-assumption miss this session → [[LRN-074]] (2nd engraved pattern-family, alongside fail-silent [[LRN-066]]/[[LRN-071]]).
+- RED-8 (added-negation): consciously ACCEPTED as documented limit ([[LRN-047]] — FP-prone guard worse than honest limit on a destructive skill).
+- Index backfill: 34 missing rows (decisions 11, learnings 21, blockers 2) composed + ID-sorted insert; drift 34→0, STEP-4 verify OK. Re-read the 5 awk-missed Applies-to → 4 corrected a nuance the title dropped. Moved pre-existing out-of-order LRN-021. [[EVAL-010]].
+- Branch `bugfix/prune-memory-hardening`; no finish yet (awaiting signal). LAST of 3 chantiers.
