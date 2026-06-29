@@ -11,6 +11,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ### Added
 - Coupled-capitalize: dev flows (feat / hotfix / bugfix / commit-change, ship-feature, init-project) auto-commit their memory in the same breath, via shared `lib/capitalize-commit.md` + `lib/memory-commit.sh` (surgical — `.claude/memory` + `.claude/tasks` only, never `git add -A`)
 - Coupled doc-sync: dev flows (feat / bugfix / hotfix, ship-feature, init-project) auto-commit the public docs `doc-syncer` patches, via shared `lib/doc-commit.md` + `lib/doc-commit.sh` (surgical — only the patched files, never `git add -A`, never `.claude/` / `CLAUDE.md`; refuses an out-of-scope path loudly with exit 4). `doc-syncer` surfaces `PATCHED_FILES` (one path per line) as the handoff
+- `lib/doc-shape.sh` — deterministic MINOR-shape oracle for `doc-syncer` AUTO MODE: re-checks each LLM-classified MINOR patch (added-heading / size / new-file / non-doc envelope, thresholds env-overridable) and escalates a shape-suspect patch to the existing SIGNIFICANT gate instead of silently auto-committing it. A structural floor under the LLM's classification, not a blocking gate (genuine MINOR still auto-commits, zero friction); catches structural/size significance, not semantic
 - `/audit-delta` — recurring multi-axis audit (norms / bugs / dead code / security) scoped to changes since last run, with per-axis SHA markers
 - `/capitalize` — flush uncapitalized context to the memory registries before `/clear` or `/compact`
 - `/prune-memory` — curate and compress the `.claude/memory/` registries
@@ -41,6 +42,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 - Caveman plugin always-on integration purged — plugin disabled + uninstalled; SessionStart/UserPromptSubmit hooks, standalone hook files, `install-plugins.sh` STEP 5.5, `update-all.sh` refresh step, `plugins.lock.json` entry, `doctor.sh` checks, and docs removed. On a subscription plan its ~75% output-token compression has no cost benefit, and the always-on hooks added friction on validation gates + client deliverables. The unrelated memory-registry terse-format convention is kept.
 
 ### Fixed
+- `lib/doc-commit.sh` no longer masks a rejected `git commit` as success: a pre-commit hook / protected branch / signing failure now fails loud with exit 5 and empty stdout (was: false "committed" + the previous HEAD's hash + exit 0, leaving docs silently uncommitted on a dirty tree)
 - Numerous skill/agent fixes across darwin optimization rounds (geo-analyzer, onboard, init-project, analyzer, plugin-check, prune-memory, …)
 
 ## [3.4.0] — 2026-04-15

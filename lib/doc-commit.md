@@ -56,6 +56,7 @@ Pass each line as a SEPARATE argument (see DO step 3).
    | 0 | empty | helper no-op (nothing pending) | `DOC SYNC: docs already current — nothing to commit`. doc-sync found no drift, or patched nothing. |
    | 3 | empty | unsafe git state (detached / merge / rebase) | docs stay in the working tree for a manual commit; surface the helper's stderr. Do NOT retry blindly — the tree is mid-operation. |
    | 4 | empty | **SCOPE VIOLATION — upstream anomaly** | doc-syncer surfaced a `.claude/**` or `CLAUDE.md` path in `PATCHED_FILES`, which it must NEVER patch (BDR-022). STOP. Signal: `⚠️ doc-commit REFUSED — doc-syncer listed a forbidden path (<offender, from stderr>); this violates BDR-022 upstream. Investigate why doc-syncer touched/listed it before re-running.` Do NOT swallow it, do NOT hand-commit the rest — the refusal IS the alarm. |
+   | 5 | empty | **COMMIT REJECTED — nothing committed** | `git commit` exited non-zero — a pre-commit hook blocked it (e.g. a doc commit on a protected `main`/`develop`), a signing failure, or similar. The docs are STILL in the working tree, uncommitted, on a dirty tree. STOP — do NOT proceed to FINISH as if docs landed (that re-creates the stranding bug this whole snippet fixes). Signal: `⚠️ doc-commit FAILED — the doc commit was rejected (<helper stderr>); docs remain uncommitted. Investigate (hook / branch / signing) before retrying.` No hash is emitted; do NOT retry blindly. |
    | 2 | empty | usage error (no message / bad invocation) | internal bug in this include — fix the call, don't paper over it. |
 
    `<doc_hash>` is the DOC commit (the one that adds the patched docs). Docs carry NO
@@ -88,8 +89,12 @@ on the branch = consumption by the merge, automatic.
   snippet commits it without a blocking gate, BY CHOICE. NOT the memory case: memory CONTENT
   was always gated, so its auto-commit only embarked approved entries. Here the VISIBLE
   surface (rc 0 row, agent-composed summary) REPLACES the gate as the review surface — name
-  files + summarize, and the PR diff re-shows it. Strengthening the MINOR gate itself =
-  separate doc-syncer chantier.
+  files + summarize, and the PR diff re-shows it. UPSTREAM of this snippet, doc-syncer now
+  runs a deterministic shape oracle (`lib/doc-shape.sh`) on each MINOR patch: a patch whose
+  SHAPE belies "minor" (adds a heading, is large, is a new file) is escalated to the
+  SIGNIFICANT gate BEFORE it reaches here — so what this snippet auto-commits is shape-verified
+  MINOR. The oracle is a STRUCTURAL floor, not a semantic SIGNIFICANT-detector (a small
+  meaning-changing edit still reads MINOR); the visible surface stays the content backstop.
 - **Partial init-project fix.** This commits the docs doc-sync patched. It does NOT commit the
   scaffold or the STEP 5b bootstrap README (no deterministic owner — [[BLK-010]]); ramassing
   them would re-create the over-reach we ban. ship-feature ends fully fixed; init-project's
