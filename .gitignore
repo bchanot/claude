@@ -136,3 +136,7 @@ skills-external/frontend-design/
 # deploy: transient per-deploy state (the runbook/ledger/oracle ARE committed)
 .claude/deploy/NEXT.sh
 .claude/deploy/PENDING.json
+
+# ── gitflow standard socle (added by gitflow_init; additive, safe to edit) ──
+*.log
+!.claude/deploy/
