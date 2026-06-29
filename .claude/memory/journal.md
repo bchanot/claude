@@ -242,3 +242,9 @@ rules:
 - RED-8 (added-negation): consciously ACCEPTED as documented limit ([[LRN-047]] — FP-prone guard worse than honest limit on a destructive skill).
 - Index backfill: 34 missing rows (decisions 11, learnings 21, blockers 2) composed + ID-sorted insert; drift 34→0, STEP-4 verify OK. Re-read the 5 awk-missed Applies-to → 4 corrected a nuance the title dropped. Moved pre-existing out-of-order LRN-021. [[EVAL-010]].
 - Branch `bugfix/prune-memory-hardening`; no finish yet (awaiting signal). LAST of 3 chantiers.
+
+## 2026-06-29 (cont. 4) — TODO reconcile + /reconcile skill queued
+- Session question "open-work queue really empty?" answered by READING sources (TODO, BLK, BDR/LRN deferred) vs REAL git state, not conversation memory. TODO lied 7 lines: FINISH+PUSH prune-memory already done (merge `73e12be`, develop==origin), 3× `[ ] Commit` (tree clean → shipped), `.gitmodules` follow-up (a) done (`be1dcef`), doc-sync twin done ([[BDR-036]]), v2 Stop-hook marked "deferred" but REJECTED ([[BDR-037]]).
+- Contradiction caught: chantier `--help` (STEP 0.5 per SKILL.md) contradicts [[BDR-001]] accepted (helper via session-start hook; per-SKILL.md copy REJECTED) → `--help` BLOCKED pending BDR-001 resolution (supersede or re-route).
+- Our OWN manual inventory had an error: line 26 cleanup-machine declared "auto-cleaned next make plugin" but fs shows darwin-skill still present → demoted "done"→"still deferred" after fs check. Proof-by-example the queue needs a RECONCILER (declared-vs-real), not a `[ ]`-grepper.
+- Reconciled TODO (5 ticked + 1 requalify + 1 split, annotated `reconcile 2026-06-29` w/ evidence) + queued `/reconcile` skill chantier (4-cat output, inter-registry contradiction detection, GATED TODO edit). Sequencing: /reconcile FIRST (oracle = today's inventory, perishable) → resolve BDR-001 → --help.
