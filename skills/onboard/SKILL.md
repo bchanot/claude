@@ -134,6 +134,26 @@ Cas :
 
 ---
 
+## STEP 2.6 — GITFLOW INIT
+
+Adopter le modèle gitflow sur ce repo existant :
+```bash
+bash "$HOME/.claude/lib/gitflow.sh" init
+```
+Sur un repo existant, cela : renomme `master`→`main` si besoin (LOCAL), crée
+`develop` depuis main, réconcilie le socle `.gitignore` (additif — n'écrase
+jamais les règles du projet), installe le hook pre-commit versionné, et fait UN
+commit `chore: adopt gitflow socle + hook` sur main (pendant que le hook est
+inactif → jamais auto-bloqué). Idempotent — un re-run est un no-op.
+
+**Annoncer le renommage master→main** s'il a lieu. Le renommage est LOCAL ;
+repointer la branche par défaut du remote vers `main` + la protection de branche
+sur `main`/`develop` est une étape de migration séparée (sous-chantier B) — pas
+faite ici. Pré-condition : working tree raisonnablement propre (le commit
+d'adoption ne stage que `.gitignore` + `.githooks`).
+
+---
+
 ## STEP 3 — DEEP INTERVIEW
 
 L'orchestrateur pilote directement l'interview (l'agent `interviewer.md` est laissé pour `/init-project` où le BRIEF format est attendu ; ici on reste en markdown libre dans la CLAUDE.md).

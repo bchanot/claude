@@ -102,6 +102,10 @@ RISK: <low/medium — what could go wrong>
 
 ## STEP 4 — FIX
 
+**Gitflow aiguillage (before editing):** follow `$HOME/.claude/lib/gitflow-aiguillage.md`
+— your type = `bugfix`. On `main`/`develop` it branches first; on a working
+branch it's a no-op (commit in place). Never `finish`.
+
 Apply the fix following the plan:
 
 - Fix the root cause, not the symptom.

@@ -90,6 +90,10 @@ If ambiguous: ask the user one focused question, then proceed.
 
 ## STEP 2 — IMPLEMENT
 
+**Gitflow aiguillage (before editing):** follow `$HOME/.claude/lib/gitflow-aiguillage.md`
+— your type = `feature`. On `main`/`develop` it branches first; on a working
+branch it's a no-op (commit in place). Never `finish`.
+
 Work through the plan:
 
 - Implement directly (no subagents).

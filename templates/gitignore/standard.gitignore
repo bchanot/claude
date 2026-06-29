@@ -1,0 +1,26 @@
+# ── env / secrets ──
+.env
+.env.*
+!.env.example
+# ── editors / IDE ──
+.vscode/
+.idea/
+*.swp
+# ── OS ──
+.DS_Store
+Thumbs.db
+# ── logs / debug ──
+*.log
+# ── Claude config: local by default, project-memory versioned ──
+.claude/*
+!.claude/memory/
+!.claude/tasks/
+!.claude/audits/
+!.claude/settings.json
+!.claude/deploy/
+# re-ignore transients inside the versioned subtrees (the PENDING.json trap)
+.claude/settings.local.json
+.claude/agent-memory/
+.claude/gstack/
+.claude/deploy/PENDING.json
+.claude/deploy/NEXT.sh

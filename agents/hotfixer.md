@@ -49,6 +49,10 @@ Follow `$HOME/.claude/lib/design-gate.md`:
 
 ## STEP 2 — PRE-FLIGHT + FIX
 
+**Gitflow aiguillage (before editing):** follow `$HOME/.claude/lib/gitflow-aiguillage.md`
+— your type = `hotfix`. On `main`/`develop` it branches first; on a working
+branch it's a no-op (commit in place). Never `finish`.
+
 ### Pre-flight (mandatory)
 
 Before editing, snapshot current state so revert is possible:

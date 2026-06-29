@@ -129,6 +129,18 @@ Rules:
 - React Native, Flutter, backend, embedded, static HTML → skipped.
 - If another animation lib (gsap, lottie-react, react-spring, …) is already present → skipped.
 
+## STEP 5f — GITFLOW INIT
+After every scaffold file exists (STEP 5–5e have run), establish the gitflow
+layout and the deterministic root commit:
+```bash
+bash "$HOME/.claude/lib/gitflow.sh" init "chore: scaffold <project-name>"
+```
+Creates `main`+`develop`, root-commits the FULL scaffold (CLAUDE.md, README,
+config, `.gitignore`, deps), reconciles the `.gitignore` socle, and installs the
+versioned pre-commit hook — all embedded in the root commit, working tree clean.
+This is the deterministic scaffold commit owner (closes BLK-010). The MVP is
+implemented on a `feature/*` branch off `develop` (STEP 8).
+
 ## STEP 6 — PLAN
 Invoke `superpowers:writing-plans` with BRIEF + skeleton.
 Granular tasks (2-5 min each), exact file paths, TDD: tests before code.
@@ -144,7 +156,15 @@ Approve and start? (yes / request changes)
 Changes → back to STEP 6. Approved → continue.
 
 ## STEP 8 — IMPLEMENT
-Invoke `superpowers:subagent-driven-development`. Isolated subagents, TDD, 2-stage review per task.
+Start the MVP feature branch off develop, then implement on it:
+```bash
+bash "$HOME/.claude/lib/gitflow.sh" start feature mvp
+```
+Invoke `superpowers:subagent-driven-development` for the per-task implement loop
+**and** the final whole-branch review **only**. Do NOT run its terminal
+`finishing-a-development-branch` step — this orchestrator owns integration via
+`gitflow finish` (STEP 11). When SDD's flow reaches "Use
+finishing-a-development-branch", stop and return.
 
 ## STEP 8b — GRAPHIFY FULL (after implementation)
 If `graphify` CLI is installed AND complexity >= 30%:
@@ -214,7 +234,7 @@ nothing was capitalized, the helper no-ops — no commit.
 
 ## STEP 10c — DOC SYNC
 Run BEFORE STEP 11 FINISH (moved here from post-FINISH). doc-syncer PATCHES public docs but
-does NOT commit them, and `finishing-a-development-branch` integrates only COMMITTED history
+does NOT commit them, and `gitflow finish` integrates only COMMITTED history
 — so a patch left uncommitted never reaches the merge/PR. Same PR-stranding class as the
 STEP 10b capitalize fix (BDR-034).
 
@@ -226,14 +246,17 @@ ONLY the files doc-syncer patched (its `PATCHED_FILES` output, one path per line
 arg each), never `git add -A`, never `.claude/`/`CLAUDE.md`, and no-ops if nothing was
 patched. Report per its rc table — rc 4 = a LOUD upstream BDR-022 anomaly, not a silent skip.
 
-> **Partial fix (conscious).** This commits the docs doc-sync patched, so they reach the
-> merge/PR. It does NOT fix the scaffold (STEP 5) + bootstrap-README (STEP 5b) commit gap
-> (BLK-010: no deterministic commit owner; `git worktree add -b` on an unborn HEAD) — a
-> separate chantier. After this, init-project's doc-sync is fixed but the scaffold/bootstrap
-> commit gap stays open; GSD STEP 12 still creates ROADMAP.md post-FINISH (BLK-011) — also separate.
+> **Scaffold commit owner = STEP 5f `gitflow init`** (root commit embeds scaffold + README +
+> `.gitignore` socle + hook, tree clean — BLK-010 closed). This doc-sync commit lands the
+> patched docs on the MVP feature branch so they reach the merge. GSD STEP 12 still creates
+> ROADMAP.md post-FINISH (BLK-011) — separate.
 
 ## STEP 11 — FINISH
-Invoke `superpowers:finishing-a-development-branch`. Tests pass, build clean, no placeholders, initial commit ready.
+Tests pass, build clean, no placeholders. Integrate the MVP feature into develop
+— **only on the user's explicit go** (the `gitflow` finish gate):
+```bash
+bash "$HOME/.claude/lib/gitflow.sh" finish   # feature/mvp → develop
+```
 
 ## STEP 12 — GSD v2 INIT (optional)
 If `multi-session` signal was detected in STEP 0 OR the project has >3 planned milestones:

@@ -121,7 +121,15 @@ assert a check not performed). No RELATED MEMORY from 0d → omit the block.
 Changes → back to STEP 2. Approved → continue.
 
 ## STEP 4 — IMPLEMENT
-Invoke `superpowers:subagent-driven-development`. Isolated subagents. 2-stage review per task: spec compliance → code quality.
+Start the feature branch off develop, then implement on it:
+```bash
+bash "$HOME/.claude/lib/gitflow.sh" start feature <name>
+```
+Invoke `superpowers:subagent-driven-development` for the per-task implement loop
+**and** the final whole-branch review **only**. Do NOT run its terminal
+`finishing-a-development-branch` step — this orchestrator owns integration via
+`gitflow finish` (STEP 9). When SDD's flow reaches "Use
+finishing-a-development-branch", stop and return.
 
 ## STEP 4b — ERROR RECOVERY (if STEP 4 fails)
 If a subagent returns a build error, failing test, or type error:
@@ -191,7 +199,7 @@ memory is integrated with the branch, not stranded outside the PR.
 
 ## STEP 8 — DOC SYNC
 Run BEFORE STEP 9 FINISH. doc-syncer PATCHES public docs but does NOT commit them, and
-`finishing-a-development-branch` integrates only COMMITTED history — so a patch left
+`gitflow finish` integrates only COMMITTED history — so a patch left
 uncommitted (or committed after) never reaches the merge/PR. Same PR-stranding class as the
 STEP 7 capitalize fix (BDR-034).
 
@@ -206,7 +214,11 @@ surfaced a forbidden path), not a silent skip. It runs BEFORE FINISH so the doc 
 on the branch FINISH integrates.
 
 ## STEP 9 — FINISH
-Invoke `superpowers:finishing-a-development-branch`. Tests pass, build clean, ready to merge.
+Tests pass, build clean. Integrate the feature into develop — **only on the
+user's explicit go** (the `gitflow` finish gate):
+```bash
+bash "$HOME/.claude/lib/gitflow.sh" finish   # feature/<name> → develop
+```
 
 ---
 
