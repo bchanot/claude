@@ -15,10 +15,10 @@ $ARGUMENTS
 ## PROGRESS PROTOCOL
 
 Every STEP must announce itself with a header BEFORE its work block, so the
-user always sees where they are in the 12-step pipeline:
+user always sees where they are in the 11-step pipeline:
 
 ```
-━━━ STEP <N>/12 — <TITLE> ━━━  (~<estimated minutes>)
+━━━ STEP <N>/11 — <TITLE> ━━━  (~<estimated minutes>)
 why: <one sentence — what's at risk if this step is skipped>
 ```
 
@@ -248,8 +248,7 @@ patched. Report per its rc table — rc 4 = a LOUD upstream BDR-022 anomaly, not
 
 > **Scaffold commit owner = STEP 5f `gitflow init`** (root commit embeds scaffold + README +
 > `.gitignore` socle + hook, tree clean — BLK-010 closed). This doc-sync commit lands the
-> patched docs on the MVP feature branch so they reach the merge. GSD STEP 12 still creates
-> ROADMAP.md post-FINISH (BLK-011) — separate.
+> patched docs on the MVP feature branch so they reach the merge.
 
 ## STEP 11 — FINISH
 Tests pass, build clean, no placeholders. Integrate the MVP feature into develop
@@ -257,18 +256,6 @@ Tests pass, build clean, no placeholders. Integrate the MVP feature into develop
 ```bash
 bash "$HOME/.claude/lib/gitflow.sh" finish   # feature/mvp → develop
 ```
-
-## STEP 12 — GSD v2 INIT (optional)
-If `multi-session` signal was detected in STEP 0 OR the project has >3 planned milestones:
-Ask: "Initialize GSD v2 for multi-session management? (yes / skip)"
-- `yes` →
-  1. First check: `command -v gsd` — if not found:
-     Print: "⚠️ GSD v2 not installed. Run `npm install -g gsd-pi` then re-run `/onboard add gsd` or `/ship-feature` to initialize later."
-     Do NOT attempt `gsd init`. Skip to RULES.
-  2. If `gsd` is in PATH: run `gsd init` in the project directory to create `.gsd/` and `ROADMAP.md`.
-     Populate ROADMAP.md with milestones from BRIEF (v1 features + any beyond-v1 items).
-     Print: "✅ GSD v2 initialized — run `gsd` in terminal then `/gsd auto` to work autonomously."
-- `skip` → print: "GSD v2 skipped — use `/ship-feature` for individual features."
 
 ---
 
