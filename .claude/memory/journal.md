@@ -216,3 +216,10 @@ rules:
 
 ## 2026-06-28
 - /deploy MERGED to master (fast-forward cd375dd..135b487; 12 files, 1189 ins) on review + pressure-test confidence — SUPERSEDES "kept un-merged" in 2026-06-27 line. First REAL deploy still pending (its 1st incident = runbook-learn's 1st exercise). Branch feat/deploy-skill kept (reference/revert). master ahead of origin (push pending).
+
+## 2026-06-29
+
+- gitflow lib bug found & fixed at ROOT: `_gitflow_init_existing` swallowed the socle-commit failure → hook activated on a PARTIAL run → every re-run self-blocks (BLK-012). Fix = fatal socle commit + identity precheck (`gitflow_init`) + identity guard (`migrate_local`); 57/57 green, abort-zero-mutation proven on identity-less repo. LRN-068 (transactional enforcement-bootstrap).
+- Migrated ALL 6 repos to gitflow one-by-one (faunosteo, config, bchanot-cv, zenquality, game, claude): master→main, develop, Option-1 owner-pushable protection, master deleted — each delete behind a user eyeball + GO, ZERO loss, no force/`--no-verify`, settings intact. game = already-on-main variant (no master); zenquality keeps `cleanup/post-smtp-fix` (out-of-convention, conscious); bchanot-cv adopted a pre-existing clone (surfaced, not assumed).
+- claude SELF-APPLIED (ultimate dogfood): its own committed lib migrated it. Chantier landed C1 `feat(gitflow)` 167ea96 + C2 `chore(memory)` 1254643 + socle 620071b; hook now governs claude. gstack submodule dirty (BLK-008 Playwright bump) excluded via `submodule.ignore=dirty` (LRN-070), not reset.
+- Permission insight: `Bash(export *)` deny false-positives inline-env; `git push` ASK = the real remote-write gate (LRN-069). BLK-010 CLOSED (verified `gitflow_init` root commit closes all 3 components — index+body, append-only).
