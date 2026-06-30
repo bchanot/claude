@@ -6,9 +6,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
-<!-- DRAFT (doc-syncer): grounded in commits since 3.4.0; review wording + completeness before release. -->
+## [4.0.0] — 2026-06-30
 
 ### Added
+- **Gitflow universal model** — `/gitflow` + `lib/gitflow.sh`: branch model (`main` / `develop` / `feature` / `bugfix` / `release` / `hotfix`) with directed `--no-ff` merges + hotfix fan-out (main + develop + open `release/*`); `start` / `finish` / `init` verbs. `lib/gitflow-migrate.sh` onboards an existing repo (`master`→`main`, seed `develop`, install the pre-commit hook, set Gitea Option-1 owner-pushable protection on `main`+`develop`), applied to all 6 repos. Wired into `/init-project` (STEP 5f `gitflow init` owns the scaffold root commit) + `/onboard` (STEP 2.6). See **BREAKING** under Changed
+- `/deploy` — per-project deploy runbook in `.claude/deploy/` (`PROCEDURE.md` / `INCIDENTS.md` ledger / `STATE.json` oracle / `PENDING.json` cold-resume bridge / `NEXT.sh`); two-moment spine (instantiate checklist → out-of-band deploy → MARK success or LEARN from failure, patching the runbook in place); surgical `lib/deploy-commit.sh`; plus `/setup-deploy`
+- Analyze-before-plan invariant — dev flows (`feat` / `bugfix` / `hotfix`, `ship-feature`) READ related memory before planning (ship-feature also reads related code) and must NAME each surfaced ID in the plan; shared `lib/analyze-before-plan.md` (read-before bookend of coupled-capitalize)
+- Animation-library auto-detection/install — `motion` (`motion-v` for Vue 3 / Nuxt) auto-installed in `/init-project` (STEP 5e), opt-in in `/onboard` (STEP 2.5) on eligible stacks; `plugin-advisor` detects + reports only; logic in `lib/animation-lib-check.sh`
+- Design-toolchain gate — `lib/design-tool-gate.sh` + `lib/design-gate.md` + a `design-toolchain-reminder` hook enforce the full design toolchain on UI work (profile-based), with a suggest-only non-blocking anim-lib note when a motion signal hits an eligible stack
+- `lib/toggle-external.sh` — enable/disable non-marketplace tools; gstack now OFF by default (opt-in, activated on-demand per profile), Magic MCP (21st-dev) installed disabled by default
+- Secrets single source-of-truth — real secret in `~/.claude/.env` reached via a repo `.env` symlink + `.env.example` placeholder; `MAGIC_API_KEY` resolved from it
 - `/reconcile` — declared-vs-real reconciler: confronts TODO checkboxes + registry statuses (never the `## Index`) against real git/fs and surfaces the gaps in four categories + contradiction candidates, with a gated TODO write-back. Engine `lib/reconcile.sh` (body enumeration, git/fs oracles, last-block-wins status); thin skill
 - `/release-candidate` — orchestrator over the gitflow release mechanic that adds the version tag the lib doesn't: finalize `version.txt` + CHANGELOG, fan-out `develop`→`main` + back, tag `vX.Y.Z`, push (gated). Lib stays the generic mechanic; the skill owns the tag
 - Coupled-capitalize: dev flows (feat / hotfix / bugfix / commit-change, ship-feature, init-project) auto-commit their memory in the same breath, via shared `lib/capitalize-commit.md` + `lib/memory-commit.sh` (surgical — `.claude/memory` + `.claude/tasks` only, never `git add -A`)
@@ -20,7 +27,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 - `/close` — end-of-session memory ritual (decisions / learnings / blockers)
 - `/pdf-translate` — translate a PDF to another language, output as HTML (via Vision)
 - `/harden` — web hardening audit (SSL/TLS, HSTS, CSP, headers)
-- `/validate` — W3C HTML/CSS validity + WCAG accessibility audit
+- `/web-validate` — W3C HTML/CSS validity + WCAG accessibility audit
 - `/client-handover` — final ship + branded client deliverable (Markdown / HTML / PDF)
 - `/profile` — partition skills by usage profile (design / dev / qa / audit / minimal / full)
 - `frontend-design` and `design-motion-principles` skills (external marketplaces)
@@ -28,21 +35,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 - `.claude/{tasks,memory,audits}/` governance layout + 5 memory registries (decisions, learnings, blockers, journal, evals)
 
 ### Changed
+- **BREAKING (gitflow):** never commit code directly on `main` / `develop` — branch first (`gitflow start <type> <name>`) and integrate via `gitflow finish`. A generated per-repo pre-commit hook BLOCKS direct code commits on `main` / `develop` (exempts `.claude/**`, merges, the root commit). Existing repos must run `lib/gitflow-migrate.sh`. This workflow rupture is what takes the project from 3.x to 4.0.0
+- `settings.json`: `git push` / `git tag` moved to the **ask** permission tier — a tool-call backstop for the "finish / release only on an explicit human signal" rule
+- `install.sh` / `install-plugins.sh` made self-sufficient — nvm-installs Node/npm when missing, installs the `jq` prerequisite, runs `npx skills add` from `$HOME`; auto-reverts hand-curated config (`CLAUDE.md` + `settings.json` + `.claude/settings.json`) after install via an EXIT trap (install-immutable guard); auto-fixes the gstack browser on an OS newer than the pinned Playwright supports (Ubuntu 26.04)
+- graphify upgraded to 0.8.x (skill pinned 0.8.45) — Gemini backend, monorepo support, CLI export, encoding fixes; CLAUDE.md + the pre-tool hook now prefer `graphify query` over `GRAPH_REPORT.md`
+- `/seo` + `/geo`: CMS-plugin-first + shared-file edit discipline; Bing / IndexNow submission now mandatory
 - `/ship-feature`: capitalize + memory commit moved before FINISH (was after) — fixes memory committed after a push/PR and stranded outside it
 - `/init-project`: new STEP 10b captures founding architecture decisions as BDRs before FINISH
 - `/ship-feature` + `/init-project`: DOC SYNC moved before FINISH (was after) — fixes public docs patched then left uncommitted and stranded outside the push/PR (ship-feature STEP 9→8, init-project STEP 12→10c; GSD 13→12)
-- `/validate` renamed to `/web-validate` — clearer scoped name (W3C + WCAG); routing, skill profiles, cross-references, and the client-deliverable leak-guard updated (the guard still matches legacy `/validate` so older client docs stay covered)
 - `/seo` split into parallel `seo` + `geo` agents with shared resources
 - `/onboard` rewritten: archetype-aware pipeline (orchestrator + config-only agent), security audit archetype-aware
 - `doc-syncer`: stack-aware audit + deploy-doc gating; later scoped to public docs only, `.claude/` read-only; sync-only ROADMAP handling — planned→shipped reconciliation from code/git, never from `.claude/`; numeric incoherence → HUMAN question
 - `CLAUDE.md`: major refactor (contradiction purge, restructure), subagent-delegation rule, design-toolchain mandate, memory-registry governance
 - Memory registries: enforced English + caveman format
-- Default model / effort settings updated
+- `settings.json`: `permissions.defaultMode` → `auto` (classifier-gated autonomy; `disableAutoMode` dropped) + `remoteControlAtStartup` + `skipAutoPermissionPrompt` + `effortLevel: xhigh`; model pin removed
 
 ### Removed
 - `/init-project`: STEP 12 (speculative GSD v2 auto-bootstrap at project creation) removed — it ran `gsd init` AFTER FINISH, creating `ROADMAP.md` + `.gsd/` stranded outside the merge/PR (BLK-011), to bootstrap a multi-session engine that is opt-in and rarely used. Resolved by removal, not by plumbing a commit: GSD stays initializable on-demand (`/onboard add gsd`, or `gsd init` in a terminal), `/status` still reads `.gsd/`, and plugin-advisor still recommends it for multi-session work. init-project is now an 11-step pipeline
 - `disable-model-invocation` frontmatter removed repo-wide (aligns skills with CLAUDE.md routing)
 - Caveman plugin always-on integration purged — plugin disabled + uninstalled; SessionStart/UserPromptSubmit hooks, standalone hook files, `install-plugins.sh` STEP 5.5, `update-all.sh` refresh step, `plugins.lock.json` entry, `doctor.sh` checks, and docs removed. On a subscription plan its ~75% output-token compression has no cost benefit, and the always-on hooks added friction on validation gates + client deliverables. The unrelated memory-registry terse-format convention is kept.
+- Installer-managed skills de-vendored — `frontend-design` un-tracked + npx-skills artifacts gitignored (re-synced from the plugin cache each run); obsolete `claude --effort max` shell alias removed (`settings.json` `effortLevel` is the source of truth)
 
 ### Fixed
 - `lib/doc-commit.sh` no longer masks a rejected `git commit` as success: a pre-commit hook / protected branch / signing failure now fails loud with exit 5 and empty stdout (was: false "committed" + the previous HEAD's hash + exit 0, leaving docs silently uncommitted on a dirty tree)
