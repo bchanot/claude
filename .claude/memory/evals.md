@@ -31,6 +31,7 @@ rules:
 | EVAL-008 | 2026-06-27 | Doc-sync coupled machinery — 28/28 real-exec, swap-sweep caught prior debt | keep |
 | EVAL-009 | 2026-06-27 | deploy skill subagent-driven build: multi-stage review + pressure-test net-positive | keep |
 | EVAL-010 | 2026-06-29 | prune-memory hardening: RED-7 deterministic fix + RED-8 accept + 34-row index backfill | keep |
+| EVAL-011 | 2026-06-30 | /reconcile build: RED contaminated→corrected (unguided control), GREEN behavioral confirmed, dogfooded on itself | keep |
 
 ---
 
@@ -120,3 +121,10 @@ rules:
 - **method**: read-first cartography (sub-agent, confirmed) → RED-7 closed by a DETERMINISTIC test ([[LRN-046]]) + STEP-2 example fictionalized → RED-8 re-reviewed, consciously accepted ([[LRN-047]]) → 34 missing Index rows composed + inserted in ID-sorted slots → STEP-4 verify zero MISSING/ORPHAN; deterministic suite all-green, shellcheck clean.
 - **anomalies**: (1) RED-7 test FALSE-GREEN caught in real time — ugrep parsed `-9..` as an option → empty → green; fixed via /usr/bin/grep ([[LRN-074]]). The RED was WATCHED, not assumed. (2) RED-7 premise verified: LRN-014/016 ARE complementary → the old example modeled a WRONG merge, not just primed it. (3) backfill: 4/5 title-derived Applies-to (the awk-missed entries) missed a real future-app nuance on re-read → corrected before insert (without the 5-check, 4 Index rows would have diverged from source, engraved forever). (4) almost wrote a colliding EVAL-009 (deploy) — read the file first → EVAL-010. (5) pre-existing LRN-021 Index row out of ID-order → moved.
 - **action**: keep. RED-7 GREEN (deterministic), RED-8 documented-accept, drift 34→0. [[LRN-073]] + [[LRN-074]] engraved — 2 pattern-families this session (fail-silent [[LRN-066]]/[[LRN-071]] + command-assumption [[LRN-074]]).
+
+## EVAL-011 — /reconcile build (TDD): contaminated RED corrected, behavioral GREEN, dogfood on itself
+- **Date**: 2026-06-30
+- **output**: `lib/reconcile.sh` (engine) + `lib/tests/run-reconcile.sh` (20/20) + `lib/tests/fixtures/` (neutral) + `skills/reconcile/SKILL.md` (thin) + CLAUDE.md routing.
+- **method**: 2-arm RED — GUIDED baselines (A/B, "use git + justify") SUCCEEDED = contaminated; UNGUIDED tempting baselines (a4872/a0f68) MIRRORED the TODO = real failure ([[LRN-075]]). RED-B = deterministic Index-ignore with TEETH (shim engine to read Index → reds). GREEN behavioral (a8404): same terrain + skill → verified via engine, stale reported done w/ SHAs, applied A/B/C gate, surfaced cross-ref as candidate. Dogfood: ran on the live repo, found its OWN chantier, marked S3 PARTIAL (routage absent per path oracle), not done.
+- **anomalies**: (1) first baseline LEADING → corrected with an unguided control ([[LRN-075]]). (2) fixture-name false-signal — a0f68 read "pre-reconcile" from the dir name → re-froze fixtures neutral ([[LRN-077]]). (3) harness caught a real bug mid-build: BLK-004 status bleed from BLK-005's header ([[LRN-076]]). (4) META: marked `[x] routage DONE` BEFORE the CLAUDE.md edit succeeded (errored — Read-first) → created the exact declared-vs-real gap `/reconcile` traps, caught by the next verify. The tool's build produced the gap it detects.
+- **action**: keep. RED watched red before green ([[LRN-074]] discipline), bug caught + fixed, behavioral loop closed.

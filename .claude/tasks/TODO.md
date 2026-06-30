@@ -310,7 +310,7 @@ LAST of 3 chantiers. Read-first cartography confirmed RED-7/8 + measured 34-row 
 - [x] FINISH — merged bugfix/prune-memory-hardening → develop — DONE (reconcile 2026-06-29 : merge `73e12be`)
 - [x] PUSH — develop → origin — DONE (reconcile 2026-06-29 : develop == origin/develop, 0 commit en avance)
 
-## 2026-06-29 — skill /reconcile (RÉCONCILIATEUR file-ouverte ↔ réel) [QUEUED, non bloqué]
+## 2026-06-29 — skill /reconcile (RÉCONCILIATEUR file-ouverte ↔ réel) [BUILT 2026-06-29 — finish pending]
 Genèse : l'inventaire manuel du 2026-06-29 a prouvé que le TODO mentait (5 cases fait-mais-non-coché
 + 1 "auto-nettoyé" qui ne l'était pas + 1 rejeté marqué "deferred"). Cet inventaire EST la spec du
 skill ET son cas de test de référence (résultat manuel connu-bon à reproduire).
@@ -335,11 +335,13 @@ SORTIE = les 4 catégories de l'inventaire 2026-06-29 :
     (modifie un fichier tracké → jamais silencieux).
 
 Subtasks (à détailler au lancement) :
-- [ ] Spec : table oracle-par-source (commit existe / branche absente / tree clean / skill linké /
-      statut registre) — chaque "déclaré" a son test réel
-- [ ] Décider build : superpowers:writing-skills (TDD, RED = fixture TODO menteur reproduisant les 7 écarts)
-- [ ] `skills/reconcile/SKILL.md` + routage CLAUDE.md (triggers : "reconcile", "file vraiment vide ?",
-      "qu'est-ce qui reste ouvert", "inventaire chantiers")
-- [ ] Détecteur de contradictions inter-registres (BDR accepted vs chantier qui le contredit)
-- [ ] Gate de réconciliation (diff TODO proposé, A/B/C confirm avant edit)
-- [ ] Test final = reproduire l'inventaire 2026-06-29 (cat. 1-4 + contradiction BDR-001) comme oracle
+- [x] Spec : table oracle-par-source (commit existe / branche absente / tree clean / skill linké /
+      statut registre) — chaque "déclaré" a son test réel — DONE (lib/reconcile.sh : reconcile_oracle_*)
+- [x] Décider build : superpowers:writing-skills (TDD, RED = fixture TODO menteur reproduisant les 7 écarts) — DONE (RED a4872 miroir + RED-B Index-ignore à dents + GREEN comportemental a8404)
+- [x] `skills/reconcile/SKILL.md` — DONE (skill mince : orchestration + gate A/B/C + limites honnêtes)
+- [x] routage CLAUDE.md (triggers : "reconcile", "file vraiment vide ?",
+      "qu'est-ce qui reste ouvert", "inventaire chantiers") — DONE (CLAUDE.md "Skill routing" + link.sh)
+- [x] Détecteur de contradictions inter-registres (BDR accepted vs chantier qui le contredit) — DONE (reconcile_contradiction_candidates ; surface, n'asserte pas)
+- [x] Gate de réconciliation (diff TODO proposé, A/B/C confirm avant edit) — DONE (SKILL.md "The gate" ; registres read-only)
+- [x] Test final = reproduire l'inventaire 2026-06-29 (cat. 1-4 + contradiction BDR-001) comme oracle — DONE (run-reconcile.sh 20/20, fixtures neutres, RED prouvé rouge avant le vert)
+- NOTE : bâti, non committé (develop +1 `bdfa9bc`, livrables untracked) → finish pending (feature/reconcile-skill)

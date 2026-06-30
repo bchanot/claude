@@ -248,3 +248,9 @@ rules:
 - Contradiction caught: chantier `--help` (STEP 0.5 per SKILL.md) contradicts [[BDR-001]] accepted (helper via session-start hook; per-SKILL.md copy REJECTED) → `--help` BLOCKED pending BDR-001 resolution (supersede or re-route).
 - Our OWN manual inventory had an error: line 26 cleanup-machine declared "auto-cleaned next make plugin" but fs shows darwin-skill still present → demoted "done"→"still deferred" after fs check. Proof-by-example the queue needs a RECONCILER (declared-vs-real), not a `[ ]`-grepper.
 - Reconciled TODO (5 ticked + 1 requalify + 1 split, annotated `reconcile 2026-06-29` w/ evidence) + queued `/reconcile` skill chantier (4-cat output, inter-registry contradiction detection, GATED TODO edit). Sequencing: /reconcile FIRST (oracle = today's inventory, perishable) → resolve BDR-001 → --help.
+
+## 2026-06-30 — /reconcile skill shipped (declared-vs-real reconciler)
+- Built `/reconcile` via superpowers:writing-skills (TDD): engine `lib/reconcile.sh` + harness 20/20 + thin gated skill. Recursive coherence (never trust a declarative source, incl. Index) made a TESTED guarantee — T1 reds on an Index-reader shim. [[BDR-041]].
+- RED 2-arm: guided baselines succeed (contaminated) / unguided mirror the TODO (real failure) → value = determinism+gate, not teaching ([[LRN-075]]). GREEN behavioral confirmed; dogfooded on its own chantier (S3 marked partial honestly). [[EVAL-011]].
+- Learnings: unguided-control RED ([[LRN-075]]); last-block-wins status + BLK-004 bleed bug ([[LRN-076]]); neutral fixture names = same symptom/distinct cause as [[LRN-074]] ([[LRN-077]]).
+- Ship: feature/reconcile-skill → develop (gitflow finish). Push to origin gated (ASK).
