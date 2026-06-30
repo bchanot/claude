@@ -33,6 +33,7 @@ rules:
 | EVAL-010 | 2026-06-29 | prune-memory hardening: RED-7 deterministic fix + RED-8 accept + 34-row index backfill | keep |
 | EVAL-011 | 2026-06-30 | /reconcile build: RED contaminated→corrected (unguided control), GREEN behavioral confirmed, dogfooded on itself | keep |
 | EVAL-012 | 2026-06-30 | /release-candidate build: RED (gitflow fans out, no tag) → GREEN 5/5 (tag), throwaway-repo flow replay | keep |
+| EVAL-013 | 2026-06-30 | /reconcile real-usage on live repo: known gap + 2 unanticipated (header-marker drift class) + false-positive rejected off-fixture, 0 false assertion | keep |
 
 ---
 
@@ -136,3 +137,10 @@ rules:
 - **method**: read-first cartography (gitflow release wired: start L49 base=develop, finish L108-111 fan-out; grep-confirmed NO `git tag` → the gap). TDD on a throwaway repo: RED (`RC_TAG=0`) = start→prep→finish → 4 GREEN (fan-out / merge-back / branch-deleted / CHANGELOG) + 1 RED (tag v4.0.0 absent — gitflow never tags); GREEN (`RC_TAG=1`) = + `git tag -a` → 5/5, tag on main's merge commit. shellcheck clean (caught + fixed an SC2164 mid-build).
 - **anomalies**: (1) versioning reasoning corrected by the user — number derives from change nature, not justification ([[LRN-078]]); caveman verified `Removed` not breaking from refs, not memory. (2) tag-in-skill consequence (direct-lib release wouldn't tag) made explicit + accepted, not left implicit. (3) layers kept distinct — this built+tested the skill; cutting the real v4.0.0 is a separate later act.
 - **action**: keep. RED red for the right reason (gap = tag), GREEN closes it, teeth proven.
+
+## EVAL-013 — /reconcile in REAL USAGE: unanticipated drift found + false-positive rejected off-fixture
+- **Date**: 2026-06-30
+- **output**: reconcile run on live claude-config repo (develop) → write-back `.claude/tasks/TODO.md` (commit `09200c5`, pushed): `/release-candidate` QUEUED→SHIPPED + 4 subtasks [ ]→[x]; 3 stale `[branch …]` headers→[DONE]. Engine `lib/reconcile.sh` orchestrated by hand (enumerate_ids + oracle_* probes + verdict + A/B/C gate). Distinct from [[EVAL-011]] (BUILD: fixture RED/GREEN + self-dogfood) — this = USAGE on fresh real drift.
+- **method**: real run, no fixture. Per declared item, oracle vs git/fs: `oracle_path_present` (SKILL.md d3d6ced), `oracle_msg_committed`, `oracle_merge_done` (3 branches merged+deleted), tag v4.0.0 + version.txt. `blk_open` → 3 external (BLK-001/003/009, no drift). `deferrals` (marked) + `contradiction_candidates`. Measurable: 1 primary gap (/release-candidate QUEUED-but-done, oracle-proven) + 3 secondary (header-marker drift) found · 1 false positive rejected · 0 false gap asserted.
+- **anomalies**: none wrong. 2 capabilities PROVEN that [[EVAL-011]] did NOT: (a) finds UNANTICIPATED gaps — the 3 `[branch X]` headers = a header-marker drift CLASS beyond checkbox drift, not designed-for, caught anyway (merge_done=YES + no local branch). Coverage wider than spec. (b) rejects FALSE POSITIVE on REAL data — `--help` candidate (BDR-001 title ⇄ TODO L134) surfaced as CANDIDATE not verdict; review → both WON'T-BUILD, aligned, not contradiction. Recursive coherence holds OFF-fixture. Design note: NO merge-time header-update hook — merge does merge, /reconcile = periodic catch (separation kept, finding 1).
+- **action**: keep. Real-world value proven — known gap + 2 unknown + false-positive rejected, zero false assertion.
