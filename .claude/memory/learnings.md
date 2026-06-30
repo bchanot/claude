@@ -101,6 +101,7 @@ rules:
 | LRN-079 | 2026-06-30 | orchestrator-skill TDD = replay the prescribed flow on a throwaway repo (gitflow-test style): RED runs the flow minus the new step → the outcome assertion reds on the gap | testing a skill that orchestrates an existing mechanic + one new step |
 | LRN-080 | 2026-06-30 | before adding an instruction "to make the model do X", measure if it ALREADY does X — universal conventions (--help…) it often does; the behavioral RED can KILL the chantier (phantom value) | proposing any global instruction to elicit a behavior; CLAUDE.md additions |
 | LRN-081 | 2026-06-30 | Claude commit trailers (Co-Authored-By + Claude-Session) only on Claude-COMPOSED content; a commit merely STAGING user-authored text gets none — staging ≠ authorship | committing on the user's behalf; memory-commit.sh appends trailers by default |
+| LRN-082 | 2026-06-30 | Trigger-cleared on a multi-motif exclusion lifts only the named motif — re-check the others before acting | any "exclusion lifted / precondition cleared" — verify ALL grounds, not just the named one |
 
 ---
 
@@ -888,3 +889,10 @@ rules:
 - **why it matters**: memory-commit.sh + the dev flows append the trailers BY DEFAULT → committing user-authored text through them mis-credits Claude on every note/spec the user writes. A `Claude-Session:` on a 100%-user addition is traceability noise pointing at no Claude contribution.
 - **context**: 2026-06-30 — user's `auto-skill-dispatch` planning note committed `chore(todo)` CLEAN, no trailer (`e591510`, author Bastien Chanot); vs `chore(memory)` BLK-013/BDR-043 (`5b03ac2`) WITH trailers (Claude composed those entries). The split IS the rule.
 - **future application**: before committing on the user's behalf ask "did Claude COMPOSE this content?" Composed (entry/code/doc/TODO-from-intent) → trailers. Merely staging user-written text → no trailers, user-authored. Self-referential proof: this entry + the promoted TODO follow-ups = Claude-composed → trailers OK on their commit.
+
+## LRN-082 — Trigger-cleared on a MULTI-MOTIF exclusion lifts only the NAMED motif — re-check the others before acting
+- **Date**: 2026-06-30
+- **pattern**: an exclusion justified by ≥2 independent grounds lifts only for the ground that actually changed. A "trigger cleared / precondition gone" note naming ground A leaves ground B in full force. Geometric trigger lifted ≠ value trigger lifted; acting on cleared-A without re-checking B = false unblock.
+- **why it matters**: [[BDR-015]] excluded 5 gstack skills from /darwin-skill on TWO grounds — (a) broken symlinks AND (b) external ownership (never modify a third-party submodule). [[BDR-043]] cleared (a) only (symlinks repaired, 0 broken) → marked re-baseline "unblocked". (b) intact: darwin optimizes by EDITING SKILL.md → would edit the gstack submodule = forbidden ([[LRN-070]]). Re-baseline = a score we can't act on → phantom value.
+- **context**: 2026-06-30 — measure-first: searched for results.tsv instead of assuming → GONE (wiped by 23/06 make-plugin reinstall) → no baseline survives + (b) never lifted → action resolved-MOOT, not run. Twin of [[LRN-080]] (--help): trigger fired, measurement showed phantom value (distinct mechanism: there value-absent, here residual-motif).
+- **future application**: before acting on any "exclusion lifted / precondition cleared", enumerate ALL original grounds and verify EACH is gone — not just the one the trigger names. Cleared-A says nothing about B.

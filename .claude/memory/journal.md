@@ -275,3 +275,8 @@ rules:
 - LRN-081: Claude commit trailers only on Claude-COMPOSED content; staging user-authored text gets none (staging ≠ authorship). Born of `e591510` (clean) vs `5b03ac2` (trailers).
 - TODO: checked L26 "Cleanup machine courante" DONE (`make plugin` EXIT=0 this session ran Step 8.5; fs-verified both strays absent — closes the session's opening "cleanup ligne 26"); added (a) harden install-plugins.sh Step 1 npm-via-corepack ([[BLK-013]] fix-forward); added (b) darwin re-baseline of the 5 ex-broken skills ([[BDR-043]], promoted from its action-field).
 - LRN-081 capitalized; checked 1 done, added 2.
+
+## 2026-06-30 (cont.) — BLOC1 darwin re-baseline → resolved-MOOT (measure-first)
+- Searched for results.tsv instead of assuming its state → GONE (wiped by 23/06 make-plugin reinstall; was a local May-2026 artifact, not shipped upstream). No darwin baseline survives at all → not even a re-baseline, a fresh-from-zero one.
+- BDR-043 cleared only motif (a) of BDR-015's TWO exclusion grounds (symlinks repaired ✅, 0 broken); motif (b) external-ownership INTACT — 5 resolve to skills-external/gstack/ (submodule), darwin edits SKILL.md → would dirty submodule ([[LRN-070]]). Re-baseline = unactionable score = phantom value. Twin of --help ([[LRN-080]]), distinct mechanism (residual motif vs absent value).
+- Decision A (won't-run): TODO (b) → resolved-MOOT (not done, not open). LRN-082 capitalized (multi-motif trigger lesson). The "montre la table avant de décider" gate paid off — looking found the table gone instead of assuming status=error.
