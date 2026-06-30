@@ -32,6 +32,7 @@ rules:
 | EVAL-009 | 2026-06-27 | deploy skill subagent-driven build: multi-stage review + pressure-test net-positive | keep |
 | EVAL-010 | 2026-06-29 | prune-memory hardening: RED-7 deterministic fix + RED-8 accept + 34-row index backfill | keep |
 | EVAL-011 | 2026-06-30 | /reconcile build: RED contaminated→corrected (unguided control), GREEN behavioral confirmed, dogfooded on itself | keep |
+| EVAL-012 | 2026-06-30 | /release-candidate build: RED (gitflow fans out, no tag) → GREEN 5/5 (tag), throwaway-repo flow replay | keep |
 
 ---
 
@@ -128,3 +129,10 @@ rules:
 - **method**: 2-arm RED — GUIDED baselines (A/B, "use git + justify") SUCCEEDED = contaminated; UNGUIDED tempting baselines (a4872/a0f68) MIRRORED the TODO = real failure ([[LRN-075]]). RED-B = deterministic Index-ignore with TEETH (shim engine to read Index → reds). GREEN behavioral (a8404): same terrain + skill → verified via engine, stale reported done w/ SHAs, applied A/B/C gate, surfaced cross-ref as candidate. Dogfood: ran on the live repo, found its OWN chantier, marked S3 PARTIAL (routage absent per path oracle), not done.
 - **anomalies**: (1) first baseline LEADING → corrected with an unguided control ([[LRN-075]]). (2) fixture-name false-signal — a0f68 read "pre-reconcile" from the dir name → re-froze fixtures neutral ([[LRN-077]]). (3) harness caught a real bug mid-build: BLK-004 status bleed from BLK-005's header ([[LRN-076]]). (4) META: marked `[x] routage DONE` BEFORE the CLAUDE.md edit succeeded (errored — Read-first) → created the exact declared-vs-real gap `/reconcile` traps, caught by the next verify. The tool's build produced the gap it detects.
 - **action**: keep. RED watched red before green ([[LRN-074]] discipline), bug caught + fixed, behavioral loop closed.
+
+## EVAL-012 — /release-candidate build (TDD): RED no-tag → GREEN 5/5, throwaway-repo replay
+- **Date**: 2026-06-30
+- **output**: `skills/release-candidate/SKILL.md` (thin orchestrator, 45 l) + `lib/tests/run-release-candidate.sh` (flow replay) + CLAUDE.md routing + CHANGELOG [Unreleased] entries (/reconcile + /release-candidate).
+- **method**: read-first cartography (gitflow release wired: start L49 base=develop, finish L108-111 fan-out; grep-confirmed NO `git tag` → the gap). TDD on a throwaway repo: RED (`RC_TAG=0`) = start→prep→finish → 4 GREEN (fan-out / merge-back / branch-deleted / CHANGELOG) + 1 RED (tag v4.0.0 absent — gitflow never tags); GREEN (`RC_TAG=1`) = + `git tag -a` → 5/5, tag on main's merge commit. shellcheck clean (caught + fixed an SC2164 mid-build).
+- **anomalies**: (1) versioning reasoning corrected by the user — number derives from change nature, not justification ([[LRN-078]]); caveman verified `Removed` not breaking from refs, not memory. (2) tag-in-skill consequence (direct-lib release wouldn't tag) made explicit + accepted, not left implicit. (3) layers kept distinct — this built+tested the skill; cutting the real v4.0.0 is a separate later act.
+- **action**: keep. RED red for the right reason (gap = tag), GREEN closes it, teeth proven.
