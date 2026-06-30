@@ -25,9 +25,8 @@ Root causes trouvées (logs install-20260623-181416.log) :
       cycle minimal↔full OK ; git propre (symlinks gstack gitignorés) ; profil full restauré
 - [~] Cleanup machine courante : $REPO/.claude/skills/darwin-skill + .agents/skills VIDE
       restent (rm bloqué par garde permission .claude/) → auto-nettoyés au prochain `make plugin`
-      [reconcile 2026-06-29 : TOUJOURS présents (fs-vérifié, darwin-skill 116K daté 23/06) — `make plugin` pas rejoué depuis. Reste différé, déclencheur = prochain install.]
 - [x] Capitalize — LRN-042 (Bug B CWD-relatif) + BDR-030 (gstack on-demand par profil) + journal 2026-06-23
-- [x] Commit (via /commit-change) — DONE (reconcile 2026-06-29 : working tree clean, travaux shippés)
+- [ ] Commit (via /commit-change)
 
 ## profile.sh — verbe `gstack on|off`
 - [x] Extraire helper `enable_all_gstack()` (boucle de cmd_reset) — anti-duplication
@@ -81,7 +80,7 @@ Root causes trouvées (logs install-20260623-181416.log) :
 - [x] Ajouter 2 niveaux d'audit (LOCAL code-only / FULL live+externe)
 - [x] Adapter scoring, legal, GEO aux deux niveaux
 - [x] Renumeroter proprement (0-14) + corriger toutes les refs internes
-- [x] Commit — DONE (reconcile 2026-06-29 : working tree clean, agent seo-analyzer live)
+- [ ] Commit
 
 ## /onboard — cso archetype-aware
 Problème : prompt cso fallback est non-adaptatif — cherche XSS/SQLi/CORS même sur firmware.
@@ -132,7 +131,6 @@ Subtasks :
 - [x] Tester : shellcheck OK ; matrix React/Vue/RN/backend/with-motion/no-package/pnpm tous corrects
 
 ## Helper `--help` / `help` sur tous les skills (option C)
-> ⚠️ BLOQUÉ (reconcile 2026-06-29) : contredit BDR-001 (accepted) qui a REJETÉ "copier le helper dans chaque SKILL.md" (maintenance entropy) au profit d'un hook session-start. Or ce chantier planifie STEP 0.5 par SKILL.md. Le TODO note lui-même "aucun skill ne gère --help aujourd'hui" → la voie hook de BDR-001 n'a jamais produit de --help fonctionnel. TRANCHER d'abord : BDR-001 périmé → marquer superseded, OU repasser par le hook. Ne pas lancer avant résolution.
 Problème : aucun skill ne gère `--help` aujourd'hui. `argument-hint` affiche juste la syntaxe en autocomplétion, pas de description/exemples. L'utilisateur doit lire le SKILL.md ou deviner.
 
 Objectif : `/<skill> --help` (ou `/<skill> help`) affiche un bloc standardisé (description, args, exemples, cross-refs) et exit SANS dispatcher l'agent ni modifier quoi que ce soit.
@@ -212,7 +210,7 @@ obligatoire avant axe suivant. Construit via superpowers:writing-skills (TDD).
 - [x] Vérif finale : skill découvrable (~/.claude/skills/audit-delta via symlink
       skills/), frontmatter valide, worktrees de test nettoyés
 - [x] Capitalize : BDR-020 + LRN-027 + journal 2026-06-11
-- [x] Commit (via /commit-change quand prêt) — DONE (reconcile 2026-06-29 : working tree clean, skill audit-delta live)
+- [ ] Commit (via /commit-change quand prêt)
 
 ## 2026-06-11 — darwin eval: 4 confirmed bugs fix (branch auto-optimize/*-bugfixes)
 
@@ -247,8 +245,8 @@ doc-sync twin chantier deferred. Safety in the pathspec, never `git add -A`.
 - [x] Task 4 — ship-feature reorder (capitalize before FINISH) — e8eff7e
 - [x] Task 5 — init-project founding-decisions capitalize (F5) — df60df6
 - [x] Task 6 — behavioral verify + shellcheck + CHANGELOG + BDR/LRN — this commit
-- [x] v2 — REJETÉ (pas différé) — BDR-037 (reconcile 2026-06-29) : aucun event CC ne supporte un nag de fin-de-session (Stop = par-tour, SessionEnd = debug-log only). Vrai manque = câblage, corrigé en wirant /capitalize+/close à l'include. Aucun code à écrire.
-- [x] twin chantier — doc-sync DONE (reconcile 2026-06-29) : chantier propre livré ci-dessous (2026-06-27, BDR-036). La note REFUTED était juste — doc-commit BÂTI, pas reorder-seul.
+- [ ] v2 (deferred) — Stop hook (non-blocking, BDR-033 style) reusing the detector
+- [~] twin chantier — doc-sync → own plan (2026-06-27). NOTE: "reorder before FINISH" REFUTED — doc-syncer commits nothing, needs reorder + NEW doc-commit mechanism.
 
 ## 2026-06-27 — doc-sync coupled (twin of coupled-capitalize)
 Plan: [.claude/tasks/2026-06-27-doc-sync-coupled.md](2026-06-27-doc-sync-coupled.md)
@@ -277,8 +275,7 @@ Goal: universal gitflow across all `bchanot/*` Gitea repos. Lib built across pri
 - [x] Deleted merged branches: `feat/deploy-skill` (local+remote) + `cleanup/caveman-always-on` (remote)
 - [x] Dogfood PROVEN: hook whitelists `.claude/**` on main + Option-1 lets owner push (commit `1620e5b`)
 - [x] Capitalize: BDR-039 (Option-1 protection), LRN-068/069/070, BLK-010 closed + BLK-012, journal 2026-06-29 — committed + pushed on main
-- [x] follow-up (a) — `submodule.gstack.ignore=dirty` committé dans `.gitmodules` — DONE (reconcile 2026-06-29 : commit `be1dcef` sur main, mergé via hotfix/gstack-ignore-gitmodules)
-- [ ] follow-up (b) — zenquality `cleanup/post-smtp-fix` rename `<type>/<name>` ou finish+delete (AUTRE repo, optionnel)
+- [ ] follow-up (optional) — `submodule.gstack.ignore=dirty` into committed `.gitmodules` (share across clones); zenquality `cleanup/post-smtp-fix` rename `<type>/<name>` or finish+delete
 
 ## 2026-06-29 — MINOR-gate strengthening (doc-syncer) [branch feature/minor-gate-strengthening]
 Read-first cartography refuted the literal premise: "strengthen MINOR gate" = 3 problems;
@@ -307,41 +304,5 @@ LAST of 3 chantiers. Read-first cartography confirmed RED-7/8 + measured 34-row 
 - [x] RED-8 (added-negation inversion) — consciously ACCEPTED as documented limit in BACKLOG ([[LRN-047]]); no fragile guard built
 - [x] Index backfill — 34 missing rows (decisions 11, learnings 21, blockers 2) composed + ID-sorted insert; drift 34→0, STEP-4 verify OK; moved pre-existing out-of-order LRN-021
 - [x] Capitalize — [[LRN-073]] + [[LRN-074]] + [[EVAL-010]] + journal 2026-06-29 (cont. 3)
-- [x] FINISH — merged bugfix/prune-memory-hardening → develop — DONE (reconcile 2026-06-29 : merge `73e12be`)
-- [x] PUSH — develop → origin — DONE (reconcile 2026-06-29 : develop == origin/develop, 0 commit en avance)
-
-## 2026-06-29 — skill /reconcile (RÉCONCILIATEUR file-ouverte ↔ réel) [BUILT 2026-06-29 — finish pending]
-Genèse : l'inventaire manuel du 2026-06-29 a prouvé que le TODO mentait (5 cases fait-mais-non-coché
-+ 1 "auto-nettoyé" qui ne l'était pas + 1 rejeté marqué "deferred"). Cet inventaire EST la spec du
-skill ET son cas de test de référence (résultat manuel connu-bon à reproduire).
-
-PRINCIPE NON NÉGOCIABLE — ce n'est PAS un grep des `[ ]` du TODO (ça reproduirait le mensonge : dirait
-"ouvert" sur du fait-mais-non-coché). C'est un RÉCONCILIATEUR : confronte les sources DÉCLARATIVES à
-l'état RÉEL et signale les ÉCARTS. Un lister-de-todos ne vaut rien (grep le fait) ; un "le TODO prétend
-X, le réel est Y" vaut beaucoup.
-- Sources DÉCLARATIVES : TODO.md ; BDR deferred/follow-ups/caveats ; BLK status=open|upstream ;
-  LRN caveats "revisit if / re-run if".
-- État RÉEL (oracles) : git (branche mergée/absente, commit existe, origin sync, working tree clean) ;
-  fichier live = committé (skill/agent présent + linké = shippé) ; statut registre.
-
-SORTIE = les 4 catégories de l'inventaire 2026-06-29 :
-  1. actionnable maintenant (non bloqué)
-  2. bloqué (condition externe — upstream)
-  3. différé (déclencheur conditionnel)
-  4. écart TODO↔réalité (fait-mais-non-coché / rejeté-marqué-deferred / "auto-fait" non vérifié)
-  + CONTRADICTIONS inter-registres (ex. BDR-001 accepted "pas de helper par SKILL.md" vs chantier
-    --help qui copie dans chaque SKILL.md).
-  + réconciliation TODO **GATED** : montre les écarts, DEMANDE avant cocher/requalifier
-    (modifie un fichier tracké → jamais silencieux).
-
-Subtasks (à détailler au lancement) :
-- [x] Spec : table oracle-par-source (commit existe / branche absente / tree clean / skill linké /
-      statut registre) — chaque "déclaré" a son test réel — DONE (lib/reconcile.sh : reconcile_oracle_*)
-- [x] Décider build : superpowers:writing-skills (TDD, RED = fixture TODO menteur reproduisant les 7 écarts) — DONE (RED a4872 miroir + RED-B Index-ignore à dents + GREEN comportemental a8404)
-- [x] `skills/reconcile/SKILL.md` — DONE (skill mince : orchestration + gate A/B/C + limites honnêtes)
-- [x] routage CLAUDE.md (triggers : "reconcile", "file vraiment vide ?",
-      "qu'est-ce qui reste ouvert", "inventaire chantiers") — DONE (CLAUDE.md "Skill routing" + link.sh)
-- [x] Détecteur de contradictions inter-registres (BDR accepted vs chantier qui le contredit) — DONE (reconcile_contradiction_candidates ; surface, n'asserte pas)
-- [x] Gate de réconciliation (diff TODO proposé, A/B/C confirm avant edit) — DONE (SKILL.md "The gate" ; registres read-only)
-- [x] Test final = reproduire l'inventaire 2026-06-29 (cat. 1-4 + contradiction BDR-001) comme oracle — DONE (run-reconcile.sh 20/20, fixtures neutres, RED prouvé rouge avant le vert)
-- NOTE : bâti, non committé (develop +1 `bdfa9bc`, livrables untracked) → finish pending (feature/reconcile-skill)
+- [ ] FINISH — merge bugfix/prune-memory-hardening → develop (awaiting explicit human signal)
+- [ ] PUSH — develop → origin after the 3 chantiers land (awaiting explicit human signal)

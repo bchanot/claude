@@ -62,6 +62,7 @@ rules:
 | BDR-038 | 2026-06-27 | deploy skill: per-project learning runbook, two-moment cold-resume | accepted |
 | BDR-039 | 2026-06-29 | Gitea branch protection = Option-1 owner-pushable, not require-PR | accepted |
 | BDR-040 | 2026-06-29 | doc-syncer MINOR-shape oracle: deterministic floor under LLM's MINOR call | accepted |
+| BDR-041 | 2026-06-30 | /reconcile = deterministic declared-vs-real engine + thin gated skill (reconciler, not lister) | accepted |
 
 ---
 
@@ -635,3 +636,12 @@ rules:
 - **ENGRAVED LIMIT — do not over-read the guarantee**: oracle catches STRUCTURAL/size significance, NOT semantic. A 3-line edit that CHANGES MEANING, no heading, small → still reads MINOR (rc 0) and auto-commits. Deterministic FLOOR under LLM judgment = REDUCTION of RISK-1's gross cases, NOT elimination. LLM owns the semantic call above the floor; the visible surface ([[BDR-036]]) stays the content backstop.
 - **Scope tranché**: ① oracle + ② [[LRN-071]] masked-commit fix built. ③ branch-guard (doc-commit refusing main/develop) DEFERRED — duplicates the protected-base predicate a 3rd time (lib + gitflow hook + here); migrated repos have the hook → ③ guards a state that shouldn't exist. Reconsider only for repos outside `gitflow init`.
 - **Build**: TDD RED→GREEN. run-doc-shape.sh 19/19 (incl. threshold boundary + env-override) + behavioral Scenario D. Wired doc-syncer STEP A4 + doc-commit.md ACKNOWLEDGMENTS coherence. shellcheck clean.
+
+## BDR-041 — /reconcile = deterministic declared-vs-real engine + thin gated skill (reconciler, not lister)
+- **Date**: 2026-06-30
+- **Status**: accepted
+- **Decision**: `/reconcile` answers "what work is REALLY open?" by confronting DECLARATIVE sources (TODO `[x]`/`[ ]`/`[~]`, registry statuses, `## Index`) against REAL state (git/fs, registry BODY). Split: `lib/reconcile.sh` (deterministic engine — body enumeration, `reconcile_oracle_*`, BLK last-block-wins, lexical deferral sweep, contradiction candidates, pure `reconcile_verdict` kernel) + `skills/reconcile/SKILL.md` (thin orchestration + A/B/C write-back gate). Founding principle = RECURSIVE COHERENCE: never use a declarative source as oracle (Index/checkbox/status/path-name) — enumerate from BODY `## ID` headings, decide done/stale from git/fs. TESTED: run-reconcile.sh T1 reds if engine reads `## Index` (shim → 51≠72, canary LRN-020 dropped). Registries READ-ONLY (curation = /prune-memory).
+- **Why**: RED proved a capable agent reconciles when GUIDED ("use git + justify") but MIRRORS the TODO when not (false positives + missed contradiction), and even guided hits the compound-status trap (BLK-008). Value = determinism + cheapness + gate, NOT teaching ([[LRN-031]], [[LRN-075]]). Mechanical 80% → script; judgment 20% → thin skill (writing-skills: automate mechanical, document judgment).
+- **Alternatives rejected**: monolithic teaching/discipline skill (agents reconcile when guided → no teaching value); `grep '[ ]'` lister (reproduces the lie); trust Index (drift, [[LRN-055]]); blocking write-back gate (friction — A/B/C surface chosen).
+- **Honest limits (graven)**: deferral detection LEXICAL (marked-only; unmarked "à reprendre quand X" missed); contradictions = CANDIDATES (token overlap), surfaced not asserted; cross-repo "not verifiable here"; cross-ref verdicts ("[~] done because chantier X below complete") surfaced, not auto-resolved.
+- **Reference**: `lib/reconcile.sh`, `lib/tests/run-reconcile.sh` (20/20) + `lib/tests/fixtures/` (neutral-named, [[LRN-077]]), `skills/reconcile/SKILL.md`, CLAUDE.md "Skill routing". Born of the 2026-06-29 manual inventory (its known-good oracle). Built via superpowers:writing-skills. See [[LRN-075]], [[LRN-076]], [[EVAL-011]].
