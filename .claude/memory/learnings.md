@@ -99,6 +99,7 @@ rules:
 | LRN-077 | 2026-06-30 | test fixtures must carry NEUTRAL names — a name that telegraphs the answer lets the subject pass by reading the name, not doing the work | designing any test fixture/path; same symptom as [[LRN-074]] (passes for WRONG reason), distinct cause (leaky fixture vs assumed command) |
 | LRN-078 | 2026-06-30 | semver number DERIVES from the change nature, not "justify a target"; solo-repo "breaking" = requires a migration of own usage; a removal nothing invokes = Removed not breaking | choosing a release version; classifying MAJOR/MINOR/PATCH; deciding if a removal is breaking |
 | LRN-079 | 2026-06-30 | orchestrator-skill TDD = replay the prescribed flow on a throwaway repo (gitflow-test style): RED runs the flow minus the new step → the outcome assertion reds on the gap | testing a skill that orchestrates an existing mechanic + one new step |
+| LRN-080 | 2026-06-30 | before adding an instruction "to make the model do X", measure if it ALREADY does X — universal conventions (--help…) it often does; the behavioral RED can KILL the chantier (phantom value) | proposing any global instruction to elicit a behavior; CLAUDE.md additions |
 
 ---
 
@@ -873,3 +874,9 @@ rules:
 - **Date**: 2026-06-30
 - **pattern**: a thin orchestrator skill (composes an existing tested mechanic + ONE new step) is not unit-testable as a function, but its FLOW is testable by replay on a throwaway repo (gitflow-test style). RED = run the prescribed sequence WITHOUT the new step (the existing mechanic alone) and assert the desired outcome → it reds on exactly the gap. GREEN = add the step. For `/release-candidate`: `gitflow start release`→prep→`finish` (no tag) → assert `vX.Y.Z` on main → REDS (gitflow fans out but never tags); add `git tag` → 5/5. Teeth: the single toggled line (`RC_TAG`) flips red↔green so GREEN can't pass by accident.
 - **future application**: for any orchestrator over a lib mechanic, test the END-TO-END flow on a disposable repo; isolate the NEW step so the RED reds precisely on it (don't re-test the lib's generic part — it has its own tests).
+
+## LRN-080 — measure whether the model already does X before adding an instruction to make it do X
+- **Date**: 2026-06-30
+- **pattern**: the --help chantier (implement [[BDR-001]] as a global CLAUDE.md instruction "on --help → render help + stop") was KILLED by its behavioral RED. Before writing a line, measured the control (6 reps, `/web-validate` + `/harden`, no instruction): **6/6 already rendered rich help AND stopped without dispatching** — the supposedly-absent behavior was fully present. Residual value = format consistency across 6 divergent shapes → not worth ~5 lines in a compressed CLAUDE.md on a solo repo. A phantom-value addition avoided.
+- **why it matters**: [[LRN-075]] (test the UNGUIDED control) paying off one chantier later — measuring the RED before building is what caught it. For UNIVERSAL conventions the model already honors (--help, common flags, standard shapes), a "teach it to do X" instruction buys nothing but tokens; the only thing left to buy is consistency, which must clear its own ROI bar.
+- **future application**: before adding any global instruction to ELICIT a behavior, run the behavioral control first — does the model already do it unaided? If yes, the only remaining value is standardization; price it honestly vs the cost (esp. a compressed CLAUDE.md). Often: don't add it.

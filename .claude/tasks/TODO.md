@@ -131,8 +131,8 @@ Subtasks :
 - [x] Patcher `lib/design-gate.md` — ajouter motion/motion-v/framer-motion + autres anim-libs dans filesystem signals
 - [x] Tester : shellcheck OK ; matrix React/Vue/RN/backend/with-motion/no-package/pnpm tous corrects
 
-## Helper `--help` / `help` sur tous les skills (option C)
-> ⚠️ BLOQUÉ (reconcile 2026-06-29) : contredit BDR-001 (accepted) qui a REJETÉ "copier le helper dans chaque SKILL.md" (maintenance entropy) au profit d'un hook session-start. Or ce chantier planifie STEP 0.5 par SKILL.md. Le TODO note lui-même "aucun skill ne gère --help aujourd'hui" → la voie hook de BDR-001 n'a jamais produit de --help fonctionnel. TRANCHER d'abord : BDR-001 périmé → marquer superseded, OU repasser par le hook. Ne pas lancer avant résolution.
+## Helper `--help` / `help` sur tous les skills (option C) [WON'T-BUILD 2026-06-30 — mesuré non-rentable]
+> ⛔ WON'T-BUILD (2026-06-30) : ABANDON tranché après mesure. RED comportemental (6 reps, /web-validate + /harden, SANS instruction) → **6/6 rendent déjà une aide riche ET s'arrêtent sans dispatcher** (même /harden n'a pas lancé l'audit). Le comportement supposé absent est déjà spontané (convention universelle --help). Seule valeur résiduelle = cohérence de format (6 formats divergents) → ROI insuffisant pour ~5 lignes dans un CLAUDE.md compressé ([[BDR-031]]) sur repo mono-user. 3e état : NON "fait" (rien construit), NON "ouvert" (on ne le fera pas). L'option globale réalisait l'intention BDR-001 ; per-skill toujours rejeté. Voir [[BDR-001]] (won't-build), [[LRN-080]], [[LRN-075]]. Design + subtasks ci-dessous = historique, non actionnables.
 Problème : aucun skill ne gère `--help` aujourd'hui. `argument-hint` affiche juste la syntaxe en autocomplétion, pas de description/exemples. L'utilisateur doit lire le SKILL.md ou deviner.
 
 Objectif : `/<skill> --help` (ou `/<skill> help`) affiche un bloc standardisé (description, args, exemples, cross-refs) et exit SANS dispatcher l'agent ni modifier quoi que ce soit.

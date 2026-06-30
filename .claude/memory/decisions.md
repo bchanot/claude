@@ -22,7 +22,7 @@ rules:
 
 | ID | Date | Title | Status |
 |----|------|-------|--------|
-| BDR-001 | 2026-04-22 | Uniform --help helper via session-start hook (option C) | accepted |
+| BDR-001 | 2026-04-22 | Uniform --help helper via session-start hook (option C) | accepted · won't-build 2026-06-30 |
 | BDR-002 | 2026-04-23 | Move tasks/ + introduce memory + audits under .claude/ | accepted |
 | BDR-003 | 2026-04-23 | Gitignore wildcard + negations pattern for .claude/ | accepted |
 | BDR-004 | 2026-04-27 | Adopt auto permission mode as default | accepted |
@@ -77,6 +77,7 @@ rules:
   - Option A (copy helper into each SKILL.md) — rejected: maintenance entropy.
   - Option B (external wrapper `/help <skill>`) — rejected: breaks "one command = one skill" experience.
 - **Reference**: commit 3968a29.
+- **Won't-build (2026-06-30)**: accepted but never built. MEASURED before building — behavioral RED, 6 reps (`/web-validate` + `/harden`, no instruction): **6/6 already render rich help AND stop without dispatching** (even `/harden` didn't start its audit). The intended behavior is already spontaneous (universal `--help` convention); the ONLY residual value of the global instruction = format CONSISTENCY across 6 divergent shapes — judged not worth ~5 lines in a [[BDR-031]]-compressed CLAUDE.md on a solo repo. Not "abandoned" — measured non-rentable. Per-skill option stays rejected (original Decision above). See [[LRN-080]], [[LRN-075]].
 
 ## BDR-002 — Move tasks/ + introduce memory + audits under .claude/
 
