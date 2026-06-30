@@ -365,3 +365,23 @@ Subtasks (à détailler au lancement) :
 - [ ] `skills/release-candidate/SKILL.md` — orchestration start→prep→finish→tag→push(gaté) + gate humain "WHEN to release"
 - [ ] routage CLAUDE.md
 - [ ] test (worktree jetable : prouver fan-out main+develop + tag présent sur main + branche supprimée)
+
+## [NEXT — MESURE D'ABORD] Auto-déclenchement des skills par intention
+> ⏭️ NEXT, mais CADRÉ : **pas de design avant la mesure**. Jumeau méthodologique de [[BDR-001]] `--help` (won't-build après RED) — même piège architectural, même garde-fou [[LRN-080]] (mesurer avant d'instruire) + [[LRN-049]] (borner le bruit avant le marqueur). Les subtasks ci-dessous s'arrêtent à la mesure ; le design ne s'ouvre QUE si le RED valide la valeur.
+
+**Contrainte architecturale (établie pour `--help`, non négociable) :**
+Aucun mécanisme n'intercepte le message utilisateur pour *lancer* un skill. La harness ne route pas avant que le modèle réponde — un skill n'est invoqué QUE par le modèle (outil Skill). Donc « auto-call déterministe » = IMPOSSIBLE. Le seul levier sur l'invocation elle-même = instruire le MODÈLE à reconnaître l'intention et appeler le bon skill → **conformité-modèle, PAS déterminisme**. C'est une instruction de routage CLAUDE.md, pas un mécanisme.
+- Nuance (raffinement) : une couche déterministe existe *en amont* du call, pas *sur* le call — un hook `UserPromptSubmit` peut détecter un signal et INJECTER un rappel de routage (le `design-toolchain` hook fait déjà exactement ça pour l'UI ; le banner session-start aussi). Détection déterministe + injection advisory ; le modèle reste celui qui tire. MAIS sur des verbes d'intention (« corrige », « crée », « bug »), un hook keyword serait BRUYANT (ces mots sont partout) — le design-hook s'en sort car « design/UI » est un signal rare. Donc le levier hook est probablement non-viable pour le cas large → ce qui **renforce** le besoin de borner aux signaux rares/non-ambigus.
+
+**Substrat déjà en place :** [[BDR-019]] a retiré `disable-model-invocation` repo-wide → le modèle PEUT déjà self-router vers les skills (défaut = activé ; user l'avait vécu live : intention feature détectée, `ship-feature` voulu, jadis bloqué). Et la section « Skill routing » de CLAUDE.md existe déjà. Donc la **baseline du RED = le routage CLAUDE.md ACTUEL tel quel** ; le chantier n'a de valeur que si le RED prouve que cette prose SOUS-déclenche sur intention claire (exactement la logique --help : baseline = convention déjà là, question = est-ce qu'instruire en plus change quoi que ce soit).
+
+**Le chantier COMMENCE par (rien d'autre avant) :**
+- [ ] (a) **Cartographier** le routage CLAUDE.md actuel — quels signaux → quels skills sont déjà censés router (« Skill routing » + « Design work » + descriptions de skills). État des lieux factuel, pas de jugement.
+- [ ] (b) **RED comportemental** ([[LRN-080]]) — prompts d'intention IMPLICITE, naturalistes, SANS instruction renforcée : « il y a un bug, debug », « on va créer X », « corrige ceci », « refactor ce module », « cut a release »… → le modèle invoque-t-il le bon skill, ou fait-il la tâche à la main en ignorant le skill ? N reps, plusieurs intents distincts.
+  - Garde-fou RED : **ne PAS amorcer**. Sessions fraîches / sous-agents, prompts naturels, zéro mention de « skill » / « routage » / « test » dans le prompt mesuré (sinon le modèle route parce qu'il SAIT qu'on le teste — contamination). Le RED `--help` était mécanique donc peu sensible à l'amorçage ; l'intent-routing l'est beaucoup plus → rigueur supérieure requise.
+- [ ] (c) **Décider selon le RED** :
+  - déjà bon (comme --help) → chantier MINCE, voire won't-build ; capitaliser le constat (3e état : mesuré non-rentable, ni fait ni ouvert).
+  - sous-déclenche → vraie valeur : renforcer la **prose de routage** (levier modèle) sur signaux CLAIRS uniquement — PAS un hook keyword (trop bruyant, cf. nuance ci-dessus).
+
+**Scope à border au cadrage — NE PAS faire « tout skill jugé pertinent » :**
+Tension réelle proactif vs intrusif. Auto-déclencher feat/bugfix sur intention CLAIRE et non-ambiguë = sain. « Déclenche tout skill jugé pertinent » = RISQUÉ (faux déclenchements, skills non sollicités, flux interrompus). Réglage cible ([[LRN-049]] borner le bruit) = déclencher sur signaux d'intention CLAIRS et non-ambigus ; **ambigu → DEMANDER, pas auto-déclencher**. À définir précisément SI (et seulement si) le RED valide : table `signal → skill` + la frontière exacte de l'ambiguïté.
