@@ -280,7 +280,7 @@ Goal: universal gitflow across all `bchanot/*` Gitea repos. Lib built across pri
 - [x] follow-up (a) — `submodule.gstack.ignore=dirty` committé dans `.gitmodules` — DONE (reconcile 2026-06-29 : commit `be1dcef` sur main, mergé via hotfix/gstack-ignore-gitmodules)
 - [ ] follow-up (b) — zenquality `cleanup/post-smtp-fix` rename `<type>/<name>` ou finish+delete (AUTRE repo, optionnel)
 
-## 2026-06-29 — MINOR-gate strengthening (doc-syncer) [branch feature/minor-gate-strengthening]
+## 2026-06-29 — MINOR-gate strengthening (doc-syncer) [DONE — merged develop, branch deleted]
 Read-first cartography refuted the literal premise: "strengthen MINOR gate" = 3 problems;
 the literal one (blocking gate on MINOR) contradicts engraved [[BDR-036]]. Scope: ①+②, not B,
 ③ deferred. Built test-first (Iron Law).
@@ -291,7 +291,7 @@ the literal one (blocking gate on MINOR) contradicts engraved [[BDR-036]]. Scope
 - [x] FINISH — merged feature/minor-gate-strengthening → develop (`0f0bd7f`) on explicit signal
 - [~] ③ branch-guard in doc-commit DEFERRED — duplicates protected-base predicate 3rd time (lib + hook + here); all migrated repos have the hook. Reconsider only for repos outside `gitflow init`
 
-## 2026-06-29 — BLK-011 GSD ROADMAP post-FINISH [branch bugfix/blk-011-gsd-roadmap]
+## 2026-06-29 — BLK-011 GSD ROADMAP post-FINISH [DONE — merged develop ce4391a, branch deleted]
 User reframed: don't plumb a commit for the stranded ROADMAP — ask if gsd belongs at init at all.
 Read refuted both option-premises (gsd ≫ roadmap; TODO ≠ gsd ROADMAP) but conclusion A held for a
 stronger reason: speculative auto-bootstrap of an unused engine at creation is bad per se ([[LRN-072]]).
@@ -301,7 +301,7 @@ stronger reason: speculative auto-bootstrap of an unused engine at creation is b
 - [x] Capitalize — [[BLK-011]] resolved (true reason + premise trace) + [[LRN-072]] + CHANGELOG Removed + journal 2026-06-29 (cont. 2)
 - [x] FINISH — merged bugfix/blk-011-gsd-roadmap → develop (`ce4391a`); develop pushed to origin (6 commits, SSH)
 
-## 2026-06-29 — prune-memory hardening (RED-7/8 + index backfill) [branch bugfix/prune-memory-hardening]
+## 2026-06-29 — prune-memory hardening (RED-7/8 + index backfill) [DONE — merged develop 73e12be, branch deleted]
 LAST of 3 chantiers. Read-first cartography confirmed RED-7/8 + measured 34-row index drift.
 - [x] RED-7 (example-priming) — fictionalized STEP-2 example to 9xx ids (live ids primed a wrong merge of complementary LRN-014/016); DETERMINISTIC test (run-deterministic.sh) per [[LRN-046]]. Caught its own ugrep false-green → /usr/bin/grep ([[LRN-074]]). [[LRN-073]]
 - [x] RED-8 (added-negation inversion) — consciously ACCEPTED as documented limit in BACKLOG ([[LRN-047]]); no fragile guard built
@@ -346,7 +346,7 @@ Subtasks (à détailler au lancement) :
 - [x] Test final = reproduire l'inventaire 2026-06-29 (cat. 1-4 + contradiction BDR-001) comme oracle — DONE (run-reconcile.sh 20/20, fixtures neutres, RED prouvé rouge avant le vert)
 - SHIPPED 2026-06-30 : feat `82e6322` + mémoire `6b512be` → merge `aede7af` (feature/reconcile-skill supprimée) → poussé origin/develop. main intact. BDR-041 + LRN-075/076/077 + EVAL-011 capitalisés.
 
-## [QUEUED] skill /release-candidate — orchestrateur gitflow release (lib vérifiée, le tag est le gap)
+## [SHIPPED 2026-06-30 — develop 0c0b748, released v4.0.0 (tag v4.0.0)] skill /release-candidate — orchestrateur gitflow release
 Pertinent maintenant : develop ahead de main, prochaine étape gitflow = release.
 VÉRIFIÉ dans lib/gitflow.sh (2026-06-30) — release CÂBLÉE, pas que hotfix :
 - start base=develop (`gitflow_base_for` L49) ; `gitflow start release <ver>` positionne sur la branche (L71).
@@ -361,10 +361,10 @@ Design (à la conception) : ORCHESTRATEUR au-dessus du gitflow existant — NE P
 - push gaté (ASK, [[LRN-069]]) : main + develop + tag.
 
 Subtasks (à détailler au lancement) :
-- [ ] Décider : tag dans le skill VS étendre `gitflow finish` avec un arg tag optionnel (orchestrateur préféré — ne pas réécrire la mécanique)
-- [ ] `skills/release-candidate/SKILL.md` — orchestration start→prep→finish→tag→push(gaté) + gate humain "WHEN to release"
-- [ ] routage CLAUDE.md
-- [ ] test (worktree jetable : prouver fan-out main+develop + tag présent sur main + branche supprimée)
+- [x] Décider : tag fourni par le skill au-dessus de gitflow (mécanique non réécrite) — d3d6ced, [[BDR-042]]
+- [x] `skills/release-candidate/SKILL.md` — orchestration start→prep→finish→tag→push(gaté) + gate humain "WHEN to release" — présent (d3d6ced)
+- [x] routage CLAUDE.md — présent (~/.claude/CLAUDE.md "Cut a release → release-candidate")
+- [x] test — prouvé par la release réelle 4.0.0 : fan-out main (709facf) + develop (4a00a60) + tag v4.0.0
 
 ## [NEXT — MESURE D'ABORD] Auto-déclenchement des skills par intention
 > ⏭️ NEXT, mais CADRÉ : **pas de design avant la mesure**. Jumeau méthodologique de [[BDR-001]] `--help` (won't-build après RED) — même piège architectural, même garde-fou [[LRN-080]] (mesurer avant d'instruire) + [[LRN-049]] (borner le bruit avant le marqueur). Les subtasks ci-dessous s'arrêtent à la mesure ; le design ne s'ouvre QUE si le RED valide la valeur.
