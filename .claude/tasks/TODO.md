@@ -310,7 +310,7 @@ LAST of 3 chantiers. Read-first cartography confirmed RED-7/8 + measured 34-row 
 - [x] FINISH — merged bugfix/prune-memory-hardening → develop — DONE (reconcile 2026-06-29 : merge `73e12be`)
 - [x] PUSH — develop → origin — DONE (reconcile 2026-06-29 : develop == origin/develop, 0 commit en avance)
 
-## 2026-06-29 — skill /reconcile (RÉCONCILIATEUR file-ouverte ↔ réel) [BUILT 2026-06-29 — finish pending]
+## 2026-06-29 — skill /reconcile (RÉCONCILIATEUR file-ouverte ↔ réel) [SHIPPED 2026-06-30 — develop aede7af, pushed]
 Genèse : l'inventaire manuel du 2026-06-29 a prouvé que le TODO mentait (5 cases fait-mais-non-coché
 + 1 "auto-nettoyé" qui ne l'était pas + 1 rejeté marqué "deferred"). Cet inventaire EST la spec du
 skill ET son cas de test de référence (résultat manuel connu-bon à reproduire).
@@ -344,4 +344,24 @@ Subtasks (à détailler au lancement) :
 - [x] Détecteur de contradictions inter-registres (BDR accepted vs chantier qui le contredit) — DONE (reconcile_contradiction_candidates ; surface, n'asserte pas)
 - [x] Gate de réconciliation (diff TODO proposé, A/B/C confirm avant edit) — DONE (SKILL.md "The gate" ; registres read-only)
 - [x] Test final = reproduire l'inventaire 2026-06-29 (cat. 1-4 + contradiction BDR-001) comme oracle — DONE (run-reconcile.sh 20/20, fixtures neutres, RED prouvé rouge avant le vert)
-- NOTE : bâti, non committé (develop +1 `bdfa9bc`, livrables untracked) → finish pending (feature/reconcile-skill)
+- SHIPPED 2026-06-30 : feat `82e6322` + mémoire `6b512be` → merge `aede7af` (feature/reconcile-skill supprimée) → poussé origin/develop. main intact. BDR-041 + LRN-075/076/077 + EVAL-011 capitalisés.
+
+## [QUEUED] skill /release-candidate — orchestrateur gitflow release (lib vérifiée, le tag est le gap)
+Pertinent maintenant : develop ahead de main, prochaine étape gitflow = release.
+VÉRIFIÉ dans lib/gitflow.sh (2026-06-30) — release CÂBLÉE, pas que hotfix :
+- start base=develop (`gitflow_base_for` L49) ; `gitflow start release <ver>` positionne sur la branche (L71).
+- finish fan-out (`gitflow_finish` L108-111) : merge main + merge-back develop + delete (locale, `_gitflow_delete` L96).
+- GAP CONFIRMÉ (grep clean) : AUCUN `git tag` ni bump version dans tout gitflow.sh → la mécanique merge mais ne tague PAS.
+
+Design (à la conception) : ORCHESTRATEUR au-dessus du gitflow existant — NE PAS réécrire la mécanique.
+- `gitflow start release <ver>` (depuis develop) → positionne.
+- prep sur la branche release : bump VERSION + CHANGELOG (Keep-a-Changelog) + RC fixes.
+- `gitflow finish` (merge main + merge-back develop + delete — déjà câblé).
+- FOURNIR le tag manquant : `git tag` sur main au merge-commit (le seul morceau absent de la lib).
+- push gaté (ASK, [[LRN-069]]) : main + develop + tag.
+
+Subtasks (à détailler au lancement) :
+- [ ] Décider : tag dans le skill VS étendre `gitflow finish` avec un arg tag optionnel (orchestrateur préféré — ne pas réécrire la mécanique)
+- [ ] `skills/release-candidate/SKILL.md` — orchestration start→prep→finish→tag→push(gaté) + gate humain "WHEN to release"
+- [ ] routage CLAUDE.md
+- [ ] test (worktree jetable : prouver fan-out main+develop + tag présent sur main + branche supprimée)
