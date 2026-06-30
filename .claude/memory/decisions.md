@@ -65,6 +65,7 @@ rules:
 | BDR-041 | 2026-06-30 | /reconcile = deterministic declared-vs-real engine + thin gated skill (reconciler, not lister) | accepted |
 | BDR-042 | 2026-06-30 | /release-candidate = thin orchestrator over gitflow release; the tag lives in the skill, not the lib | accepted |
 | BDR-043 | 2026-06-30 | BDR-015 trigger cleared — 5 ex-broken gstack symlinks repaired → darwin re-baseline back in scope (unblocked, NOT run) | accepted |
+| BDR-044 | 2026-06-30 | auto-skill-dispatch won't-build — under-routing fear inverted to over-routing by cartography, then measured: model discriminates (clear→route, ambiguous→ask, trivial→abstain) | accepted · won't-build |
 
 ---
 
@@ -666,3 +667,16 @@ rules:
 - **Action (NOT done)**: verify `~/.agents/skills/darwin-skill/results.tsv` still marks these 5 `status=error` ("broken gstack symlink — out of scope"); if so, re-run darwin baseline to bring them in. Status = UNBLOCKED, execution PENDING — do NOT read as "re-baselined".
 - **Distinct from [[BLK-007]]**: BLK-007/`f928a53` (2026-06-02) = a DIFFERENT symlink episode (`spec` + 5 iOS device-farm skills, source-only after a submodule bump; fixed by linking `spec`, skipping iOS). NOT the 5 of BDR-015 — kept separate to avoid a false causal link.
 - **Reference**: VÉRIF audit (subagent, filesystem-only, 2026-06-30). [[BDR-015]] caveat. darwin eval log `results.tsv`.
+
+---
+
+## BDR-044 — auto-skill-dispatch won't-build: under→over reframe, measured — model already discriminates
+- **Date**: 2026-06-30
+- **Status**: accepted · won't-build
+- **Decision**: do NOT add L2 routing prose to CLAUDE.md for "auto-trigger skills on intent". Chantier retired won't-build — 3rd measured moot of the session (after [[BDR-001]] --help + [[BDR-043]]/[[LRN-082]] darwin re-baseline).
+- **Why — the dependent variable inverted**: the initial fear was UNDER-routing (model ignores skills, does the task by hand). Cartography refuted it — routing is a STACK and L1 (superpowers "1% chance → you MUST invoke") already SUR-determines invocation → "does it route?" = "already yes". The real open question became DISCERNMENT (clear→route, ambiguous→ASK, trivial→abstain), and the real hazard inverted to OVER-routing. Measured in REAL fresh main-loop sessions (8 prompts, 3 classes): CLEAR→routes ✓, AMBIGUOUS→asks (refuses to guess, investigates to ask a USEFUL question) ✓, TRIVIAL→abstains ✓. The L1-vs-Workflow-rules textual tension ("1% → MUST invoke" vs "ask one question if needed / pragmatic on trivial") is resolved well in behavior — the model balances. Adding L2 bounding prose = phantom value AND risks DEGRADING an already-good discernment.
+- **Alternatives rejected**:
+  - Add a routing-reinforcement instruction (original intent) → phantom value: L1 already over-determines routing; more mandate worsens the only real risk (over-routing).
+  - Add an over-routing bound (clear→route / ambiguous→ask / trivial→abstain) at L2 → measurement shows the model ALREADY does this; codifying it risks perturbing it, zero upside.
+  - Keyword hook on intent verbs → too noisy — the design-hook mis-fired on "design" in "auto-skill-dispatch" 3× this session; intent verbs (corrige/crée) are everywhere.
+- **Reference**: cartography L0–L4 + discernment-RED (user-run, fresh sessions). Subagent under-routing RED RETIRED as non-discriminating ([[LRN-083]]). [[LRN-080]] (measure-first), [[LRN-049]] (bound noise). TODO "auto-skill-dispatch" → won't-build.

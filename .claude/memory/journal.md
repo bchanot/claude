@@ -280,3 +280,10 @@ rules:
 - Searched for results.tsv instead of assuming its state → GONE (wiped by 23/06 make-plugin reinstall; was a local May-2026 artifact, not shipped upstream). No darwin baseline survives at all → not even a re-baseline, a fresh-from-zero one.
 - BDR-043 cleared only motif (a) of BDR-015's TWO exclusion grounds (symlinks repaired ✅, 0 broken); motif (b) external-ownership INTACT — 5 resolve to skills-external/gstack/ (submodule), darwin edits SKILL.md → would dirty submodule ([[LRN-070]]). Re-baseline = unactionable score = phantom value. Twin of --help ([[LRN-080]]), distinct mechanism (residual motif vs absent value).
 - Decision A (won't-run): TODO (b) → resolved-MOOT (not done, not open). LRN-082 capitalized (multi-motif trigger lesson). The "montre la table avant de décider" gate paid off — looking found the table gone instead of assuming status=error.
+
+## 2026-06-30 (cont.) — BLOC2 auto-skill-dispatch → WON'T-BUILD (discernment measured)
+- Cartography: routing = STACK L0(design-hook)→L1(superpowers "1%→MUST invoke", dominant)→L2(CLAUDE.md prose)→L3(frontmatter)→L4([[BDR-019]]). L1 over-determines invocation → "auto-call?" = already yes.
+- Reframe C (user): real question = DISCERNMENT not "does it route"; risk inverts under→OVER-routing (L1 mandate vs Workflow "ask if needed / pragmatic on trivial").
+- Subagent RED (6 reps, toy tasks) → 0/6 routed → RETIRED as non-discriminating (SUBAGENT-STOP + delegated framing = floor artifact, not signal); did NOT report as a number → [[LRN-083]].
+- Discernment-RED in REAL fresh sessions (user-run, 8 prompts / 3 classes): CLEAR→route ✓, AMBIGUOUS→ask (refuses to guess, investigates for a useful Q) ✓, TRIVIAL→abstain ✓. Over-routing risk does NOT materialize — model balances L1 vs Workflow rules.
+- Verdict: WON'T-BUILD ([[BDR-044]]) — 3rd measured moot of the session (--help, darwin re-baseline, auto-skill-dispatch). LRN-083 capitalized; [[LRN-080]] corroborated (3-in-a-row → measure-first sweep heuristic). TODO auto-skill-dispatch → won't-build. ALL actionables soldés.
