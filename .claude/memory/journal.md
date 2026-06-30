@@ -261,3 +261,10 @@ rules:
 - Learnings: semver derives from change nature, caveman = Removed not breaking ([[LRN-078]]); orchestrator-skill TDD = throwaway-repo flow replay ([[LRN-079]]).
 - CHANGELOG [Unreleased]: added /reconcile + /release-candidate under ### Added (so the eventual v4.0.0 captures them — /reconcile shipped without its entry, rectified here).
 - Ship: feature/release-candidate-skill → develop (gitflow finish). Push gated (ASK). Real v4.0.0 cut = separate later act (layer 2).
+
+## 2026-06-30 (cont.) — make plugin fixed (npm) + deferred-items requalif (③ doc-commit, BDR-015 darwin)
+- 2 code vérifs (subagents, no-memory) + `make plugin` action. VÉRIF③: gitflow hook (`lib/gitflow.sh:199-225`, exempts `.claude/**` + merges + root) installed by init-project STEP 5f + onboard STEP 2.6 → branch guard covered everywhere EXCEPT repos outside `gitflow init` (doc-commit.sh has NO branch guard — `_unsafe_state` skips main/develop). ③ = confirmed REAL but NARROW hole, already graved [[BDR-040]]/TODO:292 → NOT re-graved.
+- ③ nuance (only new bit, logged here): a future doc-commit guard must REPLICATE the hook's `.claude/` whitelist (hook EXEMPTS 100%-`.claude/` commits on main/develop — memory follows the work), NOT blanket-block main/develop → 3rd copy of the whitelist predicate, not "4 lines". Low priority, stays deferred.
+- VÉRIF symlinks: 0 broken / 83 today → BDR-015 trigger cleared, darwin re-baseline UNBLOCKED (NOT run). [[BDR-043]].
+- `make plugin` Error 127 (npm absent, apt-`nodejs` host) → fixed via corepack (npm 11.18.0 → `~/.local/bin`, prefix `~/.local`), EXIT=0, Step 4 ✓, stray-dir residual cleanup ([[BDR-030]]/[[LRN-042]]) finally ran. [[BLK-013]].
+- BLK-013 + BDR-043 capitalized; ③ requalif dropped (already captured), whitelist nuance logged here. Surgical memory commit (blockers+decisions+journal only, NOT TODO — user's uncommitted planning note left untouched).

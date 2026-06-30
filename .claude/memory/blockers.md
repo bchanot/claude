@@ -32,6 +32,7 @@ rules:
 | BLK-010 | 2026-06-27 | init-project: scaffold (STEP 5) + bootstrap README (5b) have no deterministic commit owner; worktree `add -b` on unborn HEAD | resolved (uncommitted) |
 | BLK-011 | 2026-06-27 | init-project STEP 13 GSD post-FINISH creates ROADMAP.md → stranded doc (3rd post-FINISH artifact) | resolved (STEP 12 removed) |
 | BLK-012 | 2026-06-29 | gitflow_init half-applied: socle-commit failure swallowed → hook activated on partial run → re-run self-blocks | resolved |
+| BLK-013 | 2026-06-30 | `make plugin` Error 127 — npm absent on apt-`nodejs` host (Step 4 gsd-pi aborts, Steps 5-10 + residual cleanup never run) | resolved (env) |
 
 ---
 
@@ -154,3 +155,13 @@ rules:
 - **Solution**: (1) socle commit FATAL in `_gitflow_init_existing` — `if ! git diff --cached --quiet; then git commit … || { echo …; return 1; }; fi` → aborts BEFORE develop/hook-activation; (2) identity precheck at top of `gitflow_init` (fail loud, no half-apply); (3) identity guard in `gitflow-migrate.sh:migrate_local`. Recovery: set faunosteo local identity → deactivate hook → delete premature develop → reinit (socle commits with hook inactive, as designed) → main==develop @ socle, tree clean, master renamed. Verified: shellcheck clean, 57/57 tests pass, hardened init on an identity-less repo aborts rc1 with ZERO mutation.
 - **Status**: resolved (`lib/gitflow.sh` + `lib/gitflow-migrate.sh`, uncommitted working tree as of the gitflow chantier).
 - **Reference**: [[LRN-068]] (transactional-bootstrap principle). Discovered mid gitflow-migration 2026-06-29. Sibling chantier learning [[LRN-067]].
+
+## BLK-013 — `make plugin` Error 127: npm absent on apt-`nodejs` host
+
+- **Date**: 2026-06-30
+- **Friction**: `make plugin` (→ `install-plugins.sh`) aborts at Step 4 (gsd-pi): `install-plugins.sh: line 425: npm: command not found` → `make: *** [Makefile:10: plugin] Error 127`. Steps 5-10 never run, AND the post-Step-4 stray-dir cleanup (Step 8.5) never reached → the [[BDR-030]]/[[LRN-042]] residual (stray `$REPO/.agents/skills` + `$REPO/.claude/skills`, promised "auto-cleaned next `make plugin`") silently persists run after run. SessionStart banner already showed `gsd v2 ✗`.
+- **Real cause**: Debian/apt `nodejs` package ships `node` WITHOUT `npm` (npm = separate apt pkg). `/usr/bin/node` present (v22.22.1); its bindir has acorn/corepack/semver but NO npm/npx — npm genuinely uninstalled, not a PATH miss. install-plugins.sh Step 1 checks `node >=22` but NEVER verifies npm — assumes npm ships with node (true for nodesource/brew/dnf paths, FALSE for plain apt).
+- **Solution**: corepack (ships with node) over apt npm (apt npm could pull a divergent 2nd node). `corepack enable --install-directory "$HOME/.local/bin" npm` → npm 11.18.0 shim, no sudo, `~/.local/bin` already on PATH. Then `npm config set prefix "$HOME/.local"` — default prefix `/usr` is root-owned → `npm install -g` would EACCES; `~/.local` writable + bins land on PATH. Persisted in `~/.npmrc`. Re-run → EXIT=0, Step 4 ✓ (`gsd-pi@2.64.0`), Step 8.5 ran (`Removed stray repo-local skills dir: .agents/skills` + `.claude/skills`). Caveat: gsd-pi DEPRECATED + postinstall scripts SKIPPED (npm 11 `allow-scripts`) — `gsd --version/--help` ok, full provisioning would need `npm install -g --allow-scripts=gsd-pi,… gsd-pi`.
+- **Fix-forward**: install-plugins.sh Step 1 should GUARANTEE npm on apt-`nodejs` hosts — detect missing npm + `corepack enable npm` (not just check node) → stops Error 127 recurring on any fresh apt machine.
+- **Status**: resolved (env-level: corepack shim + npm prefix; zero repo change). Fix-forward (script hardening) NOT built.
+- **Reference**: discovered fixing `make plugin` 2026-06-30. Distinct from [[BLK-003]] (macOS playwright hardcoded path) + the Playwright-chromium `make plugin` failure. Blocked residual = [[BDR-030]]/[[LRN-042]].
