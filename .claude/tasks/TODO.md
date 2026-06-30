@@ -23,9 +23,10 @@ Root causes trouvées (logs install-20260623-181416.log) :
 - [x] Verif — shellcheck/bash -n propres ; migré darwin → $HOME/.agents/skills + `bash link.sh`
       (skills/darwin-skill OK) ; `profile.sh set full` → 0 "missing", 35 gstack on-demand ;
       cycle minimal↔full OK ; git propre (symlinks gstack gitignorés) ; profil full restauré
-- [~] Cleanup machine courante : $REPO/.claude/skills/darwin-skill + .agents/skills VIDE
+- [x] Cleanup machine courante : $REPO/.claude/skills/darwin-skill + .agents/skills VIDE
       restent (rm bloqué par garde permission .claude/) → auto-nettoyés au prochain `make plugin`
       [reconcile 2026-06-29 : TOUJOURS présents (fs-vérifié, darwin-skill 116K daté 23/06) — `make plugin` pas rejoué depuis. Reste différé, déclencheur = prochain install.]
+      [done 2026-06-30 : `make plugin` rejoué EXIT=0 (npm réparé via corepack, [[BLK-013]]) → Step 8.5 a retiré les deux ; fs-vérifié ABSENTS, vrai skills/ intact (36 entrées). Boucle fermée.]
 - [x] Capitalize — LRN-042 (Bug B CWD-relatif) + BDR-030 (gstack on-demand par profil) + journal 2026-06-23
 - [x] Commit (via /commit-change) — DONE (reconcile 2026-06-29 : working tree clean, travaux shippés)
 
@@ -385,3 +386,7 @@ Aucun mécanisme n'intercepte le message utilisateur pour *lancer* un skill. La 
 
 **Scope à border au cadrage — NE PAS faire « tout skill jugé pertinent » :**
 Tension réelle proactif vs intrusif. Auto-déclencher feat/bugfix sur intention CLAIRE et non-ambiguë = sain. « Déclenche tout skill jugé pertinent » = RISQUÉ (faux déclenchements, skills non sollicités, flux interrompus). Réglage cible ([[LRN-049]] borner le bruit) = déclencher sur signaux d'intention CLAIRS et non-ambigus ; **ambigu → DEMANDER, pas auto-déclencher**. À définir précisément SI (et seulement si) le RED valide : table `signal → skill` + la frontière exacte de l'ambiguïté.
+
+## 2026-06-30 — session-close follow-ups (promoted from BLK-013 / BDR-043)
+- [ ] (a) Harden install-plugins.sh Step 1 — guarantee `npm` on apt-`nodejs` hosts (detect missing npm + `corepack enable npm`), not just check `node >=22`. Fix-forward for [[BLK-013]] — stops `make plugin` Error 127 recurring on any fresh apt machine.
+- [ ] (b) Re-baseline darwin on the 5 ex-broken gstack skills (`benchmark-models`, `context-restore`, `context-save`, `make-pdf`, `plan-tune`) — now repaired and back in scope ([[BDR-043]], trigger cleared). Verify `results.tsv` still marks them `status=error` first. (Promoted from BDR-043's action-field — not an item the user authored.)

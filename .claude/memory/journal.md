@@ -268,3 +268,10 @@ rules:
 - VÉRIF symlinks: 0 broken / 83 today → BDR-015 trigger cleared, darwin re-baseline UNBLOCKED (NOT run). [[BDR-043]].
 - `make plugin` Error 127 (npm absent, apt-`nodejs` host) → fixed via corepack (npm 11.18.0 → `~/.local/bin`, prefix `~/.local`), EXIT=0, Step 4 ✓, stray-dir residual cleanup ([[BDR-030]]/[[LRN-042]]) finally ran. [[BLK-013]].
 - BLK-013 + BDR-043 capitalized; ③ requalif dropped (already captured), whitelist nuance logged here. Surgical memory commit (blockers+decisions+journal only, NOT TODO — user's uncommitted planning note left untouched).
+
+## 2026-06-30 (cont.) — close ritual (LRN-081 + TODO reconcile) + gate-suspense gap caught
+- Ran /close (capitalize --ritual). After a fresh capitalize → registries propose near-nothing (BLK-013/BDR-043 already this session); live work = TODO reconcile + 1 LRN.
+- GAP caught: the prior STEP-3 gate (LRN-081 + TODO check L26 + 2 adds) had stayed UNRESOLVED — conversation diverted to an out-of-band /reconcile + EVAL-013 (`437697e`, author user, NOT Claude) which never touched the gate items. Verified absent, then completed. Exactly the declared-vs-real drift /reconcile exists to catch.
+- LRN-081: Claude commit trailers only on Claude-COMPOSED content; staging user-authored text gets none (staging ≠ authorship). Born of `e591510` (clean) vs `5b03ac2` (trailers).
+- TODO: checked L26 "Cleanup machine courante" DONE (`make plugin` EXIT=0 this session ran Step 8.5; fs-verified both strays absent — closes the session's opening "cleanup ligne 26"); added (a) harden install-plugins.sh Step 1 npm-via-corepack ([[BLK-013]] fix-forward); added (b) darwin re-baseline of the 5 ex-broken skills ([[BDR-043]], promoted from its action-field).
+- LRN-081 capitalized; checked 1 done, added 2.
