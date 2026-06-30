@@ -97,6 +97,8 @@ rules:
 | LRN-075 | 2026-06-30 | skill-vs-no-skill RED must test the UNGUIDED control: a "use git + justify" baseline makes a capable agent succeed (contaminated RED); real failure shows only on the tempting prompt | building any skill whose value is determinism/gate over a capable agent — strip guidance AND tempt the failure; control succeeds → don't author (or rescope) |
 | LRN-076 | 2026-06-30 | append-only registry status mutates in place (UPDATE/FINAL blocks): CURRENT status = LAST status line, not Index, not first; range scan inclusive of next header bleeds a sibling's status word | parsing any in-place-mutated status; take last line, bound entry exclusive of next header |
 | LRN-077 | 2026-06-30 | test fixtures must carry NEUTRAL names — a name that telegraphs the answer lets the subject pass by reading the name, not doing the work | designing any test fixture/path; same symptom as [[LRN-074]] (passes for WRONG reason), distinct cause (leaky fixture vs assumed command) |
+| LRN-078 | 2026-06-30 | semver number DERIVES from the change nature, not "justify a target"; solo-repo "breaking" = requires a migration of own usage; a removal nothing invokes = Removed not breaking | choosing a release version; classifying MAJOR/MINOR/PATCH; deciding if a removal is breaking |
+| LRN-079 | 2026-06-30 | orchestrator-skill TDD = replay the prescribed flow on a throwaway repo (gitflow-test style): RED runs the flow minus the new step → the outcome assertion reds on the gap | testing a skill that orchestrates an existing mechanic + one new step |
 
 ---
 
@@ -860,3 +862,14 @@ rules:
 - **pattern**: a baseline agent on a worktree named `wt-pre-reconcile` read "pre-reconcile" FROM THE DIR NAME and inferred staleness — reasoning for the WRONG reason (the name), not the right one (verify git). Fixtures + the GREEN test were re-frozen under NEUTRAL names so the engine reaches truth by querying git, never by reading a path hint.
 - **meta — same symptom, distinct cause as [[LRN-074]]**: 074 = a COMMAND-ASSUMPTION (ugrep parsed `-9..` → false green); 077 = a LEAKY FIXTURE (name telegraphs the answer). Different mechanisms, SAME symptom: the test passes/fails for the wrong reason. Cross-cutting lesson = verify a test passes for the RIGHT reason, not merely that it passes — whether the false signal comes from an assumed command (074) or a leaky fixture (077).
 - **future application**: name fixtures/paths neutrally; for any green, ask "did it pass because the subject did the work, or because something leaked the answer?"
+
+## LRN-078 — semver number DERIVES from the change nature; "breaking" = requires a migration
+- **Date**: 2026-06-30
+- **pattern**: framing a release as "it's 4.0.0 → find the breaking changes to justify it" is backwards. Semver runs the other way: the number FOLLOWS the nature of the changes. The real question = "is there a breaking change?", not "how do I justify the target". Solo / mono-user repo, no public API ⇒ "breaking" = casse mon propre usage / EXIGE une migration de ma part.
+- **applied (v4.0.0)**: gitflow universal = a TRUE breaking workflow change (master→main, mandatory branches, hook, 6-repo migration) → MAJOR on its own. caveman removal = VERIFIED nothing invoked it (grep: only the kept memory format-rule + frozen fixtures, settings/hooks clean) → a clean `### Removed` (capability gone, nothing breaks, no migration), NOT breaking. The MAJOR rests on gitflow alone; don't mislabel a removal as breaking.
+- **future application**: pick MAJOR/MINOR/PATCH from the changes, then the lineage gives the digits. Verify "does X actually break / require migration?" from the refs (grep), not from the size of the change or the desire for a round number.
+
+## LRN-079 — orchestrator-skill TDD: replay the flow on a throwaway repo, RED = flow minus the new step
+- **Date**: 2026-06-30
+- **pattern**: a thin orchestrator skill (composes an existing tested mechanic + ONE new step) is not unit-testable as a function, but its FLOW is testable by replay on a throwaway repo (gitflow-test style). RED = run the prescribed sequence WITHOUT the new step (the existing mechanic alone) and assert the desired outcome → it reds on exactly the gap. GREEN = add the step. For `/release-candidate`: `gitflow start release`→prep→`finish` (no tag) → assert `vX.Y.Z` on main → REDS (gitflow fans out but never tags); add `git tag` → 5/5. Teeth: the single toggled line (`RC_TAG`) flips red↔green so GREEN can't pass by accident.
+- **future application**: for any orchestrator over a lib mechanic, test the END-TO-END flow on a disposable repo; isolate the NEW step so the RED reds precisely on it (don't re-test the lib's generic part — it has its own tests).

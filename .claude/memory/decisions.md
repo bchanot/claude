@@ -63,6 +63,7 @@ rules:
 | BDR-039 | 2026-06-29 | Gitea branch protection = Option-1 owner-pushable, not require-PR | accepted |
 | BDR-040 | 2026-06-29 | doc-syncer MINOR-shape oracle: deterministic floor under LLM's MINOR call | accepted |
 | BDR-041 | 2026-06-30 | /reconcile = deterministic declared-vs-real engine + thin gated skill (reconciler, not lister) | accepted |
+| BDR-042 | 2026-06-30 | /release-candidate = thin orchestrator over gitflow release; the tag lives in the skill, not the lib | accepted |
 
 ---
 
@@ -645,3 +646,12 @@ rules:
 - **Alternatives rejected**: monolithic teaching/discipline skill (agents reconcile when guided → no teaching value); `grep '[ ]'` lister (reproduces the lie); trust Index (drift, [[LRN-055]]); blocking write-back gate (friction — A/B/C surface chosen).
 - **Honest limits (graven)**: deferral detection LEXICAL (marked-only; unmarked "à reprendre quand X" missed); contradictions = CANDIDATES (token overlap), surfaced not asserted; cross-repo "not verifiable here"; cross-ref verdicts ("[~] done because chantier X below complete") surfaced, not auto-resolved.
 - **Reference**: `lib/reconcile.sh`, `lib/tests/run-reconcile.sh` (20/20) + `lib/tests/fixtures/` (neutral-named, [[LRN-077]]), `skills/reconcile/SKILL.md`, CLAUDE.md "Skill routing". Born of the 2026-06-29 manual inventory (its known-good oracle). Built via superpowers:writing-skills. See [[LRN-075]], [[LRN-076]], [[EVAL-011]].
+
+## BDR-042 — /release-candidate = thin orchestrator over gitflow release; the tag lives in the skill
+- **Date**: 2026-06-30
+- **Status**: accepted
+- **Decision**: `/release-candidate <X.Y.Z>` cuts a release by ORCHESTRATING the existing `lib/gitflow.sh` mechanic, NOT rewriting it. Flow: preconditions (clean tree, identity, develop ahead of main) → `gitflow start release` → prep (version.txt + CHANGELOG, breaking documented) → run-tests gate → HUMAN "WHEN to release" gate → `gitflow finish` (fan-out main+develop+delete, lib L108-111) → **`git tag -a vX.Y.Z main`** → push gated. The `git tag` lives in the SKILL, lib UNTOUCHED — the tag is release-specific (version + message + human call), the lib's fan-out is generic. Scheme `vX.Y.Z`, CONTINUES the version.txt/CHANGELOG lineage (never restart at v1.0.0 — desyncs from a CHANGELOG already at 3.x).
+- **Why**: gitflow release was wired (start base=develop L49, finish fan-out main+develop L108-111) but had NO tag step (grep-confirmed: zero `git tag` in gitflow.sh). The tag is the only gap; an orchestrator supplies it without touching the tested mechanic.
+- **Consequence (accepted)**: a release cut by calling `gitflow finish` directly, bypassing the skill, fans out but is NOT tagged → `/release-candidate` is the CANONICAL sole release path. Acceptable for a solo repo; revisit (tag in lib) only if direct-lib releases become a need.
+- **Alternatives rejected**: tag inside `gitflow_finish` (atomic but modifies the tested generic mechanic for a release-specific concern — lib=mechanic/skill=judgment); restart tags at v1.0.0 (desyncs tag↔CHANGELOG lineage).
+- **Reference**: `skills/release-candidate/SKILL.md`, `lib/tests/run-release-candidate.sh` (RED no-tag → GREEN 5/5), CLAUDE.md routing. Built via writing-skills TDD. Consumes the gitflow model [[BDR-039]]. See [[LRN-078]], [[LRN-079]], [[EVAL-012]].

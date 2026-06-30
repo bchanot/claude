@@ -254,3 +254,10 @@ rules:
 - RED 2-arm: guided baselines succeed (contaminated) / unguided mirror the TODO (real failure) → value = determinism+gate, not teaching ([[LRN-075]]). GREEN behavioral confirmed; dogfooded on its own chantier (S3 marked partial honestly). [[EVAL-011]].
 - Learnings: unguided-control RED ([[LRN-075]]); last-block-wins status + BLK-004 bleed bug ([[LRN-076]]); neutral fixture names = same symptom/distinct cause as [[LRN-074]] ([[LRN-077]]).
 - Ship: feature/reconcile-skill → develop (gitflow finish). Push to origin gated (ASK).
+
+## 2026-06-30 (cont.) — /release-candidate skill built (gitflow release orchestrator)
+- Built `/release-candidate` via writing-skills TDD: thin orchestrator over gitflow release + the version tag the lib lacks (grep-confirmed no `git tag` in gitflow.sh). RED (gitflow fans out, no tag) → GREEN 5/5 on a throwaway repo. [[BDR-042]], [[EVAL-012]].
+- Decisions: tag in the skill not the lib (release-specific vs generic mechanic); canonical sole release path (direct-lib release wouldn't tag, accepted); vX.Y.Z continues the lineage.
+- Learnings: semver derives from change nature, caveman = Removed not breaking ([[LRN-078]]); orchestrator-skill TDD = throwaway-repo flow replay ([[LRN-079]]).
+- CHANGELOG [Unreleased]: added /reconcile + /release-candidate under ### Added (so the eventual v4.0.0 captures them — /reconcile shipped without its entry, rectified here).
+- Ship: feature/release-candidate-skill → develop (gitflow finish). Push gated (ASK). Real v4.0.0 cut = separate later act (layer 2).
