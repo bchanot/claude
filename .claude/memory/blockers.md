@@ -27,8 +27,10 @@ rules:
 | BLK-005 | 2026-05-21 | gstack submodule rename (checkpoint→context-save) breaks profile entries | resolved |
 | BLK-006 | 2026-05-21 | `profile.sh current` false-negative via `~/.claude` symlink (`cd` not `cd -P`) | resolved |
 | BLK-007 | 2026-06-02 | 6 gstack source skills (ios-*, spec) unlinked post-bump — invisible to profiles + `gstack on` | resolved |
+| BLK-008 | 2026-06-23 | gstack ./setup on Ubuntu 26.04: Playwright chromium unsupported → gstack browser (/browse, /qa, screenshots) silently dead | resolved (211c7d4) |
+| BLK-009 | 2026-06-25 | user-level path-scoped rules (`paths:` frontmatter in `~/.claude/rules/`) never inject — broken in CC 2.1.190 (#21858) | upstream, open |
 | BLK-010 | 2026-06-27 | init-project: scaffold (STEP 5) + bootstrap README (5b) have no deterministic commit owner; worktree `add -b` on unborn HEAD | resolved (uncommitted) |
-| BLK-011 | 2026-06-27 | init-project STEP 13 GSD post-FINISH creates ROADMAP.md → stranded doc (3rd post-FINISH artifact) | open |
+| BLK-011 | 2026-06-27 | init-project STEP 13 GSD post-FINISH creates ROADMAP.md → stranded doc (3rd post-FINISH artifact) | resolved (STEP 12 removed) |
 | BLK-012 | 2026-06-29 | gitflow_init half-applied: socle-commit failure swallowed → hook activated on partial run → re-run self-blocks | resolved |
 
 ---
@@ -139,8 +141,9 @@ rules:
 - **Date**: 2026-06-27
 - **Friction**: init-project STEP 13 (GSD v2 init) runs post-FINISH (STEP 11). `gsd init` creates `.gsd/` + `ROADMAP.md` (a public doc). Created AFTER FINISH integrates → ROADMAP never in the merge/PR. Same PR-stranding class as the doc-sync twin, 3rd post-FINISH artifact.
 - **Real cause**: artifact-producing step ordered after FINISH (= BDR-034 class). `gsd init` is a CLI mechanism distinct from doc-syncer; ROADMAP is sync-only for doc-syncer (never created by it, BDR-022 rules), so the doc-sync coupled chantier does not touch it.
-- **Solution**: open — separate thread. Candidate: reorder GSD before FINISH, or commit ROADMAP after `gsd init`. Out of scope for doc-sync coupled (different mechanism).
-- **Status**: open
+- **Solution**: open — separate thread. Candidate: reorder GSD before FINISH, or commit ROADMAP after `gsd init`. Out of scope for doc-sync coupled (different mechanism). [historical candidates — NOT the route taken]
+- **Resolution**: RESOLVED 2026-06-29 — by REMOVAL, not by committing the orphan. init-project STEP 12 (speculative gsd auto-bootstrap) DELETED → ROADMAP/.gsd never created post-FINISH → orphan dissolves, no commit helper built. TRUE reason: auto-bootstrapping a heavy multi-session ENGINE the sole user doesn't use, AT project-creation, is bad on its own terms. NOT the initial framing "ROADMAP redundant with TODO" — that was wrong and would have aged badly: gsd ≫ roadmap (state machine / crash-recovery / cost / parallel / worktree), and TODO ≠ gsd ROADMAP (different altitude + consumer). Reasoning trace: BOTH initial premises (gsd=only-roadmap; TODO-redundant) REFUTED on read, yet conclusion A (remove STEP 12) held for the STRONGER reason — right answer, reason corrected before engraving. Deliberate gsd use KEPT (onboarder PHASE 6 `/onboard add gsd`, plugin-advisor reco, status-reporter `.gsd/` read, USAGE `gsd init`). Removed STEP 12 + header 12→11-step + 10c note + 4 USAGE refs; coherence sweep = zero dangling refs. [[LRN-072]]
+- **Status**: resolved (init-project STEP 12 removed — `skills/init-project/SKILL.md`; branch bugfix/blk-011-gsd-roadmap). Title says "STEP 13" — stale (was STEP 12 at removal per BDR-036 renumber); left per append-only.
 - **Reference**: discovered in doc-sync-coupled analysis (2026-06-27). Sibling [[BLK-010]] + twin [[BDR-034]].
 
 ## BLK-012 — gitflow_init non-transactional: socle-commit failure swallowed → hook activated on partial run → re-run self-blocks

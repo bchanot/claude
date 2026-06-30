@@ -223,3 +223,41 @@ rules:
 - Migrated ALL 6 repos to gitflow one-by-one (faunosteo, config, bchanot-cv, zenquality, game, claude): master→main, develop, Option-1 owner-pushable protection, master deleted — each delete behind a user eyeball + GO, ZERO loss, no force/`--no-verify`, settings intact. game = already-on-main variant (no master); zenquality keeps `cleanup/post-smtp-fix` (out-of-convention, conscious); bchanot-cv adopted a pre-existing clone (surfaced, not assumed).
 - claude SELF-APPLIED (ultimate dogfood): its own committed lib migrated it. Chantier landed C1 `feat(gitflow)` 167ea96 + C2 `chore(memory)` 1254643 + socle 620071b; hook now governs claude. gstack submodule dirty (BLK-008 Playwright bump) excluded via `submodule.ignore=dirty` (LRN-070), not reset.
 - Permission insight: `Bash(export *)` deny false-positives inline-env; `git push` ASK = the real remote-write gate (LRN-069). BLK-010 CLOSED (verified `gitflow_init` root commit closes all 3 components — index+body, append-only).
+
+## 2026-06-29 (cont.) — MINOR-gate strengthening (doc-syncer)
+- Read-first cartography REFUTED the literal premise: "strengthen MINOR gate" = 3 distinct problems; the literal reading (blocking gate on MINOR, option B) contradicts engraved [[BDR-036]]. Same trap as gitflow — premise refuted by the real, not assumed.
+- Scope tranché ①+②, ② first, never B, ③ deferred. Built test-first (Iron Law RED→GREEN, RED shown before each GREEN).
+- ② masked-commit fix ([[LRN-071]]) — 3rd occurrence of the swallowed-commit pattern ([[LRN-066]], [[LRN-068]]/[[BLK-012]]). `doc-commit.sh` exit 5 fail-loud. RED T8 proved the masking (rc 0 + stale hash + false "committed"), GREEN 32/32.
+- ① MINOR-shape oracle ([[BDR-040]], `lib/doc-shape.sh`) — 19/19 + behavioral Scenario D. Engraved limit: structural floor, NOT semantic (reduction of RISK-1's gross cases, not elimination).
+- Branch `feature/minor-gate-strengthening`; committed code + memory; FINISHED → develop (`0f0bd7f`) on explicit signal. Held the merge until the explicit go — the "avis-en-question" wasn't it.
+
+## 2026-06-29 (cont. 2) — BLK-011 resolved by REMOVAL (init-project GSD bootstrap)
+- User challenge reframed the chantier: don't plumb a commit for the stranded ROADMAP — ask if gsd belongs at init AT ALL. Read REFUTED both my option-premises (gsd ≫ roadmap; TODO ≠ gsd ROADMAP) but conclusion A (remove STEP 12) held for a STRONGER reason: speculative auto-bootstrap of an unused multi-session engine at creation is bad per se. Best fix = NEGATIVE diff ([[LRN-072]]).
+- Removed init-project STEP 12 (+ header 12→11-step, 10c note, 4 USAGE coherence fixes). Coherence sweep = zero dangling STEP-12 refs (the "test" for a removal). Deliberate gsd use KEPT (onboarder PHASE 6, plugin-advisor, status-reporter). [[BLK-011]] → resolved.
+- Branch `bugfix/blk-011-gsd-roadmap`; FINISHED → develop (`ce4391a`) on explicit signal; pushed develop to origin (6 commits, SSH).
+
+## 2026-06-29 (cont. 3) — prune-memory hardening (RED-7/8 + index backfill)
+- Read-first cartography (confirmed my own measurements). RED-7 (example-priming): the STEP-2 example named live LRN-014+016 and modeled merging them — verified COMPLEMENTARY, a merge the skill forbids. Fix = fictionalize example to 9xx + DETERMINISTIC test ([[LRN-046]], not flaky behavioral). [[LRN-073]].
+- RED-7 test caught its OWN false-green in real time: ugrep parsed `-9..` as an option → empty → green; fixed via /usr/bin/grep. 4th command-assumption miss this session → [[LRN-074]] (2nd engraved pattern-family, alongside fail-silent [[LRN-066]]/[[LRN-071]]).
+- RED-8 (added-negation): consciously ACCEPTED as documented limit ([[LRN-047]] — FP-prone guard worse than honest limit on a destructive skill).
+- Index backfill: 34 missing rows (decisions 11, learnings 21, blockers 2) composed + ID-sorted insert; drift 34→0, STEP-4 verify OK. Re-read the 5 awk-missed Applies-to → 4 corrected a nuance the title dropped. Moved pre-existing out-of-order LRN-021. [[EVAL-010]].
+- Branch `bugfix/prune-memory-hardening`; no finish yet (awaiting signal). LAST of 3 chantiers.
+
+## 2026-06-29 (cont. 4) — TODO reconcile + /reconcile skill queued
+- Session question "open-work queue really empty?" answered by READING sources (TODO, BLK, BDR/LRN deferred) vs REAL git state, not conversation memory. TODO lied 7 lines: FINISH+PUSH prune-memory already done (merge `73e12be`, develop==origin), 3× `[ ] Commit` (tree clean → shipped), `.gitmodules` follow-up (a) done (`be1dcef`), doc-sync twin done ([[BDR-036]]), v2 Stop-hook marked "deferred" but REJECTED ([[BDR-037]]).
+- Contradiction caught: chantier `--help` (STEP 0.5 per SKILL.md) contradicts [[BDR-001]] accepted (helper via session-start hook; per-SKILL.md copy REJECTED) → `--help` BLOCKED pending BDR-001 resolution (supersede or re-route).
+- Our OWN manual inventory had an error: line 26 cleanup-machine declared "auto-cleaned next make plugin" but fs shows darwin-skill still present → demoted "done"→"still deferred" after fs check. Proof-by-example the queue needs a RECONCILER (declared-vs-real), not a `[ ]`-grepper.
+- Reconciled TODO (5 ticked + 1 requalify + 1 split, annotated `reconcile 2026-06-29` w/ evidence) + queued `/reconcile` skill chantier (4-cat output, inter-registry contradiction detection, GATED TODO edit). Sequencing: /reconcile FIRST (oracle = today's inventory, perishable) → resolve BDR-001 → --help.
+
+## 2026-06-30 — /reconcile skill shipped (declared-vs-real reconciler)
+- Built `/reconcile` via superpowers:writing-skills (TDD): engine `lib/reconcile.sh` + harness 20/20 + thin gated skill. Recursive coherence (never trust a declarative source, incl. Index) made a TESTED guarantee — T1 reds on an Index-reader shim. [[BDR-041]].
+- RED 2-arm: guided baselines succeed (contaminated) / unguided mirror the TODO (real failure) → value = determinism+gate, not teaching ([[LRN-075]]). GREEN behavioral confirmed; dogfooded on its own chantier (S3 marked partial honestly). [[EVAL-011]].
+- Learnings: unguided-control RED ([[LRN-075]]); last-block-wins status + BLK-004 bleed bug ([[LRN-076]]); neutral fixture names = same symptom/distinct cause as [[LRN-074]] ([[LRN-077]]).
+- Ship: feature/reconcile-skill → develop (gitflow finish). Push to origin gated (ASK).
+
+## 2026-06-30 (cont.) — /release-candidate skill built (gitflow release orchestrator)
+- Built `/release-candidate` via writing-skills TDD: thin orchestrator over gitflow release + the version tag the lib lacks (grep-confirmed no `git tag` in gitflow.sh). RED (gitflow fans out, no tag) → GREEN 5/5 on a throwaway repo. [[BDR-042]], [[EVAL-012]].
+- Decisions: tag in the skill not the lib (release-specific vs generic mechanic); canonical sole release path (direct-lib release wouldn't tag, accepted); vX.Y.Z continues the lineage.
+- Learnings: semver derives from change nature, caveman = Removed not breaking ([[LRN-078]]); orchestrator-skill TDD = throwaway-repo flow replay ([[LRN-079]]).
+- CHANGELOG [Unreleased]: added /reconcile + /release-candidate under ### Added (so the eventual v4.0.0 captures them — /reconcile shipped without its entry, rectified here).
+- Ship: feature/release-candidate-skill → develop (gitflow finish). Push gated (ASK). Real v4.0.0 cut = separate later act (layer 2).

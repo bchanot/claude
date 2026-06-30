@@ -262,8 +262,10 @@ only the non-obvious cases: gstack fallbacks, disambiguation, cryptic names.
 - Bug / error / 500 → investigate (bugfix if gstack off)
 - feat / hotfix / bugfix distinguished by file count → see descriptions
 - Ship / deploy / PR → ship (ship-feature if gstack off)
+- Cut a release / tag a version (develop ahead of main) → release-candidate
 - Docs post-ship → document-release (doc if gstack off); stale-doc audit → doc
 - Audit of changes since last run → audit-delta
+- Open-work inventory / "queue empty?" / stale TODO vs real git → reconcile
 - Design / UI (build, system, audit, polish) → see "Design work" below
 - Architecture review → plan-eng-review
 - Before /clear or /compact → capitalize; end-of-session ritual → close

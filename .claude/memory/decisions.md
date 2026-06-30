@@ -42,14 +42,28 @@ rules:
 | BDR-018 | 2026-06-02 | `profile gstack on/off` verb — toggle gstack keeping active-profile label | accepted |
 | BDR-019 | 2026-06-09 | Remove `disable-model-invocation` repo-wide — align skills with CLAUDE.md routing | accepted |
 | BDR-020 | 2026-06-11 | `/audit-delta`: per-axis SHA markers + always-on fix gate + unreachable-first-run = full report-only | accepted |
+| BDR-021 | 2026-06-27 | CLAUDE.md restructure: contradiction purge, project-specific sections labeled, critical sections never compressed | accepted |
 | BDR-022 | 2026-06-18 | doc-syncer scoped to public docs; `.claude/` + `CLAUDE.md` read-only context, never targets; conventions + clean mode | accepted |
 | BDR-023 | 2026-06-19 | Merge /close into /capitalize — 2 modes + TODO reconcile; /close alias | accepted |
+| BDR-024 | 2026-06-27 | `profile show --plain` = claude-free parse contract for the design gate | accepted |
+| BDR-025 | 2026-06-27 | Design gate profile-based; remedy `/profile design`; magic required-but-manual; unknown → fail-visible; claude via PATH-repair | accepted |
+| BDR-026 | 2026-06-27 | Secret source-of-truth outside the repo (`~/.claude/.env`) reached via a `repo/.env` symlink | accepted |
+| BDR-027 | 2026-06-27 | Minimal npm-via-nvm bootstrap over a centralized prereq lib | accepted |
+| BDR-028 | 2026-06-27 | Hand-curated config install-immutable (auto-revert guard) + de-vendor installer-managed skills | accepted |
+| BDR-029 | 2026-06-27 | Installer auto-fixes gstack browser on an OS newer than its pinned Playwright supports | accepted |
+| BDR-030 | 2026-06-27 | gstack skills activated ON-DEMAND per profile, not pre-installed; OFF by default stays | accepted |
+| BDR-031 | 2026-06-27 | global CLAUDE.md lightening = COMPRESSION, not path-scope / externalization | accepted |
+| BDR-032 | 2026-06-27 | skill `/validate` → `/web-validate` (rename user surface, keep internals) | accepted |
+| BDR-033 | 2026-06-27 | design-gate §4: anim-lib suggestion — suggest-only, non-blocking, stateless 1-line | accepted |
 | BDR-034 | 2026-06-26 | Coupled-capitalize invariant v1 — memory commit auto per dev flow (Frame 2) | accepted |
 | BDR-035 | 2026-06-26 | Analyze-before-plan invariant v1 — read-before bookend of coupled-capitalize | accepted |
 | BDR-036 | 2026-06-27 | Doc-sync coupled invariant — commit docs doc-syncer patches (twin of BDR-034, BUILT not reordered) | accepted |
 | BDR-037 | 2026-06-27 | v2 capitalize Stop-hook rejected → wire /capitalize+/close to the include | accepted |
 | BDR-038 | 2026-06-27 | deploy skill: per-project learning runbook, two-moment cold-resume | accepted |
 | BDR-039 | 2026-06-29 | Gitea branch protection = Option-1 owner-pushable, not require-PR | accepted |
+| BDR-040 | 2026-06-29 | doc-syncer MINOR-shape oracle: deterministic floor under LLM's MINOR call | accepted |
+| BDR-041 | 2026-06-30 | /reconcile = deterministic declared-vs-real engine + thin gated skill (reconciler, not lister) | accepted |
+| BDR-042 | 2026-06-30 | /release-candidate = thin orchestrator over gitflow release; the tag lives in the skill, not the lib | accepted |
 
 ---
 
@@ -613,3 +627,31 @@ rules:
 - **why**: gitflow integrates by **local directed merges** — `gitflow finish` runs `git merge --no-ff` on the owner's machine then pushes the merge commit. require-PR would REJECT those pushes: every feature/bugfix/release merge would need a manual PR, and the **hotfix fan-out** (hotfix → main + develop + each open `release/*`) becomes 3+ manual PRs per hotfix. For a solo-owner Gitea, required reviews add zero review value, only friction. Owner-pushable keeps the protection's real teeth (no force-push, no deletion, no non-owner push) without breaking the local-merge workflow. Protection is a BACKSTOP — the per-repo pre-commit hook + the "finish only on an explicit human signal" rule are the primary controls.
 - **alternatives**: require-PR + required reviews (rejected — breaks `gitflow finish`'s local merges; the 3-way hotfix fan-out becomes manual PRs; no review value for a solo owner, pure friction); no protection (rejected — leaves force-push + branch deletion + accidental non-owner push open; it is the deterministic backstop the advisory rules can't guarantee); protect `main` only (rejected — `develop` is equally a protected base in the model, needs the same force-push/deletion guard).
 - **reference**: `lib/gitflow-migrate.sh` `_protect()` (POST `/repos/{o}/{r}/branch_protections`, owner whitelist); applied to all 6 repos 2026-06-29 (journal). Hook backstop in `lib/gitflow.sh` (pre-commit); CLAUDE.md "Version control — gitflow (universal)". Pairs with [[LRN-069]] (the `git push` ASK gate at the tool-call layer).
+
+## BDR-040 — doc-syncer MINOR-shape oracle: deterministic floor under LLM's MINOR call
+- **date**: 2026-06-29
+- **status**: accepted
+- **Problem**: doc-syncer AUTO MODE classifies drift NONE/MINOR/SIGNIFICANT by LLM judgment, no deterministic backstop. SIGNIFICANT mislabeled MINOR → silent auto-patch + auto-commit, skips the SIGNIFICANT gate (RISK-1). Follow-up [[BDR-036]] flagged.
+- **Decision**: `lib/doc-shape.sh` re-checks SHAPE of each MINOR patch BEFORE the silent auto-commit. Envelope (per path, `git diff HEAD`): adds ATX heading | added > DOC_SHAPE_MAX_ADDED (def 20) | removed > MAX_REMOVED (def 20) | new/untracked file | non-doc → EXCEEDS. Aggregate: ANY path exceeds → whole set escalates to the EXISTING SIGNIFICANT gate (STEP A4 `Apply? yes/no/select`; no=revert all, select=keep subset). Thresholds env-overridable.
+- **Oracle NOT a blocking gate (B rejected)**: [[BDR-036]] graved MINOR-non-gated as CONSCIOUS (visible surface replaces gate; blocking gate = friction disproportionate). Oracle does NOT gate genuine MINOR (auto-commit untouched, zero friction) — only re-routes shape-suspect patches. Tightens the DEFINITION of MINOR deterministically ([[LRN-046]] oracle > judge), adds no gate. Option B (human gate on every MINOR) REJECTED — contradicts [[BDR-036]], rejects the premise the reading refuted.
+- **ENGRAVED LIMIT — do not over-read the guarantee**: oracle catches STRUCTURAL/size significance, NOT semantic. A 3-line edit that CHANGES MEANING, no heading, small → still reads MINOR (rc 0) and auto-commits. Deterministic FLOOR under LLM judgment = REDUCTION of RISK-1's gross cases, NOT elimination. LLM owns the semantic call above the floor; the visible surface ([[BDR-036]]) stays the content backstop.
+- **Scope tranché**: ① oracle + ② [[LRN-071]] masked-commit fix built. ③ branch-guard (doc-commit refusing main/develop) DEFERRED — duplicates the protected-base predicate a 3rd time (lib + gitflow hook + here); migrated repos have the hook → ③ guards a state that shouldn't exist. Reconsider only for repos outside `gitflow init`.
+- **Build**: TDD RED→GREEN. run-doc-shape.sh 19/19 (incl. threshold boundary + env-override) + behavioral Scenario D. Wired doc-syncer STEP A4 + doc-commit.md ACKNOWLEDGMENTS coherence. shellcheck clean.
+
+## BDR-041 — /reconcile = deterministic declared-vs-real engine + thin gated skill (reconciler, not lister)
+- **Date**: 2026-06-30
+- **Status**: accepted
+- **Decision**: `/reconcile` answers "what work is REALLY open?" by confronting DECLARATIVE sources (TODO `[x]`/`[ ]`/`[~]`, registry statuses, `## Index`) against REAL state (git/fs, registry BODY). Split: `lib/reconcile.sh` (deterministic engine — body enumeration, `reconcile_oracle_*`, BLK last-block-wins, lexical deferral sweep, contradiction candidates, pure `reconcile_verdict` kernel) + `skills/reconcile/SKILL.md` (thin orchestration + A/B/C write-back gate). Founding principle = RECURSIVE COHERENCE: never use a declarative source as oracle (Index/checkbox/status/path-name) — enumerate from BODY `## ID` headings, decide done/stale from git/fs. TESTED: run-reconcile.sh T1 reds if engine reads `## Index` (shim → 51≠72, canary LRN-020 dropped). Registries READ-ONLY (curation = /prune-memory).
+- **Why**: RED proved a capable agent reconciles when GUIDED ("use git + justify") but MIRRORS the TODO when not (false positives + missed contradiction), and even guided hits the compound-status trap (BLK-008). Value = determinism + cheapness + gate, NOT teaching ([[LRN-031]], [[LRN-075]]). Mechanical 80% → script; judgment 20% → thin skill (writing-skills: automate mechanical, document judgment).
+- **Alternatives rejected**: monolithic teaching/discipline skill (agents reconcile when guided → no teaching value); `grep '[ ]'` lister (reproduces the lie); trust Index (drift, [[LRN-055]]); blocking write-back gate (friction — A/B/C surface chosen).
+- **Honest limits (graven)**: deferral detection LEXICAL (marked-only; unmarked "à reprendre quand X" missed); contradictions = CANDIDATES (token overlap), surfaced not asserted; cross-repo "not verifiable here"; cross-ref verdicts ("[~] done because chantier X below complete") surfaced, not auto-resolved.
+- **Reference**: `lib/reconcile.sh`, `lib/tests/run-reconcile.sh` (20/20) + `lib/tests/fixtures/` (neutral-named, [[LRN-077]]), `skills/reconcile/SKILL.md`, CLAUDE.md "Skill routing". Born of the 2026-06-29 manual inventory (its known-good oracle). Built via superpowers:writing-skills. See [[LRN-075]], [[LRN-076]], [[EVAL-011]].
+
+## BDR-042 — /release-candidate = thin orchestrator over gitflow release; the tag lives in the skill
+- **Date**: 2026-06-30
+- **Status**: accepted
+- **Decision**: `/release-candidate <X.Y.Z>` cuts a release by ORCHESTRATING the existing `lib/gitflow.sh` mechanic, NOT rewriting it. Flow: preconditions (clean tree, identity, develop ahead of main) → `gitflow start release` → prep (version.txt + CHANGELOG, breaking documented) → run-tests gate → HUMAN "WHEN to release" gate → `gitflow finish` (fan-out main+develop+delete, lib L108-111) → **`git tag -a vX.Y.Z main`** → push gated. The `git tag` lives in the SKILL, lib UNTOUCHED — the tag is release-specific (version + message + human call), the lib's fan-out is generic. Scheme `vX.Y.Z`, CONTINUES the version.txt/CHANGELOG lineage (never restart at v1.0.0 — desyncs from a CHANGELOG already at 3.x).
+- **Why**: gitflow release was wired (start base=develop L49, finish fan-out main+develop L108-111) but had NO tag step (grep-confirmed: zero `git tag` in gitflow.sh). The tag is the only gap; an orchestrator supplies it without touching the tested mechanic.
+- **Consequence (accepted)**: a release cut by calling `gitflow finish` directly, bypassing the skill, fans out but is NOT tagged → `/release-candidate` is the CANONICAL sole release path. Acceptable for a solo repo; revisit (tag in lib) only if direct-lib releases become a need.
+- **Alternatives rejected**: tag inside `gitflow_finish` (atomic but modifies the tested generic mechanic for a release-specific concern — lib=mechanic/skill=judgment); restart tags at v1.0.0 (desyncs tag↔CHANGELOG lineage).
+- **Reference**: `skills/release-candidate/SKILL.md`, `lib/tests/run-release-candidate.sh` (RED no-tag → GREEN 5/5), CLAUDE.md routing. Built via writing-skills TDD. Consumes the gitflow model [[BDR-039]]. See [[LRN-078]], [[LRN-079]], [[EVAL-012]].

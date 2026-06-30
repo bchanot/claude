@@ -30,6 +30,9 @@ rules:
 | EVAL-007 | 2026-06-26 | Coupled-capitalize machinery — TDD 13 + e2e, surgical scope proven | keep |
 | EVAL-008 | 2026-06-27 | Doc-sync coupled machinery — 28/28 real-exec, swap-sweep caught prior debt | keep |
 | EVAL-009 | 2026-06-27 | deploy skill subagent-driven build: multi-stage review + pressure-test net-positive | keep |
+| EVAL-010 | 2026-06-29 | prune-memory hardening: RED-7 deterministic fix + RED-8 accept + 34-row index backfill | keep |
+| EVAL-011 | 2026-06-30 | /reconcile build: RED contaminated→corrected (unguided control), GREEN behavioral confirmed, dogfooded on itself | keep |
+| EVAL-012 | 2026-06-30 | /release-candidate build: RED (gitflow fans out, no tag) → GREEN 5/5 (tag), throwaway-repo flow replay | keep |
 
 ---
 
@@ -113,3 +116,23 @@ rules:
 - **method**: per-task review (sonnet; opus on the keystone) + writing-skills pressure-test (fresh agent on a `PENDING.json`+moved-HEAD fixture) + final whole-branch review (opus).
 - **anomalies**: (1) the PLAN's code carried 3 latent bugs — missing `git add` for new files, SC2086 unquoted `$viol`, comment-before-shebang SC1128 — all caught by the implementer's TDD+shellcheck gate → plan-code is a DRAFT, the test gate is load-bearing. (2) the final whole-branch review caught 2 Important seam-bugs INVISIBLE to per-task reviews: target-repo `.claude/`-ignored silent no-op ([[LRN-066]]) + `NEXT.sh`-absence non-regeneration → holistic review earns its keep. (3) pressure-test confirmed the cold-resume discipline holds under temptation (the agent excluded the moved-HEAD `0034`). (4) a reviewer subagent bugged out once (user killed it) → re-dispatched clean (transient, not a finding).
 - **action**: keep. Multi-stage adversarial review + a behavioral pressure-test caught classes of bug single-pass review misses — worth the cost on a keystone skill.
+
+## EVAL-010 — prune-memory hardening (RED-7 fix + RED-8 accept + 34-row index backfill)
+- **Date**: 2026-06-29
+- **method**: read-first cartography (sub-agent, confirmed) → RED-7 closed by a DETERMINISTIC test ([[LRN-046]]) + STEP-2 example fictionalized → RED-8 re-reviewed, consciously accepted ([[LRN-047]]) → 34 missing Index rows composed + inserted in ID-sorted slots → STEP-4 verify zero MISSING/ORPHAN; deterministic suite all-green, shellcheck clean.
+- **anomalies**: (1) RED-7 test FALSE-GREEN caught in real time — ugrep parsed `-9..` as an option → empty → green; fixed via /usr/bin/grep ([[LRN-074]]). The RED was WATCHED, not assumed. (2) RED-7 premise verified: LRN-014/016 ARE complementary → the old example modeled a WRONG merge, not just primed it. (3) backfill: 4/5 title-derived Applies-to (the awk-missed entries) missed a real future-app nuance on re-read → corrected before insert (without the 5-check, 4 Index rows would have diverged from source, engraved forever). (4) almost wrote a colliding EVAL-009 (deploy) — read the file first → EVAL-010. (5) pre-existing LRN-021 Index row out of ID-order → moved.
+- **action**: keep. RED-7 GREEN (deterministic), RED-8 documented-accept, drift 34→0. [[LRN-073]] + [[LRN-074]] engraved — 2 pattern-families this session (fail-silent [[LRN-066]]/[[LRN-071]] + command-assumption [[LRN-074]]).
+
+## EVAL-011 — /reconcile build (TDD): contaminated RED corrected, behavioral GREEN, dogfood on itself
+- **Date**: 2026-06-30
+- **output**: `lib/reconcile.sh` (engine) + `lib/tests/run-reconcile.sh` (20/20) + `lib/tests/fixtures/` (neutral) + `skills/reconcile/SKILL.md` (thin) + CLAUDE.md routing.
+- **method**: 2-arm RED — GUIDED baselines (A/B, "use git + justify") SUCCEEDED = contaminated; UNGUIDED tempting baselines (a4872/a0f68) MIRRORED the TODO = real failure ([[LRN-075]]). RED-B = deterministic Index-ignore with TEETH (shim engine to read Index → reds). GREEN behavioral (a8404): same terrain + skill → verified via engine, stale reported done w/ SHAs, applied A/B/C gate, surfaced cross-ref as candidate. Dogfood: ran on the live repo, found its OWN chantier, marked S3 PARTIAL (routage absent per path oracle), not done.
+- **anomalies**: (1) first baseline LEADING → corrected with an unguided control ([[LRN-075]]). (2) fixture-name false-signal — a0f68 read "pre-reconcile" from the dir name → re-froze fixtures neutral ([[LRN-077]]). (3) harness caught a real bug mid-build: BLK-004 status bleed from BLK-005's header ([[LRN-076]]). (4) META: marked `[x] routage DONE` BEFORE the CLAUDE.md edit succeeded (errored — Read-first) → created the exact declared-vs-real gap `/reconcile` traps, caught by the next verify. The tool's build produced the gap it detects.
+- **action**: keep. RED watched red before green ([[LRN-074]] discipline), bug caught + fixed, behavioral loop closed.
+
+## EVAL-012 — /release-candidate build (TDD): RED no-tag → GREEN 5/5, throwaway-repo replay
+- **Date**: 2026-06-30
+- **output**: `skills/release-candidate/SKILL.md` (thin orchestrator, 45 l) + `lib/tests/run-release-candidate.sh` (flow replay) + CLAUDE.md routing + CHANGELOG [Unreleased] entries (/reconcile + /release-candidate).
+- **method**: read-first cartography (gitflow release wired: start L49 base=develop, finish L108-111 fan-out; grep-confirmed NO `git tag` → the gap). TDD on a throwaway repo: RED (`RC_TAG=0`) = start→prep→finish → 4 GREEN (fan-out / merge-back / branch-deleted / CHANGELOG) + 1 RED (tag v4.0.0 absent — gitflow never tags); GREEN (`RC_TAG=1`) = + `git tag -a` → 5/5, tag on main's merge commit. shellcheck clean (caught + fixed an SC2164 mid-build).
+- **anomalies**: (1) versioning reasoning corrected by the user — number derives from change nature, not justification ([[LRN-078]]); caveman verified `Removed` not breaking from refs, not memory. (2) tag-in-skill consequence (direct-lib release wouldn't tag) made explicit + accepted, not left implicit. (3) layers kept distinct — this built+tested the skill; cutting the real v4.0.0 is a separate later act.
+- **action**: keep. RED red for the right reason (gap = tag), GREEN closes it, teeth proven.
