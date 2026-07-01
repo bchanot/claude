@@ -708,3 +708,4 @@ rules:
   - (C) Homebrew/apt — platform-specific; curl covers macOS/Linux/WSL uniformly and matches the doc's "recommended".
 - **Honest residual**: `curl | bash` = pipe-to-remote-bash (accepted: official Anthropic domain, same pattern already used for nvm at install.sh:29). node/npm still installed as prereqs — needed by the plugins step (gsd-pi), not by claude. PATH export added so the auth step finds the freshly-installed binary. See [[BLK-014]], [[LRN-085]].
 - **Status**: accepted. Commits 8dc4027 + 6be627e, branch bugfix/install-claude-idempotent, pending merge.
+- **Update 2026-07-01**: MERGED `2393ca5` → develop, pushed — supersedes "pending merge".
