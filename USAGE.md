@@ -103,17 +103,22 @@ Tu veux...
 | Docs périmées | `/doc` |
 | SEO/GEO audit | `/seo` (GEO seul → `/geo`) |
 | Commit structuré | `/commit-change` |
+| Branches gitflow (start/finish) | `/gitflow` |
+| Couper une release (develop→main) | `/release-candidate` |
+| Déployer via runbook | `/deploy` |
 | Navigation codebase large | `/graphify` |
 | Lister ses skills | `/skills-perso` |
 | Plugins OK ? | `/plugin-check` |
 | Audit du delta (depuis dernier run) | `/audit-delta` |
 | Flush mémoire + TODO avant /clear | `/capitalize` |
 | Curer la mémoire | `/prune-memory` |
+| État réel du travail ouvert | `/reconcile` |
 | Fin de session (= /capitalize --ritual) | `/close` |
 | Audit web (TLS, CSP, headers) | `/harden` |
 | Validité HTML/CSS + a11y | `/web-validate` |
 | Visibilité IA (GEO seul) | `/geo` |
 | Livraison client finale | `/client-handover` |
+| Traduire un PDF | `/pdf-translate` |
 | Changer profil skills | `/profile` |
 | Rien ne marche | `/health` |
 
@@ -138,6 +143,9 @@ Tu veux...
 | `/seo` | Audit SEO/GEO complet | Détecte framework, audite meta/OG/sitemap |
 | `/geo` | Audit GEO uniquement (IA) | Visibilité ChatGPT, Perplexity, Claude, Gemini… |
 | `/commit-change` | Commits bien structurés | Groupe les changements par unité logique |
+| `/gitflow` | Opérations de branches gitflow | Bootstrap main+develop, branche typée, merge dirigé |
+| `/release-candidate` | Couper une release versionnée (develop en avance sur main) | Finalise version.txt + CHANGELOG, merge develop→main, tag, push |
+| `/deploy` | Déployer via le runbook du projet | Instancie le delta depuis le dernier deploy, reprend à froid |
 | `/graphify` | Navigation codebase large-scope | Knowledge graph, pour tâches multi-fichiers |
 | `/skills-perso` | Lister ses skills personnels | Skills créés dans ~/.claude/skills/ |
 | `/health` | Quand quelque chose ne fonctionne pas | Lance doctor.sh |
@@ -145,10 +153,12 @@ Tu veux...
 | `/audit-delta` | Audit récurrent du delta depuis le dernier run | Axes : conformité / bugs / dead code / sécurité |
 | `/capitalize` | Avant /clear ou /compact | Flush contexte non capitalisé + réconcilie .claude/tasks/TODO.md |
 | `/prune-memory` | Registres trop longs / bruyants | Curation : merge, superseded, compression |
+| `/reconcile` | Connaître l'état réel du travail ouvert (TODO/registres douteux) | Confronte statut déclaré vs git/fs réel |
 | `/close` | Fin de session | Alias de /capitalize --ritual — dedup + TODO + réflexion 3 questions |
 | `/harden` | Audit sécurité web (SSL, CSP, HSTS) | Projet web avec config HTTP |
 | `/web-validate` | Audit W3C + WCAG a11y | Avant livraison projet web |
 | `/client-handover` | Livraison client | Audits finaux + livrable brandé |
+| `/pdf-translate` | Traduire un PDF vers une autre langue | Sortie HTML fidèle (images, layout, style préservés) |
 | `/profile` | Changer le profil de skills | design / dev / qa / audit / minimal |
 
 > Cette table couvre les skills personnels principaux. Les plugins (gstack,
