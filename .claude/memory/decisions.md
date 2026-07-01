@@ -68,6 +68,7 @@ rules:
 | BDR-044 | 2026-06-30 | auto-skill-dispatch won't-build — under-routing fear inverted to over-routing by cartography, then measured: model discriminates (clear→route, ambiguous→ask, trivial→abstain) | accepted · won't-build |
 | BDR-045 | 2026-07-01 | Standalone memory/doc skills branch to chore/* via aiguillage (hook exemption kept) | accepted |
 | BDR-046 | 2026-07-01 | Claude Code installs via official native installer (curl claude.ai/install.sh), drop npm from install.sh | accepted |
+| BDR-047 | 2026-07-01 | ECC audit → zero import; local config ahead of reference | accepted |
 
 ---
 
@@ -709,3 +710,68 @@ rules:
 - **Honest residual**: `curl | bash` = pipe-to-remote-bash (accepted: official Anthropic domain, same pattern already used for nvm at install.sh:29). node/npm still installed as prereqs — needed by the plugins step (gsd-pi), not by claude. PATH export added so the auth step finds the freshly-installed binary. See [[BLK-014]], [[LRN-085]].
 - **Status**: accepted. Commits 8dc4027 + 6be627e, branch bugfix/install-claude-idempotent, pending merge.
 - **Update 2026-07-01**: MERGED `2393ca5` → develop, pushed — supersedes "pending merge".
+
+---
+
+## BDR-047 — ECC audit → zero import; local config ahead of reference
+
+- **Date**: 2026-07-01
+- **Status**: accepted
+- **Decision**: audited affaan-m/ECC (legit original, NOT the arabicapp malware
+  clone) read-only for value vs this config. Result: ZERO import. Nothing taken.
+  Clean measure-first outcome — analysis closed.
+- **Safety** (durable, avoids re-audit): ECC = genuine original — 2232 commits,
+  ~1480 by Affaan Mustafa, real contributor long-tail, sequential PRs. No payload:
+  postinstall = echo, install.sh runs only its 3 reputable deps (@iarna/toml, ajv,
+  sql.js), ships own supply-chain IOC scanner. Zero injection flags across ALL
+  categories. NOTE: ECC install.sh auto-runs `npm install` → never run their
+  installer casually; this analysis stayed read-only.
+- **Why zero import** (each intuition CHALLENGED, not confirmed):
+  - RULES (122 files, by-language): ~80% redundant w/ CLAUDE.md, rest dormant
+    reference. INERT at ECC — nothing reads rules/, their README admits "plugins
+    cannot distribute rules automatically", `paths:` frontmatter aspirational (no
+    auto-routing exists). "take all" refuted.
+  - CONTEXTS (dev/research/review, 3 tiny files): least load-bearing. Delivery via
+    `claude --system-prompt "$(cat)"` would OVERWRITE global CLAUDE.md. Harmful
+    as-shipped. "important" refuted.
+  - GUIDELINES: ECC itself demoted to docs/example. Per-project CLAUDE.md
+    (git-tracked) superior.
+  - INSTRUCTION FILES (AGENTS/RULES/SOUL/WORKING-CONTEXT): redundant or
+    ECC-specific. AGENTS.md "proactive delegation" already mandated here.
+  - MEMORY/learning: auto hook-capture → confidence-scored instincts. CONFLICTS
+    measure-first (observe-first vs approve-first). Instinct schema parked (gated
+    only).
+  - eval-harness (the spike): DOCS-ONLY — 271-line SKILL.md, no runner,
+    `/eval define|check|report` exist NOWHERE. Same "belle méthodo / câblage
+    vaporware" pattern as rules. Executable-eval ALREADY covered locally:
+    lib/tests/run-*.sh (code graders) + darwin dim8 (with/without-baseline
+    sub-agent effect testing + git ratchet) + RED-before-GREEN discipline. evals.md
+    = ledger of REAL runs (EVAL-011 ran 20/20, dogfooded) — spike premise
+    "descriptif pas exécuté" was FALSE, corrected.
+- **Lesson**: external repo — even prestigious / "d'un boss" — judged on REAL added
+  value to THIS config's axes (typed memory, real harness, gitflow), NOT author
+  reputation. Measuring it revealed local config AHEAD on those axes. Taking a thing
+  "since we analyzed" = sunk-cost. Zero is the honest conclusion. Don't re-propose
+  auditing ECC expecting treasure.
+- **2 real gaps FOUND (not rejected — the only concrete fruit of the audit)**:
+  1. pass@k / reliability-under-repetition — local harness proves PRESENCE (guard
+     fires, often N=1), not RELIABILITY (right output 9/10 under repetition). Blind
+     spot for non-deterministic skill/agent behavior (EVAL-006 flagged "N=6 fleet
+     NOT exhausted").
+  2. re-runnable regression battery indexed on model upgrades — bespoke
+     per-chantier tests, no one-command "re-run behavioral evals for load-bearing
+     skills" when model changes. darwin optimizes on-demand, not a standing gate.
+  - **Both = home-grown ~10-line bash over darwin's test-prompts.json if ever
+    wanted — NOT ECC imports.** eval-harness delivers neither (no runner). Separate
+    later decision.
+- **Alternatives rejected**:
+  - Import eval-harness anyway (sunk-cost "we analyzed it") — rejected: docs-only,
+    capability already covered, adds vocabulary not machinery.
+  - Import rules by-language + build wiring hook — parked: low ROI (bash/md, not
+    polyglot); hookify-rules would be the mechanism, someday-if-polyglotte.
+  - Adopt instinct auto-capture — rejected: conflicts measure-first.
+- **Optional zero-cost nicety** (not now): tag evals.md entries w/ grader-type + k
+  (e.g. `method: code-grader, pass^3`) — writing convention, not an import.
+- **Reference**: read-only clone (scratchpad), 4 parallel analyzer agents +
+  eval-harness spike, this session. No branch on ECC, no import. See [[BDR-045]]
+  (chore/ aiguillage), [[BDR-009]] (caveman registries).
