@@ -166,6 +166,7 @@ rules:
 - **Fix-forward**: install-plugins.sh Step 1 should GUARANTEE npm on apt-`nodejs` hosts — detect missing npm + `corepack enable npm` (not just check node) → stops Error 127 recurring on any fresh apt machine.
 - **Status**: resolved (env-level: corepack shim + npm prefix; zero repo change). Fix-forward (script hardening) NOT built.
 - **Reference**: discovered fixing `make plugin` 2026-06-30. Distinct from [[BLK-003]] (macOS playwright hardcoded path) + the Playwright-chromium `make plugin` failure. Blocked residual = [[BDR-030]]/[[LRN-042]].
+- **Update 2026-07-01**: fix-forward BUILT. install-plugins.sh Step 1 gained unconditional npm guard (`corepack enable npm` → distro `install npm` fallback → fatal `exit 1`), placed AFTER the `NODE_OK` short-circuit so a node>=22-present-but-npm-absent host no longer skips it. Now fully resolved (env-level + script). shellcheck/`bash -n` clean; fresh-apt live validation still pending. Commit `1f2c1cc`, branch `bugfix/install-plugins-npm-guard`.
 
 ---
 
@@ -177,3 +178,4 @@ rules:
 - **Solution**: install.sh — skip-if-present guard `command -v claude` (mirror RTK/GSD), npm only fresh machine (`elif`). update-all.sh — channel-aware updater: `npm ls -g` → npm-managed uses npm, else native uses `claude update` (self-update). Never `npm --force` (would clobber native, break self-update).
 - **Status**: resolved. Fix `8dc4027`, branch `bugfix/install-claude-idempotent`, pending merge validation.
 - **Reference**: [[BLK-013]] npm prefix `~/.local` = contributing factor (npm bin over native bin). install-plugins.sh already pointed to code.claude.com (native) — install.sh was the npm outlier. Fresh-machine `elif npm` branch channel-consistency = open design question (potential BDR). Pattern → [[LRN-085]].
+- **Update 2026-07-01**: MERGED `2393ca5` (bugfix/install-claude-idempotent → develop), pushed — supersedes "pending merge validation". The open channel-consistency question is RESOLVED by [[BDR-046]] (fresh install → native installer, npm dropped for claude); install.sh has no `elif npm` branch → nothing left to trancher.

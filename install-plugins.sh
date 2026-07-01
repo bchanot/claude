@@ -162,6 +162,32 @@ if [ "$NODE_OK" = false ]; then
   fi
 fi
 
+# --- npm (bundled with Node, but distro `apt install nodejs` can ship it separately) ---
+# BLK-013 fix-forward: node>=22 present does NOT imply npm present. GSD (gsd-pi)
+# and ctx7 install via `npm install -g`, so a missing npm makes `make plugin`
+# die with Error 127 mid-run. The Node block above short-circuits when node is
+# already recent (NODE_OK=true) and never checks npm, so guarantee it here.
+if ! command -v npm &>/dev/null; then
+  info "npm missing (Node without npm) — enabling via corepack, else package manager..."
+  if command -v corepack &>/dev/null; then
+    sudo corepack enable npm 2>/dev/null || corepack enable npm 2>/dev/null || true
+  fi
+  if ! command -v npm &>/dev/null; then
+    case $OS in
+      linux-apt)    sudo apt-get install -y npm || true ;;
+      linux-dnf)    sudo dnf install -y npm || true ;;
+      linux-pacman) sudo pacman -S --noconfirm npm || true ;;
+      macos)        brew install node || true ;;   # brew's node bundles npm
+      *) : ;;
+    esac
+  fi
+  if command -v npm &>/dev/null; then
+    ok "npm $(npm --version)"
+  else
+    err "npm still missing — GSD/ctx7 need it; install npm manually then re-run"; exit 1
+  fi
+fi
+
 # --- Rust + Cargo (for RTK) ---
 if command -v cargo &>/dev/null; then
   ok "Rust/Cargo $(cargo --version | awk '{print $2}')"
