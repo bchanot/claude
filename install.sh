@@ -22,8 +22,9 @@ echo ""
 # ── 1. Check prerequisites ──
 echo "── Checking prerequisites..."
 
-# node + npm drive the Claude Code CLI install below. On a fresh machine
-# they may be absent — install the current LTS via nvm instead of aborting.
+# node + npm are needed by the plugins step (install-plugins.sh: gsd-pi et al.);
+# Claude Code itself now installs via its own native installer below. On a fresh
+# machine node/npm may be absent — install the current LTS via nvm, not abort.
 install_node_via_nvm() {
   info "Node.js/npm missing — installing LTS via nvm..."
   curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
@@ -56,13 +57,18 @@ ok "npm $(npm -v)"
 echo ""
 echo "── Installing Claude Code..."
 
-# Idempotent: an existing claude (native installer under ~/.local/share/claude,
-# or any prior install) already owns ~/.local/bin/claude — npm cannot clobber a
-# symlink it does not manage (EEXIST). Mirror the RTK/GSD skip-if-present guard;
-# upgrades are `make update`'s job (update-all.sh), not first-time install.
+# Idempotent + official channel. Skip if already present (mirrors the RTK/GSD
+# guard) — the binary is a native-installer symlink at ~/.local/bin/claude that
+# self-updates. On a fresh machine install via the official native installer
+# (code.claude.com/docs quickstart), NOT npm: npm is no longer a documented
+# channel, would collide with the native symlink (EEXIST), and bypasses the
+# built-in auto-update. Upgrades are `make update`'s job, not first-time install.
 if command -v claude &>/dev/null; then
   ok "Claude Code already installed ($(claude --version 2>/dev/null | head -1))"
-elif npm install -g @anthropic-ai/claude-code@latest; then
+elif curl -fsSL https://claude.ai/install.sh | bash; then
+  # Native installer targets ~/.local/bin — put it on PATH for the auth +
+  # verification steps that follow in this same (non-login) shell.
+  export PATH="$HOME/.local/bin:$PATH"
   ok "Claude Code installed: $(claude --version 2>/dev/null || echo 'unknown')"
 else
   err "Claude Code installation failed"
