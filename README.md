@@ -101,6 +101,9 @@ Versions are pinned in `plugins.lock.json`. To update: edit the file, then re-ru
 | `/doc` | Documentation audit and sync — detect stale docs, patch |
 | `/seo` | Full SEO/GEO audit and optimization |
 | `/commit-change` | Smart commit grouping from staged/unstaged changes |
+| `/gitflow` | Gitflow branch operations — bootstrap main+develop, start a typed branch, directed merge |
+| `/release-candidate` | Cut a versioned release — finalize version.txt + CHANGELOG, merge develop→main, tag, push |
+| `/deploy` | Run a project's deploy from its committed runbook — instantiate the delta, resume cold |
 | `/graphify` | Codebase knowledge graph — navigation for large-scope tasks |
 | `/plugin-check` | Check active plugins vs project needs — recommend enable/disable |
 | `/health` | Run setup diagnostic |
@@ -109,6 +112,7 @@ Versions are pinned in `plugins.lock.json`. To update: edit the file, then re-ru
 | `/audit-delta` | Recurring audit of changes since last run (norms, bugs, dead code, security) |
 | `/capitalize` | Flush uncapitalized context + reconcile TODO before /clear or /compact (`--ritual` adds the end-of-session reflection) |
 | `/prune-memory` | Curate and compress the .claude/memory/ registries |
+| `/reconcile` | Confront declared status (TODO, registries) against real git/fs state — surface stale items |
 | `/pdf-translate` | Translate a PDF to another language, output as HTML (via Vision) |
 | `/close` | End-of-session ritual — alias for `/capitalize --ritual` (dedup + TODO reconcile + 3-question reflection) |
 | `/harden` | Web hardening audit — HTTPS/TLS, HSTS, CSP, security headers |
