@@ -34,4 +34,7 @@ Ritual answers are deduped like any other candidate — a dup is dropped and its
 existing ID shown, not re-logged. This is the upgrade over the legacy `/close`,
 which wrote ritual answers fresh with no dedup.
 
+The gitflow aiguillage (branch to `chore/*` on a protected base before writing)
+runs inside `capitalize` — not duplicated here.
+
 → Use the Skill tool to launch `capitalize` with argument `--ritual`.

@@ -68,11 +68,13 @@ gives a **real-time, explicit go for THIS merge** — "merge it", "feature OK",
 
 All of these mean: present the merge as a question, then wait for the explicit go.
 
-## Aiguillage (assistance skills)
+## Aiguillage (assistance + standalone memory/doc skills)
 
-On a protected base, assistance skills (`feat`/`bugfix`/`hotfix`) call
-`start <type>` to branch first; on a working branch they commit in place. Same
-`protected-base` predicate the out-of-skill hook uses.
+On a protected base, assistance skills (`feat`/`bugfix`/`hotfix`) AND the standalone
+memory/doc skills (`capitalize`/`close`/`prune-memory`/`reconcile`, TYPE `chore`)
+call `start <type>` to branch first; on a working branch they commit in place. Same
+`protected-base` predicate the out-of-skill hook uses. Caller→type map + rationale:
+`lib/gitflow-aiguillage.md`.
 
 ## Common Mistakes
 

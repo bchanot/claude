@@ -50,6 +50,13 @@ Running `/capitalize` right after a ritual should propose (near) nothing.
 This skill is NOT `/prune-memory` (registry curation — merge, compress,
 mark-superseded). It only appends.
 
+## Gitflow aiguillage (before any write)
+
+Before STEP 4 writes anything, follow `$HOME/.claude/lib/gitflow-aiguillage.md`
+— this skill's TYPE = `chore`. On `main`/`develop` it branches to `chore/<name>`
+off develop, so the memory commit lands on a branch, never direct on a protected
+base; on a working branch it proceeds in place. Never `gitflow finish` (human-gated).
+
 ## STEP 0 — PRECHECK
 
 ```bash

@@ -287,3 +287,6 @@ rules:
 - Subagent RED (6 reps, toy tasks) → 0/6 routed → RETIRED as non-discriminating (SUBAGENT-STOP + delegated framing = floor artifact, not signal); did NOT report as a number → [[LRN-083]].
 - Discernment-RED in REAL fresh sessions (user-run, 8 prompts / 3 classes): CLEAR→route ✓, AMBIGUOUS→ask (refuses to guess, investigates for a useful Q) ✓, TRIVIAL→abstain ✓. Over-routing risk does NOT materialize — model balances L1 vs Workflow rules.
 - Verdict: WON'T-BUILD ([[BDR-044]]) — 3rd measured moot of the session (--help, darwin re-baseline, auto-skill-dispatch). LRN-083 capitalized; [[LRN-080]] corroborated (3-in-a-row → measure-first sweep heuristic). TODO auto-skill-dispatch → won't-build. ALL actionables soldés.
+
+## 2026-07-01
+- gitflow aiguillage-standalone (BDR-045): chore type + 4 standalone memory/doc skills branch off develop before writing; hook exemption kept. 64/64 green (e8807a7). Then repaired 5 direct-on-main `chore(memory)` → chore/reconcile-memory branches (LRN-084, LRN-034 corrob).

@@ -103,6 +103,7 @@ rules:
 | LRN-081 | 2026-06-30 | Claude commit trailers (Co-Authored-By + Claude-Session) only on Claude-COMPOSED content; a commit merely STAGING user-authored text gets none — staging ≠ authorship | committing on the user's behalf; memory-commit.sh appends trailers by default |
 | LRN-082 | 2026-06-30 | Trigger-cleared on a multi-motif exclusion lifts only the named motif — re-check the others before acting | any "exclusion lifted / precondition cleared" — verify ALL grounds, not just the named one |
 | LRN-083 | 2026-06-30 | subagents are an INVALID instrument for measuring main-loop spontaneous routing — SUBAGENT-STOP + delegated framing pin them to the no-route floor | any RED of whether the MAIN loop self-invokes; use fresh main-loop sessions, observe via the human |
+| LRN-084 | 2026-07-01 | protection hook enforces PROD not the full branch-flow; exemption masked the rule-vs-guard divergence | a guard exempts a class / checks one predicate — verify it encodes full intent |
 
 ---
 
@@ -544,6 +545,7 @@ rules:
 - **Pattern**: narrated/remembered state from ANY source (user OR assistant) is not ground truth. Approval of a diff ≠ its application.
 - **Future application**: anyone asserts "X is done" → verify (git log, file content, grep) before building on it; ESPECIALLY when it contradicts your own earlier statement, or after a context/window break. Internal contradiction → stop, re-check git, never reconcile by accepting the newer claim silently.
 - **Reference**: P3 reprise, commit 493b6b9. Linked to [[LRN-032]] (verify before applying a rule), [[LRN-035]] (check the artifact, not the claim/count).
+- **corroboration 2026-07-01**: multi-repo raccord (6 repos) — mapped each repo's REAL git/fs state (read-only cartography) before EVERY write/destructive op, gated per-gap, re-verified each subagent oracle in the main loop. Declared TODO/registry/checkbox drift confirmed repeatedly; the discipline KILLED false simplifications: a blind `master→main` CHANGELOG swap (reflog showed master renamed AWAY, not a live branch), "just remove the `.claude/**` exemption" (would have broken standalone `/capitalize`, [[LRN-084]]), a config supersession grep that failed on a line-wrap (supersession was real). Narrated/declared state ≠ ground truth, at multi-repo scale.
 
 ---
 
@@ -906,3 +908,10 @@ rules:
 - **why it matters**: a 0/N subagent RED reads as "under-triggers → build the chantier" but is the [[LRN-028]] trap — the instrument can't tell strong prose from weak. Concluding from it = a pass/fail for the WRONG reason ([[LRN-074]]/[[LRN-077]]).
 - **context**: 2026-06-30 auto-skill-dispatch RED. 6 subagents on toy implicit-intent tasks → 0/6 routed → RETIRED as non-discriminating, NOT reported as a number. Reframed; measured instead in REAL fresh main-loop sessions.
 - **future application**: measure main-loop spontaneous routing/discernment in FRESH main-loop sessions (full L0–L4, no SUBAGENT-STOP, real user-turn). Observable instrument = the HUMAN typing the prompts + watching live — cron/schedule-spawned fresh sessions are the right CONDITION but UNOBSERVABLE to the orchestrator (they notify the owner, not the dispatcher), so they can't be the measurement vehicle. Never substitute a subagent for a fresh session in a routing RED. See [[LRN-028]], [[LRN-075]], [[LRN-080]].
+
+## LRN-084 — A protection hook enforces PROD safety, not the full branch-flow — the exemption masked the rule-vs-guard divergence
+
+- **Date**: 2026-07-01
+- **pattern**: the gitflow pre-commit hook is a PROTECTION guard (block code on main/develop), NOT a flow enforcer. It exempts `.claude/**` and can only test "on a protected base" — it can NEVER verify "branched FROM develop" (no base knowledge). So "every change via a branch from develop" is only HALF-encoded by the hook; the base half lives solely upstream in `gitflow_start`. The exemption is scoped to the SIDE-CAR ([[BDR-034]]); it has no branch to follow when memory IS the work → standalone memory fell back to `main`.
+- **why it matters**: a multi-repo raccord committed 5 `chore(memory)` direct on `main` and NOTHING flagged it — nothing was violated, the exemption worked as designed. The divergence was guard (declares PROD protection) vs intended rule (all via branch); the exemption MASKED it, the raccord revealed it by violating the unencoded half. A guard encoding only PART of the intent reads as full enforcement — a false-green.
+- **future application**: when a guard exempts a class or checks one predicate, ask what it does NOT encode and whether a human leans on it for MORE than it enforces. Enforce the unencoded half where it actually lives (the aiguillage at skill start, [[BDR-045]]), do not push it into a guard that structurally can't hold it. Verify the guard's real scope against the rule's full scope before trusting "it would have caught it." See [[BDR-034]], [[BDR-045]], [[LRN-034]].
