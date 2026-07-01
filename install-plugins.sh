@@ -573,11 +573,19 @@ else
     err "ctx7 install failed — run manually: npm install -g ctx7"
   fi
 fi
-# Suggest setup for Claude Code integration (optional — ctx7 also works standalone)
+# ctx7 auth — detect + guide only (an installer must never open a browser / log you in)
 if command -v ctx7 &>/dev/null; then
-  info "Run 'ctx7 setup --claude' to configure Context7 for Claude Code"
-  info "Or use ctx7 standalone: ctx7 docs /vercel/next.js \"middleware\""
-  info "Free higher rate limits: ctx7 login (OAuth) or --api-key from context7.com/dashboard"
+  # Deterministic offline oracle: ctx7's OAuth token lives here (XDG-aware).
+  # Present => authenticated; absent => anonymous. No subprocess, no network, no browser.
+  ctx7_creds="${XDG_CONFIG_HOME:-$HOME/.config}/context7/credentials.json"
+  if [ -f "$ctx7_creds" ]; then
+    ok "ctx7 authenticated (full rate limits)"
+  else
+    info "ctx7 works anonymously — docs + library already usable, no auth required."
+    info "For higher rate limits, authenticate:  ctx7 login   (opens a browser)"
+    info "  headless:  ctx7 login --no-browser   (prints a URL to open yourself)"
+  fi
+  info "Standalone usage:  ctx7 docs /vercel/next.js \"middleware\""
 fi
 
 # ============================================================
