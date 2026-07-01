@@ -66,6 +66,7 @@ rules:
 | BDR-042 | 2026-06-30 | /release-candidate = thin orchestrator over gitflow release; the tag lives in the skill, not the lib | accepted |
 | BDR-043 | 2026-06-30 | BDR-015 trigger cleared — 5 ex-broken gstack symlinks repaired → darwin re-baseline back in scope (unblocked, NOT run) | accepted |
 | BDR-044 | 2026-06-30 | auto-skill-dispatch won't-build — under-routing fear inverted to over-routing by cartography, then measured: model discriminates (clear→route, ambiguous→ask, trivial→abstain) | accepted · won't-build |
+| BDR-045 | 2026-07-01 | Standalone memory/doc skills branch to chore/* via aiguillage (hook exemption kept) | accepted |
 
 ---
 
@@ -680,3 +681,15 @@ rules:
   - Add an over-routing bound (clear→route / ambiguous→ask / trivial→abstain) at L2 → measurement shows the model ALREADY does this; codifying it risks perturbing it, zero upside.
   - Keyword hook on intent verbs → too noisy — the design-hook mis-fired on "design" in "auto-skill-dispatch" 3× this session; intent verbs (corrige/crée) are everywhere.
 - **Reference**: cartography L0–L4 + discernment-RED (user-run, fresh sessions). Subagent under-routing RED RETIRED as non-discriminating ([[LRN-083]]). [[LRN-080]] (measure-first), [[LRN-049]] (bound noise). TODO "auto-skill-dispatch" → won't-build.
+
+## BDR-045 — Standalone memory/doc skills branch to `chore/*` via the aiguillage (hook exemption kept)
+
+- **Date**: 2026-07-01
+- **Status**: accepted
+- **Decision**: Standalone memory/doc skills (`/capitalize` `/close` `/prune-memory` `/reconcile`) run the gitflow aiguillage BEFORE writing: on a protected base they `gitflow start chore <name>` off develop → commit lands on `chore/*`, not direct on main/develop. New `chore` type in `lib/gitflow.sh` (`base_for`→develop, `branch_type`, `finish`→develop like feature/bugfix); hook UNCHANGED (`chore/*` non-protected; the `.claude/**`-on-main exemption KEPT — T3 still green). `gitflow-aiguillage.md` broadened (caller→type map); 3 skills wired (`capitalize` covers `/close` via alias, `prune-memory`, `reconcile`); tests +T1 chore predicates +T6b finish chore→develop +T10 coherence chore/m → 64/64. Reused the EXISTING aiguillage include, not a new mechanism. Commit `e8807a7`.
+- **Why**: the `.claude/**` exemption is scoped to the SIDE-CAR ([[BDR-034]]: memory following a code branch). When memory IS the work (standalone reconcile/prune/capitalize) there is no branch to follow → it fell back to `main`. A multi-repo raccord committed 5 `chore(memory)` direct on `main` and nothing flagged it — the exemption worked as designed, masking the divergence with the "all via branch" rule ([[LRN-084]]). The aiguillage closes the SKILL path without taxing the side-car. The hook can NEVER enforce "from develop" (only "not on a protected base") → that half lives ONLY in `gitflow_start`.
+- **Alternatives rejected**:
+  - (A) remove the `.claude/**` exemption — breaks standalone `/capitalize`+`/close` on main/develop (commit in place, no branch of their own — `memory-commit.sh` has no protected-base guard) AND every side-car commit; over-reaches the leak.
+  - (C) codify exemption + human habit — enforces NOTHING mechanically; goal was automatic.
+  - (D) narrow the exemption by size/scope in the hook — fuzzy, false positives.
+- **Honest residual**: a MANUAL `git commit` of `.claude/**` on `main` still passes — B covers the skill path only. Non-blocking hook WARN on manual `.claude/**`-on-main = DEFERRED. See [[BDR-034]], [[BDR-039]], [[LRN-084]].
