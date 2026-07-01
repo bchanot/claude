@@ -67,6 +67,7 @@ rules:
 | BDR-043 | 2026-06-30 | BDR-015 trigger cleared — 5 ex-broken gstack symlinks repaired → darwin re-baseline back in scope (unblocked, NOT run) | accepted |
 | BDR-044 | 2026-06-30 | auto-skill-dispatch won't-build — under-routing fear inverted to over-routing by cartography, then measured: model discriminates (clear→route, ambiguous→ask, trivial→abstain) | accepted · won't-build |
 | BDR-045 | 2026-07-01 | Standalone memory/doc skills branch to chore/* via aiguillage (hook exemption kept) | accepted |
+| BDR-046 | 2026-07-01 | Claude Code installs via official native installer (curl claude.ai/install.sh), drop npm from install.sh | accepted |
 
 ---
 
@@ -693,3 +694,17 @@ rules:
   - (C) codify exemption + human habit — enforces NOTHING mechanically; goal was automatic.
   - (D) narrow the exemption by size/scope in the hook — fuzzy, false positives.
 - **Honest residual**: a MANUAL `git commit` of `.claude/**` on `main` still passes — B covers the skill path only. Non-blocking hook WARN on manual `.claude/**`-on-main = DEFERRED. See [[BDR-034]], [[BDR-039]], [[LRN-084]].
+
+---
+
+## BDR-046 — Claude Code installs via the official native installer, not npm
+
+- **Date**: 2026-07-01
+- **Decision**: install.sh fresh-machine branch installs Claude Code via `curl -fsSL https://claude.ai/install.sh | bash` (official native installer), not `npm install -g @anthropic-ai/claude-code`. Skip-if-present guard unchanged. update-all.sh stays channel-aware (native → `claude update`, legacy npm → npm).
+- **Why**: official quickstart (code.claude.com/docs) lists Native (recommended) / Homebrew / WinGet / apt only — npm is NO longer a documented channel. npm collided with the native symlink `~/.local/bin/claude` → EEXIST ([[BLK-014]]), and npm bypasses native background auto-update. install-plugins.sh already pointed to code.claude.com (native) — install.sh was the npm outlier; this aligns them.
+- **Alternatives rejected**:
+  - (A) keep npm on fresh install — deprecated channel, re-introduces the EEXIST class on any machine with a prior native install, no auto-update.
+  - (B) `claude install` subcommand — needs claude already present (chicken-and-egg on fresh machine); curl bootstrap is the documented first-time path.
+  - (C) Homebrew/apt — platform-specific; curl covers macOS/Linux/WSL uniformly and matches the doc's "recommended".
+- **Honest residual**: `curl | bash` = pipe-to-remote-bash (accepted: official Anthropic domain, same pattern already used for nvm at install.sh:29). node/npm still installed as prereqs — needed by the plugins step (gsd-pi), not by claude. PATH export added so the auth step finds the freshly-installed binary. See [[BLK-014]], [[LRN-085]].
+- **Status**: accepted. Commits 8dc4027 + 6be627e, branch bugfix/install-claude-idempotent, pending merge.

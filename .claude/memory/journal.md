@@ -291,3 +291,4 @@ rules:
 ## 2026-07-01
 - gitflow aiguillage-standalone (BDR-045): chore type + 4 standalone memory/doc skills branch off develop before writing; hook exemption kept. 64/64 green (e8807a7). Then repaired 5 direct-on-main `chore(memory)` → chore/reconcile-memory branches (LRN-084, LRN-034 corrob).
 - BLK-014 fixed: install.sh npm EEXIST on `~/.local/bin/claude` (native symlink, npm prefix `~/.local` from BLK-013) → skip-if-present guard + channel-aware update-all.sh (`claude update` for native). LRN-085. Commit 8dc4027, branch bugfix/install-claude-idempotent pending merge.
+- BDR-046: install.sh switched fresh-install from npm → official native installer (`curl claude.ai/install.sh | bash`); npm no longer a documented channel (verified quickstart). Aligns with install-plugins.sh. Commit 6be627e, same branch.
