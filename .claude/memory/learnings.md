@@ -104,6 +104,7 @@ rules:
 | LRN-082 | 2026-06-30 | Trigger-cleared on a multi-motif exclusion lifts only the named motif — re-check the others before acting | any "exclusion lifted / precondition cleared" — verify ALL grounds, not just the named one |
 | LRN-083 | 2026-06-30 | subagents are an INVALID instrument for measuring main-loop spontaneous routing — SUBAGENT-STOP + delegated framing pin them to the no-route floor | any RED of whether the MAIN loop self-invokes; use fresh main-loop sessions, observe via the human |
 | LRN-084 | 2026-07-01 | protection hook enforces PROD not the full branch-flow; exemption masked the rule-vs-guard divergence | a guard exempts a class / checks one predicate — verify it encodes full intent |
+| LRN-085 | 2026-07-01 | Idempotent CLI install/update: `command -v` skip-if-present guard + detect channel (`npm ls -g` vs native symlink) before choosing updater; never `npm --force` over a bin npm doesn't own | any installer/updater for a CLI with >1 install channel |
 
 ---
 
@@ -915,3 +916,13 @@ rules:
 - **pattern**: the gitflow pre-commit hook is a PROTECTION guard (block code on main/develop), NOT a flow enforcer. It exempts `.claude/**` and can only test "on a protected base" — it can NEVER verify "branched FROM develop" (no base knowledge). So "every change via a branch from develop" is only HALF-encoded by the hook; the base half lives solely upstream in `gitflow_start`. The exemption is scoped to the SIDE-CAR ([[BDR-034]]); it has no branch to follow when memory IS the work → standalone memory fell back to `main`.
 - **why it matters**: a multi-repo raccord committed 5 `chore(memory)` direct on `main` and NOTHING flagged it — nothing was violated, the exemption worked as designed. The divergence was guard (declares PROD protection) vs intended rule (all via branch); the exemption MASKED it, the raccord revealed it by violating the unencoded half. A guard encoding only PART of the intent reads as full enforcement — a false-green.
 - **future application**: when a guard exempts a class or checks one predicate, ask what it does NOT encode and whether a human leans on it for MORE than it enforces. Enforce the unencoded half where it actually lives (the aiguillage at skill start, [[BDR-045]]), do not push it into a guard that structurally can't hold it. Verify the guard's real scope against the rule's full scope before trusting "it would have caught it." See [[BDR-034]], [[BDR-045]], [[LRN-034]].
+
+---
+
+## LRN-085 — Idempotent CLI install/update: presence guard + channel detection, never `--force`
+
+- **Date**: 2026-07-01
+- **Context**: install.sh npm-installed claude blindly → EEXIST abort when claude present via native installer (symlink npm doesn't own). Sibling steps (RTK/GSD) already had `command -v` skip guards; install.sh didn't. See [[BLK-014]].
+- **Pattern**: (a) idempotent install step = `command -v <bin>` guard → skip-if-present with version echo, install only in `else`/`elif`. For a BINARY this IS a deterministic oracle (contrast [[LRN-054]]: conversation-state presence has none → don't skip-branch). (b) a CLI can ship via >1 channel (npm vs native). npm can't clobber a bin symlink it doesn't own → EEXIST; `npm --force` = wrong (npm itself says "recklessly", breaks native self-update). Detect channel first: `npm ls -g <pkg>` succeeds → npm-managed → npm; else native → `claude update` self-updater. (c) install ≠ update: first-time installer skips-if-present; the update script does the channel-aware upgrade.
+- **Future application**: any installer/updater for a CLI reachable via multiple channels — guard with `command -v`, branch the updater on detected channel, never blind `--force` over a foreign-owned bin. Caveat [[LRN-036]]: `command -v` needs the bin dir on PATH in shelled-out/hook contexts.
+- **Reference**: [[BLK-014]], mirrors RTK/GSD guard in install-plugins.sh. Related [[LRN-005]] (plugin enable idempotency), [[LRN-039]] (installer config drift).

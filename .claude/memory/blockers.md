@@ -33,6 +33,7 @@ rules:
 | BLK-011 | 2026-06-27 | init-project STEP 13 GSD post-FINISH creates ROADMAP.md → stranded doc (3rd post-FINISH artifact) | resolved (STEP 12 removed) |
 | BLK-012 | 2026-06-29 | gitflow_init half-applied: socle-commit failure swallowed → hook activated on partial run → re-run self-blocks | resolved |
 | BLK-013 | 2026-06-30 | `make plugin` Error 127 — npm absent on apt-`nodejs` host (Step 4 gsd-pi aborts, Steps 5-10 + residual cleanup never run) | resolved (env) |
+| BLK-014 | 2026-07-01 | `make install` aborts npm EEXIST on `~/.local/bin/claude` when claude already installed via native installer — no presence guard | resolved |
 
 ---
 
@@ -165,3 +166,14 @@ rules:
 - **Fix-forward**: install-plugins.sh Step 1 should GUARANTEE npm on apt-`nodejs` hosts — detect missing npm + `corepack enable npm` (not just check node) → stops Error 127 recurring on any fresh apt machine.
 - **Status**: resolved (env-level: corepack shim + npm prefix; zero repo change). Fix-forward (script hardening) NOT built.
 - **Reference**: discovered fixing `make plugin` 2026-06-30. Distinct from [[BLK-003]] (macOS playwright hardcoded path) + the Playwright-chromium `make plugin` failure. Blocked residual = [[BDR-030]]/[[LRN-042]].
+
+---
+
+## BLK-014 — `make install` aborts npm EEXIST when claude already present
+
+- **Date**: 2026-07-01
+- **Friction**: `make install` → install.sh Step 2 `npm install -g @anthropic-ai/claude-code@latest` fails EEXIST on `~/.local/bin/claude` when claude already installed → `else err` → `exit 1`. Bootstrap not idempotent on Claude Code step; rest (auth, symlinks, plugins) never runs.
+- **Real cause**: claude installed via NATIVE installer, not npm — `~/.local/bin/claude` = symlink → `~/.local/share/claude/versions/<v>` (`npm ls -g @anthropic-ai/claude-code` = empty; `claude --version` = 2.1.197). npm prefix `~/.local` (set by [[BLK-013]]) targets same `~/.local/bin/claude` → npm won't clobber a bin it doesn't own → EEXIST. Channel conflict, not double-install. Step had NO presence guard, unlike RTK (install-plugins.sh:388) / GSD (:419) / claude check (:252).
+- **Solution**: install.sh — skip-if-present guard `command -v claude` (mirror RTK/GSD), npm only fresh machine (`elif`). update-all.sh — channel-aware updater: `npm ls -g` → npm-managed uses npm, else native uses `claude update` (self-update). Never `npm --force` (would clobber native, break self-update).
+- **Status**: resolved. Fix `8dc4027`, branch `bugfix/install-claude-idempotent`, pending merge validation.
+- **Reference**: [[BLK-013]] npm prefix `~/.local` = contributing factor (npm bin over native bin). install-plugins.sh already pointed to code.claude.com (native) — install.sh was the npm outlier. Fresh-machine `elif npm` branch channel-consistency = open design question (potential BDR). Pattern → [[LRN-085]].
