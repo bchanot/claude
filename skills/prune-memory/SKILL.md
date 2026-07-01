@@ -62,6 +62,13 @@ If working tree is dirty on any registry file → STOP with: "Commit or
 stash pending changes in `.claude/memory/` first. Skill writes in-place.
 Git is the only backup."
 
+## STEP 0b — Gitflow aiguillage (after PRECHECK, before any write)
+
+PRECHECK first (clean tree = the backup). Then follow
+`$HOME/.claude/lib/gitflow-aiguillage.md` — this skill's TYPE = `chore`. On
+`main`/`develop` it branches to `chore/<name>` off develop so the curation lands
+on a branch; on a working branch it proceeds in place. Never `gitflow finish`.
+
 ## STEP 1 — AUDIT (per registry)
 
 For each target registry (filter by `$ARGUMENTS` or all 5):

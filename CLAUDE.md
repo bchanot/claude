@@ -168,23 +168,27 @@ Every git action follows gitflow — inside a skill AND for ad-hoc commits made
 outside one on direct request. The model is universal across all projects.
 
 ### Branch model
-`main` (prod) · `develop` (integration, off main) · `feature/*` + `bugfix/*`
-(off develop → develop) · `release/*` (off develop → main + back-merge develop)
-· `hotfix/*` (off main → main + develop [+ any open release/*]). `master`→`main`
-everywhere.
+`main` (prod) · `develop` (integration, off main) · `feature/*` + `bugfix/*` +
+`chore/*` (off develop → develop; `chore/*` = memory/doc maintenance, e.g.
+standalone `/capitalize` `/prune-memory` `/reconcile`) · `release/*` (off develop →
+main + back-merge develop) · `hotfix/*` (off main → main + develop [+ any open
+release/*]). `master`→`main` everywhere.
 
 ### Rules for every git action
 - **Never commit code directly on `main` or `develop`.** Branch first from the
   correct base, named `<type>/<name>`. (`.claude/**` memory/config commits are
-  exempt — they follow the work, not the code's gitflow.)
+  hook-exempt — they follow the work; but *standalone* memory/doc skills branch to
+  `chore/*` via the aiguillage rather than lean on that exemption.)
 - **Branch + merge via the lib, never by hand** — the directed-merge + hotfix
   fan-out logic lives there once:
   `bash ~/.claude/lib/gitflow.sh start <type> <name>` · `… finish`.
 - **`gitflow finish` (merge) only on an explicit human signal** ("merge it",
   "feature OK") — never because tests pass, a plan step says "merge", or a verb
   ("ship") implied it.
-- **Assistance flows** (`/feat` `/bugfix` `/hotfix`) auto-branch on a protected
-  base (the aiguillage); on a working branch they commit in place, never finish.
+- **Assistance flows** (`/feat` `/bugfix` `/hotfix`) AND **standalone memory/doc
+  skills** (`/capitalize` `/close` `/prune-memory` `/reconcile`, type `chore`)
+  auto-branch on a protected base (the aiguillage); on a working branch they commit
+  in place, never finish.
 - **New/onboarded projects** get the model + the versioned pre-commit hook via
   `gitflow init` (init-project STEP 5f, onboard STEP 2.6).
 

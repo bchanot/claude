@@ -21,7 +21,7 @@ GITFLOW_GITIGNORE_TEMPLATE="${GITFLOW_GITIGNORE_TEMPLATE:-$_GITFLOW_LIB_DIR/../t
 
 # ── predicates / pure helpers ────────────────────────────────────────────────
 
-# echo the gitflow type of a branch: feature|bugfix|release|hotfix|main|develop|other
+# echo the gitflow type of a branch: feature|bugfix|release|hotfix|chore|main|develop|other
 gitflow_branch_type() {
   local br="${1:-$(git symbolic-ref --short -q HEAD 2>/dev/null)}"
   case "$br" in
@@ -31,6 +31,7 @@ gitflow_branch_type() {
     bugfix/*)           echo bugfix ;;
     release/*)          echo release ;;
     hotfix/*)           echo hotfix ;;
+    chore/*)            echo chore ;;
     *)                  echo other ;;
   esac
 }
@@ -46,7 +47,7 @@ gitflow_protected_base() {
 # echo the base a given type must fork from.
 gitflow_base_for() {
   case "$1" in
-    feature|bugfix|release) echo "$GITFLOW_DEVELOP" ;;
+    feature|bugfix|release|chore) echo "$GITFLOW_DEVELOP" ;;
     hotfix)                 echo "$GITFLOW_MAIN" ;;
     *) echo "gitflow: unknown type '$1'" >&2; return 2 ;;
   esac
@@ -103,7 +104,7 @@ gitflow_finish() {
   br="$(git symbolic-ref --short -q HEAD)" || { echo "gitflow_finish: detached HEAD" >&2; return 3; }
   type="$(gitflow_branch_type "$br")"
   case "$type" in
-    feature|bugfix)
+    feature|bugfix|chore)
       _gitflow_merge_into "$GITFLOW_DEVELOP" "$br" && _gitflow_delete "$br" ;;
     release)
       _gitflow_merge_into "$GITFLOW_MAIN" "$br" \

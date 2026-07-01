@@ -34,6 +34,8 @@ Not for: curating/compressing registries → `/prune-memory`. The skill never ed
 Plus **contradiction candidates** — `reconcile_contradiction_candidates`: accepted-BDR ⇄ open-chantier overlap, surfaced for human review.
 
 ## The gate (mandatory)
+**Before applying (A/B):** follow `$HOME/.claude/lib/gitflow-aiguillage.md` — TYPE `chore`. On `main`/`develop` the write-back branches to `chore/<name>` off develop first, so a reconciled TODO never lands direct on a protected base; on a working branch it applies in place. Never `gitflow finish` (human-gated).
+
 Reconciling the TODO edits a tracked file → never silent. Show the proposed diff, then ask: **A** apply all · **B** select a subset · **C** touch nothing. Registries stay READ-ONLY (append-only; curation is `/prune-memory`).
 
 ## Honest limits (do not over-read the guarantee)

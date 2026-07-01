@@ -32,6 +32,9 @@ chk "protected develop"   'gitflow_protected_base develop'
 chk "not protected feat"  '! gitflow_protected_base feature/x'
 chk "base feature=develop" '[ "$(gitflow_base_for feature)" = develop ]'
 chk "base hotfix=main"     '[ "$(gitflow_base_for hotfix)" = main ]'
+chk "type chore"           '[ "$(gitflow_branch_type chore/x)" = chore ]'
+chk "base chore=develop"   '[ "$(gitflow_base_for chore)" = develop ]'
+chk "not protected chore"  '! gitflow_protected_base chore/x'
 
 echo "T2 — init fresh (BLK-010 root commit)"
 newrepo fresh; echo scaffold > README.md; hookon
@@ -92,6 +95,16 @@ chk "merged into develop" 'git log develop --oneline | grep -q "Merge feature/f1
 chk "main untouched"      "[ \"\$(git rev-parse main)\" = \"$main_before\" ]"
 chk "branch deleted"      '! git rev-parse --verify -q refs/heads/feature/f1 >/dev/null'
 
+echo "T6b — finish chore → develop only (standalone memory/doc maintenance)"
+newrepo finchore; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+gitflow_start chore c1 >/dev/null 2>&1
+mkdir -p .claude/memory; echo m>.claude/memory/x.md; git add -A; git commit -q -m "chore(memory)"
+main_before="$(git rev-parse main)"
+gitflow_finish >/dev/null 2>&1
+chk "chore merged into develop" 'git log develop --oneline | grep -q "Merge chore/c1 into develop"'
+chk "chore main untouched"      "[ \"\$(git rev-parse main)\" = \"$main_before\" ]"
+chk "chore branch deleted"      '! git rev-parse --verify -q refs/heads/chore/c1 >/dev/null'
+
 echo "T7 — finish hotfix → main + develop fan-out"
 newrepo finhot; echo a>a; hookon; gitflow_init >/dev/null 2>&1
 gitflow_start hotfix h1 >/dev/null 2>&1; echo p>patch.txt; git add patch.txt; git commit -q -m patch
@@ -119,7 +132,7 @@ chk "idempotent 2nd run"  "[ \"$before\" = \"\$(md5sum .gitignore)\" ]"
 
 echo "T10 — COHERENCE: hook verdict == lib predicate (drift detector, #4)"
 newrepo coh; echo a>a; hookon; gitflow_init >/dev/null 2>&1
-for br in main develop feature/x bugfix/y release/z hotfix/w master mainline qa; do
+for br in main develop feature/x bugfix/y release/z hotfix/w chore/m master mainline qa; do
   if gitflow_protected_base "$br"; then lib=protected; else lib=open; fi
   git checkout -q -B "$br" 2>/dev/null
   printf 'x\n' >> a; git add a
