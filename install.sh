@@ -54,9 +54,15 @@ ok "npm $(npm -v)"
 
 # ── 2. Install Claude Code CLI ──
 echo ""
-echo "── Installing Claude Code (latest)..."
+echo "── Installing Claude Code..."
 
-if npm install -g @anthropic-ai/claude-code@latest; then
+# Idempotent: an existing claude (native installer under ~/.local/share/claude,
+# or any prior install) already owns ~/.local/bin/claude — npm cannot clobber a
+# symlink it does not manage (EEXIST). Mirror the RTK/GSD skip-if-present guard;
+# upgrades are `make update`'s job (update-all.sh), not first-time install.
+if command -v claude &>/dev/null; then
+  ok "Claude Code already installed ($(claude --version 2>/dev/null | head -1))"
+elif npm install -g @anthropic-ai/claude-code@latest; then
   ok "Claude Code installed: $(claude --version 2>/dev/null || echo 'unknown')"
 else
   err "Claude Code installation failed"
