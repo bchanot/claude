@@ -27,7 +27,15 @@ echo "── Updating Claude Code CLI..."
 if command -v claude &>/dev/null; then
   CURRENT_VER=$(claude --version 2>/dev/null | head -1 || echo "unknown")
   info "Current: $CURRENT_VER"
-  if npm install -g @anthropic-ai/claude-code@latest 2>/dev/null; then
+  # Use the updater that matches the install channel: npm-managed installs
+  # update via npm; native-installer installs self-update via `claude update`
+  # (npm would EEXIST on the ~/.local/bin/claude symlink it does not own).
+  if npm ls -g @anthropic-ai/claude-code &>/dev/null; then
+    UPDATE_CMD=(npm install -g @anthropic-ai/claude-code@latest)
+  else
+    UPDATE_CMD=(claude update)
+  fi
+  if "${UPDATE_CMD[@]}" &>/dev/null; then
     NEW_VER=$(claude --version 2>/dev/null | head -1 || echo "unknown")
     if [ "$CURRENT_VER" = "$NEW_VER" ]; then
       ok "Claude Code already up to date ($NEW_VER)"
@@ -35,7 +43,7 @@ if command -v claude &>/dev/null; then
       ok "Claude Code updated: $CURRENT_VER → $NEW_VER"
     fi
   else
-    warn "Claude Code update failed — try manually: npm install -g @anthropic-ai/claude-code@latest"
+    warn "Claude Code update failed — try manually: ${UPDATE_CMD[*]}"
   fi
 else
   warn "Claude Code not found — install first with: make install"
