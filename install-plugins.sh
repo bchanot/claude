@@ -363,9 +363,10 @@ if [ -d "$GSTACK_DIR" ]; then
   gstack_bump_playwright_if_unsupported
 
   info "Running GStack setup..."
+  _gstack_setup_ok=0
   if [ -x "$GSTACK_DIR/setup" ]; then
     if (cd "$GSTACK_DIR" && ./setup); then
-      : # setup succeeded
+      _gstack_setup_ok=1
     else
       warn "GStack ./setup failed — check output above"
     fi
@@ -381,9 +382,13 @@ if [ -d "$GSTACK_DIR" ]; then
      && [ "$(bash "$REPO/lib/toggle-external.sh" status gstack 2>/dev/null)" = "enabled" ]; then
     info "Disabling gstack by default (no context cost until enabled)..."
     bash "$REPO/lib/toggle-external.sh" disable gstack >/dev/null
-    ok "gstack installed, disabled — enable with: bash lib/toggle-external.sh enable gstack"
+  fi
+  # Success message gated on the real setup outcome — an unconditional ok
+  # after a `|| warn` reads as success even when setup failed (LRN-071 class).
+  if [ "$_gstack_setup_ok" -eq 1 ]; then
+    ok "GStack ready (disabled by default — enable: bash lib/toggle-external.sh enable gstack)"
   else
-    ok "GStack ready (submodule initialized, symlinks staged)"
+    warn "GStack NOT ready — ./setup did not complete (see warnings above)"
   fi
 
   # GStack shared infrastructure: bin/ (CLI tools) and browse/dist/ (compiled binary).
@@ -526,7 +531,9 @@ enable_plugin  "security-guidance"  "claude-code-plugins"
 # (not in claude-code marketplace — it's a separate repo)
 install_plugin "example-skills"     "anthropic-agent-skills"
 install_plugin "pr-review-toolkit"  "claude-code-plugins"
-install_plugin "plugin-dev"         "claude-code-plugins"
+# plugin-dev dropped 2026-07-02 (audit #14): installed 2026-06-23, never
+# enabled, pure disk weight — reinstall deliberately if plugin authoring
+# becomes a need: claude plugin install plugin-dev@claude-code-plugins
 
 echo ""
 
@@ -632,11 +639,18 @@ else
   fi
 fi
 if command -v graphify &>/dev/null; then
+  _graphify_ok=1
   info "Running graphify install (dependencies)..."
-  graphify install 2>/dev/null || warn "graphify install failed — run manually"
+  graphify install 2>/dev/null || { warn "graphify install failed — run manually"; _graphify_ok=0; }
   info "Configuring Claude Code integration..."
-  graphify claude install 2>/dev/null || warn "graphify claude install failed — run manually"
-  ok "Graphifyy configured for Claude Code"
+  graphify claude install 2>/dev/null || { warn "graphify claude install failed — run manually"; _graphify_ok=0; }
+  # Success message gated on the real outcome (LRN-071 class: an
+  # unconditional ok after `|| warn` lies when a step failed).
+  if [ "$_graphify_ok" -eq 1 ]; then
+    ok "Graphify configured for Claude Code"
+  else
+    warn "Graphify NOT fully configured — re-run the failed step manually"
+  fi
 fi
 echo ""
 
@@ -897,14 +911,13 @@ echo "    ✅ security-guidance   — PreToolUse security hook (0 tokens) [claud
 echo "    ✅ rtk                 — token compression hook (0 tokens)"
 echo "    ✅ superpowers         — brainstorm/plan/implement/debug workflow"
 echo ""
-echo "  TOGGLE (installed but start OFF — /plugin-check recommends when needed):"
+echo "  TOGGLE (plugin state = settings.json enabledPlugins; skills/CLIs = profiles):"
 echo "    🔄 gstack              — disabled by default (toggle: lib/toggle-external.sh enable gstack)"
 echo "    🔄 gsd v2              — standalone CLI 'gsd' (gsd-pi, not a Claude Code plugin)"
-echo "    🔄 plugin-dev          — create plugins/skills (~100 tokens) [claude-code-plugins]"
-echo "    🔄 pr-review-toolkit   — /pr-review-toolkit:review-pr (~300 tokens) [claude-code-plugins]"
-echo "    🔄 ui-ux-pro-max       — user scope (~400 tokens)"
+echo "    🔄 pr-review-toolkit   — /review-pr + 6 PR agents (~2.2k tokens when enabled) [claude-code-plugins]"
+echo "    🔄 ui-ux-pro-max       — user scope (~780 tokens when enabled)"
 echo "    🔄 context7 CLI        — ctx7 (npm global, standalone or MCP setup)"
-echo "    🔄 graphifyy           — codebase knowledge graph (pipx, PreToolUse hook)"
+echo "    🔄 graphifyy (CLI: graphify) — codebase knowledge graph (pipx, PreToolUse hook)"
 echo "    🔄 emil-design-eng     — UI polish, animations, component craft (curl → symlink)"
 echo "    🔄 frontend-design     — distinctive frontend interfaces, anti-AI-slop (anthropic-agent-skills)"
 echo "    🔄 design-motion-principles — motion/animation design, 3-designer lens (kylezantos)"
