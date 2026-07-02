@@ -1,14 +1,12 @@
 ---
 name: web-validate
 description: |
-  Use when a web project needs W3C HTML/CSS validity check or WCAG 2.1
-  accessibility audit. Dispatches the validator-analyzer agent with a
-  STRICT scope filter (no meta/OG/JSON-LD/CWV/security-header noise).
-  Triggers: "validate", "validation", "w3c", "html validity",
-  "css validity", "wcag", "accessibility", "a11y audit", "axe", "pa11y",
-  "wave", "validator.w3.org", "nu validator", "accessibilité",
-  "audit a11y", "audit wcag", "normes w3c", "conformité web".
-  For CSP/HSTS/404 → /harden. For meta/sitemap → /seo. For AI engines → /geo.
+  Use when a web project needs W3C HTML/CSS validity or WCAG 2.1
+  accessibility audit. Dispatches the validator-analyzer agent, strict
+  scope (no meta/security-header noise).
+  Triggers: "validate", "w3c", "wcag", "a11y", "accessibility", "axe",
+  "pa11y", "accessibilité", "conformité web".
+  CSP/HSTS/404 → /harden. Meta/sitemap → /seo. AI engines → /geo.
 argument-hint: [URL] [--fix] [--local|--full] [--no-external]
 allowed-tools:
   - Read

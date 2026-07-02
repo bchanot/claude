@@ -1,16 +1,13 @@
 ---
 name: audit-delta
 description: |
-  Use when the user wants a recurring code audit scoped to everything that
-  changed since the previous audit run (full codebase on first run), on one
-  or more selectable axes: CLAUDE.md norm conformity, bugs/improvements,
-  dead code, security. NOT for one obvious bug (/hotfix, /bugfix), one-shot
-  full cleanup (/code-clean), full security posture (/cso), quality
-  dashboard (/health), or branch/PR diff review (/review, /code-review).
-  Triggers: "audit-delta", "audit since last run", "incremental audit",
-  "audit incrémental", "audit les changements", "audit ce qui a changé
-  depuis la dernière fois", "periodic audit", "audit périodique",
-  "re-run the audit", "relance l'audit", "audit conformité + sécurité".
+  Use when the user wants a recurring code audit scoped to changes since
+  the previous run (full codebase on first run), on selectable axes:
+  CLAUDE.md conformity, bugs, dead code, security. NOT one obvious bug
+  (/hotfix, /bugfix), one-shot cleanup (/code-clean), security posture
+  (/cso), dashboard (/health), branch diff (/review).
+  Triggers: "audit-delta", "incremental audit", "audit incrémental",
+  "audit ce qui a changé", "periodic audit", "relance l'audit".
 argument-hint: "[axes among: conformity errors deadcode security — blank = asked]"
 allowed-tools:
   - Read

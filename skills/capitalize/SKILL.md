@@ -1,18 +1,14 @@
 ---
 name: capitalize
 description: |
-  Use when about to /clear or /compact, or when closing a session, and the
-  conversation holds decisions, learnings, blockers, eval results, or
-  finished/new TODO items not yet written to `.claude/memory/` or
-  `.claude/tasks/TODO.md`. Plain invocation = pre-wipe flush; `--ritual` (or the
-  word "close"/"ritual" in the request) = end-of-session reflection mode. NOT
-  registry curation (that is /prune-memory).
-  Triggers: "capitalize", "capitalise", "before clear", "before compact",
-  "save before clear", "flush memory", "don't lose this", "what's not logged
-  yet", "avant de clear", "avant compact", "sauvegarde avant clear",
-  "capitalise ce qui manque", "close", "end session", "session close",
-  "ferme la session", "checkpoint memory", "what did we learn", "retro rapide",
-  "fin de journée".
+  Use when about to /clear or /compact, or closing a session, with
+  decisions, learnings, blockers, evals, or TODO changes not yet written
+  to .claude/memory/ or .claude/tasks/TODO.md. Plain = pre-wipe flush;
+  --ritual (or "close") = end-of-session reflection. NOT registry
+  curation (that is /prune-memory).
+  Triggers: "capitalize", "before clear/compact", "flush memory", "don't
+  lose this", "avant de clear/compact", "capitalise ce qui manque",
+  "close", "fin de journée", "checkpoint memory".
 argument-hint: "[--ritual] (scans conversation + git + TODO against .claude/memory/; --ritual adds the 3-question reflection)"
 allowed-tools:
   - Read

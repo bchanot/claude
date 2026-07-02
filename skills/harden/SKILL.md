@@ -1,21 +1,13 @@
 ---
 name: harden
 description: |
-  Web hardening audit — transport (HTTPS/TLS, HTTP→HTTPS redirect, HSTS),
-  security headers (CSP, X-Frame-Options, X-Content-Type-Options,
-  Referrer-Policy, Permissions-Policy), cookie flags (Secure, HttpOnly,
-  SameSite), canonical URLs, custom 404, and server config hardening
-  (.htaccess, nginx.conf, netlify.toml, vercel.json, _headers, _redirects,
-  wrangler.toml). Dispatches the seo-analyzer agent with a STRICT scope
-  filter — no meta/OG/JSON-LD/sitemap/CWV/headings/alt/i18n noise.
-  Produces .claude/audits/HARDEN.md.
-  Trigger: "harden", "web hardening", "ssl audit", "https audit",
-  "hsts", "csp", "security headers", "http to https", "redirect audit",
-  "htaccess audit", "404 page", "canonical audit", "transport security",
-  "durcissement web", "audit sécurité web", "entêtes sécurité".
-  For full SEO audit (meta/OG/JSON-LD/sitemap/CWV) → use /seo.
-  For AI search / llms.txt / AI crawlers → use /geo.
-  For secrets / dependency CVEs / OWASP code-level → use /cso.
+  Web hardening audit — HTTPS/TLS, HSTS, security headers (CSP,
+  X-Frame-Options…), cookie flags, canonical, custom 404, server config
+  (.htaccess, nginx, netlify, vercel…). Strict scope: no
+  meta/OG/JSON-LD/sitemap noise. Report: .claude/audits/HARDEN.md.
+  Triggers: "harden", "security headers", "csp", "hsts", "https/ssl
+  audit", "redirect audit", "durcissement web", "entêtes sécurité".
+  Meta/sitemap/CWV → /seo. llms.txt/AI → /geo. Secrets/CVE/OWASP → /cso.
 argument-hint: [URL] [--fix] [--local|--full] [--no-external]
 allowed-tools:
   - Read
