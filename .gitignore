@@ -69,6 +69,11 @@ skills/frontend-design
 skills/darwin-skill
 skills/find-skills
 
+# Context7 docs-lookup skill — installed by `ctx7 setup --claude --cli`
+# (install-plugins.sh Step 6, when absent) into ~/.claude/skills (a symlink to
+# this repo's skills/). ctx7-managed and re-created on demand — not vendored here.
+skills/find-docs/
+
 # Staging area used by lib/toggle-external.sh when disabling a tool
 skills-disabled/
 

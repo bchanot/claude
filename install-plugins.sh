@@ -573,11 +573,47 @@ else
     err "ctx7 install failed — run manually: npm install -g ctx7"
   fi
 fi
-# Suggest setup for Claude Code integration (optional — ctx7 also works standalone)
+# ctx7 auth — detect, then offer login ONLY in an interactive TTY. A non-interactive
+# run (CI / headless / re-run) must never open a browser or block on OAuth.
 if command -v ctx7 &>/dev/null; then
-  info "Run 'ctx7 setup --claude' to configure Context7 for Claude Code"
-  info "Or use ctx7 standalone: ctx7 docs /vercel/next.js \"middleware\""
-  info "Free higher rate limits: ctx7 login (OAuth) or --api-key from context7.com/dashboard"
+  # Deterministic offline oracle: ctx7's OAuth token lives here (XDG-aware).
+  # Present => authenticated; absent => anonymous. No subprocess, no network, no browser.
+  ctx7_creds="${XDG_CONFIG_HOME:-$HOME/.config}/context7/credentials.json"
+  if [ -f "$ctx7_creds" ]; then
+    ok "ctx7 authenticated (full rate limits)"
+  else
+    info "ctx7 works anonymously — docs + library already usable, no auth required."
+    if [ -t 0 ] && [ -t 1 ]; then
+      # Interactive terminal: offer to log in now (opens a browser).
+      printf '%b' "${BLUE}→${NC} Authenticate ctx7 now for higher rate limits? [y/N] "
+      read -r ctx7_ans || ctx7_ans=""
+      if [[ "$ctx7_ans" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+        if ctx7 login; then
+          ok "ctx7 authenticated (full rate limits)"
+        else
+          warn "ctx7 login did not finish — re-run 'ctx7 login' anytime"
+        fi
+      else
+        info "Skipped — authenticate later with:  ctx7 login"
+      fi
+    else
+      # Non-interactive (CI / headless / re-run): never block — just guide.
+      info "For higher rate limits, authenticate:  ctx7 login   (opens a browser)"
+      info "  headless:  ctx7 login --no-browser   (prints a URL to open yourself)"
+    fi
+  fi
+  # CLI + Skills mode: install the find-docs skill into ~/.claude/skills when
+  # absent (it is gitignored — ctx7 owns it, this regenerates it on a fresh
+  # clone). Guarded on absence so a re-run never clobbers a customized config
+  # (setup also (re)writes ~/.claude/rules/context7.md).
+  if [ ! -f "$HOME/.claude/skills/find-docs/SKILL.md" ]; then
+    if ctx7 setup --claude --cli -y </dev/null &>/dev/null; then
+      ok "ctx7 CLI + Skills configured (find-docs skill installed)"
+    else
+      warn "ctx7 setup failed — run manually: ctx7 setup --claude --cli"
+    fi
+  fi
+  info "Standalone usage:  ctx7 docs /vercel/next.js \"middleware\""
 fi
 
 # ============================================================
