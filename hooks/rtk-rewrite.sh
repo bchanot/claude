@@ -7,8 +7,17 @@
 # which is the single source of truth (src/discover/registry.rs).
 # To add or change rewrite rules, edit the Rust registry — not this file.
 #
+# INTEGRITY PIN: the rtk binary verifies this file against
+# hooks/.rtk-hook.sha256 at execution time and refuses to run on mismatch.
+# ANY edit here must re-pin:  (cd hooks && sha256sum rtk-rewrite.sh > .rtk-hook.sha256)
+#
 # Exit code protocol for `rtk rewrite`:
-#   0 + stdout  Rewrite found, no deny/ask rule matched → auto-allow
+#   0 + stdout  Rewrite found, no rtk deny/ask rule matched → rewrite. NO
+#               permissionDecision is emitted (auto-allow dropped 2026-07-02:
+#               it made rtk's registry a parallel permission authority that
+#               bypassed settings.json deny/ask). The REWRITTEN command goes
+#               through native evaluation; explicit `rtk <tool>` allow rules
+#               in settings.json keep read-only forms frictionless.
 #   1           No RTK equivalent → pass through unchanged
 #   2           Deny rule matched → pass through (Claude Code native deny handles it)
 #   3 + stdout  Ask rule matched → rewrite but let Claude Code prompt the user
@@ -18,14 +27,27 @@ if ! command -v jq &>/dev/null; then
   exit 0
 fi
 
-if ! command -v rtk &>/dev/null; then
+# PATH heal: hook/tool-shell PATH may lack the cargo bin dir (hand-managed
+# ~/.bashrc can lose the cargo line — LRN-036 class). Resolve the ABSOLUTE
+# binary path: the rewritten command executes in the tool shell, whose PATH
+# the hook cannot fix — a bare `rtk …` rewrite would exit 127 there.
+RTK_BIN="$(command -v rtk 2>/dev/null || true)"
+RTK_ON_PATH=1
+if [ -z "$RTK_BIN" ]; then
+  RTK_ON_PATH=0
+  for _d in "$HOME/.cargo/bin" "$HOME/.local/bin"; do
+    if [ -x "$_d/rtk" ]; then RTK_BIN="$_d/rtk"; break; fi
+  done
+fi
+
+if [ -z "$RTK_BIN" ]; then
   echo "[rtk] WARNING: rtk is not installed or not in PATH. Hook cannot rewrite commands. Install: https://github.com/rtk-ai/rtk#installation" >&2
   exit 0
 fi
 
 # Version guard: rtk rewrite was added in 0.23.0.
 # Older binaries: warn once and exit cleanly (no silent failure).
-RTK_VERSION=$(rtk --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
+RTK_VERSION=$("$RTK_BIN" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1)
 if [ -n "$RTK_VERSION" ]; then
   MAJOR=$(echo "$RTK_VERSION" | cut -d. -f1)
   MINOR=$(echo "$RTK_VERSION" | cut -d. -f2)
@@ -44,13 +66,13 @@ if [ -z "$CMD" ]; then
 fi
 
 # Delegate all rewrite + permission logic to the Rust binary.
-REWRITTEN=$(rtk rewrite "$CMD" 2>/dev/null)
+REWRITTEN=$("$RTK_BIN" rewrite "$CMD" 2>/dev/null)
 EXIT_CODE=$?
 
 case $EXIT_CODE in
   0)
-    # Rewrite found, no permission rules matched — safe to auto-allow.
-    # If the output is identical, the command was already using RTK.
+    # Rewrite found. If the output is identical, the command was
+    # already using RTK — nothing to do.
     [ "$CMD" = "$REWRITTEN" ] && exit 0
     ;;
   1)
@@ -70,29 +92,33 @@ case $EXIT_CODE in
     ;;
 esac
 
+# When rtk is NOT on PATH, a bare `rtk …` rewrite exits 127 in the tool
+# shell (whose PATH the hook cannot fix). Substitute the absolute path at
+# the string head — the only position safe to rewrite. Compound commands
+# (`a && b`) can carry further bare rtk segments we canNOT substitute
+# safely (quoted text, e.g. commit messages, may contain the same
+# pattern): if any remain at a command position, pass through unrewritten
+# — lose the compression, never emit a command that 127s.
+if [ "$RTK_ON_PATH" -eq 0 ]; then
+  case "$REWRITTEN" in
+    rtk\ *) REWRITTEN="$RTK_BIN ${REWRITTEN#rtk }" ;;
+  esac
+  if printf '%s' "$REWRITTEN" | grep -Eq '(^|[;&|][[:space:]]*)rtk[[:space:]]'; then
+    exit 0
+  fi
+fi
+
 ORIGINAL_INPUT=$(echo "$INPUT" | jq -c '.tool_input')
 UPDATED_INPUT=$(echo "$ORIGINAL_INPUT" | jq --arg cmd "$REWRITTEN" '.command = $cmd')
 
-if [ "$EXIT_CODE" -eq 3 ]; then
-  # Ask: rewrite the command, omit permissionDecision so Claude Code prompts.
-  jq -n \
-    --argjson updated "$UPDATED_INPUT" \
-    '{
-      "hookSpecificOutput": {
-        "hookEventName": "PreToolUse",
-        "updatedInput": $updated
-      }
-    }'
-else
-  # Allow: rewrite the command and auto-allow.
-  jq -n \
-    --argjson updated "$UPDATED_INPUT" \
-    '{
-      "hookSpecificOutput": {
-        "hookEventName": "PreToolUse",
-        "permissionDecision": "allow",
-        "permissionDecisionReason": "RTK auto-rewrite",
-        "updatedInput": $updated
-      }
-    }'
-fi
+# Rewrite WITHOUT a permissionDecision (exit 0 and exit 3 alike): the
+# rewritten command goes through Claude Code's native allow/deny/ask
+# evaluation. Permission control lives in settings.json, not in rtk.
+jq -n \
+  --argjson updated "$UPDATED_INPUT" \
+  '{
+    "hookSpecificOutput": {
+      "hookEventName": "PreToolUse",
+      "updatedInput": $updated
+    }
+  }'

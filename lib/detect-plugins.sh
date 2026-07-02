@@ -10,7 +10,9 @@
 # --- Always-on plugins ---
 
 detect_rtk() {
-  command -v rtk &>/dev/null
+  command -v rtk &>/dev/null && return 0
+  # PATH heal: hook/session PATH may lack the cargo bin dir (LRN-036 class)
+  [ -x "$HOME/.cargo/bin/rtk" ] || [ -x "$HOME/.local/bin/rtk" ]
 }
 
 detect_superpowers() {
