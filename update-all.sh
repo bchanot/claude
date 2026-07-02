@@ -227,6 +227,27 @@ else
   info "graphifyy not installed — skipping"
 fi
 
+# ── 6.5. Update bun ──
+echo ""
+echo "── Updating bun..."
+if command -v bun &>/dev/null; then
+  if bun upgrade >/dev/null 2>&1; then
+    ok "bun $(bun --version 2>/dev/null || echo '?') (self-upgrade)"
+  else
+    warn "bun upgrade failed — try manually: bun upgrade"
+  fi
+else
+  info "bun not installed — skipping"
+fi
+# NOT updated here, deliberately (audit 2026-07-02):
+# - magic MCP: registered as `npx -y @21st-dev/magic@latest` — npx resolves
+#   the latest release at every invocation, nothing to upgrade.
+# - graphify Claude integration (`graphify claude install`): rewrites curated
+#   CLAUDE.md / .claude/settings.json (BDR-028 guard territory) — re-run
+#   MANUALLY only if a graphify upgrade changes its hook format.
+# - gsd: pinned in plugins.lock.json — Step 4 reinstalls the PIN, it does not
+#   advance it. Bump the lock deliberately, then re-run.
+
 # ── 7. Update Emil Design Engineering skill ──
 echo ""
 echo "── Updating Emil Design Engineering..."

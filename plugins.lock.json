@@ -8,7 +8,7 @@
   "gsd": {
     "source": "npm:gsd-pi",
     "version": "2.64.0",
-    "note": "Check latest at https://www.npmjs.com/package/gsd-pi before updating. GSD v2 is a standalone CLI (Pi SDK), not a Claude Code plugin. Run 'gsd' in terminal, not '/gsd' in Claude Code."
+    "note": "Check latest at https://www.npmjs.com/package/gsd-pi before updating. GSD v2 is a standalone CLI (Pi SDK), not a Claude Code plugin. Run 'gsd' in terminal, not '/gsd' in Claude Code. NOTE: update-all.sh honors this pin — 'make update' will NOT advance gsd past it; bump this version deliberately, then re-run."
   },
   "gstack": {
     "source": "https://github.com/garrytan/gstack.git",

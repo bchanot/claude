@@ -1,4 +1,4 @@
-.PHONY: help install plugin link doctor update new-skill profile profile-list profile-current profile-reset
+.PHONY: help install plugin link doctor update new-skill profile profile-list profile-current profile-reset onboard
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  make %-14s %s\n", $$1, $$2}'

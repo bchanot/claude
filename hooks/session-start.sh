@@ -49,10 +49,12 @@ TOGGLE_ACTIVE=()
 TOGGLE_INACTIVE=()
 
 for plugin in gstack uiux_pro_max plugin_dev context7 graphifyy; do
-  # Map function name to display name
+  # Map function name to display name. graphifyy = the pipx PACKAGE name
+  # (pypi:graphifyy); the CLI and skill are 'graphify' — display that.
   case "$plugin" in
     uiux_pro_max)    display="ui-ux-pro-max" ;;
     plugin_dev)      display="plugin-dev" ;;
+    graphifyy)       display="graphify" ;;
     *)               display="$plugin" ;;
   esac
 
@@ -105,7 +107,7 @@ declare -A _plugin_costs=(
   [ui-ux-pro-max]=400
   [plugin-dev]=100
   [context7]=200
-  [graphifyy]=300
+  [graphify]=300
 )
 for _p in "${TOGGLE_ACTIVE[@]}"; do
   _cost="${_plugin_costs[$_p]:-0}"
@@ -129,20 +131,37 @@ echo "┌─ Claude Code config ────────────────
 # the user sees the real picture instead of a misleading literal.
 ALWAYS_ON=()
 detect_rtk &>/dev/null && ALWAYS_ON+=("rtk")
-plugin_enabled "security-guidance@claude-code-plugins"  && ALWAYS_ON+=("security-guidance")
-plugin_enabled "superpowers@superpowers-marketplace"    && ALWAYS_ON+=("superpowers")
+# Derive the plugin list from settings.json:enabledPlugins (true entries)
+# instead of a hardcoded name pair — a hardcoded SET under-reports newly
+# enabled plugins (pr-review-toolkit was enabled yet invisible). LRN-005
+# class. Plugins owned by the toggle row below are excluded (dual display).
+_toggle_owned=" gstack ui-ux-pro-max plugin-dev context7 graphify "
+while IFS= read -r _pl; do
+  case "$_toggle_owned" in
+    *" $_pl "*) : ;;
+    *) ALWAYS_ON+=("$_pl") ;;
+  esac
+done < <(grep -oE '"[A-Za-z0-9_-]+@[A-Za-z0-9_-]+"[[:space:]]*:[[:space:]]*true' "$HOME/.claude/settings.json" 2>/dev/null \
+         | sed -E 's/^"([^@]+)@.*$/\1/')
+unset _toggle_owned _pl
 ALWAYS_ON_STR="${ALWAYS_ON[*]:-none}"
 # Same 40-char-width split policy as the toggle row below — keeps the
-# right border aligned when 4 always-on plugins overflow the field.
+# right border aligned on overflow. Greedy width-fill (not a fixed 3-name
+# cut: 3 long names overflowed line 1 and left line 2 empty).
 if [ "${#ALWAYS_ON_STR}" -le 40 ]; then
   printf "│  ✅ ON  : %-40s│\n" "$ALWAYS_ON_STR"
 else
-  _ao_line1="${ALWAYS_ON[0]} ${ALWAYS_ON[1]} ${ALWAYS_ON[2]:-}"
-  _ao_rest=("${ALWAYS_ON[@]:3}")
-  _ao_line2="${_ao_rest[*]}"
-  printf "│  ✅ ON  : %-40s│\n" "$_ao_line1"
-  printf "│             %-40s│\n" "$_ao_line2"
-  unset _ao_line1 _ao_line2 _ao_rest
+  _ao_l1=""; _ao_l2=""
+  for _ao_e in "${ALWAYS_ON[@]}"; do
+    if [ -z "$_ao_l2" ] && [ $(( ${#_ao_l1} + ${#_ao_e} + 1 )) -le 40 ]; then
+      _ao_l1="${_ao_l1:+$_ao_l1 }$_ao_e"
+    else
+      _ao_l2="${_ao_l2:+$_ao_l2 }$_ao_e"
+    fi
+  done
+  printf "│  ✅ ON  : %-40s│\n" "$_ao_l1"
+  printf "│             %-40s│\n" "$_ao_l2"
+  unset _ao_l1 _ao_l2 _ao_e
 fi
 unset ALWAYS_ON ALWAYS_ON_STR
 # Plugin display — all plugins shown, split across 2 lines if >4
