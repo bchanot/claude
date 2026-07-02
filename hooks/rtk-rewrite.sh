@@ -12,7 +12,12 @@
 # ANY edit here must re-pin:  (cd hooks && sha256sum rtk-rewrite.sh > .rtk-hook.sha256)
 #
 # Exit code protocol for `rtk rewrite`:
-#   0 + stdout  Rewrite found, no deny/ask rule matched → auto-allow
+#   0 + stdout  Rewrite found, no rtk deny/ask rule matched → rewrite. NO
+#               permissionDecision is emitted (auto-allow dropped 2026-07-02:
+#               it made rtk's registry a parallel permission authority that
+#               bypassed settings.json deny/ask). The REWRITTEN command goes
+#               through native evaluation; explicit `rtk <tool>` allow rules
+#               in settings.json keep read-only forms frictionless.
 #   1           No RTK equivalent → pass through unchanged
 #   2           Deny rule matched → pass through (Claude Code native deny handles it)
 #   3 + stdout  Ask rule matched → rewrite but let Claude Code prompt the user
@@ -66,8 +71,8 @@ EXIT_CODE=$?
 
 case $EXIT_CODE in
   0)
-    # Rewrite found, no permission rules matched — safe to auto-allow.
-    # If the output is identical, the command was already using RTK.
+    # Rewrite found. If the output is identical, the command was
+    # already using RTK — nothing to do.
     [ "$CMD" = "$REWRITTEN" ] && exit 0
     ;;
   1)
@@ -106,26 +111,14 @@ fi
 ORIGINAL_INPUT=$(echo "$INPUT" | jq -c '.tool_input')
 UPDATED_INPUT=$(echo "$ORIGINAL_INPUT" | jq --arg cmd "$REWRITTEN" '.command = $cmd')
 
-if [ "$EXIT_CODE" -eq 3 ]; then
-  # Ask: rewrite the command, omit permissionDecision so Claude Code prompts.
-  jq -n \
-    --argjson updated "$UPDATED_INPUT" \
-    '{
-      "hookSpecificOutput": {
-        "hookEventName": "PreToolUse",
-        "updatedInput": $updated
-      }
-    }'
-else
-  # Allow: rewrite the command and auto-allow.
-  jq -n \
-    --argjson updated "$UPDATED_INPUT" \
-    '{
-      "hookSpecificOutput": {
-        "hookEventName": "PreToolUse",
-        "permissionDecision": "allow",
-        "permissionDecisionReason": "RTK auto-rewrite",
-        "updatedInput": $updated
-      }
-    }'
-fi
+# Rewrite WITHOUT a permissionDecision (exit 0 and exit 3 alike): the
+# rewritten command goes through Claude Code's native allow/deny/ask
+# evaluation. Permission control lives in settings.json, not in rtk.
+jq -n \
+  --argjson updated "$UPDATED_INPUT" \
+  '{
+    "hookSpecificOutput": {
+      "hookEventName": "PreToolUse",
+      "updatedInput": $updated
+    }
+  }'
