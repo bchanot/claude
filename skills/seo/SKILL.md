@@ -1,16 +1,13 @@
 ---
 name: seo
 description: |
-  Use when a web project needs SEO + GEO audit or optimization — classical
-  search (Google, Bing, DuckDuckGo) AND AI search (ChatGPT, Perplexity,
-  Claude, Gemini, AI Overviews, Copilot). Parallel multi-agent orchestrator:
-  dispatches seo-analyzer + geo-analyzer concurrently, merges envelopes into
-  .claude/audits/SEO.md.
-  Triggers: "seo", "referencement", "audit SEO", "meta tags",
-  "structured data", "JSON-LD", "sitemap", "robots.txt", "Google ranking",
-  "local SEO", "AI search", "GEO", "llms.txt", "ChatGPT visibility",
-  "Perplexity", "Google AI Overview".
-  For GEO only → /geo. For W3C/a11y → /web-validate. For bugs → /bugfix.
+  Use when a web project needs SEO + GEO audit or optimization —
+  classical search (Google, Bing) AND AI search (ChatGPT, Perplexity, AI
+  Overviews). Parallel orchestrator: dispatches seo-analyzer +
+  geo-analyzer concurrently, merges into .claude/audits/SEO.md.
+  Triggers: "seo", "referencement", "meta tags", "JSON-LD", "sitemap",
+  "robots.txt", "local SEO", "llms.txt", "ChatGPT visibility".
+  GEO only → /geo. W3C/a11y → /web-validate. Bugs → /bugfix.
 argument-hint: optional keywords/scope, e.g. "local SEO plombier 91 94 77" or "SaaS B2B content strategy"
 allowed-tools:
   - Read

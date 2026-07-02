@@ -2,14 +2,11 @@
 name: geo
 description: |
   Use when a web project needs AI-search visibility audit — ChatGPT,
-  Perplexity, Claude, Gemini, AI Overviews, Copilot, Brave AI, DuckAssist,
-  You.com, Apple Intelligence. Standalone GEO; dispatches the geo-analyzer
-  agent.
-  Triggers: "geo", "AI search", "ChatGPT visibility", "Perplexity
-  optimisation", "llms.txt", "AI crawlers", "Google AI Overview",
-  "entity SEO", "Wikidata", "generative engine optimization",
-  "référencement IA", "optimisation IA".
-  For combined SEO+GEO → /seo.
+  Perplexity, Gemini, AI Overviews, Copilot… Standalone GEO; dispatches
+  the geo-analyzer agent.
+  Triggers: "geo", "AI search", "llms.txt", "AI crawlers", "entity SEO",
+  "Wikidata", "generative engine optimization", "référencement IA".
+  Combined SEO+GEO → /seo.
 argument-hint: optional keywords/scope, e.g. "SaaS B2B content GEO" or "audit llms.txt et entity SEO"
 allowed-tools:
   - Read

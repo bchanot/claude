@@ -1,14 +1,12 @@
 ---
 name: client-handover
 description: |
-  Use when finalizing a project for non-technical client delivery — needs
-  final audits, deploy validation against live site, and a branded
-  deliverable (Markdown + HTML + PDF). Multi-agent orchestrator: dispatches
-  client-handover-writer which spawns parallel /seo + /harden subagents,
-  then /web-validate, then writes the deliverable.
-  Triggers: "client handover", "compte rendu client", "livraison client",
-  "rapport client", "deliverable", "summary for client", "handover doc",
-  "livrable", "ship and handover", "finaliser et livrer".
+  Use when finalizing a project for non-technical client delivery —
+  final audits, live-site validation, branded deliverable (MD + HTML +
+  PDF). Orchestrator: client-handover-writer spawns /seo + /harden in
+  parallel, then /web-validate, then writes the deliverable.
+  Triggers: "client handover", "livraison client", "rapport client",
+  "deliverable", "livrable", "finaliser et livrer".
 argument-hint: [optional: language fr|en, --include-deploy, --skip-deploy, --skip-seo, --skip-audits, --skip-fix-loop, --max-iterations N, --audit-max-age <duration>, --output <path>]
 allowed-tools:
   - Read
