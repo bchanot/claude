@@ -477,6 +477,7 @@ rules:
   - Secret in `repo/.env`, gitignored (status quo) — one `git add -f` or a `.gitignore` slip leaks it; the secret physically sits in the tree.
   - Scripts read `~/.claude/.env` directly — makes the symlink redundant but rewrites every read path and loses repo-local visibility.
 - **Reference**: `link.sh` `link_env()`, `.gitignore`, `lib/toggle-external.sh`, `install-plugins.sh`, `.env.example`, commits 131d0bc / f9cc866. Linked to [[BDR-025]] (magic's `MAGIC_API_KEY`, consumed by the gate's required-but-manual class).
+- **Update 2026-07-02 (incident — copies of secrets)**: `claude mcp add --env` MATERIALIZES the key into `~/.claude.json` (`mcpServers.magic.env`) — a 2nd live copy OUTSIDE the `~/.claude/.env` canonical and outside the repo deny rules' reach. An audit query printed it into a session transcript → key rotated (21st.dev). Rule: secrets have COPIES (tool configs, transcripts, caches) — protect/audit the copies, not just the canonical; when inspecting MCP config, filter env fields (`jq 'del(.. | .env?)'`). Same audit: `~/.claude/.env` hardened 0664→0600.
 
 ---
 
