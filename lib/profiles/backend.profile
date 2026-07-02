@@ -34,8 +34,9 @@ guard
 learn
 retro
 
-# Plugin: PR review toolkit (pre-merge audit)
-pr-review-toolkit                 plugin@claude-code-plugins
+# pr-review-toolkit removed (audit 2026-07-02 #12 — ~2.2k tokens, PR-only):
+# enable per PR session via `bash lib/profile.sh apply audit` or
+# claude plugin enable pr-review-toolkit@claude-code-plugins
 
 # CLIs (advisory)
 ctx7                              cli
