@@ -24,10 +24,13 @@ prompt="$(printf '%s' "$input" \
 lc="$(printf '%s' "$prompt" | tr '[:upper:]' '[:lower:]')"
 
 # UI/design build and review signals (FR + EN). Word boundaries (\b) avoid
-# substring false matches like perform/platform/information. Some broad tokens
-# (page, color, screen, card, menu) are kept deliberately for coverage — they
-# over-fire on non-UI prompts, which is harmless: the reminder self-cancels.
-pattern='design|redesign|refonte|refont|ui/ux|ux/ui|\bui\b|\bux\b|ui kit|design system|design-system|interface|frontend|front-end|front end|composant|component|\bnavbar\b|\bsidebar\b|\bmodal\b|\bbouton\b|\bbutton\b|\bcard\b|\bcarte\b|\bform\b|formulaire|\bhero\b|\bheader\b|\bfooter\b|\bmenu\b|dropdown|tooltip|\bbadge\b|\bchart\b|graphique|accordion|carousel|\bslider\b|landing|dashboard|homepage|home page|\baccueil\b|\bpage\b|\bpages\b|\bécran\b|\becran\b|\bscreen\b|portfolio|maquette|mockup|wireframe|prototype|\blook\b|\bjoli\b|\bjolie\b|\bbeau\b|\bbelle\b|esth[eé]tique|aesthetic|\bvisuel\b|\bvisual\b|embellir|fignol|peaufin|polish|styliser|\bstyle\b|styling|stylesheet|\bskin\b|charte graphique|\bbrand\b|branding|\blogo\b|favicon|ic[oô]ne|\bicon\b|\bcss\b|tailwind|shadcn|couleur|\bcolor\b|palette|gradient|d[eé]grad[eé]|\bshadow\b|\bombre\b|spacing|espacement|\bmarge\b|\bpadding\b|\bmargin\b|\bradius\b|arrondi|\bhover\b|dark mode|light mode|\btheme\b|th[eè]me|typograph|\bfont\b|\bfonts\b|font pairing|\bpolice\b|animation|\bmotion\b|transition|micro-interaction|keyframe|glassmorph|neumorph|claymorph|skeuomorph|brutalis|bento|minimalis|responsive|figma'
+# substring false matches like perform/platform/information. Tightened
+# 2026-07-02: ultra-generic English tokens (page, form, menu, card, style,
+# look, screen, interface, color) fired on a large share of NON-UI prompts —
+# ~200 tokens of reminder each time (measured: 6 fires during a pure config
+# audit). Kept: unambiguous design vocabulary + FR aesthetic words; specific
+# compounds (stylesheet, styling, formulaire, écran) still match.
+pattern='design|redesign|refonte|refont|ui/ux|ux/ui|\bui\b|\bux\b|ui kit|design system|design-system|frontend|front-end|front end|composant|component|\bnavbar\b|\bsidebar\b|\bmodal\b|\bbouton\b|\bbutton\b|formulaire|\bhero\b|\bheader\b|\bfooter\b|dropdown|tooltip|\bbadge\b|\bchart\b|graphique|accordion|carousel|\bslider\b|landing|dashboard|homepage|home page|\baccueil\b|\bécran\b|\becran\b|portfolio|maquette|mockup|wireframe|prototype|\bjoli\b|\bjolie\b|\bbeau\b|\bbelle\b|esth[eé]tique|aesthetic|\bvisuel\b|\bvisual\b|embellir|fignol|peaufin|polish|styliser|styling|stylesheet|\bskin\b|charte graphique|\bbrand\b|branding|\blogo\b|favicon|ic[oô]ne|\bicon\b|\bcss\b|tailwind|shadcn|couleur|palette|gradient|d[eé]grad[eé]|\bombre\b|spacing|espacement|\bmarge\b|\bpadding\b|\bmargin\b|\bradius\b|arrondi|\bhover\b|dark mode|light mode|\btheme\b|th[eè]me|typograph|\bfont\b|\bfonts\b|font pairing|\bpolice\b|animation|\bmotion\b|transition|micro-interaction|keyframe|glassmorph|neumorph|claymorph|skeuomorph|brutalis|bento|minimalis|responsive|figma'
 
 if printf '%s' "$lc" | grep -Eq "$pattern"; then
   cat <<'EOF'
