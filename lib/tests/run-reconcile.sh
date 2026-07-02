@@ -65,7 +65,10 @@ if has "$cand" "--help"; then ok "T5 surfaced --help candidate (BDR-001 ⇄ --he
 echo; echo "=== T6 live oracle smoke — oracles QUERY real git/fs (not a name) ==="
 if reconcile_oracle_merge_done "$REPO" "prune-memory"; then ok "T6a merge_done(prune-memory) via git log"; else no "T6a merge not found in git"; fi
 if reconcile_oracle_sha_exists "$REPO" "be1dcef";      then ok "T6b sha_exists(be1dcef) via cat-file";     else no "T6b sha missing"; fi
-dk="$MEM/../skills/darwin-skill"
+# $REPO here = lib/ (see line 12) → lib/../skills = the real skills/ dir.
+# Was "$MEM/../skills" = .claude/skills/ — the LRN-042 parasite dir, removed
+# 2026-06-30 by make plugin Step 8.5: green-for-wrong-reason (LRN-077 class).
+dk="$REPO/../skills/darwin-skill"
 if reconcile_oracle_path_present "$dk"; then ok "T6c path_present(darwin-skill) via fs"; else no "T6c path absent"; fi
 
 echo; echo "================  $pass GREEN / $fail RED  ================"
