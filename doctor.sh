@@ -213,11 +213,20 @@ print(len(d.get('permissions',{}).get('deny',[])))
   if [ "$DENY_COUNT" = "?" ]; then
     warn "Could not parse deny count (python3 unavailable or JSON parse error)"
   else
-    EXPECTED_DENY=100
-    if [ "$DENY_COUNT" -eq "$EXPECTED_DENY" ] 2>/dev/null; then
-      pass "Deny rules: $DENY_COUNT"
+    # Expected = deny count in the last COMMITTED settings.json. A hardcoded
+    # number drifts on every legit deny-list edit (false-warned for weeks at
+    # 100 vs 99 — LRN-047 class); deriving from HEAD auto-tracks legit edits
+    # and still flags live-vs-committed divergence.
+    EXPECTED_DENY=$(git -C "$REPO" show HEAD:settings.json 2>/dev/null | python3 -c "
+import json,sys
+print(len(json.load(sys.stdin).get('permissions',{}).get('deny',[])))
+" 2>/dev/null || echo "?")
+    if [ "$EXPECTED_DENY" = "?" ]; then
+      warn "Could not derive expected deny count from committed settings.json"
+    elif [ "$DENY_COUNT" -eq "$EXPECTED_DENY" ] 2>/dev/null; then
+      pass "Deny rules: $DENY_COUNT (matches committed settings.json)"
     else
-      warn "Deny rules: $DENY_COUNT (expected $EXPECTED_DENY) — settings may have been manually modified"
+      warn "Deny rules: $DENY_COUNT (committed: $EXPECTED_DENY) — live settings diverge from last commit"
     fi
   fi
 else
@@ -310,8 +319,11 @@ else
   warn "gstack/browse/dist/ symlink missing — run: bash link.sh"
 fi
 
-# Check owned skills have disable-model-invocation (skip external/symlinked skills)
-MISSING_DMI=()
+# BDR-019 (2026-06-09) stripped disable-model-invocation repo-wide so the
+# model/orchestrators can self-route. The old check required the key on
+# every owned skill — permanent false-warn since. Inverted: warn if any
+# owned skill REintroduces the key (regression watch on BDR-019).
+PRESENT_DMI=()
 for f in "$HOME/.claude/skills/"*/SKILL.md; do
   [ -f "$f" ] || continue
   dir=$(dirname "$f")
@@ -319,19 +331,22 @@ for f in "$HOME/.claude/skills/"*/SKILL.md; do
   [ -L "$dir" ] && continue
   [ -L "$f" ] && continue
   name=$(basename "$dir")
-  if ! grep -q "disable-model-invocation" "$f" 2>/dev/null; then
-    MISSING_DMI+=("$name")
+  if grep -q "disable-model-invocation" "$f" 2>/dev/null; then
+    PRESENT_DMI+=("$name")
   fi
 done
-if [ ${#MISSING_DMI[@]} -eq 0 ]; then
-  pass "All owned skills have disable-model-invocation"
+if [ ${#PRESENT_DMI[@]} -eq 0 ]; then
+  pass "No owned skill carries disable-model-invocation (BDR-019)"
 else
-  warn "Owned skills missing disable-model-invocation: ${MISSING_DMI[*]}"
+  warn "Owned skills reintroduce disable-model-invocation (BDR-019 regression): ${PRESENT_DMI[*]}"
 fi
 
-# Check expected skills are present
+# Check expected skills are present. Repo-owned skills only: gstack skills
+# (health, status, …) are OFF by default and toggled per profile — requiring
+# them here false-warns on a default install, and "run link.sh" cannot
+# restore them (they are profile-managed, not link.sh-managed).
 EXPECTED_SKILLS=(
-  "analyze" "doc" "health" "init-project" "onboard" "plugin-check"
+  "analyze" "doc" "init-project" "onboard" "plugin-check"
   "refactor" "ship-feature" "status"
 )
 MISSING_SKILLS=()
@@ -341,7 +356,7 @@ for skill in "${EXPECTED_SKILLS[@]}"; do
   fi
 done
 if [ ${#MISSING_SKILLS[@]} -eq 0 ]; then
-  pass "All ${#EXPECTED_SKILLS[@]} expected skills present (analyze, doc, health, init-project, onboard, plugin-check, refactor, ship-feature, status)"
+  pass "All ${#EXPECTED_SKILLS[@]} expected skills present (${EXPECTED_SKILLS[*]})"
 else
   warn "Missing skills: ${MISSING_SKILLS[*]} — run: bash link.sh"
 fi
