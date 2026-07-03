@@ -393,3 +393,20 @@ Tension réelle proactif vs intrusif. Auto-déclencher feat/bugfix sur intention
       [done 2026-07-01 : unconditional npm guard after Node block (corepack enable npm → distro `install npm` fallback → fatal exit 1 w/ clear msg). Catches node>=22-present-but-npm-absent (NODE_OK short-circuit). shellcheck clean, bash -n OK. Fresh-apt live validation pending (no npm-less host to hand). branch bugfix/install-plugins-npm-guard.]
 - [x] (b) Re-baseline darwin on the 5 ex-broken gstack skills (`benchmark-models`, `context-restore`, `context-save`, `make-pdf`, `plan-tune`) — now repaired and back in scope ([[BDR-043]], trigger cleared). Verify `results.tsv` still marks them `status=error` first. (Promoted from BDR-043's action-field — not an item the user authored.)
       [resolved-MOOT 2026-06-30 : won't-run. BDR-043 cleared only motif (a) of BDR-015's TWO exclusion grounds (symlinks repaired ✅); motif (b) external-ownership INTACT — the 5 resolve to skills-external/gstack/ (submodule), darwin optimizes by EDITING SKILL.md → would dirty the submodule (forbidden [[LRN-070]]). Re-baseline = unactionable score. + results.tsv gone (wiped by 23/06 make-plugin reinstall) → not even a re-baseline, a fresh-from-zero one. Geometric trigger lifted, value trigger intact — twin of --help [[LRN-080]]. See [[LRN-082]]. Not "done", not "open": MOOT.]
+
+## 2026-07-03 — bugfix/gitflow-finish-args (contract fix + doctor false-warns)
+Root: audit 2026-07-02 residuals. `gitflow_finish` ignores its args (merges CHECKED-OUT
+branch) → LOT3 mis-merge trap; + 3 doctor false-warns (LRN-047 class).
+- [x] (1) lib/gitflow.sh gitflow_finish — optional <type> <name>; error rc2 if != current
+      branch ("operates on current branch X, you asked Y — checkout Y first"). No-args unchanged.
+      Commit d9fdd4c. [[BLK-015]] [[LRN-089]].
+- [x] (2) lib/gitflow-test.sh — T12 arg-guard: arg-mismatch → nonzero + message names both;
+      arg-match → merges as before. +7 assertions (71/71). T12 (not T6c — reconcile collision).
+- [x] (3) doctor.sh cargo line — false "(RTK unavailable)" → optional info (RTK prebuilt).
+- [x] (4) doctor.sh check_symlink — PASS iff canonical path under $REPO (direct OR via
+      symlinked ancestor dir); hooks/session-start.sh false-warn gone. Commit 6778b9f.
+- [x] (5) doctor.sh §2 gstack — counts 34 per-skill symlinks; mythical [ -L skills/gstack ] dropped.
+- [x] (6) doctor.sh token § — denominator 11000→CONTEXT_WINDOW=200000, thresholds 15/25,
+      comment anchored to measured ~11.4k (LRN-088). False "92% CRITICAL" → ~5% comfortable.
+- [x] Verify — suites green (71/13/32/19/20/13 + RC 5/5); doctor 0 false-warn; shellcheck clean.
+      +docs(changelog) Unreleased entry (706abff). Gate passed on GO 2026-07-03. Finish pending.
