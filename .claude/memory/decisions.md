@@ -776,3 +776,15 @@ rules:
 - **Reference**: read-only clone (scratchpad), 4 parallel analyzer agents +
   eval-harness spike, this session. No branch on ECC, no import. See [[BDR-045]]
   (chore/ aiguillage), [[BDR-009]] (caveman registries).
+- **Corroboration 2026-07-03** (Opus 4.8 re-audit; repo UNCHANGED — HEAD 81af407
+  2026-06-29, 2232 commits identical, zero commits since 01/07): 6 parallel analyzer
+  agents re-verified every BDR-047 fact w/ fresh file:line. rules/ inert (paths: 0
+  consumers, rules/README.md:333 "cannot distribute rules automatically"); contexts/
+  overwrite (the-longform-guide.md:68-74 `--system-prompt`); eval-harness no runner
+  (/eval absent; gan-harness.sh + skill-improvement/evaluate.js exist but hors-scope,
+  deliver NEITHER pass@k nor model-upgrade battery); memory auto-capture conflicts
+  approve-first (continuous-learning-v2 observer-loop.sh:160-164 "Do NOT ask for
+  permission"); distribution = product scaffolding, N/A. ZERO factual divergence.
+  ONE scope gap: BDR-047 never opened hooks/ — ECC's only WIRED subsystem. Fruit:
+  config-protection hook (own idiom, NOT ECC import), shipped
+  feature/config-protection-hook. Lesson holds + refined by [[LRN-090]].

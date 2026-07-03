@@ -1,5 +1,23 @@
 # TODO
 
+## 2026-07-03 — config-protection hook (feature/config-protection-hook)
+Goal: PreToolUse hook blocks Edit/Write to this config's quality-gate files
+(guardrails an agent must not weaken to make an error pass). Adaptation from ECC
+second-look (BDR-047 corrob, Opus 4.8 re-audit) — MY idiom (~15-line bash), NOT
+ECC's Node dispatcher. Extends config's own doctrine ("backstops déterministes
+car l'advisory s'oublie"). Guarded: settings.json (+ .claude/settings*.json),
+lib/gitflow.sh, .githooks/*, doctor.sh, lint configs (preemptive, absent today).
+Bypass: CONFIG_EDIT_OK="reason" (logged). Mid-session env caveat flagged at gate.
+
+- [x] hooks/config-protection.sh — case-match guarded path, exit 2 else 0; fail-open
+- [x] Guarded: settings.json(+.claude/settings*), lib/gitflow.sh, .githooks/*, doctor.sh, hooks/*.sh (self-guard), lib/tests/* (T6c/LRN-077), lint (preemptive)
+- [x] Bypass: one-shot sentinel .claude/.config-edit-ok (non-empty reason, logged+consumed) — NOT env-var (launch-time env = set-and-forget = garde mort)
+- [x] lib/tests/config-protection.test.sh — block/allow/self-guard/near-miss/fail-open/sentinel-one-shot/empty-refuse (17 checks)
+- [x] settings.json — register PreToolUse matcher Edit|Write|MultiEdit -> hook
+- [x] Verify — shellcheck clean + 17/17 PASS + bash -n + bootstrap-safe (hook fires on Edit/Write only, not shell cp/ln)
+- [x] GATE passed — guarded list +2 (hooks/, tests/), sentinel over env-var
+- [ ] Capitalize (BDR-047 corrob + LRN-090 câblé>déclaratif) + finish this branch only
+
 ## 2026-06-23 — install self-sufficient + gstack on-demand par profil
 Goal: `make install`/`make plugin`/`make update` installent TOUT sans étape
 manuelle. Plus le profil-driven gstack on-demand (option 1 user : gstack OFF
