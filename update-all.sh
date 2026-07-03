@@ -227,6 +227,47 @@ else
   info "graphifyy not installed — skipping"
 fi
 
+# ── 6.2. Update Semgrep (pin-honored — BLOCKING security gate) ──
+echo ""
+echo "── Updating Semgrep..."
+if command -v semgrep &>/dev/null; then
+  SEMGREP_VER=""
+  if [ -f "$REPO/plugins.lock.json" ] && command -v python3 &>/dev/null; then
+    SEMGREP_VER=$(python3 -c "
+import json
+with open('$REPO/plugins.lock.json') as f:
+    d = json.load(f)
+print(d.get('semgrep',{}).get('version',''))
+" 2>/dev/null || true)
+  fi
+
+  SEMGREP_CUR=$(semgrep --version 2>/dev/null | head -1)
+  if [ -n "$SEMGREP_VER" ] && [ "$SEMGREP_VER" != "latest" ]; then
+    if [ "$SEMGREP_CUR" = "$SEMGREP_VER" ]; then
+      ok "semgrep already at pinned $SEMGREP_VER"
+    else
+      # Jump shown explicitly: semgrep is a BLOCKING gate — a version bump
+      # can add rules that BLOCK unchanged code, so the jump must be a
+      # visible, deliberate human decision (bump the pin, then update).
+      info "semgrep ${SEMGREP_CUR:-?} → ${SEMGREP_VER} (pinned in plugins.lock.json)"
+      if pipx install --force "semgrep==${SEMGREP_VER}" 2>/dev/null; then
+        ok "semgrep updated to $SEMGREP_VER"
+      else
+        warn "semgrep update failed — try: pipx install --force semgrep==${SEMGREP_VER}"
+      fi
+    fi
+  else
+    info "No pinned version — upgrading to latest"
+    if pipx upgrade semgrep 2>/dev/null; then
+      ok "semgrep updated ($(semgrep --version 2>/dev/null | head -1))"
+    else
+      warn "semgrep update failed — try: pipx upgrade semgrep"
+    fi
+  fi
+else
+  info "semgrep not installed — skipping (run: make plugin)"
+fi
+
 # ── 6.5. Update bun ──
 echo ""
 echo "── Updating bun..."

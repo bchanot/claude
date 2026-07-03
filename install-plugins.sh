@@ -655,6 +655,35 @@ fi
 echo ""
 
 # ============================================================
+# STEP 7.5 — SEMGREP (SAST engine for the security gate)
+# ============================================================
+echo "── Step 7.5: Semgrep — SAST security gate ───────────────────"
+echo ""
+if command -v semgrep &>/dev/null; then
+  ok "semgrep already installed ($(semgrep --version 2>/dev/null | head -1))"
+else
+  SEMGREP_VER=$(pinned_version "semgrep")
+  if [ "$SEMGREP_VER" != "latest" ]; then
+    info "Installing semgrep ${SEMGREP_VER} (pinned in plugins.lock.json)..."
+    pipx install "semgrep==${SEMGREP_VER}" 2>/dev/null
+  else
+    info "Installing semgrep latest (consider pinning in plugins.lock.json)..."
+    pipx install semgrep 2>/dev/null
+  fi
+  if command -v semgrep &>/dev/null; then
+    ok "semgrep installed ($(semgrep --version 2>/dev/null | head -1))"
+  else
+    err "semgrep install failed — run manually: pipx install semgrep"
+  fi
+fi
+# Login is Pro-rules only and optional — NEVER run automatically (ctx7
+# pattern: guide, don't block). The gate uses pinned public rulesets.
+if command -v semgrep &>/dev/null; then
+  info "Optional Pro rules:  semgrep login   (never run automatically)"
+fi
+echo ""
+
+# ============================================================
 # STEP 8 — EMIL DESIGN ENG (UI polish / animation skill)
 # ============================================================
 echo "── Step 8: Emil Design Engineering ─────────────────────────"
