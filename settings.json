@@ -245,6 +245,16 @@
             "command": "bash ~/.claude/hooks/rtk-rewrite.sh"
           }
         ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/config-protection.sh",
+            "timeout": 5
+          }
+        ]
       }
     ],
     "UserPromptSubmit": [
