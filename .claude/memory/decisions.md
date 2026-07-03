@@ -69,6 +69,7 @@ rules:
 | BDR-045 | 2026-07-01 | Standalone memory/doc skills branch to chore/* via aiguillage (hook exemption kept) | accepted |
 | BDR-046 | 2026-07-01 | Claude Code installs via official native installer (curl claude.ai/install.sh), drop npm from install.sh | accepted |
 | BDR-047 | 2026-07-01 | ECC audit → zero import; local config ahead of reference | accepted |
+| BDR-048 | 2026-07-03 | semgrep security gate: engine version + rulesets PINNED, never --config auto; upgrade = deliberate visible human jump | accepted |
 
 ---
 
@@ -788,3 +789,11 @@ rules:
   ONE scope gap: BDR-047 never opened hooks/ — ECC's only WIRED subsystem. Fruit:
   config-protection hook (own idiom, NOT ECC import), shipped
   feature/config-protection-hook. Lesson holds + refined by [[LRN-090]].
+
+## BDR-048 — Deterministic security gate: pinned engine + pinned rulesets (semgrep)
+
+- **Date**: 2026-07-03
+- **Decision**: semgrep = BLOCKING gate (verify-loops chantier) → engine version PINNED in plugins.lock.json (gsd-pin pattern; update-all.sh honors pin + displays jump cur→pin before `pipx install --force`). Rulesets PINNED in-agent: `p/security-audit` + `p/secrets`. Never `--config auto` (registry telemetry + ruleset resolved per-run = non-deterministic gate, [[LRN-077]] class). Never auto `semgrep login` — Pro rules optional, guide-only (ctx7 pattern).
+- **Rationale**: gate blocks HIGH/CRITICAL only ([[LRN-047]]); silent engine/rule upgrade = new BLOCKs on unchanged code w/o human decision → gate crying false → ignored. Version jump must be deliberate + visible (bump pin, then `make update` shows the jump).
+- **Alternatives rejected**: `latest` (pipx house default, graphifyy-style) — fine for comfort tools, wrong for a blocking gate; `--config auto` — telemetry + non-determinism.
+- **Reference**: plugins.lock.json `semgrep` entry, install-plugins.sh STEP 7.5, update-all.sh step 6.2 — branch feature/semgrep-install `ccfecc9`. Conditions [[LRN-047]], [[LRN-085]]. Coverage caveat of the community rulesets: [[LRN-092]].
