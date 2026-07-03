@@ -1,5 +1,17 @@
 # TODO
 
+## 2026-07-03 — design-toolchain trigger fix (bugfix/design-toolchain-trigger)
+Root cause (NOT a kill-switch, per user): ed2408e (07-02) dropped ultra-generic
+tokens but left bare tokens common in non-UI talk → ~6× false-fire THIS session
+(design, dashboard via ecc_dashboard.py, component, frontend, theme, transition,
+palette). Fix = tighten the trigger only + a fire-log counter for measured
+re-fire decisions.
+
+- [ ] hooks/design-toolchain-reminder.sh — drop bare design|component|composant|theme|thème|transition|frontend|front-end|palette; dashboard→\bdashboard\b; keep animation; add "front-?end design" bigram; + fire-log (time+token+excerpt)
+- [ ] lib/tests/design-toolchain-reminder.test.sh — 8 dropped tokens quiet; button/navbar/landing/glassmorphism/redesign/"frontend design"/"admin dashboard"/animation fire; ecc_dashboard.py quiet; fire logged
+- [ ] Verify — shellcheck + bash -n + test PASS + live dogfood (hook now quiet on session tokens)
+- [ ] GATE before finish (user); sentinel one-shot to edit the now-guarded hook
+
 ## 2026-07-03 — config-protection hook (feature/config-protection-hook)
 Goal: PreToolUse hook blocks Edit/Write to this config's quality-gate files
 (guardrails an agent must not weaken to make an error pass). Adaptation from ECC
