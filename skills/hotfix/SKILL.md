@@ -15,6 +15,7 @@ allowed-tools:
   - Bash
   - Grep
   - Glob
+  - Agent
 ---
 
 Load and follow strictly:

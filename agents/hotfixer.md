@@ -1,13 +1,15 @@
 ---
 name: hotfixer
 description: Quick fix for superficial bugs (typos, CSS issues, config errors, off-by-one, wrong variable name, missing import, broken link). Max 2 files, obvious root cause only.
-tools: Read, Edit, Write, Bash, Grep, Glob
+tools: Read, Edit, Write, Bash, Grep, Glob, Agent
 ---
 
 # HOTFIX — Quick Superficial Fix
 
-Fast-track fix for obvious bugs. No planning overhead, no plugin
-check, no subagents. Get in, fix, verify, get out.
+Fast-track fix for obvious bugs. No planning overhead, no plugin check.
+The fix is inline (no dev subagents); a fresh security gate runs before
+commit, and any gate failure reverts — never loops. Get in, fix, gate,
+get out.
 
 ## REQUEST
 $ARGUMENTS
@@ -38,6 +40,18 @@ skip). For a RECURRING or urgent bug only, a quick blockers-only glance may save
 
 If a prior BLK names this bug, jump to its solution. Not mandatory; no RELATED MEMORY
 disposition required at hotfix weight.
+
+## STEP 1.7 — CONTRACT (silent autofill)
+
+Run `$HOME/.claude/lib/contract-interview.md` at hotfix weight: **zero
+questions ever** (a hotfix is an obvious fix by definition). Autofill the
+contract — REQUEST verbatim = the bug description as given; ACCEPTANCE
+CRITERIA = "symptom gone; build/tests green"; FILE SCOPE = the 1-2 target
+files. It writes `.claude/tasks/contracts/<date>-<slug>-<HHMM>.md`. This is
+the reference for the security gate's scope and the escalation report if a
+gate fails. No verifier is dispatched at hotfix weight — the STEP 3
+smoke-check already verifies these trivial criteria; the gate hotfix adds is
+security (below).
 
 ## STEP 1.5 — DESIGN GATE
 
@@ -102,18 +116,32 @@ Apply the minimal change that fixes the bug:
      (Files were not yet staged — restore is safe.)
    - STOP and tell user: `"Hotfix introduced a regression. Reverted. Escalate to /bugfix or /analyze for deeper investigation."`
    - Do NOT commit a broken fix.
-3. Commit using conventional format (only after verify passes):
+3. **Security gate (fresh auditor) — failure REVERTS, never loops.** Dispatch
+   a FRESH security-auditor (`subagent_type: security-auditor`, or load
+   `agents/security-auditor.md`) with `MODE: gate`, `SCOPE:` the working-tree
+   diff vs the pre-flight SHA. Parse its `SECURITY — VERDICT:` line:
+   - `PASS` (or `DEGRADED` with no BLOCK) → proceed to commit.
+   - `BLOCK(n)` → this is hotfix: do NOT loop. Run `git restore .` to the
+     pre-flight SHA, print the `BLOCKING` list, and STOP:
+     `"Hotfix introduced a security finding. Reverted. Escalate to /bugfix
+     for a fix under the full verify+security loop."` The hotfix model is
+     one attempt; any gate failure (smoke OR security) reverts and escalates.
+   - Structural failure (mute / unparsable / no VERDICT line) → treat as a
+     failed gate: retry ONCE fresh; a 2nd structural failure → revert +
+     escalate. A mute auditor is never a PASS.
+4. Commit using conventional format (only after verify AND security pass):
    ```
    fix(<scope>): <what was wrong>
 
    Co-Authored-By: Claude <noreply@anthropic.com>
    ```
-4. Print summary:
+5. Print summary:
    ```
    HOTFIX APPLIED
    FILE(S) : <changed files>
    FIX     : <one-line description>
    VERIFIED: <test name or smoke check that passed>
+   SECURITY: <PASS | DEGRADED (checklist only)>
    ```
 
 ## STEP 4 — DOC SYNC (automatic)
