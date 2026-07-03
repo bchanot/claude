@@ -34,6 +34,7 @@ rules:
 | BLK-012 | 2026-06-29 | gitflow_init half-applied: socle-commit failure swallowed → hook activated on partial run → re-run self-blocks | resolved |
 | BLK-013 | 2026-06-30 | `make plugin` Error 127 — npm absent on apt-`nodejs` host (Step 4 gsd-pi aborts, Steps 5-10 + residual cleanup never run) | resolved (env) |
 | BLK-014 | 2026-07-01 | `make install` aborts npm EEXIST on `~/.local/bin/claude` when claude already installed via native installer — no presence guard | resolved |
+| BLK-015 | 2026-07-03 | `gitflow_finish` ignored its `<type> <name>` args → merged the CHECKED-OUT branch not the one named → wrong-branch merge (audit LOT3) | resolved |
 
 ---
 
@@ -179,3 +180,12 @@ rules:
 - **Status**: resolved. Fix `8dc4027`, branch `bugfix/install-claude-idempotent`, pending merge validation.
 - **Reference**: [[BLK-013]] npm prefix `~/.local` = contributing factor (npm bin over native bin). install-plugins.sh already pointed to code.claude.com (native) — install.sh was the npm outlier. Fresh-machine `elif npm` branch channel-consistency = open design question (potential BDR). Pattern → [[LRN-085]].
 - **Update 2026-07-01**: MERGED `2393ca5` (bugfix/install-claude-idempotent → develop), pushed — supersedes "pending merge validation". The open channel-consistency question is RESOLVED by [[BDR-046]] (fresh install → native installer, npm dropped for claude); install.sh has no `elif npm` branch → nothing left to trancher.
+
+## BLK-015 — `gitflow_finish` ignored its args, merged the CURRENT branch not the one asked
+
+- **Date**: 2026-07-03
+- **Friction**: audit 2026-07-02 — `gitflow.sh finish bugfix audit-bugs` run while checked out on `feature/audit-tokens` merged audit-tokens (LOT3), NOT audit-bugs. Final develop state identical (disjoint hunks) so no data damage, but the merge order was silently wrong. UX trap: the command LOOKS like it targets `bugfix/audit-bugs`.
+- **Real cause**: CLI dispatch (`lib/gitflow.sh:257` `finish) gitflow_finish "$@"`) forwards args, but the function derived its source from `HEAD` (`git symbolic-ref`) and NEVER read `$1/$2` → the `<type> <name>` were silently dropped. Merge source = ambient state (checked-out branch), not the named target. Design intended finish to always operate on HEAD (human gate = "be on the branch"), but nothing enforced that passed args, if any, MATCH the branch you're on.
+- **Solution**: `gitflow_finish [<type> <name>]` — args now an optional safety ASSERTION: present AND `"$req_type/$req_name" != "$br"` → error `operates on the current branch 'X', but you asked 'Y' — checkout 'Y' first`, rc 2. No args = behavior unchanged (only real caller `skills/gitflow/SKILL.md:36` + every test pass none → zero regression). +7 regression assertions (`gitflow-test.sh` T12, numbered to dodge collision with reconcile's own T6c).
+- **Status**: resolved. Commit `d9fdd4c`, branch `bugfix/gitflow-finish-args`.
+- **Reference**: journal 2026-07-02 (trap noted, not fixed) → fixed 2026-07-03. Pattern → [[LRN-089]] (pass-through wrapper deriving target from ambient state = silent contract violation).

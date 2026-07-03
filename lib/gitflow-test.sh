@@ -156,6 +156,22 @@ if bash "$HERE/gitflow.sh" protected-base main;       then ok "cli protected-bas
 if bash "$HERE/gitflow.sh" protected-base feature/x;  then no "cli protected-base feature (rc0?)"; else ok "cli protected-base feature → rc1"; fi
 chk "cli base-for hotfix=main" '[ "$(bash "$HERE/gitflow.sh" base-for hotfix)" = main ]'
 
+echo "T12 — finish arg-guard (named branch must equal current, else refuse)"
+newrepo finargs; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+gitflow_start feature standon >/dev/null 2>&1; echo w>w.txt; git add w.txt; git commit -q -m w
+# mismatch: standing on feature/standon but asking to finish bugfix/other → refuse
+# shellcheck disable=SC2034  # mism_out/mism_rc are used in the deferred chk eval strings
+mism_out="$(gitflow_finish bugfix other 2>&1)"; mism_rc=$?
+chk "arg-mismatch → nonzero rc"       "[ $mism_rc -ne 0 ]"
+chk "arg-mismatch → HEAD untouched"   '[ "$(git symbolic-ref --short HEAD)" = feature/standon ]'
+chk "arg-mismatch → branch kept"      'git rev-parse --verify -q refs/heads/feature/standon >/dev/null'
+chk "arg-mismatch → develop NOT merged" '! git log develop --oneline | grep -q "Merge feature/standon into develop"'
+chk "arg-mismatch → message names both" 'printf "%s" "$mism_out" | grep -q "current branch" && printf "%s" "$mism_out" | grep -q "bugfix/other"'
+# match: naming the current branch explicitly finishes exactly like the no-arg path
+gitflow_finish feature standon >/dev/null 2>&1
+chk "arg-match → merged into develop" 'git log develop --oneline | grep -q "Merge feature/standon into develop"'
+chk "arg-match → branch deleted"      '! git rev-parse --verify -q refs/heads/feature/standon >/dev/null'
+
 echo
 echo "==== RESULT: $PASS passed, $FAIL failed ===="
 [ "$FAIL" -eq 0 ]

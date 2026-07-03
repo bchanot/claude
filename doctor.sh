@@ -42,18 +42,24 @@ check_symlink() {
     return
   fi
 
-  if [ -L "$target" ]; then
-    # readlink -f is not available on macOS BSD — use -f with fallback
-    local real
-    real=$(readlink -f "$target" 2>/dev/null) || real=$(readlink "$target")
-    if [ ! -e "$real" ]; then
-      fail "$HOME/.claude/$name → $real — BROKEN SYMLINK"
-    else
-      pass "$HOME/.claude/$name"; _LINK_PASS=$((_LINK_PASS + 1))
-    fi
-  else
-    warn "$HOME/.claude/$name exists but is NOT a symlink (expected symlink to repo)"
+  # Broken symlink: points at a target that no longer exists.
+  if [ -L "$target" ] && [ ! -e "$target" ]; then
+    fail "$HOME/.claude/$name → $(readlink "$target") — BROKEN SYMLINK"
+    return
   fi
+
+  # Correctly wired iff the canonical path lands inside the repo. This is true
+  # for a direct symlink (CLAUDE.md, settings.json) AND for a real file reached
+  # through a symlinked ANCESTOR dir (hooks/, skills/, agents/, lib/, templates/
+  # are dir-level symlinks — their children are real files under $REPO). A stray
+  # real copy in ~/.claude resolves to itself (outside $REPO) → still flagged as
+  # drift. (LRN-047: the dir-symlink layout is legitimate, must not false-warn.)
+  local real
+  real=$(readlink -f "$target" 2>/dev/null) || real="$target"
+  case "$real" in
+    "$REPO"/*) pass "$HOME/.claude/$name"; _LINK_PASS=$((_LINK_PASS + 1)) ;;
+    *) warn "$HOME/.claude/$name resolves to $real (outside repo — expected a link into $REPO)" ;;
+  esac
 }
 
 check_symlink "CLAUDE.md"
@@ -83,24 +89,17 @@ else
   warn "GStack submodule missing — run: git submodule update --init"
 fi
 
-if [ -L "$HOME/.claude/skills/gstack" ]; then
-  real=$(readlink -f "$HOME/.claude/skills/gstack" 2>/dev/null || readlink "$HOME/.claude/skills/gstack")
-  if [ -d "$real" ]; then
-    pass "Symlink OK → $real"
-    # Check for skills/ subdirectory (referenced by plugin-advisor PHASE 1).
-    # `|| echo 0` is required because under `set -o pipefail`, a missing
-    # gstack/skills/ dir makes find exit non-zero, killing the script.
-    gstack_skills_count=$( { find "$HOME/.claude/skills/gstack/skills/" -maxdepth 1 -mindepth 1 2>/dev/null || true; } | wc -l | tr -d ' ')
-    if [ "${gstack_skills_count:-0}" -gt 0 ]; then
-      pass "GStack: ${gstack_skills_count} skills available"
-    else
-      warn "GStack symlink OK but no skills/ subdirectory found — may need: cd skills-external/gstack && ./setup"
-    fi
-  else
-    fail "Symlink broken → $real"
-  fi
+# GStack skills are exposed as PER-SKILL symlinks directly under skills/ (browse,
+# cso, review, …) pointing into skills-external/gstack/ — there is NO single
+# skills/gstack symlink (link.sh deliberately removes it: it duplicated the
+# top-level gstack SKILL.md alongside the per-skill entries). The bin/ +
+# browse/dist/ helper links under skills/gstack/ are checked in §7 Consistency.
+# `|| true` guards pipefail if skills/ is unexpectedly absent (checked above).
+gstack_skill_links=$( { find "$HOME/.claude/skills/" -maxdepth 1 -type l -lname '*skills-external/gstack/*' 2>/dev/null || true; } | wc -l | tr -d ' ')
+if [ "${gstack_skill_links:-0}" -gt 0 ]; then
+  pass "GStack: ${gstack_skill_links} skills linked (per-skill symlinks)"
 else
-  warn "GStack not symlinked — run: bash link.sh"
+  warn "GStack skills not linked — run: cd skills-external/gstack && ./setup"
 fi
 
 echo ""
@@ -136,7 +135,10 @@ fi
 if command -v cargo &>/dev/null; then
   pass "Cargo $(cargo --version | awk '{print $2}')"
 else
-  warn "Cargo not found (RTK unavailable)"
+  # Cargo does NOT gate RTK: RTK ships as a prebuilt binary and detect_rtk finds
+  # it via ~/.cargo/bin or ~/.local/bin (RTK status is shown under Plugins).
+  # Cargo is only the Rust toolchain to BUILD RTK from source → optional, info.
+  info "Cargo not found (optional — only needed to build RTK from source)"
 fi
 
 if command -v python3 &>/dev/null; then
@@ -239,8 +241,12 @@ echo ""
 # 6. Token budget estimate
 # ────────────────────────────────────────────────────────────
 echo "── Token budget estimate ──"
-# Reference: Claude Code Pro plan ~11k tokens/5h session (session budget, not context window).
-# Seuils: WARNING >15%, CRITICAL >30% of session budget.
+# The passive footprint (CLAUDE.md + skill descriptions + plugin session-injects)
+# loads into the CONTEXT WINDOW every session — it competes with the ~200k default
+# context, NOT a per-session token quota (the old "~11k/5h budget" denominator was
+# a category error → false "92% CRITICAL", LRN-047). Measured ~11.4k post-audit
+# 2026-07-02 (LRN-088); the chars/4 sum below is a coarse proxy of that footprint.
+# Thresholds: WARNING >15% of context (~30k), CRITICAL >25% (~50k).
 
 CLAUDE_MD_CHARS=$(wc -c < "$REPO/CLAUDE.md" 2>/dev/null || echo 0)
 CLAUDE_MD_TOKENS=$((CLAUDE_MD_CHARS / 4))
@@ -264,25 +270,25 @@ if detect_context7    2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 200)); 
 if detect_graphifyy   2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 300)); fi
 
 TOTAL_TOKENS=$((CLAUDE_MD_TOKENS + SKILL_DESC_TOKENS + PLUGIN_TOKENS))
-SESSION_BUDGET=11000
-PCT=$((TOTAL_TOKENS * 100 / SESSION_BUDGET))
+CONTEXT_WINDOW=200000   # Claude Code default context window (conservative; 1M is opt-in)
+PCT=$((TOTAL_TOKENS * 100 / CONTEXT_WINDOW))
 
 echo ""
 echo "  CLAUDE.md:           ~${CLAUDE_MD_TOKENS}t"
 echo "  Skill descriptions:  ~${SKILL_DESC_TOKENS}t  (${SKILL_COUNT} skills)"
 echo "  Plugin passive cost: ~${PLUGIN_TOKENS}t  (active plugins)"
 echo "  ─────────────────────────────────────────"
-info "  Total:               ~${TOTAL_TOKENS}t"
-info "  Session budget (Pro): ${SESSION_BUDGET}t"
-info "  Usage:               ~${PCT}%"
+info "  Total:               ~${TOTAL_TOKENS}t  (measured ~11.4k post-audit, LRN-088)"
+info "  Context window:      ${CONTEXT_WINDOW}t  (default; 1M opt-in)"
+info "  Usage:               ~${PCT}% of context"
 echo ""
 
-if [ "$PCT" -gt 30 ]; then
-  warn "CRITICAL: ${PCT}% of session budget — /plugin-check to disable unused plugins"
+if [ "$PCT" -gt 25 ]; then
+  warn "CRITICAL: ~${PCT}% of the ${CONTEXT_WINDOW}t context — /plugin-check to disable unused plugins"
 elif [ "$PCT" -gt 15 ]; then
-  warn "WARNING: ${PCT}% of session budget — consider disabling unused toggle plugins"
+  warn "WARNING: ~${PCT}% of the ${CONTEXT_WINDOW}t context — consider disabling unused toggle plugins"
 else
-  pass "Budget: ${PCT}% (comfortable)"
+  pass "Budget: ~${PCT}% of context (comfortable)"
 fi
 
 # Per-file breakdown (skill bodies — loaded on demand, shown for awareness)

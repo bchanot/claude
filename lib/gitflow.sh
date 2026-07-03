@@ -97,11 +97,24 @@ _gitflow_delete() {                # <branch>
   git branch -q -d "$br" || { echo "gitflow: '$br' not fully merged — branch kept" >&2; return 5; }
 }
 
-# gitflow_finish → directed merge of the CURRENT branch per its type, then delete.
-# WHEN to call this is the human gate (SKILL.md). This only performs the merge.
+# gitflow_finish [<type> <name>] → directed merge of the CURRENT branch per its
+# type, then delete. WHEN to call this is the human gate (SKILL.md).
+#
+# The merge source is ALWAYS the checked-out branch (HEAD) — that is the contract.
+# The optional <type> <name> is a SAFETY ASSERTION, not a target selector: if you
+# name a branch it MUST equal the current one, else finish refuses loudly instead
+# of silently merging whatever you happen to be standing on. (Guards the audit UX
+# trap: `finish bugfix audit-bugs` run from feature/audit-tokens merged the wrong
+# branch — args were silently ignored. See BLK-015 / LRN-089.) No args = unchanged.
 gitflow_finish() {
-  local br type
+  local br type req_type="${1:-}" req_name="${2:-}"
   br="$(git symbolic-ref --short -q HEAD)" || { echo "gitflow_finish: detached HEAD" >&2; return 3; }
+  if [ -n "$req_type" ] || [ -n "$req_name" ]; then
+    [ "$req_type/$req_name" = "$br" ] || {
+      echo "gitflow_finish: operates on the current branch '$br', but you asked '$req_type/$req_name' — checkout '$req_type/$req_name' first (or run finish with no args)." >&2
+      return 2
+    }
+  fi
   type="$(gitflow_branch_type "$br")"
   case "$type" in
     feature|bugfix|chore)

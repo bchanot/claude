@@ -108,6 +108,7 @@ rules:
 | LRN-086 | 2026-07-02 | External-tool-generated skill: prove provenance by mtime (not repo grep), gitignore + regen via install-step; guard regen on ABSENCE when the tool co-writes a user-editable config | any untracked skill/dir a tool (ctx7, etc.) drops into the repo |
 | LRN-087 | 2026-07-02 | presence-flag ≠ capability — rtk silently dead after .bashrc wipe; emitted commands need ABSOLUTE bin paths (they run in another shell); integrity pin = live machinery, re-pin on hook edit | any PATH-dependent capability + hand-managed shell profile; hooks emitting commands for another shell |
 | LRN-088 | 2026-07-02 | token-cutting intuition inverts under measurement — verbosity beats cardinality (gstack 34 skills ≈ 592 tok vs pr-review 6 agents ≈ 2,183) | any "disable X to save tokens" — measure per-item bytes first; profiles toggle skills, not plugin payloads |
+| LRN-089 | 2026-07-03 | pass-through wrapper (CLI `"$@"` → fn deriving target from ambient state: HEAD/cwd/env) silently ignores its args = silent contract violation; guard = args are an ASSERTION, refuse when they disagree with state | any dispatcher forwarding args to a callee that reads ambient state instead of the args |
 
 ---
 
@@ -956,3 +957,11 @@ rules:
 - **actions taken**: pr-review-toolkit OFF by default (−2,183; audit.profile keeps it = reactivation channel), 10 fattest personal descriptions compressed 6,416→4,243 chars (−~540), context7 rule dropped for the find-docs skill (−493; skill body loads on-demand, stable — regen keyed on find-docs absence). Total ≈ −3.2k/session ≈ −22%.
 - **future application**: before any "disable X to save tokens" → measure per-item bytes FIRST (frontmatter extraction, plugin cache); expect the fat where descriptions are hand-written rich, not where items are many. Profiles toggle SKILLS only — plugin payloads (agents/skills in cache) need `enabledPlugins`. [[LRN-080]] measure-first corroborated on a new axis (cost, not behavior).
 - **Reference**: audit 2026-07-02 measurement + branch feature/audit-tokens. See [[BDR-014]], [[LRN-043]].
+
+## LRN-089 — a pass-through wrapper whose callee reads ambient state silently ignores its args
+
+- **Date**: 2026-07-03
+- **pattern**: a CLI/dispatcher that forwards `"$@"` to a function which derives its TARGET from ambient state (HEAD, cwd, env, "current X") rather than from those args → the args are silently dropped. The call SITE looks parameterized (`finish bugfix audit-bugs`) but the callee acts on whatever state it's standing in → wrong-target action, NO error. `gitflow_finish` read `HEAD`, never `$1/$2`; `finish bugfix X` from another branch merged that other branch.
+- **context**: audit 2026-07-02, `lib/gitflow.sh:257` `finish) gitflow_finish "$@"` passed args the function never consulted. Surfaced when a finish "for" one branch merged another (LOT3). [[BLK-015]].
+- **future application**: any wrapper/dispatcher forwarding args to a callee that resolves its target from ambient state — either (a) make the callee USE the args as the target, or (b) if the ambient-state contract is deliberate, treat passed args as an ASSERTION and refuse loudly when they disagree with the state. Never let forwarded args be silently dropped: silent-drop = the caller believes they steered, the callee ignored them. Sibling of "presence-flag ≠ capability" [[LRN-087]] — both = a visible signal lying about the real behavior.
+- **Reference**: `lib/gitflow.sh` gitflow_finish arg-guard, `lib/gitflow-test.sh` T12. [[BLK-015]].
