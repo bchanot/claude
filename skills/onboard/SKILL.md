@@ -486,6 +486,29 @@ bash $HOME/.claude/lib/toggle-external.sh list 2>/dev/null | grep -E "^gstack\s+
   )
   ```
 
+#### Dispatch semgrep SAST — `security-auditor` (TOUJOURS, complément de cso)
+
+En complément de cso (ON) OU du fallback (OFF) — un moteur SAST déterministe
+à côté de l'audit grep/raisonné. cso est un submodule gstack non modifiable ;
+semgrep vit dans cet agent local. Lancé dans les DEUX branches gstack.
+
+```
+Agent(
+  subagent_type="security-auditor",
+  description="Onboard — semgrep SAST audit (report-only)",
+  prompt="""
+  MODE: audit
+  SCOPE: <PROJECT_ROOT>
+  REPORT: <PROJECT_ROOT>/.onboard-audit/semgrep.md
+  CONTEXT: <PROJECT_ROOT>/.onboard-audit/archetype-context.md
+  Follow agents/security-auditor.md exactly. Pinned rulesets only, no login.
+  Write ONLY to the REPORT path. End stdout with REPORT_WRITTEN: <path>.
+  """
+)
+```
+Si semgrep absent → l'agent rend DEGRADED (checklist seule) + recommande
+`make plugin` ; NON bloquant en onboard (audit, pas gate).
+
 #### Dispatch doc-syncer (si `doc` dans audit_stack)
 ```
 Agent(
@@ -511,9 +534,10 @@ Agent(
 
 ### Après les 3 dispatches
 
-Attendre la fin des 3 subagents. Vérifier que les 3 fichiers existent et sont non vides :
+Attendre la fin des subagents. Vérifier que les fichiers existent et sont non vides
+(semgrep.md inclus — DEGRADED reste non vide : il porte le résultat checklist) :
 ```bash
-for f in .onboard-audit/{code-clean,cso,doc}.md; do
+for f in .onboard-audit/{code-clean,cso,semgrep,doc}.md; do
   [ -s "$f" ] && echo "OK $f" || echo "MISSING $f"
 done
 ```
