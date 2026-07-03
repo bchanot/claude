@@ -221,12 +221,21 @@ Then offer to capitalize (per CLAUDE.md): recurring finding patterns →
 
 ## Axis specs (subagent prompts)
 
-- **security** — scoped to the delta: hardcoded secrets/tokens/keys (also
-  in comments), injection (SQL/XSS/command — string concat into
-  queries/shells), authN/authZ gaps on new endpoints, fail-open error
-  paths, secrets/PII in logs, new dependencies in lockfiles (name them +
-  known CVEs), unguarded destructive shell (`rm -rf` with unquoted or
-  un-`:?`-guarded vars).
+- **security** — FIRST run the semgrep SAST pass, THEN the reasoned checks
+  below on the same delta (the SAST is a deterministic floor, the reasoned
+  pass covers what grep/rules miss):
+  ```
+  Agent(subagent_type="security-auditor", description="audit-delta security — semgrep SAST",
+    prompt="MODE: audit\nSCOPE: <delta file list>\nREPORT: .claude/audits/.audit-delta-semgrep.md\nFollow agents/security-auditor.md exactly. Pinned rulesets, no login. Write ONLY to REPORT. End with REPORT_WRITTEN: <path>.")
+  ```
+  Fold its BLOCKING (CRITICAL/HIGH) + REPORTED findings into this axis'
+  finding list before the 3c gate. semgrep ABSENT → DEGRADED (checklist
+  only) is surfaced, not a blocker. Reasoned checks (also scoped to the
+  delta): hardcoded secrets/tokens/keys (also in comments), injection
+  (SQL/XSS/command — string concat into queries/shells), authN/authZ gaps
+  on new endpoints, fail-open error paths, secrets/PII in logs, new
+  dependencies in lockfiles (name them + known CVEs), unguarded destructive
+  shell (`rm -rf` with unquoted or un-`:?`-guarded vars).
 - **errors** — bugs in changed code: logic errors, off-by-one, unhandled
   edge cases (empty/null/unicode/concurrent), race conditions, swallowed
   errors, resource leaks (missing trap/close/finally). Improvements only
