@@ -1,5 +1,33 @@
 # TODO
 
+## 2026-07-03 — verify loops + semgrep gate + contract (chantier orchestrateurs)
+Archi validée au gate (session 2026-07-03). Cible : contract sur DISQUE dès
+création (fichier de run, pattern DIAGNOSIS) + verifier frais (verdict structuré
+CONFORME/écarts, preuve-qu'il-a-regardé LRN-048, 2 échecs structurels = escalade
+humaine — verifier muet ≠ PASS) + gate sécu semgrep (rulesets ÉPINGLÉS
+p/security-audit + p/secrets — pas --config auto, classe LRN-077 ; BLOCK
+HIGH/CRITICAL only, LRN-047) + boucles bornées 3× décidées en boucle principale
+(LRN-083). cso = symlink submodule gstack → non modifiable → greffes locales
+(onboard cso-fallback, audit-delta, agent neuf ; complément semgrep même
+gstack ON). Verdicts user : dev inline conservé feat/bugfix/hotfix (verify+sécu
+= sous-agents frais) ; hotfix garde revert-escalade ; PIN version semgrep dans
+plugins.lock.json (gate bloquante — upgrade silencieux = nouveaux BLOCK sur code
+inchangé ; pattern gsd-pin, saut affiché par update-all).
+
+LOT 1 — feature/semgrep-install (GO)
+- [x] plugins.lock.json — pin semgrep 1.168.0 (pattern gsd, note gate bloquante)
+- [x] install-plugins.sh STEP 7.5 — pipx pinned, command -v guard + version echo, login guide-only (jamais auto)
+- [x] update-all.sh step 6.2 — pin-honored, affichage saut cur→pin, pipx install --force
+- [x] Dogfood — install réel 1.168.0 via bloc extrait + idempotence (re-run = skip) + pin-match + saut affiché (1.168.0→9.9.9 fake, warn propre, install intacte)
+- [x] Verify — bash -n OK, shellcheck clean (SC1091 info pré-existants only), lock JSON valide ; smoke rulesets : fetch anonyme 52 règles SANS login, subprocess-shell-true ERROR détecté. Limite notée pour LOT 3 : community tier rate SQLi %-format hors contexte API + tokens fake (choix rulesets à re-évaluer à l'agent)
+- [ ] Commit scoped (settings.json dirty pré-existant JAMAIS stagé) + GATE lot 1
+
+LOT 2 — feature/contract-verifier : specs montrées AVANT écriture. lib/contract-interview.md + agents/verifier.md.
+LOT 3 — feature/security-auditor : agents/security-auditor.md + greffe audit-delta + onboard fallback + complément gstack-ON.
+LOT 4 — feature/loops-light : câblage feat/bugfix/hotfix.
+LOT 5 — feature/loops-heavy : câblage ship-feature + init-project + onboard.
+Rien poussé ; gate par lot ; suites après chaque lot.
+
 ## 2026-07-03 — design-toolchain trigger fix (bugfix/design-toolchain-trigger)
 Root cause (NOT a kill-switch, per user): ed2408e (07-02) dropped ultra-generic
 tokens but left bare tokens common in non-UI talk → ~6× false-fire THIS session
