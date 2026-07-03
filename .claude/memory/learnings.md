@@ -109,7 +109,11 @@ rules:
 | LRN-087 | 2026-07-02 | presence-flag ≠ capability — rtk silently dead after .bashrc wipe; emitted commands need ABSOLUTE bin paths (they run in another shell); integrity pin = live machinery, re-pin on hook edit | any PATH-dependent capability + hand-managed shell profile; hooks emitting commands for another shell |
 | LRN-088 | 2026-07-02 | token-cutting intuition inverts under measurement — verbosity beats cardinality (gstack 34 skills ≈ 592 tok vs pr-review 6 agents ≈ 2,183) | any "disable X to save tokens" — measure per-item bytes first; profiles toggle skills, not plugin payloads |
 | LRN-089 | 2026-07-03 | pass-through wrapper (CLI `"$@"` → fn deriving target from ambient state: HEAD/cwd/env) silently ignores its args = silent contract violation; guard = args are an ASSERTION, refuse when they disagree with state | any dispatcher forwarding args to a callee that reads ambient state instead of the args |
+| LRN-090 | 2026-06-30 | external-repo audit: open WIRED subsystems (hooks/runners) before declarative (docs/rules); described capability ≠ wired capability | auditing an external config/framework repo for transferable value |
+| LRN-091 | 2026-07-03 | keyword-triggered soft-nudge hook w/ bare common tokens over-fires on non-UI work → tuned out; bare only when UI sense dominates, else bigram-or-drop | any advisory/nudge hook keyed on keywords |
 | LRN-092 | 2026-07-03 | SAST smoke test w/ the OFFICIAL example secret = vacuous pass (rules exclude documented example keys by design); validate w/ realistic payloads + measure tier coverage before trusting a gate ruleset | smoke-testing any detector/gate — never the canonical example payload |
+| LRN-093 | 2026-07-03 | grep -F pattern w/ embedded newline = per-line OR = lock that matches anything; structure locks single-line only, flip-test new locks | writing any grep-based structure lock / census test |
+| LRN-094 | 2026-07-03 | SAST severity ≠ exploitability — semgrep ERROR conflates real vulns + hardening recos; metadata does NOT cleanly separate them (measured) → metadata refinement = noisy gate; ERROR-threshold + diff-scoping is the containment | mapping a SAST tool's output to a blocking gate |
 
 ---
 
@@ -984,3 +988,15 @@ rules:
 - **context**: lot 1 semgrep-install dogfood 2026-07-03. `p/secrets`+`p/security-audit` community tier: anonymous fetch OK (52 rules, no login), `subprocess-shell-true` detected ERROR; MISSED %-format SQLi on bare cursor (no recognized DB-API context) + fake-checksum `ghp_` token. Gap logged for security-auditor agent design (consider adding `p/owasp-top-ten`).
 - **future application**: any detector/gate smoke test — craft realistic payloads, never the canonical example; measure the miss-list on purpose-built fixtures; size the gate's blocking scope on that data.
 - **cousin**: [[LRN-048]] a 0/OK must prove it looked; [[LRN-047]] noisy guard = ignored guard; conditions [[BDR-048]].
+
+## LRN-093 — grep -F with an embedded newline = per-line OR = vacuous lock
+- **pattern**: a fixed-string grep pattern containing a newline is treated as MULTIPLE patterns (one per line) — match succeeds if ANY line matches. A structure lock written that way passes on essentially anything (`"no\n    forced loop"` → matches any "no") = a lock that proves nothing, [[LRN-048]] class.
+- **context**: lot 2 `lib/tests/contract-verifier.test.sh`, caught in self-review BEFORE first run; replaced by a single-line distinctive anchor ("proceed straight to the security gate").
+- **future application**: structure locks / census greps = ONE line per pattern, always; a clause spanning lines → lock a distinctive single-line fragment. Flip-test every new lock (prove it CAN fail) before trusting its green.
+- **cousin**: [[LRN-048]] a pass must prove it looked; [[LRN-046]] deterministic-oracle discipline.
+
+## LRN-094 — SAST severity ≠ exploitability; metadata does not cleanly separate — don't refine on it
+- **pattern**: semgrep `ERROR` conflates exploitable vulns (SQLi, secrets, command injection) with hardening recommendations (Dockerfile missing-USER, npm release-age). The obvious refinement — gate on `metadata.impact`/`likelihood`/`confidence` — does NOT work: measured, the Dockerfile hygiene ERROR (`impact=MEDIUM likelihood=LOW`) is indistinguishable from a tainted-SQL ERROR (`impact=MEDIUM likelihood=MEDIUM`), and a real command-injection reads `impact=LOW likelihood=HIGH`. Metadata-based severity = a noisy, non-deterministic gate ([[LRN-077]] class).
+- **context**: lot 3 security-auditor design 2026-07-03. Measured on 2 real repos (faunosteo, game): the only added blocking ERROR from owasp-top-ten is Dockerfile hygiene, contained because gate mode scopes to the DIFF (a pre-existing infra finding can't block an unrelated code change).
+- **future application**: mapping any SAST to a blocking gate — take the tool's ERROR/blocking level as the deterministic threshold, contain FP by SCOPING (diff, not repo), NOT by a metadata heuristic or a hand-maintained hygiene denylist ([[LRN-049]]: match guard cost to proven stake — build the denylist only if hygiene ERRORs prove noisy on a real project).
+- **cousin**: [[LRN-047]] noisy gate = ignored; [[LRN-077]] non-deterministic gate; conditions [[BDR-048]].
