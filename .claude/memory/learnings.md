@@ -109,6 +109,7 @@ rules:
 | LRN-087 | 2026-07-02 | presence-flag ≠ capability — rtk silently dead after .bashrc wipe; emitted commands need ABSOLUTE bin paths (they run in another shell); integrity pin = live machinery, re-pin on hook edit | any PATH-dependent capability + hand-managed shell profile; hooks emitting commands for another shell |
 | LRN-088 | 2026-07-02 | token-cutting intuition inverts under measurement — verbosity beats cardinality (gstack 34 skills ≈ 592 tok vs pr-review 6 agents ≈ 2,183) | any "disable X to save tokens" — measure per-item bytes first; profiles toggle skills, not plugin payloads |
 | LRN-089 | 2026-07-03 | pass-through wrapper (CLI `"$@"` → fn deriving target from ambient state: HEAD/cwd/env) silently ignores its args = silent contract violation; guard = args are an ASSERTION, refuse when they disagree with state | any dispatcher forwarding args to a callee that reads ambient state instead of the args |
+| LRN-093 | 2026-07-03 | grep -F pattern w/ embedded newline = per-line OR = lock that matches anything; structure locks single-line only, flip-test new locks | writing any grep-based structure lock / census test |
 
 ---
 
@@ -977,3 +978,9 @@ rules:
 - **rule**: keep a token BARE only when its UI sense dominates largely in a dev context (glassmorphism, navbar). Token common in non-UI talk (design, component, theme, transition, frontend) → require a UI-specific bigram (design system, front-end design) or drop; in doubt → bigram-or-drop. Borderline standalone nouns (dashboard, animation) may stay bare as an assumed call — the fire-log arbitrates later on data, not gut. (NOT "never bare tokens" — animation stays bare here by design.)
 - **context**: design-toolchain-reminder.sh — 07-02 tightening (dropped page/form/menu/…) insufficient; 6 bare tokens still false-fired ~6×/session during the ECC config audit (design, ecc_dashboard.py, component, frontend, theme, transition, palette). 07-03 fix: dropped them, dashboard→`\bdashboard\b` (filename match killed, "admin dashboard" kept), added a fire-log (time+token+excerpt). `lib/tests/design-toolchain-reminder.test.sh` locks it (18 checks).
 - **cousin**: [[LRN-047]] a doctor that cries false is ignored.
+
+## LRN-093 — grep -F with an embedded newline = per-line OR = vacuous lock
+- **pattern**: a fixed-string grep pattern containing a newline is treated as MULTIPLE patterns (one per line) — match succeeds if ANY line matches. A structure lock written that way passes on essentially anything (`"no\n    forced loop"` → matches any "no") = a lock that proves nothing, [[LRN-048]] class.
+- **context**: lot 2 `lib/tests/contract-verifier.test.sh`, caught in self-review BEFORE first run; replaced by a single-line distinctive anchor ("proceed straight to the security gate").
+- **future application**: structure locks / census greps = ONE line per pattern, always; a clause spanning lines → lock a distinctive single-line fragment. Flip-test every new lock (prove it CAN fail) before trusting its green.
+- **cousin**: [[LRN-048]] a pass must prove it looked; [[LRN-046]] deterministic-oracle discipline.

@@ -69,6 +69,7 @@ rules:
 | BDR-045 | 2026-07-01 | Standalone memory/doc skills branch to chore/* via aiguillage (hook exemption kept) | accepted |
 | BDR-046 | 2026-07-01 | Claude Code installs via official native installer (curl claude.ai/install.sh), drop npm from install.sh | accepted |
 | BDR-047 | 2026-07-01 | ECC audit → zero import; local config ahead of reference | accepted |
+| BDR-049 | 2026-07-03 | verifier = fresh + blind (no iteration history) + disk-contract + PROOF-or-fail; mute ≠ PASS; scope enrichment via human micro-gate | accepted |
 
 ---
 
@@ -788,3 +789,11 @@ rules:
   ONE scope gap: BDR-047 never opened hooks/ — ECC's only WIRED subsystem. Fruit:
   config-protection hook (own idiom, NOT ECC import), shipped
   feature/config-protection-hook. Lesson holds + refined by [[LRN-090]].
+
+## BDR-049 — Verifier doctrine: fresh + blind + disk-contract + proof-or-fail
+
+- **Date**: 2026-07-03
+- **Decision**: conformity verdict comes ONLY from a FRESH verifier subagent per iteration. Input = contract PATH (read from disk — dev restatement structurally unable to interpose) + diff range + optional test cmd. NEVER iteration history: blind, complete verification every time (cost bounded by the main-loop max-3 cap, [[LRN-083]]: loops decided in main loop). CONFORME ⇔ all criteria MET + zero out-of-scope. PROOF line mandatory ([[LRN-048]]). Mute/unparsable verifier NEVER a PASS: 1 fresh retry, 2nd structural failure = human escalation. Dev-justified out-of-scope enters FILE SCOPE only via a human micro-gate (`[gated]` marker) — else the dev justifies everything and scope constrains nothing. Contract on DISK at creation (`.claude/tasks/contracts/<date>-<slug>-<HHMM>.md`, committed; aborted run → deleted or `status: aborted`, never left dirty).
+- **Rationale**: dev self-score is always confident → not a gate. Verifier fed history anchors on prior verdicts → telescopic drift. Context-only contract dies at compaction, the verbatim with it.
+- **Alternatives rejected**: dev self-assessment as gate; cumulative verifier context ("cheaper" but anchored); gitignored run files (lose escalation reference + session-death survival).
+- **Reference**: lib/contract-interview.md + agents/verifier.md + lib/tests/contract-verifier.test.sh (31 locks) — branch feature/contract-verifier `6aed5ee`. Behavioral GREEN: planted-gap → ECARTS(2) exact; conform-under-injected-history → CONFORME (blindness held). Twin of [[BDR-048]] (security gate). Conditions [[LRN-048]], [[LRN-083]].
