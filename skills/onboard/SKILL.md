@@ -509,6 +509,15 @@ Agent(
 Si semgrep absent → l'agent rend DEGRADED (checklist seule) + recommande
 `make plugin` ; NON bloquant en onboard (audit, pas gate).
 
+**Onboard n'a PAS de boucle verify→dev (`lib/verify-secure-loop.md`) — par
+conception.** onboard produit un RAPPORT d'audit, pas une modification à
+vérifier contre une demande : il n'y a ni contract de conformité, ni diff dev,
+ni verifier, ni max-3. Le contract d'onboard est un contract de SCOPE (ce que
+l'interview STEP 3 + `audit_stack` définissent comme périmètre d'audit), et
+`security-auditor` tourne en `MODE: audit` (report-only), jamais en `MODE:
+gate`. Ne PAS ajouter la boucle des flux dev ici par symétrie — l'audit et le
+flux de dev sont deux formes distinctes ([[BDR-050]] pipeline dev ≠ audit).
+
 #### Dispatch doc-syncer (si `doc` dans audit_stack)
 ```
 Agent(

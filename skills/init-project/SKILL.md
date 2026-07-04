@@ -48,6 +48,14 @@ ls CLAUDE.md .claude/CLAUDE.md 2>/dev/null | head -1
 
 In both cases: MANDATORY STOP until user answers remaining questions. Produce PROJECT BRIEF.
 
+**Then run `$HOME/.claude/lib/contract-interview.md`** seeded from the BRIEF:
+REQUEST verbatim = the user's project description; ACCEPTANCE CRITERIA = the
+V1 FEATURES (each testable); FILE SCOPE = the planned tree. No new questions
+(the interview already asked). It writes
+`.claude/tasks/contracts/<date>-<slug>-<HHMM>.md`; the DESIGN approved at STEP
+4 ENRICHES it, and STEP 9's verifier judges the MVP against the enriched
+contract.
+
 ## STEP 2 — ANALYZE
 Load `$HOME/.claude/agents/analyzer.md`. Analyze BRIEF: existing code, stack constraints, infra risks, open decisions. Produce ANALYSIS REPORT.
 
@@ -69,6 +77,11 @@ EXCEPTIONS : <list or none>
 Approve? (yes / request changes)
 ```
 Changes → back to STEP 3. Approved → continue.
+
+**On approval — ENRICH the STEP 1 contract**: append the DESIGN-derived
+acceptance criteria (resolved decisions, interfaces, test strategy) to the
+contract, each tagged `[gated <date>]`. STEP 9's verifier judges against this
+enriched contract.
 
 ## STEP 5 — SCAFFOLD
 Load `$HOME/.claude/agents/scaffolder.md`. Pass: BRIEF + DESIGN + `~/.claude/templates/project-CLAUDE.md` + `~/.claude/CLAUDE.md`.
@@ -175,8 +188,21 @@ If `graphify` CLI is installed AND complexity >= 30%:
 2. Print: `🔗 Full project graph updated at graphify-out/`
 If `graphify` not installed or complexity < 30% → skip silently.
 
-## STEP 9 — ANALYZE
-Load `$HOME/.claude/agents/analyzer.md`. Check: no regressions, no deviations, no stale scaffold, conventions respected.
+## STEP 9 — VERIFY + SECURE (fresh gates, bounded loops)
+Run the two fresh gates per `$HOME/.claude/lib/verify-secure-loop.md` with
+`CONTRACT` = the STEP 1 path (ENRICHED at STEP 4), `DIFF` = the MVP branch
+diff (`develop..HEAD`), `TEST` = the project suite:
+- GATE 1 — a FRESH verifier judges the MVP against the enriched contract (V1
+  features + `[gated]` design criteria). CONFORME → GATE 2. ECARTS → fix,
+  re-verify, max 3 → STOP + human escalation with the CRITERIA table.
+- GATE 2 — a FRESH security-auditor (`MODE: gate`, `SCOPE: develop..HEAD`).
+  PASS → STEP 10. BLOCK → fix, re-verify request THEN re-scan, max 3 →
+  escalate.
+
+This adds the security gate init-project previously lacked (security was only
+deferred to a later /onboard) and turns the informal analyze into a verdict
+against the founding contract. Distinct axis from STEP 10 code review
+([[LRN-095]]) — both run.
 
 ## STEP 10 — CODE REVIEW
 Invoke `superpowers:requesting-code-review`. Fix all CRITICAL before proceeding.
