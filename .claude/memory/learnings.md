@@ -116,6 +116,7 @@ rules:
 | LRN-094 | 2026-07-03 | SAST severity ≠ exploitability — semgrep ERROR conflates real vulns + hardening recos; metadata does NOT cleanly separate them (measured) → metadata refinement = noisy gate; ERROR-threshold + diff-scoping is the containment | mapping a SAST tool's output to a blocking gate |
 | LRN-095 | 2026-07-03 | orthogonal gates don't contaminate — a conformity verifier must PASS correct-but-insecure code (security is a separate gate's job); proven live (CONFORME on a feature carrying a SQLi); fusing the two degrades each | designing multi-dimension review/verify/audit gates |
 | LRN-096 | 2026-07-04 | a backstop/guard is code — reliable ONLY after a flip-test proves it CAN fail; an unproven guard replacing an advisory = a vacuous guard (LRN-048 applied to guards); flip-test mandatory at guard creation | building any deterministic guard/lint/backstop |
+| LRN-097 | 2026-07-04 | community blog pattern ≠ official feature — "contexts dir" doesn't exist in Claude Code; verify feature against official docs (claude-code-guide) BEFORE building infra; the intent was already covered by real mechanisms (agents/skills/rules) | any "add support for X" request naming a Claude Code feature |
 
 ---
 
@@ -1015,3 +1016,10 @@ rules:
 - **context**: lot 5 `lib/tests/no-vacuous-locks.test.sh` 2026-07-04. Built the guard, its flip-test RED'd (regex too weak, missed line-start `tf`), fixed the regex, flip-test green. The guard now ships WITH the flip-test inline so it self-proves on every run.
 - **future application**: building any guard/lint/census/backstop — bundle a flip-test (a synthetic offender the guard must catch) in the same file; a guard whose failure path was never exercised is untrusted. Corroborates [[LRN-047]]/[[LRN-091]] (advisory→deterministic) — this is the *quality bar* on the deterministic replacement.
 - **cousin**: [[LRN-048]] prove it looked; [[LRN-093]] the class this guards; [[LRN-046]] deterministic-oracle discipline.
+
+## LRN-097 — Community blog pattern ≠ official feature: verify against docs before building infra
+- **pattern**: user requested a `~/.claude/contexts/` dir + symlink, with 3 example "context mode" files (review/research/dev) from a community pattern. Official docs check (claude-code-guide agent): NO contexts feature exists in Claude Code — no loader, no `/context <name>`, nothing reads that dir. Building it = dead infra. The underlying intent (modal postures) was ALREADY covered by real mechanisms: review → verifier/security-auditor/review skills; research → analyzer/Explore; dev norms → CLAUDE.md always-on. One proposed "context" even CONTRADICTED standing doctrine ("get it working first" vs "root causes only").
+- **why it matters**: plausible-looking blog patterns import silently as "features"; the cost is not just dead files — norms moved into a nonexistent loader silently STOP applying. Gate: any request naming a Claude Code capability → verify against official docs BEFORE writing files; then map the intent onto the real mechanism.
+- **context**: 2026-07-04 rules-dir chantier. `rules/` (real feature, verified: paths-scoped lazy loading) was built; `contexts/` (nonexistent) was refused with the doc citation.
+- **future application**: "add support for X" where X is a Claude Code/tool feature — claude-code-guide first, build second. Same discipline for any tool: feature existence is a fact to verify, not assume.
+- **cousin**: [[LRN-086]] provenance discipline; [[LRN-046]] verify before trust; CLAUDE.md "Never assume — verify".

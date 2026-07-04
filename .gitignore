@@ -74,6 +74,10 @@ skills/find-skills
 # this repo's skills/). ctx7-managed and re-created on demand — not vendored here.
 skills/find-docs/
 
+# Context7 rule — (re)written by the same `ctx7 setup` into ~/.claude/rules (a
+# symlink to this repo's rules/). ctx7-managed — not vendored here.
+rules/context7.md
+
 # Staging area used by lib/toggle-external.sh when disabling a tool
 skills-disabled/
 
