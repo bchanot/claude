@@ -20,7 +20,7 @@ link_file() {
 link_file "$REPO/CLAUDE.md"     "$CLAUDE/CLAUDE.md"
 link_file "$REPO/settings.json" "$CLAUDE/settings.json"
 
-for item in hooks agents skills lib templates; do
+for item in hooks agents skills lib templates rules; do
   target="$CLAUDE/$item"
   if [ -L "$target" ]; then
     if [ "$(readlink "$target")" = "$REPO/$item" ]; then
