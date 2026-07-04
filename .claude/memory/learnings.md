@@ -114,6 +114,7 @@ rules:
 | LRN-092 | 2026-07-03 | SAST smoke test w/ the OFFICIAL example secret = vacuous pass (rules exclude documented example keys by design); validate w/ realistic payloads + measure tier coverage before trusting a gate ruleset | smoke-testing any detector/gate — never the canonical example payload |
 | LRN-093 | 2026-07-03 | grep -F pattern w/ embedded newline = per-line OR = lock that matches anything; structure locks single-line only, flip-test new locks | writing any grep-based structure lock / census test |
 | LRN-094 | 2026-07-03 | SAST severity ≠ exploitability — semgrep ERROR conflates real vulns + hardening recos; metadata does NOT cleanly separate them (measured) → metadata refinement = noisy gate; ERROR-threshold + diff-scoping is the containment | mapping a SAST tool's output to a blocking gate |
+| LRN-095 | 2026-07-03 | orthogonal gates don't contaminate — a conformity verifier must PASS correct-but-insecure code (security is a separate gate's job); proven live (CONFORME on a feature carrying a SQLi); fusing the two degrades each | designing multi-dimension review/verify/audit gates |
 
 ---
 
@@ -1000,3 +1001,9 @@ rules:
 - **context**: lot 3 security-auditor design 2026-07-03. Measured on 2 real repos (faunosteo, game): the only added blocking ERROR from owasp-top-ten is Dockerfile hygiene, contained because gate mode scopes to the DIFF (a pre-existing infra finding can't block an unrelated code change).
 - **future application**: mapping any SAST to a blocking gate — take the tool's ERROR/blocking level as the deterministic threshold, contain FP by SCOPING (diff, not repo), NOT by a metadata heuristic or a hand-maintained hygiene denylist ([[LRN-049]]: match guard cost to proven stake — build the denylist only if hygiene ERRORs prove noisy on a real project).
 - **cousin**: [[LRN-047]] noisy gate = ignored; [[LRN-077]] non-deterministic gate; conditions [[BDR-048]].
+
+## LRN-095 — Orthogonal gates don't contaminate: a conformity check must pass correct-but-insecure code
+- **pattern**: when a pipeline has distinct gates (request-conformity, security), each judges ONLY its dimension. A conformity verifier must return CONFORME on code that is correct-but-insecure — the vuln is the SECURITY gate's job, not a conformity gap. Proven live: a `get_item` feature satisfying its contract but carrying a `%`-interpolation SQLi → verifier CONFORME, security-auditor BLOCK(1). Fusing the two into one "quality" gate makes each worse: the conformity check starts hunting vulns (scope creep, misses conformity), the security check starts judging feature-completeness (dilutes).
+- **context**: lot 4 verify-secure-loop dogfood 2026-07-03. The orthogonality is WHY the order invariant matters (re-verify request before re-scan security) — two independent axes re-checked independently.
+- **future application**: any multi-dimension gate (review lenses, verify+audit, correctness+perf) — keep each gate single-axis and let a finding on axis B pass axis A's gate; compose verdicts in the orchestrator, don't merge the judges.
+- **cousin**: [[BDR-050]] the pipeline; [[BDR-049]] fresh verifier; conditions [[LRN-083]].

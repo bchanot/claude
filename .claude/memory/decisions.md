@@ -71,6 +71,7 @@ rules:
 | BDR-047 | 2026-07-01 | ECC audit → zero import; local config ahead of reference | accepted |
 | BDR-048 | 2026-07-03 | semgrep security gate: engine version + rulesets PINNED, never --config auto; upgrade = deliberate visible human jump | accepted |
 | BDR-049 | 2026-07-03 | verifier = fresh + blind (no iteration history) + disk-contract + PROOF-or-fail; mute ≠ PASS; scope enrichment via human micro-gate | accepted |
+| BDR-050 | 2026-07-03 | universal pipeline (contract→dev inline→fresh verify→fresh security, loops bounded 3× in main loop) with per-flow weighting; hotfix failure = revert not loop | accepted |
 
 ---
 
@@ -807,3 +808,11 @@ rules:
 - **Rationale**: dev self-score is always confident → not a gate. Verifier fed history anchors on prior verdicts → telescopic drift. Context-only contract dies at compaction, the verbatim with it.
 - **Alternatives rejected**: dev self-assessment as gate; cumulative verifier context ("cheaper" but anchored); gitignored run files (lose escalation reference + session-death survival).
 - **Reference**: lib/contract-interview.md + agents/verifier.md + lib/tests/contract-verifier.test.sh (31 locks) — branch feature/contract-verifier `6aed5ee`. Behavioral GREEN: planted-gap → ECARTS(2) exact; conform-under-injected-history → CONFORME (blindness held). Twin of [[BDR-048]] (security gate). Conditions [[LRN-048]], [[LRN-083]].
+
+## BDR-050 — Universal verify+secure pipeline, weighted per flow (loops in the main loop)
+
+- **Date**: 2026-07-03
+- **Decision**: every dev flow = contract (verbatim, on disk) → dev INLINE → fresh verifier (request conformity) → fresh security-auditor (`MODE: gate`) → commit. Loops BOUNDED at 3 and decided in the ORCHESTRATOR MAIN LOOP ([[LRN-083]]), never in a subagent. Order invariant: on any security re-loop, re-verify the REQUEST before re-scanning security. Per-flow weight: feat/bugfix = both gates, both loop (nominal 2 dispatches); hotfix = NO fresh verifier (its smoke-check verifies the trivial autofill contract), security gate whose FAILURE REVERTS (`git restore` + escalate to /bugfix), never loops — the 1-attempt model preserved (nominal 1 dispatch). Shared include `lib/verify-secure-loop.md` for feat/bugfix; hotfix inline variant.
+- **Rationale**: the value is the INDEPENDENCE of the gate (fresh subagent vs a rich contract), NOT delegating the dev — so dev stays inline in light flows and weighting lives on loops+questions, never on skipping a gate. hotfix reverts because a 3× loop would reintroduce the weight its identity excludes.
+- **Alternatives rejected**: dispatch the dev too (turns feat into ship-feature-bis); one merged "quality" gate (see [[LRN-095]] — orthogonal gates degrade if fused); hotfix loops like feat (breaks its 1-attempt identity).
+- **Reference**: lib/verify-secure-loop.md + wired feater/bugfixer/hotfixer + lib/tests/loops-light.test.sh (27 locks) — feature/verify-loops `0f0162d`. Behavioral GREEN (feat fixture): CONFORME→BLOCK(1) SQLi→fix→re-verify CONFORME→re-scan PASS, order invariant held. Builds on [[BDR-048]] [[BDR-049]]. Conditions [[LRN-083]] [[LRN-095]].
