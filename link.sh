@@ -90,7 +90,7 @@ done
 # absolute paths so the link stays valid regardless of where the
 # repo is cloned (relative ../../ paths broke on repos deeper than
 # one level below $HOME).
-NPX_EXTERNAL_SKILLS=(darwin-skill find-skills)
+NPX_EXTERNAL_SKILLS=(darwin-skill)
 for _ext in "${NPX_EXTERNAL_SKILLS[@]}"; do
   _target="$HOME/.agents/skills/$_ext"
   _link="$REPO/skills/$_ext"

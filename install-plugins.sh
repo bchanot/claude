@@ -832,7 +832,6 @@ echo ""
 
 NPX_SKILLS=(
   "alchaincyf/darwin-skill"
-  "alchaincyf/find-skills"
 )
 
 # `skills add` resolves its target (.agents/skills/, skills-lock.json) RELATIVE
@@ -985,7 +984,7 @@ echo ""
 # STEP 10 — REFRESH SYMLINKS (final, so this script is self-sufficient)
 # ============================================================
 # Steps 2/8/8.5 INSTALL skills (gstack submodule, emil/frontend/motion, npx
-# darwin/find-skills) that link.sh must symlink into ~/.claude/skills/. Since
+# darwin-skill) that link.sh must symlink into ~/.claude/skills/. Since
 # link.sh runs BEFORE this script in install.sh, those symlinks would be missing
 # on a fresh run until link.sh is run again by hand. Re-run it here so
 # `make plugin` (and `make install`) finish complete — nothing left to do.
@@ -1023,7 +1022,6 @@ echo "    🔄 frontend-design     — distinctive frontend interfaces, anti-AI-
 echo "    🔄 impeccable          — /impeccable design verbs + 45-rule deterministic detector (npx impeccable detect)"
 echo "    🔄 design-motion-principles — motion/animation design, 3-designer lens (kylezantos)"
 echo "    🔄 darwin-skill        — autonomous skill optimizer (npx skills, ~/.agents/skills/)"
-echo "    🔄 find-skills         — skill discovery helper (npx skills, ~/.agents/skills/)"
 echo "    🔄 magic MCP           — 21st-dev UI generation MCP (toggle: lib/toggle-external.sh enable magic)"
 echo ""
 echo "  All plugins installed at: user scope (~/.claude/plugins/)"

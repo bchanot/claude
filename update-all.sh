@@ -388,7 +388,6 @@ echo "── Updating external skills (npx skills)..."
 if command -v npx &>/dev/null; then
   NPX_SKILLS=(
     "alchaincyf/darwin-skill"
-    "alchaincyf/find-skills"
   )
   for _src in "${NPX_SKILLS[@]}"; do
     _name="${_src##*/}"
