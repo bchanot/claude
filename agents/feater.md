@@ -65,6 +65,17 @@ already constrain or forbid the approach; an LRN may name a gotcha to apply. Emi
 MEMORY; feed STEP 1 MINI-PLAN. Inline consumption — reader = planner, no injection.
 `.claude/memory/` absent → guarded no-op (zero overhead on a memory-less repo).
 
+## STEP 0.7 — CONTRACT
+
+Run `$HOME/.claude/lib/contract-interview.md` (main loop — you are it). It
+captures the request verbatim, asks 0-3 questions PROPORTIONAL to ambiguity
+(a complete request → zero questions, silent), derives testable acceptance
+criteria + file scope, and writes the contract to
+`.claude/tasks/contracts/<date>-<slug>-<HHMM>.md`. Keep the path — GATE 1
+(STEP 3) hands it to a fresh verifier. On a small, clear feature this is a
+few seconds and no questions; it is the single reference the verifier judges
+against, not a restatement.
+
 ## STEP 1 — MINI-PLAN
 
 Quick mental model, not a formal plan document:
@@ -101,19 +112,24 @@ Work through the plan:
 - Follow existing patterns in the codebase.
 - Run tests incrementally as you go.
 
-## STEP 3 — VERIFY
+## STEP 3 — VERIFY + SECURE (fresh gates, bounded loops)
 
-1. Run the full relevant test suite:
-   ```bash
-   # detect and run tests, lint, type-check
-   ```
-2. If a dev server is relevant, mention what the user should
-   check visually.
-3. Quick self-review: scan your diff for obvious issues:
-   ```bash
-   git diff --stat
-   git diff
-   ```
+First, your own pre-check (dev-side, fast): run the relevant test suite /
+lint / type-check, and if a dev server is relevant note what to check
+visually. This is your smoke test, NOT the gate.
+
+Then run the two fresh gates per `$HOME/.claude/lib/verify-secure-loop.md`
+with `CONTRACT` = the STEP 0.7 path, `DIFF` = your working-tree diff, `TEST`
+= the suite you just ran:
+
+- GATE 1 — a FRESH verifier judges the diff against the contract (blind, no
+  self-score of yours counts). CONFORME on the first pass → straight to GATE
+  2, no loop. ECARTS → fix the named gaps, re-verify, max 3 → escalate.
+- GATE 2 — a FRESH security-auditor (`MODE: gate`) scans the diff. PASS →
+  commit. BLOCK → fix, re-verify the request THEN re-scan, max 3 → escalate.
+
+Nominal (clear request, conform first pass, clean diff) = exactly one
+verifier + one security dispatch. The loop only costs when it loops.
 
 ## STEP 4 — COMMIT
 

@@ -100,6 +100,16 @@ RISK: <low/medium — what could go wrong>
 - If the fix is significant (>10 lines, multiple files,
   behavior change): wait for user approval.
 
+## STEP 3.5 — CONTRACT
+
+Run `$HOME/.claude/lib/contract-interview.md` (main loop). The DIAGNOSIS
+feeds it: REQUEST verbatim = the bug report as received; ACCEPTANCE CRITERIA
+= the symptom reproduced-then-gone + a regression test present and passing;
+FILE SCOPE = the FIX PLAN files. Questions stay proportional (a clear,
+reproduced bug → zero). It writes the contract to
+`.claude/tasks/contracts/<date>-<slug>-<HHMM>.md`; keep the path for GATE 1
+(STEP 5).
+
 ## STEP 4 — FIX
 
 **Gitflow aiguillage (before editing):** follow `$HOME/.claude/lib/gitflow-aiguillage.md`
@@ -131,7 +141,19 @@ Apply the fix following the plan:
    ```
 2. If a build step exists, verify it passes (`npm run build`, `tsc --noEmit`, `cargo build`, etc.).
 3. Check for regressions in related functionality.
-4. **Pre-commit confirmation gate.** Before running `git commit`, present the diff
+4. **Fresh gates (verify + secure), bounded loops.** Steps 1-3 are your
+   dev-side smoke test, NOT the gate. Run the two fresh gates per
+   `$HOME/.claude/lib/verify-secure-loop.md` with `CONTRACT` = the STEP 3.5
+   path, `DIFF` = the fix diff, `TEST` = the suite from step 1:
+   - GATE 1 — a FRESH verifier judges the fix against the contract (bug gone
+     + regression test present). CONFORME → GATE 2. ECARTS → fix, re-verify,
+     max 3 → escalate.
+   - GATE 2 — a FRESH security-auditor (`MODE: gate`) scans the fix diff
+     (a bug fix can introduce a vuln). PASS → commit gate. BLOCK → fix,
+     re-verify request THEN re-scan, max 3 → escalate.
+
+   Nominal = one verifier + one security dispatch. Only then the commit gate.
+5. **Pre-commit confirmation gate.** Before running `git commit`, present the diff
    summary and the proposed message, then wait for approval:
 
    ```
@@ -152,7 +174,7 @@ Apply the fix following the plan:
    - `skip` → leave changes uncommitted, exit cleanly.
    - `amend last` → the fix should fold into the previous commit (use only when prior commit is unpushed).
 
-5. Commit using conventional format (after approval):
+6. Commit using conventional format (after approval):
    ```
    fix(<scope>): <root cause description>
 
@@ -161,7 +183,7 @@ Apply the fix following the plan:
 
    Co-Authored-By: Claude <noreply@anthropic.com>
    ```
-6. Print summary:
+7. Print summary:
    ```
    BUGFIX COMPLETE
    BUG        : <symptom>

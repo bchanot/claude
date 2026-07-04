@@ -69,6 +69,10 @@ rules:
 | BDR-045 | 2026-07-01 | Standalone memory/doc skills branch to chore/* via aiguillage (hook exemption kept) | accepted |
 | BDR-046 | 2026-07-01 | Claude Code installs via official native installer (curl claude.ai/install.sh), drop npm from install.sh | accepted |
 | BDR-047 | 2026-07-01 | ECC audit → zero import; local config ahead of reference | accepted |
+| BDR-048 | 2026-07-03 | semgrep security gate: engine version + rulesets PINNED, never --config auto; upgrade = deliberate visible human jump | accepted |
+| BDR-049 | 2026-07-03 | verifier = fresh + blind (no iteration history) + disk-contract + PROOF-or-fail; mute ≠ PASS; scope enrichment via human micro-gate | accepted |
+| BDR-050 | 2026-07-03 | universal pipeline (contract→dev inline→fresh verify→fresh security, loops bounded 3× in main loop) with per-flow weighting; hotfix failure = revert not loop | accepted |
+| BDR-051 | 2026-07-04 | contract enrich-at-gate: the contract grows ONLY at a human micro-gate ([gated] marker); the verifier judges the ENRICHED contract, not the seed | accepted |
 
 ---
 
@@ -788,3 +792,36 @@ rules:
   ONE scope gap: BDR-047 never opened hooks/ — ECC's only WIRED subsystem. Fruit:
   config-protection hook (own idiom, NOT ECC import), shipped
   feature/config-protection-hook. Lesson holds + refined by [[LRN-090]].
+
+## BDR-048 — Deterministic security gate: pinned engine + pinned rulesets (semgrep)
+
+- **Date**: 2026-07-03
+- **Decision**: semgrep = BLOCKING gate (verify-loops chantier) → engine version PINNED in plugins.lock.json (gsd-pin pattern; update-all.sh honors pin + displays jump cur→pin before `pipx install --force`). Rulesets PINNED in-agent: `p/security-audit` + `p/secrets`. Never `--config auto` (registry telemetry + ruleset resolved per-run = non-deterministic gate, [[LRN-077]] class). Never auto `semgrep login` — Pro rules optional, guide-only (ctx7 pattern).
+- **Rationale**: gate blocks HIGH/CRITICAL only ([[LRN-047]]); silent engine/rule upgrade = new BLOCKs on unchanged code w/o human decision → gate crying false → ignored. Version jump must be deliberate + visible (bump pin, then `make update` shows the jump).
+- **Alternatives rejected**: `latest` (pipx house default, graphifyy-style) — fine for comfort tools, wrong for a blocking gate; `--config auto` — telemetry + non-determinism.
+- **Reference**: plugins.lock.json `semgrep` entry, install-plugins.sh STEP 7.5, update-all.sh step 6.2 — branch feature/semgrep-install `ccfecc9`. Conditions [[LRN-047]], [[LRN-085]]. Coverage caveat of the community rulesets: [[LRN-092]].
+- **Addendum 2026-07-03** (lot 3, measured): rulesets = `p/security-audit` + `p/secrets` + **`p/owasp-top-ten`**. owasp-top-ten is REQUIRED not optional — measured on realistic Flask code, the 2-ruleset baseline missed SQL injection + path traversal ENTIRELY (0 findings); owasp's taint rules catch them. Severity map: secrets ERROR→CRITICAL, other ERROR→HIGH (block), WARNING/INFO→reported. Blocking threshold = ERROR (per-RULE, not per-vuln — same class can straddle ERROR/WARNING; blocking WARNING too floods FP). FP measured shell/md only (faunosteo, game: sole added blocking ERROR = Dockerfile `missing-user` hygiene, contained by gate-mode diff-scoping). **Re-evaluate owasp FP at the first real web/python app project** (shell/md repos don't represent where the gate runs). See [[LRN-094]], agents/security-auditor.md branch feature/security-auditor `2b297bd`.
+
+## BDR-049 — Verifier doctrine: fresh + blind + disk-contract + proof-or-fail
+
+- **Date**: 2026-07-03
+- **Decision**: conformity verdict comes ONLY from a FRESH verifier subagent per iteration. Input = contract PATH (read from disk — dev restatement structurally unable to interpose) + diff range + optional test cmd. NEVER iteration history: blind, complete verification every time (cost bounded by the main-loop max-3 cap, [[LRN-083]]: loops decided in main loop). CONFORME ⇔ all criteria MET + zero out-of-scope. PROOF line mandatory ([[LRN-048]]). Mute/unparsable verifier NEVER a PASS: 1 fresh retry, 2nd structural failure = human escalation. Dev-justified out-of-scope enters FILE SCOPE only via a human micro-gate (`[gated]` marker) — else the dev justifies everything and scope constrains nothing. Contract on DISK at creation (`.claude/tasks/contracts/<date>-<slug>-<HHMM>.md`, committed; aborted run → deleted or `status: aborted`, never left dirty).
+- **Rationale**: dev self-score is always confident → not a gate. Verifier fed history anchors on prior verdicts → telescopic drift. Context-only contract dies at compaction, the verbatim with it.
+- **Alternatives rejected**: dev self-assessment as gate; cumulative verifier context ("cheaper" but anchored); gitignored run files (lose escalation reference + session-death survival).
+- **Reference**: lib/contract-interview.md + agents/verifier.md + lib/tests/contract-verifier.test.sh (31 locks) — branch feature/contract-verifier `6aed5ee`. Behavioral GREEN: planted-gap → ECARTS(2) exact; conform-under-injected-history → CONFORME (blindness held). Twin of [[BDR-048]] (security gate). Conditions [[LRN-048]], [[LRN-083]].
+
+## BDR-050 — Universal verify+secure pipeline, weighted per flow (loops in the main loop)
+
+- **Date**: 2026-07-03
+- **Decision**: every dev flow = contract (verbatim, on disk) → dev INLINE → fresh verifier (request conformity) → fresh security-auditor (`MODE: gate`) → commit. Loops BOUNDED at 3 and decided in the ORCHESTRATOR MAIN LOOP ([[LRN-083]]), never in a subagent. Order invariant: on any security re-loop, re-verify the REQUEST before re-scanning security. Per-flow weight: feat/bugfix = both gates, both loop (nominal 2 dispatches); hotfix = NO fresh verifier (its smoke-check verifies the trivial autofill contract), security gate whose FAILURE REVERTS (`git restore` + escalate to /bugfix), never loops — the 1-attempt model preserved (nominal 1 dispatch). Shared include `lib/verify-secure-loop.md` for feat/bugfix; hotfix inline variant.
+- **Rationale**: the value is the INDEPENDENCE of the gate (fresh subagent vs a rich contract), NOT delegating the dev — so dev stays inline in light flows and weighting lives on loops+questions, never on skipping a gate. hotfix reverts because a 3× loop would reintroduce the weight its identity excludes.
+- **Alternatives rejected**: dispatch the dev too (turns feat into ship-feature-bis); one merged "quality" gate (see [[LRN-095]] — orthogonal gates degrade if fused); hotfix loops like feat (breaks its 1-attempt identity).
+- **Reference**: lib/verify-secure-loop.md + wired feater/bugfixer/hotfixer + lib/tests/loops-light.test.sh (27 locks) — feature/verify-loops `0f0162d`. Behavioral GREEN (feat fixture): CONFORME→BLOCK(1) SQLi→fix→re-verify CONFORME→re-scan PASS, order invariant held. Builds on [[BDR-048]] [[BDR-049]]. Conditions [[LRN-083]] [[LRN-095]].
+
+## BDR-051 — Contract enrich-at-gate: the contract grows only at a human micro-gate
+
+- **Date**: 2026-07-04
+- **Decision**: the CONTRACT's REQUEST is immutable, but ACCEPTANCE CRITERIA + FILE SCOPE may GROW — exclusively at a human gate, each added entry tagged `[gated <date>]`. In the heavy flows (ship-feature STEP 3, init-project GATE #1) the approved DESIGN appends design-derived criteria to the contract; the fresh verifier then judges the diff against the ENRICHED contract, never the seed. Same mechanism as the out-of-scope micro-gate ([[BDR-049]]) — a dev never enriches; only the human validating a gate does.
+- **Rationale**: the raw request underspecifies (a one-line "add validation" hides the schema-rejection requirement the design surfaces). If the verifier judged only the seed, every design decision would be unverified. Gating the growth keeps the contract honest (no silent scope creep) AND complete (design criteria are verified). The only flow where the contract is mutable mid-run — bounded to gate moments.
+- **Alternatives rejected**: freeze the contract at creation (design criteria unverified — the seed is too thin); let the dev enrich (the [[BDR-049]] failure mode — dev justifies everything, scope constrains nothing); a second contract per design (loses the single-reference property).
+- **Reference**: ship-feature STEP 0e+3, init-project STEP 1+4, feature/verify-loops `1c69de2`. Behavioral GREEN: a `[gated 2026-07-04]` design criterion (reject unknown config keys) was read + judged NOT-MET by a fresh verifier across 3 rounds (dogfood). Builds on [[BDR-049]] [[BDR-050]].

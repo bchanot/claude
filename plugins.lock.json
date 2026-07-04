@@ -26,6 +26,12 @@
     "managed_by": "pipx",
     "note": "Codebase knowledge graph. CLI is 'graphify'. Install: pipx install graphifyy && graphify install && graphify claude install. Adds PreToolUse hook for Glob/Grep."
   },
+  "semgrep": {
+    "source": "pypi:semgrep",
+    "version": "1.168.0",
+    "managed_by": "pipx",
+    "note": "SAST engine for the security gate (security-auditor agent, onboard cso fallback, audit-delta). Rulesets pinned in-agent: p/security-audit + p/secrets (never --config auto). BLOCKING gate -> pin honored by update-all.sh: 'make update' will NOT advance semgrep past it; bump deliberately (new rules = new BLOCKs on unchanged code). Never run 'semgrep login' automatically (Pro rules are optional, guide-only)."
+  },
   "emil-design-eng": {
     "source": "https://github.com/emilkowalski/skill",
     "path": "skills/emil-design-eng/SKILL.md",
