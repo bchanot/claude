@@ -115,6 +115,7 @@ rules:
 | LRN-093 | 2026-07-03 | grep -F pattern w/ embedded newline = per-line OR = lock that matches anything; structure locks single-line only, flip-test new locks | writing any grep-based structure lock / census test |
 | LRN-094 | 2026-07-03 | SAST severity ≠ exploitability — semgrep ERROR conflates real vulns + hardening recos; metadata does NOT cleanly separate them (measured) → metadata refinement = noisy gate; ERROR-threshold + diff-scoping is the containment | mapping a SAST tool's output to a blocking gate |
 | LRN-095 | 2026-07-03 | orthogonal gates don't contaminate — a conformity verifier must PASS correct-but-insecure code (security is a separate gate's job); proven live (CONFORME on a feature carrying a SQLi); fusing the two degrades each | designing multi-dimension review/verify/audit gates |
+| LRN-096 | 2026-07-04 | a backstop/guard is code — reliable ONLY after a flip-test proves it CAN fail; an unproven guard replacing an advisory = a vacuous guard (LRN-048 applied to guards); flip-test mandatory at guard creation | building any deterministic guard/lint/backstop |
 
 ---
 
@@ -1007,3 +1008,10 @@ rules:
 - **context**: lot 4 verify-secure-loop dogfood 2026-07-03. The orthogonality is WHY the order invariant matters (re-verify request before re-scan security) — two independent axes re-checked independently.
 - **future application**: any multi-dimension gate (review lenses, verify+audit, correctness+perf) — keep each gate single-axis and let a finding on axis B pass axis A's gate; compose verdicts in the orchestrator, don't merge the judges.
 - **cousin**: [[BDR-050]] the pipeline; [[BDR-049]] fresh verifier; conditions [[LRN-083]].
+
+## LRN-096 — A backstop is code: prove it can FAIL (flip-test) before trusting its green
+- **pattern**: a deterministic guard built to replace a forgettable advisory is itself code, and an UNPROVEN guard is a vacuous guard — [[LRN-048]] (a pass must prove it looked) applied to guards themselves. The LRN-093 backstop (refuse `\n` in grep/tf patterns) shipped with a regex requiring whitespace before `tf` → it silently MISSED `tf` at line start (exactly where the real locks sit). A flip-test (feed the guard a KNOWN offender, assert it bites) caught the hole; without it the guard would have green-lit the very class it was built to kill. So: a flip-test is MANDATORY at guard creation, part of the guard, not optional QA.
+- **why it matters**: the whole point of a backstop is that it fires on the bad case; a guard that can't fail proves nothing and is WORSE than the advisory it replaced (false confidence). The advisory→backstop move ([[LRN-047]] [[LRN-091]], own doctrine) is only sound if the backstop is itself verified against a real miss.
+- **context**: lot 5 `lib/tests/no-vacuous-locks.test.sh` 2026-07-04. Built the guard, its flip-test RED'd (regex too weak, missed line-start `tf`), fixed the regex, flip-test green. The guard now ships WITH the flip-test inline so it self-proves on every run.
+- **future application**: building any guard/lint/census/backstop — bundle a flip-test (a synthetic offender the guard must catch) in the same file; a guard whose failure path was never exercised is untrusted. Corroborates [[LRN-047]]/[[LRN-091]] (advisory→deterministic) — this is the *quality bar* on the deterministic replacement.
+- **cousin**: [[LRN-048]] prove it looked; [[LRN-093]] the class this guards; [[LRN-046]] deterministic-oracle discipline.

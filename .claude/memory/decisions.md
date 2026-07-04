@@ -72,6 +72,7 @@ rules:
 | BDR-048 | 2026-07-03 | semgrep security gate: engine version + rulesets PINNED, never --config auto; upgrade = deliberate visible human jump | accepted |
 | BDR-049 | 2026-07-03 | verifier = fresh + blind (no iteration history) + disk-contract + PROOF-or-fail; mute ≠ PASS; scope enrichment via human micro-gate | accepted |
 | BDR-050 | 2026-07-03 | universal pipeline (contract→dev inline→fresh verify→fresh security, loops bounded 3× in main loop) with per-flow weighting; hotfix failure = revert not loop | accepted |
+| BDR-051 | 2026-07-04 | contract enrich-at-gate: the contract grows ONLY at a human micro-gate ([gated] marker); the verifier judges the ENRICHED contract, not the seed | accepted |
 
 ---
 
@@ -816,3 +817,11 @@ rules:
 - **Rationale**: the value is the INDEPENDENCE of the gate (fresh subagent vs a rich contract), NOT delegating the dev — so dev stays inline in light flows and weighting lives on loops+questions, never on skipping a gate. hotfix reverts because a 3× loop would reintroduce the weight its identity excludes.
 - **Alternatives rejected**: dispatch the dev too (turns feat into ship-feature-bis); one merged "quality" gate (see [[LRN-095]] — orthogonal gates degrade if fused); hotfix loops like feat (breaks its 1-attempt identity).
 - **Reference**: lib/verify-secure-loop.md + wired feater/bugfixer/hotfixer + lib/tests/loops-light.test.sh (27 locks) — feature/verify-loops `0f0162d`. Behavioral GREEN (feat fixture): CONFORME→BLOCK(1) SQLi→fix→re-verify CONFORME→re-scan PASS, order invariant held. Builds on [[BDR-048]] [[BDR-049]]. Conditions [[LRN-083]] [[LRN-095]].
+
+## BDR-051 — Contract enrich-at-gate: the contract grows only at a human micro-gate
+
+- **Date**: 2026-07-04
+- **Decision**: the CONTRACT's REQUEST is immutable, but ACCEPTANCE CRITERIA + FILE SCOPE may GROW — exclusively at a human gate, each added entry tagged `[gated <date>]`. In the heavy flows (ship-feature STEP 3, init-project GATE #1) the approved DESIGN appends design-derived criteria to the contract; the fresh verifier then judges the diff against the ENRICHED contract, never the seed. Same mechanism as the out-of-scope micro-gate ([[BDR-049]]) — a dev never enriches; only the human validating a gate does.
+- **Rationale**: the raw request underspecifies (a one-line "add validation" hides the schema-rejection requirement the design surfaces). If the verifier judged only the seed, every design decision would be unverified. Gating the growth keeps the contract honest (no silent scope creep) AND complete (design criteria are verified). The only flow where the contract is mutable mid-run — bounded to gate moments.
+- **Alternatives rejected**: freeze the contract at creation (design criteria unverified — the seed is too thin); let the dev enrich (the [[BDR-049]] failure mode — dev justifies everything, scope constrains nothing); a second contract per design (loses the single-reference property).
+- **Reference**: ship-feature STEP 0e+3, init-project STEP 1+4, feature/verify-loops `1c69de2`. Behavioral GREEN: a `[gated 2026-07-04]` design criterion (reject unknown config keys) was read + judged NOT-MET by a fresh verifier across 3 rounds (dogfood). Builds on [[BDR-049]] [[BDR-050]].
