@@ -1,5 +1,38 @@
 # TODO
 
+## 2026-07-04 — skill /tour (tir groupé multi-projets, feature/tour-skill)
+Goal: 1 orchestrateur = clean-code + sécurité (security-auditor/semgrep [+cso si
+gstack ON]) + reconcile + doc, mode auto, sur 1..N projets. Boucle de convergence
+(fixes peuvent invalider l'audit précédent) BORNÉE 3× (LRN-083). Build via
+superpowers:writing-skills (TDD, pattern audit-delta/reconcile) + guidance
+skill-creator (structure, description trigger-pushy).
+Design verrouillé :
+- auto = fixes committés sur `chore/tour-<date>` par repo (gitflow lib), JAMAIS
+  finish/merge (signal humain only). Tree sale ou pas de develop → report-only.
+- ordre par repo : sécurité → clean → re-verify (checks projet, fail=revert
+  fail-closed) → reconcile (REPORT-ONLY, jamais d'auto-coche TODO) → doc
+  (mode silencieux doc-syncer) → re-audit convergence.
+- convergence = 1 passe complète à zéro finding nouveau + checks verts ;
+  sinon re-boucle, max 3 itérations, résidus rapportés honnêtement.
+- rapport `.claude/audits/TOUR.md` par repo + synthèse inline multi-repos.
+- registres : offre capitalize gatée en fin, jamais silencieux.
+- [x] RED : fixture repo → baseline SANS skill. 6 gaps : TODO cible ré-écrit
+      silencieusement ; registres écrits de façon autonome ; sécu = grep ad-hoc
+      sans semgrep ; zéro rapport persistant ; scope creep (.gitignore +
+      registres bootstrap) ; boucle sans borne déclarée. (Bien fait : branche
+      gitflow via lib, pas de merge, commits atomiques, convergence passe 2.)
+- [x] GREEN : skills/tour/SKILL.md — run avec skill sur fixture-green,
+      6/6 gaps fermés VÉRIFIÉS sur disque (TODO zero-diff, 0 registre,
+      semgrep chaque itération, TOUR.md committé 18 findings, 0 scope
+      creep, 3 it. bornées convergées, chore branch non mergée)
+- [x] REFACTOR : 2 trous du GREEN patchés (scratch semgrep non trackés →
+      auto-blocage du prochain run, STEP 3.2 cleanup ; fix sécu cassant
+      non signalé → tag BREAKING structurel dans template). Additions
+      template-structurelles NON re-testées par un 3e run complet (coût) —
+      re-test au premier usage réel.
+- [x] Routage CLAUDE.md (ligne « Grouped all-axes sweep → tour »)
+- [ ] Commit branche (pas de finish sans GO)
+
 ## 2026-07-03 — verify loops + semgrep gate + contract (chantier orchestrateurs)
 Archi validée au gate (session 2026-07-03). Cible : contract sur DISQUE dès
 création (fichier de run, pattern DIAGNOSIS) + verifier frais (verdict structuré
