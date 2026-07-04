@@ -65,8 +65,16 @@ echo ""
 echo "── Updating GStack submodule..."
 warn "GStack tracks branch = main (no commit hash). Review upstream commits before updating."
 echo ""
-printf "  Proceed with GStack update? [y/N] "
-read -r _gstack_confirm
+# TTY guard: in a non-interactive run (cron, CI, background shell) `read`
+# hits EOF and dies under set -e — the whole update aborted mid-script.
+# Default to the safe N and keep going; interactive behavior unchanged.
+if [ -t 0 ]; then
+  printf "  Proceed with GStack update? [y/N] "
+  read -r _gstack_confirm
+else
+  info "Non-interactive run — skipping GStack update (run in a terminal to be prompted)"
+  _gstack_confirm="n"
+fi
 if [[ "$_gstack_confirm" =~ ^[Yy]$ ]]; then
   # Capture gstack state before the update so we can restore it after
   # ./setup runs (setup re-creates every symlink; without this, an
