@@ -197,6 +197,7 @@ if command -v cargo &>/dev/null; then
 else
   info "Installing Rust (rustup)..."
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
+  # shellcheck source=/dev/null
   source "$HOME/.cargo/env"
   ok "Rust installed: $(cargo --version)"
 fi
