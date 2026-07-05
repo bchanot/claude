@@ -1,5 +1,34 @@
 # TODO
 
+## 2026-07-05 — impeccable install chain (feature/impeccable-install)
+Décision (user a délégué) : COMPLÉMENTAIRES → les deux. frontend-design garde
+la direction esthétique au build ; impeccable (pbakaus, 43.6k⭐, Apache-2.0,
+actif) apporte l'UNIQUE manquant : 45 règles déterministes anti-slop (CLI
+`impeccable detect`, exit 0/2, --json — le semgrep du design, doctrine
+backstop-déterministe) + 23 verbes sous UN skill (/impeccable) + contexte
+design persistant (DESIGN.md/PRODUCT.md). Faits vérifiés : npm CLI 3.2.0
+(skill dist = track séparé), `skills install -y --providers=claude
+--scope=project --no-hooks`, **Node ≥ 24 requis (hôte = 22.22)** → step
+fail-soft + décision bump Node à l'user. Classifier a bloqué npx (code tiers)
+→ dogfood via `make plugin` côté user.
+Pattern : ctx7/machine-owned (skills-external/impeccable gitignoré, synced
+par installeur, symlinké par link.sh EXTERNAL_SKILLS, profils type external).
+PAS en GATE-BLOCK design.profile tant que Node<24 + pas dogfoodé.
+- [x] plugins.lock.json — entry impeccable pin 3.2.0
+- [x] install-plugins.sh — Step 8d staged npx install → skills-external
+- [x] update-all.sh — step miroir pin-honored (Node<24 → skip, dist gardée)
+- [x] link.sh — EXTERNAL_SKILLS += impeccable
+- [x] .gitignore — skills/impeccable + skills-external/impeccable/
+- [x] profils design/web/web-full/full — impeccable external (show design →
+      « impeccable missing » = statut honnête pré-install)
+- [x] plugin-advisor.md + CLAUDE.md Design work + lib/design-gate.md
+- [x] README table + CHANGELOG Unreleased
+- [x] Verify — bash -n ×3 OK, shellcheck clean (SC1091 info only), lock JSON
+      valide, profile parse OK. Dogfood DIFFÉRÉ : classifier bloque npx code
+      tiers en auto-mode → user lance `make plugin` (une fois Node ≥ 24)
+- [ ] Follow-up (hors scope) : doctor.sh check (fichier gardé) ; GATE-BLOCK
+      promotion après dogfood ; bump Node 22→24 (décision user)
+
 ## 2026-07-04 — skill /tour (tir groupé multi-projets, feature/tour-skill)
 Goal: 1 orchestrateur = clean-code + sécurité (security-auditor/semgrep [+cso si
 gstack ON]) + reconcile + doc, mode auto, sur 1..N projets. Boucle de convergence

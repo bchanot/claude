@@ -28,6 +28,7 @@ plan-ceo-review
 emil-design-eng                   external
 frontend-design                   external
 design-motion-principles          external
+impeccable                        external
 
 # Plugin (auto-toggle)
 ui-ux-pro-max                     plugin@ui-ux-pro-max-skill

@@ -71,7 +71,7 @@ if [ -d "$GSTACK_SRC/browse/dist" ]; then
   fi
 fi
 
-EXTERNAL_SKILLS=(emil-design-eng frontend-design design-motion-principles)
+EXTERNAL_SKILLS=(emil-design-eng frontend-design design-motion-principles impeccable)
 for _ext_skill in "${EXTERNAL_SKILLS[@]}"; do
   if [ -d "$REPO/skills-external/$_ext_skill" ]; then
     if [ -L "$CLAUDE/skills/$_ext_skill" ] && [ "$(readlink "$CLAUDE/skills/$_ext_skill")" = "$REPO/skills-external/$_ext_skill" ]; then
