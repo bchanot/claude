@@ -152,3 +152,11 @@ rules:
 - **method**: main session verified ON DISK, not from agent summary: TODO zero-diff vs develop ✓, no target `.claude/memory/` created ✓, per-iteration semgrep report files present ✓, TOUR.md committed ✓, zero scope creep (no .gitignore) ✓, main/develop untouched + branch unmerged ✓, 3-iteration bound held ✓.
 - **anomalies**: (1) scratch semgrep files untracked → tree dirty at end, would self-block next run — patched STEP 3.2 [[LRN-100]]; (2) SEC-2 API-BREAKING fix (new required header) unflagged — patched template BREAKING tag; (3) positive: it2 re-verify caught regression of agent's OWN fix (`compare_digest(str)` raises on non-ASCII → 500 not 403), fixed + functionally proven it3 — re-verify loop has real teeth.
 - **action**: keep (skill shipped). REFACTOR additions not re-run through 3rd full pass — re-test at first real use ([[LRN-100]]).
+
+## EVAL-016 — /deploy first REAL run (bchanot-cv): bootstrap→instantiate→hand-back→mark, full cycle OK
+
+- **Date**: 2026-07-05
+- **output**: bootstrap Path B (4-field interview → @delta-annotated PROCEDURE.md + seeded INCIDENTS, commit `5fe8b41` via deploy-commit.sh rc=0) → first deploy: base null → delta = full tree (26 files), `@delta:rebuild when=` matched → NEXT.sh 3 steps → GATE all → PENDING.json bridge → hand-back → user "Deployed OK" → MARK: STATE.json (`deployed_sha` = bridge target, NOT HEAD), local tag `deploy/2026-07-05`, oracle commit `395c77b`, bridge consumed, tree clean.
+- **method**: real prod deploy (VPS). Independent live proof post-mark: curl bchanot.fr → 200 + nosniff + X-Frame-Options + CSP + HSTS + versionless server — tour SEC-2 fixed end-to-end, tour→prod loop closed.
+- **anomalies**: (1) NOT exercised: cold cross-session resume + STEP 4 learn (0 incidents) — natural test at next deploy/failure. (2) UX gap, user feedback: compound `ssh host "cd … && …"` one-liners ≠ wanted session style (one command per line), and the checklist lived only on disk — skill patched same day (step=block grammar, shape rule, hand-back prints NEXT.sh inline; template + bchanot-cv runbook restyled). Re-dogfood at next deploy.
+- **action**: keep. Two-moment contract works in-session; disk artifacts coherent throughout.
