@@ -19,8 +19,9 @@ gouverne le bloc entier.
       plus de fichier NEXT.sh du tout (jetable, PENDING+runbook régénèrent
       partout) ; hand-back TERMINE le tour par la checklist, aucun tool call
       après ; resume à froid = régénère + ré-affiche. Skill+template+CHANGELOG.
-- [ ] Re-dogfood pass 2 : la fin du deploy run 2 en cours (résidus b24c58b)
-      exerce le nouveau hand-back ; resume à froid + STEP 4 toujours vierges
+- [x] Re-dogfood pass 2 VALIDÉ (deploy run 2, b24c58b marqué 2026-07-05-2) :
+      checklist copiée depuis la conversation, deploy OK, CSP hash live sans
+      unsafe-inline. Resume à froid + STEP 4 (learn) toujours vierges
 
 ## 2026-07-05 — impeccable install chain (feature/impeccable-install)
 Décision (user a délégué) : COMPLÉMENTAIRES → les deux. frontend-design garde
