@@ -315,5 +315,6 @@
   },
   "effortLevel": "xhigh",
   "remoteControlAtStartup": true,
-  "skipAutoPermissionPrompt": true
+  "skipAutoPermissionPrompt": true,
+  "inputNeededNotifEnabled": true
 }

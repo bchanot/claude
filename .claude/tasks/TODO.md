@@ -1,5 +1,19 @@
 # TODO
 
+## 2026-07-05 — /deploy UX patch (feature/deploy-next-style)
+Feedback user au 1er run réel (bchanot-cv, [[EVAL-016]]) : NEXT.sh une commande
+par ligne (style session — ssh ouvre la box, la suite s'exécute dessus, local =
+"(from your machine)") + hand-back AFFICHE la checklist inline (aussi aux
+re-hand-back). Step = bloc (header + lignes jusqu'à ligne vide), @delta
+gouverne le bloc entier.
+- [x] skills/deploy/SKILL.md — grammaire bloc-étape + shape rule + print inline
+- [x] templates/deploy/PROCEDURE.md — restylé session
+- [x] bchanot-cv runbook restylé, committé, pushé (bd7f6e4, develop sync)
+- [x] settings.json +inputNeededNotifEnabled (layout committé inchangé)
+- [x] Capitalize EVAL-016 + journal
+- [ ] Re-dogfood au prochain /deploy réel (edit de skill non re-testé par run —
+      dette Iron Law assumée, même statut que la note d'authoring du skill)
+
 ## 2026-07-05 — impeccable install chain (feature/impeccable-install)
 Décision (user a délégué) : COMPLÉMENTAIRES → les deux. frontend-design garde
 la direction esthétique au build ; impeccable (pbakaus, 43.6k⭐, Apache-2.0,
