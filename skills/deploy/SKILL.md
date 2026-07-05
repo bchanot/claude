@@ -99,6 +99,14 @@ A directive sits on the comment line **above** the step it governs; patterns are
 matched against the delta file list. Un-annotated step = **fixed**, always
 emitted verbatim.
 
+**A step is a block**: its `# n)` comment header plus every command line below
+it, up to the next blank line. A directive governs the whole block. Steps are
+written **one command per line, interactive-session style** — an early fixed
+step opens the box (`ssh "$DEPLOY_HOST"`), the lines after it run *on* the box
+as you would type them; a step that runs locally says `(from your machine)` in
+its header. Never fold `ssh host "cd … && …"` compounds: the user copy-pastes
+line by line. Each `# VERIFY:` sits at the end of the command line it gates.
+
 | Directive | Meaning | Instantiation |
 |-----------|---------|---------------|
 | `# @delta:<kind> glob=<pat>:each` | per-file command | repeat the command once **per** matching delta file (file substituted in) |
@@ -275,7 +283,9 @@ Set the base, compute the changed-file list, capture the target.
    prepend `# PRE-WARN: DEP-NNN <one-line summary>` above it.
 3. Keep every `# VERIFY:` gate. Header the file: *"Run by hand, step by step.
    Never `bash NEXT.sh` unattended."*
-4. Write `.claude/deploy/NEXT.sh`.
+4. Preserve the runbook's shape: one command per line, session style (see the
+   `@delta:` grammar section) — instantiation never re-folds lines.
+5. Write `.claude/deploy/NEXT.sh`.
 
 **[GATE] — present `NEXT.sh` → `all / edit / skip-all`.**
 - `all` → proceed. `edit` → revise the listed steps, re-present.
@@ -288,9 +298,15 @@ Set the base, compute the changed-file list, capture the target.
   "started_at": "<now, ISO-8601>",
   "runbook_rev": "<git log -1 --format=%H -- .claude/deploy/PROCEDURE.md>" }
 ```
-**Then HAND BACK** (AskUserQuestion): *"Run NEXT.sh step by step against prod.
+**Then HAND BACK — the checklist lands in the conversation, not just on disk.**
+Print the FULL final `NEXT.sh` content inline (fenced code block) so the user
+sees exactly what to run without opening the file — the gate preview is not
+enough (an `edit` round may have changed it; the hand-back shows the final
+text). Then (AskUserQuestion): *"Run NEXT.sh step by step against prod.
 Report back: **Deployed OK** / **Failed at step X: <err>** / **Not yet**."* Then
 **stop** — control is the user's; `PENDING.json` on disk now marks the wait.
+The same rule applies to every re-hand-back (STEP 4.3): regenerated `NEXT.sh`
+⇒ reprinted in full.
 
 ## STEP 3 — RESUME / REACT
 
