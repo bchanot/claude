@@ -226,6 +226,11 @@
     "additionalDirectories": []
   },
   "model": "claude-opus-4-8[1m]",
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  },
   "hooks": {
     "SessionStart": [
       {
