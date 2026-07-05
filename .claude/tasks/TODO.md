@@ -26,8 +26,10 @@ PAS en GATE-BLOCK design.profile tant que Node<24 + pas dogfoodé.
 - [x] Verify — bash -n ×3 OK, shellcheck clean (SC1091 info only), lock JSON
       valide, profile parse OK. Dogfood DIFFÉRÉ : classifier bloque npx code
       tiers en auto-mode → user lance `make plugin` (une fois Node ≥ 24)
+- [x] Bump Node baseline 22→24 LTS (install-plugins Step 1, 24cce6a) — la
+      dépendance dure est résolue à l'install, plus une décision différée
 - [ ] Follow-up (hors scope) : doctor.sh check (fichier gardé) ; GATE-BLOCK
-      promotion après dogfood ; bump Node 22→24 (décision user)
+      promotion après dogfood ; dogfood réel = prochain `make plugin`
 
 ## 2026-07-04 — skill /tour (tir groupé multi-projets, feature/tour-skill)
 Goal: 1 orchestrateur = clean-code + sécurité (security-auditor/semgrep [+cso si
