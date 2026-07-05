@@ -325,3 +325,7 @@ rules:
 
 - Merged verify-loops chantier + default-model chore into develop (user pushed). Cut release/4.1.0 (prep + RC gate 8/8 green) — awaiting GO.
 - rules/ dir built + symlinked via link.sh (feature/rules-dir `06391a6`): real feature verified (paths-scoped lazy rules); context7.md machine-owned → gitignored (find-docs pattern). "contexts dir" request REFUSED — feature doesn't exist (official docs via claude-code-guide); intent already covered by agents/skills. [[LRN-097]].
+
+## 2026-07-05
+
+- Built /tour skill (grouped sweep clean+security+reconcile+doc, auto, 1..N projects, convergence loop bounded 3×) via writing-skills TDD + skill-creator guidance: RED 6 gaps → GREEN 6/6 closed disk-verified → REFACTOR 2 holes (scratch self-block, BREAKING tag). [[BDR-052]] [[LRN-099]] [[LRN-100]] [[EVAL-014]]. Merged feature/tour-skill → develop + release/1.0.0 on user GO. settings.json /model side-effect reverted (Opus 4.8 1M default restored, attribution backstop kept).

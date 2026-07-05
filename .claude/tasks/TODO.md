@@ -31,7 +31,9 @@ Design verrouillé :
       template-structurelles NON re-testées par un 3e run complet (coût) —
       re-test au premier usage réel.
 - [x] Routage CLAUDE.md (ligne « Grouped all-axes sweep → tour »)
-- [ ] Commit branche (pas de finish sans GO)
+- [x] Commit branche + capitalize (BDR-052, LRN-099/100, EVAL-014, journal)
+- [x] GO user 2026-07-05 : merge develop + release/1.0.0 ; settings.json
+      restauré (Opus 4.8 1M défaut, backstop attribution conservé)
 
 ## 2026-07-03 — verify loops + semgrep gate + contract (chantier orchestrateurs)
 Archi validée au gate (session 2026-07-03). Cible : contract sur DISQUE dès
