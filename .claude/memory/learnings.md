@@ -119,6 +119,7 @@ rules:
 | LRN-097 | 2026-07-04 | community blog pattern ≠ official feature — "contexts dir" doesn't exist in Claude Code; verify feature against official docs (claude-code-guide) BEFORE building infra; the intent was already covered by real mechanisms (agents/skills/rules) | any "add support for X" request naming a Claude Code feature |
 | LRN-099 | 2026-07-05 | auto-orchestrator autonomy boundary: git discipline transfers naturally (branch, no-merge), declared-state discipline does NOT — baseline silently rewrote target TODO + authored registries + scope-crept | designing any auto/headless flow — enumerate declared surfaces, mark each read-only or gated |
 | LRN-100 | 2026-07-05 | tool gated on clean tree must clean its OWN scratch (else self-DoS next run); contract-changing auto-fix needs structural BREAKING flag in the reviewed artifact | any recurring tool w/ cleanliness precondition; any auto-fix touching an API contract |
+| LRN-102 | 2026-07-05 | deliverable text placed BEFORE a tool call may never render — only the turn's FINAL text is guaranteed displayed; a checklist printed above AskUserQuestion was invisible to the user | any flow whose deliverable is conversational text (checklist, commands, report): end the turn with it, blocking questions come before, never after |
 
 ---
 
@@ -1041,3 +1042,11 @@ rules:
 - **context**: 2026-07-04 /tour GREEN on fixture; both patched at REFACTOR (SKILL.md STEP 3). Additions template-structural, NOT re-run through 3rd full pass (cost) — re-test first real use.
 - **future application**: any recurring tool gated on repo cleanliness → audit what IT leaves behind; any auto-applied fix changing a contract → structural BREAKING flag in the human-reviewed artifact.
 - **cousin**: [[LRN-099]] same chantier; [[LRN-071]] swallowed-failure class (silent residue ≈ masked state).
+
+## LRN-102 — Deliverable text before a tool call may never render: the turn's FINAL text is the only guaranteed display
+
+- **pattern**: /deploy hand-back printed the full checklist in the assistant message, then called AskUserQuestion. The user saw ONLY the question UI — the checklist never reached them ("là on a rien, je dois ouvrir le fichier"). The harness renders reliably only the LAST text of a turn; text between/before tool calls can be swallowed by the tool UI.
+- **why**: a skill whose deliverable is conversational (commands to copy-paste, a report) fails silently if any tool call follows the print — the user experiences "nothing displayed" while the transcript technically contains it. Structural fix: the deliverable IS the turn's final text; collect answers BEFORE printing, or let the reply arrive as the next user message.
+- **context**: 2026-07-05 /deploy run 2 (bchanot-cv). Skill patched same turn: checklist display-only (no NEXT.sh file at all — user: throwaway once deployed) + hand-back ends the turn, no tool call after.
+- **future application**: designing any skill/flow output meant to be read+used from the conversation — put it LAST; never sandwich a deliverable between tool calls; prefer plain-text report requests over blocking question tools after a deliverable.
+- **cousin**: [[LRN-100]] same skill lineage; CLAUDE.md communication doctrine (final message carries everything).

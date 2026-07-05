@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# === deploy runbook (reference) — NOT run directly. Instantiated to NEXT.sh per delta. ===
+# === deploy runbook (reference) — NOT run directly. Instantiated into the deploy checklist per delta. ===
 # Fixed steps run every deploy; # @delta: steps re-instantiate from the delta.
 # @config push_deploy_tags=false
 # NOTE grammar: glob=<pat>:each repeats the command per matching file (e.g. psql -f <each>);
