@@ -11,8 +11,16 @@ gouverne le bloc entier.
 - [x] bchanot-cv runbook restylé, committé, pushé (bd7f6e4, develop sync)
 - [x] settings.json +inputNeededNotifEnabled (layout committé inchangé)
 - [x] Capitalize EVAL-016 + journal
-- [ ] Re-dogfood au prochain /deploy réel (edit de skill non re-testé par run —
-      dette Iron Law assumée, même statut que la note d'authoring du skill)
+- [x] Re-dogfood run 2 (résidus bchanot-cv) : le print inline AVANT
+      AskUserQuestion ne s'affichait PAS → leçon [[LRN-102]] (texte avant un
+      tool call peut ne jamais rendre ; le dernier texte du tour est le seul
+      affichage garanti)
+- [x] PASS 2 (feature/deploy-inline-checklist) : checklist DISPLAY-ONLY —
+      plus de fichier NEXT.sh du tout (jetable, PENDING+runbook régénèrent
+      partout) ; hand-back TERMINE le tour par la checklist, aucun tool call
+      après ; resume à froid = régénère + ré-affiche. Skill+template+CHANGELOG.
+- [ ] Re-dogfood pass 2 : la fin du deploy run 2 en cours (résidus b24c58b)
+      exerce le nouveau hand-back ; resume à froid + STEP 4 toujours vierges
 
 ## 2026-07-05 — impeccable install chain (feature/impeccable-install)
 Décision (user a délégué) : COMPLÉMENTAIRES → les deux. frontend-design garde

@@ -22,8 +22,9 @@ disk in `.claude/deploy/`, never in conversation context. Never reconstruct the
 deploy from memory, commit messages, or `git describe`.
 
 **Claude never runs the deploy.** Prod commands run by hand, out-of-band. This
-skill only writes the checklist (`NEXT.sh`), reacts to the user's report, and
-records the outcome.
+skill only composes the checklist — **displayed in the conversation, never
+written to a file** (it is throwaway: valid for one delta, worthless after) —
+reacts to the user's report, and records the outcome.
 
 ## The two-moment contract — cold cross-session resume
 
@@ -31,7 +32,7 @@ This is the skill's defining form. No other skill resumes with the context gone.
 
 | | |
 |---|---|
-| **Moment 1 (BEFORE)** | STEP 0–2: detect the delta, instantiate `NEXT.sh`, write the `PENDING.json` bridge, hand back. |
+| **Moment 1 (BEFORE)** | STEP 0–2: detect the delta, instantiate the checklist, write the `PENDING.json` bridge, hand back. |
 | **the gap** | The user deploys by hand. May take minutes or days. **May cross sessions.** |
 | **Moment 2 (AFTER)** | STEP 3–5: on the user's report, react — mark success, or learn from a failure and re-hand-back. |
 
@@ -61,7 +62,7 @@ jq dependency.
 | Configure deployment settings | `/setup-deploy` |
 | Document a release after shipping | `/document-release`, `/doc` |
 
-## Artifacts — `.claude/deploy/` (five files)
+## Artifacts — `.claude/deploy/` (four files)
 
 | File | Committed? | Role |
 |------|-----------|------|
@@ -69,7 +70,11 @@ jq dependency.
 | `INCIDENTS.md` | yes | `DEP-NNN` ledger, append-only; read at instantiation for pre-warns |
 | `STATE.json` | yes | deploy oracle — the SHA deployed up to here |
 | `PENDING.json` | **no (gitignored)** | in-flight bridge; written at hand-back, deleted on success |
-| `NEXT.sh` | **no (gitignored)** | instantiated checklist; run BY HAND, never `bash NEXT.sh` |
+
+The instantiated checklist is **NOT a file**: it is displayed in the
+conversation (run BY HAND, step by step, never executed by Claude) and
+regenerated on demand from `PENDING.json` + the live runbook. Throwaway by
+design — once deployed, it has no value.
 
 **Schemas (document of record — recover the shapes from here):**
 
@@ -85,13 +90,13 @@ jq dependency.
   "runbook_rev": "<PROCEDURE.md commit sha>" }
 ```
 
-`step_reached` = where the next `NEXT.sh` must start: `"awaiting-user"` = run from
-the top. A numeric `X` is used **transiently within a learn** to regenerate from
-step X; **persisted on disk it is always `"awaiting-user"`** — STEP 4 resets to
-`awaiting-user` at re-hand-back, and the `runbook_rev` staleness guard is the real
-cold-resume regenerate trigger.
-`runbook_rev` = the commit sha of `PROCEDURE.md` at instantiation; a mismatch
-versus the live runbook means `NEXT.sh` is stale and must be regenerated.
+`step_reached` = where the next checklist must start: `"awaiting-user"` = run
+from the top. A numeric `X` is used **transiently within a learn** to regenerate
+from step X; **persisted on disk it is always `"awaiting-user"`** — STEP 4
+resets to `awaiting-user` at re-hand-back.
+`runbook_rev` = the commit sha of `PROCEDURE.md` at instantiation; on resume, a
+mismatch versus the live runbook means the runbook changed mid-flight — flag it
+and regenerate the checklist against the LIVE runbook.
 
 ## `@delta:` grammar (PROCEDURE.md)
 
@@ -129,11 +134,13 @@ Read `.claude/deploy/PENDING.json` **first** (it is the only memory between runs
   "A deploy started `<started_at>` is awaiting your report (target `<target_sha>`)."
   **Do not** recompute the delta, re-read HEAD, or re-instantiate from scratch —
   the bridge is authoritative.
-  - *Staleness guard:* if `NEXT.sh` is absent **OR** `runbook_rev` ≠ the live
+  - *Cold resume without a report yet* (the user just re-invoked /deploy):
+    regenerate the checklist from the bridge + the live runbook (STEP 2's
+    expansion, from `step_reached`) and RE-DISPLAY it — the checklist is not
+    a file, the conversation that held it is gone. If `runbook_rev` ≠ the live
     runbook commit (`git log -1 --format=%H -- .claude/deploy/PROCEDURE.md`),
-    the on-disk `NEXT.sh` is stale or missing (a patch landed, or a cold
-    resume without regeneration) — regenerate it from `step_reached`
-    (STEP 2's expansion) before reacting.
+    say so: the runbook changed mid-flight and the regenerated checklist
+    follows the LIVE version.
 - **`PENDING.json` absent + `PROCEDURE.md` absent → BOOTSTRAP.** No runbook yet:
   interview the project and scaffold an annotated `PROCEDURE.md` (or adopt one
   the user pastes), then continue at STEP 1. *(See STEP 0-B below.)*
@@ -165,7 +172,7 @@ Author a runbook, seed the incident ledger, commit both, then proceed to STEP 1.
 2. Prepend the standard header:
    ```
    #!/usr/bin/env bash
-   # === deploy runbook (reference) — NOT run directly. Instantiated to NEXT.sh per delta. ===
+   # === deploy runbook (reference) — NOT run directly. Instantiated into the deploy checklist per delta. ===
    # Fixed steps run every deploy; annotated steps (@delta lines) re-instantiate from the delta.
    # @config push_deploy_tags=false
    ```
@@ -226,9 +233,9 @@ Present the full draft `PROCEDURE.md`.
 
 1. Write `.claude/deploy/PROCEDURE.md` (Write tool — the approved draft).
 2. Seed `.claude/deploy/INCIDENTS.md` from `templates/deploy/INCIDENTS.md` (Write tool).
-3. Ensure the target project's `.gitignore` contains `.claude/deploy/NEXT.sh` and
-   `.claude/deploy/PENDING.json` (append both if missing — these are the transient
-   artifacts that must not be committed).
+3. Ensure the target project's `.gitignore` contains
+   `.claude/deploy/PENDING.json` (append if missing — the transient bridge must
+   not be committed).
 4. Check that `.claude/deploy/` is NOT git-ignored: `git check-ignore -q .claude/deploy/PROCEDURE.md`
    (rc 0 = ignored). If ignored — e.g. the project has `.claude/` in its `.gitignore` wholesale —
    **ABORT bootstrap**: warn the user that the runbook/oracle/ledger cannot be committed,
@@ -270,7 +277,7 @@ Set the base, compute the changed-file list, capture the target.
 
 ## STEP 2 — INSTANTIATE + [GATE] + HAND BACK
 
-**Build `NEXT.sh` (the recipe — it IS this shape):**
+**Build the checklist (the recipe — it IS this shape):**
 
 1. Walk `PROCEDURE.md` in order. For each step:
    - un-annotated (fixed) → emit verbatim;
@@ -281,15 +288,17 @@ Set the base, compute the changed-file list, capture the target.
    - `@delta:…when=` → emit verbatim only if the delta intersects a pattern.
 2. Read `INCIDENTS.md`; for each `DEP-NNN` whose step matches an emitted step,
    prepend `# PRE-WARN: DEP-NNN <one-line summary>` above it.
-3. Keep every `# VERIFY:` gate. Header the file: *"Run by hand, step by step.
-   Never `bash NEXT.sh` unattended."*
+3. Keep every `# VERIFY:` gate. Header the checklist: *"Run by hand, step by
+   step. Never executed by Claude."* + base → target SHAs + the delta.
 4. Preserve the runbook's shape: one command per line, session style (see the
    `@delta:` grammar section) — instantiation never re-folds lines.
-5. Write `.claude/deploy/NEXT.sh`.
+5. **Write NO file.** The checklist exists in the conversation only —
+   `PENDING.json` is the sole on-disk artifact of the wait, and any future
+   session regenerates the checklist from it + the live runbook.
 
-**[GATE] — present `NEXT.sh` → `all / edit / skip-all`.**
+**[GATE] — present the checklist → `all / edit / skip-all`.**
 - `all` → proceed. `edit` → revise the listed steps, re-present.
-- `skip-all` → abort: write no `PENDING.json`, discard the draft `NEXT.sh`, stop.
+- `skip-all` → abort: write no `PENDING.json`, discard the draft, stop.
 
 **On approve:** write `.claude/deploy/PENDING.json`:
 ```jsonc
@@ -298,15 +307,17 @@ Set the base, compute the changed-file list, capture the target.
   "started_at": "<now, ISO-8601>",
   "runbook_rev": "<git log -1 --format=%H -- .claude/deploy/PROCEDURE.md>" }
 ```
-**Then HAND BACK — the checklist lands in the conversation, not just on disk.**
-Print the FULL final `NEXT.sh` content inline (fenced code block) so the user
-sees exactly what to run without opening the file — the gate preview is not
-enough (an `edit` round may have changed it; the hand-back shows the final
-text). Then (AskUserQuestion): *"Run NEXT.sh step by step against prod.
-Report back: **Deployed OK** / **Failed at step X: <err>** / **Not yet**."* Then
-**stop** — control is the user's; `PENDING.json` on disk now marks the wait.
-The same rule applies to every re-hand-back (STEP 4.3): regenerated `NEXT.sh`
-⇒ reprinted in full.
+**Then HAND BACK — the checklist IS the last text of the turn.** End the turn
+with the FULL final checklist in a fenced code block, followed only by the
+one-line report request: *"Run it step by step against prod, then report:
+**Deployed OK** / **Failed at step X: <err>** / **Not yet**."* **No tool call
+comes after the print — none.** Do NOT wrap the report request in a blocking
+question tool: text printed before a tool call may never reach the user
+(observed live — a checklist printed above an AskUserQuestion was invisible;
+the user had to open the file this rule exists to make unnecessary). The report
+arrives as the user's next message; `PENDING.json` on disk marks the wait.
+The same rule applies to every re-hand-back (STEP 4.3) and every cold-resume
+re-display: regenerated checklist ⇒ full print as the turn's final text.
 
 ## STEP 3 — RESUME / REACT
 
@@ -357,13 +368,12 @@ fix (patch + incident committed atomically). Recover later via
 
 Then:
 1. Bump `PENDING.json.runbook_rev` to `git rev-parse HEAD` (full sha — not the helper's short-hash stdout); keep `step_reached` = `X`.
-2. **Regenerate `NEXT.sh` from `step_reached` against the PATCHED runbook**
-   (steps X…end — X+1…end never ran). This is NOT replaying one step: the bumped
-   `runbook_rev` is exactly the staleness trigger — runbook changed ⇒ prior
-   `NEXT.sh` is stale ⇒ regenerate.
-3. Re-present via **STEP 2's [GATE] + hand-back** (the regenerated `NEXT.sh`;
-   `PENDING.json` keeps `base/target/delta`, `step_reached` back to
-   `awaiting-user`).
+2. **Regenerate the checklist from `step_reached` against the PATCHED runbook**
+   (steps X…end — X+1…end never ran). This is NOT replaying one step: the
+   runbook changed ⇒ the prior checklist is stale ⇒ regenerate.
+3. Re-present via **STEP 2's [GATE] + hand-back** (the regenerated checklist,
+   full print as the turn's final text; `PENDING.json` keeps
+   `base/target/delta`, `step_reached` back to `awaiting-user`).
 
 ## STEP 5 — MARK (success)
 
@@ -388,8 +398,9 @@ The deploy succeeded. Lay the oracle and close out.
    bash lib/deploy-commit.sh commit "chore(deploy): mark <date> @ <short>" \
      .claude/deploy/STATE.json
    ```
-6. **Delete `.claude/deploy/PENDING.json` and `.claude/deploy/NEXT.sh`** — the
-   deploy is no longer in flight; the bridge is consumed.
+6. **Delete `.claude/deploy/PENDING.json`** — the deploy is no longer in
+   flight; the bridge is consumed. (Also remove any legacy `NEXT.sh` left by
+   an older skill version.)
 7. Report: deployed SHA, tag (+ push result), state committed, any `DEP-NNN`
    learned this deploy. Then offer to capitalize per CLAUDE.md (recurring failure
    pattern → `learnings.md`; deploy verdict → `evals.md`), gated, never silent.
@@ -404,10 +415,13 @@ The deploy succeeded. Lay the oracle and close out.
 - Delta is `git diff --name-only <base> HEAD` (two endpoints). No `rev-list`, no
   three-dot, no date ranges.
 - First-deploy / fresh detection is file existence only — never `git describe`.
-- Claude never executes the deploy. `NEXT.sh` is hand-run; `# VERIFY:` gates stay.
+- Claude never executes the deploy. The checklist is hand-run; `# VERIFY:`
+  gates stay.
+- The checklist is displayed, never written to a file; every hand-back and
+  re-display ends the turn with it — no tool call after the print.
 - Patch + incident commit **atomically**, one `deploy-commit.sh` call, both files.
-- A learn bumps `runbook_rev` and **regenerates** `NEXT.sh` from `step_reached`;
-  it never replays a single step.
+- A learn bumps `runbook_rev` and **regenerates** the checklist from
+  `step_reached`; it never replays a single step.
 - Tag push is best-effort; `STATE.json` is the oracle.
 - JSON is read natively (Read tool), never parsed with `jq`/shell.
 - `STATE.json` written only on confirmed success (STEP 5). A failed/partial deploy
@@ -420,9 +434,11 @@ The deploy succeeded. Lay the oracle and close out.
 | On resume, recomputing delta from current HEAD | HEAD moved during the gap. Use `PENDING.json.{base,target,delta}` verbatim. |
 | `git describe` to detect first deploy | Errors with no tag. Detect by `STATE.json` / `PENDING.json` existence. |
 | `git rev-list` or three-dot for the delta | Phantom/undercounted deltas. Two-dot `<base> HEAD` only. |
-| `bash NEXT.sh` to "just run it" | Claude never deploys. Hand back; user runs by hand with `# VERIFY:` gates. |
+| Executing the checklist yourself to "just run it" | Claude never deploys. Hand back; user runs by hand with `# VERIFY:` gates. |
 | Committing the patch without the incident (or vice versa) | Coupling invariant. One atomic `deploy-commit.sh` call, both files. |
-| Replaying only the failed step after a patch | Steps X…end never ran. Regenerate `NEXT.sh` from `step_reached`. |
+| Replaying only the failed step after a patch | Steps X…end never ran. Regenerate the checklist from `step_reached`. |
+| Ending a hand-back with a blocking question tool after the checklist | Text before a tool call may never render. The checklist is the turn's FINAL text; the report comes as the user's next message. |
+| Writing the checklist to a file "for reference" | Throwaway artifact — display only; PENDING.json + the runbook regenerate it anywhere. |
 | Writing `STATE.json` before the user confirms success | Oracle marks success only. Failed deploy leaves it untouched. |
 | Setting `deployed_sha` to HEAD at MARK time | Use `PENDING.target_sha` — the SHA actually deployed. |
 | Parsing the JSON bridges with `jq` | Read them natively. No jq dependency. |
@@ -432,7 +448,9 @@ The deploy succeeded. Lay the oracle and close out.
 
 - About to recompute the delta or re-read HEAD while a `PENDING.json` exists.
 - About to run `git describe`, `git rev-list`, or a three-dot diff for the delta.
-- About to `bash NEXT.sh` or run any prod command yourself.
+- About to execute the checklist or run any prod command yourself.
+- About to call ANY tool after printing the checklist in a hand-back.
+- About to write the checklist to a file.
 - About to commit `PROCEDURE.md` without `INCIDENTS.md` in the same call.
 - About to write `STATE.json` before the user reported "Deployed OK".
 - About to replay one failed step instead of regenerating from `step_reached`.
@@ -446,7 +464,7 @@ from it without conversation memory — the `audit-delta` "state file is the onl
 memory between runs" convention, extended to a *mid-flow* pause. The forms here
 match the failure modes the design identified: **discipline** failures
 (recompute-on-resume, run-the-deploy, advance-the-oracle-early) get the
-rationalization table + red flags; the **shape** of `NEXT.sh` and the schemas get
+rationalization table + red flags; the **shape** of the checklist and the schemas get
 positive recipes; the patch↔incident **omission** is a structural atomic-commit
 requirement. Pressure-scenario baseline testing per the writing-skills Iron Law
 is a follow-up — the failure modes were taken from the design spec, not a fresh
