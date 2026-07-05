@@ -341,6 +341,47 @@ else
   info "design-motion-principles not installed — skipping"
 fi
 
+# ── Impeccable (design anti-pattern detector + skill) ──
+echo ""
+echo "── Updating impeccable..."
+IMP_DIR="$REPO/skills-external/impeccable"
+if [ ! -f "$IMP_DIR/SKILL.md" ]; then
+  info "impeccable not installed — skipping (run: make plugin)"
+else
+  IMP_VER=""
+  if [ -f "$REPO/plugins.lock.json" ] && command -v python3 &>/dev/null; then
+    IMP_VER=$(python3 -c "
+import json
+with open('$REPO/plugins.lock.json') as f:
+    d = json.load(f)
+print(d.get('impeccable',{}).get('version','latest'))
+" 2>/dev/null || true)
+  fi
+  IMP_NODE=$(node -v 2>/dev/null | sed 's/^v//' | cut -d. -f1)
+  if [ -z "${IMP_NODE:-}" ] || [ "$IMP_NODE" -lt 24 ]; then
+    info "impeccable update skipped — needs Node >= 24 (found ${IMP_NODE:-none}); existing dist kept"
+  else
+    IMP_PKG="impeccable"
+    # Pin honored (LRN-077 class: a silent rules update changes audit
+    # output on unchanged code) — bump the pin deliberately, then update.
+    [ -n "$IMP_VER" ] && [ "$IMP_VER" != "latest" ] && IMP_PKG="impeccable@${IMP_VER}"
+    IMP_STAGE=$(mktemp -d)
+    if (cd "$IMP_STAGE" && npx -y "$IMP_PKG" skills install -y --providers=claude --scope=project --no-hooks >/dev/null 2>&1); then
+      IMP_SRC=$(find "$IMP_STAGE" -type d -name impeccable -path "*skills*" 2>/dev/null | head -1)
+      if [ -n "$IMP_SRC" ] && [ -f "$IMP_SRC/SKILL.md" ]; then
+        rm -rf "$IMP_DIR"
+        mv "$IMP_SRC" "$IMP_DIR"
+        ok "impeccable refreshed (CLI ${IMP_VER:-latest})"
+      else
+        warn "impeccable: installer produced no dist — existing kept"
+      fi
+    else
+      warn "impeccable refresh failed — existing dist kept"
+    fi
+    rm -rf "$IMP_STAGE"
+  fi
+fi
+
 # ── 7.5. Update external skills (npx skills) ──
 echo ""
 echo "── Updating external skills (npx skills)..."

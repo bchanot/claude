@@ -37,5 +37,10 @@
     "path": "skills/emil-design-eng/SKILL.md",
     "managed_by": "curl",
     "note": "Emil Kowalski's design engineering skill — UI polish, animations, component craft. Downloaded to skills-external/emil-design-eng/, symlinked by link.sh."
+  },
+  "impeccable": {
+    "source": "npm:impeccable",
+    "version": "3.2.0",
+    "note": "Design anti-pattern detector (45 deterministic rules, CLI 'impeccable detect', exit 0/2) + /impeccable skill (23 verbs) by pbakaus. Pin = CLI version; the skill dist has its own release track fetched by 'skills install'. Pinned for audit reproducibility (LRN-077 class: a rules update silently changes audit output). Requires Node >= 24 — install step skips gracefully below that. Machine-owned: synced to skills-external/impeccable/ (gitignored), symlinked by link.sh."
   }
 }

@@ -100,6 +100,7 @@ Versions are pinned in `plugins.lock.json`. To update: edit the file, then re-ru
 | `/code-clean` | Dead code removal, style/norm enforcement |
 | `/doc` | Documentation audit and sync — detect stale docs, patch |
 | `/seo` | Full SEO/GEO audit and optimization |
+| `/impeccable` | Design verbs (audit, polish, bolder…) + deterministic anti-slop detector (`npx impeccable detect`) |
 | `/commit-change` | Smart commit grouping from staged/unstaged changes |
 | `/gitflow` | Gitflow branch operations — bootstrap main+develop, start a typed branch, directed merge |
 | `/release-candidate` | Cut a versioned release — finalize version.txt + CHANGELOG, merge develop→main, tag, push |

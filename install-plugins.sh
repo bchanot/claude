@@ -750,6 +750,57 @@ else
 fi
 echo ""
 
+# ── Step 8d: Impeccable (design anti-pattern detector + skill) ──
+# 45 deterministic detector rules (CLI `impeccable detect`, exit 0/2) +
+# /impeccable skill (23 verbs). Machine-owned dist: the installer produces
+# it, we stage it in a tmpdir then move it under skills-external/
+# (gitignored, ctx7 pattern) — never let the installer write through the
+# ~/.claude/skills symlink into the tracked repo dir.
+echo "── Step 8d: Impeccable — design anti-pattern detector ────"
+echo ""
+IMP_DIR="$REPO/skills-external/impeccable"
+IMP_VER=$(pinned_version "impeccable")
+NODE_MAJOR=$(node -v 2>/dev/null | sed 's/^v//' | cut -d. -f1)
+if [ -z "${NODE_MAJOR:-}" ] || [ "$NODE_MAJOR" -lt 24 ]; then
+  if [ -f "$IMP_DIR/SKILL.md" ]; then
+    ok "impeccable already present (update skipped — needs Node >= 24, found ${NODE_MAJOR:-none})"
+  else
+    warn "impeccable: needs Node >= 24 (found ${NODE_MAJOR:-none}) — skipped. Bump Node, then: make plugin"
+  fi
+else
+  IMP_PKG="impeccable"
+  if [ "$IMP_VER" != "latest" ]; then
+    IMP_PKG="impeccable@${IMP_VER}"
+    info "Installing impeccable ${IMP_VER} (pinned in plugins.lock.json, staged)..."
+  else
+    info "Installing impeccable latest (consider pinning in plugins.lock.json)..."
+  fi
+  IMP_STAGE=$(mktemp -d)
+  if (cd "$IMP_STAGE" && npx -y "$IMP_PKG" skills install -y --providers=claude --scope=project --no-hooks >/dev/null 2>&1); then
+    IMP_SRC=$(find "$IMP_STAGE" -type d -name impeccable -path "*skills*" 2>/dev/null | head -1)
+    if [ -n "$IMP_SRC" ] && [ -f "$IMP_SRC/SKILL.md" ]; then
+      rm -rf "$IMP_DIR"
+      mv "$IMP_SRC" "$IMP_DIR"
+      ok "impeccable synced to skills-external/ (CLI ${IMP_VER})"
+    else
+      warn "impeccable: installer ran but produced no skills/impeccable/SKILL.md — layout changed? Inspect: npx impeccable skills install"
+    fi
+  else
+    if [ -f "$IMP_DIR/SKILL.md" ]; then
+      ok "impeccable already present (installer failed — existing dist kept)"
+    else
+      warn "impeccable install failed — run manually: npx impeccable skills install -y --providers=claude --scope=project --no-hooks"
+    fi
+  fi
+  rm -rf "$IMP_STAGE"
+fi
+if [ -L "$HOME/.claude/skills/impeccable" ]; then
+  ok "impeccable symlink OK"
+else
+  info "Symlinking — will be created by link.sh"
+fi
+echo ""
+
 # ============================================================
 # STEP 8.5 — EXTERNAL SKILLS (npx skills add …)
 # ============================================================
@@ -949,6 +1000,7 @@ echo "    🔄 context7 CLI        — ctx7 (npm global, standalone or MCP setup
 echo "    🔄 graphifyy (CLI: graphify) — codebase knowledge graph (pipx, PreToolUse hook)"
 echo "    🔄 emil-design-eng     — UI polish, animations, component craft (curl → symlink)"
 echo "    🔄 frontend-design     — distinctive frontend interfaces, anti-AI-slop (anthropic-agent-skills)"
+echo "    🔄 impeccable          — /impeccable design verbs + 45-rule deterministic detector (npx impeccable detect)"
 echo "    🔄 design-motion-principles — motion/animation design, 3-designer lens (kylezantos)"
 echo "    🔄 darwin-skill        — autonomous skill optimizer (npx skills, ~/.agents/skills/)"
 echo "    🔄 find-skills         — skill discovery helper (npx skills, ~/.agents/skills/)"

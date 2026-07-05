@@ -40,7 +40,7 @@ and if not, point at ONE command — `/profile design`.
 Tier does NOT change WHAT gets checked. Every non-trivial design tier draws from
 the one `design` profile — so the gate checks that profile's **design-core
 tools** (the `# GATE-BLOCK:` allowlist in `design.profile`: ui-ux-pro-max,
-frontend-design, emil-design-eng, design-motion-principles, design-html,
+frontend-design, emil-design-eng, design-motion-principles, impeccable, design-html,
 design-review, design-consultation, magic). The profile also bundles
 browser/plan/shotgun tooling and graphify for convenience; those never trip the
 gate. Motion (`design-motion-principles`) and static-HTML (`design-html`) are
