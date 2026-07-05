@@ -7,6 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Changed
+- graphify skill dist refreshed 0.8.45 → 0.9.6 (out-of-band `make plugin`; SKILL.md + query/extraction references updated by the generator).
 - `/deploy` NEXT.sh reshaped on first-real-run feedback: runbook steps are **one command per line, interactive-session style** (an early step opens the ssh session; later lines run on the box; local steps say "from your machine") instead of folded `ssh host "cd … && …"` one-liners, and the **hand-back prints the full checklist inline** in the conversation (also on every re-hand-back) so the user never has to open `NEXT.sh` to know what to run. Step = comment header + command lines up to the next blank line; a `@delta:` directive governs the whole block. Template `templates/deploy/PROCEDURE.md` restyled to match.
 - `settings.json`: `inputNeededNotifEnabled: true` adopted (harness notification toggle); committed layout otherwise unchanged.
 
