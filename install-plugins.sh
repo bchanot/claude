@@ -125,29 +125,29 @@ else
   ok "git installed"
 fi
 
-# --- Node.js (>=18) ---
+# --- Node.js (>=24 — impeccable requires it; GSD v2 needs >=22) ---
 NODE_OK=false
 if command -v node &>/dev/null; then
   NODE_VER=$(node --version | sed 's/v//' | cut -d. -f1)
-  if [ "$NODE_VER" -ge 22 ]; then
+  if [ "$NODE_VER" -ge 24 ]; then
     ok "Node.js $(node --version)"; NODE_OK=true
   else
-    warn "Node.js $(node --version) is too old (need >=22 — GSD v2 requires it)"
+    warn "Node.js $(node --version) is too old (need >=24 — impeccable requires it)"
   fi
 fi
 if [ "$NODE_OK" = false ]; then
-  info "Installing Node.js 22 LTS..."
+  info "Installing Node.js 24 LTS..."
   case $OS in
     macos)
-      brew install node@22
-      export PATH="/opt/homebrew/opt/node@22/bin:$PATH"
+      brew install node@24
+      export PATH="/opt/homebrew/opt/node@24/bin:$PATH"
       ;;
     linux-apt)
-      curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+      curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
       sudo apt-get install -y nodejs
       ;;
     linux-dnf)
-      curl -fsSL https://rpm.nodesource.com/setup_22.x | sudo bash -
+      curl -fsSL https://rpm.nodesource.com/setup_24.x | sudo bash -
       sudo dnf install -y nodejs
       ;;
     linux-pacman)
