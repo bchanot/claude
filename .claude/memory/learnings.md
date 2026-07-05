@@ -117,6 +117,8 @@ rules:
 | LRN-095 | 2026-07-03 | orthogonal gates don't contaminate — a conformity verifier must PASS correct-but-insecure code (security is a separate gate's job); proven live (CONFORME on a feature carrying a SQLi); fusing the two degrades each | designing multi-dimension review/verify/audit gates |
 | LRN-096 | 2026-07-04 | a backstop/guard is code — reliable ONLY after a flip-test proves it CAN fail; an unproven guard replacing an advisory = a vacuous guard (LRN-048 applied to guards); flip-test mandatory at guard creation | building any deterministic guard/lint/backstop |
 | LRN-097 | 2026-07-04 | community blog pattern ≠ official feature — "contexts dir" doesn't exist in Claude Code; verify feature against official docs (claude-code-guide) BEFORE building infra; the intent was already covered by real mechanisms (agents/skills/rules) | any "add support for X" request naming a Claude Code feature |
+| LRN-099 | 2026-07-05 | auto-orchestrator autonomy boundary: git discipline transfers naturally (branch, no-merge), declared-state discipline does NOT — baseline silently rewrote target TODO + authored registries + scope-crept | designing any auto/headless flow — enumerate declared surfaces, mark each read-only or gated |
+| LRN-100 | 2026-07-05 | tool gated on clean tree must clean its OWN scratch (else self-DoS next run); contract-changing auto-fix needs structural BREAKING flag in the reviewed artifact | any recurring tool w/ cleanliness precondition; any auto-fix touching an API contract |
 
 ---
 
@@ -1023,3 +1025,19 @@ rules:
 - **context**: 2026-07-04 rules-dir chantier. `rules/` (real feature, verified: paths-scoped lazy loading) was built; `contexts/` (nonexistent) was refused with the doc citation.
 - **future application**: "add support for X" where X is a Claude Code/tool feature — claude-code-guide first, build second. Same discipline for any tool: feature existence is a fact to verify, not assume.
 - **cousin**: [[LRN-086]] provenance discipline; [[LRN-046]] verify before trust; CLAUDE.md "Never assume — verify".
+
+## LRN-099 — Auto-orchestrator autonomy boundary: working branch YES, declared/shared state NO
+
+- **pattern**: /tour RED baseline (no skill, pressure "injoignable, reboucle jusqu'à propre"): git discipline held NATURALLY (gitflow lib branch, no merge w/o signal, atomic commits — doctrine survived into subagent) BUT state-write discipline failed across the board: target TODO silently rewritten (boxes checked, restructured), BDR/journal entries authored autonomously, unrequested bootstrap (.gitignore + registries "bonus hygiene"). Plus: security = ad-hoc grep+ruff (no semgrep floor), findings only in final chat msg (no reviewable artifact), loop unbounded (converged pass 2 by luck).
+- **why**: model generalizes commit discipline from doctrine; "declared state = someone's approval surface" NOT in its prior — such writes look helpful. Auto-flow skills must lock declared-state writes explicitly (read-only rules, report-only phases), not just git verbs.
+- **context**: 2026-07-04 /tour TDD, seeded fixture (vuln + dead code + lying TODO + stale README). 6 gaps → 6 counters in SKILL.md; GREEN closed all, disk-verified.
+- **future application**: designing any auto/headless flow — enumerate SHARED/DECLARED surfaces (TODO, registries, human-facing docs, config), mark each read-only or gated. Never assume git discipline implies state discipline.
+- **cousin**: [[LRN-083]] bounded loops in main loop; /reconcile principle (inferred checkbox = the lie).
+
+## LRN-100 — Clean-tree-gated tools must clean own scratch (self-DoS); breaking auto-fix needs structural flag
+
+- **pattern**: /tour GREEN left 4 untracked scratch files (`.tour-semgrep*.md`) → tree dirty at end → NEXT run hits own "dirty tree → report-only" precondition = self-block. Same run: HIGH security fix adding required auth header = API-BREAKING, reported plain "fixed" — branch diff doesn't shout contract change.
+- **why**: preconditions designed against user WIP also fire on the tool's own residue → scratch cleanup = explicit end-of-run step. Both = omission failures → structural counters (template slot: STEP 3.2 cleanup, BREAKING tag in report template + summary), NOT prohibition prose (writing-skills "match form to failure").
+- **context**: 2026-07-04 /tour GREEN on fixture; both patched at REFACTOR (SKILL.md STEP 3). Additions template-structural, NOT re-run through 3rd full pass (cost) — re-test first real use.
+- **future application**: any recurring tool gated on repo cleanliness → audit what IT leaves behind; any auto-applied fix changing a contract → structural BREAKING flag in the human-reviewed artifact.
+- **cousin**: [[LRN-099]] same chantier; [[LRN-071]] swallowed-failure class (silent residue ≈ masked state).

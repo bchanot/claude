@@ -269,6 +269,8 @@ only the non-obvious cases: gstack fallbacks, disambiguation, cryptic names.
 - Cut a release / tag a version (develop ahead of main) → release-candidate
 - Docs post-ship → document-release (doc if gstack off); stale-doc audit → doc
 - Audit of changes since last run → audit-delta
+- Grouped all-axes sweep (clean+security+reconcile+doc, "tir groupé",
+  tour of one or more projects, fix + loop until clean) → tour
 - Open-work inventory / "queue empty?" / stale TODO vs real git → reconcile
 - Design / UI (build, system, audit, polish) → see "Design work" below
 - Architecture review → plan-eng-review

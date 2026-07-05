@@ -6,6 +6,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+- `/tour` skill — grouped all-axes sweep over one or several projects: security (pinned-semgrep `security-auditor` agent + `/cso` posture when gstack is ON) → cleanup → re-verify → reconcile (report-only, never edits the target TODO/registries) → doc sync, looping until a full pass applies zero fixes (bounded at 3 iterations). Fixes land on a `chore/tour-<date>` branch the skill never merges; each project gets an append-only `.claude/audits/TOUR.md` report with BREAKING tags on contract-changing security fixes. Built TDD (superpowers:writing-skills): baseline run showed silent TODO rewrites, autonomous registry writes, grep-as-security-pass, no persistent report, scope creep and an unbounded loop — each countered and verified on a seeded fixture.
+
 ### Fixed
 - `gitflow_finish` ignored its `<type> <name>` arguments and always merged the checked-out branch — naming a different branch silently merged the wrong one. The arguments are now an optional safety assertion: if given and not equal to the current branch, `finish` refuses with a clear error instead of merging. No-argument calls (the only real caller) are unchanged.
 - `doctor.sh` false-warnings removed (a check that cries wolf is one you learn to ignore): `cargo` absence no longer claims "RTK unavailable" (RTK ships as a prebuilt binary); `check_symlink` no longer flags files reached through directory-level symlinks (e.g. `hooks/session-start.sh`); the GStack check counts the per-skill symlinks instead of a `skills/gstack` link that `link.sh` deliberately removes; the token-budget estimate is measured against the ~200k context window instead of a mis-framed "~11k session budget" that produced a false "92% CRITICAL".

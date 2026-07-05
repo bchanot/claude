@@ -73,6 +73,7 @@ rules:
 | BDR-049 | 2026-07-03 | verifier = fresh + blind (no iteration history) + disk-contract + PROOF-or-fail; mute ≠ PASS; scope enrichment via human micro-gate | accepted |
 | BDR-050 | 2026-07-03 | universal pipeline (contract→dev inline→fresh verify→fresh security, loops bounded 3× in main loop) with per-flow weighting; hotfix failure = revert not loop | accepted |
 | BDR-051 | 2026-07-04 | contract enrich-at-gate: the contract grows ONLY at a human micro-gate ([gated] marker); the verifier judges the ENRICHED contract, not the seed | accepted |
+| BDR-052 | 2026-07-05 | /tour auto mode = branch-as-gate: no mid-run approval gates; unmerged chore branch + per-project TOUR.md = deferred human gate; reconcile report-only; loop bounded 3× | accepted |
 
 ---
 
@@ -825,3 +826,11 @@ rules:
 - **Rationale**: the raw request underspecifies (a one-line "add validation" hides the schema-rejection requirement the design surfaces). If the verifier judged only the seed, every design decision would be unverified. Gating the growth keeps the contract honest (no silent scope creep) AND complete (design criteria are verified). The only flow where the contract is mutable mid-run — bounded to gate moments.
 - **Alternatives rejected**: freeze the contract at creation (design criteria unverified — the seed is too thin); let the dev enrich (the [[BDR-049]] failure mode — dev justifies everything, scope constrains nothing); a second contract per design (loses the single-reference property).
 - **Reference**: ship-feature STEP 0e+3, init-project STEP 1+4, feature/verify-loops `1c69de2`. Behavioral GREEN: a `[gated 2026-07-04]` design criterion (reject unknown config keys) was read + judged NOT-MET by a fresh verifier across 3 rounds (dogfood). Builds on [[BDR-049]] [[BDR-050]].
+
+## BDR-052 — /tour auto mode: branch-as-gate, declared state read-only
+
+- **Date**: 2026-07-05
+- **Decision**: /tour (grouped sweep clean+security+reconcile+doc, 1..N projects) runs auto, NO mid-run approval gates. Compensations: (1) fixes on `chore/tour-<date>` via gitflow lib, skill NEVER finish/merge/push — unmerged branch + per-project append-only `.claude/audits/TOUR.md` = the human gate, deferred not deleted; (2) reconcile phase REPORT-ONLY even in auto — target TODO + registries read-only, gaps = `suggested` rows applied later via /reconcile; (3) convergence loop bounded 3× ([[LRN-083]]), residuals reported honestly; (4) security floor = security-auditor (pinned semgrep, [[LRN-047]] BLOCK HIGH/CRITICAL) every iteration + cso posture once (gstack ON); CRITICAL/HIGH contract-changing fix applied but tagged **BREAKING** in report+summary; (5) dirty tree / no develop / no lib → report-only, never stash, never hand-branch.
+- **Rationale**: mid-run gates defeat the skill's point (hands-off grouped sweep, user away). Auto-checking TODO reproduces the exact lie /reconcile catches — RED-proven, baseline did it. Branch+report = same approval semantics as audit-delta's 3c gate, moved after the fact where a headless run can afford it.
+- **Alternatives rejected**: per-phase AskUserQuestion gates (audit-delta model — blocks headless); one consolidated pre-fix gate (still blocks); auto-edit TODO on oracle proof (inference ≠ approval); plain-branch fallback on non-gitflow repos (violates lib-only doctrine → report-only instead).
+- **Reference**: skills/tour/SKILL.md + CLAUDE.md routing (feature/tour-skill `73e6a1c`). TDD trail [[LRN-099]] [[LRN-100]] [[EVAL-014]].
