@@ -75,5 +75,28 @@ if reconcile_oracle_sha_exists "$REPO" "be1dcef";      then ok "T6b sha_exists(b
 dk="$REPO/../skills/darwin-skill"
 if reconcile_oracle_path_present "$dk"; then ok "T6c path_present(darwin-skill) via fs"; else no "T6c path absent"; fi
 
+echo; echo "=== T7 oracle-sandbox — tree_clean/pushed/msg_committed driven live (not by name) ==="
+OWORK="$(mktemp -d)"
+bare="$OWORK/origin.git"; git init -q --bare "$bare"
+orepo="$OWORK/repo"; git init -q "$orepo"
+git -C "$orepo" config user.email t@t; git -C "$orepo" config user.name t
+git -C "$orepo" remote add origin "$bare"
+echo base > "$orepo/base.txt"; git -C "$orepo" add base.txt; git -C "$orepo" commit -q -m "base commit"
+git -C "$orepo" branch -M main
+git -C "$orepo" push -q origin main   # populates origin/main BEFORE the pushed-oracle checks (else vacuous rc0)
+
+echo dirty >> "$orepo/base.txt"
+if reconcile_oracle_tree_clean "$orepo"; then no "T7a tree_clean should be dirty"; else ok "T7a tree_clean rc≠0 with a dirty file"; fi
+git -C "$orepo" checkout -q -- base.txt
+if reconcile_oracle_tree_clean "$orepo"; then ok "T7a tree_clean rc0 after restoring clean"; else no "T7a tree_clean should be clean"; fi
+
+if reconcile_oracle_pushed "$orepo" main; then ok "T7b pushed rc0 when synced"; else no "T7b pushed should be rc0 (synced)"; fi
+echo more >> "$orepo/base.txt"; git -C "$orepo" add base.txt; git -C "$orepo" commit -q -m "ahead commit"
+if reconcile_oracle_pushed "$orepo" main; then no "T7b pushed should be rc≠0 (1 ahead)"; else ok "T7b pushed rc≠0 when 1 ahead of origin"; fi
+
+if reconcile_oracle_msg_committed "$orepo" "ahead commit"; then ok "T7c msg_committed rc0 for a present message"; else no "T7c msg_committed should find 'ahead commit'"; fi
+if reconcile_oracle_msg_committed "$orepo" "nonexistent-message-xyz"; then no "T7c msg_committed should be rc≠0 for an absent message"; else ok "T7c msg_committed rc≠0 for an absent message"; fi
+rm -rf "$OWORK"
+
 echo; echo "================  $pass GREEN / $fail RED  ================"
 [ "$fail" -eq 0 ] && exit 0 || exit 1
