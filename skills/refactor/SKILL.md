@@ -1,6 +1,6 @@
 ---
 name: refactor
-description: Improve code quality without changing behavior — strict norm enforcement. Triggers: "refactor", "clean up code", "normaliser".
+description: 'Improve code quality without changing behavior — strict norm enforcement, targeted scope (file/module). Full-codebase audit+cleanup → /code-clean. Triggers: "refactor", "clean up code", "normaliser".'
 argument-hint: <file, function, or module to refactor>
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash
 ---

@@ -1,7 +1,7 @@
 ---
 name: plugin-check
-description: Audit active plugins vs project needs. Read-only advisory recommending enable/disable. Triggers: "plugin-check", "quels plugins".
-argument-hint: [ex: "React + FastAPI" or "Rust CLI, no frontend"]
+description: 'Audit active plugins vs project needs. Read-only advisory recommending enable/disable. Triggers: "plugin-check", "quels plugins".'
+argument-hint: '[ex: "React + FastAPI" or "Rust CLI, no frontend"]'
 allowed-tools: Read, Bash, Glob, Grep
 ---
 

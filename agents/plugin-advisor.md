@@ -1,6 +1,6 @@
 ---
 name: plugin-advisor
-description: Check active plugins vs project needs. Recommend enable/disable before starting work. Gate before init-project and ship-feature.
+description: Plugin-fit checker — dispatched by /plugin-check and orchestrator gates (init-project, ship-feature). Recommends enable/disable.
 tools: Read, Bash, Glob, Grep
 model: haiku
 ---

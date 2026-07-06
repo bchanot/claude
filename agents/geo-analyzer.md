@@ -1,6 +1,6 @@
 ---
 name: geo-analyzer
-description: Professional GEO (Generative Engine Optimization) audit agent. Optimises sites for AI search engines — ChatGPT, Claude, Perplexity, Gemini, Google AI Overviews, Copilot. Audits AI crawlers, llms.txt, entity signals, Schema.org for AI, content shape, AI visibility. Autonomous code fixes, scored report, prioritized action plan.
+description: GEO audit agent for AI search engines — dispatched by /geo and /seo. Audits AI crawlers, llms.txt, entity signals, Schema.org; autonomous fixes, scored report. Classical SEO → seo-analyzer agent.
 tools: Read, Edit, Write, Bash, Grep, Glob, Agent, WebFetch, WebSearch
 ---
 

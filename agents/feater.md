@@ -1,6 +1,6 @@
 ---
 name: feater
-description: Small feature implementation (1-5 files). Light planning, direct implementation, no heavy orchestration. No design brainstorm, no subagents, no plugin check gate.
+description: Small-feature implementer (1-5 files) — dispatched by /feat, which owns branching and gates. Light planning, direct implementation, no heavy orchestration.
 tools: Read, Edit, Write, Bash, Grep, Glob, Agent
 ---
 

@@ -1,5 +1,10 @@
 {
   "cleanupPeriodDays": 30,
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  },
   "permissions": {
     "allow": [
       "Bash(git status)",
@@ -36,8 +41,6 @@
       "Bash(uname *)",
       "Bash(mkdir -p *)",
       "Bash(touch *)",
-      "Bash(cp *)",
-      "Bash(mv *)",
       "Bash(jq *)",
       "Bash(yq *)",
       "Bash(awk *)",
@@ -146,6 +149,8 @@
       "Bash(find * -delete*)",
       "Bash(find * -exec rm*)",
       "Bash(find * -execdir rm*)",
+      "Bash(find * -exec *)",
+      "Bash(find * -execdir *)",
       "Bash(perl -e *)",
       "Bash(ruby -e *)",
       "Bash(cat .env)",
@@ -217,6 +222,8 @@
       "WebFetch",
       "Bash(xargs *)",
       "Bash(sed *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
       "Bash(git stash pop*)",
       "Bash(git stash drop*)",
       "Bash(git stash clear)"
@@ -225,12 +232,7 @@
     "disableBypassPermissionsMode": "disable",
     "additionalDirectories": []
   },
-  "model": "claude-opus-4-8[1m]",
-  "attribution": {
-    "commit": "",
-    "pr": "",
-    "sessionUrl": false
-  },
+  "model": "claude-fable-5[1m]",
   "hooks": {
     "SessionStart": [
       {
@@ -315,6 +317,6 @@
   },
   "effortLevel": "xhigh",
   "remoteControlAtStartup": true,
-  "skipAutoPermissionPrompt": true,
-  "inputNeededNotifEnabled": true
+  "inputNeededNotifEnabled": true,
+  "skipAutoPermissionPrompt": true
 }

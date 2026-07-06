@@ -1,6 +1,6 @@
 ---
 name: release-candidate
-description: Use when develop is ahead of main and you want to cut a versioned release — finalize version.txt + CHANGELOG, merge develop→main via the gitflow fan-out, tag it, and push. Triggers: "cut a release", "release candidate", "tag a version", "ship develop to main". NOT feature/bugfix integration (that is gitflow finish via /ship-feature) nor a hotfix.
+description: 'Use when develop is ahead of main and you want to cut a versioned release — finalize version.txt + CHANGELOG, merge develop→main via the gitflow fan-out, tag it, and push. Triggers: "cut a release", "release candidate", "tag a version", "ship develop to main". NOT feature/bugfix integration (that is gitflow finish via /ship-feature) nor a hotfix.'
 ---
 
 # /release-candidate — cut a gitflow release (orchestrator)

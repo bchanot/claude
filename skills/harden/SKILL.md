@@ -8,7 +8,7 @@ description: |
   Triggers: "harden", "security headers", "csp", "hsts", "https/ssl
   audit", "redirect audit", "durcissement web", "entêtes sécurité".
   Meta/sitemap/CWV → /seo. llms.txt/AI → /geo. Secrets/CVE/OWASP → /cso.
-argument-hint: [URL] [--fix] [--local|--full] [--no-external]
+argument-hint: "[URL] [--fix] [--local|--full] [--no-external]"
 allowed-tools:
   - Read
   - Edit

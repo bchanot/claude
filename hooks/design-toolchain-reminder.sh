@@ -25,6 +25,12 @@ prompt="$(printf '%s' "$input" \
   2>/dev/null || true)"
 [ -z "$prompt" ] && prompt="$input"
 
+# Harness-generated turns (subagent/task notifications) are not user
+# requests — never fire on them (CLAUDE.md trigger = a design/UI *request*).
+case "$prompt" in
+  '<task-notification>'*) exit 0 ;;
+esac
+
 lc="$(printf '%s' "$prompt" | tr '[:upper:]' '[:lower:]')"
 
 # UI/design build and review signals (FR + EN). Word boundaries (\b) avoid

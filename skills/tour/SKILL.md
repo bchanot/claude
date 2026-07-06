@@ -4,14 +4,11 @@ description: |
   Use when the user wants ONE grouped pass over a whole project (or a
   list of projects) covering all hygiene axes together: code cleanup +
   security (semgrep/cso) + TODO-vs-reality check + doc sync, auto-fixing
-  and re-auditing until a clean pass. Use it whenever the user asks for
-  a "tour" of their projects, a grouped/combined audit-and-fix, or a
-  periodic all-axes sweep — even without naming the axes.
+  and re-auditing until a clean pass — even without naming the axes.
   NOT one axis alone (/code-clean, /cso, /audit-delta, /reconcile, /doc),
   one bug (/hotfix, /bugfix), dashboard (/health), branch diff (/review).
   Triggers: "tour", "tir groupé", "grand ménage", "fais un tour sur les
-  projets", "sweep", "full pass", "vérifie et corrige tout", "passe
-  tout au propre".
+  projets", "sweep", "full pass", "vérifie et corrige tout".
 argument-hint: "[project paths… — blank = current repo] [--report-only]"
 allowed-tools:
   - Read

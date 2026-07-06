@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # ============================================================
 # Claude Code — Session start plugin status
-# Runs once per session. Zero API calls. Filesystem only.
+# Runs once per session. Filesystem only, except one quiet
+# git fetch for the version/update check near the end.
 # ============================================================
 
 # ── Quick health check (filesystem only, no subprocesses) ──

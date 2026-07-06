@@ -1058,3 +1058,11 @@ rules:
 - **context**: 2026-07-06, job1 audit follow-up (.audit/job1-report.md, finding F13). BLK-009 closed same session; workaround it forced ([[BDR-031]] unconditional + compressed global CLAUDE.md) no longer required by this bug specifically, though BDR-031 itself stands on its own merits pending separate review.
 - **future application**: before acting on ANY open upstream/tool blocker cited to justify a fix, a caveat, or a design constraint — re-probe it live if cheap, don't just trust the registry's last-recorded status.
 - **cousin**: [[BLK-009]] closed this session; [[BDR-031]] (the workaround this bug forced).
+
+## LRN-104 — a hook's output message is part of its test contract; no runner = regression invisible
+
+- **pattern**: job1 F14 (`3f639b3`) changed design-hook stdout to pointer-only; test oracle grepped old literal `design-toolchain` → 9 fire-checks silently red 3 days. Hook itself fine — broken oracle, not broken behavior. Caught ONLY when job2 executor ran the suite as its F4 gate; zero runner existed before (job2 F10). Fix: oracle synced to durable fragment `full toolchain` (heading BDR-021 requires the hook to quote verbatim) + `make test` target wired.
+- **why**: an untested output string IS an interface — its test must anchor on the durable contract part (the mandated heading), not incidental wording. No automated runner → oracle drift accumulates unseen; "18 checks lock it" ([[LRN-091]]) protected nothing while nothing ran them.
+- **2nd facet**: audit yaml.safe_load stops at FIRST error/file — fixing error #1 unmasked pre-existing error #2 (onboard/plugin-check argument-hint). Verify errors-per-file exhaustively, not error-presence.
+- **future application**: change any hook/script output consumed by a test → run its test same commit. `make test` now the deterministic backstop (job2 F10). Audit parse-checks: iterate until file fully clean, count errors not booleans.
+- **cousin**: [[LRN-091]] (the lock that never ran), [[LRN-096]] (a guard is code, prove it can fail), [[EVAL-017]].

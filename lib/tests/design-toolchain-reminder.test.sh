@@ -6,7 +6,7 @@ pass=0; fail=0
 check() { if [ "$2" = "$3" ]; then pass=$((pass+1)); else fail=$((fail+1));
   printf 'FAIL %s: got[%s] want[%s]\n' "$1" "$2" "$3"; fi; }
 # fire() -> "fire" if the hook emits the reminder, else "quiet".
-fire() { if printf '{"prompt":"%s"}' "$1" | bash "$H" | grep -q "design-toolchain"; then
+fire() { if printf '{"prompt":"%s"}' "$1" | bash "$H" | grep -q 'full toolchain'; then
   echo fire; else echo quiet; fi; }
 
 # --- Dropped/neutralized tokens must be QUIET (non-UI senses) ---
@@ -18,6 +18,10 @@ check D5-transition  "$(fire 'state transition to develop')"   quiet
 check D6-frontend    "$(fire 'frontend architecture')"         quiet
 check D7-palette     "$(fire 'a palette of options')"          quiet
 check D8-dash-file   "$(fire 'ecc_dashboard.py')"              quiet
+
+# --- Harness-generated inputs must be QUIET even with UI tokens ---
+check D9-tasknotif   "$(fire '<task-notification> <task-id>x</task-id> add css header fonts')" quiet
+check D10-notif-file "$(fire '<task-notification> design-motion-principles keyframe done')"    quiet
 
 # --- Real UI signals must still FIRE ---
 check F1-button      "$(fire 'add a button')"            fire
