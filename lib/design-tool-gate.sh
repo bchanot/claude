@@ -42,7 +42,8 @@
 set -euo pipefail
 
 REPO="$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-PROFILE_SH="$REPO/lib/profile.sh"
+PROFILE_SH="${DESIGN_GATE_PROFILE_SH:-$REPO/lib/profile.sh}"
+CLAUDE_BIN="${CLAUDE_BIN:-claude}"
 PROFILES_DIR="$REPO/lib/profiles"
 SKILLS_DIR="$REPO/skills"
 PROFILE="${1:-design}"
@@ -59,7 +60,7 @@ PROFILE_FILE="$PROFILES_DIR/$PROFILE.profile"
 # dirs and prepend. nvm keeps old node versions after an upgrade, so pick the
 # newest that actually ships claude (sort -V), not the first glob match.
 ensure_claude_on_path() {
-  command -v claude >/dev/null 2>&1 && return
+  command -v "$CLAUDE_BIN" >/dev/null 2>&1 && return
   local cand
   for cand in \
     "$HOME/.claude/local/claude" \
@@ -98,15 +99,15 @@ tool_active() {
       if [ -e "$SKILLS_DIR/$name" ]; then echo active; else echo inactive; fi
       ;;
     plugin)
-      if ! command -v claude >/dev/null 2>&1; then echo unknown; return; fi
-      if claude plugin list 2>/dev/null \
+      if ! command -v "$CLAUDE_BIN" >/dev/null 2>&1; then echo unknown; return; fi
+      if "$CLAUDE_BIN" plugin list 2>/dev/null \
            | awk -v p="^[[:space:]]*❯ ${name}@" '$0 ~ p {f=1; next} f && /Status:/ {print; exit}' \
            | grep -q "✔ enabled"
       then echo active; else echo inactive; fi
       ;;
     mcp)
-      if ! command -v claude >/dev/null 2>&1; then echo unknown; return; fi
-      if claude mcp list 2>/dev/null | grep -q "^${name}"; then echo active; else echo inactive; fi
+      if ! command -v "$CLAUDE_BIN" >/dev/null 2>&1; then echo unknown; return; fi
+      if "$CLAUDE_BIN" mcp list 2>/dev/null | grep -q "^${name}"; then echo active; else echo inactive; fi
       ;;
     cli)
       if command -v "$name" >/dev/null 2>&1; then echo active; else echo inactive; fi
