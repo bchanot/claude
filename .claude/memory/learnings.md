@@ -121,6 +121,7 @@ rules:
 | LRN-100 | 2026-07-05 | tool gated on clean tree must clean its OWN scratch (else self-DoS next run); contract-changing auto-fix needs structural BREAKING flag in the reviewed artifact | any recurring tool w/ cleanliness precondition; any auto-fix touching an API contract |
 | LRN-102 | 2026-07-05 | deliverable text placed BEFORE a tool call may never render — only the turn's FINAL text is guaranteed displayed; a checklist printed above AskUserQuestion was invisible to the user | any flow whose deliverable is conversational text (checklist, commands, report): end the turn with it, blocking questions come before, never after |
 | LRN-105 | 2026-07-06 | explorer subagent ran a build tool (`graphify .`) mid read-only audit despite prose instructions to only Read/Grep/Bash-read — the runtime observed a config-protection sentinel deny message and self-corrected only after an explicit main-session correction, not from the original prompt | dispatching any "read-only audit" subagent whose toolset includes Bash: state "do not execute build/generator/mutating commands" explicitly, don't rely on "read-only" framing alone to constrain tool CHOICE |
+| LRN-106 | 2026-07-06 | job3-B1 froze a fixture + repointed run-reconcile.sh's T2 off the live registry, declared "unblocked", 20/20 green — job4 (next audit, same file, same day) found T3+T5 in the SAME FILE still read the live registry, same fragility, untouched | fixing one instance of a "reads live state it shouldn't" finding: grep the WHOLE file (not just the cited line) for the same pattern before declaring the class closed |
 
 ---
 
@@ -1075,3 +1076,11 @@ rules:
 - **2nd facet**: audit yaml.safe_load stops at FIRST error/file — fixing error #1 unmasked pre-existing error #2 (onboard/plugin-check argument-hint). Verify errors-per-file exhaustively, not error-presence.
 - **future application**: change any hook/script output consumed by a test → run its test same commit. `make test` now the deterministic backstop (job2 F10). Audit parse-checks: iterate until file fully clean, count errors not booleans.
 - **cousin**: [[LRN-091]] (the lock that never ran), [[LRN-096]] (a guard is code, prove it can fail), [[EVAL-017]].
+
+## LRN-106 — fixing B1 in one file ≠ closing the B1 pattern
+
+- **pattern**: job3-B1 (2026-07-06) froze `lib/tests/fixtures/blockers-snapshot.md`, repointed run-reconcile.sh's T2 at it, declared "B1 UNBLOCKED", suite 20/20 GREEN. job4 (J4-10), the very next audit pass, same file, same day, found T3 and T5 in the SAME FILE still reading the LIVE `$MEM/decisions.md` — identical fragility class, untouched siblings, one file over.
+- **why**: "suite green" + "named finding fixed" don't imply "no other instance of the same root cause survives nearby." The fix scoped to exactly what the finding cited (T2's BLK-status read); T3/T5's structurally identical read (decisions.md contradiction/deferral scan) wasn't touched because it wasn't literally named, even though it's the same bug.
+- **context**: 2026-07-06, job3 chore/job3-fixes (B1 unblock) then job4 SPEC-10 (`.audit/job4-report.md` J4-10), same run-reconcile.sh, same session-day — closed for real this time (T3/T5 repointed at a new `decisions-snapshot.md` fixture, `$MEM` variable deleted, `grep -c '$MEM' == 0` gate).
+- **future application**: after fixing one instance of a "reads live state it shouldn't" (or any similarly generic) finding, grep the WHOLE FILE (and ideally the whole surface class) for the same pattern before declaring the class closed — not just the line/test the finding cited.
+- **cousin**: [[LRN-077]] (pin grep, don't trust one instance), [[BDR-041]] (reconcile design: verify don't believe).
