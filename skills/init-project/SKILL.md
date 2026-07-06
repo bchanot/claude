@@ -85,7 +85,7 @@ enriched contract.
 
 ## STEP 5 — SCAFFOLD
 Load `$HOME/.claude/agents/scaffolder.md`. Pass: BRIEF + DESIGN + `~/.claude/templates/project-CLAUDE.md` + `~/.claude/CLAUDE.md`.
-Creates: CLAUDE.md, settings, structure, config, empty entry points, .gitignore, .env.example, .claude/tasks/TODO.md, .claude/memory/{decisions,learnings,blockers,journal,evals}.md, .claude/audits/. NO README, NO features.
+Creates: CLAUDE.md, `.claude/settings.json`, `.claudeignore`, `.gitignore`, `.env.example`, empty entry points. NO README, NO features, NO `.claude/tasks/` or `.claude/memory/` (not bootstrapped by this flow — copy from `~/.claude/templates/memory/` manually if wanted before STEP 10b's memory commit).
 Verify: `git init` + build passes.
 
 ## STEP 5b — CREATE README
