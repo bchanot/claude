@@ -1,5 +1,9 @@
 # Deploy Skill — Implementation Plan
 
+> **Superseded by BDR-054** (`52f6678`): the shipped skill has NO `NEXT.sh` file and NO
+> AskUserQuestion hand-back — see `skills/deploy/SKILL.md` for current behavior. This
+> plan is kept as historical record; do not implement its NEXT.sh/hand-back sections.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Build a `deploy` skill — a per-project shell runbook that re-instantiates from the delta since the last deploy, hands control to the user for out-of-band execution, resumes cold (even in a new session), and learns from deploy errors in place.

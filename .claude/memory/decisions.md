@@ -74,6 +74,7 @@ rules:
 | BDR-050 | 2026-07-03 | universal pipeline (contract→dev inline→fresh verify→fresh security, loops bounded 3× in main loop) with per-flow weighting; hotfix failure = revert not loop | accepted |
 | BDR-051 | 2026-07-04 | contract enrich-at-gate: the contract grows ONLY at a human micro-gate ([gated] marker); the verifier judges the ENRICHED contract, not the seed | accepted |
 | BDR-052 | 2026-07-05 | /tour auto mode = branch-as-gate: no mid-run approval gates; unmerged chore branch + per-project TOUR.md = deferred human gate; reconcile report-only; loop bounded 3× | accepted |
+| BDR-054 | 2026-07-06 | supersede BDR-038 NEXT.sh/hand-back artifacts — shipped impl removed both (52f6678, LRN-102) | accepted |
 
 ---
 
@@ -842,3 +843,12 @@ rules:
 - **Rationale**: rule = ~490 tok/session session-start duplicate of the skill (job1 F10 + job2); skill self-suffices (876-char description carries the triggers, body has full CLI flow). Purge-in-installer beats one-shot rm: survives re-runs + manual `ctx7 setup`.
 - **Alternatives rejected**: kill skill keep rule (rule always-on, costs every session even non-lib work; skill lazy — wrong direction); hand-trim generated files (fight the generator, LRN-039 class); hand-edit lock hash (algo undocumented).
 - **Reference**: chore/ctx7-single-surface; job1 F10, job2 F8/F13. User decision 2026-07-06.
+
+## BDR-054 — supersede BDR-038: NEXT.sh file + AskUserQuestion hand-back removed from /deploy
+
+- **Date**: 2026-07-06
+- **Status**: accepted (supersedes BDR-038 on 2 points: NEXT.sh artifact, hand-back mechanism)
+- **Decision**: /deploy ships WITHOUT NEXT.sh file (checklist display-only, conversation-only) and WITHOUT AskUserQuestion hand-back (plain final-text print, turn ends, no tool call after). BDR-038's original 5-artifact list (PROCEDURE.md, INCIDENTS.md, STATE.json, PENDING.json, NEXT.sh) shrinks to 4 committed/bridge artifacts — NEXT.sh no longer written. Two-moment spine (BEFORE/AFTER), PENDING.json bridge, deploy-commit.sh atomic patch+incident — all unchanged, still current per BDR-038.
+- **Why**: LRN-102 — deliverable text printed before a tool call may never render (harness guarantees only the turn's FINAL text); AskUserQuestion after the checklist swallowed it silently, live run 2026-07-05 (bchanot-cv). NEXT.sh-to-disk also useless in practice (user: throwaway once deployed) — display-only kills a stale-file-drift class for free.
+- **Alternatives rejected**: keep NEXT.sh, fix hand-back only (leaves ephemeral-file-nobody-reads problem); keep AskUserQuestion, cram checklist into its options text (char-limited, brittle); revert to file+question (reproduces the exact LRN-102 bug).
+- **Reference**: commits `31443ba` (inline hand-back print), `52f6678` (checklist display-only, no NEXT.sh); `skills/deploy/SKILL.md:74-77,295-297,313-318,440-441`; [[LRN-102]]; job3 docs-drift audit D6/D7/D9 (`.audit/job3-report.md`).
