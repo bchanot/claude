@@ -18,6 +18,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ### Removed
 - `lib/detect-plugins.sh`: `detect_security_guidance` — dead since its re-add at `45c3507`; zero callers on any surface, including the dynamic `session-start.sh` detection loop (the banner's row derives from `enabledPlugins` instead). Nothing invokes it — removal, not a breaking change.
 - `lib/detect-plugins.sh`: `plugin_enabled` — its last two callers were replaced by the inline `enabledPlugins` grep at `session-start.sh:145-146` (`6d72d0a`); zero callers remained. Nothing invokes it — removal, not a breaking change.
+- `templates/settings/settings.local.json` — orphan template, zero automated consumer since creation (`a145e3c`); its README tree-line reference was already dropped at `e48c834`. Content recoverable from git history.
+- `lib/memory-commit.sh` / `lib/doc-commit.sh`: the `pending` CLI verb + sourceable `memory_pending()` / `docs_pending()` helpers — earmarked "for the v2 hook", which BDR-037 rejected (no code ever written); zero production or test callers. `commit "<message>" [<file>...]` is now the only verb on both scripts.
 
 ### Fixed
 - `gitflow_finish` ignored its `<type> <name>` arguments and always merged the checked-out branch — naming a different branch silently merged the wrong one. The arguments are now an optional safety assertion: if given and not equal to the current branch, `finish` refuses with a clear error instead of merging. No-argument calls (the only real caller) are unchanged.
