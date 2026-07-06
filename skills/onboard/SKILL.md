@@ -96,7 +96,7 @@ L'agent génère :
 - `.claudeignore`
 - `.gitignore` (safety check)
 - `.claude/tasks/TODO.md`, `.claude/memory/{decisions,learnings,blockers,journal,evals}.md`
-- **Pas encore** `ROADMAP.md` (décision STEP 9)
+- **Pas encore** `ROADMAP.md` (généré uniquement via `/onboard add gsd` — voir Next steps)
 
 Si `CLAUDE.md` existe déjà : lire son contenu, ne PAS écraser — fusionner après STEP 3.
 
@@ -122,7 +122,7 @@ Cas :
   Stack: <reason>. Aucune lib d'animation détectée.
   Install `<cmd>` ? (yes / skip)
   ```
-  Sur `yes` → exécuter `recommend_anim_install_cmd "$pkg"` puis confirmer.
+  Sur `yes` → `cmd=$(recommend_anim_install_cmd "$pkg"); eval "$cmd"` puis confirmer.
   Sur `skip` → continuer silencieusement.
 
 - **`status=eligible` AND une lib anim déjà présente** (motion, framer-motion, gsap, lottie, react-spring, popmotion, auto-animate) → log info uniquement :
@@ -143,7 +143,7 @@ bash "$HOME/.claude/lib/gitflow.sh" init
 Sur un repo existant, cela : renomme `master`→`main` si besoin (LOCAL), crée
 `develop` depuis main, réconcilie le socle `.gitignore` (additif — n'écrase
 jamais les règles du projet), installe le hook pre-commit versionné, et fait UN
-commit `chore: adopt gitflow socle + hook` sur main (pendant que le hook est
+commit `chore: adopt gitflow socle + pre-commit hook` sur main (pendant que le hook est
 inactif → jamais auto-bloqué). Idempotent — un re-run est un no-op.
 
 **Annoncer le renommage master→main** s'il a lieu. Le renommage est LOCAL ;
@@ -251,7 +251,7 @@ test -f graphify-out/GRAPH_REPORT.md && echo "graph-exists"
 - **Graphe déjà présent + récent** (fichier < 7j) → skip, réutiliser l'existant.
 - **Sinon** → run :
   ```bash
-  graphify . --output graphify-out 2>&1 | tail -20
+  graphify . --out graphify-out 2>&1 | tail -20
   ```
   Puis `test -f graphify-out/GRAPH_REPORT.md` pour valider.
 
@@ -630,7 +630,7 @@ Agent(
 **Cas gstack ON + URL live OU dev server launchable :**
 ```
 Skill(
-  skill="gstack:design-review",
+  skill="design-review",
   args="--url <url or http://localhost:PORT> --output .onboard-audit/design.md --audit-only"
 )
 ```
@@ -673,7 +673,7 @@ Agent(
 **Cas gstack ON + URL live :**
 ```
 Skill(
-  skill="gstack:browse",
+  skill="browse",
   args="--lighthouse --url <url or http://localhost:PORT> --output .onboard-audit/perf-lighthouse.json"
 )
 ```
@@ -715,7 +715,7 @@ Agent(
 **Cas gstack ON + URL live :**
 ```
 Skill(
-  skill="gstack:browse",
+  skill="browse",
   args="--axe --url <url> --output .onboard-audit/a11y-axe.json"
 )
 ```
