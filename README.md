@@ -15,19 +15,19 @@ This repo is your personal Claude Code setup, versioned and reproducible across 
 claude-config/
 ├── CLAUDE.md              # Global coding preferences (style, rules, workflow)
 ├── settings.json          # Global permissions (deny / ask / allow rules)
-├── install.sh             # Bootstrap: Claude Code CLI + auth + shell env vars + link + plugins
+├── install.sh             # Bootstrap: Claude Code CLI + auth + submodules + link + plugins
 ├── install-plugins.sh     # One-shot installer: prerequisites + all plugins
 ├── link.sh                # Symlinks this repo into ~/.claude/
 ├── doctor.sh              # Setup diagnostic
 ├── update-all.sh          # One-command update for all components
 ├── Makefile               # Unified entry point: make install / doctor / update
 ├── plugins.lock.json      # Version pinning for non-marketplace dependencies
-├── hooks/                 # Session start, statusline, RTK rewrite
+├── hooks/                 # Session start, statusline, RTK rewrite, config-protection + design-toolchain guards
 ├── agents/                # Execution units called by skills (never invoked directly)
 ├── skills/                # Entry points invoked via /skill-name
-├── skills-external/       # Git submodules (gstack)
-├── templates/             # Per-project config templates (CLAUDE.md, settings, .claudeignore)
-└── lib/                   # Shared shell functions (plugin detection)
+├── skills-external/       # Vendored skill packs (gstack submodule + installer-fetched design packs)
+├── templates/             # Per-project templates (CLAUDE.md, settings, memory registries, deploy runbook, gitignore)
+└── lib/                   # Shared shell libs (gitflow, profiles, commit helpers, archetypes, tests)
 ```
 
 **Architecture principle:**
@@ -55,13 +55,14 @@ bash doctor.sh
 ```
 
 All scripts use their own location to find the repo — run them from anywhere.
-Install output is logged to `install-YYYYMMDD-HHMMSS.log`.
+The plugins step logs to `install-YYYYMMDD-HHMMSS.log`.
 
-**Optional — Context7** (fast doc lookup for React / Next.js / Prisma…): `install.sh`
-installs the `ctx7` CLI. To wire it into Claude Code:
+**Optional — Context7** (fast doc lookup for React / Next.js / Prisma…): the plugins
+step installs the `ctx7` CLI and wires it into Claude Code itself — single surface =
+the `find-docs` skill; the generated `rules/context7.md` is purged by design
+(BDR-053). If you run `ctx7 setup` manually, delete that rule or re-run `make plugin`.
 
 ```bash
-ctx7 setup --claude        # configure Context7 for Claude Code
 ctx7 login                 # optional: OAuth / API key for higher rate limits
 ```
 
@@ -77,7 +78,7 @@ ctx7 login                 # optional: OAuth / API key for higher rate limits
 | **RTK** | Plugin (always on) | Code rewrite hook. Zero passive cost. | [rtk-ai/rtk](https://github.com/rtk-ai/rtk) |
 | **security-guidance** | Plugin (always on) | Security hook. Zero passive cost. | [anthropics/claude-code](https://github.com/anthropics/claude-code) |
 | **ui-ux-pro-max** | Plugin (toggle) | Design system, color/typography choices. Enable for design-heavy projects. | [nextlevelbuilder/ui-ux-pro-max-skill](https://github.com/nextlevelbuilder/ui-ux-pro-max-skill) |
-| **Context7** | Plugin (toggle) | Fast-evolving libs doc lookup (Next.js, React, Prisma...). Requires a free account + API key (optional Context7 step in install). | [context7.com](https://context7.com/) |
+| **Context7** | Plugin (toggle) | Fast-evolving libs doc lookup (Next.js, React, Prisma...). Works anonymously; optional `ctx7 login` raises rate limits. | [context7.com](https://context7.com/) |
 | **pr-review-toolkit** | Plugin (toggle) | Multi-agent PR review. | [anthropics/claude-code](https://github.com/anthropics/claude-code) |
 | **Graphify** | Python CLI | Codebase → knowledge graph → navigable wiki. Helps Claude map and search projects efficiently. | [pypi: graphifyy](https://pypi.org/project/graphifyy/) |
 
