@@ -186,6 +186,8 @@ cp "$CONF/templates/settings/settings.json" .claude/settings.json
 cp "$CONF/templates/settings/.claudeignore" .claudeignore
 ```
 
+See [`templates/settings/SETTINGS.md`](templates/settings/SETTINGS.md) for the full rule syntax reference (rule types, patterns, `defaultMode` values).
+
 ---
 
 ## Diagnostic and maintenance
