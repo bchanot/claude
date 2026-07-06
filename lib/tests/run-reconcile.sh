@@ -11,7 +11,6 @@ GREP=/usr/bin/grep                                  # LRN-074: pin grep
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$HERE/.." && pwd)"
 FIX="$HERE/fixtures"
-MEM="$REPO/../.claude/memory"; [ -d "$MEM" ] || MEM="$REPO/.claude/memory"
 # shellcheck source=/dev/null
 source "$REPO/reconcile.sh"
 
@@ -47,7 +46,7 @@ open_ids=$(reconcile_blk_open "$b" | cut -f1 | sort | tr '\n' ' ')
 if [ "$open_ids" = "BLK-001 BLK-003 " ]; then ok "T2c open blockers = {001,003}"; else no "T2c open = [$open_ids], expected {001,003}"; fi
 
 echo; echo "=== T3 deferral lexical sweep (HONEST LIMIT: marked-only) ==="
-defer=$(reconcile_deferrals "$FIX/todo-snapshot.md" "$MEM/decisions.md")
+defer=$(reconcile_deferrals "$FIX/todo-snapshot.md" "$FIX/decisions-snapshot.md")
 for mark in "OUT-OF-SCOPE" "DEFERRED" "follow-up" "one-line ticket"; do
   if has "$defer" "$mark"; then ok "T3 found marked deferral: $mark"; else no "T3 missed marker: $mark"; fi
 done
@@ -63,15 +62,15 @@ if [ "$truths" -ge 6 ]; then ok "T4e snapshot supplies $truths real-true facts �
 echo "      (7th cat-4 item — twin doc-sync [~] cross-ref — is SURFACED for review, not auto-verified: honest limit)"
 
 echo; echo "=== T5 contradiction candidates (surface, never assert) ==="
-cand=$(reconcile_contradiction_candidates "$MEM/decisions.md" "$FIX/todo-snapshot.md")
+cand=$(reconcile_contradiction_candidates "$FIX/decisions-snapshot.md" "$FIX/todo-snapshot.md")
 if has "$cand" "--help"; then ok "T5 surfaced --help candidate (BDR-001 ⇄ --help chantier)"; else no "T5 missed --help candidate"; fi
 
 echo; echo "=== T6 live oracle smoke — oracles QUERY real git/fs (not a name) ==="
 if reconcile_oracle_merge_done "$REPO" "prune-memory"; then ok "T6a merge_done(prune-memory) via git log"; else no "T6a merge not found in git"; fi
 if reconcile_oracle_sha_exists "$REPO" "be1dcef";      then ok "T6b sha_exists(be1dcef) via cat-file";     else no "T6b sha missing"; fi
 # $REPO here = lib/ (see line 12) → lib/../skills = the real skills/ dir.
-# Was "$MEM/../skills" = .claude/skills/ — the LRN-042 parasite dir, removed
-# 2026-06-30 by make plugin Step 8.5: green-for-wrong-reason (LRN-077 class).
+# Was .claude/skills/ — the LRN-042 parasite dir, removed 2026-06-30 by
+# make plugin Step 8.5: green-for-wrong-reason (LRN-077 class).
 dk="$REPO/../skills/darwin-skill"
 if reconcile_oracle_path_present "$dk"; then ok "T6c path_present(darwin-skill) via fs"; else no "T6c path absent"; fi
 
