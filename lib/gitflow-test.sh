@@ -197,6 +197,26 @@ chk "T13c develop has bugfix commit" 'git log develop --oneline | grep -q "Merge
 chk "T13c main untouched"            "[ \"\$(git rev-parse main)\" = \"$main_before\" ]"
 chk "T13c bugfix branch deleted"     '! git rev-parse --verify -q refs/heads/bugfix/bx >/dev/null'
 
+echo "T14 — hook exemption matrix (mixed-block / MERGE_HEAD / root-commit), direct invocation"
+newrepo hookmix; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+git checkout -q main
+echo "console.log(1)" > src.js
+mkdir -p .claude/tasks; echo t > .claude/tasks/t.md
+git add src.js .claude/tasks/t.md
+chk "T14a mixed code+.claude BLOCKED on main" '! git commit -q -m mixed 2>/dev/null'
+
+newrepo mergehead; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+git checkout -q main
+echo "console.log(1)" > src.js; git add src.js
+touch "$(git rev-parse --git-dir)/MERGE_HEAD"
+chk "T14b MERGE_HEAD exemption allows commit on main" 'git commit -q -m "resolve conflict" 2>/dev/null'
+
+newrepo root14c
+git symbolic-ref HEAD refs/heads/main   # name the unborn branch 'main' (protected)
+gitflow_install_hook   # write + activate BEFORE any commit (unlike newrepo/hookon)
+echo x > x.txt; git add x.txt
+chk "T14c root commit succeeds hook-active-before-first-commit" 'git commit -q -m root 2>/dev/null'
+
 echo
 echo "==== RESULT: $PASS passed, $FAIL failed ===="
 [ "$FAIL" -eq 0 ]
