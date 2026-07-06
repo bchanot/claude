@@ -611,8 +611,7 @@ if command -v ctx7 &>/dev/null; then
   fi
   # CLI + Skills mode: install the find-docs skill into ~/.claude/skills when
   # absent (it is gitignored — ctx7 owns it, this regenerates it on a fresh
-  # clone). Guarded on absence so a re-run never clobbers a customized config
-  # (setup also (re)writes ~/.claude/rules/context7.md).
+  # clone). Guarded on absence so a re-run never clobbers a customized config.
   if [ ! -f "$HOME/.claude/skills/find-docs/SKILL.md" ]; then
     if ctx7 setup --claude --cli -y </dev/null &>/dev/null; then
       ok "ctx7 CLI + Skills configured (find-docs skill installed)"
@@ -620,6 +619,11 @@ if command -v ctx7 &>/dev/null; then
       warn "ctx7 setup failed — run manually: ctx7 setup --claude --cli"
     fi
   fi
+  # Single ctx7 surface = the find-docs skill (BDR-053). setup also (re)writes
+  # ~/.claude/rules/context7.md — a session-start duplicate of the skill
+  # (~490 tok/session, job1 F10). Purge it unconditionally so re-runs and
+  # manual `ctx7 setup` invocations stay rule-free.
+  rm -f "$HOME/.claude/rules/context7.md"
   info "Standalone usage:  ctx7 docs /vercel/next.js \"middleware\""
 fi
 

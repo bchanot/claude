@@ -23,9 +23,11 @@ Docs: https://code.claude.com/docs/en/memory.md#path-specific-rules
 
 ## Machine-owned files (gitignored, regenerated)
 
-- `context7.md` — written by `ctx7 setup --claude --cli`
-  (install-plugins.sh STEP ctx7). Not vendored: ctx7 owns its content
-  and rewrites it on setup; the repo would fight the generator. Same
-  treatment as `skills/find-docs/`.
+- `context7.md` — DELETED BY DESIGN (BDR-053, 2026-07-06): `ctx7 setup
+  --claude --cli` still writes it, but install-plugins.sh STEP ctx7
+  purges it right after — the find-docs skill is the single ctx7
+  surface; the rule was a ~490 tok/session session-start duplicate
+  (job1 F10). If it reappears (manual `ctx7 setup`), delete it or
+  re-run `make plugin`.
 
 Hand-written rules ARE tracked — add them normally.

@@ -834,3 +834,11 @@ rules:
 - **Rationale**: mid-run gates defeat the skill's point (hands-off grouped sweep, user away). Auto-checking TODO reproduces the exact lie /reconcile catches — RED-proven, baseline did it. Branch+report = same approval semantics as audit-delta's 3c gate, moved after the fact where a headless run can afford it.
 - **Alternatives rejected**: per-phase AskUserQuestion gates (audit-delta model — blocks headless); one consolidated pre-fix gate (still blocks); auto-edit TODO on oracle proof (inference ≠ approval); plain-branch fallback on non-gitflow repos (violates lib-only doctrine → report-only instead).
 - **Reference**: skills/tour/SKILL.md + CLAUDE.md routing (feature/tour-skill `73e6a1c`). TDD trail [[LRN-099]] [[LRN-100]] [[EVAL-014]].
+
+## BDR-053 — ctx7 single surface: keep find-docs skill, kill context7.md rule
+
+- **Date**: 2026-07-06
+- **Decision**: ctx7 gets ONE session surface = `skills/find-docs` (lazy body, description-only cost). `rules/context7.md` deleted + install-plugins.sh STEP ctx7 purges it unconditionally post-setup (`rm -f`, generator has no skip-rule flag — `--claude`/`--cli` = target/mode only). darwin-skill entry dropped from skills-lock.json same pass (F8: lock stale `6bbcda37…` vs disk `c3220018…`, no re-pin verb in npx skills — unpinned rather than hand-edit undocumented hash).
+- **Rationale**: rule = ~490 tok/session session-start duplicate of the skill (job1 F10 + job2); skill self-suffices (876-char description carries the triggers, body has full CLI flow). Purge-in-installer beats one-shot rm: survives re-runs + manual `ctx7 setup`.
+- **Alternatives rejected**: kill skill keep rule (rule always-on, costs every session even non-lib work; skill lazy — wrong direction); hand-trim generated files (fight the generator, LRN-039 class); hand-edit lock hash (algo undocumented).
+- **Reference**: chore/ctx7-single-surface; job1 F10, job2 F8/F13. User decision 2026-07-06.
