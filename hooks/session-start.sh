@@ -198,6 +198,16 @@ unset _active_count _inactive_count
 printf "│  🖥️  CLI : %-40s│\n" "$GSD_STATUS"
 [ -n "$TOKEN_WARN" ] && printf "│  💰 %-44s│\n" "${TOKEN_WARN:0:44}"
 printf "│  📦 v%-45s│\n" "$CONFIG_VERSION"
+# CLAUDE.md line-count guard (job1 anti-regression, BDR-031 density target: 275)
+if [ -n "$REPO_DIR" ] && [ -f "$REPO_DIR/CLAUDE.md" ]; then
+  _claude_lines=$(wc -l < "$REPO_DIR/CLAUDE.md")
+  if [ "$_claude_lines" -gt 280 ]; then
+    _cmd_warn="CLAUDE.md ${_claude_lines}L (>280) — density pass requis"
+    printf "│  ⚠️  %-44s│\n" "${_cmd_warn:0:44}"
+    unset _cmd_warn
+  fi
+  unset _claude_lines
+fi
 # Version check: compare local vs remote (non-blocking)
 _remote_ver=""
 if [ -n "$REPO_DIR" ] && [ -d "$REPO_DIR/.git" ]; then
