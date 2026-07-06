@@ -421,7 +421,7 @@ PROCHAINE ÉTAPE            : <highest-priority immediate action>
 - **Merge, don't overwrite.** On re-run, previous SEO.md's Historique
   section is preserved. Current content moves to Historique with
   summary (date + score + key changes).
-- **Every user action has automation options.** Per user CLAUDE.md,
-  mandatory from `automation-catalog.md`.
+- **Every user action has automation options.** Mandatory per the agents'
+  spec, sourced from `automation-catalog.md`.
 - **Scoring weights per user decision**: GEO = 20% local B2C, 25%
   SaaS/national/content. Combined score formula is explicit in §1.

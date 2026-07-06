@@ -13,6 +13,7 @@ rules:
   - Action keep - the output is fit for purpose as-is.
   - Action correct - needs revision; capture what.
   - Action deprecate - the approach itself is flawed; link to the decision that replaces it.
+  - Entries in English, caveman format (BDR-009): drop articles + filler, fragments OK, technical terms exact.
 ---
 
 # Evals registry (EVAL)
@@ -26,10 +27,10 @@ rules:
 
 ## EVAL-XXX - <output>
 
-- **Date** : YYYY-MM-DD
-- **Output** : <ce qui a été produit>
-- **Méthode** : <comment cela a été évalué>
-- **Anomalies** : <ce qui est faux, manquant, surprenant>
-- **Action** : keep | correct | deprecate
+- **Date**: YYYY-MM-DD
+- **Output**: <what was produced>
+- **Method**: <how it was evaluated>
+- **Anomalies**: <what is wrong, missing, surprising>
+- **Action**: keep | correct | deprecate
 
 -->

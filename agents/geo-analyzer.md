@@ -806,8 +806,9 @@ without evidence = DGCCRF risk.>
 ========================================
 ```
 
-**If called standalone via `/geo`**: write/update `GEO.md` at project
-root (or merge into `SEO.md` if it already exists). Structure:
+**If called standalone via `/geo`**: write/update `.claude/audits/GEO.md`
+(create `.claude/audits/` first if needed; merge into `.claude/audits/SEO.md`
+if it already exists). Structure:
 
 ```markdown
 # Audit GEO — <Project Name>

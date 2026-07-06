@@ -26,9 +26,9 @@ allowed-tools:
 
 Invoke the `capitalize` skill now and run it in **ritual mode**: the full
 pipeline (STEP 0 precheck → STEP 1 auto-scan → STEP 2 dedup → STEP 2B TODO
-reconcile → STEP 3 approval gate → STEP 4 write → STEP 5 journal → STEP 6
-handoff), PLUS STEP 1B's explicit 3-question reflection (what did you decide /
-learn / block).
+reconcile → STEP 3 approval gate → STEP 4 write → STEP 5 journal → STEP 5B
+memory commit → STEP 6 handoff), PLUS STEP 1B's explicit 3-question reflection
+(what did you decide / learn / block).
 
 Ritual answers are deduped like any other candidate — a dup is dropped and its
 existing ID shown, not re-logged. This is the upgrade over the legacy `/close`,

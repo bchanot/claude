@@ -353,9 +353,8 @@ Install for better LOCAL coverage :
 - **Framework awareness.** For SPA/JS frameworks, validate built
   output (`dist/`, `_site/`, `build/`, `out/`), not JSX/TSX source.
   Warn if no build dir present.
-- **Respect CLAUDE.md architecture rules.** Public websites must ship
-  WCAG 2.1 AA per France RGAA 4.1 when in scope. Flag AA violations
-  as Haute, A violations as Critique.
+- **Public websites must ship WCAG 2.1 AA** (France: RGAA 4.1) when in
+  scope. Flag AA violations as Haute, A violations as Critique.
 - **External validators are authoritative on live URLs.** validator.nu
   and jigsaw are the W3C backends. If a local tool disagrees with
   them, trust the W3C backend; flag the divergence as a finding.

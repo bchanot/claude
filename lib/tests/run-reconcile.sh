@@ -30,17 +30,21 @@ idx_only=$($GREP -oE '^\| LRN-[0-9]+' "$DRIFT" | $GREP -oE 'LRN-[0-9]+' | sort -
 if printf '%s\n' "$idx_only" | $GREP -qx "LRN-020"; then no "T1c teeth LOST — Index path also yields LRN-020"; else ok "T1c teeth intact — Index path OMITS LRN-020 (engine reading the Index would fail T1b)"; fi
 
 echo; echo "=== T2 BLK status — LAST block wins (the BLK-008 trap) ==="
-b="$MEM/blockers.md"
+# Hermetic fixture, not the live registry (job3 B1): a frozen post-BLK-009
+# snapshot so this test never reds again just because a future blocker gets
+# closed. Re-freeze this fixture (copy the live blockers.md) if BLK-008's
+# compound-status trap or the open/resolved mix it exercises ever changes.
+b="$FIX/blockers-snapshot.md"
 case "$(reconcile_blk_current_status "$b" BLK-008)" in
   *RESOLVED*|*resolved*) ok "T2a BLK-008 current = resolved (read FINAL, not the middle REVERTED)";;
   *) no "T2a BLK-008 misread as non-resolved — fell into the compound-status trap";;
 esac
 case "$(reconcile_blk_current_status "$b" BLK-009)" in
-  *open*|*upstream*) ok "T2b BLK-009 current = upstream/open";;
+  *RESOLVED*|*resolved*) ok "T2b BLK-009 current = resolved (fixture frozen post-2026-07-06 closure)";;
   *) no "T2b BLK-009 misread";;
 esac
 open_ids=$(reconcile_blk_open "$b" | cut -f1 | sort | tr '\n' ' ')
-if [ "$open_ids" = "BLK-001 BLK-003 BLK-009 " ]; then ok "T2c open blockers = {001,003,009}"; else no "T2c open = [$open_ids], expected {001,003,009}"; fi
+if [ "$open_ids" = "BLK-001 BLK-003 " ]; then ok "T2c open blockers = {001,003}"; else no "T2c open = [$open_ids], expected {001,003}"; fi
 
 echo; echo "=== T3 deferral lexical sweep (HONEST LIMIT: marked-only) ==="
 defer=$(reconcile_deferrals "$FIX/todo-snapshot.md" "$MEM/decisions.md")

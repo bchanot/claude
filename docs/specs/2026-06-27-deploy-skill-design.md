@@ -1,5 +1,9 @@
 # Deploy skill — design spec
 
+> **Superseded by BDR-054** (`52f6678`): the shipped skill has NO `NEXT.sh` file and NO
+> AskUserQuestion hand-back — see `skills/deploy/SKILL.md` for current behavior. This
+> spec is kept as historical record; do not implement its NEXT.sh/hand-back sections.
+
 - **Date:** 2026-06-27
 - **Status:** Design approved (5 knobs settled). **No skill code written yet.** Next step = implementation plan.
 - **Scope:** A new `deploy` skill = a per-project shell RUNBOOK that lives in `.claude/deploy/`, gets re-instantiated from the delta since the last deploy, and LEARNS from deploy errors in place.

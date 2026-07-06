@@ -28,7 +28,7 @@ if [ ${#BROKEN[@]} -gt 0 ]; then
     printf "│  MISSING: ~/.claude/%-30s│\n" "$b"
   done
   printf "│  → %-47s│\n" "$_fix_cmd"
-  echo "│  → /health for full diagnostic                     │"
+  echo "│  → make doctor for full diagnostic                 │"
   echo "└───────────────────────────────────────────────────┘"
   unset _repo_hint _fix_cmd
 fi
@@ -220,7 +220,7 @@ fi
 unset _remote_ver REPO_DIR
 
 echo "│  💡 /plugin-check  before starting a new project  │"
-echo "│  🩺 /health  to run full diagnostic               │"
+echo "│  🩺 make doctor  full diagnostic                  │"
 echo "└───────────────────────────────────────────────────┘"
 echo ""
 unset TOKEN_WARN

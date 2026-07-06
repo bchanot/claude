@@ -211,7 +211,7 @@ Author a runbook, seed the incident ledger, commit both, then proceed to STEP 1.
 | Rollback note | "One-line rollback note (optional)?" | omit if blank |
 | Push deploy tags | "`push_deploy_tags`? (true / false)" | `false` |
 
-**Using** `templates/deploy/PROCEDURE.md` **as base, populate** fields from interview answers + detected artifacts:
+**Using** `~/.claude/templates/deploy/PROCEDURE.md` **as base, populate** fields from interview answers + detected artifacts:
 - Substitute `$DEPLOY_HOST` with the supplied host (keep literal `$DEPLOY_HOST` if none given).
 - Include only the annotated steps whose artifact was detected; keep all fixed steps.
 - Set `# @config push_deploy_tags=<answer>` in the header.
@@ -232,7 +232,7 @@ Present the full draft `PROCEDURE.md`.
 **On approve — write + seed + commit:**
 
 1. Write `.claude/deploy/PROCEDURE.md` (Write tool — the approved draft).
-2. Seed `.claude/deploy/INCIDENTS.md` from `templates/deploy/INCIDENTS.md` (Write tool).
+2. Seed `.claude/deploy/INCIDENTS.md` from `~/.claude/templates/deploy/INCIDENTS.md` (Write tool).
 3. Ensure the target project's `.gitignore` contains
    `.claude/deploy/PENDING.json` (append if missing — the transient bridge must
    not be committed).
@@ -243,7 +243,7 @@ Present the full draft `PROCEDURE.md`.
    `.claude/` rule). Do NOT commit anything further.
 5. Commit via the allowlist helper:
    ```bash
-   bash lib/deploy-commit.sh commit \
+   bash ~/.claude/lib/deploy-commit.sh commit \
      "feat(deploy): bootstrap runbook" \
      .claude/deploy/PROCEDURE.md .claude/deploy/INCIDENTS.md
    ```
@@ -350,7 +350,7 @@ changes a prod path).
 
 **On approve — one ATOMIC commit of both files:**
 ```bash
-bash lib/deploy-commit.sh commit \
+bash ~/.claude/lib/deploy-commit.sh commit \
   "docs(deploy): patch <step> — recovered from <err>" \
   .claude/deploy/PROCEDURE.md .claude/deploy/INCIDENTS.md
 ```
@@ -395,7 +395,7 @@ The deploy succeeded. Lay the oracle and close out.
    bookmark; `STATE.json` is the oracle).
 5. Commit the oracle:
    ```bash
-   bash lib/deploy-commit.sh commit "chore(deploy): mark <date> @ <short>" \
+   bash ~/.claude/lib/deploy-commit.sh commit "chore(deploy): mark <date> @ <short>" \
      .claude/deploy/STATE.json
    ```
 6. **Delete `.claude/deploy/PENDING.json`** — the deploy is no longer in
