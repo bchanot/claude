@@ -83,7 +83,20 @@ commit_memory() {
   fi
   # Contract: diagnostics go to stderr; on success ONLY the memory-commit short
   # hash goes to stdout, so a caller can do `mem_hash=$(... commit "msg")`.
-  git commit -q -m "$msg" -- "${changed[@]}"
+  # FAIL-LOUD on the commit itself. With `set -uo pipefail` (no -e), a rejected
+  # commit (pre-commit hook on a protected branch, signing failure, …) would NOT
+  # abort: the line below would falsely claim "committed" and rev-parse would
+  # emit the PREVIOUS HEAD's hash with exit 0 — a silent masked failure. Reject
+  # → loud, NO hash on stdout, exit 5 (mirrors doc-commit.sh's rc 5).
+  if ! git commit -q -m "$msg" -- "${changed[@]}"; then
+    {
+      echo "memory-commit: COMMIT REJECTED — git commit exited non-zero" \
+        "(pre-commit hook? protected branch? signing?)."
+      echo "memory-commit: NOTHING committed, working tree left as-is," \
+        "NO hash emitted — investigate before retry."
+    } >&2
+    return 5
+  fi
   git rev-parse --short HEAD
 }
 
