@@ -141,6 +141,20 @@ if [ "$after1" -eq "$((base + 1))" ] && [ -n "$h1" ]; then ok "run1 created exac
 if [ "$after2" -eq "$after1" ] && [ -z "$h2" ]; then ok "run2 is a no-op (no 2nd commit, empty stdout)"; else ko "run2 was not a no-op"; fi
 rm -rf "$R"
 
+echo "T8 — pre-commit hook REJECTS commit → fail LOUD (exit 5), no stale hash, HEAD unmoved"
+R="$(new_repo)"
+printf '#!/bin/sh\nexit 1\n' >"$R/.git/hooks/pre-commit"; chmod +x "$R/.git/hooks/pre-commit"
+BEFORE="$(git -C "$R" rev-parse --short HEAD)"
+printf 'REJECTED CHANGE\n' >>"$R/.claude/memory/decisions.md"
+OUT="$( (cd "$R" && "$HELPER" commit "chore(memory): T8 rejected") 2>/dev/null )"
+RC=$?
+AFTER="$(git -C "$R" rev-parse --short HEAD)"
+printf '    rc=%s out=[%s] before=[%s] after=[%s]\n' "$RC" "$OUT" "$BEFORE" "$AFTER"
+if [ "$RC" -eq 5 ]; then ok "rejected commit → exit 5 (fail-loud)"; else ko "expected 5, got $RC (rc0+stale-hash = masked failure)"; fi
+if [ -z "$OUT" ]; then ok "stdout empty on rejection (no stale hash)"; else ko "stdout leaked a hash on rejection: [$OUT]"; fi
+if [ "$BEFORE" = "$AFTER" ]; then ok "HEAD unmoved"; else ko "HEAD moved despite rejection"; fi
+rm -rf "$R"
+
 echo
 printf 'RESULT: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]
