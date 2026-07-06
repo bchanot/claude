@@ -26,11 +26,6 @@ detect_superpowers() {
   return 1
 }
 
-detect_security_guidance() {
-  local cache_dir="$HOME/.claude/plugins/cache"
-  [ -d "$cache_dir" ] && compgen -G "$cache_dir"/*security-guidance* &>/dev/null
-}
-
 
 # --- Toggle plugins ---
 
