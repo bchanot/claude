@@ -1,6 +1,18 @@
 #!/usr/bin/env bash
 # deploy-commit.sh — surgical commit for the .claude/deploy/ runbook family.
 # Allowlist scope = .claude/deploy/ ONLY (inverse of doc-commit's .claude exclusion).
+#
+# Exit code taxonomy:
+#   0  committed (short-hash on stdout), or `pending`: something changed
+#   1  no-op — nothing staged/changed (`pending`: clean) — NOT a failure
+#   2  usage error, or not a git repo
+#   3  unsafe git state (detached HEAD / merge / rebase in progress)
+#   4  a passed path is outside the .claude/deploy/ allowlist
+#   5  a passed path is git-ignored and would not persist
+#   6  `git commit` itself was REJECTED (pre-commit hook, protected branch,
+#      signing failure, …) — distinct from rc 1 (no-op): here something WAS
+#      staged and git refused it. Client repos may parse this by exit code,
+#      not just stderr, so it can't share rc 1's "nothing to do" (J4-22).
 set -uo pipefail
 
 _in_git_repo() { git rev-parse --git-dir >/dev/null 2>&1; }
@@ -67,7 +79,8 @@ case "$cmd" in
     if git diff --cached --quiet -- "${changed[@]}"; then
       echo "deploy-commit: nothing staged — no-op" >&2; exit 1
     fi
-    git commit -q -m "$msg" -- "${changed[@]}" || { echo "deploy-commit: git commit failed" >&2; exit 1; }
+    git commit -q -m "$msg" -- "${changed[@]}" \
+      || { echo "deploy-commit: COMMIT REJECTED — git commit exited non-zero (pre-commit hook? protected branch? signing?)." >&2; exit 6; }
     git rev-parse --short HEAD ;;
   *) echo "usage: deploy-commit.sh pending <file>... | commit \"<msg>\" <file>..." >&2; exit 2 ;;
 esac
