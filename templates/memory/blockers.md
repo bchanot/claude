@@ -12,6 +12,7 @@ rules:
   - Open a blocker as soon as friction > 15 min wasted. Close it with a real cause, not "moved on".
   - Link to upstream issue / PR / commit when applicable.
   - If cause is a bug in a dependency, set status upstream with a pointer to the tracker.
+  - Entries in English, caveman format (BDR-009): drop articles + filler, fragments OK, technical terms exact.
 ---
 
 # Blockers registry (BLK)
@@ -25,10 +26,10 @@ rules:
 
 ## BLK-XXX - <friction>
 
-- **Date** : YYYY-MM-DD
-- **Friction** : <ce qui était bloqué>
-- **Cause réelle** : <cause racine>
-- **Solution** : <workaround ou fix>
-- **Statut** : open | resolved | upstream
+- **Date**: YYYY-MM-DD
+- **Friction**: <what was blocked>
+- **Real cause**: <root cause>
+- **Solution**: <workaround or fix>
+- **Status**: open | resolved | upstream
 
 -->

@@ -14,6 +14,7 @@ rules:
   - Append-only. Never rewrite past entries - add a new one with status superseded if needed.
   - One entry per non-trivial choice. Trivial = reversible in under 10 min with no cross-file impact.
   - Capture why more carefully than what - the what rots, the why lasts.
+  - Entries in English, caveman format (BDR-009): drop articles + filler, fragments OK, technical terms exact.
 ---
 
 # Decisions registry (BDR)
@@ -25,15 +26,15 @@ rules:
 
 <!-- Append entries below. Template:
 
-## BDR-XXX - <titre>
+## BDR-XXX - <title>
 
-- **Date** : YYYY-MM-DD
-- **Statut** : proposed | accepted | deprecated | superseded
-- **Décision** : <ce qui a été choisi>
-- **Pourquoi** : <motivation>
-- **Alternatives rejetées** :
-  - Option A - <raison du rejet>
-  - Option B - <raison du rejet>
-- **Référence** : <commit / PR / fichier>
+- **Date**: YYYY-MM-DD
+- **Status**: proposed | accepted | deprecated | superseded
+- **Decision**: <what was chosen>
+- **Why**: <motivation>
+- **Rejected alternatives**:
+  - Option A - <why rejected>
+  - Option B - <why rejected>
+- **Reference**: <commit / PR / file>
 
 -->
