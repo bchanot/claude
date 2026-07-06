@@ -1,6 +1,6 @@
 ---
 name: status
-description: Consolidated project snapshot — plugins, token cost, git state, recent commits, GSD v2 milestone progress. Read-only. Run at session start or after a break. Triggers: "status", "sitrep", "where are we", "project state", "after break".
+description: 'Consolidated project snapshot — plugins, token cost, git state, recent commits, GSD v2 milestone progress. Read-only. Run at session start or after a break. Open-work reconciliation (stale TODO vs real git) → /reconcile. Triggers: "status", "sitrep", "where are we", "project state", "after break".'
 argument-hint: (no arguments needed)
 allowed-tools: Read, Bash, Glob, Grep
 ---
