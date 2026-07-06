@@ -217,6 +217,20 @@ gitflow_install_hook   # write + activate BEFORE any commit (unlike newrepo/hook
 echo x > x.txt; git add x.txt
 chk "T14c root commit succeeds hook-active-before-first-commit" 'git commit -q -m root 2>/dev/null'
 
+echo "T15 — init identity precheck: no identity → rc1, zero mutation"
+d="$WORK/noident"; rm -rf "$d"; mkdir -p "$d"; cd "$d" || exit 1
+git init -q
+echo a > a.txt
+init_rc=0
+GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null gitflow_init >/dev/null 2>&1 || init_rc=$?
+chk "T15 rc 1 (identity unset)"    "[ $init_rc -eq 1 ]"
+chk "T15 no develop branch"        '! git rev-parse --verify -q refs/heads/develop >/dev/null'
+chk "T15 unborn HEAD (no commit)"  '! git rev-parse --verify -q HEAD >/dev/null 2>&1'
+chk "T15 hooksPath unset"          '[ -z "$(git config core.hooksPath 2>/dev/null)" ]'
+chk "T15 nothing staged"           '[ -z "$(git diff --cached --name-only)" ]'
+chk "T15 no .gitignore written"    '[ ! -e .gitignore ]'
+chk "T15 no .githooks written"     '[ ! -d .githooks ]'
+
 echo
 echo "==== RESULT: $PASS passed, $FAIL failed ===="
 [ "$FAIL" -eq 0 ]
