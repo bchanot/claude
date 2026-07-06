@@ -1,3 +1,7 @@
+---
+paths: ["rules/**"]
+---
+
 # rules/
 
 Modular instruction files loaded by Claude Code alongside `CLAUDE.md`.
