@@ -160,3 +160,12 @@ rules:
 - **method**: real prod deploy (VPS). Independent live proof post-mark: curl bchanot.fr → 200 + nosniff + X-Frame-Options + CSP + HSTS + versionless server — tour SEC-2 fixed end-to-end, tour→prod loop closed.
 - **anomalies**: (1) NOT exercised: cold cross-session resume + STEP 4 learn (0 incidents) — natural test at next deploy/failure. (2) UX gap, user feedback: compound `ssh host "cd … && …"` one-liners ≠ wanted session style (one command per line), and the checklist lived only on disk — skill patched same day (step=block grammar, shape rule, hand-back prints NEXT.sh inline; template + bchanot-cv runbook restyled). Re-dogfood at next deploy.
 - **action**: keep. Two-moment contract works in-session; disk artifacts coherent throughout.
+
+## EVAL-017 — job2 audit: fresh-context verify pass caught 3 explorer false claims
+
+- **Date**: 2026-07-06
+- **output**: `.audit/job2-report.md` — 17 findings, 26 diffs, execution prompt. 4 explorers (skills/agents/hooks+lib/registry x-ref) + 1 docs agent (claude-code-guide), then 3 fresh verifiers re-checked all 17 findings + 9 registry quotes from list+paths only.
+- **method**: verifiers blind to auditor reasoning. Mid-run session-limit kill all 3 → resumed from transcript via SendMessage, all completed.
+- **result**: 15/17 REPRODUCED, 2 PARTIALLY (wording only: F3 "exactly 4"→4-of-54; F14 soft precondition existed). 0 discarded. Registry quotes 9/9 verbatim. Exact char counts 100% match (4840 total agents).
+- **anomalies**: 3 explorer false claims, ALL about harness semantics not file content: (1) agents-explorer — `Agent` tool "non-canonical" + `memory:`/`effort:` frontmatter "invalid": wrong, all documented; (2) skills-explorer — skills/gstack/ "stray orphan": refuted by link.sh:54-57 deliberate plumbing; (3) guide agent — `[1m]` model suffix "invalid ANSI": refuted, /model writes it itself. File-content claims (counts, quotes, refs): zero errors.
+- **action**: harness-semantics claims from explorers ALWAYS cross-check vs docs/live evidence; file-content claims reliable after one verify pass.
