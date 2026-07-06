@@ -593,9 +593,9 @@ NEXT STEPS :
 - **Framework awareness.** Don't recommend `.htaccess` on a Next.js /
   Astro / Cloudflare Pages project. Use the framework-native mechanism
   (next.config.js headers(), astro middleware, _headers).
-- **Respect CLAUDE.md architecture rules.** Security headers and redirects
-  are non-negotiable defaults per user's global CLAUDE.md — every public
-  site must ship them. Flag absence as Critique, not Moyenne.
+- **Security headers and redirects are non-negotiable defaults of this
+  skill** — every public site must ship them. Flag absence as Critique,
+  not Moyenne.
 - **External validators are authoritative on live headers, not the code.**
   If Observatory/SecurityHeaders/SSL Labs and the code audit disagree,
   the external grade reflects the deployed production config — the code
