@@ -75,6 +75,7 @@ rules:
 | BDR-051 | 2026-07-04 | contract enrich-at-gate: the contract grows ONLY at a human micro-gate ([gated] marker); the verifier judges the ENRICHED contract, not the seed | accepted |
 | BDR-052 | 2026-07-05 | /tour auto mode = branch-as-gate: no mid-run approval gates; unmerged chore branch + per-project TOUR.md = deferred human gate; reconcile report-only; loop bounded 3× | accepted |
 | BDR-054 | 2026-07-06 | supersede BDR-038 NEXT.sh/hand-back artifacts — shipped impl removed both (52f6678, LRN-102) | accepted |
+| BDR-055 | 2026-07-07 | job5: delete memory-commit/doc-commit `pending` verbs — v2 hook rejected (BDR-037), J4-17 closed MOOT | accepted |
 
 ---
 
@@ -852,3 +853,12 @@ rules:
 - **Why**: LRN-102 — deliverable text printed before a tool call may never render (harness guarantees only the turn's FINAL text); AskUserQuestion after the checklist swallowed it silently, live run 2026-07-05 (bchanot-cv). NEXT.sh-to-disk also useless in practice (user: throwaway once deployed) — display-only kills a stale-file-drift class for free.
 - **Alternatives rejected**: keep NEXT.sh, fix hand-back only (leaves ephemeral-file-nobody-reads problem); keep AskUserQuestion, cram checklist into its options text (char-limited, brittle); revert to file+question (reproduces the exact LRN-102 bug).
 - **Reference**: commits `31443ba` (inline hand-back print), `52f6678` (checklist display-only, no NEXT.sh); `skills/deploy/SKILL.md:74-77,295-297,313-318,440-441`; [[LRN-102]]; job3 docs-drift audit D6/D7/D9 (`.audit/job3-report.md`).
+
+## BDR-055 — job5: delete pending verbs, close J4-17 MOOT
+
+- **Date**: 2026-07-07
+- **Status**: accepted
+- **Decision**: `memory_pending()` + `docs_pending()` + `pending` dispatcher arms deleted from `lib/memory-commit.sh` / `lib/doc-commit.sh`, plus stale "for the v2 hook" header mentions. `commit`/`commit <message> <file>...` = only verb left. J4-17 (job4 backlog: "extend run-deterministic.sh to test pending") closed MOOT — its premise gone with the verb.
+- **Why**: headers earmarked both funcs "for the v2 hook" — [[BDR-037]] REJECTED v2 hook, no code ever written. J4-17 queued TEST not DELETE, but deferred to the newer/wrong branch — v2 hook dead means nothing left to test toward. Zero prod/test callers confirmed (job5 audit) before delete.
+- **Alternatives rejected**: keep+test per J4-17 (tests a dead-end, [[BDR-037]] already closed that door); keep unused (dead code, no consumer).
+- **Reference**: commit `da3abf9`; `.audit/job5-report.md` J5-13/§3b; supersedes J4-17 (`.audit/job4-report.md:35`). Same supersession-trace discipline [[BDR-054]] had to backfill for BDR-038/job3 D6-D9 — written here at delete time, not reconstructed later.
