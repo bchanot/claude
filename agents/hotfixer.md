@@ -1,6 +1,6 @@
 ---
 name: hotfixer
-description: Quick fix for superficial bugs (typos, CSS issues, config errors, off-by-one, wrong variable name, missing import, broken link). Max 2 files, obvious root cause only.
+description: Quick-fix executor — dispatched by /hotfix, which owns the routing and gitflow gate. Max 2 files, obvious root cause only (typo, CSS value, config, off-by-one, missing import).
 tools: Read, Edit, Write, Bash, Grep, Glob, Agent
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: commit-changer
-description: Analyze all changes since the last commit and create commits that retrace the development steps — one commit per logical step, in the order work happened.
+description: Retrace-and-commit engine — dispatched by /commit-change. Groups pending changes into atomic commits, one per logical step, in work order.
 tools: Bash, Read, Grep, Glob, Agent, AskUserQuestion
 ---
 

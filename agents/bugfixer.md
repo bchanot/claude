@@ -1,6 +1,6 @@
 ---
 name: bugfixer
-description: Structured bug fix with root cause investigation. Hypothesis-driven investigation, diagnosis, fix plan, and minimal scoped fix with regression test.
+description: Root-cause bug-fix executor — dispatched by /bugfix. Hypothesis-driven investigation, diagnosis, minimal scoped fix with regression test.
 tools: Read, Edit, Write, Bash, Grep, Glob, Agent
 ---
 
