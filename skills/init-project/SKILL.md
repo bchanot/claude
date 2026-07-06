@@ -15,14 +15,14 @@ $ARGUMENTS
 ## PROGRESS PROTOCOL
 
 Every STEP must announce itself with a header BEFORE its work block, so the
-user always sees where they are in the 11-step pipeline:
+user always sees where they are in the 12-step pipeline (STEP 0–11):
 
 ```
 ━━━ STEP <N>/11 — <TITLE> ━━━  (~<estimated minutes>)
 why: <one sentence — what's at risk if this step is skipped>
 ```
 
-Long-running steps (5 SCAFFOLD, 5d GRAPHIFY, 8 IMPLEMENT) must print a 1-line
+Long-running steps (5 SCAFFOLD, 8 IMPLEMENT) must print a 1-line
 liveness ping every ~30 s of agent work — `… still working: <last action>` —
 so the user does not assume Claude has hung.
 
@@ -105,16 +105,6 @@ If `fast-libs` signal was detected in STEP 0 (Next.js, React 18+, Prisma, Supaba
 4. Print: `📚 ctx7 docs pre-fetched for: <libs>. Cache at .ctx7-cache/`
 If `ctx7` not installed or no fast-libs → skip silently.
 
-## STEP 5d — GRAPHIFY SCAFFOLD (light pass)
-If `graphify` CLI is installed AND complexity >= 30%:
-1. Run light graphify on the scaffold:
-   ```bash
-   graphify . --output graphify-out --mode quick 2>/dev/null || true
-   ```
-2. Add `graphify-out/` to `.gitignore` if not already present.
-3. Print: `🔗 Scaffold graph generated at graphify-out/`
-If `graphify` not installed or complexity < 30% → skip silently.
-
 ## STEP 5e — ANIMATION LIB (auto-install)
 Install `motion` (ex-`framer-motion`, rebranded Nov 2024) when the stack supports it.
 The scaffold has just been validated by the user, so install proceeds silently.
@@ -183,7 +173,7 @@ finishing-a-development-branch", stop and return.
 If `graphify` CLI is installed AND complexity >= 30%:
 1. Run full graphify on the implemented project:
    ```bash
-   graphify . --output graphify-out 2>/dev/null || true
+   graphify . --out graphify-out 2>/dev/null || true
    ```
 2. Print: `🔗 Full project graph updated at graphify-out/`
 If `graphify` not installed or complexity < 30% → skip silently.
