@@ -1,20 +1,19 @@
 #!/usr/bin/env bash
 # memory-commit.sh — surgically commit ONLY .claude/memory + .claude/tasks.
 #
-# Used by the dev-flow capitalize step (and, later, the v2 Stop hook) to couple
-# the memory commit to the flow. Safety lives in the PATHSPEC, never in a human
-# diff review — automation removes that review, so the scope must be airtight:
-# code that happens to be dirty or staged is NEVER embarked.
+# Used by the dev-flow capitalize step to couple the memory commit to the
+# flow. Safety lives in the PATHSPEC, never in a human diff review —
+# automation removes that review, so the scope must be airtight: code that
+# happens to be dirty or staged is NEVER embarked.
 #
 # Usage (CLI):
-#   memory-commit.sh pending             # exit 0 if memory/tasks have changes, 1 if clean
 #   memory-commit.sh commit "<message>"  # surgical commit; exit 0 ok/no-op, 3 unsafe state
 #
 # Output contract for `commit`: diagnostics go to stderr; on a real commit the
 # short hash of the MEMORY commit is the ONLY thing on stdout (empty on no-op or
 # unsafe), so callers can capture it: `mem_hash=$(memory-commit.sh commit "msg")`.
 #
-# Sourceable: `memory_pending` and `commit_memory` for the v2 hook.
+# Sourceable: `commit_memory`.
 
 set -uo pipefail
 
@@ -45,14 +44,6 @@ _changed_paths() {
     [ -e "$p" ] || continue
     [ -n "$(git status --porcelain -- "$p" 2>/dev/null)" ] && printf '%s\n' "$p"
   done
-}
-
-# 0 if something is pending under the scoped paths, 1 if clean / absent.
-memory_pending() {
-  _in_git_repo || return 1
-  local changed
-  mapfile -t changed < <(_changed_paths)
-  [ "${#changed[@]}" -gt 0 ]
 }
 
 # Surgical commit of the scoped paths only. Returns 0 (ok or no-op), 3 (unsafe).
@@ -103,13 +94,12 @@ commit_memory() {
 main() {
   local cmd="${1:-}"
   case "$cmd" in
-    pending) memory_pending ;;
     commit)
       shift
       commit_memory "${1:-}"
       ;;
     *)
-      echo "usage: memory-commit.sh {pending | commit <message>}" >&2
+      echo "usage: memory-commit.sh commit <message>" >&2
       return 2
       ;;
   esac
