@@ -41,7 +41,7 @@ Apply unless repo-specific instructions override.
   More compute on hard problems. Task fans out across independent
   items (many files, parallel searches, multi-point checks) → delegate
   to sub-agents, don't iterate serially. Default to delegation for
-  multi-file exploration. Counters Opus 4.8 tendency to under-delegate.
+  multi-file exploration. Counters model tendency to under-delegate.
 - One question upfront if needed — don't interrupt mid-task.
   *Exception: skill-mandated gates and checkpoints (orchestrator
   validation gates, approval gates, darwin checkpoints) always fire.*
@@ -80,10 +80,9 @@ Apply unless repo-specific instructions override.
 
 ## Memory registries (`.claude/memory/`)
 
-Five registries persist across sessions. Read all at session start.
-Capitalize during/after work. Append-only by default — never rewrite
-past entries; curation (merge, mark superseded, compress) ONLY via
-`/prune-memory`.
+Five registries persist across sessions. Capitalize during/after work.
+Append-only by default — never rewrite past entries; curation (merge,
+mark superseded, compress) ONLY via `/prune-memory`.
 
 | File | ID format | Purpose |
 |------|-----------|---------|
@@ -257,10 +256,9 @@ Apply at every dev step: design, scaffolding, implementation, review.
 # Tooling & skills
 ## Skill routing
 
-Request matches a skill → invoke via Skill tool first, before any direct
-answer or other tool. Most skills route by name — match the request to the
-skill whose description fits (full list is in context). Rules below cover
-only the non-obvious cases: gstack fallbacks, disambiguation, cryptic names.
+Most skills route by name — match the request to the skill whose
+description fits (full list is in context). Rules below cover only the
+non-obvious cases: gstack fallbacks, disambiguation, cryptic names.
 
 - Product idea, "worth building?" → office-hours
 - Bug / error / 500 → investigate (bugfix if gstack off)
