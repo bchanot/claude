@@ -108,7 +108,7 @@ Versions are pinned in `plugins.lock.json`. To update: edit the file, then re-ru
 | `/deploy` | Run a project's deploy from its committed runbook — instantiate the delta, resume cold |
 | `/graphify` | Codebase knowledge graph — navigation for large-scope tasks |
 | `/plugin-check` | Check active plugins vs project needs — recommend enable/disable |
-| `/health` | Run setup diagnostic |
+| `/health` | Code quality dashboard (gstack) — setup diagnostic is `make doctor` |
 | `/status` | Consolidated project snapshot — plugins, git, GSD milestone |
 | `/skills-perso` | List personal (user-created) skills |
 | `/audit-delta` | Recurring audit of changes since last run (norms, bugs, dead code, security) |
@@ -122,10 +122,11 @@ Versions are pinned in `plugins.lock.json`. To update: edit the file, then re-ru
 | `/geo` | GEO-only audit — AI-search visibility (ChatGPT, Perplexity, Claude, Gemini…) |
 | `/client-handover` | Final project delivery — audits + branded deliverable (Markdown / HTML / PDF) |
 | `/profile` | Activate a skill profile (design / dev / qa / audit / minimal) |
+| `/tour` | Grouped all-axes sweep — cleanup + security + reconcile + doc, fix and loop until clean |
 
 > This table lists personal skills. Gstack skills (investigate, review, retro,
 > office-hours, context-save, context-restore, cso…) and marketplace plugins add
-> many more — run `/skills-perso` for your full list, or browse `skills/`.
+> many more — run `/skills-perso` to list your hand-written skills, or browse `skills/`.
 
 ---
 
@@ -195,7 +196,7 @@ bash doctor.sh              # full diagnostic (symlinks, plugins, permissions, t
 bash update-all.sh          # update all components (CLI, plugins, submodules, symlinks)
 
 # Claude Code
-/health                     # runs doctor.sh
+/health                     # gstack code-quality dashboard (doctor.sh -> make doctor)
 /status                     # project snapshot (plugins, git, GSD milestone)
 /plugin-check "description" # audit plugin config vs project needs
 
@@ -205,6 +206,7 @@ make plugin                 # install plugins only
 make link                   # create/update symlinks into ~/.claude/
 make doctor                 # diagnostic
 make update                 # update Claude Code, config, submodules, plugins, and verify
+make test                   # run deterministic tests (lib/tests/*.test.sh + lib/gitflow-test.sh)
 make onboard                # onboard an existing project (run from its dir)
 make profile cmd="set X"    # activate a skill profile (design/dev/qa/audit/minimal/full)
 make profile-list           # list skill profiles
