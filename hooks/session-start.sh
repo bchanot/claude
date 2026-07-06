@@ -211,7 +211,7 @@ if [ -n "$REPO_DIR" ] && [ -f "$REPO_DIR/CLAUDE.md" ]; then
 fi
 # Version check: compare local vs remote (non-blocking)
 _remote_ver=""
-if [ -n "$REPO_DIR" ] && [ -d "$REPO_DIR/.git" ]; then
+if [ -n "$REPO_DIR" ] && [ -d "$REPO_DIR/.git" ] && [ -z "${SESSION_START_OFFLINE:-}" ]; then
   _remote_ver=$(cd "$REPO_DIR" 2>/dev/null && git fetch origin --quiet 2>/dev/null && git show origin/main:version.txt 2>/dev/null) || _remote_ver=""
 fi
 if [ -n "$_remote_ver" ] && [ "$_remote_ver" != "$CONFIG_VERSION" ]; then
