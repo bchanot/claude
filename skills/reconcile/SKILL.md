@@ -50,4 +50,4 @@ Reconciling the TODO edits a tracked file → never silent. Show the proposed di
 - Writing a disclaimer ("à vérifier si déjà fait") instead of verifying → the engine verifies, it never hedges-and-advances.
 
 ## Validation
-`bash lib/tests/run-reconcile.sh` → 20/20, shellcheck clean. Oracle of record = the 2026-06-29 inventory (7 gaps + 3 blocked + 5 deferred + 1 contradiction), fixtures frozen under neutral names in `lib/tests/fixtures/`.
+`bash lib/tests/run-reconcile.sh` → 25/25, shellcheck clean. Oracle of record = the 2026-06-29 inventory (7 gaps + 3 blocked + 5 deferred + 1 contradiction), fixtures frozen under neutral names in `lib/tests/fixtures/`.

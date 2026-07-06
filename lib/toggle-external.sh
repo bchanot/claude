@@ -31,7 +31,7 @@
 # ============================================================
 set -euo pipefail
 
-REPO="$(cd "$(dirname "$0")/.." && pwd)"
+REPO="${TOGGLE_EXTERNAL_REPO_OVERRIDE:-$(cd -P "$(dirname "$0")/.." && pwd)}"
 SKILLS_DIR="$REPO/skills"
 DISABLED_DIR="$REPO/skills-disabled"
 

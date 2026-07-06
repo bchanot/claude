@@ -50,4 +50,13 @@ printf 'run\n' >"$d/.claude/deploy/PROCEDURE.md"
 ( cd "$d" && bash "$H" commit "docs(deploy): t" .claude/deploy/PROCEDURE.md ) >/dev/null 2>&1
 check T9-ignored-rc "$?" 5
 
+d=$(mkrepo); printf '#!/bin/sh\nexit 1\n' >"$d/.git/hooks/pre-commit"; chmod +x "$d/.git/hooks/pre-commit"
+BEFORE=$(git -C "$d" rev-parse --short HEAD)
+printf 'run\n' >"$d/.claude/deploy/PROCEDURE.md"
+OUT=$( ( cd "$d" && bash "$H" commit "docs(deploy): t" .claude/deploy/PROCEDURE.md ) 2>/dev/null ); RC=$?
+AFTER=$(git -C "$d" rev-parse --short HEAD)
+check T10-rejected-rc "$RC" 6
+check T10-rejected-no-hash "$([ -z "$OUT" ] && echo empty || echo "$OUT")" empty
+check T10-rejected-head-unmoved "$BEFORE" "$AFTER"
+
 printf 'PASS=%s FAIL=%s\n' "$pass" "$fail"; [ "$fail" -eq 0 ]

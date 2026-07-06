@@ -250,6 +250,7 @@ Present the full draft `PROCEDURE.md`.
    Return codes: **0** committed · **1** no-op (investigate — both files should be new) ·
    **3** unsafe git state (STOP, tell user) · **4** out-of-scope path ·
    **5** a passed path is git-ignored (won't persist) — STOP, fix the target's `.gitignore` ·
+   **6** commit rejected — pre-commit hook/protected branch/signing (STOP, investigate) ·
    **2** usage error OR not a git repo.
 
 **On rc=0: continue to STEP 1.** `STATE.json` absent → first deploy →
@@ -358,8 +359,9 @@ Return codes: **0** committed (short-hash on stdout) · **1** nothing staged —
 wrote neither file · **3** unsafe git state (detached/merge/rebase — STOP, tell
 the user) · **4** out-of-scope path (you passed a non-`.claude/deploy/` path — fix
 the call) · **5** a passed path is git-ignored (won't persist) — STOP, fix the
-target's `.gitignore` · **2** usage error OR not a git repo. The helper commits
-whatever subset actually changed;
+target's `.gitignore` · **6** commit rejected — pre-commit hook/protected branch/
+signing (STOP, investigate) · **2** usage error OR not a git repo. The helper
+commits whatever subset actually changed;
 patch+incident coupling is **Claude-discipline, not helper-enforced**.
 
 **This commit IS the resolution** — the commit that introduces `DEP-NNN` is its

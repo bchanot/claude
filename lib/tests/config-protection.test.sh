@@ -54,4 +54,21 @@ check T17-empty-refused "$?" 2
 check T17-consumed "$([ -e "$tmp/.claude/.config-edit-ok" ] && echo present || echo gone)" gone
 rm -rf "$tmp"
 
+# --- T18/T19: payload shapes beyond Edit (locks against future Edit-only narrowing) ---
+c="$(mktemp -d)"; ( cd "$c" && printf \
+  '{"tool_name":"Write","tool_input":{"file_path":"/x/doctor.sh","content":"x"}}' | bash "$H" ) \
+  >/dev/null 2>&1; check T18-write-payload "$?" 2; rm -rf "$c"
+
+c="$(mktemp -d)"; ( cd "$c" && printf \
+  '{"tool_name":"MultiEdit","tool_input":{"file_path":"/x/doctor.sh","edits":[{"old_string":"a","new_string":"b"}]}}' | bash "$H" ) \
+  >/dev/null 2>&1; check T19-multiedit-payload "$?" 2; rm -rf "$c"
+
+# --- T20: sentinel with ONLY whitespace bytes (not literally empty) -> refused + consumed ---
+tmp="$(mktemp -d)"; mkdir -p "$tmp/.claude"; printf ' \n\t' > "$tmp/.claude/.config-edit-ok"
+( cd "$tmp" && printf '{"tool_name":"Edit","tool_input":{"file_path":"/x/doctor.sh"}}' \
+  | HOME="$tmp" bash "$H" ) >/dev/null 2>&1
+check T20-whitespace-only-refused "$?" 2
+check T20-whitespace-only-consumed "$([ -e "$tmp/.claude/.config-edit-ok" ] && echo present || echo gone)" gone
+rm -rf "$tmp"
+
 printf 'PASS=%s FAIL=%s\n' "$pass" "$fail"; [ "$fail" -eq 0 ]

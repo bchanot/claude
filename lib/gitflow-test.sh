@@ -172,6 +172,65 @@ gitflow_finish feature standon >/dev/null 2>&1
 chk "arg-match → merged into develop" 'git log develop --oneline | grep -q "Merge feature/standon into develop"'
 chk "arg-match → branch deleted"      '! git rev-parse --verify -q refs/heads/feature/standon >/dev/null'
 
+echo "T13 — finish release fan-out (main+develop+delete), 2 open releases + bugfix→develop-only"
+newrepo finrel; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+gitflow_start release 9.9.9 >/dev/null 2>&1; echo v>VERSION; git add VERSION; git commit -q -m "bump 9.9.9"
+finish_rc=0; gitflow_finish >/dev/null 2>&1 || finish_rc=$?
+chk "T13a finish rc 0"                 "[ $finish_rc -eq 0 ]"
+chk "T13a main has release commit"     'git log main --oneline | grep -q "bump 9.9.9"'
+chk "T13a develop has release commit"  'git log develop --oneline | grep -q "bump 9.9.9"'
+chk "T13a release branch deleted"      '! git rev-parse --verify -q refs/heads/release/9.9.9 >/dev/null'
+
+newrepo finrel2; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+gitflow_start release 1.0 >/dev/null 2>&1; echo r1>r1; git add r1; git commit -q -m rel1
+gitflow_start release 2.0 >/dev/null 2>&1; echo r2>r2; git add r2; git commit -q -m rel2
+gitflow_start hotfix hboth >/dev/null 2>&1; echo p>p; git add p; git commit -q -m hotfixboth
+gitflow_finish >/dev/null 2>&1
+chk "T13b hotfix in release/1.0" 'git log release/1.0 --oneline | grep -q "Merge hotfix/hboth into release/1.0"'
+chk "T13b hotfix in release/2.0" 'git log release/2.0 --oneline | grep -q "Merge hotfix/hboth into release/2.0"'
+
+newrepo finbugfix; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+gitflow_start bugfix bx >/dev/null 2>&1; echo w>w.txt; git add w.txt; git commit -q -m bugfixwork
+main_before="$(git rev-parse main)"
+gitflow_finish >/dev/null 2>&1
+chk "T13c develop has bugfix commit" 'git log develop --oneline | grep -q "Merge bugfix/bx into develop"'
+chk "T13c main untouched"            "[ \"\$(git rev-parse main)\" = \"$main_before\" ]"
+chk "T13c bugfix branch deleted"     '! git rev-parse --verify -q refs/heads/bugfix/bx >/dev/null'
+
+echo "T14 — hook exemption matrix (mixed-block / MERGE_HEAD / root-commit), direct invocation"
+newrepo hookmix; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+git checkout -q main
+echo "console.log(1)" > src.js
+mkdir -p .claude/tasks; echo t > .claude/tasks/t.md
+git add src.js .claude/tasks/t.md
+chk "T14a mixed code+.claude BLOCKED on main" '! git commit -q -m mixed 2>/dev/null'
+
+newrepo mergehead; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+git checkout -q main
+echo "console.log(1)" > src.js; git add src.js
+touch "$(git rev-parse --git-dir)/MERGE_HEAD"
+chk "T14b MERGE_HEAD exemption allows commit on main" 'git commit -q -m "resolve conflict" 2>/dev/null'
+
+newrepo root14c
+git symbolic-ref HEAD refs/heads/main   # name the unborn branch 'main' (protected)
+gitflow_install_hook   # write + activate BEFORE any commit (unlike newrepo/hookon)
+echo x > x.txt; git add x.txt
+chk "T14c root commit succeeds hook-active-before-first-commit" 'git commit -q -m root 2>/dev/null'
+
+echo "T15 — init identity precheck: no identity → rc1, zero mutation"
+d="$WORK/noident"; rm -rf "$d"; mkdir -p "$d"; cd "$d" || exit 1
+git init -q
+echo a > a.txt
+init_rc=0
+GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null gitflow_init >/dev/null 2>&1 || init_rc=$?
+chk "T15 rc 1 (identity unset)"    "[ $init_rc -eq 1 ]"
+chk "T15 no develop branch"        '! git rev-parse --verify -q refs/heads/develop >/dev/null'
+chk "T15 unborn HEAD (no commit)"  '! git rev-parse --verify -q HEAD >/dev/null 2>&1'
+chk "T15 hooksPath unset"          '[ -z "$(git config core.hooksPath 2>/dev/null)" ]'
+chk "T15 nothing staged"           '[ -z "$(git diff --cached --name-only)" ]'
+chk "T15 no .gitignore written"    '[ ! -e .gitignore ]'
+chk "T15 no .githooks written"     '[ ! -d .githooks ]'
+
 echo
 echo "==== RESULT: $PASS passed, $FAIL failed ===="
 [ "$FAIL" -eq 0 ]

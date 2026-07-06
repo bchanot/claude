@@ -8,8 +8,8 @@
 # Usage: bash run-deterministic.sh    (exit 0 = all green, 1 = >=1 red)
 set -uo pipefail
 
-SKILL="${SKILL:-$HOME/.claude/skills/prune-memory/SKILL.md}"
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+SKILL="${SKILL:-$HERE/../SKILL.md}"
 SANDBOX="$(mktemp -d "${TMPDIR:-/tmp}/prune-red.XXXXXX")"
 trap 'rm -rf "$SANDBOX"' EXIT
 
