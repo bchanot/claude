@@ -1050,3 +1050,11 @@ rules:
 - **context**: 2026-07-05 /deploy run 2 (bchanot-cv). Skill patched same turn: checklist display-only (no NEXT.sh file at all — user: throwaway once deployed) + hand-back ends the turn, no tool call after.
 - **future application**: designing any skill/flow output meant to be read+used from the conversation — put it LAST; never sandwich a deliverable between tool calls; prefer plain-text report requests over blocking question tools after a deliverable.
 - **cousin**: [[LRN-100]] same skill lineage; CLAUDE.md communication doctrine (final message carries everything).
+
+## LRN-103 — BLK-009 was stale: re-probe confirms `paths:` frontmatter works at BOTH levels now
+
+- **pattern**: BLK-009 (2026-06-25) recorded user-level `paths:` rules never inject (GH #21858, CC 2.1.190). job1 instruction-file audit (2026-07-06) cited it as open/broken to flag rules/README.md's documented lazy-load mechanism as self-contradicting. Fresh re-probe same day (3-file probe, `**/*.blkprobe` glob): confirmed loading now works at BOTH project-level AND user-level. Bug gone (or no longer reproducible on current CC version) — the registry's "still broken" claim was stale and was about to justify a caveat in rules/README.md warning about a bug that no longer exists.
+- **why**: registries are append-only + dated — a recorded status is a snapshot, not a standing fact. Any decision or audit finding that cites an open upstream blocker without re-probing risks acting on stale tool-version info, especially across CC version bumps.
+- **context**: 2026-07-06, job1 audit follow-up (.audit/job1-report.md, finding F13). BLK-009 closed same session; workaround it forced ([[BDR-031]] unconditional + compressed global CLAUDE.md) no longer required by this bug specifically, though BDR-031 itself stands on its own merits pending separate review.
+- **future application**: before acting on ANY open upstream/tool blocker cited to justify a fix, a caveat, or a design constraint — re-probe it live if cheap, don't just trust the registry's last-recorded status.
+- **cousin**: [[BLK-009]] closed this session; [[BDR-031]] (the workaround this bug forced).
