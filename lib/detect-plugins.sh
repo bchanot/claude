@@ -63,15 +63,6 @@ detect_graphifyy() {
   command -v graphify &>/dev/null
 }
 
-# True if a plugin is registered as enabled in settings.json's
-# enabledPlugins map. Filesystem only (no subprocess to claude CLI).
-# Argument is the full "name@marketplace" key.
-plugin_enabled() {
-  local key="$1"
-  [ -f "$HOME/.claude/settings.json" ] || return 1
-  grep -qE "\"${key}\"[[:space:]]*:[[:space:]]*true" "$HOME/.claude/settings.json"
-}
-
 
 # --- Plan detection ---
 
