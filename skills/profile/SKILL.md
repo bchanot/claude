@@ -116,8 +116,9 @@ bash "$HOME/.claude/lib/profile.sh" $ARGUMENTS
 - gstack skills still depend on `~/.claude/skills/gstack/bin/` for telemetry,
   update-check, learnings — script doesn't touch that infra. Disabled skills
   are just hidden from Claude Code's scanner; the gstack repo stays installed.
-- Profile changes do NOT toggle Claude Code plugins (ui-ux-pro-max, etc.) or
-  MCP servers — those are advisory only. The user runs `claude plugin
-  enable|disable` and `claude mcp add|remove` manually.
+- Profile changes DO toggle the managed Claude Code plugins (ui-ux-pro-max,
+  plugin-dev, pr-review-toolkit) and the `magic` MCP — see the Mechanism table
+  above (BDR-008). Anything outside that managed set stays manual:
+  `claude plugin enable|disable`, `claude mcp add|remove`.
 - `set` is destructive in the sense that it disables non-listed gstack skills.
   Use `apply` if the user wants additive behavior.
