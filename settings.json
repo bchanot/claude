@@ -149,6 +149,8 @@
       "Bash(find * -delete*)",
       "Bash(find * -exec rm*)",
       "Bash(find * -execdir rm*)",
+      "Bash(find * -exec *)",
+      "Bash(find * -execdir *)",
       "Bash(perl -e *)",
       "Bash(ruby -e *)",
       "Bash(cat .env)",
