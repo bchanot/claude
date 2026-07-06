@@ -41,7 +41,7 @@ Apply unless repo-specific instructions override.
   More compute on hard problems. Task fans out across independent
   items (many files, parallel searches, multi-point checks) → delegate
   to sub-agents, don't iterate serially. Default to delegation for
-  multi-file exploration. Counters Opus 4.8 tendency to under-delegate.
+  multi-file exploration. Counters model tendency to under-delegate.
 - One question upfront if needed — don't interrupt mid-task.
   *Exception: skill-mandated gates and checkpoints (orchestrator
   validation gates, approval gates, darwin checkpoints) always fire.*
@@ -80,10 +80,9 @@ Apply unless repo-specific instructions override.
 
 ## Memory registries (`.claude/memory/`)
 
-Five registries persist across sessions. Read all at session start.
-Capitalize during/after work. Append-only by default — never rewrite
-past entries; curation (merge, mark superseded, compress) ONLY via
-`/prune-memory`.
+Five registries persist across sessions. Capitalize during/after work.
+Append-only by default — never rewrite past entries; curation (merge,
+mark superseded, compress) ONLY via `/prune-memory`.
 
 | File | ID format | Purpose |
 |------|-----------|---------|
@@ -164,40 +163,28 @@ All web API endpoints must be versioned from day one: `/api/v1/...`.
 
 ## Version control — gitflow (universal)
 
-Every git action follows gitflow — inside a skill AND for ad-hoc commits made
-outside one on direct request. The model is universal across all projects.
+Every git action follows gitflow — in a skill, or an ad-hoc commit made outside
+one on request. `main` (prod) · `develop` (integration, off main) · `feature/*`
+ `bugfix/*` + `chore/*` (off develop → develop; `chore/*` = memory/doc
+maintenance, e.g. standalone `/capitalize` `/close` `/prune-memory`
+`/reconcile`) · `release/*` (off develop → main + back-merge develop) ·
+`hotfix/*` (off main → main + develop [+ any open release/*]). `master`→`main`
+everywhere.
 
-### Branch model
-`main` (prod) · `develop` (integration, off main) · `feature/*` + `bugfix/*` +
-`chore/*` (off develop → develop; `chore/*` = memory/doc maintenance, e.g.
-standalone `/capitalize` `/prune-memory` `/reconcile`) · `release/*` (off develop →
-main + back-merge develop) · `hotfix/*` (off main → main + develop [+ any open
-release/*]). `master`→`main` everywhere.
-
-### Rules for every git action
-- **Never commit code directly on `main` or `develop`.** Branch first from the
-  correct base, named `<type>/<name>`. (`.claude/**` memory/config commits are
-  hook-exempt — they follow the work; but *standalone* memory/doc skills branch to
-  `chore/*` via the aiguillage rather than lean on that exemption.)
-- **Branch + merge via the lib, never by hand** — the directed-merge + hotfix
-  fan-out logic lives there once:
-  `bash ~/.claude/lib/gitflow.sh start <type> <name>` · `… finish`.
-- **`gitflow finish` (merge) only on an explicit human signal** ("merge it",
-  "feature OK") — never because tests pass, a plan step says "merge", or a verb
-  ("ship") implied it.
-- **Assistance flows** (`/feat` `/bugfix` `/hotfix`) AND **standalone memory/doc
-  skills** (`/capitalize` `/close` `/prune-memory` `/reconcile`, type `chore`)
-  auto-branch on a protected base (the aiguillage); on a working branch they commit
-  in place, never finish.
-- **New/onboarded projects** get the model + the versioned pre-commit hook via
-  `gitflow init` (init-project STEP 5f, onboard STEP 2.6).
-
-### Enforcement layers
-Advisory — it can be forgotten on a long conversation (no reliable oracle). The
-deterministic backstops are the per-repo **pre-commit hook** (`gitflow init`
-installs it: blocks code commits on main/develop, exempts `.claude/**` + merges +
-the root commit) and **Gitea branch protection** on `main`/`develop` (set up by
-the migration). Don't lean on `--no-verify` to bypass them.
+Never commit code directly on `main` or `develop`: branch first from the
+correct base as `<type>/<name>` (`.claude/**` memory/config commits are
+hook-exempt, following the work). Branch/merge only via the lib, never by hand:
+`bash ~/.claude/lib/gitflow.sh start <type> <name>` · `… finish`. Run `finish`
+(merge) only on an explicit human signal ("merge it", "feature OK"), never
+because tests pass, a plan step says "merge", or "ship" implied it. Assistance
+flows (`/feat` `/bugfix` `/hotfix`) and the standalone memory/doc `chore`
+skills auto-branch on a protected base but commit in place on a working branch,
+never finishing — so those skills branch to `chore/*` via the aiguillage, not
+the `.claude/**` exemption. New/onboarded projects get the model + the
+versioned pre-commit hook via `gitflow init`. Advisory, so two deterministic
+backstops apply: the per-repo pre-commit hook (blocks code commits on
+main/develop, exempts `.claude/**` + merges + the root commit) and Gitea branch
+protection on `main`/`develop`. Don't lean on `--no-verify` to bypass them.
 
 ## Security — non-negotiable defaults
 
@@ -257,10 +244,9 @@ Apply at every dev step: design, scaffolding, implementation, review.
 # Tooling & skills
 ## Skill routing
 
-Request matches a skill → invoke via Skill tool first, before any direct
-answer or other tool. Most skills route by name — match the request to the
-skill whose description fits (full list is in context). Rules below cover
-only the non-obvious cases: gstack fallbacks, disambiguation, cryptic names.
+Most skills route by name — match the request to the skill whose
+description fits (full list is in context). Rules below cover only the
+non-obvious cases: gstack fallbacks, disambiguation, cryptic names.
 
 - Product idea, "worth building?" → office-hours
 - Bug / error / 500 → investigate (bugfix if gstack off)

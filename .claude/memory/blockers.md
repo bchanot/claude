@@ -28,7 +28,7 @@ rules:
 | BLK-006 | 2026-05-21 | `profile.sh current` false-negative via `~/.claude` symlink (`cd` not `cd -P`) | resolved |
 | BLK-007 | 2026-06-02 | 6 gstack source skills (ios-*, spec) unlinked post-bump — invisible to profiles + `gstack on` | resolved |
 | BLK-008 | 2026-06-23 | gstack ./setup on Ubuntu 26.04: Playwright chromium unsupported → gstack browser (/browse, /qa, screenshots) silently dead | resolved (211c7d4) |
-| BLK-009 | 2026-06-25 | user-level path-scoped rules (`paths:` frontmatter in `~/.claude/rules/`) never inject — broken in CC 2.1.190 (#21858) | upstream, open |
+| BLK-009 | 2026-06-25 | user-level path-scoped rules (`paths:` frontmatter in `~/.claude/rules/`) never inject — broken in CC 2.1.190 (#21858) | resolved (2026-07-06) |
 | BLK-010 | 2026-06-27 | init-project: scaffold (STEP 5) + bootstrap README (5b) have no deterministic commit owner; worktree `add -b` on unborn HEAD | resolved (uncommitted) |
 | BLK-011 | 2026-06-27 | init-project STEP 13 GSD post-FINISH creates ROADMAP.md → stranded doc (3rd post-FINISH artifact) | resolved (STEP 12 removed) |
 | BLK-012 | 2026-06-29 | gitflow_init half-applied: socle-commit failure swallowed → hook activated on partial run → re-run self-blocks | resolved |
@@ -124,7 +124,8 @@ rules:
 - **Real cause**: GitHub issue #21858 — user-level (`~/.claude/rules/`) rules carrying `paths:` frontmatter are not evaluated/injected; still unfixed in 2.1.190. (Project-level path-scoped rules not tested here.)
 - **Probe method**: 3-file probe — `_probe.md` (`paths: ["**/*.probe"]`, sentinel `SENTINEL_USER_RULE_LOADED`), `_probe_ctl.md` (NO `paths`, control sentinel `CONTROL_NOPATHS_LOADED`), `_probe_target.probe` (target, read in a fresh session). Result: control sentinel PRESENT in session context, path-scoped sentinel ABSENT → the path-scoped rule did not load. Probe files removed after.
 - **Status**: upstream, open. Workaround: don't rely on user-level path-scoping → keep global guidance unconditional + COMPRESSED ([[BDR-031]]). Side-note: native auto-memory = "on" but writes nothing yet (fresh machine). Re-test on CC upgrades.
-- **Reference**: GitHub #21858. Linked to [[BDR-031]], [[LRN-044]].
+- **2026-07-06 UPDATE — RESOLVED**: re-probed `paths:` frontmatter lazy-load with fresh 3-file probe (`**/*.blkprobe` glob) — confirmed loading works at BOTH project-level AND user-level (`~/.claude/rules/`) rule dirs. #21858 no longer reproduces on current CC version. Status → resolved. Prior workaround (unconditional + compressed global CLAUDE.md, [[BDR-031]]) no longer forced by this bug — see [[LRN-103]].
+- **Reference**: GitHub #21858. Linked to [[BDR-031]], [[LRN-044]], [[LRN-103]].
 
 ---
 

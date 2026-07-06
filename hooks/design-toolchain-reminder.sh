@@ -48,12 +48,7 @@ if printf '%s' "$lc" | grep -Eq "$pattern"; then
     "$(printf '%s' "$lc" | grep -oiE "$pattern" | head -1 || true)" \
     "$(printf '%s' "$prompt" | tr '\n\t' '  ' | cut -c1-100)" >> "$logf" 2>/dev/null || true
   cat <<'EOF'
-[design-toolchain] UI/design signal detected. Apply CLAUDE.md "Design work — full toolchain (tiered by scope)":
-- Trivial (≤2 files, single cosmetic value, CSS tweak) → /hotfix, NO toolchain.
-- Build UI (component/page/screen/redesign) → ui-ux-pro-max (plan/build) + frontend-design (anti-slop) + Magic MCP /ui (21st.dev scaffold) + emil-design-eng (polish) + design-motion-principles (if motion) + design-html (if static/Pretext).
-- Design system/brand → design-consultation FIRST, then the build tools above.
-- Review/audit → design-review + emil-design-eng lens + design-motion-principles (audit mode).
-If genuinely trivial/non-UI, ignore this and proceed. IN DOUBT about scope (trivial vs real UI change) → do NOT silently skip: ask the user, or default to the build tier rather than /hotfix.
+Design work detected → apply CLAUDE.md section "Design work — full toolchain" (already in context). Trivial (≤2 files, cosmetic) → /hotfix.
 EOF
 fi
 
