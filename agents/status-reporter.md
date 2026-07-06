@@ -1,6 +1,6 @@
 ---
 name: status-reporter
-description: Consolidated project status — plugins, token budget, git state, build, tests, GSD milestone. Read-only snapshot. Use to orient quickly at session start or after a break.
+description: Read-only project-status engine — dispatched by /status. Collects plugins, token budget, git state, build/tests, GSD milestone into one snapshot.
 tools: Read, Bash, Glob, Grep
 model: haiku
 ---
@@ -17,7 +17,7 @@ No modifications. No design. No proposals. Facts only.
 
 ```bash
 # Config version
-cat ~/.claude/version.txt 2>/dev/null || echo "unknown"
+cat ~/.claude/lib/../version.txt 2>/dev/null || echo "unknown"  # lib symlink resolves into the repo
 
 # Active plugins (from session-start detection)
 command -v rtk &>/dev/null && echo "rtk: installed" || echo "rtk: missing"
