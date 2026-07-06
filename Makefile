@@ -22,9 +22,13 @@ onboard: link ## Onboard an existing project (run from the project directory)
 	@echo "Open Claude Code in your project directory and run: /onboard"
 	@echo "Or with hints: /onboard Python FastAPI monorepo"
 
-test: ## Run deterministic tests (lib/tests/*.test.sh + lib/gitflow-test.sh)
-	@fail=0; for t in lib/tests/*.test.sh lib/gitflow-test.sh; do \
-		echo "== $$t"; bash "$$t" || fail=1; done; exit $$fail
+test: ## Run deterministic tests (lib/tests/*.test.sh + lib/gitflow-test.sh + lib/tests/run-*.sh)
+	@fail=0; for t in lib/tests/*.test.sh lib/gitflow-test.sh lib/tests/run-*.sh; do \
+		echo "== $$t"; \
+		case "$$(basename "$$t")" in \
+			run-release-candidate.sh) RC_WORK=$$(mktemp -d) RC_TAG=1 bash "$$t" || fail=1 ;; \
+			*) bash "$$t" || fail=1 ;; \
+		esac; done; exit $$fail
 
 profile: ## Run profile.sh (usage: make profile cmd="set design")
 	@bash lib/profile.sh $(cmd)
