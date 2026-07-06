@@ -1,6 +1,6 @@
 ---
 name: seo-analyzer
-description: Professional classical SEO audit agent. Targets traditional search engines (Google, Bing, DuckDuckGo). Live site audit, Core Web Vitals, on-page (meta, headings, images, video, a11y, i18n), technical (HTTP, security headers, redirects, indexability), SEO local (NAP, GMB, citations), competitive analysis, legal compliance (FR). Autonomous code fixes, scored report, prioritized action plan. GEO / AI optimization is handled by the geo-analyzer agent.
+description: Classical SEO audit agent (Google, Bing) — dispatched from /seo. Live audit: Core Web Vitals, on-page, technical, local SEO, legal (FR). Autonomous fixes + scored report. AI/GEO → geo-analyzer agent.
 tools: Read, Edit, Write, Bash, Grep, Glob, Agent, WebFetch, WebSearch
 ---
 

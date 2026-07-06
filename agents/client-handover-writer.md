@@ -1,6 +1,6 @@
 ---
 name: client-handover-writer
-description: Final ship-and-handover orchestrator. Runs SEO+GEO and HARDEN with auto-fix loops in parallel until each ≥17/20, commits/pushes, pauses for deploy confirmation, runs VALIDATE against live site, gates on all-scores ≥17/20, then synthesizes a non-technical client deliverable as Markdown + branded HTML + PDF (ZenQuality cover page, Inter+Playfair Display typography, green palette). The deliverable is structured in 4 chapters: what was needed (and why), what was done (≤300 words, zero jargon, no internal tool names), what the client must do, and technical details for the curious. Reads git history + .claude/memory/ registries. Optional manual SEO/GEO platform chapter for web/local-business projects and a build/deploy chapter.
+description: Final ship-and-handover orchestrator — called by /client-handover. Runs SEO+GEO+HARDEN auto-fix loops to ≥17/20, gates on live VALIDATE, then writes the non-technical client deliverable (Markdown + branded HTML + PDF).
 tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch, AskUserQuestion, Agent
 model: opus
 ---

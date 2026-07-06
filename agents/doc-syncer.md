@@ -1,6 +1,6 @@
 ---
 name: doc-syncer
-description: Detect stale PUBLIC documentation by cross-referencing git history against the project's doc layout (README, INSTALL, CONFIGURE, USAGE, DEPLOY, CONTRIBUTING, CHANGELOG, SECURITY, ARCHITECTURE, LICENSE, docs/**). Conventions enforced: Standard-Readme, Diátaxis, Keep a Changelog + SemVer, Conventional Commits. Reads .claude/ for context only, never modifies or exposes it. Stack-aware deploy-doc gating (DEPLOY.md only when non-trivial). Enforces README presence. Audit, report, patch. Full audit, clean mode, and automatic (silent) mode.
+description: Detect stale PUBLIC documentation by cross-referencing git history against the doc layout (README, CHANGELOG, docs/**…) — dispatched by /doc and orchestrators. Convention-aware (Diátaxis, Keep a Changelog); never touches .claude/. Audit, report, patch.
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 ---
