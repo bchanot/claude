@@ -120,6 +120,7 @@ rules:
 | LRN-099 | 2026-07-05 | auto-orchestrator autonomy boundary: git discipline transfers naturally (branch, no-merge), declared-state discipline does NOT — baseline silently rewrote target TODO + authored registries + scope-crept | designing any auto/headless flow — enumerate declared surfaces, mark each read-only or gated |
 | LRN-100 | 2026-07-05 | tool gated on clean tree must clean its OWN scratch (else self-DoS next run); contract-changing auto-fix needs structural BREAKING flag in the reviewed artifact | any recurring tool w/ cleanliness precondition; any auto-fix touching an API contract |
 | LRN-102 | 2026-07-05 | deliverable text placed BEFORE a tool call may never render — only the turn's FINAL text is guaranteed displayed; a checklist printed above AskUserQuestion was invisible to the user | any flow whose deliverable is conversational text (checklist, commands, report): end the turn with it, blocking questions come before, never after |
+| LRN-105 | 2026-07-06 | explorer subagent ran a build tool (`graphify .`) mid read-only audit despite prose instructions to only Read/Grep/Bash-read — the runtime observed a config-protection sentinel deny message and self-corrected only after an explicit main-session correction, not from the original prompt | dispatching any "read-only audit" subagent whose toolset includes Bash: state "do not execute build/generator/mutating commands" explicitly, don't rely on "read-only" framing alone to constrain tool CHOICE |
 
 ---
 
@@ -1050,6 +1051,14 @@ rules:
 - **context**: 2026-07-05 /deploy run 2 (bchanot-cv). Skill patched same turn: checklist display-only (no NEXT.sh file at all — user: throwaway once deployed) + hand-back ends the turn, no tool call after.
 - **future application**: designing any skill/flow output meant to be read+used from the conversation — put it LAST; never sandwich a deliverable between tool calls; prefer plain-text report requests over blocking question tools after a deliverable.
 - **cousin**: [[LRN-100]] same skill lineage; CLAUDE.md communication doctrine (final message carries everything).
+
+## LRN-105 — "read-only audit" prose does not constrain subagent tool CHOICE; state the ban explicitly
+
+- **pattern**: job3 docs-drift audit dispatched an exploration subagent (Bash + Read/Grep, "audit BODIES — do NOT modify any file") to check graphify skill docs. It ran `graphify .` to check CLI behavior — a real build, not a read — leaving an empty `graphify-out/` dir at repo root. The prompt said "read-only" and "verify via Read/Grep/Bash (read-only)" but never named the specific command class to avoid; the agent treated "run the CLI to see what it does" as within a Bash read-only mandate.
+- **why**: "read-only" is a framing about FILES, not an instruction the model maps onto every tool call by default — a subagent with Bash access will happily execute a program to observe its behavior, which is investigative but not read-only if the program writes to disk. The fix only landed after a main-session correction mid-run ("do NOT run graphify... verify by reading the installed source instead"), not from the original prompt.
+- **context**: 2026-07-06, job3 audit exploration phase (`.audit/job3-report.md` A1/A2 findings, incident noted in the report header). No tracked file was touched; the stray dir was harmless but wasted a round-trip and could have mutated git-visible state on a less-guarded command.
+- **future application**: any subagent dispatch framed as "read-only" / "audit" / "verify" that grants Bash — explicitly ban execution of the subject-under-test's own CLI/build/generator commands, and name the safe alternative (read installed source, grep docs) in the same sentence. Don't rely on the word "read-only" alone to scope tool use.
+- **cousin**: [[LRN-100]] (tool must clean its own scratch) — same class of "prose framing ≠ enforced constraint", different failure mode.
 
 ## LRN-103 — BLK-009 was stale: re-probe confirms `paths:` frontmatter works at BOTH levels now
 

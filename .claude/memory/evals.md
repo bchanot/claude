@@ -34,6 +34,7 @@ rules:
 | EVAL-011 | 2026-06-30 | /reconcile build: RED contaminated→corrected (unguided control), GREEN behavioral confirmed, dogfooded on itself | keep |
 | EVAL-012 | 2026-06-30 | /release-candidate build: RED (gitflow fans out, no tag) → GREEN 5/5 (tag), throwaway-repo flow replay | keep |
 | EVAL-013 | 2026-06-30 | /reconcile real-usage on live repo: known gap + 2 unanticipated (header-marker drift class) + false-positive rejected off-fixture, 0 false assertion | keep |
+| EVAL-018 | 2026-07-06 | job3 docs-drift audit + execution: 46/46 findings verified, 20/23 fixes shipped (B1 blocked, D2-D5+B6 skipped by decision), zero residual on re-sweep | keep |
 
 ---
 
@@ -169,3 +170,12 @@ rules:
 - **result**: 15/17 REPRODUCED, 2 PARTIALLY (wording only: F3 "exactly 4"→4-of-54; F14 soft precondition existed). 0 discarded. Registry quotes 9/9 verbatim. Exact char counts 100% match (4840 total agents).
 - **anomalies**: 3 explorer false claims, ALL about harness semantics not file content: (1) agents-explorer — `Agent` tool "non-canonical" + `memory:`/`effort:` frontmatter "invalid": wrong, all documented; (2) skills-explorer — skills/gstack/ "stray orphan": refuted by link.sh:54-57 deliberate plumbing; (3) guide agent — `[1m]` model suffix "invalid ANSI": refuted, /model writes it itself. File-content claims (counts, quotes, refs): zero errors.
 - **action**: harness-semantics claims from explorers ALWAYS cross-check vs docs/live evidence; file-content claims reliable after one verify pass.
+
+## EVAL-018 — job3 docs-drift audit + execution: 46/46 verified, 20/23 fixes shipped, zero residual
+
+- **Date**: 2026-07-06
+- **output**: `.audit/job3-report.md` — 46 findings (docs vs repo reality at defc26c), 19 diffs, execution prompt. 4 explorers (orchestrators/workflow-skills/web-skills/graphify+deploy+docs) + 6 fresh verifiers re-checked all 46 findings + 5 registry quotes (list+paths only). Then executed with user decisions injected: 20 commits on `chore/job3-fixes` (BDR-054 supersedes BDR-038 + banners, D1 deploy paths, C3 geo-analyzer path, onboard/init-project/profile/gitflow/close/client-handover/harden/seo/web-validate/depth-matrix bodies, README, session-start hook, memory templates, project-CLAUDE template, SETTINGS.md).
+- **method**: verifiers blind to auditor reasoning; 3 killed mid-run by session limit, resumed from transcript, all completed. Post-fix: 3 fresh-context re-sweep verifiers (one per file group) confirmed old assertions gone + new text consistent with reality anchors; `make test` and `bash lib/tests/run-reconcile.sh` re-run to confirm no regression.
+- **result**: 46/46 REPRODUCED pre-fix (3 corrected attributions). Post-fix re-sweep: 0 residual findings from job3's own edits (1 pre-existing minor abbreviation noted, informational only). `make test` all green. `run-reconcile.sh` unchanged 18 GREEN/2 RED (B1 deliberately untouched, see blocker below).
+- **anomalies**: (1) B1 (reconcile fixture hermeticization) BLOCKED — `lib/tests/` is guarded by the same config-protection.sh gate as `hooks/`, and the user's sentinel pre-authorization was scoped only to `[SENTINEL-REQUIRED]` hook edits; the auto-mode classifier correctly refused the sentinel for a lib/tests/ write outside that scope. (2) Verification sweep incidentally surfaced 2 pre-existing, out-of-job3-scope drifts: `agents/client-handover-writer.md:885` still says "4-chapter structure" (contradicts its own lines 23-43 "6 chapters", predates job3); `.claude/memory/decisions.md` index has no row for BDR-053 (body exists, gap from job2).
+- **action**: keep. B1 needs a follow-up session with explicit lib/tests/ sentinel authorization. The 2 incidental findings are candidates for a future audit-delta pass, not fixed here (out of scope).
