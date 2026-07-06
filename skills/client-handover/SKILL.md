@@ -39,13 +39,15 @@ The agent runs a **ship-and-handover pipeline** with explicit gates:
 5. **DEPLOY PAUSE** — List exact deploy artifacts: changed files since baseline, deploy hints from project (vercel.json, netlify.toml, Dockerfile, .github/workflows/deploy.yml, etc.), and the deploy process in plain words. Use AskUserQuestion: "Deploy done? (Yes / Not yet / Skip validate)". Block until Yes or Skip.
 6. **/web-validate (live site)** — Run validator-analyzer against the deployed URL. Capture `SCORE_VALIDATE`.
 7. **GATE — per-axis threshold ≥17/20** — Compute final `SCORE_*_AFTER` for SEO classique, GEO (IA), HARDEN, VALIDATE. If ANY < 17/20: STOP. Generate `.claude/audits/HANDOVER-ROADMAP.md` with prioritized analysis of what's blocking each below-threshold axis. Do NOT write the client deliverable. Report to user.
-8. **DOC GENERATION (only if all scores ≥17/20)** — Read `.claude/memory/` registries + full git history. Ask whether to include build/deploy chapter. Synthesize the client deliverable using the 4-chapter structure:
+8. **DOC GENERATION (only if all scores ≥17/20)** — Read `.claude/memory/` registries + full git history. Ask whether to include build/deploy chapter. Synthesize the client deliverable using the 6-chapter structure (BDR-013, full spec in `agents/client-handover-writer.md`):
    - **§1 Ce qu'il fallait faire (et pourquoi)** — brief + motivation, 100–180 words.
-   - **§2 Ce qui a été fait** — lay summary, **≤300 words, zero technical jargon**, **no internal tool/skill names** (no `/seo`, `/harden`, `/web-validate`, `seo-analyzer`, etc. — replace with concept names: référencement / sécurité / conformité technique). Forbidden-token grep gate runs before write.
-   - **§3 Ce qui vous reste à faire** — action-only checklist grouped by cadence (one-time / monthly / quarterly / yearly / when something changes).
-   - **§4 Détails techniques (pour les curieux)** — score table (SEO classique + GEO + sécurité + conformité, before/after, gated independently at ≥17/20), vulgarized BDR decisions, phases with technical detail, optional glossary.
-   - **§5 Annexe — plateformes externes** (web/local-business only).
-   - **§6 Annexe — build & déploiement** (only if requested).
+   - **§2 Résultats — état de santé du site (avant / après)** — the score table (SEO classique + GEO + sécurité + conformité, before/after, gated independently at ≥17/20), promoted to the top of the doc for immediate impact.
+   - **§3 Ce qui a été fait** — lay summary, **≤300 words, zero technical jargon**, **no internal tool/skill names** (no `/seo`, `/harden`, `/web-validate`, `seo-analyzer`, etc. — replace with concept names: référencement / sécurité / conformité technique). Forbidden-token grep gate runs before write (covers chapters 1–5).
+   - **§4 Vos informations officielles (NAP)** — single source-of-truth table the client reuses across every external platform in §7 (web/local-business only).
+   - **§5 Ce qui vous reste à faire** — action-only checklist grouped by cadence (one-time / monthly / quarterly / yearly / when something changes).
+   - **§6 Détails techniques (pour les curieux)** — vulgarized BDR decisions, phases with technical detail, optional glossary (score table NOT here — promoted to §2).
+   - **§7 Annexe — plateformes externes** (web/local-business only).
+   - **§8 Annexe — build & déploiement** (only if requested).
 9. **RENDER** — Write `LIVRAISON.md` (fr) or `HANDOVER.md` (en) at project root, then run `scripts/handover-to-pdf.sh` to produce the matching branded `.html` (always) and `.pdf` (when a PDF engine is on the host: weasyprint > wkhtmltopdf > chromium). HTML/PDF use the ZenQuality cover page, green palette, Inter + Playfair Display typography, running header/footer with project name + page numbers.
 
 Flags:
