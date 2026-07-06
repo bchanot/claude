@@ -41,8 +41,6 @@
       "Bash(uname *)",
       "Bash(mkdir -p *)",
       "Bash(touch *)",
-      "Bash(cp *)",
-      "Bash(mv *)",
       "Bash(jq *)",
       "Bash(yq *)",
       "Bash(awk *)",
@@ -222,6 +220,8 @@
       "WebFetch",
       "Bash(xargs *)",
       "Bash(sed *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
       "Bash(git stash pop*)",
       "Bash(git stash drop*)",
       "Bash(git stash clear)"
