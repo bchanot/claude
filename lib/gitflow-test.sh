@@ -172,6 +172,31 @@ gitflow_finish feature standon >/dev/null 2>&1
 chk "arg-match → merged into develop" 'git log develop --oneline | grep -q "Merge feature/standon into develop"'
 chk "arg-match → branch deleted"      '! git rev-parse --verify -q refs/heads/feature/standon >/dev/null'
 
+echo "T13 — finish release fan-out (main+develop+delete), 2 open releases + bugfix→develop-only"
+newrepo finrel; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+gitflow_start release 9.9.9 >/dev/null 2>&1; echo v>VERSION; git add VERSION; git commit -q -m "bump 9.9.9"
+finish_rc=0; gitflow_finish >/dev/null 2>&1 || finish_rc=$?
+chk "T13a finish rc 0"                 "[ $finish_rc -eq 0 ]"
+chk "T13a main has release commit"     'git log main --oneline | grep -q "bump 9.9.9"'
+chk "T13a develop has release commit"  'git log develop --oneline | grep -q "bump 9.9.9"'
+chk "T13a release branch deleted"      '! git rev-parse --verify -q refs/heads/release/9.9.9 >/dev/null'
+
+newrepo finrel2; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+gitflow_start release 1.0 >/dev/null 2>&1; echo r1>r1; git add r1; git commit -q -m rel1
+gitflow_start release 2.0 >/dev/null 2>&1; echo r2>r2; git add r2; git commit -q -m rel2
+gitflow_start hotfix hboth >/dev/null 2>&1; echo p>p; git add p; git commit -q -m hotfixboth
+gitflow_finish >/dev/null 2>&1
+chk "T13b hotfix in release/1.0" 'git log release/1.0 --oneline | grep -q "Merge hotfix/hboth into release/1.0"'
+chk "T13b hotfix in release/2.0" 'git log release/2.0 --oneline | grep -q "Merge hotfix/hboth into release/2.0"'
+
+newrepo finbugfix; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+gitflow_start bugfix bx >/dev/null 2>&1; echo w>w.txt; git add w.txt; git commit -q -m bugfixwork
+main_before="$(git rev-parse main)"
+gitflow_finish >/dev/null 2>&1
+chk "T13c develop has bugfix commit" 'git log develop --oneline | grep -q "Merge bugfix/bx into develop"'
+chk "T13c main untouched"            "[ \"\$(git rev-parse main)\" = \"$main_before\" ]"
+chk "T13c bugfix branch deleted"     '! git rev-parse --verify -q refs/heads/bugfix/bx >/dev/null'
+
 echo
 echo "==== RESULT: $PASS passed, $FAIL failed ===="
 [ "$FAIL" -eq 0 ]
