@@ -1,4 +1,4 @@
-.PHONY: help install plugin link doctor update new-skill profile profile-list profile-current profile-reset onboard
+.PHONY: help install plugin link doctor update new-skill profile profile-list profile-current profile-reset onboard test
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  make %-14s %s\n", $$1, $$2}'
@@ -21,6 +21,10 @@ update: ## Update Claude Code, config, submodules, plugins, and verify
 onboard: link ## Onboard an existing project (run from the project directory)
 	@echo "Open Claude Code in your project directory and run: /onboard"
 	@echo "Or with hints: /onboard Python FastAPI monorepo"
+
+test: ## Run deterministic tests (lib/tests/*.test.sh + lib/gitflow-test.sh)
+	@fail=0; for t in lib/tests/*.test.sh lib/gitflow-test.sh; do \
+		echo "== $$t"; bash "$$t" || fail=1; done; exit $$fail
 
 profile: ## Run profile.sh (usage: make profile cmd="set design")
 	@bash lib/profile.sh $(cmd)
