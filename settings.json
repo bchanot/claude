@@ -1,5 +1,10 @@
 {
   "cleanupPeriodDays": 30,
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  },
   "permissions": {
     "allow": [
       "Bash(git status)",
@@ -225,12 +230,7 @@
     "disableBypassPermissionsMode": "disable",
     "additionalDirectories": []
   },
-  "model": "claude-opus-4-8[1m]",
-  "attribution": {
-    "commit": "",
-    "pr": "",
-    "sessionUrl": false
-  },
+  "model": "claude-fable-5[1m]",
   "hooks": {
     "SessionStart": [
       {
@@ -315,6 +315,6 @@
   },
   "effortLevel": "xhigh",
   "remoteControlAtStartup": true,
-  "skipAutoPermissionPrompt": true,
-  "inputNeededNotifEnabled": true
+  "inputNeededNotifEnabled": true,
+  "skipAutoPermissionPrompt": true
 }
