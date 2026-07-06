@@ -7,7 +7,7 @@ description: |
   Triggers: "validate", "w3c", "wcag", "a11y", "accessibility", "axe",
   "pa11y", "accessibilité", "conformité web".
   CSP/HSTS/404 → /harden. Meta/sitemap → /seo. AI engines → /geo.
-argument-hint: [URL] [--fix] [--local|--full] [--no-external]
+argument-hint: "[URL] [--fix] [--local|--full] [--no-external]"
 allowed-tools:
   - Read
   - Edit

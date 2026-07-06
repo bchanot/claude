@@ -1,6 +1,5 @@
 ---
 name: commit-change
-version: 1.0.0
 description: |
   Analyze all pending changes (staged, unstaged, untracked) and create
   atomic commits grouped by logical unit, retracing the work. Any git

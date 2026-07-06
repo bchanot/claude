@@ -1,6 +1,6 @@
 ---
 name: ship-feature
-description: Use when shipping a new feature end-to-end — needs design brainstorm, planning, TDD implementation with subagents, error recovery, code review, and finish. Multi-agent orchestrator (9-step pipeline). Triggers: "ship feature", "ship-feature", "build and merge", "feature end-to-end", "implement and ship".
+description: 'Use when shipping a new feature end-to-end — needs design brainstorm, planning, TDD implementation with subagents, error recovery, code review, and finish. Multi-agent orchestrator (9-step pipeline). Triggers: "ship feature", "ship-feature", "build and merge", "feature end-to-end", "implement and ship".'
 argument-hint: <feature description>
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 ---
