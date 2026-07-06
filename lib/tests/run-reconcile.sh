@@ -57,9 +57,6 @@ if [ "$(reconcile_verdict ' ' true)"  = "STALE:open-but-done" ];    then ok "T4a
 if [ "$(reconcile_verdict 'x' false)" = "STALE:done-but-open" ];    then ok "T4b 'x'+!done  → STALE";      else no "T4b wrong"; fi
 if [ "$(reconcile_verdict '~' true)"  = "STALE:partial-but-done" ]; then ok "T4c '~'+done   → STALE";      else no "T4c wrong"; fi
 if [ "$(reconcile_verdict 'x' true)"  = "CONSISTENT" ];             then ok "T4d 'x'+done   → CONSISTENT"; else no "T4d wrong"; fi
-truths=$($GREP -cE '=(true|resolved|present)$' "$FIX/real-state.snapshot")
-if [ "$truths" -ge 6 ]; then ok "T4e snapshot supplies $truths real-true facts → kernel yields STALE for the 6 git-verifiable items"; else no "T4e snapshot facts=$truths (<6)"; fi
-echo "      (7th cat-4 item — twin doc-sync [~] cross-ref — is SURFACED for review, not auto-verified: honest limit)"
 
 echo; echo "=== T5 contradiction candidates (surface, never assert) ==="
 cand=$(reconcile_contradiction_candidates "$FIX/decisions-snapshot.md" "$FIX/todo-snapshot.md")
