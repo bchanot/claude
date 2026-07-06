@@ -62,7 +62,10 @@ if [ -n "$CFG_SNAPSHOT" ]; then
   done
   trap restore_curated_configs EXIT
 else
-  warn "Config guard disabled (mktemp failed) — CLAUDE.md/settings may drift"
+  err "Config guard could not be created (mktemp failed) — refusing to run" \
+    "unguarded: CLAUDE.md/.claude/settings.json/settings.json could be" \
+    "silently rewritten by the installer. Fix mktemp/TMPDIR and retry."
+  exit 1
 fi
 
 # Read pinned version from plugins.lock.json

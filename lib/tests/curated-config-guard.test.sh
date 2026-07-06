@@ -46,7 +46,33 @@ cmp -s "$REPO/.claude/settings.json" "$EXPECT/.claude/settings.json"
 check T2-untouched-local-settings-unchanged "$?" 0
 cmp -s "$REPO/settings.json" "$EXPECT/settings.json"
 check T3-untouched-settings-unchanged "$?" 0
-[ ! -d "$CFG_SNAPSHOT" ]
-check T4-snapshot-dir-removed "$?" 0
+if [ -d "$CFG_SNAPSHOT" ]; then r4=present; else r4=gone; fi
+check T4-snapshot-dir-removed "$r4" gone
+
+# --- T5: mktemp failure -> fail-closed (install-plugins.sh, the header block
+# that builds CFG_SNAPSHOT) — refuses to run unguarded instead of warning and
+# continuing. Extracted with a WIDER range than the SUT above: this logic
+# lives in the top-level if/else, outside restore_curated_configs().
+SUT2="$(mktemp)"
+awk '/^GUARDED_CONFIGS=/,/^fi$/' "$INSTALL_SH" > "$SUT2"
+ERR5="$(mktemp)"
+(
+  # shellcheck disable=SC2329  # invoked indirectly by the sourced snippet below
+  mktemp() { return 1; }   # force the header's CFG_SNAPSHOT creation to fail
+  # shellcheck disable=SC2329
+  err() { echo "ERR: $*" >&2; }
+  # shellcheck disable=SC2329
+  warn() { echo "WARN: $*" >&2; }
+  # shellcheck disable=SC2329
+  info() { :; }
+  REPO="$(command mktemp -d)"
+  # shellcheck source=/dev/null
+  source "$SUT2"
+) >/dev/null 2>"$ERR5"
+rc5=$?
+check T5-mktemp-failure-aborts "$rc5" 1
+if grep -qi 'mktemp failed' "$ERR5"; then r5msg=yes; else r5msg=no; fi
+check T5-mktemp-failure-loud "$r5msg" yes
+rm -f "$ERR5" "$SUT2"
 
 printf 'PASS=%s FAIL=%s\n' "$pass" "$fail"; [ "$fail" -eq 0 ]
