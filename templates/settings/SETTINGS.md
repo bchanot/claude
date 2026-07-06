@@ -39,6 +39,7 @@
 | `default` | Prompts on first use of each tool | Normal development |
 | `acceptEdits` | Auto-accepts file edits, prompts for Bash | Trusting sessions |
 | `plan` | Read-only — Claude plans, cannot execute | Code review, audit |
+| `auto` | Research preview — agentic default, permission model evolving. This config's default (BDR-004) | Daily driving with guardrails |
 | `bypassPermissions` | Skips all prompts — **dangerous** | CI/CD only, sandboxed env |
 
 ## Security notes
