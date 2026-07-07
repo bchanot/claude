@@ -67,26 +67,36 @@ manipuler une valeur de secret — edits sur les mécanismes seulement.
         le report, pas juste les logs). Repo : 0 (attendu). ~/.claude : 18
         hits restants, 8 fichiers — voir D (5 déjà dans le triage job7,
         3 NOUVEAUX non couverts par la spec initiale, à trancher)
-- [ ] D. Purge (GO explicite par item) — état réel après `make scan-secrets` :
-  - [ ] transcript 960bd2cf…jsonl (generic-api-key) — propose rm, attend GO
+- [x] D. Purge (GO explicite par item) — état réel après `make scan-secrets` :
+  - [x] transcript 960bd2cf…jsonl (generic-api-key, GITEA déjà rotaté) — GO
+        utilisateur → rm fait
   - [x] `ide/27929.lock` — déjà rotée toute seule (fichier absent, session
         finie). REMPLACÉE par `ide/20429.lock` (NOUVEAU, session active en
         cours) — NE PAS rm (verrou live) ; candidat allowlist de classe
         (`ide/*.lock` structurel, pas un secret) si le pattern se confirme
-  - [ ] `cleanupPeriodDays` — vérifier nom exact champ doc, proposer 7j, diff
-        settings avant écriture
-  - [ ] **NOUVEAU (hors spec initiale, découvert par `make scan-secrets`)** :
-        `paste-cache/7d48f52c7499c1a7.txt` (sourcegraph-access-token, 2) ;
-        transcript `f1c9c474-...jsonl` (generic-api-key, 8) — ni lus ni
-        caractérisés plus avant (règle job7 : jamais manipuler une valeur).
-        Décision utilisateur requise avant toute action.
+  - [x] `cleanupPeriodDays` — champ confirmé exact (agent claude-code-guide,
+        code.claude.com/docs/en/settings.md) : défaut 30, min 1, scope doc
+        = "session files" (transcripts + orphaned subagent worktrees) —
+        PAS explicitement backups/file-history/paste-cache (gap doc, donc
+        ne remplace pas les scrubs manuels A.3/D). Diff montré, confirmé
+        via AskUserQuestion (1er essai bloqué par le classifieur auto-mode :
+        diff affiché en texte ne vaut pas confirmation explicite — correct)
+        → `settings.json` 30→7 appliqué.
+  - [x] **NOUVEAU (hors spec initiale, découvert par `make scan-secrets`)** :
+        `paste-cache/7d48f52c7499c1a7.txt` (sourcegraph-access-token, 2) —
+        GO utilisateur ("Claude rm maintenant") → rm fait, jamais lu.
+        Transcript `f1c9c474-...jsonl` (generic-api-key, 8) — PAS choisi
+        par l'utilisateur parmi les options (auto-inspect / TODO / rm) →
+        **laissé intact, à trancher** ; ni lu ni caractérisé (règle job7).
   - [x] **NOUVEAU (bruit, pas un item D)** : transcript de CETTE session
         (`4b5c02a9-...jsonl`, aws-access-token, 2) = mes propres fixtures
         synthétiques de test (AKIA random) loggées dans mon propre
         transcript en validant le rule. Pas un vrai secret, rien à purger.
 - [ ] Gate final : `make test` + `make scan-secrets` propre + table
       étape/commit/gate + capitalize (BDR secrets-par-référence, MAJ BDR-026,
-      LRN piège `claude mcp add --env`)
+      LRN piège `claude mcp add --env`). NOTE : `make scan-secrets` sur
+      ~/.claude ne sera pas "propre" tant que `f1c9c474-...jsonl` (8 hits,
+      non tranché) reste — résiduel connu, pas un échec du job.
 
 ## 2026-07-05 — /deploy UX patch (feature/deploy-next-style)
 Feedback user au 1er run réel (bchanot-cv, [[EVAL-016]]) : NEXT.sh une commande
