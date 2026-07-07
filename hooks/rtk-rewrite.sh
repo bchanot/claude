@@ -18,9 +18,15 @@
 #               bypassed settings.json deny/ask). The REWRITTEN command goes
 #               through native evaluation; explicit `rtk <tool>` allow rules
 #               in settings.json keep read-only forms frictionless.
-#   1           No RTK equivalent → pass through unchanged
+#   1           No RTK equivalent → command continues unchanged into the
+#               redaction check below (still may be rewritten there)
 #   2           Deny rule matched → pass through (Claude Code native deny handles it)
 #   3 + stdout  Ask rule matched → rewrite but let Claude Code prompt the user
+#
+# Independent of the above: any command whose FINAL form is a single-pipeline
+# `printenv`/`env` dump gets a redaction pipe appended (job7 — see below).
+# This is a security post-process, not a token-savings rewrite, so it lives
+# here rather than in the Rust registry.
 
 if ! command -v jq &>/dev/null; then
   echo "[rtk] WARNING: jq is not installed. Hook cannot rewrite commands. Install jq: https://jqlang.github.io/jq/download/" >&2
@@ -71,17 +77,22 @@ EXIT_CODE=$?
 
 case $EXIT_CODE in
   0)
-    # Rewrite found. If the output is identical, the command was
-    # already using RTK — nothing to do.
-    [ "$CMD" = "$REWRITTEN" ] && exit 0
+    # Rewrite found. If identical to the input, RTK had nothing to add —
+    # keep going so the redaction check below still runs on it.
+    [ "$CMD" = "$REWRITTEN" ] && REWRITTEN="$CMD"
     ;;
   1)
-    # No RTK equivalent — pass through unchanged.
-    exit 0
+    # No RTK equivalent — keep the original command so the redaction
+    # check below still runs on it.
+    REWRITTEN="$CMD"
     ;;
   2)
-    # Deny rule matched — let Claude Code's native deny rule handle it.
-    exit 0
+    # Deny rule matched (rtk's own registry — not necessarily backed by a
+    # matching settings.json deny rule, so the original command can still
+    # reach native evaluation and run: e.g. bare `env`/`printenv` hits this
+    # exit code with no settings.json rule behind it). Keep the original
+    # command so the redaction check below still runs on it.
+    REWRITTEN="$CMD"
     ;;
   3)
     # Ask rule matched — rewrite the command but do NOT auto-allow so that
@@ -91,6 +102,24 @@ case $EXIT_CODE in
     exit 0
     ;;
 esac
+
+# Security: redact raw environment dumps before they can reach stdout/the
+# transcript (job7 — a bare `printenv`/`env` dump was the GITEA leak vector).
+# `env VAR=x cmd` (env launching a subprocess with a var set) is legitimate
+# and left intact. Scope: single-pipeline commands only — a command
+# containing `;`, `&`, or `||` bails untouched, same "lose the feature
+# rather than emit something wrong" rule as the RTK_ON_PATH substitution
+# below: appending the redaction pipe at the end would silently attach to
+# the WRONG segment of a compound command.
+if ! printf '%s' "$REWRITTEN" | grep -Eq '[;&]' \
+   && ! printf '%s' "$REWRITTEN" | grep -qF '||'; then
+  if printf '%s' "$REWRITTEN" | grep -Eq '^[[:space:]]*(printenv|env)([[:space:]]|$)' \
+     && ! printf '%s' "$REWRITTEN" | grep -Eq '^[[:space:]]*env([[:space:]]+[A-Za-z_][A-Za-z0-9_]*=[^[:space:]]*)+[[:space:]]+[^|[:space:]]'; then
+    REWRITTEN="${REWRITTEN} | sed -E 's/^([A-Za-z_]*(TOKEN|API_KEY|SECRET|PASSWORD|PASSWD)[A-Za-z_]*)=.*/\1=REDACTED/'"
+  fi
+fi
+
+[ "$CMD" = "$REWRITTEN" ] && exit 0
 
 # When rtk is NOT on PATH, a bare `rtk …` rewrite exits 127 in the tool
 # shell (whose PATH the hook cannot fix). Substitute the absolute path at

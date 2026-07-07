@@ -1,5 +1,59 @@
 # TODO
 
+## 2026-07-07 — job7 secrets: triage backstops (chore/job7-secrets)
+Genèse : `.audit/job7/ALL-REDACTED.json` (triage secrets multi-repo + ~/.claude).
+GITEA_TOKEN déjà rotaté (transcript 960bd2cf). MAGIC rotation prévue après (A).
+Fixtures git-game #5/#6 confirmées synthétiques (test-secret-*). Règle : jamais
+manipuler une valeur de secret — edits sur les mécanismes seulement.
+
+- [x] A.1 Provenance MAGIC_API_KEY dans `~/.claude.json` : confirmée —
+      seul writer = `lib/toggle-external.sh:191` (`claude mcp add magic --scope
+      user --env API_KEY="$MAGIC_API_KEY"`), appelé par `install-plugins.sh`
+      (jamais un `claude mcp add` direct). Aucun autre writer (grep repo-wide).
+- [x] A.2 Doc Claude Code (agent claude-code-guide) : `${VAR}` supporté dans
+      `env`/`command`/`args`/`url`/`headers` de mcpServers, y compris scope
+      user (`~/.claude.json`). Pas de `envFile`, pas de flag `mcp add` pour une
+      référence — édition manuelle requise. Voie SUPPORTÉE retenue.
+      Décision utilisateur : wiring `MAGIC_API_KEY` → wrapper `claude()` scopé
+      dans `~/.bashrc` (source `.env` en subshell, jamais exporté globalement)
+      plutôt qu'un export global (surface minimale, cohérent BDR-026).
+  - [ ] `~/.bashrc` : fonction `claude()` wrapper (subshell source ~/.claude/.env)
+  - [ ] `~/.claude.json` mcpServers.magic.env.API_KEY → `"${MAGIC_API_KEY}"`
+        (diff keys-only montré avant écriture)
+  - [ ] `lib/toggle-external.sh:191-192` — `--env API_KEY='${MAGIC_API_KEY}'`
+        (référence littérale, pas expansion bash) pour que les futurs
+        `enable magic` écrivent aussi la forme référence
+  - [ ] Doc README : procédure "ajouter un MCP avec secret" + piège `--env`
+  - [ ] Vérif manuelle : `claude mcp list` / relancer un MCP magic réel si possible
+- [ ] A.3 Scrub one-shot des 5 backups `.claude.json.backup.*` existants
+      (prefix 78af0e36 hors `.env`) — script ou sed ciblé, vérif grep 0 hors .env
+- [ ] A.4 Signaler à l'utilisateur : rotation MAGIC maintenant (après commit A)
+- [x] B. Redaction dumps d'env — `hooks/rtk-rewrite.sh` étendu : pipeline simple
+      (pas de `;`/`&`/`||`) + `printenv`/`env` en tête sans `VAR=... cmd` derrière
+      → append `| sed -E 's/^([A-Za-z_]*(TOKEN|API_KEY|SECRET|PASSWORD|PASSWD)
+      [A-Za-z_]*)=.*/\1=REDACTED/'`. `env VAR=x cmd` intact. Compound bail
+      (`;`/`&`/`||`) — jamais de pipe attaché au mauvais segment.
+  - [x] `lib/tests/rtk-rewrite.test.sh` — 3 cas + garde compound
+  - [ ] `make test` vert
+- [ ] C. Backstop gitleaks (8.30.1 confirmé installé — `protect` non listé,
+      `gitleaks git --staged` = sous-commande documentée retenue)
+  - [ ] `.gitleaks.toml` racine — allowlist 3 classes (vérifiées empiriquement
+        contre les vrais fichiers : marketplace.json sha 40-hex, ws-protocol
+        nonce, test-secret-[0-9-]+)
+  - [ ] pre-commit gitflow (`lib/gitflow.sh` `_gitflow_emit_pre_commit`) —
+        `gitleaks git --staged` après guard root/merge, non-bloquant si absent
+  - [ ] `lib/gitflow-test.sh` — faux secret staged bloqué ; PATH sans gitleaks
+        → warn + pass
+  - [ ] `make scan-secrets` — git × repos + dir ~/.claude, sortie → `.audit/`
+- [ ] D. Purge (GO explicite par item)
+  - [ ] transcript 960bd2cf…jsonl — propose rm, attend GO
+  - [ ] `ide/27929.lock` stale — rm direct
+  - [ ] `cleanupPeriodDays` — vérifier nom exact champ doc, proposer 7j, diff
+        settings avant écriture
+- [ ] Gate final : `make test` + `make scan-secrets` propre + table
+      étape/commit/gate + capitalize (BDR secrets-par-référence, MAJ BDR-026,
+      LRN piège `claude mcp add --env`)
+
 ## 2026-07-05 — /deploy UX patch (feature/deploy-next-style)
 Feedback user au 1er run réel (bchanot-cv, [[EVAL-016]]) : NEXT.sh une commande
 par ligne (style session — ssh ouvre la box, la suite s'exécute dessus, local =
