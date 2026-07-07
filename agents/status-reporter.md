@@ -91,49 +91,38 @@ If no test infrastructure found:
 
 ---
 
-## PHASE 3 — GSD v2 STATUS (if .gsd/ exists)
+## PHASE 3 — GSD STATUS (if .gsd/ exists)
+
+gsd-pi ≥3.0.0 (ADR-013 cutover): the DB is authoritative, `.gsd/ROADMAP.md`
+no longer exists (state moved to `.gsd/STATE.md`, `.gsd/gsd.db`, and one
+`.gsd/milestones/<ID>/<ID>-ROADMAP.md` per milestone). Read state through the
+CLI's own structured snapshot instead of scraping markdown.
 
 ```bash
-# Check .gsd/ presence and contents
+# Check .gsd/ presence
 ls .gsd/ 2>/dev/null | head -10
 
-# ROADMAP.md — milestone checklist (most reliable source)
-cat .gsd/ROADMAP.md 2>/dev/null | head -60 || echo "no ROADMAP.md"
-
-# Slice-level progress — GSD v2 uses ### headings for slices (not tasks)
-# Slices done = ### headings with [x] marker
-grep -c '^### .*\[x\]' .gsd/ROADMAP.md 2>/dev/null || echo "0"
-# Slices total = all ### headings
-grep -c '^### ' .gsd/ROADMAP.md 2>/dev/null || echo "0"
-
-# Task-level count (informational only — not the primary progress metric)
-# Done tasks: - [x], Total tasks: - [
-grep -c '^\s*- \[x\]' .gsd/ROADMAP.md 2>/dev/null || echo "0"
-grep -c '^\s*- \[' .gsd/ROADMAP.md 2>/dev/null || echo "0"
-
-# Current milestone — tries slice-level first, falls back to task-level
-# Primary: first ## heading with a ### slice without [x]
-awk '/^## /{ms=$0} /^### /{if(index($0,"[x]")==0){print ms; exit}}' .gsd/ROADMAP.md 2>/dev/null
-# Fallback (flat structure — tasks directly under ##, no ### slices):
-# Scoped to ## Milestone headings only — avoids matching documentation lists
-# Resets on any non-Milestone ## heading (e.g. ## Prerequisites, ## Notes)
-awk '/^## [Mm]ilestone/{ms=$0} /^## / && !/[Mm]ilestone/{ms=""} /^- \[/{if(ms && index($0,"- [x]")==0){print ms" (flat)"; exit}}' .gsd/ROADMAP.md 2>/dev/null
-# All ## headings for context
-grep -E '^## ' .gsd/ROADMAP.md 2>/dev/null
-
-# Any additional GSD state files
-find .gsd/ -name "*.md" -not -name "ROADMAP.md" 2>/dev/null | head -5
+# Structured snapshot — no LLM call, no markdown scraping
+gsd headless query 2>/dev/null || echo "no gsd query output"
 ```
 
 **Reading the output:**
-- If `ROADMAP.md` exists: derive progress at **slice level** (### headings), not task level.
-  Slices done = `### headings with [x]`. Slices total = all `### headings`.
-  Report as: "X/Y slices done" — this matches GSD v2's own progress dashboard.
-  The current milestone = first `## heading` with an unchecked `### slice`. If no `###` slices exist (flat structure with tasks directly under `##`), fall back to the first `## heading` with an unchecked `- [ ]` task (second awk command, marked with "(flat)"). If both return empty, all milestones are complete.
-- If only `.gsd/` exists but no `ROADMAP.md`: GSD initialized but no roadmap yet.
-  Print: "GSD v2 initialized — no ROADMAP.md yet. Run `/gsd init` or `/gsd discuss` to create one."
-- If `.gsd/` is absent: print "GSD v2 not initialized for this project."
-- Never attempt to read `state.db` or binary files — print "N/A" if state unclear.
+- If `.gsd/` is absent: print "GSD not initialized for this project."
+- If `.gsd/` exists but the query errors or prints nothing: GSD initialized but
+  unreadable — print "GSD initialized — query failed, run `gsd headless status`
+  for a human-readable dashboard."
+- Otherwise parse the JSON:
+  - `progress.slices.done` / `progress.slices.total` → report as "X/Y slices
+    done" (matches GSD's own dashboard; this is the primary progress metric).
+  - `progress.milestones.done` / `progress.milestones.total` for milestone-level.
+  - `state.activeMilestone.title` / `state.activeSlice.title` → current
+    milestone/slice. Both `null` means nothing active (not started, or all
+    milestones complete — disambiguate via `progress.milestones`).
+  - `state.nextAction` → print verbatim as the next step.
+  - `state.blockers` → if non-empty, surface each one.
+- Never read `.gsd/gsd.db` directly (SQLite, not markdown) or treat
+  `.gsd/` as a local directory for backup/copy purposes — it may be a symlink
+  to `~/.gsd/projects/<hash>/` (out-of-tree state store).
 
 ---
 
