@@ -84,6 +84,11 @@ ctx7 login                 # optional: OAuth / API key for higher rate limits
 
 Versions are pinned in `plugins.lock.json`. To update: edit the file, then re-run `install-plugins.sh`.
 
+Graphify installs via **pipx/PyPI only, never npm/npx**: a different publisher
+squats the same `graphifyy` name on npm (version-shadowing shim re-exporting
+a different package, ships its own conflicting `graphify` bin) — see
+`plugins.lock.json`'s `graphifyy` note.
+
 ---
 
 ## Slash commands

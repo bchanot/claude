@@ -60,6 +60,10 @@ non-deterministic gate). owasp-top-ten is REQUIRED, not optional: measured
 2026-07-03, the two-ruleset baseline missed SQL injection and path traversal
 entirely on realistic Flask code; owasp-top-ten's taint rules catch them.
 
+Caveat: `p/*` packs are fetched from the registry at RUNTIME — pinning the
+`semgrep` CLI version (`plugins.lock.json`) does NOT freeze ruleset content;
+a new BLOCK can appear on unchanged code even with the CLI pin untouched.
+
 **Severity mapping** (from `results[].extra.severity` + ruleset origin):
 
 | semgrep | origin | → gate severity | blocks? |
