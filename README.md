@@ -195,6 +195,42 @@ See [`templates/settings/SETTINGS.md`](templates/settings/SETTINGS.md) for the f
 
 ---
 
+## Adding an MCP server that needs a secret
+
+`claude mcp add <name> --env KEY=VALUE ...` writes `VALUE` **literally** into
+`~/.claude.json` (or the project's `.mcp.json`) — if you pass the real secret
+on that command line, it materializes as a second plaintext copy outside
+`~/.claude/.env`, invisible to the repo's `.gitignore`/allowlist reach (this
+bit us once: job7/BDR-026).
+
+Claude Code expands `${VAR}` and `${VAR:-default}` in `mcpServers` config —
+in `env`, `command`, `args`, `url`, and `headers` — for both project (`.mcp.json`)
+and user (`~/.claude.json`) scope. Use that instead of a literal value:
+
+```bash
+# WRONG — plaintext key lands in ~/.claude.json:
+claude mcp add magic --scope user --env API_KEY="$MAGIC_API_KEY" -- npx -y @21st-dev/magic@latest
+
+# RIGHT — single-quoted so bash doesn't expand it; Claude Code expands it at
+# launch, reading the var from its own process environment:
+claude mcp add magic --scope user --env 'API_KEY=${MAGIC_API_KEY}' -- npx -y @21st-dev/magic@latest
+```
+
+The var still has to exist in the **environment of the process that starts
+`claude`** — sourcing `~/.claude/.env` into your everyday interactive shell
+would defeat the point (every subprocess, every stray `env`/`printenv`, would
+then see it). This repo's `~/.bashrc` instead wraps the `claude` command
+itself: a `claude()` shell function sources `~/.claude/.env` into a subshell
+and `exec`s the real binary, so the var reaches `claude` and its children only
+— never the ambient shell. See `lib/toggle-external.sh`'s `magic` case for
+the pattern to copy for a new MCP server.
+
+There is no `claude mcp add` flag that writes the reference form for you —
+the `${VAR}` syntax has to be typed by hand (or via a wrapper script), same as
+above.
+
+---
+
 ## Diagnostic and maintenance
 
 ```bash

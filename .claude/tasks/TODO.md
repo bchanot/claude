@@ -17,16 +17,30 @@ manipuler une valeur de secret — edits sur les mécanismes seulement.
       Décision utilisateur : wiring `MAGIC_API_KEY` → wrapper `claude()` scopé
       dans `~/.bashrc` (source `.env` en subshell, jamais exporté globalement)
       plutôt qu'un export global (surface minimale, cohérent BDR-026).
-  - [ ] `~/.bashrc` : fonction `claude()` wrapper (subshell source ~/.claude/.env)
-  - [ ] `~/.claude.json` mcpServers.magic.env.API_KEY → `"${MAGIC_API_KEY}"`
-        (diff keys-only montré avant écriture)
-  - [ ] `lib/toggle-external.sh:191-192` — `--env API_KEY='${MAGIC_API_KEY}'`
-        (référence littérale, pas expansion bash) pour que les futurs
-        `enable magic` écrivent aussi la forme référence
-  - [ ] Doc README : procédure "ajouter un MCP avec secret" + piège `--env`
-  - [ ] Vérif manuelle : `claude mcp list` / relancer un MCP magic réel si possible
-- [ ] A.3 Scrub one-shot des 5 backups `.claude.json.backup.*` existants
-      (prefix 78af0e36 hors `.env`) — script ou sed ciblé, vérif grep 0 hors .env
+  - [x] `~/.bashrc` : fonction `claude()` wrapper (subshell source ~/.claude/.env,
+        exec — vérifié : la var n'atteint QUE le subshell/exec, jamais le shell
+        parent). Hors repo (dotfile perso).
+  - [x] `~/.claude.json` mcpServers.magic.env.API_KEY → `"${MAGIC_API_KEY}"`
+        (diff keys-only montré avant écriture ; jq surgical edit, jamais Read
+        direct — la valeur n'a jamais traversé mon contexte). Backup fait
+        pendant l'édition supprimé aussitôt vérifié (aurait été un 6e leak).
+  - [x] `lib/toggle-external.sh:191-192` — `--env 'API_KEY=${MAGIC_API_KEY}'`
+        (référence littérale, single-quoted). `claude mcp add` direct au flag
+        bloqué par le classifieur auto-mode (self-modification non sollicitée,
+        respecté) — non testé live ; `claude mcp list` confirme la syntaxe
+        est bien reconnue ("Missing environment variables: MAGIC_API_KEY" —
+        attendu, cette session a démarré avant le wrapper bashrc).
+  - [x] Doc README : section "Adding an MCP server that needs a secret" +
+        piège `--env` + pattern wrapper à copier
+  - [x] Vérif manuelle : `claude mcp list` (read-only) — magic reconnaît
+        `${MAGIC_API_KEY}`, encore connecté (session pré-existante) ; nécessite
+        un restart terminal (source ~/.bashrc) + Claude Code pour confirmer
+        end-to-end — **résiduel, à faire par l'utilisateur**
+- [x] A.3 Scrub backups `.claude.json.backup.*` — les 5 originaux (78af0e36 @
+      job7 triage) déjà auto-rotés (ring-buffer natif) ; des 5 COURANTS, 2
+      encore en clair (créés avant le fix, pendant cette session) → scrubbés
+      jq (mode 600 restauré, changé par erreur via mv). grep 78af0e36 : 0 hors
+      `.env` (backups + .claude.json confirmés propres).
 - [ ] A.4 Signaler à l'utilisateur : rotation MAGIC maintenant (après commit A)
 - [x] B. Redaction dumps d'env — `hooks/rtk-rewrite.sh` étendu : pipeline simple
       (pas de `;`/`&`/`||`) + `printenv`/`env` en tête sans `VAR=... cmd` derrière

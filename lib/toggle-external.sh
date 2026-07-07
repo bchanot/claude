@@ -188,8 +188,13 @@ enable_tool() {
         warn "magic already enabled"
         return 0
       fi
+      # Reference, not value: Claude Code expands ${VAR} in mcpServers.env at
+      # launch (job7/BDR-026) — MAGIC_API_KEY itself never lands in
+      # ~/.claude.json. The check above still confirms the var IS set in
+      # ~/.claude/.env before wiring the reference, so a missing key fails
+      # here instead of silently at Claude Code startup.
       claude mcp add magic --scope user \
-        --env API_KEY="$MAGIC_API_KEY" \
+        --env 'API_KEY=${MAGIC_API_KEY}' \
         -- npx -y @21st-dev/magic@latest
       ok "magic enabled (user scope)"
       ;;
