@@ -48,22 +48,42 @@ manipuler une valeur de secret — edits sur les mécanismes seulement.
       [A-Za-z_]*)=.*/\1=REDACTED/'`. `env VAR=x cmd` intact. Compound bail
       (`;`/`&`/`||`) — jamais de pipe attaché au mauvais segment.
   - [x] `lib/tests/rtk-rewrite.test.sh` — 3 cas + garde compound
-  - [ ] `make test` vert
-- [ ] C. Backstop gitleaks (8.30.1 confirmé installé — `protect` non listé,
-      `gitleaks git --staged` = sous-commande documentée retenue)
-  - [ ] `.gitleaks.toml` racine — allowlist 3 classes (vérifiées empiriquement
-        contre les vrais fichiers : marketplace.json sha 40-hex, ws-protocol
-        nonce, test-secret-[0-9-]+)
-  - [ ] pre-commit gitflow (`lib/gitflow.sh` `_gitflow_emit_pre_commit`) —
+  - [x] `make test` vert (96/96 gitflow-test + suite complète)
+- [x] C. Backstop gitleaks (8.30.1 confirmé installé — `protect` non listé
+      dans `--help` mais fonctionne encore ; `gitleaks git --staged` =
+      sous-commande documentée retenue à la place)
+  - [x] `.gitleaks.toml` racine — allowlist 3 classes job7 (vérifiées
+        empiriquement contre les vrais fichiers : marketplace.json sha
+        40-hex, ws-protocol nonce, test-secret-[0-9-]+) + 4e entrée
+        `(^|/)\.env$` (pas un faux positif — c'est le vault canonique
+        BDR-026 ; exclu du bruit, pas de la détection)
+  - [x] pre-commit gitflow (`lib/gitflow.sh` `_gitflow_emit_pre_commit`) —
         `gitleaks git --staged` après guard root/merge, non-bloquant si absent
-  - [ ] `lib/gitflow-test.sh` — faux secret staged bloqué ; PATH sans gitleaks
-        → warn + pass
-  - [ ] `make scan-secrets` — git × repos + dir ~/.claude, sortie → `.audit/`
-- [ ] D. Purge (GO explicite par item)
-  - [ ] transcript 960bd2cf…jsonl — propose rm, attend GO
-  - [ ] `ide/27929.lock` stale — rm direct
+  - [x] `lib/gitflow-test.sh` T16 — faux secret (AKIA random) sur feature
+        branch → bloqué ; commit propre passe ; PATH sans gitleaks → warn
+        + pass. 96/96 vert.
+  - [x] `make scan-secrets` — repo (git history) + dir ~/.claude, redacted
+        JSON → `.audit/` (`--redact` vérifié : Match/Secret redacted dans
+        le report, pas juste les logs). Repo : 0 (attendu). ~/.claude : 18
+        hits restants, 8 fichiers — voir D (5 déjà dans le triage job7,
+        3 NOUVEAUX non couverts par la spec initiale, à trancher)
+- [ ] D. Purge (GO explicite par item) — état réel après `make scan-secrets` :
+  - [ ] transcript 960bd2cf…jsonl (generic-api-key) — propose rm, attend GO
+  - [x] `ide/27929.lock` — déjà rotée toute seule (fichier absent, session
+        finie). REMPLACÉE par `ide/20429.lock` (NOUVEAU, session active en
+        cours) — NE PAS rm (verrou live) ; candidat allowlist de classe
+        (`ide/*.lock` structurel, pas un secret) si le pattern se confirme
   - [ ] `cleanupPeriodDays` — vérifier nom exact champ doc, proposer 7j, diff
         settings avant écriture
+  - [ ] **NOUVEAU (hors spec initiale, découvert par `make scan-secrets`)** :
+        `paste-cache/7d48f52c7499c1a7.txt` (sourcegraph-access-token, 2) ;
+        transcript `f1c9c474-...jsonl` (generic-api-key, 8) — ni lus ni
+        caractérisés plus avant (règle job7 : jamais manipuler une valeur).
+        Décision utilisateur requise avant toute action.
+  - [x] **NOUVEAU (bruit, pas un item D)** : transcript de CETTE session
+        (`4b5c02a9-...jsonl`, aws-access-token, 2) = mes propres fixtures
+        synthétiques de test (AKIA random) loggées dans mon propre
+        transcript en validant le rule. Pas un vrai secret, rien à purger.
 - [ ] Gate final : `make test` + `make scan-secrets` propre + table
       étape/commit/gate + capitalize (BDR secrets-par-référence, MAJ BDR-026,
       LRN piège `claude mcp add --env`)

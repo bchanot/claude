@@ -231,6 +231,31 @@ chk "T15 nothing staged"           '[ -z "$(git diff --cached --name-only)" ]'
 chk "T15 no .gitignore written"    '[ ! -e .gitignore ]'
 chk "T15 no .githooks written"     '[ ! -d .githooks ]'
 
+echo "T16 — gitleaks pre-commit backstop (job7), independent of branch protection"
+newrepo gl; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+gitflow_start feature glwork >/dev/null 2>&1
+
+# T16a — a real secret pattern staged on a working branch (not main/develop,
+# proving this backstop is NOT gated by the branch-protection check above it)
+printf 'aws_access_key_id = AKIA%s\n' "GDR5XRBXYARW2I5N" > secret.txt
+git add secret.txt
+gl_out="$(git commit -q -m "add secret" 2>&1)"; gl_rc=$?
+chk "T16a fake secret on feature branch → blocked" "[ $gl_rc -ne 0 ]"
+chk "T16a message mentions gitleaks"               'printf "%s" "$gl_out" | grep -qi gitleaks'
+chk "T16a nothing committed"          '! git log --oneline 2>/dev/null | grep -q "add secret"'
+git restore --staged secret.txt 2>/dev/null || true; rm -f secret.txt
+
+# T16b — a clean commit is unaffected
+echo clean > clean.txt; git add clean.txt
+chk "T16b clean commit still succeeds" 'git commit -q -m "clean work" 2>/dev/null'
+
+# T16c — gitleaks missing from PATH → warn, never block (defense in depth
+# must not become a new single point of failure)
+echo clean2 > clean2.txt; git add clean2.txt
+noleaks_out="$(PATH=/usr/bin:/bin git commit -q -m "clean work 2" 2>&1)"; noleaks_rc=$?
+chk "T16c missing-gitleaks → still commits (rc0)" "[ $noleaks_rc -eq 0 ]"
+chk "T16c missing-gitleaks → warns"    'printf "%s" "$noleaks_out" | grep -qi "not installed"'
+
 echo
 echo "==== RESULT: $PASS passed, $FAIL failed ===="
 [ "$FAIL" -eq 0 ]

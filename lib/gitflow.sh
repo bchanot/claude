@@ -221,6 +221,19 @@ br=\$(git symbolic-ref --short -q HEAD 2>/dev/null)
 git rev-parse --verify -q HEAD >/dev/null 2>&1 || exit 0   # root commit — allow
 [ -f "\$gd/MERGE_HEAD" ] && exit 0                          # merge in progress — allow
 
+# Secret backstop (job7) — any branch, not just protected ones. Non-blocking
+# if gitleaks isn't installed; auto-discovers ./.gitleaks.toml (repo root).
+if command -v gitleaks >/dev/null 2>&1; then
+  if ! gitleaks git --staged --no-banner >/dev/null 2>&1; then
+    echo "gitflow pre-commit: BLOCKED — gitleaks found a secret in staged changes." >&2
+    echo "  Details: gitleaks git --staged --no-banner" >&2
+    echo "  Genuine false-positive? add an allowlist rule to .gitleaks.toml — never bypass with --no-verify." >&2
+    exit 1
+  fi
+else
+  echo "gitflow pre-commit: gitleaks not installed — secret scan skipped (https://github.com/gitleaks/gitleaks)." >&2
+fi
+
 case "\$br" in
   $GITFLOW_MAIN|$GITFLOW_DEVELOP) ;;                        # protected — keep checking
   *) exit 0 ;;                                              # working branch — allow

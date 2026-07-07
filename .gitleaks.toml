@@ -1,0 +1,37 @@
+title = "claude-config gitleaks config"
+
+# Backstop scanner (job7): pre-commit hook (lib/gitflow.sh emit-hook) and
+# `make scan-secrets`. Extends gitleaks' default ruleset — never replaces it.
+[extend]
+useDefault = true
+
+# 3 false-positive classes identified in job7 triage (.audit/job7/ALL-REDACTED.json),
+# each verified empirically against the real flagged files before being added
+# here (see .audit/job7-report.md). None of these are live secrets.
+[allowlist]
+description = "job7 triage — known false positives, not secrets"
+
+# Content-based: git-game repo test fixtures (#5/#6 in the triage), confirmed
+# synthetic by the repo owner — literal "test-secret-<digits>" values used in
+# unit tests, flagged by the generic-api-key rule on entropy alone.
+regexTarget = "match"
+regexes = [
+  '''test-secret-[0-9-]+''',
+]
+
+# Path-based: third-party/vendored files outside our control, flagged by
+# rules that don't apply to their content.
+paths = [
+  # Official claude-plugins marketplace catalog — 40-char hex "sha" (git
+  # commit references, not credentials) trip the sourcegraph-access-token
+  # rule, which matches on bare hex length/entropy alone.
+  '''plugins/marketplaces/.*marketplace\.json$''',
+  # superpowers plugin test fixture — a base64-encoded WS protocol test
+  # nonce, not a credential, trips generic-api-key on entropy.
+  '''tests/brainstorm-server/ws-protocol\.test\.js$''',
+  # NOT a job7 false positive — this IS a real secret, by design: the
+  # canonical vault (BDR-026). `make scan-secrets` scans ~/.claude looking
+  # for stray COPIES of secrets outside this file; flagging the vault
+  # itself on every run is pure noise, not signal.
+  '''(^|/)\.env$''',
+]
