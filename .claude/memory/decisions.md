@@ -76,6 +76,7 @@ rules:
 | BDR-052 | 2026-07-05 | /tour auto mode = branch-as-gate: no mid-run approval gates; unmerged chore branch + per-project TOUR.md = deferred human gate; reconcile report-only; loop bounded 3× | accepted |
 | BDR-054 | 2026-07-06 | supersede BDR-038 NEXT.sh/hand-back artifacts — shipped impl removed both (52f6678, LRN-102) | accepted |
 | BDR-055 | 2026-07-07 | job5: delete memory-commit/doc-commit `pending` verbs — v2 hook rejected (BDR-037), J4-17 closed MOOT | accepted |
+| BDR-056 | 2026-07-07 | job6: deps policy = latest gated by integration, not KEEP-PINNED by default | accepted |
 
 ---
 
@@ -862,3 +863,15 @@ rules:
 - **Why**: headers earmarked both funcs "for the v2 hook" — [[BDR-037]] REJECTED v2 hook, no code ever written. J4-17 queued TEST not DELETE, but deferred to the newer/wrong branch — v2 hook dead means nothing left to test toward. Zero prod/test callers confirmed (job5 audit) before delete.
 - **Alternatives rejected**: keep+test per J4-17 (tests a dead-end, [[BDR-037]] already closed that door); keep unused (dead code, no consumer).
 - **Reference**: commit `da3abf9`; `.audit/job5-report.md` J5-13/§3b; supersedes J4-17 (`.audit/job4-report.md:35`). Same supersession-trace discipline [[BDR-054]] had to backfill for BDR-038/job3 D6-D9 — written here at delete time, not reconstructed later.
+
+---
+
+## BDR-056 — job6: deps policy = latest gated by integration, not KEEP-PINNED by default
+
+- **Date**: 2026-07-07
+- **Status**: accepted (reverses job6-batch-3 KEEP-PINNED-unless-CVE default)
+- **Decision**: default posture = pull latest, gated per-dep by real integration checks (make test + named smoke), not "keep pinned unless a CVE forces the hand". Sequenced by risk, one upgrade = one commit = one gate, immediate rollback on red. Applied job6: ctx7 0.5.3→0.5.4, gsd-pi 2.64.0→3.0.0, gstack 070722a→11de390 (v1.52.1.0→v1.58.5.0), graphifyy binary 0.9.6→0.9.8 (hook-adoption declined separately, see below).
+- **Why**: job6-batch-3's expected verdict for gstack was KEEP-PINNED sauf CVE; user overrode it — a fail-open security-guard fix (#1911, no formal CVE) counts as the CVE clause in substance, and staying pinned to avoid work means carrying live-vulnerable tooling. Gating on integration tests (not on "did upstream file a CVE") catches the real risk (format/behavior breaks) that pin-forever also fails to prevent — gsd-pi 3.0.0 broke status-reporter's ROADMAP.md parser silently (0/0 instead of an error); the gate caught it before merge, KEEP-PINNED would have avoided the break but also frozen out #1688 (gsd-pi data-loss fix) and the gstack #1911 guards indefinitely.
+- **Alternatives rejected**: KEEP-PINNED unless CVE (job6-batch-3 default) — optimizes for zero-gate-work, pays for it by sitting on fail-open security guards and data-loss bugs with no formal CVE filed; blanket "always latest, no gate" — the gsd-pi break shows why the gate stays mandatory, this is not a license to skip it.
+- **Caveats**: not every dep took the full pull — graphifyy's hook-guard rewrite (a config-protected file) was surfaced with a diff and the user declined to adopt it this round (binary upgraded, hook install skipped); MCP magic version pin was declined by user call. Policy is "latest, gated", not "latest, no exceptions".
+- **Reference**: `.audit/job6-report.md`; commits `b4896c9` (gsd-pi), `2813e55` (gstack), `00c97bc` (docs); [[LRN-107]] (secrets-subagent value-copy ban, same job's incident).
