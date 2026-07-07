@@ -1,5 +1,21 @@
 # TODO
 
+## 2026-07-07 — job8 third-party security hardening (chore/job8-hardening)
+Genèse : `.audit/job8-report.md` (magic MCP/plugins/gstack/external skills/trust
+chain, read-only). A/B/C/D exécutés (3 commits), branche non mergée, gate humain.
+
+- [x] A — `permissions.ask` += 4 `mcp__magic__*` tools, allow reste vide (BDR-059)
+- [x] B — component_builder couvert par A ; risque documenté README + LRN-110
+- [x] C — darwin-skill réinstallé pinné (tree complet, HEAD détaché SHA
+      7c7b790), git-commit large-scope documenté comme risque accepté (pas de
+      patch sur code tiers pinné) — BDR-058, LRN-109
+- [x] D — pr-review-toolkit / example-skills inchangés, confirmé
+
+- [ ] Re-audit surfaces C/D (ui-ux-pro-max, autres plugins) — single-observer
+      CLEAN sans passe verifier (Fable-5 épuisé mi-job8), à re-vérifier au
+      prochain cycle d'audit sécurité si le scope magic/darwin revient.
+- [ ] MAGIC_API_KEY rotation toujours en attente (résiduel job7, non job8)
+
 ## 2026-07-07 — job7 secrets: triage backstops (chore/job7-secrets)
 Genèse : `.audit/job7/ALL-REDACTED.json` (triage secrets multi-repo + ~/.claude).
 GITEA_TOKEN déjà rotaté (transcript 960bd2cf). MAGIC rotation prévue après (A).
