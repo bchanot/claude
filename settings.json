@@ -226,7 +226,11 @@
       "Bash(mv *)",
       "Bash(git stash pop*)",
       "Bash(git stash drop*)",
-      "Bash(git stash clear)"
+      "Bash(git stash clear)",
+      "mcp__magic__21st_magic_component_builder",
+      "mcp__magic__21st_magic_component_refiner",
+      "mcp__magic__21st_magic_component_inspiration",
+      "mcp__magic__logo_search"
     ],
     "defaultMode": "auto",
     "disableBypassPermissionsMode": "disable",
