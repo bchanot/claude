@@ -320,7 +320,7 @@
       }
     }
   },
-  "effortLevel": "high",
+  "effortLevel": "xhigh",
   "remoteControlAtStartup": true,
   "inputNeededNotifEnabled": true,
   "skipAutoPermissionPrompt": true
