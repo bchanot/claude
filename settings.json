@@ -106,10 +106,6 @@
       "Bash(sudo chown*)",
       "Bash(sudo dd*)",
       "Bash(su *)",
-      "Bash(curl * | bash)",
-      "Bash(wget * | bash)",
-      "Bash(curl * | sh)",
-      "Bash(wget * | sh)",
       "Bash(chmod 777 *)",
       "Bash(chmod -R 777 *)",
       "Bash(ssh *)",
@@ -143,7 +139,6 @@
       "Write(**/secrets/**)",
       "Write(**/*.pem)",
       "Write(**/*.key)",
-      "Bash(bash -c *)",
       "Bash(eval *)",
       "Bash(exec *)",
       "Bash(find * -delete*)",
@@ -189,10 +184,6 @@
       "Bash(cp **/id_ed25519*)",
       "Bash(cp **/.ssh/*)",
       "Bash(source /dev/stdin)",
-      "Bash(mkfifo *)",
-      "Bash(node -e *)",
-      "Bash(python3 -c *)",
-      "Bash(python -c *)",
       "Bash(xargs * .env*)",
       "Bash(tar * .env*)",
       "Bash(zip * .env*)",
@@ -207,6 +198,15 @@
       "Bash(*/rtk tail *.env*)"
     ],
     "ask": [
+      "Bash(bash -c *)",
+      "Bash(curl * | bash)",
+      "Bash(wget * | bash)",
+      "Bash(curl * | sh)",
+      "Bash(wget * | sh)",
+      "Bash(mkfifo *)",
+      "Bash(node -e *)",
+      "Bash(python3 -c *)",
+      "Bash(python -c *)",
       "Bash(git push *)",
       "Bash(git push)",
       "Bash(docker run *)",
@@ -232,7 +232,7 @@
     "disableBypassPermissionsMode": "disable",
     "additionalDirectories": []
   },
-  "model": "claude-fable-5[1m]",
+  "model": "opus-4-8[1m]",
   "hooks": {
     "SessionStart": [
       {
@@ -287,7 +287,8 @@
     "ui-ux-pro-max@ui-ux-pro-max-skill": true,
     "security-guidance@claude-code-plugins": true,
     "superpowers@superpowers-marketplace": true,
-    "pr-review-toolkit@claude-code-plugins": false
+    "pr-review-toolkit@claude-code-plugins": false,
+    "frontend-design@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
     "claude-code-plugins": {
@@ -315,7 +316,7 @@
       }
     }
   },
-  "effortLevel": "xhigh",
+  "effortLevel": "high",
   "remoteControlAtStartup": true,
   "inputNeededNotifEnabled": true,
   "skipAutoPermissionPrompt": true
