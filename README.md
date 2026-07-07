@@ -229,6 +229,21 @@ There is no `claude mcp add` flag that writes the reference form for you —
 the `${VAR}` syntax has to be typed by hand (or via a wrapper script), same as
 above.
 
+### magic MCP (`@21st-dev/magic`) — known callback-injection risk
+
+`21st_magic_component_builder` opens an **unauthenticated** local callback
+server (`127.0.0.1:9221+`, `Access-Control-Allow-Origin: *`, no token/origin
+check) for up to 10 minutes per call; any local process or open browser tab
+can `POST` to it and that body is injected **verbatim** into the tool result
+the model consumes (job8 audit, `dist/utils/callback-server.js:36`). This is
+in the third-party package's code, not this repo's config — **we don't patch
+it**. The mitigation lives entirely on our side: `settings.json`
+`permissions.ask` explicitly lists all 4 `mcp__magic__*` tools ([[BDR-059]]),
+so every call — builder included — requires a live confirmation and can
+never auto-execute. Don't allowlist
+`21st_magic_component_builder` or `21st_magic_component_refiner` (arbitrary
+absolute-path read → vendor exfil, same audit) under any circumstance.
+
 ---
 
 ## Diagnostic and maintenance

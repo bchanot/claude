@@ -79,6 +79,7 @@ rules:
 | BDR-056 | 2026-07-07 | job6: deps policy = latest gated by integration, not KEEP-PINNED by default | accepted |
 | BDR-057 | 2026-07-07 | job7: secrets by reference not by value; redact at capture, not just at rest | accepted |
 | BDR-058 | 2026-07-07 | job8: darwin-skill reinstall full pinned tree, detached HEAD (skills CLI single-file-fetch gap) | accepted |
+| BDR-059 | 2026-07-07 | job8: explicit ask-gate for all 4 magic MCP tools, empty allow stays empty | accepted |
 
 ---
 
@@ -899,3 +900,12 @@ rules:
 - **Why**: user picked reinstall-pinned over remove/keep-broken (job8 audit §4 item 4, 3-way choice). Unverifiable skill can't be trusted; user wants the optimizer kept, not removed.
 - **Alternatives rejected**: remove entry (kills wanted function); keep as-is (fails job8's own audit bar — unverifiable); flat-copy without `.git` (matches other 34 dormant skills' convention but drops verifiable pin — kept `.git` detached instead, darwin-skill now 2nd real SHA-pin in the whole trust chain after gstack, job8 report §5).
 - **Reference**: `~/.agents/skills/darwin-skill/` (detached HEAD `7c7b790`), `~/.agents/.skill-lock.json` (untouched, hash still accurate), backup at `~/.agents/skills/.job8-backups/`. Outside this repo — no commit here covers the file placement itself, this entry is the record. Git-commit whole-`.claude/skills`-tree scope (job8 C.2, `SKILL.md:115/201`) NOT restricted — 3rd-party pinned code, patching it breaks the pin; accepted as documented risk, human-checkpoint-gated per job8 report. Linked to [[LRN-109]].
+
+## BDR-059 — job8: explicit ask-gate for all 4 magic MCP tools, empty allow stays empty
+
+- **Date**: 2026-07-07
+- **Status**: accepted
+- **Decision**: `settings.json` `permissions.ask` now explicitly lists all 4 `mcp__magic__*` tools (`21st_magic_component_builder`, `21st_magic_component_refiner`, `21st_magic_component_inspiration`, `logo_search`). `permissions.allow` gets ZERO magic entries — no allowlist tightening, the job8 report's "frictionless" diff (allowlist logo_search + inspiration) was explicitly rejected. Confirmation required on every magic call, no exceptions, no auto-exec ever, no wildcard.
+- **Why**: job8 §3/§4 found zero real `mcp__magic__*` invocations ever (transcript census) and one SUSPECT finding (`21st_magic_component_builder` unauthenticated callback-injection channel, [[LRN-110]]). Prior state relied on undocumented absence-means-ask fallthrough — user wants the gate EXPLICIT so it can't silently regress if `permissions.allow` ever gets a careless wildcard or the default-mode semantics change.
+- **Alternatives rejected**: leave everything absent (report's own recommended default) — works today but is silent/undocumented, exactly the posture the user wanted to close; allowlist `logo_search` + `21st_magic_component_inspiration` for frictionless design work (job8 report §3 "frictionless" diff) — explicitly declined, real usage is zero so friction costs nothing.
+- **Reference**: `settings.json` `permissions.ask`, commit `bb7f25a`. Linked to [[LRN-110]] (component_builder risk), [[LRN-111]] (empty-allowlist validity when usage is zero).
