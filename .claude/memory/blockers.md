@@ -35,6 +35,7 @@ rules:
 | BLK-013 | 2026-06-30 | `make plugin` Error 127 — npm absent on apt-`nodejs` host (Step 4 gsd-pi aborts, Steps 5-10 + residual cleanup never run) | resolved (env) |
 | BLK-014 | 2026-07-01 | `make install` aborts npm EEXIST on `~/.local/bin/claude` when claude already installed via native installer — no presence guard | resolved |
 | BLK-015 | 2026-07-03 | `gitflow_finish` ignored its `<type> <name>` args → merged the CHECKED-OUT branch not the one named → wrong-branch merge (audit LOT3) | resolved |
+| BLK-016 | 2026-07-04 | rtk compression PATH-dead 30 days — 6/5070 Bash commands compressed (~460K tokens missed); installer sources cargo env so its own check passes, Claude tool shell never gets ~/.cargo/bin | resolved |
 
 ---
 
@@ -190,3 +191,13 @@ rules:
 - **Solution**: `gitflow_finish [<type> <name>]` — args now an optional safety ASSERTION: present AND `"$req_type/$req_name" != "$br"` → error `operates on the current branch 'X', but you asked 'Y' — checkout 'Y' first`, rc 2. No args = behavior unchanged (only real caller `skills/gitflow/SKILL.md:36` + every test pass none → zero regression). +7 regression assertions (`gitflow-test.sh` T12, numbered to dodge collision with reconcile's own T6c).
 - **Status**: resolved. Commit `d9fdd4c`, branch `bugfix/gitflow-finish-args`.
 - **Reference**: journal 2026-07-02 (trap noted, not fixed) → fixed 2026-07-03. Pattern → [[LRN-089]] (pass-through wrapper deriving target from ambient state = silent contract violation).
+
+## BLK-016 — rtk compression PATH-dead for 30 days: installer's own check can't see the tool shell
+
+- **Date**: 2026-07-04
+- **Friction**: user asked "is rtk installed + used right?". Measured (`rtk discover`): 6 of 5070 Bash commands compressed over 30 days, ~460K tokens missed (grep ~144K, git status ~112K, ls ~92K…). Hook registered, integrity pin OK, registry broad — yet near-zero real usage. Nobody noticed: degradation was silent (LRN-047 class).
+- **Real cause**: two-layer. (1) cargo installs rtk into `~/.cargo/bin`; hand-managed profile lost the PATH line (LRN-036 class) → Claude's TOOL shell can't resolve `rtk`. (2) install-plugins.sh sources `~/.cargo/env` for itself, so its `command -v rtk` check PASSES in the installer shell — validating an env the runtime never has. Hook survived via absolute-path substitution, but ONLY at string head (f0b7e89 guard): every COMPOUND rewrite (dominant Claude style — echo separators, `&&`) was dropped by design.
+- **Solution**: bridge symlink `~/.cargo/bin/rtk` → `~/.local/bin/rtk` (standard PATH). Immediate: created live, compound rewrites revived, proven in-session (bare grep → `rtk grep` output). Durable: install-plugins.sh STEP 3 idempotent self-repairing bridge, flip-tested 4/4 sandboxed HOME (LRN-096). Commit `e58037c` (RC fix on release/1.0.0).
+- **Status**: resolved.
+- **Reference**: lesson: a PATH-dependent hook must be verified in the TARGET shell, not the installer's (installer sourcing envs lies to its own checks); usage is MEASURED (`rtk discover`), never assumed. Corroborates [[LRN-047]] (silent degradation → measure) + [[LRN-036]] (hand-managed profile drift); guard interplay [[LRN-089]]-adjacent (ambient-state assumptions).
+- **backmerge**: entry from release/1.0.0 (2b4e7401); the fix `e58037c` was ALSO missing from develop (rtk was live-broken on develop) — ported to develop 2026-07-08 (review remediation A3, commit follows) so this "resolved" is now true on develop too.
