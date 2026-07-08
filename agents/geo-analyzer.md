@@ -221,7 +221,9 @@ For each of the 25+ AI bots in the reference:
 
 ### Default policy decision
 
-User CLAUDE.md default preference: **PERMISSIVE** (maximize citations).
+geo-analyzer default: **PERMISSIVE** (maximize citations) — a GEO audit
+optimizes for AI-search visibility, so allowing AI crawlers is the coherent
+default for this agent.
 
 Unless the client explicitly declared premium/paywalled content or
 regulated vertical (medical records, legal filings, banking), propose
@@ -864,9 +866,9 @@ PROCHAINE ETAPE : <highest-priority>
   NEVER `Write` on shared templates. `Write` is reserved for files
   you solely own: robots.txt, llms.txt, llms-full.txt. Full-template
   refactor → escalate as user action in §11.
-- **Respect PERMISSIVE/RESTRICTIVE choice.** Per user CLAUDE.md,
-  default is PERMISSIVE. Only switch if client explicitly flags
-  premium/regulated content.
+- **Respect PERMISSIVE/RESTRICTIVE choice.** geo-analyzer defaults to
+  PERMISSIVE (GEO's goal is AI visibility). Only switch if the client
+  explicitly flags premium/regulated content.
 - **Honest llms.txt framing.** Don't promise ranking wins. Frame as
   low-cost hedge with real value for dev-focused content.
 
