@@ -135,22 +135,19 @@ typically contains BOTH concerns simultaneously:
   - meta tags (seo-analyzer)
   - JSON-LD blocks (geo-analyzer)
 
-When the agents' sub-agents (hotfixer/feater) run in parallel they
-could both target the same physical file. To avoid a `Write`-based
-last-writer-wins scenario:
+The analyzers only AUDIT in parallel (read-only, safe). Fixes are applied
+LATER and SERIALLY by this dispatcher in STEP 1.5 (seo bundle first, then
+geo bundle) — there is no parallel last-writer-wins race. Each bundle item
+still carries this rule for its applier:
 
-**Rule** (embedded in both agent dispatch prompts below):
+> On any shared template file (multiple owned concerns), use the `Edit`
+> tool with a **narrow, targeted** `old_string` enclosing ONLY the owned
+> concern. NEVER use `Write` (full-file rewrite) on a shared template.
+> `Write` is reserved for sole-owned files (sitemap.xml, robots.txt,
+> llms.txt, legal pages, new city pages, .htaccess).
 
-> On any shared template file (anything containing multiple owned
-> concerns), use the `Edit` tool with a **narrow, targeted** `old_string`
-> that encloses ONLY your owned concern. NEVER use `Write` (full-file
-> rewrite) on a shared template. `Write` is reserved for files you
-> are the sole owner of (sitemap.xml, robots.txt, llms.txt, legal
-> pages, new city pages, .htaccess).
-
-If a sub-agent determines `Edit` is insufficient (e.g. full template
-refactor needed), it must STOP and escalate as a cross-agent note —
-the dispatcher handles via §11 user action instead.
+If `Edit` is insufficient (full-template refactor), the item is escalated
+as a cross-agent note → §11 user action instead.
 
 ## STEP 1 — Spawn both agents IN PARALLEL
 
@@ -194,23 +191,23 @@ FILE OWNERSHIP (authoritative, prevents parallel-edit conflicts):
   Dispatcher escalates each note to SEO.md §11 as user action (with
   automation options). Do NOT attempt direct cross-agent fix.
 
-SHARED-FILE EDIT DISCIPLINE (last-writer-wins prevention):
+SHARED-FILE EDIT DISCIPLINE (carried into each bundle item):
 - On shared templates (Layout.astro, index.html, base.html.twig, etc.)
-  where meta tags + JSON-LD coexist, your sub-agents (hotfixer/feater)
-  MUST use `Edit` with a targeted `old_string` enclosing ONLY your
-  concern (meta tags). NEVER use `Write` (full-file rewrite) on shared
-  templates.
-- `Write` is allowed only on files where you are the sole owner:
-  sitemap.xml, .htaccess, legal pages, new city/service pages.
-- If full-template refactor is needed, STOP and emit as a cross-agent
-  note → user action in §11.
+  where meta tags + JSON-LD coexist, each FIX BUNDLE item MUST instruct
+  its applier (hotfixer/feater) to use `Edit` with a targeted `old_string`
+  enclosing ONLY your concern (meta tags). NEVER `Write` on shared templates.
+- `Write` is allowed only on sole-owned files: sitemap.xml, .htaccess,
+  legal pages, new city/service pages.
+- If full-template refactor is needed, emit as a cross-agent note → §11.
 
 Execute your agent spec at ~/.claude/agents/seo-analyzer.md starting
 at STEP 2 (skip STEP 0 and STEP 1 — context is provided above).
 
-At STEP 13, emit the STRUCTURED ENVELOPE for merging (not a
-standalone SEO.md). Do NOT write any SEO.md file yourself — the
-dispatcher will merge your output with geo-analyzer's output.
+At STEP 13, emit the STRUCTURED ENVELOPE for merging (not a standalone
+SEO.md), INCLUDING the `## FIX BUNDLE` section terminated by the verbatim
+`READY TO APPLY — awaiting dispatcher confirmation` sentinel. Do NOT apply
+any fix, do NOT dispatch any sub-agent, do NOT write SEO.md — /seo applies
+your bundle in STEP 1.5 and merges the reports.
 """
 
 Agent(subagent_type="geo-analyzer")
@@ -241,25 +238,80 @@ FILE OWNERSHIP (authoritative, prevents parallel-edit conflicts):
   Dispatcher escalates each note to SEO.md §11 as user action (with
   automation options). Do NOT attempt direct cross-agent fix.
 
-SHARED-FILE EDIT DISCIPLINE (last-writer-wins prevention):
+SHARED-FILE EDIT DISCIPLINE (carried into each bundle item):
 - On shared templates (Layout.astro, index.html, base.html.twig, etc.)
-  where meta tags + JSON-LD coexist, your sub-agents (hotfixer/feater)
-  MUST use `Edit` with a targeted `old_string` enclosing ONLY your
-  concern (JSON-LD block). NEVER use `Write` (full-file rewrite) on
-  shared templates.
-- `Write` is allowed only on files where you are the sole owner:
-  robots.txt, llms.txt, llms-full.txt.
-- If full-template refactor is needed, STOP and emit as a cross-agent
-  note → user action in §11.
+  where meta tags + JSON-LD coexist, each FIX BUNDLE item MUST instruct
+  its applier (hotfixer/feater) to use `Edit` with a targeted `old_string`
+  enclosing ONLY your concern (JSON-LD block). NEVER `Write` on shared
+  templates.
+- `Write` is allowed only on sole-owned files: robots.txt, llms.txt,
+  llms-full.txt.
+- If full-template refactor is needed, emit as a cross-agent note → §11.
 
 Execute your agent spec at ~/.claude/agents/geo-analyzer.md starting
 at STEP 2 (skip STEP 0 and STEP 1 — context is provided above).
 
-At STEP 14, emit the STRUCTURED ENVELOPE for merging (not a
-standalone GEO.md). Do NOT write any GEO.md or SEO.md file yourself —
-the dispatcher will merge your output with seo-analyzer's output.
+At STEP 14, emit the STRUCTURED ENVELOPE for merging (not a standalone
+GEO.md), INCLUDING the `## FIX BUNDLE` section terminated by the verbatim
+`READY TO APPLY — awaiting dispatcher confirmation` sentinel. Do NOT apply
+any fix, do NOT dispatch any sub-agent, do NOT write GEO.md/SEO.md — /seo
+applies your bundle in STEP 1.5 and merges the reports.
 """
 ```
+
+## STEP 1.5 — Apply fix bundles (from THIS main loop, at L1)
+
+Both analyzers returned an envelope containing a `## FIX BUNDLE` section
+terminated by `READY TO APPLY — awaiting dispatcher confirmation`. Apply
+them **from this dispatcher loop by dispatching `hotfixer`/`feater` at L1**
+— one dispatch level, no nested spawn, so fixes land on any Claude Code
+version (this is the whole point of the bundle contract).
+
+**Skip this step entirely if intervention mode = conservative (audit-only)**
+— leave both bundles in SEO.md as ready-to-apply and go to STEP 2.
+
+### Serial by ownership (no parallel race)
+
+The two bundles may touch the same shared template (meta vs JSON-LD). Apply
+**serially, never in parallel**:
+1. seo-analyzer AUTO items first (meta, sitemap, .htaccess, legal, images…).
+2. then geo-analyzer AUTO items (robots.txt, JSON-LD, llms.txt…).
+
+### AUTO tier — no confirmation
+
+For each AUTO item, dispatch its `applier` at L1, passing the item verbatim:
+
+```
+Agent(subagent_type="hotfixer")     # or "feater" per the item's applier
+prompt: "<paste the bundle item: files, concern, current, expected,
+  framework note + shared-file discipline>.
+  Context: SEO/GEO audit fix, autonomous scope — no confirmation needed.
+  Do NOT commit — apply and self-verify only."
+```
+
+`applier: bash` items → run the emitted command from this loop, then apply
+the `<img>` Edit it enables.
+
+### GATED tier — confirmation required
+
+Collect every GATED item from BOTH bundles and present ONE gate:
+
+```
+SEO/GEO — gated changes need approval (visible / structural):
+  D1   <change> — impact: <visible change>            [seo]
+  G5.1 <change> — impact: <visible change>            [geo]
+Approve all / select (ids) / skip all?
+```
+
+Apply approved items via `feater` at L1 (same as AUTO). Unapproved →
+document in SEO.md §9. NEVER apply a GATED item before explicit approval.
+
+### After applying
+
+1. Build/lint if available (`npm run build`, `npm run lint`) — revert any
+   applied fix that breaks the build.
+2. Record each applied change for SEO.md §15 (file, change, reason, verified).
+3. USER ACTIONS from both bundles → SEO.md §11 (each with automation-catalog ref).
 
 ## STEP 2 — Merge envelopes into SEO.md
 
