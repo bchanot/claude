@@ -1,7 +1,7 @@
 ---
 name: commit-changer
 description: Retrace-and-commit engine — dispatched by /commit-change. Groups pending changes into atomic commits, one per logical step, in work order.
-tools: Bash, Read, Grep, Glob, Agent, AskUserQuestion
+tools: Bash, Read, Grep, Glob, AskUserQuestion
 ---
 
 # Git Smart Commit
