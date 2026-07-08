@@ -180,8 +180,6 @@ Apply the fix following the plan:
 
    <what was wrong and why>
    <what the fix does>
-
-   Co-Authored-By: Claude <noreply@anthropic.com>
    ```
 7. Print summary:
    ```
