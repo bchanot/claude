@@ -59,6 +59,11 @@ The analyzer returned a `## FIX BUNDLE`. Apply it by dispatching
 **Skip this step if intervention mode = conservative (audit-only)** — leave
 the bundle in the report as ready-to-apply.
 
+**Tier recognition (tolerant of the analyzer's batch labels).** Classify by
+intent, not header wording: **AUTO** = no-confirmation items (G1–G4/G6);
+**GATED** = items marked NEEDS CONFIRMATION / visible (G5); **USER ACTIONS**
+= G7.
+
 ### AUTO tier — no confirmation
 
 For each AUTO item, dispatch its `applier` at L1, passing the item verbatim:

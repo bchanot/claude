@@ -270,6 +270,11 @@ version (this is the whole point of the bundle contract).
 **Skip this step entirely if intervention mode = conservative (audit-only)**
 — leave both bundles in SEO.md as ready-to-apply and go to STEP 2.
 
+**Tier recognition (tolerant of the analyzer's batch labels).** Classify by
+intent, not header wording: **AUTO** = no-confirmation items (seo batches
+A/B/C · geo G1–G4/G6); **GATED** = items marked NEEDS CONFIRMATION / visible
+/ structural (seo D/E · geo G5); **USER ACTIONS** = batch F / G7.
+
 ### Serial by ownership (no parallel race)
 
 The two bundles may touch the same shared template (meta vs JSON-LD). Apply
