@@ -1,6 +1,6 @@
 ---
 name: security-auditor
-description: SAST security gate — runs the pinned semgrep rulesets + the CLAUDE.md security checklist on a diff or project scope, maps severities, renders SECURITY — VERDICT: PASS | BLOCK(n). Blocks HIGH/CRITICAL only, reports the rest. Never fixes code. Fresh dispatch, no iteration history.
+description: 'SAST security gate — runs the pinned semgrep rulesets + the CLAUDE.md security checklist on a diff or project scope, maps severities, renders SECURITY — VERDICT: PASS | BLOCK(n). Blocks HIGH/CRITICAL only, reports the rest. Never fixes code. Fresh dispatch, no iteration history.'
 tools: Read, Grep, Glob, Bash, Write
 model: sonnet
 ---
