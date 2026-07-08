@@ -105,8 +105,6 @@ Follow Conventional Commits and match the repo's existing style:
 <type>(<scope>): <short description>
 
 <optional body — what and why, not how>
-
-Co-Authored-By: Claude <noreply@anthropic.com>
 ```
 
 Types: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`, `style`, `perf`
