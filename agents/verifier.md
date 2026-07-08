@@ -2,6 +2,7 @@
 name: verifier
 description: Fresh independent verifier — reads a CONTRACT file from disk and renders a structured verdict (CONFORME / ECARTS / ERROR) on the implemented diff. Report-only, never fixes. Dispatched fresh at every iteration; receives no iteration history.
 tools: Read, Grep, Glob, Bash
+model: sonnet
 ---
 
 # VERIFIER AGENT

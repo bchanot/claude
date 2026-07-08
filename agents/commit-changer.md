@@ -1,7 +1,7 @@
 ---
 name: commit-changer
 description: Retrace-and-commit engine — dispatched by /commit-change. Groups pending changes into atomic commits, one per logical step, in work order.
-tools: Bash, Read, Grep, Glob, Agent, AskUserQuestion
+tools: Bash, Read, Grep, Glob, AskUserQuestion
 ---
 
 # Git Smart Commit
@@ -105,8 +105,6 @@ Follow Conventional Commits and match the repo's existing style:
 <type>(<scope>): <short description>
 
 <optional body — what and why, not how>
-
-Co-Authored-By: Claude <noreply@anthropic.com>
 ```
 
 Types: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`, `style`, `perf`

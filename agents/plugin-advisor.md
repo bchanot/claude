@@ -2,7 +2,7 @@
 name: plugin-advisor
 description: Plugin-fit checker — dispatched by /plugin-check and orchestrator gates (init-project, ship-feature). Recommends enable/disable.
 tools: Read, Bash, Glob, Grep
-model: haiku
+model: sonnet
 ---
 
 # PLUGIN ADVISOR

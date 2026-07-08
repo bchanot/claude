@@ -1,5 +1,42 @@
 # TODO
 
+## 2026-07-08 — job9 sub-agent architecture corrections (chore/job9-agents)
+Genèse : `.audit/job9-report.md` (agents/*.md frontmatter+body, verify-loop,
+dispatch graph, read-only). Premise correction confirmed CC v2.1.203 : nesting
+SUPPORTED since v2.1.172, cap 5, `Agent` tool required in `tools:` to nest.
+User decision: **path b (version-robust)** for the version-floor. One commit/item.
+
+PART 1 — MISROUTED (trivial frontmatter):
+- [x] A — commit-changer: drop unused `Agent` from tools (0ede52c)
+- [x] B — verifier: pin `model: sonnet` (ea6c126)
+- [x] C — security-auditor: pin `model: sonnet` (1c270e6)
+- [x] D — plugin-advisor: `haiku` → `sonnet` (5ab6c21)
+- [x] GATE P1 — smoke green: verifier CONFORME, sec-auditor BLOCK(2), advisor
+      ACTION REQUIRED; verdict grammar intact, mode honored. No revert.
+
+PART 2 — VERSION-FLOOR (path b) — CONTRACT APPROVED, DONE:
+- [x] 5 — seo+geo analyzers → fix-bundle→L1 (a5a7b54/6df42e4); /seo STEP 1.5
+      (c498b93), /geo dispatch+apply (70fb3b4), dispatcher tier-tolerance
+      (212f9aa); /harden already path-b (untouched), /onboard audit-only
+      (untouched). GATE PASSED: make test green + 4 smokes (A bundle-no-edit,
+      B AUTO lands on disk no-confirm, C GATED withheld→applied post-accord,
+      D onboard report-only zero-fix).
+- [x] 6 — BDR-060 orchestration floor v2.1.172 supersedes implicit v2.1.83
+      premise (BDR-004:133 kept — auto-mode floor, append-only + factually
+      correct). BDR-061 path-b doctrine.
+PART 3 — IMPLICIT-HANDOFF (tight scope, 2 sites) — DONE:
+- [x] 7 — H2 INLINE-LOAD verb @ code-cleaner + scaffolder (87d63bf/af9656f),
+      drop unused Agent from code-cleaner
+- [x] 8 — H1 code-cleaner→refactorer named artifact .claude/audits/CODE-CLEAN-SCOPE.md
+
+Capitalize DONE: LRN-112 (nesting) + BDR-060 (floor) + BDR-061 (path-b) + journal.
+- [x] commit-changer template Co-Authored-By stripped (5a3de92, isolated) —
+      contradicted no-attribution ban since creation
+- [ ] FOLLOW-UP next cycle: cross with J4-16 (lib-layer lock) — verify no other
+      agent/template carries a banned attribution trailer (Co-Authored-By/
+      Claude-Session/--trailer)
+Branch unmerged, human gate.
+
 ## 2026-07-07 — job8 third-party security hardening (chore/job8-hardening)
 Genèse : `.audit/job8-report.md` (magic MCP/plugins/gstack/external skills/trust
 chain, read-only). A/B/C/D exécutés (3 commits), branche non mergée, gate humain.

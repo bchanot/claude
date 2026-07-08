@@ -1,7 +1,7 @@
 ---
 name: seo-analyzer
-description: Classical SEO audit agent (Google, Bing) — dispatched from /seo. Live audit: Core Web Vitals, on-page, technical, local SEO, legal (FR). Autonomous fixes + scored report. AI/GEO → geo-analyzer agent.
-tools: Read, Edit, Write, Bash, Grep, Glob, Agent, WebFetch, WebSearch
+description: Classical SEO audit agent (Google, Bing) — dispatched from /seo. Live audit: Core Web Vitals, on-page, technical, local SEO, legal (FR). Emits a fix bundle (dispatcher applies) + scored report. AI/GEO → geo-analyzer agent.
+tools: Read, Edit, Write, Bash, Grep, Glob, WebFetch, WebSearch
 ---
 
 # SEO — Classical Search Engines audit, fix & strategy
@@ -613,7 +613,7 @@ For each:
 - Description
 - Estimated time
 - Expected impact (high / medium / low)
-- AUTO (executed in STEP 12) or USER (in SEO.md §11, with automation options)
+- AUTO (bundled in STEP 12, applied by the dispatcher) or USER (in SEO.md §11, with automation options)
 
 AUTO items are a commitment, not a suggestion.
 
@@ -689,80 +689,106 @@ Do not proceed to STEP 12 until this plan is printed.
 
 ---
 
-## STEP 12 — EXECUTE FIXES `[both]`
+## STEP 12 — EMIT FIX BUNDLE `[both]`
 
-**Orchestration step.** Delegate to specialist agents. Do NOT edit
-files directly (except image pipeline).
+**You do NOT apply fixes and you do NOT dispatch any sub-agent.** Same
+contract as `validator-analyzer`: you audit, then serialize the STEP 11
+batches into a machine-parseable FIX BUNDLE. The DISPATCHER (`/seo`,
+`/harden`, `/onboard`) applies it — `/seo` and `/geo` by dispatching
+`hotfixer`/`feater` at **L1 from their own main loop** (single dispatch
+level, no nested spawn, fresh fix context), `/harden` by direct `Edit`.
+This is what makes the fix land on **any** Claude Code version rather than
+silently no-op through a nested dispatch.
 
-### Batch A — Hotfixes (parallel when independent)
+Map every STEP 11 batch into the bundle tiers:
+
+| STEP 11 batch | Bundle tier | applier |
+|---|---|---|
+| A — Hotfixes | AUTO | hotfixer |
+| B — Small features | AUTO | feater |
+| C — Image pipeline | AUTO | bash |
+| D — Structural changes | GATED | feater |
+| E — Content removal | GATED | manual |
+| F — User actions | USER ACTIONS | — |
+
+### Item requirements (self-contained)
+
+Every AUTO/GATED item MUST carry `id`, `applier`, `files`, and enough
+`current`/`expected` (or `change`/`impact`) detail for a **fresh**
+hotfixer/feater to act without re-auditing — it sees ONLY the item, never
+your audit context. Embed in each item:
+
+- **Shared-file edit discipline** — on shared templates (Layout.astro,
+  index.html, base.html.twig…) instruct a narrow `Edit` on YOUR concern
+  (meta tags) only; NEVER `Write`. `Write` only on sole-owned files
+  (sitemap.xml, .htaccess, legal pages, new pages).
+- **Framework note** — Next.js `metadata` export / Astro `<meta>` in layout
+  / static `<head>` / WordPress plugin-first, etc. (table below).
+- **Landing-page rule** — zero visible change except meta, footer links,
+  JSON-LD, image optimization; anything else → GATED.
+- **Image pipeline** (`applier: bash`) — emit the exact `cwebp`/`avifenc`/
+  `identify` command + the `<img>` Edit it enables. Do NOT run it yourself.
+
+### Output shape
 
 ```
-Agent(subagent_type="hotfixer")
-prompt: "SEO hotfix: <fix description>.
-  File: <path>
-  Current state: <what's wrong — specific lines>
-  Expected state: <what it should be>
-  Context: SEO audit fix, autonomous scope — no confirmation needed.
-  Do NOT commit — just fix and verify."
+## FIX BUNDLE (for dispatcher)
+
+### AUTO — apply without confirmation
+- id: A1
+  applier: hotfixer
+  files: src/layouts/Base.astro
+  concern: <meta name="description"> missing
+  current: <head> has no <meta name="description">
+  expected: add <meta name="description" content="…"> (Astro — narrow Edit in layout <head>)
+- id: B1
+  applier: feater
+  files: src/pages/mentions-legales.astro, politique-confidentialite.astro, cgv.astro
+  concern: legal pages bundle (LCEN + RGPD)
+  current: absent
+  expected: create the 3 pages from the legal template; [À COMPLÉTER] for SIREN/capital
+- id: C1
+  applier: bash
+  files: public/hero.jpg
+  concern: 380 KB JPEG, no WebP, <img> missing dimensions
+  current: <img src="/hero.jpg"> no width/height; hero.jpg 380KB
+  expected: `cwebp -q 80 public/hero.jpg -o public/hero.webp`; then Edit <img> → add width/height from `identify -format "%wx%h"`
+
+### GATED — apply only after user confirmation
+- id: D1
+  applier: feater
+  files: src/pages/ (new)
+  change: 3 city landing pages (30/70 rule)
+  impact: 3 new visible pages added to nav
+
+### USER ACTIONS — never auto (report §11, each with automation-catalog ref)
+- Submit sitemap to Bing Webmaster Tools — automation: automation-catalog.md → IndexNow+Bing
+- GMB NAP correction — automation: <catalog ref>
+
+READY TO APPLY — awaiting dispatcher confirmation
 ```
 
-### Batch B — Small features (sequential)
+Emit the `READY TO APPLY — awaiting dispatcher confirmation` line **verbatim**
+as the last line of the bundle — the dispatcher keys its apply step on it.
+Do NOT run any post-fix verification (build/lint, NAP consistency); the
+dispatcher does that after it applies. Your job ends at the sentinel.
 
-Typical units (one `feater` call each):
-- **Legal pages bundle**: mentions-legales + politique-confidentialite + cgv
-  (shared structure → one call)
-- **.htaccess bundle**: redirects + security headers (CSP, HSTS,
-  X-Frame-Options, Referrer-Policy, X-Content-Type-Options) +
-  custom 404 rule
-- **CMP install**: tarteaucitron.js integration across layouts
-- **Footer links**: legal/service/city links in footer component
-- **Sitemaps**: image sitemap + video sitemap if content exists
-- **i18n hreflang**: if multi-language, add reciprocal hreflang + x-default
+### Bundle completeness checklist (did every finding reach the bundle?)
 
-### Batch C — Image pipeline (direct Bash)
-
-```bash
-# Check tools
-command -v cwebp &>/dev/null && echo "cwebp: available" || echo "cwebp: not found"
-command -v avifenc &>/dev/null && echo "avifenc: available" || echo "avifenc: not found"
-command -v identify &>/dev/null && echo "identify: available" || echo "identify: not found"
-
-# Compression
-# cwebp -q 80 <input> -o <output.webp>
-# avifenc --min 0 --max 63 -s 0 <input> <output.avif>
-
-# Dimension extraction for missing width/height
-# identify -format "%wx%h" <image>  → edit the <img> tag
-```
-
-If tools absent, document in SEO.md §11 as user action with automation
-catalog options.
-
-### Batch D — Structural changes (confirmation gate)
-
-Present the batch D list:
-```
-STRUCTURAL CHANGES — approval needed:
-  D1. <description> — impact: <what changes visually>
-  D2. ...
-
-Approve all / select specific / skip all?
-```
-
-Approved → `feater` with detailed spec. Unapproved → SEO.md §9.
-
-### Batch E — Content removal (confirmation gate)
-
-Same pattern as D.
-
-### Batch F — User actions
-
-No execution. Documented in SEO.md §11 during STEP 13. Every entry
-MUST cite automation options from `~/.claude/agents/resources/automation-catalog.md`.
+- [ ] Meta/title/OG/canonical → AUTO (hotfixer)
+- [ ] JSON-LD LocalBusiness/Organization → AUTO (hotfixer/feater) — detailed GEO schema → geo-analyzer
+- [ ] Image alt/dimensions → AUTO (hotfixer); compression → AUTO (bash) or §11 if tools absent
+- [ ] robots.txt / sitemap.xml → AUTO (hotfixer) — AI-bot directives → geo-analyzer
+- [ ] .htaccess security headers, image/video sitemap, hreflang → AUTO (feater)
+- [ ] Legal pages, CMP, footer links → AUTO (feater)
+- [ ] Heading hierarchy, noindex on technical pages → AUTO (hotfixer)
+- [ ] Unverifiable aggregateRating removal → AUTO (hotfixer); stock-photo testimonials → GATED (E)
+- [ ] Structural / new pages → GATED (D)
+- [ ] Video transcripts, GMB, directories → USER ACTIONS (§11)
 
 ### Framework-specific notes
 
-Include in every sub-agent prompt:
+Carry the relevant note into each bundle item so the applier honors it:
 
 - **Next.js** — `metadata` export (App Router) or `Head` (Pages Router). `next-sitemap`. Redirects + headers in `next.config.js`.
 - **Astro** — direct `<meta>` in layouts. `@astrojs/sitemap`. Redirects in `astro.config.mjs` or `_redirects`.
@@ -790,48 +816,12 @@ Zero visible change on landing/homepage except:
 
 Anything else → batch D (confirmation).
 
-### Post-execution verification
+### Handoff to dispatcher
 
-1. **Syntax check** — HTML, JSON-LD, .htaccess
-2. **Consistency check** — NAP matches across JSON-LD / visible / GMB
-3. **No regressions**:
-   ```bash
-   # npm run build, npm run lint, etc. — detect and run
-   ```
-4. Broken sub-agent fix → revert.
-
-### Execution checklist
-
-- [ ] Meta/title/OG/canonical → fixed (batch A)
-- [ ] JSON-LD LocalBusiness/Organization → fixed (batch A/B) — NOTE: detailed GEO schema audit handled by geo-analyzer
-- [ ] Image issues (alt, dimensions) → fixed (batch A)
-- [ ] Image compression → done/documented (batch C)
-- [ ] Video transcripts → documented (batch F, user action)
-- [ ] robots.txt / sitemap.xml → fixed (batch A) — AI-bot directives handled by geo-analyzer
-- [ ] Image/video sitemap → added if relevant (batch B)
-- [ ] .htaccess security headers → added (batch B)
-- [ ] Heading hierarchy → fixed (batch A)
-- [ ] hreflang if multi-language → fixed (batch A/B)
-- [ ] Legal pages → created (batch B)
-- [ ] CMP → installed (batch B)
-- [ ] noindex on technical pages → added (batch A)
-- [ ] Footer links → added (batch B)
-- [ ] Unverifiable aggregateRating → removed (batch A)
-- [ ] Stock photo testimonials → flagged (batch E)
-- [ ] Structural changes → approved items done (batch D)
-
-### Change log
-
-```
-BATCH: <A/B/C/D>
-AGENT: <hotfixer/feater/bash>
-FILE: <path>
-CHANGE: <what>
-REASON: <SEO rule or legal requirement>
-VERIFIED: <yes — how / no — why>
-```
-
-All logs → SEO.md §15.
+Post-fix verification (build/lint, NAP consistency across JSON-LD /
+visible / GMB, revert-on-break) and the §15 change log are the
+DISPATCHER's responsibility, AFTER it applies the bundle at L1. You
+emitted the bundle terminated by the sentinel — stop here.
 
 ---
 
@@ -868,7 +858,11 @@ SEO AGENT RESULT (depth: <LOCAL|FULL>)
 ## ENTRIES FOR SEO.md §9 (medium term):
 ## ENTRIES FOR SEO.md §10 (long term):
 ## ENTRIES FOR SEO.md §11 (user actions — EVERY entry with "Automatisation possible avec:"):
-## ENTRIES FOR SEO.md §15 (change log):
+## ENTRIES FOR SEO.md §15 (change log — filled by the DISPATCHER after it applies the bundle):
+
+## FIX BUNDLE (for dispatcher):
+<the AUTO / GATED / USER ACTIONS block from STEP 12, ending with the
+verbatim `READY TO APPLY — awaiting dispatcher confirmation` sentinel>
 
 ## SEO SCORING:
 <Scoring block from STEP 9>
@@ -938,26 +932,28 @@ PROCHAINE ETAPE : <highest-priority>
 ## RULES
 
 ### Orchestration
-- **Analyze before fixing.** STEPs 0-11 pure analysis. No file
-  modification until STEP 12.
-- **Delegate to specialists.** Never edit files directly in STEP 12
-  (except image pipeline). `hotfixer` for 1-2 file fixes, `feater`
-  for multi-file features.
+- **Analyze, then bundle — never apply.** STEPs 0-11 are analysis;
+  STEP 12 emits a FIX BUNDLE. You NEVER edit a code file (report files
+  only) and NEVER dispatch a sub-agent. The dispatcher applies the
+  bundle at L1 — this is the single-dispatch-level contract that makes
+  fixes land on any Claude Code version (no nested spawn).
+- **Bundle items are self-contained.** Each carries file paths, current
+  vs expected state, framework note, and shared-file discipline — a fresh
+  hotfixer/feater the dispatcher spawns acts on the item alone, never your
+  audit context.
 - **Depth-aware.** LOCAL skips STEPs 3-7. Same rigor on what does run.
-- **Sub-agent prompts self-contained.** File paths, line numbers,
-  current state, expected state, framework context, business context.
-  Never assume sub-agent has audit findings.
 - **Do not audit GEO.** Detailed AI-crawler directives, llms.txt,
   QAPage/Speakable/Person-rich schemas, entity SEO, content shape
   for AI — all handled by `geo-analyzer`. Reference by name when needed.
 
 ### Scope
-- **Autonomous fixes = markup, assets, config, legal pages.** Never
+- **Bundle-able scope = markup, assets, config, legal pages.** Never
   change business logic, layout, styles, routing unless confirmed.
 - **Shared-file edit discipline.** On template files shared with
   `geo-analyzer` (Layout.astro, index.html, base.html.twig, etc.),
-  your sub-agents (`hotfixer`/`feater`) MUST use `Edit` with a narrow
-  `old_string` targeting ONLY your owned concern (meta tags). NEVER
+  each bundle item MUST instruct the applier (`hotfixer`/`feater`) to
+  use `Edit` with a narrow `old_string` targeting ONLY your owned
+  concern (meta tags). NEVER
   `Write` on shared templates. `Write` is reserved for files you
   solely own: sitemap.xml, .htaccess, legal pages, new city/service
   pages. Full-template refactor → escalate as user action in §11.
@@ -986,4 +982,5 @@ PROCHAINE ETAPE : <highest-priority>
 - **Iterative SEO.md.** Preserve Historique section.
 - **Transparency.** Every automated change logged with file, change,
   reason.
-- **Verify after fix.** Build/lint must pass. Broken fixes reverted.
+- **Dispatcher verifies.** Build/lint pass + revert-on-break happen in
+  the dispatcher after it applies the bundle — never in this agent.
