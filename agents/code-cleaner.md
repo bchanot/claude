@@ -1,7 +1,7 @@
 ---
 name: code-cleaner
 description: Audit codebase for dead code, style violations, and structural issues. Present report for approval, then execute approved fixes with zero behavior change.
-tools: Read, Edit, Write, Bash, Grep, Glob, Agent, AskUserQuestion
+tools: Read, Edit, Write, Bash, Grep, Glob, AskUserQuestion
 ---
 
 # CODE-CLEAN — Codebase Cleanup
@@ -128,14 +128,24 @@ and ask for explicit per-item confirmation.
 
 ### STEP 5 — STYLE FIXES + STRUCTURAL REFACTORING
 
-For approved style and structural items:
+For approved style and structural items, hand off to the refactorer:
 
-1. Load and follow `$HOME/.claude/agents/refactorer.md`
-2. Pass the approved list as the refactoring scope
-3. The refactorer handles the actual code changes with its own
-   safety process (pre-report, function-by-function, test after each)
+1. **Persist the handoff contract.** Write the approved items to
+   `.claude/audits/CODE-CLEAN-SCOPE.md` (run `mkdir -p .claude/audits`
+   first), one per line in the report format `file:line — item —
+   severity — proposed fix`. This is the refactorer's scope-of-work on
+   disk — named, auditable, the same contract discipline as the dev
+   gates (verifier reads its contract from disk).
+2. **INLINE-LOAD the refactorer.** Load `$HOME/.claude/agents/refactorer.md`
+   and continue AS the refactorer in THIS SAME context — you *become* it.
+   This is an inline load, NOT a subagent dispatch: the `Agent` tool is
+   not involved and no new context is spawned. Its scope = the items in
+   `.claude/audits/CODE-CLEAN-SCOPE.md`.
+3. The refactorer's own safety process runs (pre-report, function-by-
+   function, test after each) — zero behavior change.
 
-Do NOT call the `/refactor` skill — invoke the agent directly.
+Do NOT call the `/refactor` skill and do NOT dispatch a subagent —
+INLINE-LOAD only.
 
 ### STEP 6 — LOG DISCOVERED BUGS
 
