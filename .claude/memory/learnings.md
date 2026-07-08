@@ -120,6 +120,7 @@ rules:
 | LRN-098 | 2026-07-04 | `/model` rewrites settings.json (model line + key reorder) — pending diff after model switch = side-effect, not intent; 2 occurrences | any settings.json commit; any "commit file X" — read diff, verify content matches intent |
 | LRN-099 | 2026-07-05 | auto-orchestrator autonomy boundary: git discipline transfers naturally (branch, no-merge), declared-state discipline does NOT — baseline silently rewrote target TODO + authored registries + scope-crept | designing any auto/headless flow — enumerate declared surfaces, mark each read-only or gated |
 | LRN-100 | 2026-07-05 | tool gated on clean tree must clean its OWN scratch (else self-DoS next run); contract-changing auto-fix needs structural BREAKING flag in the reviewed artifact | any recurring tool w/ cleanliness precondition; any auto-fix touching an API contract |
+| LRN-101 | 2026-07-05 | nginx `add_header` inheritance trap: ANY add_header in a location block drops ALL inherited server-level headers on those responses — audit headers on LIVE responses (`curl -I`), never by reading the config; declared infra can be stale (prod ≠ repo stack) | any nginx project audit (zenquality, faunosteo…); any security-header claim |
 | LRN-102 | 2026-07-05 | deliverable text placed BEFORE a tool call may never render — only the turn's FINAL text is guaranteed displayed; a checklist printed above AskUserQuestion was invisible to the user | any flow whose deliverable is conversational text (checklist, commands, report): end the turn with it, blocking questions come before, never after |
 | LRN-105 | 2026-07-06 | explorer subagent ran a build tool (`graphify .`) mid read-only audit despite prose instructions to only Read/Grep/Bash-read — the runtime observed a config-protection sentinel deny message and self-corrected only after an explicit main-session correction, not from the original prompt | dispatching any "read-only audit" subagent whose toolset includes Bash: state "do not execute build/generator/mutating commands" explicitly, don't rely on "read-only" framing alone to constrain tool CHOICE |
 | LRN-106 | 2026-07-06 | job3-B1 froze a fixture + repointed run-reconcile.sh's T2 off the live registry, declared "unblocked", 20/20 green — job4 (next audit, same file, same day) found T3+T5 in the SAME FILE still read the live registry, same fragility, untouched | fixing one instance of a "reads live state it shouldn't" finding: grep the WHOLE file (not just the cited line) for the same pattern before declaring the class closed |
@@ -1057,6 +1058,15 @@ rules:
 - **context**: 2026-07-04 /tour GREEN on fixture; both patched at REFACTOR (SKILL.md STEP 3). Additions template-structural, NOT re-run through 3rd full pass (cost) — re-test first real use.
 - **future application**: any recurring tool gated on repo cleanliness → audit what IT leaves behind; any auto-applied fix changing a contract → structural BREAKING flag in the human-reviewed artifact.
 - **cousin**: [[LRN-099]] same chantier; [[LRN-071]] swallowed-failure class (silent residue ≈ masked state).
+
+## LRN-101 — nginx add_header inheritance: one child header wipes ALL parent headers — verify LIVE, not in config
+
+- **pattern**: nginx `add_header` inherits from server level ONLY if a location block declares NONE of its own. One `add_header Cache-Control ...` in a location → ALL 5 server-level security headers (CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy) silently dropped on every response matching that location. bchanot-cv live: pages served ZERO security headers while the config declared all 5; only the 404 path (no location-level add_header) carried them. Corollary, same audit: declared infra was STALE — prod turned out native nginx, repo's Docker stack latent (user correction post-audit) → container findings latent, live fix belongs to the VPS config outside the repo.
+- **why**: config review says "headers present" — a lie by inheritance. Only oracle = live responses (`curl -sI` per content type: html, pdf, image). Fix = repeat the headers in every location that uses add_header (or `include security-headers.conf`).
+- **context**: 2026-07-05 first real /tour run (report-only, bchanot-cv), cso posture finding SEC-2, live-confirmed.
+- **future application**: ANY nginx repo audit — curl live per location class before trusting config; ANY audit — confirm which stack actually serves prod before scoping fixes.
+- **cousin**: [[LRN-034]] narrated ≠ ground truth; [[LRN-046]] verify before trust.
+- **backmerge**: from release/1.0.0 (74d3804) — 2026-07-08 review remediation A3.
 
 ## LRN-102 — Deliverable text before a tool call may never render: the turn's FINAL text is the only guaranteed display
 
