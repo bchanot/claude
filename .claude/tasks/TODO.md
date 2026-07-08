@@ -30,8 +30,11 @@ PART 3 — IMPLICIT-HANDOFF (tight scope, 2 sites) — DONE:
 - [x] 8 — H1 code-cleaner→refactorer named artifact .claude/audits/CODE-CLEAN-SCOPE.md
 
 Capitalize DONE: LRN-112 (nesting) + BDR-060 (floor) + BDR-061 (path-b) + journal.
-LATENT (flagged, out of scope): commit-changer.md:109 template still has
-Co-Authored-By: Claude → contradicts no-attribution ban, needs separate fix.
+- [x] commit-changer template Co-Authored-By stripped (5a3de92, isolated) —
+      contradicted no-attribution ban since creation
+- [ ] FOLLOW-UP next cycle: cross with J4-16 (lib-layer lock) — verify no other
+      agent/template carries a banned attribution trailer (Co-Authored-By/
+      Claude-Session/--trailer)
 Branch unmerged, human gate.
 
 ## 2026-07-07 — job8 third-party security hardening (chore/job8-hardening)
