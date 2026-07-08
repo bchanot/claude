@@ -82,6 +82,7 @@ rules:
 | BDR-059 | 2026-07-07 | job8: explicit ask-gate for all 4 magic MCP tools, empty allow stays empty | accepted |
 | BDR-060 | 2026-07-08 | job9: CC orchestration floor = v2.1.172 (nested dispatch), supersedes implicit v2.1.83 whole-system floor | accepted |
 | BDR-061 | 2026-07-08 | job9: seo/geo analyzers → fix-bundle→L1 by doctrine (validator-analyzer pattern), not by version constraint | accepted |
+| BDR-062 | 2026-07-08 | supersede BDR-031's 275 CLAUDE.md target — 305 assumed reality (extraction done at job1; more compression costs clarity > tokens); guard threshold realigned 280→320 | accepted |
 
 ---
 
@@ -931,3 +932,12 @@ rules:
 - **Alternatives rejected**: only raise the version floor (BDR-060 alone) — leaves the analyzers version-contingent, and the `/seo` nested-fix design fragile; keep analyzers self-applying but require CC≥2.1.172 — works on current env but not robust and keeps the parallel-edit race; make the dispatcher apply via direct Edit everywhere (like /harden) instead of hotfixer/feater — loses the fresh-context specialist fix; kept direct-Edit only for /harden's tiny scope.
 - **Verification**: `make test` green + 4 real smokes — analyzer emits bundle + edits nothing (md5 unchanged); AUTO fix lands on disk via L1 hotfixer with no confirmation (the exact previously-broken path); GATED withheld pre-approval then applied post-accord; /onboard writes only the report, zero source files.
 - **Reference**: `agents/seo-analyzer.md` STEP 12, `agents/geo-analyzer.md` STEP 13, `skills/seo/SKILL.md` STEP 1.5, `skills/geo/SKILL.md`, `agents/validator-analyzer.md` (reference contract), `.audit/job9-report.md` §6 option (b); commits `a5a7b54`/`6df42e4`/`c498b93`/`70fb3b4`. Linked to [[BDR-060]] (nesting floor), [[LRN-112]] (nesting mechanics).
+
+## BDR-062 — supersede BDR-031's 275-line CLAUDE.md target: 305 is the assumed reality
+
+- **Date**: 2026-07-08
+- **Status**: accepted (supersedes the 275-line density TARGET of [[BDR-031]] only; BDR-031's core principle — lightening = compression, not path-scope/externalization — stands unchanged)
+- **Decision**: The global CLAUDE.md sits at 305 lines and stays there. job1's density pass took it 319→305 and no later job re-inflated it; the extraction BDR-031 called for is done. Reaching the old 275 target (or even the 280 guard threshold) now costs clarity more than it saves tokens. The `hooks/session-start.sh` guard threshold is realigned 280→320: still catches genuine regression (real bloat past 320) but stops firing a permanent "density pass requis" warning on an assumed-final 305.
+- **Why**: the review (`.audit/review-release-1.0.0.md` A6) found the guard had warned every session since job1 without the target ever being met — a self-inflicted permanent warning, not an actionable signal. A gate that never goes green trains you to ignore it. Realign to reality; keep a 15-line margin so real regressions still surface.
+- **Alternatives rejected**: (a) finish the compression 305→≤275 — the remaining lines are load-bearing constraints, not filler; further squeeze loses clarity for a marginal token gain on a solo repo. (b) leave the guard at 280 and accept the permanent warning — a permanently-red non-blocking gate is noise. (c) rewrite BDR-031 — registries are append-only; supersede the target, keep the principle.
+- **Reference**: `hooks/session-start.sh:202-211`; supersedes the 275 target in [[BDR-031]] (principle kept). Review remediation A6, 2026-07-08.

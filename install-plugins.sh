@@ -431,6 +431,19 @@ else
     cargo install --git https://github.com/rtk-ai/rtk
   fi
 fi
+# PATH bridge: cargo installs to ~/.cargo/bin, which hand-managed shell
+# profiles routinely lose (LRN-036 class). This installer sources cargo env
+# so `command -v rtk` passes HERE — but Claude's tool shell never gets that
+# PATH: the rewrite hook then drops every COMPOUND rewrite (it can only
+# absolute-path the string head) and compression silently dies (measured:
+# 6/5070 commands compressed over 30 days). ~/.local/bin is on the standard
+# PATH — bridge with a symlink. Idempotent; -x on a broken link is false,
+# so a stale link self-repairs.
+if [ -x "$HOME/.cargo/bin/rtk" ] && [ ! -x "$HOME/.local/bin/rtk" ]; then
+  mkdir -p "$HOME/.local/bin"
+  ln -sf "$HOME/.cargo/bin/rtk" "$HOME/.local/bin/rtk"
+  ok "rtk bridged into ~/.local/bin (cargo bin dir is not on the tool-shell PATH)"
+fi
 # Only init if not already configured (avoids overwriting custom RTK config)
 if ! grep -q "rtk" "$HOME/.claude/settings.json" 2>/dev/null; then
   info "Configuring RTK PreToolUse hook (global)..."

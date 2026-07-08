@@ -138,8 +138,6 @@ Commit using conventional format:
 feat(<scope>): <what was added>
 
 <brief description of the feature>
-
-Co-Authored-By: Claude <noreply@anthropic.com>
 ```
 
 If the feature touched multiple concerns (e.g., feature + config +

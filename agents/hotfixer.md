@@ -132,8 +132,6 @@ Apply the minimal change that fixes the bug:
 4. Commit using conventional format (only after verify AND security pass):
    ```
    fix(<scope>): <what was wrong>
-
-   Co-Authored-By: Claude <noreply@anthropic.com>
    ```
 5. Print summary:
    ```
