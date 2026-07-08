@@ -155,6 +155,15 @@ rules:
 - **anomalies**: (1) scratch semgrep files untracked → tree dirty at end, would self-block next run — patched STEP 3.2 [[LRN-100]]; (2) SEC-2 API-BREAKING fix (new required header) unflagged — patched template BREAKING tag; (3) positive: it2 re-verify caught regression of agent's OWN fix (`compare_digest(str)` raises on non-ASCII → 500 not 403), fixed + functionally proven it3 — re-verify loop has real teeth.
 - **action**: keep (skill shipped). REFACTOR additions not re-run through 3rd full pass — re-test at first real use ([[LRN-100]]).
 
+## EVAL-015 — /tour first REAL run (report-only, bchanot-cv): REFACTOR additions validated; premise corrected by user
+
+- **Date**: 2026-07-05
+- **output**: report-only tour on live repo bchanot-cv: 4 parallel read-only audits (security-auditor semgrep BLOCK(1), cso posture 3 med/2 low/5 info, clean 10 findings, doc 2 drifts) + inline reconcile (ZERO drift — BLK-001 even live-confirmed via prod favicon 200). 14 findings folded into committed TOUR.md (5a813df, `.claude/**` on develop), scratch reports deleted, tree clean at end.
+- **method**: real repo, no fixture. Deferred re-test executed: STEP 3.2 cleanup HELD (no self-block for next run), BREAKING tag correctly N/A (zero fixes in report-only). Cross-checks: cso live-confirmed SEC-2 (zero security headers served) — config-only review would have missed it ([[LRN-101]]).
+- **anomalies**: (1) skill gap — report-only + clean tree has no branch, so the report commit lands on develop via the `.claude/**` exemption; works, but the placement is a judgment call the SKILL.md doesn't specify → candidate patch (needs its own failing test per Iron Law). (2) premise corrected by USER after the run: prod = native nginx, NOT the repo's Docker stack → container findings (SEC-1/4) latent, live header fix (SEC-2/3) belongs to VPS config outside the repo; audit scoping must confirm the serving stack first ([[LRN-101]] corollary). (3) parallel-phases deviation from the skill's sequential A→D held safely (report-only ⇒ no mutations between phases).
+- **action**: keep. Skill validated on real drift; two refinement candidates noted (report-commit placement, serving-stack precheck), neither blocking.
+- **backmerge**: from release/1.0.0 (74d3804) — 2026-07-08 review remediation A3.
+
 ## EVAL-016 — /deploy first REAL run (bchanot-cv): bootstrap→instantiate→hand-back→mark, full cycle OK
 
 - **Date**: 2026-07-05
