@@ -120,6 +120,8 @@ Tu veux...
 | Livraison client finale | `/client-handover` |
 | Traduire un PDF | `/pdf-translate` |
 | Changer profil skills | `/profile` |
+| Audit/polish design (anti-slop) | `/impeccable` |
+| Sweep groupé tous axes (nettoyage + sécu + reconcile + doc) | `/tour` |
 | Rien ne marche | `/health` |
 
 ---
@@ -159,6 +161,8 @@ Tu veux...
 | `/web-validate` | Audit W3C + WCAG a11y | Avant livraison projet web |
 | `/client-handover` | Livraison client | Audits finaux + livrable brandé |
 | `/pdf-translate` | Traduire un PDF vers une autre langue | Sortie HTML fidèle (images, layout, style préservés) |
+| `/impeccable` | Audit/polish design + détecteur anti-slop déterministe | 23 verbes ; `npx impeccable detect` (exit 0/2) |
+| `/tour` | Sweep groupé sur un ou plusieurs projets | Sécu + nettoyage + reconcile + doc, boucle jusqu'à un pass propre |
 | `/profile` | Changer le profil de skills | design / dev / qa / audit / minimal |
 
 > Cette table couvre les skills personnels principaux. Les plugins (gstack,
