@@ -117,6 +117,7 @@ rules:
 | LRN-095 | 2026-07-03 | orthogonal gates don't contaminate — a conformity verifier must PASS correct-but-insecure code (security is a separate gate's job); proven live (CONFORME on a feature carrying a SQLi); fusing the two degrades each | designing multi-dimension review/verify/audit gates |
 | LRN-096 | 2026-07-04 | a backstop/guard is code — reliable ONLY after a flip-test proves it CAN fail; an unproven guard replacing an advisory = a vacuous guard (LRN-048 applied to guards); flip-test mandatory at guard creation | building any deterministic guard/lint/backstop |
 | LRN-097 | 2026-07-04 | community blog pattern ≠ official feature — "contexts dir" doesn't exist in Claude Code; verify feature against official docs (claude-code-guide) BEFORE building infra; the intent was already covered by real mechanisms (agents/skills/rules) | any "add support for X" request naming a Claude Code feature |
+| LRN-098 | 2026-07-04 | `/model` rewrites settings.json (model line + key reorder) — pending diff after model switch = side-effect, not intent; 2 occurrences | any settings.json commit; any "commit file X" — read diff, verify content matches intent |
 | LRN-099 | 2026-07-05 | auto-orchestrator autonomy boundary: git discipline transfers naturally (branch, no-merge), declared-state discipline does NOT — baseline silently rewrote target TODO + authored registries + scope-crept | designing any auto/headless flow — enumerate declared surfaces, mark each read-only or gated |
 | LRN-100 | 2026-07-05 | tool gated on clean tree must clean its OWN scratch (else self-DoS next run); contract-changing auto-fix needs structural BREAKING flag in the reviewed artifact | any recurring tool w/ cleanliness precondition; any auto-fix touching an API contract |
 | LRN-102 | 2026-07-05 | deliverable text placed BEFORE a tool call may never render — only the turn's FINAL text is guaranteed displayed; a checklist printed above AskUserQuestion was invisible to the user | any flow whose deliverable is conversational text (checklist, commands, report): end the turn with it, blocking questions come before, never after |
@@ -1032,6 +1033,14 @@ rules:
 - **context**: 2026-07-04 rules-dir chantier. `rules/` (real feature, verified: paths-scoped lazy loading) was built; `contexts/` (nonexistent) was refused with the doc citation.
 - **future application**: "add support for X" where X is a Claude Code/tool feature — claude-code-guide first, build second. Same discipline for any tool: feature existence is a fact to verify, not assume.
 - **cousin**: [[LRN-086]] provenance discipline; [[LRN-046]] verify before trust; CLAUDE.md "Never assume — verify".
+
+## LRN-098 — `/model` silently rewrites settings.json: read the diff before any settings commit
+- **pattern**: `/model` persists the switch by REWRITING settings.json — changes `model` line AND reorders keys (attribution block moved to top). Pending settings.json diff after a model switch = side-effect, not intent. 2nd occurrence: ae8ad86 undid the first (opus-4-8 restored); today "commit settings.json" nearly re-committed fable-5 as default right after that undo. Catch came from reading DIFF CONTENT, not filename: request said commit, diff contradicted prior intentional commit → surfaced, user chose `git restore`.
+- **why it matters**: "dirty settings.json" reads as innocent drift; blind commit flips default model for ALL sessions + silently reverses an explicit prior decision. A request "commit file X" is about the file — content must still match user intent.
+- **context**: 2026-07-04 RC 1.0.0 cleanup. Diff = `claude-opus-4-8[1m]` → `claude-fable-5[1m]` + attribution reorder (no semantic change). AskUserQuestion → restore.
+- **future application**: settings.json modified → read diff, check `model` line before commit. Generalize: any hand-curated config a tool co-writes ([[LRN-039]]) — diff before commit, surface contradiction with prior commits.
+- **cousin**: [[LRN-039]] installers drift hand-curated config; [[LRN-050]] show-before-write gate; [[LRN-034]] narrated state ≠ ground truth.
+- **backmerge**: from release/1.0.0 (a623514) — 2026-07-08 review remediation A3.
 
 ## LRN-099 — Auto-orchestrator autonomy boundary: working branch YES, declared/shared state NO
 
