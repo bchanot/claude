@@ -68,7 +68,6 @@ skills/impeccable
 
 # External skills installed via `npx skills add` — auto-created by link.sh
 skills/darwin-skill
-skills/find-skills
 
 # Context7 docs-lookup skill — installed by `ctx7 setup --claude --cli`
 # (install-plugins.sh Step 6, when absent) into ~/.claude/skills (a symlink to

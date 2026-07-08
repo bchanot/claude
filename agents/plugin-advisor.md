@@ -19,7 +19,7 @@ Detect active plugins and project signals. Recommend enable/disable. Apply compa
 claude plugin list 2>/dev/null || echo "plugin-list-unavailable"
 
 # External (non-marketplace) tools status — gstack, emil-design-eng,
-# darwin-skill, find-skills. Managed by lib/toggle-external.sh since
+# darwin-skill. Managed by lib/toggle-external.sh since
 # `claude plugin enable|disable` does not apply to them.
 bash "$HOME/.claude/lib/toggle-external.sh" list 2>/dev/null || echo "toggle-external-unavailable"
 
@@ -353,8 +353,8 @@ RULE: IF `complex-arch` signal (multiple services, event bus, distributed system
 ## TOGGLING EXTERNAL TOOLS
 
 Marketplace plugins toggle via `claude plugin enable|disable <name>@<marketplace>`.
-Non-marketplace tools (gstack per-skill symlinks, emil-design-eng, darwin-skill,
-find-skills) toggle via `bash $HOME/.claude/lib/toggle-external.sh enable|disable <tool>`.
+Non-marketplace tools (gstack per-skill symlinks, emil-design-eng, darwin-skill)
+toggle via `bash $HOME/.claude/lib/toggle-external.sh enable|disable <tool>`.
 
 When a recommendation flips the state of one of those tools, emit the exact
 command — never write files directly.

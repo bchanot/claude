@@ -65,8 +65,16 @@ echo ""
 echo "── Updating GStack submodule..."
 warn "GStack tracks branch = main (no commit hash). Review upstream commits before updating."
 echo ""
-printf "  Proceed with GStack update? [y/N] "
-read -r _gstack_confirm
+# TTY guard: in a non-interactive run (cron, CI, background shell) `read`
+# hits EOF and dies under set -e — the whole update aborted mid-script.
+# Default to the safe N and keep going; interactive behavior unchanged.
+if [ -t 0 ]; then
+  printf "  Proceed with GStack update? [y/N] "
+  read -r _gstack_confirm
+else
+  info "Non-interactive run — skipping GStack update (run in a terminal to be prompted)"
+  _gstack_confirm="n"
+fi
 if [[ "$_gstack_confirm" =~ ^[Yy]$ ]]; then
   # Capture gstack state before the update so we can restore it after
   # ./setup runs (setup re-creates every symlink; without this, an
@@ -117,6 +125,13 @@ fi
 # ── 3. Update RTK (if pinned version available) ──
 echo ""
 echo "── Updating RTK..."
+# cargo lives in ~/.cargo/bin, which hand-managed profiles lose (BLK-016
+# class) — source cargo env, as install-plugins.sh does, before concluding
+# cargo is absent. Without this the step silently never updated rtk.
+if ! command -v cargo &>/dev/null && [ -f "$HOME/.cargo/env" ]; then
+  # shellcheck disable=SC1091
+  source "$HOME/.cargo/env"
+fi
 if command -v cargo &>/dev/null; then
   RTK_VERSION=""
   if [ -f "$REPO/plugins.lock.json" ] && command -v python3 &>/dev/null; then
@@ -128,21 +143,44 @@ print(d.get('rtk',{}).get('version',''))
 " 2>/dev/null || true)
   fi
 
+  # Version-jump guard: a cargo build takes minutes — only pay it when the
+  # target (pin, or the newest remote tag for "latest") differs from what is
+  # installed. Same pin-honored/skip-on-match shape as the semgrep step.
+  RTK_CUR=$(rtk --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
+  [ -z "$RTK_CUR" ] && RTK_CUR=$("$HOME/.cargo/bin/rtk" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
+
   if [ -n "$RTK_VERSION" ] && [ "$RTK_VERSION" != "latest" ]; then
-    info "Pinned version: $RTK_VERSION"
-    info "Compiling from source — this may take a few minutes..."
-    if cargo install --git https://github.com/rtk-ai/rtk --tag "$RTK_VERSION" --force; then
-      ok "RTK updated to $RTK_VERSION"
+    if [ "${RTK_VERSION#v}" = "$RTK_CUR" ]; then
+      ok "rtk already at pinned $RTK_CUR"
     else
-      warn "RTK update failed"
+      info "Pinned version: $RTK_VERSION (installed: ${RTK_CUR:-none})"
+      info "Compiling from source — this may take a few minutes..."
+      if cargo install --git https://github.com/rtk-ai/rtk --tag "$RTK_VERSION" --force; then
+        ok "RTK updated to $RTK_VERSION"
+      else
+        warn "RTK update failed"
+      fi
     fi
   else
-    info "No pinned version — installing latest"
-    info "Compiling from source — this may take a few minutes..."
-    if cargo install --git https://github.com/rtk-ai/rtk --force; then
-      ok "RTK updated (latest)"
+    # "latest" = newest release TAG, resolved by name and installed BY TAG.
+    # (A bare `cargo install --git` builds the default-branch HEAD, whose
+    # Cargo.toml version can trail the newest tag — the guard would then
+    # never converge and recompile on every run.)
+    RTK_TIP_TAG=$(git ls-remote --tags https://github.com/rtk-ai/rtk 2>/dev/null \
+      | sed -n 's|.*refs/tags/\(v\{0,1\}[0-9][0-9.]*\)$|\1|p' | sort -V | tail -1 || true)
+    RTK_TIP="${RTK_TIP_TAG#v}"
+    if [ -n "$RTK_TIP" ] && [ "$RTK_TIP" = "$RTK_CUR" ]; then
+      ok "rtk already at latest tag ($RTK_CUR)"
     else
-      warn "RTK update failed"
+      info "No pin — latest tag: ${RTK_TIP_TAG:-unknown} (installed: ${RTK_CUR:-none})"
+      info "Compiling from source — this may take a few minutes..."
+      if [ -n "$RTK_TIP_TAG" ] && cargo install --git https://github.com/rtk-ai/rtk --tag "$RTK_TIP_TAG" --force; then
+        ok "RTK updated to $RTK_TIP_TAG"
+      elif [ -z "$RTK_TIP_TAG" ] && cargo install --git https://github.com/rtk-ai/rtk --force; then
+        ok "RTK updated (latest HEAD — no tag resolvable)"
+      else
+        warn "RTK update failed"
+      fi
     fi
   fi
 else
@@ -388,7 +426,6 @@ echo "── Updating external skills (npx skills)..."
 if command -v npx &>/dev/null; then
   NPX_SKILLS=(
     "alchaincyf/darwin-skill"
-    "alchaincyf/find-skills"
   )
   for _src in "${NPX_SKILLS[@]}"; do
     _name="${_src##*/}"

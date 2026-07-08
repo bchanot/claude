@@ -25,6 +25,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 - `gitflow_finish` ignored its `<type> <name>` arguments and always merged the checked-out branch — naming a different branch silently merged the wrong one. The arguments are now an optional safety assertion: if given and not equal to the current branch, `finish` refuses with a clear error instead of merging. No-argument calls (the only real caller) are unchanged.
 - `doctor.sh` false-warnings removed (a check that cries wolf is one you learn to ignore): `cargo` absence no longer claims "RTK unavailable" (RTK ships as a prebuilt binary); `check_symlink` no longer flags files reached through directory-level symlinks (e.g. `hooks/session-start.sh`); the GStack check counts the per-skill symlinks instead of a `skills/gstack` link that `link.sh` deliberately removes; the token-budget estimate is measured against the ~200k context window instead of a mis-framed "~11k session budget" that produced a false "92% CRITICAL".
 
+### Removed
+- **find-skills** (alchaincyf) — skill-discovery helper dropped from the toolchain (install/update/link/toggle/advisor). Never used, and its `make update` refresh step had started failing on clone timeouts. The discovery use case stays reachable manually: `npx -y skills find <query>`.
+
 ## [4.0.0] — 2026-06-30
 
 ### Added

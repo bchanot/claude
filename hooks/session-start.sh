@@ -36,7 +36,7 @@ fi
 # ── Load shared detection library ──
 _lib="$(dirname "${BASH_SOURCE[0]}")/../lib/detect-plugins.sh"
 if [ -f "$_lib" ]; then
-  # shellcheck source=../lib/detect-plugins.sh
+  # shellcheck source=../lib/detect-plugins.sh disable=SC1091
   source "$_lib"
 else
   echo "⚠️  lib/detect-plugins.sh not found — config broken, run: bash link.sh"
