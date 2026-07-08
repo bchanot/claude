@@ -132,6 +132,7 @@ rules:
 | LRN-114 | 2026-07-08 | editing a hook GENERATOR (_gitflow_emit_pre_commit) does NOT update the INSTALLED hook (.githooks/pre-commit) — silent drift; T10 diffs the allow/block verdict not content, T16 emits fresh in a throwaway repo → job7 gitleaks backstop inert on the repo 8 days | after editing a template-generated artifact: reinstall (install-hook) + a gate that diffs installed==emit |
 | LRN-115 | 2026-07-08 | analyzer Edit/Write grants (seo/geo/validator) are NOT dead: needed to write the REPORT (VALIDATE/SEO/GEO.md); the "never edit" rule targets CODE, instruction-level (same as the patron) — verified false-positive | do NOT re-flag as a tool-grant defect; a report-only agent keeps Write for its own report |
 | LRN-116 | 2026-07-08 | memory backfill release→develop: a BLK marked "resolved" can have its RESOLUTION (code) missing from develop — BLK-016 resolved on release but rtk fix e58037c never back-merged → bug LIVE on develop | before backfilling a resolved blocker: verify the fix CODE is on the target branch, not just the registry entry |
+| LRN-117 | 2026-07-08 | a release/develop fork silently orphans FUNCTIONAL code on develop, not just memory — RC soak fixes (find-skills, make-update TTY, rtk version-guard) lived only on release for the fork's duration; the review's memory back-merge caught only ~half | at release-finish/reconcile: list develop..release commits touching non-registry code (excl. merges/version) for back-merge review — a registry-gap check alone misses code |
 
 ---
 
@@ -1180,3 +1181,10 @@ rules:
 - **fix**: ported e58037c to develop (13-line idempotent bridge), THEN backfilled BLK-016 resolved. General: before backmerging a resolved blocker, grep the target for the fix's code signature.
 - **future application**: gitflow divergence review — enumerate release-only COMMITS that touch code, not just memory; a feature can be parallel-merged while its RC-branch fix is orphaned.
 - **cousin**: [[LRN-036]] (PATH profile drift), [[LRN-047]] (silent degradation).
+
+## LRN-117 — A release/develop fork silently orphans functional CODE on develop, not just memory
+- **pattern**: cutting release/1.0.0 and continuing on develop, the RC-branch bug fixes (find-skills drop `095d881`, make-update TTY guard `a1093ca`, rtk update-path version-guard `4c5e862`, rtk install bridge `e58037c`, SC1091 lint `e65796f`) landed ONLY on release. They were live-broken on develop for the whole fork duration (rtk compression dead, `make update` dies non-interactively). The review's memory back-merge caught the registry gaps and one code fix (rtk bridge); a full back-merge found ~5 more functional commits.
+- **why it hides**: registry-sequence gaps (missing LRN/BLK/EVAL ids) are easy to detect; orphaned CODE has no sequence to check. A feature can be parallel-merged to both branches while an RC-branch fix commit is never back-merged, and nothing flags it.
+- **fix**: at release-finish / in /reconcile, list `develop..release/*` commits touching functional files (exclude merges, `.claude/**`, version.txt/CHANGELOG) and present them for back-merge review. Advisory, NOT a hard make-test gate — cherry-picks land with new SHAs so the source commit stays in the range; automatic "already-ported?" equivalence is unreliable and would false-positive. Backlogged.
+- **future application**: any long-lived fork (release/*, long feature) — audit CODE divergence, not just declared/registry state ([[LRN-034]] narrated ≠ ground truth, applied to branches).
+- **cousin**: [[LRN-116]] (a resolved blocker's fix can be missing from develop), [[BDR-054]] (supersession-trace discipline).

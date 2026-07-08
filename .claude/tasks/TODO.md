@@ -1,5 +1,31 @@
 # TODO
 
+## 2026-07-08 — full back-merge release/1.0.0→develop (chore/backmerge-release-full)
+Genèse : la revue avait porté ~5/19 commits ; back-merge complet demandé. Cherry-pick par
+catégorie, 1 commit atomique/item, make test après chaque code. Branche non mergée (gate humain).
+- [x] A CODE (5 cherry-picks, make test GREEN chacun) : 095d881 drop find-skills (5a1fff5),
+      a1093ca TTY-guard make-update (ce07e55, prouvé EOF exit1→exit0), 4c5e862 rtk version-guard
+      (3049250, complète le pont e58037c déjà porté — fichiers/concerns distincts), c76479f
+      design-motion sync (82ce02c), e65796f SC1091 lint (fcdb157, shellcheck 0 SC1091).
+- [x] B JOURNAL : cherry-pick direct conflicte (tails journal divergents) → STOP honoré,
+      fallback note consolidée sous journal 2026-07-08. TODO /deploy ca9fa8f skip (release-specific).
+- [x] C DÉCISION/DOUBLON tous skip vérifiés : 93e43c0 attribution + ae8ad86 model (opus[1m]=Opus4.8)
+      déjà sur develop ; a623514/74d3804/2b4e740 registres déjà backfillés (run revue) ;
+      188a9a7 docs → backlog /doc ci-dessous.
+- [x] D fork version 1eb5b08/eb93050 intouchés — version.txt reste 4.0.0.
+- [x] GATE FINAL : 23/23 commits release-only classifiés, 0 code orphelin, 0 entrée registre
+      manquante ; make test GREEN + review-guards 5/0. Capitalize [[LRN-117]] structurel.
+
+### Backlog (issu du back-merge)
+- [ ] **/doc** — README develop ne documente pas semgrep / scan-secrets / verify+secure pipeline /
+      ctx7 (delta de 188a9a7, non porté car base README divergente job3 + CHANGELOG version-entangled).
+      Une passe /doc doit combler ces sujets sur le README réécrit de develop.
+- [ ] **release-drift advisory** ([[LRN-117]]) — check qui liste les commits `develop..release/*`
+      touchant du CODE fonctionnel (exclut merges, `.claude/**`, version.txt/CHANGELOG) pour revue
+      de back-merge. Advisory, PAS un gate make-test dur : les cherry-picks landent avec de nouveaux
+      SHA → le commit source reste dans le range → équivalence "déjà porté ?" non fiable automatiquement
+      (faux positifs). Cible : étape release-finish ou /reconcile, pas run-review-guards.
+
 ## 2026-07-08 — review remediation (chore/review-remediation)
 Genèse : `.audit/review-release-1.0.0.md` (revue adversariale des 9 jobs). GO user,
 ordre imposé. Déviation justifiée : 1 branche (pas 1/EP) car le gate fil-rouge (step 6)
