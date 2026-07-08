@@ -1,5 +1,23 @@
 # TODO
 
+## 2026-07-08 — review remediation (chore/review-remediation)
+Genèse : `.audit/review-release-1.0.0.md` (revue adversariale des 9 jobs). GO user,
+ordre imposé. Déviation justifiée : 1 branche (pas 1/EP) car le gate fil-rouge (step 6)
+grep toute la surface et n'est vert qu'avec A1/A4/A5 déjà appliqués. Commits atomiques,
+branche non mergée (gate humain). EP-A3/A6 = décisions user tranchées (combler / option b).
+- [x] EP-A1 (BLOQUANT) trailer bugfixer/feater/hotfixer (56018df) + grep étendu = 0 autre
+- [x] EP-A2 (P0) hook réinstallé gitleaks (d4526e6) + 3 gates verts + root-cause (générateur édité, jamais réinstallé)
+- [x] EP-A4 quote YAML seo-analyzer:3 + security-auditor:3 (5a0fc16) + gate yaml.safe_load tous agents
+- [x] EP-A5 geo own-policy PERMISSIVE (f0111e1), user-approved, grep==0
+- [x] EP-A8 smoke /seo+/geo réel PROUVÉ — AUTO llms.txt + sitemap.xml atterrissent sur disque (no-op infirmé)
+- [x] FIL-ROUGE run-review-guards.sh 5 gardes (4e83f39), user-approved, à dents
+- [x] EP-A3 backfill LRN-098/101 (7cd82cf/a01250b) + EVAL-015 (38cc821) + BLK-016 (8e9ff33) + PORT rtk e58037c (416b68f) car fix absent+bug live sur develop
+- [x] EP-A6 (option b) seuil 280→320 + BDR-062 (1be9036)
+- [x] EP-A7 documentaire + M5 → EVAL-022 (capitalize cc4f161)
+- [x] Capitalize LRN-113/114/115/116 + BDR-062 + EVAL-021/022 + journal (cc4f161)
+- [x] GATE FINAL : make test GREEN (exit 0) + A2 secret BLOCKED (gitleaks) + A8 AUTO landed + review-guards 5/0
+- Branche chore/review-remediation NON mergée (gate humain). Résidu noté : e65796f (SC1091 lint) non back-mergé, hors scope.
+
 ## 2026-07-08 — job9 sub-agent architecture corrections (chore/job9-agents)
 Genèse : `.audit/job9-report.md` (agents/*.md frontmatter+body, verify-loop,
 dispatch graph, read-only). Premise correction confirmed CC v2.1.203 : nesting
