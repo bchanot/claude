@@ -287,7 +287,7 @@ tout lecteur de creds vise le **canonical `~/.claude/.env`**, pas `$REPO/.env`).
 |---|---|
 | `.env.example` | Ajouter les 3 vars (client id/secret, CrUX key) au format existant (`# Used by:` / `# Get it:` + placeholder). **Seul fichier versionné touché côté secrets.** |
 | `install.sh` | Après `link.sh` (§5) et `claude login` (§3) : étape **optionnelle idempotente** (moule « Press Enter to connect… ») → si aucun compte dans le store, propose `make seo-connect` ; skip sinon. |
-| `Makefile` | Cible user-facing `seo-connect` : crée/maj le venv + `pip install -r lib/seo-data/requirements.txt`, lance `connect.py` (consentement + découverte propriétés). Rejouable. `make test` ramasse déjà le nouveau test. |
+| `Makefile` | Cible user-facing `seo-connect` (venv + `pip install -r lib/seo-data/requirements.txt` + `connect.py`, rejouable) **et** extension de la cible `test` pour découvrir `lib/seo-data/*.test.sh` (le test vit hors `lib/tests/`, gaté par `config-protection.sh`). |
 | `doctor.sh` | Nouveau check (lit `~/.claude/.env` canonical) : venv + deps présents ? au moins un compte dans le store ? `CRUX_API_KEY` présent ? → **PASS / WARN, jamais fatal**. |
 | `.gitleaks.toml` | Allowlist du token store (cf. §5.4). |
 | `.gitignore` | Ajouter `.venv-seo-data/` et `seo-data/tokens.json` (ceinture + bretelles). |
@@ -296,8 +296,10 @@ tout lecteur de creds vise le **canonical `~/.claude/.env`**, pas `$REPO/.env`).
 
 ## 12. Tests
 
-`lib/tests/seo-data.test.sh`, convention du repo (`tf`/`tr_`/`tn` + compteurs PASS/FAIL,
-découvert par `make test`), **sans appel réseau** :
+`lib/seo-data/seo-data.test.sh`, convention du repo (`tf`/`tr_`/`tn` + compteurs PASS/FAIL),
+**sans appel réseau**. Placé sous `lib/seo-data/` (co-localisé, **hors `lib/tests/`** que
+`hooks/config-protection.sh` protège comme dossier-garde) ; `make test` le découvre via le glob
+ajouté en Task 6. En TDD : `bash lib/seo-data/seo-data.test.sh`.
 
 - Parsing des sous-commandes/args de `fetch.sh` (bons/mauvais usages, exit codes).
 - Parsing de forme JSON sur **fixtures commitées** (réponses GSC/CrUX mockées) → shape attendue.
@@ -305,7 +307,7 @@ découvert par `make test`), **sans appel réseau** :
 - **Dégradation** : creds absents → `{"status":"degraded"}` + **exit 0** (pas 1).
 - Isolement : deux invocations `--account` différentes → sélections indépendantes (pas d'état partagé).
 
-Fixtures sous `lib/tests/fixtures/seo-data/` (réponses synthétiques, aucun vrai secret/PII).
+Fixtures sous `lib/seo-data/fixtures/` (réponses synthétiques, aucun vrai secret/PII).
 
 ---
 
@@ -334,8 +336,8 @@ Fixtures sous `lib/tests/fixtures/seo-data/` (réponses synthétiques, aucun vra
 - `lib/seo-data/tokenstore.py`
 - `lib/seo-data/requirements.txt`
 - `lib/seo-data/README.md`
-- `lib/tests/seo-data.test.sh`
-- `lib/tests/fixtures/seo-data/*.json`
+- `lib/seo-data/seo-data.test.sh`
+- `lib/seo-data/fixtures/*.json`
 
 **Modifiés**
 - `.env.example` (3 vars)

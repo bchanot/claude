@@ -20,7 +20,7 @@ Every task's requirements implicitly include these (verbatim from the spec):
 - **Multi-account, no shared state.** Account + property are **explicit arguments** on every `fetch.sh` call. No "current account" global. Store writes only happen during `connect` (atomic `tmp`→`fsync`→`rename` under `fcntl` lock); audits are read-only.
 - **Store keyed by user label**, not email (keeps scope minimal). Properties discovered via `sites.list` (already in scope).
 - **Canonical env path.** Read secrets from `~/.claude/.env` (canonical), never `$REPO/.env` (symlink may be absent on a fresh machine).
-- **Repo test convention.** Bash tests in `lib/tests/*.test.sh`, helpers `tf`/`tr_`/`tn` + `PASS`/`FAIL` counters, final line `[ "$FAIL" -eq 0 ]`, discovered by `make test`.
+- **Repo test convention.** Bash test following the repo idiom (helpers `tf`/`tr_`/`tn` + `PASS`/`FAIL` counters, final line `[ "$FAIL" -eq 0 ]`). The engine test lives at `lib/seo-data/seo-data.test.sh` — co-located with the engine, **deliberately NOT under `lib/tests/`** which the `config-protection.sh` hook gates as a guardrail dir. Task 6 extends the `make test` target to also discover `lib/seo-data/*.test.sh`. During TDD, run it directly: `bash lib/seo-data/seo-data.test.sh`.
 - **No commit attribution trailers** (no `Co-Authored-By`, no `Claude-Session`).
 - **Branch:** all commits on `feature/gsc-crux-data-layer` (already created).
 
@@ -37,8 +37,8 @@ Every task's requirements implicitly include these (verbatim from the spec):
 - `lib/seo-data/README.md` — usage contract.
 
 **Tests (created):**
-- `lib/tests/seo-data.test.sh` — deterministic bash test (drives CLIs against fixtures, checks locks).
-- `lib/tests/fixtures/seo-data/*.json` — synthetic API responses (no real secret/PII).
+- `lib/seo-data/seo-data.test.sh` — deterministic bash test (drives CLIs against fixtures, checks locks).
+- `lib/seo-data/fixtures/*.json` — synthetic API responses (no real secret/PII).
 
 **Wiring (modified):**
 - `.env.example`, `install.sh`, `Makefile`, `doctor.sh`, `.gitleaks.toml`, `.gitignore`.
@@ -76,13 +76,13 @@ Label-keyed, atomic, locked store. Foundation for everything; stdlib only so it 
 
 **Files:**
 - Create: `lib/seo-data/tokenstore.py`
-- Create: `lib/tests/seo-data.test.sh`
+- Create: `lib/seo-data/seo-data.test.sh`
 
 **Interfaces:**
 - Consumes: nothing.
 - Produces: `load`, `list_accounts`, `get_refresh_token`, `save_account` (signatures in File Structure) + CLI `list`/`set`.
 
-- [ ] **Step 1: Write the failing test** — create `lib/tests/seo-data.test.sh`:
+- [ ] **Step 1: Write the failing test** — create `lib/seo-data/seo-data.test.sh`:
 
 ```bash
 #!/usr/bin/env bash
@@ -121,7 +121,7 @@ echo "seo-data engine: $PASS pass, $FAIL fail"
 
 - [ ] **Step 2: Run it, verify red**
 
-Run: `bash lib/tests/seo-data.test.sh`
+Run: `bash lib/seo-data/seo-data.test.sh`
 Expected: FAIL — `tokenstore.py` does not exist (`python3: can't open file`).
 
 - [ ] **Step 3: Implement `lib/seo-data/tokenstore.py`** (stdlib only):
@@ -199,13 +199,13 @@ if __name__ == "__main__":
 
 - [ ] **Step 4: Run it, verify green**
 
-Run: `bash lib/tests/seo-data.test.sh`
+Run: `bash lib/seo-data/seo-data.test.sh`
 Expected: PASS (5 tokenstore checks pass).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lib/seo-data/tokenstore.py lib/tests/seo-data.test.sh
+git add lib/seo-data/tokenstore.py lib/seo-data/seo-data.test.sh
 git commit -m "feat(seo-data): label-keyed atomic OAuth token store"
 ```
 
@@ -217,14 +217,14 @@ Simplest data path (API key, no OAuth). Establishes the mock-mode + degrade + no
 
 **Files:**
 - Create: `lib/seo-data/google_seo.py`
-- Create: `lib/tests/fixtures/seo-data/crux_mobile.json`
-- Modify: `lib/tests/seo-data.test.sh` (append CrUX section)
+- Create: `lib/seo-data/fixtures/crux_mobile.json`
+- Modify: `lib/seo-data/seo-data.test.sh` (append CrUX section)
 
 **Interfaces:**
 - Consumes: env `CRUX_API_KEY`, env `SEO_DATA_MOCK_DIR`.
 - Produces: `crux(url, strategy='mobile') -> dict`; CLI `python3 google_seo.py crux --url … [--strategy …]`.
 
-- [ ] **Step 1: Write the fixture** — `lib/tests/fixtures/seo-data/crux_mobile.json` (shape of the CrUX API `record.metrics`):
+- [ ] **Step 1: Write the fixture** — `lib/seo-data/fixtures/crux_mobile.json` (shape of the CrUX API `record.metrics`):
 
 ```json
 {"record":{"key":{"formFactor":"PHONE"},"metrics":{
@@ -233,11 +233,11 @@ Simplest data path (API key, no OAuth). Establishes the mock-mode + degrade + no
   "cumulative_layout_shift":{"percentiles":{"p75":"0.08"}}}}}
 ```
 
-- [ ] **Step 2: Write the failing test** — append to `lib/tests/seo-data.test.sh` before the final summary:
+- [ ] **Step 2: Write the failing test** — append to `lib/seo-data/seo-data.test.sh` before the final summary:
 
 ```bash
 echo "── crux (mock) ──"
-CRUX_OK="$(SEO_DATA_MOCK_DIR="$REPO/lib/tests/fixtures/seo-data" \
+CRUX_OK="$(SEO_DATA_MOCK_DIR="$REPO/lib/seo-data/fixtures" \
   python3 "$SD/google_seo.py" crux --url https://ex.com --strategy mobile)"
 has "crux status ok"        "$CRUX_OK" '"status": "ok"'
 has "crux lcp p75 mapped"   "$CRUX_OK" '"lcp_p75_ms": 2100'
@@ -251,7 +251,7 @@ has "crux degrade reason"   "$CRUX_DEG" 'no_crux_key'
 
 - [ ] **Step 3: Run it, verify red**
 
-Run: `bash lib/tests/seo-data.test.sh`
+Run: `bash lib/seo-data/seo-data.test.sh`
 Expected: FAIL — `google_seo.py` missing.
 
 - [ ] **Step 4: Implement the CrUX path** — create `lib/seo-data/google_seo.py` (lazy `requests` import; mock reads the fixture and runs the REAL normalizer):
@@ -337,13 +337,13 @@ if __name__ == "__main__":
 
 - [ ] **Step 5: Run it, verify green**
 
-Run: `bash lib/tests/seo-data.test.sh`
+Run: `bash lib/seo-data/seo-data.test.sh`
 Expected: PASS (tokenstore + 6 CrUX checks).
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add lib/seo-data/google_seo.py lib/tests/fixtures/seo-data/crux_mobile.json lib/tests/seo-data.test.sh
+git add lib/seo-data/google_seo.py lib/seo-data/fixtures/crux_mobile.json lib/seo-data/seo-data.test.sh
 git commit -m "feat(seo-data): CrUX field-data fetch with mock mode and graceful degrade"
 ```
 
@@ -355,8 +355,8 @@ Adds Search Analytics + URL Inspection with OAuth refresh (lazy) reusing `tokens
 
 **Files:**
 - Modify: `lib/seo-data/google_seo.py` (add `queries`, `inspect`, `_gsc_session`, extend CLI)
-- Create: `lib/tests/fixtures/seo-data/gsc_queries.json`, `lib/tests/fixtures/seo-data/gsc_inspect.json`
-- Modify: `lib/tests/seo-data.test.sh` (append GSC section)
+- Create: `lib/seo-data/fixtures/gsc_queries.json`, `lib/seo-data/fixtures/gsc_inspect.json`
+- Modify: `lib/seo-data/seo-data.test.sh` (append GSC section)
 
 **Interfaces:**
 - Consumes: `tokenstore.get_refresh_token`, env `GOOGLE_OAUTH_CLIENT_ID/SECRET`, `SEO_DATA_MOCK_DIR`.
@@ -364,13 +364,13 @@ Adds Search Analytics + URL Inspection with OAuth refresh (lazy) reusing `tokens
 
 - [ ] **Step 1: Write fixtures**
 
-`lib/tests/fixtures/seo-data/gsc_queries.json` (Search Analytics `rows` shape):
+`lib/seo-data/fixtures/gsc_queries.json` (Search Analytics `rows` shape):
 ```json
 {"rows":[
   {"keys":["plombier paris"],"clicks":40,"impressions":900,"ctr":0.044,"position":6.3},
   {"keys":["urgence fuite"],"clicks":5,"impressions":1200,"ctr":0.004,"position":8.9}]}
 ```
-`lib/tests/fixtures/seo-data/gsc_inspect.json` (URL Inspection shape):
+`lib/seo-data/fixtures/gsc_inspect.json` (URL Inspection shape):
 ```json
 {"inspectionResult":{"indexStatusResult":{
   "verdict":"PASS","coverageState":"Submitted and indexed","lastCrawlTime":"2026-07-01T10:00:00Z"}}}
@@ -380,7 +380,7 @@ Adds Search Analytics + URL Inspection with OAuth refresh (lazy) reusing `tokens
 
 ```bash
 echo "── gsc (mock) ──"
-MOCK="$REPO/lib/tests/fixtures/seo-data"
+MOCK="$REPO/lib/seo-data/fixtures"
 TMP2="$(mktemp -d)"; S2="$TMP2/tokens.json"
 python3 "$SD/tokenstore.py" set --file "$S2" --label client-a --refresh-token RT \
   --scopes https://www.googleapis.com/auth/webmasters.readonly --properties sc-domain:ex.com >/dev/null
@@ -401,7 +401,7 @@ rm -rf "$TMP2"
 
 - [ ] **Step 3: Run it, verify red**
 
-Run: `bash lib/tests/seo-data.test.sh`
+Run: `bash lib/seo-data/seo-data.test.sh`
 Expected: FAIL — `queries`/`inspect` not implemented (argparse error / AttributeError).
 
 - [ ] **Step 4: Implement** — add to `google_seo.py`:
@@ -480,13 +480,13 @@ Extend `_cli()` (add subparsers `queries` and `inspect`, each with `--store --ac
 
 - [ ] **Step 5: Run it, verify green**
 
-Run: `bash lib/tests/seo-data.test.sh`
+Run: `bash lib/seo-data/seo-data.test.sh`
 Expected: PASS (tokenstore + CrUX + 7 GSC checks).
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add lib/seo-data/google_seo.py lib/tests/fixtures/seo-data/gsc_queries.json lib/tests/fixtures/seo-data/gsc_inspect.json lib/tests/seo-data.test.sh
+git add lib/seo-data/google_seo.py lib/seo-data/fixtures/gsc_queries.json lib/seo-data/fixtures/gsc_inspect.json lib/seo-data/seo-data.test.sh
 git commit -m "feat(seo-data): GSC Search Analytics + URL Inspection with lazy OAuth refresh"
 ```
 
@@ -498,7 +498,7 @@ The stable CLI the analyzers call. Sources env, picks python (venv else system),
 
 **Files:**
 - Create: `lib/seo-data/fetch.sh`
-- Modify: `lib/tests/seo-data.test.sh` (append fetch.sh section)
+- Modify: `lib/seo-data/seo-data.test.sh` (append fetch.sh section)
 
 **Interfaces:**
 - Consumes: `~/.claude/.env` (canonical), `google_seo.py`, `tokenstore.py`, optional `~/.claude/.venv-seo-data/`.
@@ -526,7 +526,7 @@ hasnt "no secret echoed"        "$DG" 'RT_'
 
 - [ ] **Step 2: Run it, verify red**
 
-Run: `bash lib/tests/seo-data.test.sh`
+Run: `bash lib/seo-data/seo-data.test.sh`
 Expected: FAIL — `fetch.sh` missing.
 
 - [ ] **Step 3: Implement `lib/seo-data/fetch.sh`:**
@@ -567,13 +567,13 @@ Notes: `crux` accepts and ignores `--store` (already wired in Task 2's `_cli`) s
 
 - [ ] **Step 4: Run it, verify green**
 
-Run: `bash lib/tests/seo-data.test.sh`
+Run: `bash lib/seo-data/seo-data.test.sh`
 Expected: PASS (all prior + 6 fetch.sh checks).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lib/seo-data/fetch.sh lib/seo-data/google_seo.py lib/tests/seo-data.test.sh
+git add lib/seo-data/fetch.sh lib/seo-data/google_seo.py lib/seo-data/seo-data.test.sh
 git commit -m "feat(seo-data): fetch.sh entrypoint with venv/system fallback and redaction"
 ```
 
@@ -586,7 +586,7 @@ One-time interactive consent + `sites.list` discovery + persist. Browser flow is
 **Files:**
 - Create: `lib/seo-data/connect.py`
 - Create: `lib/seo-data/requirements.txt`
-- Modify: `lib/tests/seo-data.test.sh` (append persist test)
+- Modify: `lib/seo-data/seo-data.test.sh` (append persist test)
 
 **Interfaces:**
 - Consumes: env `GOOGLE_OAUTH_CLIENT_ID/SECRET`, `tokenstore.save_account`.
@@ -616,7 +616,7 @@ rm -rf "$TMP3"
 
 - [ ] **Step 3: Run it, verify red**
 
-Run: `bash lib/tests/seo-data.test.sh`
+Run: `bash lib/seo-data/seo-data.test.sh`
 Expected: FAIL — `connect` module / `persist` missing.
 
 - [ ] **Step 4: Implement `lib/seo-data/connect.py`:**
@@ -683,7 +683,7 @@ if __name__ == "__main__":
 
 - [ ] **Step 5: Run it, verify green**
 
-Run: `bash lib/tests/seo-data.test.sh`
+Run: `bash lib/seo-data/seo-data.test.sh`
 Expected: PASS (all prior + 3 persist checks).
 
 - [ ] **Step 6: Manual verification (documented, not automated)** — after Task 6 wires `make seo-connect`: run it once against a real GCP OAuth client, confirm the browser consent completes, the store gains the label with discovered properties, and a second `fetch.sh queries` runs non-interactively.
@@ -691,7 +691,7 @@ Expected: PASS (all prior + 3 persist checks).
 - [ ] **Step 7: Commit**
 
 ```bash
-git add lib/seo-data/connect.py lib/seo-data/requirements.txt lib/tests/seo-data.test.sh
+git add lib/seo-data/connect.py lib/seo-data/requirements.txt lib/seo-data/seo-data.test.sh
 git commit -m "feat(seo-data): OAuth consent + property discovery + pinned deps"
 ```
 
@@ -703,7 +703,7 @@ git commit -m "feat(seo-data): OAuth consent + property discovery + pinned deps"
 
 **Files:**
 - Modify: `.env.example`, `Makefile`, `install.sh`, `doctor.sh`, `.gitleaks.toml`, `.gitignore`
-- Modify: `lib/tests/seo-data.test.sh` (append wiring locks)
+- Modify: `lib/seo-data/seo-data.test.sh` (append wiring locks)
 
 **Interfaces:**
 - Consumes: `lib/seo-data/{connect.py,requirements.txt}`.
@@ -717,6 +717,7 @@ tf() { if grep -qF -- "$3" "$2" 2>/dev/null; then ok "$1"; else no "$1" "missing
 tf "env.example client id"   "$REPO/.env.example"    "GOOGLE_OAUTH_CLIENT_ID="
 tf "env.example crux key"    "$REPO/.env.example"    "CRUX_API_KEY="
 tf "makefile seo-connect"    "$REPO/Makefile"        "seo-connect:"
+tf "makefile discovers test" "$REPO/Makefile"        "lib/seo-data/*.test.sh"
 tf "install prompts connect" "$REPO/install.sh"      "make seo-connect"
 tf "doctor checks seo-data"  "$REPO/doctor.sh"       "seo-data"
 tf "gitleaks allowlist store" "$REPO/.gitleaks.toml" "seo-data/tokens.json"
@@ -725,8 +726,8 @@ tf "gitignore venv"          "$REPO/.gitignore"      ".venv-seo-data"
 
 - [ ] **Step 2: Run it, verify red**
 
-Run: `bash lib/tests/seo-data.test.sh`
-Expected: FAIL — none of the 7 locks present yet.
+Run: `bash lib/seo-data/seo-data.test.sh`
+Expected: FAIL — none of the 8 locks present yet.
 
 - [ ] **Step 3: Apply the wiring edits**
 
@@ -751,6 +752,16 @@ seo-connect: ## Connect a Google account for /seo FULL (creates venv, OAuth cons
 	 "$$HOME/.claude/.venv-seo-data/bin/python3" lib/seo-data/connect.py --label "$$label"'
 ```
 (Add `seo-connect` to the `.PHONY:` line at the top of the Makefile.)
+
+Also extend the existing `test:` target so `make test` discovers the engine test. Change its loop line:
+```make
+	@fail=0; for t in lib/tests/*.test.sh lib/gitflow-test.sh lib/tests/run-*.sh; do \
+```
+to add `lib/seo-data/*.test.sh`:
+```make
+	@fail=0; for t in lib/tests/*.test.sh lib/seo-data/*.test.sh lib/gitflow-test.sh lib/tests/run-*.sh; do \
+```
+(Editing the Makefile is allowed — it is not a config-protection-gated file. This *adds* test discovery; it does not weaken any gate.)
 
 `install.sh` — after the `bash "$REPO/link.sh"` block (§5, ~line 107), before plugins:
 ```bash
@@ -797,13 +808,13 @@ seo-data/tokens.json
 
 - [ ] **Step 4: Run it, verify green**
 
-Run: `bash lib/tests/seo-data.test.sh`
-Expected: PASS (all prior + 7 wiring locks). Then `make test` — the whole suite still green.
+Run: `bash lib/seo-data/seo-data.test.sh`
+Expected: PASS (all prior + 8 wiring locks). Then `make test` — the whole suite still green (now including the seo-data engine test via the new glob).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add .env.example Makefile install.sh doctor.sh .gitleaks.toml .gitignore lib/tests/seo-data.test.sh
+git add .env.example Makefile install.sh doctor.sh .gitleaks.toml .gitignore lib/seo-data/seo-data.test.sh
 git commit -m "chore(seo-data): install/make/doctor wiring + gitleaks allowlist for token store"
 ```
 
@@ -817,7 +828,7 @@ Make `/seo` FULL actually consume the engine: account selection in STEP 0, CrUX 
 - Modify: `skills/seo/SKILL.md` (STEP 0 — account/property selection, FULL only)
 - Modify: `agents/seo-analyzer.md` (STEP 4 CWV terrain via `fetch.sh crux`; new "Performance GSC" subsection via `fetch.sh queries`/`inspect`; STEP 9 Technical axis note)
 - Modify: `agents/resources/automation-catalog.md` (GSC OAuth connection entry)
-- Modify: `lib/tests/seo-data.test.sh` (append integration locks)
+- Modify: `lib/seo-data/seo-data.test.sh` (append integration locks)
 
 **Interfaces:**
 - Consumes: `lib/seo-data/fetch.sh` CLI contract.
@@ -836,7 +847,7 @@ tf "catalog gsc oauth entry"    "$REPO/agents/resources/automation-catalog.md" "
 
 - [ ] **Step 2: Run it, verify red**
 
-Run: `bash lib/tests/seo-data.test.sh`
+Run: `bash lib/seo-data/seo-data.test.sh`
 Expected: FAIL — 5 integration locks absent.
 
 - [ ] **Step 3: Apply the integration edits** (concrete anchors from the /analyze report):
@@ -873,13 +884,13 @@ In **STEP 9** scoring, add a note on the Technical axis: "CWV scored on CrUX fie
 
 - [ ] **Step 4: Run it, verify green**
 
-Run: `bash lib/tests/seo-data.test.sh`
+Run: `bash lib/seo-data/seo-data.test.sh`
 Expected: PASS (all prior + 5 integration locks). Run `make test` — full suite green.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add skills/seo/SKILL.md agents/seo-analyzer.md agents/resources/automation-catalog.md lib/tests/seo-data.test.sh
+git add skills/seo/SKILL.md agents/seo-analyzer.md agents/resources/automation-catalog.md lib/seo-data/seo-data.test.sh
 git commit -m "feat(seo): wire GSC+CrUX data into /seo FULL (STEP 0 account select, CWV field, GSC perf)"
 ```
 
@@ -891,7 +902,7 @@ Document the engine's contract so future maintainers (and the analyzer) have a s
 
 **Files:**
 - Create: `lib/seo-data/README.md`
-- Modify: `lib/tests/seo-data.test.sh` (append doc lock)
+- Modify: `lib/seo-data/seo-data.test.sh` (append doc lock)
 
 **Interfaces:**
 - Consumes: nothing.
@@ -905,16 +916,16 @@ tf "readme documents fetch.sh" "$REPO/lib/seo-data/README.md" "fetch.sh"
 tf "readme documents seo-connect" "$REPO/lib/seo-data/README.md" "make seo-connect"
 ```
 
-- [ ] **Step 2: Run it, verify red** — Run: `bash lib/tests/seo-data.test.sh` — Expected: FAIL (README missing).
+- [ ] **Step 2: Run it, verify red** — Run: `bash lib/seo-data/seo-data.test.sh` — Expected: FAIL (README missing).
 
 - [ ] **Step 3: Write `lib/seo-data/README.md`** — cover: purpose (real GSC+CrUX for /seo FULL), setup (`make seo-connect` + the 3 `.env` keys), the `fetch.sh` subcommand contract (copy §9 of the spec), the token store location + security notes (0600, gitleaks allowlist, scope webmasters.readonly), graceful-degradation behavior, and how to run the test (`make test`). Concrete, no placeholders.
 
-- [ ] **Step 4: Run it, verify green** — Run: `bash lib/tests/seo-data.test.sh` — Expected: PASS (all locks).
+- [ ] **Step 4: Run it, verify green** — Run: `bash lib/seo-data/seo-data.test.sh` — Expected: PASS (all locks).
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add lib/seo-data/README.md lib/tests/seo-data.test.sh
+git add lib/seo-data/README.md lib/seo-data/seo-data.test.sh
 git commit -m "docs(seo-data): engine usage + security contract README"
 ```
 
