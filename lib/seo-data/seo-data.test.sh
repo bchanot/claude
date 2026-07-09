@@ -29,6 +29,18 @@ DPERM="$(stat -c '%a' "$(dirname "$STORE")")"
 [ "$DPERM" = "700" ] && ok "store dir is 0700" || no "store dir 0700" "got $DPERM"
 rm -rf "$TMP"
 
+echo "── crux (mock) ──"
+CRUX_OK="$(SEO_DATA_MOCK_DIR="$REPO/lib/seo-data/fixtures" \
+  python3 "$SD/google_seo.py" crux --url https://ex.com --strategy mobile)"
+has "crux status ok"        "$CRUX_OK" '"status": "ok"'
+has "crux lcp p75 mapped"   "$CRUX_OK" '"lcp_p75_ms": 2100'
+has "crux inp p75 mapped"   "$CRUX_OK" '"inp_p75_ms": 180'
+has "crux cls p75 mapped"   "$CRUX_OK" '"cls_p75": 0.08'
+CRUX_DEG="$(env -u CRUX_API_KEY -u SEO_DATA_MOCK_DIR \
+  python3 "$SD/google_seo.py" crux --url https://ex.com)"
+has "crux degrades w/o key" "$CRUX_DEG" '"status": "degraded"'
+has "crux degrade reason"   "$CRUX_DEG" 'no_crux_key'
+
 echo ""
 echo "seo-data engine: $PASS pass, $FAIL fail"
 [ "$FAIL" -eq 0 ]
