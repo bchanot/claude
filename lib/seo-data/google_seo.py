@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """CrUX + GSC fetch → normalized JSON. Third-party imports are LAZY so mock and
 degraded paths run stdlib-only (no venv, no network)."""
-import argparse, json, os, sys
+import argparse, json, os
 
 def _mock(name):
     d = os.environ.get("SEO_DATA_MOCK_DIR")
@@ -38,6 +38,11 @@ def _crux_query(key, body):
         "https://chromeuxreport.googleapis.com/v1/records:queryRecord?key=" + key,
         json=body, timeout=20)
 
+def _origin(url):
+    from urllib.parse import urlparse  # stdlib
+    p = urlparse(url)
+    return "%s://%s" % (p.scheme, p.netloc)  # strip path — CrUX origin = scheme+host only
+
 def crux(url, strategy="mobile"):
     raw = _mock("crux_%s.json" % strategy)
     if raw is None:
@@ -47,7 +52,7 @@ def crux(url, strategy="mobile"):
         ff = "PHONE" if strategy == "mobile" else "DESKTOP"
         r = _crux_query(key, {"url": url, "formFactor": ff})
         if r.status_code == 404:  # no page-level data → try origin-level
-            r = _crux_query(key, {"origin": url.rstrip("/"), "formFactor": ff})
+            r = _crux_query(key, {"origin": _origin(url), "formFactor": ff})
         if r.status_code == 404:
             return {"status": "degraded", "reason": "no_field_data"}
         if r.status_code == 429:

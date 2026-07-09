@@ -40,6 +40,9 @@ CRUX_DEG="$(env -u CRUX_API_KEY -u SEO_DATA_MOCK_DIR \
   python3 "$SD/google_seo.py" crux --url https://ex.com)"
 has "crux degrades w/o key" "$CRUX_DEG" '"status": "degraded"'
 has "crux degrade reason"   "$CRUX_DEG" 'no_crux_key'
+ORIG="$(python3 -c "import sys; sys.path.insert(0,'$SD'); import google_seo; print(google_seo._origin('https://example.com/blog/post'))")"
+has   "origin strips to host" "$ORIG" 'https://example.com'
+hasnt "origin drops the path" "$ORIG" 'blog'
 
 echo ""
 echo "seo-data engine: $PASS pass, $FAIL fail"
