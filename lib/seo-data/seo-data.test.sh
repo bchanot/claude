@@ -77,7 +77,24 @@ SEO_DATA_ENV_FILE=$NOENV bash "$FETCH" bogus-subcmd >/dev/null 2>&1; RC=$?
 DG="$(SEO_DATA_ENV_FILE=$NOENV env -u SEO_DATA_MOCK_DIR -u CRUX_API_KEY bash "$FETCH" crux --url https://ex.com)"; RC=$?
 has "degrade json"              "$DG" '"status": "degraded"'
 [ "$RC" = "0" ] && ok "degrade exit 0" || no "degrade exit 0" "got $RC"
-hasnt "no secret echoed"        "$DG" 'RT_'
+# redaction through the real fetch.sh dispatch layer
+TMP4="$(mktemp -d)"; RSTORE="$TMP4/rt.json"
+python3 "$SD/tokenstore.py" set --file "$RSTORE" --label leaky --refresh-token RT_SECRET_XYZ \
+  --scopes https://www.googleapis.com/auth/webmasters.readonly --properties sc-domain:z.com >/dev/null
+ACCJSON="$(SEO_DATA_ENV_FILE=$NOENV SEO_DATA_STORE="$RSTORE" bash "$FETCH" accounts)"
+has   "accounts lists label"  "$ACCJSON" 'leaky'
+hasnt "accounts hides token"  "$ACCJSON" 'RT_SECRET_XYZ'
+rm -rf "$TMP4"
+# corrupted store must degrade with JSON + exit 0 (Fix 1)
+TMP5="$(mktemp -d)"; CSTORE="$TMP5/corrupt.json"; printf 'not json {{' > "$CSTORE"
+CJ="$(SEO_DATA_ENV_FILE=$NOENV SEO_DATA_STORE="$CSTORE" bash "$FETCH" accounts)"; CRC=$?
+has "corrupt store degrades" "$CJ" '"status"'
+[ "$CRC" = "0" ] && ok "corrupt store exit 0" || no "corrupt store exit 0" "got $CRC"
+rm -rf "$TMP5"
+# bad usage (known subcmd, missing flag) must still emit JSON + exit 2 (Fix 2)
+BU="$(SEO_DATA_ENV_FILE=$NOENV bash "$FETCH" crux)"; BURC=$?
+has "bad usage emits json" "$BU" '"status"'
+[ "$BURC" = "2" ] && ok "bad usage exit 2" || no "bad usage exit 2" "got $BURC"
 
 echo ""
 echo "seo-data engine: $PASS pass, $FAIL fail"

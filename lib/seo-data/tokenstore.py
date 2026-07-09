@@ -58,14 +58,21 @@ def _cli():
         ps.add_argument(flag, required=True)
     ps.add_argument("--scopes", default="")
     ps.add_argument("--properties", default="")
-    args = p.parse_args()
-    if args.cmd == "list":
-        print(json.dumps({"status": "ok", "accounts": list_accounts(args.file)}))
-    else:
-        save_account(args.file, args.label, getattr(args, "refresh_token"),
-                     [s for s in args.scopes.split(",") if s],
-                     [x for x in args.properties.split(",") if x])
-        print(json.dumps({"status": "ok"}))
+    try:
+        args = p.parse_args()
+        if args.cmd == "list":
+            print(json.dumps({"status": "ok", "accounts": list_accounts(args.file)}))
+        else:
+            save_account(args.file, args.label, getattr(args, "refresh_token"),
+                         [s for s in args.scopes.split(",") if s],
+                         [x for x in args.properties.split(",") if x])
+            print(json.dumps({"status": "ok"}))
+    except SystemExit as e:                       # argparse usage error
+        if e.code not in (0, None):
+            print(json.dumps({"status": "error", "reason": "bad_usage"}))
+        raise                                     # preserve argparse's exit code
+    except Exception:                             # e.g. corrupted store JSON
+        print(json.dumps({"status": "degraded", "reason": "unexpected_error"}))
 
 if __name__ == "__main__":
     _cli()

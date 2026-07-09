@@ -133,25 +133,25 @@ def inspect(store_path, account, property, url):
             "last_crawl": isr.get("lastCrawlTime")}
 
 def _cli():
-    p = argparse.ArgumentParser()
-    sub = p.add_subparsers(dest="cmd", required=True)
-    pc = sub.add_parser("crux")
-    pc.add_argument("--url", required=True)
-    pc.add_argument("--strategy", default="mobile", choices=["mobile", "desktop"])
-    pc.add_argument("--store", default=None)  # accepted+ignored: uniform fetch.sh dispatch
-    pq = sub.add_parser("queries")
-    pq.add_argument("--store", required=True)
-    pq.add_argument("--account", required=True)
-    pq.add_argument("--property", required=True)
-    pq.add_argument("--days", type=int, default=90)
-    pq.add_argument("--dim", default="query")
-    pi = sub.add_parser("inspect")
-    pi.add_argument("--store", required=True)
-    pi.add_argument("--account", required=True)
-    pi.add_argument("--property", required=True)
-    pi.add_argument("--url", required=True)
-    args = p.parse_args()
     try:
+        p = argparse.ArgumentParser()
+        sub = p.add_subparsers(dest="cmd", required=True)
+        pc = sub.add_parser("crux")
+        pc.add_argument("--url", required=True)
+        pc.add_argument("--strategy", default="mobile", choices=["mobile", "desktop"])
+        pc.add_argument("--store", default=None)  # accepted+ignored: uniform fetch.sh dispatch
+        pq = sub.add_parser("queries")
+        pq.add_argument("--store", required=True)
+        pq.add_argument("--account", required=True)
+        pq.add_argument("--property", required=True)
+        pq.add_argument("--days", type=int, default=90)
+        pq.add_argument("--dim", default="query")
+        pi = sub.add_parser("inspect")
+        pi.add_argument("--store", required=True)
+        pi.add_argument("--account", required=True)
+        pi.add_argument("--property", required=True)
+        pi.add_argument("--url", required=True)
+        args = p.parse_args()
         if args.cmd == "crux":
             print(json.dumps(crux(args.url, args.strategy), indent=2))
         elif args.cmd == "queries":
@@ -160,6 +160,10 @@ def _cli():
         elif args.cmd == "inspect":
             print(json.dumps(inspect(args.store, args.account, args.property,
                                       args.url), indent=2))
+    except SystemExit as e:                       # argparse usage error
+        if e.code not in (0, None):
+            print(json.dumps({"status": "error", "reason": "bad_usage"}))
+        raise                                     # preserve argparse's exit code
     except Exception:
         # Fail-open data contract: ANY unexpected error (HTTP 403/5xx, DNS,
         # timeout) degrades with exit 0 — never a traceback, never empty stdout.
