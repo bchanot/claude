@@ -18,6 +18,19 @@ on the amount and variety of changes — could be 1, could be 20.
 
 ## Workflow
 
+### Phase 0: Gitflow aiguillage (before any commit)
+
+**Follow `$HOME/.claude/lib/gitflow-aiguillage.md` — your type = `chore`.**
+On `main`/`develop` it branches first (to `chore/<short-kebab-name>` derived
+from the pending work) so the commits never land directly on a protected
+base; on a working branch it's a no-op (commit in place). Never `finish`,
+never `merge`, never `push` — this engine only commits.
+
+**Report-only fallback.** If `develop` doesn't exist or
+`$HOME/.claude/lib/gitflow.sh` is unavailable, do NOT auto-branch: report the
+current branch state and ask the user which branch to commit on before
+proceeding.
+
 ### Phase 1: Gather context
 
 Run these commands to understand the full picture:
