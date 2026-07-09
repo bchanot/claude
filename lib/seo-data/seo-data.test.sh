@@ -63,6 +63,22 @@ has "gsc degrades w/o creds"     "$DEG" '"status": "degraded"'
 has "gsc degrade reason"         "$DEG" 'no_credentials'
 rm -rf "$TMP2"
 
+echo "── fetch.sh ──"
+FETCH="$SD/fetch.sh"
+# SEO_DATA_ENV_FILE=/dev/null: tests must NEVER source the real ~/.claude/.env —
+# on a machine with a live CRUX_API_KEY the degrade tests would hit the network.
+NOENV=/dev/null
+ACC="$(SEO_DATA_ENV_FILE=$NOENV SEO_DATA_STORE=/nonexistent/tokens.json bash "$FETCH" accounts)"
+has "accounts empty is ok json" "$ACC" '"accounts": []'
+CR="$(SEO_DATA_ENV_FILE=$NOENV SEO_DATA_MOCK_DIR="$MOCK" bash "$FETCH" crux --url https://ex.com)"
+has "fetch crux ok"             "$CR" '"status": "ok"'
+SEO_DATA_ENV_FILE=$NOENV bash "$FETCH" bogus-subcmd >/dev/null 2>&1; RC=$?
+[ "$RC" = "2" ] && ok "bad subcmd exit 2" || no "bad subcmd exit 2" "got $RC"
+DG="$(SEO_DATA_ENV_FILE=$NOENV env -u SEO_DATA_MOCK_DIR -u CRUX_API_KEY bash "$FETCH" crux --url https://ex.com)"; RC=$?
+has "degrade json"              "$DG" '"status": "degraded"'
+[ "$RC" = "0" ] && ok "degrade exit 0" || no "degrade exit 0" "got $RC"
+hasnt "no secret echoed"        "$DG" 'RT_'
+
 echo ""
 echo "seo-data engine: $PASS pass, $FAIL fail"
 [ "$FAIL" -eq 0 ]
