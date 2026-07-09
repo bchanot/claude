@@ -276,12 +276,26 @@ def _norm_crux(raw):
     m = raw["record"]["metrics"]
     def p75(metric):
         return m.get(metric, {}).get("percentiles", {}).get("p75")
-    return {
-        "status": "ok", "source": "crux",
-        "lcp_p75_ms": int(p75("largest_contentful_paint")),
-        "inp_p75_ms": int(p75("interaction_to_next_paint")),
-        "cls_p75": float(p75("cumulative_layout_shift")),
-    }
+    out = {"status": "ok", "source": "crux"}
+    lcp = p75("largest_contentful_paint")
+    inp = p75("interaction_to_next_paint")
+    cls = p75("cumulative_layout_shift")
+    # Low-traffic origins often miss a metric (INP notably) — omit, don't crash.
+    if lcp is not None:
+        out["lcp_p75_ms"] = int(lcp)
+    if inp is not None:
+        out["inp_p75_ms"] = int(inp)
+    if cls is not None:
+        out["cls_p75"] = float(cls)
+    if len(out) == 2:  # no metric at all
+        return {"status": "degraded", "reason": "no_field_data"}
+    return out
+
+def _crux_query(key, body):
+    import requests  # lazy
+    return requests.post(
+        "https://chromeuxreport.googleapis.com/v1/records:queryRecord?key=" + key,
+        json=body, timeout=20)
 
 def crux(url, strategy="mobile"):
     raw = _mock("crux_%s.json" % strategy)
@@ -289,11 +303,10 @@ def crux(url, strategy="mobile"):
         key = os.environ.get("CRUX_API_KEY")
         if not key:
             return {"status": "degraded", "reason": "no_crux_key"}
-        import requests  # lazy
         ff = "PHONE" if strategy == "mobile" else "DESKTOP"
-        r = requests.post(
-            "https://chromeuxreport.googleapis.com/v1/records:queryRecord?key=" + key,
-            json={"url": url, "formFactor": ff}, timeout=20)
+        r = _crux_query(key, {"url": url, "formFactor": ff})
+        if r.status_code == 404:  # no page-level data → try origin-level
+            r = _crux_query(key, {"origin": url.rstrip("/"), "formFactor": ff})
         if r.status_code == 404:
             return {"status": "degraded", "reason": "no_field_data"}
         if r.status_code == 429:
@@ -308,9 +321,15 @@ def _cli():
     pc = sub.add_parser("crux")
     pc.add_argument("--url", required=True)
     pc.add_argument("--strategy", default="mobile", choices=["mobile", "desktop"])
+    pc.add_argument("--store", default=None)  # accepted+ignored: uniform fetch.sh dispatch
     args = p.parse_args()
-    if args.cmd == "crux":
-        print(json.dumps(crux(args.url, args.strategy), indent=2))
+    try:
+        if args.cmd == "crux":
+            print(json.dumps(crux(args.url, args.strategy), indent=2))
+    except Exception:
+        # Fail-open data contract: ANY unexpected error (HTTP 403/5xx, DNS,
+        # timeout) degrades with exit 0 — never a traceback, never empty stdout.
+        print(json.dumps({"status": "degraded", "reason": "unexpected_error"}))
 
 if __name__ == "__main__":
     _cli()
@@ -405,8 +424,12 @@ def _gsc_session(store_path, account):
                         scopes=["https://www.googleapis.com/auth/webmasters.readonly"])
     try:
         creds.refresh(Request())
-    except Exception:
-        return {"status": "degraded", "reason": "token_revoked"}
+    except Exception as e:
+        # Only a real RefreshError means re-consent; a network blip must NOT
+        # send the user back through OAuth.
+        from google.auth.exceptions import RefreshError  # lazy
+        reason = "token_revoked" if isinstance(e, RefreshError) else "network_error"
+        return {"status": "degraded", "reason": reason}
     return AuthorizedSession(creds)
 
 def _norm_queries(raw, dim):
@@ -453,7 +476,7 @@ def inspect(store_path, account, property, url):
             "coverage": isr.get("coverageState"),
             "last_crawl": isr.get("lastCrawlTime")}
 ```
-Extend `_cli()` (add subparsers `queries` and `inspect`, each with `--store --account --property`, plus `--days`/`--dim` for queries and `--url` for inspect; dispatch to the functions and `print(json.dumps(..., indent=2))`). Ensure the script's dir is importable for `import tokenstore` (add `sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))` at top).
+Extend `_cli()` (add subparsers `queries` and `inspect`, each with `--store --account --property`, plus `--days`/`--dim` for queries and `--url` for inspect; dispatch to the functions and `print(json.dumps(..., indent=2))` **inside the existing top-level `try/except`** from Task 2 — the fail-open contract covers every subcommand). Ensure the script's dir is importable for `import tokenstore` (add `sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))` at top).
 
 - [ ] **Step 5: Run it, verify green**
 
@@ -486,13 +509,16 @@ The stable CLI the analyzers call. Sources env, picks python (venv else system),
 ```bash
 echo "── fetch.sh ──"
 FETCH="$SD/fetch.sh"
-ACC="$(SEO_DATA_STORE="$STORE_MISSING" bash "$FETCH" accounts 2>/dev/null)"; STORE_MISSING="/nonexistent/tokens.json"
-ACC="$(SEO_DATA_STORE=/nonexistent/tokens.json bash "$FETCH" accounts)"
-has "accounts empty is ok json" "$ACC" '"status"'
-CR="$(SEO_DATA_MOCK_DIR="$MOCK" bash "$FETCH" crux --url https://ex.com)"
+# SEO_DATA_ENV_FILE=/dev/null: tests must NEVER source the real ~/.claude/.env —
+# on a machine with a live CRUX_API_KEY the degrade tests would hit the network.
+NOENV=/dev/null
+ACC="$(SEO_DATA_ENV_FILE=$NOENV SEO_DATA_STORE=/nonexistent/tokens.json bash "$FETCH" accounts)"
+has "accounts empty is ok json" "$ACC" '"accounts": []'
+CR="$(SEO_DATA_ENV_FILE=$NOENV SEO_DATA_MOCK_DIR="$MOCK" bash "$FETCH" crux --url https://ex.com)"
 has "fetch crux ok"             "$CR" '"status": "ok"'
-bash "$FETCH" bogus-subcmd >/dev/null 2>&1; [ "$?" = "2" ] && ok "bad subcmd exit 2" || no "bad subcmd exit 2" "wrong code"
-DG="$(env -u SEO_DATA_MOCK_DIR -u CRUX_API_KEY bash "$FETCH" crux --url https://ex.com)"; RC=$?
+SEO_DATA_ENV_FILE=$NOENV bash "$FETCH" bogus-subcmd >/dev/null 2>&1; RC=$?
+[ "$RC" = "2" ] && ok "bad subcmd exit 2" || no "bad subcmd exit 2" "got $RC"
+DG="$(SEO_DATA_ENV_FILE=$NOENV env -u SEO_DATA_MOCK_DIR -u CRUX_API_KEY bash "$FETCH" crux --url https://ex.com)"; RC=$?
 has "degrade json"              "$DG" '"status": "degraded"'
 [ "$RC" = "0" ] && ok "degrade exit 0" || no "degrade exit 0" "got $RC"
 hasnt "no secret echoed"        "$DG" 'RT_'
@@ -511,14 +537,18 @@ Expected: FAIL — `fetch.sh` missing.
 # exit 2 on bad usage. Never prints secrets.
 set -uo pipefail
 HERE="$(cd "$(dirname "$0")" && pwd)"
-ENV_FILE="${HOME}/.claude/.env"                       # canonical, not $REPO/.env
+ENV_FILE="${SEO_DATA_ENV_FILE:-${HOME}/.claude/.env}"  # canonical; tests override to /dev/null
 STORE="${SEO_DATA_STORE:-${HOME}/.claude/seo-data/tokens.json}"
 VENV_PY="${HOME}/.claude/.venv-seo-data/bin/python3"
 
-# Load secrets quietly (no echo). Only the keys we need are exported.
+# Library stderr must never leak a secret into agent context — suppress it
+# globally unless explicitly debugging (SEO_DATA_DEBUG=1 restores it).
+[ -n "${SEO_DATA_DEBUG:-}" ] || exec 2>/dev/null
+
+# Load secrets quietly (sourced, never echoed).
 if [ -f "$ENV_FILE" ]; then
   set -a; # shellcheck source=/dev/null
-  . "$ENV_FILE" >/dev/null 2>&1; set +a
+  . "$ENV_FILE"; set +a
 fi
 # Prefer the isolated venv (has google-auth); fall back to system python3 for
 # stdlib-only paths (accounts / mock / degrade).
@@ -528,18 +558,17 @@ cmd="${1:-}"; shift || true
 case "$cmd" in
   accounts) exec "$PY" "$HERE/tokenstore.py" list --file "$STORE" ;;
   crux|queries|inspect)
-    # queries/inspect need the store path; pass it through.
-    exec "$PY" "$HERE/google_seo.py" "$cmd" --store "$STORE" "$@" 2>/dev/null ;;
-  *) echo '{"status":"error","reason":"usage: fetch.sh {accounts|crux|queries|inspect} [flags]"}' >&2
+    exec "$PY" "$HERE/google_seo.py" "$cmd" --store "$STORE" "$@" ;;
+  *) echo '{"status":"error","reason":"usage: fetch.sh {accounts|crux|queries|inspect} [flags]"}'
      exit 2 ;;
 esac
 ```
-Note: `crux` ignores `--store` — `google_seo.py`'s `crux` subparser must accept and ignore an optional `--store` (add `pc.add_argument("--store", default=None)`), so `fetch.sh` can pass it uniformly. `2>/dev/null` on the data path guarantees no stray library stderr leaks a token; degrade/ok JSON always comes on stdout.
+Notes: `crux` accepts and ignores `--store` (already wired in Task 2's `_cli`) so `fetch.sh` dispatches uniformly. The global `exec 2>/dev/null` (unless `SEO_DATA_DEBUG=1`) plus `google_seo.py`'s top-level `try/except` together guarantee: JSON always on stdout, never a traceback, never a leaked secret, exit 0 on every data-path outcome.
 
 - [ ] **Step 4: Run it, verify green**
 
 Run: `bash lib/tests/seo-data.test.sh`
-Expected: PASS (all prior + 6 fetch.sh checks). Fix the stray `STORE_MISSING` ordering in the test (define it before use) if it warns.
+Expected: PASS (all prior + 6 fetch.sh checks).
 
 - [ ] **Step 5: Commit**
 
@@ -718,8 +747,8 @@ CRUX_API_KEY=<your-crux-api-key>
 seo-connect: ## Connect a Google account for /seo FULL (creates venv, OAuth consent)
 	@python3 -m venv "$$HOME/.claude/.venv-seo-data"
 	@"$$HOME/.claude/.venv-seo-data/bin/pip" install -q -r lib/seo-data/requirements.txt
-	@read -r -p "Label for this account (e.g. client-a): " label; \
-	 "$$HOME/.claude/.venv-seo-data/bin/python3" lib/seo-data/connect.py --label "$$label"
+	@bash -c 'read -r -p "Label for this account (e.g. client-a): " label; \
+	 "$$HOME/.claude/.venv-seo-data/bin/python3" lib/seo-data/connect.py --label "$$label"'
 ```
 (Add `seo-connect` to the `.PHONY:` line at the top of the Makefile.)
 
@@ -812,7 +841,7 @@ Expected: FAIL — 5 integration locks absent.
 
 - [ ] **Step 3: Apply the integration edits** (concrete anchors from the /analyze report):
 
-`skills/seo/SKILL.md` — in **STEP 0**, after the "Audit depth" block, add a FULL-only account-selection block (main loop, interactive) exactly as specified in spec §6, opening with the line `COMPTE GOOGLE pour cet audit FULL :`, listing connected accounts from `bash lib/seo-data/fetch.sh accounts`, an option to run `make seo-connect`, and an "Ignore" option. Record the chosen `(account, property)` in the shared context block and pass it into **both** analyzer dispatch prompts (STEP 1) under `BUSINESS CONTEXT` as `GSC account: <label>` / `GSC property: <property>`.
+`skills/seo/SKILL.md` — in **STEP 0**, after the "Audit depth" block, add a FULL-only account-selection block (main loop, interactive) exactly as specified in spec §6, opening with the line `COMPTE GOOGLE pour cet audit FULL :`, listing connected accounts from `bash ~/.claude/lib/seo-data/fetch.sh accounts` (**tilde path mandatory** — skills run from the audited project's directory, not the claude-config repo), an option to run `make seo-connect`, and an "Ignore" option. Record the chosen `(account, property)` in the shared context block and pass it into **both** analyzer dispatch prompts (STEP 1) under `BUSINESS CONTEXT` as `GSC account: <label>` / `GSC property: <property>`.
 
 `agents/seo-analyzer.md` — in **STEP 4 → Core Web Vitals** (currently the anonymous PageSpeed curl, ~lines 238-259), add before the PageSpeed call:
 ```
@@ -836,9 +865,10 @@ In **STEP 9** scoring, add a note on the Technical axis: "CWV scored on CrUX fie
 
 `agents/resources/automation-catalog.md` — under the existing Google Search Console entry (~line 69), add:
 ```
-- **Connexion GSC pour /seo (données réelles)** — `make seo-connect` (une fois par
-  compte) : consentement OAuth lecture seule (webmasters.readonly), stocke un refresh
-  token local (0600). Ensuite /seo FULL lit requêtes/positions/indexation sans réinvite.
+- **Connexion GSC pour /seo (données réelles)** — `make seo-connect` (depuis le repo
+  claude-config, une fois par compte) : consentement OAuth lecture seule
+  (webmasters.readonly), stocke un refresh token local (0600). Ensuite /seo FULL lit
+  requêtes/positions/indexation sans réinvite.
 ```
 
 - [ ] **Step 4: Run it, verify green**

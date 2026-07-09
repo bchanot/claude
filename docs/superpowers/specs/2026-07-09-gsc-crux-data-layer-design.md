@@ -238,24 +238,28 @@ Contrat stable que les analyzers consomment (JSON sur stdout, exit 0 même en d�
 
 ```bash
 fetch.sh accounts
-  → {"status":"ok","accounts":[{"email":"…","properties":[…]}]}
-  → {"status":"empty"}                       # aucun compte connecté
+  → {"status":"ok","accounts":[{"label":"…","properties":[…],"granted_at":"…"}]}   # [] si aucun compte
 
 fetch.sh crux    --url https://ex.com [--strategy mobile|desktop]
-  → {"status":"ok","source":"crux","metrics":{"lcp_p75_ms":…,"inp_p75_ms":…,"cls_p75":…}, "history":[…]}
-  → {"status":"degraded","reason":"no_crux_key"|"no_field_data"}
+  → {"status":"ok","source":"crux","lcp_p75_ms":…,"inp_p75_ms":…,"cls_p75":…}      # métrique absente = clé omise
+  → {"status":"degraded","reason":"no_crux_key"|"no_field_data"|"rate_limited"}
+  # 404 page-level → retry automatique origin-level avant de dégrader
 
-fetch.sh queries --account a@x --property sc-domain:ex.com [--days 90] [--dim query|page]
+fetch.sh queries --account client-a --property sc-domain:ex.com [--days 90] [--dim query|page]
   → {"status":"ok","source":"gsc","rows":[{"key":"…","clicks":…,"impressions":…,"ctr":…,"position":…}]}
-  → {"status":"degraded","reason":"no_credentials"|"token_revoked"|"rate_limited"}
+  → {"status":"degraded","reason":"no_credentials"|"token_revoked"|"network_error"|"rate_limited"}
 
-fetch.sh inspect --account a@x --property … --url https://ex.com/page
+fetch.sh inspect --account client-a --property … --url https://ex.com/page
   → {"status":"ok","source":"gsc","indexed":true,"coverage":"…","last_crawl":"…"}
   → {"status":"degraded","reason":"…"}
 ```
 
 Règles : **jamais** de secret dans la sortie ; messages d'erreur génériques ; exit 0 en dégradé
-(l'analyzer décide de la suite), exit ≠ 0 uniquement sur mauvais usage (args invalides).
+(l'analyzer décide de la suite), exit ≠ 0 uniquement sur mauvais usage (args invalides, exit 2).
+**Toute erreur imprévue** (HTTP 403/5xx, timeout, DNS) → `{"status":"degraded","reason":"unexpected_error"}`
++ exit 0 — jamais de traceback, jamais de stdout vide. Tests : `SEO_DATA_ENV_FILE` permet de
+substituer le vault (les tests pointent `/dev/null` — jamais le vrai `~/.claude/.env`) ;
+`SEO_DATA_DEBUG=1` réactive stderr pour diagnostiquer.
 
 ---
 
@@ -312,6 +316,11 @@ Fixtures sous `lib/tests/fixtures/seo-data/` (réponses synthétiques, aucun vra
   des AI Overviews — v2).
 - Audit multi-propriétés en un seul run (une propriété par audit en v1).
 - Monitoring/drift dans le temps (SQLite) — l'outil tiers le fait ; hors scope v1.
+- CrUX History API (tendance 25 semaines) — v1 = snapshot p75 seulement.
+- Routage de l'appel PageSpeed via `fetch.sh` avec `CRUX_API_KEY` (dé-quota) — **rejeté en v1
+  pour raison sécurité** : passer la clé à l'analyzer l'exposerait dans le contexte du subagent
+  (ligne de commande curl → risque de fuite dans rapport/log). v2 : sous-commande
+  `fetch.sh pagespeed` où la clé reste confinée au moteur.
 - Nouveau skill d'audit dédié `/gsc` (le setup passe par `make seo-connect`, l'usage par `/seo` FULL).
 
 ---
