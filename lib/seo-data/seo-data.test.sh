@@ -96,6 +96,16 @@ BU="$(SEO_DATA_ENV_FILE=$NOENV bash "$FETCH" crux)"; BURC=$?
 has "bad usage emits json" "$BU" '"status"'
 [ "$BURC" = "2" ] && ok "bad usage exit 2" || no "bad usage exit 2" "got $BURC"
 
+echo "── connect (persist, offline) ──"
+TMP3="$(mktemp -d)"; S3="$TMP3/tokens.json"
+python3 -c "import sys; sys.path.insert(0,'$SD'); import connect; \
+connect.persist('$S3','client-x','RT_X',['https://www.googleapis.com/auth/webmasters.readonly'],['sc-domain:x.com'])"
+L3="$(python3 "$SD/tokenstore.py" list --file "$S3")"
+has "connect.persist wrote label" "$L3" '"client-x"'
+has "connect.persist wrote prop"  "$L3" 'sc-domain:x.com'
+hasnt "connect.persist redacts"   "$L3" 'RT_X'
+rm -rf "$TMP3"
+
 echo ""
 echo "seo-data engine: $PASS pass, $FAIL fail"
 [ "$FAIL" -eq 0 ]
