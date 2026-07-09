@@ -44,6 +44,25 @@ ORIG="$(python3 -c "import sys; sys.path.insert(0,'$SD'); import google_seo; pri
 has   "origin strips to host" "$ORIG" 'https://example.com'
 hasnt "origin drops the path" "$ORIG" 'blog'
 
+echo "── gsc (mock) ──"
+MOCK="$REPO/lib/seo-data/fixtures"
+TMP2="$(mktemp -d)"; S2="$TMP2/tokens.json"
+python3 "$SD/tokenstore.py" set --file "$S2" --label client-a --refresh-token RT \
+  --scopes https://www.googleapis.com/auth/webmasters.readonly --properties sc-domain:ex.com >/dev/null
+Q="$(SEO_DATA_MOCK_DIR="$MOCK" python3 "$SD/google_seo.py" queries \
+  --store "$S2" --account client-a --property sc-domain:ex.com --days 90)"
+has "queries ok"                 "$Q" '"status": "ok"'
+has "queries row key"            "$Q" 'plombier paris'
+has "queries position field"     "$Q" '"position": 6.3'
+I="$(SEO_DATA_MOCK_DIR="$MOCK" python3 "$SD/google_seo.py" inspect \
+  --store "$S2" --account client-a --property sc-domain:ex.com --url https://ex.com/x)"
+has "inspect indexed true"       "$I" '"indexed": true'
+DEG="$(env -u SEO_DATA_MOCK_DIR python3 "$SD/google_seo.py" queries \
+  --store "$TMP2/none.json" --account nobody --property sc-domain:ex.com)"
+has "gsc degrades w/o creds"     "$DEG" '"status": "degraded"'
+has "gsc degrade reason"         "$DEG" 'no_credentials'
+rm -rf "$TMP2"
+
 echo ""
 echo "seo-data engine: $PASS pass, $FAIL fail"
 [ "$FAIL" -eq 0 ]
