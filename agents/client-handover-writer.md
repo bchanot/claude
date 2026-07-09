@@ -486,6 +486,19 @@ PENDING_CHANGES=$(git status --porcelain)
 
 If both empty → skip to STEP 6.
 
+**Gitflow precondition (report-only fallback).** Before any commit or push,
+confirm this is a gitflow repo:
+
+```bash
+git rev-parse --verify -q develop >/dev/null 2>&1 && echo DEVELOP_OK
+[ -f "$HOME/.claude/lib/gitflow.sh" ] && echo LIB_OK
+```
+
+If `develop` is missing OR the gitflow lib is unavailable → **do NOT commit,
+do NOT push.** Leave the changes in the working tree and record in the STEP 8
+summary: "Commit/push skipped — no gitflow model in this repo; publish the
+listed changes manually before deploy." Continue to STEP 6.
+
 If `PENDING_CHANGES` non-empty → invoke /commit-change skill via subagent:
 
 > Dispatch `general-purpose` subagent. Prompt:
@@ -498,7 +511,19 @@ If `PENDING_CHANGES` non-empty → invoke /commit-change skill via subagent:
 > commit). Use Conventional Commits format. After committing, return the
 > SHA list."
 
-Then push:
+Then, **before pushing, STOP and ask for an explicit GO** — the push is an
+outward-facing action and never fires autonomously:
+
+> AskUserQuestion — "Changes committed on `<CURRENT_BRANCH>`. Push to origin now?
+> - A) Yes — push `<CURRENT_BRANCH>` to origin
+> - B) No — I'll push manually before confirming deploy"
+
+Only on **A** run the push; on **B** skip it and note "push deferred to user"
+in the STEP 8 summary, then continue.
+
+> **Red flag — STOP:** never `git push` without option-A GO; never
+> `gitflow finish`/`merge`. This pipeline commits and (on GO) pushes a working
+> branch — it never integrates into a protected branch.
 
 ```bash
 CURRENT_BRANCH=$(git branch --show-current)
