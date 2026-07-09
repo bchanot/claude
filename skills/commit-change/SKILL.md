@@ -23,5 +23,8 @@ If unreachable, emit `Commit-changer agent missing.` and STOP. Never auto-commit
 Pre-flight checks (the agent should also perform, but flag here):
 - Detached HEAD or unmerged conflicts → STOP, report state.
 - Identity unconfigured (`git config user.email` empty) → STOP, ask user.
+- On a protected base (`main`/`develop`) the agent runs the gitflow
+  aiguillage (Phase 0) and branches to `chore/*` before committing — code
+  never lands directly on a protected branch.
 
 $ARGUMENTS
