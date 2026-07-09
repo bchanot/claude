@@ -25,6 +25,8 @@ has   "list shows a property"          "$LIST" 'sc-domain:a.com'
 hasnt "list redacts refresh tokens"    "$LIST" 'RT_AAA'
 PERM="$(stat -c '%a' "$STORE")"
 [ "$PERM" = "600" ] && ok "store file is 0600" || no "store file 0600" "got $PERM"
+DPERM="$(stat -c '%a' "$(dirname "$STORE")")"
+[ "$DPERM" = "700" ] && ok "store dir is 0700" || no "store dir 0700" "got $DPERM"
 rm -rf "$TMP"
 
 echo ""

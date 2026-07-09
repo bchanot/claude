@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Label-keyed OAuth refresh-token store. Atomic writes under an fcntl lock.
 No third-party deps — must run without the venv (used by the offline test path)."""
-import argparse, fcntl, json, os, sys, tempfile
+import argparse, fcntl, json, os, tempfile
 from datetime import datetime, timezone
 
 def load(path):
@@ -22,9 +22,12 @@ def get_refresh_token(path, label):
     return load(path).get("accounts", {}).get(label, {}).get("refresh_token")
 
 def save_account(path, label, refresh_token, scopes, properties):
-    os.makedirs(os.path.dirname(path), mode=0o700, exist_ok=True)
+    dirpath = os.path.dirname(path) or "."
+    os.makedirs(dirpath, mode=0o700, exist_ok=True)
+    os.chmod(dirpath, 0o700)                       # re-assert invariant (makedirs no-ops if dir exists)
     lock_path = path + ".lock"
     with open(lock_path, "w") as lock:
+        os.chmod(lock_path, 0o600)                 # defense-in-depth (empty flock handle, never holds token)
         fcntl.flock(lock, fcntl.LOCK_EX)          # serialize concurrent connects
         data = load(path)
         data.setdefault("version", 1)
@@ -35,7 +38,7 @@ def save_account(path, label, refresh_token, scopes, properties):
             "granted_at": datetime.now(timezone.utc).isoformat(),
             "properties": properties,
         }
-        fd, tmp = tempfile.mkstemp(dir=os.path.dirname(path), suffix=".tmp")
+        fd, tmp = tempfile.mkstemp(dir=dirpath, suffix=".tmp")
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 json.dump(data, f, indent=2)
