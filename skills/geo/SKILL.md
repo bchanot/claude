@@ -96,6 +96,20 @@ term). NEVER apply a GATED item before explicit approval.
 2. Record each applied change in the report change-log section.
 3. USER ACTIONS from the bundle → report §11 (each with automation-catalog ref).
 
+### Audit-end deliverables + trajectory (ALWAYS — both modes)
+
+Same contract as /seo:
+- The report carries the analyzer's actual AND projected code-only scores
+  plus its `TRAJECTORY TO 17/20` block (ranked code fixes to 17, or the
+  honest code ceiling + the user actions that unlock the rest) — the
+  geo-analyzer spec (STEP 10) makes these mandatory in the envelope.
+- Regenerate `.claude/audits/HUMAN-ACTIONS.md` from the user actions
+  (checkbox format, one `- [ ]` per action with automation ref + effort)
+  right after the report is written, EVEN in conservative mode — an
+  audit-only run must leave the user immediately actionable.
+- Console summary includes: actual + projected scores, the trajectory
+  one-liner, and the HUMAN-ACTIONS.md path.
+
 ## Note on integration
 
 If `.claude/audits/SEO.md` already exists, geo-analyzer merges its findings

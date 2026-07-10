@@ -481,11 +481,24 @@ web_search: "<business-name>" "<city>" site:google.com/maps
 Or use provided URL. Extract:
 - Name, address, phone, hours, rating, review count, categories, photos
 - Compare NAP with:
+  - The CANONICAL NAP from the dispatch context (user-confirmed) — the
+    only source of truth when present
   - LocalBusiness JSON-LD on site
   - HTML visible content
   - Other citations below
 
 **NAP inconsistencies = critical finding.**
+
+**NAP mismatch direction rule (LRN-032).** NEVER infer the correct value
+from source majority: on-site sources (JSON-LD, footer, settings DB,
+legal pages) usually descend from ONE seed and can all carry the same
+wrong value — the single diverging source may be the only one a human
+actually corrected. Direction of fix:
+- Diverging from a CONFIRMED canonical field → fix the diverging source.
+- Canonical field UNCONFIRMED or absent → report the divergence WITHOUT
+  a directional fix; escalate as a user question ("which value is
+  correct?") in the envelope (§11 user action). No bundle item may
+  rewrite a NAP value that no confirmed canonical backs.
 
 ### Social media verification
 
@@ -626,6 +639,38 @@ Lighthouse run.
 
 LOCAL axes not audited (Off-page, Social, Competitive) appear as
 `N/A — requires FULL audit` in the report.
+
+### Projected code-only score + trajectory to 17/20 (mandatory)
+
+Tag EVERY finding `fixable: code` (reachable by a bundle item — AUTO or
+GATED — in the repo) or `fixable: user` (GMB, citations, reviews,
+backlinks, social profiles, admin/DB content, host infra). From those
+tags, emit alongside the actual scores:
+
+- **Projected axis score** — what each axis reaches if every
+  `fixable: code` finding is applied (bundle fully executed).
+- **Projected global** — same weighted formula over projected axes.
+- **Code ceiling** — for axes whose residual gap is user-bound
+  (Off-page, Social, Competitive, the GMB/citations share of SEO
+  Local), state it explicitly: `code ceiling X.X/20 — reaching 17
+  requires <named user actions>`.
+
+Trajectory block (verbatim shape, appended to the scoring output):
+
+```
+TRAJECTORY TO 17/20 (code-only)
+ACTUAL    : XX.X/20
+PROJECTED : XX.X/20 (bundle fully applied)
+<if PROJECTED ≥ 17> the bundle IS the trajectory — rank items by score impact.
+<if PROJECTED < 17> (a) ADDITIONAL code-side opportunities beyond the
+  bundle (content depth, new pages, perf, internal linking), each with
+  estimated axis gain, until 17 is reachable or the ceiling is hit;
+  (b) honest ceiling statement + top user actions (expected gain each)
+  that unlock the rest — these MUST exist in the user-actions output.
+```
+
+NEVER inflate a projected score to fake reachability — a wrong ceiling
+misroutes the client-handover gate and the user's effort.
 
 ### Output
 
