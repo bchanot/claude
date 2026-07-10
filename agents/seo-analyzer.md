@@ -198,11 +198,17 @@ verify WebFetch + WebSearch available. If missing:
 
 ```
 PLUGIN CHECK
-curl/Bash    : YES (always)
-WebFetch     : YES / NO / N/A (LOCAL)
-WebSearch    : YES / NO / N/A (LOCAL)
-STATUS       : READY | DEGRADED (missing: <list>)
+curl/Bash       : YES (always)
+WebFetch        : YES / NO / N/A (LOCAL)
+WebSearch       : YES / NO / N/A (LOCAL)
+GSC/CrUX creds  : READY (account: <label>) | DEGRADED (no account — anonymous PageSpeed only)
+STATUS          : READY | DEGRADED (missing: <list>)
 ```
+
+GSC/CrUX creds status comes from the `(account, property)` passed in
+context (STEP 1). DEGRADED here is not blocking — STEP 4 falls back to
+anonymous PageSpeed lab data and STEP 4/STEP 11 emit the §11 user action
+"Connecter GSC: `make seo-connect`".
 
 ---
 
@@ -244,7 +250,22 @@ Evaluate each present/missing:
 - **VSI** (Visual Stability Index) — new 2026 signal, Google Core Web
   Vitals 2.0
 
-Use PageSpeed Insights API (no auth needed for basic usage):
+When a GSC account+property were passed in context, fetch CrUX field
+data first (**tilde path mandatory** — this agent runs from the
+audited project's directory, not the claude-config repo):
+
+```bash
+bash ~/.claude/lib/seo-data/fetch.sh crux --url "https://$DOMAIN" --strategy mobile
+bash ~/.claude/lib/seo-data/fetch.sh crux --url "https://$DOMAIN" --strategy desktop
+```
+
+If `status=ok`, use `lcp_p75_ms` / `inp_p75_ms` / `cls_p75` as the
+PRIMARY CWV figures (75th percentile, real users). Keep the PageSpeed
+lab run below as a SECONDARY diagnostic. If `status=degraded`, fall
+back to the PageSpeed lab run only (current behavior).
+
+Use PageSpeed Insights API (no auth needed for basic usage) — SECONDARY
+diagnostic, or PRIMARY when CrUX degraded:
 
 ```bash
 curl -s "https://www.googleapis.com/pagespeedonline/v5/runPagespeed?url=https://$DOMAIN&strategy=mobile&category=PERFORMANCE&category=ACCESSIBILITY&category=BEST_PRACTICES&category=SEO" \
@@ -256,6 +277,23 @@ Extract (via jq if available, otherwise WebFetch to transform):
 - `lighthouseResult.audits.interaction-to-next-paint.numericValue`
 - `lighthouseResult.audits.cumulative-layout-shift.numericValue`
 - Mobile + desktop separately
+
+### Performance GSC (90 j) `[FULL only, account+property present]`
+
+When STEP 0/STEP 1 recorded a GSC account+property (not "none"):
+
+```bash
+bash ~/.claude/lib/seo-data/fetch.sh queries --account "$GSC_ACCOUNT" --property "$GSC_PROPERTY" --days 90 --dim query
+bash ~/.claude/lib/seo-data/fetch.sh inspect --account "$GSC_ACCOUNT" --property "$GSC_PROPERTY" --url "https://$DOMAIN/"
+```
+
+Report: top queries; flag **QUICK WINS** = rows with position between 4
+and 10 AND high impressions (candidates to push onto page 1 with a
+title/meta/content tweak). Report index coverage from `inspect`. All
+emitted into SEO.md §2 (technical) and §8 (quick wins).
+
+If `status=degraded` → note it in §2 and emit the §11 user action
+"Connecter GSC: `make seo-connect`".
 
 ### SEO technical files
 
@@ -572,6 +610,10 @@ FIX: AUTO (<what agent will do>) | USER (<what user must do>)
 | Social presence | 10% | 5% | |
 | Competitive position | 5% | 10% | |
 | Legal compliance | 10% | 5% | |
+
+**Technical axis note:** CWV scored on CrUX field data (75th percentile,
+real users, from STEP 4) when available; otherwise lab PageSpeed
+Lighthouse run.
 
 ### LOCAL depth — 4 axes
 

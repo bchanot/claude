@@ -69,6 +69,11 @@ Therefore: submit to GSC + Bing Webmaster minimum on every FULL audit.
 - **Google Search Console** (FREE) — https://search.google.com/search-console
   Covers Google search + AI Overviews grounding. URL inspection tool
   requests live re-indexing (faster than waiting for crawl).
+- **Connexion GSC pour /seo (données réelles)** — `make seo-connect`
+  (depuis le repo claude-config, une fois par compte) : consentement
+  OAuth lecture seule (webmasters.readonly), stocke un refresh token
+  local (0600). Ensuite /seo FULL lit requêtes/positions/indexation
+  sans réinvite.
 - **IndexNow protocol** (FREE) — https://www.indexnow.org
   Proactive ping to Bing + Yandex + Seznam + DuckDuckGo. One-line
   API call per URL change. Plugins: Yoast (built-in), RankMath,

@@ -63,6 +63,43 @@ If `$ARGUMENTS` contains `local`/`code-only`/`quick`/`rapide` → default LOCAL.
 If `$ARGUMENTS` contains `full`/`complet`/`externe`/`live` → default FULL.
 If `$ARGUMENTS` contains a production URL → suggest FULL.
 
+### Compte Google (FULL only)
+
+**Skip if LOCAL** — jump straight to Business context.
+
+For FULL depth, offer to attach a connected Google account so the
+seo-analyzer can pull real GSC/CrUX data instead of anonymous PageSpeed
+only. List connected accounts (**tilde path mandatory** — this skill
+runs from the audited project's directory, not the claude-config repo):
+
+```bash
+bash ~/.claude/lib/seo-data/fetch.sh accounts
+```
+
+```
+COMPTE GOOGLE pour cet audit FULL :
+
+  1. <label> — <property 1>, <property 2>, ...
+  2. <label> — <property>
+  ...
+  [connecter un nouveau compte] — lancer `make seo-connect` (depuis le
+    repo claude-config, une fois par compte), puis relancer /seo
+  [Ignorer] — continuer sans GSC/CrUX (PageSpeed anonyme uniquement,
+    dégradation normale — cf. SEO.md §11)
+
+Quel compte / quelle property ? (numéro, ou "ignorer")
+```
+
+If `fetch.sh accounts` returns an empty list (`"accounts": []`), skip
+the numbered list and show only `[connecter un nouveau compte]` /
+`[Ignorer]`.
+
+Record the choice in the shared context block:
+```
+GSC ACCOUNT: <label> | none
+GSC PROPERTY: <property> | none
+```
+
 ### Business context (one grouped block)
 
 **Both depths:**
@@ -172,6 +209,8 @@ BUSINESS CONTEXT:
   Known citations: ...
   Known competitors: ...
   Time budget: ...
+  GSC account: <label> | none (FULL only)
+  GSC property: <property> | none (FULL only)
 
 You are the classical-SEO half of a parallel SEO+GEO audit. Do NOT
 audit GEO/AI signals (llms.txt, AI crawlers, QAPage/Speakable schemas,

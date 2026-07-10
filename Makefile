@@ -1,4 +1,4 @@
-.PHONY: help install plugin link doctor update new-skill profile profile-list profile-current profile-reset onboard test scan-secrets
+.PHONY: help install plugin link doctor update new-skill profile profile-list profile-current profile-reset onboard test scan-secrets seo-connect
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  make %-14s %s\n", $$1, $$2}'
@@ -22,8 +22,14 @@ onboard: link ## Onboard an existing project (run from the project directory)
 	@echo "Open Claude Code in your project directory and run: /onboard"
 	@echo "Or with hints: /onboard Python FastAPI monorepo"
 
+seo-connect: ## Connect a Google account for /seo FULL (creates venv, OAuth consent)
+	@python3 -m venv "$$HOME/.claude/.venv-seo-data"
+	@"$$HOME/.claude/.venv-seo-data/bin/pip" install -q -r lib/seo-data/requirements.txt
+	@bash -c 'read -r -p "Label for this account (e.g. client-a): " label; \
+	 "$$HOME/.claude/.venv-seo-data/bin/python3" lib/seo-data/connect.py --label "$$label"'
+
 test: ## Run deterministic tests (lib/tests/*.test.sh + lib/gitflow-test.sh + lib/tests/run-*.sh)
-	@fail=0; for t in lib/tests/*.test.sh lib/gitflow-test.sh lib/tests/run-*.sh; do \
+	@fail=0; for t in lib/tests/*.test.sh lib/seo-data/*.test.sh lib/gitflow-test.sh lib/tests/run-*.sh; do \
 		echo "== $$t"; \
 		case "$$(basename "$$t")" in \
 			run-release-candidate.sh) RC_WORK=$$(mktemp -d) RC_TAG=1 bash "$$t" || fail=1 ;; \

@@ -106,6 +106,16 @@ echo ""
 echo "── Setting up symlinks..."
 bash "$REPO/link.sh"
 
+# ── 5b. Optional: connect a Google account for /seo FULL ──
+echo ""
+if [ -f "$HOME/.claude/seo-data/tokens.json" ]; then
+  ok "seo-data: a Google account is already connected"
+else
+  info "SEO data layer (GSC + CrUX) is optional. To enable real Search Console"
+  info "data in /seo FULL: add GOOGLE_OAUTH_* + CRUX_API_KEY to ~/.claude/.env,"
+  info "then run:  make seo-connect"
+fi
+
 # ── 6. Install plugins ──
 echo ""
 echo "── Installing plugins..."
