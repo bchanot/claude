@@ -941,3 +941,12 @@ rules:
 - **Why**: the review (`.audit/review-release-1.0.0.md` A6) found the guard had warned every session since job1 without the target ever being met — a self-inflicted permanent warning, not an actionable signal. A gate that never goes green trains you to ignore it. Realign to reality; keep a 15-line margin so real regressions still surface.
 - **Alternatives rejected**: (a) finish the compression 305→≤275 — the remaining lines are load-bearing constraints, not filler; further squeeze loses clarity for a marginal token gain on a solo repo. (b) leave the guard at 280 and accept the permanent warning — a permanently-red non-blocking gate is noise. (c) rewrite BDR-031 — registries are append-only; supersede the target, keep the principle.
 - **Reference**: `hooks/session-start.sh:202-211`; supersedes the 275 target in [[BDR-031]] (principle kept). Review remediation A6, 2026-07-08.
+
+## BDR-063 — GSC multi-account: OAuth2 installed-app flow + label-keyed token store
+
+- **Date**: 2026-07-10
+- **Status**: accepted (shipped `bb1fbb2`, develop)
+- **Decision**: `/seo` FULL pulls real Search Console + CrUX via a `lib/seo-data/` engine. Auth = OAuth2 installed-app flow (one-time interactive consent, `make seo-connect`), scope `webmasters.readonly` ONLY (least priv). Refresh tokens in per-label store `~/.claude/seo-data/tokens.json` (0600 file / 0700 dir, atomic tmp→fsync→rename under fcntl lock, tokens redacted from listing, gitleaks-allowlisted). `(account, property)` explicit args on every call — NO global mutable "current account" → two concurrent site audits never conflict.
+- **Why**: user needs real field data (the one edge marketplace `claude-seo` had that personal skills lacked); multi-account without cross-site leakage; secrets never in code (all from `~/.claude/.env`).
+- **Alternatives rejected**: (a) service-account — GSC needs per-property owner grant + no interactive consent, wrong for a personal multi-client tool. (b) API-key-only — GSC has no key auth (CrUX does → `CRUX_API_KEY`). (c) single "current account" global + switch verb — a race the moment two audits run; explicit args dissolve it by construction.
+- **Reference**: `lib/seo-data/` (tokenstore.py, connect.py, google_seo.py, fetch.sh), `lib/seo-data/README.md`; fronted by [[LRN-119]] (fail-open contract).
