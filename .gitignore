@@ -113,6 +113,11 @@ install-*.log
 .env.*
 !.env.example
 
+# seo-data engine local artifacts (live under ~/.claude, never committed)
+.venv-seo-data/
+seo-data/tokens.json
+__pycache__/
+
 # OS
 .DS_Store
 Thumbs.db

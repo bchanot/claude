@@ -34,4 +34,7 @@ paths = [
   # for stray COPIES of secrets outside this file; flagging the vault
   # itself on every run is pure noise, not signal.
   '''(^|/)\.env$''',
+  # seo-data OAuth token store — legitimate local secret (like ~/.claude/.env),
+  # 0600, outside git. Allowlisted so `make scan-secrets` doesn't flag the vault.
+  '''(^|/)\.claude/seo-data/tokens\.json$''',
 ]

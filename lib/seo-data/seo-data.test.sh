@@ -106,6 +106,17 @@ has "connect.persist wrote prop"  "$L3" 'sc-domain:x.com'
 hasnt "connect.persist redacts"   "$L3" 'RT_X'
 rm -rf "$TMP3"
 
+echo "── wiring locks ──"
+tf() { if grep -qF -- "$3" "$2" 2>/dev/null; then ok "$1"; else no "$1" "missing: $3"; fi; }
+tf "env.example client id"    "$REPO/.env.example"    "GOOGLE_OAUTH_CLIENT_ID="
+tf "env.example crux key"     "$REPO/.env.example"    "CRUX_API_KEY="
+tf "makefile seo-connect"     "$REPO/Makefile"        "seo-connect:"
+tf "makefile discovers test"  "$REPO/Makefile"        "lib/seo-data/*.test.sh"
+tf "install prompts connect"  "$REPO/install.sh"      "make seo-connect"
+tf "doctor checks seo-data"   "$REPO/doctor.sh"       "seo-data"
+tf "gitleaks allowlist store" "$REPO/.gitleaks.toml"  "seo-data/tokens"
+tf "gitignore venv"           "$REPO/.gitignore"      ".venv-seo-data"
+
 echo ""
 echo "seo-data engine: $PASS pass, $FAIL fail"
 [ "$FAIL" -eq 0 ]

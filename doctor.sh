@@ -400,6 +400,21 @@ fi
 
 echo ""
 
+# ── seo-data (GSC/CrUX data layer) — non-fatal ──
+ENVF="$HOME/.claude/.env"
+if grep -qE '^[[:space:]]*(export[[:space:]]+)?CRUX_API_KEY=.' "$ENVF" 2>/dev/null; then
+  pass "seo-data: CRUX_API_KEY present"
+else
+  warn "seo-data: CRUX_API_KEY absent in ~/.claude/.env — /seo FULL falls back to lab PageSpeed"
+fi
+STORE="$HOME/.claude/seo-data/tokens.json"
+if [ -f "$STORE" ]; then
+  N=$(python3 "$REPO/lib/seo-data/tokenstore.py" list --file "$STORE" 2>/dev/null | grep -o '"label"' | wc -l)
+  pass "seo-data: $N Google account(s) connected"
+else
+  warn "seo-data: no Google account connected (run: make seo-connect) — GSC data disabled"
+fi
+
 # ────────────────────────────────────────────────────────────
 # Summary
 # ────────────────────────────────────────────────────────────
