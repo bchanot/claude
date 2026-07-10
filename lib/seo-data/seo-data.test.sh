@@ -106,12 +106,76 @@ has "connect.persist wrote prop"  "$L3" 'sc-domain:x.com'
 hasnt "connect.persist redacts"   "$L3" 'RT_X'
 rm -rf "$TMP3"
 
+echo "── forget (remove/clear) ──"
+TMP6="$(mktemp -d)"; S6="$TMP6/tokens.json"
+python3 "$SD/tokenstore.py" set --file "$S6" --label keep --refresh-token RT_KEEP \
+  --scopes https://www.googleapis.com/auth/webmasters.readonly --properties sc-domain:k.com >/dev/null
+python3 "$SD/tokenstore.py" set --file "$S6" --label drop --refresh-token RT_DROP \
+  --scopes https://www.googleapis.com/auth/webmasters.readonly --properties sc-domain:d.com >/dev/null
+RM="$(python3 "$SD/tokenstore.py" remove --file "$S6" --label drop)"
+has   "remove reports ok"        "$RM" '"status": "ok"'
+has   "remove reports removed"   "$RM" '"removed": true'
+hasnt "remove prints no token"   "$RM" 'RT_DROP'
+L6="$(python3 "$SD/tokenstore.py" list --file "$S6")"
+has   "remove keeps others"      "$L6" '"keep"'
+hasnt "removed label gone"       "$L6" '"drop"'
+RM2="$(python3 "$SD/tokenstore.py" remove --file "$S6" --label ghost)"
+has   "remove missing = false"   "$RM2" '"removed": false'
+CL="$(python3 "$SD/tokenstore.py" clear --file "$S6")"
+has   "clear reports ok"         "$CL" '"status": "ok"'
+has   "clear reports count"      "$CL" '"cleared": 1'
+L7="$(python3 "$SD/tokenstore.py" list --file "$S6")"
+has   "clear empties store"      "$L7" '"accounts": []'
+PERM6="$(stat -c '%a' "$S6")"
+[ "$PERM6" = "600" ] && ok "store stays 0600 after clear" || no "store 0600 after clear" "got $PERM6"
+# via the real fetch.sh dispatch layer
+python3 "$SD/tokenstore.py" set --file "$S6" --label back --refresh-token RT_BACK \
+  --scopes https://www.googleapis.com/auth/webmasters.readonly --properties sc-domain:b.com >/dev/null
+FG="$(SEO_DATA_ENV_FILE=$NOENV SEO_DATA_STORE="$S6" bash "$FETCH" forget --label back)"; FRC=$?
+has "fetch forget removes"       "$FG" '"removed": true'
+[ "$FRC" = "0" ] && ok "fetch forget exit 0" || no "fetch forget exit 0" "got $FRC"
+FB="$(SEO_DATA_ENV_FILE=$NOENV SEO_DATA_STORE="$S6" bash "$FETCH" forget)"; FRC2=$?
+has "forget bad usage json"      "$FB" '"status"'
+[ "$FRC2" = "2" ] && ok "forget bad usage exit 2" || no "forget bad usage exit 2" "got $FRC2"
+FA="$(SEO_DATA_ENV_FILE=$NOENV SEO_DATA_STORE="$S6" bash "$FETCH" forget --all)"
+has "fetch forget --all ok"      "$FA" '"status": "ok"'
+FI="$(SEO_DATA_ENV_FILE=$NOENV SEO_DATA_STORE="$S6" bash "$FETCH" forget --label 'x;touch /tmp/pwn')"; FIRC=$?
+has "forget unsafe label json"   "$FI" '"status":"error"'
+[ "$FIRC" = "2" ] && ok "forget unsafe label exit 2" || no "forget unsafe label exit 2" "got $FIRC"
+# embedded-newline label must NOT pass the per-line-grep pitfall
+FN="$(SEO_DATA_ENV_FILE=$NOENV SEO_DATA_STORE="$S6" bash "$FETCH" forget --label "$(printf 'ok\nrm -rf x')")"; FNRC=$?
+has "forget newline label json"  "$FN" '"status":"error"'
+[ "$FNRC" = "2" ] && ok "forget newline label exit 2" || no "forget newline label exit 2" "got $FNRC"
+rm -rf "$TMP6"
+
+echo "── connect.sh (offline negative) ──"
+CN="$(SEO_DATA_ENV_FILE=$NOENV env -u GOOGLE_OAUTH_CLIENT_ID -u GOOGLE_OAUTH_CLIENT_SECRET \
+  bash "$SD/connect.sh" --label t 2>&1)"; CNRC=$?
+[ "$CNRC" != "0" ] && ok "connect.sh no-creds nonzero" || no "connect.sh no-creds nonzero" "got 0"
+has "connect.sh creds gate msg"  "$CN" 'GOOGLE_OAUTH_CLIENT_ID'
+CU="$(SEO_DATA_ENV_FILE=$NOENV bash "$SD/connect.sh" --label 'x;y' 2>&1)"; CURC=$?
+[ "$CURC" = "2" ] && ok "connect.sh unsafe label exit 2" || no "connect.sh unsafe label exit 2" "got $CURC"
+has "connect.sh label guard msg" "$CU" 'unsafe label'
+# parser-differential bypasses must be rejected too (=-joined, abbreviated)
+SEO_DATA_ENV_FILE=$NOENV bash "$SD/connect.sh" --label='x;y' >/dev/null 2>&1; CJRC=$?
+[ "$CJRC" = "2" ] && ok "connect.sh =-joined rejected" || no "connect.sh =-joined rejected" "got $CJRC"
+SEO_DATA_ENV_FILE=$NOENV bash "$SD/connect.sh" --labe 'x;y' >/dev/null 2>&1; CBRC=$?
+[ "$CBRC" = "2" ] && ok "connect.sh abbrev rejected" || no "connect.sh abbrev rejected" "got $CBRC"
+SEO_DATA_ENV_FILE=$NOENV bash "$SD/connect.sh" --label "$(printf 'ok\nrm -rf x')" >/dev/null 2>&1; CWRC=$?
+[ "$CWRC" = "2" ] && ok "connect.sh newline rejected" || no "connect.sh newline rejected" "got $CWRC"
+# a VALID label must still reach the creds gate (guard is not over-tight)
+CV="$(SEO_DATA_ENV_FILE=$NOENV env -u GOOGLE_OAUTH_CLIENT_ID -u GOOGLE_OAUTH_CLIENT_SECRET \
+  bash "$SD/connect.sh" --label ok-1.2_3 2>&1)"; CVRC=$?
+[ "$CVRC" = "1" ] && ok "connect.sh valid label reaches gate" || no "connect.sh valid label reaches gate" "got $CVRC"
+has "connect.sh valid gate msg"  "$CV" 'GOOGLE_OAUTH_CLIENT_ID'
+
 echo "── wiring locks ──"
 tf() { if grep -qF -- "$3" "$2" 2>/dev/null; then ok "$1"; else no "$1" "missing: $3"; fi; }
 tf "env.example client id"    "$REPO/.env.example"    "GOOGLE_OAUTH_CLIENT_ID="
 tf "env.example crux key"     "$REPO/.env.example"    "CRUX_API_KEY="
 tf "makefile seo-connect"     "$REPO/Makefile"        "seo-connect:"
-tf "seo-connect sources env"  "$REPO/Makefile"        ".claude/.env"
+tf "makefile delegates wrapper" "$REPO/Makefile"      "lib/seo-data/connect.sh"
+tf "connect.sh sources vault" "$SD/connect.sh"        ".claude/.env"
 tf "makefile discovers test"  "$REPO/Makefile"        "lib/seo-data/*.test.sh"
 tf "install prompts connect"  "$REPO/install.sh"      "make seo-connect"
 tf "doctor checks seo-data"   "$REPO/doctor.sh"       "seo-data"
@@ -125,9 +189,17 @@ tf "analyzer calls fetch queries" "$REPO/agents/seo-analyzer.md" "fetch.sh queri
 tf "analyzer gsc subsection"    "$REPO/agents/seo-analyzer.md"   "Performance GSC"
 tf "catalog gsc oauth entry"    "$REPO/agents/resources/automation-catalog.md" "make seo-connect"
 
+echo "── account-mgmt locks ──"
+tf "skill routes account verbs" "$REPO/skills/seo/SKILL.md" "forget --all"
+tf "skill connect wrapper path" "$REPO/skills/seo/SKILL.md" "lib/seo-data/connect.sh"
+tf "skill revocation notice"    "$REPO/skills/seo/SKILL.md" "myaccount.google.com/permissions"
+tf "skill label charset rule"   "$REPO/skills/seo/SKILL.md" "A-Za-z0-9._-"
+
 echo "── readme lock ──"
 tf "readme documents fetch.sh" "$REPO/lib/seo-data/README.md" "fetch.sh"
 tf "readme documents seo-connect" "$REPO/lib/seo-data/README.md" "make seo-connect"
+tf "readme documents forget"   "$REPO/lib/seo-data/README.md" "forget --all"
+tf "readme revocation note"    "$REPO/lib/seo-data/README.md" "myaccount.google.com/permissions"
 
 echo ""
 echo "seo-data engine: $PASS pass, $FAIL fail"

@@ -18,14 +18,19 @@ is written to disk during an audit, only at `make seo-connect`.
 One-time per Google account:
 
 ```bash
-make seo-connect
+make seo-connect                                        # from the claude-config repo
+bash ~/.claude/lib/seo-data/connect.sh --label <label>  # from ANY directory (venv must exist)
 ```
 
-This creates `~/.claude/.venv-seo-data/` (isolated venv, deps pinned in
-`requirements.txt`), installs `google-auth`, `google-auth-oauthlib`,
-`requests`, then runs `connect.py`: it opens a browser for OAuth consent and
-asks for a **label** (e.g. `client-a`) to key the account — pick a name, not
-an email, since the store never stores or requests the account's email.
+`make seo-connect` creates `~/.claude/.venv-seo-data/` (isolated venv, deps
+pinned in `requirements.txt`), installs `google-auth`,
+`google-auth-oauthlib`, `requests`, then delegates to `connect.sh`. The
+wrapper sources `~/.claude/.env` internally, prefers the venv python, and
+runs `connect.py`: it opens a browser for OAuth consent and takes a
+**label** (e.g. `client-a`) to key the account — pick a name, not an email,
+since the store never stores or requests the account's email. Once the venv
+exists, `connect.sh` alone connects further accounts from anywhere (the
+`/seo connect [label]` skill verb uses exactly this path).
 
 Before running it, set these 3 keys in `~/.claude/.env` (the canonical
 vault; `link.sh` only symlinks the repo's `.env` to it and warns with a
@@ -77,6 +82,12 @@ fetch.sh queries --account client-a --property sc-domain:ex.com [--days 90] [--d
 fetch.sh inspect --account client-a --property … --url https://ex.com/page
   → {"status":"ok","source":"gsc","indexed":true,"coverage":"…","last_crawl":"…"}
   → {"status":"degraded","reason":"…"}
+
+fetch.sh forget --label client-a
+  → {"status":"ok","removed":true|false}          # false = label wasn't in the store
+
+fetch.sh forget --all
+  → {"status":"ok","cleared":<n>}                 # n = accounts removed
 ```
 
 Rules that hold for every subcommand:
@@ -151,6 +162,12 @@ Security posture:
 - **Also gitignored** (`.venv-seo-data/` and `seo-data/tokens.json` in
   `.gitignore`) as a second, belt-and-suspenders guard in case a relative
   path ever put either under the repo tree.
+- **Removal is local-only.** `fetch.sh forget --label <x>` / `--all` (the
+  `/seo forget` skill verb) deletes the stored refresh token — it does NOT
+  revoke the OAuth grant at Google's end. For a real revocation, visit
+  https://myaccount.google.com/permissions with the account concerned and
+  remove the app's access; the deleted local token then becomes useless
+  everywhere, including to anyone who copied it beforehand.
 
 ## Graceful degradation
 
