@@ -142,7 +142,7 @@ Tu veux...
 | `/refactor` | Améliorer un fichier sans changer le comportement | Rapport de violations d'abord, modif ensuite |
 | `/code-clean` | Dead code, violations de style | Audit + rapport, fixes après approbation |
 | `/doc` | Docs périmées après des changements | Audit drift code↔docs, patch chirurgical |
-| `/seo` | Audit SEO/GEO complet | Détecte framework, audite meta/OG/sitemap ; en FULL, choix du compte Google puis données réelles Search Console + CrUX (terrain) si connecté via `make seo-connect`, sinon repli PageSpeed anonyme |
+| `/seo` | Audit SEO/GEO complet | Détecte framework, audite meta/OG/sitemap ; en FULL, choix du compte Google puis données réelles Search Console + CrUX (terrain) si connecté via `make seo-connect`, sinon repli PageSpeed anonyme. Gestion des comptes sans audit : `/seo connect [label]`, `/seo accounts`, `/seo forget <label>\|--all` |
 | `/geo` | Audit GEO uniquement (IA) | Visibilité ChatGPT, Perplexity, Claude, Gemini… |
 | `/commit-change` | Commits bien structurés | Groupe les changements par unité logique |
 | `/gitflow` | Opérations de branches gitflow | Bootstrap main+develop, branche typée, merge dirigé |
