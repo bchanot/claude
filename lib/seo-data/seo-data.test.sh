@@ -117,6 +117,13 @@ tf "doctor checks seo-data"   "$REPO/doctor.sh"       "seo-data"
 tf "gitleaks allowlist store" "$REPO/.gitleaks.toml"  "seo-data/tokens"
 tf "gitignore venv"           "$REPO/.gitignore"      ".venv-seo-data"
 
+echo "── integration locks ──"
+tf "skill step0 account select" "$REPO/skills/seo/SKILL.md"      "COMPTE GOOGLE"
+tf "analyzer calls fetch crux"  "$REPO/agents/seo-analyzer.md"   "fetch.sh crux"
+tf "analyzer calls fetch queries" "$REPO/agents/seo-analyzer.md" "fetch.sh queries"
+tf "analyzer gsc subsection"    "$REPO/agents/seo-analyzer.md"   "Performance GSC"
+tf "catalog gsc oauth entry"    "$REPO/agents/resources/automation-catalog.md" "make seo-connect"
+
 echo ""
 echo "seo-data engine: $PASS pass, $FAIL fail"
 [ "$FAIL" -eq 0 ]
