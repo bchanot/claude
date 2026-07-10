@@ -27,8 +27,10 @@ This creates `~/.claude/.venv-seo-data/` (isolated venv, deps pinned in
 asks for a **label** (e.g. `client-a`) to key the account — pick a name, not
 an email, since the store never stores or requests the account's email.
 
-Before running it, set these 3 keys in `~/.claude/.env` (the canonical vault
-created by `link.sh`, not a repo-local `.env`):
+Before running it, set these 3 keys in `~/.claude/.env` (the canonical
+vault; `link.sh` only symlinks the repo's `.env` to it and warns with a
+`cp .env.example .env` hint if it's missing — it never creates the vault
+itself):
 
 ```bash
 GOOGLE_OAUTH_CLIENT_ID=<your-client-id>.apps.googleusercontent.com
@@ -69,7 +71,7 @@ fetch.sh crux    --url https://ex.com [--strategy mobile|desktop]
   # a 404 on page-level data retries at origin-level before degrading
 
 fetch.sh queries --account client-a --property sc-domain:ex.com [--days 90] [--dim query|page]
-  → {"status":"ok","source":"gsc","rows":[{"key":"…","clicks":…,"impressions":…,"ctr":…,"position":…}]}
+  → {"status":"ok","source":"gsc","dimension":"query","rows":[{"key":"…","clicks":…,"impressions":…,"ctr":…,"position":…}]}
   → {"status":"degraded","reason":"no_credentials"|"token_revoked"|"network_error"|"rate_limited"}
 
 fetch.sh inspect --account client-a --property … --url https://ex.com/page
@@ -83,13 +85,14 @@ Rules that hold for every subcommand:
   403/5xx, timeout, DNS failure) prints
   `{"status":"degraded","reason":"unexpected_error"}` — never a raw
   traceback.
-- **`status` is `"ok"` or `"degraded"`.** Analyzers branch on this field
-  only; `reason` is informational.
+- **`status` is `"ok"` or `"degraded"` on exit 0; `"error"` on exit 2.**
+  Analyzers branch on this field; `"error"` only shows up on bad usage,
+  `reason` is informational otherwise.
 - **Exit code 0 on `ok` and on `degraded`.** The engine never fails the
   process just because Google data isn't available — that's a normal,
   expected outcome the analyzer handles by falling back. **Exit code 2**
   is reserved for bad usage: unknown subcommand, missing required flag,
-  invalid argument.
+  invalid argument — those paths emit `{"status":"error",...}` instead.
 - **`--store` is accepted uniformly** by every subcommand for consistent
   `fetch.sh` dispatch, even though `crux` ignores it (CrUX needs no
   account).
@@ -167,8 +170,9 @@ Missing API key, no connected account, or a revoked/expired token is a
 In every case: **exit code 0**, valid JSON on stdout, no crash. The `/seo`
 FULL audit continues on the anonymous PageSpeed API (lab data) instead of
 CrUX field data, and the report surfaces the fix as a user action:
-`make seo-connect`. `doctor.sh` also flags a missing key or zero connected
-accounts as a non-fatal `WARN`, pointing at the same command.
+`make seo-connect`. `doctor.sh` also flags both non-fatally as `WARN`: a
+missing `CRUX_API_KEY` warns on its own, while no connected Google account
+is the one that names `make seo-connect`.
 
 ## Testing
 
