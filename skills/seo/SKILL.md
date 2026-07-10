@@ -159,6 +159,29 @@ GSC PROPERTY: <property> | none
 
 Skip questions already answered in `$ARGUMENTS`.
 
+### NAP canonique (both depths — local-business projects)
+
+If the project shows local-business signals (LocalBusiness JSON-LD, GMB,
+phone/address in content), collect and get the user to CONFIRM the
+canonical NAP — name, street address, postal code + city, phone, email,
+opening hours. A previous audit's values or the code's values are NOT a
+substitute for user confirmation (duplicated-seed trap — see LRN-032
+zenquality: 3 on-site sources shared one wrong seeded phone; the single
+diverging source was the only correct one).
+
+Record in the shared context block:
+```
+CANONICAL NAP: <name> | <address> | <phone> | <email> | <hours>
+```
+Fields the user cannot confirm → mark `UNCONFIRMED`.
+
+This user-confirmed NAP is the single source of truth for BOTH agents:
+- A source diverging from a CONFIRMED field = finding with KNOWN
+  direction (fix the diverging source).
+- A divergence on an UNCONFIRMED field = finding WITHOUT direction —
+  escalate as a user question ("which value is correct?"), NEVER pick
+  a side from source majority.
+
 ### Plugin check (FULL only)
 
 For FULL depth, verify `WebFetch` and `WebSearch` are available.
@@ -248,8 +271,16 @@ BUSINESS CONTEXT:
   Known citations: ...
   Known competitors: ...
   Time budget: ...
+  Canonical NAP: <from STEP 0, with UNCONFIRMED markers> | none
   GSC account: <label> | none (FULL only)
   GSC property: <property> | none (FULL only)
+
+NAP RULE (LRN-032): the Canonical NAP above (user-confirmed) is the only
+source of truth. NEVER infer a correct NAP value from source majority —
+on-site sources usually share one seed and can all be wrong. Divergence
+from a CONFIRMED field → finding with known direction. Divergence on an
+UNCONFIRMED field (or no canonical provided) → finding WITHOUT
+directional fix, escalated as a user question in your envelope.
 
 You are the classical-SEO half of a parallel SEO+GEO audit. Do NOT
 audit GEO/AI signals (llms.txt, AI crawlers, QAPage/Speakable schemas,
@@ -294,7 +325,11 @@ Dispatched from /seo. Context:
 
 AUDIT DEPTH: <LOCAL|FULL>
 BUSINESS CONTEXT:
-  (same block as above)
+  (same block as above, including Canonical NAP)
+
+NAP RULE (LRN-032): same as seo-analyzer — the user-confirmed Canonical
+NAP is the only truth for JSON-LD NAP content you own; never resolve a
+divergence by source majority.
 
 You are the GEO/AI half of a parallel SEO+GEO audit. Do NOT audit
 classical SEO signals (meta tags, Core Web Vitals, hreflang, image
@@ -523,6 +558,27 @@ block, the dispatcher:
 3. Tags it visibly in §0 if it's a legal/compliance blocker.
 4. Keeps these notes visible on re-run — they don't silently vanish.
 
+### Post-merge deliverables (ALWAYS — both modes, right after SEO.md)
+
+These are AUDIT outputs, not fix outputs: generate them even in
+conservative mode, so an audit-only run leaves the user immediately
+actionable on visibility work.
+
+1. **`.claude/audits/HUMAN-ACTIONS.md`** — regenerate from the merged
+   §11 on EVERY run (overwrite; SEO.md keeps the history). Format: one
+   `- [ ]` checkbox per action, grouped by §8/§9/§10 horizon, each with
+   its "Automatisation possible avec:" line and effort estimate. Header
+   links back to SEO.md + audit version/date. This is the working
+   checklist; §11 stays the authoritative reference.
+2. **`.claude/audits/NAP-KIT.md`** — local-business projects only.
+   Generate/refresh from the CANONICAL NAP (STEP 0) + business context:
+   exact NAP table (display + machine formats), categories, 3
+   description lengths (short ~150 / medium ~350 / long ~600 chars, FR +
+   EN if bilingual), public pricing, URLs to reference, and the
+   directory checklist from §11 citations actions. Mark UNCONFIRMED
+   fields visibly. Rule at top: copy-paste only, never retype.
+   `/client-handover` §4 (NAP table) consumes this file when present.
+
 ## STEP 3 — Console summary
 
 ```
@@ -536,7 +592,9 @@ NOTE GEO (IA)              : XX.X / 20
 NOTE GLOBALE (pondérée)    : XX.X / 20
 
 CHANGEMENTS APPLIQUES  (N) : voir SEO.md §15
-ACTIONS UTILISATEUR    (N) : voir SEO.md §11 (avec automatisation)
+ACTIONS UTILISATEUR    (N) : .claude/audits/HUMAN-ACTIONS.md (checklist)
+                             + SEO.md §11 (référence, avec automatisation)
+NAP KIT                    : .claude/audits/NAP-KIT.md (si local business)
 CONFORMITÉ LÉGALE          : OK | <N> blockers → §0
 ALERTES MAJEURES           : <short list>
 

@@ -481,11 +481,24 @@ web_search: "<business-name>" "<city>" site:google.com/maps
 Or use provided URL. Extract:
 - Name, address, phone, hours, rating, review count, categories, photos
 - Compare NAP with:
+  - The CANONICAL NAP from the dispatch context (user-confirmed) — the
+    only source of truth when present
   - LocalBusiness JSON-LD on site
   - HTML visible content
   - Other citations below
 
 **NAP inconsistencies = critical finding.**
+
+**NAP mismatch direction rule (LRN-032).** NEVER infer the correct value
+from source majority: on-site sources (JSON-LD, footer, settings DB,
+legal pages) usually descend from ONE seed and can all carry the same
+wrong value — the single diverging source may be the only one a human
+actually corrected. Direction of fix:
+- Diverging from a CONFIRMED canonical field → fix the diverging source.
+- Canonical field UNCONFIRMED or absent → report the divergence WITHOUT
+  a directional fix; escalate as a user question ("which value is
+  correct?") in the envelope (§11 user action). No bundle item may
+  rewrite a NAP value that no confirmed canonical backs.
 
 ### Social media verification
 
