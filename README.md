@@ -105,7 +105,7 @@ a different package, ships its own conflicting `graphify` bin) — see
 | `/refactor` | Improve code quality without changing behavior |
 | `/code-clean` | Dead code removal, style/norm enforcement |
 | `/doc` | Documentation audit and sync — detect stale docs, patch |
-| `/seo` | Full SEO/GEO audit and optimization |
+| `/seo` | Full SEO/GEO audit — real Search Console + CrUX field data when a Google account is connected (`make seo-connect`) |
 | `/impeccable` | Design verbs (audit, polish, bolder…) + deterministic anti-slop detector (`npx impeccable detect`) |
 | `/commit-change` | Smart commit grouping from staged/unstaged changes |
 | `/gitflow` | Gitflow branch operations — bootstrap main+develop, start a typed branch, directed merge |
@@ -264,8 +264,9 @@ make plugin                 # install plugins only
 make link                   # create/update symlinks into ~/.claude/
 make doctor                 # diagnostic
 make update                 # update Claude Code, config, submodules, plugins, and verify
-make test                   # run deterministic tests (lib/tests/*.test.sh + lib/gitflow-test.sh)
+make test                   # run deterministic tests (lib/tests/*.test.sh + lib/seo-data/*.test.sh + lib/gitflow-test.sh)
 make onboard                # onboard an existing project (run from its dir)
+make seo-connect            # connect a Google account for /seo FULL (OAuth consent)
 make profile cmd="set X"    # activate a skill profile (design/dev/qa/audit/minimal/full)
 make profile-list           # list skill profiles
 make profile-current        # show the active profile
