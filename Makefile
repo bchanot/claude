@@ -25,7 +25,8 @@ onboard: link ## Onboard an existing project (run from the project directory)
 seo-connect: ## Connect a Google account for /seo FULL (creates venv, OAuth consent)
 	@python3 -m venv "$$HOME/.claude/.venv-seo-data"
 	@"$$HOME/.claude/.venv-seo-data/bin/pip" install -q -r lib/seo-data/requirements.txt
-	@bash -c 'read -r -p "Label for this account (e.g. client-a): " label; \
+	@bash -c 'set -a; [ -f "$$HOME/.claude/.env" ] && . "$$HOME/.claude/.env"; set +a; \
+	 read -r -p "Label for this account (e.g. client-a): " label; \
 	 "$$HOME/.claude/.venv-seo-data/bin/python3" lib/seo-data/connect.py --label "$$label"'
 
 test: ## Run deterministic tests (lib/tests/*.test.sh + lib/gitflow-test.sh + lib/tests/run-*.sh)
