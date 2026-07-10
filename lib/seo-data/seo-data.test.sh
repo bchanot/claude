@@ -124,6 +124,10 @@ tf "analyzer calls fetch queries" "$REPO/agents/seo-analyzer.md" "fetch.sh queri
 tf "analyzer gsc subsection"    "$REPO/agents/seo-analyzer.md"   "Performance GSC"
 tf "catalog gsc oauth entry"    "$REPO/agents/resources/automation-catalog.md" "make seo-connect"
 
+echo "── readme lock ──"
+tf "readme documents fetch.sh" "$REPO/lib/seo-data/README.md" "fetch.sh"
+tf "readme documents seo-connect" "$REPO/lib/seo-data/README.md" "make seo-connect"
+
 echo ""
 echo "seo-data engine: $PASS pass, $FAIL fail"
 [ "$FAIL" -eq 0 ]
