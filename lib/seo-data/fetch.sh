@@ -20,11 +20,27 @@ fi
 # stdlib-only paths (accounts / mock / degrade).
 PY="python3"; [ -x "$VENV_PY" ] && PY="$VENV_PY"
 
+# Whole-string label guard (shell-safe ASCII). POSIX `case` in a C-locale
+# subshell — newline-proof and locale-independent, unlike a per-line grep.
+_label_safe() ( LC_ALL=C; case "$1" in ''|[!A-Za-z0-9]*|*[!A-Za-z0-9._-]*) exit 1;; esac )
+
 cmd="${1:-}"; shift || true
 case "$cmd" in
   accounts) exec "$PY" "$HERE/tokenstore.py" list --file "$STORE" ;;
   crux|queries|inspect)
     exec "$PY" "$HERE/google_seo.py" "$cmd" --store "$STORE" "$@" ;;
-  *) echo '{"status":"error","reason":"usage: fetch.sh {accounts|crux|queries|inspect} [flags]"}'
+  forget)
+    # forget --label <label> → drop one account; forget --all → empty the store.
+    # Local removal only — does NOT revoke the grant at Google's end.
+    # Label charset guard: store keys stay shell-safe wherever an agent
+    # interpolates them into a command line (defense-in-depth vs injection).
+    if [ "${1:-}" = "--all" ]; then
+      exec "$PY" "$HERE/tokenstore.py" clear --file "$STORE"
+    elif [ "${1:-}" = "--label" ] && _label_safe "${2:-}"; then
+      exec "$PY" "$HERE/tokenstore.py" remove --file "$STORE" --label "$2"
+    fi
+    echo '{"status":"error","reason":"usage: fetch.sh forget {--label <label>|--all} (label charset: A-Za-z0-9._-)"}'
+    exit 2 ;;
+  *) echo '{"status":"error","reason":"usage: fetch.sh {accounts|crux|queries|inspect|forget} [flags]"}'
      exit 2 ;;
 esac

@@ -36,6 +36,43 @@ entry point for any SEO/GEO work on a web project.
 Read `resources/depth-matrix.md` at the start of STEP 0 — it pre-answers
 several questions and keeps token cost down by removing repeated explanations.
 
+## STEP -1 — Account management verbs (intercept BEFORE any audit)
+
+If `$ARGUMENTS` starts with `connect`, `accounts`, or `forget`, run the
+matching action below and STOP — no audit, no analyzer dispatch, no report.
+Tilde paths mandatory (this skill runs from the audited project's directory,
+not the claude-config repo). Anything else falls through to STEP 0 unchanged.
+
+**Label safety rule (both verbs):** a label MUST match
+`^[A-Za-z0-9][A-Za-z0-9._-]*$` — anything else (spaces, quotes, `;`, `$`,
+backticks…), refuse it and ask for another name; the engine also rejects it
+(exit 2). ALWAYS single-quote the label when composing the Bash call
+(`--label 'client-a'`) — never paste it unquoted into a command line.
+
+- **`connect [label]`** — connect a Google account (one-time OAuth consent):
+  1. No label given → ask for one (a client/site name, not an email).
+  2. Run in background: `bash ~/.claude/lib/seo-data/connect.sh --label <label>`
+     — the wrapper sources `~/.claude/.env` itself and works from any
+     directory (from the claude-config repo, `make seo-connect` also works
+     and builds the venv first; use it if the venv doesn't exist yet).
+  3. Read the background output for the authorization URL it prints and hand
+     that URL to the user — they consent in their browser; the localhost
+     callback completes the flow on its own.
+  4. On success, report the label + discovered Search Console properties.
+     On failure, surface the error verbatim (e.g. missing
+     `GOOGLE_OAUTH_CLIENT_ID/SECRET` in `~/.claude/.env`, 403 API disabled).
+- **`accounts`** — list connected accounts:
+  `bash ~/.claude/lib/seo-data/fetch.sh accounts` → render one line per
+  label with its properties; `"accounts": []` → say none connected and
+  point at `/seo connect`.
+- **`forget <label>`** / **`forget --all`** — remove one account / empty the
+  store: `bash ~/.claude/lib/seo-data/fetch.sh forget --label <label>` (or
+  `forget --all`). Confirm with the user BEFORE `--all`. ALWAYS append this
+  notice to the result: local removal deletes the stored refresh token but
+  does NOT revoke the grant at Google — for a real revocation, visit
+  https://myaccount.google.com/permissions (account concerned) and remove
+  the app's access there.
+
 ## STEP 0 — Collect shared context (ONCE)
 
 Before spawning any agent, collect the context both agents need.
@@ -82,8 +119,10 @@ COMPTE GOOGLE pour cet audit FULL :
   1. <label> — <property 1>, <property 2>, ...
   2. <label> — <property>
   ...
-  [connecter un nouveau compte] — lancer `make seo-connect` (depuis le
-    repo claude-config, une fois par compte), puis relancer /seo
+  [connecter un nouveau compte] — `/seo connect <label>` (ou
+    `bash ~/.claude/lib/seo-data/connect.sh --label <label>` depuis
+    n'importe quel projet ; `make seo-connect` depuis le repo claude-config
+    construit aussi la venv), puis relancer /seo
   [Ignorer] — continuer sans GSC/CrUX (PageSpeed anonyme uniquement,
     dégradation normale — cf. SEO.md §11)
 
