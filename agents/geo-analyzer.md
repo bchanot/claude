@@ -587,6 +587,25 @@ GEO GLOBAL (weighted)     : XX.X/20 (<depth>)
 Per user instruction: **GEO weight in combined SEO+GEO report = 20% for
 local, 25% for national/SaaS/content.**
 
+### Projected code-only score + trajectory to 17/20 (mandatory)
+
+Tag EVERY finding `fixable: code` (bundle-reachable in the repo:
+robots.txt, llms.txt, JSON-LD, content shape) or `fixable: user`
+(Wikidata, external profiles/sameAs targets, citations, GMB, press,
+AI-visibility outcomes). Emit alongside the actual scores:
+
+- **Projected axis score** — each axis if every `fixable: code` finding
+  is applied (bundle fully executed).
+- **Projected global** — same weights over projected axes.
+- **Code ceiling** — for user-bound residuals (Entity SEO's external
+  half, AI visibility), state `code ceiling X.X/20 — reaching 17
+  requires <named user actions>`.
+
+Append the same `TRAJECTORY TO 17/20 (code-only)` block as the
+seo-analyzer spec: ACTUAL, PROJECTED, then either ranked bundle items
+(projected ≥ 17) or additional code opportunities + honest ceiling +
+unlocking user actions (projected < 17). NEVER inflate projections.
+
 ---
 
 ## STEP 11 — PRIORITIZED ACTION PLAN `[both]`

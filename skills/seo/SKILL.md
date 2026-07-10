@@ -522,7 +522,12 @@ Per user decision:
 <Merged from both agents — legal blockers, catastrophic issues>
 
 ## 1. Notes globales (/20 par axe + pondérée)
-<SEO scoring table from seo-analyzer + GEO scoring table from geo-analyzer + combined score>
+<SEO scoring table from seo-analyzer + GEO scoring table from geo-analyzer + combined score.
+ Each table carries BOTH columns: actual score AND projected code-only score
+ (bundle fully applied). Follow with the merged "Trajectoire vers 17/20" block:
+ actual global, projected global, then — per the analyzers' TRAJECTORY output —
+ ranked code fixes to 17, or the honest code ceiling + the user actions that
+ unlock the rest (cross-linked to §11 / HUMAN-ACTIONS.md).>
 
 ## 2. Audit technique (HTTP, CWV, sécurité)
 <From seo-analyzer>
@@ -653,9 +658,11 @@ URL                        : <url>
 FRAMEWORK                  : <name + rendering>
 DEPTH                      : LOCAL | FULL
 
-NOTE SEO (classique)       : XX.X / 20
-NOTE GEO (IA)              : XX.X / 20
-NOTE GLOBALE (pondérée)    : XX.X / 20
+NOTE SEO (classique)       : XX.X / 20  (projeté code-only : XX.X)
+NOTE GEO (IA)              : XX.X / 20  (projeté code-only : XX.X)
+NOTE GLOBALE (pondérée)    : XX.X / 20  (projeté : XX.X)
+TRAJECTOIRE 17/20          : atteignable code-only via <top items> |
+                             plafond code XX.X — débloquer via <user actions>
 
 CHANGEMENTS APPLIQUES  (N) : voir SEO.md §15
 ACTIONS UTILISATEUR    (N) : .claude/audits/HUMAN-ACTIONS.md (checklist)

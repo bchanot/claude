@@ -367,10 +367,20 @@ iteration = 1
 while (audit == "SEO" ? (SCORE_SEO < 17 OR SCORE_GEO < 17) : score < 17) \
       and iteration ≤ MAX_ITERATIONS:
     re-dispatch the audit subagent with iteration context (see prompt below)
-    re-parse score(s) from the updated audit file
+    re-parse score(s) AND projected code-only score(s) from the audit file
     if no scores improved AND no files changed → break (no progress)
+    # Code-ceiling break: when the actual score has caught up with the
+    # projected code-only score (within 0.2), every remaining point is
+    # user-bound (GMB, citations, reviews, Wikidata…) — further code
+    # iterations are wasted. Break and let the STEP 8 gate arbitrate.
+    if score ≥ (projected_code − 0.2) → break (code ceiling reached)
     iteration += 1
 ```
+
+The projected code-only scores come from the analyzers' mandatory
+`TRAJECTORY TO 17/20` output (labeled `projeté code-only` in SEO.md §1 /
+console). If no projected line is parseable, treat projected = 17
+(legacy behavior: loop chases 17 blindly).
 
 ### Re-dispatch prompt template (SEO + GEO loop)
 
@@ -659,9 +669,29 @@ GEO than on SEO.
 
 ### Gate rule
 
-Web: `ALL_PASS = (SEO_AFTER ≥ 17/20) AND (GEO_AFTER ≥ 17/20) AND (HARDEN_AFTER ≥ 17/20) AND (VALIDATE_AFTER ≥ 17/20 OR VALIDATE_SKIPPED)`
+An axis PASSES if:
+- `AFTER ≥ 17/20` (nominal), **OR**
+- **code-ceiling pass**: `AFTER ≥ (PROJECTED_CODE − 0.2)` AND the
+  analyzer's trajectory names the residual gap as user-bound — i.e.
+  every code-fixable point has been taken and what remains (GMB,
+  citations, reviews, backlinks, Wikidata, AI-visibility outcomes) is
+  by definition the CLIENT's work, not the codebase's. In that case
+  the gap items MUST land verbatim in the client doc §5 ("Ce qui vous
+  reste à faire", sourced from `.claude/audits/HUMAN-ACTIONS.md`) with
+  their expected score gain — the deliverable ships with an honest
+  "here is what only you can unlock" section instead of being blocked
+  forever by points the code cannot reach.
 
-Non-web: `ALL_PASS = (CSO_AFTER ≥ 17/20)`
+Web: `ALL_PASS = PASS(SEO) AND PASS(GEO) AND PASS(HARDEN) AND (PASS(VALIDATE) OR VALIDATE_SKIPPED)`
+
+Non-web: `ALL_PASS = PASS(CSO)`
+
+HARDEN and VALIDATE have no user-bound axes (headers, markup, a11y are
+all code/config) — for them the code-ceiling pass effectively never
+applies; a below-17 HARDEN/VALIDATE is always code-blocked and stops
+the pipeline. Every code-ceiling pass is listed in the §2 score table
+with an explicit `✅ plafond code (X.X atteint / 17 requiert client)`
+status — never silently presented as a nominal pass.
 
 **GEO gate note**: `SCORE_GEO_AFTER = "UNKNOWN"` is treated as **fail** —
 this typically happens when the SEO subagent produced a legacy single-score
@@ -704,7 +734,13 @@ so the client knows what's still below the bar.
 If `ALL_PASS = false`:
 
 1. Generate `.claude/audits/HANDOVER-ROADMAP.md` (analysis of what's
-   blocking each below-threshold audit — see structure below).
+   blocking each below-threshold audit — see structure below). Split
+   every below-threshold axis in two labeled lists using the analyzers'
+   `fixable:` tags: **CODE-BLOQUÉ** (bundle/GATED items not yet applied,
+   additional code opportunities from the trajectory) vs **CLIENT-BLOQUÉ**
+   (user-bound actions with expected gain — mirror of HUMAN-ACTIONS.md).
+   A failed axis whose list is 100 % client-bloqué should not happen
+   (the code-ceiling pass covers it) — if it does, flag the gate logic.
 2. Append checklist entries to `.claude/tasks/TODO.md`.
 3. **Do NOT generate the client doc**. Report to the user:
 
@@ -1093,17 +1129,26 @@ End with two callouts:
 > n'est pas exacte, corrigez-la **ici d'abord**, puis appliquez la
 > nouvelle valeur partout.
 
-Auto-detection rules: pull values from CLAUDE.md, .claude/memory/
-journal/decisions, README.md, first commits, and the live site. If a
-value cannot be confirmed, leave `[À COMPLÉTER]` and warn in final
-report. Do NOT invent SIRET, GPS, or legal name — those are too risky
-to fake.]
+Auto-detection rules: **`.claude/audits/NAP-KIT.md` FIRST when present**
+— it is the user-confirmed canonical NAP produced by /seo (LRN-032:
+on-site sources may all share one wrong seed; the kit is the only
+user-validated source). Fields marked `UNCONFIRMED` there stay
+`[À COMPLÉTER]` here. Only when no NAP-KIT exists, fall back to:
+CLAUDE.md, .claude/memory/ journal/decisions, README.md, first commits,
+and the live site. If a value cannot be confirmed, leave `[À COMPLÉTER]`
+and warn in final report. Do NOT invent SIRET, GPS, or legal name —
+those are too risky to fake.]
 
 ## 5. Ce qui vous reste à faire
 
-[Action-only checklist for the client. Pull from: open `blockers.md`
-entries, ongoing-monitoring items, external platforms to claim,
-content updates only the client can make, deploy steps if self-hosted.
+[Action-only checklist for the client. Pull from:
+**`.claude/audits/HUMAN-ACTIONS.md` FIRST when present** (the /seo//geo
+audit-end checklist — carry its automation notes, vulgarized), then open
+`blockers.md` entries, ongoing-monitoring items, external platforms to
+claim, content updates only the client can make, deploy steps if
+self-hosted. If any axis passed via the code-ceiling rule (STEP 8),
+its unlocking user actions appear HERE with their expected score gain
+("+X points quand fait") — that is the contract that made the gate pass.
 
 Format as a checklist grouped by cadence. Every line starts with a
 verb. Every line is something the client can do without a developer.

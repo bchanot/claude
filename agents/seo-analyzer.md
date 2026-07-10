@@ -640,6 +640,38 @@ Lighthouse run.
 LOCAL axes not audited (Off-page, Social, Competitive) appear as
 `N/A — requires FULL audit` in the report.
 
+### Projected code-only score + trajectory to 17/20 (mandatory)
+
+Tag EVERY finding `fixable: code` (reachable by a bundle item — AUTO or
+GATED — in the repo) or `fixable: user` (GMB, citations, reviews,
+backlinks, social profiles, admin/DB content, host infra). From those
+tags, emit alongside the actual scores:
+
+- **Projected axis score** — what each axis reaches if every
+  `fixable: code` finding is applied (bundle fully executed).
+- **Projected global** — same weighted formula over projected axes.
+- **Code ceiling** — for axes whose residual gap is user-bound
+  (Off-page, Social, Competitive, the GMB/citations share of SEO
+  Local), state it explicitly: `code ceiling X.X/20 — reaching 17
+  requires <named user actions>`.
+
+Trajectory block (verbatim shape, appended to the scoring output):
+
+```
+TRAJECTORY TO 17/20 (code-only)
+ACTUAL    : XX.X/20
+PROJECTED : XX.X/20 (bundle fully applied)
+<if PROJECTED ≥ 17> the bundle IS the trajectory — rank items by score impact.
+<if PROJECTED < 17> (a) ADDITIONAL code-side opportunities beyond the
+  bundle (content depth, new pages, perf, internal linking), each with
+  estimated axis gain, until 17 is reachable or the ceiling is hit;
+  (b) honest ceiling statement + top user actions (expected gain each)
+  that unlock the rest — these MUST exist in the user-actions output.
+```
+
+NEVER inflate a projected score to fake reachability — a wrong ceiling
+misroutes the client-handover gate and the user's effort.
+
 ### Output
 
 ```
