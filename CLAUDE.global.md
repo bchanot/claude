@@ -1,3 +1,6 @@
+<!-- USER-SCOPE GLOBAL memory — deployed as ~/.claude/CLAUDE.md via link.sh.
+     Repo-specific instructions live in ./CLAUDE.md (project scope). -->
+
 # Global coding preferences
 
 Apply unless repo-specific instructions override.
@@ -296,10 +299,3 @@ directly.
 - Known file / small task → read directly, no graphify.
 - `wiki/index.md` → broad-nav entry; `GRAPH_REPORT.md` → whole-architecture.
 - After editing code → `graphify update .` (AST-only, free).
-
-# This repo only (claude-config)
-
-Apply when working directory = the claude-config repo itself.
-
-## Health Stack
-- shell: `shellcheck *.sh hooks/*.sh lib/*.sh`
