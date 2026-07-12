@@ -17,7 +17,7 @@ link_file() {
   CHANGED=$((CHANGED + 1))
 }
 
-link_file "$REPO/CLAUDE.md"     "$CLAUDE/CLAUDE.md"
+link_file "$REPO/CLAUDE.global.md" "$CLAUDE/CLAUDE.md"
 link_file "$REPO/settings.json" "$CLAUDE/settings.json"
 
 for item in hooks agents skills lib templates rules; do
