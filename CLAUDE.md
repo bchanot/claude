@@ -27,3 +27,13 @@ Machine-owned: `rules/context7.md` is DELETED BY DESIGN (BDR-053,
 install-plugins.sh STEP ctx7 purges it right after; the find-docs skill is
 the single ctx7 surface. If it reappears (manual `ctx7 setup`), delete it
 or re-run `make plugin`.
+
+## Transient planning artifacts
+
+`docs/superpowers/specs/**` and `docs/superpowers/plans/**` are run-time
+artifacts of a feature pipeline (subagent briefs, reviewer references).
+They are committed DURING the run and DELETED in the post-merge cleanup
+(BDR-065) — git history at the feature commits is their archive. Durable
+knowledge goes to `.claude/memory/` registries, never to these files.
+Derived scan/audit outputs (`.audit/**`) are gitignored and never
+committed, even redacted (LRN-124).

@@ -85,6 +85,7 @@ rules:
 | BDR-062 | 2026-07-08 | supersede BDR-031's 275 CLAUDE.md target — 305 assumed reality (extraction done at job1; more compression costs clarity > tokens); guard threshold realigned 280→320 | accepted |
 | BDR-063 | 2026-07-10 | GSC multi-account: OAuth2 installed-app flow + label-keyed token store, explicit (account,property) args, no global state | accepted |
 | BDR-064 | 2026-07-14 | global memory split: repo file → CLAUDE.global.md (deployed name unchanged), CLAUDE.md freed for project scope; consumer/maintainer wording rule | accepted |
+| BDR-065 | 2026-07-14 | transient planning artifacts (superpowers spec/plan): committed during run, deleted post-merge; git history = archive; codified in project CLAUDE.md | accepted |
 
 ---
 
@@ -963,3 +964,14 @@ rules:
 - **Why**: "This repo only" section + rules/README doctrine loaded in EVERY project (~40+280 tok waste + foreign-project glob over-match); repo had no project-scope memory slot — filename occupied by global content.
 - **Alternatives rejected**: `CLAUDE.prod.md` name ("prod" implies deploy env that doesn't exist); project `.claude/rules/repo.md` (works, less idiomatic than project CLAUDE.md, no natural home for future repo-specific content). NOT a revival of BDR-021's rejected 2-file split — that was global content in 2 SYNCED files; here scopes disjoint, zero sync.
 - **Reference**: feature/claude-global-md-rename (9496538 rename R98%, e9a38a0 guards), spec `docs/superpowers/specs/2026-07-12-claude-global-md-rename-design.md`. Linked [[BDR-021]], [[BDR-031]], [[BDR-062]], [[LRN-122]], [[LRN-123]].
+
+---
+
+## BDR-065 — Transient planning artifacts: committed during run, deleted post-merge
+
+- **Date**: 2026-07-14
+- **Status**: accepted
+- **Decision**: superpowers spec/plan docs (`docs/superpowers/{specs,plans}/`) = run-time artifacts. Lifecycle: committed as feature branch's first commit (subagent briefs extracted from plan on disk; verifier + final review reference them; survive compaction + foreign worktrees) → DELETED in post-merge cleanup chore. Git history at the feature commits = the archive (`git show <sha>:docs/...` recovers them). Durable knowledge lives in `.claude/memory/` registries + contract files, never in spec/plan. Codified in project CLAUDE.md §Transient planning artifacts.
+- **Why**: user call 2026-07-14 — registries already capture decisions; a stale plan describes a superseded intermediate state and misleads future readers; accumulation pollutes the repo. Precedent: gsc-crux cleanup (8a1fac0, 2026-07-10) did the same — this makes it law, not habit.
+- **Alternatives rejected**: never-commit (gitignore docs/superpowers) — breaks mid-run: briefs, reviewers, other-machine checkouts need the files; superpowers brainstorming commits the spec by convention. Keep-forever — the drift + pollution complained about.
+- **Reference**: project CLAUDE.md; cleanup commit this chore; precedent 8a1fac0. Linked [[BDR-064]], [[LRN-124]].

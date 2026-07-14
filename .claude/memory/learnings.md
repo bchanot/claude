@@ -1232,3 +1232,12 @@ rules:
 - **why**: containment predicates (inside-dir, prefix-match) silently weaken the moment layout gains a second valid-looking target; exactness costs nothing.
 - **future application**: symlink/path health checks → assert exact expected target whenever the old target path can be re-occupied; test all three states (correct / stale / missing).
 - **cousin**: [[BDR-064]], [[LRN-104]] (hook message = test contract — same guard-must-follow-the-change family).
+
+---
+
+## LRN-124 — derived scan artifacts don't belong in git; a tooling hint saying "safe to commit" manufactures the leak
+
+- **pattern**: gitleaks reports committed to repo (17bdd08) even with `--redact` = a MAP — secret type + file + line for anyone with repo access. Root cause traced: `make scan-secrets` echoed "already redacted — safe to inspect/commit" → the hint was obeyed. Fix: `git rm --cached` (gitignore has no effect on tracked files), reword hint to "gitignored — keep local, do NOT commit". Companion: user added `.audit/` gitignore rule (5842119) for the untracked report/patch siblings.
+- **why**: redaction removes VALUES, not INTELLIGENCE. And tool output is instruction — a hint that says "safe to commit" will eventually be obeyed by a human or an agent.
+- **future application**: derived security artifacts (scan reports, triage JSONs, audit findings) stay local/ignored; only the allowlist CONFIG (reviewable rules) is committed. When auditing tooling, grep its user-facing hints for wording that invites committing outputs.
+- **cousin**: [[BDR-057]] (secrets by reference, redact at capture), [[BDR-065]] (transient planning artifacts — same "process artifacts ≠ repo content" family), [[LRN-103]] (re-probe before acting).
