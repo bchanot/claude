@@ -91,6 +91,7 @@ skills-disabled/
 .claude/settings.local.json
 .claude/agent-memory/
 .claude/gstack/
+.audit/
 
 # Generated outputs
 graphify-out/
