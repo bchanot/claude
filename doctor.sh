@@ -241,14 +241,14 @@ echo ""
 # 6. Token budget estimate
 # ────────────────────────────────────────────────────────────
 echo "── Token budget estimate ──"
-# The passive footprint (CLAUDE.md + skill descriptions + plugin session-injects)
+# The passive footprint (CLAUDE.global.md + skill descriptions + plugin session-injects)
 # loads into the CONTEXT WINDOW every session — it competes with the ~200k default
 # context, NOT a per-session token quota (the old "~11k/5h budget" denominator was
 # a category error → false "92% CRITICAL", LRN-047). Measured ~11.4k post-audit
 # 2026-07-02 (LRN-088); the chars/4 sum below is a coarse proxy of that footprint.
 # Thresholds: WARNING >15% of context (~30k), CRITICAL >25% (~50k).
 
-CLAUDE_MD_CHARS=$(wc -c < "$REPO/CLAUDE.md" 2>/dev/null || echo 0)
+CLAUDE_MD_CHARS=$(wc -c < "$REPO/CLAUDE.global.md" 2>/dev/null || echo 0)
 CLAUDE_MD_TOKENS=$((CLAUDE_MD_CHARS / 4))
 
 # Skill descriptions only (frontmatter description field — loaded passively at startup)
@@ -274,7 +274,7 @@ CONTEXT_WINDOW=200000   # Claude Code default context window (conservative; 1M i
 PCT=$((TOTAL_TOKENS * 100 / CONTEXT_WINDOW))
 
 echo ""
-echo "  CLAUDE.md:           ~${CLAUDE_MD_TOKENS}t"
+echo "  CLAUDE.global.md:    ~${CLAUDE_MD_TOKENS}t"
 echo "  Skill descriptions:  ~${SKILL_DESC_TOKENS}t  (${SKILL_COUNT} skills)"
 echo "  Plugin passive cost: ~${PLUGIN_TOKENS}t  (active plugins)"
 echo "  ─────────────────────────────────────────"
