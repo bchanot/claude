@@ -1214,3 +1214,21 @@ rules:
 - **why it matters**: three distinct bypasses of the SAME guard = the approach was wrong, not each patch. `grep`'s line-orientation + locale-sensitive ranges, plus argv-prescan-vs-real-parser grammar drift, are the three classic ways an allowlist "passes" a string it shouldn't. Whole-string `case` in C locale closes all three at once. These were defense-in-depth (downstream used `"$2"`/`"$@"`/JSON-key, never `sh -c`/`eval` → not exploitable in the real exec chain) — but the backstop still took a categorical rewrite, and 3 security-gate BLOCKs to get there.
 - **future application**: validate shell input WHOLE-STRING (`case` or bash `[[ =~ ]]`), never `grep -q` (per-line). Set `LC_ALL=C` for byte-wise ranges. A guard that pre-scans argv must be STRICTER than the downstream parser (reject `=`-joined/abbrev) or validate post-parse against the value the parser settled on. When a fix is bypassed twice → STOP patching, replace the mechanism (re-plan, not whack-a-mole).
 - **cousin**: [[LRN-119]] (fail-open engine this hardens), [[BDR-063]] (token store whose labels these guard), [[LRN-045]] (renaming-command leak-guard regexes — same charset-guard family).
+
+---
+
+## LRN-122 — git mv + recreate source path in same commit = rename detection dead
+
+- **pattern**: rename file + create NEW file at old path in ONE commit → git never pairs the rename (source path never vanishes — index sees modify(old)+add(new)). `git log --follow` chain lost; deterministic, persists forever. Fix: TWO commits — pure rename first (paired at R~98%), recreation second. Found live: Task-2 implementer hit the plan's own "2 hunks" STOP gate, diagnosed root cause, escalated instead of patching around it.
+- **why**: contract criterion (history preserved) outranks plan packaging ("atomic commit"). Commit-level atomicity ≠ deploy-level atomicity — deployed symlink already fixed by running link.sh, independent of commit split.
+- **future application**: ANY rename-and-replace-in-place (config forks, template splits, versioned API files). Old path must be re-occupied → split commits; verify `git diff -M --stat parent` shows the `=>` rename line before proceeding.
+- **cousin**: [[BDR-064]] (the split this served), [[LRN-120]] (review-base hygiene — same git-range-semantics family).
+
+---
+
+## LRN-123 — "resolves inside repo" symlink check green-lights stale link once old path re-occupied
+
+- **pattern**: doctor's check_symlink asserted only `readlink -f` lands inside `$REPO` — safe while ONE candidate file existed. Rename freed old path for a NEW file → stale post-pull link (`~/.claude/CLAUDE.md` → `$REPO/CLAUDE.md`) resolves to project file (inside repo) → check PASS, global doctrine silently absent every session. Fix: assert EXACT readlink target (`$REPO/CLAUDE.global.md`), warn + remedy cmd (`run: bash link.sh`). Caught by final whole-branch review (fresh most-capable model), not by any earlier gate.
+- **why**: containment predicates (inside-dir, prefix-match) silently weaken the moment layout gains a second valid-looking target; exactness costs nothing.
+- **future application**: symlink/path health checks → assert exact expected target whenever the old target path can be re-occupied; test all three states (correct / stale / missing).
+- **cousin**: [[BDR-064]], [[LRN-104]] (hook message = test contract — same guard-must-follow-the-change family).
