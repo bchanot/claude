@@ -8,7 +8,7 @@ useDefault = true
 # 3 false-positive classes identified in job7 triage (.audit/job7/ALL-REDACTED.json),
 # each verified empirically against the real flagged files before being added
 # here (see .audit/job7-report.md). None of these are live secrets.
-[allowlist]
+[[allowlists]]
 description = "job7 triage — known false positives, not secrets"
 
 # Content-based: git-game repo test fixtures (#5/#6 in the triage), confirmed
@@ -38,3 +38,49 @@ paths = [
   # 0600, outside git. Allowlisted so `make scan-secrets` doesn't flag the vault.
   '''(^|/)\.claude/seo-data/tokens\.json$''',
 ]
+
+# ── secrets-triage 2026-07-14 — 4 FP classes, each verified empirically
+# (unredacted re-scan piped in-memory, values masked; see
+# .gstack/security-reports/2026-07-14-secrets-triage.json). None are secrets.
+# Transcripts and file-history are deliberately NOT path-allowlisted — that is
+# where real leaks land (BDR-057).
+
+# Bare 40-hex = git commit SHA (plugin-catalog pins, commit refs quoted in
+# transcripts) tripping sourcegraph-access-token, which matches naked hex.
+# Real sourcegraph tokens keep their sgp_ prefix → still detected.
+[[allowlists]]
+description = "bare 40-hex git commit SHAs (sourcegraph-access-token misfire)"
+regexTarget = "secret"
+regexes = ['''^[0-9a-f]{40}$''']
+
+# Synthetic AWS key fabricated by lib/gitflow-test.sh:240 to exercise the
+# pre-commit secret guard; test output lands in session transcripts.
+[[allowlists]]
+description = "gitflow-test synthetic AWS fixture (deliberately fake)"
+regexTarget = "secret"
+regexes = ['''AKIAGDR5XRBXYARW2I5N''']
+
+# Public-by-design or expired URL credentials + documentation placeholders.
+[[allowlists]]
+description = "presigned-URL key ids, GitHub image JWTs, doc placeholders"
+regexTarget = "line"
+regexes = [
+  '''X-Amz-Credential=AKIA[0-9A-Z]{16}''',
+  '''private-user-images\.githubusercontent\.com/[^"]*\?jwt=''',
+  '''MAGIC_API_KEY=abc123''',
+  # magic MCP docs example — base64 of "the ..." ASCII sample text.
+  '''clientKey = 'dGhlIH[A-Za-z0-9+/=]*'''',
+]
+
+# Prose in transcripts near the word "tokens" — dictionary phrases flagged by
+# generic-api-key on entropy alone (e.g. a design discussion of publish/reject
+# token pairs). Exact literals only; transcripts stay fully scanned otherwise.
+[[allowlists]]
+description = "prose false positives in transcripts"
+stopwords = ['''publish/reject''']
+
+# Ephemeral machine-local IDE auth locks (rotate per IDE session, never leave
+# the machine).
+[[allowlists]]
+description = "Claude Code IDE lock files"
+paths = ['''(^|/)ide/[0-9]+\.lock$''']

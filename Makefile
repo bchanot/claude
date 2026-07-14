@@ -48,7 +48,7 @@ scan-secrets: ## Gitleaks sweep: this repo's history + ~/.claude (job7 backstop)
 		echo "== $$r (git history) =="; \
 		gitleaks git "$$r" -c .gitleaks.toml --no-banner --redact -f json -r ".audit/scan-secrets-$$(basename "$$r").json" || fail=1; \
 	done; \
-	echo "Reports: .audit/scan-secrets-*.json (already redacted — safe to inspect/commit)"; \
+	echo "Reports: .audit/scan-secrets-*.json (redacted; gitignored — keep local, do NOT commit)"; \
 	exit $$fail
 
 profile: ## Run profile.sh (usage: make profile cmd="set design")
