@@ -576,7 +576,7 @@ echo ""
 # subscription plan its ~75% output-token compression has no cost benefit,
 # and the plugin's always-on SessionStart/UserPromptSubmit hooks added
 # friction on validation gates and client deliverables. The unrelated
-# memory-registry terse-format convention (CLAUDE.md) is kept.
+# memory-registry terse-format convention (CLAUDE.global.md) is kept.
 
 # ============================================================
 # STEP 6 — CONTEXT7 CLI (ctx7)
