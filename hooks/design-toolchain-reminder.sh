@@ -2,7 +2,7 @@
 # design-toolchain-reminder.sh
 #
 # UserPromptSubmit hook. When the prompt carries a UI/design signal, inject a
-# reminder to mobilize the full design toolchain (tiered by scope, per CLAUDE.md
+# reminder to mobilize the full design toolchain (tiered by scope, per CLAUDE.global.md
 # "Design work — full toolchain"). A UserPromptSubmit hook's stdout is appended
 # to the model's context, so the cat block below becomes additional guidance.
 #
@@ -26,7 +26,7 @@ prompt="$(printf '%s' "$input" \
 [ -z "$prompt" ] && prompt="$input"
 
 # Harness-generated turns (subagent/task notifications) are not user
-# requests — never fire on them (CLAUDE.md trigger = a design/UI *request*).
+# requests — never fire on them (CLAUDE.global.md trigger = a design/UI *request*).
 case "$prompt" in
   '<task-notification>'*) exit 0 ;;
 esac
@@ -54,7 +54,7 @@ if printf '%s' "$lc" | grep -Eq "$pattern"; then
     "$(printf '%s' "$lc" | grep -oiE "$pattern" | head -1 || true)" \
     "$(printf '%s' "$prompt" | tr '\n\t' '  ' | cut -c1-100)" >> "$logf" 2>/dev/null || true
   cat <<'EOF'
-Design work detected → apply CLAUDE.md section "Design work — full toolchain" (already in context). Trivial (≤2 files, cosmetic) → /hotfix.
+Design work detected → apply global CLAUDE.md section "Design work — full toolchain" (already in context). Trivial (≤2 files, cosmetic) → /hotfix.
 EOF
 fi
 

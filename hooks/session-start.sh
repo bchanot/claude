@@ -199,13 +199,13 @@ unset _active_count _inactive_count
 printf "│  🖥️  CLI : %-40s│\n" "$GSD_STATUS"
 [ -n "$TOKEN_WARN" ] && printf "│  💰 %-44s│\n" "${TOKEN_WARN:0:44}"
 printf "│  📦 v%-45s│\n" "$CONFIG_VERSION"
-# CLAUDE.md line-count guard (anti-regression). BDR-062 supersedes BDR-031's
-# 275 target: 305 is the assumed reality (extraction already done at job1;
-# further compression costs clarity > token gain) — warn only past a 320 margin.
-if [ -n "$REPO_DIR" ] && [ -f "$REPO_DIR/CLAUDE.md" ]; then
-  _claude_lines=$(wc -l < "$REPO_DIR/CLAUDE.md")
+# CLAUDE.global.md line-count guard (anti-regression). BDR-062 supersedes
+# BDR-031's 275 target: 305 is the assumed reality (extraction done at
+# job1; further compression costs clarity > token gain) — warn past 320.
+if [ -n "$REPO_DIR" ] && [ -f "$REPO_DIR/CLAUDE.global.md" ]; then
+  _claude_lines=$(wc -l < "$REPO_DIR/CLAUDE.global.md")
   if [ "$_claude_lines" -gt 320 ]; then
-    _cmd_warn="CLAUDE.md ${_claude_lines}L (>320) — density pass requis"
+    _cmd_warn="CLAUDE.global.md ${_claude_lines}L (>320) — density pass"
     printf "│  ⚠️  %-44s│\n" "${_cmd_warn:0:44}"
     unset _cmd_warn
   fi

@@ -33,12 +33,15 @@ source "$REPO/lib/detect-plugins.sh"
 # graphify's installer (Step 7) rewrites CLAUDE.md + .claude/settings.json
 # (clobbers the curated graphify section + injects aggressive MANDATORY
 # hooks), and `claude plugin install` (Step 5) flips enable-states in
-# settings.json. These 3 files are maintained by hand + commit, never by
+# settings.json. These 4 files are maintained by hand + commit, never by
 # the installer. Snapshot them now and restore on exit so a run leaves them
 # exactly as it found them. Pre-existing local edits are preserved; only the
 # installer's drift is undone. NOTE: this makes these files install-immutable
 # — anything the installer should add to them must be committed by hand.
-GUARDED_CONFIGS=("CLAUDE.md" ".claude/settings.json" "settings.json")
+# CLAUDE.md = project memory (graphify's rewrite target); CLAUDE.global.md
+# = user-scope global memory (deployed as ~/.claude/CLAUDE.md).
+GUARDED_CONFIGS=("CLAUDE.md" "CLAUDE.global.md" ".claude/settings.json"
+  "settings.json")
 CFG_SNAPSHOT="$(mktemp -d 2>/dev/null || true)"
 
 restore_curated_configs() {
@@ -63,8 +66,8 @@ if [ -n "$CFG_SNAPSHOT" ]; then
   trap restore_curated_configs EXIT
 else
   err "Config guard could not be created (mktemp failed) — refusing to run" \
-    "unguarded: CLAUDE.md/.claude/settings.json/settings.json could be" \
-    "silently rewritten by the installer. Fix mktemp/TMPDIR and retry."
+    "unguarded: CLAUDE.md/CLAUDE.global.md/.claude/settings.json/settings.json" \
+    "could be silently rewritten by the installer. Fix mktemp/TMPDIR and retry."
   exit 1
 fi
 
@@ -573,7 +576,7 @@ echo ""
 # subscription plan its ~75% output-token compression has no cost benefit,
 # and the plugin's always-on SessionStart/UserPromptSubmit hooks added
 # friction on validation gates and client deliverables. The unrelated
-# memory-registry terse-format convention (CLAUDE.md) is kept.
+# memory-registry terse-format convention (CLAUDE.global.md) is kept.
 
 # ============================================================
 # STEP 6 — CONTEXT7 CLI (ctx7)

@@ -41,11 +41,13 @@ _unsafe_state() {
 }
 
 # True (0) when a path is OUT OF SCOPE for a doc commit: anything under .claude/
-# (any depth) or a CLAUDE.md (root or nested). These are doc-syncer's read-only
-# context, never sync targets (BDR-022) — their presence is an upstream anomaly.
+# (any depth) or a CLAUDE.md / CLAUDE.global.md memory file (root or nested).
+# These are doc-syncer's read-only context, never sync targets (BDR-022) —
+# their presence is an upstream anomaly.
 _forbidden_path() {
   case "$1" in
-    .claude | .claude/* | */.claude/* | CLAUDE.md | */CLAUDE.md) return 0 ;;
+    .claude | .claude/* | */.claude/* | CLAUDE.md | */CLAUDE.md | \
+      CLAUDE.global.md | */CLAUDE.global.md) return 0 ;;
     *) return 1 ;;
   esac
 }

@@ -83,6 +83,8 @@ rules:
 | BDR-060 | 2026-07-08 | job9: CC orchestration floor = v2.1.172 (nested dispatch), supersedes implicit v2.1.83 whole-system floor | accepted |
 | BDR-061 | 2026-07-08 | job9: seo/geo analyzers → fix-bundle→L1 by doctrine (validator-analyzer pattern), not by version constraint | accepted |
 | BDR-062 | 2026-07-08 | supersede BDR-031's 275 CLAUDE.md target — 305 assumed reality (extraction done at job1; more compression costs clarity > tokens); guard threshold realigned 280→320 | accepted |
+| BDR-063 | 2026-07-10 | GSC multi-account: OAuth2 installed-app flow + label-keyed token store, explicit (account,property) args, no global state | accepted |
+| BDR-064 | 2026-07-14 | global memory split: repo file → CLAUDE.global.md (deployed name unchanged), CLAUDE.md freed for project scope; consumer/maintainer wording rule | accepted |
 
 ---
 
@@ -950,3 +952,14 @@ rules:
 - **Why**: user needs real field data (the one edge marketplace `claude-seo` had that personal skills lacked); multi-account without cross-site leakage; secrets never in code (all from `~/.claude/.env`).
 - **Alternatives rejected**: (a) service-account — GSC needs per-property owner grant + no interactive consent, wrong for a personal multi-client tool. (b) API-key-only — GSC has no key auth (CrUX does → `CRUX_API_KEY`). (c) single "current account" global + switch verb — a race the moment two audits run; explicit args dissolve it by construction.
 - **Reference**: `lib/seo-data/` (tokenstore.py, connect.py, google_seo.py, fetch.sh), `lib/seo-data/README.md`; fronted by [[LRN-119]] (fail-open contract).
+
+---
+
+## BDR-064 — Global memory split: repo global file → CLAUDE.global.md, CLAUDE.md freed for project scope
+
+- **Date**: 2026-07-14
+- **Status**: accepted (shipped feature/claude-global-md-rename, merge pending human GO)
+- **Decision**: repo-root global memory `git mv` → `CLAUDE.global.md`; deployed name unchanged (`~/.claude/CLAUDE.md` symlink via link.sh). `CLAUDE.md` name freed → real project-scope memory for claude-config (Health Stack + rules/ doctrine — ex-"This repo only" section + ex-rules/README body; rules/README = 3-line pointer, keeps `paths:` frontmatter). Wording rule (user-arbitrated): consumer-facing hook strings say "global CLAUDE.md" (deployed name — foreign sessions resolve via symlink, repo filename means nothing there); maintainer comments say `CLAUDE.global.md`. Guards follow: session-start 320-guard path, doctor EXACT readlink-target check (new), GUARDED_CONFIGS 4 entries (keeps "CLAUDE.md" — graphify rewrite target = project file now), doc-commit exclusions, CHANGELOG BREAKING(layout) line ("run bash link.sh once after pull").
+- **Why**: "This repo only" section + rules/README doctrine loaded in EVERY project (~40+280 tok waste + foreign-project glob over-match); repo had no project-scope memory slot — filename occupied by global content.
+- **Alternatives rejected**: `CLAUDE.prod.md` name ("prod" implies deploy env that doesn't exist); project `.claude/rules/repo.md` (works, less idiomatic than project CLAUDE.md, no natural home for future repo-specific content). NOT a revival of BDR-021's rejected 2-file split — that was global content in 2 SYNCED files; here scopes disjoint, zero sync.
+- **Reference**: feature/claude-global-md-rename (9496538 rename R98%, e9a38a0 guards), spec `docs/superpowers/specs/2026-07-12-claude-global-md-rename-design.md`. Linked [[BDR-021]], [[BDR-031]], [[BDR-062]], [[LRN-122]], [[LRN-123]].

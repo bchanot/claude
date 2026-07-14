@@ -13,7 +13,8 @@ This repo is your personal Claude Code setup, versioned and reproducible across 
 
 ```
 claude-config/
-├── CLAUDE.md              # Global coding preferences (style, rules, workflow)
+├── CLAUDE.global.md       # Global coding preferences — deployed as ~/.claude/CLAUDE.md
+├── CLAUDE.md              # Project-scope instructions (this repo only)
 ├── settings.json          # Global permissions (deny / ask / allow rules)
 ├── install.sh             # Bootstrap: Claude Code CLI + auth + submodules + link + plugins
 ├── install-plugins.sh     # One-shot installer: prerequisites + all plugins

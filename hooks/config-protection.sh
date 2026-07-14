@@ -14,7 +14,7 @@
 # One-shot escape hatch: create .claude/.config-edit-ok (CWD-relative) with a
 # NON-EMPTY reason inside; the hook logs the reason, consumes (rm) the sentinel,
 # and allows that single edit. It never persists — a lingering sentinel would be
-# a footgun. Discipline, per CLAUDE.md "Root causes only. No temp fixes.": fix
+# a footgun. Discipline, per CLAUDE.global.md "Root causes only. No temp fixes.": fix
 # the code, don't loosen the gate. Fails OPEN (exit 0) on parse failure so it can
 # never wedge editing.
 
@@ -58,7 +58,7 @@ cat >&2 <<EOF
 This is a guardrail (permission/hook registry, gitflow enforcement, git
 pre-commit guard, a hook, the test suite, health diagnostic, or lint config).
 Don't weaken the gate to make an error pass — fix the root cause instead
-(CLAUDE.md: "Root causes only. No temp fixes."). To make one intended edit,
+(global CLAUDE.md: "Root causes only. No temp fixes."). To make one intended edit,
 create .claude/.config-edit-ok with a non-empty reason; it is logged and
 consumed (one-shot).
 EOF
