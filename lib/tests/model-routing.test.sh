@@ -9,12 +9,12 @@ has()   { if grep -qF "$2" "$R/$1"; then ok; else ko "$1 missing: $2"; fi; }
 lacks() { if grep -qF "$2" "$R/$1"; then ko "$1 must NOT contain: $2"; else ok; fi; }
 fm_lacks() { if awk 'NR<=10' "$R/$1" | grep -qF "$2"; then ko "$1 frontmatter must NOT contain: $2"; else ok; fi; }
 
-# 1) gate wired in the 12 reflection orchestrators
-for s in ship-feature init-project feat bugfix onboard seo geo web-validate harden audit-delta tour code-clean; do
+# 1) gate wired in the 13 reflection orchestrators
+for s in ship-feature init-project feat bugfix onboard seo geo web-validate harden audit-delta tour code-clean hotfix; do
   has "skills/$s/SKILL.md" 'lib/model-gate.md'
 done
 # 2) gate NOT wired in the excluded skills (encodes the spec exclusion list)
-for s in hotfix commit-change doc status release-candidate; do
+for s in commit-change doc status release-candidate; do
   lacks "skills/$s/SKILL.md" 'lib/model-gate.md'
 done
 # 3) executor + gate pins

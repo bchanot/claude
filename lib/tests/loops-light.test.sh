@@ -13,6 +13,7 @@ FSK="$REPO/skills/feat/SKILL.md"
 BUG="$REPO/agents/bugfixer.md"
 HOT="$REPO/agents/hotfixer.md"
 HSK="$REPO/skills/hotfix/SKILL.md"
+HSKL="$REPO/skills/hotfix/SKILL.md"
 PASS=0; FAIL=0
 
 tf() { # tf <label> <file> <fixed-string>
@@ -27,6 +28,13 @@ tr_() { # tr_ <label> <file> <ERE>
     echo "  PASS $1"; PASS=$((PASS+1))
   else
     echo "  FAIL $1 — no match: $3"; FAIL=$((FAIL+1))
+  fi
+}
+tn() { # tn <label> <file> <fixed-string> — PASS when ABSENT (mirror of tf, inverted)
+  if grep -qF -- "$3" "$2" 2>/dev/null; then
+    echo "  FAIL $1 — present (should be absent): $3"; FAIL=$((FAIL+1))
+  else
+    echo "  PASS $1"; PASS=$((PASS+1))
   fi
 }
 
@@ -57,14 +65,19 @@ tf "bug diagnosis feeds it"     "$BUG" "feeds it: REQUEST verbatim"
 tf "bug fresh gates"            "$BUG" "Fresh gates (verify + secure)"
 tf "bug uses shared include"    "$BUG" "lib/verify-secure-loop.md"
 
-echo "── hotfixer.md (hotfix wiring — revert, not loop) ──"
-tr_ "hotfix has Agent tool"     "$HOT" "^tools:.*Agent"
-tf "hotfix silent contract"     "$HOT" "STEP 1.7 — CONTRACT (silent autofill)"
-tf "hotfix zero questions"      "$HOT" "questions ever"
-tf "hotfix security gate"       "$HOT" "Security gate (fresh auditor)"
-tf "hotfix block reverts"       "$HOT" "failure REVERTS, never loops"
-tf "hotfix no verifier"         "$HOT" "No verifier is dispatched at hotfix weight"
+echo "── hotfixer.md (hotfix executor — sonnet, no Agent) ──"
+tn "hotfixer lacks Agent tool"  "$HOT" "Agent"
+tf "hotfixer model sonnet"      "$HOT" "model: sonnet"
+tf "hotfixer report grammar"    "$HOT" "HOTFIX-EXEC REPORT"
+
+echo "── skills/hotfix/SKILL.md (hotfix wiring — revert, not loop) ──"
+tf "hotfix silent contract"     "$HSKL" "STEP 1.7 — CONTRACT (silent autofill)"
+tf "hotfix zero questions"      "$HSKL" "questions ever"
+tf "hotfix security gate"       "$HSKL" "Security gate (fresh auditor)"
+tf "hotfix block reverts"       "$HSKL" "failure REVERTS, never loops"
+tf "hotfix no verifier"         "$HSKL" "No verifier is dispatched at hotfix weight"
 tf "hotfix skill has Agent"     "$HSK" "  - Agent"
+tf "hotfix dispatches hotfixer" "$HSKL" 'subagent_type="hotfixer"'
 
 echo ""
 echo "loops-light structure locks: $PASS pass, $FAIL fail"
