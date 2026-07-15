@@ -15,12 +15,16 @@ allowed-tools:
   - Bash
   - Grep
   - Glob
+  - Agent
 ---
 
-Load and follow strictly:
-- $HOME/.claude/agents/doc-syncer.md
+Dispatch the doc-syncer as a subagent so its `model: sonnet` pin takes
+effect (doc-sync = execution, not the session's big model):
 
-Execute the DOC SYNCER on this project.
+Agent(subagent_type="doc-syncer")
+prompt: "Audit + sync public docs for this project. Context from the user:
+  $ARGUMENTS. Report PATCHED_FILES and a summary — do NOT commit."
 
-Context from the user (if any):
-$ARGUMENTS
+Then commit the patched docs from THIS loop per `$HOME/.claude/lib/doc-commit.md`
+(surgical: only doc-syncer's PATCHED_FILES, never `.claude/`/`CLAUDE.md`,
+no-op if nothing patched).
