@@ -9,7 +9,7 @@ set -u
 
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 INC="$REPO/lib/verify-secure-loop.md"
-FEA="$REPO/agents/feater.md"
+FSK="$REPO/skills/feat/SKILL.md"
 BUG="$REPO/agents/bugfixer.md"
 HOT="$REPO/agents/hotfixer.md"
 HSK="$REPO/skills/hotfix/SKILL.md"
@@ -43,12 +43,13 @@ tf "order invariant"            "$INC" "always re-checked BEFORE security"
 tf "mute never a pass (verify)" "$INC" "NEVER a PASS"
 tf "nominal cheap stated"       "$INC" "one verifier dispatch + one security dispatch"
 
-echo "── feater.md (feat wiring) ──"
-tf "feat contract step"         "$FEA" "STEP 0.7 — CONTRACT"
-tf "feat contract-interview"    "$FEA" "lib/contract-interview.md"
-tf "feat verify+secure step"    "$FEA" "STEP 3 — VERIFY + SECURE"
-tf "feat uses shared include"   "$FEA" "lib/verify-secure-loop.md"
-tf "feat nominal 1+1 dispatch"  "$FEA" "verifier + one security dispatch"
+echo "── feat/SKILL.md (feat orchestrator wiring) ──"
+tf "feat contract step"         "$FSK" "STEP 0.7 — CONTRACT"
+tf "feat contract-interview"    "$FSK" "lib/contract-interview.md"
+tf "feat verify+secure step"    "$FSK" "STEP 4 — VERIFY + SECURE"
+tf "feat uses shared include"   "$FSK" "lib/verify-secure-loop.md"
+tf "feat nominal 1+1 dispatch"  "$FSK" "verifier + one security dispatch"
+tf "feat dispatches feater"     "$FSK" 'subagent_type="feater"'
 
 echo "── bugfixer.md (bugfix wiring) ──"
 tf "bug contract step"          "$BUG" "STEP 3.5 — CONTRACT"
