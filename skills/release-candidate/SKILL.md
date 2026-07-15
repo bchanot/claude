@@ -12,7 +12,7 @@ allowed-tools:
   - AskUserQuestion
 ---
 
-# /release-candidate — cut a gitflow release (dispatcher)
+# /release-candidate — cut a gitflow release (orchestrator)
 
 ## Overview
 Turns the accumulated work on `develop` into a tagged release on `main`. THIN ORCHESTRATOR over `lib/gitflow.sh`: the lib does the generic fan-out (release branch → main + back to develop + delete the branch); the skill adds what the lib deliberately does not know — the **version number, the CHANGELOG, the human "is it time?" gate, and the git tag**.
