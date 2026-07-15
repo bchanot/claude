@@ -23,6 +23,13 @@ allowed-tools:
 
 # /tour — grouped multi-axis sweep (clean + security + reconcile + doc)
 
+## MODEL GATE (blocking — run before any other step)
+
+Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
+judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
+gate prints the remedy; end the turn — no later step, no dispatch. Nominal
+(big) path is silent.
+
 One pipeline per project: **security → clean → re-verify → reconcile →
 doc → convergence re-audit**, looping until a full pass applies zero new
 fixes. Auto mode by design: fixes are committed on a dedicated

@@ -22,6 +22,13 @@ allowed-tools:
 
 # /harden — web hardening audit
 
+## MODEL GATE (blocking — run before any other step)
+
+Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
+judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
+gate prints the remedy; end the turn — no later step, no dispatch. Nominal
+(big) path is silent.
+
 This skill orchestrates a narrow-scope hardening audit: TLS + security
 headers + redirects + canonical + custom 404 + server configs. It
 reuses the `seo-analyzer` agent with a **strict scope filter** to avoid

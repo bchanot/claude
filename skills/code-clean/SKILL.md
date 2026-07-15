@@ -20,6 +20,10 @@ allowed-tools:
   - AskUserQuestion
 ---
 
+MODEL GATE (blocking): run `$HOME/.claude/lib/model-gate.md` BEFORE loading
+the agent below. Verdict `small` → STOP — print the gate's remedy, end the
+turn, do not load the agent.
+
 Load and follow strictly:
 - $HOME/.claude/agents/code-cleaner.md
 

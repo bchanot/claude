@@ -21,6 +21,13 @@ allowed-tools:
 
 # /web-validate — web standards audit (W3C + WCAG)
 
+## MODEL GATE (blocking — run before any other step)
+
+Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
+judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
+gate prints the remedy; end the turn — no later step, no dispatch. Nominal
+(big) path is silent.
+
 This skill orchestrates a narrow-scope standards audit :
 
 - **W3C HTML validity** — validator.nu API (FULL) or `html-validate` /
