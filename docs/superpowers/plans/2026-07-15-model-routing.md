@@ -1058,3 +1058,305 @@ git commit -m "chore(memory): BDR-066 model routing + journal + TODO follow-ups"
 
 Run: `make test`
 Expected: green, exit 0. Then report the full commit list (`git log --oneline develop..HEAD`) for the human merge gate. Do NOT run `gitflow finish`.
+
+---
+
+# WAVE 2 — pure-execution + reflection-split skills (user directive 2026-07-15)
+
+The wave-1 exclusion list left `hotfix, commit-change, doc, status, release-candidate`
+inheriting the session model — i.e. running EXECUTION on the big model, the
+waste the split exists to kill. User verdicts (2026-07-15):
+- **doc / status** = pure non-interactive execution → convert inline-load to a
+  dispatched subagent so its pin takes effect. doc-syncer stays sonnet;
+  status-reporter stays **haiku** (right tier for a read-only collector; the
+  win is getting it off the big model, not the tier).
+- **hotfix** = reflection (locate root cause + propose fix) + execution → split
+  like /feat: reflection inline (+ MODEL GATE), execution dispatched to the
+  sonnet hotfixer executor. hotfix JOINS the gated group (12→13).
+- **commit-change** = grouping (judgment) + committing (execution), interactive
+  → dispatch EVERYTHING (grouping included) to a sonnet commit-changer, relocate
+  the two approval gates to the dispatcher (propose→confirm→execute, seo-applier
+  shape). No MODEL GATE (no inline reflection — grouping runs on sonnet).
+- **release-candidate** = create a sonnet `release-executor` agent for the
+  mechanical spans (version.txt, CHANGELOG rewrite, gitflow start/finish, tag),
+  relocate the two human gates (when-to-release, push) to the dispatcher. No
+  MODEL GATE (user's explicit choice — force dispatch, not gate).
+
+Post-wave-2 gate exclusion list = `commit-change, doc, status, release-candidate`
+(hotfix removed — now wired).
+
+## Global Constraints (wave 2)
+
+Same as wave 1: branch `feature/model-routing`, no merge, no attribution
+trailers, `make test` green per commit, shellcheck clean, config-protection
+sentinel before each `lib/tests/*` write, YAML `safe_load`-parseable frontmatter.
+
+---
+
+### Task 11: doc + status → dispatched execution
+
+**Files:**
+- Modify: `skills/doc/SKILL.md` (add `Agent` to allowed-tools; body → dispatch)
+- Modify: `skills/status/SKILL.md` (add `Agent` to allowed-tools; body → dispatch)
+
+**Interfaces:** doc-syncer.md is already `model: sonnet`; status-reporter.md is
+already `model: haiku` — no agent edits. Only the skills change from inline-load
+to `Agent(subagent_type=…)` so the pins take effect.
+
+- [ ] **Step 1: doc → dispatch.** In `skills/doc/SKILL.md`, add `  - Agent` to the
+  `allowed-tools` list, and replace the body block
+  ```
+  Load and follow strictly:
+  - $HOME/.claude/agents/doc-syncer.md
+
+  Execute the DOC SYNCER on this project.
+
+  Context from the user (if any):
+  $ARGUMENTS
+  ```
+  with:
+  ```
+  Dispatch the doc-syncer as a subagent so its `model: sonnet` pin takes
+  effect (doc-sync = execution, not the session's big model):
+
+  Agent(subagent_type="doc-syncer")
+  prompt: "Audit + sync public docs for this project. Context from the user:
+    $ARGUMENTS. Report PATCHED_FILES and a summary — do NOT commit."
+
+  Then commit the patched docs from THIS loop per `$HOME/.claude/lib/doc-commit.md`
+  (surgical: only doc-syncer's PATCHED_FILES, never `.claude/`/`CLAUDE.md`,
+  no-op if nothing patched).
+  ```
+
+- [ ] **Step 2: status → dispatch.** In `skills/status/SKILL.md`, add `Agent` to
+  `allowed-tools` (`Read, Bash, Glob, Grep, Agent`), and replace the body
+  `Load and follow strictly:\n- $HOME/.claude/agents/status-reporter.md\n\nProduce the full PROJECT STATUS report for the current working directory.`
+  with a dispatch:
+  ```
+  Dispatch the status-reporter as a subagent so its `model: haiku` pin takes
+  effect (read-only collection = cheapest tier, off the big session model):
+
+  Agent(subagent_type="status-reporter")
+  prompt: "Produce the full PROJECT STATUS report for the current working
+    directory. $ARGUMENTS"
+  ```
+  Keep the existing "Fallback when agent file missing" section intact (it still
+  applies — if the dispatch target is unreachable, emit the missing-agent line
+  and STOP).
+
+- [ ] **Step 3: Verify + commit.** `grep -c 'subagent_type="doc-syncer"' skills/doc/SKILL.md`
+  → 1; `grep -c 'subagent_type="status-reporter"' skills/status/SKILL.md` → 1.
+  `make test` green.
+  ```bash
+  git add skills/doc/SKILL.md skills/status/SKILL.md
+  git commit -m "feat(model-routing): doc/status dispatch their agent (sonnet/haiku pins take effect)"
+  ```
+
+---
+
+### Task 12: hotfix — reflection inline + dispatched sonnet executor (/feat pattern)
+
+**Files:**
+- Modify (rewrite): `skills/hotfix/SKILL.md` — becomes the reflection orchestrator
+- Modify (rewrite): `agents/hotfixer.md` — becomes pure executor
+- Modify: `lib/tests/loops-light.test.sh` — repoint hotfix structure locks (guarded)
+
+**Pattern:** mirror the shipped `/feat` split (skills/feat/SKILL.md + agents/feater.md).
+
+- [ ] **Step 1: Rewrite `skills/hotfix/SKILL.md` as the orchestrator.** Keep `Agent`
+  in allowed-tools. Structure:
+  - `# /hotfix — quick-fix orchestrator (reflection inline, execution dispatched)`
+  - `MODEL GATE (blocking): run $HOME/.claude/lib/model-gate.md BEFORE any step. small → STOP.`
+    (hotfix now has a reflection phase → it joins the gated group.)
+  - STEP 1 LOCATE (reflection, inline): find the bug from the description, read
+    the file(s), CONFIRM the root cause is obvious/superficial, escalate to
+    `/bugfix` if deeper. Optional blockers-only memory glance (as today).
+  - STEP 1.5 DESIGN GATE (`lib/design-gate.md`, as today).
+  - STEP 1.7 CONTRACT (silent autofill, `lib/contract-interview.md`, zero
+    questions, as today).
+  - STEP 2 PRE-FLIGHT (inline): gitflow aiguillage (type `hotfix`); snapshot
+    `git rev-parse HEAD` (the revert SHA) + dirty-tree check (as today's STEP 2
+    pre-flight).
+  - STEP 3 DISPATCH EXECUTOR: `Agent(subagent_type="hotfixer")` with the
+    contract path, the located file(s), the proposed minimal fix, and the branch.
+    Parse a `HOTFIX-EXEC REPORT` with `STATUS : DONE | BLOCKED`.
+  - STEP 4 VERIFY + SECURE + COMMIT (main loop, LRN-083): on executor DONE, the
+    smoke result is in its report; then the security gate — dispatch a FRESH
+    security-auditor (`MODE: gate`, SCOPE = diff vs the pre-flight SHA). **hotfix
+    keeps revert-not-loop**: smoke FAIL or security BLOCK → `git restore .` to the
+    pre-flight SHA + STOP + "escalate to /bugfix" (verbatim from today's STEP 3).
+    No verifier at hotfix weight. Commit only after smoke + security pass.
+  - STEP 5 DOC SYNC + STEP 6 CAPITALIZE: identical to today's STEP 4/5 (doc-sync
+    auto-mode + `doc-commit.md`; lightweight capitalize + always-on journal +
+    `capitalize-commit.md`).
+  - RULES: max 2 files; execution never stays inline, reflection never leaves it
+    (BDR-066); executor dispatched fresh; revert-not-loop preserved.
+
+- [ ] **Step 2: Rewrite `agents/hotfixer.md` as the executor.** Frontmatter:
+  `tools: Read, Edit, Write, Bash, Grep, Glob` (DROP `Agent` — no nested dispatch;
+  security moved to the orchestrator), `model: sonnet`. Body: receive
+  CONTRACT + located file(s) + proposed fix + BRANCH (verify with
+  `git branch --show-current`, never switch). Apply the minimal edit (no
+  refactoring), run the stack smoke/test cascade (keep today's detection cascade),
+  report. FORBIDDEN: git commit, branch ops, security dispatch, user questions,
+  attribution trailers. End with:
+  ```
+  HOTFIX-EXEC REPORT
+  STATUS  : DONE | BLOCKED
+  FILE(S) : <changed files>
+  FIX     : <one-line description>
+  SMOKE   : <test/build result, verbatim line>
+  NOTES   : <BLOCKED: the blocker; DONE: none>
+  ```
+
+- [ ] **Step 3: Repoint `lib/tests/loops-light.test.sh` hotfix locks** (guarded —
+  sentinel first). The hotfix block currently checks `agents/hotfixer.md` for
+  orchestration clauses now moved to the skill. Introduce `HSKL="$REPO/skills/hotfix/SKILL.md"`
+  and repoint: contract/silent → HSKL `STEP 1.7 — CONTRACT`; security gate +
+  `failure REVERTS, never loops` + `No verifier is dispatched at hotfix weight`
+  → HSKL; `hotfix skill has Agent` (HSK `  - Agent`) unchanged. The
+  `hotfix has Agent tool` lock on hotfixer INVERTS (hotfixer no longer has Agent)
+  → change to assert hotfixer LACKS Agent and carries `model: sonnet` + the
+  `HOTFIX-EXEC REPORT` grammar. Add a `hotfix dispatches hotfixer` lock
+  (`subagent_type="hotfixer"` in HSKL). Keep include/feat/bugfix blocks untouched.
+  Add a negative-match helper `tn()` (mirror `tf`, invert the grep) if asserting
+  Agent-absence.
+
+- [ ] **Step 4: Wire hotfix into the census + gate lists.** In
+  `lib/tests/model-routing.test.sh` (guarded — sentinel first): MOVE `hotfix`
+  from the excluded loop to the wired loop (`has "skills/hotfix/SKILL.md" 'lib/model-gate.md'`).
+  Update the expected count in the run message accordingly.
+
+- [ ] **Step 5: Verify + commit.** `bash lib/tests/loops-light.test.sh` green;
+  `bash lib/tests/model-routing.test.sh` green; YAML check both rewritten files;
+  `make test` green.
+  ```bash
+  git add skills/hotfix/SKILL.md agents/hotfixer.md lib/tests/loops-light.test.sh lib/tests/model-routing.test.sh
+  git commit -m "feat(model-routing): /hotfix split — reflection inline + gate, hotfixer = sonnet executor"
+  ```
+
+---
+
+### Task 13: commit-change — dispatch grouping+commit to sonnet, relocate approval gates
+
+**Files:**
+- Modify (rewrite): `skills/commit-change/SKILL.md` — dispatcher owns the two gates
+- Modify (rewrite): `agents/commit-changer.md` — sonnet, propose/execute phases, no AskUserQuestion
+
+**Pattern:** seo-applier shape (subagent proposes → dispatcher confirms → subagent executes).
+
+- [ ] **Step 1: Rewrite `agents/commit-changer.md`.** Frontmatter:
+  `tools: Bash, Read, Grep, Glob` (DROP `AskUserQuestion` — gates move to the
+  dispatcher), `model: sonnet`. Body: two modes driven by the dispatch prompt.
+  - `MODE: propose` → Phase 0 (gitflow aiguillage, type chore — bash), Phase 1
+    (gather), Phase 2 (reconstruct steps), Phase 2.5 → EMIT the `COMMIT PLAN`
+    block + any edge-case flags (sensitive files, staged-only, conflicts) +
+    Phase-4 capitalize candidates, then STOP with
+    `READY TO APPLY — awaiting dispatcher confirmation`. Writes NOTHING.
+  - `MODE: apply` → receive the APPROVED plan (steps + messages) + approved
+    capitalize entries; execute Phase 3 (stage-per-step + commit) and write the
+    approved memory via `capitalize-commit.md`; report the commit hashes.
+
+- [ ] **Step 2: Rewrite `skills/commit-change/SKILL.md` as dispatcher.** Keep
+  `Agent` + `AskUserQuestion` in allowed-tools. Flow: pre-flight (detached HEAD /
+  conflicts / identity — STOP as today) → `Agent(subagent_type="commit-changer")`
+  with `MODE: propose` → show the returned COMMIT PLAN, `AskUserQuestion`
+  (all / numbers / edit / skip) → show capitalize candidates, `AskUserQuestion`
+  (all / IDs / skip) → `Agent(subagent_type="commit-changer")` with `MODE: apply`
+  + the approved plan + approved entries → report hashes. NO MODEL GATE (grouping
+  runs on the sonnet subagent — no inline reflection to protect).
+
+- [ ] **Step 3: Verify + commit.** `grep -c 'subagent_type="commit-changer"' skills/commit-change/SKILL.md`
+  ≥ 1; `grep -c 'model: sonnet' agents/commit-changer.md` → 1;
+  `grep -c 'AskUserQuestion' agents/commit-changer.md` → 0; YAML check; `make test` green.
+  ```bash
+  git add skills/commit-change/SKILL.md agents/commit-changer.md
+  git commit -m "feat(model-routing): /commit-change dispatch to sonnet commit-changer, gates relocated to dispatcher"
+  ```
+
+---
+
+### Task 14: release-candidate — sonnet release-executor, human gates relocated
+
+**Files:**
+- Create: `agents/release-executor.md` — sonnet, mechanical release spans
+- Modify (rewrite): `skills/release-candidate/SKILL.md` — dispatcher owns the two human gates
+
+- [ ] **Step 1: Create `agents/release-executor.md`.** Frontmatter:
+  `tools: Read, Edit, Write, Bash, Grep, Glob`, `model: sonnet`. Two-span
+  executor driven by the dispatch prompt (a human gate sits BETWEEN the spans, so
+  it cannot be one dispatch):
+  - `SPAN: prep <X.Y.Z>` → `gitflow start release <X.Y.Z>`, set `version.txt`,
+    rewrite CHANGELOG (`## [Unreleased]` → `## [<X.Y.Z>] — <date>`, re-open empty
+    Unreleased; a MAJOR must spell out breaking), run the test suite (RC gate —
+    never release red), commit the prep on the release branch. Report the branch
+    + test result. No merge, no tag, no push.
+  - `SPAN: finish <X.Y.Z>` → `gitflow finish` (fan-out), `git tag -a v<X.Y.Z> main
+    -m "release <X.Y.Z>"` AFTER finish. Report. NEVER push (dispatcher's gate).
+  - FORBIDDEN: deciding the version number (dispatcher/user owns it), the
+    when-to-release decision, `git push`, attribution trailers.
+
+- [ ] **Step 2: Rewrite `skills/release-candidate/SKILL.md` as dispatcher.** Add
+  `allowed-tools: Read, Write, Edit, Bash, Grep, Glob, Agent, AskUserQuestion` to
+  the frontmatter (it currently has none). Keep all the Overview/Versioning/Common-
+  mistakes doctrine. Flow: preconditions (clean tree, identity, develop ahead of
+  main) → the version-number decision stays HERE (judgment: derives from change
+  nature; decide before running) → `Agent(subagent_type="release-executor")`
+  `SPAN: prep <X.Y.Z>` → **HUMAN GATE — when to release** (`AskUserQuestion`,
+  explicit go, never on "tests pass") → `Agent(subagent_type="release-executor")`
+  `SPAN: finish <X.Y.Z>` → **push GATE (ASK)** (`AskUserQuestion`; on go only,
+  LRN-069): `git push origin main develop && git push origin v<X.Y.Z>` from THIS
+  loop. No MODEL GATE.
+
+- [ ] **Step 3: Verify + commit.** `RC_WORK=$(mktemp -d) RC_TAG=1 bash lib/tests/run-release-candidate.sh`
+  → 5/5 (the release mechanics test is unchanged — the lib still fans out + the
+  dispatcher still tags); `grep -c 'subagent_type="release-executor"' skills/release-candidate/SKILL.md`
+  ≥ 1; YAML check the new agent; `make test` green.
+  ```bash
+  git add agents/release-executor.md skills/release-candidate/SKILL.md
+  git commit -m "feat(model-routing): /release-candidate dispatches sonnet release-executor, human gates in dispatcher"
+  ```
+
+---
+
+### Task 15: census + docs + memory for wave 2
+
+**Files:**
+- Modify: `lib/tests/model-routing.test.sh` (guarded) — wave-2 assertions
+- Modify: `README.md`, `CHANGELOG.md`, `.claude/memory/decisions.md`, `.claude/tasks/TODO.md`
+
+- [ ] **Step 1: Extend the census** (`lib/tests/model-routing.test.sh`, guarded —
+  sentinel first). The excluded loop drops `hotfix` (moved to wired by Task 12 Step 4)
+  and now reads `for s in commit-change doc status release-candidate`. Add
+  execution-dispatch asserts: `has skills/doc/SKILL.md 'subagent_type="doc-syncer"'`;
+  `has skills/status/SKILL.md 'subagent_type="status-reporter"'`;
+  `has skills/commit-change/SKILL.md 'subagent_type="commit-changer"'`;
+  `has skills/release-candidate/SKILL.md 'subagent_type="release-executor"'`;
+  pins `has agents/commit-changer.md 'model: sonnet'`,
+  `has agents/release-executor.md 'model: sonnet'`; and executor-shape
+  `lacks agents/commit-changer.md 'AskUserQuestion'`. Update the printed expected
+  count. Flip-test one new assertion (LRN-096).
+
+- [ ] **Step 2: README + CHANGELOG.** Update the BDR-066 agent-model table:
+  hotfixer stays sonnet (now an effective executor), commit-changer → sonnet,
+  release-executor (new) → sonnet, status-reporter → haiku (now effective via
+  dispatch). Move doc/status/commit-change/release-candidate out of the "inherit"
+  row into a new "execution — dispatched" line. CHANGELOG Unreleased: add the
+  wave-2 bullets (doc/status/hotfix/commit-change/release-candidate routing).
+
+- [ ] **Step 3: Capitalize.** Append to the BDR-066 entry a `**Wave 2**` bullet:
+  doc/status dispatched (sonnet/haiku pins effective); hotfix split like /feat
+  (joins gated group); commit-change dispatched sonnet with relocated gates;
+  release-candidate sonnet release-executor with relocated human gates; exclusion
+  list now commit-change/doc/status/release-candidate. Journal line +
+  TODO tick under the 2026-07-15 section.
+  ```bash
+  git add lib/tests/model-routing.test.sh README.md CHANGELOG.md .claude/memory/decisions.md .claude/memory/journal.md .claude/tasks/TODO.md
+  git commit -m "chore(model-routing): wave-2 census + docs + BDR-066 update"
+  ```
+
+- [ ] **Step 4: Final wave-2 review** — dispatch a whole-branch reviewer (opus) over
+  the wave-2 range; confirm both consumers of verify-secure-loop still coherent,
+  hotfix revert-not-loop preserved, no execution left on the big model in the
+  five converted skills. Report the full `git log --oneline develop..HEAD`. Do NOT
+  merge.
