@@ -32,6 +32,15 @@ has "skills/ship-feature/SKILL.md" 'model: "sonnet"'
 has "skills/init-project/SKILL.md" 'model: "sonnet"'
 # 6) web-validate applies via L1 applier
 has "skills/web-validate/SKILL.md" 'subagent_type="hotfixer"'
+# 7) wave-2 — pure-execution skills dispatch their agent (pin takes effect, off the big session model)
+has "skills/doc/SKILL.md"               'subagent_type="doc-syncer"'
+has "skills/status/SKILL.md"            'subagent_type="status-reporter"'
+has "skills/commit-change/SKILL.md"     'subagent_type="commit-changer"'
+has "skills/release-candidate/SKILL.md" 'subagent_type="release-executor"'
+has "skills/hotfix/SKILL.md"            'subagent_type="hotfixer"'
+has "agents/commit-changer.md"          'model: sonnet'
+has "agents/release-executor.md"        'model: sonnet'
+lacks "agents/commit-changer.md"        'AskUserQuestion'
 
 printf 'model-routing census: %d pass, %d fail\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

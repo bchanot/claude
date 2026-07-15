@@ -384,3 +384,4 @@ rules:
 
 ## 2026-07-15
 - model routing shipped on feature/model-routing: BDR-066 (reflection inline big / executors sonnet / blocking gate), /feat re-arch, census guard. client-handover conversion deferred to plan 2.
+- model routing WAVE 2 (same branch, user directive): doc/status dispatch their agent (sonnet/haiku pins effective); /hotfix split like /feat (joins gated group 12→13, hotfixer dual-use executor); /commit-change → sonnet commit-changer (propose/apply, gates relocated); /release-candidate → sonnet release-executor (human gates + version decision kept in dispatcher). Consumer-staleness swept (feat Rule 1 + commit-split). census 36/0, make test green. Branch still unmerged.

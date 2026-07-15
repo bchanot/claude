@@ -8,9 +8,16 @@ unmerged — human gate.
       web-validate → hotfixer L1; census guard model-routing.test.sh
 - [x] /feat re-arch: reflection inline → feater sonnet executor (partial
       supersede BDR-050)
+- [x] WAVE 2 (user directive): doc/status dispatch (sonnet/haiku pins
+      effective); /hotfix split like /feat (joins gated 12→13, hotfixer
+      dual-use executor); /commit-change → sonnet commit-changer
+      (propose/apply, gates relocated); /release-candidate → sonnet
+      release-executor (human gates + version decision kept in dispatcher);
+      census 36/0. Exclusion list now commit-change/doc/status/release-candidate.
 - [ ] DOGFOOD (manual, next sessions): /feat live run — plan closes
       decisions, dispatch carries sonnet, verify loop in main loop; gate
-      STOP on a sonnet session (LRN-079 class, not automatable here)
+      STOP on a sonnet session (LRN-079 class, not automatable here). Also
+      dogfood /hotfix split + /commit-change propose/apply + /release-candidate spans.
 - [ ] PLAN 2 — client-handover conversion (spec §5): inline-load → sonnet
       dispatch, relocate 11 human-gate sites to dispatcher (inventory in
       plan-1 session), or lighter variant: dispatch only the redaction

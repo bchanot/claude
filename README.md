@@ -41,17 +41,24 @@ claude-config/
 
 Reflection (brainstorm, plan, contract, audit judgment, loop decisions) runs
 INLINE on the session model — assumed Fable/Opus, enforced by a blocking
-gate (`lib/model-gate.md` + `lib/model-check.sh`) at the entry of the 12
+gate (`lib/model-gate.md` + `lib/model-check.sh`) at the entry of the 13
 reflection orchestrators. Execution runs on pinned subagents:
 
 | Agent | Model | Tier |
 |---|---|---|
 | feater, hotfixer | sonnet (pinned) | executors — code from a closed plan, fix-bundle appliers |
 | verifier, security-auditor | sonnet (pinned) | fresh gates (≤3×/loop) |
+| commit-changer, release-executor | sonnet (pinned) | dispatched execution — grouping+commit / release spans (approval + human gates stay in the dispatcher) |
 | doc-syncer, onboarder, scaffolder, refactorer, interviewer, plugin-advisor | sonnet (pinned) | workers |
 | status-reporter | haiku (pinned) | mechanical collector |
 | client-handover-writer | opus (pinned, currently inert — inline-loaded; sonnet conversion planned) | deliverable writer |
-| analyzer, seo-analyzer, geo-analyzer, validator-analyzer, code-cleaner, bugfixer, commit-changer | inherit session (Fable/Opus) | reflection / audit / inline playbooks |
+| analyzer, seo-analyzer, geo-analyzer, validator-analyzer, code-cleaner, bugfixer | inherit session (Fable/Opus) | reflection / audit / inline playbooks |
+
+The pure-execution skills `/doc`, `/status`, `/commit-change`,
+`/release-candidate` **dispatch** their agent (instead of inline-loading it)
+so the pin takes effect and the work leaves the big session model; `/hotfix`
+was split like `/feat` (reflection inline + gate, `hotfixer` executor) and so
+joins the gated group (13th).
 
 ---
 
