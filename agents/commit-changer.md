@@ -210,19 +210,25 @@ If the APPROVED CAPITALIZE ENTRIES are `none`/`skip`, skip this phase
 entirely — no memory commit.
 
 Otherwise:
-1. Append the approved entries verbatim to their target registry file(s)
+1. **Resolve step refs → commit hashes first.** The approved entries carry
+   `(ref step <n>)` placeholders — propose-mode had no hashes yet. Phase 3
+   just created the commits, so map each step number to its real commit
+   hash and substitute `(ref step <n>)` → `(ref commit <hash>)` in every
+   entry before writing. An entry that names no step (e.g. a pure LRN
+   pattern) needs no ref.
+2. Append the resolved entries to their target registry file(s)
    (`.claude/memory/decisions.md`, `blockers.md`, `learnings.md`) and
    update each file's `## Index` table. Add a one-line summary of the
    commit batch to today's heading in `.claude/memory/journal.md`.
-2. **Language rule**: written entries are ALWAYS in English regardless of
+3. **Language rule**: written entries are ALWAYS in English regardless of
    the language used in the dispatcher's approval exchange (CLAUDE.md
    "Memory registries" § Language).
-3. **Then commit the memory** — follow
+4. **Then commit the memory** — follow
    `$HOME/.claude/lib/capitalize-commit.md`: it surgically commits what
    was just written (`.claude/memory` + `.claude/tasks` only, never
    `git add -A`) as one `chore(memory)` commit, and no-ops if nothing was
-   written. This is a separate commit from the Phase 3 code commits — their
-   hashes are already anchored inside the entries.
+   written. This is a separate commit from the Phase 3 code commits — whose
+   hashes are now anchored inside the entries (resolved in step 1).
 
 ### Report
 

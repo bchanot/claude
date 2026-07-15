@@ -63,7 +63,11 @@ prompt: "SPAN: prep <X.Y.Z>
 Parse the `RELEASE-EXEC REPORT`:
 - `STATUS: DONE` → continue to STEP 4, carrying the `TESTS` line forward.
 - `STATUS: NEED-DECISION` → surface the exact question to the user, STOP
-  (don't guess the CHANGELOG wording on its behalf).
+  (don't guess the CHANGELOG wording on its behalf). Resume note: prep may
+  have already run `gitflow start release` (the release branch exists) — do
+  NOT re-dispatch `SPAN: prep` (it would BLOCK on the existing branch);
+  resolve the CHANGELOG on the current release branch, commit the prep, then
+  resume at STEP 4.
 - `STATUS: BLOCKED` → surface the blocker verbatim, STOP.
 
 ### STEP 4 — HUMAN GATE: when to release

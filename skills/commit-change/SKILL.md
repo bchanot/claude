@@ -80,6 +80,9 @@ AskUserQuestion:
   message judgment stays on the sonnet subagent (never redrawn inline on
   the session model); show the redrawn plan and re-ask.
 - `skip` → exit cleanly, no commits created, no `MODE: apply` dispatch.
+  Note: if the propose run created a `chore/*` branch (gitflow aiguillage
+  off a protected base), that branch stays checked out with the work
+  uncommitted — mention it so the user isn't surprised by the branch switch.
 
 ## STEP 3 — Gate 2: capitalize approval
 
