@@ -1,5 +1,21 @@
 # TODO
 
+## 2026-07-15 — model routing (feature/model-routing)
+Spec + plan in docs/superpowers/ (transient, BDR-065). BDR-066. Branch
+unmerged — human gate.
+- [x] gate lib/model-check.sh + lib/model-gate.md (flip-tested) wired ×12
+- [x] pins: hotfixer/feater sonnet, analyzer un-pinned; SDD model:"sonnet";
+      web-validate → hotfixer L1; census guard model-routing.test.sh
+- [x] /feat re-arch: reflection inline → feater sonnet executor (partial
+      supersede BDR-050)
+- [ ] DOGFOOD (manual, next sessions): /feat live run — plan closes
+      decisions, dispatch carries sonnet, verify loop in main loop; gate
+      STOP on a sonnet session (LRN-079 class, not automatable here)
+- [ ] PLAN 2 — client-handover conversion (spec §5): inline-load → sonnet
+      dispatch, relocate 11 human-gate sites to dispatcher (inventory in
+      plan-1 session), or lighter variant: dispatch only the redaction
+      phase. Decide shape at plan time.
+
 ## 2026-07-08 — full back-merge release/1.0.0→develop (chore/backmerge-release-full)
 Genèse : la revue avait porté ~5/19 commits ; back-merge complet demandé. Cherry-pick par
 catégorie, 1 commit atomique/item, make test après chaque code. Branche non mergée (gate humain).

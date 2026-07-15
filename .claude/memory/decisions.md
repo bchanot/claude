@@ -86,6 +86,7 @@ rules:
 | BDR-063 | 2026-07-10 | GSC multi-account: OAuth2 installed-app flow + label-keyed token store, explicit (account,property) args, no global state | accepted |
 | BDR-064 | 2026-07-14 | global memory split: repo file → CLAUDE.global.md (deployed name unchanged), CLAUDE.md freed for project scope; consumer/maintainer wording rule | accepted |
 | BDR-065 | 2026-07-14 | transient planning artifacts (superpowers spec/plan): committed during run, deleted post-merge; git history = archive; codified in project CLAUDE.md | accepted |
+| BDR-066 | 2026-07-15 | Model routing: reflection inline (session big model) + sonnet-pinned executors + blocking gate | accepted |
 
 ---
 
@@ -975,3 +976,16 @@ rules:
 - **Why**: user call 2026-07-14 — registries already capture decisions; a stale plan describes a superseded intermediate state and misleads future readers; accumulation pollutes the repo. Precedent: gsc-crux cleanup (8a1fac0, 2026-07-10) did the same — this makes it law, not habit.
 - **Alternatives rejected**: never-commit (gitignore docs/superpowers) — breaks mid-run: briefs, reviewers, other-machine checkouts need the files; superpowers brainstorming commits the spec by convention. Keep-forever — the drift + pollution complained about.
 - **Reference**: project CLAUDE.md; cleanup commit this chore; precedent 8a1fac0. Linked [[BDR-064]], [[LRN-124]].
+
+---
+
+## BDR-066 — Model routing: reflection inline (session big model), executors pinned sonnet, blocking gate
+
+- **Date**: 2026-07-15
+- **Status**: accepted (partial supersede of BDR-050: /feat dev no longer inline; bugfix/hotfix dev-inline CONSERVED)
+- **Decision**: reflection (brainstorm, plan, contract, audit judgment, loop decisions) runs on session model (Fable; Opus fallback) — inline or inherit subagents, never pinned down. Execution (code from closed plan, fix-bundle application) runs sonnet-pinned subagents: feater + hotfixer pinned sonnet; SDD implementation+review subagents dispatched `model: "sonnet"` (ship-feature/init-project); web-validate fixes via hotfixer L1 (was inline Edit). analyzer haiku pin REMOVED (digest feeds plan = reflection tier). verifier + security-auditor STAY sonnet (job9 confirmed — procedural gates, ≤3×/loop). Blocking gate `lib/model-gate.md` (self-check + witness `lib/model-check.sh`) wired in 12 reflection orchestrators; small → STOP, unknown → fail-visible; census guard `lib/tests/model-routing.test.sh` flip-tested.
+- **Why**: big-model quota burned on mechanical execution (Fable exhausted mid-job8); plan closed at dispatch → executor needs obedience not judgment; fresh sonnet gates catch executor drift.
+- **Alternatives rejected**: opus pins on audit agents (session-independent) — rejected: session assumed big + blocking gate as backstop, one tier fewer; advisory gate — rejected by user, blocking; split bugfix/hotfix too — rejected: bugfix investigation interleaved w/ fix, hotfix gain marginal vs dispatch overhead.
+- **Caveats**: client-handover-writer conversion (inline-load → sonnet dispatch, 11 human-gate sites to relocate) DEFERRED to own plan — its opus pin stays inert meanwhile; feater cannot ask → NEED-DECISION report = escalation valve, plan must close decisions; witness reads settings.json — lags `--model`-launched sessions (self-check compensates).
+- **Caveat (execution)**: /feat re-arch broke 5 stale assertions in lib/tests/loops-light.test.sh (locked OLD feater architecture) — repointed to skills/feat/SKILL.md (FSK, mirrors HOT/HSK split) + new dispatch lock + 1-line reflow in feat SKILL for single-line grep lock (LRN-093 class).
+- **Reference**: spec `docs/superpowers/specs/2026-07-15-model-routing-design.md` + plan `docs/superpowers/plans/2026-07-15-model-routing.md` (transient, BDR-065 lifecycle), branch `feature/model-routing`.
