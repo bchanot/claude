@@ -176,6 +176,12 @@ Invoke `superpowers:subagent-driven-development` for the per-task implement loop
 `gitflow finish` (STEP 11). When SDD's flow reaches "Use
 finishing-a-development-branch", stop and return.
 
+**Model routing (BDR-066):** every subagent dispatched under SDD — per-task
+implementers AND its reviewers — MUST carry `model: "sonnet"` in the Agent
+call. The plan is closed; execution and plan-conformity review are sonnet
+work. Reflection (task decomposition, review verdict arbitration) stays in
+this loop.
+
 ## STEP 8b — GRAPHIFY FULL (after implementation)
 If `graphify` CLI is installed AND complexity >= 30%:
 1. Run full graphify on the implemented project:

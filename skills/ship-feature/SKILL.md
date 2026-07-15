@@ -154,6 +154,12 @@ Invoke `superpowers:subagent-driven-development` for the per-task implement loop
 `gitflow finish` (STEP 9). When SDD's flow reaches "Use
 finishing-a-development-branch", stop and return.
 
+**Model routing (BDR-066):** every subagent dispatched under SDD — per-task
+implementers AND its reviewers — MUST carry `model: "sonnet"` in the Agent
+call. The plan is closed; execution and plan-conformity review are sonnet
+work. Reflection (task decomposition, review verdict arbitration) stays in
+this loop.
+
 ## STEP 4b — ERROR RECOVERY (if STEP 4 fails)
 If a subagent returns a build error, failing test, or type error:
 1. Load `$HOME/.claude/agents/analyzer.md` in DEBUG MODE on the exact error output.
