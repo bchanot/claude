@@ -46,7 +46,7 @@ Read the relevant existing code to understand the context.
 
 | Rule | Trigger | Action |
 |---|---|---|
-| 1 | Estimated diff < 2 files AND no logic (config value, copy fix, missing field) | DOWNGRADE → load `$HOME/.claude/agents/hotfixer.md` |
+| 1 | Estimated diff < 2 files AND no logic (config value, copy fix, missing field) | DOWNGRADE → route to `/hotfix` (its orchestrator does LOCATE + dispatches the hotfixer executor; never load the bare agent file) |
 | 2 | New external dependency (`npm install <x>`, `pip install`, `cargo add`) required | ESCALATE → `/ship-feature` (dep choices need design gate) |
 | 3 | New route family / new top-level module / new DB migration | ESCALATE → `/ship-feature` |
 | 4 | Estimated diff > 5 files | ESCALATE → `/ship-feature` |
