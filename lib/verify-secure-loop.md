@@ -3,10 +3,9 @@
 Runs in the ORCHESTRATOR MAIN LOOP after the dev step completes. Turns a
 finished diff into a verified, security-cleared change through two fresh
 gates and bounded loops. Loop decisions live here, in the main loop
-(LRN-083: subagents = execution + report). The dev step is either inline
-(bugfix) or a dispatched sonnet executor (/feat's feater): "hand the dev"
-below means fix inline, or re-dispatch a FRESH executor with exactly those
-inputs.
+(LRN-083: subagents = execution + report). The dev step is a dispatched
+sonnet executor (feat's `feater`, bugfix's `bugfixer`): "hand the dev"
+below means re-dispatch a FRESH executor with exactly those inputs.
 
 Inputs the caller must have ready:
 - `CONTRACT`: path to the contract file written by `contract-interview.md`.

@@ -43,8 +43,8 @@ git log --oneline -3
   and superficial (typo, wrong value, missing import, etc.).
 - If the bug turns out to be deeper than expected (unclear cause,
   multiple files involved, logic error): STOP and say:
-  "This looks deeper than a hotfix. Load `$HOME/.claude/agents/bugfixer.md`
-  and run the BUGFIXER agent on this target."
+  "This looks deeper than a hotfix — it needs investigation. Re-run this
+  as `/bugfix` (root-cause investigation, then a scoped fix)."
 - Settle the proposed fix HERE — the executor cannot ask questions, so the
   exact edit (what changes, in which file(s)) must be closed before dispatch.
 
