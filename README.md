@@ -37,6 +37,22 @@ claude-config/
 - `templates/` = symlinked to `~/.claude/templates/` — copy into projects via `/onboard` or manually
 - **Graphify** builds a knowledge graph of any codebase (`/graphify query`), producing a navigable wiki in `graphify-out/wiki/`. This map helps Claude understand project structure, find relevant code faster, and reason across files. Essential for large-scope tasks (multi-file features, complex bugs, architectural changes). Small tasks should skip it and read files directly.
 
+### Agent model routing (BDR-066)
+
+Reflection (brainstorm, plan, contract, audit judgment, loop decisions) runs
+INLINE on the session model — assumed Fable/Opus, enforced by a blocking
+gate (`lib/model-gate.md` + `lib/model-check.sh`) at the entry of the 12
+reflection orchestrators. Execution runs on pinned subagents:
+
+| Agent | Model | Tier |
+|---|---|---|
+| feater, hotfixer | sonnet (pinned) | executors — code from a closed plan, fix-bundle appliers |
+| verifier, security-auditor | sonnet (pinned) | fresh gates (≤3×/loop) |
+| doc-syncer, onboarder, scaffolder, refactorer, interviewer, plugin-advisor | sonnet (pinned) | workers |
+| status-reporter | haiku (pinned) | mechanical collector |
+| client-handover-writer | opus (pinned, currently inert — inline-loaded; sonnet conversion planned) | deliverable writer |
+| analyzer, seo-analyzer, geo-analyzer, validator-analyzer, code-cleaner, bugfixer, commit-changer | inherit session (Fable/Opus) | reflection / audit / inline playbooks |
+
 ---
 
 ## Fresh install (new machine)
