@@ -18,10 +18,22 @@ unmerged — human gate.
       decisions, dispatch carries sonnet, verify loop in main loop; gate
       STOP on a sonnet session (LRN-079 class, not automatable here). Also
       dogfood /hotfix split + /commit-change propose/apply + /release-candidate spans.
-- [ ] PLAN 2 — client-handover conversion (spec §5): inline-load → sonnet
-      dispatch, relocate 11 human-gate sites to dispatcher (inventory in
-      plan-1 session), or lighter variant: dispatch only the redaction
-      phase. Decide shape at plan time.
+- [x] Explore agent: kept as built-in (inherits session = opus/fable). User
+      call — search feeds reflection, silent-incompleteness risk → deserves the
+      big model. Custom sonnet Explore.md created then reverted (built-in already
+      inherits + no owned prompt).
+- [ ] WAVE 3 (user directive): /bugfix split + /code-clean split → reflection
+      inline (behind existing gate), execution → sonnet executors. bugfixer =
+      pure fix+regression exec (BUGFIX-EXEC REPORT, no Agent/AskUserQuestion);
+      code-cleaner = PHASE-2 exec (refactor now runs on sonnet — inline-load pin
+      was inert). Both skills STAY gated. census wave-3 + loops-light repoint
+      (guarded). Supersedes BDR-050 bugfix carve-out.
+- [ ] WAVE 4 — client-handover: DECIDED = dispatch the WHOLE writer (spec §5,
+      not redaction-only). Needs resumable-gate protocol (~8-11 AskUserQuestion
+      → GATE NEEDED yields, dispatcher asks + SendMessage-resumes) + force-big
+      on nested audit dispatches (STEP 3/4/7 — else audits inherit sonnet) +
+      MODEL GATE on the skill. NOT yet spec'd — dedicated pass after wave-3;
+      read writer 1123-1774 first.
 
 ## 2026-07-08 — full back-merge release/1.0.0→develop (chore/backmerge-release-full)
 Genèse : la revue avait porté ~5/19 commits ; back-merge complet demandé. Cherry-pick par

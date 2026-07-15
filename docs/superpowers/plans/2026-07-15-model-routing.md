@@ -1360,3 +1360,416 @@ to `Agent(subagent_type=…)` so the pins take effect.
   hotfix revert-not-loop preserved, no execution left on the big model in the
   five converted skills. Report the full `git log --oneline develop..HEAD`. Do NOT
   merge.
+
+---
+
+# WAVE 3 — reflection-split the last two inline execution-carrying agents (user directive 2026-07-15)
+
+`/bugfix` and `/code-clean` are still thin wrappers that inline-load an agent
+doing BOTH reflection and execution on the big session model — the exact
+pre-split state `/feat` (Task 5) and `/hotfix` (Task 12) were in. Split each
+like the shipped pattern: reflection inline (session model, behind the MODEL
+GATE both skills already carry), execution dispatched to a sonnet executor.
+
+**Honest tradeoff (recorded in the wave-3 BDR bullet):** bugfix's investigation
+and fix are tightly coupled; handing a context-free sonnet executor a closed
+FIX PLAN is the same bet `/feat` makes — mitigated by the structured DIAGNOSIS
++ the verify loop catching drift. Further supersedes the BDR-050 "bugfix stays
+inline" carve-out (hotfix already reversed in wave 2). code-clean's win is
+larger than it looks: today it INLINE-LOADS the refactorer (so the refactor
+runs on the big model, sonnet pin inert) — after the split the refactor runs
+inside the sonnet executor for the first time.
+
+Gate membership is UNCHANGED: both skills keep reflection (investigation /
+audit), so both STAY in the wired gate list — this wave only adds
+executor-shape asserts, it does not move either skill between the wired and
+excluded lists.
+
+## Global Constraints (wave 3)
+
+Same as waves 1–2: branch `feature/model-routing`, no merge, no attribution
+trailers, `make test` green per commit, shellcheck clean, config-protection
+sentinel before each `lib/tests/*` write (controller applies guarded test
+edits — subagents cannot create the sentinel), YAML `safe_load`-parseable
+frontmatter.
+
+---
+
+### Task 16: `/bugfix` split — reflection inline + dispatched sonnet executor
+
+**Files:**
+- Modify (rewrite): `skills/bugfix/SKILL.md` — thin wrapper → reflection orchestrator
+- Modify (rewrite): `agents/bugfixer.md` — full agent → pure sonnet executor
+- Modify (surgical): `lib/verify-secure-loop.md` — bugfix's dev is now dispatched too
+- Modify: `lib/tests/loops-light.test.sh` — repoint bugfix locks (guarded — CONTROLLER applies)
+
+**Pattern:** mirror the shipped `/hotfix` split (skills/hotfix/SKILL.md — it is
+the closest template: reflection orchestrator + a security gate whose decisions
+live in the main loop) and `/feat` (agents/feater.md — the pure-executor shape).
+The difference from hotfix: bugfix keeps the FULL verify+secure loop (fresh
+verifier + fresh security, bounded 3×, per `lib/verify-secure-loop.md`) and the
+interactive pre-commit + capitalize gates — hotfix has none of those.
+
+- [ ] **Step 1: Rewrite `skills/bugfix/SKILL.md` as the reflection orchestrator.**
+  Keep `Agent` in allowed-tools; the frontmatter description block is unchanged.
+  Keep the existing `MODEL GATE (blocking)` line verbatim (bugfix stays gated).
+  Absorb, INLINE (session model), what were bugfixer STEPs 1–3.5 — reflection:
+  - STEP 1 GATHER CONTEXT (git status/log; what/where/when).
+  - STEP 1.5 DESIGN GATE (`$HOME/.claude/lib/design-gate.md`, unchanged).
+  - STEP 2 INVESTIGATE (trace symptom → root cause, blast radius).
+  - STEP 2.5 MEMORY READ-BEFORE (`$HOME/.claude/lib/analyze-before-plan.md`,
+    blockers-weighted; keep the TEETH clause — DIAGNOSIS must name any binding
+    prior or state none bears).
+  - STEP 3 DIAGNOSE + PLAN — emit the `BUGFIX — DIAGNOSIS` block (BUG / ROOT
+    CAUSE / EVIDENCE / BLAST RADIUS / FIX PLAN / RISK) verbatim from today's
+    bugfixer STEP 3. Keep the significance gate: trivial → proceed; significant
+    (>10 lines / multi-file / behavior change) → wait for user approval;
+    root-cause unclear → list ranked hypotheses, ask before proceeding.
+  - STEP 3.5 CONTRACT (`$HOME/.claude/lib/contract-interview.md`, main loop;
+    DIAGNOSIS feeds it — REQUEST verbatim = the bug report, ACCEPTANCE =
+    symptom reproduced-then-gone + regression test present+passing, FILE SCOPE
+    = the FIX PLAN files; keep the contract path for STEP 5).
+  - STEP 4 BRANCH: gitflow aiguillage (`$HOME/.claude/lib/gitflow-aiguillage.md`,
+    type `bugfix`; never finish).
+  - STEP 5 DISPATCH EXECUTOR:
+    ```
+    Agent(subagent_type="bugfixer")
+    prompt: "CONTRACT: <path from STEP 3.5>
+    DIAGNOSIS: <ROOT CAUSE + EVIDENCE from STEP 3>
+    FIX PLAN: <the STEP 3 FIX PLAN — exact edits + the regression test to add>
+    BRANCH: <current branch — verify with git branch --show-current, never switch>
+    Apply the fix to the letter + the regression test. No commit, no branch
+    ops, no security dispatch. Finish with the BUGFIX-EXEC REPORT."
+    ```
+    Parse `BUGFIX-EXEC REPORT`: `STATUS : DONE` → STEP 6; `NEED-DECISION` →
+    decide HERE (reflection), append to the plan, re-dispatch a FRESH bugfixer,
+    max 2 round-trips → escalate; `BLOCKED` → surface + stop.
+  - STEP 6 VERIFY + SECURE + PRE-COMMIT GATE + COMMIT (main loop, LRN-083):
+    run the two fresh gates per `$HOME/.claude/lib/verify-secure-loop.md` with
+    `CONTRACT` = STEP 3.5 path, `DIFF` = the executor's working-tree diff,
+    `TEST` = the suite from its report (the loop's "dev" is the dispatched
+    bugfixer — re-dispatched FRESH on ECARTS/BLOCK). After both gates pass,
+    keep today's interactive `BUGFIX — READY TO COMMIT` pre-commit gate
+    (diff-stat + message → yes / edit message / skip / amend last), then commit
+    with the conventional `fix(<scope>):` message, then print `BUGFIX COMPLETE`.
+  - STEP 7 DOC SYNC (doc-syncer auto-mode + `$HOME/.claude/lib/doc-commit.md`,
+    verbatim from today's bugfixer STEP 6).
+  - STEP 8 CAPITALIZE (BLK-XXX pre-filled from DIAGNOSIS + optional LRN;
+    interactive gate; `$HOME/.claude/lib/capitalize-commit.md`; verbatim from
+    today's bugfixer STEP 7).
+  - RULES: no fix without root cause first; execution never stays inline,
+    reflection never leaves it (BDR-066); executor dispatched fresh; keep
+    regression-test + scoped-fix + escalate-to-/ship-feature-if->5-files rules.
+
+- [ ] **Step 2: Rewrite `agents/bugfixer.md` as the pure executor.** Replace the
+  ENTIRE file with exactly:
+
+````markdown
+---
+name: bugfixer
+description: Bug-fix EXECUTOR — dispatched by /bugfix with a closed DIAGNOSIS + FIX PLAN + contract. Applies the fix and a regression test, runs the suite, reports. No investigation, no questions, no commit.
+tools: Read, Edit, Write, Bash, Grep, Glob
+model: sonnet
+---
+
+# BUGFIXER — fix executor
+
+You receive a CLOSED diagnosis + fix plan from the /bugfix orchestrator. The
+investigation already happened; your job is faithful execution, not analysis.
+Every choice was made in the plan or is a NEED-DECISION to report.
+
+## INPUT (in the dispatch prompt)
+
+- `CONTRACT`: path to the contract file — read it FIRST; its acceptance
+  criteria (symptom reproduced-then-gone + a regression test present) + FILE
+  SCOPE bound everything you do.
+- `DIAGNOSIS`: root cause + evidence, from the orchestrator's investigation.
+- `FIX PLAN`: the exact edits (file:line → change) + the regression test to add.
+- `BRANCH`: verify with `git branch --show-current`; mismatch → STATUS
+  BLOCKED — never create or switch branches.
+- `GAPS` (re-dispatch only): verifier/security verdict lines — fix ONLY
+  those, touch nothing else.
+
+## EXECUTION RULES
+
+- Apply the FIX PLAN to the letter — fix the ROOT CAUSE named in DIAGNOSIS,
+  not the symptom. A plan hole or an open choice (naming, data shape, API
+  surface, dependency) → STOP, report `NEED-DECISION` with the precise
+  question. Never re-investigate or improvise a different fix.
+- Stay inside the contract FILE SCOPE. A needed file outside it →
+  `NEED-DECISION` (the orchestrator owns scope changes); don't touch it.
+- Add or update the regression test the plan names — it must fail before the
+  fix and pass after. Run the relevant suite incrementally; run it fully
+  before reporting.
+- Follow existing code patterns and CLAUDE.md limits (function size, params,
+  no global state). Keep the fix minimal — no "while we're here" cleanups.
+- FORBIDDEN: `git commit`, branch ops, push, merge, new dependencies,
+  security/verifier dispatch, editing `.claude/**` or memory registries, user
+  questions (you cannot ask — report instead), attribution trailers of any kind.
+
+## OUTPUT — end with exactly this report (your final message)
+
+```
+BUGFIX-EXEC REPORT
+STATUS   : DONE | NEED-DECISION | BLOCKED
+FILE(S)  : <created/modified paths>
+TEST(S)  : <regression test added/updated + final suite run result, verbatim line>
+SMOKE    : <build/typecheck result if run, or n/a>
+NOTES    : <DONE: deviations (must be none) | NEED-DECISION: the exact
+           question + the options you see | BLOCKED: the blocker verbatim>
+```
+````
+
+- [ ] **Step 3: Update `lib/verify-secure-loop.md` (both consumers now dispatched).**
+  The header line `(feat, bugfix)` stays. In the intro, the sentence that says
+  the dev step is "either inline (bugfix) or a dispatched sonnet executor
+  (/feat's feater)" is now stale — BOTH are dispatched. Edit it to: the dev
+  step is a dispatched sonnet executor (feat's `feater`, bugfix's `bugfixer`);
+  "hand the dev" below means re-dispatch a FRESH executor with exactly those
+  inputs. Keep GATE 1 / GATE 2 / order-invariant bodies unchanged (they already
+  read "inline dev fixes in place; a dispatched dev is re-dispatched FRESH" —
+  the inline branch simply no longer has a consumer, harmless).
+
+- [ ] **Step 4 (CONTROLLER — guarded): repoint `lib/tests/loops-light.test.sh`
+  bugfix locks.** Sentinel first:
+  `printf 'model-routing plan: repoint bugfix structure locks to the skill orchestrator' > .claude/.config-edit-ok`
+  Introduce `BSK="$REPO/skills/bugfix/SKILL.md"`. The `bugfixer.md (bugfix wiring)`
+  block currently greps `$BUG` for orchestration clauses now moved to the skill —
+  repoint them to `$BSK`: `STEP 3.5 — CONTRACT`, `feeds it: REQUEST verbatim`,
+  `Fresh gates (verify + secure)` (or the skill's actual STEP-6 wording — match
+  it), `lib/verify-secure-loop.md`. Add a new `bugfixer.md (executor — sonnet,
+  no Agent)` block mirroring the hotfixer one: `tn` bugfixer LACKS `Agent`,
+  `tf` `model: sonnet`, `tf` `BUGFIX-EXEC REPORT`. Add `tf "bugfix dispatches
+  bugfixer" "$BSK" 'subagent_type="bugfixer"'`. Keep include/feat/hotfix blocks
+  untouched.
+
+- [ ] **Step 5: Verify + commit.** `bash lib/tests/loops-light.test.sh` green;
+  YAML check both rewritten files
+  (`python3 -c "import yaml; [yaml.safe_load(open(f).read().split('---')[1]) for f in ['agents/bugfixer.md','skills/bugfix/SKILL.md']]; print('YAML OK')"`);
+  `make test` green.
+  ```bash
+  git add skills/bugfix/SKILL.md agents/bugfixer.md lib/verify-secure-loop.md lib/tests/loops-light.test.sh
+  git commit -m "feat(model-routing): /bugfix split — reflection inline, bugfixer = sonnet executor (supersedes BDR-050 bugfix carve-out)"
+  ```
+
+---
+
+### Task 17: `/code-clean` split — audit + gate inline + dispatched sonnet executor
+
+**Files:**
+- Modify (rewrite): `skills/code-clean/SKILL.md` — thin wrapper → audit orchestrator
+- Modify (rewrite): `agents/code-cleaner.md` — full agent → pure PHASE-2 sonnet executor
+
+**Pattern:** mirror `/feat` (skill = orchestrator holding reflection + interactive
+gate; agent = pure executor). The interactive VALIDATION GATE must stay in the
+orchestrator (a dispatched subagent cannot ask). code-cleaner gains `model: sonnet`.
+
+- [ ] **Step 1: Rewrite `skills/code-clean/SKILL.md` as the audit orchestrator.**
+  Add `Agent` to allowed-tools (keep `AskUserQuestion`, `Read/Edit/Write/Bash/
+  Grep/Glob`). Keep the existing `MODEL GATE (blocking)` line verbatim (audit =
+  reflection, stays gated). Absorb code-cleaner's PHASE 1 INLINE (session model):
+  - `# /code-clean — cleanup orchestrator (audit inline, execution dispatched)`
+  - STEP 1 LOAD PROJECT NORMS (CLAUDE.md > lang configs > community defaults).
+  - STEP 2 SCAN (A dead code / B style / C structural — verbatim from today's
+    code-cleaner PHASE 1 STEP 2, keep the TODO-age bash).
+  - STEP 3 BUILD REPORT (the `CODE-CLEAN AUDIT` block, severity levels).
+  - STEP 4 VALIDATION GATE (interactive, `AskUserQuestion`): present the report;
+    approve all / cherry-pick / clarify. Do NOT proceed until explicit approval.
+    Exported/public-API symbols flagged in the audit are resolved HERE, per-item
+    (this is where the today's guard-rail consent lives — the executor never asks).
+  - STEP 5 PERSIST SCOPE + DISPATCH: write the approved items to
+    `.claude/audits/CODE-CLEAN-SCOPE.md` (`mkdir -p .claude/audits` first), one
+    per line `file:line — item — severity — proposed fix`, then:
+    ```
+    Agent(subagent_type="code-cleaner")
+    prompt: "SCOPE: .claude/audits/CODE-CLEAN-SCOPE.md
+    APPROVED: <the approved item list, incl. any per-item exported-symbol clears>
+    BRANCH: <current branch — verify with git branch --show-current, never switch>
+    Execute PHASE 2 on the approved scope only. Zero behavior change. No commit.
+    Finish with the CODE-CLEAN-EXEC REPORT."
+    ```
+    Parse `CODE-CLEAN-EXEC REPORT`: `DONE` → STEP 6; `BLOCKED` → surface + stop.
+  - STEP 6 SUMMARY: present the `CODE-CLEAN COMPLETE` block (removed / refactored
+    / skipped / bugs-found / tests) from the executor's report. No commit here
+    (code-clean has never auto-committed — leave the working tree for the user
+    or a follow-up `/commit-change`; keep today's behavior).
+  - RULES: zero behavior change; no scope creep; exported symbols need explicit
+    per-item consent AT THE GATE; bugs → BUGS-FOUND.md not fixed; no plugin
+    check (lightweight); systemic issues → suggest `/ship-feature`.
+
+- [ ] **Step 2: Rewrite `agents/code-cleaner.md` as the PHASE-2 executor.** Replace
+  the ENTIRE file with exactly:
+
+````markdown
+---
+name: code-cleaner
+description: Cleanup EXECUTOR (PHASE 2) — dispatched by /code-clean with an APPROVED scope. Deletes approved dead code, hands style/structural items to the refactorer, re-audits. Zero behavior change. No audit, no questions, no commit.
+tools: Read, Edit, Write, Bash, Grep, Glob
+model: sonnet
+---
+
+# CODE-CLEANER — cleanup executor (PHASE 2)
+
+You receive an APPROVED cleanup scope from the /code-clean orchestrator. The
+audit and the user approval already happened; your job is faithful execution.
+The iron law is unchanged: ZERO behavior change — identical observable output
+before and after.
+
+## INPUT (in the dispatch prompt)
+
+- `SCOPE`: path to `.claude/audits/CODE-CLEAN-SCOPE.md` — the approved items
+  (`file:line — item — severity — proposed fix`), the on-disk contract.
+- `APPROVED`: the item list the user confirmed (may be a subset of the audit),
+  including any exported/public-API symbols the gate explicitly cleared.
+- `BRANCH`: verify with `git branch --show-current`; mismatch → STATUS
+  BLOCKED — never create or switch branches.
+
+## EXECUTION — in order
+
+### 1. Delete approved dead code (safest first)
+
+Remove approved unused imports / variables / functions, commented-out blocks,
+stale TODO/FIXME. **Guard rail**: an exported / public-API symbol the
+`APPROVED` list did NOT explicitly clear → do NOT delete; SKIP it and record
+it under NOTES. The per-item exported-symbol consent lives in the
+orchestrator's gate — you never ask.
+
+### 2. Style + structural fixes → INLINE-LOAD the refactorer
+
+Load `$HOME/.claude/agents/refactorer.md` and continue AS the refactorer in
+THIS SAME context — you *become* it. This is an inline load, NOT a subagent
+dispatch: the `Agent` tool is not involved and no new context is spawned. Its
+scope = the style / structural items in `SCOPE`. Its own safety process runs
+(pre-report, function-by-function, test after each) — zero behavior change.
+Running inside this sonnet executor, the refactor finally runs on sonnet (the
+refactorer pin was inert under the old inline-load on the session model).
+
+### 3. Log discovered bugs (do NOT fix)
+
+Real defects found during cleanup (not style issues) → append each to
+`.claude/audits/BUGS-FOUND.md` (`mkdir -p .claude/audits` first): file:line,
+description, severity, discovered-while. Cleanup and bugfixing are separate
+concerns — never fix a bug here.
+
+### 4. Re-audit
+
+Re-scan only the modified files; verify no new issues were introduced; run the
+project test suite + linter/formatter if available.
+
+## RULES
+
+- Zero behavior change. Unsure a deletion is safe → leave it, record under NOTES.
+- No "while we're here" scope creep — only the APPROVED items.
+- FORBIDDEN: `git commit`, branch ops, push, merge, new dependencies, user
+  questions (report instead), editing `.claude/**` or memory registries,
+  attribution trailers of any kind.
+
+## OUTPUT — end with exactly this report (your final message)
+
+```
+CODE-CLEAN-EXEC REPORT
+STATUS    : DONE | BLOCKED
+REMOVED   : <N dead-code items (imports, functions, commented blocks)>
+REFACTORED: <N style + N structural, via the refactorer>
+SKIPPED   : <exported-symbol / unsafe items left, with reason — or none>
+BUGS      : <N logged to .claude/audits/BUGS-FOUND.md — or none>
+TESTS     : <suite result verbatim, or "no test suite">
+NOTES     : <BLOCKED: the blocker verbatim; DONE: none>
+```
+````
+
+- [ ] **Step 3: Verify + commit.**
+  `grep -c 'subagent_type="code-cleaner"' skills/code-clean/SKILL.md` → 1;
+  `grep -c 'model: sonnet' agents/code-cleaner.md` → 1;
+  `grep -c 'AskUserQuestion' agents/code-cleaner.md` → 0;
+  YAML check both files; `make test` green.
+  ```bash
+  git add skills/code-clean/SKILL.md agents/code-cleaner.md
+  git commit -m "feat(model-routing): /code-clean split — audit+gate inline, code-cleaner = sonnet PHASE-2 executor"
+  ```
+
+---
+
+### Task 18: wave-3 census + docs + memory
+
+**Files:**
+- Modify: `lib/tests/model-routing.test.sh` (guarded — CONTROLLER applies) — wave-3 asserts
+- Modify: `README.md`, `CHANGELOG.md`, `.claude/memory/decisions.md`,
+  `.claude/memory/journal.md`, `.claude/tasks/TODO.md`
+
+- [ ] **Step 1 (CONTROLLER — guarded): extend the census.** Sentinel first:
+  `printf 'model-routing plan: wave-3 executor-shape asserts (bugfix, code-clean)' > .claude/.config-edit-ok`
+  In `lib/tests/model-routing.test.sh`, add a `# 8) wave-3 — bugfix/code-clean
+  reflection-split executors` section:
+  `has skills/bugfix/SKILL.md 'subagent_type="bugfixer"'`;
+  `has agents/bugfixer.md 'model: sonnet'`;
+  `lacks agents/bugfixer.md 'AskUserQuestion'`;
+  `has skills/code-clean/SKILL.md 'subagent_type="code-cleaner"'`;
+  `has agents/code-cleaner.md 'model: sonnet'`;
+  `lacks agents/code-cleaner.md 'AskUserQuestion'`.
+  (bugfix + code-clean stay in the existing `# 1)` wired-gate loop — do NOT move
+  them.) Update the printed expected count. Flip-test one new assertion (LRN-096:
+  e.g. temporarily break the bugfixer dispatch string, confirm red, restore).
+
+- [ ] **Step 2: README + CHANGELOG.** In the BDR-066 agent-model table, MOVE
+  `bugfixer` and `code-cleaner` out of the "inherit session" row into the
+  executor/dispatched rows (bugfixer → sonnet executor; code-cleaner → sonnet
+  PHASE-2 executor). The "inherit session" row keeps analyzer + seo/geo/validator
+  analyzers (+ commit-changer stays wherever wave-2 placed it). CHANGELOG
+  Unreleased `### Changed`: add the wave-3 bullet (bugfix/code-clean split —
+  reflection inline, executors sonnet; refactor now runs on sonnet inside the
+  code-clean executor).
+
+- [ ] **Step 3: Capitalize.** Append a `**Wave 3**` bullet to the BDR-066 entry
+  in `.claude/memory/decisions.md`: bugfix + code-clean reflection-split
+  (executors sonnet); supersedes the BDR-050 "bugfix inline" carve-out (hotfix
+  went in wave 2, bugfix now); code-clean refactor finally on sonnet (inline-load
+  pin was inert). Note the accepted tradeoff (bugfix investigation↔fix coupling,
+  mitigated by DIAGNOSIS + verify loop). Journal line under 2026-07-15 + TODO
+  tick.
+  ```bash
+  git add lib/tests/model-routing.test.sh README.md CHANGELOG.md .claude/memory/decisions.md .claude/memory/journal.md .claude/tasks/TODO.md
+  git commit -m "chore(model-routing): wave-3 census + docs + BDR-066 update (bugfix/code-clean split)"
+  ```
+
+- [ ] **Step 4: Final wave-3 review** — dispatch a whole-branch reviewer (opus)
+  over the wave-3 range; confirm: bugfix keeps root-cause-first + the pre-commit
+  gate + verify+secure loop with the executor as the loop's dev; code-clean keeps
+  the interactive validation gate + exported-symbol per-item consent at the gate
+  (not in the executor); zero execution left on the big model in either skill;
+  both executors have no `AskUserQuestion` and are `model: sonnet`. Report the
+  full `git log --oneline develop..HEAD`. Do NOT merge.
+
+---
+
+# WAVE 4 — client-handover whole-writer dispatch (spec §5, user directive 2026-07-15)
+
+**Status: NOT YET SPEC'd — needs a dedicated design pass.** The user chose the
+"dispatch the whole writer" variant of spec §5 (over the lighter redaction-only
+split). This converts `agents/client-handover-writer.md` (1774 lines) from an
+inline-loaded session-model agent into a dispatched sonnet subagent. It is the
+single largest conversion in this effort and requires designing a resumable-gate
+protocol before task decomposition. Key constraints already established:
+
+- The writer has ~8–11 mid-pipeline `AskUserQuestion` gates (STEP 4 fix-loop
+  escalation, STEP 5 push + push-failed, STEP 6 deploy pause + deployed-URL,
+  STEP 11 Q1/Q2, STEP 13 NAP asks, …). A dispatched subagent cannot ask.
+  Convert each to a `GATE NEEDED: <id> <payload>` yield: the writer STOPs and
+  returns it; the dispatcher (`skills/client-handover/SKILL.md`, main loop)
+  runs the `AskUserQuestion`; then RESUMES the writer via SendMessage with the
+  answer. Remove `AskUserQuestion` from the writer's tools.
+- **CORRECTNESS (spec §5 OPEN VERIFY POINT — resolved: force big):** the
+  writer's nested audit dispatches (STEP 3 baseline SEO/HARDEN/CSO, STEP 4 fix
+  loops, STEP 7 web-validate — all `general-purpose`) MUST carry an explicit
+  big-model `model` param so audits do NOT inherit the sonnet parent. Running
+  audits on sonnet would silently violate the "audits on the big model" rule.
+  The fix-application re-dispatches (execution) stay sonnet.
+- Dispatcher collects params inline (URL, logo, options), then
+  `Agent(subagent_type="client-handover-writer")`; writer keeps `Agent` (nested
+  dispatches) + gains no `AskUserQuestion`.
+- Add the MODEL GATE to `skills/client-handover/SKILL.md` (it orchestrates
+  audits = reflection) and add it to the census wired list.
+- Census + README/CHANGELOG + BDR-066 wave-4 bullet + journal + TODO.
+
+Tasks 19+ to be written after reading the writer's STEP 12–14 (doc synthesis +
+render + remaining gates, lines 1123–1774) and mapping every gate to a yield id.
