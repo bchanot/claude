@@ -75,9 +75,10 @@ AskUserQuestion:
 - `all` → every step in the plan is approved as-is.
 - `<numbers>` (e.g. `1,3`) → only those steps are approved; the rest stay
   uncommitted for a later run.
-- `edit <n>` → collect the corrected message/grouping for step N from the
-  user, redraw the plan (this dispatcher owns the text, no re-dispatch
-  needed), show it again and re-ask.
+- `edit <n>` → re-dispatch `commit-changer` with `MODE: propose` and the
+  user's correction for step N folded into the prompt, so all grouping /
+  message judgment stays on the sonnet subagent (never redrawn inline on
+  the session model); show the redrawn plan and re-ask.
 - `skip` → exit cleanly, no commits created, no `MODE: apply` dispatch.
 
 ## STEP 3 — Gate 2: capitalize approval

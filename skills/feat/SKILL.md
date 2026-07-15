@@ -173,8 +173,10 @@ feat(<scope>): <what was added>
 ```
 
 If the feature touched multiple concerns (e.g., feature + config +
-test), consider splitting into 2-3 atomic commits — load
-`$HOME/.claude/agents/commit-changer.md` and follow its grouping logic.
+test), consider splitting into 2-3 atomic commits grouped by logical
+unit — or run `/commit-change` on the pending work (it dispatches the
+sonnet commit-changer; never inline-load the bare agent, it is now a
+propose/apply executor).
 
 Print summary:
 ```
