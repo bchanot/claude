@@ -42,7 +42,8 @@
 # ============================================================
 set -euo pipefail
 
-REPO="$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO="${PROFILE_REPO_OVERRIDE:-$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+CLAUDE_BIN="${CLAUDE_BIN:-claude}"
 SKILLS_DIR="$REPO/skills"
 DISABLED_DIR="$REPO/skills-disabled"
 GSTACK_SRC="$REPO/skills-external/gstack"  # gstack submodule — source of truth for gstack skills
@@ -201,9 +202,9 @@ skill_status() {
     plugin|plugin@*)
       # `claude plugin list` is the source of truth — settings.json may be
       # ahead of or behind reality if the user toggled outside this tool.
-      if command -v claude >/dev/null 2>&1; then
+      if command -v "$CLAUDE_BIN" >/dev/null 2>&1; then
         # Match the plugin block by name then check Status line
-        if claude plugin list 2>/dev/null \
+        if "$CLAUDE_BIN" plugin list 2>/dev/null \
            | awk -v p="$skill" '
                /^[[:space:]]*❯ '"$skill"'@/ { found=1; next }
                found && /Status:/ { print; exit }
@@ -218,8 +219,8 @@ skill_status() {
       fi
       ;;
     mcp)
-      if command -v claude >/dev/null 2>&1 && \
-         claude mcp list 2>/dev/null | grep -q "^${skill}"; then
+      if command -v "$CLAUDE_BIN" >/dev/null 2>&1 && \
+         "$CLAUDE_BIN" mcp list 2>/dev/null | grep -q "^${skill}"; then
         echo "enabled"
       else
         echo "disabled"
@@ -279,8 +280,8 @@ enable_skill() {
       local marketplace="${type#plugin@}"
       if [ "$(skill_status "$skill" "$type")" = "enabled" ]; then
         : # already on
-      elif command -v claude >/dev/null 2>&1; then
-        if claude plugin enable "${skill}@${marketplace}" 2>&1 | grep -qiE "enabled|already"; then
+      elif command -v "$CLAUDE_BIN" >/dev/null 2>&1; then
+        if "$CLAUDE_BIN" plugin enable "${skill}@${marketplace}" 2>&1 | grep -qiE "enabled|already"; then
           ok "enabled plugin: ${skill}@${marketplace}"
         else
           warn "could not enable plugin: ${skill}@${marketplace}"
@@ -354,8 +355,8 @@ disable_skill() {
       done
       if [ "$(skill_status "$skill" "$type")" = "disabled" ]; then
         : # already off
-      elif command -v claude >/dev/null 2>&1; then
-        if claude plugin disable "$key" 2>&1 | grep -qiE "disabled|already"; then
+      elif command -v "$CLAUDE_BIN" >/dev/null 2>&1; then
+        if "$CLAUDE_BIN" plugin disable "$key" 2>&1 | grep -qiE "disabled|already"; then
           ok "disabled plugin: $key"
         else
           warn "could not disable plugin: $key"

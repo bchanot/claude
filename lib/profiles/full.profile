@@ -78,8 +78,14 @@ guard
 emil-design-eng                   external
 frontend-design                   external
 design-motion-principles          external
+impeccable                        external
 ui-ux-pro-max                     plugin@ui-ux-pro-max-skill
-pr-review-toolkit                 plugin@claude-code-plugins
+# pr-review-toolkit REMOVED from full (audit 2026-07-02 #12): heaviest
+# single plugin cost (~2.2k tokens of agent descriptions/session), useful
+# only when reviewing PRs. Reactivate per PR session:
+#   claude plugin enable pr-review-toolkit@claude-code-plugins
+# or profile-based: bash lib/profile.sh apply audit (audit.profile keeps it;
+# a later `set full` re-disables it — MANAGED_PLUGINS lifecycle).
 magic                             mcp
 
 # === CLIs (advisory) =================================================

@@ -11,6 +11,7 @@ rules:
   - Capture learnings that apply beyond the current task.
   - Abstract from the incident - the pattern is what is reusable, not the one-shot fact.
   - Link to source (commit, file, PR) when possible.
+  - Entries in English, caveman format (BDR-009): drop articles + filler, fragments OK, technical terms exact.
 ---
 
 # Learnings registry (LRN)
@@ -22,11 +23,11 @@ rules:
 
 <!-- Append entries below. Template:
 
-## LRN-XXX - <pattern abstrait>
+## LRN-XXX - <abstract pattern>
 
-- **Date** : YYYY-MM-DD
-- **Pattern** : <ce qui a été observé, formulé de manière réutilisable>
-- **Contexte** : <où et quand, concret>
-- **Application future** : <quand se rappeler de ceci>
+- **Date**: YYYY-MM-DD
+- **Pattern**: <what was observed, phrased for reuse>
+- **Context**: <where and when, concrete>
+- **Future application**: <when to recall this>
 
 -->

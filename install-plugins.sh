@@ -33,12 +33,15 @@ source "$REPO/lib/detect-plugins.sh"
 # graphify's installer (Step 7) rewrites CLAUDE.md + .claude/settings.json
 # (clobbers the curated graphify section + injects aggressive MANDATORY
 # hooks), and `claude plugin install` (Step 5) flips enable-states in
-# settings.json. These 3 files are maintained by hand + commit, never by
+# settings.json. These 4 files are maintained by hand + commit, never by
 # the installer. Snapshot them now and restore on exit so a run leaves them
 # exactly as it found them. Pre-existing local edits are preserved; only the
 # installer's drift is undone. NOTE: this makes these files install-immutable
 # — anything the installer should add to them must be committed by hand.
-GUARDED_CONFIGS=("CLAUDE.md" ".claude/settings.json" "settings.json")
+# CLAUDE.md = project memory (graphify's rewrite target); CLAUDE.global.md
+# = user-scope global memory (deployed as ~/.claude/CLAUDE.md).
+GUARDED_CONFIGS=("CLAUDE.md" "CLAUDE.global.md" ".claude/settings.json"
+  "settings.json")
 CFG_SNAPSHOT="$(mktemp -d 2>/dev/null || true)"
 
 restore_curated_configs() {
@@ -62,7 +65,10 @@ if [ -n "$CFG_SNAPSHOT" ]; then
   done
   trap restore_curated_configs EXIT
 else
-  warn "Config guard disabled (mktemp failed) — CLAUDE.md/settings may drift"
+  err "Config guard could not be created (mktemp failed) — refusing to run" \
+    "unguarded: CLAUDE.md/CLAUDE.global.md/.claude/settings.json/settings.json" \
+    "could be silently rewritten by the installer. Fix mktemp/TMPDIR and retry."
+  exit 1
 fi
 
 # Read pinned version from plugins.lock.json
@@ -125,29 +131,29 @@ else
   ok "git installed"
 fi
 
-# --- Node.js (>=18) ---
+# --- Node.js (>=24 — impeccable requires it; GSD v2 needs >=22) ---
 NODE_OK=false
 if command -v node &>/dev/null; then
   NODE_VER=$(node --version | sed 's/v//' | cut -d. -f1)
-  if [ "$NODE_VER" -ge 22 ]; then
+  if [ "$NODE_VER" -ge 24 ]; then
     ok "Node.js $(node --version)"; NODE_OK=true
   else
-    warn "Node.js $(node --version) is too old (need >=22 — GSD v2 requires it)"
+    warn "Node.js $(node --version) is too old (need >=24 — impeccable requires it)"
   fi
 fi
 if [ "$NODE_OK" = false ]; then
-  info "Installing Node.js 22 LTS..."
+  info "Installing Node.js 24 LTS..."
   case $OS in
     macos)
-      brew install node@22
-      export PATH="/opt/homebrew/opt/node@22/bin:$PATH"
+      brew install node@24
+      export PATH="/opt/homebrew/opt/node@24/bin:$PATH"
       ;;
     linux-apt)
-      curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+      curl -fsSL https://deb.nodesource.com/setup_24.x | sudo -E bash -
       sudo apt-get install -y nodejs
       ;;
     linux-dnf)
-      curl -fsSL https://rpm.nodesource.com/setup_22.x | sudo bash -
+      curl -fsSL https://rpm.nodesource.com/setup_24.x | sudo bash -
       sudo dnf install -y nodejs
       ;;
     linux-pacman)
@@ -162,12 +168,39 @@ if [ "$NODE_OK" = false ]; then
   fi
 fi
 
+# --- npm (bundled with Node, but distro `apt install nodejs` can ship it separately) ---
+# BLK-013 fix-forward: node>=22 present does NOT imply npm present. GSD (gsd-pi)
+# and ctx7 install via `npm install -g`, so a missing npm makes `make plugin`
+# die with Error 127 mid-run. The Node block above short-circuits when node is
+# already recent (NODE_OK=true) and never checks npm, so guarantee it here.
+if ! command -v npm &>/dev/null; then
+  info "npm missing (Node without npm) — enabling via corepack, else package manager..."
+  if command -v corepack &>/dev/null; then
+    sudo corepack enable npm 2>/dev/null || corepack enable npm 2>/dev/null || true
+  fi
+  if ! command -v npm &>/dev/null; then
+    case $OS in
+      linux-apt)    sudo apt-get install -y npm || true ;;
+      linux-dnf)    sudo dnf install -y npm || true ;;
+      linux-pacman) sudo pacman -S --noconfirm npm || true ;;
+      macos)        brew install node || true ;;   # brew's node bundles npm
+      *) : ;;
+    esac
+  fi
+  if command -v npm &>/dev/null; then
+    ok "npm $(npm --version)"
+  else
+    err "npm still missing — GSD/ctx7 need it; install npm manually then re-run"; exit 1
+  fi
+fi
+
 # --- Rust + Cargo (for RTK) ---
 if command -v cargo &>/dev/null; then
   ok "Rust/Cargo $(cargo --version | awk '{print $2}')"
 else
   info "Installing Rust (rustup)..."
   curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --no-modify-path
+  # shellcheck source=/dev/null
   source "$HOME/.cargo/env"
   ok "Rust installed: $(cargo --version)"
 fi
@@ -337,9 +370,10 @@ if [ -d "$GSTACK_DIR" ]; then
   gstack_bump_playwright_if_unsupported
 
   info "Running GStack setup..."
+  _gstack_setup_ok=0
   if [ -x "$GSTACK_DIR/setup" ]; then
     if (cd "$GSTACK_DIR" && ./setup); then
-      : # setup succeeded
+      _gstack_setup_ok=1
     else
       warn "GStack ./setup failed — check output above"
     fi
@@ -355,9 +389,13 @@ if [ -d "$GSTACK_DIR" ]; then
      && [ "$(bash "$REPO/lib/toggle-external.sh" status gstack 2>/dev/null)" = "enabled" ]; then
     info "Disabling gstack by default (no context cost until enabled)..."
     bash "$REPO/lib/toggle-external.sh" disable gstack >/dev/null
-    ok "gstack installed, disabled — enable with: bash lib/toggle-external.sh enable gstack"
+  fi
+  # Success message gated on the real setup outcome — an unconditional ok
+  # after a `|| warn` reads as success even when setup failed (LRN-071 class).
+  if [ "$_gstack_setup_ok" -eq 1 ]; then
+    ok "GStack ready (disabled by default — enable: bash lib/toggle-external.sh enable gstack)"
   else
-    ok "GStack ready (submodule initialized, symlinks staged)"
+    warn "GStack NOT ready — ./setup did not complete (see warnings above)"
   fi
 
   # GStack shared infrastructure: bin/ (CLI tools) and browse/dist/ (compiled binary).
@@ -396,6 +434,19 @@ else
     info "Installing RTK (latest — consider pinning in plugins.lock.json)..."
     cargo install --git https://github.com/rtk-ai/rtk
   fi
+fi
+# PATH bridge: cargo installs to ~/.cargo/bin, which hand-managed shell
+# profiles routinely lose (LRN-036 class). This installer sources cargo env
+# so `command -v rtk` passes HERE — but Claude's tool shell never gets that
+# PATH: the rewrite hook then drops every COMPOUND rewrite (it can only
+# absolute-path the string head) and compression silently dies (measured:
+# 6/5070 commands compressed over 30 days). ~/.local/bin is on the standard
+# PATH — bridge with a symlink. Idempotent; -x on a broken link is false,
+# so a stale link self-repairs.
+if [ -x "$HOME/.cargo/bin/rtk" ] && [ ! -x "$HOME/.local/bin/rtk" ]; then
+  mkdir -p "$HOME/.local/bin"
+  ln -sf "$HOME/.cargo/bin/rtk" "$HOME/.local/bin/rtk"
+  ok "rtk bridged into ~/.local/bin (cargo bin dir is not on the tool-shell PATH)"
 fi
 # Only init if not already configured (avoids overwriting custom RTK config)
 if ! grep -q "rtk" "$HOME/.claude/settings.json" 2>/dev/null; then
@@ -500,7 +551,9 @@ enable_plugin  "security-guidance"  "claude-code-plugins"
 # (not in claude-code marketplace — it's a separate repo)
 install_plugin "example-skills"     "anthropic-agent-skills"
 install_plugin "pr-review-toolkit"  "claude-code-plugins"
-install_plugin "plugin-dev"         "claude-code-plugins"
+# plugin-dev dropped 2026-07-02 (audit #14): installed 2026-06-23, never
+# enabled, pure disk weight — reinstall deliberately if plugin authoring
+# becomes a need: claude plugin install plugin-dev@claude-code-plugins
 
 echo ""
 
@@ -523,7 +576,7 @@ echo ""
 # subscription plan its ~75% output-token compression has no cost benefit,
 # and the plugin's always-on SessionStart/UserPromptSubmit hooks added
 # friction on validation gates and client deliverables. The unrelated
-# memory-registry terse-format convention (CLAUDE.md) is kept.
+# memory-registry terse-format convention (CLAUDE.global.md) is kept.
 
 # ============================================================
 # STEP 6 — CONTEXT7 CLI (ctx7)
@@ -547,11 +600,51 @@ else
     err "ctx7 install failed — run manually: npm install -g ctx7"
   fi
 fi
-# Suggest setup for Claude Code integration (optional — ctx7 also works standalone)
+# ctx7 auth — detect, then offer login ONLY in an interactive TTY. A non-interactive
+# run (CI / headless / re-run) must never open a browser or block on OAuth.
 if command -v ctx7 &>/dev/null; then
-  info "Run 'ctx7 setup --claude' to configure Context7 for Claude Code"
-  info "Or use ctx7 standalone: ctx7 docs /vercel/next.js \"middleware\""
-  info "Free higher rate limits: ctx7 login (OAuth) or --api-key from context7.com/dashboard"
+  # Deterministic offline oracle: ctx7's OAuth token lives here (XDG-aware).
+  # Present => authenticated; absent => anonymous. No subprocess, no network, no browser.
+  ctx7_creds="${XDG_CONFIG_HOME:-$HOME/.config}/context7/credentials.json"
+  if [ -f "$ctx7_creds" ]; then
+    ok "ctx7 authenticated (full rate limits)"
+  else
+    info "ctx7 works anonymously — docs + library already usable, no auth required."
+    if [ -t 0 ] && [ -t 1 ]; then
+      # Interactive terminal: offer to log in now (opens a browser).
+      printf '%b' "${BLUE}→${NC} Authenticate ctx7 now for higher rate limits? [y/N] "
+      read -r ctx7_ans || ctx7_ans=""
+      if [[ "$ctx7_ans" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+        if ctx7 login; then
+          ok "ctx7 authenticated (full rate limits)"
+        else
+          warn "ctx7 login did not finish — re-run 'ctx7 login' anytime"
+        fi
+      else
+        info "Skipped — authenticate later with:  ctx7 login"
+      fi
+    else
+      # Non-interactive (CI / headless / re-run): never block — just guide.
+      info "For higher rate limits, authenticate:  ctx7 login   (opens a browser)"
+      info "  headless:  ctx7 login --no-browser   (prints a URL to open yourself)"
+    fi
+  fi
+  # CLI + Skills mode: install the find-docs skill into ~/.claude/skills when
+  # absent (it is gitignored — ctx7 owns it, this regenerates it on a fresh
+  # clone). Guarded on absence so a re-run never clobbers a customized config.
+  if [ ! -f "$HOME/.claude/skills/find-docs/SKILL.md" ]; then
+    if ctx7 setup --claude --cli -y </dev/null &>/dev/null; then
+      ok "ctx7 CLI + Skills configured (find-docs skill installed)"
+    else
+      warn "ctx7 setup failed — run manually: ctx7 setup --claude --cli"
+    fi
+  fi
+  # Single ctx7 surface = the find-docs skill (BDR-053). setup also (re)writes
+  # ~/.claude/rules/context7.md — a session-start duplicate of the skill
+  # (~490 tok/session, job1 F10). Purge it unconditionally so re-runs and
+  # manual `ctx7 setup` invocations stay rule-free.
+  rm -f "$HOME/.claude/rules/context7.md"
+  info "Standalone usage:  ctx7 docs /vercel/next.js \"middleware\""
 fi
 
 # ============================================================
@@ -570,11 +663,47 @@ else
   fi
 fi
 if command -v graphify &>/dev/null; then
+  _graphify_ok=1
   info "Running graphify install (dependencies)..."
-  graphify install 2>/dev/null || warn "graphify install failed — run manually"
+  graphify install 2>/dev/null || { warn "graphify install failed — run manually"; _graphify_ok=0; }
   info "Configuring Claude Code integration..."
-  graphify claude install 2>/dev/null || warn "graphify claude install failed — run manually"
-  ok "Graphifyy configured for Claude Code"
+  graphify claude install 2>/dev/null || { warn "graphify claude install failed — run manually"; _graphify_ok=0; }
+  # Success message gated on the real outcome (LRN-071 class: an
+  # unconditional ok after `|| warn` lies when a step failed).
+  if [ "$_graphify_ok" -eq 1 ]; then
+    ok "Graphify configured for Claude Code"
+  else
+    warn "Graphify NOT fully configured — re-run the failed step manually"
+  fi
+fi
+echo ""
+
+# ============================================================
+# STEP 7.5 — SEMGREP (SAST engine for the security gate)
+# ============================================================
+echo "── Step 7.5: Semgrep — SAST security gate ───────────────────"
+echo ""
+if command -v semgrep &>/dev/null; then
+  ok "semgrep already installed ($(semgrep --version 2>/dev/null | head -1))"
+else
+  SEMGREP_VER=$(pinned_version "semgrep")
+  if [ "$SEMGREP_VER" != "latest" ]; then
+    info "Installing semgrep ${SEMGREP_VER} (pinned in plugins.lock.json)..."
+    pipx install "semgrep==${SEMGREP_VER}" 2>/dev/null
+  else
+    info "Installing semgrep latest (consider pinning in plugins.lock.json)..."
+    pipx install semgrep 2>/dev/null
+  fi
+  if command -v semgrep &>/dev/null; then
+    ok "semgrep installed ($(semgrep --version 2>/dev/null | head -1))"
+  else
+    err "semgrep install failed — run manually: pipx install semgrep"
+  fi
+fi
+# Login is Pro-rules only and optional — NEVER run automatically (ctx7
+# pattern: guide, don't block). The gate uses pinned public rulesets.
+if command -v semgrep &>/dev/null; then
+  info "Optional Pro rules:  semgrep login   (never run automatically)"
 fi
 echo ""
 
@@ -645,6 +774,57 @@ else
 fi
 echo ""
 
+# ── Step 8d: Impeccable (design anti-pattern detector + skill) ──
+# 45 deterministic detector rules (CLI `impeccable detect`, exit 0/2) +
+# /impeccable skill (23 verbs). Machine-owned dist: the installer produces
+# it, we stage it in a tmpdir then move it under skills-external/
+# (gitignored, ctx7 pattern) — never let the installer write through the
+# ~/.claude/skills symlink into the tracked repo dir.
+echo "── Step 8d: Impeccable — design anti-pattern detector ────"
+echo ""
+IMP_DIR="$REPO/skills-external/impeccable"
+IMP_VER=$(pinned_version "impeccable")
+NODE_MAJOR=$(node -v 2>/dev/null | sed 's/^v//' | cut -d. -f1)
+if [ -z "${NODE_MAJOR:-}" ] || [ "$NODE_MAJOR" -lt 24 ]; then
+  if [ -f "$IMP_DIR/SKILL.md" ]; then
+    ok "impeccable already present (update skipped — needs Node >= 24, found ${NODE_MAJOR:-none})"
+  else
+    warn "impeccable: needs Node >= 24 (found ${NODE_MAJOR:-none}) — skipped. Bump Node, then: make plugin"
+  fi
+else
+  IMP_PKG="impeccable"
+  if [ "$IMP_VER" != "latest" ]; then
+    IMP_PKG="impeccable@${IMP_VER}"
+    info "Installing impeccable ${IMP_VER} (pinned in plugins.lock.json, staged)..."
+  else
+    info "Installing impeccable latest (consider pinning in plugins.lock.json)..."
+  fi
+  IMP_STAGE=$(mktemp -d)
+  if (cd "$IMP_STAGE" && npx -y "$IMP_PKG" skills install -y --providers=claude --scope=project --no-hooks >/dev/null 2>&1); then
+    IMP_SRC=$(find "$IMP_STAGE" -type d -name impeccable -path "*skills*" 2>/dev/null | head -1)
+    if [ -n "$IMP_SRC" ] && [ -f "$IMP_SRC/SKILL.md" ]; then
+      rm -rf "$IMP_DIR"
+      mv "$IMP_SRC" "$IMP_DIR"
+      ok "impeccable synced to skills-external/ (CLI ${IMP_VER})"
+    else
+      warn "impeccable: installer ran but produced no skills/impeccable/SKILL.md — layout changed? Inspect: npx impeccable skills install"
+    fi
+  else
+    if [ -f "$IMP_DIR/SKILL.md" ]; then
+      ok "impeccable already present (installer failed — existing dist kept)"
+    else
+      warn "impeccable install failed — run manually: npx impeccable skills install -y --providers=claude --scope=project --no-hooks"
+    fi
+  fi
+  rm -rf "$IMP_STAGE"
+fi
+if [ -L "$HOME/.claude/skills/impeccable" ]; then
+  ok "impeccable symlink OK"
+else
+  info "Symlinking — will be created by link.sh"
+fi
+echo ""
+
 # ============================================================
 # STEP 8.5 — EXTERNAL SKILLS (npx skills add …)
 # ============================================================
@@ -656,7 +836,6 @@ echo ""
 
 NPX_SKILLS=(
   "alchaincyf/darwin-skill"
-  "alchaincyf/find-skills"
 )
 
 # `skills add` resolves its target (.agents/skills/, skills-lock.json) RELATIVE
@@ -809,7 +988,7 @@ echo ""
 # STEP 10 — REFRESH SYMLINKS (final, so this script is self-sufficient)
 # ============================================================
 # Steps 2/8/8.5 INSTALL skills (gstack submodule, emil/frontend/motion, npx
-# darwin/find-skills) that link.sh must symlink into ~/.claude/skills/. Since
+# darwin-skill) that link.sh must symlink into ~/.claude/skills/. Since
 # link.sh runs BEFORE this script in install.sh, those symlinks would be missing
 # on a fresh run until link.sh is run again by hand. Re-run it here so
 # `make plugin` (and `make install`) finish complete — nothing left to do.
@@ -835,19 +1014,18 @@ echo "    ✅ security-guidance   — PreToolUse security hook (0 tokens) [claud
 echo "    ✅ rtk                 — token compression hook (0 tokens)"
 echo "    ✅ superpowers         — brainstorm/plan/implement/debug workflow"
 echo ""
-echo "  TOGGLE (installed but start OFF — /plugin-check recommends when needed):"
+echo "  TOGGLE (plugin state = settings.json enabledPlugins; skills/CLIs = profiles):"
 echo "    🔄 gstack              — disabled by default (toggle: lib/toggle-external.sh enable gstack)"
 echo "    🔄 gsd v2              — standalone CLI 'gsd' (gsd-pi, not a Claude Code plugin)"
-echo "    🔄 plugin-dev          — create plugins/skills (~100 tokens) [claude-code-plugins]"
-echo "    🔄 pr-review-toolkit   — /pr-review-toolkit:review-pr (~300 tokens) [claude-code-plugins]"
-echo "    🔄 ui-ux-pro-max       — user scope (~400 tokens)"
+echo "    🔄 pr-review-toolkit   — /review-pr + 6 PR agents (~2.2k tokens when enabled) [claude-code-plugins]"
+echo "    🔄 ui-ux-pro-max       — user scope (~780 tokens when enabled)"
 echo "    🔄 context7 CLI        — ctx7 (npm global, standalone or MCP setup)"
-echo "    🔄 graphifyy           — codebase knowledge graph (pipx, PreToolUse hook)"
+echo "    🔄 graphifyy (CLI: graphify) — codebase knowledge graph (pipx, PreToolUse hook)"
 echo "    🔄 emil-design-eng     — UI polish, animations, component craft (curl → symlink)"
 echo "    🔄 frontend-design     — distinctive frontend interfaces, anti-AI-slop (anthropic-agent-skills)"
+echo "    🔄 impeccable          — /impeccable design verbs + 45-rule deterministic detector (npx impeccable detect)"
 echo "    🔄 design-motion-principles — motion/animation design, 3-designer lens (kylezantos)"
 echo "    🔄 darwin-skill        — autonomous skill optimizer (npx skills, ~/.agents/skills/)"
-echo "    🔄 find-skills         — skill discovery helper (npx skills, ~/.agents/skills/)"
 echo "    🔄 magic MCP           — 21st-dev UI generation MCP (toggle: lib/toggle-external.sh enable magic)"
 echo ""
 echo "  All plugins installed at: user scope (~/.claude/plugins/)"

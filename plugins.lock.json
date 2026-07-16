@@ -7,13 +7,13 @@
   },
   "gsd": {
     "source": "npm:gsd-pi",
-    "version": "2.64.0",
-    "note": "Check latest at https://www.npmjs.com/package/gsd-pi before updating. GSD v2 is a standalone CLI (Pi SDK), not a Claude Code plugin. Run 'gsd' in terminal, not '/gsd' in Claude Code."
+    "version": "3.0.0",
+    "note": "Check latest at https://www.npmjs.com/package/gsd-pi before updating. GSD is a standalone CLI (Pi SDK), not a Claude Code plugin. Run 'gsd' in terminal, not '/gsd' in Claude Code. ADR-013 cutover (3.0.0): DB is authoritative, .gsd/ROADMAP.md no longer exists — read state via 'gsd headless query' (see agents/status-reporter.md PHASE 3), not markdown scraping. NOTE: update-all.sh honors this pin — 'make update' will NOT advance gsd past it; bump this version deliberately, then re-run."
   },
   "gstack": {
     "source": "https://github.com/garrytan/gstack.git",
     "managed_by": "git submodule",
-    "note": "Version controlled by submodule pointer in .gitmodules. Update: git submodule update --remote"
+    "note": "Version controlled by submodule pointer in .gitmodules. Update: git submodule update --remote. Pinned at 11de390 (v1.58.5.0, job6): pulled deliberately for the #1911 fail-open security-guard fix (careful/guard/freeze/data-loss guards) after human review of #2047 (gbrowser stealth, accepted). Local playwright bump (BDR-029, BLK-008) is reset by every submodule update and re-applied by install-plugins.sh's gstack_bump_playwright_if_unsupported()."
   },
   "ctx7": {
     "source": "npm:ctx7",
@@ -24,12 +24,23 @@
     "source": "pypi:graphifyy",
     "version": "latest",
     "managed_by": "pipx",
-    "note": "Codebase knowledge graph. CLI is 'graphify'. Install: pipx install graphifyy && graphify install && graphify claude install. Adds PreToolUse hook for Glob/Grep."
+    "note": "Codebase knowledge graph. CLI is 'graphify'. Install: pipx install graphifyy && graphify install && graphify claude install. Adds PreToolUse hook for Glob/Grep. pipx/PyPI ONLY — never npm/npx: a different publisher (rhanka/graphify) squats the same 'graphifyy' name on npm, a version-shadowing shim with its own conflicting 'graphify' bin."
+  },
+  "semgrep": {
+    "source": "pypi:semgrep",
+    "version": "1.168.0",
+    "managed_by": "pipx",
+    "note": "SAST engine for the security gate (security-auditor agent, onboard cso fallback, audit-delta). Rulesets pinned in-agent: p/security-audit + p/secrets (never --config auto). BLOCKING gate -> pin honored by update-all.sh: 'make update' will NOT advance semgrep past it; bump deliberately (new rules = new BLOCKs on unchanged code). Never run 'semgrep login' automatically (Pro rules are optional, guide-only)."
   },
   "emil-design-eng": {
     "source": "https://github.com/emilkowalski/skill",
     "path": "skills/emil-design-eng/SKILL.md",
     "managed_by": "curl",
     "note": "Emil Kowalski's design engineering skill — UI polish, animations, component craft. Downloaded to skills-external/emil-design-eng/, symlinked by link.sh."
+  },
+  "impeccable": {
+    "source": "npm:impeccable",
+    "version": "3.2.0",
+    "note": "Design anti-pattern detector (45 deterministic rules, CLI 'impeccable detect', exit 0/2) + /impeccable skill (23 verbs) by pbakaus. Pin = CLI version; the skill dist has its own release track fetched by 'skills install'. Pinned for audit reproducibility (LRN-077 class: a rules update silently changes audit output). Requires Node >= 24 — install step skips gracefully below that. Machine-owned: synced to skills-external/impeccable/ (gitignored), symlinked by link.sh."
   }
 }

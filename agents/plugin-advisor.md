@@ -1,8 +1,8 @@
 ---
 name: plugin-advisor
-description: Check active plugins vs project needs. Recommend enable/disable before starting work. Gate before init-project and ship-feature.
+description: Plugin-fit checker — dispatched by /plugin-check and orchestrator gates (init-project, ship-feature). Recommends enable/disable.
 tools: Read, Bash, Glob, Grep
-model: haiku
+model: sonnet
 ---
 
 # PLUGIN ADVISOR
@@ -19,7 +19,7 @@ Detect active plugins and project signals. Recommend enable/disable. Apply compa
 claude plugin list 2>/dev/null || echo "plugin-list-unavailable"
 
 # External (non-marketplace) tools status — gstack, emil-design-eng,
-# darwin-skill, find-skills. Managed by lib/toggle-external.sh since
+# darwin-skill. Managed by lib/toggle-external.sh since
 # `claude plugin enable|disable` does not apply to them.
 bash "$HOME/.claude/lib/toggle-external.sh" list 2>/dev/null || echo "toggle-external-unavailable"
 
@@ -217,10 +217,10 @@ findings before producing recommendations:
 
 | Signal | Enable / Use | Disable / Skip | Notes |
 |---|---|---|---|
-| `frontend` | ui-ux-pro-max, frontend-design, design-motion-principles | — | UI design + polish + motion. frontend-design = anti-AI-slop, design-motion-principles = motion/animation (both external, symlinked) |
+| `frontend` | ui-ux-pro-max, frontend-design, design-motion-principles, impeccable | — | UI design + polish + motion. frontend-design = anti-AI-slop, design-motion-principles = motion/animation, impeccable = /impeccable verbs + deterministic detector (`npx impeccable detect`, 45 rules) — all external, symlinked |
 | `mobile` (React Native/Expo/Flutter) | — | gstack (no browser QA), Docker N/A | ui-ux-pro-max optional |
 | `monorepo` | per-package plugin recommendations | avoid recommending gstack for whole repo if only one package has browser QA | Specify which plugin applies to which package |
-| `design-system` | ui-ux-pro-max, frontend-design, design-motion-principles | — | Design tokens, theme, Storybook, motion |
+| `design-system` | ui-ux-pro-max, frontend-design, design-motion-principles, impeccable | — | Design tokens, theme, Storybook, motion; impeccable init persists the design context (DESIGN.md/PRODUCT.md) |
 | `deploy` + `browser-qa` | gstack | — | Full-product workflow |
 | `multi-session` | gsd v2 CLI | — | Run `gsd` in terminal, not CC plugin |
 | `fast-libs` | context7 | — | Doc freshness critical |
@@ -353,8 +353,8 @@ RULE: IF `complex-arch` signal (multiple services, event bus, distributed system
 ## TOGGLING EXTERNAL TOOLS
 
 Marketplace plugins toggle via `claude plugin enable|disable <name>@<marketplace>`.
-Non-marketplace tools (gstack per-skill symlinks, emil-design-eng, darwin-skill,
-find-skills) toggle via `bash $HOME/.claude/lib/toggle-external.sh enable|disable <tool>`.
+Non-marketplace tools (gstack per-skill symlinks, emil-design-eng, darwin-skill)
+toggle via `bash $HOME/.claude/lib/toggle-external.sh enable|disable <tool>`.
 
 When a recommendation flips the state of one of those tools, emit the exact
 command — never write files directly.

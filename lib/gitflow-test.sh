@@ -32,6 +32,9 @@ chk "protected develop"   'gitflow_protected_base develop'
 chk "not protected feat"  '! gitflow_protected_base feature/x'
 chk "base feature=develop" '[ "$(gitflow_base_for feature)" = develop ]'
 chk "base hotfix=main"     '[ "$(gitflow_base_for hotfix)" = main ]'
+chk "type chore"           '[ "$(gitflow_branch_type chore/x)" = chore ]'
+chk "base chore=develop"   '[ "$(gitflow_base_for chore)" = develop ]'
+chk "not protected chore"  '! gitflow_protected_base chore/x'
 
 echo "T2 — init fresh (BLK-010 root commit)"
 newrepo fresh; echo scaffold > README.md; hookon
@@ -92,6 +95,16 @@ chk "merged into develop" 'git log develop --oneline | grep -q "Merge feature/f1
 chk "main untouched"      "[ \"\$(git rev-parse main)\" = \"$main_before\" ]"
 chk "branch deleted"      '! git rev-parse --verify -q refs/heads/feature/f1 >/dev/null'
 
+echo "T6b — finish chore → develop only (standalone memory/doc maintenance)"
+newrepo finchore; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+gitflow_start chore c1 >/dev/null 2>&1
+mkdir -p .claude/memory; echo m>.claude/memory/x.md; git add -A; git commit -q -m "chore(memory)"
+main_before="$(git rev-parse main)"
+gitflow_finish >/dev/null 2>&1
+chk "chore merged into develop" 'git log develop --oneline | grep -q "Merge chore/c1 into develop"'
+chk "chore main untouched"      "[ \"\$(git rev-parse main)\" = \"$main_before\" ]"
+chk "chore branch deleted"      '! git rev-parse --verify -q refs/heads/chore/c1 >/dev/null'
+
 echo "T7 — finish hotfix → main + develop fan-out"
 newrepo finhot; echo a>a; hookon; gitflow_init >/dev/null 2>&1
 gitflow_start hotfix h1 >/dev/null 2>&1; echo p>patch.txt; git add patch.txt; git commit -q -m patch
@@ -119,7 +132,7 @@ chk "idempotent 2nd run"  "[ \"$before\" = \"\$(md5sum .gitignore)\" ]"
 
 echo "T10 — COHERENCE: hook verdict == lib predicate (drift detector, #4)"
 newrepo coh; echo a>a; hookon; gitflow_init >/dev/null 2>&1
-for br in main develop feature/x bugfix/y release/z hotfix/w master mainline qa; do
+for br in main develop feature/x bugfix/y release/z hotfix/w chore/m master mainline qa; do
   if gitflow_protected_base "$br"; then lib=protected; else lib=open; fi
   git checkout -q -B "$br" 2>/dev/null
   printf 'x\n' >> a; git add a
@@ -142,6 +155,106 @@ chk "cli start switched HEAD"  '[ "$(git symbolic-ref --short HEAD)" = feature/c
 if bash "$HERE/gitflow.sh" protected-base main;       then ok "cli protected-base main → rc0";    else no "cli protected-base main"; fi
 if bash "$HERE/gitflow.sh" protected-base feature/x;  then no "cli protected-base feature (rc0?)"; else ok "cli protected-base feature → rc1"; fi
 chk "cli base-for hotfix=main" '[ "$(bash "$HERE/gitflow.sh" base-for hotfix)" = main ]'
+
+echo "T12 — finish arg-guard (named branch must equal current, else refuse)"
+newrepo finargs; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+gitflow_start feature standon >/dev/null 2>&1; echo w>w.txt; git add w.txt; git commit -q -m w
+# mismatch: standing on feature/standon but asking to finish bugfix/other → refuse
+# shellcheck disable=SC2034  # mism_out/mism_rc are used in the deferred chk eval strings
+mism_out="$(gitflow_finish bugfix other 2>&1)"; mism_rc=$?
+chk "arg-mismatch → nonzero rc"       "[ $mism_rc -ne 0 ]"
+chk "arg-mismatch → HEAD untouched"   '[ "$(git symbolic-ref --short HEAD)" = feature/standon ]'
+chk "arg-mismatch → branch kept"      'git rev-parse --verify -q refs/heads/feature/standon >/dev/null'
+chk "arg-mismatch → develop NOT merged" '! git log develop --oneline | grep -q "Merge feature/standon into develop"'
+chk "arg-mismatch → message names both" 'printf "%s" "$mism_out" | grep -q "current branch" && printf "%s" "$mism_out" | grep -q "bugfix/other"'
+# match: naming the current branch explicitly finishes exactly like the no-arg path
+gitflow_finish feature standon >/dev/null 2>&1
+chk "arg-match → merged into develop" 'git log develop --oneline | grep -q "Merge feature/standon into develop"'
+chk "arg-match → branch deleted"      '! git rev-parse --verify -q refs/heads/feature/standon >/dev/null'
+
+echo "T13 — finish release fan-out (main+develop+delete), 2 open releases + bugfix→develop-only"
+newrepo finrel; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+gitflow_start release 9.9.9 >/dev/null 2>&1; echo v>VERSION; git add VERSION; git commit -q -m "bump 9.9.9"
+finish_rc=0; gitflow_finish >/dev/null 2>&1 || finish_rc=$?
+chk "T13a finish rc 0"                 "[ $finish_rc -eq 0 ]"
+chk "T13a main has release commit"     'git log main --oneline | grep -q "bump 9.9.9"'
+chk "T13a develop has release commit"  'git log develop --oneline | grep -q "bump 9.9.9"'
+chk "T13a release branch deleted"      '! git rev-parse --verify -q refs/heads/release/9.9.9 >/dev/null'
+
+newrepo finrel2; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+gitflow_start release 1.0 >/dev/null 2>&1; echo r1>r1; git add r1; git commit -q -m rel1
+gitflow_start release 2.0 >/dev/null 2>&1; echo r2>r2; git add r2; git commit -q -m rel2
+gitflow_start hotfix hboth >/dev/null 2>&1; echo p>p; git add p; git commit -q -m hotfixboth
+gitflow_finish >/dev/null 2>&1
+chk "T13b hotfix in release/1.0" 'git log release/1.0 --oneline | grep -q "Merge hotfix/hboth into release/1.0"'
+chk "T13b hotfix in release/2.0" 'git log release/2.0 --oneline | grep -q "Merge hotfix/hboth into release/2.0"'
+
+newrepo finbugfix; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+gitflow_start bugfix bx >/dev/null 2>&1; echo w>w.txt; git add w.txt; git commit -q -m bugfixwork
+main_before="$(git rev-parse main)"
+gitflow_finish >/dev/null 2>&1
+chk "T13c develop has bugfix commit" 'git log develop --oneline | grep -q "Merge bugfix/bx into develop"'
+chk "T13c main untouched"            "[ \"\$(git rev-parse main)\" = \"$main_before\" ]"
+chk "T13c bugfix branch deleted"     '! git rev-parse --verify -q refs/heads/bugfix/bx >/dev/null'
+
+echo "T14 — hook exemption matrix (mixed-block / MERGE_HEAD / root-commit), direct invocation"
+newrepo hookmix; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+git checkout -q main
+echo "console.log(1)" > src.js
+mkdir -p .claude/tasks; echo t > .claude/tasks/t.md
+git add src.js .claude/tasks/t.md
+chk "T14a mixed code+.claude BLOCKED on main" '! git commit -q -m mixed 2>/dev/null'
+
+newrepo mergehead; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+git checkout -q main
+echo "console.log(1)" > src.js; git add src.js
+touch "$(git rev-parse --git-dir)/MERGE_HEAD"
+chk "T14b MERGE_HEAD exemption allows commit on main" 'git commit -q -m "resolve conflict" 2>/dev/null'
+
+newrepo root14c
+git symbolic-ref HEAD refs/heads/main   # name the unborn branch 'main' (protected)
+gitflow_install_hook   # write + activate BEFORE any commit (unlike newrepo/hookon)
+echo x > x.txt; git add x.txt
+chk "T14c root commit succeeds hook-active-before-first-commit" 'git commit -q -m root 2>/dev/null'
+
+echo "T15 — init identity precheck: no identity → rc1, zero mutation"
+d="$WORK/noident"; rm -rf "$d"; mkdir -p "$d"; cd "$d" || exit 1
+git init -q
+echo a > a.txt
+init_rc=0
+GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null gitflow_init >/dev/null 2>&1 || init_rc=$?
+chk "T15 rc 1 (identity unset)"    "[ $init_rc -eq 1 ]"
+chk "T15 no develop branch"        '! git rev-parse --verify -q refs/heads/develop >/dev/null'
+chk "T15 unborn HEAD (no commit)"  '! git rev-parse --verify -q HEAD >/dev/null 2>&1'
+chk "T15 hooksPath unset"          '[ -z "$(git config core.hooksPath 2>/dev/null)" ]'
+chk "T15 nothing staged"           '[ -z "$(git diff --cached --name-only)" ]'
+chk "T15 no .gitignore written"    '[ ! -e .gitignore ]'
+chk "T15 no .githooks written"     '[ ! -d .githooks ]'
+
+echo "T16 — gitleaks pre-commit backstop (job7), independent of branch protection"
+newrepo gl; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+gitflow_start feature glwork >/dev/null 2>&1
+
+# T16a — a real secret pattern staged on a working branch (not main/develop,
+# proving this backstop is NOT gated by the branch-protection check above it)
+printf 'aws_access_key_id = AKIA%s\n' "GDR5XRBXYARW2I5N" > secret.txt
+git add secret.txt
+gl_out="$(git commit -q -m "add secret" 2>&1)"; gl_rc=$?
+chk "T16a fake secret on feature branch → blocked" "[ $gl_rc -ne 0 ]"
+chk "T16a message mentions gitleaks"               'printf "%s" "$gl_out" | grep -qi gitleaks'
+chk "T16a nothing committed"          '! git log --oneline 2>/dev/null | grep -q "add secret"'
+git restore --staged secret.txt 2>/dev/null || true; rm -f secret.txt
+
+# T16b — a clean commit is unaffected
+echo clean > clean.txt; git add clean.txt
+chk "T16b clean commit still succeeds" 'git commit -q -m "clean work" 2>/dev/null'
+
+# T16c — gitleaks missing from PATH → warn, never block (defense in depth
+# must not become a new single point of failure)
+echo clean2 > clean2.txt; git add clean2.txt
+noleaks_out="$(PATH=/usr/bin:/bin git commit -q -m "clean work 2" 2>&1)"; noleaks_rc=$?
+chk "T16c missing-gitleaks → still commits (rc0)" "[ $noleaks_rc -eq 0 ]"
+chk "T16c missing-gitleaks → warns"    'printf "%s" "$noleaks_out" | grep -qi "not installed"'
 
 echo
 echo "==== RESULT: $PASS passed, $FAIL failed ===="

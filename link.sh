@@ -17,10 +17,10 @@ link_file() {
   CHANGED=$((CHANGED + 1))
 }
 
-link_file "$REPO/CLAUDE.md"     "$CLAUDE/CLAUDE.md"
+link_file "$REPO/CLAUDE.global.md" "$CLAUDE/CLAUDE.md"
 link_file "$REPO/settings.json" "$CLAUDE/settings.json"
 
-for item in hooks agents skills lib templates; do
+for item in hooks agents skills lib templates rules; do
   target="$CLAUDE/$item"
   if [ -L "$target" ]; then
     if [ "$(readlink "$target")" = "$REPO/$item" ]; then
@@ -71,7 +71,7 @@ if [ -d "$GSTACK_SRC/browse/dist" ]; then
   fi
 fi
 
-EXTERNAL_SKILLS=(emil-design-eng frontend-design design-motion-principles)
+EXTERNAL_SKILLS=(emil-design-eng frontend-design design-motion-principles impeccable)
 for _ext_skill in "${EXTERNAL_SKILLS[@]}"; do
   if [ -d "$REPO/skills-external/$_ext_skill" ]; then
     if [ -L "$CLAUDE/skills/$_ext_skill" ] && [ "$(readlink "$CLAUDE/skills/$_ext_skill")" = "$REPO/skills-external/$_ext_skill" ]; then
@@ -90,7 +90,7 @@ done
 # absolute paths so the link stays valid regardless of where the
 # repo is cloned (relative ../../ paths broke on repos deeper than
 # one level below $HOME).
-NPX_EXTERNAL_SKILLS=(darwin-skill find-skills)
+NPX_EXTERNAL_SKILLS=(darwin-skill)
 for _ext in "${NPX_EXTERNAL_SKILLS[@]}"; do
   _target="$HOME/.agents/skills/$_ext"
   _link="$REPO/skills/$_ext"

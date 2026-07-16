@@ -1,11 +1,18 @@
 ---
 name: ship-feature
-description: Use when shipping a new feature end-to-end — needs design brainstorm, planning, TDD implementation with subagents, error recovery, code review, and finish. Multi-agent orchestrator (9-step pipeline). Triggers: "ship feature", "ship-feature", "build and merge", "feature end-to-end", "implement and ship".
+description: 'Use when shipping a new feature end-to-end — needs design brainstorm, planning, TDD implementation with subagents, error recovery, code review, and finish. Multi-agent orchestrator (9-step pipeline). Triggers: "ship feature", "ship-feature", "build and merge", "feature end-to-end", "implement and ship".'
 argument-hint: <feature description>
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 ---
 
 # ORCHESTRATOR: SHIP FEATURE
+
+## MODEL GATE (blocking — run before any other step)
+
+Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
+judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
+gate prints the remedy; end the turn — no later step, no dispatch. Nominal
+(big) path is silent.
 
 ## REQUEST
 $ARGUMENTS
@@ -78,7 +85,16 @@ The returned digest (ANALYSIS + RELATED MEMORY) stays in the orchestrator's cont
 is FED to STEP 1 and STEP 2 and reconciled at STEP 3. Degradation: request too vague →
 analyzer flags ambiguous zones, does not block (STEP 1 refines). `.claude/memory/` empty or
 absent → analyzer omits RELATED MEMORY (no-op); the step still returns the code ANALYSIS.
-Additive — distinct from STEP 5 ANALYZE (post-impl regression) and STEP 4b DEBUG.
+Additive — distinct from STEP 5 VERIFY + SECURE (post-impl) and STEP 4b DEBUG.
+
+## STEP 0e — CONTRACT
+
+Run `$HOME/.claude/lib/contract-interview.md`. REQUEST verbatim = the feature
+request as typed; initial ACCEPTANCE CRITERIA from the request; FILE SCOPE
+seeded from 0d's KEY COMPONENTS. It writes
+`.claude/tasks/contracts/<date>-<slug>-<HHMM>.md`; keep the path — the design
+approved at STEP 3 ENRICHES it, and STEP 5's verifier judges the diff against
+the ENRICHED contract. This is the only flow where the contract grows mid-run.
 
 ## STEP 1 — BRAINSTORM
 Invoke `superpowers:brainstorming` — but FEED it the STEP 0d digest as binding context,
@@ -120,6 +136,13 @@ never a guarantee (same discipline as the memory-commit `✅<hash>`: show what's
 assert a check not performed). No RELATED MEMORY from 0d → omit the block.
 Changes → back to STEP 2. Approved → continue.
 
+**On approval — ENRICH the STEP 0e contract.** The design just validated adds
+detail the raw request lacked: append the design-derived acceptance criteria
+to the contract's ACCEPTANCE CRITERIA, each tagged `[gated <date>]` (this is
+the human micro-gate that authorizes contract growth). STEP 5's verifier
+judges the diff against this ENRICHED contract, not the STEP 0e seed — so a
+criterion the design introduced is verified, not lost.
+
 ## STEP 4 — IMPLEMENT
 Start the feature branch off develop, then implement on it:
 ```bash
@@ -130,6 +153,12 @@ Invoke `superpowers:subagent-driven-development` for the per-task implement loop
 `finishing-a-development-branch` step — this orchestrator owns integration via
 `gitflow finish` (STEP 9). When SDD's flow reaches "Use
 finishing-a-development-branch", stop and return.
+
+**Model routing (BDR-066):** every subagent dispatched under SDD — per-task
+implementers AND its reviewers — MUST carry `model: "sonnet"` in the Agent
+call. The plan is closed; execution and plan-conformity review are sonnet
+work. Reflection (task decomposition, review verdict arbitration) stays in
+this loop.
 
 ## STEP 4b — ERROR RECOVERY (if STEP 4 fails)
 If a subagent returns a build error, failing test, or type error:
@@ -157,8 +186,22 @@ OPTIONS :
        Skip them too? (yes / keep and accept partial implementation)"
      If no dependents → skip cleanly and continue.
 
-## STEP 5 — ANALYZE
-Load `$HOME/.claude/agents/analyzer.md`. Check: no regressions, no stale code, no plan deviations.
+## STEP 5 — VERIFY + SECURE (fresh gates, bounded loops)
+Run the two fresh gates per `$HOME/.claude/lib/verify-secure-loop.md` with
+`CONTRACT` = the STEP 0e path (ENRICHED at STEP 3), `DIFF` = the branch diff
+(`develop..HEAD`), `TEST` = the project suite:
+- GATE 1 — a FRESH verifier judges the branch against the ENRICHED contract
+  (all criteria, including the `[gated]` design ones). CONFORME → GATE 2.
+  ECARTS → hand the dev the gap list, fix, re-verify, max 3 → STOP + human
+  escalation with the CRITERIA table.
+- GATE 2 — a FRESH security-auditor (`MODE: gate`, `SCOPE: develop..HEAD`)
+  scans the branch. PASS → STEP 6. BLOCK → fix, re-verify the request THEN
+  re-scan, max 3 → escalate.
+
+This replaces the old informal "analyze for regressions" with a verdict
+against the contract. It is a DISTINCT axis from STEP 6 code review (contract
+conformity + security vs. craft/design) — both run, neither subsumes the
+other ([[LRN-095]]).
 
 ## STEP 6 — CODE REVIEW
 Invoke `superpowers:requesting-code-review`. Fix all CRITICAL before proceeding.

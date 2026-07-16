@@ -10,7 +10,9 @@
 # --- Always-on plugins ---
 
 detect_rtk() {
-  command -v rtk &>/dev/null
+  command -v rtk &>/dev/null && return 0
+  # PATH heal: hook/session PATH may lack the cargo bin dir (LRN-036 class)
+  [ -x "$HOME/.cargo/bin/rtk" ] || [ -x "$HOME/.local/bin/rtk" ]
 }
 
 detect_superpowers() {
@@ -22,11 +24,6 @@ detect_superpowers() {
   # Slow fallback: CLI (only if fast check fails)
   claude plugin list 2>/dev/null | grep -qi "superpowers" && return 0
   return 1
-}
-
-detect_security_guidance() {
-  local cache_dir="$HOME/.claude/plugins/cache"
-  [ -d "$cache_dir" ] && compgen -G "$cache_dir"/*security-guidance* &>/dev/null
 }
 
 
@@ -64,15 +61,6 @@ detect_context7() {
 detect_graphifyy() {
   # Graphifyy — codebase knowledge graph, installed via pipx
   command -v graphify &>/dev/null
-}
-
-# True if a plugin is registered as enabled in settings.json's
-# enabledPlugins map. Filesystem only (no subprocess to claude CLI).
-# Argument is the full "name@marketplace" key.
-plugin_enabled() {
-  local key="$1"
-  [ -f "$HOME/.claude/settings.json" ] || return 1
-  grep -qE "\"${key}\"[[:space:]]*:[[:space:]]*true" "$HOME/.claude/settings.json"
 }
 
 

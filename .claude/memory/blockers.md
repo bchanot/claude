@@ -28,10 +28,14 @@ rules:
 | BLK-006 | 2026-05-21 | `profile.sh current` false-negative via `~/.claude` symlink (`cd` not `cd -P`) | resolved |
 | BLK-007 | 2026-06-02 | 6 gstack source skills (ios-*, spec) unlinked post-bump — invisible to profiles + `gstack on` | resolved |
 | BLK-008 | 2026-06-23 | gstack ./setup on Ubuntu 26.04: Playwright chromium unsupported → gstack browser (/browse, /qa, screenshots) silently dead | resolved (211c7d4) |
-| BLK-009 | 2026-06-25 | user-level path-scoped rules (`paths:` frontmatter in `~/.claude/rules/`) never inject — broken in CC 2.1.190 (#21858) | upstream, open |
+| BLK-009 | 2026-06-25 | user-level path-scoped rules (`paths:` frontmatter in `~/.claude/rules/`) never inject — broken in CC 2.1.190 (#21858) | resolved (2026-07-06) |
 | BLK-010 | 2026-06-27 | init-project: scaffold (STEP 5) + bootstrap README (5b) have no deterministic commit owner; worktree `add -b` on unborn HEAD | resolved (uncommitted) |
 | BLK-011 | 2026-06-27 | init-project STEP 13 GSD post-FINISH creates ROADMAP.md → stranded doc (3rd post-FINISH artifact) | resolved (STEP 12 removed) |
 | BLK-012 | 2026-06-29 | gitflow_init half-applied: socle-commit failure swallowed → hook activated on partial run → re-run self-blocks | resolved |
+| BLK-013 | 2026-06-30 | `make plugin` Error 127 — npm absent on apt-`nodejs` host (Step 4 gsd-pi aborts, Steps 5-10 + residual cleanup never run) | resolved (env) |
+| BLK-014 | 2026-07-01 | `make install` aborts npm EEXIST on `~/.local/bin/claude` when claude already installed via native installer — no presence guard | resolved |
+| BLK-015 | 2026-07-03 | `gitflow_finish` ignored its `<type> <name>` args → merged the CHECKED-OUT branch not the one named → wrong-branch merge (audit LOT3) | resolved |
+| BLK-016 | 2026-07-04 | rtk compression PATH-dead 30 days — 6/5070 Bash commands compressed (~460K tokens missed); installer sources cargo env so its own check passes, Claude tool shell never gets ~/.cargo/bin | resolved |
 
 ---
 
@@ -121,7 +125,8 @@ rules:
 - **Real cause**: GitHub issue #21858 — user-level (`~/.claude/rules/`) rules carrying `paths:` frontmatter are not evaluated/injected; still unfixed in 2.1.190. (Project-level path-scoped rules not tested here.)
 - **Probe method**: 3-file probe — `_probe.md` (`paths: ["**/*.probe"]`, sentinel `SENTINEL_USER_RULE_LOADED`), `_probe_ctl.md` (NO `paths`, control sentinel `CONTROL_NOPATHS_LOADED`), `_probe_target.probe` (target, read in a fresh session). Result: control sentinel PRESENT in session context, path-scoped sentinel ABSENT → the path-scoped rule did not load. Probe files removed after.
 - **Status**: upstream, open. Workaround: don't rely on user-level path-scoping → keep global guidance unconditional + COMPRESSED ([[BDR-031]]). Side-note: native auto-memory = "on" but writes nothing yet (fresh machine). Re-test on CC upgrades.
-- **Reference**: GitHub #21858. Linked to [[BDR-031]], [[LRN-044]].
+- **2026-07-06 UPDATE — RESOLVED**: re-probed `paths:` frontmatter lazy-load with fresh 3-file probe (`**/*.blkprobe` glob) — confirmed loading works at BOTH project-level AND user-level (`~/.claude/rules/`) rule dirs. #21858 no longer reproduces on current CC version. Status → resolved. Prior workaround (unconditional + compressed global CLAUDE.md, [[BDR-031]]) no longer forced by this bug — see [[LRN-103]].
+- **Reference**: GitHub #21858. Linked to [[BDR-031]], [[LRN-044]], [[LRN-103]].
 
 ---
 
@@ -154,3 +159,45 @@ rules:
 - **Solution**: (1) socle commit FATAL in `_gitflow_init_existing` — `if ! git diff --cached --quiet; then git commit … || { echo …; return 1; }; fi` → aborts BEFORE develop/hook-activation; (2) identity precheck at top of `gitflow_init` (fail loud, no half-apply); (3) identity guard in `gitflow-migrate.sh:migrate_local`. Recovery: set faunosteo local identity → deactivate hook → delete premature develop → reinit (socle commits with hook inactive, as designed) → main==develop @ socle, tree clean, master renamed. Verified: shellcheck clean, 57/57 tests pass, hardened init on an identity-less repo aborts rc1 with ZERO mutation.
 - **Status**: resolved (`lib/gitflow.sh` + `lib/gitflow-migrate.sh`, uncommitted working tree as of the gitflow chantier).
 - **Reference**: [[LRN-068]] (transactional-bootstrap principle). Discovered mid gitflow-migration 2026-06-29. Sibling chantier learning [[LRN-067]].
+
+## BLK-013 — `make plugin` Error 127: npm absent on apt-`nodejs` host
+
+- **Date**: 2026-06-30
+- **Friction**: `make plugin` (→ `install-plugins.sh`) aborts at Step 4 (gsd-pi): `install-plugins.sh: line 425: npm: command not found` → `make: *** [Makefile:10: plugin] Error 127`. Steps 5-10 never run, AND the post-Step-4 stray-dir cleanup (Step 8.5) never reached → the [[BDR-030]]/[[LRN-042]] residual (stray `$REPO/.agents/skills` + `$REPO/.claude/skills`, promised "auto-cleaned next `make plugin`") silently persists run after run. SessionStart banner already showed `gsd v2 ✗`.
+- **Real cause**: Debian/apt `nodejs` package ships `node` WITHOUT `npm` (npm = separate apt pkg). `/usr/bin/node` present (v22.22.1); its bindir has acorn/corepack/semver but NO npm/npx — npm genuinely uninstalled, not a PATH miss. install-plugins.sh Step 1 checks `node >=22` but NEVER verifies npm — assumes npm ships with node (true for nodesource/brew/dnf paths, FALSE for plain apt).
+- **Solution**: corepack (ships with node) over apt npm (apt npm could pull a divergent 2nd node). `corepack enable --install-directory "$HOME/.local/bin" npm` → npm 11.18.0 shim, no sudo, `~/.local/bin` already on PATH. Then `npm config set prefix "$HOME/.local"` — default prefix `/usr` is root-owned → `npm install -g` would EACCES; `~/.local` writable + bins land on PATH. Persisted in `~/.npmrc`. Re-run → EXIT=0, Step 4 ✓ (`gsd-pi@2.64.0`), Step 8.5 ran (`Removed stray repo-local skills dir: .agents/skills` + `.claude/skills`). Caveat: gsd-pi DEPRECATED + postinstall scripts SKIPPED (npm 11 `allow-scripts`) — `gsd --version/--help` ok, full provisioning would need `npm install -g --allow-scripts=gsd-pi,… gsd-pi`.
+- **Fix-forward**: install-plugins.sh Step 1 should GUARANTEE npm on apt-`nodejs` hosts — detect missing npm + `corepack enable npm` (not just check node) → stops Error 127 recurring on any fresh apt machine.
+- **Status**: resolved (env-level: corepack shim + npm prefix; zero repo change). Fix-forward (script hardening) NOT built.
+- **Reference**: discovered fixing `make plugin` 2026-06-30. Distinct from [[BLK-003]] (macOS playwright hardcoded path) + the Playwright-chromium `make plugin` failure. Blocked residual = [[BDR-030]]/[[LRN-042]].
+- **Update 2026-07-01**: fix-forward BUILT. install-plugins.sh Step 1 gained unconditional npm guard (`corepack enable npm` → distro `install npm` fallback → fatal `exit 1`), placed AFTER the `NODE_OK` short-circuit so a node>=22-present-but-npm-absent host no longer skips it. Now fully resolved (env-level + script). shellcheck/`bash -n` clean; fresh-apt live validation still pending. Commit `1f2c1cc`, branch `bugfix/install-plugins-npm-guard`.
+
+---
+
+## BLK-014 — `make install` aborts npm EEXIST when claude already present
+
+- **Date**: 2026-07-01
+- **Friction**: `make install` → install.sh Step 2 `npm install -g @anthropic-ai/claude-code@latest` fails EEXIST on `~/.local/bin/claude` when claude already installed → `else err` → `exit 1`. Bootstrap not idempotent on Claude Code step; rest (auth, symlinks, plugins) never runs.
+- **Real cause**: claude installed via NATIVE installer, not npm — `~/.local/bin/claude` = symlink → `~/.local/share/claude/versions/<v>` (`npm ls -g @anthropic-ai/claude-code` = empty; `claude --version` = 2.1.197). npm prefix `~/.local` (set by [[BLK-013]]) targets same `~/.local/bin/claude` → npm won't clobber a bin it doesn't own → EEXIST. Channel conflict, not double-install. Step had NO presence guard, unlike RTK (install-plugins.sh:388) / GSD (:419) / claude check (:252).
+- **Solution**: install.sh — skip-if-present guard `command -v claude` (mirror RTK/GSD), npm only fresh machine (`elif`). update-all.sh — channel-aware updater: `npm ls -g` → npm-managed uses npm, else native uses `claude update` (self-update). Never `npm --force` (would clobber native, break self-update).
+- **Status**: resolved. Fix `8dc4027`, branch `bugfix/install-claude-idempotent`, pending merge validation.
+- **Reference**: [[BLK-013]] npm prefix `~/.local` = contributing factor (npm bin over native bin). install-plugins.sh already pointed to code.claude.com (native) — install.sh was the npm outlier. Fresh-machine `elif npm` branch channel-consistency = open design question (potential BDR). Pattern → [[LRN-085]].
+- **Update 2026-07-01**: MERGED `2393ca5` (bugfix/install-claude-idempotent → develop), pushed — supersedes "pending merge validation". The open channel-consistency question is RESOLVED by [[BDR-046]] (fresh install → native installer, npm dropped for claude); install.sh has no `elif npm` branch → nothing left to trancher.
+
+## BLK-015 — `gitflow_finish` ignored its args, merged the CURRENT branch not the one asked
+
+- **Date**: 2026-07-03
+- **Friction**: audit 2026-07-02 — `gitflow.sh finish bugfix audit-bugs` run while checked out on `feature/audit-tokens` merged audit-tokens (LOT3), NOT audit-bugs. Final develop state identical (disjoint hunks) so no data damage, but the merge order was silently wrong. UX trap: the command LOOKS like it targets `bugfix/audit-bugs`.
+- **Real cause**: CLI dispatch (`lib/gitflow.sh:257` `finish) gitflow_finish "$@"`) forwards args, but the function derived its source from `HEAD` (`git symbolic-ref`) and NEVER read `$1/$2` → the `<type> <name>` were silently dropped. Merge source = ambient state (checked-out branch), not the named target. Design intended finish to always operate on HEAD (human gate = "be on the branch"), but nothing enforced that passed args, if any, MATCH the branch you're on.
+- **Solution**: `gitflow_finish [<type> <name>]` — args now an optional safety ASSERTION: present AND `"$req_type/$req_name" != "$br"` → error `operates on the current branch 'X', but you asked 'Y' — checkout 'Y' first`, rc 2. No args = behavior unchanged (only real caller `skills/gitflow/SKILL.md:36` + every test pass none → zero regression). +7 regression assertions (`gitflow-test.sh` T12, numbered to dodge collision with reconcile's own T6c).
+- **Status**: resolved. Commit `d9fdd4c`, branch `bugfix/gitflow-finish-args`.
+- **Reference**: journal 2026-07-02 (trap noted, not fixed) → fixed 2026-07-03. Pattern → [[LRN-089]] (pass-through wrapper deriving target from ambient state = silent contract violation).
+
+## BLK-016 — rtk compression PATH-dead for 30 days: installer's own check can't see the tool shell
+
+- **Date**: 2026-07-04
+- **Friction**: user asked "is rtk installed + used right?". Measured (`rtk discover`): 6 of 5070 Bash commands compressed over 30 days, ~460K tokens missed (grep ~144K, git status ~112K, ls ~92K…). Hook registered, integrity pin OK, registry broad — yet near-zero real usage. Nobody noticed: degradation was silent (LRN-047 class).
+- **Real cause**: two-layer. (1) cargo installs rtk into `~/.cargo/bin`; hand-managed profile lost the PATH line (LRN-036 class) → Claude's TOOL shell can't resolve `rtk`. (2) install-plugins.sh sources `~/.cargo/env` for itself, so its `command -v rtk` check PASSES in the installer shell — validating an env the runtime never has. Hook survived via absolute-path substitution, but ONLY at string head (f0b7e89 guard): every COMPOUND rewrite (dominant Claude style — echo separators, `&&`) was dropped by design.
+- **Solution**: bridge symlink `~/.cargo/bin/rtk` → `~/.local/bin/rtk` (standard PATH). Immediate: created live, compound rewrites revived, proven in-session (bare grep → `rtk grep` output). Durable: install-plugins.sh STEP 3 idempotent self-repairing bridge, flip-tested 4/4 sandboxed HOME (LRN-096). Commit `e58037c` (RC fix on release/1.0.0).
+- **Status**: resolved.
+- **Reference**: lesson: a PATH-dependent hook must be verified in the TARGET shell, not the installer's (installer sourcing envs lies to its own checks); usage is MEASURED (`rtk discover`), never assumed. Corroborates [[LRN-047]] (silent degradation → measure) + [[LRN-036]] (hand-managed profile drift); guard interplay [[LRN-089]]-adjacent (ambient-state assumptions).
+- **backmerge**: entry from release/1.0.0 (2b4e7401); the fix `e58037c` was ALSO missing from develop (rtk was live-broken on develop) — ported to develop 2026-07-08 (review remediation A3, commit follows) so this "resolved" is now true on develop too.

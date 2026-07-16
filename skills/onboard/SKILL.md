@@ -1,11 +1,18 @@
 ---
 name: onboard
-description: Use when bringing an existing repo into the claude-config framework — needs archetype detection, config install, full multi-axis audit (debt/SEO/GEO/UI-UX/perf/security/a11y/docs), and prioritized backlog. Multi-agent orchestrator. Do NOT use for repos created via /init-project. Triggers: "onboard", "onboard project", "audit existing repo", "setup existing project".
-argument-hint: [optional hints: "Python FastAPI" | "add gsd" | "Next.js monorepo" | "force-archetype:wordpress"]
+description: 'Use when bringing an existing repo into the claude-config framework — needs archetype detection, config install, full multi-axis audit (debt/SEO/GEO/UI-UX/perf/security/a11y/docs), and prioritized backlog. Multi-agent orchestrator. Do NOT use for repos created via /init-project. Triggers: "onboard", "onboard project", "audit existing repo", "setup existing project".'
+argument-hint: '[optional hints: "Python FastAPI" | "add gsd" | "Next.js monorepo" | "force-archetype:wordpress"]'
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep, Agent, Skill
 ---
 
 # ORCHESTRATOR: ONBOARD
+
+## MODEL GATE (blocking — run before any other step)
+
+Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
+judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
+gate prints the remedy; end the turn — no later step, no dispatch. Nominal
+(big) path is silent.
 
 ## REQUEST
 $ARGUMENTS
@@ -96,7 +103,7 @@ L'agent génère :
 - `.claudeignore`
 - `.gitignore` (safety check)
 - `.claude/tasks/TODO.md`, `.claude/memory/{decisions,learnings,blockers,journal,evals}.md`
-- **Pas encore** `ROADMAP.md` (décision STEP 9)
+- **Pas encore** `ROADMAP.md` (généré uniquement via `/onboard add gsd` — voir Next steps)
 
 Si `CLAUDE.md` existe déjà : lire son contenu, ne PAS écraser — fusionner après STEP 3.
 
@@ -122,7 +129,7 @@ Cas :
   Stack: <reason>. Aucune lib d'animation détectée.
   Install `<cmd>` ? (yes / skip)
   ```
-  Sur `yes` → exécuter `recommend_anim_install_cmd "$pkg"` puis confirmer.
+  Sur `yes` → `cmd=$(recommend_anim_install_cmd "$pkg"); eval "$cmd"` puis confirmer.
   Sur `skip` → continuer silencieusement.
 
 - **`status=eligible` AND une lib anim déjà présente** (motion, framer-motion, gsap, lottie, react-spring, popmotion, auto-animate) → log info uniquement :
@@ -143,7 +150,7 @@ bash "$HOME/.claude/lib/gitflow.sh" init
 Sur un repo existant, cela : renomme `master`→`main` si besoin (LOCAL), crée
 `develop` depuis main, réconcilie le socle `.gitignore` (additif — n'écrase
 jamais les règles du projet), installe le hook pre-commit versionné, et fait UN
-commit `chore: adopt gitflow socle + hook` sur main (pendant que le hook est
+commit `chore: adopt gitflow socle + pre-commit hook` sur main (pendant que le hook est
 inactif → jamais auto-bloqué). Idempotent — un re-run est un no-op.
 
 **Annoncer le renommage master→main** s'il a lieu. Le renommage est LOCAL ;
@@ -251,7 +258,7 @@ test -f graphify-out/GRAPH_REPORT.md && echo "graph-exists"
 - **Graphe déjà présent + récent** (fichier < 7j) → skip, réutiliser l'existant.
 - **Sinon** → run :
   ```bash
-  graphify . --output graphify-out 2>&1 | tail -20
+  graphify . --out graphify-out 2>&1 | tail -20
   ```
   Puis `test -f graphify-out/GRAPH_REPORT.md` pour valider.
 
@@ -347,7 +354,7 @@ Lire le bloc `audit_stack:` du fichier `~/.claude/lib/project-archetypes/<archet
 | Entry | Action | Livraison |
 |---|---|---|
 | `analyze` | Déjà fait en STEP 5 | L3a |
-| `code-clean` | Spawn subagent `code-cleaner` (audit-only) | L3a |
+| `code-clean` | Spawn subagent `general-purpose` (audit-only, inherits session = big model) | L3a |
 | `cso` | Si gstack ON → Skill(cso). Sinon → Agent general-purpose avec checklist OWASP + deps audit | L3a |
 | `doc` | Spawn subagent `doc-syncer` (auto-mode OFF, report-only) | L3a |
 | `seo` | Subagents seo-analyzer + geo-analyzer en parallèle | L3b |
@@ -359,11 +366,11 @@ Lire le bloc `audit_stack:` du fichier `~/.claude/lib/project-archetypes/<archet
 
 Lancer EN PARALLÈLE (un seul message, plusieurs Agent calls) les audits correspondant aux entrées de `audit_stack:` qui sont en L3a (`code-clean`, `cso`, `doc`).
 
-#### Dispatch code-cleaner (si `code-clean` dans audit_stack)
+#### Dispatch code-clean audit (si `code-clean` dans audit_stack)
 ```
 Agent(
-  subagent_type="code-cleaner",
-  description="Onboard — code-clean audit only",
+  subagent_type="general-purpose",
+  description="Onboard — code-clean audit only (read-only, big session model)",
   prompt="""
   AUDIT-ONLY mode — NO fixes, NO refactoring, NO file modifications.
   Target: <PROJECT_ROOT>. ARCHETYPE: <archetype>.
@@ -486,6 +493,38 @@ bash $HOME/.claude/lib/toggle-external.sh list 2>/dev/null | grep -E "^gstack\s+
   )
   ```
 
+#### Dispatch semgrep SAST — `security-auditor` (TOUJOURS, complément de cso)
+
+En complément de cso (ON) OU du fallback (OFF) — un moteur SAST déterministe
+à côté de l'audit grep/raisonné. cso est un submodule gstack non modifiable ;
+semgrep vit dans cet agent local. Lancé dans les DEUX branches gstack.
+
+```
+Agent(
+  subagent_type="security-auditor",
+  description="Onboard — semgrep SAST audit (report-only)",
+  prompt="""
+  MODE: audit
+  SCOPE: <PROJECT_ROOT>
+  REPORT: <PROJECT_ROOT>/.onboard-audit/semgrep.md
+  CONTEXT: <PROJECT_ROOT>/.onboard-audit/archetype-context.md
+  Follow agents/security-auditor.md exactly. Pinned rulesets only, no login.
+  Write ONLY to the REPORT path. End stdout with REPORT_WRITTEN: <path>.
+  """
+)
+```
+Si semgrep absent → l'agent rend DEGRADED (checklist seule) + recommande
+`make plugin` ; NON bloquant en onboard (audit, pas gate).
+
+**Onboard n'a PAS de boucle verify→dev (`lib/verify-secure-loop.md`) — par
+conception.** onboard produit un RAPPORT d'audit, pas une modification à
+vérifier contre une demande : il n'y a ni contract de conformité, ni diff dev,
+ni verifier, ni max-3. Le contract d'onboard est un contract de SCOPE (ce que
+l'interview STEP 3 + `audit_stack` définissent comme périmètre d'audit), et
+`security-auditor` tourne en `MODE: audit` (report-only), jamais en `MODE:
+gate`. Ne PAS ajouter la boucle des flux dev ici par symétrie — l'audit et le
+flux de dev sont deux formes distinctes ([[BDR-050]] pipeline dev ≠ audit).
+
 #### Dispatch doc-syncer (si `doc` dans audit_stack)
 ```
 Agent(
@@ -511,9 +550,10 @@ Agent(
 
 ### Après les 3 dispatches
 
-Attendre la fin des 3 subagents. Vérifier que les 3 fichiers existent et sont non vides :
+Attendre la fin des subagents. Vérifier que les fichiers existent et sont non vides
+(semgrep.md inclus — DEGRADED reste non vide : il porte le résultat checklist) :
 ```bash
-for f in .onboard-audit/{code-clean,cso,doc}.md; do
+for f in .onboard-audit/{code-clean,cso,semgrep,doc}.md; do
   [ -s "$f" ] && echo "OK $f" || echo "MISSING $f"
 done
 ```
@@ -597,7 +637,7 @@ Agent(
 **Cas gstack ON + URL live OU dev server launchable :**
 ```
 Skill(
-  skill="gstack:design-review",
+  skill="design-review",
   args="--url <url or http://localhost:PORT> --output .onboard-audit/design.md --audit-only"
 )
 ```
@@ -640,7 +680,7 @@ Agent(
 **Cas gstack ON + URL live :**
 ```
 Skill(
-  skill="gstack:browse",
+  skill="browse",
   args="--lighthouse --url <url or http://localhost:PORT> --output .onboard-audit/perf-lighthouse.json"
 )
 ```
@@ -682,7 +722,7 @@ Agent(
 **Cas gstack ON + URL live :**
 ```
 Skill(
-  skill="gstack:browse",
+  skill="browse",
   args="--axe --url <url> --output .onboard-audit/a11y-axe.json"
 )
 ```

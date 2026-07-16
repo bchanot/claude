@@ -1,11 +1,18 @@
 ---
 name: init-project
-description: Use when initializing a brand-new project from scratch — needs interview, design, scaffold, and TDD implementation. Multi-agent orchestrator: plugin-advisor + interviewer + analyzer + scaffolder with two validation gates. Triggers: "init project", "new project", "start project from scratch", "scaffold project", "init-project".
+description: 'Use when initializing a brand-new project from scratch — needs interview, design, scaffold, and TDD implementation. Multi-agent orchestrator: plugin-advisor + interviewer + analyzer + scaffolder with two validation gates. Triggers: "init project", "new project", "start project from scratch", "scaffold project", "init-project".'
 argument-hint: <project idea or description>
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 ---
 
 # ORCHESTRATOR: INIT PROJECT
+
+## MODEL GATE (blocking — run before any other step)
+
+Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
+judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
+gate prints the remedy; end the turn — no later step, no dispatch. Nominal
+(big) path is silent.
 
 ## REQUEST
 $ARGUMENTS
@@ -15,14 +22,14 @@ $ARGUMENTS
 ## PROGRESS PROTOCOL
 
 Every STEP must announce itself with a header BEFORE its work block, so the
-user always sees where they are in the 11-step pipeline:
+user always sees where they are in the 12-step pipeline (STEP 0–11):
 
 ```
 ━━━ STEP <N>/11 — <TITLE> ━━━  (~<estimated minutes>)
 why: <one sentence — what's at risk if this step is skipped>
 ```
 
-Long-running steps (5 SCAFFOLD, 5d GRAPHIFY, 8 IMPLEMENT) must print a 1-line
+Long-running steps (5 SCAFFOLD, 8 IMPLEMENT) must print a 1-line
 liveness ping every ~30 s of agent work — `… still working: <last action>` —
 so the user does not assume Claude has hung.
 
@@ -48,6 +55,14 @@ ls CLAUDE.md .claude/CLAUDE.md 2>/dev/null | head -1
 
 In both cases: MANDATORY STOP until user answers remaining questions. Produce PROJECT BRIEF.
 
+**Then run `$HOME/.claude/lib/contract-interview.md`** seeded from the BRIEF:
+REQUEST verbatim = the user's project description; ACCEPTANCE CRITERIA = the
+V1 FEATURES (each testable); FILE SCOPE = the planned tree. No new questions
+(the interview already asked). It writes
+`.claude/tasks/contracts/<date>-<slug>-<HHMM>.md`; the DESIGN approved at STEP
+4 ENRICHES it, and STEP 9's verifier judges the MVP against the enriched
+contract.
+
 ## STEP 2 — ANALYZE
 Load `$HOME/.claude/agents/analyzer.md`. Analyze BRIEF: existing code, stack constraints, infra risks, open decisions. Produce ANALYSIS REPORT.
 
@@ -70,9 +85,14 @@ Approve? (yes / request changes)
 ```
 Changes → back to STEP 3. Approved → continue.
 
+**On approval — ENRICH the STEP 1 contract**: append the DESIGN-derived
+acceptance criteria (resolved decisions, interfaces, test strategy) to the
+contract, each tagged `[gated <date>]`. STEP 9's verifier judges against this
+enriched contract.
+
 ## STEP 5 — SCAFFOLD
 Load `$HOME/.claude/agents/scaffolder.md`. Pass: BRIEF + DESIGN + `~/.claude/templates/project-CLAUDE.md` + `~/.claude/CLAUDE.md`.
-Creates: CLAUDE.md, settings, structure, config, empty entry points, .gitignore, .env.example, .claude/tasks/TODO.md, .claude/memory/{decisions,learnings,blockers,journal,evals}.md, .claude/audits/. NO README, NO features.
+Creates: CLAUDE.md, `.claude/settings.json`, `.claudeignore`, `.gitignore`, `.env.example`, empty entry points. NO README, NO features, NO `.claude/tasks/` or `.claude/memory/` (not bootstrapped by this flow — copy from `~/.claude/templates/memory/` manually if wanted before STEP 10b's memory commit).
 Verify: `git init` + build passes.
 
 ## STEP 5b — CREATE README
@@ -91,16 +111,6 @@ If `fast-libs` signal was detected in STEP 0 (Next.js, React 18+, Prisma, Supaba
 3. Add `.ctx7-cache/` to `.gitignore` (local dev cache, not committed).
 4. Print: `📚 ctx7 docs pre-fetched for: <libs>. Cache at .ctx7-cache/`
 If `ctx7` not installed or no fast-libs → skip silently.
-
-## STEP 5d — GRAPHIFY SCAFFOLD (light pass)
-If `graphify` CLI is installed AND complexity >= 30%:
-1. Run light graphify on the scaffold:
-   ```bash
-   graphify . --output graphify-out --mode quick 2>/dev/null || true
-   ```
-2. Add `graphify-out/` to `.gitignore` if not already present.
-3. Print: `🔗 Scaffold graph generated at graphify-out/`
-If `graphify` not installed or complexity < 30% → skip silently.
 
 ## STEP 5e — ANIMATION LIB (auto-install)
 Install `motion` (ex-`framer-motion`, rebranded Nov 2024) when the stack supports it.
@@ -166,17 +176,36 @@ Invoke `superpowers:subagent-driven-development` for the per-task implement loop
 `gitflow finish` (STEP 11). When SDD's flow reaches "Use
 finishing-a-development-branch", stop and return.
 
+**Model routing (BDR-066):** every subagent dispatched under SDD — per-task
+implementers AND its reviewers — MUST carry `model: "sonnet"` in the Agent
+call. The plan is closed; execution and plan-conformity review are sonnet
+work. Reflection (task decomposition, review verdict arbitration) stays in
+this loop.
+
 ## STEP 8b — GRAPHIFY FULL (after implementation)
 If `graphify` CLI is installed AND complexity >= 30%:
 1. Run full graphify on the implemented project:
    ```bash
-   graphify . --output graphify-out 2>/dev/null || true
+   graphify . --out graphify-out 2>/dev/null || true
    ```
 2. Print: `🔗 Full project graph updated at graphify-out/`
 If `graphify` not installed or complexity < 30% → skip silently.
 
-## STEP 9 — ANALYZE
-Load `$HOME/.claude/agents/analyzer.md`. Check: no regressions, no deviations, no stale scaffold, conventions respected.
+## STEP 9 — VERIFY + SECURE (fresh gates, bounded loops)
+Run the two fresh gates per `$HOME/.claude/lib/verify-secure-loop.md` with
+`CONTRACT` = the STEP 1 path (ENRICHED at STEP 4), `DIFF` = the MVP branch
+diff (`develop..HEAD`), `TEST` = the project suite:
+- GATE 1 — a FRESH verifier judges the MVP against the enriched contract (V1
+  features + `[gated]` design criteria). CONFORME → GATE 2. ECARTS → fix,
+  re-verify, max 3 → STOP + human escalation with the CRITERIA table.
+- GATE 2 — a FRESH security-auditor (`MODE: gate`, `SCOPE: develop..HEAD`).
+  PASS → STEP 10. BLOCK → fix, re-verify request THEN re-scan, max 3 →
+  escalate.
+
+This adds the security gate init-project previously lacked (security was only
+deferred to a later /onboard) and turns the informal analyze into a verdict
+against the founding contract. Distinct axis from STEP 10 code review
+([[LRN-095]]) — both run.
 
 ## STEP 10 — CODE REVIEW
 Invoke `superpowers:requesting-code-review`. Fix all CRITICAL before proceeding.

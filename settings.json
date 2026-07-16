@@ -1,5 +1,10 @@
 {
-  "cleanupPeriodDays": 30,
+  "cleanupPeriodDays": 7,
+  "attribution": {
+    "commit": "",
+    "pr": "",
+    "sessionUrl": false
+  },
   "permissions": {
     "allow": [
       "Bash(git status)",
@@ -36,8 +41,6 @@
       "Bash(uname *)",
       "Bash(mkdir -p *)",
       "Bash(touch *)",
-      "Bash(cp *)",
-      "Bash(mv *)",
       "Bash(jq *)",
       "Bash(yq *)",
       "Bash(awk *)",
@@ -46,6 +49,32 @@
       "Bash(tr *)",
       "Bash(cut *)",
       "Bash(diff *)",
+      "Bash(rtk grep *)",
+      "Bash(*/rtk grep *)",
+      "Bash(rtk ls)",
+      "Bash(rtk ls *)",
+      "Bash(*/rtk ls)",
+      "Bash(*/rtk ls *)",
+      "Bash(rtk cat *)",
+      "Bash(*/rtk cat *)",
+      "Bash(rtk head *)",
+      "Bash(*/rtk head *)",
+      "Bash(rtk tail *)",
+      "Bash(*/rtk tail *)",
+      "Bash(rtk wc *)",
+      "Bash(*/rtk wc *)",
+      "Bash(rtk diff *)",
+      "Bash(*/rtk diff *)",
+      "Bash(rtk git status)",
+      "Bash(*/rtk git status)",
+      "Bash(rtk git log*)",
+      "Bash(*/rtk git log*)",
+      "Bash(rtk git diff*)",
+      "Bash(*/rtk git diff*)",
+      "Bash(rtk git show*)",
+      "Bash(*/rtk git show*)",
+      "Bash(rtk git branch*)",
+      "Bash(*/rtk git branch*)",
       "Read(**/*.md)",
       "Read(**/*.txt)",
       "Read(**/*.json)",
@@ -63,9 +92,13 @@
     "deny": [
       "Bash(rm -rf *)",
       "Bash(rm -rf /*)",
+      "Bash(rm -r *)",
+      "Bash(rm -fr *)",
       "Bash(rmdir *)",
-      "Bash(git push --force*)",
+      "Bash(git push --force)",
+      "Bash(git push --force *)",
       "Bash(git push -f*)",
+      "Bash(git push * +*)",
       "Bash(git reset --hard*)",
       "Bash(git clean -fd*)",
       "Bash(sudo rm*)",
@@ -73,10 +106,6 @@
       "Bash(sudo chown*)",
       "Bash(sudo dd*)",
       "Bash(su *)",
-      "Bash(curl * | bash)",
-      "Bash(wget * | bash)",
-      "Bash(curl * | sh)",
-      "Bash(wget * | sh)",
       "Bash(chmod 777 *)",
       "Bash(chmod -R 777 *)",
       "Bash(ssh *)",
@@ -110,12 +139,13 @@
       "Write(**/secrets/**)",
       "Write(**/*.pem)",
       "Write(**/*.key)",
-      "Bash(bash -c *)",
       "Bash(eval *)",
       "Bash(exec *)",
       "Bash(find * -delete*)",
       "Bash(find * -exec rm*)",
       "Bash(find * -execdir rm*)",
+      "Bash(find * -exec *)",
+      "Bash(find * -execdir *)",
       "Bash(perl -e *)",
       "Bash(ruby -e *)",
       "Bash(cat .env)",
@@ -154,14 +184,29 @@
       "Bash(cp **/id_ed25519*)",
       "Bash(cp **/.ssh/*)",
       "Bash(source /dev/stdin)",
-      "Bash(mkfifo *)",
-      "Bash(node -e *)",
       "Bash(xargs * .env*)",
       "Bash(tar * .env*)",
       "Bash(zip * .env*)",
-      "Bash(base64 .env*)"
+      "Bash(base64 .env*)",
+      "Bash(rtk cat *.env*)",
+      "Bash(*/rtk cat *.env*)",
+      "Bash(rtk grep * .env*)",
+      "Bash(*/rtk grep * .env*)",
+      "Bash(rtk head *.env*)",
+      "Bash(*/rtk head *.env*)",
+      "Bash(rtk tail *.env*)",
+      "Bash(*/rtk tail *.env*)"
     ],
     "ask": [
+      "Bash(bash -c *)",
+      "Bash(curl * | bash)",
+      "Bash(wget * | bash)",
+      "Bash(curl * | sh)",
+      "Bash(wget * | sh)",
+      "Bash(mkfifo *)",
+      "Bash(node -e *)",
+      "Bash(python3 -c *)",
+      "Bash(python -c *)",
       "Bash(git push *)",
       "Bash(git push)",
       "Bash(docker run *)",
@@ -177,15 +222,21 @@
       "WebFetch",
       "Bash(xargs *)",
       "Bash(sed *)",
-      "Bash(python3 -c *)",
+      "Bash(cp *)",
+      "Bash(mv *)",
       "Bash(git stash pop*)",
       "Bash(git stash drop*)",
-      "Bash(git stash clear)"
+      "Bash(git stash clear)",
+      "mcp__magic__21st_magic_component_builder",
+      "mcp__magic__21st_magic_component_refiner",
+      "mcp__magic__21st_magic_component_inspiration",
+      "mcp__magic__logo_search"
     ],
     "defaultMode": "auto",
     "disableBypassPermissionsMode": "disable",
     "additionalDirectories": []
   },
+  "model": "claude-fable-5[1m]",
   "hooks": {
     "SessionStart": [
       {
@@ -204,6 +255,16 @@
           {
             "type": "command",
             "command": "bash ~/.claude/hooks/rtk-rewrite.sh"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write|MultiEdit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/config-protection.sh",
+            "timeout": 5
           }
         ]
       }
@@ -230,7 +291,8 @@
     "ui-ux-pro-max@ui-ux-pro-max-skill": true,
     "security-guidance@claude-code-plugins": true,
     "superpowers@superpowers-marketplace": true,
-    "pr-review-toolkit@claude-code-plugins": true
+    "pr-review-toolkit@claude-code-plugins": false,
+    "frontend-design@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
     "claude-code-plugins": {
@@ -260,5 +322,6 @@
   },
   "effortLevel": "xhigh",
   "remoteControlAtStartup": true,
+  "inputNeededNotifEnabled": true,
   "skipAutoPermissionPrompt": true
 }

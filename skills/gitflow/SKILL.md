@@ -24,9 +24,10 @@ single-target and cannot do the directed / fan-out merges below.
 
 ## Branch model
 
-`main` (prod) · `develop` (integration, off main) · `feature/*` and `bugfix/*`
-(off develop → develop) · `release/*` (off develop → main + back-merge develop)
-· `hotfix/*` (off main → main + develop [+ any open release/*]).
+`main` (prod) · `develop` (integration, off main) · `feature/*`, `bugfix/*` and
+`chore/*` (off develop → develop; chore = memory/doc maintenance) · `release/*`
+(off develop → main + back-merge develop) · `hotfix/*` (off main → main +
+develop [+ any open release/*]).
 
 ## Operations — all via the lib
 
@@ -41,7 +42,7 @@ bash ~/.claude/lib/gitflow.sh protected-base [br] # rc 0 on main/develop — the
 
 | Current branch | Merges into | then |
 |---|---|---|
-| `feature/*` · `bugfix/*` | develop | delete |
+| `feature/*` · `bugfix/*` · `chore/*` | develop | delete |
 | `release/*` | main + develop | delete |
 | `hotfix/*` | main + develop + any open `release/*` | delete |
 
@@ -68,11 +69,13 @@ gives a **real-time, explicit go for THIS merge** — "merge it", "feature OK",
 
 All of these mean: present the merge as a question, then wait for the explicit go.
 
-## Aiguillage (assistance skills)
+## Aiguillage (assistance + standalone memory/doc skills)
 
-On a protected base, assistance skills (`feat`/`bugfix`/`hotfix`) call
-`start <type>` to branch first; on a working branch they commit in place. Same
-`protected-base` predicate the out-of-skill hook uses.
+On a protected base, assistance skills (`feat`/`bugfix`/`hotfix`) AND the standalone
+memory/doc skills (`capitalize`/`close`/`prune-memory`/`reconcile`, TYPE `chore`)
+call `start <type>` to branch first; on a working branch they commit in place. Same
+`protected-base` predicate the out-of-skill hook uses. Caller→type map + rationale:
+`lib/gitflow-aiguillage.md`.
 
 ## Common Mistakes
 

@@ -130,6 +130,9 @@ READY: <N> v1 features | entry points ✅ | config ✅ | CLAUDE.md ✅ | README 
 
 ## PHASE 6 — DOC SYNC (automatic)
 
-Load `$HOME/.claude/agents/doc-syncer.md`.
-Execute in automatic mode:
+**INLINE-LOAD** `$HOME/.claude/agents/doc-syncer.md` — continue AS
+doc-syncer in THIS SAME context (you *become* it). This is an inline load,
+NOT a subagent dispatch: the `Agent` tool is not involved (which is why
+this agent correctly omits `Agent` from its `tools:`). Execute in
+automatic mode:
 `auto-mode scope: <list of all files created during scaffolding>`

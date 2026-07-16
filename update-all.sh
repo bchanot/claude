@@ -27,7 +27,15 @@ echo "── Updating Claude Code CLI..."
 if command -v claude &>/dev/null; then
   CURRENT_VER=$(claude --version 2>/dev/null | head -1 || echo "unknown")
   info "Current: $CURRENT_VER"
-  if npm install -g @anthropic-ai/claude-code@latest 2>/dev/null; then
+  # Use the updater that matches the install channel: npm-managed installs
+  # update via npm; native-installer installs self-update via `claude update`
+  # (npm would EEXIST on the ~/.local/bin/claude symlink it does not own).
+  if npm ls -g @anthropic-ai/claude-code &>/dev/null; then
+    UPDATE_CMD=(npm install -g @anthropic-ai/claude-code@latest)
+  else
+    UPDATE_CMD=(claude update)
+  fi
+  if "${UPDATE_CMD[@]}" &>/dev/null; then
     NEW_VER=$(claude --version 2>/dev/null | head -1 || echo "unknown")
     if [ "$CURRENT_VER" = "$NEW_VER" ]; then
       ok "Claude Code already up to date ($NEW_VER)"
@@ -35,7 +43,7 @@ if command -v claude &>/dev/null; then
       ok "Claude Code updated: $CURRENT_VER → $NEW_VER"
     fi
   else
-    warn "Claude Code update failed — try manually: npm install -g @anthropic-ai/claude-code@latest"
+    warn "Claude Code update failed — try manually: ${UPDATE_CMD[*]}"
   fi
 else
   warn "Claude Code not found — install first with: make install"
@@ -57,8 +65,16 @@ echo ""
 echo "── Updating GStack submodule..."
 warn "GStack tracks branch = main (no commit hash). Review upstream commits before updating."
 echo ""
-printf "  Proceed with GStack update? [y/N] "
-read -r _gstack_confirm
+# TTY guard: in a non-interactive run (cron, CI, background shell) `read`
+# hits EOF and dies under set -e — the whole update aborted mid-script.
+# Default to the safe N and keep going; interactive behavior unchanged.
+if [ -t 0 ]; then
+  printf "  Proceed with GStack update? [y/N] "
+  read -r _gstack_confirm
+else
+  info "Non-interactive run — skipping GStack update (run in a terminal to be prompted)"
+  _gstack_confirm="n"
+fi
 if [[ "$_gstack_confirm" =~ ^[Yy]$ ]]; then
   # Capture gstack state before the update so we can restore it after
   # ./setup runs (setup re-creates every symlink; without this, an
@@ -109,6 +125,13 @@ fi
 # ── 3. Update RTK (if pinned version available) ──
 echo ""
 echo "── Updating RTK..."
+# cargo lives in ~/.cargo/bin, which hand-managed profiles lose (BLK-016
+# class) — source cargo env, as install-plugins.sh does, before concluding
+# cargo is absent. Without this the step silently never updated rtk.
+if ! command -v cargo &>/dev/null && [ -f "$HOME/.cargo/env" ]; then
+  # shellcheck disable=SC1091
+  source "$HOME/.cargo/env"
+fi
 if command -v cargo &>/dev/null; then
   RTK_VERSION=""
   if [ -f "$REPO/plugins.lock.json" ] && command -v python3 &>/dev/null; then
@@ -120,21 +143,44 @@ print(d.get('rtk',{}).get('version',''))
 " 2>/dev/null || true)
   fi
 
+  # Version-jump guard: a cargo build takes minutes — only pay it when the
+  # target (pin, or the newest remote tag for "latest") differs from what is
+  # installed. Same pin-honored/skip-on-match shape as the semgrep step.
+  RTK_CUR=$(rtk --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
+  [ -z "$RTK_CUR" ] && RTK_CUR=$("$HOME/.cargo/bin/rtk" --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+\.[0-9]+' | head -1 || true)
+
   if [ -n "$RTK_VERSION" ] && [ "$RTK_VERSION" != "latest" ]; then
-    info "Pinned version: $RTK_VERSION"
-    info "Compiling from source — this may take a few minutes..."
-    if cargo install --git https://github.com/rtk-ai/rtk --tag "$RTK_VERSION" --force; then
-      ok "RTK updated to $RTK_VERSION"
+    if [ "${RTK_VERSION#v}" = "$RTK_CUR" ]; then
+      ok "rtk already at pinned $RTK_CUR"
     else
-      warn "RTK update failed"
+      info "Pinned version: $RTK_VERSION (installed: ${RTK_CUR:-none})"
+      info "Compiling from source — this may take a few minutes..."
+      if cargo install --git https://github.com/rtk-ai/rtk --tag "$RTK_VERSION" --force; then
+        ok "RTK updated to $RTK_VERSION"
+      else
+        warn "RTK update failed"
+      fi
     fi
   else
-    info "No pinned version — installing latest"
-    info "Compiling from source — this may take a few minutes..."
-    if cargo install --git https://github.com/rtk-ai/rtk --force; then
-      ok "RTK updated (latest)"
+    # "latest" = newest release TAG, resolved by name and installed BY TAG.
+    # (A bare `cargo install --git` builds the default-branch HEAD, whose
+    # Cargo.toml version can trail the newest tag — the guard would then
+    # never converge and recompile on every run.)
+    RTK_TIP_TAG=$(git ls-remote --tags https://github.com/rtk-ai/rtk 2>/dev/null \
+      | sed -n 's|.*refs/tags/\(v\{0,1\}[0-9][0-9.]*\)$|\1|p' | sort -V | tail -1 || true)
+    RTK_TIP="${RTK_TIP_TAG#v}"
+    if [ -n "$RTK_TIP" ] && [ "$RTK_TIP" = "$RTK_CUR" ]; then
+      ok "rtk already at latest tag ($RTK_CUR)"
     else
-      warn "RTK update failed"
+      info "No pin — latest tag: ${RTK_TIP_TAG:-unknown} (installed: ${RTK_CUR:-none})"
+      info "Compiling from source — this may take a few minutes..."
+      if [ -n "$RTK_TIP_TAG" ] && cargo install --git https://github.com/rtk-ai/rtk --tag "$RTK_TIP_TAG" --force; then
+        ok "RTK updated to $RTK_TIP_TAG"
+      elif [ -z "$RTK_TIP_TAG" ] && cargo install --git https://github.com/rtk-ai/rtk --force; then
+        ok "RTK updated (latest HEAD — no tag resolvable)"
+      else
+        warn "RTK update failed"
+      fi
     fi
   fi
 else
@@ -219,6 +265,68 @@ else
   info "graphifyy not installed — skipping"
 fi
 
+# ── 6.2. Update Semgrep (pin-honored — BLOCKING security gate) ──
+echo ""
+echo "── Updating Semgrep..."
+if command -v semgrep &>/dev/null; then
+  SEMGREP_VER=""
+  if [ -f "$REPO/plugins.lock.json" ] && command -v python3 &>/dev/null; then
+    SEMGREP_VER=$(python3 -c "
+import json
+with open('$REPO/plugins.lock.json') as f:
+    d = json.load(f)
+print(d.get('semgrep',{}).get('version',''))
+" 2>/dev/null || true)
+  fi
+
+  SEMGREP_CUR=$(semgrep --version 2>/dev/null | head -1)
+  if [ -n "$SEMGREP_VER" ] && [ "$SEMGREP_VER" != "latest" ]; then
+    if [ "$SEMGREP_CUR" = "$SEMGREP_VER" ]; then
+      ok "semgrep already at pinned $SEMGREP_VER"
+    else
+      # Jump shown explicitly: semgrep is a BLOCKING gate — a version bump
+      # can add rules that BLOCK unchanged code, so the jump must be a
+      # visible, deliberate human decision (bump the pin, then update).
+      info "semgrep ${SEMGREP_CUR:-?} → ${SEMGREP_VER} (pinned in plugins.lock.json)"
+      if pipx install --force "semgrep==${SEMGREP_VER}" 2>/dev/null; then
+        ok "semgrep updated to $SEMGREP_VER"
+      else
+        warn "semgrep update failed — try: pipx install --force semgrep==${SEMGREP_VER}"
+      fi
+    fi
+  else
+    info "No pinned version — upgrading to latest"
+    if pipx upgrade semgrep 2>/dev/null; then
+      ok "semgrep updated ($(semgrep --version 2>/dev/null | head -1))"
+    else
+      warn "semgrep update failed — try: pipx upgrade semgrep"
+    fi
+  fi
+else
+  info "semgrep not installed — skipping (run: make plugin)"
+fi
+
+# ── 6.5. Update bun ──
+echo ""
+echo "── Updating bun..."
+if command -v bun &>/dev/null; then
+  if bun upgrade >/dev/null 2>&1; then
+    ok "bun $(bun --version 2>/dev/null || echo '?') (self-upgrade)"
+  else
+    warn "bun upgrade failed — try manually: bun upgrade"
+  fi
+else
+  info "bun not installed — skipping"
+fi
+# NOT updated here, deliberately (audit 2026-07-02):
+# - magic MCP: registered as `npx -y @21st-dev/magic@latest` — npx resolves
+#   the latest release at every invocation, nothing to upgrade.
+# - graphify Claude integration (`graphify claude install`): rewrites curated
+#   CLAUDE.md / .claude/settings.json (BDR-028 guard territory) — re-run
+#   MANUALLY only if a graphify upgrade changes its hook format.
+# - gsd: pinned in plugins.lock.json — Step 4 reinstalls the PIN, it does not
+#   advance it. Bump the lock deliberately, then re-run.
+
 # ── 7. Update Emil Design Engineering skill ──
 echo ""
 echo "── Updating Emil Design Engineering..."
@@ -271,13 +379,53 @@ else
   info "design-motion-principles not installed — skipping"
 fi
 
+# ── Impeccable (design anti-pattern detector + skill) ──
+echo ""
+echo "── Updating impeccable..."
+IMP_DIR="$REPO/skills-external/impeccable"
+if [ ! -f "$IMP_DIR/SKILL.md" ]; then
+  info "impeccable not installed — skipping (run: make plugin)"
+else
+  IMP_VER=""
+  if [ -f "$REPO/plugins.lock.json" ] && command -v python3 &>/dev/null; then
+    IMP_VER=$(python3 -c "
+import json
+with open('$REPO/plugins.lock.json') as f:
+    d = json.load(f)
+print(d.get('impeccable',{}).get('version','latest'))
+" 2>/dev/null || true)
+  fi
+  IMP_NODE=$(node -v 2>/dev/null | sed 's/^v//' | cut -d. -f1)
+  if [ -z "${IMP_NODE:-}" ] || [ "$IMP_NODE" -lt 24 ]; then
+    info "impeccable update skipped — needs Node >= 24 (found ${IMP_NODE:-none}); existing dist kept"
+  else
+    IMP_PKG="impeccable"
+    # Pin honored (LRN-077 class: a silent rules update changes audit
+    # output on unchanged code) — bump the pin deliberately, then update.
+    [ -n "$IMP_VER" ] && [ "$IMP_VER" != "latest" ] && IMP_PKG="impeccable@${IMP_VER}"
+    IMP_STAGE=$(mktemp -d)
+    if (cd "$IMP_STAGE" && npx -y "$IMP_PKG" skills install -y --providers=claude --scope=project --no-hooks >/dev/null 2>&1); then
+      IMP_SRC=$(find "$IMP_STAGE" -type d -name impeccable -path "*skills*" 2>/dev/null | head -1)
+      if [ -n "$IMP_SRC" ] && [ -f "$IMP_SRC/SKILL.md" ]; then
+        rm -rf "$IMP_DIR"
+        mv "$IMP_SRC" "$IMP_DIR"
+        ok "impeccable refreshed (CLI ${IMP_VER:-latest})"
+      else
+        warn "impeccable: installer produced no dist — existing kept"
+      fi
+    else
+      warn "impeccable refresh failed — existing dist kept"
+    fi
+    rm -rf "$IMP_STAGE"
+  fi
+fi
+
 # ── 7.5. Update external skills (npx skills) ──
 echo ""
 echo "── Updating external skills (npx skills)..."
 if command -v npx &>/dev/null; then
   NPX_SKILLS=(
     "alchaincyf/darwin-skill"
-    "alchaincyf/find-skills"
   )
   for _src in "${NPX_SKILLS[@]}"; do
     _name="${_src##*/}"

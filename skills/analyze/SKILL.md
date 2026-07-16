@@ -5,6 +5,10 @@ argument-hint: <file/area to analyze — OR paste error/stack trace for DEBUG mo
 allowed-tools: Read, Grep, Glob, Bash
 ---
 
+MODEL GATE (blocking): run `$HOME/.claude/lib/model-gate.md` BEFORE anything
+below. Verdict `small` → STOP — print the gate's remedy, end the turn, run
+no analysis. Deep factual analysis is reflection; it needs the big model.
+
 Load and follow strictly:
 - $HOME/.claude/agents/analyzer.md
 

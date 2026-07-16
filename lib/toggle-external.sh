@@ -20,7 +20,6 @@
 #   gstack            — per-skill symlinks populated by gstack's own setup
 #   emil-design-eng   — single symlink → skills-external/emil-design-eng
 #   darwin-skill      — single symlink → ~/.agents/skills/darwin-skill
-#   find-skills       — single symlink → ~/.agents/skills/find-skills
 #   magic             — 21st-dev Magic MCP server (API key in .env)
 #
 # For fine-grained activation (only design skills, only qa skills, only
@@ -31,7 +30,7 @@
 # ============================================================
 set -euo pipefail
 
-REPO="$(cd "$(dirname "$0")/.." && pwd)"
+REPO="${TOGGLE_EXTERNAL_REPO_OVERRIDE:-$(cd -P "$(dirname "$0")/.." && pwd)}"
 SKILLS_DIR="$REPO/skills"
 DISABLED_DIR="$REPO/skills-disabled"
 
@@ -41,7 +40,7 @@ warn() { echo -e "${YELLOW}⚠${NC}  $1"; }
 err()  { echo -e "${RED}✗${NC} $1"; }
 
 # All non-plugin tools this script can toggle.
-MANAGED_TOOLS=(gstack emil-design-eng darwin-skill find-skills magic)
+MANAGED_TOOLS=(gstack emil-design-eng darwin-skill magic)
 
 # Load MAGIC_API_KEY (and any other secrets) from $REPO/.env if present.
 # Called only by the magic branch — other tools don't need env vars.
@@ -81,7 +80,7 @@ status_tool() {
       [ -d "$REPO/skills-external/emil-design-eng" ] || { echo "missing"; return; }
       [ -e "$SKILLS_DIR/emil-design-eng" ] && echo "enabled" || echo "disabled"
       ;;
-    darwin-skill|find-skills)
+    darwin-skill)
       [ -d "$HOME/.agents/skills/$tool" ] || { echo "missing"; return; }
       [ -e "$SKILLS_DIR/$tool" ] && echo "enabled" || echo "disabled"
       ;;
@@ -116,7 +115,7 @@ disable_tool() {
       done < <(gstack_skills)
       ok "gstack disabled ($moved symlinks moved)"
       ;;
-    emil-design-eng|darwin-skill|find-skills)
+    emil-design-eng|darwin-skill)
       if [ -e "$SKILLS_DIR/$tool" ]; then
         rm -rf "${DISABLED_DIR:?}/${tool:?}"
         mv "$SKILLS_DIR/$tool" "$DISABLED_DIR/$tool"
@@ -158,11 +157,11 @@ enable_tool() {
         ok "gstack enabled ($moved symlinks restored)"
       fi
       ;;
-    emil-design-eng|darwin-skill|find-skills)
+    emil-design-eng|darwin-skill)
       local src
       case "$tool" in
         emil-design-eng) src="$REPO/skills-external/$tool" ;;
-        darwin-skill|find-skills) src="$HOME/.agents/skills/$tool" ;;
+        darwin-skill) src="$HOME/.agents/skills/$tool" ;;
       esac
       if [ -e "$DISABLED_DIR/$tool" ]; then
         rm -rf "${SKILLS_DIR:?}/${tool:?}"
@@ -188,8 +187,13 @@ enable_tool() {
         warn "magic already enabled"
         return 0
       fi
+      # Reference, not value: Claude Code expands ${VAR} in mcpServers.env at
+      # launch (job7/BDR-026) — MAGIC_API_KEY itself never lands in
+      # ~/.claude.json. The check above still confirms the var IS set in
+      # ~/.claude/.env before wiring the reference, so a missing key fails
+      # here instead of silently at Claude Code startup.
       claude mcp add magic --scope user \
-        --env API_KEY="$MAGIC_API_KEY" \
+        --env 'API_KEY=${MAGIC_API_KEY}' \
         -- npx -y @21st-dev/magic@latest
       ok "magic enabled (user scope)"
       ;;

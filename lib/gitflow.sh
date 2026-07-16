@@ -21,7 +21,7 @@ GITFLOW_GITIGNORE_TEMPLATE="${GITFLOW_GITIGNORE_TEMPLATE:-$_GITFLOW_LIB_DIR/../t
 
 # ── predicates / pure helpers ────────────────────────────────────────────────
 
-# echo the gitflow type of a branch: feature|bugfix|release|hotfix|main|develop|other
+# echo the gitflow type of a branch: feature|bugfix|release|hotfix|chore|main|develop|other
 gitflow_branch_type() {
   local br="${1:-$(git symbolic-ref --short -q HEAD 2>/dev/null)}"
   case "$br" in
@@ -31,6 +31,7 @@ gitflow_branch_type() {
     bugfix/*)           echo bugfix ;;
     release/*)          echo release ;;
     hotfix/*)           echo hotfix ;;
+    chore/*)            echo chore ;;
     *)                  echo other ;;
   esac
 }
@@ -46,7 +47,7 @@ gitflow_protected_base() {
 # echo the base a given type must fork from.
 gitflow_base_for() {
   case "$1" in
-    feature|bugfix|release) echo "$GITFLOW_DEVELOP" ;;
+    feature|bugfix|release|chore) echo "$GITFLOW_DEVELOP" ;;
     hotfix)                 echo "$GITFLOW_MAIN" ;;
     *) echo "gitflow: unknown type '$1'" >&2; return 2 ;;
   esac
@@ -96,14 +97,27 @@ _gitflow_delete() {                # <branch>
   git branch -q -d "$br" || { echo "gitflow: '$br' not fully merged — branch kept" >&2; return 5; }
 }
 
-# gitflow_finish → directed merge of the CURRENT branch per its type, then delete.
-# WHEN to call this is the human gate (SKILL.md). This only performs the merge.
+# gitflow_finish [<type> <name>] → directed merge of the CURRENT branch per its
+# type, then delete. WHEN to call this is the human gate (SKILL.md).
+#
+# The merge source is ALWAYS the checked-out branch (HEAD) — that is the contract.
+# The optional <type> <name> is a SAFETY ASSERTION, not a target selector: if you
+# name a branch it MUST equal the current one, else finish refuses loudly instead
+# of silently merging whatever you happen to be standing on. (Guards the audit UX
+# trap: `finish bugfix audit-bugs` run from feature/audit-tokens merged the wrong
+# branch — args were silently ignored. See BLK-015 / LRN-089.) No args = unchanged.
 gitflow_finish() {
-  local br type
+  local br type req_type="${1:-}" req_name="${2:-}"
   br="$(git symbolic-ref --short -q HEAD)" || { echo "gitflow_finish: detached HEAD" >&2; return 3; }
+  if [ -n "$req_type" ] || [ -n "$req_name" ]; then
+    [ "$req_type/$req_name" = "$br" ] || {
+      echo "gitflow_finish: operates on the current branch '$br', but you asked '$req_type/$req_name' — checkout '$req_type/$req_name' first (or run finish with no args)." >&2
+      return 2
+    }
+  fi
   type="$(gitflow_branch_type "$br")"
   case "$type" in
-    feature|bugfix)
+    feature|bugfix|chore)
       _gitflow_merge_into "$GITFLOW_DEVELOP" "$br" && _gitflow_delete "$br" ;;
     release)
       _gitflow_merge_into "$GITFLOW_MAIN" "$br" \
@@ -206,6 +220,19 @@ br=\$(git symbolic-ref --short -q HEAD 2>/dev/null)
 
 git rev-parse --verify -q HEAD >/dev/null 2>&1 || exit 0   # root commit — allow
 [ -f "\$gd/MERGE_HEAD" ] && exit 0                          # merge in progress — allow
+
+# Secret backstop (job7) — any branch, not just protected ones. Non-blocking
+# if gitleaks isn't installed; auto-discovers ./.gitleaks.toml (repo root).
+if command -v gitleaks >/dev/null 2>&1; then
+  if ! gitleaks git --staged --no-banner >/dev/null 2>&1; then
+    echo "gitflow pre-commit: BLOCKED — gitleaks found a secret in staged changes." >&2
+    echo "  Details: gitleaks git --staged --no-banner" >&2
+    echo "  Genuine false-positive? add an allowlist rule to .gitleaks.toml — never bypass with --no-verify." >&2
+    exit 1
+  fi
+else
+  echo "gitflow pre-commit: gitleaks not installed — secret scan skipped (https://github.com/gitleaks/gitleaks)." >&2
+fi
 
 case "\$br" in
   $GITFLOW_MAIN|$GITFLOW_DEVELOP) ;;                        # protected — keep checking

@@ -1,5 +1,401 @@
 # TODO
 
+## 2026-07-16 — model-routing edge fixes (bugfix/model-routing-edge-fixes)
+Post-merge ronde (4 big-model audits: dispatch-graph INTACT, loops CLOSE,
+tiering CORRECT, data-flow client-handover wired). Fixing the edge findings
+the ronde surfaced. Branch off develop, unmerged — human gate.
+- [x] F1 (real bug) feater applier carve-out — /seo,/geo dispatch feater as
+      L1 applier with NO CONTRACT, but feater mandates "read CONTRACT FIRST"
+      (hotfixer has the carve-out, feater didn't) → mirror hotfixer.md:16-45.
+- [x] F5 (guard) census: lock the ABSENT model: pin on seo/geo/validator-
+      analyzer + client-handover-writer (stray sonnet pin would silently
+      downgrade a live audit, uncaught).
+- [x] F4 (cleanup) drop interviewer's inert `model: sonnet` (reflection role,
+      inline-loaded by gated init-project) + census guard.
+- [x] F2 (tier) /refactor inline-load → true-dispatch refactorer (sonnet pin
+      was inert). refactorer verified dispatch-safe (no Ask/Agent, input=target).
+- [x] F3 (gate) /analyze add MODEL GATE (inline-loads the analyzer reflection
+      agent, was ungated + undocumented). census: +analyze gated, +refactor excluded.
+- [x] verify: census 57/0, shellcheck clean (my files), full suite green; NO merge.
+
+## 2026-07-15 — model routing (feature/model-routing)
+Spec + plan in docs/superpowers/ (transient, BDR-065). BDR-066. Branch
+unmerged — human gate.
+- [x] gate lib/model-check.sh + lib/model-gate.md (flip-tested) wired ×12
+- [x] pins: hotfixer/feater sonnet, analyzer un-pinned; SDD model:"sonnet";
+      web-validate → hotfixer L1; census guard model-routing.test.sh
+- [x] /feat re-arch: reflection inline → feater sonnet executor (partial
+      supersede BDR-050)
+- [x] WAVE 2 (user directive): doc/status dispatch (sonnet/haiku pins
+      effective); /hotfix split like /feat (joins gated 12→13, hotfixer
+      dual-use executor); /commit-change → sonnet commit-changer
+      (propose/apply, gates relocated); /release-candidate → sonnet
+      release-executor (human gates + version decision kept in dispatcher);
+      census 36/0. Exclusion list now commit-change/doc/status/release-candidate.
+- [ ] DOGFOOD (manual, next sessions): /feat live run — plan closes
+      decisions, dispatch carries sonnet, verify loop in main loop; gate
+      STOP on a sonnet session (LRN-079 class, not automatable here). Also
+      dogfood /hotfix split + /commit-change propose/apply + /release-candidate spans.
+- [x] Explore agent: kept as built-in (inherits session = opus/fable). User
+      call — search feeds reflection, silent-incompleteness risk → deserves the
+      big model. Custom sonnet Explore.md created then reverted (built-in already
+      inherits + no owned prompt).
+- [x] WAVE 3 (user directive): /bugfix split + /code-clean split → reflection
+      inline (behind existing gate), execution → sonnet executors. bugfixer =
+      pure fix+regression exec (BUGFIX-EXEC REPORT, no Agent/AskUserQuestion);
+      code-cleaner = PHASE-2 exec (refactor now runs on sonnet — inline-load pin
+      was inert). Both skills STAY gated. census wave-3 + loops-light repoint
+      (guarded). Supersedes BDR-050 bugfix carve-out.
+- [x] WAVE 4 — client-handover (branch feature/client-handover-dispatch, off
+      develop). Shape FLIPPED to REDACTION-ONLY (full read: nested audits must
+      run big either way since /seo,/harden,/web-validate are gated → whole-writer
+      buys ~0 extra sonnet work for ~7 extra gate-yields). Design: parent
+      (client-handover-writer, inline=big) keeps STEP 1-8 pipeline + ALL gates
+      native + builds a PACKAGE; new sonnet handover-doc-writer does STEP 9-16
+      pure write+render, gate-free. Tasks 19-22 in plan. + MODEL GATE on skill.
+
+## 2026-07-08 — full back-merge release/1.0.0→develop (chore/backmerge-release-full)
+Genèse : la revue avait porté ~5/19 commits ; back-merge complet demandé. Cherry-pick par
+catégorie, 1 commit atomique/item, make test après chaque code. Branche non mergée (gate humain).
+- [x] A CODE (5 cherry-picks, make test GREEN chacun) : 095d881 drop find-skills (5a1fff5),
+      a1093ca TTY-guard make-update (ce07e55, prouvé EOF exit1→exit0), 4c5e862 rtk version-guard
+      (3049250, complète le pont e58037c déjà porté — fichiers/concerns distincts), c76479f
+      design-motion sync (82ce02c), e65796f SC1091 lint (fcdb157, shellcheck 0 SC1091).
+- [x] B JOURNAL : cherry-pick direct conflicte (tails journal divergents) → STOP honoré,
+      fallback note consolidée sous journal 2026-07-08. TODO /deploy ca9fa8f skip (release-specific).
+- [x] C DÉCISION/DOUBLON tous skip vérifiés : 93e43c0 attribution + ae8ad86 model (opus[1m]=Opus4.8)
+      déjà sur develop ; a623514/74d3804/2b4e740 registres déjà backfillés (run revue) ;
+      188a9a7 docs → backlog /doc ci-dessous.
+- [x] D fork version 1eb5b08/eb93050 intouchés — version.txt reste 4.0.0.
+- [x] GATE FINAL : 23/23 commits release-only classifiés, 0 code orphelin, 0 entrée registre
+      manquante ; make test GREEN + review-guards 5/0. Capitalize [[LRN-117]] structurel.
+
+### Backlog (issu du back-merge)
+- [ ] **/doc** — README develop ne documente pas semgrep / scan-secrets / verify+secure pipeline /
+      ctx7 (delta de 188a9a7, non porté car base README divergente job3 + CHANGELOG version-entangled).
+      Une passe /doc doit combler ces sujets sur le README réécrit de develop.
+- [ ] **release-drift advisory** ([[LRN-117]]) — check qui liste les commits `develop..release/*`
+      touchant du CODE fonctionnel (exclut merges, `.claude/**`, version.txt/CHANGELOG) pour revue
+      de back-merge. Advisory, PAS un gate make-test dur : les cherry-picks landent avec de nouveaux
+      SHA → le commit source reste dans le range → équivalence "déjà porté ?" non fiable automatiquement
+      (faux positifs). Cible : étape release-finish ou /reconcile, pas run-review-guards.
+
+## 2026-07-08 — review remediation (chore/review-remediation)
+Genèse : `.audit/review-release-1.0.0.md` (revue adversariale des 9 jobs). GO user,
+ordre imposé. Déviation justifiée : 1 branche (pas 1/EP) car le gate fil-rouge (step 6)
+grep toute la surface et n'est vert qu'avec A1/A4/A5 déjà appliqués. Commits atomiques,
+branche non mergée (gate humain). EP-A3/A6 = décisions user tranchées (combler / option b).
+- [x] EP-A1 (BLOQUANT) trailer bugfixer/feater/hotfixer (56018df) + grep étendu = 0 autre
+- [x] EP-A2 (P0) hook réinstallé gitleaks (d4526e6) + 3 gates verts + root-cause (générateur édité, jamais réinstallé)
+- [x] EP-A4 quote YAML seo-analyzer:3 + security-auditor:3 (5a0fc16) + gate yaml.safe_load tous agents
+- [x] EP-A5 geo own-policy PERMISSIVE (f0111e1), user-approved, grep==0
+- [x] EP-A8 smoke /seo+/geo réel PROUVÉ — AUTO llms.txt + sitemap.xml atterrissent sur disque (no-op infirmé)
+- [x] FIL-ROUGE run-review-guards.sh 5 gardes (4e83f39), user-approved, à dents
+- [x] EP-A3 backfill LRN-098/101 (7cd82cf/a01250b) + EVAL-015 (38cc821) + BLK-016 (8e9ff33) + PORT rtk e58037c (416b68f) car fix absent+bug live sur develop
+- [x] EP-A6 (option b) seuil 280→320 + BDR-062 (1be9036)
+- [x] EP-A7 documentaire + M5 → EVAL-022 (capitalize cc4f161)
+- [x] Capitalize LRN-113/114/115/116 + BDR-062 + EVAL-021/022 + journal (cc4f161)
+- [x] GATE FINAL : make test GREEN (exit 0) + A2 secret BLOCKED (gitleaks) + A8 AUTO landed + review-guards 5/0
+- Branche chore/review-remediation NON mergée (gate humain). Résidu noté : e65796f (SC1091 lint) non back-mergé, hors scope.
+
+## 2026-07-08 — job9 sub-agent architecture corrections (chore/job9-agents)
+Genèse : `.audit/job9-report.md` (agents/*.md frontmatter+body, verify-loop,
+dispatch graph, read-only). Premise correction confirmed CC v2.1.203 : nesting
+SUPPORTED since v2.1.172, cap 5, `Agent` tool required in `tools:` to nest.
+User decision: **path b (version-robust)** for the version-floor. One commit/item.
+
+PART 1 — MISROUTED (trivial frontmatter):
+- [x] A — commit-changer: drop unused `Agent` from tools (0ede52c)
+- [x] B — verifier: pin `model: sonnet` (ea6c126)
+- [x] C — security-auditor: pin `model: sonnet` (1c270e6)
+- [x] D — plugin-advisor: `haiku` → `sonnet` (5ab6c21)
+- [x] GATE P1 — smoke green: verifier CONFORME, sec-auditor BLOCK(2), advisor
+      ACTION REQUIRED; verdict grammar intact, mode honored. No revert.
+
+PART 2 — VERSION-FLOOR (path b) — CONTRACT APPROVED, DONE:
+- [x] 5 — seo+geo analyzers → fix-bundle→L1 (a5a7b54/6df42e4); /seo STEP 1.5
+      (c498b93), /geo dispatch+apply (70fb3b4), dispatcher tier-tolerance
+      (212f9aa); /harden already path-b (untouched), /onboard audit-only
+      (untouched). GATE PASSED: make test green + 4 smokes (A bundle-no-edit,
+      B AUTO lands on disk no-confirm, C GATED withheld→applied post-accord,
+      D onboard report-only zero-fix).
+- [x] 6 — BDR-060 orchestration floor v2.1.172 supersedes implicit v2.1.83
+      premise (BDR-004:133 kept — auto-mode floor, append-only + factually
+      correct). BDR-061 path-b doctrine.
+PART 3 — IMPLICIT-HANDOFF (tight scope, 2 sites) — DONE:
+- [x] 7 — H2 INLINE-LOAD verb @ code-cleaner + scaffolder (87d63bf/af9656f),
+      drop unused Agent from code-cleaner
+- [x] 8 — H1 code-cleaner→refactorer named artifact .claude/audits/CODE-CLEAN-SCOPE.md
+
+Capitalize DONE: LRN-112 (nesting) + BDR-060 (floor) + BDR-061 (path-b) + journal.
+- [x] commit-changer template Co-Authored-By stripped (5a3de92, isolated) —
+      contradicted no-attribution ban since creation
+- [ ] FOLLOW-UP next cycle: cross with J4-16 (lib-layer lock) — verify no other
+      agent/template carries a banned attribution trailer (Co-Authored-By/
+      Claude-Session/--trailer)
+Branch unmerged, human gate.
+
+## 2026-07-07 — job8 third-party security hardening (chore/job8-hardening)
+Genèse : `.audit/job8-report.md` (magic MCP/plugins/gstack/external skills/trust
+chain, read-only). A/B/C/D exécutés (3 commits), branche non mergée, gate humain.
+
+- [x] A — `permissions.ask` += 4 `mcp__magic__*` tools, allow reste vide (BDR-059)
+- [x] B — component_builder couvert par A ; risque documenté README + LRN-110
+- [x] C — darwin-skill réinstallé pinné (tree complet, HEAD détaché SHA
+      7c7b790), git-commit large-scope documenté comme risque accepté (pas de
+      patch sur code tiers pinné) — BDR-058, LRN-109
+- [x] D — pr-review-toolkit / example-skills inchangés, confirmé
+
+- [ ] Re-audit surfaces C/D (ui-ux-pro-max, autres plugins) — single-observer
+      CLEAN sans passe verifier (Fable-5 épuisé mi-job8), à re-vérifier au
+      prochain cycle d'audit sécurité si le scope magic/darwin revient.
+- [ ] MAGIC_API_KEY rotation toujours en attente (résiduel job7, non job8)
+
+## 2026-07-07 — job7 secrets: triage backstops (chore/job7-secrets)
+Genèse : `.audit/job7/ALL-REDACTED.json` (triage secrets multi-repo + ~/.claude).
+GITEA_TOKEN déjà rotaté (transcript 960bd2cf). MAGIC rotation prévue après (A).
+Fixtures git-game #5/#6 confirmées synthétiques (test-secret-*). Règle : jamais
+manipuler une valeur de secret — edits sur les mécanismes seulement.
+
+- [x] A.1 Provenance MAGIC_API_KEY dans `~/.claude.json` : confirmée —
+      seul writer = `lib/toggle-external.sh:191` (`claude mcp add magic --scope
+      user --env API_KEY="$MAGIC_API_KEY"`), appelé par `install-plugins.sh`
+      (jamais un `claude mcp add` direct). Aucun autre writer (grep repo-wide).
+- [x] A.2 Doc Claude Code (agent claude-code-guide) : `${VAR}` supporté dans
+      `env`/`command`/`args`/`url`/`headers` de mcpServers, y compris scope
+      user (`~/.claude.json`). Pas de `envFile`, pas de flag `mcp add` pour une
+      référence — édition manuelle requise. Voie SUPPORTÉE retenue.
+      Décision utilisateur : wiring `MAGIC_API_KEY` → wrapper `claude()` scopé
+      dans `~/.bashrc` (source `.env` en subshell, jamais exporté globalement)
+      plutôt qu'un export global (surface minimale, cohérent BDR-026).
+  - [x] `~/.bashrc` : fonction `claude()` wrapper (subshell source ~/.claude/.env,
+        exec — vérifié : la var n'atteint QUE le subshell/exec, jamais le shell
+        parent). Hors repo (dotfile perso).
+  - [x] `~/.claude.json` mcpServers.magic.env.API_KEY → `"${MAGIC_API_KEY}"`
+        (diff keys-only montré avant écriture ; jq surgical edit, jamais Read
+        direct — la valeur n'a jamais traversé mon contexte). Backup fait
+        pendant l'édition supprimé aussitôt vérifié (aurait été un 6e leak).
+  - [x] `lib/toggle-external.sh:191-192` — `--env 'API_KEY=${MAGIC_API_KEY}'`
+        (référence littérale, single-quoted). `claude mcp add` direct au flag
+        bloqué par le classifieur auto-mode (self-modification non sollicitée,
+        respecté) — non testé live ; `claude mcp list` confirme la syntaxe
+        est bien reconnue ("Missing environment variables: MAGIC_API_KEY" —
+        attendu, cette session a démarré avant le wrapper bashrc).
+  - [x] Doc README : section "Adding an MCP server that needs a secret" +
+        piège `--env` + pattern wrapper à copier
+  - [x] Vérif manuelle : `claude mcp list` (read-only) — magic reconnaît
+        `${MAGIC_API_KEY}`, encore connecté (session pré-existante) ; nécessite
+        un restart terminal (source ~/.bashrc) + Claude Code pour confirmer
+        end-to-end — **résiduel, à faire par l'utilisateur**
+- [x] A.3 Scrub backups `.claude.json.backup.*` — les 5 originaux (78af0e36 @
+      job7 triage) déjà auto-rotés (ring-buffer natif) ; des 5 COURANTS, 2
+      encore en clair (créés avant le fix, pendant cette session) → scrubbés
+      jq (mode 600 restauré, changé par erreur via mv). grep 78af0e36 : 0 hors
+      `.env` (backups + .claude.json confirmés propres).
+- [ ] A.4 Signaler à l'utilisateur : rotation MAGIC maintenant (après commit A)
+- [x] B. Redaction dumps d'env — `hooks/rtk-rewrite.sh` étendu : pipeline simple
+      (pas de `;`/`&`/`||`) + `printenv`/`env` en tête sans `VAR=... cmd` derrière
+      → append `| sed -E 's/^([A-Za-z_]*(TOKEN|API_KEY|SECRET|PASSWORD|PASSWD)
+      [A-Za-z_]*)=.*/\1=REDACTED/'`. `env VAR=x cmd` intact. Compound bail
+      (`;`/`&`/`||`) — jamais de pipe attaché au mauvais segment.
+  - [x] `lib/tests/rtk-rewrite.test.sh` — 3 cas + garde compound
+  - [x] `make test` vert (96/96 gitflow-test + suite complète)
+- [x] C. Backstop gitleaks (8.30.1 confirmé installé — `protect` non listé
+      dans `--help` mais fonctionne encore ; `gitleaks git --staged` =
+      sous-commande documentée retenue à la place)
+  - [x] `.gitleaks.toml` racine — allowlist 3 classes job7 (vérifiées
+        empiriquement contre les vrais fichiers : marketplace.json sha
+        40-hex, ws-protocol nonce, test-secret-[0-9-]+) + 4e entrée
+        `(^|/)\.env$` (pas un faux positif — c'est le vault canonique
+        BDR-026 ; exclu du bruit, pas de la détection)
+  - [x] pre-commit gitflow (`lib/gitflow.sh` `_gitflow_emit_pre_commit`) —
+        `gitleaks git --staged` après guard root/merge, non-bloquant si absent
+  - [x] `lib/gitflow-test.sh` T16 — faux secret (AKIA random) sur feature
+        branch → bloqué ; commit propre passe ; PATH sans gitleaks → warn
+        + pass. 96/96 vert.
+  - [x] `make scan-secrets` — repo (git history) + dir ~/.claude, redacted
+        JSON → `.audit/` (`--redact` vérifié : Match/Secret redacted dans
+        le report, pas juste les logs). Repo : 0 (attendu). ~/.claude : 18
+        hits restants, 8 fichiers — voir D (5 déjà dans le triage job7,
+        3 NOUVEAUX non couverts par la spec initiale, à trancher)
+- [x] D. Purge (GO explicite par item) — état réel après `make scan-secrets` :
+  - [x] transcript 960bd2cf…jsonl (generic-api-key, GITEA déjà rotaté) — GO
+        utilisateur → rm fait
+  - [x] `ide/27929.lock` — déjà rotée toute seule (fichier absent, session
+        finie). REMPLACÉE par `ide/20429.lock` (NOUVEAU, session active en
+        cours) — NE PAS rm (verrou live) ; candidat allowlist de classe
+        (`ide/*.lock` structurel, pas un secret) si le pattern se confirme
+  - [x] `cleanupPeriodDays` — champ confirmé exact (agent claude-code-guide,
+        code.claude.com/docs/en/settings.md) : défaut 30, min 1, scope doc
+        = "session files" (transcripts + orphaned subagent worktrees) —
+        PAS explicitement backups/file-history/paste-cache (gap doc, donc
+        ne remplace pas les scrubs manuels A.3/D). Diff montré, confirmé
+        via AskUserQuestion (1er essai bloqué par le classifieur auto-mode :
+        diff affiché en texte ne vaut pas confirmation explicite — correct)
+        → `settings.json` 30→7 appliqué.
+  - [x] **NOUVEAU (hors spec initiale, découvert par `make scan-secrets`)** :
+        `paste-cache/7d48f52c7499c1a7.txt` (sourcegraph-access-token, 2) —
+        GO utilisateur ("Claude rm maintenant") → rm fait, jamais lu.
+        Transcript `f1c9c474-...jsonl` (generic-api-key, 8) — PAS choisi
+        par l'utilisateur parmi les options (auto-inspect / TODO / rm) →
+        **laissé intact, à trancher** ; ni lu ni caractérisé (règle job7).
+  - [x] **NOUVEAU (bruit, pas un item D)** : transcript de CETTE session
+        (`4b5c02a9-...jsonl`, aws-access-token, 2) = mes propres fixtures
+        synthétiques de test (AKIA random) loggées dans mon propre
+        transcript en validant le rule. Pas un vrai secret, rien à purger.
+- [ ] Gate final : `make test` + `make scan-secrets` propre + table
+      étape/commit/gate + capitalize (BDR secrets-par-référence, MAJ BDR-026,
+      LRN piège `claude mcp add --env`). NOTE : `make scan-secrets` sur
+      ~/.claude ne sera pas "propre" tant que `f1c9c474-...jsonl` (8 hits,
+      non tranché) reste — résiduel connu, pas un échec du job.
+
+## 2026-07-05 — /deploy UX patch (feature/deploy-next-style)
+Feedback user au 1er run réel (bchanot-cv, [[EVAL-016]]) : NEXT.sh une commande
+par ligne (style session — ssh ouvre la box, la suite s'exécute dessus, local =
+"(from your machine)") + hand-back AFFICHE la checklist inline (aussi aux
+re-hand-back). Step = bloc (header + lignes jusqu'à ligne vide), @delta
+gouverne le bloc entier.
+- [x] skills/deploy/SKILL.md — grammaire bloc-étape + shape rule + print inline
+- [x] templates/deploy/PROCEDURE.md — restylé session
+- [x] bchanot-cv runbook restylé, committé, pushé (bd7f6e4, develop sync)
+- [x] settings.json +inputNeededNotifEnabled (layout committé inchangé)
+- [x] Capitalize EVAL-016 + journal
+- [x] Re-dogfood run 2 (résidus bchanot-cv) : le print inline AVANT
+      AskUserQuestion ne s'affichait PAS → leçon [[LRN-102]] (texte avant un
+      tool call peut ne jamais rendre ; le dernier texte du tour est le seul
+      affichage garanti)
+- [x] PASS 2 (feature/deploy-inline-checklist) : checklist DISPLAY-ONLY —
+      plus de fichier NEXT.sh du tout (jetable, PENDING+runbook régénèrent
+      partout) ; hand-back TERMINE le tour par la checklist, aucun tool call
+      après ; resume à froid = régénère + ré-affiche. Skill+template+CHANGELOG.
+- [x] Re-dogfood pass 2 VALIDÉ (deploy run 2, b24c58b marqué 2026-07-05-2) :
+      checklist copiée depuis la conversation, deploy OK, CSP hash live sans
+      unsafe-inline. Resume à froid + STEP 4 (learn) toujours vierges
+
+## 2026-07-05 — impeccable install chain (feature/impeccable-install)
+Décision (user a délégué) : COMPLÉMENTAIRES → les deux. frontend-design garde
+la direction esthétique au build ; impeccable (pbakaus, 43.6k⭐, Apache-2.0,
+actif) apporte l'UNIQUE manquant : 45 règles déterministes anti-slop (CLI
+`impeccable detect`, exit 0/2, --json — le semgrep du design, doctrine
+backstop-déterministe) + 23 verbes sous UN skill (/impeccable) + contexte
+design persistant (DESIGN.md/PRODUCT.md). Faits vérifiés : npm CLI 3.2.0
+(skill dist = track séparé), `skills install -y --providers=claude
+--scope=project --no-hooks`, **Node ≥ 24 requis (hôte = 22.22)** → step
+fail-soft + décision bump Node à l'user. Classifier a bloqué npx (code tiers)
+→ dogfood via `make plugin` côté user.
+Pattern : ctx7/machine-owned (skills-external/impeccable gitignoré, synced
+par installeur, symlinké par link.sh EXTERNAL_SKILLS, profils type external).
+PAS en GATE-BLOCK design.profile tant que Node<24 + pas dogfoodé.
+- [x] plugins.lock.json — entry impeccable pin 3.2.0
+- [x] install-plugins.sh — Step 8d staged npx install → skills-external
+- [x] update-all.sh — step miroir pin-honored (Node<24 → skip, dist gardée)
+- [x] link.sh — EXTERNAL_SKILLS += impeccable
+- [x] .gitignore — skills/impeccable + skills-external/impeccable/
+- [x] profils design/web/web-full/full — impeccable external (show design →
+      « impeccable missing » = statut honnête pré-install)
+- [x] plugin-advisor.md + CLAUDE.md Design work + lib/design-gate.md
+- [x] README table + CHANGELOG Unreleased
+- [x] Verify — bash -n ×3 OK, shellcheck clean (SC1091 info only), lock JSON
+      valide, profile parse OK. Dogfood DIFFÉRÉ : classifier bloque npx code
+      tiers en auto-mode → user lance `make plugin` (une fois Node ≥ 24)
+- [x] Bump Node baseline 22→24 LTS (install-plugins Step 1, 24cce6a) — la
+      dépendance dure est résolue à l'install, plus une décision différée
+- [ ] Follow-up (hors scope) : doctor.sh check (fichier gardé) ; GATE-BLOCK
+      promotion après dogfood ; dogfood réel = prochain `make plugin`
+
+## 2026-07-04 — skill /tour (tir groupé multi-projets, feature/tour-skill)
+Goal: 1 orchestrateur = clean-code + sécurité (security-auditor/semgrep [+cso si
+gstack ON]) + reconcile + doc, mode auto, sur 1..N projets. Boucle de convergence
+(fixes peuvent invalider l'audit précédent) BORNÉE 3× (LRN-083). Build via
+superpowers:writing-skills (TDD, pattern audit-delta/reconcile) + guidance
+skill-creator (structure, description trigger-pushy).
+Design verrouillé :
+- auto = fixes committés sur `chore/tour-<date>` par repo (gitflow lib), JAMAIS
+  finish/merge (signal humain only). Tree sale ou pas de develop → report-only.
+- ordre par repo : sécurité → clean → re-verify (checks projet, fail=revert
+  fail-closed) → reconcile (REPORT-ONLY, jamais d'auto-coche TODO) → doc
+  (mode silencieux doc-syncer) → re-audit convergence.
+- convergence = 1 passe complète à zéro finding nouveau + checks verts ;
+  sinon re-boucle, max 3 itérations, résidus rapportés honnêtement.
+- rapport `.claude/audits/TOUR.md` par repo + synthèse inline multi-repos.
+- registres : offre capitalize gatée en fin, jamais silencieux.
+- [x] RED : fixture repo → baseline SANS skill. 6 gaps : TODO cible ré-écrit
+      silencieusement ; registres écrits de façon autonome ; sécu = grep ad-hoc
+      sans semgrep ; zéro rapport persistant ; scope creep (.gitignore +
+      registres bootstrap) ; boucle sans borne déclarée. (Bien fait : branche
+      gitflow via lib, pas de merge, commits atomiques, convergence passe 2.)
+- [x] GREEN : skills/tour/SKILL.md — run avec skill sur fixture-green,
+      6/6 gaps fermés VÉRIFIÉS sur disque (TODO zero-diff, 0 registre,
+      semgrep chaque itération, TOUR.md committé 18 findings, 0 scope
+      creep, 3 it. bornées convergées, chore branch non mergée)
+- [x] REFACTOR : 2 trous du GREEN patchés (scratch semgrep non trackés →
+      auto-blocage du prochain run, STEP 3.2 cleanup ; fix sécu cassant
+      non signalé → tag BREAKING structurel dans template). Additions
+      template-structurelles NON re-testées par un 3e run complet (coût) —
+      re-test au premier usage réel.
+- [x] Routage CLAUDE.md (ligne « Grouped all-axes sweep → tour »)
+- [x] Commit branche + capitalize (BDR-052, LRN-099/100, EVAL-014, journal)
+- [x] GO user 2026-07-05 : merge develop + release/1.0.0 ; settings.json
+      restauré (Opus 4.8 1M défaut, backstop attribution conservé)
+
+## 2026-07-03 — verify loops + semgrep gate + contract (chantier orchestrateurs)
+Archi validée au gate (session 2026-07-03). Cible : contract sur DISQUE dès
+création (fichier de run, pattern DIAGNOSIS) + verifier frais (verdict structuré
+CONFORME/écarts, preuve-qu'il-a-regardé LRN-048, 2 échecs structurels = escalade
+humaine — verifier muet ≠ PASS) + gate sécu semgrep (rulesets ÉPINGLÉS
+p/security-audit + p/secrets — pas --config auto, classe LRN-077 ; BLOCK
+HIGH/CRITICAL only, LRN-047) + boucles bornées 3× décidées en boucle principale
+(LRN-083). cso = symlink submodule gstack → non modifiable → greffes locales
+(onboard cso-fallback, audit-delta, agent neuf ; complément semgrep même
+gstack ON). Verdicts user : dev inline conservé feat/bugfix/hotfix (verify+sécu
+= sous-agents frais) ; hotfix garde revert-escalade ; PIN version semgrep dans
+plugins.lock.json (gate bloquante — upgrade silencieux = nouveaux BLOCK sur code
+inchangé ; pattern gsd-pin, saut affiché par update-all).
+
+LOT 1 — feature/semgrep-install (GO)
+- [x] plugins.lock.json — pin semgrep 1.168.0 (pattern gsd, note gate bloquante)
+- [x] install-plugins.sh STEP 7.5 — pipx pinned, command -v guard + version echo, login guide-only (jamais auto)
+- [x] update-all.sh step 6.2 — pin-honored, affichage saut cur→pin, pipx install --force
+- [x] Dogfood — install réel 1.168.0 via bloc extrait + idempotence (re-run = skip) + pin-match + saut affiché (1.168.0→9.9.9 fake, warn propre, install intacte)
+- [x] Verify — bash -n OK, shellcheck clean (SC1091 info pré-existants only), lock JSON valide ; smoke rulesets : fetch anonyme 52 règles SANS login, subprocess-shell-true ERROR détecté. Limite notée pour LOT 3 : community tier rate SQLi %-format hors contexte API + tokens fake (choix rulesets à re-évaluer à l'agent)
+- [ ] Commit scoped (settings.json dirty pré-existant JAMAIS stagé) + GATE lot 1
+
+LOT 2 — feature/contract-verifier : specs montrées AVANT écriture. lib/contract-interview.md + agents/verifier.md.
+LOT 3 — feature/security-auditor : agents/security-auditor.md + greffe audit-delta + onboard fallback + complément gstack-ON.
+LOT 4 — feature/loops-light : câblage feat/bugfix/hotfix.
+LOT 5 — feature/loops-heavy : câblage ship-feature + init-project + onboard.
+Rien poussé ; gate par lot ; suites après chaque lot.
+
+## 2026-07-03 — design-toolchain trigger fix (bugfix/design-toolchain-trigger)
+Root cause (NOT a kill-switch, per user): ed2408e (07-02) dropped ultra-generic
+tokens but left bare tokens common in non-UI talk → ~6× false-fire THIS session
+(design, dashboard via ecc_dashboard.py, component, frontend, theme, transition,
+palette). Fix = tighten the trigger only + a fire-log counter for measured
+re-fire decisions.
+
+- [ ] hooks/design-toolchain-reminder.sh — drop bare design|component|composant|theme|thème|transition|frontend|front-end|palette; dashboard→\bdashboard\b; keep animation; add "front-?end design" bigram; + fire-log (time+token+excerpt)
+- [ ] lib/tests/design-toolchain-reminder.test.sh — 8 dropped tokens quiet; button/navbar/landing/glassmorphism/redesign/"frontend design"/"admin dashboard"/animation fire; ecc_dashboard.py quiet; fire logged
+- [ ] Verify — shellcheck + bash -n + test PASS + live dogfood (hook now quiet on session tokens)
+- [ ] GATE before finish (user); sentinel one-shot to edit the now-guarded hook
+
+## 2026-07-03 — config-protection hook (feature/config-protection-hook)
+Goal: PreToolUse hook blocks Edit/Write to this config's quality-gate files
+(guardrails an agent must not weaken to make an error pass). Adaptation from ECC
+second-look (BDR-047 corrob, Opus 4.8 re-audit) — MY idiom (~15-line bash), NOT
+ECC's Node dispatcher. Extends config's own doctrine ("backstops déterministes
+car l'advisory s'oublie"). Guarded: settings.json (+ .claude/settings*.json),
+lib/gitflow.sh, .githooks/*, doctor.sh, lint configs (preemptive, absent today).
+Bypass: CONFIG_EDIT_OK="reason" (logged). Mid-session env caveat flagged at gate.
+
+- [x] hooks/config-protection.sh — case-match guarded path, exit 2 else 0; fail-open
+- [x] Guarded: settings.json(+.claude/settings*), lib/gitflow.sh, .githooks/*, doctor.sh, hooks/*.sh (self-guard), lib/tests/* (T6c/LRN-077), lint (preemptive)
+- [x] Bypass: one-shot sentinel .claude/.config-edit-ok (non-empty reason, logged+consumed) — NOT env-var (launch-time env = set-and-forget = garde mort)
+- [x] lib/tests/config-protection.test.sh — block/allow/self-guard/near-miss/fail-open/sentinel-one-shot/empty-refuse (17 checks)
+- [x] settings.json — register PreToolUse matcher Edit|Write|MultiEdit -> hook
+- [x] Verify — shellcheck clean + 17/17 PASS + bash -n + bootstrap-safe (hook fires on Edit/Write only, not shell cp/ln)
+- [x] GATE passed — guarded list +2 (hooks/, tests/), sentinel over env-var
+- [ ] Capitalize (BDR-047 corrob + LRN-090 câblé>déclaratif) + finish this branch only
+
 ## 2026-06-23 — install self-sufficient + gstack on-demand par profil
 Goal: `make install`/`make plugin`/`make update` installent TOUT sans étape
 manuelle. Plus le profil-driven gstack on-demand (option 1 user : gstack OFF
@@ -23,9 +419,10 @@ Root causes trouvées (logs install-20260623-181416.log) :
 - [x] Verif — shellcheck/bash -n propres ; migré darwin → $HOME/.agents/skills + `bash link.sh`
       (skills/darwin-skill OK) ; `profile.sh set full` → 0 "missing", 35 gstack on-demand ;
       cycle minimal↔full OK ; git propre (symlinks gstack gitignorés) ; profil full restauré
-- [~] Cleanup machine courante : $REPO/.claude/skills/darwin-skill + .agents/skills VIDE
+- [x] Cleanup machine courante : $REPO/.claude/skills/darwin-skill + .agents/skills VIDE
       restent (rm bloqué par garde permission .claude/) → auto-nettoyés au prochain `make plugin`
       [reconcile 2026-06-29 : TOUJOURS présents (fs-vérifié, darwin-skill 116K daté 23/06) — `make plugin` pas rejoué depuis. Reste différé, déclencheur = prochain install.]
+      [done 2026-06-30 : `make plugin` rejoué EXIT=0 (npm réparé via corepack, [[BLK-013]]) → Step 8.5 a retiré les deux ; fs-vérifié ABSENTS, vrai skills/ intact (36 entrées). Boucle fermée.]
 - [x] Capitalize — LRN-042 (Bug B CWD-relatif) + BDR-030 (gstack on-demand par profil) + journal 2026-06-23
 - [x] Commit (via /commit-change) — DONE (reconcile 2026-06-29 : working tree clean, travaux shippés)
 
@@ -131,8 +528,8 @@ Subtasks :
 - [x] Patcher `lib/design-gate.md` — ajouter motion/motion-v/framer-motion + autres anim-libs dans filesystem signals
 - [x] Tester : shellcheck OK ; matrix React/Vue/RN/backend/with-motion/no-package/pnpm tous corrects
 
-## Helper `--help` / `help` sur tous les skills (option C)
-> ⚠️ BLOQUÉ (reconcile 2026-06-29) : contredit BDR-001 (accepted) qui a REJETÉ "copier le helper dans chaque SKILL.md" (maintenance entropy) au profit d'un hook session-start. Or ce chantier planifie STEP 0.5 par SKILL.md. Le TODO note lui-même "aucun skill ne gère --help aujourd'hui" → la voie hook de BDR-001 n'a jamais produit de --help fonctionnel. TRANCHER d'abord : BDR-001 périmé → marquer superseded, OU repasser par le hook. Ne pas lancer avant résolution.
+## Helper `--help` / `help` sur tous les skills (option C) [WON'T-BUILD 2026-06-30 — mesuré non-rentable]
+> ⛔ WON'T-BUILD (2026-06-30) : ABANDON tranché après mesure. RED comportemental (6 reps, /web-validate + /harden, SANS instruction) → **6/6 rendent déjà une aide riche ET s'arrêtent sans dispatcher** (même /harden n'a pas lancé l'audit). Le comportement supposé absent est déjà spontané (convention universelle --help). Seule valeur résiduelle = cohérence de format (6 formats divergents) → ROI insuffisant pour ~5 lignes dans un CLAUDE.md compressé ([[BDR-031]]) sur repo mono-user. 3e état : NON "fait" (rien construit), NON "ouvert" (on ne le fera pas). L'option globale réalisait l'intention BDR-001 ; per-skill toujours rejeté. Voir [[BDR-001]] (won't-build), [[LRN-080]], [[LRN-075]]. Design + subtasks ci-dessous = historique, non actionnables.
 Problème : aucun skill ne gère `--help` aujourd'hui. `argument-hint` affiche juste la syntaxe en autocomplétion, pas de description/exemples. L'utilisateur doit lire le SKILL.md ou deviner.
 
 Objectif : `/<skill> --help` (ou `/<skill> help`) affiche un bloc standardisé (description, args, exemples, cross-refs) et exit SANS dispatcher l'agent ni modifier quoi que ce soit.
@@ -163,13 +560,13 @@ Design :
 - **Skills à patcher** : `~/Documents/claude/skills/` = ~20 skills persos + skills-perso list pour référence. Ne PAS toucher skills-external/gstack (ownership externe) ni example-skills.
 
 Subtasks :
-- [ ] Créer `skills/lib/help-handler.md` — snippet réutilisable (détection + extraction + affichage)
-- [ ] Définir format d'aide standard + section "ARGUMENTS" vs reuse de argument-hint
-- [ ] Décider : sections ARGUMENTS/EXAMPLES doivent-elles être dans la frontmatter (nouveau champ YAML) ou dans le corps du SKILL.md (nouvelle section `## Help`) ?
-- [ ] Patcher un skill pilote (`/validate`) — valider UX  _(désormais `/web-validate` — renommé e5e673a)_
-- [ ] Patcher les skills perso restants : analyze, bugfix, code-clean, commit-change, doc, feat, geo, graphify, harden, hotfix, init-project, make-pdf, onboard, plan-tune, plugin-check, refactor, seo, ship-feature, skills-perso, status, benchmark-models, context-save, context-restore
-- [ ] Mettre à jour `~/.claude/CLAUDE.md` — mentionner convention --help disponible sur tous les skills perso
-- [ ] Note : skills-external/gstack ont leur propre convention, ne pas toucher
+- [-] Créer `skills/lib/help-handler.md` — snippet réutilisable (détection + extraction + affichage)
+- [-] Définir format d'aide standard + section "ARGUMENTS" vs reuse de argument-hint
+- [-] Décider : sections ARGUMENTS/EXAMPLES doivent-elles être dans la frontmatter (nouveau champ YAML) ou dans le corps du SKILL.md (nouvelle section `## Help`) ?
+- [-] Patcher un skill pilote (`/validate`) — valider UX  _(désormais `/web-validate` — renommé e5e673a)_
+- [-] Patcher les skills perso restants : analyze, bugfix, code-clean, commit-change, doc, feat, geo, graphify, harden, hotfix, init-project, make-pdf, onboard, plan-tune, plugin-check, refactor, seo, ship-feature, skills-perso, status, benchmark-models, context-save, context-restore
+- [-] Mettre à jour `~/.claude/CLAUDE.md` — mentionner convention --help disponible sur tous les skills perso
+- [-] Note : skills-external/gstack ont leur propre convention, ne pas toucher
 
 ## Skill profiles (partition gstack par usage)
 - [x] Plan
@@ -280,7 +677,7 @@ Goal: universal gitflow across all `bchanot/*` Gitea repos. Lib built across pri
 - [x] follow-up (a) — `submodule.gstack.ignore=dirty` committé dans `.gitmodules` — DONE (reconcile 2026-06-29 : commit `be1dcef` sur main, mergé via hotfix/gstack-ignore-gitmodules)
 - [ ] follow-up (b) — zenquality `cleanup/post-smtp-fix` rename `<type>/<name>` ou finish+delete (AUTRE repo, optionnel)
 
-## 2026-06-29 — MINOR-gate strengthening (doc-syncer) [branch feature/minor-gate-strengthening]
+## 2026-06-29 — MINOR-gate strengthening (doc-syncer) [DONE — merged develop, branch deleted]
 Read-first cartography refuted the literal premise: "strengthen MINOR gate" = 3 problems;
 the literal one (blocking gate on MINOR) contradicts engraved [[BDR-036]]. Scope: ①+②, not B,
 ③ deferred. Built test-first (Iron Law).
@@ -291,7 +688,7 @@ the literal one (blocking gate on MINOR) contradicts engraved [[BDR-036]]. Scope
 - [x] FINISH — merged feature/minor-gate-strengthening → develop (`0f0bd7f`) on explicit signal
 - [~] ③ branch-guard in doc-commit DEFERRED — duplicates protected-base predicate 3rd time (lib + hook + here); all migrated repos have the hook. Reconsider only for repos outside `gitflow init`
 
-## 2026-06-29 — BLK-011 GSD ROADMAP post-FINISH [branch bugfix/blk-011-gsd-roadmap]
+## 2026-06-29 — BLK-011 GSD ROADMAP post-FINISH [DONE — merged develop ce4391a, branch deleted]
 User reframed: don't plumb a commit for the stranded ROADMAP — ask if gsd belongs at init at all.
 Read refuted both option-premises (gsd ≫ roadmap; TODO ≠ gsd ROADMAP) but conclusion A held for a
 stronger reason: speculative auto-bootstrap of an unused engine at creation is bad per se ([[LRN-072]]).
@@ -301,7 +698,7 @@ stronger reason: speculative auto-bootstrap of an unused engine at creation is b
 - [x] Capitalize — [[BLK-011]] resolved (true reason + premise trace) + [[LRN-072]] + CHANGELOG Removed + journal 2026-06-29 (cont. 2)
 - [x] FINISH — merged bugfix/blk-011-gsd-roadmap → develop (`ce4391a`); develop pushed to origin (6 commits, SSH)
 
-## 2026-06-29 — prune-memory hardening (RED-7/8 + index backfill) [branch bugfix/prune-memory-hardening]
+## 2026-06-29 — prune-memory hardening (RED-7/8 + index backfill) [DONE — merged develop 73e12be, branch deleted]
 LAST of 3 chantiers. Read-first cartography confirmed RED-7/8 + measured 34-row index drift.
 - [x] RED-7 (example-priming) — fictionalized STEP-2 example to 9xx ids (live ids primed a wrong merge of complementary LRN-014/016); DETERMINISTIC test (run-deterministic.sh) per [[LRN-046]]. Caught its own ugrep false-green → /usr/bin/grep ([[LRN-074]]). [[LRN-073]]
 - [x] RED-8 (added-negation inversion) — consciously ACCEPTED as documented limit in BACKLOG ([[LRN-047]]); no fragile guard built
@@ -346,7 +743,7 @@ Subtasks (à détailler au lancement) :
 - [x] Test final = reproduire l'inventaire 2026-06-29 (cat. 1-4 + contradiction BDR-001) comme oracle — DONE (run-reconcile.sh 20/20, fixtures neutres, RED prouvé rouge avant le vert)
 - SHIPPED 2026-06-30 : feat `82e6322` + mémoire `6b512be` → merge `aede7af` (feature/reconcile-skill supprimée) → poussé origin/develop. main intact. BDR-041 + LRN-075/076/077 + EVAL-011 capitalisés.
 
-## [QUEUED] skill /release-candidate — orchestrateur gitflow release (lib vérifiée, le tag est le gap)
+## [SHIPPED 2026-06-30 — develop 0c0b748, released v4.0.0 (tag v4.0.0)] skill /release-candidate — orchestrateur gitflow release
 Pertinent maintenant : develop ahead de main, prochaine étape gitflow = release.
 VÉRIFIÉ dans lib/gitflow.sh (2026-06-30) — release CÂBLÉE, pas que hotfix :
 - start base=develop (`gitflow_base_for` L49) ; `gitflow start release <ver>` positionne sur la branche (L71).
@@ -361,7 +758,51 @@ Design (à la conception) : ORCHESTRATEUR au-dessus du gitflow existant — NE P
 - push gaté (ASK, [[LRN-069]]) : main + develop + tag.
 
 Subtasks (à détailler au lancement) :
-- [ ] Décider : tag dans le skill VS étendre `gitflow finish` avec un arg tag optionnel (orchestrateur préféré — ne pas réécrire la mécanique)
-- [ ] `skills/release-candidate/SKILL.md` — orchestration start→prep→finish→tag→push(gaté) + gate humain "WHEN to release"
-- [ ] routage CLAUDE.md
-- [ ] test (worktree jetable : prouver fan-out main+develop + tag présent sur main + branche supprimée)
+- [x] Décider : tag fourni par le skill au-dessus de gitflow (mécanique non réécrite) — d3d6ced, [[BDR-042]]
+- [x] `skills/release-candidate/SKILL.md` — orchestration start→prep→finish→tag→push(gaté) + gate humain "WHEN to release" — présent (d3d6ced)
+- [x] routage CLAUDE.md — présent (~/.claude/CLAUDE.md "Cut a release → release-candidate")
+- [x] test — prouvé par la release réelle 4.0.0 : fan-out main (709facf) + develop (4a00a60) + tag v4.0.0
+
+## Auto-déclenchement des skills par intention [WON'T-BUILD 2026-06-30 — mesuré : Claude discrimine déjà (3 classes)]
+> ⛔ WON'T-BUILD (2026-06-30) : 3e moot de la série (après [[BDR-001]] --help + [[BDR-043]]/[[LRN-082]] darwin re-baseline). Cartographie : routing = STACK L0(design-hook)→L1(superpowers « 1%→MUST invoke », dominant)→L2(prose CLAUDE.md)→L3(frontmatter)→L4(BDR-019). L1 SUR-détermine déjà l'invocation → « auto-call ? » = déjà oui. Reframe C : la vraie question = DISCERNEMENT, risque inversé under→**OVER**-routing. Mesure en VRAIES sessions fraîches (8 prompts / 3 classes) : CLEAR→route ✓, AMBIGUË→demande (refuse de deviner, investigue pour une question utile) ✓, TRIVIALE→s'abstient ✓. Le sur-routing soupçonné (L1 vs règles Workflow) NE se matérialise PAS — le modèle équilibre. Prose de bornage L2 = valeur fantôme + risque de DÉGRADER un discernement déjà bon. Voir [[BDR-044]] (reframe + verdict), [[LRN-083]] (RED sous-agent invalide), [[LRN-080]] (mesure-first, corroboré 3-in-a-row). RED sous-agent initial (0/6) RETIRÉ comme non-discriminant (plancher artefact). Design + subtasks ci-dessous = historique, non actionnables.
+> ⏭️ (historique) NEXT, mais CADRÉ : **pas de design avant la mesure**. Jumeau méthodologique de [[BDR-001]] `--help` (won't-build après RED) — même piège architectural, même garde-fou [[LRN-080]] (mesurer avant d'instruire) + [[LRN-049]] (borner le bruit avant le marqueur). Les subtasks ci-dessous s'arrêtent à la mesure ; le design ne s'ouvre QUE si le RED valide la valeur.
+
+**Contrainte architecturale (établie pour `--help`, non négociable) :**
+Aucun mécanisme n'intercepte le message utilisateur pour *lancer* un skill. La harness ne route pas avant que le modèle réponde — un skill n'est invoqué QUE par le modèle (outil Skill). Donc « auto-call déterministe » = IMPOSSIBLE. Le seul levier sur l'invocation elle-même = instruire le MODÈLE à reconnaître l'intention et appeler le bon skill → **conformité-modèle, PAS déterminisme**. C'est une instruction de routage CLAUDE.md, pas un mécanisme.
+- Nuance (raffinement) : une couche déterministe existe *en amont* du call, pas *sur* le call — un hook `UserPromptSubmit` peut détecter un signal et INJECTER un rappel de routage (le `design-toolchain` hook fait déjà exactement ça pour l'UI ; le banner session-start aussi). Détection déterministe + injection advisory ; le modèle reste celui qui tire. MAIS sur des verbes d'intention (« corrige », « crée », « bug »), un hook keyword serait BRUYANT (ces mots sont partout) — le design-hook s'en sort car « design/UI » est un signal rare. Donc le levier hook est probablement non-viable pour le cas large → ce qui **renforce** le besoin de borner aux signaux rares/non-ambigus.
+
+**Substrat déjà en place :** [[BDR-019]] a retiré `disable-model-invocation` repo-wide → le modèle PEUT déjà self-router vers les skills (défaut = activé ; user l'avait vécu live : intention feature détectée, `ship-feature` voulu, jadis bloqué). Et la section « Skill routing » de CLAUDE.md existe déjà. Donc la **baseline du RED = le routage CLAUDE.md ACTUEL tel quel** ; le chantier n'a de valeur que si le RED prouve que cette prose SOUS-déclenche sur intention claire (exactement la logique --help : baseline = convention déjà là, question = est-ce qu'instruire en plus change quoi que ce soit).
+
+**Le chantier COMMENCE par (rien d'autre avant) :**
+- [x] (a) **Cartographier** le routage CLAUDE.md actuel — quels signaux → quels skills sont déjà censés router (« Skill routing » + « Design work » + descriptions de skills). État des lieux factuel, pas de jugement.
+- [x] (b) **RED comportemental** ([[LRN-080]]) — prompts d'intention IMPLICITE, naturalistes, SANS instruction renforcée : « il y a un bug, debug », « on va créer X », « corrige ceci », « refactor ce module », « cut a release »… → le modèle invoque-t-il le bon skill, ou fait-il la tâche à la main en ignorant le skill ? N reps, plusieurs intents distincts.
+  - Garde-fou RED : **ne PAS amorcer**. Sessions fraîches / sous-agents, prompts naturels, zéro mention de « skill » / « routage » / « test » dans le prompt mesuré (sinon le modèle route parce qu'il SAIT qu'on le teste — contamination). Le RED `--help` était mécanique donc peu sensible à l'amorçage ; l'intent-routing l'est beaucoup plus → rigueur supérieure requise.
+- [x] (c) **Décider selon le RED** :
+  - déjà bon (comme --help) → chantier MINCE, voire won't-build ; capitaliser le constat (3e état : mesuré non-rentable, ni fait ni ouvert).
+  - sous-déclenche → vraie valeur : renforcer la **prose de routage** (levier modèle) sur signaux CLAIRS uniquement — PAS un hook keyword (trop bruyant, cf. nuance ci-dessus).
+
+**Scope à border au cadrage — NE PAS faire « tout skill jugé pertinent » :**
+Tension réelle proactif vs intrusif. Auto-déclencher feat/bugfix sur intention CLAIRE et non-ambiguë = sain. « Déclenche tout skill jugé pertinent » = RISQUÉ (faux déclenchements, skills non sollicités, flux interrompus). Réglage cible ([[LRN-049]] borner le bruit) = déclencher sur signaux d'intention CLAIRS et non-ambigus ; **ambigu → DEMANDER, pas auto-déclencher**. À définir précisément SI (et seulement si) le RED valide : table `signal → skill` + la frontière exacte de l'ambiguïté.
+
+## 2026-06-30 — session-close follow-ups (promoted from BLK-013 / BDR-043)
+- [x] (a) Harden install-plugins.sh Step 1 — guarantee `npm` on apt-`nodejs` hosts (detect missing npm + `corepack enable npm`), not just check `node >=22`. Fix-forward for [[BLK-013]] — stops `make plugin` Error 127 recurring on any fresh apt machine.
+      [done 2026-07-01 : unconditional npm guard after Node block (corepack enable npm → distro `install npm` fallback → fatal exit 1 w/ clear msg). Catches node>=22-present-but-npm-absent (NODE_OK short-circuit). shellcheck clean, bash -n OK. Fresh-apt live validation pending (no npm-less host to hand). branch bugfix/install-plugins-npm-guard.]
+- [x] (b) Re-baseline darwin on the 5 ex-broken gstack skills (`benchmark-models`, `context-restore`, `context-save`, `make-pdf`, `plan-tune`) — now repaired and back in scope ([[BDR-043]], trigger cleared). Verify `results.tsv` still marks them `status=error` first. (Promoted from BDR-043's action-field — not an item the user authored.)
+      [resolved-MOOT 2026-06-30 : won't-run. BDR-043 cleared only motif (a) of BDR-015's TWO exclusion grounds (symlinks repaired ✅); motif (b) external-ownership INTACT — the 5 resolve to skills-external/gstack/ (submodule), darwin optimizes by EDITING SKILL.md → would dirty the submodule (forbidden [[LRN-070]]). Re-baseline = unactionable score. + results.tsv gone (wiped by 23/06 make-plugin reinstall) → not even a re-baseline, a fresh-from-zero one. Geometric trigger lifted, value trigger intact — twin of --help [[LRN-080]]. See [[LRN-082]]. Not "done", not "open": MOOT.]
+
+## 2026-07-03 — bugfix/gitflow-finish-args (contract fix + doctor false-warns)
+Root: audit 2026-07-02 residuals. `gitflow_finish` ignores its args (merges CHECKED-OUT
+branch) → LOT3 mis-merge trap; + 3 doctor false-warns (LRN-047 class).
+- [x] (1) lib/gitflow.sh gitflow_finish — optional <type> <name>; error rc2 if != current
+      branch ("operates on current branch X, you asked Y — checkout Y first"). No-args unchanged.
+      Commit d9fdd4c. [[BLK-015]] [[LRN-089]].
+- [x] (2) lib/gitflow-test.sh — T12 arg-guard: arg-mismatch → nonzero + message names both;
+      arg-match → merges as before. +7 assertions (71/71). T12 (not T6c — reconcile collision).
+- [x] (3) doctor.sh cargo line — false "(RTK unavailable)" → optional info (RTK prebuilt).
+- [x] (4) doctor.sh check_symlink — PASS iff canonical path under $REPO (direct OR via
+      symlinked ancestor dir); hooks/session-start.sh false-warn gone. Commit 6778b9f.
+- [x] (5) doctor.sh §2 gstack — counts 34 per-skill symlinks; mythical [ -L skills/gstack ] dropped.
+- [x] (6) doctor.sh token § — denominator 11000→CONTEXT_WINDOW=200000, thresholds 15/25,
+      comment anchored to measured ~11.4k (LRN-088). False "92% CRITICAL" → ~5% comfortable.
+- [x] Verify — suites green (71/13/32/19/20/13 + RC 5/5); doctor 0 false-warn; shellcheck clean.
+      +docs(changelog) Unreleased entry (706abff). Gate passed on GO 2026-07-03. Finish pending.

@@ -1,15 +1,13 @@
 ---
 name: web-validate
 description: |
-  Use when a web project needs W3C HTML/CSS validity check or WCAG 2.1
-  accessibility audit. Dispatches the validator-analyzer agent with a
-  STRICT scope filter (no meta/OG/JSON-LD/CWV/security-header noise).
-  Triggers: "validate", "validation", "w3c", "html validity",
-  "css validity", "wcag", "accessibility", "a11y audit", "axe", "pa11y",
-  "wave", "validator.w3.org", "nu validator", "accessibilité",
-  "audit a11y", "audit wcag", "normes w3c", "conformité web".
-  For CSP/HSTS/404 → /harden. For meta/sitemap → /seo. For AI engines → /geo.
-argument-hint: [URL] [--fix] [--local|--full] [--no-external]
+  Use when a web project needs W3C HTML/CSS validity or WCAG 2.1
+  accessibility audit. Dispatches the validator-analyzer agent, strict
+  scope (no meta/security-header noise).
+  Triggers: "validate", "w3c", "wcag", "a11y", "accessibility", "axe",
+  "pa11y", "accessibilité", "conformité web".
+  CSP/HSTS/404 → /harden. Meta/sitemap → /seo. AI engines → /geo.
+argument-hint: "[URL] [--fix] [--local|--full] [--no-external]"
 allowed-tools:
   - Read
   - Edit
@@ -22,6 +20,13 @@ allowed-tools:
 ---
 
 # /web-validate — web standards audit (W3C + WCAG)
+
+## MODEL GATE (blocking — run before any other step)
+
+Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
+judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
+gate prints the remedy; end the turn — no later step, no dispatch. Nominal
+(big) path is silent.
 
 This skill orchestrates a narrow-scope standards audit :
 
@@ -273,10 +278,23 @@ Options :
   D) Abort — keep .claude/audits/VALIDATE.md as audit report
 ```
 
-4. On `A` : apply each bundle via `Edit` (targeted `old_string` /
-   `new_string`). Never use `Write` on shared templates (risk of
-   overwriting /seo or /geo content — meta tags, JSON-LD).
-5. On `B` : for each diff, show and ask yes/no/skip.
+4. On `A` : dispatch each file-group's applier at L1 (execution = sonnet;
+   this loop only orchestrates), serially — one applier at a time, appliers
+   share files:
+
+   ```
+   Agent(subagent_type="hotfixer")
+   prompt: "<paste the file-group's bundle items: file, issue, current,
+     expected fix>.
+     Context: web-validate fix bundle, user-approved scope — no
+     confirmation needed. Apply via targeted Edit (old_string/new_string);
+     NEVER Write whole files (shared templates carry /seo and /geo
+     content — meta tags, JSON-LD). Do NOT commit — apply and self-verify
+     only."
+   ```
+
+5. On `B` : for each diff, show and ask yes/no/skip; apply approved diffs
+   as in `A` (hotfixer dispatch).
 6. On `C` : filter to Critique + Haute, then behave as `A`.
 7. On `D` : stop, leave `.claude/audits/VALIDATE.md` untouched.
 
@@ -355,9 +373,8 @@ Install for better LOCAL coverage :
 - **Framework awareness.** For SPA/JS frameworks, validate built
   output (`dist/`, `_site/`, `build/`, `out/`), not JSX/TSX source.
   Warn if no build dir present.
-- **Respect CLAUDE.md architecture rules.** Public websites must ship
-  WCAG 2.1 AA per France RGAA 4.1 when in scope. Flag AA violations
-  as Haute, A violations as Critique.
+- **Public websites must ship WCAG 2.1 AA** (France: RGAA 4.1) when in
+  scope. Flag AA violations as Haute, A violations as Critique.
 - **External validators are authoritative on live URLs.** validator.nu
   and jigsaw are the W3C backends. If a local tool disagrees with
   them, trust the W3C backend; flag the divergence as a finding.

@@ -42,21 +42,38 @@ check_symlink() {
     return
   fi
 
-  if [ -L "$target" ]; then
-    # readlink -f is not available on macOS BSD — use -f with fallback
-    local real
-    real=$(readlink -f "$target" 2>/dev/null) || real=$(readlink "$target")
-    if [ ! -e "$real" ]; then
-      fail "$HOME/.claude/$name → $real — BROKEN SYMLINK"
-    else
-      pass "$HOME/.claude/$name"; _LINK_PASS=$((_LINK_PASS + 1))
-    fi
-  else
-    warn "$HOME/.claude/$name exists but is NOT a symlink (expected symlink to repo)"
+  # Broken symlink: points at a target that no longer exists.
+  if [ -L "$target" ] && [ ! -e "$target" ]; then
+    fail "$HOME/.claude/$name → $(readlink "$target") — BROKEN SYMLINK"
+    return
   fi
+
+  # Correctly wired iff the canonical path lands inside the repo. This is true
+  # for a direct symlink (CLAUDE.md, settings.json) AND for a real file reached
+  # through a symlinked ANCESTOR dir (hooks/, skills/, agents/, lib/, templates/
+  # are dir-level symlinks — their children are real files under $REPO). A stray
+  # real copy in ~/.claude resolves to itself (outside $REPO) → still flagged as
+  # drift. (LRN-047: the dir-symlink layout is legitimate, must not false-warn.)
+  local real
+  real=$(readlink -f "$target" 2>/dev/null) || real="$target"
+  case "$real" in
+    "$REPO"/*) pass "$HOME/.claude/$name"; _LINK_PASS=$((_LINK_PASS + 1)) ;;
+    *) warn "$HOME/.claude/$name resolves to $real (outside repo — expected a link into $REPO)" ;;
+  esac
 }
 
 check_symlink "CLAUDE.md"
+# check_symlink only asserts the canonical path lands inside $REPO — after a
+# `git pull` without `link.sh`, ~/.claude/CLAUDE.md can still resolve inside
+# $REPO but at the wrong file (the 29-line project CLAUDE.md instead of
+# CLAUDE.global.md), passing green while the global doctrine is silently gone.
+_claude_md_target=$(readlink "$HOME/.claude/CLAUDE.md" 2>/dev/null || true)
+if [ "$_claude_md_target" != "$REPO/CLAUDE.global.md" ]; then
+  # shellcheck disable=SC2088  # literal label, not a tilde-expansion attempt
+  warn "~/.claude/CLAUDE.md points to $_claude_md_target — expected \
+$REPO/CLAUDE.global.md; run: bash link.sh"
+fi
+unset _claude_md_target
 check_symlink "settings.json"
 check_symlink "agents"
 check_symlink "skills"
@@ -83,24 +100,17 @@ else
   warn "GStack submodule missing — run: git submodule update --init"
 fi
 
-if [ -L "$HOME/.claude/skills/gstack" ]; then
-  real=$(readlink -f "$HOME/.claude/skills/gstack" 2>/dev/null || readlink "$HOME/.claude/skills/gstack")
-  if [ -d "$real" ]; then
-    pass "Symlink OK → $real"
-    # Check for skills/ subdirectory (referenced by plugin-advisor PHASE 1).
-    # `|| echo 0` is required because under `set -o pipefail`, a missing
-    # gstack/skills/ dir makes find exit non-zero, killing the script.
-    gstack_skills_count=$( { find "$HOME/.claude/skills/gstack/skills/" -maxdepth 1 -mindepth 1 2>/dev/null || true; } | wc -l | tr -d ' ')
-    if [ "${gstack_skills_count:-0}" -gt 0 ]; then
-      pass "GStack: ${gstack_skills_count} skills available"
-    else
-      warn "GStack symlink OK but no skills/ subdirectory found — may need: cd skills-external/gstack && ./setup"
-    fi
-  else
-    fail "Symlink broken → $real"
-  fi
+# GStack skills are exposed as PER-SKILL symlinks directly under skills/ (browse,
+# cso, review, …) pointing into skills-external/gstack/ — there is NO single
+# skills/gstack symlink (link.sh deliberately removes it: it duplicated the
+# top-level gstack SKILL.md alongside the per-skill entries). The bin/ +
+# browse/dist/ helper links under skills/gstack/ are checked in §7 Consistency.
+# `|| true` guards pipefail if skills/ is unexpectedly absent (checked above).
+gstack_skill_links=$( { find "$HOME/.claude/skills/" -maxdepth 1 -type l -lname '*skills-external/gstack/*' 2>/dev/null || true; } | wc -l | tr -d ' ')
+if [ "${gstack_skill_links:-0}" -gt 0 ]; then
+  pass "GStack: ${gstack_skill_links} skills linked (per-skill symlinks)"
 else
-  warn "GStack not symlinked — run: bash link.sh"
+  warn "GStack skills not linked — run: cd skills-external/gstack && ./setup"
 fi
 
 echo ""
@@ -136,7 +146,10 @@ fi
 if command -v cargo &>/dev/null; then
   pass "Cargo $(cargo --version | awk '{print $2}')"
 else
-  warn "Cargo not found (RTK unavailable)"
+  # Cargo does NOT gate RTK: RTK ships as a prebuilt binary and detect_rtk finds
+  # it via ~/.cargo/bin or ~/.local/bin (RTK status is shown under Plugins).
+  # Cargo is only the Rust toolchain to BUILD RTK from source → optional, info.
+  info "Cargo not found (optional — only needed to build RTK from source)"
 fi
 
 if command -v python3 &>/dev/null; then
@@ -213,11 +226,20 @@ print(len(d.get('permissions',{}).get('deny',[])))
   if [ "$DENY_COUNT" = "?" ]; then
     warn "Could not parse deny count (python3 unavailable or JSON parse error)"
   else
-    EXPECTED_DENY=100
-    if [ "$DENY_COUNT" -eq "$EXPECTED_DENY" ] 2>/dev/null; then
-      pass "Deny rules: $DENY_COUNT"
+    # Expected = deny count in the last COMMITTED settings.json. A hardcoded
+    # number drifts on every legit deny-list edit (false-warned for weeks at
+    # 100 vs 99 — LRN-047 class); deriving from HEAD auto-tracks legit edits
+    # and still flags live-vs-committed divergence.
+    EXPECTED_DENY=$(git -C "$REPO" show HEAD:settings.json 2>/dev/null | python3 -c "
+import json,sys
+print(len(json.load(sys.stdin).get('permissions',{}).get('deny',[])))
+" 2>/dev/null || echo "?")
+    if [ "$EXPECTED_DENY" = "?" ]; then
+      warn "Could not derive expected deny count from committed settings.json"
+    elif [ "$DENY_COUNT" -eq "$EXPECTED_DENY" ] 2>/dev/null; then
+      pass "Deny rules: $DENY_COUNT (matches committed settings.json)"
     else
-      warn "Deny rules: $DENY_COUNT (expected $EXPECTED_DENY) — settings may have been manually modified"
+      warn "Deny rules: $DENY_COUNT (committed: $EXPECTED_DENY) — live settings diverge from last commit"
     fi
   fi
 else
@@ -230,10 +252,14 @@ echo ""
 # 6. Token budget estimate
 # ────────────────────────────────────────────────────────────
 echo "── Token budget estimate ──"
-# Reference: Claude Code Pro plan ~11k tokens/5h session (session budget, not context window).
-# Seuils: WARNING >15%, CRITICAL >30% of session budget.
+# The passive footprint (CLAUDE.global.md + skill descriptions + plugin session-injects)
+# loads into the CONTEXT WINDOW every session — it competes with the ~200k default
+# context, NOT a per-session token quota (the old "~11k/5h budget" denominator was
+# a category error → false "92% CRITICAL", LRN-047). Measured ~11.4k post-audit
+# 2026-07-02 (LRN-088); the chars/4 sum below is a coarse proxy of that footprint.
+# Thresholds: WARNING >15% of context (~30k), CRITICAL >25% (~50k).
 
-CLAUDE_MD_CHARS=$(wc -c < "$REPO/CLAUDE.md" 2>/dev/null || echo 0)
+CLAUDE_MD_CHARS=$(wc -c < "$REPO/CLAUDE.global.md" 2>/dev/null || echo 0)
 CLAUDE_MD_TOKENS=$((CLAUDE_MD_CHARS / 4))
 
 # Skill descriptions only (frontmatter description field — loaded passively at startup)
@@ -255,25 +281,25 @@ if detect_context7    2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 200)); 
 if detect_graphifyy   2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 300)); fi
 
 TOTAL_TOKENS=$((CLAUDE_MD_TOKENS + SKILL_DESC_TOKENS + PLUGIN_TOKENS))
-SESSION_BUDGET=11000
-PCT=$((TOTAL_TOKENS * 100 / SESSION_BUDGET))
+CONTEXT_WINDOW=200000   # Claude Code default context window (conservative; 1M is opt-in)
+PCT=$((TOTAL_TOKENS * 100 / CONTEXT_WINDOW))
 
 echo ""
-echo "  CLAUDE.md:           ~${CLAUDE_MD_TOKENS}t"
+echo "  CLAUDE.global.md:    ~${CLAUDE_MD_TOKENS}t"
 echo "  Skill descriptions:  ~${SKILL_DESC_TOKENS}t  (${SKILL_COUNT} skills)"
 echo "  Plugin passive cost: ~${PLUGIN_TOKENS}t  (active plugins)"
 echo "  ─────────────────────────────────────────"
-info "  Total:               ~${TOTAL_TOKENS}t"
-info "  Session budget (Pro): ${SESSION_BUDGET}t"
-info "  Usage:               ~${PCT}%"
+info "  Total:               ~${TOTAL_TOKENS}t  (measured ~11.4k post-audit, LRN-088)"
+info "  Context window:      ${CONTEXT_WINDOW}t  (default; 1M opt-in)"
+info "  Usage:               ~${PCT}% of context"
 echo ""
 
-if [ "$PCT" -gt 30 ]; then
-  warn "CRITICAL: ${PCT}% of session budget — /plugin-check to disable unused plugins"
+if [ "$PCT" -gt 25 ]; then
+  warn "CRITICAL: ~${PCT}% of the ${CONTEXT_WINDOW}t context — /plugin-check to disable unused plugins"
 elif [ "$PCT" -gt 15 ]; then
-  warn "WARNING: ${PCT}% of session budget — consider disabling unused toggle plugins"
+  warn "WARNING: ~${PCT}% of the ${CONTEXT_WINDOW}t context — consider disabling unused toggle plugins"
 else
-  pass "Budget: ${PCT}% (comfortable)"
+  pass "Budget: ~${PCT}% of context (comfortable)"
 fi
 
 # Per-file breakdown (skill bodies — loaded on demand, shown for awareness)
@@ -310,8 +336,11 @@ else
   warn "gstack/browse/dist/ symlink missing — run: bash link.sh"
 fi
 
-# Check owned skills have disable-model-invocation (skip external/symlinked skills)
-MISSING_DMI=()
+# BDR-019 (2026-06-09) stripped disable-model-invocation repo-wide so the
+# model/orchestrators can self-route. The old check required the key on
+# every owned skill — permanent false-warn since. Inverted: warn if any
+# owned skill REintroduces the key (regression watch on BDR-019).
+PRESENT_DMI=()
 for f in "$HOME/.claude/skills/"*/SKILL.md; do
   [ -f "$f" ] || continue
   dir=$(dirname "$f")
@@ -319,19 +348,22 @@ for f in "$HOME/.claude/skills/"*/SKILL.md; do
   [ -L "$dir" ] && continue
   [ -L "$f" ] && continue
   name=$(basename "$dir")
-  if ! grep -q "disable-model-invocation" "$f" 2>/dev/null; then
-    MISSING_DMI+=("$name")
+  if grep -q "disable-model-invocation" "$f" 2>/dev/null; then
+    PRESENT_DMI+=("$name")
   fi
 done
-if [ ${#MISSING_DMI[@]} -eq 0 ]; then
-  pass "All owned skills have disable-model-invocation"
+if [ ${#PRESENT_DMI[@]} -eq 0 ]; then
+  pass "No owned skill carries disable-model-invocation (BDR-019)"
 else
-  warn "Owned skills missing disable-model-invocation: ${MISSING_DMI[*]}"
+  warn "Owned skills reintroduce disable-model-invocation (BDR-019 regression): ${PRESENT_DMI[*]}"
 fi
 
-# Check expected skills are present
+# Check expected skills are present. Repo-owned skills only: gstack skills
+# (health, status, …) are OFF by default and toggled per profile — requiring
+# them here false-warns on a default install, and "run link.sh" cannot
+# restore them (they are profile-managed, not link.sh-managed).
 EXPECTED_SKILLS=(
-  "analyze" "doc" "health" "init-project" "onboard" "plugin-check"
+  "analyze" "doc" "init-project" "onboard" "plugin-check"
   "refactor" "ship-feature" "status"
 )
 MISSING_SKILLS=()
@@ -341,7 +373,7 @@ for skill in "${EXPECTED_SKILLS[@]}"; do
   fi
 done
 if [ ${#MISSING_SKILLS[@]} -eq 0 ]; then
-  pass "All ${#EXPECTED_SKILLS[@]} expected skills present (analyze, doc, health, init-project, onboard, plugin-check, refactor, ship-feature, status)"
+  pass "All ${#EXPECTED_SKILLS[@]} expected skills present (${EXPECTED_SKILLS[*]})"
 else
   warn "Missing skills: ${MISSING_SKILLS[*]} — run: bash link.sh"
 fi
@@ -378,6 +410,21 @@ else
 fi
 
 echo ""
+
+# ── seo-data (GSC/CrUX data layer) — non-fatal ──
+ENVF="$HOME/.claude/.env"
+if grep -qE '^[[:space:]]*(export[[:space:]]+)?CRUX_API_KEY=.' "$ENVF" 2>/dev/null; then
+  pass "seo-data: CRUX_API_KEY present"
+else
+  warn "seo-data: CRUX_API_KEY absent in ~/.claude/.env — /seo FULL falls back to lab PageSpeed"
+fi
+STORE="$HOME/.claude/seo-data/tokens.json"
+if [ -f "$STORE" ]; then
+  N=$(python3 "$REPO/lib/seo-data/tokenstore.py" list --file "$STORE" 2>/dev/null | grep -o '"label"' | wc -l)
+  pass "seo-data: $N Google account(s) connected"
+else
+  warn "seo-data: no Google account connected (run: make seo-connect) — GSC data disabled"
+fi
 
 # ────────────────────────────────────────────────────────────
 # Summary

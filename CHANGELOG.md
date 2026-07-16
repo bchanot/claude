@@ -6,6 +6,60 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [1.0.0] — 2026-07-16 — Initial public release
+
+First public release of claude-config. The feature set below is the
+accumulated work previously staged as internal versions 1.0.0–4.0.0
+(see "Pre-release (internal history)" further down for that lineage).
+
+### Changed
+- BREAKING(layout): repo-root global memory renamed CLAUDE.md → CLAUDE.global.md; run `bash link.sh` once after pulling (doctor.sh now checks the exact target)
+- graphify skill dist refreshed 0.8.45 → 0.9.6 (out-of-band `make plugin`; SKILL.md + query/extraction references updated by the generator).
+- `/deploy` checklist reshaped on first-real-run feedback, in two passes: runbook steps are **one command per line, interactive-session style** (an early step opens the ssh session; later lines run on the box; local steps say "from your machine") instead of folded `ssh host "cd … && …"` one-liners — step = comment header + command lines up to the next blank line, a `@delta:` directive governs the whole block; and the checklist is now **display-only** — `NEXT.sh` is no longer written at all (throwaway artifact; `PENDING.json` + the live runbook regenerate it in any session) and every hand-back **ends the turn with the full checklist as the final text, no tool call after it** (a checklist printed above a blocking question tool was observed never reaching the user). Template `templates/deploy/PROCEDURE.md` restyled to match.
+- `settings.json`: `inputNeededNotifEnabled: true` adopted (harness notification toggle); committed layout otherwise unchanged.
+- gsd-pi upgraded 2.64.0 → 3.0.0 — `status-reporter` output parser adapted to the ADR-013 cutover.
+- `hotfixer` pinned `model: sonnet` (seo/geo/web-validate L1 applier); `analyzer` haiku pin removed (inherits the session model).
+- ship-feature / init-project: SDD implementation + review subagents dispatched with `model: "sonnet"`.
+- web-validate `--fix`: bundle applied via `hotfixer` at L1 instead of inline Edit (BDR-061 alignment).
+- Model routing wave 2 — the pure-execution + reflection-split skills stop running execution on the big session model. `/doc` and `/status` now **dispatch** their agent (doc-syncer sonnet, status-reporter haiku) instead of inline-loading it, so the pin takes effect. `/hotfix` split like `/feat`: reflection (LOCATE root cause) inline behind the model gate, the fix applied by a `hotfixer` sonnet executor (rewritten dual-use — it is also the seo/geo/web-validate L1 applier); revert-not-loop preserved; hotfix joins the gated group (13th). `/commit-change` dispatches a sonnet `commit-changer` (propose → dispatcher-owned approval gates → apply; grouping runs on sonnet, `AskUserQuestion` removed from the agent). `/release-candidate` dispatches a new sonnet `release-executor` for the mechanical spans (prep / finish+tag), the two human gates (when-to-release, push) and the version-number decision staying in the dispatcher.
+- Model routing wave 3 — the last two inline execution-carrying skills split like `/feat`. `/bugfix`: root-cause investigation, diagnosis and contract run inline behind the model gate; the fix + regression test are applied by a `bugfixer` sonnet executor (was a single inline agent), with the verify+secure loop staying in the main loop and the executor as its re-dispatched dev. `/code-clean`: the dead-code / style / structural audit and the approval gate run inline; a `code-cleaner` sonnet PHASE-2 executor then applies the approved scope — and the style/structural refactor (which inline-loads `refactorer`) now finally runs on sonnet, its pin having been inert under the old inline-load. Both skills stay gated (they keep reflection); their read-only-audit consumers (`onboard`, `tour`) reroute to a big-model agent so an audit never runs on the sonnet executor. Supersedes the BDR-050 "bugfix stays inline" carve-out. The built-in `Explore` search agent is deliberately left inheriting the session (search feeds reflection).
+- Model routing wave 4 — client-handover doc-generation moved to sonnet (redaction-only). The ship-and-handover pipeline (baseline audits, fix loops, commit/push, deploy pause, live validate, gate) stays inline on the big session model in `client-handover-writer` — its interactive gates work natively and its nested `/seo`/`/harden`/`/web-validate` audits inherit the big model — and only the deliverable writing is delegated to a new sonnet `handover-doc-writer` (gate-free: reads memory + git, synthesizes the 6-chapter doc from a resolved PACKAGE, runs the word-count / skill-leak / anchor gates, renders branded HTML+PDF). `client-handover` joins the gated group (it orchestrates audits = reflection). Chosen over the whole-writer dispatch: the nested audits must run big either way, so whole-writer would have added ~7 gate-yields + a resumable state machine on a client deliverable for ~zero extra sonnet work.
+
+### Security
+- **Magic MCP fully ask-gated** — all four `mcp__magic__*` tools (builder, refiner, inspiration, logo_search) moved to `permissions.ask` in `settings.json`; no magic call can auto-execute. The builder opens an unauthenticated local callback server (`127.0.0.1:9221+`, `Access-Control-Allow-Origin: *`, no token check) whose POST body is injected verbatim into the tool result the model consumes — the ask-gate is the mitigation on our side (BDR-059).
+- **`MAGIC_API_KEY` passed by reference, not by value** — the MCP server is registered with `--env 'API_KEY=${MAGIC_API_KEY}'` (Claude Code expands it at launch from its own process env) instead of the literal secret, which `claude mcp add` would otherwise materialize in plaintext in `~/.claude.json`, outside the repo's `.env` allowlist reach (BDR-026).
+- **`printenv` / `env` dumps redacted in `rtk-rewrite.sh`** — closes a leak vector where a rewritten environment dump could surface a Gitea token.
+- **gitleaks secret-scanning backstop** — `.gitleaks.toml`, a pre-commit hook, and `make scan-secrets` added to catch secrets before they land; pre-existing stale secret-bearing artifacts purged (GO-gated).
+
+### Added
+- **GSC + CrUX data layer for `/seo` FULL** — `lib/seo-data/` engine pulls real Google Search Console (Search Analytics + URL Inspection) and Chrome UX Report field data into the `/seo` FULL audit: CrUX p75 field metrics become the primary Core Web Vitals signal (anonymous PageSpeed lab stays the fallback), and a "Performance GSC (90 j)" section flags position 4-10 quick wins. Multi-account via OAuth2 (`make seo-connect`, one-time consent, `webmasters.readonly` scope only) with a per-label token store (0600 file / 0700 dir, atomic write, refresh tokens redacted, gitleaks-allowlisted) so two concurrent site audits never conflict. Absent credentials degrade gracefully to anonymous PageSpeed — the audit never fails. Config: `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` / `CRUX_API_KEY` in `~/.claude/.env`. Engine contract documented in `lib/seo-data/README.md`.
+- **impeccable** (pbakaus, Apache-2.0) wired into the toolchain as the design counterpart of semgrep: the `/impeccable` skill (23 verbs under one command: audit, polish, bolder, quieter…) plus the 45-rule deterministic anti-pattern detector (`npx impeccable detect`, exit 0/2, `--json`). Complementary to `frontend-design` (kept — aesthetic direction at build time); impeccable adds the deterministic audit floor and per-project design context (`/impeccable init`). CLI pinned in `plugins.lock.json` (3.2.0 — a silent rules update would change audit output on unchanged code); dist is machine-owned under `skills-external/impeccable/` (gitignored, ctx7 pattern), staged-installed by `install-plugins.sh` Step 8d, refreshed pin-honored by `update-all.sh`, symlinked by `link.sh`, listed in the design/web/web-full/full profiles and the design-work routing. Requires Node ≥ 24: the install baseline is bumped from 22 to 24 LTS (NodeSource `setup_24.x` / brew `node@24`), so `make plugin` upgrades a too-old host in place; the impeccable steps still skip gracefully if Node stays below 24. Not in the design gate's GATE-BLOCK list yet — promotion deliberate, after first dogfood.
+- `/tour` skill — grouped all-axes sweep over one or several projects: security (pinned-semgrep `security-auditor` agent + `/cso` posture when gstack is ON) → cleanup → re-verify → reconcile (report-only, never edits the target TODO/registries) → doc sync, looping until a full pass applies zero fixes (bounded at 3 iterations). Fixes land on a `chore/tour-<date>` branch the skill never merges; each project gets an append-only `.claude/audits/TOUR.md` report with BREAKING tags on contract-changing security fixes. Built TDD (superpowers:writing-skills): baseline run showed silent TODO rewrites, autonomous registry writes, grep-as-security-pass, no persistent report, scope creep and an unbounded loop — each countered and verified on a seeded fixture.
+- Model routing (BDR-066): blocking model gate (`lib/model-gate.md` + `lib/model-check.sh`, flip-tested) wired into 12 reflection orchestrators; census guard `lib/tests/model-routing.test.sh`.
+- `/feat` re-architected: reflection inline (scope/plan/contract), execution dispatched to the sonnet-pinned `feater` executor; verify+secure loop decided in the main loop with fresh executor re-dispatches.
+
+### Removed
+- `lib/detect-plugins.sh`: `detect_security_guidance` — dead since its re-add at `45c3507`; zero callers on any surface, including the dynamic `session-start.sh` detection loop (the banner's row derives from `enabledPlugins` instead). Nothing invokes it — removal, not a breaking change.
+- `lib/detect-plugins.sh`: `plugin_enabled` — its last two callers were replaced by the inline `enabledPlugins` grep at `session-start.sh:145-146` (`6d72d0a`); zero callers remained. Nothing invokes it — removal, not a breaking change.
+- `templates/settings/settings.local.json` — orphan template, zero automated consumer since creation (`a145e3c`); its README tree-line reference was already dropped at `e48c834`. Content recoverable from git history.
+- `lib/memory-commit.sh` / `lib/doc-commit.sh`: the `pending` CLI verb + sourceable `memory_pending()` / `docs_pending()` helpers — earmarked "for the v2 hook", which BDR-037 rejected (no code ever written); zero production or test callers. `commit "<message>" [<file>...]` is now the only verb on both scripts.
+
+### Fixed
+- `gitflow_finish` ignored its `<type> <name>` arguments and always merged the checked-out branch — naming a different branch silently merged the wrong one. The arguments are now an optional safety assertion: if given and not equal to the current branch, `finish` refuses with a clear error instead of merging. No-argument calls (the only real caller) are unchanged.
+- `doctor.sh` false-warnings removed (a check that cries wolf is one you learn to ignore): `cargo` absence no longer claims "RTK unavailable" (RTK ships as a prebuilt binary); `check_symlink` no longer flags files reached through directory-level symlinks (e.g. `hooks/session-start.sh`); the GStack check counts the per-skill symlinks instead of a `skills/gstack` link that `link.sh` deliberately removes; the token-budget estimate is measured against the ~200k context window instead of a mis-framed "~11k session budget" that produced a false "92% CRITICAL".
+
+### Removed
+- **find-skills** (alchaincyf) — skill-discovery helper dropped from the toolchain (install/update/link/toggle/advisor). Never used, and its `make update` refresh step had started failing on clone timeouts. The discovery use case stays reachable manually: `npx -y skills find <query>`.
+
+---
+
+## Pre-release (internal history)
+
+The versions below (4.0.0 down to the original 1.0.0) were internal
+development milestones predating the first public release. They are kept
+for provenance; the full detail lives in git history. Their numbering does
+not continue past the public 1.0.0 above.
+
 ## [4.0.0] — 2026-06-30
 
 ### Added

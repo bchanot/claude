@@ -1,22 +1,14 @@
 ---
 name: harden
 description: |
-  Web hardening audit — transport (HTTPS/TLS, HTTP→HTTPS redirect, HSTS),
-  security headers (CSP, X-Frame-Options, X-Content-Type-Options,
-  Referrer-Policy, Permissions-Policy), cookie flags (Secure, HttpOnly,
-  SameSite), canonical URLs, custom 404, and server config hardening
-  (.htaccess, nginx.conf, netlify.toml, vercel.json, _headers, _redirects,
-  wrangler.toml). Dispatches the seo-analyzer agent with a STRICT scope
-  filter — no meta/OG/JSON-LD/sitemap/CWV/headings/alt/i18n noise.
-  Produces .claude/audits/HARDEN.md.
-  Trigger: "harden", "web hardening", "ssl audit", "https audit",
-  "hsts", "csp", "security headers", "http to https", "redirect audit",
-  "htaccess audit", "404 page", "canonical audit", "transport security",
-  "durcissement web", "audit sécurité web", "entêtes sécurité".
-  For full SEO audit (meta/OG/JSON-LD/sitemap/CWV) → use /seo.
-  For AI search / llms.txt / AI crawlers → use /geo.
-  For secrets / dependency CVEs / OWASP code-level → use /cso.
-argument-hint: [URL] [--fix] [--local|--full] [--no-external]
+  Web hardening audit — HTTPS/TLS, HSTS, security headers (CSP,
+  X-Frame-Options…), cookie flags, canonical, custom 404, server config
+  (.htaccess, nginx, netlify, vercel…). Strict scope: no
+  meta/OG/JSON-LD/sitemap noise. Report: .claude/audits/HARDEN.md.
+  Triggers: "harden", "security headers", "csp", "hsts", "https/ssl
+  audit", "redirect audit", "durcissement web", "entêtes sécurité".
+  Meta/sitemap/CWV → /seo. llms.txt/AI → /geo. Secrets/CVE/OWASP → /cso.
+argument-hint: "[URL] [--fix] [--local|--full] [--no-external]"
 allowed-tools:
   - Read
   - Edit
@@ -29,6 +21,13 @@ allowed-tools:
 ---
 
 # /harden — web hardening audit
+
+## MODEL GATE (blocking — run before any other step)
+
+Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
+judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
+gate prints the remedy; end the turn — no later step, no dispatch. Nominal
+(big) path is silent.
 
 This skill orchestrates a narrow-scope hardening audit: TLS + security
 headers + redirects + canonical + custom 404 + server configs. It
@@ -601,9 +600,9 @@ NEXT STEPS :
 - **Framework awareness.** Don't recommend `.htaccess` on a Next.js /
   Astro / Cloudflare Pages project. Use the framework-native mechanism
   (next.config.js headers(), astro middleware, _headers).
-- **Respect CLAUDE.md architecture rules.** Security headers and redirects
-  are non-negotiable defaults per user's global CLAUDE.md — every public
-  site must ship them. Flag absence as Critique, not Moyenne.
+- **Security headers and redirects are non-negotiable defaults of this
+  skill** — every public site must ship them. Flag absence as Critique,
+  not Moyenne.
 - **External validators are authoritative on live headers, not the code.**
   If Observatory/SecurityHeaders/SSL Labs and the code audit disagree,
   the external grade reflects the deployed production config — the code

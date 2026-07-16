@@ -13,7 +13,6 @@
 # Caller passes EXACTLY the files doc-sync patched this run.
 #
 # Usage (CLI):
-#   doc-commit.sh pending <file>...            # exit 0 if any passed file has changes, 1 if clean
 #   doc-commit.sh commit "<message>" <file>... # surgical commit
 #
 # Exit codes (commit): 0 ok/no-op · 2 usage · 3 unsafe git state · 4 scope violation ·
@@ -22,7 +21,7 @@
 # commit is the ONLY thing on stdout (empty on no-op/abort), so callers can capture
 # it: doc_hash=$(doc-commit.sh commit "msg" README.md USAGE.md).
 #
-# Sourceable: docs_pending and commit_docs for the v2 hook.
+# Sourceable: `commit_docs`.
 
 set -uo pipefail
 
@@ -42,11 +41,13 @@ _unsafe_state() {
 }
 
 # True (0) when a path is OUT OF SCOPE for a doc commit: anything under .claude/
-# (any depth) or a CLAUDE.md (root or nested). These are doc-syncer's read-only
-# context, never sync targets (BDR-022) — their presence is an upstream anomaly.
+# (any depth) or a CLAUDE.md / CLAUDE.global.md memory file (root or nested).
+# These are doc-syncer's read-only context, never sync targets (BDR-022) —
+# their presence is an upstream anomaly.
 _forbidden_path() {
   case "$1" in
-    .claude | .claude/* | */.claude/* | CLAUDE.md | */CLAUDE.md) return 0 ;;
+    .claude | .claude/* | */.claude/* | CLAUDE.md | */CLAUDE.md | \
+      CLAUDE.global.md | */CLAUDE.global.md) return 0 ;;
     *) return 1 ;;
   esac
 }
@@ -68,14 +69,6 @@ _changed_paths() {
     [ -e "$p" ] || continue
     [ -n "$(git status --porcelain -- "$p" 2>/dev/null)" ] && printf '%s\n' "$p"
   done
-}
-
-# 0 if any passed path has pending changes, 1 if all clean / absent.
-docs_pending() {
-  _in_git_repo || return 1
-  local changed
-  mapfile -t changed < <(_changed_paths "$@")
-  [ "${#changed[@]}" -gt 0 ]
 }
 
 # Surgical commit of the passed doc paths only. Returns 0 (ok/no-op), 3 (unsafe),
@@ -143,16 +136,12 @@ commit_docs() {
 main() {
   local cmd="${1:-}"
   case "$cmd" in
-    pending)
-      shift
-      docs_pending "$@"
-      ;;
     commit)
       shift
       commit_docs "$@"
       ;;
     *)
-      echo "usage: doc-commit.sh {pending <file>... | commit <message> <file>...}" >&2
+      echo "usage: doc-commit.sh commit <message> <file>..." >&2
       return 2
       ;;
   esac

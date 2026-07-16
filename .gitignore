@@ -64,10 +64,19 @@ skills/ios-sync
 skills/design-motion-principles
 skills/emil-design-eng
 skills/frontend-design
+skills/impeccable
 
 # External skills installed via `npx skills add` — auto-created by link.sh
 skills/darwin-skill
-skills/find-skills
+
+# Context7 docs-lookup skill — installed by `ctx7 setup --claude --cli`
+# (install-plugins.sh Step 6, when absent) into ~/.claude/skills (a symlink to
+# this repo's skills/). ctx7-managed and re-created on demand — not vendored here.
+skills/find-docs/
+
+# Context7 rule — (re)written by the same `ctx7 setup` into ~/.claude/rules (a
+# symlink to this repo's rules/). ctx7-managed — not vendored here.
+rules/context7.md
 
 # Staging area used by lib/toggle-external.sh when disabling a tool
 skills-disabled/
@@ -82,6 +91,7 @@ skills-disabled/
 .claude/settings.local.json
 .claude/agent-memory/
 .claude/gstack/
+.audit/
 
 # Generated outputs
 graphify-out/
@@ -104,6 +114,11 @@ install-*.log
 .env.*
 !.env.example
 
+# seo-data engine local artifacts (live under ~/.claude, never committed)
+.venv-seo-data/
+seo-data/tokens.json
+__pycache__/
+
 # OS
 .DS_Store
 Thumbs.db
@@ -113,6 +128,7 @@ desktop.ini
 *.swp
 *.swo
 *~
+*.bak
 .idea/
 .vscode/
 
@@ -125,6 +141,12 @@ desktop.ini
 # Not vendored: tracking it produced a repo diff each time Anthropic shipped
 # an update. The source is always re-synced, so no offline copy is needed.
 skills-external/frontend-design/
+
+# Impeccable — machine-owned dist produced by `npx impeccable skills install`
+# (install-plugins.sh Step 8d, update-all.sh), pinned in plugins.lock.json.
+# Not vendored: the installer owns the layout and rewrites it on update
+# (ctx7 pattern). Symlinked into skills/ by link.sh.
+skills-external/impeccable/
 
 # npx `skills add` project-scope artifacts — darwin-skill copies itself into
 # the repo's .agents/ and writes skills-lock.json at root. Our own agents live

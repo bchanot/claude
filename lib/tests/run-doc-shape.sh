@@ -51,6 +51,15 @@ append_lines() {
   for ((i = 1; i <= n; i++)); do printf 'extra line %s\n' "$i" >>"$f"; done
 }
 
+# Remove exactly N lines from the END of a committed file (pure removal, 0
+# added lines, no heading) — for the REMOVED-envelope tests (S11-S13).
+truncate_last_n() {
+  local f="$1" n="$2" total keep
+  total=$(wc -l <"$f")
+  keep=$((total - n))
+  head -n "$keep" "$f" >"$f.tmp" && mv "$f.tmp" "$f"
+}
+
 # run [ENV=val] <repo> <args...> → sets RC (exit), OUT (stdout), ERR (stderr).
 # stdout MUST stay empty: the exit code carries the verdict, reasons go to stderr.
 run() {
@@ -159,6 +168,37 @@ run "$D" check "README.md"
 printf '    rc=%s\n' "$RC"
 if [ "$RC" -eq 3 ]; then ok "not-a-repo → 3"; else ko "expected 3, got $RC"; fi
 rm -rf "$D"
+
+echo "S11 — remove exactly 20 lines (== threshold, pure removal) → within (0, boundary)"
+R="$(new_repo)"
+: >"$R/README.md"; append_lines "$R/README.md" 40
+git -C "$R" add README.md; git -C "$R" commit -qm "baseline 40 lines"
+truncate_last_n "$R/README.md" 20
+run "$R" check "README.md"
+printf '    rc=%s\n' "$RC"
+if [ "$RC" -eq 0 ]; then ok "removed 20 (== MAX) → within (0)"; else ko "expected 0, got $RC"; fi
+rm -rf "$R"
+
+echo "S12 — remove 30 lines (pure removal) → exceeds (1, size)"
+R="$(new_repo)"
+: >"$R/README.md"; append_lines "$R/README.md" 40
+git -C "$R" add README.md; git -C "$R" commit -qm "baseline 40 lines"
+truncate_last_n "$R/README.md" 30
+run "$R" check "README.md"
+printf '    rc=%s  err=%s\n' "$RC" "$(printf '%s' "$ERR" | head -1)"
+if [ "$RC" -eq 1 ]; then ok "removed 30 → exceeds (1)"; else ko "expected 1, got $RC"; fi
+if printf '%s' "$ERR" | grep -q 'README.md'; then ok "stderr names the offending path"; else ko "offender not named"; fi
+rm -rf "$R"
+
+echo "S13 — DOC_SHAPE_MAX_REMOVED=5 + 6-line removal → exceeds (1, env-tunable)"
+R="$(new_repo)"
+: >"$R/README.md"; append_lines "$R/README.md" 40
+git -C "$R" add README.md; git -C "$R" commit -qm "baseline 40 lines"
+truncate_last_n "$R/README.md" 6
+OUT="$( (cd "$R" && DOC_SHAPE_MAX_REMOVED=5 "$HELPER" check "README.md") 2>"$ERRFILE" )"; RC=$?
+printf '    rc=%s\n' "$RC"
+if [ "$RC" -eq 1 ]; then ok "override MAX_REMOVED=5, 6 removed → exceeds (1)"; else ko "expected 1, got $RC"; fi
+rm -rf "$R"
 
 rm -f "$ERRFILE"
 echo ""
