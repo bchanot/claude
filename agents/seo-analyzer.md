@@ -400,7 +400,21 @@ Fetch rendered HTML. Extract and analyze:
 
 ## STEP 5 — ON-PAGE AUDIT `[both]`
 
+**Record the denominator BEFORE sampling.** This step samples; the report
+says "audit". Count the URLs in `sitemap.xml` (fetch it in full — the
+`head -50` in STEP 4 is a preview, not a count). That count is the coverage
+denominator, and it feeds the mandatory COVERAGE line in STEP 9. No sitemap
+→ denominator unknown: say so, never let silence imply full coverage. On a
+500-page site a 12-page sample is 2.4% — the On-page score is an
+extrapolation from it, and the reader cannot know that unless you print it.
+
 ### Meta tags per page (sample 5-15 key pages)
+
+Sample by risk, not convenience: homepage + top templates (one per page
+type: service, city, blog, product, legal) + any page GSC flags as a
+position 4-10 quick win. Same template audited twice buys nothing; an
+un-sampled template is an un-audited template — name the templates you
+skipped.
 
 For each sampled page:
 ```
@@ -738,6 +752,8 @@ misroutes the client-handover gate and the user's effort.
 
 ```
 SEO SCORING (<depth>)
+COVERAGE       : <N> of <M> sitemap URLs (<P>%) — templates skipped: <list|none>
+                 | <N> pages, total UNKNOWN (no sitemap)
 Technical      : XX/20  <justification>
 On-page        : XX/20  <justification>
 SEO Local      : XX/20 | N/A
@@ -748,6 +764,12 @@ Legal          : XX/20  <justification>
 ─────────────────────────
 SEO GLOBAL (weighted): XX.X/20 (<depth>)
 ```
+
+**COVERAGE is mandatory, never omitted, never rounded up.** It is the
+honesty bound on every page-level axis: On-page and the on-page share of
+Technical are extrapolations from the sample. If coverage < 25%, repeat it
+in §0 as a major alert — a 17/20 drawn from 3% of a site is not a 17/20, and
+`/client-handover` gates on these numbers.
 
 Per user instruction: this score represents **80% of the combined
 final score for local B2C (20% for GEO), or 75% for SaaS/national

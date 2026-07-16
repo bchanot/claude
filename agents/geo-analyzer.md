@@ -459,6 +459,12 @@ Load: `~/.claude/agents/resources/content-shape-for-ai.md`
 
 Sample 5-10 key pages (homepage + top service/blog pages). For each:
 
+**Record the denominator.** This samples; the report says "audit". Count the
+URLs in `sitemap.xml` for the coverage ratio, and carry it into the GEO
+SCORING block. No sitemap → total UNKNOWN, say so. Content shape is the
+axis most damaged by silent sampling: it is judged per page, so a 6-page
+sample of a 300-page site says nothing about the other 294.
+
 ### Checks
 
 1. **Definition Lead** — does the first sentence (or H1) follow
@@ -586,6 +592,7 @@ Score each axis. Use concrete findings from STEP 2-9.
 
 ```
 GEO SCORING (<depth>)
+COVERAGE                  : <N> of <M> sitemap URLs (<P>%) | <N> pages, total UNKNOWN
 AI Crawlers Policy        : XX/20  <justification>
 llms.txt                  : XX/20  <justification>
 Schema.org for AI         : XX/20  <justification>
@@ -595,6 +602,12 @@ AI Visibility (live)      : XX/20 | N/A (LOCAL)
 ─────────────────────────────────
 GEO GLOBAL (weighted)     : XX.X/20 (<depth>)
 ```
+
+**COVERAGE is mandatory, never omitted, never rounded up.** It bounds the
+per-page axes — Content Shape above all, and the page-level share of
+Schema.org. Site-wide axes (AI Crawlers Policy, llms.txt) are unaffected:
+robots.txt and llms.txt are single files, fully read. Say which is which
+rather than letting one ratio discredit the whole report.
 
 Per user instruction: **GEO weight in combined SEO+GEO report = 20% for
 local, 25% for national/SaaS/content.**
