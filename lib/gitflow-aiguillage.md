@@ -33,8 +33,11 @@ with no code branch to follow. That is the leak it closes: the `.claude/**` hook
 exemption still lets a *manual* memory commit through on a protected base, but a
 skill-driven one now branches to `chore/*` first.
 
-**Never run `gitflow finish`** — these flows commit, they do not merge. Integration
-is a separate, human-gated step (the `gitflow` skill).
+**Integration is human-gated by default** — these flows commit, they do not merge.
+EXCEPTION: `/capitalize` + `/close` auto-persist their memory-only commit (finish →
+develop + push) when THEY branched a `chore/*` off develop this run (BDR-068 — a
+scoped [[LRN-069]] exception; see the capitalize skill's STEP 5C). `/prune-memory`
++ `/reconcile` stay fully human-gated: never run `gitflow finish` from them.
 
 Note: `hotfix` branches off **main** (prod) even when invoked from `develop` — that
 is the gitflow definition of a hotfix. For a dev-scoped small fix, use `/bugfix`
