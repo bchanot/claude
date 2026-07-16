@@ -24,6 +24,11 @@ parent already resolved:
   `HUMAN-ACTIONS.md` / any threshold-override note if present), for §5
   and §6 sourcing.
 - `INCLUDE_DEPLOY` — `yes` | `no`. Controls whether §8 is rendered.
+- `DEPLOY_HINTS` — detected deploy platforms (Vercel, Netlify, Docker,
+  GitHub Actions, …) from the parent's STEP 2 scan, for tailoring §8.
+  Empty = no platform detected (use the generic §8 fallback).
+- `SKIP_SEO` — `yes` | `no`. When `yes`, skip the §7 platforms chapter
+  even for web projects (the parent's `--skip-seo` flag).
 - `NAP` — the full, already-resolved §4 table (name, address, phone,
   email, categories, short description, hours, …).
 - `PRECHECK_DONE` — the set of platforms/items already confirmed done,
@@ -84,7 +89,8 @@ ranges — the client document does not render them.
 
 ## STEP 12 — SYNTHESIZE THE DOCUMENT
 
-Generate the deliverable as a tight 4-chapter structure: what was needed,
+Generate the deliverable following the 6-chapter structure defined
+below (plus the §7/§8 annexes). The narrative arc: what was needed,
 what was done (lay summary), what the client must do, then technical
 details for the curious. Translate headings to `LANG`. Tone: friendly,
 concrete, no jargon. One short paragraph per idea.
@@ -131,7 +137,7 @@ concrete, no jargon. One short paragraph per idea.
    in §3 / §4 / §5 / §6.x sub-tables / §6.9 calendar must all
    use the linked form.
 
-1. **Never name internal tools or skill identifiers in chapters 1–3.**
+1. **Never name internal tools or skill identifiers in chapters 1–5.**
    Forbidden tokens (do not appear, in any case, in the lay portion):
    `/seo`, `/harden`, `/web-validate`, `/cso`, `/feat`, `/bugfix`,
    `/ship-feature`, `/ship`, `/code-clean`, `/refactor`, `seo-analyzer`,
@@ -140,14 +146,14 @@ concrete, no jargon. One short paragraph per idea.
    `ALL_PASS`, `SCORE_*`. Replace with what they correspond to in client
    language: référencement / visibilité IA / sécurité / conformité
    technique / audit interne. Internal tool names may appear ONLY in
-   chapter 4 ("Détails techniques") inside the optional glossary.
-2. **Chapter 2 hard cap: 300 words max, zero technical jargon.** Plain
+   chapter 6 ("Détails techniques") inside the optional glossary.
+2. **Chapter 3 hard cap: 300 words max, zero technical jargon.** Plain
    French (or plain English if `LANG=en`). No acronyms not already in
    common usage (HTTPS is fine; CSP is not). Run `wc -w` against the
    chapter body; if over 300, rewrite shorter.
-3. **Chapter 3 is action-only.** Every bullet starts with a verb the
+3. **Chapter 5 is action-only.** Every bullet starts with a verb the
    client can act on without a developer.
-4. **Chapter 4 may use technical terms** (SEO, GEO, HSTS, CSP, etc.) but
+4. **Chapter 6 may use technical terms** (SEO, GEO, HSTS, CSP, etc.) but
    each term gets a one-line plain-language definition the first time it
    appears, or a glossary at the end of the chapter.
 
@@ -440,17 +446,17 @@ des audits de santé. Pour toute question, contactez [contact].*
 4. Concrete numbers > adjectives.
 5. Short paragraphs. Bullet lists for things you can count.
 6. **Score deltas explained in plain words**. Never just dump numbers.
-7. **Chapter 3 is action-oriented**. Every line starts with a verb.
+7. **Chapter 5 is action-oriented**. Every line starts with a verb.
    Every line is something the client can do without a developer.
-8. **No skill-name leaks in chapters 1–3.** See "Hard rules" above.
+8. **No skill-name leaks in chapters 1–5.** See "Hard rules" above.
 
 ---
 
 ## STEP 13 — SEO/GEO MANUAL CHECKLIST (web projects only)
 
-If `PROJECT_TYPE=web` AND `--skip-seo` NOT set, append this chapter
-as **§6 Annexe — Plateformes externes** in the 5-chapter structure
-(see STEP 12). Replace the §6 stub with the full content rendered from
+If `PROJECT_TYPE=web` AND `PACKAGE.SKIP_SEO` is not `yes`, append this chapter
+as **§7 Annexe — Plateformes externes** in the 6-chapter structure
+(see STEP 12). Replace the §7 stub with the full content rendered from
 the resource file.
 
 Read the resource file:
@@ -501,7 +507,7 @@ The chapter must include:
 8. **Outils gratuits pour vérifier votre présence**.
 
 Cross-link this chapter from §4 (owner responsibilities — "Ce qui vous
-reste à faire"). Items in this §6 annex that are recurring belong in
+reste à faire"). Items in this §7 annex that are recurring belong in
 §4's cadence checklist (Mensuel / Trimestriel / Annuel).
 
 ---
@@ -511,8 +517,8 @@ reste à faire"). Items in this §6 annex that are recurring belong in
 If `PACKAGE.INCLUDE_DEPLOY != yes`, skip this step entirely — do not
 render §8. The parent already asked the client; do not re-ask.
 
-If included, this becomes **§7 Annexe — Build & déploiement** in the
-5-chapter structure (see STEP 12). For each `DEPLOY_HINTS` match,
+If included, this becomes **§8 Annexe — Build & déploiement** in the
+6-chapter structure (see STEP 12). For each `PACKAGE.DEPLOY_HINTS` match,
 generate a short subsection:
 1. What this means (1 paragraph).
 2. First-time setup (numbered steps + signup link).
@@ -522,7 +528,7 @@ generate a short subsection:
    2026 pricing if not in repo).
 6. Who to call when it breaks (status page, support link).
 
-If no deploy hints, offer 2-3 standard options:
+If `PACKAGE.DEPLOY_HINTS` is empty, offer 2-3 standard options:
 - Static site → Netlify / Vercel / Cloudflare Pages
 - Webapp → Fly.io / Render / Vercel / Railway
 - CLI / library → npm / PyPI / crates.io / Homebrew

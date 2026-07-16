@@ -51,6 +51,7 @@ lacks "agents/code-cleaner.md"   'AskUserQuestion'
 # 9) wave-4 — client-handover: pipeline (big) inline + gated, doc-gen dispatched to sonnet
 has "agents/handover-doc-writer.md"     'model: sonnet'
 lacks "agents/handover-doc-writer.md"   'AskUserQuestion'
+lacks "agents/handover-doc-writer.md"   'Agent('
 has "agents/client-handover-writer.md"  'subagent_type="handover-doc-writer"'
 
 printf 'model-routing census: %d pass, %d fail\n' "$pass" "$fail"

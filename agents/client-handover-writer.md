@@ -1053,6 +1053,11 @@ it, don't recompute) or resolved in 9.1–9.5:
   plus `.claude/audits/HUMAN-ACTIONS.md` and
   `.claude/audits/THRESHOLD-OVERRIDE.md` when present.
 - `INCLUDE_DEPLOY` — from 9.1.
+- `DEPLOY_HINTS` — the `DEPLOY_HINTS` array detected in STEP 2 (empty if
+  none), forwarded as a comma-separated list so the doc-writer can
+  tailor §8. Only consumed when `INCLUDE_DEPLOY=yes`.
+- `SKIP_SEO` — `yes` if `$ARGUMENTS` contained `--skip-seo` (STEP 0 flag
+  parse), else `no`. Gates the doc-writer's §7 platforms chapter.
 - `NAP` — from 9.2.
 - `PRECHECK_DONE` — from 9.3.
 - `CLIENT_NAME` — from 9.5.
@@ -1075,6 +1080,8 @@ SCORES: seo=<before→after,status> geo=<before→after,status>
   [cso=<before→after,status> for non-web] [code-ceiling notes]
 AUDIT_REPORTS: <paths>
 INCLUDE_DEPLOY: <yes|no>
+DEPLOY_HINTS: <comma-separated list from STEP 2, or empty>
+SKIP_SEO: <yes|no>
 NAP: <resolved table, field by field>
 PRECHECK_DONE: <list>
 CLIENT_NAME: <name|—>
