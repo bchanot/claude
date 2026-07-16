@@ -1742,34 +1742,212 @@ NOTES     : <BLOCKED: the blocker verbatim; DONE: none>
 
 ---
 
-# WAVE 4 — client-handover whole-writer dispatch (spec §5, user directive 2026-07-15)
+# WAVE 4 — client-handover: dispatch the doc-generation to sonnet (redaction-only, spec §5, user directive 2026-07-16)
 
-**Status: NOT YET SPEC'd — needs a dedicated design pass.** The user chose the
-"dispatch the whole writer" variant of spec §5 (over the lighter redaction-only
-split). This converts `agents/client-handover-writer.md` (1774 lines) from an
-inline-loaded session-model agent into a dispatched sonnet subagent. It is the
-single largest conversion in this effort and requires designing a resumable-gate
-protocol before task decomposition. Key constraints already established:
+**Shape DECIDED (user, 2026-07-16): redaction-only**, NOT whole-writer. Rationale
+(from the full read of the 1774-line writer): the nested audit dispatches
+(STEP 3/4/7 run `/seo`, `/harden`, `/web-validate`) must run on the BIG model
+either way — those skills are gated themselves (wave 1), so a sonnet parent
+would force-pin them anyway or trip their own gate. So the only work that truly
+belongs on sonnet is the DOC GENERATION (writing the deliverable). Whole-writer
+would add ~7 extra gate-yields + a resumable state machine on a client-facing
+pipeline for ~zero extra sonnet work. Redaction-only gets the same sonnet
+savings with the pipeline + all interactive gates staying NATIVE in the big
+main loop.
 
-- The writer has ~8–11 mid-pipeline `AskUserQuestion` gates (STEP 4 fix-loop
-  escalation, STEP 5 push + push-failed, STEP 6 deploy pause + deployed-URL,
-  STEP 11 Q1/Q2, STEP 13 NAP asks, …). A dispatched subagent cannot ask.
-  Convert each to a `GATE NEEDED: <id> <payload>` yield: the writer STOPs and
-  returns it; the dispatcher (`skills/client-handover/SKILL.md`, main loop)
-  runs the `AskUserQuestion`; then RESUMES the writer via SendMessage with the
-  answer. Remove `AskUserQuestion` from the writer's tools.
-- **CORRECTNESS (spec §5 OPEN VERIFY POINT — resolved: force big):** the
-  writer's nested audit dispatches (STEP 3 baseline SEO/HARDEN/CSO, STEP 4 fix
-  loops, STEP 7 web-validate — all `general-purpose`) MUST carry an explicit
-  big-model `model` param so audits do NOT inherit the sonnet parent. Running
-  audits on sonnet would silently violate the "audits on the big model" rule.
-  The fix-application re-dispatches (execution) stay sonnet.
-- Dispatcher collects params inline (URL, logo, options), then
-  `Agent(subagent_type="client-handover-writer")`; writer keeps `Agent` (nested
-  dispatches) + gains no `AskUserQuestion`.
-- Add the MODEL GATE to `skills/client-handover/SKILL.md` (it orchestrates
-  audits = reflection) and add it to the census wired list.
-- Census + README/CHANGELOG + BDR-066 wave-4 bullet + journal + TODO.
+## Architecture
 
-Tasks 19+ to be written after reading the writer's STEP 12–14 (doc synthesis +
-render + remaining gates, lines 1123–1774) and mapping every gate to a yield id.
+- **`agents/client-handover-writer.md`** stays INLINE-LOADED by the skill →
+  runs on the big session model (its `model: opus` frontmatter is inert under
+  inline-load; leave or drop — see Task 20). It becomes the **pipeline +
+  delegator**: STEP 1–8 unchanged (pre-flight, detect, baseline audits, fix
+  loops, commit/push, deploy pause, web-validate, gate eval) — all its
+  interactive gates (STEP 4 escalation, STEP 5 push/push-failed, STEP 6 deploy
+  pause + URL) work NATIVELY (main loop) and its nested audit dispatches inherit
+  the big session model with NO force-pinning. Then it does the INTERACTIVE +
+  detection parts of doc-gen — STEP 11 questions (Q1 deploy-chapter, Q2
+  language), the STEP 12 §4 NAP-table build (incl. the business-name ask),
+  STEP 14.5 platform detection + the batch-unknowns `AskUserQuestion`, and
+  resolves the output path + overwrite decision (STEP 15 gate) + `CLIENT_NAME`
+  (STEP 16 gate). It assembles a PACKAGE and dispatches the doc-writer, then
+  reports the returned deliverable. Keeps `AskUserQuestion` + `Agent`.
+- **`agents/handover-doc-writer.md`** (NEW, `model: sonnet`, tools
+  `Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch` — **NO
+  AskUserQuestion, NO Agent**): the pure writer. Reads material itself (STEP 9
+  memory, STEP 10 git history) and, from the PACKAGE, does STEP 12 synthesis +
+  STEP 13 §7 checklist content + STEP 14 §8 (only if `INCLUDE_DEPLOY`) +
+  STEP 14.5 apply-the-given-precheck-set + STEP 15 write MD + the three gates
+  (word-count ≤300 on §3, skill-leak, anchor-resolution) + STEP 16 render
+  (HTML always, PDF when an engine is present). **Gate-free** — every
+  interactive decision was resolved by the parent and travels in the PACKAGE.
+
+## The PACKAGE (parent → doc-writer dispatch prompt)
+
+A single structured block the doc-writer treats as ground truth:
+`LANG`; `PROJECT` (name, root, type, sub-type, is_local_business, deployed_url,
+period first→last commit); `SCORES` (seo/geo/harden/validate or cso — before &
+after, each with pass-status + any code-ceiling note); `AUDIT_REPORTS` (paths to
+`.claude/audits/*.md` + HUMAN-ACTIONS/THRESHOLD-OVERRIDE if present, for §6
+sourcing); `INCLUDE_DEPLOY` (yes|no); `NAP` (the full resolved §4 table) +
+`PRECHECK_DONE` (platforms already confirmed, for §5/§7 checkboxes);
+`CLIENT_NAME` (string or `—`); `OUTPUT` (final md path + overwrite decision
+`overwrite | versioned <path> | skip-write`).
+
+## Global Constraints (wave 4)
+
+Branch `feature/client-handover-dispatch` (off develop, already checked out).
+Same as prior waves: no merge, no attribution trailers, `make test` green per
+commit, shellcheck clean, config-protection sentinel before each `lib/tests/*`
+write (controller applies), YAML `safe_load`-parseable frontmatter. **Preserve
+every deliverable invariant** (6-chapter structure, §2=scores, §4 NAP before §5,
+§3 ≤300 words + zero jargon, skill-leak gate over chapters 1–5, clickable
+anchors, ZenQuality render) — a dropped gate degrades a client deliverable.
+
+---
+
+### Task 19: create `agents/handover-doc-writer.md` (sonnet, gate-free doc generator)
+
+**Files:** Create `agents/handover-doc-writer.md`.
+
+Extract the doc-generation half of `agents/client-handover-writer.md` (its
+STEP 9, 10, 12, 13, 14, 14.5-apply, 15, 16 — lines 835–1774, MINUS the
+interactive detection/questions that the parent now owns) into a new standalone
+sonnet agent driven by the PACKAGE.
+
+- [ ] **Step 1:** Frontmatter: `name: handover-doc-writer`;
+  `description:` (one line — "Deliverable writer — dispatched by
+  client-handover with a resolved PACKAGE. Synthesizes the 6-chapter client doc,
+  writes the MD, renders branded HTML+PDF. No audits, no questions.");
+  `tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch`;
+  `model: sonnet`. NO `AskUserQuestion`, NO `Agent`.
+- [ ] **Step 2:** Body. Open with an `## INPUT — the PACKAGE` section listing the
+  fields above and stating they are ground truth (never re-ask, never re-audit).
+  Then port, in order:
+  - STEP 9 LOAD MEMORY (verbatim — reads `.claude/memory/*`) and STEP 10 GIT
+    HISTORY (verbatim; keep the ≥200-commit clustering, but if it delegates to a
+    sub-agent, DROP that — a sonnet doc-writer has no `Agent`; do the clustering
+    inline).
+  - STEP 12 SYNTHESIZE — the full 6-chapter structure + ALL "Hard rules"
+    (clickable anchors, no skill names in ch.1–5, §3 ≤300 words, §2 score table
+    from `SCORES`, §4 NAP from `PACKAGE.NAP` before §5). Verbatim from source.
+  - STEP 13 §7 SEO/GEO checklist content + STEP 14 §8 deploy chapter (render
+    ONLY if `INCLUDE_DEPLOY=yes`).
+  - STEP 14.5 APPLY-ONLY: apply `PACKAGE.PRECHECK_DONE` to §5 `- [ ]`→`- [x]`
+    and §7 `- ☐`→`- ☑` + the cleanup pass. DROP the detection + the
+    batch-unknowns `AskUserQuestion` (the parent did both; the doc-writer only
+    applies the resolved set).
+  - STEP 15 WRITE — honor `PACKAGE.OUTPUT` (path + overwrite decision; NO
+    overwrite `AskUserQuestion` — obey the decision). Keep all three gates
+    verbatim: `wc -w` ≤300 on §3, the skill-leak grep over ch.1–5, the anchor
+    `comm -23` check. A gate failure → fix the MD and re-check (as today).
+  - STEP 16 RENDER — use `PACKAGE.CLIENT_NAME` (no `AskUserQuestion`); run
+    `scripts/handover-to-pdf.sh` with the env vars as today.
+  - FORBIDDEN block: `git commit`/branch ops/push, new deps, `Agent` dispatch,
+    `AskUserQuestion`, editing `.claude/**`, attribution trailers.
+  - End with a `HANDOVER-DOC REPORT` (STATUS DONE|BLOCKED; MD path; HTML path;
+    PDF path or "no engine"; the three gate results; NOTES).
+- [ ] **Step 3:** YAML check
+  (`python3 -c "import yaml; yaml.safe_load(open('agents/handover-doc-writer.md').read().split('---')[1]); print('YAML OK')"`);
+  `grep -c 'AskUserQuestion\|subagent_type\|Agent(' agents/handover-doc-writer.md` → 0.
+  `make test` green (new agent isn't yet referenced — pure addition).
+  ```bash
+  git add agents/handover-doc-writer.md
+  git commit -m "feat(model-routing): handover-doc-writer — sonnet gate-free deliverable generator (wave 4)"
+  ```
+
+---
+
+### Task 20: trim `agents/client-handover-writer.md` to pipeline + delegator
+
+**Files:** Modify `agents/client-handover-writer.md`.
+
+- [ ] **Step 1:** Keep STEP 1–8 verbatim (pipeline; native gates; nested audit
+  dispatches unchanged — they inherit the big session model since this agent is
+  inline-loaded and runs big).
+- [ ] **Step 2:** Replace STEP 9–16 with a **doc-gen orchestration** section that:
+  (a) runs STEP 11 questions inline (Q1 deploy-chapter → `INCLUDE_DEPLOY`, Q2
+  language); (b) builds the §4 NAP table inline (incl. the business-name
+  `AskUserQuestion` at today's line ~1107); (c) runs STEP 14.5 platform
+  DETECTION + the batch-unknowns `AskUserQuestion` inline → `PRECHECK_DONE`;
+  (d) resolves the output path + overwrite (`test -f` then the STEP 15 question)
+  and `CLIENT_NAME` (detect or the STEP 16 question); (e) assembles the PACKAGE
+  and dispatches:
+  ```
+  Agent(subagent_type="handover-doc-writer")
+  prompt: "PACKAGE:\n<the resolved fields>\nSynthesize + write + render the
+    deliverable per your steps. Report the HANDOVER-DOC REPORT."
+  ```
+  then parses `HANDOVER-DOC REPORT` and reports the deliverable paths to the
+  user (surface BLOCKED verbatim). Keep `AskUserQuestion` + `Agent` in tools.
+- [ ] **Step 3:** Frontmatter — drop the now-misleading `model: opus` line (this
+  agent inherits the session model like the other big-model reflection agents;
+  inline-load already made the pin inert). Update its `description` to say it
+  runs the ship pipeline then DELEGATES the deliverable writing to the sonnet
+  `handover-doc-writer`.
+- [ ] **Step 4:** YAML check; `make test` green.
+  ```bash
+  git add agents/client-handover-writer.md
+  git commit -m "feat(model-routing): client-handover-writer trimmed to pipeline + delegates doc-gen to sonnet doc-writer"
+  ```
+
+---
+
+### Task 21: `skills/client-handover/SKILL.md` — MODEL GATE + updated overview
+
+**Files:** Modify `skills/client-handover/SKILL.md`.
+
+- [ ] **Step 1:** Add the orchestrator MODEL GATE block right under the H1 /
+  before the `Load and follow strictly:` line (client-handover orchestrates
+  audits = reflection → it MUST be gated):
+  ```
+  MODEL GATE (blocking): run `$HOME/.claude/lib/model-gate.md` BEFORE loading
+  the agent below. Verdict `small` → STOP — print the gate's remedy, end the
+  turn, do not load the agent.
+  ```
+  Keep the inline-load of `client-handover-writer.md` (it runs the big-model
+  pipeline). Update the overview prose: the writer runs the audit/fix/gate
+  pipeline on the big model, then delegates the deliverable writing to the
+  sonnet `handover-doc-writer`.
+- [ ] **Step 2:** `grep -c 'lib/model-gate.md' skills/client-handover/SKILL.md` → ≥1;
+  `make test` green.
+  ```bash
+  git add skills/client-handover/SKILL.md
+  git commit -m "feat(model-routing): client-handover MODEL GATE (pipeline orchestrates audits = reflection)"
+  ```
+
+---
+
+### Task 22: wave-4 census + docs + memory
+
+**Files:** `lib/tests/model-routing.test.sh` (guarded — CONTROLLER), `README.md`,
+`CHANGELOG.md`, `.claude/memory/decisions.md`, `.claude/memory/journal.md`,
+`.claude/tasks/TODO.md`.
+
+- [ ] **Step 1 (CONTROLLER — guarded):** sentinel, then add to
+  `lib/tests/model-routing.test.sh`: add `client-handover` to the wired-gate
+  loop (`# 1)`); a `# 9) wave-4` block —
+  `has skills/client-handover/SKILL.md 'lib/model-gate.md'` (redundant w/ loop —
+  keep in the loop), `has agents/handover-doc-writer.md 'model: sonnet'`,
+  `lacks agents/handover-doc-writer.md 'AskUserQuestion'`,
+  `has agents/client-handover-writer.md 'subagent_type="handover-doc-writer"'`.
+  Update the printed count; flip-test one new assertion.
+- [ ] **Step 2:** README agent-model table — add `handover-doc-writer` (sonnet,
+  deliverable writer); move `client-handover-writer` from its old "opus (pinned,
+  inert)" row into the "inherit session" reflection row (it now runs the
+  big-model pipeline). CHANGELOG Unreleased `### Changed` — wave-4 bullet.
+- [ ] **Step 3:** BDR-066 `**Wave 4**` bullet (redaction-only chosen over
+  whole-writer + why: audits big either way; doc-gen → sonnet doc-writer;
+  pipeline + all gates native on big; client-handover joins the gated group).
+  Journal line + TODO tick.
+  ```bash
+  git add lib/tests/model-routing.test.sh README.md CHANGELOG.md .claude/memory/decisions.md .claude/memory/journal.md .claude/tasks/TODO.md
+  git commit -m "chore(model-routing): wave-4 census + docs + BDR-066 (client-handover doc-gen → sonnet)"
+  ```
+
+- [ ] **Step 4: Final wave-4 review** — dispatch a whole-branch reviewer (opus)
+  over the wave-4 range: verify the doc-writer preserves EVERY deliverable
+  invariant (6 chapters, §2 scores, §4-before-§5, §3 ≤300 words, skill-leak
+  gate, anchors, render), is gate-free (no AskUserQuestion/Agent), and that the
+  parent still owns all interaction + assembles a complete PACKAGE (no field the
+  doc-writer needs is missing). Report `git log --oneline develop..HEAD`. Do NOT
+  merge.
