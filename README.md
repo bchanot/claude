@@ -46,13 +46,14 @@ reflection orchestrators. Execution runs on pinned subagents:
 
 | Agent | Model | Tier |
 |---|---|---|
-| feater, hotfixer | sonnet (pinned) | executors — code from a closed plan, fix-bundle appliers |
+| feater, hotfixer, bugfixer | sonnet (pinned) | executors — code from a closed plan (feat), fix from a closed diagnosis (bugfix), fix-bundle appliers |
 | verifier, security-auditor | sonnet (pinned) | fresh gates (≤3×/loop) |
-| commit-changer, release-executor | sonnet (pinned) | dispatched execution — grouping+commit / release spans (approval + human gates stay in the dispatcher) |
+| commit-changer, release-executor, code-cleaner | sonnet (pinned) | dispatched execution — grouping+commit / release spans / approved cleanup (the audit + approval gate stay in the dispatcher) |
 | doc-syncer, onboarder, scaffolder, refactorer, interviewer, plugin-advisor | sonnet (pinned) | workers |
 | status-reporter | haiku (pinned) | mechanical collector |
 | client-handover-writer | opus (pinned, currently inert — inline-loaded; sonnet conversion planned) | deliverable writer |
-| analyzer, seo-analyzer, geo-analyzer, validator-analyzer, code-cleaner, bugfixer | inherit session (Fable/Opus) | reflection / audit / inline playbooks |
+| analyzer, seo-analyzer, geo-analyzer, validator-analyzer | inherit session (Fable/Opus) | reflection / audit / inline playbooks |
+| Explore (built-in) | inherit session (Fable/Opus) | search feeds reflection — kept on the big model, not pinned down |
 
 The pure-execution skills `/doc`, `/status`, `/commit-change`,
 `/release-candidate` **dispatch** their agent (instead of inline-loading it)

@@ -22,7 +22,7 @@ unmerged — human gate.
       call — search feeds reflection, silent-incompleteness risk → deserves the
       big model. Custom sonnet Explore.md created then reverted (built-in already
       inherits + no owned prompt).
-- [ ] WAVE 3 (user directive): /bugfix split + /code-clean split → reflection
+- [x] WAVE 3 (user directive): /bugfix split + /code-clean split → reflection
       inline (behind existing gate), execution → sonnet executors. bugfixer =
       pure fix+regression exec (BUGFIX-EXEC REPORT, no Agent/AskUserQuestion);
       code-cleaner = PHASE-2 exec (refactor now runs on sonnet — inline-load pin

@@ -41,6 +41,13 @@ has "skills/hotfix/SKILL.md"            'subagent_type="hotfixer"'
 has "agents/commit-changer.md"          'model: sonnet'
 has "agents/release-executor.md"        'model: sonnet'
 lacks "agents/commit-changer.md"        'AskUserQuestion'
+# 8) wave-3 — bugfix/code-clean reflection-split executors (skills stay gated)
+has "skills/bugfix/SKILL.md"     'subagent_type="bugfixer"'
+has "agents/bugfixer.md"         'model: sonnet'
+lacks "agents/bugfixer.md"       'AskUserQuestion'
+has "skills/code-clean/SKILL.md" 'subagent_type="code-cleaner"'
+has "agents/code-cleaner.md"     'model: sonnet'
+lacks "agents/code-cleaner.md"   'AskUserQuestion'
 
 printf 'model-routing census: %d pass, %d fail\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
