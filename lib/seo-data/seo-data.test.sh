@@ -57,6 +57,24 @@ has "queries position field"     "$Q" '"position": 6.3'
 I="$(SEO_DATA_MOCK_DIR="$MOCK" python3 "$SD/google_seo.py" inspect \
   --store "$S2" --account client-a --property sc-domain:ex.com --url https://ex.com/x)"
 has "inspect indexed true"       "$I" '"indexed": true'
+# rich_results rides the same URL-Inspection response (no extra call/quota)
+has "rich verdict surfaced"      "$I" '"verdict": "FAIL"'
+has "rich type breadcrumbs"      "$I" '"type": "Breadcrumbs"'
+has "rich type faq"              "$I" '"type": "FAQ"'
+has "rich counts error severity" "$I" '"errors": 2'
+has "rich counts warn severity"  "$I" '"warnings": 1'
+has "rich keeps issue message"   "$I" "Missing field 'acceptedAnswer'"
+# same issueMessage repeats across items — the rollup must collapse it to one
+NMSG="$(printf '%s' "$I" | grep -cF "Missing field 'acceptedAnswer'")"
+[ "$NMSG" = "1" ] && ok "rich dedupes issue messages" \
+                  || no "rich dedupes issue messages" "got $NMSG occurrences"
+# Google OMITS richResultsResult when it detects none — absence is data, and
+# must not KeyError nor vanish into a missing key
+NR="$(SEO_DATA_MOCK_DIR="$SD/fixtures-norich" python3 "$SD/google_seo.py" inspect \
+  --store "$S2" --account client-a --property sc-domain:ex.com --url https://ex.com/x)"
+has "no-rich → synthetic ABSENT" "$NR" '"verdict": "ABSENT"'
+has "no-rich keeps index status" "$NR" '"indexed": true'
+hasnt "no-rich emits no PARTIAL" "$NR" 'PARTIAL'
 DEG="$(env -u SEO_DATA_MOCK_DIR python3 "$SD/google_seo.py" queries \
   --store "$TMP2/none.json" --account nobody --property sc-domain:ex.com)"
 has "gsc degrades w/o creds"     "$DEG" '"status": "degraded"'

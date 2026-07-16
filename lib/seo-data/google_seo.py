@@ -114,6 +114,39 @@ def queries(store_path, account, property, days=90, dim="query"):
         raw = r.json()
     return _norm_queries(raw, dim)
 
+def _rollup_issues(items):
+    """Count issue instances by severity; dedupe messages (they repeat per item)."""
+    errors = warnings = 0
+    msgs = []
+    for item in items:
+        for iss in item.get("issues", []):
+            sev = iss.get("severity")
+            if sev == "ERROR":
+                errors += 1
+            elif sev == "WARNING":
+                warnings += 1
+            msg = iss.get("issueMessage")
+            if msg and msg not in msgs:
+                msgs.append(msg)
+    return errors, warnings, msgs
+
+def _norm_rich(ir):
+    """richResultsResult → verdict + per-type rollup. Google OMITS the key when
+    it detects no rich results, so absence is data, not an error: surfaced as the
+    synthetic verdict ABSENT (not a Google enum) rather than a missing key, which
+    a caller cannot tell apart from a check that never ran. PARTIAL is never
+    emitted — the API reserves it as unused."""
+    rr = ir.get("richResultsResult")
+    if rr is None:
+        return {"verdict": "ABSENT", "types": []}
+    types = []
+    for det in rr.get("detectedItems", []):
+        errors, warnings, msgs = _rollup_issues(det.get("items", []))
+        types.append({"type": det.get("richResultType"),
+                      "items": len(det.get("items", [])),
+                      "errors": errors, "warnings": warnings, "issues": msgs})
+    return {"verdict": rr.get("verdict"), "types": types}
+
 def inspect(store_path, account, property, url):
     raw = _mock("gsc_inspect.json")
     if raw is None:
@@ -126,11 +159,15 @@ def inspect(store_path, account, property, url):
             return {"status": "degraded", "reason": "rate_limited"}
         r.raise_for_status()
         raw = r.json()
-    isr = raw["inspectionResult"]["indexStatusResult"]
+    ir = raw["inspectionResult"]
+    isr = ir["indexStatusResult"]
+    # rich_results rides the SAME response — Google already sent it and this
+    # function used to discard it. No extra call, no extra quota, no new scope.
     return {"status": "ok", "source": "gsc",
             "indexed": isr.get("verdict") == "PASS",
             "coverage": isr.get("coverageState"),
-            "last_crawl": isr.get("lastCrawlTime")}
+            "last_crawl": isr.get("lastCrawlTime"),
+            "rich_results": _norm_rich(ir)}
 
 def _cli():
     try:

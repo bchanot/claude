@@ -80,8 +80,23 @@ fetch.sh queries --account client-a --property sc-domain:ex.com [--days 90] [--d
   → {"status":"degraded","reason":"no_credentials"|"token_revoked"|"network_error"|"rate_limited"}
 
 fetch.sh inspect --account client-a --property … --url https://ex.com/page
-  → {"status":"ok","source":"gsc","indexed":true,"coverage":"…","last_crawl":"…"}
+  → {"status":"ok","source":"gsc","indexed":true,"coverage":"…","last_crawl":"…",
+     "rich_results":{"verdict":"PASS|FAIL|NEUTRAL|VERDICT_UNSPECIFIED|ABSENT",
+                     "types":[{"type":"FAQ","items":2,"errors":2,"warnings":1,
+                               "issues":["Missing field 'acceptedAnswer'"]}]}}
   → {"status":"degraded","reason":"…"}
+
+  rich_results rides the SAME URL-Inspection response — Google already sends
+  it, `inspect` used to discard it. No extra call, quota or OAuth scope.
+  It is the only programmatic structured-data validation in the system.
+    • verdict PARTIAL is never emitted — the API reserves it as unused.
+    • verdict ABSENT is SYNTHETIC (not a Google enum): the API omits
+      richResultsResult entirely when it detects no rich results. Surfaced
+      as a value rather than a missing key, because a caller cannot tell an
+      absent key apart from a check that never ran. ABSENT = "none
+      detected", never "invalid".
+    • errors/warnings count issue INSTANCES; issues[] is deduped — the same
+      issueMessage repeats across every affected item.
 
 fetch.sh forget --label client-a
   → {"status":"ok","removed":true|false}          # false = label wasn't in the store

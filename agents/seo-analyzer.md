@@ -339,6 +339,35 @@ and 10 AND high impressions (candidates to push onto page 1 with a
 title/meta/content tweak). Report index coverage from `inspect`. All
 emitted into SEO.md §2 (technical) and §8 (quick wins).
 
+**`inspect` also returns `rich_results` — Google's own structured-data
+verdict on the live indexed URL.** It rides the same response (no extra
+call, no extra quota). This is the only programmatic JSON-LD validation in
+the system; everything else about schema is read by eye.
+
+```
+rich_results.verdict : PASS | FAIL | NEUTRAL | VERDICT_UNSPECIFIED | ABSENT
+rich_results.types[] : {type, items, errors, warnings, issues[]}
+```
+
+- `FAIL` + a type carrying `errors > 0` → that type **cannot show as a rich
+  result**. Bundle item, cite the `issues[]` message verbatim — it is
+  Google's wording, not ours, and geo-analyzer owns the JSON-LD fix
+  (CROSS-AGENT NOTE).
+- `warnings` → recommended fields missing. Report, do not gate on them.
+- **`ABSENT` means Google detected no rich results on this URL** — the key
+  is omitted upstream when nothing is found. It is NOT an error and NOT
+  proof the markup is broken: a page with no structured data reads the same
+  as one whose markup Google never parsed. Say "none detected", never
+  "invalid".
+- `ABSENT` while the repo clearly ships JSON-LD → real finding: the markup
+  is not reaching Google (SPA-rendered, blocked, or malformed). Cross-check
+  before claiming it.
+
+**Bound this honestly.** `index:inspect` is per-URL, quota'd, and works only
+on a GSC-verified property. It validates the URLs you sampled — not the
+site. Its reach is the STEP 9 COVERAGE ratio, and §14 must say so rather
+than let one PASS imply site-wide valid markup.
+
 If `status=degraded` → note it in §2 and emit the §11 user action
 "Connecter GSC: `make seo-connect`".
 
