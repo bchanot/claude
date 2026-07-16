@@ -619,7 +619,7 @@ FIX: AUTO (<what agent will do>) | USER (<what user must do>)
 | Technical (perf, CWV, security headers, indexability) | 20% | 30% | |
 | On-page (content, meta, headings, images, video, a11y, i18n) | 20% | 30% | |
 | SEO Local (NAP, GMB, citations) | 25% | 5% | |
-| Off-page (backlinks, mentions, authority) | 10% | 15% | |
+| Off-page (unlinked brand mentions — backlinks/authority NOT auditable, §14) | 10% | 15% | |
 | Social presence | 10% | 5% | |
 | Competitive position | 5% | 10% | |
 | Legal compliance | 10% | 5% | |
@@ -627,6 +627,23 @@ FIX: AUTO (<what agent will do>) | USER (<what user must do>)
 **Technical axis note:** CWV scored on CrUX field data (75th percentile,
 real users, from STEP 4) when available; otherwise lab PageSpeed
 Lighthouse run.
+
+**Off-page axis note (I1).** Score ONLY the unlinked brand mentions
+gathered in STEP 6 (`web_search "<business-name>" -site:<domain>`).
+Backlink profile and domain authority have NO data source here — no index,
+no API, nothing. NEVER price them into the number: an unmeasured
+sub-component cannot be judged, and this axis carries 10-15% of a score
+that reaches a client via `/client-handover`. A low mention count is a low
+mention count — it is NOT evidence of a weak backlink profile.
+
+Mandatory §14 line whenever depth=FULL, verbatim:
+`Backlinks / domain authority — NOT audited: no backlink index wired.
+Nearest free source: Common Crawl hyperlinkgraph. Commercial: Ahrefs /
+Semrush / Majestic. The Off-page score above prices in brand mentions only.`
+
+Weight deliberately unchanged despite the narrower scope: re-deriving it
+now, then again when a backlink source lands, would churn historical
+scores twice. Revisit the 10/15% only when the axis widens back.
 
 ### LOCAL depth — 4 axes
 
@@ -638,7 +655,11 @@ Lighthouse run.
 | Legal compliance (pages, CMP, mentions) | 20% | 15% | |
 
 LOCAL axes not audited (Off-page, Social, Competitive) appear as
-`N/A — requires FULL audit` in the report.
+`N/A — requires FULL audit` in the report. Off-page is the exception to
+that promise: FULL audits its brand-mentions share ONLY — backlinks and
+authority are unauditable at EVERY depth (see the Off-page axis note).
+Print `N/A — FULL audits brand mentions only` for it, never a bare
+"requires FULL audit" that FULL cannot keep.
 
 ### Projected code-only score + trajectory to 17/20 (mandatory)
 
