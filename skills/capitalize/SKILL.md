@@ -9,7 +9,7 @@ description: |
   Triggers: "capitalize", "before clear/compact", "flush memory", "don't
   lose this", "avant de clear/compact", "capitalise ce qui manque",
   "close", "fin de journée", "checkpoint memory".
-argument-hint: "[--ritual] (scans conversation + git + TODO against .claude/memory/; --ritual adds the 3-question reflection)"
+argument-hint: "[--ritual] [--no-push] (scans conversation + git + TODO against .claude/memory/; --ritual adds the 3-question reflection; --no-push holds memory on the chore branch instead of the default auto-merge+push)"
 allowed-tools:
   - Read
   - Edit
@@ -51,7 +51,10 @@ mark-superseded). It only appends.
 Before STEP 4 writes anything, follow `$HOME/.claude/lib/gitflow-aiguillage.md`
 — this skill's TYPE = `chore`. On `main`/`develop` it branches to `chore/<name>`
 off develop, so the memory commit lands on a branch, never direct on a protected
-base; on a working branch it proceeds in place. Never `gitflow finish` (human-gated).
+base; on a working branch it proceeds in place. **Record whether it branched this
+run** (PROTECTED → a fresh `chore/<name>` was created off develop; remember
+`<name>`) — STEP 5C uses that to auto-persist. Do NOT `gitflow finish` here; the
+finish is STEP 5C's job, after the commit, and only for a branch THIS run created.
 
 ## STEP 0 — PRECHECK
 
@@ -308,6 +311,33 @@ journal-only example.
 Surgical scope is the helper's (stages ONLY `.claude/memory` + `.claude/tasks`,
 changed-paths-filtered, never `git add -A`). Do NOT hand-roll git here.
 
+## STEP 5C — AUTO-PERSIST THE MEMORY (finish + push)
+
+Memory's value is cross-session persistence — a commit stranded on an unmerged
+`chore/<name>` branch is invisible to the next session sitting on develop, so the
+skill closes the loop itself. This is a SCOPED exception to the human-gated merge
++ [[LRN-069]] push rule: it fires ONLY for this memory-only commit, ONLY on a
+`chore/<name>` branch THIS run created off develop (BDR-068).
+
+Fire only when ALL hold — else SKIP (STEP 6 prints the manual-merge note, the
+pre-BDR-068 behavior):
+- STEP 5B committed cleanly (`rc 0`), AND
+- the aiguillage BRANCHED this run (PROTECTED → `chore/<name>`; on a WORKING
+  branch the memory already rides feature/bugfix — never auto-merge it), AND
+- `--no-push` was NOT passed (the hold escape hatch).
+
+Then, from the `chore/<name>` branch:
+
+    bash "$HOME/.claude/lib/gitflow.sh" finish chore <name>   # merge → develop, delete branch
+    git push origin develop
+
+- **finish + push OK** → surface `develop <short> pushed` in STEP 6.
+- **push fails** (offline / rejected) → the merge to develop ALREADY happened
+  locally; report `merged to develop, push FAILED — push manually`. Do NOT retry
+  or reset the merge.
+- **`--no-push` / WORKING branch / rc 3** → skip this step; the commit stays where
+  it is. STEP 6 prints the manual-merge note.
+
 ## STEP 6 — FINAL OUTPUT + HANDOFF
 
 ```
@@ -319,18 +349,22 @@ CAPITALIZE COMPLETE — <YYYY-MM-DD>  (<pre-wipe flush | session-close>)
   TODO.md      : checked <N>, added <M>
   journal.md   : +1 line under ## <date>
   committed    : <mem_hash>  (chore(memory): …)   | ⚠️ NOT committed (rc 3 — see closing line)
+  persisted    : develop <short> pushed   | on chore/<name>, not merged (--no-push) | merged, push FAILED
   dropped as already-captured: LRN-023, BLK-006
   ignored as noise: push/tag release
 ```
 
-Then the mode-specific closing line:
+Then the closing line — pick by the STEP 5C persist result (`<mode>` = `Context
+flushed` for pre-wipe, `Session closed` for ritual):
 
-- **pre-wipe flush** → `✅ Context flushed + committed <mem_hash>. Safe to /clear or /compact now.`
-- **session-close ritual** → `✅ Session closed + committed <mem_hash>. Next session: read .claude/memory/ at startup.`
-- **commit skipped (rc 3)** → keep the ✅ on the FLUSH but make the gap loud, never
-  buried: `✅ Context flushed — ⚠️ NOT committed (<reason: detached/merge/non-git>); entries safe on disk, commit manually.`
-  The ✅ covers the write (entries on disk); the ⚠️ marks the commit gap so it is
-  not read as "all committed".
+- **auto-persisted (default — branched off develop, pushed)** → `✅ <mode> + persisted to origin/develop (<short>). Next session: read .claude/memory/ at startup.`
+- **--no-push (held on branch)** → `✅ <mode> + committed on chore/<name>, NOT pushed (--no-push). Merge + push when ready.`
+- **push failed after merge** → `✅ <mode> + merged to develop — ⚠️ push FAILED (<reason>); merged locally, push manually.`
+- **WORKING branch (rode a feature branch)** → `✅ <mode> + committed <mem_hash> on <branch>. Integrates when the branch merges.`
+- **commit skipped (rc 3)** → keep the ✅ on the WRITE but make the gap loud, never
+  buried: `✅ <mode> — ⚠️ NOT committed (<reason: detached/merge/non-git>); entries safe on disk, commit manually.`
+  The ✅ covers the write (entries on disk); the ⚠️ marks the gap so it is not read
+  as "all done".
 
 The closing line matters — confirm the wipe is safe (default) or the session is
 checkpointed (ritual), AND whether the memory was committed (5B) or left for a
@@ -358,6 +392,11 @@ manual commit (rc 3).
   approved entries is automated via `lib/capitalize-commit.md` (BDR-034 contract).
   The journal always writes → memory is always pending at 5B, so a successful run
   always produces a commit; only an unsafe git state (rc 3) skips it.
+- **Auto-persist the flush (STEP 5C, BDR-068)** — a memory-only commit on a
+  `chore/<name>` branch THIS run created off develop auto-finishes → develop +
+  pushes; a scoped exception to LRN-069. `--no-push` holds it on the branch; a
+  WORKING branch (memory rides feature/bugfix) or rc 3 skips it. NEVER auto-finish
+  a branch the run did not create.
 - **Skip trivial** for the 4 ID registries; journal excepted.
 - `.claude/memory/` missing → STOP at STEP 0, do not create the structure here.
 

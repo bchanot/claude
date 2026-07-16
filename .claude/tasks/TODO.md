@@ -1,5 +1,18 @@
 # TODO
 
+## 2026-07-16 — /close auto-persist memory (feature/close-auto-persist, BDR-068)
+- [x] STEP 5C: auto-finish chore→develop + push when capitalize/close branched off develop
+- [x] --no-push escape hatch; WORKING-branch + rc-3 skip; graceful push-fail
+- [x] aiguillage exception note + BDR-068
+- [ ] merge feature/close-auto-persist → develop (human gate)
+
+## 2026-07-16 — SHIPPED v1.0.0 first public release (BDR-067)
+- [x] versioning reset 4.0.0→1.0.0, CHANGELOG pre-release-history banner
+- [x] deleted v4.0.0 tag + stale release/1.0.0 branch (git-cherry: nothing orphaned)
+- [x] merged to main + develop, tagged v1.0.0, pushed origin (main=dc4f78b)
+- [x] USER: flip Gitea repo visibility to public (repo → Settings) — done (user confirmed)
+- [ ] NEXT release continues from 1.0.0 (→ 1.0.1 / 1.1.0), NEVER back to 4.x (BDR-067)
+
 ## 2026-07-16 — model-routing edge fixes (bugfix/model-routing-edge-fixes)
 Post-merge ronde (4 big-model audits: dispatch-graph INTACT, loops CLOSE,
 tiering CORRECT, data-flow client-handover wired). Fixing the edge findings

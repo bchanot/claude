@@ -6,6 +6,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [1.1.0] — 2026-07-16
+
+### Added
+- `/close` + `/capitalize` now auto-persist the memory they write. When the ritual branches a `chore/*` branch off develop, it finishes that branch into develop and pushes `origin/develop` automatically (new STEP 5C), so capitalized decisions / learnings / evals reach the next session instead of stranding on an unmerged branch. Scoped to memory-only ritual commits: a `--no-push` flag holds the commit on the branch instead; a run on a feature branch (where the memory already rides the work) or an unsafe git state skips the auto-persist; and a failed push leaves the local merge intact with a manual-push note. Recorded as BDR-068, a deliberate scoped exception to the push-needs-an-explicit-go rule (which guards surprise code/release pushes, not an end-of-session memory persist).
+
 ## [1.0.0] — 2026-07-16 — Initial public release
 
 First public release of claude-config. The feature set below is the
