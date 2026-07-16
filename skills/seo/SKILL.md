@@ -204,9 +204,9 @@ Ask ONCE before dispatching the agents:
 ```
 RAPPORT EXTERNE (optionnel) — un autre regard sur le site :
 
-  1. Fichier  — déposez l'export (PDF/MD/TXT) dans
-     `.claude/audits/external/` (ex. `sorank-YYYY-MM-DD.pdf`),
-     donnez le nom du fichier. (`mkdir -p .claude/audits/external`)
+  1. Fichier  — donnez le chemin de l'export (PDF/MD/TXT), où qu'il soit
+     (ex. `~/Téléchargements/sorank-2026-07-16.pdf`). Rangement conseillé
+     mais optionnel : `.claude/audits/external/`.
   2. Collé    — collez ici le contenu du PDF ou le "prompt pour IA"
      que l'outil suggère.
   3. Ignorer  — continuer sans. Le rapport final recommandera
