@@ -4,7 +4,7 @@
 - [x] versioning reset 4.0.0→1.0.0, CHANGELOG pre-release-history banner
 - [x] deleted v4.0.0 tag + stale release/1.0.0 branch (git-cherry: nothing orphaned)
 - [x] merged to main + develop, tagged v1.0.0, pushed origin (main=dc4f78b)
-- [ ] USER: flip Gitea repo visibility to public (repo → Settings) — not a git op
+- [x] USER: flip Gitea repo visibility to public (repo → Settings) — done (user confirmed)
 - [ ] NEXT release continues from 1.0.0 (→ 1.0.1 / 1.1.0), NEVER back to 4.x (BDR-067)
 
 ## 2026-07-16 — model-routing edge fixes (bugfix/model-routing-edge-fixes)

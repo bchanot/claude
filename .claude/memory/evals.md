@@ -220,3 +220,12 @@ rules:
 - **output**: review M5 flagged "no EVAL trace of the BDR-060 pin smoke-test." Traced: `.claude/tasks/TODO.md` job9 PART 1 GATE P1 DID record it — verifier `CONFORME`, security-auditor `BLOCK(2)`, plugin-advisor `ACTION REQUIRED`, verdict grammar intact, mode honored, no revert. The pins (verifier/security-auditor/plugin-advisor → sonnet, ea6c126/1c270e6/5ab6c21) WERE dispatch-smoked; the only gap was that the record lived in TODO, not evals.md.
 - **method**: cross-read TODO PART 1 against the M5 finding; no re-run (recorded verdicts conclusive, pins unchanged since).
 - **action**: keep — record backfilled here, no re-smoke required.
+
+## EVAL-023 — post-merge ronde on the model-routing refactor (BDR-066) — clean, 5 edge gaps found + fixed
+
+- **Date**: 2026-07-16
+- **output**: model-routing reflection/execution split (BDR-066, waves 1-4, 4 merged branches — the whole session's refactor).
+- **method**: 4 parallel BIG-MODEL analyzer audits (dispatch-graph/consumer-staleness, model-tier, loop-integrity, dispatch data-flow) + full test suite (13 suites, 57-check census). Audit on big model (audit=reflection, dogfoods BDR-066). NOT darwin-skill (that = a skill-PROMPT optimizer, wrong tool for refactor-regression verification).
+- **verdict**: dispatch graph INTACT (0 regressions), all loops CLOSE (0 broken), tiering CORRECT (every DISPATCHED agent), data-flow client-handover wired. Refactor preserved/improved everything it touched.
+- **anomalies**: 5 edge gaps the census DIDN'T catch — F1 (REAL bug: /seo,/geo dispatch feater as L1 applier without CONTRACT, but feater mandated "read CONTRACT FIRST"; hotfixer had the carve-out, feater didn't), F5 (audit-agents' ABSENT pin unguarded → a stray sonnet pin would silently downgrade a live audit), F2/F3/F4 (BDR-066 consistency: /refactor over-powered inline-load, /analyze ungated reflection, interviewer inert sonnet pin). F1 lesson: census locks STRUCTURE (shape); catching a severed data-path needs a data-flow READ ([[LRN-126]]).
+- **action**: keep — all 5 fixed (bugfix/model-routing-edge-fixes, merged 5f159f3); census 47→57 now locks each.
