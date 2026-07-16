@@ -1,5 +1,23 @@
 # TODO
 
+## 2026-07-16 — model-routing edge fixes (bugfix/model-routing-edge-fixes)
+Post-merge ronde (4 big-model audits: dispatch-graph INTACT, loops CLOSE,
+tiering CORRECT, data-flow client-handover wired). Fixing the edge findings
+the ronde surfaced. Branch off develop, unmerged — human gate.
+- [x] F1 (real bug) feater applier carve-out — /seo,/geo dispatch feater as
+      L1 applier with NO CONTRACT, but feater mandates "read CONTRACT FIRST"
+      (hotfixer has the carve-out, feater didn't) → mirror hotfixer.md:16-45.
+- [x] F5 (guard) census: lock the ABSENT model: pin on seo/geo/validator-
+      analyzer + client-handover-writer (stray sonnet pin would silently
+      downgrade a live audit, uncaught).
+- [x] F4 (cleanup) drop interviewer's inert `model: sonnet` (reflection role,
+      inline-loaded by gated init-project) + census guard.
+- [x] F2 (tier) /refactor inline-load → true-dispatch refactorer (sonnet pin
+      was inert). refactorer verified dispatch-safe (no Ask/Agent, input=target).
+- [x] F3 (gate) /analyze add MODEL GATE (inline-loads the analyzer reflection
+      agent, was ungated + undocumented). census: +analyze gated, +refactor excluded.
+- [x] verify: census 57/0, shellcheck clean (my files), full suite green; NO merge.
+
 ## 2026-07-15 — model routing (feature/model-routing)
 Spec + plan in docs/superpowers/ (transient, BDR-065). BDR-066. Branch
 unmerged — human gate.

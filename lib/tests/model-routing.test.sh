@@ -9,12 +9,12 @@ has()   { if grep -qF "$2" "$R/$1"; then ok; else ko "$1 missing: $2"; fi; }
 lacks() { if grep -qF "$2" "$R/$1"; then ko "$1 must NOT contain: $2"; else ok; fi; }
 fm_lacks() { if awk 'NR<=10' "$R/$1" | grep -qF "$2"; then ko "$1 frontmatter must NOT contain: $2"; else ok; fi; }
 
-# 1) gate wired in the 14 reflection orchestrators
-for s in ship-feature init-project feat bugfix onboard seo geo web-validate harden audit-delta tour code-clean hotfix client-handover; do
+# 1) gate wired in the 15 reflection skills (orchestrators + /analyze)
+for s in ship-feature init-project feat bugfix onboard seo geo web-validate harden audit-delta tour code-clean hotfix client-handover analyze; do
   has "skills/$s/SKILL.md" 'lib/model-gate.md'
 done
-# 2) gate NOT wired in the excluded skills (encodes the spec exclusion list)
-for s in commit-change doc status release-candidate; do
+# 2) gate NOT wired in the pure-execution/read-only skills (exclusion list)
+for s in commit-change doc status release-candidate refactor; do
   lacks "skills/$s/SKILL.md" 'lib/model-gate.md'
 done
 # 3) executor + gate pins
@@ -53,6 +53,18 @@ has "agents/handover-doc-writer.md"     'model: sonnet'
 lacks "agents/handover-doc-writer.md"   'AskUserQuestion'
 lacks "agents/handover-doc-writer.md"   'Agent('
 has "agents/client-handover-writer.md"  'subagent_type="handover-doc-writer"'
+# 10) post-merge edge fixes (ronde): F1 feater applier carve-out, F2 /refactor
+#     dispatch + pin, F3 /analyze gated (in loop 1), F4 interviewer un-pinned,
+#     F5 audit agents' ABSENT pin locked (a stray sonnet pin would silently
+#     downgrade a live audit even though the skill's gate passed)
+has "agents/feater.md"                       'Applier path'
+has "skills/refactor/SKILL.md"               'subagent_type="refactorer"'
+has "agents/refactorer.md"                   'model: sonnet'
+fm_lacks "agents/seo-analyzer.md"            'model:'
+fm_lacks "agents/geo-analyzer.md"            'model:'
+fm_lacks "agents/validator-analyzer.md"      'model:'
+fm_lacks "agents/client-handover-writer.md"  'model:'
+fm_lacks "agents/interviewer.md"             'model:'
 
 printf 'model-routing census: %d pass, %d fail\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
