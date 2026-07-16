@@ -431,6 +431,47 @@ Record what exists. For each:
 - Does `sameAs` on the site point to it?
 - If yes, does the target resolve and match?
 
+### sameAs resolution `[FULL only]`
+
+`entity-seo.md:148` says "validate each URL resolves" and nothing did.
+A `sameAs` pointing at a dead profile is worse than a missing one: it
+asserts an identity link that fails on follow, in the exact graph AI
+engines walk to confirm who you are.
+
+```bash
+grep -rhoE '"sameAs"[^]]*\]' \
+  --include="*.html" --include="*.astro" --include="*.tsx" --include="*.jsx" \
+  --include="*.vue" --include="*.svelte" --include="*.php" --include="*.json" \
+  . 2>/dev/null \
+  | grep -oE 'https?://[^"]+' | sort -u | while read -r U; do
+      printf '%s %s\n' \
+        "$(curl -sIL -o /dev/null -w '%{http_code}' --max-time 10 "$U" 2>/dev/null || echo 000)" \
+        "$U"
+    done
+```
+
+**Read the codes honestly — a block is not a death.** Some platforms refuse
+non-browser clients: LinkedIn answers `999` (verified 2026-07-16 against a
+live company page). A naive check calls that dead and the bundle deletes a
+live link — the most valuable node in the graph, since LinkedIn is the
+identity anchor for most B2B entities.
+
+Do NOT assume which platforms block: the same 2026-07-16 check found
+`x.com` returning `200`, contradicting the "Twitter always 403" folklore.
+Test the code you actually got; classify by code, never by platform
+reputation.
+
+| Code | Verdict | Action |
+|---|---|---|
+| 2xx / 3xx | alive | none |
+| **404 / 410** | **genuinely dead** | finding WITH direction — fix or remove |
+| 401 / 403 / 429 / 999 | bot-blocked | **inconclusive — no finding.** Report as unverified, never as dead |
+| 000 (DNS/timeout) / 5xx | inconclusive | retry once, then unverified |
+
+No G2/G6 item may remove a `sameAs` on anything but 404/410. Same rule as
+the NAP direction rule: an unreliable signal read confidently is worse than
+no signal. Unverified entries → §14, naming the platform and the code.
+
 ### Google Knowledge Panel `[FULL only]`
 
 ```
