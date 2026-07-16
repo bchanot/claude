@@ -275,8 +275,21 @@ Evaluate each present/missing:
 - **LCP** (Largest Contentful Paint) — < 2.5s
 - **INP** (Interaction to Next Paint) — < 200ms (replaced FID in Mar 2024)
 - **CLS** (Cumulative Layout Shift) — < 0.1
-- **VSI** (Visual Stability Index) — new 2026 signal, Google Core Web
-  Vitals 2.0
+
+**Core Web Vitals are exactly these three** (web.dev/articles/vitals,
+verified 2026-07-16). Google ships threshold changes with prior notice on a
+predictable annual cadence — a "new CWV" that only SEO blogs know about does
+not exist. Before adding a metric here, confirm it against a PRIMARY source:
+web.dev, the Chromium blog, or `developer.chrome.com/docs/crux/api` — that
+API metric list is decisive, because a metric CrUX cannot return is a metric
+we cannot score.
+
+**WebSearch is not confirmation.** SEO blogs cross-cite each other into fake
+consensus. A "VSI (Visual Stability Index) — new 2026 signal, Core Web
+Vitals 2.0" line lived here until 2026-07-16 on exactly that basis: ten
+blogs asserted it, several claimed CrUX was already collecting it, and it is
+absent from both the CrUX API metric list and web.dev. Stated as fact, in a
+threshold list, in client-facing audits.
 
 When a GSC account+property were passed in context, fetch CrUX field
 data first (**tilde path mandatory** — this agent runs from the
