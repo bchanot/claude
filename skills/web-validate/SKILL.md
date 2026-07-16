@@ -21,6 +21,13 @@ allowed-tools:
 
 # /web-validate — web standards audit (W3C + WCAG)
 
+## MODEL GATE (blocking — run before any other step)
+
+Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
+judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
+gate prints the remedy; end the turn — no later step, no dispatch. Nominal
+(big) path is silent.
+
 This skill orchestrates a narrow-scope standards audit :
 
 - **W3C HTML validity** — validator.nu API (FULL) or `html-validate` /
@@ -271,10 +278,23 @@ Options :
   D) Abort — keep .claude/audits/VALIDATE.md as audit report
 ```
 
-4. On `A` : apply each bundle via `Edit` (targeted `old_string` /
-   `new_string`). Never use `Write` on shared templates (risk of
-   overwriting /seo or /geo content — meta tags, JSON-LD).
-5. On `B` : for each diff, show and ask yes/no/skip.
+4. On `A` : dispatch each file-group's applier at L1 (execution = sonnet;
+   this loop only orchestrates), serially — one applier at a time, appliers
+   share files:
+
+   ```
+   Agent(subagent_type="hotfixer")
+   prompt: "<paste the file-group's bundle items: file, issue, current,
+     expected fix>.
+     Context: web-validate fix bundle, user-approved scope — no
+     confirmation needed. Apply via targeted Edit (old_string/new_string);
+     NEVER Write whole files (shared templates carry /seo and /geo
+     content — meta tags, JSON-LD). Do NOT commit — apply and self-verify
+     only."
+   ```
+
+5. On `B` : for each diff, show and ask yes/no/skip; apply approved diffs
+   as in `A` (hotfixer dispatch).
 6. On `C` : filter to Critique + Haute, then behave as `A`.
 7. On `D` : stop, leave `.claude/audits/VALIDATE.md` untouched.
 

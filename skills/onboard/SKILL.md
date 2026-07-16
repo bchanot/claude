@@ -7,6 +7,13 @@ allowed-tools: Read, Write, Edit, Bash, Glob, Grep, Agent, Skill
 
 # ORCHESTRATOR: ONBOARD
 
+## MODEL GATE (blocking — run before any other step)
+
+Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
+judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
+gate prints the remedy; end the turn — no later step, no dispatch. Nominal
+(big) path is silent.
+
 ## REQUEST
 $ARGUMENTS
 
@@ -347,7 +354,7 @@ Lire le bloc `audit_stack:` du fichier `~/.claude/lib/project-archetypes/<archet
 | Entry | Action | Livraison |
 |---|---|---|
 | `analyze` | Déjà fait en STEP 5 | L3a |
-| `code-clean` | Spawn subagent `code-cleaner` (audit-only) | L3a |
+| `code-clean` | Spawn subagent `general-purpose` (audit-only, inherits session = big model) | L3a |
 | `cso` | Si gstack ON → Skill(cso). Sinon → Agent general-purpose avec checklist OWASP + deps audit | L3a |
 | `doc` | Spawn subagent `doc-syncer` (auto-mode OFF, report-only) | L3a |
 | `seo` | Subagents seo-analyzer + geo-analyzer en parallèle | L3b |
@@ -359,11 +366,11 @@ Lire le bloc `audit_stack:` du fichier `~/.claude/lib/project-archetypes/<archet
 
 Lancer EN PARALLÈLE (un seul message, plusieurs Agent calls) les audits correspondant aux entrées de `audit_stack:` qui sont en L3a (`code-clean`, `cso`, `doc`).
 
-#### Dispatch code-cleaner (si `code-clean` dans audit_stack)
+#### Dispatch code-clean audit (si `code-clean` dans audit_stack)
 ```
 Agent(
-  subagent_type="code-cleaner",
-  description="Onboard — code-clean audit only",
+  subagent_type="general-purpose",
+  description="Onboard — code-clean audit only (read-only, big session model)",
   prompt="""
   AUDIT-ONLY mode — NO fixes, NO refactoring, NO file modifications.
   Target: <PROJECT_ROOT>. ARCHETYPE: <archetype>.

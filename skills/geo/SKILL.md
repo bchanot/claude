@@ -22,6 +22,13 @@ allowed-tools:
 
 # /geo — GEO (AI-search) audit + fix dispatcher
 
+## MODEL GATE (blocking — run before any other step)
+
+Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
+judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
+gate prints the remedy; end the turn — no later step, no dispatch. Nominal
+(big) path is silent.
+
 Dispatches the `geo-analyzer` subagent (audit + fix bundle), then applies
 the bundle from THIS main loop at **L1** — same shape as `/web-validate`
 and `/seo`. The analyzer never edits files: it emits a `## FIX BUNDLE`

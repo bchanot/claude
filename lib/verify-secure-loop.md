@@ -2,8 +2,10 @@
 
 Runs in the ORCHESTRATOR MAIN LOOP after the dev step completes. Turns a
 finished diff into a verified, security-cleared change through two fresh
-gates and bounded loops. The dev stays inline (LRN-083: subagents =
-execution + report; loop decisions live here, in the main loop).
+gates and bounded loops. Loop decisions live here, in the main loop
+(LRN-083: subagents = execution + report). The dev step is a dispatched
+sonnet executor (feat's `feater`, bugfix's `bugfixer`): "hand the dev"
+below means re-dispatch a FRESH executor with exactly those inputs.
 
 Inputs the caller must have ready:
 - `CONTRACT`: path to the contract file written by `contract-interview.md`.
@@ -25,7 +27,8 @@ Parse its single `VERIFY — VERDICT:` line:
 
 - `CONFORME` → go to GATE 2. (First-pass conforme = no loop.)
 - `ECARTS(n)` → hand the dev the CONTRACT path + the exact `CRITERIA` gap
-  lines (NOT-MET / out-of-scope), nothing else. Dev fixes inline, then
+  lines (NOT-MET / out-of-scope), nothing else. Inline dev fixes in place;
+  a dispatched dev is re-dispatched FRESH with those inputs only. Then
   re-dispatch a FRESH verifier. Repeat. **Max 3 conformity iterations** →
   STOP + human escalation with the CRITERIA table (the contract-vs-realized
   diff).
@@ -49,8 +52,8 @@ stdout-only, no Write).
 Parse its single `SECURITY — VERDICT:` line:
 
 - `PASS` → done, proceed to commit.
-- `BLOCK(n)` → hand the dev the `BLOCKING` list + the CONTRACT path. Dev
-  fixes inline. Then **re-verify the REQUEST first** (GATE 1, fresh
+- `BLOCK(n)` → hand the dev the `BLOCKING` list + the CONTRACT path (inline
+  fix, or FRESH executor re-dispatch). Then **re-verify the REQUEST first** (GATE 1, fresh
   verifier) — a security fix can drift the behavior — **then re-run GATE 2**
   (fresh auditor), in that order. **Max 3 security iterations** → STOP +
   human escalation with the BLOCKING table.

@@ -1,5 +1,40 @@
 # TODO
 
+## 2026-07-15 — model routing (feature/model-routing)
+Spec + plan in docs/superpowers/ (transient, BDR-065). BDR-066. Branch
+unmerged — human gate.
+- [x] gate lib/model-check.sh + lib/model-gate.md (flip-tested) wired ×12
+- [x] pins: hotfixer/feater sonnet, analyzer un-pinned; SDD model:"sonnet";
+      web-validate → hotfixer L1; census guard model-routing.test.sh
+- [x] /feat re-arch: reflection inline → feater sonnet executor (partial
+      supersede BDR-050)
+- [x] WAVE 2 (user directive): doc/status dispatch (sonnet/haiku pins
+      effective); /hotfix split like /feat (joins gated 12→13, hotfixer
+      dual-use executor); /commit-change → sonnet commit-changer
+      (propose/apply, gates relocated); /release-candidate → sonnet
+      release-executor (human gates + version decision kept in dispatcher);
+      census 36/0. Exclusion list now commit-change/doc/status/release-candidate.
+- [ ] DOGFOOD (manual, next sessions): /feat live run — plan closes
+      decisions, dispatch carries sonnet, verify loop in main loop; gate
+      STOP on a sonnet session (LRN-079 class, not automatable here). Also
+      dogfood /hotfix split + /commit-change propose/apply + /release-candidate spans.
+- [x] Explore agent: kept as built-in (inherits session = opus/fable). User
+      call — search feeds reflection, silent-incompleteness risk → deserves the
+      big model. Custom sonnet Explore.md created then reverted (built-in already
+      inherits + no owned prompt).
+- [x] WAVE 3 (user directive): /bugfix split + /code-clean split → reflection
+      inline (behind existing gate), execution → sonnet executors. bugfixer =
+      pure fix+regression exec (BUGFIX-EXEC REPORT, no Agent/AskUserQuestion);
+      code-cleaner = PHASE-2 exec (refactor now runs on sonnet — inline-load pin
+      was inert). Both skills STAY gated. census wave-3 + loops-light repoint
+      (guarded). Supersedes BDR-050 bugfix carve-out.
+- [ ] WAVE 4 — client-handover: DECIDED = dispatch the WHOLE writer (spec §5,
+      not redaction-only). Needs resumable-gate protocol (~8-11 AskUserQuestion
+      → GATE NEEDED yields, dispatcher asks + SendMessage-resumes) + force-big
+      on nested audit dispatches (STEP 3/4/7 — else audits inherit sonnet) +
+      MODEL GATE on the skill. NOT yet spec'd — dedicated pass after wave-3;
+      read writer 1123-1774 first.
+
 ## 2026-07-08 — full back-merge release/1.0.0→develop (chore/backmerge-release-full)
 Genèse : la revue avait porté ~5/19 commits ; back-merge complet demandé. Cherry-pick par
 catégorie, 1 commit atomique/item, make test après chaque code. Branche non mergée (gate humain).

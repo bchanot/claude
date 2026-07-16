@@ -22,6 +22,13 @@ allowed-tools:
 
 # /audit-delta — Incremental multi-axis code audit
 
+## MODEL GATE (blocking — run before any other step)
+
+Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
+judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
+gate prints the remedy; end the turn — no later step, no dispatch. Nominal
+(big) path is silent.
+
 Audit only what changed since the last run, on the axes the user picks.
 Per axis: **audit → approval gate → fix → re-verify → marker update**,
 strictly in that order, one axis fully closed before the next starts.

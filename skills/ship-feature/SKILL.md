@@ -7,6 +7,13 @@ allowed-tools: Read, Write, Edit, Bash, Grep, Glob
 
 # ORCHESTRATOR: SHIP FEATURE
 
+## MODEL GATE (blocking — run before any other step)
+
+Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
+judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
+gate prints the remedy; end the turn — no later step, no dispatch. Nominal
+(big) path is silent.
+
 ## REQUEST
 $ARGUMENTS
 
@@ -146,6 +153,12 @@ Invoke `superpowers:subagent-driven-development` for the per-task implement loop
 `finishing-a-development-branch` step — this orchestrator owns integration via
 `gitflow finish` (STEP 9). When SDD's flow reaches "Use
 finishing-a-development-branch", stop and return.
+
+**Model routing (BDR-066):** every subagent dispatched under SDD — per-task
+implementers AND its reviewers — MUST carry `model: "sonnet"` in the Agent
+call. The plan is closed; execution and plan-conformity review are sonnet
+work. Reflection (task decomposition, review verdict arbitration) stays in
+this loop.
 
 ## STEP 4b — ERROR RECOVERY (if STEP 4 fails)
 If a subagent returns a build error, failing test, or type error:

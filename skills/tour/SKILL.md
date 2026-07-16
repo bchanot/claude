@@ -23,6 +23,13 @@ allowed-tools:
 
 # /tour — grouped multi-axis sweep (clean + security + reconcile + doc)
 
+## MODEL GATE (blocking — run before any other step)
+
+Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
+judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
+gate prints the remedy; end the turn — no later step, no dispatch. Nominal
+(big) path is silent.
+
 One pipeline per project: **security → clean → re-verify → reconcile →
 doc → convergence re-audit**, looping until a full pass applies zero new
 fixes. Auto mode by design: fixes are committed on a dedicated
@@ -104,8 +111,9 @@ honestly in the summary. Never loop past 3.
 
 ### Phase B — CLEAN
 
-1. Dispatch a read-only cleanup audit (code-cleaner agent if available,
-   else analyzer/general): dead code, unused imports/exports,
+1. Dispatch a read-only cleanup audit (analyzer or general-purpose —
+   inherits the big session model; NOT the sonnet code-cleaner, which is
+   now a fix executor): dead code, unused imports/exports,
    commented-out blocks, stale flags, norm violations. Findings as
    `id | file:line | finding | proposed fix`.
 2. Apply **behavior-preserving** fixes only. A finding that would change

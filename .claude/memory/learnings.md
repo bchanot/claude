@@ -1241,3 +1241,10 @@ rules:
 - **why**: redaction removes VALUES, not INTELLIGENCE. And tool output is instruction — a hint that says "safe to commit" will eventually be obeyed by a human or an agent.
 - **future application**: derived security artifacts (scan reports, triage JSONs, audit findings) stay local/ignored; only the allowlist CONFIG (reviewable rules) is committed. When auditing tooling, grep its user-facing hints for wording that invites committing outputs.
 - **cousin**: [[BDR-057]] (secrets by reference, redact at capture), [[BDR-065]] (transient planning artifacts — same "process artifacts ≠ repo content" family), [[LRN-103]] (re-probe before acting).
+
+## LRN-125 — don't make an agent dual-use across model tiers; route the audit consumer to a big-model agent, not the sonnet executor
+
+- **pattern**: splitting `code-cleaner` into a sonnet PHASE-2 executor broke its OTHER consumers (onboard STEP 6, tour Phase B) which dispatched it read-only AUDIT-only. Reflex "keep it dual-use (audit-only OR execute)" would have run an AUDIT on the sonnet-pinned executor = silent violation of the audit=big-model principle. Fix: reroute the audit consumers to a big-model agent (general-purpose/analyzer, inherits session), never the sonnet executor.
+- **why**: a dual-use agent inherits ONE pinned model. If its two uses sit on different tiers (audit=big, execution=sonnet), the pin silently mis-tiers one of them. hotfixer dual-use is fine because BOTH its uses are execution (same tier); code-cleaner's would have straddled tiers.
+- **future application**: before making an agent dual-use, check both consumers are on the SAME tier. Audit/reflection consumer + execution consumer → split the routing (audit → big-model agent, execution → sonnet executor); never overload one pinned agent. Distinct from [[LRN-113]] (sweep ALL consumers on a pattern fix) — this is WHICH agent a consumer routes to, not whether you found them all.
+- **cousin**: [[BDR-066]] (model routing: reflection/audit big, execution sonnet), [[LRN-113]] (consumer-staleness sweep on a pattern fix).

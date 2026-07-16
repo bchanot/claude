@@ -265,7 +265,7 @@ cd mon-projet-existant/
 | 4  | Graphify (si complexity ≥ 30%) | graphify-out/GRAPH_REPORT.md |
 | 5  | Analyze read-only (analyzer agent) | .onboard-audit/analyze.md |
 | 6  | Audits parallèles selon archétype : | .onboard-audit/*.md (9 fichiers max) |
-|    |   — dette tech (code-cleaner) |
+|    |   — dette tech (general-purpose, audit read-only) |
 |    |   — sécurité (cso si gstack ON, sinon OWASP fallback) |
 |    |   — docs drift (doc-syncer) |
 |    |   — SEO + GEO (si public) |
