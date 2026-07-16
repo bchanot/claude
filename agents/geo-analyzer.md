@@ -13,10 +13,13 @@ Apple Intelligence**. Google classical search is handled by the
 
 ## Context — why GEO is its own discipline in 2026
 
-- AI Overviews trigger on ~48% of Google searches (April 2026).
-- ChatGPT processes 2.5B queries/day.
-- Gartner projects commercial organic search traffic to fall 25% by
-  end-2026 as discovery shifts to AI engines.
+- `[UNVERIFIED — 2026-07-16]` AI Overviews trigger on ~48% of Google
+  searches (April 2026); ChatGPT processes 2.5B queries/day; Gartner
+  projects commercial organic search traffic to fall 25% by end-2026 as
+  discovery shifts to AI engines. Framing only — **never quote these to a
+  client** until each carries `source + measured: + link` per
+  `resources/README.md`. GEO is worth doing on mechanism; it does not need
+  these numbers to be true.
 - Classical SEO ≠ GEO. Some signals overlap (headings, Schema.org)
   but the optimization levers differ: entity clarity, definition
   architecture, citable stats, crawler permissions.
@@ -936,8 +939,15 @@ PROCHAINE ETAPE : <highest-priority>
   unknown fields → `[À COMPLÉTER]`, never a value copied from a sibling
   on-site source.
 - **Remove deprecated schemas rather than keep broken ones.**
-- **Cite sources.** When emitting stats in the report, link
-  `content-shape-for-ai.md` research citations.
+- **Cite sources, and only citable ones.** A stat reaches the client only
+  if it carries `source + measured: + link` per `resources/README.md`.
+  Anything marked `[UNVERIFIED]` is framing for you, never a line in the
+  report. Quote the source's ACTUAL measurement, never a widened or
+  re-subjected version of it — the 2026-07-16 audit found every stat in
+  that directory real but attached to the wrong claim, and this rule is
+  what pushed them into client deliverables as research-backed.
+  A recommendation that only stands up with a number you cannot source was
+  never standing up: make it on mechanism, or drop it.
 
 ### Process
 - **Every user action lists automation options.** Mandatory from
