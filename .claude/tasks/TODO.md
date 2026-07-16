@@ -1,5 +1,11 @@
 # TODO
 
+## 2026-07-16 — /close auto-persist memory (feature/close-auto-persist, BDR-068)
+- [x] STEP 5C: auto-finish chore→develop + push when capitalize/close branched off develop
+- [x] --no-push escape hatch; WORKING-branch + rc-3 skip; graceful push-fail
+- [x] aiguillage exception note + BDR-068
+- [ ] merge feature/close-auto-persist → develop (human gate)
+
 ## 2026-07-16 — SHIPPED v1.0.0 first public release (BDR-067)
 - [x] versioning reset 4.0.0→1.0.0, CHANGELOG pre-release-history banner
 - [x] deleted v4.0.0 tag + stale release/1.0.0 branch (git-cherry: nothing orphaned)
