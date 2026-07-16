@@ -111,8 +111,9 @@ honestly in the summary. Never loop past 3.
 
 ### Phase B — CLEAN
 
-1. Dispatch a read-only cleanup audit (code-cleaner agent if available,
-   else analyzer/general): dead code, unused imports/exports,
+1. Dispatch a read-only cleanup audit (analyzer or general-purpose —
+   inherits the big session model; NOT the sonnet code-cleaner, which is
+   now a fix executor): dead code, unused imports/exports,
    commented-out blocks, stale flags, norm violations. Findings as
    `id | file:line | finding | proposed fix`.
 2. Apply **behavior-preserving** fixes only. A finding that would change
