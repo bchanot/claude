@@ -28,12 +28,13 @@ unmerged — human gate.
       code-cleaner = PHASE-2 exec (refactor now runs on sonnet — inline-load pin
       was inert). Both skills STAY gated. census wave-3 + loops-light repoint
       (guarded). Supersedes BDR-050 bugfix carve-out.
-- [ ] WAVE 4 — client-handover: DECIDED = dispatch the WHOLE writer (spec §5,
-      not redaction-only). Needs resumable-gate protocol (~8-11 AskUserQuestion
-      → GATE NEEDED yields, dispatcher asks + SendMessage-resumes) + force-big
-      on nested audit dispatches (STEP 3/4/7 — else audits inherit sonnet) +
-      MODEL GATE on the skill. NOT yet spec'd — dedicated pass after wave-3;
-      read writer 1123-1774 first.
+- [x] WAVE 4 — client-handover (branch feature/client-handover-dispatch, off
+      develop). Shape FLIPPED to REDACTION-ONLY (full read: nested audits must
+      run big either way since /seo,/harden,/web-validate are gated → whole-writer
+      buys ~0 extra sonnet work for ~7 extra gate-yields). Design: parent
+      (client-handover-writer, inline=big) keeps STEP 1-8 pipeline + ALL gates
+      native + builds a PACKAGE; new sonnet handover-doc-writer does STEP 9-16
+      pure write+render, gate-free. Tasks 19-22 in plan. + MODEL GATE on skill.
 
 ## 2026-07-08 — full back-merge release/1.0.0→develop (chore/backmerge-release-full)
 Genèse : la revue avait porté ~5/19 commits ; back-merge complet demandé. Cherry-pick par

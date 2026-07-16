@@ -51,8 +51,8 @@ reflection orchestrators. Execution runs on pinned subagents:
 | commit-changer, release-executor, code-cleaner | sonnet (pinned) | dispatched execution — grouping+commit / release spans / approved cleanup (the audit + approval gate stay in the dispatcher) |
 | doc-syncer, onboarder, scaffolder, refactorer, interviewer, plugin-advisor | sonnet (pinned) | workers |
 | status-reporter | haiku (pinned) | mechanical collector |
-| client-handover-writer | opus (pinned, currently inert — inline-loaded; sonnet conversion planned) | deliverable writer |
-| analyzer, seo-analyzer, geo-analyzer, validator-analyzer | inherit session (Fable/Opus) | reflection / audit / inline playbooks |
+| handover-doc-writer | sonnet (pinned) | deliverable writer — synthesizes + renders the client doc from a resolved PACKAGE (dispatched by client-handover) |
+| analyzer, seo-analyzer, geo-analyzer, validator-analyzer, client-handover-writer | inherit session (Fable/Opus) | reflection / audit / inline playbooks / ship-and-handover pipeline |
 | Explore (built-in) | inherit session (Fable/Opus) | search feeds reflection — kept on the big model, not pinned down |
 
 The pure-execution skills `/doc`, `/status`, `/commit-change`,

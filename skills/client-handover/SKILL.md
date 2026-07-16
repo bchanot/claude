@@ -21,10 +21,17 @@ allowed-tools:
   - Agent
 ---
 
+MODEL GATE (blocking): run `$HOME/.claude/lib/model-gate.md` BEFORE loading
+the agent below. Verdict `small` → STOP — print the gate's remedy, end the
+turn, do not load the agent.
+
 Load and follow strictly:
 - $HOME/.claude/agents/client-handover-writer.md
 
-Execute the CLIENT HANDOVER WRITER agent on this project.
+Execute the CLIENT HANDOVER WRITER agent on this project. It runs the
+audit/fix/gate pipeline INLINE on the big session model (gated above), then
+delegates the client deliverable (Markdown + branded HTML + PDF) to the
+sonnet-pinned `handover-doc-writer` subagent (BDR-066).
 
 The agent runs a **ship-and-handover pipeline** with explicit gates:
 
