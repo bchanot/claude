@@ -6,6 +6,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [1.0.0] — 2026-07-16 — Initial public release
+
+First public release of claude-config. The feature set below is the
+accumulated work previously staged as internal versions 1.0.0–4.0.0
+(see "Pre-release (internal history)" further down for that lineage).
+
 ### Changed
 - BREAKING(layout): repo-root global memory renamed CLAUDE.md → CLAUDE.global.md; run `bash link.sh` once after pulling (doctor.sh now checks the exact target)
 - graphify skill dist refreshed 0.8.45 → 0.9.6 (out-of-band `make plugin`; SKILL.md + query/extraction references updated by the generator).
@@ -44,6 +50,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ### Removed
 - **find-skills** (alchaincyf) — skill-discovery helper dropped from the toolchain (install/update/link/toggle/advisor). Never used, and its `make update` refresh step had started failing on clone timeouts. The discovery use case stays reachable manually: `npx -y skills find <query>`.
+
+---
+
+## Pre-release (internal history)
+
+The versions below (4.0.0 down to the original 1.0.0) were internal
+development milestones predating the first public release. They are kept
+for provenance; the full detail lives in git history. Their numbering does
+not continue past the public 1.0.0 above.
 
 ## [4.0.0] — 2026-06-30
 
