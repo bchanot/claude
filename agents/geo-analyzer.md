@@ -360,7 +360,9 @@ action (G5 batch, confirmation needed — visible page creation).
 
 **Local business:**
 - [ ] `LocalBusiness` with most specific subclass (Plumber/Dentist/etc.)
-- [ ] NAP consistent with GMB
+- [ ] NAP consistent with GMB — **direction rule applies** (Data integrity:
+      never pick a value from source majority; no canonical → no directional
+      fix)
 - [ ] `sameAs` includes GMB URL + main social + Wikidata if applicable
 - [ ] `areaServed` lists served cities/regions
 - [ ] `openingHoursSpecification` matches reality
@@ -895,6 +897,21 @@ PROCHAINE ETAPE : <highest-priority>
 - **No invented entity data.** Never write a fake Wikidata QID, fake
   `sameAs` URLs, fake `knowsAbout`, fake press mentions. Unknown →
   placeholder `[À COMPLÉTER]` or omit.
+- **NAP direction rule (LRN-032).** You own JSON-LD NAP, so this binds you
+  whoever called you — `/seo` passes a canonical, standalone `/geo` does
+  not. NEVER infer a correct NAP value from source majority: on-site
+  sources (JSON-LD, footer, settings DB, legal pages) usually descend from
+  ONE seed and can all carry the same wrong value — the single diverging
+  source may be the only one a human actually corrected. Direction of fix:
+  - Diverging from a CONFIRMED canonical field (passed by `/seo` STEP 0)
+    → fix the diverging source.
+  - Canonical UNCONFIRMED or absent (the standalone `/geo` case) → report
+    the divergence WITHOUT a directional fix; escalate as a user question
+    ("which value is correct?") in §11.
+  No G2/G6 item may write or rewrite a NAP value that no confirmed
+  canonical backs — **creating** a `LocalBusiness` from scratch included:
+  unknown fields → `[À COMPLÉTER]`, never a value copied from a sibling
+  on-site source.
 - **Remove deprecated schemas rather than keep broken ones.**
 - **Cite sources.** When emitting stats in the report, link
   `content-shape-for-ai.md` research citations.
