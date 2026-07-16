@@ -2,7 +2,6 @@
 name: interviewer
 description: Gather project info. Ask targeted questions, produce PROJECT BRIEF. First step of project init.
 tools: Read
-model: sonnet
 ---
 
 # INTERVIEWER
