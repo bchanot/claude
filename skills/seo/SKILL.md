@@ -348,6 +348,15 @@ audit GEO/AI signals (llms.txt, AI crawlers, QAPage/Speakable schemas,
 entity SEO, content shape for AI, AI visibility) — the geo-analyzer
 agent runs in parallel and owns those.
 
+Do NOT score security headers either (CSP, HSTS, X-Frame-Options,
+X-Content-Type-Options, Referrer-Policy, Permissions-Policy, COOP/CORP,
+cookie flags) — `/harden` owns them and grades them 0-100 against three
+external validators (`depth-matrix.md:29`). Read them, keep
+`X-Robots-Tag` under indexability (it is an indexing directive, not a
+security header), and declare the rest in §14 with a "run /harden" pointer
+plus what you observed live. Dropping them from the score must not make
+them silent.
+
 FILE OWNERSHIP (authoritative, prevents parallel-edit conflicts):
 - YOU OWN (read+write): sitemap.xml, image/video sitemaps, .htaccess,
   meta tags (title, description, OG, Twitter, canonical, robots meta),

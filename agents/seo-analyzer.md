@@ -244,6 +244,12 @@ anonymous PageSpeed lab data and STEP 4/STEP 11 emit the §11 user action
 
 ### HTTP headers & security
 
+**Read them; score them only for `/harden` (I4).** This section stays — the
+raw headers are needed for `X-Robots-Tag`, canonical/redirect coherence, and
+the §14 observed-list. But under `/seo` the security headers themselves are
+out of scope for scoring: see the Technical axis note in STEP 9. Under
+`/harden` they are the entire job. Reading is not scoring.
+
 ```bash
 DOMAIN="<production-domain>"
 
@@ -671,7 +677,7 @@ FIX: AUTO (<what agent will do>) | USER (<what user must do>)
 
 | Axis | Weight (local B2C) | Weight (SaaS/national/content) | Score /20 |
 |---|---|---|---|
-| Technical (perf, CWV, security headers, indexability) | 20% | 30% | |
+| Technical (perf, CWV, indexability) | 20% | 30% | |
 | On-page (content, meta, headings, images, video, a11y, i18n) | 20% | 30% | |
 | SEO Local (NAP, GMB, citations) | 25% | 5% | |
 | Off-page (unlinked brand mentions — backlinks/authority NOT auditable, §14) | 10% | 15% | |
@@ -682,6 +688,31 @@ FIX: AUTO (<what agent will do>) | USER (<what user must do>)
 **Technical axis note:** CWV scored on CrUX field data (75th percentile,
 real users, from STEP 4) when available; otherwise lab PageSpeed
 Lighthouse run.
+
+**Security headers are NOT scored here (I4).** `/harden` owns them and
+grades them out of 100 with three external validators — pricing them into
+this axis too was double-counting the same finding in two reports
+(`depth-matrix.md:29` already said drop; this spec contradicted it).
+- Dispatched from `/harden` (its prompt says NARROW-SCOPE): headers ARE the
+  job — audit and score them per its brief, ignore this note.
+- Dispatched from `/seo`: do not score CSP, HSTS, X-Frame-Options,
+  X-Content-Type-Options, Referrer-Policy, Permissions-Policy, COOP/CORP,
+  cookie flags. STEP 4 still reads them — you need them for the one
+  carve-out below — but they earn and lose no points here.
+
+**Carve-out — `X-Robots-Tag` stays.** It is an indexing directive wearing a
+header's clothes: `noindex` served there deindexes the page as surely as a
+meta robots tag. Score it under indexability. That is what
+`depth-matrix.md:29` means by "unless it directly affects indexability" —
+it is the header that does, and the security headers above are not.
+
+**Drop ≠ silence.** A user who never runs `/harden` must not read a clean
+Technical score as clean headers. Whenever depth=FULL, emit in §14:
+`Security headers (CSP, HSTS, X-Frame-Options…) — not scored here: /harden
+owns them (0-100 + Observatory/SecurityHeaders/SSL Labs). Run /harden
+<url>. Observed live this run: <present list | none observed>.`
+Name what you saw. An omission has to stay legible — the same reason
+COVERAGE is mandatory in STEP 9.
 
 **Off-page axis note (I1).** Score ONLY the unlinked brand mentions
 gathered in STEP 6 (`web_search "<business-name>" -site:<domain>`).
@@ -704,7 +735,7 @@ scores twice. Revisit the 10/15% only when the axis widens back.
 
 | Axis | Weight (local B2C) | Weight (SaaS/national/content) | Score /20 |
 |---|---|---|---|
-| Technical (security headers, indexability, config) | 25% | 35% | |
+| Technical (indexability, config) | 25% | 35% | |
 | On-page (content, meta, headings, images, video, a11y, i18n) | 35% | 45% | |
 | SEO Local (markup, NAP in JSON-LD, legal) | 20% | 5% | |
 | Legal compliance (pages, CMP, mentions) | 20% | 15% | |
