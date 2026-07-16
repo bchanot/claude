@@ -28,7 +28,7 @@ unmerged — human gate.
       code-cleaner = PHASE-2 exec (refactor now runs on sonnet — inline-load pin
       was inert). Both skills STAY gated. census wave-3 + loops-light repoint
       (guarded). Supersedes BDR-050 bugfix carve-out.
-- [ ] WAVE 4 — client-handover (branch feature/client-handover-dispatch, off
+- [x] WAVE 4 — client-handover (branch feature/client-handover-dispatch, off
       develop). Shape FLIPPED to REDACTION-ONLY (full read: nested audits must
       run big either way since /seo,/harden,/web-validate are gated → whole-writer
       buys ~0 extra sonnet work for ~7 extra gate-yields). Design: parent

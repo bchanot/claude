@@ -9,8 +9,8 @@ has()   { if grep -qF "$2" "$R/$1"; then ok; else ko "$1 missing: $2"; fi; }
 lacks() { if grep -qF "$2" "$R/$1"; then ko "$1 must NOT contain: $2"; else ok; fi; }
 fm_lacks() { if awk 'NR<=10' "$R/$1" | grep -qF "$2"; then ko "$1 frontmatter must NOT contain: $2"; else ok; fi; }
 
-# 1) gate wired in the 13 reflection orchestrators
-for s in ship-feature init-project feat bugfix onboard seo geo web-validate harden audit-delta tour code-clean hotfix; do
+# 1) gate wired in the 14 reflection orchestrators
+for s in ship-feature init-project feat bugfix onboard seo geo web-validate harden audit-delta tour code-clean hotfix client-handover; do
   has "skills/$s/SKILL.md" 'lib/model-gate.md'
 done
 # 2) gate NOT wired in the excluded skills (encodes the spec exclusion list)
@@ -48,6 +48,10 @@ lacks "agents/bugfixer.md"       'AskUserQuestion'
 has "skills/code-clean/SKILL.md" 'subagent_type="code-cleaner"'
 has "agents/code-cleaner.md"     'model: sonnet'
 lacks "agents/code-cleaner.md"   'AskUserQuestion'
+# 9) wave-4 — client-handover: pipeline (big) inline + gated, doc-gen dispatched to sonnet
+has "agents/handover-doc-writer.md"     'model: sonnet'
+lacks "agents/handover-doc-writer.md"   'AskUserQuestion'
+has "agents/client-handover-writer.md"  'subagent_type="handover-doc-writer"'
 
 printf 'model-routing census: %d pass, %d fail\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
