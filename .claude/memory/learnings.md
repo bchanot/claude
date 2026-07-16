@@ -1273,3 +1273,13 @@ rules:
 - **pattern**: a stale pushed `release/1.0.0` (abandoned July-4 prep) sat 227 commits behind develop. Before deleting it, `git cherry -v develop release/1.0.0` → `+` = unique by patch-id, `-` = equivalent patch already in develop. Content-checked each `+` (rtk PATH fix, drop-AI-attribution settings, find-skills drop, BLK-016/LRN-098/101, EVAL-015, features) → all present in develop → safe to delete, nothing orphaned.
 - **why**: `git rev-list develop..branch` counts by SHA — a feature merged into BOTH branches shows as "unique" (distinct merge commit) though its CONTENT is in develop. `git cherry` uses patch-id, so `-` = "same change already here". The `+` set still needs a CONTENT check (patch-id misses re-applied/squashed changes).
 - **future application**: before abandoning/deleting a divergent branch, `git cherry -v <mainline> <branch>` then content-verify the `+` commits. This is HOW you prove the [[LRN-117]] fork-orphans-code risk is absent. [[LRN-116]]
+
+## LRN-130 — Claude Code deny glob = absolute, no exemption mechanism — 2026-07-16
+- **Pattern**: a `deny` rule cannot be carved out. 3 levers, all dead — verified in permissions.md, not inferred:
+  - `allow` more specific → ✗ `:33` "deny, then ask, then allow… rule specificity doesn't change the order"; `:35` "a deny rule can't carry allowlist exceptions".
+  - negation `!` in glob → ✗ absent from rule syntax.
+  - PreToolUse hook `permissionDecision:"allow"` → ✗ `:361` "Hook decisions don't bypass permission rules".
+- **Corollary**: hooks only HARDEN, never loosen (why config-protection.sh works). Only lever on a deny = the glob's own shape. Get it right first — no patch layer above it.
+- **Also**: `Write(path)` never matches file perms; `Edit(path)` covers ALL file-editing tools (`:242`; `:244` prescribes it). Startup warns on `Write(glob)` — but does NOT warn on a dead `allow` under a `deny`.
+- **Also**: `Read` deny hits Grep + Glob too (`:242`). Bash NOT covered — `Bash(cat .env)` bypasses `Read(**/.env)` unless separately denied.
+- **Applied**: [[BDR-069]].

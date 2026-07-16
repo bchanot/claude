@@ -1008,3 +1008,11 @@ rules:
 - **Amends**: [[LRN-069]] (push needs explicit go) — scoped exception for memory-only ritual persist; `gitflow-aiguillage.md` "never gitflow finish" — carved for capitalize/close.
 - **Files**: skills/capitalize/SKILL.md (STEP 5C + aiguillage branch-capture + STEP 6 outcomes + Rules + arg-hint `--no-push`), lib/gitflow-aiguillage.md (exception note). Tests unaffected (run-deterministic covers memory-commit.sh surgical scope, not the persist step).
 - **Status**: implemented on feature/close-auto-persist, UNMERGED (human gate).
+
+## BDR-069 — permissions deny: keep broad `.env.*` glob, keep `.env.example` name (option A) — 2026-07-16
+- **Decision**: `Write(path)` deny rules inert (Claude Code matches `Edit(path)` only) → 5 secret-write bans converted to `Edit()`. Mirrored 9 secret patterns Read denied but Edit did not → Read/Edit parity 14/14. New read-allowed/write-denied class: lockfiles (`*.lock`, `package-lock.json`, `pnpm-lock.yaml`, `go.sum`) + `node_modules/**`. Kept `Edit(**/.env.*)` BROAD despite matching `.env.example` (mandated by CLAUDE.global.md:206). No rename.
+- **Why**: deny glob = absolute, no exemption mechanism ([[LRN-130]]). Only lever = glob shape. Narrowing to `.env*.local` fails open on `.env.production`/`.staging` — real secrets outside Next.js convention.
+- **Cost accepted**: scaffolder/doc-syncer degraded on `.env.example` — Edit/Write/Read/Grep/Glob blocked; Bash heredoc still works (`Bash(cat *)` allowed). Ergonomic tax on /init-project, not a hard block.
+- **Alternatives rejected**: (B) narrow glob → weakens `.env.production`; blocked by auto-mode classifier as unauthorized self-modification ([[EVAL-024]]). (C) rename → `env.example` sidesteps glob at zero security cost, but ~30 refs (scaffolder, doc-syncer, init-project, deploy, 3 archetypes, link.sh, install-plugins.sh, toggle-external.sh) + repo's own root `.env.example` + seo-data.test.sh + gitignore `!.env.example` (BDR-030) → refactor, user declined.
+- **Files**: settings.json, templates/settings/SETTINGS.md (taught the broken `Write()` pattern → fixed at source so /onboard stops propagating it).
+- **Status**: implemented on chore/fix-inert-write-deny-rules (07ca738), UNMERGED (human gate).
