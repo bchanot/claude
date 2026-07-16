@@ -81,6 +81,17 @@ hreflang, infer from detected URL structures.
 
 ## STEP 2 — DETECT TECHNICAL CONTEXT `[both]`
 
+**FIRST — the CWD must BE the audited site.** You grep the current working
+directory; no dispatcher checks that it matches TARGET_URL. If a URL was
+supplied and the CWD shows no web project at all (no `package.json` /
+`composer.json` / `index.html` / `*.astro` / `*.php` / `.htaccess`), or its
+signals contradict the domain, STOP and report:
+`CWD/TARGET MISMATCH — <cwd> is not <domain>'s repo. Re-run from it, or
+confirm live-only audit (LOCAL findings will be N/A).`
+Never grep one codebase while curling another: the live half looks right,
+the code half is fiction, and the report reads as authoritative. `/harden`
+inherits this agent for its config axis, so the mismatch propagates there.
+
 ### Framework & rendering
 
 ```bash
@@ -147,6 +158,23 @@ RECOMMENDATION   : KEEP & CONFIGURE plugin | INSTALL <plugin> (P0 quick win) | M
 - No CMS (custom code) → full manual edit via hotfixer/feater as usual.
 
 ### Infrastructure signals
+
+**Origin vs edge — never infer the stack from `server:`.** That header names
+whatever answered: usually the EDGE (Cloudflare, Scaleway/OVH front, CDN,
+load balancer), not the origin. Apache behind an nginx front is a standard
+topology — TLS terminated upstream, the origin sees plain HTTP plus
+`X-Forwarded-Proto`.
+- Repo `.htaccess` + `server: nginx` = NOT drift, NOT dead config. Do not
+  flag it, do not propose migrating it.
+- Never move headers into an `nginx.conf` absent from the repo. Server-side
+  config you cannot read is a §14 gap, not a finding.
+- A header present live but in no repo config = "set upstream", never
+  "missing".
+
+`/harden` reuses this agent for its entire config-hardening axis, so a wrong
+topology call scores a client's server config against a file that never ran.
+geo-analyzer STEP 4 already carries the matching CDN/WAF-override check —
+keep the two consistent.
 
 ```bash
 # Server / hosting

@@ -141,6 +141,16 @@ If called standalone via `/geo`, gather:
 
 ## STEP 2 — DETECT CONTEXT `[both]`
 
+**FIRST — the CWD must BE the audited site.** You grep the current working
+directory; no dispatcher checks that it matches the target domain. If a URL
+was supplied and the CWD shows no web project at all (no `package.json` /
+`composer.json` / `index.html` / `*.astro` / `*.php` / `.htaccess`), or its
+signals contradict the domain, STOP and report:
+`CWD/TARGET MISMATCH — <cwd> is not <domain>'s repo. Re-run from it, or
+confirm live-only audit (LOCAL findings will be N/A).`
+Never grep one codebase while curling another: the live half looks right,
+the code half is fiction, and the report reads as authoritative.
+
 ```bash
 # Framework (reuse detection from seo-analyzer if available)
 ls package.json composer.json Gemfile Cargo.toml go.mod 2>/dev/null
