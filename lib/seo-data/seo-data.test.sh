@@ -178,6 +178,35 @@ has "cap is reported"            "$CAP" '"capped": true'
 has "capped withholds orphans"   "$CAP" '"orphans_withheld": true'
 hasnt "capped emits no orphans"  "$CAP" '"orphans":'
 
+echo "── score (I7) ──"
+sc() { printf '%s' "$1" | python3 "$SD/score.py" --findings -; }
+# technical: haute(-8) + moyenne(-3) = 100-11 = 89 → 17.8
+B='{"depth":"FULL","profile":"local","axes":{"technical":{"findings":[{"severity":"haute"},{"severity":"moyenne"}]},"seo-local":{"findings":[]},"off-page":{"findings":[]},"social":{"findings":[]},"competitive":{"findings":[]},"legal":{"findings":[]},"on-page":{"findings":[]}}}'
+R="$(sc "$B")"
+has "harden scale, /5 into /20"   "$R" '"score_20": 17.8'
+has "no findings = 20"            "$R" '"score_20": 20.0'
+has "nothing renormalised"        "$R" '"weights_renormalised": false'
+# THE point of I7: same findings in, same score out
+A1="$(sc "$B" | python3 -c 'import sys,json;print(json.load(sys.stdin)["global_20"])')"
+A2="$(sc "$B" | python3 -c 'import sys,json;print(json.load(sys.stdin)["global_20"])')"
+[ "$A1" = "$A2" ] && ok "score is reproducible" || no "score is reproducible" "$A1 vs $A2"
+# N/A is not a zero, and R2 mandated renormalising by hand — now computed
+NA='{"depth":"FULL","profile":"local","axes":{"technical":{"findings":[]},"on-page":{"status":"na"},"seo-local":{"findings":[]},"off-page":{"status":"na"},"social":{"findings":[]},"competitive":{"findings":[]},"legal":{"findings":[]}}}'
+RN="$(sc "$NA")"
+has "na axes listed"             "$RN" '"on-page"'
+has "renormalisation flagged"    "$RN" '"weights_renormalised": true'
+# all axes 20 → global must stay 20: N/A must not drag the mean down
+has "na is not a zero"           "$RN" '"global_20": 20.0'
+# prevalence shifts severity ONE step, both ways
+WIDE='{"depth":"LOCAL","profile":"local","axes":{"technical":{"findings":[{"severity":"moyenne","affected":10,"sampled":12}]},"on-page":{"findings":[]},"seo-local":{"findings":[]},"legal":{"findings":[]}}}'
+ONE='{"depth":"LOCAL","profile":"local","axes":{"technical":{"findings":[{"severity":"moyenne","affected":1,"sampled":12}]},"on-page":{"findings":[]},"seo-local":{"findings":[]},"legal":{"findings":[]}}}'
+has "widespread escalates (-8)"  "$(sc "$WIDE")" '"score_20": 18.4'
+has "isolated de-escalates (-1)" "$(sc "$ONE")"  '"score_20": 19.8'
+# malformed input is an error, never a silently wrong number
+has "unknown severity rejected"  "$(sc '{"depth":"FULL","profile":"local","axes":{"technical":{"findings":[{"severity":"bogus"}]}}}')" '"status": "error"'
+has "unknown profile rejected"   "$(sc '{"depth":"FULL","profile":"martian","axes":{}}')" '"status": "error"'
+has "garbage json is an error"   "$(sc 'not json')" '"status": "error"'
+
 echo "── drift (H2) ──"
 DH="$(mktemp -d)"
 D1="$(HOME="$DH" SEO_DATA_MOCK_DIR="$SD/fixtures-drift-v1" python3 "$SD/drift.py" \

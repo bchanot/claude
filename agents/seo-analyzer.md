@@ -898,6 +898,41 @@ FIX: AUTO (<what agent will do>) | USER (<what user must do>)
 | Competitive position | 5% | 10% | |
 | Legal compliance | 10% | 5% | |
 
+**Compute the scores, do not feel them (I7).** Emit your findings, then let
+the engine do the arithmetic:
+
+```bash
+bash ~/.claude/lib/seo-data/fetch.sh score --findings /tmp/seo-findings.json
+```
+
+```json
+{"depth":"FULL","profile":"local",
+ "axes":{"technical":{"findings":[{"severity":"haute","affected":9,"sampled":12}]},
+         "on-page":{"status":"na","reason":"client-rendered (R2)"},
+         "off-page":{"status":"na","reason":"backlinks unauditable (I1)"}}}
+```
+
+`profile`: `local` (B2C) | `national` (SaaS/national/content). Severities are
+`critique|haute|moyenne|basse` — `/harden`'s scale (-15/-8/-3/-1, clamp,
+then /5 into /20), so the whole skill family speaks one vocabulary.
+
+**The split matters.** WHICH findings exist and how severe each is stays your
+judgement — irreducible. The addition is not: same findings in, same score
+out. Until now every axis was felt, so two runs over identical code could
+disagree, and `/client-handover` gates on 17/20.
+
+- `affected`/`sampled` (optional) shift severity ONE step: ≥50% of the sample
+  escalates, a single page de-escalates. A defect on 1 of 12 pages is not the
+  defect on 12 of 12; pretending so is what made the old numbers wobble.
+- `status: "na"` → the axis is EXCLUDED and the remaining weights are
+  renormalised for you. This is the R2 rule (client-rendered on-page) and the
+  I1 rule (unauditable off-page), finally computed instead of done by hand.
+  **N/A is not a zero** and the engine will not let it behave like one.
+- `status: "error"` → malformed findings. Fix them; never fall back to
+  eyeballing a number.
+- Run it twice on the same file before publishing. If the output moved, your
+  findings moved, and that is the thing to explain.
+
 **Technical axis note:** CWV scored on CrUX field data (75th percentile,
 real users, from STEP 4) when available; otherwise lab PageSpeed
 Lighthouse run.

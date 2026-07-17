@@ -193,6 +193,28 @@ fetch.sh linkgraph --url https://ex.com/sitemap.xml [--max 500]
     • Mock is pages.json ({url: html}), not a single page.html: one fixture
       cannot express a graph — every node would carry identical links.
 
+fetch.sh score --findings <path.json | ->
+  → {"status":"ok","axes":{"technical":{"score_20":17.8,"weight":0.2,
+       "weight_renormalised":0.2857,"findings":2}},
+     "na":["off-page","on-page"],"weights_renormalised":true,"global_20":17.6}
+  → {"status":"error","reason":"unknown severity: 'bogus'"|"bad_findings_json"}
+
+  I7. /harden has a real scale (SKILL.md:435: -15/-8/-3/-1, clamp [0,100]);
+  /seo had none, so every axis was FELT and two runs over identical code could
+  disagree — while /client-handover gates on 17/20. Same scale here, /5 into
+  /20, one vocabulary across the family.
+    • The split: WHICH findings exist and how severe each is stays the LLM's
+      judgement. The addition is not. Same findings in, same score out.
+    • affected/sampled shift severity ONE step: >=50% of the sample escalates,
+      a single page de-escalates. A defect on 1 of 12 pages is not the defect
+      on 12 of 12.
+    • status:"na" → axis EXCLUDED, remaining weights renormalised. This is
+      R2's rule (client-rendered on-page) and I1's (unauditable off-page),
+      computed rather than done by hand. N/A is not a zero, and the engine
+      will not let it act like one.
+    • Malformed input is an error, never a silently wrong number — unlike the
+      fetch verbs, a degrade here would mean bad input, not a network fact.
+
 fetch.sh drift --url https://ex.com/sitemap.xml [--max 500]
   → {"status":"ok","baseline":true,"captured":"…","pages":24,"store":"…"}
   → {"status":"ok","baseline":false,"since":"…","gone":[…],"new":[…],

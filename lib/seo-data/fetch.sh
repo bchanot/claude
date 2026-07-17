@@ -32,6 +32,8 @@ case "$cmd" in
   # No auth, no Google: stdlib-only, runs even without the venv.
   sitemap)
     exec "$PY" "$HERE/sitemap.py" --store "$STORE" "$@" ;;
+  score)
+    exec "$PY" "$HERE/score.py" --store "$STORE" "$@" ;;
   drift)
     exec "$PY" "$HERE/drift.py" --store "$STORE" "$@" ;;
   rendercheck)
@@ -50,6 +52,6 @@ case "$cmd" in
     fi
     echo '{"status":"error","reason":"usage: fetch.sh forget {--label <label>|--all} (label charset: A-Za-z0-9._-)"}'
     exit 2 ;;
-  *) echo '{"status":"error","reason":"usage: fetch.sh {accounts|crux|queries|inspect|cannibal|sitemap|rendercheck|linkgraph|drift|forget} [flags]"}'
+  *) echo '{"status":"error","reason":"usage: fetch.sh {accounts|crux|queries|inspect|cannibal|sitemap|rendercheck|linkgraph|drift|score|forget} [flags]"}'
      exit 2 ;;
 esac
