@@ -13,8 +13,10 @@ NEXT: H1 (SSRF/injection guard) → C1 (sitemap crawl). Human merge gate: all
 - **B3 KILLED** — GSC Links API does not exist. Verified against the API
   reference: Search Console v1 exposes exactly Search Analytics, Sitemaps,
   Sites, URL Inspection. A subagent hallucinated it; I doubted it in the
-  plan and the doubt was right. Common Crawl is the ONLY free backlink
-  source → the 70/100 cap is mandatory, not optional.
+  plan and the doubt was right. (Its follow-on — "so Common Crawl is the
+  only free source, and the 70/100 cap is mandatory" — was ALSO wrong: see
+  B1/B2 KILLED below. Common Crawl is a 17 GB dead end, and Bing's
+  GetUrlLinks is the only viable free source, first-party only.)
 - **I1 was an over-correction** — "Off-page has ZERO data" was overstated
   (relayed from a subagent, unverified). Brand mentions ARE gathered
   (STEP 6). Narrowed the axis definition instead of N/A-ing it; weights
@@ -29,6 +31,26 @@ NEXT: H1 (SSRF/injection guard) → C1 (sitemap crawl). Human merge gate: all
 - **H1 moved up** (was AXE 5) — it is a PREREQUISITE of C1, not a
   follow-up. Today only $DOMAIN (user-typed) is interpolated. After C1, N
   URLs from a REMOTE sitemap flow into shell commands and fetch targets.
+
+### B1/B2 (Common Crawl backlinks) — KILLED 2026-07-17, measured not assumed
+The plan said Common Crawl was the free backlink source and the 70/100 cap
+was therefore mandatory. Both premises are dead:
+- domain-edges.txt.gz = **17.3 GB gzipped** (+879 MB vertices, +2.3 GB
+  ranks), measured live via HEAD. Finding one domain's inbound links means
+  scanning all of it, per audit. Non-viable, and abusive toward a nonprofit.
+- The implementation everyone cites (claude-seo commoncrawl_graph.py:169)
+  caps at `500 MiB` = **2.9% of the edges file**, and reports what that
+  arbitrary slice held as a backlink profile. A random sample presented as a
+  measurement — the exact failure class this branch exists to remove. We
+  nearly copied it.
+- B2 dies with B1: nothing to cap.
+CONSEQUENCE: I1's narrowed Off-page axis (brand mentions only, backlinks +
+authority declared unauditable in §14) is the FINAL state, not a placeholder.
+Its §14 line was corrected — it used to point at Common Crawl as "nearest
+free source", which is a 17 GB dead end.
+RAISES W2's VALUE: Bing's GetUrlLinks is now the ONLY free viable backlink
+source. First-party only (never a competitor), still blocked on the client's
+Bing account.
 
 ### W2 (Bing) — DEFERRED, blocked on a real-world test
 Killed after 4 challenge rounds. User's model: client sites live on CLIENT
@@ -109,12 +131,13 @@ as NEW VERBS. No new architecture.
 - [ ] C3 Internal-link graph — orphan pages + 3-click depth are TODAY stated
       as checks with no command to compute them. C1 unblocks real computation.
 
-### AXE 3 — Off-page real (upgrades I1)
-- [ ] B1 `backlinks` verb — Common Crawl hyperlinkgraph
-      (data.commoncrawl.org/projects/hyperlinkgraph), free, no key.
-- [ ] B2 Honest cap — steal their idea (free-backlink-sources.md:33: cap
-      health at 70/100 when only Common Crawl). Fits our code-ceiling doctrine
-      exactly.
+### AXE 3 — Off-page real (upgrades I1) — SUPERSEDED, see B1/B2 KILLED above
+- [x] ~~B1 `backlinks` verb — Common Crawl hyperlinkgraph~~ KILLED: edges file
+      measured at 17.3 GB gzipped. Non-viable per audit; the reference impl
+      caps at 500 MiB = 2.9% of the graph and calls the remainder a backlink
+      profile.
+- [x] ~~B2 Honest cap at 70/100~~ KILLED with B1: nothing left to cap.
+      I1's narrowed axis is the final state.
 - [ ] B3 VERIFY FIRST: GSC Links API. Subagent claimed "available, OAuth
       already there" — I doubt it: Search Console API v3 has no links endpoint
       (links report is UI-only AFAIK). Verify before planning on it. Do not

@@ -944,13 +944,30 @@ that reaches a client via `/client-handover`. A low mention count is a low
 mention count — it is NOT evidence of a weak backlink profile.
 
 Mandatory §14 line whenever depth=FULL, verbatim:
-`Backlinks / domain authority — NOT audited: no backlink index wired.
-Nearest free source: Common Crawl hyperlinkgraph. Commercial: Ahrefs /
-Semrush / Majestic. The Off-page score above prices in brand mentions only.`
+`Backlinks / domain authority — NOT audited: no free backlink index is
+practical, and none is wired. Commercial: Ahrefs / Semrush / Majestic. The
+Off-page score above prices in brand mentions only.`
 
-Weight deliberately unchanged despite the narrower scope: re-deriving it
-now, then again when a backlink source lands, would churn historical
-scores twice. Revisit the 10/15% only when the axis widens back.
+**This is the final state, not a placeholder (B1 killed, 2026-07-17.)** The
+free options were measured, not assumed:
+- **GSC has no links endpoint.** The Search Console API exposes exactly
+  Search Analytics, Sitemaps, Sites, URL Inspection. The Links report is
+  UI-only.
+- **Common Crawl's hyperlinkgraph is 17.3 GB gzipped** for the domain-edges
+  file alone (+879 MB vertices, +2.3 GB ranks), measured live. Finding one
+  domain's inbound links means scanning all of it, per audit. Not slow —
+  non-viable, and abusive toward a nonprofit serving it free. The reference
+  implementation everyone cites caps its download at 500 MiB, i.e. **2.9% of
+  the edges file**, and reports whatever that arbitrary slice contained as a
+  backlink profile. That is a random sample wearing a measurement's clothes,
+  which is precisely what this axis note exists to prevent.
+- **Bing Webmaster's `GetUrlLinks` is the only free, viable source** — but it
+  is first-party only (your verified properties), so it can never cover a
+  competitor, and it needs the client's Bing account. See W2, deferred.
+
+So: no number here beats a fabricated one. Weight deliberately unchanged —
+re-deriving it for an axis that is not going to widen would churn historical
+scores for nothing.
 
 ### LOCAL depth — 4 axes
 
