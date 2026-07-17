@@ -29,10 +29,11 @@ def _mock(name):
         return f.read()
 
 def _fetch(url):
-    from urllib.request import urlopen, Request      # stdlib, lazy
-    req = Request(url, headers={"User-Agent": "claude-seo-data/1.0"})
-    with urlopen(req, timeout=TIMEOUT) as r:         # nosec: audited target
-        raw = r.read(20 * 1024 * 1024)               # 20 MB ceiling
+    # SSRF + DNS-rebinding safe: resolve-then-pin, redirects re-validated.
+    # This is the single seam for ALL network egress — linkgraph/render_check/
+    # drift all call sitemap._fetch — so pinning here covers every verb.
+    import safe_fetch                                # sibling, lazy
+    raw = safe_fetch.safe_fetch(url, timeout=TIMEOUT, max_bytes=20 * 1024 * 1024)
     if raw[:2] == b"\x1f\x8b":                       # sitemap.xml.gz is common
         raw = gzip.decompress(raw)
     return raw
@@ -53,8 +54,14 @@ def _refuse_dtd(raw):
     google_seo.py's mock/degrade paths. A sitemap with a DTD is not a sitemap
     we want anyway.
     """
-    head = raw[:4096].lstrip()[:2048].upper()
-    if b"<!DOCTYPE" in head or b"<!ENTITY" in head:
+    # Scan the WHOLE document, not a prefix. A security review (2026-07-17)
+    # showed a >4 KB leading comment pushed <!DOCTYPE past the old raw[:4096]
+    # window while ET.fromstring still parsed and EXPANDED the entities —
+    # billion-laughs reopened. A legitimate sitemap contains neither construct
+    # anywhere, so a full case-insensitive scan is correct; over ≤20 MB it is a
+    # single re.search, microseconds, no 20 MB uppercased copy.
+    import re                                       # stdlib, lazy
+    if re.search(rb"(?i)<!\s*(DOCTYPE|ENTITY)", raw):
         raise UnsafeXML("DTD in sitemap")
 
 SITEMAP_NS = "{http://www.sitemaps.org/schemas/sitemap/0.9}"

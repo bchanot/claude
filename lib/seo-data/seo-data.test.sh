@@ -99,6 +99,47 @@ check_first() { [ "$1" = "$2" ] && ok "$3" || no "$3" "got[$1]"; }
 check_first "$CAN_FIRST" "urgence fuite https://ex.com/urgence" "cannibal ranks by impact"
 has "cannibal reports the cap"    "$CAN" '"capped": false'
 
+echo "── safe_fetch (DNS-rebinding / SSRF) ──"
+# Inject a hostile resolver: the name is public, the address is internal. This
+# is the rebinding vector a name-level guard cannot see — prove it is refused
+# BEFORE any connection. Deterministic + offline via the injected resolver.
+sfpy() { PYTHONPATH="$SD" python3 -c "$1" 2>&1; }
+REBIND="$(sfpy '
+import socket, safe_fetch as sf
+def meta(h,p,**k): return [(socket.AF_INET,socket.SOCK_STREAM,6,"",("169.254.169.254",p))]
+try: sf.safe_fetch("https://evil.example/", resolver=meta); print("CONNECTED")
+except sf.UnsafeTarget as e: print("REFUSED", e)')"
+has "rebind to metadata refused"  "$REBIND" 'REFUSED'
+has "refusal names the ip"        "$REBIND" '169.254.169.254'
+hasnt "never connected"           "$REBIND" 'CONNECTED'
+MIXED="$(sfpy '
+import socket, safe_fetch as sf
+def mix(h,p,**k): return [(socket.AF_INET,socket.SOCK_STREAM,6,"",("93.184.216.34",p)),
+                          (socket.AF_INET,socket.SOCK_STREAM,6,"",("127.0.0.1",p))]
+try: sf.safe_fetch("https://evil.example/", resolver=mix); print("CONNECTED")
+except sf.UnsafeTarget as e: print("REFUSED")')"
+has "multi-A public+private refused" "$MIXED" 'REFUSED'
+# classification, dual-stack — is_global catches CGNAT the per-flags miss
+CLS="$(sfpy '
+import safe_fetch as sf
+pub=[c for c in ["8.8.8.8","2606:2800:220:1:248:1893:25c8:1946"] if sf._ip_is_public(c)]
+bad=[c for c in ["169.254.169.254","127.0.0.1","10.0.0.1","192.168.1.1","100.64.1.1","::1","fe80::1","0.0.0.0"] if sf._ip_is_public(c)]
+print("PUB",len(pub),"BADPASS",len(bad))')"
+has "public v4+v6 pass"           "$CLS" 'PUB 2'
+has "no internal ip passes"       "$CLS" 'BADPASS 0'
+# security review 2026-07-17: 6to4-relay anycast passes is_global — extra deny
+SIXTOFOUR="$(sfpy 'import safe_fetch as sf; print("6TO4", sf._ip_is_public("192.88.99.1"))')"
+has "6to4 relay anycast refused"  "$SIXTOFOUR" '6TO4 False'
+# scheme + stdlib
+SCHEME="$(sfpy '
+import safe_fetch as sf
+try: sf.safe_fetch("file:///etc/passwd"); print("OK")
+except sf.UnsafeTarget: print("REFUSED")')"
+has "non-http scheme refused"     "$SCHEME" 'REFUSED'
+IMP="$(/bin/grep -E "^(import|from) " "$SD/safe_fetch.py" | /bin/grep -cvE "gzip|http\.client|ipaddress|socket|ssl|urllib\.parse")"
+[ "$IMP" = "0" ] && ok "safe_fetch is stdlib-only" || no "safe_fetch is stdlib-only" "$IMP non-stdlib imports"
+hasnt "no requests dependency"    "$(cat "$SD/safe_fetch.py")" 'import requests'
+
 echo "── sitemap ──"
 SM="$(SEO_DATA_MOCK_DIR="$MOCK" python3 "$SD/sitemap.py" --url https://ex.com/sitemap.xml)"
 has "sitemap ok"                 "$SM" '"status": "ok"'
@@ -134,6 +175,16 @@ DTD="$(SEO_DATA_MOCK_DIR="$SD/fixtures-sitemap-dtd" python3 "$SD/sitemap.py" \
 has "billion-laughs refused"     "$DTD" '"status": "degraded"'
 has "dtd reason is distinct"     "$DTD" 'unsafe_xml_dtd'
 hasnt "dtd never parsed"         "$DTD" '"count"'
+# security review 2026-07-17: a >4KB leading comment pushed <!DOCTYPE past the
+# old raw[:4096] scan while ET still parsed+expanded it. Now the whole doc is
+# scanned. Prove a padded DTD is refused and the entity never expands.
+PADDED="$(python3 -c '
+import sys; sys.path.insert(0,"'"$SD"'"); import sitemap as sm
+bomb=("<?xml version=\"1.0\"?>\n<!-- "+("x"*5000)+" -->\n"
+      "<!DOCTYPE d [ <!ENTITY lol \"lol\"> ]>\n<urlset><url><loc>https://x/&lol;</loc></url></urlset>").encode()
+try: sm._refuse_dtd(bomb); print("PARSED")
+except sm.UnsafeXML: print("REFUSED")')"
+has "padded DTD refused (full scan)" "$PADDED" 'REFUSED'
 
 echo "── render_check (R2) ──"
 SPA="$(SEO_DATA_MOCK_DIR="$SD/fixtures-spa" python3 "$SD/render_check.py" \

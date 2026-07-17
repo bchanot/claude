@@ -16,11 +16,13 @@
 # vault and into a request. Allowlist, per CLAUDE.md: explicit allowlist beats
 # implicit denylist.
 #
-# NOT COVERED, deliberately: DNS-level SSRF. A public hostname that RESOLVES to
-# a private address passes this guard. Closing that needs resolve-then-pin at
-# the HTTP layer; curl in a shell cannot do it without a TOCTOU window between
-# the check and the connection. Literal local targets ARE rejected below. The
-# omission is stated rather than silent — see lib/seo-data/README.md.
+# DNS-level SSRF (a public hostname that RESOLVES to a private address, or
+# rebinds between check and connect): this NAME-level guard does not catch it —
+# closing it needs resolve-then-pin at the HTTP layer. That is now DONE for the
+# Python egress: lib/seo-data/safe_fetch.py pins every fetch (sitemap, linkgraph,
+# rendercheck, drift). It is NOT done for shell `curl`, which cannot pin without
+# `curl --resolve`; those paths keep this literal-local check only. Stated, not
+# silent — see lib/seo-data/README.md (safe_fetch).
 set -uo pipefail
 
 _die() { echo "url-guard: $1" >&2; exit 2; }
