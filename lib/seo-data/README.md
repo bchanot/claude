@@ -193,6 +193,27 @@ fetch.sh linkgraph --url https://ex.com/sitemap.xml [--max 500]
     • Mock is pages.json ({url: html}), not a single page.html: one fixture
       cannot express a graph — every node would carry identical links.
 
+fetch.sh drift --url https://ex.com/sitemap.xml [--max 500]
+  → {"status":"ok","baseline":true,"captured":"…","pages":24,"store":"…"}
+  → {"status":"ok","baseline":false,"since":"…","gone":[…],"new":[…],
+     "regressions":[{"url":…,"field":"canonical","was":"…","now":null}],
+     "changes":[{"url":…,"field":"title","was":"…","now":"…"}]}
+
+  On-page drift between audits. seo-analyzer.md:1365 keeps only "date + score
+  + key changes" as PROSE the LLM writes about its own previous prose: lossy,
+  unreproducible, machine-uncomparable. So "the redesign silently dropped 40
+  canonicals" stays invisible. This snapshots title/description/canonical/
+  robots/h1_count/jsonld_types per URL and diffs them.
+    • NOT rank tracking (the common misread of this feature elsewhere).
+      Positions come from GSC `queries`. This is regression detection.
+    • Runs over the WHOLE sitemap, never a sample: a drift over a sample that
+      changes between runs compares nothing.
+    • LOSING a signal = regression. CHANGING one = change, possibly intended —
+      the agent judges that, the engine only says which kind it is.
+    • Store: ~/.claude/seo-data/drift/<host>.json, 0700, written via
+      os.replace — never a half-written baseline. Corrupt store → treated as
+      a first run rather than crashing the audit.
+
 fetch.sh forget --label client-a
   → {"status":"ok","removed":true|false}          # false = label wasn't in the store
 

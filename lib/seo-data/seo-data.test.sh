@@ -178,6 +178,32 @@ has "cap is reported"            "$CAP" '"capped": true'
 has "capped withholds orphans"   "$CAP" '"orphans_withheld": true'
 hasnt "capped emits no orphans"  "$CAP" '"orphans":'
 
+echo "── drift (H2) ──"
+DH="$(mktemp -d)"
+D1="$(HOME="$DH" SEO_DATA_MOCK_DIR="$SD/fixtures-drift-v1" python3 "$SD/drift.py" \
+  --url https://ex.com/sitemap.xml)"
+has "first run is a baseline"    "$D1" '"baseline": true'
+has "baseline captures pages"    "$D1" '"pages": 3'
+hasnt "baseline diffs nothing"   "$D1" '"regressions"'
+# v2: canonical lost on /a, h1+jsonld lost on /, title reworded, /gone removed,
+# /neuve added. Losses are regressions; a reworded title is not.
+D2="$(HOME="$DH" SEO_DATA_MOCK_DIR="$SD/fixtures-drift-v2" python3 "$SD/drift.py" \
+  --url https://ex.com/sitemap.xml)"
+has "second run diffs"           "$D2" '"baseline": false'
+has "detects removed url"        "$D2" '"https://ex.com/gone"'
+has "detects added url"          "$D2" '"https://ex.com/neuve"'
+has "lost canonical = regression" "$D2" '"canonical"'
+has "lost h1 = regression"       "$D2" '"h1_count"'
+has "lost jsonld = regression"   "$D2" '"jsonld_types"'
+# the classification IS the feature: losing a signal != changing one
+NREG="$(printf '%s' "$D2" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)["regressions"]))')"
+NCHG="$(printf '%s' "$D2" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)["changes"]))')"
+[ "$NREG" = "3" ] && ok "3 losses classed as regressions" \
+                  || no "3 losses classed as regressions" "got $NREG"
+[ "$NCHG" = "1" ] && ok "reworded title is a change, not a regression" \
+                  || no "reworded title is a change, not a regression" "got $NCHG"
+rm -rf "$DH"
+
 echo "── fetch.sh ──"
 FETCH="$SD/fetch.sh"
 # SEO_DATA_ENV_FILE=/dev/null: tests must NEVER source the real ~/.claude/.env —

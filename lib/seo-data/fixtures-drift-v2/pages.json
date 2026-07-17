@@ -1,0 +1,5 @@
+{
+  "https://ex.com/": "<html><head><title>Accueil refondue</title><meta name='description' content='desc'><link rel='canonical' href='https://ex.com/'></head><body><p>plus de h1, plus de jsonld</p></body></html>",
+  "https://ex.com/a": "<html><head><title>Page A</title></head><body><h1>A</h1></body></html>",
+  "https://ex.com/neuve": "<html><head><title>Neuve</title></head><body><h1>N</h1></body></html>"
+}
