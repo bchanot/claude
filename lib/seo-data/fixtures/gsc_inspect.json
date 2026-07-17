@@ -1,2 +1,11 @@
-{"inspectionResult":{"indexStatusResult":{
-  "verdict":"PASS","coverageState":"Submitted and indexed","lastCrawlTime":"2026-07-01T10:00:00Z"}}}
+{"inspectionResult":{
+  "indexStatusResult":{
+    "verdict":"PASS","coverageState":"Submitted and indexed","lastCrawlTime":"2026-07-01T10:00:00Z"},
+  "richResultsResult":{"verdict":"FAIL","detectedItems":[
+    {"richResultType":"Breadcrumbs","items":[{"name":"Unnamed item","issues":[]}]},
+    {"richResultType":"FAQ","items":[
+      {"name":"Q1","issues":[
+        {"issueMessage":"Missing field 'acceptedAnswer'","severity":"ERROR"}]},
+      {"name":"Q2","issues":[
+        {"issueMessage":"Missing field 'acceptedAnswer'","severity":"ERROR"},
+        {"issueMessage":"Unspecified image","severity":"WARNING"}]}]}]}}}

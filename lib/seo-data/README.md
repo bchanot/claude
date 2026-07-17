@@ -80,8 +80,161 @@ fetch.sh queries --account client-a --property sc-domain:ex.com [--days 90] [--d
   → {"status":"degraded","reason":"no_credentials"|"token_revoked"|"network_error"|"rate_limited"}
 
 fetch.sh inspect --account client-a --property … --url https://ex.com/page
-  → {"status":"ok","source":"gsc","indexed":true,"coverage":"…","last_crawl":"…"}
+  → {"status":"ok","source":"gsc","indexed":true,"coverage":"…","last_crawl":"…",
+     "rich_results":{"verdict":"PASS|FAIL|NEUTRAL|VERDICT_UNSPECIFIED|ABSENT",
+                     "types":[{"type":"FAQ","items":2,"errors":2,"warnings":1,
+                               "issues":["Missing field 'acceptedAnswer'"]}]}}
   → {"status":"degraded","reason":"…"}
+
+  rich_results rides the SAME URL-Inspection response — Google already sends
+  it, `inspect` used to discard it. No extra call, quota or OAuth scope.
+  It is the only programmatic structured-data validation in the system.
+    • verdict PARTIAL is never emitted — the API reserves it as unused.
+    • verdict ABSENT is SYNTHETIC (not a Google enum): the API omits
+      richResultsResult entirely when it detects no rich results. Surfaced
+      as a value rather than a missing key, because a caller cannot tell an
+      absent key apart from a check that never ran. ABSENT = "none
+      detected", never "invalid".
+    • errors/warnings count issue INSTANCES; issues[] is deduped — the same
+      issueMessage repeats across every affected item.
+
+fetch.sh cannibal --account client-a --property … [--days 90] [--rows 1000]
+  → {"status":"ok","source":"gsc","days":90,"rows_scanned":1000,"capped":true,
+     "conflict_count":12,
+     "conflicts":[{"query":"plombier paris","pages":3,"total_impressions":2400,
+                   "urls":[{"url":…,"clicks":…,"impressions":…,"position":…}]}]}
+  → {"status":"degraded","reason":"…"}                # no account → NOT auditable
+
+  Keyword cannibalisation from Google's own data: queries where 2+ of OUR
+  pages compete. Groups query+page rows; conflicts ranked by total
+  impressions, and within each the strongest page first. `capped:true` means
+  the row window was full — more conflicts exist past the cut, say so.
+  Same auth, same quota family, no new scope: the API always accepted several
+  dimensions at once, this engine only ever asked for one.
+    • NOT the 30/70 duplication rule. This is a SERP fact Google measured.
+      30/70 is content similarity, which has no data source here — doing it
+      naively (compare two same-template pages without stripping nav/footer)
+      returns ~95% similar for every site, a confident false positive. It stays
+      an LLM judgement, labelled as one.
+    • `queries` now takes `--dim query,page` (comma-separated) and `--rows`.
+      Rows gained a `keys` list; `key` stays as keys[0], so the single-dim
+      consumer is untouched.
+
+fetch.sh sitemap --url https://ex.com/sitemap.xml
+  → {"status":"ok","source":"sitemap","index":false,"count":86,"dropped":0,
+     "urls":["https://ex.com/", …]}
+  → {"status":"ok","index":true,"children_total":4,"children_read":4,
+     "children_failed":0,"count":312,…}          # <sitemapindex>, one level deep
+  → {"status":"degraded","reason":"fetch_failed"|"parse_failed"|"no_urls"
+                                  |"unsafe_xml_dtd"}
+
+  No auth, no Google, no venv: stdlib only (urllib + xml.etree + gzip).
+  Gives STEP 9's COVERAGE line the denominator it was told to print and never
+  had, and STEP 5 a real sampling frame. Dedupes, strips whitespace, handles
+  .xml.gz. Caps: 50 children of an index, 50k URLs, 20 MB read — each cut is
+  REPORTED (children_skipped / truncated), never silent.
+
+    • NOT a security boundary. urllib fetches these, so nothing here reaches a
+      shell. The CONSUMER interpolates them into curl, so seo-analyzer runs
+      lib/url-guard.sh at the point of use — same contract as the sameAs check.
+      A second copy of the guard here would only drift.
+    • `unsafe_xml_dtd`: a sitemap NEVER has a DTD (sitemaps.org is <?xml?> then
+      <urlset xmlns=>). Any doctype/entity is refused BEFORE parsing. xml.etree
+      does not expand external entities, but it IS billion-laughs-vulnerable —
+      1 KB expands to gigabytes, and the 20 MB read ceiling bounds the input,
+      not the expansion. Refusing the construct beats depending on parser
+      internals AND keeps this stdlib-only; defusedxml would drag in a venv for
+      a document type that has no legitimate DTD.
+
+fetch.sh rendercheck --url https://ex.com/
+  → {"status":"ok","verdict":"server-rendered"|"client-rendered"|"partial",
+     "body_text_chars":7650,"h1_in_html":1,"jsonld_in_html":9,
+     "meta_description_in_html":true,"html_bytes":132447,
+     "warning":"…"}                       # warning only when not server-rendered
+
+  R2, the honest half of the SPA call. seo-analyzer has always recorded
+  `RENDERING: SSR/SSG/SPA` and never acted on it; this is the signal it acts
+  on. Verdict comes from what the server SENT — package.json cannot tell a
+  React SPA from a Next.js SSR app.
+    • client-rendered → the agent REFUSES to score On-page (N/A, not zero: a
+      zero says "your on-page is bad", N/A says "we could not see it"). Every
+      curl-based meta/H1/JSON-LD check would report "missing" against a site
+      that is fine once hydrated — false findings, and a bundle that "fixes"
+      tags which already exist.
+    • Does NOT render JS. No Playwright, no Chromium, no venv. Refusing IS the
+      finding.
+    • Script/style text is not page text: measured 7 chars on a React shell
+      whose inline window.__INITIAL_STATE__ is large. Without that, a 200 KB
+      bundle reads as a rich page.
+    • Measured 2026-07-17: zenquality 7650 chars/1 h1/9 jsonld and
+      lavageangels356 13973/1/1 → server-rendered; a Vite shell → 7/0/0.
+
+fetch.sh linkgraph --url https://ex.com/sitemap.xml [--max 500]
+  → {"status":"ok","source":"linkgraph","pages_crawled":86,"pages_failed":0,
+     "total_internal_links":2015,"capped":false,"max_depth":2,
+     "orphans":[…],"beyond_3_clicks":[…],"unreachable":[…]}
+  → {"status":"ok",…,"orphans_withheld":true,"reason_withheld":"crawl incomplete…"}
+  → {"status":"degraded","reason":"no_links_in_html"|"no_pages_fetched"|…}
+
+  Answers seo-analyzer.md:613 ("reachable within 3 clicks?") and :616 ("orphan
+  pages?") — asked since forever, never computed. Stdlib only (urllib +
+  html.parser + urljoin), no auth. Measured: 24 pages in 2.7s, 86 in 3.8s.
+    • EXHAUSTIVE OR NOTHING. Orphans cannot be sampled: proving no inbound
+      link means having read every other page. If the crawl is capped or any
+      page failed, orphans are WITHHELD, never truncated — a false orphan
+      sends a client fixing what is not broken.
+    • no_links_in_html = a JS-rendered site, not a link-less one. Every page
+      would read as orphaned, so it REFUSES rather than report that. Does not
+      render JS by design (see the R1/R2 arbitration).
+    • Filters what a link graph must never hold: assets (seen live:
+      /css/main.css?v=1778157313), #anchors, mailto:/tel:/javascript:, other
+      hosts. Normalises the trailing slash so /blog and /blog/ are one node
+      rather than a phantom orphan pair.
+    • Mock is pages.json ({url: html}), not a single page.html: one fixture
+      cannot express a graph — every node would carry identical links.
+
+fetch.sh score --findings <path.json | ->
+  → {"status":"ok","axes":{"technical":{"score_20":17.8,"weight":0.2,
+       "weight_renormalised":0.2857,"findings":2}},
+     "na":["off-page","on-page"],"weights_renormalised":true,"global_20":17.6}
+  → {"status":"error","reason":"unknown severity: 'bogus'"|"bad_findings_json"}
+
+  I7. /harden has a real scale (SKILL.md:435: -15/-8/-3/-1, clamp [0,100]);
+  /seo had none, so every axis was FELT and two runs over identical code could
+  disagree — while /client-handover gates on 17/20. Same scale here, /5 into
+  /20, one vocabulary across the family.
+    • The split: WHICH findings exist and how severe each is stays the LLM's
+      judgement. The addition is not. Same findings in, same score out.
+    • affected/sampled shift severity ONE step: >=50% of the sample escalates,
+      a single page de-escalates. A defect on 1 of 12 pages is not the defect
+      on 12 of 12.
+    • status:"na" → axis EXCLUDED, remaining weights renormalised. This is
+      R2's rule (client-rendered on-page) and I1's (unauditable off-page),
+      computed rather than done by hand. N/A is not a zero, and the engine
+      will not let it act like one.
+    • Malformed input is an error, never a silently wrong number — unlike the
+      fetch verbs, a degrade here would mean bad input, not a network fact.
+
+fetch.sh drift --url https://ex.com/sitemap.xml [--max 500]
+  → {"status":"ok","baseline":true,"captured":"…","pages":24,"store":"…"}
+  → {"status":"ok","baseline":false,"since":"…","gone":[…],"new":[…],
+     "regressions":[{"url":…,"field":"canonical","was":"…","now":null}],
+     "changes":[{"url":…,"field":"title","was":"…","now":"…"}]}
+
+  On-page drift between audits. seo-analyzer.md:1365 keeps only "date + score
+  + key changes" as PROSE the LLM writes about its own previous prose: lossy,
+  unreproducible, machine-uncomparable. So "the redesign silently dropped 40
+  canonicals" stays invisible. This snapshots title/description/canonical/
+  robots/h1_count/jsonld_types per URL and diffs them.
+    • NOT rank tracking (the common misread of this feature elsewhere).
+      Positions come from GSC `queries`. This is regression detection.
+    • Runs over the WHOLE sitemap, never a sample: a drift over a sample that
+      changes between runs compares nothing.
+    • LOSING a signal = regression. CHANGING one = change, possibly intended —
+      the agent judges that, the engine only says which kind it is.
+    • Store: ~/.claude/seo-data/drift/<host>.json, 0700, written via
+      os.replace — never a half-written baseline. Corrupt store → treated as
+      a first run rather than crashing the audit.
 
 fetch.sh forget --label client-a
   → {"status":"ok","removed":true|false}          # false = label wasn't in the store

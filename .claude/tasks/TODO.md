@@ -1,6 +1,76 @@
 # TODO
 
-## 2026-07-16 — PLAN seo/geo parity vs claude-seo (not started, awaiting arbitrage)
+## 2026-07-17 — STATUS seo/geo parity (branch bugfix/seo-geo-integrity, 10 commits, UNMERGED)
+PHASE 1 — integrity: **DONE 7/7**. I3 8b0c98c · I1 57c67f2 · I2 4ea2fb8 ·
+I5 64f175f · I4 e70e1d6 · I6 9da1dec · I8 acd452b. Plus 9cd7b51 (A1+A2, two
+process anomalies surfaced by dogfooding /harden at zenquality.fr from the
+wrong CWD).
+PHASE 2 — free wins: W3 fe93b79 · W1 a6d423b · **W2 DEFERRED** (see below).
+NEXT: H1 (SSRF/injection guard) → C1 (sitemap crawl). Human merge gate: all
+10 commits await review; nothing merged to develop.
+
+### Plan corrections made while executing (the plan was wrong 4×)
+- **B3 KILLED** — GSC Links API does not exist. Verified against the API
+  reference: Search Console v1 exposes exactly Search Analytics, Sitemaps,
+  Sites, URL Inspection. A subagent hallucinated it; I doubted it in the
+  plan and the doubt was right. (Its follow-on — "so Common Crawl is the
+  only free source, and the 70/100 cap is mandatory" — was ALSO wrong: see
+  B1/B2 KILLED below. Common Crawl is a 17 GB dead end, and Bing's
+  GetUrlLinks is the only viable free source, first-party only.)
+- **I1 was an over-correction** — "Off-page has ZERO data" was overstated
+  (relayed from a subagent, unverified). Brand mentions ARE gathered
+  (STEP 6). Narrowed the axis definition instead of N/A-ing it; weights
+  untouched to avoid churning historical scores twice.
+- **I6 framing was wrong** — I claimed 3× that the stats "drive axis
+  weights". They do not; weight tables carry no citations. They drive Tier
+  recommendations and, worse, land in CLIENT reports via the "Cite sources"
+  rule. Reality was worse than my false version.
+- **W1 was the wrong shape** — plan said "richresults verb"; a new verb
+  means a 2nd POST to the same endpoint for a payload already received.
+  Extended inspect() instead.
+- **H1 moved up** (was AXE 5) — it is a PREREQUISITE of C1, not a
+  follow-up. Today only $DOMAIN (user-typed) is interpolated. After C1, N
+  URLs from a REMOTE sitemap flow into shell commands and fetch targets.
+
+### B1/B2 (Common Crawl backlinks) — KILLED 2026-07-17, measured not assumed
+The plan said Common Crawl was the free backlink source and the 70/100 cap
+was therefore mandatory. Both premises are dead:
+- domain-edges.txt.gz = **17.3 GB gzipped** (+879 MB vertices, +2.3 GB
+  ranks), measured live via HEAD. Finding one domain's inbound links means
+  scanning all of it, per audit. Non-viable, and abusive toward a nonprofit.
+- The implementation everyone cites (claude-seo commoncrawl_graph.py:169)
+  caps at `500 MiB` = **2.9% of the edges file**, and reports what that
+  arbitrary slice held as a backlink profile. A random sample presented as a
+  measurement — the exact failure class this branch exists to remove. We
+  nearly copied it.
+- B2 dies with B1: nothing to cap.
+CONSEQUENCE: I1's narrowed Off-page axis (brand mentions only, backlinks +
+authority declared unauditable in §14) is the FINAL state, not a placeholder.
+Its §14 line was corrected — it used to point at Common Crawl as "nearest
+free source", which is a 17 GB dead end.
+RAISES W2's VALUE: Bing's GetUrlLinks is now the ONLY free viable backlink
+source. First-party only (never a competitor), still blocked on the client's
+Bing account.
+
+### W2 (Bing) — DEFERRED, blocked on a real-world test
+Killed after 4 challenge rounds. User's model: client sites live on CLIENT
+Bing accounts, so a per-user API key means one key per client account.
+OAuth is the right model but is a swamp:
+- Redirect URI rejects ALL local forms (http/https/127.0.0.1 — user tested)
+- Refresh tokens are **rotated + single-use**, self-described non-compliant
+  with OAuth 2.0 → store rewrite on every call, AND our parallel
+  seo/geo dispatch would race the rotation → invalid_grant, dead token
+- Undocumented "anti-forgery token" failure on refresh, unanswered on Q&A
+- MS's own advisor recommends falling back to the API key
+- Doc contradicts itself on grant_type and the token endpoint; no library
+REVIVAL CONDITION: a client already on Bing adds the user as a Read-Only
+user → test in ~10 min whether the single API key sees DELEGATED sites
+(undocumented, nobody knows). If yes → W2 is cheap and clean (one key,
+client-owned verification, revocable, read-only, zero OAuth). If no → dead.
+Value forgone meanwhile: Bing/DDG/Ecosia query stats + index status +
+first-party backlinks. Real but modest; C1 dwarfs it.
+
+## 2026-07-16 — PLAN seo/geo parity vs claude-seo (superseded by the STATUS above)
 Source: audit of github.com/AgriciDaniel/claude-seo (11.5k★, MIT, v2.2.0,
 5 mo old, 185/197 commits single author). Verdict: cherry-pick, never install
 (install.sh:49 overwrites our skills/seo/; uninstall.sh:45 glob `seo-*.md`
@@ -18,26 +88,26 @@ Seam: `lib/seo-data/fetch.sh` verbs (accounts|crux|queries|inspect|forget)
 as NEW VERBS. No new architecture.
 
 ### AXE 0 — Integrity (no new deps, hours) — the score currently lies
-- [ ] I1 Off-page axis scores 10-15% of FULL with ZERO data source (no API,
+- [x] I1 Off-page axis scores 10-15% of FULL with ZERO data source (no API,
       no index) → today fabricated, and it feeds /client-handover. Immediate
       fix: extend existing LOCAL `N/A — requires FULL audit` pattern to FULL,
       redistribute weights. Data upgrade later (AXE 3). Honesty now, data after.
-- [ ] I2 VSI (Visual Stability Index) listed in CWV thresholds but NO path
+- [x] I2 VSI (Visual Stability Index) listed in CWV thresholds but NO path
       retrieves it — neither CrUX nor PSI expose it. Phantom signal → remove
       or source.
-- [ ] I3 **SAFETY** /geo standalone: geo/SKILL.md (125 l) has no STEP 0, no
+- [x] I3 **SAFETY** /geo standalone: geo/SKILL.md (125 l) has no STEP 0, no
       confirmed-NAP collection — but geo-analyzer OWNS JSON-LD NAP. Standalone
       /geo on a local business can write unverified NAP with zero LRN-032
       protection. Real bug, not cosmetic.
-- [ ] I4 Security headers counted 3× (seo-analyzer STEP 4 scores them in
+- [x] I4 Security headers counted 3× (seo-analyzer STEP 4 scores them in
       Technical axis; depth-matrix.md says drop unless indexability; /harden
       re-audits /100 with 3 validators). Contradiction between dedup rule and
       agent spec → pick one owner.
-- [ ] I5 Report says "audit", measured 5-15 sampled pages. State coverage %
+- [x] I5 Report says "audit", measured 5-15 sampled pages. State coverage %
       explicitly in §0 until AXE 2 lands.
 
 ### AXE 1 — Free wins on auth we ALREADY have (fetch.sh verbs)
-- [ ] W1 `richresults` verb — GSC URL Inspection already returns
+- [x] W1 `richresults` verb — GSC URL Inspection already returns
       `richResultsResult`; our OAuth already carries the scope. Programmatic
       rich-results validation on real Google data. **BEATS claude-seo**: their
       README:314 "dual validator (Rich Results Test + Markup Validator)" is
@@ -46,28 +116,29 @@ as NEW VERBS. No new architecture.
 - [ ] W2 `bing` verb — Bing Webmaster API, free. Closes the Google/Bing
       asymmetry (Google = full OAuth layer, Bing = manual checklist) while
       /geo targets ChatGPT Search, which indexes via Bing. Strategic, not cosmetic.
-- [ ] W3 `sameas` resolution check — trivial curl loop. entity-seo.md lists
+- [x] W3 `sameas` resolution check — trivial curl loop. entity-seo.md lists
       "sameAs pointing to dead profiles" as a known error class and never
       checks it. ~10 lines.
 
 ### AXE 2 — Coverage (biggest lever: ~97% of a 500-page site unseen today)
-- [ ] C1 `crawl` verb — sitemap-driven URL discovery (we ALREADY fetch
+- [x] C1 `crawl` verb — sitemap-driven URL discovery (we ALREADY fetch
       sitemap.xml) + deterministic sampling + coverage % reported. No Chromium,
       no paid API. Turns "5-15 LLM-chosen pages" into measured coverage.
       Tradeoff vs claude-seo's link-following 500-page crawl: cheaper, but
       misses unlinked/unsitemapped pages — accept + disclose.
-- [ ] C2 Dupe/cannibalization detection — becomes possible once N pages in
+- [x] C2 Dupe/cannibalization detection — becomes possible once N pages in
       hand: compare titles/H1/canonicals across the set. Free, unblocked by C1.
-- [ ] C3 Internal-link graph — orphan pages + 3-click depth are TODAY stated
+- [x] C3 Internal-link graph — orphan pages + 3-click depth are TODAY stated
       as checks with no command to compute them. C1 unblocks real computation.
 
-### AXE 3 — Off-page real (upgrades I1)
-- [ ] B1 `backlinks` verb — Common Crawl hyperlinkgraph
-      (data.commoncrawl.org/projects/hyperlinkgraph), free, no key.
-- [ ] B2 Honest cap — steal their idea (free-backlink-sources.md:33: cap
-      health at 70/100 when only Common Crawl). Fits our code-ceiling doctrine
-      exactly.
-- [ ] B3 VERIFY FIRST: GSC Links API. Subagent claimed "available, OAuth
+### AXE 3 — Off-page real (upgrades I1) — SUPERSEDED, see B1/B2 KILLED above
+- [x] ~~B1 `backlinks` verb — Common Crawl hyperlinkgraph~~ KILLED: edges file
+      measured at 17.3 GB gzipped. Non-viable per audit; the reference impl
+      caps at 500 MiB = 2.9% of the graph and calls the remainder a backlink
+      profile.
+- [x] ~~B2 Honest cap at 70/100~~ KILLED with B1: nothing left to cap.
+      I1's narrowed axis is the final state.
+- [x] B3 VERIFY FIRST: GSC Links API. Subagent claimed "available, OAuth
       already there" — I doubt it: Search Console API v3 has no links endpoint
       (links report is UI-only AFAIK). Verify before planning on it. Do not
       assert.
@@ -76,16 +147,16 @@ as NEW VERBS. No new architecture.
 - [ ] R1 `render` verb — Playwright, GATED on SPA detection (STEP 2 already
       detects framework + rendering mode). Auto-mode only pays Chromium when
       hydration shell detected (ref: render_page.py:226 logic, adapt not copy).
-- [ ] R2 ARBITRAGE: heavy dep (Chromium ~300MB) vs our bash+curl purity.
+- [x] R2 ARBITRAGE: heavy dep (Chromium ~300MB) vs our bash+curl purity.
       Cheaper honest alternative: on SPA, REFUSE to score on-page rather than
       score it wrong (today: curl reads source, not hydrated DOM → every
       meta/JSON-LD/heading/img grep is blind, compensated only by a §0 flag).
 
 ### AXE 5 — Hardening + regression (lower priority)
-- [ ] H1 SSRF guard on curl paths — both agents curl user-supplied domains.
+- [x] H1 SSRF guard on curl paths — both agents curl user-supplied domains.
       Our own CLAUDE.md doctrine says "never trust user input". url_safety.py
       (622 l, obfuscated-IPv4 decode, DNS pinning) is a solid reference.
-- [ ] H2 `drift` baseline (SQLite) — SEO.md Historique keeps only date+score+
+- [x] H2 `drift` baseline (SQLite) — SEO.md Historique keeps only date+score+
       key changes. Their seo-drift is on-page regression detection, NOT rank
       tracking (common misread). Optional.
 

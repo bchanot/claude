@@ -244,8 +244,14 @@ the PERMISSIVE template from `ai-crawlers-2026.md`.
 
 ### Live verification `[FULL only]`
 
+**Guard the domain before it reaches a shell — mandatory, not optional.**
+`$DOMAIN` is interpolated inside double quotes below, where `$` and backtick
+still execute. Run the guard FIRST and use only its output; non-zero exit →
+STOP this step and report the refusal, never sanitise-and-retry.
+
 ```bash
-DOMAIN="<production-domain>"
+DOMAIN="$(bash ~/.claude/lib/url-guard.sh host "<production-domain>")" || {
+  echo "STEP 4 aborted: domain refused by url-guard"; exit 2; }
 
 # Verify robots.txt served
 curl -s "https://$DOMAIN/robots.txt" | head -50
@@ -431,6 +437,57 @@ Record what exists. For each:
 - Does `sameAs` on the site point to it?
 - If yes, does the target resolve and match?
 
+### sameAs resolution `[FULL only]`
+
+`entity-seo.md:148` says "validate each URL resolves" and nothing did.
+A `sameAs` pointing at a dead profile is worse than a missing one: it
+asserts an identity link that fails on follow, in the exact graph AI
+engines walk to confirm who you are.
+
+```bash
+grep -rhoE '"sameAs"[^]]*\]' \
+  --include="*.html" --include="*.astro" --include="*.tsx" --include="*.jsx" \
+  --include="*.vue" --include="*.svelte" --include="*.php" --include="*.json" \
+  . 2>/dev/null \
+  | grep -oE 'https?://[^"]+' | sort -u | while read -r RAW; do
+      # These URLs come from the audited repo's JSON-LD, not from the operator:
+      # guard each one before it reaches curl. A refused entry is REPORTED, not
+      # skipped silently — an unguardable sameAs is itself a finding.
+      U="$(bash ~/.claude/lib/url-guard.sh url "$RAW" 2>/dev/null)" || {
+        printf 'REFUSED %s\n' "$RAW"; continue; }
+      printf '%s %s\n' \
+        "$(curl -sIL -o /dev/null -w '%{http_code}' --max-time 10 "$U" 2>/dev/null || echo 000)" \
+        "$U"
+    done
+```
+
+`REFUSED` rows are not dead links and not live ones — the URL never left the
+machine. Report them in §14 with the raw value: a `sameAs` carrying shell
+metacharacters or pointing at `localhost` is either broken markup or someone
+probing, and both are worth the client knowing.
+
+**Read the codes honestly — a block is not a death.** Some platforms refuse
+non-browser clients: LinkedIn answers `999` (verified 2026-07-16 against a
+live company page). A naive check calls that dead and the bundle deletes a
+live link — the most valuable node in the graph, since LinkedIn is the
+identity anchor for most B2B entities.
+
+Do NOT assume which platforms block: the same 2026-07-16 check found
+`x.com` returning `200`, contradicting the "Twitter always 403" folklore.
+Test the code you actually got; classify by code, never by platform
+reputation.
+
+| Code | Verdict | Action |
+|---|---|---|
+| 2xx / 3xx | alive | none |
+| **404 / 410** | **genuinely dead** | finding WITH direction — fix or remove |
+| 401 / 403 / 429 / 999 | bot-blocked | **inconclusive — no finding.** Report as unverified, never as dead |
+| 000 (DNS/timeout) / 5xx | inconclusive | retry once, then unverified |
+
+No G2/G6 item may remove a `sameAs` on anything but 404/410. Same rule as
+the NAP direction rule: an unreliable signal read confidently is worse than
+no signal. Unverified entries → §14, naming the platform and the code.
+
 ### Google Knowledge Panel `[FULL only]`
 
 ```
@@ -457,6 +514,17 @@ PRIORITY ACTIONS  : <top 3-5>
 ---
 
 ## STEP 8 — CONTENT SHAPE FOR AI `[both]`
+
+**Rendering gate first (R2).** `bash ~/.claude/lib/seo-data/fetch.sh
+rendercheck --url "https://$DOMAIN/"`. Verdict `client-rendered` → Content
+Shape is `N/A — content not in served HTML`, excluded from the weighted
+global, never scored zero. And say the thing that actually matters here: AI
+crawlers are **worse** at JS than Googlebot is. GPTBot, PerplexityBot and
+ClaudeBot fetch HTML and largely do not execute it, so a client-rendered site
+is not just unauditable by us — it is close to invisible to the engines this
+whole audit targets. That is a §0 alert and the top user action (SSR/SSG),
+not a schema tweak.
+Site-wide axes (crawler policy, llms.txt) are unaffected: those are files.
 
 Load: `~/.claude/agents/resources/content-shape-for-ai.md`
 
@@ -488,7 +556,8 @@ sample of a 300-page site says nothing about the other 294.
 
 ```bash
 # Extract H1/H2/H3 from main pages to assess heading style
-for f in index.html $(find . -maxdepth 3 -name "*.astro" -o -name "*.tsx" -o -name "*.md" -o -name "*.html" | head -10); do
+mapfile -t FEXCL < <(bash ~/.claude/lib/source-scope.sh findargs)   # C1a: skip build output
+for f in index.html $(find . "${FEXCL[@]}" -maxdepth 3 \( -name "*.astro" -o -name "*.tsx" -o -name "*.md" -o -name "*.html" \) | head -10); do
   echo "=== $f ==="
   grep -oE '<(h1|h2|h3)[^>]*>[^<]+</(h1|h2|h3)>|^#{1,3} .+' "$f" 2>/dev/null | head -20
 done
@@ -595,7 +664,9 @@ Score each axis. Use concrete findings from STEP 2-9.
 
 ```
 GEO SCORING (<depth>)
-COVERAGE                  : <N> of <M> sitemap URLs (<P>%) | <N> pages, total UNKNOWN
+COVERAGE SOURCE           : <N> of <M> page templates (<P>%) — bounds Schema.org
+COVERAGE LIVE             : <N> of <M> sitemap URLs (<P>%) — bounds Content Shape
+                            | UNKNOWN (no sitemap / fetch degraded)
 AI Crawlers Policy        : XX/20  <justification>
 llms.txt                  : XX/20  <justification>
 Schema.org for AI         : XX/20  <justification>
@@ -611,6 +682,18 @@ per-page axes — Content Shape above all, and the page-level share of
 Schema.org. Site-wide axes (AI Crawlers Policy, llms.txt) are unaffected:
 robots.txt and llms.txt are single files, fully read. Say which is which
 rather than letting one ratio discredit the whole report.
+
+**Same source/live split as seo-analyzer STEP 9 (C1c), and it cuts your axes
+differently.** A JSON-LD block lives in a shared layout, so one sampled page
+per URL family proves the SCHEMA for the whole family — SOURCE coverage is
+what bounds it. Content Shape does NOT work that way: Definition Lead, TL;DR
+and heading wording are written per page, so a template says nothing about
+its 25 instances. Bound Schema.org by SOURCE, Content Shape by LIVE, and
+never quote the flattering one alone. Get the URL families from
+`fetch.sh sitemap`, grouped as seo-analyzer STEP 5 describes — shared parent
+path OR shared slug prefix, because both layouts are real: first-segment
+alone reads 8 flat `/lavage-auto-<city>` pages as 8 singletons. If `/seo`
+already ran it, reuse the count rather than re-fetching.
 
 Per user instruction: **GEO weight in combined SEO+GEO report = 20% for
 local, 25% for national/SaaS/content.**
@@ -913,6 +996,14 @@ PROCHAINE ETAPE : <highest-priority>
   NEVER `Write` on shared templates. `Write` is reserved for files
   you solely own: robots.txt, llms.txt, llms-full.txt. Full-template
   refactor → escalate as user action in §11.
+- **NEVER emit a bundle item targeting build output (C1a).** No path under
+  `dist/ build/ .next/ .nuxt/ .output/ _site/ .astro/ .svelte-kit/ out/` —
+  run `bash ~/.claude/lib/source-scope.sh list` for the authoritative set.
+  Those files are regenerated: the `npm run build` the dispatcher runs to
+  VERIFY your fix is what erases it. The fix lands, verification passes,
+  nothing survives, and the report claims it was applied. Fix the SOURCE
+  template that generates the file. If you cannot find the source, that is
+  a finding — say so, do not patch the artifact.
 - **Respect PERMISSIVE/RESTRICTIVE choice.** geo-analyzer defaults to
   PERMISSIVE (GEO's goal is AI visibility). Only switch if the client
   explicitly flags premium/regulated content.

@@ -181,8 +181,9 @@ keep the two consistent.
 ls .htaccess nginx.conf netlify.toml vercel.json wrangler.toml 2>/dev/null
 # SEO files
 ls robots.txt sitemap.xml sitemap-index.xml sitemap-images.xml sitemap-videos.xml 2>/dev/null
-# Legal pages
-find . -maxdepth 3 \( -iname "*mention*" -o -iname "*legal*" -o -iname "*confidentialite*" -o -iname "*privacy*" -o -iname "*cgv*" -o -iname "*cgu*" \) 2>/dev/null | head -10
+# Legal pages — source only (C1a: find ignores .gitignore, grep does not)
+mapfile -t FEXCL < <(bash ~/.claude/lib/source-scope.sh findargs)
+find . "${FEXCL[@]}" -maxdepth 3 \( -iname "*mention*" -o -iname "*legal*" -o -iname "*confidentialite*" -o -iname "*privacy*" -o -iname "*cgv*" -o -iname "*cgu*" \) 2>/dev/null | head -10
 # Analytics / trackers
 grep -rl "gtag\|GTM-\|analytics\|matomo\|_paq\|plausible\|umami" --include="*.html" --include="*.js" --include="*.tsx" --include="*.astro" --include="*.php" . 2>/dev/null | head -10
 # Cookie consent / CMP
@@ -250,8 +251,15 @@ the §14 observed-list. But under `/seo` the security headers themselves are
 out of scope for scoring: see the Technical axis note in STEP 9. Under
 `/harden` they are the entire job. Reading is not scoring.
 
+**Guard the domain before it reaches a shell — mandatory, not optional.**
+Every curl below interpolates `$DOMAIN` inside double quotes, where `$` and
+backtick still execute. Run the guard FIRST and use only its output; if it
+exits non-zero, STOP this step and report the refusal — never "clean up" the
+value and retry.
+
 ```bash
-DOMAIN="<production-domain>"
+DOMAIN="$(bash ~/.claude/lib/url-guard.sh host "<production-domain>")" || {
+  echo "STEP 4 aborted: domain refused by url-guard"; exit 2; }
 
 # Headers
 curl -sI "https://$DOMAIN/" | head -30
@@ -332,12 +340,70 @@ When STEP 0/STEP 1 recorded a GSC account+property (not "none"):
 ```bash
 bash ~/.claude/lib/seo-data/fetch.sh queries --account "$GSC_ACCOUNT" --property "$GSC_PROPERTY" --days 90 --dim query
 bash ~/.claude/lib/seo-data/fetch.sh inspect --account "$GSC_ACCOUNT" --property "$GSC_PROPERTY" --url "https://$DOMAIN/"
+bash ~/.claude/lib/seo-data/fetch.sh cannibal --account "$GSC_ACCOUNT" --property "$GSC_PROPERTY" --days 90
 ```
+
+**`cannibal` — keyword cannibalisation, from Google's own data (C2).** Groups
+90 days of `query`+`page` rows and returns every query where 2+ of OUR pages
+compete, ranked by total impressions. The API always allowed multiple
+dimensions; this system only ever asked for one, so the conflict was invisible.
+
+Read it:
+- `conflicts[]` → for each, the strongest page (most impressions) is listed
+  first. That is usually the one to KEEP; the others either consolidate into
+  it (301 + merge content) or get differentiated. Never "fix" this by deleting
+  a page that has clicks — say what competes and let the user choose.
+- A conflict with a large impression total and every page beyond position 10
+  is the real prize: Google can't decide which page to rank, so none rank.
+- `capped: true` → the row window was full; there are conflicts past the cut.
+  Say so in §14 rather than presenting the list as exhaustive.
+- `status: degraded` → no GSC account. Cannibalisation is then **not
+  auditable** — no substitute exists on-site. §14 line, do not guess it from
+  title similarity.
+
+**This is NOT the 30/70 rule, and do not merge the two.** Cannibalisation is
+a SERP fact Google measured. The 30/70 duplication rule is a content-similarity
+question with **no data source here**: measuring it properly needs main-content
+extraction (strip nav/header/footer), and without that a naive comparison of
+two same-template pages returns ~95% similar for every site, which is a
+confident false positive. So 30/70 stays an explicit LLM judgement over the
+≥3 same-family pages STEP 5 now samples for it — label it as judgement in the
+report, never as a measurement, and never quote a similarity percentage you
+did not compute.
 
 Report: top queries; flag **QUICK WINS** = rows with position between 4
 and 10 AND high impressions (candidates to push onto page 1 with a
 title/meta/content tweak). Report index coverage from `inspect`. All
 emitted into SEO.md §2 (technical) and §8 (quick wins).
+
+**`inspect` also returns `rich_results` — Google's own structured-data
+verdict on the live indexed URL.** It rides the same response (no extra
+call, no extra quota). This is the only programmatic JSON-LD validation in
+the system; everything else about schema is read by eye.
+
+```
+rich_results.verdict : PASS | FAIL | NEUTRAL | VERDICT_UNSPECIFIED | ABSENT
+rich_results.types[] : {type, items, errors, warnings, issues[]}
+```
+
+- `FAIL` + a type carrying `errors > 0` → that type **cannot show as a rich
+  result**. Bundle item, cite the `issues[]` message verbatim — it is
+  Google's wording, not ours, and geo-analyzer owns the JSON-LD fix
+  (CROSS-AGENT NOTE).
+- `warnings` → recommended fields missing. Report, do not gate on them.
+- **`ABSENT` means Google detected no rich results on this URL** — the key
+  is omitted upstream when nothing is found. It is NOT an error and NOT
+  proof the markup is broken: a page with no structured data reads the same
+  as one whose markup Google never parsed. Say "none detected", never
+  "invalid".
+- `ABSENT` while the repo clearly ships JSON-LD → real finding: the markup
+  is not reaching Google (SPA-rendered, blocked, or malformed). Cross-check
+  before claiming it.
+
+**Bound this honestly.** `index:inspect` is per-URL, quota'd, and works only
+on a GSC-verified property. It validates the URLs you sampled — not the
+site. Its reach is the STEP 9 COVERAGE ratio, and §14 must say so rather
+than let one PASS imply site-wide valid markup.
 
 If `status=degraded` → note it in §2 and emit the §11 user action
 "Connecter GSC: `make seo-connect`".
@@ -406,21 +472,118 @@ Fetch rendered HTML. Extract and analyze:
 
 ## STEP 5 — ON-PAGE AUDIT `[both]`
 
+### Rendering gate — run this BEFORE anything else in STEP 5 (R2)
+
+```bash
+bash ~/.claude/lib/seo-data/fetch.sh rendercheck --url "https://$DOMAIN/"
+```
+
+STEP 2 has always recorded `RENDERING: SSR/SSG/SPA/hybrid` and nothing ever
+acted on it. This is the rule that does. The verdict comes from what the
+server actually sent, not from reading package.json — a React SPA and a
+Next.js SSR app are indistinguishable there.
+
+**`verdict: client-rendered` → REFUSE to score the On-page axis.** Do not
+score it low. Do not score it at all:
+- On-page → `N/A — content not in served HTML (client-rendered)`. Redistribute
+  nothing; a missing axis is not a zero.
+- Every curl-based meta/H1/JSON-LD check would report "missing" against a site
+  that may be perfectly correct once hydrated. Those are FALSE findings, and
+  a bundle built on them would "fix" meta tags that already exist.
+- **No bundle item may come from a live on-page check on this site.** Source
+  greps still apply — the JSX carries the tags — but you cannot tell which
+  route renders what, so treat them as inventory, not as per-page findings.
+- `linkgraph` will refuse too (`no_links_in_html`) — the same blindness. Do
+  not work around either refusal.
+
+Still fully auditable, and worth saying so rather than returning an empty
+report: robots.txt, sitemap.xml, HTTP headers, redirects, `.htaccess` /
+framework config, CWV via CrUX (field data is real-user, hydration included),
+GSC queries + index coverage, legal pages, image weights.
+
+**`verdict: partial`** → shell plus an SSR'd head, or a genuinely thin page.
+Score what is present, name what is not, and say which of the two you think
+it is.
+
+**§0 line, mandatory when not server-rendered:**
+`Rendering: client-rendered — On-page NOT scored (content absent from served
+HTML). Global score excludes it. Fix: SSR/SSG (CLAUDE.md: public sites are
+never SPAs).`
+
+This is the honest half of the R1/R2 call: we do not render JS (no Playwright,
+no Chromium), so we do not pretend to see what JS paints. Refusing is the
+finding.
+
 **Record the denominator BEFORE sampling.** This step samples; the report
-says "audit". Count the URLs in `sitemap.xml` (fetch it in full — the
-`head -50` in STEP 4 is a preview, not a count). That count is the coverage
-denominator, and it feeds the mandatory COVERAGE line in STEP 9. No sitemap
-→ denominator unknown: say so, never let silence imply full coverage. On a
-500-page site a 12-page sample is 2.4% — the On-page score is an
-extrapolation from it, and the reader cannot know that unless you print it.
+says "audit". On a 500-page site a 12-page sample is 2.4% — the On-page score
+is an extrapolation from it, and the reader cannot know unless you print it.
+
+```bash
+bash ~/.claude/lib/seo-data/fetch.sh sitemap --url "https://$DOMAIN/sitemap.xml"
+```
+
+Returns `{count, urls[], index, dropped, ...}` — the coverage denominator and
+your sampling frame. It follows a `<sitemapindex>` one level, dedupes, strips
+whitespace, and handles `.xml.gz`. No auth, no venv, no Google.
+
+Read it honestly:
+- `count` → the denominator for the STEP 9 COVERAGE line.
+- `dropped > 0` → entries that were not usable URLs. Worth a §14 line: a
+  sitemap emitting junk is a tooling finding.
+- `children_failed > 0` or `children_skipped` → the frame is incomplete. Say
+  so; do NOT present a partial denominator as the total.
+- `status: degraded` → denominator UNKNOWN. Print that, never let silence
+  imply full coverage. `reason: unsafe_xml_dtd` is not a glitch — a sitemap
+  carrying a DTD is broken tooling or a billion-laughs aimed at the auditor.
+  Report it as a finding.
+
+**Guard every URL before it reaches curl.** These come from the target's own
+server, not from the operator — the one place in this audit where a remote
+file's bytes flow into a shell:
+
+```bash
+U="$(bash ~/.claude/lib/url-guard.sh url "$RAW_FROM_SITEMAP")" || continue
+```
+
+The verb applies a garbage filter, not that guard; the guard belongs at the
+point of use (same contract as the sameAs check in geo-analyzer).
 
 ### Meta tags per page (sample 5-15 key pages)
 
-Sample by risk, not convenience: homepage + top templates (one per page
-type: service, city, blog, product, legal) + any page GSC flags as a
-position 4-10 quick win. Same template audited twice buys nothing; an
-un-sampled template is an un-audited template — name the templates you
-skipped.
+**Group the sitemap URLs into families first** — a family is "pages one
+template renders". You do not need framework routing knowledge to see them,
+but you DO need to look at the actual URL shape, because it varies:
+
+| Layout | Example | Family signal |
+|---|---|---|
+| Nested | `/creation-site-internet/essonne-91/`, `/creation-site-internet/seine-et-marne-77/` | **shared parent path** → 25 pages, 1 family |
+| **Flat** | `/lavage-auto-pomponne`, `/lavage-auto-torcy`, `/lavage-auto-chelles` | **shared slug prefix** → 8 pages, 1 family |
+
+Both are real, measured on two live sites. First-path-segment alone handles
+the nested case and **fails the flat one**: those 8 city pages read as 8
+unrelated singletons, so the largest "family" becomes `/services` (5) and the
+doorway-page risk — the exact thing the 30/70 rule exists to catch — is
+invisible. Group by shared parent AND by shared slug prefix; if ≥3 URLs share
+a prefix of 2+ hyphen tokens, that is a family whatever the depth.
+
+Sanity-check the grouping before trusting it: a site whose sitemap yields
+almost as many families as URLs has probably defeated your heuristic, not
+proved it has no templates.
+
+**Sample by finding class, because the classes need opposite samples:**
+
+| Looking for | Sample | Why |
+|---|---|---|
+| Code defects (canonical, OG, `<img>` dims, hreflang) | **1 per family** | one template renders the whole family — a missing canonical in `[dept]/index.astro` breaks all 25 identically. 1 per family ≈ 100% SOURCE coverage for ~8 fetches. |
+| **Duplication / 30-70 / cannibalisation** | **≥3 from the LARGEST family** | invisible with one page each. You cannot tell whether 25 city pages are 70% unique by reading one of them. |
+| Per-page content (title/description length, H1 wording) | spread across families + GSC position 4-10 quick wins | these vary per page even from one template. |
+
+"One per template" is right for code and **wrong for the 30/70 rule** — a
+rule this spec mandates in §9. Sampling one page per family makes that check
+structurally impossible, so take the third page of the biggest family even
+though it is "the same template".
+
+An un-sampled family is an un-audited family. Name the ones you skipped.
 
 For each sampled page:
 ```
@@ -457,9 +620,31 @@ grep -rE '<img[^>]*>' --include="*.html" --include="*.astro" --include="*.tsx" -
 # Images missing dimensions (CLS risk)
 grep -rE '<img[^>]*>' --include="*.html" --include="*.astro" --include="*.tsx" --include="*.jsx" --include="*.php" . 2>/dev/null | grep -vE 'width=|height=' | head -30
 
-# Check image asset sizes
-find . -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.gif" \) ! -path "./node_modules/*" ! -path "./.git/*" -printf "%s %p\n" 2>/dev/null | sort -rn | head -20
+# Check image asset sizes — source only, never build output (C1a)
+mapfile -t FEXCL < <(bash ~/.claude/lib/source-scope.sh findargs)
+find . "${FEXCL[@]}" -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.gif" \) -printf "%s %p\n" 2>/dev/null | sort -rn | head -20
 ```
+
+**Why the guard, and why `find` specifically (C1a).** `grep` and `find`
+disagree about this repo and you use both. Claude Code routes `grep` through
+ugrep with `--ignore-files`, so it honours `.gitignore` and never descends
+into a gitignored `dist/`. `find` honours nothing. Measured on a real Astro
+repo: this command returned **92 images, 45 of them under `dist/`** — every
+asset twice, source and generated copy, byte-identical. So "top 20 by size"
+was ~10 real images dressed as 20, and a batch-C item
+(`cwebp -q 80 <img> -o <img>.webp`) could target `dist/og-image.png`, whose
+`.webp` the dispatcher's own `npm run build` then erases. The fix lands,
+verification passes, nothing survives.
+
+`FEXCL` MUST be consumed as a quoted array. `find . $FEXCL …` lets the shell
+glob `*/dist/*` against the CWD and hand the matches to find as search paths
+— that made the same run return 135 hits and kept every `dist/` file.
+
+Do NOT add these exclusions to the `grep` lines: the shim already covers
+them, `public/` is deliberately kept (it is Astro/Vite/Next SOURCE and holds
+`favicon.ico`, `apple-touch-icon.png`, `robots.txt` — the very files STEP 4
+curls), and it is build output only for Hugo/Gatsby, which the script
+detects.
 
 Flag images over 100 KB as compression candidates. WebP/AVIF preferred
 over JPEG/PNG.
@@ -480,6 +665,34 @@ Each embedded or self-hosted video should have:
 - Thumbnail with OG image or structured data
 
 ### Internal linking + topic clusters (silos sémantiques)
+
+```bash
+bash ~/.claude/lib/seo-data/fetch.sh linkgraph --url "https://$DOMAIN/sitemap.xml"
+```
+
+**This answers the two questions below, which this spec has always asked and
+never had a command for (C3).** Crawls every sitemap URL once, extracts
+internal `<a href>`, and returns `orphans`, `beyond_3_clicks`, `unreachable`,
+`max_depth`. Measured cost: 24 pages in 2.7 s, 86 in 3.8 s — cheap enough to
+always run on FULL.
+
+Read it honestly:
+- `orphans` present → real finding, act on it.
+- **`orphans_withheld: true` → there is NO orphan list, and you must not
+  invent one.** It appears when the crawl was capped or any page failed. An
+  orphan cannot be sampled: proving a page has no inbound link means having
+  read every other page, so a partial crawl invents orphans. "Page X has no
+  inbound links" when it does sends the client fixing what is not broken.
+  §14 line, not a finding.
+- `reason: no_links_in_html` → **not a site with zero links; a site whose
+  links are rendered by JS.** Every page would look orphaned — the worst false
+  positive this tool could emit — so the verb refuses instead. Flag the SPA in
+  §0 and stop; do not hand-roll a link audit around it.
+- `unreachable` ⊃ `orphans`: a page can have inbound links yet sit outside the
+  homepage's reach (linked only from another unreachable page). Both matter,
+  they are not the same finding.
+- `max_depth` > 3 → `beyond_3_clicks` names the pages. That is the ":613"
+  check, now measured rather than asserted.
 
 Sample critical pages. Check:
 - Every important page reachable within 3 clicks from homepage?
@@ -685,6 +898,41 @@ FIX: AUTO (<what agent will do>) | USER (<what user must do>)
 | Competitive position | 5% | 10% | |
 | Legal compliance | 10% | 5% | |
 
+**Compute the scores, do not feel them (I7).** Emit your findings, then let
+the engine do the arithmetic:
+
+```bash
+bash ~/.claude/lib/seo-data/fetch.sh score --findings /tmp/seo-findings.json
+```
+
+```json
+{"depth":"FULL","profile":"local",
+ "axes":{"technical":{"findings":[{"severity":"haute","affected":9,"sampled":12}]},
+         "on-page":{"status":"na","reason":"client-rendered (R2)"},
+         "off-page":{"status":"na","reason":"backlinks unauditable (I1)"}}}
+```
+
+`profile`: `local` (B2C) | `national` (SaaS/national/content). Severities are
+`critique|haute|moyenne|basse` — `/harden`'s scale (-15/-8/-3/-1, clamp,
+then /5 into /20), so the whole skill family speaks one vocabulary.
+
+**The split matters.** WHICH findings exist and how severe each is stays your
+judgement — irreducible. The addition is not: same findings in, same score
+out. Until now every axis was felt, so two runs over identical code could
+disagree, and `/client-handover` gates on 17/20.
+
+- `affected`/`sampled` (optional) shift severity ONE step: ≥50% of the sample
+  escalates, a single page de-escalates. A defect on 1 of 12 pages is not the
+  defect on 12 of 12; pretending so is what made the old numbers wobble.
+- `status: "na"` → the axis is EXCLUDED and the remaining weights are
+  renormalised for you. This is the R2 rule (client-rendered on-page) and the
+  I1 rule (unauditable off-page), finally computed instead of done by hand.
+  **N/A is not a zero** and the engine will not let it behave like one.
+- `status: "error"` → malformed findings. Fix them; never fall back to
+  eyeballing a number.
+- Run it twice on the same file before publishing. If the output moved, your
+  findings moved, and that is the thing to explain.
+
 **Technical axis note:** CWV scored on CrUX field data (75th percentile,
 real users, from STEP 4) when available; otherwise lab PageSpeed
 Lighthouse run.
@@ -714,6 +962,14 @@ owns them (0-100 + Observatory/SecurityHeaders/SSL Labs). Run /harden
 Name what you saw. An omission has to stay legible — the same reason
 COVERAGE is mandatory in STEP 9.
 
+**On-page axis note (R2).** `rendercheck` verdict `client-rendered` → this
+axis is `N/A — content not in served HTML`, excluded from the weighted global,
+NOT scored zero. A zero says "your on-page is bad"; N/A says "we could not
+see it", and only one of those is true. Renormalise the remaining weights over
+the axes actually scored and say so on the SEO GLOBAL line. The code ceiling
+must state that no code fix raises an axis we did not measure — the unlock is
+SSR/SSG, and that is a user action, not a bundle item.
+
 **Off-page axis note (I1).** Score ONLY the unlinked brand mentions
 gathered in STEP 6 (`web_search "<business-name>" -site:<domain>`).
 Backlink profile and domain authority have NO data source here — no index,
@@ -723,13 +979,30 @@ that reaches a client via `/client-handover`. A low mention count is a low
 mention count — it is NOT evidence of a weak backlink profile.
 
 Mandatory §14 line whenever depth=FULL, verbatim:
-`Backlinks / domain authority — NOT audited: no backlink index wired.
-Nearest free source: Common Crawl hyperlinkgraph. Commercial: Ahrefs /
-Semrush / Majestic. The Off-page score above prices in brand mentions only.`
+`Backlinks / domain authority — NOT audited: no free backlink index is
+practical, and none is wired. Commercial: Ahrefs / Semrush / Majestic. The
+Off-page score above prices in brand mentions only.`
 
-Weight deliberately unchanged despite the narrower scope: re-deriving it
-now, then again when a backlink source lands, would churn historical
-scores twice. Revisit the 10/15% only when the axis widens back.
+**This is the final state, not a placeholder (B1 killed, 2026-07-17.)** The
+free options were measured, not assumed:
+- **GSC has no links endpoint.** The Search Console API exposes exactly
+  Search Analytics, Sitemaps, Sites, URL Inspection. The Links report is
+  UI-only.
+- **Common Crawl's hyperlinkgraph is 17.3 GB gzipped** for the domain-edges
+  file alone (+879 MB vertices, +2.3 GB ranks), measured live. Finding one
+  domain's inbound links means scanning all of it, per audit. Not slow —
+  non-viable, and abusive toward a nonprofit serving it free. The reference
+  implementation everyone cites caps its download at 500 MiB, i.e. **2.9% of
+  the edges file**, and reports whatever that arbitrary slice contained as a
+  backlink profile. That is a random sample wearing a measurement's clothes,
+  which is precisely what this axis note exists to prevent.
+- **Bing Webmaster's `GetUrlLinks` is the only free, viable source** — but it
+  is first-party only (your verified properties), so it can never cover a
+  competitor, and it needs the client's Bing account. See W2, deferred.
+
+So: no number here beats a fabricated one. Weight deliberately unchanged —
+re-deriving it for an axis that is not going to widen would churn historical
+scores for nothing.
 
 ### LOCAL depth — 4 axes
 
@@ -783,8 +1056,9 @@ misroutes the client-handover gate and the user's effort.
 
 ```
 SEO SCORING (<depth>)
-COVERAGE       : <N> of <M> sitemap URLs (<P>%) — templates skipped: <list|none>
-                 | <N> pages, total UNKNOWN (no sitemap)
+COVERAGE SOURCE: <N> of <M> page templates (<P>%) — skipped: <list|none>
+COVERAGE LIVE  : <N> of <M> sitemap URLs (<P>%) — families: <fam N/M, …>
+                 | UNKNOWN (no sitemap / fetch degraded)
 Technical      : XX/20  <justification>
 On-page        : XX/20  <justification>
 SEO Local      : XX/20 | N/A
@@ -796,11 +1070,27 @@ Legal          : XX/20  <justification>
 SEO GLOBAL (weighted): XX.X/20 (<depth>)
 ```
 
-**COVERAGE is mandatory, never omitted, never rounded up.** It is the
-honesty bound on every page-level axis: On-page and the on-page share of
-Technical are extrapolations from the sample. If coverage < 25%, repeat it
-in §0 as a major alert — a 17/20 drawn from 3% of a site is not a 17/20, and
-`/client-handover` gates on these numbers.
+**Both COVERAGE lines are mandatory, never omitted, never rounded up.** They
+are the honesty bound on every page-level axis: On-page and the on-page share
+of Technical are extrapolations from the sample, and `/client-handover` gates
+on these numbers.
+
+**Report both, because they bound different findings — do not average them
+into one comforting number.**
+- **SOURCE** bounds CODE findings. One template renders its whole family, so
+  1 page per family can legitimately reach 100% here. High SOURCE coverage is
+  a real claim: the code paths were seen.
+- **LIVE** bounds CONTENT findings — title/description wording, thin pages,
+  30/70 duplication. It stays low by design and that is fine, as long as it
+  is printed. Measured on a real site: 12 of 86 URLs is 14% LIVE while the
+  same 12 pages are 100% SOURCE. Reporting only the 14% understates the audit;
+  reporting only the 100% oversells it. Both, or neither means anything.
+- LIVE < 25% → repeat in §0. A 17/20 for content drawn from 3% of a site is
+  not a 17/20.
+- SOURCE < 100% → name the skipped templates in §0. That is not a sampling
+  choice, it is code nobody read.
+- Denominator UNKNOWN (no sitemap, or `sitemap` degraded) → print UNKNOWN.
+  Never let silence imply full coverage.
 
 Per user instruction: this score represents **80% of the combined
 final score for local B2C (20% for GEO), or 75% for SaaS/national
@@ -1159,6 +1449,15 @@ PROCHAINE ETAPE : <highest-priority>
   `Write` on shared templates. `Write` is reserved for files you
   solely own: sitemap.xml, .htaccess, legal pages, new city/service
   pages. Full-template refactor → escalate as user action in §11.
+- **NEVER emit a bundle item targeting build output (C1a).** No path under
+  `dist/ build/ .next/ .nuxt/ .output/ _site/ .astro/ .svelte-kit/ out/` —
+  `bash ~/.claude/lib/source-scope.sh list` is the authoritative set. Those
+  files are regenerated: the `npm run build` the dispatcher runs to VERIFY
+  your fix is what erases it. The fix lands, verification passes, nothing
+  survives, and the report claims it was applied. This bites batch C hardest
+  (`cwebp -q 80 <img> -o <img>.webp` on a `dist/` asset writes a `.webp` the
+  next build deletes). Fix the SOURCE that generates the artifact; if you
+  cannot find it, that is a finding — say so, do not patch the artifact.
 - **Landing page protection.** Zero visible change except meta tags,
   footer links, JSON-LD, image optimization.
 - **Preserve existing valid SEO.** Don't rewrite correct tags.

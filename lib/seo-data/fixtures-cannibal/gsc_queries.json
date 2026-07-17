@@ -1,0 +1,7 @@
+{"rows":[
+  {"keys":["plombier paris","https://ex.com/plombier"],"clicks":40,"impressions":900,"ctr":0.044,"position":6.3},
+  {"keys":["plombier paris","https://ex.com/services/plomberie"],"clicks":3,"impressions":300,"ctr":0.010,"position":14.1},
+  {"keys":["urgence fuite","https://ex.com/urgence"],"clicks":5,"impressions":1200,"ctr":0.004,"position":8.9},
+  {"keys":["urgence fuite","https://ex.com/blog/fuite-que-faire"],"clicks":2,"impressions":800,"ctr":0.003,"position":11.4},
+  {"keys":["urgence fuite","https://ex.com/services/depannage"],"clicks":1,"impressions":400,"ctr":0.002,"position":19.2},
+  {"keys":["devis plomberie","https://ex.com/devis"],"clicks":9,"impressions":150,"ctr":0.060,"position":4.1}]}
