@@ -447,6 +447,19 @@ applies your bundle in STEP 1.5 and merges the reports.
 """
 ```
 
+## STEP 1b — CHALLENGE THE FIX BUNDLE (advisory, before apply)
+Both envelopes now carry a `## FIX BUNDLE` — worth attacking before any edit lands.
+**Skip if intervention mode = conservative** (nothing is applied). Else persist both
+bundles (seo + geo, verbatim) to `.claude/tasks/plans/<date>-<slug>-<HHMM>.md`, then run
+`$HOME/.claude/lib/challenge-plan.md` with `PLAN` = that file, `KIND` = `fix-bundle`,
+`SCOPE` = the target site files the items touch, `CONSTRAINTS` = the STEP 0 file-ownership
+matrix + shared-file edit discipline + confirmed Canonical NAP + intervention mode. Three
+blind challengers ask, per item: will it ACHIEVE its goal / could it BREAK or regress the
+page / is a simpler (or no) fix better. This main loop RE-THINKS every aspect a BLOCKER
+lands (a named bundle change, or `[deferred <date>]`) and re-challenges once if the bundle
+materially changed. Advisory — it sits BEFORE (never replaces) the STEP 1.5 GATED approval;
+carry its CHALLENGE SUMMARY into that gate.
+
 ## STEP 1.5 — Apply fix bundles (from THIS main loop, at L1)
 
 Both analyzers returned an envelope containing a `## FIX BUNDLE` section
@@ -493,6 +506,11 @@ Collect every GATED item from BOTH bundles and present ONE gate:
 SEO/GEO — gated changes need approval (visible / structural):
   D1   <change> — impact: <visible change>            [seo]
   G5.1 <change> — impact: <visible change>            [geo]
+
+CHALLENGE SUMMARY (STEP 1b — 3 lenses):
+  BLOCKERs addressed : <n> — <finding → the named bundle change that closes it>
+  Deferred (human-ack): <list | none>
+  Lenses returned    : correctness / robustness / simplicity (NAME any that failed to return)
 Approve all / select (ids) / skip all?
 ```
 

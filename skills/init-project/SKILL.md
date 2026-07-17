@@ -155,12 +155,27 @@ implemented on a `feature/*` branch off `develop` (STEP 8).
 Invoke `superpowers:writing-plans` with BRIEF + skeleton.
 Granular tasks (2-5 min each), exact file paths, TDD: tests before code.
 
+## STEP 6b — CHALLENGE THE PLAN (before the gate)
+Before the human sees the implementation plan, harden it. Run
+`$HOME/.claude/lib/challenge-plan.md` with `PLAN` = the plan STEP 6 wrote under
+`docs/superpowers/plans/`, `KIND` = `build-plan`, `SCOPE` = the skeleton + task file
+paths, `CONSTRAINTS` = the STEP 4-validated architecture + founding decisions.
+Three blind challengers (correctness / robustness / simplicity) attack it; the main
+loop RE-THINKS every aspect a BLOCKER lands (a named plan change, or `[deferred]`),
+re-challenges once if the plan materially changed, and feeds the REVISED plan + a
+CHALLENGE SUMMARY into STEP 7. Advisory — the human remains the decider.
+
 ## STEP 7 — VALIDATION GATE #2 ★ MANDATORY STOP
 ```
 INIT PROJECT — IMPLEMENTATION PLAN
 SKELETON: ✅ build passes
 FEATURES: <N> → <M> tasks
 <numbered task list with paths>
+
+CHALLENGE SUMMARY (STEP 6b — 3 lenses):
+  BLOCKERs addressed : <n> — <finding → the named plan change that closes it>
+  Deferred (human-ack): <list | none>
+  Lenses returned    : correctness / robustness / simplicity (NAME any that failed to return)
 Approve and start? (yes / request changes)
 ```
 Changes → back to STEP 6. Approved → continue.

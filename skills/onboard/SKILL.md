@@ -869,6 +869,22 @@ Vérifier que les 4 fichiers `.claude/audits/ONBOARD_REPORT.md`, `.claude/audits
 
 ---
 
+## STEP 7b — CHALLENGE THE PROPOSALS (before the human gate)
+The 4 audit files are on disk; `AUDIT_PROPOSALS.md` is the artifact worth
+attacking before the human spends a gate on it. Run
+`$HOME/.claude/lib/challenge-plan.md` with `PLAN` =
+`.claude/audits/AUDIT_PROPOSALS.md`, `KIND` = `proposals`, `SCOPE` = the audited
+project paths (the `audit_stack` coverage), `CONSTRAINTS` = the STEP 1 archetype
+profile + the STEP 3 interview constraints (stade, légal, budget perf). Three
+blind challengers ask whether these are the RIGHT priorities and what the audit
+under-rated; the main loop RE-THINKS every aspect a BLOCKER lands (a named
+proposals change re-written into `AUDIT_PROPOSALS.md`, or `[deferred <date>]`)
+and re-challenges once if the file materially changed. Feed the REVISED
+proposals + a CHALLENGE SUMMARY into STEP 8. Advisory — the human remains the
+decider.
+
+---
+
 ## STEP 8 — VALIDATION GATE ★ MANDATORY STOP
 
 Afficher à l'utilisateur :
@@ -892,6 +908,11 @@ TOP 5 PRIORITÉS :
   3. [P1 Haute]    <titre>
   4. [P1 Haute]    <titre>
   5. [P2 Moyenne]  <titre>
+
+CHALLENGE SUMMARY (STEP 7b — 3 lenses):
+  BLOCKERs addressed : <n> — <finding → the named proposals change that closes it>
+  Deferred (human-ack): <list | none>
+  Lenses returned    : correctness / robustness / simplicity (NAME any that failed to return)
 
 Prochaine étape : générer .claude/tasks/TODO.md depuis .claude/audits/AUDIT_PROPOSALS.md approuvé.
 

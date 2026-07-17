@@ -119,11 +119,29 @@ TOTALS: <N blocking, N warn, N info>
 
 If no issues found: report clean state and stop.
 
+## STEP 3b — CHALLENGE THE SCOPE (before approval)
+The STEP 3 report is the proposed cleanup scope — worth attacking before the
+human approves it. It is still inline, so FIRST persist it to
+`.claude/tasks/plans/<date>-<slug>-<HHMM>.md` (STEP 3 report format, one item
+per line), then run `$HOME/.claude/lib/challenge-plan.md` with `PLAN` = that
+file, `KIND` = `proposals`, `SCOPE` = the scanned target ($ARGUMENTS or repo
+root), `CONSTRAINTS` = the STEP 1 project norms + the iron law (zero behavior
+change). Three blind challengers ask whether these are the RIGHT items and what
+the scan under- or over-scoped; the main loop RE-THINKS every aspect a BLOCKER
+lands (a named scope change re-written into the report, or `[deferred <date>]`)
+and re-challenges once if the scope materially changed. Feed the REVISED scope +
+a CHALLENGE SUMMARY into STEP 4. Advisory — the human still approves per item.
+
 ## STEP 4 — VALIDATION GATE (interactive)
 
-Present the report from STEP 3. Then ask:
+Present the report from STEP 3 with the STEP 3b CHALLENGE SUMMARY. Then ask:
 
 ```
+CHALLENGE SUMMARY (STEP 3b — 3 lenses):
+  BLOCKERs addressed : <n> — <finding → the named scope change that closes it>
+  Deferred (human-ack): <list | none>
+  Lenses returned    : correctness / robustness / simplicity (NAME any that failed to return)
+
 AskUserQuestion:
   Approve which items for execution? (all / <item numbers> / clarify <item>)
 ```
