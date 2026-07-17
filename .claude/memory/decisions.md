@@ -87,6 +87,10 @@ rules:
 | BDR-064 | 2026-07-14 | global memory split: repo file → CLAUDE.global.md (deployed name unchanged), CLAUDE.md freed for project scope; consumer/maintainer wording rule | accepted |
 | BDR-065 | 2026-07-14 | transient planning artifacts (superpowers spec/plan): committed during run, deleted post-merge; git history = archive; codified in project CLAUDE.md | accepted |
 | BDR-066 | 2026-07-15 | Model routing: reflection inline (session big model) + sonnet-pinned executors + blocking gate | accepted |
+| BDR-070 | 2026-07-17 | claude-seo: cherry-pick scripts into our tree, never install; /seo stays sole entry | accepted |
+| BDR-071 | 2026-07-17 | No viable free backlink source → Off-page axis stays brand-mentions-only (FINAL, not placeholder) | accepted |
+| BDR-072 | 2026-07-17 | SPA: honest refuse (On-page N/A, not zero), no headless browser (R2 over R1) | accepted |
+| BDR-073 | 2026-07-17 | Scoring: LLM judges findings+severity, engine does the arithmetic (deterministic /20) | accepted |
 
 ---
 
@@ -1016,3 +1020,29 @@ rules:
 - **Alternatives rejected**: (B) narrow glob → weakens `.env.production`; blocked by auto-mode classifier as unauthorized self-modification ([[EVAL-024]]). (C) rename → `env.example` sidesteps glob at zero security cost, but ~30 refs (scaffolder, doc-syncer, init-project, deploy, 3 archetypes, link.sh, install-plugins.sh, toggle-external.sh) + repo's own root `.env.example` + seo-data.test.sh + gitignore `!.env.example` (BDR-030) → refactor, user declined.
 - **Files**: settings.json, templates/settings/SETTINGS.md (taught the broken `Write()` pattern → fixed at source so /onboard stops propagating it).
 - **Status**: implemented on chore/fix-inert-write-deny-rules (07ca738), UNMERGED (human gate).
+
+## BDR-070 — claude-seo (github.com/AgriciDaniel): cherry-pick, never install — 2026-07-17
+- **Decision**: adapt useful scripts into our tree, /seo stays sole entry. Do NOT run install.sh / plugin install.
+- **Why**: their CODE is real (326 tests, render_page.py 428l Playwright, url_safety.py 622l SSRF) — their INSTALLERS destroy our work. install.sh:49 `cp -r skills/seo/*` overwrites our SKILL.md. uninstall.sh:45 globs `~/.claude/agents/seo-*.md` → deletes our seo-analyzer.md (42K) it never installed (verified dry-run). extensions/*/install.sh:42 replaces settings.json with `{"env":{...}}` on parse error. skills/seo/SKILL.md:119 injects Skool upsell footer into deliverables (leaks to /client-handover client PDFs). hooks.json registers global PostToolUse exit-2 → blocks our dispatcher mid-bundle.
+- **Alternatives rejected**: (plugin install) → both `/seo` coexist namespaced → non-deterministic dispatch, silently loses our FR-legal axis on an unpredictable fraction of runs. (install nothing) → forgoes render_page/url_safety/unlighthouse we lack.
+- **Verdict on parity**: their README lies (dual JSON-LD validator = 2 hyperlinks, zero `.py` calls; "zero-network"/"fully offline" false). Our system is more honest; we keep FR-legal (their whole repo: 2 hits), fix-bundle+ownership, trajectory-17/20, NAP anti-seed.
+- **Files**: none installed. Findings drove the whole seo-geo-integrity branch (21 commits).
+
+## BDR-071 — no viable free backlink source: Off-page axis stays brand-mentions-only — 2026-07-17
+- **Decision**: I1's narrowed Off-page axis (brand mentions from STEP 6 only, backlinks+authority declared §14-unauditable) is the FINAL state, not a placeholder awaiting data.
+- **Why**: measured, not assumed. GSC has no links endpoint (API = Search Analytics/Sitemaps/Sites/URL-Inspection only; links report UI-only). Common Crawl hyperlinkgraph domain-edges = **17.3 GB gzipped** (+879MB vertices, +2.3GB ranks), HEAD-measured live. Scanning it per-audit is non-viable + abusive to a nonprofit. The reference impl (claude-seo commoncrawl_graph.py:169) caps download at 500 MiB = **2.9% of edges**, sorted by source ID → arbitrary slice reported as a backlink profile, "70/100 health". A random sample dressed as a measurement — the exact failure class the branch removes.
+- **Consequence**: B1/B2/B3 all killed. Weight (10-15%) unchanged — re-deriving for an axis that won't widen churns historical scores for nothing.
+- **Only free viable source**: Bing GetUrlLinks — first-party only (never a competitor), blocked on client's Bing account → raises W2's value ([[BLK-017]]), does not unblock it.
+
+## BDR-072 — SPA: honest refuse, no headless browser (R2 chosen over R1) — 2026-07-17
+- **Decision**: rendercheck verdict `client-rendered` → On-page axis N/A, excluded from weighted global, NEVER scored zero. No Playwright, no Chromium. User-arbitrated.
+- **Why**: a zero says "your on-page is bad"; N/A says "we couldn't see it" — only one is true, and /client-handover gates on 17/20. curl on a shell returns "missing" for every meta/H1/JSON-LD → a page of FALSE findings + a bundle that "fixes" tags that already exist. STEP 2 recorded `RENDERING: SPA` since forever and NOTHING acted on it. Verdict from what the server SENT (package.json can't tell React-SPA from Next-SSR).
+- **GEO angle (sharper)**: AI crawlers (GPTBot/PerplexityBot/ClaudeBot) are WORSE at JS than Googlebot — fetch HTML, largely don't execute. A client-rendered site is near-invisible to the engines the audit serves → §0 alert + SSR/SSG top user action, aligns CLAUDE.global "public sites never SPA".
+- **Alternatives rejected**: R1 Playwright (~300MB Chromium, breaks bash+curl purity) — user chose refusal. Refusing IS the finding.
+- **Files**: lib/seo-data/render_check.py, seo/geo STEP-5 gates (20d3082).
+
+## BDR-073 — deterministic scoring: split LLM judgement from arithmetic — 2026-07-17
+- **Decision**: LLM emits WHICH findings + severity (irreducible judgement); engine computes the /20. Reuses /harden's scale (-15/-8/-3/-1, clamp, /5 into /20) → one vocabulary across the family.
+- **Why**: /harden had a real scale (SKILL.md:435), /seo had NONE → every axis felt → two runs over identical code diverged, while /client-handover gates on 17/20. H2 sharpened it: once drift reports real change, a self-moving score is visibly noise. Same principle as engine-side cannibalisation grouping — never hand a model 1000 rows to add.
+- **Makes computable (was prose)**: "N/A is not a zero" (R2 on-page, I1 off-page) → axis excluded + weights renormalised, verified all-20 with 2 N/A → global 20.0. Prevalence: affected/sampled shift severity ONE step (≥50% escalate, single de-escalate).
+- **Files**: lib/seo-data/score.py (4818c61).

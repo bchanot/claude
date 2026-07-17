@@ -88,26 +88,26 @@ Seam: `lib/seo-data/fetch.sh` verbs (accounts|crux|queries|inspect|forget)
 as NEW VERBS. No new architecture.
 
 ### AXE 0 — Integrity (no new deps, hours) — the score currently lies
-- [ ] I1 Off-page axis scores 10-15% of FULL with ZERO data source (no API,
+- [x] I1 Off-page axis scores 10-15% of FULL with ZERO data source (no API,
       no index) → today fabricated, and it feeds /client-handover. Immediate
       fix: extend existing LOCAL `N/A — requires FULL audit` pattern to FULL,
       redistribute weights. Data upgrade later (AXE 3). Honesty now, data after.
-- [ ] I2 VSI (Visual Stability Index) listed in CWV thresholds but NO path
+- [x] I2 VSI (Visual Stability Index) listed in CWV thresholds but NO path
       retrieves it — neither CrUX nor PSI expose it. Phantom signal → remove
       or source.
-- [ ] I3 **SAFETY** /geo standalone: geo/SKILL.md (125 l) has no STEP 0, no
+- [x] I3 **SAFETY** /geo standalone: geo/SKILL.md (125 l) has no STEP 0, no
       confirmed-NAP collection — but geo-analyzer OWNS JSON-LD NAP. Standalone
       /geo on a local business can write unverified NAP with zero LRN-032
       protection. Real bug, not cosmetic.
-- [ ] I4 Security headers counted 3× (seo-analyzer STEP 4 scores them in
+- [x] I4 Security headers counted 3× (seo-analyzer STEP 4 scores them in
       Technical axis; depth-matrix.md says drop unless indexability; /harden
       re-audits /100 with 3 validators). Contradiction between dedup rule and
       agent spec → pick one owner.
-- [ ] I5 Report says "audit", measured 5-15 sampled pages. State coverage %
+- [x] I5 Report says "audit", measured 5-15 sampled pages. State coverage %
       explicitly in §0 until AXE 2 lands.
 
 ### AXE 1 — Free wins on auth we ALREADY have (fetch.sh verbs)
-- [ ] W1 `richresults` verb — GSC URL Inspection already returns
+- [x] W1 `richresults` verb — GSC URL Inspection already returns
       `richResultsResult`; our OAuth already carries the scope. Programmatic
       rich-results validation on real Google data. **BEATS claude-seo**: their
       README:314 "dual validator (Rich Results Test + Markup Validator)" is
@@ -116,19 +116,19 @@ as NEW VERBS. No new architecture.
 - [ ] W2 `bing` verb — Bing Webmaster API, free. Closes the Google/Bing
       asymmetry (Google = full OAuth layer, Bing = manual checklist) while
       /geo targets ChatGPT Search, which indexes via Bing. Strategic, not cosmetic.
-- [ ] W3 `sameas` resolution check — trivial curl loop. entity-seo.md lists
+- [x] W3 `sameas` resolution check — trivial curl loop. entity-seo.md lists
       "sameAs pointing to dead profiles" as a known error class and never
       checks it. ~10 lines.
 
 ### AXE 2 — Coverage (biggest lever: ~97% of a 500-page site unseen today)
-- [ ] C1 `crawl` verb — sitemap-driven URL discovery (we ALREADY fetch
+- [x] C1 `crawl` verb — sitemap-driven URL discovery (we ALREADY fetch
       sitemap.xml) + deterministic sampling + coverage % reported. No Chromium,
       no paid API. Turns "5-15 LLM-chosen pages" into measured coverage.
       Tradeoff vs claude-seo's link-following 500-page crawl: cheaper, but
       misses unlinked/unsitemapped pages — accept + disclose.
-- [ ] C2 Dupe/cannibalization detection — becomes possible once N pages in
+- [x] C2 Dupe/cannibalization detection — becomes possible once N pages in
       hand: compare titles/H1/canonicals across the set. Free, unblocked by C1.
-- [ ] C3 Internal-link graph — orphan pages + 3-click depth are TODAY stated
+- [x] C3 Internal-link graph — orphan pages + 3-click depth are TODAY stated
       as checks with no command to compute them. C1 unblocks real computation.
 
 ### AXE 3 — Off-page real (upgrades I1) — SUPERSEDED, see B1/B2 KILLED above
@@ -138,7 +138,7 @@ as NEW VERBS. No new architecture.
       profile.
 - [x] ~~B2 Honest cap at 70/100~~ KILLED with B1: nothing left to cap.
       I1's narrowed axis is the final state.
-- [ ] B3 VERIFY FIRST: GSC Links API. Subagent claimed "available, OAuth
+- [x] B3 VERIFY FIRST: GSC Links API. Subagent claimed "available, OAuth
       already there" — I doubt it: Search Console API v3 has no links endpoint
       (links report is UI-only AFAIK). Verify before planning on it. Do not
       assert.
@@ -147,16 +147,16 @@ as NEW VERBS. No new architecture.
 - [ ] R1 `render` verb — Playwright, GATED on SPA detection (STEP 2 already
       detects framework + rendering mode). Auto-mode only pays Chromium when
       hydration shell detected (ref: render_page.py:226 logic, adapt not copy).
-- [ ] R2 ARBITRAGE: heavy dep (Chromium ~300MB) vs our bash+curl purity.
+- [x] R2 ARBITRAGE: heavy dep (Chromium ~300MB) vs our bash+curl purity.
       Cheaper honest alternative: on SPA, REFUSE to score on-page rather than
       score it wrong (today: curl reads source, not hydrated DOM → every
       meta/JSON-LD/heading/img grep is blind, compensated only by a §0 flag).
 
 ### AXE 5 — Hardening + regression (lower priority)
-- [ ] H1 SSRF guard on curl paths — both agents curl user-supplied domains.
+- [x] H1 SSRF guard on curl paths — both agents curl user-supplied domains.
       Our own CLAUDE.md doctrine says "never trust user input". url_safety.py
       (622 l, obfuscated-IPv4 decode, DNS pinning) is a solid reference.
-- [ ] H2 `drift` baseline (SQLite) — SEO.md Historique keeps only date+score+
+- [x] H2 `drift` baseline (SQLite) — SEO.md Historique keeps only date+score+
       key changes. Their seo-drift is on-page regression detection, NOT rank
       tracking (common misread). Optional.
 

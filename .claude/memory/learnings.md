@@ -133,6 +133,9 @@ rules:
 | LRN-115 | 2026-07-08 | analyzer Edit/Write grants (seo/geo/validator) are NOT dead: needed to write the REPORT (VALIDATE/SEO/GEO.md); the "never edit" rule targets CODE, instruction-level (same as the patron) — verified false-positive | do NOT re-flag as a tool-grant defect; a report-only agent keeps Write for its own report |
 | LRN-116 | 2026-07-08 | memory backfill release→develop: a BLK marked "resolved" can have its RESOLUTION (code) missing from develop — BLK-016 resolved on release but rtk fix e58037c never back-merged → bug LIVE on develop | before backfilling a resolved blocker: verify the fix CODE is on the target branch, not just the registry entry |
 | LRN-117 | 2026-07-08 | a release/develop fork silently orphans FUNCTIONAL code on develop, not just memory — RC soak fixes (find-skills, make-update TTY, rtk version-guard) lived only on release for the fork's duration; the review's memory back-merge caught only ~half | at release-finish/reconcile: list develop..release commits touching non-registry code (excl. merges/version) for back-merge review — a registry-gap check alone misses code |
+| LRN-131 | 2026-07-17 | WebSearch is NOT verification for a number — SEO blogs cross-cite into fake consensus; require primary source + `measured:` field | any stat headed for a client report; verifying a metric/claim exists |
+| LRN-132 | 2026-07-17 | a subagent summary is a CLAIM, not a fact — 7 disproven in one session (incl. 3 I reproduced writing the fixes) | before planning on any relayed finding; verify vs primary source / live test first |
+| LRN-133 | 2026-07-17 | an omission must stay LEGIBLE, never silent — tool that can't measure says so in its output | designing any audit/measure output; deciding what a cap/refusal/N-A emits |
 
 ---
 
@@ -1283,3 +1286,18 @@ rules:
 - **Also**: `Write(path)` never matches file perms; `Edit(path)` covers ALL file-editing tools (`:242`; `:244` prescribes it). Startup warns on `Write(glob)` — but does NOT warn on a dead `allow` under a `deny`.
 - **Also**: `Read` deny hits Grep + Glob too (`:242`). Bash NOT covered — `Bash(cat .env)` bypasses `Read(**/.env)` unless separately denied.
 - **Applied**: [[BDR-069]].
+
+## LRN-131 — WebSearch is not verification for a number; require a primary source — 2026-07-17
+- **pattern**: a statistic reaches a client only with `<claim> — <source, year, venue|vendor> — measured: <what the source ACTUALLY measured> — <link>`. The `measured:` field is what catches the error.
+- **context**: "VSI (Visual Stability Index) — new 2026 Core Web Vital" lived in seo-analyzer as a threshold, stated as fact. It does NOT exist — absent from the CrUX API metric list AND web.dev; 10 SEO blogs cross-cited it into apparent consensus, several falsely claiming CrUX already collected it. And EVERY stat in agents/resources/ was real but grafted onto the wrong subject: Aggarwal 40% = ALL methods (pinned on "add stats"); AccuraCast 58.9% = Person-schema PREVALENCE (pinned on QAPage lift, meaning inverted — FAQPage was 1.8%); LLMrefs 3x = brand-mentions-vs-backlinks (pinned on freshness decay).
+- **future**: the failure mode is plausible RECOMBINATION — what a model half-remembering a search produces. The old rule "cross-check via WebSearch" LAUNDERS the blog consensus instead of catching it. An API's metric list (e.g. developer.chrome.com/docs/crux) is decisive: a metric the API can't return is one you can't score. See [[LRN-132]] (same family, subagent summaries).
+
+## LRN-132 — a subagent summary is a claim, not a fact — verify before planning on it — 2026-07-17
+- **pattern**: relaying a subagent's characterisation without checking it propagates plausible-but-false. Treat every relayed finding as a claim to verify against a primary source or a live test.
+- **context**: 7 disproven in one seo/geo session — "Off-page has ZERO data" (brand mentions ARE gathered, STEP 6); "the stats drive axis weights" (weight tables carry no citations); "GSC Links API is available" (endpoint doesn't exist); "a SPA-severely-limited §0 flag compensates" (never existed); "X/Twitter returns 403" (returns 200, live-tested); Common Crawl "nearest free source" (17.3 GB dead end); the whole opening inventory that founded the 20-point plan.
+- **future**: I reproduced the SAME error 3× while WRITING the fixes (X/Twitter 403 in W3, the two above in I1/I6). Contact with the REAL corrected it every time — the sitemap, the repo, the curl, the primary doc — never re-reading the spec. Measure-first before building. Corroborates [[LRN-074]] (watch the RED go red).
+
+## LRN-133 — an omission must stay legible, never silent — 2026-07-17
+- **pattern**: when a tool cannot measure something, it says so IN its output — a caller must never read absence as "fine".
+- **context**: red thread of 21 commits — NAP with no canonical → finding WITHOUT direction (never pick from source majority); unmeasured backlinks → mandatory §14 line; sample → mandatory COVERAGE ratio; dropped security headers → §14 + "run /harden" pointer; capped crawl → `orphans_withheld` (the cap doesn't degrade the result, it INVALIDATES it — a partial-crawl orphan is a false orphan); SPA → refuse, don't score; N/A ≠ zero in the scorer.
+- **future**: the system already HAD the invariant (code-ceiling, §14 Annexe) but applied it in spots. Generalised it. A false signal is worse than a declared gap — the 4 features KILLED at measurement (B1/B2/B3/W2) beat 4 false-signal features. See [[LRN-131]]/[[LRN-132]] (same session, the verification discipline that feeds it).
