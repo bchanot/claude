@@ -98,6 +98,28 @@ fetch.sh inspect --account client-a --property … --url https://ex.com/page
     • errors/warnings count issue INSTANCES; issues[] is deduped — the same
       issueMessage repeats across every affected item.
 
+fetch.sh cannibal --account client-a --property … [--days 90] [--rows 1000]
+  → {"status":"ok","source":"gsc","days":90,"rows_scanned":1000,"capped":true,
+     "conflict_count":12,
+     "conflicts":[{"query":"plombier paris","pages":3,"total_impressions":2400,
+                   "urls":[{"url":…,"clicks":…,"impressions":…,"position":…}]}]}
+  → {"status":"degraded","reason":"…"}                # no account → NOT auditable
+
+  Keyword cannibalisation from Google's own data: queries where 2+ of OUR
+  pages compete. Groups query+page rows; conflicts ranked by total
+  impressions, and within each the strongest page first. `capped:true` means
+  the row window was full — more conflicts exist past the cut, say so.
+  Same auth, same quota family, no new scope: the API always accepted several
+  dimensions at once, this engine only ever asked for one.
+    • NOT the 30/70 duplication rule. This is a SERP fact Google measured.
+      30/70 is content similarity, which has no data source here — doing it
+      naively (compare two same-template pages without stripping nav/footer)
+      returns ~95% similar for every site, a confident false positive. It stays
+      an LLM judgement, labelled as one.
+    • `queries` now takes `--dim query,page` (comma-separated) and `--rows`.
+      Rows gained a `keys` list; `key` stays as keys[0], so the single-dim
+      consumer is untouched.
+
 fetch.sh sitemap --url https://ex.com/sitemap.xml
   → {"status":"ok","source":"sitemap","index":false,"count":86,"dropped":0,
      "urls":["https://ex.com/", …]}

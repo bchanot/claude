@@ -81,6 +81,24 @@ has "gsc degrades w/o creds"     "$DEG" '"status": "degraded"'
 has "gsc degrade reason"         "$DEG" 'no_credentials'
 rm -rf "$TMP2"
 
+echo "── cannibalisation ──"
+# `keys` is additive: the single-dim consumer that reads `key` must not break
+has "queries keeps key (compat)"  "$Q" '"key": "plombier paris"'
+has "queries adds keys list"      "$Q" '"keys"'
+CAN="$(SEO_DATA_MOCK_DIR="$SD/fixtures-cannibal" python3 "$SD/google_seo.py" cannibal \
+  --store "$S2" --account client-a --property sc-domain:ex.com)"
+has "cannibal ok"                 "$CAN" '"status": "ok"'
+# fixture: 3 pages on "urgence fuite", 2 on "plombier paris", 1 on "devis"
+has "cannibal finds 2 conflicts"  "$CAN" '"conflict_count": 2'
+has "cannibal counts pages"       "$CAN" '"pages": 3'
+has "cannibal sums impressions"   "$CAN" '"total_impressions": 2400'
+hasnt "single-page query is not a conflict" "$CAN" 'devis plomberie'
+# biggest conflict first, and inside it the strongest page first
+CAN_FIRST="$(printf '%s' "$CAN" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d["conflicts"][0]["query"], d["conflicts"][0]["urls"][0]["url"])')"
+check_first() { [ "$1" = "$2" ] && ok "$3" || no "$3" "got[$1]"; }
+check_first "$CAN_FIRST" "urgence fuite https://ex.com/urgence" "cannibal ranks by impact"
+has "cannibal reports the cap"    "$CAN" '"capped": false'
+
 echo "── sitemap ──"
 SM="$(SEO_DATA_MOCK_DIR="$MOCK" python3 "$SD/sitemap.py" --url https://ex.com/sitemap.xml)"
 has "sitemap ok"                 "$SM" '"status": "ok"'

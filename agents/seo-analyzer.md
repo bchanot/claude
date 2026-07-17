@@ -340,7 +340,36 @@ When STEP 0/STEP 1 recorded a GSC account+property (not "none"):
 ```bash
 bash ~/.claude/lib/seo-data/fetch.sh queries --account "$GSC_ACCOUNT" --property "$GSC_PROPERTY" --days 90 --dim query
 bash ~/.claude/lib/seo-data/fetch.sh inspect --account "$GSC_ACCOUNT" --property "$GSC_PROPERTY" --url "https://$DOMAIN/"
+bash ~/.claude/lib/seo-data/fetch.sh cannibal --account "$GSC_ACCOUNT" --property "$GSC_PROPERTY" --days 90
 ```
+
+**`cannibal` — keyword cannibalisation, from Google's own data (C2).** Groups
+90 days of `query`+`page` rows and returns every query where 2+ of OUR pages
+compete, ranked by total impressions. The API always allowed multiple
+dimensions; this system only ever asked for one, so the conflict was invisible.
+
+Read it:
+- `conflicts[]` → for each, the strongest page (most impressions) is listed
+  first. That is usually the one to KEEP; the others either consolidate into
+  it (301 + merge content) or get differentiated. Never "fix" this by deleting
+  a page that has clicks — say what competes and let the user choose.
+- A conflict with a large impression total and every page beyond position 10
+  is the real prize: Google can't decide which page to rank, so none rank.
+- `capped: true` → the row window was full; there are conflicts past the cut.
+  Say so in §14 rather than presenting the list as exhaustive.
+- `status: degraded` → no GSC account. Cannibalisation is then **not
+  auditable** — no substitute exists on-site. §14 line, do not guess it from
+  title similarity.
+
+**This is NOT the 30/70 rule, and do not merge the two.** Cannibalisation is
+a SERP fact Google measured. The 30/70 duplication rule is a content-similarity
+question with **no data source here**: measuring it properly needs main-content
+extraction (strip nav/header/footer), and without that a naive comparison of
+two same-template pages returns ~95% similar for every site, which is a
+confident false positive. So 30/70 stays an explicit LLM judgement over the
+≥3 same-family pages STEP 5 now samples for it — label it as judgement in the
+report, never as a measurement, and never quote a similarity percentage you
+did not compute.
 
 Report: top queries; flag **QUICK WINS** = rows with position between 4
 and 10 AND high impressions (candidates to push onto page 1 with a
