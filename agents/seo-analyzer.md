@@ -479,11 +479,25 @@ point of use (same contract as the sameAs check in geo-analyzer).
 
 ### Meta tags per page (sample 5-15 key pages)
 
-Sample by risk, not convenience: homepage + top templates (one per page
-type: service, city, blog, product, legal) + any page GSC flags as a
-position 4-10 quick win. Same template audited twice buys nothing; an
-un-sampled template is an un-audited template — name the templates you
-skipped.
+**Group the sitemap URLs into families first** — first path segment is a
+good enough proxy for "same template", and it needs no framework routing
+knowledge. Measured on a real Astro site: 86 URLs collapse into 8 families,
+and 75 of them (87%) come from just 3 dynamic `[dept]` templates.
+
+**Sample by finding class, because the classes need opposite samples:**
+
+| Looking for | Sample | Why |
+|---|---|---|
+| Code defects (canonical, OG, `<img>` dims, hreflang) | **1 per family** | one template renders the whole family — a missing canonical in `[dept]/index.astro` breaks all 25 identically. 1 per family ≈ 100% SOURCE coverage for ~8 fetches. |
+| **Duplication / 30-70 / cannibalisation** | **≥3 from the LARGEST family** | invisible with one page each. You cannot tell whether 25 city pages are 70% unique by reading one of them. |
+| Per-page content (title/description length, H1 wording) | spread across families + GSC position 4-10 quick wins | these vary per page even from one template. |
+
+"One per template" is right for code and **wrong for the 30/70 rule** — a
+rule this spec mandates in §9. Sampling one page per family makes that check
+structurally impossible, so take the third page of the biggest family even
+though it is "the same template".
+
+An un-sampled family is an un-audited family. Name the ones you skipped.
 
 For each sampled page:
 ```
@@ -868,8 +882,9 @@ misroutes the client-handover gate and the user's effort.
 
 ```
 SEO SCORING (<depth>)
-COVERAGE       : <N> of <M> sitemap URLs (<P>%) — templates skipped: <list|none>
-                 | <N> pages, total UNKNOWN (no sitemap)
+COVERAGE SOURCE: <N> of <M> page templates (<P>%) — skipped: <list|none>
+COVERAGE LIVE  : <N> of <M> sitemap URLs (<P>%) — families: <fam N/M, …>
+                 | UNKNOWN (no sitemap / fetch degraded)
 Technical      : XX/20  <justification>
 On-page        : XX/20  <justification>
 SEO Local      : XX/20 | N/A
@@ -881,11 +896,27 @@ Legal          : XX/20  <justification>
 SEO GLOBAL (weighted): XX.X/20 (<depth>)
 ```
 
-**COVERAGE is mandatory, never omitted, never rounded up.** It is the
-honesty bound on every page-level axis: On-page and the on-page share of
-Technical are extrapolations from the sample. If coverage < 25%, repeat it
-in §0 as a major alert — a 17/20 drawn from 3% of a site is not a 17/20, and
-`/client-handover` gates on these numbers.
+**Both COVERAGE lines are mandatory, never omitted, never rounded up.** They
+are the honesty bound on every page-level axis: On-page and the on-page share
+of Technical are extrapolations from the sample, and `/client-handover` gates
+on these numbers.
+
+**Report both, because they bound different findings — do not average them
+into one comforting number.**
+- **SOURCE** bounds CODE findings. One template renders its whole family, so
+  1 page per family can legitimately reach 100% here. High SOURCE coverage is
+  a real claim: the code paths were seen.
+- **LIVE** bounds CONTENT findings — title/description wording, thin pages,
+  30/70 duplication. It stays low by design and that is fine, as long as it
+  is printed. Measured on a real site: 12 of 86 URLs is 14% LIVE while the
+  same 12 pages are 100% SOURCE. Reporting only the 14% understates the audit;
+  reporting only the 100% oversells it. Both, or neither means anything.
+- LIVE < 25% → repeat in §0. A 17/20 for content drawn from 3% of a site is
+  not a 17/20.
+- SOURCE < 100% → name the skipped templates in §0. That is not a sampling
+  choice, it is code nobody read.
+- Denominator UNKNOWN (no sitemap, or `sitemap` degraded) → print UNKNOWN.
+  Never let silence imply full coverage.
 
 Per user instruction: this score represents **80% of the combined
 final score for local B2C (20% for GEO), or 75% for SaaS/national

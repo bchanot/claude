@@ -653,7 +653,9 @@ Score each axis. Use concrete findings from STEP 2-9.
 
 ```
 GEO SCORING (<depth>)
-COVERAGE                  : <N> of <M> sitemap URLs (<P>%) | <N> pages, total UNKNOWN
+COVERAGE SOURCE           : <N> of <M> page templates (<P>%) — bounds Schema.org
+COVERAGE LIVE             : <N> of <M> sitemap URLs (<P>%) — bounds Content Shape
+                            | UNKNOWN (no sitemap / fetch degraded)
 AI Crawlers Policy        : XX/20  <justification>
 llms.txt                  : XX/20  <justification>
 Schema.org for AI         : XX/20  <justification>
@@ -669,6 +671,16 @@ per-page axes — Content Shape above all, and the page-level share of
 Schema.org. Site-wide axes (AI Crawlers Policy, llms.txt) are unaffected:
 robots.txt and llms.txt are single files, fully read. Say which is which
 rather than letting one ratio discredit the whole report.
+
+**Same source/live split as seo-analyzer STEP 9 (C1c), and it cuts your axes
+differently.** A JSON-LD block lives in a shared layout, so one sampled page
+per URL family proves the SCHEMA for the whole family — SOURCE coverage is
+what bounds it. Content Shape does NOT work that way: Definition Lead, TL;DR
+and heading wording are written per page, so a template says nothing about
+its 25 instances. Bound Schema.org by SOURCE, Content Shape by LIVE, and
+never quote the flattering one alone. Get the URL families from
+`fetch.sh sitemap` (first path segment); if `/seo` already ran it, reuse the
+count rather than re-fetching.
 
 Per user instruction: **GEO weight in combined SEO+GEO report = 20% for
 local, 25% for national/SaaS/content.**
