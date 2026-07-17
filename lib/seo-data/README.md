@@ -248,6 +248,41 @@ fetch.sh schema_gen <reservation|order|discussion|profile> [flags] [--script-tag
       empty (argparse cannot catch that) → `{"status":"degraded",...}`,
       exit 0 — fail-open, never a traceback.
 
+fetch.sh content_quality [--file <path.txt>] < text_on_stdin
+  → {"status":"ok","source":"content_quality","filler_score":0,"ai_pattern_score":0,
+     "information_density":1.0,"overall_quality":90,"flags":[],
+     "matches":{"filler":[],"ai_patterns":[]}}
+  → {"status":"degraded","reason":"empty_input"|"<file error>"}
+
+  fetch.sh content_quality --file article.txt
+  printf '%s' "$BODY_TEXT" | fetch.sh content_quality
+
+  Adapted from claude-seo's `content_quality.py` (MIT) into this contract.
+  100% deterministic — regex/word-lists (QRG §4.6 filler phrases + a
+  Wikipedia "AI Cleanup" catalogue of LLM-typical phrasings, CC BY-SA 4.0),
+  no LLM call, no network. Reads the text to score from `--file <path>` or,
+  when `--file` is `-` or omitted, from stdin — the same idiom `score.py`
+  uses for `--findings`.
+    • **ADVISORY, NOT A VERDICT.** The output never claims "this text is
+      AI-written" — modern generative tools can pass every heuristic here,
+      and human writers use some of these phrases too. `flags` are
+      candidates for HUMAN REVIEW, never an automatic finding. geo-analyzer
+      STEP 8 (Content Shape for AI) treats `overall_quality`/`flags` as ONE
+      measured input that INFORMS the axis; the axis itself stays an LLM
+      judgement (30/70, Definition Lead), never replaced by this score.
+    • `filler_score`/`ai_pattern_score` (0-100, higher = worse) count
+      phrase-list hits scaled per 1000 tokens; `information_density`
+      (0.0-1.0) is entities + numbers per 100 tokens; `overall_quality`
+      (0-100, higher is better) is the weighted composite (also folds in a
+      bigram-repetition penalty even though that score isn't itself a
+      top-level field). `flags` fires at fixed thresholds: `filler`,
+      `ai-patterns`, `low-density`, `repetitive`.
+    • Stdlib only (argparse/json/re/sys/collections/typing) — runs even
+      without the venv. Empty/whitespace-only input degrades rather than
+      returning a false zero-value "ok": an empty analysis is not a result.
+    • This is filler/AI-pattern SHAPE, not fact-checking — a text can be
+      dense and well-cited yet still wrong; that stays a human/LLM call.
+
 fetch.sh drift --url https://ex.com/sitemap.xml [--max 500]
   → {"status":"ok","baseline":true,"captured":"…","pages":24,"store":"…"}
   → {"status":"ok","baseline":false,"since":"…","gone":[…],"new":[…],

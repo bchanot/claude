@@ -551,6 +551,13 @@ sample of a 300-page site says nothing about the other 294.
    pronouns?
 8. **Lists/tables vs prose** — structured where possible?
 9. **30/70 rule** (if city/service variants exist) — ≥70% unique?
+10. **Filler/AI-slop signal (deterministic)** — feed each sampled page's
+    body text to `fetch.sh content_quality`. It is a DETERMINISTIC input
+    that INFORMS checks 1-9 (word-list/density heuristics, no LLM call);
+    it never replaces your read of them. A low `overall_quality` or a
+    `filler`/`ai-patterns` flag is a candidate for human review, not an
+    automatic finding — do not let the number become the verdict, and do
+    not claim a page "is AI-written" from it.
 
 ### Sampling command
 
@@ -561,6 +568,11 @@ for f in index.html $(find . "${FEXCL[@]}" -maxdepth 3 \( -name "*.astro" -o -na
   echo "=== $f ==="
   grep -oE '<(h1|h2|h3)[^>]*>[^<]+</(h1|h2|h3)>|^#{1,3} .+' "$f" 2>/dev/null | head -20
 done
+
+# Filler/AI-slop signal (Check 10) — strip markup to plain body text, then
+# score it. Advisory only: pair the number with your own read of Checks 1-9.
+sed -e 's/<[^>]*>//g' index.html | \
+  bash ~/.claude/lib/seo-data/fetch.sh content_quality
 ```
 
 ### Findings
@@ -576,6 +588,9 @@ CITED STATISTICS    : <avg per page>
 FRESHNESS VISIBLE   : <n/N pages>
 PRONOUN-HEAVY       : <n/N pages flagged>
 30/70 RULE          : pass | fail | N/A
+FILLER/AI-SLOP SIGNAL : <avg overall_quality>/100, flags: <n/N pages flagged>
+                       (deterministic, advisory — informs checks 1-9, never
+                       a verdict, never scored on its own)
 PRIORITY ACTIONS    : <top 5>
 ```
 

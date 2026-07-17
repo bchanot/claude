@@ -290,6 +290,79 @@ FSG_TAG="$(printf '%s' "$FSG" | \
   python3 -c 'import sys,json; print(json.load(sys.stdin)["script"])')"
 has "fetch schema_gen script-tag" "$FSG_TAG" '<script type="application/ld+json">'
 
+echo "── content_quality ──"
+CQ() { python3 "$SD/content_quality.py" "$@"; }
+# feed the phrase list's OWN entries so the match is exact, not paraphrased —
+# a detector proven only on the maintainer's paraphrase proves nothing
+FILLER_TXT="In today's fast-paced world, it's important to note that this \
+article will delve into the ever-evolving landscape of technology. Let's \
+dive in and navigate the complexities together, leveraging the power of \
+innovation to unlock the potential of your business. Ultimately, this \
+cutting-edge, state-of-the-art approach is a testament to progress. \
+Moreover, furthermore, in conclusion, transform your outcomes today."
+CLEAN_TXT="The 2024 ADEME report found French households spent 2,137 EUR \
+on heating, up 12% from 2021."
+FILLER_OUT="$(printf '%s' "$FILLER_TXT" | CQ)"
+CLEAN_OUT="$(printf '%s' "$CLEAN_TXT" | CQ)"
+has "filler text is ok"          "$FILLER_OUT" '"status": "ok"'
+has "clean text is ok"           "$CLEAN_OUT"  '"status": "ok"'
+# flags is a JSON array — extract it in isolation so the check can't be
+# fooled by the always-present "matches": {"filler": [...]} key sharing
+# the same quoted word
+FILLER_FLAGS="$(printf '%s' "$FILLER_OUT" | \
+  python3 -c 'import sys,json; print(",".join(json.load(sys.stdin)["flags"]))')"
+CLEAN_FLAGS="$(printf '%s' "$CLEAN_OUT" | \
+  python3 -c 'import sys,json; print(",".join(json.load(sys.stdin)["flags"]))')"
+case "$FILLER_FLAGS" in
+  *filler*|*ai-patterns*) ok "filler-heavy text is flagged" ;;
+  *) no "filler-heavy text is flagged" "flags: $FILLER_FLAGS" ;;
+esac
+hasnt "clean text is not flagged filler"      "$CLEAN_FLAGS" 'filler'
+hasnt "clean text is not flagged ai-patterns" "$CLEAN_FLAGS" 'ai-patterns'
+# proves BOTH directions: an always-flag or a never-flag detector is useless
+FILLER_Q="$(printf '%s' "$FILLER_OUT" | \
+  python3 -c 'import sys,json; print(json.load(sys.stdin)["overall_quality"])')"
+CLEAN_Q="$(printf '%s' "$CLEAN_OUT" | \
+  python3 -c 'import sys,json; print(json.load(sys.stdin)["overall_quality"])')"
+[ "$FILLER_Q" -lt 50 ] && ok "filler-heavy text scores LOW overall_quality" \
+                        || no "filler-heavy text scores LOW overall_quality" "got $FILLER_Q"
+[ "$CLEAN_Q" -gt "$FILLER_Q" ] && ok "clean dense text scores higher" \
+                                || no "clean dense text scores higher" "$CLEAN_Q vs $FILLER_Q"
+# empty / whitespace-only input never crashes and never claims a result
+EMPTY_OUT="$(printf '' | CQ)"
+has "empty input degrades"       "$EMPTY_OUT" '"status": "degraded"'
+has "empty input reason"         "$EMPTY_OUT" 'empty_input'
+WS_OUT="$(printf '   \n\t ' | CQ)"
+has "whitespace-only degrades"   "$WS_OUT" '"status": "degraded"'
+# --file path works, no fixture committed — mktemp + rm
+CQTMP="$(mktemp)"; printf '%s' "$CLEAN_TXT" > "$CQTMP"
+FILE_OUT="$(CQ --file "$CQTMP")"
+has "file input is ok"           "$FILE_OUT" '"status": "ok"'
+rm -f "$CQTMP"
+# a missing --file degrades, never a traceback
+MISSING_OUT="$(CQ --file /nonexistent/path/content-quality-test.txt)"
+has "missing --file degrades"    "$MISSING_OUT" '"status": "degraded"'
+# stdlib ONLY — asserted, not assumed
+CQ_IMPORTS="$(grep -E '^(import|from) ' "$SD/content_quality.py")"
+if printf '%s' "$CQ_IMPORTS" | grep -qivE '^(import argparse, json, re, sys|from collections import counter|from typing import iterable)$'; then
+  no "content_quality stdlib only" "unexpected import: $CQ_IMPORTS"
+else
+  ok "content_quality stdlib only"
+fi
+# ADVISORY HONESTY (LRN-131/133): a heuristic signal, never a verdict
+hasnt "never claims ai-written"  "$FILLER_OUT" 'ai-written'
+hasnt "never claims is AI verdict" "$FILLER_OUT" 'is AI'
+# dispatch wiring: --store precedes the verb (fetch.sh's own convention);
+# both stdin AND --file must work through the real entrypoint
+FCQ_STDIN="$(printf '%s' "$CLEAN_TXT" | \
+  SEO_DATA_ENV_FILE=/dev/null SEO_DATA_STORE=/nonexistent bash "$SD/fetch.sh" content_quality)"
+has "fetch dispatches content_quality (stdin)" "$FCQ_STDIN" '"status": "ok"'
+CQTMP2="$(mktemp)"; printf '%s' "$CLEAN_TXT" > "$CQTMP2"
+FCQ_FILE="$(SEO_DATA_ENV_FILE=/dev/null SEO_DATA_STORE=/nonexistent bash "$SD/fetch.sh" \
+  content_quality --file "$CQTMP2")"
+has "fetch dispatches content_quality (--file)" "$FCQ_FILE" '"status": "ok"'
+rm -f "$CQTMP2"
+
 echo "── fetch.sh ──"
 FETCH="$SD/fetch.sh"
 # SEO_DATA_ENV_FILE=/dev/null: tests must NEVER source the real ~/.claude/.env —
@@ -416,6 +489,7 @@ tf "analyzer calls fetch queries" "$REPO/agents/seo-analyzer.md" "fetch.sh queri
 tf "analyzer gsc subsection"    "$REPO/agents/seo-analyzer.md"   "Performance GSC"
 tf "catalog gsc oauth entry"    "$REPO/agents/resources/automation-catalog.md" "make seo-connect"
 tf "geo-analyzer wires schema_gen" "$REPO/agents/geo-analyzer.md" "fetch.sh schema_gen"
+tf "geo-analyzer wires content_quality" "$REPO/agents/geo-analyzer.md" "fetch.sh content_quality"
 
 echo "── account-mgmt locks ──"
 tf "skill routes account verbs" "$REPO/skills/seo/SKILL.md" "forget --all"
@@ -429,6 +503,8 @@ tf "readme documents seo-connect" "$REPO/lib/seo-data/README.md" "make seo-conne
 tf "readme documents forget"   "$REPO/lib/seo-data/README.md" "forget --all"
 tf "readme revocation note"    "$REPO/lib/seo-data/README.md" "myaccount.google.com/permissions"
 tf "readme documents schema_gen" "$REPO/lib/seo-data/README.md" "schema_gen"
+tf "readme documents content_quality" "$REPO/lib/seo-data/README.md" "content_quality"
+tf "readme states advisory caveat" "$REPO/lib/seo-data/README.md" "ADVISORY, NOT A VERDICT"
 
 echo ""
 echo "seo-data engine: $PASS pass, $FAIL fail"
