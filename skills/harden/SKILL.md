@@ -518,6 +518,21 @@ Extract the score and critical-alert count from `.claude/audits/HARDEN.md` for t
 
 ---
 
+## STEP 2b — CHALLENGE THE FIX BUNDLE (MODE=fix only, advisory)
+Skip if MODE=audit (no bundle exists). Else, before the STEP 3 gate, harden the bundle:
+extract the `## 8. Fix bundle` section from HARDEN.md to
+`.claude/tasks/plans/<date>-<slug>-<HHMM>.md` (a clean, blind-judgeable artifact), then run
+`$HOME/.claude/lib/challenge-plan.md` with `PLAN` = that file, `KIND` = `fix-bundle`,
+`SCOPE` = the config/target files each patch touches (.htaccess, next.config.js, _headers…),
+`CONSTRAINTS` = the STEP 1 strict scope + framework-native mechanism rule (no `.htaccess`
+on Next/Astro) + the severity guide. Three blind challengers ask, per patch: will it ACHIEVE
+the hardening goal / could it BREAK the site (over-broad CSP, redirect loop) / is a simpler
+fix better. This main loop RE-THINKS every aspect a BLOCKER lands (a named bundle change, or
+`[deferred <date>]`) and re-challenges once if the bundle materially changed. Advisory — it
+sits BEFORE (never replaces) the STEP 3 confirmation; carry its CHALLENGE SUMMARY into that gate.
+
+---
+
 ## STEP 3 — Apply fixes (MODE=fix only)
 
 Skip this step if MODE=audit.
@@ -533,6 +548,11 @@ If MODE=fix and `.claude/audits/HARDEN.md` ends with `READY TO APPLY — awaitin
    Files to modify (N) :
      - .htaccess           (3 fixes : HTTP→HTTPS redirect, HSTS, 404 page)
      - next.config.js      (2 fixes : CSP header, X-Frame-Options)
+
+   CHALLENGE SUMMARY (STEP 2b — 3 lenses) :
+     BLOCKERs addressed : <n> — <finding → the named bundle change that closes it>
+     Deferred (human-ack): <list | none>
+     Lenses returned    : correctness / robustness / simplicity (NAME any that failed to return)
 
    Options :
      A) Apply all

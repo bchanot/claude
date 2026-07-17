@@ -115,6 +115,19 @@ Invoke `superpowers:writing-plans` with the validated design AND the 0d digest: 
 must be consistent with the in-force constraints; where a task implements or affects one,
 note the ID inline. Break design into tasks (2-5 min each). Each task: exact file paths, full code, verification steps.
 
+## STEP 2b — CHALLENGE THE PLAN (adversarial, before the gate)
+Before the human sees the plan, harden it. Run `$HOME/.claude/lib/challenge-plan.md`:
+- `PLAN` = the plan STEP 2 wrote under `docs/superpowers/plans/`
+- `KIND` = `build-plan`
+- `SCOPE` = the files/dirs the plan touches
+- `CONSTRAINTS` = the STEP 1 validated design's decided trade-offs / rejected options
+
+Three blind `plan-challenger` subagents (correctness / robustness / simplicity)
+attack it in parallel on the big model; the main loop RE-THINKS every aspect a
+BLOCKER lands (a named plan change, or `[deferred <date>]`), re-challenges once if
+the plan materially changed, and feeds the REVISED plan + a CHALLENGE SUMMARY into
+STEP 3. Advisory — the human remains the decider.
+
 ## STEP 3 — VALIDATION GATE ★ MANDATORY STOP
 ```
 SHIP FEATURE — VALIDATION GATE
@@ -127,6 +140,11 @@ RELATED MEMORY — disposition CLAIMED by this plan (review each):
   - BLK-009 [already seen] — <how avoided / why N-A>
 
 Review the claims above — flag any item the plan does NOT actually honor.
+
+CHALLENGE SUMMARY (STEP 2b — 3 lenses):
+  BLOCKERs addressed : <n> — <finding → the named plan change that closes it>
+  Deferred (human-ack): <list | none>
+  Lenses returned    : correctness / robustness / simplicity (NAME any that failed to return)
 Approve and execute? (yes / request changes)
 ```
 This block EXPOSES each in-force item with the plan's CLAIMED disposition, for human

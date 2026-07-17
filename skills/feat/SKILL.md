@@ -117,6 +117,17 @@ PLAN:
 If the approach is ambiguous: ask the user ONE focused question BEFORE
 dispatching — never after (the executor cannot relay questions).
 
+## STEP 1b — CHALLENGE THE PLAN (before branching)
+The STEP 1 plan is a reflection worth attacking before a branch is spent on it.
+Persist it to `.claude/tasks/plans/<date>-<slug>-<HHMM>.md`, then run
+`$HOME/.claude/lib/challenge-plan.md` with `PLAN` = that file, `KIND` = `build-plan`,
+`SCOPE` = the STEP 1 files, `CONSTRAINTS` = the STEP 0.6 in-force BDR/LRN dispositions.
+Three blind challengers attack it; RE-THINK every aspect a BLOCKER lands (a named
+plan change, or `[deferred]`), re-challenge once if the plan materially changed. The
+STEP 3 executor receives the REVISED plan. Before dispatch, print a CHALLENGE SUMMARY
+(BLOCKERs addressed / deferred / lenses returned), surfacing any deferred BLOCKER via
+STEP 1's one-question gate.
+
 ## STEP 2 — BRANCH
 
 **Gitflow aiguillage (before dispatch):** follow `$HOME/.claude/lib/gitflow-aiguillage.md`

@@ -1339,3 +1339,6 @@ rules:
   refuse it EVERYWHERE, not just where you look first. A fresh adversarial
   reviewer attacking diff A routinely surfaces a real hole in already-shipped
   code B — see [[EVAL-020]].
+
+### LRN-136 — config-protection live state follows checked-out branch's symlinked settings.json (2026-07-17)
+~/.claude/settings.json is a SYMLINK to the repo settings.json; Claude Code hot-reloads settings on change → the config-protection PreToolUse hook's active/inactive state tracks the CURRENT branch's settings.json. On feature/drop-config-protection (hook deregistered) a protected edit passed silently, sentinel unconsumed; after gitflow-switch to a branch off develop (hook still registered) the SAME class of edit was blocked. Apply: a change that removes a settings-registered hook is live only on that branch until merged; use the one-shot sentinel for protected edits on any branch that still registers it. ([[BDR-074]] context.)

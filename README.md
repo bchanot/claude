@@ -53,6 +53,7 @@ reflection orchestrators. Execution runs on pinned subagents:
 | status-reporter | haiku (pinned) | mechanical collector |
 | handover-doc-writer | sonnet (pinned) | deliverable writer — synthesizes + renders the client doc from a resolved PACKAGE (dispatched by client-handover) |
 | analyzer, seo-analyzer, geo-analyzer, validator-analyzer, client-handover-writer | inherit session (Fable/Opus) | reflection / audit / inline playbooks / ship-and-handover pipeline |
+| plan-challenger | inherit session (Fable/Opus) | fresh adversarial plan challenger — 3 parallel lenses (correctness/robustness/simplicity), dispatched by `/ship-feature` STEP 2b before the validation gate |
 | Explore (built-in) | inherit session (Fable/Opus) | search feeds reflection — kept on the big model, not pinned down |
 
 The pure-execution skills `/doc`, `/status`, `/commit-change`,

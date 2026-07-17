@@ -251,6 +251,22 @@ grep -c '^### \[Critique\]' .claude/audits/VALIDATE.md
 
 ---
 
+## STEP 2b — CHALLENGE THE FIX BUNDLE (MODE=fix only, advisory)
+Skip if MODE=audit (no bundle exists). Else, before the STEP 3 gate, harden the bundle:
+extract the `## 5. Fix bundle` section from VALIDATE.md to
+`.claude/tasks/plans/<date>-<slug>-<HHMM>.md` (a clean, blind-judgeable artifact), then run
+`$HOME/.claude/lib/challenge-plan.md` with `PLAN` = that file, `KIND` = `fix-bundle`,
+`SCOPE` = the HTML/CSS files each fix touches, `CONSTRAINTS` = the STEP 1 strict scope (W3C
+validity + WCAG 2.1) + the conservative auto-fix rule (structural/syntactic only, content →
+§6) + the shared-template discipline (targeted Edit, never Write — templates carry /seo +
+/geo content). Three blind challengers ask, per fix: will it ACHIEVE conformance / could it
+BREAK rendering or regress another SC / is a simpler fix better. This main loop RE-THINKS
+every aspect a BLOCKER lands (a named bundle change, or `[deferred <date>]`) and re-challenges
+once if the bundle materially changed. Advisory — it sits BEFORE (never replaces) the STEP 3
+confirmation; carry its CHALLENGE SUMMARY into that gate.
+
+---
+
 ## STEP 3 — Apply fixes (MODE=fix only)
 
 Skip this step if `MODE=audit`.
@@ -270,6 +286,11 @@ Files to modify (N) :
   - src/pages/contact.html (2 fixes : unclosed tag, duplicate id)
 
 Critical : X | Haute : Y | Moyenne : Z | Basse : W
+
+CHALLENGE SUMMARY (STEP 2b — 3 lenses) :
+  BLOCKERs addressed : <n> — <finding → the named bundle change that closes it>
+  Deferred (human-ack): <list | none>
+  Lenses returned    : correctness / robustness / simplicity (NAME any that failed to return)
 
 Options :
   A) Apply all

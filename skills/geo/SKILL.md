@@ -58,6 +58,20 @@ $ARGUMENTS
 """
 ```
 
+## STEP 1b — CHALLENGE THE FIX BUNDLE (advisory, before apply)
+The analyzer returned a `## FIX BUNDLE` — worth attacking before any edit lands.
+**Skip if intervention mode = conservative** (nothing is applied). Else persist the
+bundle verbatim to `.claude/tasks/plans/<date>-<slug>-<HHMM>.md`, then run
+`$HOME/.claude/lib/challenge-plan.md` with `PLAN` = that file, `KIND` = `fix-bundle`,
+`SCOPE` = the target site files the items touch, `CONSTRAINTS` = the geo-analyzer
+file-ownership (robots.txt, llms.txt, JSON-LD, content shape) + the shared-file edit
+discipline each item carries + intervention mode. Three blind challengers ask, per item:
+will it ACHIEVE its goal / could it BREAK or regress the page / is a simpler (or no) fix
+better. This main loop RE-THINKS every aspect a BLOCKER lands (a named bundle change, or
+`[deferred <date>]`) and re-challenges once if the bundle materially changed. Advisory —
+it sits BEFORE (never replaces) the STEP 2 GATED approval; carry its CHALLENGE SUMMARY
+into that gate.
+
 ## STEP 2 — Apply the fix bundle (from THIS main loop, at L1)
 
 The analyzer returned a `## FIX BUNDLE`. Apply it by dispatching
@@ -90,6 +104,11 @@ Present every GATED item (G5.x) in ONE gate:
 ```
 GEO — gated content-shape changes need approval (visible):
   G5.1 <change> — impact: <visible change>
+
+CHALLENGE SUMMARY (STEP 1b — 3 lenses):
+  BLOCKERs addressed : <n> — <finding → the named bundle change that closes it>
+  Deferred (human-ack): <list | none>
+  Lenses returned    : correctness / robustness / simplicity (NAME any that failed to return)
 Approve all / select (ids) / skip all?
 ```
 
