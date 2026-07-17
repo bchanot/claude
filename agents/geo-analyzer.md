@@ -244,8 +244,14 @@ the PERMISSIVE template from `ai-crawlers-2026.md`.
 
 ### Live verification `[FULL only]`
 
+**Guard the domain before it reaches a shell — mandatory, not optional.**
+`$DOMAIN` is interpolated inside double quotes below, where `$` and backtick
+still execute. Run the guard FIRST and use only its output; non-zero exit →
+STOP this step and report the refusal, never sanitise-and-retry.
+
 ```bash
-DOMAIN="<production-domain>"
+DOMAIN="$(bash ~/.claude/lib/url-guard.sh host "<production-domain>")" || {
+  echo "STEP 4 aborted: domain refused by url-guard"; exit 2; }
 
 # Verify robots.txt served
 curl -s "https://$DOMAIN/robots.txt" | head -50
@@ -443,12 +449,22 @@ grep -rhoE '"sameAs"[^]]*\]' \
   --include="*.html" --include="*.astro" --include="*.tsx" --include="*.jsx" \
   --include="*.vue" --include="*.svelte" --include="*.php" --include="*.json" \
   . 2>/dev/null \
-  | grep -oE 'https?://[^"]+' | sort -u | while read -r U; do
+  | grep -oE 'https?://[^"]+' | sort -u | while read -r RAW; do
+      # These URLs come from the audited repo's JSON-LD, not from the operator:
+      # guard each one before it reaches curl. A refused entry is REPORTED, not
+      # skipped silently — an unguardable sameAs is itself a finding.
+      U="$(bash ~/.claude/lib/url-guard.sh url "$RAW" 2>/dev/null)" || {
+        printf 'REFUSED %s\n' "$RAW"; continue; }
       printf '%s %s\n' \
         "$(curl -sIL -o /dev/null -w '%{http_code}' --max-time 10 "$U" 2>/dev/null || echo 000)" \
         "$U"
     done
 ```
+
+`REFUSED` rows are not dead links and not live ones — the URL never left the
+machine. Report them in §14 with the raw value: a `sameAs` carrying shell
+metacharacters or pointing at `localhost` is either broken markup or someone
+probing, and both are worth the client knowing.
 
 **Read the codes honestly — a block is not a death.** Some platforms refuse
 non-browser clients: LinkedIn answers `999` (verified 2026-07-16 against a

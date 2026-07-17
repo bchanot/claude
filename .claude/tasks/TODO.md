@@ -1,6 +1,54 @@
 # TODO
 
-## 2026-07-16 — PLAN seo/geo parity vs claude-seo (not started, awaiting arbitrage)
+## 2026-07-17 — STATUS seo/geo parity (branch bugfix/seo-geo-integrity, 10 commits, UNMERGED)
+PHASE 1 — integrity: **DONE 7/7**. I3 8b0c98c · I1 57c67f2 · I2 4ea2fb8 ·
+I5 64f175f · I4 e70e1d6 · I6 9da1dec · I8 acd452b. Plus 9cd7b51 (A1+A2, two
+process anomalies surfaced by dogfooding /harden at zenquality.fr from the
+wrong CWD).
+PHASE 2 — free wins: W3 fe93b79 · W1 a6d423b · **W2 DEFERRED** (see below).
+NEXT: H1 (SSRF/injection guard) → C1 (sitemap crawl). Human merge gate: all
+10 commits await review; nothing merged to develop.
+
+### Plan corrections made while executing (the plan was wrong 4×)
+- **B3 KILLED** — GSC Links API does not exist. Verified against the API
+  reference: Search Console v1 exposes exactly Search Analytics, Sitemaps,
+  Sites, URL Inspection. A subagent hallucinated it; I doubted it in the
+  plan and the doubt was right. Common Crawl is the ONLY free backlink
+  source → the 70/100 cap is mandatory, not optional.
+- **I1 was an over-correction** — "Off-page has ZERO data" was overstated
+  (relayed from a subagent, unverified). Brand mentions ARE gathered
+  (STEP 6). Narrowed the axis definition instead of N/A-ing it; weights
+  untouched to avoid churning historical scores twice.
+- **I6 framing was wrong** — I claimed 3× that the stats "drive axis
+  weights". They do not; weight tables carry no citations. They drive Tier
+  recommendations and, worse, land in CLIENT reports via the "Cite sources"
+  rule. Reality was worse than my false version.
+- **W1 was the wrong shape** — plan said "richresults verb"; a new verb
+  means a 2nd POST to the same endpoint for a payload already received.
+  Extended inspect() instead.
+- **H1 moved up** (was AXE 5) — it is a PREREQUISITE of C1, not a
+  follow-up. Today only $DOMAIN (user-typed) is interpolated. After C1, N
+  URLs from a REMOTE sitemap flow into shell commands and fetch targets.
+
+### W2 (Bing) — DEFERRED, blocked on a real-world test
+Killed after 4 challenge rounds. User's model: client sites live on CLIENT
+Bing accounts, so a per-user API key means one key per client account.
+OAuth is the right model but is a swamp:
+- Redirect URI rejects ALL local forms (http/https/127.0.0.1 — user tested)
+- Refresh tokens are **rotated + single-use**, self-described non-compliant
+  with OAuth 2.0 → store rewrite on every call, AND our parallel
+  seo/geo dispatch would race the rotation → invalid_grant, dead token
+- Undocumented "anti-forgery token" failure on refresh, unanswered on Q&A
+- MS's own advisor recommends falling back to the API key
+- Doc contradicts itself on grant_type and the token endpoint; no library
+REVIVAL CONDITION: a client already on Bing adds the user as a Read-Only
+user → test in ~10 min whether the single API key sees DELEGATED sites
+(undocumented, nobody knows). If yes → W2 is cheap and clean (one key,
+client-owned verification, revocable, read-only, zero OAuth). If no → dead.
+Value forgone meanwhile: Bing/DDG/Ecosia query stats + index status +
+first-party backlinks. Real but modest; C1 dwarfs it.
+
+## 2026-07-16 — PLAN seo/geo parity vs claude-seo (superseded by the STATUS above)
 Source: audit of github.com/AgriciDaniel/claude-seo (11.5k★, MIT, v2.2.0,
 5 mo old, 185/197 commits single author). Verdict: cherry-pick, never install
 (install.sh:49 overwrites our skills/seo/; uninstall.sh:45 glob `seo-*.md`

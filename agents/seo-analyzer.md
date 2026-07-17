@@ -250,8 +250,15 @@ the §14 observed-list. But under `/seo` the security headers themselves are
 out of scope for scoring: see the Technical axis note in STEP 9. Under
 `/harden` they are the entire job. Reading is not scoring.
 
+**Guard the domain before it reaches a shell — mandatory, not optional.**
+Every curl below interpolates `$DOMAIN` inside double quotes, where `$` and
+backtick still execute. Run the guard FIRST and use only its output; if it
+exits non-zero, STOP this step and report the refusal — never "clean up" the
+value and retry.
+
 ```bash
-DOMAIN="<production-domain>"
+DOMAIN="$(bash ~/.claude/lib/url-guard.sh host "<production-domain>")" || {
+  echo "STEP 4 aborted: domain refused by url-guard"; exit 2; }
 
 # Headers
 curl -sI "https://$DOMAIN/" | head -30
