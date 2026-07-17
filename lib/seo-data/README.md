@@ -215,6 +215,39 @@ fetch.sh score --findings <path.json | ->
     • Malformed input is an error, never a silently wrong number — unlike the
       fetch verbs, a degrade here would mean bad input, not a network fact.
 
+fetch.sh schema_gen <reservation|order|discussion|profile> [flags] [--script-tag]
+  → {"status":"ok","source":"schema_gen","type":"<@type>","jsonld":{…}}
+  → {"status":"error","reason":"bad_usage"}          # a REQUIRED flag omitted
+  → {"status":"degraded","reason":"…"}               # a required flag given, empty
+
+  fetch.sh schema_gen reservation --provider "Marea NYC" \
+    --start 2026-06-04T19:30:00-04:00 --party-size 4
+  fetch.sh schema_gen order --merchant "Acme Pizza" --order-url https://acme.example/order
+  fetch.sh schema_gen discussion --headline "…" --author "Sara Park" \
+    --url https://forum.example.com/t/123 --date 2026-05-12T14:00:00Z
+  fetch.sh schema_gen profile --name "Daniel Agrici" --url https://agricidaniel.com/about \
+    --same-as https://github.com/AgriciDaniel --knows-about "SEO" "Schema markup"
+
+  Adapted from claude-seo's `schema_generate.py` (MIT) into this contract.
+  Our system only AUDITS existing markup elsewhere; this is the one verb
+  that GENERATES it — deterministic JSON-LD skeletons for the four v2
+  high-leverage Schema.org types, so geo-analyzer's G2 batch stops
+  hand-writing markup by hand. It only generates STRUCTURE: unknown field
+  VALUES are the caller's job, `[À COMPLÉTER]` for anything unconfirmed —
+  this verb never invents a sameAs, an email, or a business name.
+    • Stdlib only, no network, no auth — runs even without the venv.
+    • `--script-tag` wraps the cleaned jsonld in
+      `<script type="application/ld+json">…</script>` under a `script` key,
+      still inside the `ok` envelope. It must be given AFTER the type
+      (`schema_gen reservation … --script-tag`, not before) — argparse
+      subcommand flags only parse after their subcommand.
+    • Never emits a JSON `null`: fields left unset are omitted from the
+      `jsonld` object entirely rather than serialised as `null`.
+    • A REQUIRED flag omitted → `{"status":"error","reason":"bad_usage"}`,
+      exit 2 (bad usage, like every other verb). A required flag GIVEN but
+      empty (argparse cannot catch that) → `{"status":"degraded",...}`,
+      exit 0 — fail-open, never a traceback.
+
 fetch.sh drift --url https://ex.com/sitemap.xml [--max 500]
   → {"status":"ok","baseline":true,"captured":"…","pages":24,"store":"…"}
   → {"status":"ok","baseline":false,"since":"…","gone":[…],"new":[…],

@@ -34,6 +34,8 @@ case "$cmd" in
     exec "$PY" "$HERE/sitemap.py" --store "$STORE" "$@" ;;
   score)
     exec "$PY" "$HERE/score.py" --store "$STORE" "$@" ;;
+  schema_gen)
+    exec "$PY" "$HERE/schema_gen.py" --store "$STORE" "$@" ;;
   drift)
     exec "$PY" "$HERE/drift.py" --store "$STORE" "$@" ;;
   rendercheck)
@@ -52,6 +54,6 @@ case "$cmd" in
     fi
     echo '{"status":"error","reason":"usage: fetch.sh forget {--label <label>|--all} (label charset: A-Za-z0-9._-)"}'
     exit 2 ;;
-  *) echo '{"status":"error","reason":"usage: fetch.sh {accounts|crux|queries|inspect|cannibal|sitemap|rendercheck|linkgraph|drift|score|forget} [flags]"}'
+  *) echo '{"status":"error","reason":"usage: fetch.sh {accounts|crux|queries|inspect|cannibal|sitemap|rendercheck|linkgraph|drift|score|schema_gen|forget} [flags]"}'
      exit 2 ;;
 esac

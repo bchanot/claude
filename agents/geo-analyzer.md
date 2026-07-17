@@ -813,7 +813,14 @@ to act without your audit context. Embed per item:
 - **Templates + context** — G2/G6 paste the expected JSON-LD from
   `geo-schemas.md` + business context (entity name, sameAs, @id canonical)
   + framework note. G4 follows `llms-txt-template.md` exactly. G1 pastes
-  the correct variant from `ai-crawlers-2026.md`.
+  the correct variant from `ai-crawlers-2026.md`. When a G2 item needs a
+  `Reservation`/`OrderAction`/`DiscussionForumPosting`/`ProfilePage` block,
+  generate the skeleton via `fetch.sh schema_gen
+  <reservation|order|discussion|profile> [flags]`
+  (`~/.claude/lib/seo-data/fetch.sh`) and fill in the real values, rather
+  than hand-writing that markup. The data-integrity rule still applies on
+  top of it: `schema_gen` only generates STRUCTURE — unknown field values
+  stay `[À COMPLÉTER]`, never invented to fill a flag the verb needs.
 - **PERMISSIVE default** on G1 unless the client flagged premium/regulated.
 
 ### Output shape

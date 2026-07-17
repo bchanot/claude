@@ -233,6 +233,63 @@ NCHG="$(printf '%s' "$D2" | python3 -c 'import sys,json; print(len(json.load(sys
                   || no "reworded title is a change, not a regression" "got $NCHG"
 rm -rf "$DH"
 
+echo "── schema_gen ──"
+SG() { python3 "$SD/schema_gen.py" "$@"; }
+RES="$(SG reservation --provider "Chez X" --start "2026-08-01T19:00")"
+has "reservation ok"             "$RES" '"status": "ok"'
+has "reservation type surfaced"  "$RES" '"type": "FoodEstablishmentReservation"'
+has "jsonld has @context"        "$RES" '"@context": "https://schema.org"'
+has "reservation keeps provider" "$RES" 'Chez X'
+has "reservation keeps start"    "$RES" '2026-08-01T19:00'
+PROF="$(SG profile --name "Jane Doe" --url https://ex.com/about)"
+has "profile ok"                 "$PROF" '"status": "ok"'
+has "profile type surfaced"      "$PROF" '"type": "ProfilePage"'
+ORD="$(SG order --merchant "Acme" --order-url https://ex.com/order)"
+has "order ok"                   "$ORD" '"status": "ok"'
+has "order type surfaced"        "$ORD" '"type": "OrderAction"'
+DISC="$(SG discussion --headline "Q" --author "Jo" --url https://ex.com/t/1 \
+  --date 2026-05-01T00:00:00Z)"
+has "discussion ok"              "$DISC" '"status": "ok"'
+has "discussion type surfaced"   "$DISC" '"type": "DiscussionForumPosting"'
+# argparse required=True catches an OMITTED flag → bad usage, exit 2
+BADRES="$(SG reservation --start 2026-08-01T19:00 2>/dev/null)"; BADRC=$?
+hasnt "missing --provider is not ok" "$BADRES" '"status": "ok"'
+[ "$BADRC" = "2" ] && ok "missing --provider exit 2" \
+                    || no "missing --provider exit 2" "got $BADRC"
+# a required field argparse ALLOWS through (flag given, value empty) must
+# still fail open — degraded, not a crash, exit 0
+EMPTYRES="$(SG reservation --provider "" --start 2026-08-01T19:00)"; EMPTYRC=$?
+hasnt "empty --provider is not ok" "$EMPTYRES" '"status": "ok"'
+has "empty --provider degrades"  "$EMPTYRES" '"status": "degraded"'
+[ "$EMPTYRC" = "0" ] && ok "empty --provider exit 0" \
+                      || no "empty --provider exit 0" "got $EMPTYRC"
+# --script-tag must work AFTER the type, matching `fetch.sh schema_gen
+# <type> [flags]` — the shape the dispatcher actually calls it with. The
+# envelope is JSON, so the `script` field's own quotes are backslash-escaped
+# in the raw stdout — decode it to check the LITERAL wrapper string.
+SCRIPT="$(SG profile --name "Jane Doe" --url https://ex.com/about --script-tag)"
+SCRIPT_TAG="$(printf '%s' "$SCRIPT" | \
+  python3 -c 'import sys,json; print(json.load(sys.stdin)["script"])')"
+has "script-tag wraps output" "$SCRIPT_TAG" '<script type="application/ld+json">'
+# an omitted optional field must never surface as a JSON null
+hasnt "no null ever emitted"     "$RES" 'null'
+# stdlib ONLY — no requests/httpx/bs4/any third-party import
+IMPORTS="$(grep -E '^(import|from) ' "$SD/schema_gen.py")"
+if printf '%s' "$IMPORTS" | grep -qiE 'requests|httpx|bs4'; then
+  no "schema_gen stdlib only" "third-party import found: $IMPORTS"
+else
+  ok "schema_gen stdlib only"
+fi
+# dispatch wiring: --store precedes the type (fetch.sh's own convention),
+# --script-tag comes after it (the caller's convention) — both must work
+# through the real fetch.sh entrypoint, not just the bare script
+FSG="$(SEO_DATA_ENV_FILE=/dev/null SEO_DATA_STORE=/nonexistent bash "$SD/fetch.sh" \
+  schema_gen reservation --provider "Chez X" --start 2026-08-01T19:00 --script-tag)"
+has "fetch dispatches schema_gen" "$FSG" '"status": "ok"'
+FSG_TAG="$(printf '%s' "$FSG" | \
+  python3 -c 'import sys,json; print(json.load(sys.stdin)["script"])')"
+has "fetch schema_gen script-tag" "$FSG_TAG" '<script type="application/ld+json">'
+
 echo "── fetch.sh ──"
 FETCH="$SD/fetch.sh"
 # SEO_DATA_ENV_FILE=/dev/null: tests must NEVER source the real ~/.claude/.env —
@@ -358,6 +415,7 @@ tf "analyzer calls fetch crux"  "$REPO/agents/seo-analyzer.md"   "fetch.sh crux"
 tf "analyzer calls fetch queries" "$REPO/agents/seo-analyzer.md" "fetch.sh queries"
 tf "analyzer gsc subsection"    "$REPO/agents/seo-analyzer.md"   "Performance GSC"
 tf "catalog gsc oauth entry"    "$REPO/agents/resources/automation-catalog.md" "make seo-connect"
+tf "geo-analyzer wires schema_gen" "$REPO/agents/geo-analyzer.md" "fetch.sh schema_gen"
 
 echo "── account-mgmt locks ──"
 tf "skill routes account verbs" "$REPO/skills/seo/SKILL.md" "forget --all"
@@ -370,6 +428,7 @@ tf "readme documents fetch.sh" "$REPO/lib/seo-data/README.md" "fetch.sh"
 tf "readme documents seo-connect" "$REPO/lib/seo-data/README.md" "make seo-connect"
 tf "readme documents forget"   "$REPO/lib/seo-data/README.md" "forget --all"
 tf "readme revocation note"    "$REPO/lib/seo-data/README.md" "myaccount.google.com/permissions"
+tf "readme documents schema_gen" "$REPO/lib/seo-data/README.md" "schema_gen"
 
 echo ""
 echo "seo-data engine: $PASS pass, $FAIL fail"
