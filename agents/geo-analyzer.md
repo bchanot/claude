@@ -545,7 +545,8 @@ sample of a 300-page site says nothing about the other 294.
 
 ```bash
 # Extract H1/H2/H3 from main pages to assess heading style
-for f in index.html $(find . -maxdepth 3 -name "*.astro" -o -name "*.tsx" -o -name "*.md" -o -name "*.html" | head -10); do
+mapfile -t FEXCL < <(bash ~/.claude/lib/source-scope.sh findargs)   # C1a: skip build output
+for f in index.html $(find . "${FEXCL[@]}" -maxdepth 3 \( -name "*.astro" -o -name "*.tsx" -o -name "*.md" -o -name "*.html" \) | head -10); do
   echo "=== $f ==="
   grep -oE '<(h1|h2|h3)[^>]*>[^<]+</(h1|h2|h3)>|^#{1,3} .+' "$f" 2>/dev/null | head -20
 done
@@ -970,6 +971,14 @@ PROCHAINE ETAPE : <highest-priority>
   NEVER `Write` on shared templates. `Write` is reserved for files
   you solely own: robots.txt, llms.txt, llms-full.txt. Full-template
   refactor → escalate as user action in §11.
+- **NEVER emit a bundle item targeting build output (C1a).** No path under
+  `dist/ build/ .next/ .nuxt/ .output/ _site/ .astro/ .svelte-kit/ out/` —
+  run `bash ~/.claude/lib/source-scope.sh list` for the authoritative set.
+  Those files are regenerated: the `npm run build` the dispatcher runs to
+  VERIFY your fix is what erases it. The fix lands, verification passes,
+  nothing survives, and the report claims it was applied. Fix the SOURCE
+  template that generates the file. If you cannot find the source, that is
+  a finding — say so, do not patch the artifact.
 - **Respect PERMISSIVE/RESTRICTIVE choice.** geo-analyzer defaults to
   PERMISSIVE (GEO's goal is AI visibility). Only switch if the client
   explicitly flags premium/regulated content.

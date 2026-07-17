@@ -181,8 +181,9 @@ keep the two consistent.
 ls .htaccess nginx.conf netlify.toml vercel.json wrangler.toml 2>/dev/null
 # SEO files
 ls robots.txt sitemap.xml sitemap-index.xml sitemap-images.xml sitemap-videos.xml 2>/dev/null
-# Legal pages
-find . -maxdepth 3 \( -iname "*mention*" -o -iname "*legal*" -o -iname "*confidentialite*" -o -iname "*privacy*" -o -iname "*cgv*" -o -iname "*cgu*" \) 2>/dev/null | head -10
+# Legal pages — source only (C1a: find ignores .gitignore, grep does not)
+mapfile -t FEXCL < <(bash ~/.claude/lib/source-scope.sh findargs)
+find . "${FEXCL[@]}" -maxdepth 3 \( -iname "*mention*" -o -iname "*legal*" -o -iname "*confidentialite*" -o -iname "*privacy*" -o -iname "*cgv*" -o -iname "*cgu*" \) 2>/dev/null | head -10
 # Analytics / trackers
 grep -rl "gtag\|GTM-\|analytics\|matomo\|_paq\|plausible\|umami" --include="*.html" --include="*.js" --include="*.tsx" --include="*.astro" --include="*.php" . 2>/dev/null | head -10
 # Cookie consent / CMP
@@ -493,9 +494,31 @@ grep -rE '<img[^>]*>' --include="*.html" --include="*.astro" --include="*.tsx" -
 # Images missing dimensions (CLS risk)
 grep -rE '<img[^>]*>' --include="*.html" --include="*.astro" --include="*.tsx" --include="*.jsx" --include="*.php" . 2>/dev/null | grep -vE 'width=|height=' | head -30
 
-# Check image asset sizes
-find . -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.gif" \) ! -path "./node_modules/*" ! -path "./.git/*" -printf "%s %p\n" 2>/dev/null | sort -rn | head -20
+# Check image asset sizes — source only, never build output (C1a)
+mapfile -t FEXCL < <(bash ~/.claude/lib/source-scope.sh findargs)
+find . "${FEXCL[@]}" -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.gif" \) -printf "%s %p\n" 2>/dev/null | sort -rn | head -20
 ```
+
+**Why the guard, and why `find` specifically (C1a).** `grep` and `find`
+disagree about this repo and you use both. Claude Code routes `grep` through
+ugrep with `--ignore-files`, so it honours `.gitignore` and never descends
+into a gitignored `dist/`. `find` honours nothing. Measured on a real Astro
+repo: this command returned **92 images, 45 of them under `dist/`** — every
+asset twice, source and generated copy, byte-identical. So "top 20 by size"
+was ~10 real images dressed as 20, and a batch-C item
+(`cwebp -q 80 <img> -o <img>.webp`) could target `dist/og-image.png`, whose
+`.webp` the dispatcher's own `npm run build` then erases. The fix lands,
+verification passes, nothing survives.
+
+`FEXCL` MUST be consumed as a quoted array. `find . $FEXCL …` lets the shell
+glob `*/dist/*` against the CWD and hand the matches to find as search paths
+— that made the same run return 135 hits and kept every `dist/` file.
+
+Do NOT add these exclusions to the `grep` lines: the shim already covers
+them, `public/` is deliberately kept (it is Astro/Vite/Next SOURCE and holds
+`favicon.ico`, `apple-touch-icon.png`, `robots.txt` — the very files STEP 4
+curls), and it is build output only for Hugo/Gatsby, which the script
+detects.
 
 Flag images over 100 KB as compression candidates. WebP/AVIF preferred
 over JPEG/PNG.
@@ -1195,6 +1218,15 @@ PROCHAINE ETAPE : <highest-priority>
   `Write` on shared templates. `Write` is reserved for files you
   solely own: sitemap.xml, .htaccess, legal pages, new city/service
   pages. Full-template refactor → escalate as user action in §11.
+- **NEVER emit a bundle item targeting build output (C1a).** No path under
+  `dist/ build/ .next/ .nuxt/ .output/ _site/ .astro/ .svelte-kit/ out/` —
+  `bash ~/.claude/lib/source-scope.sh list` is the authoritative set. Those
+  files are regenerated: the `npm run build` the dispatcher runs to VERIFY
+  your fix is what erases it. The fix lands, verification passes, nothing
+  survives, and the report claims it was applied. This bites batch C hardest
+  (`cwebp -q 80 <img> -o <img>.webp` on a `dist/` asset writes a `.webp` the
+  next build deletes). Fix the SOURCE that generates the artifact; if you
+  cannot find it, that is a finding — say so, do not patch the artifact.
 - **Landing page protection.** Zero visible change except meta tags,
   footer links, JSON-LD, image optimization.
 - **Preserve existing valid SEO.** Don't rewrite correct tags.
