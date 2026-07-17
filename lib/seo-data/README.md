@@ -215,6 +215,74 @@ fetch.sh score --findings <path.json | ->
     • Malformed input is an error, never a silently wrong number — unlike the
       fetch verbs, a degrade here would mean bad input, not a network fact.
 
+fetch.sh schema_gen <reservation|order|discussion|profile> [flags] [--script-tag]
+  → {"status":"ok","source":"schema_gen","type":"<@type>","jsonld":{…}}
+  → {"status":"error","reason":"bad_usage"}          # a REQUIRED flag omitted
+  → {"status":"degraded","reason":"…"}               # a required flag given, empty
+
+  fetch.sh schema_gen reservation --provider "Marea NYC" \
+    --start 2026-06-04T19:30:00-04:00 --party-size 4
+  fetch.sh schema_gen order --merchant "Acme Pizza" --order-url https://acme.example/order
+  fetch.sh schema_gen discussion --headline "…" --author "Sara Park" \
+    --url https://forum.example.com/t/123 --date 2026-05-12T14:00:00Z
+  fetch.sh schema_gen profile --name "Daniel Agrici" --url https://agricidaniel.com/about \
+    --same-as https://github.com/AgriciDaniel --knows-about "SEO" "Schema markup"
+
+  Adapted from claude-seo's `schema_generate.py` (MIT) into this contract.
+  Our system only AUDITS existing markup elsewhere; this is the one verb
+  that GENERATES it — deterministic JSON-LD skeletons for the four v2
+  high-leverage Schema.org types, so geo-analyzer's G2 batch stops
+  hand-writing markup by hand. It only generates STRUCTURE: unknown field
+  VALUES are the caller's job, `[À COMPLÉTER]` for anything unconfirmed —
+  this verb never invents a sameAs, an email, or a business name.
+    • Stdlib only, no network, no auth — runs even without the venv.
+    • `--script-tag` wraps the cleaned jsonld in
+      `<script type="application/ld+json">…</script>` under a `script` key,
+      still inside the `ok` envelope. It must be given AFTER the type
+      (`schema_gen reservation … --script-tag`, not before) — argparse
+      subcommand flags only parse after their subcommand.
+    • Never emits a JSON `null`: fields left unset are omitted from the
+      `jsonld` object entirely rather than serialised as `null`.
+    • A REQUIRED flag omitted → `{"status":"error","reason":"bad_usage"}`,
+      exit 2 (bad usage, like every other verb). A required flag GIVEN but
+      empty (argparse cannot catch that) → `{"status":"degraded",...}`,
+      exit 0 — fail-open, never a traceback.
+
+fetch.sh content_quality [--file <path.txt>] < text_on_stdin
+  → {"status":"ok","source":"content_quality","filler_score":0,"ai_pattern_score":0,
+     "information_density":1.0,"overall_quality":90,"flags":[],
+     "matches":{"filler":[],"ai_patterns":[]}}
+  → {"status":"degraded","reason":"empty_input"|"<file error>"}
+
+  fetch.sh content_quality --file article.txt
+  printf '%s' "$BODY_TEXT" | fetch.sh content_quality
+
+  Adapted from claude-seo's `content_quality.py` (MIT) into this contract.
+  100% deterministic — regex/word-lists (QRG §4.6 filler phrases + a
+  Wikipedia "AI Cleanup" catalogue of LLM-typical phrasings, CC BY-SA 4.0),
+  no LLM call, no network. Reads the text to score from `--file <path>` or,
+  when `--file` is `-` or omitted, from stdin — the same idiom `score.py`
+  uses for `--findings`.
+    • **ADVISORY, NOT A VERDICT.** The output never claims "this text is
+      AI-written" — modern generative tools can pass every heuristic here,
+      and human writers use some of these phrases too. `flags` are
+      candidates for HUMAN REVIEW, never an automatic finding. geo-analyzer
+      STEP 8 (Content Shape for AI) treats `overall_quality`/`flags` as ONE
+      measured input that INFORMS the axis; the axis itself stays an LLM
+      judgement (30/70, Definition Lead), never replaced by this score.
+    • `filler_score`/`ai_pattern_score` (0-100, higher = worse) count
+      phrase-list hits scaled per 1000 tokens; `information_density`
+      (0.0-1.0) is entities + numbers per 100 tokens; `overall_quality`
+      (0-100, higher is better) is the weighted composite (also folds in a
+      bigram-repetition penalty even though that score isn't itself a
+      top-level field). `flags` fires at fixed thresholds: `filler`,
+      `ai-patterns`, `low-density`, `repetitive`.
+    • Stdlib only (argparse/json/re/sys/collections/typing) — runs even
+      without the venv. Empty/whitespace-only input degrades rather than
+      returning a false zero-value "ok": an empty analysis is not a result.
+    • This is filler/AI-pattern SHAPE, not fact-checking — a text can be
+      dense and well-cited yet still wrong; that stays a human/LLM call.
+
 fetch.sh drift --url https://ex.com/sitemap.xml [--max 500]
   → {"status":"ok","baseline":true,"captured":"…","pages":24,"store":"…"}
   → {"status":"ok","baseline":false,"since":"…","gone":[…],"new":[…],
