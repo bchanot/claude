@@ -444,12 +444,38 @@ Fetch rendered HTML. Extract and analyze:
 ## STEP 5 — ON-PAGE AUDIT `[both]`
 
 **Record the denominator BEFORE sampling.** This step samples; the report
-says "audit". Count the URLs in `sitemap.xml` (fetch it in full — the
-`head -50` in STEP 4 is a preview, not a count). That count is the coverage
-denominator, and it feeds the mandatory COVERAGE line in STEP 9. No sitemap
-→ denominator unknown: say so, never let silence imply full coverage. On a
-500-page site a 12-page sample is 2.4% — the On-page score is an
-extrapolation from it, and the reader cannot know that unless you print it.
+says "audit". On a 500-page site a 12-page sample is 2.4% — the On-page score
+is an extrapolation from it, and the reader cannot know unless you print it.
+
+```bash
+bash ~/.claude/lib/seo-data/fetch.sh sitemap --url "https://$DOMAIN/sitemap.xml"
+```
+
+Returns `{count, urls[], index, dropped, ...}` — the coverage denominator and
+your sampling frame. It follows a `<sitemapindex>` one level, dedupes, strips
+whitespace, and handles `.xml.gz`. No auth, no venv, no Google.
+
+Read it honestly:
+- `count` → the denominator for the STEP 9 COVERAGE line.
+- `dropped > 0` → entries that were not usable URLs. Worth a §14 line: a
+  sitemap emitting junk is a tooling finding.
+- `children_failed > 0` or `children_skipped` → the frame is incomplete. Say
+  so; do NOT present a partial denominator as the total.
+- `status: degraded` → denominator UNKNOWN. Print that, never let silence
+  imply full coverage. `reason: unsafe_xml_dtd` is not a glitch — a sitemap
+  carrying a DTD is broken tooling or a billion-laughs aimed at the auditor.
+  Report it as a finding.
+
+**Guard every URL before it reaches curl.** These come from the target's own
+server, not from the operator — the one place in this audit where a remote
+file's bytes flow into a shell:
+
+```bash
+U="$(bash ~/.claude/lib/url-guard.sh url "$RAW_FROM_SITEMAP")" || continue
+```
+
+The verb applies a garbage filter, not that guard; the guard belongs at the
+point of use (same contract as the sameAs check in geo-analyzer).
 
 ### Meta tags per page (sample 5-15 key pages)
 

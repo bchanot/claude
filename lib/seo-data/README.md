@@ -98,6 +98,32 @@ fetch.sh inspect --account client-a --property … --url https://ex.com/page
     • errors/warnings count issue INSTANCES; issues[] is deduped — the same
       issueMessage repeats across every affected item.
 
+fetch.sh sitemap --url https://ex.com/sitemap.xml
+  → {"status":"ok","source":"sitemap","index":false,"count":86,"dropped":0,
+     "urls":["https://ex.com/", …]}
+  → {"status":"ok","index":true,"children_total":4,"children_read":4,
+     "children_failed":0,"count":312,…}          # <sitemapindex>, one level deep
+  → {"status":"degraded","reason":"fetch_failed"|"parse_failed"|"no_urls"
+                                  |"unsafe_xml_dtd"}
+
+  No auth, no Google, no venv: stdlib only (urllib + xml.etree + gzip).
+  Gives STEP 9's COVERAGE line the denominator it was told to print and never
+  had, and STEP 5 a real sampling frame. Dedupes, strips whitespace, handles
+  .xml.gz. Caps: 50 children of an index, 50k URLs, 20 MB read — each cut is
+  REPORTED (children_skipped / truncated), never silent.
+
+    • NOT a security boundary. urllib fetches these, so nothing here reaches a
+      shell. The CONSUMER interpolates them into curl, so seo-analyzer runs
+      lib/url-guard.sh at the point of use — same contract as the sameAs check.
+      A second copy of the guard here would only drift.
+    • `unsafe_xml_dtd`: a sitemap NEVER has a DTD (sitemaps.org is <?xml?> then
+      <urlset xmlns=>). Any doctype/entity is refused BEFORE parsing. xml.etree
+      does not expand external entities, but it IS billion-laughs-vulnerable —
+      1 KB expands to gigabytes, and the 20 MB read ceiling bounds the input,
+      not the expansion. Refusing the construct beats depending on parser
+      internals AND keeps this stdlib-only; defusedxml would drag in a venv for
+      a document type that has no legitimate DTD.
+
 fetch.sh forget --label client-a
   → {"status":"ok","removed":true|false}          # false = label wasn't in the store
 

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+  <url>
+    <loc>https://ex.com/</loc>
+    <changefreq>weekly</changefreq>
+    <xhtml:link rel="alternate" hreflang="en" href="https://ex.com/en/" />
+  </url>
+  <url><loc>https://ex.com/services</loc></url>
+  <url><loc>https://ex.com/blog</loc></url>
+  <url><loc>https://ex.com/blog</loc></url>
+  <url><loc>   https://ex.com/spaced   </loc></url>
+  <url><loc>ftp://ex.com/nope</loc></url>
+  <url><loc>https://ex.com/bad"quote</loc></url>
+  <url><loc></loc></url>
+</urlset>

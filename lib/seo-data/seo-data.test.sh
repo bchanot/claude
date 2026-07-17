@@ -81,6 +81,36 @@ has "gsc degrades w/o creds"     "$DEG" '"status": "degraded"'
 has "gsc degrade reason"         "$DEG" 'no_credentials'
 rm -rf "$TMP2"
 
+echo "── sitemap ──"
+SM="$(SEO_DATA_MOCK_DIR="$MOCK" python3 "$SD/sitemap.py" --url https://ex.com/sitemap.xml)"
+has "sitemap ok"                 "$SM" '"status": "ok"'
+has "sitemap not an index"       "$SM" '"index": false'
+# fixture holds 8 <loc>: 1 empty, blog twice, ftp:// and a quoted one to drop
+has "sitemap dedupes"            "$SM" '"count": 4'
+has "sitemap counts drops"       "$SM" '"dropped": 2'
+has "sitemap strips whitespace"  "$SM" '"https://ex.com/spaced"'
+hasnt "sitemap drops non-http"   "$SM" 'ftp://'
+hasnt "sitemap drops shell-meta" "$SM" 'bad"quote'
+# namespace-agnostic: real sitemaps carry sitemaps.org xmlns (+ xhtml here)
+has "sitemap reads namespaced"   "$SM" '"https://ex.com/services"'
+
+IDX="$(SEO_DATA_MOCK_DIR="$SD/fixtures-sitemap-index" python3 "$SD/sitemap.py" \
+  --url https://ex.com/sitemap.xml)"
+has "sitemapindex detected"      "$IDX" '"index": true'
+has "sitemapindex fans out"      "$IDX" '"children_read": 2'
+has "sitemapindex no child fail" "$IDX" '"children_failed": 0'
+has "sitemapindex yields urls"   "$IDX" '"https://ex.com/child-a"'
+
+# A sitemap NEVER has a DTD. Refused at the door: xml.etree does not expand
+# external entities but IS billion-laughs-vulnerable, and the 20MB read ceiling
+# bounds the input, not the expansion. Refusing beats depending on the parser,
+# and keeps this module stdlib-only (no defusedxml, no venv).
+DTD="$(SEO_DATA_MOCK_DIR="$SD/fixtures-sitemap-dtd" python3 "$SD/sitemap.py" \
+  --url https://ex.com/sitemap.xml)"
+has "billion-laughs refused"     "$DTD" '"status": "degraded"'
+has "dtd reason is distinct"     "$DTD" 'unsafe_xml_dtd'
+hasnt "dtd never parsed"         "$DTD" '"count"'
+
 echo "── fetch.sh ──"
 FETCH="$SD/fetch.sh"
 # SEO_DATA_ENV_FILE=/dev/null: tests must NEVER source the real ~/.claude/.env —
