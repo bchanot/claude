@@ -146,6 +146,30 @@ fetch.sh sitemap --url https://ex.com/sitemap.xml
       internals AND keeps this stdlib-only; defusedxml would drag in a venv for
       a document type that has no legitimate DTD.
 
+fetch.sh linkgraph --url https://ex.com/sitemap.xml [--max 500]
+  → {"status":"ok","source":"linkgraph","pages_crawled":86,"pages_failed":0,
+     "total_internal_links":2015,"capped":false,"max_depth":2,
+     "orphans":[…],"beyond_3_clicks":[…],"unreachable":[…]}
+  → {"status":"ok",…,"orphans_withheld":true,"reason_withheld":"crawl incomplete…"}
+  → {"status":"degraded","reason":"no_links_in_html"|"no_pages_fetched"|…}
+
+  Answers seo-analyzer.md:613 ("reachable within 3 clicks?") and :616 ("orphan
+  pages?") — asked since forever, never computed. Stdlib only (urllib +
+  html.parser + urljoin), no auth. Measured: 24 pages in 2.7s, 86 in 3.8s.
+    • EXHAUSTIVE OR NOTHING. Orphans cannot be sampled: proving no inbound
+      link means having read every other page. If the crawl is capped or any
+      page failed, orphans are WITHHELD, never truncated — a false orphan
+      sends a client fixing what is not broken.
+    • no_links_in_html = a JS-rendered site, not a link-less one. Every page
+      would read as orphaned, so it REFUSES rather than report that. Does not
+      render JS by design (see the R1/R2 arbitration).
+    • Filters what a link graph must never hold: assets (seen live:
+      /css/main.css?v=1778157313), #anchors, mailto:/tel:/javascript:, other
+      hosts. Normalises the trailing slash so /blog and /blog/ are one node
+      rather than a phantom orphan pair.
+    • Mock is pages.json ({url: html}), not a single page.html: one fixture
+      cannot express a graph — every node would carry identical links.
+
 fetch.sh forget --label client-a
   → {"status":"ok","removed":true|false}          # false = label wasn't in the store
 

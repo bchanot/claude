@@ -135,6 +135,33 @@ has "billion-laughs refused"     "$DTD" '"status": "degraded"'
 has "dtd reason is distinct"     "$DTD" 'unsafe_xml_dtd'
 hasnt "dtd never parsed"         "$DTD" '"count"'
 
+echo "── linkgraph ──"
+LG="$(SEO_DATA_MOCK_DIR="$SD/fixtures-linkgraph" python3 "$SD/linkgraph.py" \
+  --url https://ex.com/sitemap.xml)"
+has "linkgraph ok"               "$LG" '"status": "ok"'
+has "linkgraph crawls all"       "$LG" '"pages_crawled": 7'
+# THE test: a planted page nobody links to must be found. Two live sites both
+# returned zero orphans; without this, "always returns []" looks identical.
+has "finds the planted orphan"   "$LG" '"https://ex.com/orphan"'
+has "orphan is also unreachable" "$LG" '"unreachable"'
+has "depth chain measured"       "$LG" '"max_depth": 4'
+has "flags >3 clicks"            "$LG" '"https://ex.com/deepest"'
+# home links: /a and /b only. anchor, .css?v=, mailto:, tel:, external, .png
+# are not page links — 9 total across the 7 pages.
+has "filters non-page links"     "$LG" '"total_internal_links": 9'
+hasnt "no external host"         "$LG" 'other.com'
+hasnt "no asset link"            "$LG" 'main.css'
+hasnt "no image link"            "$LG" 'logo.png'
+# /b/ in the markup vs /b in the sitemap must be ONE node, not a phantom orphan
+hasnt "trailing slash unified"   "$LG" '"https://ex.com/b/"'
+
+# An orphan from a partial crawl is a false orphan: withhold, do not truncate.
+CAP="$(SEO_DATA_MOCK_DIR="$SD/fixtures-linkgraph" python3 "$SD/linkgraph.py" \
+  --url https://ex.com/sitemap.xml --max 3)"
+has "cap is reported"            "$CAP" '"capped": true'
+has "capped withholds orphans"   "$CAP" '"orphans_withheld": true'
+hasnt "capped emits no orphans"  "$CAP" '"orphans":'
+
 echo "── fetch.sh ──"
 FETCH="$SD/fetch.sh"
 # SEO_DATA_ENV_FILE=/dev/null: tests must NEVER source the real ~/.claude/.env —

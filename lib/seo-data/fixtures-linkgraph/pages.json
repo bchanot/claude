@@ -1,0 +1,9 @@
+{
+  "https://ex.com/": "<html><body><a href='/a'>a</a> <a href='/b/'>b trailing slash</a> <a href='#top'>anchor</a> <a href='/css/main.css?v=9'>asset</a> <a href='mailto:x@ex.com'>mail</a> <a href='tel:+33'>tel</a> <a href='https://other.com/x'>external</a> <a href='/img/logo.png'>img</a></body></html>",
+  "https://ex.com/a": "<html><body><a href='/'>home</a> <a href='/deep'>deep</a></body></html>",
+  "https://ex.com/b": "<html><body><a href='/'>home</a></body></html>",
+  "https://ex.com/deep": "<html><body><a href='https://ex.com/deeper'>deeper absolute</a></body></html>",
+  "https://ex.com/deeper": "<html><body><a href='deepest'>relative</a></body></html>",
+  "https://ex.com/deepest": "<html><body><a href='/'>home</a></body></html>",
+  "https://ex.com/orphan": "<html><body><a href='/'>home — links out, nobody links in</a></body></html>"
+}

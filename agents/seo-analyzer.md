@@ -624,6 +624,34 @@ Each embedded or self-hosted video should have:
 
 ### Internal linking + topic clusters (silos sémantiques)
 
+```bash
+bash ~/.claude/lib/seo-data/fetch.sh linkgraph --url "https://$DOMAIN/sitemap.xml"
+```
+
+**This answers the two questions below, which this spec has always asked and
+never had a command for (C3).** Crawls every sitemap URL once, extracts
+internal `<a href>`, and returns `orphans`, `beyond_3_clicks`, `unreachable`,
+`max_depth`. Measured cost: 24 pages in 2.7 s, 86 in 3.8 s — cheap enough to
+always run on FULL.
+
+Read it honestly:
+- `orphans` present → real finding, act on it.
+- **`orphans_withheld: true` → there is NO orphan list, and you must not
+  invent one.** It appears when the crawl was capped or any page failed. An
+  orphan cannot be sampled: proving a page has no inbound link means having
+  read every other page, so a partial crawl invents orphans. "Page X has no
+  inbound links" when it does sends the client fixing what is not broken.
+  §14 line, not a finding.
+- `reason: no_links_in_html` → **not a site with zero links; a site whose
+  links are rendered by JS.** Every page would look orphaned — the worst false
+  positive this tool could emit — so the verb refuses instead. Flag the SPA in
+  §0 and stop; do not hand-roll a link audit around it.
+- `unreachable` ⊃ `orphans`: a page can have inbound links yet sit outside the
+  homepage's reach (linked only from another unreachable page). Both matter,
+  they are not the same finding.
+- `max_depth` > 3 → `beyond_3_clicks` names the pages. That is the ":613"
+  check, now measured rather than asserted.
+
 Sample critical pages. Check:
 - Every important page reachable within 3 clicks from homepage?
 - Navigation consistent?

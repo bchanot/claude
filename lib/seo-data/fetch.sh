@@ -32,6 +32,8 @@ case "$cmd" in
   # No auth, no Google: stdlib-only, runs even without the venv.
   sitemap)
     exec "$PY" "$HERE/sitemap.py" --store "$STORE" "$@" ;;
+  linkgraph)
+    exec "$PY" "$HERE/linkgraph.py" --store "$STORE" "$@" ;;
   forget)
     # forget --label <label> → drop one account; forget --all → empty the store.
     # Local removal only — does NOT revoke the grant at Google's end.
@@ -44,6 +46,6 @@ case "$cmd" in
     fi
     echo '{"status":"error","reason":"usage: fetch.sh forget {--label <label>|--all} (label charset: A-Za-z0-9._-)"}'
     exit 2 ;;
-  *) echo '{"status":"error","reason":"usage: fetch.sh {accounts|crux|queries|inspect|cannibal|sitemap|forget} [flags]"}'
+  *) echo '{"status":"error","reason":"usage: fetch.sh {accounts|crux|queries|inspect|cannibal|sitemap|linkgraph|forget} [flags]"}'
      exit 2 ;;
 esac
