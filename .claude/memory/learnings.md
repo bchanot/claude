@@ -136,6 +136,8 @@ rules:
 | LRN-131 | 2026-07-17 | WebSearch is NOT verification for a number — SEO blogs cross-cite into fake consensus; require primary source + `measured:` field | any stat headed for a client report; verifying a metric/claim exists |
 | LRN-132 | 2026-07-17 | a subagent summary is a CLAIM, not a fact — 7 disproven in one session (incl. 3 I reproduced writing the fixes) | before planning on any relayed finding; verify vs primary source / live test first |
 | LRN-133 | 2026-07-17 | an omission must stay LEGIBLE, never silent — tool that can't measure says so in its output | designing any audit/measure output; deciding what a cap/refusal/N-A emits |
+| LRN-134 | 2026-07-17 | resolve-then-pin in stdlib http.client beats monkeypatching getaddrinfo — dual-stack, thread-safe, no requests; classify the OS-resolved IP not the URL text | closing SSRF/DNS-rebinding on any Python HTTP egress |
+| LRN-135 | 2026-07-17 | a prefix-only scan for a dangerous construct is bypassable by padding — scan the WHOLE document | refusing any hostile construct (DTD/directive/marker) before parse |
 
 ---
 
@@ -1301,3 +1303,39 @@ rules:
 - **pattern**: when a tool cannot measure something, it says so IN its output — a caller must never read absence as "fine".
 - **context**: red thread of 21 commits — NAP with no canonical → finding WITHOUT direction (never pick from source majority); unmeasured backlinks → mandatory §14 line; sample → mandatory COVERAGE ratio; dropped security headers → §14 + "run /harden" pointer; capped crawl → `orphans_withheld` (the cap doesn't degrade the result, it INVALIDATES it — a partial-crawl orphan is a false orphan); SPA → refuse, don't score; N/A ≠ zero in the scorer.
 - **future**: the system already HAD the invariant (code-ceiling, §14 Annexe) but applied it in spots. Generalised it. A false signal is worse than a declared gap — the 4 features KILLED at measurement (B1/B2/B3/W2) beat 4 false-signal features. See [[LRN-131]]/[[LRN-132]] (same session, the verification discipline that feeds it).
+
+## LRN-134 — resolve-then-pin in stdlib beats monkeypatching getaddrinfo — 2026-07-17
+- **pattern**: to close SSRF/DNS-rebinding on Python HTTP egress, resolve the
+  host ONCE, validate every returned IP (`ipaddress`, dual-stack v4+v6), refuse
+  if ANY is non-public (the multi-A vector), then connect to the exact pinned IP
+  via an `http.client.HTTPSConnection` subclass whose `connect()` does
+  `create_connection((pinned_ip, port))` and `wrap_socket(sock,
+  server_hostname=real_host)` — SNI + cert stay bound to the real host. No
+  second resolution to poison. `safe_fetch.py`.
+- **context**: the load-bearing property — classify the IP the OS RESOLVED
+  (`sockaddr[0]`), NEVER the URL text. That defeats octal/hex/decimal literals,
+  IPv4-mapped IPv6, NAT64, 6to4 structurally, not by enumeration (confirmed by
+  the security review's fuzz). `is_global` is the decisive gate (catches CGNAT
+  100.64/10 the per-flags miss); add a small extra-deny for special-use ranges
+  it passes (192.88.99.0/24 6to4-relay). Redirects: re-validate EACH hop —
+  urlopen followed them blind.
+- **future**: beats claude-seo url_safety.py on 3 axes — dual-stack (theirs
+  IPv4-only), thread-safe by construction (theirs monkeypatches getaddrinfo
+  behind a global lock), stdlib-only (theirs `requests`). A name-level guard
+  (url-guard.sh) cannot see a rebind; this is the layer that can. Shell `curl`
+  stays unpinnable from here → `curl --resolve`, separate.
+
+## LRN-135 — a prefix-only scan for a dangerous construct is bypassable by padding — 2026-07-17
+- **pattern**: to refuse a hostile construct (DTD, directive, marker) before
+  parsing, scan the WHOLE document, never a bounded prefix.
+- **context**: `_refuse_dtd` (C1b) scanned only `raw[:4096]` → a sitemap with
+  >4 KB of leading comment pushed `<!DOCTYPE` past the window while
+  `ET.fromstring` still parsed AND EXPANDED the entities (`&lol2;` →
+  "lollollollollol", proven). Billion-laughs reopened on my own already-merged
+  code. Found by the security review of the rebinding diff, not by me — fixed
+  there rather than filed (root-cause discipline).
+- **future**: over ≤20 MB a full `re.search` is microseconds — no perf excuse
+  for a bounded scan. Corollary of [[LRN-133]]: if you refuse a construct,
+  refuse it EVERYWHERE, not just where you look first. A fresh adversarial
+  reviewer attacking diff A routinely surfaces a real hole in already-shipped
+  code B — see [[EVAL-020]].
