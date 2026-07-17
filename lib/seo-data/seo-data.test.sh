@@ -135,6 +135,22 @@ has "billion-laughs refused"     "$DTD" '"status": "degraded"'
 has "dtd reason is distinct"     "$DTD" 'unsafe_xml_dtd'
 hasnt "dtd never parsed"         "$DTD" '"count"'
 
+echo "── render_check (R2) ──"
+SPA="$(SEO_DATA_MOCK_DIR="$SD/fixtures-spa" python3 "$SD/render_check.py" \
+  --url https://spa.example/)"
+has "spa → client-rendered"      "$SPA" '"verdict": "client-rendered"'
+has "spa has no h1 in html"      "$SPA" '"h1_in_html": 0'
+has "spa warns about false negs" "$SPA" 'false'
+# the shell carries a fat window.__INITIAL_STATE__ script: script text is NOT
+# page text, or a 200KB React bundle would read as a rich page
+has "script text is not content" "$SPA" '"body_text_chars": 7'
+SSR="$(SEO_DATA_MOCK_DIR="$SD/fixtures-ssr" python3 "$SD/render_check.py" \
+  --url https://ssr.example/)"
+has "ssr → server-rendered"      "$SSR" '"verdict": "server-rendered"'
+has "ssr counts jsonld"          "$SSR" '"jsonld_in_html": 1'
+has "ssr sees meta description"  "$SSR" '"meta_description_in_html": true'
+hasnt "ssr emits no warning"     "$SSR" 'warning'
+
 echo "── linkgraph ──"
 LG="$(SEO_DATA_MOCK_DIR="$SD/fixtures-linkgraph" python3 "$SD/linkgraph.py" \
   --url https://ex.com/sitemap.xml)"

@@ -515,6 +515,17 @@ PRIORITY ACTIONS  : <top 3-5>
 
 ## STEP 8 — CONTENT SHAPE FOR AI `[both]`
 
+**Rendering gate first (R2).** `bash ~/.claude/lib/seo-data/fetch.sh
+rendercheck --url "https://$DOMAIN/"`. Verdict `client-rendered` → Content
+Shape is `N/A — content not in served HTML`, excluded from the weighted
+global, never scored zero. And say the thing that actually matters here: AI
+crawlers are **worse** at JS than Googlebot is. GPTBot, PerplexityBot and
+ClaudeBot fetch HTML and largely do not execute it, so a client-rendered site
+is not just unauditable by us — it is close to invisible to the engines this
+whole audit targets. That is a §0 alert and the top user action (SSR/SSG),
+not a schema tweak.
+Site-wide axes (crawler policy, llms.txt) are unaffected: those are files.
+
 Load: `~/.claude/agents/resources/content-shape-for-ai.md`
 
 Sample 5-10 key pages (homepage + top service/blog pages). For each:

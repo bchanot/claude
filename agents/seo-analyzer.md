@@ -472,6 +472,48 @@ Fetch rendered HTML. Extract and analyze:
 
 ## STEP 5 — ON-PAGE AUDIT `[both]`
 
+### Rendering gate — run this BEFORE anything else in STEP 5 (R2)
+
+```bash
+bash ~/.claude/lib/seo-data/fetch.sh rendercheck --url "https://$DOMAIN/"
+```
+
+STEP 2 has always recorded `RENDERING: SSR/SSG/SPA/hybrid` and nothing ever
+acted on it. This is the rule that does. The verdict comes from what the
+server actually sent, not from reading package.json — a React SPA and a
+Next.js SSR app are indistinguishable there.
+
+**`verdict: client-rendered` → REFUSE to score the On-page axis.** Do not
+score it low. Do not score it at all:
+- On-page → `N/A — content not in served HTML (client-rendered)`. Redistribute
+  nothing; a missing axis is not a zero.
+- Every curl-based meta/H1/JSON-LD check would report "missing" against a site
+  that may be perfectly correct once hydrated. Those are FALSE findings, and
+  a bundle built on them would "fix" meta tags that already exist.
+- **No bundle item may come from a live on-page check on this site.** Source
+  greps still apply — the JSX carries the tags — but you cannot tell which
+  route renders what, so treat them as inventory, not as per-page findings.
+- `linkgraph` will refuse too (`no_links_in_html`) — the same blindness. Do
+  not work around either refusal.
+
+Still fully auditable, and worth saying so rather than returning an empty
+report: robots.txt, sitemap.xml, HTTP headers, redirects, `.htaccess` /
+framework config, CWV via CrUX (field data is real-user, hydration included),
+GSC queries + index coverage, legal pages, image weights.
+
+**`verdict: partial`** → shell plus an SSR'd head, or a genuinely thin page.
+Score what is present, name what is not, and say which of the two you think
+it is.
+
+**§0 line, mandatory when not server-rendered:**
+`Rendering: client-rendered — On-page NOT scored (content absent from served
+HTML). Global score excludes it. Fix: SSR/SSG (CLAUDE.md: public sites are
+never SPAs).`
+
+This is the honest half of the R1/R2 call: we do not render JS (no Playwright,
+no Chromium), so we do not pretend to see what JS paints. Refusing is the
+finding.
+
 **Record the denominator BEFORE sampling.** This step samples; the report
 says "audit". On a 500-page site a 12-page sample is 2.4% — the On-page score
 is an extrapolation from it, and the reader cannot know unless you print it.
@@ -884,6 +926,14 @@ owns them (0-100 + Observatory/SecurityHeaders/SSL Labs). Run /harden
 <url>. Observed live this run: <present list | none observed>.`
 Name what you saw. An omission has to stay legible — the same reason
 COVERAGE is mandatory in STEP 9.
+
+**On-page axis note (R2).** `rendercheck` verdict `client-rendered` → this
+axis is `N/A — content not in served HTML`, excluded from the weighted global,
+NOT scored zero. A zero says "your on-page is bad"; N/A says "we could not
+see it", and only one of those is true. Renormalise the remaining weights over
+the axes actually scored and say so on the SEO GLOBAL line. The code ceiling
+must state that no code fix raises an axis we did not measure — the unlock is
+SSR/SSG, and that is a user action, not a bundle item.
 
 **Off-page axis note (I1).** Score ONLY the unlinked brand mentions
 gathered in STEP 6 (`web_search "<business-name>" -site:<domain>`).

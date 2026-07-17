@@ -146,6 +146,29 @@ fetch.sh sitemap --url https://ex.com/sitemap.xml
       internals AND keeps this stdlib-only; defusedxml would drag in a venv for
       a document type that has no legitimate DTD.
 
+fetch.sh rendercheck --url https://ex.com/
+  → {"status":"ok","verdict":"server-rendered"|"client-rendered"|"partial",
+     "body_text_chars":7650,"h1_in_html":1,"jsonld_in_html":9,
+     "meta_description_in_html":true,"html_bytes":132447,
+     "warning":"…"}                       # warning only when not server-rendered
+
+  R2, the honest half of the SPA call. seo-analyzer has always recorded
+  `RENDERING: SSR/SSG/SPA` and never acted on it; this is the signal it acts
+  on. Verdict comes from what the server SENT — package.json cannot tell a
+  React SPA from a Next.js SSR app.
+    • client-rendered → the agent REFUSES to score On-page (N/A, not zero: a
+      zero says "your on-page is bad", N/A says "we could not see it"). Every
+      curl-based meta/H1/JSON-LD check would report "missing" against a site
+      that is fine once hydrated — false findings, and a bundle that "fixes"
+      tags which already exist.
+    • Does NOT render JS. No Playwright, no Chromium, no venv. Refusing IS the
+      finding.
+    • Script/style text is not page text: measured 7 chars on a React shell
+      whose inline window.__INITIAL_STATE__ is large. Without that, a 200 KB
+      bundle reads as a rich page.
+    • Measured 2026-07-17: zenquality 7650 chars/1 h1/9 jsonld and
+      lavageangels356 13973/1/1 → server-rendered; a Vite shell → 7/0/0.
+
 fetch.sh linkgraph --url https://ex.com/sitemap.xml [--max 500]
   → {"status":"ok","source":"linkgraph","pages_crawled":86,"pages_failed":0,
      "total_internal_links":2015,"capped":false,"max_depth":2,
