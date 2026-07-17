@@ -23,7 +23,7 @@ claude-config/
 ├── update-all.sh          # One-command update for all components
 ├── Makefile               # Unified entry point: make install / doctor / update
 ├── plugins.lock.json      # Version pinning for non-marketplace dependencies
-├── hooks/                 # Session start, statusline, RTK rewrite, config-protection + design-toolchain guards
+├── hooks/                 # Session start, statusline, RTK rewrite + design-toolchain guards
 ├── agents/                # Execution units called by skills (never invoked directly)
 ├── skills/                # Entry points invoked via /skill-name
 ├── skills-external/       # Vendored skill packs (gstack submodule + installer-fetched design packs)
