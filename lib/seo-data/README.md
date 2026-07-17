@@ -120,6 +120,23 @@ fetch.sh cannibal --account client-a --property … [--days 90] [--rows 1000]
       Rows gained a `keys` list; `key` stays as keys[0], so the single-dim
       consumer is untouched.
 
+safe_fetch.py — NOT a verb; the SSRF/DNS-rebinding-safe fetcher behind
+  sitemap._fetch, so every network verb (sitemap, linkgraph, rendercheck,
+  drift) inherits it. urlopen resolved then connected — two DNS lookups, a
+  window a hostile authority uses to answer PUBLIC to validation and PRIVATE
+  (169.254.169.254 metadata, 127.0.0.1, the LAN) to the connect. This resolves
+  ONCE, validates every IP (ipaddress, dual-stack v4+v6), refuses if ANY is
+  non-public (the multi-A vector), and connects to the exact validated IP with
+  Host+SNI+cert for the real host — no second resolution to poison. Redirects
+  are followed with each hop RE-VALIDATED (urlopen followed them blind).
+    • Better than the source idea (claude-seo url_safety.py, MIT): dual-stack
+      (theirs IPv4-only), no global monkeypatch so thread-safe by construction
+      (theirs locks a patched socket.getaddrinfo), stdlib-only (no requests).
+    • Refusal raises UnsafeTarget; callers already degrade → fail-open kept.
+    • NOT covered, and said so: the shell `curl` in the agent specs runs in
+      another process, unpinnable from here. Smaller surface (fixed set vs an
+      operator-confirmed $DOMAIN); `curl --resolve` would close it, separate change.
+
 fetch.sh sitemap --url https://ex.com/sitemap.xml
   → {"status":"ok","source":"sitemap","index":false,"count":86,"dropped":0,
      "urls":["https://ex.com/", …]}
