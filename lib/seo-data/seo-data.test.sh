@@ -111,6 +111,12 @@ hasnt "sitemap drops non-http"   "$SM" 'ftp://'
 hasnt "sitemap drops shell-meta" "$SM" 'bad"quote'
 # namespace-agnostic: real sitemaps carry sitemaps.org xmlns (+ xhtml here)
 has "sitemap reads namespaced"   "$SM" '"https://ex.com/services"'
+# REGRESSION: <image:loc> also ends with '}loc'. An endswith test counted image
+# sitemap entries as pages — a real native site returned 27 for 24 <url>, and
+# img/logo.png was about to be sampled and audited as a page.
+hasnt "image:loc is not a page"  "$SM" '/img/logo.png'
+hasnt "image:loc jpeg not a page" "$SM" '/img/hero.jpeg'
+has "image ns does not inflate count" "$SM" '"count": 4'
 
 IDX="$(SEO_DATA_MOCK_DIR="$SD/fixtures-sitemap-index" python3 "$SD/sitemap.py" \
   --url https://ex.com/sitemap.xml)"

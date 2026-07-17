@@ -57,19 +57,40 @@ def _refuse_dtd(raw):
     if b"<!DOCTYPE" in head or b"<!ENTITY" in head:
         raise UnsafeXML("DTD in sitemap")
 
+SITEMAP_NS = "{http://www.sitemaps.org/schemas/sitemap/0.9}"
+
+def _is_page_loc(tag):
+    """A PAGE <loc>: sitemaps.org namespace, or namespace-less.
+
+    NOT <image:loc> or <video:loc>. Those live in Google's extension
+    namespaces and name an ASSET inside a <url>, not a page of its own. An
+    endswith('}loc') test matches them too — that shipped, and a real site
+    caught it: 24 <url> + 3 <image:loc> came back as a count of 27, so the
+    COVERAGE denominator was 12.5% too high and img/logo.png was about to be
+    sampled and audited as a page.
+    """
+    return tag == SITEMAP_NS + "loc" or tag == "loc"
+
 def _locs(raw):
-    """(<loc> texts, is_sitemapindex). Namespace-agnostic: real sitemaps carry
-    the sitemaps.org xmlns and often xhtml too."""
+    """(page <loc> texts, is_sitemapindex).
+
+    Walks the DIRECT children of each <url>/<sitemap> rather than root.iter():
+    that alone excludes <image:image><image:loc>, and the namespace test above
+    is the second lock. XML comments iterate as elements with no children, so
+    they fall through harmlessly.
+    """
     import xml.etree.ElementTree as ET               # stdlib, lazy
     _refuse_dtd(raw)
     root = ET.fromstring(raw)
     is_index = root.tag.endswith("sitemapindex")
     out = []
-    for el in root.iter():
-        if el.tag.endswith("}loc") or el.tag == "loc":
-            text = (el.text or "").strip()
-            if text:
-                out.append(text)
+    for entry in root:                               # <url> | <sitemap>
+        for child in entry:                          # direct children only
+            if _is_page_loc(child.tag):
+                text = (child.text or "").strip()
+                if text:
+                    out.append(text)
+                break                                # one <loc> per entry
     return out, is_index
 
 def _sane(u):

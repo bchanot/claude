@@ -679,8 +679,10 @@ what bounds it. Content Shape does NOT work that way: Definition Lead, TL;DR
 and heading wording are written per page, so a template says nothing about
 its 25 instances. Bound Schema.org by SOURCE, Content Shape by LIVE, and
 never quote the flattering one alone. Get the URL families from
-`fetch.sh sitemap` (first path segment); if `/seo` already ran it, reuse the
-count rather than re-fetching.
+`fetch.sh sitemap`, grouped as seo-analyzer STEP 5 describes — shared parent
+path OR shared slug prefix, because both layouts are real: first-segment
+alone reads 8 flat `/lavage-auto-<city>` pages as 8 singletons. If `/seo`
+already ran it, reuse the count rather than re-fetching.
 
 Per user instruction: **GEO weight in combined SEO+GEO report = 20% for
 local, 25% for national/SaaS/content.**

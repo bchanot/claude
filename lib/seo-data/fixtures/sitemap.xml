@@ -1,9 +1,19 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9" xmlns:xhtml="http://www.w3.org/1999/xhtml">
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
+        xmlns:xhtml="http://www.w3.org/1999/xhtml"
+        xmlns:image="http://www.google.com/schemas/sitemap-image/1.1">
+  <!-- image:loc also ends with }loc — it must NOT be counted as a page -->
   <url>
     <loc>https://ex.com/</loc>
     <changefreq>weekly</changefreq>
     <xhtml:link rel="alternate" hreflang="en" href="https://ex.com/en/" />
+    <image:image>
+      <image:loc>https://ex.com/img/logo.png</image:loc>
+      <image:title>Logo</image:title>
+    </image:image>
+    <image:image>
+      <image:loc>https://ex.com/img/hero.jpeg</image:loc>
+    </image:image>
   </url>
   <url><loc>https://ex.com/services</loc></url>
   <url><loc>https://ex.com/blog</loc></url>

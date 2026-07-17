@@ -508,10 +508,25 @@ point of use (same contract as the sameAs check in geo-analyzer).
 
 ### Meta tags per page (sample 5-15 key pages)
 
-**Group the sitemap URLs into families first** — first path segment is a
-good enough proxy for "same template", and it needs no framework routing
-knowledge. Measured on a real Astro site: 86 URLs collapse into 8 families,
-and 75 of them (87%) come from just 3 dynamic `[dept]` templates.
+**Group the sitemap URLs into families first** — a family is "pages one
+template renders". You do not need framework routing knowledge to see them,
+but you DO need to look at the actual URL shape, because it varies:
+
+| Layout | Example | Family signal |
+|---|---|---|
+| Nested | `/creation-site-internet/essonne-91/`, `/creation-site-internet/seine-et-marne-77/` | **shared parent path** → 25 pages, 1 family |
+| **Flat** | `/lavage-auto-pomponne`, `/lavage-auto-torcy`, `/lavage-auto-chelles` | **shared slug prefix** → 8 pages, 1 family |
+
+Both are real, measured on two live sites. First-path-segment alone handles
+the nested case and **fails the flat one**: those 8 city pages read as 8
+unrelated singletons, so the largest "family" becomes `/services` (5) and the
+doorway-page risk — the exact thing the 30/70 rule exists to catch — is
+invisible. Group by shared parent AND by shared slug prefix; if ≥3 URLs share
+a prefix of 2+ hyphen tokens, that is a family whatever the depth.
+
+Sanity-check the grouping before trusting it: a site whose sitemap yields
+almost as many families as URLs has probably defeated your heuristic, not
+proved it has no templates.
 
 **Sample by finding class, because the classes need opposite samples:**
 
