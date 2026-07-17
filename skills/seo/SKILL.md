@@ -204,9 +204,9 @@ Ask ONCE before dispatching the agents:
 ```
 RAPPORT EXTERNE (optionnel) — un autre regard sur le site :
 
-  1. Fichier  — déposez l'export (PDF/MD/TXT) dans
-     `.claude/audits/external/` (ex. `sorank-YYYY-MM-DD.pdf`),
-     donnez le nom du fichier. (`mkdir -p .claude/audits/external`)
+  1. Fichier  — donnez le chemin de l'export (PDF/MD/TXT), où qu'il soit
+     (ex. `~/Téléchargements/sorank-2026-07-16.pdf`). Rangement conseillé
+     mais optionnel : `.claude/audits/external/`.
   2. Collé    — collez ici le contenu du PDF ou le "prompt pour IA"
      que l'outil suggère.
   3. Ignorer  — continuer sans. Le rapport final recommandera
@@ -347,6 +347,15 @@ You are the classical-SEO half of a parallel SEO+GEO audit. Do NOT
 audit GEO/AI signals (llms.txt, AI crawlers, QAPage/Speakable schemas,
 entity SEO, content shape for AI, AI visibility) — the geo-analyzer
 agent runs in parallel and owns those.
+
+Do NOT score security headers either (CSP, HSTS, X-Frame-Options,
+X-Content-Type-Options, Referrer-Policy, Permissions-Policy, COOP/CORP,
+cookie flags) — `/harden` owns them and grades them 0-100 against three
+external validators (`depth-matrix.md:29`). Read them, keep
+`X-Robots-Tag` under indexability (it is an indexing directive, not a
+security header), and declare the rest in §14 with a "run /harden" pointer
+plus what you observed live. Dropping them from the score must not make
+them silent.
 
 FILE OWNERSHIP (authoritative, prevents parallel-edit conflicts):
 - YOU OWN (read+write): sitemap.xml, image/video sitemaps, .htaccess,

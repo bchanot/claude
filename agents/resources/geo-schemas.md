@@ -21,8 +21,20 @@ existing instances. They no longer produce rich results.
 
 ### QAPage — single Q&A format
 
-Pages cited 58% more often by ChatGPT vs basic Article schema.
-Use when the page is built around ONE primary question.
+Use when the page is built around ONE primary question. Emitting the type
+that matches the content shape beats wrapping everything in a generic
+`Article`.
+
+> **No lift figure here — the one that lived here was wrong.** Until
+> 2026-07-16 this read "Pages cited 58% more often by ChatGPT vs basic
+> Article schema", uncited. Nothing supports it. The nearest real number is
+> AccuraCast 2025 (~2,000 prompts across ChatGPT / AI Overviews /
+> Perplexity, ~9,000 cited sources): **`Person` schema appeared in 58.9%**
+> of cited sources — a *prevalence* count for a *different type* — while
+> **`FAQPage` appeared in 1.8%**, which points the opposite way to the claim
+> it was propping up. Q&A shape is still worth doing on genuinely
+> single-question pages; it is not worth a fabricated number. Do NOT quote a
+> QAPage lift % to a client — there isn't one.
 
 ```json
 {
@@ -81,8 +93,16 @@ visible content.
 
 ### Speakable — voice + AI extraction marker
 
-62% of searches in 2026 involve voice. Speakable flags the passage
-best suited for voice readout and AI summary.
+Speakable flags the passage best suited for voice readout and AI summary.
+
+> **No voice-share figure — the one that lived here was a conflation.**
+> Until 2026-07-16 this read "62% of searches in 2026 involve voice",
+> uncited. No primary source carries it; 62% circulates as a *smart-speaker
+> adoption* number, not a share of searches. It is the same family as the
+> "50% of searches will be voice by 2020" myth — attributed to ComScore,
+> who **denied it**; the real origin is a 2014 Andrew Ng interview. Speakable
+> is cheap and harmless, so keep recommending it on TL;DR / summary blocks —
+> but justify it by extraction shape, never by a voice-share statistic.
 
 ```json
 {

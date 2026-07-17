@@ -13,10 +13,13 @@ Apple Intelligence**. Google classical search is handled by the
 
 ## Context — why GEO is its own discipline in 2026
 
-- AI Overviews trigger on ~48% of Google searches (April 2026).
-- ChatGPT processes 2.5B queries/day.
-- Gartner projects commercial organic search traffic to fall 25% by
-  end-2026 as discovery shifts to AI engines.
+- `[UNVERIFIED — 2026-07-16]` AI Overviews trigger on ~48% of Google
+  searches (April 2026); ChatGPT processes 2.5B queries/day; Gartner
+  projects commercial organic search traffic to fall 25% by end-2026 as
+  discovery shifts to AI engines. Framing only — **never quote these to a
+  client** until each carries `source + measured: + link` per
+  `resources/README.md`. GEO is worth doing on mechanism; it does not need
+  these numbers to be true.
 - Classical SEO ≠ GEO. Some signals overlap (headings, Schema.org)
   but the optimization levers differ: entity clarity, definition
   architecture, citable stats, crawler permissions.
@@ -140,6 +143,16 @@ If called standalone via `/geo`, gather:
 ---
 
 ## STEP 2 — DETECT CONTEXT `[both]`
+
+**FIRST — the CWD must BE the audited site.** You grep the current working
+directory; no dispatcher checks that it matches the target domain. If a URL
+was supplied and the CWD shows no web project at all (no `package.json` /
+`composer.json` / `index.html` / `*.astro` / `*.php` / `.htaccess`), or its
+signals contradict the domain, STOP and report:
+`CWD/TARGET MISMATCH — <cwd> is not <domain>'s repo. Re-run from it, or
+confirm live-only audit (LOCAL findings will be N/A).`
+Never grep one codebase while curling another: the live half looks right,
+the code half is fiction, and the report reads as authoritative.
 
 ```bash
 # Framework (reuse detection from seo-analyzer if available)
@@ -360,7 +373,9 @@ action (G5 batch, confirmation needed — visible page creation).
 
 **Local business:**
 - [ ] `LocalBusiness` with most specific subclass (Plumber/Dentist/etc.)
-- [ ] NAP consistent with GMB
+- [ ] NAP consistent with GMB — **direction rule applies** (Data integrity:
+      never pick a value from source majority; no canonical → no directional
+      fix)
 - [ ] `sameAs` includes GMB URL + main social + Wikidata if applicable
 - [ ] `areaServed` lists served cities/regions
 - [ ] `openingHoursSpecification` matches reality
@@ -446,6 +461,12 @@ PRIORITY ACTIONS  : <top 3-5>
 Load: `~/.claude/agents/resources/content-shape-for-ai.md`
 
 Sample 5-10 key pages (homepage + top service/blog pages). For each:
+
+**Record the denominator.** This samples; the report says "audit". Count the
+URLs in `sitemap.xml` for the coverage ratio, and carry it into the GEO
+SCORING block. No sitemap → total UNKNOWN, say so. Content shape is the
+axis most damaged by silent sampling: it is judged per page, so a 6-page
+sample of a 300-page site says nothing about the other 294.
 
 ### Checks
 
@@ -574,6 +595,7 @@ Score each axis. Use concrete findings from STEP 2-9.
 
 ```
 GEO SCORING (<depth>)
+COVERAGE                  : <N> of <M> sitemap URLs (<P>%) | <N> pages, total UNKNOWN
 AI Crawlers Policy        : XX/20  <justification>
 llms.txt                  : XX/20  <justification>
 Schema.org for AI         : XX/20  <justification>
@@ -583,6 +605,12 @@ AI Visibility (live)      : XX/20 | N/A (LOCAL)
 ─────────────────────────────────
 GEO GLOBAL (weighted)     : XX.X/20 (<depth>)
 ```
+
+**COVERAGE is mandatory, never omitted, never rounded up.** It bounds the
+per-page axes — Content Shape above all, and the page-level share of
+Schema.org. Site-wide axes (AI Crawlers Policy, llms.txt) are unaffected:
+robots.txt and llms.txt are single files, fully read. Say which is which
+rather than letting one ratio discredit the whole report.
 
 Per user instruction: **GEO weight in combined SEO+GEO report = 20% for
 local, 25% for national/SaaS/content.**
@@ -895,9 +923,31 @@ PROCHAINE ETAPE : <highest-priority>
 - **No invented entity data.** Never write a fake Wikidata QID, fake
   `sameAs` URLs, fake `knowsAbout`, fake press mentions. Unknown →
   placeholder `[À COMPLÉTER]` or omit.
+- **NAP direction rule (LRN-032).** You own JSON-LD NAP, so this binds you
+  whoever called you — `/seo` passes a canonical, standalone `/geo` does
+  not. NEVER infer a correct NAP value from source majority: on-site
+  sources (JSON-LD, footer, settings DB, legal pages) usually descend from
+  ONE seed and can all carry the same wrong value — the single diverging
+  source may be the only one a human actually corrected. Direction of fix:
+  - Diverging from a CONFIRMED canonical field (passed by `/seo` STEP 0)
+    → fix the diverging source.
+  - Canonical UNCONFIRMED or absent (the standalone `/geo` case) → report
+    the divergence WITHOUT a directional fix; escalate as a user question
+    ("which value is correct?") in §11.
+  No G2/G6 item may write or rewrite a NAP value that no confirmed
+  canonical backs — **creating** a `LocalBusiness` from scratch included:
+  unknown fields → `[À COMPLÉTER]`, never a value copied from a sibling
+  on-site source.
 - **Remove deprecated schemas rather than keep broken ones.**
-- **Cite sources.** When emitting stats in the report, link
-  `content-shape-for-ai.md` research citations.
+- **Cite sources, and only citable ones.** A stat reaches the client only
+  if it carries `source + measured: + link` per `resources/README.md`.
+  Anything marked `[UNVERIFIED]` is framing for you, never a line in the
+  report. Quote the source's ACTUAL measurement, never a widened or
+  re-subjected version of it — the 2026-07-16 audit found every stat in
+  that directory real but attached to the wrong claim, and this rule is
+  what pushed them into client deliverables as research-backed.
+  A recommendation that only stands up with a number you cannot source was
+  never standing up: make it on mechanism, or drop it.
 
 ### Process
 - **Every user action lists automation options.** Mandatory from

@@ -81,6 +81,17 @@ hreflang, infer from detected URL structures.
 
 ## STEP 2 — DETECT TECHNICAL CONTEXT `[both]`
 
+**FIRST — the CWD must BE the audited site.** You grep the current working
+directory; no dispatcher checks that it matches TARGET_URL. If a URL was
+supplied and the CWD shows no web project at all (no `package.json` /
+`composer.json` / `index.html` / `*.astro` / `*.php` / `.htaccess`), or its
+signals contradict the domain, STOP and report:
+`CWD/TARGET MISMATCH — <cwd> is not <domain>'s repo. Re-run from it, or
+confirm live-only audit (LOCAL findings will be N/A).`
+Never grep one codebase while curling another: the live half looks right,
+the code half is fiction, and the report reads as authoritative. `/harden`
+inherits this agent for its config axis, so the mismatch propagates there.
+
 ### Framework & rendering
 
 ```bash
@@ -147,6 +158,23 @@ RECOMMENDATION   : KEEP & CONFIGURE plugin | INSTALL <plugin> (P0 quick win) | M
 - No CMS (custom code) → full manual edit via hotfixer/feater as usual.
 
 ### Infrastructure signals
+
+**Origin vs edge — never infer the stack from `server:`.** That header names
+whatever answered: usually the EDGE (Cloudflare, Scaleway/OVH front, CDN,
+load balancer), not the origin. Apache behind an nginx front is a standard
+topology — TLS terminated upstream, the origin sees plain HTTP plus
+`X-Forwarded-Proto`.
+- Repo `.htaccess` + `server: nginx` = NOT drift, NOT dead config. Do not
+  flag it, do not propose migrating it.
+- Never move headers into an `nginx.conf` absent from the repo. Server-side
+  config you cannot read is a §14 gap, not a finding.
+- A header present live but in no repo config = "set upstream", never
+  "missing".
+
+`/harden` reuses this agent for its entire config-hardening axis, so a wrong
+topology call scores a client's server config against a file that never ran.
+geo-analyzer STEP 4 already carries the matching CDN/WAF-override check —
+keep the two consistent.
 
 ```bash
 # Server / hosting
@@ -216,6 +244,12 @@ anonymous PageSpeed lab data and STEP 4/STEP 11 emit the §11 user action
 
 ### HTTP headers & security
 
+**Read them; score them only for `/harden` (I4).** This section stays — the
+raw headers are needed for `X-Robots-Tag`, canonical/redirect coherence, and
+the §14 observed-list. But under `/seo` the security headers themselves are
+out of scope for scoring: see the Technical axis note in STEP 9. Under
+`/harden` they are the entire job. Reading is not scoring.
+
 ```bash
 DOMAIN="<production-domain>"
 
@@ -247,8 +281,21 @@ Evaluate each present/missing:
 - **LCP** (Largest Contentful Paint) — < 2.5s
 - **INP** (Interaction to Next Paint) — < 200ms (replaced FID in Mar 2024)
 - **CLS** (Cumulative Layout Shift) — < 0.1
-- **VSI** (Visual Stability Index) — new 2026 signal, Google Core Web
-  Vitals 2.0
+
+**Core Web Vitals are exactly these three** (web.dev/articles/vitals,
+verified 2026-07-16). Google ships threshold changes with prior notice on a
+predictable annual cadence — a "new CWV" that only SEO blogs know about does
+not exist. Before adding a metric here, confirm it against a PRIMARY source:
+web.dev, the Chromium blog, or `developer.chrome.com/docs/crux/api` — that
+API metric list is decisive, because a metric CrUX cannot return is a metric
+we cannot score.
+
+**WebSearch is not confirmation.** SEO blogs cross-cite each other into fake
+consensus. A "VSI (Visual Stability Index) — new 2026 signal, Core Web
+Vitals 2.0" line lived here until 2026-07-16 on exactly that basis: ten
+blogs asserted it, several claimed CrUX was already collecting it, and it is
+absent from both the CrUX API metric list and web.dev. Stated as fact, in a
+threshold list, in client-facing audits.
 
 When a GSC account+property were passed in context, fetch CrUX field
 data first (**tilde path mandatory** — this agent runs from the
@@ -359,7 +406,21 @@ Fetch rendered HTML. Extract and analyze:
 
 ## STEP 5 — ON-PAGE AUDIT `[both]`
 
+**Record the denominator BEFORE sampling.** This step samples; the report
+says "audit". Count the URLs in `sitemap.xml` (fetch it in full — the
+`head -50` in STEP 4 is a preview, not a count). That count is the coverage
+denominator, and it feeds the mandatory COVERAGE line in STEP 9. No sitemap
+→ denominator unknown: say so, never let silence imply full coverage. On a
+500-page site a 12-page sample is 2.4% — the On-page score is an
+extrapolation from it, and the reader cannot know that unless you print it.
+
 ### Meta tags per page (sample 5-15 key pages)
+
+Sample by risk, not convenience: homepage + top templates (one per page
+type: service, city, blog, product, legal) + any page GSC flags as a
+position 4-10 quick win. Same template audited twice buys nothing; an
+un-sampled template is an un-audited template — name the templates you
+skipped.
 
 For each sampled page:
 ```
@@ -616,10 +677,10 @@ FIX: AUTO (<what agent will do>) | USER (<what user must do>)
 
 | Axis | Weight (local B2C) | Weight (SaaS/national/content) | Score /20 |
 |---|---|---|---|
-| Technical (perf, CWV, security headers, indexability) | 20% | 30% | |
+| Technical (perf, CWV, indexability) | 20% | 30% | |
 | On-page (content, meta, headings, images, video, a11y, i18n) | 20% | 30% | |
 | SEO Local (NAP, GMB, citations) | 25% | 5% | |
-| Off-page (backlinks, mentions, authority) | 10% | 15% | |
+| Off-page (unlinked brand mentions — backlinks/authority NOT auditable, §14) | 10% | 15% | |
 | Social presence | 10% | 5% | |
 | Competitive position | 5% | 10% | |
 | Legal compliance | 10% | 5% | |
@@ -628,17 +689,63 @@ FIX: AUTO (<what agent will do>) | USER (<what user must do>)
 real users, from STEP 4) when available; otherwise lab PageSpeed
 Lighthouse run.
 
+**Security headers are NOT scored here (I4).** `/harden` owns them and
+grades them out of 100 with three external validators — pricing them into
+this axis too was double-counting the same finding in two reports
+(`depth-matrix.md:29` already said drop; this spec contradicted it).
+- Dispatched from `/harden` (its prompt says NARROW-SCOPE): headers ARE the
+  job — audit and score them per its brief, ignore this note.
+- Dispatched from `/seo`: do not score CSP, HSTS, X-Frame-Options,
+  X-Content-Type-Options, Referrer-Policy, Permissions-Policy, COOP/CORP,
+  cookie flags. STEP 4 still reads them — you need them for the one
+  carve-out below — but they earn and lose no points here.
+
+**Carve-out — `X-Robots-Tag` stays.** It is an indexing directive wearing a
+header's clothes: `noindex` served there deindexes the page as surely as a
+meta robots tag. Score it under indexability. That is what
+`depth-matrix.md:29` means by "unless it directly affects indexability" —
+it is the header that does, and the security headers above are not.
+
+**Drop ≠ silence.** A user who never runs `/harden` must not read a clean
+Technical score as clean headers. Whenever depth=FULL, emit in §14:
+`Security headers (CSP, HSTS, X-Frame-Options…) — not scored here: /harden
+owns them (0-100 + Observatory/SecurityHeaders/SSL Labs). Run /harden
+<url>. Observed live this run: <present list | none observed>.`
+Name what you saw. An omission has to stay legible — the same reason
+COVERAGE is mandatory in STEP 9.
+
+**Off-page axis note (I1).** Score ONLY the unlinked brand mentions
+gathered in STEP 6 (`web_search "<business-name>" -site:<domain>`).
+Backlink profile and domain authority have NO data source here — no index,
+no API, nothing. NEVER price them into the number: an unmeasured
+sub-component cannot be judged, and this axis carries 10-15% of a score
+that reaches a client via `/client-handover`. A low mention count is a low
+mention count — it is NOT evidence of a weak backlink profile.
+
+Mandatory §14 line whenever depth=FULL, verbatim:
+`Backlinks / domain authority — NOT audited: no backlink index wired.
+Nearest free source: Common Crawl hyperlinkgraph. Commercial: Ahrefs /
+Semrush / Majestic. The Off-page score above prices in brand mentions only.`
+
+Weight deliberately unchanged despite the narrower scope: re-deriving it
+now, then again when a backlink source lands, would churn historical
+scores twice. Revisit the 10/15% only when the axis widens back.
+
 ### LOCAL depth — 4 axes
 
 | Axis | Weight (local B2C) | Weight (SaaS/national/content) | Score /20 |
 |---|---|---|---|
-| Technical (security headers, indexability, config) | 25% | 35% | |
+| Technical (indexability, config) | 25% | 35% | |
 | On-page (content, meta, headings, images, video, a11y, i18n) | 35% | 45% | |
 | SEO Local (markup, NAP in JSON-LD, legal) | 20% | 5% | |
 | Legal compliance (pages, CMP, mentions) | 20% | 15% | |
 
 LOCAL axes not audited (Off-page, Social, Competitive) appear as
-`N/A — requires FULL audit` in the report.
+`N/A — requires FULL audit` in the report. Off-page is the exception to
+that promise: FULL audits its brand-mentions share ONLY — backlinks and
+authority are unauditable at EVERY depth (see the Off-page axis note).
+Print `N/A — FULL audits brand mentions only` for it, never a bare
+"requires FULL audit" that FULL cannot keep.
 
 ### Projected code-only score + trajectory to 17/20 (mandatory)
 
@@ -676,6 +783,8 @@ misroutes the client-handover gate and the user's effort.
 
 ```
 SEO SCORING (<depth>)
+COVERAGE       : <N> of <M> sitemap URLs (<P>%) — templates skipped: <list|none>
+                 | <N> pages, total UNKNOWN (no sitemap)
 Technical      : XX/20  <justification>
 On-page        : XX/20  <justification>
 SEO Local      : XX/20 | N/A
@@ -686,6 +795,12 @@ Legal          : XX/20  <justification>
 ─────────────────────────
 SEO GLOBAL (weighted): XX.X/20 (<depth>)
 ```
+
+**COVERAGE is mandatory, never omitted, never rounded up.** It is the
+honesty bound on every page-level axis: On-page and the on-page share of
+Technical are extrapolations from the sample. If coverage < 25%, repeat it
+in §0 as a major alert — a 17/20 drawn from 3% of a site is not a 17/20, and
+`/client-handover` gates on these numbers.
 
 Per user instruction: this score represents **80% of the combined
 final score for local B2C (20% for GEO), or 75% for SaaS/national
