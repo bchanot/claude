@@ -76,6 +76,26 @@ security gate and the escalation report if a gate fails. No verifier is
 dispatched at hotfix weight — STEP 4's smoke result already verifies these
 trivial criteria; the gate hotfix adds is security (STEP 4).
 
+## STEP 1.8 — CHALLENGE THE FIX (logic fixes only)
+GUARD — this is the one place the plan-challenge phase is kept proportionate to
+hotfix's speed. SKIP entirely for a purely cosmetic fix (CSS value, copy/typo, a
+broken link): there is nothing for three lenses to bite on, and speed is the
+point. Run it ONLY when the settled fix touches control flow or behaviour — an
+off-by-one, a wrong operator/variable, a behaviour-changing config value, or a
+missing import that alters execution. In doubt → it is probably a `/bugfix`.
+
+For a logic fix: persist the STEP 1 located fix (root cause + the exact edit) to
+`.claude/tasks/plans/<date>-<slug>-<HHMM>.md`, then run
+`$HOME/.claude/lib/challenge-plan.md` with `PLAN` = that file, `KIND` =
+`build-plan`, `SCOPE` = the 1-2 target files, `CONSTRAINTS` = the STEP 1.7
+contract's acceptance criteria. Three blind challengers attack the fix; the main
+loop RE-THINKS any aspect a BLOCKER lands (a named change to the fix, or
+`[deferred]`) and re-challenges once if it materially changed. Print a
+CHALLENGE SUMMARY (BLOCKERs addressed / deferred / lenses returned). A BLOCKER
+that shows the fix is wrong or incomplete means this was never
+a hotfix — escalate to `/bugfix` (its STEP 3b runs the same phase under the full
+verify+secure loop).
+
 ## STEP 2 — PRE-FLIGHT
 
 **Gitflow aiguillage (before dispatch):** follow `$HOME/.claude/lib/gitflow-aiguillage.md`

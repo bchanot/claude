@@ -405,3 +405,7 @@ rules:
 - Removed config-protection edit-block guardrail (full removal, user req) → feature/drop-config-protection (0e1b89c). Residual gitflow+Gitea guards only. [[BDR-074]] [[LRN-136]].
 - Built framework-wide 3-way plan-challenge phase → feature/plan-challenge-phase (6bfc054): lib/challenge-plan.md + agents/plan-challenger.md + 41-assertion lock, wired into 11 reflection orchestrators (build-plan/proposals/fix-bundle), excluded 6 no-plan skills. Full suite 16/16. [[BDR-075]].
 - Dogfooded the challenge on its own v1 plan: 3 blind lenses caught 4 BLOCKERs + rejected 1 false positive → hardened v2 shipped [[EVAL-026]]. Both branches finished into develop on user signal, NOT pushed.
+
+## 2026-07-18
+- hotfix wired into plan-challenge via Option B (STEP 1.8 logic-only guard): skip cosmetic, fire on logic, BLOCKER→/bugfix. 12th orchestrator. structure lock 43/43, suite 15/15. [[BDR-075]] hotfix-exclusion superseded (see amendment). feature/hotfix-challenge-guard, UNMERGED (user: commit only).
+- Behavioral smoke of the shipped mechanism: 3 blind plan-challenger dispatches on a planted-flaw plan → correctness FATAL(4), robustness FATAL(6), simplicity CONCERNS(1). Each lens caught ITS planted flaw + stayed in-lens. Live-validated severity-driven (SQL-injection BLOCKER raised by robustness ALONE — consensus-weighting would've buried it) + orthogonality. Confirms [[EVAL-026]]/[[BDR-075]] design.

@@ -38,7 +38,8 @@ has "$L" "proposals"
 has "$L" "fix-bundle"
 
 # 3) every reflection orchestrator wires the phase + carries a challenge summary
-for s in ship-feature init-project feat bugfix onboard audit-delta code-clean seo geo harden web-validate; do
+#    (hotfix wires it under a logic-only guard — STEP 1.8)
+for s in ship-feature init-project feat bugfix hotfix onboard audit-delta code-clean seo geo harden web-validate; do
   has "skills/$s/SKILL.md" "lib/challenge-plan.md"
   has "skills/$s/SKILL.md" "CHALLENGE SUMMARY"
 done
