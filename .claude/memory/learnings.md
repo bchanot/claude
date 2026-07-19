@@ -1342,3 +1342,10 @@ rules:
 
 ### LRN-136 — config-protection live state follows checked-out branch's symlinked settings.json (2026-07-17)
 ~/.claude/settings.json is a SYMLINK to the repo settings.json; Claude Code hot-reloads settings on change → the config-protection PreToolUse hook's active/inactive state tracks the CURRENT branch's settings.json. On feature/drop-config-protection (hook deregistered) a protected edit passed silently, sentinel unconsumed; after gitflow-switch to a branch off develop (hook still registered) the SAME class of edit was blocked. Apply: a change that removes a settings-registered hook is live only on that branch until merged; use the one-shot sentinel for protected edits on any branch that still registers it. ([[BDR-074]] context.)
+
+## LRN-137 — mode-based re-tiering beats file splits for mixed-tier agents
+- **pattern**: three planned agent splits (doc-syncer, handover-doc-writer, seo/geo analyzers) shipped as MODES + per-dispatch `model=` instead of new files; only plugin-probe justified a real new file (genuinely new role, no shared body).
+- **why**: a file split severs implicit data paths (LRN-126), relocates body-text test locks (seo-data fetch-wiring), breaks name/dispatch-string census locks, duplicates templates. A mode split keeps ALL locks and text in place; the dispatcher's gate sits BETWEEN mode dispatches; call-site `model=` precedence over the frontmatter pin is spike-proven (sonnet-pinned verifier ran haiku on override).
+- **fail-safe pin rule**: keep the HIGHEST tier as the frontmatter pin and override DOWN at call sites — a forgotten override then over-tiers (costs money) instead of silently downgrading judgment (costs correctness).
+- **future application**: before splitting any agent across model tiers, try MODE + `model=` first; create a new agent file only for a genuinely new role. Run-scoped `.audit/<name>-<RUNID>` files + completeness sentinel + fail-closed consumer for any cross-dispatch artifact.
+- **cousin**: [[LRN-125]] [[LRN-126]] [[BDR-077]].
