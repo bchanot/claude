@@ -140,6 +140,26 @@ has "agents/handover-doc-writer.md"          'MODE: render'
 has "agents/handover-doc-writer.md"          'DRAFT COMPLETE'
 has "agents/client-handover-writer.md"       'MODE: synthesize'
 has "agents/client-handover-writer.md"       'handover-doc-writer", model="opus"'
+# 18) BDR-077 W5 — seo/geo 3-mode pipelines: collect/template = sonnet at
+#     the call site, judge = opus PIN (fail-safe direction: a forgotten
+#     override over-tiers, never downgrades judgment). Run-scoped signals
+#     handoff + completeness sentinel + fail-closed judge + dispatcher
+#     ERROR contract (mute/ERROR judge never carried into templating).
+#     Body text unmoved — seo-data.test.sh fetch-wiring locks survive.
+has "agents/seo-analyzer.md"                 'MODE: collect'
+has "agents/seo-analyzer.md"                 'MODE: judge'
+has "agents/seo-analyzer.md"                 'MODE: template'
+has "agents/seo-analyzer.md"                 'COLLECTION COMPLETE'
+has "agents/geo-analyzer.md"                 'MODE: collect'
+has "agents/geo-analyzer.md"                 'MODE: judge'
+has "agents/geo-analyzer.md"                 'MODE: template'
+has "agents/geo-analyzer.md"                 'COLLECTION COMPLETE'
+has "skills/seo/SKILL.md"                    'MODE: collect'
+has "skills/seo/SKILL.md"                    'seo-analyzer", model="sonnet"'
+has "skills/seo/SKILL.md"                    'never re-derive a score'
+has "skills/seo/SKILL.md"                    'DISPATCHER ERROR CONTRACT'
+has "skills/geo/SKILL.md"                    'MODE: collect'
+has "skills/geo/SKILL.md"                    'geo-analyzer", model="sonnet"'
 
 printf 'model-routing census: %d pass, %d fail\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

@@ -24,6 +24,38 @@ $ARGUMENTS
 
 ---
 
+## MODE DETECTION (BDR-077 — pipeline modes around the dispatcher)
+
+The dispatcher (/seo) runs this agent as a 3-stage pipeline; /harden and
+/onboard may still run it single-shot. Parse the MODE line in the prompt:
+
+- **`MODE: collect`** — dispatched `model: "sonnet"` (mechanical/standard
+  collection; the call-site override takes precedence over the opus pin).
+  Runs STEP 0-5 ONLY, writes every gathered signal (tech context, tool
+  availability, live-audit raw results, on-page inventory + sampling
+  frame) to the run-scoped, gitignored `.audit/seo-signals-<RUNID>.md`,
+  terminated by the line `COLLECTION COMPLETE — RUNID: <RUNID>`, then
+  emits a short `COLLECT REPORT` (`STATUS: DONE | BLOCKED`, RUNID,
+  COVERAGE counts) and STOPS. No scoring, no findings, no bundle.
+- **`MODE: judge`** — runs on the opus frontmatter pin (audit judgment).
+  FIRST loads `.audit/seo-signals-<RUNID>.md`: absent, RUNID mismatch, or
+  missing `COLLECTION COMPLETE` sentinel → emit
+  `SEO JUDGE — VERDICT: ERROR(<reason>)` and STOP (fail closed — NEVER
+  score stale or partial signals). Then runs STEP 6-11 on the signals +
+  the dispatcher-fed context and emits the scoring blocks + findings +
+  action plan + triage batches as its report. No bundle, no SEO.md.
+- **`MODE: template`** — dispatched `model: "sonnet"`. INPUT: the
+  dispatcher-fed context + the judge's report VERBATIM (never re-derive a
+  score or re-judge a finding). Runs STEP 12-14: FIX BUNDLE + sentinel,
+  report file, envelope.
+- **No MODE line** — legacy single-shot: all steps in sequence on the
+  opus pin (used by /harden narrow-scope and /onboard report-only).
+
+Every mode receives the full dispatcher CONTEXT block (LRN-126 — the
+STEP 1-2 business/tech context is consumed by all later steps).
+
+---
+
 ## STEP 0 — AUDIT DEPTH
 
 **First action.** If a parent skill (`/seo` dispatcher) passed depth
@@ -744,6 +776,10 @@ Validate:
 
 ---
 
+> **MODE BOUNDARY — `MODE: collect` ends at STEP 5**: write the signals
+> file + `COLLECTION COMPLETE — RUNID: <RUNID>` terminal line, emit the
+> COLLECT REPORT, stop. STEP 6-11 below are `MODE: judge` territory.
+
 ## STEP 6 — EXTERNAL PRESENCE AUDIT `[FULL only, local business only]`
 
 **Skip if not a local business** (pure SaaS, content-only → jump to STEP 7).
@@ -1181,6 +1217,10 @@ BATCH F — USER ACTIONS (N items, documented in SEO.md §11 with automation cat
 Do not proceed to STEP 12 until this plan is printed.
 
 ---
+
+> **MODE BOUNDARY — `MODE: judge` ends at STEP 11** (scoring + findings +
+> plan + batches reported, nothing serialized). STEP 12-14 below are
+> `MODE: template` territory, operating on the judge report verbatim.
 
 ## STEP 12 — EMIT FIX BUNDLE `[both]`
 
