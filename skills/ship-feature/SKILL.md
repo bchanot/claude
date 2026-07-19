@@ -268,8 +268,13 @@ Run BEFORE STEP 9 FINISH. doc-syncer PATCHES public docs but does NOT commit the
 uncommitted (or committed after) never reaches the merge/PR. Same PR-stranding class as the
 STEP 7 capitalize fix (BDR-034).
 
-Load `$HOME/.claude/agents/doc-syncer.md`. Execute in automatic mode:
-`auto-mode scope: <list of files modified during this session>`
+Dispatch the doc pipeline (BDR-077 — audit judgment on opus, patch on the
+sonnet pin, gate HERE): `Agent(subagent_type="doc-syncer", model="opus")` —
+`MODE: audit` + `auto-mode scope: <list of files modified during this
+session>`. NONE → done; `[MINOR]` PATCH PLAN → re-dispatch
+`Agent(subagent_type="doc-syncer")` with `MODE: patch` + the plan verbatim
+(SHAPE ESCALATION comes back here, gated); SIGNIFICANT → gate here, then
+`MODE: patch` with the approved subset.
 
 **Then commit the docs** — follow `$HOME/.claude/lib/doc-commit.md`: it surgically commits
 ONLY the files doc-syncer patched (its `PATCHED_FILES` output, one path per line → one argv

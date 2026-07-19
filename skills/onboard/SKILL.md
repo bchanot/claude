@@ -89,7 +89,11 @@ STOP. La réponse détermine si STEP 1 tourne une fois (A) ou N fois (C) ou avec
 
 ## STEP 2 — BASELINE CONFIG (onboarder agent)
 
-Load `$HOME/.claude/agents/onboarder.md`. Passer un BRIEF minimal issu du filesystem scan :
+Dispatch `Agent(subagent_type="onboarder")` (pin sonnet — BDR-077 : config
+templating = exécution, plus jamais inline sur le modèle de session). Un
+BLOCAGE (clé manquante, CLAUDE.md existant) revient en rapport — l'agent ne
+peut pas te demander ; TU arbitres ici puis re-dispatches. Passer un BRIEF
+minimal issu du filesystem scan :
 - `archetype` (depuis STEP 1)
 - `project_name` (depuis package.json/pyproject.toml/README.md/dir name)
 - `stack` (depuis manifests détectés)
@@ -531,9 +535,11 @@ flux de dev sont deux formes distinctes ([[BDR-050]] pipeline dev ≠ audit).
 ```
 Agent(
   subagent_type="doc-syncer",
+  model="opus",
   description="Onboard — doc drift audit only",
   prompt="""
-  REPORT-ONLY mode — NO edits, NO auto-sync.
+  MODE: audit — REPORT-ONLY, NO edits, NO auto-sync (no patch dispatch
+  follows: the report feeds the onboard backlog).
   Target: full project at <PROJECT_ROOT>.
   Scope:
     1. README drift (build/test commands, install steps, usage examples vs actual code)

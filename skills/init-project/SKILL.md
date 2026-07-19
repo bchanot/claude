@@ -92,12 +92,24 @@ contract, each tagged `[gated <date>]`. STEP 9's verifier judges against this
 enriched contract.
 
 ## STEP 5 — SCAFFOLD
-Load `$HOME/.claude/agents/scaffolder.md`. Pass: BRIEF + DESIGN + `~/.claude/templates/project-CLAUDE.md` + `~/.claude/CLAUDE.md`.
+Dispatch `Agent(subagent_type="scaffolder")` (pin sonnet, effort high —
+BDR-077 : le design est CLOS au gate #1, le scaffold est de l'exécution,
+plus jamais inline sur le modèle de session). Pass IN THE PROMPT (LRN-126 —
+every field the scaffolder consumes crosses the dispatch): BRIEF (verbatim)
++ DESIGN (verbatim) + paths `~/.claude/templates/project-CLAUDE.md` +
+`~/.claude/CLAUDE.md`. A STOP (missing input) comes back as its report —
+resolve here, re-dispatch. The ~30s liveness pings are THIS loop's job
+while waiting.
 Creates: CLAUDE.md, `.claude/settings.json`, `.claudeignore`, `.gitignore`, `.env.example`, empty entry points. NO README, NO features, NO `.claude/tasks/` or `.claude/memory/` (not bootstrapped by this flow — copy from `~/.claude/templates/memory/` manually if wanted before STEP 10b's memory commit).
 Verify: `git init` + build passes.
 
 ## STEP 5b — CREATE README
-Load `$HOME/.claude/agents/doc-syncer.md` (AUTO MODE, scope: full project). README.md missing → its README bootstrap creates it. No stop.
+Dispatch the doc pipeline (BDR-077): `Agent(subagent_type="doc-syncer",
+model="opus")` — `MODE: audit`, `auto-mode scope: full project`. README.md
+missing → the report carries the rendered README draft as `[CREATE-AUTO]`;
+re-dispatch `Agent(subagent_type="doc-syncer")` (sonnet pin) with
+`MODE: patch` + that plan to write it. No stop (README bootstrap is
+unconditional).
 
 ## STEP 5c — CTX7 PRE-FETCH (if fast-libs detected)
 If `fast-libs` signal was detected in STEP 0 (Next.js, React 18+, Prisma, Supabase, Drizzle, etc.):
@@ -286,8 +298,11 @@ does NOT commit them, and `gitflow finish` integrates only COMMITTED history
 — so a patch left uncommitted never reaches the merge/PR. Same PR-stranding class as the
 STEP 10b capitalize fix (BDR-034).
 
-Load `$HOME/.claude/agents/doc-syncer.md` (AUTO MODE, scope: files changed this session).
-Detect drift, update cmds/vars/structure, add recent changes entry.
+Dispatch the doc pipeline (BDR-077): `Agent(subagent_type="doc-syncer",
+model="opus")` — `MODE: audit` + `auto-mode scope: <files changed this
+session>`; NONE → done; `[MINOR]` plan → `MODE: patch` re-dispatch (sonnet
+pin, no gate; SHAPE ESCALATION comes back gated); SIGNIFICANT → gate here,
+then `MODE: patch` with the approved subset.
 
 **Then commit the docs** — follow `$HOME/.claude/lib/doc-commit.md`: it surgically commits
 ONLY the files doc-syncer patched (its `PATCHED_FILES` output, one path per line → one argv

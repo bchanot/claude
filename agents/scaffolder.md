@@ -123,16 +123,10 @@ INSTALL  : ✅ / ❌ <error>
 BUILD    : ✅ / ❌ <error>
 DOCKER BUILD: ✅ / ⚠️ not verified / N/A
 STRUCTURE: <tree>
-READY: <N> v1 features | entry points ✅ | config ✅ | CLAUDE.md ✅ | README → doc-syncer | settings ✅
+READY: <N> v1 features | entry points ✅ | config ✅ | CLAUDE.md ✅ | README → init-project STEP 5b | settings ✅
 ```
 
----
-
-## PHASE 6 — DOC SYNC (automatic)
-
-**INLINE-LOAD** `$HOME/.claude/agents/doc-syncer.md` — continue AS
-doc-syncer in THIS SAME context (you *become* it). This is an inline load,
-NOT a subagent dispatch: the `Agent` tool is not involved (which is why
-this agent correctly omits `Agent` from its `tools:`). Execute in
-automatic mode:
-`auto-mode scope: <list of all files created during scaffolding>`
+> No doc step here (BDR-077): the scaffolder produces NO docs. The README
+> bootstrap is init-project STEP 5b's job — a doc-syncer `MODE: audit`
+> (opus) → `MODE: patch` (sonnet) dispatch pipeline owned by the
+> orchestrator, never an inline-load inside this executor.

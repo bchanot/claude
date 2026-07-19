@@ -97,6 +97,34 @@ for s in plugin-check onboard init-project ship-feature; do
   # shellcheck disable=SC2016 # literal $HOME wanted: matching the exact inline-load string
   lacks "skills/$s/SKILL.md" 'Load `$HOME/.claude/agents/plugin-advisor.md`'
 done
+# 14) BDR-077 W2/S2 — doc pipeline: ONE agent, TWO modes around the
+#     dispatcher's gate (audit = opus via call-site override — documented
+#     precedence over the sonnet pin; patch = sonnet pin). Gate hoisted out
+#     of the agent (a dispatched agent cannot ask); CHANGE SUMMARY crosses
+#     the dispatch boundary into doc-commit (LRN-126); scaffolder carries no
+#     doc step; no consumer inline-loads doc-syncer anymore.
+has "agents/doc-syncer.md"                   'MODE: audit'
+has "agents/doc-syncer.md"                   'MODE: patch'
+has "agents/doc-syncer.md"                   'CHANGE SUMMARY'
+has "agents/doc-syncer.md"                   'DISPATCHER PROTOCOL'
+has "lib/doc-commit.md"                      'CHANGE SUMMARY'
+has "skills/doc/SKILL.md"                    'model="opus"'
+has "skills/doc/SKILL.md"                    'MODE: patch'
+lacks "agents/scaffolder.md"                 'INLINE-LOAD'
+for s in bugfix hotfix feat ship-feature init-project; do
+  has "skills/$s/SKILL.md" 'MODE: audit'
+  # shellcheck disable=SC2016 # literal $HOME wanted: matching the exact inline-load string
+  lacks "skills/$s/SKILL.md" 'Load `$HOME/.claude/agents/doc-syncer.md`'
+done
+# 15) BDR-077 W2 — last inline execution converted: scaffolder + onboarder
+#     are DISPATCHED (pins live); their gates/arbitration stay in the
+#     orchestrator loop
+has "skills/init-project/SKILL.md"           'subagent_type="scaffolder"'
+has "skills/onboard/SKILL.md"                'subagent_type="onboarder"'
+# shellcheck disable=SC2016
+lacks "skills/init-project/SKILL.md"         'Load `$HOME/.claude/agents/scaffolder.md`'
+# shellcheck disable=SC2016
+lacks "skills/onboard/SKILL.md"              'Load `$HOME/.claude/agents/onboarder.md`'
 
 printf 'model-routing census: %d pass, %d fail\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
