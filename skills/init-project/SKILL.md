@@ -104,12 +104,14 @@ Creates: CLAUDE.md, `.claude/settings.json`, `.claudeignore`, `.gitignore`, `.en
 Verify: `git init` + build passes.
 
 ## STEP 5b — CREATE README
-Dispatch the doc pipeline (BDR-077): `Agent(subagent_type="doc-syncer",
-model="opus")` — `MODE: audit`, `auto-mode scope: full project`. README.md
-missing → the report carries the rendered README draft as `[CREATE-AUTO]`;
-re-dispatch `Agent(subagent_type="doc-syncer")` (sonnet pin) with
-`MODE: patch` + that plan to write it. No stop (README bootstrap is
-unconditional).
+Dispatch the doc pipeline (BDR-077):
+`Agent(subagent_type="doc-syncer", model="opus")`
+— `MODE: audit` (FULL-AUDIT path, NOT `auto-mode scope:` —
+auto-mode gates a missing README as SIGNIFICANT; the full audit's STEP 5
+renders it `[CREATE-AUTO]`, unconditional). README.md missing → the
+report carries the rendered README draft as `[CREATE-AUTO]`; re-dispatch
+`Agent(subagent_type="doc-syncer")` (sonnet pin) with `MODE: patch` +
+that plan to write it. No stop (README bootstrap is unconditional).
 
 ## STEP 5c — CTX7 PRE-FETCH (if fast-libs detected)
 If `fast-libs` signal was detected in STEP 0 (Next.js, React 18+, Prisma, Supabase, Drizzle, etc.):
@@ -298,8 +300,9 @@ does NOT commit them, and `gitflow finish` integrates only COMMITTED history
 — so a patch left uncommitted never reaches the merge/PR. Same PR-stranding class as the
 STEP 10b capitalize fix (BDR-034).
 
-Dispatch the doc pipeline (BDR-077): `Agent(subagent_type="doc-syncer",
-model="opus")` — `MODE: audit` + `auto-mode scope: <files changed this
+Dispatch the doc pipeline (BDR-077):
+`Agent(subagent_type="doc-syncer", model="opus")`
+— `MODE: audit` + `auto-mode scope: <files changed this
 session>`; NONE → done; `[MINOR]` plan → `MODE: patch` re-dispatch (sonnet
 pin, no gate; SHAPE ESCALATION comes back gated); SIGNIFICANT → gate here,
 then `MODE: patch` with the approved subset.

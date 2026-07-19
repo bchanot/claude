@@ -82,8 +82,9 @@ AskUserQuestion:
   uncommitted for a later run.
 - `edit <n>` → re-dispatch `commit-changer` with `MODE: propose` and the
   user's correction for step N folded into the prompt, so all grouping /
-  message judgment stays on the sonnet subagent (never redrawn inline on
-  the session model); show the redrawn plan and re-ask.
+  message judgment stays on the dispatched propose mode (`model="opus"`,
+  BDR-077 — never redrawn inline on the session model); show the redrawn
+  plan and re-ask.
 - `skip` → exit cleanly, no commits created, no `MODE: apply` dispatch.
   Note: if the propose run created a `chore/*` branch (gitflow aiguillage
   off a protected base), that branch stays checked out with the work

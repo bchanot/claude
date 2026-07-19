@@ -265,6 +265,26 @@ W6 DOCTRINE + CLOSE-OUT: model-gate.md rewrite (protects main loop; tier
 - simplicity: CONCERNS(1) — 3-way seo/geo YAGNI → 2-way worker/judge (fixed
   S3/S4); twin-templater share (dissolved by 2-way; divergence stated);
   plugin gate ×4 copies → lib/plugin-gate.md include (fixed S1).
+## EXECUTION NOTES (2026-07-19 — as-built deviations, all justified in-commit)
+
+- S2/S3/S4/S5 shipped MODE-BASED (one agent, modes + call-site `model=`)
+  instead of file splits — the challenge's own commit-changer precedent
+  generalized; locks and body text stayed in place (LRN-137). plugin S1
+  kept the `plugin-advisor` NAME for the reasoner (repinned opus) — only
+  plugin-probe is a new file.
+- seo/geo keep the OPUS pin (not sonnet+judge-override): fail-safe
+  direction — a forgotten override over-tiers, never downgrades. /harden
+  narrow-scope + /onboard report-only keep legacy no-MODE single-shot on
+  that pin.
+- W0's seo-geo-integrity arbitrage was phantom (branch already merged) —
+  TODO.md corrected instead.
+- Per-wave smokes ran in-wave as merge gates (confirmation-pass fix) —
+  all PASSED, disk-verified. Registry note: a NEW subagent_type registers
+  at next session start; typed resolution re-checked post-restart before
+  the W2 merge.
+
+## CHALLENGE LOG (final)
+
 - Confirmation pass (fresh robustness challenger on v2): CONCERNS(2) — v1
   fixes HOLD (doc-commit CHANGE SUMMARY, plugin-probe sonnet, rollback order,
   fable spike, RUNID); 2 new MAJORs + 1 MINOR opened by the revisions, all

@@ -412,3 +412,4 @@ rules:
 
 ## 2026-07-19
 - BDR-076: dispatched judgment agents pinned opus (analyzer, plan-challenger, seo/geo/validator-analyzer + 6 onboard general-purpose dispatches); Fable now = inline orchestration/reflection only. interviewer + client-handover-writer left unpinned (inline-load, pin inert). Local opus-4-8 session pin dropped from settings.local.json. Census §11 added (61 pass), loops-light 35, make test green. feature/opus-pin-audit-agents, UNMERGED.
+- BDR-077 model-tiering v2 SHIPPED: 6 waves (W0 baseline merge → W1 no-inherit+fable skill-runners → W2 plugin split + doc two-mode + inert-pin conversions → W3 tier moves → W4 handover two-mode → W5 seo/geo 3-mode pipelines → W6 doctrine sweep). Plan challenged 4 passes (1 BLOCKER closed by fable spike). Per-wave planted-input smokes disk-verified. Census 125/0, make test green throughout. [[BDR-077]] [[LRN-137]].

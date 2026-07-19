@@ -380,9 +380,10 @@ Omit any section whose delegated target does not exist and is not being
 proposed this run (e.g. drop "Deploy" entirely when `DEPLOY_COMPLEXITY`
 is `NONE`/`TRIVIAL`; drop "Configuration" when there is no config schema).
 
-Tag as **AUTO** — create on first audit. Surface the rendered README in
-the validation gate before writing so the user can `edit` if needed, but
-do NOT skip creation; "skip" is not an offered option on README bootstrap.
+Tag as **AUTO** — create on first audit. The rendered README is a DRAFT
+inside the audit report (`[CREATE-AUTO]` in the PATCH PLAN); the
+DISPATCHER's gate surfaces it so the user can `edit`, but do NOT skip
+creation; "skip" is not an offered option on README bootstrap.
 
 ### STEP 6 — DEPLOY.md GATE
 
@@ -669,9 +670,10 @@ Last updated: <date> (<N commits since>)
 
 CHANGELOG entries always HUMAN. DEPLOY.md creation always HUMAN.
 CLEAN removals always HUMAN.
-**README.md creation is AUTO** — always render and write, never gate on
-user input. The validation gate (STEP 8) still surfaces the rendered
-file so the user can edit before write, but "skip" is not an option for
+**README.md creation is AUTO** — always render (audit mode: as a draft
+in the report) and write (patch mode), never gate on user input. The
+DISPATCHER's validation gate still surfaces the rendered draft so the
+user can edit before the patch dispatch, but "skip" is not an option for
 README bootstrap; it is mandatory.
 
 If no drift in any doc and no missing required doc (and, in CLEAN MODE,

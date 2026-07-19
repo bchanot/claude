@@ -46,8 +46,8 @@ Detect signals from REQUEST + the PROBE REPORT fields:
 | `skill-creation` | "create a skill", "new skill", "custom skill", `/plugin-dev:create-plugin` in description |
 | `embedded` | "firmware", "bare-metal", "microcontroller", "STM32", "ESP32", "RTOS", "driver", "kernel", "bootloader" in description; **or** `platformio.ini` present; **or** linker script (`*.ld`, `*.lds`) present; **or** `Makefile` + `src/*.c` + no `package.json`/`Cargo.toml`/`go.mod`/`setup.py`/`pyproject.toml` (C project without standard ecosystems). Note: `.c` files with a Rust/Node/Go manifest = FFI binding, NOT embedded. |
 | `simple` | single file, hotfix, quick script, no frontend, no deploy |
-| `anim-lib-eligible` | output of `detect_anim_eligibility` starts with `eligible|` (React/Vue/Svelte stack) |
-| `anim-lib-installed` | `is_anim_lib_installed` returns 0 (any of motion / motion-v / framer-motion / gsap / lottie-react / react-spring / popmotion / auto-animate present) |
+| `anim-lib-eligible` | PROBE REPORT `ANIM` field: `eligibility=eligible|…` (React/Vue/Svelte stack) |
+| `anim-lib-installed` | PROBE REPORT `ANIM` field: `installed=<lib>` (any of motion / motion-v / framer-motion / gsap / lottie-react / react-spring / popmotion / auto-animate) |
 
 ---
 

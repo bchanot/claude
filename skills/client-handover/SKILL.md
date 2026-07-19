@@ -29,9 +29,11 @@ Load and follow strictly:
 - $HOME/.claude/agents/client-handover-writer.md
 
 Execute the CLIENT HANDOVER WRITER agent on this project. It runs the
-audit/fix/gate pipeline INLINE on the big session model (gated above), then
-delegates the client deliverable (Markdown + branded HTML + PDF) to the
-sonnet-pinned `handover-doc-writer` subagent (BDR-066).
+audit/fix/gate pipeline INLINE on the big session model (gated above), its
+skill-runner children dispatched `model: "fable"`, then delegates the
+client deliverable to the two-mode `handover-doc-writer` subagent —
+synthesize on opus, render (Markdown + branded HTML + PDF) on the sonnet
+pin (BDR-077).
 
 The agent runs a **ship-and-handover pipeline** with explicit gates:
 
