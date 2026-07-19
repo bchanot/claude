@@ -81,6 +81,22 @@ has "skills/ship-feature/SKILL.md"           'model: "opus"'
 has "skills/init-project/SKILL.md"           'model: "opus"'
 has "lib/model-gate.md"                      'model: "fable"'
 lacks "lib/model-gate.md"                    'model: "sonnet" in the Agent call'
+# 13) BDR-077 W2 — plugin split: probe (sonnet, facts only) + advisor
+#     reasoner (opus, PROBE REPORT is ground truth, fail-closed); gate
+#     include owns checkpoint + apply; 4 consumers run the include, none
+#     inline-loads the advisor anymore
+has "agents/plugin-probe.md"                 'model: sonnet'
+lacks "agents/plugin-probe.md"               'AskUserQuestion'
+has "agents/plugin-advisor.md"               'model: opus'
+has "agents/plugin-advisor.md"               'PROBE REPORT'
+lacks "agents/plugin-advisor.md"             'PHASE 1 — DETECT'
+has "lib/plugin-gate.md"                     'subagent_type="plugin-probe"'
+has "lib/plugin-gate.md"                     'subagent_type="plugin-advisor"'
+for s in plugin-check onboard init-project ship-feature; do
+  has "skills/$s/SKILL.md" 'lib/plugin-gate.md'
+  # shellcheck disable=SC2016 # literal $HOME wanted: matching the exact inline-load string
+  lacks "skills/$s/SKILL.md" 'Load `$HOME/.claude/agents/plugin-advisor.md`'
+done
 
 printf 'model-routing census: %d pass, %d fail\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

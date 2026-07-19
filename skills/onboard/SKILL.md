@@ -21,7 +21,7 @@ $ARGUMENTS
 
 ## STEP 0 — PLUGIN CHECK + AUTO-ACTIVATE
 
-Load `$HOME/.claude/agents/plugin-advisor.md` with hint "onboarding existing project + $ARGUMENTS".
+Run `$HOME/.claude/lib/plugin-gate.md` with hint "onboarding existing project + $ARGUMENTS" (dispatch plugin-probe → checkpoint → dispatch plugin-advisor → gates in this loop, BDR-077).
 
 - ACTION REQUIRED → show RECOMMENDATIONS block, offer: A) apply recos B) type "force". STOP.
 - PROPOSED CHANGES exist → show list, ask "Apply? (yes / no / customize)". Apply on confirm.
