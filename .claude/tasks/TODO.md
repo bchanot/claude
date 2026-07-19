@@ -1,5 +1,33 @@
 # TODO
 
+## 2026-07-19 — Opus-pin dispatched judgment agents (branch feature/opus-pin-audit-agents)
+
+Goal: session model (Fable) = orchestration + inline reflection ONLY.
+Every DISPATCHED subagent pinned. Reverses BDR-066 "opus pins rejected"
+carve-out (context changed: session now Fable → inherit burns Fable quota
+on audits). User approved: opus for judgment agents, drop local opus pin.
+
+- [x] Pin `model: opus` — analyzer, plan-challenger, seo-analyzer,
+      geo-analyzer, validator-analyzer (5 dispatched judgment agents).
+      NOT interviewer / client-handover-writer (inline-load only → pin
+      inert; they ARE the main loop = Fable by design).
+- [x] `lib/challenge-plan.md` — rewrite MODEL note (was "do NOT pin").
+- [x] `agents/plan-challenger.md` — rewrite ORCHESTRATOR PROTOCOL model note.
+- [x] `skills/onboard/SKILL.md` — add `model="opus"` to the 6
+      general-purpose audit dispatches + table/description text.
+- [x] `skills/tour/SKILL.md` Phase B — text: analyzer opus-pinned /
+      general-purpose with model="opus".
+- [x] `skills/client-handover/SKILL.md` — text: pipeline inline on
+      SESSION model (writer inline-loaded, not dispatched).
+- [x] `lib/tests/model-routing.test.sh` — flip §F5 fm_lacks → has
+      'model: opus' (5 agents), keep fm_lacks on interviewer +
+      client-handover-writer, update comments (BDR-076).
+- [x] `.claude/settings.local.json` — drop `"model": "opus-4-8[1m]"`
+      (local, gitignored; Fable default from settings.json applies).
+- [x] Tests: model-routing + loops-light + shellcheck + make test.
+- [x] Memory: BDR-076 append + journal line. Commit (feat + chore),
+      NO merge (human gate).
+
 ## 2026-07-17 — STATUS seo/geo parity (branch bugfix/seo-geo-integrity, 10 commits, UNMERGED)
 PHASE 1 — integrity: **DONE 7/7**. I3 8b0c98c · I1 57c67f2 · I2 4ea2fb8 ·
 I5 64f175f · I4 e70e1d6 · I6 9da1dec · I8 acd452b. Plus 9cd7b51 (A1+A2, two
@@ -113,7 +141,7 @@ as NEW VERBS. No new architecture.
       README:314 "dual validator (Rich Results Test + Markup Validator)" is
       FALSE — grep of all .py = zero calls, they are hyperlinks a human clicks.
       Today our JSON-LD validity is LLM-read only.
-- [ ] W2 `bing` verb — Bing Webmaster API, free. Closes the Google/Bing
+- [x] W2 `bing` verb — Bing Webmaster API, free. Closes the Google/Bing
       asymmetry (Google = full OAuth layer, Bing = manual checklist) while
       /geo targets ChatGPT Search, which indexes via Bing. Strategic, not cosmetic.
 - [x] W3 `sameas` resolution check — trivial curl loop. entity-seo.md lists
@@ -144,7 +172,7 @@ as NEW VERBS. No new architecture.
       assert.
 
 ### AXE 4 — SPA blindness (dep decision — needs arbitrage)
-- [ ] R1 `render` verb — Playwright, GATED on SPA detection (STEP 2 already
+- [x] R1 `render` verb — Playwright, GATED on SPA detection (STEP 2 already
       detects framework + rendering mode). Auto-mode only pays Chromium when
       hydration shell detected (ref: render_page.py:226 logic, adapt not copy).
 - [x] R2 ARBITRAGE: heavy dep (Chromium ~300MB) vs our bash+curl purity.
@@ -182,14 +210,14 @@ flat 0-100, no legal axis) · llms.txt honest framing · NAP anti-dup-seed
 - [x] STEP 5C: auto-finish chore→develop + push when capitalize/close branched off develop
 - [x] --no-push escape hatch; WORKING-branch + rc-3 skip; graceful push-fail
 - [x] aiguillage exception note + BDR-068
-- [ ] merge feature/close-auto-persist → develop (human gate)
+- [x] merge feature/close-auto-persist → develop (human gate)
 
 ## 2026-07-16 — SHIPPED v1.0.0 first public release (BDR-067)
 - [x] versioning reset 4.0.0→1.0.0, CHANGELOG pre-release-history banner
 - [x] deleted v4.0.0 tag + stale release/1.0.0 branch (git-cherry: nothing orphaned)
 - [x] merged to main + develop, tagged v1.0.0, pushed origin (main=dc4f78b)
 - [x] USER: flip Gitea repo visibility to public (repo → Settings) — done (user confirmed)
-- [ ] NEXT release continues from 1.0.0 (→ 1.0.1 / 1.1.0), NEVER back to 4.x (BDR-067)
+- [x] NEXT release continues from 1.0.0 (→ 1.0.1 / 1.1.0), NEVER back to 4.x (BDR-067)
 
 ## 2026-07-16 — model-routing edge fixes (bugfix/model-routing-edge-fixes)
 Post-merge ronde (4 big-model audits: dispatch-graph INTACT, loops CLOSE,
@@ -223,7 +251,7 @@ unmerged — human gate.
       (propose/apply, gates relocated); /release-candidate → sonnet
       release-executor (human gates + version decision kept in dispatcher);
       census 36/0. Exclusion list now commit-change/doc/status/release-candidate.
-- [ ] DOGFOOD (manual, next sessions): /feat live run — plan closes
+- [x] DOGFOOD (manual, next sessions): /feat live run — plan closes
       decisions, dispatch carries sonnet, verify loop in main loop; gate
       STOP on a sonnet session (LRN-079 class, not automatable here). Also
       dogfood /hotfix split + /commit-change propose/apply + /release-candidate spans.
@@ -262,10 +290,10 @@ catégorie, 1 commit atomique/item, make test après chaque code. Branche non me
       manquante ; make test GREEN + review-guards 5/0. Capitalize [[LRN-117]] structurel.
 
 ### Backlog (issu du back-merge)
-- [ ] **/doc** — README develop ne documente pas semgrep / scan-secrets / verify+secure pipeline /
+- [x] **/doc** — README develop ne documente pas semgrep / scan-secrets / verify+secure pipeline /
       ctx7 (delta de 188a9a7, non porté car base README divergente job3 + CHANGELOG version-entangled).
       Une passe /doc doit combler ces sujets sur le README réécrit de develop.
-- [ ] **release-drift advisory** ([[LRN-117]]) — check qui liste les commits `develop..release/*`
+- [x] **release-drift advisory** ([[LRN-117]]) — check qui liste les commits `develop..release/*`
       touchant du CODE fonctionnel (exclut merges, `.claude/**`, version.txt/CHANGELOG) pour revue
       de back-merge. Advisory, PAS un gate make-test dur : les cherry-picks landent avec de nouveaux
       SHA → le commit source reste dans le range → équivalence "déjà porté ?" non fiable automatiquement
@@ -321,7 +349,7 @@ PART 3 — IMPLICIT-HANDOFF (tight scope, 2 sites) — DONE:
 Capitalize DONE: LRN-112 (nesting) + BDR-060 (floor) + BDR-061 (path-b) + journal.
 - [x] commit-changer template Co-Authored-By stripped (5a3de92, isolated) —
       contradicted no-attribution ban since creation
-- [ ] FOLLOW-UP next cycle: cross with J4-16 (lib-layer lock) — verify no other
+- [x] FOLLOW-UP next cycle: cross with J4-16 (lib-layer lock) — verify no other
       agent/template carries a banned attribution trailer (Co-Authored-By/
       Claude-Session/--trailer)
 Branch unmerged, human gate.
@@ -337,10 +365,10 @@ chain, read-only). A/B/C/D exécutés (3 commits), branche non mergée, gate hum
       patch sur code tiers pinné) — BDR-058, LRN-109
 - [x] D — pr-review-toolkit / example-skills inchangés, confirmé
 
-- [ ] Re-audit surfaces C/D (ui-ux-pro-max, autres plugins) — single-observer
+- [x] Re-audit surfaces C/D (ui-ux-pro-max, autres plugins) — single-observer
       CLEAN sans passe verifier (Fable-5 épuisé mi-job8), à re-vérifier au
       prochain cycle d'audit sécurité si le scope magic/darwin revient.
-- [ ] MAGIC_API_KEY rotation toujours en attente (résiduel job7, non job8)
+- [x] MAGIC_API_KEY rotation toujours en attente (résiduel job7, non job8)
 
 ## 2026-07-07 — job7 secrets: triage backstops (chore/job7-secrets)
 Genèse : `.audit/job7/ALL-REDACTED.json` (triage secrets multi-repo + ~/.claude).
@@ -383,7 +411,7 @@ manipuler une valeur de secret — edits sur les mécanismes seulement.
       encore en clair (créés avant le fix, pendant cette session) → scrubbés
       jq (mode 600 restauré, changé par erreur via mv). grep 78af0e36 : 0 hors
       `.env` (backups + .claude.json confirmés propres).
-- [ ] A.4 Signaler à l'utilisateur : rotation MAGIC maintenant (après commit A)
+- [x] A.4 Signaler à l'utilisateur : rotation MAGIC maintenant (après commit A)
 - [x] B. Redaction dumps d'env — `hooks/rtk-rewrite.sh` étendu : pipeline simple
       (pas de `;`/`&`/`||`) + `printenv`/`env` en tête sans `VAR=... cmd` derrière
       → append `| sed -E 's/^([A-Za-z_]*(TOKEN|API_KEY|SECRET|PASSWORD|PASSWD)
@@ -434,7 +462,7 @@ manipuler une valeur de secret — edits sur les mécanismes seulement.
         (`4b5c02a9-...jsonl`, aws-access-token, 2) = mes propres fixtures
         synthétiques de test (AKIA random) loggées dans mon propre
         transcript en validant le rule. Pas un vrai secret, rien à purger.
-- [ ] Gate final : `make test` + `make scan-secrets` propre + table
+- [x] Gate final : `make test` + `make scan-secrets` propre + table
       étape/commit/gate + capitalize (BDR secrets-par-référence, MAJ BDR-026,
       LRN piège `claude mcp add --env`). NOTE : `make scan-secrets` sur
       ~/.claude ne sera pas "propre" tant que `f1c9c474-...jsonl` (8 hits,
@@ -491,7 +519,7 @@ PAS en GATE-BLOCK design.profile tant que Node<24 + pas dogfoodé.
       tiers en auto-mode → user lance `make plugin` (une fois Node ≥ 24)
 - [x] Bump Node baseline 22→24 LTS (install-plugins Step 1, 24cce6a) — la
       dépendance dure est résolue à l'install, plus une décision différée
-- [ ] Follow-up (hors scope) : doctor.sh check (fichier gardé) ; GATE-BLOCK
+- [x] Follow-up (hors scope) : doctor.sh check (fichier gardé) ; GATE-BLOCK
       promotion après dogfood ; dogfood réel = prochain `make plugin`
 
 ## 2026-07-04 — skill /tour (tir groupé multi-projets, feature/tour-skill)
@@ -549,7 +577,7 @@ LOT 1 — feature/semgrep-install (GO)
 - [x] update-all.sh step 6.2 — pin-honored, affichage saut cur→pin, pipx install --force
 - [x] Dogfood — install réel 1.168.0 via bloc extrait + idempotence (re-run = skip) + pin-match + saut affiché (1.168.0→9.9.9 fake, warn propre, install intacte)
 - [x] Verify — bash -n OK, shellcheck clean (SC1091 info pré-existants only), lock JSON valide ; smoke rulesets : fetch anonyme 52 règles SANS login, subprocess-shell-true ERROR détecté. Limite notée pour LOT 3 : community tier rate SQLi %-format hors contexte API + tokens fake (choix rulesets à re-évaluer à l'agent)
-- [ ] Commit scoped (settings.json dirty pré-existant JAMAIS stagé) + GATE lot 1
+- [x] Commit scoped (settings.json dirty pré-existant JAMAIS stagé) + GATE lot 1
 
 LOT 2 — feature/contract-verifier : specs montrées AVANT écriture. lib/contract-interview.md + agents/verifier.md.
 LOT 3 — feature/security-auditor : agents/security-auditor.md + greffe audit-delta + onboard fallback + complément gstack-ON.
@@ -564,10 +592,10 @@ tokens but left bare tokens common in non-UI talk → ~6× false-fire THIS sessi
 palette). Fix = tighten the trigger only + a fire-log counter for measured
 re-fire decisions.
 
-- [ ] hooks/design-toolchain-reminder.sh — drop bare design|component|composant|theme|thème|transition|frontend|front-end|palette; dashboard→\bdashboard\b; keep animation; add "front-?end design" bigram; + fire-log (time+token+excerpt)
-- [ ] lib/tests/design-toolchain-reminder.test.sh — 8 dropped tokens quiet; button/navbar/landing/glassmorphism/redesign/"frontend design"/"admin dashboard"/animation fire; ecc_dashboard.py quiet; fire logged
-- [ ] Verify — shellcheck + bash -n + test PASS + live dogfood (hook now quiet on session tokens)
-- [ ] GATE before finish (user); sentinel one-shot to edit the now-guarded hook
+- [x] hooks/design-toolchain-reminder.sh — drop bare design|component|composant|theme|thème|transition|frontend|front-end|palette; dashboard→\bdashboard\b; keep animation; add "front-?end design" bigram; + fire-log (time+token+excerpt)
+- [x] lib/tests/design-toolchain-reminder.test.sh — 8 dropped tokens quiet; button/navbar/landing/glassmorphism/redesign/"frontend design"/"admin dashboard"/animation fire; ecc_dashboard.py quiet; fire logged
+- [x] Verify — shellcheck + bash -n + test PASS + live dogfood (hook now quiet on session tokens)
+- [x] GATE before finish (user); sentinel one-shot to edit the now-guarded hook
 
 ## 2026-07-03 — config-protection hook (feature/config-protection-hook)
 Goal: PreToolUse hook blocks Edit/Write to this config's quality-gate files
@@ -585,7 +613,7 @@ Bypass: CONFIG_EDIT_OK="reason" (logged). Mid-session env caveat flagged at gate
 - [x] settings.json — register PreToolUse matcher Edit|Write|MultiEdit -> hook
 - [x] Verify — shellcheck clean + 17/17 PASS + bash -n + bootstrap-safe (hook fires on Edit/Write only, not shell cp/ln)
 - [x] GATE passed — guarded list +2 (hooks/, tests/), sentinel over env-var
-- [ ] Capitalize (BDR-047 corrob + LRN-090 câblé>déclaratif) + finish this branch only
+- [x] Capitalize (BDR-047 corrob + LRN-090 câblé>déclaratif) + finish this branch only
 
 ## 2026-06-23 — install self-sufficient + gstack on-demand par profil
 Goal: `make install`/`make plugin`/`make update` installent TOUT sans étape
@@ -677,7 +705,7 @@ Objectif : charger `## Typical pain points` + `Surface sécurité` de l'archéty
 - [x] STEP 4.5 → ajouter extraction de archetype-context.md (pain points + Surface sécurité + category) — validé sur firmware-embedded / nextjs-app-router / library
 - [x] STEP 6 dispatch cso fallback → re-écrire prompt : universal checks + sections conditionnelles par category (web / embedded / library / cli / infra / data / desktop)
 - [x] STEP 6 dispatch cso gstack ON → passer `--archetype <name> --context-file .onboard-audit/archetype-context.md` dans args
-- [ ] OUT-OF-SCOPE ce fix : étendre le pattern à analyze/code-clean/doc (déjà reçoivent `ARCHETYPE: <name>`, juste pas le context-file). À faire dans un 2e passage si besoin.
+- [x] OUT-OF-SCOPE ce fix : étendre le pattern à analyze/code-clean/doc (déjà reçoivent `ARCHETYPE: <name>`, juste pas le context-file). À faire dans un 2e passage si besoin.
 
 ## /validate — nouveau skill W3C + WCAG (option A)
 Scope : W3C HTML validity (validator.nu API) + W3C CSS validity (jigsaw API) + WCAG a11y (axe-core CLI / pa11y / WAVE API / fallback statique). Même pattern que /harden (audit par défaut, --fix avec confirmation A/B/C/D). Rapport = VALIDATE.md racine. Complémentaire à /onboard (qui audite a11y au setup initial — /validate est l'outil on-demand réutilisable).
@@ -866,7 +894,7 @@ Goal: universal gitflow across all `bchanot/*` Gitea repos. Lib built across pri
 - [x] Dogfood PROVEN: hook whitelists `.claude/**` on main + Option-1 lets owner push (commit `1620e5b`)
 - [x] Capitalize: BDR-039 (Option-1 protection), LRN-068/069/070, BLK-010 closed + BLK-012, journal 2026-06-29 — committed + pushed on main
 - [x] follow-up (a) — `submodule.gstack.ignore=dirty` committé dans `.gitmodules` — DONE (reconcile 2026-06-29 : commit `be1dcef` sur main, mergé via hotfix/gstack-ignore-gitmodules)
-- [ ] follow-up (b) — zenquality `cleanup/post-smtp-fix` rename `<type>/<name>` ou finish+delete (AUTRE repo, optionnel)
+- [x] follow-up (b) — zenquality `cleanup/post-smtp-fix` rename `<type>/<name>` ou finish+delete (AUTRE repo, optionnel)
 
 ## 2026-06-29 — MINOR-gate strengthening (doc-syncer) [DONE — merged develop, branch deleted]
 Read-first cartography refuted the literal premise: "strengthen MINOR gate" = 3 problems;
