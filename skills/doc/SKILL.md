@@ -18,13 +18,28 @@ allowed-tools:
   - Agent
 ---
 
-Dispatch the doc-syncer as a subagent so its `model: sonnet` pin takes
-effect (doc-sync = execution, not the session's big model):
+Run the two-mode doc pipeline (BDR-077 — audit judgment on opus, patch on
+the sonnet pin, the validation gate in THIS loop; a dispatched agent cannot
+hold a gate):
 
-Agent(subagent_type="doc-syncer")
-prompt: "Audit + sync public docs for this project. Context from the user:
-  $ARGUMENTS. Report PATCHED_FILES and a summary — do NOT commit."
+1. AUDIT — dispatch:
+   `Agent(subagent_type="doc-syncer", model="opus")`
+   prompt: "MODE: audit. Audit public docs for this project. Context from
+   the user: $ARGUMENTS. Emit the DOC SYNC REPORT + PATCH PLAN — no writes."
 
-Then commit the patched docs from THIS loop per `$HOME/.claude/lib/doc-commit.md`
-(surgical: only doc-syncer's PATCHED_FILES, never `.claude/`/`CLAUDE.md`,
-no-op if nothing patched).
+2. GATE — present the report and run the DOC SYNC — VALIDATION GATE from
+   the agent's DISPATCHER PROTOCOL (AUTO yes/select/cancel; HUMAN, CREATE,
+   CLEAN per-item; README CREATE has no skip). Wait for explicit approval.
+   `DOC SYNC: all docs current` → stop here.
+
+3. PATCH — re-dispatch:
+   `Agent(subagent_type="doc-syncer")` (sonnet pin)
+   prompt: "MODE: patch." + the APPROVED PATCH PLAN verbatim (approved item
+   lines + rendered drafts for approved CREATE items). A `SHAPE ESCALATION`
+   in its report → re-gate the named set here, then re-dispatch patch with
+   the kept subset.
+
+4. COMMIT — from THIS loop per `$HOME/.claude/lib/doc-commit.md` (surgical:
+   only the report's `PATCHED_FILES`, summary composed from its
+   `CHANGE SUMMARY` block, never `.claude/`/`CLAUDE.md`, no-op if nothing
+   patched).

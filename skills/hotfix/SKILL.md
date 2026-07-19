@@ -174,9 +174,16 @@ Parse the `HOTFIX-EXEC REPORT`:
 
 ## STEP 5 — DOC SYNC (automatic)
 
-Load `$HOME/.claude/agents/doc-syncer.md`.
-Execute in automatic mode:
-`auto-mode scope: <list of files modified during this session>`
+Dispatch the doc pipeline (BDR-077 — audit judgment on opus, patch on the
+sonnet pin, gate HERE):
+1. `Agent(subagent_type="doc-syncer", model="opus")` — `MODE: audit` +
+   `auto-mode scope: <list of files modified during this session>`.
+2. Silence (NONE) → done. `[MINOR]` PATCH PLAN → re-dispatch
+   `Agent(subagent_type="doc-syncer")` with `MODE: patch` + the plan
+   verbatim (no gate — auto behavior preserved; a `SHAPE ESCALATION` in
+   its report comes back here, gated as SIGNIFICANT).
+3. SIGNIFICANT → gate here (`Apply? yes / no / select`), then
+   `MODE: patch` with the approved subset.
 
 **Then commit the docs** — follow `$HOME/.claude/lib/doc-commit.md`: it surgically commits
 ONLY the files doc-syncer patched (its `PATCHED_FILES` output), never `git add -A`, never
