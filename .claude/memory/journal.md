@@ -409,3 +409,6 @@ rules:
 ## 2026-07-18
 - hotfix wired into plan-challenge via Option B (STEP 1.8 logic-only guard): skip cosmetic, fire on logic, BLOCKER→/bugfix. 12th orchestrator. structure lock 43/43, suite 15/15. [[BDR-075]] hotfix-exclusion superseded (see amendment). feature/hotfix-challenge-guard, UNMERGED (user: commit only).
 - Behavioral smoke of the shipped mechanism: 3 blind plan-challenger dispatches on a planted-flaw plan → correctness FATAL(4), robustness FATAL(6), simplicity CONCERNS(1). Each lens caught ITS planted flaw + stayed in-lens. Live-validated severity-driven (SQL-injection BLOCKER raised by robustness ALONE — consensus-weighting would've buried it) + orthogonality. Confirms [[EVAL-026]]/[[BDR-075]] design.
+
+## 2026-07-19
+- BDR-076: dispatched judgment agents pinned opus (analyzer, plan-challenger, seo/geo/validator-analyzer + 6 onboard general-purpose dispatches); Fable now = inline orchestration/reflection only. interviewer + client-handover-writer left unpinned (inline-load, pin inert). Local opus-4-8 session pin dropped from settings.local.json. Census §11 added (61 pass), loops-light 35, make test green. feature/opus-pin-audit-agents, UNMERGED.

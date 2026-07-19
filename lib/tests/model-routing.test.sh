@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# lib/tests/model-routing.test.sh — census: gate wiring + pins + executor shape (BDR-066)
+# lib/tests/model-routing.test.sh — census: gate wiring + pins + executor shape (BDR-066, BDR-076)
 set -u
 R="$(cd "$(dirname "$0")/../.." && pwd)"
 pass=0; fail=0
@@ -22,7 +22,7 @@ has "agents/feater.md"          'model: sonnet'
 has "agents/hotfixer.md"        'model: sonnet'
 has "agents/verifier.md"        'model: sonnet'
 has "agents/security-auditor.md" 'model: sonnet'
-fm_lacks "agents/analyzer.md"   'model:'
+has "agents/analyzer.md"        'model: opus'
 # 4) /feat executor shape
 has "skills/feat/SKILL.md" 'subagent_type="feater"'
 has "skills/feat/SKILL.md" 'verify-secure-loop.md'
@@ -54,17 +54,24 @@ lacks "agents/handover-doc-writer.md"   'AskUserQuestion'
 lacks "agents/handover-doc-writer.md"   'Agent('
 has "agents/client-handover-writer.md"  'subagent_type="handover-doc-writer"'
 # 10) post-merge edge fixes (ronde): F1 feater applier carve-out, F2 /refactor
-#     dispatch + pin, F3 /analyze gated (in loop 1), F4 interviewer un-pinned,
-#     F5 audit agents' ABSENT pin locked (a stray sonnet pin would silently
-#     downgrade a live audit even though the skill's gate passed)
+#     dispatch + pin, F3 /analyze gated (in loop 1)
 has "agents/feater.md"                       'Applier path'
 has "skills/refactor/SKILL.md"               'subagent_type="refactorer"'
 has "agents/refactorer.md"                   'model: sonnet'
-fm_lacks "agents/seo-analyzer.md"            'model:'
-fm_lacks "agents/geo-analyzer.md"            'model:'
-fm_lacks "agents/validator-analyzer.md"      'model:'
+# 11) BDR-076 — session model (Fable) = orchestration + inline reflection ONLY.
+#     Dispatched judgment agents pinned OPUS (big tier, session-independent;
+#     never sonnet — that would silently downgrade a live audit). Inline-load-
+#     only agents (interviewer, client-handover-writer) STAY unpinned: they run
+#     IN the main loop, a frontmatter pin there is inert and misleads.
+has "agents/seo-analyzer.md"                 'model: opus'
+has "agents/geo-analyzer.md"                 'model: opus'
+has "agents/validator-analyzer.md"           'model: opus'
+has "agents/plan-challenger.md"              'model: opus'
 fm_lacks "agents/client-handover-writer.md"  'model:'
 fm_lacks "agents/interviewer.md"             'model:'
+has "skills/onboard/SKILL.md"                'model="opus"'
+has "skills/tour/SKILL.md"                   'model="opus"'
+has "lib/challenge-plan.md"                  'BDR-076'
 
 printf 'model-routing census: %d pass, %d fail\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
