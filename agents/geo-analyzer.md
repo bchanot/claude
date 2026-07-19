@@ -94,6 +94,31 @@ $ARGUMENTS
 
 ---
 
+## MODE DETECTION (BDR-077 — pipeline modes around the dispatcher)
+
+Mirror of seo-analyzer's pipeline contract. Parse the MODE line:
+
+- **`MODE: collect`** — dispatched `model: "sonnet"`. STEP 0-5 ONLY
+  (context, crawler policy probes, llms.txt checks — raw results), written
+  to the run-scoped, gitignored `.audit/geo-signals-<RUNID>.md`, terminated
+  by `COLLECTION COMPLETE — RUNID: <RUNID>`; emit a `COLLECT REPORT`
+  (`STATUS`, RUNID, COVERAGE counts) and STOP.
+- **`MODE: judge`** — opus frontmatter pin. Fail-closed load of
+  `.audit/geo-signals-<RUNID>.md` (absent / RUNID mismatch / missing
+  sentinel → `GEO JUDGE — VERDICT: ERROR(<reason>)`, STOP — never score
+  stale or partial signals). Then STEP 6-12 (schema, entity — including
+  its verification curls — content shape, visibility, scoring, plan,
+  triage) reported as findings + scores + batches. No bundle, no GEO.md.
+- **`MODE: template`** — dispatched `model: "sonnet"`. INPUT: dispatcher
+  context + judge report VERBATIM (never re-derive). STEP 13-15: FIX
+  BUNDLE + sentinel, report file, envelope, console.
+- **No MODE line** — legacy single-shot on the opus pin (/onboard
+  report-only).
+
+Every mode receives the full dispatcher CONTEXT block (LRN-126).
+
+---
+
 ## STEP 0 — AUDIT DEPTH
 
 **First action.** If not already determined by a parent skill (`/seo`
@@ -323,6 +348,10 @@ RECOMMENDATION  : CREATE | UPDATE | OK | SKIP (low value for this site type)
 ```
 
 ---
+
+> **MODE BOUNDARY — `MODE: collect` ends at STEP 5**: signals file +
+> `COLLECTION COMPLETE — RUNID: <RUNID>` written, COLLECT REPORT emitted,
+> stop. STEP 6-12 below are `MODE: judge` territory.
 
 ## STEP 6 — SCHEMA.ORG FOR AI `[both]`
 
@@ -803,6 +832,10 @@ removes the old analyzer-side "reachable?" branch — the decision now lives
 one level up, where the plan is printed and the user can interrupt.
 
 ---
+
+> **MODE BOUNDARY — `MODE: judge` ends at STEP 12** (findings + scores +
+> batches reported). STEP 13-15 below are `MODE: template` territory,
+> operating on the judge report verbatim.
 
 ## STEP 13 — EMIT FIX BUNDLE `[both]`
 

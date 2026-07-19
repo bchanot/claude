@@ -36,26 +36,50 @@ terminated by `READY TO APPLY — awaiting dispatcher confirmation`, and this
 skill applies it. Applying from here (one dispatch level, no nested spawn)
 is what makes fixes land on any Claude Code version.
 
-## STEP 1 — Dispatch geo-analyzer (audit + bundle)
+## STEP 1 — Run the geo pipeline (collect → judge → template, BDR-077)
 
+Gather depth + business context HERE first (ask the user in this loop if
+needed — a dispatched agent cannot ask). Mint `RUNID=$(date +%s)-geo`.
+Pass the same CONTEXT block ($ARGUMENTS + gathered context) VERBATIM to
+every phase (LRN-126). Clean `.audit/geo-signals-<RUNID>.md` after apply.
+
+**A — collect (sonnet):**
+```
+Agent(subagent_type="geo-analyzer", model="sonnet")
+prompt: "MODE: collect
+RUNID: <RUNID>
+Dispatched from /geo. Context: <CONTEXT>
+Execute STEP 0-5 per your spec, write the signals file + COLLECTION
+COMPLETE sentinel, emit the COLLECT REPORT, stop."
+```
+
+**B — judge (opus pin, no override):**
 ```
 Agent(subagent_type="geo-analyzer")
-prompt: """
-Dispatched from /geo. Execute your full spec at
-~/.claude/agents/geo-analyzer.md (STEP 0 onward — gather depth + business
-context as needed; if you must ask the user, ask and I relay).
+prompt: "MODE: judge
+RUNID: <RUNID>
+Context: <CONTEXT>
+Load .audit/geo-signals-<RUNID>.md (fail closed per your spec), run STEP
+6-12, report scoring + findings + action plan + triage batches."
+```
+**ERROR CONTRACT:** `GEO JUDGE — VERDICT: ERROR(…)` or a mute judge →
+STOP: no template, no apply. Surface verbatim, retry ONCE with a fresh
+collect+judge, then escalate. Never carry a mute/ERROR judge into
+templating.
 
-Produce your report:
-- If .claude/audits/SEO.md already exists → merge findings into its
-  §7 — Optimisation GEO / IA.
-- Else write .claude/audits/GEO.md.
-
-Then emit the `## FIX BUNDLE` (STEP 13) terminated by the verbatim
-`READY TO APPLY — awaiting dispatcher confirmation` sentinel. Do NOT apply
-any fix and do NOT dispatch any sub-agent — /geo applies your bundle.
-
-$ARGUMENTS
-"""
+**C — template (sonnet):**
+```
+Agent(subagent_type="geo-analyzer", model="sonnet")
+prompt: "MODE: template
+Context: <CONTEXT>
+JUDGE REPORT (verbatim, ground truth — never re-derive a score):
+<the judge report>
+Run STEP 13-15. Produce your report: if .claude/audits/SEO.md already
+exists → merge findings into its §7 — Optimisation GEO / IA; else write
+.claude/audits/GEO.md. Then emit the `## FIX BUNDLE` terminated by the
+verbatim `READY TO APPLY — awaiting dispatcher confirmation` sentinel.
+Do NOT apply any fix and do NOT dispatch any sub-agent — /geo applies
+your bundle."
 ```
 
 ## STEP 1b — CHALLENGE THE FIX BUNDLE (advisory, before apply)

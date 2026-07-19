@@ -302,14 +302,31 @@ still carries this rule for its applier:
 If `Edit` is insufficient (full-template refactor), the item is escalated
 as a cross-agent note → §11 user action instead.
 
-## STEP 1 — Spawn both agents IN PARALLEL
+## STEP 1 — Run both domain pipelines (3 phases; domains parallel per phase)
 
-Issue both `Agent` tool calls **in the same message** (parallel tool
-calls). The harness runs them concurrently.
+BDR-077: each domain runs collect (sonnet) → judge (opus pin) → template
+(sonnet), the two domains IN PARALLEL at every phase (both `Agent` calls
+in the same message). Mint run ids first: `RUNID_SEO=$(date +%s)-seo`,
+`RUNID_GEO=$(date +%s)-geo`. The CONTEXT payloads below are the SHARED
+CONTEXT of each domain — pass them VERBATIM to every phase dispatch of
+that domain (LRN-126). Clean both `.audit/*-signals-*.md` files after
+STEP 2.
+
+**DISPATCHER ERROR CONTRACT (fail-closed at the pipeline, not just the
+judge):** a `SEO JUDGE — VERDICT: ERROR(…)` / `GEO JUDGE — VERDICT:
+ERROR(…)`, a mute judge, or a BLOCKED collect → STOP that domain: NO
+template dispatch, NO L1 apply for it. Surface the error verbatim, retry
+ONCE with a fresh collect+judge for that domain; a 2nd failure →
+escalate to the human. A mute or ERROR judge is NEVER carried into
+templating.
+
+**PHASE A — collect (both domains, one message):**
 
 ```
-Agent(subagent_type="seo-analyzer")
+Agent(subagent_type="seo-analyzer", model="sonnet")
 prompt: """
+MODE: collect
+RUNID: <RUNID_SEO>
 Dispatched from /seo. Context:
 
 AUDIT DEPTH: <LOCAL|FULL>
@@ -379,18 +396,15 @@ SHARED-FILE EDIT DISCIPLINE (carried into each bundle item):
   legal pages, new city/service pages.
 - If full-template refactor is needed, emit as a cross-agent note → §11.
 
-Execute your agent spec at ~/.claude/agents/seo-analyzer.md starting
-at STEP 2 (skip STEP 0 and STEP 1 — context is provided above).
-
-At STEP 13, emit the STRUCTURED ENVELOPE for merging (not a standalone
-SEO.md), INCLUDING the `## FIX BUNDLE` section terminated by the verbatim
-`READY TO APPLY — awaiting dispatcher confirmation` sentinel. Do NOT apply
-any fix, do NOT dispatch any sub-agent, do NOT write SEO.md — /seo applies
-your bundle in STEP 1.5 and merges the reports.
+Execute MODE: collect per your spec — STEP 2-5 only (context above
+replaces STEP 0-1). Write the signals file + COLLECTION COMPLETE
+sentinel, emit the COLLECT REPORT, stop. No scoring, no bundle.
 """
 
-Agent(subagent_type="geo-analyzer")
+Agent(subagent_type="geo-analyzer", model="sonnet")
 prompt: """
+MODE: collect
+RUNID: <RUNID_GEO>
 Dispatched from /seo. Context:
 
 AUDIT DEPTH: <LOCAL|FULL>
@@ -436,15 +450,60 @@ SHARED-FILE EDIT DISCIPLINE (carried into each bundle item):
   llms-full.txt.
 - If full-template refactor is needed, emit as a cross-agent note → §11.
 
-Execute your agent spec at ~/.claude/agents/geo-analyzer.md starting
-at STEP 2 (skip STEP 0 and STEP 1 — context is provided above).
-
-At STEP 14, emit the STRUCTURED ENVELOPE for merging (not a standalone
-GEO.md), INCLUDING the `## FIX BUNDLE` section terminated by the verbatim
-`READY TO APPLY — awaiting dispatcher confirmation` sentinel. Do NOT apply
-any fix, do NOT dispatch any sub-agent, do NOT write GEO.md/SEO.md — /seo
-applies your bundle in STEP 1.5 and merges the reports.
+Execute MODE: collect per your spec — STEP 2-5 only (context above
+replaces STEP 0-1). Write the signals file + COLLECTION COMPLETE
+sentinel, emit the COLLECT REPORT, stop. No scoring, no bundle.
 """
+```
+
+**PHASE B — judge (both domains, one message, AFTER both COLLECT REPORTs
+are DONE):** no `model=` override — the opus frontmatter pins apply.
+
+```
+Agent(subagent_type="seo-analyzer")
+prompt: "MODE: judge
+RUNID: <RUNID_SEO>
+<the seo SHARED CONTEXT verbatim>
+Load .audit/seo-signals-<RUNID_SEO>.md (fail closed per your spec), run
+STEP 6-11, report scoring + findings + action plan + triage batches."
+
+Agent(subagent_type="geo-analyzer")
+prompt: "MODE: judge
+RUNID: <RUNID_GEO>
+<the geo SHARED CONTEXT verbatim>
+Load .audit/geo-signals-<RUNID_GEO>.md (fail closed per your spec), run
+STEP 6-12, report scoring + findings + action plan + triage batches."
+```
+
+Apply the DISPATCHER ERROR CONTRACT above on each returned verdict.
+
+**PHASE C — template (both domains, one message, only for domains whose
+judge is DONE):**
+
+```
+Agent(subagent_type="seo-analyzer", model="sonnet")
+prompt: "MODE: template
+<the seo SHARED CONTEXT verbatim>
+JUDGE REPORT (verbatim, ground truth — never re-derive a score):
+<the seo judge report>
+Run STEP 12-14: emit the STRUCTURED ENVELOPE for merging (not a
+standalone SEO.md), INCLUDING the `## FIX BUNDLE` section terminated by
+the verbatim `READY TO APPLY — awaiting dispatcher confirmation`
+sentinel. Do NOT apply any fix, do NOT dispatch any sub-agent, do NOT
+write SEO.md — /seo applies your bundle in STEP 1.5 and merges the
+reports."
+
+Agent(subagent_type="geo-analyzer", model="sonnet")
+prompt: "MODE: template
+<the geo SHARED CONTEXT verbatim>
+JUDGE REPORT (verbatim, ground truth — never re-derive a score):
+<the geo judge report>
+Run STEP 13-15: emit the STRUCTURED ENVELOPE for merging (not a
+standalone GEO.md), INCLUDING the `## FIX BUNDLE` section terminated by
+the verbatim `READY TO APPLY — awaiting dispatcher confirmation`
+sentinel. Do NOT apply any fix, do NOT dispatch any sub-agent, do NOT
+write GEO.md/SEO.md — /seo applies your bundle in STEP 1.5 and merges
+the reports."
 ```
 
 ## STEP 1b — CHALLENGE THE FIX BUNDLE (advisory, before apply)
