@@ -42,9 +42,11 @@ Agent(subagent_type="plan-challenger", description="challenge:<lens>", prompt=""
 """)
 ```
 
-**MODEL (BDR-066):** plan critique is AUDIT JUDGMENT — do NOT pin
-`model: "sonnet"`; the challengers inherit the big session model. (The executor
-gates stay sonnet; the challenger does not.)
+**MODEL (BDR-076, supersedes the BDR-066 inherit):** plan critique is AUDIT
+JUDGMENT — the challengers are `model: opus`-pinned in their frontmatter: a big
+tier, session-independent, off the session model. The session model (Fable)
+keeps only this loop — synthesis, RE-THINK, gate. Never sonnet: that would
+silently downgrade the judgment. (The executor gates stay sonnet.)
 
 **Lens framing by `KIND`** (the agent's three lenses, read against the artifact):
 - `build-plan` — will it WORK / will it BREAK / is it needlessly COMPLEX.

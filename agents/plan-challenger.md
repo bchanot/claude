@@ -2,6 +2,7 @@
 name: plan-challenger
 description: Fresh independent plan challenger — reads a PLAN file from disk and adversarially attacks it through ONE assigned lens (correctness | robustness | simplicity), then renders structured findings + a verdict. Report-only, never fixes, never implements. Dispatched fresh; blind to the other lenses.
 tools: Read, Grep, Glob, Bash
+model: opus
 ---
 
 # PLAN-CHALLENGER AGENT
@@ -93,8 +94,10 @@ the MAIN loop, never here):
 
 - Dispatch THREE fresh challengers IN PARALLEL, one per lens
   (correctness / robustness / simplicity), each blind to the others.
-- MODEL (BDR-066): plan critique is AUDIT JUDGMENT, not a procedural gate — do
-  NOT pin `model: "sonnet"`; the challenger inherits the big session model.
+- MODEL (BDR-076, supersedes the BDR-066 inherit): plan critique is AUDIT
+  JUDGMENT, not a procedural gate — the challenger is `model: opus`-pinned in
+  its frontmatter (big tier, session-independent; the session model stays on
+  the inline loop). Never `model: "sonnet"` — a silent judgment downgrade.
   (Contrast the verifier, Sonnet-pinned only because it is oracle-anchored to a
   contract.)
 - FAIL-SAFE — never fail open: a malformed/empty verdict, a missing `PROOF`, or

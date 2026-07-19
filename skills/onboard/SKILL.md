@@ -354,7 +354,7 @@ Lire le bloc `audit_stack:` du fichier `~/.claude/lib/project-archetypes/<archet
 | Entry | Action | Livraison |
 |---|---|---|
 | `analyze` | Déjà fait en STEP 5 | L3a |
-| `code-clean` | Spawn subagent `general-purpose` (audit-only, inherits session = big model) | L3a |
+| `code-clean` | Spawn subagent `general-purpose` (audit-only, `model="opus"` — BDR-076: dispatched audits off the session model) | L3a |
 | `cso` | Si gstack ON → Skill(cso). Sinon → Agent general-purpose avec checklist OWASP + deps audit | L3a |
 | `doc` | Spawn subagent `doc-syncer` (auto-mode OFF, report-only) | L3a |
 | `seo` | Subagents seo-analyzer + geo-analyzer en parallèle | L3b |
@@ -370,7 +370,8 @@ Lancer EN PARALLÈLE (un seul message, plusieurs Agent calls) les audits corresp
 ```
 Agent(
   subagent_type="general-purpose",
-  description="Onboard — code-clean audit only (read-only, big session model)",
+  model="opus",
+  description="Onboard — code-clean audit only (read-only, opus)",
   prompt="""
   AUDIT-ONLY mode — NO fixes, NO refactoring, NO file modifications.
   Target: <PROJECT_ROOT>. ARCHETYPE: <archetype>.
@@ -406,6 +407,7 @@ bash $HOME/.claude/lib/toggle-external.sh list 2>/dev/null | grep -E "^gstack\s+
   ```
   Agent(
     subagent_type="general-purpose",
+    model="opus",
     description="Onboard — security audit fallback (archetype-adaptive)",
     prompt="""
     READ-ONLY security audit. No file modifications.
@@ -647,6 +649,7 @@ Si le skill ne supporte pas `--output`, capturer la sortie et écrire à la main
 ```
 Agent(
   subagent_type="general-purpose",
+  model="opus",
   description="Onboard — static design review fallback",
   prompt="""
   AUDIT-ONLY mode — NO edits. Static design review du code UI.
@@ -690,6 +693,7 @@ Puis parser le JSON Lighthouse (scores perf/a11y/bp/seo/pwa + top opportunities)
 ```
 Agent(
   subagent_type="general-purpose",
+  model="opus",
   description="Onboard — static perf audit",
   prompt="""
   AUDIT-ONLY mode — NO edits.
@@ -732,6 +736,7 @@ Parser axe-core résultats (violations, incomplete, inapplicable, passes) → `.
 ```
 Agent(
   subagent_type="general-purpose",
+  model="opus",
   description="Onboard — static a11y audit",
   prompt="""
   AUDIT-ONLY mode — NO edits.
@@ -777,6 +782,7 @@ Spawn un subagent synthétiseur (isolé, chargé uniquement du contenu de `.onbo
 ```
 Agent(
   subagent_type="general-purpose",
+  model="opus",
   description="Onboard — synthèse vers .claude/audits/",
   prompt="""
   Lire tous les fichiers de <PROJECT_ROOT>/.onboard-audit/ :
