@@ -257,7 +257,12 @@ pipeline is reduced: only run /cso (single audit, single fix loop), skip
 STEP 6 deploy pause and STEP 7 /web-validate. Treat /cso as the only score for
 the gate.
 
-For web projects, dispatch in **a single message with two parallel Agent calls**:
+**Model routing (BDR-077):** EVERY `general-purpose` skill-runner dispatch in
+this pipeline (initial audits, fix-loop re-dispatches, commit-change,
+web-validate) carries `model: "fable"` — the child hosts gated orchestration
+on the pipeline's behalf; it must never inherit the session model.
+
+For web projects, dispatch in **a single message with two parallel Agent calls** (each with `model: "fable"`):
 
 | Audit (web)   | Subagent          | Prompt template |
 |---------------|-------------------|-----------------|
@@ -383,7 +388,7 @@ console). If no projected line is parseable, treat projected = 17
 
 ### Re-dispatch prompt template (SEO + GEO loop)
 
-Send to `general-purpose` subagent:
+Send to `general-purpose` subagent (`model: "fable"`):
 
 > Read `~/.claude/skills/seo/SKILL.md` and re-run it on this project.
 > Previous scores:
@@ -413,7 +418,7 @@ Send to `general-purpose` subagent:
 
 ### Re-dispatch prompt template (HARDEN loop)
 
-Send to `general-purpose` subagent:
+Send to `general-purpose` subagent (`model: "fable"`):
 
 > Read `~/.claude/skills/harden/SKILL.md` and re-run it. Previous score:
 > **`<SCORE_HARDEN_PREVIOUS>`/20** — below threshold. Iteration `<N>` of
@@ -424,7 +429,7 @@ Send to `general-purpose` subagent:
 
 ### Re-dispatch prompt template (CSO loop — non-web only)
 
-Send to `general-purpose` subagent:
+Send to `general-purpose` subagent (`model: "fable"`):
 
 > Read `~/.claude/skills/cso/SKILL.md` and re-run it in **daily mode**.
 > Previous score: **`<SCORE_CSO_PREVIOUS>`/20** — below threshold.
@@ -510,7 +515,7 @@ listed changes manually before deploy." Continue to STEP 6.
 
 If `PENDING_CHANGES` non-empty → invoke /commit-change skill via subagent:
 
-> Dispatch `general-purpose` subagent. Prompt:
+> Dispatch `general-purpose` subagent (`model: "fable"`). Prompt:
 >
 > "Read `~/.claude/skills/commit-change/SKILL.md` and execute. All pending
 > changes were produced by the client-handover ship pipeline during the
@@ -617,7 +622,7 @@ Skip if `VALIDATE_SKIPPED=true` or `PROJECT_TYPE != web` (in either case
 ensure `VALIDATE_SKIPPED=true` is set so the gate logic in STEP 8 treats
 VALIDATE as not-applicable rather than failed).
 
-Dispatch `general-purpose` subagent:
+Dispatch `general-purpose` subagent (`model: "fable"`):
 
 > Read `~/.claude/skills/web-validate/SKILL.md` and execute against the
 > deployed URL: `<DEPLOYED_URL>`. Audit W3C HTML validity (validator.nu),

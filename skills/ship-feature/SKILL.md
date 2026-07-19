@@ -222,7 +222,10 @@ conformity + security vs. craft/design) — both run, neither subsumes the
 other ([[LRN-095]]).
 
 ## STEP 6 — CODE REVIEW
-Invoke `superpowers:requesting-code-review`. Fix all CRITICAL before proceeding.
+Invoke `superpowers:requesting-code-review`. **Model routing (BDR-077):** the
+review subagent it dispatches MUST carry `model: "opus"` in the Agent call —
+craft review is dispatched judgment, never inherited from the session. Fix
+all CRITICAL before proceeding.
 
 ## STEP 7 — CAPITALIZE (memory registries)
 Feature shipped implies at least one design decision worth capturing. Run this BEFORE STEP 9 FINISH — the implementation commits (STEP 4) already exist, so the entries' hash references are valid, and the memory commit lands on the branch that FINISH integrates (otherwise it strands outside the PR):

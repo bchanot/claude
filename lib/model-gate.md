@@ -35,3 +35,13 @@ yet rewritten) — that is why the self-check exists alongside it.
 
 then end the turn. No later step runs, no agent is dispatched, nothing is
 edited.
+
+## 4. Dispatch tiers (BDR-077 — no inherit)
+
+The gate guards the MAIN loop only. Dispatched work NEVER inherits the
+session model: typed agents run on their frontmatter pin; built-ins
+(general-purpose / Explore / Plan) carry an explicit `model=` at every call
+site — `model: "fable"` when the child performs reflection/orchestration on
+the main loop's behalf (skill-runners), otherwise its complexity tier
+(opus = dispatched judgment, sonnet = execution/collection, haiku = short
+mechanical probes).

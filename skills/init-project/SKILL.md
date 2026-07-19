@@ -223,7 +223,10 @@ against the founding contract. Distinct axis from STEP 10 code review
 ([[LRN-095]]) — both run.
 
 ## STEP 10 — CODE REVIEW
-Invoke `superpowers:requesting-code-review`. Fix all CRITICAL before proceeding.
+Invoke `superpowers:requesting-code-review`. **Model routing (BDR-077):** the
+review subagent it dispatches MUST carry `model: "opus"` in the Agent call —
+craft review is dispatched judgment, never inherited from the session. Fix
+all CRITICAL before proceeding.
 
 ## STEP 10b — CAPITALIZE FOUNDING DECISIONS (memory registries)
 A greenfield's founding architecture decisions are the highest-value BDRs — the
