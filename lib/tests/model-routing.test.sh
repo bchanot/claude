@@ -72,6 +72,15 @@ fm_lacks "agents/interviewer.md"             'model:'
 has "skills/onboard/SKILL.md"                'model="opus"'
 has "skills/tour/SKILL.md"                   'model="opus"'
 has "lib/challenge-plan.md"                  'BDR-076'
+# 12) BDR-077 W1 — no-inherit: skill-runner children pinned fable at every
+#     call site; code-review dispatches carry opus; doctrine in model-gate.
+#     (fable dispatch alias spike-verified 2026-07-19: resolves
+#     claude-fable-5, enum-validated, loud failure — never silent fallback)
+has "agents/client-handover-writer.md"       'model: "fable"'
+has "skills/ship-feature/SKILL.md"           'model: "opus"'
+has "skills/init-project/SKILL.md"           'model: "opus"'
+has "lib/model-gate.md"                      'model: "fable"'
+lacks "lib/model-gate.md"                    'model: "sonnet" in the Agent call'
 
 printf 'model-routing census: %d pass, %d fail\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
