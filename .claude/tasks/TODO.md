@@ -28,7 +28,7 @@ on audits). User approved: opus for judgment agents, drop local opus pin.
 - [x] Memory: BDR-076 append + journal line. Commit (feat + chore),
       NO merge (human gate).
 
-## 2026-07-17 — STATUS seo/geo parity (branch bugfix/seo-geo-integrity, 10 commits, UNMERGED)
+## 2026-07-17 — STATUS seo/geo parity (branch bugfix/seo-geo-integrity — MERGED to develop, 92301fe; "UNMERGED" note was stale, corrected 2026-07-19 W0)
 PHASE 1 — integrity: **DONE 7/7**. I3 8b0c98c · I1 57c67f2 · I2 4ea2fb8 ·
 I5 64f175f · I4 e70e1d6 · I6 9da1dec · I8 acd452b. Plus 9cd7b51 (A1+A2, two
 process anomalies surfaced by dogfooding /harden at zenquality.fr from the
