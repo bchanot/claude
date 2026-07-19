@@ -114,6 +114,7 @@ has "skills/doc/SKILL.md"                    'MODE: patch'
 lacks "agents/scaffolder.md"                 'INLINE-LOAD'
 for s in bugfix hotfix feat ship-feature init-project; do
   has "skills/$s/SKILL.md" 'MODE: audit'
+  has "skills/$s/SKILL.md" 'doc-syncer", model="opus"'
   # shellcheck disable=SC2016 # literal $HOME wanted: matching the exact inline-load string
   lacks "skills/$s/SKILL.md" 'Load `$HOME/.claude/agents/doc-syncer.md`'
 done
@@ -160,6 +161,9 @@ has "skills/seo/SKILL.md"                    'never re-derive a score'
 has "skills/seo/SKILL.md"                    'DISPATCHER ERROR CONTRACT'
 has "skills/geo/SKILL.md"                    'MODE: collect'
 has "skills/geo/SKILL.md"                    'geo-analyzer", model="sonnet"'
+has "skills/geo/SKILL.md"                    'ERROR CONTRACT'
+has "skills/geo/SKILL.md"                    'never re-derive a score'
+has "agents/handover-doc-writer.md"          'SYNTH REPORT'
 
 printf 'model-routing census: %d pass, %d fail\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

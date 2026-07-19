@@ -1130,3 +1130,7 @@ Parse the returned `HANDOVER-DOC REPORT`:
 - `STATUS: BLOCKED` → surface the report verbatim (including which
   PACKAGE field the doc-writer flagged) and stop — do not retry or
   patch the PACKAGE silently.
+
+In BOTH branches, then clean the transient draft:
+`rm -f ".audit/handover-draft-${RUNID}.md"` (run-scoped, gitignored —
+cleanup keeps `.audit/` from accumulating stranded drafts).
