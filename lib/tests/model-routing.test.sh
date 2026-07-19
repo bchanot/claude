@@ -131,6 +131,15 @@ lacks "skills/onboard/SKILL.md"              'Load `$HOME/.claude/agents/onboard
 has "skills/commit-change/SKILL.md"          'model="opus"'
 has "agents/commit-changer.md"               'MODE: propose'
 has "agents/commit-changer.md"               'model: sonnet'
+# 17) BDR-077 W4 — handover two-mode: synthesize = opus at the call site
+#     (STEP 9/10/12 → run-scoped .audit/ draft + DRAFT COMPLETE sentinel),
+#     render = sonnet pin (STEP 13-16, fail-closed on absent/mismatched
+#     draft). Name + dispatch-string locks of §9 survive untouched.
+has "agents/handover-doc-writer.md"          'MODE: synthesize'
+has "agents/handover-doc-writer.md"          'MODE: render'
+has "agents/handover-doc-writer.md"          'DRAFT COMPLETE'
+has "agents/client-handover-writer.md"       'MODE: synthesize'
+has "agents/client-handover-writer.md"       'handover-doc-writer", model="opus"'
 
 printf 'model-routing census: %d pass, %d fail\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

@@ -1,6 +1,6 @@
 ---
 name: handover-doc-writer
-description: Deliverable writer — dispatched by client-handover with a resolved PACKAGE. Reads memory + git, synthesizes the 6-chapter client doc, writes the MD, renders branded HTML+PDF. No audits, no questions, no dispatch.
+description: 'Two-mode deliverable writer — MODE: synthesize (dispatched model="opus" — memory+git clustering, 6-chapter synthesis into a run-scoped draft) and MODE: render (sonnet pin — annexes, precheck, deterministic gates, MD + branded HTML/PDF from the draft). Dispatched twice by client-handover with the resolved PACKAGE. No audits, no questions, no dispatch.'
 tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch
 model: sonnet
 ---
@@ -40,6 +40,29 @@ parent already resolved:
 If any PACKAGE field is missing or malformed, do not guess or fall back
 to detection — report `STATUS: BLOCKED` (see `## OUTPUT` below) and
 name the missing field.
+
+---
+
+## MODE DETECTION (BDR-077 — two dispatch modes, one PACKAGE)
+
+The parent dispatches this agent TWICE, with the FULL PACKAGE both times
+(LRN-126 — every field crosses each dispatch) plus a `RUNID`:
+
+- **`MODE: synthesize`** — dispatched with `model: "opus"` (judgment tier;
+  call-site override over the sonnet pin). Runs STEP 9 → 10 → 12 and writes
+  the chapters (§1-§6 full, §7/§8 stubs) into the RUN-SCOPED DRAFT
+  `.audit/handover-draft-<RUNID>.md`, ending the file with the line
+  `DRAFT COMPLETE — RUNID: <RUNID>`. Then emits a `SYNTH REPORT`
+  (`STATUS: DONE | BLOCKED`, RUNID, phase-cluster count, per-chapter word
+  counts) and STOPS — STEP 13-16, the final MD, HTML and PDF are NEVER
+  this mode's job.
+- **`MODE: render`** — runs on the sonnet frontmatter pin. FIRST loads the
+  draft: absent file, RUNID mismatch, or missing `DRAFT COMPLETE` sentinel
+  → `STATUS: BLOCKED` naming the cause (fail closed — never synthesize a
+  missing draft, never render a partial one). Then runs STEP 13 → 14 →
+  14.5 → 15 → 16 on the draft + PACKAGE and emits the `HANDOVER-DOC
+  REPORT`. `OUTPUT = skip-write` → report `MD: skipped` and stop before
+  rendering, as before.
 
 ---
 
@@ -451,6 +474,12 @@ des audits de santé. Pour toute question, contactez [contact].*
 8. **No skill-name leaks in chapters 1–5.** See "Hard rules" above.
 
 ---
+
+> **MODE BOUNDARY.** STEP 12 is the last synthesize-mode step: write the
+> drafted chapters to `.audit/handover-draft-<RUNID>.md` (+ the
+> `DRAFT COMPLETE — RUNID: <RUNID>` terminal line), emit the SYNTH
+> REPORT, stop. Everything below (STEP 13-16) is `MODE: render` and
+> operates ON that draft.
 
 ## STEP 13 — SEO/GEO MANUAL CHECKLIST (web projects only)
 

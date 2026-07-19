@@ -1072,11 +1072,30 @@ If `OUTPUT` resolved to `skip-write`, still dispatch — the doc-writer
 reports `MD: skipped` and stops before rendering, per its own
 contract.
 
-Dispatch:
+Dispatch the two-mode pipeline (BDR-077 — synthesis on opus, render on the
+sonnet pin, full PACKAGE both times per LRN-126). Mint a RUNID first
+(`RUNID=$(date +%s)`); the draft crosses via the run-scoped, gitignored
+`.audit/handover-draft-<RUNID>.md`; clean it after 9.7.
+
+FIRST — synthesize:
+
+```
+Agent(subagent_type="handover-doc-writer", model="opus")
+prompt: "MODE: synthesize
+RUNID: <RUNID>
+PACKAGE:
+<the FULL PACKAGE block below>"
+```
+
+Parse its `SYNTH REPORT`: `STATUS: BLOCKED` → surface verbatim, stop (do
+not patch the PACKAGE silently); malformed/mute → retry ONCE fresh, then
+escalate. `STATUS: DONE` → THEN render:
 
 ```
 Agent(subagent_type="handover-doc-writer")
-prompt: "PACKAGE:
+prompt: "MODE: render
+RUNID: <RUNID>
+PACKAGE:
 LANG: <LANG>
 PROJECT: name=<name> root=<root> type=<type> sub-type=<sub-type>
   is_local_business=<bool> deployed_url=<url> period=<first→last>
@@ -1092,9 +1111,14 @@ PRECHECK_DONE: <list>
 CLIENT_NAME: <name|—>
 OUTPUT: <overwrite <path> | versioned <path> | skip-write>
 
-Synthesize + write + render the deliverable per your steps. Report the
-HANDOVER-DOC REPORT."
+Render the deliverable from the draft per your render-mode steps. Report
+the HANDOVER-DOC REPORT."
 ```
+
+(The PACKAGE block is IDENTICAL in both dispatches — write it once,
+paste it twice. A render `STATUS: BLOCKED` on draft absence/RUNID
+mismatch means the synthesize leg failed silently: re-run 9.6 from the
+synthesize dispatch, never hand-write the draft.)
 
 ### 9.7 — Parse the report, tell the user
 
