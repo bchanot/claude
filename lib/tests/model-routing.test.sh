@@ -58,14 +58,15 @@ has "agents/client-handover-writer.md"  'subagent_type="handover-doc-writer"'
 has "agents/feater.md"                       'Applier path'
 has "skills/refactor/SKILL.md"               'subagent_type="refactorer"'
 has "agents/refactorer.md"                   'model: sonnet'
-# 11) BDR-076 — session model (Fable) = orchestration + inline reflection ONLY.
-#     Dispatched judgment agents pinned OPUS (big tier, session-independent;
-#     never sonnet — that would silently downgrade a live audit). Inline-load-
-#     only agents (interviewer, client-handover-writer) STAY unpinned: they run
-#     IN the main loop, a frontmatter pin there is inert and misleads.
+# 11) BDR-076/077 — session model = orchestration + inline reflection ONLY.
+#     Dispatched judgment agents pinned OPUS. validator-analyzer TIERED DOWN
+#     to sonnet (W3 — deterministic validator-runner + fixed deduction
+#     tables, no deep judgment; approved plan). Inline-load-only agents
+#     (interviewer, client-handover-writer) STAY unpinned: they run IN the
+#     main loop, a frontmatter pin there is inert and misleads.
 has "agents/seo-analyzer.md"                 'model: opus'
 has "agents/geo-analyzer.md"                 'model: opus'
-has "agents/validator-analyzer.md"           'model: opus'
+has "agents/validator-analyzer.md"           'model: sonnet'
 has "agents/plan-challenger.md"              'model: opus'
 fm_lacks "agents/client-handover-writer.md"  'model:'
 fm_lacks "agents/interviewer.md"             'model:'
@@ -125,6 +126,11 @@ has "skills/onboard/SKILL.md"                'subagent_type="onboarder"'
 lacks "skills/init-project/SKILL.md"         'Load `$HOME/.claude/agents/scaffolder.md`'
 # shellcheck disable=SC2016
 lacks "skills/onboard/SKILL.md"              'Load `$HOME/.claude/agents/onboarder.md`'
+# 16) BDR-077 W3 — commit-changer per-mode override: propose = opus at the
+#     call site (documented precedence over the sonnet pin), apply = pin
+has "skills/commit-change/SKILL.md"          'model="opus"'
+has "agents/commit-changer.md"               'MODE: propose'
+has "agents/commit-changer.md"               'model: sonnet'
 
 printf 'model-routing census: %d pass, %d fail\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
