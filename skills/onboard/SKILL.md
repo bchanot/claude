@@ -21,7 +21,7 @@ $ARGUMENTS
 
 ## STEP 0 — PLUGIN CHECK + AUTO-ACTIVATE
 
-Load `$HOME/.claude/agents/plugin-advisor.md` with hint "onboarding existing project + $ARGUMENTS".
+Run `$HOME/.claude/lib/plugin-gate.md` with hint "onboarding existing project + $ARGUMENTS" (dispatch plugin-probe → checkpoint → dispatch plugin-advisor → gates in this loop, BDR-077).
 
 - ACTION REQUIRED → show RECOMMENDATIONS block, offer: A) apply recos B) type "force". STOP.
 - PROPOSED CHANGES exist → show list, ask "Apply? (yes / no / customize)". Apply on confirm.
@@ -89,7 +89,11 @@ STOP. La réponse détermine si STEP 1 tourne une fois (A) ou N fois (C) ou avec
 
 ## STEP 2 — BASELINE CONFIG (onboarder agent)
 
-Load `$HOME/.claude/agents/onboarder.md`. Passer un BRIEF minimal issu du filesystem scan :
+Dispatch `Agent(subagent_type="onboarder")` (pin sonnet — BDR-077 : config
+templating = exécution, plus jamais inline sur le modèle de session). Un
+BLOCAGE (clé manquante, CLAUDE.md existant) revient en rapport — l'agent ne
+peut pas te demander ; TU arbitres ici puis re-dispatches. Passer un BRIEF
+minimal issu du filesystem scan :
 - `archetype` (depuis STEP 1)
 - `project_name` (depuis package.json/pyproject.toml/README.md/dir name)
 - `stack` (depuis manifests détectés)
@@ -203,13 +207,10 @@ ls .ctx7-cache/ 2>/dev/null
 ```
 
 ### Détection fast-libs
-Parse manifests selon l'archétype :
-- **nextjs-app-router** → chercher : next, react, prisma, @supabase/*, drizzle-orm, next-auth, @clerk/*
-- **react-spa** → chercher : react, @tanstack/*, zustand, jotai
-- **rest-api-node** → chercher : fastify, @nestjs/*, prisma, drizzle-orm
-- **rest-api-python** → chercher : fastapi, pydantic, sqlalchemy (si ≥ 2.0)
-- **astro-static** → chercher : astro, @astrojs/*
-- **wordpress / cli-tool / library / dotfiles-meta / static-html** → souvent aucune fast-lib, audit léger
+Source unique : `bash ~/.claude/lib/fast-libs.sh detect .` (deps JS/TS via
+package.json + Python via requirements/pyproject — liste centralisée,
+BDR-078). Archétypes wordpress / cli-tool / library / dotfiles-meta /
+static-html → souvent aucune fast-lib, audit léger.
 
 ### Vérification cache
 Pour chaque fast-lib détectée :
@@ -354,7 +355,7 @@ Lire le bloc `audit_stack:` du fichier `~/.claude/lib/project-archetypes/<archet
 | Entry | Action | Livraison |
 |---|---|---|
 | `analyze` | Déjà fait en STEP 5 | L3a |
-| `code-clean` | Spawn subagent `general-purpose` (audit-only, inherits session = big model) | L3a |
+| `code-clean` | Spawn subagent `general-purpose` (audit-only, `model="opus"` — BDR-076: dispatched audits off the session model) | L3a |
 | `cso` | Si gstack ON → Skill(cso). Sinon → Agent general-purpose avec checklist OWASP + deps audit | L3a |
 | `doc` | Spawn subagent `doc-syncer` (auto-mode OFF, report-only) | L3a |
 | `seo` | Subagents seo-analyzer + geo-analyzer en parallèle | L3b |
@@ -370,7 +371,8 @@ Lancer EN PARALLÈLE (un seul message, plusieurs Agent calls) les audits corresp
 ```
 Agent(
   subagent_type="general-purpose",
-  description="Onboard — code-clean audit only (read-only, big session model)",
+  model="opus",
+  description="Onboard — code-clean audit only (read-only, opus)",
   prompt="""
   AUDIT-ONLY mode — NO fixes, NO refactoring, NO file modifications.
   Target: <PROJECT_ROOT>. ARCHETYPE: <archetype>.
@@ -406,6 +408,7 @@ bash $HOME/.claude/lib/toggle-external.sh list 2>/dev/null | grep -E "^gstack\s+
   ```
   Agent(
     subagent_type="general-purpose",
+    model="opus",
     description="Onboard — security audit fallback (archetype-adaptive)",
     prompt="""
     READ-ONLY security audit. No file modifications.
@@ -529,9 +532,11 @@ flux de dev sont deux formes distinctes ([[BDR-050]] pipeline dev ≠ audit).
 ```
 Agent(
   subagent_type="doc-syncer",
+  model="opus",
   description="Onboard — doc drift audit only",
   prompt="""
-  REPORT-ONLY mode — NO edits, NO auto-sync.
+  MODE: audit — REPORT-ONLY, NO edits, NO auto-sync (no patch dispatch
+  follows: the report feeds the onboard backlog).
   Target: full project at <PROJECT_ROOT>.
   Scope:
     1. README drift (build/test commands, install steps, usage examples vs actual code)
@@ -647,6 +652,7 @@ Si le skill ne supporte pas `--output`, capturer la sortie et écrire à la main
 ```
 Agent(
   subagent_type="general-purpose",
+  model="opus",
   description="Onboard — static design review fallback",
   prompt="""
   AUDIT-ONLY mode — NO edits. Static design review du code UI.
@@ -690,6 +696,7 @@ Puis parser le JSON Lighthouse (scores perf/a11y/bp/seo/pwa + top opportunities)
 ```
 Agent(
   subagent_type="general-purpose",
+  model="opus",
   description="Onboard — static perf audit",
   prompt="""
   AUDIT-ONLY mode — NO edits.
@@ -732,6 +739,7 @@ Parser axe-core résultats (violations, incomplete, inapplicable, passes) → `.
 ```
 Agent(
   subagent_type="general-purpose",
+  model="opus",
   description="Onboard — static a11y audit",
   prompt="""
   AUDIT-ONLY mode — NO edits.
@@ -777,6 +785,7 @@ Spawn un subagent synthétiseur (isolé, chargé uniquement du contenu de `.onbo
 ```
 Agent(
   subagent_type="general-purpose",
+  model="opus",
   description="Onboard — synthèse vers .claude/audits/",
   prompt="""
   Lire tous les fichiers de <PROJECT_ROOT>/.onboard-audit/ :
@@ -869,6 +878,22 @@ Vérifier que les 4 fichiers `.claude/audits/ONBOARD_REPORT.md`, `.claude/audits
 
 ---
 
+## STEP 7b — CHALLENGE THE PROPOSALS (before the human gate)
+The 4 audit files are on disk; `AUDIT_PROPOSALS.md` is the artifact worth
+attacking before the human spends a gate on it. Run
+`$HOME/.claude/lib/challenge-plan.md` with `PLAN` =
+`.claude/audits/AUDIT_PROPOSALS.md`, `KIND` = `proposals`, `SCOPE` = the audited
+project paths (the `audit_stack` coverage), `CONSTRAINTS` = the STEP 1 archetype
+profile + the STEP 3 interview constraints (stade, légal, budget perf). Three
+blind challengers ask whether these are the RIGHT priorities and what the audit
+under-rated; the main loop RE-THINKS every aspect a BLOCKER lands (a named
+proposals change re-written into `AUDIT_PROPOSALS.md`, or `[deferred <date>]`)
+and re-challenges once if the file materially changed. Feed the REVISED
+proposals + a CHALLENGE SUMMARY into STEP 8. Advisory — the human remains the
+decider.
+
+---
+
 ## STEP 8 — VALIDATION GATE ★ MANDATORY STOP
 
 Afficher à l'utilisateur :
@@ -892,6 +917,11 @@ TOP 5 PRIORITÉS :
   3. [P1 Haute]    <titre>
   4. [P1 Haute]    <titre>
   5. [P2 Moyenne]  <titre>
+
+CHALLENGE SUMMARY (STEP 7b — 3 lenses):
+  BLOCKERs addressed : <n> — <finding → the named proposals change that closes it>
+  Deferred (human-ack): <list | none>
+  Lenses returned    : correctness / robustness / simplicity (NAME any that failed to return)
 
 Prochaine étape : générer .claude/tasks/TODO.md depuis .claude/audits/AUDIT_PROPOSALS.md approuvé.
 

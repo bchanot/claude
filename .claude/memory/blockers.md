@@ -36,6 +36,7 @@ rules:
 | BLK-014 | 2026-07-01 | `make install` aborts npm EEXIST on `~/.local/bin/claude` when claude already installed via native installer — no presence guard | resolved |
 | BLK-015 | 2026-07-03 | `gitflow_finish` ignored its `<type> <name>` args → merged the CHECKED-OUT branch not the one named → wrong-branch merge (audit LOT3) | resolved |
 | BLK-016 | 2026-07-04 | rtk compression PATH-dead 30 days — 6/5070 Bash commands compressed (~460K tokens missed); installer sources cargo env so its own check passes, Claude tool shell never gets ~/.cargo/bin | resolved |
+| BLK-017 | 2026-07-17 | Bing Webmaster API unusable for a multi-client agency: OAuth swamp (localhost redirect refused, rotated single-use refresh tokens race our parallel dispatch), API key = wrong model (client-owned sites) | open/deferred |
 
 ---
 
@@ -201,3 +202,9 @@ rules:
 - **Status**: resolved.
 - **Reference**: lesson: a PATH-dependent hook must be verified in the TARGET shell, not the installer's (installer sourcing envs lies to its own checks); usage is MEASURED (`rtk discover`), never assumed. Corroborates [[LRN-047]] (silent degradation → measure) + [[LRN-036]] (hand-managed profile drift); guard interplay [[LRN-089]]-adjacent (ambient-state assumptions).
 - **backmerge**: entry from release/1.0.0 (2b4e7401); the fix `e58037c` was ALSO missing from develop (rtk was live-broken on develop) — ported to develop 2026-07-08 (review remediation A3, commit follows) so this "resolved" is now true on develop too.
+
+## BLK-017 — Bing Webmaster API unusable for a multi-client agency (W2 deferred) — 2026-07-17
+- **Friction**: W2 (`bing` verb — free Bing query stats + index status + first-party backlinks) abandoned after 4 challenge rounds. User's model = client sites live on CLIENT Bing accounts.
+- **Real cause**: two viable-looking paths, both dead. (API KEY) is per-user not per-site (docs), but IS the account identity → one key per client account, exactly what the user feared; non-scoped, no expiry, passed in query string. (OAuth) is the right delegation model (like GSC) but a swamp: Redirect URI rejects ALL local forms (http/https/127.0.0.1 — user-tested); refresh tokens are ROTATED + single-use, self-described non-compliant with OAuth 2.0 → store rewrite every call, AND our parallel seo‖geo dispatch would race the rotation → `invalid_grant` + dead token; undocumented "Could not extract expected anti-forgery token" on refresh, unanswered on MS Q&A; docs contradict themselves on grant_type + token endpoint; no library. MS's own advisor recommends falling back to the API key.
+- **Verified live**: the Webmaster API itself is ALIVE (`GetUserSites?apikey=INVALID` → HTTP 400 `{"ErrorCode":3,"Message":"InvalidApiKey"}`, 0.4s) — distinct from Bing SEARCH API (retired 2025-08-11). So the block is auth/model, not availability.
+- **Status**: open/deferred. REVIVAL: a client already on Bing adds the user as Read-Only → test in ~10 min whether one API key sees DELEGATED sites (undocumented, nobody knows). If yes → W2 is cheap+clean (one key, client-owned verification, revocable, read-only, zero OAuth). Value RAISED by [[BDR-071]]: GetUrlLinks is now the only free viable backlink source (first-party only).

@@ -4,9 +4,17 @@ Tools that track whether your brand appears in AI-generated answers
 across ChatGPT, Perplexity, Gemini, Copilot, Claude, and Google AI
 Overviews.
 
-Context: Google AI Overviews trigger on ~48% of searches; ChatGPT
-processes 2.5B queries/day; Gartner projects commercial organic
-search traffic will drop 25% by 2026. Monitoring is no longer optional.
+Context `[UNVERIFIED — 2026-07-16]`: Google AI Overviews trigger on ~48% of
+searches; ChatGPT processes 2.5B queries/day; Gartner projects commercial
+organic search traffic will drop 25% by 2026.
+
+> Not checked against primary sources in the 2026-07-16 audit that corrected
+> the rest of this directory — flagged rather than asserted or deleted, per
+> the citation standard in `README.md` (rule 5). The Gartner projection at
+> least names its source; the other two float. Treat all three as
+> motivation, not evidence: **do NOT quote them to a client** until each
+> carries `source + measured: + link`. Their only job here is to explain why
+> this file exists, and that argument does not need numbers.
 
 ## Commercial tools
 

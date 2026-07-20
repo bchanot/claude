@@ -10,13 +10,17 @@
 "Bash(curl * | bash)"      // pipe pattern — block code injection
 ```
 
-### Read / Write / Edit — gitignore syntax
+### Read / Edit — gitignore syntax
 ```json
 "Read(**/.env)"            // any .env in any subdirectory
 "Read(**/secrets/**)"      // anything inside secrets/
 "Read(src/**/*.ts)"        // all .ts under src/
-"Write(**/*.key)"          // deny writing any .key file
+"Edit(**/*.key)"           // deny writing any .key file — Edit covers
+                           // Write/Edit/MultiEdit/NotebookEdit
 ```
+`Write(path)` rules are **inert**: file permission checks only match
+`Edit(path)`. Claude Code warns at startup for every `Write(glob)` rule.
+Always write the file-write ban as `Edit(...)`.
 
 ### WebFetch / WebSearch
 ```json

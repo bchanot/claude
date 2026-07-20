@@ -17,23 +17,28 @@ and any SIGNIFICANT-gated patch), with the code already committed.
 - Orchestrators (ship-feature / init-project): run it BEFORE the FINISH step — otherwise
   the doc commit strands outside the merge/PR (the exact bug this fixes). See ORDERING.
 
-doc-syncer runs IN-THREAD (the orchestrator loads it), so the list of files it patched is
-already in hand — surfaced as `PATCHED_FILES:` in doc-syncer's OUTPUT, ONE PATH PER LINE.
-Pass each line as a SEPARATE argument (see DO step 3).
+doc-syncer runs DISPATCHED (BDR-077: `MODE: audit` on opus → dispatcher gate
+→ `MODE: patch` on sonnet); its patch-mode report hands the orchestrator BOTH
+machine blocks: `PATCHED_FILES:` (ONE PATH PER LINE — pass each line as a
+SEPARATE argument, see DO step 3) and `CHANGE SUMMARY` (one line per patched
+file — the patch context that used to be in-thread now crosses the dispatch
+boundary through this block, LRN-126).
 
 ## DO
 
 1. Collect `PATCHED_FILES` — the public-doc paths doc-syncer wrote this run (its OUTPUT
    block, ONE PATH PER LINE). Empty → nothing to commit; the helper no-ops.
 
-2. Compose — from the patch context the AGENT holds (doc-syncer ran in-thread, so the
-   agent knows exactly what changed) — BOTH artifacts:
+2. Compose — from doc-syncer's `CHANGE SUMMARY` block (the patcher held the
+   patch context and reported it; a dispatched patcher with NO summary block
+   in its report = incomplete report, re-dispatch rather than invent) —
+   BOTH artifacts:
    - the COMMIT MESSAGE, repo style `docs: <summary> — <flow>`
      (`docs: README features + USAGE flags — ship-feature dark-mode`);
    - the CHANGE SUMMARY for the rc 0 surface (e.g. "README features section + USAGE
-     --export flag").
-   Both are the AGENT's to write — the helper produces NEITHER (its only stdout is the
-   hash). This is the load-bearing point of the visible surface: see the rc 0 row.
+     --export flag") — derived from the block, never a bare file count.
+   Both are the ORCHESTRATOR's to write — the helper produces NEITHER (its only stdout
+   is the hash). This is the load-bearing point of the visible surface: see the rc 0 row.
 
 3. Commit surgically via the helper, passing EXACTLY the patched files — each path as a
    SEPARATE argument (split `PATCHED_FILES` on NEWLINES only), capturing the hash:

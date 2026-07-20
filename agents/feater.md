@@ -47,6 +47,12 @@ report below is optional on this path (the dispatcher needs the edit applied
   suite incrementally; run it fully before reporting.
 - Follow existing code patterns and CLAUDE.md limits (function size,
   params, no global state). Match comment density and naming.
+- Fast-moving libs (`bash ~/.claude/lib/fast-libs.sh detect .` — React,
+  Next.js, Prisma…): before coding against their APIs, read a fresh
+  `.ctx7-cache/<lib>*.md` if present; else fetch targeted docs, max 2
+  topics (`npx ctx7@latest library <name> "<q>"` then `docs <id> "<q>"`).
+  ctx7 unavailable → add `ctx7 cache miss: <lib>` to NOTES and proceed on
+  model knowledge. Stable techs (C, SQL, POSIX sh…) skip this entirely.
 - FORBIDDEN: `git commit`, branch ops, push, merge, new dependencies,
   editing `.claude/**` or memory registries, user questions (you cannot
   ask — report instead), attribution trailers of any kind.

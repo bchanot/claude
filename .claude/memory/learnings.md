@@ -133,6 +133,11 @@ rules:
 | LRN-115 | 2026-07-08 | analyzer Edit/Write grants (seo/geo/validator) are NOT dead: needed to write the REPORT (VALIDATE/SEO/GEO.md); the "never edit" rule targets CODE, instruction-level (same as the patron) — verified false-positive | do NOT re-flag as a tool-grant defect; a report-only agent keeps Write for its own report |
 | LRN-116 | 2026-07-08 | memory backfill release→develop: a BLK marked "resolved" can have its RESOLUTION (code) missing from develop — BLK-016 resolved on release but rtk fix e58037c never back-merged → bug LIVE on develop | before backfilling a resolved blocker: verify the fix CODE is on the target branch, not just the registry entry |
 | LRN-117 | 2026-07-08 | a release/develop fork silently orphans FUNCTIONAL code on develop, not just memory — RC soak fixes (find-skills, make-update TTY, rtk version-guard) lived only on release for the fork's duration; the review's memory back-merge caught only ~half | at release-finish/reconcile: list develop..release commits touching non-registry code (excl. merges/version) for back-merge review — a registry-gap check alone misses code |
+| LRN-131 | 2026-07-17 | WebSearch is NOT verification for a number — SEO blogs cross-cite into fake consensus; require primary source + `measured:` field | any stat headed for a client report; verifying a metric/claim exists |
+| LRN-132 | 2026-07-17 | a subagent summary is a CLAIM, not a fact — 7 disproven in one session (incl. 3 I reproduced writing the fixes) | before planning on any relayed finding; verify vs primary source / live test first |
+| LRN-133 | 2026-07-17 | an omission must stay LEGIBLE, never silent — tool that can't measure says so in its output | designing any audit/measure output; deciding what a cap/refusal/N-A emits |
+| LRN-134 | 2026-07-17 | resolve-then-pin in stdlib http.client beats monkeypatching getaddrinfo — dual-stack, thread-safe, no requests; classify the OS-resolved IP not the URL text | closing SSRF/DNS-rebinding on any Python HTTP egress |
+| LRN-135 | 2026-07-17 | a prefix-only scan for a dangerous construct is bypassable by padding — scan the WHOLE document | refusing any hostile construct (DTD/directive/marker) before parse |
 
 ---
 
@@ -1273,3 +1278,74 @@ rules:
 - **pattern**: a stale pushed `release/1.0.0` (abandoned July-4 prep) sat 227 commits behind develop. Before deleting it, `git cherry -v develop release/1.0.0` → `+` = unique by patch-id, `-` = equivalent patch already in develop. Content-checked each `+` (rtk PATH fix, drop-AI-attribution settings, find-skills drop, BLK-016/LRN-098/101, EVAL-015, features) → all present in develop → safe to delete, nothing orphaned.
 - **why**: `git rev-list develop..branch` counts by SHA — a feature merged into BOTH branches shows as "unique" (distinct merge commit) though its CONTENT is in develop. `git cherry` uses patch-id, so `-` = "same change already here". The `+` set still needs a CONTENT check (patch-id misses re-applied/squashed changes).
 - **future application**: before abandoning/deleting a divergent branch, `git cherry -v <mainline> <branch>` then content-verify the `+` commits. This is HOW you prove the [[LRN-117]] fork-orphans-code risk is absent. [[LRN-116]]
+
+## LRN-130 — Claude Code deny glob = absolute, no exemption mechanism — 2026-07-16
+- **Pattern**: a `deny` rule cannot be carved out. 3 levers, all dead — verified in permissions.md, not inferred:
+  - `allow` more specific → ✗ `:33` "deny, then ask, then allow… rule specificity doesn't change the order"; `:35` "a deny rule can't carry allowlist exceptions".
+  - negation `!` in glob → ✗ absent from rule syntax.
+  - PreToolUse hook `permissionDecision:"allow"` → ✗ `:361` "Hook decisions don't bypass permission rules".
+- **Corollary**: hooks only HARDEN, never loosen (why config-protection.sh works). Only lever on a deny = the glob's own shape. Get it right first — no patch layer above it.
+- **Also**: `Write(path)` never matches file perms; `Edit(path)` covers ALL file-editing tools (`:242`; `:244` prescribes it). Startup warns on `Write(glob)` — but does NOT warn on a dead `allow` under a `deny`.
+- **Also**: `Read` deny hits Grep + Glob too (`:242`). Bash NOT covered — `Bash(cat .env)` bypasses `Read(**/.env)` unless separately denied.
+- **Applied**: [[BDR-069]].
+
+## LRN-131 — WebSearch is not verification for a number; require a primary source — 2026-07-17
+- **pattern**: a statistic reaches a client only with `<claim> — <source, year, venue|vendor> — measured: <what the source ACTUALLY measured> — <link>`. The `measured:` field is what catches the error.
+- **context**: "VSI (Visual Stability Index) — new 2026 Core Web Vital" lived in seo-analyzer as a threshold, stated as fact. It does NOT exist — absent from the CrUX API metric list AND web.dev; 10 SEO blogs cross-cited it into apparent consensus, several falsely claiming CrUX already collected it. And EVERY stat in agents/resources/ was real but grafted onto the wrong subject: Aggarwal 40% = ALL methods (pinned on "add stats"); AccuraCast 58.9% = Person-schema PREVALENCE (pinned on QAPage lift, meaning inverted — FAQPage was 1.8%); LLMrefs 3x = brand-mentions-vs-backlinks (pinned on freshness decay).
+- **future**: the failure mode is plausible RECOMBINATION — what a model half-remembering a search produces. The old rule "cross-check via WebSearch" LAUNDERS the blog consensus instead of catching it. An API's metric list (e.g. developer.chrome.com/docs/crux) is decisive: a metric the API can't return is one you can't score. See [[LRN-132]] (same family, subagent summaries).
+
+## LRN-132 — a subagent summary is a claim, not a fact — verify before planning on it — 2026-07-17
+- **pattern**: relaying a subagent's characterisation without checking it propagates plausible-but-false. Treat every relayed finding as a claim to verify against a primary source or a live test.
+- **context**: 7 disproven in one seo/geo session — "Off-page has ZERO data" (brand mentions ARE gathered, STEP 6); "the stats drive axis weights" (weight tables carry no citations); "GSC Links API is available" (endpoint doesn't exist); "a SPA-severely-limited §0 flag compensates" (never existed); "X/Twitter returns 403" (returns 200, live-tested); Common Crawl "nearest free source" (17.3 GB dead end); the whole opening inventory that founded the 20-point plan.
+- **future**: I reproduced the SAME error 3× while WRITING the fixes (X/Twitter 403 in W3, the two above in I1/I6). Contact with the REAL corrected it every time — the sitemap, the repo, the curl, the primary doc — never re-reading the spec. Measure-first before building. Corroborates [[LRN-074]] (watch the RED go red).
+
+## LRN-133 — an omission must stay legible, never silent — 2026-07-17
+- **pattern**: when a tool cannot measure something, it says so IN its output — a caller must never read absence as "fine".
+- **context**: red thread of 21 commits — NAP with no canonical → finding WITHOUT direction (never pick from source majority); unmeasured backlinks → mandatory §14 line; sample → mandatory COVERAGE ratio; dropped security headers → §14 + "run /harden" pointer; capped crawl → `orphans_withheld` (the cap doesn't degrade the result, it INVALIDATES it — a partial-crawl orphan is a false orphan); SPA → refuse, don't score; N/A ≠ zero in the scorer.
+- **future**: the system already HAD the invariant (code-ceiling, §14 Annexe) but applied it in spots. Generalised it. A false signal is worse than a declared gap — the 4 features KILLED at measurement (B1/B2/B3/W2) beat 4 false-signal features. See [[LRN-131]]/[[LRN-132]] (same session, the verification discipline that feeds it).
+
+## LRN-134 — resolve-then-pin in stdlib beats monkeypatching getaddrinfo — 2026-07-17
+- **pattern**: to close SSRF/DNS-rebinding on Python HTTP egress, resolve the
+  host ONCE, validate every returned IP (`ipaddress`, dual-stack v4+v6), refuse
+  if ANY is non-public (the multi-A vector), then connect to the exact pinned IP
+  via an `http.client.HTTPSConnection` subclass whose `connect()` does
+  `create_connection((pinned_ip, port))` and `wrap_socket(sock,
+  server_hostname=real_host)` — SNI + cert stay bound to the real host. No
+  second resolution to poison. `safe_fetch.py`.
+- **context**: the load-bearing property — classify the IP the OS RESOLVED
+  (`sockaddr[0]`), NEVER the URL text. That defeats octal/hex/decimal literals,
+  IPv4-mapped IPv6, NAT64, 6to4 structurally, not by enumeration (confirmed by
+  the security review's fuzz). `is_global` is the decisive gate (catches CGNAT
+  100.64/10 the per-flags miss); add a small extra-deny for special-use ranges
+  it passes (192.88.99.0/24 6to4-relay). Redirects: re-validate EACH hop —
+  urlopen followed them blind.
+- **future**: beats claude-seo url_safety.py on 3 axes — dual-stack (theirs
+  IPv4-only), thread-safe by construction (theirs monkeypatches getaddrinfo
+  behind a global lock), stdlib-only (theirs `requests`). A name-level guard
+  (url-guard.sh) cannot see a rebind; this is the layer that can. Shell `curl`
+  stays unpinnable from here → `curl --resolve`, separate.
+
+## LRN-135 — a prefix-only scan for a dangerous construct is bypassable by padding — 2026-07-17
+- **pattern**: to refuse a hostile construct (DTD, directive, marker) before
+  parsing, scan the WHOLE document, never a bounded prefix.
+- **context**: `_refuse_dtd` (C1b) scanned only `raw[:4096]` → a sitemap with
+  >4 KB of leading comment pushed `<!DOCTYPE` past the window while
+  `ET.fromstring` still parsed AND EXPANDED the entities (`&lol2;` →
+  "lollollollollol", proven). Billion-laughs reopened on my own already-merged
+  code. Found by the security review of the rebinding diff, not by me — fixed
+  there rather than filed (root-cause discipline).
+- **future**: over ≤20 MB a full `re.search` is microseconds — no perf excuse
+  for a bounded scan. Corollary of [[LRN-133]]: if you refuse a construct,
+  refuse it EVERYWHERE, not just where you look first. A fresh adversarial
+  reviewer attacking diff A routinely surfaces a real hole in already-shipped
+  code B — see [[EVAL-020]].
+
+### LRN-136 — config-protection live state follows checked-out branch's symlinked settings.json (2026-07-17)
+~/.claude/settings.json is a SYMLINK to the repo settings.json; Claude Code hot-reloads settings on change → the config-protection PreToolUse hook's active/inactive state tracks the CURRENT branch's settings.json. On feature/drop-config-protection (hook deregistered) a protected edit passed silently, sentinel unconsumed; after gitflow-switch to a branch off develop (hook still registered) the SAME class of edit was blocked. Apply: a change that removes a settings-registered hook is live only on that branch until merged; use the one-shot sentinel for protected edits on any branch that still registers it. ([[BDR-074]] context.)
+
+## LRN-137 — mode-based re-tiering beats file splits for mixed-tier agents
+- **pattern**: three planned agent splits (doc-syncer, handover-doc-writer, seo/geo analyzers) shipped as MODES + per-dispatch `model=` instead of new files; only plugin-probe justified a real new file (genuinely new role, no shared body).
+- **why**: a file split severs implicit data paths (LRN-126), relocates body-text test locks (seo-data fetch-wiring), breaks name/dispatch-string census locks, duplicates templates. A mode split keeps ALL locks and text in place; the dispatcher's gate sits BETWEEN mode dispatches; call-site `model=` precedence over the frontmatter pin is spike-proven (sonnet-pinned verifier ran haiku on override).
+- **fail-safe pin rule**: keep the HIGHEST tier as the frontmatter pin and override DOWN at call sites — a forgotten override then over-tiers (costs money) instead of silently downgrading judgment (costs correctness).
+- **future application**: before splitting any agent across model tiers, try MODE + `model=` first; create a new agent file only for a genuinely new role. Run-scoped `.audit/<name>-<RUNID>` files + completeness sentinel + fail-closed consumer for any cross-dispatch artifact.
+- **cousin**: [[LRN-125]] [[LRN-126]] [[BDR-077]].

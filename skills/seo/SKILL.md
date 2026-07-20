@@ -204,9 +204,9 @@ Ask ONCE before dispatching the agents:
 ```
 RAPPORT EXTERNE (optionnel) — un autre regard sur le site :
 
-  1. Fichier  — déposez l'export (PDF/MD/TXT) dans
-     `.claude/audits/external/` (ex. `sorank-YYYY-MM-DD.pdf`),
-     donnez le nom du fichier. (`mkdir -p .claude/audits/external`)
+  1. Fichier  — donnez le chemin de l'export (PDF/MD/TXT), où qu'il soit
+     (ex. `~/Téléchargements/sorank-2026-07-16.pdf`). Rangement conseillé
+     mais optionnel : `.claude/audits/external/`.
   2. Collé    — collez ici le contenu du PDF ou le "prompt pour IA"
      que l'outil suggère.
   3. Ignorer  — continuer sans. Le rapport final recommandera
@@ -302,14 +302,31 @@ still carries this rule for its applier:
 If `Edit` is insufficient (full-template refactor), the item is escalated
 as a cross-agent note → §11 user action instead.
 
-## STEP 1 — Spawn both agents IN PARALLEL
+## STEP 1 — Run both domain pipelines (3 phases; domains parallel per phase)
 
-Issue both `Agent` tool calls **in the same message** (parallel tool
-calls). The harness runs them concurrently.
+BDR-077: each domain runs collect (sonnet) → judge (opus pin) → template
+(sonnet), the two domains IN PARALLEL at every phase (both `Agent` calls
+in the same message). Mint run ids first: `RUNID_SEO=$(date +%s)-seo`,
+`RUNID_GEO=$(date +%s)-geo`. The CONTEXT payloads below are the SHARED
+CONTEXT of each domain — pass them VERBATIM to every phase dispatch of
+that domain (LRN-126). Clean both `.audit/*-signals-*.md` files after
+STEP 2.
+
+**DISPATCHER ERROR CONTRACT (fail-closed at the pipeline, not just the
+judge):** a `SEO JUDGE — VERDICT: ERROR(…)` / `GEO JUDGE — VERDICT:
+ERROR(…)`, a mute judge, or a BLOCKED collect → STOP that domain: NO
+template dispatch, NO L1 apply for it. Surface the error verbatim, retry
+ONCE with a fresh collect+judge for that domain; a 2nd failure →
+escalate to the human. A mute or ERROR judge is NEVER carried into
+templating.
+
+**PHASE A — collect (both domains, one message):**
 
 ```
-Agent(subagent_type="seo-analyzer")
+Agent(subagent_type="seo-analyzer", model="sonnet")
 prompt: """
+MODE: collect
+RUNID: <RUNID_SEO>
 Dispatched from /seo. Context:
 
 AUDIT DEPTH: <LOCAL|FULL>
@@ -348,6 +365,15 @@ audit GEO/AI signals (llms.txt, AI crawlers, QAPage/Speakable schemas,
 entity SEO, content shape for AI, AI visibility) — the geo-analyzer
 agent runs in parallel and owns those.
 
+Do NOT score security headers either (CSP, HSTS, X-Frame-Options,
+X-Content-Type-Options, Referrer-Policy, Permissions-Policy, COOP/CORP,
+cookie flags) — `/harden` owns them and grades them 0-100 against three
+external validators (`depth-matrix.md:29`). Read them, keep
+`X-Robots-Tag` under indexability (it is an indexing directive, not a
+security header), and declare the rest in §14 with a "run /harden" pointer
+plus what you observed live. Dropping them from the score must not make
+them silent.
+
 FILE OWNERSHIP (authoritative, prevents parallel-edit conflicts):
 - YOU OWN (read+write): sitemap.xml, image/video sitemaps, .htaccess,
   meta tags (title, description, OG, Twitter, canonical, robots meta),
@@ -370,18 +396,15 @@ SHARED-FILE EDIT DISCIPLINE (carried into each bundle item):
   legal pages, new city/service pages.
 - If full-template refactor is needed, emit as a cross-agent note → §11.
 
-Execute your agent spec at ~/.claude/agents/seo-analyzer.md starting
-at STEP 2 (skip STEP 0 and STEP 1 — context is provided above).
-
-At STEP 13, emit the STRUCTURED ENVELOPE for merging (not a standalone
-SEO.md), INCLUDING the `## FIX BUNDLE` section terminated by the verbatim
-`READY TO APPLY — awaiting dispatcher confirmation` sentinel. Do NOT apply
-any fix, do NOT dispatch any sub-agent, do NOT write SEO.md — /seo applies
-your bundle in STEP 1.5 and merges the reports.
+Execute MODE: collect per your spec — STEP 2-5 only (context above
+replaces STEP 0-1). Write the signals file + COLLECTION COMPLETE
+sentinel, emit the COLLECT REPORT, stop. No scoring, no bundle.
 """
 
-Agent(subagent_type="geo-analyzer")
+Agent(subagent_type="geo-analyzer", model="sonnet")
 prompt: """
+MODE: collect
+RUNID: <RUNID_GEO>
 Dispatched from /seo. Context:
 
 AUDIT DEPTH: <LOCAL|FULL>
@@ -427,16 +450,74 @@ SHARED-FILE EDIT DISCIPLINE (carried into each bundle item):
   llms-full.txt.
 - If full-template refactor is needed, emit as a cross-agent note → §11.
 
-Execute your agent spec at ~/.claude/agents/geo-analyzer.md starting
-at STEP 2 (skip STEP 0 and STEP 1 — context is provided above).
-
-At STEP 14, emit the STRUCTURED ENVELOPE for merging (not a standalone
-GEO.md), INCLUDING the `## FIX BUNDLE` section terminated by the verbatim
-`READY TO APPLY — awaiting dispatcher confirmation` sentinel. Do NOT apply
-any fix, do NOT dispatch any sub-agent, do NOT write GEO.md/SEO.md — /seo
-applies your bundle in STEP 1.5 and merges the reports.
+Execute MODE: collect per your spec — STEP 2-5 only (context above
+replaces STEP 0-1). Write the signals file + COLLECTION COMPLETE
+sentinel, emit the COLLECT REPORT, stop. No scoring, no bundle.
 """
 ```
+
+**PHASE B — judge (both domains, one message, AFTER both COLLECT REPORTs
+are DONE):** no `model=` override — the opus frontmatter pins apply.
+
+```
+Agent(subagent_type="seo-analyzer")
+prompt: "MODE: judge
+RUNID: <RUNID_SEO>
+<the seo SHARED CONTEXT verbatim>
+Load .audit/seo-signals-<RUNID_SEO>.md (fail closed per your spec), run
+STEP 6-11, report scoring + findings + action plan + triage batches."
+
+Agent(subagent_type="geo-analyzer")
+prompt: "MODE: judge
+RUNID: <RUNID_GEO>
+<the geo SHARED CONTEXT verbatim>
+Load .audit/geo-signals-<RUNID_GEO>.md (fail closed per your spec), run
+STEP 6-12, report scoring + findings + action plan + triage batches."
+```
+
+Apply the DISPATCHER ERROR CONTRACT above on each returned verdict.
+
+**PHASE C — template (both domains, one message, only for domains whose
+judge is DONE):**
+
+```
+Agent(subagent_type="seo-analyzer", model="sonnet")
+prompt: "MODE: template
+<the seo SHARED CONTEXT verbatim>
+JUDGE REPORT (verbatim, ground truth — never re-derive a score):
+<the seo judge report>
+Run STEP 12-14: emit the STRUCTURED ENVELOPE for merging (not a
+standalone SEO.md), INCLUDING the `## FIX BUNDLE` section terminated by
+the verbatim `READY TO APPLY — awaiting dispatcher confirmation`
+sentinel. Do NOT apply any fix, do NOT dispatch any sub-agent, do NOT
+write SEO.md — /seo applies your bundle in STEP 1.5 and merges the
+reports."
+
+Agent(subagent_type="geo-analyzer", model="sonnet")
+prompt: "MODE: template
+<the geo SHARED CONTEXT verbatim>
+JUDGE REPORT (verbatim, ground truth — never re-derive a score):
+<the geo judge report>
+Run STEP 13-15: emit the STRUCTURED ENVELOPE for merging (not a
+standalone GEO.md), INCLUDING the `## FIX BUNDLE` section terminated by
+the verbatim `READY TO APPLY — awaiting dispatcher confirmation`
+sentinel. Do NOT apply any fix, do NOT dispatch any sub-agent, do NOT
+write GEO.md/SEO.md — /seo applies your bundle in STEP 1.5 and merges
+the reports."
+```
+
+## STEP 1b — CHALLENGE THE FIX BUNDLE (advisory, before apply)
+Both envelopes now carry a `## FIX BUNDLE` — worth attacking before any edit lands.
+**Skip if intervention mode = conservative** (nothing is applied). Else persist both
+bundles (seo + geo, verbatim) to `.claude/tasks/plans/<date>-<slug>-<HHMM>.md`, then run
+`$HOME/.claude/lib/challenge-plan.md` with `PLAN` = that file, `KIND` = `fix-bundle`,
+`SCOPE` = the target site files the items touch, `CONSTRAINTS` = the STEP 0 file-ownership
+matrix + shared-file edit discipline + confirmed Canonical NAP + intervention mode. Three
+blind challengers ask, per item: will it ACHIEVE its goal / could it BREAK or regress the
+page / is a simpler (or no) fix better. This main loop RE-THINKS every aspect a BLOCKER
+lands (a named bundle change, or `[deferred <date>]`) and re-challenges once if the bundle
+materially changed. Advisory — it sits BEFORE (never replaces) the STEP 1.5 GATED approval;
+carry its CHALLENGE SUMMARY into that gate.
 
 ## STEP 1.5 — Apply fix bundles (from THIS main loop, at L1)
 
@@ -484,6 +565,11 @@ Collect every GATED item from BOTH bundles and present ONE gate:
 SEO/GEO — gated changes need approval (visible / structural):
   D1   <change> — impact: <visible change>            [seo]
   G5.1 <change> — impact: <visible change>            [geo]
+
+CHALLENGE SUMMARY (STEP 1b — 3 lenses):
+  BLOCKERs addressed : <n> — <finding → the named bundle change that closes it>
+  Deferred (human-ack): <list | none>
+  Lenses returned    : correctness / robustness / simplicity (NAME any that failed to return)
 Approve all / select (ids) / skip all?
 ```
 

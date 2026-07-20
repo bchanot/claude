@@ -57,11 +57,362 @@ has "queries position field"     "$Q" '"position": 6.3'
 I="$(SEO_DATA_MOCK_DIR="$MOCK" python3 "$SD/google_seo.py" inspect \
   --store "$S2" --account client-a --property sc-domain:ex.com --url https://ex.com/x)"
 has "inspect indexed true"       "$I" '"indexed": true'
+# rich_results rides the same URL-Inspection response (no extra call/quota)
+has "rich verdict surfaced"      "$I" '"verdict": "FAIL"'
+has "rich type breadcrumbs"      "$I" '"type": "Breadcrumbs"'
+has "rich type faq"              "$I" '"type": "FAQ"'
+has "rich counts error severity" "$I" '"errors": 2'
+has "rich counts warn severity"  "$I" '"warnings": 1'
+has "rich keeps issue message"   "$I" "Missing field 'acceptedAnswer'"
+# same issueMessage repeats across items — the rollup must collapse it to one
+NMSG="$(printf '%s' "$I" | grep -cF "Missing field 'acceptedAnswer'")"
+[ "$NMSG" = "1" ] && ok "rich dedupes issue messages" \
+                  || no "rich dedupes issue messages" "got $NMSG occurrences"
+# Google OMITS richResultsResult when it detects none — absence is data, and
+# must not KeyError nor vanish into a missing key
+NR="$(SEO_DATA_MOCK_DIR="$SD/fixtures-norich" python3 "$SD/google_seo.py" inspect \
+  --store "$S2" --account client-a --property sc-domain:ex.com --url https://ex.com/x)"
+has "no-rich → synthetic ABSENT" "$NR" '"verdict": "ABSENT"'
+has "no-rich keeps index status" "$NR" '"indexed": true'
+hasnt "no-rich emits no PARTIAL" "$NR" 'PARTIAL'
 DEG="$(env -u SEO_DATA_MOCK_DIR python3 "$SD/google_seo.py" queries \
   --store "$TMP2/none.json" --account nobody --property sc-domain:ex.com)"
 has "gsc degrades w/o creds"     "$DEG" '"status": "degraded"'
 has "gsc degrade reason"         "$DEG" 'no_credentials'
 rm -rf "$TMP2"
+
+echo "── cannibalisation ──"
+# `keys` is additive: the single-dim consumer that reads `key` must not break
+has "queries keeps key (compat)"  "$Q" '"key": "plombier paris"'
+has "queries adds keys list"      "$Q" '"keys"'
+CAN="$(SEO_DATA_MOCK_DIR="$SD/fixtures-cannibal" python3 "$SD/google_seo.py" cannibal \
+  --store "$S2" --account client-a --property sc-domain:ex.com)"
+has "cannibal ok"                 "$CAN" '"status": "ok"'
+# fixture: 3 pages on "urgence fuite", 2 on "plombier paris", 1 on "devis"
+has "cannibal finds 2 conflicts"  "$CAN" '"conflict_count": 2'
+has "cannibal counts pages"       "$CAN" '"pages": 3'
+has "cannibal sums impressions"   "$CAN" '"total_impressions": 2400'
+hasnt "single-page query is not a conflict" "$CAN" 'devis plomberie'
+# biggest conflict first, and inside it the strongest page first
+CAN_FIRST="$(printf '%s' "$CAN" | python3 -c 'import sys,json; d=json.load(sys.stdin); print(d["conflicts"][0]["query"], d["conflicts"][0]["urls"][0]["url"])')"
+check_first() { [ "$1" = "$2" ] && ok "$3" || no "$3" "got[$1]"; }
+check_first "$CAN_FIRST" "urgence fuite https://ex.com/urgence" "cannibal ranks by impact"
+has "cannibal reports the cap"    "$CAN" '"capped": false'
+
+echo "── safe_fetch (DNS-rebinding / SSRF) ──"
+# Inject a hostile resolver: the name is public, the address is internal. This
+# is the rebinding vector a name-level guard cannot see — prove it is refused
+# BEFORE any connection. Deterministic + offline via the injected resolver.
+sfpy() { PYTHONPATH="$SD" python3 -c "$1" 2>&1; }
+REBIND="$(sfpy '
+import socket, safe_fetch as sf
+def meta(h,p,**k): return [(socket.AF_INET,socket.SOCK_STREAM,6,"",("169.254.169.254",p))]
+try: sf.safe_fetch("https://evil.example/", resolver=meta); print("CONNECTED")
+except sf.UnsafeTarget as e: print("REFUSED", e)')"
+has "rebind to metadata refused"  "$REBIND" 'REFUSED'
+has "refusal names the ip"        "$REBIND" '169.254.169.254'
+hasnt "never connected"           "$REBIND" 'CONNECTED'
+MIXED="$(sfpy '
+import socket, safe_fetch as sf
+def mix(h,p,**k): return [(socket.AF_INET,socket.SOCK_STREAM,6,"",("93.184.216.34",p)),
+                          (socket.AF_INET,socket.SOCK_STREAM,6,"",("127.0.0.1",p))]
+try: sf.safe_fetch("https://evil.example/", resolver=mix); print("CONNECTED")
+except sf.UnsafeTarget as e: print("REFUSED")')"
+has "multi-A public+private refused" "$MIXED" 'REFUSED'
+# classification, dual-stack — is_global catches CGNAT the per-flags miss
+CLS="$(sfpy '
+import safe_fetch as sf
+pub=[c for c in ["8.8.8.8","2606:2800:220:1:248:1893:25c8:1946"] if sf._ip_is_public(c)]
+bad=[c for c in ["169.254.169.254","127.0.0.1","10.0.0.1","192.168.1.1","100.64.1.1","::1","fe80::1","0.0.0.0"] if sf._ip_is_public(c)]
+print("PUB",len(pub),"BADPASS",len(bad))')"
+has "public v4+v6 pass"           "$CLS" 'PUB 2'
+has "no internal ip passes"       "$CLS" 'BADPASS 0'
+# security review 2026-07-17: 6to4-relay anycast passes is_global — extra deny
+SIXTOFOUR="$(sfpy 'import safe_fetch as sf; print("6TO4", sf._ip_is_public("192.88.99.1"))')"
+has "6to4 relay anycast refused"  "$SIXTOFOUR" '6TO4 False'
+# scheme + stdlib
+SCHEME="$(sfpy '
+import safe_fetch as sf
+try: sf.safe_fetch("file:///etc/passwd"); print("OK")
+except sf.UnsafeTarget: print("REFUSED")')"
+has "non-http scheme refused"     "$SCHEME" 'REFUSED'
+IMP="$(/bin/grep -E "^(import|from) " "$SD/safe_fetch.py" | /bin/grep -cvE "gzip|http\.client|ipaddress|socket|ssl|urllib\.parse")"
+[ "$IMP" = "0" ] && ok "safe_fetch is stdlib-only" || no "safe_fetch is stdlib-only" "$IMP non-stdlib imports"
+hasnt "no requests dependency"    "$(cat "$SD/safe_fetch.py")" 'import requests'
+
+echo "── sitemap ──"
+SM="$(SEO_DATA_MOCK_DIR="$MOCK" python3 "$SD/sitemap.py" --url https://ex.com/sitemap.xml)"
+has "sitemap ok"                 "$SM" '"status": "ok"'
+has "sitemap not an index"       "$SM" '"index": false'
+# fixture holds 8 <loc>: 1 empty, blog twice, ftp:// and a quoted one to drop
+has "sitemap dedupes"            "$SM" '"count": 4'
+has "sitemap counts drops"       "$SM" '"dropped": 2'
+has "sitemap strips whitespace"  "$SM" '"https://ex.com/spaced"'
+hasnt "sitemap drops non-http"   "$SM" 'ftp://'
+hasnt "sitemap drops shell-meta" "$SM" 'bad"quote'
+# namespace-agnostic: real sitemaps carry sitemaps.org xmlns (+ xhtml here)
+has "sitemap reads namespaced"   "$SM" '"https://ex.com/services"'
+# REGRESSION: <image:loc> also ends with '}loc'. An endswith test counted image
+# sitemap entries as pages — a real native site returned 27 for 24 <url>, and
+# img/logo.png was about to be sampled and audited as a page.
+hasnt "image:loc is not a page"  "$SM" '/img/logo.png'
+hasnt "image:loc jpeg not a page" "$SM" '/img/hero.jpeg'
+has "image ns does not inflate count" "$SM" '"count": 4'
+
+IDX="$(SEO_DATA_MOCK_DIR="$SD/fixtures-sitemap-index" python3 "$SD/sitemap.py" \
+  --url https://ex.com/sitemap.xml)"
+has "sitemapindex detected"      "$IDX" '"index": true'
+has "sitemapindex fans out"      "$IDX" '"children_read": 2'
+has "sitemapindex no child fail" "$IDX" '"children_failed": 0'
+has "sitemapindex yields urls"   "$IDX" '"https://ex.com/child-a"'
+
+# A sitemap NEVER has a DTD. Refused at the door: xml.etree does not expand
+# external entities but IS billion-laughs-vulnerable, and the 20MB read ceiling
+# bounds the input, not the expansion. Refusing beats depending on the parser,
+# and keeps this module stdlib-only (no defusedxml, no venv).
+DTD="$(SEO_DATA_MOCK_DIR="$SD/fixtures-sitemap-dtd" python3 "$SD/sitemap.py" \
+  --url https://ex.com/sitemap.xml)"
+has "billion-laughs refused"     "$DTD" '"status": "degraded"'
+has "dtd reason is distinct"     "$DTD" 'unsafe_xml_dtd'
+hasnt "dtd never parsed"         "$DTD" '"count"'
+# security review 2026-07-17: a >4KB leading comment pushed <!DOCTYPE past the
+# old raw[:4096] scan while ET still parsed+expanded it. Now the whole doc is
+# scanned. Prove a padded DTD is refused and the entity never expands.
+PADDED="$(python3 -c '
+import sys; sys.path.insert(0,"'"$SD"'"); import sitemap as sm
+bomb=("<?xml version=\"1.0\"?>\n<!-- "+("x"*5000)+" -->\n"
+      "<!DOCTYPE d [ <!ENTITY lol \"lol\"> ]>\n<urlset><url><loc>https://x/&lol;</loc></url></urlset>").encode()
+try: sm._refuse_dtd(bomb); print("PARSED")
+except sm.UnsafeXML: print("REFUSED")')"
+has "padded DTD refused (full scan)" "$PADDED" 'REFUSED'
+
+echo "── render_check (R2) ──"
+SPA="$(SEO_DATA_MOCK_DIR="$SD/fixtures-spa" python3 "$SD/render_check.py" \
+  --url https://spa.example/)"
+has "spa → client-rendered"      "$SPA" '"verdict": "client-rendered"'
+has "spa has no h1 in html"      "$SPA" '"h1_in_html": 0'
+has "spa warns about false negs" "$SPA" 'false'
+# the shell carries a fat window.__INITIAL_STATE__ script: script text is NOT
+# page text, or a 200KB React bundle would read as a rich page
+has "script text is not content" "$SPA" '"body_text_chars": 7'
+SSR="$(SEO_DATA_MOCK_DIR="$SD/fixtures-ssr" python3 "$SD/render_check.py" \
+  --url https://ssr.example/)"
+has "ssr → server-rendered"      "$SSR" '"verdict": "server-rendered"'
+has "ssr counts jsonld"          "$SSR" '"jsonld_in_html": 1'
+has "ssr sees meta description"  "$SSR" '"meta_description_in_html": true'
+hasnt "ssr emits no warning"     "$SSR" 'warning'
+
+echo "── linkgraph ──"
+LG="$(SEO_DATA_MOCK_DIR="$SD/fixtures-linkgraph" python3 "$SD/linkgraph.py" \
+  --url https://ex.com/sitemap.xml)"
+has "linkgraph ok"               "$LG" '"status": "ok"'
+has "linkgraph crawls all"       "$LG" '"pages_crawled": 7'
+# THE test: a planted page nobody links to must be found. Two live sites both
+# returned zero orphans; without this, "always returns []" looks identical.
+has "finds the planted orphan"   "$LG" '"https://ex.com/orphan"'
+has "orphan is also unreachable" "$LG" '"unreachable"'
+has "depth chain measured"       "$LG" '"max_depth": 4'
+has "flags >3 clicks"            "$LG" '"https://ex.com/deepest"'
+# home links: /a and /b only. anchor, .css?v=, mailto:, tel:, external, .png
+# are not page links — 9 total across the 7 pages.
+has "filters non-page links"     "$LG" '"total_internal_links": 9'
+hasnt "no external host"         "$LG" 'other.com'
+hasnt "no asset link"            "$LG" 'main.css'
+hasnt "no image link"            "$LG" 'logo.png'
+# /b/ in the markup vs /b in the sitemap must be ONE node, not a phantom orphan
+hasnt "trailing slash unified"   "$LG" '"https://ex.com/b/"'
+
+# An orphan from a partial crawl is a false orphan: withhold, do not truncate.
+CAP="$(SEO_DATA_MOCK_DIR="$SD/fixtures-linkgraph" python3 "$SD/linkgraph.py" \
+  --url https://ex.com/sitemap.xml --max 3)"
+has "cap is reported"            "$CAP" '"capped": true'
+has "capped withholds orphans"   "$CAP" '"orphans_withheld": true'
+hasnt "capped emits no orphans"  "$CAP" '"orphans":'
+
+echo "── score (I7) ──"
+sc() { printf '%s' "$1" | python3 "$SD/score.py" --findings -; }
+# technical: haute(-8) + moyenne(-3) = 100-11 = 89 → 17.8
+B='{"depth":"FULL","profile":"local","axes":{"technical":{"findings":[{"severity":"haute"},{"severity":"moyenne"}]},"seo-local":{"findings":[]},"off-page":{"findings":[]},"social":{"findings":[]},"competitive":{"findings":[]},"legal":{"findings":[]},"on-page":{"findings":[]}}}'
+R="$(sc "$B")"
+has "harden scale, /5 into /20"   "$R" '"score_20": 17.8'
+has "no findings = 20"            "$R" '"score_20": 20.0'
+has "nothing renormalised"        "$R" '"weights_renormalised": false'
+# THE point of I7: same findings in, same score out
+A1="$(sc "$B" | python3 -c 'import sys,json;print(json.load(sys.stdin)["global_20"])')"
+A2="$(sc "$B" | python3 -c 'import sys,json;print(json.load(sys.stdin)["global_20"])')"
+[ "$A1" = "$A2" ] && ok "score is reproducible" || no "score is reproducible" "$A1 vs $A2"
+# N/A is not a zero, and R2 mandated renormalising by hand — now computed
+NA='{"depth":"FULL","profile":"local","axes":{"technical":{"findings":[]},"on-page":{"status":"na"},"seo-local":{"findings":[]},"off-page":{"status":"na"},"social":{"findings":[]},"competitive":{"findings":[]},"legal":{"findings":[]}}}'
+RN="$(sc "$NA")"
+has "na axes listed"             "$RN" '"on-page"'
+has "renormalisation flagged"    "$RN" '"weights_renormalised": true'
+# all axes 20 → global must stay 20: N/A must not drag the mean down
+has "na is not a zero"           "$RN" '"global_20": 20.0'
+# prevalence shifts severity ONE step, both ways
+WIDE='{"depth":"LOCAL","profile":"local","axes":{"technical":{"findings":[{"severity":"moyenne","affected":10,"sampled":12}]},"on-page":{"findings":[]},"seo-local":{"findings":[]},"legal":{"findings":[]}}}'
+ONE='{"depth":"LOCAL","profile":"local","axes":{"technical":{"findings":[{"severity":"moyenne","affected":1,"sampled":12}]},"on-page":{"findings":[]},"seo-local":{"findings":[]},"legal":{"findings":[]}}}'
+has "widespread escalates (-8)"  "$(sc "$WIDE")" '"score_20": 18.4'
+has "isolated de-escalates (-1)" "$(sc "$ONE")"  '"score_20": 19.8'
+# malformed input is an error, never a silently wrong number
+has "unknown severity rejected"  "$(sc '{"depth":"FULL","profile":"local","axes":{"technical":{"findings":[{"severity":"bogus"}]}}}')" '"status": "error"'
+has "unknown profile rejected"   "$(sc '{"depth":"FULL","profile":"martian","axes":{}}')" '"status": "error"'
+has "garbage json is an error"   "$(sc 'not json')" '"status": "error"'
+
+echo "── drift (H2) ──"
+DH="$(mktemp -d)"
+D1="$(HOME="$DH" SEO_DATA_MOCK_DIR="$SD/fixtures-drift-v1" python3 "$SD/drift.py" \
+  --url https://ex.com/sitemap.xml)"
+has "first run is a baseline"    "$D1" '"baseline": true'
+has "baseline captures pages"    "$D1" '"pages": 3'
+hasnt "baseline diffs nothing"   "$D1" '"regressions"'
+# v2: canonical lost on /a, h1+jsonld lost on /, title reworded, /gone removed,
+# /neuve added. Losses are regressions; a reworded title is not.
+D2="$(HOME="$DH" SEO_DATA_MOCK_DIR="$SD/fixtures-drift-v2" python3 "$SD/drift.py" \
+  --url https://ex.com/sitemap.xml)"
+has "second run diffs"           "$D2" '"baseline": false'
+has "detects removed url"        "$D2" '"https://ex.com/gone"'
+has "detects added url"          "$D2" '"https://ex.com/neuve"'
+has "lost canonical = regression" "$D2" '"canonical"'
+has "lost h1 = regression"       "$D2" '"h1_count"'
+has "lost jsonld = regression"   "$D2" '"jsonld_types"'
+# the classification IS the feature: losing a signal != changing one
+NREG="$(printf '%s' "$D2" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)["regressions"]))')"
+NCHG="$(printf '%s' "$D2" | python3 -c 'import sys,json; print(len(json.load(sys.stdin)["changes"]))')"
+[ "$NREG" = "3" ] && ok "3 losses classed as regressions" \
+                  || no "3 losses classed as regressions" "got $NREG"
+[ "$NCHG" = "1" ] && ok "reworded title is a change, not a regression" \
+                  || no "reworded title is a change, not a regression" "got $NCHG"
+rm -rf "$DH"
+
+echo "── schema_gen ──"
+SG() { python3 "$SD/schema_gen.py" "$@"; }
+RES="$(SG reservation --provider "Chez X" --start "2026-08-01T19:00")"
+has "reservation ok"             "$RES" '"status": "ok"'
+has "reservation type surfaced"  "$RES" '"type": "FoodEstablishmentReservation"'
+has "jsonld has @context"        "$RES" '"@context": "https://schema.org"'
+has "reservation keeps provider" "$RES" 'Chez X'
+has "reservation keeps start"    "$RES" '2026-08-01T19:00'
+PROF="$(SG profile --name "Jane Doe" --url https://ex.com/about)"
+has "profile ok"                 "$PROF" '"status": "ok"'
+has "profile type surfaced"      "$PROF" '"type": "ProfilePage"'
+ORD="$(SG order --merchant "Acme" --order-url https://ex.com/order)"
+has "order ok"                   "$ORD" '"status": "ok"'
+has "order type surfaced"        "$ORD" '"type": "OrderAction"'
+DISC="$(SG discussion --headline "Q" --author "Jo" --url https://ex.com/t/1 \
+  --date 2026-05-01T00:00:00Z)"
+has "discussion ok"              "$DISC" '"status": "ok"'
+has "discussion type surfaced"   "$DISC" '"type": "DiscussionForumPosting"'
+# argparse required=True catches an OMITTED flag → bad usage, exit 2
+BADRES="$(SG reservation --start 2026-08-01T19:00 2>/dev/null)"; BADRC=$?
+hasnt "missing --provider is not ok" "$BADRES" '"status": "ok"'
+[ "$BADRC" = "2" ] && ok "missing --provider exit 2" \
+                    || no "missing --provider exit 2" "got $BADRC"
+# a required field argparse ALLOWS through (flag given, value empty) must
+# still fail open — degraded, not a crash, exit 0
+EMPTYRES="$(SG reservation --provider "" --start 2026-08-01T19:00)"; EMPTYRC=$?
+hasnt "empty --provider is not ok" "$EMPTYRES" '"status": "ok"'
+has "empty --provider degrades"  "$EMPTYRES" '"status": "degraded"'
+[ "$EMPTYRC" = "0" ] && ok "empty --provider exit 0" \
+                      || no "empty --provider exit 0" "got $EMPTYRC"
+# --script-tag must work AFTER the type, matching `fetch.sh schema_gen
+# <type> [flags]` — the shape the dispatcher actually calls it with. The
+# envelope is JSON, so the `script` field's own quotes are backslash-escaped
+# in the raw stdout — decode it to check the LITERAL wrapper string.
+SCRIPT="$(SG profile --name "Jane Doe" --url https://ex.com/about --script-tag)"
+SCRIPT_TAG="$(printf '%s' "$SCRIPT" | \
+  python3 -c 'import sys,json; print(json.load(sys.stdin)["script"])')"
+has "script-tag wraps output" "$SCRIPT_TAG" '<script type="application/ld+json">'
+# an omitted optional field must never surface as a JSON null
+hasnt "no null ever emitted"     "$RES" 'null'
+# stdlib ONLY — no requests/httpx/bs4/any third-party import
+IMPORTS="$(grep -E '^(import|from) ' "$SD/schema_gen.py")"
+if printf '%s' "$IMPORTS" | grep -qiE 'requests|httpx|bs4'; then
+  no "schema_gen stdlib only" "third-party import found: $IMPORTS"
+else
+  ok "schema_gen stdlib only"
+fi
+# dispatch wiring: --store precedes the type (fetch.sh's own convention),
+# --script-tag comes after it (the caller's convention) — both must work
+# through the real fetch.sh entrypoint, not just the bare script
+FSG="$(SEO_DATA_ENV_FILE=/dev/null SEO_DATA_STORE=/nonexistent bash "$SD/fetch.sh" \
+  schema_gen reservation --provider "Chez X" --start 2026-08-01T19:00 --script-tag)"
+has "fetch dispatches schema_gen" "$FSG" '"status": "ok"'
+FSG_TAG="$(printf '%s' "$FSG" | \
+  python3 -c 'import sys,json; print(json.load(sys.stdin)["script"])')"
+has "fetch schema_gen script-tag" "$FSG_TAG" '<script type="application/ld+json">'
+
+echo "── content_quality ──"
+CQ() { python3 "$SD/content_quality.py" "$@"; }
+# feed the phrase list's OWN entries so the match is exact, not paraphrased —
+# a detector proven only on the maintainer's paraphrase proves nothing
+FILLER_TXT="In today's fast-paced world, it's important to note that this \
+article will delve into the ever-evolving landscape of technology. Let's \
+dive in and navigate the complexities together, leveraging the power of \
+innovation to unlock the potential of your business. Ultimately, this \
+cutting-edge, state-of-the-art approach is a testament to progress. \
+Moreover, furthermore, in conclusion, transform your outcomes today."
+CLEAN_TXT="The 2024 ADEME report found French households spent 2,137 EUR \
+on heating, up 12% from 2021."
+FILLER_OUT="$(printf '%s' "$FILLER_TXT" | CQ)"
+CLEAN_OUT="$(printf '%s' "$CLEAN_TXT" | CQ)"
+has "filler text is ok"          "$FILLER_OUT" '"status": "ok"'
+has "clean text is ok"           "$CLEAN_OUT"  '"status": "ok"'
+# flags is a JSON array — extract it in isolation so the check can't be
+# fooled by the always-present "matches": {"filler": [...]} key sharing
+# the same quoted word
+FILLER_FLAGS="$(printf '%s' "$FILLER_OUT" | \
+  python3 -c 'import sys,json; print(",".join(json.load(sys.stdin)["flags"]))')"
+CLEAN_FLAGS="$(printf '%s' "$CLEAN_OUT" | \
+  python3 -c 'import sys,json; print(",".join(json.load(sys.stdin)["flags"]))')"
+case "$FILLER_FLAGS" in
+  *filler*|*ai-patterns*) ok "filler-heavy text is flagged" ;;
+  *) no "filler-heavy text is flagged" "flags: $FILLER_FLAGS" ;;
+esac
+hasnt "clean text is not flagged filler"      "$CLEAN_FLAGS" 'filler'
+hasnt "clean text is not flagged ai-patterns" "$CLEAN_FLAGS" 'ai-patterns'
+# proves BOTH directions: an always-flag or a never-flag detector is useless
+FILLER_Q="$(printf '%s' "$FILLER_OUT" | \
+  python3 -c 'import sys,json; print(json.load(sys.stdin)["overall_quality"])')"
+CLEAN_Q="$(printf '%s' "$CLEAN_OUT" | \
+  python3 -c 'import sys,json; print(json.load(sys.stdin)["overall_quality"])')"
+[ "$FILLER_Q" -lt 50 ] && ok "filler-heavy text scores LOW overall_quality" \
+                        || no "filler-heavy text scores LOW overall_quality" "got $FILLER_Q"
+[ "$CLEAN_Q" -gt "$FILLER_Q" ] && ok "clean dense text scores higher" \
+                                || no "clean dense text scores higher" "$CLEAN_Q vs $FILLER_Q"
+# empty / whitespace-only input never crashes and never claims a result
+EMPTY_OUT="$(printf '' | CQ)"
+has "empty input degrades"       "$EMPTY_OUT" '"status": "degraded"'
+has "empty input reason"         "$EMPTY_OUT" 'empty_input'
+WS_OUT="$(printf '   \n\t ' | CQ)"
+has "whitespace-only degrades"   "$WS_OUT" '"status": "degraded"'
+# --file path works, no fixture committed — mktemp + rm
+CQTMP="$(mktemp)"; printf '%s' "$CLEAN_TXT" > "$CQTMP"
+FILE_OUT="$(CQ --file "$CQTMP")"
+has "file input is ok"           "$FILE_OUT" '"status": "ok"'
+rm -f "$CQTMP"
+# a missing --file degrades, never a traceback
+MISSING_OUT="$(CQ --file /nonexistent/path/content-quality-test.txt)"
+has "missing --file degrades"    "$MISSING_OUT" '"status": "degraded"'
+# stdlib ONLY — asserted, not assumed
+CQ_IMPORTS="$(grep -E '^(import|from) ' "$SD/content_quality.py")"
+if printf '%s' "$CQ_IMPORTS" | grep -qivE '^(import argparse, json, re, sys|from collections import counter|from typing import iterable)$'; then
+  no "content_quality stdlib only" "unexpected import: $CQ_IMPORTS"
+else
+  ok "content_quality stdlib only"
+fi
+# ADVISORY HONESTY (LRN-131/133): a heuristic signal, never a verdict
+hasnt "never claims ai-written"  "$FILLER_OUT" 'ai-written'
+hasnt "never claims is AI verdict" "$FILLER_OUT" 'is AI'
+# dispatch wiring: --store precedes the verb (fetch.sh's own convention);
+# both stdin AND --file must work through the real entrypoint
+FCQ_STDIN="$(printf '%s' "$CLEAN_TXT" | \
+  SEO_DATA_ENV_FILE=/dev/null SEO_DATA_STORE=/nonexistent bash "$SD/fetch.sh" content_quality)"
+has "fetch dispatches content_quality (stdin)" "$FCQ_STDIN" '"status": "ok"'
+CQTMP2="$(mktemp)"; printf '%s' "$CLEAN_TXT" > "$CQTMP2"
+FCQ_FILE="$(SEO_DATA_ENV_FILE=/dev/null SEO_DATA_STORE=/nonexistent bash "$SD/fetch.sh" \
+  content_quality --file "$CQTMP2")"
+has "fetch dispatches content_quality (--file)" "$FCQ_FILE" '"status": "ok"'
+rm -f "$CQTMP2"
 
 echo "── fetch.sh ──"
 FETCH="$SD/fetch.sh"
@@ -188,6 +539,8 @@ tf "analyzer calls fetch crux"  "$REPO/agents/seo-analyzer.md"   "fetch.sh crux"
 tf "analyzer calls fetch queries" "$REPO/agents/seo-analyzer.md" "fetch.sh queries"
 tf "analyzer gsc subsection"    "$REPO/agents/seo-analyzer.md"   "Performance GSC"
 tf "catalog gsc oauth entry"    "$REPO/agents/resources/automation-catalog.md" "make seo-connect"
+tf "geo-analyzer wires schema_gen" "$REPO/agents/geo-analyzer.md" "fetch.sh schema_gen"
+tf "geo-analyzer wires content_quality" "$REPO/agents/geo-analyzer.md" "fetch.sh content_quality"
 
 echo "── account-mgmt locks ──"
 tf "skill routes account verbs" "$REPO/skills/seo/SKILL.md" "forget --all"
@@ -200,6 +553,9 @@ tf "readme documents fetch.sh" "$REPO/lib/seo-data/README.md" "fetch.sh"
 tf "readme documents seo-connect" "$REPO/lib/seo-data/README.md" "make seo-connect"
 tf "readme documents forget"   "$REPO/lib/seo-data/README.md" "forget --all"
 tf "readme revocation note"    "$REPO/lib/seo-data/README.md" "myaccount.google.com/permissions"
+tf "readme documents schema_gen" "$REPO/lib/seo-data/README.md" "schema_gen"
+tf "readme documents content_quality" "$REPO/lib/seo-data/README.md" "content_quality"
+tf "readme states advisory caveat" "$REPO/lib/seo-data/README.md" "ADVISORY, NOT A VERDICT"
 
 echo ""
 echo "seo-data engine: $PASS pass, $FAIL fail"

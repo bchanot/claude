@@ -61,9 +61,18 @@ query. A one-sentence self-contained answer has the highest density.
 
 ### 4. Citations and statistics (strongest measured lever)
 
-Adding peer-cited statistics with clear sources increases AI visibility
-**by up to 40%** (Aggarwal et al., 2024 "GEO: Generative Engine
-Optimization").
+Aggarwal et al., 2024 ("GEO: Generative Engine Optimization", KDD 2024)
+report that their optimisation methods **collectively** boost visibility
+**by up to 40%** in generative-engine responses, and state the effect
+**varies across domains**. Citations/statistics/quotations are among those
+methods.
+
+> **Attribute this correctly.** Until 2026-07-16 this section read "Adding
+> peer-cited statistics with clear sources increases AI visibility by up to
+> 40%" — pinning the paper's *aggregate* result on this *one* technique. The
+> paper publishes no separate figure per technique. When quoting it to a
+> client: "up to 40%, across the method set, domain-dependent" — never "+40%
+> if you add stats".
 
 Pattern: embed specific numbers with attribution.
 
@@ -100,8 +109,20 @@ Comparison tables are even stronger. Structure:
 
 ### 6. Freshness signals
 
-Pages not updated at least quarterly are **3x more likely to lose AI
-citations** (LLMRefs 2026 study).
+Freshness is a real retrieval input: RAG systems fetch live and read
+timestamps, so a page updated this quarter carries a stronger recency
+signal than the same page last touched years ago. LLMrefs (a **vendor**,
+not peer review) reports cited content running **~25.7% fresher** than
+organic top-10 across ~17M citations. Substantive updates only — bumping a
+date string is not freshness.
+
+> **The "3x" that lived here was grafted from another claim.** Until
+> 2026-07-16 this read "Pages not updated at least quarterly are 3x more
+> likely to lose AI citations (LLMRefs 2026 study)". LLMrefs' actual "3x"
+> says **brand mentions correlate ~3x more strongly with AI visibility than
+> backlinks** — a different subject entirely. No source supports a quarterly
+> decay multiplier. Recommend quarterly refresh on its merits; do not price
+> it with a borrowed number.
 
 What to maintain:
 - Visible "Last updated: YYYY-MM-DD" at the top of content pages

@@ -27,8 +27,23 @@ _label_safe() ( LC_ALL=C; case "$1" in ''|[!A-Za-z0-9]*|*[!A-Za-z0-9._-]*) exit 
 cmd="${1:-}"; shift || true
 case "$cmd" in
   accounts) exec "$PY" "$HERE/tokenstore.py" list --file "$STORE" ;;
-  crux|queries|inspect)
+  crux|queries|inspect|cannibal)
     exec "$PY" "$HERE/google_seo.py" "$cmd" --store "$STORE" "$@" ;;
+  # No auth, no Google: stdlib-only, runs even without the venv.
+  sitemap)
+    exec "$PY" "$HERE/sitemap.py" --store "$STORE" "$@" ;;
+  score)
+    exec "$PY" "$HERE/score.py" --store "$STORE" "$@" ;;
+  schema_gen)
+    exec "$PY" "$HERE/schema_gen.py" --store "$STORE" "$@" ;;
+  content_quality)
+    exec "$PY" "$HERE/content_quality.py" --store "$STORE" "$@" ;;
+  drift)
+    exec "$PY" "$HERE/drift.py" --store "$STORE" "$@" ;;
+  rendercheck)
+    exec "$PY" "$HERE/render_check.py" --store "$STORE" "$@" ;;
+  linkgraph)
+    exec "$PY" "$HERE/linkgraph.py" --store "$STORE" "$@" ;;
   forget)
     # forget --label <label> → drop one account; forget --all → empty the store.
     # Local removal only — does NOT revoke the grant at Google's end.
@@ -41,6 +56,6 @@ case "$cmd" in
     fi
     echo '{"status":"error","reason":"usage: fetch.sh forget {--label <label>|--all} (label charset: A-Za-z0-9._-)"}'
     exit 2 ;;
-  *) echo '{"status":"error","reason":"usage: fetch.sh {accounts|crux|queries|inspect|forget} [flags]"}'
+  *) echo '{"status":"error","reason":"usage: fetch.sh {accounts|crux|queries|inspect|cannibal|sitemap|rendercheck|linkgraph|drift|score|schema_gen|content_quality|forget} [flags]"}'
      exit 2 ;;
 esac

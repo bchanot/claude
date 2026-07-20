@@ -117,6 +117,17 @@ PLAN:
 If the approach is ambiguous: ask the user ONE focused question BEFORE
 dispatching — never after (the executor cannot relay questions).
 
+## STEP 1b — CHALLENGE THE PLAN (before branching)
+The STEP 1 plan is a reflection worth attacking before a branch is spent on it.
+Persist it to `.claude/tasks/plans/<date>-<slug>-<HHMM>.md`, then run
+`$HOME/.claude/lib/challenge-plan.md` with `PLAN` = that file, `KIND` = `build-plan`,
+`SCOPE` = the STEP 1 files, `CONSTRAINTS` = the STEP 0.6 in-force BDR/LRN dispositions.
+Three blind challengers attack it; RE-THINK every aspect a BLOCKER lands (a named
+plan change, or `[deferred]`), re-challenge once if the plan materially changed. The
+STEP 3 executor receives the REVISED plan. Before dispatch, print a CHALLENGE SUMMARY
+(BLOCKERs addressed / deferred / lenses returned), surfacing any deferred BLOCKER via
+STEP 1's one-question gate.
+
 ## STEP 2 — BRANCH
 
 **Gitflow aiguillage (before dispatch):** follow `$HOME/.claude/lib/gitflow-aiguillage.md`
@@ -175,7 +186,7 @@ feat(<scope>): <what was added>
 If the feature touched multiple concerns (e.g., feature + config +
 test), consider splitting into 2-3 atomic commits grouped by logical
 unit — or run `/commit-change` on the pending work (it dispatches the
-sonnet commit-changer; never inline-load the bare agent, it is now a
+commit-changer (propose opus / apply sonnet, BDR-077); never inline-load the bare agent, it is now a
 propose/apply executor).
 
 Print summary:
@@ -189,9 +200,16 @@ VERIFIED : <what was checked>
 
 ## STEP 6 — DOC SYNC (automatic)
 
-Load `$HOME/.claude/agents/doc-syncer.md`.
-Execute in automatic mode:
-`auto-mode scope: <list of files modified during this session>`
+Dispatch the doc pipeline (BDR-077 — audit judgment on opus, patch on the
+sonnet pin, gate HERE):
+1. `Agent(subagent_type="doc-syncer", model="opus")` — `MODE: audit` +
+   `auto-mode scope: <list of files modified during this session>`.
+2. Silence (NONE) → done. `[MINOR]` PATCH PLAN → re-dispatch
+   `Agent(subagent_type="doc-syncer")` with `MODE: patch` + the plan
+   verbatim (no gate — auto behavior preserved; a `SHAPE ESCALATION` in
+   its report comes back here, gated as SIGNIFICANT).
+3. SIGNIFICANT → gate here (`Apply? yes / no / select`), then
+   `MODE: patch` with the approved subset.
 
 **Then commit the docs** — follow `$HOME/.claude/lib/doc-commit.md`: it surgically commits
 ONLY the files doc-syncer patched (its `PATCHED_FILES` output), never `git add -A`, never

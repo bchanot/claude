@@ -20,7 +20,8 @@ $ARGUMENTS
 ---
 
 ## STEP 0 — PLUGIN CHECK + AUTO-ACTIVATE
-Load `$HOME/.claude/agents/plugin-advisor.md`. Feed request.
+Run `$HOME/.claude/lib/plugin-gate.md`. Feed request (dispatch plugin-probe →
+checkpoint → dispatch plugin-advisor; gates stay in this loop — BDR-077).
 - ACTION REQUIRED → show RECOMMENDATIONS block, offer: A) fix plugins B) type "force". STOP.
 - PROPOSED CHANGES exist → show list, ask "Apply? (yes / no / customize)". Apply on confirm.
 - OK → `✅ Plugin check passed — [active plugins] — complexity: <score>%`, continue.
@@ -51,7 +52,8 @@ ls .gsd/ROADMAP.md 2>/dev/null | head -1
   STOP.
 
 ## STEP 0c — CTX7 CACHE CHECK (if fast-libs in project)
-Check if the project uses fast-evolving libs (scan `package.json` for next, react, prisma, supabase, drizzle, expo):
+Check if the project uses fast-moving libs — single source of truth:
+`bash ~/.claude/lib/fast-libs.sh detect .` (exit 1 = none; BDR-078):
 1. If `.ctx7-cache/` exists with recent files (<7 days old) → print `📚 ctx7 cache found: <libs>` and continue.
 2. If `.ctx7-cache/` missing or stale AND `ctx7` is installed AND fast-libs detected:
    ```bash
@@ -115,6 +117,19 @@ Invoke `superpowers:writing-plans` with the validated design AND the 0d digest: 
 must be consistent with the in-force constraints; where a task implements or affects one,
 note the ID inline. Break design into tasks (2-5 min each). Each task: exact file paths, full code, verification steps.
 
+## STEP 2b — CHALLENGE THE PLAN (adversarial, before the gate)
+Before the human sees the plan, harden it. Run `$HOME/.claude/lib/challenge-plan.md`:
+- `PLAN` = the plan STEP 2 wrote under `docs/superpowers/plans/`
+- `KIND` = `build-plan`
+- `SCOPE` = the files/dirs the plan touches
+- `CONSTRAINTS` = the STEP 1 validated design's decided trade-offs / rejected options
+
+Three blind `plan-challenger` subagents (correctness / robustness / simplicity)
+attack it in parallel on the big model; the main loop RE-THINKS every aspect a
+BLOCKER lands (a named plan change, or `[deferred <date>]`), re-challenges once if
+the plan materially changed, and feeds the REVISED plan + a CHALLENGE SUMMARY into
+STEP 3. Advisory — the human remains the decider.
+
 ## STEP 3 — VALIDATION GATE ★ MANDATORY STOP
 ```
 SHIP FEATURE — VALIDATION GATE
@@ -127,6 +142,11 @@ RELATED MEMORY — disposition CLAIMED by this plan (review each):
   - BLK-009 [already seen] — <how avoided / why N-A>
 
 Review the claims above — flag any item the plan does NOT actually honor.
+
+CHALLENGE SUMMARY (STEP 2b — 3 lenses):
+  BLOCKERs addressed : <n> — <finding → the named plan change that closes it>
+  Deferred (human-ack): <list | none>
+  Lenses returned    : correctness / robustness / simplicity (NAME any that failed to return)
 Approve and execute? (yes / request changes)
 ```
 This block EXPOSES each in-force item with the plan's CLAIMED disposition, for human
@@ -204,7 +224,10 @@ conformity + security vs. craft/design) — both run, neither subsumes the
 other ([[LRN-095]]).
 
 ## STEP 6 — CODE REVIEW
-Invoke `superpowers:requesting-code-review`. Fix all CRITICAL before proceeding.
+Invoke `superpowers:requesting-code-review`. **Model routing (BDR-077):** the
+review subagent it dispatches MUST carry `model: "opus"` in the Agent call —
+craft review is dispatched judgment, never inherited from the session. Fix
+all CRITICAL before proceeding.
 
 ## STEP 7 — CAPITALIZE (memory registries)
 Feature shipped implies at least one design decision worth capturing. Run this BEFORE STEP 9 FINISH — the implementation commits (STEP 4) already exist, so the entries' hash references are valid, and the memory commit lands on the branch that FINISH integrates (otherwise it strands outside the PR):
@@ -246,8 +269,13 @@ Run BEFORE STEP 9 FINISH. doc-syncer PATCHES public docs but does NOT commit the
 uncommitted (or committed after) never reaches the merge/PR. Same PR-stranding class as the
 STEP 7 capitalize fix (BDR-034).
 
-Load `$HOME/.claude/agents/doc-syncer.md`. Execute in automatic mode:
-`auto-mode scope: <list of files modified during this session>`
+Dispatch the doc pipeline (BDR-077 — audit judgment on opus, patch on the
+sonnet pin, gate HERE): `Agent(subagent_type="doc-syncer", model="opus")` —
+`MODE: audit` + `auto-mode scope: <list of files modified during this
+session>`. NONE → done; `[MINOR]` PATCH PLAN → re-dispatch
+`Agent(subagent_type="doc-syncer")` with `MODE: patch` + the plan verbatim
+(SHAPE ESCALATION comes back here, gated); SIGNIFICANT → gate here, then
+`MODE: patch` with the approved subset.
 
 **Then commit the docs** — follow `$HOME/.claude/lib/doc-commit.md`: it surgically commits
 ONLY the files doc-syncer patched (its `PATCHED_FILES` output, one path per line → one argv

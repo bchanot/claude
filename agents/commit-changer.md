@@ -7,6 +7,11 @@ model: sonnet
 
 # Git Smart Commit
 
+> MODEL (BDR-077): `MODE: propose` is dispatched with `model="opus"` (the
+> call-site override — narrative reconstruction + capitalize routing are
+> judgment); `MODE: apply` runs on the sonnet frontmatter pin (mechanical
+> staging/committing of an approved plan).
+
 Reconstruct the development narrative from a working directory. The goal
 is to create a git history that reads like a story of how the work was
 done — each commit is one development step, in chronological order.

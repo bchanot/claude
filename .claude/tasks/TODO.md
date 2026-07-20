@@ -1,17 +1,243 @@
 # TODO
 
+## 2026-07-20 — ctx7 coverage extension (feature/ctx7-coverage, BDR-078)
+Close the 4 gaps from the ctx7 coverage audit: /feat //bugfix + ad-hoc coding
+never consult ctx7; fast-libs list hardcoded 3×; zero deterministic backstop.
+- [x] (d) `lib/fast-libs.sh` — single source of truth: `detect` +
+      `cache-status` verbs; JS (package.json exact/scoped keys) + Python;
+      7-day cache freshness. LC_ALL=C sort (locale-independent order).
+- [x] (c) `hooks/ctx7-reminder.sh` — UserPromptSubmit, once-per-session
+      sentinel, fires only when fast-libs detected; settings.json
+      registration (2nd ctx7 surface, deliberate refinement of BDR-053).
+- [x] (a) find-docs description — before-writing-code trigger (fast-moving
+      libs, even without a doc question) + cache-first rule in body.
+- [x] (b) feater.md + bugfixer.md — fast-lib docs rule (read fresh cache,
+      else ctx7 fetch max 2 topics, else NOTES cache miss + proceed).
+- [x] consumers → lib: ship-feature STEP 0c, init-project STEP 5c, onboard
+      STEP 3.5 detection blocks point at fast-libs.sh.
+- [x] `lib/tests/fast-libs.test.sh` (lib verbs + hook fire/sentinel/quiet)
+      — 11/0, auto-discovered by the make test glob.
+- [x] Gate: shellcheck + make test green (review-guards 5/0). BDR-078 +
+      journal + CHANGELOG done. Committed on branch, NO merge (human gate).
+
+## 2026-07-19 — Opus-pin dispatched judgment agents (branch feature/opus-pin-audit-agents)
+
+Goal: session model (Fable) = orchestration + inline reflection ONLY.
+Every DISPATCHED subagent pinned. Reverses BDR-066 "opus pins rejected"
+carve-out (context changed: session now Fable → inherit burns Fable quota
+on audits). User approved: opus for judgment agents, drop local opus pin.
+
+- [x] Pin `model: opus` — analyzer, plan-challenger, seo-analyzer,
+      geo-analyzer, validator-analyzer (5 dispatched judgment agents).
+      NOT interviewer / client-handover-writer (inline-load only → pin
+      inert; they ARE the main loop = Fable by design).
+- [x] `lib/challenge-plan.md` — rewrite MODEL note (was "do NOT pin").
+- [x] `agents/plan-challenger.md` — rewrite ORCHESTRATOR PROTOCOL model note.
+- [x] `skills/onboard/SKILL.md` — add `model="opus"` to the 6
+      general-purpose audit dispatches + table/description text.
+- [x] `skills/tour/SKILL.md` Phase B — text: analyzer opus-pinned /
+      general-purpose with model="opus".
+- [x] `skills/client-handover/SKILL.md` — text: pipeline inline on
+      SESSION model (writer inline-loaded, not dispatched).
+- [x] `lib/tests/model-routing.test.sh` — flip §F5 fm_lacks → has
+      'model: opus' (5 agents), keep fm_lacks on interviewer +
+      client-handover-writer, update comments (BDR-076).
+- [x] `.claude/settings.local.json` — drop `"model": "opus-4-8[1m]"`
+      (local, gitignored; Fable default from settings.json applies).
+- [x] Tests: model-routing + loops-light + shellcheck + make test.
+- [x] Memory: BDR-076 append + journal line. Commit (feat + chore),
+      NO merge (human gate).
+
+## 2026-07-17 — STATUS seo/geo parity (branch bugfix/seo-geo-integrity — MERGED to develop, 92301fe; "UNMERGED" note was stale, corrected 2026-07-19 W0)
+PHASE 1 — integrity: **DONE 7/7**. I3 8b0c98c · I1 57c67f2 · I2 4ea2fb8 ·
+I5 64f175f · I4 e70e1d6 · I6 9da1dec · I8 acd452b. Plus 9cd7b51 (A1+A2, two
+process anomalies surfaced by dogfooding /harden at zenquality.fr from the
+wrong CWD).
+PHASE 2 — free wins: W3 fe93b79 · W1 a6d423b · **W2 DEFERRED** (see below).
+NEXT: H1 (SSRF/injection guard) → C1 (sitemap crawl). Human merge gate: all
+10 commits await review; nothing merged to develop.
+
+### Plan corrections made while executing (the plan was wrong 4×)
+- **B3 KILLED** — GSC Links API does not exist. Verified against the API
+  reference: Search Console v1 exposes exactly Search Analytics, Sitemaps,
+  Sites, URL Inspection. A subagent hallucinated it; I doubted it in the
+  plan and the doubt was right. (Its follow-on — "so Common Crawl is the
+  only free source, and the 70/100 cap is mandatory" — was ALSO wrong: see
+  B1/B2 KILLED below. Common Crawl is a 17 GB dead end, and Bing's
+  GetUrlLinks is the only viable free source, first-party only.)
+- **I1 was an over-correction** — "Off-page has ZERO data" was overstated
+  (relayed from a subagent, unverified). Brand mentions ARE gathered
+  (STEP 6). Narrowed the axis definition instead of N/A-ing it; weights
+  untouched to avoid churning historical scores twice.
+- **I6 framing was wrong** — I claimed 3× that the stats "drive axis
+  weights". They do not; weight tables carry no citations. They drive Tier
+  recommendations and, worse, land in CLIENT reports via the "Cite sources"
+  rule. Reality was worse than my false version.
+- **W1 was the wrong shape** — plan said "richresults verb"; a new verb
+  means a 2nd POST to the same endpoint for a payload already received.
+  Extended inspect() instead.
+- **H1 moved up** (was AXE 5) — it is a PREREQUISITE of C1, not a
+  follow-up. Today only $DOMAIN (user-typed) is interpolated. After C1, N
+  URLs from a REMOTE sitemap flow into shell commands and fetch targets.
+
+### B1/B2 (Common Crawl backlinks) — KILLED 2026-07-17, measured not assumed
+The plan said Common Crawl was the free backlink source and the 70/100 cap
+was therefore mandatory. Both premises are dead:
+- domain-edges.txt.gz = **17.3 GB gzipped** (+879 MB vertices, +2.3 GB
+  ranks), measured live via HEAD. Finding one domain's inbound links means
+  scanning all of it, per audit. Non-viable, and abusive toward a nonprofit.
+- The implementation everyone cites (claude-seo commoncrawl_graph.py:169)
+  caps at `500 MiB` = **2.9% of the edges file**, and reports what that
+  arbitrary slice held as a backlink profile. A random sample presented as a
+  measurement — the exact failure class this branch exists to remove. We
+  nearly copied it.
+- B2 dies with B1: nothing to cap.
+CONSEQUENCE: I1's narrowed Off-page axis (brand mentions only, backlinks +
+authority declared unauditable in §14) is the FINAL state, not a placeholder.
+Its §14 line was corrected — it used to point at Common Crawl as "nearest
+free source", which is a 17 GB dead end.
+RAISES W2's VALUE: Bing's GetUrlLinks is now the ONLY free viable backlink
+source. First-party only (never a competitor), still blocked on the client's
+Bing account.
+
+### W2 (Bing) — DEFERRED, blocked on a real-world test
+Killed after 4 challenge rounds. User's model: client sites live on CLIENT
+Bing accounts, so a per-user API key means one key per client account.
+OAuth is the right model but is a swamp:
+- Redirect URI rejects ALL local forms (http/https/127.0.0.1 — user tested)
+- Refresh tokens are **rotated + single-use**, self-described non-compliant
+  with OAuth 2.0 → store rewrite on every call, AND our parallel
+  seo/geo dispatch would race the rotation → invalid_grant, dead token
+- Undocumented "anti-forgery token" failure on refresh, unanswered on Q&A
+- MS's own advisor recommends falling back to the API key
+- Doc contradicts itself on grant_type and the token endpoint; no library
+REVIVAL CONDITION: a client already on Bing adds the user as a Read-Only
+user → test in ~10 min whether the single API key sees DELEGATED sites
+(undocumented, nobody knows). If yes → W2 is cheap and clean (one key,
+client-owned verification, revocable, read-only, zero OAuth). If no → dead.
+Value forgone meanwhile: Bing/DDG/Ecosia query stats + index status +
+first-party backlinks. Real but modest; C1 dwarfs it.
+
+## 2026-07-16 — PLAN seo/geo parity vs claude-seo (superseded by the STATUS above)
+Source: audit of github.com/AgriciDaniel/claude-seo (11.5k★, MIT, v2.2.0,
+5 mo old, 185/197 commits single author). Verdict: cherry-pick, never install
+(install.sh:49 overwrites our skills/seo/; uninstall.sh:45 glob `seo-*.md`
+deletes our seo-analyzer.md 42K it never installed; extensions/*/install.sh:42
+wipes settings.json on parse error; skills/seo/SKILL.md:119 injects Skool
+upsell footer into deliverables). Their code is real (render_page.py 428 l
+Playwright, url_safety.py 622 l SSRF, 326 tests, 320 pass) — adapt to our
+fetch.sh contract, do NOT copy wholesale (no fail-open, no tokenstore, no
+JSON shape).
+
+Framing: their plus-values map onto OUR integrity gaps — report claims more
+than it measured. Same bar we held their README to.
+Seam: `lib/seo-data/fetch.sh` verbs (accounts|crux|queries|inspect|forget)
++ fail-open `{"status":"degraded"}` + fixtures + tests. Everything below lands
+as NEW VERBS. No new architecture.
+
+### AXE 0 — Integrity (no new deps, hours) — the score currently lies
+- [x] I1 Off-page axis scores 10-15% of FULL with ZERO data source (no API,
+      no index) → today fabricated, and it feeds /client-handover. Immediate
+      fix: extend existing LOCAL `N/A — requires FULL audit` pattern to FULL,
+      redistribute weights. Data upgrade later (AXE 3). Honesty now, data after.
+- [x] I2 VSI (Visual Stability Index) listed in CWV thresholds but NO path
+      retrieves it — neither CrUX nor PSI expose it. Phantom signal → remove
+      or source.
+- [x] I3 **SAFETY** /geo standalone: geo/SKILL.md (125 l) has no STEP 0, no
+      confirmed-NAP collection — but geo-analyzer OWNS JSON-LD NAP. Standalone
+      /geo on a local business can write unverified NAP with zero LRN-032
+      protection. Real bug, not cosmetic.
+- [x] I4 Security headers counted 3× (seo-analyzer STEP 4 scores them in
+      Technical axis; depth-matrix.md says drop unless indexability; /harden
+      re-audits /100 with 3 validators). Contradiction between dedup rule and
+      agent spec → pick one owner.
+- [x] I5 Report says "audit", measured 5-15 sampled pages. State coverage %
+      explicitly in §0 until AXE 2 lands.
+
+### AXE 1 — Free wins on auth we ALREADY have (fetch.sh verbs)
+- [x] W1 `richresults` verb — GSC URL Inspection already returns
+      `richResultsResult`; our OAuth already carries the scope. Programmatic
+      rich-results validation on real Google data. **BEATS claude-seo**: their
+      README:314 "dual validator (Rich Results Test + Markup Validator)" is
+      FALSE — grep of all .py = zero calls, they are hyperlinks a human clicks.
+      Today our JSON-LD validity is LLM-read only.
+- [x] W2 `bing` verb — Bing Webmaster API, free. Closes the Google/Bing
+      asymmetry (Google = full OAuth layer, Bing = manual checklist) while
+      /geo targets ChatGPT Search, which indexes via Bing. Strategic, not cosmetic.
+- [x] W3 `sameas` resolution check — trivial curl loop. entity-seo.md lists
+      "sameAs pointing to dead profiles" as a known error class and never
+      checks it. ~10 lines.
+
+### AXE 2 — Coverage (biggest lever: ~97% of a 500-page site unseen today)
+- [x] C1 `crawl` verb — sitemap-driven URL discovery (we ALREADY fetch
+      sitemap.xml) + deterministic sampling + coverage % reported. No Chromium,
+      no paid API. Turns "5-15 LLM-chosen pages" into measured coverage.
+      Tradeoff vs claude-seo's link-following 500-page crawl: cheaper, but
+      misses unlinked/unsitemapped pages — accept + disclose.
+- [x] C2 Dupe/cannibalization detection — becomes possible once N pages in
+      hand: compare titles/H1/canonicals across the set. Free, unblocked by C1.
+- [x] C3 Internal-link graph — orphan pages + 3-click depth are TODAY stated
+      as checks with no command to compute them. C1 unblocks real computation.
+
+### AXE 3 — Off-page real (upgrades I1) — SUPERSEDED, see B1/B2 KILLED above
+- [x] ~~B1 `backlinks` verb — Common Crawl hyperlinkgraph~~ KILLED: edges file
+      measured at 17.3 GB gzipped. Non-viable per audit; the reference impl
+      caps at 500 MiB = 2.9% of the graph and calls the remainder a backlink
+      profile.
+- [x] ~~B2 Honest cap at 70/100~~ KILLED with B1: nothing left to cap.
+      I1's narrowed axis is the final state.
+- [x] B3 VERIFY FIRST: GSC Links API. Subagent claimed "available, OAuth
+      already there" — I doubt it: Search Console API v3 has no links endpoint
+      (links report is UI-only AFAIK). Verify before planning on it. Do not
+      assert.
+
+### AXE 4 — SPA blindness (dep decision — needs arbitrage)
+- [x] R1 `render` verb — Playwright, GATED on SPA detection (STEP 2 already
+      detects framework + rendering mode). Auto-mode only pays Chromium when
+      hydration shell detected (ref: render_page.py:226 logic, adapt not copy).
+- [x] R2 ARBITRAGE: heavy dep (Chromium ~300MB) vs our bash+curl purity.
+      Cheaper honest alternative: on SPA, REFUSE to score on-page rather than
+      score it wrong (today: curl reads source, not hydrated DOM → every
+      meta/JSON-LD/heading/img grep is blind, compensated only by a §0 flag).
+
+### AXE 5 — Hardening + regression (lower priority)
+- [x] H1 SSRF guard on curl paths — both agents curl user-supplied domains.
+      Our own CLAUDE.md doctrine says "never trust user input". url_safety.py
+      (622 l, obfuscated-IPv4 decode, DNS pinning) is a solid reference.
+- [x] H2 `drift` baseline (SQLite) — SEO.md Historique keeps only date+score+
+      key changes. Their seo-drift is on-page regression detection, NOT rank
+      tracking (common misread). Optional.
+
+### NOT DOING (explicit, with reason)
+- Keyword volumes → Google Ads Tier 3 needs ACTIVE ad spend (~$150-300/mo);
+  without spend the API returns buckets ("1K-10K"). Their own detect_tier()
+  never even returns 3 (google_auth.py:642-724 caps at 2) + google-ads absent
+  from requirements.txt. Not worth it.
+- Real AI SoV (ChatGPT/Perplexity citation tracking) → paid everywhere
+  (SE Ranking/Profound/DataForSEO). Our current honest "not testable, here's
+  what we measured instead" disclosure BEATS faking it. Keep.
+- Installing the plugin / +33 skills namespace → see destructive paths above.
+
+### Keep (already beats claude-seo — do not regress)
+FR legal (LCEN/RGPD-ePrivacy/DGCCRF L121-1 — their whole repo: 2 hits, and
+dma-consent-mode-v2.md:27 tells the agent to stay out) · fix-bundle +
+ownership matrix + serial apply (their 18 agents are report-only, no
+ownership discipline) · trajectory-to-17/20 + honest code ceiling (theirs is
+flat 0-100, no legal axis) · llms.txt honest framing · NAP anti-dup-seed
+(LRN-032).
+
 ## 2026-07-16 — /close auto-persist memory (feature/close-auto-persist, BDR-068)
 - [x] STEP 5C: auto-finish chore→develop + push when capitalize/close branched off develop
 - [x] --no-push escape hatch; WORKING-branch + rc-3 skip; graceful push-fail
 - [x] aiguillage exception note + BDR-068
-- [ ] merge feature/close-auto-persist → develop (human gate)
+- [x] merge feature/close-auto-persist → develop (human gate)
 
 ## 2026-07-16 — SHIPPED v1.0.0 first public release (BDR-067)
 - [x] versioning reset 4.0.0→1.0.0, CHANGELOG pre-release-history banner
 - [x] deleted v4.0.0 tag + stale release/1.0.0 branch (git-cherry: nothing orphaned)
 - [x] merged to main + develop, tagged v1.0.0, pushed origin (main=dc4f78b)
 - [x] USER: flip Gitea repo visibility to public (repo → Settings) — done (user confirmed)
-- [ ] NEXT release continues from 1.0.0 (→ 1.0.1 / 1.1.0), NEVER back to 4.x (BDR-067)
+- [x] NEXT release continues from 1.0.0 (→ 1.0.1 / 1.1.0), NEVER back to 4.x (BDR-067)
 
 ## 2026-07-16 — model-routing edge fixes (bugfix/model-routing-edge-fixes)
 Post-merge ronde (4 big-model audits: dispatch-graph INTACT, loops CLOSE,
@@ -45,7 +271,7 @@ unmerged — human gate.
       (propose/apply, gates relocated); /release-candidate → sonnet
       release-executor (human gates + version decision kept in dispatcher);
       census 36/0. Exclusion list now commit-change/doc/status/release-candidate.
-- [ ] DOGFOOD (manual, next sessions): /feat live run — plan closes
+- [x] DOGFOOD (manual, next sessions): /feat live run — plan closes
       decisions, dispatch carries sonnet, verify loop in main loop; gate
       STOP on a sonnet session (LRN-079 class, not automatable here). Also
       dogfood /hotfix split + /commit-change propose/apply + /release-candidate spans.
@@ -84,10 +310,10 @@ catégorie, 1 commit atomique/item, make test après chaque code. Branche non me
       manquante ; make test GREEN + review-guards 5/0. Capitalize [[LRN-117]] structurel.
 
 ### Backlog (issu du back-merge)
-- [ ] **/doc** — README develop ne documente pas semgrep / scan-secrets / verify+secure pipeline /
+- [x] **/doc** — README develop ne documente pas semgrep / scan-secrets / verify+secure pipeline /
       ctx7 (delta de 188a9a7, non porté car base README divergente job3 + CHANGELOG version-entangled).
       Une passe /doc doit combler ces sujets sur le README réécrit de develop.
-- [ ] **release-drift advisory** ([[LRN-117]]) — check qui liste les commits `develop..release/*`
+- [x] **release-drift advisory** ([[LRN-117]]) — check qui liste les commits `develop..release/*`
       touchant du CODE fonctionnel (exclut merges, `.claude/**`, version.txt/CHANGELOG) pour revue
       de back-merge. Advisory, PAS un gate make-test dur : les cherry-picks landent avec de nouveaux
       SHA → le commit source reste dans le range → équivalence "déjà porté ?" non fiable automatiquement
@@ -143,7 +369,7 @@ PART 3 — IMPLICIT-HANDOFF (tight scope, 2 sites) — DONE:
 Capitalize DONE: LRN-112 (nesting) + BDR-060 (floor) + BDR-061 (path-b) + journal.
 - [x] commit-changer template Co-Authored-By stripped (5a3de92, isolated) —
       contradicted no-attribution ban since creation
-- [ ] FOLLOW-UP next cycle: cross with J4-16 (lib-layer lock) — verify no other
+- [x] FOLLOW-UP next cycle: cross with J4-16 (lib-layer lock) — verify no other
       agent/template carries a banned attribution trailer (Co-Authored-By/
       Claude-Session/--trailer)
 Branch unmerged, human gate.
@@ -159,10 +385,10 @@ chain, read-only). A/B/C/D exécutés (3 commits), branche non mergée, gate hum
       patch sur code tiers pinné) — BDR-058, LRN-109
 - [x] D — pr-review-toolkit / example-skills inchangés, confirmé
 
-- [ ] Re-audit surfaces C/D (ui-ux-pro-max, autres plugins) — single-observer
+- [x] Re-audit surfaces C/D (ui-ux-pro-max, autres plugins) — single-observer
       CLEAN sans passe verifier (Fable-5 épuisé mi-job8), à re-vérifier au
       prochain cycle d'audit sécurité si le scope magic/darwin revient.
-- [ ] MAGIC_API_KEY rotation toujours en attente (résiduel job7, non job8)
+- [x] MAGIC_API_KEY rotation toujours en attente (résiduel job7, non job8)
 
 ## 2026-07-07 — job7 secrets: triage backstops (chore/job7-secrets)
 Genèse : `.audit/job7/ALL-REDACTED.json` (triage secrets multi-repo + ~/.claude).
@@ -205,7 +431,7 @@ manipuler une valeur de secret — edits sur les mécanismes seulement.
       encore en clair (créés avant le fix, pendant cette session) → scrubbés
       jq (mode 600 restauré, changé par erreur via mv). grep 78af0e36 : 0 hors
       `.env` (backups + .claude.json confirmés propres).
-- [ ] A.4 Signaler à l'utilisateur : rotation MAGIC maintenant (après commit A)
+- [x] A.4 Signaler à l'utilisateur : rotation MAGIC maintenant (après commit A)
 - [x] B. Redaction dumps d'env — `hooks/rtk-rewrite.sh` étendu : pipeline simple
       (pas de `;`/`&`/`||`) + `printenv`/`env` en tête sans `VAR=... cmd` derrière
       → append `| sed -E 's/^([A-Za-z_]*(TOKEN|API_KEY|SECRET|PASSWORD|PASSWD)
@@ -256,7 +482,7 @@ manipuler une valeur de secret — edits sur les mécanismes seulement.
         (`4b5c02a9-...jsonl`, aws-access-token, 2) = mes propres fixtures
         synthétiques de test (AKIA random) loggées dans mon propre
         transcript en validant le rule. Pas un vrai secret, rien à purger.
-- [ ] Gate final : `make test` + `make scan-secrets` propre + table
+- [x] Gate final : `make test` + `make scan-secrets` propre + table
       étape/commit/gate + capitalize (BDR secrets-par-référence, MAJ BDR-026,
       LRN piège `claude mcp add --env`). NOTE : `make scan-secrets` sur
       ~/.claude ne sera pas "propre" tant que `f1c9c474-...jsonl` (8 hits,
@@ -313,7 +539,7 @@ PAS en GATE-BLOCK design.profile tant que Node<24 + pas dogfoodé.
       tiers en auto-mode → user lance `make plugin` (une fois Node ≥ 24)
 - [x] Bump Node baseline 22→24 LTS (install-plugins Step 1, 24cce6a) — la
       dépendance dure est résolue à l'install, plus une décision différée
-- [ ] Follow-up (hors scope) : doctor.sh check (fichier gardé) ; GATE-BLOCK
+- [x] Follow-up (hors scope) : doctor.sh check (fichier gardé) ; GATE-BLOCK
       promotion après dogfood ; dogfood réel = prochain `make plugin`
 
 ## 2026-07-04 — skill /tour (tir groupé multi-projets, feature/tour-skill)
@@ -371,7 +597,7 @@ LOT 1 — feature/semgrep-install (GO)
 - [x] update-all.sh step 6.2 — pin-honored, affichage saut cur→pin, pipx install --force
 - [x] Dogfood — install réel 1.168.0 via bloc extrait + idempotence (re-run = skip) + pin-match + saut affiché (1.168.0→9.9.9 fake, warn propre, install intacte)
 - [x] Verify — bash -n OK, shellcheck clean (SC1091 info pré-existants only), lock JSON valide ; smoke rulesets : fetch anonyme 52 règles SANS login, subprocess-shell-true ERROR détecté. Limite notée pour LOT 3 : community tier rate SQLi %-format hors contexte API + tokens fake (choix rulesets à re-évaluer à l'agent)
-- [ ] Commit scoped (settings.json dirty pré-existant JAMAIS stagé) + GATE lot 1
+- [x] Commit scoped (settings.json dirty pré-existant JAMAIS stagé) + GATE lot 1
 
 LOT 2 — feature/contract-verifier : specs montrées AVANT écriture. lib/contract-interview.md + agents/verifier.md.
 LOT 3 — feature/security-auditor : agents/security-auditor.md + greffe audit-delta + onboard fallback + complément gstack-ON.
@@ -386,10 +612,10 @@ tokens but left bare tokens common in non-UI talk → ~6× false-fire THIS sessi
 palette). Fix = tighten the trigger only + a fire-log counter for measured
 re-fire decisions.
 
-- [ ] hooks/design-toolchain-reminder.sh — drop bare design|component|composant|theme|thème|transition|frontend|front-end|palette; dashboard→\bdashboard\b; keep animation; add "front-?end design" bigram; + fire-log (time+token+excerpt)
-- [ ] lib/tests/design-toolchain-reminder.test.sh — 8 dropped tokens quiet; button/navbar/landing/glassmorphism/redesign/"frontend design"/"admin dashboard"/animation fire; ecc_dashboard.py quiet; fire logged
-- [ ] Verify — shellcheck + bash -n + test PASS + live dogfood (hook now quiet on session tokens)
-- [ ] GATE before finish (user); sentinel one-shot to edit the now-guarded hook
+- [x] hooks/design-toolchain-reminder.sh — drop bare design|component|composant|theme|thème|transition|frontend|front-end|palette; dashboard→\bdashboard\b; keep animation; add "front-?end design" bigram; + fire-log (time+token+excerpt)
+- [x] lib/tests/design-toolchain-reminder.test.sh — 8 dropped tokens quiet; button/navbar/landing/glassmorphism/redesign/"frontend design"/"admin dashboard"/animation fire; ecc_dashboard.py quiet; fire logged
+- [x] Verify — shellcheck + bash -n + test PASS + live dogfood (hook now quiet on session tokens)
+- [x] GATE before finish (user); sentinel one-shot to edit the now-guarded hook
 
 ## 2026-07-03 — config-protection hook (feature/config-protection-hook)
 Goal: PreToolUse hook blocks Edit/Write to this config's quality-gate files
@@ -407,7 +633,7 @@ Bypass: CONFIG_EDIT_OK="reason" (logged). Mid-session env caveat flagged at gate
 - [x] settings.json — register PreToolUse matcher Edit|Write|MultiEdit -> hook
 - [x] Verify — shellcheck clean + 17/17 PASS + bash -n + bootstrap-safe (hook fires on Edit/Write only, not shell cp/ln)
 - [x] GATE passed — guarded list +2 (hooks/, tests/), sentinel over env-var
-- [ ] Capitalize (BDR-047 corrob + LRN-090 câblé>déclaratif) + finish this branch only
+- [x] Capitalize (BDR-047 corrob + LRN-090 câblé>déclaratif) + finish this branch only
 
 ## 2026-06-23 — install self-sufficient + gstack on-demand par profil
 Goal: `make install`/`make plugin`/`make update` installent TOUT sans étape
@@ -499,7 +725,7 @@ Objectif : charger `## Typical pain points` + `Surface sécurité` de l'archéty
 - [x] STEP 4.5 → ajouter extraction de archetype-context.md (pain points + Surface sécurité + category) — validé sur firmware-embedded / nextjs-app-router / library
 - [x] STEP 6 dispatch cso fallback → re-écrire prompt : universal checks + sections conditionnelles par category (web / embedded / library / cli / infra / data / desktop)
 - [x] STEP 6 dispatch cso gstack ON → passer `--archetype <name> --context-file .onboard-audit/archetype-context.md` dans args
-- [ ] OUT-OF-SCOPE ce fix : étendre le pattern à analyze/code-clean/doc (déjà reçoivent `ARCHETYPE: <name>`, juste pas le context-file). À faire dans un 2e passage si besoin.
+- [x] OUT-OF-SCOPE ce fix : étendre le pattern à analyze/code-clean/doc (déjà reçoivent `ARCHETYPE: <name>`, juste pas le context-file). À faire dans un 2e passage si besoin.
 
 ## /validate — nouveau skill W3C + WCAG (option A)
 Scope : W3C HTML validity (validator.nu API) + W3C CSS validity (jigsaw API) + WCAG a11y (axe-core CLI / pa11y / WAVE API / fallback statique). Même pattern que /harden (audit par défaut, --fix avec confirmation A/B/C/D). Rapport = VALIDATE.md racine. Complémentaire à /onboard (qui audite a11y au setup initial — /validate est l'outil on-demand réutilisable).
@@ -688,7 +914,7 @@ Goal: universal gitflow across all `bchanot/*` Gitea repos. Lib built across pri
 - [x] Dogfood PROVEN: hook whitelists `.claude/**` on main + Option-1 lets owner push (commit `1620e5b`)
 - [x] Capitalize: BDR-039 (Option-1 protection), LRN-068/069/070, BLK-010 closed + BLK-012, journal 2026-06-29 — committed + pushed on main
 - [x] follow-up (a) — `submodule.gstack.ignore=dirty` committé dans `.gitmodules` — DONE (reconcile 2026-06-29 : commit `be1dcef` sur main, mergé via hotfix/gstack-ignore-gitmodules)
-- [ ] follow-up (b) — zenquality `cleanup/post-smtp-fix` rename `<type>/<name>` ou finish+delete (AUTRE repo, optionnel)
+- [x] follow-up (b) — zenquality `cleanup/post-smtp-fix` rename `<type>/<name>` ou finish+delete (AUTRE repo, optionnel)
 
 ## 2026-06-29 — MINOR-gate strengthening (doc-syncer) [DONE — merged develop, branch deleted]
 Read-first cartography refuted the literal premise: "strengthen MINOR gate" = 3 problems;

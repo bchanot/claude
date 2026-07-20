@@ -36,7 +36,8 @@ so the user does not assume Claude has hung.
 ---
 
 ## STEP 0 — PLUGIN CHECK + AUTO-ACTIVATE
-Load `$HOME/.claude/agents/plugin-advisor.md`. Feed request.
+Run `$HOME/.claude/lib/plugin-gate.md`. Feed request (dispatch plugin-probe →
+checkpoint → dispatch plugin-advisor; gates stay in this loop — BDR-077).
 - ACTION REQUIRED → show RECOMMENDATIONS block, offer: A) fix plugins B) type "force". STOP.
 - PROPOSED CHANGES exist → show list, ask "Apply? (yes / no / customize)". Apply on confirm.
 - OK → `✅ Plugin check passed — [active plugins] — complexity: <score>%`, continue.
@@ -91,15 +92,31 @@ contract, each tagged `[gated <date>]`. STEP 9's verifier judges against this
 enriched contract.
 
 ## STEP 5 — SCAFFOLD
-Load `$HOME/.claude/agents/scaffolder.md`. Pass: BRIEF + DESIGN + `~/.claude/templates/project-CLAUDE.md` + `~/.claude/CLAUDE.md`.
+Dispatch `Agent(subagent_type="scaffolder")` (pin sonnet, effort high —
+BDR-077 : le design est CLOS au gate #1, le scaffold est de l'exécution,
+plus jamais inline sur le modèle de session). Pass IN THE PROMPT (LRN-126 —
+every field the scaffolder consumes crosses the dispatch): BRIEF (verbatim)
++ DESIGN (verbatim) + paths `~/.claude/templates/project-CLAUDE.md` +
+`~/.claude/CLAUDE.md`. A STOP (missing input) comes back as its report —
+resolve here, re-dispatch. The ~30s liveness pings are THIS loop's job
+while waiting.
 Creates: CLAUDE.md, `.claude/settings.json`, `.claudeignore`, `.gitignore`, `.env.example`, empty entry points. NO README, NO features, NO `.claude/tasks/` or `.claude/memory/` (not bootstrapped by this flow — copy from `~/.claude/templates/memory/` manually if wanted before STEP 10b's memory commit).
 Verify: `git init` + build passes.
 
 ## STEP 5b — CREATE README
-Load `$HOME/.claude/agents/doc-syncer.md` (AUTO MODE, scope: full project). README.md missing → its README bootstrap creates it. No stop.
+Dispatch the doc pipeline (BDR-077):
+`Agent(subagent_type="doc-syncer", model="opus")`
+— `MODE: audit` (FULL-AUDIT path, NOT `auto-mode scope:` —
+auto-mode gates a missing README as SIGNIFICANT; the full audit's STEP 5
+renders it `[CREATE-AUTO]`, unconditional). README.md missing → the
+report carries the rendered README draft as `[CREATE-AUTO]`; re-dispatch
+`Agent(subagent_type="doc-syncer")` (sonnet pin) with `MODE: patch` +
+that plan to write it. No stop (README bootstrap is unconditional).
 
 ## STEP 5c — CTX7 PRE-FETCH (if fast-libs detected)
-If `fast-libs` signal was detected in STEP 0 (Next.js, React 18+, Prisma, Supabase, Drizzle, etc.):
+If `fast-libs` signal was detected in STEP 0 — single source of truth:
+`bash ~/.claude/lib/fast-libs.sh detect .` (Next.js, React, Prisma,
+Supabase, Drizzle… — BDR-078):
 1. Create `.ctx7-cache/` directory in project root.
 2. For each detected fast-lib, fetch core docs:
    ```bash
@@ -155,12 +172,27 @@ implemented on a `feature/*` branch off `develop` (STEP 8).
 Invoke `superpowers:writing-plans` with BRIEF + skeleton.
 Granular tasks (2-5 min each), exact file paths, TDD: tests before code.
 
+## STEP 6b — CHALLENGE THE PLAN (before the gate)
+Before the human sees the implementation plan, harden it. Run
+`$HOME/.claude/lib/challenge-plan.md` with `PLAN` = the plan STEP 6 wrote under
+`docs/superpowers/plans/`, `KIND` = `build-plan`, `SCOPE` = the skeleton + task file
+paths, `CONSTRAINTS` = the STEP 4-validated architecture + founding decisions.
+Three blind challengers (correctness / robustness / simplicity) attack it; the main
+loop RE-THINKS every aspect a BLOCKER lands (a named plan change, or `[deferred]`),
+re-challenges once if the plan materially changed, and feeds the REVISED plan + a
+CHALLENGE SUMMARY into STEP 7. Advisory — the human remains the decider.
+
 ## STEP 7 — VALIDATION GATE #2 ★ MANDATORY STOP
 ```
 INIT PROJECT — IMPLEMENTATION PLAN
 SKELETON: ✅ build passes
 FEATURES: <N> → <M> tasks
 <numbered task list with paths>
+
+CHALLENGE SUMMARY (STEP 6b — 3 lenses):
+  BLOCKERs addressed : <n> — <finding → the named plan change that closes it>
+  Deferred (human-ack): <list | none>
+  Lenses returned    : correctness / robustness / simplicity (NAME any that failed to return)
 Approve and start? (yes / request changes)
 ```
 Changes → back to STEP 6. Approved → continue.
@@ -208,7 +240,10 @@ against the founding contract. Distinct axis from STEP 10 code review
 ([[LRN-095]]) — both run.
 
 ## STEP 10 — CODE REVIEW
-Invoke `superpowers:requesting-code-review`. Fix all CRITICAL before proceeding.
+Invoke `superpowers:requesting-code-review`. **Model routing (BDR-077):** the
+review subagent it dispatches MUST carry `model: "opus"` in the Agent call —
+craft review is dispatched judgment, never inherited from the session. Fix
+all CRITICAL before proceeding.
 
 ## STEP 10b — CAPITALIZE FOUNDING DECISIONS (memory registries)
 A greenfield's founding architecture decisions are the highest-value BDRs — the
@@ -267,8 +302,12 @@ does NOT commit them, and `gitflow finish` integrates only COMMITTED history
 — so a patch left uncommitted never reaches the merge/PR. Same PR-stranding class as the
 STEP 10b capitalize fix (BDR-034).
 
-Load `$HOME/.claude/agents/doc-syncer.md` (AUTO MODE, scope: files changed this session).
-Detect drift, update cmds/vars/structure, add recent changes entry.
+Dispatch the doc pipeline (BDR-077):
+`Agent(subagent_type="doc-syncer", model="opus")`
+— `MODE: audit` + `auto-mode scope: <files changed this
+session>`; NONE → done; `[MINOR]` plan → `MODE: patch` re-dispatch (sonnet
+pin, no gate; SHAPE ESCALATION comes back gated); SIGNIFICANT → gate here,
+then `MODE: patch` with the approved subset.
 
 **Then commit the docs** — follow `$HOME/.claude/lib/doc-commit.md`: it surgically commits
 ONLY the files doc-syncer patched (its `PATCHED_FILES` output, one path per line → one argv

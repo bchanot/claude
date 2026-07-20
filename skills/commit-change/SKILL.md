@@ -18,7 +18,8 @@ allowed-tools:
 
 # /commit-change — propose → confirm → apply dispatcher
 
-Grouping and committing both run on the sonnet-pinned `commit-changer`
+Grouping (propose, `model="opus"` override — judgment) and committing
+(apply, sonnet pin — mechanical) both run on the dispatched `commit-changer`
 subagent (dispatch makes the pin effective). No inline reflection happens
 in this dispatcher to protect, so there is no model gate. This dispatcher
 owns the two approval gates that used to live inside the subagent:
@@ -52,10 +53,14 @@ protected branch.
 ## STEP 1 — Propose
 
 ```
-Agent(subagent_type="commit-changer")
+Agent(subagent_type="commit-changer", model="opus")
 prompt: "MODE: propose
 $ARGUMENTS"
 ```
+
+(`model="opus"` — BDR-077: propose = narrative reconstruction + capitalize
+routing, judgment tier; the call-site override takes precedence over the
+sonnet frontmatter pin. Apply, STEP 4, stays on the pin.)
 
 Read the returned `COMMIT PLAN` + `EDGE CASES` + `CAPITALIZE CANDIDATES`,
 terminated by `READY TO APPLY — awaiting dispatcher confirmation`.
@@ -77,8 +82,9 @@ AskUserQuestion:
   uncommitted for a later run.
 - `edit <n>` → re-dispatch `commit-changer` with `MODE: propose` and the
   user's correction for step N folded into the prompt, so all grouping /
-  message judgment stays on the sonnet subagent (never redrawn inline on
-  the session model); show the redrawn plan and re-ask.
+  message judgment stays on the dispatched propose mode (`model="opus"`,
+  BDR-077 — never redrawn inline on the session model); show the redrawn
+  plan and re-ask.
 - `skip` → exit cleanly, no commits created, no `MODE: apply` dispatch.
   Note: if the propose run created a `chore/*` branch (gitflow aiguillage
   off a protected base), that branch stays checked out with the work

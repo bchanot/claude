@@ -117,6 +117,19 @@ RISK: <low/medium — what could go wrong>
 - If the fix is significant (>10 lines, multiple files,
   behavior change): wait for user approval.
 
+## STEP 3b — CHALLENGE THE FIX PLAN (before the contract)
+Unless the fix is the trivial 1-2 line case STEP 3 already fast-paths, the
+DIAGNOSIS + FIX PLAN is a reflection worth attacking before it hardens into a
+contract. Persist it to `.claude/tasks/plans/<date>-<slug>-<HHMM>.md`, then run
+`$HOME/.claude/lib/challenge-plan.md` with `PLAN` = that file, `KIND` = `build-plan`,
+`SCOPE` = the FIX PLAN files, `CONSTRAINTS` = the STEP 2 in-force BDR/LRN/BLK
+dispositions. Three blind challengers attack it (correctness = is the root cause
+right; robustness = blast radius / regressions; simplicity = is the fix minimal);
+RE-THINK every aspect a BLOCKER lands, re-challenge once if the plan materially
+changed. STEP 3.5 writes the contract from the REVISED plan. Print a CHALLENGE SUMMARY
+(BLOCKERs addressed / deferred / lenses returned), folding any deferred BLOCKER into
+the STEP 3 approval gate.
+
 ## STEP 3.5 — CONTRACT
 
 Run `$HOME/.claude/lib/contract-interview.md` (main loop). The DIAGNOSIS
@@ -212,9 +225,16 @@ Parse the `BUGFIX-EXEC REPORT`:
 
 ## STEP 7 — DOC SYNC (automatic)
 
-Load `$HOME/.claude/agents/doc-syncer.md`.
-Execute in automatic mode:
-`auto-mode scope: <list of files modified during this session>`
+Dispatch the doc pipeline (BDR-077 — audit judgment on opus, patch on the
+sonnet pin, gate HERE):
+1. `Agent(subagent_type="doc-syncer", model="opus")` — `MODE: audit` +
+   `auto-mode scope: <list of files modified during this session>`.
+2. Silence (NONE) → done. `[MINOR]` PATCH PLAN → re-dispatch
+   `Agent(subagent_type="doc-syncer")` with `MODE: patch` + the plan
+   verbatim (no gate — auto behavior preserved; a `SHAPE ESCALATION` in
+   its report comes back here, gated as SIGNIFICANT).
+3. SIGNIFICANT → gate here (`Apply? yes / no / select`), then
+   `MODE: patch` with the approved subset.
 
 **Then commit the docs** — follow `$HOME/.claude/lib/doc-commit.md`: it surgically commits
 ONLY the files doc-syncer patched (its `PATCHED_FILES` output), never `git add -A`, never

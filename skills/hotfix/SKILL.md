@@ -76,6 +76,26 @@ security gate and the escalation report if a gate fails. No verifier is
 dispatched at hotfix weight — STEP 4's smoke result already verifies these
 trivial criteria; the gate hotfix adds is security (STEP 4).
 
+## STEP 1.8 — CHALLENGE THE FIX (logic fixes only)
+GUARD — this is the one place the plan-challenge phase is kept proportionate to
+hotfix's speed. SKIP entirely for a purely cosmetic fix (CSS value, copy/typo, a
+broken link): there is nothing for three lenses to bite on, and speed is the
+point. Run it ONLY when the settled fix touches control flow or behaviour — an
+off-by-one, a wrong operator/variable, a behaviour-changing config value, or a
+missing import that alters execution. In doubt → it is probably a `/bugfix`.
+
+For a logic fix: persist the STEP 1 located fix (root cause + the exact edit) to
+`.claude/tasks/plans/<date>-<slug>-<HHMM>.md`, then run
+`$HOME/.claude/lib/challenge-plan.md` with `PLAN` = that file, `KIND` =
+`build-plan`, `SCOPE` = the 1-2 target files, `CONSTRAINTS` = the STEP 1.7
+contract's acceptance criteria. Three blind challengers attack the fix; the main
+loop RE-THINKS any aspect a BLOCKER lands (a named change to the fix, or
+`[deferred]`) and re-challenges once if it materially changed. Print a
+CHALLENGE SUMMARY (BLOCKERs addressed / deferred / lenses returned). A BLOCKER
+that shows the fix is wrong or incomplete means this was never
+a hotfix — escalate to `/bugfix` (its STEP 3b runs the same phase under the full
+verify+secure loop).
+
 ## STEP 2 — PRE-FLIGHT
 
 **Gitflow aiguillage (before dispatch):** follow `$HOME/.claude/lib/gitflow-aiguillage.md`
@@ -154,9 +174,16 @@ Parse the `HOTFIX-EXEC REPORT`:
 
 ## STEP 5 — DOC SYNC (automatic)
 
-Load `$HOME/.claude/agents/doc-syncer.md`.
-Execute in automatic mode:
-`auto-mode scope: <list of files modified during this session>`
+Dispatch the doc pipeline (BDR-077 — audit judgment on opus, patch on the
+sonnet pin, gate HERE):
+1. `Agent(subagent_type="doc-syncer", model="opus")` — `MODE: audit` +
+   `auto-mode scope: <list of files modified during this session>`.
+2. Silence (NONE) → done. `[MINOR]` PATCH PLAN → re-dispatch
+   `Agent(subagent_type="doc-syncer")` with `MODE: patch` + the plan
+   verbatim (no gate — auto behavior preserved; a `SHAPE ESCALATION` in
+   its report comes back here, gated as SIGNIFICANT).
+3. SIGNIFICANT → gate here (`Apply? yes / no / select`), then
+   `MODE: patch` with the approved subset.
 
 **Then commit the docs** — follow `$HOME/.claude/lib/doc-commit.md`: it surgically commits
 ONLY the files doc-syncer patched (its `PATCHED_FILES` output), never `git add -A`, never

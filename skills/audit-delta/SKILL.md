@@ -166,9 +166,30 @@ Append to `.claude/audits/AUDIT-DELTA.md` (create if absent), append-only:
 
 Then show the user the same compact table inline.
 
+### 3b-bis. CHALLENGE THE PROPOSALS (before the gate)
+
+This axis' findings + proposed fixes are a proposal set worth attacking before
+the human gate. Persist THIS axis' finding list (not the whole append-only
+report) to `.claude/tasks/plans/<date>-<axis>-<HHMM>.md`, then run
+`$HOME/.claude/lib/challenge-plan.md` with `PLAN` = that file, `KIND` =
+`proposals`, `SCOPE` = this axis' STEP 1 audit set, `CONSTRAINTS` = the axis
+spec + the project CLAUDE.md norms already loaded. Three blind challengers ask
+whether these are the RIGHT findings/priorities and what the audit under-rated;
+the main loop RE-THINKS every aspect a BLOCKER lands (a named change to the
+finding set, or `[deferred <date>]`) and re-challenges once if it materially
+changed. Feed the REVISED findings + a CHALLENGE SUMMARY into 3c.
+
 ### 3c. APPROVAL GATE ★ MANDATORY STOP
 
+Show the CHALLENGE SUMMARY (from 3b-bis) with the 3b findings table, then
 AskUserQuestion: **fix all / pick which / none**.
+
+```
+CHALLENGE SUMMARY (3b-bis — 3 lenses):
+  BLOCKERs addressed : <n> — <finding → the named finding-set change that closes it>
+  Deferred (human-ack): <list | none>
+  Lenses returned    : correctness / robustness / simplicity (NAME any that failed to return)
+```
 
 - "Fix what you find" said **in the invocation** does NOT skip this gate:
   nobody can approve findings that did not exist yet. The gate is about

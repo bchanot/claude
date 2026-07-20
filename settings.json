@@ -134,11 +134,25 @@
       "Read(**/credentials.json)",
       "Read(**/.aws/credentials)",
       "Read(**/.azure/**)",
-      "Write(**/.env)",
-      "Write(**/.env.*)",
-      "Write(**/secrets/**)",
-      "Write(**/*.pem)",
-      "Write(**/*.key)",
+      "Edit(**/.env)",
+      "Edit(**/.env.*)",
+      "Edit(**/secrets/**)",
+      "Edit(**/*.pem)",
+      "Edit(**/*.key)",
+      "Edit(**/*.p12)",
+      "Edit(**/*.pfx)",
+      "Edit(**/id_rsa*)",
+      "Edit(**/id_ed25519*)",
+      "Edit(**/.ssh/**)",
+      "Edit(**/credentials)",
+      "Edit(**/credentials.json)",
+      "Edit(**/.aws/credentials)",
+      "Edit(**/.azure/**)",
+      "Edit(**/*.lock)",
+      "Edit(**/package-lock.json)",
+      "Edit(**/pnpm-lock.yaml)",
+      "Edit(**/go.sum)",
+      "Edit(**/node_modules/**)",
       "Bash(eval *)",
       "Bash(exec *)",
       "Bash(find * -delete*)",
@@ -257,16 +271,6 @@
             "command": "bash ~/.claude/hooks/rtk-rewrite.sh"
           }
         ]
-      },
-      {
-        "matcher": "Edit|Write|MultiEdit",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.claude/hooks/config-protection.sh",
-            "timeout": 5
-          }
-        ]
       }
     ],
     "UserPromptSubmit": [
@@ -277,6 +281,12 @@
             "command": "bash ~/.claude/hooks/design-toolchain-reminder.sh",
             "timeout": 5,
             "statusMessage": "Checking design signals..."
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/ctx7-reminder.sh",
+            "timeout": 5,
+            "statusMessage": "Checking fast-libs..."
           }
         ]
       }

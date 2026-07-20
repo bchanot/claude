@@ -1,0 +1,5 @@
+{
+  "https://ex.com/": "<html><head><title>Accueil</title><meta name='description' content='desc'><link rel='canonical' href='https://ex.com/'><script type='application/ld+json'>{\"@type\":\"LocalBusiness\"}</script></head><body><h1>Accueil</h1></body></html>",
+  "https://ex.com/a": "<html><head><title>Page A</title><link rel='canonical' href='https://ex.com/a'></head><body><h1>A</h1></body></html>",
+  "https://ex.com/gone": "<html><head><title>Bientot supprimee</title></head><body><h1>G</h1></body></html>"
+}

@@ -1,6 +1,6 @@
 ---
 name: client-handover-writer
-description: Final ship-and-handover orchestrator — called by /client-handover. Runs the audit/fix/gate pipeline (SEO+GEO+HARDEN to ≥17/20, live VALIDATE) inline on the big session model, then delegates the non-technical client deliverable (Markdown + branded HTML + PDF) to the sonnet-pinned handover-doc-writer.
+description: Final ship-and-handover orchestrator — called by /client-handover. Runs the audit/fix/gate pipeline (SEO+GEO+HARDEN to ≥17/20, live VALIDATE) inline on the big session model with fable-pinned skill-runner children, then delegates the client deliverable to the two-mode handover-doc-writer (synthesize opus / render sonnet — BDR-077).
 tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch, AskUserQuestion, Agent
 ---
 
@@ -257,7 +257,12 @@ pipeline is reduced: only run /cso (single audit, single fix loop), skip
 STEP 6 deploy pause and STEP 7 /web-validate. Treat /cso as the only score for
 the gate.
 
-For web projects, dispatch in **a single message with two parallel Agent calls**:
+**Model routing (BDR-077):** EVERY `general-purpose` skill-runner dispatch in
+this pipeline (initial audits, fix-loop re-dispatches, commit-change,
+web-validate) carries `model: "fable"` — the child hosts gated orchestration
+on the pipeline's behalf; it must never inherit the session model.
+
+For web projects, dispatch in **a single message with two parallel Agent calls** (each with `model: "fable"`):
 
 | Audit (web)   | Subagent          | Prompt template |
 |---------------|-------------------|-----------------|
@@ -383,7 +388,7 @@ console). If no projected line is parseable, treat projected = 17
 
 ### Re-dispatch prompt template (SEO + GEO loop)
 
-Send to `general-purpose` subagent:
+Send to `general-purpose` subagent (`model: "fable"`):
 
 > Read `~/.claude/skills/seo/SKILL.md` and re-run it on this project.
 > Previous scores:
@@ -413,7 +418,7 @@ Send to `general-purpose` subagent:
 
 ### Re-dispatch prompt template (HARDEN loop)
 
-Send to `general-purpose` subagent:
+Send to `general-purpose` subagent (`model: "fable"`):
 
 > Read `~/.claude/skills/harden/SKILL.md` and re-run it. Previous score:
 > **`<SCORE_HARDEN_PREVIOUS>`/20** — below threshold. Iteration `<N>` of
@@ -424,7 +429,7 @@ Send to `general-purpose` subagent:
 
 ### Re-dispatch prompt template (CSO loop — non-web only)
 
-Send to `general-purpose` subagent:
+Send to `general-purpose` subagent (`model: "fable"`):
 
 > Read `~/.claude/skills/cso/SKILL.md` and re-run it in **daily mode**.
 > Previous score: **`<SCORE_CSO_PREVIOUS>`/20** — below threshold.
@@ -510,7 +515,7 @@ listed changes manually before deploy." Continue to STEP 6.
 
 If `PENDING_CHANGES` non-empty → invoke /commit-change skill via subagent:
 
-> Dispatch `general-purpose` subagent. Prompt:
+> Dispatch `general-purpose` subagent (`model: "fable"`). Prompt:
 >
 > "Read `~/.claude/skills/commit-change/SKILL.md` and execute. All pending
 > changes were produced by the client-handover ship pipeline during the
@@ -617,7 +622,7 @@ Skip if `VALIDATE_SKIPPED=true` or `PROJECT_TYPE != web` (in either case
 ensure `VALIDATE_SKIPPED=true` is set so the gate logic in STEP 8 treats
 VALIDATE as not-applicable rather than failed).
 
-Dispatch `general-purpose` subagent:
+Dispatch `general-purpose` subagent (`model: "fable"`):
 
 > Read `~/.claude/skills/web-validate/SKILL.md` and execute against the
 > deployed URL: `<DEPLOYED_URL>`. Audit W3C HTML validity (validator.nu),
@@ -1067,11 +1072,30 @@ If `OUTPUT` resolved to `skip-write`, still dispatch — the doc-writer
 reports `MD: skipped` and stops before rendering, per its own
 contract.
 
-Dispatch:
+Dispatch the two-mode pipeline (BDR-077 — synthesis on opus, render on the
+sonnet pin, full PACKAGE both times per LRN-126). Mint a RUNID first
+(`RUNID=$(date +%s)`); the draft crosses via the run-scoped, gitignored
+`.audit/handover-draft-<RUNID>.md`; clean it after 9.7.
+
+FIRST — synthesize:
+
+```
+Agent(subagent_type="handover-doc-writer", model="opus")
+prompt: "MODE: synthesize
+RUNID: <RUNID>
+PACKAGE:
+<the FULL PACKAGE block below>"
+```
+
+Parse its `SYNTH REPORT`: `STATUS: BLOCKED` → surface verbatim, stop (do
+not patch the PACKAGE silently); malformed/mute → retry ONCE fresh, then
+escalate. `STATUS: DONE` → THEN render:
 
 ```
 Agent(subagent_type="handover-doc-writer")
-prompt: "PACKAGE:
+prompt: "MODE: render
+RUNID: <RUNID>
+PACKAGE:
 LANG: <LANG>
 PROJECT: name=<name> root=<root> type=<type> sub-type=<sub-type>
   is_local_business=<bool> deployed_url=<url> period=<first→last>
@@ -1087,9 +1111,14 @@ PRECHECK_DONE: <list>
 CLIENT_NAME: <name|—>
 OUTPUT: <overwrite <path> | versioned <path> | skip-write>
 
-Synthesize + write + render the deliverable per your steps. Report the
-HANDOVER-DOC REPORT."
+Render the deliverable from the draft per your render-mode steps. Report
+the HANDOVER-DOC REPORT."
 ```
+
+(The PACKAGE block is IDENTICAL in both dispatches — write it once,
+paste it twice. A render `STATUS: BLOCKED` on draft absence/RUNID
+mismatch means the synthesize leg failed silently: re-run 9.6 from the
+synthesize dispatch, never hand-write the draft.)
 
 ### 9.7 — Parse the report, tell the user
 
@@ -1101,3 +1130,7 @@ Parse the returned `HANDOVER-DOC REPORT`:
 - `STATUS: BLOCKED` → surface the report verbatim (including which
   PACKAGE field the doc-writer flagged) and stop — do not retry or
   patch the PACKAGE silently.
+
+In BOTH branches, then clean the transient draft:
+`rm -f ".audit/handover-draft-${RUNID}.md"` (run-scoped, gitignored —
+cleanup keeps `.audit/` from accumulating stranded drafts).

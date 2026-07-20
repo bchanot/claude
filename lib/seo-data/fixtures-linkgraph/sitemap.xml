@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  <url><loc>https://ex.com/</loc></url>
+  <url><loc>https://ex.com/a</loc></url>
+  <url><loc>https://ex.com/b</loc></url>
+  <url><loc>https://ex.com/deep</loc></url>
+  <url><loc>https://ex.com/deeper</loc></url>
+  <url><loc>https://ex.com/deepest</loc></url>
+  <url><loc>https://ex.com/orphan</loc></url>
+</urlset>

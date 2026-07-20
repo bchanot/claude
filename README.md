@@ -23,7 +23,7 @@ claude-config/
 ├── update-all.sh          # One-command update for all components
 ├── Makefile               # Unified entry point: make install / doctor / update
 ├── plugins.lock.json      # Version pinning for non-marketplace dependencies
-├── hooks/                 # Session start, statusline, RTK rewrite, config-protection + design-toolchain guards
+├── hooks/                 # Session start, statusline, RTK rewrite + design-toolchain guards
 ├── agents/                # Execution units called by skills (never invoked directly)
 ├── skills/                # Entry points invoked via /skill-name
 ├── skills-external/       # Vendored skill packs (gstack submodule + installer-fetched design packs)
@@ -53,6 +53,7 @@ reflection orchestrators. Execution runs on pinned subagents:
 | status-reporter | haiku (pinned) | mechanical collector |
 | handover-doc-writer | sonnet (pinned) | deliverable writer — synthesizes + renders the client doc from a resolved PACKAGE (dispatched by client-handover) |
 | analyzer, seo-analyzer, geo-analyzer, validator-analyzer, client-handover-writer | inherit session (Fable/Opus) | reflection / audit / inline playbooks / ship-and-handover pipeline |
+| plan-challenger | inherit session (Fable/Opus) | fresh adversarial plan challenger — 3 parallel lenses (correctness/robustness/simplicity), dispatched by `/ship-feature` STEP 2b before the validation gate |
 | Explore (built-in) | inherit session (Fable/Opus) | search feeds reflection — kept on the big model, not pinned down |
 
 The pure-execution skills `/doc`, `/status`, `/commit-change`,
