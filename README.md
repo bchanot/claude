@@ -51,14 +51,14 @@ children are dispatched `model:"fable"` (they carry reflection).
 
 ```bash
 # 1. Clone with submodules
-git clone --recurse-submodules git@github.com:youruser/claude-config.git
-cd claude-config
+git clone --recurse-submodules https://github.com/bchanot/claude
+cd claude
 
 # 2. Bootstrap (CLI + auth + symlinks + plugins)
-bash install.sh
+make install
 
 # 3. Verify setup
-bash doctor.sh
+make doctor
 
 # 4. Restart Claude Code — plugins load automatically
 ```
@@ -221,10 +221,8 @@ in `env`, `command`, `args`, `url`, and `headers` — for both project (`.mcp.js
 and user (`~/.claude.json`) scope. Use that instead of a literal value:
 
 ```bash
-# WRONG — plaintext key lands in ~/.claude.json:
-claude mcp add magic --scope user --env API_KEY="$MAGIC_API_KEY" -- npx -y @21st-dev/magic@latest
-
-# RIGHT — single-quoted so bash doesn't expand it; Claude Code expands it at
+MAGIC_API_KEY=<Enter your magic api key here from https://21st.dev/settings/api-keys >
+# single-quoted so bash doesn't expand it; Claude Code expands it at
 # launch, reading the var from its own process environment:
 claude mcp add magic --scope user --env 'API_KEY=${MAGIC_API_KEY}' -- npx -y @21st-dev/magic@latest
 ```
@@ -241,6 +239,26 @@ the pattern to copy for a new MCP server.
 There is no `claude mcp add` flag that writes the reference form for you —
 the `${VAR}` syntax has to be typed by hand (or via a wrapper script), same as
 above.
+
+### SEO data layer (`/seo` FULL) — Google OAuth + CrUX keys
+
+The same `~/.claude/.env` also feeds `lib/seo-data`, which pulls real Google
+Search Console and Chrome UX Report data into `/seo` FULL audits. Add these
+three vars (template with the GCP console steps in `.env.example`):
+
+```bash
+# OAuth Desktop client — GCP console → APIs & Services → Credentials →
+# OAuth client (Desktop). Consent scope: webmasters.readonly only.
+GOOGLE_OAUTH_CLIENT_ID=<your-client-id.apps.googleusercontent.com>
+GOOGLE_OAUTH_CLIENT_SECRET=<your-client-secret>
+# CrUX + PageSpeed API key — GCP console → Credentials → API key,
+# restricted to those two APIs. https://developer.chrome.com/docs/crux/api
+CRUX_API_KEY=<your-crux-api-key>
+```
+
+Then run the one-time consent flow: `make seo-connect` (per-label token
+store, multi-site safe). Missing credentials never break an audit — `/seo`
+degrades gracefully to anonymous PageSpeed lab data.
 
 ### magic MCP (`@21st-dev/magic`) — known callback-injection risk
 
