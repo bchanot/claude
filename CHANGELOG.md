@@ -6,6 +6,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+- **Profile switches now toggle external packs and MCPs both ways (BDR-079)** — `profile.sh set` was asymmetric: it enabled what a profile listed (including gstack skills on demand when the whole pack is off, and the `magic` MCP) but never disabled the managed leftovers, so `set backend` after design work kept emil-design-eng / frontend-design / design-motion-principles / impeccable active and magic registered. `set` now trims managed externals (`MANAGED_EXTERNALS`) and managed MCPs (`MANAGED_MCPS`, delegated to `toggle-external.sh`) not listed in the profile — same allowlist doctrine as `MANAGED_PLUGINS`, nothing outside the allowlists is ever auto-touched (darwin-skill stays manual). Also: an `external` entry whose symlink never existed is now created from `skills-external/` (mirroring toggle-external's from-source path), and the stale "NOT toggled automatically" note in `profile.sh` usage was corrected. Covered by a hermetic 16-check test (`lib/tests/profile-set-managed.test.sh`) with a fake `claude` shim.
+
 ## [1.2.1] — 2026-07-20
 
 ### Fixed

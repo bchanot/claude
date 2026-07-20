@@ -1,5 +1,23 @@
 # TODO
 
+## 2026-07-20 — profile ↔ toggle-external symmetry (feature/profile-managed-externals, BDR-079)
+Audit verdict: gstack on-demand + design enable already work; DISABLE side
+missing — `set backend` leaves emil/frontend-design/design-motion/impeccable
+active + magic registered. Doc claims auto-toggle both ways (only enable true).
+- [x] profile.sh: `MANAGED_EXTERNALS` (emil-design-eng, frontend-design,
+      design-motion-principles, impeccable — union of profile usage) +
+      `MANAGED_MCPS` (magic) allowlists; cmd_set refactored to 4 trim
+      helpers (disable_{gstack,plugins,externals,mcps}_not_in).
+- [x] profile.sh enable_skill external: from-source fallback
+      (`ln -sf skills-external/<name>`) mirroring toggle-external.
+- [x] Texts: cmd_set info line, usage() NOTE (stale "NOT toggled
+      automatically"), header; skills/profile/SKILL.md Mechanism+tradeoffs.
+- [x] Hermetic test lib/tests/profile-set-managed.test.sh — 16/0: gstack
+      on-demand, external from-source, park/restore round-trip, magic
+      add/remove via claude shim, non-managed untouched.
+- [x] Gate: shellcheck OK + make test exit 0 (review-guards 5/0). BDR-079 +
+      journal + CHANGELOG done. Committed on branch, NO merge (human gate).
+
 ## 2026-07-20 — ctx7 coverage extension (feature/ctx7-coverage, BDR-078)
 Close the 4 gaps from the ctx7 coverage audit: /feat //bugfix + ad-hoc coding
 never consult ctx7; fast-libs list hardcoded 3×; zero deterministic backstop.
