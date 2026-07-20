@@ -6,8 +6,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [1.2.0] — 2026-07-20
+
 ### Added
 - **ctx7 coverage extension (BDR-078)** — the "consult current docs before coding against a fast-moving lib" doctrine now covers every code path, not just the two big pipelines. (1) `lib/fast-libs.sh`: single source of truth for fast-lib detection (`detect` / `cache-status` verbs; JS package.json anchored keys + Python requirements/pyproject; 7-day `.ctx7-cache/` freshness; locale-independent sort), replacing three hardcoded lists (`/ship-feature` STEP 0c, `/init-project` STEP 5c, `/onboard` STEP 3.5). (2) `hooks/ctx7-reminder.sh`: once-per-session UserPromptSubmit nudge when the project carries fast-libs and the cache is missing/stale — closes the ad-hoc-coding gap. (3) find-docs description extended with a before-writing-code trigger + a cache-first rule (read fresh cache, tee fetched docs back into it). (4) feater/bugfixer executor briefs gain the fast-lib docs rule (read fresh cache, else 2-topic `npx ctx7@latest` fetch, else report `ctx7 cache miss` and proceed). Second deliberate ctx7 surface — a scoped refinement of BDR-053's single-surface rule, not a reversal.
+- **Adversarial plan-challenge phase** — reflection orchestrators now run a blind 3-lens challenge (correctness / robustness / simplicity) via a dedicated `plan-challenger` agent before implementation; severity-driven (a single-lens BLOCKER stops the plan), report-only. `/hotfix` joins behind a logic-only guard: cosmetic fixes skip it, logic fixes get challenged, a BLOCKER reroutes to `/bugfix` (BDR-075).
+- **seo-data engine: measured coverage + new verbs** — the `/seo` FULL audit measures instead of feeling: `sitemap` verb gives COVERAGE a real denominator (source/live split); internal-link graph computes orphan pages + click depth; cannibalisation detected from GSC's own query data; `rich_results` surfaced from URL Inspection data already fetched; `sameAs` profiles actually resolved; `schema_gen` generates JSON-LD instead of only auditing it; `content_quality` runs a deterministic filler/AI-slop scan; the axis score is computed, not felt; `drift` baseline reports regressions vs changes. SPA pages: the audit refuses to score what JS paints instead of scoring the empty shell (no Playwright dependency). Common Crawl backlinks were measured (17 GB edges file) and killed as a source — the Off-page axis stays scoped to what is actually measured.
+
+### Changed
+- **Model-tiering v2: 4-tier explicit routing (BDR-076/077)** — the session model (Fable) does main-loop reflection/orchestration only; every dispatched subagent is explicitly tiered: judgment agents pinned opus (analyzer, plan-challenger, seo/geo audit agents…), mechanical executors sonnet, skill-runner children fable — nothing inherits silently. Mode-based splits so pins take effect: doc-syncer audit(opus)/patch(sonnet), handover-doc-writer synthesize(opus)/render(sonnet), seo/geo collect(sonnet)/judge(opus, fail-closed)/template(sonnet), plugin gate split probe(sonnet)/advisor(opus). Census locks (125) + per-wave planted-input smokes.
+- **config-protection edit-block guardrail removed** (BDR-074) — the hook blocked more than it protected; deny-list design pass recorded in BDR-069.
+- graphify vendored skill dist synced 0.9.6 → 0.9.15.
+
+### Fixed
+- **seo/geo integrity pass (I1–I8)** — Off-page axis scoped to measured data only; VSI (an SEO-blog fiction) removed from CWV thresholds; NAP direction rule ported into geo-analyzer (standalone `/geo` can no longer write unverified NAP); security headers no longer double-counted (`/harden` owns them); sampling coverage disclosed instead of implied; stats reattached to the claims they support; phantom audit precondition dropped. Plus two real bugs caught by a second-site backtest and two process anomalies from live dogfooding.
+- `settings.json` Write() deny rules were inert — converted to Edit() rules, closing the write hole they left open.
+- Model-routing W6 ronde: 6 findings closed (README bootstrap path, 2 census gaps, 3 stale refs).
+
+### Security
+- **`safe_fetch` resolve-then-pin** in `lib/seo-data` — DNS-rebinding closed on audit fetches: the audited host is resolved once, validated, then pinned for the actual fetch.
+- **`url-guard`** — shell-injection + local-target refusal before any user-supplied or sitemap-crawled URL reaches curl (SSRF guard on the seo/geo fetch paths).
 
 ## [1.1.0] — 2026-07-16
 
