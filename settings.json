@@ -281,6 +281,12 @@
             "command": "bash ~/.claude/hooks/design-toolchain-reminder.sh",
             "timeout": 5,
             "statusMessage": "Checking design signals..."
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/ctx7-reminder.sh",
+            "timeout": 5,
+            "statusMessage": "Checking fast-libs..."
           }
         ]
       }

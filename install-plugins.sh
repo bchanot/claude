@@ -644,6 +644,46 @@ if command -v ctx7 &>/dev/null; then
   # (~490 tok/session, job1 F10). Purge it unconditionally so re-runs and
   # manual `ctx7 setup` invocations stay rule-free.
   rm -f "$HOME/.claude/rules/context7.md"
+  # BDR-078: re-apply the coverage extension to the generated skill — the
+  # before-writing-code trigger (description) + the cache-first rule (body).
+  # The dist is machine-owned (gitignored, regenerated on fresh clones), so
+  # the durable copy of this patch lives HERE. Idempotent: grep-guarded.
+  _fd="$HOME/.claude/skills/find-docs/SKILL.md"
+  if [ -f "$_fd" ] && ! grep -q 'fast-libs.sh detect' "$_fd"; then
+    if python3 - "$_fd" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+DESC = """
+  Also use BEFORE writing or modifying code that uses a fast-moving library
+  (anything `bash ~/.claude/lib/fast-libs.sh detect .` reports — React,
+  Next.js, Prisma, Tailwind, Astro, Svelte…), even when the user asked for
+  code rather than documentation — unless a fresh `.ctx7-cache/` file already
+  covers the API involved. Stable technologies (C, C++98, POSIX shell, SQL…)
+  need no lookup."""
+BODY = """
+## Cache first
+
+Before any fetch, check the project's `.ctx7-cache/`
+(`bash ~/.claude/lib/fast-libs.sh cache-status .`): a fresh (<7 days)
+`<lib>*.md` may already answer — read it instead of calling ctx7. When a
+`docs` call supports code you are about to write, save the output for the
+next consumer:
+`npx ctx7@latest docs <id> "<query>" | tee .ctx7-cache/<lib>-<topic>.md`.
+"""
+i = s.index("\n---", 3)          # closing frontmatter fence
+s = s[:i] + "\n" + DESC + s[i:]
+m = "using the Context7 CLI.\n"  # intro line under the H1
+j = s.index(m) + len(m) if m in s else len(s)
+s = s[:j] + BODY + s[j:]
+open(p, "w", encoding="utf-8").write(s)
+PY
+    then
+      ok "find-docs skill extended (BDR-078 fast-libs trigger + cache-first)"
+    else
+      warn "find-docs BDR-078 patch failed — re-run 'make plugin' or patch by hand"
+    fi
+  fi
   info "Standalone usage:  ctx7 docs /vercel/next.js \"middleware\""
 fi
 

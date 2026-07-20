@@ -207,13 +207,10 @@ ls .ctx7-cache/ 2>/dev/null
 ```
 
 ### Détection fast-libs
-Parse manifests selon l'archétype :
-- **nextjs-app-router** → chercher : next, react, prisma, @supabase/*, drizzle-orm, next-auth, @clerk/*
-- **react-spa** → chercher : react, @tanstack/*, zustand, jotai
-- **rest-api-node** → chercher : fastify, @nestjs/*, prisma, drizzle-orm
-- **rest-api-python** → chercher : fastapi, pydantic, sqlalchemy (si ≥ 2.0)
-- **astro-static** → chercher : astro, @astrojs/*
-- **wordpress / cli-tool / library / dotfiles-meta / static-html** → souvent aucune fast-lib, audit léger
+Source unique : `bash ~/.claude/lib/fast-libs.sh detect .` (deps JS/TS via
+package.json + Python via requirements/pyproject — liste centralisée,
+BDR-078). Archétypes wordpress / cli-tool / library / dotfiles-meta /
+static-html → souvent aucune fast-lib, audit léger.
 
 ### Vérification cache
 Pour chaque fast-lib détectée :

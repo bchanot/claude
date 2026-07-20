@@ -52,7 +52,8 @@ ls .gsd/ROADMAP.md 2>/dev/null | head -1
   STOP.
 
 ## STEP 0c — CTX7 CACHE CHECK (if fast-libs in project)
-Check if the project uses fast-evolving libs (scan `package.json` for next, react, prisma, supabase, drizzle, expo):
+Check if the project uses fast-moving libs — single source of truth:
+`bash ~/.claude/lib/fast-libs.sh detect .` (exit 1 = none; BDR-078):
 1. If `.ctx7-cache/` exists with recent files (<7 days old) → print `📚 ctx7 cache found: <libs>` and continue.
 2. If `.ctx7-cache/` missing or stale AND `ctx7` is installed AND fast-libs detected:
    ```bash
