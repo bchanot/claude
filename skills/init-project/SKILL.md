@@ -114,7 +114,9 @@ report carries the rendered README draft as `[CREATE-AUTO]`; re-dispatch
 that plan to write it. No stop (README bootstrap is unconditional).
 
 ## STEP 5c — CTX7 PRE-FETCH (if fast-libs detected)
-If `fast-libs` signal was detected in STEP 0 (Next.js, React 18+, Prisma, Supabase, Drizzle, etc.):
+If `fast-libs` signal was detected in STEP 0 — single source of truth:
+`bash ~/.claude/lib/fast-libs.sh detect .` (Next.js, React, Prisma,
+Supabase, Drizzle… — BDR-078):
 1. Create `.ctx7-cache/` directory in project root.
 2. For each detected fast-lib, fetch core docs:
    ```bash

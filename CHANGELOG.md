@@ -6,6 +6,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+- **ctx7 coverage extension (BDR-078)** — the "consult current docs before coding against a fast-moving lib" doctrine now covers every code path, not just the two big pipelines. (1) `lib/fast-libs.sh`: single source of truth for fast-lib detection (`detect` / `cache-status` verbs; JS package.json anchored keys + Python requirements/pyproject; 7-day `.ctx7-cache/` freshness; locale-independent sort), replacing three hardcoded lists (`/ship-feature` STEP 0c, `/init-project` STEP 5c, `/onboard` STEP 3.5). (2) `hooks/ctx7-reminder.sh`: once-per-session UserPromptSubmit nudge when the project carries fast-libs and the cache is missing/stale — closes the ad-hoc-coding gap. (3) find-docs description extended with a before-writing-code trigger + a cache-first rule (read fresh cache, tee fetched docs back into it). (4) feater/bugfixer executor briefs gain the fast-lib docs rule (read fresh cache, else 2-topic `npx ctx7@latest` fetch, else report `ctx7 cache miss` and proceed). Second deliberate ctx7 surface — a scoped refinement of BDR-053's single-surface rule, not a reversal.
+
 ## [1.1.0] — 2026-07-16
 
 ### Added

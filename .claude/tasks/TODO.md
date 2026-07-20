@@ -1,5 +1,25 @@
 # TODO
 
+## 2026-07-20 — ctx7 coverage extension (feature/ctx7-coverage, BDR-078)
+Close the 4 gaps from the ctx7 coverage audit: /feat //bugfix + ad-hoc coding
+never consult ctx7; fast-libs list hardcoded 3×; zero deterministic backstop.
+- [x] (d) `lib/fast-libs.sh` — single source of truth: `detect` +
+      `cache-status` verbs; JS (package.json exact/scoped keys) + Python;
+      7-day cache freshness. LC_ALL=C sort (locale-independent order).
+- [x] (c) `hooks/ctx7-reminder.sh` — UserPromptSubmit, once-per-session
+      sentinel, fires only when fast-libs detected; settings.json
+      registration (2nd ctx7 surface, deliberate refinement of BDR-053).
+- [x] (a) find-docs description — before-writing-code trigger (fast-moving
+      libs, even without a doc question) + cache-first rule in body.
+- [x] (b) feater.md + bugfixer.md — fast-lib docs rule (read fresh cache,
+      else ctx7 fetch max 2 topics, else NOTES cache miss + proceed).
+- [x] consumers → lib: ship-feature STEP 0c, init-project STEP 5c, onboard
+      STEP 3.5 detection blocks point at fast-libs.sh.
+- [x] `lib/tests/fast-libs.test.sh` (lib verbs + hook fire/sentinel/quiet)
+      — 11/0, auto-discovered by the make test glob.
+- [x] Gate: shellcheck + make test green (review-guards 5/0). BDR-078 +
+      journal + CHANGELOG done. Committed on branch, NO merge (human gate).
+
 ## 2026-07-19 — Opus-pin dispatched judgment agents (branch feature/opus-pin-audit-agents)
 
 Goal: session model (Fable) = orchestration + inline reflection ONLY.
