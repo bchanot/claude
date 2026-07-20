@@ -14,6 +14,9 @@
 #   - MCPs: delegated to lib/toggle-external.sh for known servers (magic),
 #           advisory otherwise
 #   - CLIs: advisory only (rtk, gsd, ctx7, graphify — installed externally)
+#   - `set` is SYMMETRIC on managed items (BDR-079): plugins, external packs
+#     and MCPs in the MANAGED_* allowlists are disabled when the profile
+#     does not list them — nothing outside those lists is ever auto-toggled.
 #
 # Always-on plugins (never toggled by `set`): security-guidance,
 # superpowers + rtk hook + .claude internal. The script refuses to disable
@@ -59,6 +62,23 @@ MANAGED_PLUGINS=(
   "ui-ux-pro-max@ui-ux-pro-max-skill"
   "plugin-dev@claude-code-plugins"
   "pr-review-toolkit@claude-code-plugins"
+)
+
+# External skill packs that are toggle-managed by `set` — same allowlist
+# doctrine as MANAGED_PLUGINS: listed here only when the enabled state is
+# task-type-driven. `set` disables these when the profile does not list
+# them; anything else external (e.g. darwin-skill) is never auto-touched.
+MANAGED_EXTERNALS=(
+  emil-design-eng
+  frontend-design
+  design-motion-principles
+  impeccable
+)
+
+# MCP servers that are toggle-managed by `set`, both ways (enable AND
+# disable), delegated to lib/toggle-external.sh. Same allowlist doctrine.
+MANAGED_MCPS=(
+  magic
 )
 
 # Plugins that MUST stay enabled — `set` will refuse to disable these even if
@@ -271,6 +291,11 @@ enable_skill() {
         ok "enabled: $skill ($type)"
       elif [ -e "$SKILLS_DIR/$skill" ]; then
         :
+      elif [ "$type" = external ] && [ -d "$REPO/skills-external/$skill" ]; then
+        # Symlink never created (or hand-removed): recreate it from the
+        # vendored pack — mirrors toggle-external.sh's from-source path.
+        ln -sf "$REPO/skills-external/$skill" "$SKILLS_DIR/$skill"
+        ok "enabled: $skill (external, symlink created)"
       else
         warn "missing: $skill ($type)"
       fi
@@ -422,6 +447,48 @@ parked_gstack_count() {
   find "$DISABLED_DIR" -maxdepth 1 -name 'gstack__*' 2>/dev/null | wc -l | tr -d ' '
 }
 
+# ── `set` trim helpers — one per managed category ─────────────
+# Each disables the managed items NOT listed in the given profile. Allowlist
+# doctrine: only MANAGED_* entries are ever auto-disabled.
+
+disable_plugins_not_in() {
+  local prof="$1" keep_file p plugin_name marketplace
+  keep_file="$(mktemp)"
+  read_profile "$prof" \
+    | awk -F'\t' '$2 ~ /^plugin@/ { sub(/^plugin@/, "", $2); print $1"@"$2 }' \
+    | sort -u > "$keep_file"
+  for p in "${MANAGED_PLUGINS[@]}"; do
+    if ! grep -qx "$p" "$keep_file"; then
+      plugin_name="${p%@*}"
+      marketplace="${p#*@}"
+      disable_skill "$plugin_name" "plugin@${marketplace}"
+    fi
+  done
+  rm -f "$keep_file"
+}
+
+disable_externals_not_in() {
+  local prof="$1" keep_file x
+  keep_file="$(mktemp)"
+  read_profile "$prof" | awk -F'\t' '$2 == "external" { print $1 }' \
+    | sort -u > "$keep_file"
+  for x in "${MANAGED_EXTERNALS[@]}"; do
+    grep -qx "$x" "$keep_file" || disable_skill "$x" external
+  done
+  rm -f "$keep_file"
+}
+
+disable_mcps_not_in() {
+  local prof="$1" keep_file s
+  keep_file="$(mktemp)"
+  read_profile "$prof" | awk -F'\t' '$2 == "mcp" { print $1 }' \
+    | sort -u > "$keep_file"
+  for s in "${MANAGED_MCPS[@]}"; do
+    grep -qx "$s" "$keep_file" || disable_skill "$s" mcp
+  done
+  rm -f "$keep_file"
+}
+
 # ── Commands ──────────────────────────────────────────────
 
 cmd_list() {
@@ -506,24 +573,20 @@ cmd_apply() {
 
 cmd_set() {
   local prof="$1"
-  info "Setting profile: $prof (exclusive — disables non-listed gstack skills + managed plugins)"
+  info "Setting profile: $prof (exclusive — disables non-listed gstack skills + managed plugins/externals/MCPs)"
 
   # Disable gstack-origin skills not in profile.
   disable_gstack_not_in "$prof"
 
   # Disable managed plugins not in profile (PROTECTED_PLUGINS are excluded
   # by disable_skill itself — belt and suspenders).
-  local plugin_keep_file p plugin_name marketplace
-  plugin_keep_file="$(mktemp)"
-  read_profile "$prof" | awk -F'\t' '$2 ~ /^plugin@/ { sub(/^plugin@/, "", $2); print $1"@"$2 }' | sort -u > "$plugin_keep_file"
-  for p in "${MANAGED_PLUGINS[@]}"; do
-    if ! grep -qx "$p" "$plugin_keep_file"; then
-      plugin_name="${p%@*}"
-      marketplace="${p#*@}"
-      disable_skill "$plugin_name" "plugin@${marketplace}"
-    fi
-  done
-  rm -f "$plugin_keep_file"
+  disable_plugins_not_in "$prof"
+
+  # Symmetry (BDR-079): a profile switch also parks the managed external
+  # packs and unregisters the managed MCPs the new profile does not need —
+  # design leftovers (emil, magic…) no longer survive a `set backend`.
+  disable_externals_not_in "$prof"
+  disable_mcps_not_in "$prof"
 
   # Enable everything listed in the profile.
   cmd_apply "$prof"
@@ -679,9 +742,11 @@ EXAMPLES:
   bash lib/profile.sh reset            # restore everything
 
 NOTE:
-  Plugin and MCP entries print advisory commands — they are NOT toggled
-  automatically. Run "claude plugin enable|disable" or "claude mcp add|remove"
-  yourself for those.
+  "set" toggles the MANAGED items automatically, both ways: plugins
+  (ui-ux-pro-max, plugin-dev, pr-review-toolkit), external packs
+  (emil-design-eng, frontend-design, design-motion-principles, impeccable)
+  and the magic MCP. Anything outside those allowlists stays advisory —
+  run "claude plugin enable|disable" or "claude mcp add|remove" yourself.
 EOF
 }
 

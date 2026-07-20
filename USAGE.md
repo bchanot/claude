@@ -163,7 +163,7 @@ Tu veux...
 | `/pdf-translate` | Traduire un PDF vers une autre langue | Sortie HTML fidèle (images, layout, style préservés) |
 | `/impeccable` | Audit/polish design + détecteur anti-slop déterministe | 23 verbes ; `npx impeccable detect` (exit 0/2) |
 | `/tour` | Sweep groupé sur un ou plusieurs projets | Sécu + nettoyage + reconcile + doc, boucle jusqu'à un pass propre |
-| `/profile` | Changer le profil de skills | design / dev / qa / audit / minimal |
+| `/profile` | Changer le profil de skills | web / seo / web-full / full / backend / design / dev / qa / audit / minimal |
 
 > Cette table couvre les skills personnels principaux. Les plugins (gstack,
 > pr-review-toolkit…) et marketplaces externes en ajoutent beaucoup d'autres —
