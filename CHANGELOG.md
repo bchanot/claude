@@ -6,8 +6,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [1.3.0] — 2026-07-20
+
 ### Added
 - **Profile switches now toggle external packs and MCPs both ways (BDR-079)** — `profile.sh set` was asymmetric: it enabled what a profile listed (including gstack skills on demand when the whole pack is off, and the `magic` MCP) but never disabled the managed leftovers, so `set backend` after design work kept emil-design-eng / frontend-design / design-motion-principles / impeccable active and magic registered. `set` now trims managed externals (`MANAGED_EXTERNALS`) and managed MCPs (`MANAGED_MCPS`, delegated to `toggle-external.sh`) not listed in the profile — same allowlist doctrine as `MANAGED_PLUGINS`, nothing outside the allowlists is ever auto-touched (darwin-skill stays manual). Also: an `external` entry whose symlink never existed is now created from `skills-external/` (mirroring toggle-external's from-source path), and the stale "NOT toggled automatically" note in `profile.sh` usage was corrected. Covered by a hermetic 16-check test (`lib/tests/profile-set-managed.test.sh`) with a fake `claude` shim.
+
+### Changed
+- **README restructured for public readers** — the project-layout tree and architecture principles moved verbatim to a new `ARCHITECTURE.md` (README links it); bare decision-registry citations (`BDR-XXX`) stripped from README prose, meaning preserved; `/profile` documentation corrected in three places to the real 10-profile set (web / seo / web-full / full / backend / design / dev / qa / audit / minimal); fresh-install block now uses the real clone URL + `make install` / `make doctor`; new "SEO data layer" subsection documents the `GOOGLE_OAUTH_CLIENT_ID` / `GOOGLE_OAUTH_CLIENT_SECRET` / `CRUX_API_KEY` vars in `~/.claude/.env` (mirrors `.env.example`, `make seo-connect` one-time consent).
+
+### Fixed
+- **Transient planning artifacts purged from the repo** — `docs/plans`, `docs/specs`, `docs/superpowers/{plans,specs}` (deploy-skill 2026-06-27, model-routing 2026-07-15) were run-time pipeline artifacts that should have been deleted in their chantiers' post-merge cleanup and slipped through (one pair predates the lifecycle rule, one missed the purge step of a 6-wave chantier). Git history at the feature commits remains their archive; `docs/` no longer exists.
 
 ## [1.2.1] — 2026-07-20
 
