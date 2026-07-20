@@ -6,6 +6,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [1.2.1] — 2026-07-20
+
+### Fixed
+- **README caught up with the code it describes** — the "Agent model routing" section still presented the BDR-066 v1 scheme (7 rows factually wrong after model-tiering v2): reframed to the BDR-076/077 4-tier table verified against agent frontmatters (opus-pinned judgment agents, per-mode splits for doc-syncer / handover-doc-writer / seo-geo pipelines, plugin-probe added, unpinned inline agents listed as such). Also: Context7 paragraph rewritten to the two-surface model (find-docs = sole doc-fetch surface, `ctx7-reminder` hook = scoped session nudge, BDR-078), `hooks/` tree line now mentions the ctx7 reminder, and the `/ship-feature` workflow block gained its STEP 2b (adversarial plan-challenge) line. Docs-only release — no code change.
+
 ## [1.2.0] — 2026-07-20
 
 ### Added

@@ -416,3 +416,4 @@ rules:
 
 ## 2026-07-20
 - ctx7 coverage audit (user ask "ctx7 appelé à chaque techno ?") → verdict PARTIAL. 4 gaps: find-docs question-only, /feat //bugfix executors blind, ad-hoc coding uncovered, fast-libs hardcoded 3×. All 4 closed → BDR-078 (fast-libs.sh single source + ctx7-reminder hook + description trigger + executor-brief rule). fast-libs test 11/0, make test + review-guards green. feature/ctx7-coverage, UNMERGED.
+- v1.2.0 cut + pushed (release-candidate flow: prep/finish via release-executor, tag on main 51b6572). CHANGELOG backfilled at prep: 10 entries added to Unreleased (plan-challenge, seo-data verbs, model-tiering v2, integrity pass, safe_fetch/url-guard) — was ctx7-only. /doc full post-release: README model-routing table v1→v2 reframe + ctx7 two-surface wording, chore/doc-sync-v1.2.0 merged. All pushed on explicit go.
