@@ -23,7 +23,7 @@ claude-config/
 ├── update-all.sh          # One-command update for all components
 ├── Makefile               # Unified entry point: make install / doctor / update
 ├── plugins.lock.json      # Version pinning for non-marketplace dependencies
-├── hooks/                 # Session start, statusline, RTK rewrite + design-toolchain guards
+├── hooks/                 # Session start, statusline, RTK rewrite + ctx7 + design-toolchain reminders
 ├── agents/                # Execution units called by skills (never invoked directly)
 ├── skills/                # Entry points invoked via /skill-name
 ├── skills-external/       # Vendored skill packs (gstack submodule + installer-fetched design packs)
@@ -37,30 +37,35 @@ claude-config/
 - `templates/` = symlinked to `~/.claude/templates/` — copy into projects via `/onboard` or manually
 - **Graphify** builds a knowledge graph of any codebase (`/graphify query`), producing a navigable wiki in `graphify-out/wiki/`. This map helps Claude understand project structure, find relevant code faster, and reason across files. Essential for large-scope tasks (multi-file features, complex bugs, architectural changes). Small tasks should skip it and read files directly.
 
-### Agent model routing (BDR-066)
+### Agent model routing (BDR-076/077 — model-tiering v2)
 
-Reflection (brainstorm, plan, contract, audit judgment, loop decisions) runs
-INLINE on the session model — assumed Fable/Opus, enforced by a blocking
-gate (`lib/model-gate.md` + `lib/model-check.sh`) at the entry of the 13
-reflection orchestrators. Execution runs on pinned subagents:
+Doctrine: the session model (Fable) does main-loop reflection ONLY —
+brainstorm, plan, contract, audit judgment, gates, loop decisions — enforced
+by a blocking gate (`lib/model-gate.md` + `lib/model-check.sh`) at the entry
+of the 13 reflection orchestrators. Nothing dispatched inherits silently:
+typed agents carry a frontmatter pin, built-ins get an explicit `model=` at
+every call site.
 
 | Agent | Model | Tier |
 |---|---|---|
 | feater, hotfixer, bugfixer | sonnet (pinned) | executors — code from a closed plan (feat), fix from a closed diagnosis (bugfix), fix-bundle appliers |
 | verifier, security-auditor | sonnet (pinned) | fresh gates (≤3×/loop) |
-| commit-changer, release-executor, code-cleaner | sonnet (pinned) | dispatched execution — grouping+commit / release spans / approved cleanup (the audit + approval gate stay in the dispatcher) |
-| doc-syncer, onboarder, scaffolder, refactorer, interviewer, plugin-advisor | sonnet (pinned) | workers |
+| commit-changer, release-executor, code-cleaner | sonnet (pinned) | dispatched execution — grouping+commit / release spans / approved cleanup (audit + approval gates stay in the dispatcher) |
+| onboarder, scaffolder, refactorer, validator-analyzer, plugin-probe | sonnet (pinned) | workers — config generation, scaffold, refactor, deterministic W3C/WCAG runner, mechanical plugin probe |
 | status-reporter | haiku (pinned) | mechanical collector |
-| handover-doc-writer | sonnet (pinned) | deliverable writer — synthesizes + renders the client doc from a resolved PACKAGE (dispatched by client-handover) |
-| analyzer, seo-analyzer, geo-analyzer, validator-analyzer, client-handover-writer | inherit session (Fable/Opus) | reflection / audit / inline playbooks / ship-and-handover pipeline |
-| plan-challenger | inherit session (Fable/Opus) | fresh adversarial plan challenger — 3 parallel lenses (correctness/robustness/simplicity), dispatched by `/ship-feature` STEP 2b before the validation gate |
+| analyzer, plan-challenger, plugin-advisor | opus (pinned) | dispatched judgment — pre-plan analysis, 3-lens adversarial plan challenge (`/ship-feature` STEP 2b), plugin-fit reasoning |
+| seo-analyzer, geo-analyzer | opus pin (judge mode); collect/template spans dispatched `model="sonnet"` | 3-mode audit pipelines — judgment fail-closed on opus, mechanical collect + templating on sonnet |
+| doc-syncer | sonnet pin; audit mode dispatched `model="opus"` | two-mode: audit (drift judgment, opus) / patch (mechanical apply, sonnet) |
+| handover-doc-writer | sonnet pin; synthesize mode dispatched `model="opus"` | two-mode: synthesize (opus) / render (sonnet) — client deliverable |
+| interviewer, client-handover-writer | unpinned (inline-load = session model) | they ARE the main loop — a frontmatter pin would be inert |
 | Explore (built-in) | inherit session (Fable/Opus) | search feeds reflection — kept on the big model, not pinned down |
 
 The pure-execution skills `/doc`, `/status`, `/commit-change`,
 `/release-candidate` **dispatch** their agent (instead of inline-loading it)
 so the pin takes effect and the work leaves the big session model; `/hotfix`
 was split like `/feat` (reflection inline + gate, `hotfixer` executor) and so
-joins the gated group (13th).
+joins the gated group (13th); `/client-handover`'s nested skill-runner
+children are dispatched `model:"fable"` (they carry reflection).
 
 ---
 
@@ -84,9 +89,12 @@ All scripts use their own location to find the repo — run them from anywhere.
 The plugins step logs to `install-YYYYMMDD-HHMMSS.log`.
 
 **Optional — Context7** (fast doc lookup for React / Next.js / Prisma…): the plugins
-step installs the `ctx7` CLI and wires it into Claude Code itself — single surface =
-the `find-docs` skill; the generated `rules/context7.md` is purged by design
-(BDR-053). If you run `ctx7 setup` manually, delete that rule or re-run `make plugin`.
+step installs the `ctx7` CLI and wires it into Claude Code. The doc-fetch surface is
+the `find-docs` skill alone (BDR-053 — the generated `rules/context7.md` is purged by
+design; if you run `ctx7 setup` manually, delete that rule or re-run `make plugin`).
+A once-per-session `ctx7-reminder` hook nudges toward it when the current project
+carries fast-moving libs (`lib/fast-libs.sh`) — a scoped second surface refining
+BDR-053, not reversing it (BDR-078).
 
 ```bash
 ctx7 login                 # optional: OAuth / API key for higher rate limits
@@ -186,6 +194,7 @@ cd my-existing-project/
 /ship-feature "feature description"
 # → STEP 0: plugin check
 # → STEP 1-2: brainstorm + plan (superpowers)
+# → STEP 2b: adversarial plan-challenge (3 lenses, report-only)
 # → STEP 3: validation gate — user approval required
 # → STEP 4-7: implement (TDD) → review → capitalize (memory)
 # → STEP 8: sync README (doc-sync)
