@@ -420,3 +420,6 @@ rules:
 - profile↔toggle-external audit (user) → enable side already symmetric (gstack on-demand LIVE), disable side missing → BDR-079: MANAGED_EXTERNALS+MANAGED_MCPS trim at set, external from-source fallback, 16-check hermetic test (claude shim). feature/profile-managed-externals, UNMERGED.
 - README rebuilt: short pitch (what/how/why) top, old content → reference manual below separator. Dedup title/overview/install block, hardcoded version dropped from footer (staleness risk). chore/readme-v2 merged → develop, pushed.
 - v1.3.1 cut + pushed (docs-only: README rebuild). prep span via release-executor OK; finish span BLOCKED by permission classifier on subagent (no human signal in its transcript) → ran inline after both gates. [[BLK-018]].
+
+## 2026-07-21
+- Skill audit (user ask "pourquoi pas investigate dans bugfix ?") → same core doctrine, incompatible wrappers: investigate = monolithic gstack (own memory ~/.gstack, no gitflow/gates, ~1075-line preamble), bugfix = orchestrator (contract, fresh verifier+security gates, registries). Routing inverted in CLAUDE.global.md: bugfix primary, investigate explicit-only → BDR-080. chore/skill-routing-bugfix, UNMERGED.
