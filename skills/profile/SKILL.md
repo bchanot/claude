@@ -61,6 +61,15 @@ protected — `set` will refuse to disable them even if the profile omits them.
 **Managed plugins** that `set` may disable when not in profile:
 `ui-ux-pro-max@ui-ux-pro-max-skill`, `plugin-dev@claude-code-plugins`,
 `pr-review-toolkit@claude-code-plugins`. Other plugins are never auto-toggled.
+**Managed externals** (`emil-design-eng`, `frontend-design`,
+`design-motion-principles`, `impeccable`) and **managed MCPs** (`magic`)
+follow the same symmetry (BDR-079): `set` enables them when the profile
+lists them (from parked state, or from `skills-external/` if the symlink
+never existed) and parks/unregisters them when it does not — e.g. `set
+backend` after design work turns emil and magic off. `darwin-skill` and any
+other unlisted external are never auto-touched. gstack works the same
+all the way down: a profile listing gstack skills while the whole pack is
+off (via `toggle-external.sh`) re-enables JUST those skills on demand.
 
 ## Commands
 
@@ -117,8 +126,11 @@ bash "$HOME/.claude/lib/profile.sh" $ARGUMENTS
   update-check, learnings — script doesn't touch that infra. Disabled skills
   are just hidden from Claude Code's scanner; the gstack repo stays installed.
 - Profile changes DO toggle the managed Claude Code plugins (ui-ux-pro-max,
-  plugin-dev, pr-review-toolkit) and the `magic` MCP — see the Mechanism table
-  above (BDR-008). Anything outside that managed set stays manual:
-  `claude plugin enable|disable`, `claude mcp add|remove`.
+  plugin-dev, pr-review-toolkit), the managed external packs (emil-design-eng,
+  frontend-design, design-motion-principles, impeccable) and the `magic` MCP —
+  in BOTH directions: `set` enables what the profile lists and disables the
+  managed leftovers it doesn't (BDR-008, BDR-079). Anything outside those
+  allowlists stays manual: `claude plugin enable|disable`, `claude mcp
+  add|remove`.
 - `set` is destructive in the sense that it disables non-listed gstack skills.
   Use `apply` if the user wants additive behavior.

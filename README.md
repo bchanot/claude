@@ -11,33 +11,11 @@ Global Claude Code configuration — agents, skills, plugins, and project templa
 
 This repo is your personal Claude Code setup, versioned and reproducible across machines.
 
-```
-claude-config/
-├── CLAUDE.global.md       # Global coding preferences — deployed as ~/.claude/CLAUDE.md
-├── CLAUDE.md              # Project-scope instructions (this repo only)
-├── settings.json          # Global permissions (deny / ask / allow rules)
-├── install.sh             # Bootstrap: Claude Code CLI + auth + submodules + link + plugins
-├── install-plugins.sh     # One-shot installer: prerequisites + all plugins
-├── link.sh                # Symlinks this repo into ~/.claude/
-├── doctor.sh              # Setup diagnostic
-├── update-all.sh          # One-command update for all components
-├── Makefile               # Unified entry point: make install / doctor / update
-├── plugins.lock.json      # Version pinning for non-marketplace dependencies
-├── hooks/                 # Session start, statusline, RTK rewrite + ctx7 + design-toolchain reminders
-├── agents/                # Execution units called by skills (never invoked directly)
-├── skills/                # Entry points invoked via /skill-name
-├── skills-external/       # Vendored skill packs (gstack submodule + installer-fetched design packs)
-├── templates/             # Per-project templates (CLAUDE.md, settings, memory registries, deploy runbook, gitignore)
-└── lib/                   # Shared shell libs (gitflow, profiles, commit helpers, archetypes, tests)
-```
+See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the full project layout and
+structural principles (skills = entry points, agents = execution units,
+templates = per-project scaffolding, graphify = codebase knowledge graph).
 
-**Architecture principle:**
-- `skills/` = entry points you invoke via `/skill-name`
-- `agents/` = execution units called by skills (never invoked directly by user)
-- `templates/` = symlinked to `~/.claude/templates/` — copy into projects via `/onboard` or manually
-- **Graphify** builds a knowledge graph of any codebase (`/graphify query`), producing a navigable wiki in `graphify-out/wiki/`. This map helps Claude understand project structure, find relevant code faster, and reason across files. Essential for large-scope tasks (multi-file features, complex bugs, architectural changes). Small tasks should skip it and read files directly.
-
-### Agent model routing (BDR-076/077 — model-tiering v2)
+### Agent model routing (model-tiering v2)
 
 Doctrine: the session model (Fable) does main-loop reflection ONLY —
 brainstorm, plan, contract, audit judgment, gates, loop decisions — enforced
@@ -90,11 +68,11 @@ The plugins step logs to `install-YYYYMMDD-HHMMSS.log`.
 
 **Optional — Context7** (fast doc lookup for React / Next.js / Prisma…): the plugins
 step installs the `ctx7` CLI and wires it into Claude Code. The doc-fetch surface is
-the `find-docs` skill alone (BDR-053 — the generated `rules/context7.md` is purged by
+the `find-docs` skill alone (the generated `rules/context7.md` is purged by
 design; if you run `ctx7 setup` manually, delete that rule or re-run `make plugin`).
 A once-per-session `ctx7-reminder` hook nudges toward it when the current project
-carries fast-moving libs (`lib/fast-libs.sh`) — a scoped second surface refining
-BDR-053, not reversing it (BDR-078).
+carries fast-moving libs (`lib/fast-libs.sh`) — a scoped second surface, a
+refinement of the single-surface rule, not a reversal.
 
 ```bash
 ctx7 login                 # optional: OAuth / API key for higher rate limits
@@ -160,7 +138,7 @@ a different package, ships its own conflicting `graphify` bin) — see
 | `/web-validate` | W3C HTML/CSS validity + WCAG 2.1 accessibility audit |
 | `/geo` | GEO-only audit — AI-search visibility (ChatGPT, Perplexity, Claude, Gemini…) |
 | `/client-handover` | Final project delivery — audits + branded deliverable (Markdown / HTML / PDF) |
-| `/profile` | Activate a skill profile (design / dev / qa / audit / minimal) |
+| `/profile` | Activate a skill profile (web / seo / web-full / full / backend / design / dev / qa / audit / minimal) |
 | `/tour` | Grouped all-axes sweep — cleanup + security + reconcile + doc, fix and loop until clean |
 
 > This table lists personal skills. Gstack skills (investigate, review, retro,
@@ -236,7 +214,7 @@ See [`templates/settings/SETTINGS.md`](templates/settings/SETTINGS.md) for the f
 `~/.claude.json` (or the project's `.mcp.json`) — if you pass the real secret
 on that command line, it materializes as a second plaintext copy outside
 `~/.claude/.env`, invisible to the repo's `.gitignore`/allowlist reach (this
-bit us once: job7/BDR-026).
+bit us once).
 
 Claude Code expands `${VAR}` and `${VAR:-default}` in `mcpServers` config —
 in `env`, `command`, `args`, `url`, and `headers` — for both project (`.mcp.json`)
@@ -273,7 +251,7 @@ can `POST` to it and that body is injected **verbatim** into the tool result
 the model consumes (job8 audit, `dist/utils/callback-server.js:36`). This is
 in the third-party package's code, not this repo's config — **we don't patch
 it**. The mitigation lives entirely on our side: `settings.json`
-`permissions.ask` explicitly lists all 4 `mcp__magic__*` tools ([[BDR-059]]),
+`permissions.ask` explicitly lists all 4 `mcp__magic__*` tools,
 so every call — builder included — requires a live confirmation and can
 never auto-execute. Don't allowlist
 `21st_magic_component_builder` or `21st_magic_component_refiner` (arbitrary
@@ -299,10 +277,10 @@ make plugin                 # install plugins only
 make link                   # create/update symlinks into ~/.claude/
 make doctor                 # diagnostic
 make update                 # update Claude Code, config, submodules, plugins, and verify
-make test                   # run deterministic tests (lib/tests/*.test.sh + lib/seo-data/*.test.sh + lib/gitflow-test.sh)
+make test                   # run deterministic tests (lib/tests/*.test.sh + lib/seo-data/*.test.sh + lib/gitflow-test.sh + lib/tests/run-*.sh)
 make onboard                # onboard an existing project (run from its dir)
 make seo-connect            # connect a Google account for /seo FULL (OAuth consent)
-make profile cmd="set X"    # activate a skill profile (design/dev/qa/audit/minimal/full)
+make profile cmd="set X"    # activate a skill profile (web/seo/web-full/full/backend/design/dev/qa/audit/minimal)
 make profile-list           # list skill profiles
 make profile-current        # show the active profile
 make profile-reset          # re-enable all gstack skills
