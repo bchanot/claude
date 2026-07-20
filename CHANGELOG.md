@@ -6,6 +6,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [1.3.1] — 2026-07-20
+
+### Changed
+- **README rebuilt around a short pitch** — new top half: what it is / how
+  it works / why it's good in ~60 lines (skills = entry points, agents =
+  model-tiered execution units, hooks = deterministic guardrails,
+  templates/memory = compounding per-project registries); all previous
+  content demoted to an explicit reference-manual half below a separator.
+  Deduplicated in the process: old title/tagline, Overview prose and the
+  duplicated fresh-install block removed (unique install notes kept under
+  a new "Install notes" section); hardcoded version number dropped from
+  the footer (staleness risk). Docs-only release — no code change.
+
 ## [1.3.0] — 2026-07-20
 
 ### Added

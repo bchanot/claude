@@ -1,21 +1,67 @@
 # claude-config
 
-Global Claude Code configuration — agents, skills, plugins, and project templates.
+One repo that turns Claude Code into a reproducible engineering system —
+skills, agents, hooks, plugins, and per-project memory, versioned and
+symlinked into `~/.claude/`. Clone it on any machine, run one command,
+and every project gets the same assistant with the same rules.
 
-> **Guide d'utilisation complet :** voir [`USAGE.md`](./USAGE.md) — workflows typiques, exemples par type de projet, arbre de décision "quel skill utiliser ?".
-> **Historique des versions :** voir [`CHANGELOG.md`](./CHANGELOG.md).
+## What it is
+
+Not a collection of prompts — an operating layer on top of Claude Code:
+
+- **Skills** (`/feat`, `/bugfix`, `/ship-feature`, `/seo`, `/tour`…) are the
+  entry points: each one encodes a complete workflow, from quick fix to
+  full feature pipeline with validation gates.
+- **Agents** are the execution units skills dispatch to — each pinned to
+  the cheapest model that can do the job (haiku collects, sonnet executes,
+  opus judges, the session model only reflects).
+- **Hooks and permissions** are deterministic guardrails: gitflow enforced
+  by a pre-commit hook, deny-first permission rules, secrets kept in
+  `~/.claude/.env` and never in config files.
+- **Templates and memory** seed every project with persistent registries
+  (decisions, learnings, blockers) — what a session learns, the next
+  session knows.
+
+## How it works
+
+```bash
+git clone --recurse-submodules https://github.com/bchanot/claude
+cd claude
+make install     # CLI + auth + symlinks + plugins (pinned in plugins.lock.json)
+make doctor      # verify everything
+```
+
+`link.sh` symlinks the repo into `~/.claude/`, so editing here updates the
+live config — and `git log` is the audit trail of your entire setup.
+Day to day:
+
+```bash
+/onboard            # bring an existing repo into the framework
+/ship-feature "…"   # brainstorm → plan → adversarial challenge → TDD → review → merge
+/feat "…"           # same idea, 1-5 files, no ceremony
+/close              # flush decisions and learnings to memory before quitting
+make update         # keep CLI, plugins, and submodules current
+```
+
+## Why it's good
+
+- **Reproducible.** One clone rebuilds the whole environment; versions are
+  locked, `make doctor` proves it works.
+- **Cost-shaped.** Model tiering routes reflection to the big model and
+  execution to cheap ones — the expensive context does only what it must.
+- **Safe by default.** Protected branches, ask-before-run on risky tools,
+  parameterized secrets: the guardrails are code, not good intentions.
+- **It compounds.** Memory registries, audit skills, and doc-sync keep every
+  project's knowledge growing across sessions instead of evaporating.
 
 ---
 
-## Overview
+Everything below is the reference manual — model routing, components,
+commands, settings, secrets, maintenance.
 
-This repo is your personal Claude Code setup, versioned and reproducible across machines.
+---
 
-See [`ARCHITECTURE.md`](./ARCHITECTURE.md) for the full project layout and
-structural principles (skills = entry points, agents = execution units,
-templates = per-project scaffolding, graphify = codebase knowledge graph).
-
-### Agent model routing (model-tiering v2)
+## Agent model routing (model-tiering v2)
 
 Doctrine: the session model (Fable) does main-loop reflection ONLY —
 brainstorm, plan, contract, audit judgment, gates, loop decisions — enforced
@@ -47,21 +93,7 @@ children are dispatched `model:"fable"` (they carry reflection).
 
 ---
 
-## Fresh install (new machine)
-
-```bash
-# 1. Clone with submodules
-git clone --recurse-submodules https://github.com/bchanot/claude
-cd claude
-
-# 2. Bootstrap (CLI + auth + symlinks + plugins)
-make install
-
-# 3. Verify setup
-make doctor
-
-# 4. Restart Claude Code — plugins load automatically
-```
+## Install notes
 
 All scripts use their own location to find the repo — run them from anywhere.
 The plugins step logs to `install-YYYYMMDD-HHMMSS.log`.
@@ -306,3 +338,11 @@ make new-skill name=myskill # scaffold agent + skill files
 ```
 
 `doctor.sh` checks: symlinks, GStack submodule, prerequisites (git, Node, Cargo, Python, Claude Code), plugins, permissions, token budget, config consistency.
+
+---
+
+## Going further
+
+[`USAGE.md`](./USAGE.md) — workflows and skill decision tree ·
+[`ARCHITECTURE.md`](./ARCHITECTURE.md) — layout and principles ·
+[`CHANGELOG.md`](./CHANGELOG.md) — version history.
