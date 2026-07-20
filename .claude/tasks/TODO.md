@@ -1,5 +1,13 @@
 # TODO
 
+## 2026-07-20 — pending merge gates (reconcile)
+- [ ] merge feature/profile-managed-externals → develop (BDR-079 profile
+      symmetry + /doc clean pass: README/USAGE/ARCHITECTURE.md)
+- [ ] merge chore/purge-transient-docs → develop (docs/ transient purge
+      655e364 + this reconcile) — reaches main at next release
+- [ ] Makefile help text: profiles 5/10 listed (:57) + test glob missing
+      run-*.sh (:31) — 2-line hotfix (flagged by /doc audit)
+
 ## 2026-07-20 — ctx7 coverage extension (feature/ctx7-coverage, BDR-078)
 Close the 4 gaps from the ctx7 coverage audit: /feat //bugfix + ad-hoc coding
 never consult ctx7; fast-libs list hardcoded 3×; zero deterministic backstop.
@@ -18,7 +26,7 @@ never consult ctx7; fast-libs list hardcoded 3×; zero deterministic backstop.
 - [x] `lib/tests/fast-libs.test.sh` (lib verbs + hook fire/sentinel/quiet)
       — 11/0, auto-discovered by the make test glob.
 - [x] Gate: shellcheck + make test green (review-guards 5/0). BDR-078 +
-      journal + CHANGELOG done. Committed on branch, NO merge (human gate).
+      journal + CHANGELOG done. Merged 8ee7d19, shipped v1.2.0.
 
 ## 2026-07-19 — Opus-pin dispatched judgment agents (branch feature/opus-pin-audit-agents)
 
@@ -45,8 +53,8 @@ on audits). User approved: opus for judgment agents, drop local opus pin.
 - [x] `.claude/settings.local.json` — drop `"model": "opus-4-8[1m]"`
       (local, gitignored; Fable default from settings.json applies).
 - [x] Tests: model-routing + loops-light + shellcheck + make test.
-- [x] Memory: BDR-076 append + journal line. Commit (feat + chore),
-      NO merge (human gate).
+- [x] Memory: BDR-076 append + journal line. Commit (feat + chore);
+      merged 17fbe51, shipped v1.2.0 (reconcile 2026-07-20).
 
 ## 2026-07-17 — STATUS seo/geo parity (branch bugfix/seo-geo-integrity — MERGED to develop, 92301fe; "UNMERGED" note was stale, corrected 2026-07-19 W0)
 PHASE 1 — integrity: **DONE 7/7**. I3 8b0c98c · I1 57c67f2 · I2 4ea2fb8 ·
@@ -54,8 +62,8 @@ I5 64f175f · I4 e70e1d6 · I6 9da1dec · I8 acd452b. Plus 9cd7b51 (A1+A2, two
 process anomalies surfaced by dogfooding /harden at zenquality.fr from the
 wrong CWD).
 PHASE 2 — free wins: W3 fe93b79 · W1 a6d423b · **W2 DEFERRED** (see below).
-NEXT: H1 (SSRF/injection guard) → C1 (sitemap crawl). Human merge gate: all
-10 commits await review; nothing merged to develop.
+H1 DONE (url-guard 7d6aa09) · C1 DONE (sitemap verb, C1a/b/c). Branch MERGED
+to develop (92301fe), shipped in v1.2.0 (reconcile 2026-07-20).
 
 ### Plan corrections made while executing (the plan was wrong 4×)
 - **B3 KILLED** — GSC Links API does not exist. Verified against the API
@@ -478,6 +486,8 @@ manipuler une valeur de secret — edits sur les mécanismes seulement.
         Transcript `f1c9c474-...jsonl` (generic-api-key, 8) — PAS choisi
         par l'utilisateur parmi les options (auto-inspect / TODO / rm) →
         **laissé intact, à trancher** ; ni lu ni caractérisé (règle job7).
+        [sans objet : transcript auto-roté (cleanupPeriodDays=7), absent
+        du disque — reconcile 2026-07-20]
   - [x] **NOUVEAU (bruit, pas un item D)** : transcript de CETTE session
         (`4b5c02a9-...jsonl`, aws-access-token, 2) = mes propres fixtures
         synthétiques de test (AKIA random) loggées dans mon propre
