@@ -423,3 +423,7 @@ rules:
 
 ## 2026-07-21
 - Skill audit (user ask "pourquoi pas investigate dans bugfix ?") → same core doctrine, incompatible wrappers: investigate = monolithic gstack (own memory ~/.gstack, no gitflow/gates, ~1075-line preamble), bugfix = orchestrator (contract, fresh verifier+security gates, registries). Routing inverted in CLAUDE.global.md: bugfix primary, investigate explicit-only → BDR-080. chore/skill-routing-bugfix, UNMERGED.
+
+## 2026-07-22
+- User: auto-gitignore+delete transient pipeline artifacts in all projects. Investigation reframed the ask — gitignore = WRONG tool (files read from disk during run; would break superpowers SDD `git add` of spec). BDR-065 already rejected gitignore + its DELETE side was doctrine-only (no code, manual chore slipped once — 655e364). User picks (2 recommended): keep committed-during-run + AUTOMATE delete; keep `.claude/tasks/{contracts,plans}` versioned.
+- Built `lib/gitflow.sh` `_gitflow_purge_transient` at finish (feature/bugfix, pre-merge, best-effort never-abort, opt-out `GITFLOW_PURGE_TRANSIENT=0`) + `purge-transient` CLI verb. Universal via `~/.claude/lib`→repo symlink. gitflow-test T17 a-d (10 checks, `--full-history` recovery), shellcheck clean, make test exit 0. BDR-065 amendment + [[LRN-138]]. feature/gitflow-auto-purge-transient.
