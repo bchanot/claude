@@ -981,6 +981,7 @@ rules:
 - **Why**: user call 2026-07-14 — registries already capture decisions; a stale plan describes a superseded intermediate state and misleads future readers; accumulation pollutes the repo. Precedent: gsc-crux cleanup (8a1fac0, 2026-07-10) did the same — this makes it law, not habit.
 - **Alternatives rejected**: never-commit (gitignore docs/superpowers) — breaks mid-run: briefs, reviewers, other-machine checkouts need the files; superpowers brainstorming commits the spec by convention. Keep-forever — the drift + pollution complained about.
 - **Reference**: project CLAUDE.md; cleanup commit this chore; precedent 8a1fac0. Linked [[BDR-064]], [[LRN-124]].
+- **Amendment (2026-07-22)**: DELETE side now AUTOMATED — `lib/gitflow.sh` `_gitflow_purge_transient` at `gitflow finish` (feature/bugfix, pre-merge, on HEAD) git-rm's `docs/superpowers/{specs,plans}` + scoped commit → develop TIP clean, feature commits stay reachable (`git show <sha>:…` archive intact). Best-effort: NEVER aborts finish (nothing-tracked no-op / dirty-path skip / commit-fail index+tree restore). Opt-out `GITFLOW_PURGE_TRANSIENT=0`. Retires the manual chore that slipped (655e364). Universal via `~/.claude/lib`→repo symlink (ship-feature STEP 9 + init-project STEP 11 both finish through it). gitignore STILL rejected — unchanged: breaks superpowers' `git add` of the spec (silently skipped, no travel to SDD worktree). `.claude/tasks/{contracts,plans}` kept versioned (user call — durable, referenced by decisions.md). Tests: gitflow-test.sh T17 a-d. [[LRN-138]].
 
 ---
 
