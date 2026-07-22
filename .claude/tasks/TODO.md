@@ -1,5 +1,26 @@
 # TODO
 
+## 2026-07-22 — auto-purge transient superpowers artifacts at finish (feature/gitflow-auto-purge-transient)
+User: transient planning artifacts (`docs/superpowers/{specs,plans}`) leak into
+develop; BDR-065 "post-merge cleanup" is DOCTRINE ONLY (no code) — manual chore,
+already missed once (655e364). Decision (user 2026-07-22, 2 recommended picks):
+keep committed-during-run (SDD worktree + reviewers read them), AUTOMATE the
+delete at `gitflow finish`. NO gitignore (would break superpowers' `git add` of
+the spec → no travel to SDD worktree). `.claude/tasks/{contracts,plans}` stay
+versioned (durable, referenced by decisions.md e.g. BDR-076). Universal via the
+`~/.claude/lib` → repo `lib` symlink: every project's finish gets it.
+- [x] lib/gitflow.sh: `_gitflow_purge_transient` (clean-precheck → git rm →
+      scoped commit `-- paths`; best-effort, NEVER aborts finish; opt-out
+      `GITFLOW_PURGE_TRANSIENT=0`) wired into finish `feature|bugfix` pre-merge;
+      `purge-transient` CLI verb.
+- [x] lib/gitflow-test.sh T17 a/b/c/d (purge+recover-from-history via
+      --full-history+`git show`, no-op when absent, opt-out keeps, chore scope).
+      Also fixed 2 pre-existing SC2034 warnings (T16 gl_out/noleaks_out).
+- [x] Gate: shellcheck lib/*.sh CLEAN + `make test` exit 0 (gitflow 106/0, full
+      suite green). Universal via ~/.claude/lib → repo lib symlink (verified).
+- [x] CLAUDE.md §Transient planning artifacts: → "AUTO-PURGED by gitflow finish".
+- [ ] Capitalize: BDR-065 amendment (delete side now automated) + LRN — pending user OK.
+
 ## 2026-07-20 — pending merge gates (reconcile)
 - [x] merge feature/profile-managed-externals → develop (BDR-079 profile
       symmetry + /doc clean pass: README/USAGE/ARCHITECTURE.md) — 37c79f0

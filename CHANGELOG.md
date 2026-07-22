@@ -6,6 +6,33 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [1.4.0] — 2026-07-22
+
+### Added
+- **Transient planning artifacts auto-purged at feature-finish (BDR-065)** —
+  `gitflow finish` on a `feature`/`bugfix` branch now removes the run-time
+  superpowers artifacts (`docs/superpowers/{specs,plans}`) on the working
+  branch just before the directed merge, so `develop`'s tip lands clean while
+  the feature commits stay reachable as the archive (`git show <sha>:…`). This
+  automates the manual post-merge cleanup that BDR-065 had left as doctrine —
+  the step that slipped in 1.3.0 and needed a hand purge. Best-effort by
+  contract: a purge that finds nothing, meets uncommitted changes under those
+  paths, or fails to commit never aborts the finish (index/tree restored); opt
+  out with `GITFLOW_PURGE_TRANSIENT=0`. New `gitflow.sh purge-transient` verb.
+  `.claude/tasks/{contracts,plans}` are deliberately out of scope (durable,
+  versioned, referenced by the decision registry). Live in every project via
+  the `~/.claude/lib` symlink; covered by `lib/gitflow-test.sh` T17 (a–d).
+
+### Changed
+- **Bug routing inverted: `/bugfix` primary, `/investigate` explicit-only
+  (BDR-080)** — a bug / error / 500 now routes to `/bugfix` by default (the
+  full framework: gitflow, contract, fresh verifier + security gates,
+  registries). The gstack `/investigate` monolith — its own `~/.gstack`
+  memory, no gitflow or gates — is reserved for explicit requests
+  (cross-project learnings, `/freeze` scope lock, long investigation with no
+  immediate commit intent). Same core debugging doctrine, incompatible
+  wrappers; the default now favours the gated, integrated path.
+
 ## [1.3.1] — 2026-07-20
 
 ### Changed

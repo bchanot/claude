@@ -252,7 +252,10 @@ description fits (full list is in context). Rules below cover only the
 non-obvious cases: gstack fallbacks, disambiguation, cryptic names.
 
 - Product idea, "worth building?" → office-hours
-- Bug / error / 500 → investigate (bugfix if gstack off)
+- Bug / error / 500 → bugfix (full framework: gitflow, contract, fresh
+  verifier/security gates, registries). investigate ONLY on explicit ask
+  for the gstack ecosystem (cross-project learnings, /freeze scope lock,
+  long investigation with no immediate commit intent)
 - feat / hotfix / bugfix distinguished by file count → see descriptions
 - Ship / deploy / PR → ship (ship-feature if gstack off)
 - Cut a release / tag a version (develop ahead of main) → release-candidate
