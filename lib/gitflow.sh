@@ -18,6 +18,12 @@ GITFLOW_MAIN="main"
 GITFLOW_DEVELOP="develop"
 # template resolved relative to the lib; overridable for tests.
 GITFLOW_GITIGNORE_TEMPLATE="${GITFLOW_GITIGNORE_TEMPLATE:-$_GITFLOW_LIB_DIR/../templates/gitignore/standard.gitignore}"
+# Transient planning artifacts (superpowers spec/plan). A feature/bugfix run
+# COMMITS them (SDD worktree + reviewers read them from disk); finish PURGES
+# them before the merge reaches develop's tip (BDR-065). Fixed path list;
+# read GITFLOW_PURGE_TRANSIENT=0 at finish time to opt out (read in the helper,
+# never cached here, so an inline `VAR=0 gitflow_finish` override works).
+GITFLOW_TRANSIENT_PATHS=("docs/superpowers/specs" "docs/superpowers/plans")
 
 # ── predicates / pure helpers ────────────────────────────────────────────────
 
@@ -97,6 +103,42 @@ _gitflow_delete() {                # <branch>
   git branch -q -d "$br" || { echo "gitflow: '$br' not fully merged — branch kept" >&2; return 5; }
 }
 
+# _gitflow_purge_transient → remove the committed transient planning artifacts
+# (BDR-065) from the CURRENT branch just before the directed merge. Result: the
+# removal rides the feature/bugfix branch, whose earlier commits stay reachable
+# from develop through the --no-ff merge (`git show <sha>:…` = the archive),
+# while develop's TIP lands clean. Automates the manual post-merge chore that
+# BDR-065 left as doctrine (and that slipped once — commit 655e364).
+#
+# BEST-EFFORT BY CONTRACT: this NEVER aborts a finish. Nothing tracked → no-op;
+# uncommitted changes under those paths, or a failed commit → warn + degrade to
+# the old manual-cleanup behaviour, index/tree restored, merge still proceeds.
+# The scoped commit (`-- <paths>`) records only the deletions, so a dirty index
+# is never swept in. Opt out with GITFLOW_PURGE_TRANSIENT=0.
+_gitflow_purge_transient() {
+  [ "${GITFLOW_PURGE_TRANSIENT:-1}" = 1 ] || return 0
+  local p; local -a tracked=()
+  for p in "${GITFLOW_TRANSIENT_PATHS[@]}"; do
+    [ -n "$(git ls-files -- "$p")" ] && tracked+=("$p")
+  done
+  [ "${#tracked[@]}" -gt 0 ] || return 0             # nothing tracked → no-op
+  # only purge paths with no pending changes → git rm is all-or-nothing safe and
+  # never discards uncommitted work under docs/superpowers.
+  if ! git diff --quiet HEAD -- "${tracked[@]}" 2>/dev/null; then
+    echo "gitflow: transient artifacts have uncommitted changes — purge skipped, finishing without it (clean up by hand)" >&2
+    return 0
+  fi
+  if git rm -r -q -- "${tracked[@]}" >/dev/null 2>&1 \
+     && git commit -q -m "chore: purge transient planning artifacts (BDR-065)" -- "${tracked[@]}"; then
+    echo "gitflow: purged transient planning artifacts before merge (${tracked[*]})" >&2
+  else
+    echo "gitflow: transient-artifact purge failed — finishing without it (clean up by hand)" >&2
+    git reset -q HEAD -- "${tracked[@]}" 2>/dev/null || true   # unstage any partial rm
+    git checkout -q -- "${tracked[@]}" 2>/dev/null || true     # restore working tree
+  fi
+  return 0
+}
+
 # gitflow_finish [<type> <name>] → directed merge of the CURRENT branch per its
 # type, then delete. WHEN to call this is the human gate (SKILL.md).
 #
@@ -117,7 +159,10 @@ gitflow_finish() {
   fi
   type="$(gitflow_branch_type "$br")"
   case "$type" in
-    feature|bugfix|chore)
+    feature|bugfix)
+      _gitflow_purge_transient   # BDR-065 auto-cleanup, on HEAD, pre-merge; never blocks
+      _gitflow_merge_into "$GITFLOW_DEVELOP" "$br" && _gitflow_delete "$br" ;;
+    chore)
       _gitflow_merge_into "$GITFLOW_DEVELOP" "$br" && _gitflow_delete "$br" ;;
     release)
       _gitflow_merge_into "$GITFLOW_MAIN" "$br" \
@@ -283,8 +328,9 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     finish)         gitflow_finish "$@" ;;
     init)           gitflow_init "$@" ;;
     reconcile)      gitflow_reconcile_gitignore "$@" ;;
+    purge-transient) _gitflow_purge_transient ;;
     install-hook)   gitflow_install_hook "$@" ;;
     emit-hook)      _gitflow_emit_pre_commit ;;
-    *) echo "usage: gitflow.sh {type|protected-base|base-for|release-open|start|finish|init|reconcile|install-hook|emit-hook}" >&2; exit 2 ;;
+    *) echo "usage: gitflow.sh {type|protected-base|base-for|release-open|start|finish|init|reconcile|purge-transient|install-hook|emit-hook}" >&2; exit 2 ;;
   esac
 fi

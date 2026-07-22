@@ -239,6 +239,7 @@ gitflow_start feature glwork >/dev/null 2>&1
 # proving this backstop is NOT gated by the branch-protection check above it)
 printf 'aws_access_key_id = AKIA%s\n' "GDR5XRBXYARW2I5N" > secret.txt
 git add secret.txt
+# shellcheck disable=SC2034  # gl_out is used in the deferred chk eval strings
 gl_out="$(git commit -q -m "add secret" 2>&1)"; gl_rc=$?
 chk "T16a fake secret on feature branch → blocked" "[ $gl_rc -ne 0 ]"
 chk "T16a message mentions gitleaks"               'printf "%s" "$gl_out" | grep -qi gitleaks'
@@ -252,9 +253,56 @@ chk "T16b clean commit still succeeds" 'git commit -q -m "clean work" 2>/dev/nul
 # T16c — gitleaks missing from PATH → warn, never block (defense in depth
 # must not become a new single point of failure)
 echo clean2 > clean2.txt; git add clean2.txt
+# shellcheck disable=SC2034  # noleaks_out is used in the deferred chk eval strings
 noleaks_out="$(PATH=/usr/bin:/bin git commit -q -m "clean work 2" 2>&1)"; noleaks_rc=$?
 chk "T16c missing-gitleaks → still commits (rc0)" "[ $noleaks_rc -eq 0 ]"
 chk "T16c missing-gitleaks → warns"    'printf "%s" "$noleaks_out" | grep -qi "not installed"'
+
+echo "T17 — finish auto-purges transient superpowers artifacts (BDR-065)"
+# T17a — feature carrying docs/superpowers spec+plan: purged before merge,
+# develop TIP clean, artifacts still recoverable from history (archive property)
+newrepo purgefeat; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+gitflow_start feature pf >/dev/null 2>&1
+mkdir -p docs/superpowers/specs docs/superpowers/plans
+echo spec > docs/superpowers/specs/s.md
+echo plan > docs/superpowers/plans/p.md
+echo code > feat.txt
+git add -A; git commit -q -m "feat + transient spec/plan"
+gitflow_finish >/dev/null 2>&1
+# the add-commit stays reachable from develop via the --no-ff merge's 2nd parent;
+# --full-history defeats the path simplification that hides it, and `git show
+# <sha>:path` proves BDR-065's "git history = the archive" recovery.
+# shellcheck disable=SC2034  # pf_add_sha is used in the deferred chk eval string
+pf_add_sha="$(git log develop --full-history --format=%H -- docs/superpowers/specs/s.md | tail -1)"
+chk "T17a merged into develop"           'git log develop --oneline | grep -q "Merge feature/pf into develop"'
+chk "T17a develop TIP has no transient"  '[ -z "$(git ls-tree -r develop --name-only -- docs/superpowers)" ]'
+chk "T17a purge commit on record"        'git log develop --oneline | grep -q "purge transient planning artifacts"'
+chk "T17a artifact recoverable from history" '[ "$(git show "$pf_add_sha":docs/superpowers/specs/s.md 2>/dev/null)" = spec ]'
+chk "T17a non-transient code survives"   'git ls-tree -r develop --name-only | grep -qx feat.txt'
+chk "T17a feature branch deleted"        '! git rev-parse --verify -q refs/heads/feature/pf >/dev/null'
+
+# T17b — no artifacts → purge is a silent no-op, no spurious commit
+newrepo purgenone; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+gitflow_start feature pn >/dev/null 2>&1; echo w>w.txt; git add w.txt; git commit -q -m w
+gitflow_finish >/dev/null 2>&1
+chk "T17b merged into develop"     'git log develop --oneline | grep -q "Merge feature/pn into develop"'
+chk "T17b no purge commit created" '! git log develop --oneline | grep -q "purge transient"'
+
+# T17c — opt-out (GITFLOW_PURGE_TRANSIENT=0) keeps the artifacts on develop
+newrepo purgeoff; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+gitflow_start feature po >/dev/null 2>&1
+mkdir -p docs/superpowers/specs; echo spec > docs/superpowers/specs/s.md
+git add -A; git commit -q -m "feat + spec"
+GITFLOW_PURGE_TRANSIENT=0 gitflow_finish >/dev/null 2>&1
+chk "T17c opt-out keeps transient on develop TIP" '[ -n "$(git ls-tree -r develop --name-only -- docs/superpowers)" ]'
+
+# T17d — chore is OUT of purge scope (only feature/bugfix originate artifacts)
+newrepo purgechore; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+gitflow_start chore pc >/dev/null 2>&1
+mkdir -p docs/superpowers/specs; echo spec > docs/superpowers/specs/s.md
+git add -A; git commit -q -m "chore + spec"
+gitflow_finish >/dev/null 2>&1
+chk "T17d chore leaves transient (not in scope)" '[ -n "$(git ls-tree -r develop --name-only -- docs/superpowers)" ]'
 
 echo
 echo "==== RESULT: $PASS passed, $FAIL failed ===="
