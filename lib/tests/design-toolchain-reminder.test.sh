@@ -22,6 +22,7 @@ check D8-dash-file   "$(fire 'ecc_dashboard.py')"              quiet
 # --- Harness-generated inputs must be QUIET even with UI tokens ---
 check D9-tasknotif   "$(fire '<task-notification> <task-id>x</task-id> add css header fonts')" quiet
 check D10-notif-file "$(fire '<task-notification> design-motion-principles keyframe done')"    quiet
+check D11-bare-ux    "$(fire 'changement ux vu de tes trouvailles')" quiet
 
 # --- Real UI signals must still FIRE ---
 check F1-button      "$(fire 'add a button')"            fire
@@ -33,6 +34,7 @@ check F6-frontdesign "$(fire 'frontend design work')"    fire
 check F7-admin-dash  "$(fire 'admin dashboard screen')"  fire
 check F8-animation   "$(fire 'add an animation')"        fire
 check F9-designsys   "$(fire 'our design system')"       fire
+check F10-bare-ui    "$(fire 'revois l'\''ui du panneau admin')" fire
 
 # --- Fire is logged (time + token + excerpt) ---
 tmp="$(mktemp -d)"
