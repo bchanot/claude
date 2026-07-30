@@ -22,8 +22,26 @@ adopted as prescribed (plan §5bis, v2 items below).
       flip-tested (fire before/quiet after) — eab2a10, suite 22/0
 - [x] W7 plan-challenger :82-83 reworded → [MINOR] routing, census row — c3d3f4d, 44/0
 - [x] W8 BDR-081 + LRN-139 + journal + CHANGELOG
-- [ ] W9 final gate: make test full suite
-- [ ] W10 no gitflow finish (human gate) — merge only on explicit user signal
+- [x] W9 final gate: make test full suite — green except known T6c
+      (darwin-skill residual → chantier 4 below), 2026-07-30
+- [x] W10 merged on explicit user signal — 709cf9b (2026-07-30 13:28),
+      branch deleted; confirmed post-merge this session
+
+## 2026-07-30 — Claude 5 follow-on chantiers (user directive, checkpoint between each)
+Order fixed, one branch per chantier, no merge without per-chantier signal.
+- [ ] C1 dé-prescription seo-analyzer.md + geo-analyzer.md (opus pins → Opus 5):
+      separate machine-parsed contracts (fix-bundles, ownership matrices,
+      output formats — verbatim) from process choreography (MUST/MANDATORY on
+      "how" → when-guidance). Dedicated plan + 3-lens challenge, census tests
+      same commits, real /seo dogfood before/after (zero format regression).
+- [ ] C2 self-contradiction audit CLAUDE.global.md + own skills: list rule
+      pairs in tension, propose resolution per pair, apply after user OK.
+      /doctor as assistant, not authority.
+- [ ] C3 superpowers: MEASURE first (skill-invocation log over sessions)
+      whether "1% chance → MUST invoke" over-triggers; if yes, options +
+      trade-offs (disable plugin / softer house rule / live with) — user decides.
+- [ ] C4 hygiene: reinstall darwin-skill (T6c residual from run-reconcile),
+      make test 100% green.
 
 ## 2026-07-22 — auto-purge transient superpowers artifacts at finish (feature/gitflow-auto-purge-transient)
 User: transient planning artifacts (`docs/superpowers/{specs,plans}`) leak into
