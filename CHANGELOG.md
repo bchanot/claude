@@ -6,6 +6,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Changed
+- **Global instruction layer recalibrated for the Claude 5 family (BDR-081)** —
+  delegation block is now model-neutral when-guidance (the Opus 4.8
+  under-delegation counter inverted on Opus 5, which over-delegates and gets
+  an injected harness cap); "staff engineer" self-check bar dropped (Opus 5
+  over-verification trigger); finish-whole-task clause added to Deviations;
+  written-deliverable length rule added. 308/320 lines.
+- **design-toolchain hook** — dropped `\bux\b` (2 French-prose false
+  positives; 3rd tightening pass, series LRN-1005/1007); `\bui\b` kept and
+  locked by a must-fire test row.
+- **plan-challenger** — grounded-but-uncertain findings now file as `[MINOR]`
+  with the uncertainty stated, instead of being self-censored (Opus 5 follows
+  conservative-reporting clauses literally).
+
 ## [1.4.0] — 2026-07-22
 
 ### Added
