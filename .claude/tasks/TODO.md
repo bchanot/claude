@@ -1,5 +1,30 @@
 # TODO
 
+## 2026-07-30 — adapt config for Claude 5 family / Opus 5 (feature/opus5-config-tuning)
+User: Opus 5 "needs more freedom" → research (official migration guide +
+web + registres) confirms: over-delegates (inverts LRN-030 Opus 4.8 trait),
+over-verifies if told to verify, literal instruction following, scope
+expansion named regression, harness already injects anti-delegation on
+Opus 5 (#80988). Plan: .claude/tasks/plans/2026-07-30-opus5-config-tuning-1238.md
+— to be challenged by 3 blind plan-challengers (opus pins → Opus 5), then
+executed on feature branch. NO merge (human gate).
+Challenged 2026-07-30: correctness CONCERNS(4) · robustness FATAL(5, 1
+BLOCKER: symlink-live deployment) · simplicity CONCERNS(4) — all fixes
+adopted as prescribed (plan §5bis, v2 items below).
+- [x] W0 branch first (eab2a10 parent); hook regex validated on scratch copy
+      (bash -n + shellcheck + 5 replays, HOME sandboxed) before live write
+- [x] W1 delegation block v2 (when-guidance + gates carve-out + scoped don't-redo) — 0f7b565
+- [x] W2 "staff engineer" bar line deleted — 0f7b565
+- [x] W3 finish-whole-task folded into Deviations (+ gone-WRONG→STOP) — 0f7b565
+- [x] W4 deliverable-length rule — 0f7b565
+- [x] W5 line budget: 308/320
+- [x] W6 hook \bux\b dropped, \bui\b kept + F10 must-fire lock, D11 quiet row
+      flip-tested (fire before/quiet after) — eab2a10, suite 22/0
+- [x] W7 plan-challenger :82-83 reworded → [MINOR] routing, census row — c3d3f4d, 44/0
+- [x] W8 BDR-081 + LRN-139 + journal + CHANGELOG
+- [ ] W9 final gate: make test full suite
+- [ ] W10 no gitflow finish (human gate) — merge only on explicit user signal
+
 ## 2026-07-22 — auto-purge transient superpowers artifacts at finish (feature/gitflow-auto-purge-transient)
 User: transient planning artifacts (`docs/superpowers/{specs,plans}`) leak into
 develop; BDR-065 "post-merge cleanup" is DOCTRINE ONLY (no code) — manual chore,
