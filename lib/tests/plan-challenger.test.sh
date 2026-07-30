@@ -24,6 +24,7 @@ has "$A" "correctness"
 has "$A" "robustness"
 has "$A" "simplicity"
 has "$A" "Report-only"
+has "$A" "grounded doubt"                             # uncertain findings → [MINOR], not self-censored (Opus 5 literalism)
 
 # 2) reusable phase — the mechanism lives here (one canonical include)
 has "$L" 'subagent_type="plan-challenger"'

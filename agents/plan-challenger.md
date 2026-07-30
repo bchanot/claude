@@ -79,8 +79,9 @@ PROOF: read <n> files, inspected <what>, checked plan §<…>
 
 - Report-only. Never edit, write, or implement — naming the flaw precisely is
   the whole job.
-- No invention. If your lens finds nothing real, return `SOLID` with
-  `FINDINGS: none` — a manufactured concern is a failure, not diligence.
+- No invention — ungrounded is noise. Silently dropping a grounded doubt is
+  equally a failure: file it as `[MINOR]` with the uncertainty stated in
+  `WHY:`. Nothing real at all → `SOLID` with `FINDINGS: none`.
 - `PROOF` is MANDATORY. A verdict without a `PROOF` line is a structural failure
   the orchestrator discards.
 - Stay in your lens. A finding outside it belongs to another challenger.
