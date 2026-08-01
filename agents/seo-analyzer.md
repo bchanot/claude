@@ -58,8 +58,8 @@ STEP 1-2 business/tech context is consumed by all later steps).
 
 ## STEP 0 — AUDIT DEPTH
 
-**First action.** If a parent skill (`/seo` dispatcher) passed depth
-in $ARGUMENTS, use it. Otherwise:
+If a parent skill (`/seo` dispatcher) passed depth in $ARGUMENTS, use
+it. Otherwise:
 
 ```
 SEO AUDIT DEPTH — choose one:
@@ -141,11 +141,10 @@ Record rendering: **SSR / SSG / SPA / hybrid / ISR**.
 
 ### CMS detection + SEO plugin presence (plugin-first strategy)
 
-Before proposing any manual edit, detect if the site runs on a CMS
-and whether a SEO plugin is already handling the heavy lifting. If a
-CMS is detected WITHOUT a SEO plugin, the highest-priority quick win
-is to install the appropriate plugin — editing theme files manually
-is a last resort and creates maintenance debt.
+Detect whether the site runs on a CMS and whether a SEO plugin is
+already handling the heavy lifting; record the signals. The
+plugin-first ranking policy (CMS without plugin → installation is the
+top quick win) lives in STEP 10.
 
 ```bash
 # WordPress signals
@@ -206,8 +205,7 @@ topology — TLS terminated upstream, the origin sees plain HTTP plus
 
 `/harden` reuses this agent for its entire config-hardening axis, so a wrong
 topology call scores a client's server config against a file that never ran.
-geo-analyzer STEP 4 already carries the matching CDN/WAF-override check —
-keep the two consistent.
+(The same CDN/WAF-override check lives in geo-analyzer STEP 4.)
 
 ```bash
 # Server / hosting
@@ -505,7 +503,7 @@ Fetch rendered HTML. Extract and analyze:
 
 ## STEP 5 — ON-PAGE AUDIT `[both]`
 
-### Rendering gate — run this BEFORE anything else in STEP 5 (R2)
+### Rendering gate (R2) — it gates every on-page check below
 
 ```bash
 bash ~/.claude/lib/seo-data/fetch.sh rendercheck --url "https://$DOMAIN/"
@@ -599,9 +597,9 @@ doorway-page risk — the exact thing the 30/70 rule exists to catch — is
 invisible. Group by shared parent AND by shared slug prefix; if ≥3 URLs share
 a prefix of 2+ hyphen tokens, that is a family whatever the depth.
 
-Sanity-check the grouping before trusting it: a site whose sitemap yields
-almost as many families as URLs has probably defeated your heuristic, not
-proved it has no templates.
+A sitemap that yields almost as many families as URLs has probably
+defeated the heuristic, not proved the site has no templates — say so
+instead of trusting the grouping.
 
 **Sample by finding class, because the classes need opposite samples:**
 
@@ -611,10 +609,9 @@ proved it has no templates.
 | **Duplication / 30-70 / cannibalisation** | **≥3 from the LARGEST family** | invisible with one page each. You cannot tell whether 25 city pages are 70% unique by reading one of them. |
 | Per-page content (title/description length, H1 wording) | spread across families + GSC position 4-10 quick wins | these vary per page even from one template. |
 
-"One per template" is right for code and **wrong for the 30/70 rule** — a
-rule this spec mandates in §9. Sampling one page per family makes that check
-structurally impossible, so take the third page of the biggest family even
-though it is "the same template".
+The split is deliberate: one-per-family alone makes the §9 30/70 check
+structurally impossible — hence ≥3 pages from the biggest family, even
+though they share a template.
 
 An un-sampled family is an un-audited family. Name the ones you skipped.
 
@@ -658,16 +655,11 @@ mapfile -t FEXCL < <(bash ~/.claude/lib/source-scope.sh findargs)
 find . "${FEXCL[@]}" -type f \( -iname "*.jpg" -o -iname "*.jpeg" -o -iname "*.png" -o -iname "*.gif" \) -printf "%s %p\n" 2>/dev/null | sort -rn | head -20
 ```
 
-**Why the guard, and why `find` specifically (C1a).** `grep` and `find`
-disagree about this repo and you use both. Claude Code routes `grep` through
-ugrep with `--ignore-files`, so it honours `.gitignore` and never descends
-into a gitignored `dist/`. `find` honours nothing. Measured on a real Astro
-repo: this command returned **92 images, 45 of them under `dist/`** — every
-asset twice, source and generated copy, byte-identical. So "top 20 by size"
-was ~10 real images dressed as 20, and a batch-C item
-(`cwebp -q 80 <img> -o <img>.webp`) could target `dist/og-image.png`, whose
-`.webp` the dispatcher's own `npm run build` then erases. The fix lands,
-verification passes, nothing survives.
+**Why the guard, and why `find` specifically (C1a).** Claude Code routes
+`grep` through ugrep with `--ignore-files` (honours `.gitignore`); `find`
+honours nothing. Measured on a real Astro repo: without the guard this
+command returned 92 images, 45 under `dist/` — and a batch-C item built
+on that targets an artifact the dispatcher's own `npm run build` erases.
 
 `FEXCL` MUST be consumed as a quoted array. `find . $FEXCL …` lets the shell
 glob `*/dist/*` against the CWD and hand the matches to find as search paths
@@ -967,8 +959,9 @@ disagree, and `/client-handover` gates on 17/20.
   **N/A is not a zero** and the engine will not let it behave like one.
 - `status: "error"` → malformed findings. Fix them; never fall back to
   eyeballing a number.
-- Run it twice on the same file before publishing. If the output moved, your
-  findings moved, and that is the thing to explain.
+- The engine is deterministic: if you modified the findings JSON after
+  scoring, re-run and explain the move — a shifted score means shifted
+  findings, never engine noise.
 
 **Technical axis note:** CWV scored on CrUX field data (75th percentile,
 real users, from STEP 4) when available; otherwise lab PageSpeed
@@ -1144,22 +1137,19 @@ For each:
 - Expected impact (high / medium / low)
 - AUTO (bundled in STEP 12, applied by the dispatcher) or USER (in SEO.md §11, with automation options)
 
-AUTO items are a commitment, not a suggestion.
+**CMS plugin first**: a CMS detected in STEP 2 without a SEO plugin
+makes plugin installation the top quick win —
+RankMath/Yoast/SEOPress (WordPress), Yoast SEO (Drupal), SEO Suite
+Ultimate (Magento), Plug in SEO (Shopify) deliver meta + sitemap +
+OG + breadcrumbs + JSON-LD in ~15 min of admin UI, where hand-editing
+theme files first creates duplication, conflicts, and maintenance
+debt. See `~/.claude/agents/resources/automation-catalog.md` CMS
+plugins section for the exact install path per CMS.
 
-**P0 rule — CMS plugin first**: if STEP 2 detected a CMS without a
-SEO plugin, the FIRST quick win MUST be plugin installation. Reason:
-installing RankMath/Yoast/SEOPress (WordPress), Yoast SEO (Drupal),
-SEO Suite Ultimate (Magento), Plug in SEO (Shopify) takes ~15 min
-via admin UI and delivers meta + sitemap + OG + breadcrumbs + JSON-LD
-in one shot. Editing theme files by hand before this creates
-duplication, conflicts, and maintenance debt. See
-`~/.claude/agents/resources/automation-catalog.md` CMS plugins
-section for the exact install path per CMS.
-
-**P0 rule — Bing Webmaster Tools**: on FULL audit, ALWAYS emit
-"Submit site to Bing Webmaster Tools" as a user action — ChatGPT
-Search uses the Bing index, so this is also a GEO signal. See
-automation-catalog.md for IndexNow + Bing.
+**Bing Webmaster Tools** (FULL audits): emit "Submit site to Bing
+Webmaster Tools" as a user action — ChatGPT Search uses the Bing
+index, so this is also a GEO signal. See automation-catalog.md for
+IndexNow + Bing.
 
 ### Medium term (1-3 months)
 City/service pages (30/70 rule: 30% shared, 70% unique per city),
@@ -1214,7 +1204,8 @@ BATCH F — USER ACTIONS (N items, documented in SEO.md §11 with automation cat
   ...
 ```
 
-Do not proceed to STEP 12 until this plan is printed.
+Single-shot runs (no MODE line) print this plan before STEP 12
+serializes it; `MODE: judge` simply ends here.
 
 ---
 
@@ -1306,18 +1297,19 @@ as the last line of the bundle — the dispatcher keys its apply step on it.
 Do NOT run any post-fix verification (build/lint, NAP consistency); the
 dispatcher does that after it applies. Your job ends at the sentinel.
 
-### Bundle completeness checklist (did every finding reach the bundle?)
+### Finding-class → tier routing (complete map: every finding lands in
+exactly one tier; §11 mirrors USER ACTIONS)
 
-- [ ] Meta/title/OG/canonical → AUTO (hotfixer)
-- [ ] JSON-LD LocalBusiness/Organization → AUTO (hotfixer/feater) — detailed GEO schema → geo-analyzer
-- [ ] Image alt/dimensions → AUTO (hotfixer); compression → AUTO (bash) or §11 if tools absent
-- [ ] robots.txt / sitemap.xml → AUTO (hotfixer) — AI-bot directives → geo-analyzer
-- [ ] .htaccess security headers, image/video sitemap, hreflang → AUTO (feater)
-- [ ] Legal pages, CMP, footer links → AUTO (feater)
-- [ ] Heading hierarchy, noindex on technical pages → AUTO (hotfixer)
-- [ ] Unverifiable aggregateRating removal → AUTO (hotfixer); stock-photo testimonials → GATED (E)
-- [ ] Structural / new pages → GATED (D)
-- [ ] Video transcripts, GMB, directories → USER ACTIONS (§11)
+- Meta/title/OG/canonical → AUTO (hotfixer)
+- JSON-LD LocalBusiness/Organization → AUTO (hotfixer/feater) — detailed GEO schema → geo-analyzer
+- Image alt/dimensions → AUTO (hotfixer); compression → AUTO (bash) or §11 if tools absent
+- robots.txt / sitemap.xml → AUTO (hotfixer) — AI-bot directives → geo-analyzer
+- .htaccess security headers, image/video sitemap, hreflang → AUTO (feater)
+- Legal pages, CMP, footer links → AUTO (feater)
+- Heading hierarchy, noindex on technical pages → AUTO (hotfixer)
+- Unverifiable aggregateRating removal → AUTO (hotfixer); stock-photo testimonials → GATED (E)
+- Structural / new pages → GATED (D)
+- Video transcripts, GMB, directories → USER ACTIONS (§11)
 
 ### Framework-specific notes
 
@@ -1338,23 +1330,6 @@ Carry the relevant note into each bundle item so the applier honors it:
 - **Joomla** — SEO extensions: **JoomSEF**, **sh404SEF**, **4SEO**. Configure in admin.
 - **Ghost** — Native SEO strong (meta + OG + JSON-LD out of box). Usually no plugin needed; handle gaps via `default.hbs` edits.
 - **Wix / Squarespace / Webflow (hosted CMS)** — No theme file access. ALL SEO changes happen in the admin UI: meta, alt, sitemap, redirects, JSON-LD (partial). Agent emits detailed USER action list per panel to touch — cannot auto-apply anything.
-
-### Landing page rule
-
-Zero visible change on landing/homepage except:
-- Meta tags (invisible)
-- Footer links (discreet)
-- JSON-LD (invisible)
-- Image fixes: compression, alt, dimensions (invisible or quasi)
-
-Anything else → batch D (confirmation).
-
-### Handoff to dispatcher
-
-Post-fix verification (build/lint, NAP consistency across JSON-LD /
-visible / GMB, revert-on-break) and the §15 change log are the
-DISPATCHER's responsibility, AFTER it applies the bundle at L1. You
-emitted the bundle terminated by the sentinel — stop here.
 
 ---
 
@@ -1519,10 +1494,10 @@ PROCHAINE ETAPE : <highest-priority>
 ### Process
 - **Every user action lists automation.** Mandatory from
   `~/.claude/agents/resources/automation-catalog.md`.
-- **WebSearch on FULL** to validate tool landscape + cross-check
-  competitor state before emitting.
+- **WebSearch on FULL when naming drifting externals** — tool
+  landscapes and competitor state shift; cross-check before a
+  recommendation names them.
 - **Iterative SEO.md.** Preserve Historique section.
-- **Transparency.** Every automated change logged with file, change,
-  reason.
-- **Dispatcher verifies.** Build/lint pass + revert-on-break happen in
-  the dispatcher after it applies the bundle — never in this agent.
+- **Dispatcher verifies.** Build/lint pass, revert-on-break and the §15
+  change log happen in the dispatcher after it applies the bundle —
+  never in this agent.
