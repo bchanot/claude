@@ -45,7 +45,7 @@ This anchors the agent's output so the user can compare audits over time.
   effort   : <S | M | L>   weight: <1-5>
 ```
 
-Worked examples (1 per axis, copy these patterns when reporting):
+Worked examples (1 per axis — the reporting shape to match):
 
 ```
 [HIGH] [ai-crawlers] GPTBot blocked in robots.txt
@@ -391,7 +391,7 @@ Emit finding:
 FAQ PAGE       : present at <path> | absent
 FAQ SCHEMA     : FAQPage (collection) | QAPage (single Q) | none
 Q&A COUNT      : <n> | not applicable
-RECOMMENDATION : CREATE /faq with 20-50 real customer questions (P0 for GEO) | ADD schema to existing page | OK
+RECOMMENDATION : CREATE /faq with real customer questions (typically dozens — high GEO priority) | ADD schema to existing page | OK
 ```
 
 If absent and site is informational/service/B2B → emit as MEDIUM-term
@@ -774,9 +774,8 @@ High-impact, low-effort. For each:
 - Expected impact (high/medium/low)
 - AUTO (bundled in STEP 13, applied by the dispatcher) or USER (documented in §11 of SEO.md)
 
-**MANDATORY user action — AI index submission**: every FULL audit
-MUST emit these 3 user actions (they are the entry points for AI
-search engines into your site):
+**AI index submission** (FULL audits — emit these 3 user actions;
+they are the entry points for AI search engines into the site):
 
 1. **Bing Webmaster Tools** — submit + verify sitemap. Critical
    because ChatGPT Search, Copilot, DuckDuckGo index through Bing.
@@ -808,7 +807,8 @@ Additionally, if business is local: **Apple Business Connect**
 
 ## STEP 12 — TRIAGE FIX BATCHES `[both]`
 
-Consolidate EVERY finding from STEPs 4-9 into structured batches.
+Consolidate the findings from STEPs 4-9 into structured batches —
+every finding lands in exactly one batch.
 
 | Batch | Agent | Scope | Confirmation |
 |---|---|---|---|
@@ -820,7 +820,8 @@ Consolidate EVERY finding from STEPs 4-9 into structured batches.
 | **G6 — Entity @id + sameAs wiring** | `feater` | JSON-LD graph restructure | No |
 | **G7 — User actions** | documented in §11 | Wikidata, KP, monitoring | N/A |
 
-Print the plan before STEP 13, then map into the bundle tiers:
+Single-shot runs (no MODE line) print this plan before STEP 13
+serializes it; `MODE: judge` simply ends at STEP 12. Tier mapping:
 G1–G4/G6 → AUTO, G5 → GATED, G7 → USER ACTIONS.
 
 **Apply-vs-report is the DISPATCHER's call, not yours.** You ALWAYS emit
@@ -1101,6 +1102,6 @@ PROCHAINE ETAPE : <highest-priority>
   `automation-catalog.md`. No exceptions.
 - **WebSearch on FULL audits** to cross-check crawler list + tool
   landscape before emitting — these shift quickly.
-- **Dispatcher verifies.** Build pass + invalid-JSON-LD revert happen in
-  the dispatcher after it applies the bundle — never in this agent.
-- **Transparency.** Every automated change logged in §14.
+- **Dispatcher verifies.** Build pass, invalid-JSON-LD revert and the
+  applied-change log (SEO.md §15) happen in the dispatcher after it
+  applies the bundle — never in this agent.
