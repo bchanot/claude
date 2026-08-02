@@ -7,6 +7,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Changed
+- **seo-analyzer + geo-analyzer de-prescribed for Opus 5 (BDR-082)** —
+  process choreography converted to when-guidance under an
+  audience×mode-range invariant; self-output verification demands removed
+  (the score-engine "run it twice" became a conditional integrity guard);
+  two pre-BDR-061 vestigial rules fixed; P0/MANDATORY/ALWAYS caps softened
+  to plain content rules. Machine contract byte-frozen and locked by the
+  new `lib/tests/seo-geo-contract.test.sh` census (71 locks, flip-proven);
+  proven by a controlled before/after `/seo` dogfood — judge replay on
+  frozen signals, 42/42 presence assertions on both runs, blind structural
+  reader: interchangeable, recall improved.
+
+### Added
+- **`lib/tests/seo-geo-contract.test.sh`** — census locking the seo/geo
+  agent ⇄ dispatcher machine contract: judge verdict grammar, FIX BUNDLE +
+  READY-TO-APPLY sentinel, signals handoff, every STEP header (interiors
+  included), bundle item fields, score labels, scoring blocks, envelope
+  keys (46→71 assertions across the C1 chantier).
 - **Global instruction layer recalibrated for the Claude 5 family (BDR-081)** —
   delegation block is now model-neutral when-guidance (the Opus 4.8
   under-delegation counter inverted on Opus 5, which over-delegates and gets

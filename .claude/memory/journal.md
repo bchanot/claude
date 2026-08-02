@@ -430,3 +430,6 @@ rules:
 
 ## 2026-07-30
 - User: Opus 5 "needs more freedom" → analyse config + adapt. Research 3-agent (registries / config audit / web) + official migration guide: over-delegation (inverts LRN-030), over-verification, literal following, scope expansion, #80988 injections. Plan challenged 3 blind Opus 5 plan-challengers — robustness FATAL (BLOCKER: symlink-live deployment), all fixes adopted. Shipped: CLAUDE.global.md recalibrated (delegation when-guidance, staff-bar dropped, finish-whole-task, deliverable-length; 308/320), design hook \bux\b dropped flip-tested (22/0), plan-challenger grounded-doubt→[MINOR] (44/0). BDR-081 + LRN-139. feature/opus5-config-tuning, UNMERGED.
+
+## 2026-08-02
+- C1 seo/geo de-prescription EXECUTED end-to-end: census-first 71 locks flip-proven → reword under audience×range invariant (adafa35/c7646a9) → controlled dogfood (judge-replay frozen signals + templates + fresh collects + e2e + blind reader) → 42/42 both sets, zero contract regression, recall improved. Plan survived 4 challenge passes (2 FATAL + confirmation FATAL(9), all closed by name). BDR-082 + LRN-140. Nested-CLI dogfood died on monthly spend limit → inline pipeline (canonical /seo shape). feature/seo-geo-deprescription UNMERGED (human gate). Chantiers C2-C4 pending.

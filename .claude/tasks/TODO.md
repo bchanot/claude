@@ -29,11 +29,18 @@ adopted as prescribed (plan §5bis, v2 items below).
 
 ## 2026-07-30 — Claude 5 follow-on chantiers (user directive, checkpoint between each)
 Order fixed, one branch per chantier, no merge without per-chantier signal.
-- [ ] C1 dé-prescription seo-analyzer.md + geo-analyzer.md (opus pins → Opus 5):
-      separate machine-parsed contracts (fix-bundles, ownership matrices,
-      output formats — verbatim) from process choreography (MUST/MANDATORY on
-      "how" → when-guidance). Dedicated plan + 3-lens challenge, census tests
-      same commits, real /seo dogfood before/after (zero format regression).
+- [x] C1 dé-prescription seo-analyzer.md + geo-analyzer.md — DONE 2026-08-02.
+      Census-first 71 locks flip-proven (9681b46) → rewords under
+      audience×range invariant (adafa35 seo, c7646a9 geo) → controlled
+      before/after dogfood: judge-replay on frozen signals + templates +
+      fresh collects + e2e judge + blind reader = 42/42 both sets, zero
+      contract regression, recall improved. Plan challenged 4 passes
+      (FATAL/FATAL/CONCERNS + confirmation FATAL(9), all closed by name).
+      BDR-082 + LRN-140. Evidence .audit/dogfood-baseline/ (19 artifacts).
+      Branch feature/seo-geo-deprescription UNMERGED — human gate.
+      Residual for gate: §6bis dynamically-unverified list (FULL branches,
+      apply path — census-locked statically); FULL/aggressive dry-run = user
+      option; nested-CLI dogfood blocked by monthly spend limit (inline used).
 - [ ] C2 self-contradiction audit CLAUDE.global.md + own skills: list rule
       pairs in tension, propose resolution per pair, apply after user OK.
       /doctor as assistant, not authority.
