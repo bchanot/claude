@@ -7,6 +7,16 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- **/tour multi-project parallel fan-out (BDR-084)** — two or more
+  project paths now dispatch one runner per repo in a single message
+  (independent working trees, nothing collides) instead of processing
+  them one by one. The runner inherits the session model (no pin — it
+  carries tour's reflection); every agent inside keeps its defined tier.
+  A dead runner surfaces as an explicit `RUNNER FAILED` summary row; the
+  gated capitalize offer stays in the main loop. Bounded LRN-083
+  derogation recorded in BDR-084. Census §12: 6 locks, flip-tested.
+  Mechanics proven first: nested probe, 3 overlapping agent windows,
+  9.1s vs ~18s sequential.
 - **Contract gates — deterministic floor under the fresh verifier (BDR-083)** —
   an acceptance criterion can now carry an oracle (`CHECK:` command +
   `EXPECT:` success-only marker + `EVIDENCE:` slot). `lib/gates.sh run

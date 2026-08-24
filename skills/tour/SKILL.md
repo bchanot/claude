@@ -54,11 +54,64 @@ integrate anything (merge/finish/push).
 
 ## STEP 0 — ARGS & PROJECT LIST
 
-- Paths in `$ARGUMENTS` → project list, processed **sequentially** in
-  the given order. No paths → current repo only.
-- `--report-only` → run every audit, apply NO fix, write reports only.
+- Paths in `$ARGUMENTS` → project list. No paths → current repo only.
+- ONE project → run STEP 1 → STEP 3 inline in this loop (nominal path,
+  unchanged).
+- TWO OR MORE projects → parallel fan-out, STEP 0b: the repos are
+  independent working trees on independent chore branches — nothing the
+  runners write can collide.
+- `--report-only` → run every audit, apply NO fix, write reports only
+  (the flag is forwarded to every runner).
 - A failure in one project never aborts the tour: record it in that
-  project's report section and move to the next.
+  project's report section — or as its global-summary row when the
+  runner itself died — and move on.
+
+## STEP 0b — MULTI-PROJECT FAN-OUT (one runner per project, BDR-084)
+
+Dispatch ONE runner per project, ALL in a SINGLE message — sequential
+dispatch of independent repos defeats the purpose.
+
+Model discipline (the user-fixed invariant behind this mode):
+
+- The runner is dispatched with **NO `model` override** — it inherits the
+  session model, already validated big by the MODEL GATE above. The runner
+  carries this skill's reflection (fix decisions, convergence calls); it
+  must never be pinned down to an executor tier.
+- Inside a runner, every dispatched agent keeps the tier this skill
+  already defines: security-auditor (sonnet frontmatter), the Phase B
+  audit (analyzer opus pin or `model="opus"`), doc-syncer (sonnet
+  frontmatter, its two-mode contract untouched).
+
+Runner dispatch, one per project:
+
+```
+Agent(subagent_type="general-purpose",
+  description="tour runner — <project basename>",
+  prompt="Read ~/.claude/skills/tour/SKILL.md and execute STEP 1 → STEP 3
+    for EXACTLY ONE project: <absolute path>. Flags: <--report-only|none>.
+    Skip STEP 0/0b (routing) and the global summary — the dispatcher owns
+    them. Every rule of the skill applies unchanged: max 3 iterations,
+    never merge/finish/push, scoped commits, report appended to that
+    project's own .claude/audits/TOUR.md. Return EXACTLY: the project's
+    one-line global-summary row (STEP 3 format), then BRANCH: <name|no
+    branch>, then REPORT: <path>.")
+```
+
+The main loop then:
+
+1. Collects each runner's summary row. A dead or mute runner becomes the
+   row `<path> : RUNNER FAILED — <reason> | no report` — never a silent
+   absence (a mute runner is NEVER a pass).
+2. Prints the global summary (STEP 3 format) once ALL runners returned.
+3. Runs the gated capitalize offer — MAIN LOOP ONLY, never inside a
+   runner: registries are shared state, and gate decisions stay here
+   (LRN-083).
+
+LRN-083 derogation, recorded in BDR-084: the per-project iteration loop
+(fix decisions, convergence) runs INSIDE its dispatched runner. Bounded
+because nothing a runner decides touches shared state — independent
+repos, per-repo chore branches, branches left UNMERGED for human review
+exactly as in inline mode.
 
 ## STEP 1 — PRECONDITIONS (per project)
 

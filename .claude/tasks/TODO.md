@@ -1209,12 +1209,12 @@ préalable: probe imbriquée 3 sous-agents, fenêtres chevauchantes, 9.1s vs
 un runner dispatché) → à consigner BDR-084. Repos indépendants, branches
 chore par repo, report-as-approval-gate ⇒ rien de partagé n'est décidé
 dans un runner; capitalize reste main-loop.
-- [ ] T1 skills/tour/SKILL.md — STEP 0 routé (1 projet = inline inchangé;
+- [x] T1 skills/tour/SKILL.md — STEP 0 routé (1 projet = inline inchangé;
       ≥2 = fan-out) + STEP 0b: un runner general-purpose par projet, TOUS
       dans UN message, SANS pin modèle (hérite session, model-gate déjà
       passé); agents internes gardent leurs tiers définis; runner mort =
       ligne RUNNER FAILED, jamais absent silencieux; capitalize main-loop.
-- [ ] T2 locks census §12 dans lib/tests/model-routing.test.sh (fan-out
+- [x] T2 locks census §12 dans lib/tests/model-routing.test.sh (fan-out
       présent, runner non-pinné, single message, capitalize main-loop).
-- [ ] T3 BDR-084 + CHANGELOG + journal.
+- [x] T3 BDR-084 + CHANGELOG + journal.
 - [ ] T4 make test + shellcheck; PAS de merge (gate humain).

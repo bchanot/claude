@@ -70,6 +70,17 @@ has "agents/validator-analyzer.md"           'model: sonnet'
 has "agents/plan-challenger.md"              'model: opus'
 fm_lacks "agents/client-handover-writer.md"  'model:'
 fm_lacks "agents/interviewer.md"             'model:'
+# 12) tour multi-project fan-out (BDR-084) — runner INHERITS the session
+#     model (no pin: it carries reflection), inner agents keep their tiers,
+#     dispatch is single-message, capitalize stays in the main loop.
+has "skills/tour/SKILL.md" 'STEP 0b — MULTI-PROJECT FAN-OUT'
+# shellcheck disable=SC2016  # literal backticks — no expansion intended
+has "skills/tour/SKILL.md" 'NO `model` override'
+has "skills/tour/SKILL.md" 'ALL in a SINGLE message'
+has "skills/tour/SKILL.md" 'MAIN LOOP ONLY, never inside a'
+has "skills/tour/SKILL.md" 'RUNNER FAILED'
+lacks "skills/tour/SKILL.md" 'description="tour runner", model='
+
 has "skills/onboard/SKILL.md"                'model="opus"'
 has "skills/tour/SKILL.md"                   'model="opus"'
 has "lib/challenge-plan.md"                  'BDR-076'
