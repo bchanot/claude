@@ -6,6 +6,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+- **Contract gates — deterministic floor under the fresh verifier (BDR-083)** —
+  an acceptance criterion can now carry an oracle (`CHECK:` command +
+  `EXPECT:` success-only marker + `EVIDENCE:` slot). `lib/gates.sh run
+  <contract>` executes them fail-closed — MET requires exit 0 **and** the
+  marker — and writes the outcome back into the contract, so the fresh
+  verifier reads evidence as fact instead of trusting the executor's report.
+  New `GATE 0` in `lib/verify-secure-loop.md` runs the floor before any
+  verifier is dispatched: a red build no longer costs an LLM dispatch to
+  discover. `ABANDON: <id> <reason>` makes an impossible criterion a visible
+  handoff that blocks `CONFORME` and routes to the human gate (new verifier
+  verdict `ABANDONED(n)`). `feater` and `bugfixer` gain a four-pass
+  completion discipline, scoped so it can never widen the contract.
+  Adapted from the `unlazy` skill (Leonxlnx/unlazy, MIT); its Stop hook,
+  approval store, `.unlazy/` tree, depth-tree arithmetic and Node checker
+  were deliberately refused — see BDR-083 for each reason.
+  64 new assertions in `lib/tests/gates.test.sh`.
+
 ### Changed
 - **seo-analyzer + geo-analyzer de-prescribed for Opus 5 (BDR-082)** —
   process choreography converted to when-guidance under an

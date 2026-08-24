@@ -433,3 +433,9 @@ rules:
 
 ## 2026-08-02
 - C1 seo/geo de-prescription EXECUTED end-to-end: census-first 71 locks flip-proven → reword under audience×range invariant (adafa35/c7646a9) → controlled dogfood (judge-replay frozen signals + templates + fresh collects + e2e + blind reader) → 42/42 both sets, zero contract regression, recall improved. Plan survived 4 challenge passes (2 FATAL + confirmation FATAL(9), all closed by name). BDR-082 + LRN-140. Nested-CLI dogfood died on monthly spend limit → inline pipeline (canonical /seo shape). feature/seo-geo-deprescription UNMERGED (human gate). Chantiers C2-C4 pending.
+
+## 2026-08-24
+- Analysed `unlazy` skill (Leonxlnx/unlazy 2.1.0) on user request. Its verification architecture teaches us nothing — contract + fresh blind verifier + bounded loops already shipped. Real gap: no deterministic floor between executor and GATE 1 (the verifier's `PROOF:` is a line it writes, not a process exit).
+- Shipped Palier 2 (user-chosen): lib/gates.sh + GATE 0 + oracle-bearing criteria + `ABANDONED(n)` verdict + 4-pass executors. Refused unlazy's Stop hook, approval store, .unlazy/ tree, tree-N arithmetic, Node checker — [[BDR-083]] records each why.
+- `make test` rc 0, shellcheck clean, 64 new assertions, e2e on a real contract. Branch feature/contract-gates UNMERGED (human gate).
+- Locks caught a reflow regression (5 red on rewrapped phrases, zero doctrine lost) → [[LRN-142]]. Skill-adoption pattern → [[LRN-141]].
