@@ -1187,4 +1187,15 @@ Health Stack = shellcheck).
       corrigée (aucun floor à ce poids). 2026-08-24.
 - [x] W11 RED comportemental : 16/16 runs frais non-amorcés conformes
       (verifier ×9, feater ×2, orchestrateur ×5) → EVAL-027. 2026-08-24.
-- [ ] W9 PAS de merge — gate humain explicite.
+- [x] W9 merge sur signal humain explicite (2026-08-24, "merge dans develop").
+
+**Won't-build-now — Palier 3 unlazy (OWNS/leases), trigger documenté :**
+Différé volontairement (BDR-083) : tous les dispatches parallèles actuels
+sont read-only — le problème (2 exécuteurs ÉCRIVAINS concurrents) n'existe
+pas. Pattern [[LRN-080]] : ne pas construire sans menace mesurée.
+TRIGGER = le jour où un flow dispatche ≥2 exécuteurs écrivains en parallèle :
+(1) FILE SCOPE du contrat = déclaration OWNS (champ existant, zéro format
+neuf) ; (2) ~40 l dans gates.sh ou lib/owns.sh — intersection CONSERVATRICE
+des FILE SCOPE des contrats actifs avant fan-out, conflit possible → refus +
+dispatch séquentiel (pas de locks disque tant que l'orchestrateur est
+unique) ; (3) locks + tests.
