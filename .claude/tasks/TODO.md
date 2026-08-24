@@ -1217,4 +1217,5 @@ dans un runner; capitalize reste main-loop.
 - [x] T2 locks census §12 dans lib/tests/model-routing.test.sh (fan-out
       présent, runner non-pinné, single message, capitalize main-loop).
 - [x] T3 BDR-084 + CHANGELOG + journal.
-- [ ] T4 make test + shellcheck; PAS de merge (gate humain).
+- [x] T4 make test rc 0 + shellcheck clean (SC2016 silencé, littéral
+      voulu). Merge NON fait — gate humain.
