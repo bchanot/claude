@@ -140,10 +140,11 @@ Print one line to the user, then continue the flow:
 | init-project | Full. The interviewer's PROJECT BRIEF pours into the contract (V1 features → criteria). |
 | onboard | Audit-scope contract (interview answers → what to audit, which axes). |
 
-Oracles follow the same proportion. hotfix: the build/tests criterion carries
-its `CHECK:`, nothing else. feat / bugfix: the suite criterion at minimum, and
-for bugfix the regression test the DIAGNOSIS names — its `CHECK:` runs that
-test alone, so a green result means the reproduction actually flipped.
+Oracles follow the same proportion. hotfix: none — that flow runs no floor
+(and no verifier); the hotfixer runs build/tests itself. feat / bugfix: the
+suite criterion at minimum, and for bugfix the regression test the DIAGNOSIS
+names — its `CHECK:` runs that test alone, so a green result means the
+reproduction actually flipped.
 ship-feature / init-project: build, suite, and every criterion a command can
 settle. onboard: audit criteria are mostly judgement — leave them oracle-free
 rather than invent a check that cannot fail.

@@ -1182,4 +1182,9 @@ Health Stack = shellcheck).
       n'exécute pas) + locks de structure sur W2/W3/W4/W5.
 - [x] W7 shellcheck + bash -n + `make test` complet.
 - [x] W8 CHANGELOG + registres (BDR + LRN + journal).
+- [x] W10 restatements skills : bullet GATE 0 dans feat/bugfix/ship-feature/
+      init-project (+4 locks, flip-testé) ; ligne hotfix du tableau de poids
+      corrigée (aucun floor à ce poids). 2026-08-24.
+- [x] W11 RED comportemental : 16/16 runs frais non-amorcés conformes
+      (verifier ×9, feater ×2, orchestrateur ×5) → EVAL-027. 2026-08-24.
 - [ ] W9 PAS de merge — gate humain explicite.

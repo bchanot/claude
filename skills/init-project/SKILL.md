@@ -227,6 +227,11 @@ If `graphify` not installed or complexity < 30% → skip silently.
 Run the two fresh gates per `$HOME/.claude/lib/verify-secure-loop.md` with
 `CONTRACT` = the STEP 1 path (ENRICHED at STEP 4), `DIFF` = the MVP branch
 diff (`develop..HEAD`), `TEST` = the project suite:
+- GATE 0 — deterministic floor, no dispatch: `bash ~/.claude/lib/gates.sh
+  run "$CONTRACT"` executes the criteria's declared oracles fail-closed.
+  UNMET → hand the dev with the NOT-MET rows verbatim — no
+  verifier is spent on a red floor; own budget, max 3 → escalate.
+  MET (an all-manual contract too) → GATE 1.
 - GATE 1 — a FRESH verifier judges the MVP against the enriched contract (V1
   features + `[gated]` design criteria). CONFORME → GATE 2. ECARTS → fix,
   re-verify, max 3 → STOP + human escalation with the CRITERIA table.

@@ -57,6 +57,7 @@ tf "feat contract step"         "$FSK" "STEP 0.7 — CONTRACT"
 tf "feat contract-interview"    "$FSK" "lib/contract-interview.md"
 tf "feat verify+secure step"    "$FSK" "STEP 4 — VERIFY + SECURE"
 tf "feat uses shared include"   "$FSK" "lib/verify-secure-loop.md"
+tf "feat gate0 floor"           "$FSK" "GATE 0 — deterministic floor"
 tf "feat nominal 1+1 dispatch"  "$FSK" "verifier + one security dispatch"
 tf "feat dispatches feater"     "$FSK" 'subagent_type="feater"'
 
@@ -65,6 +66,7 @@ tf "bug contract step"          "$BSK" "STEP 3.5 — CONTRACT"
 tf "bug diagnosis feeds it"     "$BSK" "feeds it: REQUEST verbatim"
 tf "bug fresh gates"            "$BSK" "the two fresh gates per"
 tf "bug uses shared include"    "$BSK" "lib/verify-secure-loop.md"
+tf "bug gate0 floor"            "$BSK" "GATE 0 — deterministic floor"
 tf "bug dispatches bugfixer"    "$BSK" 'subagent_type="bugfixer"'
 
 echo "── agents/bugfixer.md (bugfix executor — sonnet, no Agent) ──"

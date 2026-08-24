@@ -22,6 +22,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   Adapted from the `unlazy` skill (Leonxlnx/unlazy, MIT); its Stop hook,
   approval store, `.unlazy/` tree, depth-tree arithmetic and Node checker
   were deliberately refused — see BDR-083 for each reason.
+  The four orchestrator skills (`feat`, `bugfix`, `ship-feature`,
+  `init-project`) restate the GATE 0 bullet ahead of GATE 1 (locked);
+  hotfix explicitly runs no floor. Behavioral RED: 16/16 fresh unprimed
+  runs followed the new doctrine (EVAL-027).
   64 new assertions in `lib/tests/gates.test.sh`.
 
 ### Changed
