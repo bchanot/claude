@@ -1144,3 +1144,58 @@ branch) → LOT3 mis-merge trap; + 3 doctor false-warns (LRN-047 class).
       comment anchored to measured ~11.4k (LRN-088). False "92% CRITICAL" → ~5% comfortable.
 - [x] Verify — suites green (71/13/32/19/20/13 + RC 5/5); doctor 0 false-warn; shellcheck clean.
       +docs(changelog) Unreleased entry (706abff). Gate passed on GO 2026-07-03. Finish pending.
+
+## 2026-08-24 — contract gates: plancher déterministe (feature/contract-gates)
+Source: analyse du skill `unlazy` (Leonxlnx/unlazy, 2.1.0). Verdict: son
+architecture de vérification n'apprend rien (contrat+verifier frais+boucles
+bornées ⊂ déjà en place). Le trou réel: **entre l'exécuteur et GATE 1 il n'y a
+aucun plancher déterministe** — GATE 1 est un dispatch LLM, et `PROOF:` est une
+ligne que le verifier ÉCRIT (rien ne l'empêche structurellement de la produire
+sans rien exécuter). Palier 2 retenu (user, 2026-08-24).
+
+PRIS d'unlazy: critère porteur d'oracle exécutable (CHECK/EXPECT/EVIDENCE),
+fail-closed (exit 0 ET marqueur), evidence pending = NOT-MET, `ABANDON: <id>
+<raison>` comme handoff visible non supprimable, les 4 règles d'écriture de
+gates falsifiables, la discipline 4 passes.
+REFUSÉ: Stop hook `decision:"block"` (contredit "STOP + escalade humaine" et
+"merge sur signal humain"), approval store `~/.unlazy/approved` (résout
+l'exécution de ledgers hérités non fiables — pas notre menace), arbre
+`.unlazy/<scope>/` (4e arbre de bookkeeping ⇒ mort de la config), `tree N`
+(désavoué par ses propres docs), le checker Node 28k (stack lib = 100% bash,
+Health Stack = shellcheck).
+
+- [x] W0 branche feature/contract-gates depuis develop (via lib/gitflow.sh)
+- [x] W1 `lib/gates.sh` — parse ACCEPTANCE CRITERIA, exécute fail-closed
+      (exit 0 ET EXPECT), réécrit EVIDENCE dans le contrat. Sous-commandes
+      `run` (exécute+écrit) / `status` (parse seul, jamais d'exécution, jamais
+      d'écriture). rc 0=MET · 2=UNMET/malformé · 3=ABANDONED.
+- [x] W2 `lib/contract-interview.md` — STEP 3 gagne CHECK/EXPECT/EVIDENCE
+      optionnels par critère + les 4 règles de falsifiabilité; template mis à
+      jour; ABANDON dans Lifecycle; ligne de poids par flow.
+- [x] W3 `agents/verifier.md` — EVIDENCE fail-closed (coché+pending = NOT-MET),
+      bucket ABANDONED, verdict `CONFORME` impossible si abandon présent.
+- [x] W4 `lib/verify-secure-loop.md` — GATE 0 déterministe avant GATE 1
+      (rouge ⇒ re-dispatch exécuteur sans brûler un verifier).
+- [x] W5 `agents/feater.md` + `agents/bugfixer.md` — discipline 4 passes.
+- [x] W6 `lib/tests/gates.test.sh` — comportemental sur gates.sh (fail-closed,
+      exit≠0 avec marqueur = FAIL, pending, ABANDON, malformé, status
+      n'exécute pas) + locks de structure sur W2/W3/W4/W5.
+- [x] W7 shellcheck + bash -n + `make test` complet.
+- [x] W8 CHANGELOG + registres (BDR + LRN + journal).
+- [x] W10 restatements skills : bullet GATE 0 dans feat/bugfix/ship-feature/
+      init-project (+4 locks, flip-testé) ; ligne hotfix du tableau de poids
+      corrigée (aucun floor à ce poids). 2026-08-24.
+- [x] W11 RED comportemental : 16/16 runs frais non-amorcés conformes
+      (verifier ×9, feater ×2, orchestrateur ×5) → EVAL-027. 2026-08-24.
+- [x] W9 merge sur signal humain explicite (2026-08-24, "merge dans develop").
+
+**Won't-build-now — Palier 3 unlazy (OWNS/leases), trigger documenté :**
+Différé volontairement (BDR-083) : tous les dispatches parallèles actuels
+sont read-only — le problème (2 exécuteurs ÉCRIVAINS concurrents) n'existe
+pas. Pattern [[LRN-080]] : ne pas construire sans menace mesurée.
+TRIGGER = le jour où un flow dispatche ≥2 exécuteurs écrivains en parallèle :
+(1) FILE SCOPE du contrat = déclaration OWNS (champ existant, zéro format
+neuf) ; (2) ~40 l dans gates.sh ou lib/owns.sh — intersection CONSERVATRICE
+des FILE SCOPE des contrats actifs avant fan-out, conflit possible → refus +
+dispatch séquentiel (pas de locks disque tant que l'orchestrateur est
+unique) ; (3) locks + tests.

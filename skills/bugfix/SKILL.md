@@ -172,6 +172,11 @@ Parse the `BUGFIX-EXEC REPORT`:
 1. Run the two fresh gates per `$HOME/.claude/lib/verify-secure-loop.md` with
    `CONTRACT` = the STEP 3.5 path, `DIFF` = the executor's working-tree diff,
    `TEST` = the suite named in its report:
+   - GATE 0 — deterministic floor, no dispatch: `bash ~/.claude/lib/gates.sh
+     run "$CONTRACT"` executes the criteria's declared oracles fail-closed
+     (the regression-test criterion included). UNMET → re-dispatch a FRESH
+     bugfixer with the NOT-MET rows verbatim — no verifier is spent on a red
+     floor; own budget, max 3 → escalate. MET → GATE 1.
    - GATE 1 — a FRESH verifier judges the fix against the contract (bug gone
      + regression test present). CONFORME on the first pass → straight to
      GATE 2, no loop. ECARTS → the "dev" of the loop is the dispatched
@@ -183,7 +188,7 @@ Parse the `BUGFIX-EXEC REPORT`:
      path; re-verify the request THEN re-scan, max 3 → escalate.
 
    Loop decisions stay HERE, in the main loop (LRN-083). Nominal = one
-   executor + one verifier + one security dispatch.
+   executor + a free floor run + one verifier + one security dispatch.
 
 2. **Pre-commit confirmation gate.** Before running `git commit`, present the diff
    summary and the proposed message, then wait for approval:

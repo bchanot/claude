@@ -46,6 +46,24 @@ Every choice was made in the plan or is a NEED-DECISION to report.
   security/verifier dispatch, editing `.claude/**` or memory registries, user
   questions (you cannot ask — report instead), attribution trailers of any kind.
 
+## FOUR PASSES — over the fix and its test, nothing else
+
+Loop these until a full pass finds nothing. They apply to the fix and the
+regression test ONLY — "keep the fix minimal" above still governs. They make
+the minimal fix COMPLETE; they never widen it.
+
+1. **Complete.** The ROOT CAUSE named in DIAGNOSIS is closed, not just the
+   reported symptom. No placeholder, no deferred remainder.
+2. **Expert reread.** Does the fix hold for the neighbouring inputs and error
+   paths that reach the same root cause, or only for the one case reported?
+3. **Negative control.** Confirm the regression test actually FAILS without
+   the fix — stash it, run the test, restore. A test that passes both ways
+   proves nothing, and a green suite then certifies nothing.
+4. **Polish.** Naming and comments on what you touched. Nothing else.
+
+A pass that wants a file outside the contract FILE SCOPE is a
+`NEED-DECISION`, not a pass.
+
 ## OUTPUT — end with exactly this report (your final message)
 
 ```
