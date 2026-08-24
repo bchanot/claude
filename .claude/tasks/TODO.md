@@ -1199,3 +1199,23 @@ neuf) ; (2) ~40 l dans gates.sh ou lib/owns.sh — intersection CONSERVATRICE
 des FILE SCOPE des contrats actifs avant fan-out, conflit possible → refus +
 dispatch séquentiel (pas de locks disque tant que l'orchestrateur est
 unique) ; (3) locks + tests.
+
+## 2026-08-24 — tour multi-projets en parallèle (feature/tour-parallel)
+User (gate 2026-08-24): "tout paralléliser (option 2) mais bien garder la
+sélection des modèles — orchestrateur garde le modèle orchestrateur, les
+skills/agents suivent leurs orchestrateurs définis". Preuve mécanique
+préalable: probe imbriquée 3 sous-agents, fenêtres chevauchantes, 9.1s vs
+~18s séquentiel. Dérogation LRN-083 (boucle de fix par projet déplacée dans
+un runner dispatché) → à consigner BDR-084. Repos indépendants, branches
+chore par repo, report-as-approval-gate ⇒ rien de partagé n'est décidé
+dans un runner; capitalize reste main-loop.
+- [x] T1 skills/tour/SKILL.md — STEP 0 routé (1 projet = inline inchangé;
+      ≥2 = fan-out) + STEP 0b: un runner general-purpose par projet, TOUS
+      dans UN message, SANS pin modèle (hérite session, model-gate déjà
+      passé); agents internes gardent leurs tiers définis; runner mort =
+      ligne RUNNER FAILED, jamais absent silencieux; capitalize main-loop.
+- [x] T2 locks census §12 dans lib/tests/model-routing.test.sh (fan-out
+      présent, runner non-pinné, single message, capitalize main-loop).
+- [x] T3 BDR-084 + CHANGELOG + journal.
+- [x] T4 make test rc 0 + shellcheck clean (SC2016 silencé, littéral
+      voulu). Merge NON fait — gate humain.

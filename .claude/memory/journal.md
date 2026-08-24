@@ -439,3 +439,4 @@ rules:
 - Shipped Palier 2 (user-chosen): lib/gates.sh + GATE 0 + oracle-bearing criteria + `ABANDONED(n)` verdict + 4-pass executors. Refused unlazy's Stop hook, approval store, .unlazy/ tree, tree-N arithmetic, Node checker — [[BDR-083]] records each why.
 - `make test` rc 0, shellcheck clean, 64 new assertions, e2e on a real contract. Branch feature/contract-gates UNMERGED (human gate).
 - Locks caught a reflow regression (5 red on rewrapped phrases, zero doctrine lost) → [[LRN-142]]. Skill-adoption pattern → [[LRN-141]].
+- Parallelism audit (user ask "est-ce actif ?"): measured, not assumed — nested probe proves concurrent fan-out (9.1s vs 18s), doctrine already prescribed everywhere safe, remaining serializations motivated. One candidate found: /tour multi-project → parallel runners shipped ([[BDR-084]], user gate "tout paralléliser" + model invariant). Branch feature/tour-parallel UNMERGED.
