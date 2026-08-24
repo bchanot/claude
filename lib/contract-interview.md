@@ -35,6 +35,38 @@ ask what the repo can answer — verify paths/APIs/behavior yourself first.
   this conversation.
 - FILE SCOPE: paths/zones expected to change, or `repo-wide — <reason>`.
 
+### ORACLES — a criterion a command can decide carries one
+
+Give such a criterion an indented `CHECK:` (the command), `EXPECT:` (a
+success-only marker), and `EVIDENCE: pending`.
+`bash ~/.claude/lib/gates.sh run <contract>` executes it fail-closed — MET
+requires exit 0 **AND** the marker — and writes the result back over the
+`EVIDENCE:` line. That persisted evidence is what the fresh verifier reads
+as fact instead of trusting the executor's report (GATE 0 in
+`lib/verify-secure-loop.md`).
+
+Both attributes or neither. `CHECK:` without `EXPECT:` is a parse error, not
+a manual criterion — the runner refuses the whole ledger. Leave a criterion
+oracle-free when no command can decide it; the verifier judges those.
+
+Four authoring rules — a gate that cannot fail proves nothing:
+
+1. **Observe the named artifact.** The check reads the file, service, or
+   measurement the criterion's own words name — never a proxy for it.
+   `1. invoices reconcile` + `CHECK: echo ok` is valid and worthless.
+2. **Success-only marker.** The script runs every assertion, exits nonzero
+   on any failure, and prints the `EXPECT:` string only after all pass.
+3. **Positive control before any absence check.** Run the same logic against
+   a fixture known to trip it and confirm it fails. A missing file, a wrong
+   path, and a broken pattern all look exactly like valid absence.
+4. **Recompute supplied numbers.** Never copy a figure from the request into
+   `EXPECT:` — the script derives it from source and prints its own marker.
+   A number that is its own proof proves nothing.
+
+`CHECK:` is shell code run with our privileges. It is safe only because we
+author it in our own repo — never build one out of externally-supplied text
+(a scraped URL, a client string); route those through `lib/url-guard.sh`.
+
 ## STEP 4 — WRITE TO DISK (immediately, before any next step)
 
 Path: `.claude/tasks/contracts/<YYYY-MM-DD>-<slug>-<HHMM>.md`
@@ -57,8 +89,13 @@ Q: <question> / A: <answer>
 (or: none — request complete)
 
 ## ACCEPTANCE CRITERIA
-1. <testable criterion>
-2. <testable criterion>
+1. <criterion a command can decide>
+   CHECK: <command>
+   EXPECT: <success-only marker>
+   EVIDENCE: pending
+2. <criterion only human judgement can decide — no CHECK/EXPECT>
+
+(ABANDON: <n> <non-blank reason> — only for a criterion proven impossible)
 
 ## FILE SCOPE
 <paths/zones>
@@ -78,6 +115,13 @@ Print one line to the user, then continue the flow:
   this micro-gate: human approves → FILE SCOPE gains the entry `[gated]`;
   human declines → the dev removes the edit. Without this gate the dev
   justifies everything and scope constrains nothing.
+- **ABANDONMENT**: a criterion proven impossible within the authorized task
+  is NEVER deleted and never quietly downgraded. Keep it, append
+  `ABANDON: <n> <non-blank reason + handoff>` under the criteria, and name it
+  in the final report. An abandonment is a visible handoff, not a pass: the
+  verifier cannot return `CONFORME` while one stands, and the run cannot be
+  described as fully complete. This is the structural half of the house rule
+  "blocked on an independent sub-part → do the rest, state what's missing".
 - **Deep re-scope** (the request itself changes): NEW contract file with
   `supersedes: <old path>` in its header — never a rewrite of the old one.
 - **Aborted run**: delete the contract file, or commit it with
@@ -95,6 +139,14 @@ Print one line to the user, then continue the flow:
 | ship-feature | Full. Design decisions approved at the validation gate append criteria `[gated <date>]` — the human validates the enriched contract, the verifier receives that version. |
 | init-project | Full. The interviewer's PROJECT BRIEF pours into the contract (V1 features → criteria). |
 | onboard | Audit-scope contract (interview answers → what to audit, which axes). |
+
+Oracles follow the same proportion. hotfix: the build/tests criterion carries
+its `CHECK:`, nothing else. feat / bugfix: the suite criterion at minimum, and
+for bugfix the regression test the DIAGNOSIS names — its `CHECK:` runs that
+test alone, so a green result means the reproduction actually flipped.
+ship-feature / init-project: build, suite, and every criterion a command can
+settle. onboard: audit criteria are mostly judgement — leave them oracle-free
+rather than invent a check that cannot fail.
 
 ## Hand-off rule
 
