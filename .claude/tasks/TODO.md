@@ -1,5 +1,24 @@
 # TODO
 
+## 2026-08-25 — user permanent rules: writing + web build + web security (feature/user-writing-web-rules)
+User supplied 4-block rule text (écris / site / code / vérification); asked:
+coverage check, conflict check, integrate. Verdict: security CORE already in
+CLAUDE.global.md §Security (parameterized queries, env-var secrets,
+AuthN/AuthZ, fail closed) — NOT duplicated. NEW: writing-style block, design
+anti-default list, site done-checklist, web-app specifics (RLS, service key,
+IDOR, cookie flags, rate limit, field minimization). Placement: global at
+308/320 budget → rules/ instead.
+- [x] R1 rules/writing-style.md — always-on (no paths:), scope carve-outs
+      (registries caveman, code comments, skill templates) + self-check
+- [x] R2 rules/web-building.md — paths: web globs; anti-defaults + done
+      checklist (report missing, never invent) + skill pointers
+- [x] R3 rules/web-security.md — paths: code globs; web-app specifics
+      extending §Security, zero dup of the core
+- [x] R4 CLAUDE.md (project) — amend always-on doctrine line (320-budget
+      exception → rules/), feeds C2 audit
+- [x] R5 capitalize BDR-085 + journal + CHANGELOG
+- [ ] NO merge — human gate
+
 ## 2026-07-30 — adapt config for Claude 5 family / Opus 5 (feature/opus5-config-tuning)
 User: Opus 5 "needs more freedom" → research (official migration guide +
 web + registres) confirms: over-delegates (inverts LRN-030 Opus 4.8 trait),
