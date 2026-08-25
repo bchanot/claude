@@ -7,6 +7,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- **User permanent rules (BDR-085)** — three new rules/ files from the
+  user's rule text: `writing-style.md` (always-on: em-dash ban, no slop
+  vocabulary, no hedging chains, deliverable self-check),
+  `web-building.md` (path-scoped: design anti-defaults + public-site done
+  checklist), `web-security.md` (path-scoped: RLS, service-key/client
+  split, IDOR, cookie flags, rate limiting — extends §Security, no dup).
+  Project CLAUDE.md rules/ doctrine gains the 320-budget exception.
 - **/tour multi-project parallel fan-out (BDR-084)** — two or more
   project paths now dispatch one runner per repo in a single message
   (independent working trees, nothing collides) instead of processing
