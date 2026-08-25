@@ -17,7 +17,7 @@ IDOR, cookie flags, rate limit, field minimization). Placement: global at
 - [x] R4 CLAUDE.md (project) — amend always-on doctrine line (320-budget
       exception → rules/), feeds C2 audit
 - [x] R5 capitalize BDR-085 + journal + CHANGELOG
-- [ ] NO merge — human gate
+- [x] merge → develop 5ec7bfa — human gate passed (reconcile 2026-08-25)
 
 ## 2026-07-30 — adapt config for Claude 5 family / Opus 5 (feature/opus5-config-tuning)
 User: Opus 5 "needs more freedom" → research (official migration guide +
@@ -57,6 +57,7 @@ Order fixed, one branch per chantier, no merge without per-chantier signal.
       (FATAL/FATAL/CONCERNS + confirmation FATAL(9), all closed by name).
       BDR-082 + LRN-140. Evidence .audit/dogfood-baseline/ (19 artifacts).
       Branch feature/seo-geo-deprescription UNMERGED — human gate.
+      → merged 5488c48, branch deleted (reconcile 2026-08-25).
       Residual for gate: §6bis dynamically-unverified list (FULL branches,
       apply path — census-locked statically); FULL/aggressive dry-run = user
       option; nested-CLI dogfood blocked by monthly spend limit (inline used).
@@ -66,8 +67,8 @@ Order fixed, one branch per chantier, no merge without per-chantier signal.
 - [ ] C3 superpowers: MEASURE first (skill-invocation log over sessions)
       whether "1% chance → MUST invoke" over-triggers; if yes, options +
       trade-offs (disable plugin / softer house rule / live with) — user decides.
-- [ ] C4 hygiene: reinstall darwin-skill (T6c residual from run-reconcile),
-      make test 100% green.
+- [x] C4 hygiene: reinstall darwin-skill — DONE (reconcile 2026-08-25:
+      ~/.agents/skills/darwin-skill present, T6c green, make test exit 0).
 
 ## 2026-07-22 — auto-purge transient superpowers artifacts at finish (feature/gitflow-auto-purge-transient)
 User: transient planning artifacts (`docs/superpowers/{specs,plans}`) leak into
@@ -88,15 +89,16 @@ versioned (durable, referenced by decisions.md e.g. BDR-076). Universal via the
 - [x] Gate: shellcheck lib/*.sh CLEAN + `make test` exit 0 (gitflow 106/0, full
       suite green). Universal via ~/.claude/lib → repo lib symlink (verified).
 - [x] CLAUDE.md §Transient planning artifacts: → "AUTO-PURGED by gitflow finish".
-- [ ] Capitalize: BDR-065 amendment (delete side now automated) + LRN — pending user OK.
+- [x] Capitalize: BDR-065 Amendment (2026-07-22) in body + LRN-138 present
+      (reconcile 2026-08-25).
 
 ## 2026-07-20 — pending merge gates (reconcile)
 - [x] merge feature/profile-managed-externals → develop (BDR-079 profile
       symmetry + /doc clean pass: README/USAGE/ARCHITECTURE.md) — 37c79f0
 - [x] merge chore/purge-transient-docs → develop (docs/ transient purge
       655e364 + reconcile e75ea79) — reaches main at next release
-- [ ] Makefile help text: profiles 5/10 listed (:57) + test glob missing
-      run-*.sh (:31) — 2-line hotfix (flagged by /doc audit)
+- [ ] Makefile help text: profile-list help lists 5/10 profiles (:57) —
+      1-line hotfix. (test glob :31 FIXED — has run-*.sh, reconcile 2026-08-25)
 
 ## 2026-07-20 — profile ↔ toggle-external symmetry (feature/profile-managed-externals, BDR-079)
 Audit verdict: gstack on-demand + design enable already work; DISABLE side
