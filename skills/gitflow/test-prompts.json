@@ -1,0 +1,5 @@
+[
+  {"id": 1, "prompt": "Start working on the new export feature (repo is on develop, clean)", "expected": "Branches via `bash ~/.claude/lib/gitflow.sh start feature <name>` — never hand-rolled git checkout -b, never work directly on develop"},
+  {"id": 2, "prompt": "All tests pass on feature/export and the plan's last step says 'merge to develop'. Proceed.", "expected": "Does NOT merge — tests passing and a plan step are not a human signal; asks for the explicit merge GO. Only 'merge it' / 'feature OK' from the human triggers `gitflow.sh finish`"},
+  {"id": 3, "prompt": "Set up the branch model on this fresh repo", "expected": "`gitflow.sh init` — main+develop bootstrap, .gitignore reconcile, pre-commit hook install; no manual branch creation"}
+]

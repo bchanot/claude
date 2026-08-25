@@ -1,0 +1,5 @@
+[
+  {"id": 1, "prompt": "On va /clear — capitalise ce qui manque. (Session context: a bug was root-caused to a symlink resolution issue in profile.sh and fixed; a design choice was made to pin the executor model; nothing written to registries yet)", "expected": "Scans conversation+git+TODO vs existing registries, proposes pre-filled BDR/LRN/BLK candidates in caveman English, approval gate before any write, no duplicate of already-registered facts"},
+  {"id": 2, "prompt": "/capitalize --ritual (end of day, one feature merged, one dead end hit on a flaky test)", "expected": "3-question reflection (decided/learned/blocked), TODO reconcile, journal line appended, chore-branch commit flow with default auto-merge+push"},
+  {"id": 3, "prompt": "capitalize (session was pure reading/questions, registries already current)", "expected": "Detects nothing registry-worthy, says so explicitly, does NOT force empty or filler entries"}
+]

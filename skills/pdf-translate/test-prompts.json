@@ -1,0 +1,5 @@
+[
+  {"id": 1, "prompt": "Traduis ce PDF scanné en français: ~/docs/manual-en.pdf (OCR/image-based, 6 pages)", "expected": "STEP 0 dependency check (poppler/pdftoppm), page PNGs extracted, Claude Vision read+translate+layout map, faithful HTML reconstruction, visual QA PDF-vs-HTML with fix loop"},
+  {"id": 2, "prompt": "Translate this 12-page PDF to English — it has embedded diagrams and a two-column layout", "expected": "Embedded images extracted and re-embedded in the HTML, two-column layout and visual style preserved, contextual translation (not word-by-word)"},
+  {"id": 3, "prompt": "Translate report.pdf (missing poppler AND no imagemagick on the machine)", "expected": "Detects missing dependencies at STEP 0, proposes the install command, does not silently proceed to a broken pipeline"}
+]

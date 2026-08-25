@@ -1,0 +1,5 @@
+[
+  {"id": 1, "prompt": "Fais un tour sur ce projet", "expected": "MODEL GATE first (blocking), then one pipeline: security → clean → re-verify → reconcile → doc → convergence re-audit, looping until a full pass applies zero new fixes; fixes committed on a dedicated branch"},
+  {"id": 2, "prompt": "tour ~/proj-a ~/proj-b --report-only", "expected": "Multi-project fan-out (one runner per repo), report-only honored: audits + findings, zero fixes applied, no commits"},
+  {"id": 3, "prompt": "tour (session running on a small model)", "expected": "MODEL GATE verdict small → STOP with the printed remedy; no dispatch, no later step"}
+]

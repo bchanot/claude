@@ -1,5 +1,26 @@
 # TODO
 
+## 2026-08-25 — darwin fresh baseline: 32 skill-systems + 23 agents (feature/darwin-optimize-20260825)
+User: `/darwin-skill all skills and agents` (background). Fresh-from-zero
+(results.tsv wiped 2026-06-23, journal 2026-06-30). Scope per BDR-015/043 +
+LRN-070: personal skills only, external/gstack OUT. EVAL-004 applied: eval
+unit = skill+dispatched-agents SYSTEM, agents get own rows. LRN-018: judges
+emit per-dim scores, totals recomputed main-thread. v2.1 keep/revert =
+paired same-judge majority, absolute scores triage-only.
+- [x] T1 Phase 0+0.5: gitflow branch, results.tsv header, 7 new
+      test-prompts.json (capitalize deploy gitflow pdf-translate reconcile
+      release-candidate tour), runtime scan (2 minor hits). find-docs
+      EXCLUDED — machine-owned ctx7 (BDR-053, gitignored) → 31 systems.
+- [ ] T2 Phase 0.5 gate: user confirms prompts + dim8 strategy + opt count.
+- [ ] T3 Phase 1 baseline: batched blind judges, 9-dim, 55 rows in
+      results.tsv; scorecard.
+- [ ] T4 Phase 1 gate: scorecard checkpoint, user picks optimization set.
+- [ ] T5 Phase 2: per-unit loops (1 dim/round, weighted-gap diagnosis,
+      paired 3-judge majority keep/revert, HL-4 stop), human checkpoint
+      per unit.
+- [ ] T6 Phase 3: report + result cards (npx playwright fallback, BLK
+      screenshot.mjs macOS path) + capitalize.
+
 ## 2026-08-25 — user permanent rules: writing + web build + web security (feature/user-writing-web-rules)
 User supplied 4-block rule text (écris / site / code / vérification); asked:
 coverage check, conflict check, integrate. Verdict: security CORE already in
