@@ -34,7 +34,8 @@ command -v rtk &>/dev/null && rtk --version 2>/dev/null | head -1 || echo "rtk-n
 
 # Project signals (run from project root)
 ls package.json pyproject.toml Cargo.toml go.mod 2>/dev/null | head -5
-grep -rl "next\|react\|vue\|prisma\|supabase" package.json 2>/dev/null | head -3 || true
+# Exact-key dep match with versions ("react": won't match "preact":)
+grep -ohE '"(next|react|react-dom|vue|nuxt|svelte|astro|prisma|@prisma/client|@supabase/supabase-js|supabase|drizzle-orm|expo)"[[:space:]]*:[[:space:]]*"[^"]*"' package.json 2>/dev/null || echo "framework-deps-none"
 find . -name "*.tsx" -o -name "*.jsx" 2>/dev/null | head -3 | wc -l
 find . -name "docker-compose*" -o -name "Dockerfile" 2>/dev/null | head -3 | wc -l
 
@@ -72,7 +73,7 @@ EXTERNAL      : <toggle-external list output>
 PROFILE       : <profile current output>
 CLIS          : ctx7=<v|absent> gsd=<v|absent> rtk=<v|absent>
 MANIFESTS     : <files found>
-FRAMEWORK-DEPS: <grep hits in package.json>
+FRAMEWORK-DEPS: <exact "dep": "version" pairs, or framework-deps-none>
 TSX-JSX-COUNT : <n>
 DOCKER-COUNT  : <n>
 ANIM          : eligibility=<status|package|reason> installed=<lib|no>
