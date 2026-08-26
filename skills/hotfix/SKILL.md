@@ -233,8 +233,8 @@ trivial hotfix still produces a `chore(memory): journal — …` commit (Frame 2
 - Design gate only if CSS/style signals detected. See STEP 1.5.
 - **Revert-not-loop preserved**: smoke FAIL or security BLOCK →
   file-scoped revert from `$PRE` (STEP 4's protocol — never `git
-  restore .`) + STOP + escalate to `/bugfix`; hotfix never loops. No
-  verifier is dispatched at hotfix weight.
+  restore .`) + STOP + escalate to `/bugfix`; hotfix never loops.
+  No verifier is dispatched at hotfix weight.
 - If root cause is unclear → escalate to `/bugfix` (STEP 1).
 - If fix touches >5 lines of logic → reconsider if this is
   truly a hotfix.
