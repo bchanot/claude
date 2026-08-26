@@ -19,11 +19,12 @@ paired same-judge majority, absolute scores triage-only.
       allowed-tools, skills-perso 8/32 detection...).
 
 - [ ] T4 Phase 1 gate: scorecard checkpoint, user picks optimization set.
-- [ ] T5 Phase 2: per-unit loops (1 dim/round, weighted-gap diagnosis,
-      paired 3-judge majority keep/revert, HL-4 stop), human checkpoint
-      per unit.
-- [ ] T6 Phase 3: report + result cards (npx playwright fallback, BLK
-      screenshot.mjs macOS path) + capitalize.
+- [x] T5 Phase 2 DONE: 13/13 units, 21 rounds kept 3-0, 0 reverts +
+      bug pass 8 commits kept 3-0 (2 skeptic residuals amended). make test
+      green.
+- [x] T6 Phase 3 DONE: report .claude/audits/DARWIN-2026-08-26.md + card
+      PNG (playwright fallback). Capitalize pending user approval. Branch
+      UNMERGED — human gate.
 
 ## 2026-08-25 — user permanent rules: writing + web build + web security (feature/user-writing-web-rules)
 User supplied 4-block rule text (écris / site / code / vérification); asked:
