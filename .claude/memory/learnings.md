@@ -138,7 +138,7 @@ rules:
 | LRN-133 | 2026-07-17 | an omission must stay LEGIBLE, never silent — tool that can't measure says so in its output | designing any audit/measure output; deciding what a cap/refusal/N-A emits |
 | LRN-134 | 2026-07-17 | resolve-then-pin in stdlib http.client beats monkeypatching getaddrinfo — dual-stack, thread-safe, no requests; classify the OS-resolved IP not the URL text | closing SSRF/DNS-rebinding on any Python HTTP egress |
 | LRN-135 | 2026-07-17 | a prefix-only scan for a dangerous construct is bypassable by padding — scan the WHOLE document | refusing any hostile construct (DTD/directive/marker) before parse |
-| LRN-143 | 2026-08-26 | `cmd | head || fallback` — pipeline rc is head's (0), fallback dead; bounded output → drop head, else pipefail | any probe/fallback bash in skills before trusting `||` |
+| LRN-143 | 2026-08-26 | `cmd \| head \|\| fallback` — pipeline rc is head's (0), fallback dead; bounded output → drop head, else pipefail | any probe/fallback bash in skills before trusting `\|\|` |
 
 ---
 
