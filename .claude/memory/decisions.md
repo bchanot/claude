@@ -95,6 +95,7 @@ rules:
 | BDR-083 | 2026-08-24 | Contract gates: deterministic floor (GATE 0) under the fresh verifier | accepted |
 | BDR-084 | 2026-08-24 | /tour multi-project: parallel runners (LRN-083 derogation, bounded), runner inherits session model | accepted |
 | BDR-085 | 2026-08-25 | User permanent rules: writing-style always-on in rules/, web build+security path-scoped | accepted |
+| BDR-086 | 2026-08-26 | darwin: threshold gates full loops; verified defects fixed regardless of unit score (paired-validated, batched checkpoint) | accepted |
 
 ---
 
@@ -1105,3 +1106,10 @@ Conflict carve-outs, stated INSIDE the rules: registries keep caveman format (fr
 Self-check rule scoped to DELIVERABLES (text, site, feature), not every conversational reply — literal "avant de me rendre quoi que ce soit" would append a compliance note to every chat answer, pure noise. User can re-widen.
 Alternatives rejected: compress into CLAUDE.global.md (~11 lines to fit → loses the carve-outs, zero headroom left); path-scope writing-style (applies to conversation, not file reads → would never fire in chat-only sessions); one merged web file (two concerns, one-rule-one-file).
 Branch feature/user-writing-web-rules, UNMERGED (human gate).
+
+## BDR-086 — darwin bug-pass scope: verified defects fixed above threshold
+- **Date**: 2026-08-26
+- **Decision**: units < threshold get full weighted-gap optimization loops (per-unit checkpoint). Judge-VERIFIED defects (file:line, confirmed) in above-threshold units get targeted fixes in a grouped pass — same paired 3-judge validation, one batched checkpoint. User-gated at the scorecard.
+- **Why**: leaving a verified destructive path (hotfix `git restore .` wiping tolerated user edits, file scored 85) unfixed = score-worship; rubric serves quality, not the inverse.
+- **Alternatives rejected**: strict threshold (ships known bugs); optimize-everything (cost, HL-4 diminishing returns).
+- **Reference**: run 2026-08-26, commits 6eceedb..6eac7fb, `.claude/audits/DARWIN-2026-08-26.md`.

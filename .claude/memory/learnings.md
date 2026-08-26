@@ -138,6 +138,7 @@ rules:
 | LRN-133 | 2026-07-17 | an omission must stay LEGIBLE, never silent — tool that can't measure says so in its output | designing any audit/measure output; deciding what a cap/refusal/N-A emits |
 | LRN-134 | 2026-07-17 | resolve-then-pin in stdlib http.client beats monkeypatching getaddrinfo — dual-stack, thread-safe, no requests; classify the OS-resolved IP not the URL text | closing SSRF/DNS-rebinding on any Python HTTP egress |
 | LRN-135 | 2026-07-17 | a prefix-only scan for a dangerous construct is bypassable by padding — scan the WHOLE document | refusing any hostile construct (DTD/directive/marker) before parse |
+| LRN-143 | 2026-08-26 | `cmd | head || fallback` — pipeline rc is head's (0), fallback dead; bounded output → drop head, else pipefail | any probe/fallback bash in skills before trusting `||` |
 
 ---
 
@@ -1378,3 +1379,13 @@ Future application: any skill/plugin adoption — skills-external/, /plugin-chec
 ## LRN-142 — structure locks are fixed-string: reflowing a doctrine paragraph reds them (2026-08-24)
 Context: contract-gates ([[BDR-083]]). Editing lib/verify-secure-loop.md rewrapped 5 locked phrases across line breaks ("Max 3 conformity iterations", "Max 3 security iterations", "re-verify the REQUEST first", "always re-checked BEFORE security", "one verifier dispatch + one security dispatch") → loops-light.test.sh 30 pass / 5 fail, though ZERO doctrine was dropped. Locks did their job: they cannot distinguish "clause deleted" from "clause rewrapped", and that conservative bias is correct — the alternative (fuzzy matching) would miss real deletions.
 Rule: when editing a doctrine file under structure locks, grep the test's lock strings FIRST, then re-flow AROUND them — each locked phrase stays on one unbroken line. Fix the DOC, not the lock, unless the doctrine genuinely changed. Under locks today: verify-secure-loop.md, contract-interview.md, verifier / security-auditor / plan-challenger agents, seo+geo (71 locks).
+
+## LRN-143 — pipe to head masks grep exit; `|| fallback` never fires
+- **Context**: darwin 2026-08-26 — plugin-probe FRAMEWORK-DEPS (`grep … | head || echo none`) emitted silent-empty on no-match; same bug in run's own probe test.
+- **Pattern**: pipeline rc = LAST command's (head = 0 always). `|| fallback` after pipe = dead code. Bounded output → drop head; else `set -o pipefail` or capture + test.
+- **Future**: any skill/agent bash probe with a `||` fallback: check what the pipeline rc actually is first.
+
+## LRN-144 — census locks grep EXACT single-line phrases; prose rewrap breaks them
+- **Context**: darwin 2026-08-26 — hotfix RULES rewrap split "No verifier is dispatched at hotfix weight"; loops-light.test.sh lock RED; make test caught post-edit.
+- **Pattern**: lib/tests/*.test.sh lock sentences verbatim, single-line. Rewording/rewrapping skill+agent md near locked phrases silently breaks census.
+- **Future**: before editing skill/agent prose, grep lib/tests/ for locks in the touched region; run make test BEFORE dispatching judges, not after.

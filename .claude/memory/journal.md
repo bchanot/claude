@@ -443,3 +443,8 @@ rules:
 
 ## 2026-08-25
 - User permanent rules integrated: rules/writing-style.md (always-on) + web-building.md + web-security.md (path-scoped). Security core already in §Security, not duplicated. Carve-outs protect caveman registries + skill templates + brand fonts. [[BDR-085]]. Branch feature/user-writing-web-rules UNMERGED (human gate).
+
+## 2026-08-26 — darwin fresh baseline + threshold run (feature/darwin-optimize-20260825, UNMERGED)
+- `/darwin-skill all skills and agents` (background). Fresh results.tsv (May file wiped). 7 blind judges, 54 rows (31 skill-systems + 23 agents), mean 83.4, 13 <80. find-docs excluded — machine-owned ctx7 (gitignored), 3rd exclusion ground after BDR-015/058.
+- Phase 2: 12 rounds / 13 units, 0 reverts, all paired 3-0 ([[EVAL-028]]). Star: skills-perso detection 8/31 → 31/31 live-verified. Bug pass [[BDR-086]]: 8 commits in above-80 units kept 3-0 (hotfix git-restore data-loss path ★, onboarder contract bounce, plugin data-flow, plan-challenger grammar, handover stale §refs + gate order, tour report-only commit, harden severity, fixtures).
+- make test green after census-rewrap fix ([[LRN-144]]); [[LRN-143]] head-pipe grep mask. 29 commits, report `.claude/audits/DARWIN-2026-08-26.md` + card PNG. Branch awaits human review + merge.

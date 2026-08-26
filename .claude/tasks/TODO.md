@@ -19,7 +19,7 @@ paired same-judge majority, absolute scores triage-only.
       allowed-tools, skills-perso 8/32 detection...).
 
 - [ ] T4 Phase 1 gate: scorecard checkpoint, user picks optimization set.
-- [x] T5 Phase 2 DONE: 13/13 units, 21 rounds kept 3-0, 0 reverts +
+- [x] T5 Phase 2 DONE: 13/13 units, 12 rounds kept 3-0, 0 reverts +
       bug pass 8 commits kept 3-0 (2 skeptic residuals amended). make test
       green.
 - [x] T6 Phase 3 DONE: report .claude/audits/DARWIN-2026-08-26.md + card

@@ -38,6 +38,7 @@ rules:
 | EVAL-019 | 2026-07-06 | job4 test-gap audit + execution: 11 specs + 5 fixes/seams, every mutation red-green verified, zero residual | keep |
 | EVAL-025 | 2026-07-17 | opening seo/geo inventory (subagents): 7/7 verifiable claims false or overstated; real contact corrected all, 6 plan corrections + 4 features killed at measurement | keep |
 | EVAL-027 | 2026-08-24 | contract-gates behavioral RED: 16/16 fresh unprimed runs followed new doctrine (GATE 0 order, vacuous oracle, ABANDONED routing, scope temptation resisted) | keep |
+| EVAL-028 | 2026-08-26 | darwin v2.1 paired run 54 units: 60 paired verdicts 0 revert/tie; skeptics found 3 real residuals — engaged, not rubber-stamp | keep |
 
 ---
 
@@ -260,3 +261,9 @@ Dogfood: 3 blind lenses attacked the v1 plan for the plan-challenge feature itse
 - **anomalies**: none against doctrine. Fixture flaw (mine): placeholder.txt trick used to fabricate a 2nd commit made v2/v3 diffs contain no feature work — every verifier CAUGHT it (out-of-scope + "implementation pre-exists base commit"), polluting v3's intended pure-ABANDONED measurement → v3b clean fixture added. Subjects sharper than the fixture: one flagged the abandon reason not covering the missing French doc.
 - **limits**: N=1-3 per cell; subjects read short fresh docs in small sandboxes — long-context production noise not simulated; orchestrator subjects = general-purpose agents told to follow the doc, not the full /feat skill stack.
 - **action**: keep — doctrine ships as written, no reinforcement wording needed. Artifacts: scratchpad/red/ (session-lived, not committed).
+
+## EVAL-028 — darwin v2.1 paired run, 54 units
+- **Date**: 2026-08-26. **Output**: 12 optimization rounds (13 sub-80 units) + 8 bug-fix commits, all kept.
+- **Method**: paired same-judge 3-majority per round (v2.1); judges live-exec where artifact executable (5 units: skills-perso, profile, plugin-pair, status-reporter, gitflow). Absolute scores triage-only. Totals main-thread (LRN-018 applied).
+- **Anomalies**: (1) 0 reverts/ties in 60 verdicts — homogeneous-better checked: skeptic lens found real residuals 3x (doctor.sh cost source, hotfix RULES leftover restore, FILE(S) new-marker) → judges engaged. (2) census lock RED on line-rewrap, make test caught → LRN-144. (3) head-pipe masked grep exit 2x → LRN-143.
+- **Action**: v2.1 paired = standard. Post-run absolute rescore skipped by design (would be judge-noise theater).
