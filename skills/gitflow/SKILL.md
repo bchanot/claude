@@ -82,11 +82,11 @@ call `start <type>` to branch first; on a working branch they commit in place. S
 | Trigger | Move |
 |---|---|
 | `~/.claude/lib/gitflow.sh` absent (foreign machine, links broken) | STOP; remedy = `bash link.sh` from the config repo. Never emulate the model by hand-git |
-| `finish` rc=4 — merge conflict (message: "resolve, commit, re-run finish") | The conflict sits in the tree ON the target branch. Show conflicted files, resolve WITH the user (it's shared-branch content), `git add` + commit, re-run `finish`. The human GO already given covers completing THIS merge — no new gate. A fan-out (hotfix/release) interrupted mid-way resumes on re-run; already-merged targets no-op |
+| `finish` rc=4 — merge conflict (message: "resolve, commit, re-run finish") | The conflict sits in the tree ON the target branch. Show conflicted files, resolve WITH the user (it's shared-branch content), `git add` + commit, re-checkout the SOURCE branch, re-run `finish`. The human GO already given covers completing THIS merge — no new gate. A fan-out (hotfix/release) interrupted mid-way resumes on re-run; already-merged targets no-op ("Already up to date") |
 | `start` rc=2 — bad/missing type or name | Fix the arguments (`<type>/<name>`), retry once |
 | `start` rc=3 — base branch missing | `gitflow init` first, then retry `start` |
 | `start`/`finish` rc=1 — checkout failed (dirty tree blocking, or branch already exists) | Report git's message verbatim; if the branch exists, ask resume-it vs new name. Never fall back to raw `git checkout -b` |
-| finish warning "transient artifacts … purge skipped, finishing without it" | Non-fatal BY CONTRACT (purge is best-effort) — the merge completed; clean `docs/superpowers/` by hand later |
+| finish warning "transient artifacts … purge skipped, finishing without it" | Non-fatal BY CONTRACT (purge is best-effort, never aborts a finish) — finish continues; clean `docs/superpowers/` by hand later |
 | `init` rc=1 — socle commit failed | Recoverable: aborted BEFORE hook activation by design; fix the cause (hooks, perms), re-run `init` |
 
 ## Common Mistakes
