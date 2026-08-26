@@ -14,6 +14,17 @@ Gather context. Produce complete PROJECT BRIEF as single source of truth.
 - If the initial prompt already provides name + purpose + stack + features + architecture → skip questions and generate the BRIEF directly.
 - Otherwise ask only what's genuinely missing, in a single structured block.
 - After answers: produce BRIEF. One follow-up allowed if answer is ambiguous.
+- Hard budget: 2 question rounds total (initial block + one follow-up). The BRIEF ships after round 2 no matter what — gaps become OPEN DECISIONS, never a third round.
+
+## FAILURE MODES
+
+| Trigger | First response | If still unresolved |
+|---|---|---|
+| Answer vague/ambiguous | One targeted follow-up on that item only | Record item in OPEN DECISIONS with the safest reading, marked `(assumed)` — never invent a confident value |
+| "I don't know / you decide" | Propose ONE concrete default + why, ask yes/no | Take the default, mark `(assumed)`, list in OPEN DECISIONS |
+| Contradictory answers (e.g. embedded runtime + managed cloud DB) | Name the contradiction, ask which side wins | Put BOTH options in OPEN DECISIONS; do not silently pick one |
+| Partial answer to the block | Re-ask ONLY the missing items in the follow-up round | Missing fields → `none stated` + OPEN DECISIONS entry |
+| Feature list balloons (>10) | Keep the 10 the user ranks first as V1 | Overflow goes to OUT OF SCOPE with a `(deferred by budget)` tag |
 
 ## QUESTIONS (skip answered ones)
 
