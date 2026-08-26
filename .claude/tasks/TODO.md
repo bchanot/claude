@@ -11,7 +11,8 @@ paired same-judge majority, absolute scores triage-only.
       test-prompts.json (capitalize deploy gitflow pdf-translate reconcile
       release-candidate tour), runtime scan (2 minor hits). find-docs
       EXCLUDED — machine-owned ctx7 (BDR-053, gitignored) → 31 systems.
-- [ ] T2 Phase 0.5 gate: user confirms prompts + dim8 strategy + opt count.
+- [x] T2 Phase 0.5 gate PASSED: reuse prompts as-is; dim8 full_test on
+      candidates only (baseline dry_run); Phase 2 set = ALL units <80.
 - [ ] T3 Phase 1 baseline: batched blind judges, 9-dim, 55 rows in
       results.tsv; scorecard.
 - [ ] T4 Phase 1 gate: scorecard checkpoint, user picks optimization set.
