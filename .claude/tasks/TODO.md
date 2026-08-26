@@ -13,8 +13,11 @@ paired same-judge majority, absolute scores triage-only.
       EXCLUDED — machine-owned ctx7 (BDR-053, gitignored) → 31 systems.
 - [x] T2 Phase 0.5 gate PASSED: reuse prompts as-is; dim8 full_test on
       candidates only (baseline dry_run); Phase 2 set = ALL units <80.
-- [ ] T3 Phase 1 baseline: batched blind judges, 9-dim, 55 rows in
-      results.tsv; scorecard.
+- [x] T3 Phase 1 baseline DONE: 7 blind judges, 54 rows (31 skills + 23
+      agents), mean 83.4, 13 units <80, ~25 verified findings (hotfix
+      destructive restore, onboard/onboarder contract, init-project
+      allowed-tools, skills-perso 8/32 detection...).
+
 - [ ] T4 Phase 1 gate: scorecard checkpoint, user picks optimization set.
 - [ ] T5 Phase 2: per-unit loops (1 dim/round, weighted-gap diagnosis,
       paired 3-judge majority keep/revert, HL-4 stop), human checkpoint
