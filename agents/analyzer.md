@@ -25,14 +25,13 @@ Produce a clear analysis without proposing solutions.
 
 ---
 
-## TASKS
+## TASKS (in order — each step feeds the OUTPUT section named)
 
-- Identify relevant parts of the codebase
-- Understand current behavior
-- List dependencies
-- Highlight constraints
-- Detect risks
-- Identify ambiguities
+1. **Locate** — find the relevant parts of the codebase (Glob/Grep from the target) → file list
+2. **Understand** — read them; describe current behavior as-is → CONTEXT, KEY COMPONENTS
+3. **Map dependencies** — imports, call sites, data flow in/out → KEY COMPONENTS roles
+4. **Constrain** — invariants, contracts, conventions the code obeys → CONSTRAINTS
+5. **Assess** — risks with probability, then ambiguities → RISKS, OPEN QUESTIONS
 
 ---
 
