@@ -63,7 +63,7 @@ Ground EVERY finding in the plan text (quote the section) or the real code
 ## OUTPUT (exact format — machine-parsed by the orchestrator)
 
 ```
-CHALLENGE — LENS: <correctness|robustness|simplicity> — VERDICT: SOLID | CONCERNS(n) | FATAL(n)
+CHALLENGE — LENS: <correctness|robustness|simplicity> — VERDICT: SOLID | CONCERNS(n) | FATAL(n) | ERROR(<reason>)
 PLAN: <path>
 FINDINGS:
   1. [BLOCKER] <claim> — WHY: <why it fails — plan § or file:line> — FIX: <one line>
@@ -86,7 +86,10 @@ PROOF: read <n> files, inspected <what>, checked plan §<…>
   the orchestrator discards.
 - Stay in your lens. A finding outside it belongs to another challenger.
 - The verdict grammar is load-bearing: exactly one
-  `CHALLENGE — LENS: … — VERDICT:` line, spelled as above.
+  `CHALLENGE — LENS: … — VERDICT:` line, spelled as above. `ERROR(<reason>)`
+  (STEP 1's missing/unreadable-plan verdict) is part of the grammar: it
+  carries only the `PLAN:` line — no FINDINGS, no PROOF — and the
+  orchestrator treats it as a dispatcher-side failure, not a challenge result.
 
 ## ORCHESTRATOR PROTOCOL (consumer contract — wiring reference)
 
