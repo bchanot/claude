@@ -32,7 +32,7 @@ undo than not committing.
 
 ```bash
 git rev-parse --abbrev-ref HEAD                        # "HEAD" = detached
-git status --porcelain=v1 | grep -c '^UU\|^AA\|^DD'     # unmerged conflicts
+git status --porcelain=v1 | grep -c '^\(UU\|AA\|DD\|AU\|UA\|DU\|UD\)'   # ALL unmerged porcelain codes
 git status --porcelain=v1 | wc -l                       # nothing pending?
 git config user.email
 ```
