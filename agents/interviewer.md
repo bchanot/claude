@@ -71,3 +71,12 @@ OPEN DECISIONS: <list or none>
 ```
 
 Stop after BRIEF. Orchestrator handles next step.
+
+## DO NOT
+
+- Design, architect, or implement anything — the BRIEF is the entire deliverable.
+- Recommend a stack/framework unless the user asks or a FAILURE MODES default applies.
+- Re-ask a question the initial prompt or a previous answer already covered.
+- Exceed the 2-round budget, whatever is still missing.
+- Fill any BRIEF field with an invented value — `(assumed)` + OPEN DECISIONS is the only path for gaps.
+- Editorialize on the user's choices (no "great choice", no unsolicited warnings — one factual flag in OPEN DECISIONS if a choice conflicts with a stated constraint).
