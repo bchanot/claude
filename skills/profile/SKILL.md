@@ -111,6 +111,17 @@ skills.
 bash "$HOME/.claude/lib/profile.sh" $ARGUMENTS
 ```
 
+## Failure modes
+
+| Trigger | First move | If still stuck |
+|---|---|---|
+| `lib/profile.sh` absent (foreign machine, links broken) | `test -f "$HOME/.claude/lib/profile.sh"` before any verb; missing → propose `bash link.sh` from the config repo | STOP — never hand-move symlinks to emulate the script |
+| Unknown profile name (rc=1, `✗ Profile not found`) | Show `list` output + the closest existing name ("`desing` → did you mean `design`?") | Let the user pick — never guess-and-`set` |
+| Unknown verb (rc=1 + usage) | Re-map the request to the argument-hint verbs, retry once | Show usage, ask |
+| `set`/`apply` exits nonzero MID-TOGGLE (permission, plugin CLI failure) | State may be PARTIAL. Run `current` to show what actually took; name the failed item from the script's output | Offer `reset` as recovery to a known state; never blind-rerun `set` on top of partial state |
+| Plugin/MCP leg fails (marketplace/network) while symlink leg succeeded | Report the split state explicitly + print the manual `claude plugin`/`claude mcp` command for the failed leg | — |
+| `current` says `none` right after a successful `set <name>` | Contradiction — do not trust either; show the raw script output to the user | Known failure family (BLK: symlink resolution in `cmd_current`) — report, don't hand-patch |
+
 ## Output policy
 
 - After `set` / `apply` / `reset` / `gstack on|off`: show the count of skills
