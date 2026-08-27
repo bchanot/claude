@@ -3,7 +3,7 @@ name: code-clean
 description: |
   Full codebase cleanup: dead code, style/norm enforcement, structural
   issues. Two-phase: read-only audit, then approved fixes only
-  (refactorer agent).
+  (code-cleaner executor; refactorer inline for style/structural items).
   Triggers: "code-clean", "remove dead code", "cleanup", "nettoyage du
   code", "code hygiene".
   Targeted refactor without audit → /refactor. Bugs found → logged to

@@ -18,3 +18,9 @@ $ARGUMENTS"
 
 If the refactorer agent is unavailable, emit `Refactorer agent missing.` and
 STOP — never improvise, silent behavior change is unsafe.
+
+🔴 **No-tests gate**: when the agent returns `TESTS PRESENT: no` and stopped
+(its contract on a test-less target), do NOT re-dispatch on your own. Surface
+its PRE-REPORT and ask the user: add tests first / proceed anyway / abort.
+Only an explicit "proceed" re-dispatches with the `GO-WITHOUT-TESTS` token —
+behavior preservation is unverifiable on that path and the user owns that risk.

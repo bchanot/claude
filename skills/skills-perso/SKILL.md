@@ -19,56 +19,35 @@ List only **user-created** skills from `~/.claude/skills/`, excluding framework
 
 ## How to detect user-created skills
 
-A skill is **personal** if it satisfies AT LEAST ONE of these signals (in priority order):
+The install convention (`link.sh`) IS the discriminator — no content heuristics:
 
-1. **Explicit marker** — frontmatter contains `owner: user` (preferred — unambiguous, future-proof)
-2. **Agent-reference heuristic** — SKILL.md body references an agent file from `~/.claude/agents/` on a non-comment line
-3. **Allowlist** — skill name is in the explicit allowlist below (for self-contained personal skills that do not delegate)
-
-Allowlist of self-contained personal skills (no agent delegation): `skills-perso`.
-
-Framework / gstack skills always FAIL all three signals — that is how they are excluded.
+1. **External/framework skills are symlinks** (gstack, npx skills, third-party) → excluded.
+2. **Personal skills are real directories** containing a `SKILL.md` → included.
+3. **Machine-generated skills** (e.g. `find-docs`, written by `install-plugins.sh`)
+   are real dirs but gitignored in the config repo → excluded via `git check-ignore`.
 
 Run this command to get the list of personal skills:
 
 ```bash
-ALLOWLIST="skills-perso"
+SKILLS_DIR=$(readlink -f ~/.claude/skills)   # resolves into the config repo when wired by link.sh
 
-is_personal() {
-  local skill_file="$1" skill_name="$2"
-  # Signal 1: explicit marker
-  if grep -qE '^owner:[[:space:]]*user\b' "$skill_file" 2>/dev/null; then
-    return 0
-  fi
-  # Signal 2: agent reference on a non-comment line
-  if grep -nE '\$HOME/\.claude/agents/|~/\.claude/agents/|\.claude/agents/' "$skill_file" 2>/dev/null \
-     | grep -vE '^[0-9]+:[[:space:]]*(#|<!--|//)' \
-     | grep -q .; then
-    return 0
-  fi
-  # Signal 3: allowlist
-  for allowed in $ALLOWLIST; do
-    [ "$skill_name" = "$allowed" ] && return 0
-  done
-  return 1
-}
-
-found=0
+found=0 excluded=0
 for dir in ~/.claude/skills/*/; do
-  [ -L "${dir%/}" ] && continue        # skip symlinks (external)
-  skill=$(basename "${dir%/}")
-  skill_file="${dir}SKILL.md"
-  [ -f "$skill_file" ] || continue
-  if is_personal "$skill_file" "$skill"; then
-    echo "$skill"
-    found=$((found + 1))
+  d=${dir%/}
+  skill=$(basename "$d")
+  if [ -L "$d" ]; then excluded=$((excluded + 1)); continue; fi          # symlink = external/framework
+  if [ ! -f "$d/SKILL.md" ]; then excluded=$((excluded + 1)); continue; fi # container dir, not a skill
+  if git -C "$SKILLS_DIR" check-ignore -q "$skill" 2>/dev/null; then
+    excluded=$((excluded + 1)); continue                                  # gitignored = machine-generated
   fi
+  echo "$skill"
+  found=$((found + 1))
 done
+echo "(excluded: $excluded external/framework/generated)" >&2
 
 if [ "$found" -eq 0 ]; then
-  echo "⚠️ No personal skills detected. Either only framework skills installed," >&2
-  echo "   or no SKILL.md carries 'owner: user' marker / agent reference." >&2
-  echo "   To mark a skill as personal, add 'owner: user' to its frontmatter." >&2
+  echo "⚠️ No personal skills detected. Either none exist yet, or ~/.claude/skills" >&2
+  echo "   is not wired by link.sh (externals must be symlinks for this split to hold)." >&2
   exit 1
 fi
 ```
@@ -80,7 +59,7 @@ fi
 3. Extract `description` from the YAML frontmatter. Handle BOTH formats:
    - **Inline**: `description: Some text here` → take everything after `description: `
    - **Block scalar**: `description: |` → take the next indented line, trimmed
-4. Also extract the agent file it references (the `.md` filename from `~/.claude/agents/`).
+4. Also extract the agent file it references (the `.md` filename from `~/.claude/agents/`), or `—` for self-contained skills.
 5. Display a clean table with three columns: **Skill**, **Agent**, and **Description** (first line of description only, trimmed).
 6. At the end, show the total count of personal skills (and mention how many framework skills were excluded).
 
@@ -101,17 +80,16 @@ Keep descriptions to one line (~80 chars max, truncate with "..." if needed).
 
 ## Known limits of the detection heuristic
 
-- **False positive (rare):** agent references buried in fenced code blocks
-  (` ``` ... ``` `) match Signal 2 even though they are not active delegations.
-  Mitigation: skill author adds `owner: user` (Signal 1) — explicit always wins.
-- **False negative:** personal skills that delegate to agents under non-standard
-  paths (e.g. `~/.config/myagents/`, `agents-shared/`) won't match Signal 2.
-  Mitigation: same — add `owner: user` to frontmatter.
-- **Frontmatter malformed / missing:** `is_personal()` returns false (skill
-  silently excluded). The "0 personal skills detected" diagnostic catches the
-  zero case but not partial misses.
+- **False positive:** a framework skill COPIED (not symlinked) into
+  `~/.claude/skills/` reads as personal. Mitigation: keep externals symlinked —
+  `link.sh` does; re-run it if an install went sideways.
+- **Machine-generated dirs** are caught only when `~/.claude/skills` resolves
+  into a git repo whose `.gitignore` marks them; outside that layout they are
+  listed as personal. The stderr `excluded:` count makes an implausible split
+  visible (e.g. `excluded: 0` on a tree known to hold gstack symlinks).
 - **Description extract edge cases:** plain multi-line YAML (no `|`/`>`) is
   read as first line only. For users of `description: |` block scalars this is
   intended; otherwise inspect raw `SKILL.md` if a description looks truncated.
-- **Override:** to force-include a framework skill, fork it into `~/.claude/skills/`
-  and add `owner: user`. The fork is then yours to maintain.
+- **Override:** to adopt a framework skill as your own, fork it into a real
+  directory under `~/.claude/skills/` (drop the symlink). The fork is then
+  yours to maintain and is listed as personal.

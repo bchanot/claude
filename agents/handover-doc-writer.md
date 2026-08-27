@@ -424,7 +424,7 @@ Wrong — has date prefix:
 
 ### 6.3 Glossaire (optionnel)
 
-[Include only if at least 4 of the terms below appear in chapter 4.
+[Include only if at least 4 of the terms below appear in chapter 6.
 Format: term — one-line plain-language definition. Sort alphabetically.
 This is the ONLY place internal tooling names may be mentioned by
 their internal label, and only when explaining what they correspond
@@ -465,7 +465,7 @@ des audits de santé. Pour toute question, contactez [contact].*
 1. Address the client directly ("votre site", "vous pouvez").
 2. Chapters 1–3: replace every tech term with a user-facing equivalent.
 3. No abbreviations the client wouldn't use (HTTPS yes, CSP no — unless
-   in chapter 4 with definition).
+   in chapter 6 with definition).
 4. Concrete numbers > adjectives.
 5. Short paragraphs. Bullet lists for things you can count.
 6. **Score deltas explained in plain words**. Never just dump numbers.
@@ -535,9 +535,9 @@ The chapter must include:
 
 8. **Outils gratuits pour vérifier votre présence**.
 
-Cross-link this chapter from §4 (owner responsibilities — "Ce qui vous
+Cross-link this chapter from §5 (owner responsibilities — "Ce qui vous
 reste à faire"). Items in this §7 annex that are recurring belong in
-§4's cadence checklist (Mensuel / Trimestriel / Annuel).
+§5's cadence checklist (Mensuel / Trimestriel / Annuel).
 
 ---
 
@@ -624,7 +624,9 @@ checkbox:
 
   (`LANG=en`: "Items already checked have been validated.")
 
-### Verification
+### Verification (deferred — run right AFTER STEP 15 writes `$OUTPUT_MD`;
+the pre-checks themselves are applied to the in-memory body here, the
+file does not exist yet)
 
 ```bash
 # At least one pre-check expected for any project with real history.
@@ -687,6 +689,9 @@ awk '/^## 1\./{flag=1} /^## 6\./{flag=0} flag' "$OUTPUT" \
 **Anchor-resolution gate** (clickable section refs work).
 
 ```bash
+# ORDER: run this gate in STEP 16, immediately AFTER the HTML render —
+# $OUTPUT_HTML does not exist yet at STEP 15. A broken anchor found here
+# loops back to fix the markdown ref, then re-render.
 grep -oE '\]\(#[a-z0-9-]+\)' "$OUTPUT_MD" | tr -d ']()#' | sort -u > /tmp/refs.txt
 grep -oE 'id="[^"]+"' "$OUTPUT_HTML" | sed 's/id="//;s/"//' | sort -u > /tmp/ids.txt
 comm -23 /tmp/refs.txt /tmp/ids.txt

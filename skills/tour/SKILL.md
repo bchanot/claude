@@ -218,7 +218,11 @@ order:
    (`.claude/audits/.tour-semgrep*` and similar) — their content is
    folded into TOUR.md. A tree left dirty here forces the NEXT tour
    into report-only: the skill must not self-block.
-3. Commit the report as the run's final commit (`docs(tour): report`).
+3. Commit the report as the run's final commit (`docs(tour): report`) —
+   EXCEPT in `--report-only` mode: no chore branch exists there, so the
+   commit would land on the user's current branch (possibly develop — the
+   red flag below forbids that). Report-only leaves TOUR.md uncommitted
+   and says so in the summary.
 4. Confirm `git status --porcelain` is clean (runtime junk the sandbox
    cannot delete, e.g. `__pycache__/`, becomes a report residual line).
 

@@ -317,15 +317,10 @@ NEXT: review `git diff .claude/memory/`, then `/commit-change`
 
 ## TDD note (skill itself)
 
-v1 ships without baseline test scenarios per superpowers:writing-skills
-Iron Law. Recommended before relying on the skill in production:
-
-1. RED: spawn subagent, give it a real `.claude/memory/` snapshot, ask
-   "prune obsolete entries". Document what it does naturally.
-2. GREEN: invoke `/prune-memory` on the same snapshot. Verify it
-   follows STEP 0–4 + respects append-only rule.
-3. REFACTOR: log any new rationalizations the subagent finds; add
-   counters to the "Common mistakes" / "Failure paths" tables.
-
-Until TDD is done, the skill is v1-untested. STEP 2 approval gate is
-the human safety net.
+Baseline RED scenarios were run and their counters are embedded: the
+RED-2/RED-5/RED-6 guards live in the body above, and `tests/` holds the
+fixtures (red3-negation, red4-journal, red6-orphan) plus
+`run-deterministic.sh` and `run-behavioral.md`. New rationalizations a
+subagent finds → add the fixture and its counter to the "Common
+mistakes" / "Failure paths" tables (`tests/BACKLOG.md` tracks candidates).
+STEP 2's approval gate remains the human safety net regardless.

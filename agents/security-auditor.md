@@ -147,7 +147,9 @@ In audit mode, ALSO write this same block (plus per-finding detail) to
 ## ORCHESTRATOR PROTOCOL (consumer contract — wiring reference)
 
 - The security gate runs AFTER the request-conformity verdict is CONFORME
-  (verifier), never before.
+  (verifier), never before — EXCEPT under /hotfix, which by design runs no
+  verifier: there the gate fires directly on the smoke-passed diff (its
+  one-attempt model reverts on BLOCK instead of looping).
 - Dispatch a FRESH auditor each iteration — no context reuse. Input = mode +
   scope + (report) + (context), nothing else.
 - Parse the `SECURITY — VERDICT:` line:

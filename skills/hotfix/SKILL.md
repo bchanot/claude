@@ -108,7 +108,11 @@ Snapshot current state so revert is possible:
 git diff HEAD --stat   # confirm working tree is clean OR carries only the
                        # in-progress hotfix area; if unrelated dirty files are
                        # present, ask user whether to stash them first
-git rev-parse HEAD     # capture the SHA to revert to on failure
+# Snapshot the TREE STATE (incl. tolerated uncommitted edits) without touching it.
+# A bare SHA is not enough: restoring to HEAD would wipe the user's own
+# in-progress edits in the hotfix area.
+PRE=$(git stash create "hotfix-preflight"); [ -n "$PRE" ] || PRE=$(git rev-parse HEAD)
+echo "PRE=$PRE"       # the revert source for every failure branch below
 ```
 
 If the working tree contains unrelated uncommitted changes the user has not
@@ -131,28 +135,33 @@ security dispatch, no revert. Finish with the HOTFIX-EXEC REPORT."
 Parse the `HOTFIX-EXEC REPORT`:
 - `STATUS : DONE` → STEP 4 (the SMOKE line in the report decides pass/fail
   there; DONE here means execution completed, not that it verified clean).
-- `STATUS : BLOCKED` → if any edits were made, `git restore .` to the
-  pre-flight SHA (STEP 2); surface the blocker to the user; STOP. One
-  attempt only — hotfix never re-dispatches (escalate to `/bugfix` for
-  deeper work).
+- `STATUS : BLOCKED` → if any edits were made, revert ONLY the executor's
+  files: `git restore --source=$PRE -- <FILE(S) from the report>` and delete
+  any NEW file the report lists (untracked, absent from $PRE). Never
+  `git restore .` — it would wipe the tolerated pre-existing edits too.
+  Surface the blocker to the user; STOP. One attempt only — hotfix never
+  re-dispatches (escalate to `/bugfix` for deeper work).
 
 ## STEP 4 — VERIFY + SECURE + COMMIT (main loop, LRN-083)
 
 1. Read the SMOKE line from the executor's report. **Failure branch** — if
    it reports a failing test/build result:
    - Print the failure output verbatim (under 30 lines).
-   - Run `git restore .` to revert the working-tree edits to the pre-flight
-     SHA (STEP 2). (Files were not yet staged — restore is safe.)
+   - Revert ONLY the executor's files: `git restore --source=$PRE --
+     <FILE(S) from the report>` + delete report-listed NEW files. Never
+     `git restore .` (wipes tolerated pre-existing edits).
    - STOP and tell user: `"Hotfix introduced a regression. Reverted.
      Escalate to /bugfix or /analyze for deeper investigation."`
    - Do NOT commit a broken fix.
 2. **Security gate (fresh auditor) — failure REVERTS, never loops.** Dispatch
-   a FRESH security-auditor (`subagent_type: security-auditor`, or load
-   `agents/security-auditor.md`) with `MODE: gate`, `SCOPE:` the working-tree
-   diff vs the pre-flight SHA. Parse its `SECURITY — VERDICT:` line:
+   a FRESH security-auditor (`subagent_type: security-auditor` — always a
+   fresh dispatch, never inline-load: the repo convention and the FRESH
+   requirement both forbid it) with `MODE: gate`, `SCOPE:` the working-tree
+   diff vs `$PRE`. Parse its `SECURITY — VERDICT:` line:
    - `PASS` (or `DEGRADED` with no BLOCK) → proceed to commit.
-   - `BLOCK(n)` → this is hotfix: do NOT loop. Run `git restore .` to the
-     pre-flight SHA, print the `BLOCKING` list, and STOP:
+   - `BLOCK(n)` → this is hotfix: do NOT loop. Revert ONLY the executor's
+     files (`git restore --source=$PRE -- <FILE(S)>` + delete report-listed
+     NEW files), print the `BLOCKING` list, and STOP:
      `"Hotfix introduced a security finding. Reverted. Escalate to /bugfix
      for a fix under the full verify+security loop."` The hotfix model is
      one attempt; any gate failure (smoke OR security) reverts and escalates.
@@ -222,9 +231,10 @@ trivial hotfix still produces a `chore(memory): journal — …` commit (Frame 2
   decision round-trips; a blocked or failed attempt reverts and escalates
   to `/bugfix`, it does not retry).
 - Design gate only if CSS/style signals detected. See STEP 1.5.
-- **Revert-not-loop preserved**: smoke FAIL or security BLOCK → `git
-  restore .` to the pre-flight SHA + STOP + escalate to `/bugfix`; hotfix
-  never loops. No verifier is dispatched at hotfix weight.
+- **Revert-not-loop preserved**: smoke FAIL or security BLOCK →
+  file-scoped revert from `$PRE` (STEP 4's protocol — never `git
+  restore .`) + STOP + escalate to `/bugfix`; hotfix never loops.
+  No verifier is dispatched at hotfix weight.
 - If root cause is unclear → escalate to `/bugfix` (STEP 1).
 - If fix touches >5 lines of logic → reconsider if this is
   truly a hotfix.

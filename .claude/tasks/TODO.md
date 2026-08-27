@@ -1,5 +1,31 @@
 # TODO
 
+## 2026-08-25 — darwin fresh baseline: 32 skill-systems + 23 agents (feature/darwin-optimize-20260825)
+User: `/darwin-skill all skills and agents` (background). Fresh-from-zero
+(results.tsv wiped 2026-06-23, journal 2026-06-30). Scope per BDR-015/043 +
+LRN-070: personal skills only, external/gstack OUT. EVAL-004 applied: eval
+unit = skill+dispatched-agents SYSTEM, agents get own rows. LRN-018: judges
+emit per-dim scores, totals recomputed main-thread. v2.1 keep/revert =
+paired same-judge majority, absolute scores triage-only.
+- [x] T1 Phase 0+0.5: gitflow branch, results.tsv header, 7 new
+      test-prompts.json (capitalize deploy gitflow pdf-translate reconcile
+      release-candidate tour), runtime scan (2 minor hits). find-docs
+      EXCLUDED — machine-owned ctx7 (BDR-053, gitignored) → 31 systems.
+- [x] T2 Phase 0.5 gate PASSED: reuse prompts as-is; dim8 full_test on
+      candidates only (baseline dry_run); Phase 2 set = ALL units <80.
+- [x] T3 Phase 1 baseline DONE: 7 blind judges, 54 rows (31 skills + 23
+      agents), mean 83.4, 13 units <80, ~25 verified findings (hotfix
+      destructive restore, onboard/onboarder contract, init-project
+      allowed-tools, skills-perso 8/32 detection...).
+
+- [ ] T4 Phase 1 gate: scorecard checkpoint, user picks optimization set.
+- [x] T5 Phase 2 DONE: 13/13 units, 12 rounds kept 3-0, 0 reverts +
+      bug pass 8 commits kept 3-0 (2 skeptic residuals amended). make test
+      green.
+- [x] T6 Phase 3 DONE: report .claude/audits/DARWIN-2026-08-26.md + card
+      PNG (playwright fallback). Capitalize pending user approval. Branch
+      UNMERGED — human gate.
+
 ## 2026-08-25 — user permanent rules: writing + web build + web security (feature/user-writing-web-rules)
 User supplied 4-block rule text (écris / site / code / vérification); asked:
 coverage check, conflict check, integrate. Verdict: security CORE already in
