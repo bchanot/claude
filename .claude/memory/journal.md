@@ -448,3 +448,7 @@ rules:
 - `/darwin-skill all skills and agents` (background). Fresh results.tsv (May file wiped). 7 blind judges, 54 rows (31 skill-systems + 23 agents), mean 83.4, 13 <80. find-docs excluded — machine-owned ctx7 (gitignored), 3rd exclusion ground after BDR-015/058.
 - Phase 2: 12 rounds / 13 units, 0 reverts, all paired 3-0 ([[EVAL-028]]). Star: skills-perso detection 8/31 → 31/31 live-verified. Bug pass [[BDR-086]]: 8 commits in above-80 units kept 3-0 (hotfix git-restore data-loss path ★, onboarder contract bounce, plugin data-flow, plan-challenger grammar, handover stale §refs + gate order, tour report-only commit, harden severity, fixtures).
 - make test green after census-rewrap fix ([[LRN-144]]); [[LRN-143]] head-pipe grep mask. 29 commits, report `.claude/audits/DARWIN-2026-08-26.md` + card PNG. Branch awaits human review + merge.
+
+## 2026-09-01
+- Attention signal shipped: hooks/notify-attention.sh + Notification entry in settings.json (bell x2 + OSC 777 toast via terminalSequence). Client-side VS Code steps pending: terminalBell sound:on + osc-notifier ext. [[LRN-145]]. Branch chore/notify-attention-hook, UNMERGED.
+- Pre-existing model switch opus[1m] committed separately on same branch.
