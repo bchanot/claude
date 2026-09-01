@@ -215,3 +215,10 @@ rules:
 - **Solution** (workaround): dispatcher ran `gitflow.sh finish` + tag inline after its own human gate — where the signal is real. Release completed clean (main `648bc6e`, tag v1.3.1).
 - **Status**: open. Candidate fixes: (a) quote gate evidence verbatim in span prompt — untested vs classifier; (b) move finish+tag span permanently inline in /release-candidate — keeps prep span dispatched, costs the sonnet pin on ~5 mechanical commands, cheap; (c) permission rule allowing subagent `gitflow.sh finish` — weakens the guard, refused. Decide at next release.
 - **Reference**: skill `release-candidate` STEP 5. Pattern adjacent [[LRN-089]] (ambient-state/context assumptions across boundaries). Journal 2026-07-20.
+
+## BLK-019 — notify-attention bell silent, toast OK (VS Code client default) — 2026-09-01
+- **Friction**: hook fired, Windows toast arrived, native bell never audible. User heard only Windows toast sound. Looked like half-broken hook.
+- **Real cause**: not hook. Toast proves full `terminalSequence` reached terminal, `\a\a` sits at head of that same string → BEL emitted. VS Code defaults `accessibility.signals.terminalBell` to `"auto"` = sound OFF unless screen reader active.
+- **Solution**: `"accessibility.signals.terminalBell": { "sound": "on" }` in CLIENT-side user settings.json (`c:/Users/<u>/AppData/Roaming/Code/User/`). Unreachable from remote: real SSH remote, not WSL (no `/mnt/c`, `/proc/version` no Microsoft). User applied, retest → both channels OK.
+- **Status**: resolved (per-client-machine, not repo-portable).
+- **Reference**: `~/.claude/hooks/notify-attention.sh` header already documented the setting; never applied. New client machine → bell mute again while toast works. Silent-degradation class [[LRN-047]].
