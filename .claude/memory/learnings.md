@@ -1389,3 +1389,8 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Context**: darwin 2026-08-26 — hotfix RULES rewrap split "No verifier is dispatched at hotfix weight"; loops-light.test.sh lock RED; make test caught post-edit.
 - **Pattern**: lib/tests/*.test.sh lock sentences verbatim, single-line. Rewording/rewrapping skill+agent md near locked phrases silently breaks census.
 - **Future**: before editing skill/agent prose, grep lib/tests/ for locks in the touched region; run make test BEFORE dispatching judges, not after.
+
+## LRN-145 — hooks reach the terminal only via terminalSequence JSON field
+- **Context**: 2026-09-01 — attention bell for VS Code Remote-SSH (CLI on remote Linux). Hook subprocess has no controlling TTY; /dev/tty unreliable. Docs: terminalSequence = supported side-effect field, fires even on events that discard output.
+- **Pattern**: Notification hook → stdout JSON `{suppressOutput:true, terminalSequence:"<BELx2><OSC 777 notify><ST>"}`. VS Code terminal ignores OSC 777/9 natively (claude-code #28338); client-side ext wenbopan.vscode-terminal-osc-notifier converts to native toast over Remote-SSH; beep needs accessibility.signals.terminalBell sound:on. permission_prompt fires ~6s late, idle_prompt ~60s.
+- **Future**: any hook ringing/notifying the terminal (bell, toast, title) — terminalSequence, never /dev/tty. Input-needed matcher set: permission_prompt|idle_prompt|agent_needs_input|elicitation_dialog|elicitation_url_dialog.
