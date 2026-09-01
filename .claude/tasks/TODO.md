@@ -18,13 +18,17 @@ paired same-judge majority, absolute scores triage-only.
       destructive restore, onboard/onboarder contract, init-project
       allowed-tools, skills-perso 8/32 detection...).
 
-- [ ] T4 Phase 1 gate: scorecard checkpoint, user picks optimization set.
+- [x] T4 Phase 1 gate PASSED: user picked the set — proven by Phase 2
+      running 13/13 units, 0 reverts (DARWIN-2026-08-26.md:23).
+      Ticked by reconcile 2026-09-01.
 - [x] T5 Phase 2 DONE: 13/13 units, 12 rounds kept 3-0, 0 reverts +
       bug pass 8 commits kept 3-0 (2 skeptic residuals amended). make test
       green.
 - [x] T6 Phase 3 DONE: report .claude/audits/DARWIN-2026-08-26.md + card
       PNG (playwright fallback). Capitalize pending user approval. Branch
       UNMERGED — human gate.
+      → both residuals stale: capitalized a15854a, merged 726464f
+        (reconcile 2026-09-01).
 
 ## 2026-08-25 — user permanent rules: writing + web build + web security (feature/user-writing-web-rules)
 User supplied 4-block rule text (écris / site / code / vérification); asked:
@@ -125,6 +129,8 @@ versioned (durable, referenced by decisions.md e.g. BDR-076). Universal via the
       655e364 + reconcile e75ea79) — reaches main at next release
 - [ ] Makefile help text: profile-list help lists 5/10 profiles (:57) —
       1-line hotfix. (test glob :31 FIXED — has run-*.sh, reconcile 2026-08-25)
+      Re-verified OPEN 2026-09-01: lib/profiles/ has 10, Makefile:57 lists 5
+      (backend, full, seo, web-full, web missing).
 
 ## 2026-07-20 — profile ↔ toggle-external symmetry (feature/profile-managed-externals, BDR-079)
 Audit verdict: gstack on-demand + design enable already work; DISABLE side
