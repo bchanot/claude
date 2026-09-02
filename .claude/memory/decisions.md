@@ -96,6 +96,7 @@ rules:
 | BDR-084 | 2026-08-24 | /tour multi-project: parallel runners (LRN-083 derogation, bounded), runner inherits session model | accepted |
 | BDR-085 | 2026-08-25 | User permanent rules: writing-style always-on in rules/, web build+security path-scoped | accepted |
 | BDR-086 | 2026-08-26 | darwin: threshold gates full loops; verified defects fixed regardless of unit score (paired-validated, batched checkpoint) | accepted |
+| BDR-087 | 2026-09-03 | Stop hook = attention signal only, never control flow; one script for Notification + Stop | accepted |
 
 ---
 
@@ -1113,3 +1114,12 @@ Branch feature/user-writing-web-rules, UNMERGED (human gate).
 - **Why**: leaving a verified destructive path (hotfix `git restore .` wiping tolerated user edits, file scored 85) unfixed = score-worship; rubric serves quality, not the inverse.
 - **Alternatives rejected**: strict threshold (ships known bugs); optimize-everything (cost, HL-4 diminishing returns).
 - **Reference**: run 2026-08-26, commits 6eceedb..6eac7fb, `.claude/audits/DARWIN-2026-08-26.md`.
+
+## BDR-087 — Stop hook = attention signal only, never control flow
+- **Date**: 2026-09-03
+- **Decision**: `hooks/notify-attention.sh` wired on BOTH `Notification` (matcher = input-needed set) AND `Stop` (no matcher). One script, branches on `.hook_event_name` when `.message`/`.notification_type` absent → Stop yields "Claude has finished responding". Bell + toast now fire every turn end.
+- **Why**: Notification types cover input-needed ONLY. Turn-end had no event; nearest was `idle_prompt`, ~60s late — useless for Remote-SSH user away from screen. User enumerated turn-end as required case.
+- **Alternatives rejected**: second dedicated script (duplicates terminalSequence + jq logic, two files to keep in sync); `idle_prompt` alone (60s lag); SubagentStop too (noise, subagent completion not user-visible moment).
+- **Guard vs prior refusal**: [[BDR-083]] (unlazy review, GATE 0) REFUSED a Stop hook using `decision:"block"` (forces continuation, inverts human gates). THIS Stop hook returns `terminalSequence` + `suppressOutput` only, exit 0, zero control-flow effect. Signal ≠ control. Do not read the refusal as banning Stop outright.
+- **Status**: accepted.
+- **Reference**: [[LRN-146]] event-coverage gap, [[BLK-020]] client-side faults, [[LRN-145]] terminalSequence pattern. Verified live: turn-end + AskUserQuestion both ring; `permission_prompt` unexercisable under `defaultMode: auto`.
