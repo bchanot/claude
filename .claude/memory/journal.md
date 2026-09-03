@@ -456,4 +456,5 @@ rules:
 ## 2026-09-03
 - Attention signal completed + verified end-to-end. Two client faults isolated ([[BLK-020]] resolved): ext instruments only terminals born AFTER activation (re-attach via `dtach -a`, no session loss); Code app volume 0 in Windows mixer killed bell while Windows-emitted toast sound masked it.
 - Coverage gap found + closed: `Notification` matcher covers input-needed only, turn-end had no event. `Stop` wired on same script, branches on `.hook_event_name` ([[BDR-087]], [[LRN-146]]). Verified live: turn-end + AskUserQuestion ring; `permission_prompt` unexercisable under `defaultMode: auto`.
-- BDR-087 + LRN-146 + BLK-020 capitalized. Branch feature/notify-stop-event, UNMERGED (human gate).
+- BDR-087 + LRN-146 + BLK-020 capitalized. Branch feature/notify-stop-event, merged to develop (f90ee74).
+- Post-merge regression: toast dead again after re-attach from a RESTORED terminal, bell fine. Root cause [[LRN-147]]: ext hooks only terminals born after its activation; `enablePersistentSessions` restores terminals before it. Fix = disable persistent sessions, or fresh terminal + `dtach -a`. Verified: 3/3 toasts on fresh pty.
