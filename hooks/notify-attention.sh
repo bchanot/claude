@@ -33,7 +33,9 @@ case "$event" in
   agent_needs_input) label="Asks you a question" ;;
   idle_prompt) label="Waiting for you" ;;
   elicitation_dialog|elicitation_url_dialog) label="Needs your input" ;;
-  *) label="Needs your attention" ;;
+  # anything else (agent_completed, auth_success, quota_*) stays silent:
+  # signal only for turn end and moments needing the user.
+  *) exit 0 ;;
 esac
 
 detail=$(read_field '.message')
