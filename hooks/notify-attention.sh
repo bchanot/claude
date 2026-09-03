@@ -24,11 +24,22 @@ read_field() {
     | tr -d '\000-\037' | cut -c1-160
 }
 
+# How many background tasks are still running as the hook fires.
+background_count() {
+  count=$(printf '%s' "$payload" | jq -r '(.background_tasks // []) | length' 2>/dev/null)
+  case "$count" in ''|*[!0-9]*) echo 0 ;; *) echo "$count" ;; esac
+}
+
 event=$(read_field '.notification_type')
 [ -n "$event" ] || event=$(read_field '.hook_event_name')
 
+
+
 case "$event" in
-  Stop) label="Finished responding" ;;
+  # Turn end while a subagent still runs is not the real end: stay silent,
+  # the next turn end will signal once the work is actually done.
+  Stop) [ "$(background_count)" -eq 0 ] || exit 0
+        label="Finished responding" ;;
   permission_prompt) label="Needs your permission" ;;
   agent_needs_input) label="Asks you a question" ;;
   idle_prompt) label="Waiting for you" ;;
@@ -39,7 +50,15 @@ case "$event" in
 esac
 
 detail=$(read_field '.message')
-[ -z "$detail" ] || label="${label}: ${detail}"
+if [ -n "$detail" ]; then
+  # Claude Code's own wording often restates the label ("Claude needs your
+  # permission"). Append it only when it actually adds something.
+  short=$(printf '%s' "$detail" | tr '[:upper:]' '[:lower:]' | sed 's/^claude //')
+  case "$(printf '%s' "$label" | tr '[:upper:]' '[:lower:]')" in
+    *"$short"*) : ;;
+    *) label="${label}: ${detail}" ;;
+  esac
+fi
 
 bell=$(printf '\a')
 esc=$(printf '\033')
