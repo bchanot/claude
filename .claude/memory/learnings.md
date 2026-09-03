@@ -1414,3 +1414,10 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Recovery**: deaf terminal never repairs. Open fresh terminal, pre-flight it, `dtach -a ~/.dtach/<session>`. dtach broadcasts, so old client may stay attached; session never at risk.
 - **Diagnostic split (holds)**: bell alive + toast dead = terminal instrumentation. Toast alive + bell dead = client audio ([[BLK-020]]). Neither = bytes never arrive.
 - **Future**: do NOT assert the born-before-activation cause as established — it fits the first incident, not the second. Unknown trigger is the honest state.
+
+## LRN-149 — Stop hook payload carries background_tasks; use it to skip premature signals
+- **Context**: 2026-09-03. User: "notif à la création d'un sous-agent alors qu'il faudrait pas". Instrumented hook, ran probe subagents: NEITHER subagent creation NOR completion calls the hook. Only event = `Stop`, fired when the turn ends right after spawning. Signal was real but LIED ("Finished responding" while work continued).
+- **Pattern**: dump the real payload (`printf '%s' "$payload" >> file.jsonl`) instead of trusting docs — docs list Stop fields without `background_tasks`, the wire has it: `[{"id","type":"subagent","status":"running","description","agent_type"}]`. Rule: on Stop, `(.background_tasks // []) | length` > 0 → exit 0 silent. Next turn end signals for real. Interaction events (permission/question) always signal, background or not.
+- **Fail-open**: field absent (older client) → still signal. Missed notification worse than extra one.
+- **Cross-session gotcha**: hook is user-scope, so EVERY session runs it. A single-file dump (`> file`) gets overwritten by another project's session — append JSONL and filter on `.cwd`. That accident proved `permission_prompt` fires with `message="Claude needs your permission"` (unexercisable in this session under `defaultMode: auto`).
+- **Future**: any hook needing turn-completion semantics must check background_tasks; "turn ended" ≠ "work done". Verified live: Stop with 0 tasks signals, Stop with 1 running subagent silent.
