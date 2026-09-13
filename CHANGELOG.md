@@ -6,7 +6,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+## [1.5.0] — 2026-09-13
+
 ### Added
+- **Attention signals on the terminal (BDR-087)** — new
+  `hooks/notify-attention.sh`, wired on `Notification` (input-needed
+  matcher) and on `Stop` (no matcher). Returns a double BEL plus an
+  OSC 777 toast through the `terminalSequence` JSON field, since hooks
+  have no controlling TTY. Signal only: `suppressOutput`, exit 0, zero
+  control-flow effect, which is what separates it from the `decision:
+  "block"` Stop hook [[BDR-083]] refused. Each event reaches the toast
+  as a readable label instead of a snake_case type; events needing no
+  attention (`agent_completed`, `auth_success`) exit silently; a turn
+  that ends with `background_tasks` still running stays quiet and
+  signals at the real end. Client-side prerequisites over Remote-SSH
+  are documented in the script header ([[BLK-020]]): VS Code
+  `accessibility.signals.terminalBell` for the beep, an OSC notifier
+  extension for the Windows toast.
 - **User permanent rules (BDR-085)** — three new rules/ files from the
   user's rule text: `writing-style.md` (always-on: em-dash ban, no slop
   vocabulary, no hedging chains, deliverable self-check),
@@ -44,8 +60,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   hotfix explicitly runs no floor. Behavioral RED: 16/16 fresh unprimed
   runs followed the new doctrine (EVAL-027).
   64 new assertions in `lib/tests/gates.test.sh`.
+- **`lib/tests/seo-geo-contract.test.sh`** — census locking the seo/geo
+  agent ⇄ dispatcher machine contract: judge verdict grammar, FIX BUNDLE +
+  READY-TO-APPLY sentinel, signals handoff, every STEP header (interiors
+  included), bundle item fields, score labels, scoring blocks, envelope
+  keys (46→71 assertions across the C1 chantier).
 
 ### Changed
+- **Skill and agent quality campaign, 54 units (BDR-086)** — full darwin
+  v2.1 pass over the 31 personal skill-systems and 23 agents, excluding
+  the gstack/external symlinks and machine-owned units. Fresh baseline
+  mean 83.4; the 13 units under the user-set threshold of 80 were
+  optimized to completion, and verified defects in above-threshold units
+  were fixed in a grouped pass rather than left to ship because the score
+  was good enough. Every round was validated by a paired 3-judge majority
+  reading before and after in one call: 36 unit-round verdicts, 24 batch
+  verdicts, all better, zero reverts. Full report and residual findings:
+  `.claude/audits/DARWIN-2026-08-26.md`.
 - **seo-analyzer + geo-analyzer de-prescribed for Opus 5 (BDR-082)** —
   process choreography converted to when-guidance under an
   audience×mode-range invariant; self-output verification demands removed
@@ -56,25 +87,48 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   proven by a controlled before/after `/seo` dogfood — judge replay on
   frozen signals, 42/42 presence assertions on both runs, blind structural
   reader: interchangeable, recall improved.
-
-### Added
-- **`lib/tests/seo-geo-contract.test.sh`** — census locking the seo/geo
-  agent ⇄ dispatcher machine contract: judge verdict grammar, FIX BUNDLE +
-  READY-TO-APPLY sentinel, signals handoff, every STEP header (interiors
-  included), bundle item fields, score labels, scoring blocks, envelope
-  keys (46→71 assertions across the C1 chantier).
 - **Global instruction layer recalibrated for the Claude 5 family (BDR-081)** —
   delegation block is now model-neutral when-guidance (the Opus 4.8
   under-delegation counter inverted on Opus 5, which over-delegates and gets
   an injected harness cap); "staff engineer" self-check bar dropped (Opus 5
   over-verification trigger); finish-whole-task clause added to Deviations;
   written-deliverable length rule added. 308/320 lines.
+- **Default session model is now `opus[1m]`** (was `claude-fable-5[1m]`).
+- **`skills-external/emil-design-eng/` untracked** — the file is curl'd
+  from upstream by `install-plugins.sh` when absent and re-fetched by
+  every `update-all.sh` run, so tracking it produced a repo diff on each
+  upstream edit. Same category as `frontend-design/` and `impeccable/`,
+  already ignored on that rationale; a fresh clone re-fetches it.
+  `design-motion-principles/` has the same overwrite behaviour but no
+  bootstrap clone yet, so it stays tracked until that gap closes.
+
+### Fixed
+- **hotfix wiped tolerated in-progress edits on its revert path** — every
+  failure branch ran `git restore .`, destroying user edits the run had
+  tolerated. Now a `git stash create` pre-flight snapshot plus a
+  file-scoped restore, and the security gate is fresh-dispatch only.
+- **skills-perso listed 8 of 31 personal skills** — detection rebuilt on
+  the `link.sh` symlink convention (symlink = external, real dir =
+  personal, gitignored = machine-generated). Live result 31/31, no false
+  positives.
+- **plan-challenger** — `ERROR` joined the load-bearing verdict grammar
+  (STEP 1 emitted it, the parser enum omitted it); grounded-but-uncertain
+  findings now file as `[MINOR]` with the uncertainty stated, instead of
+  being self-censored (Opus 5 follows conservative-reporting clauses
+  literally).
 - **design-toolchain hook** — dropped `\bux\b` (2 French-prose false
   positives; 3rd tightening pass, series LRN-1005/1007); `\bui\b` kept and
   locked by a must-fire test row.
-- **plan-challenger** — grounded-but-uncertain findings now file as `[MINOR]`
-  with the uncertainty stated, instead of being self-censored (Opus 5 follows
-  conservative-reporting clauses literally).
+- **Agent and skill defects found by the campaign's judges** —
+  `init-project` allowed-tools lacked `Agent` and `Skill` while every step
+  dispatches; `commit-change` conflict grep now covers all 7 unmerged
+  codes; `tour --report-only` no longer commits; `harden` severity defers
+  to the calibrated guide and the late SSL Labs grade has an assigned
+  actor; handover writers' stale chapter refs corrected and the anchor
+  gate ordered; `security-auditor` documents the hotfix no-verifier
+  carve-out; `close` enumerates STEP 5C and passes `--no-push` through;
+  `prune-memory` drops a false "v1-untested" note; `code-clean` attributes
+  its executor correctly; plugin-check and onboard fixtures de-drifted.
 
 ## [1.4.0] — 2026-07-22
 
