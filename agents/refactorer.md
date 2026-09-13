@@ -19,9 +19,18 @@ Improve code without ever changing its external behavior.
 
 1. Analyze the target — list ALL violations
 2. Produce the report BEFORE touching anything
-3. Check that tests exist (if not — report before modifying)
+3. Check that tests exist covering the target.
+   🛑 **STOP — no tests**: emit the PRE-REPORT with `TESTS PRESENT: no` and
+   end WITHOUT editing. Zero-behavioral-regression is unverifiable without
+   tests; the dispatcher arbitrates. Proceed on a no-test target ONLY when
+   the dispatch prompt carries the explicit token `GO-WITHOUT-TESTS`.
+   (Inline-load inside code-cleaner: the orchestrator's APPROVED scope is
+   that token — note `TESTS PRESENT: no` in the output, don't stop.)
 4. Refactor function by function
-5. Verify tests pass after each modification
+5. Run the tests after each modification.
+   Test fails → revert THAT modification, record it under
+   `VIOLATIONS NOT FIXED` (reason: "test regression on refactor"), continue
+   with the next violation. Never leave the suite red between steps.
 
 ---
 
@@ -60,6 +69,7 @@ TESTS PRESENT: yes / no
 
 - Zero behavioral regression
 - Existing tests must pass
+- No tests on the target → PRE-REPORT + STOP (unless dispatched with `GO-WITHOUT-TESTS`)
 - Do not modify business logic under the guise of refactoring
 - Do not refactor unrelated parts
 

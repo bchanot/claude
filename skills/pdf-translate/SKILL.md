@@ -130,6 +130,19 @@ Compare original PDF and translated HTML side by side:
 3. Check: layout match, no missing content, images present, style fidelity
 4. Fix discrepancies → iterate STEP 4
 
+## Failure modes
+
+| Trigger | First move | If still stuck |
+|---|---|---|
+| STEP 0: neither poppler nor PyMuPDF present, install fails (no sudo / no pip) | Print BOTH install commands, ask the user to run one | STOP. No degraded no-image path — the pipeline is image-based by design |
+| STEP 1: PDF > 30 pages (check `pdfinfo input.pdf \| grep Pages` first) | Ask before converting: batch by section, or draft pass at `-r 150` | User declines both → STOP, oversized one-shot runs produce GB of PNGs and stall Vision |
+| STEP 1: extraction yields 0 page PNGs or 0-byte files | Retry with the other tool (poppler ↔ PyMuPDF) | STOP and report the PDF as unreadable (encrypted/corrupt) — never translate from the text layer as a silent fallback |
+| STEP 3: region unreadable (blur, handwriting, tiny footnote) | Mark `[illisible: <best guess>?]` inline + add to an UNCERTAIN list per page | Leave the marker in the HTML; STEP 5 QA re-reads every UNCERTAIN item at higher zoom. Never invent clean text |
+| STEP 4: `/design-html` and `/frontend-design` unavailable | Write the HTML directly from the STEP 2 style brief + STEP 3 content (same requirements list) | — |
+| STEP 5: no `/browse` / screenshot tool | QA on structure instead: compare HTML section order + image refs against STEP 3 layout maps | Report "visual QA skipped — structural QA only" in the final summary |
+| STEP 5: QA still finds discrepancies after 2 fix iterations | Stop iterating; list residual differences for the user | User decides: accept, or target specific pages for a 3rd pass |
+| `pdf-translate-work/` already exists | Ask: resume (keep PNGs, redo STEP ≥3) or clean restart | — |
+
 ## Decision: OCR vs Native PDF
 
 ```dot

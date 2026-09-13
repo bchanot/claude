@@ -732,7 +732,7 @@ write `.claude/audits/THRESHOLD-OVERRIDE.md` documenting:
 - Top 3 unresolved issues per axis
 - User's stated reason
 
-This file is referenced in §4 of the client doc ("Ce qui vous reste à faire")
+This file is referenced in §5 of the client doc ("Ce qui vous reste à faire")
 so the client knows what's still below the bar.
 
 If `ALL_PASS = false`:

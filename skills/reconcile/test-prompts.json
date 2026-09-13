@@ -1,0 +1,5 @@
+[
+  {"id": 1, "prompt": "Qu'est-ce qui reste à faire sur ce projet ? (TODO.md shows 5 open checkboxes, 2 of which were actually shipped and merged last week)", "expected": "Sources lib/reconcile.sh engine, enumerates from registry BODY headings (never the Index), runs oracles against git/fs, surfaces the 2 open-but-done as TODO↔real gaps, outputs the four categories"},
+  {"id": 2, "prompt": "Is the queue empty? Quick check before /close.", "expected": "Verifies, never believes — no naive grep of '[ ]'; classifies actionable / blocked-external / deferred / gap; contradiction candidates surfaced for human review; write-back gated"},
+  {"id": 3, "prompt": "reconcile (foreign project: no lib/reconcile.sh present)", "expected": "States the degraded mode explicitly (engine required, hand-reconcile costly and trap-prone) rather than silently doing a naive checkbox grep"}
+]

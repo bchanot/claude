@@ -1,6 +1,6 @@
 ---
 name: status-reporter
-description: Read-only project-status engine — dispatched by /status. Collects plugins, token budget, git state, build/tests, GSD milestone into one snapshot.
+description: Read-only project-status engine — dispatched by /status. Collects plugin roster + passive-cost estimate (doctor.sh constants), git state, build/tests, GSD milestone into one snapshot.
 tools: Read, Bash, Glob, Grep
 model: haiku
 ---
@@ -23,8 +23,12 @@ cat ~/.claude/lib/../version.txt 2>/dev/null || echo "unknown"  # lib symlink re
 command -v rtk &>/dev/null && echo "rtk: installed" || echo "rtk: missing"
 command -v gsd &>/dev/null && gsd --version 2>/dev/null | head -1 || echo "gsd: not installed"
 
-# Token estimate (passive)
-# (approximate from known plugin costs)
+# Passive token cost — source of truth: doctor.sh's constants block
+# (PLUGIN_TOKENS + <n> per detect_* line). Read it, sum ONLY the plugins
+# found active above. Never invent a number outside these constants.
+grep -E 'PLUGIN_TOKENS \+ [0-9]+' "$(readlink -f "$HOME/.claude/lib")/../doctor.sh" 2>/dev/null
+# grep empty (doctor.sh missing/moved) → report the plugin count only and
+# defer cost to /plugin-check.
 ```
 
 Check `~/.claude/plugins/cache` for active marketplace plugins.
@@ -134,7 +138,7 @@ PROJECT STATUS
 
 CONFIG
   Version   : v<N>
-  Plugins ON: <list> (~<X>t passive)
+  Plugins ON: <list> (~<X>t passive — doctor.sh constants; full audit → /plugin-check)
   GSD v2    : installed / not installed
 
 PROJECT
@@ -174,7 +178,7 @@ The report is best-effort: a single failing data source must not abort the whole
 |---|---|
 | Permission denied on `git` (sandbox/CI without `.git` access) | Mark `Branch: N/A (permission denied)`, `Uncommitted: N/A`, `RECENT COMMITS: N/A`. Continue to PROJECT/GSD sections. |
 | Permission denied on `~/.claude/plugins/cache` or `~/.claude.json` | Mark `Plugins ON: unknown (cannot read cache)`. Continue. |
-| `.gsd/ROADMAP.md` exists but unparseable (malformed checkboxes, encoding issue) | Mark `Progress: N/A (ROADMAP.md unreadable)`, do NOT abort the section — still print `Status: initialized` and `Milestone: N/A`. |
+| gsd CLI snapshot fails or `.gsd/` state unreadable (`gsd.db`, `STATE.md`, per-milestone `<ID>-ROADMAP.md` — post-ADR-013 layout) | Mark `Progress: N/A (gsd state unreadable)`, do NOT abort the section — still print `Status: initialized` and `Milestone: N/A`. |
 | `package.json` / `pyproject.toml` parse error | Mark `Tests: N/A (manifest parse error)`. Continue. |
 | `python3` not available in PATH | Skip the python parsing fallbacks; rely on log files + bash-only checks. Mark Tests as `unknown` if no log found. |
 | All sections fail | Print a minimal envelope with each section showing `N/A (data source unavailable)` and a one-line `DIAGNOSTIC: <which sources failed>` footer. Exit code 0 (status reporter never blocks). |

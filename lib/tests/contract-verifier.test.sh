@@ -67,7 +67,7 @@ fi
 tr_ "frontmatter name"                "$AGT" "^name: verifier$"
 tr_ "tools read-only set"             "$AGT" "^tools: Read, Grep, Glob, Bash$"
 tn  "no write-capable tools"          "$AGT" "^tools:.*(Edit|Write|NotebookEdit)"
-tf  "verdict grammar"                 "$AGT" "VERIFY — VERDICT: CONFORME | ECARTS(n) | ERROR(<reason>)"
+tf  "verdict grammar"                 "$AGT" "VERIFY — VERDICT: CONFORME | ECARTS(n) | ABANDONED(n) | ERROR(<reason>)"
 tf  "blind — no iteration history"    "$AGT" "NEVER receive iteration history"
 tf  "blind — complete every time"     "$AGT" "every verification is complete and blind"
 tf  "unverifiable is not met"         "$AGT" "\`UNVERIFIABLE\` ≠ \`MET\`"

@@ -1,5 +1,105 @@
 # TODO
 
+## 2026-08-25 — darwin fresh baseline: 32 skill-systems + 23 agents (feature/darwin-optimize-20260825)
+User: `/darwin-skill all skills and agents` (background). Fresh-from-zero
+(results.tsv wiped 2026-06-23, journal 2026-06-30). Scope per BDR-015/043 +
+LRN-070: personal skills only, external/gstack OUT. EVAL-004 applied: eval
+unit = skill+dispatched-agents SYSTEM, agents get own rows. LRN-018: judges
+emit per-dim scores, totals recomputed main-thread. v2.1 keep/revert =
+paired same-judge majority, absolute scores triage-only.
+- [x] T1 Phase 0+0.5: gitflow branch, results.tsv header, 7 new
+      test-prompts.json (capitalize deploy gitflow pdf-translate reconcile
+      release-candidate tour), runtime scan (2 minor hits). find-docs
+      EXCLUDED — machine-owned ctx7 (BDR-053, gitignored) → 31 systems.
+- [x] T2 Phase 0.5 gate PASSED: reuse prompts as-is; dim8 full_test on
+      candidates only (baseline dry_run); Phase 2 set = ALL units <80.
+- [x] T3 Phase 1 baseline DONE: 7 blind judges, 54 rows (31 skills + 23
+      agents), mean 83.4, 13 units <80, ~25 verified findings (hotfix
+      destructive restore, onboard/onboarder contract, init-project
+      allowed-tools, skills-perso 8/32 detection...).
+
+- [x] T4 Phase 1 gate PASSED: user picked the set — proven by Phase 2
+      running 13/13 units, 0 reverts (DARWIN-2026-08-26.md:23).
+      Ticked by reconcile 2026-09-01.
+- [x] T5 Phase 2 DONE: 13/13 units, 12 rounds kept 3-0, 0 reverts +
+      bug pass 8 commits kept 3-0 (2 skeptic residuals amended). make test
+      green.
+- [x] T6 Phase 3 DONE: report .claude/audits/DARWIN-2026-08-26.md + card
+      PNG (playwright fallback). Capitalize pending user approval. Branch
+      UNMERGED — human gate.
+      → both residuals stale: capitalized a15854a, merged 726464f
+        (reconcile 2026-09-01).
+
+## 2026-08-25 — user permanent rules: writing + web build + web security (feature/user-writing-web-rules)
+User supplied 4-block rule text (écris / site / code / vérification); asked:
+coverage check, conflict check, integrate. Verdict: security CORE already in
+CLAUDE.global.md §Security (parameterized queries, env-var secrets,
+AuthN/AuthZ, fail closed) — NOT duplicated. NEW: writing-style block, design
+anti-default list, site done-checklist, web-app specifics (RLS, service key,
+IDOR, cookie flags, rate limit, field minimization). Placement: global at
+308/320 budget → rules/ instead.
+- [x] R1 rules/writing-style.md — always-on (no paths:), scope carve-outs
+      (registries caveman, code comments, skill templates) + self-check
+- [x] R2 rules/web-building.md — paths: web globs; anti-defaults + done
+      checklist (report missing, never invent) + skill pointers
+- [x] R3 rules/web-security.md — paths: code globs; web-app specifics
+      extending §Security, zero dup of the core
+- [x] R4 CLAUDE.md (project) — amend always-on doctrine line (320-budget
+      exception → rules/), feeds C2 audit
+- [x] R5 capitalize BDR-085 + journal + CHANGELOG
+- [x] merge → develop 5ec7bfa — human gate passed (reconcile 2026-08-25)
+
+## 2026-07-30 — adapt config for Claude 5 family / Opus 5 (feature/opus5-config-tuning)
+User: Opus 5 "needs more freedom" → research (official migration guide +
+web + registres) confirms: over-delegates (inverts LRN-030 Opus 4.8 trait),
+over-verifies if told to verify, literal instruction following, scope
+expansion named regression, harness already injects anti-delegation on
+Opus 5 (#80988). Plan: .claude/tasks/plans/2026-07-30-opus5-config-tuning-1238.md
+— to be challenged by 3 blind plan-challengers (opus pins → Opus 5), then
+executed on feature branch. NO merge (human gate).
+Challenged 2026-07-30: correctness CONCERNS(4) · robustness FATAL(5, 1
+BLOCKER: symlink-live deployment) · simplicity CONCERNS(4) — all fixes
+adopted as prescribed (plan §5bis, v2 items below).
+- [x] W0 branch first (eab2a10 parent); hook regex validated on scratch copy
+      (bash -n + shellcheck + 5 replays, HOME sandboxed) before live write
+- [x] W1 delegation block v2 (when-guidance + gates carve-out + scoped don't-redo) — 0f7b565
+- [x] W2 "staff engineer" bar line deleted — 0f7b565
+- [x] W3 finish-whole-task folded into Deviations (+ gone-WRONG→STOP) — 0f7b565
+- [x] W4 deliverable-length rule — 0f7b565
+- [x] W5 line budget: 308/320
+- [x] W6 hook \bux\b dropped, \bui\b kept + F10 must-fire lock, D11 quiet row
+      flip-tested (fire before/quiet after) — eab2a10, suite 22/0
+- [x] W7 plan-challenger :82-83 reworded → [MINOR] routing, census row — c3d3f4d, 44/0
+- [x] W8 BDR-081 + LRN-139 + journal + CHANGELOG
+- [x] W9 final gate: make test full suite — green except known T6c
+      (darwin-skill residual → chantier 4 below), 2026-07-30
+- [x] W10 merged on explicit user signal — 709cf9b (2026-07-30 13:28),
+      branch deleted; confirmed post-merge this session
+
+## 2026-07-30 — Claude 5 follow-on chantiers (user directive, checkpoint between each)
+Order fixed, one branch per chantier, no merge without per-chantier signal.
+- [x] C1 dé-prescription seo-analyzer.md + geo-analyzer.md — DONE 2026-08-02.
+      Census-first 71 locks flip-proven (9681b46) → rewords under
+      audience×range invariant (adafa35 seo, c7646a9 geo) → controlled
+      before/after dogfood: judge-replay on frozen signals + templates +
+      fresh collects + e2e judge + blind reader = 42/42 both sets, zero
+      contract regression, recall improved. Plan challenged 4 passes
+      (FATAL/FATAL/CONCERNS + confirmation FATAL(9), all closed by name).
+      BDR-082 + LRN-140. Evidence .audit/dogfood-baseline/ (19 artifacts).
+      Branch feature/seo-geo-deprescription UNMERGED — human gate.
+      → merged 5488c48, branch deleted (reconcile 2026-08-25).
+      Residual for gate: §6bis dynamically-unverified list (FULL branches,
+      apply path — census-locked statically); FULL/aggressive dry-run = user
+      option; nested-CLI dogfood blocked by monthly spend limit (inline used).
+- [ ] C2 self-contradiction audit CLAUDE.global.md + own skills: list rule
+      pairs in tension, propose resolution per pair, apply after user OK.
+      /doctor as assistant, not authority.
+- [ ] C3 superpowers: MEASURE first (skill-invocation log over sessions)
+      whether "1% chance → MUST invoke" over-triggers; if yes, options +
+      trade-offs (disable plugin / softer house rule / live with) — user decides.
+- [x] C4 hygiene: reinstall darwin-skill — DONE (reconcile 2026-08-25:
+      ~/.agents/skills/darwin-skill present, T6c green, make test exit 0).
+
 ## 2026-07-22 — auto-purge transient superpowers artifacts at finish (feature/gitflow-auto-purge-transient)
 User: transient planning artifacts (`docs/superpowers/{specs,plans}`) leak into
 develop; BDR-065 "post-merge cleanup" is DOCTRINE ONLY (no code) — manual chore,
@@ -19,15 +119,18 @@ versioned (durable, referenced by decisions.md e.g. BDR-076). Universal via the
 - [x] Gate: shellcheck lib/*.sh CLEAN + `make test` exit 0 (gitflow 106/0, full
       suite green). Universal via ~/.claude/lib → repo lib symlink (verified).
 - [x] CLAUDE.md §Transient planning artifacts: → "AUTO-PURGED by gitflow finish".
-- [ ] Capitalize: BDR-065 amendment (delete side now automated) + LRN — pending user OK.
+- [x] Capitalize: BDR-065 Amendment (2026-07-22) in body + LRN-138 present
+      (reconcile 2026-08-25).
 
 ## 2026-07-20 — pending merge gates (reconcile)
 - [x] merge feature/profile-managed-externals → develop (BDR-079 profile
       symmetry + /doc clean pass: README/USAGE/ARCHITECTURE.md) — 37c79f0
 - [x] merge chore/purge-transient-docs → develop (docs/ transient purge
       655e364 + reconcile e75ea79) — reaches main at next release
-- [ ] Makefile help text: profiles 5/10 listed (:57) + test glob missing
-      run-*.sh (:31) — 2-line hotfix (flagged by /doc audit)
+- [ ] Makefile help text: profile-list help lists 5/10 profiles (:57) —
+      1-line hotfix. (test glob :31 FIXED — has run-*.sh, reconcile 2026-08-25)
+      Re-verified OPEN 2026-09-01: lib/profiles/ has 10, Makefile:57 lists 5
+      (backend, full, seo, web-full, web missing).
 
 ## 2026-07-20 — profile ↔ toggle-external symmetry (feature/profile-managed-externals, BDR-079)
 Audit verdict: gstack on-demand + design enable already work; DISABLE side
@@ -1094,3 +1197,78 @@ branch) → LOT3 mis-merge trap; + 3 doctor false-warns (LRN-047 class).
       comment anchored to measured ~11.4k (LRN-088). False "92% CRITICAL" → ~5% comfortable.
 - [x] Verify — suites green (71/13/32/19/20/13 + RC 5/5); doctor 0 false-warn; shellcheck clean.
       +docs(changelog) Unreleased entry (706abff). Gate passed on GO 2026-07-03. Finish pending.
+
+## 2026-08-24 — contract gates: plancher déterministe (feature/contract-gates)
+Source: analyse du skill `unlazy` (Leonxlnx/unlazy, 2.1.0). Verdict: son
+architecture de vérification n'apprend rien (contrat+verifier frais+boucles
+bornées ⊂ déjà en place). Le trou réel: **entre l'exécuteur et GATE 1 il n'y a
+aucun plancher déterministe** — GATE 1 est un dispatch LLM, et `PROOF:` est une
+ligne que le verifier ÉCRIT (rien ne l'empêche structurellement de la produire
+sans rien exécuter). Palier 2 retenu (user, 2026-08-24).
+
+PRIS d'unlazy: critère porteur d'oracle exécutable (CHECK/EXPECT/EVIDENCE),
+fail-closed (exit 0 ET marqueur), evidence pending = NOT-MET, `ABANDON: <id>
+<raison>` comme handoff visible non supprimable, les 4 règles d'écriture de
+gates falsifiables, la discipline 4 passes.
+REFUSÉ: Stop hook `decision:"block"` (contredit "STOP + escalade humaine" et
+"merge sur signal humain"), approval store `~/.unlazy/approved` (résout
+l'exécution de ledgers hérités non fiables — pas notre menace), arbre
+`.unlazy/<scope>/` (4e arbre de bookkeeping ⇒ mort de la config), `tree N`
+(désavoué par ses propres docs), le checker Node 28k (stack lib = 100% bash,
+Health Stack = shellcheck).
+
+- [x] W0 branche feature/contract-gates depuis develop (via lib/gitflow.sh)
+- [x] W1 `lib/gates.sh` — parse ACCEPTANCE CRITERIA, exécute fail-closed
+      (exit 0 ET EXPECT), réécrit EVIDENCE dans le contrat. Sous-commandes
+      `run` (exécute+écrit) / `status` (parse seul, jamais d'exécution, jamais
+      d'écriture). rc 0=MET · 2=UNMET/malformé · 3=ABANDONED.
+- [x] W2 `lib/contract-interview.md` — STEP 3 gagne CHECK/EXPECT/EVIDENCE
+      optionnels par critère + les 4 règles de falsifiabilité; template mis à
+      jour; ABANDON dans Lifecycle; ligne de poids par flow.
+- [x] W3 `agents/verifier.md` — EVIDENCE fail-closed (coché+pending = NOT-MET),
+      bucket ABANDONED, verdict `CONFORME` impossible si abandon présent.
+- [x] W4 `lib/verify-secure-loop.md` — GATE 0 déterministe avant GATE 1
+      (rouge ⇒ re-dispatch exécuteur sans brûler un verifier).
+- [x] W5 `agents/feater.md` + `agents/bugfixer.md` — discipline 4 passes.
+- [x] W6 `lib/tests/gates.test.sh` — comportemental sur gates.sh (fail-closed,
+      exit≠0 avec marqueur = FAIL, pending, ABANDON, malformé, status
+      n'exécute pas) + locks de structure sur W2/W3/W4/W5.
+- [x] W7 shellcheck + bash -n + `make test` complet.
+- [x] W8 CHANGELOG + registres (BDR + LRN + journal).
+- [x] W10 restatements skills : bullet GATE 0 dans feat/bugfix/ship-feature/
+      init-project (+4 locks, flip-testé) ; ligne hotfix du tableau de poids
+      corrigée (aucun floor à ce poids). 2026-08-24.
+- [x] W11 RED comportemental : 16/16 runs frais non-amorcés conformes
+      (verifier ×9, feater ×2, orchestrateur ×5) → EVAL-027. 2026-08-24.
+- [x] W9 merge sur signal humain explicite (2026-08-24, "merge dans develop").
+
+**Won't-build-now — Palier 3 unlazy (OWNS/leases), trigger documenté :**
+Différé volontairement (BDR-083) : tous les dispatches parallèles actuels
+sont read-only — le problème (2 exécuteurs ÉCRIVAINS concurrents) n'existe
+pas. Pattern [[LRN-080]] : ne pas construire sans menace mesurée.
+TRIGGER = le jour où un flow dispatche ≥2 exécuteurs écrivains en parallèle :
+(1) FILE SCOPE du contrat = déclaration OWNS (champ existant, zéro format
+neuf) ; (2) ~40 l dans gates.sh ou lib/owns.sh — intersection CONSERVATRICE
+des FILE SCOPE des contrats actifs avant fan-out, conflit possible → refus +
+dispatch séquentiel (pas de locks disque tant que l'orchestrateur est
+unique) ; (3) locks + tests.
+
+## 2026-08-24 — tour multi-projets en parallèle (feature/tour-parallel)
+User (gate 2026-08-24): "tout paralléliser (option 2) mais bien garder la
+sélection des modèles — orchestrateur garde le modèle orchestrateur, les
+skills/agents suivent leurs orchestrateurs définis". Preuve mécanique
+préalable: probe imbriquée 3 sous-agents, fenêtres chevauchantes, 9.1s vs
+~18s séquentiel. Dérogation LRN-083 (boucle de fix par projet déplacée dans
+un runner dispatché) → à consigner BDR-084. Repos indépendants, branches
+chore par repo, report-as-approval-gate ⇒ rien de partagé n'est décidé
+dans un runner; capitalize reste main-loop.
+- [x] T1 skills/tour/SKILL.md — STEP 0 routé (1 projet = inline inchangé;
+      ≥2 = fan-out) + STEP 0b: un runner general-purpose par projet, TOUS
+      dans UN message, SANS pin modèle (hérite session, model-gate déjà
+      passé); agents internes gardent leurs tiers définis; runner mort =
+      ligne RUNNER FAILED, jamais absent silencieux; capitalize main-loop.
+- [x] T2 locks census §12 dans lib/tests/model-routing.test.sh (fan-out
+      présent, runner non-pinné, single message, capitalize main-loop).
+- [x] T3 BDR-084 + CHANGELOG + journal.
+- [x] T4 make test rc 0 + shellcheck clean (SC2016 silencé, littéral
+      voulu). Merge NON fait — gate humain.

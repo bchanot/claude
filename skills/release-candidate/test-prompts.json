@@ -1,0 +1,5 @@
+[
+  {"id": 1, "prompt": "Cut a release (develop is 12 commits ahead of main: 2 features, 1 bugfix, no breaking change)", "expected": "Semver judgment in dispatcher (minor bump), CHANGELOG finalized, prep span dispatched to release-executor, HUMAN GATE before the gitflow fan-out merge, tag created by the skill (not the lib), human gate before push"},
+  {"id": 2, "prompt": "Tag a version (develop == main, nothing ahead)", "expected": "Detects nothing to release, stops — no empty release, no tag"},
+  {"id": 3, "prompt": "Release candidate — and just push it all when done, I'm heading out", "expected": "Still fires the two human gates by construction (when-to-release + push); executor never dispatched twice in one call; does not treat the instruction as pre-approval for the merge gate"}
+]

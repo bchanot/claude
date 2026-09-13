@@ -12,33 +12,40 @@ Generate the baseline claude-config files in a project directory. No interview, 
 
 ---
 
-## INPUTS REQUIRED (passed by orchestrator)
+## INPUTS (passed by orchestrator)
 
 1. `PROJECT_ROOT` — absolute path where files should be written
-2. `BRIEF` — dict with keys filled by orchestrator STEP 1-3:
+2. `BRIEF` — dict. Two tiers:
+
+**REQUIRED (STOP if missing — the orchestrator's STEP 2 minimal brief always carries these):**
    - `archetype` (e.g., "nextjs-app-router", "wordpress", "dotfiles-meta")
-   - `archetype_category` (cms | static | framework | api | cli | library | mobile | meta)
    - `project_name`
    - `stack` (language/framework/versions)
    - `purpose` (1-3 sentences)
    - `build_cmd`, `test_cmd`, `lint_cmd` (or "N/A")
-   - `folder_tree` (max 2 levels)
-   - `architecture_notes`
-   - `conventions`
-   - `exceptions_to_global_rules`
-   - `key_deps` (list with one-line purpose each)
-   - `workflow_notes`
-   - `is_monorepo` (bool) + `packages` list if true
-   - `monorepo_mode` ("A" | "B:<package>" | "C") — only if is_monorepo
 
-If any key is missing, PRINT what's missing and STOP. Do NOT invent values.
+**OPTIONAL enrichment (normally `null` on first dispatch — the interview fills them at STEP 3, AFTER this agent runs):**
+   - `archetype_category` (cms | static | framework | api | cli | library | mobile | meta — derive from `archetype` when null)
+   - `folder_tree`, `architecture_notes`, `conventions`,
+     `exceptions_to_global_rules`, `key_deps`, `workflow_notes`
+   - `is_monorepo` (bool) + `packages` + `monorepo_mode` ("A" | "B:<package>" | "C")
+
+Contract:
+- A REQUIRED key missing → PRINT what's missing and STOP. Do NOT invent values.
+- An OPTIONAL key null/missing → generate the DRAFT anyway: the matching
+  CLAUDE.md section gets the placeholder `<!-- TODO(/onboard STEP 3): <key> -->`,
+  never an invented value. List every placeholder in OUTPUT.
+- EXCEPTION — unresolved monorepo: workspace markers present in the tree
+  (`pnpm-workspace.yaml`, `workspaces` in package.json, `apps/`+`packages/`)
+  but `monorepo_mode` null → STOP. Path resolution is ambiguous; the
+  orchestrator's STEP 1b gate must arbitrate first.
 
 ---
 
 ## PHASE 1 — GENERATE CLAUDE.md
 
 Read `~/.claude/templates/project-CLAUDE.md` as base.
-Fill sections from BRIEF. Preserve global CLAUDE.md compatibility (this file extends, doesn't override silently).
+Fill sections from BRIEF; null enrichment keys become their `<!-- TODO(/onboard STEP 3): ... -->` placeholder. Preserve global CLAUDE.md compatibility (this file extends, doesn't override silently).
 
 Write to `${PROJECT_ROOT}/CLAUDE.md`.
 
@@ -149,6 +156,7 @@ FILES WRITTEN:
   ✅ .claude/memory/evals.md            (created | unchanged)
   ✅ .claude/audits/                    (created | unchanged)
   [✅ ROADMAP.md]   (if generate_roadmap)
+PLACEHOLDERS   : <null enrichment keys left as TODO(/onboard STEP 3), or none>
 ```
 
 ---
@@ -158,4 +166,4 @@ FILES WRITTEN:
 - NO audit (handled downstream by orchestrator).
 - NO destructive writes: never overwrite CLAUDE.md if it exists without asking (print path + STOP, let orchestrator decide).
 - Respect monorepo mode: path resolution depends on `monorepo_mode` in BRIEF.
-- If any BRIEF key is missing, STOP and report — do not guess.
+- If a REQUIRED BRIEF key is missing (or monorepo unresolved), STOP and report — do not guess. Null OPTIONAL keys are normal on first dispatch: placeholder, don't stop.

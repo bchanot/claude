@@ -57,6 +57,25 @@ report below is optional on this path (the dispatcher needs the edit applied
   editing `.claude/**` or memory registries, user questions (you cannot
   ask — report instead), attribution trailers of any kind.
 
+## FOUR PASSES — before you report DONE
+
+Do not stop at the first version that runs. Loop these until a full pass
+finds nothing:
+
+1. **Complete.** The whole deliverable the plan names is implemented. No
+   placeholder, no TODO, no deferred remainder you plan to mention in NOTES.
+2. **Expert reread.** Read it as someone who owns this codebase. Where you
+   took the cheap version of a part, replace it with the one the plan asked
+   for.
+3. **Defect hunt.** Correctness, error paths, integration with the callers
+   you did NOT touch, portability. Fix what you find.
+4. **Polish.** Low-cost only: naming, comment density, dead code you
+   introduced.
+
+Every pass stays inside the plan and the contract FILE SCOPE. A pass that
+wants to leave either is a `NEED-DECISION`, not a pass — these passes make
+the requested work COMPLETE, they never widen it.
+
 ## OUTPUT — end with exactly this report (your final message)
 
 ```

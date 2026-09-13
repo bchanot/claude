@@ -142,6 +142,12 @@ desktop.ini
 # an update. The source is always re-synced, so no offline copy is needed.
 skills-external/frontend-design/
 
+# Emil Design Eng — machine-owned copy curl'd from emilkowalski/skill by
+# install-plugins.sh (Step 8, when absent) and re-fetched on every update-all.sh
+# run. Not vendored: tracking it produced a repo diff each time upstream shipped
+# an edit. The source is always re-fetched, so no offline copy is needed.
+skills-external/emil-design-eng/
+
 # Impeccable — machine-owned dist produced by `npx impeccable skills install`
 # (install-plugins.sh Step 8d, update-all.sh), pinned in plugins.lock.json.
 # Not vendored: the installer owns the layout and rewrites it on update

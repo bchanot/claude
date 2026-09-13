@@ -48,6 +48,25 @@ Rules: read the diff AND enough surrounding code to judge behavior; run
 criterion. Never mark `MET` from naming, comments, or plausibility — only
 from behavior you observed or code you read.
 
+### Criteria carrying an oracle (`CHECK:` / `EXPECT:` / `EVIDENCE:`)
+
+`lib/gates.sh run` already executed these and wrote the outcome over the
+`EVIDENCE:` line. Read it from the contract and treat it as fact:
+
+- `EVIDENCE: NOT-MET …` or `EVIDENCE: pending` → the criterion is `NOT-MET`.
+  Reading the code NEVER overrides a red or unrun oracle. Cite the evidence
+  line as your evidence.
+- `EVIDENCE: MET …` → the declared command passed. That is the strongest
+  evidence available for that criterion — but it proves the ORACLE, not the
+  English sentence. Read the `CHECK:` and confirm it observes the artifact
+  the criterion names. A vacuous oracle (`1. invoices reconcile` +
+  `CHECK: echo ok`) is `NOT-MET` — reason `vacuous oracle`, quoting the
+  command. That judgement is yours alone; no command can make it.
+
+You may re-run a `CHECK:` yourself to settle a doubt (Bash is read-only, and
+these commands are observation). You may NOT edit the contract — an evidence
+line you disagree with is reported, never rewritten.
+
 ## STEP 3 — SCOPE CHECK
 
 List the files actually touched (`git diff --name-only` over `DIFF`).
@@ -58,19 +77,30 @@ only enters the contract through a human micro-gate.
 
 ## STEP 4 — VERDICT
 
-`CONFORME` ⇔ ALL criteria `MET` AND zero out-of-scope files.
-Anything else is `ECARTS(n)` where n = count(NOT-MET) + count(UNVERIFIABLE)
-+ count(out-of-scope files).
+Read the contract's `ABANDON:` lines. An abandoned criterion is `ABANDONED`
+— never `MET`, never counted as a gap the dev can close.
+
+Precedence, first match wins — fix what is fixable before escalating what
+is not:
+
+1. `ERROR(<reason>)` — the contract is missing or unreadable.
+2. `ECARTS(n)` — n = count(NOT-MET) + count(UNVERIFIABLE) + count(out-of-scope
+   files). Surface any abandonment in the same report.
+3. `ABANDONED(n)` — zero gaps remain, but n abandonments stand. This is NOT
+   a pass and NOT a dev loop: it routes straight to the human gate.
+4. `CONFORME` — ALL criteria `MET`, zero out-of-scope files, zero
+   abandonments.
 
 ## OUTPUT (exact format — machine-parsed by the orchestrator)
 
 ```
-VERIFY — VERDICT: CONFORME | ECARTS(n) | ERROR(<reason>)
+VERIFY — VERDICT: CONFORME | ECARTS(n) | ABANDONED(n) | ERROR(<reason>)
 CONTRACT: <path>
 CRITERIA:
-  1. <criterion> — MET — <evidence file:line | test ran → result>
+  1. <criterion> — MET — <EVIDENCE line | file:line | test ran → result>
   2. <criterion> — NOT-MET — expected <…> / actual <…> — <file:line>
   3. <criterion> — UNVERIFIABLE — <reason>
+  4. <criterion> — ABANDONED — <the reason recorded in the contract>
 SCOPE: in-scope <n> files; out-of-scope: <list | none>
 PROOF: read <n> files, ran <cmd → result | nothing>, checked <n>/<n> criteria
 ```
@@ -82,6 +112,8 @@ PROOF: read <n> files, ran <cmd → result | nothing>, checked <n>/<n> criteria
 - `UNVERIFIABLE` ≠ `MET`. A criterion you did not check is `UNVERIFIABLE`,
   never silently dropped: the checked count in `PROOF` must equal the
   contract's criteria count.
+- `ABANDONED` ≠ `MET`. An abandonment is a visible handoff, never a pass —
+  report it verbatim even when everything else is green.
 - `PROOF` is MANDATORY. A `CONFORME` without a `PROOF` line is invalid —
   the orchestrator discards it as a structural failure (LRN-048: a pass
   must prove it looked).
@@ -103,6 +135,9 @@ loop, never here):
     with the CRITERIA table (the contract-vs-realized diff).
   - Remaining `UNVERIFIABLE` while everything else is MET → direct human
     gate (a dev cannot fix unverifiability).
+  - `ABANDONED(n)` → direct human gate, never a dev loop. The human either
+    lifts the abandonment (the criterion was fixable after all) or accepts
+    the partial delivery; the run is never reported as fully complete.
   - Structural failure (`ERROR(…)`, missing/duplicated VERDICT line,
     unparsable output, agent crash, `CONFORME` without `PROOF`) → retry
     ONCE with a fresh verifier; a 2nd structural failure → human

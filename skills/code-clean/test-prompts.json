@@ -1,5 +1,5 @@
 [
-  {"id": 1, "prompt": "Clean up the codebase — remove dead code and enforce style", "expected": "Two-phase: audit report first (read-only), wait for approval, then execute approved fixes via refactorer agent"},
+  {"id": 1, "prompt": "Clean up the codebase — remove dead code and enforce style", "expected": "Two-phase: audit report first (read-only), wait for approval, then execute approved fixes via the code-cleaner executor (refactorer inline-loaded for style/structural items)"},
   {"id": 2, "prompt": "Cleanup just the src/utils/ folder", "expected": "Scoped audit of src/utils/ only, list dead code + style violations, get approval, fix"},
-  {"id": 3, "prompt": "Find dead code in this project but don't change anything yet", "expected": "Audit-only mode: produce report at .claude/audits/, do not execute fixes, BUGS-FOUND.md if bugs detected"}
+  {"id": 3, "prompt": "Find dead code in this project but don't change anything yet", "expected": "Audit-only mode: report persisted to .claude/tasks/plans/ and presented inline; no fixes, no commit; bugs listed in the report (BUGS-FOUND.md is written only by the PHASE 2 executor)"}
 ]

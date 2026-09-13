@@ -493,10 +493,10 @@ else
 fi
 ```
 
-Update `.harden-cache/external-scores.md` with the final SSL Labs verdict
-so the HARDEN.md "External validators" table reflects it. If the user
-already read HARDEN.md, they can re-run `/harden <url>` to pick up the
-cached (now-READY) SSL Labs result.
+Update `.harden-cache/external-scores.md` with the final SSL Labs verdict,
+then edit the SSL Labs row of HARDEN.md's "External validators" table in
+place — YOU do this in the main loop (the agent that wrote HARDEN.md in
+STEP 1 has already exited; without this edit the late grade never lands).
 
 ---
 
@@ -621,8 +621,10 @@ NEXT STEPS :
   Astro / Cloudflare Pages project. Use the framework-native mechanism
   (next.config.js headers(), astro middleware, _headers).
 - **Security headers and redirects are non-negotiable defaults of this
-  skill** — every public site must ship them. Flag absence as Critique,
-  not Moyenne.
+  skill** — every public site must ship them. Grade each absence at the
+  severity guide's level (CSP absent = Critique, HSTS/X-Frame-Options =
+  Haute, Referrer-Policy = Moyenne); the guide's table is authoritative —
+  never demote a missing default below it.
 - **External validators are authoritative on live headers, not the code.**
   If Observatory/SecurityHeaders/SSL Labs and the code audit disagree,
   the external grade reflects the deployed production config — the code

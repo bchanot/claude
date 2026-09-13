@@ -25,6 +25,18 @@ field. PROBE REPORT missing or a field absent → emit
 `PLUGIN CHECK — VERDICT: ERROR(probe report missing/invalid: <what>)` and
 STOP. Fail closed: no recommendations over invented detection.
 
+`FRAMEWORK-DEPS` carries exact `"dep": "version"` pairs (or
+`framework-deps-none`). Derive signal classes from those names + versions:
+`frontend` = react/react-dom/vue/nuxt/svelte/astro/next present;
+`fast-libs` = next, react ≥18 (version prefix), prisma/@prisma/client,
+supabase/@supabase/supabase-js, drizzle-orm, expo. Never re-scan the
+manifest to make this split.
+
+`REQUEST` MAY carry `PLAN: Max|Pro|Free` from the dispatcher. Echo it in
+the output. Absent → output `PLAN: unknown (not provided)` and SKIP the
+plan-budget WARN (absolute COST ESTIMATE still reported). Never assume a
+plan.
+
 ---
 
 ## PHASE 2 — ANALYZE
@@ -86,7 +98,7 @@ ACTIVE: [plugin — status, one line each]
 PROFILE: [active skill profile — name + match%, or "custom"]
 SIGNALS: [detected signals]
 COMPLEXITY: <score>% — <simple|moderate|complex|enterprise>
-PLAN: <Max|Pro|Free> (budget: ~<N>t passive tokens)
+PLAN: <Max|Pro|Free (echoed from REQUEST) | unknown (not provided)> (budget: ~<N>t | n/a)
 COST ESTIMATE: ~Xt passive tokens (all active plugins combined)
 
 RECOMMENDATIONS:
@@ -315,7 +327,7 @@ or by applying a profile that lists it (e.g. `apply web` to restore
 
 - Active toggle plugins not needed for this task (dead passive cost)
 - Multi-session feature + `gsd` CLI not installed → `npm install -g gsd-pi`
-- Total passive cost > 50% of plan budget (Pro: ~5500t, Max: ~10000t, Free: ~2500t)
+- Total passive cost > 50% of plan budget (Pro: ~5500t, Max: ~10000t, Free: ~2500t) — only when PLAN was provided; PLAN unknown → skip this WARN
 - **Next.js/React 18+/Prisma/Supabase detected + context7 not configured**
   → Risk: Claude may generate code using outdated APIs (App Router changes frequently)
   → Fix: `npm install -g ctx7 && ctx7 setup --claude`

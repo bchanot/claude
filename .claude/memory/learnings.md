@@ -138,6 +138,7 @@ rules:
 | LRN-133 | 2026-07-17 | an omission must stay LEGIBLE, never silent — tool that can't measure says so in its output | designing any audit/measure output; deciding what a cap/refusal/N-A emits |
 | LRN-134 | 2026-07-17 | resolve-then-pin in stdlib http.client beats monkeypatching getaddrinfo — dual-stack, thread-safe, no requests; classify the OS-resolved IP not the URL text | closing SSRF/DNS-rebinding on any Python HTTP egress |
 | LRN-135 | 2026-07-17 | a prefix-only scan for a dangerous construct is bypassable by padding — scan the WHOLE document | refusing any hostile construct (DTD/directive/marker) before parse |
+| LRN-143 | 2026-08-26 | `cmd \| head \|\| fallback` — pipeline rc is head's (0), fallback dead; bounded output → drop head, else pipefail | any probe/fallback bash in skills before trusting `\|\|` |
 
 ---
 
@@ -1355,3 +1356,68 @@ rules:
 - **context**: user asked to gitignore transient planning artifacts (`docs/superpowers/{specs,plans}`, `.claude/tasks/{contracts,plans}`) to stop them merging. BDR-065 had already REJECTED gitignore for docs/superpowers on the git-travel ground; the real gap was the DELETE side never being coded (doctrine-only manual chore, slipped once — 655e364). Built `_gitflow_purge_transient`.
 - **future application**: "don't merge transient X" → ask: does the run read X from disk? does X travel via git (worktree, foreign checkout)? Yes → auto-purge at finish, not gitignore. Scoped commit `-- <paths>` avoids sweeping a dirty index; `git diff --quiet HEAD -- paths` precheck makes `git rm` all-or-nothing safe; keep the purge best-effort so cleanup NEVER blocks a merge. Prove archive-reachability with `git log --full-history` / `git show <sha>:path` — plain `git log -- path` prunes the purged add-commit via history simplification (bit me writing T17).
 - **link**: [[BDR-065]].
+
+## LRN-139 — model-trait compensations invert across generations; state WHEN-guidance, not direction (2026-07-30)
+- **pattern**: config rules that COMPENSATE a model trait become counter-productive when the next generation inverts the trait. LRN-030 (Opus 4.8 under-delegates → "Default to delegation… counters under-delegation") inverted by Opus 5 (delegates MORE readily, official guide) — the rule pushed the failure the model now has. Same class: explicit verify instructions → over-verification; conservative-reporting clauses → literal recall suppression; MUST/CRITICAL → over-triggering.
+- **Opus 5 traps found**: (a) Claude Code injects Opus-5-only anti-delegation prompt sections (heron_brook + subagent_steer_delegation, issue #80988; server-gated, no opt-out, absent from transcripts) — own prose stacks on top blindly; (b) NO model-default effort hold on Opus 5 — persisted effortLevel (xhigh, settings.json) silently carries over, against "start high, sweep low/medium"; run /effort sweep per model; (c) effort does NOT shorten visible output/deliverables — only prose length rules do (+30-40% docs).
+- **future application**: at every model-generation bump, grep config for trait-compensating language ("counters model tendency…", "default to X") and re-verify the premise; prefer WHEN-guidance (conditions where X pays) over directional nudges — survives inversions unchanged.
+- **link**: [[LRN-030]] [[BDR-081]].
+
+## LRN-140 — de-prescription findings: dedup evaporates, self-verify is default, recall survives (2026-08-02)
+- **pattern 1 — inventory dedup counts lie**: line-level inspection killed most "duplicate" pairs (seo 9 families→2 real merges; geo 7→0). Twins differ by AUDIENCE (bundle-item payload read by fresh applier vs spec rule) or MODE-RANGE (collect/judge/template/RULES) or are distinct obligations sharing a keyword (30/70 ×3 = three different rules). Dedup rule that survives: verbatim + same-audience + same-range ONLY.
+- **pattern 2 — Opus 5 self-verifies unprompted**: "run it twice" instruction REMOVED → after-judge still ran score engine twice, identical output. Removing verify-prose does not remove the behavior; its value = no compounding, no contradiction burn. Confirms BDR-081 E3 mechanism, refines the payoff claim.
+- **pattern 3 — de-prescription does NOT depress recall**: reworded collect caught &nbsp;-encoded phone AT COLLECT (baseline collect missed it); reworded judge found new RGPD finding + self-caught false positive + corrected collect coverage claim 21/21→20/21. Integrity/honesty invariants (kept class B) carry the discipline, not the caps.
+- **pattern 4 — lock strings, never shapes**: LLM-convention output layers (banners, fences, table columns, section order) wobble run-to-run in BOTH directions — baseline itself deviated from spec where after conformed (§0 ENTRIES, BUNDLE-before-SCORING). Stable contract = census-locked literal strings; anything unlocked drifts and MUST be tolerated by consumers (tier recognition "by intent" is the right pattern).
+- **link**: [[BDR-082]] [[BDR-081]] [[LRN-139]] [[LRN-113]].
+
+## LRN-141 — adopting an external skill: take the invariants, refuse the machinery (2026-08-24)
+Context: unlazy import ([[BDR-083]]). Pattern: an external skill's MACHINERY encodes ITS threat model and ITS doctrine; only its INVARIANTS transfer. Two clean cases from one repo. (1) Approval store binding PATH/shell/platform exists because unlazy executes ledgers INHERITED from untrusted repos — importing it into a config that authors its own ledgers buys per-command approval prompts and closes zero threat. (2) Stop hook returning `decision:"block"` exists because unlazy has no human gate — importing it into a config whose spine is "STOP + escalate to human" would make the tooling fight the doctrine. Meanwhile the invariants (exit 0 AND marker; evidence persisted so the next reader gets fact not report; impossible ≠ deletable) cost ~250 l of our own bash and fit the EXISTING contract with no new tree.
+Separating test: ask WHAT THREAT / WHAT DOCTRINE does this piece assume. Answer "theirs" → refuse the piece, keep the invariant it was protecting.
+Corollary on claims: unlazy's own research/validation-protocol.md RETRACTS its v1 benchmark numbers as unreproducible while the repo DESCRIPTION still advertises them. Read a project's self-criticism before its README — the retraction is the credibility signal, the headline is not.
+Future application: any skill/plugin adoption — skills-external/, /plugin-check, install-plugins.sh.
+
+## LRN-142 — structure locks are fixed-string: reflowing a doctrine paragraph reds them (2026-08-24)
+Context: contract-gates ([[BDR-083]]). Editing lib/verify-secure-loop.md rewrapped 5 locked phrases across line breaks ("Max 3 conformity iterations", "Max 3 security iterations", "re-verify the REQUEST first", "always re-checked BEFORE security", "one verifier dispatch + one security dispatch") → loops-light.test.sh 30 pass / 5 fail, though ZERO doctrine was dropped. Locks did their job: they cannot distinguish "clause deleted" from "clause rewrapped", and that conservative bias is correct — the alternative (fuzzy matching) would miss real deletions.
+Rule: when editing a doctrine file under structure locks, grep the test's lock strings FIRST, then re-flow AROUND them — each locked phrase stays on one unbroken line. Fix the DOC, not the lock, unless the doctrine genuinely changed. Under locks today: verify-secure-loop.md, contract-interview.md, verifier / security-auditor / plan-challenger agents, seo+geo (71 locks).
+
+## LRN-143 — pipe to head masks grep exit; `|| fallback` never fires
+- **Context**: darwin 2026-08-26 — plugin-probe FRAMEWORK-DEPS (`grep … | head || echo none`) emitted silent-empty on no-match; same bug in run's own probe test.
+- **Pattern**: pipeline rc = LAST command's (head = 0 always). `|| fallback` after pipe = dead code. Bounded output → drop head; else `set -o pipefail` or capture + test.
+- **Future**: any skill/agent bash probe with a `||` fallback: check what the pipeline rc actually is first.
+
+## LRN-144 — census locks grep EXACT single-line phrases; prose rewrap breaks them
+- **Context**: darwin 2026-08-26 — hotfix RULES rewrap split "No verifier is dispatched at hotfix weight"; loops-light.test.sh lock RED; make test caught post-edit.
+- **Pattern**: lib/tests/*.test.sh lock sentences verbatim, single-line. Rewording/rewrapping skill+agent md near locked phrases silently breaks census.
+- **Future**: before editing skill/agent prose, grep lib/tests/ for locks in the touched region; run make test BEFORE dispatching judges, not after.
+
+## LRN-145 — hooks reach the terminal only via terminalSequence JSON field
+- **Context**: 2026-09-01 — attention bell for VS Code Remote-SSH (CLI on remote Linux). Hook subprocess has no controlling TTY; /dev/tty unreliable. Docs: terminalSequence = supported side-effect field, fires even on events that discard output.
+- **Pattern**: Notification hook → stdout JSON `{suppressOutput:true, terminalSequence:"<BELx2><OSC 777 notify><ST>"}`. VS Code terminal ignores OSC 777/9 natively (claude-code #28338); client-side ext wenbopan.vscode-terminal-osc-notifier converts to native toast over Remote-SSH; beep needs accessibility.signals.terminalBell sound:on. permission_prompt fires ~6s late, idle_prompt ~60s.
+- **Future**: any hook ringing/notifying the terminal (bell, toast, title) — terminalSequence, never /dev/tty. Input-needed matcher set: permission_prompt|idle_prompt|agent_needs_input|elicitation_dialog|elicitation_url_dialog.
+
+## LRN-146 — Notification event alone misses end-of-turn; Stop is the missing event
+- **Context**: 2026-09-03 — attention signal verified end-to-end after [[BLK-020]]. Matcher `permission_prompt|idle_prompt|agent_needs_input|elicitation_*` covers input-needed cases ONLY. "Claude finished speaking" has no notification_type — nearest was `idle_prompt`, ~60s late. Gap invisible until explicitly enumerated by user.
+- **Pattern**: wire SAME hook script on TWO events — `Notification` (matcher = input-needed set) + `Stop` (fires once per turn end, supports terminalSequence, no matcher). Script branches on `.hook_event_name` when `.message`/`.notification_type` absent: Stop → "Claude has finished responding", else default. Read stdin ONCE into var, jq the var (stdin not re-readable).
+- **Verified**: turn-end bip+toast OK, AskUserQuestion selector bip+toast OK. `permission_prompt` NOT exercisable under `defaultMode: auto` — ask-rules (`python3 -c *`, `curl`…) auto-approved, no prompt raised. Hooks hot-reloaded by file watcher, no restart.
+- **Future**: enumerate the events a signal must cover BEFORE wiring, one per user-visible moment. Notification ≠ lifecycle-complete. SubagentStop exists too for agent completion.
+
+## LRN-147 — VS Code restores terminals BEFORE ext activation → toast dies every restart
+- **Context**: 2026-09-03, second hit same day. Bell OK, toast gone, after user re-attached session from a restored terminal. Probe on that pty: OSC 777 unique + OSC 777 repeated + OSC 9 → all three silent, while BEL rang. Same pty, bell works ⇒ bytes arrive, ext just not hooked to that terminal.
+- **Pattern**: `wenbopan.vscode-terminal-osc-notifier` instruments a terminal only if it exists AFTER ext activation. `terminal.integrated.enablePersistentSessions` (default true) restores terminals at window startup, i.e. BEFORE lazy ext activation → every restored terminal is permanently deaf to OSC. Recurs at each VS Code restart, silently, bell still ringing so it reads as "half broken".
+- **Fix**: client setting `"terminal.integrated.enablePersistentSessions": false` → no terminal pre-exists activation. Fallback without it: after VS Code start, open a FRESH terminal then `dtach -a ~/.dtach/<session>` (dtach broadcasts, old client can stay or be closed, session never lost).
+- **Diagnostic shortcut**: bell rings + toast dead on the SAME pty = terminal-instrumentation fault, not audio, not hook, not server. Bell dead + toast alive = audio fault ([[BLK-020]] fault B). The two channels split the search space; check which one survives before anything else.
+- **Future**: any client-side terminal-parsing ext over Remote-SSH inherits this. Verify instrumentation on the ACTUAL attached pty after every restart, never assume yesterday's terminal.
+
+## LRN-148 — terminal instrumentation is per-terminal + unpredictable; pre-flight test before attaching
+- **Refines**: [[LRN-147]] blamed restored-terminals-born-before-activation. Too narrow — counter-example same day: two terminals SAME VS Code window, pts/3 (born 01:58:33) instrumented, pts/7 (born 01:59:29, LATER) deaf. Ext is GLOBAL (marketplace: Enable/Disable pause parsing extension-wide, no per-terminal setting), shells identical on every server-side measurable: `VSCODE_INJECTION=1`, TERM, TERM_PROGRAM, same `--init-file` shell-integration path, ~2-3s between shell start and dtach. Trigger NOT identified.
+- **Pattern**: treat instrumentation as a per-terminal property that can silently fail for unknown reasons. Cheap pre-flight before committing a long-lived session to a terminal: `printf '\a\a\033]777;notify;NEUF;test\033\\'` typed IN that terminal. Toast → instrumented, attach. Bell only → deaf terminal, open another. Costs 5s, replaces an hour of pty archaeology.
+- **Recovery**: deaf terminal never repairs. Open fresh terminal, pre-flight it, `dtach -a ~/.dtach/<session>`. dtach broadcasts, so old client may stay attached; session never at risk.
+- **Diagnostic split (holds)**: bell alive + toast dead = terminal instrumentation. Toast alive + bell dead = client audio ([[BLK-020]]). Neither = bytes never arrive.
+- **Future**: do NOT assert the born-before-activation cause as established — it fits the first incident, not the second. Unknown trigger is the honest state.
+
+## LRN-149 — Stop hook payload carries background_tasks; use it to skip premature signals
+- **Context**: 2026-09-03. User: "notif à la création d'un sous-agent alors qu'il faudrait pas". Instrumented hook, ran probe subagents: NEITHER subagent creation NOR completion calls the hook. Only event = `Stop`, fired when the turn ends right after spawning. Signal was real but LIED ("Finished responding" while work continued).
+- **Pattern**: dump the real payload (`printf '%s' "$payload" >> file.jsonl`) instead of trusting docs — docs list Stop fields without `background_tasks`, the wire has it: `[{"id","type":"subagent","status":"running","description","agent_type"}]`. Rule: on Stop, `(.background_tasks // []) | length` > 0 → exit 0 silent. Next turn end signals for real. Interaction events (permission/question) always signal, background or not.
+- **Fail-open**: field absent (older client) → still signal. Missed notification worse than extra one.
+- **Cross-session gotcha**: hook is user-scope, so EVERY session runs it. A single-file dump (`> file`) gets overwritten by another project's session — append JSONL and filter on `.cwd`. That accident proved `permission_prompt` fires with `message="Claude needs your permission"` (unexercisable in this session under `defaultMode: auto`).
+- **Future**: any hook needing turn-completion semantics must check background_tasks; "turn ended" ≠ "work done". Verified live: Stop with 0 tasks signals, Stop with 1 running subagent silent.

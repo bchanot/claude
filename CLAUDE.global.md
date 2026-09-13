@@ -22,6 +22,8 @@ Apply unless repo-specific instructions override.
 - Document intent, not mechanics. Use project doc style (docstring, JSDoc…).
 - Explicit, consistent, meaningful names. Straight control flow,
   no hidden side effects.
+- Written deliverables (docs, reports, .md): length matched to what
+  the task needs — no filler sections, no boilerplate summaries.
 
 ## Refactoring
 - Priority: safety → readability → consistency.
@@ -40,11 +42,12 @@ Apply unless repo-specific instructions override.
 - Confirm before implementing only when real trade-offs exist (multiple
   valid approaches, breaking change, destructive action) — else proceed.
 - Minimal changes unless broader refactor requested. State trade-offs.
-- Sub-agents keep main context clean — one task per sub-agent.
-  More compute on hard problems. Task fans out across independent
-  items (many files, parallel searches, multi-point checks) → delegate
-  to sub-agents, don't iterate serially. Default to delegation for
-  multi-file exploration. Counters model tendency to under-delegate.
+- Sub-agents: one task per sub-agent, main context stays clean.
+  Delegate genuinely independent, sizeable tracks (wide multi-file
+  exploration, parallel audits) — not work doable in a few tool
+  calls. Skill-mandated gates (fresh verifier/security/challenge)
+  always dispatch as written. Don't redo delegated work by hand —
+  failed gates re-dispatch fresh executors instead.
 - One question upfront if needed — don't interrupt mid-task.
   *Exception: skill-mandated gates and checkpoints (orchestrator
   validation gates, approval gates, darwin checkpoints) always fire.*
@@ -53,6 +56,8 @@ Apply unless repo-specific instructions override.
 - Something goes wrong → STOP, re-plan. Never push through.
 - Deviations: minor or clearly justified → do, explain after.
   Significant or shaky justification → ask before deviating.
+  Finish the whole task: blocked on an independent sub-part → do
+  the rest, state what's missing. Gone WRONG → still STOP, re-plan.
 - Root causes only. No temp fixes. Never assume — verify paths, APIs,
   variables before use.
 
@@ -77,7 +82,6 @@ Apply unless repo-specific instructions override.
 2. Report what verified, what not.
 3. List remaining risks, surviving deviations.
 4. Don't mark complete without proof it works.
-   Bar: "would staff engineer approve?"
 5. Correction or notable event → capitalize to right registry
    (see "Memory registries").
 

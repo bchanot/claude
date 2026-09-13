@@ -427,3 +427,36 @@ rules:
 ## 2026-07-22
 - User: auto-gitignore+delete transient pipeline artifacts in all projects. Investigation reframed the ask — gitignore = WRONG tool (files read from disk during run; would break superpowers SDD `git add` of spec). BDR-065 already rejected gitignore + its DELETE side was doctrine-only (no code, manual chore slipped once — 655e364). User picks (2 recommended): keep committed-during-run + AUTOMATE delete; keep `.claude/tasks/{contracts,plans}` versioned.
 - Built `lib/gitflow.sh` `_gitflow_purge_transient` at finish (feature/bugfix, pre-merge, best-effort never-abort, opt-out `GITFLOW_PURGE_TRANSIENT=0`) + `purge-transient` CLI verb. Universal via `~/.claude/lib`→repo symlink. gitflow-test T17 a-d (10 checks, `--full-history` recovery), shellcheck clean, make test exit 0. BDR-065 amendment + [[LRN-138]]. feature/gitflow-auto-purge-transient.
+
+## 2026-07-30
+- User: Opus 5 "needs more freedom" → analyse config + adapt. Research 3-agent (registries / config audit / web) + official migration guide: over-delegation (inverts LRN-030), over-verification, literal following, scope expansion, #80988 injections. Plan challenged 3 blind Opus 5 plan-challengers — robustness FATAL (BLOCKER: symlink-live deployment), all fixes adopted. Shipped: CLAUDE.global.md recalibrated (delegation when-guidance, staff-bar dropped, finish-whole-task, deliverable-length; 308/320), design hook \bux\b dropped flip-tested (22/0), plan-challenger grounded-doubt→[MINOR] (44/0). BDR-081 + LRN-139. feature/opus5-config-tuning, UNMERGED.
+
+## 2026-08-02
+- C1 seo/geo de-prescription EXECUTED end-to-end: census-first 71 locks flip-proven → reword under audience×range invariant (adafa35/c7646a9) → controlled dogfood (judge-replay frozen signals + templates + fresh collects + e2e + blind reader) → 42/42 both sets, zero contract regression, recall improved. Plan survived 4 challenge passes (2 FATAL + confirmation FATAL(9), all closed by name). BDR-082 + LRN-140. Nested-CLI dogfood died on monthly spend limit → inline pipeline (canonical /seo shape). feature/seo-geo-deprescription UNMERGED (human gate). Chantiers C2-C4 pending.
+
+## 2026-08-24
+- Analysed `unlazy` skill (Leonxlnx/unlazy 2.1.0) on user request. Its verification architecture teaches us nothing — contract + fresh blind verifier + bounded loops already shipped. Real gap: no deterministic floor between executor and GATE 1 (the verifier's `PROOF:` is a line it writes, not a process exit).
+- Shipped Palier 2 (user-chosen): lib/gates.sh + GATE 0 + oracle-bearing criteria + `ABANDONED(n)` verdict + 4-pass executors. Refused unlazy's Stop hook, approval store, .unlazy/ tree, tree-N arithmetic, Node checker — [[BDR-083]] records each why.
+- `make test` rc 0, shellcheck clean, 64 new assertions, e2e on a real contract. Branch feature/contract-gates UNMERGED (human gate).
+- Locks caught a reflow regression (5 red on rewrapped phrases, zero doctrine lost) → [[LRN-142]]. Skill-adoption pattern → [[LRN-141]].
+- Parallelism audit (user ask "est-ce actif ?"): measured, not assumed — nested probe proves concurrent fan-out (9.1s vs 18s), doctrine already prescribed everywhere safe, remaining serializations motivated. One candidate found: /tour multi-project → parallel runners shipped ([[BDR-084]], user gate "tout paralléliser" + model invariant). Branch feature/tour-parallel UNMERGED.
+
+## 2026-08-25
+- User permanent rules integrated: rules/writing-style.md (always-on) + web-building.md + web-security.md (path-scoped). Security core already in §Security, not duplicated. Carve-outs protect caveman registries + skill templates + brand fonts. [[BDR-085]]. Branch feature/user-writing-web-rules UNMERGED (human gate).
+
+## 2026-08-26 — darwin fresh baseline + threshold run (feature/darwin-optimize-20260825, UNMERGED)
+- `/darwin-skill all skills and agents` (background). Fresh results.tsv (May file wiped). 7 blind judges, 54 rows (31 skill-systems + 23 agents), mean 83.4, 13 <80. find-docs excluded — machine-owned ctx7 (gitignored), 3rd exclusion ground after BDR-015/058.
+- Phase 2: 12 rounds / 13 units, 0 reverts, all paired 3-0 ([[EVAL-028]]). Star: skills-perso detection 8/31 → 31/31 live-verified. Bug pass [[BDR-086]]: 8 commits in above-80 units kept 3-0 (hotfix git-restore data-loss path ★, onboarder contract bounce, plugin data-flow, plan-challenger grammar, handover stale §refs + gate order, tour report-only commit, harden severity, fixtures).
+- make test green after census-rewrap fix ([[LRN-144]]); [[LRN-143]] head-pipe grep mask. 29 commits, report `.claude/audits/DARWIN-2026-08-26.md` + card PNG. Branch awaits human review + merge.
+
+## 2026-09-01
+- Attention signal shipped: hooks/notify-attention.sh + Notification entry in settings.json (bell x2 + OSC 777 toast via terminalSequence). Client-side VS Code steps pending: terminalBell sound:on + osc-notifier ext. [[LRN-145]]. Branch chore/notify-attention-hook, UNMERGED.
+- Pre-existing model switch opus[1m] committed separately on same branch.
+
+## 2026-09-03
+- Attention signal completed + verified end-to-end. Two client faults isolated ([[BLK-020]] resolved): ext instruments only terminals born AFTER activation (re-attach via `dtach -a`, no session loss); Code app volume 0 in Windows mixer killed bell while Windows-emitted toast sound masked it.
+- Coverage gap found + closed: `Notification` matcher covers input-needed only, turn-end had no event. `Stop` wired on same script, branches on `.hook_event_name` ([[BDR-087]], [[LRN-146]]). Verified live: turn-end + AskUserQuestion ring; `permission_prompt` unexercisable under `defaultMode: auto`.
+- BDR-087 + LRN-146 + BLK-020 capitalized. Branch feature/notify-stop-event, merged to develop (f90ee74).
+- Post-merge regression: toast dead again after re-attach from a RESTORED terminal, bell fine. Root cause [[LRN-147]]: ext hooks only terminals born after its activation; `enablePersistentSessions` restores terminals before it. Fix = disable persistent sessions, or fresh terminal + `dtach -a`. Verified: 3/3 toasts on fresh pty.
+- Same-day counter-example broke that cause: second session's terminal deaf though created LATER, same window, ext global, shells identical. Trigger unknown; [[LRN-148]] adds the 5s pre-flight test + demotes LRN-147's mechanism claim.
+- Attention signal refined: per-event labels (BDR-087 follow-on), silence on non-attention events, and no turn-end signal while `background_tasks` non-empty ([[LRN-149]]). Payload dump beat the docs: `background_tasks` undocumented for Stop but present on the wire. Branch bugfix/notify-subagent-spawn.

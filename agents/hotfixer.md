@@ -75,7 +75,7 @@ the edit applied + self-verified, not the report grammar).
 ```
 HOTFIX-EXEC REPORT
 STATUS  : DONE | BLOCKED
-FILE(S) : <changed files>
+FILE(S) : <changed files — suffix files you CREATED with " (new)">
 FIX     : <one-line description>
 SMOKE   : <test/build result, verbatim line>
 NOTES   : <BLOCKED: the blocker; DONE: none>

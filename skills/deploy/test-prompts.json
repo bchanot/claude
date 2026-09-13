@@ -1,0 +1,5 @@
+[
+  {"id": 1, "prompt": "deploy (repo has .claude/deploy/PROCEDURE.md, 4 commits since last deploy touching migrations + one env var)", "expected": "Detects delta since last deploy, instantiates ONLY the steps the delta needs, checklist displayed in conversation (never written to a file), PENDING.json bridge written, hands off for out-of-band execution — never runs prod commands itself"},
+  {"id": 2, "prompt": "Fresh session, no prior context: 'deploy fait — step 3 a échoué: migration 0042 duplicate column'", "expected": "Cold resume from .claude/deploy/PENDING.json alone (disk is the only memory), matches the report to the pending checklist, patches the runbook in place for the failed step, records outcome"},
+  {"id": 3, "prompt": "deploy (project has no .claude/deploy/PROCEDURE.md at all)", "expected": "Does not invent deploy commands; proposes bootstrapping the runbook (or asks), never guesses prod procedure from commit messages or git describe"}
+]
