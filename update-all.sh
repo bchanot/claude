@@ -15,8 +15,10 @@ REPO="$(cd "$(dirname "$0")" && pwd)"
 VERSION=$(cat "$REPO/version.txt" 2>/dev/null || echo "unknown")
 
 # Load shared detection library
-# shellcheck source=lib/detect-plugins.sh
+# shellcheck source=lib/detect-plugins.sh disable=SC1091
 source "$REPO/lib/detect-plugins.sh"
+# shellcheck source=lib/gstack-playwright.sh disable=SC1091
+source "$REPO/lib/gstack-playwright.sh"
 
 echo ""
 echo "═══ claude-config update (v${VERSION}) ═══"
@@ -84,7 +86,7 @@ if [[ "$_gstack_confirm" =~ ^[Yy]$ ]]; then
     _gstack_state=$(bash "$REPO/lib/toggle-external.sh" status gstack 2>/dev/null || echo "unknown")
   fi
 
-  if git submodule update --remote skills-external/gstack 2>/dev/null; then
+  if gstack_submodule_update_with_bump "$REPO"; then
     if [ -d "skills-external/gstack" ]; then
       if [ -x "skills-external/gstack/setup" ]; then
         if (cd skills-external/gstack && ./setup) 2>/dev/null; then

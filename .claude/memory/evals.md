@@ -39,6 +39,7 @@ rules:
 | EVAL-025 | 2026-07-17 | opening seo/geo inventory (subagents): 7/7 verifiable claims false or overstated; real contact corrected all, 6 plan corrections + 4 features killed at measurement | keep |
 | EVAL-027 | 2026-08-24 | contract-gates behavioral RED: 16/16 fresh unprimed runs followed new doctrine (GATE 0 order, vacuous oracle, ABANDONED routing, scope temptation resisted) | keep |
 | EVAL-028 | 2026-08-26 | darwin v2.1 paired run 54 units: 60 paired verdicts 0 revert/tie; skeptics found 3 real residuals — engaged, not rubber-stamp | keep |
+| EVAL-029 | 2026-09-15 | 4-agent plan challenge: 6 BLOCKER; 3 of 3 confirmation-pass BLOCKERs came from the fixes themselves; caught a false 654 MB orphan claim | keep |
 
 ---
 
@@ -267,3 +268,14 @@ Dogfood: 3 blind lenses attacked the v1 plan for the plan-challenge feature itse
 - **Method**: paired same-judge 3-majority per round (v2.1); judges live-exec where artifact executable (5 units: skills-perso, profile, plugin-pair, status-reporter, gitflow). Absolute scores triage-only. Totals main-thread (LRN-018 applied).
 - **Anomalies**: (1) 0 reverts/ties in 60 verdicts — homogeneous-better checked: skeptic lens found real residuals 3x (doctor.sh cost source, hotfix RULES leftover restore, FILE(S) new-marker) → judges engaged. (2) census lock RED on line-rewrap, make test caught → LRN-144. (3) head-pipe masked grep exit 2x → LRN-143.
 - **Action**: v2.1 paired = standard. Post-run absolute rescore skipped by design (would be judge-noise theater).
+
+---
+
+## EVAL-029 — 4-agent plan challenge: 6 BLOCKERs, and the fix round produced 3 of them
+- **Date**: 2026-09-15
+- **Method**: 3 blind lenses (correctness / robustness / simplicity) on plan rev 1, then 1 confirmation lens on rev 2. Subject = the gstack Playwright lib plan ([[BDR-088]]).
+- **Result**: rev 1 → 3 BLOCKER + 12 MAJOR. Rev 2, written specifically to close them → 3 NEW BLOCKERs, and 2 of the 3 were INTRODUCED BY the fixes: the new "every public function returns 0" rule contradicted the new "return rc", and the printer-name clause came verbatim from my own contract criterion 9. Rev 3 dropped the recovery branch entirely at the human gate — 6 findings closed by deletion instead of code.
+- **Anomaly**: my first user-facing answer asserted ~654 MB of orphan Playwright revisions. FALSE — `.links` showed every dir referenced, 0 reclaimable. Caught only while designing the guard, not while asserting the number. Worse, the guard I proposed would itself have deleted gsd-pi's rev 1243.
+- **Action**: (1) never state a disk-reclaimable figure before reading the registry that owns it ([[LRN-151]]). (2) A fix round deserves the same challenge as the original plan — 3/3 confirmation BLOCKERs came from fixes, not from the original. (3) The confirmation pass earned its cost: without it the printer override would have shipped and silently disconnected doctor's counters ([[LRN-150]]).
+- **Status**: keep.
+- **Reference**: `.claude/tasks/plans/2026-09-13-gstack-playwright-lib-2220.md` (rev 3). Links [[BDR-088]], [[LRN-150]].

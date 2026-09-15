@@ -139,6 +139,9 @@ rules:
 | LRN-134 | 2026-07-17 | resolve-then-pin in stdlib http.client beats monkeypatching getaddrinfo — dual-stack, thread-safe, no requests; classify the OS-resolved IP not the URL text | closing SSRF/DNS-rebinding on any Python HTTP egress |
 | LRN-135 | 2026-07-17 | a prefix-only scan for a dangerous construct is bypassable by padding — scan the WHOLE document | refusing any hostile construct (DTD/directive/marker) before parse |
 | LRN-143 | 2026-08-26 | `cmd \| head \|\| fallback` — pipeline rc is head's (0), fallback dead; bounded output → drop head, else pipefail | any probe/fallback bash in skills before trusting `\|\|` |
+| LRN-150 | 2026-09-15 | Sourced lib shares caller shell: bare `ok/warn/info` override its printers, and its `set -e` applies inside | any new lib/*.sh |
+| LRN-151 | 2026-09-15 | Playwright cache truth = union over `.links`, dir name maps `_`→`-`, revisionOverrides exist | shared versioned binary caches |
+| LRN-152 | 2026-09-15 | git `protocol.file=user` blocks submodule fixtures; `-c` misses the code under test, `GIT_CONFIG_*` env does not | tests building git fixtures |
 
 ---
 
@@ -1421,3 +1424,29 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Fail-open**: field absent (older client) → still signal. Missed notification worse than extra one.
 - **Cross-session gotcha**: hook is user-scope, so EVERY session runs it. A single-file dump (`> file`) gets overwritten by another project's session — append JSONL and filter on `.cwd`. That accident proved `permission_prompt` fires with `message="Claude needs your permission"` (unexercisable in this session under `defaultMode: auto`).
 - **Future**: any hook needing turn-completion semantics must check background_tasks; "turn ended" ≠ "work done". Verified live: Stop with 0 tasks signals, Stop with 1 running subagent silent.
+
+---
+
+## LRN-150 — Sourced shell lib is not a subprocess: prefix printers, honor inherited errexit
+- **Date**: 2026-09-15
+- **Pattern**: `source lib.sh` shares the caller's shell. Two bites. (a) bare `ok()`/`warn()`/`info()` in the lib OVERRIDE the caller's same-named funcs. `doctor.sh` counts ERRORS/WARNS inside its own `warn()` → a lib `warn` disconnects the counter and doctor prints "No errors" while warnings scroll. Prefix every lib printer (`_gspw_ok`, `_gspw_warn`, `_gspw_info`). (b) caller's `set -euo pipefail` applies INSIDE the lib's functions: a failing command-substitution assignment (`x="$(. /etc/os-release; [ "$ID" = ubuntu ] && printf ...)"`) aborts the CALLER when the func is called as a bare statement. Reproduced — exit 1 on every non-Ubuntu host, latent in `install-plugins.sh` since [[BDR-029]].
+- **Rule**: public func called bare → `return 0` on every path + `|| true` on every capture. Func allowed to return non-zero → call it ONLY as an `if` condition.
+- **Future application**: any new `lib/*.sh` sourced by a script that owns printers or sets `-e`. Check BOTH facets before wiring; the printer one is silent (no error, just a lying summary).
+- **Reference**: `lib/gstack-playwright.sh`, `doctor.sh:12-15`. Links [[BDR-088]].
+
+---
+
+## LRN-151 — Playwright cache truth lives in `.links`, never in one install's view
+- **Date**: 2026-09-15
+- **Pattern**: `~/.cache/ms-playwright/.links/<sha1>` = one file per registered `playwright-core`, content = its path. Required set = UNION of `browsers.json` revisions across ALL of them. Dir name on disk = `${name//-/_}-${revision}`: `chromium-headless-shell` → `chromium_headless_shell-1228`. Miss that mapping and 2 live dirs read as orphan forever. `revisionOverrides` exists (webkit, ffmpeg on mac / debian11 / ubuntu20.04) so the base revision alone under-matches. Playwright prunes this set itself on every `install` (`_deleteStaleBrowsers`, coreBundle.js).
+- **Future application**: never call a browser dir orphan from one project's playwright view — read `.links` first. Generalizes to any tool with a shared versioned binary cache plus a registry of consumers: the consumer registry is the source of truth, not the consumer you happen to be standing in.
+- **Reference**: `lib/gstack-playwright.sh` `_gspw_browser_referenced`. Links [[BDR-089]], [[EVAL-029]].
+
+---
+
+## LRN-152 — git `protocol.file=user` kills submodule fixtures; `-c` misses the code under test
+- **Date**: 2026-09-15
+- **Pattern**: since the CVE-2022-39253 hardening git refuses submodule clone/fetch over a local path by default (git 2.53 → `protocol.file` = `user`). `-c protocol.file.allow=always` fixes the FIXTURE's own git calls but NOT the `git` the code under test spawns — fresh process, inherits nothing from `-c`. Export for the whole test process instead: `GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=protocol.file.allow GIT_CONFIG_VALUE_0=always`. Env propagates, `-c` does not.
+- **Also**: fixture repos need LOCAL `user.email`/`user.name` (no global identity here) and `git init -b main` + explicit `submodule.<name>.branch`, else `--remote` resolves a different branch than production does.
+- **Future application**: any test building a git submodule fixture. Symptom is a hard "transport 'file' not allowed" before the first assertion, which reads like a broken test rather than a policy.
+- **Reference**: `lib/tests/gstack-playwright.test.sh`.

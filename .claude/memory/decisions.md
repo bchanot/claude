@@ -97,6 +97,8 @@ rules:
 | BDR-085 | 2026-08-25 | User permanent rules: writing-style always-on in rules/, web build+security path-scoped | accepted |
 | BDR-086 | 2026-08-26 | darwin: threshold gates full loops; verified defects fixed regardless of unit score (paired-validated, batched checkpoint) | accepted |
 | BDR-087 | 2026-09-03 | Stop hook = attention signal only, never control flow; one script for Notification + Stop | accepted |
+| BDR-088 | 2026-09-15 | gstack Playwright bump shared via lib, re-applied after submodule update; update helper never touches the submodule tree | accepted |
+| BDR-089 | 2026-09-15 | No Playwright browser-cache pruner; read-only doctor report — .links proved 0 bytes reclaimable | accepted |
 
 ---
 
@@ -1123,3 +1125,24 @@ Branch feature/user-writing-web-rules, UNMERGED (human gate).
 - **Guard vs prior refusal**: [[BDR-083]] (unlazy review, GATE 0) REFUSED a Stop hook using `decision:"block"` (forces continuation, inverts human gates). THIS Stop hook returns `terminalSequence` + `suppressOutput` only, exit 0, zero control-flow effect. Signal ≠ control. Do not read the refusal as banning Stop outright.
 - **Status**: accepted.
 - **Reference**: [[LRN-146]] event-coverage gap, [[BLK-020]] client-side faults, [[LRN-145]] terminalSequence pattern. Verified live: turn-end + AskUserQuestion both ring; `permission_prompt` unexercisable under `defaultMode: auto`.
+
+---
+
+## BDR-088 — gstack Playwright bump shared via lib; update helper never touches submodule tree
+- **Date**: 2026-09-15
+- **Decision**: `gstack_bump_playwright_if_unsupported` moved out of `install-plugins.sh` into `lib/gstack-playwright.sh`, sourced by install-plugins + update-all + doctor. update-all's submodule block now calls `gstack_submodule_update_with_bump`: re-applies bump after successful `submodule update --remote`; on failure prints git's own message, hints `make plugin`, returns 1. Never touches submodule worktree.
+- **Why**: [[BDR-029]] caveat open — bump survived only till next `make plugin`, update path never re-checked OS support. Real gap, user-reported.
+- **Alternatives rejected**: conflict-RECOVERY branch (discard package.json+bun.lock → retry → backup/restore). Withdrawn at human gate after 4-agent challenge: concentrated 3 BLOCKER + 4 MAJOR. Worst case = bump discarded, re-apply silently no-ops (bun absent / registry down — bump returns 0 on every path), `./setup` rebuilds browse against unsupported Playwright → [[BLK-008]] returns. Pre-existing behavior just failed the update and kept bump intact, so the "improvement" could regress a working install.
+- **Deviations carried from "code MOVED not changed"**: `|| true` on ostag capture (line exited 1 on every non-Ubuntu host → aborted caller under inherited errexit, reproduced); `timeout` on all 3 bun calls, exit 124 → warn + no bump (TERM'd install leaves node_modules half-written, poisons the support grep).
+- **Status**: accepted.
+- **Reference**: commit 2cebecb, `lib/gstack-playwright.sh`. Links [[BDR-029]], [[LRN-070]], [[LRN-071]], [[LRN-150]], [[BLK-008]].
+
+---
+
+## BDR-089 — No Playwright browser-cache pruner; read-only doctor report instead
+- **Date**: 2026-09-15
+- **Decision**: `doctor.sh` gains own `── Playwright browsers ──` section — cache size, per-revision the installs requiring it, counts of unreferenced dirs + broken links. Zero deletion anywhere in the lib.
+- **Why**: measured, not assumed. `~/.cache/ms-playwright/.links/` registers 3 installs — gstack 1.61.1 → rev 1228, gsd-pi nvm 1.61.0 → 1228, gsd-pi ~/.local 1.63.0 → 1243. Every dir on disk referenced → 0 bytes reclaimable. Playwright's own `_deleteStaleBrowsers` already unions across all registered installs on every `install`.
+- **Alternatives rejected**: hand-rolled pruner guarded on "revision resolved by gstack's local playwright" (the originally requested shape) — that guard keeps 1228 and DELETES 1243, breaking gsd-pi. The guard was wrong, not just its implementation.
+- **Status**: accepted.
+- **Reference**: commit 2cebecb. Links [[LRN-151]], [[BDR-088]].
