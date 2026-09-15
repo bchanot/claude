@@ -143,6 +143,7 @@ rules:
 | LRN-151 | 2026-09-15 | Playwright cache truth = union over `.links`, dir name maps `_`→`-`, revisionOverrides exist | shared versioned binary caches |
 | LRN-152 | 2026-09-15 | git `protocol.file=user` blocks submodule fixtures; `-c` misses the code under test, `GIT_CONFIG_*` env does not | tests building git fixtures |
 | LRN-153 | 2026-09-15 | `autoMode` lists replace built-ins without `"$defaults"`; a user-scope block reaches every project | any `autoMode` edit |
+| LRN-154 | 2026-09-15 | `git rm --cached` + merge into a branch that still tracks the file DELETES it from disk | untracking a generated file |
 
 ---
 
@@ -1460,3 +1461,11 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Backstop**: `doctor.sh` `check_automode` warns on a list missing `$defaults` and on a user-scope `environment` naming a git repo other than the config repo. Both arms exercised against the defective block before shipping.
 - **Future application**: any `autoMode` edit — check `$defaults` presence and scope before anything else.
 - **Reference**: `doctor.sh`, `templates/settings/SETTINGS.md`. Links [[BDR-090]].
+
+## LRN-154 — Untracking a generated file then merging deletes it from disk
+- **Date**: 2026-09-15
+- **Pattern**: `git rm --cached` removes from the index and KEEPS the working file, which is the whole point when untracking a tool-generated artifact. But `gitflow finish` checks out the target branch first, where the file is still tracked, so git restores it; the merge then applies the deletion to a tracked file and removes it from disk. `.gitignore` does not protect it — it only stops a re-add. Net effect: the file survives the commit and dies at the merge, several minutes later, which reads as unrelated.
+- **Detection**: the working tree is clean and the file is simply absent. Nothing errors. Only a post-merge `ls` catches it.
+- **Future application**: untracking any generated file — know the regeneration command BEFORE merging, and `ls` the path right after `finish`. If nothing regenerates it, keep it tracked.
+- **graphify specifics**: `graphify install --platform claude` copies the skill and touches nothing else. `graphify claude install` is a different command — it writes the CLAUDE.md section and the `.claude/settings.json` hooks, rewrites both guarded configs, and does NOT copy the skill. Confusing the two wastes a recovery attempt.
+- **Reference**: `CLAUDE.md` machine-owned section, commit 80ccdaf. Links [[BDR-090]].
