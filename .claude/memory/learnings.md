@@ -142,6 +142,7 @@ rules:
 | LRN-150 | 2026-09-15 | Sourced lib shares caller shell: bare `ok/warn/info` override its printers, and its `set -e` applies inside | any new lib/*.sh |
 | LRN-151 | 2026-09-15 | Playwright cache truth = union over `.links`, dir name maps `_`→`-`, revisionOverrides exist | shared versioned binary caches |
 | LRN-152 | 2026-09-15 | git `protocol.file=user` blocks submodule fixtures; `-c` misses the code under test, `GIT_CONFIG_*` env does not | tests building git fixtures |
+| LRN-153 | 2026-09-15 | `autoMode` lists replace built-ins without `"$defaults"`; a user-scope block reaches every project | any `autoMode` edit |
 
 ---
 
@@ -1450,3 +1451,12 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Also**: fixture repos need LOCAL `user.email`/`user.name` (no global identity here) and `git init -b main` + explicit `submodule.<name>.branch`, else `--remote` resolves a different branch than production does.
 - **Future application**: any test building a git submodule fixture. Symptom is a hard "transport 'file' not allowed" before the first assertion, which reads like a broken test rather than a policy.
 - **Reference**: `lib/tests/gstack-playwright.test.sh`.
+
+## LRN-153 — `autoMode` lists replace built-ins unless `"$defaults"` is spliced in
+- **Date**: 2026-09-15
+- **Pattern**: every list under `autoMode` (`allow` `soft_deny` `hard_deny` `environment`) is a FULL replacement by default. Omit the literal `"$defaults"` and the built-in classifier rules are dropped silently — no warning, no schema error, the classifier just runs thinner. Put `"$defaults"` first, own entries after: built-ins inherited, then refined.
+- **Scope trap, same block**: `autoMode` in `~/.claude/settings.json` reaches EVERY project. A block generated while working in one repo (its deploy target, its secrets, its data) ships that repo's facts to all the others, and contradicts whichever repo is actually open. Project facts belong in that project's `.claude/settings.local.json`.
+- **Format**: these lists are prose spliced into the classifier prompt, not permission-rule syntax. Write "Sending SIGKILL reaches processes outside this session", never `Bash(kill -9 *)`.
+- **Backstop**: `doctor.sh` `check_automode` warns on a list missing `$defaults` and on a user-scope `environment` naming a git repo other than the config repo. Both arms exercised against the defective block before shipping.
+- **Future application**: any `autoMode` edit — check `$defaults` presence and scope before anything else.
+- **Reference**: `doctor.sh`, `templates/settings/SETTINGS.md`. Links [[BDR-090]].

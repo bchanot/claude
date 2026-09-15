@@ -99,6 +99,7 @@ rules:
 | BDR-087 | 2026-09-03 | Stop hook = attention signal only, never control flow; one script for Notification + Stop | accepted |
 | BDR-088 | 2026-09-15 | gstack Playwright bump shared via lib, re-applied after submodule update; update helper never touches the submodule tree | accepted |
 | BDR-089 | 2026-09-15 | No Playwright browser-cache pruner; read-only doctor report — .links proved 0 bytes reclaimable | accepted |
+| BDR-090 | 2026-09-15 | Destructive shell work → autoMode soft_deny/hard_deny; `ask` tier abandoned (inert under auto) | accepted |
 
 ---
 
@@ -1146,3 +1147,13 @@ Branch feature/user-writing-web-rules, UNMERGED (human gate).
 - **Alternatives rejected**: hand-rolled pruner guarded on "revision resolved by gstack's local playwright" (the originally requested shape) — that guard keeps 1228 and DELETES 1243, breaking gsd-pi. The guard was wrong, not just its implementation.
 - **Status**: accepted.
 - **Reference**: commit 2cebecb. Links [[LRN-151]], [[BDR-088]].
+
+## BDR-090 — Destructive shell work → autoMode soft_deny/hard_deny; `ask` tier abandoned
+- **Date**: 2026-09-15
+- **Decision**: 10 rules leave the static tiers (user's own edit): `rsync` `kill -9` `killall` `pkill` out of `deny`; `python3 -c` `python -c` `xargs` `sed` `cp` `mv` out of `ask`. Cover rebuilt in `autoMode` — 7 `soft_deny` (write outside cwd, `rsync --delete`, SIGKILL/kill-by-name, in-place edit spanning >1 file, directory move, inline interpreter or `xargs` that deletes or writes outside cwd) + 3 `hard_deny` (secret exfiltration, prod deploy, disarming guardrails). Intent clears a soft block for the CURRENT TURN only — encoded as a rule line, no setting exists for it. `classifyAllShell` stays false. `permissions.deny` +10 `.env` reader rules (`sed awk cut tr sort uniq diff od xxd strings`), 6 of which sat in `allow`.
+- **Why**: `ask` raises no prompt under `defaultMode: auto` ([[LRN-146]], verified live). It gated nothing, so a destructive rule moved deny→ask was a silent loosening dressed as a confirmation. `soft_deny` = the tier the classifier enforces and user intent clears. `hard_deny` = the 3 classes no command pattern can express — read-then-send spans turns, a prod target is a name not a verb, widening a deny list is self-disarming.
+- **Alternatives rejected**: keep them in `ask` — inert, false sense of a gate. Back to `deny` — blocks legit process cleanup and inter-project copy, and the user works Bash-first under auto mode. `classifyAllShell: true` — closes the allow-tier blind spot but bills a classifier call on every `git status`. Published-history rewrite as `hard_deny` — user declined; `rebase` then an ordinary push stays uncovered, known gap.
+- **Scope fix (same commit)**: `autoMode.environment` named `/home/bchanot/Documents/atlast`, its FTP deploy target and its customer data, inside the file `link.sh:21` symlinks to `~/.claude/settings.json`. Every project received atlast's facts, and this repo's own Gitea remote contradicted the block's "no remote configured". Global block now machine-generic; atlast facts moved to atlast's gitignored `.claude/settings.local.json`.
+- **Caveat**: the guardrail `hard_deny` bars REMOVING a `deny`/`soft_deny`/`hard_deny` entry, not adding one. Future loosening goes through `/permissions` or the user's own edit — deliberate, confirmed with the user.
+- **Status**: accepted.
+- **Reference**: `settings.json`, `doctor.sh` `check_automode`, `templates/settings/SETTINGS.md`. Links [[LRN-153]], [[LRN-146]], [[BDR-004]].
