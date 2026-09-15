@@ -215,6 +215,61 @@ echo ""
 # ────────────────────────────────────────────────────────────
 # 5. Permissions check
 # ────────────────────────────────────────────────────────────
+
+# Under defaultMode auto the classifier reads `autoMode`, so a block scoped
+# to ONE project feeds every other project false facts, and a list without
+# "$defaults" silently drops the built-in rules. Neither is visible from the
+# deny count. Emits TAG|message lines for the caller to dispatch.
+inspect_automode() {
+  REPO="$REPO" python3 - "$SETTINGS" <<'PY'
+import json, os, re, sys
+
+settings = json.load(open(sys.argv[1]))
+mode = settings.get("permissions", {}).get("defaultMode")
+block = settings.get("autoMode") or {}
+
+if mode != "auto":
+    sys.exit(print("INFO|defaultMode is %s, autoMode not consulted" % mode))
+if not block:
+    sys.exit(print("WARN|defaultMode is auto but no autoMode block set"))
+
+sections = [k for k in ("allow", "soft_deny", "hard_deny", "environment")
+            if k in block]
+bare = [k for k in sections if "$defaults" not in block[k]]
+if bare:
+    print('WARN|autoMode.%s replaces the built-in entries (no "$defaults")'
+          % ", ".join(bare))
+else:
+    print('PASS|autoMode: %s inherit "$defaults"' % ", ".join(sections))
+
+repo, home = os.environ["REPO"], os.path.expanduser("~")
+foreign = {q for entry in block.get("environment", [])
+           for q in re.findall(r"`(/[^`]+)`", entry)
+           if (p := q.rstrip("/")).startswith(home) and p != repo
+           and os.path.isdir(os.path.join(p, ".git"))}
+if foreign:
+    print("WARN|autoMode.environment names another repo (%s); this file is "
+          "user-scope and reaches every project" % ", ".join(sorted(foreign)))
+else:
+    print("PASS|autoMode.environment is not scoped to a foreign repo")
+PY
+}
+
+check_automode() {
+  local out tag msg
+  if ! out=$(inspect_automode 2>/dev/null); then
+    warn "Could not inspect the autoMode block"
+    return
+  fi
+  while IFS='|' read -r tag msg; do
+    case "$tag" in
+      PASS) pass "$msg" ;;
+      WARN) warn "$msg" ;;
+      INFO) info "$msg" ;;
+    esac
+  done <<< "$out"
+}
+
 echo "── Permissions ──"
 
 SETTINGS="$HOME/.claude/settings.json"
@@ -251,6 +306,8 @@ print(len(json.load(sys.stdin).get('permissions',{}).get('deny',[])))
       warn "Deny rules: $DENY_COUNT (committed: $EXPECTED_DENY) — live settings diverge from last commit"
     fi
   fi
+
+  check_automode
 else
   fail "$HOME/.claude/settings.json not found"
 fi
