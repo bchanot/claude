@@ -59,12 +59,34 @@ block for the CURRENT TURN only.
       removing one is not"
 - [x] S4 `SETTINGS.md` — tier-choice table + scope-of-intent section
 - [x] S5 CHANGELOG — Changed rewritten, new Security block
-- [ ] S6 CONSEQUENCE to confirm: the hard_deny guardrail rule means I can
+- [x] S6 CONSEQUENCE confirmed by user 2026-09-15: the hard_deny guardrail rule means I can
       no longer edit a deny/soft_deny/hard_deny list to REMOVE an entry.
       Tightening stays allowed. Future permission loosening goes through
       `/permissions` or the user's own edit.
 
-### Follow-up found while doing this (not fixed, needs a decision)
+### Third pass (2026-09-15) — F1-F3 done + graphify untracked
+Worst finding was not the duplication: local `deny` still carried
+`rsync` `kill -9` `killall` `pkill`, the four the user moved OUT of
+global deny. deny wins across sources, so `autoMode.soft_deny` was a
+dead letter in THIS repo. Local `allow` also held `sed *`, `cp *`,
+`python3 -` — an allow rule short-circuits the classifier, punching a
+hole through the same soft_deny rules.
+- [x] G1 `skills/graphify/{SKILL.md,references/,.graphify_version}`
+      gitignored + `git rm --cached`. Written by `graphify claude
+      install` since `~/.claude/skills` symlinks to `skills/`; a fresh
+      clone gets them from `make plugin`. `test-prompts.json` is
+      hand-written for darwin, stays tracked. Trade-off documented in
+      CLAUDE.md: an upstream release can now change the skill prompt
+      with no diff to review.
+- [x] G2 `.claude/settings.local.json` 14.6 KB -> 6.2 KB. deny + ask
+      dropped whole, allow 185 -> 98 (81 duplicates of the global, 6
+      policy conflicts: `sed *`, `cp *`, `python3 -`,
+      `Read(//home/bchanot/**)`, `WebSearch`, a leftover injection-test
+      payload). Every non-`permissions` key was a verbatim copy of the
+      global, `hooks` included. Backup: `.audit/settings.local.json.bak-*`
+      (gitignored, the file itself is not in git).
+
+### Follow-up found while doing this (fixed in the third pass above)
 `.claude/settings.local.json` (gitignored, 14.6 KB) is a near-complete
 shadow copy of the global `settings.json` at a HIGHER precedence tier:
 185 allow / 30 ask / 106 deny, plus its own `cleanupPeriodDays`,
@@ -74,12 +96,12 @@ shadow copy of the global `settings.json` at a HIGHER precedence tier:
 duplication is invisible until the global drifts, which it just did
 (no `autoMode`, 106 deny vs 116). It defeats the config-guard premise
 (hand-curated `settings.json`) with a file nobody reviews.
-- [ ] F1 `WebSearch` sits in global `ask` and in local `allow` — in this
+- [x] F1 `WebSearch` sits in global `ask` and in local `allow` — in this
       repo it never reaches the ask tier. Intended or drift?
-- [ ] F2 local `hooks` block registers `bash ~/.claude/hooks/config-protection.sh`
+- [x] F2 local `hooks` block registers `bash ~/.claude/hooks/config-protection.sh`
       on PreToolUse/Bash. That script does not exist, in `hooks/` or in
       `~/.claude/hooks/`. Dead hook firing on every Bash call here.
-- [ ] F3 decide: prune the local file down to the session-accumulated
+- [x] F3 decide: prune the local file down to the session-accumulated
       allow rules only, dropping every key that merely restates the
       global, or keep the copy deliberately and document why.
 
