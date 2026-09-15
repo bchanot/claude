@@ -30,6 +30,21 @@ install-plugins.sh STEP ctx7 purges it right after; the find-docs skill is
 the single ctx7 surface. If it reappears (manual `ctx7 setup`), delete it
 or re-run `make plugin`.
 
+## Machine-owned: the vendored graphify skill
+
+`skills/graphify/SKILL.md`, `skills/graphify/references/` and
+`.graphify_version` are written by `graphify claude install`
+(`install-plugins.sh` STEP graphify), which lands in the repo because
+`~/.claude/skills` is a symlink to `skills/`. They are gitignored: a
+`pipx upgrade graphifyy` used to dirty the tree and cost a
+`chore(graphify): sync vendored skill X -> Y` commit each time. A fresh
+clone gets them back from `make plugin`.
+
+Trade-off accepted: an upstream release can now change the skill's prompt
+with no diff to review. `skills/graphify/test-prompts.json` is hand-written
+for darwin and stays tracked. To inspect what upstream changed, read the
+files on disk or diff against a previous `pipx` version.
+
 ## Transient planning artifacts
 
 `docs/superpowers/specs/**` and `docs/superpowers/plans/**` are run-time
