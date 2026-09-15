@@ -18,8 +18,10 @@ REPO="$(cd "$(dirname "$0")" && pwd)"
 VERSION=$(cat "$REPO/version.txt" 2>/dev/null || echo "unknown")
 
 # Load shared detection library
-# shellcheck source=lib/detect-plugins.sh
+# shellcheck source=lib/detect-plugins.sh disable=SC1091
 source "$REPO/lib/detect-plugins.sh"
+# shellcheck source=lib/gstack-playwright.sh disable=SC1091
+source "$REPO/lib/gstack-playwright.sh"
 
 echo ""
 echo "═══ claude-config doctor (v${VERSION}) ═══"
@@ -112,6 +114,13 @@ if [ "${gstack_skill_links:-0}" -gt 0 ]; then
 else
   warn "GStack skills not linked — run: cd skills-external/gstack && ./setup"
 fi
+
+echo ""
+
+# ── Playwright browsers (read-only report; NOT nested under gstack — 2 of
+# the 3 registered installs are gsd-pi, not gstack) ──
+echo "── Playwright browsers ──"
+gstack_browsers_report || true
 
 echo ""
 
