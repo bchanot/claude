@@ -6,6 +6,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 
 ## [Unreleased]
 
+### Added
+- **`make doctor` reports the Playwright browser cache** — a read-only
+  `Playwright browsers` section listing cache size, which registered
+  Playwright install requires each cached browser revision, and counts of
+  unreferenced directories and broken links. Report only: nothing is
+  pruned, since Playwright's own `install` already unions the required set
+  across every registered install.
+- `lib/gstack-playwright.sh` — the gstack Playwright helpers as a shared
+  lib (OS-support bump, submodule-update wrapper, cache report), sourced by
+  `install-plugins.sh`, `update-all.sh` and `doctor.sh`, covered by
+  `lib/tests/gstack-playwright.test.sh`.
+
+### Fixed
+- **`make update` no longer drops the Playwright OS-support bump** — a
+  gstack submodule update used to leave the bump unapplied until the next
+  `make plugin`, the open caveat of BDR-029. `update-all.sh` now goes
+  through `gstack_submodule_update_with_bump`, which re-applies it after a
+  successful update and returns non-zero on failure so the existing warn
+  arm still fires. Two latent bugs travelled with the extracted code: the
+  ostag capture exited 1 on every non-Ubuntu host and aborted its caller
+  under inherited `errexit`, and the `bun` calls had no timeout.
+
 ## [1.5.0] — 2026-09-13
 
 ### Added

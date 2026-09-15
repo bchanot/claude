@@ -337,7 +337,7 @@ make profile-reset          # re-enable all gstack skills
 make new-skill name=myskill # scaffold agent + skill files
 ```
 
-`doctor.sh` checks: symlinks, GStack submodule, prerequisites (git, Node, Cargo, Python, Claude Code), plugins, permissions, token budget, config consistency.
+`doctor.sh` checks: symlinks, GStack submodule, Playwright browser cache, prerequisites (git, Node, Cargo, Python, Claude Code), plugins, permissions, token budget, config consistency.
 
 ---
 
