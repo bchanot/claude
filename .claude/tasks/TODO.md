@@ -1,5 +1,88 @@
 # TODO
 
+## 2026-09-15 — align config + deployment on the hand-edited settings.json (feature/automode-config-alignment)
+User edited global `settings.json` by hand: 4 destructive rules moved
+deny→ask (`rsync`, `kill -9`, `killall`, `pkill`), 4 removed from ask
+(`xargs`, `sed`, `cp`, `mv` — coherent with auto mode's Bash-first
+workflow; the `.env`-scoped `cp`/`mv`/`xargs` deny rules still stand),
+and an `autoMode.environment` block added. Two defects found:
+(1) the environment block describes **atlast** (`bin/deploy.sh` lftp/FTP
+to OVH, quote-request data, "no remote configured") but lives in the
+user-scope file symlinked to `~/.claude/settings.json` by `link.sh:21`
+— so every project gets atlast's facts; claude-config itself has a
+Gitea remote, contradicting the block. (2) no `"$defaults"` sentinel,
+so the built-in classifier environment entries are replaced, not
+extended. Third finding: LRN-146 records, verified in session, that
+`ask` rules raise no prompt under `defaultMode: auto` — the deny→ask
+move therefore traded a static block for a classifier decision.
+User decisions (2026-09-15): atlast block → atlast's own
+`settings.local.json`, global block rewritten machine-generic; the 4
+destructive rules → `autoMode.soft_deny` (the section that actually
+binds under auto mode) instead of `ask`.
+- [x] T1 global `settings.json` — machine-generic `autoMode.environment`
+      with `$defaults`; new `autoMode.soft_deny` with `$defaults` + the
+      4 destructive rules; drop those 4 from `permissions.ask`
+- [x] T2 `/home/bchanot/Documents/atlast/.claude/settings.local.json` —
+      receives the atlast-specific `autoMode.environment` (gitignored,
+      personal scope); verify project-scope `autoMode` is honored
+- [x] T3 `templates/settings/SETTINGS.md` — document the `autoMode`
+      block (environment / soft_deny / hard_deny / allow, `$defaults`
+      semantics, `classifyAllShell`) + the "ask ≠ prompt under auto"
+      caveat that makes soft_deny the right tier
+- [x] T4 `README.md` — magic-MCP paragraph claims the `ask` tier makes
+      every `mcp__magic__*` call "require a live confirmation and never
+      auto-execute"; false under auto mode per LRN-146. Correct the
+      claim, flag the soft_deny option to the user (don't decide it)
+- [x] T5 `doctor.sh` — permissions section is blind to `autoMode`, now a
+      live security surface. Add a check: block present, `$defaults`
+      inherited, no foreign absolute project path hardcoded
+- [x] T6a CHANGELOG (Added/Changed/Fixed under [Unreleased])
+- [ ] T6b registries BDR-090 + LRN-153 + journal — drafted, awaiting user approval
+- [x] T7 verify: `make test`, `bash doctor.sh`, `shellcheck`
+NOT in scope: the 3 dirty `skills/graphify/*` files (pre-existing,
+unrelated) — never staged.
+
+### Second pass (2026-09-15, user decisions)
+User confirmed the `ask` removals were deliberate (`/permissions`), asked
+for the diff vs develop and for guards where the removals left a hole.
+Answered: writes outside cwd → soft_deny; in-place edits beyond one named
+file → soft_deny; inline interpreters + `xargs` → soft_deny when they
+delete or write outside cwd; hard_deny for secret exfiltration, prod
+deploy, disarming guardrails (history rewrite NOT retained, so a `rebase`
+then an ordinary push stays uncovered); extend the static deny family to
+the `.env` readers; `classifyAllShell` stays false; intent clears a soft
+block for the CURRENT TURN only.
+- [x] S1 `permissions.deny` +10 reader rules (sed awk cut tr sort uniq
+      diff od xxd strings vs `.env*`) — 6 of them were in `allow`
+- [x] S2 `autoMode.soft_deny` — 7 rules + the intent-scope line
+- [x] S3 `autoMode.hard_deny` — 3 rules, "adding a restriction is fine,
+      removing one is not"
+- [x] S4 `SETTINGS.md` — tier-choice table + scope-of-intent section
+- [x] S5 CHANGELOG — Changed rewritten, new Security block
+- [ ] S6 CONSEQUENCE to confirm: the hard_deny guardrail rule means I can
+      no longer edit a deny/soft_deny/hard_deny list to REMOVE an entry.
+      Tightening stays allowed. Future permission loosening goes through
+      `/permissions` or the user's own edit.
+
+### Follow-up found while doing this (not fixed, needs a decision)
+`.claude/settings.local.json` (gitignored, 14.6 KB) is a near-complete
+shadow copy of the global `settings.json` at a HIGHER precedence tier:
+185 allow / 30 ask / 106 deny, plus its own `cleanupPeriodDays`,
+`attribution`, `statusLine`, `enabledPlugins`, `extraKnownMarketplaces`,
+`effortLevel`, `remoteControlAtStartup`, `inputNeededNotifEnabled`,
+`skipAutoPermissionPrompt` — all identical to the global today, so the
+duplication is invisible until the global drifts, which it just did
+(no `autoMode`, 106 deny vs 116). It defeats the config-guard premise
+(hand-curated `settings.json`) with a file nobody reviews.
+- [ ] F1 `WebSearch` sits in global `ask` and in local `allow` — in this
+      repo it never reaches the ask tier. Intended or drift?
+- [ ] F2 local `hooks` block registers `bash ~/.claude/hooks/config-protection.sh`
+      on PreToolUse/Bash. That script does not exist, in `hooks/` or in
+      `~/.claude/hooks/`. Dead hook firing on every Bash call here.
+- [ ] F3 decide: prune the local file down to the session-accumulated
+      allow rules only, dropping every key that merely restates the
+      global, or keep the copy deliberately and document why.
+
 ## 2026-08-25 — darwin fresh baseline: 32 skill-systems + 23 agents (feature/darwin-optimize-20260825)
 User: `/darwin-skill all skills and agents` (background). Fresh-from-zero
 (results.tsv wiped 2026-06-23, journal 2026-06-30). Scope per BDR-015/043 +

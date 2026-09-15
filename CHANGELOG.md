@@ -17,6 +17,43 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   lib (OS-support bump, submodule-update wrapper, cache report), sourced by
   `install-plugins.sh`, `update-all.sh` and `doctor.sh`, covered by
   `lib/tests/gstack-playwright.test.sh`.
+- **`doctor.sh` inspects the `autoMode` block**: warns when a classifier
+  list drops the built-in entries (no `"$defaults"`) and when the
+  user-scope `environment` names a git repo other than the config repo.
+  Neither defect is visible from the deny count, until now the only
+  permission signal `doctor.sh` had.
+- **`templates/settings/SETTINGS.md` documents `autoMode`**: the four
+  classifier lists, `$defaults` splice semantics, `classifyAllShell`, the
+  user-scope vs project-scope rule, and why `ask` is the wrong tier for a
+  destructive command under auto mode.
+
+### Changed
+- **The classifier, not `permissions.ask`, now guards destructive shell
+  work** (BDR-090). Ten rules left the static tiers: `rsync`, `kill -9`,
+  `killall`, `pkill` out of `deny`, and `python3 -c`, `python -c`,
+  `xargs`, `sed`, `cp`, `mv` out of `ask`. Under `defaultMode: auto` an
+  `ask` rule raises no prompt ([[LRN-146]]), so that tier was gating
+  nothing anyway. Cover is now `autoMode.soft_deny`, which the classifier
+  enforces and an explicit instruction clears: writes outside the working
+  directory, `rsync --delete`, SIGKILL and kill-by-name, in-place edits
+  spanning more than one file, directory moves, and inline interpreters
+  or `xargs` that delete or write outside the cwd. Intent clears a soft
+  block for the current turn only.
+- **`autoMode.hard_deny` added** for the three classes no command pattern
+  can express: secret exfiltration (a read and a send, separate steps,
+  possibly turns apart), production deployment (deploy scripts, lftp/FTP
+  pushes, any `prod` target), and disarming the guardrails (weakening a
+  deny list, `--no-verify`, removing the pre-commit hook,
+  `bypassPermissions`). Adding a restriction stays allowed; removing one
+  does not. No instruction clears these.
+
+### Security
+- **Ten secret-reader deny rules added**: `sed`, `awk`, `cut`, `tr`,
+  `sort`, `uniq`, `diff`, `od`, `xxd`, `strings` against `.env*`. Six of
+  those tools sat in `permissions.allow`, so reading a `.env` through
+  them triggered nothing. Same shape and same known gap as the existing
+  `Bash(grep * .env*)` family: a `cat .env | sed` pipe still slips past,
+  which is what the `hard_deny` exfiltration rule is there to catch.
 
 ### Fixed
 - **`make update` no longer drops the Playwright OS-support bump** — a
@@ -27,6 +64,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   arm still fires. Two latent bugs travelled with the extracted code: the
   ostag capture exited 1 on every non-Ubuntu host and aborted its caller
   under inherited `errexit`, and the `bun` calls had no timeout.
+- **`autoMode.environment` no longer describes one project from the
+  user-scope file**: the block named a specific repo, its FTP deploy
+  target and its customer data, while `link.sh` symlinks this file to
+  `~/.claude/settings.json` where it reaches every project. The global
+  block now states machine-level facts only (self-hosted Gitea, gitflow
+  protection, `~/.claude/.env` as the single secret source, no CI), and
+  the project-specific facts moved to that project's gitignored
+  `.claude/settings.local.json`. Both lists now open with `"$defaults"`,
+  which the original omitted, so the built-in entries are inherited
+  rather than replaced.
+- `README.md` no longer claims the `ask` tier makes every `mcp__magic__*`
+  call "require a live confirmation and can never auto-execute". That
+  holds under `defaultMode: default`, not under this config's `auto`. The
+  paragraph now separates what is verified from what is not, and names
+  `deny` as the only tier the classifier cannot lift.
 
 ## [1.5.0] — 2026-09-13
 

@@ -462,3 +462,10 @@ rules:
 - Attention signal refined: per-event labels (BDR-087 follow-on), silence on non-attention events, and no turn-end signal while `background_tasks` non-empty ([[LRN-149]]). Payload dump beat the docs: `background_tasks` undocumented for Stop but present on the wire. Branch bugfix/notify-subagent-spawn.
 - gstack Playwright: bump extracted to `lib/gstack-playwright.sh`, now re-applied after a successful submodule update ([[BDR-088]]); read-only browsers report in doctor, no pruner — `.links` proved 0 bytes reclaimable and the guard I first proposed would have deleted gsd-pi's rev 1243 ([[BDR-089]], [[LRN-151]]). 4 challengers → 6 BLOCKER, recovery branch withdrawn at the gate ([[EVAL-029]]). 2cebecb on feature/gstack-playwright-lib.
 - Node checked against Playwright: already v24 (1.61 needs >=18, 1.63 needs >=20), not the macOS constraint. macOS audit deferred to its own cycle — found statically: `sed -i` with no suffix x3 in install-plugins.sh (BSD sed eats the next arg), `${x,,}` in url-guard.sh (bash 4+, macOS ships 3.2), `readlink -f` in doctor.sh (absent pre-Monterey 12.3).
+
+## 2026-09-15
+- Aligned repo config + deployment on the user's hand-edited `settings.json`. Destructive shell work rebuilt in `autoMode` soft_deny/hard_deny once `ask` was established as inert under auto mode ([[BDR-090]]); `permissions.deny` +10 `.env` reader rules, 6 of which sat in `allow`.
+- `autoMode.environment` was scoped to ANOTHER project inside the user-scope file, so every repo got atlast's facts. Rewritten machine-generic, atlast facts moved to atlast's own `settings.local.json`, `$defaults` added to all three lists ([[LRN-153]]).
+- `doctor.sh` gained `check_automode` (missing `$defaults`, foreign-repo scope, both arms tested). `SETTINGS.md` documents the block + a tier-choice table. README's magic-MCP "ask = live confirmation" claim corrected — false under `defaultMode: auto`.
+- Found, not fixed: `.claude/settings.local.json` = 14.6 KB shadow copy of the global settings at HIGHER precedence, incl. a `config-protection.sh` hook whose script does not exist. Logged F1-F3 in TODO.
+- `make test` 0 RED, `doctor.sh` 0 errors, `shellcheck` clean.

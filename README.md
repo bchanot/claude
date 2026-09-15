@@ -300,10 +300,15 @@ check) for up to 10 minutes per call; any local process or open browser tab
 can `POST` to it and that body is injected **verbatim** into the tool result
 the model consumes (job8 audit, `dist/utils/callback-server.js:36`). This is
 in the third-party package's code, not this repo's config — **we don't patch
-it**. The mitigation lives entirely on our side: `settings.json`
-`permissions.ask` explicitly lists all 4 `mcp__magic__*` tools,
-so every call — builder included — requires a live confirmation and can
-never auto-execute. Don't allowlist
+it**. The mitigation lives on our side: `settings.json`
+`permissions.ask` explicitly lists all 4 `mcp__magic__*` tools.
+Read that as a declared intent, not a proven hard gate: under
+`defaultMode: auto` (this config's default) Bash `ask` rules were observed
+auto-approving with no prompt raised (LRN-146). Whether MCP `ask` rules
+behave the same has not been verified here, so re-check before relying on
+it. `deny` is the only tier the auto-mode classifier cannot lift; for a
+gate that holds under auto mode without banning the tool outright, the
+right home is `autoMode.soft_deny`. Don't allowlist
 `21st_magic_component_builder` or `21st_magic_component_refiner` (arbitrary
 absolute-path read → vendor exfil, same audit) under any circumstance.
 
