@@ -27,8 +27,9 @@ Every choice was made in the plan or is a NEED-DECISION to report.
 
 - Apply the FIX PLAN to the letter — fix the ROOT CAUSE named in DIAGNOSIS,
   not the symptom. A plan hole or an open choice (naming, data shape, API
-  surface, dependency) → STOP, report `NEED-DECISION` with the precise
-  question. Never re-investigate or improvise a different fix.
+  surface, dependency, a user-visible choice such as placement, wording or
+  behavior) → STOP, report `NEED-DECISION` with the precise question and
+  its `CLASS:`. Never re-investigate or improvise a different fix.
 - Stay inside the contract FILE SCOPE. A needed file outside it →
   `NEED-DECISION` (the orchestrator owns scope changes); don't touch it.
 - Add or update the regression test the plan names — it must fail before the
@@ -73,5 +74,6 @@ FILE(S)  : <created/modified paths>
 TEST(S)  : <regression test added/updated + final suite run result, verbatim line>
 SMOKE    : <build/typecheck result if run, or n/a>
 NOTES    : <DONE: deviations (must be none) | NEED-DECISION: the exact
-           question + the options you see | BLOCKED: the blocker verbatim>
+           question + the options you see + CLASS: visible | public-name |
+           scope | internal | BLOCKED: the blocker verbatim>
 ```

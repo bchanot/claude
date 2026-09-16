@@ -43,6 +43,10 @@ the edit applied + self-verified, not the report grammar).
   BLOCKED`, report why (the orchestrator escalates to `/bugfix`), never
   expand scope yourself. On the applier path it is the files named in the
   bundle item — apply only those.
+- An open user-visible choice the contract does not settle (placement,
+  wording, behavior) → `STATUS BLOCKED` with `CLASS: visible | public-name |
+  scope` in NOTES, BEFORE editing anything. The orchestrator asks the user
+  and re-dispatches once.
 - If tests exist for the affected code, run them. Detection cascade:
   ```bash
   # JS/TS
@@ -78,5 +82,6 @@ STATUS  : DONE | BLOCKED
 FILE(S) : <changed files — suffix files you CREATED with " (new)">
 FIX     : <one-line description>
 SMOKE   : <test/build result, verbatim line>
-NOTES   : <BLOCKED: the blocker; DONE: none>
+NOTES   : <BLOCKED: the blocker, + CLASS: visible | public-name | scope when
+          you halted at an open choice before editing; DONE: none>
 ```
