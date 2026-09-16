@@ -48,11 +48,15 @@ Apply unless repo-specific instructions override.
   calls. Skill-mandated gates (fresh verifier/security/challenge)
   always dispatch as written. Don't redo delegated work by hand —
   failed gates re-dispatch fresh executors instead.
-- One question upfront if needed — don't interrupt mid-task.
+- Ask rather than guess. A choice visible in the result (placement,
+  wording, order, behavior), a name that becomes public (command, flag,
+  endpoint, file), or a scope the request does not settle → ask, even
+  mid-task. Batch what can be batched. Internal technical choices with
+  no observable effect stay yours.
   *Exception: skill-mandated gates and checkpoints (orchestrator
   validation gates, approval gates, darwin checkpoints) always fire.*
 - Bug received → fix directly: check logs, find root cause, resolve
-  autonomously.
+  autonomously; a visible choice in the fix still gets asked.
 - Something goes wrong → STOP, re-plan. Never push through.
 - Deviations: minor or clearly justified → do, explain after.
   Significant or shaky justification → ask before deviating.
