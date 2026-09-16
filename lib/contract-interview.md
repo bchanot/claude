@@ -7,8 +7,9 @@ subagents = execution + report only; gates and loop decisions live in the
 main loop).
 
 Run this in the ORCHESTRATOR MAIN LOOP, never in a subagent — STEP 2 may
-talk to the human. Mandatory passage in every flow; questions are optional
-and proportional — a complete request goes through silently.
+talk to the human, at contract time (pass A) and again at the flow's PLAN
+step (pass B). Questions follow the open choices, never a quota — a complete
+request goes through silently.
 
 ## STEP 1 — CAPTURE (verbatim)
 
@@ -17,16 +18,51 @@ message). No paraphrase, no cleanup, no translation, no summarizing. This
 section is IMMUTABLE for the life of the run — every later consumer
 (planner, dev, verifier) reads THESE words, never a restatement.
 
-## STEP 2 — AMBIGUITY CHECK (questions optional, proportional)
+## STEP 2 — CLARIFY (ask, never guess)
 
-Ask ONLY if one of these is missing AND not derivable from the repo:
+Two passes, both in the main loop, both may talk to the human.
+
+**Pass A — gaps.** Run here, against the request. Ask if one of these is
+missing AND not derivable from the repo:
 - a testable expected outcome
 - an unambiguous scope (what is allowed to change)
 - non-contradictory constraints
 
-Complete request → ZERO questions, stay silent. Otherwise: max 3 questions,
-one single batch (house rule: one question upfront, never mid-task). Never
-ask what the repo can answer — verify paths/APIs/behavior yourself first.
+**Pass B — open choices.** Defined here, run ONCE at the flow's PLAN step
+(see "Where pass B fires" below), against the plan just written — that is
+where choices become concrete. Enumerate every choice the run will settle
+that the request leaves open; keep those in these classes:
+1. VISIBLE — the user would see it in the result: placement, label, wording,
+   color, order, what a click does.
+2. PUBLIC NAME — a name that outlives the run: command, flag, endpoint, env
+   var, a file the human will read.
+3. SCOPE — "should X change too?", where the request does not name X.
+
+NEVER ask class 4 — internal technical choices with no observable effect
+(function decomposition, data shape, local naming, layout inside an
+already-scoped zone). Those are delegated; asking them is the noise that
+makes classes 1-3 ignorable. Never ask what the repo or the request already
+answers — verify paths/APIs/behavior yourself first.
+
+No question cap. Each pass asks what it finds, in ONE batch. A request that
+leaves nothing open goes through silently. More than 5 open choices in pass B
+= the request is under-specified: list them, say so, stop — do not fire a
+questionnaire. "You decide" / "peu importe" is an answer: record it as
+`A: delegated — <default taken>` and never re-ask it.
+
+Pass B answers land in the contract's CLARIFICATIONS marked
+`[gated <YYYY-MM-DD>]` — the contract is already on disk by then.
+
+### Where pass B fires
+
+| Flow | Pass B runs at | Against |
+|------|----------------|---------|
+| feat | STEP 1 PLAN, before 1b CHALLENGE | the PLAN checklist |
+| bugfix | STEP 3 FIX PLAN, before 3b | the FIX PLAN |
+| hotfix | STEP 1 LOCATE | the 1-2 target files' visible effect |
+| ship-feature | STEP 2 PLAN, after the brainstorm | the plan, minus what the brainstorm settled |
+| init-project | STEP 3 DESIGN, before VALIDATION GATE #1 | the DESIGN, minus what the interview and brainstorm settled |
+| onboard | its STEP 3 interview, unchanged | scope, in one block |
 
 ## STEP 3 — DERIVE
 
@@ -85,7 +121,7 @@ Template:
 <the user's exact words>
 
 ## CLARIFICATIONS
-Q: <question> / A: <answer>
+Q: <question> / A: <answer>   (pass B and mid-run entries: [gated <YYYY-MM-DD>])
 (or: none — request complete)
 
 ## ACCEPTANCE CRITERIA
@@ -104,6 +140,33 @@ Q: <question> / A: <answer>
 
 Print one line to the user, then continue the flow:
 `CONTRACT: <path> — <n> criteria, scope <files|repo-wide>, <q> questions asked`
+
+## MID-RUN CLARIFICATION (the channel executors halt into)
+
+An executor cannot talk to the human. It halts with `NEED-DECISION`, the
+exact question, the options it sees, and a `CLASS:` tag (visible |
+public-name | scope | internal). `/hotfix`: the hotfixer keeps
+`DONE | BLOCKED`; a BLOCKED carrying the tag follows the same routing instead
+of escalating to `/bugfix`. The orchestrator re-reads the class — the tag is
+a hint, not a verdict — then routes:
+- visible / public-name / scope → ASK THE HUMAN, verbatim question and
+  options. Never decide these yourself, never spend a round-trip guessing.
+- internal → decide here, note the decision, re-dispatch. The only case the
+  orchestrator settles alone; max 2 such round-trips → escalate.
+
+Every answer, human or orchestrator, appends to the contract's
+CLARIFICATIONS marked `[gated <YYYY-MM-DD>]` — the same micro-gate as scope
+enrichment — and to the plan handed to the FRESH re-dispatched executor,
+which reads the decision from disk, never from a transcript.
+
+## HOW TO ASK (LRN-102)
+
+The harness reliably renders only the turn's FINAL text; text printed before
+a tool call may be swallowed. So:
+- up to 4 questions → one `AskUserQuestion` call; option descriptions carry
+  the context; print nothing the user needs before the call.
+- more than 4, or a list handed back for re-specification → plain text, end
+  the turn.
 
 ## Lifecycle
 
@@ -134,7 +197,7 @@ Print one line to the user, then continue the flow:
 
 | Flow | Weight |
 |------|--------|
-| hotfix | Silent autofill — criteria: "symptom gone; build/tests green"; scope = the 1-2 target files. Zero questions ever. |
+| hotfix | Pass A silent autofill — criteria: "symptom gone; build/tests green"; scope = the 1-2 target files. Pass B runs at LOCATE against the 1-2 target files' visible effect; a typo fix asks nothing. |
 | feat / bugfix | Proportional. bugfix: the DIAGNOSIS feeds the criteria (symptom reproduced-then-gone + regression test present). |
 | ship-feature | Full. Design decisions approved at the validation gate append criteria `[gated <date>]` — the human validates the enriched contract, the verifier receives that version. |
 | init-project | Full. The interviewer's PROJECT BRIEF pours into the contract (V1 features → criteria). |
