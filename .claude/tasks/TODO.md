@@ -11,19 +11,19 @@ rule changes for all work, hotfix included; classes VISIBLE / PUBLIC NAME /
 SCOPE ask, internal technical choices never. Spec:
 `docs/superpowers/specs/2026-09-16-ask-dont-guess-design.md`; plan:
 `docs/superpowers/plans/2026-09-16-ask-dont-guess.md` (9 tasks, lock-first).
-- [ ] P1 `lib/contract-interview.md` — STEP 2 CLARIFY (pass A gaps, pass B
+- [x] P1 `lib/contract-interview.md` — STEP 2 CLARIFY (pass A gaps, pass B
       open choices), MID-RUN CLARIFICATION, HOW TO ASK; 9 locks in
       `contract-verifier.test.sh`
-- [ ] P2 `CLAUDE.global.md:51-55` — "Ask rather than guess" replaces the
+- [x] P2 `CLAUDE.global.md:51-55` — "Ask rather than guess" replaces the
       one-question rule; bug line reconciled
-- [ ] P3 `skills/feat/SKILL.md` — pass B at STEP 1, NEED-DECISION routed on class
-- [ ] P4 `skills/bugfix/SKILL.md` — pass B at STEP 3, NEED-DECISION routed on class
-- [ ] P5 `skills/hotfix/SKILL.md` — pass B at LOCATE, tagged BLOCKED relayed;
+- [x] P3 `skills/feat/SKILL.md` — pass B at STEP 1, NEED-DECISION routed on class
+- [x] P4 `skills/bugfix/SKILL.md` — pass B at STEP 3, NEED-DECISION routed on class
+- [x] P5 `skills/hotfix/SKILL.md` — pass B at LOCATE, tagged BLOCKED relayed;
       lock `loops-light.test.sh:84`
-- [ ] P6 `skills/ship-feature` STEP 2 + `skills/init-project` contract §/STEP 3
-- [ ] P7 `agents/interviewer.md` — visible/public/scope item never `(assumed)`
-- [ ] P8 `agents/{feater,bugfixer,hotfixer}.md` — CLASS tag; 3 locks in `gates.test.sh`
-- [ ] P9 `make test`, CHANGELOG, TODO tick; manual behavioral check before merge
+- [x] P6 `skills/ship-feature` STEP 2 + `skills/init-project` contract §/STEP 3
+- [x] P7 `agents/interviewer.md` — visible/public/scope item never `(assumed)`
+- [x] P8 `agents/{feater,bugfixer,hotfixer}.md` — CLASS tag; 3 locks in `gates.test.sh`
+- [x] P9 `make test` green (2026-09-16), CHANGELOG, TODO tick; manual behavioral check still OPEN before merge
 - [ ] P10 registries at capitalize: BDR (supersedes the one-question rule),
       LRN (taste is invisible to a gap-only trigger; fresh re-dispatch cost
       favors plan-time questions)
