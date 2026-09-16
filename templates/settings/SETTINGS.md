@@ -79,8 +79,11 @@ one repo feeds the classifier false facts in all the others.
 
 ### `ask` is not a prompt under auto mode
 
-Verified in-session (LRN-146): with `defaultMode: auto`, Bash rules in
-`permissions.ask` were auto-approved and raised no prompt. `deny` is the only
+Verified in-session (LRN-146, re-verified on 2.1.273 on 2026-09-16 with a
+`node -e` probe matching an `ask` rule): with `defaultMode: auto`, Bash rules
+in `permissions.ask` were auto-approved and raised no prompt. The auto-mode
+docs claim the opposite for "content-scoped" rules such as `Bash(git push *)`;
+the observed behavior wins until a probe shows a prompt. `deny` is the only
 tier the classifier cannot lift.
 
 So for a destructive command you want gated but still reachable, `ask` is the
@@ -94,10 +97,20 @@ it. Keep `deny` for what must never run at all.
 | Never runs, no exception, matchable by a command pattern | `permissions.deny` |
 | Never runs, and a pattern cannot express it (a read then a send, a prod target) | `autoMode.hard_deny` |
 | Runs when the user asks for it, blocked otherwise | `autoMode.soft_deny` |
+| Runs freely when a condition holds that only the classifier can judge (a local dev container, a package declared in the lockfile) | `autoMode.allow` |
 | Runs freely | `permissions.allow`, or nothing |
 
 `permissions.ask` is not on this list on purpose. Under `defaultMode: auto` it
 gates nothing.
+
+`autoMode.allow` is the exception tier: inside the classifier an `allow` entry
+overrides a matching `soft_deny`, built-in or yours, so word it as narrowly as
+the condition allows. It is also the only tier that can open an interpreter:
+under auto mode Claude Code suspends the static allow rules that grant
+arbitrary code execution (`Bash(*)`, wildcarded interpreters such as
+`Bash(node *)`), so those commands reach the classifier whatever
+`permissions.allow` says. `awk` and `echo` pass through a static rule; `node`
+cannot.
 
 ### Scope of intent
 
