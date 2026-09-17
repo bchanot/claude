@@ -1,5 +1,29 @@
 # TODO
 
+## 2026-09-17 — /deploy hand-back: one-line commands + post-deploy test list (feature/deploy-oneline-tests)
+User: commands in the /deploy checklist arrive broken across lines (cannot
+copy-paste), and the hand-back stops at the deploy steps — wants, after the
+checklist, a list of things to test by hand about THIS delta + suggestions.
+Evidence: zenquality runbook step 3 carries a `\`-continued psql; game runbook
+has 200-350 char command lines the model re-wraps at display (80-char code
+style pressure). Method: writing-skills RED/GREEN on a scratch fixture repo
+(4 fresh agents, skill body as instructions, gate pre-approved).
+- [x] D1 RED baseline: 4 runs on the current skill, record wrapped commands
+      + absence of a test list + rationalizations
+- [x] D2 SKILL.md: physical-line rule (checklist, bootstrap, learn patch;
+      join legacy `\` continuations at instantiation), post-deploy tests
+      recipe (manual checks + suggestions, derived from the delta), hand-back
+      order checklist → tests → report request; Rules / mistakes / red flags
+- [x] D3 templates/deploy/PROCEDURE.md style header + test-prompts.json
+- [x] D4 GREEN: re-run 4 fresh agents on the edited skill, compare shape
+- [x] D5 CHANGELOG [Unreleased] Changed; report; offer capitalize (EVAL + LRN)
+Milestone 2026-09-17: RED 4/4 (3 sonnet + 1 opus) reproduced the `\`
+continuation verbatim, no re-wrap of 200+ char lines, no test list; GREEN
+4/4 joined the continuation, kept long lines whole, printed the tests block
+in the recipe's shape (grant gap as a Suggestion, never patched). Branch
+feature/deploy-oneline-tests, uncommitted, awaiting user. Registries: EVAL +
+LRN drafts proposed, not written.
+
 ## 2026-09-16 — docker + node framed by the classifier (feature/automode-docker-node)
 User: `docker exec -i supabase_db_game psql … -f - < supabase/verify/*.sql | tail`
 must run unprompted under auto mode; same for node/npm/npx when the package
