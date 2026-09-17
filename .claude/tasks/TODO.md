@@ -20,7 +20,7 @@ for this change, diff reviewed on the branch).
 - [x] A3 CHANGELOG [Unreleased] Changed
 - [x] A4 verify (2026-09-16, all green; `critique` printed nothing): `jq`, `claude auto-mode config`,
       `doctor.sh`, live `docker exec` in game
-- [ ] A5 registries at capitalize: LRN (doc vs observed `ask` under auto,
+- [x] A5 registries written 2026-09-17: LRN (doc vs observed `ask` under auto,
       2.1.273; `autoMode.allow` = exception tier; wildcarded-interpreter
       allow suspended), BDR-090 addendum
 ## 2026-09-16 — ask, don't guess: orchestrators ask about open choices (feature/ask-dont-guess)
@@ -47,7 +47,7 @@ SCOPE ask, internal technical choices never. Spec:
 - [x] P7 `agents/interviewer.md` — visible/public/scope item never `(assumed)`
 - [x] P8 `agents/{feater,bugfixer,hotfixer}.md` — CLASS tag; 3 locks in `gates.test.sh`
 - [x] P9 `make test` green (2026-09-16), CHANGELOG, TODO tick; manual behavioral check still OPEN before merge
-- [ ] P10 registries at capitalize: BDR (supersedes the one-question rule),
+- [x] P10 registries written 2026-09-17: BDR (supersedes the one-question rule),
       LRN (taste is invisible to a gap-only trigger; fresh re-dispatch cost
       favors plan-time questions)
 

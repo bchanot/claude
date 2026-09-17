@@ -144,6 +144,9 @@ rules:
 | LRN-152 | 2026-09-15 | git `protocol.file=user` blocks submodule fixtures; `-c` misses the code under test, `GIT_CONFIG_*` env does not | tests building git fixtures |
 | LRN-153 | 2026-09-15 | `autoMode` lists replace built-ins without `"$defaults"`; a user-scope block reaches every project | any `autoMode` edit |
 | LRN-154 | 2026-09-15 | `git rm --cached` + merge into a branch that still tracks the file DELETES it from disk | untracking a generated file |
+| LRN-155 | 2026-09-16 | ask under auto: doc says prompt, probe on 2.1.273 says no; re-probe after upgrades | any permission-tier reasoning |
+| LRN-156 | 2026-09-16 | autoMode.allow = exception tier; static interpreter allow suspended under auto → conditions live in prose | conditional permissions |
+| LRN-157 | 2026-09-16 | gap-only trigger blind to taste → add a trigger class, not budget; ask at plan, mid-run for leftovers | any "ask more" request |
 
 ---
 
@@ -1469,3 +1472,21 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Future application**: untracking any generated file — know the regeneration command BEFORE merging, and `ls` the path right after `finish`. If nothing regenerates it, keep it tracked.
 - **graphify specifics**: `graphify install --platform claude` copies the skill and touches nothing else. `graphify claude install` is a different command — it writes the CLAUDE.md section and the `.claude/settings.json` hooks, rewrites both guarded configs, and does NOT copy the skill. Confusing the two wastes a recovery attempt.
 - **Reference**: `CLAUDE.md` machine-owned section, commit 80ccdaf. Links [[BDR-090]].
+
+## LRN-155 — `permissions.ask` under auto mode: the probe beats the doc
+- **Date**: 2026-09-16
+- **Pattern**: `auto-mode-config` + `permissions` docs say a content-scoped `ask` rule (`Bash(git push *)`) is evaluated BEFORE the classifier and always prompts, even in auto mode. Probe on 2.1.273: `node -e 'console.log(...)'` matching `Bash(node -e *)` in `ask` ran, no prompt, exit 0. [[LRN-146]] holds. Either the doc describes a later build or "content-scoped" means something narrower; observed wins.
+- **Future application**: before reasoning about a permission tier, probe it with a benign command matching the rule; re-probe after every Claude Code upgrade — the day `ask` starts prompting, every leftover `ask` entry becomes a nag for things meant to run free.
+- **Reference**: [[BDR-092]], `templates/settings/SETTINGS.md` "ask is not a prompt" §.
+
+## LRN-156 — Conditional permissions live in classifier prose, not static rules
+- **Date**: 2026-09-16
+- **Pattern**: `autoMode.allow` = exception tier: an entry overrides a matching `soft_deny`, built-in or own (precedence hard_deny > soft_deny > allow > explicit intent). Under auto, static allow rules granting arbitrary execution (`Bash(*)`, wildcarded interpreters like `Bash(node *)`) are suspended → classifier anyway; non-interpreter statics (`awk`, `echo`) resolve before it. A condition ("package declared in the lockfile", "container is local dev") is therefore expressible ONLY as `autoMode.allow` prose. Word it narrowly: it punches through built-in rules too.
+- **Tooling**: `claude auto-mode defaults` prints the built-in lists (grep it for the rule that bit); `claude auto-mode config` = effective lists with `$defaults` expanded; `claude auto-mode critique` printed nothing on 2.1.273. Shell-snapshot `claude` wrapper is broken (`exec command claude` → "command: not found") → call `~/.local/bin/claude` directly.
+- **Reference**: [[BDR-092]], [[LRN-153]].
+
+## LRN-157 — Taste is invisible to a gap-only trigger; ask at plan time
+- **Date**: 2026-09-16
+- **Pattern**: a trigger that fires only on missing outcome / scope / constraints lets every taste choice through — "add a share icon" is complete by those criteria and the icon's side is decided downstream. More budget changes nothing; the fix is a new trigger class (VISIBLE / PUBLIC NAME / SCOPE). Cost geometry: a fresh re-dispatch keeps the working tree and loses the executor's reasoning → the same question costs about one executor run more mid-run than at PLAN. So: sweep once at the plan step, keep the mid-run channel for leftovers. Executor tags the class; orchestrator re-reads it (tag = hint, a mis-tag would offload class 4 onto the human). Relayed questions obey [[LRN-102]]: context inside `AskUserQuestion`, nothing the user needs printed before it.
+- **Future application**: any "ask more" request → check WHICH trigger is blind before touching a quota. Any orchestrator with a "decide it yourself" fallback on an executor halt → route by class first.
+- **Reference**: [[BDR-091]], `lib/contract-interview.md` STEP 2 + MID-RUN CLARIFICATION.

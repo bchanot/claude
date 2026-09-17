@@ -471,3 +471,8 @@ rules:
 - `make test` 0 RED, `doctor.sh` 0 errors, `shellcheck` clean.
 - graphify skill untracked + gitignored (written by `graphify install --platform claude` since `~/.claude/skills` symlinks to `skills/`). Cost one self-inflicted incident: `git rm --cached` kept the files, `gitflow finish` deleted them at the merge ([[LRN-154]]). Restored at 0.9.61, guarded configs snapshotted and verified untouched.
 - `.claude/settings.local.json` 14.6 KB -> 6.2 KB. It was not just duplication: its local `deny` still carried the 4 rules moved out of global deny, making [[BDR-090]]'s soft_deny a dead letter in this repo, and its `allow` carried `sed *` / `cp *` / `python3 -`, which short-circuit the classifier on the same rules.
+
+## 2026-09-16
+- Ask, don't guess ([[BDR-091]]): spec + plan, 9 lock-first tasks (contract-interview CLARIFY two passes, MID-RUN CLARIFICATION with `CLASS:` tag, HOW TO ASK; global rule; feat / bugfix / hotfix / ship-feature / init-project wired; interviewer; 3 executors), suite green. Behavioral fixture check still open ([[LRN-157]]).
+- docker + node under auto mode ([[BDR-092]]): `ask` entries retired (inert on 2.1.273, probe — [[LRN-155]]), `autoMode.allow` + 2 soft_deny, live `docker exec … psql` OK. Static interpreter allow is suspended under auto → prose only ([[LRN-156]]).
+- Both merged into develop 2026-09-17 via gitflow (`ddadca6`, `56bd035`), two stack conflicts (TODO, CHANGELOG) resolved keeping both blocks. Symlinked `settings.json` follows the checkout: live config = whatever branch is out.
