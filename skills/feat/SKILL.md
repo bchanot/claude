@@ -85,9 +85,9 @@ MEMORY; feed STEP 1 PLAN. Inline consumption — reader = planner, no injection.
 ## STEP 0.7 — CONTRACT
 
 Run `$HOME/.claude/lib/contract-interview.md` (main loop — you are it). It
-captures the request verbatim, asks 0-3 questions PROPORTIONAL to ambiguity
-(a complete request → zero questions, silent), derives testable acceptance
-criteria + file scope, and writes the contract to
+captures the request verbatim, runs pass A (gaps: outcome, scope,
+constraints — a complete request goes through silently), derives testable
+acceptance criteria + file scope, and writes the contract to
 `.claude/tasks/contracts/<date>-<slug>-<HHMM>.md`. Keep the path — the
 executor reads it first and GATE 1 (STEP 4) hands it to a fresh verifier.
 
@@ -114,8 +114,11 @@ PLAN:
   [ ] <test file> — <test to add>
 ```
 
-If the approach is ambiguous: ask the user ONE focused question BEFORE
-dispatching — never after (the executor cannot relay questions).
+Then run pass B of `$HOME/.claude/lib/contract-interview.md` against this
+plan: every VISIBLE / PUBLIC NAME / SCOPE choice the plan settles that the
+request left open → one batch of questions BEFORE dispatching; answers land
+in the contract's CLARIFICATIONS `[gated]` and in the plan. A choice that
+surfaces only during execution comes back as `NEED-DECISION` (STEP 3).
 
 ## STEP 1b — CHALLENGE THE PLAN (before branching)
 The STEP 1 plan is a reflection worth attacking before a branch is spent on it.
@@ -125,8 +128,8 @@ Persist it to `.claude/tasks/plans/<date>-<slug>-<HHMM>.md`, then run
 Three blind challengers attack it; RE-THINK every aspect a BLOCKER lands (a named
 plan change, or `[deferred]`), re-challenge once if the plan materially changed. The
 STEP 3 executor receives the REVISED plan. Before dispatch, print a CHALLENGE SUMMARY
-(BLOCKERs addressed / deferred / lenses returned), surfacing any deferred BLOCKER via
-STEP 1's one-question gate.
+(BLOCKERs addressed / deferred / lenses returned), surfacing any deferred BLOCKER in
+the STEP 1 pass B batch.
 
 ## STEP 2 — BRANCH
 
@@ -150,9 +153,11 @@ Finish with the FEAT-EXEC REPORT."
 
 Parse the `FEAT-EXEC REPORT`:
 - `STATUS : DONE` → STEP 4.
-- `STATUS : NEED-DECISION` → make the decision HERE (that is reflection),
-  append it to the plan, re-dispatch a FRESH feater with plan + decision.
-  Max 2 decision round-trips → escalate to the user.
+- `STATUS : NEED-DECISION` → route on its `CLASS:` per MID-RUN CLARIFICATION
+  in `$HOME/.claude/lib/contract-interview.md`: visible / public-name / scope
+  → ask the user, verbatim; internal → decide HERE (max 2 such round-trips
+  → escalate). Append the answer to the contract `[gated]` and to the plan,
+  re-dispatch a FRESH feater with plan + decision.
 - `STATUS : BLOCKED` → surface the blocker to the user, stop.
 
 ## STEP 4 — VERIFY + SECURE (fresh gates, bounded loops)

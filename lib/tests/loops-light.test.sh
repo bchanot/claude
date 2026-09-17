@@ -81,7 +81,7 @@ tf "hotfixer report grammar"    "$HOT" "HOTFIX-EXEC REPORT"
 
 echo "── skills/hotfix/SKILL.md (hotfix wiring — revert, not loop) ──"
 tf "hotfix silent contract"     "$HSKL" "STEP 1.7 — CONTRACT (silent autofill)"
-tf "hotfix zero questions"      "$HSKL" "questions ever"
+tf "hotfix pass B at locate"    "$HSKL" "run pass B of"
 tf "hotfix security gate"       "$HSKL" "Security gate (fresh auditor)"
 tf "hotfix block reverts"       "$HSKL" "failure REVERTS, never loops"
 tf "hotfix no verifier"         "$HSKL" "No verifier is dispatched at hotfix weight"

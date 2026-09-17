@@ -47,6 +47,10 @@ git log --oneline -3
   as `/bugfix` (root-cause investigation, then a scoped fix)."
 - Settle the proposed fix HERE — the executor cannot ask questions, so the
   exact edit (what changes, in which file(s)) must be closed before dispatch.
+- Then run pass B of `$HOME/.claude/lib/contract-interview.md` against that
+  edit: a VISIBLE / PUBLIC NAME / SCOPE choice the bug description leaves
+  open (which way the icon aligns, the label's wording) → ask before
+  dispatch. A typo or a wrong value asks nothing.
 
 OPTIONAL — memory check (exempt by default; hotfix = obvious fix, mirror of its capitalize
 skip). For a RECURRING or urgent bug only, a quick blockers-only glance may save time:
@@ -66,8 +70,9 @@ Follow `$HOME/.claude/lib/design-gate.md`:
 
 ## STEP 1.7 — CONTRACT (silent autofill)
 
-Run `$HOME/.claude/lib/contract-interview.md` at hotfix weight: **zero
-questions ever** (a hotfix is an obvious fix by definition). Autofill the
+Run `$HOME/.claude/lib/contract-interview.md` at hotfix weight: pass A is a
+silent autofill (a hotfix is an obvious fix by definition); pass B already
+ran at STEP 1, ask nothing more here. Autofill the
 contract — REQUEST verbatim = the bug description as given; ACCEPTANCE
 CRITERIA = "symptom gone; build/tests green"; FILE SCOPE = the 1-2 target
 files from STEP 1. It writes `.claude/tasks/contracts/<date>-<slug>-<HHMM>.md`.
@@ -135,8 +140,14 @@ security dispatch, no revert. Finish with the HOTFIX-EXEC REPORT."
 Parse the `HOTFIX-EXEC REPORT`:
 - `STATUS : DONE` → STEP 4 (the SMOKE line in the report decides pass/fail
   there; DONE here means execution completed, not that it verified clean).
-- `STATUS : BLOCKED` → if any edits were made, revert ONLY the executor's
-  files: `git restore --source=$PRE -- <FILE(S) from the report>` and delete
+- `STATUS : BLOCKED` with `CLASS: visible | public-name | scope` in NOTES →
+  the executor halted at an open choice before editing (nothing to revert):
+  ask the user per MID-RUN CLARIFICATION in
+  `$HOME/.claude/lib/contract-interview.md`, append the answer to the
+  contract `[gated]`, re-dispatch ONCE with the closed choice. This is the
+  one re-dispatch hotfix allows; it is not a retry of a failed attempt.
+- `STATUS : BLOCKED` otherwise → if any edits were made, revert ONLY the
+  executor's files: `git restore --source=$PRE -- <FILE(S) from the report>` and delete
   any NEW file the report lists (untracked, absent from $PRE). Never
   `git restore .` — it would wipe the tolerated pre-existing edits too.
   Surface the blocker to the user; STOP. One attempt only — hotfix never
@@ -227,9 +238,10 @@ trivial hotfix still produces a `chore(memory): journal — …` commit (Frame 2
 - Reflection (LOCATE, contract, gate decisions) NEVER leaves this main
   loop; execution NEVER stays in it — the executor is the sonnet-pinned
   hotfixer subagent (BDR-066).
-- The executor is dispatched FRESH, once — hotfix never re-dispatches (no
-  decision round-trips; a blocked or failed attempt reverts and escalates
-  to `/bugfix`, it does not retry).
+- The executor is dispatched FRESH, once — hotfix never re-dispatches after
+  a failed or blocked attempt (it reverts and escalates to `/bugfix`, it
+  does not retry). Sole exception: a class-tagged BLOCKED answered by the
+  user (STEP 3), re-dispatched once with the closed choice.
 - Design gate only if CSS/style signals detected. See STEP 1.5.
 - **Revert-not-loop preserved**: smoke FAIL or security BLOCK →
   file-scoped revert from `$PRE` (STEP 4's protocol — never `git

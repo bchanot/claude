@@ -43,6 +43,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   and undeclared node packages (`npx`/`dlx` of a package absent from the
   lockfile, `npm install <name>`). `SETTINGS.md` gains the `autoMode.allow`
   tier and the reason a static `Bash(node *)` rule cannot do this job.
+- **Ask, don't guess: the orchestrators ask about open choices instead of
+  settling them.** `CLAUDE.global.md` replaces "one question upfront, never
+  mid-task" with: a choice visible in the result, a name that becomes
+  public, or a scope the request does not settle → ask, even mid-task;
+  internal technical choices stay Claude's. `lib/contract-interview.md`
+  STEP 2 becomes CLARIFY: pass A (the three gap checks, at contract time)
+  and pass B (the open-choice sweep in three classes, run once at each
+  flow's PLAN step, no question cap, over-5 guard, "you decide" recorded as
+  delegated). New MID-RUN CLARIFICATION section: an executor's
+  `NEED-DECISION` carries a `CLASS:` tag; visible / public-name / scope go
+  to the user verbatim, internal is decided in the loop; answers land in
+  the contract `[gated]`. New HOW TO ASK section (LRN-102). `/feat`,
+  `/bugfix`, `/hotfix`, `/ship-feature`, `/init-project` wire pass B at
+  their plan step; `/feat` and `/bugfix` stop deciding `NEED-DECISION`
+  themselves; `/hotfix` drops "zero questions ever" and allows one
+  re-dispatch for a class-tagged BLOCKED; the interviewer never ships a
+  visible / public-name / scope item as `(assumed)`; feater, bugfixer and
+  hotfixer report the class. Locks updated in the `contract-verifier`,
+  `loops-light` and `gates` tests.
 - **The classifier, not `permissions.ask`, now guards destructive shell
   work** (BDR-090). Ten rules left the static tiers: `rsync`, `kill -9`,
   `killall`, `pkill` out of `deny`, and `python3 -c`, `python -c`,

@@ -58,8 +58,8 @@ In both cases: MANDATORY STOP until user answers remaining questions. Produce PR
 
 **Then run `$HOME/.claude/lib/contract-interview.md`** seeded from the BRIEF:
 REQUEST verbatim = the user's project description; ACCEPTANCE CRITERIA = the
-V1 FEATURES (each testable); FILE SCOPE = the planned tree. No new questions
-(the interview already asked). It writes
+V1 FEATURES (each testable); FILE SCOPE = the planned tree. Pass A is covered
+by the interview; pass B runs at STEP 3 against the DESIGN. It writes
 `.claude/tasks/contracts/<date>-<slug>-<HHMM>.md`; the DESIGN approved at STEP
 4 ENRICHES it, and STEP 9's verifier judges the MVP against the enriched
 contract.
@@ -70,6 +70,9 @@ Load `$HOME/.claude/agents/analyzer.md`. Analyze BRIEF: existing code, stack con
 ## STEP 3 — DESIGN
 Invoke `superpowers:brainstorming` with BRIEF + ANALYSIS REPORT.
 Produce DESIGN: stack+versions, full folder tree, module responsibilities, data flow, interfaces (signatures only), config+tooling, test strategy, resolved decisions, prereqs list.
+Then run pass B of `$HOME/.claude/lib/contract-interview.md` against the DESIGN
+(minus what the BRIEF and the brainstorm settled): one batch before STEP 4;
+answers append to the contract `[gated]`.
 
 ## STEP 4 — VALIDATION GATE #1 ★ MANDATORY STOP
 Present:

@@ -116,6 +116,10 @@ RISK: <low/medium — what could go wrong>
   obvious fix.
 - If the fix is significant (>10 lines, multiple files,
   behavior change): wait for user approval.
+- Then run pass B of `$HOME/.claude/lib/contract-interview.md` against the
+  FIX PLAN: every VISIBLE / PUBLIC NAME / SCOPE choice it settles that the
+  bug report left open → one batch of questions, before STEP 3b. The trivial
+  fast-path is not exempt: a 1-line fix with a visible choice still asks.
 
 ## STEP 3b — CHALLENGE THE FIX PLAN (before the contract)
 Unless the fix is the trivial 1-2 line case STEP 3 already fast-paths, the
@@ -135,8 +139,8 @@ the STEP 3 approval gate.
 Run `$HOME/.claude/lib/contract-interview.md` (main loop). The DIAGNOSIS
 feeds it: REQUEST verbatim = the bug report as received; ACCEPTANCE CRITERIA
 = the symptom reproduced-then-gone + a regression test present and passing;
-FILE SCOPE = the FIX PLAN files. Questions stay proportional (a clear,
-reproduced bug → zero). It writes the contract to
+FILE SCOPE = the FIX PLAN files. Pass A only here (pass B ran at STEP 3); a
+clear, reproduced bug asks nothing. It writes the contract to
 `.claude/tasks/contracts/<date>-<slug>-<HHMM>.md`; keep the path — the
 executor reads it first and GATE 1 (STEP 6) hands it to a fresh verifier.
 
@@ -162,9 +166,11 @@ ops, no security dispatch. Finish with the BUGFIX-EXEC REPORT."
 
 Parse the `BUGFIX-EXEC REPORT`:
 - `STATUS : DONE` → STEP 6.
-- `STATUS : NEED-DECISION` → make the decision HERE (that is reflection),
-  append it to the plan, re-dispatch a FRESH bugfixer with plan + decision.
-  Max 2 decision round-trips → escalate to the user.
+- `STATUS : NEED-DECISION` → route on its `CLASS:` per MID-RUN CLARIFICATION
+  in `$HOME/.claude/lib/contract-interview.md`: visible / public-name / scope
+  → ask the user, verbatim; internal → decide HERE (max 2 such round-trips
+  → escalate). Append the answer to the contract `[gated]` and to the plan,
+  re-dispatch a FRESH bugfixer with plan + decision.
 - `STATUS : BLOCKED` → surface the blocker to the user, stop.
 
 ## STEP 6 — VERIFY + SECURE + PRE-COMMIT GATE + COMMIT (main loop, LRN-083)

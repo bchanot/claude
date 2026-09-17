@@ -23,6 +23,33 @@ for this change, diff reviewed on the branch).
 - [ ] A5 registries at capitalize: LRN (doc vs observed `ask` under auto,
       2.1.273; `autoMode.allow` = exception tier; wildcarded-interpreter
       allow suspended), BDR-090 addendum
+## 2026-09-16 — ask, don't guess: orchestrators ask about open choices (feature/ask-dont-guess)
+User: the orchestrators (ship-feature, feat, hotfix, bugfix, init-project)
+settle choices they should ask about ("cet icône, plutôt à gauche ou à
+droite ?"), even mid-run. Diagnosis: contract-interview STEP 2 only fires on
+gaps (outcome / scope / constraints), so a taste choice never triggers a
+question; feat:153 and bugfix:165 tell the orchestrator to "make the
+decision HERE" on NEED-DECISION. Decisions (user, 2026-09-15/16): global
+rule changes for all work, hotfix included; classes VISIBLE / PUBLIC NAME /
+SCOPE ask, internal technical choices never. Spec:
+`docs/superpowers/specs/2026-09-16-ask-dont-guess-design.md`; plan:
+`docs/superpowers/plans/2026-09-16-ask-dont-guess.md` (9 tasks, lock-first).
+- [x] P1 `lib/contract-interview.md` — STEP 2 CLARIFY (pass A gaps, pass B
+      open choices), MID-RUN CLARIFICATION, HOW TO ASK; 9 locks in
+      `contract-verifier.test.sh`
+- [x] P2 `CLAUDE.global.md:51-55` — "Ask rather than guess" replaces the
+      one-question rule; bug line reconciled
+- [x] P3 `skills/feat/SKILL.md` — pass B at STEP 1, NEED-DECISION routed on class
+- [x] P4 `skills/bugfix/SKILL.md` — pass B at STEP 3, NEED-DECISION routed on class
+- [x] P5 `skills/hotfix/SKILL.md` — pass B at LOCATE, tagged BLOCKED relayed;
+      lock `loops-light.test.sh:84`
+- [x] P6 `skills/ship-feature` STEP 2 + `skills/init-project` contract §/STEP 3
+- [x] P7 `agents/interviewer.md` — visible/public/scope item never `(assumed)`
+- [x] P8 `agents/{feater,bugfixer,hotfixer}.md` — CLASS tag; 3 locks in `gates.test.sh`
+- [x] P9 `make test` green (2026-09-16), CHANGELOG, TODO tick; manual behavioral check still OPEN before merge
+- [ ] P10 registries at capitalize: BDR (supersedes the one-question rule),
+      LRN (taste is invisible to a gap-only trigger; fresh re-dispatch cost
+      favors plan-time questions)
 
 ## 2026-09-15 — align config + deployment on the hand-edited settings.json (feature/automode-config-alignment)
 User edited global `settings.json` by hand: 4 destructive rules moved

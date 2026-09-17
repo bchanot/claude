@@ -116,6 +116,10 @@ Refine request into validated design via Socratic questioning. Don't proceed unt
 Invoke `superpowers:writing-plans` with the validated design AND the 0d digest: every task
 must be consistent with the in-force constraints; where a task implements or affects one,
 note the ID inline. Break design into tasks (2-5 min each). Each task: exact file paths, full code, verification steps.
+Then run pass B of `$HOME/.claude/lib/contract-interview.md` against the plan:
+every VISIBLE / PUBLIC NAME / SCOPE choice the plan settles that neither the
+request nor the STEP 1 brainstorm settled (check the contract's CLARIFICATIONS
+first) → one batch before STEP 2b; answers append to the contract `[gated]`.
 
 ## STEP 2b — CHALLENGE THE PLAN (adversarial, before the gate)
 Before the human sees the plan, harden it. Run `$HOME/.claude/lib/challenge-plan.md`:
