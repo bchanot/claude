@@ -1,5 +1,29 @@
 # TODO
 
+## 2026-09-16 — docker + node framed by the classifier (feature/automode-docker-node)
+User: `docker exec -i supabase_db_game psql … -f - < supabase/verify/*.sql | tail`
+must run unprompted under auto mode; same for node/npm/npx when the package
+is declared and effects stay in the cwd; "ajoute du soft deny pour bien le
+cadrer". Findings: `ask` is inert under auto (LRN-146 re-verified on 2.1.273
+with a `node -e` probe; the docs claim otherwise for content-scoped rules);
+the real gate is the built-in `Remote Shell Writes` / `Production Reads`
+classifier rules; a static `Bash(node *)` allow rule is suspended under auto
+(wildcarded interpreter), so `autoMode.allow` prose is the only lever for
+node. User approved the design and the `ask` removal explicitly (S6 override
+for this change, diff reviewed on the branch).
+- [x] A1 `settings.json` — drop 4 docker + `node -e` from `ask`; new
+      `autoMode.allow` (`$defaults` + local dev containers + project-local
+      node); 2 `soft_deny` entries (docker data destruction, undeclared
+      node packages); `model` bump committed separately
+- [x] A2 `templates/settings/SETTINGS.md` — `autoMode.allow` tier row +
+      why a static interpreter allow rule cannot do it; LRN-146 re-verify note
+- [x] A3 CHANGELOG [Unreleased] Changed
+- [x] A4 verify (2026-09-16, all green; `critique` printed nothing): `jq`, `claude auto-mode config`,
+      `doctor.sh`, live `docker exec` in game
+- [ ] A5 registries at capitalize: LRN (doc vs observed `ask` under auto,
+      2.1.273; `autoMode.allow` = exception tier; wildcarded-interpreter
+      allow suspended), BDR-090 addendum
+
 ## 2026-09-15 — align config + deployment on the hand-edited settings.json (feature/automode-config-alignment)
 User edited global `settings.json` by hand: 4 destructive rules moved
 deny→ask (`rsync`, `kill -9`, `killall`, `pkill`), 4 removed from ask

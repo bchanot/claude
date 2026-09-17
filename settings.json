@@ -224,13 +224,8 @@
       "Bash(curl * | sh)",
       "Bash(wget * | sh)",
       "Bash(mkfifo *)",
-      "Bash(node -e *)",
       "Bash(git push *)",
       "Bash(git push)",
-      "Bash(docker run *)",
-      "Bash(docker exec *)",
-      "Bash(docker-compose up*)",
-      "Bash(docker compose up*)",
       "Bash(brew install *)",
       "Bash(apt install *)",
       "Bash(apt-get install *)",
@@ -250,7 +245,7 @@
     "disableBypassPermissionsMode": "disable",
     "additionalDirectories": []
   },
-  "model": "opus[1m]",
+  "model": "claude-fable-5-1[1m]",
   "hooks": {
     "SessionStart": [
       {
@@ -360,6 +355,11 @@
   "inputNeededNotifEnabled": true,
   "skipAutoPermissionPrompt": true,
   "autoMode": {
+    "allow": [
+      "$defaults",
+      "Local dev containers: `docker exec`, `docker run`, `docker compose up`/`exec`/`logs`/`ps` against a container running on this workstation whose name does not carry `prod` or `production` (a local Supabase or Postgres such as `supabase_db_*`) is routine development, not a remote shell into a shared host. Running a SQL file or script that lives in the repo inside it (`psql -f`, migrations, verify scripts) and piping the output through `tail` or `grep` passes. Remote Shell Writes, Production Reads and Sensitive Remote Exec apply only to hosts named as sensitive in Environment or carrying `prod`. A literal `DROP`, `TRUNCATE` or `DELETE` without a predicate typed on the command line stays under Mass Delete.",
+      "Project-local node: `node <file>`, `npm run`, `pnpm` or `yarn` scripts, and `npx` or `pnpm exec` of a package declared in the project's manifest or lockfile, with effects inside the current working directory, pass like `awk` or `echo`. `node -e` that computes or edits inside the working directory passes; the soft block on inline interpreters that delete or write outside it still applies."
+    ],
     "soft_deny": [
       "$defaults",
       "Scope of intent: an instruction clears a SOFT BLOCK for the current turn only. An approval given in an earlier turn is not an approval now, and the same action repeated in a later turn has to be asked for again.",
@@ -368,7 +368,9 @@
       "Sending SIGKILL (`kill -9`) or killing processes by name (`killall`, `pkill`). These reach processes outside this session, including the user's editors, shells, dtach sessions and background jobs, and the target is chosen by a pattern, so a typo kills the wrong thing. Clear only when the user named the process in this turn.",
       "Editing more than one file in place in a single command: `sed -i` or `perl -pi` over a glob, or a loop over `git ls-files`. The damage is not loss, since git recovers it, but a diff spanning hundreds of files that nobody reads before committing. `sed -i` on a single named file passes. Clear only when the user asked for the sweep.",
       "Moving or renaming a directory inside the repo (`mv src/api src/api_old`, or any `mv` of a tree). It breaks imports and paths silently, and the breakage surfaces far from the command. Clear only when the user asked for that move.",
-      "An inline interpreter or `xargs` that deletes, or that writes outside the current working directory: `python3 -c`, `python -c` or `node -e` calling `rmtree`, `remove`, `unlink` or `truncate`; `xargs` feeding `rm`, `mv` or `dd`. `find ... | xargs rm` is the case that matters, since it routes around the `find * -exec rm` deny rule. Reading, computing, and editing a file inside the working directory pass untouched."
+      "An inline interpreter or `xargs` that deletes, or that writes outside the current working directory: `python3 -c`, `python -c` or `node -e` calling `rmtree`, `remove`, `unlink` or `truncate`; `xargs` feeding `rm`, `mv` or `dd`. `find ... | xargs rm` is the case that matters, since it routes around the `find * -exec rm` deny rule. Reading, computing, and editing a file inside the working directory pass untouched.",
+      "Docker data destruction on this workstation: `docker rm -f`, `docker volume rm` or `prune`, `docker system prune`, `docker compose down -v` (drops named volumes, which hold local database data with no undo), and `docker run` with `--privileged` or a bind mount outside the current working directory. Clear only when the user named the container or volume in this turn.",
+      "Undeclared node packages: `npx <pkg>`, `pnpm dlx` or `yarn dlx` of a package absent from the manifest and lockfile runs code fetched at call time; `npm install <name>` or `pnpm add <name>` adds a dependency the house rule requires naming first. Clear only when the user named the package in this turn."
     ],
     "hard_deny": [
       "$defaults",

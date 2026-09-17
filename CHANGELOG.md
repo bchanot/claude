@@ -28,6 +28,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   destructive command under auto mode.
 
 ### Changed
+- **Docker and node go through the classifier with a framing, instead of
+  an inert `ask` tier.** `Bash(docker run|exec *)`, `Bash(docker[-| ]compose
+  up*)` and `Bash(node -e *)` leave `permissions.ask` (no prompt under auto
+  mode, re-verified on 2.1.273). A new `autoMode.allow` list, `$defaults`
+  first, names the two routine cases the built-in `Remote Shell Writes` /
+  `Production Reads` rules were catching: `docker exec`/`run`/`compose`
+  against a local dev container whose name does not carry `prod`, running a
+  SQL file or script from the repo inside it; and project-local node
+  (`node <file>`, `npm run`, `npx`/`pnpm exec` of a lockfile-declared
+  package, effects inside the cwd). Two `soft_deny` entries frame what that
+  opens: docker data destruction (`rm -f`, `volume rm`/`prune`, `system
+  prune`, `compose down -v`, `--privileged`, bind mounts outside the cwd)
+  and undeclared node packages (`npx`/`dlx` of a package absent from the
+  lockfile, `npm install <name>`). `SETTINGS.md` gains the `autoMode.allow`
+  tier and the reason a static `Bash(node *)` rule cannot do this job.
 - **The classifier, not `permissions.ask`, now guards destructive shell
   work** (BDR-090). Ten rules left the static tiers: `rsync`, `kill -9`,
   `killall`, `pkill` out of `deny`, and `python3 -c`, `python -c`,
