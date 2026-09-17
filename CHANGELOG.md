@@ -28,6 +28,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   destructive command under auto mode.
 
 ### Changed
+- **`/deploy` hand-back: one physical line per command, then a post-deploy
+  tests block.** Every command in the checklist is emitted on exactly one
+  line, however long; a legacy `\` continuation in the runbook is joined at
+  instantiation, and bootstrap and learn patches write runbook lines the same
+  way (`templates/deploy/PROCEDURE.md` header updated). After the checklist
+  the hand-back now carries a "Post-deploy tests" block derived from the
+  delta diff: by-hand checks (action → observable result, each tied to a
+  delta file) plus Suggestions (checks the runbook does not do yet, gaps
+  spotted between delta files). Cold-resume re-display and re-hand-back
+  regenerate both. RED/GREEN tested on a scratch runbook (4/4 baseline runs
+  reproduced the continuation verbatim and printed no tests).
 - **Docker and node go through the classifier with a framing, instead of
   an inert `ask` tier.** `Bash(docker run|exec *)`, `Bash(docker[-| ]compose
   up*)` and `Bash(node -e *)` leave `permissions.ask` (no prompt under auto

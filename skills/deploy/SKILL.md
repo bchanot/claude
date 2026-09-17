@@ -22,9 +22,9 @@ disk in `.claude/deploy/`, never in conversation context. Never reconstruct the
 deploy from memory, commit messages, or `git describe`.
 
 **Claude never runs the deploy.** Prod commands run by hand, out-of-band. This
-skill only composes the checklist — **displayed in the conversation, never
-written to a file** (it is throwaway: valid for one delta, worthless after) —
-reacts to the user's report, and records the outcome.
+skill only composes the checklist and the post-deploy tests — **displayed in
+the conversation, never written to a file** (throwaway: valid for one delta,
+worthless after) — reacts to the user's report, and records the outcome.
 
 ## The two-moment contract — cold cross-session resume
 
@@ -112,6 +112,13 @@ as you would type them; a step that runs locally says `(from your machine)` in
 its header. Never fold `ssh host "cd … && …"` compounds: the user copy-pastes
 line by line. Each `# VERIFY:` sits at the end of the command line it gates.
 
+**One command = one physical line.** A command occupies exactly one line of
+the file, however long it gets: no `\` continuation, no heredoc, no wrapped
+argument list. The user copies one line and presses Enter; a continuation
+pastes as two half-commands. The `# VERIFY:` comment ends that same line. This
+holds wherever a runbook line is written — bootstrap, a learn patch, a manual
+edit — and the instantiation joins any legacy continuation it still meets.
+
 | Directive | Meaning | Instantiation |
 |-----------|---------|---------------|
 | `# @delta:<kind> glob=<pat>:each` | per-file command | repeat the command once **per** matching delta file (file substituted in) |
@@ -135,9 +142,10 @@ Read `.claude/deploy/PENDING.json` **first** (it is the only memory between runs
   **Do not** recompute the delta, re-read HEAD, or re-instantiate from scratch —
   the bridge is authoritative.
   - *Cold resume without a report yet* (the user just re-invoked /deploy):
-    regenerate the checklist from the bridge + the live runbook (STEP 2's
-    expansion, from `step_reached`) and RE-DISPLAY it — the checklist is not
-    a file, the conversation that held it is gone. If `runbook_rev` ≠ the live
+    regenerate the checklist AND the post-deploy tests from the bridge + the
+    live runbook (STEP 2's expansion, from `step_reached`; the tests from the
+    bridge's `base_sha`/`target_sha`/`delta`) and RE-DISPLAY both — neither is
+    a file, the conversation that held them is gone. If `runbook_rev` ≠ the live
     runbook commit (`git log -1 --format=%H -- .claude/deploy/PROCEDURE.md`),
     say so: the runbook changed mid-flight and the regenerated checklist
     follows the LIVE version.
@@ -183,7 +191,9 @@ Author a runbook, seed the incident ledger, commit both, then proceed to STEP 1.
      `# @delta:rebuild when=docker-compose*.yml,Dockerfile,Dockerfile.*`
    - Dep-install steps (`npm ci`, `pip install -r`, `bundle install`) →
      `# @delta:deps when=package.json,*lock*,requirements.txt,pyproject.toml`
-4. Present the annotated draft; invite corrections before the gate.
+4. Rewrite any `\`-continued, heredoc or wrapped command into one physical
+   line (the `@delta:` grammar's one-command-one-line rule).
+5. Present the annotated draft; invite corrections before the gate.
 
 → **[GATE]** below.
 
@@ -291,14 +301,20 @@ Set the base, compute the changed-file list, capture the target.
    prepend `# PRE-WARN: DEP-NNN <one-line summary>` above it.
 3. Keep every `# VERIFY:` gate. Header the checklist: *"Run by hand, step by
    step. Never executed by Claude."* + base → target SHAs + the delta.
-4. Preserve the runbook's shape: one command per line, session style (see the
-   `@delta:` grammar section) — instantiation never re-folds lines.
-5. **Write NO file.** The checklist exists in the conversation only —
-   `PENDING.json` is the sole on-disk artifact of the wait, and any future
-   session regenerates the checklist from it + the live runbook.
+4. **One physical line per command.** Emit each command on exactly one line,
+   however long — the terminal wraps it on screen, the clipboard does not. A
+   runbook line ending in `\` is a legacy continuation: join it with the
+   line(s) below into one command before emitting (drop the `\` and the
+   indent). Never split a long command, never fold two commands into one
+   compound. Session style otherwise, as the `@delta:` grammar says.
+5. **Derive the post-deploy tests from the delta** — the recipe is the next
+   section. They follow the checklist in the same hand-back.
+6. **Write NO file.** The checklist and the tests exist in the conversation
+   only — `PENDING.json` is the sole on-disk artifact of the wait, and any
+   future session regenerates both from it + the live runbook.
 
-**[GATE] — present the checklist → `all / edit / skip-all`.**
-- `all` → proceed. `edit` → revise the listed steps, re-present.
+**[GATE] — present the checklist + the post-deploy tests → `all / edit / skip-all`.**
+- `all` → proceed. `edit` → revise the listed steps or tests, re-present.
 - `skip-all` → abort: write no `PENDING.json`, discard the draft, stop.
 
 **On approve:** write `.claude/deploy/PENDING.json`:
@@ -308,8 +324,9 @@ Set the base, compute the changed-file list, capture the target.
   "started_at": "<now, ISO-8601>",
   "runbook_rev": "<git log -1 --format=%H -- .claude/deploy/PROCEDURE.md>" }
 ```
-**Then HAND BACK — the checklist IS the last text of the turn.** End the turn
-with the FULL final checklist in a fenced code block, followed only by the
+**Then HAND BACK — the hand-back IS the last text of the turn.** End the turn
+with, in this order: (1) the FULL final checklist in a fenced code block,
+(2) the post-deploy tests block (outside the fence, its own shape), (3) the
 one-line report request: *"Run it step by step against prod, then report:
 **Deployed OK** / **Failed at step X: <err>** / **Not yet**."* **No tool call
 comes after the print — none.** Do NOT wrap the report request in a blocking
@@ -318,7 +335,35 @@ question tool: text printed before a tool call may never reach the user
 the user had to open the file this rule exists to make unnecessary). The report
 arrives as the user's next message; `PENDING.json` on disk marks the wait.
 The same rule applies to every re-hand-back (STEP 4.3) and every cold-resume
-re-display: regenerated checklist ⇒ full print as the turn's final text.
+re-display: regenerated checklist + tests ⇒ full print as the turn's final text.
+
+### Post-deploy tests — the recipe (it IS this shape)
+
+The tests come from the delta and nothing else: read the diff of each delta
+file (`git diff <base_sha> <target_sha> -- <file>`); commit subjects serve the
+wording only. Every delta file that changes behaviour observable from outside
+— a route, a query, a policy, a UI element, a config value, a scheduled job —
+yields at least one manual check. Docs-only and `.claude/`-only files yield
+none. A gap between two delta files (a new client write with no matching
+grant, a migration no code reads yet, a removed route still linked) becomes a
+Suggestion phrased as a check to run — never a fix applied during the deploy.
+
+~~~markdown
+## Post-deploy tests — <n> delta files
+### By hand, on prod, in this order
+- [ ] <what the user does> → <what they must observe>   (<delta file>)
+- [ ] …
+### Suggestions
+- <a check the runbook does not do yet: a curl or query worth adding to the
+  smoke-test step, a log or metric to watch for the next hour, a rollback trigger>
+- …
+~~~
+
+One line per item, action → observable result, each tied to a delta file.
+"By hand" is what a person does in the browser, the app or a shell on prod;
+"Suggestions" holds the optional and the tooling. Zero behaviour-changing
+files (a docs-only delta) ⇒ one "By hand" item, the smoke test, and no
+Suggestions section.
 
 ## STEP 3 — RESUME / REACT
 
@@ -335,7 +380,7 @@ STEP 0** in a later session. Branch on the report:
 Diagnose the root cause of the step-X failure, then draft a **coupled pair**:
 
 - **(a)** an in-place patch to step X in `PROCEDURE.md` so the next run cannot
-  repeat the failure;
+  repeat the failure — every command in the patch on one physical line;
 - **(b)** an append to `INCIDENTS.md` — a new `DEP-NNN`
   (`next = grep '^## DEP-' INCIDENTS.md | max+1`) with date, step, **error
   verbatim**, root cause, and fix.
@@ -373,9 +418,10 @@ Then:
 2. **Regenerate the checklist from `step_reached` against the PATCHED runbook**
    (steps X…end — X+1…end never ran). This is NOT replaying one step: the
    runbook changed ⇒ the prior checklist is stale ⇒ regenerate.
-3. Re-present via **STEP 2's [GATE] + hand-back** (the regenerated checklist,
-   full print as the turn's final text; `PENDING.json` keeps
-   `base/target/delta`, `step_reached` back to `awaiting-user`).
+3. Re-present via **STEP 2's [GATE] + hand-back** (the regenerated checklist
+   + the post-deploy tests, full print as the turn's final text;
+   `PENDING.json` keeps `base/target/delta`, `step_reached` back to
+   `awaiting-user`).
 
 ## STEP 5 — MARK (success)
 
@@ -421,6 +467,11 @@ The deploy succeeded. Lay the oracle and close out.
   gates stay.
 - The checklist is displayed, never written to a file; every hand-back and
   re-display ends the turn with it — no tool call after the print.
+- One command = one physical line — in the runbook, in a learn patch, in the
+  checklist. A legacy `\` continuation is joined at instantiation.
+- The hand-back is checklist → post-deploy tests → report request. The tests
+  come from the delta diff: one manual check per behaviour-changing file,
+  gaps as Suggestions.
 - Patch + incident commit **atomically**, one `deploy-commit.sh` call, both files.
 - A learn bumps `runbook_rev` and **regenerates** the checklist from
   `step_reached`; it never replays a single step.
@@ -441,6 +492,11 @@ The deploy succeeded. Lay the oracle and close out.
 | Replaying only the failed step after a patch | Steps X…end never ran. Regenerate the checklist from `step_reached`. |
 | Ending a hand-back with a blocking question tool after the checklist | Text before a tool call may never render. The checklist is the turn's FINAL text; the report comes as the user's next message. |
 | Writing the checklist to a file "for reference" | Throwaway artifact — display only; PENDING.json + the runbook regenerate it anywhere. |
+| Emitting a runbook `\` continuation as two lines | Join into one physical line. The clipboard pastes lines, not commands. |
+| Wrapping a long command to fit a column width | One physical line, however long. The terminal wraps on screen; a wrapped paste runs two half-commands. |
+| Ending the hand-back at the checklist | Checklist → post-deploy tests → report request. The delta says what changed; the tests say what to check. |
+| Deriving the tests from commit messages | Read the delta diff. Subjects serve the wording only. |
+| Fixing a gap the tests revealed, mid-deploy | It is a Suggestion (a check to run). The app is patched after the deploy, on its own branch. |
 | Writing `STATE.json` before the user confirms success | Oracle marks success only. Failed deploy leaves it untouched. |
 | Setting `deployed_sha` to HEAD at MARK time | Use `PENDING.target_sha` — the SHA actually deployed. |
 | Parsing the JSON bridges with `jq` | Read them natively. No jq dependency. |
@@ -453,6 +509,8 @@ The deploy succeeded. Lay the oracle and close out.
 - About to execute the checklist or run any prod command yourself.
 - About to call ANY tool after printing the checklist in a hand-back.
 - About to write the checklist to a file.
+- About to print a command across two lines (`\`, heredoc, wrapped).
+- About to end a hand-back without the post-deploy tests block.
 - About to commit `PROCEDURE.md` without `INCIDENTS.md` in the same call.
 - About to write `STATE.json` before the user reported "Deployed OK".
 - About to replay one failed step instead of regenerating from `step_reached`.
@@ -469,5 +527,8 @@ match the failure modes the design identified: **discipline** failures
 rationalization table + red flags; the **shape** of the checklist and the schemas get
 positive recipes; the patch↔incident **omission** is a structural atomic-commit
 requirement. Pressure-scenario baseline testing per the writing-skills Iron Law
-is a follow-up — the failure modes were taken from the design spec, not a fresh
-RED run.
+is a follow-up for the two-moment core — those failure modes were taken from
+the design spec, not a fresh RED run. The hand-back shape (one physical line
+per command, post-deploy tests block) was RED/GREEN tested on 2026-09-17: 4/4
+fresh agents on a scratch runbook carrying a `\`-continued psql reproduced the
+continuation verbatim and printed no test list; the recipe above closed both.
