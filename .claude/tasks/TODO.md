@@ -40,8 +40,8 @@ yourself"; running it by hand needs `--scope=global` to land right, and then
       `rm -rf .claude/skills .claude/agents` before restarting).
 - [x] T7 CHANGELOG (Added/Changed/Fixed) + BDR-094 + LRN-159 + BLK-021 +
       journal. `make test` green except the 2 pre-existing gitflow T16a FAILs
-      (gitleaks binary absent on this host), shellcheck clean. Committed on
-      the branch, UNMERGED — human gate.
+      (gitleaks binary absent on this host), shellcheck clean. Merged into
+      develop 2026-09-22 (33e0899, gitflow finish on user go), pushed.
 
 **Residual, probed and fixed (round 3)**: with a copy already installed a
 rotted pin DOES exit 0 ("Could not check for skill updates: invalid zip data
@@ -106,7 +106,7 @@ IS a symlink → repo/skills. Verified live: "Refusing to access symbolic link
       dead `magic` branches in profile.sh enable/disable_skill,
       skills/profile/SKILL.md. OPEN for the user: `npm i -g @21st-dev/cli`
       then `21st login` (`Bash(npm install -g *)` is denied to the agent).
-      Branch UNMERGED — human gate.
+      Merged into develop 2026-09-22 (33e0899), pushed.
 
 ## 2026-09-17 — /deploy hand-back: one-line commands + post-deploy test list (feature/deploy-oneline-tests)
 User: commands in the /deploy checklist arrive broken across lines (cannot
