@@ -483,4 +483,5 @@ rules:
 - Blocker: documented `21st install-skill` refuses the `~/.claude/skills` symlink → staged install under a throwaway HOME (LRN-158).
 - Gate: `magic`+MAGIC_API_KEY required-manual slot → the `21st` CLI; publish verbs moved to `autoMode.soft_deny` (ask inert under auto).
 - BDR-093, LRN-158. `make test` green except 2 pre-existing gitflow FAILs (gitleaks binary absent on this host). Branch UNMERGED — human gate.
-
+- impeccable install repaired ([[BDR-094]]): global scope through the symlinks, 4 agents kept, pin 3.2.0 → 4.1.0 with @latest fallback, design-gate §5 `/impeccable init` hint. Residue probed: rotted pin over an existing copy exits 0 → `imp_install` reads the installer output ([[LRN-159]]); before/after version compare rejected (identical no-op). Harness 4/4, sandbox HOME, real installer.
+- Previous shell death traced: /tmp tmpfs usrquota blown by 5.9 GB of dead-session probe HOMEs ([[BLK-021]], open, user frees). Tests + harness ran with TMPDIR under ~/.cache. `make test` green minus 2 pre-existing T16a, shellcheck clean. Committed on feature/21st-cli-migration, UNMERGED. `skills/synced/` (claude.ai synced skills, 4.4 MB) untracked + unignored, left for the user.
