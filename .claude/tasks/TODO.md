@@ -39,7 +39,18 @@ settings) are the user's; this branch = layer C (config repo) + auto-push.
       "trace by reading, never by running" clause.
 - [x] G7 docs: `templates/settings/SETTINGS.md` (hook tier, ask caveat),
       CHANGELOG, BDR-095, LRN-160, journal. `make test` + shellcheck.
-      Existing projects: re-run `gitflow install-hook` to get post-commit.
+- [x] G8 hooks everywhere, no per-project step (user go 2026-09-22): global
+      `core.hooksPath ~/.claude/githooks` set by `make link` from a generated
+      `githooks/`; `gitflow reconcile-hooks` at session start refreshes a
+      lagging `.githooks/`; opt-outs `gitflow.protect` / `gitflow.autopush`;
+      pre-commit exempts `.githooks/**`; doctor check; hermetic
+      `GIT_CONFIG_GLOBAL=/dev/null` in `make test` + 2 suites; deny on the
+      env bypass forms; T18h T19d T20 T21. Verified after the /tmp cleanup:
+      gitflow 127/129 (2 pre-existing T16a), review-guards G5 caught this
+      repo's stale `.githooks/` (refreshed via install-hook), shellcheck
+      clean, doctor "Scratchpad" check added. OPEN for the user: `make link`
+      (sets the global `core.hooksPath`; denied to the agent), and launch
+      claude with `TMPDIR=$HOME/.cache/claude-tmp` in `dtach_claude()`.
 Out of scope here (user's side): restic append-only, lxd group, NAS mount,
 managed-settings.json + sandbox, per-project accounts, docker rootless.
 
