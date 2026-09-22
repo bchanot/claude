@@ -139,6 +139,33 @@ count:
   toolchain check handles the skill; this step handles the lib. Don't conflate
   them when talking to the user.
 
+### 5. Impeccable design context — suggest-only (one check, one line)
+
+Same class as §4: a PROJECT-side prerequisite, not a tool. `impeccable`
+installs globally, but every one of its verbs reads a per-project `PRODUCT.md`
+that only `/impeccable init` writes. Without it the skill runs on invented
+context, which is worse than not running it — and nothing else in the process
+says so, because init has to happen in the agent chat, not in an installer.
+
+**Fires when BOTH hold** — else stay silent:
+
+1. impeccable is active (`skills/impeccable` present, i.e. it did not trip §3).
+2. The project has no `PRODUCT.md` at its root.
+
+Evaluate it on the same path as §4: after the toolchain resolves, never on the
+INCOMPLETE stop path. One line, non-blocking:
+
+    🧭 impeccable has no project context here (no PRODUCT.md) — run `/impeccable init` first? (optional)
+
+**Rules:**
+
+- Non-blocking, and never run `init` unprompted: it interviews the user about
+  the product, so it needs their attention, not their absence.
+- One line per session at most. A refusal is an answer; do not re-ask inside
+  the same task.
+- Skip entirely for a review/audit of a single component and for any non-UI
+  work. This is for Build and design-system tiers.
+
 ### Other toolchains
 
 The script defaults to the `design` profile. A task needing another profile's

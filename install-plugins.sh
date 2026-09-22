@@ -788,54 +788,114 @@ else
 fi
 echo ""
 
-# ── Step 8d: Impeccable (design anti-pattern detector + skill) ──
-# 45 deterministic detector rules (CLI `impeccable detect`, exit 0/2) +
-# /impeccable skill (23 verbs). Machine-owned dist: the installer produces
-# it, we stage it in a tmpdir then move it under skills-external/
-# (gitignored, ctx7 pattern) — never let the installer write through the
-# ~/.claude/skills symlink into the tracked repo dir.
-echo "── Step 8d: Impeccable — design anti-pattern detector ────"
+# ── Step 8d: Impeccable (design detector + skill + subagents) ──
+# 45 deterministic detector rules (`impeccable detect`, exit 0/2), the
+# /impeccable skill (23 verbs) and 4 `impeccable-*` subagents.
+#
+# GLOBAL scope, no staging: the installer writes ~/.claude/skills/impeccable/
+# (skill + its self-contained engine binary) and ~/.claude/agents/
+# impeccable-*.md, and both of those are symlinks into this repo — so the
+# global install IS the repo install. Machine-owned and gitignored on both
+# sides. `--scope=project` was wrong twice over: it writes <cwd>/.claude/,
+# which serves only the directory it ran in, and the staged `mv` that
+# followed it moved the skill alone, silently dropping the subagents.
+#
+# The pin rots. The CLI downloads its skill dist at install time and an older
+# release's artifact eventually disappears (`impeccable@3.2.0` → "Download
+# failed: invalid zip data", 2026-09-22) — which is what left `make plugin`
+# telling the user to run the command by hand. So a pin failure falls back to
+# @latest and says, loudly, that the lock needs bumping.
+echo "── Step 8d: Impeccable — design detector, skill + agents ──"
 echo ""
-IMP_DIR="$REPO/skills-external/impeccable"
+IMP_SKILL_DIR="$HOME/.claude/skills/impeccable"
+IMP_PARKED="$REPO/skills-disabled/impeccable"
 IMP_VER=$(pinned_version "impeccable")
 NODE_MAJOR=$(node -v 2>/dev/null | sed 's/^v//' | cut -d. -f1)
-if [ -z "${NODE_MAJOR:-}" ] || [ "$NODE_MAJOR" -lt 24 ]; then
-  if [ -f "$IMP_DIR/SKILL.md" ]; then
+
+# One install attempt. $1 = "latest" or an exact version. On failure, IMP_FAIL
+# holds the reason. The exit code alone is not enough: with a copy already in
+# place, a rotted pin exits 0 ("Could not check for skill updates: invalid
+# zip data … Existing skills were left unchanged"), exactly like a genuine
+# up-to-date no-op ("Skills are up to date") — only the output tells them
+# apart. Probed 2026-09-22 on 4.1.0 vs 3.2.0 in a sandbox HOME.
+imp_install() {
+  local pkg="impeccable" out rc=0
+  [ "$1" != "latest" ] && pkg="impeccable@$1"
+  out=$(npx -y "$pkg" skills install -y --providers=claude --scope=global \
+    --no-hooks 2>&1) || rc=$?
+  IMP_FAIL=$(printf '%s\n' "$out" \
+    | grep -E 'Download failed|Could not check for skill updates' \
+    | head -1 || true)
+  if [ "$rc" -ne 0 ] && [ -z "$IMP_FAIL" ]; then
+    IMP_FAIL="installer exited $rc"
+  fi
+  [ -z "$IMP_FAIL" ]
+}
+
+# Precondition: ~/.claude/{skills,agents} must already be link.sh's symlinks.
+# Installing before they exist materializes real directories there, and
+# link.sh then refuses to replace them ("is a real directory") — a worse
+# failure than skipping, because it needs manual repair.
+IMP_READY=true
+for _imp_d in skills agents; do
+  if [ "$(readlink "$HOME/.claude/$_imp_d" 2>/dev/null || true)" != "$REPO/$_imp_d" ]; then
+    IMP_READY=false
+  fi
+done
+
+if [ "$IMP_READY" != true ]; then
+  warn "impeccable: ~/.claude/skills and ~/.claude/agents are not this repo's symlinks yet"
+  warn "  → run 'make link' first, then re-run 'make plugin'"
+elif [ -z "${NODE_MAJOR:-}" ] || [ "$NODE_MAJOR" -lt 24 ]; then
+  if [ -f "$IMP_SKILL_DIR/SKILL.md" ] || [ -f "$IMP_PARKED/SKILL.md" ]; then
     ok "impeccable already present (update skipped — needs Node >= 24, found ${NODE_MAJOR:-none})"
   else
     warn "impeccable: needs Node >= 24 (found ${NODE_MAJOR:-none}) — skipped. Bump Node, then: make plugin"
   fi
 else
-  IMP_PKG="impeccable"
+  # A profile may hold impeccable parked in skills-disabled/. Install writes
+  # to the live slot, so remember the state and put the fresh copy back where
+  # it was — otherwise `make plugin` silently re-enables a disabled skill.
+  IMP_WAS_PARKED=false
+  [ -d "$IMP_PARKED" ] && IMP_WAS_PARKED=true
+  IMP_USED=""
   if [ "$IMP_VER" != "latest" ]; then
-    IMP_PKG="impeccable@${IMP_VER}"
-    info "Installing impeccable ${IMP_VER} (pinned in plugins.lock.json, staged)..."
+    info "Installing impeccable ${IMP_VER} (pinned in plugins.lock.json, global scope)..."
+    if imp_install "$IMP_VER"; then
+      IMP_USED="$IMP_VER"
+    else
+      warn "impeccable@${IMP_VER} did not install (${IMP_FAIL}) — that release's skill dist is gone upstream"
+      info "Falling back to impeccable@latest..."
+      if imp_install latest; then
+        IMP_USED="latest"
+        warn "installed @latest instead of the pin. Bump \"impeccable\".version in plugins.lock.json to the version this produced, so the next run is reproducible again."
+      fi
+    fi
   else
     info "Installing impeccable latest (consider pinning in plugins.lock.json)..."
+    imp_install latest && IMP_USED="latest"
   fi
-  IMP_STAGE=$(mktemp -d)
-  if (cd "$IMP_STAGE" && npx -y "$IMP_PKG" skills install -y --providers=claude --scope=project --no-hooks >/dev/null 2>&1); then
-    IMP_SRC=$(find "$IMP_STAGE" -type d -name impeccable -path "*skills*" 2>/dev/null | head -1)
-    if [ -n "$IMP_SRC" ] && [ -f "$IMP_SRC/SKILL.md" ]; then
-      rm -rf "$IMP_DIR"
-      mv "$IMP_SRC" "$IMP_DIR"
-      ok "impeccable synced to skills-external/ (CLI ${IMP_VER})"
-    else
-      warn "impeccable: installer ran but produced no skills/impeccable/SKILL.md — layout changed? Inspect: npx impeccable skills install"
+
+  if [ -n "$IMP_USED" ] && [ -f "$IMP_SKILL_DIR/SKILL.md" ]; then
+    IMP_SKILL_VER=$(sed -n 's/^version:[[:space:]]*//p' "$IMP_SKILL_DIR/SKILL.md" | head -1)
+    # -L: ~/.claude/agents is a symlink, and find would otherwise stop on it.
+    IMP_AGENTS=$(find -L "$HOME/.claude/agents" -maxdepth 1 -name 'impeccable-*.md' 2>/dev/null | wc -l)
+    ok "impeccable installed (CLI ${IMP_USED}, skill ${IMP_SKILL_VER:-?}, ${IMP_AGENTS} agents)"
+    if [ "$IMP_AGENTS" -eq 0 ]; then
+      warn "no impeccable-* agent landed in agents/ — the skill's finish/document verbs dispatch to them"
     fi
+    if [ "$IMP_WAS_PARKED" = true ]; then
+      rm -rf "${IMP_PARKED:?}"
+      mv "$IMP_SKILL_DIR" "$IMP_PARKED"
+      info "impeccable was parked by a profile — refreshed copy returned to skills-disabled/"
+    fi
+    info "Per-project step, in the agent chat of each frontend project:  /impeccable init"
+    info "  (writes PRODUCT.md — the design context every impeccable verb reads)"
+  elif [ -f "$IMP_SKILL_DIR/SKILL.md" ] || [ -f "$IMP_PARKED/SKILL.md" ]; then
+    ok "impeccable already present (install failed: ${IMP_FAIL:-no SKILL.md written} — existing copy kept)"
   else
-    if [ -f "$IMP_DIR/SKILL.md" ]; then
-      ok "impeccable already present (installer failed — existing dist kept)"
-    else
-      warn "impeccable install failed — run manually: npx impeccable skills install -y --providers=claude --scope=project --no-hooks"
-    fi
+    warn "impeccable install failed (${IMP_FAIL:-no SKILL.md written}) — run manually: npx impeccable skills install -y --providers=claude --scope=global --no-hooks"
   fi
-  rm -rf "$IMP_STAGE"
-fi
-if [ -L "$HOME/.claude/skills/impeccable" ]; then
-  ok "impeccable symlink OK"
-else
-  info "Symlinking — will be created by link.sh"
 fi
 echo ""
 

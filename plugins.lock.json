@@ -45,7 +45,7 @@
   },
   "impeccable": {
     "source": "npm:impeccable",
-    "version": "3.2.0",
-    "note": "Design anti-pattern detector (45 deterministic rules, CLI 'impeccable detect', exit 0/2) + /impeccable skill (23 verbs) by pbakaus. Pin = CLI version; the skill dist has its own release track fetched by 'skills install'. Pinned for audit reproducibility (LRN-077 class: a rules update silently changes audit output). Requires Node >= 24 — install step skips gracefully below that. Machine-owned: synced to skills-external/impeccable/ (gitignored), symlinked by link.sh."
+    "version": "4.1.0",
+    "note": "Design anti-pattern detector (45 deterministic rules, CLI 'impeccable detect', exit 0/2) + /impeccable skill (23 verbs) + 4 impeccable-* subagents, by pbakaus. Pin = CLI version ONLY: the skill dist and the engine binary have their own release tracks, fetched by 'skills install' at install time, so this pin does not freeze audit output the way a semgrep pin does. It still gates the CLI deliberately (LRN-077 class). BEWARE: the pin rots — the CLI downloads its skill dist at install time and an older release's artifact disappears upstream (3.2.0 -> 'Download failed: invalid zip data', 2026-09-22, which left 'make plugin' printing a run-it-yourself warning). install-plugins.sh Step 8d and update-all.sh therefore fall back to @latest on a pin failure and warn to bump this version. Requires Node >= 24. Installed at --scope=global: lands in ~/.claude/skills/impeccable + ~/.claude/agents/impeccable-*.md, both symlinks into this repo, both gitignored."
   }
 }

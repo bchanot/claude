@@ -71,7 +71,10 @@ if [ -d "$GSTACK_SRC/browse/dist" ]; then
   fi
 fi
 
-EXTERNAL_SKILLS=(emil-design-eng frontend-design design-motion-principles impeccable)
+# impeccable is NOT here: its installer writes the skill straight into
+# skills/ (and its agents into agents/) at --scope=global, so there is no
+# skills-external/ copy to symlink. See install-plugins.sh Step 8d.
+EXTERNAL_SKILLS=(emil-design-eng frontend-design design-motion-principles)
 for _ext_skill in "${EXTERNAL_SKILLS[@]}"; do
   if [ -d "$REPO/skills-external/$_ext_skill" ]; then
     if [ -L "$CLAUDE/skills/$_ext_skill" ] && [ "$(readlink "$CLAUDE/skills/$_ext_skill")" = "$REPO/skills-external/$_ext_skill" ]; then
