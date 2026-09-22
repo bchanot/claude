@@ -50,6 +50,27 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   and never runs it itself (it interviews the user). Skipped for single
   component reviews and non-UI work.
 
+- **Every commit is pushed as it lands.** `gitflow start` pushes the new
+  branch with its upstream, `gitflow finish` pushes each merge target, and
+  `gitflow init` / `install-hook` now write `post-commit` and `post-merge`
+  hooks next to `pre-commit` that push the current branch after every
+  commit and merge (`--follow-tags`, 30 s timeout, `GITFLOW_NO_PUSH=1` to
+  opt out in throwaway repos). A failed push warns loudly and never blocks
+  the commit. Existing projects get the hooks by re-running
+  `bash ~/.claude/lib/gitflow.sh install-hook`. Covered by `gitflow-test.sh`
+  T18 (bare origin: start, commit, opt-out, unreachable origin, finish) and
+  T19 (installed hooks equal the emitted ones, LRN-114 drift gate).
+- `hooks/unpushed-guard.sh` on `SessionStart` and `Stop`: a warning when the
+  branch is ahead of its upstream, has no upstream, or has no `origin`; at
+  session start also the count of uncommitted changes. Non-blocking.
+- `lib/tests/guard-bash.test.sh`: the executable spec of a PreToolUse Bash
+  guard (transfer tools, sync deletes, recursive `rm` outside the project,
+  bulk permissions, privilege escalation, disk tools, docker privileges and
+  system mounts, git history destruction, writes into system zones,
+  guardrail tampering, pipe-to-shell, nested forms, scripts the command
+  runs). The hook itself is not shipped (BLK-022); the spec skips cleanly
+  until it lands.
+
 ### Changed
 - **Design gate: `magic` → the `21st` CLI in the required-manual slot.**
   `design.profile`'s `GATE-BLOCK` now lists `21st` (CLI channel) and
@@ -149,6 +170,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   them triggered nothing. Same shape and same known gap as the existing
   `Bash(grep * .env*)` family: a `cat .env | sed` pipe still slips past,
   which is what the `hard_deny` exfiltration rule is there to catch.
+
+- **Data-loss guardrails after the 2026-09-21 wipe** (BDR-095). Static
+  `permissions.deny` now refuses transfer and mirror tools (`lftp`, `sftp`,
+  `ftp`, `curl -T`), `rsync --delete`, `xargs rm`, pipe-to-shell,
+  `chmod`/`chown -R`, `sudo`/`doas`/`pkexec`, disk tools, `chattr`, docker
+  volume drops, `system prune`, `compose down -v`, `--privileged`, the
+  docker socket and `-v /:`, and git history destruction (`push --delete`,
+  `--mirror`, `:ref`, `--force-with-lease`, `branch -D`, `filter-branch`,
+  `reflog expire`, `stash clear`/`drop`, `clean -f`, `--no-verify`,
+  `core.hooksPath`). The pipe-to-shell and stash entries left `ask`, which is
+  unreliable under auto mode. New `autoMode.hard_deny`: a destructive tool
+  aimed at a path built from a variable, `~`, `..`, a wildcard, or outside
+  the project and the temp dir, including as a trace or a rehearsal that a
+  brief allows; a sub-agent brief carries no user authority. `soft_deny`
+  reworded for the promoted docker items and gains "discarding uncommitted
+  work". `environment` records the incident, the push discipline, and that
+  Claude never runs a deploy. `CLAUDE.global.md` gains "Destructive tools &
+  data loss"; the four report-only agents state that a destructive tool is
+  traced by reading, never by running, whatever the brief says.
 
 ### Removed
 - **`magic` MCP (`@21st-dev/magic`) and `MAGIC_API_KEY`**, with the two risks

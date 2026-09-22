@@ -304,6 +304,40 @@ git add -A; git commit -q -m "chore + spec"
 gitflow_finish >/dev/null 2>&1
 chk "T17d chore leaves transient (not in scope)" '[ -n "$(git ls-tree -r develop --name-only -- docs/superpowers)" ]'
 
+echo "T18 — auto-push: branch pushed at start, every commit pushed (BDR-095)"
+newrepo pushsrc; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+bare="$WORK/pushsrc.git"; git init -q --bare "$bare"; git remote add origin "$bare"
+git push -q origin main develop 2>/dev/null
+gitflow_start feature ap >/dev/null 2>&1
+chk "T18a start pushed the branch"        'git ls-remote --heads origin feature/ap | grep -q feature/ap'
+echo w>w; git add w; git commit -q -m w 2>/dev/null
+chk "T18b commit pushed by post-commit"   '[ "$(git rev-parse HEAD)" = "$(git -C "$bare" rev-parse feature/ap)" ]'
+echo w2>>w; git add w; GITFLOW_NO_PUSH=1 git commit -q -m w2 2>/dev/null
+chk "T18c GITFLOW_NO_PUSH=1 → not pushed" '[ "$(git rev-parse HEAD)" != "$(git -C "$bare" rev-parse feature/ap)" ]'
+git remote set-url origin /nonexistent/x.git
+echo w3>>w; git add w
+# shellcheck disable=SC2034  # ap_out/ap_rc are read by the deferred chk evals
+ap_out="$(git commit -q -m w3 2>&1)"; ap_rc=$?
+chk "T18d unreachable origin → commit still succeeds" "[ $ap_rc -eq 0 ]"
+chk "T18e unreachable origin → loud warning"         'printf "%s" "$ap_out" | grep -q "FAILED"'
+git remote set-url origin "$bare"
+gitflow_finish >/dev/null 2>&1
+chk "T18f finish pushed develop (merge commit)"      '[ "$(git rev-parse develop)" = "$(git -C "$bare" rev-parse develop)" ]'
+newrepo noremote; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+gitflow_start feature nr >/dev/null 2>&1; echo w>w; git add w
+# shellcheck disable=SC2034
+nr_out="$(git commit -q -m w 2>&1)"; nr_rc=$?
+chk "T18g no origin → silent, commit ok"            "[ $nr_rc -eq 0 ] && ! printf '%s' \"\$nr_out\" | grep -q FAILED"
+
+echo "T19 — installed hooks == emitted hooks in the config repo (LRN-114 drift gate)"
+if [ -d "$HERE/../.githooks" ]; then
+  chk "T19a pre-commit installed == emitted"  'diff -q <(_gitflow_emit_pre_commit) "$HERE/../.githooks/pre-commit" >/dev/null'
+  chk "T19b post-commit installed == emitted" 'diff -q <(_gitflow_emit_push_hook post-commit) "$HERE/../.githooks/post-commit" >/dev/null'
+  chk "T19c post-merge installed == emitted"  'diff -q <(_gitflow_emit_push_hook post-merge) "$HERE/../.githooks/post-merge" >/dev/null'
+else
+  ok "T19 skipped (no .githooks next to the lib)"
+fi
+
 echo
 echo "==== RESULT: $PASS passed, $FAIL failed ===="
 [ "$FAIL" -eq 0 ]
