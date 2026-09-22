@@ -18,6 +18,8 @@
 #
 # No -e: run every test and report, even after a failure.
 set -uo pipefail
+# Hermetic git: the global hooks dir (BDR-095) must not fire in throwaway repos.
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
 
 HERE="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HELPER="$HERE/../doc-commit.sh"

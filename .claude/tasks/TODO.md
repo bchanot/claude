@@ -1,5 +1,59 @@
 # TODO
 
+## 2026-09-22 — destructive guardrails after the 21/09 wipe (feature/destructive-guardrails)
+Incident 2026-09-21 00:21 on the old server: a reviewer sub-agent (atlast SDD, opus)
+traced `lftp mirror --reverse --delete` against a local `file://` tree; the target
+resolved to a real path, `mirror --delete` did `rm -r` (ignores `--exclude`) on
+everything uid 1000 owned: home, `~/.claude`, NAS (uid=1000), 15 Gitea repos
+(Gitea ran as bchanot). The 17/09 classifier prose (hard_deny "deploy", soft_deny
+`rsync --delete`) named neither lftp nor a local trace; the orchestrator's brief
+authorized the trace; auto mode is inherited by sub-agents. 4 days of faunosteo
+never pushed. User decisions: Claude NEVER deploys (explains only), lftp has no
+use in session; layer A (OS, restic, NAS) and layer B (sandbox + managed
+settings) are the user's; this branch = layer C (config repo) + auto-push.
+- [x] G1 `lib/tests/guard-bash.test.sh` (214 cases, SKIPs while the hook is absent): transfer tools, mirror/sync
+      delete, recursive rm outside cwd/tmp or via variable, chmod/chown -R,
+      sudo, disk tools, docker privileged/system mounts/volume drops, git
+      history destruction, forbidden write zones, guardrail tampering,
+      nested forms (`bash -c`, `&&`, `docker compose run … lftp`), script
+      files run by the command; allow list of ordinary commands.
+- [ ] G2 BLOCKED (BLK-022, safety classifier withheld the body) `hooks/guard-bash.sh`: PreToolUse Bash, exit 2 + reason,
+      `logger` trace, fail-closed without jq.
+- [x] G3 `settings.json` (hook registration = unpushed-guard only, guard-bash pending): static `permissions.deny` (lftp/ftp/sftp, rsync
+      --delete, chmod/chown -R, sudo/doas/pkexec, dd/mkfs/shred/…, docker
+      prune/volume rm/down -v/--privileged/docker.sock, git push
+      --delete/--mirror/:ref, branch -D, filter-branch, reflog expire, stash
+      clear/drop, xargs rm, pipe-to-shell), hook registration, new
+      `hard_deny` (destructive tool against a local path, brief ≠ user
+      authority), `soft_deny` reworded (docker items promoted, discard of
+      uncommitted work), `environment` lines updated.
+- [x] G4 `lib/gitflow.sh` (+ post-merge: `git merge` skips post-commit, T18f) : `start` pushes the branch (`-u origin`),
+      post-commit hook emitted + installed with pre-commit (push every commit,
+      `--follow-tags`, timeout, `GITFLOW_NO_PUSH=1` opt-out, never fails the
+      commit), `install-hook`/`emit-hook` cover both; `.githooks/post-commit`
+      in this repo; `gitflow-test.sh` T18.
+- [x] G5 `hooks/unpushed-guard.sh` on SessionStart + Stop: warns when the
+      branch is ahead of origin or has no upstream; test.
+- [x] G6 doctrine: `CLAUDE.global.md` Security "Destructive tools & data
+      loss" + gitflow auto-push line; the 4 read-only agents get the
+      "trace by reading, never by running" clause.
+- [x] G7 docs: `templates/settings/SETTINGS.md` (hook tier, ask caveat),
+      CHANGELOG, BDR-095, LRN-160, journal. `make test` + shellcheck.
+- [x] G8 hooks everywhere, no per-project step (user go 2026-09-22): global
+      `core.hooksPath ~/.claude/githooks` set by `make link` from a generated
+      `githooks/`; `gitflow reconcile-hooks` at session start refreshes a
+      lagging `.githooks/`; opt-outs `gitflow.protect` / `gitflow.autopush`;
+      pre-commit exempts `.githooks/**`; doctor check; hermetic
+      `GIT_CONFIG_GLOBAL=/dev/null` in `make test` + 2 suites; deny on the
+      env bypass forms; T18h T19d T20 T21. Verified after the /tmp cleanup:
+      gitflow 127/129 (2 pre-existing T16a), review-guards G5 caught this
+      repo's stale `.githooks/` (refreshed via install-hook), shellcheck
+      clean, doctor "Scratchpad" check added. OPEN for the user: `make link`
+      (sets the global `core.hooksPath`; denied to the agent), and launch
+      claude with `TMPDIR=$HOME/.cache/claude-tmp` in `dtach_claude()`.
+Out of scope here (user's side): restic append-only, lxd group, NAS mount,
+managed-settings.json + sandbox, per-project accounts, docker rootless.
+
 ## 2026-09-22 — impeccable install repaired: global scope + agents + rotted pin (feature/21st-cli-migration)
 User: `make plugin` never installs impeccable, it just prints "run it
 yourself"; running it by hand needs `--scope=global` to land right, and then

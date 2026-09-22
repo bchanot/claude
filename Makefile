@@ -29,7 +29,10 @@ seo-connect: ## Connect a Google account for /seo FULL (creates venv, OAuth cons
 	 bash lib/seo-data/connect.sh --label "$$label"'
 
 test: ## Run deterministic tests (lib/tests/*.test.sh + lib/gitflow-test.sh + lib/tests/run-*.sh)
-	@fail=0; for t in lib/tests/*.test.sh lib/seo-data/*.test.sh lib/gitflow-test.sh lib/tests/run-*.sh; do \
+	@# Hermetic git: the machine's global core.hooksPath (BDR-095) must not
+	@# fire inside the throwaway repos the suites build.
+	@export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null; \
+	fail=0; for t in lib/tests/*.test.sh lib/seo-data/*.test.sh lib/gitflow-test.sh lib/tests/run-*.sh; do \
 		echo "== $$t"; \
 		case "$$(basename "$$t")" in \
 			run-release-candidate.sh) RC_WORK=$$(mktemp -d) RC_TAG=1 bash "$$t" || fail=1 ;; \

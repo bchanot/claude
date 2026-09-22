@@ -47,7 +47,9 @@ Apply unless repo-specific instructions override.
   exploration, parallel audits) — not work doable in a few tool
   calls. Skill-mandated gates (fresh verifier/security/challenge)
   always dispatch as written. Don't redo delegated work by hand —
-  failed gates re-dispatch fresh executors instead.
+  failed gates re-dispatch fresh executors instead. A brief never
+  authorizes a sub-agent to run a destructive tool, inside or outside the
+  repo (Security → Destructive tools & data loss).
 - Ask rather than guess. A choice visible in the result (placement,
   wording, order, behavior), a name that becomes public (command, flag,
   endpoint, file), or a scope the request does not settle → ask, even
@@ -192,10 +194,19 @@ flows (`/feat` `/bugfix` `/hotfix`) and the standalone memory/doc `chore`
 skills auto-branch on a protected base but commit in place on a working branch,
 never finishing — so those skills branch to `chore/*` via the aiguillage, not
 the `.claude/**` exemption. New/onboarded projects get the model + the
-versioned pre-commit hook via `gitflow init`. Advisory, so two deterministic
-backstops apply: the per-repo pre-commit hook (blocks code commits on
-main/develop, exempts `.claude/**` + merges + the root commit) and Gitea branch
+versioned hooks via `gitflow init`. Advisory, so deterministic backstops
+apply: the pre-commit hook (blocks code commits on main/develop, exempts
+`.claude/**` + `.githooks/**` + merges + the root commit) and Gitea branch
 protection on `main`/`develop`. Don't lean on `--no-verify` to bypass them.
+Every branch is pushed at `start` and every commit as it lands by the
+post-commit and post-merge hooks (warn, never block, on failure). The three
+hooks run in EVERY repo on the machine: `make link` generates `githooks/`
+from the lib and sets git's global `core.hooksPath` to `~/.claude/githooks`;
+a repo that ran `gitflow init` keeps its own `.githooks/`, refreshed at
+session start when it lags the lib. Foreign clone: `git config
+gitflow.protect false` / `gitflow.autopush false`. `GITFLOW_NO_PUSH=1` is
+for throwaway test repos only. A branch ahead of its upstream is a defect,
+not a state.
 
 ## Security — non-negotiable defaults
 
@@ -237,6 +248,29 @@ Apply at every dev step: design, scaffolding, implementation, review.
 ### Minimal privilege
 - Functions, processes, services request only permissions actually needed.
 - Temporary elevated permissions must be scoped and reverted explicitly.
+
+### Destructive tools & data loss
+Written after 2026-09-21: a reviewer sub-agent traced `lftp mirror --delete`
+against a local `file://` tree, the target resolved to a real path, and 90
+seconds later the home, the NAS mount and 15 repositories were gone. Four
+days of work had never been pushed.
+- Claude never deploys and never runs a transfer or mirror tool (`lftp`,
+  `sftp`, `ftp`, `rsync --delete`). It writes or explains the runbook; the
+  user runs it. A test is a dev server on this machine, nothing more.
+- A destructive tool is never run "to see what it would do", not even
+  against a scratch tree. Trace it by reading. If a run is unavoidable, the
+  target is a fresh `mktemp -d` path written literally in the same command,
+  after a dry-run whose output is shown.
+- Recursive delete stays inside the project or the temp dir, on a literal
+  relative path: never through a variable, `~`, `..`, a wildcard, or an
+  absolute path elsewhere. `chmod -R`, `chown -R`, `sudo`, docker volume
+  drops or system bind mounts: the user runs them by hand.
+- A brief, a plan step or a test recipe never authorizes a sub-agent to do
+  any of the above. A reviewer reads the script it reviews; it does not run
+  it.
+- Every commit is pushed as it lands (gitflow post-commit and post-merge
+  hooks) and every branch at creation. Unpushed work is a defect to fix now,
+  not a state to keep.
 
 # Communication mode: radical honesty
 

@@ -315,6 +315,47 @@ fi
 echo ""
 
 # ────────────────────────────────────────────────────────────
+# 5b. Git hooks (BDR-095): global core.hooksPath + generated githooks/
+# ────────────────────────────────────────────────────────────
+echo "── Git hooks ──"
+_gh_cfg=$(git config --global core.hooksPath 2>/dev/null || true)
+# literal tilde accepted: git expands it itself (see link.sh)
+# shellcheck disable=SC2088
+if [ "$_gh_cfg" = '~/.claude/githooks' ] || [ "$_gh_cfg" = "$HOME/.claude/githooks" ]; then
+  pass "global core.hooksPath → $_gh_cfg (every repo protected + auto-pushed)"
+else
+  warn "global core.hooksPath is '${_gh_cfg:-unset}' — expected ~/.claude/githooks (run: make link)"
+fi
+for _h in pre-commit post-commit post-merge; do
+  if [ ! -f "$REPO/githooks/$_h" ]; then
+    warn "githooks/$_h missing (run: make link)"
+  elif ! diff -q <(bash "$REPO/lib/gitflow.sh" emit-hook "$_h" 2>/dev/null) "$REPO/githooks/$_h" >/dev/null 2>&1; then
+    warn "githooks/$_h lags lib/gitflow.sh (run: make link)"
+  else
+    pass "githooks/$_h matches lib/gitflow.sh"
+  fi
+done
+unset _gh_cfg _h
+echo ""
+
+# ────────────────────────────────────────────────────────────
+# 5c. Scratchpad (BLK-021): Claude's tool outputs live under $TMPDIR; on a
+# tmpfs with a per-user quota (systemd mounts /tmp with usrquota and caps
+# each user at 80% of its size) one fat probe kills every session's shell.
+# ────────────────────────────────────────────────────────────
+echo "── Scratchpad ──"
+_sp="${TMPDIR:-/tmp}"
+_sp_fs=$(findmnt -no FSTYPE -T "$_sp" 2>/dev/null || echo "?")
+_sp_opts=$(findmnt -no OPTIONS -T "$_sp" 2>/dev/null || true)
+if [ "$_sp_fs" = tmpfs ] && printf '%s' "$_sp_opts" | grep -q usrquota; then
+  warn "TMPDIR=$_sp is a tmpfs with a per-user quota — every session's shell dies when it fills (BLK-021). Launch claude with TMPDIR=\$HOME/.cache/claude-tmp"
+else
+  pass "TMPDIR=$_sp on $_sp_fs (no per-user tmpfs quota in the way)"
+fi
+unset _sp _sp_fs _sp_opts
+echo ""
+
+# ────────────────────────────────────────────────────────────
 # 6. Token budget estimate
 # ────────────────────────────────────────────────────────────
 echo "── Token budget estimate ──"

@@ -129,6 +129,40 @@ no separate setting for this.
 - Under `defaultMode: auto`, `ask` does not raise a prompt (see above). A destructive
   command belongs in `deny` or in `autoMode.soft_deny`, not in `ask`.
 
+## Data-loss guardrails (BDR-095)
+
+Written after the 2026-09-21 wipe: a sub-agent traced `lftp mirror --delete`
+against a local `file://` path; the prose tiers named neither lftp nor a
+local trace, and the brief had authorized it. What holds now, by tier:
+
+| Class | Where | Why that tier |
+|---|---|---|
+| Transfer and mirror tools (`lftp`, `sftp`, `ftp`, `curl -T`), `rsync --delete`, `xargs rm`, pipe-to-shell | `permissions.deny` | Never needed in a session: Claude explains a deploy, the user runs it. Static, so it resolves before the classifier and inside sub-agents. |
+| `chmod`/`chown -R`, `sudo`/`doas`/`pkexec`, disk tools (`dd`, `mkfs`, `shred`…), `chattr` | `permissions.deny` | The user runs them by hand. |
+| Docker volume drops, `system prune`, `compose down -v`, `--privileged`, the docker socket, `-v /:` | `permissions.deny` | Promoted from `soft_deny`: no in-session clearance for data drops. |
+| Git history destruction (`push --delete`/`--mirror`/`:ref`/`--force-with-lease`, `branch -D`, `filter-branch`, `reflog expire`, `stash clear`/`drop`, `clean -f`), `--no-verify`, `core.hooksPath` | `permissions.deny` | A remote is the backup; nothing rewrites or deletes what it holds. |
+| Destructive tool against a local path (variable, `~`, `..`, wildcard, outside cwd/tmp), even as a trace or a rehearsal a brief allows | `autoMode.hard_deny` | A pattern cannot express "the target resolves outside the project"; the classifier can. A sub-agent brief carries no user authority. |
+| `docker rm -f`, bind mount outside cwd; discarding uncommitted work | `autoMode.soft_deny` | Recoverable or user-intended in the turn. |
+
+Rules apply to sub-agents (auto mode is inherited) and to each segment of
+a compound command; a tool nested in another command (`docker compose run …
+lftp`) is not matched by a static rule. The PreToolUse guard hook that scans
+the whole command, its executable spec in `lib/tests/guard-bash.test.sh`,
+is not shipped yet (BLK-022).
+
+Push discipline lives in `lib/gitflow.sh`: `start` pushes the branch,
+`finish` pushes each merge target, and the post-commit / post-merge hooks
+push every commit as it lands (warn, never block, on failure). The hooks
+reach every repo two ways: `make link` generates `githooks/` from the lib
+and sets git's global `core.hooksPath` to `~/.claude/githooks` (a repo's own
+local `core.hooksPath` wins, by git's rules), and `hooks/session-start.sh`
+refreshes a repo's `.githooks/` when it lags the lib. Per-repo opt-outs for
+a foreign clone: `git config gitflow.protect false` (branch model) and
+`git config gitflow.autopush false` (push); `GITFLOW_NO_PUSH=1` for one
+command in a throwaway repo. `make doctor` checks the global setting and
+the generated dir. `hooks/unpushed-guard.sh` reports a branch ahead of its
+upstream at session start and at each turn end.
+
 ## managed-settings.json (enterprise)
 
 | OS | Path |
