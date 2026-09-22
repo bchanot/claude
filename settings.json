@@ -292,7 +292,17 @@
       "Bash(* | sh)",
       "Bash(* | sh -*)",
       "Bash(* | sudo *)",
-      "Bash(chattr *)"
+      "Bash(chattr *)",
+      "Bash(GIT_CONFIG_GLOBAL=*)",
+      "Bash(GIT_CONFIG_SYSTEM=*)",
+      "Bash(GIT_CONFIG=*)",
+      "Bash(env GIT_CONFIG*)",
+      "Bash(git config --unset core.hooksPath*)",
+      "Bash(git config --unset-all core.hooksPath*)",
+      "Bash(git config --local core.hooksPath *)",
+      "Bash(git config gitflow.*)",
+      "Bash(git config --global gitflow.*)",
+      "Bash(git config --local gitflow.*)"
     ],
     "ask": [
       "Bash(bash -c *)",

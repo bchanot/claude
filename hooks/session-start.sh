@@ -44,6 +44,17 @@ else
 fi
 unset _lib
 
+# ── gitflow hooks reconcile (BDR-095) ──
+# A repo's .githooks/ lags lib/gitflow.sh until someone re-runs install-hook
+# (LRN-114). Do it here, once per session, silently when current; the lib
+# prints the refreshed names, shown in the banner with a commit reminder.
+GF_REFRESHED=""
+_gf_lib="$(dirname "${BASH_SOURCE[0]}")/../lib/gitflow.sh"
+if [ -f "$_gf_lib" ] && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  GF_REFRESHED=$(bash "$_gf_lib" reconcile-hooks 2>/dev/null | sed -n 's/^gitflow hooks refreshed: *//p')
+fi
+unset _gf_lib
+
 # ── Toggle plugin detection ──
 
 TOGGLE_ACTIVE=()
@@ -199,6 +210,11 @@ unset _active_count _inactive_count
 printf "│  🖥️  CLI : %-40s│\n" "$GSD_STATUS"
 [ -n "$TOKEN_WARN" ] && printf "│  💰 %-44s│\n" "${TOKEN_WARN:0:44}"
 printf "│  📦 v%-45s│\n" "$CONFIG_VERSION"
+if [ -n "$GF_REFRESHED" ]; then
+  _gf_line="hooks refreshed: $GF_REFRESHED → commit .githooks/"
+  printf "│  🪝 %-44s│\n" "${_gf_line:0:44}"
+  unset _gf_line
+fi
 # CLAUDE.global.md line-count guard (anti-regression). BDR-062 supersedes
 # BDR-031's 275 target: 305 is the assumed reality (extraction done at
 # job1; further compression costs clarity > token gain) — warn past 320.

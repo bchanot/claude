@@ -152,10 +152,16 @@ is not shipped yet (BLK-022).
 
 Push discipline lives in `lib/gitflow.sh`: `start` pushes the branch,
 `finish` pushes each merge target, and the post-commit / post-merge hooks
-written by `gitflow init` / `install-hook` push every commit as it lands
-(warn, never block, on failure; `GITFLOW_NO_PUSH=1` for throwaway repos).
-`hooks/unpushed-guard.sh` reports a branch ahead of its upstream at session
-start and at each turn end.
+push every commit as it lands (warn, never block, on failure). The hooks
+reach every repo two ways: `make link` generates `githooks/` from the lib
+and sets git's global `core.hooksPath` to `~/.claude/githooks` (a repo's own
+local `core.hooksPath` wins, by git's rules), and `hooks/session-start.sh`
+refreshes a repo's `.githooks/` when it lags the lib. Per-repo opt-outs for
+a foreign clone: `git config gitflow.protect false` (branch model) and
+`git config gitflow.autopush false` (push); `GITFLOW_NO_PUSH=1` for one
+command in a throwaway repo. `make doctor` checks the global setting and
+the generated dir. `hooks/unpushed-guard.sh` reports a branch ahead of its
+upstream at session start and at each turn end.
 
 ## managed-settings.json (enterprise)
 

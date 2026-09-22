@@ -9,6 +9,8 @@
 #                  assertion REDS, proving gitflow fans out main+develop but never tags.
 # GREEN(RC_TAG=1): the skill's flow adds `git tag` → tag present on main's merge commit.
 set -uo pipefail
+# Hermetic git: the global hooks dir (BDR-095) must not fire in throwaway repos.
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
 
 GREP=/usr/bin/grep                                              # LRN-074: pin grep
 LIBDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"       # repo lib/

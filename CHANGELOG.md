@@ -56,13 +56,30 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   hooks next to `pre-commit` that push the current branch after every
   commit and merge (`--follow-tags`, 30 s timeout, `GITFLOW_NO_PUSH=1` to
   opt out in throwaway repos). A failed push warns loudly and never blocks
-  the commit. Existing projects get the hooks by re-running
-  `bash ~/.claude/lib/gitflow.sh install-hook`. Covered by `gitflow-test.sh`
-  T18 (bare origin: start, commit, opt-out, unreachable origin, finish) and
-  T19 (installed hooks equal the emitted ones, LRN-114 drift gate).
+  the commit. Nothing to run per project: `make link` generates `githooks/`
+  from the lib and sets git's global `core.hooksPath` to
+  `~/.claude/githooks`, so every repo on the machine runs the three hooks,
+  and `hooks/session-start.sh` refreshes a repo's own `.githooks/` when it
+  lags the lib (`gitflow reconcile-hooks`). Per-repo opt-outs for a foreign
+  clone: `git config gitflow.protect false`, `git config gitflow.autopush
+  false`. `make doctor` checks both. The pre-commit exemption now covers
+  `.githooks/**` next to `.claude/**`. `make test` and the suites that
+  commit on `main` run with `GIT_CONFIG_GLOBAL=/dev/null`, so the global
+  hooks never fire in throwaway repos. Covered by `gitflow-test.sh` T18
+  (bare origin: start, commit, opt-outs, unreachable origin, finish), T19
+  (installed and generated hooks equal the emitted ones, LRN-114 drift
+  gate), T20 (reconcile) and T21 (whitelist and protect opt-out).
 - `hooks/unpushed-guard.sh` on `SessionStart` and `Stop`: a warning when the
   branch is ahead of its upstream, has no upstream, or has no `origin`; at
   session start also the count of uncommitted changes. Non-blocking.
+- `make doctor` gains two sections: "Git hooks" (global `core.hooksPath`
+  set, generated `githooks/` equal to the emitters) and "Scratchpad": a
+  warning when `TMPDIR` sits on a tmpfs mounted with `usrquota`. systemd
+  mounts `/tmp` that way by default and caps each user at 80 % of its
+  size, so Claude's tool outputs share one quota across every session and
+  sub-agent, and one fat probe directory kills every shell at once (this
+  happened twice on 2026-09-22, BLK-021). Fix: launch claude with
+  `TMPDIR=$HOME/.cache/claude-tmp`.
 - `lib/tests/guard-bash.test.sh`: the executable spec of a PreToolUse Bash
   guard (transfer tools, sync deletes, recursive `rm` outside the project,
   bulk permissions, privilege escalation, disk tools, docker privileges and
@@ -179,7 +196,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   docker socket and `-v /:`, and git history destruction (`push --delete`,
   `--mirror`, `:ref`, `--force-with-lease`, `branch -D`, `filter-branch`,
   `reflog expire`, `stash clear`/`drop`, `clean -f`, `--no-verify`,
-  `core.hooksPath`). The pipe-to-shell and stash entries left `ask`, which is
+  `core.hooksPath`, the `GIT_CONFIG_GLOBAL=` / `GIT_CONFIG=` env prefixes
+  and the per-repo `gitflow.*` opt-outs, which belong to the human). The
+  pipe-to-shell and stash entries left `ask`, which is
   unreliable under auto mode. New `autoMode.hard_deny`: a destructive tool
   aimed at a path built from a variable, `~`, `..`, a wildcard, or outside
   the project and the temp dir, including as a trace or a rehearsal that a

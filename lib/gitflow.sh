@@ -306,19 +306,24 @@ else
   echo "gitflow pre-commit: gitleaks not installed — secret scan skipped (https://github.com/gitleaks/gitleaks)." >&2
 fi
 
+# Per-repo opt-out of the branch model (a clone of a foreign project):
+#   git config gitflow.protect false
+[ "\$(git config --bool --default true gitflow.protect)" = false ] && exit 0
+
 case "\$br" in
   $GITFLOW_MAIN|$GITFLOW_DEVELOP) ;;                        # protected — keep checking
   *) exit 0 ;;                                              # working branch — allow
 esac
 
-# whitelist: all-staged-under-.claude/ (memory/doc/deploy helpers) — allow
-if [ -z "\$(git diff --cached --name-only | grep -v '^\.claude/' | head -1)" ]; then
+# whitelist: all-staged-under-.claude/ (memory/doc/deploy helpers) or
+# .githooks/ (the hooks themselves, refreshed by the lib) — allow
+if [ -z "\$(git diff --cached --name-only | grep -vE '^\.(claude|githooks)/' | head -1)" ]; then
   exit 0
 fi
 
 echo "gitflow pre-commit: BLOCKED — direct commit on '\$br'." >&2
 echo "  Branch from the right base (feature/bugfix->develop, hotfix->main), or merge." >&2
-echo "  (.claude/** memory commits are exempt; --no-verify bypasses locally.)" >&2
+echo "  (.claude/** and .githooks/** commits are exempt; foreign clone? git config gitflow.protect false)" >&2
 exit 1
 HOOK
 }
@@ -335,6 +340,8 @@ cat <<'HOOK'
 # holds. Never fails the commit: no origin / offline / refused → warning only.
 # Opt out for one command with GITFLOW_NO_PUSH=1 (throwaway repos, tests).
 [ "${GITFLOW_NO_PUSH:-0}" = 1 ] && exit 0
+# Per-repo opt-out (no push rights on a foreign clone): git config gitflow.autopush false
+[ "$(git config --bool --default true gitflow.autopush)" = false ] && exit 0
 git remote get-url origin >/dev/null 2>&1 || exit 0
 br=$(git symbolic-ref --short -q HEAD 2>/dev/null) || exit 0   # detached HEAD — nothing to track
 if command -v timeout >/dev/null 2>&1; then t="timeout ${GITFLOW_PUSH_TIMEOUT:-30}"; else t=""; fi
@@ -345,9 +352,18 @@ exit 0
 HOOK
 }
 
-# write the versioned hook files — does NOT activate (see gitflow_activate_hook).
+_gitflow_emit_hook() {             # <pre-commit|post-commit|post-merge>
+  case "$1" in
+    pre-commit) _gitflow_emit_pre_commit ;;
+    post-commit|post-merge) _gitflow_emit_push_hook "$1" ;;
+    *) return 2 ;;
+  esac
+}
+
+# write the versioned hook files into $1 (default .githooks) — does NOT
+# activate (see gitflow_activate_hook / gitflow_global_hooks).
 _gitflow_write_hook() {
-  local hd=".githooks"
+  local hd="${1:-.githooks}"
   mkdir -p "$hd"
   _gitflow_emit_pre_commit > "$hd/pre-commit"
   _gitflow_emit_push_hook post-commit > "$hd/post-commit"
@@ -366,6 +382,41 @@ gitflow_install_hook() {
   _gitflow_write_hook && gitflow_activate_hook
 }
 
+# gitflow_reconcile_hooks → refresh a repo's .githooks/ when it lags the lib
+# (LRN-114: a generator edit never reaches installed hooks by itself; the
+# session-start hook calls this once per session). Only for repos that opted
+# into the per-repo layout (.githooks/pre-commit present, or local
+# core.hooksPath = .githooks); others are covered by the global hooks dir.
+# Prints "gitflow hooks refreshed: <names>" when it wrote something, nothing
+# when current. Never fails the caller.
+gitflow_reconcile_hooks() {
+  local root hd name stale=""
+  root=$(git rev-parse --show-toplevel 2>/dev/null) || return 0
+  hd="$root/.githooks"
+  [ -f "$hd/pre-commit" ] \
+    || [ "$(git config --local core.hooksPath 2>/dev/null)" = ".githooks" ] \
+    || return 0
+  for name in pre-commit post-commit post-merge; do
+    diff -q <(_gitflow_emit_hook "$name") "$hd/$name" >/dev/null 2>&1 || stale="$stale $name"
+  done
+  [ -n "$stale" ] || return 0
+  (cd "$root" && gitflow_install_hook) || return 0
+  echo "gitflow hooks refreshed:$stale"
+}
+
+# gitflow_global_hooks <dir> [config-value] → write the three hooks into <dir>
+# and point git's GLOBAL core.hooksPath at it (value defaults to <dir>; link.sh
+# passes '~/.claude/githooks' so the setting is machine-agnostic). Every repo
+# on the machine is then protected and auto-pushed, whether or not it ever ran
+# gitflow init; a repo's own local core.hooksPath still wins, by git's rules.
+gitflow_global_hooks() {
+  local dir="${1:-}" value="${2:-${1:-}}"
+  [ -n "$dir" ] || { echo "gitflow_global_hooks: missing <dir>" >&2; return 2; }
+  _gitflow_write_hook "$dir" || return 1
+  [ "$(git config --global core.hooksPath 2>/dev/null)" = "$value" ] && return 0
+  git config --global core.hooksPath "$value"
+}
+
 # ── CLI dispatch (only when executed, not sourced) ───────────────────────────
 if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
   set -uo pipefail
@@ -381,11 +432,10 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     reconcile)      gitflow_reconcile_gitignore "$@" ;;
     purge-transient) _gitflow_purge_transient ;;
     install-hook)   gitflow_install_hook "$@" ;;
-    emit-hook)      case "${1:-pre-commit}" in
-                      pre-commit)  _gitflow_emit_pre_commit ;;
-                      post-commit|post-merge) _gitflow_emit_push_hook "$1" ;;
-                      *) echo "gitflow.sh emit-hook {pre-commit|post-commit|post-merge}" >&2; exit 2 ;;
-                    esac ;;
-    *) echo "usage: gitflow.sh {type|protected-base|base-for|release-open|start|finish|init|reconcile|purge-transient|install-hook|emit-hook [pre-commit|post-commit|post-merge]}" >&2; exit 2 ;;
+    reconcile-hooks) gitflow_reconcile_hooks ;;
+    global-hooks)   gitflow_global_hooks "$@" ;;
+    emit-hook)      _gitflow_emit_hook "${1:-pre-commit}" \
+                      || { echo "gitflow.sh emit-hook {pre-commit|post-commit|post-merge}" >&2; exit 2; } ;;
+    *) echo "usage: gitflow.sh {type|protected-base|base-for|release-open|start|finish|init|reconcile|purge-transient|install-hook|reconcile-hooks|global-hooks <dir> [value]|emit-hook [pre-commit|post-commit|post-merge]}" >&2; exit 2 ;;
   esac
 fi

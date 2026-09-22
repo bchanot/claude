@@ -194,14 +194,19 @@ flows (`/feat` `/bugfix` `/hotfix`) and the standalone memory/doc `chore`
 skills auto-branch on a protected base but commit in place on a working branch,
 never finishing — so those skills branch to `chore/*` via the aiguillage, not
 the `.claude/**` exemption. New/onboarded projects get the model + the
-versioned pre-commit hook via `gitflow init`. Advisory, so two deterministic
-backstops apply: the per-repo pre-commit hook (blocks code commits on
-main/develop, exempts `.claude/**` + merges + the root commit) and Gitea branch
+versioned hooks via `gitflow init`. Advisory, so deterministic backstops
+apply: the pre-commit hook (blocks code commits on main/develop, exempts
+`.claude/**` + `.githooks/**` + merges + the root commit) and Gitea branch
 protection on `main`/`develop`. Don't lean on `--no-verify` to bypass them.
-Every branch is pushed at `start` and every commit as it lands: `gitflow init`
-/ `install-hook` write post-commit and post-merge hooks that push to `origin`
-(warn, never block, when it fails); `GITFLOW_NO_PUSH=1` is for throwaway test
-repos only. A branch ahead of its upstream is a defect, not a state.
+Every branch is pushed at `start` and every commit as it lands by the
+post-commit and post-merge hooks (warn, never block, on failure). The three
+hooks run in EVERY repo on the machine: `make link` generates `githooks/`
+from the lib and sets git's global `core.hooksPath` to `~/.claude/githooks`;
+a repo that ran `gitflow init` keeps its own `.githooks/`, refreshed at
+session start when it lags the lib. Foreign clone: `git config
+gitflow.protect false` / `gitflow.autopush false`. `GITFLOW_NO_PUSH=1` is
+for throwaway test repos only. A branch ahead of its upstream is a defect,
+not a state.
 
 ## Security — non-negotiable defaults
 

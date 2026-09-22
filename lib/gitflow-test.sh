@@ -314,6 +314,10 @@ echo w>w; git add w; git commit -q -m w 2>/dev/null
 chk "T18b commit pushed by post-commit"   '[ "$(git rev-parse HEAD)" = "$(git -C "$bare" rev-parse feature/ap)" ]'
 echo w2>>w; git add w; GITFLOW_NO_PUSH=1 git commit -q -m w2 2>/dev/null
 chk "T18c GITFLOW_NO_PUSH=1 → not pushed" '[ "$(git rev-parse HEAD)" != "$(git -C "$bare" rev-parse feature/ap)" ]'
+git config gitflow.autopush false
+echo w2b>>w; git add w; git commit -q -m w2b 2>/dev/null
+chk "T18h gitflow.autopush=false → not pushed" '[ "$(git rev-parse HEAD)" != "$(git -C "$bare" rev-parse feature/ap)" ]'
+git config --unset gitflow.autopush
 git remote set-url origin /nonexistent/x.git
 echo w3>>w; git add w
 # shellcheck disable=SC2034  # ap_out/ap_rc are read by the deferred chk evals
@@ -337,6 +341,40 @@ if [ -d "$HERE/../.githooks" ]; then
 else
   ok "T19 skipped (no .githooks next to the lib)"
 fi
+if [ -d "$HERE/../githooks" ]; then
+  for h in pre-commit post-commit post-merge; do
+    chk "T19d global githooks/$h == emitted" "diff -q <(_gitflow_emit_hook $h) \"$HERE/../githooks/$h\" >/dev/null"
+  done
+else
+  ok "T19d skipped (no githooks/ next to the lib — run make link)"
+fi
+
+echo "T20 — reconcile-hooks: a stale .githooks/ is refreshed, a current one is left alone"
+newrepo rec; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+rm -f .githooks/post-commit; echo "# stale" >> .githooks/pre-commit
+# shellcheck disable=SC2034
+rec_out="$(gitflow_reconcile_hooks 2>/dev/null)"
+chk "T20a names the refreshed hooks"      'printf "%s" "$rec_out" | grep -q "pre-commit" && printf "%s" "$rec_out" | grep -q "post-commit"'
+chk "T20b pre-commit rewritten == emitted" 'diff -q <(_gitflow_emit_pre_commit) .githooks/pre-commit >/dev/null'
+chk "T20c post-commit restored"            '[ -x .githooks/post-commit ]'
+chk "T20d second run is silent"            '[ -z "$(gitflow_reconcile_hooks 2>/dev/null)" ]'
+mkdir -p sub; cd sub || exit 1; echo "# stale" >> ../.githooks/post-merge
+chk "T20e works from a subdirectory"       'gitflow_reconcile_hooks 2>/dev/null | grep -q post-merge'
+cd .. || exit 1
+newrepo plain; echo a>a; git add a; git commit -q -m a
+chk "T20f non-gitflow repo → silent, no .githooks created" '[ -z "$(gitflow_reconcile_hooks 2>/dev/null)" ] && [ ! -d .githooks ]'
+
+echo "T21 — pre-commit whitelist + per-repo protect opt-out"
+newrepo wl; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+git checkout -q develop
+echo "# tweak" >> .githooks/post-merge; git add .githooks/post-merge
+chk "T21a .githooks/-only commit on develop → allowed" '.githooks/pre-commit 2>/dev/null'
+echo code>code.txt; git add code.txt
+chk "T21b .githooks/ + code on develop → blocked"    '! .githooks/pre-commit 2>/dev/null'
+git config gitflow.protect false
+chk "T21c gitflow.protect=false → allowed"           '.githooks/pre-commit 2>/dev/null'
+git config --unset gitflow.protect
+git restore --staged code.txt .githooks/post-merge 2>/dev/null || true
 
 echo
 echo "==== RESULT: $PASS passed, $FAIL failed ===="

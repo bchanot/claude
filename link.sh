@@ -20,7 +20,26 @@ link_file() {
 link_file "$REPO/CLAUDE.global.md" "$CLAUDE/CLAUDE.md"
 link_file "$REPO/settings.json" "$CLAUDE/settings.json"
 
-for item in hooks agents skills lib templates rules; do
+# Global git hooks (BDR-095): githooks/ is generated from lib/gitflow.sh so it
+# never drifts from the per-repo .githooks/ the lib writes, and git's GLOBAL
+# core.hooksPath points at ~/.claude/githooks → every repo on this machine is
+# protected and auto-pushed, even one that never ran gitflow init. A repo's
+# own local core.hooksPath still wins (git precedence), which is what the
+# session-start reconcile is for.
+# The tilde is stored literally on purpose: git expands `~` in core.hooksPath
+# itself, so the setting stays valid on any machine and for any HOME.
+# shellcheck disable=SC2088
+_gh_before=$(git config --global core.hooksPath 2>/dev/null || true)
+# shellcheck disable=SC2088
+bash "$REPO/lib/gitflow.sh" global-hooks "$REPO/githooks" '~/.claude/githooks'
+# shellcheck disable=SC2088
+if [ "$_gh_before" != '~/.claude/githooks' ]; then
+  echo "🪝 git config --global core.hooksPath ~/.claude/githooks (was: ${_gh_before:-unset})"
+  CHANGED=$((CHANGED + 1))
+fi
+unset _gh_before
+
+for item in hooks githooks agents skills lib templates rules; do
   target="$CLAUDE/$item"
   if [ -L "$target" ]; then
     if [ "$(readlink "$target")" = "$REPO/$item" ]; then
