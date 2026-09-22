@@ -49,9 +49,14 @@ emil-design-eng                   external
 frontend-design                   external
 design-motion-principles          external
 impeccable                        external
+21st-ui-build                     external
+21st-ui-explore                   external
+21st-ui-review                    external
+21st-cli-use                      external
+21st-ai                           external
 ui-ux-pro-max                     plugin@ui-ux-pro-max-skill
-magic                             mcp
 
-# === CLIs (advisory) =================================================
+# === CLIs ============================================================
+21st                              cli
 ctx7                              cli
 graphify                          cli

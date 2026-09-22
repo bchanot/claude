@@ -41,7 +41,8 @@ Tier does NOT change WHAT gets checked. Every non-trivial design tier draws from
 the one `design` profile — so the gate checks that profile's **design-core
 tools** (the `# GATE-BLOCK:` allowlist in `design.profile`: ui-ux-pro-max,
 frontend-design, emil-design-eng, design-motion-principles, impeccable, design-html,
-design-review, design-consultation, magic). The profile also bundles
+design-review, design-consultation, the `21st` CLI and `21st-ui-build` — the
+canary for the whole 21st skill pack). The profile also bundles
 browser/plan/shotgun tooling and graphify for convenience; those never trip the
 gate. Motion (`design-motion-principles`) and static-HTML (`design-html`) are
 already in the core set — checked regardless; their CLAUDE.md "+motion /
@@ -54,7 +55,7 @@ already in the core set — checked regardless; their CLAUDE.md "+motion /
 It reads the design-core tools (`# GATE-BLOCK:` in `design.profile`) plus their
 types (`profile.sh show design --plain`) and checks each on its own channel —
 skill symlink, `claude plugin list`, `claude mcp list`, `command -v`. It never
-reads `disabledMcpServers` (unreliable for bi-modal servers like magic/context7).
+reads `disabledMcpServers` (unreliable for bi-modal servers like context7).
 The core set lives in `design.profile`, not in the script or here — single source.
 
 Exit codes: `0` = ready · `11` = ready-but-unverified (proceed, but surface it) · `10` = incomplete (gate trips) · `2` = error.
@@ -67,21 +68,21 @@ Exit codes: `0` = ready · `11` = ready-but-unverified (proceed, but surface it)
 
       🎨 DESIGN DETECTED — the design toolchain isn't fully active.
       activate with /profile design:        <skills / ui-ux-pro-max>
-      required + manual step:                <e.g. magic — needs MAGIC_API_KEY>
+      required + manual step:                <e.g. 21st — needs the CLI>
       → run  /profile design  to activate it, then continue.
 
   - **activate with /profile design** → skills + the plugin; `/profile design`
     turns them on directly.
   - **required + manual step** → required tools the profile can't flip silently.
-    **magic lands here: it TRIPS the gate** (it's required for Build), it is NOT
-    a silent "optional". `/profile design` runs `toggle-external.sh` for magic,
-    which needs a valid `MAGIC_API_KEY` in `~/.claude/.env` — tell the user to verify it.
+    **the `21st` CLI lands here: it TRIPS the gate** (it's required for Build),
+    it is NOT a silent "optional". `/profile design` symlinks the 21st skills,
+    but the CLI they shell out to is a global npm install: tell the user to run
+    `npm i -g @21st-dev/cli` then `21st login` (no API key, no MCP).
   - Do NOT hand-activate individual tools. The profile is the unit of activation.
 - **11 / `READY BUT UNVERIFIED`** → `claude` was unreachable, so the design
-  plugin/MCP (magic, ui-ux-pro-max) could NOT be checked. Do NOT report a plain
-  "ready": proceed only after telling the user that N tool(s) went unverified and
-  having them confirm with `claude mcp list` / `claude plugin list`. Fail-visible,
-  not fail-silent — the most important tool (magic) is exactly an unverifiable one.
+  plugin (ui-ux-pro-max) could NOT be checked. Do NOT report a plain "ready":
+  proceed only after telling the user that N tool(s) went unverified and having
+  them confirm with `claude plugin list`. Fail-visible, not fail-silent.
 
 ### 4. Animation library — suggest-only (fires only on a real motion signal)
 
@@ -138,6 +139,33 @@ count:
   toolchain check handles the skill; this step handles the lib. Don't conflate
   them when talking to the user.
 
+### 5. Impeccable design context — suggest-only (one check, one line)
+
+Same class as §4: a PROJECT-side prerequisite, not a tool. `impeccable`
+installs globally, but every one of its verbs reads a per-project `PRODUCT.md`
+that only `/impeccable init` writes. Without it the skill runs on invented
+context, which is worse than not running it — and nothing else in the process
+says so, because init has to happen in the agent chat, not in an installer.
+
+**Fires when BOTH hold** — else stay silent:
+
+1. impeccable is active (`skills/impeccable` present, i.e. it did not trip §3).
+2. The project has no `PRODUCT.md` at its root.
+
+Evaluate it on the same path as §4: after the toolchain resolves, never on the
+INCOMPLETE stop path. One line, non-blocking:
+
+    🧭 impeccable has no project context here (no PRODUCT.md) — run `/impeccable init` first? (optional)
+
+**Rules:**
+
+- Non-blocking, and never run `init` unprompted: it interviews the user about
+  the product, so it needs their attention, not their absence.
+- One line per session at most. A refusal is an answer; do not re-ask inside
+  the same task.
+- Skip entirely for a review/audit of a single component and for any non-UI
+  work. This is for Build and design-system tiers.
+
 ### Other toolchains
 
 The script defaults to the `design` profile. A task needing another profile's
@@ -149,8 +177,8 @@ remedy is always `/profile <that>` — a profile, never a lone tool.
 
 - Remedy is ALWAYS a profile (`/profile design`), never an atomic tool toggle —
   the profile system is the single source of truth for what's active.
-- magic is REQUIRED (it trips the gate), but `/profile design` only enables it
-  if `MAGIC_API_KEY` is in `~/.claude/.env` — the gate says so; surface that to the user.
+- the `21st` CLI is REQUIRED (it trips the gate) and `/profile design` cannot
+  install it — the gate names the two commands; surface them to the user.
 - The design-core set (what trips the gate) is declared in `design.profile` on
   the `# GATE-BLOCK:` line(s) — edit there to add/remove a blocking design tool,
   not in the script.

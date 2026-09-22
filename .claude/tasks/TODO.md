@@ -1,5 +1,113 @@
 # TODO
 
+## 2026-09-22 — impeccable install repaired: global scope + agents + rotted pin (feature/21st-cli-migration)
+User: `make plugin` never installs impeccable, it just prints "run it
+yourself"; running it by hand needs `--scope=global` to land right, and then
+`/impeccable init` is still required. Three separate defects, all confirmed:
+1. **Pin rotted.** `npx -y impeccable@3.2.0 skills install` → `Download
+   failed: invalid zip data`, rc 1. The CLI fetches its skill dist at install
+   time and that release's artifact is gone. 3.6.1 / 4.0.5 / 4.1.0 all work.
+   That rc 1 is the "run manually" warn the user sees.
+2. **Wrong scope + half the payload dropped.** The step staged
+   `--scope=project` in a tmpdir and `mv`'d only the skill dir, silently
+   discarding the 4 `impeccable-*` subagents the installer also writes.
+   `--scope=global` writes `~/.claude/skills/impeccable` +
+   `~/.claude/agents/impeccable-*.md`, and both are symlinks INTO this repo,
+   so a global install is the repo install. Verified in a sandbox HOME.
+3. **`/impeccable init` never surfaced.** It writes per-project PRODUCT.md
+   (design context the skill reads); it runs in the agent chat, so install
+   can only announce it and the design gate has to check it.
+
+- [x] T1 install-plugins.sh Step 8d rewritten: global scope, no staging,
+      pin→latest fallback with a loud bump-the-lock warn, park-aware
+      (profile may hold impeccable in skills-disabled), symlink precondition
+      guard, agent count + skill version reported, init hint printed.
+      Harness-tested against a fake HOME with repo-shaped symlinks: happy
+      path OK, park/restore OK. Caught + fixed there: `find` stops at the
+      `~/.claude/agents` symlink without `-L`, so the agent count read 0
+      while 4 agents were installed.
+- [x] T2 update-all.sh impeccable block: same shape. `bash -n` only, NOT
+      run end to end.
+- [x] T3 plugins.lock.json: 3.2.0 → 4.1.0 + honest note (pin covers the CLI
+      only; skill dist 4.3.1 and engine 0.1.5 have their own tracks).
+- [x] T4 .gitignore: `agents/impeccable-*.md` (machine-owned, tracked dir);
+      drop `skills-external/impeccable/`. link.sh: impeccable out of
+      EXTERNAL_SKILLS (nothing to symlink any more). `git check-ignore`
+      confirms both paths.
+- [x] T5 lib/design-gate.md §5: suggest-only PRODUCT.md / `/impeccable init`
+      check, same shape as the §4 animation-library check.
+- [x] T6 duplicate project-scope install: already gone at resume (user ran
+      `rm -rf .claude/skills .claude/agents` before restarting).
+- [x] T7 CHANGELOG (Added/Changed/Fixed) + BDR-094 + LRN-159 + BLK-021 +
+      journal. `make test` green except the 2 pre-existing gitflow T16a FAILs
+      (gitleaks binary absent on this host), shellcheck clean. Committed on
+      the branch, UNMERGED — human gate.
+
+**Residual, probed and fixed (round 3)**: with a copy already installed a
+rotted pin DOES exit 0 ("Could not check for skill updates: invalid zip data
+… Existing skills were left unchanged"), and so does a genuine rerun of a
+good pin ("Skills are up to date (v4.3.1)"). Both leave SKILL.md
+byte-identical, so a before/after version compare cannot separate them.
+`imp_install` (Step 8d and update-all.sh) now captures the installer output
+and fails on `Download failed|Could not check for skill updates`, whatever
+the exit code. Harness on the extracted step, sandbox HOME, real installer:
+fresh install; rotted pin over a copy → fallback fires; same pin rerun → no
+false warn; parked copy + rotted pin → fallback, then returned to
+skills-disabled/. update-all.sh: `bash -n` + shellcheck only.
+
+OPEN for the user:
+- /tmp is a tmpfs with a per-user quota and the dead session's scratchpad
+  holds 5.9 GB of probe HOMEs. Writes to /tmp fail with EDQUOT: the likely
+  cause of the "every command exits 1" shell death (BLK-021). Free it:
+  `rm -rf /tmp/claude-1000/-home-bchanot-Documents-claude/fefd277c-e143-4d51-b589-a566641079b5`
+  (the agent's `rm -rf` under /tmp is denied). This round ran tests and the
+  harness with TMPDIR under ~/.cache.
+- `skills/synced/` (4.4 MB, untracked, not ignored): claude.ai's synced
+  skills, written through the ~/.claude/skills symlink. Decide whether to
+  gitignore it; not touched here.
+
+## 2026-09-22 — 21st: magic MCP → CLI + skills (feature/21st-cli-migration)
+User: "remplacer pour 21st, il n'y a plus besoin de mcp / api, mais juste en
+cli". Upstream confirmed (`@21st-dev/cli` 1.17.1 README): the CLI supersedes
+`@21st-dev/magic`; auth is `21st login` (browser token in `~/.config/21st`),
+no API key; `21st install-skill` = alias of `21st skills install --global`.
+Gates answered by user: 5 design skills in profiles (registry + design-sync
+parked), `make plugin` auto-installs the CLI + offers login on TTY only,
+missing `21st` CLI trips the design gate (magic's old required-manual slot).
+
+Blocker found + solved: `21st skills install --global` REFUSES to write
+through a symlinked path (`assertNoSymlinkComponents`), and `~/.claude/skills`
+IS a symlink → repo/skills. Verified live: "Refusing to access symbolic link
+…/.claude/skills". → install into a staged HOME (mktemp), move each skill to
+`skills-external/21st-*/` (impeccable pattern), symlink from there.
+
+- [x] T1 install-plugins.sh STEP 8.7: magic block → 21st CLI (`npm i -g`,
+      pinned via plugins.lock.json) + staged `skills install` →
+      skills-external/21st-*, TTY-gated `21st login`, pack disabled by default.
+- [x] T2 lib/toggle-external.sh: managed tool `magic` (mcp) → `21st` (skill
+      pack, glob-derived from skills-external/21st-*), drop load_env.
+- [x] T3 profiles + profile.sh: `magic mcp` → 5 externals + `21st cli` in
+      design/web/web-full/full; GATE-BLOCK `21st 21st-ui-build`;
+      MANAGED_EXTERNALS += the 5; MANAGED_MCPS emptied (kept as a live
+      allowlist, mcp type machinery stays generic).
+- [x] T4 lib/design-tool-gate.sh + lib/design-gate.md: manual-step hint
+      magic/MAGIC_API_KEY → 21st/`npm i -g` + `21st login`; PATH repair
+      extended to the npm-global bin dir (21st lives in nvm's bin, the
+      existing repair only fires when `claude` itself is unresolvable).
+- [x] T5 doctrine + docs: CLAUDE.global.md design toolchain, README (drop the
+      magic callback-injection section + the MCP env-var worked example),
+      .env.example, link.sh MAGIC_API_KEY warning, .gitleaks.toml allowlist,
+      update-all.sh, .gitignore, settings.json (drop 4 mcp__magic__*; the
+      outward-facing verbs landed in autoMode.soft_deny, NOT ask — LRN-153
+      says ask is inert under auto mode).
+- [x] T6 lib/tests/profile-set-managed.test.sh retargeted (mcp fixture → 21st
+      external pack), `make test` + shellcheck green.
+- [x] T7 CHANGELOG + BDR-093 + LRN-158 + journal. Also cleaned along the way:
+      dead `magic` branches in profile.sh enable/disable_skill,
+      skills/profile/SKILL.md. OPEN for the user: `npm i -g @21st-dev/cli`
+      then `21st login` (`Bash(npm install -g *)` is denied to the agent).
+      Branch UNMERGED — human gate.
+
 ## 2026-09-17 — /deploy hand-back: one-line commands + post-deploy test list (feature/deploy-oneline-tests)
 User: commands in the /deploy checklist arrive broken across lines (cannot
 copy-paste), and the hand-back stops at the deploy steps — wants, after the

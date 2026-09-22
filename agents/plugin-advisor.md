@@ -292,8 +292,8 @@ activate a curated subset of skills + plugins + MCPs and disable the rest of
 gstack + managed plugins — sessions stay focused and passive token cost drops.
 
 `profile set <name>` actually toggles plugins (`claude plugin enable|disable`)
-and MCPs (delegates to `lib/toggle-external.sh` for `magic`) — not just
-advisory. Always-on plugins (`security-guidance`, `superpowers`)
+and external skill packs (delegates to `lib/toggle-external.sh`) — not just
+advisory. No MCP server is auto-toggled today. Always-on plugins (`security-guidance`, `superpowers`)
 are protected. Managed plugins that `set` may toggle:
 `ui-ux-pro-max@ui-ux-pro-max-skill`, `plugin-dev@claude-code-plugins`,
 `pr-review-toolkit@claude-code-plugins`. Other plugins are never auto-toggled.

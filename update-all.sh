@@ -321,8 +321,6 @@ else
   info "bun not installed — skipping"
 fi
 # NOT updated here, deliberately (audit 2026-07-02):
-# - magic MCP: registered as `npx -y @21st-dev/magic@latest` — npx resolves
-#   the latest release at every invocation, nothing to upgrade.
 # - graphify Claude integration (`graphify claude install`): rewrites curated
 #   CLAUDE.md / .claude/settings.json (BDR-028 guard territory) — re-run
 #   MANUALLY only if a graphify upgrade changes its hook format.
@@ -381,11 +379,34 @@ else
   info "design-motion-principles not installed — skipping"
 fi
 
-# ── Impeccable (design anti-pattern detector + skill) ──
+# ── Impeccable (design detector + skill + subagents) ──
+# Global scope: the installer writes through the ~/.claude/{skills,agents}
+# symlinks straight into this repo (install-plugins.sh Step 8d explains why
+# staging + project scope was wrong). The pin can rot upstream, so a pinned
+# failure falls back to @latest rather than leaving the tool stale forever.
+#
+# One install attempt. $1 = "latest" or an exact version. On failure, IMP_FAIL
+# holds the reason. Same helper as Step 8d: with a copy already in place a
+# rotted pin exits 0 and says "Could not check for skill updates … left
+# unchanged", so the exit code cannot tell it from an up-to-date no-op.
+imp_install() {
+  local pkg="impeccable" out rc=0
+  [ "$1" != "latest" ] && pkg="impeccable@$1"
+  out=$(npx -y "$pkg" skills install -y --providers=claude --scope=global \
+    --no-hooks 2>&1) || rc=$?
+  IMP_FAIL=$(printf '%s\n' "$out" \
+    | grep -E 'Download failed|Could not check for skill updates' \
+    | head -1 || true)
+  if [ "$rc" -ne 0 ] && [ -z "$IMP_FAIL" ]; then
+    IMP_FAIL="installer exited $rc"
+  fi
+  [ -z "$IMP_FAIL" ]
+}
 echo ""
 echo "── Updating impeccable..."
-IMP_DIR="$REPO/skills-external/impeccable"
-if [ ! -f "$IMP_DIR/SKILL.md" ]; then
+IMP_SKILL_DIR="$HOME/.claude/skills/impeccable"
+IMP_PARKED="$REPO/skills-disabled/impeccable"
+if [ ! -f "$IMP_SKILL_DIR/SKILL.md" ] && [ ! -f "$IMP_PARKED/SKILL.md" ]; then
   info "impeccable not installed — skipping (run: make plugin)"
 else
   IMP_VER=""
@@ -399,27 +420,83 @@ print(d.get('impeccable',{}).get('version','latest'))
   fi
   IMP_NODE=$(node -v 2>/dev/null | sed 's/^v//' | cut -d. -f1)
   if [ -z "${IMP_NODE:-}" ] || [ "$IMP_NODE" -lt 24 ]; then
-    info "impeccable update skipped — needs Node >= 24 (found ${IMP_NODE:-none}); existing dist kept"
+    info "impeccable update skipped — needs Node >= 24 (found ${IMP_NODE:-none}); existing copy kept"
   else
-    IMP_PKG="impeccable"
-    # Pin honored (LRN-077 class: a silent rules update changes audit
-    # output on unchanged code) — bump the pin deliberately, then update.
-    [ -n "$IMP_VER" ] && [ "$IMP_VER" != "latest" ] && IMP_PKG="impeccable@${IMP_VER}"
-    IMP_STAGE=$(mktemp -d)
-    if (cd "$IMP_STAGE" && npx -y "$IMP_PKG" skills install -y --providers=claude --scope=project --no-hooks >/dev/null 2>&1); then
-      IMP_SRC=$(find "$IMP_STAGE" -type d -name impeccable -path "*skills*" 2>/dev/null | head -1)
-      if [ -n "$IMP_SRC" ] && [ -f "$IMP_SRC/SKILL.md" ]; then
-        rm -rf "$IMP_DIR"
-        mv "$IMP_SRC" "$IMP_DIR"
-        ok "impeccable refreshed (CLI ${IMP_VER:-latest})"
-      else
-        warn "impeccable: installer produced no dist — existing kept"
+    IMP_WAS_PARKED=false
+    [ -d "$IMP_PARKED" ] && IMP_WAS_PARKED=true
+    # Pin honored (LRN-077 class: a silent rules update changes audit output
+    # on unchanged code) — bump the pin deliberately, then update.
+    IMP_PIN="${IMP_VER:-latest}"
+    IMP_OK=false
+    if imp_install "$IMP_PIN"; then
+      IMP_OK=true
+    elif [ "$IMP_PIN" != "latest" ]; then
+      warn "impeccable@${IMP_PIN} did not install (${IMP_FAIL}) — that release's skill dist is gone upstream; trying @latest"
+      if imp_install latest; then
+        IMP_OK=true
+        warn "refreshed from @latest, not the pin — bump \"impeccable\".version in plugins.lock.json"
+      fi
+    fi
+    if [ "$IMP_OK" = true ] && [ -f "$IMP_SKILL_DIR/SKILL.md" ]; then
+      IMP_SKILL_VER=$(sed -n 's/^version:[[:space:]]*//p' "$IMP_SKILL_DIR/SKILL.md" | head -1)
+      ok "impeccable refreshed (CLI ${IMP_VER:-latest}, skill ${IMP_SKILL_VER:-?})"
+      if [ "$IMP_WAS_PARKED" = true ]; then
+        rm -rf "${IMP_PARKED:?}"
+        mv "$IMP_SKILL_DIR" "$IMP_PARKED"
+        info "impeccable was parked by a profile — refreshed copy returned to skills-disabled/"
       fi
     else
-      warn "impeccable refresh failed — existing dist kept"
+      warn "impeccable refresh failed (${IMP_FAIL:-no SKILL.md written}) — existing copy kept"
     fi
-    rm -rf "$IMP_STAGE"
   fi
+fi
+
+# ── 7.4. Update the 21st.dev CLI + skill pack ──
+# The CLI is a global npm bin; the skills are its hash-verified output, staged
+# under a throwaway HOME because `21st skills install` refuses to write
+# through the ~/.claude/skills symlink (see install-plugins.sh Step 8.7).
+echo ""
+echo "── Updating 21st.dev CLI + skill pack..."
+if ! command -v 21st &>/dev/null; then
+  info "21st CLI not installed — skipping (run: make plugin)"
+else
+  TFD_VER=""
+  if [ -f "$REPO/plugins.lock.json" ] && command -v python3 &>/dev/null; then
+    TFD_VER=$(python3 -c "
+import json
+with open('$REPO/plugins.lock.json') as f:
+    d = json.load(f)
+print(d.get('21st',{}).get('version','latest'))
+" 2>/dev/null || true)
+  fi
+  TFD_PKG="@21st-dev/cli@latest"
+  [ -n "$TFD_VER" ] && [ "$TFD_VER" != "latest" ] && TFD_PKG="@21st-dev/cli@${TFD_VER}"
+  if npm install -g "$TFD_PKG" 2>/dev/null; then
+    ok "21st CLI updated (${TFD_VER:-latest})"
+  else
+    warn "21st CLI update failed — existing binary kept"
+  fi
+  TFD_STAGE=$(mktemp -d)
+  if HOME="$TFD_STAGE" 21st skills install --global --agent claude >/dev/null 2>&1; then
+    TFD_N=0
+    for _tfd in "$TFD_STAGE"/.claude/skills/*/; do
+      [ -f "${_tfd}SKILL.md" ] || continue
+      _tfd_name=$(basename "$_tfd")
+      # Refresh the SOURCE only. A parked copy in skills-disabled/ is left
+      # alone: re-enabling restores it, and the next update refreshes it.
+      rm -rf "${REPO:?}/skills-external/${_tfd_name:?}"
+      mv "$_tfd" "$REPO/skills-external/$_tfd_name"
+      TFD_N=$((TFD_N + 1))
+    done
+    if [ "$TFD_N" -gt 0 ]; then
+      ok "21st skill pack refreshed ($TFD_N skills)"
+    else
+      warn "21st skills install produced no SKILL.md — existing pack kept"
+    fi
+  else
+    warn "21st skill pack refresh failed — existing pack kept"
+  fi
+  rm -rf "$TFD_STAGE"
 fi
 
 # ── 7.5. Update external skills (npx skills) ──

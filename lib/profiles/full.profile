@@ -86,9 +86,14 @@ ui-ux-pro-max                     plugin@ui-ux-pro-max-skill
 #   claude plugin enable pr-review-toolkit@claude-code-plugins
 # or profile-based: bash lib/profile.sh apply audit (audit.profile keeps it;
 # a later `set full` re-disables it — MANAGED_PLUGINS lifecycle).
-magic                             mcp
+21st-ui-build                     external
+21st-ui-explore                   external
+21st-ui-review                    external
+21st-cli-use                      external
+21st-ai                           external
 
 # === CLIs (advisory) =================================================
+21st                              cli
 ctx7                              cli
 graphify                          cli
 gsd                               cli

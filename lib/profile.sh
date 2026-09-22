@@ -11,7 +11,7 @@
 # Mechanism:
 #   - Skills (gstack/external/personal): symlink toggle skills/ ↔ skills-disabled/
 #   - Plugins: `claude plugin enable|disable <name>@<marketplace>`
-#   - MCPs: delegated to lib/toggle-external.sh for known servers (magic),
+#   - MCPs: advisory (none managed since BDR-093 — MANAGED_MCPS is empty),
 #           advisory otherwise
 #   - CLIs: advisory only (rtk, gsd, ctx7, graphify — installed externally)
 #   - `set` is SYMMETRIC on managed items (BDR-079): plugins, external packs
@@ -51,7 +51,6 @@ SKILLS_DIR="$REPO/skills"
 DISABLED_DIR="$REPO/skills-disabled"
 GSTACK_SRC="$REPO/skills-external/gstack"  # gstack submodule — source of truth for gstack skills
 PROFILES_DIR="$REPO/lib/profiles"
-TOGGLE_EXTERNAL="$REPO/lib/toggle-external.sh"
 ACTIVE_CACHE="$REPO/.active-profile"  # statusline reads this — keep fast (single-line file, profile name only)
 
 # Plugins that are toggle-managed by `set`. Anything NOT in this list is
@@ -73,13 +72,20 @@ MANAGED_EXTERNALS=(
   frontend-design
   design-motion-principles
   impeccable
+  21st-ui-build
+  21st-ui-explore
+  21st-ui-review
+  21st-cli-use
+  21st-ai
 )
 
 # MCP servers that are toggle-managed by `set`, both ways (enable AND
 # disable), delegated to lib/toggle-external.sh. Same allowlist doctrine.
-MANAGED_MCPS=(
-  magic
-)
+# Empty since 2026-09-22: `magic` was the only entry and 21st.dev replaced
+# its MCP server with a CLI + skill pack (the 5 design skills are managed as
+# externals above). The `mcp` type itself stays supported — a profile can
+# still list an MCP, it is then advisory rather than auto-toggled.
+MANAGED_MCPS=()
 
 # Plugins that MUST stay enabled — `set` will refuse to disable these even if
 # they're not in the profile. (Defensive: belt-and-suspenders alongside
@@ -324,15 +330,12 @@ enable_skill() {
       fi
       ;;
     mcp)
+      # Advisory only. The delegation branch that lived here served `magic`,
+      # the single managed MCP; 21st.dev replaced it with a CLI (BDR-093), so
+      # MANAGED_MCPS is empty and nothing is auto-registered. Re-add a branch
+      # here the day a profile owns an MCP server again.
       if [ "$(skill_status "$skill" mcp)" = "enabled" ]; then
         : # already on
-      elif [ "$skill" = "magic" ] && [ -x "$TOGGLE_EXTERNAL" ]; then
-        # Known MCP — delegate to lib/toggle-external.sh which handles env vars.
-        if bash "$TOGGLE_EXTERNAL" enable magic 2>&1 | grep -qE "enabled|already"; then
-          ok "enabled MCP: magic"
-        else
-          info "MCP 'magic' could not be enabled (check .env for MAGIC_API_KEY)"
-        fi
       else
         info "MCP '$skill' not registered — run: claude mcp add $skill -- <command>"
       fi
@@ -394,15 +397,7 @@ disable_skill() {
       info "plugin '$skill' — manual: claude plugin disable $skill@<marketplace>"
       ;;
     mcp)
-      if [ "$skill" = "magic" ] && [ -x "$TOGGLE_EXTERNAL" ]; then
-        if bash "$TOGGLE_EXTERNAL" disable magic 2>&1 | grep -qE "disabled|already"; then
-          ok "disabled MCP: magic"
-        else
-          info "MCP 'magic' — manual disable failed"
-        fi
-      else
-        info "MCP '$skill' — manual: claude mcp remove $skill"
-      fi
+      info "MCP '$skill' — manual: claude mcp remove $skill"
       ;;
     cli)
       : # never auto-uninstall CLIs

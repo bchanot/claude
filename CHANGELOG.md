@@ -26,8 +26,41 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   classifier lists, `$defaults` splice semantics, `classifyAllShell`, the
   user-scope vs project-scope rule, and why `ask` is the wrong tier for a
   destructive command under auto mode.
+- **21st.dev moved from an MCP server to a CLI.** `install-plugins.sh` Step 8.7
+  installs `@21st-dev/cli` globally (pinned in `plugins.lock.json`), offers
+  `21st login` in an interactive terminal only, and stages the 7-skill pack
+  into `skills-external/21st-*`. `update-all.sh` refreshes both. The pack
+  ships disabled, same policy the MCP had.
+- `lib/toggle-external.sh` manages `21st` as a skill pack (glob-derived from
+  `skills-external/21st-*`, parked under plain names so `profile.sh`'s
+  external park/restore stays interoperable). `magic` is gone from the
+  managed tools.
+- The five design skills (`21st-ui-build`, `-ui-explore`, `-ui-review`,
+  `-cli-use`, `-ai`) are in the `design`, `web`, `web-full` and `full`
+  profiles and in `profile.sh`'s `MANAGED_EXTERNALS`; `21st-registry` and
+  `21st-design-sync` are installed but left parked.
+- `autoMode.soft_deny` gains one entry for the outward-facing 21st verbs
+  (`publish*`, `submit`, `edit`, `delete`, `remove-from-catalog`,
+  `profile set|upload`) — publishing puts a component on a public listing.
+  That tier rather than `ask`, per LRN-153.
+
+- `lib/design-gate.md` §5: a suggest-only check, same shape as the §4
+  animation-library one. When impeccable is active and the frontend project
+  has no `PRODUCT.md` at its root, the gate proposes `/impeccable init` once
+  and never runs it itself (it interviews the user). Skipped for single
+  component reviews and non-UI work.
 
 ### Changed
+- **Design gate: `magic` → the `21st` CLI in the required-manual slot.**
+  `design.profile`'s `GATE-BLOCK` now lists `21st` (CLI channel) and
+  `21st-ui-build` (the pack's canary on the skill channel); a missing CLI
+  trips the gate with `npm i -g @21st-dev/cli` + `21st login` instead of the
+  old `MAGIC_API_KEY` hint. `design-tool-gate.sh` also repairs `PATH` for the
+  npm global bin, whose absence in a hook's sanitized `PATH` would otherwise
+  read as "21st missing" (the existing repair only fired when `claude` itself
+  was unresolvable).
+- `profile.sh`'s `MANAGED_MCPS` is empty: no MCP server is auto-toggled any
+  more. The `mcp` type stays supported for an advisory profile entry.
 - **`/deploy` hand-back: one physical line per command, then a post-deploy
   tests block.** Every command in the checklist is emitted on exactly one
   line, however long; a legacy `\` continuation in the runbook is joined at
@@ -92,6 +125,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   `bypassPermissions`). Adding a restriction stays allowed; removing one
   does not. No instruction clears these.
 
+- **impeccable installs at `--scope=global`, subagents included, and the
+  pin fails safe.** `install-plugins.sh` Step 8d no longer stages a
+  `--scope=project` install in a tmpdir and moves the skill directory alone.
+  The installer writes through the `~/.claude/skills` and `~/.claude/agents`
+  symlinks straight into the repo: `skills/impeccable` plus the four
+  `agents/impeccable-*.md`, both gitignored and machine-owned, which is what
+  the manual `--scope=global` command already did. The step refuses to run
+  before `make link` has created those symlinks (an install before them
+  materializes real directories that `link.sh` then refuses to replace),
+  keeps a profile-parked copy parked, reports the skill version and agent
+  count, and prints the per-project `/impeccable init` hint. A pinned
+  install that fails falls back to `impeccable@latest` with a warning to
+  bump `plugins.lock.json`. `update-all.sh` follows the same shape.
+  `plugins.lock.json` pin 3.2.0 → 4.1.0 (the CLI only: the skill dist and
+  the engine binary have their own release tracks). `link.sh` drops
+  impeccable from `EXTERNAL_SKILLS`; `skills-external/impeccable/` is gone.
+
 ### Security
 - **Ten secret-reader deny rules added**: `sed`, `awk`, `cut`, `tr`,
   `sort`, `uniq`, `diff`, `od`, `xxd`, `strings` against `.env*`. Six of
@@ -99,6 +149,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   them triggered nothing. Same shape and same known gap as the existing
   `Bash(grep * .env*)` family: a `cat .env | sed` pipe still slips past,
   which is what the `hard_deny` exfiltration rule is there to catch.
+
+### Removed
+- **`magic` MCP (`@21st-dev/magic`) and `MAGIC_API_KEY`**, with the two risks
+  attached to them: the unauthenticated `127.0.0.1` callback server
+  `21st_magic_component_builder` opened (LRN-110) and the plaintext key copy
+  that `claude mcp add --env` wrote into `~/.claude.json` (BDR-026/057). Gone
+  with it: the 4 `mcp__magic__*` `permissions.ask` entries (BDR-059), the
+  `MAGIC_API_KEY` block in `.env.example`, `link.sh`'s missing-key warning,
+  and the dead `MAGIC_API_KEY=abc123` gitleaks allowlist regex.
 
 ### Fixed
 - **`make update` no longer drops the Playwright OS-support bump** — a
@@ -124,6 +183,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   holds under `defaultMode: default`, not under this config's `auto`. The
   paragraph now separates what is verified from what is not, and names
   `deny` as the only tier the classifier cannot lift.
+- **`make plugin` never installed impeccable.** Three defects. The 3.2.0
+  pin had rotted upstream: the CLI fetches its skill dist at install time and
+  that release's artifact is gone (`Download failed: invalid zip data`),
+  which the step reported as "run it yourself" on every run. The
+  project-scope staging dropped the four subagents the same install writes.
+  And `/impeccable init` was never announced. A fourth, found while probing
+  the fix: once a copy is already installed, a rotted pin exits 0
+  (`Could not check for skill updates … Existing skills were left
+  unchanged`), byte-identical on disk to a genuine "Skills are up to date"
+  rerun, so `imp_install` now reads the installer output instead of trusting
+  the exit code or a version compare. Verified with the real installer in a
+  sandbox HOME: fresh install, rotted pin over a copy (fallback fires), same
+  pin rerun (no false warning), parked copy plus rotted pin (fallback, then
+  returned to `skills-disabled/`).
 
 ## [1.5.0] — 2026-09-13
 

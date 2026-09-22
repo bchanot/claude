@@ -788,54 +788,114 @@ else
 fi
 echo ""
 
-# ── Step 8d: Impeccable (design anti-pattern detector + skill) ──
-# 45 deterministic detector rules (CLI `impeccable detect`, exit 0/2) +
-# /impeccable skill (23 verbs). Machine-owned dist: the installer produces
-# it, we stage it in a tmpdir then move it under skills-external/
-# (gitignored, ctx7 pattern) — never let the installer write through the
-# ~/.claude/skills symlink into the tracked repo dir.
-echo "── Step 8d: Impeccable — design anti-pattern detector ────"
+# ── Step 8d: Impeccable (design detector + skill + subagents) ──
+# 45 deterministic detector rules (`impeccable detect`, exit 0/2), the
+# /impeccable skill (23 verbs) and 4 `impeccable-*` subagents.
+#
+# GLOBAL scope, no staging: the installer writes ~/.claude/skills/impeccable/
+# (skill + its self-contained engine binary) and ~/.claude/agents/
+# impeccable-*.md, and both of those are symlinks into this repo — so the
+# global install IS the repo install. Machine-owned and gitignored on both
+# sides. `--scope=project` was wrong twice over: it writes <cwd>/.claude/,
+# which serves only the directory it ran in, and the staged `mv` that
+# followed it moved the skill alone, silently dropping the subagents.
+#
+# The pin rots. The CLI downloads its skill dist at install time and an older
+# release's artifact eventually disappears (`impeccable@3.2.0` → "Download
+# failed: invalid zip data", 2026-09-22) — which is what left `make plugin`
+# telling the user to run the command by hand. So a pin failure falls back to
+# @latest and says, loudly, that the lock needs bumping.
+echo "── Step 8d: Impeccable — design detector, skill + agents ──"
 echo ""
-IMP_DIR="$REPO/skills-external/impeccable"
+IMP_SKILL_DIR="$HOME/.claude/skills/impeccable"
+IMP_PARKED="$REPO/skills-disabled/impeccable"
 IMP_VER=$(pinned_version "impeccable")
 NODE_MAJOR=$(node -v 2>/dev/null | sed 's/^v//' | cut -d. -f1)
-if [ -z "${NODE_MAJOR:-}" ] || [ "$NODE_MAJOR" -lt 24 ]; then
-  if [ -f "$IMP_DIR/SKILL.md" ]; then
+
+# One install attempt. $1 = "latest" or an exact version. On failure, IMP_FAIL
+# holds the reason. The exit code alone is not enough: with a copy already in
+# place, a rotted pin exits 0 ("Could not check for skill updates: invalid
+# zip data … Existing skills were left unchanged"), exactly like a genuine
+# up-to-date no-op ("Skills are up to date") — only the output tells them
+# apart. Probed 2026-09-22 on 4.1.0 vs 3.2.0 in a sandbox HOME.
+imp_install() {
+  local pkg="impeccable" out rc=0
+  [ "$1" != "latest" ] && pkg="impeccable@$1"
+  out=$(npx -y "$pkg" skills install -y --providers=claude --scope=global \
+    --no-hooks 2>&1) || rc=$?
+  IMP_FAIL=$(printf '%s\n' "$out" \
+    | grep -E 'Download failed|Could not check for skill updates' \
+    | head -1 || true)
+  if [ "$rc" -ne 0 ] && [ -z "$IMP_FAIL" ]; then
+    IMP_FAIL="installer exited $rc"
+  fi
+  [ -z "$IMP_FAIL" ]
+}
+
+# Precondition: ~/.claude/{skills,agents} must already be link.sh's symlinks.
+# Installing before they exist materializes real directories there, and
+# link.sh then refuses to replace them ("is a real directory") — a worse
+# failure than skipping, because it needs manual repair.
+IMP_READY=true
+for _imp_d in skills agents; do
+  if [ "$(readlink "$HOME/.claude/$_imp_d" 2>/dev/null || true)" != "$REPO/$_imp_d" ]; then
+    IMP_READY=false
+  fi
+done
+
+if [ "$IMP_READY" != true ]; then
+  warn "impeccable: ~/.claude/skills and ~/.claude/agents are not this repo's symlinks yet"
+  warn "  → run 'make link' first, then re-run 'make plugin'"
+elif [ -z "${NODE_MAJOR:-}" ] || [ "$NODE_MAJOR" -lt 24 ]; then
+  if [ -f "$IMP_SKILL_DIR/SKILL.md" ] || [ -f "$IMP_PARKED/SKILL.md" ]; then
     ok "impeccable already present (update skipped — needs Node >= 24, found ${NODE_MAJOR:-none})"
   else
     warn "impeccable: needs Node >= 24 (found ${NODE_MAJOR:-none}) — skipped. Bump Node, then: make plugin"
   fi
 else
-  IMP_PKG="impeccable"
+  # A profile may hold impeccable parked in skills-disabled/. Install writes
+  # to the live slot, so remember the state and put the fresh copy back where
+  # it was — otherwise `make plugin` silently re-enables a disabled skill.
+  IMP_WAS_PARKED=false
+  [ -d "$IMP_PARKED" ] && IMP_WAS_PARKED=true
+  IMP_USED=""
   if [ "$IMP_VER" != "latest" ]; then
-    IMP_PKG="impeccable@${IMP_VER}"
-    info "Installing impeccable ${IMP_VER} (pinned in plugins.lock.json, staged)..."
+    info "Installing impeccable ${IMP_VER} (pinned in plugins.lock.json, global scope)..."
+    if imp_install "$IMP_VER"; then
+      IMP_USED="$IMP_VER"
+    else
+      warn "impeccable@${IMP_VER} did not install (${IMP_FAIL}) — that release's skill dist is gone upstream"
+      info "Falling back to impeccable@latest..."
+      if imp_install latest; then
+        IMP_USED="latest"
+        warn "installed @latest instead of the pin. Bump \"impeccable\".version in plugins.lock.json to the version this produced, so the next run is reproducible again."
+      fi
+    fi
   else
     info "Installing impeccable latest (consider pinning in plugins.lock.json)..."
+    imp_install latest && IMP_USED="latest"
   fi
-  IMP_STAGE=$(mktemp -d)
-  if (cd "$IMP_STAGE" && npx -y "$IMP_PKG" skills install -y --providers=claude --scope=project --no-hooks >/dev/null 2>&1); then
-    IMP_SRC=$(find "$IMP_STAGE" -type d -name impeccable -path "*skills*" 2>/dev/null | head -1)
-    if [ -n "$IMP_SRC" ] && [ -f "$IMP_SRC/SKILL.md" ]; then
-      rm -rf "$IMP_DIR"
-      mv "$IMP_SRC" "$IMP_DIR"
-      ok "impeccable synced to skills-external/ (CLI ${IMP_VER})"
-    else
-      warn "impeccable: installer ran but produced no skills/impeccable/SKILL.md — layout changed? Inspect: npx impeccable skills install"
+
+  if [ -n "$IMP_USED" ] && [ -f "$IMP_SKILL_DIR/SKILL.md" ]; then
+    IMP_SKILL_VER=$(sed -n 's/^version:[[:space:]]*//p' "$IMP_SKILL_DIR/SKILL.md" | head -1)
+    # -L: ~/.claude/agents is a symlink, and find would otherwise stop on it.
+    IMP_AGENTS=$(find -L "$HOME/.claude/agents" -maxdepth 1 -name 'impeccable-*.md' 2>/dev/null | wc -l)
+    ok "impeccable installed (CLI ${IMP_USED}, skill ${IMP_SKILL_VER:-?}, ${IMP_AGENTS} agents)"
+    if [ "$IMP_AGENTS" -eq 0 ]; then
+      warn "no impeccable-* agent landed in agents/ — the skill's finish/document verbs dispatch to them"
     fi
+    if [ "$IMP_WAS_PARKED" = true ]; then
+      rm -rf "${IMP_PARKED:?}"
+      mv "$IMP_SKILL_DIR" "$IMP_PARKED"
+      info "impeccable was parked by a profile — refreshed copy returned to skills-disabled/"
+    fi
+    info "Per-project step, in the agent chat of each frontend project:  /impeccable init"
+    info "  (writes PRODUCT.md — the design context every impeccable verb reads)"
+  elif [ -f "$IMP_SKILL_DIR/SKILL.md" ] || [ -f "$IMP_PARKED/SKILL.md" ]; then
+    ok "impeccable already present (install failed: ${IMP_FAIL:-no SKILL.md written} — existing copy kept)"
   else
-    if [ -f "$IMP_DIR/SKILL.md" ]; then
-      ok "impeccable already present (installer failed — existing dist kept)"
-    else
-      warn "impeccable install failed — run manually: npx impeccable skills install -y --providers=claude --scope=project --no-hooks"
-    fi
+    warn "impeccable install failed (${IMP_FAIL:-no SKILL.md written}) — run manually: npx impeccable skills install -y --providers=claude --scope=global --no-hooks"
   fi
-  rm -rf "$IMP_STAGE"
-fi
-if [ -L "$HOME/.claude/skills/impeccable" ]; then
-  ok "impeccable symlink OK"
-else
-  info "Symlinking — will be created by link.sh"
 fi
 echo ""
 
@@ -892,42 +952,104 @@ done
 echo ""
 
 # ============================================================
-# STEP 8.7 — MAGIC MCP (21st-dev) — installed but DISABLED by default
+# STEP 8.7 — 21ST.DEV CLI + SKILL PACK — installed but DISABLED by default
 # ============================================================
-# Magic MCP is a stdio MCP server providing UI component generation
-# from 21st.dev. Toggled via lib/toggle-external.sh (same interface as
-# gstack, emil-design-eng, etc.). Registered in Claude Code user scope.
+# `@21st-dev/cli` (bin `21st`) supersedes the `@21st-dev/magic` MCP server:
+# same endpoint, one browser login (`21st login`, token in ~/.config/21st),
+# no API key, no MCP process loaded into every session. It ships a pack of
+# verified skills (21st-ui-build / -explore / -review / -cli-use / -ai /
+# -registry / -design-sync) that drive the CLI from Claude Code.
 #
-# Default policy: DISABLED at install time. Rationale: MCP tools load
-# into every Claude Code session and consume context tokens. Enable
-# only when you're actively using Magic.
+# Machine-owned dist (impeccable pattern): `21st skills install` writes to
+# <HOME>/.claude/skills/<name>/ and REFUSES to follow a symlink anywhere on
+# that path — and ~/.claude/skills IS a symlink to this repo's skills/. So
+# install under a staged HOME, then move each skill into skills-external/
+# (gitignored), where toggle-external.sh / profile.sh symlink it in.
 #
-# API key: read from $REPO/.env (MAGIC_API_KEY=...) — NEVER committed.
-# Template: $REPO/.env.example. Get a key at https://21st.dev/magic
-echo "── Step 8.7: Magic MCP (21st-dev) ──────────────────────────"
+# Default policy: pack DISABLED at install time — every skill description
+# loads into every session. Enable on demand:
+#   bash lib/toggle-external.sh enable 21st     (whole pack)
+#   /profile design                             (the 5 design skills)
+echo "── Step 8.7: 21st.dev CLI + skill pack ─────────────────────"
 echo ""
-if [ -x "$REPO/lib/toggle-external.sh" ]; then
-  MAGIC_STATUS="$(bash "$REPO/lib/toggle-external.sh" status magic 2>/dev/null || echo missing)"
-  if [ "$MAGIC_STATUS" = "enabled" ]; then
-    info "Disabling magic MCP by default (enable on demand)..."
-    bash "$REPO/lib/toggle-external.sh" disable magic >/dev/null
-    ok "magic MCP disabled — enable with: bash lib/toggle-external.sh enable magic"
+if command -v 21st &>/dev/null; then
+  ok "21st CLI already installed"
+else
+  TFD_VER=$(pinned_version "21st")
+  if [ "$TFD_VER" != "latest" ]; then
+    info "Installing @21st-dev/cli@${TFD_VER} (pinned in plugins.lock.json)..."
+    npm install -g "@21st-dev/cli@${TFD_VER}"
   else
-    ok "magic MCP disabled (default)"
+    info "Installing @21st-dev/cli@latest (consider pinning in plugins.lock.json)..."
+    npm install -g @21st-dev/cli
   fi
-  # The key lives in ~/.claude/.env (canonical, BDR-026), reached via the
-  # repo/.env symlink that toggle-external.sh sources. Self-heal the common
-  # fresh-machine case: ~/.claude/.env was created AFTER link.sh ran, so the
-  # symlink is missing and the key looks absent though it's set.
-  HOME_ENV="$HOME/.claude/.env"
-  if [ ! -e "$REPO/.env" ] && [ -f "$HOME_ENV" ]; then
-    ln -sf "$HOME_ENV" "$REPO/.env" 2>/dev/null \
-      && info "Linked repo/.env → ~/.claude/.env (was missing)"
+  if command -v 21st &>/dev/null; then
+    ok "21st CLI installed"
+  else
+    err "21st CLI install failed — run manually: npm install -g @21st-dev/cli"
   fi
-  # Tolerate optional `export ` and leading whitespace; require a value.
-  MAGIC_KEY_RE='^[[:space:]]*(export[[:space:]]+)?MAGIC_API_KEY=.'
-  if [ ! -f "$REPO/.env" ] || ! grep -qE "$MAGIC_KEY_RE" "$REPO/.env" 2>/dev/null; then
-    warn "MAGIC_API_KEY not set in ~/.claude/.env — add it (and run 'make link') before enabling magic"
+fi
+
+# Skill pack — staged install, then moved under skills-external/.
+if command -v 21st &>/dev/null; then
+  TFD_STAGE=$(mktemp -d)
+  if HOME="$TFD_STAGE" 21st skills install --global --agent claude >/dev/null 2>&1; then
+    TFD_N=0
+    for _tfd in "$TFD_STAGE"/.claude/skills/*/; do
+      [ -f "${_tfd}SKILL.md" ] || continue
+      _tfd_name=$(basename "$_tfd")
+      rm -rf "${REPO:?}/skills-external/${_tfd_name:?}"
+      mv "$_tfd" "$REPO/skills-external/$_tfd_name"
+      TFD_N=$((TFD_N + 1))
+    done
+    if [ "$TFD_N" -gt 0 ]; then
+      ok "21st skill pack synced to skills-external/ ($TFD_N skills)"
+    else
+      warn "21st skills install ran but produced no SKILL.md — layout changed? Inspect: 21st skills install --global --agent claude"
+    fi
+  elif [ -f "$REPO/skills-external/21st-ui-build/SKILL.md" ]; then
+    ok "21st skill pack already present (refresh failed — existing copy kept)"
+  else
+    warn "21st skill pack install failed — run manually: 21st skills install --global --agent claude"
+  fi
+  rm -rf "$TFD_STAGE"
+fi
+
+# Auth — detect, then offer login ONLY in an interactive TTY. A non-interactive
+# run (CI / headless / re-run) must never open a browser or block on OAuth.
+# Search and logo lookup are free; retrieving component code and 21st AI need
+# the session. Mirrors the ctx7 auth block (Step 6).
+if command -v 21st &>/dev/null; then
+  # `whoami` is a local token read (no network): "Logged in as <user> (saved …)."
+  TFD_WHO="$(21st whoami 2>/dev/null | head -1)"
+  if [[ "$TFD_WHO" == "Logged in as "* ]]; then
+    ok "21st: ${TFD_WHO%.}"
+  elif [ -t 0 ] && [ -t 1 ]; then
+    printf '%b' "${BLUE}→${NC} Sign in to 21st now? (opens a browser) [y/N] "
+    read -r tfd_ans || tfd_ans=""
+    if [[ "$tfd_ans" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+      if 21st login; then
+        ok "21st authenticated"
+      else
+        warn "21st login did not finish — re-run '21st login' anytime"
+      fi
+    else
+      info "Skipped — sign in later with:  21st login"
+    fi
+  else
+    info "Not signed in. Component retrieval and 21st AI need:  21st login"
+  fi
+fi
+
+# Default-disabled, same policy as before the MCP→CLI move.
+if [ -x "$REPO/lib/toggle-external.sh" ]; then
+  TFD_STATUS="$(bash "$REPO/lib/toggle-external.sh" status 21st 2>/dev/null || echo missing)"
+  if [ "$TFD_STATUS" = "enabled" ]; then
+    info "Disabling the 21st skill pack by default (enable on demand)..."
+    bash "$REPO/lib/toggle-external.sh" disable 21st >/dev/null
+    ok "21st skill pack disabled — enable with: bash lib/toggle-external.sh enable 21st"
+  else
+    ok "21st skill pack disabled (default)"
   fi
 else
   warn "lib/toggle-external.sh not found or not executable — skipping"
@@ -1040,7 +1162,7 @@ echo "    🔄 frontend-design     — distinctive frontend interfaces, anti-AI-
 echo "    🔄 impeccable          — /impeccable design verbs + 45-rule deterministic detector (npx impeccable detect)"
 echo "    🔄 design-motion-principles — motion/animation design, 3-designer lens (kylezantos)"
 echo "    🔄 darwin-skill        — autonomous skill optimizer (npx skills, ~/.agents/skills/)"
-echo "    🔄 magic MCP           — 21st-dev UI generation MCP (toggle: lib/toggle-external.sh enable magic)"
+echo "    🔄 21st skill pack     — 21st.dev CLI skills, 7 (toggle: lib/toggle-external.sh enable 21st)"
 echo ""
 echo "  All plugins installed at: user scope (~/.claude/plugins/)"
 echo "  GStack skills symlinked individually into ~/.claude/skills/ (→ submodule)"

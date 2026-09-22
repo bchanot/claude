@@ -8,7 +8,7 @@
 # as symlinks inside skills/. This script moves those symlinks
 # to/from skills-disabled/ so Claude Code stops/starts scanning them.
 #
-# MCP servers are toggled via `claude mcp add|remove` (not symlinks).
+# A multi-skill pack (gstack, 21st) toggles all of its skills at once.
 #
 # Usage:
 #   toggle-external.sh list
@@ -20,7 +20,7 @@
 #   gstack            — per-skill symlinks populated by gstack's own setup
 #   emil-design-eng   — single symlink → skills-external/emil-design-eng
 #   darwin-skill      — single symlink → ~/.agents/skills/darwin-skill
-#   magic             — 21st-dev Magic MCP server (API key in .env)
+#   21st              — 21st.dev skill pack (needs the `21st` CLI + login)
 #
 # For fine-grained activation (only design skills, only qa skills, only
 # audit skills, etc.) instead of all-or-nothing gstack toggling, use:
@@ -40,17 +40,17 @@ warn() { echo -e "${YELLOW}⚠${NC}  $1"; }
 err()  { echo -e "${RED}✗${NC} $1"; }
 
 # All non-plugin tools this script can toggle.
-MANAGED_TOOLS=(gstack emil-design-eng darwin-skill magic)
+MANAGED_TOOLS=(gstack emil-design-eng darwin-skill 21st)
 
-# Load MAGIC_API_KEY (and any other secrets) from $REPO/.env if present.
-# Called only by the magic branch — other tools don't need env vars.
-load_env() {
-  if [ -z "${MAGIC_API_KEY:-}" ] && [ -f "$REPO/.env" ]; then
-    set -a
-    # shellcheck source=/dev/null
-    source "$REPO/.env"
-    set +a
-  fi
+# Prints the skill names that belong to the "21st" pack. Source of truth:
+# skills-external/21st-* — the `21st skills install` run in install-plugins.sh
+# owns that list, so adding a skill upstream needs no edit here.
+twentyfirst_skills() {
+  local d
+  for d in "$REPO"/skills-external/21st-*/; do
+    [ -f "${d}SKILL.md" ] || continue
+    basename "$d"
+  done
 }
 
 # Prints the names (directory basenames) that belong to "gstack".
@@ -84,13 +84,13 @@ status_tool() {
       [ -d "$HOME/.agents/skills/$tool" ] || { echo "missing"; return; }
       [ -e "$SKILLS_DIR/$tool" ] && echo "enabled" || echo "disabled"
       ;;
-    magic)
-      command -v claude >/dev/null || { echo "missing"; return; }
-      if claude mcp list 2>/dev/null | grep -q '^magic:'; then
-        echo "enabled"
-      else
-        echo "disabled"
-      fi
+    21st)
+      local installed=0
+      while read -r name; do
+        installed=1
+        [ -e "$SKILLS_DIR/$name" ] && { echo "enabled"; return; }
+      done < <(twentyfirst_skills)
+      [ "$installed" -eq 1 ] && echo "disabled" || echo "missing"
       ;;
     *)
       echo "unknown"; return 1 ;;
@@ -124,12 +124,20 @@ disable_tool() {
         warn "$tool already disabled"
       fi
       ;;
-    magic)
-      if [ "$(status_tool magic)" = "enabled" ]; then
-        claude mcp remove magic -s user >/dev/null
-        ok "magic disabled"
+    21st)
+      # Parked under the plain skill name — same convention as the other
+      # externals, so profile.sh's park/restore path stays interoperable.
+      local parked=0
+      while read -r name; do
+        [ -e "$SKILLS_DIR/$name" ] || continue
+        rm -rf "${DISABLED_DIR:?}/${name:?}"
+        mv "$SKILLS_DIR/$name" "$DISABLED_DIR/$name"
+        parked=$((parked + 1))
+      done < <(twentyfirst_skills)
+      if [ "$parked" -gt 0 ]; then
+        ok "21st disabled ($parked skills parked)"
       else
-        warn "magic already disabled"
+        warn "21st already disabled"
       fi
       ;;
     *) err "Unknown tool: $tool"; return 1 ;;
@@ -177,25 +185,37 @@ enable_tool() {
         return 1
       fi
       ;;
-    magic)
-      load_env
-      if [ -z "${MAGIC_API_KEY:-}" ]; then
-        err "MAGIC_API_KEY not set — add it to ~/.claude/.env (template: .env.example)"
-        return 1
-      fi
-      if [ "$(status_tool magic)" = "enabled" ]; then
-        warn "magic already enabled"
+    21st)
+      local restored=0 linked=0
+      while read -r name; do
+        if [ -e "$DISABLED_DIR/$name" ]; then
+          rm -rf "${SKILLS_DIR:?}/${name:?}"
+          mv "$DISABLED_DIR/$name" "$SKILLS_DIR/$name"
+          restored=$((restored + 1))
+        elif [ -e "$SKILLS_DIR/$name" ]; then
+          : # already enabled
+        else
+          ln -sf "$REPO/skills-external/$name" "$SKILLS_DIR/$name"
+          linked=$((linked + 1))
+        fi
+      done < <(twentyfirst_skills)
+      if [ "$((restored + linked))" -eq 0 ]; then
+        if [ "$(status_tool 21st)" = "missing" ]; then
+          err "21st pack not installed in $REPO/skills-external — run: make plugin"
+          return 1
+        fi
+        warn "21st already enabled"
         return 0
       fi
-      # Reference, not value: Claude Code expands ${VAR} in mcpServers.env at
-      # launch (job7/BDR-026) — MAGIC_API_KEY itself never lands in
-      # ~/.claude.json. The check above still confirms the var IS set in
-      # ~/.claude/.env before wiring the reference, so a missing key fails
-      # here instead of silently at Claude Code startup.
-      claude mcp add magic --scope user \
-        --env 'API_KEY=${MAGIC_API_KEY}' \
-        -- npx -y @21st-dev/magic@latest
-      ok "magic enabled (user scope)"
+      ok "21st enabled ($((restored + linked)) skills: $restored restored, $linked linked)"
+      # The skills shell out to the CLI; without it (or without a session)
+      # they can only report failure. Warn, never block — the pack is still
+      # correctly wired and `make plugin` installs the CLI.
+      if ! command -v 21st >/dev/null 2>&1; then
+        warn "the \`21st\` CLI is not on PATH — install it: npm i -g @21st-dev/cli"
+      elif ! 21st whoami 2>/dev/null | grep -q '^Logged in as '; then
+        warn "not signed in to 21st — component retrieval and 21st AI need: 21st login"
+      fi
       ;;
     *) err "Unknown tool: $tool"; return 1 ;;
   esac

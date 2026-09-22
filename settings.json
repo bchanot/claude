@@ -235,11 +235,7 @@
       "WebFetch",
       "Bash(git stash pop*)",
       "Bash(git stash drop*)",
-      "Bash(git stash clear)",
-      "mcp__magic__21st_magic_component_builder",
-      "mcp__magic__21st_magic_component_refiner",
-      "mcp__magic__21st_magic_component_inspiration",
-      "mcp__magic__logo_search"
+      "Bash(git stash clear)"
     ],
     "defaultMode": "auto",
     "disableBypassPermissionsMode": "disable",
@@ -370,7 +366,8 @@
       "Moving or renaming a directory inside the repo (`mv src/api src/api_old`, or any `mv` of a tree). It breaks imports and paths silently, and the breakage surfaces far from the command. Clear only when the user asked for that move.",
       "An inline interpreter or `xargs` that deletes, or that writes outside the current working directory: `python3 -c`, `python -c` or `node -e` calling `rmtree`, `remove`, `unlink` or `truncate`; `xargs` feeding `rm`, `mv` or `dd`. `find ... | xargs rm` is the case that matters, since it routes around the `find * -exec rm` deny rule. Reading, computing, and editing a file inside the working directory pass untouched.",
       "Docker data destruction on this workstation: `docker rm -f`, `docker volume rm` or `prune`, `docker system prune`, `docker compose down -v` (drops named volumes, which hold local database data with no undo), and `docker run` with `--privileged` or a bind mount outside the current working directory. Clear only when the user named the container or volume in this turn.",
-      "Undeclared node packages: `npx <pkg>`, `pnpm dlx` or `yarn dlx` of a package absent from the manifest and lockfile runs code fetched at call time; `npm install <name>` or `pnpm add <name>` adds a dependency the house rule requires naming first. Clear only when the user named the package in this turn."
+      "Undeclared node packages: `npx <pkg>`, `pnpm dlx` or `yarn dlx` of a package absent from the manifest and lockfile runs code fetched at call time; `npm install <name>` or `pnpm add <name>` adds a dependency the house rule requires naming first. Clear only when the user named the package in this turn.",
+      "Publishing to the 21st.dev public catalog: `21st publish`, `publish-theme`, `publish-template`, `publish-gradient`, `publish-ascii`, `submit` and `resubmit` push a component, theme or template from this machine onto a public listing under the user's account; `21st edit`, `delete`, `withdraw`, `remove-from-catalog` and `21st profile set|upload` change or remove what is already published there. Retrieval and generation (`search`, `logo`, `get`, `add`, `generate`, `iterate`) are ordinary design work and pass. Clear only when the user asked to publish or change that specific item in this turn."
     ],
     "hard_deny": [
       "$defaults",
