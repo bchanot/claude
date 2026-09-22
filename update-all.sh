@@ -321,8 +321,6 @@ else
   info "bun not installed — skipping"
 fi
 # NOT updated here, deliberately (audit 2026-07-02):
-# - magic MCP: registered as `npx -y @21st-dev/magic@latest` — npx resolves
-#   the latest release at every invocation, nothing to upgrade.
 # - graphify Claude integration (`graphify claude install`): rewrites curated
 #   CLAUDE.md / .claude/settings.json (BDR-028 guard territory) — re-run
 #   MANUALLY only if a graphify upgrade changes its hook format.
@@ -420,6 +418,54 @@ print(d.get('impeccable',{}).get('version','latest'))
     fi
     rm -rf "$IMP_STAGE"
   fi
+fi
+
+# ── 7.4. Update the 21st.dev CLI + skill pack ──
+# The CLI is a global npm bin; the skills are its hash-verified output, staged
+# under a throwaway HOME because `21st skills install` refuses to write
+# through the ~/.claude/skills symlink (see install-plugins.sh Step 8.7).
+echo ""
+echo "── Updating 21st.dev CLI + skill pack..."
+if ! command -v 21st &>/dev/null; then
+  info "21st CLI not installed — skipping (run: make plugin)"
+else
+  TFD_VER=""
+  if [ -f "$REPO/plugins.lock.json" ] && command -v python3 &>/dev/null; then
+    TFD_VER=$(python3 -c "
+import json
+with open('$REPO/plugins.lock.json') as f:
+    d = json.load(f)
+print(d.get('21st',{}).get('version','latest'))
+" 2>/dev/null || true)
+  fi
+  TFD_PKG="@21st-dev/cli@latest"
+  [ -n "$TFD_VER" ] && [ "$TFD_VER" != "latest" ] && TFD_PKG="@21st-dev/cli@${TFD_VER}"
+  if npm install -g "$TFD_PKG" 2>/dev/null; then
+    ok "21st CLI updated (${TFD_VER:-latest})"
+  else
+    warn "21st CLI update failed — existing binary kept"
+  fi
+  TFD_STAGE=$(mktemp -d)
+  if HOME="$TFD_STAGE" 21st skills install --global --agent claude >/dev/null 2>&1; then
+    TFD_N=0
+    for _tfd in "$TFD_STAGE"/.claude/skills/*/; do
+      [ -f "${_tfd}SKILL.md" ] || continue
+      _tfd_name=$(basename "$_tfd")
+      # Refresh the SOURCE only. A parked copy in skills-disabled/ is left
+      # alone: re-enabling restores it, and the next update refreshes it.
+      rm -rf "${REPO:?}/skills-external/${_tfd_name:?}"
+      mv "$_tfd" "$REPO/skills-external/$_tfd_name"
+      TFD_N=$((TFD_N + 1))
+    done
+    if [ "$TFD_N" -gt 0 ]; then
+      ok "21st skill pack refreshed ($TFD_N skills)"
+    else
+      warn "21st skills install produced no SKILL.md — existing pack kept"
+    fi
+  else
+    warn "21st skill pack refresh failed — existing pack kept"
+  fi
+  rm -rf "$TFD_STAGE"
 fi
 
 # ── 7.5. Update external skills (npx skills) ──

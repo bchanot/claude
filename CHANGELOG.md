@@ -26,8 +26,35 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   classifier lists, `$defaults` splice semantics, `classifyAllShell`, the
   user-scope vs project-scope rule, and why `ask` is the wrong tier for a
   destructive command under auto mode.
+- **21st.dev moved from an MCP server to a CLI.** `install-plugins.sh` Step 8.7
+  installs `@21st-dev/cli` globally (pinned in `plugins.lock.json`), offers
+  `21st login` in an interactive terminal only, and stages the 7-skill pack
+  into `skills-external/21st-*`. `update-all.sh` refreshes both. The pack
+  ships disabled, same policy the MCP had.
+- `lib/toggle-external.sh` manages `21st` as a skill pack (glob-derived from
+  `skills-external/21st-*`, parked under plain names so `profile.sh`'s
+  external park/restore stays interoperable). `magic` is gone from the
+  managed tools.
+- The five design skills (`21st-ui-build`, `-ui-explore`, `-ui-review`,
+  `-cli-use`, `-ai`) are in the `design`, `web`, `web-full` and `full`
+  profiles and in `profile.sh`'s `MANAGED_EXTERNALS`; `21st-registry` and
+  `21st-design-sync` are installed but left parked.
+- `autoMode.soft_deny` gains one entry for the outward-facing 21st verbs
+  (`publish*`, `submit`, `edit`, `delete`, `remove-from-catalog`,
+  `profile set|upload`) — publishing puts a component on a public listing.
+  That tier rather than `ask`, per LRN-153.
 
 ### Changed
+- **Design gate: `magic` → the `21st` CLI in the required-manual slot.**
+  `design.profile`'s `GATE-BLOCK` now lists `21st` (CLI channel) and
+  `21st-ui-build` (the pack's canary on the skill channel); a missing CLI
+  trips the gate with `npm i -g @21st-dev/cli` + `21st login` instead of the
+  old `MAGIC_API_KEY` hint. `design-tool-gate.sh` also repairs `PATH` for the
+  npm global bin, whose absence in a hook's sanitized `PATH` would otherwise
+  read as "21st missing" (the existing repair only fired when `claude` itself
+  was unresolvable).
+- `profile.sh`'s `MANAGED_MCPS` is empty: no MCP server is auto-toggled any
+  more. The `mcp` type stays supported for an advisory profile entry.
 - **`/deploy` hand-back: one physical line per command, then a post-deploy
   tests block.** Every command in the checklist is emitted on exactly one
   line, however long; a legacy `\` continuation in the runbook is joined at
@@ -99,6 +126,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   them triggered nothing. Same shape and same known gap as the existing
   `Bash(grep * .env*)` family: a `cat .env | sed` pipe still slips past,
   which is what the `hard_deny` exfiltration rule is there to catch.
+
+### Removed
+- **`magic` MCP (`@21st-dev/magic`) and `MAGIC_API_KEY`**, with the two risks
+  attached to them: the unauthenticated `127.0.0.1` callback server
+  `21st_magic_component_builder` opened (LRN-110) and the plaintext key copy
+  that `claude mcp add --env` wrote into `~/.claude.json` (BDR-026/057). Gone
+  with it: the 4 `mcp__magic__*` `permissions.ask` entries (BDR-059), the
+  `MAGIC_API_KEY` block in `.env.example`, `link.sh`'s missing-key warning,
+  and the dead `MAGIC_API_KEY=abc123` gitleaks allowlist regex.
 
 ### Fixed
 - **`make update` no longer drops the Playwright OS-support bump** — a

@@ -147,6 +147,7 @@ rules:
 | LRN-155 | 2026-09-16 | ask under auto: doc says prompt, probe on 2.1.273 says no; re-probe after upgrades | any permission-tier reasoning |
 | LRN-156 | 2026-09-16 | autoMode.allow = exception tier; static interpreter allow suspended under auto → conditions live in prose | conditional permissions |
 | LRN-157 | 2026-09-16 | gap-only trigger blind to taste → add a trigger class, not budget; ask at plan, mid-run for leftovers | any "ask more" request |
+| LRN-158 | 2026-09-22 | Installer refusing symlinked paths vs a symlinked config dir → stage under a throwaway HOME, move the result | any vendor installer writing into ~/.claude or ~/.config |
 
 ---
 
@@ -1490,3 +1491,11 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Pattern**: a trigger that fires only on missing outcome / scope / constraints lets every taste choice through — "add a share icon" is complete by those criteria and the icon's side is decided downstream. More budget changes nothing; the fix is a new trigger class (VISIBLE / PUBLIC NAME / SCOPE). Cost geometry: a fresh re-dispatch keeps the working tree and loses the executor's reasoning → the same question costs about one executor run more mid-run than at PLAN. So: sweep once at the plan step, keep the mid-run channel for leftovers. Executor tags the class; orchestrator re-reads it (tag = hint, a mis-tag would offload class 4 onto the human). Relayed questions obey [[LRN-102]]: context inside `AskUserQuestion`, nothing the user needs printed before it.
 - **Future application**: any "ask more" request → check WHICH trigger is blind before touching a quota. Any orchestrator with a "decide it yourself" fallback on an executor halt → route by class first.
 - **Reference**: [[BDR-091]], `lib/contract-interview.md` STEP 2 + MID-RUN CLARIFICATION.
+
+## LRN-158 — A hardened installer + a symlinked config dir = documented command fails; stage under a throwaway HOME
+- **Date**: 2026-09-22
+- **Context**: `21st install-skill` (= `21st skills install --global`) is upstream's documented one-liner. Here it dies: `Refusing to access symbolic link /home/…/.claude/skills`. The installer walks every segment of `<HOME>/.claude/skills/<n>/SKILL.md` with an `assertNoSymlinkComponents` guard (anti symlink-escape); this repo's whole model is `~/.claude/skills -> repo/skills`. Two correct designs, mutually exclusive on the same path.
+- **Pattern**: don't fight the guard and don't unlink the config dir. Run the installer with `HOME=$(mktemp -d)` so it writes into a pristine real tree, then move the output to the vendored dir the repo controls and symlink from there. Same shape as the impeccable/ctx7 staging (`mktemp -d`, install, `mv` into `skills-external/`), with HOME as the extra lever. Two conditions make it safe: the command must need nothing else from HOME (checked: manifest + content fetch are unauthenticated, hash-verified), and the moved payload must be self-contained.
+- **Also**: read the npm tarball, not the vendor's web page. 21st.dev's `/mcp` and `/llms.txt` still document the MCP `init --client` flow with an API key; the package README states the CLI supersedes it. `curl registry.npmjs.org/<pkg>` + untar + read `README.md`/`dist` answered every question (commands, exit codes, where files land) that the site got wrong.
+- **Future application**: any vendor installer that writes into `~/.claude`, `~/.config` or `~/.agents` on this machine. Probe first with a fake HOME containing the symlink, before wiring it into `install-plugins.sh` — the failure is instant and unambiguous.
+- **Reference**: [[BDR-093]], `install-plugins.sh` Step 8.7, `update-all.sh` 7.4. Links [[LRN-034]] (run the real thing), [[BLK-014]]-class symlink/self-heal issues.

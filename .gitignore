@@ -69,6 +69,12 @@ skills/impeccable
 # External skills installed via `npx skills add` — auto-created by link.sh
 skills/darwin-skill
 
+# 21st.dev skill pack symlinks — created on demand by toggle-external.sh /
+# profile.sh (the pack is DISABLED by default, so these usually don't exist).
+# A glob, not one line per skill: the `21st skills install` manifest owns the
+# membership, so the pack can gain a skill with no edit here.
+skills/21st-*
+
 # Context7 docs-lookup skill — installed by `ctx7 setup --claude --cli`
 # (install-plugins.sh Step 6, when absent) into ~/.claude/skills (a symlink to
 # this repo's skills/). ctx7-managed and re-created on demand — not vendored here.
@@ -155,6 +161,13 @@ skills-external/frontend-design/
 # run. Not vendored: tracking it produced a repo diff each time upstream shipped
 # an edit. The source is always re-fetched, so no offline copy is needed.
 skills-external/emil-design-eng/
+
+# 21st.dev skill pack — machine-owned: `21st skills install` output, staged by
+# install-plugins.sh Step 8.7 (the installer refuses to write through the
+# ~/.claude/skills symlink, so it runs under a throwaway HOME and the skills
+# are moved here). Refreshed by update-all.sh. Not vendored: the CLI owns the
+# layout and the content is sha256-verified against 21st.dev's manifest.
+skills-external/21st-*/
 
 # Impeccable — machine-owned dist produced by `npx impeccable skills install`
 # (install-plugins.sh Step 8d, update-all.sh), pinned in plugins.lock.json.

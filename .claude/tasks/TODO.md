@@ -1,5 +1,47 @@
 # TODO
 
+## 2026-09-22 — 21st: magic MCP → CLI + skills (feature/21st-cli-migration)
+User: "remplacer pour 21st, il n'y a plus besoin de mcp / api, mais juste en
+cli". Upstream confirmed (`@21st-dev/cli` 1.17.1 README): the CLI supersedes
+`@21st-dev/magic`; auth is `21st login` (browser token in `~/.config/21st`),
+no API key; `21st install-skill` = alias of `21st skills install --global`.
+Gates answered by user: 5 design skills in profiles (registry + design-sync
+parked), `make plugin` auto-installs the CLI + offers login on TTY only,
+missing `21st` CLI trips the design gate (magic's old required-manual slot).
+
+Blocker found + solved: `21st skills install --global` REFUSES to write
+through a symlinked path (`assertNoSymlinkComponents`), and `~/.claude/skills`
+IS a symlink → repo/skills. Verified live: "Refusing to access symbolic link
+…/.claude/skills". → install into a staged HOME (mktemp), move each skill to
+`skills-external/21st-*/` (impeccable pattern), symlink from there.
+
+- [x] T1 install-plugins.sh STEP 8.7: magic block → 21st CLI (`npm i -g`,
+      pinned via plugins.lock.json) + staged `skills install` →
+      skills-external/21st-*, TTY-gated `21st login`, pack disabled by default.
+- [x] T2 lib/toggle-external.sh: managed tool `magic` (mcp) → `21st` (skill
+      pack, glob-derived from skills-external/21st-*), drop load_env.
+- [x] T3 profiles + profile.sh: `magic mcp` → 5 externals + `21st cli` in
+      design/web/web-full/full; GATE-BLOCK `21st 21st-ui-build`;
+      MANAGED_EXTERNALS += the 5; MANAGED_MCPS emptied (kept as a live
+      allowlist, mcp type machinery stays generic).
+- [x] T4 lib/design-tool-gate.sh + lib/design-gate.md: manual-step hint
+      magic/MAGIC_API_KEY → 21st/`npm i -g` + `21st login`; PATH repair
+      extended to the npm-global bin dir (21st lives in nvm's bin, the
+      existing repair only fires when `claude` itself is unresolvable).
+- [x] T5 doctrine + docs: CLAUDE.global.md design toolchain, README (drop the
+      magic callback-injection section + the MCP env-var worked example),
+      .env.example, link.sh MAGIC_API_KEY warning, .gitleaks.toml allowlist,
+      update-all.sh, .gitignore, settings.json (drop 4 mcp__magic__*; the
+      outward-facing verbs landed in autoMode.soft_deny, NOT ask — LRN-153
+      says ask is inert under auto mode).
+- [x] T6 lib/tests/profile-set-managed.test.sh retargeted (mcp fixture → 21st
+      external pack), `make test` + shellcheck green.
+- [x] T7 CHANGELOG + BDR-093 + LRN-158 + journal. Also cleaned along the way:
+      dead `magic` branches in profile.sh enable/disable_skill,
+      skills/profile/SKILL.md. OPEN for the user: `npm i -g @21st-dev/cli`
+      then `21st login` (`Bash(npm install -g *)` is denied to the agent).
+      Branch UNMERGED — human gate.
+
 ## 2026-09-17 — /deploy hand-back: one-line commands + post-deploy test list (feature/deploy-oneline-tests)
 User: commands in the /deploy checklist arrive broken across lines (cannot
 copy-paste), and the hand-back stops at the deploy steps — wants, after the

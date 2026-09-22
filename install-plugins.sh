@@ -892,42 +892,104 @@ done
 echo ""
 
 # ============================================================
-# STEP 8.7 — MAGIC MCP (21st-dev) — installed but DISABLED by default
+# STEP 8.7 — 21ST.DEV CLI + SKILL PACK — installed but DISABLED by default
 # ============================================================
-# Magic MCP is a stdio MCP server providing UI component generation
-# from 21st.dev. Toggled via lib/toggle-external.sh (same interface as
-# gstack, emil-design-eng, etc.). Registered in Claude Code user scope.
+# `@21st-dev/cli` (bin `21st`) supersedes the `@21st-dev/magic` MCP server:
+# same endpoint, one browser login (`21st login`, token in ~/.config/21st),
+# no API key, no MCP process loaded into every session. It ships a pack of
+# verified skills (21st-ui-build / -explore / -review / -cli-use / -ai /
+# -registry / -design-sync) that drive the CLI from Claude Code.
 #
-# Default policy: DISABLED at install time. Rationale: MCP tools load
-# into every Claude Code session and consume context tokens. Enable
-# only when you're actively using Magic.
+# Machine-owned dist (impeccable pattern): `21st skills install` writes to
+# <HOME>/.claude/skills/<name>/ and REFUSES to follow a symlink anywhere on
+# that path — and ~/.claude/skills IS a symlink to this repo's skills/. So
+# install under a staged HOME, then move each skill into skills-external/
+# (gitignored), where toggle-external.sh / profile.sh symlink it in.
 #
-# API key: read from $REPO/.env (MAGIC_API_KEY=...) — NEVER committed.
-# Template: $REPO/.env.example. Get a key at https://21st.dev/magic
-echo "── Step 8.7: Magic MCP (21st-dev) ──────────────────────────"
+# Default policy: pack DISABLED at install time — every skill description
+# loads into every session. Enable on demand:
+#   bash lib/toggle-external.sh enable 21st     (whole pack)
+#   /profile design                             (the 5 design skills)
+echo "── Step 8.7: 21st.dev CLI + skill pack ─────────────────────"
 echo ""
-if [ -x "$REPO/lib/toggle-external.sh" ]; then
-  MAGIC_STATUS="$(bash "$REPO/lib/toggle-external.sh" status magic 2>/dev/null || echo missing)"
-  if [ "$MAGIC_STATUS" = "enabled" ]; then
-    info "Disabling magic MCP by default (enable on demand)..."
-    bash "$REPO/lib/toggle-external.sh" disable magic >/dev/null
-    ok "magic MCP disabled — enable with: bash lib/toggle-external.sh enable magic"
+if command -v 21st &>/dev/null; then
+  ok "21st CLI already installed"
+else
+  TFD_VER=$(pinned_version "21st")
+  if [ "$TFD_VER" != "latest" ]; then
+    info "Installing @21st-dev/cli@${TFD_VER} (pinned in plugins.lock.json)..."
+    npm install -g "@21st-dev/cli@${TFD_VER}"
   else
-    ok "magic MCP disabled (default)"
+    info "Installing @21st-dev/cli@latest (consider pinning in plugins.lock.json)..."
+    npm install -g @21st-dev/cli
   fi
-  # The key lives in ~/.claude/.env (canonical, BDR-026), reached via the
-  # repo/.env symlink that toggle-external.sh sources. Self-heal the common
-  # fresh-machine case: ~/.claude/.env was created AFTER link.sh ran, so the
-  # symlink is missing and the key looks absent though it's set.
-  HOME_ENV="$HOME/.claude/.env"
-  if [ ! -e "$REPO/.env" ] && [ -f "$HOME_ENV" ]; then
-    ln -sf "$HOME_ENV" "$REPO/.env" 2>/dev/null \
-      && info "Linked repo/.env → ~/.claude/.env (was missing)"
+  if command -v 21st &>/dev/null; then
+    ok "21st CLI installed"
+  else
+    err "21st CLI install failed — run manually: npm install -g @21st-dev/cli"
   fi
-  # Tolerate optional `export ` and leading whitespace; require a value.
-  MAGIC_KEY_RE='^[[:space:]]*(export[[:space:]]+)?MAGIC_API_KEY=.'
-  if [ ! -f "$REPO/.env" ] || ! grep -qE "$MAGIC_KEY_RE" "$REPO/.env" 2>/dev/null; then
-    warn "MAGIC_API_KEY not set in ~/.claude/.env — add it (and run 'make link') before enabling magic"
+fi
+
+# Skill pack — staged install, then moved under skills-external/.
+if command -v 21st &>/dev/null; then
+  TFD_STAGE=$(mktemp -d)
+  if HOME="$TFD_STAGE" 21st skills install --global --agent claude >/dev/null 2>&1; then
+    TFD_N=0
+    for _tfd in "$TFD_STAGE"/.claude/skills/*/; do
+      [ -f "${_tfd}SKILL.md" ] || continue
+      _tfd_name=$(basename "$_tfd")
+      rm -rf "${REPO:?}/skills-external/${_tfd_name:?}"
+      mv "$_tfd" "$REPO/skills-external/$_tfd_name"
+      TFD_N=$((TFD_N + 1))
+    done
+    if [ "$TFD_N" -gt 0 ]; then
+      ok "21st skill pack synced to skills-external/ ($TFD_N skills)"
+    else
+      warn "21st skills install ran but produced no SKILL.md — layout changed? Inspect: 21st skills install --global --agent claude"
+    fi
+  elif [ -f "$REPO/skills-external/21st-ui-build/SKILL.md" ]; then
+    ok "21st skill pack already present (refresh failed — existing copy kept)"
+  else
+    warn "21st skill pack install failed — run manually: 21st skills install --global --agent claude"
+  fi
+  rm -rf "$TFD_STAGE"
+fi
+
+# Auth — detect, then offer login ONLY in an interactive TTY. A non-interactive
+# run (CI / headless / re-run) must never open a browser or block on OAuth.
+# Search and logo lookup are free; retrieving component code and 21st AI need
+# the session. Mirrors the ctx7 auth block (Step 6).
+if command -v 21st &>/dev/null; then
+  # `whoami` is a local token read (no network): "Logged in as <user> (saved …)."
+  TFD_WHO="$(21st whoami 2>/dev/null | head -1)"
+  if [[ "$TFD_WHO" == "Logged in as "* ]]; then
+    ok "21st: ${TFD_WHO%.}"
+  elif [ -t 0 ] && [ -t 1 ]; then
+    printf '%b' "${BLUE}→${NC} Sign in to 21st now? (opens a browser) [y/N] "
+    read -r tfd_ans || tfd_ans=""
+    if [[ "$tfd_ans" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+      if 21st login; then
+        ok "21st authenticated"
+      else
+        warn "21st login did not finish — re-run '21st login' anytime"
+      fi
+    else
+      info "Skipped — sign in later with:  21st login"
+    fi
+  else
+    info "Not signed in. Component retrieval and 21st AI need:  21st login"
+  fi
+fi
+
+# Default-disabled, same policy as before the MCP→CLI move.
+if [ -x "$REPO/lib/toggle-external.sh" ]; then
+  TFD_STATUS="$(bash "$REPO/lib/toggle-external.sh" status 21st 2>/dev/null || echo missing)"
+  if [ "$TFD_STATUS" = "enabled" ]; then
+    info "Disabling the 21st skill pack by default (enable on demand)..."
+    bash "$REPO/lib/toggle-external.sh" disable 21st >/dev/null
+    ok "21st skill pack disabled — enable with: bash lib/toggle-external.sh enable 21st"
+  else
+    ok "21st skill pack disabled (default)"
   fi
 else
   warn "lib/toggle-external.sh not found or not executable — skipping"
@@ -1040,7 +1102,7 @@ echo "    🔄 frontend-design     — distinctive frontend interfaces, anti-AI-
 echo "    🔄 impeccable          — /impeccable design verbs + 45-rule deterministic detector (npx impeccable detect)"
 echo "    🔄 design-motion-principles — motion/animation design, 3-designer lens (kylezantos)"
 echo "    🔄 darwin-skill        — autonomous skill optimizer (npx skills, ~/.agents/skills/)"
-echo "    🔄 magic MCP           — 21st-dev UI generation MCP (toggle: lib/toggle-external.sh enable magic)"
+echo "    🔄 21st skill pack     — 21st.dev CLI skills, 7 (toggle: lib/toggle-external.sh enable 21st)"
 echo ""
 echo "  All plugins installed at: user scope (~/.claude/plugins/)"
 echo "  GStack skills symlinked individually into ~/.claude/skills/ (→ submodule)"

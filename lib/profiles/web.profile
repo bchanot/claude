@@ -38,11 +38,19 @@ frontend-design                   external
 design-motion-principles          external
 impeccable                        external
 
+# External: 21st.dev pack (publishing flows 21st-registry / -design-sync
+# stay parked)
+21st-ui-build                     external
+21st-ui-explore                   external
+21st-ui-review                    external
+21st-cli-use                      external
+21st-ai                           external
+
 # Plugin: UI/UX intelligence (auto-toggle)
 ui-ux-pro-max                     plugin@ui-ux-pro-max-skill
 
-# MCP: 21st-dev Magic component generator
-magic                             mcp
+# CLI: 21st.dev component catalog + UI generation (needs `21st login`)
+21st                              cli
 
 # CLI: ctx7 (doc lookup for fast-evolving libs like Next.js)
 ctx7                              cli

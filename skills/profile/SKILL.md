@@ -52,8 +52,7 @@ lists items + types:
 | `personal`              | symlink move skills/ ↔ skills-disabled/\<name\> (no prefix) |
 | `external`              | symlink move skills/ ↔ skills-disabled/\<name\> |
 | `plugin@<marketplace>`  | `claude plugin enable\|disable <name>@<marketplace>` (auto) |
-| `mcp` (known: magic)    | delegate to `lib/toggle-external.sh` (uses `.env`) |
-| `mcp` (other)           | advisory — prints manual `claude mcp add …` command |
+| `mcp`                   | advisory — prints manual `claude mcp add …` command (no server is managed today: `MANAGED_MCPS` is empty since 21st.dev moved to a CLI) |
 | `cli`                   | advisory only — reports installed/not-installed |
 
 **Always-on plugins** (`security-guidance`, `superpowers`) are
@@ -62,12 +61,14 @@ protected — `set` will refuse to disable them even if the profile omits them.
 `ui-ux-pro-max@ui-ux-pro-max-skill`, `plugin-dev@claude-code-plugins`,
 `pr-review-toolkit@claude-code-plugins`. Other plugins are never auto-toggled.
 **Managed externals** (`emil-design-eng`, `frontend-design`,
-`design-motion-principles`, `impeccable`) and **managed MCPs** (`magic`)
-follow the same symmetry (BDR-079): `set` enables them when the profile
-lists them (from parked state, or from `skills-external/` if the symlink
-never existed) and parks/unregisters them when it does not — e.g. `set
-backend` after design work turns emil and magic off. `darwin-skill` and any
-other unlisted external are never auto-touched. gstack works the same
+`design-motion-principles`, `impeccable`, and the five 21st design skills
+`21st-ui-build`, `21st-ui-explore`, `21st-ui-review`, `21st-cli-use`,
+`21st-ai`) follow the same symmetry (BDR-079): `set` enables them when the
+profile lists them (from parked state, or from `skills-external/` if the
+symlink never existed) and parks them when it does not — e.g. `set backend`
+after design work turns emil and the 21st pack off. `darwin-skill`,
+`21st-registry`, `21st-design-sync` and any other unlisted external are never
+auto-touched. gstack works the same
 all the way down: a profile listing gstack skills while the whole pack is
 off (via `toggle-external.sh`) re-enables JUST those skills on demand.
 
@@ -137,11 +138,11 @@ bash "$HOME/.claude/lib/profile.sh" $ARGUMENTS
   update-check, learnings — script doesn't touch that infra. Disabled skills
   are just hidden from Claude Code's scanner; the gstack repo stays installed.
 - Profile changes DO toggle the managed Claude Code plugins (ui-ux-pro-max,
-  plugin-dev, pr-review-toolkit), the managed external packs (emil-design-eng,
-  frontend-design, design-motion-principles, impeccable) and the `magic` MCP —
-  in BOTH directions: `set` enables what the profile lists and disables the
-  managed leftovers it doesn't (BDR-008, BDR-079). Anything outside those
-  allowlists stays manual: `claude plugin enable|disable`, `claude mcp
-  add|remove`.
+  plugin-dev, pr-review-toolkit) and the managed external packs
+  (emil-design-eng, frontend-design, design-motion-principles, impeccable,
+  the 21st design skills) — in BOTH directions: `set` enables what the profile
+  lists and disables the managed leftovers it doesn't (BDR-008, BDR-079).
+  Anything outside those allowlists stays manual: `claude plugin
+  enable|disable`, `bash lib/toggle-external.sh enable|disable <tool>`.
 - `set` is destructive in the sense that it disables non-listed gstack skills.
   Use `apply` if the user wants additive behavior.

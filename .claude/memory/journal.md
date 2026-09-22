@@ -476,3 +476,11 @@ rules:
 - Ask, don't guess ([[BDR-091]]): spec + plan, 9 lock-first tasks (contract-interview CLARIFY two passes, MID-RUN CLARIFICATION with `CLASS:` tag, HOW TO ASK; global rule; feat / bugfix / hotfix / ship-feature / init-project wired; interviewer; 3 executors), suite green. Behavioral fixture check still open ([[LRN-157]]).
 - docker + node under auto mode ([[BDR-092]]): `ask` entries retired (inert on 2.1.273, probe — [[LRN-155]]), `autoMode.allow` + 2 soft_deny, live `docker exec … psql` OK. Static interpreter allow is suspended under auto → prose only ([[LRN-156]]).
 - Both merged into develop 2026-09-17 via gitflow (`ddadca6`, `56bd035`), two stack conflicts (TODO, CHANGELOG) resolved keeping both blocks. Symlinked `settings.json` follows the checkout: live config = whatever branch is out.
+
+## 2026-09-22
+
+- 21st.dev magic MCP → `@21st-dev/cli` + 7-skill pack, user ask. Install/update/toggle/profiles/gate/docs/permissions migrated on `feature/21st-cli-migration`.
+- Blocker: documented `21st install-skill` refuses the `~/.claude/skills` symlink → staged install under a throwaway HOME (LRN-158).
+- Gate: `magic`+MAGIC_API_KEY required-manual slot → the `21st` CLI; publish verbs moved to `autoMode.soft_deny` (ask inert under auto).
+- BDR-093, LRN-158. `make test` green except 2 pre-existing gitflow FAILs (gitleaks binary absent on this host). Branch UNMERGED — human gate.
+

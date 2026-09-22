@@ -117,8 +117,6 @@ link_env() {
     echo "       cp \"$REPO/.env.example\" \"$home_env\" && \"\${EDITOR:-nano}\" \"$home_env\""
     return
   fi
-  grep -qE '^[[:space:]]*(export[[:space:]]+)?MAGIC_API_KEY=.' "$home_env" 2>/dev/null \
-    || echo "⚠️  $home_env has no MAGIC_API_KEY line — magic won't enable until added."
   if [ -L "$repo_env" ]; then
     [ "$(readlink "$repo_env")" = "$home_env" ] && return
     ln -sf "$home_env" "$repo_env"; CHANGED=$((CHANGED + 1))

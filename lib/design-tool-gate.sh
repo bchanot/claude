@@ -29,12 +29,13 @@
 #   required-manual  required but the profile can't flip it silently (API
 #                    key / external install) — the gate STILL trips, names
 #                    it, and the remedy is `/profile design` + a manual step.
-#                    This is where magic lands: required, never silent.
+#                    This is where the `21st` CLI lands: required, never
+#                    silent (npm i -g @21st-dev/cli, then 21st login).
 # Both classes trip the gate. Tools NOT on the GATE-BLOCK allowlist are
 # ignored entirely (browser/plan/shotgun tooling, graphify).
 #
 # disabledMcpServers is NEVER read — unreliable for bi-modal servers
-# (magic/context7 can appear there yet be active via another channel).
+# (context7 can appear there yet be active via another channel).
 #
 # Exit: 0 = ready · 11 = ready-but-unverified (proceed, say so) · 10 = incomplete (trips) · 2 = error.
 # Usage: design-tool-gate.sh [profile]        (default profile: design)
@@ -78,6 +79,30 @@ ensure_claude_on_path() {
   fi
 }
 ensure_claude_on_path
+
+# Same sanitized-PATH problem for `21st` (an npm global bin), with a twist:
+# the repair above only fires when claude ITSELF is unresolvable, and claude
+# often lives in ~/.local/bin while the npm global bin dir is missing from a
+# hook's PATH. Probe for the binary directly and prepend the dir that has it,
+# otherwise a perfectly installed CLI reads as "missing" and trips the gate.
+ensure_21st_on_path() {
+  command -v 21st >/dev/null 2>&1 && return
+  local cand
+  for cand in \
+    "$HOME/.local/bin/21st" \
+    /usr/local/bin/21st; do
+    [ -x "$cand" ] && { PATH="$(dirname "$cand"):$PATH"; return; }
+  done
+  local m newest matches=()
+  for m in "$HOME"/.nvm/versions/node/*/bin/21st; do
+    [ -x "$m" ] && matches+=("$m")
+  done
+  if [ "${#matches[@]}" -gt 0 ]; then
+    newest="$(printf '%s\n' "${matches[@]}" | sort -V | tail -1)"
+    PATH="$(dirname "$newest"):$PATH"
+  fi
+}
+ensure_21st_on_path
 
 # Gate scope: the "# GATE-BLOCK:" allowlist (one or more lines, concatenated).
 # Empty => fall back to "every gate-relevant entry is in scope" (coarse).
@@ -143,8 +168,8 @@ done <<< "$plain"
 # Verdict — three outcomes:
 #   blocking/manual non-empty -> INCOMPLETE (exit 10): the gate trips.
 #   only unverified non-empty -> READY BUT UNVERIFIED (exit 11): fail-VISIBLE.
-#     claude was unreachable, so the plugin/MCP (magic, ui-ux-pro-max) could
-#     not be checked. Never pass this as a silent READY — proceed, but say so.
+#     claude was unreachable, so the plugin channel (ui-ux-pro-max) could not
+#     be checked. Never pass this as a silent READY — proceed, but say so.
 #   nothing pending           -> READY (exit 0).
 if [ "${#blocking[@]}" -gt 0 ] || [ "${#manual[@]}" -gt 0 ]; then
   echo "design toolchain: INCOMPLETE"
@@ -152,9 +177,9 @@ if [ "${#blocking[@]}" -gt 0 ] || [ "${#manual[@]}" -gt 0 ]; then
     echo "  activate with /profile $PROFILE:  ${blocking[*]}"
   fi
   if [ "${#manual[@]}" -gt 0 ]; then
-    echo "  required + manual step (API key / external install):  ${manual[*]}"
+    echo "  required + manual step (external install / sign-in):  ${manual[*]}"
     case " ${manual[*]} " in
-      *" magic "*) echo "    magic needs MAGIC_API_KEY in ~/.claude/.env (/profile $PROFILE runs toggle-external.sh)" ;;
+      *" 21st "*) echo "    21st needs the CLI: npm i -g @21st-dev/cli   then   21st login" ;;
     esac
   fi
   if [ "${#unverified[@]}" -gt 0 ]; then
@@ -167,9 +192,9 @@ fi
 if [ "${#unverified[@]}" -gt 0 ]; then
   echo "design toolchain: READY BUT UNVERIFIED — ${#unverified[@]} tool(s) not checked"
   echo "  unverified (claude CLI unreachable): ${unverified[*]}"
-  echo "  the gate could NOT confirm the design plugin/MCP (e.g. magic,"
-  echo "  ui-ux-pro-max) are active. Proceed only after checking manually:"
-  echo "      claude mcp list     claude plugin list"
+  echo "  the gate could NOT confirm the design plugin (ui-ux-pro-max) is"
+  echo "  active. Proceed only after checking manually:"
+  echo "      claude plugin list"
   exit 11
 fi
 

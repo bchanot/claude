@@ -290,16 +290,18 @@ OR a design/UI request — not the keyword "design" alone in a prompt. Single
 source for design routing; the design-toolchain hook reinforces it.
 - Trivial (≤2 files, one cosmetic value) → /hotfix, no toolchain.
 - Build UI (component, page, redesign) → ui-ux-pro-max + frontend-design
-  (anti-slop) + Magic MCP /ui + emil-design-eng (polish) +
-  design-motion-principles (if motion) + design-html (if static).
+  (anti-slop) + 21st-ui-build (catalog + generation) + emil-design-eng
+  (polish) + design-motion-principles (if motion) + design-html (if static).
   Post-build floor: `npx impeccable detect <files>` (45 deterministic
   anti-slop rules, exit 2 = findings) when impeccable installed.
 - Design system / brand → design-consultation first, then the build tools.
 - Review / audit → design-review + emil-design-eng + design-motion-principles
-  + /impeccable audit|critique (skill) + `impeccable detect` floor.
+  + 21st-ui-review + /impeccable audit|critique + `impeccable detect` floor.
 Scope doubt → don't silently skip: ask, or default to Build tier.
 Gate: lightweight skills run `~/.claude/lib/design-gate.md`; orchestrators via
-plugin-check. Magic MCP costs API calls — generation, not micro-tweaks.
+plugin-check. 21st = CLI (`npm i -g @21st-dev/cli`, `21st login`), no MCP,
+no API key. Search is free; `21st get` and `21st generate` are metered —
+generation, not micro-tweaks.
 
 ## graphify
 
