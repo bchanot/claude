@@ -5,7 +5,8 @@
       headings verbatim, graphify § byte-identical (feature/graphify-threshold-banner
       pending). Dropped on purpose: release-candidate / audit-delta /
       init-project+onboard routing lines. Vocabulary diff audited: no rule lost.
-      make test unchanged, banner clean, doctor 0 errors. BDR-098. UNMERGED.
+      make test unchanged, banner clean, doctor 0 errors. BDR-098. Merged into
+      develop abec66e (user go 2026-09-24).
 ## 2026-09-24 — graphify threshold signal: inform from 200 code files, user decides (feature/graphify-threshold-banner)
 User: "graphify seulement à partir de 200 fichiers de code… tu informes, je décide".
 Grounded in LRN-162 measurements (robin_petier scratch copy: AST 2.3 s, 0 tokens,
@@ -21,7 +22,8 @@ query 2-3k tokens, `.claude/` noise). Alternatives rejected in BDR-097.
 - [x] G4 doctrine: CLAUDE.global.md § graphify threshold sentence; plugin-advisor
       thresholds no longer pre-enable graphify; CHANGELOG.
 - [x] G5 BDR-097, LRN-162, journal. shellcheck clean. Live: this repo silent (74),
-      robin_petier fires (214). UNMERGED — human gate.
+      robin_petier fires (214). Merged into develop 10532e3 (user go 2026-09-24);
+      registry conflicts resolved keeping both sides.
 Pilot (not started, user's call): robin_petier graph + `.graphifyignore` +
 gitignore `graphify-out/` + `GRAPHIFY_FORCE=1 graphify update .` in the
 gitflow post-commit hook when a graph exists.
