@@ -1,5 +1,12 @@
 # TODO
 
+## 2026-09-24 — CLAUDE.global.md density pass (chore/claude-global-density)
+- [x] 352 → 270 lines, −15% words, compression only (BDR-031/062 principle),
+      headings verbatim, graphify § byte-identical (feature/graphify-threshold-banner
+      pending). Dropped on purpose: release-candidate / audit-delta /
+      init-project+onboard routing lines. Vocabulary diff audited: no rule lost.
+      make test unchanged, banner clean, doctor 0 errors. BDR-098. UNMERGED.
+
 ## 2026-09-24 — branch deletion guard: never main/develop, never unmerged (feature/branch-delete-guard)
 User rule (after the 21/09 wipe, same family as BDR-095): auto-delete of a branch
 is accepted ONLY once it is merged into develop or main; main and develop are

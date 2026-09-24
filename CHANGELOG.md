@@ -104,6 +104,11 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   until it lands.
 
 ### Changed
+- **CLAUDE.global.md density pass** 352 → 270 lines (−15% words): prose
+  tightened, Security subsections folded into one labelled list, routing
+  lines that only repeated a skill description dropped. Every constraint and
+  every `##` heading kept; loaded in every session, so ~600 fewer tokens per
+  session in every repo (BDR-098).
 - **Design gate: `magic` → the `21st` CLI in the required-manual slot.**
   `design.profile`'s `GATE-BLOCK` now lists `21st` (CLI channel) and
   `21st-ui-build` (the pack's canary on the skill channel); a missing CLI
