@@ -7,6 +7,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- **graphify threshold signal** — `lib/graphify-gate.sh` counts tracked code
+  files (vendored trees excluded) and, from 200 with no
+  `graphify-out/graph.json`, the session-start banner shows one line
+  (`graphify? N code files ≥ 200, no graph`) plus the `/graphify` hint. It
+  informs, the user decides: nothing is built or installed. Doctrine and the
+  plugin-advisor thresholds follow the same rule; measured on a 295-file PHP
+  project: AST build 2.3 s, zero LLM tokens, one query 2 to 3k tokens.
+  Test `lib/tests/graphify-gate.test.sh` (11 checks).
 - **Branch deletion guard** — `gitflow_delete` (also `gitflow.sh delete
   <branch>`) is the only path that deletes a branch: it refuses `main` and
   `develop` (rc 6) and any branch not merged into develop or main (rc 5),

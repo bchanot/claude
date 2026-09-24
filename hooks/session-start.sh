@@ -55,6 +55,14 @@ if [ -f "$_gf_lib" ] && git rev-parse --is-inside-work-tree >/dev/null 2>&1; the
 fi
 unset _gf_lib
 
+# ── graphify threshold signal (BDR-097) ──
+# Informs, never acts: one banner line when the repo holds ≥ 200 tracked code
+# files and no graph. The user decides whether to build one.
+GRAPHIFY_HINT=""
+_gg_lib="$(dirname "${BASH_SOURCE[0]}")/../lib/graphify-gate.sh"
+if [ -f "$_gg_lib" ]; then GRAPHIFY_HINT=$(bash "$_gg_lib" "$PWD" 2>/dev/null); fi
+unset _gg_lib
+
 # ── Toggle plugin detection ──
 
 TOGGLE_ACTIVE=()
@@ -214,6 +222,10 @@ if [ -n "$GF_REFRESHED" ]; then
   _gf_line="hooks refreshed: $GF_REFRESHED → commit .githooks/"
   printf "│  🪝 %-44s│\n" "${_gf_line:0:44}"
   unset _gf_line
+fi
+if [ -n "$GRAPHIFY_HINT" ]; then
+  printf "│  🕸️  %-44s│\n" "${GRAPHIFY_HINT:0:44}"
+  printf "│             %-40s│\n" "→ /graphify (AST, seconds) — you decide"
 fi
 # CLAUDE.global.md line-count guard (anti-regression). BDR-062 supersedes
 # BDR-031's 275 target: 305 is the assumed reality (extraction done at

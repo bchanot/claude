@@ -79,9 +79,9 @@ Factors (weighted):
 **Score thresholds:**
 - **0-30% (simple)**: superpowers only. No gstack, no gsd, no ctx7, no graphify.
   _Examples: site vitrine, landing page, script CLI, simple CRUD._
-- **30-60% (moderate)**: + context7 if fast-libs, + graphify after implementation.
+- **30-60% (moderate)**: + context7 if fast-libs. graphify only once the codebase passes 200 tracked code files (session-start banner informs, the user decides — BDR-097), never at scaffold.
   _Examples: blog with auth, dashboard with charts, API with validation._
-- **60-85% (complex)**: + gstack if browser-QA, + gsd if multi-session, + graphify both passes.
+- **60-85% (complex)**: + gstack if browser-QA, + gsd if multi-session. graphify: same 200-file rule, likely reached — say so, do not pre-enable.
   _Examples: SaaS with billing, game with social features, e-commerce._
 - **85-100% (enterprise)**: all tools justified.
   _Examples: multi-service platform, real-time collab app, marketplace._
