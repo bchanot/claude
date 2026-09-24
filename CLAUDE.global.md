@@ -2,7 +2,6 @@
      Repo-specific instructions live in ./CLAUDE.md (project scope). -->
 
 # Global coding preferences
-
 Apply unless repo-specific instructions override.
 
 ## Code style
@@ -12,18 +11,16 @@ Apply unless repo-specific instructions override.
 - Scope changes to task — no unrelated edits.
 
 ## Limits (adapt to language)
-- Max 25 logic lines/function, 80 chars/line, 5 params, 5 local vars.
-  Logic lines = executable statements; comments + error-handling
-  boilerplate don't count toward 25.
+- Max 25 logic lines/function (executable statements; comments and
+  error-handling boilerplate don't count), 80 chars/line, 5 params, 5 locals.
 - Too many params → struct/object. Too many vars → split/extract.
 - No global state. Explicit data flow.
 
 ## Comments & readability
 - Document intent, not mechanics. Use project doc style (docstring, JSDoc…).
-- Explicit, consistent, meaningful names. Straight control flow,
-  no hidden side effects.
-- Written deliverables (docs, reports, .md): length matched to what
-  the task needs — no filler sections, no boilerplate summaries.
+- Explicit, consistent names. Straight control flow, no hidden side effects.
+- Written deliverables (docs, reports, .md): length matched to the task, no
+  filler sections, no boilerplate summaries.
 
 ## Refactoring
 - Priority: safety → readability → consistency.
@@ -32,314 +29,235 @@ Apply unless repo-specific instructions override.
   Hacky fix → rebuild clean, no over-engineering.
 
 ## Session start
-1. Read `.claude/memory/` — 5 registries (decisions, learnings, blockers,
-   journal, evals). Apply before touching anything.
-2. Read `.claude/tasks/TODO.md` — current state.
-3. Either missing → create before starting
-   (templates: `~/.claude/templates/memory/`).
+1. Read `.claude/memory/` (5 registries: decisions, learnings, blockers,
+   journal, evals) and `.claude/tasks/TODO.md`. Apply before touching anything.
+2. Either missing → create it first (templates: `~/.claude/templates/memory/`).
 
 ## Workflow
-- Confirm before implementing only when real trade-offs exist (multiple
-  valid approaches, breaking change, destructive action) — else proceed.
-- Minimal changes unless broader refactor requested. State trade-offs.
-- Sub-agents: one task per sub-agent, main context stays clean.
-  Delegate genuinely independent, sizeable tracks (wide multi-file
-  exploration, parallel audits) — not work doable in a few tool
-  calls. Skill-mandated gates (fresh verifier/security/challenge)
-  always dispatch as written. Don't redo delegated work by hand —
-  failed gates re-dispatch fresh executors instead. A brief never
+- Confirm before implementing only when real trade-offs exist (several
+  valid approaches, breaking change, destructive action); else proceed.
+  Minimal changes unless a broader refactor is requested. State trade-offs.
+- Sub-agents: one task each, main context stays clean. Delegate
+  independent, sizeable tracks (wide multi-file exploration, parallel
+  audits), not work doable in a few tool calls. Skill-mandated gates (fresh
+  verifier/security/challenge) always dispatch as written; a failed gate
+  re-dispatches a fresh executor, never redo its work by hand. A brief never
   authorizes a sub-agent to run a destructive tool, inside or outside the
   repo (Security → Destructive tools & data loss).
 - Ask rather than guess. A choice visible in the result (placement,
   wording, order, behavior), a name that becomes public (command, flag,
-  endpoint, file), or a scope the request does not settle → ask, even
-  mid-task. Batch what can be batched. Internal technical choices with
-  no observable effect stay yours.
-  *Exception: skill-mandated gates and checkpoints (orchestrator
-  validation gates, approval gates, darwin checkpoints) always fire.*
-- Bug received → fix directly: check logs, find root cause, resolve
-  autonomously; a visible choice in the fix still gets asked.
-- Something goes wrong → STOP, re-plan. Never push through.
-- Deviations: minor or clearly justified → do, explain after.
-  Significant or shaky justification → ask before deviating.
-  Finish the whole task: blocked on an independent sub-part → do
-  the rest, state what's missing. Gone WRONG → still STOP, re-plan.
-- Root causes only. No temp fixes. Never assume — verify paths, APIs,
+  endpoint, file), or a scope the request leaves open → ask, even mid-task;
+  batch what can be batched. Internal choices with no observable effect
+  stay yours. Exception: skill-mandated gates and checkpoints (validation,
+  approval, darwin) always fire.
+- Bug received → fix directly: logs, root cause, resolve autonomously; a
+  visible choice in the fix still gets asked.
+- Deviations: minor or clearly justified → do, explain after; significant
+  or shaky → ask first. Finish the whole task: a blocked independent
+  sub-part → do the rest, state what's missing. Something goes WRONG →
+  STOP, re-plan, never push through.
+- Root causes only, no temp fixes. Never assume: verify paths, APIs,
   variables before use.
 
 ## Planning & TODO (`.claude/tasks/TODO.md`)
-
-- When to plan: task touches logic (new behavior, control flow, state,
-  API, dependencies) → write it in `.claude/tasks/TODO.md` first,
-  decomposed into subtasks. One complex task still needs a plan.
-  Borderline case (single file, small obvious logic change) → skip plan,
-  stay pragmatic.
-- Exempt (skip TODO.md): pure reads, explanations, questions, typos,
-  cosmetic CSS, single config-value change. Same scope as `/hotfix`
-  (≤2 files, obvious fix).
-- How to track, once a task qualifies:
-  1. Plan → task written before code.
-  2. Decompose → one subtask = one coherent change.
-  3. Track → check off as you go.
-  4. Summarize → high-level note at each milestone.
+- Task touches logic (new behavior, control flow, state, API, dependencies)
+  → write the plan in TODO.md first, decomposed into subtasks; one complex
+  task still needs one. Borderline (single file, small obvious change) →
+  skip, stay pragmatic.
+- Exempt: pure reads, explanations, questions, typos, cosmetic CSS, single
+  config value — the `/hotfix` scope (≤2 files, obvious fix).
+- Once it qualifies: plan before code → one subtask = one coherent change
+  → check off as you go → high-level note at each milestone.
 
 ## After code changes
-1. Run tests, lint, build, type-check if available.
-2. Report what verified, what not.
-3. List remaining risks, surviving deviations.
-4. Don't mark complete without proof it works.
-5. Correction or notable event → capitalize to right registry
-   (see "Memory registries").
+1. Run tests, lint, build, type-check if available. Report what was
+   verified and what was not; list remaining risks and surviving deviations.
+2. Don't mark complete without proof it works.
+3. Correction or notable event → capitalize to the right registry.
 
 ## Memory registries (`.claude/memory/`)
+Five registries persist across sessions; capitalize during and after work.
+Append-only: never rewrite past entries; curation (merge, supersede,
+compress) only via `/prune-memory`.
 
-Five registries persist across sessions. Capitalize during/after work.
-Append-only by default — never rewrite past entries; curation (merge,
-mark superseded, compress) ONLY via `/prune-memory`.
-
-| File | ID format | Purpose |
-|------|-----------|---------|
-| `decisions.md` | BDR-XXX | Design/architecture choices + rationale + alternatives + status |
-| `learnings.md` | LRN-XXX | Reusable patterns + context + future application |
+| File | ID | Purpose |
+|---|---|---|
+| `decisions.md` | BDR-XXX | Design/architecture choice + rationale + alternatives + status |
+| `learnings.md` | LRN-XXX | Reusable pattern + context + future application |
 | `blockers.md` | BLK-XXX | Friction + real cause + solution + status (open/resolved/upstream) |
 | `journal.md` | date heading | 3-5 lines/session — done, decided, blocked |
 | `evals.md` | EVAL-XXX | Quality check of Claude's output + method + anomalies + action |
 
-**Language — registries always English.** Rationale: consistent vocab,
-lower token cost, cross-project reuse. User-facing CAPITALIZE prompts may
-mirror user's language; final written entry English.
+Routing: a choice with trade-offs you'd defend → decisions; a pattern worth
+reusing → learnings; a dead end with its root cause → blockers; the session
+log → journal; whether the output actually worked → evals.
 
-**Format — registries always caveman.** Drop articles + filler, fragments
-OK, short synonyms. Technical terms exact, code blocks unchanged, errors
-quoted exact, IDs (BDR/LRN/BLK/EVAL-XXX) + dates unchanged. Pattern:
-`[thing] [action] [reason]. [next step].` Rationale: registries load
-every session — caveman cuts ~40% input tokens, zero substance loss.
-Applies to direct writes AND skill CAPITALIZE steps (close, ship-feature,
-feat, bugfix, hotfix, commit-change). Legacy entries (pre-format-rule):
-compress manually or via claude.ai on demand.
+**Always English, always caveman**: drop articles and filler, fragments OK,
+short synonyms; technical terms, code blocks, quoted errors, IDs and dates
+exact. Pattern `[thing] [action] [reason]. [next step].` Registries load
+every session; caveman cuts ~40% of the tokens with no substance lost.
+Applies to direct writes and to the CAPITALIZE step of every completion
+skill. Prompts to the user may mirror their language; the entry is English.
+Legacy entries: compress on demand.
 
-**Routing — what goes where:**
-- Choice with tradeoffs you'd defend → `decisions.md`.
-- Pattern worth reusing → `learnings.md`.
-- Dead end with root cause identified → `blockers.md`.
-- One-line log of session → `journal.md`.
-- Did Claude's output actually work? → `evals.md`.
-
-**Proactive capitalization (Claude's responsibility):**
-After substantive milestone (bug fix with real root cause, feature
-shipped, non-trivial commit, design choice, surprising discovery, dead
-end with lesson) → **offer to capitalize inline**, do not wait for user.
-Pre-fill entry from context; user approves/edits before write.
-Completion skills (`/ship-feature`, `/feat`, `/bugfix`, `/hotfix`,
-`/commit-change`) automate this via CAPITALIZE step.
-
-**Session-close ritual** (`/close` = `/capitalize --ritual`, or inline when asked):
-1. What decided? → `decisions.md` (if non-trivial).
-2. What learned? → `learnings.md` (if reusable).
-3. What blocked? → `blockers.md`.
+**Proactive capitalization** is Claude's job: after a substantive milestone
+(root-caused bug fix, shipped feature, non-trivial commit, design choice,
+surprising discovery, dead end with a lesson) offer to capitalize inline,
+entry pre-filled, user approves before the write. Completion skills
+(`/ship-feature` `/feat` `/bugfix` `/hotfix` `/commit-change`) do it via
+their CAPITALIZE step. Session close (`/close` = `/capitalize --ritual`):
+what was decided → decisions, learned → learnings, blocked → blockers.
 
 # Architecture decisions
-
-Override default framework/tooling choices. Apply at project creation,
-scaffolding, brainstorming.
+Override default framework/tooling choices at project creation, scaffolding,
+brainstorming.
 
 ## Public websites — never SPA
-
-When project is public-facing website meant to be indexed (landing page,
-portfolio, blog, e-commerce, docs):
-- **FORBIDDEN**: pure SPA (CRA, Vite React SPA, Vue SPA) for public pages.
-  SPA sends empty HTML shell — search engines and AI engines (GEO) can't
-  see content without executing JS. SEO and AI visibility destroyed.
-- **Astro** = default for informational sites (portfolio, docs, blog,
-  landing). Static HTML at build, zero JS by default, React/Vue/Svelte
-  islands for interactive parts.
-- **Next.js** = when dynamic SSR needed (personalized content, server-side
+A public site meant to be indexed (landing, portfolio, blog, e-commerce,
+docs) is never a pure SPA (CRA, Vite React, Vue SPA): the empty HTML shell
+hides content from search and AI engines, SEO and GEO destroyed.
+- **Astro** by default for informational sites: static HTML at build, zero
+  JS by default, React/Vue/Svelte islands for interactive parts.
+- **Next.js** when dynamic SSR is needed (personalized content, server-side
   auth, API routes, hybrid app).
-- **React SPA** = valid only for: admin panels, dashboards, auth-gated
-  apps, internal tools — anything that does not need indexing.
-- **Mixed project** (public + admin): Astro/Next for public, React island
-  (`client:only`) for admin.
-- At brainstorming (`/init-project` STEP 1, `/ship-feature` STEP 1): if
-  project is public website and user hasn't specified framework, propose
-  Astro and explain why not SPA. Never silently pick React CRA.
+- **React SPA** only for what needs no indexing: admin panels, dashboards,
+  auth-gated apps, internal tools. Mixed project: Astro/Next for public,
+  React island (`client:only`) for admin.
+- At brainstorming (`/init-project`, `/ship-feature` STEP 1), public site
+  and no framework named → propose Astro, explain why not SPA. Never
+  silently pick React CRA.
 
 ## Web APIs — always versioned
-
-All web API endpoints must be versioned from day one: `/api/v1/...`.
-- New project → start at `/api/v1/`, no bare `/api/` routes.
-- Breaking changes → new version (`v2`). Old version stays functional —
-  clients migrate at own pace.
-- Non-breaking additions (new fields, new endpoints) → current version.
-- Each version is self-contained contract. Don't modify existing version
-  behavior to match newer one.
-- Router structure reflects versioning explicitly (e.g. `api/v1/routes/`).
+Every endpoint versioned from day one: `/api/v1/...`, no bare `/api/`; the
+router mirrors it (`api/v1/routes/`). Breaking change → `v2`, the old
+version keeps working and clients migrate at their pace; non-breaking
+additions → current version. Each version is a self-contained contract,
+never bent to match a newer one.
 
 ## Version control — gitflow (universal)
+Every git action follows gitflow, inside a skill or for an ad-hoc commit.
+`main` (prod) · `develop` (integration, off main) · `feature/*` `bugfix/*`
+`chore/*` (off develop → develop; chore = memory/doc maintenance such as a
+standalone `/capitalize` `/close` `/prune-memory` `/reconcile`) ·
+`release/*` (off develop → main + back-merge develop) · `hotfix/*` (off main
+→ main + develop + any open release). `master` → `main` everywhere.
 
-Every git action follows gitflow — in a skill, or an ad-hoc commit made outside
-one on request. `main` (prod) · `develop` (integration, off main) · `feature/*`
- `bugfix/*` + `chore/*` (off develop → develop; `chore/*` = memory/doc
-maintenance, e.g. standalone `/capitalize` `/close` `/prune-memory`
-`/reconcile`) · `release/*` (off develop → main + back-merge develop) ·
-`hotfix/*` (off main → main + develop [+ any open release/*]). `master`→`main`
-everywhere.
-
-Never commit code directly on `main` or `develop`: branch first from the
-correct base as `<type>/<name>` (`.claude/**` memory/config commits are
-hook-exempt, following the work). Branch/merge only via the lib, never by hand:
-`bash ~/.claude/lib/gitflow.sh start <type> <name>` · `… finish`. Run `finish`
-(merge) only on an explicit human signal ("merge it", "feature OK"), never
-because tests pass, a plan step says "merge", or "ship" implied it. Assistance
-flows (`/feat` `/bugfix` `/hotfix`) and the standalone memory/doc `chore`
-skills auto-branch on a protected base but commit in place on a working branch,
-never finishing — so those skills branch to `chore/*` via the aiguillage, not
-the `.claude/**` exemption. New/onboarded projects get the model + the
-versioned hooks via `gitflow init`. Advisory, so deterministic backstops
-apply: the pre-commit hook (blocks code commits on main/develop, exempts
-`.claude/**` + `.githooks/**` + merges + the root commit) and Gitea branch
-protection on `main`/`develop`. Don't lean on `--no-verify` to bypass them.
-Every branch is pushed at `start` and every commit as it lands by the
-post-commit and post-merge hooks (warn, never block, on failure). A branch
-is deleted only by `finish` or `gitflow.sh delete <br>`, local and `origin/`
-copy alike: never `main` or `develop`, never a tip not merged into develop
-or main (explicit ancestor check; `git branch -d` proves nothing once the
-branch has an auto-pushed upstream, T22a). The reference-transaction hook vetoes any
-deletion or rename of `main`/`develop` at the ref layer. The four hooks run
-in EVERY repo on the machine: `make link` generates `githooks/` from the lib
-and sets git's global `core.hooksPath` to `~/.claude/githooks`; a repo that
-ran `gitflow init` keeps its own `.githooks/`, refreshed at session start
-when it lags the lib. Foreign clone: `git config gitflow.protect false` /
-`gitflow.autopush false`. `GITFLOW_NO_PUSH=1` is for throwaway test repos
-only. A branch ahead of its upstream is a defect, not a state.
+Never commit code on `main` or `develop`: branch first as `<type>/<name>`
+(`.claude/**` memory/config commits are hook-exempt, following the work).
+Branch, merge and delete only via the lib: `bash ~/.claude/lib/gitflow.sh
+start <type> <name>` · `finish` · `delete <br>`. `finish` runs only on an
+explicit human signal ("merge it", "feature OK"), never because tests pass,
+a plan step says merge, or "ship" implied it. Assistance flows (`/feat`
+`/bugfix` `/hotfix`) and the standalone memory/doc skills auto-branch on a
+protected base but commit in place on a working branch, never finishing, so
+they branch to `chore/*` via the aiguillage, not the `.claude/**` exemption.
+Deterministic backstops behind the doctrine: the pre-commit hook (blocks
+code commits on main/develop; exempts `.claude/**`, `.githooks/**`, merges,
+the root commit), Gitea branch protection on both, and never `--no-verify`.
+Every branch is pushed at `start`, every commit and merge as it lands
+(post-commit and post-merge hooks; warn, never block). A branch is deleted
+only by `finish` or `delete`, local and `origin/` copy alike: never
+`main`/`develop`, never a tip not merged into develop or main (explicit
+ancestor check; `git branch -d` proves nothing once the branch has an
+auto-pushed upstream). The reference-transaction hook vetoes any deletion
+or rename of `main`/`develop`. The four hooks run in every repo: `make
+link` generates `githooks/` and sets the global `core.hooksPath`; a repo
+that ran `gitflow init` (new/onboarded projects) keeps its own `.githooks/`,
+refreshed at session start. Foreign clone: `git config gitflow.protect
+false` / `gitflow.autopush false`; `GITFLOW_NO_PUSH=1` only for throwaway
+test repos. A branch ahead of its upstream is a defect, not a state.
 
 ## Security — non-negotiable defaults
-
-Apply at every dev step: design, scaffolding, implementation, review.
-
-### Input & data
-- Never trust user input. Validate type, length, format, range before use.
-- Sanitize before rendering (XSS), before SQL (injection), before shell
-  (command injection).
-- Use parameterized queries / prepared statements. String concatenation
-  into SQL = immediate blocker.
-
-### Secrets
-- Never hardcode credentials, tokens, keys, or URLs containing auth info —
-  not even in comments.
-- Always use env vars. Provide `.env.example` with placeholder values only.
-- If secret appears in code during review, flag and stop — do not proceed.
-
-### Authentication & authorization
-- AuthN (who you are) and AuthZ (what you can do) separate. Never assume
-  AuthN implies AuthZ.
-- Check authorization on every sensitive endpoint/function — not just at
-  entry point.
-- Default to deny. Explicit allowlist > implicit denylist.
-
-### Dependencies
-- No dependency without stating what it does and why needed.
-- Prefer well-maintained, widely-used packages. Flag abandoned or
-  single-maintainer packages.
-- Never `npm install` or `pip install` a package found in a random code
-  snippet without naming it explicitly.
-
-### Error handling & logging
-- Never expose stack traces, internal paths, or DB errors to end users.
-  Log internally, return generic message.
-- Never log secrets, passwords, tokens, or PII — even at DEBUG level.
-- Fail closed: on unexpected error, deny access rather than grant.
-
-### Minimal privilege
-- Functions, processes, services request only permissions actually needed.
-- Temporary elevated permissions must be scoped and reverted explicitly.
+Apply at every step: design, scaffolding, implementation, review.
+- **Input & data**: never trust user input; validate type, length, format,
+  range. Sanitize before rendering (XSS), SQL (injection), shell (command
+  injection). Parameterized queries only; string concatenation into SQL is
+  an immediate blocker.
+- **Secrets**: never hardcoded (credentials, tokens, keys, URLs with auth),
+  not even in comments; env vars only, `.env.example` with placeholders. A
+  secret found in review → flag and stop.
+- **AuthN / AuthZ**: separate; AuthN never implies AuthZ. Check
+  authorization on every sensitive endpoint or function, not only at the
+  entry point. Default deny; explicit allowlist over implicit denylist.
+- **Dependencies**: none without stating what it does and why; prefer
+  well-maintained, widely used packages, flag abandoned or single-maintainer
+  ones; never install a package from a random snippet without naming it.
+- **Errors & logging**: no stack traces, internal paths or DB errors to end
+  users (log internally, generic message out); never log secrets, tokens or
+  PII, even at DEBUG; fail closed, deny on unexpected error.
+- **Minimal privilege**: request only what is needed; temporary elevation
+  scoped and reverted explicitly.
 
 ### Destructive tools & data loss
 Written after 2026-09-21: a reviewer sub-agent traced `lftp mirror --delete`
 against a local `file://` tree, the target resolved to a real path, and 90
-seconds later the home, the NAS mount and 15 repositories were gone. Four
-days of work had never been pushed.
+seconds later the home, the NAS mount and 15 repositories were gone, four
+days of work never pushed.
 - Claude never deploys and never runs a transfer or mirror tool (`lftp`,
-  `sftp`, `ftp`, `rsync --delete`). It writes or explains the runbook; the
+  `sftp`, `ftp`, `rsync --delete`): it writes or explains the runbook, the
   user runs it. A test is a dev server on this machine, nothing more.
-- A destructive tool is never run "to see what it would do", not even
-  against a scratch tree. Trace it by reading. If a run is unavoidable, the
-  target is a fresh `mktemp -d` path written literally in the same command,
-  after a dry-run whose output is shown.
+- A destructive tool is never run "to see what it would do", not even on a
+  scratch tree: trace it by reading. If a run is unavoidable, the target is
+  a fresh `mktemp -d` path written literally in the same command, after a
+  dry-run whose output is shown.
 - Recursive delete stays inside the project or the temp dir, on a literal
-  relative path: never through a variable, `~`, `..`, a wildcard, or an
+  relative path: never through a variable, `~`, `..`, a wildcard or an
   absolute path elsewhere. `chmod -R`, `chown -R`, `sudo`, docker volume
-  drops or system bind mounts: the user runs them by hand.
-- A brief, a plan step or a test recipe never authorizes a sub-agent to do
-  any of the above. A reviewer reads the script it reviews; it does not run
-  it.
-- Every commit is pushed as it lands (gitflow post-commit and post-merge
-  hooks) and every branch at creation. Unpushed work is a defect to fix now,
-  not a state to keep.
+  drops, system bind mounts: the user runs them by hand.
+- A brief, plan step or test recipe never authorizes a sub-agent to do any
+  of this; a reviewer reads the script it reviews, it does not run it.
+- Everything is pushed as it lands (gitflow hooks): unpushed work is a
+  defect to fix now, not a state to keep.
 
 # Communication mode: radical honesty
-
-- TRUTH OVER COMFORT — Point out flaws immediately. No sugarcoating,
-  no "not bad but…".
-- ZERO COMPLACENCY — Never validate idea just because I proposed it.
-  Evaluate arguments on merit.
-- BLIND SPOT DETECTION — Actively look for what I'm missing: confirmation
-  bias, hidden assumptions, ignored alternatives. Flag without waiting
-  for permission.
-- ACTIVE RESISTANCE — When I make weak point, push back until I correct
-  it or solidly justify keeping it.
-- UNCERTAINTY TRANSPARENCY — If you don't know, say so. No invention,
-  no vague answers to save face.
+- TRUTH OVER COMFORT: point out flaws immediately, no sugarcoating, no "not
+  bad but…". ZERO COMPLACENCY: never validate an idea because I proposed
+  it; judge arguments on merit.
+- BLIND SPOT DETECTION: look for what I'm missing (confirmation bias, hidden
+  assumptions, ignored alternatives) and flag it without waiting.
+- ACTIVE RESISTANCE: when I make a weak point, push back until I correct it
+  or solidly justify it. UNCERTAINTY TRANSPARENCY: don't know → say so; no
+  invention, no vague answers to save face.
 
 # Tooling & skills
 ## Skill routing
-
-Most skills route by name — match the request to the skill whose
-description fits (full list is in context). Rules below cover only the
-non-obvious cases: gstack fallbacks, disambiguation, cryptic names.
-
+Skills route by name: match the request to the skill whose description
+fits. Below, only the non-obvious cases: gstack fallbacks, disambiguation,
+cryptic names.
 - Product idea, "worth building?" → office-hours
-- Bug / error / 500 → bugfix (full framework: gitflow, contract, fresh
-  verifier/security gates, registries). investigate ONLY on explicit ask
-  for the gstack ecosystem (cross-project learnings, /freeze scope lock,
-  long investigation with no immediate commit intent)
+- Bug / error / 500 → bugfix (gitflow, contract, fresh verifier/security
+  gates, registries). investigate only on explicit ask for the gstack
+  ecosystem (cross-project learnings, /freeze, long open-ended investigation)
 - feat / hotfix / bugfix distinguished by file count → see descriptions
 - Ship / deploy / PR → ship (ship-feature if gstack off)
-- Cut a release / tag a version (develop ahead of main) → release-candidate
 - Docs post-ship → document-release (doc if gstack off); stale-doc audit → doc
-- Audit of changes since last run → audit-delta
-- Grouped all-axes sweep (clean+security+reconcile+doc, "tir groupé",
-  tour of one or more projects, fix + loop until clean) → tour
-- Open-work inventory / "queue empty?" / stale TODO vs real git → reconcile
-- Design / UI (build, system, audit, polish) → see "Design work" below
+- Grouped all-axes sweep ("tir groupé", fix + loop until clean) → tour
+- Open-work inventory / "queue empty?" / stale TODO vs git → reconcile
+- Design / UI (build, system, audit, polish) → "Design work" below
 - Architecture review → plan-eng-review
 - Before /clear or /compact → capitalize; end-of-session ritual → close
-- SEO+GEO → seo (GEO only → geo)
-- W3C + WCAG a11y (HTML/CSS validity, axe, pa11y) → web-validate
-- Security audit (secrets, CVE, OWASP) → cso
-- New project → init-project; onboard existing repo → onboard
-
+- SEO+GEO → seo (GEO only → geo); W3C + WCAG a11y → web-validate;
+  security audit (secrets, CVE, OWASP) → cso
 gstack OFF → its skills (investigate, ship, qa, review, health, retro,
 office-hours, context-save…) are gone: use the fallback above, else say so.
 
 ## Design work — full toolchain (tiered by scope)
-
 Trigger = UI work: editing a component/style file (.tsx/.vue/.svelte/.css…)
-OR a design/UI request — not the keyword "design" alone in a prompt. Single
-source for design routing; the design-toolchain hook reinforces it.
+or a design/UI request, not the word "design" alone. Single source for
+design routing; the design-toolchain hook reinforces it.
 - Trivial (≤2 files, one cosmetic value) → /hotfix, no toolchain.
 - Build UI (component, page, redesign) → ui-ux-pro-max + frontend-design
   (anti-slop) + 21st-ui-build (catalog + generation) + emil-design-eng
-  (polish) + design-motion-principles (if motion) + design-html (if static).
-  Post-build floor: `npx impeccable detect <files>` (45 deterministic
-  anti-slop rules, exit 2 = findings) when impeccable installed.
+  (polish) + design-motion-principles (motion) + design-html (static).
+  Post-build floor when impeccable is installed: `npx impeccable detect
+  <files>` (45 deterministic anti-slop rules, exit 2 = findings).
 - Design system / brand → design-consultation first, then the build tools.
 - Review / audit → design-review + emil-design-eng + design-motion-principles
   + 21st-ui-review + /impeccable audit|critique + `impeccable detect` floor.
-Scope doubt → don't silently skip: ask, or default to Build tier.
-Gate: lightweight skills run `~/.claude/lib/design-gate.md`; orchestrators via
-plugin-check. 21st = CLI (`npm i -g @21st-dev/cli`, `21st login`), no MCP,
-no API key. Search is free; `21st get` and `21st generate` are metered —
-generation, not micro-tweaks.
+Scope doubt → ask or default to Build, never silently skip. Gate: light
+skills run `~/.claude/lib/design-gate.md`, orchestrators plugin-check. 21st =
+CLI (`npm i -g @21st-dev/cli`, `21st login`), no MCP, no key; search free,
+`21st get`/`generate` metered → generation, not micro-tweaks.
 
 ## graphify
 
