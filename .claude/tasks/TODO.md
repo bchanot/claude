@@ -126,6 +126,8 @@ settings) are the user's; this branch = layer C (config repo) + auto-push.
       clean, doctor "Scratchpad" check added. OPEN for the user: `make link`
       (sets the global `core.hooksPath`; denied to the agent), and launch
       claude with `TMPDIR=$HOME/.cache/claude-tmp` in `dtach_claude()`.
+      → `make link` DONE (global core.hooksPath = ~/.claude/githooks, reconcile
+      2026-09-24); TMPDIR in the launcher still open (BLK-021).
 Out of scope here (user's side): restic append-only, lxd group, NAS mount,
 managed-settings.json + sandbox, per-project accounts, docker rootless.
 
@@ -194,6 +196,8 @@ OPEN for the user:
 - `skills/synced/` (4.4 MB, untracked, not ignored): claude.ai's synced
   skills, written through the ~/.claude/skills symlink. Decide whether to
   gitignore it; not touched here.
+  → /tmp freed by the user 2026-09-22; skills/synced gitignored 87b2615
+  (reconcile 2026-09-24).
 
 ## 2026-09-22 — 21st: magic MCP → CLI + skills (feature/21st-cli-migration)
 User: "remplacer pour 21st, il n'y a plus besoin de mcp / api, mais juste en
@@ -236,6 +240,8 @@ IS a symlink → repo/skills. Verified live: "Refusing to access symbolic link
       skills/profile/SKILL.md. OPEN for the user: `npm i -g @21st-dev/cli`
       then `21st login` (`Bash(npm install -g *)` is denied to the agent).
       Merged into develop 2026-09-22 (33e0899), pushed.
+      → 21st CLI installed (nvm bin; reconcile 2026-09-24); `21st login` state
+      not verifiable here.
 
 ## 2026-09-17 — /deploy hand-back: one-line commands + post-deploy test list (feature/deploy-oneline-tests)
 User: commands in the /deploy checklist arrive broken across lines (cannot
@@ -349,7 +355,8 @@ binds under auto mode) instead of `ask`.
       live security surface. Add a check: block present, `$defaults`
       inherited, no foreign absolute project path hardcoded
 - [x] T6a CHANGELOG (Added/Changed/Fixed under [Unreleased])
-- [ ] T6b registries BDR-090 + LRN-153 + journal — drafted, awaiting user approval
+- [x] T6b registries BDR-090 + LRN-153 + journal — drafted, awaiting user approval
+      → written: BDR-090 + LRN-153 present in the registry body (reconcile 2026-09-24).
 - [x] T7 verify: `make test`, `bash doctor.sh`, `shellcheck`
 NOT in scope: the 3 dirty `skills/graphify/*` files (pre-existing,
 unrelated) — never staged.
@@ -548,6 +555,7 @@ versioned (durable, referenced by decisions.md e.g. BDR-076). Universal via the
       1-line hotfix. (test glob :31 FIXED — has run-*.sh, reconcile 2026-08-25)
       Re-verified OPEN 2026-09-01: lib/profiles/ has 10, Makefile:57 lists 5
       (backend, full, seo, web-full, web missing).
+      Re-verified OPEN 2026-09-24: still 10 vs 5 (Makefile:60 now).
 
 ## 2026-07-20 — profile ↔ toggle-external symmetry (feature/profile-managed-externals, BDR-079)
 Audit verdict: gstack on-demand + design enable already work; DISABLE side

@@ -37,6 +37,11 @@ rules:
 | BLK-015 | 2026-07-03 | `gitflow_finish` ignored its `<type> <name>` args → merged the CHECKED-OUT branch not the one named → wrong-branch merge (audit LOT3) | resolved |
 | BLK-016 | 2026-07-04 | rtk compression PATH-dead 30 days — 6/5070 Bash commands compressed (~460K tokens missed); installer sources cargo env so its own check passes, Claude tool shell never gets ~/.cargo/bin | resolved |
 | BLK-017 | 2026-07-17 | Bing Webmaster API unusable for a multi-client agency: OAuth swamp (localhost redirect refused, rotated single-use refresh tokens race our parallel dispatch), API key = wrong model (client-owned sites) | open/deferred |
+| BLK-018 | 2026-07-20 | release-executor finish span blocked by permission classifier (human signal invisible to subagent) — 2026-07-… | open |
+| BLK-019 | 2026-09-01 | notify-attention bell silent, toast OK (VS Code client default) — 2026-09-01 | resolved |
+| BLK-020 | 2026-09-02 | notify-attention: both channels dead on one VS Code client — 2026-09-02 | resolved |
+| BLK-021 | 2026-09-22 | Bash tool dead mid-session ("every command exits 1"): /tmp usrquota blown by a dead session's probe HOMEs — 2… | open |
+| BLK-022 | 2026-09-22 | `hooks/guard-bash.sh` withheld by the safety classifier; executable spec shipped instead — 2026-09-22 | open |
 
 ---
 
