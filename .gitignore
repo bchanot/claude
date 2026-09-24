@@ -117,6 +117,12 @@ graphify-out/
 # test-prompts.json is hand-written for darwin and stays tracked.
 skills/graphify/SKILL.md
 skills/graphify/references/
+
+# Claude Code's mirror of the claude.ai synced skills (UUID bucket dir +
+# .bucket-* marker + manifest.json, 4 MB of Anthropic stock skills). App-owned,
+# rewritten at every sync — never tracked, like the graphify/impeccable copies.
+skills/synced/
+skills/.bucket-*
 skills/graphify/.graphify_version
 
 # /client-handover test artifacts (project-local renders)

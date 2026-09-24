@@ -498,5 +498,6 @@
       "**Sensitive remote targets**: any namespace, host, database or container whose name carries `prod` or `production` as a whole word or name segment.",
       "**Sensitive data locations & audiences**: per-project `.env` files (gitignored) hold database, deploy and API credentials; some web projects store customer-submitted form data under a retention policy. Both are personal or client data — never send either to an external service."
     ]
-  }
+  },
+  "feedbackDrafts": "off"
 }
