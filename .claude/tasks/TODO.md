@@ -1,5 +1,45 @@
 # TODO
 
+## 2026-09-24 — branch deletion guard: never main/develop, never unmerged (feature/branch-delete-guard)
+User rule (after the 21/09 wipe, same family as BDR-095): auto-delete of a branch
+is accepted ONLY once it is merged into develop or main; main and develop are
+never deleted. Finding that motivates it: since BDR-095 `start` pushes `-u origin`,
+so `git branch -d` now checks "merged into its UPSTREAM" (origin/<br>, always in
+sync via post-commit) instead of "merged into HEAD" — its safety valve is dead.
+`_gitflow_delete` only survived because finish chains it after a successful merge.
+- [x] D1 `lib/gitflow-test.sh` T22 (lib): `-d` alone deletes an unmerged branch
+      whose upstream is in sync (premise proof); `gitflow_delete` refuses
+      main/develop (rc 6) and an unmerged branch (rc 5), deletes a merged one;
+      `gitflow_merged_into_base` predicate; T23 (hook): `git branch -D
+      develop|main`, `update-ref -d`, `branch -m develop` all BLOCKED from a
+      working branch; a merged feature deletes fine; `gitflow.protect false`
+      opt-out; `commit`/`checkout` unaffected; T19d/T20 iterate the 4 hooks.
+- [x] D2 `lib/gitflow.sh`: `gitflow_merged_into_base <br>` (ancestor of develop
+      OR main, fail closed when neither exists); `gitflow_delete` = protected
+      refusal + merged check + `git branch -d`; CLI verbs `delete <br>`,
+      `merged <br>`, `hooks`; 4th hook `reference-transaction` (refuses deletion
+      of refs/heads/main|develop in `prepared` state, sh, opt-out
+      gitflow.protect); hook names in one `GITFLOW_HOOKS` array (write, emit,
+      reconcile, T19d, doctor all read it).
+- [x] D3 `settings.json`: static deny `git branch -d|--delete|-dr|-rd *`,
+      `git branch -m|-M main|develop *`; hard_deny "branch deletion outside
+      `gitflow.sh delete/finish`, any deletion/rename of main/develop, local or
+      remote"; "Disarming" entry covers every hook file; `environment`
+      protected-branches line updated. `guard-bash.test.sh` T8w flips to deny.
+      Leave the user's uncommitted `feedbackDrafts` line out of the commit.
+- [x] D4 doctrine: `CLAUDE.global.md` gitflow section (delete only via the lib,
+      main/develop never, `-d` no longer protects); `skills/gitflow/SKILL.md`
+      table + `delete` op + failure rows rc 5/6.
+- [x] D5 `doctor.sh` hook loop reads `gitflow.sh hooks`; regenerate `.githooks/`
+      + `githooks/` (both tracked) with the 4th hook.
+- [x] D6 docs: `templates/settings/SETTINGS.md`, README line, CHANGELOG.
+- [x] D7 `make test`, shellcheck, doctor; BDR-096 + LRN + journal.
+      Verified 2026-09-24: gitflow-test 152/154 (2 pre-existing T16a),
+      T22 12/12 + T23 11/11, shellcheck clean incl. emitted hook, doctor
+      4/4 hooks match. Branch UNMERGED — human gate. BDR-096, LRN-161.
+Out of scope, flagged: remote branch cleanup after finish (`git push --delete`
+is in static deny since BDR-095; origin/<br> now accumulates — user's call).
+
 ## 2026-09-22 — destructive guardrails after the 21/09 wipe (feature/destructive-guardrails)
 Incident 2026-09-21 00:21 on the old server: a reviewer sub-agent (atlast SDD, opus)
 traced `lftp mirror --reverse --delete` against a local `file://` tree; the target
