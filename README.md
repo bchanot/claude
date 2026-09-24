@@ -17,7 +17,8 @@ Not a collection of prompts — an operating layer on top of Claude Code:
   opus judges, the session model only reflects).
 - **Hooks and permissions** are deterministic guardrails: gitflow enforced
   by a pre-commit hook, every commit pushed by post-commit and post-merge
-  hooks, deny-first permission rules, secrets kept in `~/.claude/.env` and
+  hooks, `main`/`develop` undeletable by a reference-transaction hook,
+  deny-first permission rules, secrets kept in `~/.claude/.env` and
   never in config files.
 - **Templates and memory** seed every project with persistent registries
   (decisions, learnings, blockers) — what a session learns, the next

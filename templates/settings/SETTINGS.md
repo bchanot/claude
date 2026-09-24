@@ -152,7 +152,12 @@ is not shipped yet (BLK-022).
 
 Push discipline lives in `lib/gitflow.sh`: `start` pushes the branch,
 `finish` pushes each merge target, and the post-commit / post-merge hooks
-push every commit as it lands (warn, never block, on failure). The hooks
+push every commit as it lands (warn, never block, on failure). `finish`
+deletes the merged branch through `gitflow_delete`, which refuses
+`main`/`develop` and any branch not merged into develop or main (`git branch
+-d` alone proves nothing once the branch has an auto-pushed upstream). A
+fourth hook, `reference-transaction`, vetoes any deletion or rename of
+`main`/`develop` at the ref layer. The hooks
 reach every repo two ways: `make link` generates `githooks/` from the lib
 and sets git's global `core.hooksPath` to `~/.claude/githooks` (a repo's own
 local `core.hooksPath` wins, by git's rules), and `hooks/session-start.sh`

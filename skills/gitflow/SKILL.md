@@ -35,6 +35,7 @@ develop [+ any open release/*]).
 bash ~/.claude/lib/gitflow.sh init [msg]          # main+develop; root-commit (fresh) or ensure (existing); reconcile .gitignore; install hook
 bash ~/.claude/lib/gitflow.sh start <type> <name> # branch from the correct base
 bash ~/.claude/lib/gitflow.sh finish              # directed merge of the CURRENT branch — HUMAN-GATED (below)
+bash ~/.claude/lib/gitflow.sh delete <branch>    # delete a branch merged elsewhere (Gitea PR, hand merge) — refuses main/develop + anything unmerged
 bash ~/.claude/lib/gitflow.sh protected-base [br] # rc 0 on main/develop — the shared predicate
 ```
 
@@ -45,6 +46,13 @@ bash ~/.claude/lib/gitflow.sh protected-base [br] # rc 0 on main/develop — the
 | `feature/*` · `bugfix/*` · `chore/*` | develop | delete |
 | `release/*` | main + develop | delete |
 | `hotfix/*` | main + develop + any open `release/*` | delete |
+
+`delete` is `gitflow_delete`, the only path that removes a branch: it refuses
+`main`/`develop` (rc 6) and any branch not merged into develop or main (rc 5),
+and keeps the branch. Hand `git branch -d` is denied — with an auto-pushed
+upstream it checks the wrong thing (T22a). A `reference-transaction` hook
+vetoes any deletion or rename of `main`/`develop` at the ref layer, in every
+repo.
 
 ## The finish gate — merge ONLY on an explicit human signal
 
@@ -88,9 +96,12 @@ call `start <type>` to branch first; on a working branch they commit in place. S
 | `start`/`finish` rc=1 — checkout failed (dirty tree blocking, or branch already exists) | Report git's message verbatim; if the branch exists, ask resume-it vs new name. Never fall back to raw `git checkout -b` |
 | finish warning "transient artifacts … purge skipped, finishing without it" | Non-fatal BY CONTRACT (purge is best-effort, never aborts a finish) — finish continues; clean `docs/superpowers/` by hand later |
 | `init` rc=1 — socle commit failed | Recoverable: aborted BEFORE hook activation by design; fix the cause (hooks, perms), re-run `init` |
+| `delete`/`finish` rc=5 — branch not merged into develop or main | The branch still holds unmerged work: KEEP it, report it, never fall back to `git branch -d`/`-D`. Merge first (human gate), then re-run |
+| `delete` rc=6 — protected base | `main`/`develop` are never deleted. Stop; the request itself is the defect to report |
 
 ## Common Mistakes
 
 - Using `finishing-a-development-branch` for a gitflow merge → it can't do directed/fan-out merges. Use `gitflow finish`.
 - Hand-writing `git merge` instead of `gitflow finish` → loses fan-out, branch delete, base sync.
 - Calling `finish` because the work *looks* done → see the gate.
+- `git branch -d`/`-D` by hand → denied; a branch the lib refuses to delete still holds work. Keep it, say so.
