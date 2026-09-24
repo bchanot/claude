@@ -36,7 +36,8 @@ sync via post-commit) instead of "merged into HEAD" — its safety valve is dead
 - [x] D7 `make test`, shellcheck, doctor; BDR-096 + LRN + journal.
       Verified 2026-09-24: gitflow-test 152/154 (2 pre-existing T16a),
       T22 12/12 + T23 11/11, shellcheck clean incl. emitted hook, doctor
-      4/4 hooks match. Branch UNMERGED — human gate. BDR-096, LRN-161.
+      4/4 hooks match. Merged into develop b2e252e (user go 2026-09-24).
+      BDR-096, LRN-161.
 Out of scope, flagged: remote branch cleanup after finish (`git push --delete`
 is in static deny since BDR-095; origin/<br> now accumulates — user's call).
 
