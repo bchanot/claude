@@ -1,5 +1,38 @@
 # TODO
 
+## 2026-09-24 — C2 coherence: 30 doctrine/skill tensions resolved (feature/c2-coherence)
+Audit by 3 read-only analysts (doctrine+rules, skills A-H, skills I-W), 39 raw
+pairs → 30 unique, spot-checked by grep. User approved all four groups + G3 as
+recommended. C3 (superpowers) closed: no over-trigger in 29 sessions / 126 turns
+(2 brainstorming calls, both warranted), ~800 tok fixed/session → keep, re-measure
+in 30 days with the same transcript script.
+- [x] WP-A doctrine (CLAUDE.global.md): 3 compress-on-demand → via /prune-memory;
+      4 deploy → /deploy; 5 one ask policy; 12 BDR-068 exception clause; 13 memory
+      commit: exemption vs aiguillage, both written; 14 chore = maintenance without
+      new behaviour; 17 hotfix on develop → bugfix; 22 skill plan file satisfies the
+      planning rule; 23 mandated executors exempt from the delegation rule; 24
+      journal line exempt from the approval gate. Stay < 320 lines.
+- [x] WP-B lib bug (7): `_gitflow_init_existing` socle commit blocked on main by the
+      live global pre-commit → socle on `chore/gitflow-adopt` off main, merged
+      --no-ff (merge exempt), branch deleted; T2c with a simulated global hook.
+- [x] WP-C E1 gitflow-family skills: capitalize/close `--no-push` text (11), memory
+      missing → create (21), gitflow SKILL exception line (12), § Language ×5 (2),
+      hotfix aiguillage bugfix-on-develop (17) + design-gate skip (25), feat/bugfix/
+      hotfix executor wording (23), ship-feature .gsd/STATE.md (27), init-project
+      graphify gate (1) + memory bootstrap (21), aiguillage table rows (/doc,
+      /commit-change, seo/web-validate/refactor) (18,19), doc STEP 0 aiguillage
+      (19), commit-change asks branch type (14).
+- [x] WP-D E2: onboard graphify gate (1) + STEP 2.6 rewrite (7) + add gsd/continue
+      (28); tour push wording (10), BREAKING → needs decision (15), doc-syncer
+      two-mode (26); deploy push_deploy_tags (8); release-candidate tag-only push
+      gate + release-executor + its test (9).
+- [x] WP-E E3: client-handover gate + script path (16, 29); seo/web-validate/refactor
+      aiguillage step (18); pdf-translate sudo (30); verify-secure-loop inline-fix
+      removal under locks (20); design-gate.md extensions/impeccable/anim list (6).
+- [x] WP-F verify: make test, shellcheck, doctor, banner; review full diff; BDR-099
+      (C2 resolutions) + LRN-163? no: LRN-169 (audit method) + journal; C2/C3 ticked
+      in the 2026-08-25 block. Merge on user go.
+
 ## 2026-09-24 — CLAUDE.global.md density pass (chore/claude-global-density)
 - [x] 352 → 270 lines, −15% words, compression only (BDR-031/062 principle),
       headings verbatim, graphify § byte-identical (feature/graphify-threshold-banner
@@ -515,12 +548,14 @@ Order fixed, one branch per chantier, no merge without per-chantier signal.
       Residual for gate: §6bis dynamically-unverified list (FULL branches,
       apply path — census-locked statically); FULL/aggressive dry-run = user
       option; nested-CLI dogfood blocked by monthly spend limit (inline used).
-- [ ] C2 self-contradiction audit CLAUDE.global.md + own skills: list rule
+- [x] C2 self-contradiction audit CLAUDE.global.md + own skills: list rule
       pairs in tension, propose resolution per pair, apply after user OK.
       /doctor as assistant, not authority.
-- [ ] C3 superpowers: MEASURE first (skill-invocation log over sessions)
+      → DONE 2026-09-24: 30 pairs, all resolved on feature/c2-coherence (BDR-099).
+- [x] C3 superpowers: MEASURE first (skill-invocation log over sessions)
       whether "1% chance → MUST invoke" over-triggers; if yes, options +
       trade-offs (disable plugin / softer house rule / live with) — user decides.
+      → DONE 2026-09-24: measured 2/126 turns, both warranted → keep, re-measure in 30 days (LRN-169).
 - [x] C4 hygiene: reinstall darwin-skill — DONE (reconcile 2026-08-25:
       ~/.agents/skills/darwin-skill present, T6c green, make test exit 0).
 

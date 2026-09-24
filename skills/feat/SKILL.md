@@ -244,7 +244,7 @@ Valider ? (all / <IDs> / edit / skip)
 
 Always append a 1-line entry to today's heading in `.claude/memory/journal.md`.
 
-**Language rule**: written entries are ALWAYS in English (see CLAUDE.md "Memory registries" § Language). The interactive gate may mirror the user's language; the appended entries must not.
+**Language rule**: written entries are ALWAYS English AND caveman — fragments, articles dropped, code/IDs/quoted errors verbatim — per CLAUDE.md "Memory registries" (Always English, always caveman). The interactive gate may mirror the user's language; the appended entries must not.
 
 If no substantive capture candidate → skip with `CAPITALIZE: nothing to log`.
 
@@ -259,7 +259,9 @@ hash, and no-ops if nothing was written.
 - Max 5 files. If more needed → `/ship-feature`.
 - Reflection (scope, plan, contract, loop decisions) NEVER leaves this main
   loop; execution NEVER stays in it — the executor is the sonnet-pinned
-  feater subagent (BDR-066).
+  feater subagent (BDR-066). A skill-mandated executor is exempt from the doctrine's "don't delegate
+  few-tool-call work" rule (CLAUDE.md "Workflow" names that exception:
+  skill-mandated dispatches run as written).
 - The executor is dispatched FRESH on every round-trip — feedback travels
   as contract path + named gaps/decisions, never as transcript.
 - Design gate only (not full plugin check). See STEP 0.5.

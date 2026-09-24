@@ -182,7 +182,6 @@ Author a runbook, seed the incident ledger, commit both, then proceed to STEP 1.
    #!/usr/bin/env bash
    # === deploy runbook (reference) — NOT run directly. Instantiated into the deploy checklist per delta. ===
    # Fixed steps run every deploy; annotated steps (@delta lines) re-instantiate from the delta.
-   # @config push_deploy_tags=false
    ```
 3. Scan for migration, rebuild, and dependency steps; propose `@delta:` annotations inline:
    - Migration steps (`psql -f`, `migrate up`, `supabase migration`) →
@@ -219,12 +218,10 @@ Author a runbook, seed the incident ledger, commit both, then proceed to STEP 1.
 | Backup command | "Backup command before migrations?" | `pg_dump "$DB" > ~/backups/pre-deploy-$(date +%F-%H%M).sql` |
 | Health-check URL | "Health-check URL (expects HTTP 200)?" | `https://$DEPLOY_HOST/health` |
 | Rollback note | "One-line rollback note (optional)?" | omit if blank |
-| Push deploy tags | "`push_deploy_tags`? (true / false)" | `false` |
 
 **Using** `~/.claude/templates/deploy/PROCEDURE.md` **as base, populate** fields from interview answers + detected artifacts:
 - Substitute `$DEPLOY_HOST` with the supplied host (keep literal `$DEPLOY_HOST` if none given).
 - Include only the annotated steps whose artifact was detected; keep all fixed steps.
-- Set `# @config push_deploy_tags=<answer>` in the header.
 - Append the rollback note as `# ROLLBACK: <note>` at the end if provided.
 
 → **[GATE]** below.
@@ -427,9 +424,7 @@ Then:
 
 The deploy succeeded. Lay the oracle and close out.
 
-1. Read `# @config push_deploy_tags=` from the `PROCEDURE.md` header (default
-   `false`). Pick `date = today` (`YYYY-MM-DD`); if `deploy/<date>` exists, suffix
-   `-N`.
+1. Pick `date = today` (`YYYY-MM-DD`); if `deploy/<date>` exists, suffix `-N`.
 2. Write `.claude/deploy/STATE.json` (overwrite):
    ```jsonc
    { "deployed_sha": "<PENDING.target_sha>", "deployed_at": "<now ISO-8601>",
@@ -438,9 +433,10 @@ The deploy succeeded. Lay the oracle and close out.
    **`deployed_sha` = `PENDING.target_sha`, NOT current HEAD** — HEAD may have
    moved during the gap; the bridge's target is the deployed truth.
 3. `git tag -a deploy/<date> <PENDING.target_sha> -m "<summary>"`.
-4. If `push_deploy_tags=true` → `git push origin deploy/<date>` — **best-effort,
-   non-fatal**: a push failure logs a warning, never blocks the mark (the tag is a
-   bookmark; `STATE.json` is the oracle).
+4. No separate tag push: the oracle commit (step 5) fires the gitflow
+   post-commit hook, which pushes with `--follow-tags`, so `deploy/<date>`
+   rides along (BDR-095). A hook `push FAILED` warning never blocks the mark
+   (the tag is a bookmark; `STATE.json` is the oracle).
 5. Commit the oracle:
    ```bash
    bash ~/.claude/lib/deploy-commit.sh commit "chore(deploy): mark <date> @ <short>" \

@@ -9,7 +9,7 @@ model: sonnet
 
 You execute the mechanical parts of a gitflow release. The `/release-candidate`
 dispatcher owns every judgment call — the version number, the "is it time to
-release" decision, and both pushes — and owns the human gate that sits BETWEEN
+release" decision, and the tag push — and owns the human gate that sits BETWEEN
 your two spans. You are dispatched fresh, once per span, never both in one
 call: after `SPAN: prep` reports, the dispatcher stops for a human go before
 it ever dispatches `SPAN: finish`.
@@ -76,12 +76,15 @@ actual branch; never finish whatever happens to be checked out.
    output verbatim; do not attempt to resolve it yourself.
 2. **Tag AFTER finish, on `main`** — never before:
    `git tag -a v<X.Y.Z> main -m "release <X.Y.Z>"` (annotated, so it lands on
-   main's release-merge commit).
+   main's release-merge commit). Finish has already pushed `main` and
+   `develop` through the lib's hooks (BDR-095); the tag stays local until
+   the dispatcher's tag-push gate.
 
 ### Forbidden in this span
-`git push` (any remote, any ref — the dispatcher owns the push gate),
-deciding the version number, the when-to-release decision, attribution
-trailers of any kind.
+`git push` (any remote, any ref — `main`/`develop` ride the lib's hook
+pushes during finish; the dispatcher owns the tag-push gate), deciding the
+version number, the when-to-release decision, attribution trailers of any
+kind.
 
 ---
 

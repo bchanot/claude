@@ -130,7 +130,7 @@ concrete, no jargon. One short paragraph per idea.
    [§6.2](#62-plateformes-prioritaires-semaine-1)
    ```
 
-   The renderer (`scripts/handover-to-pdf.sh`) uses pandoc with
+   The renderer (`$HOME/.claude/skills/client-handover/scripts/handover-to-pdf.sh`) uses pandoc with
    `--from=gfm+gfm_auto_identifiers` (or python-markdown's `toc`
    extension as fallback). Both auto-generate heading IDs in the
    GitHub-style slug:

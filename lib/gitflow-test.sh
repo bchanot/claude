@@ -50,7 +50,7 @@ chk "tree CLEAN after init"  '[ -z "$(git status --porcelain)" ]'
 chk "hook TRACKED in commit" 'git ls-files --error-unmatch .githooks/pre-commit >/dev/null 2>&1'
 chk "socle IN root commit"   'git show HEAD:.gitignore | grep -qxF ".claude/deploy/PENDING.json"'
 
-echo "T2b — init existing (master→main rename + adoption commit, hook inactive during it)"
+echo "T2b — init existing (master→main rename + adoption via chore/gitflow-adopt merge)"
 newrepo existing
 git symbolic-ref HEAD refs/heads/master          # force the repo onto 'master'
 echo a > a.txt; printf 'node_modules/\n' > .gitignore; git add -A
@@ -63,6 +63,22 @@ chk "adoption commit"        'git log main --oneline | grep -q "adopt gitflow"'
 chk "existing tree CLEAN"    '[ -z "$(git status --porcelain)" ]'
 chk "existing hook tracked"  'git ls-files --error-unmatch .githooks/pre-commit >/dev/null 2>&1'
 chk "kept project rule"      'git show HEAD:.gitignore | grep -qxF "node_modules/"'
+
+echo "T2c — init existing under a LIVE pre-commit (global hooks simulated): socle lands via merge"
+newrepo live; git symbolic-ref HEAD refs/heads/master
+echo a > a.txt; printf 'node_modules/\n' > .gitignore; git add -A
+git -c core.hooksPath=/dev/null commit -q -m "pre-existing on master"
+_gitflow_write_hook "$WORK/globalhooks"            # the machine-wide hook set, as make link installs it
+git config core.hooksPath "$WORK/globalhooks"      # stands in for git's GLOBAL core.hooksPath during init
+# shellcheck disable=SC2034
+live_rc=0; GITFLOW_NO_PUSH=1 gitflow_init >/dev/null 2>&1 || live_rc=$?
+chk "T2c init succeeds under the live hook (rc 0)" "[ $live_rc -eq 0 ]"
+chk "T2c socle reached main via a merge commit"    'git log main --oneline -1 | grep -q "Merge chore/gitflow-adopt"'
+chk "T2c .gitignore socle on main"                 'git show main:.gitignore | grep -qxF ".claude/deploy/PENDING.json"'
+chk "T2c hooks tracked on main"                    'git ls-tree -r main --name-only | grep -q "^.githooks/pre-commit$"'
+chk "T2c adoption branch deleted"                  '! git rev-parse --verify -q refs/heads/chore/gitflow-adopt >/dev/null'
+chk "T2c develop created from main"                '[ "$(git rev-parse develop)" = "$(git rev-parse main)" ]'
+chk "T2c repo hook active afterwards"              '[ "$(git config core.hooksPath)" = .githooks ]'
 
 echo "T3 — hook blocks/permits after init"
 cd "$WORK/fresh" || exit 1

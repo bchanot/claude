@@ -40,8 +40,8 @@ The agent runs a **ship-and-handover pipeline** with explicit gates:
 1. **PRE-FLIGHT** — Detect git repo, project root, language, project type, web sub-type, NAP signals, stack.
 2. **BASELINE AUDITS** — Run /seo (SEO+GEO) and /harden in parallel. Capture initial scores (`SCORE_SEO_BEFORE`, `SCORE_GEO_BEFORE`, `SCORE_HARDEN_BEFORE`).
 3. **FIX LOOPS (parallel, bounded)** — For each audit < 17/20:
-   - Re-invoke the audit subagent with explicit instruction to apply auto-fixes.
-   - Re-score.
+   - Apply the pending FIX BUNDLE from the MAIN loop: items the audit classed AUTO directly, then every GATED item (CSP, redirects, anything harden marks "could BREAK the site") presented to the user at ONE gate before applying.
+   - Re-invoke the audit subagent in audit mode: it re-scores and returns the next FIX BUNDLE; it applies nothing (a dispatched child cannot hold a gate).
    - Repeat up to `MAX_ITERATIONS` (default 5).
    - If still < 17/20 after cap → escalate to user with concrete remaining issues; user decides continue / stop / manual intervention.
 4. **COMMIT + PUSH** — If files changed during fix loops, run /commit-change (atomic logical commits) then `git push`.
@@ -57,7 +57,7 @@ The agent runs a **ship-and-handover pipeline** with explicit gates:
    - **§6 Détails techniques (pour les curieux)** — vulgarized BDR decisions, phases with technical detail, optional glossary (score table NOT here — promoted to §2).
    - **§7 Annexe — plateformes externes** (web/local-business only).
    - **§8 Annexe — build & déploiement** (only if requested).
-9. **RENDER** — Write `LIVRAISON.md` (fr) or `HANDOVER.md` (en) at project root, then run `scripts/handover-to-pdf.sh` to produce the matching branded `.html` (always) and `.pdf` (when a PDF engine is on the host: weasyprint > wkhtmltopdf > chromium). HTML/PDF use the ZenQuality cover page, green palette, Inter + Playfair Display typography, running header/footer with project name + page numbers.
+9. **RENDER** — Write `LIVRAISON.md` (fr) or `HANDOVER.md` (en) at project root, then run `$HOME/.claude/skills/client-handover/scripts/handover-to-pdf.sh` to produce the matching branded `.html` (always) and `.pdf` (when a PDF engine is on the host: weasyprint > wkhtmltopdf > chromium). HTML/PDF use the ZenQuality cover page, green palette, Inter + Playfair Display typography, running header/footer with project name + page numbers.
 
 Flags:
 - `--skip-fix-loop` — run baseline audits once, skip auto-fix iterations.

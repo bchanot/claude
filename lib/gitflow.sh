@@ -293,18 +293,36 @@ _gitflow_init_existing() {         # has commits → ensure main (rename master)
     fi
   fi
   git checkout -q "$GITFLOW_MAIN" || return 1
-  # commit the socle + versioned hook now, while hooksPath is NOT yet active
-  # (activation is the last step of gitflow_init) → never self-blocked.
+  # The socle (.gitignore + versioned hooks) reaches main through a MERGE: the
+  # pre-commit hook is global on the machine (BDR-095), so a direct commit on
+  # main is refused even during init, while a merge commit is hook-exempt.
+  # Any failure aborts BEFORE develop/hook activation so a partial run can't
+  # activate the hook and self-block every re-run.
   git add -- .gitignore .githooks 2>/dev/null || true
-  # socle commit failure is FATAL — abort BEFORE develop/hook-activation so a
-  # partial run can't activate the hook and self-block every re-run (was a bug:
-  # the `|| commit` form swallowed the failure, then init activated the hook).
   if ! git diff --cached --quiet -- .gitignore .githooks 2>/dev/null; then
-    git commit -q -m "chore: adopt gitflow socle + pre-commit hook" \
-      || { echo "gitflow_init: socle commit failed — aborting before hook activation (recoverable)" >&2; return 1; }
+    _gitflow_adopt_socle || return 1
   fi
   git rev-parse --verify -q "refs/heads/$GITFLOW_DEVELOP" >/dev/null \
     || git branch "$GITFLOW_DEVELOP" "$GITFLOW_MAIN"
+}
+
+# Commit the staged socle on chore/gitflow-adopt (a working branch, so the
+# pre-commit allows it), merge it --no-ff into main (a merge commit runs no
+# pre-commit), delete the branch. The branch forks off main because develop
+# does not exist yet at init time.
+_gitflow_adopt_socle() {
+  local br="chore/gitflow-adopt"
+  if git rev-parse --verify -q "refs/heads/$br" >/dev/null; then
+    echo "gitflow_init: '$br' already exists (earlier run) — merge or delete it, then re-run" >&2
+    return 1
+  fi
+  git checkout -q -b "$br" || return 1
+  git commit -q -m "chore: adopt gitflow socle + versioned hooks" \
+    || { echo "gitflow_init: socle commit failed — aborting before hook activation (recoverable)" >&2; return 1; }
+  git checkout -q "$GITFLOW_MAIN" || return 1
+  git merge --no-ff -q -m "Merge $br into $GITFLOW_MAIN" "$br" \
+    || { echo "gitflow_init: socle merge into $GITFLOW_MAIN failed — aborting before hook activation" >&2; return 1; }
+  git branch -q -d "$br"
 }
 
 # gitflow_init [msg] → idempotent. Order matters (full BLK-010 closure):

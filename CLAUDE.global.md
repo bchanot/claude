@@ -34,14 +34,16 @@ Apply unless repo-specific instructions override.
 2. Either missing → create it first (templates: `~/.claude/templates/memory/`).
 
 ## Workflow
-- Confirm before implementing only when real trade-offs exist (several
-  valid approaches, breaking change, destructive action); else proceed.
-  Minimal changes unless a broader refactor is requested. State trade-offs.
+- Confirm the approach only when real trade-offs exist (several valid
+  approaches, breaking change, destructive action); ask on the visible,
+  public-name and open-scope choices below; otherwise proceed. Minimal
+  changes unless a broader refactor is requested. State trade-offs.
 - Sub-agents: one task each, main context stays clean. Delegate
   independent, sizeable tracks (wide multi-file exploration, parallel
-  audits), not work doable in a few tool calls. Skill-mandated gates (fresh
-  verifier/security/challenge) always dispatch as written; a failed gate
-  re-dispatches a fresh executor, never redo its work by hand. A brief never
+  audits), not work doable in a few tool calls. Skill-mandated executors and
+  gates (pinned executors, fresh verifier/security/challenge) always dispatch
+  as written, whatever the task size; a failed gate re-dispatches a fresh
+  executor, never redo its work by hand. A brief never
   authorizes a sub-agent to run a destructive tool, inside or outside the
   repo (Security → Destructive tools & data loss).
 - Ask rather than guess. A choice visible in the result (placement,
@@ -67,7 +69,9 @@ Apply unless repo-specific instructions override.
 - Exempt: pure reads, explanations, questions, typos, cosmetic CSS, single
   config value — the `/hotfix` scope (≤2 files, obvious fix).
 - Once it qualifies: plan before code → one subtask = one coherent change
-  → check off as you go → high-level note at each milestone.
+  → check off as you go → high-level note at each milestone. A plan a skill
+  persists (`.claude/tasks/plans/`, contract) satisfies the rule; TODO.md
+  then carries one line per run.
 
 ## After code changes
 1. Run tests, lint, build, type-check if available. Report what was
@@ -98,12 +102,13 @@ exact. Pattern `[thing] [action] [reason]. [next step].` Registries load
 every session; caveman cuts ~40% of the tokens with no substance lost.
 Applies to direct writes and to the CAPITALIZE step of every completion
 skill. Prompts to the user may mirror their language; the entry is English.
-Legacy entries: compress on demand.
+Legacy entries: compress on demand via `/prune-memory`.
 
 **Proactive capitalization** is Claude's job: after a substantive milestone
 (root-caused bug fix, shipped feature, non-trivial commit, design choice,
 surprising discovery, dead end with a lesson) offer to capitalize inline,
-entry pre-filled, user approves before the write. Completion skills
+entry pre-filled, user approves before the write; the one-line journal
+entry is exempt, it logs and decides nothing. Completion skills
 (`/ship-feature` `/feat` `/bugfix` `/hotfix` `/commit-change`) do it via
 their CAPITALIZE step. Session close (`/close` = `/capitalize --ritual`):
 what was decided → decisions, learned → learnings, blocked → blockers.
@@ -137,20 +142,24 @@ never bent to match a newer one.
 ## Version control — gitflow (universal)
 Every git action follows gitflow, inside a skill or for an ad-hoc commit.
 `main` (prod) · `develop` (integration, off main) · `feature/*` `bugfix/*`
-`chore/*` (off develop → develop; chore = memory/doc maintenance such as a
-standalone `/capitalize` `/close` `/prune-memory` `/reconcile`) ·
-`release/*` (off develop → main + back-merge develop) · `hotfix/*` (off main
-→ main + develop + any open release). `master` → `main` everywhere.
+`chore/*` (off develop → develop; chore = maintenance without new behaviour:
+memory, docs, cleanup, `/refactor`, `/tour` fixes) · `release/*` (off develop
+→ main + back-merge develop) · `hotfix/*` (off main → main + develop + any
+open release; prod incidents only, a small fix on develop is a `bugfix`).
+`master` → `main` everywhere.
 
 Never commit code on `main` or `develop`: branch first as `<type>/<name>`
-(`.claude/**` memory/config commits are hook-exempt, following the work).
+(a `.claude/**` memory/config commit that follows merged work is hook-exempt
+and lands in place; a standalone memory task branches `chore/*`).
 Branch, merge and delete only via the lib: `bash ~/.claude/lib/gitflow.sh
 start <type> <name>` · `finish` · `delete <br>`. `finish` runs only on an
 explicit human signal ("merge it", "feature OK"), never because tests pass,
 a plan step says merge, or "ship" implied it. Assistance flows (`/feat`
 `/bugfix` `/hotfix`) and the standalone memory/doc skills auto-branch on a
-protected base but commit in place on a working branch, never finishing, so
-they branch to `chore/*` via the aiguillage, not the `.claude/**` exemption.
+protected base but commit in place on a working branch, never finishing
+(one exception, BDR-068: `/capitalize` and `/close` auto-finish the
+memory-only `chore/*` they created this run), so they branch to `chore/*`
+via the aiguillage, not the `.claude/**` exemption.
 Deterministic backstops behind the doctrine: the pre-commit hook (blocks
 code commits on main/develop; exempts `.claude/**`, `.githooks/**`, merges,
 the root commit), Gitea branch protection on both, and never `--no-verify`.
@@ -229,7 +238,8 @@ cryptic names.
   gates, registries). investigate only on explicit ask for the gstack
   ecosystem (cross-project learnings, /freeze, long open-ended investigation)
 - feat / hotfix / bugfix distinguished by file count → see descriptions
-- Ship / deploy / PR → ship (ship-feature if gstack off)
+- Ship / PR → ship (ship-feature if gstack off); deploy → deploy (runbook,
+  the user runs it)
 - Docs post-ship → document-release (doc if gstack off); stale-doc audit → doc
 - Grouped all-axes sweep ("tir groupé", fix + loop until clean) → tour
 - Open-work inventory / "queue empty?" / stale TODO vs git → reconcile

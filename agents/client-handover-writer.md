@@ -61,7 +61,7 @@ and degrading Google's NAP-consistency signal.
 
 Pipeline (each step gates the next):
 1. Baseline audits: SEO+GEO and security hardening in parallel.
-2. Fix loops: re-invoke each audit with auto-fix until ≥17/20 or `MAX_ITERATIONS` hit.
+2. Fix loops: apply each audit's bundle (AUTO items, ONE gate for GATED ones) and re-audit until ≥17/20 or `MAX_ITERATIONS` hit.
 3. Commit + push if files changed.
 4. Deploy pause: list deploy artifacts + process, wait for user confirmation.
 5. Live-site validation against the deployed URL.
@@ -266,14 +266,14 @@ For web projects, dispatch in **a single message with two parallel Agent calls**
 
 | Audit (web)   | Subagent          | Prompt template |
 |---------------|-------------------|-----------------|
-| SEO + GEO     | `general-purpose` | "Read `~/.claude/skills/seo/SKILL.md` and execute it on this project. The /seo skill runs SEO + GEO in parallel and writes a unified report to `.claude/audits/SEO.md`. Apply autonomous code fixes you can safely make (meta tags, JSON-LD, robots.txt, sitemap.xml, llms.txt, alt attrs, canonical tags). At the top of the report, the /seo skill MUST emit two distinct labeled score lines (already specified in its SKILL.md §1): `Score SEO (classique) : X.X / 20` and `Score GEO (IA) : X.X / 20`, plus the weighted global. The handover orchestrator parses SEO and GEO separately, so do not collapse them into a single `Score:` line. Return when the report file is written." |
-| HARDEN        | `general-purpose` | "Read `~/.claude/skills/harden/SKILL.md` and execute it on this project. Apply autonomous code fixes (security headers in vercel.json/netlify.toml/.htaccess/nginx.conf, HSTS, CSP defaults, HTTP→HTTPS redirects, canonical, 404 page). Write report to `.claude/audits/HARDEN.md` with `Score: X/20` (or `X/100`) at the top. Return when the report file is written." |
+| SEO + GEO     | `general-purpose` | "Read `~/.claude/skills/seo/SKILL.md` and execute it on this project. The /seo skill runs SEO + GEO in parallel and writes a unified report to `.claude/audits/SEO.md`. Run it in conservative mode: apply NOTHING, return the FIX BUNDLE (the handover main loop applies it — see 'Applying the bundle'). At the top of the report, the /seo skill MUST emit two distinct labeled score lines (already specified in its SKILL.md §1): `Score SEO (classique) : X.X / 20` and `Score GEO (IA) : X.X / 20`, plus the weighted global. The handover orchestrator parses SEO and GEO separately, so do not collapse them into a single `Score:` line. Return when the report file is written." |
+| HARDEN        | `general-purpose` | "Read `~/.claude/skills/harden/SKILL.md` and execute it on this project with `--fix` up to READY TO APPLY only: prepare the FIX BUNDLE (security headers, HSTS, CSP, HTTP→HTTPS redirects, canonical, 404 page), apply NOTHING — the handover main loop gates and applies it (see 'Applying the bundle'). Write report to `.claude/audits/HARDEN.md` with `Score: X/20` (or `X/100`) at the top. Return when the report file is written." |
 
 Non-web variant:
 
 | Audit (non-web) | Subagent          | Prompt template |
 |-----------------|-------------------|-----------------|
-| CSO             | `general-purpose` | "Read `~/.claude/skills/cso/SKILL.md` and execute in **daily mode** (8/10 confidence gate). Apply autonomous fixes for findings that are clearly safe (e.g., adding `.env` to `.gitignore`, replacing committed example secrets with placeholders). Write report to `.claude/audits/CSO.md` with `Score: X/20` (or `X/100`) at the top." |
+| CSO             | `general-purpose` | "Read `~/.claude/skills/cso/SKILL.md` and execute in **daily mode** (8/10 confidence gate). Apply NOTHING: return the fixes as a FIX BUNDLE (gitignore additions and placeholder swaps tagged AUTO, dependency upgrades tagged GATED — the handover main loop applies AUTO and gates the rest, see 'Applying the bundle'). Write report to `.claude/audits/CSO.md` with `Score: X/20` (or `X/100`) at the top." |
 
 Wait for both subagents to complete (parallel return).
 
@@ -370,7 +370,12 @@ iteration = 1
 # HARDEN/CSO/VALIDATE loops use only their own score.
 while (audit == "SEO" ? (SCORE_SEO < 17 OR SCORE_GEO < 17) : score < 17) \
       and iteration ≤ MAX_ITERATIONS:
-    re-dispatch the audit subagent with iteration context (see prompt below)
+    apply the pending FIX BUNDLE from THIS main loop — AUTO items, then
+        ONE gate for the GATED items (see "Applying the bundle" below);
+        iteration 1 consumes the baseline audit's bundle, if any
+    re-dispatch the audit subagent in AUDIT mode with iteration context
+        (see prompt below) — it re-scores and returns the next FIX BUNDLE;
+        it applies NOTHING (a dispatched child cannot hold a gate)
     re-parse score(s) AND projected code-only score(s) from the audit file
     if no scores improved AND no files changed → break (no progress)
     # Code-ceiling break: when the actual score has caught up with the
@@ -386,11 +391,43 @@ The projected code-only scores come from the analyzers' mandatory
 console). If no projected line is parseable, treat projected = 17
 (legacy behavior: loop chases 17 blindly).
 
+### Applying the bundle (THIS main loop — the child never applies)
+
+A dispatched child cannot hold a gate (harden: "the fix mode prepares the
+bundle; the dispatcher confirms"; geo: "NEVER apply a GATED item before
+explicit approval"). So every bundle is applied from here, per iteration:
+
+1. **AUTO items** — the tier the audit itself classed no-confirmation
+   (`/seo` STEP 1.5: seo batches A/B/C, geo G1–G4/G6). Dispatch each item's
+   L1 applier (`hotfixer` / `feater`) serially, item pasted verbatim,
+   "Do NOT commit — apply and self-verify only". Harden has no AUTO tier:
+   its whole bundle is confirmation-gated. CSO (non-web): gitignore additions
+   and secret placeholder swaps are AUTO.
+2. **GATED items** — seo D/E, geo G5, EVERY harden item (CSP, redirects,
+   anything its STEP 2b challenge flagged "could BREAK the site") and CSO
+   dependency upgrades (a version bump can break the build). Collect
+   them from every bundle of this iteration and present ONE gate
+   (AskUserQuestion): change → impact → file. Apply only the approved items
+   (same appliers); declined ones stay in the report as CODE-BLOQUÉ. Never
+   apply a GATED item before explicit approval.
+3. **USER ACTIONS** (seo batch F, geo G7) — never applied; they bound the
+   projected code-only score.
+
+For each item applied, append a line to the audit's fix log
+(`.claude/audits/SEO-FIX-LOG.md` for SEO and GEO items,
+`.claude/audits/HARDEN-FIX-LOG.md` for harden, `.claude/audits/CSO-FIX-LOG.md`
+for CSO) in the format
+`iter<N>: [SEO|GEO|HARDEN] <issue> → <file:line> — <action>`.
+
 ### Re-dispatch prompt template (SEO + GEO loop)
 
 Send to `general-purpose` subagent (`model: "fable"`):
 
-> Read `~/.claude/skills/seo/SKILL.md` and re-run it on this project.
+> Read `~/.claude/skills/seo/SKILL.md` and re-run it on this project in
+> **conservative (audit-only) intervention mode**: re-score and leave both
+> FIX BUNDLEs in `.claude/audits/SEO.md` ready-to-apply. Apply NOTHING and
+> ask the user NOTHING — the handover main loop is the dispatcher: it
+> applies the AUTO items and holds the gate on the GATED ones.
 > Previous scores:
 > - **SEO classique: `<SCORE_SEO_PREVIOUS>`/20** (threshold 17/20 — `<PASS|FAIL>`)
 > - **GEO (IA): `<SCORE_GEO_PREVIOUS>`/20** (threshold 17/20 — `<PASS|FAIL>`)
@@ -398,34 +435,33 @@ Send to `general-purpose` subagent (`model: "fable"`):
 > Iteration `<N>` of `<MAX_ITERATIONS>`. Both axes are gated independently;
 > the orchestrator continues to loop while EITHER score is below 17/20.
 >
-> Read `.claude/audits/SEO.md` for the current issue list. Apply ALL safe
-> autonomous fixes (do not skip "easy" ones). Prioritize fixes for the
-> axis currently below threshold:
-> - SEO classique fixes: meta tags, headings, canonical, sitemap.xml,
+> Read `.claude/audits/SEO.md` for the current issue list. Prioritize
+> bundle items for the axis currently below threshold (do not drop "easy"
+> ones):
+> - SEO classique: meta tags, headings, canonical, sitemap.xml,
 >   alt attrs, internal linking, Core Web Vitals hints.
-> - GEO (IA) fixes: llms.txt / llms-full.txt, robots.txt entries for AI
+> - GEO (IA): llms.txt / llms-full.txt, robots.txt entries for AI
 >   crawlers (GPTBot, ClaudeBot, PerplexityBot, etc.), Schema.org for AI
 >   extraction (QAPage, Speakable, Person+Article, HowTo, Organization
 >   graph), entity SEO (sameAs, @id), TL;DR / definition-lead content
 >   shape, citable stats markup, freshness signals.
 >
-> For each fix applied, append a line to `.claude/audits/SEO-FIX-LOG.md`
-> (format: `iter<N>: [SEO|GEO] <issue> → <file:line> — <action>`). Update
-> `.claude/audits/SEO.md` with the new scores — both labeled lines MUST
-> be present: `Score SEO (classique) : X.X / 20` and
-> `Score GEO (IA) : X.X / 20`, plus the weighted global. Do NOT ask the
-> user; apply or skip with one-line justification in the fix log.
+> Update `.claude/audits/SEO.md` with the new scores — both labeled lines
+> MUST be present: `Score SEO (classique) : X.X / 20` and
+> `Score GEO (IA) : X.X / 20`, plus the weighted global.
 
 ### Re-dispatch prompt template (HARDEN loop)
 
 Send to `general-purpose` subagent (`model: "fable"`):
 
-> Read `~/.claude/skills/harden/SKILL.md` and re-run it. Previous score:
+> Read `~/.claude/skills/harden/SKILL.md` and re-run it with `--fix` ONLY
+> up to the bundle: stop at `READY TO APPLY — awaiting dispatcher
+> confirmation`, apply NOTHING, ask NOTHING — the handover main loop is
+> the dispatcher that confirms. Previous score:
 > **`<SCORE_HARDEN_PREVIOUS>`/20** — below threshold. Iteration `<N>` of
-> `<MAX_ITERATIONS>`. Apply all autonomous fixes (security headers, HSTS,
-> CSP, redirects, canonical, 404, .htaccess/nginx/vercel/netlify config).
-> Append entries to `.claude/audits/HARDEN-FIX-LOG.md`. Update
-> `.claude/audits/HARDEN.md` with new score.
+> `<MAX_ITERATIONS>`. The `## 8. Fix bundle` MUST cover security headers,
+> HSTS, CSP, redirects, canonical, 404, .htaccess/nginx/vercel/netlify
+> config. Update `.claude/audits/HARDEN.md` with the new score.
 
 ### Re-dispatch prompt template (CSO loop — non-web only)
 
@@ -433,15 +469,18 @@ Send to `general-purpose` subagent (`model: "fable"`):
 
 > Read `~/.claude/skills/cso/SKILL.md` and re-run it in **daily mode**.
 > Previous score: **`<SCORE_CSO_PREVIOUS>`/20** — below threshold.
-> Iteration `<N>` of `<MAX_ITERATIONS>`. Apply all safe autonomous fixes
-> (gitignore additions, secret placeholder swaps, dependency upgrades for
-> known CVEs with semver-compatible patches). Append entries to
-> `.claude/audits/CSO-FIX-LOG.md`. Update `.claude/audits/CSO.md` with
-> new score.
+> Iteration `<N>` of `<MAX_ITERATIONS>`. Apply NOTHING: return the fixes as
+> a FIX BUNDLE in `.claude/audits/CSO.md` — gitignore additions and secret
+> placeholder swaps tagged AUTO, dependency upgrades (even semver-compatible
+> CVE patches) tagged GATED. The handover main loop applies AUTO items and
+> gates the rest (see 'Applying the bundle'). Update `.claude/audits/CSO.md`
+> with the new score.
 
 ### Parallelism
 
-For web projects, the two loops run in parallel: dispatch SEO iteration
+For web projects, the two loops run in parallel: apply both pending
+bundles first (AUTO items, then ONE gate for every GATED item of both),
+then dispatch SEO iteration
 `N` AND HARDEN iteration `N` in a single message with two `Agent` calls,
 wait for both, re-parse both scores, decide whether each loop continues,
 then dispatch iteration `N+1` for the audits still below threshold (in
@@ -454,7 +493,7 @@ nothing to parallelize).
 
 Track `score_history[audit] = [iteration → score]`. If iteration `N` score
 equals iteration `N-1` score AND `git status --porcelain` shows no new
-changes from that iteration's subagent: mark loop `STALLED`. Break.
+changes from that iteration's apply step: mark loop `STALLED`. Break.
 
 ### Escalation on cap or stall
 
@@ -627,7 +666,8 @@ Dispatch `general-purpose` subagent (`model: "fable"`):
 > Read `~/.claude/skills/web-validate/SKILL.md` and execute against the
 > deployed URL: `<DEPLOYED_URL>`. Audit W3C HTML validity (validator.nu),
 > W3C CSS validity (jigsaw.w3.org), WCAG 2.1 a11y (axe-core, pa11y).
-> Apply autonomous fixes ONLY in source code (the client controls deploy);
+> Apply NOTHING (the client controls deploy; the handover main loop applies
+> the returned FIX BUNDLE from source, AUTO items only): return the fix list,
 > document remaining issues. Write report to `.claude/audits/VALIDATE.md`
 > with `Score: X/20` (or `X/100`) at the top.
 

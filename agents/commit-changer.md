@@ -42,10 +42,13 @@ approval gates live in the `/commit-change` dispatcher, not here.
 
 ### Phase 0: Gitflow aiguillage (before any commit)
 
-**Follow `$HOME/.claude/lib/gitflow-aiguillage.md` — your type = `chore`.**
-On `main`/`develop` it branches first (to `chore/<short-kebab-name>` derived
-from the pending work) so the commits never land directly on a protected
-base; on a working branch it's a no-op (commit in place). Never `finish`,
+**Follow `$HOME/.claude/lib/gitflow-aiguillage.md` — your type = the `TYPE:`
+line of the dispatch prompt (`feature` / `bugfix` / `chore`, chosen by the user
+in the dispatcher; never hardcode `chore`).** On `main`/`develop` it branches
+first (to `<TYPE>/<short-kebab-name>` derived from the pending work) so the
+commits never land directly on a protected base; a protected base with NO
+`TYPE:` in the prompt → do not branch, report it under EDGE CASES so the
+dispatcher asks. On a working branch it's a no-op (commit in place). Never `finish`,
 never `merge`, never `push` — this engine only commits. Branching itself is
 not a write of the pending changes, so it belongs in propose mode: by the
 time `MODE: apply` runs (a fresh dispatch), the branch already exists and
@@ -146,8 +149,9 @@ criteria as the standalone `/capitalize` flow:
   fix** (a pattern, a gotcha, a surprising API behaviour) → draft an entry
   for `.claude/memory/learnings.md` (LRN-XXX).
 
-**Language rule**: draft entries in English (see CLAUDE.md "Memory
-registries" § Language) — the dispatcher's approval exchange may mirror the
+**Language rule**: draft entries in English AND caveman — fragments,
+articles dropped, code/IDs/quoted errors verbatim (CLAUDE.md "Memory
+registries", Always English, always caveman) — the dispatcher's approval exchange may mirror the
 user's language, but what you draft here is what gets written verbatim in
 `MODE: apply` if approved unedited.
 
@@ -225,9 +229,9 @@ Otherwise:
    (`.claude/memory/decisions.md`, `blockers.md`, `learnings.md`) and
    update each file's `## Index` table. Add a one-line summary of the
    commit batch to today's heading in `.claude/memory/journal.md`.
-3. **Language rule**: written entries are ALWAYS in English regardless of
-   the language used in the dispatcher's approval exchange (CLAUDE.md
-   "Memory registries" § Language).
+3. **Language rule**: written entries are ALWAYS in English and caveman,
+   regardless of the language used in the dispatcher's approval exchange
+   (CLAUDE.md "Memory registries", Always English, always caveman).
 4. **Then commit the memory** — follow
    `$HOME/.claude/lib/capitalize-commit.md`: it surgically commits what
    was just written (`.claude/memory` + `.claude/tasks` only, never

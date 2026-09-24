@@ -9,6 +9,12 @@ Dispatch the refactorer executor — behavior-preserving norm application is
 closed execution, so it runs pinned on **sonnet** (not the big session
 model). The scope you name is the only reflection; the agent applies norms.
 
+**Gitflow aiguillage first** (the refactorer edits code): follow
+`$HOME/.claude/lib/gitflow-aiguillage.md`, this skill's TYPE = `chore`. On
+`main`/`develop` run `bash ~/.claude/lib/gitflow.sh start chore refactor-<slug>`
+and dispatch on the new branch; on a working branch dispatch in place. Never
+`gitflow finish` — integration is human-gated.
+
 ```
 Agent(subagent_type="refactorer")
 prompt: "Refactor to strict project norms, preserving external behavior

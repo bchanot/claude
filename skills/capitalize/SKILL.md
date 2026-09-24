@@ -9,7 +9,7 @@ description: |
   Triggers: "capitalize", "before clear/compact", "flush memory", "don't
   lose this", "avant de clear/compact", "capitalise ce qui manque",
   "close", "fin de journée", "checkpoint memory".
-argument-hint: "[--ritual] [--no-push] (scans conversation + git + TODO against .claude/memory/; --ritual adds the 3-question reflection; --no-push holds memory on the chore branch instead of the default auto-merge+push)"
+argument-hint: "[--ritual] [--no-push] (scans conversation + git + TODO against .claude/memory/; --ritual adds the 3-question reflection; --no-push holds memory on chore/<name>: pushed to origin by the hooks, NOT merged (finish skipped), merge when ready; default = auto-finish into develop)"
 allowed-tools:
   - Read
   - Edit
@@ -65,17 +65,22 @@ ls .claude/memory/decisions.md .claude/memory/learnings.md \
 ls .claude/tasks/TODO.md 2>/dev/null
 ```
 
-- `.claude/memory/` missing entirely → print and STOP (do NOT create here —
-  that is `/onboard` / `/init-project` responsibility):
+- `.claude/memory/` missing entirely → create it first (CLAUDE.md "Session
+  start": either missing → create from the templates), then proceed:
+  ```bash
+  mkdir -p .claude/memory
+  cp -n ~/.claude/templates/memory/{decisions,learnings,blockers,evals,journal}.md .claude/memory/
   ```
-  ⚠️  .claude/memory/ absent. Lance `/onboard` (ou `/init-project`) pour créer
-     les registres avant de capitaliser.
-  ```
+  `/onboard` stays the fuller setup (CLAUDE.md, settings, audits) — this
+  bootstraps only the five registries capitalize writes to.
 - Some registry files missing → name them, create each from
   `~/.claude/templates/memory/<name>.md`, continue.
-- `.claude/tasks/TODO.md` missing → the TODO reconcile volet (STEP 2B) is
-  **skipped**. Do NOT create it (same posture as the registries). Registries
-  still run.
+- `.claude/tasks/TODO.md` missing → create a minimal one, then run the TODO
+  reconcile volet (STEP 2B) on it:
+  ```bash
+  mkdir -p .claude/tasks
+  printf '# TODO\n\n## %s\n' "$(date +%Y-%m-%d)" > .claude/tasks/TODO.md
+  ```
 
 ## STEP 1 — SCAN THE CONVERSATION
 
@@ -164,7 +169,7 @@ concatenated class names" entry.)
 
 ## STEP 2B — TODO RECONCILE (both modes)
 
-Runs only if `.claude/tasks/TODO.md` exists (STEP 0). Two passes.
+Runs on `.claude/tasks/TODO.md` (created minimal at STEP 0 when absent). Two passes.
 
 **PASS A — done-detection (TODO → reality).** Detection is free — a capable
 agent already spots the finished tasks from the STEP 1 git scan. The only rule
@@ -358,7 +363,7 @@ Then the closing line — pick by the STEP 5C persist result (`<mode>` = `Contex
 flushed` for pre-wipe, `Session closed` for ritual):
 
 - **auto-persisted (default — branched off develop, pushed)** → `✅ <mode> + persisted to origin/develop (<short>). Next session: read .claude/memory/ at startup.`
-- **--no-push (held on branch)** → `✅ <mode> + committed on chore/<name>, NOT pushed (--no-push). Merge + push when ready.`
+- **--no-push (held on branch)** → `✅ <mode> + committed on chore/<name> — pushed to origin by the hooks, NOT merged (--no-push: finish skipped). Merge when ready.`
 - **push failed after merge** → `✅ <mode> + merged to develop — ⚠️ push FAILED (<reason>); merged locally, push manually.`
 - **WORKING branch (rode a feature branch)** → `✅ <mode> + committed <mem_hash> on <branch>. Integrates when the branch merges.`
 - **commit skipped (rc 3)** → keep the ✅ on the WRITE but make the gap loud, never
@@ -380,7 +385,7 @@ manual commit (rc 3).
 - **Append-only.** Never overwrite or renumber existing registry entries.
 - **Caveman English** registry bodies, always English. **The TODO is plain
   prose, never caveman** — caveman is registries-only.
-- **TODO reconcile runs only if TODO.md exists.** Never create it (STEP 0).
+- **TODO reconcile always runs** — a missing TODO.md is created minimal at STEP 0.
 - **PASS A checks only on an unambiguous task↔code/commit map.** Partial /
   umbrella / vague → leave unchecked. Never on assumption.
 - **PASS B captures only explicit to-dos**, deduped — never invented or
@@ -398,7 +403,8 @@ manual commit (rc 3).
   WORKING branch (memory rides feature/bugfix) or rc 3 skips it. NEVER auto-finish
   a branch the run did not create.
 - **Skip trivial** for the 4 ID registries; journal excepted.
-- `.claude/memory/` missing → STOP at STEP 0, do not create the structure here.
+- `.claude/memory/` missing → STEP 0 creates the five registries from the
+  templates (doctrine: either missing → create first), then proceeds.
 
 ## Common mistakes
 
@@ -417,7 +423,7 @@ manual commit (rc 3).
 | Dumping an architecture directive as a TODO task | Route orientation/policy directives to decisions.md (BDR), not the TODO. |
 | Writing a ritual answer fresh without dedup | Ritual answers go through STEP 2 like any candidate; a dup shows its existing ID. |
 | French/English entry text | Prompt may be French; written registry entry is always English. |
-| Creating `.claude/memory/` or `.claude/tasks/TODO.md` when absent | Not this skill's job — registries STOP and point to `/onboard`; TODO volet is skipped. |
+| Stopping on a missing `.claude/memory/` or `.claude/tasks/TODO.md` | Doctrine says create first — STEP 0 bootstraps the five registries + a minimal TODO from the templates, then proceeds; `/onboard` is the fuller setup. |
 
 ## Red flags — STOP
 

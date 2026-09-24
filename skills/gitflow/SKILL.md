@@ -85,7 +85,10 @@ On a protected base, assistance skills (`feat`/`bugfix`/`hotfix`) AND the standa
 memory/doc skills (`capitalize`/`close`/`prune-memory`/`reconcile`, TYPE `chore`)
 call `start <type>` to branch first; on a working branch they commit in place. Same
 `protected-base` predicate the out-of-skill hook uses. Caller→type map + rationale:
-`lib/gitflow-aiguillage.md`.
+`lib/gitflow-aiguillage.md`. `/capitalize` and `/close` auto-finish their memory-only
+`chore/*` branch into develop when THEY created it this run (BDR-068; `--no-push`
+opts out) — the only finish that fires without a live human signal; everything else
+stays human-gated.
 
 ## Failure modes (mechanical — lib return codes are the contract)
 
