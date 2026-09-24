@@ -112,6 +112,25 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   until it lands.
 
 ### Changed
+- **Doctrine/skill coherence pass (C2)** — 30 rule pairs in tension found by
+  three read-only audits and resolved in the doctrine's favour: one ask
+  policy (visible / public-name / open-scope choices are asked); mandated
+  executors exempt from the "don't delegate the trivial" rule; a
+  skill-persisted plan satisfies the planning rule; the journal line is
+  exempt from the approval gate; `chore/*` = maintenance without new
+  behaviour; a small fix on develop is a `bugfix`, `hotfix/*` is for prod
+  incidents; the BDR-068 memory auto-finish is written as the one exception;
+  `deploy` routes to `/deploy`. Skills follow: /hotfix types by base and skips
+  the design gate on the trivial tier; /capitalize and /close create missing
+  registries instead of stopping; /commit-change asks the branch type; /doc,
+  /seo, /web-validate and /refactor branch through the aiguillage; /tour
+  reports contract-breaking fixes as `needs decision` and runs doc-syncer in
+  its two modes; client-handover applies audit bundles from its main loop
+  behind one gate; init-project and onboard propose graphify only through
+  the 200-file signal and bootstrap the memory registries; release-candidate
+  gates the tag push only; push wording aligned with the BDR-095 hooks in
+  tour, deploy, capitalize; stale pointers fixed (`§ Language`, `.gsd/
+  ROADMAP.md`, handover script path, design-gate extensions and lists).
 - **CLAUDE.global.md density pass** 352 → 270 lines (−15% words): prose
   tightened, Security subsections folded into one labelled list, routing
   lines that only repeated a skill description dropped. Every constraint and
@@ -238,6 +257,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   traced by reading, never by running, whatever the brief says.
 
 ### Removed
+- `deploy` `push_deploy_tags` knob (the STATE.json commit's hook pushes the tag
+  with `--follow-tags`); `/onboard add gsd` and `/onboard continue` mentions
+  (never had a handler).
 - **`magic` MCP (`@21st-dev/magic`) and `MAGIC_API_KEY`**, with the two risks
   attached to them: the unauthenticated `127.0.0.1` callback server
   `21st_magic_component_builder` opened (LRN-110) and the plaintext key copy
@@ -247,6 +269,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   and the dead `MAGIC_API_KEY=abc123` gitleaks allowlist regex.
 
 ### Fixed
+- **`gitflow init` on an existing repo under the machine-wide hooks** — the
+  socle commit (`.gitignore` + `.githooks/`) landed directly on `main`
+  "while the hook is inactive"; since the global `core.hooksPath` the
+  pre-commit refused it and init died. The socle now lands on
+  `chore/gitflow-adopt` off main, merged `--no-ff` (merge commits run no
+  pre-commit), branch deleted, develop created after. T2c simulates the live
+  hook; the hermetic suite could not see the regression.
 - **`make update` no longer drops the Playwright OS-support bump** — a
   gstack submodule update used to leave the bump unapplied until the next
   `make plugin`, the open caveat of BDR-029. `update-all.sh` now goes
