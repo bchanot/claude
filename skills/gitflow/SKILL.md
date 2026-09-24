@@ -35,7 +35,7 @@ develop [+ any open release/*]).
 bash ~/.claude/lib/gitflow.sh init [msg]          # main+develop; root-commit (fresh) or ensure (existing); reconcile .gitignore; install hook
 bash ~/.claude/lib/gitflow.sh start <type> <name> # branch from the correct base
 bash ~/.claude/lib/gitflow.sh finish              # directed merge of the CURRENT branch — HUMAN-GATED (below)
-bash ~/.claude/lib/gitflow.sh delete <branch>    # delete a branch merged elsewhere (Gitea PR, hand merge) — refuses main/develop + anything unmerged
+bash ~/.claude/lib/gitflow.sh delete <branch>    # delete a merged branch, local + origin copy — refuses main/develop + anything unmerged
 bash ~/.claude/lib/gitflow.sh protected-base [br] # rc 0 on main/develop — the shared predicate
 ```
 
@@ -43,13 +43,15 @@ bash ~/.claude/lib/gitflow.sh protected-base [br] # rc 0 on main/develop — the
 
 | Current branch | Merges into | then |
 |---|---|---|
-| `feature/*` · `bugfix/*` · `chore/*` | develop | delete |
-| `release/*` | main + develop | delete |
-| `hotfix/*` | main + develop + any open `release/*` | delete |
+| `feature/*` · `bugfix/*` · `chore/*` | develop | delete local + `origin/` copy |
+| `release/*` | main + develop | delete local + `origin/` copy |
+| `hotfix/*` | main + develop + any open `release/*` | delete local + `origin/` copy |
 
 `delete` is `gitflow_delete`, the only path that removes a branch: it refuses
 `main`/`develop` (rc 6) and any branch not merged into develop or main (rc 5),
-and keeps the branch. Hand `git branch -d` is denied — with an auto-pushed
+and keeps the branch. The `origin/` copy is removed right after, once ITS
+tip passes the same check; a remote tip holding commits the bases lack is
+kept, loudly (T24). Hand `git branch -d` is denied — with an auto-pushed
 upstream it checks the wrong thing (T22a). A `reference-transaction` hook
 vetoes any deletion or rename of `main`/`develop` at the ref layer, in every
 repo.
@@ -98,6 +100,7 @@ call `start <type>` to branch first; on a working branch they commit in place. S
 | `init` rc=1 — socle commit failed | Recoverable: aborted BEFORE hook activation by design; fix the cause (hooks, perms), re-run `init` |
 | `delete`/`finish` rc=5 — branch not merged into develop or main | The branch still holds unmerged work: KEEP it, report it, never fall back to `git branch -d`/`-D`. Merge first (human gate), then re-run |
 | `delete` rc=6 — protected base | `main`/`develop` are never deleted. Stop; the request itself is the defect to report |
+| `delete`/`finish` warning "remote copy KEPT" or "NOT removed" | Non-fatal BY CONTRACT (remote cleanup is best-effort). KEPT = origin/<br> has a tip the bases lack: fetch, look, merge or leave it — never `git push --delete` by hand. NOT removed = origin unreachable or refused: report the printed command to the user |
 
 ## Common Mistakes
 

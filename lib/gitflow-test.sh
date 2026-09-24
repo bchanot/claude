@@ -433,6 +433,51 @@ git config --unset gitflow.protect
 chk "T23k CLI: hooks verb lists the four hooks" \
     '[ "$(bash "$HERE/gitflow.sh" hooks | tr "\n" " ")" = "pre-commit post-commit post-merge reference-transaction " ]'
 
+echo "T24 — remote copy removed after a verified merge (best effort; never a base, never an unmerged tip)"
+newrepo rdel; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+bare="$WORK/rdel.git"; git init -q --bare "$bare"; git remote add origin "$bare"
+git push -q origin main develop 2>/dev/null
+gitflow_start feature rd >/dev/null 2>&1; echo w>w; git add w; git commit -q -m w 2>/dev/null
+chk "T24a precondition: origin/feature/rd exists"    'git ls-remote --exit-code --heads origin feature/rd >/dev/null 2>&1'
+# shellcheck disable=SC2034  # *_out/*_rc are read by the deferred chk evals
+fin_out="$(gitflow_finish 2>&1)"
+chk "T24b finish removed origin/feature/rd, said so" '! git ls-remote --exit-code --heads origin feature/rd >/dev/null 2>&1 && printf "%s" "$fin_out" | grep -q "removed origin/feature/rd"'
+chk "T24c develop + main still on origin"           'git ls-remote --exit-code --heads origin develop >/dev/null 2>&1 && git ls-remote --exit-code --heads origin main >/dev/null 2>&1'
+# a commit pushed from elsewhere onto origin/feature/ahead, never merged → remote copy KEPT
+gitflow_start feature ahead >/dev/null 2>&1; echo x>x; git add x; git commit -q -m x 2>/dev/null
+git checkout -q develop; git merge -q --no-ff -m "merge ahead" feature/ahead 2>/dev/null
+other="$WORK/rdel-other"; git clone -q "$bare" "$other" 2>/dev/null
+( cd "$other" && git config core.hooksPath /dev/null && git config user.email o@o && git config user.name o \
+  && git checkout -q feature/ahead && echo z>z && git add z && git commit -q -m elsewhere && git push -q origin feature/ahead 2>/dev/null )
+# shellcheck disable=SC2034
+ah_out="$(gitflow_delete feature/ahead 2>&1)"; ah_rc=$?
+chk "T24d local merged branch deleted, rc 0"        "[ $ah_rc -eq 0 ] && ! git rev-parse --verify -q refs/heads/feature/ahead >/dev/null"
+chk "T24e remote tip holds an unmerged commit → origin copy KEPT, loud" \
+    'git ls-remote --exit-code --heads origin feature/ahead >/dev/null 2>&1 && printf "%s" "$ah_out" | grep -q KEPT'
+# never pushed → nothing to remove, silent
+GITFLOW_NO_PUSH=1 gitflow_start feature local >/dev/null 2>&1; echo l>l; git add l; GITFLOW_NO_PUSH=1 git commit -q -m l 2>/dev/null
+git checkout -q develop; GITFLOW_NO_PUSH=1 git merge -q --no-ff -m "merge local" feature/local 2>/dev/null
+# shellcheck disable=SC2034
+nl_out="$(gitflow_delete feature/local 2>&1)"; nl_rc=$?
+chk "T24f no remote copy → rc 0, silent"             "[ $nl_rc -eq 0 ] && [ -z \"\$nl_out\" ]"
+# origin unreachable → local gone, loud, rc 0, remote copy untouched
+gitflow_start feature off >/dev/null 2>&1; echo o>o; git add o; git commit -q -m o 2>/dev/null
+git checkout -q develop; git merge -q --no-ff -m "merge off" feature/off 2>/dev/null
+git remote set-url origin /nonexistent/x.git
+# shellcheck disable=SC2034
+off_out="$(gitflow_delete feature/off 2>&1)"; off_rc=$?
+git remote set-url origin "$bare"
+chk "T24g origin unreachable → local deleted, rc 0, loud 'NOT removed'" \
+    "[ $off_rc -eq 0 ] && ! git rev-parse --verify -q refs/heads/feature/off >/dev/null && printf '%s' \"\$off_out\" | grep -q 'NOT removed'"
+chk "T24h … remote copy still there"                'git ls-remote --exit-code --heads origin feature/off >/dev/null 2>&1'
+# gitflow.autopush=false (no push rights) → remote copy untouched
+gitflow_start feature np >/dev/null 2>&1; echo n>n; git add n; git commit -q -m n 2>/dev/null
+git checkout -q develop; git merge -q --no-ff -m "merge np" feature/np 2>/dev/null
+git config gitflow.autopush false
+gitflow_delete feature/np >/dev/null 2>&1
+git config --unset gitflow.autopush
+chk "T24i gitflow.autopush=false → remote copy untouched" 'git ls-remote --exit-code --heads origin feature/np >/dev/null 2>&1'
+
 echo
 echo "==== RESULT: $PASS passed, $FAIL failed ===="
 [ "$FAIL" -eq 0 ]

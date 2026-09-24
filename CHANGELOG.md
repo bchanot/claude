@@ -10,7 +10,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 - **Branch deletion guard** — `gitflow_delete` (also `gitflow.sh delete
   <branch>`) is the only path that deletes a branch: it refuses `main` and
   `develop` (rc 6) and any branch not merged into develop or main (rc 5),
-  with an explicit ancestor check, and keeps the branch. Motivation, proven
+  with an explicit ancestor check, and keeps the branch; the `origin/` copy
+  is removed right after, once its own tip passes the same check (a remote
+  tip the bases lack is kept, loudly; no origin, `GITFLOW_NO_PUSH=1` or
+  `gitflow.autopush false` skip it). Motivation, proven
   by `gitflow-test.sh` T22a: since `start` sets an auto-pushed upstream,
   `git branch -d` checks "merged into origin/<branch>", which the post-commit
   hook keeps trivially true. A fourth generated hook, `reference-transaction`,

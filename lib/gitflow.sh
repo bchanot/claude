@@ -143,11 +143,43 @@ gitflow_merged_into_base() {
   return 1
 }
 
-# gitflow_delete <branch> → the one sanctioned way to delete a local branch.
-# finish calls it after its merges; the CLI exposes it for a branch merged
-# elsewhere (a Gitea PR, a hand merge). Refuses, branch KEPT: rc 2 no such
-# branch · rc 6 protected base (main/develop are never deleted) · rc 5 not
-# merged into develop or main.
+# _gitflow_delete_remote <br> → remove origin/<br> once the LOCAL copy is gone.
+# Same contract as the pushes (BDR-095): best effort, warn never fail; skipped
+# under GITFLOW_NO_PUSH=1, gitflow.autopush=false or no origin. The REMOTE tip
+# is re-checked against develop/main before the delete: a commit pushed from
+# elsewhere that never reached a base (or that this clone has never fetched)
+# keeps the remote branch alive, loudly. Never a base, by construction and by
+# the explicit guard below.
+_gitflow_delete_remote() {
+  local br="$1" out rc tip
+  [ "${GITFLOW_NO_PUSH:-0}" = 1 ] && return 0
+  [ "$(git config --bool --default true gitflow.autopush)" = false ] && return 0
+  git remote get-url origin >/dev/null 2>&1 || return 0
+  gitflow_protected_base "$br" && return 0
+  out="$(_gitflow_timeout git ls-remote --exit-code --heads origin "refs/heads/$br" 2>/dev/null)"; rc=$?
+  [ "$rc" -eq 2 ] && return 0                         # no remote copy — nothing to remove
+  if [ "$rc" -ne 0 ]; then
+    echo "gitflow: origin unreachable — remote copy of '$br' NOT removed. By hand: git push origin --delete $br" >&2
+    return 0
+  fi
+  tip="${out%%[[:space:]]*}"
+  if ! gitflow_merged_into_base "$tip"; then
+    echo "gitflow: origin/$br holds commits not merged into $GITFLOW_DEVELOP or $GITFLOW_MAIN — remote copy KEPT" >&2
+    return 0
+  fi
+  if _gitflow_timeout git push -q origin --delete "$br" >/dev/null 2>&1; then
+    echo "gitflow: removed origin/$br (tip merged)" >&2
+  else
+    echo "gitflow: remote delete of '$br' FAILED — remote copy NOT removed. By hand: git push origin --delete $br" >&2
+  fi
+  return 0
+}
+
+# gitflow_delete <branch> → the one sanctioned way to delete a branch, local
+# copy then origin copy. finish calls it after its merges; the CLI exposes it
+# for a branch merged elsewhere (a Gitea PR, a hand merge). Refuses, branch
+# KEPT: rc 2 no such branch · rc 6 protected base (main/develop are never
+# deleted) · rc 5 not merged into develop or main.
 gitflow_delete() {
   local br="${1:-}"
   if [ -z "$br" ] || ! git rev-parse --verify -q "refs/heads/$br" >/dev/null; then
@@ -162,6 +194,7 @@ gitflow_delete() {
   fi
   git checkout -q "$GITFLOW_DEVELOP" 2>/dev/null || git checkout -q "$GITFLOW_MAIN" 2>/dev/null
   git branch -q -d "$br" || { echo "gitflow: git refused to delete '$br' — branch kept" >&2; return 5; }
+  _gitflow_delete_remote "$br"
 }
 
 # _gitflow_purge_transient → remove the committed transient planning artifacts
