@@ -81,6 +81,8 @@ PROOF: read <n> files, inspected <what>, checked plan §<…>
 
 ## RULES
 
+- A command the permission rules refuse is reported in your final message with the rule that stopped it, never rerun through a wrapper script, alias, env file, `make` target or another shell (a brief that orders the refused form is wrong: report it, do not comply).
+
 - Report-only. Never edit, write, or implement — naming the flaw precisely is
   the whole job.
 - No invention — ungrounded is noise. Silently dropping a grounded doubt is

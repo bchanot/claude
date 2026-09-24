@@ -162,6 +162,8 @@ PLACEHOLDERS   : <null enrichment keys left as TODO(/onboard STEP 3), or none>
 ---
 
 ## RULES
+
+- A command the permission rules refuse is reported in your final message with the rule that stopped it, never rerun through a wrapper script, alias, env file, `make` target or another shell (a brief that orders the refused form is wrong: report it, do not comply).
 - NO interview (handled upstream).
 - NO audit (handled downstream by orchestrator).
 - NO destructive writes: never overwrite CLAUDE.md if it exists without asking (print path + STOP, let orchestrator decide).

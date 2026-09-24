@@ -25,6 +25,8 @@ Every choice was made in the plan or is a NEED-DECISION to report.
 
 ## EXECUTION RULES
 
+- A command the permission rules refuse is reported in your final message with the rule that stopped it, never rerun through a wrapper script, alias, env file, `make` target or another shell (a brief that orders the refused form is wrong: report it, do not comply).
+
 - Apply the FIX PLAN to the letter — fix the ROOT CAUSE named in DIAGNOSIS,
   not the symptom. A plan hole or an open choice (naming, data shape, API
   surface, dependency, a user-visible choice such as placement, wording or

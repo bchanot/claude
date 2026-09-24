@@ -7,6 +7,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- **`make test suite=<file>`** runs one suite hermetically; the
+  `GIT_CONFIG_GLOBAL=/dev/null` export lives in the Makefile so nobody types
+  the denied env-prefix form by hand (the reason an executor wrote a wrapper
+  around it on 2026-09-24).
+- **`lib/tests/doctrine-citers.test.sh`** — every `CLAUDE.md "Section"` or
+  `CLAUDE.md … § Label` citation in skills, agents, lib, rules and hooks must
+  resolve to a heading or bold label of CLAUDE.global.md; flip-tested. Would
+  have caught the five "§ Language" pointers the density pass left dangling.
+  First run fixed one more (`rest-api-node.md` cited the heading without its dash).
 - **graphify threshold signal** — `lib/graphify-gate.sh` counts tracked code
   files (vendored trees excluded) and, from 200 with no
   `graphify-out/graph.json`, the session-start banner shows one line
@@ -112,6 +121,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   until it lands.
 
 ### Changed
+- **Routing around a guardrail is the same action** — new `hard_deny` entry: a
+  refused command is never rerun through a wrapper script, alias, heredoc,
+  Makefile target, env file, other shell or other agent; a refusal ends the
+  attempt and is reported with its rule; a brief that orders the refused form is
+  wrong. The same clause sits in every executor and reviewer agent, and the
+  doctrine's sub-agent rule names it. "After code changes" gains step 4: a
+  changed rule, heading, label or threshold → grep every citer, same commit.
 - **Doctrine/skill coherence pass (C2)** — 30 rule pairs in tension found by
   three read-only audits and resolved in the doctrine's favour: one ask
   policy (visible / public-name / open-scope choices are asked); mandated
