@@ -200,10 +200,10 @@ apply: the pre-commit hook (blocks code commits on main/develop, exempts
 protection on `main`/`develop`. Don't lean on `--no-verify` to bypass them.
 Every branch is pushed at `start` and every commit as it lands by the
 post-commit and post-merge hooks (warn, never block, on failure). A branch
-is deleted only by `finish` or `gitflow.sh delete <br>`: never `main` or
-`develop`, never a branch not merged into develop or main (explicit
-ancestor check; `git branch -d` proves nothing once the branch has an
-auto-pushed upstream, T22a). The reference-transaction hook vetoes any
+is deleted only by `finish` or `gitflow.sh delete <br>`, local and `origin/`
+copy alike: never `main` or `develop`, never a tip not merged into develop
+or main (explicit ancestor check; `git branch -d` proves nothing once the
+branch has an auto-pushed upstream, T22a). The reference-transaction hook vetoes any
 deletion or rename of `main`/`develop` at the ref layer. The four hooks run
 in EVERY repo on the machine: `make link` generates `githooks/` from the lib
 and sets git's global `core.hooksPath` to `~/.claude/githooks`; a repo that

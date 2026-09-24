@@ -155,7 +155,9 @@ Push discipline lives in `lib/gitflow.sh`: `start` pushes the branch,
 push every commit as it lands (warn, never block, on failure). `finish`
 deletes the merged branch through `gitflow_delete`, which refuses
 `main`/`develop` and any branch not merged into develop or main (`git branch
--d` alone proves nothing once the branch has an auto-pushed upstream). A
+-d` alone proves nothing once the branch has an auto-pushed upstream), then
+removes the `origin/` copy once its tip passes the same check (best effort:
+unreachable origin or an unmerged remote tip keeps it, loudly). A
 fourth hook, `reference-transaction`, vetoes any deletion or rename of
 `main`/`develop` at the ref layer. The hooks
 reach every repo two ways: `make link` generates `githooks/` from the lib

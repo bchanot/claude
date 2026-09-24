@@ -38,8 +38,11 @@ sync via post-commit) instead of "merged into HEAD" — its safety valve is dead
       T22 12/12 + T23 11/11, shellcheck clean incl. emitted hook, doctor
       4/4 hooks match. Merged into develop b2e252e (user go 2026-09-24).
       BDR-096, LRN-161.
-Out of scope, flagged: remote branch cleanup after finish (`git push --delete`
-is in static deny since BDR-095; origin/<br> now accumulates — user's call).
+- [x] D8 (user go 2026-09-24, feature/remote-branch-cleanup) `_gitflow_delete_remote`:
+      after the local delete, remote tip read + re-checked against develop/main,
+      then `push origin --delete`; best effort (skip: no origin / NO_PUSH /
+      autopush=false; loud: unreachable, unmerged remote tip). T24 9/9, 161/163.
+      Live on the 2 stale merged remotes: origin/feature/branch-delete-guard + origin/feature/destructive-guardrails removed by `gitflow.sh delete` (both tips verified merged), bases untouched. UNMERGED — human gate.
 
 ## 2026-09-22 — destructive guardrails after the 21/09 wipe (feature/destructive-guardrails)
 Incident 2026-09-21 00:21 on the old server: a reviewer sub-agent (atlast SDD, opus)
