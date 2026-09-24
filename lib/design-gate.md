@@ -17,11 +17,11 @@ Check BOTH the task description AND the filesystem:
 - Framework UI: `tailwind`, `styled-component`, `emotion`, `chakra`, `radix`, `shadcn`, `headless`
 
 **Filesystem signals** (quick check, no deep scan):
-- Target files have `.tsx`, `.jsx`, `.css`, `.scss`, `.less`, or `.module.css` extension
+- Target files have `.tsx`, `.jsx`, `.vue`, `.svelte`, `.astro`, `.css`, `.scss`, `.less`, or `.module.css` extension
 - `tailwind.config` or `postcss.config` present in project root
 - `tokens/`, `theme/`, or `design-system/` directory exists
 - Storybook config (`.storybook/`) present
-- Animation lib in `package.json` deps: `motion`, `motion-v`, `framer-motion` (legacy), `gsap`, `@gsap/react`, `lottie-react`, `react-spring`, `popmotion`, `@formkit/auto-animate`
+- Animation lib in `package.json` deps: any package `is_anim_lib_installed` recognizes (`lib/animation-lib-check.sh`, the single source)
 
 ## DECISION
 
@@ -40,7 +40,7 @@ and if not, point at ONE command — `/profile design`.
 Tier does NOT change WHAT gets checked. Every non-trivial design tier draws from
 the one `design` profile — so the gate checks that profile's **design-core
 tools** (the `# GATE-BLOCK:` allowlist in `design.profile`: ui-ux-pro-max,
-frontend-design, emil-design-eng, design-motion-principles, impeccable, design-html,
+frontend-design, emil-design-eng, design-motion-principles, design-html,
 design-review, design-consultation, the `21st` CLI and `21st-ui-build` — the
 canary for the whole 21st skill pack). The profile also bundles
 browser/plan/shotgun tooling and graphify for convenience; those never trip the
@@ -149,7 +149,7 @@ says so, because init has to happen in the agent chat, not in an installer.
 
 **Fires when BOTH hold** — else stay silent:
 
-1. impeccable is active (`skills/impeccable` present, i.e. it did not trip §3).
+1. impeccable symlink present under `skills/` (non-blocking external — not on the `# GATE-BLOCK:` list, so §3 never checks it).
 2. The project has no `PRODUCT.md` at its root.
 
 Evaluate it on the same path as §4: after the toolchain resolves, never on the

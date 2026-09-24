@@ -299,7 +299,12 @@ Options :
   D) Abort — keep .claude/audits/VALIDATE.md as audit report
 ```
 
-4. On `A` : dispatch each file-group's applier at L1 (execution = sonnet;
+4. On `A` : gitflow aiguillage FIRST — follow
+   `$HOME/.claude/lib/gitflow-aiguillage.md`, this skill's TYPE = `feature`
+   (`--fix` edits code). On `main`/`develop` branch before any edit:
+   `bash ~/.claude/lib/gitflow.sh start feature web-validate-<slug>`; on a
+   working branch apply in place. Never `gitflow finish` (human-gated).
+   Then dispatch each file-group's applier at L1 (execution = sonnet;
    this loop only orchestrates), serially — one applier at a time, appliers
    share files:
 

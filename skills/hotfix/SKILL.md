@@ -64,8 +64,11 @@ disposition required at hotfix weight.
 
 Follow `$HOME/.claude/lib/design-gate.md`:
 - Scan $ARGUMENTS and target files for design/UI/style signals (CSS, component, styling, animation).
-- If signals found → run `design-tool-gate.sh`; if it reports INCOMPLETE,
-  tell the user to run `/profile design` before proceeding.
+- Signals found → a hotfix is the trivial tier by definition (≤2 files, one
+  cosmetic value — `design-gate.md` §1): skip the gate, no toolchain. If the
+  signals reveal real UI work (new component, layout, motion), this is not a
+  hotfix → route to `/feat` or `/bugfix` instead of running
+  `design-tool-gate.sh`.
 - If no signals → skip (zero overhead).
 
 ## STEP 1.7 — CONTRACT (silent autofill)
@@ -104,8 +107,12 @@ verify+secure loop).
 ## STEP 2 — PRE-FLIGHT
 
 **Gitflow aiguillage (before dispatch):** follow `$HOME/.claude/lib/gitflow-aiguillage.md`
-— your type = `hotfix`. On `main`/`develop` it branches first; on a working
-branch it's a no-op (commit in place). Never `finish`.
+— your type follows the base: on `main` → `hotfix` (prod incident; finish fans
+out to main + develop); on `develop` → `bugfix` (the fix forks from develop — a
+`hotfix/*` off main would miss develop's code and later merge to prod). Either
+protected base branches first; on a working branch it's a no-op (commit in
+place). The /hotfix size rules and the hotfixer executor are unchanged either
+way. Never `finish`.
 
 Snapshot current state so revert is possible:
 
@@ -223,7 +230,7 @@ Ask the user only when there is an actual candidate to propose.
 
 Always append a 1-line entry to today's heading in `.claude/memory/journal.md` (even trivial hotfix — journal is timeline, not signal).
 
-**Language rule**: the journal line and any proposed BLK/LRN entries are ALWAYS written in English (see CLAUDE.md "Memory registries" § Language).
+**Language rule**: the journal line and any proposed BLK/LRN entries are ALWAYS written English AND caveman — fragments, articles dropped, code/IDs/quoted errors verbatim — per CLAUDE.md "Memory registries" (Always English, always caveman).
 
 **Then commit the memory** — follow `$HOME/.claude/lib/capitalize-commit.md`: it
 surgically commits what capitalize just wrote (`.claude/memory` + `.claude/tasks`
@@ -237,7 +244,9 @@ trivial hotfix still produces a `chore(memory): journal — …` commit (Frame 2
 - Max 2 files changed. If more needed → `/bugfix`.
 - Reflection (LOCATE, contract, gate decisions) NEVER leaves this main
   loop; execution NEVER stays in it — the executor is the sonnet-pinned
-  hotfixer subagent (BDR-066).
+  hotfixer subagent (BDR-066). A skill-mandated executor is exempt from the doctrine's "don't delegate
+  few-tool-call work" rule (CLAUDE.md "Workflow" names that exception:
+  skill-mandated dispatches run as written).
 - The executor is dispatched FRESH, once — hotfix never re-dispatches after
   a failed or blocked attempt (it reverts and escalates to `/bugfix`, it
   does not retry). Sole exception: a class-tagged BLOCKED answered by the

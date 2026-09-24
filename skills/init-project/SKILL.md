@@ -103,7 +103,14 @@ every field the scaffolder consumes crosses the dispatch): BRIEF (verbatim)
 `~/.claude/CLAUDE.md`. A STOP (missing input) comes back as its report —
 resolve here, re-dispatch. The ~30s liveness pings are THIS loop's job
 while waiting.
-Creates: CLAUDE.md, `.claude/settings.json`, `.claudeignore`, `.gitignore`, `.env.example`, empty entry points. NO README, NO features, NO `.claude/tasks/` or `.claude/memory/` (not bootstrapped by this flow — copy from `~/.claude/templates/memory/` manually if wanted before STEP 10b's memory commit).
+Creates: CLAUDE.md, `.claude/settings.json`, `.claudeignore`, `.gitignore`, `.env.example`, empty entry points. NO README, NO features.
+Then bootstrap the memory in THIS loop, before STEP 5f so the root commit embeds
+it (doctrine: registries + TODO exist from day one; STEP 10b appends to them):
+```bash
+mkdir -p .claude/memory .claude/tasks
+cp -n ~/.claude/templates/memory/{decisions,learnings,blockers,evals,journal}.md .claude/memory/
+[ -f .claude/tasks/TODO.md ] || printf '# TODO\n\n## %s\n' "$(date +%Y-%m-%d)" > .claude/tasks/TODO.md
+```
 Verify: `git init` + build passes.
 
 ## STEP 5b — CREATE README
@@ -166,7 +173,7 @@ layout and the deterministic root commit:
 bash "$HOME/.claude/lib/gitflow.sh" init "chore: scaffold <project-name>"
 ```
 Creates `main`+`develop`, root-commits the FULL scaffold (CLAUDE.md, README,
-config, `.gitignore`, deps), reconciles the `.gitignore` socle, and installs the
+config, `.gitignore`, `.claude/memory/` + `.claude/tasks/TODO.md`, deps), reconciles the `.gitignore` socle, and installs the
 versioned pre-commit hook — all embedded in the root commit, working tree clean.
 This is the deterministic scaffold commit owner (closes BLK-010). The MVP is
 implemented on a `feature/*` branch off `develop` (STEP 8).
@@ -217,14 +224,15 @@ call. The plan is closed; execution and plan-conformity review are sonnet
 work. Reflection (task decomposition, review verdict arbitration) stays in
 this loop.
 
-## STEP 8b — GRAPHIFY FULL (after implementation)
-If `graphify` CLI is installed AND complexity >= 30%:
-1. Run full graphify on the implemented project:
-   ```bash
-   graphify . --out graphify-out 2>/dev/null || true
-   ```
-2. Print: `🔗 Full project graph updated at graphify-out/`
-If `graphify` not installed or complexity < 30% → skip silently.
+## STEP 8b — GRAPHIFY SIGNAL (after implementation — BDR-097)
+graphify is proposed only from 200 tracked code files, and the USER decides —
+never build, install or update a graph here:
+```bash
+bash ~/.claude/lib/graphify-gate.sh .
+```
+- Prints a line → carry it into the FINAL OUTPUT status table as
+  `GRAPHIFY: <line> — /graphify on your go`.
+- Silent → `GRAPHIFY: below 200 code files, not proposed`.
 
 ## STEP 9 — VERIFY + SECURE (fresh gates, bounded loops)
 Run the two fresh gates per `$HOME/.claude/lib/verify-secure-loop.md` with
@@ -284,7 +292,9 @@ capitalizes NOTHING. Do NOT fabricate a BDR to fill the step. Print
    [ decisions.md ]  BDR-XXX — <decision> — <1-line why>
    Valider lesquels ? (all / <IDs> / edit / skip)
    ```
-3. Append approved entries + update the Index. Append a journal line under today.
+3. Append approved entries to the existing registries (bootstrapped at STEP 5,
+   in the root commit) + update the Index. Append a journal line under today's
+   heading in `.claude/memory/journal.md`.
 
 **Hash rule — founding decisions carry NO commit hash; use path + date only.**
 This is by nature, not an omission: a founding decision is made at DESIGN
@@ -295,8 +305,10 @@ that IMPLEMENTS the decision, e.g. BDR-033 → 11792cc). This is the SECOND case
 where hash-anchoring does not apply — the first being a squash-merged PR, whose
 anchored commit ceases to exist.
 
-**Language rule**: written entries are ALWAYS in English (CLAUDE.md "Memory
-registries"). The gate may mirror the user's language; entries must not.
+**Language rule**: written entries are ALWAYS English AND caveman — fragments,
+articles dropped, code/IDs/quoted errors verbatim — per CLAUDE.md "Memory
+registries" (Always English, always caveman). The gate may mirror the user's
+language; entries must not.
 
 **Then commit the memory** — follow `$HOME/.claude/lib/capitalize-commit.md`: it
 surgically commits the approved founding decisions (`.claude/memory` +
@@ -369,5 +381,6 @@ LOCATION: <path> | STACK: <stack> | BUILD: ✅/❌ | TESTS: ✅<N>/❌
 V1 FEATURES: ✅<f> / ⚠️<f> partial: <reason>
 REMAINING ISSUES: <list or none>
 QUICK START: <exact cmds>
-CLAUDE.md ✅ | README ✅ | SETTINGS ✅
+CLAUDE.md ✅ | README ✅ | SETTINGS ✅ | MEMORY ✅
+GRAPHIFY: <STEP 8b line>
 ```

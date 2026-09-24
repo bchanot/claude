@@ -535,6 +535,13 @@ intent, not header wording: **AUTO** = no-confirmation items (seo batches
 A/B/C · geo G1–G4/G6); **GATED** = items marked NEEDS CONFIRMATION / visible
 / structural (seo D/E · geo G5); **USER ACTIONS** = batch F / G7.
 
+### Gitflow aiguillage (before the first edit)
+
+Follow `$HOME/.claude/lib/gitflow-aiguillage.md` — this skill's TYPE =
+`feature` (aggressive mode edits code). On `main`/`develop` branch first:
+`bash ~/.claude/lib/gitflow.sh start feature seo-<slug>`; on a working
+branch apply in place. Never `gitflow finish` — integration is human-gated.
+
 ### Serial by ownership (no parallel race)
 
 The two bundles may touch the same shared template (meta vs JSON-LD). Apply

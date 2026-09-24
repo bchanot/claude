@@ -1,7 +1,7 @@
 ---
 name: onboard
 description: 'Use when bringing an existing repo into the claude-config framework — needs archetype detection, config install, full multi-axis audit (debt/SEO/GEO/UI-UX/perf/security/a11y/docs), and prioritized backlog. Multi-agent orchestrator. Do NOT use for repos created via /init-project. Triggers: "onboard", "onboard project", "audit existing repo", "setup existing project".'
-argument-hint: '[optional hints: "Python FastAPI" | "add gsd" | "Next.js monorepo" | "force-archetype:wordpress"]'
+argument-hint: '[optional hints: "Python FastAPI" | "Next.js monorepo" | "force-archetype:wordpress"]'
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep, Agent, Skill
 ---
 
@@ -27,7 +27,8 @@ Run `$HOME/.claude/lib/plugin-gate.md` with hint "onboarding existing project + 
 - PROPOSED CHANGES exist → show list, ask "Apply? (yes / no / customize)". Apply on confirm.
 - OK → `✅ Plugin check passed — [active plugins] — complexity: <score>%`, continue.
 
-Complexity score is carried forward for STEP 4 graphify decision.
+Complexity score is informative here; STEP 4 graphify is gated by
+`graphify-gate.sh` (200 tracked code files, BDR-097), not by this score.
 
 ---
 
@@ -107,7 +108,7 @@ L'agent génère :
 - `.claudeignore`
 - `.gitignore` (safety check)
 - `.claude/tasks/TODO.md`, `.claude/memory/{decisions,learnings,blockers,journal,evals}.md`
-- **Pas encore** `ROADMAP.md` (généré uniquement via `/onboard add gsd` — voir Next steps)
+- **Pas encore** `ROADMAP.md` (GSD multi-session : `gsd init` à la main, voir docs gsd-pi — cf. Next steps)
 
 Si `CLAUDE.md` existe déjà : lire son contenu, ne PAS écraser — fusionner après STEP 3.
 
@@ -151,11 +152,13 @@ Adopter le modèle gitflow sur ce repo existant :
 ```bash
 bash "$HOME/.claude/lib/gitflow.sh" init
 ```
-Sur un repo existant, cela : renomme `master`→`main` si besoin (LOCAL), crée
-`develop` depuis main, réconcilie le socle `.gitignore` (additif — n'écrase
-jamais les règles du projet), installe le hook pre-commit versionné, et fait UN
-commit `chore: adopt gitflow socle + pre-commit hook` sur main (pendant que le hook est
-inactif → jamais auto-bloqué). Idempotent — un re-run est un no-op.
+Sur un repo existant, cela : renomme `master`→`main` si besoin (LOCAL), pose le
+socle (`.gitignore` réconcilié — additif, n'écrase jamais les règles du projet —
++ `.githooks/` versionnés) sur une branche `chore/gitflow-adopt` créée depuis
+main, la merge `--no-ff` dans main (le hook pre-commit est global sur la machine
+et bloque tout commit de code sur main, mais exempte les merges — BDR-095),
+supprime la branche, puis crée `develop` depuis main. Idempotent — un re-run est
+un no-op.
 
 **Annoncer le renommage master→main** s'il a lieu. Le renommage est LOCAL ;
 repointer la branche par défaut du remote vers `main` + la protection de branche
@@ -247,21 +250,29 @@ Pour chaque fast-lib détectée :
 
 ---
 
-## STEP 4 — GRAPHIFY (si complexity ≥ 30% et pas déjà présent)
+## STEP 4 — GRAPHIFY (proposé dès 200 fichiers code — l'utilisateur décide)
 
 ```bash
 command -v graphify &>/dev/null && echo "available" || echo "not-installed"
-test -f graphify-out/GRAPH_REPORT.md && echo "graph-exists"
+test -f graphify-out/graph.json && echo "graph-exists"
+bash ~/.claude/lib/graphify-gate.sh .
 ```
 
 - **Pas installé** → skip avec message : `graphify non installé — skip audit architectural. Install : (voir graphify/SKILL.md)`
-- **Complexity < 30%** → skip silencieusement, projet trop petit pour justifier.
-- **Graphe déjà présent + récent** (fichier < 7j) → skip, réutiliser l'existant.
-- **Sinon** → run :
+- **`graph-exists`** → skip, réutiliser l'existant.
+- **La gate n'imprime rien** → moins de 200 fichiers code trackés (BDR-097 :
+  grep + lecture suffisent). Pas de proposition ; ligne FINAL OUTPUT
+  `below 200 code files, not proposed`.
+- **La gate imprime une ligne** (`graphify? N code files ≥ 200, no graph`) →
+  l'afficher et DEMANDER à l'utilisateur. Jamais de build sans oui explicite.
+  Sur oui :
   ```bash
-  graphify . --out graphify-out 2>&1 | tail -20
+  printf '.claude/\ndocs/superpowers/\n' >> .graphifyignore
+  grep -qxF 'graphify-out/' .gitignore || echo 'graphify-out/' >> .gitignore
+  graphify update .
   ```
-  Puis `test -f graphify-out/GRAPH_REPORT.md` pour valider.
+  Puis `test -f graphify-out/GRAPH_REPORT.md` pour valider. Sur non → skip,
+  ligne FINAL OUTPUT `proposed, declined`.
 
 Print : `🔗 Knowledge graph : graphify-out/GRAPH_REPORT.md (N nodes, M edges)`.
 
@@ -937,7 +948,7 @@ Choix ? (A / B / C / D / E)
 
 **STOP.** Attendre la réponse.
 
-- **A** → stop ici, l'utilisateur relira et reviendra avec `/onboard continue`.
+- **A** → stop ici, l'utilisateur relit les 4 fichiers ; le backlog (STEP 9) se génère ensuite à la demande depuis `.claude/audits/AUDIT_PROPOSALS.md`.
 - **B** → continuer STEP 9 avec toutes les recommandations.
 - **C** → demander les changements spécifiques, les appliquer dans .claude/audits/AUDIT_PROPOSALS.md, puis re-présenter la gate.
 - **D** → continuer STEP 9 avec seulement les P0.
@@ -1020,7 +1031,7 @@ Pour démarrer : lire .claude/tasks/TODO.md, choisir une tâche P0, lancer le /s
 - Si `CLAUDE.md` existe : le lire, ne pas l'écraser sans fusion après STEP 3.
 - STEP 3 : ne redemande jamais ce qui est déjà dans README ou manifests.
 - STEP 3.5 : si ctx7 absent + fast-libs, WARN mais ne bloque pas.
-- STEP 4 : skip si complexity < 30% ou graph récent déjà présent.
+- STEP 4 : graphify proposé seulement si `graphify-gate.sh` imprime une ligne (≥ 200 fichiers code, pas de graphe — BDR-097) ; l'utilisateur décide, jamais de build sans oui explicite.
 - STEP 5-6 : subagents isolés (Agent tool avec subagent_type spécifique) — pas de contexte partagé entre les audits. Chaque subagent écrit son rapport dans `.onboard-audit/<name>.md`.
 - STEP 6 dispatches parallélisables : regrouper dans un seul message Agent multi-calls.
 - `.onboard-audit/` gitignoré automatiquement — ne jamais commiter.
@@ -1035,7 +1046,7 @@ ARCHETYPE    : <name> (confiance: <niveau>)
 STACK        : <stack>
 CONFIG       : ✅ CLAUDE.md, settings.json, .claudeignore, .claude/{tasks,memory,audits}/
 CTX7 CACHE   : ✅ [libs] | ⚠️ not installed | — N/A
-GRAPHIFY     : ✅ graphify-out/ | ⚠️ not installed | — skipped (simple)
+GRAPHIFY     : ✅ graphify-out/ | ⚠️ not installed | — below 200 code files, not proposed | — proposed, declined
 AUDITS       :
   ✅ dette technique     (.onboard-audit/analyze.md + code-clean.md)
   ✅ sécurité            (.onboard-audit/cso.md)
@@ -1055,6 +1066,6 @@ SYNTHÈSE     :
 NEXT STEPS   :
   1. Ouvrir .claude/audits/ONBOARD_REPORT.md — overview complète
   2. Démarrer par la première tâche P0 de .claude/tasks/TODO.md avec le skill indiqué
-  3. /onboard add gsd — générer ROADMAP.md pour multi-session si besoin
+  3. GSD (multi-session) : `gsd init` à la main, voir docs gsd-pi
   4. .onboard-audit/ peut être supprimé (raw data consommée en synthèse)
 ```

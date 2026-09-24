@@ -59,9 +59,9 @@ Parse its single `VERIFY — VERDICT:` line:
 
 - `CONFORME` → go to GATE 2. (First-pass conforme = no loop.)
 - `ECARTS(n)` → hand the dev the CONTRACT path + the exact `CRITERIA` gap
-  lines (NOT-MET / out-of-scope), nothing else. Inline dev fixes in place;
-  a dispatched dev is re-dispatched FRESH with those inputs only. Then
-  re-run GATE 0 and re-dispatch a FRESH verifier. Repeat.
+  lines (NOT-MET / out-of-scope), nothing else: re-dispatch a FRESH executor
+  with those inputs only, never redo the fix by hand. Then re-run GATE 0 and
+  re-dispatch a FRESH verifier. Repeat.
   **Max 3 conformity iterations** → STOP + human escalation with the
   CRITERIA table (the contract-vs-realized diff).
 - `ABANDONED(n)` → direct human gate, never a dev loop (a dev cannot close
@@ -88,8 +88,8 @@ stdout-only, no Write).
 Parse its single `SECURITY — VERDICT:` line:
 
 - `PASS` → done, proceed to commit.
-- `BLOCK(n)` → hand the dev the `BLOCKING` list + the CONTRACT path (inline
-  fix, or FRESH executor re-dispatch). Then re-run GATE 0, then
+- `BLOCK(n)` → hand the dev the `BLOCKING` list + the CONTRACT path
+  (re-dispatch a FRESH executor, never fix by hand). Then re-run GATE 0, then
   **re-verify the REQUEST first** (GATE 1, fresh verifier) — a security fix
   can drift the behavior — **then re-run GATE 2** (fresh auditor), in that
   order. **Max 3 security iterations** → STOP + human escalation with the

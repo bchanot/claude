@@ -28,14 +28,17 @@ digraph pipeline {
 
 ## STEP 0: Dependencies
 
-Check before starting. Install what's missing.
+Check before starting. If something is missing, print the install
+command(s) and STOP until the user has run them — `sudo` / `apt` is the
+user's to run, never Claude's. The one exception: `pip install pymupdf`
+inside the project's own venv may be run by Claude.
 
 ```bash
-# Option A: poppler (lighter)
-command -v pdftoppm && echo "OK" || echo "INSTALL: sudo apt install poppler-utils"
+# Option A: poppler (lighter) — USER runs the install
+command -v pdftoppm && echo "OK" || echo "USER RUNS: sudo apt install poppler-utils"
 
 # Option B: PyMuPDF (more powerful — extracts embedded images with coordinates)
-python3 -c "import fitz; print('OK')" 2>/dev/null || echo "INSTALL: pip install pymupdf"
+python3 -c "import fitz; print('OK')" 2>/dev/null || echo "INSTALL: pip install pymupdf  (project venv only — otherwise USER RUNS)"
 ```
 
 Prefer PyMuPDF if both available — it extracts embedded images + gives page dimensions.

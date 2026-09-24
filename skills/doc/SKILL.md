@@ -22,6 +22,13 @@ Run the two-mode doc pipeline (BDR-077 — audit judgment on opus, patch on
 the sonnet pin, the validation gate in THIS loop; a dispatched agent cannot
 hold a gate):
 
+0. AIGUILLAGE — before any write, follow `$HOME/.claude/lib/gitflow-aiguillage.md`
+   — this skill's TYPE = `chore`. On `main`/`develop` it branches to
+   `chore/<name>` off develop so the doc patch lands on a branch; on a working
+   branch it proceeds in place. Never `gitflow finish`. `lib/doc-commit.md`'s
+   rc 5 (commit rejected by the hook on a protected base) stays as the
+   backstop, not the plan.
+
 1. AUDIT — dispatch:
    `Agent(subagent_type="doc-syncer", model="opus")`
    prompt: "MODE: audit. Audit public docs for this project. Context from

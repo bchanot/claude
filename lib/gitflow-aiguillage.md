@@ -21,11 +21,14 @@ The caller passes its TYPE:
 |--------|------|------|
 | `/feat` | `feature` | develop |
 | `/bugfix` | `bugfix` | develop |
-| `/hotfix` | `hotfix` | main |
+| `/hotfix` | `hotfix` on main · `bugfix` on develop | main · develop |
+| `/seo` aggressive · `/web-validate --fix` | `feature` | develop |
 | `/capitalize` · `/close` · `/prune-memory` · `/reconcile` | `chore` | develop |
+| `/doc` · `/refactor` | `chore` | develop |
+| `/commit-change` | asks the user (`feature` / `bugfix` / `chore`) before `start` — a branch name is a public name | develop |
 
-The `chore` row = **standalone memory/doc work**: the registry / TODO / doc
-reconciliation & curation skills, run OUTSIDE an assistance flow. Inside `/feat`
+The `chore` rows = **standalone memory/doc/hygiene work**: the registry / TODO /
+doc reconciliation & curation skills (+ `/refactor`), run OUTSIDE an assistance flow. Inside `/feat`
 `/bugfix` `/hotfix` `/ship-feature` a working branch already exists (this check
 returns WORKING) and the memory commit rides it. The aiguillage only fires when
 such a skill is invoked directly on `main`/`develop` — i.e. memory IS the work,
@@ -39,6 +42,8 @@ develop + push) when THEY branched a `chore/*` off develop this run (BDR-068 —
 scoped [[LRN-069]] exception; see the capitalize skill's STEP 5C). `/prune-memory`
 + `/reconcile` stay fully human-gated: never run `gitflow finish` from them.
 
-Note: `hotfix` branches off **main** (prod) even when invoked from `develop` — that
-is the gitflow definition of a hotfix. For a dev-scoped small fix, use `/bugfix`
-(branches off develop).
+Note: a `hotfix/*` branch forks off **main** (prod) and fans out to main + develop
+at finish — that is the gitflow definition of a hotfix. Invoked from `develop`,
+`/hotfix` therefore starts a `bugfix/*` (off develop): a `hotfix/*` there would
+miss develop's code and later merge to prod. The small-fix routing is unchanged;
+only the branch type follows the base.

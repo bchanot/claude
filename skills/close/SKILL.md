@@ -8,7 +8,7 @@ description: |
   (that is /prune-memory).
   Triggers: "close", "end session", "ferme la session", "session close",
   "checkpoint memory", "what did we learn", "retro rapide", "fin de journée".
-argument-hint: "[--no-push] (runs capitalize in ritual mode; --no-push holds memory on the chore branch instead of the default auto-merge+push)"
+argument-hint: "[--no-push] (runs capitalize in ritual mode; --no-push holds memory on chore/<name>: pushed to origin by the hooks, NOT merged (finish skipped), merge when ready; default = auto-finish into develop)"
 allowed-tools:
   - Read
   - Edit

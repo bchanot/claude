@@ -262,7 +262,7 @@ cd mon-projet-existant/
 | 2  | Config baseline (onboarder agent) | CLAUDE.md, settings.json, .claudeignore, .claude/tasks/ + .claude/memory/ + .claude/audits/ |
 | 3  | Interview deep = business minimum (users, deadlines, équipe, légal, perfs) + adaptative par archétype | brief enrichi |
 | 3.5| ctx7 doc audit — fast-libs détectées, cache pré-fetché si besoin | .ctx7-cache/ |
-| 4  | Graphify (si complexity ≥ 30%) | graphify-out/GRAPH_REPORT.md |
+| 4  | Graphify (proposé dès 200 fichiers code, l'utilisateur décide) | graphify-out/GRAPH_REPORT.md |
 | 5  | Analyze read-only (analyzer agent) | .onboard-audit/analyze.md |
 | 6  | Audits parallèles selon archétype : | .onboard-audit/*.md (9 fichiers max) |
 |    |   — dette tech (general-purpose, audit read-only) |
@@ -280,7 +280,6 @@ cd mon-projet-existant/
 ```
 /onboard "Python FastAPI"              # hint stack
 /onboard force-archetype:wordpress     # override detection
-/onboard add gsd                       # générer ROADMAP.md pour GSD v2 (seul)
 ```
 
 **Après /onboard :**
@@ -291,6 +290,8 @@ cat .claude/audits/ONBOARD_REPORT.md
 # Démarrer la première tâche P0 avec le skill recommandé
 # (indiqué dans .claude/tasks/TODO.md)
 /hotfix "<titre P0>"   # ou /feat, /ship-feature, /bugfix selon le cas
+
+# Multi-session (GSD) : gsd init à la main — voir docs gsd-pi
 ```
 
 **Archétypes supportés (P1)** : static-html, wordpress, nextjs-app-router, astro-static, react-spa, rest-api-node, rest-api-python, cli-tool, library, dotfiles-meta.

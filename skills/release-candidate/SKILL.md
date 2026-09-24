@@ -24,7 +24,7 @@ The two mechanical spans (prep, finish+tag) run on the sonnet-pinned
 gate needed here, dispatch does the job. This dispatcher keeps everything
 the executor must never own: the version-NUMBER decision (judgment — derives
 from semver change nature), and the two human gates (when to release, and
-the push). A human gate sits BETWEEN the two spans by construction, so the
+the tag push). A human gate sits BETWEEN the two spans by construction, so the
 executor is never dispatched twice in one call.
 
 ## When to use
@@ -91,24 +91,26 @@ Parse the `RELEASE-EXEC REPORT`:
   the fan-out hit), STOP — resolving a conflicted fan-out is a human call,
   not an auto-retry.
 
-### STEP 6 — Push GATE (ASK)
-STOP. On explicit go only ([[LRN-069]]) — run the push HERE, in this
-dispatcher, never delegated to the executor:
+### STEP 6 — Tag push GATE (ASK)
+`main` and `develop` are already on origin: the lib pushes every merge as
+it lands (`_gitflow_merge_into` + the post-merge hook, BDR-095). Only the
+tag is left. STOP. On explicit go only ([[LRN-069]]) — run the tag push
+HERE, in this dispatcher, never delegated to the executor:
 ```
 AskUserQuestion:
-  Push main, develop, and v<X.Y.Z> to origin? — go / hold
+  Push tag v<X.Y.Z> to origin? — go / hold
 ```
 Go →
 ```bash
-git push origin main develop && git push origin v<X.Y.Z>
+git push origin v<X.Y.Z>
 ```
-`hold` → stop; the release is fanned out and tagged locally, unpushed.
+`hold` → stop; the release is on origin (main + develop), the tag stays local.
 
 ## Common mistakes
 - Tagging before `gitflow finish` → tag wouldn't sit on main's merge commit. Tag AFTER, on main.
 - Auto-firing finish because tests pass → finish is a HUMAN gate.
 - Restarting the tag at v1.0.0 → desyncs from the CHANGELOG lineage. Continue it.
-- Pushing without the ASK gate → [[LRN-069]].
+- Pushing the tag without the ASK gate → [[LRN-069]].
 
 ## Validation
 `RC_WORK=$(mktemp -d) RC_TAG=1 bash lib/tests/run-release-candidate.sh` → 5/5 (fan-out + tag on main). `RC_TAG=0` reds the tag assertion — proves the lib alone never tags (the gap this skill fills).

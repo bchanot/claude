@@ -272,7 +272,7 @@ A bugfix with an understood root cause is almost always worth one entry:
    ```
 4. Append approved entries + update the Index. Add a line to today's heading in `.claude/memory/journal.md`.
 
-**Language rule**: written entries are ALWAYS in English (see CLAUDE.md "Memory registries" § Language). The interactive gate may mirror the user's language; the appended entries must not.
+**Language rule**: written entries are ALWAYS English AND caveman — fragments, articles dropped, code/IDs/quoted errors verbatim — per CLAUDE.md "Memory registries" (Always English, always caveman). The interactive gate may mirror the user's language; the appended entries must not.
 
 If the bug was trivial and the root cause not transferable → skip with `CAPITALIZE: trivial, skip`.
 
@@ -287,7 +287,9 @@ hash, and no-ops if nothing was written.
 - No fix without understanding the root cause first (STEP 2/3).
 - Reflection (GATHER, INVESTIGATE, DIAGNOSIS, contract, loop decisions) NEVER
   leaves this main loop; execution NEVER stays in it — the executor is the
-  sonnet-pinned bugfixer subagent (BDR-066).
+  sonnet-pinned bugfixer subagent (BDR-066). A skill-mandated executor is exempt from the doctrine's "don't delegate
+  few-tool-call work" rule (CLAUDE.md "Workflow" names that exception:
+  skill-mandated dispatches run as written).
 - The executor is re-dispatched FRESH on every round-trip (NEED-DECISION,
   ECARTS, BLOCK) — feedback travels as contract path + named
   gaps/decisions, never as transcript.

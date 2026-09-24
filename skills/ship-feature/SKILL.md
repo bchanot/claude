@@ -32,7 +32,8 @@ Verify the project has a `CLAUDE.md` and print a brief orientation summary:
 ls CLAUDE.md .claude/CLAUDE.md 2>/dev/null | head -1
 git branch --show-current 2>/dev/null || echo "not a git repo"
 git log --oneline -3 --format="%h %<(50,trunc)%s" 2>/dev/null || true
-ls .gsd/ROADMAP.md 2>/dev/null | head -1
+# gsd-pi ≥ 3: state in .gsd/STATE.md + gsd.db + milestones/<ID>/<ID>-ROADMAP.md (no .gsd/ROADMAP.md)
+ls .gsd/ 2>/dev/null >/dev/null && head -20 .gsd/STATE.md 2>/dev/null
 ```
 - **CLAUDE.md found** → read it silently, then print orientation header (informational, not a gate):
   ```
@@ -41,7 +42,7 @@ ls .gsd/ROADMAP.md 2>/dev/null | head -1
   Stack   : <stack from CLAUDE.md>
   Branch  : <current git branch>
   Recent  : <last 3 commit messages>
-  GSD     : <current milestone if .gsd/ROADMAP.md exists, else "not initialized">
+  GSD     : <current milestone read from .gsd/STATE.md if .gsd/ exists, else "not initialized">
   ```
   Continue to STEP 1.
 - **Not found** →
@@ -262,7 +263,7 @@ Feature shipped implies at least one design decision worth capturing. Run this B
 4. Append approved entries to the registries. Update the Index table at the top of each file.
 5. Append a one-line entry to `.claude/memory/journal.md` under today's date heading (`## YYYY-MM-DD`).
 
-**Language rule**: written entries are ALWAYS in English (see CLAUDE.md "Memory registries" § Language). The interactive gate above may mirror the user's language; the appended entries must not.
+**Language rule**: written entries are ALWAYS English AND caveman — fragments, articles dropped, code/IDs/quoted errors verbatim — per CLAUDE.md "Memory registries" (Always English, always caveman). The interactive gate above may mirror the user's language; the appended entries must not.
 
 If nothing substantive to log → print `CAPITALIZE: nothing substantive to log` and skip.
 

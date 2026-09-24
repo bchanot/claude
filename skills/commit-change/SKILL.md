@@ -45,16 +45,28 @@ git config user.email
 - `git config user.email` empty → STOP, ask the user to configure identity
   first, do not dispatch.
 
-On a protected base (`main`/`develop`) the subagent runs the gitflow
-aiguillage itself inside `MODE: propose` (its Phase 0) and branches to
-`chore/*` before drafting the plan — code never lands directly on a
-protected branch.
+On a protected base (`main`/`develop` — `bash "$HOME/.claude/lib/gitflow.sh"
+protected-base`) ask the user the branch TYPE before any dispatch — a branch
+name is a public name:
+
+```
+AskUserQuestion:
+  Protected base — branch type for these commits? (feature / bugfix / chore)
+```
+
+Suggest `chore` only when every pending path is under `.claude/**` or docs;
+pending code never lands on a `chore/*` branch. Pass the answer as
+`TYPE: <type>` in the STEP 1 prompt — the subagent runs the aiguillage with it
+inside `MODE: propose` (its Phase 0) and branches to `<type>/*` before drafting
+the plan. Code never lands directly on a protected branch. On a working
+branch, omit `TYPE:` (the aiguillage is a no-op there).
 
 ## STEP 1 — Propose
 
 ```
 Agent(subagent_type="commit-changer", model="opus")
 prompt: "MODE: propose
+TYPE: <the STEP 0 answer — feature / bugfix / chore; omit on a working branch>
 $ARGUMENTS"
 ```
 
@@ -86,7 +98,7 @@ AskUserQuestion:
   BDR-077 — never redrawn inline on the session model); show the redrawn
   plan and re-ask.
 - `skip` → exit cleanly, no commits created, no `MODE: apply` dispatch.
-  Note: if the propose run created a `chore/*` branch (gitflow aiguillage
+  Note: if the propose run created a `<type>/*` branch (gitflow aiguillage
   off a protected base), that branch stays checked out with the work
   uncommitted — mention it so the user isn't surprised by the branch switch.
 
