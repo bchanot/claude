@@ -177,7 +177,7 @@ deny  T8s  'git stash drop'
 deny  T8t  'cd x && git push -f'
 allow T8u  'git push -u origin feature/x'
 allow T8v  'git push'
-allow T8w  'git branch -d x'
+deny  T8w  'git branch -d x'          # only gitflow.sh delete/finish: -d checks the upstream, not develop
 allow T8x  'git stash'
 allow T8y  'git stash pop'
 allow T8z  'git reset --soft HEAD~1'

@@ -24,6 +24,10 @@ GITFLOW_GITIGNORE_TEMPLATE="${GITFLOW_GITIGNORE_TEMPLATE:-$_GITFLOW_LIB_DIR/../t
 # read GITFLOW_PURGE_TRANSIENT=0 at finish time to opt out (read in the helper,
 # never cached here, so an inline `VAR=0 gitflow_finish` override works).
 GITFLOW_TRANSIENT_PATHS=("docs/superpowers/specs" "docs/superpowers/plans")
+# Hook set. Every writer, emitter, reconciler and drift check reads this list
+# (doctor.sh and the tests through `gitflow.sh hooks`), so a hook added here
+# reaches every repo with no second edit.
+GITFLOW_HOOKS=(pre-commit post-commit post-merge reference-transaction)
 
 # ── predicates / pure helpers ────────────────────────────────────────────────
 
@@ -124,10 +128,40 @@ _gitflow_merge_into_open_releases() {   # <source>
   done < <(git for-each-ref --format='%(refname:short)' 'refs/heads/release/*')
 }
 
-_gitflow_delete() {                # <branch>
-  local br="$1"
-  git checkout -q "$GITFLOW_DEVELOP" 2>/dev/null || git checkout -q "$GITFLOW_MAIN"
-  git branch -q -d "$br" || { echo "gitflow: '$br' not fully merged — branch kept" >&2; return 5; }
+# rc 0 iff <branch> is fully contained in develop or in main — the ONLY state in
+# which the lib deletes a branch. Fails closed: neither base in the repo →
+# nothing to verify against → rc 1. Explicit on purpose: `git branch -d` checks
+# "merged into the upstream" once one is set, and since BDR-095 every branch
+# has an auto-pushed upstream that is trivially in sync — its safety valve is
+# dead (proven by gitflow-test.sh T22a).
+gitflow_merged_into_base() {
+  local br="$1" base
+  for base in "$GITFLOW_DEVELOP" "$GITFLOW_MAIN"; do
+    git rev-parse --verify -q "refs/heads/$base" >/dev/null || continue
+    if git merge-base --is-ancestor "$br" "$base" 2>/dev/null; then return 0; fi
+  done
+  return 1
+}
+
+# gitflow_delete <branch> → the one sanctioned way to delete a local branch.
+# finish calls it after its merges; the CLI exposes it for a branch merged
+# elsewhere (a Gitea PR, a hand merge). Refuses, branch KEPT: rc 2 no such
+# branch · rc 6 protected base (main/develop are never deleted) · rc 5 not
+# merged into develop or main.
+gitflow_delete() {
+  local br="${1:-}"
+  if [ -z "$br" ] || ! git rev-parse --verify -q "refs/heads/$br" >/dev/null; then
+    echo "gitflow_delete: no local branch '${br:-<missing>}'" >&2; return 2
+  fi
+  if gitflow_protected_base "$br"; then
+    echo "gitflow: REFUSED — '$br' is a protected base, never deleted" >&2; return 6
+  fi
+  if ! gitflow_merged_into_base "$br"; then
+    echo "gitflow: REFUSED — '$br' is not merged into $GITFLOW_DEVELOP or $GITFLOW_MAIN — branch kept" >&2
+    return 5
+  fi
+  git checkout -q "$GITFLOW_DEVELOP" 2>/dev/null || git checkout -q "$GITFLOW_MAIN" 2>/dev/null
+  git branch -q -d "$br" || { echo "gitflow: git refused to delete '$br' — branch kept" >&2; return 5; }
 }
 
 # _gitflow_purge_transient → remove the committed transient planning artifacts
@@ -167,7 +201,8 @@ _gitflow_purge_transient() {
 }
 
 # gitflow_finish [<type> <name>] → directed merge of the CURRENT branch per its
-# type, then delete. WHEN to call this is the human gate (SKILL.md).
+# type, then gitflow_delete (refuses main/develop and anything unmerged). WHEN
+# to call this is the human gate (SKILL.md).
 #
 # The merge source is ALWAYS the checked-out branch (HEAD) — that is the contract.
 # The optional <type> <name> is a SAFETY ASSERTION, not a target selector: if you
@@ -188,18 +223,18 @@ gitflow_finish() {
   case "$type" in
     feature|bugfix)
       _gitflow_purge_transient   # BDR-065 auto-cleanup, on HEAD, pre-merge; never blocks
-      _gitflow_merge_into "$GITFLOW_DEVELOP" "$br" && _gitflow_delete "$br" ;;
+      _gitflow_merge_into "$GITFLOW_DEVELOP" "$br" && gitflow_delete "$br" ;;
     chore)
-      _gitflow_merge_into "$GITFLOW_DEVELOP" "$br" && _gitflow_delete "$br" ;;
+      _gitflow_merge_into "$GITFLOW_DEVELOP" "$br" && gitflow_delete "$br" ;;
     release)
       _gitflow_merge_into "$GITFLOW_MAIN" "$br" \
         && _gitflow_merge_into "$GITFLOW_DEVELOP" "$br" \
-        && _gitflow_delete "$br" ;;
+        && gitflow_delete "$br" ;;
     hotfix)
       _gitflow_merge_into "$GITFLOW_MAIN" "$br" \
         && _gitflow_merge_into "$GITFLOW_DEVELOP" "$br" \
         && { gitflow_release_open && _gitflow_merge_into_open_releases "$br" || true; } \
-        && _gitflow_delete "$br" ;;
+        && gitflow_delete "$br" ;;
     *) echo "gitflow_finish: '$br' is not a finishable gitflow branch" >&2; return 2 ;;
   esac
 }
@@ -352,10 +387,36 @@ exit 0
 HOOK
 }
 
-_gitflow_emit_hook() {             # <pre-commit|post-commit|post-merge>
+# Emit the reference-transaction hook: vetoes the deletion of a protected base
+# at the ref layer, whatever issued it — branch -d/-D, update-ref -d, a rename
+# (which deletes the old name), a script, a sub-agent. Names inlined like the
+# pre-commit's (the hook runs with no access to this lib; drift caught by T19).
+# Only the `prepared` call can veto; the other two exit at once.
+_gitflow_emit_reference_transaction() {
+cat <<HOOK
+#!/bin/sh
+# gitflow reference-transaction — generated by gitflow_init. Do not hand-edit.
+# Refuses deleting (or renaming) $GITFLOW_MAIN / $GITFLOW_DEVELOP, whatever the
+# command. Mirrors gitflow_protected_base (lib/gitflow.sh).
+[ "\$1" = prepared ] || exit 0
+while read -r _old new ref; do
+  case "\$ref" in refs/heads/$GITFLOW_MAIN|refs/heads/$GITFLOW_DEVELOP) ;; *) continue ;; esac
+  case "\$new" in *[!0]*) continue ;; esac     # new value not all-zeros → an update, not a deletion
+  # Per-repo opt-out (a foreign clone): git config gitflow.protect false
+  [ "\$(git config --bool --default true gitflow.protect)" = false ] && exit 0
+  echo "gitflow reference-transaction: BLOCKED — deleting '\$ref', a protected base." >&2
+  echo "  $GITFLOW_MAIN and $GITFLOW_DEVELOP are never deleted or renamed. A merged working branch: gitflow.sh delete <branch>" >&2
+  exit 1
+done
+exit 0
+HOOK
+}
+
+_gitflow_emit_hook() {             # <name> — one of GITFLOW_HOOKS
   case "$1" in
     pre-commit) _gitflow_emit_pre_commit ;;
     post-commit|post-merge) _gitflow_emit_push_hook "$1" ;;
+    reference-transaction) _gitflow_emit_reference_transaction ;;
     *) return 2 ;;
   esac
 }
@@ -363,12 +424,12 @@ _gitflow_emit_hook() {             # <pre-commit|post-commit|post-merge>
 # write the versioned hook files into $1 (default .githooks) — does NOT
 # activate (see gitflow_activate_hook / gitflow_global_hooks).
 _gitflow_write_hook() {
-  local hd="${1:-.githooks}"
+  local hd="${1:-.githooks}" name
   mkdir -p "$hd"
-  _gitflow_emit_pre_commit > "$hd/pre-commit"
-  _gitflow_emit_push_hook post-commit > "$hd/post-commit"
-  _gitflow_emit_push_hook post-merge > "$hd/post-merge"
-  chmod +x "$hd/pre-commit" "$hd/post-commit" "$hd/post-merge"
+  for name in "${GITFLOW_HOOKS[@]}"; do
+    _gitflow_emit_hook "$name" > "$hd/$name" || return 1
+    chmod +x "$hd/$name" || return 1
+  done
 }
 
 # point git at the versioned hook dir. Run LAST in init so the bootstrap commits
@@ -396,7 +457,7 @@ gitflow_reconcile_hooks() {
   [ -f "$hd/pre-commit" ] \
     || [ "$(git config --local core.hooksPath 2>/dev/null)" = ".githooks" ] \
     || return 0
-  for name in pre-commit post-commit post-merge; do
+  for name in "${GITFLOW_HOOKS[@]}"; do
     diff -q <(_gitflow_emit_hook "$name") "$hd/$name" >/dev/null 2>&1 || stale="$stale $name"
   done
   [ -n "$stale" ] || return 0
@@ -428,6 +489,10 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     release-open)   gitflow_release_open ;;
     start)          gitflow_start "$@" ;;
     finish)         gitflow_finish "$@" ;;
+    delete)         gitflow_delete "$@" ;;
+    merged)         [ -n "${1:-}" ] || { echo "usage: gitflow.sh merged <branch>" >&2; exit 2; }
+                    gitflow_merged_into_base "$1" ;;
+    hooks)          printf '%s\n' "${GITFLOW_HOOKS[@]}" ;;
     init)           gitflow_init "$@" ;;
     reconcile)      gitflow_reconcile_gitignore "$@" ;;
     purge-transient) _gitflow_purge_transient ;;
@@ -435,7 +500,7 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     reconcile-hooks) gitflow_reconcile_hooks ;;
     global-hooks)   gitflow_global_hooks "$@" ;;
     emit-hook)      _gitflow_emit_hook "${1:-pre-commit}" \
-                      || { echo "gitflow.sh emit-hook {pre-commit|post-commit|post-merge}" >&2; exit 2; } ;;
-    *) echo "usage: gitflow.sh {type|protected-base|base-for|release-open|start|finish|init|reconcile|purge-transient|install-hook|reconcile-hooks|global-hooks <dir> [value]|emit-hook [pre-commit|post-commit|post-merge]}" >&2; exit 2 ;;
+                      || { echo "gitflow.sh emit-hook {$(IFS='|'; echo "${GITFLOW_HOOKS[*]}")}" >&2; exit 2; } ;;
+    *) echo "usage: gitflow.sh {type|protected-base|base-for|release-open|start|finish|delete <br>|merged <br>|init|reconcile|purge-transient|install-hook|reconcile-hooks|global-hooks <dir> [value]|hooks|emit-hook <name>}" >&2; exit 2 ;;
   esac
 fi

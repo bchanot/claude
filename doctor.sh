@@ -326,7 +326,7 @@ if [ "$_gh_cfg" = '~/.claude/githooks' ] || [ "$_gh_cfg" = "$HOME/.claude/githoo
 else
   warn "global core.hooksPath is '${_gh_cfg:-unset}' — expected ~/.claude/githooks (run: make link)"
 fi
-for _h in pre-commit post-commit post-merge; do
+while IFS= read -r _h; do   # hook set owned by lib/gitflow.sh
   if [ ! -f "$REPO/githooks/$_h" ]; then
     warn "githooks/$_h missing (run: make link)"
   elif ! diff -q <(bash "$REPO/lib/gitflow.sh" emit-hook "$_h" 2>/dev/null) "$REPO/githooks/$_h" >/dev/null 2>&1; then
@@ -334,7 +334,7 @@ for _h in pre-commit post-commit post-merge; do
   else
     pass "githooks/$_h matches lib/gitflow.sh"
   fi
-done
+done < <(bash "$REPO/lib/gitflow.sh" hooks)
 unset _gh_cfg _h
 echo ""
 

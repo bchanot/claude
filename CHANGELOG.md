@@ -7,6 +7,18 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- **Branch deletion guard** — `gitflow_delete` (also `gitflow.sh delete
+  <branch>`) is the only path that deletes a branch: it refuses `main` and
+  `develop` (rc 6) and any branch not merged into develop or main (rc 5),
+  with an explicit ancestor check, and keeps the branch. Motivation, proven
+  by `gitflow-test.sh` T22a: since `start` sets an auto-pushed upstream,
+  `git branch -d` checks "merged into origin/<branch>", which the post-commit
+  hook keeps trivially true. A fourth generated hook, `reference-transaction`,
+  vetoes any deletion or rename of `main`/`develop` at the ref layer in every
+  repo (`git config gitflow.protect false` opts a foreign clone out). Static
+  deny on hand deletion (`git branch -d`/`--delete`, renames of the bases),
+  a `hard_deny` entry for the nested forms; `gitflow.sh hooks` lists the hook
+  set, read by `doctor.sh` and the tests.
 - **`make doctor` reports the Playwright browser cache** — a read-only
   `Playwright browsers` section listing cache size, which registered
   Playwright install requires each cached browser revision, and counts of

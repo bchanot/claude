@@ -338,11 +338,12 @@ if [ -d "$HERE/../.githooks" ]; then
   chk "T19a pre-commit installed == emitted"  'diff -q <(_gitflow_emit_pre_commit) "$HERE/../.githooks/pre-commit" >/dev/null'
   chk "T19b post-commit installed == emitted" 'diff -q <(_gitflow_emit_push_hook post-commit) "$HERE/../.githooks/post-commit" >/dev/null'
   chk "T19c post-merge installed == emitted"  'diff -q <(_gitflow_emit_push_hook post-merge) "$HERE/../.githooks/post-merge" >/dev/null'
+  chk "T19e reference-transaction installed == emitted" 'diff -q <(_gitflow_emit_reference_transaction) "$HERE/../.githooks/reference-transaction" >/dev/null'
 else
   ok "T19 skipped (no .githooks next to the lib)"
 fi
 if [ -d "$HERE/../githooks" ]; then
-  for h in pre-commit post-commit post-merge; do
+  for h in "${GITFLOW_HOOKS[@]}"; do
     chk "T19d global githooks/$h == emitted" "diff -q <(_gitflow_emit_hook $h) \"$HERE/../githooks/$h\" >/dev/null"
   done
 else
@@ -375,6 +376,62 @@ git config gitflow.protect false
 chk "T21c gitflow.protect=false → allowed"           '.githooks/pre-commit 2>/dev/null'
 git config --unset gitflow.protect
 git restore --staged code.txt .githooks/post-merge 2>/dev/null || true
+
+echo "T22 — delete guard: never main/develop, never unmerged (premise: -d is dead once the upstream is in sync)"
+newrepo delguard; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+bare="$WORK/delguard.git"; git init -q --bare "$bare"; git remote add origin "$bare"
+git push -q origin main develop 2>/dev/null
+gitflow_start feature weak >/dev/null 2>&1; echo w>w; git add w; git commit -q -m w 2>/dev/null
+git checkout -q develop
+chk "T22a PREMISE: git branch -d deletes an UNMERGED branch whose upstream is in sync" \
+    'git branch -q -d feature/weak 2>/dev/null && ! git rev-parse --verify -q refs/heads/feature/weak >/dev/null'
+gitflow_start feature keep >/dev/null 2>&1; echo k>k; git add k; git commit -q -m k 2>/dev/null
+chk "T22b merged_into_base: unmerged → false"        '! gitflow_merged_into_base feature/keep'
+# shellcheck disable=SC2034  # *_rc are read by the deferred chk evals
+del_rc=0; gitflow_delete feature/keep >/dev/null 2>&1 || del_rc=$?
+chk "T22c gitflow_delete refuses an unmerged branch (rc 5)" "[ $del_rc -eq 5 ]"
+chk "T22d … and the branch is kept"                  'git rev-parse --verify -q refs/heads/feature/keep >/dev/null'
+dev_rc=0; gitflow_delete develop >/dev/null 2>&1 || dev_rc=$?
+chk "T22e refuses develop (rc 6), develop kept"      "[ $dev_rc -eq 6 ] && git rev-parse --verify -q refs/heads/develop >/dev/null"
+main_rc=0; gitflow_delete main >/dev/null 2>&1 || main_rc=$?
+chk "T22f refuses main (rc 6), main kept"            "[ $main_rc -eq 6 ] && git rev-parse --verify -q refs/heads/main >/dev/null"
+nope_rc=0; gitflow_delete feature/nope >/dev/null 2>&1 || nope_rc=$?
+chk "T22g unknown branch → rc 2"                     "[ $nope_rc -eq 2 ]"
+git checkout -q develop; git merge -q --no-ff -m "merge keep" feature/keep 2>/dev/null
+chk "T22h merged_into_base: merged into develop → true" 'gitflow_merged_into_base feature/keep'
+chk "T22i gitflow_delete deletes a merged branch"    'gitflow_delete feature/keep >/dev/null 2>&1 && ! git rev-parse --verify -q refs/heads/feature/keep >/dev/null'
+git checkout -q main; git checkout -q -b hotfix/h; echo h>h; git add h; git commit -q -m h 2>/dev/null
+git checkout -q main; git merge -q --no-ff -m "merge h" hotfix/h 2>/dev/null
+chk "T22j merged into main only → deletable"         'gitflow_delete hotfix/h >/dev/null 2>&1 && ! git rev-parse --verify -q refs/heads/hotfix/h >/dev/null'
+chk "T22k CLI: merged verb"                          'bash "$HERE/gitflow.sh" merged develop'
+newrepo nobase; git symbolic-ref HEAD refs/heads/trunk; echo a>a; git add a; git commit -q -m a
+git checkout -q -b topic; echo t>t; git add t; git commit -q -m t; git checkout -q trunk
+chk "T22l no main/develop in the repo → refuses (fail closed), branch kept" \
+    '! gitflow_delete topic >/dev/null 2>&1 && git rev-parse --verify -q refs/heads/topic >/dev/null'
+
+echo "T23 — reference-transaction hook: main/develop can never be deleted or renamed, whatever the command"
+newrepo rt; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+chk "T23a hook installed + executable"               '[ -x .githooks/reference-transaction ]'
+gitflow_start feature rt >/dev/null 2>&1   # stand on a working branch: git itself would allow deleting develop
+chk "T23b force-delete develop → blocked, develop kept"    '! git branch -D develop >/dev/null 2>&1 && git rev-parse --verify -q refs/heads/develop >/dev/null'
+chk "T23c force-delete main → blocked, main kept"          '! git branch -D main >/dev/null 2>&1 && git rev-parse --verify -q refs/heads/main >/dev/null'
+chk "T23d update-ref -d refs/heads/develop → blocked"      '! git update-ref -d refs/heads/develop >/dev/null 2>&1 && git rev-parse --verify -q refs/heads/develop >/dev/null'
+chk "T23e rename develop → blocked, nothing renamed" \
+    '! git branch -m develop dev2 >/dev/null 2>&1 && git rev-parse --verify -q refs/heads/develop >/dev/null && ! git rev-parse --verify -q refs/heads/dev2 >/dev/null'
+echo r>r; git add r; git commit -q -m r 2>/dev/null
+chk "T23f ordinary commit unaffected"                '[ "$(git log -1 --format=%s)" = r ]'
+git checkout -q develop; git checkout -q feature/rt
+chk "T23g checkout unaffected"                       '[ "$(git symbolic-ref --short HEAD)" = feature/rt ]'
+gitflow_finish >/dev/null 2>&1
+chk "T23h finish: the merged feature still deletes through the hook" '! git rev-parse --verify -q refs/heads/feature/rt >/dev/null'
+git checkout -q -b feature/tmp; git checkout -q develop
+chk "T23i a non-protected branch passes the hook"    'git branch -d feature/tmp >/dev/null 2>&1'
+git config gitflow.protect false; git checkout -q main
+chk "T23j gitflow.protect=false → develop deletable (foreign-clone opt-out)" \
+    'git branch -D develop >/dev/null 2>&1 && ! git rev-parse --verify -q refs/heads/develop >/dev/null'
+git config --unset gitflow.protect
+chk "T23k CLI: hooks verb lists the four hooks" \
+    '[ "$(bash "$HERE/gitflow.sh" hooks | tr "\n" " ")" = "pre-commit post-commit post-merge reference-transaction " ]'
 
 echo
 echo "==== RESULT: $PASS passed, $FAIL failed ===="
