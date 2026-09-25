@@ -142,6 +142,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   (`profile.sh set <sel>`), since Steps 2 and 10 rewrite skill state on
   every run. Step 8.7 no longer parks the 21st pack unconditionally; the
   pack's state follows the profile.
+- **`full` profile gains four gstack skills** superpowers does not cover:
+  `scrape` and `skillify` (browser + dogfooding), `diagram` and `make-pdf`
+  (docs). Nothing removed; iOS skills, the `connect-chrome` duplicate and
+  gstack-internal tooling stay out.
 - **Routing around a guardrail is the same action** — new `hard_deny` entry: a
   refused command is never rerun through a wrapper script, alias, heredoc,
   Makefile target, env file, other shell or other agent; a refusal ends the
