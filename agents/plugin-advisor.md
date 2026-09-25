@@ -95,7 +95,7 @@ Output: `COMPLEXITY: <score>% — <label>` with one-line justification.
 ```
 PLUGIN CHECK
 ACTIVE: [plugin — status, one line each]
-PROFILE: [active skill profile — name + match%, or "custom"]
+PROFILE: [active skill profile — name + match%, or "<name> (default — not applied yet …)"]
 SIGNALS: [detected signals]
 COMPLEXITY: <score>% — <simple|moderate|complex|enterprise>
 PLAN: <Max|Pro|Free (echoed from REQUEST) | unknown (not provided)> (budget: ~<N>t | n/a)
@@ -313,10 +313,9 @@ matching `profile set` command:
 | comprehensive audit (security + SEO + perf) | `audit` | `bash $HOME/.claude/lib/profile.sh set audit` |
 | narrow session, minimal noise | `minimal` | `bash $HOME/.claude/lib/profile.sh set minimal` |
 
-To restore the full skill set: `bash $HOME/.claude/lib/profile.sh reset`.
-Plugin state is NOT touched by reset — re-enable a managed plugin manually
-or by applying a profile that lists it (e.g. `apply web` to restore
-`ui-ux-pro-max`).
+To go back to the default profile: `bash $HOME/.claude/lib/profile.sh reset`
+(= `set full`: enables full's list, parks non-listed gstack/managed items,
+toggles the managed plugins like any `set`).
 
 ## BLOCK if
 

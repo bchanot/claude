@@ -952,11 +952,11 @@ done
 echo ""
 
 # ============================================================
-# STEP 8.7 — 21ST.DEV CLI + SKILL PACK — installed but DISABLED by default
+# STEP 8.7 — 21ST.DEV CLI + SKILL PACK
 # ============================================================
-# `@21st-dev/cli` (bin `21st`) supersedes the `@21st-dev/magic` MCP server:
-# same endpoint, one browser login (`21st login`, token in ~/.config/21st),
-# no API key, no MCP process loaded into every session. It ships a pack of
+# `@21st-dev/cli` (bin `21st`): one browser login (`21st login`, token in
+# ~/.config/21st), no API key, no MCP process loaded into every session. It
+# ships a pack of
 # verified skills (21st-ui-build / -explore / -review / -cli-use / -ai /
 # -registry / -design-sync) that drive the CLI from Claude Code.
 #
@@ -966,10 +966,11 @@ echo ""
 # install under a staged HOME, then move each skill into skills-external/
 # (gitignored), where toggle-external.sh / profile.sh symlink it in.
 #
-# Default policy: pack DISABLED at install time — every skill description
-# loads into every session. Enable on demand:
-#   bash lib/toggle-external.sh enable 21st     (whole pack)
-#   /profile design                             (the 5 design skills)
+# The pack's state is governed by profiles, not by this step: Step 11
+# applies the default profile (`full`), which links the five design skills
+# in; the two publishing skills (21st-registry, 21st-design-sync) stay on
+# demand — no profile lists them, so they are never auto-linked. A re-run
+# must never re-park what the selected profile or the user already enabled.
 echo "── Step 8.7: 21st.dev CLI + skill pack ─────────────────────"
 echo ""
 if command -v 21st &>/dev/null; then
@@ -1041,19 +1042,9 @@ if command -v 21st &>/dev/null; then
   fi
 fi
 
-# Default-disabled, same policy as before the MCP→CLI move.
-if [ -x "$REPO/lib/toggle-external.sh" ]; then
-  TFD_STATUS="$(bash "$REPO/lib/toggle-external.sh" status 21st 2>/dev/null || echo missing)"
-  if [ "$TFD_STATUS" = "enabled" ]; then
-    info "Disabling the 21st skill pack by default (enable on demand)..."
-    bash "$REPO/lib/toggle-external.sh" disable 21st >/dev/null
-    ok "21st skill pack disabled — enable with: bash lib/toggle-external.sh enable 21st"
-  else
-    ok "21st skill pack disabled (default)"
-  fi
-else
-  warn "lib/toggle-external.sh not found or not executable — skipping"
-fi
+# The pack's state is governed by profiles (Step 11), not parked here: a
+# re-run must never re-park what the selected profile or the user enabled.
+# See the Step 11 banner for how the default profile applies.
 echo ""
 
 # ============================================================
@@ -1138,6 +1129,40 @@ fi
 echo ""
 
 # ============================================================
+# STEP 11 — DEFAULT PROFILE
+# ============================================================
+# The profile decides which skills / externals / plugins are on. No
+# selection yet (.active-profile absent, empty or legacy "none" — same
+# rule as lib/profile.sh active_profile()) → apply the default via
+# `profile.sh reset`. An existing selection is re-applied (`set`). Plugin legs
+# are install-immutable (the EXIT guard restores settings.json, BDR-028;
+# the committed enabledPlugins already match the default profile), so
+# only the skill / external legs matter here.
+echo "── Step 11: Default profile ────────────────────────────────"
+echo ""
+if [ -f "$REPO/lib/profile.sh" ]; then
+  SEL="$(head -n1 "$REPO/.active-profile" 2>/dev/null | tr -d '[:space:]' || true)"
+  case "$SEL" in
+    ""|none)
+      info "No profile selected — applying the default profile (bash lib/profile.sh reset)..."
+      bash "$REPO/lib/profile.sh" reset \
+        || warn "default profile not applied — run: bash lib/profile.sh reset"
+      ;;
+    *)
+      # Steps 2 (gstack parked) and 10 (link.sh re-links the design
+      # externals) rewrite skill state on every run: re-apply the
+      # selection so its state comes back, label unchanged.
+      info "Profile kept: $SEL — re-applying it (bash lib/profile.sh set $SEL)..."
+      bash "$REPO/lib/profile.sh" set "$SEL" \
+        || warn "profile $SEL not re-applied — run: bash lib/profile.sh set $SEL"
+      ;;
+  esac
+else
+  warn "lib/profile.sh not found — skipping the default profile"
+fi
+echo ""
+
+# ============================================================
 # SUMMARY
 # ============================================================
 echo ""
@@ -1162,7 +1187,7 @@ echo "    🔄 frontend-design     — distinctive frontend interfaces, anti-AI-
 echo "    🔄 impeccable          — /impeccable design verbs + 45-rule deterministic detector (npx impeccable detect)"
 echo "    🔄 design-motion-principles — motion/animation design, 3-designer lens (kylezantos)"
 echo "    🔄 darwin-skill        — autonomous skill optimizer (npx skills, ~/.agents/skills/)"
-echo "    🔄 21st skill pack     — 21st.dev CLI skills, 7 (toggle: lib/toggle-external.sh enable 21st)"
+echo "    🔄 21st skill pack     — 21st.dev CLI skills; design ones follow the profile (full by default), publishing ones on demand (toggle: lib/toggle-external.sh enable 21st)"
 echo ""
 echo "  All plugins installed at: user scope (~/.claude/plugins/)"
 echo "  GStack skills symlinked individually into ~/.claude/skills/ (→ submodule)"

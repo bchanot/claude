@@ -72,6 +72,12 @@ auto-touched. gstack works the same
 all the way down: a profile listing gstack skills while the whole pack is
 off (via `toggle-external.sh`) re-enables JUST those skills on demand.
 
+**Default profile**: `full` is in force whenever `.active-profile` is
+absent, empty, or the legacy `none` (statusline, `current`, `gstack off`,
+`reset` all resolve it the same way). `reset` applies it (`set full`,
+exclusive); a fresh `make plugin` applies it too when nothing has ever
+been selected.
+
 ## Commands
 
 ```bash
@@ -81,7 +87,7 @@ bash "$HOME/.claude/lib/profile.sh" list
 # Show profile contents + per-skill status
 bash "$HOME/.claude/lib/profile.sh" show <name>
 
-# Detect which profile is currently active
+# Report the active profile (label + match %)
 bash "$HOME/.claude/lib/profile.sh" current
 
 # Enable skills in profile (additive — keeps others enabled)
@@ -90,11 +96,11 @@ bash "$HOME/.claude/lib/profile.sh" apply <name>
 # Enable only skills in profile (disables non-listed gstack skills)
 bash "$HOME/.claude/lib/profile.sh" set <name>
 
-# Re-enable every gstack skill (undo any set/apply) — resets active label to "none"
+# Go to the default profile (full) — exclusive, same as `set full`
 bash "$HOME/.claude/lib/profile.sh" reset
 
 # Toggle gstack only, keeping the active-profile label intact
-bash "$HOME/.claude/lib/profile.sh" gstack on    # re-enable ALL gstack on top of current profile
+bash "$HOME/.claude/lib/profile.sh" gstack on    # restore parked gstack skills on top of the current profile
 bash "$HOME/.claude/lib/profile.sh" gstack off   # disable gstack skills not in the active profile
 
 # Compare two profiles
@@ -119,16 +125,18 @@ bash "$HOME/.claude/lib/profile.sh" $ARGUMENTS
 | `lib/profile.sh` absent (foreign machine, links broken) | `test -f "$HOME/.claude/lib/profile.sh"` before any verb; missing → propose `bash link.sh` from the config repo | STOP — never hand-move symlinks to emulate the script |
 | Unknown profile name (rc=1, `✗ Profile not found`) | Show `list` output + the closest existing name ("`desing` → did you mean `design`?") | Let the user pick — never guess-and-`set` |
 | Unknown verb (rc=1 + usage) | Re-map the request to the argument-hint verbs, retry once | Show usage, ask |
-| `set`/`apply` exits nonzero MID-TOGGLE (permission, plugin CLI failure) | State may be PARTIAL. Run `current` to show what actually took; name the failed item from the script's output | Offer `reset` as recovery to a known state; never blind-rerun `set` on top of partial state |
+| `set`/`apply` exits nonzero MID-TOGGLE (permission, plugin CLI failure) | State may be PARTIAL. Run `current` to show what actually took; name the failed item from the script's output | run `current`, then re-run `set <name>` or `reset` (both are full exclusive applies, not an always-safe undo) |
 | Plugin/MCP leg fails (marketplace/network) while symlink leg succeeded | Report the split state explicitly + print the manual `claude plugin`/`claude mcp` command for the failed leg | — |
-| `current` says `none` right after a successful `set <name>` | Contradiction — do not trust either; show the raw script output to the user | Known failure family (BLK: symlink resolution in `cmd_current`) — report, don't hand-patch |
+| `current` names a profile other than the one just set | Cache (`.active-profile`) was written by another tool or hand-edited — show the raw script output to the user | Never hand-patch `.active-profile` — re-run `set <name>` (or `reset`) to force it back |
 
 ## Output policy
 
 - After `set` / `apply` / `reset` / `gstack on|off`: show the count of skills
   moved + tell the user to start a new Claude session to pick up the changes
   (Claude scans `skills/` at session start).
-- After `current`: report the active profile + match percentage.
+- After `current`: report the active profile + match %; `default — not
+  applied yet` means the default profile is in force but not yet applied —
+  point the user at `reset`.
 - After `show`: render the grouped output directly — no extra commentary unless
   the user asks.
 

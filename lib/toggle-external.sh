@@ -26,7 +26,7 @@
 # audit skills, etc.) instead of all-or-nothing gstack toggling, use:
 #   bash lib/profile.sh list
 #   bash lib/profile.sh set <design|dev|qa|audit|minimal>
-#   bash lib/profile.sh reset
+#   bash lib/profile.sh reset       # back to the default profile (full)
 # ============================================================
 set -euo pipefail
 

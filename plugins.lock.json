@@ -23,7 +23,7 @@
   "21st": {
     "source": "npm:@21st-dev/cli",
     "version": "latest",
-    "note": "21st.dev CLI (bin `21st`) — supersedes the @21st-dev/magic MCP server (2026-09-22). Standalone CLI + a pack of 7 skills, no MCP, no API key: auth is `21st login` (browser token in ~/.config/21st). Install: npm install -g @21st-dev/cli. The skill pack is staged-installed into skills-external/21st-* by install-plugins.sh Step 8.7 — `21st skills install` refuses to write through the ~/.claude/skills symlink."
+    "note": "21st.dev CLI (bin `21st`) — standalone CLI + a pack of 7 skills, no MCP, no API key: auth is `21st login` (browser token in ~/.config/21st). Install: npm install -g @21st-dev/cli. The skill pack is staged-installed into skills-external/21st-* by install-plugins.sh Step 8.7 — `21st skills install` refuses to write through the ~/.claude/skills symlink."
   },
   "graphifyy": {
     "source": "pypi:graphifyy",

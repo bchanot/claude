@@ -62,10 +62,10 @@ profile: ## Run profile.sh (usage: make profile cmd="set design")
 profile-list: ## List skill profiles (design, dev, qa, audit, minimal)
 	@bash lib/profile.sh list
 
-profile-current: ## Detect which skill profile is currently active
+profile-current: ## Show the active profile (label + match)
 	@bash lib/profile.sh current
 
-profile-reset: ## Re-enable all gstack skills (undo any profile set)
+profile-reset: ## Go to the default profile (full)
 	@bash lib/profile.sh reset
 
 new-skill: ## Create a new skill scaffold (usage: make new-skill name=myskill)

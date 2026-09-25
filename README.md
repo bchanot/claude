@@ -172,7 +172,7 @@ a different package, ships its own conflicting `graphify` bin) — see
 | `/web-validate` | W3C HTML/CSS validity + WCAG 2.1 accessibility audit |
 | `/geo` | GEO-only audit — AI-search visibility (ChatGPT, Perplexity, Claude, Gemini…) |
 | `/client-handover` | Final project delivery — audits + branded deliverable (Markdown / HTML / PDF) |
-| `/profile` | Activate a skill profile (web / seo / web-full / full / backend / design / dev / qa / audit / minimal) |
+| `/profile` | Activate a skill profile (web / seo / web-full / full / backend / design / dev / qa / audit / minimal) (default: full) |
 | `/tour` | Grouped all-axes sweep — cleanup + security + reconcile + doc, fix and loop until clean |
 
 > This table lists personal skills. Gstack skills (investigate, review, retro,
@@ -263,15 +263,12 @@ claude mcp add <name> --scope user --env 'API_KEY=${SOME_API_KEY}' -- <command>
 The var still has to exist in the **environment of the process that starts
 `claude`** — sourcing `~/.claude/.env` into your everyday interactive shell
 would defeat the point (every subprocess, every stray `env`/`printenv`, would
-then see it). This repo's `~/.bashrc` instead wraps the `claude` command
-itself: a `claude()` shell function sources `~/.claude/.env` into a subshell
-and `exec`s the real binary, so the var reaches `claude` and its children only
-— never the ambient shell.
+then see it). Wrap the `claude` command instead: a `claude()` shell function
+that sources `~/.claude/.env` into a subshell and `exec`s the real binary, so
+the var reaches `claude` and its children only, never the ambient shell.
 
-This config currently registers no MCP server at all. The one it used to
-carry, `@21st-dev/magic`, is gone: 21st.dev replaced it with a plain CLI (see
-below), so there is no key left to protect by reference. The pattern stays
-documented for the next MCP server that needs a secret.
+This config registers no MCP server today. The pattern stays documented for
+the next one that needs a secret.
 
 There is no `claude mcp add` flag that writes the reference form for you —
 the `${VAR}` syntax has to be typed by hand (or via a wrapper script), same as
@@ -297,11 +294,12 @@ Then run the one-time consent flow: `make seo-connect` (per-label token
 store, multi-site safe). Missing credentials never break an audit — `/seo`
 degrades gracefully to anonymous PageSpeed lab data.
 
-### 21st.dev CLI (replaces the magic MCP)
+### 21st.dev CLI
 
-`@21st-dev/cli` (bin `21st`) supersedes the `@21st-dev/magic` MCP server that
-this config used to register. Same endpoint, one browser login, no API key,
-and nothing loaded into a session that isn't using it:
+`@21st-dev/cli` (bin `21st`) is the 21st.dev integration; it replaced the
+former Magic MCP server this config used to register. Same endpoint, one
+browser login, no API key, and nothing loaded into a session that isn't using
+it:
 
 ```bash
 npm i -g @21st-dev/cli
@@ -311,9 +309,11 @@ npm i -g @21st-dev/cli
 `make plugin` does both (Step 8.7 installs the CLI, then offers the login in
 an interactive terminal) and installs the skill pack that drives it:
 `21st-ui-build`, `-ui-explore`, `-ui-review`, `-cli-use`, `-ai`, plus the two
-publishing skills `-registry` and `-design-sync`. The pack is disabled by
-default, the same policy the MCP had. `/profile design` turns on the five
-design skills; `bash lib/toggle-external.sh enable 21st` turns on all seven.
+publishing skills `-registry` and `-design-sync`. The five design skills
+follow the active profile: they are on under `full`, the default profile,
+and under `design`, `web` and `web-full`. The two publishing skills,
+`-registry` and `-design-sync`, are in no profile and stay parked until
+`bash lib/toggle-external.sh enable 21st` turns on all seven.
 
 The pack is machine-owned and gitignored. It cannot be installed the way
 upstream documents it (`21st install-skill`, i.e. `21st skills install
@@ -322,11 +322,6 @@ follow a symlink anywhere on that path, while `~/.claude/skills` is itself a
 symlink to this repo's `skills/`. So the install runs under a throwaway `HOME`
 and the result is moved into `skills-external/21st-*`, where
 `toggle-external.sh` and `profile.sh` symlink it in on demand.
-
-Two risks from the MCP era go away with it. The unauthenticated local callback
-server `21st_magic_component_builder` opened (`127.0.0.1:9221+`, CORS `*`, a
-10-minute local prompt-injection window, job8 audit / LRN-110). And the API
-key that `claude mcp add --env` materialized into `~/.claude.json`.
 
 The permission gate is now one `autoMode.soft_deny` entry covering the
 outward-facing verbs (`21st publish*`, `submit`, `edit`, `delete`,
@@ -361,8 +356,8 @@ make onboard                # onboard an existing project (run from its dir)
 make seo-connect            # connect a Google account for /seo FULL (OAuth consent)
 make profile cmd="set X"    # activate a skill profile (web/seo/web-full/full/backend/design/dev/qa/audit/minimal)
 make profile-list           # list skill profiles
-make profile-current        # show the active profile
-make profile-reset          # re-enable all gstack skills
+make profile-current        # show the active profile (full when none selected)
+make profile-reset          # go to the default profile (full)
 make new-skill name=myskill # scaffold agent + skill files
 ```
 

@@ -122,6 +122,7 @@ rules:
 | BDR-098 | 2026-09-24 | CLAUDE.global.md density pass 352 → 270: compression only, three name-obvious routing lines dropped | accepted |
 | BDR-099 | 2026-09-24 | C2 coherence: 30 doctrine/skill tensions resolved, doctrine wins, BDR-068 kept as the written exception | accepted |
 | BDR-100 | 2026-09-24 | Guardrail evasion and partial rule changes get mechanisms, not lessons: refusal ends the attempt, citers census in make test | accepted |
+| BDR-101 | 2026-09-25 | `full` = default profile: no selection ⇒ full in force, `reset` applies it, install applies it | accepted |
 
 ---
 
@@ -1260,3 +1261,12 @@ Branch feature/user-writing-web-rules, UNMERGED (human gate).
 - **Alternatives rejected**: static deny on `bash <scratch>/*.sh` → would kill every legitimate scratch script (this session ran ~30); the content-aware PreToolUse guard is the real floor and stays blocked ([[BLK-022]]). Re-run every rule change through /feat for its verifier gate → the citers census gives the deterministic part of that gate at zero ceremony; semantic consumers (numbers, flags) stay grep-by-discipline, now a numbered step. Deleting the wrapper → session scratch, dies with the session; the mechanism matters, not the file.
 - **Status**: accepted, feature/guardrail-evasion-citers, UNMERGED (human gate). doctrine-citers 5/5 (flip + repo, one real dangling fixed), make test 168/170 (2 pre-existing T16a), `make test suite=` verified, shellcheck clean, CLAUDE.global.md 287 lines.
 - **Reference**: `Makefile`, `settings.json` hard_deny, `CLAUDE.global.md` Workflow + After code changes, `agents/*.md` (14), `lib/tests/doctrine-citers.test.sh`, `lib/project-archetypes/rest-api-node.md`. Links [[LRN-160]], [[LRN-164]], [[LRN-169]], [[EVAL-030]], [[BLK-022]], [[BDR-095]], [[BDR-099]].
+
+## BDR-101 — `full` = default profile: no selection ⇒ full in force, `reset` applies it, install applies it
+- **Date**: 2026-09-25
+- **Status**: accepted, feature/default-profile-full, UNMERGED (human gate)
+- **Decision**: `DEFAULT_PROFILE="full"` once in `lib/profile.sh`; `active_profile()` resolves cache absent / empty / legacy `none` → full. `reset` = `set full` (exclusive: enable full's list, park non-listed gstack/managed items). `current` label-driven: names `active_profile()`, scores THAT profile only, `default — not applied yet` until set/apply/reset wrote cache; cross-profile best-guess scan + `none`/`custom` sentinels gone. Statusline reads constant (sed, literal fallback), shows `full` not `?`. `make plugin` Step 11: no selection → `reset`, selection → `set <sel>` (Steps 2/10 rewrite skill state every run); Step 8.7 no longer parks 21st pack (profile governs: full links 5 design skills, 2 publishing stay on demand). User-gated: reset semantics, install applies default, README one history line, `.env` line deleted.
+- **Why**: user ask "profil par défaut = full". [[LRN-020]] kept honest: full made the REAL default (state = label), not a relabelled sentinel. Parked-gstack count was false signal: gstack OFF on real tree ([[BDR-030]]), 0 parked ≠ all enabled.
+- **Alternatives rejected**: label-only reset (lies about plugins/externals); additive reset (`gstack on` + `apply full`, state ⊇ full, label ambiguous); keep `none` sentinel + statusline `?` (request unmet); install display-only (fresh machine ≠ full, 21st pack parked); public `profile.sh default` verb for installer (reset already IS "go to default"); one shared cache parser (statusline must not spawn profile.sh → 3 copies kept, each commented).
+- **Caveats**: `make plugin` re-run re-applies selected profile → manual layering (`gstack on` over `dev`) trimmed back. Plugin legs of Step 11 install-immutable ([[BDR-028]] EXIT guard; committed enabledPlugins already match full). LOW security note: cache content not charset-checked before path use (pre-existing in `read_profile`) → follow-up.
+- **Reference**: commits e196328 (residue scrub), 0d035fc (profile), 1bbdad0 (install); contract/plan `2026-09-25-default-profile-full-1254`; `lib/tests/profile-default.test.sh` 29 checks. Links [[BDR-017]] [[BDR-018]] [[BDR-079]] [[BDR-093]] [[LRN-170]] [[EVAL-031]].

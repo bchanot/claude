@@ -1,9 +1,8 @@
 #!/usr/bin/env bash
 # lib/tests/profile-set-managed.test.sh — `set` symmetry on managed
-# externals, gstack on-demand, external from-source (BDR-079). The MCP
-# assertions went with `magic` (2026-09-22): MANAGED_MCPS is empty now, the
-# 21st skills that replaced it are managed as externals, so the pack's
-# park/restore round-trip is what this covers on that side.
+# externals, gstack on-demand, external from-source (BDR-079). No MCP is
+# managed (MANAGED_MCPS is empty): the 21st skills are managed as externals,
+# so the pack's park/restore round-trip is what this covers on that side.
 # Hermetic: fixture repo via *_REPO_OVERRIDE + fake `claude` on PATH.
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
