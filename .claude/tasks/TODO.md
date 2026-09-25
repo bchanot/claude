@@ -1,5 +1,12 @@
 # TODO
 
+## 2026-09-25 — full profile +4 gstack web/doc skills (bugfix/full-profile-web-doc-skills)
+User go after the "why is gstack off under full?" answer (it was not: unapplied
+default). `scrape`, `skillify`, `diagram`, `make-pdf` join full.profile; the rest
+of the BDR-017 exclusion list stays out. /hotfix: smoke 4/4, suites 29 + 17 green,
+security PASS, bbe1087 pushed. UNMERGED — human gate. After merge: `bash
+lib/profile.sh apply full` on this machine to link the four.
+
 ## 2026-09-25 — default profile = full + magic-MCP residue scrub (feature/default-profile-full)
 User: "retirer l'API de magic 21st … mettre un profil par défaut … full". Live magic
 wiring already gone (BDR-093); residue = prose + one `MAGIC_API_KEY=` line in
