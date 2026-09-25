@@ -22,6 +22,8 @@ design-html
 browse
 open-gstack-browser
 setup-browser-cookies
+scrape
+skillify
 
 # === Code work — implementation ======================================
 feat                              personal
@@ -61,6 +63,8 @@ qa-only
 # === Docs + translation ==============================================
 doc                               personal
 document-release
+diagram
+make-pdf
 pdf-translate                     personal
 
 # === Session hygiene + memory ========================================
