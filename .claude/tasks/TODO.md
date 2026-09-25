@@ -4,8 +4,9 @@
 User go after the "why is gstack off under full?" answer (it was not: unapplied
 default). `scrape`, `skillify`, `diagram`, `make-pdf` join full.profile; the rest
 of the BDR-017 exclusion list stays out. /hotfix: smoke 4/4, suites 29 + 17 green,
-security PASS, bbe1087 pushed. UNMERGED — human gate. After merge: `bash
-lib/profile.sh apply full` on this machine to link the four.
+security PASS, bbe1087. Merged into develop db8c179 (user go 2026-09-25);
+`apply full` run, four skills linked. Follow-up: `.gitignore` allowlist lacks
+`skills/diagram` (untracked symlink) → chore/gitignore-diagram.
 
 ## 2026-09-25 — default profile = full + magic-MCP residue scrub (feature/default-profile-full)
 User: "retirer l'API de magic 21st … mettre un profil par défaut … full". Live magic
