@@ -172,7 +172,7 @@ a different package, ships its own conflicting `graphify` bin) — see
 | `/web-validate` | W3C HTML/CSS validity + WCAG 2.1 accessibility audit |
 | `/geo` | GEO-only audit — AI-search visibility (ChatGPT, Perplexity, Claude, Gemini…) |
 | `/client-handover` | Final project delivery — audits + branded deliverable (Markdown / HTML / PDF) |
-| `/profile` | Activate a skill profile (web / seo / web-full / full / backend / design / dev / qa / audit / minimal) |
+| `/profile` | Activate a skill profile (web / seo / web-full / full / backend / design / dev / qa / audit / minimal) (default: full) |
 | `/tour` | Grouped all-axes sweep — cleanup + security + reconcile + doc, fix and loop until clean |
 
 > This table lists personal skills. Gstack skills (investigate, review, retro,
@@ -309,8 +309,10 @@ npm i -g @21st-dev/cli
 `make plugin` does both (Step 8.7 installs the CLI, then offers the login in
 an interactive terminal) and installs the skill pack that drives it:
 `21st-ui-build`, `-ui-explore`, `-ui-review`, `-cli-use`, `-ai`, plus the two
-publishing skills `-registry` and `-design-sync`. The pack is disabled by
-default. `/profile design` turns on the five design skills;
+publishing skills `-registry` and `-design-sync`. The five design skills
+follow the active profile: they are on under `full`, the default profile,
+and under `design`, `web` and `web-full`. The two publishing skills,
+`-registry` and `-design-sync`, are in no profile and stay parked until
 `bash lib/toggle-external.sh enable 21st` turns on all seven.
 
 The pack is machine-owned and gitignored. It cannot be installed the way
@@ -354,8 +356,8 @@ make onboard                # onboard an existing project (run from its dir)
 make seo-connect            # connect a Google account for /seo FULL (OAuth consent)
 make profile cmd="set X"    # activate a skill profile (web/seo/web-full/full/backend/design/dev/qa/audit/minimal)
 make profile-list           # list skill profiles
-make profile-current        # show the active profile
-make profile-reset          # re-enable all gstack skills
+make profile-current        # show the active profile (full when none selected)
+make profile-reset          # go to the default profile (full)
 make new-skill name=myskill # scaffold agent + skill files
 ```
 

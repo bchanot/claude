@@ -61,8 +61,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 - **21st.dev moved from an MCP server to a CLI.** `install-plugins.sh` Step 8.7
   installs `@21st-dev/cli` globally (pinned in `plugins.lock.json`), offers
   `21st login` in an interactive terminal only, and stages the 7-skill pack
-  into `skills-external/21st-*`. `update-all.sh` refreshes both. The pack
-  ships disabled, same policy the MCP had.
+  into `skills-external/21st-*`. `update-all.sh` refreshes both. The design
+  skills follow the profile (on under the default `full`); the two publishing
+  skills stay parked.
 - `lib/toggle-external.sh` manages `21st` as a skill pack (glob-derived from
   `skills-external/21st-*`, parked under plain names so `profile.sh`'s
   external park/restore stays interoperable). `magic` is gone from the
@@ -119,8 +120,28 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   guardrail tampering, pipe-to-shell, nested forms, scripts the command
   runs). The hook itself is not shipped (BLK-022); the spec skips cleanly
   until it lands.
+- **`lib/tests/profile-default.test.sh`** covers the default-profile
+  resolution (absent / empty / `none` cache), `reset` = `set full`, the
+  label-driven `current` lines and the statusline fallback, on a fixture
+  seeded like a real tree (gstack off, nothing linked).
 
 ### Changed
+- **Default profile = `full`.** With no selection (`.active-profile`
+  absent, empty, or the legacy `none`), `full` is in force: statusline,
+  `profile.sh current`, `gstack off` and `reset` all resolve it the same
+  way. `profile.sh reset` (and `make profile-reset`) now applies the
+  default profile, exclusively (= `set full`: enables full's list, parks
+  non-listed gstack and managed externals). It no longer means "re-enable
+  all gstack, plugins untouched". `profile.sh current` is label-driven: it
+  names the cached profile, or the default with "default, not applied yet"
+  until a `set`/`apply`/`reset` writes the cache, and scores that profile
+  only. The `none`/`custom` best guess is gone. The statusline shows `full`
+  instead of `?` when no profile is selected.
+- **`make plugin` Step 11 applies the default profile** when none is
+  selected (`profile.sh reset`) and re-applies an existing selection
+  (`profile.sh set <sel>`), since Steps 2 and 10 rewrite skill state on
+  every run. Step 8.7 no longer parks the 21st pack unconditionally; the
+  pack's state follows the profile.
 - **Routing around a guardrail is the same action** — new `hard_deny` entry: a
   refused command is never rerun through a wrapper script, alias, heredoc,
   Makefile target, env file, other shell or other agent; a refusal ends the
