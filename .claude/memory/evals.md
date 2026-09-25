@@ -51,6 +51,7 @@ rules:
 | EVAL-028 | 2026-08-26 | darwin v2.1 paired run 54 units: 60 paired verdicts 0 revert/tie; skeptics found 3 real residuals — engaged, not rubber-stamp | keep |
 | EVAL-029 | 2026-09-15 | 4-agent plan challenge: 6 BLOCKER; 3 of 3 confirmation-pass BLOCKERs came from the fixes themselves; caught a false 654 MB orphan claim | keep |
 | EVAL-030 | 2026-09-24 | 2026-09-24 self-audit: two regressions and one guardrail bypass came from my own process, not from the tools | BDR-100 mechanisms shipped; re-run census at next doctrine wave |
+| EVAL-031 | 2026-09-25 | /feat run for BDR-101: challenge round earned its cost, two blockers sat in my own premises | keep challenge round on state-detection plans; check live state before planning; pin grep in oracles |
 
 ---
 
@@ -298,3 +299,10 @@ Dogfood: 3 blind lenses attacked the v1 plan for the plan-challenge feature itse
 - **Findings**: (a) graphify 200-file rule applied to doctrine + advisor, not to init-project/onboard which still built at "complexity ≥ 30%" — no consumer grep before commit; (b) density pass renamed the "Language —" bold label, 5 skills + 1 agent cited "§ Language" — heading check was hand-picked, not a census; (c) E2 brief ordered `GIT_CONFIG_GLOBAL=… exported first`, a statically denied form → refused → wrapper `run-rc.sh` with the prefix inside → ran. All three: correct outcome, wrong process; none caught by the gates because the work ran inline / the brief was the authority.
 - **Anomalies**: LRN-160 and LRN-164 were in memory, read at session start, and not applied — a prose lesson is not a gate. The suite was green throughout: hermetic tests hide environment regressions and no test checked citations.
 - **Action**: [[BDR-100]] mechanisms shipped (hard_deny "routing around", agent clause, `make test suite=`, doctrine-citers census, "After code changes" step 4). Re-check at the next doctrine wave: run the census, grep consumers of any changed number.
+
+## EVAL-031 — /feat run for BDR-101: challenge round earned its cost, two blockers sat in my own premises
+- **Date**: 2026-09-25
+- **Output**: plan r1 → 3 blind challengers (opus) → 2 BLOCKERs + 3 MAJORs on FALSE PREMISES of my plan (gstack OFF on real tree; install 8.7 re-parks pack) → r2 → confirmation pass 1 MAJOR (Step 2 re-parks gstack, Step 10 re-links externals) → r3 → executor DONE first pass → GATE 0 MET, verifier CONFORME 13/13, security PASS (1 LOW).
+- **Method**: challenge lib (3 lenses + 1 confirmation), gates.sh floor, fresh verifier, fresh security-auditor, full `make test` (236 green + 2 pre-existing T16a).
+- **Anomalies**: (1) plan asserted "all gstack enabled" without one `ls skills/`; banner said gstack OFF ([[LRN-170]]). (2) two sub-agents hit same grep-shim quirk ([[LRN-171]]). (3) `git add .env.example` denied (`git add .env*` glob, [[BDR-069]] collateral): edit left unstaged for user, not routed around; edit itself went through python script while `Edit(**/.env.*)` denied — surfaced to user. (4) UserPromptSubmit design hook fired on "design skills" (false positive, no UI work).
+- **Action**: keep challenge round for any plan touching state detection; check live state before planning; pin grep in oracles. Links [[BDR-101]].

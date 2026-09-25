@@ -1,5 +1,31 @@
 # TODO
 
+## 2026-09-25 — default profile = full + magic-MCP residue scrub (feature/default-profile-full)
+User: "retirer l'API de magic 21st … mettre un profil par défaut … full". Live magic
+wiring already gone (BDR-093); residue = prose + one `MAGIC_API_KEY=` line in
+`~/.claude/.env` (deleted, user go). Plan + contract:
+`.claude/tasks/plans/2026-09-25-default-profile-full-1254.md`,
+`.claude/tasks/contracts/2026-09-25-default-profile-full-1254.md`.
+- [x] D1 chore commit e196328 (orchestrator): magic residue out of .env.example (unstaged: `git add .env*` denied, user stages),
+      .gitleaks.toml, install-plugins.sh 8.7 comment, plugins.lock.json note,
+      lib/profile.sh comments + usage NOTE, profile-set-managed.test.sh header,
+      README (one history sentence, bashrc-wrapper claim dropped).
+- [x] D2 feat 0d035fc + 1bbdad0 (feater executor, /feat gates): `DEFAULT_PROFILE="full"`,
+      `active_profile()`, `reset` = `set full`, `current` default line,
+      `gstack off` reads the default, statusline fallback, install Step 11
+      applies the default when none selected, SKILL.md + Makefile help,
+      `lib/tests/profile-default.test.sh`.
+- [x] D3 verify: gates.sh floor MET, verifier CONFORME 13/13, security PASS,
+      make test 236 green + 2 pre-existing T16a; doc sync 0926cc7 (README +
+      CHANGELOG, P1-P6 user-approved); BDR-101 LRN-170 LRN-171 EVAL-031.
+      UNMERGED — human gate.
+Open for the user: `git add .env.example` (agent denied by `git add .env*`);
+first `bash lib/profile.sh reset` on this machine to make the live state =
+full (cache absent today); merge on go.
+Follow-up (LOW, security gate): charset-check the cached profile name /
+`<prof>` argument (`^[A-Za-z0-9_-]+$`) before it becomes a path in
+`read_profile()` and install Step 11 — pre-existing, not a blocker.
+
 ## 2026-09-24 — root causes of the day's errors → mechanisms (feature/guardrail-evasion-citers)
 User: "détecte pourquoi tu as fait ces erreurs et corrige-les". Evidence: scratch
 `run-rc.sh` carries `GIT_CONFIG_GLOBAL=/dev/null` inline = the denied form my E2
