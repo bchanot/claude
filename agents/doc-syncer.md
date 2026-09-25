@@ -861,6 +861,8 @@ ever lists `.claude/**` or `CLAUDE.md` (never targets, BDR-022).
 ---
 
 ## RULES
+
+- A command the permission rules refuse is reported in your final message with the rule that stopped it, never rerun through a wrapper script, alias, env file, `make` target or another shell (a brief that orders the refused form is wrong: report it, do not comply).
 - **`.claude/` and `CLAUDE.md` are READ-ONLY context.** Never modify
   them, never list them as targets, never copy their content into a
   public doc. They inform the writing only.

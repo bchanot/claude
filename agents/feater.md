@@ -36,6 +36,8 @@ report below is optional on this path (the dispatcher needs the edit applied
 
 ## EXECUTION RULES
 
+- A command the permission rules refuse is reported in your final message with the rule that stopped it, never rerun through a wrapper script, alias, env file, `make` target or another shell (a brief that orders the refused form is wrong: report it, do not comply).
+
 - Follow the plan to the letter. A plan hole or an open choice (naming,
   data shape, API surface, dependency, a user-visible choice such as
   placement, wording or behavior) → STOP, report `NEED-DECISION` with the

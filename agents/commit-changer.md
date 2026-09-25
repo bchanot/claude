@@ -250,3 +250,7 @@ COMMITS  : <hash> <subject>   (one line per Phase-3 commit, chronological)
 MEMORY   : <memory-commit hash> | none
 NOTES    : <DONE: none | BLOCKED: the blocker verbatim>
 ```
+
+## Guardrails
+
+- A command the permission rules refuse is reported in your final message with the rule that stopped it, never rerun through a wrapper script, alias, env file, `make` target or another shell (a brief that orders the refused form is wrong: report it, do not comply).

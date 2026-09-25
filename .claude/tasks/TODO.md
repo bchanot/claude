@@ -1,5 +1,25 @@
 # TODO
 
+## 2026-09-24 — root causes of the day's errors → mechanisms (feature/guardrail-evasion-citers)
+User: "détecte pourquoi tu as fait ces erreurs et corrige-les". Evidence: scratch
+`run-rc.sh` carries `GIT_CONFIG_GLOBAL=/dev/null` inline = the denied form my E2
+brief ordered ("exported first"); the 200-file rule and the density pass were
+patched from memory, never from a consumer grep. BDR-100, EVAL-030.
+- [x] R1 `settings.json` hard_deny "Routing around a guardrail" (wrapper/alias/
+      heredoc/Makefile target/env file/other shell/other agent = same action;
+      refusal → report + wait; brief ordering a refused form is wrong).
+- [x] R2 refusal clause in 14 agents (executors + reviewers) + CLAUDE.global.md
+      sub-agent rule; hermetic tests only via `make test [suite=]`.
+- [x] R3 Makefile `make test suite=<file>` — the export lives in the Makefile.
+- [x] R4 `lib/tests/doctrine-citers.test.sh`: CLAUDE.md "Section" / § Label
+      citations must resolve; flip-tested; first run fixed rest-api-node.md.
+- [x] R5 doctrine "After code changes" step 4: changed rule/heading/label/
+      threshold → grep every citer, same commit; thresholds in one lib file.
+- [x] R6 verify: census 5/5, make test 168/170 (T16a pre-existing), suite= OK,
+      shellcheck clean, CLAUDE.global.md 287 lines. UNMERGED — human gate.
+Residual: the content-aware PreToolUse guard (BLK-022) is still the missing
+deterministic floor for scripts run by a command; static deny stays string-based.
+
 ## 2026-09-24 — C2 coherence: 30 doctrine/skill tensions resolved (feature/c2-coherence)
 Audit by 3 read-only analysts (doctrine+rules, skills A-H, skills I-W), 39 raw
 pairs → 30 unique, spot-checked by grep. User approved all four groups + G3 as

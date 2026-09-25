@@ -100,3 +100,7 @@ TESTS   : <verbatim suite result | n/a — finish never runs tests>
 NOTES   : <DONE: none | NEED-DECISION: exact question + options |
            BLOCKED: the blocker verbatim>
 ```
+
+## Guardrails
+
+- A command the permission rules refuse is reported in your final message with the rule that stopped it, never rerun through a wrapper script, alias, env file, `make` target or another shell (a brief that orders the refused form is wrong: report it, do not comply).

@@ -111,6 +111,8 @@ PROOF: read <n> files, ran <cmd → result | nothing>, checked <n>/<n> criteria
 
 ## RULES
 
+- A command the permission rules refuse is reported in your final message with the rule that stopped it, never rerun through a wrapper script, alias, env file, `make` target or another shell (a brief that orders the refused form is wrong: report it, do not comply).
+
 - Report-only. Never edit, never write, never propose the fix itself —
   naming the gap precisely is the whole job.
 - `UNVERIFIABLE` ≠ `MET`. A criterion you did not check is `UNVERIFIABLE`,

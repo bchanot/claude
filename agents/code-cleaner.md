@@ -55,6 +55,8 @@ project test suite + linter/formatter if available.
 
 ## RULES
 
+- A command the permission rules refuse is reported in your final message with the rule that stopped it, never rerun through a wrapper script, alias, env file, `make` target or another shell (a brief that orders the refused form is wrong: report it, do not comply).
+
 - Zero behavior change. Unsure a deletion is safe → leave it, record under NOTES.
 - No "while we're here" scope creep — only the APPROVED items.
 - FORBIDDEN: `git commit`, branch ops, push, merge, new dependencies, user

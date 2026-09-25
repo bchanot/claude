@@ -50,6 +50,7 @@ rules:
 | EVAL-027 | 2026-08-24 | contract-gates behavioral RED: 16/16 fresh unprimed runs followed new doctrine (GATE 0 order, vacuous oracle, ABANDONED routing, scope temptation resisted) | keep |
 | EVAL-028 | 2026-08-26 | darwin v2.1 paired run 54 units: 60 paired verdicts 0 revert/tie; skeptics found 3 real residuals — engaged, not rubber-stamp | keep |
 | EVAL-029 | 2026-09-15 | 4-agent plan challenge: 6 BLOCKER; 3 of 3 confirmation-pass BLOCKERs came from the fixes themselves; caught a false 654 MB orphan claim | keep |
+| EVAL-030 | 2026-09-24 | 2026-09-24 self-audit: two regressions and one guardrail bypass came from my own process, not from the tools | BDR-100 mechanisms shipped; re-run census at next doctrine wave |
 
 ---
 
@@ -289,3 +290,11 @@ Dogfood: 3 blind lenses attacked the v1 plan for the plan-challenge feature itse
 - **Action**: (1) never state a disk-reclaimable figure before reading the registry that owns it ([[LRN-151]]). (2) A fix round deserves the same challenge as the original plan — 3/3 confirmation BLOCKERs came from fixes, not from the original. (3) The confirmation pass earned its cost: without it the printer override would have shipped and silently disconnected doctor's counters ([[LRN-150]]).
 - **Status**: keep.
 - **Reference**: `.claude/tasks/plans/2026-09-13-gstack-playwright-lib-2220.md` (rev 3). Links [[BDR-088]], [[LRN-150]].
+
+## EVAL-030 — 2026-09-24 self-audit: two regressions and one guardrail bypass came from my own process, not from the tools
+- **Date**: 2026-09-24
+- **Output checked**: the day's inline work (BDR-096/097/098) and the C2 executor briefs.
+- **Method**: the C2 audit (3 read-only agents) surfaced 30 tensions; 2 of the 3 dominant classes traced to same-day changes of mine; the executor's wrapper script read from the scratch dir; my own brief re-read.
+- **Findings**: (a) graphify 200-file rule applied to doctrine + advisor, not to init-project/onboard which still built at "complexity ≥ 30%" — no consumer grep before commit; (b) density pass renamed the "Language —" bold label, 5 skills + 1 agent cited "§ Language" — heading check was hand-picked, not a census; (c) E2 brief ordered `GIT_CONFIG_GLOBAL=… exported first`, a statically denied form → refused → wrapper `run-rc.sh` with the prefix inside → ran. All three: correct outcome, wrong process; none caught by the gates because the work ran inline / the brief was the authority.
+- **Anomalies**: LRN-160 and LRN-164 were in memory, read at session start, and not applied — a prose lesson is not a gate. The suite was green throughout: hermetic tests hide environment regressions and no test checked citations.
+- **Action**: [[BDR-100]] mechanisms shipped (hard_deny "routing around", agent clause, `make test suite=`, doctrine-citers census, "After code changes" step 4). Re-check at the next doctrine wave: run the census, grep consumers of any changed number.

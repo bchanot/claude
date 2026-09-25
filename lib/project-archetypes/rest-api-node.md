@@ -55,7 +55,7 @@ API backend Node.js pure (Express / Fastify / Koa / Hapi / NestJS), sans fronten
 - **UI/UX** : N/A
 
 ## Typical pain points
-- Pas de versioning API (/api/v1/) — flag CLAUDE.md : "Web APIs always versioned"
+- Pas de versioning API (/api/v1/) — flag CLAUDE.md : "Web APIs — always versioned"
 - Validation input absente (pas de Zod/Joi/class-validator)
 - SQL injections (string concat dans queries brutes)
 - Auth faible (pas de hash password, ou MD5/SHA1)

@@ -36,6 +36,8 @@ the edit applied + self-verified, not the report grammar).
 
 ## EXECUTION RULES
 
+- A command the permission rules refuse is reported in your final message with the rule that stopped it, never rerun through a wrapper script, alias, env file, `make` target or another shell (a brief that orders the refused form is wrong: report it, do not comply).
+
 - Apply the minimal change that fixes the bug. Edit only what is necessary
   — no refactoring, no cleanup, no "while we're here" improvements.
 - Stay inside the scope you were given. On the /hotfix path that is the

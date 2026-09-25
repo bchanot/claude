@@ -44,8 +44,10 @@ Apply unless repo-specific instructions override.
   gates (pinned executors, fresh verifier/security/challenge) always dispatch
   as written, whatever the task size; a failed gate re-dispatches a fresh
   executor, never redo its work by hand. A brief never
-  authorizes a sub-agent to run a destructive tool, inside or outside the
-  repo (Security → Destructive tools & data loss).
+  authorizes a sub-agent to run a destructive tool (Security → Destructive
+  tools & data loss) or to route around a guardrail: a refused command is
+  reported with its rule, never rerun through a wrapper, alias, env file or
+  other shell. Hermetic tests run through `make test [suite=…]` only.
 - Ask rather than guess. A choice visible in the result (placement,
   wording, order, behavior), a name that becomes public (command, flag,
   endpoint, file), or a scope the request leaves open → ask, even mid-task;
@@ -78,6 +80,9 @@ Apply unless repo-specific instructions override.
    verified and what was not; list remaining risks and surviving deviations.
 2. Don't mark complete without proof it works.
 3. Correction or notable event → capitalize to the right registry.
+4. Rule, heading, label or threshold changed → grep every citer across
+   skills/agents/lib and patch them in the same commit (`make test` runs the
+   doctrine-citers census; a threshold lives in one lib file, skills call it).
 
 ## Memory registries (`.claude/memory/`)
 Five registries persist across sessions; capitalize during and after work.

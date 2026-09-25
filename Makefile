@@ -28,11 +28,13 @@ seo-connect: ## Connect a Google account for /seo FULL (creates venv, OAuth cons
 	@bash -c 'read -r -p "Label for this account (e.g. client-a): " label; \
 	 bash lib/seo-data/connect.sh --label "$$label"'
 
-test: ## Run deterministic tests (lib/tests/*.test.sh + lib/gitflow-test.sh + lib/tests/run-*.sh)
+SUITES = lib/tests/*.test.sh lib/seo-data/*.test.sh lib/gitflow-test.sh lib/tests/run-*.sh
+test: ## Run deterministic tests hermetically (one: make test suite=lib/tests/x.test.sh)
 	@# Hermetic git: the machine's global core.hooksPath (BDR-095) must not
-	@# fire inside the throwaway repos the suites build.
+	@# fire inside the throwaway repos the suites build. The export lives
+	@# HERE so nobody has to type the (denied) env-prefix form by hand.
 	@export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null; \
-	fail=0; for t in lib/tests/*.test.sh lib/seo-data/*.test.sh lib/gitflow-test.sh lib/tests/run-*.sh; do \
+	fail=0; for t in $(or $(suite),$(SUITES)); do \
 		echo "== $$t"; \
 		case "$$(basename "$$t")" in \
 			run-release-candidate.sh) RC_WORK=$$(mktemp -d) RC_TAG=1 bash "$$t" || fail=1 ;; \
