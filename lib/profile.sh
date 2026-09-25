@@ -81,9 +81,8 @@ MANAGED_EXTERNALS=(
 
 # MCP servers that are toggle-managed by `set`, both ways (enable AND
 # disable), delegated to lib/toggle-external.sh. Same allowlist doctrine.
-# Empty since 2026-09-22: `magic` was the only entry and 21st.dev replaced
-# its MCP server with a CLI + skill pack (the 5 design skills are managed as
-# externals above). The `mcp` type itself stays supported — a profile can
+# Empty: no MCP server is managed today (the 21st design skills are managed
+# as externals above). The `mcp` type itself stays supported — a profile can
 # still list an MCP, it is then advisory rather than auto-toggled.
 MANAGED_MCPS=()
 
@@ -330,10 +329,8 @@ enable_skill() {
       fi
       ;;
     mcp)
-      # Advisory only. The delegation branch that lived here served `magic`,
-      # the single managed MCP; 21st.dev replaced it with a CLI (BDR-093), so
-      # MANAGED_MCPS is empty and nothing is auto-registered. Re-add a branch
-      # here the day a profile owns an MCP server again.
+      # Advisory only: MANAGED_MCPS is empty, nothing is auto-registered.
+      # Re-add a delegation branch here the day a profile owns an MCP server.
       if [ "$(skill_status "$skill" mcp)" = "enabled" ]; then
         : # already on
       else
@@ -579,7 +576,7 @@ cmd_set() {
 
   # Symmetry (BDR-079): a profile switch also parks the managed external
   # packs and unregisters the managed MCPs the new profile does not need —
-  # design leftovers (emil, magic…) no longer survive a `set backend`.
+  # design leftovers (emil, the 21st pack…) no longer survive a `set backend`.
   disable_externals_not_in "$prof"
   disable_mcps_not_in "$prof"
 
@@ -739,9 +736,10 @@ EXAMPLES:
 NOTE:
   "set" toggles the MANAGED items automatically, both ways: plugins
   (ui-ux-pro-max, plugin-dev, pr-review-toolkit), external packs
-  (emil-design-eng, frontend-design, design-motion-principles, impeccable)
-  and the magic MCP. Anything outside those allowlists stays advisory —
-  run "claude plugin enable|disable" or "claude mcp add|remove" yourself.
+  (emil-design-eng, frontend-design, design-motion-principles, impeccable,
+  the five 21st design skills). Anything outside those allowlists stays
+  advisory — run "claude plugin enable|disable" or
+  "bash lib/toggle-external.sh enable|disable <tool>" yourself.
 EOF
 }
 

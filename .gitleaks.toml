@@ -68,8 +68,6 @@ regexes = [
   '''X-Amz-Credential=AKIA[0-9A-Z]{16}''',
   '''private-user-images\.githubusercontent\.com/[^"]*\?jwt=''',
   # Docs/test example — base64 of the "the ..." ASCII sample text, never a key.
-  # (The MAGIC_API_KEY=abc123 placeholder that sat here went with the magic
-  # MCP, removed 2026-09-22 when 21st.dev moved to a CLI with no API key.)
   '''clientKey = 'dGhlIH[A-Za-z0-9+/=]*'''',
 ]
 

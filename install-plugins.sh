@@ -954,9 +954,9 @@ echo ""
 # ============================================================
 # STEP 8.7 — 21ST.DEV CLI + SKILL PACK — installed but DISABLED by default
 # ============================================================
-# `@21st-dev/cli` (bin `21st`) supersedes the `@21st-dev/magic` MCP server:
-# same endpoint, one browser login (`21st login`, token in ~/.config/21st),
-# no API key, no MCP process loaded into every session. It ships a pack of
+# `@21st-dev/cli` (bin `21st`): one browser login (`21st login`, token in
+# ~/.config/21st), no API key, no MCP process loaded into every session. It
+# ships a pack of
 # verified skills (21st-ui-build / -explore / -review / -cli-use / -ai /
 # -registry / -design-sync) that drive the CLI from Claude Code.
 #
