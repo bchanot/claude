@@ -26,10 +26,11 @@
 #   profile.sh list                  list available profiles
 #   profile.sh show <name>           show contents of a profile (grouped by type)
 #   profile.sh show <name> --plain   parsable type+name list (no status, no claude)
-#   profile.sh current               detect which profile is active
+#   profile.sh current               report the active profile (label + match)
 #   profile.sh apply <name>          enable items in profile (additive)
 #   profile.sh set <name>            enable only profile (disables rest)
-#   profile.sh reset                 re-enable all gstack skills + managed plugins
+#   profile.sh reset                 go to the default profile (full): enable its
+#                                    list, park non-listed gstack/managed items
 #   profile.sh gstack on|off         toggle gstack, keeping active-profile label
 #   profile.sh diff <a> <b>          compare two profiles
 #
@@ -52,6 +53,7 @@ DISABLED_DIR="$REPO/skills-disabled"
 GSTACK_SRC="$REPO/skills-external/gstack"  # gstack submodule — source of truth for gstack skills
 PROFILES_DIR="$REPO/lib/profiles"
 ACTIVE_CACHE="$REPO/.active-profile"  # statusline reads this — keep fast (single-line file, profile name only)
+DEFAULT_PROFILE="full"  # profile in force when none is selected (cache absent, empty, or legacy "none")
 
 # Plugins that are toggle-managed by `set`. Anything NOT in this list is
 # never auto-disabled — protects always-on plugins (security-guidance,
@@ -106,6 +108,26 @@ info() { echo -e "${BLUE}ℹ${NC}  $1"; }
 write_active() {
   local name="$1"
   printf '%s\n' "$name" > "$ACTIVE_CACHE" 2>/dev/null || true
+}
+
+# First line of the cache, all whitespace stripped (tr -d, CRLF-proof).
+# Empty string when the cache is missing or empty. Never trips
+# `set -euo pipefail` (head's failure on a missing file is absorbed).
+read_cache() {
+  head -n1 "$ACTIVE_CACHE" 2>/dev/null | tr -d '[:space:]' || true
+}
+
+# The profile actually in force: the cached label, or DEFAULT_PROFILE when
+# the cache is absent, empty, or the legacy "none" sentinel. The ONE place
+# that resolves "no profile selected" — every reader of the cache goes
+# through this (or read_cache() when it needs the raw value).
+active_profile() {
+  local cached; cached="$(read_cache)"
+  if [ -z "$cached" ] || [ "$cached" = "none" ]; then
+    printf '%s' "$DEFAULT_PROFILE"
+  else
+    printf '%s' "$cached"
+  fi
 }
 
 # ── Profile parsing ────────────────────────────────────────
@@ -256,6 +278,25 @@ skill_status() {
       ;;
     *) echo "unknown" ;;
   esac
+}
+
+# How much of one profile is actually available right now. An item counts
+# as available when its status is "enabled" (skills, plugins, MCPs) or
+# "installed" (CLIs). Echo: "<available> <total>" — total 0 for an empty
+# profile. Used by cmd_current to score the ACTIVE label only (BDR-030:
+# scanning every profile for a best guess doesn't apply — gstack is off by
+# default, so a parked count says nothing about which profile is on).
+profile_match() {
+  local prof="$1" skill type status
+  local total=0 available=0
+  while IFS=$'\t' read -r skill type; do
+    total=$((total + 1))
+    status="$(skill_status "$skill" "$type")"
+    case "$status" in
+      enabled|installed) available=$((available + 1)) ;;
+    esac
+  done < <(read_profile "$prof")
+  printf '%d %d\n' "$available" "$total"
 }
 
 # ── Enable / disable ──────────────────────────────────────
@@ -585,39 +626,37 @@ cmd_set() {
 }
 
 cmd_reset() {
-  info "Re-enabling all gstack skills (move skills-disabled/gstack__* back)"
-  enable_all_gstack
-  info "Plugin state NOT touched. To re-enable a managed plugin disabled by 'set',"
-  info "run: claude plugin enable <name>@<marketplace>  (or: profile apply <profile>)"
-  write_active "none"
+  info "Resetting to the default profile: $DEFAULT_PROFILE (exclusive — enables its list, parks any non-listed gstack or managed item currently on)"
+  cmd_set "$DEFAULT_PROFILE"
 }
 
 # gstack on|off — focused gstack-only toggle that keeps the active-profile
-# label intact (unlike reset, which clears it to "none"). Lets the user
-# layer all gstack on top of their current profile, or trim it back down
-# to just what the active profile needs.
+# label intact (unlike reset, which switches to the default profile). Lets
+# the user layer all gstack on top of their current profile, or trim it
+# back down to just what the active profile needs.
 cmd_gstack() {
   local action="${1:-}"
   case "$action" in
     on)
-      # Re-enable ALL gstack skills, but DON'T touch active-profile — the
+      # Restore whatever is parked, but DON'T touch active-profile — the
       # user is adding gstack on top of their current profile, not clearing it.
       local parked
       parked="$(parked_gstack_count)"
       if [ "$parked" -eq 0 ]; then
-        info "all gstack skills already enabled"
+        info "nothing parked — gstack skills are linked per profile (set/apply/reset)"
       else
         enable_all_gstack
-        ok "all gstack enabled ($parked skills restored)"
+        ok "$parked parked gstack skills restored"
       fi
       ;;
     off)
-      # Disable gstack skills not needed by the active profile. Needs a real
-      # active profile to know what to keep.
+      # Disable gstack skills not needed by the active profile. A cache
+      # naming a profile with no lib/profiles/<name>.profile still errors;
+      # absent/empty/"none" resolve to the default profile via
+      # active_profile() and no longer hit that error.
       local active
-      active="$(head -n1 "$ACTIVE_CACHE" 2>/dev/null || echo none)"
-      [ -z "$active" ] && active="none"
-      if [ "$active" = "none" ] || [ ! -f "$PROFILES_DIR/$active.profile" ]; then
+      active="$(active_profile)"
+      if [ ! -f "$PROFILES_DIR/$active.profile" ]; then
         err "no active profile — 'gstack off' needs one to know what to keep"
         info "run: bash lib/profile.sh set <name>   then: gstack off"
         return 1
@@ -640,48 +679,27 @@ EOF
 }
 
 cmd_current() {
-  # A profile is "active" only if (a) most of its skills are enabled AND
-  # (b) at least one non-listed gstack skill is currently disabled (i.e. a
-  # `set` has actually been applied). Without (b), every profile reports
-  # 100% trivially because the full gstack is on.
-  local disabled_count=0
-  if [ -d "$DISABLED_DIR" ]; then
-    disabled_count=$(find "$DISABLED_DIR" -maxdepth 1 -name 'gstack__*' 2>/dev/null | wc -l | tr -d ' ')
-  fi
-  if [ "$disabled_count" -eq 0 ]; then
-    echo "none (all gstack skills enabled — no profile set)"
+  # Label-driven (BDR-030): name active_profile() and score ONLY that
+  # profile — no cross-profile best-guess scan, no fast path keyed on the
+  # parked-gstack count (that count says nothing about which profile is on
+  # when gstack starts off, as it does on a real tree).
+  local label; label="$(active_profile)"
+  if [ ! -f "$PROFILES_DIR/$label.profile" ]; then
+    echo "$label (unknown profile — no lib/profiles/$label.profile; run: profile reset)"
     return 0
   fi
-  # Pick the profile with the highest "available" ratio. An item counts as
-  # available when its status is "enabled" (skills, plugins, MCPs) or
-  # "installed" (CLIs). On ties, the profile with the larger total wins
-  # — superset profiles describe state more completely than subsets.
-  local f name total available score skill type status
-  local best="" best_score=0 best_total=0
-  for f in "$PROFILES_DIR"/*.profile; do
-    [ -f "$f" ] || continue
-    name="$(basename "$f" .profile)"
-    total=0; available=0
-    while IFS=$'\t' read -r skill type; do
-      total=$((total + 1))
-      status="$(skill_status "$skill" "$type")"
-      case "$status" in
-        enabled|installed) available=$((available + 1)) ;;
-      esac
-    done < <(read_profile "$name")
-    [ "$total" -eq 0 ] && continue
-    score=$((available * 100 / total))
-    if [ "$score" -gt "$best_score" ] || \
-       { [ "$score" -eq "$best_score" ] && [ "$total" -gt "$best_total" ]; }; then
-      best_score="$score"
-      best_total="$total"
-      best="$name"
-    fi
-  done
-  if [ -n "$best" ] && [ "$best_score" -ge 80 ]; then
-    echo "$best (${best_score}% match, $disabled_count gstack skills disabled)"
+
+  local available total pct
+  read -r available total <<<"$(profile_match "$label")"
+  pct=0
+  [ "$total" -gt 0 ] && pct=$((available * 100 / total))
+  local parked; parked="$(parked_gstack_count)"
+
+  local cached; cached="$(read_cache)"
+  if [ -z "$cached" ] || [ "$cached" = "none" ]; then
+    echo "$label (default — not applied yet, ${pct}% of its items enabled; run: profile reset)"
   else
-    echo "custom (best guess: ${best:-none} ${best_score}%, $disabled_count gstack skills disabled)"
+    echo "$label (${pct}% match, $parked gstack skills disabled)"
   fi
 }
 
@@ -708,10 +726,11 @@ USAGE:
   profile list              list all available profiles
   profile show <name>       show profile contents grouped by type + status
   profile show <name> --plain  parsable type+name list (no status, no claude)
-  profile current           detect which profile is currently active
+  profile current           report the active profile (label + match)
   profile apply <name>      enable skills in profile (additive)
   profile set <name>        enable only listed skills (disables rest of gstack)
-  profile reset             re-enable all gstack skills
+  profile reset             go to the default profile (full): enable its list,
+                            park non-listed gstack/managed items
   profile gstack on|off     toggle gstack only, keep active-profile label
   profile diff <a> <b>      compare two profiles
 
@@ -731,7 +750,7 @@ EXAMPLES:
   bash lib/profile.sh show design
   bash lib/profile.sh set design       # only design skills active
   bash lib/profile.sh apply qa         # add QA skills on top
-  bash lib/profile.sh reset            # restore everything
+  bash lib/profile.sh reset            # back to the default profile (full)
 
 NOTE:
   "set" toggles the MANAGED items automatically, both ways: plugins

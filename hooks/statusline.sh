@@ -20,12 +20,17 @@ BRANCH_STR="${BRANCH:+ ($BRANCH)}"
 
 REPO="$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
+# Default profile — same constant as lib/profile.sh's active_profile(),
+# read without sourcing the lib (speed). Unreadable lib → literal fallback.
+DEFAULT_PROFILE=$(sed -n 's/^DEFAULT_PROFILE="\([^"]*\)".*/\1/p' "$REPO/lib/profile.sh" 2>/dev/null)
+[ -n "$DEFAULT_PROFILE" ] || DEFAULT_PROFILE=full
+
 # Active profile (written by lib/profile.sh set|apply|reset to <repo>/.active-profile).
 # Read directly — `profile.sh current` is 12s+ and unusable in a statusline.
-PROFILE="?"
-if [ -f "$REPO/.active-profile" ]; then
-  PROFILE=$(head -n1 "$REPO/.active-profile" | tr -d '[:space:]')
-  [ -z "$PROFILE" ] && PROFILE="?"
+# Cache absent/empty/legacy "none" (same rule as active_profile()) → default.
+PROFILE=$(head -n1 "$REPO/.active-profile" 2>/dev/null | tr -d '[:space:]')
+if [ -z "$PROFILE" ] || [ "$PROFILE" = "none" ]; then
+  PROFILE="$DEFAULT_PROFILE"
 fi
 
 # Effort level from settings.json (.effortLevel — set by /effort or manual edit).
