@@ -19,9 +19,10 @@ wiring already gone (BDR-093); residue = prose + one `MAGIC_API_KEY=` line in
       make test 236 green + 2 pre-existing T16a; doc sync 0926cc7 (README +
       CHANGELOG, P1-P6 user-approved); BDR-101 LRN-170 LRN-171 EVAL-031.
       UNMERGED — human gate.
-Open for the user: `git add .env.example` (agent denied by `git add .env*`);
-first `bash lib/profile.sh reset` on this machine to make the live state =
-full (cache absent today); merge on go.
+Merged into develop 1ee6cf6 (user go 2026-09-25); `.env.example` committed by
+the user (16fea11). Open for the user: first `bash lib/profile.sh reset` on
+this machine to make the live state = full (cache absent today), then a new
+session.
 Follow-up (LOW, security gate): charset-check the cached profile name /
 `<prof>` argument (`^[A-Za-z0-9_-]+$`) before it becomes a path in
 `read_profile()` and install Step 11 — pre-existing, not a blocker.
