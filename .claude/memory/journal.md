@@ -518,3 +518,4 @@ rules:
 
 ## 2026-09-27
 - bugfix/gitignore-diagram-allowlist merged into develop on user go, `gitflow finish` → facd26d, pushed, copies removed by the lib. Day 2026-09-25 lot fully on develop: BDR-101 default profile, full +4 gstack skills, gitignore allowlist. No working branch anywhere; `skills/diagram` ignored.
+- 6-repo review, case 1 (ponytail + chisle, token-economy layer): rejected as plugins. Ponytail 146.7k stars, injects ~600 tok at SessionStart + every SubagentStart; chisle 566 stars, PostToolUse `updatedToolOutput` rewrite unverified on native tools, prose rules collide with writing-style.md; rtk already covers input axis (chisle bench: dedup 0 hit on rtk-filtered corpus); caveman purge precedent v3.5.0. Borrowed the ordered YAGNI ladder + `shortcut:` marker into CLAUDE.global.md § Code style, user go. feature/yagni-ladder UNMERGED.

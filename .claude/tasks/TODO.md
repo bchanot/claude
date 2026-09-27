@@ -1,5 +1,15 @@
 # TODO
 
+## 2026-09-27 — YAGNI ladder + shortcut marker in doctrine (feature/yagni-ladder)
+Case 1 of the 6-repo review (ponytail, chisle). Both rejected as plugins: per-turn
+and per-subagent injection, prose rules colliding with writing-style.md, caveman
+precedent (purged v3.5.0), rtk already covers the input axis. One net gain, the
+ordered decision ladder, borrowed into CLAUDE.global.md § Code style plus a
+`shortcut:` marker convention. 6 lines, 287 → 293, budget 320.
+- [x] L1 doctrine edit, doctrine-citers census, banner budget.
+UNMERGED — human gate. Cases 2-5 (agent-skills, ui-skills, reticle, OmniRoute)
+follow one by one.
+
 ## 2026-09-25 — full profile +4 gstack web/doc skills (bugfix/full-profile-web-doc-skills)
 User go after the "why is gstack off under full?" answer (it was not: unapplied
 default). `scrape`, `skillify`, `diagram`, `make-pdf` join full.profile; the rest
