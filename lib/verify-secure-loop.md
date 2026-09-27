@@ -63,7 +63,9 @@ coverage threshold) that an LLM verdict alone can miss or be talked past
 one line at a time. Its findings fold straight into that same verifier's
 `ECARTS` count unless the contract's `CLARIFICATIONS` explicitly authorizes
 the exact weakening; there is no separate gate and no extra dispatch, it
-rides this GATE 1 call.
+rides this GATE 1 call. A `floor-guard: allow` waiver outside a test file
+is a finding too unless the contract's `CLARIFICATIONS` names it: the
+waiver is self-service, the contract is human-gated (BDR-102 amendment).
 
 Parse its single `VERIFY — VERDICT:` line:
 

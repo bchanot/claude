@@ -24,7 +24,10 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   `floor-guard: allow <reason>` waiver, rc 0/2/3. Mandatory verifier
   STEP 3 (`agents/verifier.md`), documented under GATE 1 of
   `lib/verify-secure-loop.md`. Suite `lib/tests/floor-guard.test.sh`: 6
-  kinds plus a WAIVED and a CLEAN fixture, each flip-tested. Adapted from agent-skills `constraint-driven-development`.
+  kinds plus a WAIVED and a CLEAN fixture, each flip-tested. Waivers
+  outside test files count as gaps unless the contract's CLARIFICATIONS
+  names them (security-gate MEDIUM, user chose strict). Adapted from
+  agent-skills `constraint-driven-development`.
 - **`lib/tests/skill-routing-census.test.sh`** (+ `lib/skill-routing-census.py`)
   — TF-IDF cosine census of skill-description collisions across the live
   catalog (routing ambiguity, not naming): top 10 pairs, WARN ≥ 0.50,

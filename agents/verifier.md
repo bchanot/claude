@@ -83,12 +83,17 @@ bash ~/.claude/lib/floor-guard.sh <base> -- <pathspec>...
 `<base>` = the branch's gitflow base (develop; main for a hotfix/release).
 Parse the single `FLOOR GUARD:` line:
 
-- `clean` (rc 0) → no finding, continue to STEP 4.
+- `clean` (rc 0) → no unwaived finding; still apply the WAIVED rule below.
 - `<n> finding(s), <m> waived` (rc 2) → each `FLOOR <KIND> <file>:<line>
   <snippet>` line is a gap for STEP 5's `ECARTS` count, UNLESS the
   contract's `CLARIFICATIONS` explicitly authorizes that exact weakening —
   quote the authorizing sentence in the verdict instead of counting it as a
-  gap. `WAIVED` lines are informational only, never a gap.
+  gap.
+- `WAIVED <KIND> <file>:<line>` lines (either rc): on a test file (path
+  holds `test`, `spec` or `__tests__`) they are informational. Anywhere
+  else the waiver is self-service by construction, so it is a gap UNLESS
+  the contract's `CLARIFICATIONS` names that file and the reason — quote
+  it. The tool prints, the contract authorizes, the verifier counts.
 - rc 3 (usage error) → a structural failure like a missing contract: retry
   once (base ref or pathspec likely wrong), a second failure escalates.
 
