@@ -20,8 +20,8 @@ fresh verifier → fresh security-auditor). Case 1 lives on feature/yagni-ladder
       BDR-102 LRN-172 LRN-173 EVAL-032. UNMERGED — human gate.
 Follow-up (not started): per-skill positive/negative prompt ranking (Tier 2
 second half); `make link` after merge to symlink the 3 skills (user runs it);
-floor-guard waiver policy (security MEDIUM: self-service `floor-guard: allow`
-→ require a CLARIFICATIONS ack outside test fixtures?) — user decision;
+floor-guard waiver policy: user chose strict (CLARIFICATIONS ack outside
+test files, else gap) → applied in agents/verifier.md STEP 3 + loop doc;
 frame floor-guard snippets as data in the verifier step (LOW); `/tmp/tmp.AAyJzvufO6`
 scratch dir from an executor proof, `rm -rf` refused → user removes; contract
 skeleton must carry `EVIDENCE: pending` (LRN-173, check /feat's template).
