@@ -1,5 +1,30 @@
 # TODO
 
+## 2026-09-27 — case 7: MengTo motion pack → vendor 5 + build site-motion (feature/mengto-site-motion)
+User go "ok pour 1, l'hybride" after two analyzers read 22 skills. Contracts under
+`.claude/tasks/contracts/2026-09-27-{mengto-vendor,site-motion-skill}-*`, two feater
+executors in parallel, gates replayed (gates.sh → fresh verifier → security).
+- [x] M1 2a1ad17 vendor scroll-world-storytelling, build-threejs-scroll-worlds (+5 refs),
+      scroll-scrubbed-visual-sequence, scroll-scrubbed-word-reveal,
+      scroll-progress-timeline at pinned a965851 via a shared `lib/vendor-skills.sh`
+      (agent-skills moves onto it), design profiles, hermetic suite.
+- [x] M2 ba14b5e `skills/site-motion/SKILL.md` + test-prompts.json: distilled invariants
+      (gates, engine choice, Lenis sync, Astro ClientRouter lifecycle, numbered
+      recipes, upstream pitfalls), routing line in CLAUDE.global.md + design-gate.
+- [x] M3 gates MET ×2, verifiers CONFORME ×2 after 3 re-dispatches, security PASS ×2,
+      make test 36 suites green minus 2 pre-existing T16a, CHANGELOG, BDR-104 LRN-174
+      EVAL-033. UNMERGED — human gate. After merge: `make link` + `bash lib/profile.sh
+      apply full`; user removes `/tmp/mengto-verify`.
+Follow-up LOW (security): `SAFE` regex `$` accepts a trailing newline (use `\Z`);
+`source`/`path`/`commit` lock fields not charset-checked in lib/vendor-skills.sh.
+Skipped on purpose (analysis 2026-09-27): cinematic-gsap-lenis (reduced-motion bug),
+cinematic-scroll-storytelling (50 % duplicate), build-awwwards-quality-sites (0 code),
+animation-systems, gsap, threejs (⊂ ui-ux-pro-max threejs.csv), cobejs, matterjs,
+marquee-loop, masked-reveal (gate bug), animation-on-scroll (no-JS bug),
+progressive-blur, webgl-landing-steering, staggered-word-reveal (covered),
+gsap-scrolltrigger-storytelling (empty), optimize-web-animations (Codex machinery),
+performance-profiling (Xcode). Their invariants live in site-motion.
+
 ## 2026-09-27 — case 5 of the 6-repo review: OmniRoute rejected (chore/six-repo-review-notes)
 Gateway to 357 providers via `ANTHROPIC_BASE_URL` → localhost:20128; needs provider
 API keys, a Claude Pro/Max subscription cannot go through it. No gap here: Claude-only
