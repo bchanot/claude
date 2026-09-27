@@ -24,6 +24,9 @@
 #   observability-and-instrumentation, deprecation-and-migration,
 #   ci-cd-and-automation — the agent-skills trio, same single-symlink shape
 #   as emil-design-eng (commit-pinned instead of main-branch tracking)
+#   scroll-world-storytelling, build-threejs-scroll-worlds,
+#   scroll-scrubbed-visual-sequence, scroll-scrubbed-word-reveal,
+#   scroll-progress-timeline — the Mengto scroll skills, same shape
 #
 # For fine-grained activation (only design skills, only qa skills, only
 # audit skills, etc.) instead of all-or-nothing gstack toggling, use:
@@ -44,7 +47,10 @@ err()  { echo -e "${RED}✗${NC} $1"; }
 
 # All non-plugin tools this script can toggle.
 MANAGED_TOOLS=(gstack emil-design-eng darwin-skill 21st
-  observability-and-instrumentation deprecation-and-migration ci-cd-and-automation)
+  observability-and-instrumentation deprecation-and-migration ci-cd-and-automation
+  scroll-world-storytelling build-threejs-scroll-worlds
+  scroll-scrubbed-visual-sequence scroll-scrubbed-word-reveal
+  scroll-progress-timeline)
 
 # Prints the skill names that belong to the "21st" pack. Source of truth:
 # skills-external/21st-* — the `21st skills install` run in install-plugins.sh
@@ -80,7 +86,9 @@ status_tool() {
       done < <(gstack_skills)
       echo "disabled"
       ;;
-    emil-design-eng|observability-and-instrumentation|deprecation-and-migration|ci-cd-and-automation)
+    emil-design-eng|observability-and-instrumentation|deprecation-and-migration|ci-cd-and-automation| \
+    scroll-world-storytelling|build-threejs-scroll-worlds|scroll-scrubbed-visual-sequence| \
+    scroll-scrubbed-word-reveal|scroll-progress-timeline)
       [ -d "$REPO/skills-external/$tool" ] || { echo "missing"; return; }
       [ -e "$SKILLS_DIR/$tool" ] && echo "enabled" || echo "disabled"
       ;;
@@ -119,7 +127,9 @@ disable_tool() {
       done < <(gstack_skills)
       ok "gstack disabled ($moved symlinks moved)"
       ;;
-    emil-design-eng|darwin-skill|observability-and-instrumentation|deprecation-and-migration|ci-cd-and-automation)
+    emil-design-eng|darwin-skill|observability-and-instrumentation|deprecation-and-migration| \
+    ci-cd-and-automation|scroll-world-storytelling|build-threejs-scroll-worlds| \
+    scroll-scrubbed-visual-sequence|scroll-scrubbed-word-reveal|scroll-progress-timeline)
       if [ -e "$SKILLS_DIR/$tool" ]; then
         rm -rf "${DISABLED_DIR:?}/${tool:?}"
         mv "$SKILLS_DIR/$tool" "$DISABLED_DIR/$tool"
@@ -169,7 +179,9 @@ enable_tool() {
         ok "gstack enabled ($moved symlinks restored)"
       fi
       ;;
-    emil-design-eng|darwin-skill|observability-and-instrumentation|deprecation-and-migration|ci-cd-and-automation)
+    emil-design-eng|darwin-skill|observability-and-instrumentation|deprecation-and-migration| \
+    ci-cd-and-automation|scroll-world-storytelling|build-threejs-scroll-worlds| \
+    scroll-scrubbed-visual-sequence|scroll-scrubbed-word-reveal|scroll-progress-timeline)
       local src
       case "$tool" in
         darwin-skill) src="$HOME/.agents/skills/$tool" ;;

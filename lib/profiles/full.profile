@@ -86,6 +86,11 @@ impeccable                        external
 observability-and-instrumentation  external
 deprecation-and-migration          external
 ci-cd-and-automation               external
+scroll-world-storytelling          external
+build-threejs-scroll-worlds        external
+scroll-scrubbed-visual-sequence    external
+scroll-scrubbed-word-reveal        external
+scroll-progress-timeline           external
 ui-ux-pro-max                     plugin@ui-ux-pro-max-skill
 # pr-review-toolkit REMOVED from full (audit 2026-07-02 #12): heaviest
 # single plugin cost (~2.2k tokens of agent descriptions/session), useful
@@ -98,6 +103,9 @@ ui-ux-pro-max                     plugin@ui-ux-pro-max-skill
 21st-ui-review                    external
 21st-cli-use                      external
 21st-ai                           external
+
+# Personal: motion implementation companion (skills/site-motion)
+site-motion                       personal
 
 # === CLIs (advisory) =================================================
 21st                              cli

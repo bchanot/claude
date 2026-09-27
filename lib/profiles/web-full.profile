@@ -49,12 +49,20 @@ emil-design-eng                   external
 frontend-design                   external
 design-motion-principles          external
 impeccable                        external
+scroll-world-storytelling         external
+build-threejs-scroll-worlds       external
+scroll-scrubbed-visual-sequence   external
+scroll-scrubbed-word-reveal       external
+scroll-progress-timeline          external
 21st-ui-build                     external
 21st-ui-explore                   external
 21st-ui-review                    external
 21st-cli-use                      external
 21st-ai                           external
 ui-ux-pro-max                     plugin@ui-ux-pro-max-skill
+
+# Personal: motion implementation companion (skills/site-motion)
+site-motion                       personal
 
 # === CLIs ============================================================
 21st                              cli

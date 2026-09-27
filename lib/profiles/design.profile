@@ -31,6 +31,16 @@ frontend-design                   external
 design-motion-principles          external
 impeccable                        external
 
+# External: Mengto scroll-choreography skills (curl, commit-pinned)
+scroll-world-storytelling         external
+build-threejs-scroll-worlds       external
+scroll-scrubbed-visual-sequence   external
+scroll-scrubbed-word-reveal       external
+scroll-progress-timeline          external
+
+# Personal: motion implementation companion (skills/site-motion)
+site-motion                       personal
+
 # External: 21st.dev pack — CLI-driven (no MCP, no API key). 21st-registry
 # and 21st-design-sync are publishing flows; installed but left parked.
 21st-ui-build                     external
