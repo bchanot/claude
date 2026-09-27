@@ -18,6 +18,21 @@ paths: ["**/*.html", "**/*.astro", "**/*.css", "**/*.scss", "**/*.tsx", "**/*.js
 - Inter, Geist or Space Grotesk as the default font: propose an
   alternative and justify it. Existing brand identities keep their fonts.
 
+## Write-time reflexes (stack-agnostic, from ui-skills)
+- Full height: `100dvh`, never `100vh`; fixed elements respect
+  `safe-area-inset`. Never block paste in inputs.
+- Numbers: `tabular-nums`. Headings `text-wrap: balance`, body `pretty`.
+  Long labels: truncate or line-clamp, never overflow.
+- One z-index scale from tokens, no arbitrary values.
+- Motion: transform and opacity only; feedback under 200 ms, ease-out on
+  entrances, never from scale(0); `will-change` only during an active
+  animation; pause loops off-screen; honor `prefers-reduced-motion`.
+- Touch targets 44 px minimum; visible `:focus-visible` ring; status never
+  by color alone, add text or an icon.
+- Errors next to the field; empty state = one clear action; destructive
+  action confirmed first.
+- One accent color per view; solid modal backdrop, no full-screen blur.
+
 ## Before declaring a public site done
 Check: custom 404 · call to action in the first viewport · per-page
 title + description · share/OG image · favicons · robots.txt · sitemap ·
