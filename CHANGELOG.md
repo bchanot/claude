@@ -7,6 +7,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- **rules/web-building.md § Write-time reflexes** — stack-agnostic
+  micro-rules borrowed from ibelick/ui-skills (baseline-ui + playbook): dvh
+  and safe-area, paste never blocked, tabular-nums and text-wrap, one
+  z-index scale, compositor-only motion with reduced-motion and off-screen
+  pause, 44 px targets and focus-visible, status never by color alone,
+  errors next to the field, one accent per view. Case 3 of the 6-repo
+  review: nothing installed (CLI and MCP are a curl of raw SKILL.md, a
+  third router, and baseline-ui's stack mandates contradict Astro-first).
 - **Agent Skills trio** (`observability-and-instrumentation`,
   `deprecation-and-migration`, `ci-cd-and-automation`) — vendored from
   addyosmani/agent-skills at a pinned commit (`agent-skills` entry in
