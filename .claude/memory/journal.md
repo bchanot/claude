@@ -518,3 +518,4 @@ rules:
 
 ## 2026-09-27
 - bugfix/gitignore-diagram-allowlist merged into develop on user go, `gitflow finish` → facd26d, pushed, copies removed by the lib. Day 2026-09-25 lot fully on develop: BDR-101 default profile, full +4 gstack skills, gitignore allowlist. No working branch anywhere; `skills/diagram` ignored.
+- Case 3 user go: rules/web-building.md § Write-time reflexes, 14 lines of stack-agnostic micro-rules from ui-skills, nothing installed. feature/web-building-microrules UNMERGED. Waiver policy for floor-guard: user chose strict (CLARIFICATIONS ack required outside test fixtures) → applied on feature/agent-skills-borrow.

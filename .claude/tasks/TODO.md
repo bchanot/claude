@@ -1,5 +1,12 @@
 # TODO
 
+## 2026-09-27 — case 3 of the 6-repo review: ui-skills → web-building micro-rules (feature/web-building-microrules)
+User go after the analysis: 7 own skills + 36 third-party registry entries, all
+covered locally (impeccable, web-validate, /seo, emil, brightdata design-mirror)
+except a dozen stack-agnostic write-time micro-rules. Nothing installed.
+- [x] W1 rules/web-building.md § Write-time reflexes (+14 lines), CHANGELOG.
+UNMERGED — human gate.
+
 ## 2026-09-25 — full profile +4 gstack web/doc skills (bugfix/full-profile-web-doc-skills)
 User go after the "why is gstack off under full?" answer (it was not: unapplied
 default). `scrape`, `skillify`, `diagram`, `make-pdf` join full.profile; the rest
