@@ -126,6 +126,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   seeded like a real tree (gstack off, nothing linked).
 
 ### Changed
+- **CLAUDE.global.md § Code style** — the ordered YAGNI decision ladder
+  (not needed → reuse → stdlib → platform → installed dependency → one line
+  → the minimum that works, after understanding the problem) and a
+  `shortcut:` comment convention for assumed shortcuts, harvested into
+  TODO.md. Six lines, 287 → 293 of the 320 budget. Case 1 of the 6-repo
+  review: ponytail and chisle rejected as plugins (per-turn and
+  per-subagent injection, prose rules colliding with writing-style.md,
+  the caveman purge precedent, rtk already covering the input axis).
 - **Default profile = `full`.** With no selection (`.active-profile`
   absent, empty, or the legacy `none`), `full` is in force: statusline,
   `profile.sh current`, `gstack off` and `reset` all resolve it the same
