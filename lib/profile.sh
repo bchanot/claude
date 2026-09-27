@@ -79,6 +79,9 @@ MANAGED_EXTERNALS=(
   21st-ui-review
   21st-cli-use
   21st-ai
+  observability-and-instrumentation
+  deprecation-and-migration
+  ci-cd-and-automation
 )
 
 # MCP servers that are toggle-managed by `set`, both ways (enable AND
@@ -756,7 +759,9 @@ NOTE:
   "set" toggles the MANAGED items automatically, both ways: plugins
   (ui-ux-pro-max, plugin-dev, pr-review-toolkit), external packs
   (emil-design-eng, frontend-design, design-motion-principles, impeccable,
-  the five 21st design skills). Anything outside those allowlists stays
+  the five 21st design skills, the agent-skills trio
+  observability-and-instrumentation/deprecation-and-migration/
+  ci-cd-and-automation). Anything outside those allowlists stays
   advisory — run "claude plugin enable|disable" or
   "bash lib/toggle-external.sh enable|disable <tool>" yourself.
 EOF

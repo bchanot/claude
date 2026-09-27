@@ -65,6 +65,9 @@ skills/ios-sync
 skills/design-motion-principles
 skills/emil-design-eng
 skills/frontend-design
+skills/ci-cd-and-automation
+skills/deprecation-and-migration
+skills/observability-and-instrumentation
 
 # Impeccable — NOT a symlink: `impeccable skills install --scope=global`
 # writes the skill dir (and its ~15 MB engine binary) straight in through the
@@ -176,6 +179,15 @@ skills-external/frontend-design/
 # run. Not vendored: tracking it produced a repo diff each time upstream shipped
 # an edit. The source is always re-fetched, so no offline copy is needed.
 skills-external/emil-design-eng/
+
+# Agent Skills trio (addyosmani/agent-skills) — machine-owned, curl'd at the
+# commit pinned in plugins.lock.json ("agent-skills" entry) by
+# install-plugins.sh Step 8e (when absent) and re-fetched at the SAME commit
+# by update-all.sh. Not vendored: this is a pin, not a tracked snapshot —
+# bump the commit deliberately to pick up an upstream edit.
+skills-external/observability-and-instrumentation/
+skills-external/deprecation-and-migration/
+skills-external/ci-cd-and-automation/
 
 # 21st.dev skill pack — machine-owned: `21st skills install` output, staged by
 # install-plugins.sh Step 8.7 (the installer refuses to write through the

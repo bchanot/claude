@@ -13,7 +13,8 @@ check() { if [ "$2" = "$3" ]; then pass=$((pass+1)); else fail=$((fail+1));
 FX="$(mktemp -d)"; trap 'rm -rf "$FX"' EXIT
 mkdir -p "$FX/skills" "$FX/skills-disabled" "$FX/lib/profiles" "$FX/bin" \
   "$FX/skills-external/emil-design-eng" "$FX/skills-external/other-ext" \
-  "$FX/skills-external/21st-ui-build"
+  "$FX/skills-external/21st-ui-build" \
+  "$FX/skills-external/observability-and-instrumentation"
 for g in gs-a gs-b gs-c; do
   mkdir -p "$FX/skills-external/gstack/$g"
   touch "$FX/skills-external/gstack/$g/SKILL.md"
@@ -26,8 +27,9 @@ ln -s "$FX/skills-external/other-ext" "$FX/skills/other-ext"
 cat > "$FX/lib/profiles/designish.profile" <<'EOF'
 gs-a
 gs-b
-emil-design-eng   external
-21st-ui-build     external
+emil-design-eng                     external
+21st-ui-build                       external
+observability-and-instrumentation   external
 EOF
 cat > "$FX/lib/profiles/backendish.profile" <<'EOF'
 gs-c
@@ -53,6 +55,7 @@ check T2-gsb-on   "$([ -e "$FX/skills/gs-b" ] && echo on || echo off)" on
 check T3-gsc-off  "$([ -e "$FX/skills/gs-c" ] && echo on || echo off)" off
 check T4-emil-src "$([ -L "$FX/skills/emil-design-eng" ] && echo on || echo off)" on
 check T5-21st-src "$([ -L "$FX/skills/21st-ui-build" ] && echo on || echo off)" on
+check T5b-obs-src "$([ -L "$FX/skills/observability-and-instrumentation" ] && echo on || echo off)" on
 check T6-no-mcp   "$(grep -c '^mcp ' "$FX/claude-calls.log" || true)" 0
 
 # --- set backendish: managed leftovers parked/unregistered ---
@@ -63,6 +66,8 @@ check T9-emil-off  "$([ -e "$FX/skills/emil-design-eng" ] && echo on || echo off
 check T10-emil-park "$([ -e "$FX/skills-disabled/emil-design-eng" ] && echo p || echo n)" p
 check T11-21st-off "$([ -e "$FX/skills/21st-ui-build" ] && echo on || echo off)" off
 check T12-21st-park "$([ -e "$FX/skills-disabled/21st-ui-build" ] && echo p || echo n)" p
+check T12b-obs-off  "$([ -e "$FX/skills/observability-and-instrumentation" ] && echo on || echo off)" off
+check T12c-obs-park "$([ -e "$FX/skills-disabled/observability-and-instrumentation" ] && echo p || echo n)" p
 check T13-other-untouched "$([ -e "$FX/skills/other-ext" ] && echo on || echo off)" on
 
 # --- back to designish: parked external restored (not re-sourced) ---
@@ -70,6 +75,8 @@ run set designish >/dev/null 2>&1
 check T14-emil-back "$([ -e "$FX/skills/emil-design-eng" ] && echo on || echo off)" on
 check T15-park-gone "$([ -e "$FX/skills-disabled/emil-design-eng" ] && echo p || echo n)" n
 check T16-21st-back "$([ -e "$FX/skills/21st-ui-build" ] && echo on || echo off)" on
+check T16b-obs-back "$([ -e "$FX/skills/observability-and-instrumentation" ] && echo on || echo off)" on
+check T16c-obs-park-gone "$([ -e "$FX/skills-disabled/observability-and-instrumentation" ] && echo p || echo n)" n
 check T17-no-mcp-ever "$(grep -c '^mcp ' "$FX/claude-calls.log" || true)" 0
 
 printf 'PASS=%s FAIL=%s\n' "$pass" "$fail"; [ "$fail" -eq 0 ]

@@ -83,6 +83,9 @@ emil-design-eng                   external
 frontend-design                   external
 design-motion-principles          external
 impeccable                        external
+observability-and-instrumentation  external
+deprecation-and-migration          external
+ci-cd-and-automation               external
 ui-ux-pro-max                     plugin@ui-ux-pro-max-skill
 # pr-review-toolkit REMOVED from full (audit 2026-07-02 #12): heaviest
 # single plugin cost (~2.2k tokens of agent descriptions/session), useful

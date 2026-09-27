@@ -43,6 +43,13 @@
     "managed_by": "curl",
     "note": "Emil Kowalski's design engineering skill — UI polish, animations, component craft. Machine-owned: curl'd to skills-external/emil-design-eng/ (gitignored, re-fetched by update-all.sh), symlinked by link.sh."
   },
+  "agent-skills": {
+    "source": "https://github.com/addyosmani/agent-skills",
+    "commit": "2686b620fc1fed2e8f60c704839c766b8594c6b6",
+    "skills": ["observability-and-instrumentation", "deprecation-and-migration", "ci-cd-and-automation"],
+    "managed_by": "curl",
+    "note": "Three dev-lifecycle skills from addyosmani/agent-skills, vendored the emil-design-eng way but COMMIT-pinned (not main-branch tracking): each lands in skills-external/<name>/SKILL.md (gitignored, symlinked by link.sh), install-plugins.sh Step 8e curls all three at this commit when absent, update-all.sh re-fetches at the SAME commit on every run (a pin, not an auto-advance). Bump the commit deliberately to pick up upstream changes; the scripts read it from here, never hardcode it."
+  },
   "impeccable": {
     "source": "npm:impeccable",
     "version": "4.1.0",
