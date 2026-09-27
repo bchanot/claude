@@ -124,6 +124,7 @@ rules:
 | BDR-100 | 2026-09-24 | Guardrail evasion and partial rule changes get mechanisms, not lessons: refusal ends the attempt, citers census in make test | accepted |
 | BDR-101 | 2026-09-25 | `full` = default profile: no selection ⇒ full in force, `reset` applies it, install applies it | accepted |
 | BDR-102 | 2026-09-27 | agent-skills: no plugin, vendor 3 skills + build floor-guard + routing census + rest-api rule | accepted |
+| BDR-103 | 2026-09-27 | 6-repo review: 5 verdicts, 3 criteria (grep-verified coverage, per-session cost, doctrine conflict); stars decided nothing | accepted |
 
 ---
 
@@ -1281,3 +1282,18 @@ Branch feature/user-writing-web-rules, UNMERGED (human gate).
 - **Caveats**: vendored prompts = third-party content loaded into sessions, the pin is the review point (security-auditor scanned: benign, no hidden Unicode); floor-guard waiver is self-service, WAIVED informational → security MEDIUM, design decision pending with user (require CLARIFICATIONS ack outside test fixtures?); floor-guard prints raw diff snippets a verifier reads (LOW, framing follow-up); update-all 7.3 failure branch leaves `.tmp` like emil (parity, not fixed); `make link` after merge to symlink the trio (user).
 - **Reference**: commits d28c45e (trio), 2b25cb4 (floor-guard), 409db51 (census), 1a8e6de (rest-api); contracts `.claude/tasks/contracts/2026-09-27-{agent-skills-vendor,floor-guard,skill-routing-census,rest-api-rule}-1525.md`; gates MET ×4, verifiers CONFORME ×4 (2 re-dispatches), security PASS ×2. Links [[BDR-100]] [[LRN-172]] [[LRN-173]] [[EVAL-032]]. Case 1 of the same review: ladder in doctrine, feature/yagni-ladder 9315c6c.
 - **Amendment 2026-09-27**: waiver policy strict, user go: `WAIVED` outside a test file = gap unless the contract's CLARIFICATIONS names file + reason (verifier STEP 3, loop doc). Commit 6617889. Closes the security MEDIUM caveat above.
+## BDR-103 — 6-repo review: 5 verdicts, 3 criteria; stars decided nothing
+- **Date**: 2026-09-27
+- **Status**: accepted, chore/six-repo-review-notes, merge on user go 2026-09-27
+- **Decision** (user-approved case by case, order = layer touched per turn → orthogonal):
+  | repo | stars | verdict | one-line why |
+  |---|---|---|---|
+  | ponytail + chisle | 146.7k / 566 | no plugin; ordered YAGNI ladder + `shortcut:` marker into § Code style (feature/yagni-ladder) | per-turn + per-subagent injection, prose rules vs writing-style.md, caveman purge precedent, rtk covers the input axis |
+  | addyosmani/agent-skills | 99.4k | no plugin; vendor 3 skills, build floor-guard + routing census, distil rest-api rule ([[BDR-102]]) | 20/25 covered, 1.8k tok/session, /spec /review /ship collide, trunk-based + one-version vs doctrine, second router |
+  | ibelick/ui-skills | 9.2k | nothing installed; 14 micro-rule lines in rules/web-building.md | CLI/MCP = curl of raw SKILL.md, third router, baseline-ui stack mandates vs Astro-first; registry of 36 third-party skills (mengto motion pack) NOT evaluated |
+  | reticlehq/reticle | 898 | parked, 4-step pilot recipe in TODO | only real capability gap (store state, verdict with file:line, replayable flows, CI gate); FSL server, PostHog telemetry, per-project build instrumentation, skill auto-runs `init` |
+  | OmniRoute | 70.6k | rejected, no recipe | subscription cannot pass a keyed gateway; fail-open guardrails, default JWT secret, Socket.dev block on 3.8.5, JA3/JA4 spoofing + free-tier pools |
+- **Criteria that decided every case**: (1) coverage verified by grep on local assets (skills, agents, rules, archetypes), never from the README; (2) permanent per-session cost (descriptions, hooks, MCP schemas) against the share of novelty; (3) conflict with doctrine (gitflow, versioned APIs, Astro-first, ask-don't-guess, fail-closed). Stars decided nothing: 566-star chisle beat 146.7k-star ponytail on method; 898-star reticle is the only real capability.
+- **Alternatives rejected**: install-then-prune (sunk cost, [[BDR-047]] ECC lesson); one bulk verdict (user wanted one case per turn, each with a build-vs-install call); building reticle's engine (1 286 server files).
+- **Caveats**: borrowed prompts change upstream with no diff, the pin is the review point; do not re-audit these six expecting more; mengto motion pack from the ui-skills registry is the open follow-up if site-level choreography (GSAP/ScrollTrigger, WebGL hero, masked reveals) proves thin locally.
+- **Reference**: branches feature/yagni-ladder (9315c6c, de7371d), feature/agent-skills-borrow (d28c45e 2b25cb4 409db51 1a8e6de 7401383 6617889 d71f3a7), feature/web-building-microrules (a2e654d 5a27372), chore/six-repo-review-notes (da35cde 197225a). Links [[BDR-102]] [[LRN-172]] [[LRN-173]] [[EVAL-032]] [[BDR-047]] [[BDR-006]].
