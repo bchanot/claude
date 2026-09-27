@@ -1,5 +1,31 @@
 # TODO
 
+## 2026-09-27 — case 2 of the 6-repo review: borrow from agent-skills (feature/agent-skills-borrow)
+User go "ok pour les 4" after the analysis: plugin rejected (1.8k tok/session for
+20 % novelty, /spec /review /ship collide with gstack, trunk-based git and the
+one-version API rule contradict the doctrine, second router). Four independent
+chantiers, one contract each under `.claude/tasks/contracts/2026-09-27-*`,
+dispatched to feater executors; gates replayed by the orchestrator (gates.sh →
+fresh verifier → fresh security-auditor). Case 1 lives on feature/yagni-ladder.
+- [x] A1 d28c45e vendor observability-and-instrumentation, deprecation-and-migration,
+      ci-cd-and-automation (emil precedent, pinned commit 2686b620) — agent-skills-vendor
+- [x] A2 2b25cb4 `lib/floor-guard.sh` diff-scoped bar-weakening detector + verifier step
+      + suite — floor-guard
+- [x] A3 409db51 `lib/tests/skill-routing-census.test.sh` description-collision census
+      (measured: 120 skills, max 0.52 careful~guard, 0 >= 0.75) — skill-routing-census
+- [x] A4 1a8e6de `rules/rest-api.md` path-scoped rule from api-and-interface-design,
+      one-version rule dropped — rest-api-rule
+- [x] A5 gates MET ×4, verifiers CONFORME ×4 (2 re-dispatches), security PASS ×2,
+      make test 35 suites green minus 2 pre-existing T16a, shellcheck clean;
+      BDR-102 LRN-172 LRN-173 EVAL-032. UNMERGED — human gate.
+Follow-up (not started): per-skill positive/negative prompt ranking (Tier 2
+second half); `make link` after merge to symlink the 3 skills (user runs it);
+floor-guard waiver policy (security MEDIUM: self-service `floor-guard: allow`
+→ require a CLARIFICATIONS ack outside test fixtures?) — user decision;
+frame floor-guard snippets as data in the verifier step (LOW); `/tmp/tmp.AAyJzvufO6`
+scratch dir from an executor proof, `rm -rf` refused → user removes; contract
+skeleton must carry `EVIDENCE: pending` (LRN-173, check /feat's template).
+
 ## 2026-09-25 — full profile +4 gstack web/doc skills (bugfix/full-profile-web-doc-skills)
 User go after the "why is gstack off under full?" answer (it was not: unapplied
 default). `scrape`, `skillify`, `diagram`, `make-pdf` join full.profile; the rest

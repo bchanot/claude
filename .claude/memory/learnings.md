@@ -191,6 +191,8 @@ rules:
 | LRN-169 | 2026-09-24 | a coherence audit is cheap when parallel and read-only, and its findings are claims: spot-check, then fix every citer | any doctrine or skill rule change; sub-agent briefs; environment-dependent tests |
 | LRN-170 | 2026-09-25 | "count == 0" ≠ "all on" when default state is "nothing installed": verify a fast-path premise on the live tree | status/current/detect commands, installer "is X applied?" checks, plan premises copied from stale comments |
 | LRN-171 | 2026-09-25 | sub-agent sandbox: grep shim returns EMPTY inside `$(...)` for patterns holding literal `$VAR` — oracles pin `command grep` | contract CHECK lines, hermetic test greps, hooks parsing grep output |
+| LRN-172 | 2026-09-27 | TF-IDF cosine on a 2-doc corpus is identically 0: similarity self-tests need N ≥ 4, a same-corpus positive control and a sensitivity re-run | fixtures for any corpus-normalised statistic (idf, z-score, ranking), "distinct pair passes" tests |
+| LRN-173 | 2026-09-27 | contract oracles written from memory failed twice: run the CHECK on the precedent files first, census greps via `git grep` (tracked only), `EVIDENCE: pending` mandatory for gates.sh | contract CHECK lines, precedent-mirroring criteria, gates.sh ledgers |
 
 ---
 
@@ -1604,3 +1606,12 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Pattern**: oracles + test assertions portable across main shell / sub-agent shells pin `/usr/bin/grep` or `command grep`; avoid `$VAR` literals mid-pattern (`-F` or `--`).
 - **Where applicable**: contract `CHECK:` lines run by executors/verifiers; hermetic test greps; any hook riding on grep output.
 - **Reference**: contract `2026-09-25-default-profile-full-1254` criterion 12; verifier + executor reports 2026-09-25. Links [[LRN-074]] [[BDR-101]].
+
+## LRN-172 — TF-IDF cosine on a 2-doc corpus is identically 0: similarity self-tests need N ≥ 4, a same-corpus positive control and a sensitivity re-run
+- **Context**: A3 executor wrote a "distinct pair passes" fixture as a bare 2-doc corpus, documented the 0.00 as "the point being proven". Fresh verifier proved a near-duplicate pair also scores 0.00 at N=2: idf = log(N/df) = 0 for shared terms, unique terms never meet. Executor self-report "all markers printed" was true; the test was vacuous anyway.
+- **Fix shape**: one N=4 corpus: near-dup control 0.90 → FAIL, distinct pair 0.00 → silent, then swap one doc for a near-copy → 0.62 WARN appears. Marker printed only when all three hold.
+- **Apply**: any fixture for a corpus-normalised statistic asserts both directions in one corpus; "passes on a trivial corpus" proves nothing; markers prove the oracle, not the intent → keep the blind verifier ([[BDR-102]] [[EVAL-032]]).
+
+## LRN-173 — contract oracles written from memory failed twice: run the CHECK on the precedent files first, census greps via `git grep`, `EVIDENCE: pending` mandatory
+- **Context**: same run, two orchestrator oracle bugs. (1) "≤ 80 chars" over the whole file: rules/web-building.md line 2 (`paths:` frontmatter) is already 110 chars, so the criterion contradicted the precedent it named; executor returned NEED-DECISION instead of bending. (2) emil-citers census with `grep -rl` hit gitignored `install-*.log` at the repo root; `git grep -l` (tracked only) is the right census tool. (3) gates.sh `run` errors `runnable but has no EVIDENCE: line` unless each criterion carries `EVIDENCE: pending`.
+- **Apply**: before shipping a CHECK, run it against the files it claims to mirror; census oracles = `git grep`; contract skeleton carries `EVIDENCE: pending` per criterion (check /feat's template writes it). Oracle fixes are orchestrator-owned, never a re-dispatch ([[BDR-102]]).

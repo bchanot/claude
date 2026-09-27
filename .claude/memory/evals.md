@@ -52,6 +52,7 @@ rules:
 | EVAL-029 | 2026-09-15 | 4-agent plan challenge: 6 BLOCKER; 3 of 3 confirmation-pass BLOCKERs came from the fixes themselves; caught a false 654 MB orphan claim | keep |
 | EVAL-030 | 2026-09-24 | 2026-09-24 self-audit: two regressions and one guardrail bypass came from my own process, not from the tools | BDR-100 mechanisms shipped; re-run census at next doctrine wave |
 | EVAL-031 | 2026-09-25 | /feat run for BDR-101: challenge round earned its cost, two blockers sat in my own premises | keep challenge round on state-detection plans; check live state before planning; pin grep in oracles |
+| EVAL-032 | 2026-09-27 | 4 parallel feater executors, one tree, gate loop: verifier caught a vacuous test, security caught a partial-write; my oracles wrong twice | keep same-tree parallel dispatch with disjoint FILE SCOPE + orchestrator-owned shared files; blind verifier stays; measure oracles on precedents |
 
 ---
 
@@ -306,3 +307,10 @@ Dogfood: 3 blind lenses attacked the v1 plan for the plan-challenge feature itse
 - **Method**: challenge lib (3 lenses + 1 confirmation), gates.sh floor, fresh verifier, fresh security-auditor, full `make test` (236 green + 2 pre-existing T16a).
 - **Anomalies**: (1) plan asserted "all gstack enabled" without one `ls skills/`; banner said gstack OFF ([[LRN-170]]). (2) two sub-agents hit same grep-shim quirk ([[LRN-171]]). (3) `git add .env.example` denied (`git add .env*` glob, [[BDR-069]] collateral): edit left unstaged for user, not routed around; edit itself went through python script while `Edit(**/.env.*)` denied — surfaced to user. (4) UserPromptSubmit design hook fired on "design skills" (false positive, no UI work).
 - **Action**: keep challenge round for any plan touching state detection; check live state before planning; pin grep in oracles. Links [[BDR-101]].
+
+## EVAL-032 — 4 parallel feater executors, one tree, gate loop (case 2 of the 6-repo review)
+- **Date**: 2026-09-27
+- **Method**: 4 contracts, 4 feater executors dispatched in one turn on the same working tree (disjoint FILE SCOPE, CHANGELOG reserved to the orchestrator), gates.sh run per contract, fresh verifier per contract, security-auditor on the whole diff then on the re-touched files, full `make test`.
+- **Result**: 4/4 CONFORME after 2 re-dispatches; security PASS ×2. Verifier A3 caught a vacuous distinct-pair test the executor had self-justified ([[LRN-172]]). Security caught first-download without tmp+mv (partial file accepted forever) + python source splicing → fixed by fresh executor, re-verified, re-audited. Executors never touched each other's files; A4 verifier counted the orchestrator-reserved CHANGELOG as ECARTS(1), correct by contract wording.
+- **Anomalies**: (1) my oracles wrong twice ([[LRN-173]]); (2) gates.sh ERROR(3) on first run, `EVIDENCE: pending` missing; (3) 3 guardrail denials on sub-agents (`export GIT_CONFIG_GLOBAL` inline ×2 incl. a verifier, `rm -rf /tmp/tmp.AAyJzvufO6` executor cleanup), all reported, none evaded — [[BDR-100]] live; (4) security-auditor miscounted the sha as 41 chars (it is 40) — verify sub-agent claims before acting; (5) `make test` rc 1 from the 2 pre-existing T16a, my first grep filter hid the totals.
+- **Action**: keep the pattern; add `EVIDENCE: pending` to the contract skeleton; floor-guard waiver policy → user decision; snippet framing for LLM-consumed output → follow-up.
