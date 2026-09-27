@@ -518,3 +518,4 @@ rules:
 
 ## 2026-09-27
 - bugfix/gitignore-diagram-allowlist merged into develop on user go, `gitflow finish` → facd26d, pushed, copies removed by the lib. Day 2026-09-25 lot fully on develop: BDR-101 default profile, full +4 gstack skills, gitignore allowlist. No working branch anywhere; `skills/diagram` ignored.
+- Case 4 (reticle 898 stars, 3 months, FSL server): only repo of the six with a capability nothing local has (store state, verdict with file:line, replayable flows, CI gate). User go: parked with a 4-step pilot recipe in TODO (opt-in external, pinned, wrapper skill that never runs `init`, telemetry off, staging only). chore/six-repo-review-notes UNMERGED.

@@ -1,5 +1,28 @@
 # TODO
 
+## 2026-09-27 — case 4 of the 6-repo review: reticle parked with a pilot recipe (chore/six-repo-review-notes)
+User go "parquer avec la recette". Real gap (runtime store state, structured
+verdicts with file:line, replayable flows, CI `gate --since`), no current project
+needs it; cost = per-project build instrumentation in the client repo, ~4.9k
+tokens of MCP schemas per session, PostHog telemetry on by default, a skill that
+auto-runs `init` against "ask, don't guess". Trigger: first app-type project
+(client state, forms, auth, cart).
+- [ ] P1 external opt-in in lib/toggle-external.sh + profiles (off by default,
+      qa-class); `@reticlehq/server` pinned in plugins.lock.json (plugin v3.3.0
+      seen 2026-09-27), never `@latest`.
+- [ ] P2 local wrapper skill replacing theirs: `npx @reticlehq/server init
+      --dry-run` shown to the user, never run by the agent (runbook doctrine);
+      MCP env `DO_NOT_TRACK=1` `RETICLE_TELEMETRY=0`; verify only after the
+      user ran init.
+- [ ] P3 pilot on staging only (secret redaction is name-based); flows
+      committed, evidence gitignored; `gate --since` in CI evaluated before
+      adoption.
+- [ ] P4 measure tokens per verification loop vs gstack browse on one page.
+Sources read 2026-09-27: docs/what-is-recorded.md, telemetry.md,
+token-efficiency.md, enterprise.md (core verification free; SSO/SCIM/RBAC/
+policy gates under ee/), LICENSE split FSL-1.1-ALv2 server+init, Apache
+adapters/core/engine. Stars 898, created 2026-06-11, 2 551 commits.
+
 ## 2026-09-25 — full profile +4 gstack web/doc skills (bugfix/full-profile-web-doc-skills)
 User go after the "why is gstack off under full?" answer (it was not: unapplied
 default). `scrape`, `skillify`, `diagram`, `make-pdf` join full.profile; the rest
