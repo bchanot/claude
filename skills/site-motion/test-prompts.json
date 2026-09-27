@@ -1,0 +1,6 @@
+[
+  {"id": 1, "prompt": "Build a scroll storytelling landing page with Lenis smooth scroll and a sticky project card stack", "expected": "Route to site-motion: one smooth-scroll engine, Lenis->ScrollTrigger sync via gsap.ticker + lagSmoothing(0), sticky stack scale 0.92+i*0.015 recipe, reduced-motion gate"},
+  {"id": 2, "prompt": "Ajoute des transitions de page fluides avec un hero WebGL qui doit survivre à la navigation", "expected": "Route to site-motion: Astro ClientRouter lifecycle, astro:page-load/astro:before-swap, transition:persist on the canvas, WebGL poster fallback + context-loss handling"},
+  {"id": 3, "prompt": "Add a hover scale effect and a fade-in on this pricing card component", "expected": "Component-level, not site-motion: route to design-motion-principles or emil-design-eng instead"},
+  {"id": 4, "prompt": "Make our site feel like an Awwwards ScrollTrigger showcase, with a scrubbed video sequence", "expected": "Route to site-motion: scrub 0.8-1.4 with ease none + eased children, ffmpeg -g 8 -keyint_min 8 encoding recipe, offscreen-pause and reduced-motion gates before any pin/scrub work"}
+]

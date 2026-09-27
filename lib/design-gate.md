@@ -47,6 +47,9 @@ browser/plan/shotgun tooling and graphify for convenience; those never trip the
 gate. Motion (`design-motion-principles`) and static-HTML (`design-html`) are
 already in the core set — checked regardless; their CLAUDE.md "+motion /
 +static" notes say which tool you'll lean on, not a separate activation step.
+`site-motion` (personal skill, site-level scroll/page choreography) rides the
+same Build chain but isn't on the GATE-BLOCK list: it ships with the repo,
+nothing to install or verify.
 
 ### 2. State — run the deterministic check
 
