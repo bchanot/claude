@@ -123,6 +123,7 @@ rules:
 | BDR-099 | 2026-09-24 | C2 coherence: 30 doctrine/skill tensions resolved, doctrine wins, BDR-068 kept as the written exception | accepted |
 | BDR-100 | 2026-09-24 | Guardrail evasion and partial rule changes get mechanisms, not lessons: refusal ends the attempt, citers census in make test | accepted |
 | BDR-101 | 2026-09-25 | `full` = default profile: no selection ⇒ full in force, `reset` applies it, install applies it | accepted |
+| BDR-103 | 2026-09-27 | 6-repo review: 5 verdicts, 3 criteria (grep-verified coverage, per-session cost, doctrine conflict); stars decided nothing | accepted |
 
 ---
 
@@ -1270,3 +1271,19 @@ Branch feature/user-writing-web-rules, UNMERGED (human gate).
 - **Alternatives rejected**: label-only reset (lies about plugins/externals); additive reset (`gstack on` + `apply full`, state ⊇ full, label ambiguous); keep `none` sentinel + statusline `?` (request unmet); install display-only (fresh machine ≠ full, 21st pack parked); public `profile.sh default` verb for installer (reset already IS "go to default"); one shared cache parser (statusline must not spawn profile.sh → 3 copies kept, each commented).
 - **Caveats**: `make plugin` re-run re-applies selected profile → manual layering (`gstack on` over `dev`) trimmed back. Plugin legs of Step 11 install-immutable ([[BDR-028]] EXIT guard; committed enabledPlugins already match full). LOW security note: cache content not charset-checked before path use (pre-existing in `read_profile`) → follow-up.
 - **Reference**: commits e196328 (residue scrub), 0d035fc (profile), 1bbdad0 (install); contract/plan `2026-09-25-default-profile-full-1254`; `lib/tests/profile-default.test.sh` 29 checks. Links [[BDR-017]] [[BDR-018]] [[BDR-079]] [[BDR-093]] [[LRN-170]] [[EVAL-031]].
+
+## BDR-103 — 6-repo review: 5 verdicts, 3 criteria; stars decided nothing
+- **Date**: 2026-09-27
+- **Status**: accepted, chore/six-repo-review-notes, merge on user go 2026-09-27
+- **Decision** (user-approved case by case, order = layer touched per turn → orthogonal):
+  | repo | stars | verdict | one-line why |
+  |---|---|---|---|
+  | ponytail + chisle | 146.7k / 566 | no plugin; ordered YAGNI ladder + `shortcut:` marker into § Code style (feature/yagni-ladder) | per-turn + per-subagent injection, prose rules vs writing-style.md, caveman purge precedent, rtk covers the input axis |
+  | addyosmani/agent-skills | 99.4k | no plugin; vendor 3 skills, build floor-guard + routing census, distil rest-api rule ([[BDR-102]]) | 20/25 covered, 1.8k tok/session, /spec /review /ship collide, trunk-based + one-version vs doctrine, second router |
+  | ibelick/ui-skills | 9.2k | nothing installed; 14 micro-rule lines in rules/web-building.md | CLI/MCP = curl of raw SKILL.md, third router, baseline-ui stack mandates vs Astro-first; registry of 36 third-party skills (mengto motion pack) NOT evaluated |
+  | reticlehq/reticle | 898 | parked, 4-step pilot recipe in TODO | only real capability gap (store state, verdict with file:line, replayable flows, CI gate); FSL server, PostHog telemetry, per-project build instrumentation, skill auto-runs `init` |
+  | OmniRoute | 70.6k | rejected, no recipe | subscription cannot pass a keyed gateway; fail-open guardrails, default JWT secret, Socket.dev block on 3.8.5, JA3/JA4 spoofing + free-tier pools |
+- **Criteria that decided every case**: (1) coverage verified by grep on local assets (skills, agents, rules, archetypes), never from the README; (2) permanent per-session cost (descriptions, hooks, MCP schemas) against the share of novelty; (3) conflict with doctrine (gitflow, versioned APIs, Astro-first, ask-don't-guess, fail-closed). Stars decided nothing: 566-star chisle beat 146.7k-star ponytail on method; 898-star reticle is the only real capability.
+- **Alternatives rejected**: install-then-prune (sunk cost, [[BDR-047]] ECC lesson); one bulk verdict (user wanted one case per turn, each with a build-vs-install call); building reticle's engine (1 286 server files).
+- **Caveats**: borrowed prompts change upstream with no diff, the pin is the review point; do not re-audit these six expecting more; mengto motion pack from the ui-skills registry is the open follow-up if site-level choreography (GSAP/ScrollTrigger, WebGL hero, masked reveals) proves thin locally.
+- **Reference**: branches feature/yagni-ladder (9315c6c, de7371d), feature/agent-skills-borrow (d28c45e 2b25cb4 409db51 1a8e6de 7401383 6617889 d71f3a7), feature/web-building-microrules (a2e654d 5a27372), chore/six-repo-review-notes (da35cde 197225a). Links [[BDR-102]] [[LRN-172]] [[LRN-173]] [[EVAL-032]] [[BDR-047]] [[BDR-006]].
