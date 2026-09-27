@@ -55,6 +55,18 @@ Dispatch a FRESH verifier subagent (`subagent_type: verifier`, or load
 `TEST` command. Never pass the dev's summary, never pass a prior iteration's
 gaps — the verifier reads the contract from disk and judges blind.
 
+The verifier's STEP 3 (`agents/verifier.md`) runs `lib/floor-guard.sh`
+against the diff before it renders any verdict — a deterministic,
+diff-scoped check for a quietly weakened quality bar (a suppressed
+lint/type check, a skipped or deleted test, a dropped assertion, a lowered
+coverage threshold) that an LLM verdict alone can miss or be talked past
+one line at a time. Its findings fold straight into that same verifier's
+`ECARTS` count unless the contract's `CLARIFICATIONS` explicitly authorizes
+the exact weakening; there is no separate gate and no extra dispatch, it
+rides this GATE 1 call. A `floor-guard: allow` waiver outside a test file
+is a finding too unless the contract's `CLARIFICATIONS` names it: the
+waiver is self-service, the contract is human-gated (BDR-102 amendment).
+
 Parse its single `VERIFY — VERDICT:` line:
 
 - `CONFORME` → go to GATE 2. (First-pass conforme = no loop.)
@@ -74,9 +86,9 @@ Parse its single `VERIFY — VERDICT:` line:
   micro-gate that appends `[gated <date>]` to the contract's FILE SCOPE;
   otherwise the dev removes the file.
 - Structural failure (`ERROR(…)`, missing/duplicated VERDICT line,
-  unparsable, crash, `CONFORME` without `PROOF`) → retry ONCE with a fresh
-  verifier; a 2nd structural failure → human escalation. A mute verifier is
-  NEVER a PASS.
+  unparsable, crash, `CONFORME` without `PROOF` or without `FLOOR`) → retry
+  ONCE with a fresh verifier; a 2nd structural failure → human escalation.
+  A mute verifier is NEVER a PASS.
 
 ## GATE 2 — SECURITY (fresh security-auditor)
 

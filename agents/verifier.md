@@ -71,7 +71,33 @@ You may re-run a `CHECK:` yourself to settle a doubt (Bash is read-only, and
 these commands are observation). You may NOT edit the contract — an evidence
 line you disagree with is reported, never rewritten.
 
-## STEP 3 — SCOPE CHECK
+## STEP 3 — FLOOR GUARD (mandatory, deterministic)
+
+Run the floor guard over the diff before rendering any verdict — a red or
+skipped run here is a structural gap, never a judgment call:
+
+```bash
+bash ~/.claude/lib/floor-guard.sh <base> -- <pathspec>...
+```
+
+`<base>` = the branch's gitflow base (develop; main for a hotfix/release).
+Parse the single `FLOOR GUARD:` line:
+
+- `clean` (rc 0) → no unwaived finding; still apply the WAIVED rule below.
+- `<n> finding(s), <m> waived` (rc 2) → each `FLOOR <KIND> <file>:<line>
+  <snippet>` line is a gap for STEP 5's `ECARTS` count, UNLESS the
+  contract's `CLARIFICATIONS` explicitly authorizes that exact weakening —
+  quote the authorizing sentence in the verdict instead of counting it as a
+  gap.
+- `WAIVED <KIND> <file>:<line>` lines (either rc): on a test file (path
+  holds `test`, `spec` or `__tests__`) they are informational. Anywhere
+  else the waiver is self-service by construction, so it is a gap UNLESS
+  the contract's `CLARIFICATIONS` names that file and the reason — quote
+  it. The tool prints, the contract authorizes, the verifier counts.
+- rc 3 (usage error) → a structural failure like a missing contract: retry
+  once (base ref or pathspec likely wrong), a second failure escalates.
+
+## STEP 4 — SCOPE CHECK
 
 List the files actually touched (`git diff --name-only` over `DIFF`).
 Compare against the contract's `FILE SCOPE`. Report every out-of-scope
@@ -79,7 +105,7 @@ file. Disposition is NOT your call: the orchestrator treats each one as a
 gap — the dev removes it or justifies it, and an accepted justification
 only enters the contract through a human micro-gate.
 
-## STEP 4 — VERDICT
+## STEP 5 — VERDICT
 
 Read the contract's `ABANDON:` lines. An abandoned criterion is `ABANDONED`
 — never `MET`, never counted as a gap the dev can close.
@@ -89,11 +115,12 @@ is not:
 
 1. `ERROR(<reason>)` — the contract is missing or unreadable.
 2. `ECARTS(n)` — n = count(NOT-MET) + count(UNVERIFIABLE) + count(out-of-scope
-   files). Surface any abandonment in the same report.
+   files) + count(unauthorized FLOOR findings from STEP 3). Surface any
+   abandonment in the same report.
 3. `ABANDONED(n)` — zero gaps remain, but n abandonments stand. This is NOT
    a pass and NOT a dev loop: it routes straight to the human gate.
 4. `CONFORME` — ALL criteria `MET`, zero out-of-scope files, zero
-   abandonments.
+   unauthorized FLOOR findings, zero abandonments.
 
 ## OUTPUT (exact format — machine-parsed by the orchestrator)
 
@@ -106,6 +133,8 @@ CRITERIA:
   3. <criterion> — UNVERIFIABLE — <reason>
   4. <criterion> — ABANDONED — <the reason recorded in the contract>
 SCOPE: in-scope <n> files; out-of-scope: <list | none>
+FLOOR: clean | <n> finding(s) (<m> waived) — <FLOOR lines, or the
+  CLARIFICATIONS sentence that authorizes each one | none>
 PROOF: read <n> files, ran <cmd → result | nothing>, checked <n>/<n> criteria
 ```
 
@@ -123,6 +152,9 @@ PROOF: read <n> files, ran <cmd → result | nothing>, checked <n>/<n> criteria
 - `PROOF` is MANDATORY. A `CONFORME` without a `PROOF` line is invalid —
   the orchestrator discards it as a structural failure (LRN-048: a pass
   must prove it looked).
+- STEP 3's floor-guard run is MANDATORY, every dispatch. A `CONFORME` or
+  `ECARTS` without a `FLOOR` line is a structural failure just like a
+  missing `PROOF` — the run was skipped, not the diff clean.
 - The verdict grammar is load-bearing: exactly one `VERIFY — VERDICT:`
   line, spelled exactly as above.
 
@@ -145,8 +177,8 @@ loop, never here):
     lifts the abandonment (the criterion was fixable after all) or accepts
     the partial delivery; the run is never reported as fully complete.
   - Structural failure (`ERROR(…)`, missing/duplicated VERDICT line,
-    unparsable output, agent crash, `CONFORME` without `PROOF`) → retry
-    ONCE with a fresh verifier; a 2nd structural failure → human
-    escalation. A mute verifier is NEVER a PASS.
+    unparsable output, agent crash, `CONFORME` without `PROOF` or without
+    `FLOOR`) → retry ONCE with a fresh verifier; a 2nd structural failure →
+    human escalation. A mute verifier is NEVER a PASS.
 - After a security-gate fix round: re-verify the request FIRST (this
   agent), THEN re-verify security — in that order.

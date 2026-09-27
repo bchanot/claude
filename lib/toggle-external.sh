@@ -21,6 +21,9 @@
 #   emil-design-eng   — single symlink → skills-external/emil-design-eng
 #   darwin-skill      — single symlink → ~/.agents/skills/darwin-skill
 #   21st              — 21st.dev skill pack (needs the `21st` CLI + login)
+#   observability-and-instrumentation, deprecation-and-migration,
+#   ci-cd-and-automation — the agent-skills trio, same single-symlink shape
+#   as emil-design-eng (commit-pinned instead of main-branch tracking)
 #
 # For fine-grained activation (only design skills, only qa skills, only
 # audit skills, etc.) instead of all-or-nothing gstack toggling, use:
@@ -40,7 +43,8 @@ warn() { echo -e "${YELLOW}⚠${NC}  $1"; }
 err()  { echo -e "${RED}✗${NC} $1"; }
 
 # All non-plugin tools this script can toggle.
-MANAGED_TOOLS=(gstack emil-design-eng darwin-skill 21st)
+MANAGED_TOOLS=(gstack emil-design-eng darwin-skill 21st
+  observability-and-instrumentation deprecation-and-migration ci-cd-and-automation)
 
 # Prints the skill names that belong to the "21st" pack. Source of truth:
 # skills-external/21st-* — the `21st skills install` run in install-plugins.sh
@@ -76,9 +80,9 @@ status_tool() {
       done < <(gstack_skills)
       echo "disabled"
       ;;
-    emil-design-eng)
-      [ -d "$REPO/skills-external/emil-design-eng" ] || { echo "missing"; return; }
-      [ -e "$SKILLS_DIR/emil-design-eng" ] && echo "enabled" || echo "disabled"
+    emil-design-eng|observability-and-instrumentation|deprecation-and-migration|ci-cd-and-automation)
+      [ -d "$REPO/skills-external/$tool" ] || { echo "missing"; return; }
+      [ -e "$SKILLS_DIR/$tool" ] && echo "enabled" || echo "disabled"
       ;;
     darwin-skill)
       [ -d "$HOME/.agents/skills/$tool" ] || { echo "missing"; return; }
@@ -115,7 +119,7 @@ disable_tool() {
       done < <(gstack_skills)
       ok "gstack disabled ($moved symlinks moved)"
       ;;
-    emil-design-eng|darwin-skill)
+    emil-design-eng|darwin-skill|observability-and-instrumentation|deprecation-and-migration|ci-cd-and-automation)
       if [ -e "$SKILLS_DIR/$tool" ]; then
         rm -rf "${DISABLED_DIR:?}/${tool:?}"
         mv "$SKILLS_DIR/$tool" "$DISABLED_DIR/$tool"
@@ -165,11 +169,11 @@ enable_tool() {
         ok "gstack enabled ($moved symlinks restored)"
       fi
       ;;
-    emil-design-eng|darwin-skill)
+    emil-design-eng|darwin-skill|observability-and-instrumentation|deprecation-and-migration|ci-cd-and-automation)
       local src
       case "$tool" in
-        emil-design-eng) src="$REPO/skills-external/$tool" ;;
         darwin-skill) src="$HOME/.agents/skills/$tool" ;;
+        *) src="$REPO/skills-external/$tool" ;;
       esac
       if [ -e "$DISABLED_DIR/$tool" ]; then
         rm -rf "${SKILLS_DIR:?}/${tool:?}"

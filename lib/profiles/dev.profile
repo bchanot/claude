@@ -19,6 +19,11 @@ refactor                          personal
 code-clean                        personal
 commit-change                     personal
 
+# Dev-lifecycle skills (agent-skills trio)
+observability-and-instrumentation  external
+deprecation-and-migration          external
+ci-cd-and-automation               external
+
 # Session hygiene
 context-save
 land-and-deploy

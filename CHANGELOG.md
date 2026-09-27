@@ -7,6 +7,38 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- **Agent Skills trio** (`observability-and-instrumentation`,
+  `deprecation-and-migration`, `ci-cd-and-automation`) — vendored from
+  addyosmani/agent-skills at a pinned commit (`agent-skills` entry in
+  plugins.lock.json), the emil-design-eng way: curl'd into
+  `skills-external/<name>/SKILL.md` by install-plugins.sh Step 8e, refreshed
+  by update-all.sh at the same commit, symlinked by link.sh, registered in
+  `lib/toggle-external.sh`, `lib/profile.sh` and the `full`/`backend`/`dev`
+  profiles. Case 2 of the 6-repo review: the plugin itself was rejected
+  (1.8k tokens per session for 20 % novelty, `/spec` `/review` `/ship`
+  collide with gstack, trunk-based git and the one-version API rule
+  contradict the doctrine, a second skill router).
+- **`lib/floor-guard.sh`** — diff-scoped deterministic detector of a quietly
+  weakened quality bar (new lint/type suppressions, skipped or deleted
+  tests, dropped assertions, stubs, lowered coverage thresholds), with a
+  `floor-guard: allow <reason>` waiver, rc 0/2/3. Mandatory verifier
+  STEP 3 (`agents/verifier.md`), documented under GATE 1 of
+  `lib/verify-secure-loop.md`. Suite `lib/tests/floor-guard.test.sh`: 6
+  kinds plus a WAIVED and a CLEAN fixture, each flip-tested. Waivers
+  outside test files count as gaps unless the contract's CLARIFICATIONS
+  names them (security-gate MEDIUM, user chose strict). Adapted from
+  agent-skills `constraint-driven-development`.
+- **`lib/tests/skill-routing-census.test.sh`** (+ `lib/skill-routing-census.py`)
+  — TF-IDF cosine census of skill-description collisions across the live
+  catalog (routing ambiguity, not naming): top 10 pairs, WARN ≥ 0.50,
+  FAIL ≥ 0.75, fixture flip-test. Baseline 2026-09-27: 120 skills, max 0.52
+  (`careful` ~ `guard`). Adapted from agent-skills evals Tier 2.
+- **`rules/rest-api.md`** — path-scoped REST rule distilled from agent-skills
+  `api-and-interface-design`: contract-first order, one error envelope +
+  HTTP map, paginated lists, idempotency (key from intent, atomic claim,
+  payload guard, duplicate policy, retention), naming, Hyrum's law;
+  versioning points to `CLAUDE.md § Web APIs — always versioned` instead of
+  the upstream one-version rule.
 - **`make test suite=<file>`** runs one suite hermetically; the
   `GIT_CONFIG_GLOBAL=/dev/null` export lives in the Makefile so nobody types
   the denied env-prefix form by hand (the reason an executor wrote a wrapper

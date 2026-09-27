@@ -13,6 +13,11 @@ code-clean                        personal
 commit-change                     personal
 analyze                           personal
 
+# Dev-lifecycle skills (agent-skills trio)
+observability-and-instrumentation  external
+deprecation-and-migration          external
+ci-cd-and-automation               external
+
 # Ship + review + land
 ship
 review

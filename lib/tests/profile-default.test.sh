@@ -18,7 +18,8 @@ check_not() { case "$2" in *"$3"*) fail=$((fail+1));
 
 FX="$(mktemp -d)"; trap 'rm -rf "$FX"' EXIT
 mkdir -p "$FX/skills" "$FX/skills-disabled" "$FX/lib/profiles" "$FX/bin" \
-  "$FX/hooks" "$FX/skills-external/emil-design-eng"
+  "$FX/hooks" "$FX/skills-external/emil-design-eng" \
+  "$FX/skills-external/observability-and-instrumentation"
 for g in gs-a gs-b gs-c; do
   mkdir -p "$FX/skills-external/gstack/$g"
   touch "$FX/skills-external/gstack/$g/SKILL.md"
@@ -29,7 +30,8 @@ cp "$ROOT/hooks/statusline.sh" "$FX/hooks/"
 cat > "$FX/lib/profiles/full.profile" <<'EOF'
 gs-a
 gs-b
-emil-design-eng   external
+emil-design-eng                     external
+observability-and-instrumentation   external
 EOF
 cat > "$FX/lib/profiles/otherish.profile" <<'EOF'
 gs-c
@@ -89,6 +91,7 @@ check T5-gsa-on  "$([ -e "$FX/skills/gs-a" ] && echo on || echo off)" on
 check T5-gsb-on  "$([ -e "$FX/skills/gs-b" ] && echo on || echo off)" on
 check T5-gsc-off "$([ -e "$FX/skills/gs-c" ] && echo on || echo off)" off
 check T5-emil-on "$([ -e "$FX/skills/emil-design-eng" ] && echo on || echo off)" on
+check T5-obs-on  "$([ -e "$FX/skills/observability-and-instrumentation" ] && echo on || echo off)" on
 out="$(run current)"
 check     T5-first-word  "$(first_word "$out")" full
 check_has T5-match        "$out" "100% match"
