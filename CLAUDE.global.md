@@ -9,6 +9,12 @@ Apply unless repo-specific instructions override.
 - One responsibility per function/method.
 - Preserve existing behavior unless asked.
 - Scope changes to task — no unrelated edits.
+- Before writing code, stop at the first rung that applies: not needed
+  (YAGNI) → reuse what the codebase has → stdlib → platform/runtime
+  feature → dependency already installed → one line → the minimum that
+  works. Runs after understanding the problem, never instead of it.
+- Assumed shortcut → `shortcut:` comment at the site (limit + upgrade
+  path), harvested into TODO.md so "later" stays findable.
 
 ## Limits (adapt to language)
 - Max 25 logic lines/function (executable statements; comments and
