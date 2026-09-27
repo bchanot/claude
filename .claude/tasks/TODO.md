@@ -1,5 +1,18 @@
 # TODO
 
+## 2026-09-27 — case 5 of the 6-repo review: OmniRoute rejected (chore/six-repo-review-notes)
+Gateway to 357 providers via `ANTHROPIC_BASE_URL` → localhost:20128; needs provider
+API keys, a Claude Pro/Max subscription cannot go through it. No gap here: Claude-only
+workflow on subscription, codex second opinion already via gstack `codex` CLI, rtk
+native, caveman purged. Against: sits in the path of every prompt with 96 deps and
+a fail-open guardrail design (doctrine says fail closed); default JWT secret
+`omniroute-default-secret-change-me` = admin bypass if unchanged; npm 3.8.5 blocked
+by Socket.dev (May 2026, malware indicators), two real vulns closed in 3.8.6; JA3/JA4
+TLS fingerprint impersonation + 40 pooled free-tier keys = provider-ToS risk; no
+audit, SBOM or signing. Stars 70.6k in 7 months. Not to be re-evaluated unless a
+multi-provider need appears, and then a keyed gateway is still not the answer.
+- [x] R1 verdict recorded, nothing installed, nothing built.
+
 ## 2026-09-27 — case 4 of the 6-repo review: reticle parked with a pilot recipe (chore/six-repo-review-notes)
 User go "parquer avec la recette". Real gap (runtime store state, structured
 verdicts with file:line, replayable flows, CI `gate --since`), no current project
