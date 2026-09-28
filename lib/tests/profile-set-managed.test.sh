@@ -19,7 +19,8 @@ for g in gs-a gs-b gs-c; do
   mkdir -p "$FX/skills-external/gstack/$g"
   touch "$FX/skills-external/gstack/$g/SKILL.md"
 done
-cp "$ROOT/lib/profile.sh" "$ROOT/lib/toggle-external.sh" "$FX/lib/"
+cp "$ROOT/lib/profile.sh" "$ROOT/lib/toggle-external.sh" \
+  "$ROOT/lib/gstack-removed.sh" "$FX/lib/"
 
 # Non-managed external, enabled from the start — must never be touched.
 ln -s "$FX/skills-external/other-ext" "$FX/skills/other-ext"

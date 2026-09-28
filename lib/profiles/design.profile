@@ -11,13 +11,12 @@
 # GATE-BLOCK: 21st 21st-ui-build
 
 # Core design skills (gstack)
-design-shotgun
 design-review
 design-consultation
 design-html
 plan-design-review
 
-# Browser tooling — design-review and design-shotgun rely on it
+# Browser tooling — design-review relies on it
 browse
 open-gstack-browser
 setup-browser-cookies
@@ -44,10 +43,7 @@ site-motion                       personal
 # External: 21st.dev pack — CLI-driven (no MCP, no API key). 21st-registry
 # and 21st-design-sync are publishing flows; installed but left parked.
 21st-ui-build                     external
-21st-ui-explore                   external
-21st-ui-review                    external
 21st-cli-use                      external
-21st-ai                           external
 
 # Plugin (auto-toggle)
 ui-ux-pro-max                     plugin@ui-ux-pro-max-skill

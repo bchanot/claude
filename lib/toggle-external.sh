@@ -40,6 +40,12 @@ REPO="${TOGGLE_EXTERNAL_REPO_OVERRIDE:-$(cd -P "$(dirname "$0")/.." && pwd)}"
 SKILLS_DIR="$REPO/skills"
 DISABLED_DIR="$REPO/skills-disabled"
 
+# GSTACK_REMOVED + gstack_is_removed() — single source, honored by the
+# `enable gstack` loop below. Resolved from $0 like REPO above, not from
+# $REPO/lib — gstack-removed.sh sits next to this file wherever it runs.
+# shellcheck source=lib/gstack-removed.sh disable=SC1091
+source "$(dirname "$0")/gstack-removed.sh"
+
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
 ok()   { echo -e "${GREEN}✓${NC} $1"; }
 warn() { echo -e "${YELLOW}⚠${NC}  $1"; }
@@ -162,18 +168,25 @@ enable_tool() {
   local tool="$1"
   case "$tool" in
     gstack)
-      local moved=0
+      local moved=0 skipped=0
       if [ -d "$DISABLED_DIR" ]; then
         for entry in "$DISABLED_DIR"/gstack__*; do
           [ -e "$entry" ] || continue
           local name
           name="$(basename "$entry" | sed 's/^gstack__//')"
+          if gstack_is_removed "$name"; then
+            warn "skipped (removed by policy, lib/gstack-removed.sh): $name"
+            skipped=$((skipped + 1))
+            continue
+          fi
           rm -rf "${SKILLS_DIR:?}/${name:?}"
           mv "$entry" "$SKILLS_DIR/$name"
           moved=$((moved + 1))
         done
       fi
-      if [ "$moved" -eq 0 ]; then
+      if [ "$moved" -eq 0 ] && [ "$skipped" -ge 1 ]; then
+        warn "only policy-removed skills remain parked (lib/gstack-removed.sh)"
+      elif [ "$moved" -eq 0 ]; then
         warn "gstack was not disabled — re-run gstack setup to (re)create symlinks"
       else
         ok "gstack enabled ($moved symlinks restored)"

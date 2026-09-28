@@ -4,7 +4,6 @@
 # For SEO/GEO audit on top, use web-full or apply seo afterwards.
 
 # Design skills (gstack) — full design pipeline
-design-shotgun
 design-review
 design-consultation
 design-html
@@ -23,9 +22,7 @@ plan-eng-review
 feat                              personal
 ship-feature                      personal
 hotfix                            personal
-ship                                                # gstack
 review                                              # gstack
-context-save                                        # gstack
 commit-change                     personal
 refactor                          personal
 
@@ -51,10 +48,7 @@ site-motion                       personal
 # External: 21st.dev pack (publishing flows 21st-registry / -design-sync
 # stay parked)
 21st-ui-build                     external
-21st-ui-explore                   external
-21st-ui-review                    external
 21st-cli-use                      external
-21st-ai                           external
 
 # Plugin: UI/UX intelligence (auto-toggle)
 ui-ux-pro-max                     plugin@ui-ux-pro-max-skill

@@ -17,6 +17,7 @@ mkdir -p "$SANDBOX/repo/lib" "$SANDBOX/repo/skills-external/emil-design-eng" \
   "$SANDBOX/repo/skills-external/observability-and-instrumentation" \
   "$SANDBOX/repo/skills" "$SANDBOX/home/.claude"
 cp "$HELPER_SRC" "$SANDBOX/repo/lib/toggle-external.sh"
+cp "$(dirname "$HELPER_SRC")/gstack-removed.sh" "$SANDBOX/repo/lib/"
 # mark emil-design-eng ENABLED in the real (physical) repo tree
 ln -s "$SANDBOX/repo/skills-external/emil-design-eng" "$SANDBOX/repo/skills/emil-design-eng"
 # replicate the real ~/.claude/lib -> <repo>/lib symlink

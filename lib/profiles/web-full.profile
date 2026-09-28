@@ -4,7 +4,6 @@
 # polish, audit, and verify.
 
 # === Design ===========================================================
-design-shotgun
 design-review
 design-consultation
 design-html
@@ -25,9 +24,7 @@ feat                              personal
 ship-feature                      personal
 hotfix                            personal
 bugfix                            personal
-ship
 review
-context-save
 commit-change                     personal
 refactor                          personal
 
@@ -55,10 +52,7 @@ scroll-scrubbed-visual-sequence   external
 scroll-scrubbed-word-reveal       external
 scroll-progress-timeline          external
 21st-ui-build                     external
-21st-ui-explore                   external
-21st-ui-review                    external
 21st-cli-use                      external
-21st-ai                           external
 ui-ux-pro-max                     plugin@ui-ux-pro-max-skill
 
 # Personal: motion implementation companion (skills/site-motion)

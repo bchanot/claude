@@ -1,8 +1,9 @@
-# DESC: Default profile — carries everything every other profile carries
-# (user rule 2026-09-28: full does what each profile does), minus the
-# broken or doctrine-breaking gstack skills (lib/gstack-removed.sh) and
-# the parked tools (make-pdf, diagram, 21st-ai/ui-explore/ui-review) that
-# live in `max`. One named exception: pr-review-toolkit (see below).
+# DESC: Everything — full + the parked generation/review tools + PR review
+# SUPERSET-OF: full
+# Activate when: you need make-pdf, diagram, the 21st-ai/ui-explore/
+# ui-review generation trio, or pr-review-toolkit, on top of everything
+# full carries. Never a broken or doctrine-breaking gstack skill
+# (lib/gstack-removed.sh) — max is full's superset, not the raw catalog.
 
 # === Brainstorm + plan-mode reviews ==================================
 office-hours
@@ -58,6 +59,8 @@ qa-only
 # === Docs + translation ==============================================
 doc                               personal
 document-release
+diagram
+make-pdf
 pdf-translate                     personal
 
 # === Session hygiene + memory ========================================
@@ -82,14 +85,12 @@ scroll-scrubbed-visual-sequence    external
 scroll-scrubbed-word-reveal        external
 scroll-progress-timeline           external
 ui-ux-pro-max                     plugin@ui-ux-pro-max-skill
-# pr-review-toolkit REMOVED from full (audit 2026-07-02 #12): heaviest
-# single plugin cost (~2.2k tokens of agent descriptions/session), useful
-# only when reviewing PRs. Reactivate per PR session:
-#   claude plugin enable pr-review-toolkit@claude-code-plugins
-# or profile-based: bash lib/profile.sh apply audit (audit.profile keeps it;
-# a later `set full` re-disables it — MANAGED_PLUGINS lifecycle).
+pr-review-toolkit                 plugin@claude-code-plugins
 21st-ui-build                     external
+21st-ui-explore                   external
+21st-ui-review                    external
 21st-cli-use                      external
+21st-ai                           external
 
 # Personal: motion implementation companion (skills/site-motion)
 site-motion                       personal
