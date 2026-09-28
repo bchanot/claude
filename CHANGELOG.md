@@ -81,7 +81,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   `floor-guard: allow <reason>` waiver, rc 0/2/3. Mandatory verifier
   STEP 3 (`agents/verifier.md`), documented under GATE 1 of
   `lib/verify-secure-loop.md`. Suite `lib/tests/floor-guard.test.sh`: 6
-  kinds plus a WAIVED and a CLEAN fixture, each flip-tested. Waivers
+  kinds plus a WAIVED and a CLEAN fixture, each flip-tested, and SKIP
+  boundary fixtures (bare `xit(`/`fit(`/`xdescribe(`/`fdescribe(` are
+  word-bounded, so `exit(`, `model.fit(`, `profit(` stay clean). Waivers
   outside test files count as gaps unless the contract's CLARIFICATIONS
   names them (security-gate MEDIUM, user chose strict). Adapted from
   agent-skills `constraint-driven-development`.

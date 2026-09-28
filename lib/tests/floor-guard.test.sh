@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # lib/tests/floor-guard.test.sh — flip-tests for lib/floor-guard.sh: one RED
-# fixture per KIND, one WAIVED fixture, one CLEAN fixture. Each fixture is a
-# fresh throwaway repo under $WORK (`make test` exports
+# fixture per KIND, one WAIVED fixture, one CLEAN fixture, plus boundary
+# cases for SKIP. Each fixture is a fresh throwaway repo under $WORK
+# (`make test` exports
 # GIT_CONFIG_GLOBAL=/dev/null; core.hooksPath is also pinned per-repo so a
 # machine-wide hook never fires here). This file itself carries the trigger
 # strings for every kind — the self-run criterion excludes it by pathspec.
@@ -53,6 +54,32 @@ d=$(mk_repo skip); base=$(git -C "$d" rev-parse HEAD)
 echo "it.skip('later', () => {});" >> "$d/sample.test.js"
 out=$(cd "$d" && bash "$LIB" "$base" 2>&1); rc=$?
 check_kind SKIP "$rc" 2 "$out" 'FLOOR SKIP'
+
+# ── SKIP_EXIT_CLEAN ───────────────────────────────────────────────────────
+d=$(mk_repo skipexit); base=$(git -C "$d" rev-parse HEAD)
+{
+  echo 'process.exit(1); // sys.exit(1)' # floor-guard: allow flip-test fixture
+  echo 'model.fit(x);' # floor-guard: allow flip-test fixture
+  echo 'const p = profit(1);' # floor-guard: allow flip-test fixture
+} >> "$d/sample.test.js"
+out=$(cd "$d" && bash "$LIB" "$base" 2>&1); rc=$?
+check_kind SKIP_EXIT_CLEAN "$rc" 0 "$out" 'FLOOR GUARD: clean'
+
+# ── SKIP_XIT_FLAGS / SKIP_FIT_FLAGS / SKIP_FDESCRIBE_FLAGS ────────────────
+d=$(mk_repo skipxit); base=$(git -C "$d" rev-parse HEAD)
+echo "  xit('skipped', () => {});" >> "$d/sample.test.js" # floor-guard: allow flip-test fixture
+out=$(cd "$d" && bash "$LIB" "$base" 2>&1); rc=$?
+check_kind SKIP_XIT_FLAGS "$rc" 2 "$out" 'FLOOR SKIP'
+
+d=$(mk_repo skipfit); base=$(git -C "$d" rev-parse HEAD)
+echo "fit('focused', () => {});" >> "$d/sample.test.js" # floor-guard: allow flip-test fixture
+out=$(cd "$d" && bash "$LIB" "$base" 2>&1); rc=$?
+check_kind SKIP_FIT_FLAGS "$rc" 2 "$out" 'FLOOR SKIP'
+
+d=$(mk_repo skipfdescribe); base=$(git -C "$d" rev-parse HEAD)
+echo "fdescribe('focused', () => {});" >> "$d/sample.test.js" # floor-guard: allow flip-test fixture
+out=$(cd "$d" && bash "$LIB" "$base" 2>&1); rc=$?
+check_kind SKIP_FDESCRIBE_FLAGS "$rc" 2 "$out" 'FLOOR SKIP'
 
 # ── DELETED_TEST ──────────────────────────────────────────────────────────
 d=$(mk_repo deleted); base=$(git -C "$d" rev-parse HEAD)

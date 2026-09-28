@@ -97,9 +97,15 @@ SUPPRESS_SUBSTRINGS = (
 TS_EXPECT_ERROR = '@ts-expect-error'   # floor-guard: allow pattern table
 
 SKIP_SUBSTRINGS = (
-    '.skip(', '.only(', 'xit(', 'xdescribe(', 'fit(', 'fdescribe(',
-    'it.todo(', '@pytest.mark.skip', '@unittest.skip', 't.Skip(',
+    '.skip(', '.only(', 'it.todo(', '@pytest.mark.skip', '@unittest.skip',
+    't.Skip(',
 )
+# bare Jasmine/Jest focus-or-skip calls (xit/fit/xdescribe/fdescribe); the
+# lookbehind keeps `exit(`, `SystemExit(`, `model.fit(` out (BLK-023).
+SKIP_IDENT_RE = re.compile(r'(?<![A-Za-z0-9_.])(?:xit|fit|xdescribe|fdescribe)\(')
+# shortcut: `def fit(` / `function xit(` still match (space before), `xit (`
+# and `xit.each(` still do not — upgrade path (?<!def )(?<!function ) and
+# (?:\.each)?\s*\(.
 
 STUB_SUBSTRINGS = (
     'not implemented',       # floor-guard: allow pattern table
@@ -186,7 +192,9 @@ def stub_kind(text):
 
 
 def skip_kind(text):
-    return 'SKIP' if any(p in text for p in SKIP_SUBSTRINGS) else None
+    if any(p in text for p in SKIP_SUBSTRINGS):
+        return 'SKIP'
+    return 'SKIP' if SKIP_IDENT_RE.search(text) else None
 
 
 def line_findings(path, lineno, text, test_file):
