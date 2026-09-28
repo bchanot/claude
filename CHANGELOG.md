@@ -462,6 +462,13 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   plugin cache or `claude plugin list`.
 
 ### Fixed
+- **gitflow pre-commit blocked every commit with gitleaks 8.16** (Ubuntu's apt
+  package): the hook ran `gitleaks git --staged`, a subcommand that exists from
+  8.19 only, so the "unknown command" exit 1 read as a leak. The generator now
+  probes `gitleaks git --help` and falls back to `protect --staged`; the
+  installed hooks are regenerated. T16c builds a `/usr/bin` symlink farm minus
+  gitleaks instead of shortening PATH, which no longer hid a distro-packaged
+  binary.
 - **gstack's shared helper tree was mostly unreachable.** gstack skills
   hardcode `~/.claude/skills/gstack/<path>` for shared assets, but
   `link.sh` and `install-plugins.sh` only ever linked `bin` and

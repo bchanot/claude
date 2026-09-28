@@ -267,10 +267,15 @@ echo clean > clean.txt; git add clean.txt
 chk "T16b clean commit still succeeds" 'git commit -q -m "clean work" 2>/dev/null'
 
 # T16c — gitleaks missing from PATH → warn, never block (defense in depth
-# must not become a new single point of failure)
+# must not become a new single point of failure). A distro package puts
+# gitleaks in /usr/bin next to git, so "PATH without gitleaks" is a symlink
+# farm of /usr/bin minus gitleaks, not a shorter PATH.
+nogl="$WORK/nogl-bin"; mkdir -p "$nogl"
+for f in /usr/bin/*; do ln -s "$f" "$nogl/" 2>/dev/null; done
+rm -f "$nogl/gitleaks"
 echo clean2 > clean2.txt; git add clean2.txt
 # shellcheck disable=SC2034  # noleaks_out is used in the deferred chk eval strings
-noleaks_out="$(PATH=/usr/bin:/bin git commit -q -m "clean work 2" 2>&1)"; noleaks_rc=$?
+noleaks_out="$(PATH="$nogl" git commit -q -m "clean work 2" 2>&1)"; noleaks_rc=$?
 chk "T16c missing-gitleaks → still commits (rc0)" "[ $noleaks_rc -eq 0 ]"
 chk "T16c missing-gitleaks → warns"    'printf "%s" "$noleaks_out" | grep -qi "not installed"'
 
