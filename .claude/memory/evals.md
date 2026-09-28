@@ -57,6 +57,7 @@ rules:
 | EVAL-034 | 2026-09-28 | catalog prune + 21st gate: two challenge rounds each found what r3 missed (nested SKILL.md, fixture cp lists, in-session export); my ledgers failed twice (heredoc CHECKs); 5 executors DONE first pass; verifier gap = tool false positive | keep the confirmation pass on any plan that changed materially; one-line CHECKs; grep fixture cp lists before a `source` |
 | EVAL-035 | 2026-09-28 | thinking-share measurement, 6 days of transcripts (10,955 requests): thinking = 8 % of weighted spend, 97 % of it in the main loop; sonnet subagents at xhigh think 26 tok/request; cache reads = 53 % | pins = explicitness not savings; main-loop effort + context size are the levers; A/B after rollout |
 | EVAL-036 | 2026-09-28 | A/B `/reconcile` headless, session high vs skill entry low: requests 18→15, output 12374→9038 (−27 %), thinking 3135→2248 (−28 %), time 96.5→78.4 s (−19 %), n=1 | keep low on bookkeeping skills; repeat on a reflection skill before touching the medium/high split |
+| EVAL-037 | 2026-09-28 | correction of EVAL-035/036 counts: transcript records are per content block; deduped by message.id → main-loop thinking share 99.9%, thinking share of weighted cost 5.6%, sonnet think/msg 26→0.2, A/B requests 9→8 | conclusions hold (sharper: main-loop thinking 96.6%→99.9%, weighted-cost thinking corrected 8.4%→5.6%); effort-audit.py dedupes from a3b479e+ |
 
 ---
 
@@ -346,3 +347,10 @@ Dogfood: 3 blind lenses attacked the v1 plan for the plan-challenge feature itse
 - **Result**: requests 18→15, output tokens 12374→9038 (−27 %), thinking 3135→2248 (−28 %), duration 96.5 s→78.4 s (−19 %); transcript effort field high→low confirmed. n=1, same repo state.
 - **Anomaly**: none; the indirect effect (fewer steps at lower effort) is real, which EVAL-035's static split could not show.
 - **Action**: keep low on bookkeeping skills; repeat on a reflection skill (feat) before touching the medium/high split; `lib/effort-audit.py` makes the split measurable any time.
+
+## EVAL-037 — correction of EVAL-035/036: one transcript record per content block, deduped by message.id
+- **Date**: 2026-09-28
+- **Output checked**: EVAL-035 (8 % thinking / 97 % main loop / 26 tok per sonnet request) and EVAL-036 (requests 18→15), produced by `effort-audit.py` counting every assistant record; final review found duplicates (same `message.id` + identical `usage`, one record per content block, ~2.8× on this repo's last 6 transcripts).
+- **Result (deduped)**: main weighted-cost 61.4 %, thinking share 99.9 % (was 96.6 %); sub weighted-cost 38.6 %, thinking share 0.1 %; thinking = 5.6 % of weighted cost (was 8.4 %, inflated by duplicate counting); sonnet think/request 26→0.2 tok (sub, xhigh); A/B `/reconcile` (EVAL-036 rerun, deduped) requests 9→8, output 6129→4706, thinking 1550→1104 — the raw undeduped counts on the same transcripts are 18→15, matching EVAL-036 exactly (the bug, not the finding).
+- **Anomaly**: the main-loop-carries-almost-all-thinking split got SHARPER after dedup (96.6→99.9 %), not weaker — duplication was near-uniform across content blocks, so ratios among scopes barely moved; only the absolute request/token counts and the overall thinking-share-of-cost figure were inflated (~2.2-2.8× depending on transcript mix).
+- **Action**: `lib/effort-audit.py` dedupes by `message.id` from this commit; cite EVAL-037, not EVAL-035, for the split.

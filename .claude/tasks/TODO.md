@@ -5,7 +5,7 @@ Spec `docs/superpowers/specs/2026-09-28-effort-tiering-design.md`, plan
 `docs/superpowers/plans/2026-09-28-effort-tiering.md`. Approved 2026-09-28: session
 high, A+B+C, max on the main loop at the loop caps + ship-feature 4b, superpowers patch.
 - [x] W1 settings high + banner warning + statusline live level + 20 agent pins + census suite (Tasks 1-3)
-- [x] W2 33 skill entry levels + superpowers xhigh with resync re-apply (Tasks 4, 9)
+- [x] W2 28+2 skill entry levels + superpowers xhigh with resync re-apply (Tasks 4, 9)
 - [x] W3 five shifters + lib/effort-shift.md + orchestrator wiring + max at caps/4b + gate audit (Tasks 5-8)
 - [x] W4 BDR id + CHANGELOG + EVAL A/B + journal + audit script (Tasks 10-11)
 
