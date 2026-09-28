@@ -1,5 +1,6 @@
 ---
 name: gitflow
+effort: medium
 description: Use when a project needs gitflow branch operations — bootstrapping main+develop, starting a typed branch (feature/bugfix/release/hotfix), or integrating finished work by directed merge — or when an orchestrator must branch or merge under the gitflow model. Use when about to merge any branch into develop or main.
 ---
 

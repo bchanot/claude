@@ -1,5 +1,6 @@
 ---
 name: close
+effort: low
 description: |
   End-of-session ritual — flush what was decided, learned, and blocked into
   `.claude/memory/`, reconcile `.claude/tasks/TODO.md`, and log a journal line.

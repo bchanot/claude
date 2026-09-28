@@ -3,6 +3,7 @@ name: bugfixer
 description: Bug-fix EXECUTOR — dispatched by /bugfix with a closed DIAGNOSIS + FIX PLAN + contract. Applies the fix and a regression test, runs the suite, reports. No investigation, no questions, no commit.
 tools: Read, Edit, Write, Bash, Grep, Glob
 model: sonnet
+effort: medium
 ---
 
 # BUGFIXER — fix executor

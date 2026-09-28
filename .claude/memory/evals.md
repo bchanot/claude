@@ -55,6 +55,9 @@ rules:
 | EVAL-032 | 2026-09-27 | 4 parallel feater executors, one tree, gate loop: verifier caught a vacuous test, security caught a partial-write; my oracles wrong twice | keep same-tree parallel dispatch with disjoint FILE SCOPE + orchestrator-owned shared files; blind verifier stays; measure oracles on precedents |
 | EVAL-033 | 2026-09-28 | case 7: 2 analyzers + 2 executors + 3 re-dispatches; verifiers caught shape, convention and my wrong count; security caught an env override | brief names the scratchpad path explicitly (3 /tmp leftovers); keep blind verifiers; count claims get an artifact |
 | EVAL-034 | 2026-09-28 | catalog prune + 21st gate: two challenge rounds each found what r3 missed (nested SKILL.md, fixture cp lists, in-session export); my ledgers failed twice (heredoc CHECKs); 5 executors DONE first pass; verifier gap = tool false positive | keep the confirmation pass on any plan that changed materially; one-line CHECKs; grep fixture cp lists before a `source` |
+| EVAL-035 | 2026-09-28 | thinking-share measurement, 6 days of transcripts (10,955 requests): thinking = 8 % of weighted spend, 97 % of it in the main loop; sonnet subagents at xhigh think 26 tok/request; cache reads = 53 % | pins = explicitness not savings; main-loop effort + context size are the levers; A/B after rollout |
+| EVAL-036 | 2026-09-28 | A/B `/reconcile` headless, session high vs skill entry low: requests 18→15, output 12374→9038 (−27 %), thinking 3135→2248 (−28 %), time 96.5→78.4 s (−19 %), n=1 | keep low on bookkeeping skills; repeat on a reflection skill before touching the medium/high split |
+| EVAL-037 | 2026-09-28 | correction of EVAL-035/036 counts: transcript records are per content block; deduped by message.id → main-loop thinking share 99.9%, thinking share of weighted cost 5.6%, sonnet think/msg 26→0.2, A/B requests 9→8 | conclusions hold (sharper: main-loop thinking 96.6%→99.9%, weighted-cost thinking corrected 8.4%→5.6%); effort-audit.py dedupes from a3b479e+ |
 
 ---
 
@@ -330,3 +333,24 @@ Dogfood: 3 blind lenses attacked the v1 plan for the plan-challenge feature itse
 - **Result**: prune — challengers closed 8 MAJOR at r3, the confirmation pass still found 1 BLOCKER (nested SKILL.md in browser-skills/openclaw/node_modules) + 3 MAJOR (setup's global symlink, update-all 3rd copy, fixture cp lists); executors 4/4 DONE first pass; GATE 0 UNMET(4) = my heredoc CHECKs ([[LRN-176]]); verifier ECARTS(1) = floor-guard false positive ([[BLK-023]]), CONFORME at iteration 2; security PASS. 21st gate — three lenses: my shared-helper reflex = BLOCKER ×2 ([[LRN-178]]), my `export TWENTYFIRST_TOKEN` remedy = MAJOR (env does not persist); confirmation pass pinned the diagnostic format; executor DONE first pass, CONFORME 7/7, PASS.
 - **Anomalies**: (1) both times the confirmation pass found real defects after "all MAJOR closed" → r3 is not a stopping point; (2) every gate failure of the day was mine (ledger format, tool pattern), none the executors'; (3) verifier and challengers each re-ran the live oracles themselves (link.sh, `set full`, the gate) — cheap, decisive; (4) the user's rule ("full ⊇ every profile") arrived at pass B and inverted a settled plan step: pass B before challenge is the right order.
 - **Action**: keep the single confirmation pass mandatory when a plan changed materially; contract CHECKs one line, files under `.oracles/`; grep fixture `cp` lists before any new `source`; run the live oracle once by hand before dispatching the verifier.
+
+## EVAL-035 — effort burn measured, premise corrected: subagents don't think, the main loop does
+- **Date**: 2026-09-28
+- **Output checked**: my hypothesis "executors inherit xhigh → that is the burn" vs `effort_split2.py` (scratchpad) over `~/.claude/projects/*`: main jsonl + `*/subagents/*.jsonl`, `isSidechain` split; weights output ×5, cache read ×0.1, cache write ×1.25.
+- **Result**: main loop 67 % of weighted spend, 97 % of thinking (Fable 1,430 think-tok/request); sonnet subagents 5,268 requests at xhigh, 26 think-tok/request; thinking = 8 % of spend, all output 16 %, cache reads 53 % (main-loop context ~320 k tok/request). Window 6 days only. Indirect effect of effort (fewer steps → fewer requests) unmeasured.
+- **Anomaly**: design was framed around executor pins; one script inverted it before any edit. Measure before routing.
+- **Action**: pins stay (explicitness, future models); main-loop skill effort + phase shifts carry the savings; A/B `/reconcile` high vs xhigh after rollout; context size = bigger lever, separate track.
+
+## EVAL-036 — A/B `/reconcile` headless: skill entry level low vs session high
+- **Date**: 2026-09-28
+- **Method**: Task 4 of the effort-tiering plan; `claude -p "/reconcile" --output-format json --allowedTools Read Grep Glob "Bash(git status:*)" "Bash(git log:*)"` before (session `high`, no frontmatter) and after (`effort: low` on the skill); per-request `usage` summed from the session jsonl.
+- **Result**: requests 18→15, output tokens 12374→9038 (−27 %), thinking 3135→2248 (−28 %), duration 96.5 s→78.4 s (−19 %); transcript effort field high→low confirmed. n=1, same repo state.
+- **Anomaly**: none; the indirect effect (fewer steps at lower effort) is real, which EVAL-035's static split could not show.
+- **Action**: keep low on bookkeeping skills; repeat on a reflection skill (feat) before touching the medium/high split; `lib/effort-audit.py` makes the split measurable any time.
+
+## EVAL-037 — correction of EVAL-035/036: one transcript record per content block, deduped by message.id
+- **Date**: 2026-09-28
+- **Output checked**: EVAL-035 (8 % thinking / 97 % main loop / 26 tok per sonnet request) and EVAL-036 (requests 18→15), produced by `effort-audit.py` counting every assistant record; final review found duplicates (same `message.id` + identical `usage`, one record per content block, ~2.8× on this repo's last 6 transcripts).
+- **Result (deduped)**: main weighted-cost 61.4 %, thinking share 99.9 % (was 96.6 %); sub weighted-cost 38.6 %, thinking share 0.1 %; thinking = 5.6 % of weighted cost (was 8.4 %, inflated by duplicate counting); sonnet think/request 26→0.2 tok (sub, xhigh); A/B `/reconcile` (EVAL-036 rerun, deduped) requests 9→8, output 6129→4706, thinking 1550→1104 — the raw undeduped counts on the same transcripts are 18→15, matching EVAL-036 exactly (the bug, not the finding).
+- **Anomaly**: the main-loop-carries-almost-all-thinking split got SHARPER after dedup (96.6→99.9 %), not weaker — duplication was near-uniform across content blocks, so ratios among scopes barely moved; only the absolute request/token counts and the overall thinking-share-of-cost figure were inflated (~2.2-2.8× depending on transcript mix).
+- **Action**: `lib/effort-audit.py` dedupes by `message.id` from this commit; cite EVAL-037, not EVAL-035, for the split.

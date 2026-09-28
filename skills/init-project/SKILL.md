@@ -1,5 +1,6 @@
 ---
 name: init-project
+effort: xhigh
 description: 'Use when initializing a brand-new project from scratch — needs interview, design, scaffold, and TDD implementation. Multi-agent orchestrator: plugin-advisor + interviewer + analyzer + scaffolder with two validation gates. Triggers: "init project", "new project", "start project from scratch", "scaffold project", "init-project".'
 argument-hint: <project idea or description>
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob, Agent, Skill
@@ -13,6 +14,7 @@ Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
 judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
 gate prints the remedy; end the turn — no later step, no dispatch. Nominal
 (big) path is silent.
+EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-107): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
 
 ## REQUEST
 $ARGUMENTS
@@ -95,7 +97,7 @@ contract, each tagged `[gated <date>]`. STEP 9's verifier judges against this
 enriched contract.
 
 ## STEP 5 — SCAFFOLD
-Dispatch `Agent(subagent_type="scaffolder")` (pin sonnet, effort high —
+Dispatch `Agent(subagent_type="scaffolder")` (pin sonnet, effort medium —
 BDR-077 : le design est CLOS au gate #1, le scaffold est de l'exécution,
 plus jamais inline sur le modèle de session). Pass IN THE PROMPT (LRN-126 —
 every field the scaffolder consumes crosses the dispatch): BRIEF (verbatim)
@@ -179,10 +181,12 @@ This is the deterministic scaffold commit owner (closes BLK-010). The MVP is
 implemented on a `feature/*` branch off `develop` (STEP 8).
 
 ## STEP 6 — PLAN
+`Skill(effort-xhigh)` first, sent with the next tool call (effort-shift: turn reset; gate #1 ended the turn and the vendored `writing-plans` pin applies only when the user invokes it).
 Invoke `writing-plans` (vendored superpowers skill) with BRIEF + skeleton.
 Granular tasks (2-5 min each), exact file paths, TDD: tests before code.
 
 ## STEP 6b — CHALLENGE THE PLAN (before the gate)
+`Skill(effort-xhigh)` first (effort-shift: own level before the challenge; send it in the same message as the challenger dispatch).
 Before the human sees the implementation plan, harden it. Run
 `$HOME/.claude/lib/challenge-plan.md` with `PLAN` = the plan STEP 6 wrote under
 `docs/superpowers/plans/`, `KIND` = `build-plan`, `SCOPE` = the skeleton + task file
@@ -208,6 +212,7 @@ Approve and start? (yes / request changes)
 Changes → back to STEP 6. Approved → continue.
 
 ## STEP 8 — IMPLEMENT
+First: `Skill(effort-medium)` (effort-shift: dispatch span starts; send it in the same message as this step's first dispatch).
 Start the MVP feature branch off develop, then implement on it:
 ```bash
 bash "$HOME/.claude/lib/gitflow.sh" start feature mvp
@@ -256,6 +261,7 @@ against the founding contract. Distinct axis from STEP 10 code review
 ([[LRN-095]]) — both run.
 
 ## STEP 10 — CODE REVIEW
+`Skill(effort-xhigh)` first, sent with the review dispatch (effort-shift: judgment dispatch; the reviewer is a built-in and inherits the level in force).
 Invoke `requesting-code-review` (vendored superpowers skill). **Model routing (BDR-077):** the
 review subagent it dispatches MUST carry `model: "opus"` in the Agent call —
 craft review is dispatched judgment, never inherited from the session. Fix
@@ -309,6 +315,8 @@ anchored commit ceases to exist.
 articles dropped, code/IDs/quoted errors verbatim — per CLAUDE.md "Memory
 registries" (Always English, always caveman). The gate may mirror the user's
 language; entries must not.
+
+`Skill(effort-low)` first (effort-shift: bookkeeping tail; send it in the same message as the memory-commit command).
 
 **Then commit the memory** — follow `$HOME/.claude/lib/capitalize-commit.md`: it
 surgically commits the approved founding decisions (`.claude/memory` +

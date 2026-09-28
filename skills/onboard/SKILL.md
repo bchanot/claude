@@ -1,5 +1,6 @@
 ---
 name: onboard
+effort: xhigh
 description: 'Use when bringing an existing repo into the claude-config framework — needs archetype detection, config install, full multi-axis audit (debt/SEO/GEO/UI-UX/perf/security/a11y/docs), and prioritized backlog. Multi-agent orchestrator. Do NOT use for repos created via /init-project. Triggers: "onboard", "onboard project", "audit existing repo", "setup existing project".'
 argument-hint: '[optional hints: "Python FastAPI" | "Next.js monorepo" | "force-archetype:wordpress"]'
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep, Agent, Skill
@@ -13,6 +14,7 @@ Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
 judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
 gate prints the remedy; end the turn — no later step, no dispatch. Nominal
 (big) path is silent.
+EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-107): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
 
 ## REQUEST
 $ARGUMENTS
@@ -890,6 +892,7 @@ Vérifier que les 4 fichiers `.claude/audits/ONBOARD_REPORT.md`, `.claude/audits
 ---
 
 ## STEP 7b — CHALLENGE THE PROPOSALS (before the human gate)
+`Skill(effort-xhigh)` first (effort-shift: own level before the challenge; send it in the same message as the challenger dispatch).
 The 4 audit files are on disk; `AUDIT_PROPOSALS.md` is the artifact worth
 attacking before the human spends a gate on it. Run
 `$HOME/.claude/lib/challenge-plan.md` with `PLAN` =

@@ -1,5 +1,6 @@
 ---
 name: commit-change
+effort: low
 description: |
   Analyze all pending changes (staged, unstaged, untracked) and create
   atomic commits grouped by logical unit, retracing the work. Any git

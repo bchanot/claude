@@ -3,6 +3,7 @@ name: onboarder
 description: Generate claude-config files (CLAUDE.md, settings.json, .claudeignore, .gitignore safety, .claude/tasks/ + .claude/memory/ + .claude/audits/) for an existing project. Pure config generator — no interview, no audit. Called by /onboard orchestrator.
 tools: Read, Write, Edit, Bash, Glob, Grep
 model: sonnet
+effort: medium
 ---
 
 # ONBOARDER (config generator)

@@ -3,6 +3,7 @@ name: seo-analyzer
 description: 'Classical SEO audit agent (Google, Bing) — dispatched from /seo. Live audit: Core Web Vitals, on-page, technical, local SEO, legal (FR). Emits a fix bundle (dispatcher applies) + scored report. AI/GEO → geo-analyzer agent.'
 tools: Read, Edit, Write, Bash, Grep, Glob, WebFetch, WebSearch
 model: opus
+effort: xhigh
 ---
 
 # SEO — Classical Search Engines audit, fix & strategy

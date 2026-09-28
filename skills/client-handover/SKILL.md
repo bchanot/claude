@@ -1,5 +1,6 @@
 ---
 name: client-handover
+effort: xhigh
 description: |
   Use when finalizing a project for non-technical client delivery —
   final audits, live-site validation, branded deliverable (MD + HTML +

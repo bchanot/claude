@@ -3,6 +3,7 @@ name: feater
 description: Small-feature EXECUTOR — dispatched by /feat with a closed plan + contract. Implements to the letter, tests, reports. No planning, no questions, no commit.
 tools: Read, Edit, Write, Bash, Grep, Glob
 model: sonnet
+effort: medium
 ---
 
 # FEATER — plan executor

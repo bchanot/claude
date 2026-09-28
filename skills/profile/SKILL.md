@@ -1,5 +1,6 @@
 ---
 name: profile
+effort: low
 description: |
   Partition Claude skills by purpose: design, dev, qa, audit, minimal.
   Toggles symlinks between skills/ and skills-disabled/ to keep only

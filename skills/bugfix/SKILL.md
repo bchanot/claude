@@ -1,5 +1,6 @@
 ---
 name: bugfix
+effort: high
 description: |
   Structured bug fix with root cause investigation. For bugs where
   the cause isn't immediately obvious, spans multiple files, or
@@ -25,6 +26,7 @@ allowed-tools:
 MODEL GATE (blocking): run `$HOME/.claude/lib/model-gate.md` BEFORE any
 step below. Verdict `small` → STOP — print the gate's remedy, end the
 turn, dispatch nothing.
+EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-107): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
 
 ## REQUEST
 $ARGUMENTS
@@ -117,12 +119,14 @@ RISK: <low/medium — what could go wrong>
   obvious fix.
 - If the fix is significant (>10 lines, multiple files,
   behavior change): wait for user approval.
+  On resume: `Skill(effort-high)` first, sent with the next tool call (effort-shift: turn reset).
 - Then run pass B of `$HOME/.claude/lib/contract-interview.md` against the
   FIX PLAN: every VISIBLE / PUBLIC NAME / SCOPE choice it settles that the
   bug report left open → one batch of questions, before STEP 3b. The trivial
   fast-path is not exempt: a 1-line fix with a visible choice still asks.
 
 ## STEP 3b — CHALLENGE THE FIX PLAN (before the contract)
+`Skill(effort-high)` first (effort-shift: own level before the challenge; send it in the same message as the challenger dispatch).
 Unless the fix is the trivial 1-2 line case STEP 3 already fast-paths, the
 DIAGNOSIS + FIX PLAN is a reflection worth attacking before it hardens into a
 contract. Persist it to `.claude/tasks/plans/<date>-<slug>-<HHMM>.md`, then run
@@ -156,6 +160,7 @@ branch it's a no-op (commit in place). Never `finish`.
 Dispatch the executor — sonnet by frontmatter pin, do not override:
 
 ```
+Skill(effort-medium)   # effort-shift: dispatch span starts; send with the Agent call below in ONE message
 Agent(subagent_type="bugfixer")
 prompt: "CONTRACT: <path from STEP 3.5>
 DIAGNOSIS: <ROOT CAUSE + EVIDENCE from STEP 3>
@@ -276,6 +281,8 @@ A bugfix with an understood root cause is almost always worth one entry:
 **Language rule**: written entries are ALWAYS English AND caveman — fragments, articles dropped, code/IDs/quoted errors verbatim — per CLAUDE.md "Memory registries" (Always English, always caveman). The interactive gate may mirror the user's language; the appended entries must not.
 
 If the bug was trivial and the root cause not transferable → skip with `CAPITALIZE: trivial, skip`.
+
+`Skill(effort-low)` first (effort-shift: bookkeeping tail; send it in the same message as the memory-commit command).
 
 **Then commit the memory** — follow `$HOME/.claude/lib/capitalize-commit.md`: it
 surgically commits what capitalize just wrote (`.claude/memory` + `.claude/tasks`

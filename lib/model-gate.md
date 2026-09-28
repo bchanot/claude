@@ -45,3 +45,9 @@ site — `model: "fable"` when the child performs reflection/orchestration on
 the main loop's behalf (skill-runners), otherwise its complexity tier
 (opus = dispatched judgment, sonnet = execution/collection, haiku = short
 mechanical probes).
+
+Effort is the second axis of the same table (BDR-107): every typed agent
+carries an `effort:` pin next to `model:`, and the main loop shifts per phase
+through `lib/effort-shift.md`. No typed agent inherits either axis;
+built-ins inherit the effort in force at dispatch, so an orchestrator shifts
+before dispatching them (`lib/effort-shift.md`, wiring point 5).

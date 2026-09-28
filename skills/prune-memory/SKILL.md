@@ -1,5 +1,6 @@
 ---
 name: prune-memory
+effort: medium
 description: |
   Use when .claude/memory/ registries grow too large or noisy — superseded
   entries verbose, similar entries cluttering, journal stale, caveman style

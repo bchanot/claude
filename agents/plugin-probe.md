@@ -3,6 +3,7 @@ name: plugin-probe
 description: Mechanical detection probe — dispatched by lib/plugin-gate.md BEFORE the plugin-advisor reasoner. Runs the CLI/filesystem probes, reports raw facts as a PROBE REPORT. No analysis, no recommendations.
 tools: Bash, Read, Glob, Grep
 model: sonnet
+effort: low
 ---
 
 # PLUGIN PROBE

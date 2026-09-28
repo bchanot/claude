@@ -7,6 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- **Effort tiering (BDR-107)**: reasoning effort routed per role and per phase. Session default `high`; `effort:` pins on the 20 repo-authored agents; entry level on 28 tracked user-invoked skills plus the two vendored superpowers skills (re-applied by `install-plugins.sh` after resync); five shifter skills `effort-low` … `effort-max` loaded at phase boundaries per `lib/effort-shift.md`, always sent with the step's first tool call (a lone Skill call is a no-op on 2.1.283), with `max` at the verify-secure caps and ship-feature 4b; `/effort-max` as the turn-scoped relaunch lever; statusline shows the live level; session banner warns when `CLAUDE_CODE_EFFORT_LEVEL` silences the pins; census `lib/tests/effort-routing.test.sh`; transcript audit `lib/effort-audit.py`.
 - **Design gate asks the user to sign in to 21st instead of skipping it**:
   `lib/design-tool-gate.sh` adds a three-state 21st auth predicate
   (`twentyfirst_auth_state`, honors `TWENTYFIRST_TOKEN`/`API_KEY_21ST` or a

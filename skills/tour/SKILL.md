@@ -1,5 +1,6 @@
 ---
 name: tour
+effort: xhigh
 description: |
   Use when the user wants ONE grouped pass over a whole project (or a
   list of projects) covering all hygiene axes together: code cleanup +
@@ -29,6 +30,7 @@ Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
 judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
 gate prints the remedy; end the turn — no later step, no dispatch. Nominal
 (big) path is silent.
+EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-107): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
 
 One pipeline per project: **security → clean → re-verify → reconcile →
 doc → convergence re-audit**, looping until a full pass applies zero new
