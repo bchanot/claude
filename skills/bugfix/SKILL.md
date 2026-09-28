@@ -26,6 +26,7 @@ allowed-tools:
 MODEL GATE (blocking): run `$HOME/.claude/lib/model-gate.md` BEFORE any
 step below. Verdict `small` → STOP — print the gate's remedy, end the
 turn, dispatch nothing.
+EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-NEXT): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation.
 
 ## REQUEST
 $ARGUMENTS
@@ -123,6 +124,7 @@ RISK: <low/medium — what could go wrong>
   bug report left open → one batch of questions, before STEP 3b. The trivial
   fast-path is not exempt: a 1-line fix with a visible choice still asks.
 
+`Skill(effort-high)` first (effort-shift: reflection resumes).
 ## STEP 3b — CHALLENGE THE FIX PLAN (before the contract)
 Unless the fix is the trivial 1-2 line case STEP 3 already fast-paths, the
 DIAGNOSIS + FIX PLAN is a reflection worth attacking before it hardens into a
@@ -157,6 +159,7 @@ branch it's a no-op (commit in place). Never `finish`.
 Dispatch the executor — sonnet by frontmatter pin, do not override:
 
 ```
+Skill(effort-medium)   # effort-shift: dispatch span starts
 Agent(subagent_type="bugfixer")
 prompt: "CONTRACT: <path from STEP 3.5>
 DIAGNOSIS: <ROOT CAUSE + EVIDENCE from STEP 3>
@@ -277,6 +280,8 @@ A bugfix with an understood root cause is almost always worth one entry:
 **Language rule**: written entries are ALWAYS English AND caveman — fragments, articles dropped, code/IDs/quoted errors verbatim — per CLAUDE.md "Memory registries" (Always English, always caveman). The interactive gate may mirror the user's language; the appended entries must not.
 
 If the bug was trivial and the root cause not transferable → skip with `CAPITALIZE: trivial, skip`.
+
+`Skill(effort-low)` first (effort-shift: bookkeeping tail).
 
 **Then commit the memory** — follow `$HOME/.claude/lib/capitalize-commit.md`: it
 surgically commits what capitalize just wrote (`.claude/memory` + `.claude/tasks`

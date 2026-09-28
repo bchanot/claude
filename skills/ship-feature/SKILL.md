@@ -14,6 +14,7 @@ Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
 judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
 gate prints the remedy; end the turn — no later step, no dispatch. Nominal
 (big) path is silent.
+EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-NEXT): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation.
 
 ## REQUEST
 $ARGUMENTS
@@ -123,6 +124,7 @@ every VISIBLE / PUBLIC NAME / SCOPE choice the plan settles that neither the
 request nor the STEP 1 brainstorm settled (check the contract's CLARIFICATIONS
 first) → one batch before STEP 2b; answers append to the contract `[gated]`.
 
+`Skill(effort-xhigh)` first (effort-shift: reflection resumes).
 ## STEP 2b — CHALLENGE THE PLAN (adversarial, before the gate)
 Before the human sees the plan, harden it. Run `$HOME/.claude/lib/challenge-plan.md`:
 - `PLAN` = the plan STEP 2 wrote under `docs/superpowers/plans/`
@@ -170,6 +172,7 @@ judges the diff against this ENRICHED contract, not the STEP 0e seed — so a
 criterion the design introduced is verified, not lost.
 
 ## STEP 4 — IMPLEMENT
+First: `Skill(effort-medium)` (effort-shift: dispatch span starts).
 Start the feature branch off develop, then implement on it:
 ```bash
 bash "$HOME/.claude/lib/gitflow.sh" start feature <name>
@@ -267,6 +270,8 @@ Feature shipped implies at least one design decision worth capturing. Run this B
 **Language rule**: written entries are ALWAYS English AND caveman — fragments, articles dropped, code/IDs/quoted errors verbatim — per CLAUDE.md "Memory registries" (Always English, always caveman). The interactive gate above may mirror the user's language; the appended entries must not.
 
 If nothing substantive to log → print `CAPITALIZE: nothing substantive to log` and skip.
+
+`Skill(effort-low)` first (effort-shift: bookkeeping tail).
 
 **Then commit the memory** — follow `$HOME/.claude/lib/capitalize-commit.md`: it
 surgically commits what capitalize just wrote (`.claude/memory` + `.claude/tasks`

@@ -63,6 +63,16 @@ has "lib/effort-shift.md" 'Skill(effort-max)'
 has "lib/effort-shift.md" 'never inside a dispatched agent'
 has "lib/model-gate.md" 'lib/effort-shift.md'
 
+# ── 6) orchestrator wiring (spec D4)
+for s in feat hotfix bugfix ship-feature init-project onboard tour code-clean seo geo harden web-validate audit-delta; do
+  has "skills/$s/SKILL.md" 'lib/effort-shift.md'; has "skills/$s/SKILL.md" 'Skill(effort-medium)'; done
+has "agents/client-handover-writer.md" 'lib/effort-shift.md'; has "agents/client-handover-writer.md" 'Skill(effort-medium)'
+for s in feat hotfix bugfix; do has "skills/$s/SKILL.md" 'Skill(effort-high)'; done
+for s in ship-feature init-project onboard code-clean audit-delta; do has "skills/$s/SKILL.md" 'Skill(effort-xhigh)'; done
+for s in seo geo harden web-validate; do has "skills/$s/SKILL.md" 'Skill(effort-high)'; done
+for s in feat hotfix bugfix ship-feature init-project; do has "skills/$s/SKILL.md" 'Skill(effort-low)'; done
+has "skills/feat/SKILL.md" 'effort-shift: nested commit-change'
+
 # ── summary (later tasks insert their locks ABOVE this line)
 printf 'effort-routing census: %d pass, %d fail\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

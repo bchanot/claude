@@ -30,6 +30,7 @@ Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
 judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
 gate prints the remedy; end the turn — no later step, no dispatch. Nominal
 (big) path is silent.
+EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-NEXT): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation.
 
 This skill orchestrates TWO specialist agents running in parallel, then
 merges their output into a single `.claude/audits/SEO.md` report. It is the main
@@ -324,6 +325,7 @@ templating.
 **PHASE A — collect (both domains, one message):**
 
 ```
+Skill(effort-medium)   # effort-shift: dispatch span starts
 Agent(subagent_type="seo-analyzer", model="sonnet")
 prompt: """
 MODE: collect
@@ -507,6 +509,7 @@ write GEO.md/SEO.md — /seo applies your bundle in STEP 1.5 and merges
 the reports."
 ```
 
+`Skill(effort-high)` first (effort-shift: reflection resumes).
 ## STEP 1b — CHALLENGE THE FIX BUNDLE (advisory, before apply)
 Both envelopes now carry a `## FIX BUNDLE` — worth attacking before any edit lands.
 **Skip if intervention mode = conservative** (nothing is applied). Else persist both
@@ -555,6 +558,7 @@ The two bundles may touch the same shared template (meta vs JSON-LD). Apply
 For each AUTO item, dispatch its `applier` at L1, passing the item verbatim:
 
 ```
+Skill(effort-medium)   # effort-shift: dispatch span starts
 Agent(subagent_type="hotfixer")     # or "feater" per the item's applier
 prompt: "<paste the bundle item: files, concern, current, expected,
   framework note + shared-file discipline>.

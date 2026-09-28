@@ -14,6 +14,7 @@ Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
 judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
 gate prints the remedy; end the turn — no later step, no dispatch. Nominal
 (big) path is silent.
+EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-NEXT): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation.
 
 ## REQUEST
 $ARGUMENTS
@@ -91,6 +92,7 @@ STOP. La réponse détermine si STEP 1 tourne une fois (A) ou N fois (C) ou avec
 
 ## STEP 2 — BASELINE CONFIG (onboarder agent)
 
+`Skill(effort-medium)` first (effort-shift: dispatch span starts).
 Dispatch `Agent(subagent_type="onboarder")` (pin sonnet — BDR-077 : config
 templating = exécution, plus jamais inline sur le modèle de session). Un
 BLOCAGE (clé manquante, CLAUDE.md existant) revient en rapport — l'agent ne
@@ -890,6 +892,7 @@ Vérifier que les 4 fichiers `.claude/audits/ONBOARD_REPORT.md`, `.claude/audits
 
 ---
 
+`Skill(effort-xhigh)` first (effort-shift: reflection resumes).
 ## STEP 7b — CHALLENGE THE PROPOSALS (before the human gate)
 The 4 audit files are on disk; `AUDIT_PROPOSALS.md` is the artifact worth
 attacking before the human spends a gate on it. Run

@@ -29,6 +29,7 @@ Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
 judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
 gate prints the remedy; end the turn — no later step, no dispatch. Nominal
 (big) path is silent.
+EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-NEXT): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation.
 
 Dispatches the `geo-analyzer` subagent (audit + fix bundle), then applies
 the bundle from THIS main loop at **L1** — same shape as `/web-validate`
@@ -46,6 +47,7 @@ every phase (LRN-126). Clean `.audit/geo-signals-<RUNID>.md` after apply.
 
 **A — collect (sonnet):**
 ```
+Skill(effort-medium)   # effort-shift: dispatch span starts
 Agent(subagent_type="geo-analyzer", model="sonnet")
 prompt: "MODE: collect
 RUNID: <RUNID>
@@ -83,6 +85,7 @@ Do NOT apply any fix and do NOT dispatch any sub-agent — /geo applies
 your bundle."
 ```
 
+`Skill(effort-high)` first (effort-shift: reflection resumes).
 ## STEP 1b — CHALLENGE THE FIX BUNDLE (advisory, before apply)
 The analyzer returned a `## FIX BUNDLE` — worth attacking before any edit lands.
 **Skip if intervention mode = conservative** (nothing is applied). Else persist the
@@ -115,6 +118,7 @@ intent, not header wording: **AUTO** = no-confirmation items (G1–G4/G6);
 For each AUTO item, dispatch its `applier` at L1, passing the item verbatim:
 
 ```
+Skill(effort-medium)   # effort-shift: dispatch span starts
 Agent(subagent_type="hotfixer")     # or "feater" per the item's applier
 prompt: "<paste the bundle item: files, concern, current, expected,
   framework note + shared-file discipline>.

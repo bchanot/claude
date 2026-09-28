@@ -30,6 +30,7 @@ Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
 judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
 gate prints the remedy; end the turn — no later step, no dispatch. Nominal
 (big) path is silent.
+EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-NEXT): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation.
 
 One pipeline per project: **security → clean → re-verify → reconcile →
 doc → convergence re-audit**, looping until a full pass applies zero new
@@ -86,6 +87,7 @@ Model discipline (the user-fixed invariant behind this mode):
 Runner dispatch, one per project:
 
 ```
+Skill(effort-medium)   # effort-shift: dispatch span starts
 Agent(subagent_type="general-purpose",
   description="tour runner — <project basename>",
   prompt="Read ~/.claude/skills/tour/SKILL.md and execute STEP 1 → STEP 3

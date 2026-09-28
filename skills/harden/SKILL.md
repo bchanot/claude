@@ -29,6 +29,7 @@ Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
 judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
 gate prints the remedy; end the turn — no later step, no dispatch. Nominal
 (big) path is silent.
+EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-NEXT): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation.
 
 This skill orchestrates a narrow-scope hardening audit: TLS + security
 headers + redirects + canonical + custom 404 + server configs. It
@@ -260,6 +261,7 @@ seo-analyzer will run in parallel.
 Spawn a single seo-analyzer subagent with an explicit IN/OUT scope list.
 
 ```
+Skill(effort-medium)   # effort-shift: dispatch span starts
 Agent(
   subagent_type="seo-analyzer",
   description="harden — narrow-scope web hardening audit",
@@ -519,6 +521,7 @@ Extract the score and critical-alert count from `.claude/audits/HARDEN.md` for t
 
 ---
 
+`Skill(effort-high)` first (effort-shift: reflection resumes).
 ## STEP 2b — CHALLENGE THE FIX BUNDLE (MODE=fix only, advisory)
 Skip if MODE=audit (no bundle exists). Else, before the STEP 3 gate, harden the bundle:
 extract the `## 8. Fix bundle` section from HARDEN.md to

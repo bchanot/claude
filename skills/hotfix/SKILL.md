@@ -24,6 +24,7 @@ allowed-tools:
 MODEL GATE (blocking): run `$HOME/.claude/lib/model-gate.md` BEFORE any
 step below. Verdict `small` → STOP — print the gate's remedy, end the
 turn, dispatch nothing.
+EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-NEXT): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation.
 
 ## REQUEST
 $ARGUMENTS
@@ -93,6 +94,7 @@ point. Run it ONLY when the settled fix touches control flow or behaviour — an
 off-by-one, a wrong operator/variable, a behaviour-changing config value, or a
 missing import that alters execution. In doubt → it is probably a `/bugfix`.
 
+`Skill(effort-high)` first (effort-shift: reflection resumes).
 For a logic fix: persist the STEP 1 located fix (root cause + the exact edit) to
 `.claude/tasks/plans/<date>-<slug>-<HHMM>.md`, then run
 `$HOME/.claude/lib/challenge-plan.md` with `PLAN` = that file, `KIND` =
@@ -136,6 +138,7 @@ mentioned: STOP and ask `"working tree dirty: stash and continue, or abort?"`.
 Dispatch the executor — sonnet by frontmatter pin, do not override:
 
 ```
+Skill(effort-medium)   # effort-shift: dispatch span starts
 Agent(subagent_type="hotfixer")
 prompt: "CONTRACT: <path from STEP 1.7>
 LOCATED: <file(s) found in STEP 1 + the confirmed root cause>
@@ -232,6 +235,8 @@ Ask the user only when there is an actual candidate to propose.
 Always append a 1-line entry to today's heading in `.claude/memory/journal.md` (even trivial hotfix — journal is timeline, not signal).
 
 **Language rule**: the journal line and any proposed BLK/LRN entries are ALWAYS written English AND caveman — fragments, articles dropped, code/IDs/quoted errors verbatim — per CLAUDE.md "Memory registries" (Always English, always caveman).
+
+`Skill(effort-low)` first (effort-shift: bookkeeping tail).
 
 **Then commit the memory** — follow `$HOME/.claude/lib/capitalize-commit.md`: it
 surgically commits what capitalize just wrote (`.claude/memory` + `.claude/tasks`
