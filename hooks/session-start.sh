@@ -107,6 +107,12 @@ fi
 REPO_DIR="${_repo_dir:-}"
 unset _claude_real _repo_dir
 
+# Effort tiering (BDR-NEXT): this env var beats every skill/agent `effort:` pin.
+EFFORT_WARN=""
+if [ -n "${CLAUDE_CODE_EFFORT_LEVEL:-}" ]; then
+  EFFORT_WARN="⚠️  CLAUDE_CODE_EFFORT_LEVEL=${CLAUDE_CODE_EFFORT_LEVEL} set: skill/agent effort pins ignored"
+fi
+
 # Detect plan and set passive token budget
 PLAN=$(detect_plan 2>/dev/null || echo "pro")
 case "$PLAN" in
@@ -253,5 +259,6 @@ unset _remote_ver REPO_DIR
 echo "│  💡 /plugin-check  before starting a new project  │"
 echo "│  🩺 make doctor  full diagnostic                  │"
 echo "└───────────────────────────────────────────────────┘"
+[ -n "$EFFORT_WARN" ] && printf '%s\n' "$EFFORT_WARN"
 echo ""
 unset TOKEN_WARN

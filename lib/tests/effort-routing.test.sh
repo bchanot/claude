@@ -29,6 +29,10 @@ printf -- '---\nname: bad\neffort: turbo\n---\n' > "$FIX/bad.md"
 # ── 1) session default (spec D1)
 has "settings.json" '"effortLevel": "high"'
 
+# ── 2) hooks: env-var warning + live effort in the statusline (spec D1, D5)
+has "hooks/session-start.sh" 'CLAUDE_CODE_EFFORT_LEVEL'
+has "hooks/statusline.sh" 'CLAUDE_EFFORT'
+
 # ── summary (later tasks insert their locks ABOVE this line)
 printf 'effort-routing census: %d pass, %d fail\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

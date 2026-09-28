@@ -444,7 +444,7 @@
     }
   },
   "feedbackDrafts": "off",
-  "effortLevel": "xhigh",
+  "effortLevel": "high",
   "remoteControlAtStartup": true,
   "inputNeededNotifEnabled": true,
   "skipAutoPermissionPrompt": true,

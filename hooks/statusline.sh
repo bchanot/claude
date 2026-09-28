@@ -33,13 +33,14 @@ if [ -z "$PROFILE" ] || [ "$PROFILE" = "none" ]; then
   PROFILE="$DEFAULT_PROFILE"
 fi
 
-# Effort level from settings.json (.effortLevel — set by /effort or manual edit).
-# settings.json is the source-of-truth, symlinked into ~/.claude/settings.json.
-EFFORT="?"
-if [ -f "$REPO/settings.json" ]; then
+# Effort level: the live value when the harness exports it (skill/agent
+# `effort:` shifts included, BDR-NEXT), else the persisted settings.json key
+# (.effortLevel — set by /effort or manual edit; symlinked into ~/.claude).
+EFFORT="${CLAUDE_EFFORT:-}"
+if [ -z "$EFFORT" ] && [ -f "$REPO/settings.json" ]; then
   EFFORT=$(jq -r '.effortLevel // "?"' "$REPO/settings.json" 2>/dev/null)
-  [ -z "$EFFORT" ] && EFFORT="?"
 fi
+[ -z "$EFFORT" ] && EFFORT="?"
 
 # Session duration (from total_duration_ms)
 DURATION_MS=$(echo "$INPUT" | jq -r \
