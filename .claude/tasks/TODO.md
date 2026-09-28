@@ -1,5 +1,24 @@
 # TODO
 
+## 2026-09-28 — design gate asks for `21st login` and waits (feature/skill-catalog-prune)
+User: "si on veut l'utiliser, on demande à l'utilisateur de se log, plus simple que
+dire c'est pas logged on utilise pas… on demande de log si c'est pas fait et on
+attend". Contract `.claude/tasks/contracts/2026-09-28-21st-signin-gate-1215.md`.
+- [x] S1 three-state probe `twentyfirst_auth_state` INLINE in design-tool-gate.sh
+      (challenge r2 dropped the shared helper: install-plugins/toggle-external keep
+      their own semantics); `in` (TWENTYFIRST_TOKEN / API_KEY_21ST, or whoami
+      "Logged in as") / `out` (exact "Not logged in") / `unknown:whoami: rc=…`
+      → exit 11 with a CLI-specific remedy; exit 12 `SIGN-IN REQUIRED`;
+      `DESIGN_GATE_REPO_OVERRIDE`; hermetic suite 8/8 (stub control, in, out,
+      token, absent, INCOMPLETE wins, unknown ×2).
+- [x] S2 design-gate.md §3 branch 12: STOP, ask `! 21st login` (or any terminal
+      on this machine), END THE TURN, re-run on reply; explicit "proceed without
+      21st" = the only skip, stated visibly, not re-asked in the run; no in-session
+      token export; §4 resume path; feat/bugfix STEP 0.5 name SIGN-IN REQUIRED.
+- [x] S3 plan r1→r3 (3 challengers + confirmation), executor DONE, GATE 0 MET,
+      verifier CONFORME 7/7, security PASS. Live on this machine: gate exits 12
+      until `21st login`. Committed in place on feature/skill-catalog-prune.
+
 ## 2026-09-28 — skill-catalog prune, tier 1 (feature/skill-catalog-prune)
 User go after the 5-agent duplicate audit (150 skills, 53.5k chars of descriptions,
 78 listed name-only in session = listing budget exceeded). Contract
