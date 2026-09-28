@@ -16,7 +16,7 @@ User go "fais le tier 2" (decision 2026-09-28, batch 1). Contract
 - [x] V3 plan r1→r3 (3 challengers + confirmation), 2 feater DONE, live vendor + link
       (VENDORED_LINKED), settings.json hand-edited, plugin + marketplace uninstalled,
       GATE 0 MET 10/10, verifier CONFORME 12/12, security PASS; 18f8c89 ddea411; BDR-106.
-      Catalog 82 skills, passive plugins 670 t. UNMERGED — human gate. Other machines:
+      Catalog 82 skills, passive plugins 670 t. MERGED → develop 65665a5. Other machines:
       `make plugin` + `make link`, uninstall the cached plugin by hand. User: remove
       `/tmp/tmp.PKDTRyaCw8` `/tmp/tmp.99Fu0dm8ll` (executor fixtures, rm refused).
 
