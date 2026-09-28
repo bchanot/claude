@@ -1,5 +1,25 @@
 # TODO
 
+## 2026-09-28 — tier 2: vendor 7 superpowers skills, drop the plugin (feature/superpowers-vendored)
+User go "fais le tier 2" (decision 2026-09-28, batch 1). Contract
+`.claude/tasks/contracts/2026-09-28-superpowers-vendored-1357.md`.
+- [x] V1 plugins.lock.json `superpowers` entry (obra/superpowers @ 5bf4e78 = v6.4.1,
+      path skills, dict of 7 file lists); install-plugins.sh STEP 5 stops installing
+      the plugin, STEP 8e vendors it; update-all.sh refresh; link.sh EXTERNAL_SKILLS;
+      .gitignore; profile.sh PROTECTED_PLUGINS; detect-plugins/session-start/doctor
+      read the vendored dir, injection cost gone.
+- [x] V2 citers: `superpowers:<x>` → `<x>` in ship-feature, init-project, tour, deploy,
+      audit-delta, lib/analyze-before-plan, plugin-advisor; finishing-a-development-
+      branch prose in capitalize-commit/doc-commit/gitflow; CLAUDE.global.md routing
+      map for the 8 dropped skills; README/USAGE/plugin-advisor/profile SKILL.md;
+      CHANGELOG.
+- [x] V3 plan r1→r3 (3 challengers + confirmation), 2 feater DONE, live vendor + link
+      (VENDORED_LINKED), settings.json hand-edited, plugin + marketplace uninstalled,
+      GATE 0 MET 10/10, verifier CONFORME 12/12, security PASS; 18f8c89 ddea411; BDR-106.
+      Catalog 82 skills, passive plugins 670 t. UNMERGED — human gate. Other machines:
+      `make plugin` + `make link`, uninstall the cached plugin by hand. User: remove
+      `/tmp/tmp.PKDTRyaCw8` `/tmp/tmp.99Fu0dm8ll` (executor fixtures, rm refused).
+
 ## 2026-09-28 — design gate asks for `21st login` and waits (feature/skill-catalog-prune)
 User: "si on veut l'utiliser, on demande à l'utilisateur de se log, plus simple que
 dire c'est pas logged on utilise pas… on demande de log si c'est pas fait et on
