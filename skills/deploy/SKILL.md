@@ -58,8 +58,7 @@ jq dependency.
 |-----------|-------|
 | Run this project's deploy runbook, delta-instantiated, learning | **this skill** |
 | Project has no `.claude/deploy/PROCEDURE.md` yet | this skill's **bootstrap** branch (see STEP 0) |
-| Merge a branch + trigger CI deploy (gstack) | `/land-and-deploy` |
-| Configure deployment settings | `/setup-deploy` |
+| Merge a finished branch | `gitflow finish` on an explicit human signal (skills/gitflow) |
 | Document a release after shipping | `/document-release`, `/doc` |
 
 ## Artifacts — `.claude/deploy/` (four files)

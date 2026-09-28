@@ -249,8 +249,9 @@ cryptic names.
   gates, registries). investigate only on explicit ask for the gstack
   ecosystem (cross-project learnings, /freeze, long open-ended investigation)
 - feat / hotfix / bugfix distinguished by file count → see descriptions
-- Ship / PR → ship (ship-feature if gstack off); deploy → deploy (runbook,
-  the user runs it)
+- Ship / PR → ship-feature (never gstack ship: it takes `origin/HEAD` =
+  main as base and skips develop); deploy → deploy (runbook, the user
+  runs it)
 - Docs post-ship → document-release (doc if gstack off); stale-doc audit → doc
 - Grouped all-axes sweep ("tir groupé", fix + loop until clean) → tour
 - Open-work inventory / "queue empty?" / stale TODO vs git → reconcile
@@ -259,8 +260,8 @@ cryptic names.
 - Before /clear or /compact → capitalize; end-of-session ritual → close
 - SEO+GEO → seo (GEO only → geo); W3C + WCAG a11y → web-validate;
   security audit (secrets, CVE, OWASP) → cso
-gstack OFF → its skills (investigate, ship, qa, review, health, retro,
-office-hours, context-save…) are gone: use the fallback above, else say so.
+gstack OFF → its skills (investigate, qa, review, health, retro,
+office-hours…) are gone: use the fallback above, else say so.
 
 ## Design work — full toolchain (tiered by scope)
 Trigger = UI work: editing a component/style file (.tsx/.vue/.svelte/.css…)
@@ -275,11 +276,12 @@ design routing; the design-toolchain hook reinforces it.
   <files>` (45 deterministic anti-slop rules, exit 2 = findings).
 - Design system / brand → design-consultation first, then the build tools.
 - Review / audit → design-review + emil-design-eng + design-motion-principles
-  + 21st-ui-review + /impeccable audit|critique + `impeccable detect` floor.
+  + /impeccable audit|critique + `impeccable detect` floor.
 Scope doubt → ask or default to Build, never silently skip. Gate: light
 skills run `~/.claude/lib/design-gate.md`, orchestrators plugin-check. 21st =
 CLI (`npm i -g @21st-dev/cli`, `21st login`), no MCP, no key; search free,
-`21st get`/`generate` metered → generation, not micro-tweaks.
+`21st get`/`generate` metered → generation, not micro-tweaks. 21st-ai /
+ui-explore / ui-review are `max`-profile only.
 
 ## graphify
 

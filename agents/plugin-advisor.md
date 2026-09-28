@@ -181,7 +181,7 @@ When the plugin-advisor detects a `simple` or `hotfix` signal, suggest the appro
 | ui-ux-pro-max ↔ gstack | ✅ Complementary | GStack = deploy/QA layer; ui-ux-pro-max = UI quality layer. Different concerns. |
 | pr-review-toolkit ↔ superpowers | ✅ Complementary | superpowers:requesting-code-review and /pr-review-toolkit:review-pr cover different review styles. |
 | rtk ↔ any | ✅ Independent | Hook-only token compression. Zero interaction with any plugin. |
-| security-guidance ↔ any | ✅ Independent | Hook-only security rules. Zero interaction. |
+| security-guidance ↔ any | ✅ Independent | Hooks + out-of-band LLM reviews (agentic review on commit/push; Stop diff review disabled by ENABLE_STOP_REVIEW=0). No context injection unless a regex hits. |
 
 ### Recommended sets by project type
 
@@ -197,7 +197,9 @@ When the plugin-advisor detects a `simple` or `hotfix` signal, suggest the appro
 | Fast-evolving libs (Next.js etc.) | superpowers, context7 | — | ~1000t |
 | Enterprise multi-agent orchestration | superpowers + gsd v2 (external) | plugin-dev | ~800t CC |
 
-> security-guidance and rtk are ALWAYS ON (0 tokens) — omitted from cost estimates for clarity.
+> rtk is always on at 0 context tokens; security-guidance is always on and
+> costs quota out of band (LLM reviews), not context — both omitted from
+> the estimates
 
 ### Conditional rules
 

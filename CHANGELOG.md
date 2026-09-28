@@ -201,6 +201,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   seeded like a real tree (gstack off, nothing linked).
 
 ### Changed
+- **`full` = everything the other profiles carry** (user rule: full does
+  what every specialized profile does), minus the 9 removed gstack
+  skills, the 21st generation/review trio and one named exception
+  (`pr-review-toolkit`, deliberately out of full since audit 2026-07-02
+  #12). New `max` profile (`# SUPERSET-OF: full` marker) is `full` plus
+  the parked tools (`make-pdf`, `diagram`, `21st-ai`, `21st-ui-explore`,
+  `21st-ui-review`) plus `pr-review-toolkit` — switch here when one of
+  them is needed. The 21st generation/review trio leaves `full`, `web`,
+  `web-full` and `design`; `CLAUDE.global.md`'s Design work line drops
+  `21st-ui-review` and notes the trio is `max`-profile only.
+  `security-guidance`'s Stop-hook LLM review is off
+  (`ENABLE_STOP_REVIEW=0` in `settings.json`'s `env`, the plugin's own
+  switch); its regex layer and the commit/push agentic review stay on.
+  `doctor.sh`'s skill-catalog token constants are recomputed from a real
+  count instead of a stale estimate.
 - **CLAUDE.global.md § Code style** — the ordered YAGNI decision ladder
   (not needed → reuse → stdlib → platform → installed dependency → one line
   → the minimum that works, after understanding the problem) and a
@@ -381,6 +396,19 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   traced by reading, never by running, whatever the brief says.
 
 ### Removed
+- **Skill-catalog prune**: `brightdata-plugin@synced` disabled
+  (account-synced, keyless-useless, its `bright-data-mcp` skill would
+  hijack WebFetch/WebSearch), `frontend-design@claude-plugins-official`
+  uninstalled (byte-identical duplicate of the managed `skills-external`
+  copy). The 9 broken or doctrine-breaking gstack skills — `ship`,
+  `land-and-deploy`, `setup-deploy`, `autoplan`, `context-save`, `learn`,
+  `careful`, `guard`, `design-shotgun` — are out of every profile that
+  listed them (`dev`, `backend`, `web`, `web-full`, `design`, `full`),
+  each with its reason in the new `lib/gstack-removed.sh` (exit-127 hooks,
+  an absent `OPENAI_API_KEY`, `ship`/`land-and-deploy` skipping develop,
+  `context-save` with no restore). The new `GSTACK_REMOVED` denylist is
+  honored by `profile.sh gstack on` and `toggle-external.sh enable
+  gstack`: both now skip a removed name instead of silently restoring it.
 - `deploy` `push_deploy_tags` knob (the STATE.json commit's hook pushes the tag
   with `--follow-tags`); `/onboard add gsd` and `/onboard continue` mentions
   (never had a handler).
@@ -393,6 +421,24 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   and the dead `MAGIC_API_KEY=abc123` gitleaks allowlist regex.
 
 ### Fixed
+- **gstack's shared helper tree was mostly unreachable.** gstack skills
+  hardcode `~/.claude/skills/gstack/<path>` for shared assets, but
+  `link.sh` and `install-plugins.sh` only ever linked `bin` and
+  `browse/dist`. A shared `lib/gstack-links.sh` (used by `link.sh`,
+  `install-plugins.sh` and `update-all.sh`) now links every non-skill
+  child of the gstack submodule, so `make-pdf`, `diagram`, the `freeze`
+  hook, the `*/sections/*.md` files, `scripts/jargon-list.json` and
+  `ETHOS.md` resolve; `/unfreeze` now actually clears
+  `~/.gstack/freeze-dir.txt`. `doctor.sh` counted skills with `find
+  -maxdepth 2` (no `-L`, missed symlinked skills) and truncated
+  block-scalar (`|`/`>`) descriptions to 0 chars; it now reuses
+  `lib/skill-routing-census.py`'s description parser through
+  `lib/doctor-skills.sh`. Dropped the stale "security-guidance … 0
+  tokens" claim from `install-plugins.sh` and `agents/plugin-advisor.md`:
+  the Stop review costs out-of-band quota, not context.
+  `CLAUDE.global.md`'s Ship/PR routing pointed at gstack's `ship`, which
+  bases off `origin/HEAD` (= main) and skips develop; it now routes
+  straight to `ship-feature`.
 - **`gitflow init` on an existing repo under the machine-wide hooks** — the
   socle commit (`.gitignore` + `.githooks/`) landed directly on `main`
   "while the hook is inactive"; since the global `core.hooksPath` the
@@ -437,6 +483,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   sandbox HOME: fresh install, rotted pin over a copy (fallback fires), same
   pin rerun (no false warning), parked copy plus rotted pin (fallback, then
   returned to `skills-disabled/`).
+
+### Known residual
+- The kept gstack skills still carry upstream prose routing to `/ship`,
+  `/land-and-deploy`, `/context-save`, `/autoplan` and `/design-shotgun`
+  (their own text, machine-owned submodule files, not ours to patch);
+  `21st-ui-build` and `21st-cli-use` still point at the now-`max`-only
+  21st trio. A Skill call on a parked name fails, and the doctrine
+  routing in `CLAUDE.global.md` applies instead.
 
 ## [1.5.0] — 2026-09-13
 
