@@ -119,6 +119,7 @@ RISK: <low/medium — what could go wrong>
   obvious fix.
 - If the fix is significant (>10 lines, multiple files,
   behavior change): wait for user approval.
+  On resume: `Skill(effort-high)` first, sent with the next tool call (effort-shift: turn reset).
 - Then run pass B of `$HOME/.claude/lib/contract-interview.md` against the
   FIX PLAN: every VISIBLE / PUBLIC NAME / SCOPE choice it settles that the
   bug report left open → one batch of questions, before STEP 3b. The trivial

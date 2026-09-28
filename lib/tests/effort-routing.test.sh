@@ -84,6 +84,9 @@ has "skills/ship-feature/SKILL.md" 'Skill(effort-max)'
 has "lib/challenge-plan.md" '/effort-max'
 has "lib/verify-secure-loop.md" '/effort-max'
 
+# ── 8) turn-reset re-assert after a prose gate followed by reflection
+has "skills/bugfix/SKILL.md" 'effort-shift: turn reset'
+
 # ── summary (later tasks insert their locks ABOVE this line)
 printf 'effort-routing census: %d pass, %d fail\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
