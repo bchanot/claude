@@ -78,6 +78,12 @@ has "lib/effort-shift.md" 'lone Skill call is a no-op'
 has "lib/effort-shift.md" 're-applies its'
 [ "$(grep -c 'a lone Skill call is a no-op' "$R/skills/feat/SKILL.md")" -ge 1 ] && ok || ko "feat INC line must carry the pairing rule"
 
+# ── 7) escalation at max (spec D4)
+[ "$(grep -c 'Skill(effort-max)' "$R/lib/verify-secure-loop.md")" -eq 3 ] && ok || ko "verify-secure-loop.md must shift to max at its 3 caps"
+has "skills/ship-feature/SKILL.md" 'Skill(effort-max)'
+has "lib/challenge-plan.md" '/effort-max'
+has "lib/verify-secure-loop.md" '/effort-max'
+
 # ── summary (later tasks insert their locks ABOVE this line)
 printf 'effort-routing census: %d pass, %d fail\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

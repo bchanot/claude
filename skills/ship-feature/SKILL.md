@@ -191,7 +191,8 @@ this loop.
 
 ## STEP 4b — ERROR RECOVERY (if STEP 4 fails)
 If a subagent returns a build error, failing test, or type error:
-1. Load `$HOME/.claude/agents/analyzer.md` in DEBUG MODE on the exact error output.
+1. `Skill(effort-max)` (effort-shift: error recovery; send it in the same message as the Read of the analyzer file below), then load
+   `$HOME/.claude/agents/analyzer.md` in DEBUG MODE on the exact error output.
    Produce: root cause hypotheses (ordered), affected files, what NOT to touch.
 2. Present gate:
 ```
@@ -207,8 +208,10 @@ OPTIONS :
   C) Abort feature — preserve work done so far
 ```
 3. Wait for user choice. Do NOT auto-fix. Do NOT proceed without explicit approval.
-4. If A → apply minimal fix, re-run STEP 4 for the failed task only. Max 2 retry attempts.
+4. On resume the turn is at the session level (effort-shift: turn reset).
+   If A → `Skill(effort-medium)` sent with the re-dispatch, apply minimal fix, re-run STEP 4 for the failed task only. Max 2 retry attempts.
    If still failing after 2 → fall back to options B or C.
+   If B or C → `Skill(effort-xhigh)` first, sent with the next tool call.
    If B → before skipping: scan remaining task list for tasks that depend on the failed task
      (look for references to the same file or function in subsequent tasks).
      If dependents found → present: "Tasks [N, M] depend on the skipped task.
