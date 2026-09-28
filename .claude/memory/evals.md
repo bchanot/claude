@@ -56,6 +56,7 @@ rules:
 | EVAL-033 | 2026-09-28 | case 7: 2 analyzers + 2 executors + 3 re-dispatches; verifiers caught shape, convention and my wrong count; security caught an env override | brief names the scratchpad path explicitly (3 /tmp leftovers); keep blind verifiers; count claims get an artifact |
 | EVAL-034 | 2026-09-28 | catalog prune + 21st gate: two challenge rounds each found what r3 missed (nested SKILL.md, fixture cp lists, in-session export); my ledgers failed twice (heredoc CHECKs); 5 executors DONE first pass; verifier gap = tool false positive | keep the confirmation pass on any plan that changed materially; one-line CHECKs; grep fixture cp lists before a `source` |
 | EVAL-035 | 2026-09-28 | thinking-share measurement, 6 days of transcripts (10,955 requests): thinking = 8 % of weighted spend, 97 % of it in the main loop; sonnet subagents at xhigh think 26 tok/request; cache reads = 53 % | pins = explicitness not savings; main-loop effort + context size are the levers; A/B after rollout |
+| EVAL-036 | 2026-09-28 | A/B `/reconcile` headless, session high vs skill entry low: requests 18→15, output 12374→9038 (−27 %), thinking 3135→2248 (−28 %), time 96.5→78.4 s (−19 %), n=1 | keep low on bookkeeping skills; repeat on a reflection skill before touching the medium/high split |
 
 ---
 
@@ -338,3 +339,10 @@ Dogfood: 3 blind lenses attacked the v1 plan for the plan-challenge feature itse
 - **Result**: main loop 67 % of weighted spend, 97 % of thinking (Fable 1,430 think-tok/request); sonnet subagents 5,268 requests at xhigh, 26 think-tok/request; thinking = 8 % of spend, all output 16 %, cache reads 53 % (main-loop context ~320 k tok/request). Window 6 days only. Indirect effect of effort (fewer steps → fewer requests) unmeasured.
 - **Anomaly**: design was framed around executor pins; one script inverted it before any edit. Measure before routing.
 - **Action**: pins stay (explicitness, future models); main-loop skill effort + phase shifts carry the savings; A/B `/reconcile` high vs xhigh after rollout; context size = bigger lever, separate track.
+
+## EVAL-036 — A/B `/reconcile` headless: skill entry level low vs session high
+- **Date**: 2026-09-28
+- **Method**: Task 4 of the effort-tiering plan; `claude -p "/reconcile" --output-format json --allowedTools Read Grep Glob "Bash(git status:*)" "Bash(git log:*)"` before (session `high`, no frontmatter) and after (`effort: low` on the skill); per-request `usage` summed from the session jsonl.
+- **Result**: requests 18→15, output tokens 12374→9038 (−27 %), thinking 3135→2248 (−28 %), duration 96.5 s→78.4 s (−19 %); transcript effort field high→low confirmed. n=1, same repo state.
+- **Anomaly**: none; the indirect effect (fewer steps at lower effort) is real, which EVAL-035's static split could not show.
+- **Action**: keep low on bookkeeping skills; repeat on a reflection skill (feat) before touching the medium/high split; `lib/effort-audit.py` makes the split measurable any time.
