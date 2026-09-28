@@ -55,6 +55,11 @@ PROFILES_DIR="$REPO/lib/profiles"
 ACTIVE_CACHE="$REPO/.active-profile"  # statusline reads this — keep fast (single-line file, profile name only)
 DEFAULT_PROFILE="full"  # profile in force when none is selected (cache absent, empty, or legacy "none")
 
+# GSTACK_REMOVED + gstack_is_removed() — single source, honored by every
+# "bring gstack back" path below (enable_all_gstack, enable_skill).
+# shellcheck source=lib/gstack-removed.sh disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/gstack-removed.sh"
+
 # Plugins that are toggle-managed by `set`. Anything NOT in this list is
 # never auto-disabled — protects always-on plugins (security-guidance,
 # superpowers) and unrelated user plugins. Add a plugin here only when its
@@ -313,7 +318,11 @@ enable_skill() {
   local skill="$1" type="$2"
   case "$type" in
     gstack)
-      if [ -e "$DISABLED_DIR/gstack__$skill" ]; then
+      if gstack_is_removed "$skill"; then
+        warn "refusing to enable removed skill: $skill (lib/gstack-removed.sh \
+— a profile census failure, not a crash)"
+        return 0
+      elif [ -e "$DISABLED_DIR/gstack__$skill" ]; then
         rm -rf "${SKILLS_DIR:?}/${skill:?}"
         mv "$DISABLED_DIR/gstack__$skill" "$SKILLS_DIR/$skill"
         ok "enabled: $skill"
@@ -454,18 +463,27 @@ disable_skill() {
 # ── Shared gstack operations ──────────────────────────────
 
 # Re-enable every gstack skill parked in skills-disabled/ (move gstack__*
-# back into skills/). Shared by cmd_reset and `gstack on`. Side effects
-# only; prints one confirmation per restored skill.
+# back into skills/), skipping a name lib/gstack-removed.sh denies (left
+# parked — the policy line goes to stderr). Shared by cmd_reset and
+# `gstack on`. Echoes the REAL restored count (skipped names excluded) on
+# stdout so the caller can report it accurately; per-skill confirmations
+# go to stderr so that count is the only thing captured with `$(...)`.
 enable_all_gstack() {
-  local entry name
-  [ -d "$DISABLED_DIR" ] || return 0
+  local entry name restored=0
+  [ -d "$DISABLED_DIR" ] || { echo 0; return 0; }
   for entry in "$DISABLED_DIR"/gstack__*; do
     [ -e "$entry" ] || continue
     name="$(basename "$entry" | sed 's/^gstack__//')"
+    if gstack_is_removed "$name"; then
+      info "skipped (removed by policy, lib/gstack-removed.sh): $name" >&2
+      continue
+    fi
     rm -rf "${SKILLS_DIR:?}/${name:?}"
     mv "$entry" "$SKILLS_DIR/$name"
-    ok "re-enabled: $name"
+    ok "re-enabled: $name" >&2
+    restored=$((restored + 1))
   done
+  echo "$restored"
 }
 
 # Disable gstack-origin skills not listed in the given profile. Shared by
@@ -648,13 +666,13 @@ cmd_gstack() {
     on)
       # Restore whatever is parked, but DON'T touch active-profile — the
       # user is adding gstack on top of their current profile, not clearing it.
-      local parked
+      local parked restored
       parked="$(parked_gstack_count)"
       if [ "$parked" -eq 0 ]; then
         info "nothing parked — gstack skills are linked per profile (set/apply/reset)"
       else
-        enable_all_gstack
-        ok "$parked parked gstack skills restored"
+        restored="$(enable_all_gstack)"
+        ok "$restored parked gstack skills restored"
       fi
       ;;
     off)

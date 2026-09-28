@@ -55,39 +55,21 @@ for item in hooks githooks agents skills lib templates rules; do
 done
 
 # GStack is exposed via per-skill symlinks under skills/ (browse,
-# canary, autoplan, design-review, …) created by gstack's own
-# `./setup`. A global `skills/gstack -> skills-external/gstack/`
-# symlink duplicated the top-level gstack SKILL.md alongside those
-# individual skills, producing two entries with the same description
-# ("Fast headless browser for QA testing…"). Remove any stale global
-# link — only per-skill entries remain.
-if [ -L "$REPO/skills/gstack" ] || [ -L "$CLAUDE/skills/gstack" ]; then
-  rm -f "$REPO/skills/gstack" "$CLAUDE/skills/gstack"
-  CHANGED=$((CHANGED + 1))
-fi
-if [ ! -d "$REPO/skills-external/gstack" ]; then
+# canary, autoplan, design-review, …) created by gstack's own `./setup`,
+# PLUS a shared helper tree at skills/gstack/ mirroring every asset the
+# skills hardcode (bin/, browse/dist/, ETHOS.md, …) that a per-skill
+# symlink never exposes — see lib/gstack-links.sh. The helper tree
+# never contains a SKILL.md at any depth, so it never duplicates a
+# per-skill entry the way a flat `skills/gstack -> skills-external/gstack`
+# link used to (removed by the lib's own stale-symlink guard).
+# shellcheck source=lib/gstack-links.sh disable=SC1091
+source "$REPO/lib/gstack-links.sh"
+if [ -d "$REPO/skills-external/gstack" ]; then
+  n=$(link_gstack_helpers "$REPO/skills-external/gstack" \
+    "$CLAUDE/skills/gstack")
+  CHANGED=$((CHANGED + n))
+else
   echo "⚠️  GStack submodule not found — run: git submodule update --init"
-fi
-
-# GStack shared infrastructure: bin/ (CLI tools, config, analytics) and
-# browse/dist/ (compiled browse binary). Per-skill SKILL.md symlinks don't
-# expose these, but multiple skills hardcode ~/.claude/skills/gstack/bin/
-# and ~/.claude/skills/gstack/browse/dist/. Create targeted symlinks.
-GSTACK_SRC="$REPO/skills-external/gstack"
-GSTACK_DST="$CLAUDE/skills/gstack"
-if [ -d "$GSTACK_SRC/bin" ]; then
-  mkdir -p "$GSTACK_DST"
-  if [ ! -L "$GSTACK_DST/bin" ]; then
-    ln -sf "$GSTACK_SRC/bin" "$GSTACK_DST/bin"
-    CHANGED=$((CHANGED + 1))
-  fi
-fi
-if [ -d "$GSTACK_SRC/browse/dist" ]; then
-  mkdir -p "$GSTACK_DST/browse"
-  if [ ! -L "$GSTACK_DST/browse/dist" ]; then
-    ln -sf "$GSTACK_SRC/browse/dist" "$GSTACK_DST/browse/dist"
-    CHANGED=$((CHANGED + 1))
-  fi
 fi
 
 # impeccable is NOT here: its installer writes the skill straight into

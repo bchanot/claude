@@ -24,6 +24,8 @@ source "$REPO/lib/detect-plugins.sh"
 source "$REPO/lib/gstack-playwright.sh"
 # shellcheck source=lib/doctor-vendored.sh disable=SC1091
 source "$REPO/lib/doctor-vendored.sh"
+# shellcheck source=lib/doctor-skills.sh disable=SC1091
+source "$REPO/lib/doctor-skills.sh"
 
 echo ""
 echo "═══ claude-config doctor (v${VERSION}) ═══"
@@ -403,23 +405,23 @@ echo "── Token budget estimate ──"
 CLAUDE_MD_CHARS=$(wc -c < "$REPO/CLAUDE.global.md" 2>/dev/null || echo 0)
 CLAUDE_MD_TOKENS=$((CLAUDE_MD_CHARS / 4))
 
-# Skill descriptions only (frontmatter description field — loaded passively at startup)
-SKILL_DESC_CHARS=0
-for f in "$HOME/.claude/skills/"*/SKILL.md; do
-  [ -f "$f" ] || continue
-  desc=$(grep "^description:" "$f" 2>/dev/null | head -1 | sed 's/^description: *//' )
-  SKILL_DESC_CHARS=$((SKILL_DESC_CHARS + ${#desc}))
-done
+# Skill descriptions across the whole live catalog — every SKILL.md
+# reachable through ~/.claude/skills/*/SKILL.md, symlinks included
+# (lib/doctor-skills.sh; catches a `|`/`>` block-scalar description that
+# the old `grep '^description:' | head -1` counted as 0 chars, and a
+# symlinked skill dir that the old `find -maxdepth 2` without `-L` missed).
+read -r SKILL_COUNT SKILL_DESC_CHARS \
+  < <(skill_catalog_stats "$HOME/.claude/skills")
 SKILL_DESC_TOKENS=$((SKILL_DESC_CHARS / 4))
-SKILL_COUNT=$(find "$HOME/.claude/skills/" -maxdepth 2 -name "SKILL.md" 2>/dev/null | wc -l | tr -d ' ')
 
-# Plugin passive cost estimates (tokens)
+# Plugin passive cost estimates (tokens) — session-start injections and
+# hook prompts that never show up as a skill description above. gstack,
+# context7 (find-docs) and graphifyy dropped 2026-09-28 (skill-catalog
+# prune): their skills sit under ~/.claude/skills and are already counted
+# by the stats above — a separate constant here double-counted them.
 PLUGIN_TOKENS=0
-if detect_superpowers 2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 800)); fi
-if detect_gstack      2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 2750)); fi
-if detect_uiux_pro_max    2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 400)); fi
-if detect_context7    2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 200)); fi
-if detect_graphifyy   2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 300)); fi
+if detect_superpowers  2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 1500)); fi
+if detect_uiux_pro_max 2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 670)); fi
 
 TOTAL_TOKENS=$((CLAUDE_MD_TOKENS + SKILL_DESC_TOKENS + PLUGIN_TOKENS))
 CONTEXT_WINDOW=200000   # Claude Code default context window (conservative; 1M is opt-in)
@@ -430,7 +432,7 @@ echo "  CLAUDE.global.md:    ~${CLAUDE_MD_TOKENS}t"
 echo "  Skill descriptions:  ~${SKILL_DESC_TOKENS}t  (${SKILL_COUNT} skills)"
 echo "  Plugin passive cost: ~${PLUGIN_TOKENS}t  (active plugins)"
 echo "  ─────────────────────────────────────────"
-info "  Total:               ~${TOTAL_TOKENS}t  (measured ~11.4k post-audit, LRN-088)"
+info "  Total:               ~${TOTAL_TOKENS}t  (re-measure after a catalog change; LRN-088)"
 info "  Context window:      ${CONTEXT_WINDOW}t  (default; 1M opt-in)"
 info "  Usage:               ~${PCT}% of context"
 echo ""

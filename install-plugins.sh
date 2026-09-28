@@ -30,6 +30,8 @@ fi
 source "$REPO/lib/detect-plugins.sh"
 # shellcheck source=lib/gstack-playwright.sh disable=SC1091
 source "$REPO/lib/gstack-playwright.sh"
+# shellcheck source=lib/gstack-links.sh disable=SC1091
+source "$REPO/lib/gstack-links.sh"
 
 # ── Guard hand-curated config against installer drift ────────
 # graphify's installer (Step 7) rewrites CLAUDE.md + .claude/settings.json
@@ -372,19 +374,17 @@ if [ -d "$GSTACK_DIR" ]; then
     warn "GStack NOT ready — ./setup did not complete (see warnings above)"
   fi
 
-  # GStack shared infrastructure: bin/ (CLI tools) and browse/dist/ (compiled binary).
-  # Per-skill SKILL.md symlinks don't expose these, but multiple skills hardcode
-  # ~/.claude/skills/gstack/bin/ and gstack/browse/dist/.
+  # GStack shared helper tree: every asset the skills hardcode under
+  # ~/.claude/skills/gstack/ (bin/, browse/dist/, ETHOS.md, …) that a
+  # per-skill SKILL.md symlink never exposes — see lib/gstack-links.sh.
+  # Run AFTER ./setup so the lib's own stale-symlink guard removes any
+  # `skills/gstack -> skills-external/gstack` link setup may have planted.
   GSTACK_DST="$HOME/.claude/skills/gstack"
-  if [ -d "$GSTACK_DIR/bin" ]; then
-    mkdir -p "$GSTACK_DST"
-    [ -L "$GSTACK_DST/bin" ] || ln -sf "$GSTACK_DIR/bin" "$GSTACK_DST/bin"
-    ok "gstack/bin/ symlink OK"
-  fi
-  if [ -d "$GSTACK_DIR/browse/dist" ]; then
-    mkdir -p "$GSTACK_DST/browse"
-    [ -L "$GSTACK_DST/browse/dist" ] || ln -sf "$GSTACK_DIR/browse/dist" "$GSTACK_DST/browse/dist"
-    ok "gstack/browse/dist/ symlink OK"
+  _n_gstack_links=$(link_gstack_helpers "$GSTACK_DIR" "$GSTACK_DST")
+  if [ "$_n_gstack_links" -gt 0 ]; then
+    ok "gstack helper tree linked ($_n_gstack_links new)"
+  else
+    ok "gstack helper tree up to date"
   fi
 else
   warn "GStack submodule directory not found after init — check .gitmodules"
@@ -545,6 +545,15 @@ claude plugin marketplace add nextlevelbuilder/ui-ux-pro-max-skill 2>/dev/null |
 install_plugin "ui-ux-pro-max" "ui-ux-pro-max-skill"
 
 echo ""
+
+# frontend-design@claude-plugins-official — NEVER installed: byte-identical
+# to the skills-external copy Step 8b syncs from the example-skills cache;
+# uninstalled 2026-09-28 (skill-catalog prune).
+
+# brightdata-plugin@synced — account-synced from claude.ai, kept `false` in
+# settings.json: every skill needs a Bright Data account and its
+# bright-data-mcp skill orders WebFetch/WebSearch replaced "no exceptions"
+# (would hijack /seo /geo /harden).
 
 # Caveman plugin removed (cleanup/caveman-always-on, v3.5.0): on a
 # subscription plan its ~75% output-token compression has no cost benefit,
@@ -1196,7 +1205,7 @@ echo "║                     Install Summary                     ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
 echo "  ALWAYS ON (installed at user scope):"
-echo "    ✅ security-guidance   — PreToolUse security hook (0 tokens) [claude-code-plugins]"
+echo "    ✅ security-guidance   — regex hints on Edit/Write + out-of-band LLM reviews on commit/push (Stop review off via ENABLE_STOP_REVIEW=0; quota, not context) [claude-code-plugins]"
 echo "    ✅ rtk                 — token compression hook (0 tokens)"
 echo "    ✅ superpowers         — brainstorm/plan/implement/debug workflow"
 echo ""

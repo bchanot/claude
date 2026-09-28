@@ -172,12 +172,12 @@ a different package, ships its own conflicting `graphify` bin) — see
 | `/web-validate` | W3C HTML/CSS validity + WCAG 2.1 accessibility audit |
 | `/geo` | GEO-only audit — AI-search visibility (ChatGPT, Perplexity, Claude, Gemini…) |
 | `/client-handover` | Final project delivery — audits + branded deliverable (Markdown / HTML / PDF) |
-| `/profile` | Activate a skill profile (web / seo / web-full / full / backend / design / dev / qa / audit / minimal) (default: full) |
+| `/profile` | Activate a skill profile (web / seo / web-full / full / max / backend / design / dev / qa / audit / minimal) (default: full) |
 | `/tour` | Grouped all-axes sweep — cleanup + security + reconcile + doc, fix and loop until clean |
 
 > This table lists personal skills. Gstack skills (investigate, review, retro,
-> office-hours, context-save, context-restore, cso…) and marketplace plugins add
-> many more — run `/skills-perso` to list your hand-written skills, or browse `skills/`.
+> office-hours, cso…) and marketplace plugins add many more — run
+> `/skills-perso` to list your hand-written skills, or browse `skills/`.
 
 ---
 
@@ -354,7 +354,7 @@ make update                 # update Claude Code, config, submodules, plugins, a
 make test                   # run deterministic tests (lib/tests/*.test.sh + lib/seo-data/*.test.sh + lib/gitflow-test.sh + lib/tests/run-*.sh)
 make onboard                # onboard an existing project (run from its dir)
 make seo-connect            # connect a Google account for /seo FULL (OAuth consent)
-make profile cmd="set X"    # activate a skill profile (web/seo/web-full/full/backend/design/dev/qa/audit/minimal)
+make profile cmd="set X"    # activate a skill profile (web/seo/web-full/full/max/backend/design/dev/qa/audit/minimal)
 make profile-list           # list skill profiles
 make profile-current        # show the active profile (full when none selected)
 make profile-reset          # go to the default profile (full)

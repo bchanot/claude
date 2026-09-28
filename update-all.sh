@@ -19,6 +19,8 @@ VERSION=$(cat "$REPO/version.txt" 2>/dev/null || echo "unknown")
 source "$REPO/lib/detect-plugins.sh"
 # shellcheck source=lib/gstack-playwright.sh disable=SC1091
 source "$REPO/lib/gstack-playwright.sh"
+# shellcheck source=lib/gstack-links.sh disable=SC1091
+source "$REPO/lib/gstack-links.sh"
 
 echo ""
 echo "═══ claude-config update (v${VERSION}) ═══"
@@ -103,16 +105,12 @@ if [[ "$_gstack_confirm" =~ ^[Yy]$ ]]; then
     warn "GStack submodule update failed — run: git submodule update --init"
   fi
 
-  # Refresh gstack shared infrastructure symlinks (bin/ + browse/dist/)
+  # Refresh the gstack shared helper tree (bin/, browse/dist/, ETHOS.md,
+  # …) — see lib/gstack-links.sh.
   GSTACK_DIR="$REPO/skills-external/gstack"
   GSTACK_DST="$HOME/.claude/skills/gstack"
-  if [ -d "$GSTACK_DIR/bin" ]; then
-    mkdir -p "$GSTACK_DST"
-    ln -sf "$GSTACK_DIR/bin" "$GSTACK_DST/bin"
-  fi
-  if [ -d "$GSTACK_DIR/browse/dist" ]; then
-    mkdir -p "$GSTACK_DST/browse"
-    ln -sf "$GSTACK_DIR/browse/dist" "$GSTACK_DST/browse/dist"
+  if [ -d "$GSTACK_DIR" ]; then
+    link_gstack_helpers "$GSTACK_DIR" "$GSTACK_DST" >/dev/null
   fi
 
   # Restore prior enabled/disabled state
