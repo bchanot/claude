@@ -361,7 +361,7 @@ make profile-reset          # go to the default profile (full)
 make new-skill name=myskill # scaffold agent + skill files
 ```
 
-`doctor.sh` checks: symlinks, GStack submodule, Playwright browser cache, prerequisites (git, Node, Cargo, Python, Claude Code), plugins, permissions, token budget, config consistency.
+`doctor.sh` checks: symlinks, GStack submodule, vendored skills (curl-pinned externals in `plugins.lock.json` + `link.sh`'s `EXTERNAL_SKILLS`, per the active profile), Playwright browser cache, prerequisites (git, Node, Cargo, Python, Claude Code), plugins, permissions, token budget, config consistency.
 
 ---
 
