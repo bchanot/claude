@@ -87,6 +87,10 @@ has "lib/verify-secure-loop.md" '/effort-max'
 # ── 8) turn-reset re-assert after a prose gate followed by reflection
 has "skills/bugfix/SKILL.md" 'effort-shift: turn reset'
 
+# ── 11) audit tooling
+has "lib/effort-shift.md" 'effort-audit.py'
+[ -x "$R/lib/effort-audit.py" ] && ok || ko "lib/effort-audit.py missing or not executable"
+
 # ── summary (later tasks insert their locks ABOVE this line)
 printf 'effort-routing census: %d pass, %d fail\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

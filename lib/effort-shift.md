@@ -28,6 +28,9 @@ max (stuck error, judged need).
   the run stays at the session level. `CLAUDE_CODE_EFFORT_LEVEL` beats every
   frontmatter; keep it unset (the session banner warns).
 
+Measure the split any time: `python3 ~/.claude/lib/effort-audit.py`
+(thinking/output/cache tokens per scope, model and effort).
+
 ## Shifters
 
 `Skill(effort-low)` · `Skill(effort-medium)` · `Skill(effort-high)` ·
