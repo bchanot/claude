@@ -1,5 +1,6 @@
 ---
 name: hotfix
+effort: high
 description: |
   Quick fix for superficial bugs: typos, CSS issues, config errors,
   off-by-one, wrong variable name, missing import, broken link.

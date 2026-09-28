@@ -1,5 +1,6 @@
 ---
 name: geo
+effort: high
 description: |
   Use when a web project needs AI-search visibility audit — ChatGPT,
   Perplexity, Gemini, AI Overviews, Copilot… Standalone GEO; dispatches

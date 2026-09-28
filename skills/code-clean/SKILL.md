@@ -1,5 +1,6 @@
 ---
 name: code-clean
+effort: xhigh
 description: |
   Full codebase cleanup: dead code, style/norm enforcement, structural
   issues. Two-phase: read-only audit, then approved fixes only

@@ -1,5 +1,6 @@
 ---
 name: web-validate
+effort: high
 description: |
   Use when a web project needs W3C HTML/CSS validity or WCAG 2.1
   accessibility audit. Dispatches the validator-analyzer agent, strict

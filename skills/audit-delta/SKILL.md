@@ -1,5 +1,6 @@
 ---
 name: audit-delta
+effort: xhigh
 description: |
   Use when the user wants a recurring code audit scoped to changes since
   the previous run (full codebase on first run), on selectable axes:

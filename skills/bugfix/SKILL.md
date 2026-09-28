@@ -1,5 +1,6 @@
 ---
 name: bugfix
+effort: high
 description: |
   Structured bug fix with root cause investigation. For bugs where
   the cause isn't immediately obvious, spans multiple files, or

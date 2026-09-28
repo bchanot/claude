@@ -1,5 +1,6 @@
 ---
 name: feat
+effort: high
 description: |
   Small feature implementation (1-5 files). Reflection inline (scope,
   plan, contract — session model), execution dispatched to the

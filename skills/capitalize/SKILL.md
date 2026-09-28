@@ -1,5 +1,6 @@
 ---
 name: capitalize
+effort: low
 description: |
   Use when about to /clear or /compact, or closing a session, with
   decisions, learnings, blockers, evals, or TODO changes not yet written

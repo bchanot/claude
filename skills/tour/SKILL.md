@@ -1,5 +1,6 @@
 ---
 name: tour
+effort: xhigh
 description: |
   Use when the user wants ONE grouped pass over a whole project (or a
   list of projects) covering all hygiene axes together: code cleanup +

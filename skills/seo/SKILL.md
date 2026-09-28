@@ -1,5 +1,6 @@
 ---
 name: seo
+effort: high
 description: |
   Use when a web project needs SEO + GEO audit or optimization —
   classical search (Google, Bing) AND AI search (ChatGPT, Perplexity, AI

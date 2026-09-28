@@ -41,6 +41,12 @@ for a in plan-challenger plugin-advisor verifier security-auditor seo-analyzer g
 for a in interviewer client-handover-writer status-reporter; do fm_no_effort "agents/$a.md"; done
 has "skills/init-project/SKILL.md" 'pin sonnet, effort medium'
 
+# ── 4) skill entry levels (spec D3): the user's invocation sets the run's level
+for s in status commit-change release-candidate doc capitalize close reconcile deploy profile plugin-check; do fm_has_effort "skills/$s/SKILL.md" low; done
+for s in gitflow prune-memory find-docs; do fm_has_effort "skills/$s/SKILL.md" medium; done
+for s in feat hotfix bugfix refactor web-validate harden seo geo; do fm_has_effort "skills/$s/SKILL.md" high; done
+for s in ship-feature init-project onboard tour audit-delta analyze code-clean client-handover; do fm_has_effort "skills/$s/SKILL.md" xhigh; done
+
 # ── summary (later tasks insert their locks ABOVE this line)
 printf 'effort-routing census: %d pass, %d fail\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

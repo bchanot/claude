@@ -1,5 +1,6 @@
 ---
 name: harden
+effort: high
 description: |
   Web hardening audit — HTTPS/TLS, HSTS, security headers (CSP,
   X-Frame-Options…), cookie flags, canonical, custom 404, server config

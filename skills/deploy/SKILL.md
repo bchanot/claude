@@ -1,5 +1,6 @@
 ---
 name: deploy
+effort: low
 description: |
   Use when deploying a project via its per-project runbook — instantiates the delta
   since last deploy, hands off for out-of-band execution, resumes cold, learns from errors.

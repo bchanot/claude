@@ -1,5 +1,6 @@
 ---
 name: doc
+effort: low
 description: |
   Use when documentation may be out of sync with code — features
   added/removed vs README / INSTALL / DEPLOY / CHANGELOG. Stack-aware
