@@ -21,7 +21,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   plugins.lock.json, text files only, never demos or binaries). The
   agent-skills curl loop became the shared `lib/vendor-skills.sh`
   (`vendor_pinned_skills <lock-key> [refresh]`, list or dict lock shapes,
-  `VENDOR_BASE_URL` for the hermetic suite `lib/tests/vendor-skills.test.sh`),
+  `VENDOR_BASE_URL` honoured only as `file://` for the hermetic suite
+  `lib/tests/vendor-skills.test.sh`, lock values validated: 40-hex commit,
+  github.com source, traversal-free paths, no trailing newline),
   used by install-plugins.sh Step 8e and update-all.sh 7.3; refresh keeps
   the file's convention and skips a skill that was never installed.
   Registered in link.sh, .gitignore,

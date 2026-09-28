@@ -34,8 +34,14 @@
 #
 # Every skill name and file path from the lock is rejected — before any
 # URL is built or any file fetched — if it contains "..", starts with
-# "/", or holds a character outside [A-Za-z0-9._/-]; this guards against
-# a lock entry walking a fetch outside skills-external/<skill>/.
+# "/", or holds a character outside [A-Za-z0-9._/-] (checked with
+# re.fullmatch, so a trailing newline or other stray character cannot
+# slip past the "$" anchor the way it could under re.match); this guards
+# against a lock entry walking a fetch outside skills-external/<skill>/.
+# The entry's own "commit" (must be 40 lowercase hex chars), "source"
+# (must be "https://github.com/<owner>/<repo>", trailing slash optional)
+# and "path" (same SAFE class as a file, no traversal) are format-checked
+# the same way, before either is ever spliced into the raw-file URL.
 #
 # No `set -euo pipefail` here (mirrors lib/detect-plugins.sh): a sourced
 # lib must not change the caller's shell options.
@@ -71,10 +77,12 @@ fi
 # is a plain argv string — the caller (vendor_pinned_skills) already
 # checked it is either empty or a "file://" value, never the raw
 # VENDOR_BASE_URL.
-# rc 1 when the key, its commit or its skills are absent (nothing
-# printed), or when a skill name or file path fails the traversal/
-# character check (prints one "INVALID\t<offending value>" line, nothing
-# else — no URL is built and no file is fetched for that lock key).
+# rc 1 when the key, its commit, source or skills are absent (nothing
+# printed); when the commit, source or path fails its format check
+# (prints one "INVALID\t<field>=<offending value>" line); or when a
+# skill name or file path fails the traversal/character check (prints
+# one "INVALID\t<offending value>" line) — no URL is built and no file
+# is fetched for that lock key either way.
 # Reads the lock path, key and base override via argv — never
 # string-spliced into the script.
 _vendor_read_lock() {
@@ -82,10 +90,13 @@ _vendor_read_lock() {
 import json, re, sys
 
 SAFE = re.compile(r'^[A-Za-z0-9._/-]+$')
+COMMIT_RE = re.compile(r'^[0-9a-f]{40}$')
+SOURCE_RE = re.compile(
+    r'^https://github\.com/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/?$')
 
 
 def unsafe(value):
-    return ".." in value or value.startswith("/") or not SAFE.match(value)
+    return ".." in value or value.startswith("/") or not SAFE.fullmatch(value)
 
 
 lockfile, key, base_override = sys.argv[1], sys.argv[2], sys.argv[3]
@@ -93,13 +104,23 @@ with open(lockfile) as f:
     data = json.load(f)
 entry = data.get(key, {})
 sha = entry.get("commit", "")
-owner_repo = entry.get("source", "").rstrip("/").rsplit("github.com/", 1)[-1]
+source = entry.get("source", "")
 path = entry.get("path", "skills")
 skills = entry.get("skills", {})
 if isinstance(skills, list):
     skills = {name: ["SKILL.md"] for name in skills}
-if not sha or not owner_repo or not skills:
+if not sha or not source or not skills:
     sys.exit(1)
+if not COMMIT_RE.fullmatch(sha):
+    print(f"INVALID\tcommit={sha}")
+    sys.exit(1)
+if not SOURCE_RE.fullmatch(source):
+    print(f"INVALID\tsource={source}")
+    sys.exit(1)
+if unsafe(path):
+    print(f"INVALID\tpath={path}")
+    sys.exit(1)
+owner_repo = source.rstrip("/").rsplit("github.com/", 1)[-1]
 for name, files in skills.items():
     if unsafe(name):
         print(f"INVALID\t{name}")
@@ -148,14 +169,21 @@ _vendor_install_skill() {
 }
 
 # _vendor_report_lock_error <lock_key> <lock_out> — turns a failed
-# _vendor_read_lock into the right err line: a rejected name/path when
-# <lock_out> carries the "INVALID\t<value>" marker, the generic
-# no-commit-pinned hint otherwise.
+# _vendor_read_lock into the right err line: a rejected commit/source/
+# path when <lock_out> carries the "INVALID\t<field>=<value>" marker (the
+# field named in full), a rejected skill name/file when it carries the
+# plain "INVALID\t<value>" marker, the generic no-commit-pinned hint
+# otherwise.
 _vendor_report_lock_error() {
-  local lock_key="$1" lock_out="$2" msg
+  local lock_key="$1" lock_out="$2" rest msg
   if [[ "$lock_out" == INVALID$'\t'* ]]; then
-    msg="$lock_key: rejected '${lock_out#INVALID$'\t'}'"
-    msg="$msg — path traversal or disallowed characters"
+    rest="${lock_out#INVALID$'\t'}"
+    if [[ "$rest" == *=* ]]; then
+      msg="$lock_key: rejected ${rest%%=*}='${rest#*=}' — invalid format"
+    else
+      msg="$lock_key: rejected '$rest'"
+      msg="$msg — path traversal or disallowed characters"
+    fi
     err "$msg"
     return
   fi
