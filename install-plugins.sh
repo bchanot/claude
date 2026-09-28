@@ -90,22 +90,6 @@ print(v)
   fi
 }
 
-# Read a pinned commit sha from plugins.lock.json (agent-skills style entries
-# — no "version", a "commit" field instead). Prints the sha, or "" if the
-# entry or the field is absent.
-# Usage: pinned_commit "agent-skills" → prints the commit sha or ""
-pinned_commit() {
-  local key="$1"
-  if [ -f "$REPO/plugins.lock.json" ] && command -v python3 &>/dev/null; then
-    python3 -c "
-import json, sys
-with open(sys.argv[1]) as f:
-    d = json.load(f)
-print(d.get(sys.argv[2], {}).get('commit', ''))
-" "$REPO/plugins.lock.json" "$key" 2>/dev/null || true
-  fi
-}
-
 # ============================================================
 # DETECT OS
 # ============================================================
@@ -915,41 +899,29 @@ else
 fi
 echo ""
 
-# ── Step 8e: Agent Skills (addyosmani/agent-skills, pinned commit) ──
-# Three dev-lifecycle skills vendored the emil-design-eng way (curl →
-# skills-external/<name>/SKILL.md, symlinked by link.sh) but COMMIT-pinned
-# instead of tracking main: the sha lives in plugins.lock.json ("agent-skills"
-# entry), never hardcoded here.
-echo "── Step 8e: Agent Skills (addyosmani/agent-skills) ─────────"
+# ── Step 8e: Agent Skills (addyosmani/agent-skills) + Mengto scroll
+# skills (MengTo/Skills) — both commit-pinned, vendored the emil-design-eng
+# way (curl → skills-external/<name>/, symlinked by link.sh) through the
+# shared lib/vendor-skills.sh helper. Shas/paths/file-lists live in
+# plugins.lock.json ("agent-skills" / "mengto-skills" entries), never
+# hardcoded here.
+echo "── Step 8e: Agent Skills + Mengto scroll skills (pinned commit) ──"
 echo ""
-AGENT_SKILLS_NAMES=(observability-and-instrumentation deprecation-and-migration ci-cd-and-automation)
-AGENT_SKILLS_SHA=$(pinned_commit "agent-skills")
-if [ -z "$AGENT_SKILLS_SHA" ]; then
-  err "agent-skills: no commit pinned in plugins.lock.json — add an \"agent-skills\" entry with a \"commit\" field"
-else
-  for _as_skill in "${AGENT_SKILLS_NAMES[@]}"; do
-    _as_dir="$REPO/skills-external/$_as_skill"
-    _as_url="https://raw.githubusercontent.com/addyosmani/agent-skills/$AGENT_SKILLS_SHA/skills/$_as_skill/SKILL.md"
-    mkdir -p "$_as_dir"
-    if [ -f "$_as_dir/SKILL.md" ]; then
-      ok "$_as_skill already downloaded"
-    else
-      info "Downloading SKILL.md from addyosmani/agent-skills ($_as_skill)..."
-      if curl -fsSL "$_as_url" -o "$_as_dir/SKILL.md.tmp" \
-        && mv "$_as_dir/SKILL.md.tmp" "$_as_dir/SKILL.md"; then
-        ok "$_as_skill installed"
-      else
-        rm -f "$_as_dir/SKILL.md.tmp"
-        err "$_as_skill download failed — try: curl -fsSL $_as_url -o $_as_dir/SKILL.md"
-      fi
-    fi
-    if [ -L "$HOME/.claude/skills/$_as_skill" ]; then
-      ok "$_as_skill symlink OK"
-    else
-      info "Symlinking $_as_skill — will be created by link.sh"
-    fi
-  done
-fi
+# shellcheck source=lib/vendor-skills.sh disable=SC1091
+source "$REPO/lib/vendor-skills.sh"
+EXT_SKILL_NAMES=(observability-and-instrumentation deprecation-and-migration
+  ci-cd-and-automation scroll-world-storytelling build-threejs-scroll-worlds
+  scroll-scrubbed-visual-sequence scroll-scrubbed-word-reveal
+  scroll-progress-timeline)
+vendor_pinned_skills agent-skills
+vendor_pinned_skills mengto-skills
+for _ext_skill in "${EXT_SKILL_NAMES[@]}"; do
+  if [ -L "$HOME/.claude/skills/$_ext_skill" ]; then
+    ok "$_ext_skill symlink OK"
+  else
+    info "Symlinking $_ext_skill — will be created by link.sh"
+  fi
+done
 echo ""
 
 # ============================================================
@@ -1240,6 +1212,7 @@ echo "    🔄 frontend-design     — distinctive frontend interfaces, anti-AI-
 echo "    🔄 impeccable          — /impeccable design verbs + 45-rule deterministic detector (npx impeccable detect)"
 echo "    🔄 design-motion-principles — motion/animation design, 3-designer lens (kylezantos)"
 echo "    🔄 agent-skills trio   — observability-and-instrumentation, deprecation-and-migration, ci-cd-and-automation (curl → symlink, pinned commit)"
+echo "    🔄 mengto scroll skills — scroll-world-storytelling, build-threejs-scroll-worlds, scroll-scrubbed-visual-sequence, scroll-scrubbed-word-reveal, scroll-progress-timeline (curl → symlink, pinned commit)"
 echo "    🔄 darwin-skill        — autonomous skill optimizer (npx skills, ~/.agents/skills/)"
 echo "    🔄 21st skill pack     — 21st.dev CLI skills; design ones follow the profile (full by default), publishing ones on demand (toggle: lib/toggle-external.sh enable 21st)"
 echo ""
@@ -1249,6 +1222,7 @@ echo "  Emil Design Eng at: ~/.claude/skills/emil-design-eng/ (symlink → skill
 echo "  Frontend Design at: ~/.claude/skills/frontend-design/ (symlink → skills-external)"
 echo "  Design Motion Principles at: ~/.claude/skills/design-motion-principles/ (symlink → skills-external)"
 echo "  Agent Skills trio at: ~/.claude/skills/{observability-and-instrumentation,deprecation-and-migration,ci-cd-and-automation}/ (symlink → skills-external)"
+echo "  Mengto scroll skills at: ~/.claude/skills/{scroll-world-storytelling,build-threejs-scroll-worlds,scroll-scrubbed-visual-sequence,scroll-scrubbed-word-reveal,scroll-progress-timeline}/ (symlink → skills-external)"
 echo "  npx skills at: ~/.agents/skills/ (symlinked into ~/.claude/skills/)"
 echo ""
 echo "  → Restart Claude Code — plugins load automatically"

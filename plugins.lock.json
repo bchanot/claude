@@ -48,7 +48,21 @@
     "commit": "2686b620fc1fed2e8f60c704839c766b8594c6b6",
     "skills": ["observability-and-instrumentation", "deprecation-and-migration", "ci-cd-and-automation"],
     "managed_by": "curl",
-    "note": "Three dev-lifecycle skills from addyosmani/agent-skills, vendored the emil-design-eng way but COMMIT-pinned (not main-branch tracking): each lands in skills-external/<name>/SKILL.md (gitignored, symlinked by link.sh), install-plugins.sh Step 8e curls all three at this commit when absent, update-all.sh re-fetches at the SAME commit on every run (a pin, not an auto-advance). Bump the commit deliberately to pick up upstream changes; the scripts read it from here, never hardcode it."
+    "note": "Three dev-lifecycle skills from addyosmani/agent-skills, vendored the emil-design-eng way but COMMIT-pinned (not main-branch tracking): each lands in skills-external/<name>/SKILL.md (gitignored, symlinked by link.sh), install-plugins.sh Step 8e curls all three at this commit when absent, update-all.sh re-fetches at the SAME commit on every run (a pin, not an auto-advance). Bump the commit deliberately to pick up upstream changes; the scripts read it from here, never hardcode it. Both install-plugins.sh and update-all.sh vendor this entry through lib/vendor-skills.sh's vendor_pinned_skills() — the shared helper also used by the \"mengto-skills\" entry below."
+  },
+  "mengto-skills": {
+    "source": "https://github.com/MengTo/Skills",
+    "commit": "a965851e27dc179e693fde1bee94457a64e1a7a5",
+    "path": "agent-skills/web-design",
+    "skills": {
+      "scroll-world-storytelling": ["SKILL.md", "REFERENCES.md"],
+      "build-threejs-scroll-worlds": ["SKILL.md", "references/kage-anatomy.md", "references/quality-and-qa.md", "references/realtime-architecture.md", "references/scroll-conductor.js", "references/world-bible.md"],
+      "scroll-scrubbed-visual-sequence": ["SKILL.md", "REFERENCES.md"],
+      "scroll-scrubbed-word-reveal": ["SKILL.md", "REFERENCES.md"],
+      "scroll-progress-timeline": ["SKILL.md", "REFERENCES.md"]
+    },
+    "managed_by": "curl",
+    "note": "Five scroll-choreography skills from MengTo/Skills (agent-skills/web-design), vendored the agent-skills way but with an explicit per-skill file list (SKILL.md + REFERENCES.md, or references/*.md + references/scroll-conductor.js for build-threejs-scroll-worlds) instead of the SKILL.md-only default. Never vendored: demo/, agents/, or any binary asset upstream ships alongside each skill. Text-only, byte-for-byte copies (Codex-isms in the source text stay). Bump the commit deliberately to pick up an upstream edit; install-plugins.sh Step 8e and update-all.sh 7.3 both read it from here via lib/vendor-skills.sh's vendor_pinned_skills(), never hardcoded."
   },
   "impeccable": {
     "source": "npm:impeccable",

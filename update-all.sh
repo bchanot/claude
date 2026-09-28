@@ -379,37 +379,17 @@ else
   info "design-motion-principles not installed — skipping"
 fi
 
-# ── 7.3. Update Agent Skills (addyosmani/agent-skills, pinned commit) ──
+# ── 7.3. Update Agent Skills + Mengto scroll skills (pinned commit) ──
+# Both re-fetched at the SAME pinned commit (never advances the pin) via
+# the shared lib/vendor-skills.sh helper — see install-plugins.sh Step 8e.
 echo ""
 echo "── Updating Agent Skills (addyosmani/agent-skills)..."
-AGENT_SKILLS_SHA=""
-if [ -f "$REPO/plugins.lock.json" ] && command -v python3 &>/dev/null; then
-  AGENT_SKILLS_SHA=$(python3 -c "
-import json, sys
-with open(sys.argv[1]) as f:
-    d = json.load(f)
-print(d.get(sys.argv[2], {}).get('commit', ''))
-" "$REPO/plugins.lock.json" "agent-skills" 2>/dev/null || true)
-fi
-AGENT_SKILLS_NAMES=(observability-and-instrumentation deprecation-and-migration ci-cd-and-automation)
-if [ -z "$AGENT_SKILLS_SHA" ]; then
-  warn "agent-skills: no commit pinned in plugins.lock.json — skipping"
-else
-  for _as_skill in "${AGENT_SKILLS_NAMES[@]}"; do
-    _as_dir="$REPO/skills-external/$_as_skill"
-    if [ ! -d "$_as_dir" ]; then
-      info "$_as_skill not installed — skipping (run: make plugin)"
-      continue
-    fi
-    _as_url="https://raw.githubusercontent.com/addyosmani/agent-skills/$AGENT_SKILLS_SHA/skills/$_as_skill/SKILL.md"
-    if curl -fsSL "$_as_url" -o "$_as_dir/SKILL.md.tmp" \
-      && mv "$_as_dir/SKILL.md.tmp" "$_as_dir/SKILL.md"; then
-      ok "$_as_skill re-fetched at pinned commit"
-    else
-      warn "$_as_skill update failed"
-    fi
-  done
-fi
+# shellcheck source=lib/vendor-skills.sh disable=SC1091
+source "$REPO/lib/vendor-skills.sh"
+vendor_pinned_skills agent-skills refresh
+echo ""
+echo "── Updating Mengto scroll skills (MengTo/Skills)..."
+vendor_pinned_skills mengto-skills refresh
 
 # ── Impeccable (design detector + skill + subagents) ──
 # Global scope: the installer writes through the ~/.claude/{skills,agents}

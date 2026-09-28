@@ -53,6 +53,7 @@ rules:
 | EVAL-030 | 2026-09-24 | 2026-09-24 self-audit: two regressions and one guardrail bypass came from my own process, not from the tools | BDR-100 mechanisms shipped; re-run census at next doctrine wave |
 | EVAL-031 | 2026-09-25 | /feat run for BDR-101: challenge round earned its cost, two blockers sat in my own premises | keep challenge round on state-detection plans; check live state before planning; pin grep in oracles |
 | EVAL-032 | 2026-09-27 | 4 parallel feater executors, one tree, gate loop: verifier caught a vacuous test, security caught a partial-write; my oracles wrong twice | keep same-tree parallel dispatch with disjoint FILE SCOPE + orchestrator-owned shared files; blind verifier stays; measure oracles on precedents |
+| EVAL-033 | 2026-09-28 | case 7: 2 analyzers + 2 executors + 3 re-dispatches; verifiers caught shape, convention and my wrong count; security caught an env override | brief names the scratchpad path explicitly (3 /tmp leftovers); keep blind verifiers; count claims get an artifact |
 
 ---
 
@@ -314,3 +315,10 @@ Dogfood: 3 blind lenses attacked the v1 plan for the plan-challenge feature itse
 - **Result**: 4/4 CONFORME after 2 re-dispatches; security PASS ×2. Verifier A3 caught a vacuous distinct-pair test the executor had self-justified ([[LRN-172]]). Security caught first-download without tmp+mv (partial file accepted forever) + python source splicing → fixed by fresh executor, re-verified, re-audited. Executors never touched each other's files; A4 verifier counted the orchestrator-reserved CHANGELOG as ECARTS(1), correct by contract wording.
 - **Anomalies**: (1) my oracles wrong twice ([[LRN-173]]); (2) gates.sh ERROR(3) on first run, `EVIDENCE: pending` missing; (3) 3 guardrail denials on sub-agents (`export GIT_CONFIG_GLOBAL` inline ×2 incl. a verifier, `rm -rf /tmp/tmp.AAyJzvufO6` executor cleanup), all reported, none evaded — [[BDR-100]] live; (4) security-auditor miscounted the sha as 41 chars (it is 40) — verify sub-agent claims before acting; (5) `make test` rc 1 from the 2 pre-existing T16a, my first grep filter hid the totals.
 - **Action**: keep the pattern; add `EVIDENCE: pending` to the contract skeleton; floor-guard waiver policy → user decision; snippet framing for LLM-consumed output → follow-up.
+
+## EVAL-033 — case 7 execution: analyzers first, then two executors, three re-dispatches
+- **Date**: 2026-09-28
+- **Method**: two read-only analyzers (22 skills, fixed per-skill format, grep overlap against local assets) → verdict → two contracts → two feater executors in parallel (disjoint scopes, profiles owned by one, CHANGELOG by me) → gates.sh → fresh verifiers → security ×2 → full `make test`.
+- **Result**: both CONFORME after 3 re-dispatches: frontmatter shape (executor mirrored external peers instead of the named personal ones), update-all refresh convention (executor's "additive" install broke "not installed — skipping"), security MEDIUM env override + LOW traversal. Verifier also doubted my CHANGELOG "sixteen skipped" → it was seventeen. Byte-for-byte fidelity of 14 files confirmed twice.
+- **Anomalies**: (1) three sub-agents wrote to `/tmp` outside the scratchpad then could not `rm -rf` (refused, correctly) — the brief must name the scratchpad path; (2) executors' self-justified deviations were plausible each time and wrong twice → blind verifier stays mandatory; (3) analyzer reports at ~120-180 words per skill were the right grain, two of them fit my context; (4) `make test` rc 1 is still the 2 pre-existing T16a, my filter now shows totals.
+- **Action**: brief template line "scratch only under <scratchpad>"; count claims in CHANGELOG/journal cite the list they count; keep the analyzer-first pattern for any pack > 5 skills.

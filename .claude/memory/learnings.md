@@ -193,6 +193,7 @@ rules:
 | LRN-171 | 2026-09-25 | sub-agent sandbox: grep shim returns EMPTY inside `$(...)` for patterns holding literal `$VAR` — oracles pin `command grep` | contract CHECK lines, hermetic test greps, hooks parsing grep output |
 | LRN-172 | 2026-09-27 | TF-IDF cosine on a 2-doc corpus is identically 0: similarity self-tests need N ≥ 4, a same-corpus positive control and a sensitivity re-run | fixtures for any corpus-normalised statistic (idf, z-score, ranking), "distinct pair passes" tests |
 | LRN-173 | 2026-09-27 | contract oracles written from memory failed twice: run the CHECK on the precedent files first, census greps via `git grep` (tracked only), `EVIDENCE: pending` mandatory for gates.sh | contract CHECK lines, precedent-mirroring criteria, gates.sh ledgers |
+| LRN-174 | 2026-09-28 | a coverage census must grep plugin DATA files (CSV/JSON search DBs), not only SKILL.md prose; and a registry sample is not the upstream catalog, list the tree | before claiming a gap in installed skills; before scoping an external-repo evaluation |
 
 ---
 
@@ -1615,3 +1616,7 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 ## LRN-173 — contract oracles written from memory failed twice: run the CHECK on the precedent files first, census greps via `git grep`, `EVIDENCE: pending` mandatory
 - **Context**: same run, two orchestrator oracle bugs. (1) "≤ 80 chars" over the whole file: rules/web-building.md line 2 (`paths:` frontmatter) is already 110 chars, so the criterion contradicted the precedent it named; executor returned NEED-DECISION instead of bending. (2) emil-citers census with `grep -rl` hit gitignored `install-*.log` at the repo root; `git grep -l` (tracked only) is the right census tool. (3) gates.sh `run` errors `runnable but has no EVIDENCE: line` unless each criterion carries `EVIDENCE: pending`.
 - **Apply**: before shipping a CHECK, run it against the files it claims to mirror; census oracles = `git grep`; contract skeleton carries `EVIDENCE: pending` per criterion (check /feat's template writes it). Oracle fixes are orchestrator-owned, never a re-dispatch ([[BDR-102]]).
+
+## LRN-174 — a coverage census greps plugin data files too; a registry sample is not the catalog
+- **Context**: I told the user Astro View Transitions had zero local mentions. ui-ux-pro-max's `data/stacks/astro.csv` rows 28-31 carry ClientRouter, `transition:name`, no-JS fallback; `motion.csv` carries GSAP pin/scrub, SplitText, parallax. My grep covered SKILL.md prose and archetypes, not the plugin's CSV search DB. Same day: the ui-skills registry showed 11 MengTo skills; the repo tree has 88 web-design skills, and the substantive ones were outside the sample.
+- **Apply**: census = `grep -rl` over the plugin cache including data dirs, then say "row in a search DB" vs "workflow"; evaluating an upstream = `git/trees?recursive=1` first, sample never. Correct the user the moment the miss is found ([[BDR-104]]).

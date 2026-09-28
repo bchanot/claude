@@ -68,6 +68,11 @@ skills/frontend-design
 skills/ci-cd-and-automation
 skills/deprecation-and-migration
 skills/observability-and-instrumentation
+skills/scroll-world-storytelling
+skills/build-threejs-scroll-worlds
+skills/scroll-scrubbed-visual-sequence
+skills/scroll-scrubbed-word-reveal
+skills/scroll-progress-timeline
 
 # Impeccable — NOT a symlink: `impeccable skills install --scope=global`
 # writes the skill dir (and its ~15 MB engine binary) straight in through the
@@ -188,6 +193,18 @@ skills-external/emil-design-eng/
 skills-external/observability-and-instrumentation/
 skills-external/deprecation-and-migration/
 skills-external/ci-cd-and-automation/
+
+# Mengto scroll-choreography skills (MengTo/Skills) — machine-owned,
+# curl'd at the commit pinned in plugins.lock.json ("mengto-skills" entry)
+# by install-plugins.sh Step 8e (when absent) and re-fetched at the SAME
+# commit by update-all.sh, through the shared lib/vendor-skills.sh helper.
+# Not vendored: this is a pin, not a tracked snapshot — bump the commit
+# deliberately to pick up an upstream edit.
+skills-external/scroll-world-storytelling/
+skills-external/build-threejs-scroll-worlds/
+skills-external/scroll-scrubbed-visual-sequence/
+skills-external/scroll-scrubbed-word-reveal/
+skills-external/scroll-progress-timeline/
 
 # 21st.dev skill pack — machine-owned: `21st skills install` output, staged by
 # install-plugins.sh Step 8.7 (the installer refuses to write through the

@@ -7,6 +7,30 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- **`skills/site-motion`** — personal skill for site-level motion
+  choreography (scroll engine choice and Lenis/ScrollTrigger sync, Astro
+  ClientRouter lifecycle, pin/scrub numbers, sticky stacks, video and image
+  scrubbing, WebGL hero lanes and budgets, upstream pitfalls, verification
+  checklist), distilled from the MengTo motion pack (invariants only,
+  LRN-141). Routed into the Build UI toolchain of CLAUDE.global.md and
+  lib/design-gate.md (not on the GATE-BLOCK set). Case 7 of the repo review.
+- **Five MengTo scroll skills vendored** (`scroll-world-storytelling`,
+  `build-threejs-scroll-worlds` with its five references,
+  `scroll-scrubbed-visual-sequence`, `scroll-scrubbed-word-reveal`,
+  `scroll-progress-timeline`) at a pinned commit (`mengto-skills` entry in
+  plugins.lock.json, text files only, never demos or binaries). The
+  agent-skills curl loop became the shared `lib/vendor-skills.sh`
+  (`vendor_pinned_skills <lock-key> [refresh]`, list or dict lock shapes,
+  `VENDOR_BASE_URL` honoured only as `file://` for the hermetic suite
+  `lib/tests/vendor-skills.test.sh`, lock values validated: 40-hex commit,
+  github.com source, traversal-free paths, no trailing newline),
+  used by install-plugins.sh Step 8e and update-all.sh 7.3; refresh keeps
+  the file's convention and skips a skill that was never installed.
+  Registered in link.sh, .gitignore,
+  toggle-external, profile.sh and the design/web/web-full/full profiles
+  (plus `site-motion personal`). Seventeen other MengTo skills were read and
+  skipped: covered locally, buggy (reduced-motion `clearProps`, gate before
+  `registerPlugin`, no-JS opacity 0) or off-domain.
 - **rules/web-building.md § Write-time reflexes** — stack-agnostic
   micro-rules borrowed from ibelick/ui-skills (baseline-ui + playbook): dvh
   and safe-area, paste never blocked, tabular-nums and text-wrap, one

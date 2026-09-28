@@ -269,7 +269,8 @@ design routing; the design-toolchain hook reinforces it.
 - Trivial (≤2 files, one cosmetic value) → /hotfix, no toolchain.
 - Build UI (component, page, redesign) → ui-ux-pro-max + frontend-design
   (anti-slop) + 21st-ui-build (catalog + generation) + emil-design-eng
-  (polish) + design-motion-principles (motion) + design-html (static).
+  (polish) + design-motion-principles (motion) + design-html (static) +
+  site-motion (site-level scroll/page choreography, personal skill).
   Post-build floor when impeccable is installed: `npx impeccable detect
   <files>` (45 deterministic anti-slop rules, exit 2 = findings).
 - Design system / brand → design-consultation first, then the build tools.

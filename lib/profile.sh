@@ -82,6 +82,11 @@ MANAGED_EXTERNALS=(
   observability-and-instrumentation
   deprecation-and-migration
   ci-cd-and-automation
+  scroll-world-storytelling
+  build-threejs-scroll-worlds
+  scroll-scrubbed-visual-sequence
+  scroll-scrubbed-word-reveal
+  scroll-progress-timeline
 )
 
 # MCP servers that are toggle-managed by `set`, both ways (enable AND
@@ -761,7 +766,10 @@ NOTE:
   (emil-design-eng, frontend-design, design-motion-principles, impeccable,
   the five 21st design skills, the agent-skills trio
   observability-and-instrumentation/deprecation-and-migration/
-  ci-cd-and-automation). Anything outside those allowlists stays
+  ci-cd-and-automation, the five Mengto scroll skills
+  scroll-world-storytelling/build-threejs-scroll-worlds/
+  scroll-scrubbed-visual-sequence/scroll-scrubbed-word-reveal/
+  scroll-progress-timeline). Anything outside those allowlists stays
   advisory — run "claude plugin enable|disable" or
   "bash lib/toggle-external.sh enable|disable <tool>" yourself.
 EOF
