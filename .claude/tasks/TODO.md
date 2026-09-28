@@ -1,5 +1,54 @@
 # TODO
 
+## 2026-09-28 — skill-catalog prune, tier 1 (feature/skill-catalog-prune)
+User go after the 5-agent duplicate audit (150 skills, 53.5k chars of descriptions,
+78 listed name-only in session = listing budget exceeded). Contract
+`.claude/tasks/contracts/2026-09-28-skill-catalog-prune-0554.md`, plan
+`.claude/tasks/plans/2026-09-28-skill-catalog-prune-0554.md`. Live already done:
+`claude plugin disable brightdata-plugin@synced`, `claude plugin uninstall
+frontend-design@claude-plugins-official` (byte-identical to the managed copy).
+- [x] K1 profiles: the 9 broken/doctrine-breaking gstack out of every profile
+      (ship trunk-based, land-and-deploy auto-merge+deploy, setup-deploy, autoplan
+      dead paths, context-save orphan, learn unused, careful/guard vacuous hooks,
+      design-shotgun needs OPENAI_API_KEY); make-pdf + diagram + 21st-ai/
+      ui-explore/ui-review parked out of `full` (trio out of web/web-full/design
+      too); user rule: full ⊇ every other profile, `max` (`# SUPERSET-OF: full`)
+      = full + parked; profile docs (SKILL.md, README, USAGE); hermetic
+      `lib/tests/profile-census.test.sh` (removed / parked / union invariants).
+- [x] K2 wiring: link.sh helper links make-pdf/dist + lib/diagram-render/dist
+      (+ freeze/bin if gated); doctor.sh counts symlinked skills + block-scalar
+      descriptions + synced bucket info line, plugin constants re-based.
+- [x] K3 docs/config: settings.json env `ENABLE_STOP_REVIEW=0` (security-guidance
+      Stop LLM review off, commit/push review kept); CLAUDE.global.md routing
+      (Ship/PR → ship-feature, gstack-off list); deploy/SKILL.md rows;
+      install-plugins.sh notes + summary "0 tokens" fix; plugin-advisor.md cost
+      text; CHANGELOG.
+- [x] K4 plan r1→r4 (3 challengers + 1 confirmation pass, FATAL(4) closed by
+      named changes), 4 feater parallel DONE, GATE 0 MET after moving 4 heredoc
+      oracles to `<contract>.oracles/*.py` (gates.sh CHECK is single-line),
+      verifier CONFORME at iteration 2 (floor-guard `xit(` false positive on
+      `sys.exit(` → restructure), security PASS, make test 41 suites green minus
+      2 pre-existing T16a, shellcheck clean. Live: `set full` applied, 75 skills
+      listed (was 89), 16 parked, doctor 75 / ~5.4k t.
+- [ ] K5 registries on user approval (BDR prune + full/max rule, LRN listing
+      budget, LRN gates.sh single-line CHECK, LRN gstack helper-tree class, BLK
+      floor-guard `xit(` pattern, EVAL challenge round), journal. UNMERGED — human
+      gate. After merge on any other machine: `make link` + `bash lib/profile.sh
+      set full` (NOT `apply`: additive). Follow-ups: floor-guard `xit(` → word
+      boundary (hotfix); gates.sh could refuse a CHECK holding `<<`; optional
+      doctor info line for the claude.ai synced bucket; `21st login`; claude.ai
+      skills useless in CLI off (built-in-browser, chrome-browser, computer-use,
+      skill-creator, import-memory). Tier 2 superpowers vendoring next.
+Tier 2 (decided, not started): vendor brainstorming, writing-plans,
+subagent-driven-development, test-driven-development, requesting-code-review,
+using-git-worktrees, writing-skills from obra/superpowers at 5bf4e78 via
+lib/vendor-skills.sh; drop the plugin (PROTECTED_PLUGINS, STEP 5, detect, banner,
+doctor constants); rename `superpowers:` citers (ship-feature ×4, init-project ×4,
+tour, deploy, audit-delta, lib/analyze-before-plan, lib/capitalize-commit,
+plugin-advisor). User side: `21st login` (CLI reports Not logged in); claude.ai
+skills useless in CLI (built-in-browser, chrome-browser, computer-use,
+skill-creator, import-memory) to switch off in claude.ai settings.
+
 ## 2026-09-28 — make doctor checks the vendored externals (feature/doctor-vendored-skills)
 User go "ok ajoute le check doctor" after the install/update/link trace: doctor.sh only
 checked the gstack submodule; emil, frontend-design, motion and the 8 curl-vendored
