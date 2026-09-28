@@ -61,7 +61,7 @@ skill symlink, `claude plugin list`, `claude mcp list`, `command -v`. It never
 reads `disabledMcpServers` (unreliable for bi-modal servers like context7).
 The core set lives in `design.profile`, not in the script or here — single source.
 
-Exit codes: `0` = ready · `11` = ready-but-unverified (proceed, but surface it) · `10` = incomplete (gate trips) · `2` = error.
+Exit codes: `0` = ready · `11` = ready-but-unverified (proceed, but surface it) · `10` = incomplete (gate trips) · `12` = sign-in required (21st installed, signed out) · `2` = error.
 
 ### 3. Branch on the result
 
@@ -82,18 +82,39 @@ Exit codes: `0` = ready · `11` = ready-but-unverified (proceed, but surface it)
     but the CLI they shell out to is a global npm install: tell the user to run
     `npm i -g @21st-dev/cli` then `21st login` (no API key, no MCP).
   - Do NOT hand-activate individual tools. The profile is the unit of activation.
+- **12 / `SIGN-IN REQUIRED`** → STOP. The 21st CLI is installed but `21st
+  whoami` reports signed out. Relay the script's block, then ask the user to
+  run `! 21st login` (the `!` prefix runs it in this session, browser flow,
+  saves a local token) — or run `21st login` in any terminal on this
+  machine, then reply (the token is a local file; any terminal works, `!`
+  in-session is just the convenient form). END THE TURN and wait. On the
+  user's reply, re-run `design-tool-gate.sh` before any 21st step: `READY` →
+  continue; still `12` → ask again once, then offer the opt-out. Explicit
+  refusal — the user answers "proceed without 21st" (or words to that
+  effect) → say visibly `21st skipped for this run at your request` and
+  continue with the rest of the toolchain, 21st steps left out; after that,
+  a later `12` in the same run is reported in one line, never re-asked.
+  Never skip silently ("not logged in, so we don't use it" is the failure
+  this branch closes). Never run `21st login` yourself — it opens a browser
+  and needs the human. `TWENTYFIRST_TOKEN` is a shell-profile setting
+  followed by a session restart, never an in-session `export` (tool calls
+  don't share a shell, and a secret doesn't belong in the transcript).
 - **11 / `READY BUT UNVERIFIED`** → `claude` was unreachable, so the design
   plugin (ui-ux-pro-max) could NOT be checked. Do NOT report a plain "ready":
   proceed only after telling the user that N tool(s) went unverified and having
-  them confirm with `claude plugin list`. Fail-visible, not fail-silent.
+  them confirm with `claude plugin list`. Fail-visible, not fail-silent. A
+  `21st (whoami: rc=… …)` entry in this block means the CLI itself could not
+  answer (a runtime/PATH problem, e.g. node under nvm) — the remedy is the
+  diagnostic the script prints, never a sign-in prompt; relay its own line.
 
 ### 4. Animation library — suggest-only (fires only on a real motion signal)
 
 Orthogonal to the toolchain check above: §2-3 are about Claude's design TOOLS;
 this is about the PROJECT's runtime dep. Evaluate it only once the toolchain is
-resolved and you're actually proceeding with the build (READY, or after the user
-ran `/profile design`). Never on the INCOMPLETE stop path — that path has one
-action only (`/profile design`); don't stack an optional note on it.
+resolved and you're actually proceeding with the build (READY, after the user
+ran `/profile design`, or after the sign-in re-run returns READY). Never on
+the INCOMPLETE stop path — that path has one action only (`/profile
+design`); don't stack an optional note on it.
 
 **Fires only when ALL THREE hold** — drop any one → no suggestion, stay silent:
 
@@ -182,11 +203,14 @@ remedy is always `/profile <that>` — a profile, never a lone tool.
   the profile system is the single source of truth for what's active.
 - the `21st` CLI is REQUIRED (it trips the gate) and `/profile design` cannot
   install it — the gate names the two commands; surface them to the user.
+  Signed out → exit 12: ask `! 21st login`, wait, re-run; explicit opt-out
+  only, never a silent skip.
 - The design-core set (what trips the gate) is declared in `design.profile` on
   the `# GATE-BLOCK:` line(s) — edit there to add/remove a blocking design tool,
   not in the script.
 - The state check shells out to `claude` (plugin/mcp list): a few seconds.
   Trivial / non-design tasks skip it entirely (no signal, or trivial tier).
 - `design-tool-gate.sh`'s per-type state checks MIRROR
-  `profile.sh:skill_status()` — change one, sync the other.
+  `profile.sh:skill_status()` — change one, sync the other, except the 21st
+  auth state: gate-only, no skill_status counterpart.
 - Do NOT run this gate on pure backend/API/CLI tasks (no signals = no gate).

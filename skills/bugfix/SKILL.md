@@ -55,8 +55,9 @@ git log --oneline -20 --all -- <suspected files>
 
 Follow `$HOME/.claude/lib/design-gate.md`:
 - Scan $ARGUMENTS and target files for design/UI/style signals (CSS, component, layout, animation).
-- If signals found → run `design-tool-gate.sh`; if it reports INCOMPLETE,
-  tell the user to run `/profile design` before proceeding.
+- If signals found → run `design-tool-gate.sh`; INCOMPLETE → tell the user
+  to run `/profile design`; SIGN-IN REQUIRED → design-gate.md §3 (ask
+  `! 21st login`, wait) before proceeding.
 - If no signals → skip (zero overhead).
 
 ## STEP 2 — INVESTIGATE

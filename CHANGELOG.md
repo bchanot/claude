@@ -7,6 +7,20 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- **Design gate asks the user to sign in to 21st instead of skipping it**:
+  `lib/design-tool-gate.sh` adds a three-state 21st auth predicate
+  (`twentyfirst_auth_state`, honors `TWENTYFIRST_TOKEN`/`API_KEY_21ST` or a
+  local `21st whoami` read). Signed out now trips a new `SIGN-IN REQUIRED`
+  state (exit 12) instead of silently proceeding or reporting a plain
+  INCOMPLETE. The agent asks the user to run `! 21st login` in-session and
+  waits, re-running the gate on reply; an explicit "proceed without 21st"
+  opt-out is honored and never re-asked. A `whoami` answer that can't be
+  classified (unexpected line, nonzero rc, timeout) surfaces as unverified
+  with the raw diagnostic (`21st (whoami: rc=… …)`), never guessed as
+  signed-in or signed-out. `lib/design-gate.md` and the
+  `skills/feat`/`skills/bugfix` STEP 0.5 design-gate bullets document the
+  new branch. Hermetic suite `lib/tests/design-tool-gate.test.sh`, 7 named
+  cases.
 - **`make doctor` checks the vendored externals** — new
   `lib/doctor-vendored.sh` (`check_vendored_skills`), wired into doctor.sh
   after the gstack section: every curl-pinned entry of plugins.lock.json

@@ -71,8 +71,9 @@ FEAT: <feature name> — rule <N>, ~<N> files, <brief approach>
 
 Follow `$HOME/.claude/lib/design-gate.md`:
 - Scan $ARGUMENTS and target files for design/UI/style signals.
-- If signals found → run `design-tool-gate.sh`; if it reports INCOMPLETE,
-  tell the user to run `/profile design` before proceeding.
+- If signals found → run `design-tool-gate.sh`; INCOMPLETE → tell the user
+  to run `/profile design`; SIGN-IN REQUIRED → design-gate.md §3 (ask
+  `! 21st login`, wait) before proceeding.
 - If no signals → skip (zero overhead).
 
 ## STEP 0.6 — MEMORY READ-BEFORE (decisions-first)
