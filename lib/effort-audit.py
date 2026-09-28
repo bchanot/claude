@@ -8,7 +8,8 @@ import json
 import os
 import sys
 
-WEIGHTS = {"in": 1.0, "cc": 1.25, "cr": 0.1, "out": 5.0}  # relative to input price
+# Weights relative to input price.
+WEIGHTS = {"in": 1.0, "cc": 1.25, "cr": 0.1, "out": 5.0}
 FIELDS = ("in", "cc", "cr", "out", "think")
 
 
@@ -50,36 +51,45 @@ def weighted(counter):
 
 
 def report(agg):
-    """Print the per-key table, then the main/sub split and the thinking share."""
+    """Print the per-key table, then the main/sub split and the thinking
+    share."""
     total = collections.Counter()
     for counter in agg.values():
         total.update(counter)
     total_w = weighted(total) or 1
     print(f"{'scope':5} {'model':22} {'effort':7} {'msgs':>6} {'think/msg':>9} "
           f"{'think_tok':>10} {'out_tok':>10} {'cache_read':>12} {'%wcost':>7}")
-    for (scope, model, effort), c in sorted(agg.items(), key=lambda kv: -weighted(kv[1])):
+    ranked = sorted(agg.items(), key=lambda kv: -weighted(kv[1]))
+    for (scope, model, effort), c in ranked:
         per_msg = c["think"] / max(c["msgs"], 1)
-        print(f"{scope:5} {model:22} {effort:7} {c['msgs']:6d} {per_msg:9.0f} "
-              f"{c['think']:10d} {c['out']:10d} {c['cr']:12d} {100 * weighted(c) / total_w:6.1f}%")
+        print(f"{scope:5} {model:22} {effort:7} {c['msgs']:6d} "
+              f"{per_msg:9.0f} {c['think']:10d} {c['out']:10d} "
+              f"{c['cr']:12d} {100 * weighted(c) / total_w:6.1f}%")
     by_scope = collections.defaultdict(collections.Counter)
     for (scope, _, _), c in agg.items():
         by_scope[scope].update(c)
     for scope, c in by_scope.items():
-        print(f"  {scope:5} weighted-cost {100 * weighted(c) / total_w:5.1f}%  "
-              f"thinking {100 * c['think'] / max(total['think'], 1):5.1f}%  requests {c['msgs']}")
-    print(f"  thinking = {100 * total['think'] * WEIGHTS['out'] / total_w:.1f}% of weighted cost; "
-          f"cache reads = {100 * total['cr'] * WEIGHTS['cr'] / total_w:.1f}%")
+        print(f"  {scope:5} weighted-cost "
+              f"{100 * weighted(c) / total_w:5.1f}%  thinking "
+              f"{100 * c['think'] / max(total['think'], 1):5.1f}%  "
+              f"requests {c['msgs']}")
+    print(f"  thinking = "
+          f"{100 * total['think'] * WEIGHTS['out'] / total_w:.1f}% "
+          f"of weighted cost; cache reads = "
+          f"{100 * total['cr'] * WEIGHTS['cr'] / total_w:.1f}%")
 
 
 def main():
-    root = os.path.expanduser(sys.argv[1] if len(sys.argv) > 1 else "~/.claude/projects")
+    root = os.path.expanduser(
+        sys.argv[1] if len(sys.argv) > 1 else "~/.claude/projects")
     agg = collections.defaultdict(collections.Counter)
     for project in sorted(glob.glob(os.path.join(root, "*"))):
         if not os.path.isdir(project):
             continue
         for path in glob.glob(os.path.join(project, "*.jsonl")):
             scan(path, "main", agg)
-        for path in glob.glob(os.path.join(project, "*", "subagents", "*.jsonl")):
+        sub_glob = os.path.join(project, "*", "subagents", "*.jsonl")
+        for path in glob.glob(sub_glob):
             scan(path, "sub", agg)
     report(agg)
 
