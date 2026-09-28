@@ -934,6 +934,17 @@ for _ext_skill in "${EXT_SKILL_NAMES[@]}"; do
 done
 echo ""
 
+# Effort tiering (BDR-NEXT): the vendored brainstorming/writing-plans carry an
+# effort pin upstream lacks; re-apply after every resync (census lock in
+# lib/tests/effort-routing.test.sh alarms if this ever stops working).
+for _s in brainstorming writing-plans; do
+  _f="$(cd "$(dirname "$0")" && pwd)/skills-external/$_s/SKILL.md"
+  if [ -f "$_f" ] && ! grep -q '^effort:' "$_f"; then
+    sed -i "0,/^name: $_s\$/s//&\neffort: xhigh/" "$_f"
+  fi
+done
+unset _s _f
+
 # ============================================================
 # STEP 8.5 — EXTERNAL SKILLS (npx skills add …)
 # ============================================================

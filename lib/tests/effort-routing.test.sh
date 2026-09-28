@@ -47,6 +47,15 @@ for s in gitflow prune-memory find-docs; do fm_has_effort "skills/$s/SKILL.md" m
 for s in feat hotfix bugfix refactor web-validate harden seo geo; do fm_has_effort "skills/$s/SKILL.md" high; done
 for s in ship-feature init-project onboard tour audit-delta analyze code-clean client-handover; do fm_has_effort "skills/$s/SKILL.md" xhigh; done
 
+# ── 9) vendored superpowers carry xhigh (spec D3). The files live in skills-external/ (gitignored,
+#      machine-owned), so the durable artifact is the install-plugins.sh re-apply; the frontmatter
+#      check skips VISIBLY when the skill is not vendored yet (fresh clone before make plugin).
+for s in brainstorming writing-plans; do
+  if [ -f "$R/skills-external/$s/SKILL.md" ]; then fm_has_effort "skills-external/$s/SKILL.md" xhigh
+  else printf 'SKIP skills-external/%s/SKILL.md not vendored yet (run make plugin)\n' "$s"; fi
+done
+has "install-plugins.sh" 'effort: xhigh'
+
 # ── summary (later tasks insert their locks ABOVE this line)
 printf 'effort-routing census: %d pass, %d fail\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
