@@ -3,6 +3,7 @@ name: handover-doc-writer
 description: 'Two-mode deliverable writer — MODE: synthesize (dispatched model="opus" — memory+git clustering, 6-chapter synthesis into a run-scoped draft) and MODE: render (sonnet pin — annexes, precheck, deterministic gates, MD + branded HTML/PDF from the draft). Dispatched twice by client-handover with the resolved PACKAGE. No audits, no questions, no dispatch.'
 tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch
 model: sonnet
+effort: high
 ---
 
 # HANDOVER DOC WRITER

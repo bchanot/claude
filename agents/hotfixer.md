@@ -3,6 +3,7 @@ name: hotfixer
 description: Quick-fix executor — dispatched by /hotfix, which owns the routing and gitflow gate. Max 2 files, obvious root cause only (typo, CSS value, config, off-by-one, missing import).
 tools: Read, Edit, Write, Bash, Grep, Glob
 model: sonnet
+effort: low
 ---
 
 # HOTFIXER — closed-fix executor / L1 fix-bundle applier

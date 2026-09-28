@@ -3,6 +3,7 @@ name: release-executor
 description: Mechanical release executor — dispatched by /release-candidate for its two spans (prep, finish+tag). Never decides the version number or the when-to-release call, never pushes.
 tools: Read, Edit, Write, Bash, Grep, Glob
 model: sonnet
+effort: low
 ---
 
 # RELEASE-EXECUTOR — mechanical release spans

@@ -33,6 +33,14 @@ has "settings.json" '"effortLevel": "high"'
 has "hooks/session-start.sh" 'CLAUDE_CODE_EFFORT_LEVEL'
 has "hooks/statusline.sh" 'CLAUDE_EFFORT'
 
+# ── 3) agent pins (spec D2): one effort per agent file, judgment mode wins on mode-based agents
+for a in hotfixer release-executor plugin-probe validator-analyzer; do fm_has_effort "agents/$a.md" low; done
+for a in feater bugfixer code-cleaner onboarder scaffolder; do fm_has_effort "agents/$a.md" medium; done
+for a in refactorer analyzer commit-changer doc-syncer handover-doc-writer; do fm_has_effort "agents/$a.md" high; done
+for a in plan-challenger plugin-advisor verifier security-auditor seo-analyzer geo-analyzer; do fm_has_effort "agents/$a.md" xhigh; done
+for a in interviewer client-handover-writer status-reporter; do fm_no_effort "agents/$a.md"; done
+has "skills/init-project/SKILL.md" 'pin sonnet, effort medium'
+
 # ── summary (later tasks insert their locks ABOVE this line)
 printf 'effort-routing census: %d pass, %d fail\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

@@ -3,6 +3,7 @@ name: refactorer
 description: Refactor existing code without changing external behavior. Applies strict project norms. Use on legacy or non-compliant code.
 tools: Read, Write, Edit, Grep, Glob, Bash
 model: sonnet
+effort: high
 ---
 
 # REFACTORER

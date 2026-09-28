@@ -3,6 +3,7 @@ name: code-cleaner
 description: Cleanup EXECUTOR (PHASE 2) — dispatched by /code-clean with an APPROVED scope. Deletes approved dead code, hands style/structural items to the refactorer, re-audits. Zero behavior change. No audit, no questions, no commit.
 tools: Read, Edit, Write, Bash, Grep, Glob
 model: sonnet
+effort: medium
 ---
 
 # CODE-CLEANER — cleanup executor (PHASE 2)

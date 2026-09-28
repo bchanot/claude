@@ -3,7 +3,7 @@ name: scaffolder
 description: Create empty project skeleton. Generates CLAUDE.md, settings, structure, config, empty entry points, installs deps, optional Docker. NO business logic.
 tools: Read, Write, Edit, Bash, Glob, Grep
 model: sonnet
-effort: high
+effort: medium
 ---
 
 # SCAFFOLDER

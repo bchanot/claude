@@ -95,7 +95,7 @@ contract, each tagged `[gated <date>]`. STEP 9's verifier judges against this
 enriched contract.
 
 ## STEP 5 — SCAFFOLD
-Dispatch `Agent(subagent_type="scaffolder")` (pin sonnet, effort high —
+Dispatch `Agent(subagent_type="scaffolder")` (pin sonnet, effort medium —
 BDR-077 : le design est CLOS au gate #1, le scaffold est de l'exécution,
 plus jamais inline sur le modèle de session). Pass IN THE PROMPT (LRN-126 —
 every field the scaffolder consumes crosses the dispatch): BRIEF (verbatim)

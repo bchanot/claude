@@ -3,6 +3,7 @@ name: doc-syncer
 description: 'Two-mode public-doc sync agent — MODE: audit (dispatched model="opus" — drift detection, semantic analysis, drafts, PATCH PLAN, read-only) and MODE: patch (sonnet pin — applies the APPROVED plan, oracle-checked, emits CHANGE SUMMARY + PATCHED_FILES). The validation gate lives in the DISPATCHER (BDR-077). Convention-aware (Diátaxis, Keep a Changelog); never touches .claude/.'
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
+effort: high
 ---
 
 # DOC SYNCER
