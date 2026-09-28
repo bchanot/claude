@@ -487,8 +487,8 @@ install_plugin() {
 # copies the plugin into ~/.claude/plugins/cache — it does NOT register
 # it in settings.json's enabledPlugins map. Without an explicit enable,
 # the plugin sits dormant. Use this for plugins that should be ALWAYS ON
-# (security-guidance, superpowers). Idempotent: skips if already
-# present in enabledPlugins.
+# (security-guidance). Idempotent: skips if already present in
+# enabledPlugins.
 enable_plugin() {
   local name="$1"
   local source="$2"
@@ -531,13 +531,10 @@ install_plugin "pr-review-toolkit"  "claude-code-plugins"
 
 echo ""
 
-# Superpowers (always on)
-info "Adding Superpowers marketplace..."
-claude plugin marketplace add obra/superpowers-marketplace 2>/dev/null || true
-install_plugin "superpowers" "superpowers-marketplace"
-enable_plugin  "superpowers" "superpowers-marketplace"
-
-echo ""
+# Superpowers plugin removed 2026-09-28 (tier 2 of the skill-catalog prune):
+# its 7 wired skills are vendored in Step 8e (plugins.lock.json
+# 'superpowers'); a still-cached plugin is uninstalled by hand once
+# (claude plugin uninstall superpowers@superpowers-marketplace), never here
 
 # UI/UX Pro Max (toggle)
 info "Adding UI/UX Pro Max marketplace..."
@@ -909,21 +906,25 @@ fi
 echo ""
 
 # ── Step 8e: Agent Skills (addyosmani/agent-skills) + Mengto scroll
-# skills (MengTo/Skills) — both commit-pinned, vendored the emil-design-eng
-# way (curl → skills-external/<name>/, symlinked by link.sh) through the
-# shared lib/vendor-skills.sh helper. Shas/paths/file-lists live in
-# plugins.lock.json ("agent-skills" / "mengto-skills" entries), never
-# hardcoded here.
-echo "── Step 8e: Agent Skills + Mengto scroll skills (pinned commit) ──"
+# skills (MengTo/Skills) + superpowers (obra/superpowers) — all
+# commit-pinned, vendored the emil-design-eng way (curl →
+# skills-external/<name>/, symlinked by link.sh) through the shared
+# lib/vendor-skills.sh helper. Shas/paths/file-lists live in
+# plugins.lock.json ("agent-skills" / "mengto-skills" / "superpowers"
+# entries), never hardcoded here.
+echo "── Step 8e: Agent Skills + Mengto scroll skills + superpowers (pinned commit) ──"
 echo ""
 # shellcheck source=lib/vendor-skills.sh disable=SC1091
 source "$REPO/lib/vendor-skills.sh"
 EXT_SKILL_NAMES=(observability-and-instrumentation deprecation-and-migration
   ci-cd-and-automation scroll-world-storytelling build-threejs-scroll-worlds
   scroll-scrubbed-visual-sequence scroll-scrubbed-word-reveal
-  scroll-progress-timeline)
+  scroll-progress-timeline brainstorming writing-plans
+  subagent-driven-development test-driven-development
+  requesting-code-review using-git-worktrees writing-skills)
 vendor_pinned_skills agent-skills
 vendor_pinned_skills mengto-skills
+vendor_pinned_skills superpowers
 for _ext_skill in "${EXT_SKILL_NAMES[@]}"; do
   if [ -L "$HOME/.claude/skills/$_ext_skill" ]; then
     ok "$_ext_skill symlink OK"
@@ -1207,7 +1208,7 @@ echo ""
 echo "  ALWAYS ON (installed at user scope):"
 echo "    ✅ security-guidance   — regex hints on Edit/Write + out-of-band LLM reviews on commit/push (Stop review off via ENABLE_STOP_REVIEW=0; quota, not context) [claude-code-plugins]"
 echo "    ✅ rtk                 — token compression hook (0 tokens)"
-echo "    ✅ superpowers         — brainstorm/plan/implement/debug workflow"
+echo "    ✅ superpowers skills  — 7 vendored (brainstorming, writing-plans, subagent-driven-development, test-driven-development, requesting-code-review, using-git-worktrees, writing-skills), pinned v6.4.1, curl → symlink, no plugin, no session injection"
 echo ""
 echo "  TOGGLE (plugin state = settings.json enabledPlugins; skills/CLIs = profiles):"
 echo "    🔄 gstack              — disabled by default (toggle: lib/toggle-external.sh enable gstack)"
@@ -1232,6 +1233,7 @@ echo "  Frontend Design at: ~/.claude/skills/frontend-design/ (symlink → skill
 echo "  Design Motion Principles at: ~/.claude/skills/design-motion-principles/ (symlink → skills-external)"
 echo "  Agent Skills trio at: ~/.claude/skills/{observability-and-instrumentation,deprecation-and-migration,ci-cd-and-automation}/ (symlink → skills-external)"
 echo "  Mengto scroll skills at: ~/.claude/skills/{scroll-world-storytelling,build-threejs-scroll-worlds,scroll-scrubbed-visual-sequence,scroll-scrubbed-word-reveal,scroll-progress-timeline}/ (symlink → skills-external)"
+echo "  Superpowers skills at: ~/.claude/skills/{brainstorming,writing-plans,subagent-driven-development,test-driven-development,requesting-code-review,using-git-worktrees,writing-skills}/ (symlink → skills-external)"
 echo "  npx skills at: ~/.agents/skills/ (symlinked into ~/.claude/skills/)"
 echo ""
 echo "  → Restart Claude Code — plugins load automatically"

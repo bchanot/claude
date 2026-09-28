@@ -377,9 +377,10 @@ else
   info "design-motion-principles not installed — skipping"
 fi
 
-# ── 7.3. Update Agent Skills + Mengto scroll skills (pinned commit) ──
-# Both re-fetched at the SAME pinned commit (never advances the pin) via
-# the shared lib/vendor-skills.sh helper — see install-plugins.sh Step 8e.
+# ── 7.3. Update Agent Skills + Mengto scroll skills + superpowers
+# (pinned commit) — all three re-fetched at the SAME pinned commit
+# (never advances the pin) via the shared lib/vendor-skills.sh helper —
+# see install-plugins.sh Step 8e.
 echo ""
 echo "── Updating Agent Skills (addyosmani/agent-skills)..."
 # shellcheck source=lib/vendor-skills.sh disable=SC1091
@@ -388,6 +389,9 @@ vendor_pinned_skills agent-skills refresh
 echo ""
 echo "── Updating Mengto scroll skills (MengTo/Skills)..."
 vendor_pinned_skills mengto-skills refresh
+echo ""
+echo "── Updating superpowers skills (obra/superpowers)..."
+vendor_pinned_skills superpowers refresh
 
 # ── Impeccable (design detector + skill + subagents) ──
 # Global scope: the installer writes through the ~/.claude/{skills,agents}

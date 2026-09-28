@@ -64,6 +64,23 @@
     "managed_by": "curl",
     "note": "Five scroll-choreography skills from MengTo/Skills (agent-skills/web-design), vendored the agent-skills way but with an explicit per-skill file list (SKILL.md + REFERENCES.md, or references/*.md + references/scroll-conductor.js for build-threejs-scroll-worlds) instead of the SKILL.md-only default. Never vendored: demo/, agents/, or any binary asset upstream ships alongside each skill. Text-only, byte-for-byte copies (Codex-isms in the source text stay). Bump the commit deliberately to pick up an upstream edit; install-plugins.sh Step 8e and update-all.sh 7.3 both read it from here via lib/vendor-skills.sh's vendor_pinned_skills(), never hardcoded."
   },
+  "superpowers": {
+    "source": "https://github.com/obra/superpowers",
+    "commit": "5bf4e78011075bcfc0dc295f0724994cd123ee71",
+    "path": "skills",
+    "skills": {
+      "brainstorming": ["SKILL.md", "spec-document-reviewer-prompt.md", "visual-companion.md", "scripts/frame-template.html", "scripts/helper.js", "scripts/server.cjs", "scripts/start-server.sh", "scripts/stop-server.sh"],
+      "writing-plans": ["SKILL.md", "plan-document-reviewer-prompt.md"],
+      "subagent-driven-development": ["SKILL.md", "implementer-prompt.md", "re-review-prompt.md", "task-reviewer-prompt.md", "scripts/review-package", "scripts/sdd-workspace", "scripts/task-brief"],
+      "test-driven-development": ["SKILL.md", "writing-good-tests.md"],
+      "requesting-code-review": ["SKILL.md", "code-reviewer.md"],
+      "using-git-worktrees": ["SKILL.md"],
+      "writing-skills": ["SKILL.md", "anthropic-best-practices.md", "examples/CLAUDE_MD_TESTING.md", "graphviz-conventions.dot", "persuasion-principles.md", "render-graphs.js", "testing-skills-with-subagents.md"]
+    },
+    "managed_by": "curl",
+    "always_on": true,
+    "note": "Seven superpowers skills vendored byte-for-byte at the v6.4.1 tag commit (obra/superpowers), always on (no profile lists them). Bump the commit deliberately. Scripts inside run as `bash scripts/<x>`, no exec bit needed. Upstream cross-references to the plugin prefix and to the 8 non-vendored skills stay in the text; CLAUDE.global.md Skill routing maps them."
+  },
   "impeccable": {
     "source": "npm:impeccable",
     "version": "4.1.0",

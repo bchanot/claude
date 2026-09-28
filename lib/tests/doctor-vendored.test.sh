@@ -17,9 +17,11 @@
 # "skills" is neither null/list/dict degrading the same way with no
 # Python traceback leaking (LOCK_MALFORMED_ENTRY, rc 0), the
 # profile-name allowlist rejecting a path-traversal value
-# (REJECTS_BAD_PROFILE_NAME), and the item-name allowlist rejecting a
+# (REJECTS_BAD_PROFILE_NAME), the item-name allowlist rejecting a
 # link.sh entry with a ".." segment — warned and skipped, not failed
-# (REJECTS_BAD_NAME).
+# (REJECTS_BAD_NAME), and an "always_on": true lock entry's name, absent
+# from the profile and with no symlink, checked (and failed) instead of
+# reported parked (ALWAYS_ON_LINK_CHECKED).
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 LIB="$ROOT/lib/doctor-vendored.sh"
@@ -57,6 +59,11 @@ cat > "$REPO/plugins.lock.json" <<'JSON'
   "dict-entry": {
     "managed_by": "curl",
     "skills": {"dict-skill": ["SKILL.md", "references/notes.md"]}
+  },
+  "always-on-entry": {
+    "managed_by": "curl",
+    "always_on": true,
+    "skills": ["always-on-skill"]
   }
 }
 JSON
@@ -66,25 +73,27 @@ cat > "$REPO/link.sh" <<'SH'
 #!/usr/bin/env bash
 EXTERNAL_SKILLS=(ok-skill missing-skill dict-skill
   active-nolink-skill active-wronglink-skill
-  parked-skill noprofile-skill)
+  parked-skill noprofile-skill always-on-skill)
 SH
 
 # ── skills-external/ tree: every name's SKILL.md present, except
 # missing-skill (nothing at all) and dict-skill's references/notes.md.
+# always-on-skill has its SKILL.md too — only its symlink is missing.
 for n in ok-skill dict-skill active-nolink-skill active-wronglink-skill \
-         parked-skill noprofile-skill; do
+         parked-skill noprofile-skill always-on-skill; do
   mkdir -p "$REPO/skills-external/$n"
   echo "v1" > "$REPO/skills-external/$n/SKILL.md"
 done
 
 # ── claude_home symlinks: ok-skill correct, active-wronglink-skill
-# points elsewhere, active-nolink-skill and noprofile-skill have none.
+# points elsewhere, active-nolink-skill, noprofile-skill and
+# always-on-skill have none.
 ln -sf "$REPO/skills-external/ok-skill" "$CLAUDE_HOME/skills/ok-skill"
 mkdir -p "$WORK/elsewhere"
 ln -sf "$WORK/elsewhere" "$CLAUDE_HOME/skills/active-wronglink-skill"
 
-# ── active.profile: lists everything EXCEPT parked-skill and
-# noprofile-skill (both proven absent from it).
+# ── active.profile: lists everything EXCEPT parked-skill,
+# noprofile-skill and always-on-skill (all three proven absent from it).
 cat > "$REPO/active.profile" <<'PROF'
 # DESC: fixture profile
 ok-skill                external
@@ -130,6 +139,16 @@ check_bool SYMLINK_PARKED \
   "$(printf '%s' "$out1" | grep -qF 'parked-skill: parked by profile active' \
     && ! printf '%s' "$out1" | \
       grep -qF 'parked-skill: symlink missing/wrong' \
+    && echo 1 || echo 0)"
+
+# ── always-on-skill: absent from active.profile (same as parked-skill)
+# but its lock entry is "always_on": true — checked (and failed, no
+# symlink) instead of reported parked.
+check_bool ALWAYS_ON_LINK_CHECKED \
+  "$(printf '%s' "$out1" | \
+    grep -qF 'always-on-skill: symlink missing/wrong' \
+    && ! printf '%s' "$out1" | \
+      grep -qF 'always-on-skill: parked by profile' \
     && echo 1 || echo 0)"
 
 # ── No profile file passed at all: noprofile-skill (absent from

@@ -118,8 +118,9 @@ esac
 
 # Quick passive token cost estimate
 # Only count plugins that are ACTIVE (detected as ON), not just installed
+# superpowers dropped 2026-09-28 (tier 2 of the skill-catalog prune): its
+# 7 vendored skills are counted by the skill catalog, not a plugin cost.
 _passive_t=0
-detect_superpowers 2>/dev/null && _passive_t=$((_passive_t + 800))
 
 # Token costs for toggle plugins — map display name to cost
 declare -A _plugin_costs=(
