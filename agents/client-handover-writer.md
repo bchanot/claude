@@ -225,7 +225,7 @@ Store `DEPLOYED_URL` for STEP 7. If empty, ask user during STEP 6.
 ---
 
 ## STEP 3 — BASELINE AUDITS (parallel)
-First: `Skill(effort-medium)` (effort-shift: dispatch span starts).
+First: `Skill(effort-medium)` (effort-shift: dispatch span starts; send it in the same message as this step's first dispatch).
 
 Goal: capture `SCORE_*_BEFORE` so the client doc shows the delta.
 
@@ -262,7 +262,7 @@ the gate.
 this pipeline (initial audits, fix-loop re-dispatches, commit-change,
 web-validate) carries `model: "fable"` — the child hosts gated orchestration
 on the pipeline's behalf; it must never inherit the session model.
-EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-NEXT): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation.
+EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-NEXT): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
 
 For web projects, dispatch in **a single message with two parallel Agent calls** (each with `model: "fable"`):
 

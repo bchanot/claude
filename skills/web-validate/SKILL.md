@@ -28,7 +28,7 @@ Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
 judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
 gate prints the remedy; end the turn — no later step, no dispatch. Nominal
 (big) path is silent.
-EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-NEXT): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation.
+EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-NEXT): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
 
 This skill orchestrates a narrow-scope standards audit :
 
@@ -180,7 +180,7 @@ Spawn a single `validator-analyzer` subagent with explicit scope and
 collected context :
 
 ```
-Skill(effort-medium)   # effort-shift: dispatch span starts
+Skill(effort-medium)   # effort-shift: dispatch span starts; send with the Agent call below in ONE message
 Agent(
   subagent_type="validator-analyzer",
   description="validate — W3C HTML + CSS + WCAG audit",
@@ -254,8 +254,8 @@ grep -c '^### \[Critique\]' .claude/audits/VALIDATE.md
 
 ---
 
-`Skill(effort-high)` first (effort-shift: reflection resumes).
 ## STEP 2b — CHALLENGE THE FIX BUNDLE (MODE=fix only, advisory)
+`Skill(effort-high)` first (effort-shift: reflection resumes; send it in the same message as the challenger dispatch).
 Skip if MODE=audit (no bundle exists). Else, before the STEP 3 gate, harden the bundle:
 extract the `## 5. Fix bundle` section from VALIDATE.md to
 `.claude/tasks/plans/<date>-<slug>-<HHMM>.md` (a clean, blind-judgeable artifact), then run
@@ -313,7 +313,7 @@ Options :
    share files:
 
    ```
-Skill(effort-medium)   # effort-shift: dispatch span starts
+   Skill(effort-medium)   # effort-shift: dispatch span starts; send with the Agent call below in ONE message
    Agent(subagent_type="hotfixer")
    prompt: "<paste the file-group's bundle items: file, issue, current,
      expected fix>.

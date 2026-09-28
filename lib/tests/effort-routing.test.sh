@@ -73,6 +73,11 @@ for s in seo geo harden web-validate; do has "skills/$s/SKILL.md" 'Skill(effort-
 for s in feat hotfix bugfix ship-feature init-project; do has "skills/$s/SKILL.md" 'Skill(effort-low)'; done
 has "skills/feat/SKILL.md" 'effort-shift: nested commit-change'
 
+# ── 6b) pairing rule documented (R11)
+has "lib/effort-shift.md" 'lone Skill call is a no-op'
+has "lib/effort-shift.md" 're-applies its'
+[ "$(grep -c 'a lone Skill call is a no-op' "$R/skills/feat/SKILL.md")" -ge 1 ] && ok || ko "feat INC line must carry the pairing rule"
+
 # ── summary (later tasks insert their locks ABOVE this line)
 printf 'effort-routing census: %d pass, %d fail\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

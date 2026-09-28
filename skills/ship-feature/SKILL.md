@@ -14,7 +14,7 @@ Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
 judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
 gate prints the remedy; end the turn — no later step, no dispatch. Nominal
 (big) path is silent.
-EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-NEXT): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation.
+EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-NEXT): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
 
 ## REQUEST
 $ARGUMENTS
@@ -124,8 +124,8 @@ every VISIBLE / PUBLIC NAME / SCOPE choice the plan settles that neither the
 request nor the STEP 1 brainstorm settled (check the contract's CLARIFICATIONS
 first) → one batch before STEP 2b; answers append to the contract `[gated]`.
 
-`Skill(effort-xhigh)` first (effort-shift: reflection resumes).
 ## STEP 2b — CHALLENGE THE PLAN (adversarial, before the gate)
+`Skill(effort-xhigh)` first (effort-shift: reflection resumes; send it in the same message as the challenger dispatch).
 Before the human sees the plan, harden it. Run `$HOME/.claude/lib/challenge-plan.md`:
 - `PLAN` = the plan STEP 2 wrote under `docs/superpowers/plans/`
 - `KIND` = `build-plan`
@@ -172,7 +172,7 @@ judges the diff against this ENRICHED contract, not the STEP 0e seed — so a
 criterion the design introduced is verified, not lost.
 
 ## STEP 4 — IMPLEMENT
-First: `Skill(effort-medium)` (effort-shift: dispatch span starts).
+First: `Skill(effort-medium)` (effort-shift: dispatch span starts; send it in the same message as this step's first dispatch).
 Start the feature branch off develop, then implement on it:
 ```bash
 bash "$HOME/.claude/lib/gitflow.sh" start feature <name>
@@ -271,7 +271,7 @@ Feature shipped implies at least one design decision worth capturing. Run this B
 
 If nothing substantive to log → print `CAPITALIZE: nothing substantive to log` and skip.
 
-`Skill(effort-low)` first (effort-shift: bookkeeping tail).
+`Skill(effort-low)` first (effort-shift: bookkeeping tail; send it in the same message as the memory-commit command).
 
 **Then commit the memory** — follow `$HOME/.claude/lib/capitalize-commit.md`: it
 surgically commits what capitalize just wrote (`.claude/memory` + `.claude/tasks`

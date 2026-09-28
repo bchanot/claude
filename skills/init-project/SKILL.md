@@ -14,7 +14,7 @@ Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
 judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
 gate prints the remedy; end the turn — no later step, no dispatch. Nominal
 (big) path is silent.
-EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-NEXT): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation.
+EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-NEXT): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
 
 ## REQUEST
 $ARGUMENTS
@@ -184,8 +184,8 @@ implemented on a `feature/*` branch off `develop` (STEP 8).
 Invoke `writing-plans` (vendored superpowers skill) with BRIEF + skeleton.
 Granular tasks (2-5 min each), exact file paths, TDD: tests before code.
 
-`Skill(effort-xhigh)` first (effort-shift: reflection resumes).
 ## STEP 6b — CHALLENGE THE PLAN (before the gate)
+`Skill(effort-xhigh)` first (effort-shift: reflection resumes; send it in the same message as the challenger dispatch).
 Before the human sees the implementation plan, harden it. Run
 `$HOME/.claude/lib/challenge-plan.md` with `PLAN` = the plan STEP 6 wrote under
 `docs/superpowers/plans/`, `KIND` = `build-plan`, `SCOPE` = the skeleton + task file
@@ -211,7 +211,7 @@ Approve and start? (yes / request changes)
 Changes → back to STEP 6. Approved → continue.
 
 ## STEP 8 — IMPLEMENT
-First: `Skill(effort-medium)` (effort-shift: dispatch span starts).
+First: `Skill(effort-medium)` (effort-shift: dispatch span starts; send it in the same message as this step's first dispatch).
 Start the MVP feature branch off develop, then implement on it:
 ```bash
 bash "$HOME/.claude/lib/gitflow.sh" start feature mvp
@@ -314,7 +314,7 @@ articles dropped, code/IDs/quoted errors verbatim — per CLAUDE.md "Memory
 registries" (Always English, always caveman). The gate may mirror the user's
 language; entries must not.
 
-`Skill(effort-low)` first (effort-shift: bookkeeping tail).
+`Skill(effort-low)` first (effort-shift: bookkeeping tail; send it in the same message as the memory-commit command).
 
 **Then commit the memory** — follow `$HOME/.claude/lib/capitalize-commit.md`: it
 surgically commits the approved founding decisions (`.claude/memory` +

@@ -8,6 +8,16 @@ max (stuck error, judged need).
 
 ## Mechanics (verified on Claude Code 2.1.283)
 
+- **Pairing rule**: a `Skill(effort-<level>)` call applies its effort only
+  when the same assistant message carries at least one other tool call
+  after it; a lone Skill call is a no-op. Send the shift together with the
+  step's first tool call, shift first. That paired call already runs at the
+  new level: pair a downward shift with a pinned-agent dispatch or a
+  Read/Bash, never with a built-in judgment dispatch (`general-purpose`,
+  `model: "opus"`), which would inherit it.
+- Re-loading a shifter already loaded in the conversation re-applies its
+  effort (the harness only dedupes the skill text), so bounce-back
+  sequences such as medium → max → medium work.
 - A skill's `effort:` frontmatter applies from the moment it loads to the
   end of the turn: on the user's `/skill` and on a `Skill(...)` call by
   Claude in an interactive session. Last loaded wins, both directions. The
@@ -21,7 +31,8 @@ max (stuck error, judged need).
 ## Shifters
 
 `Skill(effort-low)` · `Skill(effort-medium)` · `Skill(effort-high)` ·
-`Skill(effort-xhigh)` · `Skill(effort-max)`. One tool call, one-line body.
+`Skill(effort-xhigh)` · `Skill(effort-max)`. One tool call, one-line body,
+always sent with another tool call (Pairing rule).
 Typed by the user, `/effort-max` is a turn-scoped max: the relaunch lever
 after a STOP. `ultrathink` only adds an in-context nudge; the API level
 does not move.

@@ -26,7 +26,7 @@ allowed-tools:
 MODEL GATE (blocking): run `$HOME/.claude/lib/model-gate.md` BEFORE any
 step below. Verdict `small` → STOP — print the gate's remedy, end the
 turn, dispatch nothing.
-EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-NEXT): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation.
+EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-NEXT): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
 
 ## TARGET
 $ARGUMENTS
@@ -121,8 +121,8 @@ TOTALS: <N blocking, N warn, N info>
 
 If no issues found: report clean state and stop.
 
-`Skill(effort-xhigh)` first (effort-shift: reflection resumes).
 ## STEP 3b — CHALLENGE THE SCOPE (before approval)
+`Skill(effort-xhigh)` first (effort-shift: reflection resumes; send it in the same message as the challenger dispatch).
 The STEP 3 report is the proposed cleanup scope — worth attacking before the
 human approves it. It is still inline, so FIRST persist it to
 `.claude/tasks/plans/<date>-<slug>-<HHMM>.md` (STEP 3 report format, one item
@@ -175,7 +175,7 @@ is approved, stop — no dispatch.
 2. **Dispatch the executor** — sonnet by frontmatter pin, do not override:
 
    ```
-Skill(effort-medium)   # effort-shift: dispatch span starts
+   Skill(effort-medium)   # effort-shift: dispatch span starts; send with the Agent call below in ONE message
    Agent(subagent_type="code-cleaner")
    prompt: "SCOPE: .claude/audits/CODE-CLEAN-SCOPE.md
    APPROVED: <the approved item list, incl. any per-item exported-symbol clears>

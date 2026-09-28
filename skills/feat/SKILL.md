@@ -26,7 +26,7 @@ allowed-tools:
 MODEL GATE (blocking): run `$HOME/.claude/lib/model-gate.md` BEFORE any
 step below. Verdict `small` → STOP — print the gate's remedy, end the
 turn, dispatch nothing.
-EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-NEXT): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation.
+EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-NEXT): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
 
 ## REQUEST
 $ARGUMENTS
@@ -123,8 +123,8 @@ request left open → one batch of questions BEFORE dispatching; answers land
 in the contract's CLARIFICATIONS `[gated]` and in the plan. A choice that
 surfaces only during execution comes back as `NEED-DECISION` (STEP 3).
 
-`Skill(effort-high)` first (effort-shift: reflection resumes).
 ## STEP 1b — CHALLENGE THE PLAN (before branching)
+`Skill(effort-high)` first (effort-shift: reflection resumes; send it in the same message as the challenger dispatch).
 The STEP 1 plan is a reflection worth attacking before a branch is spent on it.
 Persist it to `.claude/tasks/plans/<date>-<slug>-<HHMM>.md`, then run
 `$HOME/.claude/lib/challenge-plan.md` with `PLAN` = that file, `KIND` = `build-plan`,
@@ -146,7 +146,7 @@ branch it's a no-op (commit in place). Never `finish`.
 Dispatch the executor — sonnet by frontmatter pin, do not override:
 
 ```
-Skill(effort-medium)   # effort-shift: dispatch span starts
+Skill(effort-medium)   # effort-shift: dispatch span starts; send with the Agent call below in ONE message
 Agent(subagent_type="feater")
 prompt: "CONTRACT: <path from STEP 0.7>
 PLAN: <the STEP 1 checklist + approach bullets + edge cases, verbatim>
@@ -203,7 +203,7 @@ test), consider splitting into 2-3 atomic commits grouped by logical
 unit — or run `/commit-change` on the pending work (it dispatches the
 commit-changer (propose opus / apply sonnet, BDR-077); never inline-load the bare agent, it is now a
 propose/apply executor).
-Then `Skill(effort-high)` (effort-shift: nested commit-change loaded at low; reload feat's level).
+Then `Skill(effort-high)` (effort-shift: nested commit-change loaded at low; reload feat's level, sent with the next tool call).
 
 Print summary:
 ```
@@ -254,7 +254,7 @@ Always append a 1-line entry to today's heading in `.claude/memory/journal.md`.
 
 If no substantive capture candidate → skip with `CAPITALIZE: nothing to log`.
 
-`Skill(effort-low)` first (effort-shift: bookkeeping tail).
+`Skill(effort-low)` first (effort-shift: bookkeeping tail; send it in the same message as the memory-commit command).
 
 **Then commit the memory** — follow `$HOME/.claude/lib/capitalize-commit.md`: it
 surgically commits what capitalize just wrote (`.claude/memory` + `.claude/tasks`
