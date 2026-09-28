@@ -42,7 +42,7 @@ rules:
 | BLK-020 | 2026-09-02 | notify-attention: both channels dead on one VS Code client — 2026-09-02 | resolved |
 | BLK-021 | 2026-09-22 | Bash tool dead mid-session ("every command exits 1"): /tmp usrquota blown by a dead session's probe HOMEs — 2… | open |
 | BLK-022 | 2026-09-22 | `hooks/guard-bash.sh` withheld by the safety classifier; executable spec shipped instead — 2026-09-22 | open |
-| BLK-023 | 2026-09-28 | floor-guard SKIP pattern `xit(` (Jasmine) matches any `exit(` in python/JS test helpers → false ECARTS; workaround: no `exit(` in inline python, bash derives rc from output — 2026-09-28 | open |
+| BLK-023 | 2026-09-28 | floor-guard SKIP pattern `xit(` (Jasmine) matches any `exit(` in python/JS test helpers → false ECARTS; workaround: no `exit(` in inline python, bash derives rc from output — 2026-09-28 | resolved |
 
 ---
 
@@ -267,4 +267,4 @@ rules:
 - **Friction**: fresh verifier returned ECARTS(1) on a fully conform diff: `FLOOR SKIP lib/tests/profile-census.test.sh:116 sys.exit(1 if violations else 0)`. One re-dispatch spent on a tool artefact.
 - **Real cause**: `lib/floor-guard.sh` SKIP_SUBSTRINGS holds the bare fragment `'xit('` to catch Jasmine's `xit(…)`; `skip_kind()` is a plain substring match, so `sys.exit(`, `SystemExit(`, `process.exit(` all hit.
 - **Solution**: workaround applied — the inline python prints violations only, the bash wrapper derives the return code from the captured output (no `exit(` anywhere). Root fix pending: word-bound the pattern (`(^|[^a-zA-Z_.])xit\(`) or match `xit(` only in JS/TS test files; hotfix-sized.
-- **Status**: open. Links [[BDR-105]], [[BDR-102]] (floor-guard origin), [[EVAL-034]].
+- **Status**: resolved 2026-09-28 — hotfix 0deb559 (bugfix/floor-guard-xit-boundary): the four bare Jasmine identifiers moved into `SKIP_IDENT_RE` with lookbehind `(?<![A-Za-z0-9_.])`, dotted/decorator forms stay substrings; fixtures SKIP_EXIT_CLEAN (RED before, GREEN after) + xit/fit/fdescribe flags. Residual `shortcut:` in the guard: `def fit(` / `function xit(` still match, `xit (` / `xit.each(` still do not (as before). Links [[BDR-105]], [[BDR-102]] (floor-guard origin), [[EVAL-034]].

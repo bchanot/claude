@@ -75,7 +75,8 @@ frontend-design@claude-plugins-official` (byte-identical to the managed copy).
       floor-guard `xit(` pattern, EVAL challenge round), journal. UNMERGED — human
       gate. After merge on any other machine: `make link` + `bash lib/profile.sh
       set full` (NOT `apply`: additive). Follow-ups: floor-guard `xit(` → word
-      boundary (hotfix); gates.sh could refuse a CHECK holding `<<`; optional
+      boundary (hotfix DONE 0deb559, bugfix/floor-guard-xit-boundary, UNMERGED);
+      gates.sh could refuse a CHECK holding `<<`; optional
       doctor info line for the claude.ai synced bucket; `21st login`; claude.ai
       skills useless in CLI off (built-in-browser, chrome-browser, computer-use,
       skill-creator, import-memory). Tier 2 superpowers vendoring next.
