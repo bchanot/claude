@@ -22,6 +22,8 @@ VERSION=$(cat "$REPO/version.txt" 2>/dev/null || echo "unknown")
 source "$REPO/lib/detect-plugins.sh"
 # shellcheck source=lib/gstack-playwright.sh disable=SC1091
 source "$REPO/lib/gstack-playwright.sh"
+# shellcheck source=lib/doctor-vendored.sh disable=SC1091
+source "$REPO/lib/doctor-vendored.sh"
 
 echo ""
 echo "═══ claude-config doctor (v${VERSION}) ═══"
@@ -114,6 +116,38 @@ if [ "${gstack_skill_links:-0}" -gt 0 ]; then
 else
   warn "GStack skills not linked — run: cd skills-external/gstack && ./setup"
 fi
+
+echo ""
+
+# ────────────────────────────────────────────────────────────
+# 2b. Vendored skills (curl-pinned externals: plugins.lock.json's
+# managed_by:curl entries + link.sh's EXTERNAL_SKILLS array — the OTHER
+# externals the GStack section above does not cover)
+# ────────────────────────────────────────────────────────────
+echo "── Vendored skills ──"
+# Mirrors lib/profile.sh's active_profile() (read_cache + the
+# blank/"none" -> DEFAULT_PROFILE fallback) without sourcing profile.sh
+# itself (its main() would run unconditionally) and without ever
+# invoking `claude`.
+_dv_active_profile=$(head -n1 "$REPO/.active-profile" 2>/dev/null \
+  | tr -d '[:space:]')
+[ -z "$_dv_active_profile" ] && _dv_active_profile="none"
+[ "$_dv_active_profile" = "none" ] && _dv_active_profile="full"
+# .active-profile's value is spliced into a lib/profiles/ path below —
+# reject anything outside the profile-name allowlist before that splice.
+if ! _dv_valid_profile_name "$_dv_active_profile"; then
+  warn ".active-profile has invalid value \"$_dv_active_profile\" — \
+falling back to profile full"
+  _dv_active_profile="full"
+fi
+_dv_profile_file="$REPO/lib/profiles/$_dv_active_profile.profile"
+if [ -f "$_dv_profile_file" ]; then
+  check_vendored_skills "$REPO" "$HOME/.claude" "$_dv_profile_file"
+else
+  # Active profile unresolved — every external is expected linked.
+  check_vendored_skills "$REPO" "$HOME/.claude"
+fi
+unset _dv_active_profile _dv_profile_file
 
 echo ""
 
