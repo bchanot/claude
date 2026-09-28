@@ -56,6 +56,13 @@ for s in brainstorming writing-plans; do
 done
 has "install-plugins.sh" 'effort: xhigh'
 
+# ── 5) shifter skills + include (spec D4)
+for l in low medium high xhigh max; do fm_has_effort "skills/effort-$l/SKILL.md" "$l"; has "skills/effort-$l/SKILL.md" "name: effort-$l"; done
+has "lib/effort-shift.md" 'Headless sessions'
+has "lib/effort-shift.md" 'Skill(effort-max)'
+has "lib/effort-shift.md" 'never inside a dispatched agent'
+has "lib/model-gate.md" 'lib/effort-shift.md'
+
 # ── summary (later tasks insert their locks ABOVE this line)
 printf 'effort-routing census: %d pass, %d fail\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
