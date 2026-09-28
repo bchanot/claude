@@ -15,8 +15,8 @@ executors in parallel, gates replayed (gates.sh → fresh verifier → security)
       make test 36 suites green minus 2 pre-existing T16a, CHANGELOG, BDR-104 LRN-174
       EVAL-033. UNMERGED — human gate. After merge: `make link` + `bash lib/profile.sh
       apply full`; user removes `/tmp/mengto-verify`.
-Follow-up LOW (security): `SAFE` regex `$` accepts a trailing newline (use `\Z`);
-`source`/`path`/`commit` lock fields not charset-checked in lib/vendor-skills.sh.
+- [x] M4 415b44e LOW hardening on user ask: `re.fullmatch` guard, `commit`/`source`/`path`
+      validated, 12-case suite; verifier CONFORME, security PASS.
 Skipped on purpose (analysis 2026-09-27): cinematic-gsap-lenis (reduced-motion bug),
 cinematic-scroll-storytelling (50 % duplicate), build-awwwards-quality-sites (0 code),
 animation-systems, gsap, threejs (⊂ ui-ux-pro-max threejs.csv), cobejs, matterjs,
