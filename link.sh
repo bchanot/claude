@@ -79,7 +79,9 @@ EXTERNAL_SKILLS=(emil-design-eng frontend-design design-motion-principles
   observability-and-instrumentation deprecation-and-migration ci-cd-and-automation
   scroll-world-storytelling build-threejs-scroll-worlds
   scroll-scrubbed-visual-sequence scroll-scrubbed-word-reveal
-  scroll-progress-timeline)
+  scroll-progress-timeline brainstorming writing-plans
+  subagent-driven-development test-driven-development
+  requesting-code-review using-git-worktrees writing-skills)
 for _ext_skill in "${EXTERNAL_SKILLS[@]}"; do
   if [ -d "$REPO/skills-external/$_ext_skill" ]; then
     if [ -L "$CLAUDE/skills/$_ext_skill" ] && [ "$(readlink "$CLAUDE/skills/$_ext_skill")" = "$REPO/skills-external/$_ext_skill" ]; then

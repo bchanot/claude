@@ -68,7 +68,7 @@ contract.
 Load `$HOME/.claude/agents/analyzer.md`. Analyze BRIEF: existing code, stack constraints, infra risks, open decisions. Produce ANALYSIS REPORT.
 
 ## STEP 3 — DESIGN
-Invoke `superpowers:brainstorming` with BRIEF + ANALYSIS REPORT.
+Invoke `brainstorming` (vendored superpowers skill) with BRIEF + ANALYSIS REPORT.
 Produce DESIGN: stack+versions, full folder tree, module responsibilities, data flow, interfaces (signatures only), config+tooling, test strategy, resolved decisions, prereqs list.
 Then run pass B of `$HOME/.claude/lib/contract-interview.md` against the DESIGN
 (minus what the BRIEF and the brainstorm settled): one batch before STEP 4;
@@ -179,7 +179,7 @@ This is the deterministic scaffold commit owner (closes BLK-010). The MVP is
 implemented on a `feature/*` branch off `develop` (STEP 8).
 
 ## STEP 6 — PLAN
-Invoke `superpowers:writing-plans` with BRIEF + skeleton.
+Invoke `writing-plans` (vendored superpowers skill) with BRIEF + skeleton.
 Granular tasks (2-5 min each), exact file paths, TDD: tests before code.
 
 ## STEP 6b — CHALLENGE THE PLAN (before the gate)
@@ -212,7 +212,7 @@ Start the MVP feature branch off develop, then implement on it:
 ```bash
 bash "$HOME/.claude/lib/gitflow.sh" start feature mvp
 ```
-Invoke `superpowers:subagent-driven-development` for the per-task implement loop
+Invoke `subagent-driven-development` (vendored superpowers skill) for the per-task implement loop
 **and** the final whole-branch review **only**. Do NOT run its terminal
 `finishing-a-development-branch` step — this orchestrator owns integration via
 `gitflow finish` (STEP 11). When SDD's flow reaches "Use
@@ -256,7 +256,7 @@ against the founding contract. Distinct axis from STEP 10 code review
 ([[LRN-095]]) — both run.
 
 ## STEP 10 — CODE REVIEW
-Invoke `superpowers:requesting-code-review`. **Model routing (BDR-077):** the
+Invoke `requesting-code-review` (vendored superpowers skill). **Model routing (BDR-077):** the
 review subagent it dispatches MUST carry `model: "opus"` in the Agent call —
 craft review is dispatched judgment, never inherited from the session. Fix
 all CRITICAL before proceeding.

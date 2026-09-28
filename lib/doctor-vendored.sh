@@ -5,8 +5,8 @@
 # EXTERNAL_SKILLS array). doctor.sh's "GStack submodule" section only
 # covers the gstack submodule — this covers the OTHER external skill
 # packs (emil-design-eng, the agent-skills trio, the five Mengto scroll
-# skills, and any name link.sh links with no lock entry at all, e.g.
-# frontend-design, design-motion-principles).
+# skills, the seven superpowers skills, and any name link.sh links with
+# no lock entry at all, e.g. frontend-design, design-motion-principles).
 #
 # One entry point, `check_vendored_skills <repo> <claude_home>
 # [profile_file]`, sourced and called by doctor.sh. Two things checked
@@ -21,7 +21,9 @@
 #      is passed — the "could not resolve the active profile" case),
 #      the <claude_home>/skills/<name> symlink points at
 #      <repo>/skills-external/<name>. A name absent from the profile is
-#      reported parked, not failed.
+#      reported parked, not failed — unless its lock entry is
+#      "always_on": true (the superpowers entry is), in which case the
+#      symlink is checked regardless of the profile (see _dv_check_link).
 #
 # Lock parsing via python3 argv (never string-spliced) — same pattern as
 # lib/vendor-skills.sh's _vendor_read_lock. link.sh's EXTERNAL_SKILLS
@@ -61,11 +63,14 @@ fi
 
 # _dv_lock_expectations <lockfile> — prints "<name>\t<file>" for every
 # skill named under a plugins.lock.json entry whose "managed_by" is
-# "curl": a bare list defaults each name to ["SKILL.md"]; a dict names
-# its own per-skill file list; an entry with neither (the
-# emil-design-eng single-file "path" shape) is itself the skill name,
-# file "SKILL.md" (the literal "path" value is upstream layout, not the
-# local dest — never used here). Reads the lockfile via argv only.
+# "curl", plus a THIRD column "\t1" when that entry is "always_on": true
+# (the superpowers entry is) — read by _dv_is_always_on, ignored by the
+# $1==n {print $2} awk in _dv_check_files: a bare list defaults each name
+# to ["SKILL.md"]; a dict names its own per-skill file list; an entry
+# with neither (the emil-design-eng single-file "path" shape) is itself
+# the skill name, file "SKILL.md" (the literal "path" value is upstream
+# layout, not the local dest — never used here). Reads the lockfile via
+# argv only.
 # Every curl-managed entry's shape is validated ("skills" null, a list
 # of str, or a dict of str -> list of str; "path" a str when present)
 # BEFORE it is used, so a malformed entry is the same clean failure as
@@ -118,12 +123,13 @@ for key, entry in data.items():
         sys.exit(1)
     if not valid_skills(skills):
         sys.exit(1)
+    suffix = "\t1" if entry.get("always_on") is True else ""
     if skills is None:
-        print(f"{key}\tSKILL.md")
+        print(f"{key}\tSKILL.md{suffix}")
         continue
     for name, files in skill_files(skills).items():
         for file in files:
-            print(f"{name}\t{file}")
+            print(f"{name}\t{file}{suffix}")
 PY
 }
 
@@ -196,16 +202,30 @@ allowlist — skipped"
   [ "$all_ok" -eq 1 ]
 }
 
-# _dv_check_link <claude_home> <repo> <name> <profile_file> — when
-# <profile_file> is non-empty and does not list <name>, reports it
-# parked (info), not failed. Otherwise (listed, or no <profile_file> was
-# passed — active profile could not be resolved, every external is then
-# expected linked) checks the <claude_home>/skills/<name> symlink points
-# at <repo>/skills-external/<name>.
+# _dv_is_always_on <name> <lock_out> — true when <lock_out> (the
+# "<name>\t<file>[\t1]" lines from _dv_lock_expectations) carries the
+# always_on third column for <name>'s lock entry.
+_dv_is_always_on() {
+  local name="$1" lock_out="$2"
+  awk -F'\t' -v n="$name" '$1 == n && $3 == 1 { found=1 } \
+    END { exit !found }' <<< "$lock_out"
+}
+
+# _dv_check_link <claude_home> <repo> <name> <profile_file> <always_on> —
+# when <always_on> is "1" (the name's lock entry is "always_on": true),
+# the symlink is checked whatever <profile_file> says — never parked.
+# Otherwise, when <profile_file> is non-empty and does not list <name>,
+# reports it parked (info), not failed. Otherwise (listed, always_on, or
+# no <profile_file> was passed — active profile could not be resolved,
+# every external is then expected linked) checks the
+# <claude_home>/skills/<name> symlink points at
+# <repo>/skills-external/<name>.
 _dv_check_link() {
-  local claude_home="$1" repo="$2" name="$3" profile_file="$4"
+  local claude_home="$1" repo="$2" name="$3" profile_file="$4" \
+    always_on="$5"
   local link target label
-  if [ -n "$profile_file" ] && ! _dv_profile_has "$profile_file" "$name"; then
+  if [ "$always_on" != "1" ] && [ -n "$profile_file" ] \
+       && ! _dv_profile_has "$profile_file" "$name"; then
     label="$(basename "$profile_file" .profile)"
     info "$name: parked by profile $label"
     return
@@ -218,6 +238,20 @@ _dv_check_link() {
     fail "$name: symlink missing/wrong — run: make link (or: bash \
 lib/profile.sh apply <profile>)"
   fi
+}
+
+# _dv_check_name <repo> <claude_home> <name> <profile_file> <lock_out> —
+# per-name dispatch for check_vendored_skills's loop: files first (the
+# link check runs only when every expected file is present, same as
+# before), then the symlink, passing _dv_is_always_on's verdict as
+# _dv_check_link's 5th param.
+_dv_check_name() {
+  local repo="$1" claude_home="$2" name="$3" profile_file="$4" lock_out="$5"
+  local always_on=""
+  _dv_is_always_on "$name" "$lock_out" && always_on=1
+  _dv_check_files "$repo" "$name" "$lock_out" \
+    && _dv_check_link "$claude_home" "$repo" "$name" "$profile_file" \
+         "$always_on"
 }
 
 # check_vendored_skills <repo> <claude_home> [profile_file] — see the
@@ -251,7 +285,6 @@ check skipped"
 item-name allowlist — skipped"
       continue
     fi
-    _dv_check_files "$repo" "$name" "$lock_out" \
-      && _dv_check_link "$claude_home" "$repo" "$name" "$profile_file"
+    _dv_check_name "$repo" "$claude_home" "$name" "$profile_file" "$lock_out"
   done <<< "$names"
 }

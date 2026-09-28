@@ -18,6 +18,9 @@
 # `skills` as a bare list defaults every named skill to `["SKILL.md"]` and
 # `path` to "skills" (the agent-skills shape); `skills` as a dict carries an
 # explicit per-skill file list (references/*, etc.) and `path` is required.
+# `"always_on": true` (optional) is ignored by this helper (fetch is the
+# same either way) — lib/doctor-vendored.sh reads it to expect the
+# entry's skills linked regardless of the active profile.
 #
 # Raw URL: https://raw.githubusercontent.com/<owner>/<repo>/<sha>/<path>/
 # <skill>/<file>. VENDOR_BASE_URL overrides the "https://…/<repo>" prefix

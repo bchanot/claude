@@ -17,9 +17,10 @@ code already committed.
 
 - Inline-commit flows (feat / hotfix / bugfix / commit-change): run it right
   after writing the entries, on the current branch.
-- Orchestrators that integrate via `superpowers:finishing-a-development-branch`
-  (ship-feature / init-project): run it BEFORE the FINISH step — otherwise the
-  memory commit strands outside the merge/PR. See ORDERING.
+- Orchestrators that integrate via `gitflow finish` (the upstream
+  finishing-a-development-branch is not vendored; ship-feature / init-project):
+  run it BEFORE the FINISH step — otherwise the memory commit strands outside
+  the merge/PR. See ORDERING.
 
 This snippet commits whatever is PENDING under `.claude/memory` + `.claude/tasks`;
 it does NOT decide content. A flow whose gate wrote only a journal line yields a
@@ -65,11 +66,12 @@ no-match pathspec is filtered, not fatal).
 
 ## ORDERING (orchestrators only)
 
-`finishing-a-development-branch` may merge-and-delete the branch or push a PR. A
-memory commit created AFTER it lands outside the integrated history — stranded
-on the PR path. So in ship-feature / init-project this snippet runs BEFORE
-FINISH. The code commits already exist (implementation step), so the entries'
-hash references are valid at this point.
+`finishing-a-development-branch` (upstream superpowers skill, not vendored
+here; `gitflow finish` is the only integration path) may merge-and-delete the
+branch or push a PR. A memory commit created AFTER it lands outside the
+integrated history — stranded on the PR path. So in ship-feature / init-project
+this snippet runs BEFORE FINISH. The code commits already exist (implementation
+step), so the entries' hash references are valid at this point.
 
 ## WHAT THIS DOES NOT DO
 

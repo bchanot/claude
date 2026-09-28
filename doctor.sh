@@ -223,9 +223,9 @@ else
 fi
 
 if detect_superpowers; then
-  pass "Superpowers plugin detected"
+  pass "superpowers skills linked (brainstorming found); per-skill check under Vendored skills"
 else
-  fail "Superpowers not detected — orchestrators (/init-project, /ship-feature) will fail"
+  fail "superpowers skills not linked — run: make plugin && make link"
 fi
 
 if detect_context7; then
@@ -417,10 +417,10 @@ SKILL_DESC_TOKENS=$((SKILL_DESC_CHARS / 4))
 # Plugin passive cost estimates (tokens) — session-start injections and
 # hook prompts that never show up as a skill description above. gstack,
 # context7 (find-docs) and graphifyy dropped 2026-09-28 (skill-catalog
-# prune): their skills sit under ~/.claude/skills and are already counted
-# by the stats above — a separate constant here double-counted them.
+# prune); superpowers dropped the same day (tier 2, vendored instead):
+# their skills sit under ~/.claude/skills and are already counted by the
+# stats above — a separate constant here double-counted them.
 PLUGIN_TOKENS=0
-if detect_superpowers  2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 1500)); fi
 if detect_uiux_pro_max 2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 670)); fi
 
 TOTAL_TOKENS=$((CLAUDE_MD_TOKENS + SKILL_DESC_TOKENS + PLUGIN_TOKENS))

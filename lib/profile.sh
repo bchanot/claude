@@ -18,8 +18,10 @@
 #     and MCPs in the MANAGED_* allowlists are disabled when the profile
 #     does not list them — nothing outside those lists is ever auto-toggled.
 #
-# Always-on plugins (never toggled by `set`): security-guidance,
-# superpowers + rtk hook + .claude internal. The script refuses to disable
+# Always-on plugins (never toggled by `set`): security-guidance + rtk
+# hook + .claude internal. superpowers is vendored skills now, not a
+# plugin (never in PROTECTED_PLUGINS, never in MANAGED_EXTERNALS — same
+# always-on class as darwin-skill). The script refuses to disable
 # anything in PROTECTED_PLUGINS.
 #
 # Usage:
@@ -61,9 +63,10 @@ DEFAULT_PROFILE="full"  # profile in force when none is selected (cache absent, 
 source "$(dirname "${BASH_SOURCE[0]}")/gstack-removed.sh"
 
 # Plugins that are toggle-managed by `set`. Anything NOT in this list is
-# never auto-disabled — protects always-on plugins (security-guidance,
-# superpowers) and unrelated user plugins. Add a plugin here only when its
-# enabled state is meaningfully driven by task type.
+# never auto-disabled — protects always-on plugins (security-guidance;
+# superpowers is vendored skills now, not a plugin) and unrelated user
+# plugins. Add a plugin here only when its enabled state is meaningfully
+# driven by task type.
 MANAGED_PLUGINS=(
   "ui-ux-pro-max@ui-ux-pro-max-skill"
   "plugin-dev@claude-code-plugins"
@@ -106,7 +109,6 @@ MANAGED_MCPS=()
 # MANAGED_PLUGINS allowlist.)
 PROTECTED_PLUGINS=(
   "security-guidance@claude-code-plugins"
-  "superpowers@superpowers-marketplace"
 )
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; BLUE='\033[0;34m'; NC='\033[0m'

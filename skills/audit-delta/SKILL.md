@@ -318,7 +318,8 @@ Then offer to capitalize (per CLAUDE.md): recurring finding patterns →
 
 ## TDD note (skill itself)
 
-Baseline-tested per superpowers:writing-skills (2026-06-11, isolated
+Baseline-tested per writing-skills (vendored superpowers skill;
+2026-06-11, isolated
 worktree, no skill): the agent (1) guessed the boundary from the most
 recent file date in `.claude/audits/` — wrong file, date-based; (2) wrote
 its checkpoint as prose in a dated report — unparseable next run; (3) kept

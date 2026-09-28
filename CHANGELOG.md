@@ -379,6 +379,21 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   `plugins.lock.json` pin 3.2.0 → 4.1.0 (the CLI only: the skill dist and
   the engine binary have their own release tracks). `link.sh` drops
   impeccable from `EXTERNAL_SKILLS`; `skills-external/impeccable/` is gone.
+- **Superpowers plugin replaced by 7 vendored skills** (tier 2 of the
+  skill-catalog prune, BDR-105/106). `brainstorming`, `writing-plans`,
+  `subagent-driven-development`, `test-driven-development`,
+  `requesting-code-review`, `using-git-worktrees` and `writing-skills` are
+  curled byte-for-byte from `obra/superpowers` at the v6.4.1 commit
+  (`5bf4e78011075bcfc0dc295f0724994cd123ee71`) via `lib/vendor-skills.sh`
+  (new `superpowers` entry in `plugins.lock.json`, `always_on: true`),
+  linked by `link.sh` like the other externals: always on, no profile lists
+  them, same as `darwin-skill`. Every `superpowers:<skill>` citer across
+  `skills/`, `agents/` and `lib/` is renamed to the bare skill name.
+  `CLAUDE.global.md` Skill routing gains a map for the 4 dropped skills this
+  config used to reference: `executing-plans` to
+  `subagent-driven-development`, `finishing-a-development-branch` to
+  `gitflow finish`, `systematic-debugging` to `/bugfix`,
+  `verification-before-completion` to the verifier gates.
 
 ### Security
 - **Ten secret-reader deny rules added**: `sed`, `awk`, `cut`, `tr`,
@@ -433,6 +448,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   with it: the 4 `mcp__magic__*` `permissions.ask` entries (BDR-059), the
   `MAGIC_API_KEY` block in `.env.example`, `link.sh`'s missing-key warning,
   and the dead `MAGIC_API_KEY=abc123` gitleaks allowlist regex.
+- **Superpowers plugin uninstalled**: its 8 other skills
+  (`executing-plans`, `finishing-a-development-branch`,
+  `systematic-debugging`, `verification-before-completion`,
+  `dispatching-parallel-agents`, `receiving-code-review`,
+  `using-superpowers`, `diagnosing-superpowers`) and its SessionStart
+  injection (`using-superpowers`, ~3.6 KB every session start) are gone
+  with it. `lib/profile.sh` no longer protects it; `lib/detect-plugins.sh`
+  `detect_superpowers` now checks the linked vendored skill instead of the
+  plugin cache or `claude plugin list`.
 
 ### Fixed
 - **gstack's shared helper tree was mostly unreachable.** gstack skills
@@ -505,6 +529,14 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   `21st-ui-build` and `21st-cli-use` still point at the now-`max`-only
   21st trio. A Skill call on a parked name fails, and the doctrine
   routing in `CLAUDE.global.md` applies instead.
+- The 7 vendored superpowers skills are byte-for-byte upstream text, never
+  edited: their internal `superpowers:<x>` mentions and references to the
+  8 non-vendored skills stay in the prose (their own text, not ours to
+  patch). `CLAUDE.global.md` Skill routing carries the map for the 4 of
+  those this config used to reference. After a rollback that re-installs
+  the plugin while the 7 symlinks are still linked, delete the
+  `skills/<7>` symlinks or re-run `make plugin` to avoid duplicate skill
+  descriptions.
 
 ## [1.5.0] — 2026-09-13
 
