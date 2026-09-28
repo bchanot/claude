@@ -13,8 +13,10 @@ fan-out, init, `.gitignore` reconcile, the protected-base predicate — are in
 and bulletproofs the single judgment call: **`finish` merges only on an explicit
 human signal.**
 
-Replaces `finishing-a-development-branch` for gitflow flows — that skill is
-single-target and cannot do the directed / fan-out merges below.
+Replaces `finishing-a-development-branch` (upstream superpowers skill, not
+vendored here; `gitflow finish` is the only integration path) for gitflow
+flows — that skill is single-target and cannot do the directed / fan-out
+merges below.
 
 ## When to Use
 
@@ -107,7 +109,7 @@ stays human-gated.
 
 ## Common Mistakes
 
-- Using `finishing-a-development-branch` for a gitflow merge → it can't do directed/fan-out merges. Use `gitflow finish`.
+- Using `finishing-a-development-branch` (upstream superpowers skill, not vendored here) for a gitflow merge → it can't do directed/fan-out merges anyway. Use `gitflow finish`, the only integration path.
 - Hand-writing `git merge` instead of `gitflow finish` → loses fan-out, branch delete, base sync.
 - Calling `finish` because the work *looks* done → see the gate.
 - `git branch -d`/`-D` by hand → denied; a branch the lib refuses to delete still holds work. Keep it, say so.

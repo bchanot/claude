@@ -100,7 +100,7 @@ approved at STEP 3 ENRICHES it, and STEP 5's verifier judges the diff against
 the ENRICHED contract. This is the only flow where the contract grows mid-run.
 
 ## STEP 1 — BRAINSTORM
-Invoke `superpowers:brainstorming` — but FEED it the STEP 0d digest as binding context,
+Invoke `brainstorming` (vendored superpowers skill) — but FEED it the STEP 0d digest as binding context,
 not the raw request alone:
   "Feature request: <$ARGUMENTS>.
    In-force constraints (must hold): <only the IN-FORCE + ALREADY-SEEN items from 0d's
@@ -114,7 +114,7 @@ Consumption = INPUT INJECTION (we can't modify the external skill; we control it
 Refine request into validated design via Socratic questioning. Don't proceed until design approved.
 
 ## STEP 2 — PLAN
-Invoke `superpowers:writing-plans` with the validated design AND the 0d digest: every task
+Invoke `writing-plans` (vendored superpowers skill) with the validated design AND the 0d digest: every task
 must be consistent with the in-force constraints; where a task implements or affects one,
 note the ID inline. Break design into tasks (2-5 min each). Each task: exact file paths, full code, verification steps.
 Then run pass B of `$HOME/.claude/lib/contract-interview.md` against the plan:
@@ -173,7 +173,7 @@ Start the feature branch off develop, then implement on it:
 ```bash
 bash "$HOME/.claude/lib/gitflow.sh" start feature <name>
 ```
-Invoke `superpowers:subagent-driven-development` for the per-task implement loop
+Invoke `subagent-driven-development` (vendored superpowers skill) for the per-task implement loop
 **and** the final whole-branch review **only**. Do NOT run its terminal
 `finishing-a-development-branch` step — this orchestrator owns integration via
 `gitflow finish` (STEP 9). When SDD's flow reaches "Use
@@ -234,7 +234,7 @@ conformity + security vs. craft/design) — both run, neither subsumes the
 other ([[LRN-095]]).
 
 ## STEP 6 — CODE REVIEW
-Invoke `superpowers:requesting-code-review`. **Model routing (BDR-077):** the
+Invoke `requesting-code-review` (vendored superpowers skill). **Model routing (BDR-077):** the
 review subagent it dispatches MUST carry `model: "opus"` in the Agent call —
 craft review is dispatched judgment, never inherited from the session. Fix
 all CRITICAL before proceeding.

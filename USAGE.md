@@ -181,8 +181,8 @@ Deploy + QA browser       → gstack ON
 Next.js/React/Prisma      → context7 ON (WARN si absent, pas BLOCK)
 Multi-session (>1 jour)   → gsd v2 CLI (gsd dans terminal)
 
-Backend/CLI seulement     → tout OFF sauf superpowers
-Hotfix/quick fix          → tout OFF sauf superpowers
+Backend/CLI seulement     → tout OFF (skills superpowers vendorisés, toujours actifs, 0 t passif)
+Hotfix/quick fix          → tout OFF (skills superpowers vendorisés, toujours actifs, 0 t passif)
 ```
 
 **GSD v2** n'est pas un plugin Claude Code — c'est un CLI externe. Il ne consomme pas de tokens passifs. Tu le lances dans un terminal séparé avec `gsd`, puis `/gsd auto` pour le mode autonome.
@@ -586,7 +586,7 @@ ONBOARD COMPLETE: mycli
 
 → SIGNALS: none (CLI pur)
 → DISABLE: ui-ux-pro-max, gstack, context7
-→ KEEP: superpowers
+→ (skills superpowers vendorisés, toujours actifs, 0 t passif)
 → COST: ~800t (minimal)
 → ACTION REQUIRED? NO
 ```
@@ -647,7 +647,7 @@ DO NOT TOUCH:
 /plugin-check "CLI Rust, convertisseur de fichiers JSON/CSV/TOML, pas de réseau, pas de frontend"
 
 → SIGNALS: none (CLI pur, pas de deploy, pas de frontend)
-→ KEEP: superpowers
+→ (skills superpowers vendorisés, toujours actifs, 0 t passif)
 → DISABLE: ui-ux-pro-max, gstack, context7
 → COST: ~800t (base seulement)
 → ACTION REQUIRED? NO
@@ -748,7 +748,7 @@ Simple à valider. L'architecture proposée est plate, pas de surprise.
 
 **Contexte :** module `services/payment_service.py` dans un projet FastAPI existant. Écrit il y a 2 ans, jamais refactorisé. Violations connues : fonctions de 80 lignes, global state, pas de tests unitaires, logique métier mélangée avec appels HTTP.
 
-**Setup :** projet déjà onboardé (CLAUDE.md présent), superpowers actif, plugins inutiles désactivés.
+**Setup :** projet déjà onboardé (CLAUDE.md présent), skills superpowers vendorisés (toujours actifs, 0 t passif), plugins inutiles désactivés.
 
 #### Étape 1 — Analyse avant toute modification
 
@@ -861,7 +861,7 @@ PROJECT STATUS
 
 CONFIG
   Version   : v2.5.0
-  Plugins ON: superpowers, context7 (~1000t)
+  Plugins ON: context7 (~200t), skills superpowers vendorisés (toujours actifs, 0 t passif)
   GSD v2    : installed (2.64.0)
 
 PROJECT
@@ -956,19 +956,20 @@ GSD v2 met à jour le plan dans `.gsd/ROADMAP.md` sans perdre le travail déjà 
 /plugin-check "Firmware C STM32, bare-metal, pas de réseau, pas de frontend, pas de Docker"
 
 SIGNALS: simple, CLI/embedded
-COST: ~800t (superpowers seul)
+COST: ~0t (skills superpowers vendorisés, toujours actifs, 0 t passif)
 
 RECOMMENDATIONS:
-  OK KEEP   : superpowers (peut être utile pour brainstorm initial)
   DISABLE   : ui-ux-pro-max, gstack, context7
-  NOTE      : Pour un firmware vraiment simple (hotfix, modification ciblée),
-              même superpowers peut être désactivé → ~0t passif
+  NOTE      : skills superpowers (brainstorming, writing-plans...) restent
+              disponibles par nom bare sans coût passif, même pour un
+              firmware minimal.
 ```
 
 **Workflow minimaliste — modification d'un driver existant :**
 
 ```
-# Pas de /init-project, pas de GSD, pas de superpowers
+# Pas de /init-project, pas de GSD ; skills superpowers vendorisés
+# (toujours actifs, 0 t passif) mais non invoqués ici
 
 # 1. Comprendre avant de modifier
 /analyze src/drivers/uart.c
@@ -992,7 +993,7 @@ OUTPUT:
 /ship-feature "Corriger l'accès non-atomique au ring_buffer_head dans l'ISR"
 
 STEP 0b — CLAUDE.md found
-STEP 0  — plugin check: superpowers OK (ou désactivé si YOLO mode)
+STEP 0  — plugin check: skills superpowers vendorisés (toujours actifs, 0 t passif)
 
 STEP 1 — BRAINSTORM (rapide, contexte déjà clair depuis /analyze):
   Design: protéger ring_buffer_head avec __disable_irq()/__enable_irq()
@@ -1015,7 +1016,7 @@ STEP 4 — IMPLEMENT (subagents légers, modifications chirurgicales)
 ```
 
 **Points clés :**
-- `/plugin-check` confirme "superpowers seulement" → aucun plugin inutile actif.
+- `/plugin-check` confirme qu'aucun plugin inutile n'est actif (skills superpowers vendorisés, toujours actifs, 0 t passif).
 - `/analyze` est particulièrement utile sur du code C bas-niveau : l'analyzer identifie les accès non-atomiques, les race conditions, les violations de normes, **sans proposer de fix**.
 - Pour un firmware, le workflow `analyze → ship-feature` peut se réduire à `analyze → edit direct` si la modification est triviale.
 - GSD v2 n'est jamais pertinent pour du firmware : les sessions sont courtes et les tâches atomiques.
@@ -1031,7 +1032,7 @@ Prisma / Supabase          →  context7 ON
 "design élaboré" / tokens  →  ui-ux-pro-max ON
 Docker + QA browser        →  gstack ON
 "plusieurs semaines"       →  gsd v2 CLI
-Rust / Python / Go / C     →  tout OFF sauf superpowers
+Rust / Python / Go / C     →  tout OFF (skills superpowers vendorisés, 0t)
 Mobile / Flutter / RN      →  gstack OFF
-Hotfix / script rapide     →  tout OFF sauf superpowers
+Hotfix / script rapide     →  tout OFF (skills superpowers vendorisés, 0t)
 ```

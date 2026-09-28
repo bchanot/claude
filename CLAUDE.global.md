@@ -258,6 +258,12 @@ cryptic names.
 - Design / UI (build, system, audit, polish) → "Design work" below
 - Architecture review → plan-eng-review
 - Before /clear or /compact → capitalize; end-of-session ritual → close
+- superpowers skills are vendored, called by bare name; an upstream
+  `superpowers` prefix names the same skill. Not vendored here:
+  executing-plans → subagent-driven-development
+  finishing-a-development-branch → `gitflow finish` (human signal)
+  systematic-debugging → bugfix
+  verification-before-completion → the verifier gates
 - SEO+GEO → seo (GEO only → geo); W3C + WCAG a11y → web-validate;
   security audit (secrets, CVE, OWASP) → cso
 gstack OFF → its skills (investigate, qa, review, health, retro,

@@ -56,8 +56,10 @@ lists items + types:
 | `mcp`                   | advisory — prints manual `claude mcp add …` command (no server is managed today: `MANAGED_MCPS` is empty since 21st.dev moved to a CLI) |
 | `cli`                   | advisory only — reports installed/not-installed |
 
-**Always-on plugins** (`security-guidance`, `superpowers`) are
-protected — `set` will refuse to disable them even if the profile omits them.
+**Always-on plugins** (`security-guidance`) and the vendored superpowers
+skills are never toggled by a profile — `set` will refuse to disable the
+plugin even if the profile omits it, and the 7 superpowers skills are
+linked outside any profile.
 **Managed plugins** that `set` may disable when not in profile:
 `ui-ux-pro-max@ui-ux-pro-max-skill`, `plugin-dev@claude-code-plugins`,
 `pr-review-toolkit@claude-code-plugins`. Other plugins are never auto-toggled.

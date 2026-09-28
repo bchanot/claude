@@ -118,7 +118,7 @@ ctx7 login                 # optional: OAuth / API key for higher rate limits
 
 | Component | Type | Description | Docs |
 |---|---|---|---|
-| **Superpowers** | Plugin (required) | Brainstorming, planning, subagent-driven dev, code review, branch finishing. Required by `/init-project` and `/ship-feature`. | [obra/superpowers-marketplace](https://github.com/obra/superpowers-marketplace) |
+| **Superpowers skills** | Vendored (7, always on) | brainstorming, writing-plans, subagent-driven development, TDD, code review request, git worktrees, writing-skills — pinned v6.4.1 in plugins.lock.json, no plugin, no session injection | [obra/superpowers](https://github.com/obra/superpowers) |
 | **GStack** | Plugin (toggle) | Full-product workflow: UI + design + deploy + browser QA. Skip for backend/CLI projects. | [garrytan/gstack](https://github.com/garrytan/gstack) |
 | **GSD v2** | External CLI | Multi-session orchestration: crash recovery, cost tracking, parallel workers, context-fresh execution. | [gsd-build/gsd-2](https://github.com/gsd-build/gsd-2) |
 | **RTK** | Plugin (always on) | Code rewrite hook. Zero passive cost. | [rtk-ai/rtk](https://github.com/rtk-ai/rtk) |

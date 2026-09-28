@@ -77,7 +77,7 @@ Factors (weighted):
 | Infra/deploy | 15% | Local only | Single deploy target | Multi-env, CI/CD, containers, monitoring |
 
 **Score thresholds:**
-- **0-30% (simple)**: superpowers only. No gstack, no gsd, no ctx7, no graphify.
+- **0-30% (simple)**: superpowers skills only (vendored, always on). No gstack, no gsd, no ctx7, no graphify.
   _Examples: site vitrine, landing page, script CLI, simple CRUD._
 - **30-60% (moderate)**: + context7 if fast-libs. graphify only once the codebase passes 200 tracked code files (session-start banner informs, the user decides — BDR-097), never at scaffold.
   _Examples: blog with auth, dashboard with charts, API with validation._
@@ -143,7 +143,7 @@ ACTION REQUIRED? YES / NO
 | `fast-libs` | context7 | — | Doc freshness critical |
 | `multi-agent` + `complex-arch` | gsd v2 CLI | — | GSD v2 preferred for multi-session coordination |
 | `simple` / single-session | — | gsd, gstack, ui-ux-pro-max | Saves ~3000-5000t |
-| `embedded` / firmware | — | all toggles; superpowers optional | workflow: /analyze → /hotfix or /bugfix or /ship-feature |
+| `embedded` / firmware | — | all toggles (superpowers skills vendored, always on) | workflow: /analyze → /hotfix or /bugfix or /ship-feature |
 | backend/lib/CLI only | — | ui-ux-pro-max, gstack | ~3100t saved |
 | small project / hotfix | — | gstack, gsd | Use /hotfix, /bugfix, or /feat |
 
@@ -174,12 +174,12 @@ When the plugin-advisor detects a `simple` or `hotfix` signal, suggest the appro
 | Pair | Relation | Verdict |
 |---|---|---|
 | gstack ↔ gsd v2 | ✅ Complementary | GStack = full-product CC workflow. GSD v2 = multi-session CLI. Different scopes, no conflict. |
-| superpowers ↔ gsd v2 | ✅ Complementary | Superpowers = single-session execution. GSD v2 = multi-session CLI orchestration. No conflict. |
-| superpowers ↔ gstack | ✅ Complementary | Used together in /init-project and /ship-feature. Superpowers = engine, GStack = full-product skills. |
+| superpowers ↔ gsd v2 | ✅ Complementary | superpowers skills (vendored) = single-session execution. GSD v2 = multi-session CLI orchestration. No conflict. |
+| superpowers ↔ gstack | ✅ Complementary | Used together in /init-project and /ship-feature. superpowers skills (vendored) = engine, GStack = full-product skills. |
 | context7 ↔ any | ✅ Independent | Doc lookup CLI (ctx7), no workflow overlap. Always safe to combine. |
-| plugin-dev ↔ superpowers | ⚠️ Minor overlap | Superpowers can create skills too. Keep plugin-dev only when actively building new plugins/skills. |
+| plugin-dev ↔ superpowers | ⚠️ Minor overlap | superpowers skills (vendored) can create skills too (writing-skills). Keep plugin-dev only when actively building new plugins. |
 | ui-ux-pro-max ↔ gstack | ✅ Complementary | GStack = deploy/QA layer; ui-ux-pro-max = UI quality layer. Different concerns. |
-| pr-review-toolkit ↔ superpowers | ✅ Complementary | superpowers:requesting-code-review and /pr-review-toolkit:review-pr cover different review styles. |
+| pr-review-toolkit ↔ superpowers | ✅ Complementary | `requesting-code-review` (vendored superpowers skill) and /pr-review-toolkit:review-pr cover different review styles. |
 | rtk ↔ any | ✅ Independent | Hook-only token compression. Zero interaction with any plugin. |
 | security-guidance ↔ any | ✅ Independent | Hooks + out-of-band LLM reviews (agentic review on commit/push; Stop diff review disabled by ENABLE_STOP_REVIEW=0). No context injection unless a regex hits. |
 
@@ -187,15 +187,15 @@ When the plugin-advisor detects a `simple` or `hotfix` signal, suggest the appro
 
 | Project type | Plugins ON | OFF | Passive cost |
 |---|---|---|---|
-| Backend API / microservice | superpowers, context7 (if fast libs) | ui-ux-pro-max, gstack | ~800t |
-| Frontend SPA / SSR | superpowers, ui-ux-pro-max, frontend-design, design-motion-principles, context7 | gstack | ~1400t |
-| Full-stack SaaS | superpowers, gstack, ui-ux-pro-max, frontend-design, design-motion-principles, context7 | — | ~4200t |
-| CLI tool / library | superpowers | all toggles | ~800t |
-| Multi-session large feature | superpowers + gsd v2 CLI (external) | — | ~800t CC |
-| Quick fix / hotfix | superpowers | all toggles | ~800t |
-| Design system / component lib | superpowers, ui-ux-pro-max, frontend-design, design-motion-principles | gstack, gsd | ~1200t |
-| Fast-evolving libs (Next.js etc.) | superpowers, context7 | — | ~1000t |
-| Enterprise multi-agent orchestration | superpowers + gsd v2 (external) | plugin-dev | ~800t CC |
+| Backend API / microservice | (superpowers skills always on), context7 (if fast libs) | ui-ux-pro-max, gstack | ~0t |
+| Frontend SPA / SSR | (superpowers skills always on), ui-ux-pro-max, frontend-design, design-motion-principles, context7 | gstack | ~600t |
+| Full-stack SaaS | (superpowers skills always on), gstack, ui-ux-pro-max, frontend-design, design-motion-principles, context7 | — | ~3400t |
+| CLI tool / library | (superpowers skills always on) | all toggles | ~0t |
+| Multi-session large feature | (superpowers skills always on) + gsd v2 CLI (external) | — | ~0t CC |
+| Quick fix / hotfix | (superpowers skills always on) | all toggles | ~0t |
+| Design system / component lib | (superpowers skills always on), ui-ux-pro-max, frontend-design, design-motion-principles | gstack, gsd | ~400t |
+| Fast-evolving libs (Next.js etc.) | (superpowers skills always on), context7 | — | ~200t |
+| Enterprise multi-agent orchestration | (superpowers skills always on) + gsd v2 (external) | plugin-dev | ~0t CC |
 
 > rtk is always on at 0 context tokens; security-guidance is always on and
 > costs quota out of band (LLM reviews), not context — both omitted from
@@ -239,8 +239,9 @@ RULE: IF "simple" OR "hotfix":
 
 RULE: IF "embedded" signal (firmware, bare-metal, microcontroller, or Makefile+C without Node/Rust/Go):
   → Disable ALL toggles including gstack, context7, plugin-dev
-  → superpowers OPTIONAL: useful for initial design brainstorm on complex drivers,
-    but unnecessary for single-function patches — user decides
+  → superpowers skills stay on (vendored, no toggle): useful for initial
+    design brainstorm on complex drivers, unnecessary for single-function
+    patches; just don't invoke them, no disable needed
   → GSD v2 CLI: not recommended (sessions are short, tasks are atomic)
   → Recommend workflow: /analyze <file> → /hotfix (patch) or /bugfix (investigation) or /ship-feature (multi-file)
   → NOTE: print "embedded project detected — minimal plugin footprint recommended"
@@ -251,7 +252,7 @@ RULE: IF plugin-dev ON AND no `skill-creation` signal detected:
 
 RULE: IF `skill-creation` signal:
   → plugin-dev ON (~100t)
-  → superpowers ON — required for skill scaffolding
+  → superpowers skills (vendored, always on): used for skill scaffolding (writing-skills)
 
 RULE: IF `browser-qa` signal (e2e tests, Playwright/Cypress/Puppeteer in deps):
   → gstack ON — browser automation and QA
@@ -295,8 +296,9 @@ gstack + managed plugins — sessions stay focused and passive token cost drops.
 
 `profile set <name>` actually toggles plugins (`claude plugin enable|disable`)
 and external skill packs (delegates to `lib/toggle-external.sh`) — not just
-advisory. No MCP server is auto-toggled today. Always-on plugins (`security-guidance`, `superpowers`)
-are protected. Managed plugins that `set` may toggle:
+advisory. No MCP server is auto-toggled today. Always-on plugins (`security-guidance`)
+and the vendored superpowers skills are never toggled by a profile. Managed
+plugins that `set` may toggle:
 `ui-ux-pro-max@ui-ux-pro-max-skill`, `plugin-dev@claude-code-plugins`,
 `pr-review-toolkit@claude-code-plugins`. Other plugins are never auto-toggled.
 
@@ -321,7 +323,7 @@ toggles the managed plugins like any `set`).
 
 ## BLOCK if
 
-- Superpowers not active → install: `claude plugin marketplace add obra/superpowers-marketplace && claude plugin install --scope user superpowers@superpowers-marketplace`
+- Superpowers skills missing → `make plugin` (vendors them) then `make link`
 - Full-product (UI+deploy+QA) + gstack not installed
 
 ## WARN (no block)

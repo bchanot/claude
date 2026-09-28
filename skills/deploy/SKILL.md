@@ -512,7 +512,7 @@ The deploy succeeded. Lay the oracle and close out.
 
 ## Note on this skill (authoring)
 
-Shaped via `superpowers:writing-skills`. The **cold cross-session resume** is the
+Shaped via `writing-skills` (vendored superpowers skill). The **cold cross-session resume** is the
 novel form (design §10): the disk alone must carry the deploy across the
 out-of-band gap, so `PENDING.json`'s presence marks the wait and STEP 0 resumes
 from it without conversation memory — the `audit-delta` "state file is the only

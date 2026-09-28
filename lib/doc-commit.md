@@ -81,10 +81,11 @@ do NOT bypass them:
 
 ## ORDERING (orchestrators)
 
-`finishing-a-development-branch` merges/pushes COMMITTED history only — it never commits
-working-tree changes. A doc patch left uncommitted (or committed AFTER it) never reaches
-the merge/PR. So this snippet runs BEFORE FINISH: the doc commit lands on the branch FINISH
-integrates. Consumption is MECHANICAL (LRN-057 case a, like the memory commit) — production
+`finishing-a-development-branch` (upstream superpowers skill, not vendored here;
+`gitflow finish` is the only integration path) merges/pushes COMMITTED history only — it
+never commits working-tree changes. A doc patch left uncommitted (or committed AFTER it)
+never reaches the merge/PR. So this snippet runs BEFORE FINISH: the doc commit lands on
+the branch FINISH integrates. Consumption is MECHANICAL (LRN-057 case a, like the memory commit) — production
 on the branch = consumption by the merge, automatic.
 
 ## ACKNOWLEDGMENTS (conscious, not glossed)

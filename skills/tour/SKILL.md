@@ -315,9 +315,10 @@ without that approval — neither this repo's nor any target project's.
 
 ## TDD note (skill itself)
 
-Baseline-tested per superpowers:writing-skills (2026-07-04, seeded
-fixture, no skill): the agent branched correctly via gitflow and did not
-merge, BUT (1) silently rewrote the target TODO (checked boxes,
+Baseline-tested per writing-skills (vendored superpowers skill;
+2026-07-04, seeded fixture, no skill): the agent branched correctly via
+gitflow and did not merge, BUT (1) silently rewrote the target TODO (checked
+boxes,
 restructured) during "reconcile"; (2) authored BDR/journal registry
 entries autonomously; (3) ran security as ad-hoc grep + ruff — no
 semgrep, no pinned rulesets; (4) left findings only in its final chat
