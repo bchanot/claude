@@ -49,7 +49,8 @@ frontend-design@claude-plugins-official` (byte-identical to the managed copy).
       `sys.exit(` → restructure), security PASS, make test 41 suites green minus
       2 pre-existing T16a, shellcheck clean. Live: `set full` applied, 75 skills
       listed (was 89), 16 parked, doctor 75 / ~5.4k t.
-- [ ] K5 registries on user approval (BDR prune + full/max rule, LRN listing
+- [x] K5 registries written on user go (BDR-105, LRN-175..178, BLK-023, EVAL-034), merged
+      to develop on "merge le tout". Was: registries on user approval (BDR prune + full/max rule, LRN listing
       budget, LRN gates.sh single-line CHECK, LRN gstack helper-tree class, BLK
       floor-guard `xit(` pattern, EVAL challenge round), journal. UNMERGED — human
       gate. After merge on any other machine: `make link` + `bash lib/profile.sh

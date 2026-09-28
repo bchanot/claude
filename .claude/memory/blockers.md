@@ -42,6 +42,7 @@ rules:
 | BLK-020 | 2026-09-02 | notify-attention: both channels dead on one VS Code client — 2026-09-02 | resolved |
 | BLK-021 | 2026-09-22 | Bash tool dead mid-session ("every command exits 1"): /tmp usrquota blown by a dead session's probe HOMEs — 2… | open |
 | BLK-022 | 2026-09-22 | `hooks/guard-bash.sh` withheld by the safety classifier; executable spec shipped instead — 2026-09-22 | open |
+| BLK-023 | 2026-09-28 | floor-guard SKIP pattern `xit(` (Jasmine) matches any `exit(` in python/JS test helpers → false ECARTS; workaround: no `exit(` in inline python, bash derives rc from output — 2026-09-28 | open |
 
 ---
 
@@ -261,3 +262,9 @@ rules:
 - **Real cause**: the hook body is a dense list of destructive-command patterns (rm -r forms, disk tools, docker escapes, history rewrites); the classifier reads it as harmful capability regardless of the defensive frame.
 - **Solution**: `lib/tests/guard-bash.test.sh` (214 cases, deny/allow) stays as the spec and SKIPs while the hook is absent, so `make test` stays green. Options: user writes the hook against the spec (start from `/mnt/cloudpex/RECOVERY/01-prochain-systeme/claude-config/hooks/guard-bash.sh`, already on disk, then iterate to green); or a different design (allowlist of first words + path containment) requested explicitly. Until then: static deny (BDR-095) covers the direct forms; nested forms rely on the classifier prose.
 - **Status**: open. Links [[BDR-095]], [[LRN-160]].
+
+## BLK-023 — floor-guard `xit(` substring flags every `exit(` — 2026-09-28
+- **Friction**: fresh verifier returned ECARTS(1) on a fully conform diff: `FLOOR SKIP lib/tests/profile-census.test.sh:116 sys.exit(1 if violations else 0)`. One re-dispatch spent on a tool artefact.
+- **Real cause**: `lib/floor-guard.sh` SKIP_SUBSTRINGS holds the bare fragment `'xit('` to catch Jasmine's `xit(…)`; `skip_kind()` is a plain substring match, so `sys.exit(`, `SystemExit(`, `process.exit(` all hit.
+- **Solution**: workaround applied — the inline python prints violations only, the bash wrapper derives the return code from the captured output (no `exit(` anywhere). Root fix pending: word-bound the pattern (`(^|[^a-zA-Z_.])xit\(`) or match `xit(` only in JS/TS test files; hotfix-sized.
+- **Status**: open. Links [[BDR-105]], [[BDR-102]] (floor-guard origin), [[EVAL-034]].
