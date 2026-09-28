@@ -19,9 +19,11 @@ max (stuck error, judged need).
   effort (the harness only dedupes the skill text), so bounce-back
   sequences such as medium → max → medium work.
 - A skill's `effort:` frontmatter applies from the moment it loads to the
-  end of the turn: on the user's `/skill` and on a `Skill(...)` call by
-  Claude in an interactive session. Last loaded wins, both directions. The
-  prompt cache survives a shift.
+  end of the turn: on the user's `/skill` unconditionally, and on a
+  `Skill(...)` call by Claude only under the pairing rule above (a skill
+  Claude loads alone, such as `brainstorming` or `writing-plans`, applies
+  nothing). Last loaded wins, both directions. The prompt cache survives a
+  shift.
 - Dispatched agents run on their own `effort:` pin, never on a shift.
   Unpinned agents inherit the level in force at dispatch.
 - Headless sessions (`-p`, `claude agents`, SDK) ignore skill-level effort:
@@ -55,6 +57,11 @@ does not move.
    challenger is an infrastructure failure) and "gone WRONG → STOP" (STOP
    precedes any further reasoning); their STOP text names the level
    reached and suggests `/effort-max` for the relaunch.
+5. Before any built-in or unpinned dispatch that carries judgment (a
+   `general-purpose` with `model: "opus"` or `"fable"`, the code reviewer
+   of requesting-code-review, a skill-runner) → `Skill(effort-<own level>)`
+   paired with that dispatch: built-ins inherit the level in force, and a
+   medium set earlier in the span would downgrade them.
 
 ## Re-assert
 
@@ -69,3 +76,5 @@ does not move.
 
 - A shift never inside a dispatched agent: pins rule there.
 - Max is for diagnosis, not for retrying the same fix harder.
+- A medium shift never precedes a judgment dispatch in the same span
+  without an own-level shift paired with that dispatch.

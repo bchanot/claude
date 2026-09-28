@@ -170,7 +170,7 @@ Then show the user the same compact table inline.
 
 ### 3b-bis. CHALLENGE THE PROPOSALS (before the gate)
 
-`Skill(effort-xhigh)` first (effort-shift: reflection resumes; send it in the same message as the challenger dispatch).
+`Skill(effort-xhigh)` first (effort-shift: own level before the challenge; send it in the same message as the challenger dispatch).
 This axis' findings + proposed fixes are a proposal set worth attacking before
 the human gate. Persist THIS axis' finding list (not the whole append-only
 report) to `.claude/tasks/plans/<date>-<axis>-<HHMM>.md`, then run

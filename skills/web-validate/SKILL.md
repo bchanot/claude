@@ -255,7 +255,7 @@ grep -c '^### \[Critique\]' .claude/audits/VALIDATE.md
 ---
 
 ## STEP 2b — CHALLENGE THE FIX BUNDLE (MODE=fix only, advisory)
-`Skill(effort-high)` first (effort-shift: reflection resumes; send it in the same message as the challenger dispatch).
+`Skill(effort-high)` first (effort-shift: own level before the challenge; send it in the same message as the challenger dispatch).
 Skip if MODE=audit (no bundle exists). Else, before the STEP 3 gate, harden the bundle:
 extract the `## 5. Fix bundle` section from VALIDATE.md to
 `.claude/tasks/plans/<date>-<slug>-<HHMM>.md` (a clean, blind-judgeable artifact), then run

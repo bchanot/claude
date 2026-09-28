@@ -48,4 +48,6 @@ mechanical probes).
 
 Effort is the second axis of the same table (BDR-107): every typed agent
 carries an `effort:` pin next to `model:`, and the main loop shifts per phase
-through `lib/effort-shift.md`. Nothing dispatched inherits either axis.
+through `lib/effort-shift.md`. No typed agent inherits either axis;
+built-ins inherit the effort in force at dispatch, so an orchestrator shifts
+before dispatching them (`lib/effort-shift.md`, wiring point 5).

@@ -92,7 +92,6 @@ STOP. La réponse détermine si STEP 1 tourne une fois (A) ou N fois (C) ou avec
 
 ## STEP 2 — BASELINE CONFIG (onboarder agent)
 
-`Skill(effort-medium)` first (effort-shift: dispatch span starts; send it in the same message as this step's first dispatch).
 Dispatch `Agent(subagent_type="onboarder")` (pin sonnet — BDR-077 : config
 templating = exécution, plus jamais inline sur le modèle de session). Un
 BLOCAGE (clé manquante, CLAUDE.md existant) revient en rapport — l'agent ne
@@ -893,7 +892,7 @@ Vérifier que les 4 fichiers `.claude/audits/ONBOARD_REPORT.md`, `.claude/audits
 ---
 
 ## STEP 7b — CHALLENGE THE PROPOSALS (before the human gate)
-`Skill(effort-xhigh)` first (effort-shift: reflection resumes; send it in the same message as the challenger dispatch).
+`Skill(effort-xhigh)` first (effort-shift: own level before the challenge; send it in the same message as the challenger dispatch).
 The 4 audit files are on disk; `AUDIT_PROPOSALS.md` is the artifact worth
 attacking before the human spends a gate on it. Run
 `$HOME/.claude/lib/challenge-plan.md` with `PLAN` =

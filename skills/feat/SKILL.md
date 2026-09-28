@@ -124,7 +124,7 @@ in the contract's CLARIFICATIONS `[gated]` and in the plan. A choice that
 surfaces only during execution comes back as `NEED-DECISION` (STEP 3).
 
 ## STEP 1b — CHALLENGE THE PLAN (before branching)
-`Skill(effort-high)` first (effort-shift: reflection resumes; send it in the same message as the challenger dispatch).
+`Skill(effort-high)` first (effort-shift: own level before the challenge; send it in the same message as the challenger dispatch).
 The STEP 1 plan is a reflection worth attacking before a branch is spent on it.
 Persist it to `.claude/tasks/plans/<date>-<slug>-<HHMM>.md`, then run
 `$HOME/.claude/lib/challenge-plan.md` with `PLAN` = that file, `KIND` = `build-plan`,

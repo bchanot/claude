@@ -114,8 +114,10 @@ Inject ONLY what constrains: the NON-BINDING count does NOT enter the brainstorm
 (the injection inherits the OUTPUT filter — detail what binds, drop what doesn't).
 Consumption = INPUT INJECTION (we can't modify the external skill; we control its input).
 Refine request into validated design via Socratic questioning. Don't proceed until design approved.
+Turns after a user reply run at the session level until a tool call is paired with `Skill(effort-xhigh)` (effort-shift: turn reset).
 
 ## STEP 2 — PLAN
+`Skill(effort-xhigh)` first, sent with the next tool call (effort-shift: turn reset; brainstorm turns after a user reply run at the session level, and the vendored `brainstorming` pin applies only when the user invokes it).
 Invoke `writing-plans` (vendored superpowers skill) with the validated design AND the 0d digest: every task
 must be consistent with the in-force constraints; where a task implements or affects one,
 note the ID inline. Break design into tasks (2-5 min each). Each task: exact file paths, full code, verification steps.
@@ -125,7 +127,7 @@ request nor the STEP 1 brainstorm settled (check the contract's CLARIFICATIONS
 first) → one batch before STEP 2b; answers append to the contract `[gated]`.
 
 ## STEP 2b — CHALLENGE THE PLAN (adversarial, before the gate)
-`Skill(effort-xhigh)` first (effort-shift: reflection resumes; send it in the same message as the challenger dispatch).
+`Skill(effort-xhigh)` first (effort-shift: own level before the challenge; send it in the same message as the challenger dispatch).
 Before the human sees the plan, harden it. Run `$HOME/.claude/lib/challenge-plan.md`:
 - `PLAN` = the plan STEP 2 wrote under `docs/superpowers/plans/`
 - `KIND` = `build-plan`
@@ -240,6 +242,7 @@ against the contract. It is a DISTINCT axis from STEP 6 code review (contract
 conformity + security vs. craft/design) — both run, neither subsumes the
 other ([[LRN-095]]).
 
+`Skill(effort-xhigh)` first, sent with the review dispatch (effort-shift: judgment dispatch; the reviewer is a built-in and inherits the level in force).
 ## STEP 6 — CODE REVIEW
 Invoke `requesting-code-review` (vendored superpowers skill). **Model routing (BDR-077):** the
 review subagent it dispatches MUST carry `model: "opus"` in the Agent call —

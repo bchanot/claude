@@ -94,7 +94,7 @@ point. Run it ONLY when the settled fix touches control flow or behaviour — an
 off-by-one, a wrong operator/variable, a behaviour-changing config value, or a
 missing import that alters execution. In doubt → it is probably a `/bugfix`.
 
-`Skill(effort-high)` first (effort-shift: reflection resumes; send it in the same message as the challenger dispatch).
+`Skill(effort-high)` first (effort-shift: own level before the challenge; send it in the same message as the challenger dispatch).
 For a logic fix: persist the STEP 1 located fix (root cause + the exact edit) to
 `.claude/tasks/plans/<date>-<slug>-<HHMM>.md`, then run
 `$HOME/.claude/lib/challenge-plan.md` with `PLAN` = that file, `KIND` =

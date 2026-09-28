@@ -87,7 +87,6 @@ Model discipline (the user-fixed invariant behind this mode):
 Runner dispatch, one per project:
 
 ```
-Skill(effort-medium)   # effort-shift: dispatch span starts; send with the Agent call below in ONE message
 Agent(subagent_type="general-purpose",
   description="tour runner — <project basename>",
   prompt="Read ~/.claude/skills/tour/SKILL.md and execute STEP 1 → STEP 3

@@ -65,8 +65,11 @@ has "lib/model-gate.md" 'lib/effort-shift.md'
 
 # ── 6) orchestrator wiring (spec D4)
 for s in feat hotfix bugfix ship-feature init-project onboard tour code-clean seo geo harden web-validate audit-delta; do
-  has "skills/$s/SKILL.md" 'lib/effort-shift.md'; has "skills/$s/SKILL.md" 'Skill(effort-medium)'; done
-has "agents/client-handover-writer.md" 'lib/effort-shift.md'; has "agents/client-handover-writer.md" 'Skill(effort-medium)'
+  has "skills/$s/SKILL.md" 'lib/effort-shift.md'; has "skills/$s/SKILL.md" 'a lone Skill call is a no-op'; done
+for s in feat hotfix bugfix ship-feature init-project code-clean seo geo harden web-validate audit-delta; do
+  has "skills/$s/SKILL.md" 'Skill(effort-medium)'; done
+lacks "skills/onboard/SKILL.md" 'Skill(effort-medium)'; lacks "skills/tour/SKILL.md" 'Skill(effort-medium)'
+has "agents/client-handover-writer.md" 'lib/effort-shift.md'; lacks "agents/client-handover-writer.md" 'Skill(effort-medium)'; has "agents/client-handover-writer.md" 'Skill(effort-high)'
 for s in feat hotfix bugfix; do has "skills/$s/SKILL.md" 'Skill(effort-high)'; done
 for s in ship-feature init-project onboard code-clean audit-delta; do has "skills/$s/SKILL.md" 'Skill(effort-xhigh)'; done
 for s in seo geo harden web-validate; do has "skills/$s/SKILL.md" 'Skill(effort-high)'; done
@@ -90,6 +93,15 @@ has "skills/bugfix/SKILL.md" 'effort-shift: turn reset'
 # ── 11) audit tooling
 has "lib/effort-shift.md" 'effort-audit.py'
 [ -x "$R/lib/effort-audit.py" ] && ok || ko "lib/effort-audit.py missing or not executable"
+
+# ── 6c) judgment dispatches re-raised, planning re-asserts, stronger locks (final review I1/I2/M5)
+for s in ship-feature init-project; do has "skills/$s/SKILL.md" 'effort-shift: judgment dispatch'; has "skills/$s/SKILL.md" 'effort-shift: turn reset'; done
+has "agents/client-handover-writer.md" 'effort-shift: judgment dispatch'
+has "lib/effort-shift.md" 'Before any built-in or unpinned dispatch'
+has "lib/model-gate.md" 'built-ins inherit the effort in force'
+has "skills/ship-feature/SKILL.md" 'effort-shift: error recovery'
+for s in feat hotfix bugfix seo geo harden web-validate ship-feature init-project onboard code-clean audit-delta; do has "skills/$s/SKILL.md" 'effort-shift: own level before the challenge'; done
+has "install-plugins.sh" 'for _s in brainstorming writing-plans; do'
 
 # ── summary (later tasks insert their locks ABOVE this line)
 printf 'effort-routing census: %d pass, %d fail\n' "$pass" "$fail"

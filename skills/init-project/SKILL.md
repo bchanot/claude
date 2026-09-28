@@ -181,11 +181,12 @@ This is the deterministic scaffold commit owner (closes BLK-010). The MVP is
 implemented on a `feature/*` branch off `develop` (STEP 8).
 
 ## STEP 6 — PLAN
+`Skill(effort-xhigh)` first, sent with the next tool call (effort-shift: turn reset; gate #1 ended the turn and the vendored `writing-plans` pin applies only when the user invokes it).
 Invoke `writing-plans` (vendored superpowers skill) with BRIEF + skeleton.
 Granular tasks (2-5 min each), exact file paths, TDD: tests before code.
 
 ## STEP 6b — CHALLENGE THE PLAN (before the gate)
-`Skill(effort-xhigh)` first (effort-shift: reflection resumes; send it in the same message as the challenger dispatch).
+`Skill(effort-xhigh)` first (effort-shift: own level before the challenge; send it in the same message as the challenger dispatch).
 Before the human sees the implementation plan, harden it. Run
 `$HOME/.claude/lib/challenge-plan.md` with `PLAN` = the plan STEP 6 wrote under
 `docs/superpowers/plans/`, `KIND` = `build-plan`, `SCOPE` = the skeleton + task file
@@ -259,6 +260,7 @@ deferred to a later /onboard) and turns the informal analyze into a verdict
 against the founding contract. Distinct axis from STEP 10 code review
 ([[LRN-095]]) — both run.
 
+`Skill(effort-xhigh)` first, sent with the review dispatch (effort-shift: judgment dispatch; the reviewer is a built-in and inherits the level in force).
 ## STEP 10 — CODE REVIEW
 Invoke `requesting-code-review` (vendored superpowers skill). **Model routing (BDR-077):** the
 review subagent it dispatches MUST carry `model: "opus"` in the Agent call —

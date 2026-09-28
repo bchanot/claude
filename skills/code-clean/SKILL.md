@@ -122,7 +122,7 @@ TOTALS: <N blocking, N warn, N info>
 If no issues found: report clean state and stop.
 
 ## STEP 3b — CHALLENGE THE SCOPE (before approval)
-`Skill(effort-xhigh)` first (effort-shift: reflection resumes; send it in the same message as the challenger dispatch).
+`Skill(effort-xhigh)` first (effort-shift: own level before the challenge; send it in the same message as the challenger dispatch).
 The STEP 3 report is the proposed cleanup scope — worth attacking before the
 human approves it. It is still inline, so FIRST persist it to
 `.claude/tasks/plans/<date>-<slug>-<HHMM>.md` (STEP 3 report format, one item

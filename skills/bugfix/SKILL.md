@@ -126,7 +126,7 @@ RISK: <low/medium — what could go wrong>
   fast-path is not exempt: a 1-line fix with a visible choice still asks.
 
 ## STEP 3b — CHALLENGE THE FIX PLAN (before the contract)
-`Skill(effort-high)` first (effort-shift: reflection resumes; send it in the same message as the challenger dispatch).
+`Skill(effort-high)` first (effort-shift: own level before the challenge; send it in the same message as the challenger dispatch).
 Unless the fix is the trivial 1-2 line case STEP 3 already fast-paths, the
 DIAGNOSIS + FIX PLAN is a reflection worth attacking before it hardens into a
 contract. Persist it to `.claude/tasks/plans/<date>-<slug>-<HHMM>.md`, then run

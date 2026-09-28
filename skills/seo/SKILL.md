@@ -510,7 +510,7 @@ the reports."
 ```
 
 ## STEP 1b — CHALLENGE THE FIX BUNDLE (advisory, before apply)
-`Skill(effort-high)` first (effort-shift: reflection resumes; send it in the same message as the challenger dispatch).
+`Skill(effort-high)` first (effort-shift: own level before the challenge; send it in the same message as the challenger dispatch).
 Both envelopes now carry a `## FIX BUNDLE` — worth attacking before any edit lands.
 **Skip if intervention mode = conservative** (nothing is applied). Else persist both
 bundles (seo + geo, verbatim) to `.claude/tasks/plans/<date>-<slug>-<HHMM>.md`, then run

@@ -26,7 +26,10 @@ def usage_row(usage):
 
 
 def scan(path, scope, agg):
-    """Add every assistant record of one transcript to agg."""
+    """Add every assistant record of one transcript to agg, once per
+    message id (the transcript writes one record per content block,
+    all sharing the same id and usage)."""
+    seen = set()
     with open(path, errors="ignore") as handle:
         for line in handle:
             try:
@@ -36,6 +39,10 @@ def scan(path, scope, agg):
             msg = rec.get("message") or {}
             if rec.get("type") != "assistant" or not msg.get("usage"):
                 continue
+            mid = msg.get("id")
+            if mid in seen:
+                continue
+            seen.add(mid)
             sub = scope == "sub" or bool(rec.get("isSidechain"))
             key = ("sub" if sub else "main",
                    str(msg.get("model", "?")).replace("claude-", ""),
