@@ -1,5 +1,16 @@
 # TODO
 
+## 2026-09-28 — make doctor checks the vendored externals (feature/doctor-vendored-skills)
+User go "ok ajoute le check doctor" after the install/update/link trace: doctor.sh only
+checked the gstack submodule; emil, frontend-design, motion and the 8 curl-vendored
+skills were invisible. Contract `.claude/tasks/contracts/2026-09-28-doctor-vendored-*`.
+- [x] D1 6394fa7 `lib/doctor-vendored.sh` `check_vendored_skills`: lock expectations (list /
+      dict / single-path), link.sh EXTERNAL_SKILLS, profile-aware symlink check,
+      hints `make plugin` / `make link`; doctor.sh section; README line; hermetic suite.
+- [x] D2 gates MET, verifier CONFORME ×2, security PASS ×2 (1 re-dispatch: malformed-lock
+      traceback → warn, allowlists), 37 suites green minus 2 T16a, CHANGELOG, BDR-104
+      amendment, journal. UNMERGED — human gate.
+
 ## 2026-09-27 — case 7: MengTo motion pack → vendor 5 + build site-motion (feature/mengto-site-motion)
 User go "ok pour 1, l'hybride" after two analyzers read 22 skills. Contracts under
 `.claude/tasks/contracts/2026-09-27-{mengto-vendor,site-motion-skill}-*`, two feater

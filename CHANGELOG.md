@@ -7,6 +7,17 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- **`make doctor` checks the vendored externals** — new
+  `lib/doctor-vendored.sh` (`check_vendored_skills`), wired into doctor.sh
+  after the gstack section: every curl-pinned entry of plugins.lock.json
+  has its files under `skills-external/` (list, dict or single-path lock
+  shapes), every `EXTERNAL_SKILLS` name of link.sh is symlinked into
+  `~/.claude/skills/` when the active profile lists it, parked names are
+  reported not failed, hints `make plugin` / `make link`. Lock entries are
+  shape-validated (a malformed lock yields one warn, never a traceback) and
+  profile, skill and file names pass an allowlist before becoming paths.
+  Until now doctor only checked the gstack submodule. Hermetic suite
+  `lib/tests/doctor-vendored.test.sh`, 11 cases.
 - **`skills/site-motion`** — personal skill for site-level motion
   choreography (scroll engine choice and Lenis/ScrollTrigger sync, Astro
   ClientRouter lifecycle, pin/scrub numbers, sticky stacks, video and image
