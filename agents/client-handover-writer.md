@@ -262,7 +262,7 @@ the gate.
 this pipeline (initial audits, fix-loop re-dispatches, commit-change,
 web-validate) carries `model: "fable"` — the child hosts gated orchestration
 on the pipeline's behalf; it must never inherit the session model.
-EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-NEXT): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
+EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-107): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
 
 For web projects, dispatch in **a single message with two parallel Agent calls** (each with `model: "fable"`):
 

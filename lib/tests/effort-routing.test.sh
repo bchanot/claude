@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# lib/tests/effort-routing.test.sh — census: effort tiering (BDR-NEXT)
+# lib/tests/effort-routing.test.sh — census: effort tiering (BDR-107)
 # agent pins, skill entry levels, shifter skills, orchestrator wiring, settings.
 # shellcheck disable=SC2015  # A && ok || ko is deliberate here: ok/ko never fail, so C never masks a true A
 set -u

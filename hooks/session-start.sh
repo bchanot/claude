@@ -107,7 +107,7 @@ fi
 REPO_DIR="${_repo_dir:-}"
 unset _claude_real _repo_dir
 
-# Effort tiering (BDR-NEXT): this env var beats every skill/agent `effort:` pin.
+# Effort tiering (BDR-107): this env var beats every skill/agent `effort:` pin.
 EFFORT_WARN=""
 if [ -n "${CLAUDE_CODE_EFFORT_LEVEL:-}" ]; then
   EFFORT_WARN="⚠️  CLAUDE_CODE_EFFORT_LEVEL=${CLAUDE_CODE_EFFORT_LEVEL} set: skill/agent effort pins ignored"

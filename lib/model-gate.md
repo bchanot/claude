@@ -46,6 +46,6 @@ the main loop's behalf (skill-runners), otherwise its complexity tier
 (opus = dispatched judgment, sonnet = execution/collection, haiku = short
 mechanical probes).
 
-Effort is the second axis of the same table (BDR-NEXT): every typed agent
+Effort is the second axis of the same table (BDR-107): every typed agent
 carries an `effort:` pin next to `model:`, and the main loop shifts per phase
 through `lib/effort-shift.md`. Nothing dispatched inherits either axis.

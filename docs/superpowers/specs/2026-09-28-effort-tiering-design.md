@@ -34,6 +34,8 @@ repo.
 | Subagent frontmatter `effort:` | Applied to the subagent. Absent → **inherits the session level**. | built-in on sonnet printed `xhigh`; impeccable agent pinned `medium` printed `medium` |
 | Skill frontmatter `effort:`, user-typed `/skill` | Applied for the **rest of the turn**, AskUserQuestion included. | headless `/effort-probe-low`: every request at `low` |
 | Skill frontmatter `effort:`, loaded by Claude through the Skill tool, **interactive** session | Applied for the rest of the turn. Last loaded skill wins, up and down. | this session: `xhigh` → probe max → `$CLAUDE_EFFORT=max`, request records `effort=max` → probe xhigh → back to `xhigh` |
+| Same, pairing rule | Applies **only when the Skill call shares the assistant message with another tool call after it**; a lone Skill call is a no-op. The paired call already runs at the new level. | this session, 8/8 observations |
+| Same, re-load | A shifter already loaded in the conversation re-applies its effort when loaded again (paired); only its text is deduped. | this session |
 | Same, **headless** (`-p`) | **Not applied** (neither `effort:` nor `model:`). | three `-p` runs, transcript effort unchanged |
 | Prompt cache on a mid-turn shift | **Preserved** on Fable 5.1: first request at max read 206,996 cached tokens, wrote 1,164. | this session |
 | Agent tool call site | No `effort` parameter (only `model`). One agent file = one effort. | tool schema |
@@ -97,14 +99,16 @@ Applies from the user's invocation for the rest of the turn.
 | effort | Skills |
 |---|---|
 | low | status, commit-change, release-candidate, doc, capitalize, close, reconcile, deploy, profile, plugin-check |
-| medium | gitflow, prune-memory, find-docs |
+| medium | gitflow, prune-memory |
 | high | feat, hotfix, bugfix, refactor, web-validate, harden, seo, geo |
-| xhigh | ship-feature, init-project, onboard, tour, audit-delta, analyze, code-clean, client-handover, spec, skillify, brainstorming, writing-plans |
-| unlisted | session default, by design (gstack and plugin skills are external; graphify is machine-owned) |
+| xhigh | ship-feature, init-project, onboard, tour, audit-delta, analyze, code-clean, client-handover, brainstorming, writing-plans |
+| unlisted | session default, by design: gstack skills (`spec` and `skillify` are gstack), plugin skills, and machine-generated skills (`graphify`, `find-docs`) |
 
-`brainstorming` and `writing-plans` are vendored superpowers skills: the
-one-line patch drifts from upstream at each resync; a census lock (§7)
-makes the loss loud.
+`brainstorming` and `writing-plans` are vendored superpowers skills living in
+`skills-external/` (gitignored, symlinked into `skills/`): the pin is applied
+to the real file and never committed; `install-plugins.sh` re-applies it after
+every resync, and the census checks it whenever the file is present (visible
+SKIP otherwise).
 
 A skill loaded by Claude as a sub-step (feat → commit-change) also shifts
 the level for the rest of the turn (interactive, §2), so orchestrators
@@ -121,6 +125,9 @@ mirroring `lib/model-gate.md`:
 - A shift is a `Skill(effort-<level>)` call on the main loop. Never inside a
   dispatched agent (agents run on their pin). One tool round-trip,
   cache-safe (§2).
+- **Pairing rule**: the shift is sent in the same assistant message as the
+  step's first tool call, shift first; a lone Skill call is a no-op (§2).
+  Re-loading a shifter re-applies its effort.
 - Orchestrator wiring, three points each: `effort-medium` when the plan is
   closed and the dispatch phase starts; `effort-low` before the
   capitalize / journal / doc-commit tail; `effort-max` at an escalation
@@ -176,7 +183,7 @@ each subagent's effort (2.1.243).
 |---|---|
 | `settings.json` | `effortLevel` → `high` (curated config: read the diff, LRN-098) |
 | `agents/*.md` (20) | `effort:` line per D2; `skills/init-project/SKILL.md:98` citer |
-| `skills/*/SKILL.md` (33) | `effort:` line per D3, including the two vendored superpowers skills |
+| `skills/*/SKILL.md` (28 tracked) + `skills-external/{brainstorming,writing-plans}/SKILL.md` (not committed) | `effort:` line per D3; `install-plugins.sh` re-applies the two vendored pins after resync |
 | `skills/effort-{low,medium,high,xhigh,max}/SKILL.md` | new, frontmatter + one sentence |
 | `lib/effort-shift.md` | new include: protocol, wiring points, escalation, turn reset, headless note |
 | `lib/model-gate.md` §4 | one paragraph: effort is the second axis, pointer to the include |
@@ -185,6 +192,7 @@ each subagent's effort (2.1.243).
 | orchestrator SKILL.md (feat, hotfix, bugfix, ship-feature, init-project, onboard, tour, code-clean, seo, geo, harden, web-validate, client-handover, audit-delta) | include line + the three wiring points; ship-feature 4b max |
 | `hooks/statusline.sh`, `hooks/session-start.sh` | live effort display; env-var warning |
 | `lib/tests/effort-routing.test.sh` | new census suite (§7) |
+| `lib/effort-audit.py` | transcript audit script (§9) |
 | `CHANGELOG.md`, `.claude/memory/*` | release note; BDR + LRN + EVAL + journal (§8) |
 
 ## 7. Tests and census (`make test`)
@@ -196,8 +204,9 @@ New suite `lib/tests/effort-routing.test.sh`, `grep -qF` locks in the
    in its first 10 frontmatter lines, level in the allowed set; the "none"
    list has no `effort:`.
 2. Tier locks per D2 (one `has` per agent).
-3. Skill locks per D3 (one `has` per skill), including `brainstorming` and
-   `writing-plans` (the resync alarm).
+3. Skill locks per D3 (one per skill); the two vendored skills are checked
+   when present (visible SKIP otherwise); `install-plugins.sh` carries the
+   re-apply block.
 4. The five shifter skills exist with the exact `name:` and `effort:`.
 5. `lib/effort-shift.md` is included by every orchestrator in the §6 list;
    `verify-secure-loop.md` and `ship-feature/SKILL.md` contain the

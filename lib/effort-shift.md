@@ -1,4 +1,4 @@
-# Effort shift — phase-level reasoning effort on the main loop (BDR-NEXT)
+# Effort shift — phase-level reasoning effort on the main loop (BDR-107)
 
 Shared include, companion of `lib/model-gate.md`: the gate fixes WHICH model
 reflects, this include fixes HOW HARD each phase thinks. The rungs are the

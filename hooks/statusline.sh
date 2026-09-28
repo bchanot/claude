@@ -34,7 +34,7 @@ if [ -z "$PROFILE" ] || [ "$PROFILE" = "none" ]; then
 fi
 
 # Effort level: the live value when the harness exports it (skill/agent
-# `effort:` shifts included, BDR-NEXT), else the persisted settings.json key
+# `effort:` shifts included, BDR-107), else the persisted settings.json key
 # (.effortLevel — set by /effort or manual edit; symlinked into ~/.claude).
 EFFORT="${CLAUDE_EFFORT:-}"
 if [ -z "$EFFORT" ] && [ -f "$REPO/settings.json" ]; then

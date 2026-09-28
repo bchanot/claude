@@ -934,7 +934,7 @@ for _ext_skill in "${EXT_SKILL_NAMES[@]}"; do
 done
 echo ""
 
-# Effort tiering (BDR-NEXT): the vendored brainstorming/writing-plans carry an
+# Effort tiering (BDR-107): the vendored brainstorming/writing-plans carry an
 # effort pin upstream lacks; re-apply after every resync (census lock in
 # lib/tests/effort-routing.test.sh alarms if this ever stops working).
 for _s in brainstorming writing-plans; do
