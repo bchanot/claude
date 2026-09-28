@@ -523,7 +523,7 @@ git commit -m "feat(effort): five shifter skills, lib/effort-shift.md, model-gat
 
 **Interfaces:**
 - Consumes: shifter names and the include path from Task 5.
-- Produces: helpers `ins_before`, `ins_after`, `ins_after_para` (local to this task's shell).
+- Produces: helpers `ins_before`, `ins_after`, `ins_after_para`, `ins_before_para` (local to this task's shell). `ins_before` is for anchors inside code blocks (a standalone `Agent(` line); the `_para` forms are for anchors inside prose, where a bare insertion would split a sentence.
 
 - [ ] **Step 1: Locks (above the summary block)**
 
@@ -565,6 +565,13 @@ j=next(k for k in range(i,len(L)) if L[k].strip()=="")
 L[j:j]=t.split("\\n"); open(f,"w").write("\n".join(L))
 PY
 }
+ins_before_para() { python3 - "$1" "$2" "$3" <<'PY'
+import sys; f,a,t=sys.argv[1:]; L=open(f).read().split("\n")
+i=next(k for k,l in enumerate(L) if a in l)
+j=next(k for k in range(i,-1,-1) if L[k].strip()=="")+1   # first line of the paragraph
+L[j:j]=t.split("\\n"); open(f,"w").write("\n".join(L))
+PY
+}
 INC='EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-NEXT): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation.'
 ```
 `next(...)` raises `StopIteration` when an anchor is absent: that is the intended failure, fix the anchor rather than the helper.
@@ -593,7 +600,7 @@ ins_before skills/web-validate/SKILL.md 'Agent('                          "$M"
 ins_before skills/harden/SKILL.md    'Agent('                             "$M"
 ins_after  skills/ship-feature/SKILL.md '## STEP 4 — IMPLEMENT' "First: \`Skill(effort-medium)\` (effort-shift: dispatch span starts)."
 ins_after  skills/init-project/SKILL.md '## STEP 8 — IMPLEMENT' "First: \`Skill(effort-medium)\` (effort-shift: dispatch span starts)."
-ins_before skills/onboard/SKILL.md   'Agent(subagent_type="onboarder")'   "\`Skill(effort-medium)\` first (effort-shift: dispatch span starts)."
+ins_before_para skills/onboard/SKILL.md 'Agent(subagent_type="onboarder")' "\`Skill(effort-medium)\` first (effort-shift: dispatch span starts)."
 ins_after  agents/client-handover-writer.md '## STEP 3 — BASELINE AUDITS' "First: \`Skill(effort-medium)\` (effort-shift: dispatch span starts)."
 ins_before skills/tour/SKILL.md      'Agent(subagent_type="general-purpose",' "$M"
 ins_before skills/audit-delta/SKILL.md 'Agent(subagent_type="security-auditor", description="audit-delta security' "$M"
@@ -604,9 +611,12 @@ Anchors verified 2026-09-28: `web-validate` and `harden` open their first dispat
 
 ```bash
 for s in feat hotfix bugfix seo geo harden web-validate; do
-  ins_before "skills/$s/SKILL.md" 'lib/challenge-plan.md' "\`Skill(effort-high)\` first (effort-shift: reflection resumes)."; done
+  ins_before_para "skills/$s/SKILL.md" 'lib/challenge-plan.md' "\`Skill(effort-high)\` first (effort-shift: reflection resumes)."; done
 for s in ship-feature init-project onboard code-clean audit-delta; do
-  ins_before "skills/$s/SKILL.md" 'lib/challenge-plan.md' "\`Skill(effort-xhigh)\` first (effort-shift: reflection resumes)."; done
+  ins_before_para "skills/$s/SKILL.md" 'lib/challenge-plan.md' "\`Skill(effort-xhigh)\` first (effort-shift: reflection resumes)."; done
+```
+The challenge include is referenced mid-sentence in every skill (`… harden it. Run\n\`$HOME/.claude/lib/challenge-plan.md\` with …`), hence the paragraph form.
+```bash
 ```
 `seo`, `geo` and `web-validate` dispatch their applier after the challenge (seo l.557, geo l.117, web-validate l.312; the first `Agent(subagent_type="hotfixer")` in each file), so a second medium shift goes there:
 ```bash
@@ -618,7 +628,7 @@ for s in seo geo web-validate; do ins_before "skills/$s/SKILL.md" 'Agent(subagen
 
 ```bash
 for s in feat hotfix bugfix ship-feature init-project; do
-  ins_before "skills/$s/SKILL.md" 'lib/capitalize-commit.md' "\`Skill(effort-low)\` first (effort-shift: bookkeeping tail).\\n"; done
+  ins_before_para "skills/$s/SKILL.md" 'lib/capitalize-commit.md' "\`Skill(effort-low)\` first (effort-shift: bookkeeping tail).\\n"; done
 ```
 
 - [ ] **Step 7: Nested re-assert in feat (commit-change runs at low)**
