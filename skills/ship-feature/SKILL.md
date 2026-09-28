@@ -242,8 +242,8 @@ against the contract. It is a DISTINCT axis from STEP 6 code review (contract
 conformity + security vs. craft/design) — both run, neither subsumes the
 other ([[LRN-095]]).
 
-`Skill(effort-xhigh)` first, sent with the review dispatch (effort-shift: judgment dispatch; the reviewer is a built-in and inherits the level in force).
 ## STEP 6 — CODE REVIEW
+`Skill(effort-xhigh)` first, sent with the review dispatch (effort-shift: judgment dispatch; the reviewer is a built-in and inherits the level in force).
 Invoke `requesting-code-review` (vendored superpowers skill). **Model routing (BDR-077):** the
 review subagent it dispatches MUST carry `model: "opus"` in the Agent call —
 craft review is dispatched judgment, never inherited from the session. Fix

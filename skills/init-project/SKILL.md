@@ -260,8 +260,8 @@ deferred to a later /onboard) and turns the informal analyze into a verdict
 against the founding contract. Distinct axis from STEP 10 code review
 ([[LRN-095]]) — both run.
 
-`Skill(effort-xhigh)` first, sent with the review dispatch (effort-shift: judgment dispatch; the reviewer is a built-in and inherits the level in force).
 ## STEP 10 — CODE REVIEW
+`Skill(effort-xhigh)` first, sent with the review dispatch (effort-shift: judgment dispatch; the reviewer is a built-in and inherits the level in force).
 Invoke `requesting-code-review` (vendored superpowers skill). **Model routing (BDR-077):** the
 review subagent it dispatches MUST carry `model: "opus"` in the Agent call —
 craft review is dispatched judgment, never inherited from the session. Fix
