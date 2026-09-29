@@ -63,6 +63,13 @@ done < "$R/lib/effort-pins.txt"
 has "lib/effort-pins.txt" 'brainstorming xhigh'; has "lib/effort-pins.txt" 'writing-plans xhigh'
 has "install-plugins.sh" 'apply_effort_pins "$REPO"'; has "update-all.sh" 'apply_effort_pins "$REPO"'
 lacks "install-plugins.sh" 'for _s in brainstorming writing-plans; do'
+ln_last() { grep -n "$2" "$R/$1" | tail -1 | cut -d: -f1; }
+[ "$(ln_last install-plugins.sh 'apply_effort_pins "$REPO"')" -gt "$(ln_last install-plugins.sh 'rm -rf "$TFD_STAGE"')" ] \
+  && ok || ko "install-plugins.sh: effort pins must be re-applied after the 21st pack refresh"
+pins_ln=$(ln_last update-all.sh 'apply_effort_pins "$REPO"')
+[ "$pins_ln" -gt "$(ln_last update-all.sh 'skills-external/$_tfd_name')" ] \
+  && [ "$pins_ln" -gt "$(ln_last update-all.sh 'vendor_pinned_skills superpowers refresh')" ] \
+  && ok || ko "update-all.sh: effort pins must be re-applied after the last vendoring step (21st pack)"
 [ -x "$R/lib/effort-pins.sh" ] && ok || ko "lib/effort-pins.sh missing or not executable"
 # 9b) design stack = ONE level (last loaded wins); site-motion (repo skill) pins the same one
 stack_levels() { awk '/^# design stack/{f=1;next} f&&/^#$/{f=0} f&&!/^#/&&NF==2{print $2}' "$R/lib/effort-pins.txt" | sort -u; }
