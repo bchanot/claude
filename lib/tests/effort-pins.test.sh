@@ -5,7 +5,8 @@
 # skip a skill not vendored, insert before the closing `---` when the
 # frontmatter has no name line, run idempotently, reject a bad level, a
 # traversal name and a three-field line before writing anything, and
-# parse the real map without error. All on a throwaway fixture repo.
+# parse the real map without error; hardening: last map line without a
+# newline, unterminated frontmatter, CRLF file and read-only directory. All on a throwaway fixture repo.
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 LIB="$ROOT/lib/effort-pins.sh"
@@ -55,6 +56,36 @@ cp "$ROOT/lib/effort-pins.txt" "$WORK/real/lib/"
 out="$(bash "$LIB" "$WORK/real" 2>&1)"; check T9-real-map-parses "$?" 0
 check T9b-real-map-nothing-applied "$(printf '%s' "$out" | grep -c '0 applied, 0 already')" 1
 check T10-missing-map-rc "$(bash "$LIB" "$WORK/nowhere" >/dev/null 2>&1; echo $?)" 1
+
+# hardening: each case in its own fixture repo
+mkrepo() { R="$WORK/$1"; mkdir -p "$R/lib" "$R/skills-external/$2"; }
+mkrepo h11 alpha; mkdir "$WORK/h11/skills-external/beta"
+printf -- '---\nname: alpha\n---\nb\n' > "$WORK/h11/skills-external/alpha/SKILL.md"
+printf -- '---\nname: beta\n---\nb\n' > "$WORK/h11/skills-external/beta/SKILL.md"
+printf 'alpha high\nbeta low' > "$WORK/h11/lib/effort-pins.txt"
+bash "$LIB" "$WORK/h11" >/dev/null 2>&1
+check T11-last-line-no-newline "$(fm_effort "$WORK/h11/skills-external/beta/SKILL.md")" low
+
+mkrepo h12 open; f12="$WORK/h12/skills-external/open/SKILL.md"
+printf -- '---\nname: open\nbody effort: max\n' > "$f12"; b12="$(cat "$f12")"
+printf 'open high\n' > "$WORK/h12/lib/effort-pins.txt"
+out="$(bash "$LIB" "$WORK/h12" 2>&1)"; rc=$?
+check T12-unterminated-frontmatter-skipped \
+  "$rc|$(cat "$f12" | cmp -s - <(printf '%s\n' "$b12") && echo same)|$(printf '%s' "$out" | grep -c "ERR .*$f12")" "1|same|1"
+
+mkrepo h13 crlf
+printf -- '---\r\nname: crlf\r\n---\r\nbody\r\n' > "$WORK/h13/skills-external/crlf/SKILL.md"
+printf 'crlf high\n' > "$WORK/h13/lib/effort-pins.txt"
+out="$(bash "$LIB" "$WORK/h13" 2>&1)"; rc=$?
+check T13-crlf-not-counted-applied \
+  "$rc|$(printf '%s' "$out" | grep -c 'ERR ')|$(printf '%s' "$out" | grep -c ' 0 applied, ')" "1|1|1"
+
+mkrepo h14 ro; d14="$WORK/h14/skills-external/ro"
+printf -- '---\nname: ro\n---\nb\n' > "$d14/SKILL.md"
+printf 'ro high\n' > "$WORK/h14/lib/effort-pins.txt"
+chmod 555 "$d14"; out="$(bash "$LIB" "$WORK/h14" 2>&1)"; rc=$?; chmod 755 "$d14"
+check T14-write-failure-no-temp \
+  "$rc|$(printf '%s' "$out" | grep -c 'ERR ')|$(find "$d14" -name 'SKILL.md.*' | wc -l)" "1|1|0"
 
 echo "effort-pins: $pass pass, $fail fail"
 [ "$fail" -eq 0 ]
