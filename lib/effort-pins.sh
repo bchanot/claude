@@ -6,12 +6,14 @@
 # it back after the last vendoring step of install-plugins.sh and
 # update-all.sh. Idempotent: same level → untouched, other level →
 # replaced inside the frontmatter only, skill not vendored → skipped,
-# malformed map line → rejected loudly, never applied. Four hardenings:
-# a map whose last line lacks a newline is still read; a SKILL.md whose
-# frontmatter never closes is skipped untouched; the level is re-read after
-# every write and a mismatch (CRLF, malformed) counts as failed; the write
-# goes through a mktemp sibling removed on any failure. Placement inside the
-# frontmatter has no effect on the harness, which reads the key anywhere.
+# malformed map line → rejected loudly, never applied. Hardenings: a map
+# whose last line lacks a newline is still read; a SKILL.md whose frontmatter
+# never closes is skipped untouched; the level is re-read after every write
+# and a mismatch counts as failed; the write goes through a mktemp sibling
+# removed on any failure and on INT/TERM (previous traps restored, never an
+# EXIT trap: the installer owns one); the rejected map line is printed
+# shell-quoted so a caller's `echo -e` cannot interpret it. Placement inside
+# the frontmatter has no effect on the harness, which reads the key anywhere.
 #
 # Usage: source it, then `apply_effort_pins [repo-root]`
 #        or standalone: bash lib/effort-pins.sh [repo-root]
