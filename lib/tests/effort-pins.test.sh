@@ -16,7 +16,7 @@ check() { if [ "$2" = "$3" ]; then pass=$((pass+1)); echo "PASS $1"
 fm_effort() { awk 'NR==1&&/^---$/{p=1;next} p&&/^---$/{exit} p' "$1" \
   | sed -n 's/^effort: //p' | head -1; }
 
-WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
+WORK="$(mktemp -d)" || exit 1; trap 'rm -rf "$WORK"' EXIT
 REPO="$WORK/repo"; EXT="$REPO/skills-external"
 mkdir -p "$REPO/lib" "$EXT/alpha" "$EXT/beta" "$EXT/gamma" "$EXT/noname"
 printf -- '---\nname: alpha\ndescription: a\n---\nbody\n' > "$EXT/alpha/SKILL.md"
@@ -77,15 +77,53 @@ mkrepo h13 crlf
 printf -- '---\r\nname: crlf\r\n---\r\nbody\r\n' > "$WORK/h13/skills-external/crlf/SKILL.md"
 printf 'crlf high\n' > "$WORK/h13/lib/effort-pins.txt"
 out="$(bash "$LIB" "$WORK/h13" 2>&1)"; rc=$?
-check T13-crlf-not-counted-applied \
+check T13-crlf-file-rejected \
   "$rc|$(printf '%s' "$out" | grep -c 'ERR ')|$(printf '%s' "$out" | grep -c ' 0 applied, ')" "1|1|1"
 
-mkrepo h14 ro; d14="$WORK/h14/skills-external/ro"
-printf -- '---\nname: ro\n---\nb\n' > "$d14/SKILL.md"
-printf 'ro high\n' > "$WORK/h14/lib/effort-pins.txt"
-chmod 555 "$d14"; out="$(bash "$LIB" "$WORK/h14" 2>&1)"; rc=$?; chmod 755 "$d14"
-check T14-write-failure-no-temp \
-  "$rc|$(printf '%s' "$out" | grep -c 'ERR ')|$(find "$d14" -name 'SKILL.md.*' | wc -l)" "1|1|0"
+# T13b: the post-write re-read branch, reached with a no-op write stub
+mkrepo h13b nowrite; f13b="$WORK/h13b/skills-external/nowrite/SKILL.md"
+printf -- '---\nname: nowrite\n---\nb\n' > "$f13b"
+out="$(bash -c 'source "$1"; _effort_pin_write() { return 0; }
+  _effort_pin_apply_one "$2" nowrite high' _ "$LIB" "$f13b" 2>&1)"; rc=$?
+check T13b-reread-mismatch-fails \
+  "$rc|$(printf '%s' "$out" | grep -c 'level not applied after write')" "1|1"
+
+if [ "${EFFORT_PINS_TEST_FAKE_ROOT:-0}" = 1 ] || [ "$(id -u)" -eq 0 ]; then
+  echo "SKIP T14-write-failure-no-temp: chmod bits ignored as root"
+else
+  mkrepo h14 ro; d14="$WORK/h14/skills-external/ro"
+  printf -- '---\nname: ro\n---\nb\n' > "$d14/SKILL.md"
+  printf 'ro high\n' > "$WORK/h14/lib/effort-pins.txt"
+  chmod 555 "$d14"; out="$(bash "$LIB" "$WORK/h14" 2>&1)"; rc=$?; chmod 755 "$d14"
+  check T14-write-failure-no-temp \
+    "$rc|$(printf '%s' "$out" | grep -c 'ERR ')|$(find "$d14" -name 'SKILL.md.*' | wc -l)" "1|1|0"
+fi
+
+# T15: SIGINT during the awk write removes the temp sibling, exit 130
+mkrepo h15 sig; d15="$WORK/h15/skills-external/sig"
+printf -- '---\nname: sig\n---\nb\n' > "$d15/SKILL.md"
+bash -c 'source "$1"; awk() { kill -INT $$; sleep 2; }
+  _effort_pin_write "$2" sig high' _ "$LIB" "$d15/SKILL.md" >/dev/null 2>&1
+rc=$?
+check T15-sigint-removes-temp \
+  "$rc|$(find "$d15" -name 'SKILL.md.*' | wc -l)" "130|0"
+
+# T15b: previous INT trap restored on a normal return, no EXIT trap set
+mkrepo h15b tr; d15b="$WORK/h15b/skills-external/tr"
+printf -- '---\nname: tr\n---\nb\n' > "$d15b/SKILL.md"
+out="$(bash -c 'source "$1"; trap "echo prev" INT
+  _effort_pin_write "$2" tr high
+  printf "INT:%s\n" "$(trap -p INT)"; printf "EXIT:%s\n" "$(trap -p EXIT)"' \
+  _ "$LIB" "$d15b/SKILL.md" 2>&1)"
+check T15b-traps-restored \
+  "$(printf '%s' "$out" | grep -c "^INT:trap -- 'echo prev' SIGINT")|$(printf '%s' "$out" | grep -c '^EXIT:$')" "1|1"
+
+# T16: a literal backslash-t in a map line is printed shell-quoted
+mkrepo h16 q
+printf 'bad\\tname high\n' > "$WORK/h16/lib/effort-pins.txt"
+out="$(bash "$LIB" "$WORK/h16" 2>&1)"; rc=$?
+check T16-rejected-line-quoted \
+  "$rc|$(printf '%s' "$out" | grep -cF 'bad\\tname')" "1|1"
 
 echo "effort-pins: $pass pass, $fail fail"
 [ "$fail" -eq 0 ]
