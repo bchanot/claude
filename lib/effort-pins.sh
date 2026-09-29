@@ -6,12 +6,14 @@
 # it back after the last vendoring step of install-plugins.sh and
 # update-all.sh. Idempotent: same level → untouched, other level →
 # replaced inside the frontmatter only, skill not vendored → skipped,
-# malformed map line → rejected loudly, never applied. Four hardenings:
-# a map whose last line lacks a newline is still read; a SKILL.md whose
-# frontmatter never closes is skipped untouched; the level is re-read after
-# every write and a mismatch (CRLF, malformed) counts as failed; the write
-# goes through a mktemp sibling removed on any failure. Placement inside the
-# frontmatter has no effect on the harness, which reads the key anywhere.
+# malformed map line → rejected loudly, never applied. Hardenings: a map
+# whose last line lacks a newline is still read; a SKILL.md whose frontmatter
+# never closes is skipped untouched; the level is re-read after every write
+# and a mismatch counts as failed; the write goes through a mktemp sibling
+# removed on any failure and on INT/TERM (previous traps restored, never an
+# EXIT trap: the installer owns one); the rejected map line is printed
+# shell-quoted so a caller's `echo -e` cannot interpret it. Placement inside
+# the frontmatter has no effect on the harness, which reads the key anywhere.
 #
 # Usage: source it, then `apply_effort_pins [repo-root]`
 #        or standalone: bash lib/effort-pins.sh [repo-root]
@@ -38,13 +40,22 @@ _effort_pin_closed() {
   awk 'NR==1&&/^---$/{p=1;next} p&&/^---$/{f=1;exit} END{exit !f}' "$1"
 }
 
+# _effort_pin_traps_restore <saved> — drop the INT/TERM handlers set for the
+# write and re-install the caller's saved ones. No exit-time handler here.
+_effort_pin_traps_restore() {
+  trap - INT TERM
+  [ -z "$1" ] || eval "$1"
+}
+
 # _effort_pin_write <skill-file> <name> <level> — replace the frontmatter
 # `effort:` line, or insert one after `name: <name>` (before the closing
 # `---` when the frontmatter has no name line). Body lines never change.
 # Writes a mktemp sibling then renames; any failure leaves no temp behind.
 _effort_pin_write() {
-  local file="$1" name="$2" level="$3" tmp
+  local file="$1" name="$2" level="$3" tmp prev rc
   tmp="$(mktemp "$file.XXXXXX")" || return 1
+  prev="$(trap -p INT TERM)"
+  trap 'rm -f "$tmp"; exit 130' INT TERM
   cp -p "$file" "$tmp" && awk -v n="$name" -v lvl="$level" '
     NR==1 && /^---$/ { fm=1; print; next }
     fm && /^---$/ {
@@ -54,9 +65,10 @@ _effort_pin_write() {
     fm && /^effort: / { if (!done) { print "effort: " lvl; done=1 }; next }
     fm && $0 == "name: " n { print; if (!done) { print "effort: " lvl; done=1 }; next }
     { print }
-  ' "$file" > "$tmp" && mv "$tmp" "$file" && return 0
-  rm -f "$tmp"
-  return 1
+  ' "$file" > "$tmp" && mv "$tmp" "$file"; rc=$?
+  [ "$rc" -eq 0 ] || rm -f "$tmp"
+  _effort_pin_traps_restore "$prev"
+  return "$rc"
 }
 
 # _effort_pin_apply_one <file> <name> <level> → rc 0 applied, 2 already at
@@ -71,7 +83,7 @@ _effort_pin_apply_one() {
     err "effort-pins: $file: write failed"; return 1
   fi
   if [ "$(_effort_pin_current "$file")" != "$level" ]; then
-    err "effort-pins: $file: level not applied (CRLF or malformed frontmatter?)"
+    err "effort-pins: $file: level not applied after write"
     return 1
   fi
   return 0
@@ -87,7 +99,7 @@ apply_effort_pins() {
     case "$name" in ''|'#'*) continue ;; esac
     if [ -n "$rest" ] || ! [[ "$name" =~ $EFFORT_PIN_NAME_RE ]] \
        || ! [[ "$level" =~ $EFFORT_PIN_LEVEL_RE ]]; then
-      err "effort-pins: rejected map line '$name $level $rest'"
+      err "effort-pins: rejected map line $(printf '%q' "$name $level $rest")"
       rejected=$((rejected + 1)); continue
     fi
     file="$repo/skills-external/$name/SKILL.md"

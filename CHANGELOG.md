@@ -463,6 +463,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   plugin cache or `claude plugin list`.
 
 ### Fixed
+- `lib/effort-pins.sh` residual LOW (security re-gate of BDR-108): INT/TERM trap removes the mktemp sibling and exits 130 (never an EXIT trap, the installer owns one); the post-write re-read message no longer claims CRLF and is reached by a stubbed unit test; the rejected map line is printed through `printf '%q'` so a caller's `echo -e` cannot interpret map content; the fixture suite guards its `mktemp -d` and skips the read-only case visibly under root.
 - `update-all.sh` re-fetched the vendored skills at every run but never re-applied the effort pins: brainstorming/writing-plans lost their xhigh until the next `make plugin` (BDR-107 gap, closed by `lib/effort-pins.sh`).
 - **gitflow pre-commit blocked every commit with gitleaks 8.16** (Ubuntu's apt
   package): the hook ran `gitleaks git --staged`, a subcommand that exists from
