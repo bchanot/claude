@@ -1,5 +1,27 @@
 # TODO
 
+## 2026-09-29 — effort round: every skill carries a level next to its model pin (feature/effort-round)
+User table: low fix-a-line/run-a-script · medium day-to-day · high refactor/resisting bug ·
+xhigh architecture/audit before validation · max stuck. Approved 2026-09-29: design stack
+high uniform, hotfix stays high, all vendored externals of the table, docs in the same branch.
+Model pins stay aliases (latest of each tier is also the cheapest or same price); the
+quality/price trade-off is tier × effort, never version.
+- [x] S1 `lib/effort-pins.txt` (map) + `lib/effort-pins.sh` (idempotent re-apply) replacing the
+      hardcoded brainstorming/writing-plans loop; called after the last vendoring step of
+      install-plugins.sh AND update-all.sh (resync dropped the pins until the next make plugin)
+- [x] S2 repo skills: skills-perso low, pdf-translate medium, site-motion high
+- [x] S3 tests: `lib/tests/effort-pins.test.sh` (fixture: insert, keep, replace, skip, reject)
+      + effort-routing census map-driven + design-stack uniformity lock
+- [x] S4 `lib/effort-audit.py`: count records without output_tokens_details, print coverage
+      (sub-agent thinking was read as 0 on ~90 % of records: a gap, not a finding)
+- [x] S5 doctrine: Design work paired load + one level per stack (CLAUDE.global.md, lib/effort-shift.md)
+- [x] S6 docs: README effort section, USAGE niveau d'effort, CHANGELOG
+- [x] S7 contract + GATE 0 + fresh verifier + security gate, make test, shellcheck — GATE 0 MET, verifier ECARTS(3) → executor moved the resync re-apply after the 21st refresh (real gap), scope gated, directive authorized → CONFORME 7/7; security PASS (4 LOW on the helper, see journal); make test 44 suites rc 0
+- [x] S8 registries BDR-108, LRN-181, LRN-182, BLK-024, EVAL-038 (user go) + journal
+- [x] S9 hardening of lib/effort-pins.sh (4 LOW, user go): fresh executor, T11-T14, verifier CONFORME 9/9, security PASS
+- [ ] parked LOW (security re-gate 2026-09-29, none exploitable): no RETURN trap on the mktemp sibling (SIGINT during awk leaves `SKILL.md.XXXXXX`); T13 never reaches the post-write re-read branch (CRLF opener fails `_effort_pin_closed` first, fixture with LF delimiters + CRLF `name:` line would); T14 fails under root (chmod ignored); `WORK="$(mktemp -d)"` unguarded in the suite (`|| exit 1`); install-plugins.sh `err()` uses `echo -e` on the rejected map line
+- UNMERGED — human gate ("merge it")
+
 ## 2026-09-28 — effort tiering: session high, agent pins, skill levels, phase shifts (feature/effort-tiering)
 Spec `docs/superpowers/specs/2026-09-28-effort-tiering-design.md`, plan
 `docs/superpowers/plans/2026-09-28-effort-tiering.md`. Approved 2026-09-28: session

@@ -1,5 +1,6 @@
 ---
 name: site-motion
+effort: high
 description: |
   Site-level motion choreography: scroll engine choice, page-transition
   rules, and pin/scrub sequencing across a whole page or Astro route —

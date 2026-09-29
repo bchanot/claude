@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # lib/tests/effort-routing.test.sh — census: effort tiering (BDR-107)
 # agent pins, skill entry levels, shifter skills, orchestrator wiring, settings.
-# shellcheck disable=SC2015  # A && ok || ko is deliberate here: ok/ko never fail, so C never masks a true A
+# shellcheck disable=SC2015,SC2016  # A && ok || ko is deliberate (ok/ko never fail); '$REPO' locks are literal source text
 set -u
 R="$(cd "$(dirname "$0")/../.." && pwd)"
 pass=0; fail=0
@@ -46,15 +46,37 @@ for s in status commit-change release-candidate doc capitalize close reconcile d
 for s in gitflow prune-memory; do fm_has_effort "skills/$s/SKILL.md" medium; done
 for s in feat hotfix bugfix refactor web-validate harden seo geo; do fm_has_effort "skills/$s/SKILL.md" high; done
 for s in ship-feature init-project onboard tour audit-delta analyze code-clean client-handover; do fm_has_effort "skills/$s/SKILL.md" xhigh; done
+# BDR-108 round: the three repo skills that had no level
+fm_has_effort "skills/skills-perso/SKILL.md" low
+fm_has_effort "skills/pdf-translate/SKILL.md" medium
+fm_has_effort "skills/site-motion/SKILL.md" high
 
-# ── 9) vendored superpowers carry xhigh (spec D3). The files live in skills-external/ (gitignored,
-#      machine-owned), so the durable artifact is the install-plugins.sh re-apply; the frontmatter
-#      check skips VISIBLY when the skill is not vendored yet (fresh clone before make plugin).
-for s in brainstorming writing-plans; do
-  if [ -f "$R/skills-external/$s/SKILL.md" ]; then fm_has_effort "skills-external/$s/SKILL.md" xhigh
+# ── 9) vendored externals carry the level of lib/effort-pins.txt (BDR-108). The files live in
+#      skills-external/ (gitignored, machine-owned): the durable artifact is the map + the re-apply
+#      after the last vendoring step of install-plugins.sh AND update-all.sh; a skill not vendored
+#      yet SKIPs visibly (fresh clone before make plugin).
+while read -r s lvl _; do
+  case "$s" in ''|'#'*) continue ;; esac
+  if [ -f "$R/skills-external/$s/SKILL.md" ]; then fm_has_effort "skills-external/$s/SKILL.md" "$lvl"
   else printf 'SKIP skills-external/%s/SKILL.md not vendored yet (run make plugin)\n' "$s"; fi
-done
-has "install-plugins.sh" 'effort: xhigh'
+done < "$R/lib/effort-pins.txt"
+has "lib/effort-pins.txt" 'brainstorming xhigh'; has "lib/effort-pins.txt" 'writing-plans xhigh'
+has "install-plugins.sh" 'apply_effort_pins "$REPO"'; has "update-all.sh" 'apply_effort_pins "$REPO"'
+lacks "install-plugins.sh" 'for _s in brainstorming writing-plans; do'
+ln_last() { grep -n "$2" "$R/$1" | tail -1 | cut -d: -f1; }
+[ "$(ln_last install-plugins.sh 'apply_effort_pins "$REPO"')" -gt "$(ln_last install-plugins.sh 'rm -rf "$TFD_STAGE"')" ] \
+  && ok || ko "install-plugins.sh: effort pins must be re-applied after the 21st pack refresh"
+pins_ln=$(ln_last update-all.sh 'apply_effort_pins "$REPO"')
+[ "$pins_ln" -gt "$(ln_last update-all.sh 'skills-external/$_tfd_name')" ] \
+  && [ "$pins_ln" -gt "$(ln_last update-all.sh 'vendor_pinned_skills superpowers refresh')" ] \
+  && ok || ko "update-all.sh: effort pins must be re-applied after the last vendoring step (21st pack)"
+[ -x "$R/lib/effort-pins.sh" ] && ok || ko "lib/effort-pins.sh missing or not executable"
+# 9b) design stack = ONE level (last loaded wins); site-motion (repo skill) pins the same one
+stack_levels() { awk '/^# design stack/{f=1;next} f&&/^#$/{f=0} f&&!/^#/&&NF==2{print $2}' "$R/lib/effort-pins.txt" | sort -u; }
+[ "$(stack_levels | wc -l)" -eq 1 ] && ok || ko "design stack must share ONE level in lib/effort-pins.txt (got: $(stack_levels | tr '\n' ' '))"
+[ "$(stack_levels | wc -l)" -ge 1 ] && fm_has_effort "skills/site-motion/SKILL.md" "$(stack_levels | head -1)"
+has "lib/effort-shift.md" 'Stacked skills share one level'
+has "CLAUDE.global.md" 'lib/effort-pins.txt'
 
 # ── 5) shifter skills + include (spec D4)
 for l in low medium high xhigh max; do fm_has_effort "skills/effort-$l/SKILL.md" "$l"; has "skills/effort-$l/SKILL.md" "name: effort-$l"; done
@@ -101,7 +123,7 @@ has "lib/effort-shift.md" 'Before any built-in or unpinned dispatch'
 has "lib/model-gate.md" 'built-ins inherit the effort in force'
 has "skills/ship-feature/SKILL.md" 'effort-shift: error recovery'
 for s in feat hotfix bugfix seo geo harden web-validate ship-feature init-project onboard code-clean audit-delta; do has "skills/$s/SKILL.md" 'effort-shift: own level before the challenge'; done
-has "install-plugins.sh" 'for _s in brainstorming writing-plans; do'
+has "update-all.sh" 'source "$REPO/lib/effort-pins.sh"'
 
 # ── summary (later tasks insert their locks ABOVE this line)
 printf 'effort-routing census: %d pass, %d fail\n' "$pass" "$fail"

@@ -93,6 +93,23 @@ was split like `/feat` (reflection inline + gate, `hotfixer` executor) and so
 joins the gated group (13th); `/client-handover`'s nested skill-runner
 children are dispatched `model:"fable"` (they carry reflection).
 
+## Effort routing (BDR-107, BDR-108)
+
+Second axis of the same table: how hard each phase thinks. Session default
+`high`. Every typed agent carries an `effort:` pin next to its `model:` (low
+appliers, medium executors, high judgment, xhigh challengers and gates; none
+on haiku, which rejects the parameter). Every user-invoked skill carries an
+entry level (`/status` low … `/ship-feature` xhigh); the vendored externals
+(design stack, superpowers, agent-skills, 21st) get theirs from
+`lib/effort-pins.txt`, re-applied by `lib/effort-pins.sh` after every
+vendoring step. Orchestrators shift per phase through the `effort-low` …
+`effort-max` skills (`lib/effort-shift.md`, always sent with another tool
+call: a lone Skill call applies nothing). Model pins stay tier aliases
+(`sonnet`, `opus`, `haiku`, `fable`): the latest version of a tier is also
+the cheapest or same-priced, so the quality/price trade-off is tier × effort,
+never version. Census `lib/tests/effort-routing.test.sh`; transcript audit
+`python3 lib/effort-audit.py`.
+
 ---
 
 ## Install notes

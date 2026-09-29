@@ -24,6 +24,11 @@ max (stuck error, judged need).
   Claude loads alone, such as `brainstorming` or `writing-plans`, applies
   nothing). Last loaded wins, both directions. The prompt cache survives a
   shift.
+- **Stacked skills share one level**: skills that load together in one
+  build (the design stack) all pin the same level, since the last loaded
+  wins. Vendored externals get their level from `lib/effort-pins.txt`,
+  re-applied by `lib/effort-pins.sh` after every vendoring step; repo
+  skills carry it in their frontmatter.
 - Dispatched agents run on their own `effort:` pin, never on a shift.
   Unpinned agents inherit the level in force at dispatch.
 - Headless sessions (`-p`, `claude agents`, SDK) ignore skill-level effort:

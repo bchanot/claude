@@ -43,6 +43,7 @@ rules:
 | BLK-021 | 2026-09-22 | Bash tool dead mid-session ("every command exits 1"): /tmp usrquota blown by a dead session's probe HOMEs — 2… | open |
 | BLK-022 | 2026-09-22 | `hooks/guard-bash.sh` withheld by the safety classifier; executable spec shipped instead — 2026-09-22 | open |
 | BLK-023 | 2026-09-28 | floor-guard SKIP pattern `xit(` (Jasmine) matches any `exit(` in python/JS test helpers → false ECARTS; workaround: no `exit(` in inline python, bash derives rc from output — 2026-09-28 | resolved |
+| BLK-024 | 2026-09-29 | update-all.sh re-fetched vendored skills but never re-applied the effort pins (lost until next `make plugin`); my first fix placed the re-apply BEFORE the late 21st refresh — rtk-truncated grep read as complete — 2026-09-29 | resolved |
 
 ---
 
@@ -268,3 +269,9 @@ rules:
 - **Real cause**: `lib/floor-guard.sh` SKIP_SUBSTRINGS holds the bare fragment `'xit('` to catch Jasmine's `xit(…)`; `skip_kind()` is a plain substring match, so `sys.exit(`, `SystemExit(`, `process.exit(` all hit.
 - **Solution**: workaround applied — the inline python prints violations only, the bash wrapper derives the return code from the captured output (no `exit(` anywhere). Root fix pending: word-bound the pattern (`(^|[^a-zA-Z_.])xit\(`) or match `xit(` only in JS/TS test files; hotfix-sized.
 - **Status**: resolved 2026-09-28 — hotfix 0deb559 (bugfix/floor-guard-xit-boundary): the four bare Jasmine identifiers moved into `SKIP_IDENT_RE` with lookbehind `(?<![A-Za-z0-9_.])`, dotted/decorator forms stay substrings; fixtures SKIP_EXIT_CLEAN (RED before, GREEN after) + xit/fit/fdescribe flags. Residual `shortcut:` in the guard: `def fit(` / `function xit(` still match, `xit (` / `xit.each(` still do not (as before). Links [[BDR-105]], [[BDR-102]] (floor-guard origin), [[EVAL-034]].
+
+## BLK-024 — resync dropped the vendored effort pins, twice — 2026-09-29
+- **Friction**: [[BDR-107]] re-applied brainstorming/writing-plans xhigh only in install-plugins.sh STEP 8e; update-all.sh §7.3 re-fetches at the same commit → SKILL.md overwritten, `effort:` gone until the next `make plugin`. Latent since 2026-09-28.
+- **Real cause (second instance)**: my re-apply call landed after the superpowers refresh; update-all.sh §7.4 (21st pack) runs LATER and `rm -rf` + `mv` every 21st-* SKILL.md. My grep of update-all.sh was truncated by rtk ("+28 more hidden") and I read the partial listing as the whole file. Fresh verifier caught it (ECARTS).
+- **Solution**: `lib/effort-pins.txt` + `lib/effort-pins.sh` called ONCE after the LAST vendoring step of both scripts; census locks the order by line number (`ln_last`). Rule: a truncated tool listing is not a census; re-run without the pager or grep the anchor directly.
+- **Status**: resolved 2026-09-29 (feature/effort-round, [[BDR-108]]).

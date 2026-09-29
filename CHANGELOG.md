@@ -7,6 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- **Effort round (BDR-108)**: every skill carries an entry level next to its model pin. `lib/effort-pins.txt` (map) + `lib/effort-pins.sh` (idempotent re-apply after the last vendoring step of `install-plugins.sh` and `update-all.sh`) replace the hardcoded brainstorming/writing-plans loop and extend the pins to the design stack (high, one level per stack since the last loaded wins), superpowers, agent-skills and the 21st pack; `skills-perso` low, `pdf-translate` medium, `site-motion` high; doctrine: the design stack loads paired with the first Read (a lone Skill call applies nothing). Model pins stay tier aliases: the latest version of a tier is also the cheapest or same-priced, so the quality/price trade-off is tier × effort, never version. `lib/effort-audit.py` prints thinking coverage per scope (sub-agent records carry no thinking count on ~90 % of requests: EVAL-037's "executors stay cheap" was a measurement gap, not a finding).
 - **Effort tiering (BDR-107)**: reasoning effort routed per role and per phase. Session default `high`; `effort:` pins on the 20 repo-authored agents; entry level on 28 tracked user-invoked skills plus the two vendored superpowers skills (re-applied by `install-plugins.sh` after resync); five shifter skills `effort-low` … `effort-max` loaded at phase boundaries per `lib/effort-shift.md`, always sent with the step's first tool call (a lone Skill call is a no-op on 2.1.283), with `max` at the verify-secure caps and ship-feature 4b; `/effort-max` as the turn-scoped relaunch lever; statusline shows the live level; session banner warns when `CLAUDE_CODE_EFFORT_LEVEL` silences the pins; census `lib/tests/effort-routing.test.sh`; transcript audit `lib/effort-audit.py`.
 - **Design gate asks the user to sign in to 21st instead of skipping it**:
   `lib/design-tool-gate.sh` adds a three-state 21st auth predicate
@@ -462,6 +463,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   plugin cache or `claude plugin list`.
 
 ### Fixed
+- `update-all.sh` re-fetched the vendored skills at every run but never re-applied the effort pins: brainstorming/writing-plans lost their xhigh until the next `make plugin` (BDR-107 gap, closed by `lib/effort-pins.sh`).
 - **gitflow pre-commit blocked every commit with gitleaks 8.16** (Ubuntu's apt
   package): the hook ran `gitleaks git --staged`, a subcommand that exists from
   8.19 only, so the "unknown command" exit 1 read as a leak. The generator now
