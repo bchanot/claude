@@ -393,6 +393,14 @@ echo ""
 echo "── Updating superpowers skills (obra/superpowers)..."
 vendor_pinned_skills superpowers refresh
 
+# Effort pins (BDR-107, BDR-108): every refresh above rewrites SKILL.md and
+# drops the `effort:` line; put the entry levels of lib/effort-pins.txt back.
+echo ""
+echo "── Re-applying effort pins on the vendored skills..."
+# shellcheck source=lib/effort-pins.sh disable=SC1091
+source "$REPO/lib/effort-pins.sh"
+apply_effort_pins "$REPO" || warn "effort pins: map lines rejected — fix lib/effort-pins.txt"
+
 # ── Impeccable (design detector + skill + subagents) ──
 # Global scope: the installer writes through the ~/.claude/{skills,agents}
 # symlinks straight into this repo (install-plugins.sh Step 8d explains why

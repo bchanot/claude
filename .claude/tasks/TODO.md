@@ -1,5 +1,24 @@
 # TODO
 
+## 2026-09-29 — effort round: every skill carries a level next to its model pin (feature/effort-round)
+User table: low fix-a-line/run-a-script · medium day-to-day · high refactor/resisting bug ·
+xhigh architecture/audit before validation · max stuck. Approved 2026-09-29: design stack
+high uniform, hotfix stays high, all vendored externals of the table, docs in the same branch.
+Model pins stay aliases (latest of each tier is also the cheapest or same price); the
+quality/price trade-off is tier × effort, never version.
+- [ ] S1 `lib/effort-pins.txt` (map) + `lib/effort-pins.sh` (idempotent re-apply) replacing the
+      hardcoded brainstorming/writing-plans loop; called after the last vendoring step of
+      install-plugins.sh AND update-all.sh (resync dropped the pins until the next make plugin)
+- [ ] S2 repo skills: skills-perso low, pdf-translate medium, site-motion high
+- [ ] S3 tests: `lib/tests/effort-pins.test.sh` (fixture: insert, keep, replace, skip, reject)
+      + effort-routing census map-driven + design-stack uniformity lock
+- [ ] S4 `lib/effort-audit.py`: count records without output_tokens_details, print coverage
+      (sub-agent thinking was read as 0 on ~90 % of records: a gap, not a finding)
+- [ ] S5 doctrine: Design work paired load + one level per stack (CLAUDE.global.md, lib/effort-shift.md)
+- [ ] S6 docs: README effort section, USAGE niveau d'effort, CHANGELOG
+- [ ] S7 contract + GATE 0 + fresh verifier + security gate, make test, shellcheck
+- [ ] S8 registries (BDR-108, LRN, BLK resync, EVAL correction) after user approval; journal
+
 ## 2026-09-28 — effort tiering: session high, agent pins, skill levels, phase shifts (feature/effort-tiering)
 Spec `docs/superpowers/specs/2026-09-28-effort-tiering-design.md`, plan
 `docs/superpowers/plans/2026-09-28-effort-tiering.md`. Approved 2026-09-28: session

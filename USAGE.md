@@ -171,6 +171,20 @@ Tu veux...
 
 ---
 
+### Niveau d'effort
+
+Chaque commande démarre à un niveau de réflexion fixé dans son frontmatter
+(`effort:`) : low pour la tenue de registre (`/status`, `/close`,
+`/commit-change`), medium pour le courant (`/gitflow`, `/prune-memory`),
+high pour un fix ou un refactor (`/feat`, `/hotfix`, `/bugfix`, `/refactor`,
+audits avec fix), xhigh pour l'architecture et l'audit avant validation
+(`/ship-feature`, `/onboard`, `/analyze`). Les orchestrateurs décalent
+ensuite le niveau par phase (`lib/effort-shift.md`), et `/effort-max` tapé à
+la main relance un tour bloqué au maximum. Les skills externes vendorés
+(pile design, superpowers, 21st) reçoivent leur niveau de
+`lib/effort-pins.txt`. Un skill chargé seul par Claude n'applique pas son
+niveau : il doit partir avec un autre appel d'outil dans le même message.
+
 ## Les plugins — décision rapide
 
 ```

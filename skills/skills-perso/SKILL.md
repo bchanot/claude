@@ -1,5 +1,6 @@
 ---
 name: skills-perso
+effort: low
 description: |
   List personal (user-created) skills from ~/.claude/skills/.
   Excludes framework/gstack skills and symlinked/external skills.

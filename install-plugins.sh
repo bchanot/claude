@@ -934,16 +934,9 @@ for _ext_skill in "${EXT_SKILL_NAMES[@]}"; do
 done
 echo ""
 
-# Effort tiering (BDR-107): the vendored brainstorming/writing-plans carry an
-# effort pin upstream lacks; re-apply after every resync (census lock in
-# lib/tests/effort-routing.test.sh alarms if this ever stops working).
-for _s in brainstorming writing-plans; do
-  _f="$(cd "$(dirname "$0")" && pwd)/skills-external/$_s/SKILL.md"
-  if [ -f "$_f" ] && ! grep -q '^effort:' "$_f"; then
-    sed -i "0,/^name: $_s\$/s//&\neffort: xhigh/" "$_f"
-  fi
-done
-unset _s _f
+# Effort pins (BDR-107, BDR-108): every vendored external gets its entry
+# level from lib/effort-pins.txt, re-applied ONCE after the last vendoring
+# step (the 21st pack, STEP 8.7) — see apply_effort_pins there.
 
 # ============================================================
 # STEP 8.5 — EXTERNAL SKILLS (npx skills add …)
@@ -1061,6 +1054,13 @@ if command -v 21st &>/dev/null; then
   fi
   rm -rf "$TFD_STAGE"
 fi
+
+# Effort pins (BDR-107, BDR-108): the vendored externals carry no `effort:`
+# upstream and every vendoring step above rewrites SKILL.md. Re-apply the
+# entry levels from lib/effort-pins.txt once, after the LAST such step.
+# shellcheck source=lib/effort-pins.sh disable=SC1091
+source "$REPO/lib/effort-pins.sh"
+apply_effort_pins "$REPO" || warn "effort pins: map lines rejected — fix lib/effort-pins.txt"
 
 # Auth — detect, then offer login ONLY in an interactive TTY. A non-interactive
 # run (CI / headless / re-run) must never open a browser or block on OAuth.

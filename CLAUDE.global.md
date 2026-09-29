@@ -283,6 +283,9 @@ design routing; the design-toolchain hook reinforces it.
 - Design system / brand → design-consultation first, then the build tools.
 - Review / audit → design-review + emil-design-eng + design-motion-principles
   + /impeccable audit|critique + `impeccable detect` floor.
+- Load the stack paired with the first Read of the target file, never
+  alone (a lone Skill call applies no effort, `lib/effort-shift.md`); every
+  member pins `high`, one level per stack (`lib/effort-pins.txt`).
 Scope doubt → ask or default to Build, never silently skip. Gate: light
 skills run `~/.claude/lib/design-gate.md`, orchestrators plugin-check. 21st =
 CLI (`npm i -g @21st-dev/cli`, `21st login`), no MCP, no key; search free,
