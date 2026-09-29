@@ -20,7 +20,8 @@ quality/price trade-off is tier × effort, never version.
 - [x] S8 registries BDR-108, LRN-181, LRN-182, BLK-024, EVAL-038 (user go) + journal
 - [x] S9 hardening of lib/effort-pins.sh (4 LOW, user go): fresh executor, T11-T14, verifier CONFORME 9/9, security PASS
 - [x] parked LOW (security re-gate 2026-09-29, none exploitable; done on bugfix/effort-pins-low, user go "fais les cinq low restants"): no RETURN trap on the mktemp sibling (SIGINT during awk leaves `SKILL.md.XXXXXX`); T13 never reaches the post-write re-read branch (CRLF opener fails `_effort_pin_closed` first, fixture with LF delimiters + CRLF `name:` line would); T14 fails under root (chmod ignored); `WORK="$(mktemp -d)"` unguarded in the suite (`|| exit 1`); install-plugins.sh `err()` uses `echo -e` on the rejected map line
-- UNMERGED — human gate ("merge it")
+- [ ] parked LOW round 2 (security gate on bugfix/effort-pins-low, none exploitable, diminishing returns): `%q` re-encodes real control bytes (ESC, CR) that the installer's `echo -e` err() would render (needs a malicious commit to the tracked map; strip `[[:cntrl:]]` before printing); INT/TERM trap installed after mktemp (microsecond window, install before with `tmp=""`); TERM exits 130 not 143; T15 fails closed when SIGINT is ignored at shell entry (nohup/async)
+- bugfix/effort-pins-low UNMERGED — human gate ("merge it")
 
 ## 2026-09-28 — effort tiering: session high, agent pins, skill levels, phase shifts (feature/effort-tiering)
 Spec `docs/superpowers/specs/2026-09-28-effort-tiering-design.md`, plan
