@@ -17,7 +17,10 @@ quality/price trade-off is tier × effort, never version.
 - [x] S5 doctrine: Design work paired load + one level per stack (CLAUDE.global.md, lib/effort-shift.md)
 - [x] S6 docs: README effort section, USAGE niveau d'effort, CHANGELOG
 - [x] S7 contract + GATE 0 + fresh verifier + security gate, make test, shellcheck — GATE 0 MET, verifier ECARTS(3) → executor moved the resync re-apply after the 21st refresh (real gap), scope gated, directive authorized → CONFORME 7/7; security PASS (4 LOW on the helper, see journal); make test 44 suites rc 0
-- [ ] S8 registries (BDR-108, LRN, BLK resync, EVAL correction) after user approval; journal
+- [x] S8 registries BDR-108, LRN-181, LRN-182, BLK-024, EVAL-038 (user go) + journal
+- [x] S9 hardening of lib/effort-pins.sh (4 LOW, user go): fresh executor, T11-T14, verifier CONFORME 9/9, security PASS
+- [ ] parked LOW (security re-gate 2026-09-29, none exploitable): no RETURN trap on the mktemp sibling (SIGINT during awk leaves `SKILL.md.XXXXXX`); T13 never reaches the post-write re-read branch (CRLF opener fails `_effort_pin_closed` first, fixture with LF delimiters + CRLF `name:` line would); T14 fails under root (chmod ignored); `WORK="$(mktemp -d)"` unguarded in the suite (`|| exit 1`); install-plugins.sh `err()` uses `echo -e` on the rejected map line
+- UNMERGED — human gate ("merge it")
 
 ## 2026-09-28 — effort tiering: session high, agent pins, skill levels, phase shifts (feature/effort-tiering)
 Spec `docs/superpowers/specs/2026-09-28-effort-tiering-design.md`, plan
