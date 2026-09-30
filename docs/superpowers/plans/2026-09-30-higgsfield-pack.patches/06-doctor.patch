@@ -1,0 +1,30 @@
+--- a/doctor.sh
++++ b/doctor.sh
+@@ -26,6 +26,8 @@
+ source "$REPO/lib/doctor-vendored.sh"
+ # shellcheck source=lib/doctor-skills.sh disable=SC1091
+ source "$REPO/lib/doctor-skills.sh"
++# shellcheck source=lib/higgsfield-skills.sh disable=SC1091
++source "$REPO/lib/higgsfield-skills.sh"
+ 
+ echo ""
+ echo "═══ claude-config doctor (v${VERSION}) ═══"
+@@ -246,6 +248,18 @@
+   info "Graphifyy not installed (optional — codebase knowledge graph: pipx install graphifyy)"
+ fi
+ 
++# Higgsfield is optional and off by default: info level, never a warning.
++if command -v higgsfield >/dev/null 2>&1; then
++  pass "Higgsfield CLI installed ($(higgsfield version 2>/dev/null | awk 'NR==1 {print $2}'))"
++  if higgsfield_signed_in; then
++    pass "Higgsfield session active"
++  else
++    info "Higgsfield not signed in (generation needs: higgsfield auth login)"
++  fi
++else
++  info "Higgsfield CLI not installed (optional — media generation: make plugin)"
++fi
++
+ echo ""
+ 
+ # ────────────────────────────────────────────────────────────

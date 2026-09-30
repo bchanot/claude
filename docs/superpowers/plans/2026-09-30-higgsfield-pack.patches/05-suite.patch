@@ -1,0 +1,19 @@
+--- a/lib/tests/higgsfield.test.sh
++++ b/lib/tests/higgsfield.test.sh
+@@ -279,5 +279,16 @@
+ expect remedy "$(count install-plugins.sh '--allow-scripts=')" 1
+ verdict INSTALL_WIRING
+ 
++# update-all.sh: refresh before the 21st block and before the pins re-apply,
++# skipped when the CLI is absent.
++sync_ln="$(ln_last update-all.sh 'higgsfield_sync_skills')"
++expect before-21st "$(yn test "$sync_ln" -lt \
++  "$(ln_first update-all.sh '7.4. Update the 21st.dev')")" yes
++expect before-pins "$(yn test "$sync_ln" -lt \
++  "$(ln_last update-all.sh "$PINS")")" yes
++expect skip-no-cli \
++  "$(count update-all.sh 'Higgsfield CLI not installed — skipping')" 1
++verdict UPDATE_WIRING
++
+ # ── tally ───────────────────────────────────────────────────
+ printf 'PASS=%s FAIL=%s\n' "$pass" "$fail"; [ "$fail" -eq 0 ]
