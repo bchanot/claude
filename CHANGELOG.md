@@ -401,6 +401,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   `verification-before-completion` to the verifier gates.
 
 ### Security
+- `settings.json` `autoMode.soft_deny` gains a "Global npm installs" entry: every spelling of a global install is held until the user names the package in the turn, and Claude states the publisher, age, download volume, install scripts and known advisories first. It covers the forms the literal `deny` patterns miss.
 - `settings.json` `permissions.deny` now refuses three more spellings of a global npm install (`npm i -g`, `npm install --global`, `npm i --global`): the rule matched `npm install -g` only. Not a complete list: forms with the flag after the package name, such as `npm i <pkg> -g`, still pass.
 - **Ten secret-reader deny rules added**: `sed`, `awk`, `cut`, `tr`,
   `sort`, `uniq`, `diff`, `od`, `xxd`, `strings` against `.env*`. Six of
