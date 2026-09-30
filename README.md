@@ -362,11 +362,11 @@ higgsfield auth login       # browser flow
 `make plugin` does both (Step 8.6 installs the CLI, then offers the login in
 an interactive terminal) and clones the skills of
 [higgsfield-ai/skills](https://github.com/higgsfield-ai/skills) into
-`skills-external/higgsfield-*`. `make update` refreshes the CLI and the
-skills, and `make doctor` reports the CLI and its session. The copies are
-machine-owned and gitignored. They follow upstream `main`, so a prompt
-change arrives with no diff to review, and a skill that upstream removes
-keeps its last local copy.
+`skills-external/higgsfield-*`. `make update` refreshes the skills, and the
+CLI when npm installed it; `make doctor` reports the CLI and its session.
+The copies are machine-owned and gitignored. They follow upstream `main`,
+so a prompt change arrives with no diff to review, and a skill that
+upstream removes keeps its last local copy.
 
 The pack is off by default and belongs to no profile. It costs nothing until
 you ask for it, and no `profile set` touches it:
@@ -375,6 +375,7 @@ you ask for it, and no `profile set` touches it:
 bash lib/toggle-external.sh enable higgsfield            # media skills
 bash lib/toggle-external.sh enable higgsfield-websites   # landing-page aid
 bash lib/toggle-external.sh disable higgsfield
+bash lib/toggle-external.sh disable higgsfield-websites
 ```
 
 `higgsfield` links a fixed list of seven media skills: generate, soul-id,
