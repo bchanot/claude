@@ -113,17 +113,21 @@ pack_skills() {
   esac
 }
 
-# bounded <cmd...> — run a CLI probe silently, 15 s at most when `timeout`
-# exists: a closed-source binary must never hang a toggle, and what it
-# prints (a token) must never reach the terminal. Twin of
-# _higgsfield_probe in lib/higgsfield-skills.sh, kept here because this
-# script takes no extra `source` (the fixture suites copy it alone).
+# bounded <cmd...> — run a CLI probe silently, 15 s at most when a timeout
+# tool exists (`timeout`, or `gtimeout` from Homebrew coreutils on macOS):
+# a closed-source binary must never hang a toggle, and what it prints (a
+# token) must never reach the terminal. Twin of _higgsfield_probe in
+# lib/higgsfield-skills.sh, kept here because this script takes no extra
+# `source` (the fixture suites copy it alone).
 bounded() {
-  if command -v timeout >/dev/null 2>&1; then
-    timeout 15 "$@" </dev/null >/dev/null 2>&1
-  else
-    "$@" </dev/null >/dev/null 2>&1
-  fi
+  local tool
+  for tool in timeout gtimeout; do
+    if command -v "$tool" >/dev/null 2>&1; then
+      "$tool" 15 "$@" </dev/null >/dev/null 2>&1
+      return
+    fi
+  done
+  "$@" </dev/null >/dev/null 2>&1
 }
 
 # Post-enable notes for a pack. Its skills shell out to a CLI: without it
@@ -322,6 +326,9 @@ enable_tool() {
           return 1
         fi
         warn "$tool already enabled"
+        # Enabled is the steady state, and Claude re-runs this on every
+        # media ask: the hints (upstream drift, CLI, session) show here too.
+        if [ "$tool" = "higgsfield" ]; then pack_hints higgsfield; fi
         return 0
       fi
       ok "$tool enabled ($((restored + linked)) skills: $restored restored, $linked linked)"

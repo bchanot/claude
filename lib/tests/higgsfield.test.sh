@@ -110,7 +110,8 @@ probe() {
 
 # ── sync ────────────────────────────────────────────────────
 UP="$WORK/upstream"; mk_upstream "$UP"
-R1="$WORK/r1"; mkdir -p "$R1/skills" "$R1/skills-disabled"
+# The repo path carries a space on purpose: every expansion must be quoted.
+R1="$WORK/r 1"; mkdir -p "$R1/skills" "$R1/skills-disabled"
 EXT="$R1/skills-external"
 
 expect fixture  "$(yn test -f "$UP/.git/HEAD")" yes
@@ -162,6 +163,12 @@ expect shim-only   \
   "$(FAKE_HF_BINARY=missing probe "$BIN:$PATH" higgsfield_cli_ok)" "rc=1"
 expect no-cli      "$(probe "$CLEAN" higgsfield_cli_ok)" "rc=127"
 expect no-timeout  "$(probe "$BIN:$CLEAN" higgsfield_cli_ok)" "rc=0"
+# macOS spelling: only `gtimeout` exists. A wrapper, not a symlink: a
+# multi-call coreutils binary dispatches on the name it is invoked under.
+GT="$WORK/gtbin"; mkdir -p "$GT"
+printf '#!/bin/sh\nexec %s "$@"\n' "$(command -v timeout)" > "$GT/gtimeout"
+chmod +x "$GT/gtimeout"
+expect gtimeout    "$(probe "$BIN:$GT:$CLEAN" higgsfield_signed_in)" "rc=0"
 verdict PROBES_SILENT
 
 # ── toggle ──────────────────────────────────────────────────
@@ -216,7 +223,7 @@ verdict ENABLE_PACK_EXCLUDES_WEBSITES
 
 # The media pack is an allowlist: a synced skill nobody listed is reported,
 # never linked; neither is a listed name whose directory holds no SKILL.md.
-F8="$WORK/f8"; mk_toggle_fx "$F8" "${PACK[@]}" higgsfield-newcomer
+F8="$WORK/f 8"; mk_toggle_fx "$F8" "${PACK[@]}" higgsfield-newcomer
 mkdir -p "$F8/skills-external/higgsfield-brandkit" \
   "$F8/skills-external/higgsfield-noskill"
 out="$(tog "$F8" enable higgsfield)"; rc=$?
@@ -227,6 +234,11 @@ expect brandkit-off "$(yn test -e "$F8/skills/higgsfield-brandkit")" no
 expect_has reported "$out" "higgsfield-newcomer"
 expect_not noskill-quiet "$out" "higgsfield-noskill"
 expect links "$(entries "$F8/skills")" 2
+# Enabled is the steady state: a re-run must still name the drift.
+out="$(tog "$F8" enable higgsfield)"; rc=$?
+expect again-rc "$rc" 0
+expect_has again-state "$out" "higgsfield already enabled"
+expect_has again-reported "$out" "higgsfield-newcomer"
 verdict UNLISTED_NOT_LINKED
 
 F3="$WORK/f3"; mk_toggle_fx "$F3" "${PACK[@]}"

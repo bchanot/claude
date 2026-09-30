@@ -401,7 +401,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   `verification-before-completion` to the verifier gates.
 
 ### Security
-- `settings.json` `permissions.deny` now refuses `npm i -g`, `npm install --global` and `npm i --global`: the rule matched `npm install -g` only, so the other spellings of the same global install went through.
+- `settings.json` `permissions.deny` now refuses three more spellings of a global npm install (`npm i -g`, `npm install --global`, `npm i --global`): the rule matched `npm install -g` only. Not a complete list: forms with the flag after the package name, such as `npm i <pkg> -g`, still pass.
 - **Ten secret-reader deny rules added**: `sed`, `awk`, `cut`, `tr`,
   `sort`, `uniq`, `diff`, `od`, `xxd`, `strings` against `.env*`. Six of
   those tools sat in `permissions.allow`, so reading a `.env` through

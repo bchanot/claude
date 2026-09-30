@@ -380,11 +380,12 @@ bash lib/toggle-external.sh disable higgsfield
 `higgsfield` links a fixed list of seven media skills: generate, soul-id,
 product-photoshoot, brandkit, marketplace-cards, video-explainer and
 youtube-thumbnail. The list is `HIGGSFIELD_MEDIA_SKILLS` in
-`lib/toggle-external.sh`. A skill that upstream adds later is synced and
-reported, and stays unlinked until it is added there.
+`lib/toggle-external.sh`. A skill that upstream adds later is synced, and
+every `enable higgsfield` names it, the pack being on or not. It stays
+unlinked until it is added to the list.
 
-`higgsfield-websites` is kept apart. Here it helps with landing pages inside
-the design stack (assets, references), and `higgsfield website
+`higgsfield-websites` is kept apart. It helps with landing pages inside the
+design stack (assets, references), and `higgsfield website
 create|deploy|publish` stays unused. Claude enables either toggle itself on
 an explicit ask (Skill routing in `CLAUDE.global.md`) and checks the price
 with `higgsfield generate cost` before a paid run.
@@ -392,6 +393,10 @@ with `higgsfield generate cost` before a paid run.
 The skills are cloned, not installed with `npx skills add`: that installer
 links every skill into `~/.claude/skills` on each refresh, which would undo
 the off-by-default state.
+
+After the first login, select a workspace once: `higgsfield workspace list`,
+then `higgsfield workspace set <id>`. Until then the account commands answer
+"No workspace selected", even though the session is active.
 
 The package ships its binary through a postinstall script. If npm holds that
 script back, `higgsfield` exists on PATH and fails at once; reinstall with

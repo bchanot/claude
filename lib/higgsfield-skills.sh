@@ -59,15 +59,19 @@ higgsfield_sync_skills() {
 }
 
 # _higgsfield_probe <args...>
-# Run `higgsfield <args>` silently, 15 s at most when `timeout` exists. The
-# CLI is closed source: a probe must never hang an installer, and what it
-# prints (a token, for `auth token`) must never reach a terminal or a log.
+# Run `higgsfield <args>` silently, 15 s at most when a timeout tool exists
+# (`timeout`, or `gtimeout` from Homebrew coreutils on macOS). The CLI is
+# closed source: a probe must never hang an installer, and what it prints
+# (a token, for `auth token`) must never reach a terminal or a log.
 _higgsfield_probe() {
-  if command -v timeout >/dev/null 2>&1; then
-    timeout 15 higgsfield "$@" </dev/null >/dev/null 2>&1
-  else
-    higgsfield "$@" </dev/null >/dev/null 2>&1
-  fi
+  local tool
+  for tool in timeout gtimeout; do
+    if command -v "$tool" >/dev/null 2>&1; then
+      "$tool" 15 higgsfield "$@" </dev/null >/dev/null 2>&1
+      return
+    fi
+  done
+  higgsfield "$@" </dev/null >/dev/null 2>&1
 }
 
 # higgsfield_cli_ok — 0 when the binary answers. `command -v` alone only

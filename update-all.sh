@@ -489,14 +489,21 @@ print(d.get('higgsfield',{}).get('version','latest'))
   HF_PKG="@higgsfield/cli@latest"
   [ -n "$HF_VER" ] && [ "$HF_VER" != "latest" ] \
     && HF_PKG="@higgsfield/cli@${HF_VER}"
-  HF_NPM_OK=true
-  npm install -g "$HF_PKG" 2>/dev/null || HF_NPM_OK=false
+  # npm updates only a copy npm installed: a CLI that came from Homebrew
+  # or the vendor's installer would otherwise gain a second, competing copy.
+  HF_NPM=skipped
+  if npm ls -g @higgsfield/cli >/dev/null 2>&1; then
+    HF_NPM=ok
+    npm install -g "$HF_PKG" 2>/dev/null || HF_NPM=failed
+  fi
   # The probe first, then npm's status: an update that skips the package's
   # postinstall script exits 0 and leaves the shim with no binary behind it.
   if ! higgsfield_cli_ok; then
     warn "Higgsfield CLI does not answer after the update — run: npm install -g --allow-scripts=@higgsfield/cli @higgsfield/cli"
-  elif [ "$HF_NPM_OK" = true ]; then
+  elif [ "$HF_NPM" = ok ]; then
     ok "Higgsfield CLI updated (${HF_VER:-latest})"
+  elif [ "$HF_NPM" = skipped ]; then
+    info "Higgsfield CLI was not installed through npm — left to its own updater"
   else
     warn "Higgsfield CLI update failed — existing binary kept"
   fi
