@@ -22,7 +22,7 @@
 #   emil-design-eng   — single symlink → skills-external/emil-design-eng
 #   darwin-skill      — single symlink → ~/.agents/skills/darwin-skill
 #   21st              — 21st.dev skill pack (needs the `21st` CLI + login)
-#   higgsfield        — Higgsfield media pack (needs the `higgsfield` CLI)
+#   higgsfield        — Higgsfield media pack (needs the CLI + login)
 #   higgsfield-websites — single skill, landing-page aid (named ask only)
 #   observability-and-instrumentation, deprecation-and-migration,
 #   ci-cd-and-automation — the agent-skills trio, same single-symlink shape
