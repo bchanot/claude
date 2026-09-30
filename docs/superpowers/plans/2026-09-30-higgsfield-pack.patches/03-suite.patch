@@ -1,31 +1,10 @@
 --- a/lib/tests/higgsfield.test.sh
 +++ b/lib/tests/higgsfield.test.sh
-@@ -110,5 +110,150 @@
- expect entries   "$(entries "$EXT")" 3
- verdict SYNC_FAIL_KEEPS_COPY
+@@ -164,5 +164,153 @@
+ expect no-timeout  "$(probe "$BIN:$CLEAN" higgsfield_cli_ok)" "rc=0"
+ verdict PROBES_SILENT
  
 +# ── toggle ──────────────────────────────────────────────────
-+BIN="$WORK/bin"; mkdir -p "$BIN"
-+cat > "$BIN/higgsfield" <<'EOF'
-+#!/usr/bin/env bash
-+# Fake CLI: `auth token` answers per $FAKE_HF_SESSION (in | out).
-+[ "${1:-} ${2:-}" = "auth token" ] || exit 64
-+if [ "${FAKE_HF_SESSION:-in}" = in ]; then echo "fixture-token"; exit 0; fi
-+echo "Error: Not authenticated." >&2; exit 2
-+EOF
-+cat > "$BIN/21st" <<'EOF'
-+#!/usr/bin/env bash
-+[ "${1:-}" = whoami ] && echo "Logged in as fixture (saved in fixture)."
-+EOF
-+chmod +x "$BIN/higgsfield" "$BIN/21st"
-+
-+# Precondition, loud: the CLI-absent case runs on a sanitized PATH that must
-+# not resolve a real `higgsfield`.
-+if PATH=/usr/bin:/bin command -v higgsfield >/dev/null 2>&1; then
-+  echo "FAIL precondition: a system-wide higgsfield resolves on /usr/bin:/bin"
-+  exit 1
-+fi
-+
 +# mk_toggle_fx <dir> [skill...] — fixture repo: the toggle script plus one
 +# skills-external source per named skill (none → installed-nothing tree).
 +mk_toggle_fx() {
@@ -37,7 +16,7 @@
 +    echo "---" > "$fx/skills-external/$s/SKILL.md"
 +  done
 +}
-+PACK=(higgsfield-alpha higgsfield-beta higgsfield-websites)
++PACK=(higgsfield-generate higgsfield-soul-id higgsfield-websites)
 +
 +# tog <fixture> <args...> — run the fixture's toggle script, fake CLIs first.
 +tog() {
@@ -54,7 +33,7 @@
 +expect web-missing   "$(tog "$F0" status higgsfield-websites)" missing
 +expect pack-disabled "$(tog "$F1" status higgsfield)" disabled
 +expect web-disabled  "$(tog "$F1" status higgsfield-websites)" disabled
-+ln -s "$F1/skills-external/higgsfield-alpha" "$F1/skills/higgsfield-alpha"
++ln -s "$F1/skills-external/higgsfield-generate" "$F1/skills/higgsfield-generate"
 +expect pack-partial  "$(tog "$F1" status higgsfield)" enabled
 +expect web-apart     "$(tog "$F1" status higgsfield-websites)" disabled
 +expect list-pack     "$(list_row "$F1" higgsfield)" enabled
@@ -64,10 +43,10 @@
 +F2="$WORK/f2"; mk_toggle_fx "$F2" "${PACK[@]}"
 +out="$(tog "$F2" enable higgsfield)"; rc=$?
 +expect rc "$rc" 0
-+expect alpha "$(readlink "$F2/skills/higgsfield-alpha")" \
-+  "$F2/skills-external/higgsfield-alpha"
-+expect beta "$(readlink "$F2/skills/higgsfield-beta")" \
-+  "$F2/skills-external/higgsfield-beta"
++expect generate "$(readlink "$F2/skills/higgsfield-generate")" \
++  "$F2/skills-external/higgsfield-generate"
++expect soul-id "$(readlink "$F2/skills/higgsfield-soul-id")" \
++  "$F2/skills-external/higgsfield-soul-id"
 +expect no-websites "$(yn test -e "$F2/skills/higgsfield-websites")" no
 +expect_has count "$out" "higgsfield enabled (2 skills: 0 restored, 2 linked)"
 +out="$(tog "$F2" enable higgsfield)"; rc=$?
@@ -75,14 +54,33 @@
 +expect_has again "$out" "higgsfield already enabled"
 +verdict ENABLE_PACK_EXCLUDES_WEBSITES
 +
++# The media pack is an allowlist: a synced skill nobody listed is reported,
++# never linked; neither is a listed name whose directory holds no SKILL.md.
++F8="$WORK/f8"; mk_toggle_fx "$F8" "${PACK[@]}" higgsfield-newcomer
++mkdir -p "$F8/skills-external/higgsfield-brandkit" \
++  "$F8/skills-external/higgsfield-noskill"
++out="$(tog "$F8" enable higgsfield)"; rc=$?
++expect rc "$rc" 0
++expect_has count "$out" "higgsfield enabled (2 skills: 0 restored, 2 linked)"
++expect newcomer-off "$(yn test -e "$F8/skills/higgsfield-newcomer")" no
++expect brandkit-off "$(yn test -e "$F8/skills/higgsfield-brandkit")" no
++expect_has reported "$out" "higgsfield-newcomer"
++expect_not noskill-quiet "$out" "higgsfield-noskill"
++expect links "$(entries "$F8/skills")" 2
++verdict UNLISTED_NOT_LINKED
++
 +F3="$WORK/f3"; mk_toggle_fx "$F3" "${PACK[@]}"
 +out="$(tog "$F3" enable higgsfield-websites)"; rc=$?
 +expect rc "$rc" 0
 +expect link "$(readlink "$F3/skills/higgsfield-websites")" \
 +  "$F3/skills-external/higgsfield-websites"
-+expect no-alpha    "$(yn test -e "$F3/skills/higgsfield-alpha")" no
++expect no-generate "$(yn test -e "$F3/skills/higgsfield-generate")" no
 +expect pack-status "$(tog "$F3" status higgsfield)" disabled
 +expect web-status  "$(tog "$F3" status higgsfield-websites)" enabled
++tog "$F3" disable higgsfield-websites >/dev/null
++out="$(FAKE_HF_SESSION=out tog "$F3" enable higgsfield-websites)"; rc=$?
++expect hint-rc "$rc" 0
++expect_has web-hint "$out" "higgsfield auth login"
 +verdict ENABLE_WEBSITES_ALONE
 +
 +# Continues on F2: the pack is enabled, websites is not.
@@ -90,8 +88,8 @@
 +out="$(tog "$F2" disable higgsfield)"; rc=$?
 +expect rc "$rc" 0
 +expect_has msg "$out" "higgsfield disabled (2 skills parked)"
-+expect parked        "$(yn test -L "$F2/skills-disabled/higgsfield-alpha")" yes
-+expect unlinked      "$(yn test -e "$F2/skills/higgsfield-alpha")" no
++expect parked "$(yn test -L "$F2/skills-disabled/higgsfield-generate")" yes
++expect unlinked      "$(yn test -e "$F2/skills/higgsfield-generate")" no
 +expect web-untouched "$(yn test -e "$F2/skills/higgsfield-websites")" yes
 +out="$(tog "$F2" enable higgsfield)"
 +expect_has restored "$out" "2 restored, 0 linked"
@@ -103,18 +101,23 @@
 +F4="$WORK/f4"; mk_toggle_fx "$F4" "${PACK[@]}"
 +out="$(FAKE_HF_SESSION=out tog "$F4" enable higgsfield)"; rc=$?
 +expect out-rc "$rc" 0
-+expect out-linked "$(yn test -e "$F4/skills/higgsfield-alpha")" yes
++expect out-linked "$(yn test -e "$F4/skills/higgsfield-generate")" yes
 +expect_has out-hint "$out" "higgsfield auth login"
 +F5="$WORK/f5"; mk_toggle_fx "$F5" "${PACK[@]}"
 +out="$(FAKE_HF_SESSION=in tog "$F5" enable higgsfield)"
 +expect_not in-quiet "$out" "auth login"
 +expect_not in-no-token "$out" "fixture-token"
 +F6="$WORK/f6"; mk_toggle_fx "$F6" "${PACK[@]}"
-+out="$(TOGGLE_EXTERNAL_REPO_OVERRIDE="$F6" PATH=/usr/bin:/bin \
++out="$(TOGGLE_EXTERNAL_REPO_OVERRIDE="$F6" PATH="$CLEAN" \
 +  bash "$F6/lib/toggle-external.sh" enable higgsfield 2>&1)"; rc=$?
 +expect absent-rc "$rc" 0
-+expect absent-linked "$(yn test -e "$F6/skills/higgsfield-alpha")" yes
++expect absent-linked "$(yn test -e "$F6/skills/higgsfield-generate")" yes
 +expect_has absent-hint "$out" "not on PATH"
++F9="$WORK/f9"; mk_toggle_fx "$F9" "${PACK[@]}"
++out="$(FAKE_HF_BINARY=missing tog "$F9" enable higgsfield)"; rc=$?
++expect shim-rc "$rc" 0
++expect_has shim-hint "$out" "does not answer"
++expect_not shim-not-login "$out" "auth login"
 +verdict SIGNED_OUT_WARNS
 +
 +out="$(tog "$F0" enable higgsfield)"; rc=$?
@@ -141,7 +144,7 @@
 +count() { grep -cF -- "$2" "$ROOT/$1"; }
 +
 +# Positive control first: the pattern does bite on a line that carries it.
-+expect control    "$(echo 'higgsfield-alpha external' | grep -cF higgsfield)" 1
++expect control    "$(echo 'higgsfield-x external' | grep -cF higgsfield)" 1
 +expect link-sh    "$(count link.sh higgsfield)" 0
 +expect profile-sh "$(count lib/profile.sh higgsfield)" 0
 +expect profiles \

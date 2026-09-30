@@ -1,17 +1,15 @@
 --- a/CLAUDE.global.md
 +++ b/CLAUDE.global.md
-@@ -266,6 +266,14 @@
+@@ -266,6 +266,12 @@
    verification-before-completion → the verifier gates
  - SEO+GEO → seo (GEO only → geo); W3C + WCAG a11y → web-validate;
    security audit (secrets, CVE, OWASP) → cso
 +- Media generation (image, video, audio, brand kit), explicit ask →
 +  Higgsfield pack, off by default: `bash ~/.claude/lib/toggle-external.sh
-+  enable higgsfield`, then its skill (not listed yet → Read its SKILL.md
-+  under `~/.claude/skills/`). Metered: `higgsfield generate cost` before
-+  a paid run. Landing page "with Higgsfield", named ask only → `enable
-+  higgsfield-websites` as an aid (assets, references) inside the Design
-+  work stack and the site rules above; never `higgsfield website
-+  create|deploy|publish`.
++  enable higgsfield`, then Read the skill under `~/.claude/skills/`;
++  `higgsfield generate cost` before a paid run. Landing page "with
++  Higgsfield", named ask → `enable higgsfield-websites`: an aid inside
++  Design work and the site rules, never `website create|deploy|publish`.
  gstack OFF → its skills (investigate, qa, review, health, retro,
  office-hours…) are gone: use the fallback above, else say so.
  

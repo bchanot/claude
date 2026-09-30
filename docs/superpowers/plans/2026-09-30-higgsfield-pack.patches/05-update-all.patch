@@ -1,6 +1,6 @@
 --- a/update-all.sh
 +++ b/update-all.sh
-@@ -465,6 +465,41 @@
+@@ -465,6 +465,45 @@
    fi
  fi
  
@@ -14,6 +14,8 @@
 +if ! command -v higgsfield &>/dev/null; then
 +  info "Higgsfield CLI not installed — skipping (run: make plugin)"
 +else
++  # shellcheck source=lib/higgsfield-skills.sh disable=SC1091
++  source "$REPO/lib/higgsfield-skills.sh"
 +  HF_VER=""
 +  if [ -f "$REPO/plugins.lock.json" ] && command -v python3 &>/dev/null; then
 +    HF_VER=$(python3 -c "
@@ -24,14 +26,16 @@
 +" 2>/dev/null || true)
 +  fi
 +  HF_PKG="@higgsfield/cli@latest"
-+  [ -n "$HF_VER" ] && [ "$HF_VER" != "latest" ] && HF_PKG="@higgsfield/cli@${HF_VER}"
-+  if npm install -g "$HF_PKG" 2>/dev/null; then
++  [ -n "$HF_VER" ] && [ "$HF_VER" != "latest" ] \
++    && HF_PKG="@higgsfield/cli@${HF_VER}"
++  npm install -g "$HF_PKG" 2>/dev/null || true
++  # The probe, not npm's exit status: an update that skips the package's
++  # postinstall script leaves the shim on PATH with no binary behind it.
++  if higgsfield_cli_ok; then
 +    ok "Higgsfield CLI updated (${HF_VER:-latest})"
 +  else
-+    warn "Higgsfield CLI update failed — existing binary kept"
++    warn "Higgsfield CLI does not answer after the update — run: npm install -g --allow-scripts=@higgsfield/cli @higgsfield/cli"
 +  fi
-+  # shellcheck source=lib/higgsfield-skills.sh disable=SC1091
-+  source "$REPO/lib/higgsfield-skills.sh"
 +  if HF_N=$(higgsfield_sync_skills "$REPO"); then
 +    ok "Higgsfield skill pack refreshed ($HF_N skills)"
 +  else

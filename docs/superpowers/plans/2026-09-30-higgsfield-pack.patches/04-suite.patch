@@ -1,6 +1,6 @@
 --- a/lib/tests/higgsfield.test.sh
 +++ b/lib/tests/higgsfield.test.sh
-@@ -255,5 +255,29 @@
+@@ -312,5 +312,29 @@
  expect pins-map   "$(count lib/effort-pins.txt higgsfield)" 0
  verdict OFF_BY_DEFAULT_WIRING
  
@@ -11,7 +11,8 @@
 +PINS='apply_effort_pins "$REPO"'
 +
 +# install-plugins.sh: the sync sits in Step 8.6, before the effort pins
-+# (BDR-108), and every login offer tests stdin alone (stdout is the tee pipe).
++# (BDR-108); the CLI is proven by a probe, not by its shim; every login
++# offer tests stdin alone (stdout is the tee pipe).
 +sync_ln="$(ln_last install-plugins.sh 'higgsfield_sync_skills')"
 +expect after-8.5 "$(yn test "$sync_ln" -gt \
 +  "$(ln_first install-plugins.sh 'Step 8.5: External skills')")" yes
@@ -19,13 +20,12 @@
 +  "$(ln_first install-plugins.sh 'Step 8.7: 21st.dev')")" yes
 +expect before-pins "$(yn test "$sync_ln" -lt \
 +  "$(ln_last install-plugins.sh "$PINS")")" yes
++expect probe-gates \
++  "$(yn test "$(count install-plugins.sh 'if higgsfield_cli_ok')" -ge 3)" yes
 +expect control "$(echo 'if [ -t 0 ] && [ -t 1 ]; then' | grep -cF -- '-t 1')" 1
 +expect no-stdout-test "$(count install-plugins.sh '-t 1')" 0
 +expect stdin-tests \
 +  "$(yn test "$(count install-plugins.sh '[ -t 0 ]')" -ge 3)" yes
-+expect summary "$(sed -n '/Install Summary/,$p' "$ROOT/install-plugins.sh" \
-+  | grep -cF 'enable higgsfield')" 1
-+expect remedy "$(count install-plugins.sh '--allow-scripts=')" 1
 +verdict INSTALL_WIRING
 +
  # ── tally ───────────────────────────────────────────────────

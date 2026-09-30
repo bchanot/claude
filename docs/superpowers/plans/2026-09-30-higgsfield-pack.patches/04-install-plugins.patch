@@ -18,7 +18,7 @@
        # Interactive terminal: offer to log in now (opens a browser).
        printf '%b' "${BLUE}→${NC} Authenticate ctx7 now for higher rate limits? [y/N] "
        read -r ctx7_ans || ctx7_ans=""
-@@ -991,6 +993,78 @@
+@@ -991,6 +993,76 @@
  echo ""
  
  # ============================================================
@@ -40,34 +40,32 @@
 +# shellcheck source=lib/higgsfield-skills.sh disable=SC1091
 +source "$REPO/lib/higgsfield-skills.sh"
 +HF_PKG="@higgsfield/cli"
-+if command -v higgsfield &>/dev/null; then
++# The package vendors its binary in a postinstall script that npm may hold
++# back; this form lets that one script run.
++HF_REMEDY="npm install -g --allow-scripts=${HF_PKG} ${HF_PKG}"
++
++# higgsfield_cli_ok, not `command -v`: the npm shim can sit on PATH with no
++# binary behind it, and only a probe tells the two apart.
++if higgsfield_cli_ok; then
 +  ok "Higgsfield CLI already installed"
 +else
 +  HF_VER=$(pinned_version "higgsfield")
-+  if [ "$HF_VER" != "latest" ]; then
-+    info "Installing ${HF_PKG}@${HF_VER} (pinned in plugins.lock.json)..."
-+    npm install -g "${HF_PKG}@${HF_VER}" || true
-+  else
-+    info "Installing ${HF_PKG}@latest (consider pinning in plugins.lock.json)..."
-+    npm install -g "$HF_PKG" || true
-+  fi
-+  # The package vendors its binary in a postinstall script: `version` proves
-+  # the binary landed, `command -v` alone only proves the JS shim.
-+  if higgsfield version &>/dev/null; then
++  [ "$HF_VER" = "latest" ] || HF_PKG="${HF_PKG}@${HF_VER}"
++  info "Installing ${HF_PKG} (version from plugins.lock.json: ${HF_VER})..."
++  npm install -g "$HF_PKG" || true
++  if higgsfield_cli_ok; then
 +    ok "Higgsfield CLI installed"
 +  else
-+    err "Higgsfield CLI install failed — run manually: npm install -g --allow-scripts=${HF_PKG} ${HF_PKG}"
++    err "Higgsfield CLI install failed — run manually: $HF_REMEDY"
 +  fi
 +fi
 +
-+if command -v higgsfield &>/dev/null; then
++if higgsfield_cli_ok; then
 +  # Skill pack — cloned to a stage, then moved under skills-external/.
 +  if HF_N=$(higgsfield_sync_skills "$REPO"); then
 +    ok "Higgsfield skill pack synced to skills-external/ ($HF_N skills)"
-+  elif [ -f "$REPO/skills-external/higgsfield-generate/SKILL.md" ]; then
-+    ok "Higgsfield skill pack already present (refresh failed — existing copy kept)"
 +  else
-+    warn "Higgsfield skill pack sync failed — check: git clone $HIGGSFIELD_SKILLS_URL"
++    warn "Higgsfield skill pack sync failed — existing copies kept (check: git clone $HIGGSFIELD_SKILLS_URL)"
 +  fi
 +
 +  # Auth — offer the login only when stdin is a terminal: a non-interactive
@@ -97,7 +95,7 @@
  # STEP 8.7 — 21ST.DEV CLI + SKILL PACK
  # ============================================================
  # `@21st-dev/cli` (bin `21st`): one browser login (`21st login`, token in
-@@ -1065,13 +1139,13 @@
+@@ -1065,13 +1137,13 @@
  # Auth — detect, then offer login ONLY in an interactive TTY. A non-interactive
  # run (CI / headless / re-run) must never open a browser or block on OAuth.
  # Search and logo lookup are free; retrieving component code and 21st AI need
@@ -113,7 +111,7 @@
      printf '%b' "${BLUE}→${NC} Sign in to 21st now? (opens a browser) [y/N] "
      read -r tfd_ans || tfd_ans=""
      if [[ "$tfd_ans" =~ ^[Yy]([Ee][Ss])?$ ]]; then
-@@ -1236,6 +1310,7 @@
+@@ -1236,6 +1308,7 @@
  echo "    🔄 mengto scroll skills — scroll-world-storytelling, build-threejs-scroll-worlds, scroll-scrubbed-visual-sequence, scroll-scrubbed-word-reveal, scroll-progress-timeline (curl → symlink, pinned commit)"
  echo "    🔄 darwin-skill        — autonomous skill optimizer (npx skills, ~/.agents/skills/)"
  echo "    🔄 21st skill pack     — 21st.dev CLI skills; design ones follow the profile (full by default), publishing ones on demand (toggle: lib/toggle-external.sh enable 21st)"
