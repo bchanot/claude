@@ -1,5 +1,16 @@
 # TODO
 
+## 2026-09-30 — Higgsfield pack: CLI + skills in the install process, off by default (feature/higgsfield-pack)
+Contract `.claude/tasks/contracts/2026-09-30-higgsfield-pack-1412.md`, spec + plan under
+`docs/superpowers/` (transient). Approved 2026-09-30: toggle pack off by default, two toggles,
+routing lines, complete scope, TTY fix on ctx7 + 21st (option A), deny aliases.
+- [x] /ship-feature run: 9 plan tasks, fix wave after the final review, doc sync, registries ([[BDR-109]])
+- [ ] parked (final review, rulings in BDR-109): remedy line ignores a pinned lock version (latent while `latest`); Step 8.6 spawns `higgsfield version` up to 3 times; rollback needs `npm uninstall -g @higgsfield/cli` + session removal + hand removal of `skills-external/higgsfield-*`
+- [ ] parked (per-task minors, none blocking): "rename" comment vs rm-then-mv; no `--` before the clone URL; ssh URL can prompt; no sweep of a stale `.higgsfield-stage.*`; timeout path itself untested; "pack not installed" when only unlisted skills are synced; doctor version read unbounded
+- [ ] user decision: close the remaining npm global-install spellings in settings.json deny (`npm i <pkg> -g`, `npm add -g`, `npm -g i`) — pattern grammar for a mid-string wildcard unverified ([[BLK-025]])
+- [ ] user decision: pin a commit for higgsfield-ai/skills and a version for `@higgsfield/cli` (security gate, 2 MEDIUM, accepted as is)
+- feature/higgsfield-pack UNMERGED — human gate ("merge it")
+
 ## 2026-09-29 — effort round: every skill carries a level next to its model pin (feature/effort-round)
 User table: low fix-a-line/run-a-script · medium day-to-day · high refactor/resisting bug ·
 xhigh architecture/audit before validation · max stuck. Approved 2026-09-29: design stack

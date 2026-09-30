@@ -25,6 +25,11 @@
     "version": "latest",
     "note": "21st.dev CLI (bin `21st`) — standalone CLI + a pack of 7 skills, no MCP, no API key: auth is `21st login` (browser token in ~/.config/21st). Install: npm install -g @21st-dev/cli. The skill pack is staged-installed into skills-external/21st-* by install-plugins.sh Step 8.7 — `21st skills install` refuses to write through the ~/.claude/skills symlink."
   },
+  "higgsfield": {
+    "source": "npm:@higgsfield/cli",
+    "version": "latest",
+    "note": "Higgsfield CLI (bins `higgsfield`, `higgs`) — image, video, audio and brand media generation, metered credits; auth is `higgsfield auth login` (browser). Install: npm install -g @higgsfield/cli. The package vendors its binary in a postinstall script; if npm holds it back, add --allow-scripts=@higgsfield/cli. The upstream skills are git-cloned from https://github.com/higgsfield-ai/skills (tracks main, no pin) into skills-external/higgsfield-* by lib/higgsfield-skills.sh (install-plugins.sh Step 8.6, refreshed by update-all.sh); a skill upstream removes keeps its last local copy. OFF by default and in no profile: `lib/toggle-external.sh enable higgsfield` links the 7 allowlisted media skills (HIGGSFIELD_MEDIA_SKILLS), `enable higgsfield-websites` the landing-page aid."
+  },
   "graphifyy": {
     "source": "pypi:graphifyy",
     "version": "latest",

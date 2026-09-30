@@ -348,6 +348,61 @@ under `defaultMode: auto` (this config's default) `ask` rules were observed
 auto-approving with no prompt raised (LRN-153), so an `ask` entry would have
 declared an intent without gating anything.
 
+### Higgsfield CLI
+
+`@higgsfield/cli` (bins `higgsfield` and `higgs`) generates images, video,
+audio and brand media from the terminal. One browser login, no API key.
+Generation spends account credits.
+
+```bash
+npm i -g @higgsfield/cli
+higgsfield auth login       # browser flow
+```
+
+`make plugin` does both (Step 8.6 installs the CLI, then offers the login in
+an interactive terminal) and clones the skills of
+[higgsfield-ai/skills](https://github.com/higgsfield-ai/skills) into
+`skills-external/higgsfield-*`. `make update` refreshes the skills, and the
+CLI when npm installed it; `make doctor` reports the CLI and its session.
+The copies are machine-owned and gitignored. They follow upstream `main`,
+so a prompt change arrives with no diff to review, and a skill that
+upstream removes keeps its last local copy.
+
+The pack is off by default and belongs to no profile. It costs nothing until
+you ask for it, and no `profile set` touches it:
+
+```bash
+bash lib/toggle-external.sh enable higgsfield            # media skills
+bash lib/toggle-external.sh enable higgsfield-websites   # landing-page aid
+bash lib/toggle-external.sh disable higgsfield
+bash lib/toggle-external.sh disable higgsfield-websites
+```
+
+`higgsfield` links a fixed list of seven media skills: generate, soul-id,
+product-photoshoot, brandkit, marketplace-cards, video-explainer and
+youtube-thumbnail. The list is `HIGGSFIELD_MEDIA_SKILLS` in
+`lib/toggle-external.sh`. A skill that upstream adds later is synced, and
+every `enable higgsfield` names it, the pack being on or not. It stays
+unlinked until it is added to the list.
+
+`higgsfield-websites` is kept apart. It helps with landing pages inside the
+design stack (assets, references), and `higgsfield website
+create|deploy|publish` stays unused. Claude enables either toggle itself on
+an explicit ask (Skill routing in `CLAUDE.global.md`) and checks the price
+with `higgsfield generate cost` before a paid run.
+
+The skills are cloned, not installed with `npx skills add`: that installer
+links every skill into `~/.claude/skills` on each refresh, which would undo
+the off-by-default state.
+
+After the first login, select a workspace once: `higgsfield workspace list`,
+then `higgsfield workspace set <id>`. Until then the account commands answer
+"No workspace selected", even though the session is active.
+
+The package ships its binary through a postinstall script. If npm holds that
+script back, `higgsfield` exists on PATH and fails at once; reinstall with
+`npm install -g --allow-scripts=@higgsfield/cli @higgsfield/cli`.
+
 ---
 
 ## Diagnostic and maintenance

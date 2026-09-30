@@ -202,6 +202,12 @@ rules:
 | LRN-180 | 2026-09-28 | Skill-tool effort override needs a paired tool call: a lone Skill(effort-*) call is a no-op; a load in the same message as another tool call applies (the paired call already sees it); re-load re-applies (text deduped); skills Claude loads alone (brainstorming, writing-plans) apply nothing | every orchestrator shift; amends LRN-179 |
 | LRN-181 | 2026-09-29 | Stacked skills share ONE effort level: skill `effort:` = last loaded wins, so a stack loaded in one build (design toolchain) with two levels gets an effort that depends on load order; a skill Claude loads alone applies nothing (LRN-180) | one level per stack in `lib/effort-pins.txt`; load the stack paired with the first Read; copy the stack level when vendoring a new design skill |
 | LRN-182 | 2026-09-29 | Effort/thinking baselines are generation-bound and aliases move silently: `sonnet` resolved sonnet-5 then sonnet-5-5 mid-period, Sonnet 5.5 recalibrated its effort levels; EVAL-036 measured one generation | re-run `lib/effort-audit.py` after an alias moves; cite the generation in any effort measurement; never pin a version for it (older gen never cheaper) |
+| LRN-183 | 2026-09-30 | npm CLI that vendors its binary in a postinstall script: `command -v` proves the JS shim only; npm can hold the script back at install AND at any update | any installer/doctor/toggle check of such a CLI → probe a real subcommand |
+| LRN-184 | 2026-09-30 | Pack membership on an unpinned upstream = explicit allowlist, never "all except X": a renamed or added upstream item would be linked with no review | toggles / vendoring of any upstream tracked at main |
+| LRN-185 | 2026-09-30 | Under `exec > >(tee)` stdout is a pipe: `[ -t 1 ]` is always false; interactive offers must test stdin alone | any installer that logs through tee |
+| LRN-186 | 2026-09-30 | `GIT_TERMINAL_PROMPT=0` does not stop credential prompts: editor terminals export `GIT_ASKPASS`; empty `GIT_ASKPASS` short-circuits core.askPass + SSH_ASKPASS | unattended `git clone` of a repo that may vanish or go private |
+| LRN-187 | 2026-09-30 | Vacuous fixtures: git drops empty dirs; a symlink to a surviving target is needed to test a symlink guard; a multi-call coreutils binary (uutils) dispatches on argv[0], so a renamed symlink fails | hermetic bash suites building git or PATH fixtures |
+| LRN-188 | 2026-09-30 | Contract oracle tied to code shape (`grep -A6` line window) breaks on the first refactor while the property still holds; assert the property over the whole unit | writing CHECK oracles |
 
 ---
 
@@ -1660,3 +1666,27 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 ## LRN-182 — Effort baselines are generation-bound; model aliases move silently
 - **Context**: transcripts of the last weeks show `sonnet` → claude-sonnet-5 (3069 msgs) then claude-sonnet-5-5 (recent), `opus` → opus-5 then opus-5-5, `fable` → fable-5 then fable-5-1. API reference: Sonnet 5.5 recalibrated effort levels ("start at medium for agentic coding"). [[EVAL-036]] A/B ran on one generation.
 - **Apply**: after an alias moves (new model in a tier) re-run `python3 lib/effort-audit.py` and re-read the pins; write the generation next to any effort figure; keep aliases (latest = cheapest or same price, never pin a version for a measurement). [[BDR-108]]
+
+## LRN-183 — npm CLI with a vendored binary: probe it, `command -v` proves only the shim
+- **Context**: `@higgsfield/cli` ships `bin/*.js` + `postinstall: node install.js` that downloads `vendor/hf`. npm 11.19 prints "install scripts not yet covered by allowScripts" and may hold the script back (`ignore-scripts`, `allow-scripts` policy), at first install and at any `npm install -g` update. Shim then exits 1 "binary not found". First plan gated on `command -v higgsfield`: installer said "already installed", doctor passed, toggle blamed the session. Three challenge lenses flagged it.
+- **Apply**: presence check = a real subcommand (`<cli> version`), silent, bounded, used in install gate, after every update, doctor, toggle hints; remedy line names `npm install -g --allow-scripts=<pkg> <pkg>`. [[BDR-109]]
+
+## LRN-184 — Pack membership on an unpinned upstream: allowlist, never "all except X"
+- **Context**: first `higgsfield_skills()` globbed `skills-external/higgsfield-*` minus `higgsfield-websites`. Upstream tracks main: a renamed `higgsfield-website` or a new deploy skill would be linked by the next `enable higgsfield`, which the routing line runs on every media ask. Breaks "websites on named ask only" and the house rule allowlist over denylist.
+- **Apply**: `HIGGSFIELD_MEDIA_SKILLS` array; unlisted synced skills reported by `pack_hints`, never linked; hints run on the already-enabled path too, else drift is silent in the steady state (final review finding). Same shape for any future pack tracked at main. [[BDR-109]]
+
+## LRN-185 — `[ -t 1 ]` is dead under `exec > >(tee)`: interactive offers test stdin alone
+- **Context**: install-plugins.sh:22 `exec > >(tee -a "$LOG_FILE") 2>&1`. ctx7 (Step 6) and 21st (Step 8.7) login offers required `[ -t 0 ] && [ -t 1 ]` → never shown in a normal run since they were written; install logs always took the "not signed in" branch. Found by the read-before analyzer. update-all.sh:75 already tested stdin alone.
+- **Apply**: in a script that redirects stdout to a pipe, gate prompts on `[ -t 0 ]`; lock it (`INSTALL_WIRING`: no `-t 1`, ≥3 `[ -t 0 ]`, positive control). [[BDR-109]]
+
+## LRN-186 — `GIT_TERMINAL_PROMPT=0` alone does not stop a credential prompt
+- **Context**: confirmation challenger: git asks GIT_ASKPASS → core.askPass → SSH_ASKPASS → terminal; the env var disables only the last. VS Code terminals export `GIT_ASKPASS=…/askpass.sh` → clone of a deleted/private GitHub repo opens an input box, installer hangs. Tried live against a missing repo: `GIT_TERMINAL_PROMPT=0 GIT_ASKPASS='' SSH_ASKPASS='' git -c credential.helper= -c core.askPass= clone … </dev/null` → rc 128 in 0 s.
+- **Apply**: every unattended clone in an installer uses that full form; an empty `GIT_ASKPASS` short-circuits the two later askpass sources. Hermetic suites cannot see it (local path clone, `GIT_CONFIG_GLOBAL=/dev/null`): one live try. [[BDR-109]]
+
+## LRN-187 — Vacuous bash fixtures: empty dirs, symlink targets, multi-call binaries
+- **Context**: three fixture traps in `lib/tests/higgsfield.test.sh`. (1) `mkdir higgsfield-empty` then `git add -A`: git tracks no empty dir, the clone never held it, `no-empty` passed by construction. (2) symlink `higgsfield-linked → higgsfield-generate`: target moved first, link dangled, guard never exercised; mutation test stayed green. (3) `ln -s $(command -v timeout) gtimeout` → rc 1: `/usr/bin/timeout` is uutils coreutils, dispatches on argv[0].
+- **Apply**: put a file in any dir a git fixture must carry; point a symlink fixture at a target that survives; alias a tool with a wrapper script, never a symlink; mutation-test each guard before trusting green. [[LRN-172]], [[BDR-109]]
+
+## LRN-188 — A CHECK oracle tied to code shape breaks on refactor; assert the property
+- **Context**: contract criterion 5 used `grep -A6 '^_higgsfield_probe()' | grep -c '</dev/null …' | grep -qx 2`. The gtimeout fallback reshaped the function into a loop: second redirect moved past the 6-line window → GATE 0 UNMET on correct code. Rewritten: extract the body `awk '/^fn\(\)/,/^}/'`, require the redirect on EVERY invocation line, control = strip redirects → differs. Orchestrator edited its own oracle outside a human gate, logged in the contract, surfaced to the user, fresh verifier judged it stricter.
+- **Apply**: oracles state a property over the whole unit (function body, section range), never a line window or an exact count of incidental lines; any oracle edit after a gate is logged + surfaced. [[LRN-093]], [[BDR-109]]

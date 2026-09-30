@@ -8,7 +8,8 @@
 # as symlinks inside skills/. This script moves those symlinks
 # to/from skills-disabled/ so Claude Code stops/starts scanning them.
 #
-# A multi-skill pack (gstack, 21st) toggles all of its skills at once.
+# A multi-skill pack (gstack, 21st, higgsfield) toggles all of its skills
+# at once.
 #
 # Usage:
 #   toggle-external.sh list
@@ -21,6 +22,8 @@
 #   emil-design-eng   — single symlink → skills-external/emil-design-eng
 #   darwin-skill      — single symlink → ~/.agents/skills/darwin-skill
 #   21st              — 21st.dev skill pack (needs the `21st` CLI + login)
+#   higgsfield        — Higgsfield media pack (needs the CLI + login)
+#   higgsfield-websites — single skill, landing-page aid (named ask only)
 #   observability-and-instrumentation, deprecation-and-migration,
 #   ci-cd-and-automation — the agent-skills trio, same single-symlink shape
 #   as emil-design-eng (commit-pinned instead of main-branch tracking)
@@ -52,7 +55,8 @@ warn() { echo -e "${YELLOW}⚠${NC}  $1"; }
 err()  { echo -e "${RED}✗${NC} $1"; }
 
 # All non-plugin tools this script can toggle.
-MANAGED_TOOLS=(gstack emil-design-eng darwin-skill 21st
+MANAGED_TOOLS=(gstack emil-design-eng darwin-skill 21st higgsfield
+  higgsfield-websites
   observability-and-instrumentation deprecation-and-migration ci-cd-and-automation
   scroll-world-storytelling build-threejs-scroll-worlds
   scroll-scrubbed-visual-sequence scroll-scrubbed-word-reveal
@@ -67,6 +71,91 @@ twentyfirst_skills() {
     [ -f "${d}SKILL.md" ] || continue
     basename "$d"
   done
+}
+
+# Media skills of the "higgsfield" pack: an explicit allowlist. Upstream is
+# unpinned, so a skill it adds or renames must never be linked by
+# `enable higgsfield` without an edit here (default deny).
+# higgsfield-websites is its own tool: landing-page aid, named ask only.
+HIGGSFIELD_MEDIA_SKILLS=(higgsfield-generate higgsfield-soul-id
+  higgsfield-product-photoshoot higgsfield-brandkit
+  higgsfield-marketplace-cards higgsfield-video-explainer
+  higgsfield-youtube-thumbnail)
+
+# Prints the allowlisted media skills synced under skills-external/.
+higgsfield_skills() {
+  local name
+  for name in "${HIGGSFIELD_MEDIA_SKILLS[@]}"; do
+    [ -f "$REPO/skills-external/$name/SKILL.md" ] && echo "$name"
+  done
+  return 0
+}
+
+# Prints the synced higgsfield-* skills no tool owns: neither on the media
+# allowlist nor higgsfield-websites. Upstream added or renamed something.
+higgsfield_unlisted() {
+  local d name
+  for d in "$REPO"/skills-external/higgsfield-*/; do
+    [ -f "${d}SKILL.md" ] || continue
+    name="$(basename "$d")"
+    case " ${HIGGSFIELD_MEDIA_SKILLS[*]} higgsfield-websites " in
+      *" $name "*) ;;
+      *) echo "$name" ;;
+    esac
+  done
+}
+
+# Prints the member skills of a multi-skill pack tool (21st, higgsfield).
+pack_skills() {
+  case "$1" in
+    21st)       twentyfirst_skills ;;
+    higgsfield) higgsfield_skills ;;
+  esac
+}
+
+# bounded <cmd...> — run a CLI probe silently, 15 s at most when a timeout
+# tool exists (`timeout`, or `gtimeout` from Homebrew coreutils on macOS):
+# a closed-source binary must never hang a toggle, and what it prints (a
+# token) must never reach the terminal. Twin of _higgsfield_probe in
+# lib/higgsfield-skills.sh, kept here because this script takes no extra
+# `source` (the fixture suites copy it alone).
+bounded() {
+  local tool
+  for tool in timeout gtimeout; do
+    if command -v "$tool" >/dev/null 2>&1; then
+      "$tool" 15 "$@" </dev/null >/dev/null 2>&1
+      return
+    fi
+  done
+  "$@" </dev/null >/dev/null 2>&1
+}
+
+# Post-enable notes for a pack. Its skills shell out to a CLI: without it
+# (or without a session) they can only report failure. Warn, never block:
+# the pack is still correctly wired and `make plugin` installs the CLI.
+pack_hints() {
+  local name
+  case "$1" in
+    21st)
+      if ! command -v 21st >/dev/null 2>&1; then
+        warn "the \`21st\` CLI is not on PATH — install it: npm i -g @21st-dev/cli"
+      elif ! 21st whoami 2>/dev/null | grep -q '^Logged in as '; then
+        warn "not signed in to 21st — component retrieval and 21st AI need: 21st login"
+      fi
+      ;;
+    higgsfield)
+      if ! command -v higgsfield >/dev/null 2>&1; then
+        warn "the \`higgsfield\` CLI is not on PATH — run: make plugin"
+      elif ! bounded higgsfield version; then
+        warn "the \`higgsfield\` CLI does not answer (npm shim without its binary) — run: make plugin"
+      elif ! bounded higgsfield auth token; then
+        warn "not signed in to Higgsfield — generation needs: higgsfield auth login"
+      fi
+      while read -r name; do
+        warn "$name is synced but on no allowlist, not linked — see HIGGSFIELD_MEDIA_SKILLS in lib/toggle-external.sh"
+      done < <(higgsfield_unlisted)
+      ;;
+  esac
 }
 
 # Prints the names (directory basenames) that belong to "gstack".
@@ -94,7 +183,7 @@ status_tool() {
       ;;
     emil-design-eng|observability-and-instrumentation|deprecation-and-migration|ci-cd-and-automation| \
     scroll-world-storytelling|build-threejs-scroll-worlds|scroll-scrubbed-visual-sequence| \
-    scroll-scrubbed-word-reveal|scroll-progress-timeline)
+    scroll-scrubbed-word-reveal|scroll-progress-timeline|higgsfield-websites)
       [ -d "$REPO/skills-external/$tool" ] || { echo "missing"; return; }
       [ -e "$SKILLS_DIR/$tool" ] && echo "enabled" || echo "disabled"
       ;;
@@ -102,12 +191,12 @@ status_tool() {
       [ -d "$HOME/.agents/skills/$tool" ] || { echo "missing"; return; }
       [ -e "$SKILLS_DIR/$tool" ] && echo "enabled" || echo "disabled"
       ;;
-    21st)
+    21st|higgsfield)
       local installed=0
       while read -r name; do
         installed=1
         [ -e "$SKILLS_DIR/$name" ] && { echo "enabled"; return; }
-      done < <(twentyfirst_skills)
+      done < <(pack_skills "$tool")
       [ "$installed" -eq 1 ] && echo "disabled" || echo "missing"
       ;;
     *)
@@ -135,7 +224,8 @@ disable_tool() {
       ;;
     emil-design-eng|darwin-skill|observability-and-instrumentation|deprecation-and-migration| \
     ci-cd-and-automation|scroll-world-storytelling|build-threejs-scroll-worlds| \
-    scroll-scrubbed-visual-sequence|scroll-scrubbed-word-reveal|scroll-progress-timeline)
+    scroll-scrubbed-visual-sequence|scroll-scrubbed-word-reveal|scroll-progress-timeline| \
+    higgsfield-websites)
       if [ -e "$SKILLS_DIR/$tool" ]; then
         rm -rf "${DISABLED_DIR:?}/${tool:?}"
         mv "$SKILLS_DIR/$tool" "$DISABLED_DIR/$tool"
@@ -144,7 +234,7 @@ disable_tool() {
         warn "$tool already disabled"
       fi
       ;;
-    21st)
+    21st|higgsfield)
       # Parked under the plain skill name — same convention as the other
       # externals, so profile.sh's park/restore path stays interoperable.
       local parked=0
@@ -153,11 +243,11 @@ disable_tool() {
         rm -rf "${DISABLED_DIR:?}/${name:?}"
         mv "$SKILLS_DIR/$name" "$DISABLED_DIR/$name"
         parked=$((parked + 1))
-      done < <(twentyfirst_skills)
+      done < <(pack_skills "$tool")
       if [ "$parked" -gt 0 ]; then
-        ok "21st disabled ($parked skills parked)"
+        ok "$tool disabled ($parked skills parked)"
       else
-        warn "21st already disabled"
+        warn "$tool already disabled"
       fi
       ;;
     *) err "Unknown tool: $tool"; return 1 ;;
@@ -194,7 +284,8 @@ enable_tool() {
       ;;
     emil-design-eng|darwin-skill|observability-and-instrumentation|deprecation-and-migration| \
     ci-cd-and-automation|scroll-world-storytelling|build-threejs-scroll-worlds| \
-    scroll-scrubbed-visual-sequence|scroll-scrubbed-word-reveal|scroll-progress-timeline)
+    scroll-scrubbed-visual-sequence|scroll-scrubbed-word-reveal|scroll-progress-timeline| \
+    higgsfield-websites)
       local src
       case "$tool" in
         darwin-skill) src="$HOME/.agents/skills/$tool" ;;
@@ -213,8 +304,9 @@ enable_tool() {
         err "$tool not installed at $src — run: make plugin"
         return 1
       fi
+      if [ "$tool" = "higgsfield-websites" ]; then pack_hints higgsfield; fi
       ;;
-    21st)
+    21st|higgsfield)
       local restored=0 linked=0
       while read -r name; do
         if [ -e "$DISABLED_DIR/$name" ]; then
@@ -227,24 +319,20 @@ enable_tool() {
           ln -sf "$REPO/skills-external/$name" "$SKILLS_DIR/$name"
           linked=$((linked + 1))
         fi
-      done < <(twentyfirst_skills)
+      done < <(pack_skills "$tool")
       if [ "$((restored + linked))" -eq 0 ]; then
-        if [ "$(status_tool 21st)" = "missing" ]; then
-          err "21st pack not installed in $REPO/skills-external — run: make plugin"
+        if [ "$(status_tool "$tool")" = "missing" ]; then
+          err "$tool pack not installed in $REPO/skills-external — run: make plugin"
           return 1
         fi
-        warn "21st already enabled"
+        warn "$tool already enabled"
+        # Enabled is the steady state, and Claude re-runs this on every
+        # media ask: the hints (upstream drift, CLI, session) show here too.
+        if [ "$tool" = "higgsfield" ]; then pack_hints higgsfield; fi
         return 0
       fi
-      ok "21st enabled ($((restored + linked)) skills: $restored restored, $linked linked)"
-      # The skills shell out to the CLI; without it (or without a session)
-      # they can only report failure. Warn, never block — the pack is still
-      # correctly wired and `make plugin` installs the CLI.
-      if ! command -v 21st >/dev/null 2>&1; then
-        warn "the \`21st\` CLI is not on PATH — install it: npm i -g @21st-dev/cli"
-      elif ! 21st whoami 2>/dev/null | grep -q '^Logged in as '; then
-        warn "not signed in to 21st — component retrieval and 21st AI need: 21st login"
-      fi
+      ok "$tool enabled ($((restored + linked)) skills: $restored restored, $linked linked)"
+      pack_hints "$tool"
       ;;
     *) err "Unknown tool: $tool"; return 1 ;;
   esac
@@ -259,7 +347,7 @@ list_all() {
 }
 
 usage() {
-  sed -n '3,23p' "$0" | sed 's/^# \?//'
+  sed -n '3,26p' "$0" | sed 's/^# \?//'
   exit "${1:-0}"
 }
 
