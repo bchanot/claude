@@ -9,14 +9,15 @@
  
  echo ""
  echo "═══ claude-config doctor (v${VERSION}) ═══"
-@@ -246,6 +248,22 @@
+@@ -246,6 +248,23 @@
    info "Graphifyy not installed (optional — codebase knowledge graph: pipx install graphifyy)"
  fi
  
 +# Higgsfield is optional and off by default: info level, never a warning.
 +# The probe, not `command -v`: the npm shim can outlive its binary.
 +if higgsfield_cli_ok; then
-+  HF_VERSION="$(higgsfield version 2>/dev/null | awk 'NR==1 {print $2}')"
++  HF_VERSION="$(higgsfield version </dev/null 2>/dev/null \
++    | awk 'NR==1 {print $2}' || true)"
 +  pass "Higgsfield CLI installed (${HF_VERSION:-version unknown})"
 +  if higgsfield_signed_in; then
 +    pass "Higgsfield session active"

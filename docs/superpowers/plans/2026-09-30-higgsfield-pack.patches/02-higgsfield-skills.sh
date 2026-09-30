@@ -45,9 +45,12 @@ higgsfield_sync_skills() {
   local dest="$1/skills-external" stage count=0
   mkdir -p "$dest" || return 1
   stage="$(mktemp -d "$dest/.higgsfield-stage.XXXXXX")" || return 1
-  # No credential prompt: a private or deleted upstream must fail, not hang.
-  if GIT_TERMINAL_PROMPT=0 git clone --quiet --depth 1 \
-      "$HIGGSFIELD_SKILLS_URL" "$stage/src" >/dev/null 2>&1; then
+  # No credential prompt of any kind: a private or deleted upstream must
+  # fail at once, not wait on a terminal, an askpass program (an editor's
+  # terminal exports one) or a credential helper.
+  if GIT_TERMINAL_PROMPT=0 GIT_ASKPASS='' SSH_ASKPASS='' \
+      git -c credential.helper= -c core.askPass= clone --quiet --depth 1 \
+      "$HIGGSFIELD_SKILLS_URL" "$stage/src" </dev/null >/dev/null 2>&1; then
     count="$(_higgsfield_adopt "$stage/src" "$dest")"
   fi
   rm -rf "${stage:?}"

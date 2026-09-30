@@ -1,18 +1,21 @@
 --- a/lib/tests/higgsfield.test.sh
 +++ b/lib/tests/higgsfield.test.sh
-@@ -336,5 +336,16 @@
+@@ -336,5 +336,19 @@
    "$(yn test "$(count install-plugins.sh '[ -t 0 ]')" -ge 3)" yes
  verdict INSTALL_WIRING
  
 +# update-all.sh: refresh before the 21st block and before the pins re-apply,
-+# and the updated CLI is proven by the probe.
++# and the updated CLI is proven by the probe, after the npm call.
++# shellcheck disable=SC2016  # a literal to grep for, not an expansion
++NPM_UP='npm install -g "$HF_PKG"'
 +sync_ln="$(ln_last update-all.sh 'higgsfield_sync_skills')"
 +expect before-21st "$(yn test "$sync_ln" -lt \
 +  "$(ln_first update-all.sh '7.4. Update the 21st.dev')")" yes
 +expect before-pins "$(yn test "$sync_ln" -lt \
 +  "$(ln_last update-all.sh "$PINS")")" yes
-+expect probe-after-npm \
-+  "$(yn test "$(count update-all.sh 'if higgsfield_cli_ok')" -ge 1)" yes
++expect probe-after-npm "$(yn test \
++  "$(ln_first update-all.sh 'higgsfield_cli_ok')" -gt \
++  "$(ln_last update-all.sh "$NPM_UP")")" yes
 +verdict UPDATE_WIRING
 +
  # ── tally ───────────────────────────────────────────────────

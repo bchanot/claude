@@ -16,7 +16,7 @@
 Every edit below was dry-run in a scratch copy, task by task, in order. The
 suite went 0/5 → 5/0 (Task 2), 6/8 → 14/0 (Task 3), 14/1 → 15/0 (Task 4),
 15/1 → 16/0 (Task 5); shellcheck is clean; each patch applies to the branch;
-three deliberate bugs injected in the scratch code turned the suite red. The
+four deliberate bugs injected in the scratch code turned the suite red. The hardened clone was tried against a missing GitHub repo from a VS Code terminal (askpass exported): it failed at once, with no prompt. The
 exact bytes live in `docs/superpowers/plans/2026-09-30-higgsfield-pack.patches/`. Each task shows its code inline for reading and
 names the file to apply. Apply the file, never a retyped copy.
 
@@ -47,7 +47,7 @@ moved), stop and report `BLOCKED` with the error. Do not hand-merge.
 
 ## Rollback
 
-Before reverting these commits on a machine where the pack was enabled, run `bash lib/toggle-external.sh disable higgsfield` and `disable higgsfield-websites`. Otherwise the live `skills/higgsfield-*` links outlive the toggle that knows them and the gitignore rule that hides them.
+Before reverting these commits on a machine where the pack was enabled, run `bash lib/toggle-external.sh disable higgsfield` and `disable higgsfield-websites`. Otherwise the live `skills/higgsfield-*` links outlive the toggle that knows them and the gitignore rule that hides them. Reverting Task 1 also stops ignoring the synced `skills-external/higgsfield-*` sources: they show up as untracked until the user removes those directories by hand.
 
 ## Known limits (accepted)
 
@@ -129,9 +129,9 @@ Run:
 ```bash
 python3 -c "import json;d=json.load(open('plugins.lock.json'))['higgsfield'];assert d['version']=='latest' and 'managed_by' not in d;print('LOCK_OK')"
 git check-ignore -q skills/higgsfield-generate && git check-ignore -q skills-external/higgsfield-generate/SKILL.md && git check-ignore -q skills-external/.higgsfield-stage.abc123/src/x && echo IGNORED_ALL
-git check-ignore -q skills/feat/SKILL.md || echo CONTROL_OK
+git check-ignore -q --no-index skills/feat/SKILL.md || echo CONTROL_OK
 ```
-Expected: `LOCK_OK`, `IGNORED_ALL`, `CONTROL_OK` (a tracked skill is not ignored).
+Expected: `LOCK_OK`, `IGNORED_ALL`, `CONTROL_OK` (`--no-index` makes git test the rules against a tracked path too, so an overbroad rule would fail here).
 
 - [ ] **Step 4: Commit**
 
@@ -155,7 +155,7 @@ git commit -m "chore(higgsfield): lock entry and gitignore for the skill pack"
   - `higgsfield_sync_skills <repo>`: prints the number of skills synced on stdout; returns 0 when at least one skill was synced, 1 otherwise (existing copies untouched). Stages inside `<repo>/skills-external/.higgsfield-stage.*` so each replacement is a rename on one filesystem.
   - `higgsfield_cli_ok`: returns 0 when `higgsfield version` answers; prints nothing.
   - `higgsfield_signed_in`: returns 0 when `higgsfield auth token` succeeds; prints nothing.
-  - Internal: `_higgsfield_adopt <clone> <dest>`, `_higgsfield_probe <args...>`.
+  - Internal: `_higgsfield_adopt <clone> <dest>`, `_higgsfield_probe <args...>`. The clone disables every credential prompt (terminal, askpass program, credential helper): a private or deleted upstream fails at once.
   - Suite helpers later tasks reuse: `expect`, `expect_has`, `expect_not`, `verdict`, `yn`, `entries`, `git_q`, `$WORK`, `$ROOT`, `$BIN` (fake `higgsfield` and `21st`), `$CLEAN` (a PATH with the core tools and no CLI); the file ends with a `# ── tally ──` block that must stay last.
 
 - [ ] **Step 1: Write the failing suite**
@@ -390,9 +390,12 @@ higgsfield_sync_skills() {
   local dest="$1/skills-external" stage count=0
   mkdir -p "$dest" || return 1
   stage="$(mktemp -d "$dest/.higgsfield-stage.XXXXXX")" || return 1
-  # No credential prompt: a private or deleted upstream must fail, not hang.
-  if GIT_TERMINAL_PROMPT=0 git clone --quiet --depth 1 \
-      "$HIGGSFIELD_SKILLS_URL" "$stage/src" >/dev/null 2>&1; then
+  # No credential prompt of any kind: a private or deleted upstream must
+  # fail at once, not wait on a terminal, an askpass program (an editor's
+  # terminal exports one) or a credential helper.
+  if GIT_TERMINAL_PROMPT=0 GIT_ASKPASS='' SSH_ASKPASS='' \
+      git -c credential.helper= -c core.askPass= clone --quiet --depth 1 \
+      "$HIGGSFIELD_SKILLS_URL" "$stage/src" </dev/null >/dev/null 2>&1; then
     count="$(_higgsfield_adopt "$stage/src" "$dest")"
   fi
   rm -rf "${stage:?}"
@@ -1110,7 +1113,7 @@ git commit -m "feat(install): Higgsfield step 8.6; login offers test stdin alone
 
 **Interfaces:**
 - Consumes: `higgsfield_sync_skills`, `higgsfield_cli_ok` (Task 2); lock key `higgsfield` (Task 1); the script's `ok | warn | info` helpers and `$REPO`.
-- Produces: block 7.3b. It skips when the CLI is absent, proves the updated CLI with the probe (a shim left without its binary gets a warning and the remedy), replaces only `skills-external/` sources (a parked pack stays parked), and runs before the effort-pins re-apply (BDR-108).
+- Produces: block 7.3b. It skips when the CLI is absent. After the npm call it reports one of three states: the binary does not answer (warning and remedy), updated, or update failed with the old binary kept. It replaces only `skills-external/` sources (a parked pack stays parked), and runs before the effort-pins re-apply (BDR-108).
 
 - [ ] **Step 1: Add the failing case**
 
@@ -1119,19 +1122,22 @@ Run: `git apply docs/superpowers/plans/2026-09-30-higgsfield-pack.patches/05-sui
 ````diff
 --- a/lib/tests/higgsfield.test.sh
 +++ b/lib/tests/higgsfield.test.sh
-@@ -336,5 +336,16 @@
+@@ -336,5 +336,19 @@
    "$(yn test "$(count install-plugins.sh '[ -t 0 ]')" -ge 3)" yes
  verdict INSTALL_WIRING
  
 +# update-all.sh: refresh before the 21st block and before the pins re-apply,
-+# and the updated CLI is proven by the probe.
++# and the updated CLI is proven by the probe, after the npm call.
++# shellcheck disable=SC2016  # a literal to grep for, not an expansion
++NPM_UP='npm install -g "$HF_PKG"'
 +sync_ln="$(ln_last update-all.sh 'higgsfield_sync_skills')"
 +expect before-21st "$(yn test "$sync_ln" -lt \
 +  "$(ln_first update-all.sh '7.4. Update the 21st.dev')")" yes
 +expect before-pins "$(yn test "$sync_ln" -lt \
 +  "$(ln_last update-all.sh "$PINS")")" yes
-+expect probe-after-npm \
-+  "$(yn test "$(count update-all.sh 'if higgsfield_cli_ok')" -ge 1)" yes
++expect probe-after-npm "$(yn test \
++  "$(ln_first update-all.sh 'higgsfield_cli_ok')" -gt \
++  "$(ln_last update-all.sh "$NPM_UP")")" yes
 +verdict UPDATE_WIRING
 +
  # ── tally ───────────────────────────────────────────────────
@@ -1150,7 +1156,7 @@ Run: `git apply docs/superpowers/plans/2026-09-30-higgsfield-pack.patches/05-upd
 ````diff
 --- a/update-all.sh
 +++ b/update-all.sh
-@@ -465,6 +465,45 @@
+@@ -465,6 +465,48 @@
    fi
  fi
  
@@ -1178,13 +1184,16 @@ Run: `git apply docs/superpowers/plans/2026-09-30-higgsfield-pack.patches/05-upd
 +  HF_PKG="@higgsfield/cli@latest"
 +  [ -n "$HF_VER" ] && [ "$HF_VER" != "latest" ] \
 +    && HF_PKG="@higgsfield/cli@${HF_VER}"
-+  npm install -g "$HF_PKG" 2>/dev/null || true
-+  # The probe, not npm's exit status: an update that skips the package's
-+  # postinstall script leaves the shim on PATH with no binary behind it.
-+  if higgsfield_cli_ok; then
++  HF_NPM_OK=true
++  npm install -g "$HF_PKG" 2>/dev/null || HF_NPM_OK=false
++  # The probe first, then npm's status: an update that skips the package's
++  # postinstall script exits 0 and leaves the shim with no binary behind it.
++  if ! higgsfield_cli_ok; then
++    warn "Higgsfield CLI does not answer after the update — run: npm install -g --allow-scripts=@higgsfield/cli @higgsfield/cli"
++  elif [ "$HF_NPM_OK" = true ]; then
 +    ok "Higgsfield CLI updated (${HF_VER:-latest})"
 +  else
-+    warn "Higgsfield CLI does not answer after the update — run: npm install -g --allow-scripts=@higgsfield/cli @higgsfield/cli"
++    warn "Higgsfield CLI update failed — existing binary kept"
 +  fi
 +  if HF_N=$(higgsfield_sync_skills "$REPO"); then
 +    ok "Higgsfield skill pack refreshed ($HF_N skills)"
@@ -1245,14 +1254,15 @@ Run: `git apply docs/superpowers/plans/2026-09-30-higgsfield-pack.patches/06-doc
  
  echo ""
  echo "═══ claude-config doctor (v${VERSION}) ═══"
-@@ -246,6 +248,22 @@
+@@ -246,6 +248,23 @@
    info "Graphifyy not installed (optional — codebase knowledge graph: pipx install graphifyy)"
  fi
  
 +# Higgsfield is optional and off by default: info level, never a warning.
 +# The probe, not `command -v`: the npm shim can outlive its binary.
 +if higgsfield_cli_ok; then
-+  HF_VERSION="$(higgsfield version 2>/dev/null | awk 'NR==1 {print $2}')"
++  HF_VERSION="$(higgsfield version </dev/null 2>/dev/null \
++    | awk 'NR==1 {print $2}' || true)"
 +  pass "Higgsfield CLI installed (${HF_VERSION:-version unknown})"
 +  if higgsfield_signed_in; then
 +    pass "Higgsfield session active"
