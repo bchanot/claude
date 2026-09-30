@@ -192,7 +192,7 @@ yn() { if "$@" 2>/dev/null; then echo yes; else echo no; fi; }
 entries() { find "$1" -mindepth 1 -maxdepth 1 | wc -l | tr -d ' '; }
 
 WORK="$(mktemp -d)"
-trap 'rm -rf "$WORK"' EXIT
+trap 'rm -rf "${WORK:?}"' EXIT
 
 # Fake CLIs, first on PATH in every case that needs one. `higgsfield`
 # answers per $FAKE_HF_BINARY (ok | missing: the npm shim without its
@@ -917,15 +917,14 @@ Run: `git apply docs/superpowers/plans/2026-09-30-higgsfield-pack.patches/04-sui
 ````diff
 --- a/lib/tests/higgsfield.test.sh
 +++ b/lib/tests/higgsfield.test.sh
-@@ -312,5 +312,29 @@
+@@ -312,5 +312,28 @@
  expect pins-map   "$(count lib/effort-pins.txt higgsfield)" 0
  verdict OFF_BY_DEFAULT_WIRING
  
 +# ln_first / ln_last <file> <fixed string> — line number of a match.
 +ln_first() { grep -nF -- "$2" "$ROOT/$1" | head -1 | cut -d: -f1; }
 +ln_last()  { grep -nF -- "$2" "$ROOT/$1" | tail -1 | cut -d: -f1; }
-+# shellcheck disable=SC2016  # a literal to grep for, not an expansion
-+PINS='apply_effort_pins "$REPO"'
++PINS="apply_effort_pins \"\$REPO\""
 +
 +# install-plugins.sh: the sync sits in Step 8.6, before the effort pins
 +# (BDR-108); the CLI is proven by a probe, not by its shim; every login
@@ -1122,14 +1121,13 @@ Run: `git apply docs/superpowers/plans/2026-09-30-higgsfield-pack.patches/05-sui
 ````diff
 --- a/lib/tests/higgsfield.test.sh
 +++ b/lib/tests/higgsfield.test.sh
-@@ -336,5 +336,19 @@
+@@ -335,5 +335,18 @@
    "$(yn test "$(count install-plugins.sh '[ -t 0 ]')" -ge 3)" yes
  verdict INSTALL_WIRING
  
 +# update-all.sh: refresh before the 21st block and before the pins re-apply,
 +# and the updated CLI is proven by the probe, after the npm call.
-+# shellcheck disable=SC2016  # a literal to grep for, not an expansion
-+NPM_UP='npm install -g "$HF_PKG"'
++NPM_UP="npm install -g \"\$HF_PKG\""
 +sync_ln="$(ln_last update-all.sh 'higgsfield_sync_skills')"
 +expect before-21st "$(yn test "$sync_ln" -lt \
 +  "$(ln_first update-all.sh '7.4. Update the 21st.dev')")" yes

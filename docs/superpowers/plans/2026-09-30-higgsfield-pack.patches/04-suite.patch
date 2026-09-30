@@ -1,14 +1,13 @@
 --- a/lib/tests/higgsfield.test.sh
 +++ b/lib/tests/higgsfield.test.sh
-@@ -312,5 +312,29 @@
+@@ -312,5 +312,28 @@
  expect pins-map   "$(count lib/effort-pins.txt higgsfield)" 0
  verdict OFF_BY_DEFAULT_WIRING
  
 +# ln_first / ln_last <file> <fixed string> — line number of a match.
 +ln_first() { grep -nF -- "$2" "$ROOT/$1" | head -1 | cut -d: -f1; }
 +ln_last()  { grep -nF -- "$2" "$ROOT/$1" | tail -1 | cut -d: -f1; }
-+# shellcheck disable=SC2016  # a literal to grep for, not an expansion
-+PINS='apply_effort_pins "$REPO"'
++PINS="apply_effort_pins \"\$REPO\""
 +
 +# install-plugins.sh: the sync sits in Step 8.6, before the effort pins
 +# (BDR-108); the CLI is proven by a probe, not by its shim; every login
