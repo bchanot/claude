@@ -465,6 +465,48 @@ print(d.get('impeccable',{}).get('version','latest'))
   fi
 fi
 
+# ── 7.3b. Update the Higgsfield CLI + skill pack ──
+# CLI: global npm bin. Skills: re-cloned by lib/higgsfield-skills.sh, which
+# replaces the SOURCE under skills-external/ only: a pack parked in
+# skills-disabled/ (symlinks to those sources) stays parked. Runs before the
+# effort-pins re-apply below (BDR-108).
+echo ""
+echo "── Updating Higgsfield CLI + skill pack..."
+if ! command -v higgsfield &>/dev/null; then
+  info "Higgsfield CLI not installed — skipping (run: make plugin)"
+else
+  # shellcheck source=lib/higgsfield-skills.sh disable=SC1091
+  source "$REPO/lib/higgsfield-skills.sh"
+  HF_VER=""
+  if [ -f "$REPO/plugins.lock.json" ] && command -v python3 &>/dev/null; then
+    HF_VER=$(python3 -c "
+import json
+with open('$REPO/plugins.lock.json') as f:
+    d = json.load(f)
+print(d.get('higgsfield',{}).get('version','latest'))
+" 2>/dev/null || true)
+  fi
+  HF_PKG="@higgsfield/cli@latest"
+  [ -n "$HF_VER" ] && [ "$HF_VER" != "latest" ] \
+    && HF_PKG="@higgsfield/cli@${HF_VER}"
+  HF_NPM_OK=true
+  npm install -g "$HF_PKG" 2>/dev/null || HF_NPM_OK=false
+  # The probe first, then npm's status: an update that skips the package's
+  # postinstall script exits 0 and leaves the shim with no binary behind it.
+  if ! higgsfield_cli_ok; then
+    warn "Higgsfield CLI does not answer after the update — run: npm install -g --allow-scripts=@higgsfield/cli @higgsfield/cli"
+  elif [ "$HF_NPM_OK" = true ]; then
+    ok "Higgsfield CLI updated (${HF_VER:-latest})"
+  else
+    warn "Higgsfield CLI update failed — existing binary kept"
+  fi
+  if HF_N=$(higgsfield_sync_skills "$REPO"); then
+    ok "Higgsfield skill pack refreshed ($HF_N skills)"
+  else
+    warn "Higgsfield skill pack refresh failed — existing pack kept"
+  fi
+fi
+
 # ── 7.4. Update the 21st.dev CLI + skill pack ──
 # The CLI is a global npm bin; the skills are its hash-verified output, staged
 # under a throwaway HOME because `21st skills install` refuses to write
