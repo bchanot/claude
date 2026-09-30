@@ -315,8 +315,7 @@ verdict OFF_BY_DEFAULT_WIRING
 # ln_first / ln_last <file> <fixed string> — line number of a match.
 ln_first() { grep -nF -- "$2" "$ROOT/$1" | head -1 | cut -d: -f1; }
 ln_last()  { grep -nF -- "$2" "$ROOT/$1" | tail -1 | cut -d: -f1; }
-# shellcheck disable=SC2016  # a literal to grep for, not an expansion
-PINS='apply_effort_pins "$REPO"'
+PINS="apply_effort_pins \"\$REPO\""
 
 # install-plugins.sh: the sync sits in Step 8.6, before the effort pins
 # (BDR-108); the CLI is proven by a probe, not by its shim; every login
@@ -338,8 +337,7 @@ verdict INSTALL_WIRING
 
 # update-all.sh: refresh before the 21st block and before the pins re-apply,
 # and the updated CLI is proven by the probe, after the npm call.
-# shellcheck disable=SC2016  # a literal to grep for, not an expansion
-NPM_UP='npm install -g "$HF_PKG"'
+NPM_UP="npm install -g \"\$HF_PKG\""
 sync_ln="$(ln_last update-all.sh 'higgsfield_sync_skills')"
 expect before-21st "$(yn test "$sync_ln" -lt \
   "$(ln_first update-all.sh '7.4. Update the 21st.dev')")" yes
