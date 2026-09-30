@@ -312,5 +312,29 @@ expect profiles \
 expect pins-map   "$(count lib/effort-pins.txt higgsfield)" 0
 verdict OFF_BY_DEFAULT_WIRING
 
+# ln_first / ln_last <file> <fixed string> — line number of a match.
+ln_first() { grep -nF -- "$2" "$ROOT/$1" | head -1 | cut -d: -f1; }
+ln_last()  { grep -nF -- "$2" "$ROOT/$1" | tail -1 | cut -d: -f1; }
+# shellcheck disable=SC2016  # a literal to grep for, not an expansion
+PINS='apply_effort_pins "$REPO"'
+
+# install-plugins.sh: the sync sits in Step 8.6, before the effort pins
+# (BDR-108); the CLI is proven by a probe, not by its shim; every login
+# offer tests stdin alone (stdout is the tee pipe).
+sync_ln="$(ln_last install-plugins.sh 'higgsfield_sync_skills')"
+expect after-8.5 "$(yn test "$sync_ln" -gt \
+  "$(ln_first install-plugins.sh 'Step 8.5: External skills')")" yes
+expect before-8.7 "$(yn test "$sync_ln" -lt \
+  "$(ln_first install-plugins.sh 'Step 8.7: 21st.dev')")" yes
+expect before-pins "$(yn test "$sync_ln" -lt \
+  "$(ln_last install-plugins.sh "$PINS")")" yes
+expect probe-gates \
+  "$(yn test "$(count install-plugins.sh 'if higgsfield_cli_ok')" -ge 3)" yes
+expect control "$(echo 'if [ -t 0 ] && [ -t 1 ]; then' | grep -cF -- '-t 1')" 1
+expect no-stdout-test "$(count install-plugins.sh '-t 1')" 0
+expect stdin-tests \
+  "$(yn test "$(count install-plugins.sh '[ -t 0 ]')" -ge 3)" yes
+verdict INSTALL_WIRING
+
 # ── tally ───────────────────────────────────────────────────
 printf 'PASS=%s FAIL=%s\n' "$pass" "$fail"; [ "$fail" -eq 0 ]
