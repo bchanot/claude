@@ -27,7 +27,7 @@ yn() { if "$@" 2>/dev/null; then echo yes; else echo no; fi; }
 entries() { find "$1" -mindepth 1 -maxdepth 1 | wc -l | tr -d ' '; }
 
 WORK="$(mktemp -d)"
-trap 'rm -rf "$WORK"' EXIT
+trap 'rm -rf "${WORK:?}"' EXIT
 
 # Fake CLIs, first on PATH in every case that needs one. `higgsfield`
 # answers per $FAKE_HF_BINARY (ok | missing: the npm shim without its
