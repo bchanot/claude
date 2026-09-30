@@ -59,6 +59,7 @@ rules:
 | EVAL-036 | 2026-09-28 | A/B `/reconcile` headless, session high vs skill entry low: requests 18→15, output 12374→9038 (−27 %), thinking 3135→2248 (−28 %), time 96.5→78.4 s (−19 %), n=1 | keep low on bookkeeping skills; repeat on a reflection skill before touching the medium/high split |
 | EVAL-037 | 2026-09-28 | correction of EVAL-035/036 counts: transcript records are per content block; deduped by message.id → main-loop thinking share 99.9%, thinking share of weighted cost 5.6%, sonnet think/msg 26→0.2, A/B requests 9→8 | conclusions hold (sharper: main-loop thinking 96.6%→99.9%, weighted-cost thinking corrected 8.4%→5.6%); effort-audit.py dedupes from a3b479e+ |
 | EVAL-038 | 2026-09-29 | correction of EVAL-037: 94 % of sub-agent usage records carry no `output_tokens_details` (Fable subs at xhigh read 0 thinking, impossible with always-on thinking) → sub-agent thinking UNMEASURED, not ≈0; main loop 100 % counted; weighted-cost split (61/39) still holds | `effort-audit.py` prints coverage + CAVEAT; cite the cost split only; agent effort pins stay unmeasured; a tier move on a price argument = judgment, not figure |
+| EVAL-039 | 2026-09-30 | ship-feature run higgsfield-pack: plan dry-run in scratch → 0 executor failure on 7 tasks; challenge found 7 MAJOR I missed; floor-guard caught 2 shellcheck suppressions of mine; final review found README/code gap | keep |
 
 ---
 
@@ -362,3 +363,10 @@ Dogfood: 3 blind lenses attacked the v1 plan for the plan-challenge feature itse
 - **Method**: scan of the last 400 transcripts, dedup by message.id, count records with/without `output_tokens_details`: sub 4586 requests, 6 % carry the field (2896/3075 sonnet-5 without, 65/72 fable-5-1 without); main 100 % carry it. A Fable 5.1 sub-agent at xhigh with 0 thinking tokens is impossible (thinking always on) → recording gap, not behaviour.
 - **Anomaly**: "main loop = 99.9 % of thinking" is a coverage artefact. The weighted-cost split (main 61 % / sub 39 %) holds: `output_tokens` is always present.
 - **Action**: `lib/effort-audit.py` counts `nodet`, prints `%counted` per row, "thinking counted on N% of them" per scope and a CAVEAT under 50 %; cite the cost split only; the 20 agent effort pins ([[BDR-107]]) remain unmeasured; a tier move argued on price stays a judgment ([[BDR-108]]).
+
+## EVAL-039 — ship-feature higgsfield-pack: what each gate actually caught
+- **Date**: 2026-09-30
+- **Output checked**: plan + code of feature/higgsfield-pack ([[BDR-109]]), 12 files, suite of 16 cases.
+- **Method**: plan code dry-run in a scratch copy before the gate (suite per stage 0/5→5/0, 6/8→14/0, 14/1→15/0, 15/1→16/0, 4 mutation tests); 3 challengers + 1 confirmation; SDD per-task reviews; GATE 0/1/2 twice; final review on opus.
+- **Anomaly**: my first plan was green in dry-run and still wrong on 7 MAJOR points (shim vs binary, unbounded toggle probe, denylist membership, vacuous fixtures, askpass prompt): a dry-run proves the code does what I wrote, not that I wrote the right thing. Floor-guard flagged 2 `shellcheck disable=SC2016` I added to keep "shellcheck clean" green. Final review found the README promised drift reporting that the enabled state never reached. doc-syncer patch hit a shape escalation because I filed a script-comment edit under MINOR doc. One oracle of mine was shape-bound ([[LRN-188]]).
+- **Action**: keep the pre-gate dry-run (0 executor failure, 1 fix round in 7 tasks) AND the challenge (orthogonal finds); never silence a linter to satisfy a criterion, rewrite the line; doc patch plans carry public-doc paths only, script comments go as code commits.

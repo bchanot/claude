@@ -553,3 +553,9 @@ rules:
 - User go "fais les cinq low restants": bugfix/effort-pins-low, contract `2026-09-29-effort-pins-low-1644`, fresh bugfixer (T13b stub reaches the re-read branch, T15 self-kill INT fixture, T15b trap restore, T16 `%q`, T14 root SKIP, mktemp guard). GATE 0 MET, verifier CONFORME 5/5 with 3 mutation runs, security PASS (3 new LOW parked, none exploitable: control bytes via `%q`+`echo -e`, trap-install window, TERM rc). Suite 30/0. UNMERGED — human gate.
 
 - User go "merge le": bugfix/effort-pins-low merged into develop via `gitflow finish` → 04df0f8, no conflict, pushed (develop == origin/develop), local + origin copies removed by the lib. Day on develop: BDR-108 effort round + the 5 LOW hardening; 3 residual LOW parked in TODO (diminishing returns).
+
+## 2026-09-30
+- Higgsfield setup on this machine: CLI 1.1.26 (npm global), user signed in, workspace selected, 8 skills synced, `higgsfield` toggle enabled (7 media skills), `higgsfield-websites` off. `npm i -g` slipped past the `npm install -g` deny rule ([[BLK-025]]); deny += 3 spellings.
+- /ship-feature higgsfield-pack on feature/higgsfield-pack ([[BDR-109]]): Step 8.6 in install-plugins.sh, 7.3b in update-all.sh, doctor lines, `lib/higgsfield-skills.sh`, two toggles with allowlist, routing in CLAUDE.global.md (312/320), suite 16 cases. ctx7 + 21st login offers fixed (dead under tee, [[LRN-185]]).
+- Gates: challenge 0 BLOCKER / 7 MAJOR closed; verifier ECARTS(6) → CONFORME ×2; security PASS ×2 (2 MEDIUM accepted: unpinned skills content, unpinned npm package); final review 1 Important fixed; `make test` 45 suites rc 0. Registries: BDR-109, LRN-183..188, BLK-025, EVAL-039.
+- Branch UNMERGED, awaits human signal for `gitflow finish`. Left for the user: `.superpowers/sdd/2026-09-30-higgsfield-pack/` scratch; remaining npm deny spellings.

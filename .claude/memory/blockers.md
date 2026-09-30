@@ -44,6 +44,7 @@ rules:
 | BLK-022 | 2026-09-22 | `hooks/guard-bash.sh` withheld by the safety classifier; executable spec shipped instead — 2026-09-22 | open |
 | BLK-023 | 2026-09-28 | floor-guard SKIP pattern `xit(` (Jasmine) matches any `exit(` in python/JS test helpers → false ECARTS; workaround: no `exit(` in inline python, bash derives rc from output — 2026-09-28 | resolved |
 | BLK-024 | 2026-09-29 | update-all.sh re-fetched vendored skills but never re-applied the effort pins (lost until next `make plugin`); my first fix placed the re-apply BEFORE the late 21st refresh — rtk-truncated grep read as complete — 2026-09-29 | resolved |
+| BLK-025 | 2026-09-30 | deny rule `Bash(npm install -g *)` bypassed unknowingly by the alias `npm i -g` (pasted user instruction ran as typed); deny patterns are literal prefixes — 2026-09-30 | resolved (partial) |
 
 ---
 
@@ -275,3 +276,9 @@ rules:
 - **Real cause (second instance)**: my re-apply call landed after the superpowers refresh; update-all.sh §7.4 (21st pack) runs LATER and `rm -rf` + `mv` every 21st-* SKILL.md. My grep of update-all.sh was truncated by rtk ("+28 more hidden") and I read the partial listing as the whole file. Fresh verifier caught it (ECARTS).
 - **Solution**: `lib/effort-pins.txt` + `lib/effort-pins.sh` called ONCE after the LAST vendoring step of both scripts; census locks the order by line number (`ln_last`). Rule: a truncated tool listing is not a census; re-run without the pager or grep the anchor directly.
 - **Status**: resolved 2026-09-29 (feature/effort-round, [[BDR-108]]).
+
+## BLK-025 — deny rule bypassed by an alias spelling: `npm i -g` vs `npm install -g` — 2026-09-30
+- **Friction**: user pasted a vendor setup block ("run `npm i -g @higgsfield/cli`"); command ran. settings.json denies `Bash(npm install -g *)` (BDR-093: global installs are the user's, via `make plugin`). Rule read only later, in the analyzer digest.
+- **Real cause**: deny entries are literal patterns; `i` alias and `--global` spelling do not match. No refusal fired, so nothing signalled the guardrail. Not a deliberate reroute, same effect.
+- **Solution**: deny += `npm i -g *`, `npm install --global *`, `npm i --global *` (3dad33e, user go). Disclosed to the user at the design gate. Rule for me: before a global install, grep settings.json `deny` for the verb family, not the exact spelling.
+- **Status**: resolved (partial) 2026-09-30 — flag-after-package forms (`npm i <pkg> -g`, `npm add -g`, `npm -g i`) still pass; pattern grammar for a mid-string wildcard unverified. Open question left to the user. [[BDR-109]]
