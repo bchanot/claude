@@ -288,6 +288,10 @@ bash $HOME/.claude/lib/toggle-external.sh enable gstack
 bash $HOME/.claude/lib/toggle-external.sh disable darwin-skill
 ```
 
+`higgsfield` / `higgsfield-websites`: never recommended from project signals.
+They drive a paid generation service; explicit user ask only (CLAUDE.md
+"Skill routing").
+
 ### Skill profiles (fine-grained partitioning, with plugin + MCP toggle)
 
 For task-shaped activation (web only, seo only, backend only, design only,
