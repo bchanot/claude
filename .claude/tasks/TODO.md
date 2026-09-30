@@ -10,7 +10,9 @@ routing lines, complete scope, TTY fix on ctx7 + 21st (option A), deny aliases.
 - [ ] user decision: close the remaining npm global-install spellings in settings.json deny (`npm i <pkg> -g`, `npm add -g`, `npm -g i`) — pattern grammar for a mid-string wildcard unverified ([[BLK-025]])
 - [ ] user decision: pin a commit for higgsfield-ai/skills and a version for `@higgsfield/cli` (security gate, 2 MEDIUM, accepted as is)
 - feature/higgsfield-pack merged into develop 2026-09-30 (df6dbce, user go)
-- [ ] user decision pending: npm global installs from `deny` to a prompt tier — `ask` does not prompt under `defaultMode: auto` ([[BDR-090]]); option = one `autoMode.soft_deny` entry (vet the package first), deny lines removed by the user by hand
+- [x] soft_deny "Global npm installs" entry merged 2026-09-30 (chore/npm-global-soft-deny)
+- [ ] user hand edit pending: remove the four `Bash(npm … -g|--global *)` lines from `permissions.deny` (they override the classifier); then the first global install is the live test of the entry
+- [ ] (was) user decision pending: npm global installs from `deny` to a prompt tier — `ask` does not prompt under `defaultMode: auto` ([[BDR-090]]); option = one `autoMode.soft_deny` entry (vet the package first), deny lines removed by the user by hand
 
 ## 2026-09-29 — effort round: every skill carries a level next to its model pin (feature/effort-round)
 User table: low fix-a-line/run-a-script · medium day-to-day · high refactor/resisting bug ·
