@@ -7,6 +7,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
 ## [Unreleased]
 
 ### Added
+- **Higgsfield pack, off by default**: `make plugin` installs the `@higgsfield/cli` CLI (Step 8.6) and clones the skills of higgsfield-ai/skills into `skills-external/higgsfield-*` through the new `lib/higgsfield-skills.sh`; `make update` refreshes both; `make doctor` reports the CLI and its session at info level. The pack belongs to no profile: `lib/toggle-external.sh enable higgsfield` links the seven allowlisted media skills, `enable higgsfield-websites` the landing-page aid, and no `profile set` or `make link` re-enables either. `CLAUDE.global.md` routes explicit media-generation asks to it. Hermetic suite `lib/tests/higgsfield.test.sh`.
 - **Effort round (BDR-108)**: every skill carries an entry level next to its model pin. `lib/effort-pins.txt` (map) + `lib/effort-pins.sh` (idempotent re-apply after the last vendoring step of `install-plugins.sh` and `update-all.sh`) replace the hardcoded brainstorming/writing-plans loop and extend the pins to the design stack (high, one level per stack since the last loaded wins), superpowers, agent-skills and the 21st pack; `skills-perso` low, `pdf-translate` medium, `site-motion` high; doctrine: the design stack loads paired with the first Read (a lone Skill call applies nothing). Model pins stay tier aliases: the latest version of a tier is also the cheapest or same-priced, so the quality/price trade-off is tier × effort, never version. `lib/effort-audit.py` prints thinking coverage per scope (sub-agent records carry no thinking count on ~90 % of requests: EVAL-037's "executors stay cheap" was a measurement gap, not a finding).
 - **Effort tiering (BDR-107)**: reasoning effort routed per role and per phase. Session default `high`; `effort:` pins on the 20 repo-authored agents; entry level on 28 tracked user-invoked skills plus the two vendored superpowers skills (re-applied by `install-plugins.sh` after resync); five shifter skills `effort-low` … `effort-max` loaded at phase boundaries per `lib/effort-shift.md`, always sent with the step's first tool call (a lone Skill call is a no-op on 2.1.283), with `max` at the verify-secure caps and ship-feature 4b; `/effort-max` as the turn-scoped relaunch lever; statusline shows the live level; session banner warns when `CLAUDE_CODE_EFFORT_LEVEL` silences the pins; census `lib/tests/effort-routing.test.sh`; transcript audit `lib/effort-audit.py`.
 - **Design gate asks the user to sign in to 21st instead of skipping it**:
@@ -400,6 +401,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   `verification-before-completion` to the verifier gates.
 
 ### Security
+- `settings.json` `permissions.deny` now refuses `npm i -g`, `npm install --global` and `npm i --global`: the rule matched `npm install -g` only, so the other spellings of the same global install went through.
 - **Ten secret-reader deny rules added**: `sed`, `awk`, `cut`, `tr`,
   `sort`, `uniq`, `diff`, `od`, `xxd`, `strings` against `.env*`. Six of
   those tools sat in `permissions.allow`, so reading a `.env` through
@@ -463,6 +465,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   plugin cache or `claude plugin list`.
 
 ### Fixed
+- `install-plugins.sh` never offered the ctx7 and 21st logins: both blocks required stdout to be a terminal, and stdout is the `tee` pipe of the install log. They now test stdin alone, as `update-all.sh` already did.
 - `lib/effort-pins.sh` residual LOW (security re-gate of BDR-108): INT/TERM trap removes the mktemp sibling and exits 130 (never an EXIT trap, the installer owns one); the post-write re-read message no longer claims CRLF and is reached by a stubbed unit test; the rejected map line is printed through `printf '%q'` so a caller's `echo -e` cannot interpret map content; the fixture suite guards its `mktemp -d` and skips the read-only case visibly under root.
 - `update-all.sh` re-fetched the vendored skills at every run but never re-applied the effort pins: brainstorming/writing-plans lost their xhigh until the next `make plugin` (BDR-107 gap, closed by `lib/effort-pins.sh`).
 - **gitflow pre-commit blocked every commit with gitleaks 8.16** (Ubuntu's apt
