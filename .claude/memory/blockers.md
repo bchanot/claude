@@ -38,8 +38,8 @@ rules:
 | BLK-016 | 2026-07-04 | rtk compression PATH-dead 30 days — 6/5070 Bash commands compressed (~460K tokens missed); installer sources cargo env so its own check passes, Claude tool shell never gets ~/.cargo/bin | resolved |
 | BLK-017 | 2026-07-17 | Bing Webmaster API unusable for a multi-client agency: OAuth swamp (localhost redirect refused, rotated single-use refresh tokens race our parallel dispatch), API key = wrong model (client-owned sites) | open/deferred |
 | BLK-018 | 2026-07-20 | release-executor finish span blocked by permission classifier (human signal invisible to subagent) — 2026-07-… | open |
-| BLK-019 | 2026-09-01 | notify-attention bell silent, toast OK (VS Code client default) — 2026-09-01 | resolved |
-| BLK-020 | 2026-09-02 | notify-attention: both channels dead on one VS Code client — 2026-09-02 | resolved |
+| BLK-019 | 2026-09-01 | notify-attention bell silent, toast OK (VS Code client default) — 2026-09-01 | superseded by BLK-028 |
+| BLK-020 | 2026-09-02 | notify-attention: both channels dead on one VS Code client — 2026-09-02 | superseded by BLK-028 |
 | BLK-021 | 2026-09-22 | Bash tool dead mid-session ("every command exits 1"): /tmp usrquota blown by a dead session's probe HOMEs — 2… | open |
 | BLK-022 | 2026-09-22 | `hooks/guard-bash.sh` withheld by the safety classifier; executable spec shipped instead — 2026-09-22 | open |
 | BLK-023 | 2026-09-28 | floor-guard SKIP pattern `xit(` (Jasmine) matches any `exit(` in python/JS test helpers → false ECARTS; workaround: no `exit(` in inline python, bash derives rc from output — 2026-09-28 | resolved |
@@ -47,6 +47,7 @@ rules:
 | BLK-025 | 2026-09-30 | deny rule `Bash(npm install -g *)` bypassed unknowingly by the alias `npm i -g` (pasted user instruction ran as typed); deny patterns are literal prefixes — 2026-09-30 | resolved (partial) |
 | BLK-026 | 2026-10-06 | `make test` red on macOS: 13 suites, GNU-only idioms in suite + 7 libs (SIGPIPE under pipefail, `sed -i`, `wc` padding, `stat -c`, `realpath -m`, bare `timeout`, `grep -oP`) | resolved |
 | BLK-027 | 2026-10-06 | this machine never ran `make link`/`make plugin`: no global `core.hooksPath` → post-commit push never fired, branches landed ahead of upstream; 11 vendored skills + `~/.claude/.env` missing | resolved (link) / open (plugin) |
+| BLK-028 | 2026-10-06 | notify-attention on a VS Code client: bell + toast silent-degradation faults (merge of BLK-019 + BLK-020): terminalBell sound default off, ext hooks only terminals born after activation, Code muted in Windows mixer | resolved |
 
 ---
 
@@ -296,3 +297,11 @@ rules:
 - **Real cause**: `make link` never run on this Mac → `core.hooksPath` unset (local + global), `~/.claude/githooks` absent. `gitflow start` pushes explicitly so branch creation looked fine; commits rely on the post-commit hook. `make link` also reports `make plugin` never ran (11 vendored skills absent) and `~/.claude/.env` missing.
 - **Solution**: pushed both branches by hand; `make link` run (user go) → `core.hooksPath=~/.claude/githooks`, 4 hooks installed. `make doctor` "Git hooks" section flags this; run it first on a new machine.
 - **Status**: resolved for hooks; open: `make plugin` + `.env` on this machine (user action).
+
+## BLK-028 — notify-attention on VS Code client: three client-side faults, one probe order (merge BLK-019 + BLK-020) — 2026-10-06
+- **Friction**: hook fires, server side clean, yet bell and/or toast silent on a VS Code client over SSH. Looks like half-broken hook. Two machines, three distinct faults.
+- **Real cause (3 faults, all client-side)**: (1) VS Code `accessibility.signals.terminalBell` defaults `"auto"` = sound OFF unless screen reader active (BLK-019). (2) ext `wenbopan.vscode-terminal-osc-notifier` parses only terminals created AFTER its activation: claude terminal born before install never hooked, toast dead (BLK-020 fault A). (3) Windows per-app volume mixer, Code entry at 0: toast still audible because Windows shell emits that sound, not Code → masked plain app mute (BLK-020 fault B). Not a hook bug; not dtach (dtach broadcasts to every attached client, zero session loss).
+- **Solution**: client settings.json `"accessibility.signals.terminalBell": { "sound": "on" }`; install ext THEN start or re-attach claude (`dtach -a ~/.dtach/<sess>` from a fresh terminal); raise Code volume in Windows mixer (mixer lists app only after it tried playback → hit preview first). Per-client-machine, not repo-portable.
+- **Probe order (do FIRST, before server archaeology)**: fresh VS Code terminal, `printf '\a\a\033]777;notify;Test;hello\033\\'` → splits terminal path from client renderer; palette `Help: List Signal Sounds` → Terminal Bell preview bypasses terminal/BEL/hook/dtach/ext, isolates renderer audio in one step.
+- **Status**: resolved (BLK-019 2026-09-01, BLK-020 A+B 2026-09-02/03). Sources superseded by this entry; bodies kept for history.
+- **Reference**: `~/.claude/hooks/notify-attention.sh` header documents the setting; [[LRN-145]] terminalSequence-not-/dev/tty; silent-degradation class [[LRN-047]]; sources [[BLK-019]], [[BLK-020]].

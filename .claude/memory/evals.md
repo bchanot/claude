@@ -235,9 +235,9 @@ rules:
 ## EVAL-021 — adversarial review of the 9-job series (release/1.0.0..develop) + remediation
 - **Date**: 2026-07-08
 - **output**: read-only adversarial review — 11 analyzers (1/job + validator-analyzer contract) + fresh-context verifier on 6 top findings + make test. Report `.audit/review-release-1.0.0.md`: 1 BLOQUANT (A1 trailer), 5 à corriger (A2 gitleaks hook inert, A3 back-merge gap, A4 YAML, A5 geo attribution, A8 smoke-A), 5 mineurs, 10 verified false-positives; jobs 4/5/6/8 CLEAN, validator-analyzer contract SOUND. Remediation (chore/review-remediation): A1/A2/A4/A5 fixed, A8 PROVEN (both /seo+/geo AUTO items land on disk via L1 — no silent no-op), fil-rouge guard added, A3 backfilled + rtk fix ported, A6 threshold realigned.
-- **method**: analyzers write findings to scratch; main loop does the inter-jobs cross-pass + memory-sequence + trailer sweep + cost check; verifier re-derives 6 findings from scratch. Sandbox gotcha logged: `git log | grep` truncates silently → used `git rev-list`.
+- **method**: analyzers write findings to scratch; main loop does inter-jobs cross-pass + memory-sequence + trailer sweep + cost check; verifier re-derives 6 findings from scratch. Sandbox gotcha logged: `git log | grep` truncates silently → used `git rev-list`.
 - **anomalies**: (1) 2 sub-agent verdicts overturned — job7 CLEAN was wrong (gitleaks hook not wired, [[LRN-114]]) and the contract-agent's tool-grant "defect" was a false-positive ([[LRN-115]]). (2) A8 smoke-A root cause was undocumented in 212f9aa; reconstructed live — dispatcher classifies by batch-id (seo A/B/C, geo G1-G7), tolerant of header wording so items aren't dropped; path-b proven to land AUTO fixes on disk. (3) A7: job1/3f639b3 broke the design-hook oracle ~10h until job2/860b803 — historical; lesson = run make test before merging a branch, not only at finish.
-- **action**: keep. Remediation branch unmerged (human gate). Fil-rouge guard now prevents the partial-fix class ([[LRN-113]]).
+- **action**: keep. Remediation branch unmerged (human gate). Fil-rouge guard now prevents partial-fix class ([[LRN-113]]).
 
 ## EVAL-022 — job9 model pins (BDR-060) were smoke-tested but never recorded as an EVAL (M5 trace)
 - **Date**: 2026-07-08
@@ -293,10 +293,10 @@ Dogfood: 3 blind lenses attacked the v1 plan for the plan-challenge feature itse
 
 ## EVAL-029 — 4-agent plan challenge: 6 BLOCKERs, and the fix round produced 3 of them
 - **Date**: 2026-09-15
-- **Method**: 3 blind lenses (correctness / robustness / simplicity) on plan rev 1, then 1 confirmation lens on rev 2. Subject = the gstack Playwright lib plan ([[BDR-088]]).
-- **Result**: rev 1 → 3 BLOCKER + 12 MAJOR. Rev 2, written specifically to close them → 3 NEW BLOCKERs, and 2 of the 3 were INTRODUCED BY the fixes: the new "every public function returns 0" rule contradicted the new "return rc", and the printer-name clause came verbatim from my own contract criterion 9. Rev 3 dropped the recovery branch entirely at the human gate — 6 findings closed by deletion instead of code.
-- **Anomaly**: my first user-facing answer asserted ~654 MB of orphan Playwright revisions. FALSE — `.links` showed every dir referenced, 0 reclaimable. Caught only while designing the guard, not while asserting the number. Worse, the guard I proposed would itself have deleted gsd-pi's rev 1243.
-- **Action**: (1) never state a disk-reclaimable figure before reading the registry that owns it ([[LRN-151]]). (2) A fix round deserves the same challenge as the original plan — 3/3 confirmation BLOCKERs came from fixes, not from the original. (3) The confirmation pass earned its cost: without it the printer override would have shipped and silently disconnected doctor's counters ([[LRN-150]]).
+- **Method**: 3 blind lenses (correctness / robustness / simplicity) on plan rev 1, then 1 confirmation lens on rev 2. Subject = gstack Playwright lib plan ([[BDR-088]]).
+- **Result**: rev 1 → 3 BLOCKER + 12 MAJOR. Rev 2, written to close them → 3 NEW BLOCKERs, 2 of 3 INTRODUCED BY the fixes: new "every public function returns 0" rule contradicted new "return rc"; printer-name clause came verbatim from my own contract criterion 9. Rev 3 dropped recovery branch entirely at human gate — 6 findings closed by deletion instead of code.
+- **Anomaly**: first user-facing answer asserted ~654 MB orphan Playwright revisions. FALSE — `.links` showed every dir referenced, 0 reclaimable. Caught only while designing the guard, not while asserting the number. Worse, proposed guard would itself have deleted gsd-pi's rev 1243.
+- **Action**: (1) never state a disk-reclaimable figure before reading the registry that owns it ([[LRN-151]]). (2) A fix round deserves the same challenge as the original plan — 3/3 confirmation BLOCKERs came from fixes, not from the original. (3) Confirmation pass earned its cost: without it printer override would have shipped, silently disconnected doctor's counters ([[LRN-150]]).
 - **Status**: keep.
 - **Reference**: `.claude/tasks/plans/2026-09-13-gstack-playwright-lib-2220.md` (rev 3). Links [[BDR-088]], [[LRN-150]].
 
