@@ -127,7 +127,8 @@ printf '  none \r' > "$FX/.active-profile"
 out="$(statusline)"
 check_has T10-full "$out" "profile: full"
 
-sed -i 's/^DEFAULT_PROFILE="full"/DEFAULT_PROFILE="otherish"/' "$FX/lib/profile.sh"
+# BSD sed -i needs a suffix argument
+sed -i.bak 's/^DEFAULT_PROFILE="full"/DEFAULT_PROFILE="otherish"/' "$FX/lib/profile.sh" && rm -f "$FX/lib/profile.sh.bak"
 rm -f "$FX/.active-profile"
 out="$(statusline)"
 check_has T11-otherish "$out" "profile: otherish"

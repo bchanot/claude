@@ -80,4 +80,25 @@ check T16b-obs-back "$([ -e "$FX/skills/observability-and-instrumentation" ] && 
 check T16c-obs-park-gone "$([ -e "$FX/skills-disabled/observability-and-instrumentation" ] && echo p || echo n)" n
 check T17-no-mcp-ever "$(grep -c '^mcp ' "$FX/claude-calls.log" || true)" 0
 
+# --- a failing `claude plugin enable` must warn, never abort `set` ---
+# Guards the capture-inside-the-condition form: a bare out="$(claude …)"
+# would trip errexit and skip every entry after the plugin.
+mkdir -p "$FX/failbin"
+cat > "$FX/failbin/claude" <<'EOF'
+#!/usr/bin/env bash
+[ "$1 $2" = "plugin enable" ] && exit 1
+exit 0
+EOF
+chmod +x "$FX/failbin/claude"
+cat > "$FX/lib/profiles/pluginish.profile" <<'EOF'
+fake-plug   plugin@fake-market
+gs-a
+EOF
+rm -f "$FX/skills/gs-a"
+PATH="$FX/failbin:$PATH" PROFILE_REPO_OVERRIDE="$FX" \
+  TOGGLE_EXTERNAL_REPO_OVERRIDE="$FX" bash "$FX/lib/profile.sh" set pluginish \
+  >/dev/null 2>&1
+check T18-failing-plugin-enable-keeps-going \
+  "$([ -e "$FX/skills/gs-a" ] && echo on || echo off)" on
+
 printf 'PASS=%s FAIL=%s\n' "$pass" "$fail"; [ "$fail" -eq 0 ]

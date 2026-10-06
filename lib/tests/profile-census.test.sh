@@ -178,7 +178,8 @@ run_mutant T3-mutant-removed "$M1" 'REMOVED_LISTED:qa:ship' \
 
 # Mutant 2: the superset profile drops a name full carries.
 M2="$WORK/mutant-superset"; cp -r "$BASE" "$M2"
-sed -i '/^beta$/d' "$M2/max.profile"
+# BSD sed -i needs a suffix argument
+sed -i.bak '/^beta$/d' "$M2/max.profile" && rm -f "$M2/max.profile.bak"
 run_mutant T4-mutant-superset "$M2" 'SUPERSET_GAP:beta' \
   FIXTURE_SUPERSET_DETECTED
 

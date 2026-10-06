@@ -471,7 +471,8 @@ echo ""
 install_plugin() {
   local name="$1"
   local source="$2"
-  if claude plugin list 2>/dev/null | grep -qi "$name"; then
+  # CLI call inside the condition: no pipe (SIGPIPE on macOS), no errexit abort
+  if grep -qi "$name" <<<"$(claude plugin list 2>/dev/null)"; then
     ok "$name (already installed)"
     return
   fi
@@ -1140,7 +1141,8 @@ apply_effort_pins "$REPO" || warn "effort pins: map lines rejected — fix lib/e
 # the session. Mirrors the ctx7 auth block (Step 6), stdin-only test included.
 if command -v 21st &>/dev/null; then
   # `whoami` is a local token read (no network): "Logged in as <user> (saved …)."
-  TFD_WHO="$(21st whoami 2>/dev/null | head -1)"
+  TFD_WHO="$(21st whoami 2>/dev/null)" || true
+  TFD_WHO="${TFD_WHO%%$'\n'*}"  # first line, no head(1) in a pipeline
   if [[ "$TFD_WHO" == "Logged in as "* ]]; then
     ok "21st: ${TFD_WHO%.}"
   elif [ -t 0 ]; then
@@ -1196,16 +1198,37 @@ fi
 # Remove obsolete effort config — effort is now set in settings.json
 # ("effortLevel"), which supersedes both the old CLAUDE_EFFORT env var and the
 # `claude --effort max` alias (the alias would even override settings.json).
+# sed_profile <expr> — in-place sed on $SHELL_PROFILE. BSD in-place sed needs
+# a suffix, and -i.bak would clobber a hand-made .bak, so write a unique
+# sibling temp and copy it back. rc 1 leaves the profile as it was.
+sed_profile() {
+  local tmp
+  tmp="$(mktemp "$SHELL_PROFILE.XXXXXX")" || return 1
+  # the profile is truncated by the copy-back: past that point $tmp is the
+  # only complete copy, so a failed write keeps it
+  sed "$1" "$SHELL_PROFILE" >"$tmp" || { rm -f "$tmp"; return 1; }
+  if ! cat "$tmp" >"$SHELL_PROFILE"; then
+    warn "profile write failed — full copy kept at $tmp" >&2
+    return 1
+  fi
+  rm -f "$tmp"
+}
 EFFORT_CLEANED=0
 if grep -qF 'export CLAUDE_EFFORT=max' "$SHELL_PROFILE" 2>/dev/null; then
-  sed -i '/export CLAUDE_EFFORT=max/d' "$SHELL_PROFILE"; EFFORT_CLEANED=1
+  if sed_profile '/export CLAUDE_EFFORT=max/d'; then
+    EFFORT_CLEANED=1
+  else
+    warn "could not remove CLAUDE_EFFORT from $SHELL_PROFILE"
+  fi
 fi
 if grep -qF "alias claude='claude --effort max'" "$SHELL_PROFILE" 2>/dev/null; then
-  sed -i "\#alias claude='claude --effort max'#d" "$SHELL_PROFILE"; EFFORT_CLEANED=1
+  if sed_profile "\#alias claude='claude --effort max'#d"; then
+    EFFORT_CLEANED=1
+  else
+    warn "could not remove the claude effort alias from $SHELL_PROFILE"
+  fi
 fi
 if [ "$EFFORT_CLEANED" -eq 1 ]; then
-  # Remove orphaned comment lines left before the deleted entries
-  sed -i '/^# Claude Code — added by install-plugins.sh$/{ N; /^\n$/d; }' "$SHELL_PROFILE"
   info "Removed obsolete effort alias/env from $SHELL_PROFILE (effort set in settings.json)"
 fi
 

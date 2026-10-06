@@ -49,6 +49,25 @@ if ! declare -F info >/dev/null 2>&1; then
   info() { echo -e "${BLUE}→${NC} $1"; }
 fi
 
+# _gstack_links_realpath_m <path> — prints <path> resolved through its
+# nearest existing ancestor (BSD realpath has no -m). rc 1 + warning when
+# the path holds a `..` component: it cannot be resolved lexically.
+_gstack_links_realpath_m() {
+  local path="${1%/}" rest="" dir base
+  case "/$path/" in
+    */../*) warn "refusing path with '..': $1" >&2; return 1 ;;
+  esac
+  dir="$path"
+  while [ -n "$dir" ] && [ ! -d "$dir" ]; do
+    base="${dir##*/}"
+    rest="/$base$rest"
+    case "$dir" in */*) dir="${dir%/*}" ;; *) dir=. ;; esac
+  done
+  [ -n "$dir" ] || dir=/
+  dir="$(CDPATH='' cd -P -- "$dir" && pwd -P)" || return 1
+  printf '%s%s\n' "${dir%/}" "$rest"
+}
+
 # _gstack_links_guard_dst <src> <dst> — removes a stale <dst> symlink
 # (gstack ./setup plants `skills/gstack -> skills-external/gstack` when
 # the dir is absent), refuses ever writing INTO <src> (dst resolving
@@ -61,7 +80,7 @@ _gstack_links_guard_dst() {
     rm -f "$dst"
   fi
   real_src="$(realpath "$src")"
-  real_dst="$(realpath -m "$dst")"
+  real_dst="$(_gstack_links_realpath_m "$dst")" || return 1
   case "$real_dst" in
     "$real_src"/*|"$real_src")
       warn "refusing to write into the gstack submodule: $dst" >&2

@@ -18,7 +18,7 @@ bad() { echo "FAIL $1 — $2"; FAIL=$((FAIL + 1)); }
 # own probes must never resolve a REAL 21st — else CLI_ABSENT_10 (and every
 # other case) would silently exercise this machine's CLI instead of the stub.
 if PATH=/usr/bin:/bin command -v 21st >/dev/null 2>&1 \
-   || [ -e /usr/local/bin/21st ]; then
+   || [ -e /usr/local/bin/21st ] || [ -e /opt/homebrew/bin/21st ]; then
   echo "FAIL precondition: system-wide 21st present," \
        "CLI_ABSENT case not hermetic"
   FAIL=$((FAIL + 1))

@@ -67,7 +67,8 @@ _path_exceeds_reason() {
     printf 'new/untracked doc (a creation, not a MINOR drift-patch): %s\n' "$p"
     return
   fi
-  if git diff HEAD -- "$p" | grep -Eq '^\+#{1,6}[ \t]'; then
+  # producer out of the pipe: grep -q would SIGPIPE git (fails open on macOS)
+  if grep -Eq '^\+#{1,6}[ \t]' < <(git diff HEAD -- "$p"); then
     printf 'adds a section heading (structural change, not a factual tweak): %s\n' "$p"
     return
   fi

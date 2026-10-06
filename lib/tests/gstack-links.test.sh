@@ -98,4 +98,12 @@ check T4-nothing-created "$([ -e "$DST4" ] && echo present || echo absent)" \
 check T4-warns "$(printf '%s' "$out4" | grep -qi 'refusing' \
   && echo yes || echo no)" yes
 
+# ── T4b: dst under src with a missing parent — refused, nothing created ──
+DST4B="$SRC/missing/x"
+link_gstack_helpers "$SRC" "$DST4B" >/dev/null 2>&1
+rc4b=$?
+check T4b-rc "$rc4b" 1
+check T4b-nothing-created \
+  "$([ -e "$SRC/missing" ] && echo present || echo absent)" absent
+
 printf 'PASS=%s FAIL=%s\n' "$pass" "$fail"; [ "$fail" -eq 0 ]

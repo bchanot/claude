@@ -16,16 +16,27 @@ check() { if [ "$2" = "$3" ]; then pass=$((pass+1)); else fail=$((fail+1));
 
 # _citers_extract <file>… → "file:line:name" per cited section (quoted) or label (§)
 _citers_extract() {
-  /usr/bin/grep -nHoE 'CLAUDE(\.global)?\.md[^"“]{0,12}["“][^"”]{2,60}["”]' "$@" 2>/dev/null \
+  /usr/bin/grep -nHoE 'CLAUDE(\.global)?\.md[^"“]{0,12}["“][^"”[:space:]][^"”]{1,59}["”]' "$@" 2>/dev/null \
     | sed -E 's/^([^:]+:[0-9]+):.*["“]([^"”]+)["”]$/\1:\2/'
   /usr/bin/grep -nHoE 'CLAUDE(\.global)?\.md[^§]{0,60}§ ?[A-Z][A-Za-z][A-Za-z -]{1,40}' "$@" 2>/dev/null \
     | sed -E 's/^([^:]+:[0-9]+):.*§ ?([A-Za-z][A-Za-z -]+)$/\1:\2/; s/[[:space:]]+$//'
 }
 
-# _citers_resolve <doctrine> <name> → rc 0 when a heading or a bold label starts with <name>
+# _citers_resolve <doctrine> <name> → rc 0 when a heading starts with <name>
+# (then end, space, `:`, `(` or `—`) or a bold label `**<name>` appears.
+# Fixed-string awk: the name is never read as a regex (BSD grep -E rejects
+# some, and "Alpha" must not resolve against "## Alphabet").
 _citers_resolve() {
-  /usr/bin/grep -qE "^#+ ${2}( |$|:|\(|—)" "$1" && return 0
-  /usr/bin/grep -qF -- "**${2}" "$1"
+  awk -v n="$2" '
+    /^#+ / {
+      t = $0; sub(/^#+ /, "", t)
+      if (substr(t, 1, length(n)) == n) {
+        r = substr(t, length(n) + 1)
+        if (r == "" || r ~ /^[ :(]/ || index(r, "—") == 1) found = 1
+      }
+    }
+    index($0, "**" n) { found = 1 }
+    END { exit !found }' "$1"
 }
 
 # citers_check <doctrine> <file>… → prints DANGLING lines; rc = their count (capped 99)
@@ -45,6 +56,10 @@ FIX="$(mktemp -d)"; trap 'rm -rf "$FIX"' EXIT
 printf '## Alpha\n\n**Always English, always caveman**: rule.\n\n## Memory registries (`x`)\n' > "$FIX/doctrine.md"
 printf 'ok: see CLAUDE.md "Alpha" and CLAUDE.md "Memory registries" (Always English, always caveman)\n' > "$FIX/good.md"
 printf 'bad: (see CLAUDE.md "Memory registries" § Language) and CLAUDE.md "Beta"\n' > "$FIX/bad.md"
+printf '## Alphabet\n' > "$FIX/prefix.md"
+printf 'prefix: see CLAUDE.md "Alpha"\n' > "$FIX/alpha.md"
+citers_check "$FIX/prefix.md" "$FIX/alpha.md" >/dev/null
+check T2d-name-prefix-of-heading-stays-dangling "$?" 1
 citers_check "$FIX/doctrine.md" "$FIX/good.md" >/dev/null; check T1-resolving-citations-pass "$?" 0
 out=$(citers_check "$FIX/doctrine.md" "$FIX/bad.md"); rc=$?
 check T2-dangling-section-and-label-caught "$rc" 2
