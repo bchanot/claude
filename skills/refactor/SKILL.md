@@ -1,5 +1,6 @@
 ---
 name: refactor
+effort: high
 description: 'Improve code quality without changing behavior — strict norm enforcement, targeted scope (file/module). Full-codebase audit+cleanup → /code-clean. Triggers: "refactor", "clean up code", "normaliser".'
 argument-hint: <file, function, or module to refactor>
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent
@@ -8,6 +9,12 @@ allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Agent
 Dispatch the refactorer executor — behavior-preserving norm application is
 closed execution, so it runs pinned on **sonnet** (not the big session
 model). The scope you name is the only reflection; the agent applies norms.
+
+**Gitflow aiguillage first** (the refactorer edits code): follow
+`$HOME/.claude/lib/gitflow-aiguillage.md`, this skill's TYPE = `chore`. On
+`main`/`develop` run `bash ~/.claude/lib/gitflow.sh start chore refactor-<slug>`
+and dispatch on the new branch; on a working branch dispatch in place. Never
+`gitflow finish` — integration is human-gated.
 
 ```
 Agent(subagent_type="refactorer")

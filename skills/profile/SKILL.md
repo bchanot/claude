@@ -1,5 +1,6 @@
 ---
 name: profile
+effort: low
 description: |
   Partition Claude skills by purpose: design, dev, qa, audit, minimal.
   Toggles symlinks between skills/ and skills-disabled/ to keep only
@@ -33,7 +34,8 @@ carrying every gstack + personal skill in every session.
 | `web`      | Public website work — frontend + content + light dev |
 | `seo`      | SEO + GEO + W3C audit — search/AI indexability + standards |
 | `web-full` | Production website end-to-end — `web` + `seo` combined |
-| `full`     | Maximum — web-full + plan + dev for `/init-project` MVP pipeline |
+| `full`     | Default — everything the other profiles carry, minus broken or doctrine-breaking gstack |
+| `max`      | Everything — full + parked tools (make-pdf, diagram, 21st generation trio) + pr-review-toolkit |
 | `backend`  | Backend / API / system dev — no design, no SEO |
 | `design`   | Visual QA, design systems, mockups, polish |
 | `dev`      | Daily code work — features, fixes, refactor, ship (any stack) |
@@ -52,24 +54,33 @@ lists items + types:
 | `personal`              | symlink move skills/ ↔ skills-disabled/\<name\> (no prefix) |
 | `external`              | symlink move skills/ ↔ skills-disabled/\<name\> |
 | `plugin@<marketplace>`  | `claude plugin enable\|disable <name>@<marketplace>` (auto) |
-| `mcp` (known: magic)    | delegate to `lib/toggle-external.sh` (uses `.env`) |
-| `mcp` (other)           | advisory — prints manual `claude mcp add …` command |
+| `mcp`                   | advisory — prints manual `claude mcp add …` command (no server is managed today: `MANAGED_MCPS` is empty since 21st.dev moved to a CLI) |
 | `cli`                   | advisory only — reports installed/not-installed |
 
-**Always-on plugins** (`security-guidance`, `superpowers`) are
-protected — `set` will refuse to disable them even if the profile omits them.
+**Always-on plugins** (`security-guidance`) and the vendored superpowers
+skills are never toggled by a profile — `set` will refuse to disable the
+plugin even if the profile omits it, and the 7 superpowers skills are
+linked outside any profile.
 **Managed plugins** that `set` may disable when not in profile:
 `ui-ux-pro-max@ui-ux-pro-max-skill`, `plugin-dev@claude-code-plugins`,
 `pr-review-toolkit@claude-code-plugins`. Other plugins are never auto-toggled.
 **Managed externals** (`emil-design-eng`, `frontend-design`,
-`design-motion-principles`, `impeccable`) and **managed MCPs** (`magic`)
-follow the same symmetry (BDR-079): `set` enables them when the profile
-lists them (from parked state, or from `skills-external/` if the symlink
-never existed) and parks/unregisters them when it does not — e.g. `set
-backend` after design work turns emil and magic off. `darwin-skill` and any
-other unlisted external are never auto-touched. gstack works the same
+`design-motion-principles`, `impeccable`, and the five 21st design skills
+`21st-ui-build`, `21st-ui-explore`, `21st-ui-review`, `21st-cli-use`,
+`21st-ai`) follow the same symmetry (BDR-079): `set` enables them when the
+profile lists them (from parked state, or from `skills-external/` if the
+symlink never existed) and parks them when it does not — e.g. `set backend`
+after design work turns emil and the 21st pack off. `darwin-skill`,
+`21st-registry`, `21st-design-sync` and any other unlisted external are never
+auto-touched. gstack works the same
 all the way down: a profile listing gstack skills while the whole pack is
 off (via `toggle-external.sh`) re-enables JUST those skills on demand.
+
+**Default profile**: `full` is in force whenever `.active-profile` is
+absent, empty, or the legacy `none` (statusline, `current`, `gstack off`,
+`reset` all resolve it the same way). `reset` applies it (`set full`,
+exclusive); a fresh `make plugin` applies it too when nothing has ever
+been selected.
 
 ## Commands
 
@@ -80,7 +91,7 @@ bash "$HOME/.claude/lib/profile.sh" list
 # Show profile contents + per-skill status
 bash "$HOME/.claude/lib/profile.sh" show <name>
 
-# Detect which profile is currently active
+# Report the active profile (label + match %)
 bash "$HOME/.claude/lib/profile.sh" current
 
 # Enable skills in profile (additive — keeps others enabled)
@@ -89,11 +100,11 @@ bash "$HOME/.claude/lib/profile.sh" apply <name>
 # Enable only skills in profile (disables non-listed gstack skills)
 bash "$HOME/.claude/lib/profile.sh" set <name>
 
-# Re-enable every gstack skill (undo any set/apply) — resets active label to "none"
+# Go to the default profile (full) — exclusive, same as `set full`
 bash "$HOME/.claude/lib/profile.sh" reset
 
 # Toggle gstack only, keeping the active-profile label intact
-bash "$HOME/.claude/lib/profile.sh" gstack on    # re-enable ALL gstack on top of current profile
+bash "$HOME/.claude/lib/profile.sh" gstack on    # restore parked gstack skills on top of the current profile
 bash "$HOME/.claude/lib/profile.sh" gstack off   # disable gstack skills not in the active profile
 
 # Compare two profiles
@@ -118,16 +129,18 @@ bash "$HOME/.claude/lib/profile.sh" $ARGUMENTS
 | `lib/profile.sh` absent (foreign machine, links broken) | `test -f "$HOME/.claude/lib/profile.sh"` before any verb; missing → propose `bash link.sh` from the config repo | STOP — never hand-move symlinks to emulate the script |
 | Unknown profile name (rc=1, `✗ Profile not found`) | Show `list` output + the closest existing name ("`desing` → did you mean `design`?") | Let the user pick — never guess-and-`set` |
 | Unknown verb (rc=1 + usage) | Re-map the request to the argument-hint verbs, retry once | Show usage, ask |
-| `set`/`apply` exits nonzero MID-TOGGLE (permission, plugin CLI failure) | State may be PARTIAL. Run `current` to show what actually took; name the failed item from the script's output | Offer `reset` as recovery to a known state; never blind-rerun `set` on top of partial state |
+| `set`/`apply` exits nonzero MID-TOGGLE (permission, plugin CLI failure) | State may be PARTIAL. Run `current` to show what actually took; name the failed item from the script's output | run `current`, then re-run `set <name>` or `reset` (both are full exclusive applies, not an always-safe undo) |
 | Plugin/MCP leg fails (marketplace/network) while symlink leg succeeded | Report the split state explicitly + print the manual `claude plugin`/`claude mcp` command for the failed leg | — |
-| `current` says `none` right after a successful `set <name>` | Contradiction — do not trust either; show the raw script output to the user | Known failure family (BLK: symlink resolution in `cmd_current`) — report, don't hand-patch |
+| `current` names a profile other than the one just set | Cache (`.active-profile`) was written by another tool or hand-edited — show the raw script output to the user | Never hand-patch `.active-profile` — re-run `set <name>` (or `reset`) to force it back |
 
 ## Output policy
 
 - After `set` / `apply` / `reset` / `gstack on|off`: show the count of skills
   moved + tell the user to start a new Claude session to pick up the changes
   (Claude scans `skills/` at session start).
-- After `current`: report the active profile + match percentage.
+- After `current`: report the active profile + match %; `default — not
+  applied yet` means the default profile is in force but not yet applied —
+  point the user at `reset`.
 - After `show`: render the grouped output directly — no extra commentary unless
   the user asks.
 
@@ -137,11 +150,11 @@ bash "$HOME/.claude/lib/profile.sh" $ARGUMENTS
   update-check, learnings — script doesn't touch that infra. Disabled skills
   are just hidden from Claude Code's scanner; the gstack repo stays installed.
 - Profile changes DO toggle the managed Claude Code plugins (ui-ux-pro-max,
-  plugin-dev, pr-review-toolkit), the managed external packs (emil-design-eng,
-  frontend-design, design-motion-principles, impeccable) and the `magic` MCP —
-  in BOTH directions: `set` enables what the profile lists and disables the
-  managed leftovers it doesn't (BDR-008, BDR-079). Anything outside those
-  allowlists stays manual: `claude plugin enable|disable`, `claude mcp
-  add|remove`.
+  plugin-dev, pr-review-toolkit) and the managed external packs
+  (emil-design-eng, frontend-design, design-motion-principles, impeccable,
+  the 21st design skills) — in BOTH directions: `set` enables what the profile
+  lists and disables the managed leftovers it doesn't (BDR-008, BDR-079).
+  Anything outside those allowlists stays manual: `claude plugin
+  enable|disable`, `bash lib/toggle-external.sh enable|disable <tool>`.
 - `set` is destructive in the sense that it disables non-listed gstack skills.
   Use `apply` if the user wants additive behavior.

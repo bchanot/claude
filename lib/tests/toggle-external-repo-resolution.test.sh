@@ -14,8 +14,10 @@ check() { if [ "$2" = "$3" ]; then pass=$((pass+1)); else fail=$((fail+1));
 
 SANDBOX="$(mktemp -d)"
 mkdir -p "$SANDBOX/repo/lib" "$SANDBOX/repo/skills-external/emil-design-eng" \
+  "$SANDBOX/repo/skills-external/observability-and-instrumentation" \
   "$SANDBOX/repo/skills" "$SANDBOX/home/.claude"
 cp "$HELPER_SRC" "$SANDBOX/repo/lib/toggle-external.sh"
+cp "$(dirname "$HELPER_SRC")/gstack-removed.sh" "$SANDBOX/repo/lib/"
 # mark emil-design-eng ENABLED in the real (physical) repo tree
 ln -s "$SANDBOX/repo/skills-external/emil-design-eng" "$SANDBOX/repo/skills/emil-design-eng"
 # replicate the real ~/.claude/lib -> <repo>/lib symlink
@@ -23,6 +25,12 @@ ln -s "$SANDBOX/repo/lib" "$SANDBOX/home/.claude/lib"
 
 out="$(bash "$SANDBOX/home/.claude/lib/toggle-external.sh" status emil-design-eng)"
 check T1-repo-resolves-through-symlink "$out" enabled
+
+# Same case arm, generalized to $tool for the agent-skills trio (this PR) —
+# left unlinked, so it must resolve through the symlink as "disabled", not
+# "missing" (which would mean REPO fell back to the wrong tree again).
+out="$(bash "$SANDBOX/home/.claude/lib/toggle-external.sh" status observability-and-instrumentation)"
+check T2-generalized-tool-resolves-through-symlink "$out" disabled
 
 rm -rf "$SANDBOX"
 printf 'PASS=%s FAIL=%s\n' "$pass" "$fail"; [ "$fail" -eq 0 ]

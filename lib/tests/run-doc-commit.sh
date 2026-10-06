@@ -18,6 +18,8 @@
 #
 # No -e: run every test and report, even after a failure.
 set -uo pipefail
+# Hermetic git: the global hooks dir (BDR-095) must not fire in throwaway repos.
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
 
 HERE="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 HELPER="$HERE/../doc-commit.sh"
@@ -99,7 +101,7 @@ printf '    err: %s\n' "$(printf '%s' "$ERR" | grep -i decisions | head -1)"
 if [ "$RC" -eq 4 ]; then ok "mixed → exit 4"; else ko "expected 4, got $RC"; fi
 if [ "$(git -C "$R" rev-parse HEAD)" = "$BEFORE" ]; then ok "NOTHING committed (README not half-committed)"; else ko "a commit slipped through"; fi
 if printf '%s' "$ERR" | grep -q '.claude/memory/decisions.md'; then ok "stderr names the offender"; else ko "offender not named"; fi
-if git -C "$R" status --porcelain | grep -q ' M README.md'; then ok "README left dirty (not embarked)"; else ko "README state wrong"; fi
+if grep -q ' M README.md' < <(git -C "$R" status --porcelain); then ok "README left dirty (not embarked)"; else ko "README state wrong"; fi
 rm -rf "$R"
 
 echo "T2 — dynamic pathspec: clean passed path filtered, no abort"

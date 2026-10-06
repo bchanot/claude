@@ -18,8 +18,16 @@ REPO="$(cd "$(dirname "$0")" && pwd)"
 VERSION=$(cat "$REPO/version.txt" 2>/dev/null || echo "unknown")
 
 # Load shared detection library
-# shellcheck source=lib/detect-plugins.sh
+# shellcheck source=lib/detect-plugins.sh disable=SC1091
 source "$REPO/lib/detect-plugins.sh"
+# shellcheck source=lib/gstack-playwright.sh disable=SC1091
+source "$REPO/lib/gstack-playwright.sh"
+# shellcheck source=lib/doctor-vendored.sh disable=SC1091
+source "$REPO/lib/doctor-vendored.sh"
+# shellcheck source=lib/doctor-skills.sh disable=SC1091
+source "$REPO/lib/doctor-skills.sh"
+# shellcheck source=lib/higgsfield-skills.sh disable=SC1091
+source "$REPO/lib/higgsfield-skills.sh"
 
 echo ""
 echo "═══ claude-config doctor (v${VERSION}) ═══"
@@ -116,6 +124,45 @@ fi
 echo ""
 
 # ────────────────────────────────────────────────────────────
+# 2b. Vendored skills (curl-pinned externals: plugins.lock.json's
+# managed_by:curl entries + link.sh's EXTERNAL_SKILLS array — the OTHER
+# externals the GStack section above does not cover)
+# ────────────────────────────────────────────────────────────
+echo "── Vendored skills ──"
+# Mirrors lib/profile.sh's active_profile() (read_cache + the
+# blank/"none" -> DEFAULT_PROFILE fallback) without sourcing profile.sh
+# itself (its main() would run unconditionally) and without ever
+# invoking `claude`.
+_dv_active_profile=$(head -n1 "$REPO/.active-profile" 2>/dev/null \
+  | tr -d '[:space:]')
+[ -z "$_dv_active_profile" ] && _dv_active_profile="none"
+[ "$_dv_active_profile" = "none" ] && _dv_active_profile="full"
+# .active-profile's value is spliced into a lib/profiles/ path below —
+# reject anything outside the profile-name allowlist before that splice.
+if ! _dv_valid_profile_name "$_dv_active_profile"; then
+  warn ".active-profile has invalid value \"$_dv_active_profile\" — \
+falling back to profile full"
+  _dv_active_profile="full"
+fi
+_dv_profile_file="$REPO/lib/profiles/$_dv_active_profile.profile"
+if [ -f "$_dv_profile_file" ]; then
+  check_vendored_skills "$REPO" "$HOME/.claude" "$_dv_profile_file"
+else
+  # Active profile unresolved — every external is expected linked.
+  check_vendored_skills "$REPO" "$HOME/.claude"
+fi
+unset _dv_active_profile _dv_profile_file
+
+echo ""
+
+# ── Playwright browsers (read-only report; NOT nested under gstack — 2 of
+# the 3 registered installs are gsd-pi, not gstack) ──
+echo "── Playwright browsers ──"
+gstack_browsers_report || true
+
+echo ""
+
+# ────────────────────────────────────────────────────────────
 # 3. Prerequisites
 # ────────────────────────────────────────────────────────────
 echo "── Prerequisites ──"
@@ -178,9 +225,9 @@ else
 fi
 
 if detect_superpowers; then
-  pass "Superpowers plugin detected"
+  pass "superpowers skills linked (brainstorming found); per-skill check under Vendored skills"
 else
-  fail "Superpowers not detected — orchestrators (/init-project, /ship-feature) will fail"
+  fail "superpowers skills not linked — run: make plugin && make link"
 fi
 
 if detect_context7; then
@@ -201,11 +248,83 @@ else
   info "Graphifyy not installed (optional — codebase knowledge graph: pipx install graphifyy)"
 fi
 
+# Higgsfield is optional and off by default: info level, never a warning.
+# The probe, not `command -v`: the npm shim can outlive its binary.
+if higgsfield_cli_ok; then
+  HF_VERSION="$(higgsfield version </dev/null 2>/dev/null \
+    | awk 'NR==1 {print $2}' || true)"
+  pass "Higgsfield CLI installed (${HF_VERSION:-version unknown})"
+  if higgsfield_signed_in; then
+    pass "Higgsfield session active"
+  else
+    info "Higgsfield not signed in (generation needs: higgsfield auth login)"
+  fi
+elif command -v higgsfield >/dev/null 2>&1; then
+  info "Higgsfield CLI on PATH but its binary does not answer (run: npm install -g --allow-scripts=@higgsfield/cli @higgsfield/cli)"
+else
+  info "Higgsfield CLI not installed (optional — media generation: make plugin)"
+fi
+
 echo ""
 
 # ────────────────────────────────────────────────────────────
 # 5. Permissions check
 # ────────────────────────────────────────────────────────────
+
+# Under defaultMode auto the classifier reads `autoMode`, so a block scoped
+# to ONE project feeds every other project false facts, and a list without
+# "$defaults" silently drops the built-in rules. Neither is visible from the
+# deny count. Emits TAG|message lines for the caller to dispatch.
+inspect_automode() {
+  REPO="$REPO" python3 - "$SETTINGS" <<'PY'
+import json, os, re, sys
+
+settings = json.load(open(sys.argv[1]))
+mode = settings.get("permissions", {}).get("defaultMode")
+block = settings.get("autoMode") or {}
+
+if mode != "auto":
+    sys.exit(print("INFO|defaultMode is %s, autoMode not consulted" % mode))
+if not block:
+    sys.exit(print("WARN|defaultMode is auto but no autoMode block set"))
+
+sections = [k for k in ("allow", "soft_deny", "hard_deny", "environment")
+            if k in block]
+bare = [k for k in sections if "$defaults" not in block[k]]
+if bare:
+    print('WARN|autoMode.%s replaces the built-in entries (no "$defaults")'
+          % ", ".join(bare))
+else:
+    print('PASS|autoMode: %s inherit "$defaults"' % ", ".join(sections))
+
+repo, home = os.environ["REPO"], os.path.expanduser("~")
+foreign = {q for entry in block.get("environment", [])
+           for q in re.findall(r"`(/[^`]+)`", entry)
+           if (p := q.rstrip("/")).startswith(home) and p != repo
+           and os.path.isdir(os.path.join(p, ".git"))}
+if foreign:
+    print("WARN|autoMode.environment names another repo (%s); this file is "
+          "user-scope and reaches every project" % ", ".join(sorted(foreign)))
+else:
+    print("PASS|autoMode.environment is not scoped to a foreign repo")
+PY
+}
+
+check_automode() {
+  local out tag msg
+  if ! out=$(inspect_automode 2>/dev/null); then
+    warn "Could not inspect the autoMode block"
+    return
+  fi
+  while IFS='|' read -r tag msg; do
+    case "$tag" in
+      PASS) pass "$msg" ;;
+      WARN) warn "$msg" ;;
+      INFO) info "$msg" ;;
+    esac
+  done <<< "$out"
+}
+
 echo "── Permissions ──"
 
 SETTINGS="$HOME/.claude/settings.json"
@@ -242,10 +361,53 @@ print(len(json.load(sys.stdin).get('permissions',{}).get('deny',[])))
       warn "Deny rules: $DENY_COUNT (committed: $EXPECTED_DENY) — live settings diverge from last commit"
     fi
   fi
+
+  check_automode
 else
   fail "$HOME/.claude/settings.json not found"
 fi
 
+echo ""
+
+# ────────────────────────────────────────────────────────────
+# 5b. Git hooks (BDR-095): global core.hooksPath + generated githooks/
+# ────────────────────────────────────────────────────────────
+echo "── Git hooks ──"
+_gh_cfg=$(git config --global core.hooksPath 2>/dev/null || true)
+# literal tilde accepted: git expands it itself (see link.sh)
+# shellcheck disable=SC2088
+if [ "$_gh_cfg" = '~/.claude/githooks' ] || [ "$_gh_cfg" = "$HOME/.claude/githooks" ]; then
+  pass "global core.hooksPath → $_gh_cfg (every repo protected + auto-pushed)"
+else
+  warn "global core.hooksPath is '${_gh_cfg:-unset}' — expected ~/.claude/githooks (run: make link)"
+fi
+while IFS= read -r _h; do   # hook set owned by lib/gitflow.sh
+  if [ ! -f "$REPO/githooks/$_h" ]; then
+    warn "githooks/$_h missing (run: make link)"
+  elif ! diff -q <(bash "$REPO/lib/gitflow.sh" emit-hook "$_h" 2>/dev/null) "$REPO/githooks/$_h" >/dev/null 2>&1; then
+    warn "githooks/$_h lags lib/gitflow.sh (run: make link)"
+  else
+    pass "githooks/$_h matches lib/gitflow.sh"
+  fi
+done < <(bash "$REPO/lib/gitflow.sh" hooks)
+unset _gh_cfg _h
+echo ""
+
+# ────────────────────────────────────────────────────────────
+# 5c. Scratchpad (BLK-021): Claude's tool outputs live under $TMPDIR; on a
+# tmpfs with a per-user quota (systemd mounts /tmp with usrquota and caps
+# each user at 80% of its size) one fat probe kills every session's shell.
+# ────────────────────────────────────────────────────────────
+echo "── Scratchpad ──"
+_sp="${TMPDIR:-/tmp}"
+_sp_fs=$(findmnt -no FSTYPE -T "$_sp" 2>/dev/null || echo "?")
+_sp_opts=$(findmnt -no OPTIONS -T "$_sp" 2>/dev/null || true)
+if [ "$_sp_fs" = tmpfs ] && printf '%s' "$_sp_opts" | grep -q usrquota; then
+  warn "TMPDIR=$_sp is a tmpfs with a per-user quota — every session's shell dies when it fills (BLK-021). Launch claude with TMPDIR=\$HOME/.cache/claude-tmp"
+else
+  pass "TMPDIR=$_sp on $_sp_fs (no per-user tmpfs quota in the way)"
+fi
+unset _sp _sp_fs _sp_opts
 echo ""
 
 # ────────────────────────────────────────────────────────────
@@ -262,23 +424,23 @@ echo "── Token budget estimate ──"
 CLAUDE_MD_CHARS=$(wc -c < "$REPO/CLAUDE.global.md" 2>/dev/null || echo 0)
 CLAUDE_MD_TOKENS=$((CLAUDE_MD_CHARS / 4))
 
-# Skill descriptions only (frontmatter description field — loaded passively at startup)
-SKILL_DESC_CHARS=0
-for f in "$HOME/.claude/skills/"*/SKILL.md; do
-  [ -f "$f" ] || continue
-  desc=$(grep "^description:" "$f" 2>/dev/null | head -1 | sed 's/^description: *//' )
-  SKILL_DESC_CHARS=$((SKILL_DESC_CHARS + ${#desc}))
-done
+# Skill descriptions across the whole live catalog — every SKILL.md
+# reachable through ~/.claude/skills/*/SKILL.md, symlinks included
+# (lib/doctor-skills.sh; catches a `|`/`>` block-scalar description that
+# the old `grep '^description:' | head -1` counted as 0 chars, and a
+# symlinked skill dir that the old `find -maxdepth 2` without `-L` missed).
+read -r SKILL_COUNT SKILL_DESC_CHARS \
+  < <(skill_catalog_stats "$HOME/.claude/skills")
 SKILL_DESC_TOKENS=$((SKILL_DESC_CHARS / 4))
-SKILL_COUNT=$(find "$HOME/.claude/skills/" -maxdepth 2 -name "SKILL.md" 2>/dev/null | wc -l | tr -d ' ')
 
-# Plugin passive cost estimates (tokens)
+# Plugin passive cost estimates (tokens) — session-start injections and
+# hook prompts that never show up as a skill description above. gstack,
+# context7 (find-docs) and graphifyy dropped 2026-09-28 (skill-catalog
+# prune); superpowers dropped the same day (tier 2, vendored instead):
+# their skills sit under ~/.claude/skills and are already counted by the
+# stats above — a separate constant here double-counted them.
 PLUGIN_TOKENS=0
-if detect_superpowers 2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 800)); fi
-if detect_gstack      2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 2750)); fi
-if detect_uiux_pro_max    2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 400)); fi
-if detect_context7    2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 200)); fi
-if detect_graphifyy   2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 300)); fi
+if detect_uiux_pro_max 2>/dev/null; then PLUGIN_TOKENS=$((PLUGIN_TOKENS + 670)); fi
 
 TOTAL_TOKENS=$((CLAUDE_MD_TOKENS + SKILL_DESC_TOKENS + PLUGIN_TOKENS))
 CONTEXT_WINDOW=200000   # Claude Code default context window (conservative; 1M is opt-in)
@@ -289,7 +451,7 @@ echo "  CLAUDE.global.md:    ~${CLAUDE_MD_TOKENS}t"
 echo "  Skill descriptions:  ~${SKILL_DESC_TOKENS}t  (${SKILL_COUNT} skills)"
 echo "  Plugin passive cost: ~${PLUGIN_TOKENS}t  (active plugins)"
 echo "  ─────────────────────────────────────────"
-info "  Total:               ~${TOTAL_TOKENS}t  (measured ~11.4k post-audit, LRN-088)"
+info "  Total:               ~${TOTAL_TOKENS}t  (re-measure after a catalog change; LRN-088)"
 info "  Context window:      ${CONTEXT_WINDOW}t  (default; 1M opt-in)"
 info "  Usage:               ~${PCT}% of context"
 echo ""

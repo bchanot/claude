@@ -20,7 +20,26 @@ link_file() {
 link_file "$REPO/CLAUDE.global.md" "$CLAUDE/CLAUDE.md"
 link_file "$REPO/settings.json" "$CLAUDE/settings.json"
 
-for item in hooks agents skills lib templates rules; do
+# Global git hooks (BDR-095): githooks/ is generated from lib/gitflow.sh so it
+# never drifts from the per-repo .githooks/ the lib writes, and git's GLOBAL
+# core.hooksPath points at ~/.claude/githooks → every repo on this machine is
+# protected and auto-pushed, even one that never ran gitflow init. A repo's
+# own local core.hooksPath still wins (git precedence), which is what the
+# session-start reconcile is for.
+# The tilde is stored literally on purpose: git expands `~` in core.hooksPath
+# itself, so the setting stays valid on any machine and for any HOME.
+# shellcheck disable=SC2088
+_gh_before=$(git config --global core.hooksPath 2>/dev/null || true)
+# shellcheck disable=SC2088
+bash "$REPO/lib/gitflow.sh" global-hooks "$REPO/githooks" '~/.claude/githooks'
+# shellcheck disable=SC2088
+if [ "$_gh_before" != '~/.claude/githooks' ]; then
+  echo "🪝 git config --global core.hooksPath ~/.claude/githooks (was: ${_gh_before:-unset})"
+  CHANGED=$((CHANGED + 1))
+fi
+unset _gh_before
+
+for item in hooks githooks agents skills lib templates rules; do
   target="$CLAUDE/$item"
   if [ -L "$target" ]; then
     if [ "$(readlink "$target")" = "$REPO/$item" ]; then
@@ -36,42 +55,33 @@ for item in hooks agents skills lib templates rules; do
 done
 
 # GStack is exposed via per-skill symlinks under skills/ (browse,
-# canary, autoplan, design-review, …) created by gstack's own
-# `./setup`. A global `skills/gstack -> skills-external/gstack/`
-# symlink duplicated the top-level gstack SKILL.md alongside those
-# individual skills, producing two entries with the same description
-# ("Fast headless browser for QA testing…"). Remove any stale global
-# link — only per-skill entries remain.
-if [ -L "$REPO/skills/gstack" ] || [ -L "$CLAUDE/skills/gstack" ]; then
-  rm -f "$REPO/skills/gstack" "$CLAUDE/skills/gstack"
-  CHANGED=$((CHANGED + 1))
-fi
-if [ ! -d "$REPO/skills-external/gstack" ]; then
+# canary, autoplan, design-review, …) created by gstack's own `./setup`,
+# PLUS a shared helper tree at skills/gstack/ mirroring every asset the
+# skills hardcode (bin/, browse/dist/, ETHOS.md, …) that a per-skill
+# symlink never exposes — see lib/gstack-links.sh. The helper tree
+# never contains a SKILL.md at any depth, so it never duplicates a
+# per-skill entry the way a flat `skills/gstack -> skills-external/gstack`
+# link used to (removed by the lib's own stale-symlink guard).
+# shellcheck source=lib/gstack-links.sh disable=SC1091
+source "$REPO/lib/gstack-links.sh"
+if [ -d "$REPO/skills-external/gstack" ]; then
+  n=$(link_gstack_helpers "$REPO/skills-external/gstack" \
+    "$CLAUDE/skills/gstack")
+  CHANGED=$((CHANGED + n))
+else
   echo "⚠️  GStack submodule not found — run: git submodule update --init"
 fi
 
-# GStack shared infrastructure: bin/ (CLI tools, config, analytics) and
-# browse/dist/ (compiled browse binary). Per-skill SKILL.md symlinks don't
-# expose these, but multiple skills hardcode ~/.claude/skills/gstack/bin/
-# and ~/.claude/skills/gstack/browse/dist/. Create targeted symlinks.
-GSTACK_SRC="$REPO/skills-external/gstack"
-GSTACK_DST="$CLAUDE/skills/gstack"
-if [ -d "$GSTACK_SRC/bin" ]; then
-  mkdir -p "$GSTACK_DST"
-  if [ ! -L "$GSTACK_DST/bin" ]; then
-    ln -sf "$GSTACK_SRC/bin" "$GSTACK_DST/bin"
-    CHANGED=$((CHANGED + 1))
-  fi
-fi
-if [ -d "$GSTACK_SRC/browse/dist" ]; then
-  mkdir -p "$GSTACK_DST/browse"
-  if [ ! -L "$GSTACK_DST/browse/dist" ]; then
-    ln -sf "$GSTACK_SRC/browse/dist" "$GSTACK_DST/browse/dist"
-    CHANGED=$((CHANGED + 1))
-  fi
-fi
-
-EXTERNAL_SKILLS=(emil-design-eng frontend-design design-motion-principles impeccable)
+# impeccable is NOT here: its installer writes the skill straight into
+# skills/ (and its agents into agents/) at --scope=global, so there is no
+# skills-external/ copy to symlink. See install-plugins.sh Step 8d.
+EXTERNAL_SKILLS=(emil-design-eng frontend-design design-motion-principles
+  observability-and-instrumentation deprecation-and-migration ci-cd-and-automation
+  scroll-world-storytelling build-threejs-scroll-worlds
+  scroll-scrubbed-visual-sequence scroll-scrubbed-word-reveal
+  scroll-progress-timeline brainstorming writing-plans
+  subagent-driven-development test-driven-development
+  requesting-code-review using-git-worktrees writing-skills)
 for _ext_skill in "${EXTERNAL_SKILLS[@]}"; do
   if [ -d "$REPO/skills-external/$_ext_skill" ]; then
     if [ -L "$CLAUDE/skills/$_ext_skill" ] && [ "$(readlink "$CLAUDE/skills/$_ext_skill")" = "$REPO/skills-external/$_ext_skill" ]; then
@@ -117,8 +127,6 @@ link_env() {
     echo "       cp \"$REPO/.env.example\" \"$home_env\" && \"\${EDITOR:-nano}\" \"$home_env\""
     return
   fi
-  grep -qE '^[[:space:]]*(export[[:space:]]+)?MAGIC_API_KEY=.' "$home_env" 2>/dev/null \
-    || echo "⚠️  $home_env has no MAGIC_API_KEY line — magic won't enable until added."
   if [ -L "$repo_env" ]; then
     [ "$(readlink "$repo_env")" = "$home_env" ] && return
     ln -sf "$home_env" "$repo_env"; CHANGED=$((CHANGED + 1))

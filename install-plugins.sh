@@ -26,8 +26,12 @@ else
 fi
 
 # Load shared detection library
-# shellcheck source=lib/detect-plugins.sh
+# shellcheck source=lib/detect-plugins.sh disable=SC1091
 source "$REPO/lib/detect-plugins.sh"
+# shellcheck source=lib/gstack-playwright.sh disable=SC1091
+source "$REPO/lib/gstack-playwright.sh"
+# shellcheck source=lib/gstack-links.sh disable=SC1091
+source "$REPO/lib/gstack-links.sh"
 
 # ── Guard hand-curated config against installer drift ────────
 # graphify's installer (Step 7) rewrites CLAUDE.md + .claude/settings.json
@@ -291,35 +295,6 @@ fi
 
 echo ""
 
-# gstack pins Playwright (1.58.x) which only ships browser builds for
-# ubuntu<=24.04. On a newer distro the browser install fails ("does not
-# support chromium on ubuntuXX.04"). Bump gstack's Playwright to a version
-# that supports this OS so ./setup builds the browse binary against it and
-# installs a native browser. Fires only when the pinned version genuinely
-# lacks support — idempotent across runs. Edits the submodule locally (goes
-# dirty); a `git submodule update` resets it and the next install re-applies.
-# See BLK-008 / LRN-040.
-gstack_bump_playwright_if_unsupported() {
-  [ -d "$GSTACK_DIR" ] && [ -r /etc/os-release ] || return 0
-  local ostag pwlib
-  # shellcheck disable=SC1091
-  ostag="$(. /etc/os-release 2>/dev/null; [ "${ID:-}" = ubuntu ] && printf 'ubuntu%s' "${VERSION_ID:-}")"
-  [ -n "$ostag" ] || return 0   # only the known Ubuntu case
-  pwlib="$GSTACK_DIR/node_modules/playwright-core/lib"
-  # populate node_modules at the pinned version so we can read its support list
-  ( cd "$GSTACK_DIR" && { bun install --frozen-lockfile >/dev/null 2>&1 || bun install >/dev/null 2>&1; } ) || return 0
-  if grep -rqs "$ostag" "$pwlib" 2>/dev/null; then
-    return 0   # pinned Playwright already supports this OS
-  fi
-  info "gstack's Playwright lacks $ostag support — bumping to latest (local submodule edit)..."
-  ( cd "$GSTACK_DIR" && bun add playwright@latest >/dev/null 2>&1 )
-  if grep -rqs "$ostag" "$pwlib" 2>/dev/null; then
-    ok "gstack Playwright bumped — now supports $ostag (browse binary rebuilt by ./setup)"
-  else
-    warn "Playwright bump didn't add $ostag support — gstack browser may stay unavailable"
-  fi
-}
-
 # ============================================================
 # STEP 2 — GSTACK SUBMODULE
 # ============================================================
@@ -367,7 +342,8 @@ if [ -d "$GSTACK_DIR" ]; then
   # BEFORE ./setup so its frozen-lockfile install picks up the new version and
   # the browse binary is rebuilt against it (avoids the "does not support
   # chromium" fail). Non-fatal if it can't — gstack is OFF by default.
-  gstack_bump_playwright_if_unsupported
+  # See BLK-008 / LRN-040 / BDR-029; logic lives in lib/gstack-playwright.sh.
+  gstack_bump_playwright_if_unsupported "$GSTACK_DIR"
 
   info "Running GStack setup..."
   _gstack_setup_ok=0
@@ -398,19 +374,17 @@ if [ -d "$GSTACK_DIR" ]; then
     warn "GStack NOT ready — ./setup did not complete (see warnings above)"
   fi
 
-  # GStack shared infrastructure: bin/ (CLI tools) and browse/dist/ (compiled binary).
-  # Per-skill SKILL.md symlinks don't expose these, but multiple skills hardcode
-  # ~/.claude/skills/gstack/bin/ and gstack/browse/dist/.
+  # GStack shared helper tree: every asset the skills hardcode under
+  # ~/.claude/skills/gstack/ (bin/, browse/dist/, ETHOS.md, …) that a
+  # per-skill SKILL.md symlink never exposes — see lib/gstack-links.sh.
+  # Run AFTER ./setup so the lib's own stale-symlink guard removes any
+  # `skills/gstack -> skills-external/gstack` link setup may have planted.
   GSTACK_DST="$HOME/.claude/skills/gstack"
-  if [ -d "$GSTACK_DIR/bin" ]; then
-    mkdir -p "$GSTACK_DST"
-    [ -L "$GSTACK_DST/bin" ] || ln -sf "$GSTACK_DIR/bin" "$GSTACK_DST/bin"
-    ok "gstack/bin/ symlink OK"
-  fi
-  if [ -d "$GSTACK_DIR/browse/dist" ]; then
-    mkdir -p "$GSTACK_DST/browse"
-    [ -L "$GSTACK_DST/browse/dist" ] || ln -sf "$GSTACK_DIR/browse/dist" "$GSTACK_DST/browse/dist"
-    ok "gstack/browse/dist/ symlink OK"
+  _n_gstack_links=$(link_gstack_helpers "$GSTACK_DIR" "$GSTACK_DST")
+  if [ "$_n_gstack_links" -gt 0 ]; then
+    ok "gstack helper tree linked ($_n_gstack_links new)"
+  else
+    ok "gstack helper tree up to date"
   fi
 else
   warn "GStack submodule directory not found after init — check .gitmodules"
@@ -497,7 +471,8 @@ echo ""
 install_plugin() {
   local name="$1"
   local source="$2"
-  if claude plugin list 2>/dev/null | grep -qi "$name"; then
+  # CLI call inside the condition: no pipe (SIGPIPE on macOS), no errexit abort
+  if grep -qi "$name" <<<"$(claude plugin list 2>/dev/null)"; then
     ok "$name (already installed)"
     return
   fi
@@ -513,8 +488,8 @@ install_plugin() {
 # copies the plugin into ~/.claude/plugins/cache — it does NOT register
 # it in settings.json's enabledPlugins map. Without an explicit enable,
 # the plugin sits dormant. Use this for plugins that should be ALWAYS ON
-# (security-guidance, superpowers). Idempotent: skips if already
-# present in enabledPlugins.
+# (security-guidance). Idempotent: skips if already present in
+# enabledPlugins.
 enable_plugin() {
   local name="$1"
   local source="$2"
@@ -557,13 +532,10 @@ install_plugin "pr-review-toolkit"  "claude-code-plugins"
 
 echo ""
 
-# Superpowers (always on)
-info "Adding Superpowers marketplace..."
-claude plugin marketplace add obra/superpowers-marketplace 2>/dev/null || true
-install_plugin "superpowers" "superpowers-marketplace"
-enable_plugin  "superpowers" "superpowers-marketplace"
-
-echo ""
+# Superpowers plugin removed 2026-09-28 (tier 2 of the skill-catalog prune):
+# its 7 wired skills are vendored in Step 8e (plugins.lock.json
+# 'superpowers'); a still-cached plugin is uninstalled by hand once
+# (claude plugin uninstall superpowers@superpowers-marketplace), never here
 
 # UI/UX Pro Max (toggle)
 info "Adding UI/UX Pro Max marketplace..."
@@ -571,6 +543,15 @@ claude plugin marketplace add nextlevelbuilder/ui-ux-pro-max-skill 2>/dev/null |
 install_plugin "ui-ux-pro-max" "ui-ux-pro-max-skill"
 
 echo ""
+
+# frontend-design@claude-plugins-official — NEVER installed: byte-identical
+# to the skills-external copy Step 8b syncs from the example-skills cache;
+# uninstalled 2026-09-28 (skill-catalog prune).
+
+# brightdata-plugin@synced — account-synced from claude.ai, kept `false` in
+# settings.json: every skill needs a Bright Data account and its
+# bright-data-mcp skill orders WebFetch/WebSearch replaced "no exceptions"
+# (would hijack /seo /geo /harden).
 
 # Caveman plugin removed (cleanup/caveman-always-on, v3.5.0): on a
 # subscription plan its ~75% output-token compression has no cost benefit,
@@ -602,6 +583,8 @@ else
 fi
 # ctx7 auth — detect, then offer login ONLY in an interactive TTY. A non-interactive
 # run (CI / headless / re-run) must never open a browser or block on OAuth.
+# The test reads stdin alone: stdout is the tee pipe set up at the top of
+# this script, never a terminal.
 if command -v ctx7 &>/dev/null; then
   # Deterministic offline oracle: ctx7's OAuth token lives here (XDG-aware).
   # Present => authenticated; absent => anonymous. No subprocess, no network, no browser.
@@ -610,7 +593,7 @@ if command -v ctx7 &>/dev/null; then
     ok "ctx7 authenticated (full rate limits)"
   else
     info "ctx7 works anonymously — docs + library already usable, no auth required."
-    if [ -t 0 ] && [ -t 1 ]; then
+    if [ -t 0 ]; then
       # Interactive terminal: offer to log in now (opens a browser).
       printf '%b' "${BLUE}→${NC} Authenticate ctx7 now for higher rate limits? [y/N] "
       read -r ctx7_ans || ctx7_ans=""
@@ -814,56 +797,149 @@ else
 fi
 echo ""
 
-# ── Step 8d: Impeccable (design anti-pattern detector + skill) ──
-# 45 deterministic detector rules (CLI `impeccable detect`, exit 0/2) +
-# /impeccable skill (23 verbs). Machine-owned dist: the installer produces
-# it, we stage it in a tmpdir then move it under skills-external/
-# (gitignored, ctx7 pattern) — never let the installer write through the
-# ~/.claude/skills symlink into the tracked repo dir.
-echo "── Step 8d: Impeccable — design anti-pattern detector ────"
+# ── Step 8d: Impeccable (design detector + skill + subagents) ──
+# 45 deterministic detector rules (`impeccable detect`, exit 0/2), the
+# /impeccable skill (23 verbs) and 4 `impeccable-*` subagents.
+#
+# GLOBAL scope, no staging: the installer writes ~/.claude/skills/impeccable/
+# (skill + its self-contained engine binary) and ~/.claude/agents/
+# impeccable-*.md, and both of those are symlinks into this repo — so the
+# global install IS the repo install. Machine-owned and gitignored on both
+# sides. `--scope=project` was wrong twice over: it writes <cwd>/.claude/,
+# which serves only the directory it ran in, and the staged `mv` that
+# followed it moved the skill alone, silently dropping the subagents.
+#
+# The pin rots. The CLI downloads its skill dist at install time and an older
+# release's artifact eventually disappears (`impeccable@3.2.0` → "Download
+# failed: invalid zip data", 2026-09-22) — which is what left `make plugin`
+# telling the user to run the command by hand. So a pin failure falls back to
+# @latest and says, loudly, that the lock needs bumping.
+echo "── Step 8d: Impeccable — design detector, skill + agents ──"
 echo ""
-IMP_DIR="$REPO/skills-external/impeccable"
+IMP_SKILL_DIR="$HOME/.claude/skills/impeccable"
+IMP_PARKED="$REPO/skills-disabled/impeccable"
 IMP_VER=$(pinned_version "impeccable")
 NODE_MAJOR=$(node -v 2>/dev/null | sed 's/^v//' | cut -d. -f1)
-if [ -z "${NODE_MAJOR:-}" ] || [ "$NODE_MAJOR" -lt 24 ]; then
-  if [ -f "$IMP_DIR/SKILL.md" ]; then
+
+# One install attempt. $1 = "latest" or an exact version. On failure, IMP_FAIL
+# holds the reason. The exit code alone is not enough: with a copy already in
+# place, a rotted pin exits 0 ("Could not check for skill updates: invalid
+# zip data … Existing skills were left unchanged"), exactly like a genuine
+# up-to-date no-op ("Skills are up to date") — only the output tells them
+# apart. Probed 2026-09-22 on 4.1.0 vs 3.2.0 in a sandbox HOME.
+imp_install() {
+  local pkg="impeccable" out rc=0
+  [ "$1" != "latest" ] && pkg="impeccable@$1"
+  out=$(npx -y "$pkg" skills install -y --providers=claude --scope=global \
+    --no-hooks 2>&1) || rc=$?
+  IMP_FAIL=$(printf '%s\n' "$out" \
+    | grep -E 'Download failed|Could not check for skill updates' \
+    | head -1 || true)
+  if [ "$rc" -ne 0 ] && [ -z "$IMP_FAIL" ]; then
+    IMP_FAIL="installer exited $rc"
+  fi
+  [ -z "$IMP_FAIL" ]
+}
+
+# Precondition: ~/.claude/{skills,agents} must already be link.sh's symlinks.
+# Installing before they exist materializes real directories there, and
+# link.sh then refuses to replace them ("is a real directory") — a worse
+# failure than skipping, because it needs manual repair.
+IMP_READY=true
+for _imp_d in skills agents; do
+  if [ "$(readlink "$HOME/.claude/$_imp_d" 2>/dev/null || true)" != "$REPO/$_imp_d" ]; then
+    IMP_READY=false
+  fi
+done
+
+if [ "$IMP_READY" != true ]; then
+  warn "impeccable: ~/.claude/skills and ~/.claude/agents are not this repo's symlinks yet"
+  warn "  → run 'make link' first, then re-run 'make plugin'"
+elif [ -z "${NODE_MAJOR:-}" ] || [ "$NODE_MAJOR" -lt 24 ]; then
+  if [ -f "$IMP_SKILL_DIR/SKILL.md" ] || [ -f "$IMP_PARKED/SKILL.md" ]; then
     ok "impeccable already present (update skipped — needs Node >= 24, found ${NODE_MAJOR:-none})"
   else
     warn "impeccable: needs Node >= 24 (found ${NODE_MAJOR:-none}) — skipped. Bump Node, then: make plugin"
   fi
 else
-  IMP_PKG="impeccable"
+  # A profile may hold impeccable parked in skills-disabled/. Install writes
+  # to the live slot, so remember the state and put the fresh copy back where
+  # it was — otherwise `make plugin` silently re-enables a disabled skill.
+  IMP_WAS_PARKED=false
+  [ -d "$IMP_PARKED" ] && IMP_WAS_PARKED=true
+  IMP_USED=""
   if [ "$IMP_VER" != "latest" ]; then
-    IMP_PKG="impeccable@${IMP_VER}"
-    info "Installing impeccable ${IMP_VER} (pinned in plugins.lock.json, staged)..."
+    info "Installing impeccable ${IMP_VER} (pinned in plugins.lock.json, global scope)..."
+    if imp_install "$IMP_VER"; then
+      IMP_USED="$IMP_VER"
+    else
+      warn "impeccable@${IMP_VER} did not install (${IMP_FAIL}) — that release's skill dist is gone upstream"
+      info "Falling back to impeccable@latest..."
+      if imp_install latest; then
+        IMP_USED="latest"
+        warn "installed @latest instead of the pin. Bump \"impeccable\".version in plugins.lock.json to the version this produced, so the next run is reproducible again."
+      fi
+    fi
   else
     info "Installing impeccable latest (consider pinning in plugins.lock.json)..."
+    imp_install latest && IMP_USED="latest"
   fi
-  IMP_STAGE=$(mktemp -d)
-  if (cd "$IMP_STAGE" && npx -y "$IMP_PKG" skills install -y --providers=claude --scope=project --no-hooks >/dev/null 2>&1); then
-    IMP_SRC=$(find "$IMP_STAGE" -type d -name impeccable -path "*skills*" 2>/dev/null | head -1)
-    if [ -n "$IMP_SRC" ] && [ -f "$IMP_SRC/SKILL.md" ]; then
-      rm -rf "$IMP_DIR"
-      mv "$IMP_SRC" "$IMP_DIR"
-      ok "impeccable synced to skills-external/ (CLI ${IMP_VER})"
-    else
-      warn "impeccable: installer ran but produced no skills/impeccable/SKILL.md — layout changed? Inspect: npx impeccable skills install"
+
+  if [ -n "$IMP_USED" ] && [ -f "$IMP_SKILL_DIR/SKILL.md" ]; then
+    IMP_SKILL_VER=$(sed -n 's/^version:[[:space:]]*//p' "$IMP_SKILL_DIR/SKILL.md" | head -1)
+    # -L: ~/.claude/agents is a symlink, and find would otherwise stop on it.
+    IMP_AGENTS=$(find -L "$HOME/.claude/agents" -maxdepth 1 -name 'impeccable-*.md' 2>/dev/null | wc -l)
+    ok "impeccable installed (CLI ${IMP_USED}, skill ${IMP_SKILL_VER:-?}, ${IMP_AGENTS} agents)"
+    if [ "$IMP_AGENTS" -eq 0 ]; then
+      warn "no impeccable-* agent landed in agents/ — the skill's finish/document verbs dispatch to them"
     fi
+    if [ "$IMP_WAS_PARKED" = true ]; then
+      rm -rf "${IMP_PARKED:?}"
+      mv "$IMP_SKILL_DIR" "$IMP_PARKED"
+      info "impeccable was parked by a profile — refreshed copy returned to skills-disabled/"
+    fi
+    info "Per-project step, in the agent chat of each frontend project:  /impeccable init"
+    info "  (writes PRODUCT.md — the design context every impeccable verb reads)"
+  elif [ -f "$IMP_SKILL_DIR/SKILL.md" ] || [ -f "$IMP_PARKED/SKILL.md" ]; then
+    ok "impeccable already present (install failed: ${IMP_FAIL:-no SKILL.md written} — existing copy kept)"
   else
-    if [ -f "$IMP_DIR/SKILL.md" ]; then
-      ok "impeccable already present (installer failed — existing dist kept)"
-    else
-      warn "impeccable install failed — run manually: npx impeccable skills install -y --providers=claude --scope=project --no-hooks"
-    fi
+    warn "impeccable install failed (${IMP_FAIL:-no SKILL.md written}) — run manually: npx impeccable skills install -y --providers=claude --scope=global --no-hooks"
   fi
-  rm -rf "$IMP_STAGE"
-fi
-if [ -L "$HOME/.claude/skills/impeccable" ]; then
-  ok "impeccable symlink OK"
-else
-  info "Symlinking — will be created by link.sh"
 fi
 echo ""
+
+# ── Step 8e: Agent Skills (addyosmani/agent-skills) + Mengto scroll
+# skills (MengTo/Skills) + superpowers (obra/superpowers) — all
+# commit-pinned, vendored the emil-design-eng way (curl →
+# skills-external/<name>/, symlinked by link.sh) through the shared
+# lib/vendor-skills.sh helper. Shas/paths/file-lists live in
+# plugins.lock.json ("agent-skills" / "mengto-skills" / "superpowers"
+# entries), never hardcoded here.
+echo "── Step 8e: Agent Skills + Mengto scroll skills + superpowers (pinned commit) ──"
+echo ""
+# shellcheck source=lib/vendor-skills.sh disable=SC1091
+source "$REPO/lib/vendor-skills.sh"
+EXT_SKILL_NAMES=(observability-and-instrumentation deprecation-and-migration
+  ci-cd-and-automation scroll-world-storytelling build-threejs-scroll-worlds
+  scroll-scrubbed-visual-sequence scroll-scrubbed-word-reveal
+  scroll-progress-timeline brainstorming writing-plans
+  subagent-driven-development test-driven-development
+  requesting-code-review using-git-worktrees writing-skills)
+vendor_pinned_skills agent-skills
+vendor_pinned_skills mengto-skills
+vendor_pinned_skills superpowers
+for _ext_skill in "${EXT_SKILL_NAMES[@]}"; do
+  if [ -L "$HOME/.claude/skills/$_ext_skill" ]; then
+    ok "$_ext_skill symlink OK"
+  else
+    info "Symlinking $_ext_skill — will be created by link.sh"
+  fi
+done
+echo ""
+
+# Effort pins (BDR-107, BDR-108): every vendored external gets its entry
+# level from lib/effort-pins.txt, re-applied ONCE after the last vendoring
+# step (the 21st pack, STEP 8.7) — see apply_effort_pins there.
 
 # ============================================================
 # STEP 8.5 — EXTERNAL SKILLS (npx skills add …)
@@ -918,46 +994,177 @@ done
 echo ""
 
 # ============================================================
-# STEP 8.7 — MAGIC MCP (21st-dev) — installed but DISABLED by default
+# STEP 8.6 — HIGGSFIELD CLI + SKILL PACK
 # ============================================================
-# Magic MCP is a stdio MCP server providing UI component generation
-# from 21st.dev. Toggled via lib/toggle-external.sh (same interface as
-# gstack, emil-design-eng, etc.). Registered in Claude Code user scope.
+# `@higgsfield/cli` (bins `higgsfield`, `higgs`): image, video, audio and
+# brand media generation from the terminal, one browser login, metered
+# credits. Its skills come from github.com/higgsfield-ai/skills, cloned by
+# lib/higgsfield-skills.sh into skills-external/higgsfield-* (gitignored).
 #
-# Default policy: DISABLED at install time. Rationale: MCP tools load
-# into every Claude Code session and consume context tokens. Enable
-# only when you're actively using Magic.
-#
-# API key: read from $REPO/.env (MAGIC_API_KEY=...) — NEVER committed.
-# Template: $REPO/.env.example. Get a key at https://21st.dev/magic
-echo "── Step 8.7: Magic MCP (21st-dev) ──────────────────────────"
+# Nothing is linked here. The pack is OFF by default and belongs to no
+# profile: `lib/toggle-external.sh enable higgsfield` turns the media skills
+# on, `enable higgsfield-websites` the landing-page aid. Keeping it out of
+# link.sh and of every profile is what stops a re-run from re-enabling it
+# (BDR-093). This step runs before Step 8.7 so the effort pins are still
+# re-applied after the last vendoring step (BDR-108).
+echo "── Step 8.6: Higgsfield CLI + skill pack ───────────────────"
 echo ""
-if [ -x "$REPO/lib/toggle-external.sh" ]; then
-  MAGIC_STATUS="$(bash "$REPO/lib/toggle-external.sh" status magic 2>/dev/null || echo missing)"
-  if [ "$MAGIC_STATUS" = "enabled" ]; then
-    info "Disabling magic MCP by default (enable on demand)..."
-    bash "$REPO/lib/toggle-external.sh" disable magic >/dev/null
-    ok "magic MCP disabled — enable with: bash lib/toggle-external.sh enable magic"
-  else
-    ok "magic MCP disabled (default)"
-  fi
-  # The key lives in ~/.claude/.env (canonical, BDR-026), reached via the
-  # repo/.env symlink that toggle-external.sh sources. Self-heal the common
-  # fresh-machine case: ~/.claude/.env was created AFTER link.sh ran, so the
-  # symlink is missing and the key looks absent though it's set.
-  HOME_ENV="$HOME/.claude/.env"
-  if [ ! -e "$REPO/.env" ] && [ -f "$HOME_ENV" ]; then
-    ln -sf "$HOME_ENV" "$REPO/.env" 2>/dev/null \
-      && info "Linked repo/.env → ~/.claude/.env (was missing)"
-  fi
-  # Tolerate optional `export ` and leading whitespace; require a value.
-  MAGIC_KEY_RE='^[[:space:]]*(export[[:space:]]+)?MAGIC_API_KEY=.'
-  if [ ! -f "$REPO/.env" ] || ! grep -qE "$MAGIC_KEY_RE" "$REPO/.env" 2>/dev/null; then
-    warn "MAGIC_API_KEY not set in ~/.claude/.env — add it (and run 'make link') before enabling magic"
-  fi
+# shellcheck source=lib/higgsfield-skills.sh disable=SC1091
+source "$REPO/lib/higgsfield-skills.sh"
+HF_PKG="@higgsfield/cli"
+# The package vendors its binary in a postinstall script that npm may hold
+# back; this form lets that one script run.
+HF_REMEDY="npm install -g --allow-scripts=${HF_PKG} ${HF_PKG}"
+
+# higgsfield_cli_ok, not `command -v`: the npm shim can sit on PATH with no
+# binary behind it, and only a probe tells the two apart.
+if higgsfield_cli_ok; then
+  ok "Higgsfield CLI already installed"
 else
-  warn "lib/toggle-external.sh not found or not executable — skipping"
+  HF_VER=$(pinned_version "higgsfield")
+  [ "$HF_VER" = "latest" ] || HF_PKG="${HF_PKG}@${HF_VER}"
+  info "Installing ${HF_PKG} (version from plugins.lock.json: ${HF_VER})..."
+  npm install -g "$HF_PKG" || true
+  if higgsfield_cli_ok; then
+    ok "Higgsfield CLI installed"
+  else
+    err "Higgsfield CLI install failed — run manually: $HF_REMEDY"
+  fi
 fi
+
+if higgsfield_cli_ok; then
+  # Skill pack — cloned to a stage, then moved under skills-external/.
+  if HF_N=$(higgsfield_sync_skills "$REPO"); then
+    ok "Higgsfield skill pack synced to skills-external/ ($HF_N skills)"
+  else
+    warn "Higgsfield skill pack sync failed — existing copies kept (check: git clone $HIGGSFIELD_SKILLS_URL)"
+  fi
+
+  # Auth — offer the login only when stdin is a terminal: a non-interactive
+  # run (CI / headless) must never open a browser or block on OAuth.
+  if higgsfield_signed_in; then
+    ok "Higgsfield: signed in"
+  elif [ -t 0 ]; then
+    printf '%b' "${BLUE}→${NC} Sign in to Higgsfield now? (opens a browser) [y/N] "
+    read -r hf_ans || hf_ans=""
+    if [[ "$hf_ans" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+      if higgsfield auth login; then
+        ok "Higgsfield authenticated"
+      else
+        warn "Higgsfield login did not finish — re-run 'higgsfield auth login' anytime"
+      fi
+    else
+      info "Skipped — sign in later with:  higgsfield auth login"
+    fi
+  else
+    info "Not signed in. Generation needs:  higgsfield auth login"
+  fi
+  info "Pack is off by default — enable:  bash lib/toggle-external.sh enable higgsfield"
+fi
+echo ""
+
+# ============================================================
+# STEP 8.7 — 21ST.DEV CLI + SKILL PACK
+# ============================================================
+# `@21st-dev/cli` (bin `21st`): one browser login (`21st login`, token in
+# ~/.config/21st), no API key, no MCP process loaded into every session. It
+# ships a pack of
+# verified skills (21st-ui-build / -explore / -review / -cli-use / -ai /
+# -registry / -design-sync) that drive the CLI from Claude Code.
+#
+# Machine-owned dist (impeccable pattern): `21st skills install` writes to
+# <HOME>/.claude/skills/<name>/ and REFUSES to follow a symlink anywhere on
+# that path — and ~/.claude/skills IS a symlink to this repo's skills/. So
+# install under a staged HOME, then move each skill into skills-external/
+# (gitignored), where toggle-external.sh / profile.sh symlink it in.
+#
+# The pack's state is governed by profiles, not by this step: Step 11
+# applies the default profile (`full`), which links the five design skills
+# in; the two publishing skills (21st-registry, 21st-design-sync) stay on
+# demand — no profile lists them, so they are never auto-linked. A re-run
+# must never re-park what the selected profile or the user already enabled.
+echo "── Step 8.7: 21st.dev CLI + skill pack ─────────────────────"
+echo ""
+if command -v 21st &>/dev/null; then
+  ok "21st CLI already installed"
+else
+  TFD_VER=$(pinned_version "21st")
+  if [ "$TFD_VER" != "latest" ]; then
+    info "Installing @21st-dev/cli@${TFD_VER} (pinned in plugins.lock.json)..."
+    npm install -g "@21st-dev/cli@${TFD_VER}"
+  else
+    info "Installing @21st-dev/cli@latest (consider pinning in plugins.lock.json)..."
+    npm install -g @21st-dev/cli
+  fi
+  if command -v 21st &>/dev/null; then
+    ok "21st CLI installed"
+  else
+    err "21st CLI install failed — run manually: npm install -g @21st-dev/cli"
+  fi
+fi
+
+# Skill pack — staged install, then moved under skills-external/.
+if command -v 21st &>/dev/null; then
+  TFD_STAGE=$(mktemp -d)
+  if HOME="$TFD_STAGE" 21st skills install --global --agent claude >/dev/null 2>&1; then
+    TFD_N=0
+    for _tfd in "$TFD_STAGE"/.claude/skills/*/; do
+      [ -f "${_tfd}SKILL.md" ] || continue
+      _tfd_name=$(basename "$_tfd")
+      rm -rf "${REPO:?}/skills-external/${_tfd_name:?}"
+      mv "$_tfd" "$REPO/skills-external/$_tfd_name"
+      TFD_N=$((TFD_N + 1))
+    done
+    if [ "$TFD_N" -gt 0 ]; then
+      ok "21st skill pack synced to skills-external/ ($TFD_N skills)"
+    else
+      warn "21st skills install ran but produced no SKILL.md — layout changed? Inspect: 21st skills install --global --agent claude"
+    fi
+  elif [ -f "$REPO/skills-external/21st-ui-build/SKILL.md" ]; then
+    ok "21st skill pack already present (refresh failed — existing copy kept)"
+  else
+    warn "21st skill pack install failed — run manually: 21st skills install --global --agent claude"
+  fi
+  rm -rf "$TFD_STAGE"
+fi
+
+# Effort pins (BDR-107, BDR-108): the vendored externals carry no `effort:`
+# upstream and every vendoring step above rewrites SKILL.md. Re-apply the
+# entry levels from lib/effort-pins.txt once, after the LAST such step.
+# shellcheck source=lib/effort-pins.sh disable=SC1091
+source "$REPO/lib/effort-pins.sh"
+apply_effort_pins "$REPO" || warn "effort pins: map lines rejected — fix lib/effort-pins.txt"
+
+# Auth — detect, then offer login ONLY in an interactive TTY. A non-interactive
+# run (CI / headless / re-run) must never open a browser or block on OAuth.
+# Search and logo lookup are free; retrieving component code and 21st AI need
+# the session. Mirrors the ctx7 auth block (Step 6), stdin-only test included.
+if command -v 21st &>/dev/null; then
+  # `whoami` is a local token read (no network): "Logged in as <user> (saved …)."
+  TFD_WHO="$(21st whoami 2>/dev/null)" || true
+  TFD_WHO="${TFD_WHO%%$'\n'*}"  # first line, no head(1) in a pipeline
+  if [[ "$TFD_WHO" == "Logged in as "* ]]; then
+    ok "21st: ${TFD_WHO%.}"
+  elif [ -t 0 ]; then
+    printf '%b' "${BLUE}→${NC} Sign in to 21st now? (opens a browser) [y/N] "
+    read -r tfd_ans || tfd_ans=""
+    if [[ "$tfd_ans" =~ ^[Yy]([Ee][Ss])?$ ]]; then
+      if 21st login; then
+        ok "21st authenticated"
+      else
+        warn "21st login did not finish — re-run '21st login' anytime"
+      fi
+    else
+      info "Skipped — sign in later with:  21st login"
+    fi
+  else
+    info "Not signed in. Component retrieval and 21st AI need:  21st login"
+  fi
+fi
+
+# The pack's state is governed by profiles (Step 11), not parked here: a
+# re-run must never re-park what the selected profile or the user enabled.
+# See the Step 11 banner for how the default profile applies.
 echo ""
 
 # ============================================================
@@ -991,16 +1198,37 @@ fi
 # Remove obsolete effort config — effort is now set in settings.json
 # ("effortLevel"), which supersedes both the old CLAUDE_EFFORT env var and the
 # `claude --effort max` alias (the alias would even override settings.json).
+# sed_profile <expr> — in-place sed on $SHELL_PROFILE. BSD in-place sed needs
+# a suffix, and -i.bak would clobber a hand-made .bak, so write a unique
+# sibling temp and copy it back. rc 1 leaves the profile as it was.
+sed_profile() {
+  local tmp
+  tmp="$(mktemp "$SHELL_PROFILE.XXXXXX")" || return 1
+  # the profile is truncated by the copy-back: past that point $tmp is the
+  # only complete copy, so a failed write keeps it
+  sed "$1" "$SHELL_PROFILE" >"$tmp" || { rm -f "$tmp"; return 1; }
+  if ! cat "$tmp" >"$SHELL_PROFILE"; then
+    warn "profile write failed — full copy kept at $tmp" >&2
+    return 1
+  fi
+  rm -f "$tmp"
+}
 EFFORT_CLEANED=0
 if grep -qF 'export CLAUDE_EFFORT=max' "$SHELL_PROFILE" 2>/dev/null; then
-  sed -i '/export CLAUDE_EFFORT=max/d' "$SHELL_PROFILE"; EFFORT_CLEANED=1
+  if sed_profile '/export CLAUDE_EFFORT=max/d'; then
+    EFFORT_CLEANED=1
+  else
+    warn "could not remove CLAUDE_EFFORT from $SHELL_PROFILE"
+  fi
 fi
 if grep -qF "alias claude='claude --effort max'" "$SHELL_PROFILE" 2>/dev/null; then
-  sed -i "\#alias claude='claude --effort max'#d" "$SHELL_PROFILE"; EFFORT_CLEANED=1
+  if sed_profile "\#alias claude='claude --effort max'#d"; then
+    EFFORT_CLEANED=1
+  else
+    warn "could not remove the claude effort alias from $SHELL_PROFILE"
+  fi
 fi
 if [ "$EFFORT_CLEANED" -eq 1 ]; then
-  # Remove orphaned comment lines left before the deleted entries
-  sed -i '/^# Claude Code — added by install-plugins.sh$/{ N; /^\n$/d; }' "$SHELL_PROFILE"
   info "Removed obsolete effort alias/env from $SHELL_PROFILE (effort set in settings.json)"
 fi
 
@@ -1042,6 +1270,40 @@ fi
 echo ""
 
 # ============================================================
+# STEP 11 — DEFAULT PROFILE
+# ============================================================
+# The profile decides which skills / externals / plugins are on. No
+# selection yet (.active-profile absent, empty or legacy "none" — same
+# rule as lib/profile.sh active_profile()) → apply the default via
+# `profile.sh reset`. An existing selection is re-applied (`set`). Plugin legs
+# are install-immutable (the EXIT guard restores settings.json, BDR-028;
+# the committed enabledPlugins already match the default profile), so
+# only the skill / external legs matter here.
+echo "── Step 11: Default profile ────────────────────────────────"
+echo ""
+if [ -f "$REPO/lib/profile.sh" ]; then
+  SEL="$(head -n1 "$REPO/.active-profile" 2>/dev/null | tr -d '[:space:]' || true)"
+  case "$SEL" in
+    ""|none)
+      info "No profile selected — applying the default profile (bash lib/profile.sh reset)..."
+      bash "$REPO/lib/profile.sh" reset \
+        || warn "default profile not applied — run: bash lib/profile.sh reset"
+      ;;
+    *)
+      # Steps 2 (gstack parked) and 10 (link.sh re-links the design
+      # externals) rewrite skill state on every run: re-apply the
+      # selection so its state comes back, label unchanged.
+      info "Profile kept: $SEL — re-applying it (bash lib/profile.sh set $SEL)..."
+      bash "$REPO/lib/profile.sh" set "$SEL" \
+        || warn "profile $SEL not re-applied — run: bash lib/profile.sh set $SEL"
+      ;;
+  esac
+else
+  warn "lib/profile.sh not found — skipping the default profile"
+fi
+echo ""
+
+# ============================================================
 # SUMMARY
 # ============================================================
 echo ""
@@ -1050,9 +1312,9 @@ echo "║                     Install Summary                     ║"
 echo "╚══════════════════════════════════════════════════════════╝"
 echo ""
 echo "  ALWAYS ON (installed at user scope):"
-echo "    ✅ security-guidance   — PreToolUse security hook (0 tokens) [claude-code-plugins]"
+echo "    ✅ security-guidance   — regex hints on Edit/Write + out-of-band LLM reviews on commit/push (Stop review off via ENABLE_STOP_REVIEW=0; quota, not context) [claude-code-plugins]"
 echo "    ✅ rtk                 — token compression hook (0 tokens)"
-echo "    ✅ superpowers         — brainstorm/plan/implement/debug workflow"
+echo "    ✅ superpowers skills  — 7 vendored (brainstorming, writing-plans, subagent-driven-development, test-driven-development, requesting-code-review, using-git-worktrees, writing-skills), pinned v6.4.1, curl → symlink, no plugin, no session injection"
 echo ""
 echo "  TOGGLE (plugin state = settings.json enabledPlugins; skills/CLIs = profiles):"
 echo "    🔄 gstack              — disabled by default (toggle: lib/toggle-external.sh enable gstack)"
@@ -1065,14 +1327,20 @@ echo "    🔄 emil-design-eng     — UI polish, animations, component craft (c
 echo "    🔄 frontend-design     — distinctive frontend interfaces, anti-AI-slop (anthropic-agent-skills)"
 echo "    🔄 impeccable          — /impeccable design verbs + 45-rule deterministic detector (npx impeccable detect)"
 echo "    🔄 design-motion-principles — motion/animation design, 3-designer lens (kylezantos)"
+echo "    🔄 agent-skills trio   — observability-and-instrumentation, deprecation-and-migration, ci-cd-and-automation (curl → symlink, pinned commit)"
+echo "    🔄 mengto scroll skills — scroll-world-storytelling, build-threejs-scroll-worlds, scroll-scrubbed-visual-sequence, scroll-scrubbed-word-reveal, scroll-progress-timeline (curl → symlink, pinned commit)"
 echo "    🔄 darwin-skill        — autonomous skill optimizer (npx skills, ~/.agents/skills/)"
-echo "    🔄 magic MCP           — 21st-dev UI generation MCP (toggle: lib/toggle-external.sh enable magic)"
+echo "    🔄 21st skill pack     — 21st.dev CLI skills; design ones follow the profile (full by default), publishing ones on demand (toggle: lib/toggle-external.sh enable 21st)"
+echo "    🔄 higgsfield pack     — Higgsfield CLI media skills (image, video, audio, brand), OFF by default (toggle: lib/toggle-external.sh enable higgsfield; landing-page aid: enable higgsfield-websites)"
 echo ""
 echo "  All plugins installed at: user scope (~/.claude/plugins/)"
 echo "  GStack skills symlinked individually into ~/.claude/skills/ (→ submodule)"
 echo "  Emil Design Eng at: ~/.claude/skills/emil-design-eng/ (symlink → skills-external)"
 echo "  Frontend Design at: ~/.claude/skills/frontend-design/ (symlink → skills-external)"
 echo "  Design Motion Principles at: ~/.claude/skills/design-motion-principles/ (symlink → skills-external)"
+echo "  Agent Skills trio at: ~/.claude/skills/{observability-and-instrumentation,deprecation-and-migration,ci-cd-and-automation}/ (symlink → skills-external)"
+echo "  Mengto scroll skills at: ~/.claude/skills/{scroll-world-storytelling,build-threejs-scroll-worlds,scroll-scrubbed-visual-sequence,scroll-scrubbed-word-reveal,scroll-progress-timeline}/ (symlink → skills-external)"
+echo "  Superpowers skills at: ~/.claude/skills/{brainstorming,writing-plans,subagent-driven-development,test-driven-development,requesting-code-review,using-git-worktrees,writing-skills}/ (symlink → skills-external)"
 echo "  npx skills at: ~/.agents/skills/ (symlinked into ~/.claude/skills/)"
 echo ""
 echo "  → Restart Claude Code — plugins load automatically"

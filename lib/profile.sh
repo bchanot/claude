@@ -11,25 +11,28 @@
 # Mechanism:
 #   - Skills (gstack/external/personal): symlink toggle skills/ ↔ skills-disabled/
 #   - Plugins: `claude plugin enable|disable <name>@<marketplace>`
-#   - MCPs: delegated to lib/toggle-external.sh for known servers (magic),
+#   - MCPs: advisory (none managed since BDR-093 — MANAGED_MCPS is empty),
 #           advisory otherwise
 #   - CLIs: advisory only (rtk, gsd, ctx7, graphify — installed externally)
 #   - `set` is SYMMETRIC on managed items (BDR-079): plugins, external packs
 #     and MCPs in the MANAGED_* allowlists are disabled when the profile
 #     does not list them — nothing outside those lists is ever auto-toggled.
 #
-# Always-on plugins (never toggled by `set`): security-guidance,
-# superpowers + rtk hook + .claude internal. The script refuses to disable
+# Always-on plugins (never toggled by `set`): security-guidance + rtk
+# hook + .claude internal. superpowers is vendored skills now, not a
+# plugin (never in PROTECTED_PLUGINS, never in MANAGED_EXTERNALS — same
+# always-on class as darwin-skill). The script refuses to disable
 # anything in PROTECTED_PLUGINS.
 #
 # Usage:
 #   profile.sh list                  list available profiles
 #   profile.sh show <name>           show contents of a profile (grouped by type)
 #   profile.sh show <name> --plain   parsable type+name list (no status, no claude)
-#   profile.sh current               detect which profile is active
+#   profile.sh current               report the active profile (label + match)
 #   profile.sh apply <name>          enable items in profile (additive)
 #   profile.sh set <name>            enable only profile (disables rest)
-#   profile.sh reset                 re-enable all gstack skills + managed plugins
+#   profile.sh reset                 go to the default profile (full): enable its
+#                                    list, park non-listed gstack/managed items
 #   profile.sh gstack on|off         toggle gstack, keeping active-profile label
 #   profile.sh diff <a> <b>          compare two profiles
 #
@@ -51,13 +54,19 @@ SKILLS_DIR="$REPO/skills"
 DISABLED_DIR="$REPO/skills-disabled"
 GSTACK_SRC="$REPO/skills-external/gstack"  # gstack submodule — source of truth for gstack skills
 PROFILES_DIR="$REPO/lib/profiles"
-TOGGLE_EXTERNAL="$REPO/lib/toggle-external.sh"
 ACTIVE_CACHE="$REPO/.active-profile"  # statusline reads this — keep fast (single-line file, profile name only)
+DEFAULT_PROFILE="full"  # profile in force when none is selected (cache absent, empty, or legacy "none")
+
+# GSTACK_REMOVED + gstack_is_removed() — single source, honored by every
+# "bring gstack back" path below (enable_all_gstack, enable_skill).
+# shellcheck source=lib/gstack-removed.sh disable=SC1091
+source "$(dirname "${BASH_SOURCE[0]}")/gstack-removed.sh"
 
 # Plugins that are toggle-managed by `set`. Anything NOT in this list is
-# never auto-disabled — protects always-on plugins (security-guidance,
-# superpowers) and unrelated user plugins. Add a plugin here only when its
-# enabled state is meaningfully driven by task type.
+# never auto-disabled — protects always-on plugins (security-guidance;
+# superpowers is vendored skills now, not a plugin) and unrelated user
+# plugins. Add a plugin here only when its enabled state is meaningfully
+# driven by task type.
 MANAGED_PLUGINS=(
   "ui-ux-pro-max@ui-ux-pro-max-skill"
   "plugin-dev@claude-code-plugins"
@@ -73,20 +82,33 @@ MANAGED_EXTERNALS=(
   frontend-design
   design-motion-principles
   impeccable
+  21st-ui-build
+  21st-ui-explore
+  21st-ui-review
+  21st-cli-use
+  21st-ai
+  observability-and-instrumentation
+  deprecation-and-migration
+  ci-cd-and-automation
+  scroll-world-storytelling
+  build-threejs-scroll-worlds
+  scroll-scrubbed-visual-sequence
+  scroll-scrubbed-word-reveal
+  scroll-progress-timeline
 )
 
 # MCP servers that are toggle-managed by `set`, both ways (enable AND
 # disable), delegated to lib/toggle-external.sh. Same allowlist doctrine.
-MANAGED_MCPS=(
-  magic
-)
+# Empty: no MCP server is managed today (the 21st design skills are managed
+# as externals above). The `mcp` type itself stays supported — a profile can
+# still list an MCP, it is then advisory rather than auto-toggled.
+MANAGED_MCPS=()
 
 # Plugins that MUST stay enabled — `set` will refuse to disable these even if
 # they're not in the profile. (Defensive: belt-and-suspenders alongside
 # MANAGED_PLUGINS allowlist.)
 PROTECTED_PLUGINS=(
   "security-guidance@claude-code-plugins"
-  "superpowers@superpowers-marketplace"
 )
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; BLUE='\033[0;34m'; NC='\033[0m'
@@ -101,6 +123,26 @@ info() { echo -e "${BLUE}ℹ${NC}  $1"; }
 write_active() {
   local name="$1"
   printf '%s\n' "$name" > "$ACTIVE_CACHE" 2>/dev/null || true
+}
+
+# First line of the cache, all whitespace stripped (tr -d, CRLF-proof).
+# Empty string when the cache is missing or empty. Never trips
+# `set -euo pipefail` (head's failure on a missing file is absorbed).
+read_cache() {
+  head -n1 "$ACTIVE_CACHE" 2>/dev/null | tr -d '[:space:]' || true
+}
+
+# The profile actually in force: the cached label, or DEFAULT_PROFILE when
+# the cache is absent, empty, or the legacy "none" sentinel. The ONE place
+# that resolves "no profile selected" — every reader of the cache goes
+# through this (or read_cache() when it needs the raw value).
+active_profile() {
+  local cached; cached="$(read_cache)"
+  if [ -z "$cached" ] || [ "$cached" = "none" ]; then
+    printf '%s' "$DEFAULT_PROFILE"
+  else
+    printf '%s' "$cached"
+  fi
 }
 
 # ── Profile parsing ────────────────────────────────────────
@@ -223,13 +265,15 @@ skill_status() {
       # `claude plugin list` is the source of truth — settings.json may be
       # ahead of or behind reality if the user toggled outside this tool.
       if command -v "$CLAUDE_BIN" >/dev/null 2>&1; then
-        # Match the plugin block by name then check Status line
-        if "$CLAUDE_BIN" plugin list 2>/dev/null \
-           | awk -v p="$skill" '
+        # Match the plugin block by name then check Status line. List is
+        # captured first: an early-exit awk/grep -q in a pipe SIGPIPEs the
+        # producer (rc 141 under pipefail on macOS).
+        local plist
+        plist="$("$CLAUDE_BIN" plugin list 2>/dev/null)" || true
+        if grep -q "✔ enabled" < <(awk -v p="$skill" '
                /^[[:space:]]*❯ '"$skill"'@/ { found=1; next }
                found && /Status:/ { print; exit }
-             ' \
-           | grep -q "✔ enabled"; then
+             ' <<<"$plist"); then
           echo "enabled"
         else
           echo "disabled"
@@ -240,7 +284,7 @@ skill_status() {
       ;;
     mcp)
       if command -v "$CLAUDE_BIN" >/dev/null 2>&1 && \
-         "$CLAUDE_BIN" mcp list 2>/dev/null | grep -q "^${skill}"; then
+         grep -q "^${skill}" <<<"$("$CLAUDE_BIN" mcp list 2>/dev/null)"; then
         echo "enabled"
       else
         echo "disabled"
@@ -253,13 +297,36 @@ skill_status() {
   esac
 }
 
+# How much of one profile is actually available right now. An item counts
+# as available when its status is "enabled" (skills, plugins, MCPs) or
+# "installed" (CLIs). Echo: "<available> <total>" — total 0 for an empty
+# profile. Used by cmd_current to score the ACTIVE label only (BDR-030:
+# scanning every profile for a best guess doesn't apply — gstack is off by
+# default, so a parked count says nothing about which profile is on).
+profile_match() {
+  local prof="$1" skill type status
+  local total=0 available=0
+  while IFS=$'\t' read -r skill type; do
+    total=$((total + 1))
+    status="$(skill_status "$skill" "$type")"
+    case "$status" in
+      enabled|installed) available=$((available + 1)) ;;
+    esac
+  done < <(read_profile "$prof")
+  printf '%d %d\n' "$available" "$total"
+}
+
 # ── Enable / disable ──────────────────────────────────────
 
 enable_skill() {
   local skill="$1" type="$2"
   case "$type" in
     gstack)
-      if [ -e "$DISABLED_DIR/gstack__$skill" ]; then
+      if gstack_is_removed "$skill"; then
+        warn "refusing to enable removed skill: $skill (lib/gstack-removed.sh \
+— a profile census failure, not a crash)"
+        return 0
+      elif [ -e "$DISABLED_DIR/gstack__$skill" ]; then
         rm -rf "${SKILLS_DIR:?}/${skill:?}"
         mv "$DISABLED_DIR/gstack__$skill" "$SKILLS_DIR/$skill"
         ok "enabled: $skill"
@@ -306,7 +373,10 @@ enable_skill() {
       if [ "$(skill_status "$skill" "$type")" = "enabled" ]; then
         : # already on
       elif command -v "$CLAUDE_BIN" >/dev/null 2>&1; then
-        if "$CLAUDE_BIN" plugin enable "${skill}@${marketplace}" 2>&1 | grep -qiE "enabled|already"; then
+        # CLI call stays inside the condition: a failing CLI must not abort
+        if grep -qiE "enabled|already" \
+             <<<"$("$CLAUDE_BIN" plugin enable \
+               "${skill}@${marketplace}" 2>&1)"; then
           ok "enabled plugin: ${skill}@${marketplace}"
         else
           warn "could not enable plugin: ${skill}@${marketplace}"
@@ -324,15 +394,10 @@ enable_skill() {
       fi
       ;;
     mcp)
+      # Advisory only: MANAGED_MCPS is empty, nothing is auto-registered.
+      # Re-add a delegation branch here the day a profile owns an MCP server.
       if [ "$(skill_status "$skill" mcp)" = "enabled" ]; then
         : # already on
-      elif [ "$skill" = "magic" ] && [ -x "$TOGGLE_EXTERNAL" ]; then
-        # Known MCP — delegate to lib/toggle-external.sh which handles env vars.
-        if bash "$TOGGLE_EXTERNAL" enable magic 2>&1 | grep -qE "enabled|already"; then
-          ok "enabled MCP: magic"
-        else
-          info "MCP 'magic' could not be enabled (check .env for MAGIC_API_KEY)"
-        fi
       else
         info "MCP '$skill' not registered — run: claude mcp add $skill -- <command>"
       fi
@@ -381,7 +446,8 @@ disable_skill() {
       if [ "$(skill_status "$skill" "$type")" = "disabled" ]; then
         : # already off
       elif command -v "$CLAUDE_BIN" >/dev/null 2>&1; then
-        if "$CLAUDE_BIN" plugin disable "$key" 2>&1 | grep -qiE "disabled|already"; then
+        if grep -qiE "disabled|already" \
+             <<<"$("$CLAUDE_BIN" plugin disable "$key" 2>&1)"; then
           ok "disabled plugin: $key"
         else
           warn "could not disable plugin: $key"
@@ -394,15 +460,7 @@ disable_skill() {
       info "plugin '$skill' — manual: claude plugin disable $skill@<marketplace>"
       ;;
     mcp)
-      if [ "$skill" = "magic" ] && [ -x "$TOGGLE_EXTERNAL" ]; then
-        if bash "$TOGGLE_EXTERNAL" disable magic 2>&1 | grep -qE "disabled|already"; then
-          ok "disabled MCP: magic"
-        else
-          info "MCP 'magic' — manual disable failed"
-        fi
-      else
-        info "MCP '$skill' — manual: claude mcp remove $skill"
-      fi
+      info "MCP '$skill' — manual: claude mcp remove $skill"
       ;;
     cli)
       : # never auto-uninstall CLIs
@@ -413,18 +471,27 @@ disable_skill() {
 # ── Shared gstack operations ──────────────────────────────
 
 # Re-enable every gstack skill parked in skills-disabled/ (move gstack__*
-# back into skills/). Shared by cmd_reset and `gstack on`. Side effects
-# only; prints one confirmation per restored skill.
+# back into skills/), skipping a name lib/gstack-removed.sh denies (left
+# parked — the policy line goes to stderr). Shared by cmd_reset and
+# `gstack on`. Echoes the REAL restored count (skipped names excluded) on
+# stdout so the caller can report it accurately; per-skill confirmations
+# go to stderr so that count is the only thing captured with `$(...)`.
 enable_all_gstack() {
-  local entry name
-  [ -d "$DISABLED_DIR" ] || return 0
+  local entry name restored=0
+  [ -d "$DISABLED_DIR" ] || { echo 0; return 0; }
   for entry in "$DISABLED_DIR"/gstack__*; do
     [ -e "$entry" ] || continue
     name="$(basename "$entry" | sed 's/^gstack__//')"
+    if gstack_is_removed "$name"; then
+      info "skipped (removed by policy, lib/gstack-removed.sh): $name" >&2
+      continue
+    fi
     rm -rf "${SKILLS_DIR:?}/${name:?}"
     mv "$entry" "$SKILLS_DIR/$name"
-    ok "re-enabled: $name"
+    ok "re-enabled: $name" >&2
+    restored=$((restored + 1))
   done
+  echo "$restored"
 }
 
 # Disable gstack-origin skills not listed in the given profile. Shared by
@@ -584,7 +651,7 @@ cmd_set() {
 
   # Symmetry (BDR-079): a profile switch also parks the managed external
   # packs and unregisters the managed MCPs the new profile does not need —
-  # design leftovers (emil, magic…) no longer survive a `set backend`.
+  # design leftovers (emil, the 21st pack…) no longer survive a `set backend`.
   disable_externals_not_in "$prof"
   disable_mcps_not_in "$prof"
 
@@ -593,39 +660,37 @@ cmd_set() {
 }
 
 cmd_reset() {
-  info "Re-enabling all gstack skills (move skills-disabled/gstack__* back)"
-  enable_all_gstack
-  info "Plugin state NOT touched. To re-enable a managed plugin disabled by 'set',"
-  info "run: claude plugin enable <name>@<marketplace>  (or: profile apply <profile>)"
-  write_active "none"
+  info "Resetting to the default profile: $DEFAULT_PROFILE (exclusive — enables its list, parks any non-listed gstack or managed item currently on)"
+  cmd_set "$DEFAULT_PROFILE"
 }
 
 # gstack on|off — focused gstack-only toggle that keeps the active-profile
-# label intact (unlike reset, which clears it to "none"). Lets the user
-# layer all gstack on top of their current profile, or trim it back down
-# to just what the active profile needs.
+# label intact (unlike reset, which switches to the default profile). Lets
+# the user layer all gstack on top of their current profile, or trim it
+# back down to just what the active profile needs.
 cmd_gstack() {
   local action="${1:-}"
   case "$action" in
     on)
-      # Re-enable ALL gstack skills, but DON'T touch active-profile — the
+      # Restore whatever is parked, but DON'T touch active-profile — the
       # user is adding gstack on top of their current profile, not clearing it.
-      local parked
+      local parked restored
       parked="$(parked_gstack_count)"
       if [ "$parked" -eq 0 ]; then
-        info "all gstack skills already enabled"
+        info "nothing parked — gstack skills are linked per profile (set/apply/reset)"
       else
-        enable_all_gstack
-        ok "all gstack enabled ($parked skills restored)"
+        restored="$(enable_all_gstack)"
+        ok "$restored parked gstack skills restored"
       fi
       ;;
     off)
-      # Disable gstack skills not needed by the active profile. Needs a real
-      # active profile to know what to keep.
+      # Disable gstack skills not needed by the active profile. A cache
+      # naming a profile with no lib/profiles/<name>.profile still errors;
+      # absent/empty/"none" resolve to the default profile via
+      # active_profile() and no longer hit that error.
       local active
-      active="$(head -n1 "$ACTIVE_CACHE" 2>/dev/null || echo none)"
-      [ -z "$active" ] && active="none"
-      if [ "$active" = "none" ] || [ ! -f "$PROFILES_DIR/$active.profile" ]; then
+      active="$(active_profile)"
+      if [ ! -f "$PROFILES_DIR/$active.profile" ]; then
         err "no active profile — 'gstack off' needs one to know what to keep"
         info "run: bash lib/profile.sh set <name>   then: gstack off"
         return 1
@@ -648,48 +713,27 @@ EOF
 }
 
 cmd_current() {
-  # A profile is "active" only if (a) most of its skills are enabled AND
-  # (b) at least one non-listed gstack skill is currently disabled (i.e. a
-  # `set` has actually been applied). Without (b), every profile reports
-  # 100% trivially because the full gstack is on.
-  local disabled_count=0
-  if [ -d "$DISABLED_DIR" ]; then
-    disabled_count=$(find "$DISABLED_DIR" -maxdepth 1 -name 'gstack__*' 2>/dev/null | wc -l | tr -d ' ')
-  fi
-  if [ "$disabled_count" -eq 0 ]; then
-    echo "none (all gstack skills enabled — no profile set)"
+  # Label-driven (BDR-030): name active_profile() and score ONLY that
+  # profile — no cross-profile best-guess scan, no fast path keyed on the
+  # parked-gstack count (that count says nothing about which profile is on
+  # when gstack starts off, as it does on a real tree).
+  local label; label="$(active_profile)"
+  if [ ! -f "$PROFILES_DIR/$label.profile" ]; then
+    echo "$label (unknown profile — no lib/profiles/$label.profile; run: profile reset)"
     return 0
   fi
-  # Pick the profile with the highest "available" ratio. An item counts as
-  # available when its status is "enabled" (skills, plugins, MCPs) or
-  # "installed" (CLIs). On ties, the profile with the larger total wins
-  # — superset profiles describe state more completely than subsets.
-  local f name total available score skill type status
-  local best="" best_score=0 best_total=0
-  for f in "$PROFILES_DIR"/*.profile; do
-    [ -f "$f" ] || continue
-    name="$(basename "$f" .profile)"
-    total=0; available=0
-    while IFS=$'\t' read -r skill type; do
-      total=$((total + 1))
-      status="$(skill_status "$skill" "$type")"
-      case "$status" in
-        enabled|installed) available=$((available + 1)) ;;
-      esac
-    done < <(read_profile "$name")
-    [ "$total" -eq 0 ] && continue
-    score=$((available * 100 / total))
-    if [ "$score" -gt "$best_score" ] || \
-       { [ "$score" -eq "$best_score" ] && [ "$total" -gt "$best_total" ]; }; then
-      best_score="$score"
-      best_total="$total"
-      best="$name"
-    fi
-  done
-  if [ -n "$best" ] && [ "$best_score" -ge 80 ]; then
-    echo "$best (${best_score}% match, $disabled_count gstack skills disabled)"
+
+  local available total pct
+  read -r available total <<<"$(profile_match "$label")"
+  pct=0
+  [ "$total" -gt 0 ] && pct=$((available * 100 / total))
+  local parked; parked="$(parked_gstack_count)"
+
+  local cached; cached="$(read_cache)"
+  if [ -z "$cached" ] || [ "$cached" = "none" ]; then
+    echo "$label (default — not applied yet, ${pct}% of its items enabled; run: profile reset)"
   else
-    echo "custom (best guess: ${best:-none} ${best_score}%, $disabled_count gstack skills disabled)"
+    echo "$label (${pct}% match, $parked gstack skills disabled)"
   fi
 }
 
@@ -716,10 +760,11 @@ USAGE:
   profile list              list all available profiles
   profile show <name>       show profile contents grouped by type + status
   profile show <name> --plain  parsable type+name list (no status, no claude)
-  profile current           detect which profile is currently active
+  profile current           report the active profile (label + match)
   profile apply <name>      enable skills in profile (additive)
   profile set <name>        enable only listed skills (disables rest of gstack)
-  profile reset             re-enable all gstack skills
+  profile reset             go to the default profile (full): enable its list,
+                            park non-listed gstack/managed items
   profile gstack on|off     toggle gstack only, keep active-profile label
   profile diff <a> <b>      compare two profiles
 
@@ -739,14 +784,20 @@ EXAMPLES:
   bash lib/profile.sh show design
   bash lib/profile.sh set design       # only design skills active
   bash lib/profile.sh apply qa         # add QA skills on top
-  bash lib/profile.sh reset            # restore everything
+  bash lib/profile.sh reset            # back to the default profile (full)
 
 NOTE:
   "set" toggles the MANAGED items automatically, both ways: plugins
   (ui-ux-pro-max, plugin-dev, pr-review-toolkit), external packs
-  (emil-design-eng, frontend-design, design-motion-principles, impeccable)
-  and the magic MCP. Anything outside those allowlists stays advisory —
-  run "claude plugin enable|disable" or "claude mcp add|remove" yourself.
+  (emil-design-eng, frontend-design, design-motion-principles, impeccable,
+  the five 21st design skills, the agent-skills trio
+  observability-and-instrumentation/deprecation-and-migration/
+  ci-cd-and-automation, the five Mengto scroll skills
+  scroll-world-storytelling/build-threejs-scroll-worlds/
+  scroll-scrubbed-visual-sequence/scroll-scrubbed-word-reveal/
+  scroll-progress-timeline). Anything outside those allowlists stays
+  advisory — run "claude plugin enable|disable" or
+  "bash lib/toggle-external.sh enable|disable <tool>" yourself.
 EOF
 }
 

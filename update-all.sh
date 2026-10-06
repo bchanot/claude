@@ -15,8 +15,12 @@ REPO="$(cd "$(dirname "$0")" && pwd)"
 VERSION=$(cat "$REPO/version.txt" 2>/dev/null || echo "unknown")
 
 # Load shared detection library
-# shellcheck source=lib/detect-plugins.sh
+# shellcheck source=lib/detect-plugins.sh disable=SC1091
 source "$REPO/lib/detect-plugins.sh"
+# shellcheck source=lib/gstack-playwright.sh disable=SC1091
+source "$REPO/lib/gstack-playwright.sh"
+# shellcheck source=lib/gstack-links.sh disable=SC1091
+source "$REPO/lib/gstack-links.sh"
 
 echo ""
 echo "═══ claude-config update (v${VERSION}) ═══"
@@ -84,7 +88,7 @@ if [[ "$_gstack_confirm" =~ ^[Yy]$ ]]; then
     _gstack_state=$(bash "$REPO/lib/toggle-external.sh" status gstack 2>/dev/null || echo "unknown")
   fi
 
-  if git submodule update --remote skills-external/gstack 2>/dev/null; then
+  if gstack_submodule_update_with_bump "$REPO"; then
     if [ -d "skills-external/gstack" ]; then
       if [ -x "skills-external/gstack/setup" ]; then
         if (cd skills-external/gstack && ./setup) 2>/dev/null; then
@@ -101,16 +105,12 @@ if [[ "$_gstack_confirm" =~ ^[Yy]$ ]]; then
     warn "GStack submodule update failed — run: git submodule update --init"
   fi
 
-  # Refresh gstack shared infrastructure symlinks (bin/ + browse/dist/)
+  # Refresh the gstack shared helper tree (bin/, browse/dist/, ETHOS.md,
+  # …) — see lib/gstack-links.sh.
   GSTACK_DIR="$REPO/skills-external/gstack"
   GSTACK_DST="$HOME/.claude/skills/gstack"
-  if [ -d "$GSTACK_DIR/bin" ]; then
-    mkdir -p "$GSTACK_DST"
-    ln -sf "$GSTACK_DIR/bin" "$GSTACK_DST/bin"
-  fi
-  if [ -d "$GSTACK_DIR/browse/dist" ]; then
-    mkdir -p "$GSTACK_DST/browse"
-    ln -sf "$GSTACK_DIR/browse/dist" "$GSTACK_DST/browse/dist"
+  if [ -d "$GSTACK_DIR" ]; then
+    link_gstack_helpers "$GSTACK_DIR" "$GSTACK_DST" >/dev/null
   fi
 
   # Restore prior enabled/disabled state
@@ -319,8 +319,6 @@ else
   info "bun not installed — skipping"
 fi
 # NOT updated here, deliberately (audit 2026-07-02):
-# - magic MCP: registered as `npx -y @21st-dev/magic@latest` — npx resolves
-#   the latest release at every invocation, nothing to upgrade.
 # - graphify Claude integration (`graphify claude install`): rewrites curated
 #   CLAUDE.md / .claude/settings.json (BDR-028 guard territory) — re-run
 #   MANUALLY only if a graphify upgrade changes its hook format.
@@ -379,11 +377,50 @@ else
   info "design-motion-principles not installed — skipping"
 fi
 
-# ── Impeccable (design anti-pattern detector + skill) ──
+# ── 7.3. Update Agent Skills + Mengto scroll skills + superpowers
+# (pinned commit) — all three re-fetched at the SAME pinned commit
+# (never advances the pin) via the shared lib/vendor-skills.sh helper —
+# see install-plugins.sh Step 8e.
+echo ""
+echo "── Updating Agent Skills (addyosmani/agent-skills)..."
+# shellcheck source=lib/vendor-skills.sh disable=SC1091
+source "$REPO/lib/vendor-skills.sh"
+vendor_pinned_skills agent-skills refresh
+echo ""
+echo "── Updating Mengto scroll skills (MengTo/Skills)..."
+vendor_pinned_skills mengto-skills refresh
+echo ""
+echo "── Updating superpowers skills (obra/superpowers)..."
+vendor_pinned_skills superpowers refresh
+
+# ── Impeccable (design detector + skill + subagents) ──
+# Global scope: the installer writes through the ~/.claude/{skills,agents}
+# symlinks straight into this repo (install-plugins.sh Step 8d explains why
+# staging + project scope was wrong). The pin can rot upstream, so a pinned
+# failure falls back to @latest rather than leaving the tool stale forever.
+#
+# One install attempt. $1 = "latest" or an exact version. On failure, IMP_FAIL
+# holds the reason. Same helper as Step 8d: with a copy already in place a
+# rotted pin exits 0 and says "Could not check for skill updates … left
+# unchanged", so the exit code cannot tell it from an up-to-date no-op.
+imp_install() {
+  local pkg="impeccable" out rc=0
+  [ "$1" != "latest" ] && pkg="impeccable@$1"
+  out=$(npx -y "$pkg" skills install -y --providers=claude --scope=global \
+    --no-hooks 2>&1) || rc=$?
+  IMP_FAIL=$(printf '%s\n' "$out" \
+    | grep -E 'Download failed|Could not check for skill updates' \
+    | head -1 || true)
+  if [ "$rc" -ne 0 ] && [ -z "$IMP_FAIL" ]; then
+    IMP_FAIL="installer exited $rc"
+  fi
+  [ -z "$IMP_FAIL" ]
+}
 echo ""
 echo "── Updating impeccable..."
-IMP_DIR="$REPO/skills-external/impeccable"
-if [ ! -f "$IMP_DIR/SKILL.md" ]; then
+IMP_SKILL_DIR="$HOME/.claude/skills/impeccable"
+IMP_PARKED="$REPO/skills-disabled/impeccable"
+if [ ! -f "$IMP_SKILL_DIR/SKILL.md" ] && [ ! -f "$IMP_PARKED/SKILL.md" ]; then
   info "impeccable not installed — skipping (run: make plugin)"
 else
   IMP_VER=""
@@ -397,28 +434,142 @@ print(d.get('impeccable',{}).get('version','latest'))
   fi
   IMP_NODE=$(node -v 2>/dev/null | sed 's/^v//' | cut -d. -f1)
   if [ -z "${IMP_NODE:-}" ] || [ "$IMP_NODE" -lt 24 ]; then
-    info "impeccable update skipped — needs Node >= 24 (found ${IMP_NODE:-none}); existing dist kept"
+    info "impeccable update skipped — needs Node >= 24 (found ${IMP_NODE:-none}); existing copy kept"
   else
-    IMP_PKG="impeccable"
-    # Pin honored (LRN-077 class: a silent rules update changes audit
-    # output on unchanged code) — bump the pin deliberately, then update.
-    [ -n "$IMP_VER" ] && [ "$IMP_VER" != "latest" ] && IMP_PKG="impeccable@${IMP_VER}"
-    IMP_STAGE=$(mktemp -d)
-    if (cd "$IMP_STAGE" && npx -y "$IMP_PKG" skills install -y --providers=claude --scope=project --no-hooks >/dev/null 2>&1); then
-      IMP_SRC=$(find "$IMP_STAGE" -type d -name impeccable -path "*skills*" 2>/dev/null | head -1)
-      if [ -n "$IMP_SRC" ] && [ -f "$IMP_SRC/SKILL.md" ]; then
-        rm -rf "$IMP_DIR"
-        mv "$IMP_SRC" "$IMP_DIR"
-        ok "impeccable refreshed (CLI ${IMP_VER:-latest})"
-      else
-        warn "impeccable: installer produced no dist — existing kept"
+    IMP_WAS_PARKED=false
+    [ -d "$IMP_PARKED" ] && IMP_WAS_PARKED=true
+    # Pin honored (LRN-077 class: a silent rules update changes audit output
+    # on unchanged code) — bump the pin deliberately, then update.
+    IMP_PIN="${IMP_VER:-latest}"
+    IMP_OK=false
+    if imp_install "$IMP_PIN"; then
+      IMP_OK=true
+    elif [ "$IMP_PIN" != "latest" ]; then
+      warn "impeccable@${IMP_PIN} did not install (${IMP_FAIL}) — that release's skill dist is gone upstream; trying @latest"
+      if imp_install latest; then
+        IMP_OK=true
+        warn "refreshed from @latest, not the pin — bump \"impeccable\".version in plugins.lock.json"
+      fi
+    fi
+    if [ "$IMP_OK" = true ] && [ -f "$IMP_SKILL_DIR/SKILL.md" ]; then
+      IMP_SKILL_VER=$(sed -n 's/^version:[[:space:]]*//p' "$IMP_SKILL_DIR/SKILL.md" | head -1)
+      ok "impeccable refreshed (CLI ${IMP_VER:-latest}, skill ${IMP_SKILL_VER:-?})"
+      if [ "$IMP_WAS_PARKED" = true ]; then
+        rm -rf "${IMP_PARKED:?}"
+        mv "$IMP_SKILL_DIR" "$IMP_PARKED"
+        info "impeccable was parked by a profile — refreshed copy returned to skills-disabled/"
       fi
     else
-      warn "impeccable refresh failed — existing dist kept"
+      warn "impeccable refresh failed (${IMP_FAIL:-no SKILL.md written}) — existing copy kept"
     fi
-    rm -rf "$IMP_STAGE"
   fi
 fi
+
+# ── 7.3b. Update the Higgsfield CLI + skill pack ──
+# CLI: global npm bin. Skills: re-cloned by lib/higgsfield-skills.sh, which
+# replaces the SOURCE under skills-external/ only: a pack parked in
+# skills-disabled/ (symlinks to those sources) stays parked. Runs before the
+# effort-pins re-apply below (BDR-108).
+echo ""
+echo "── Updating Higgsfield CLI + skill pack..."
+if ! command -v higgsfield &>/dev/null; then
+  info "Higgsfield CLI not installed — skipping (run: make plugin)"
+else
+  # shellcheck source=lib/higgsfield-skills.sh disable=SC1091
+  source "$REPO/lib/higgsfield-skills.sh"
+  HF_VER=""
+  if [ -f "$REPO/plugins.lock.json" ] && command -v python3 &>/dev/null; then
+    HF_VER=$(python3 -c "
+import json
+with open('$REPO/plugins.lock.json') as f:
+    d = json.load(f)
+print(d.get('higgsfield',{}).get('version','latest'))
+" 2>/dev/null || true)
+  fi
+  HF_PKG="@higgsfield/cli@latest"
+  [ -n "$HF_VER" ] && [ "$HF_VER" != "latest" ] \
+    && HF_PKG="@higgsfield/cli@${HF_VER}"
+  # npm updates only a copy npm installed: a CLI that came from Homebrew
+  # or the vendor's installer would otherwise gain a second, competing copy.
+  HF_NPM=skipped
+  if npm ls -g @higgsfield/cli >/dev/null 2>&1; then
+    HF_NPM=ok
+    npm install -g "$HF_PKG" 2>/dev/null || HF_NPM=failed
+  fi
+  # The probe first, then npm's status: an update that skips the package's
+  # postinstall script exits 0 and leaves the shim with no binary behind it.
+  if ! higgsfield_cli_ok; then
+    warn "Higgsfield CLI does not answer after the update — run: npm install -g --allow-scripts=@higgsfield/cli @higgsfield/cli"
+  elif [ "$HF_NPM" = ok ]; then
+    ok "Higgsfield CLI updated (${HF_VER:-latest})"
+  elif [ "$HF_NPM" = skipped ]; then
+    info "Higgsfield CLI was not installed through npm — left to its own updater"
+  else
+    warn "Higgsfield CLI update failed — existing binary kept"
+  fi
+  if HF_N=$(higgsfield_sync_skills "$REPO"); then
+    ok "Higgsfield skill pack refreshed ($HF_N skills)"
+  else
+    warn "Higgsfield skill pack refresh failed — existing pack kept"
+  fi
+fi
+
+# ── 7.4. Update the 21st.dev CLI + skill pack ──
+# The CLI is a global npm bin; the skills are its hash-verified output, staged
+# under a throwaway HOME because `21st skills install` refuses to write
+# through the ~/.claude/skills symlink (see install-plugins.sh Step 8.7).
+echo ""
+echo "── Updating 21st.dev CLI + skill pack..."
+if ! command -v 21st &>/dev/null; then
+  info "21st CLI not installed — skipping (run: make plugin)"
+else
+  TFD_VER=""
+  if [ -f "$REPO/plugins.lock.json" ] && command -v python3 &>/dev/null; then
+    TFD_VER=$(python3 -c "
+import json
+with open('$REPO/plugins.lock.json') as f:
+    d = json.load(f)
+print(d.get('21st',{}).get('version','latest'))
+" 2>/dev/null || true)
+  fi
+  TFD_PKG="@21st-dev/cli@latest"
+  [ -n "$TFD_VER" ] && [ "$TFD_VER" != "latest" ] && TFD_PKG="@21st-dev/cli@${TFD_VER}"
+  if npm install -g "$TFD_PKG" 2>/dev/null; then
+    ok "21st CLI updated (${TFD_VER:-latest})"
+  else
+    warn "21st CLI update failed — existing binary kept"
+  fi
+  TFD_STAGE=$(mktemp -d)
+  if HOME="$TFD_STAGE" 21st skills install --global --agent claude >/dev/null 2>&1; then
+    TFD_N=0
+    for _tfd in "$TFD_STAGE"/.claude/skills/*/; do
+      [ -f "${_tfd}SKILL.md" ] || continue
+      _tfd_name=$(basename "$_tfd")
+      # Refresh the SOURCE only. A parked copy in skills-disabled/ is left
+      # alone: re-enabling restores it, and the next update refreshes it.
+      rm -rf "${REPO:?}/skills-external/${_tfd_name:?}"
+      mv "$_tfd" "$REPO/skills-external/$_tfd_name"
+      TFD_N=$((TFD_N + 1))
+    done
+    if [ "$TFD_N" -gt 0 ]; then
+      ok "21st skill pack refreshed ($TFD_N skills)"
+    else
+      warn "21st skills install produced no SKILL.md — existing pack kept"
+    fi
+  else
+    warn "21st skill pack refresh failed — existing pack kept"
+  fi
+  rm -rf "$TFD_STAGE"
+fi
+
+# Effort pins (BDR-107, BDR-108): every refresh above rewrites SKILL.md and
+# drops the `effort:` line; the 21st pack refresh is the last step that rewrites
+# a SKILL.md, so the entry levels of lib/effort-pins.txt go back here.
+echo ""
+echo "── Re-applying effort pins on the vendored skills..."
+# shellcheck source=lib/effort-pins.sh disable=SC1091
+source "$REPO/lib/effort-pins.sh"
+apply_effort_pins "$REPO" || warn "effort pins: map lines rejected — fix lib/effort-pins.txt"
 
 # ── 7.5. Update external skills (npx skills) ──
 echo ""
@@ -452,8 +603,9 @@ fi
 echo ""
 echo "── Updating marketplace plugins..."
 if command -v claude &>/dev/null; then
+  # sed -n: BSD grep has no PCRE mode (rc 2 emptied the list)
   _plugins=$(claude plugin list 2>/dev/null \
-    | grep -oP '(?<=❯ )\S+' || true)
+    | sed -n 's/.*❯ \([^[:space:]][^[:space:]]*\).*/\1/p' || true)
   if [ -n "$_plugins" ]; then
     while IFS= read -r _p; do
       _name="${_p%%@*}"

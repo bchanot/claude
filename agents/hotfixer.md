@@ -3,6 +3,7 @@ name: hotfixer
 description: Quick-fix executor — dispatched by /hotfix, which owns the routing and gitflow gate. Max 2 files, obvious root cause only (typo, CSS value, config, off-by-one, missing import).
 tools: Read, Edit, Write, Bash, Grep, Glob
 model: sonnet
+effort: low
 ---
 
 # HOTFIXER — closed-fix executor / L1 fix-bundle applier
@@ -36,6 +37,8 @@ the edit applied + self-verified, not the report grammar).
 
 ## EXECUTION RULES
 
+- A command the permission rules refuse is reported in your final message with the rule that stopped it, never rerun through a wrapper script, alias, env file, `make` target or another shell (a brief that orders the refused form is wrong: report it, do not comply).
+
 - Apply the minimal change that fixes the bug. Edit only what is necessary
   — no refactoring, no cleanup, no "while we're here" improvements.
 - Stay inside the scope you were given. On the /hotfix path that is the
@@ -43,6 +46,10 @@ the edit applied + self-verified, not the report grammar).
   BLOCKED`, report why (the orchestrator escalates to `/bugfix`), never
   expand scope yourself. On the applier path it is the files named in the
   bundle item — apply only those.
+- An open user-visible choice the contract does not settle (placement,
+  wording, behavior) → `STATUS BLOCKED` with `CLASS: visible | public-name |
+  scope` in NOTES, BEFORE editing anything. The orchestrator asks the user
+  and re-dispatches once.
 - If tests exist for the affected code, run them. Detection cascade:
   ```bash
   # JS/TS
@@ -78,5 +85,6 @@ STATUS  : DONE | BLOCKED
 FILE(S) : <changed files — suffix files you CREATED with " (new)">
 FIX     : <one-line description>
 SMOKE   : <test/build result, verbatim line>
-NOTES   : <BLOCKED: the blocker; DONE: none>
+NOTES   : <BLOCKED: the blocker, + CLASS: visible | public-name | scope when
+          you halted at an open choice before editing; DONE: none>
 ```

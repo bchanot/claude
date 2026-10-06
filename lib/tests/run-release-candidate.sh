@@ -9,6 +9,8 @@
 #                  assertion REDS, proving gitflow fans out main+develop but never tags.
 # GREEN(RC_TAG=1): the skill's flow adds `git tag` → tag present on main's merge commit.
 set -uo pipefail
+# Hermetic git: the global hooks dir (BDR-095) must not fire in throwaway repos.
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
 
 GREP=/usr/bin/grep                                              # LRN-074: pin grep
 LIBDIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"       # repo lib/
@@ -38,7 +40,8 @@ echo
 ( cd "$WORK" || exit 1
   bash "$GITFLOW" start release 4.0.0 >/dev/null            # base develop → release/4.0.0 (lib L49/L71)
   printf '4.0.0\n' > version.txt                            # prep: version bump
-  sed -i 's/## \[Unreleased\]/## [Unreleased]\n\n## [4.0.0] — 2026-06-30/' CHANGELOG.md
+  # BSD sed -i needs a suffix argument: -i.bak then drop the backup
+  sed -i.bak 's/## \[Unreleased\]/## [Unreleased]\n\n## [4.0.0] — 2026-06-30/' CHANGELOG.md && rm -f CHANGELOG.md.bak
   git commit -qam "chore(release): 4.0.0 — version.txt + CHANGELOG"
   bash "$GITFLOW" finish >/dev/null                         # fan-out main+develop+delete (lib L108-111)
   # TAG = the gap. Lives in the SKILL (lib untouched). RED skips it, GREEN does it.
@@ -50,7 +53,7 @@ echo "=== assertions (RC_TAG=$RC_TAG) ==="
 if [ "$(git -C "$WORK" show main:version.txt 2>/dev/null)" = "4.0.0" ]; then ok "fan-out: main carries the release (version.txt 4.0.0)"; else no "fan-out: main version.txt != 4.0.0"; fi
 if [ "$(git -C "$WORK" show develop:version.txt 2>/dev/null)" = "4.0.0" ]; then ok "merge-back: develop carries 4.0.0"; else no "merge-back failed"; fi
 if git -C "$WORK" show-ref --verify -q refs/heads/release/4.0.0; then no "release/4.0.0 NOT deleted"; else ok "release/4.0.0 branch deleted"; fi
-if git -C "$WORK" show main:CHANGELOG.md | $GREP -q '## \[4.0.0\]'; then ok "CHANGELOG [4.0.0] on main"; else no "CHANGELOG not finalized"; fi
+if $GREP -q '## \[4.0.0\]' < <(git -C "$WORK" show main:CHANGELOG.md); then ok "CHANGELOG [4.0.0] on main"; else no "CHANGELOG not finalized"; fi
 if git -C "$WORK" rev-parse -q --verify refs/tags/v4.0.0 >/dev/null; then
   if [ "$(git -C "$WORK" rev-list -n1 v4.0.0)" = "$(git -C "$WORK" rev-parse main)" ]; then ok "tag v4.0.0 on main's release-merge commit"; else no "tag v4.0.0 exists but not on main HEAD"; fi
 else

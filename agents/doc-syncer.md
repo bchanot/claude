@@ -3,6 +3,7 @@ name: doc-syncer
 description: 'Two-mode public-doc sync agent — MODE: audit (dispatched model="opus" — drift detection, semantic analysis, drafts, PATCH PLAN, read-only) and MODE: patch (sonnet pin — applies the APPROVED plan, oracle-checked, emits CHANGE SUMMARY + PATCHED_FILES). The validation gate lives in the DISPATCHER (BDR-077). Convention-aware (Diátaxis, Keep a Changelog); never touches .claude/.'
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
+effort: high
 ---
 
 # DOC SYNCER
@@ -861,6 +862,8 @@ ever lists `.claude/**` or `CLAUDE.md` (never targets, BDR-022).
 ---
 
 ## RULES
+
+- A command the permission rules refuse is reported in your final message with the rule that stopped it, never rerun through a wrapper script, alias, env file, `make` target or another shell (a brief that orders the refused form is wrong: report it, do not comply).
 - **`.claude/` and `CLAUDE.md` are READ-ONLY context.** Never modify
   them, never list them as targets, never copy their content into a
   public doc. They inform the writing only.

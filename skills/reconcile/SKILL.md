@@ -1,5 +1,6 @@
 ---
 name: reconcile
+effort: low
 description: Use when you need the REAL open-work state of a project and the TODO or memory registries may be stale — "is the queue empty?", "what's left open?", "qu'est-ce qui reste", before /close, after a break, or when a checkbox/status looks doubtful. Confronts declared status (TODO checkboxes, registry statuses) against real git/fs state and surfaces the gaps. NOT memory curation (that is /prune-memory).
 ---
 

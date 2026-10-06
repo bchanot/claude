@@ -1,5 +1,6 @@
 ---
 name: audit-delta
+effort: xhigh
 description: |
   Use when the user wants a recurring code audit scoped to changes since
   the previous run (full codebase on first run), on selectable axes:
@@ -28,6 +29,7 @@ Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
 judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
 gate prints the remedy; end the turn — no later step, no dispatch. Nominal
 (big) path is silent.
+EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-107): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
 
 Audit only what changed since the last run, on the axes the user picks.
 Per axis: **audit → approval gate → fix → re-verify → marker update**,
@@ -168,6 +170,7 @@ Then show the user the same compact table inline.
 
 ### 3b-bis. CHALLENGE THE PROPOSALS (before the gate)
 
+`Skill(effort-xhigh)` first (effort-shift: own level before the challenge; send it in the same message as the challenger dispatch).
 This axis' findings + proposed fixes are a proposal set worth attacking before
 the human gate. Persist THIS axis' finding list (not the whole append-only
 report) to `.claude/tasks/plans/<date>-<axis>-<HHMM>.md`, then run
@@ -253,6 +256,7 @@ Then offer to capitalize (per CLAUDE.md): recurring finding patterns →
   below on the same delta (the SAST is a deterministic floor, the reasoned
   pass covers what grep/rules miss):
   ```
+  Skill(effort-medium)   # effort-shift: dispatch span starts; send with the Agent call below in ONE message
   Agent(subagent_type="security-auditor", description="audit-delta security — semgrep SAST",
     prompt="MODE: audit\nSCOPE: <delta file list>\nREPORT: .claude/audits/.audit-delta-semgrep.md\nFollow agents/security-auditor.md exactly. Pinned rulesets, no login. Write ONLY to REPORT. End with REPORT_WRITTEN: <path>.")
   ```
@@ -318,7 +322,8 @@ Then offer to capitalize (per CLAUDE.md): recurring finding patterns →
 
 ## TDD note (skill itself)
 
-Baseline-tested per superpowers:writing-skills (2026-06-11, isolated
+Baseline-tested per writing-skills (vendored superpowers skill;
+2026-06-11, isolated
 worktree, no skill): the agent (1) guessed the boundary from the most
 recent file date in `.claude/audits/` — wrong file, date-based; (2) wrote
 its checkpoint as prose in a dated report — unparseable next run; (3) kept

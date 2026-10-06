@@ -1,5 +1,6 @@
 ---
 name: tour
+effort: xhigh
 description: |
   Use when the user wants ONE grouped pass over a whole project (or a
   list of projects) covering all hygiene axes together: code cleanup +
@@ -29,6 +30,7 @@ Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
 judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
 gate prints the remedy; end the turn — no later step, no dispatch. Nominal
 (big) path is silent.
+EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-107): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
 
 One pipeline per project: **security → clean → re-verify → reconcile →
 doc → convergence re-audit**, looping until a full pass applies zero new
@@ -39,7 +41,7 @@ plus its report IS the approval gate, reviewed by the human afterwards.
 Core principle: **autonomy on the working branch, never on shared
 state.** The skill may edit code freely on its own branch; it may NOT
 silently rewrite declared state (target TODO, memory registries) or
-integrate anything (merge/finish/push).
+integrate anything (merge/finish/push to `main`/`develop`).
 
 ## When NOT to use
 
@@ -79,8 +81,8 @@ Model discipline (the user-fixed invariant behind this mode):
   must never be pinned down to an executor tier.
 - Inside a runner, every dispatched agent keeps the tier this skill
   already defines: security-auditor (sonnet frontmatter), the Phase B
-  audit (analyzer opus pin or `model="opus"`), doc-syncer (sonnet
-  frontmatter, its two-mode contract untouched).
+  audit (analyzer opus pin or `model="opus"`), doc-syncer (audit on
+  `model="opus"`, patch on its sonnet frontmatter — BDR-077).
 
 Runner dispatch, one per project:
 
@@ -91,7 +93,7 @@ Agent(subagent_type="general-purpose",
     for EXACTLY ONE project: <absolute path>. Flags: <--report-only|none>.
     Skip STEP 0/0b (routing) and the global summary — the dispatcher owns
     them. Every rule of the skill applies unchanged: max 3 iterations,
-    never merge/finish/push, scoped commits, report appended to that
+    never merge/finish/push main|develop, scoped commits, report appended to that
     project's own .claude/audits/TOUR.md. Return EXACTLY: the project's
     one-line global-summary row (STEP 3 format), then BRANCH: <name|no
     branch>, then REPORT: <path>.")
@@ -156,9 +158,12 @@ honestly in the summary. Never loop past 3.
    MEDIUM/LOW → fix only if local and behavior-preserving, else leave
    `open`. Every fix minimal, CLAUDE.md security defaults apply.
    A CRITICAL/HIGH fix that changes the API contract (new required
-   header/param, changed status codes, moved paths) is still applied —
-   but its report row and the global summary line carry a **BREAKING**
-   tag, so the human review cannot miss it.
+   header/param, changed status codes, moved paths) is NOT applied — a
+   breaking change is the human's call (CLAUDE.md: confirm before a
+   breaking change). Its report row becomes
+   `open — needs decision (BREAKING)` with the proposed patch attached,
+   and the global summary line carries the **BREAKING** count.
+   Behaviour-preserving CRITICAL/HIGH fixes stay auto-applied.
 4. Commit scoped: `git add <files touched>` (never `-A`),
    `fix(security): …`.
 
@@ -196,11 +201,18 @@ honestly in the summary. Never loop past 3.
    `.claude/memory/`** — an inferred checkbox is exactly the lie
    /reconcile exists to catch. The human applies suggestions via
    `/reconcile` later.
-2. **Doc sync** — dispatch doc-syncer in AUTOMATIC (silent) mode:
-   public docs only (README, INSTALL, USAGE, CHANGELOG…), never
-   `.claude/**`, never CLAUDE.md. Commit its `PATCHED_FILES:` via
-   `bash ~/.claude/lib/doc-commit.sh` when available, else a scoped
-   `docs: …` commit of exactly those paths.
+2. **Doc sync** — two-mode doc-syncer, mirrors /ship-feature STEP 8
+   (BDR-077: audit judgment on opus, patch on the sonnet pin):
+   `Agent(subagent_type="doc-syncer", model="opus")` with `MODE: audit`
+   + `auto-mode scope: <files this tour touched>`; public docs only
+   (README, INSTALL, USAGE, CHANGELOG…), never `.claude/**`, never
+   CLAUDE.md. NONE → done. `[MINOR]` PATCH PLAN → re-dispatch
+   `Agent(subagent_type="doc-syncer")` (sonnet frontmatter) with
+   `MODE: patch` + the plan verbatim, then commit its `PATCHED_FILES:`
+   via `bash ~/.claude/lib/doc-commit.sh` when available, else a scoped
+   `docs: …` commit of exactly those paths. SIGNIFICANT → not applied:
+   report row `suggested` with the plan item (the tour has no human
+   gate mid-run).
 
 ### End of iteration
 
@@ -231,15 +243,15 @@ order:
 | ID | Axis | File | Sev | Finding | Status |
 |----|------|------|-----|---------|--------|
 | SEC-1 | security | app.py:17 | high | shell=True + concat | fixed |
-| SEC-2 | security | app.py:14 | high | no authz on POST /backup | fixed — **BREAKING**: new required X-Backup-Token header |
+| SEC-2 | security | app.py:14 | high | no authz on POST /backup | open — needs decision (BREAKING): new required X-Backup-Token header, patch attached |
 | CLN-1 | clean | utils.py:9 | - | dead legacy_md5 | fixed |
 | REC-1 | reconcile | TODO.md | - | "/health" unchecked, shipped 2d92696 | suggested |
 | DOC-1 | doc | README.md | - | phantom /status endpoint | fixed |
-Checks: pytest PASS, ruff PASS. Residuals: none. Commits: 5. BREAKING: 1 (SEC-2).
+Checks: pytest PASS, ruff PASS. Residuals: SEC-2 (needs decision). Commits: 4. BREAKING: 1 (SEC-2).
 ```
 
 Global summary inline, one line per project (append `BREAKING: n` to
-any project line whose fixes changed an API contract):
+any project line with contract-changing fixes left open for decision):
 
 ```
 TOUR COMPLETE — 2026-07-04
@@ -257,7 +269,10 @@ without that approval — neither this repo's nor any target project's.
 ## Rules
 
 - Branch via the gitflow lib; **never `gitflow finish`, never merge,
-  never push** — no exceptions, "the tour is green" is not a signal.
+  never push `main`/`develop`** — "the tour is green" is not a signal.
+  The chore branch's own commits are pushed by the gitflow hooks
+  (BDR-095); a `push FAILED` hook warning is a report residual, fixed
+  with a plain `git push -u origin chore/tour-<date>`.
 - Scoped pathspecs only; `git add -A` is forbidden.
 - Target TODO.md and target `.claude/memory/` are READ-ONLY. Reconcile
   produces suggestions, not edits.
@@ -286,12 +301,12 @@ without that approval — neither this repo's nor any target project's.
 | One TOUR.md for all projects in the config repo | Each project gets its own `.claude/audits/TOUR.md`. |
 | Fixing a behavior-changing "cleanup" finding | That is a bug → BUGS-FOUND.md, untouched code. |
 | Scratch audit files left untracked at the end | Delete them in STEP 3.2 — a dirty tree self-blocks the next tour. |
-| Contract-changing security fix reported as plain "fixed" | Tag **BREAKING** in the row AND the summary line. |
+| Contract-changing security fix auto-applied | Not applied: row `open — needs decision (BREAKING)` + proposed patch; **BREAKING** count in the summary line. |
 
 ## Red flags — STOP
 
 - About to `Edit` a target project's TODO.md or `.claude/memory/*`.
-- About to run `gitflow finish`, `git merge`, or `git push`.
+- About to run `gitflow finish`, `git merge`, or push `main`/`develop`.
 - About to `git add -A` or commit on `main`/`develop`.
 - Starting iteration 4, or "just one more loop, it's almost clean".
 - Security phase done without the security-auditor agent and without a
@@ -302,9 +317,10 @@ without that approval — neither this repo's nor any target project's.
 
 ## TDD note (skill itself)
 
-Baseline-tested per superpowers:writing-skills (2026-07-04, seeded
-fixture, no skill): the agent branched correctly via gitflow and did not
-merge, BUT (1) silently rewrote the target TODO (checked boxes,
+Baseline-tested per writing-skills (vendored superpowers skill;
+2026-07-04, seeded fixture, no skill): the agent branched correctly via
+gitflow and did not merge, BUT (1) silently rewrote the target TODO (checked
+boxes,
 restructured) during "reconcile"; (2) authored BDR/journal registry
 entries autonomously; (3) ran security as ad-hoc grep + ruff — no
 semgrep, no pinned rulesets; (4) left findings only in its final chat

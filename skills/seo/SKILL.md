@@ -1,5 +1,6 @@
 ---
 name: seo
+effort: high
 description: |
   Use when a web project needs SEO + GEO audit or optimization —
   classical search (Google, Bing) AND AI search (ChatGPT, Perplexity, AI
@@ -29,6 +30,7 @@ Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
 judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
 gate prints the remedy; end the turn — no later step, no dispatch. Nominal
 (big) path is silent.
+EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-107): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
 
 This skill orchestrates TWO specialist agents running in parallel, then
 merges their output into a single `.claude/audits/SEO.md` report. It is the main
@@ -323,6 +325,7 @@ templating.
 **PHASE A — collect (both domains, one message):**
 
 ```
+Skill(effort-medium)   # effort-shift: dispatch span starts; send with the Agent call below in ONE message
 Agent(subagent_type="seo-analyzer", model="sonnet")
 prompt: """
 MODE: collect
@@ -507,6 +510,7 @@ the reports."
 ```
 
 ## STEP 1b — CHALLENGE THE FIX BUNDLE (advisory, before apply)
+`Skill(effort-high)` first (effort-shift: own level before the challenge; send it in the same message as the challenger dispatch).
 Both envelopes now carry a `## FIX BUNDLE` — worth attacking before any edit lands.
 **Skip if intervention mode = conservative** (nothing is applied). Else persist both
 bundles (seo + geo, verbatim) to `.claude/tasks/plans/<date>-<slug>-<HHMM>.md`, then run
@@ -535,6 +539,13 @@ intent, not header wording: **AUTO** = no-confirmation items (seo batches
 A/B/C · geo G1–G4/G6); **GATED** = items marked NEEDS CONFIRMATION / visible
 / structural (seo D/E · geo G5); **USER ACTIONS** = batch F / G7.
 
+### Gitflow aiguillage (before the first edit)
+
+Follow `$HOME/.claude/lib/gitflow-aiguillage.md` — this skill's TYPE =
+`feature` (aggressive mode edits code). On `main`/`develop` branch first:
+`bash ~/.claude/lib/gitflow.sh start feature seo-<slug>`; on a working
+branch apply in place. Never `gitflow finish` — integration is human-gated.
+
 ### Serial by ownership (no parallel race)
 
 The two bundles may touch the same shared template (meta vs JSON-LD). Apply
@@ -547,6 +558,7 @@ The two bundles may touch the same shared template (meta vs JSON-LD). Apply
 For each AUTO item, dispatch its `applier` at L1, passing the item verbatim:
 
 ```
+Skill(effort-medium)   # effort-shift: dispatch span starts; send with the Agent call below in ONE message
 Agent(subagent_type="hotfixer")     # or "feater" per the item's applier
 prompt: "<paste the bundle item: files, concern, current, expected,
   framework note + shared-file discipline>.

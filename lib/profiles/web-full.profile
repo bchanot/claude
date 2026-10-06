@@ -4,7 +4,6 @@
 # polish, audit, and verify.
 
 # === Design ===========================================================
-design-shotgun
 design-review
 design-consultation
 design-html
@@ -25,9 +24,7 @@ feat                              personal
 ship-feature                      personal
 hotfix                            personal
 bugfix                            personal
-ship
 review
-context-save
 commit-change                     personal
 refactor                          personal
 
@@ -49,9 +46,19 @@ emil-design-eng                   external
 frontend-design                   external
 design-motion-principles          external
 impeccable                        external
+scroll-world-storytelling         external
+build-threejs-scroll-worlds       external
+scroll-scrubbed-visual-sequence   external
+scroll-scrubbed-word-reveal       external
+scroll-progress-timeline          external
+21st-ui-build                     external
+21st-cli-use                      external
 ui-ux-pro-max                     plugin@ui-ux-pro-max-skill
-magic                             mcp
 
-# === CLIs (advisory) =================================================
+# Personal: motion implementation companion (skills/site-motion)
+site-motion                       personal
+
+# === CLIs ============================================================
+21st                              cli
 ctx7                              cli
 graphify                          cli

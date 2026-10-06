@@ -1,5 +1,6 @@
 ---
 name: init-project
+effort: xhigh
 description: 'Use when initializing a brand-new project from scratch — needs interview, design, scaffold, and TDD implementation. Multi-agent orchestrator: plugin-advisor + interviewer + analyzer + scaffolder with two validation gates. Triggers: "init project", "new project", "start project from scratch", "scaffold project", "init-project".'
 argument-hint: <project idea or description>
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob, Agent, Skill
@@ -13,6 +14,7 @@ Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
 judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
 gate prints the remedy; end the turn — no later step, no dispatch. Nominal
 (big) path is silent.
+EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-107): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
 
 ## REQUEST
 $ARGUMENTS
@@ -58,8 +60,8 @@ In both cases: MANDATORY STOP until user answers remaining questions. Produce PR
 
 **Then run `$HOME/.claude/lib/contract-interview.md`** seeded from the BRIEF:
 REQUEST verbatim = the user's project description; ACCEPTANCE CRITERIA = the
-V1 FEATURES (each testable); FILE SCOPE = the planned tree. No new questions
-(the interview already asked). It writes
+V1 FEATURES (each testable); FILE SCOPE = the planned tree. Pass A is covered
+by the interview; pass B runs at STEP 3 against the DESIGN. It writes
 `.claude/tasks/contracts/<date>-<slug>-<HHMM>.md`; the DESIGN approved at STEP
 4 ENRICHES it, and STEP 9's verifier judges the MVP against the enriched
 contract.
@@ -68,8 +70,11 @@ contract.
 Load `$HOME/.claude/agents/analyzer.md`. Analyze BRIEF: existing code, stack constraints, infra risks, open decisions. Produce ANALYSIS REPORT.
 
 ## STEP 3 — DESIGN
-Invoke `superpowers:brainstorming` with BRIEF + ANALYSIS REPORT.
+Invoke `brainstorming` (vendored superpowers skill) with BRIEF + ANALYSIS REPORT.
 Produce DESIGN: stack+versions, full folder tree, module responsibilities, data flow, interfaces (signatures only), config+tooling, test strategy, resolved decisions, prereqs list.
+Then run pass B of `$HOME/.claude/lib/contract-interview.md` against the DESIGN
+(minus what the BRIEF and the brainstorm settled): one batch before STEP 4;
+answers append to the contract `[gated]`.
 
 ## STEP 4 — VALIDATION GATE #1 ★ MANDATORY STOP
 Present:
@@ -92,7 +97,7 @@ contract, each tagged `[gated <date>]`. STEP 9's verifier judges against this
 enriched contract.
 
 ## STEP 5 — SCAFFOLD
-Dispatch `Agent(subagent_type="scaffolder")` (pin sonnet, effort high —
+Dispatch `Agent(subagent_type="scaffolder")` (pin sonnet, effort medium —
 BDR-077 : le design est CLOS au gate #1, le scaffold est de l'exécution,
 plus jamais inline sur le modèle de session). Pass IN THE PROMPT (LRN-126 —
 every field the scaffolder consumes crosses the dispatch): BRIEF (verbatim)
@@ -100,7 +105,14 @@ every field the scaffolder consumes crosses the dispatch): BRIEF (verbatim)
 `~/.claude/CLAUDE.md`. A STOP (missing input) comes back as its report —
 resolve here, re-dispatch. The ~30s liveness pings are THIS loop's job
 while waiting.
-Creates: CLAUDE.md, `.claude/settings.json`, `.claudeignore`, `.gitignore`, `.env.example`, empty entry points. NO README, NO features, NO `.claude/tasks/` or `.claude/memory/` (not bootstrapped by this flow — copy from `~/.claude/templates/memory/` manually if wanted before STEP 10b's memory commit).
+Creates: CLAUDE.md, `.claude/settings.json`, `.claudeignore`, `.gitignore`, `.env.example`, empty entry points. NO README, NO features.
+Then bootstrap the memory in THIS loop, before STEP 5f so the root commit embeds
+it (doctrine: registries + TODO exist from day one; STEP 10b appends to them):
+```bash
+mkdir -p .claude/memory .claude/tasks
+cp -n ~/.claude/templates/memory/{decisions,learnings,blockers,evals,journal}.md .claude/memory/
+[ -f .claude/tasks/TODO.md ] || printf '# TODO\n\n## %s\n' "$(date +%Y-%m-%d)" > .claude/tasks/TODO.md
+```
 Verify: `git init` + build passes.
 
 ## STEP 5b — CREATE README
@@ -163,16 +175,18 @@ layout and the deterministic root commit:
 bash "$HOME/.claude/lib/gitflow.sh" init "chore: scaffold <project-name>"
 ```
 Creates `main`+`develop`, root-commits the FULL scaffold (CLAUDE.md, README,
-config, `.gitignore`, deps), reconciles the `.gitignore` socle, and installs the
+config, `.gitignore`, `.claude/memory/` + `.claude/tasks/TODO.md`, deps), reconciles the `.gitignore` socle, and installs the
 versioned pre-commit hook — all embedded in the root commit, working tree clean.
 This is the deterministic scaffold commit owner (closes BLK-010). The MVP is
 implemented on a `feature/*` branch off `develop` (STEP 8).
 
 ## STEP 6 — PLAN
-Invoke `superpowers:writing-plans` with BRIEF + skeleton.
+`Skill(effort-xhigh)` first, sent with the next tool call (effort-shift: turn reset; gate #1 ended the turn and the vendored `writing-plans` pin applies only when the user invokes it).
+Invoke `writing-plans` (vendored superpowers skill) with BRIEF + skeleton.
 Granular tasks (2-5 min each), exact file paths, TDD: tests before code.
 
 ## STEP 6b — CHALLENGE THE PLAN (before the gate)
+`Skill(effort-xhigh)` first (effort-shift: own level before the challenge; send it in the same message as the challenger dispatch).
 Before the human sees the implementation plan, harden it. Run
 `$HOME/.claude/lib/challenge-plan.md` with `PLAN` = the plan STEP 6 wrote under
 `docs/superpowers/plans/`, `KIND` = `build-plan`, `SCOPE` = the skeleton + task file
@@ -198,11 +212,12 @@ Approve and start? (yes / request changes)
 Changes → back to STEP 6. Approved → continue.
 
 ## STEP 8 — IMPLEMENT
+First: `Skill(effort-medium)` (effort-shift: dispatch span starts; send it in the same message as this step's first dispatch).
 Start the MVP feature branch off develop, then implement on it:
 ```bash
 bash "$HOME/.claude/lib/gitflow.sh" start feature mvp
 ```
-Invoke `superpowers:subagent-driven-development` for the per-task implement loop
+Invoke `subagent-driven-development` (vendored superpowers skill) for the per-task implement loop
 **and** the final whole-branch review **only**. Do NOT run its terminal
 `finishing-a-development-branch` step — this orchestrator owns integration via
 `gitflow finish` (STEP 11). When SDD's flow reaches "Use
@@ -214,14 +229,15 @@ call. The plan is closed; execution and plan-conformity review are sonnet
 work. Reflection (task decomposition, review verdict arbitration) stays in
 this loop.
 
-## STEP 8b — GRAPHIFY FULL (after implementation)
-If `graphify` CLI is installed AND complexity >= 30%:
-1. Run full graphify on the implemented project:
-   ```bash
-   graphify . --out graphify-out 2>/dev/null || true
-   ```
-2. Print: `🔗 Full project graph updated at graphify-out/`
-If `graphify` not installed or complexity < 30% → skip silently.
+## STEP 8b — GRAPHIFY SIGNAL (after implementation — BDR-097)
+graphify is proposed only from 200 tracked code files, and the USER decides —
+never build, install or update a graph here:
+```bash
+bash ~/.claude/lib/graphify-gate.sh .
+```
+- Prints a line → carry it into the FINAL OUTPUT status table as
+  `GRAPHIFY: <line> — /graphify on your go`.
+- Silent → `GRAPHIFY: below 200 code files, not proposed`.
 
 ## STEP 9 — VERIFY + SECURE (fresh gates, bounded loops)
 Run the two fresh gates per `$HOME/.claude/lib/verify-secure-loop.md` with
@@ -245,7 +261,8 @@ against the founding contract. Distinct axis from STEP 10 code review
 ([[LRN-095]]) — both run.
 
 ## STEP 10 — CODE REVIEW
-Invoke `superpowers:requesting-code-review`. **Model routing (BDR-077):** the
+`Skill(effort-xhigh)` first, sent with the review dispatch (effort-shift: judgment dispatch; the reviewer is a built-in and inherits the level in force).
+Invoke `requesting-code-review` (vendored superpowers skill). **Model routing (BDR-077):** the
 review subagent it dispatches MUST carry `model: "opus"` in the Agent call —
 craft review is dispatched judgment, never inherited from the session. Fix
 all CRITICAL before proceeding.
@@ -281,7 +298,9 @@ capitalizes NOTHING. Do NOT fabricate a BDR to fill the step. Print
    [ decisions.md ]  BDR-XXX — <decision> — <1-line why>
    Valider lesquels ? (all / <IDs> / edit / skip)
    ```
-3. Append approved entries + update the Index. Append a journal line under today.
+3. Append approved entries to the existing registries (bootstrapped at STEP 5,
+   in the root commit) + update the Index. Append a journal line under today's
+   heading in `.claude/memory/journal.md`.
 
 **Hash rule — founding decisions carry NO commit hash; use path + date only.**
 This is by nature, not an omission: a founding decision is made at DESIGN
@@ -292,8 +311,12 @@ that IMPLEMENTS the decision, e.g. BDR-033 → 11792cc). This is the SECOND case
 where hash-anchoring does not apply — the first being a squash-merged PR, whose
 anchored commit ceases to exist.
 
-**Language rule**: written entries are ALWAYS in English (CLAUDE.md "Memory
-registries"). The gate may mirror the user's language; entries must not.
+**Language rule**: written entries are ALWAYS English AND caveman — fragments,
+articles dropped, code/IDs/quoted errors verbatim — per CLAUDE.md "Memory
+registries" (Always English, always caveman). The gate may mirror the user's
+language; entries must not.
+
+`Skill(effort-low)` first (effort-shift: bookkeeping tail; send it in the same message as the memory-commit command).
 
 **Then commit the memory** — follow `$HOME/.claude/lib/capitalize-commit.md`: it
 surgically commits the approved founding decisions (`.claude/memory` +
@@ -366,5 +389,6 @@ LOCATION: <path> | STACK: <stack> | BUILD: ✅/❌ | TESTS: ✅<N>/❌
 V1 FEATURES: ✅<f> / ⚠️<f> partial: <reason>
 REMAINING ISSUES: <list or none>
 QUICK START: <exact cmds>
-CLAUDE.md ✅ | README ✅ | SETTINGS ✅
+CLAUDE.md ✅ | README ✅ | SETTINGS ✅ | MEMORY ✅
+GRAPHIFY: <STEP 8b line>
 ```

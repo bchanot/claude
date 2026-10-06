@@ -1,5 +1,6 @@
 ---
 name: bugfix
+effort: high
 description: |
   Structured bug fix with root cause investigation. For bugs where
   the cause isn't immediately obvious, spans multiple files, or
@@ -25,6 +26,7 @@ allowed-tools:
 MODEL GATE (blocking): run `$HOME/.claude/lib/model-gate.md` BEFORE any
 step below. Verdict `small` → STOP — print the gate's remedy, end the
 turn, dispatch nothing.
+EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-107): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
 
 ## REQUEST
 $ARGUMENTS
@@ -55,8 +57,9 @@ git log --oneline -20 --all -- <suspected files>
 
 Follow `$HOME/.claude/lib/design-gate.md`:
 - Scan $ARGUMENTS and target files for design/UI/style signals (CSS, component, layout, animation).
-- If signals found → run `design-tool-gate.sh`; if it reports INCOMPLETE,
-  tell the user to run `/profile design` before proceeding.
+- If signals found → run `design-tool-gate.sh`; INCOMPLETE → tell the user
+  to run `/profile design`; SIGN-IN REQUIRED → design-gate.md §3 (ask
+  `! 21st login`, wait) before proceeding.
 - If no signals → skip (zero overhead).
 
 ## STEP 2 — INVESTIGATE
@@ -116,8 +119,14 @@ RISK: <low/medium — what could go wrong>
   obvious fix.
 - If the fix is significant (>10 lines, multiple files,
   behavior change): wait for user approval.
+  On resume: `Skill(effort-high)` first, sent with the next tool call (effort-shift: turn reset).
+- Then run pass B of `$HOME/.claude/lib/contract-interview.md` against the
+  FIX PLAN: every VISIBLE / PUBLIC NAME / SCOPE choice it settles that the
+  bug report left open → one batch of questions, before STEP 3b. The trivial
+  fast-path is not exempt: a 1-line fix with a visible choice still asks.
 
 ## STEP 3b — CHALLENGE THE FIX PLAN (before the contract)
+`Skill(effort-high)` first (effort-shift: own level before the challenge; send it in the same message as the challenger dispatch).
 Unless the fix is the trivial 1-2 line case STEP 3 already fast-paths, the
 DIAGNOSIS + FIX PLAN is a reflection worth attacking before it hardens into a
 contract. Persist it to `.claude/tasks/plans/<date>-<slug>-<HHMM>.md`, then run
@@ -135,8 +144,8 @@ the STEP 3 approval gate.
 Run `$HOME/.claude/lib/contract-interview.md` (main loop). The DIAGNOSIS
 feeds it: REQUEST verbatim = the bug report as received; ACCEPTANCE CRITERIA
 = the symptom reproduced-then-gone + a regression test present and passing;
-FILE SCOPE = the FIX PLAN files. Questions stay proportional (a clear,
-reproduced bug → zero). It writes the contract to
+FILE SCOPE = the FIX PLAN files. Pass A only here (pass B ran at STEP 3); a
+clear, reproduced bug asks nothing. It writes the contract to
 `.claude/tasks/contracts/<date>-<slug>-<HHMM>.md`; keep the path — the
 executor reads it first and GATE 1 (STEP 6) hands it to a fresh verifier.
 
@@ -151,6 +160,7 @@ branch it's a no-op (commit in place). Never `finish`.
 Dispatch the executor — sonnet by frontmatter pin, do not override:
 
 ```
+Skill(effort-medium)   # effort-shift: dispatch span starts; send with the Agent call below in ONE message
 Agent(subagent_type="bugfixer")
 prompt: "CONTRACT: <path from STEP 3.5>
 DIAGNOSIS: <ROOT CAUSE + EVIDENCE from STEP 3>
@@ -162,9 +172,11 @@ ops, no security dispatch. Finish with the BUGFIX-EXEC REPORT."
 
 Parse the `BUGFIX-EXEC REPORT`:
 - `STATUS : DONE` → STEP 6.
-- `STATUS : NEED-DECISION` → make the decision HERE (that is reflection),
-  append it to the plan, re-dispatch a FRESH bugfixer with plan + decision.
-  Max 2 decision round-trips → escalate to the user.
+- `STATUS : NEED-DECISION` → route on its `CLASS:` per MID-RUN CLARIFICATION
+  in `$HOME/.claude/lib/contract-interview.md`: visible / public-name / scope
+  → ask the user, verbatim; internal → decide HERE (max 2 such round-trips
+  → escalate). Append the answer to the contract `[gated]` and to the plan,
+  re-dispatch a FRESH bugfixer with plan + decision.
 - `STATUS : BLOCKED` → surface the blocker to the user, stop.
 
 ## STEP 6 — VERIFY + SECURE + PRE-COMMIT GATE + COMMIT (main loop, LRN-083)
@@ -266,9 +278,11 @@ A bugfix with an understood root cause is almost always worth one entry:
    ```
 4. Append approved entries + update the Index. Add a line to today's heading in `.claude/memory/journal.md`.
 
-**Language rule**: written entries are ALWAYS in English (see CLAUDE.md "Memory registries" § Language). The interactive gate may mirror the user's language; the appended entries must not.
+**Language rule**: written entries are ALWAYS English AND caveman — fragments, articles dropped, code/IDs/quoted errors verbatim — per CLAUDE.md "Memory registries" (Always English, always caveman). The interactive gate may mirror the user's language; the appended entries must not.
 
 If the bug was trivial and the root cause not transferable → skip with `CAPITALIZE: trivial, skip`.
+
+`Skill(effort-low)` first (effort-shift: bookkeeping tail; send it in the same message as the memory-commit command).
 
 **Then commit the memory** — follow `$HOME/.claude/lib/capitalize-commit.md`: it
 surgically commits what capitalize just wrote (`.claude/memory` + `.claude/tasks`
@@ -281,7 +295,9 @@ hash, and no-ops if nothing was written.
 - No fix without understanding the root cause first (STEP 2/3).
 - Reflection (GATHER, INVESTIGATE, DIAGNOSIS, contract, loop decisions) NEVER
   leaves this main loop; execution NEVER stays in it — the executor is the
-  sonnet-pinned bugfixer subagent (BDR-066).
+  sonnet-pinned bugfixer subagent (BDR-066). A skill-mandated executor is exempt from the doctrine's "don't delegate
+  few-tool-call work" rule (CLAUDE.md "Workflow" names that exception:
+  skill-mandated dispatches run as written).
 - The executor is re-dispatched FRESH on every round-trip (NEED-DECISION,
   ECARTS, BLOCK) — feedback travels as contract path + named
   gaps/decisions, never as transcript.

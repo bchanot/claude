@@ -103,9 +103,10 @@ backfill, if ever wanted, is `/prune-memory` passe D — never this snippet.
 
 ## ORDERING (orchestrators only)
 
-`superpowers:brainstorming` / `writing-plans` are external skills — we cannot make them
-read our registries. So this runs BEFORE them, pre-loading the disposition into the plan
-they form. Mirror of capitalize-commit running BEFORE finishing-a-development-branch: there
+`brainstorming` / `writing-plans` (vendored superpowers skills) are external skills — we
+cannot make them read our registries. So this runs BEFORE them, pre-loading the
+disposition into the plan they form. Mirror of capitalize-commit running BEFORE
+`gitflow finish` (the upstream finishing-a-development-branch is not vendored): there
 the memory commit must precede integration; here the memory read must precede planning.
 
 ## NO-OP / IDEMPOTENT

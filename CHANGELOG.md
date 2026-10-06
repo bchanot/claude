@@ -2,10 +2,586 @@
 
 All notable changes to claude-config will be documented in this file.
 
-Format follows [Keep a Changelog](https://keepachangelog.com/).
+Format follows [Keep a Changelog](https://keepachangelog.com/) and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [2.0.0] — 2026-10-06
+
+Upgrading from 1.x: see [MIGRATION.md](./MIGRATION.md#upgrading-an-existing-machine-to-200).
+
+### Added
+- **Higgsfield pack, off by default**: `make plugin` installs the `@higgsfield/cli` CLI (Step 8.6) and clones the skills of higgsfield-ai/skills into `skills-external/higgsfield-*` through the new `lib/higgsfield-skills.sh`; `make update` refreshes the skills, and the CLI when npm installed it; `make doctor` reports the CLI and its session without ever warning. The pack belongs to no profile: `lib/toggle-external.sh enable higgsfield` links the seven allowlisted media skills, `enable higgsfield-websites` the landing-page aid, and no `profile set` or `make link` re-enables either. `CLAUDE.global.md` routes explicit media-generation asks to it. Hermetic suite `lib/tests/higgsfield.test.sh`.
+- **Effort round (BDR-108)**: every skill carries an entry level next to its model pin. `lib/effort-pins.txt` (map) + `lib/effort-pins.sh` (idempotent re-apply after the last vendoring step of `install-plugins.sh` and `update-all.sh`) replace the hardcoded brainstorming/writing-plans loop and extend the pins to the design stack (high, one level per stack since the last loaded wins), superpowers, agent-skills and the 21st pack; `skills-perso` low, `pdf-translate` medium, `site-motion` high; doctrine: the design stack loads paired with the first Read (a lone Skill call applies nothing). Model pins stay tier aliases: the latest version of a tier is also the cheapest or same-priced, so the quality/price trade-off is tier × effort, never version. `lib/effort-audit.py` prints thinking coverage per scope (sub-agent records carry no thinking count on ~90 % of requests: EVAL-037's "executors stay cheap" was a measurement gap, not a finding).
+- **Effort tiering (BDR-107)**: reasoning effort routed per role and per phase. Session default `high`; `effort:` pins on the 20 repo-authored agents; entry level on 28 tracked user-invoked skills plus the two vendored superpowers skills (re-applied by `install-plugins.sh` after resync); five shifter skills `effort-low` … `effort-max` loaded at phase boundaries per `lib/effort-shift.md`, always sent with the step's first tool call (a lone Skill call is a no-op on 2.1.283), with `max` at the verify-secure caps and ship-feature 4b; `/effort-max` as the turn-scoped relaunch lever; statusline shows the live level; session banner warns when `CLAUDE_CODE_EFFORT_LEVEL` silences the pins; census `lib/tests/effort-routing.test.sh`; transcript audit `lib/effort-audit.py`.
+- **Design gate asks the user to sign in to 21st instead of skipping it**:
+  `lib/design-tool-gate.sh` adds a three-state 21st auth predicate
+  (`twentyfirst_auth_state`, honors `TWENTYFIRST_TOKEN`/`API_KEY_21ST` or a
+  local `21st whoami` read). Signed out now trips a new `SIGN-IN REQUIRED`
+  state (exit 12) instead of silently proceeding or reporting a plain
+  INCOMPLETE. The agent asks the user to run `! 21st login` in-session and
+  waits, re-running the gate on reply; an explicit "proceed without 21st"
+  opt-out is honored and never re-asked. A `whoami` answer that can't be
+  classified (unexpected line, nonzero rc, timeout) surfaces as unverified
+  with the raw diagnostic (`21st (whoami: rc=… …)`), never guessed as
+  signed-in or signed-out. `lib/design-gate.md` and the
+  `skills/feat`/`skills/bugfix` STEP 0.5 design-gate bullets document the
+  new branch. Hermetic suite `lib/tests/design-tool-gate.test.sh`, 7 named
+  cases.
+- **`make doctor` checks the vendored externals** — new
+  `lib/doctor-vendored.sh` (`check_vendored_skills`), wired into doctor.sh
+  after the gstack section: every curl-pinned entry of plugins.lock.json
+  has its files under `skills-external/` (list, dict or single-path lock
+  shapes), every `EXTERNAL_SKILLS` name of link.sh is symlinked into
+  `~/.claude/skills/` when the active profile lists it, parked names are
+  reported not failed, hints `make plugin` / `make link`. Lock entries are
+  shape-validated (a malformed lock yields one warn, never a traceback) and
+  profile, skill and file names pass an allowlist before becoming paths.
+  Until now doctor only checked the gstack submodule. Hermetic suite
+  `lib/tests/doctor-vendored.test.sh`, 11 cases.
+- **`skills/site-motion`** — personal skill for site-level motion
+  choreography (scroll engine choice and Lenis/ScrollTrigger sync, Astro
+  ClientRouter lifecycle, pin/scrub numbers, sticky stacks, video and image
+  scrubbing, WebGL hero lanes and budgets, upstream pitfalls, verification
+  checklist), distilled from the MengTo motion pack (invariants only,
+  LRN-141). Routed into the Build UI toolchain of CLAUDE.global.md and
+  lib/design-gate.md (not on the GATE-BLOCK set). Case 7 of the repo review.
+- **Five MengTo scroll skills vendored** (`scroll-world-storytelling`,
+  `build-threejs-scroll-worlds` with its five references,
+  `scroll-scrubbed-visual-sequence`, `scroll-scrubbed-word-reveal`,
+  `scroll-progress-timeline`) at a pinned commit (`mengto-skills` entry in
+  plugins.lock.json, text files only, never demos or binaries). The
+  agent-skills curl loop became the shared `lib/vendor-skills.sh`
+  (`vendor_pinned_skills <lock-key> [refresh]`, list or dict lock shapes,
+  `VENDOR_BASE_URL` honoured only as `file://` for the hermetic suite
+  `lib/tests/vendor-skills.test.sh`, lock values validated: 40-hex commit,
+  github.com source, traversal-free paths, no trailing newline),
+  used by install-plugins.sh Step 8e and update-all.sh 7.3; refresh keeps
+  the file's convention and skips a skill that was never installed.
+  Registered in link.sh, .gitignore,
+  toggle-external, profile.sh and the design/web/web-full/full profiles
+  (plus `site-motion personal`). Seventeen other MengTo skills were read and
+  skipped: covered locally, buggy (reduced-motion `clearProps`, gate before
+  `registerPlugin`, no-JS opacity 0) or off-domain.
+- **rules/web-building.md § Write-time reflexes** — stack-agnostic
+  micro-rules borrowed from ibelick/ui-skills (baseline-ui + playbook): dvh
+  and safe-area, paste never blocked, tabular-nums and text-wrap, one
+  z-index scale, compositor-only motion with reduced-motion and off-screen
+  pause, 44 px targets and focus-visible, status never by color alone,
+  errors next to the field, one accent per view. Case 3 of the 6-repo
+  review: nothing installed (CLI and MCP are a curl of raw SKILL.md, a
+  third router, and baseline-ui's stack mandates contradict Astro-first).
+- **Agent Skills trio** (`observability-and-instrumentation`,
+  `deprecation-and-migration`, `ci-cd-and-automation`) — vendored from
+  addyosmani/agent-skills at a pinned commit (`agent-skills` entry in
+  plugins.lock.json), the emil-design-eng way: curl'd into
+  `skills-external/<name>/SKILL.md` by install-plugins.sh Step 8e, refreshed
+  by update-all.sh at the same commit, symlinked by link.sh, registered in
+  `lib/toggle-external.sh`, `lib/profile.sh` and the `full`/`backend`/`dev`
+  profiles. Case 2 of the 6-repo review: the plugin itself was rejected
+  (1.8k tokens per session for 20 % novelty, `/spec` `/review` `/ship`
+  collide with gstack, trunk-based git and the one-version API rule
+  contradict the doctrine, a second skill router).
+- **`lib/floor-guard.sh`** — diff-scoped deterministic detector of a quietly
+  weakened quality bar (new lint/type suppressions, skipped or deleted
+  tests, dropped assertions, stubs, lowered coverage thresholds), with a
+  `floor-guard: allow <reason>` waiver, rc 0/2/3. Mandatory verifier
+  STEP 3 (`agents/verifier.md`), documented under GATE 1 of
+  `lib/verify-secure-loop.md`. Suite `lib/tests/floor-guard.test.sh`: 6
+  kinds plus a WAIVED and a CLEAN fixture, each flip-tested, and SKIP
+  boundary fixtures (bare `xit(`/`fit(`/`xdescribe(`/`fdescribe(` are
+  word-bounded, so `exit(`, `model.fit(`, `profit(` stay clean). Waivers
+  outside test files count as gaps unless the contract's CLARIFICATIONS
+  names them (security-gate MEDIUM, user chose strict). Adapted from
+  agent-skills `constraint-driven-development`.
+- **`lib/tests/skill-routing-census.test.sh`** (+ `lib/skill-routing-census.py`)
+  — TF-IDF cosine census of skill-description collisions across the live
+  catalog (routing ambiguity, not naming): top 10 pairs, WARN ≥ 0.50,
+  FAIL ≥ 0.75, fixture flip-test. Baseline 2026-09-27: 120 skills, max 0.52
+  (`careful` ~ `guard`). Adapted from agent-skills evals Tier 2.
+- **`rules/rest-api.md`** — path-scoped REST rule distilled from agent-skills
+  `api-and-interface-design`: contract-first order, one error envelope +
+  HTTP map, paginated lists, idempotency (key from intent, atomic claim,
+  payload guard, duplicate policy, retention), naming, Hyrum's law;
+  versioning points to `CLAUDE.md § Web APIs — always versioned` instead of
+  the upstream one-version rule.
+- **`make test suite=<file>`** runs one suite hermetically; the
+  `GIT_CONFIG_GLOBAL=/dev/null` export lives in the Makefile so nobody types
+  the denied env-prefix form by hand (the reason an executor wrote a wrapper
+  around it on 2026-09-24).
+- **`lib/tests/doctrine-citers.test.sh`** — every `CLAUDE.md "Section"` or
+  `CLAUDE.md … § Label` citation in skills, agents, lib, rules and hooks must
+  resolve to a heading or bold label of CLAUDE.global.md; flip-tested. Would
+  have caught the five "§ Language" pointers the density pass left dangling.
+  First run fixed one more (`rest-api-node.md` cited the heading without its dash).
+- **graphify threshold signal** — `lib/graphify-gate.sh` counts tracked code
+  files (vendored trees excluded) and, from 200 with no
+  `graphify-out/graph.json`, the session-start banner shows one line
+  (`graphify? N code files ≥ 200, no graph`) plus the `/graphify` hint. It
+  informs, the user decides: nothing is built or installed. Doctrine and the
+  plugin-advisor thresholds follow the same rule; measured on a 295-file PHP
+  project: AST build 2.3 s, zero LLM tokens, one query 2 to 3k tokens.
+  Test `lib/tests/graphify-gate.test.sh` (11 checks).
+- **Branch deletion guard** — `gitflow_delete` (also `gitflow.sh delete
+  <branch>`) is the only path that deletes a branch: it refuses `main` and
+  `develop` (rc 6) and any branch not merged into develop or main (rc 5),
+  with an explicit ancestor check, and keeps the branch; the `origin/` copy
+  is removed right after, once its own tip passes the same check (a remote
+  tip the bases lack is kept, loudly; no origin, `GITFLOW_NO_PUSH=1` or
+  `gitflow.autopush false` skip it). Motivation, proven
+  by `gitflow-test.sh` T22a: since `start` sets an auto-pushed upstream,
+  `git branch -d` checks "merged into origin/<branch>", which the post-commit
+  hook keeps trivially true. A fourth generated hook, `reference-transaction`,
+  vetoes any deletion or rename of `main`/`develop` at the ref layer in every
+  repo (`git config gitflow.protect false` opts a foreign clone out). Static
+  deny on hand deletion (`git branch -d`/`--delete`, renames of the bases),
+  a `hard_deny` entry for the nested forms; `gitflow.sh hooks` lists the hook
+  set, read by `doctor.sh` and the tests.
+- **`make doctor` reports the Playwright browser cache** — a read-only
+  `Playwright browsers` section listing cache size, which registered
+  Playwright install requires each cached browser revision, and counts of
+  unreferenced directories and broken links. Report only: nothing is
+  pruned, since Playwright's own `install` already unions the required set
+  across every registered install.
+- `lib/gstack-playwright.sh` — the gstack Playwright helpers as a shared
+  lib (OS-support bump, submodule-update wrapper, cache report), sourced by
+  `install-plugins.sh`, `update-all.sh` and `doctor.sh`, covered by
+  `lib/tests/gstack-playwright.test.sh`.
+- **`doctor.sh` inspects the `autoMode` block**: warns when a classifier
+  list drops the built-in entries (no `"$defaults"`) and when the
+  user-scope `environment` names a git repo other than the config repo.
+  Neither defect is visible from the deny count, until now the only
+  permission signal `doctor.sh` had.
+- **`templates/settings/SETTINGS.md` documents `autoMode`**: the four
+  classifier lists, `$defaults` splice semantics, `classifyAllShell`, the
+  user-scope vs project-scope rule, and why `ask` is the wrong tier for a
+  destructive command under auto mode.
+- **21st.dev moved from an MCP server to a CLI.** `install-plugins.sh` Step 8.7
+  installs `@21st-dev/cli` globally (pinned in `plugins.lock.json`), offers
+  `21st login` in an interactive terminal only, and stages the 7-skill pack
+  into `skills-external/21st-*`. `update-all.sh` refreshes both. The design
+  skills follow the profile (on under the default `full`); the two publishing
+  skills stay parked.
+- `lib/toggle-external.sh` manages `21st` as a skill pack (glob-derived from
+  `skills-external/21st-*`, parked under plain names so `profile.sh`'s
+  external park/restore stays interoperable). `magic` is gone from the
+  managed tools.
+- The five design skills (`21st-ui-build`, `-ui-explore`, `-ui-review`,
+  `-cli-use`, `-ai`) are in the `design`, `web`, `web-full` and `full`
+  profiles and in `profile.sh`'s `MANAGED_EXTERNALS`; `21st-registry` and
+  `21st-design-sync` are installed but left parked.
+- `autoMode.soft_deny` gains one entry for the outward-facing 21st verbs
+  (`publish*`, `submit`, `edit`, `delete`, `remove-from-catalog`,
+  `profile set|upload`) — publishing puts a component on a public listing.
+  That tier rather than `ask`, per LRN-153.
+
+- `lib/design-gate.md` §5: a suggest-only check, same shape as the §4
+  animation-library one. When impeccable is active and the frontend project
+  has no `PRODUCT.md` at its root, the gate proposes `/impeccable init` once
+  and never runs it itself (it interviews the user). Skipped for single
+  component reviews and non-UI work.
+
+- **Every commit is pushed as it lands.** `gitflow start` pushes the new
+  branch with its upstream, `gitflow finish` pushes each merge target, and
+  `gitflow init` / `install-hook` now write `post-commit` and `post-merge`
+  hooks next to `pre-commit` that push the current branch after every
+  commit and merge (`--follow-tags`, 30 s timeout, `GITFLOW_NO_PUSH=1` to
+  opt out in throwaway repos). A failed push warns loudly and never blocks
+  the commit. Nothing to run per project: `make link` generates `githooks/`
+  from the lib and sets git's global `core.hooksPath` to
+  `~/.claude/githooks`, so every repo on the machine runs the three hooks,
+  and `hooks/session-start.sh` refreshes a repo's own `.githooks/` when it
+  lags the lib (`gitflow reconcile-hooks`). Per-repo opt-outs for a foreign
+  clone: `git config gitflow.protect false`, `git config gitflow.autopush
+  false`. `make doctor` checks both. The pre-commit exemption now covers
+  `.githooks/**` next to `.claude/**`. `make test` and the suites that
+  commit on `main` run with `GIT_CONFIG_GLOBAL=/dev/null`, so the global
+  hooks never fire in throwaway repos. Covered by `gitflow-test.sh` T18
+  (bare origin: start, commit, opt-outs, unreachable origin, finish), T19
+  (installed and generated hooks equal the emitted ones, LRN-114 drift
+  gate), T20 (reconcile) and T21 (whitelist and protect opt-out).
+- `hooks/unpushed-guard.sh` on `SessionStart` and `Stop`: a warning when the
+  branch is ahead of its upstream, has no upstream, or has no `origin`; at
+  session start also the count of uncommitted changes. Non-blocking.
+- `make doctor` gains two sections: "Git hooks" (global `core.hooksPath`
+  set, generated `githooks/` equal to the emitters) and "Scratchpad": a
+  warning when `TMPDIR` sits on a tmpfs mounted with `usrquota`. systemd
+  mounts `/tmp` that way by default and caps each user at 80 % of its
+  size, so Claude's tool outputs share one quota across every session and
+  sub-agent, and one fat probe directory kills every shell at once (this
+  happened twice on 2026-09-22, BLK-021). Fix: launch claude with
+  `TMPDIR=$HOME/.cache/claude-tmp`.
+- `lib/tests/guard-bash.test.sh`: the executable spec of a PreToolUse Bash
+  guard (transfer tools, sync deletes, recursive `rm` outside the project,
+  bulk permissions, privilege escalation, disk tools, docker privileges and
+  system mounts, git history destruction, writes into system zones,
+  guardrail tampering, pipe-to-shell, nested forms, scripts the command
+  runs). The hook itself is not shipped (BLK-022); the spec skips cleanly
+  until it lands.
+- **`lib/tests/profile-default.test.sh`** covers the default-profile
+  resolution (absent / empty / `none` cache), `reset` = `set full`, the
+  label-driven `current` lines and the statusline fallback, on a fixture
+  seeded like a real tree (gstack off, nothing linked).
+
+### Changed
+- Default session model `claude-fable-5-1` (settings.json `model`).
+- **`full` = everything the other profiles carry** (user rule: full does
+  what every specialized profile does), minus the 9 removed gstack
+  skills, the 21st generation/review trio and one named exception
+  (`pr-review-toolkit`, deliberately out of full since audit 2026-07-02
+  #12). New `max` profile (`# SUPERSET-OF: full` marker) is `full` plus
+  the parked tools (`make-pdf`, `diagram`, `21st-ai`, `21st-ui-explore`,
+  `21st-ui-review`) plus `pr-review-toolkit` — switch here when one of
+  them is needed. The 21st generation/review trio leaves `full`, `web`,
+  `web-full` and `design`; `CLAUDE.global.md`'s Design work line drops
+  `21st-ui-review` and notes the trio is `max`-profile only.
+  `security-guidance`'s Stop-hook LLM review is off
+  (`ENABLE_STOP_REVIEW=0` in `settings.json`'s `env`, the plugin's own
+  switch); its regex layer and the commit/push agentic review stay on.
+  `doctor.sh`'s skill-catalog token constants are recomputed from a real
+  count instead of a stale estimate.
+- **CLAUDE.global.md § Code style** — the ordered YAGNI decision ladder
+  (not needed → reuse → stdlib → platform → installed dependency → one line
+  → the minimum that works, after understanding the problem) and a
+  `shortcut:` comment convention for assumed shortcuts, harvested into
+  TODO.md. Six lines, 287 → 293 of the 320 budget. Case 1 of the 6-repo
+  review: ponytail and chisle rejected as plugins (per-turn and
+  per-subagent injection, prose rules colliding with writing-style.md,
+  the caveman purge precedent, rtk already covering the input axis).
+- **Default profile = `full`.** With no selection (`.active-profile`
+  absent, empty, or the legacy `none`), `full` is in force: statusline,
+  `profile.sh current`, `gstack off` and `reset` all resolve it the same
+  way. `profile.sh reset` (and `make profile-reset`) now applies the
+  default profile, exclusively (= `set full`: enables full's list, parks
+  non-listed gstack and managed externals). It no longer means "re-enable
+  all gstack, plugins untouched". `profile.sh current` is label-driven: it
+  names the cached profile, or the default with "default, not applied yet"
+  until a `set`/`apply`/`reset` writes the cache, and scores that profile
+  only. The `none`/`custom` best guess is gone. The statusline shows `full`
+  instead of `?` when no profile is selected.
+- **`make plugin` Step 11 applies the default profile** when none is
+  selected (`profile.sh reset`) and re-applies an existing selection
+  (`profile.sh set <sel>`), since Steps 2 and 10 rewrite skill state on
+  every run. Step 8.7 no longer parks the 21st pack unconditionally; the
+  pack's state follows the profile.
+- **`full` profile gains four gstack skills** superpowers does not cover:
+  `scrape` and `skillify` (browser + dogfooding), `diagram` and `make-pdf`
+  (docs). Nothing removed; iOS skills, the `connect-chrome` duplicate and
+  gstack-internal tooling stay out.
+- **Routing around a guardrail is the same action** — new `hard_deny` entry: a
+  refused command is never rerun through a wrapper script, alias, heredoc,
+  Makefile target, env file, other shell or other agent; a refusal ends the
+  attempt and is reported with its rule; a brief that orders the refused form is
+  wrong. The same clause sits in every executor and reviewer agent, and the
+  doctrine's sub-agent rule names it. "After code changes" gains step 4: a
+  changed rule, heading, label or threshold → grep every citer, same commit.
+- **Doctrine/skill coherence pass (C2)** — 30 rule pairs in tension found by
+  three read-only audits and resolved in the doctrine's favour: one ask
+  policy (visible / public-name / open-scope choices are asked); mandated
+  executors exempt from the "don't delegate the trivial" rule; a
+  skill-persisted plan satisfies the planning rule; the journal line is
+  exempt from the approval gate; `chore/*` = maintenance without new
+  behaviour; a small fix on develop is a `bugfix`, `hotfix/*` is for prod
+  incidents; the BDR-068 memory auto-finish is written as the one exception;
+  `deploy` routes to `/deploy`. Skills follow: /hotfix types by base and skips
+  the design gate on the trivial tier; /capitalize and /close create missing
+  registries instead of stopping; /commit-change asks the branch type; /doc,
+  /seo, /web-validate and /refactor branch through the aiguillage; /tour
+  reports contract-breaking fixes as `needs decision` and runs doc-syncer in
+  its two modes; client-handover applies audit bundles from its main loop
+  behind one gate; init-project and onboard propose graphify only through
+  the 200-file signal and bootstrap the memory registries; release-candidate
+  gates the tag push only; push wording aligned with the BDR-095 hooks in
+  tour, deploy, capitalize; stale pointers fixed (`§ Language`, `.gsd/
+  ROADMAP.md`, handover script path, design-gate extensions and lists).
+- **CLAUDE.global.md density pass** 352 → 270 lines (−15% words): prose
+  tightened, Security subsections folded into one labelled list, routing
+  lines that only repeated a skill description dropped. Every constraint and
+  every `##` heading kept; loaded in every session, so ~600 fewer tokens per
+  session in every repo (BDR-098).
+- **Design gate: `magic` → the `21st` CLI in the required-manual slot.**
+  `design.profile`'s `GATE-BLOCK` now lists `21st` (CLI channel) and
+  `21st-ui-build` (the pack's canary on the skill channel); a missing CLI
+  trips the gate with `npm i -g @21st-dev/cli` + `21st login` instead of the
+  old `MAGIC_API_KEY` hint. `design-tool-gate.sh` also repairs `PATH` for the
+  npm global bin, whose absence in a hook's sanitized `PATH` would otherwise
+  read as "21st missing" (the existing repair only fired when `claude` itself
+  was unresolvable).
+- `profile.sh`'s `MANAGED_MCPS` is empty: no MCP server is auto-toggled any
+  more. The `mcp` type stays supported for an advisory profile entry.
+- **`/deploy` hand-back: one physical line per command, then a post-deploy
+  tests block.** Every command in the checklist is emitted on exactly one
+  line, however long; a legacy `\` continuation in the runbook is joined at
+  instantiation, and bootstrap and learn patches write runbook lines the same
+  way (`templates/deploy/PROCEDURE.md` header updated). After the checklist
+  the hand-back now carries a "Post-deploy tests" block derived from the
+  delta diff: by-hand checks (action → observable result, each tied to a
+  delta file) plus Suggestions (checks the runbook does not do yet, gaps
+  spotted between delta files). Cold-resume re-display and re-hand-back
+  regenerate both. RED/GREEN tested on a scratch runbook (4/4 baseline runs
+  reproduced the continuation verbatim and printed no tests).
+- **Docker and node go through the classifier with a framing, instead of
+  an inert `ask` tier.** `Bash(docker run|exec *)`, `Bash(docker[-| ]compose
+  up*)` and `Bash(node -e *)` leave `permissions.ask` (no prompt under auto
+  mode, re-verified on 2.1.273). A new `autoMode.allow` list, `$defaults`
+  first, names the two routine cases the built-in `Remote Shell Writes` /
+  `Production Reads` rules were catching: `docker exec`/`run`/`compose`
+  against a local dev container whose name does not carry `prod`, running a
+  SQL file or script from the repo inside it; and project-local node
+  (`node <file>`, `npm run`, `npx`/`pnpm exec` of a lockfile-declared
+  package, effects inside the cwd). Two `soft_deny` entries frame what that
+  opens: docker data destruction (`rm -f`, `volume rm`/`prune`, `system
+  prune`, `compose down -v`, `--privileged`, bind mounts outside the cwd)
+  and undeclared node packages (`npx`/`dlx` of a package absent from the
+  lockfile, `npm install <name>`). `SETTINGS.md` gains the `autoMode.allow`
+  tier and the reason a static `Bash(node *)` rule cannot do this job.
+- **Ask, don't guess: the orchestrators ask about open choices instead of
+  settling them.** `CLAUDE.global.md` replaces "one question upfront, never
+  mid-task" with: a choice visible in the result, a name that becomes
+  public, or a scope the request does not settle → ask, even mid-task;
+  internal technical choices stay Claude's. `lib/contract-interview.md`
+  STEP 2 becomes CLARIFY: pass A (the three gap checks, at contract time)
+  and pass B (the open-choice sweep in three classes, run once at each
+  flow's PLAN step, no question cap, over-5 guard, "you decide" recorded as
+  delegated). New MID-RUN CLARIFICATION section: an executor's
+  `NEED-DECISION` carries a `CLASS:` tag; visible / public-name / scope go
+  to the user verbatim, internal is decided in the loop; answers land in
+  the contract `[gated]`. New HOW TO ASK section (LRN-102). `/feat`,
+  `/bugfix`, `/hotfix`, `/ship-feature`, `/init-project` wire pass B at
+  their plan step; `/feat` and `/bugfix` stop deciding `NEED-DECISION`
+  themselves; `/hotfix` drops "zero questions ever" and allows one
+  re-dispatch for a class-tagged BLOCKED; the interviewer never ships a
+  visible / public-name / scope item as `(assumed)`; feater, bugfixer and
+  hotfixer report the class. Locks updated in the `contract-verifier`,
+  `loops-light` and `gates` tests.
+- **The classifier, not `permissions.ask`, now guards destructive shell
+  work** (BDR-090). Ten rules left the static tiers: `rsync`, `kill -9`,
+  `killall`, `pkill` out of `deny`, and `python3 -c`, `python -c`,
+  `xargs`, `sed`, `cp`, `mv` out of `ask`. Under `defaultMode: auto` an
+  `ask` rule raises no prompt ([[LRN-146]]), so that tier was gating
+  nothing anyway. Cover is now `autoMode.soft_deny`, which the classifier
+  enforces and an explicit instruction clears: writes outside the working
+  directory, `rsync --delete`, SIGKILL and kill-by-name, in-place edits
+  spanning more than one file, directory moves, and inline interpreters
+  or `xargs` that delete or write outside the cwd. Intent clears a soft
+  block for the current turn only.
+- **`autoMode.hard_deny` added** for the three classes no command pattern
+  can express: secret exfiltration (a read and a send, separate steps,
+  possibly turns apart), production deployment (deploy scripts, lftp/FTP
+  pushes, any `prod` target), and disarming the guardrails (weakening a
+  deny list, `--no-verify`, removing the pre-commit hook,
+  `bypassPermissions`). Adding a restriction stays allowed; removing one
+  does not. No instruction clears these.
+
+- **impeccable installs at `--scope=global`, subagents included, and the
+  pin fails safe.** `install-plugins.sh` Step 8d no longer stages a
+  `--scope=project` install in a tmpdir and moves the skill directory alone.
+  The installer writes through the `~/.claude/skills` and `~/.claude/agents`
+  symlinks straight into the repo: `skills/impeccable` plus the four
+  `agents/impeccable-*.md`, both gitignored and machine-owned, which is what
+  the manual `--scope=global` command already did. The step refuses to run
+  before `make link` has created those symlinks (an install before them
+  materializes real directories that `link.sh` then refuses to replace),
+  keeps a profile-parked copy parked, reports the skill version and agent
+  count, and prints the per-project `/impeccable init` hint. A pinned
+  install that fails falls back to `impeccable@latest` with a warning to
+  bump `plugins.lock.json`. `update-all.sh` follows the same shape.
+  `plugins.lock.json` pin 3.2.0 → 4.1.0 (the CLI only: the skill dist and
+  the engine binary have their own release tracks). `link.sh` drops
+  impeccable from `EXTERNAL_SKILLS`; `skills-external/impeccable/` is gone.
+- **Superpowers plugin replaced by 7 vendored skills** (tier 2 of the
+  skill-catalog prune, BDR-105/106). `brainstorming`, `writing-plans`,
+  `subagent-driven-development`, `test-driven-development`,
+  `requesting-code-review`, `using-git-worktrees` and `writing-skills` are
+  curled byte-for-byte from `obra/superpowers` at the v6.4.1 commit
+  (`5bf4e78011075bcfc0dc295f0724994cd123ee71`) via `lib/vendor-skills.sh`
+  (new `superpowers` entry in `plugins.lock.json`, `always_on: true`),
+  linked by `link.sh` like the other externals: always on, no profile lists
+  them, same as `darwin-skill`. Every `superpowers:<skill>` citer across
+  `skills/`, `agents/` and `lib/` is renamed to the bare skill name.
+  `CLAUDE.global.md` Skill routing gains a map for the 4 dropped skills this
+  config used to reference: `executing-plans` to
+  `subagent-driven-development`, `finishing-a-development-branch` to
+  `gitflow finish`, `systematic-debugging` to `/bugfix`,
+  `verification-before-completion` to the verifier gates.
+
+### Security
+- `settings.json` `autoMode.soft_deny` gains a "Global npm installs" entry: every spelling of a global install is held until the user names the package in the turn, and Claude states the publisher, age, download volume, install scripts and known advisories first. It covers the forms the literal `deny` patterns miss.
+- `settings.json` `permissions.deny` now refuses three more spellings of a global npm install (`npm i -g`, `npm install --global`, `npm i --global`): the rule matched `npm install -g` only. Not a complete list: forms with the flag after the package name, such as `npm i <pkg> -g`, still pass.
+- **Ten secret-reader deny rules added**: `sed`, `awk`, `cut`, `tr`,
+  `sort`, `uniq`, `diff`, `od`, `xxd`, `strings` against `.env*`. Six of
+  those tools sat in `permissions.allow`, so reading a `.env` through
+  them triggered nothing. Same shape and same known gap as the existing
+  `Bash(grep * .env*)` family: a `cat .env | sed` pipe still slips past,
+  which is what the `hard_deny` exfiltration rule is there to catch.
+
+- **Data-loss guardrails after the 2026-09-21 wipe** (BDR-095). Static
+  `permissions.deny` now refuses transfer and mirror tools (`lftp`, `sftp`,
+  `ftp`, `curl -T`), `rsync --delete`, `xargs rm`, pipe-to-shell,
+  `chmod`/`chown -R`, `sudo`/`doas`/`pkexec`, disk tools, `chattr`, docker
+  volume drops, `system prune`, `compose down -v`, `--privileged`, the
+  docker socket and `-v /:`, and git history destruction (`push --delete`,
+  `--mirror`, `:ref`, `--force-with-lease`, `branch -D`, `filter-branch`,
+  `reflog expire`, `stash clear`/`drop`, `clean -f`, `--no-verify`,
+  `core.hooksPath`, the `GIT_CONFIG_GLOBAL=` / `GIT_CONFIG=` env prefixes
+  and the per-repo `gitflow.*` opt-outs, which belong to the human). The
+  pipe-to-shell and stash entries left `ask`, which is
+  unreliable under auto mode. New `autoMode.hard_deny`: a destructive tool
+  aimed at a path built from a variable, `~`, `..`, a wildcard, or outside
+  the project and the temp dir, including as a trace or a rehearsal that a
+  brief allows; a sub-agent brief carries no user authority. `soft_deny`
+  reworded for the promoted docker items and gains "discarding uncommitted
+  work". `environment` records the incident, the push discipline, and that
+  Claude never runs a deploy. `CLAUDE.global.md` gains "Destructive tools &
+  data loss"; the four report-only agents state that a destructive tool is
+  traced by reading, never by running, whatever the brief says.
+
+### Removed
+- **Skill-catalog prune**: `brightdata-plugin@synced` disabled
+  (account-synced, keyless-useless, its `bright-data-mcp` skill would
+  hijack WebFetch/WebSearch), `frontend-design@claude-plugins-official`
+  uninstalled (byte-identical duplicate of the managed `skills-external`
+  copy). The 9 broken or doctrine-breaking gstack skills — `ship`,
+  `land-and-deploy`, `setup-deploy`, `autoplan`, `context-save`, `learn`,
+  `careful`, `guard`, `design-shotgun` — are out of every profile that
+  listed them (`dev`, `backend`, `web`, `web-full`, `design`, `full`),
+  each with its reason in the new `lib/gstack-removed.sh` (exit-127 hooks,
+  an absent `OPENAI_API_KEY`, `ship`/`land-and-deploy` skipping develop,
+  `context-save` with no restore). The new `GSTACK_REMOVED` denylist is
+  honored by `profile.sh gstack on` and `toggle-external.sh enable
+  gstack`: both now skip a removed name instead of silently restoring it.
+- `deploy` `push_deploy_tags` knob (the STATE.json commit's hook pushes the tag
+  with `--follow-tags`); `/onboard add gsd` and `/onboard continue` mentions
+  (never had a handler).
+- **`magic` MCP (`@21st-dev/magic`) and `MAGIC_API_KEY`**, with the two risks
+  attached to them: the unauthenticated `127.0.0.1` callback server
+  `21st_magic_component_builder` opened (LRN-110) and the plaintext key copy
+  that `claude mcp add --env` wrote into `~/.claude.json` (BDR-026/057). Gone
+  with it: the 4 `mcp__magic__*` `permissions.ask` entries (BDR-059), the
+  `MAGIC_API_KEY` block in `.env.example`, `link.sh`'s missing-key warning,
+  and the dead `MAGIC_API_KEY=abc123` gitleaks allowlist regex.
+- **Superpowers plugin uninstalled**: its 8 other skills
+  (`executing-plans`, `finishing-a-development-branch`,
+  `systematic-debugging`, `verification-before-completion`,
+  `dispatching-parallel-agents`, `receiving-code-review`,
+  `using-superpowers`, `diagnosing-superpowers`) and its SessionStart
+  injection (`using-superpowers`, ~3.6 KB every session start) are gone
+  with it. `lib/profile.sh` no longer protects it; `lib/detect-plugins.sh`
+  `detect_superpowers` now checks the linked vendored skill instead of the
+  plugin cache or `claude plugin list`.
+
+### Fixed
+- **`make test` was red on macOS: the suite and seven scripts assumed a GNU
+  userland.** Under `pipefail`, `cmd | grep -q` lets grep exit at the first
+  match and the producer dies of SIGPIPE (rc 141): `lib/gitflow-test.sh`
+  reported 15 false "merged into" failures and `lib/doc-shape.sh` failed open.
+  `update-all.sh` read the marketplace plugin list with `grep -oP`, which BSD
+  grep rejects, so `make update` updated no marketplace plugin on macOS. The
+  design gate bounded `21st whoami` with `timeout`, absent from the macOS
+  system PATH, and reported READY BUT UNVERIFIED. `lib/gstack-links.sh` relied
+  on `realpath -m`, so its refusal to write into the gstack submodule never
+  fired. Producers are now captured before matching. In-place edits use
+  `sed -i.bak` in tests and a temp-sibling copy on the user's shell profile. The
+  other idioms have portable forms: `tr -d ' '` after `wc -l`, python3 for
+  file modes, `touch -t`, a `realpath -m` emulation that refuses `..`, perl
+  `alarm` for the 15 s bound and `sed -n` token extraction.
+  `lib/design-tool-gate.sh` also looks for `claude` and `21st` under
+  `/opt/homebrew/bin` and no longer trips on an empty array under macOS's bash
+  3.2. A failing `claude plugin enable` no longer aborts `profile set`. New
+  hermetic suite `lib/tests/portability-census.test.sh` flags GNU-only idioms
+  (`sed -i` without suffix, `stat -c`, `realpath -m`, `touch -d`, `grep -P`,
+  bare `/bin/grep`) in tracked shell files.
+- `install-plugins.sh` never offered the ctx7 and 21st logins: both blocks required stdout to be a terminal, and stdout is the `tee` pipe of the install log. They now test stdin alone, as `update-all.sh` already did.
+- `lib/effort-pins.sh` residual LOW (security re-gate of BDR-108): INT/TERM trap removes the mktemp sibling and exits 130 (never an EXIT trap, the installer owns one); the post-write re-read message no longer claims CRLF and is reached by a stubbed unit test; the rejected map line is printed through `printf '%q'` so a caller's `echo -e` cannot interpret map content; the fixture suite guards its `mktemp -d` and skips the read-only case visibly under root.
+- `update-all.sh` re-fetched the vendored skills at every run but never re-applied the effort pins: brainstorming/writing-plans lost their xhigh until the next `make plugin` (BDR-107 gap, closed by `lib/effort-pins.sh`).
+- **gitflow pre-commit blocked every commit with gitleaks 8.16** (Ubuntu's apt
+  package): the hook ran `gitleaks git --staged`, a subcommand that exists from
+  8.19 only, so the "unknown command" exit 1 read as a leak. The generator now
+  probes `gitleaks git --help` and falls back to `protect --staged`; the
+  installed hooks are regenerated. T16c builds a `/usr/bin` symlink farm minus
+  gitleaks instead of shortening PATH, which no longer hid a distro-packaged
+  binary.
+- **gstack's shared helper tree was mostly unreachable.** gstack skills
+  hardcode `~/.claude/skills/gstack/<path>` for shared assets, but
+  `link.sh` and `install-plugins.sh` only ever linked `bin` and
+  `browse/dist`. A shared `lib/gstack-links.sh` (used by `link.sh`,
+  `install-plugins.sh` and `update-all.sh`) now links every non-skill
+  child of the gstack submodule, so `make-pdf`, `diagram`, the `freeze`
+  hook, the `*/sections/*.md` files, `scripts/jargon-list.json` and
+  `ETHOS.md` resolve; `/unfreeze` now actually clears
+  `~/.gstack/freeze-dir.txt`. `doctor.sh` counted skills with `find
+  -maxdepth 2` (no `-L`, missed symlinked skills) and truncated
+  block-scalar (`|`/`>`) descriptions to 0 chars; it now reuses
+  `lib/skill-routing-census.py`'s description parser through
+  `lib/doctor-skills.sh`. Dropped the stale "security-guidance … 0
+  tokens" claim from `install-plugins.sh` and `agents/plugin-advisor.md`:
+  the Stop review costs out-of-band quota, not context.
+  `CLAUDE.global.md`'s Ship/PR routing pointed at gstack's `ship`, which
+  bases off `origin/HEAD` (= main) and skips develop; it now routes
+  straight to `ship-feature`.
+- **`gitflow init` on an existing repo under the machine-wide hooks** — the
+  socle commit (`.gitignore` + `.githooks/`) landed directly on `main`
+  "while the hook is inactive"; since the global `core.hooksPath` the
+  pre-commit refused it and init died. The socle now lands on
+  `chore/gitflow-adopt` off main, merged `--no-ff` (merge commits run no
+  pre-commit), branch deleted, develop created after. T2c simulates the live
+  hook; the hermetic suite could not see the regression.
+- **`make update` no longer drops the Playwright OS-support bump** — a
+  gstack submodule update used to leave the bump unapplied until the next
+  `make plugin`, the open caveat of BDR-029. `update-all.sh` now goes
+  through `gstack_submodule_update_with_bump`, which re-applies it after a
+  successful update and returns non-zero on failure so the existing warn
+  arm still fires. Two latent bugs travelled with the extracted code: the
+  ostag capture exited 1 on every non-Ubuntu host and aborted its caller
+  under inherited `errexit`, and the `bun` calls had no timeout.
+- **`autoMode.environment` no longer describes one project from the
+  user-scope file**: the block named a specific repo, its FTP deploy
+  target and its customer data, while `link.sh` symlinks this file to
+  `~/.claude/settings.json` where it reaches every project. The global
+  block now states machine-level facts only (self-hosted Gitea, gitflow
+  protection, `~/.claude/.env` as the single secret source, no CI), and
+  the project-specific facts moved to that project's gitignored
+  `.claude/settings.local.json`. Both lists now open with `"$defaults"`,
+  which the original omitted, so the built-in entries are inherited
+  rather than replaced.
+- `README.md` no longer claims the `ask` tier makes every `mcp__magic__*`
+  call "require a live confirmation and can never auto-execute". That
+  holds under `defaultMode: default`, not under this config's `auto`. The
+  paragraph now separates what is verified from what is not, and names
+  `deny` as the only tier the classifier cannot lift.
+- **`make plugin` never installed impeccable.** Three defects. The 3.2.0
+  pin had rotted upstream: the CLI fetches its skill dist at install time and
+  that release's artifact is gone (`Download failed: invalid zip data`),
+  which the step reported as "run it yourself" on every run. The
+  project-scope staging dropped the four subagents the same install writes.
+  And `/impeccable init` was never announced. A fourth, found while probing
+  the fix: once a copy is already installed, a rotted pin exits 0
+  (`Could not check for skill updates … Existing skills were left
+  unchanged`), byte-identical on disk to a genuine "Skills are up to date"
+  rerun, so `imp_install` now reads the installer output instead of trusting
+  the exit code or a version compare. Verified with the real installer in a
+  sandbox HOME: fresh install, rotted pin over a copy (fallback fires), same
+  pin rerun (no false warning), parked copy plus rotted pin (fallback, then
+  returned to `skills-disabled/`).
+
+### Known residual
+- The kept gstack skills still carry upstream prose routing to `/ship`,
+  `/land-and-deploy`, `/context-save`, `/autoplan` and `/design-shotgun`
+  (their own text, machine-owned submodule files, not ours to patch);
+  `21st-ui-build` and `21st-cli-use` still point at the now-`max`-only
+  21st trio. A Skill call on a parked name fails, and the doctrine
+  routing in `CLAUDE.global.md` applies instead.
+- The 7 vendored superpowers skills are byte-for-byte upstream text, never
+  edited: their internal `superpowers:<x>` mentions and references to the
+  8 non-vendored skills stay in the prose (their own text, not ours to
+  patch). `CLAUDE.global.md` Skill routing carries the map for the 4 of
+  those this config used to reference. After a rollback that re-installs
+  the plugin while the 7 symlinks are still linked, delete the
+  `skills/<7>` symlinks or re-run `make plugin` to avoid duplicate skill
+  descriptions.
+- The macOS portability fix was verified on macOS only. Every replacement is
+  meant to behave identically on GNU/Linux; a Linux `make test` run is still
+  to be done after 2.0.0.
 ## [1.5.0] — 2026-09-13
 
 ### Added

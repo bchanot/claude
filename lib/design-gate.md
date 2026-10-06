@@ -17,11 +17,11 @@ Check BOTH the task description AND the filesystem:
 - Framework UI: `tailwind`, `styled-component`, `emotion`, `chakra`, `radix`, `shadcn`, `headless`
 
 **Filesystem signals** (quick check, no deep scan):
-- Target files have `.tsx`, `.jsx`, `.css`, `.scss`, `.less`, or `.module.css` extension
+- Target files have `.tsx`, `.jsx`, `.vue`, `.svelte`, `.astro`, `.css`, `.scss`, `.less`, or `.module.css` extension
 - `tailwind.config` or `postcss.config` present in project root
 - `tokens/`, `theme/`, or `design-system/` directory exists
 - Storybook config (`.storybook/`) present
-- Animation lib in `package.json` deps: `motion`, `motion-v`, `framer-motion` (legacy), `gsap`, `@gsap/react`, `lottie-react`, `react-spring`, `popmotion`, `@formkit/auto-animate`
+- Animation lib in `package.json` deps: any package `is_anim_lib_installed` recognizes (`lib/animation-lib-check.sh`, the single source)
 
 ## DECISION
 
@@ -40,12 +40,16 @@ and if not, point at ONE command — `/profile design`.
 Tier does NOT change WHAT gets checked. Every non-trivial design tier draws from
 the one `design` profile — so the gate checks that profile's **design-core
 tools** (the `# GATE-BLOCK:` allowlist in `design.profile`: ui-ux-pro-max,
-frontend-design, emil-design-eng, design-motion-principles, impeccable, design-html,
-design-review, design-consultation, magic). The profile also bundles
+frontend-design, emil-design-eng, design-motion-principles, design-html,
+design-review, design-consultation, the `21st` CLI and `21st-ui-build` — the
+canary for the whole 21st skill pack). The profile also bundles
 browser/plan/shotgun tooling and graphify for convenience; those never trip the
 gate. Motion (`design-motion-principles`) and static-HTML (`design-html`) are
 already in the core set — checked regardless; their CLAUDE.md "+motion /
 +static" notes say which tool you'll lean on, not a separate activation step.
+`site-motion` (personal skill, site-level scroll/page choreography) rides the
+same Build chain but isn't on the GATE-BLOCK list: it ships with the repo,
+nothing to install or verify.
 
 ### 2. State — run the deterministic check
 
@@ -54,10 +58,10 @@ already in the core set — checked regardless; their CLAUDE.md "+motion /
 It reads the design-core tools (`# GATE-BLOCK:` in `design.profile`) plus their
 types (`profile.sh show design --plain`) and checks each on its own channel —
 skill symlink, `claude plugin list`, `claude mcp list`, `command -v`. It never
-reads `disabledMcpServers` (unreliable for bi-modal servers like magic/context7).
+reads `disabledMcpServers` (unreliable for bi-modal servers like context7).
 The core set lives in `design.profile`, not in the script or here — single source.
 
-Exit codes: `0` = ready · `11` = ready-but-unverified (proceed, but surface it) · `10` = incomplete (gate trips) · `2` = error.
+Exit codes: `0` = ready · `11` = ready-but-unverified (proceed, but surface it) · `10` = incomplete (gate trips) · `12` = sign-in required (21st installed, signed out) · `2` = error.
 
 ### 3. Branch on the result
 
@@ -67,29 +71,50 @@ Exit codes: `0` = ready · `11` = ready-but-unverified (proceed, but surface it)
 
       🎨 DESIGN DETECTED — the design toolchain isn't fully active.
       activate with /profile design:        <skills / ui-ux-pro-max>
-      required + manual step:                <e.g. magic — needs MAGIC_API_KEY>
+      required + manual step:                <e.g. 21st — needs the CLI>
       → run  /profile design  to activate it, then continue.
 
   - **activate with /profile design** → skills + the plugin; `/profile design`
     turns them on directly.
   - **required + manual step** → required tools the profile can't flip silently.
-    **magic lands here: it TRIPS the gate** (it's required for Build), it is NOT
-    a silent "optional". `/profile design` runs `toggle-external.sh` for magic,
-    which needs a valid `MAGIC_API_KEY` in `~/.claude/.env` — tell the user to verify it.
+    **the `21st` CLI lands here: it TRIPS the gate** (it's required for Build),
+    it is NOT a silent "optional". `/profile design` symlinks the 21st skills,
+    but the CLI they shell out to is a global npm install: tell the user to run
+    `npm i -g @21st-dev/cli` then `21st login` (no API key, no MCP).
   - Do NOT hand-activate individual tools. The profile is the unit of activation.
+- **12 / `SIGN-IN REQUIRED`** → STOP. The 21st CLI is installed but `21st
+  whoami` reports signed out. Relay the script's block, then ask the user to
+  run `! 21st login` (the `!` prefix runs it in this session, browser flow,
+  saves a local token) — or run `21st login` in any terminal on this
+  machine, then reply (the token is a local file; any terminal works, `!`
+  in-session is just the convenient form). END THE TURN and wait. On the
+  user's reply, re-run `design-tool-gate.sh` before any 21st step: `READY` →
+  continue; still `12` → ask again once, then offer the opt-out. Explicit
+  refusal — the user answers "proceed without 21st" (or words to that
+  effect) → say visibly `21st skipped for this run at your request` and
+  continue with the rest of the toolchain, 21st steps left out; after that,
+  a later `12` in the same run is reported in one line, never re-asked.
+  Never skip silently ("not logged in, so we don't use it" is the failure
+  this branch closes). Never run `21st login` yourself — it opens a browser
+  and needs the human. `TWENTYFIRST_TOKEN` is a shell-profile setting
+  followed by a session restart, never an in-session `export` (tool calls
+  don't share a shell, and a secret doesn't belong in the transcript).
 - **11 / `READY BUT UNVERIFIED`** → `claude` was unreachable, so the design
-  plugin/MCP (magic, ui-ux-pro-max) could NOT be checked. Do NOT report a plain
-  "ready": proceed only after telling the user that N tool(s) went unverified and
-  having them confirm with `claude mcp list` / `claude plugin list`. Fail-visible,
-  not fail-silent — the most important tool (magic) is exactly an unverifiable one.
+  plugin (ui-ux-pro-max) could NOT be checked. Do NOT report a plain "ready":
+  proceed only after telling the user that N tool(s) went unverified and having
+  them confirm with `claude plugin list`. Fail-visible, not fail-silent. A
+  `21st (whoami: rc=… …)` entry in this block means the CLI itself could not
+  answer (a runtime/PATH problem, e.g. node under nvm) — the remedy is the
+  diagnostic the script prints, never a sign-in prompt; relay its own line.
 
 ### 4. Animation library — suggest-only (fires only on a real motion signal)
 
 Orthogonal to the toolchain check above: §2-3 are about Claude's design TOOLS;
 this is about the PROJECT's runtime dep. Evaluate it only once the toolchain is
-resolved and you're actually proceeding with the build (READY, or after the user
-ran `/profile design`). Never on the INCOMPLETE stop path — that path has one
-action only (`/profile design`); don't stack an optional note on it.
+resolved and you're actually proceeding with the build (READY, after the user
+ran `/profile design`, or after the sign-in re-run returns READY). Never on
+the INCOMPLETE stop path — that path has one action only (`/profile
+design`); don't stack an optional note on it.
 
 **Fires only when ALL THREE hold** — drop any one → no suggestion, stay silent:
 
@@ -138,6 +163,33 @@ count:
   toolchain check handles the skill; this step handles the lib. Don't conflate
   them when talking to the user.
 
+### 5. Impeccable design context — suggest-only (one check, one line)
+
+Same class as §4: a PROJECT-side prerequisite, not a tool. `impeccable`
+installs globally, but every one of its verbs reads a per-project `PRODUCT.md`
+that only `/impeccable init` writes. Without it the skill runs on invented
+context, which is worse than not running it — and nothing else in the process
+says so, because init has to happen in the agent chat, not in an installer.
+
+**Fires when BOTH hold** — else stay silent:
+
+1. impeccable symlink present under `skills/` (non-blocking external — not on the `# GATE-BLOCK:` list, so §3 never checks it).
+2. The project has no `PRODUCT.md` at its root.
+
+Evaluate it on the same path as §4: after the toolchain resolves, never on the
+INCOMPLETE stop path. One line, non-blocking:
+
+    🧭 impeccable has no project context here (no PRODUCT.md) — run `/impeccable init` first? (optional)
+
+**Rules:**
+
+- Non-blocking, and never run `init` unprompted: it interviews the user about
+  the product, so it needs their attention, not their absence.
+- One line per session at most. A refusal is an answer; do not re-ask inside
+  the same task.
+- Skip entirely for a review/audit of a single component and for any non-UI
+  work. This is for Build and design-system tiers.
+
 ### Other toolchains
 
 The script defaults to the `design` profile. A task needing another profile's
@@ -149,13 +201,16 @@ remedy is always `/profile <that>` — a profile, never a lone tool.
 
 - Remedy is ALWAYS a profile (`/profile design`), never an atomic tool toggle —
   the profile system is the single source of truth for what's active.
-- magic is REQUIRED (it trips the gate), but `/profile design` only enables it
-  if `MAGIC_API_KEY` is in `~/.claude/.env` — the gate says so; surface that to the user.
+- the `21st` CLI is REQUIRED (it trips the gate) and `/profile design` cannot
+  install it — the gate names the two commands; surface them to the user.
+  Signed out → exit 12: ask `! 21st login`, wait, re-run; explicit opt-out
+  only, never a silent skip.
 - The design-core set (what trips the gate) is declared in `design.profile` on
   the `# GATE-BLOCK:` line(s) — edit there to add/remove a blocking design tool,
   not in the script.
 - The state check shells out to `claude` (plugin/mcp list): a few seconds.
   Trivial / non-design tasks skip it entirely (no signal, or trivial tier).
 - `design-tool-gate.sh`'s per-type state checks MIRROR
-  `profile.sh:skill_status()` — change one, sync the other.
+  `profile.sh:skill_status()` — change one, sync the other, except the 21st
+  auth state: gate-only, no skill_status counterpart.
 - Do NOT run this gate on pure backend/API/CLI tasks (no signals = no gate).

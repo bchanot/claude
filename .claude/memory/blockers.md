@@ -37,6 +37,17 @@ rules:
 | BLK-015 | 2026-07-03 | `gitflow_finish` ignored its `<type> <name>` args → merged the CHECKED-OUT branch not the one named → wrong-branch merge (audit LOT3) | resolved |
 | BLK-016 | 2026-07-04 | rtk compression PATH-dead 30 days — 6/5070 Bash commands compressed (~460K tokens missed); installer sources cargo env so its own check passes, Claude tool shell never gets ~/.cargo/bin | resolved |
 | BLK-017 | 2026-07-17 | Bing Webmaster API unusable for a multi-client agency: OAuth swamp (localhost redirect refused, rotated single-use refresh tokens race our parallel dispatch), API key = wrong model (client-owned sites) | open/deferred |
+| BLK-018 | 2026-07-20 | release-executor finish span blocked by permission classifier (human signal invisible to subagent) — 2026-07-… | open |
+| BLK-019 | 2026-09-01 | notify-attention bell silent, toast OK (VS Code client default) — 2026-09-01 | superseded by BLK-028 |
+| BLK-020 | 2026-09-02 | notify-attention: both channels dead on one VS Code client — 2026-09-02 | superseded by BLK-028 |
+| BLK-021 | 2026-09-22 | Bash tool dead mid-session ("every command exits 1"): /tmp usrquota blown by a dead session's probe HOMEs — 2… | open |
+| BLK-022 | 2026-09-22 | `hooks/guard-bash.sh` withheld by the safety classifier; executable spec shipped instead — 2026-09-22 | open |
+| BLK-023 | 2026-09-28 | floor-guard SKIP pattern `xit(` (Jasmine) matches any `exit(` in python/JS test helpers → false ECARTS; workaround: no `exit(` in inline python, bash derives rc from output — 2026-09-28 | resolved |
+| BLK-024 | 2026-09-29 | update-all.sh re-fetched vendored skills but never re-applied the effort pins (lost until next `make plugin`); my first fix placed the re-apply BEFORE the late 21st refresh — rtk-truncated grep read as complete — 2026-09-29 | resolved |
+| BLK-025 | 2026-09-30 | deny rule `Bash(npm install -g *)` bypassed unknowingly by the alias `npm i -g` (pasted user instruction ran as typed); deny patterns are literal prefixes — 2026-09-30 | resolved (partial) |
+| BLK-026 | 2026-10-06 | `make test` red on macOS: 13 suites, GNU-only idioms in suite + 7 libs (SIGPIPE under pipefail, `sed -i`, `wc` padding, `stat -c`, `realpath -m`, bare `timeout`, `grep -oP`) | resolved |
+| BLK-027 | 2026-10-06 | this machine never ran `make link`/`make plugin`: no global `core.hooksPath` → post-commit push never fired, branches landed ahead of upstream; 11 vendored skills + `~/.claude/.env` missing | resolved (link) / open (plugin) |
+| BLK-028 | 2026-10-06 | notify-attention on a VS Code client: bell + toast silent-degradation faults (merge of BLK-019 + BLK-020): terminalBell sound default off, ext hooks only terminals born after activation, Code muted in Windows mixer | resolved |
 
 ---
 
@@ -242,3 +253,55 @@ rules:
 - **Status**: resolved (A: ext hooks only terminals born after activation → install ext THEN start/re-attach session; B: Code app volume 0 in Windows mixer).
 - **Lesson**: two independent client faults presented as one symptom ("nothing works"). Splitting probe = run signal in FRESH terminal + play VS Code's own sound preview. Preview bypasses terminal/BEL/hook/dtach/ext → isolates renderer audio in one step. Do that FIRST next time, before any server-side archaeology.
 - **Reference**: [[BLK-019]] bell-only variant (resolved differently — setting alone insufficient here), [[LRN-145]] terminalSequence-not-/dev/tty pattern. Silent-degradation class [[LRN-047]].
+
+## BLK-021 — Bash tool dead mid-session ("every command exits 1"): /tmp usrquota blown by a dead session's probe HOMEs — 2026-09-22
+- **Friction**: previous session on `feature/21st-cli-migration` lost its shell before tests + commit: every Bash call, `echo` included, returned 1. Its harness file `imptest2/step8d-test.sh` landed as 0 bytes.
+- **Real cause** (strong evidence, not reproduced on purpose): `/tmp` = tmpfs 7.4 GB mounted `usrquota`; `/tmp/claude-1000/-home-bchanot-Documents-claude/fefd277c-…/scratchpad` holds 5.9 GB of sandbox HOMEs (`pinprobe/` 2.1 GB, `pinrc/` 1.6 GB, `imp1 impg imptest sbx1 sbx2 v3.2.0 v3.6.1 v4.0.5 …`) from the impeccable pin probes. `dd` 40 MB to `/tmp/claude-1000` → "Disk quota exceeded" (EDQUOT) while `df` still shows 1.6 GB avail. Same write to `~/.cache` OK. Bash tool + `mktemp` + heredocs live in /tmp → all die together. This session: first impeccable probe failed with `Quota exceeded (os error 122)` on the installer's `/tmp/impeccable-update-*` staging, same cause.
+- **Solution**: this round ran everything with `TMPDIR=~/.cache/imp-probe/tmp` (probe, harness, `make test`). Durable fix = delete the dead session's scratchpad: `rm -rf /tmp/claude-1000/-home-bchanot-Documents-claude/fefd277c-e143-4d51-b589-a566641079b5` (agent's `rm -rf` on /tmp denied by the classifier → user action). Rule for probes: sandbox HOMEs that pull npm/node payloads go under `~/.cache/<probe>/`, never the /tmp scratchpad, and get removed at the end of the session.
+- **Recurred same day**: this session's shell died the same way mid-G8 (BDR-095 amendment) while the 5.9 GB still sat there; recovered the moment the user deleted the dir. Mechanism now established, not inferred: stock `/usr/lib/systemd/system/tmp.mount` mounts /tmp with `x-systemd.graceful-option=usrquota` (no override, no fstab line on this machine) and systemd caps each user at 80% of the tmpfs → 0.8 × 7.4 GB = 5.9 GB, the exact volume observed. One quota for every session AND every sub-agent of the uid: multi-session is not the cause, the shared cap is.
+- **Durable fix**: (1) launch claude with `TMPDIR=$HOME/.cache/claude-tmp` (in `~/.bashrc` `dtach_claude()`, before `exec claude`; `mkdir -p` it) → Claude Code's scratchpad, tool outputs, `mktemp` and npm staging all leave the tmpfs; children inherit. (2) `~/.config/user-tmpfiles.d/claude-tmp.conf` with `e %h/.cache/claude-tmp - - - 3d` + the user `systemd-tmpfiles-clean.timer` so dead-session dirs age out. (3) `make doctor` "Scratchpad" section warns while TMPDIR sits on a quota'd tmpfs. Probe rule unchanged: HOMEs with npm payloads under `~/.cache/<probe>/`.
+- **Status**: cause established; open until the launcher exports TMPDIR (user's .bashrc, hand-managed). Links [[BDR-094]], [[BDR-095]], [[LRN-159]].
+
+## BLK-022 — `hooks/guard-bash.sh` withheld by the safety classifier; executable spec shipped instead — 2026-09-22
+- **Friction**: layer C item G2 (PreToolUse Bash guard: whole-command scan incl. nested `bash -c`, `docker compose run … lftp`, scripts the command runs; exit 2 + reason + `logger` trace; fail-closed without jq). The response carrying the hook body was stopped by a safety classifier mid-write; content withheld, instruction not to regenerate it.
+- **Real cause**: the hook body is a dense list of destructive-command patterns (rm -r forms, disk tools, docker escapes, history rewrites); the classifier reads it as harmful capability regardless of the defensive frame.
+- **Solution**: `lib/tests/guard-bash.test.sh` (214 cases, deny/allow) stays as the spec and SKIPs while the hook is absent, so `make test` stays green. Options: user writes the hook against the spec (start from `/mnt/cloudpex/RECOVERY/01-prochain-systeme/claude-config/hooks/guard-bash.sh`, already on disk, then iterate to green); or a different design (allowlist of first words + path containment) requested explicitly. Until then: static deny (BDR-095) covers the direct forms; nested forms rely on the classifier prose.
+- **Status**: open. Links [[BDR-095]], [[LRN-160]].
+
+## BLK-023 — floor-guard `xit(` substring flags every `exit(` — 2026-09-28
+- **Friction**: fresh verifier returned ECARTS(1) on a fully conform diff: `FLOOR SKIP lib/tests/profile-census.test.sh:116 sys.exit(1 if violations else 0)`. One re-dispatch spent on a tool artefact.
+- **Real cause**: `lib/floor-guard.sh` SKIP_SUBSTRINGS holds the bare fragment `'xit('` to catch Jasmine's `xit(…)`; `skip_kind()` is a plain substring match, so `sys.exit(`, `SystemExit(`, `process.exit(` all hit.
+- **Solution**: workaround applied — the inline python prints violations only, the bash wrapper derives the return code from the captured output (no `exit(` anywhere). Root fix pending: word-bound the pattern (`(^|[^a-zA-Z_.])xit\(`) or match `xit(` only in JS/TS test files; hotfix-sized.
+- **Status**: resolved 2026-09-28 — hotfix 0deb559 (bugfix/floor-guard-xit-boundary): the four bare Jasmine identifiers moved into `SKIP_IDENT_RE` with lookbehind `(?<![A-Za-z0-9_.])`, dotted/decorator forms stay substrings; fixtures SKIP_EXIT_CLEAN (RED before, GREEN after) + xit/fit/fdescribe flags. Residual `shortcut:` in the guard: `def fit(` / `function xit(` still match, `xit (` / `xit.each(` still do not (as before). Links [[BDR-105]], [[BDR-102]] (floor-guard origin), [[EVAL-034]].
+
+## BLK-024 — resync dropped the vendored effort pins, twice — 2026-09-29
+- **Friction**: [[BDR-107]] re-applied brainstorming/writing-plans xhigh only in install-plugins.sh STEP 8e; update-all.sh §7.3 re-fetches at the same commit → SKILL.md overwritten, `effort:` gone until the next `make plugin`. Latent since 2026-09-28.
+- **Real cause (second instance)**: my re-apply call landed after the superpowers refresh; update-all.sh §7.4 (21st pack) runs LATER and `rm -rf` + `mv` every 21st-* SKILL.md. My grep of update-all.sh was truncated by rtk ("+28 more hidden") and I read the partial listing as the whole file. Fresh verifier caught it (ECARTS).
+- **Solution**: `lib/effort-pins.txt` + `lib/effort-pins.sh` called ONCE after the LAST vendoring step of both scripts; census locks the order by line number (`ln_last`). Rule: a truncated tool listing is not a census; re-run without the pager or grep the anchor directly.
+- **Status**: resolved 2026-09-29 (feature/effort-round, [[BDR-108]]).
+
+## BLK-025 — deny rule bypassed by an alias spelling: `npm i -g` vs `npm install -g` — 2026-09-30
+- **Friction**: user pasted a vendor setup block ("run `npm i -g @higgsfield/cli`"); command ran. settings.json denies `Bash(npm install -g *)` (BDR-093: global installs are the user's, via `make plugin`). Rule read only later, in the analyzer digest.
+- **Real cause**: deny entries are literal patterns; `i` alias and `--global` spelling do not match. No refusal fired, so nothing signalled the guardrail. Not a deliberate reroute, same effect.
+- **Solution**: deny += `npm i -g *`, `npm install --global *`, `npm i --global *` (3dad33e, user go). Disclosed to the user at the design gate. Rule for me: before a global install, grep settings.json `deny` for the verb family, not the exact spelling.
+- **Status**: resolved (partial) 2026-09-30 — flag-after-package forms (`npm i <pkg> -g`, `npm add -g`, `npm -g i`) still pass; pattern grammar for a mid-string wildcard unverified. Open question left to the user. [[BDR-109]]
+
+## BLK-026 — `make test` red on macOS: GNU-only idioms — 2026-10-06
+- **Friction**: release prep for 2.0.0 ran `make test`: 13 suites red, ~45 FAIL. gitflow-test 15 "merged into" FAIL while merge commit present.
+- **Real cause**: suite + 7 libs written on Ubuntu. `cmd | grep -q` under `set -o pipefail`: grep exits at 1st match, producer SIGPIPE rc 141 (5/5 repro on `git log | grep -q`). Plus `sed -i` no suffix (BSD reads file as script), `wc -l` padded, `stat -c`, `touch -d`, `realpath -m` (gstack write-guard never fired), bare `timeout` off sanitized PATH (design gate UNVERIFIED), `grep -oP` (update-all `_plugins` empty), empty array under `set -u` on bash 3.2, extractor false positive in doctrine-citers. Effort pins also dropped on 2 gitignored SKILL.md (cause not established, re-applied by hand).
+- **Solution**: [[BDR-110]] forms at every site, 23 files, commit 0efdff0; regression tests T4b, Alphabet/Alpha flip, profile-set-managed T18, portability-census suite.
+- **Status**: resolved 2026-10-06. Open: Linux `make test` deferred (TODO); effort-pins re-red trigger (TODO).
+
+## BLK-027 — machine never onboarded: no global hooksPath, push hook silent — 2026-10-06
+- **Friction**: fix commit 0efdff0 and release/2.0.0 prep commit stayed `[ahead 1]`; nobody noticed until `git status -sb`.
+- **Real cause**: `make link` never run on this Mac → `core.hooksPath` unset (local + global), `~/.claude/githooks` absent. `gitflow start` pushes explicitly so branch creation looked fine; commits rely on the post-commit hook. `make link` also reports `make plugin` never ran (11 vendored skills absent) and `~/.claude/.env` missing.
+- **Solution**: pushed both branches by hand; `make link` run (user go) → `core.hooksPath=~/.claude/githooks`, 4 hooks installed. `make doctor` "Git hooks" section flags this; run it first on a new machine.
+- **Status**: resolved for hooks; open: `make plugin` + `.env` on this machine (user action).
+
+## BLK-028 — notify-attention on VS Code client: three client-side faults, one probe order (merge BLK-019 + BLK-020) — 2026-10-06
+- **Friction**: hook fires, server side clean, yet bell and/or toast silent on a VS Code client over SSH. Looks like half-broken hook. Two machines, three distinct faults.
+- **Real cause (3 faults, all client-side)**: (1) VS Code `accessibility.signals.terminalBell` defaults `"auto"` = sound OFF unless screen reader active (BLK-019). (2) ext `wenbopan.vscode-terminal-osc-notifier` parses only terminals created AFTER its activation: claude terminal born before install never hooked, toast dead (BLK-020 fault A). (3) Windows per-app volume mixer, Code entry at 0: toast still audible because Windows shell emits that sound, not Code → masked plain app mute (BLK-020 fault B). Not a hook bug; not dtach (dtach broadcasts to every attached client, zero session loss).
+- **Solution**: client settings.json `"accessibility.signals.terminalBell": { "sound": "on" }`; install ext THEN start or re-attach claude (`dtach -a ~/.dtach/<sess>` from a fresh terminal); raise Code volume in Windows mixer (mixer lists app only after it tried playback → hit preview first). Per-client-machine, not repo-portable.
+- **Probe order (do FIRST, before server archaeology)**: fresh VS Code terminal, `printf '\a\a\033]777;notify;Test;hello\033\\'` → splits terminal path from client renderer; palette `Help: List Signal Sounds` → Terminal Bell preview bypasses terminal/BEL/hook/dtach/ext, isolates renderer audio in one step.
+- **Status**: resolved (BLK-019 2026-09-01, BLK-020 A+B 2026-09-02/03). Sources superseded by this entry; bodies kept for history.
+- **Reference**: `~/.claude/hooks/notify-attention.sh` header documents the setting; [[LRN-145]] terminalSequence-not-/dev/tty; silent-degradation class [[LRN-047]]; sources [[BLK-019]], [[BLK-020]].

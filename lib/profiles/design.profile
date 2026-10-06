@@ -7,16 +7,16 @@
 # tooling, graphify) is bundled for convenience but never blocks. Keep these
 # lines in sync when adding/removing a core design tool.
 # GATE-BLOCK: frontend-design ui-ux-pro-max emil-design-eng design-html
-# GATE-BLOCK: design-motion-principles design-review design-consultation magic
+# GATE-BLOCK: design-motion-principles design-review design-consultation
+# GATE-BLOCK: 21st 21st-ui-build
 
 # Core design skills (gstack)
-design-shotgun
 design-review
 design-consultation
 design-html
 plan-design-review
 
-# Browser tooling — design-review and design-shotgun rely on it
+# Browser tooling — design-review relies on it
 browse
 open-gstack-browser
 setup-browser-cookies
@@ -30,11 +30,26 @@ frontend-design                   external
 design-motion-principles          external
 impeccable                        external
 
+# External: Mengto scroll-choreography skills (curl, commit-pinned)
+scroll-world-storytelling         external
+build-threejs-scroll-worlds       external
+scroll-scrubbed-visual-sequence   external
+scroll-scrubbed-word-reveal       external
+scroll-progress-timeline          external
+
+# Personal: motion implementation companion (skills/site-motion)
+site-motion                       personal
+
+# External: 21st.dev pack — CLI-driven (no MCP, no API key). 21st-registry
+# and 21st-design-sync are publishing flows; installed but left parked.
+21st-ui-build                     external
+21st-cli-use                      external
+
 # Plugin (auto-toggle)
 ui-ux-pro-max                     plugin@ui-ux-pro-max-skill
 
-# MCP — auto-toggle via lib/toggle-external.sh (needs MAGIC_API_KEY in .env)
-magic                             mcp
-
 # CLIs (advisory only — installed/not-installed)
+# 21st is NOT advisory: it is on the GATE-BLOCK list, so a missing CLI trips
+# the design gate. Install: npm i -g @21st-dev/cli  then  21st login
+21st                              cli
 graphify                          cli

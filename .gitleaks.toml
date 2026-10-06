@@ -67,8 +67,7 @@ regexTarget = "line"
 regexes = [
   '''X-Amz-Credential=AKIA[0-9A-Z]{16}''',
   '''private-user-images\.githubusercontent\.com/[^"]*\?jwt=''',
-  '''MAGIC_API_KEY=abc123''',
-  # magic MCP docs example — base64 of "the ..." ASCII sample text.
+  # Docs/test example — base64 of the "the ..." ASCII sample text, never a key.
   '''clientKey = 'dGhlIH[A-Za-z0-9+/=]*'''',
 ]
 

@@ -6,7 +6,6 @@
 # Implementation
 feat                              personal
 ship-feature                      personal
-ship
 
 # Bug fixing
 hotfix                            personal
@@ -19,6 +18,7 @@ refactor                          personal
 code-clean                        personal
 commit-change                     personal
 
-# Session hygiene
-context-save
-land-and-deploy
+# Dev-lifecycle skills (agent-skills trio)
+observability-and-instrumentation  external
+deprecation-and-migration          external
+ci-cd-and-automation               external

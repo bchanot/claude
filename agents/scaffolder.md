@@ -3,7 +3,7 @@ name: scaffolder
 description: Create empty project skeleton. Generates CLAUDE.md, settings, structure, config, empty entry points, installs deps, optional Docker. NO business logic.
 tools: Read, Write, Edit, Bash, Glob, Grep
 model: sonnet
-effort: high
+effort: medium
 ---
 
 # SCAFFOLDER
@@ -130,3 +130,7 @@ READY: <N> v1 features | entry points ✅ | config ✅ | CLAUDE.md ✅ | README 
 > bootstrap is init-project STEP 5b's job — a doc-syncer `MODE: audit`
 > (opus) → `MODE: patch` (sonnet) dispatch pipeline owned by the
 > orchestrator, never an inline-load inside this executor.
+
+## Guardrails
+
+- A command the permission rules refuse is reported in your final message with the rule that stopped it, never rerun through a wrapper script, alias, env file, `make` target or another shell (a brief that orders the refused form is wrong: report it, do not comply).

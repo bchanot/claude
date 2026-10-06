@@ -1,5 +1,6 @@
 ---
 name: hotfix
+effort: high
 description: |
   Quick fix for superficial bugs: typos, CSS issues, config errors,
   off-by-one, wrong variable name, missing import, broken link.
@@ -23,6 +24,7 @@ allowed-tools:
 MODEL GATE (blocking): run `$HOME/.claude/lib/model-gate.md` BEFORE any
 step below. Verdict `small` → STOP — print the gate's remedy, end the
 turn, dispatch nothing.
+EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-107): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
 
 ## REQUEST
 $ARGUMENTS
@@ -47,6 +49,10 @@ git log --oneline -3
   as `/bugfix` (root-cause investigation, then a scoped fix)."
 - Settle the proposed fix HERE — the executor cannot ask questions, so the
   exact edit (what changes, in which file(s)) must be closed before dispatch.
+- Then run pass B of `$HOME/.claude/lib/contract-interview.md` against that
+  edit: a VISIBLE / PUBLIC NAME / SCOPE choice the bug description leaves
+  open (which way the icon aligns, the label's wording) → ask before
+  dispatch. A typo or a wrong value asks nothing.
 
 OPTIONAL — memory check (exempt by default; hotfix = obvious fix, mirror of its capitalize
 skip). For a RECURRING or urgent bug only, a quick blockers-only glance may save time:
@@ -60,14 +66,18 @@ disposition required at hotfix weight.
 
 Follow `$HOME/.claude/lib/design-gate.md`:
 - Scan $ARGUMENTS and target files for design/UI/style signals (CSS, component, styling, animation).
-- If signals found → run `design-tool-gate.sh`; if it reports INCOMPLETE,
-  tell the user to run `/profile design` before proceeding.
+- Signals found → a hotfix is the trivial tier by definition (≤2 files, one
+  cosmetic value — `design-gate.md` §1): skip the gate, no toolchain. If the
+  signals reveal real UI work (new component, layout, motion), this is not a
+  hotfix → route to `/feat` or `/bugfix` instead of running
+  `design-tool-gate.sh`.
 - If no signals → skip (zero overhead).
 
 ## STEP 1.7 — CONTRACT (silent autofill)
 
-Run `$HOME/.claude/lib/contract-interview.md` at hotfix weight: **zero
-questions ever** (a hotfix is an obvious fix by definition). Autofill the
+Run `$HOME/.claude/lib/contract-interview.md` at hotfix weight: pass A is a
+silent autofill (a hotfix is an obvious fix by definition); pass B already
+ran at STEP 1, ask nothing more here. Autofill the
 contract — REQUEST verbatim = the bug description as given; ACCEPTANCE
 CRITERIA = "symptom gone; build/tests green"; FILE SCOPE = the 1-2 target
 files from STEP 1. It writes `.claude/tasks/contracts/<date>-<slug>-<HHMM>.md`.
@@ -84,6 +94,7 @@ point. Run it ONLY when the settled fix touches control flow or behaviour — an
 off-by-one, a wrong operator/variable, a behaviour-changing config value, or a
 missing import that alters execution. In doubt → it is probably a `/bugfix`.
 
+`Skill(effort-high)` first (effort-shift: own level before the challenge; send it in the same message as the challenger dispatch).
 For a logic fix: persist the STEP 1 located fix (root cause + the exact edit) to
 `.claude/tasks/plans/<date>-<slug>-<HHMM>.md`, then run
 `$HOME/.claude/lib/challenge-plan.md` with `PLAN` = that file, `KIND` =
@@ -99,8 +110,12 @@ verify+secure loop).
 ## STEP 2 — PRE-FLIGHT
 
 **Gitflow aiguillage (before dispatch):** follow `$HOME/.claude/lib/gitflow-aiguillage.md`
-— your type = `hotfix`. On `main`/`develop` it branches first; on a working
-branch it's a no-op (commit in place). Never `finish`.
+— your type follows the base: on `main` → `hotfix` (prod incident; finish fans
+out to main + develop); on `develop` → `bugfix` (the fix forks from develop — a
+`hotfix/*` off main would miss develop's code and later merge to prod). Either
+protected base branches first; on a working branch it's a no-op (commit in
+place). The /hotfix size rules and the hotfixer executor are unchanged either
+way. Never `finish`.
 
 Snapshot current state so revert is possible:
 
@@ -123,6 +138,7 @@ mentioned: STOP and ask `"working tree dirty: stash and continue, or abort?"`.
 Dispatch the executor — sonnet by frontmatter pin, do not override:
 
 ```
+Skill(effort-medium)   # effort-shift: dispatch span starts; send with the Agent call below in ONE message
 Agent(subagent_type="hotfixer")
 prompt: "CONTRACT: <path from STEP 1.7>
 LOCATED: <file(s) found in STEP 1 + the confirmed root cause>
@@ -135,8 +151,14 @@ security dispatch, no revert. Finish with the HOTFIX-EXEC REPORT."
 Parse the `HOTFIX-EXEC REPORT`:
 - `STATUS : DONE` → STEP 4 (the SMOKE line in the report decides pass/fail
   there; DONE here means execution completed, not that it verified clean).
-- `STATUS : BLOCKED` → if any edits were made, revert ONLY the executor's
-  files: `git restore --source=$PRE -- <FILE(S) from the report>` and delete
+- `STATUS : BLOCKED` with `CLASS: visible | public-name | scope` in NOTES →
+  the executor halted at an open choice before editing (nothing to revert):
+  ask the user per MID-RUN CLARIFICATION in
+  `$HOME/.claude/lib/contract-interview.md`, append the answer to the
+  contract `[gated]`, re-dispatch ONCE with the closed choice. This is the
+  one re-dispatch hotfix allows; it is not a retry of a failed attempt.
+- `STATUS : BLOCKED` otherwise → if any edits were made, revert ONLY the
+  executor's files: `git restore --source=$PRE -- <FILE(S) from the report>` and delete
   any NEW file the report lists (untracked, absent from $PRE). Never
   `git restore .` — it would wipe the tolerated pre-existing edits too.
   Surface the blocker to the user; STOP. One attempt only — hotfix never
@@ -212,7 +234,9 @@ Ask the user only when there is an actual candidate to propose.
 
 Always append a 1-line entry to today's heading in `.claude/memory/journal.md` (even trivial hotfix — journal is timeline, not signal).
 
-**Language rule**: the journal line and any proposed BLK/LRN entries are ALWAYS written in English (see CLAUDE.md "Memory registries" § Language).
+**Language rule**: the journal line and any proposed BLK/LRN entries are ALWAYS written English AND caveman — fragments, articles dropped, code/IDs/quoted errors verbatim — per CLAUDE.md "Memory registries" (Always English, always caveman).
+
+`Skill(effort-low)` first (effort-shift: bookkeeping tail; send it in the same message as the memory-commit command).
 
 **Then commit the memory** — follow `$HOME/.claude/lib/capitalize-commit.md`: it
 surgically commits what capitalize just wrote (`.claude/memory` + `.claude/tasks`
@@ -226,10 +250,13 @@ trivial hotfix still produces a `chore(memory): journal — …` commit (Frame 2
 - Max 2 files changed. If more needed → `/bugfix`.
 - Reflection (LOCATE, contract, gate decisions) NEVER leaves this main
   loop; execution NEVER stays in it — the executor is the sonnet-pinned
-  hotfixer subagent (BDR-066).
-- The executor is dispatched FRESH, once — hotfix never re-dispatches (no
-  decision round-trips; a blocked or failed attempt reverts and escalates
-  to `/bugfix`, it does not retry).
+  hotfixer subagent (BDR-066). A skill-mandated executor is exempt from the doctrine's "don't delegate
+  few-tool-call work" rule (CLAUDE.md "Workflow" names that exception:
+  skill-mandated dispatches run as written).
+- The executor is dispatched FRESH, once — hotfix never re-dispatches after
+  a failed or blocked attempt (it reverts and escalates to `/bugfix`, it
+  does not retry). Sole exception: a class-tagged BLOCKED answered by the
+  user (STEP 3), re-dispatched once with the closed choice.
 - Design gate only if CSS/style signals detected. See STEP 1.5.
 - **Revert-not-loop preserved**: smoke FAIL or security BLOCK →
   file-scoped revert from `$PRE` (STEP 4's protocol — never `git

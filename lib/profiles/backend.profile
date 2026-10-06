@@ -13,11 +13,13 @@ code-clean                        personal
 commit-change                     personal
 analyze                           personal
 
-# Ship + review + land
-ship
+# Dev-lifecycle skills (agent-skills trio)
+observability-and-instrumentation  external
+deprecation-and-migration          external
+ci-cd-and-automation               external
+
+# Review
 review
-context-save
-land-and-deploy
 
 # Second opinion for hard problems
 codex
@@ -27,11 +29,8 @@ cso
 health
 
 # Session hygiene
-careful
 freeze
 unfreeze
-guard
-learn
 retro
 
 # pr-review-toolkit removed (audit 2026-07-02 #12 — ~2.2k tokens, PR-only):

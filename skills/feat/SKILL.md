@@ -1,5 +1,6 @@
 ---
 name: feat
+effort: high
 description: |
   Small feature implementation (1-5 files). Reflection inline (scope,
   plan, contract — session model), execution dispatched to the
@@ -25,6 +26,7 @@ allowed-tools:
 MODEL GATE (blocking): run `$HOME/.claude/lib/model-gate.md` BEFORE any
 step below. Verdict `small` → STOP — print the gate's remedy, end the
 turn, dispatch nothing.
+EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-107): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
 
 ## REQUEST
 $ARGUMENTS
@@ -71,8 +73,9 @@ FEAT: <feature name> — rule <N>, ~<N> files, <brief approach>
 
 Follow `$HOME/.claude/lib/design-gate.md`:
 - Scan $ARGUMENTS and target files for design/UI/style signals.
-- If signals found → run `design-tool-gate.sh`; if it reports INCOMPLETE,
-  tell the user to run `/profile design` before proceeding.
+- If signals found → run `design-tool-gate.sh`; INCOMPLETE → tell the user
+  to run `/profile design`; SIGN-IN REQUIRED → design-gate.md §3 (ask
+  `! 21st login`, wait) before proceeding.
 - If no signals → skip (zero overhead).
 
 ## STEP 0.6 — MEMORY READ-BEFORE (decisions-first)
@@ -85,9 +88,9 @@ MEMORY; feed STEP 1 PLAN. Inline consumption — reader = planner, no injection.
 ## STEP 0.7 — CONTRACT
 
 Run `$HOME/.claude/lib/contract-interview.md` (main loop — you are it). It
-captures the request verbatim, asks 0-3 questions PROPORTIONAL to ambiguity
-(a complete request → zero questions, silent), derives testable acceptance
-criteria + file scope, and writes the contract to
+captures the request verbatim, runs pass A (gaps: outcome, scope,
+constraints — a complete request goes through silently), derives testable
+acceptance criteria + file scope, and writes the contract to
 `.claude/tasks/contracts/<date>-<slug>-<HHMM>.md`. Keep the path — the
 executor reads it first and GATE 1 (STEP 4) hands it to a fresh verifier.
 
@@ -114,10 +117,14 @@ PLAN:
   [ ] <test file> — <test to add>
 ```
 
-If the approach is ambiguous: ask the user ONE focused question BEFORE
-dispatching — never after (the executor cannot relay questions).
+Then run pass B of `$HOME/.claude/lib/contract-interview.md` against this
+plan: every VISIBLE / PUBLIC NAME / SCOPE choice the plan settles that the
+request left open → one batch of questions BEFORE dispatching; answers land
+in the contract's CLARIFICATIONS `[gated]` and in the plan. A choice that
+surfaces only during execution comes back as `NEED-DECISION` (STEP 3).
 
 ## STEP 1b — CHALLENGE THE PLAN (before branching)
+`Skill(effort-high)` first (effort-shift: own level before the challenge; send it in the same message as the challenger dispatch).
 The STEP 1 plan is a reflection worth attacking before a branch is spent on it.
 Persist it to `.claude/tasks/plans/<date>-<slug>-<HHMM>.md`, then run
 `$HOME/.claude/lib/challenge-plan.md` with `PLAN` = that file, `KIND` = `build-plan`,
@@ -125,8 +132,8 @@ Persist it to `.claude/tasks/plans/<date>-<slug>-<HHMM>.md`, then run
 Three blind challengers attack it; RE-THINK every aspect a BLOCKER lands (a named
 plan change, or `[deferred]`), re-challenge once if the plan materially changed. The
 STEP 3 executor receives the REVISED plan. Before dispatch, print a CHALLENGE SUMMARY
-(BLOCKERs addressed / deferred / lenses returned), surfacing any deferred BLOCKER via
-STEP 1's one-question gate.
+(BLOCKERs addressed / deferred / lenses returned), surfacing any deferred BLOCKER in
+the STEP 1 pass B batch.
 
 ## STEP 2 — BRANCH
 
@@ -139,6 +146,7 @@ branch it's a no-op (commit in place). Never `finish`.
 Dispatch the executor — sonnet by frontmatter pin, do not override:
 
 ```
+Skill(effort-medium)   # effort-shift: dispatch span starts; send with the Agent call below in ONE message
 Agent(subagent_type="feater")
 prompt: "CONTRACT: <path from STEP 0.7>
 PLAN: <the STEP 1 checklist + approach bullets + edge cases, verbatim>
@@ -150,9 +158,11 @@ Finish with the FEAT-EXEC REPORT."
 
 Parse the `FEAT-EXEC REPORT`:
 - `STATUS : DONE` → STEP 4.
-- `STATUS : NEED-DECISION` → make the decision HERE (that is reflection),
-  append it to the plan, re-dispatch a FRESH feater with plan + decision.
-  Max 2 decision round-trips → escalate to the user.
+- `STATUS : NEED-DECISION` → route on its `CLASS:` per MID-RUN CLARIFICATION
+  in `$HOME/.claude/lib/contract-interview.md`: visible / public-name / scope
+  → ask the user, verbatim; internal → decide HERE (max 2 such round-trips
+  → escalate). Append the answer to the contract `[gated]` and to the plan,
+  re-dispatch a FRESH feater with plan + decision.
 - `STATUS : BLOCKED` → surface the blocker to the user, stop.
 
 ## STEP 4 — VERIFY + SECURE (fresh gates, bounded loops)
@@ -193,6 +203,7 @@ test), consider splitting into 2-3 atomic commits grouped by logical
 unit — or run `/commit-change` on the pending work (it dispatches the
 commit-changer (propose opus / apply sonnet, BDR-077); never inline-load the bare agent, it is now a
 propose/apply executor).
+Then `Skill(effort-high)` (effort-shift: nested commit-change loaded at low; reload feat's level, sent with the next tool call).
 
 Print summary:
 ```
@@ -239,9 +250,11 @@ Valider ? (all / <IDs> / edit / skip)
 
 Always append a 1-line entry to today's heading in `.claude/memory/journal.md`.
 
-**Language rule**: written entries are ALWAYS in English (see CLAUDE.md "Memory registries" § Language). The interactive gate may mirror the user's language; the appended entries must not.
+**Language rule**: written entries are ALWAYS English AND caveman — fragments, articles dropped, code/IDs/quoted errors verbatim — per CLAUDE.md "Memory registries" (Always English, always caveman). The interactive gate may mirror the user's language; the appended entries must not.
 
 If no substantive capture candidate → skip with `CAPITALIZE: nothing to log`.
+
+`Skill(effort-low)` first (effort-shift: bookkeeping tail; send it in the same message as the memory-commit command).
 
 **Then commit the memory** — follow `$HOME/.claude/lib/capitalize-commit.md`: it
 surgically commits what capitalize just wrote (`.claude/memory` + `.claude/tasks`
@@ -254,7 +267,9 @@ hash, and no-ops if nothing was written.
 - Max 5 files. If more needed → `/ship-feature`.
 - Reflection (scope, plan, contract, loop decisions) NEVER leaves this main
   loop; execution NEVER stays in it — the executor is the sonnet-pinned
-  feater subagent (BDR-066).
+  feater subagent (BDR-066). A skill-mandated executor is exempt from the doctrine's "don't delegate
+  few-tool-call work" rule (CLAUDE.md "Workflow" names that exception:
+  skill-mandated dispatches run as written).
 - The executor is dispatched FRESH on every round-trip — feedback travels
   as contract path + named gaps/decisions, never as transcript.
 - Design gate only (not full plugin check). See STEP 0.5.

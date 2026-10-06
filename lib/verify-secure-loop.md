@@ -35,7 +35,7 @@ single `GATES — VERDICT:` line:
 - `UNMET(n)` → hand the dev the CONTRACT path + the `NOT-MET` rows verbatim,
   nothing else; re-run GATE 0. **No verifier is dispatched** — a red build or
   a red suite is not a judgement call, and paying an LLM to discover it is
-  waste. **Max 3 floor iterations** → STOP + human escalation with the rows.
+  waste. **Max 3 floor iterations** → `Skill(effort-max)` (effort-shift: cap reached, diagnose at max before escalating; send it in the same message as the first tool call that gathers the escalation evidence), then STOP + human escalation with the rows.
 - `ABANDONED(n)` → floor green but a handoff stands. Continue to GATE 1; the
   verifier surfaces it and its `ABANDONED(n)` verdict routes to the human
   gate.
@@ -55,14 +55,26 @@ Dispatch a FRESH verifier subagent (`subagent_type: verifier`, or load
 `TEST` command. Never pass the dev's summary, never pass a prior iteration's
 gaps — the verifier reads the contract from disk and judges blind.
 
+The verifier's STEP 3 (`agents/verifier.md`) runs `lib/floor-guard.sh`
+against the diff before it renders any verdict — a deterministic,
+diff-scoped check for a quietly weakened quality bar (a suppressed
+lint/type check, a skipped or deleted test, a dropped assertion, a lowered
+coverage threshold) that an LLM verdict alone can miss or be talked past
+one line at a time. Its findings fold straight into that same verifier's
+`ECARTS` count unless the contract's `CLARIFICATIONS` explicitly authorizes
+the exact weakening; there is no separate gate and no extra dispatch, it
+rides this GATE 1 call. A `floor-guard: allow` waiver outside a test file
+is a finding too unless the contract's `CLARIFICATIONS` names it: the
+waiver is self-service, the contract is human-gated (BDR-102 amendment).
+
 Parse its single `VERIFY — VERDICT:` line:
 
 - `CONFORME` → go to GATE 2. (First-pass conforme = no loop.)
 - `ECARTS(n)` → hand the dev the CONTRACT path + the exact `CRITERIA` gap
-  lines (NOT-MET / out-of-scope), nothing else. Inline dev fixes in place;
-  a dispatched dev is re-dispatched FRESH with those inputs only. Then
-  re-run GATE 0 and re-dispatch a FRESH verifier. Repeat.
-  **Max 3 conformity iterations** → STOP + human escalation with the
+  lines (NOT-MET / out-of-scope), nothing else: re-dispatch a FRESH executor
+  with those inputs only, never redo the fix by hand. Then re-run GATE 0 and
+  re-dispatch a FRESH verifier. Repeat.
+  **Max 3 conformity iterations** → `Skill(effort-max)` (effort-shift: cap reached, diagnose at max before escalating; send it in the same message as the first tool call that gathers the escalation evidence), then STOP + human escalation with the
   CRITERIA table (the contract-vs-realized diff).
 - `ABANDONED(n)` → direct human gate, never a dev loop (a dev cannot close
   what was proven impossible). The human lifts the abandonment or accepts
@@ -74,9 +86,9 @@ Parse its single `VERIFY — VERDICT:` line:
   micro-gate that appends `[gated <date>]` to the contract's FILE SCOPE;
   otherwise the dev removes the file.
 - Structural failure (`ERROR(…)`, missing/duplicated VERDICT line,
-  unparsable, crash, `CONFORME` without `PROOF`) → retry ONCE with a fresh
-  verifier; a 2nd structural failure → human escalation. A mute verifier is
-  NEVER a PASS.
+  unparsable, crash, `CONFORME` without `PROOF` or without `FLOOR`) → retry
+  ONCE with a fresh verifier; a 2nd structural failure → human escalation.
+  A mute verifier is NEVER a PASS.
 
 ## GATE 2 — SECURITY (fresh security-auditor)
 
@@ -88,12 +100,13 @@ stdout-only, no Write).
 Parse its single `SECURITY — VERDICT:` line:
 
 - `PASS` → done, proceed to commit.
-- `BLOCK(n)` → hand the dev the `BLOCKING` list + the CONTRACT path (inline
-  fix, or FRESH executor re-dispatch). Then re-run GATE 0, then
+- `BLOCK(n)` → hand the dev the `BLOCKING` list + the CONTRACT path
+  (re-dispatch a FRESH executor, never fix by hand). Then re-run GATE 0, then
   **re-verify the REQUEST first** (GATE 1, fresh verifier) — a security fix
   can drift the behavior — **then re-run GATE 2** (fresh auditor), in that
-  order. **Max 3 security iterations** → STOP + human escalation with the
-  BLOCKING table.
+  order. **Max 3 security iterations** → `Skill(effort-max)` (effort-shift: cap reached, diagnose at max before escalating; send it in the same message as the first tool call that gathers the escalation evidence), then STOP + human escalation with the
+  BLOCKING table. Every STOP text names the level reached (`$CLAUDE_EFFORT`)
+  and suggests `/effort-max` for the relaunch.
 - `DEGRADED` (semgrep absent) → does NOT block on the tool's absence; surface
   the checklist result + recommend `make plugin`. A DEGRADED run that still
   BLOCKs (grep-caught secret/injection) blocks like any other.

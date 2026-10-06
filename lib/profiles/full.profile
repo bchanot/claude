@@ -1,7 +1,8 @@
-# DESC: Maximum mode — web-full + plan + dev for end-to-end MVP via /init-project
-# Activate when: scaffolding new project with /init-project and need
-# brainstorm → design → architecture review → scaffold → implement → ship → audit
-# pipeline available in one session. Superset of web-full + dev.
+# DESC: Default profile — carries everything every other profile carries
+# (user rule 2026-09-28: full does what each profile does), minus the
+# broken or doctrine-breaking gstack skills (lib/gstack-removed.sh) and
+# the parked tools (make-pdf, diagram, 21st-ai/ui-explore/ui-review) that
+# live in `max`. One named exception: pr-review-toolkit (see below).
 
 # === Brainstorm + plan-mode reviews ==================================
 office-hours
@@ -9,11 +10,9 @@ plan-ceo-review
 plan-eng-review
 plan-design-review
 plan-devex-review
-autoplan
 spec
 
 # === Design pipeline =================================================
-design-shotgun
 design-review
 design-consultation
 design-html
@@ -22,6 +21,8 @@ design-html
 browse
 open-gstack-browser
 setup-browser-cookies
+scrape
+skillify
 
 # === Code work — implementation ======================================
 feat                              personal
@@ -33,12 +34,8 @@ refactor                          personal
 code-clean                        personal
 commit-change                     personal
 
-# === Ship + review + land ============================================
-ship
+# === Review ===========================================================
 review
-context-save
-land-and-deploy
-setup-deploy
 
 # === Second opinion ==================================================
 codex
@@ -67,18 +64,23 @@ pdf-translate                     personal
 close                             personal
 prune-memory                      personal
 status                            personal
-learn
 retro
-careful
 freeze
 unfreeze
-guard
 
 # === External + plugin + MCP =========================================
 emil-design-eng                   external
 frontend-design                   external
 design-motion-principles          external
 impeccable                        external
+observability-and-instrumentation  external
+deprecation-and-migration          external
+ci-cd-and-automation               external
+scroll-world-storytelling          external
+build-threejs-scroll-worlds        external
+scroll-scrubbed-visual-sequence    external
+scroll-scrubbed-word-reveal        external
+scroll-progress-timeline           external
 ui-ux-pro-max                     plugin@ui-ux-pro-max-skill
 # pr-review-toolkit REMOVED from full (audit 2026-07-02 #12): heaviest
 # single plugin cost (~2.2k tokens of agent descriptions/session), useful
@@ -86,9 +88,14 @@ ui-ux-pro-max                     plugin@ui-ux-pro-max-skill
 #   claude plugin enable pr-review-toolkit@claude-code-plugins
 # or profile-based: bash lib/profile.sh apply audit (audit.profile keeps it;
 # a later `set full` re-disables it — MANAGED_PLUGINS lifecycle).
-magic                             mcp
+21st-ui-build                     external
+21st-cli-use                      external
+
+# Personal: motion implementation companion (skills/site-motion)
+site-motion                       personal
 
 # === CLIs (advisory) =================================================
+21st                              cli
 ctx7                              cli
 graphify                          cli
 gsd                               cli

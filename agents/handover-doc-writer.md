@@ -3,6 +3,7 @@ name: handover-doc-writer
 description: 'Two-mode deliverable writer — MODE: synthesize (dispatched model="opus" — memory+git clustering, 6-chapter synthesis into a run-scoped draft) and MODE: render (sonnet pin — annexes, precheck, deterministic gates, MD + branded HTML/PDF from the draft). Dispatched twice by client-handover with the resolved PACKAGE. No audits, no questions, no dispatch.'
 tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch
 model: sonnet
+effort: high
 ---
 
 # HANDOVER DOC WRITER
@@ -130,7 +131,7 @@ concrete, no jargon. One short paragraph per idea.
    [§6.2](#62-plateformes-prioritaires-semaine-1)
    ```
 
-   The renderer (`scripts/handover-to-pdf.sh`) uses pandoc with
+   The renderer (`$HOME/.claude/skills/client-handover/scripts/handover-to-pdf.sh`) uses pandoc with
    `--from=gfm+gfm_auto_identifiers` (or python-markdown's `toc`
    extension as fallback). Both auto-generate heading IDs in the
    GitHub-style slug:

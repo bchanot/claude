@@ -20,6 +20,16 @@
     "version": "latest",
     "note": "Context7 CLI — doc lookup for fast-evolving libs. Standalone CLI, not an MCP server. Install: npm install -g ctx7. Standalone: ctx7 docs /vercel/next.js \"middleware\"."
   },
+  "21st": {
+    "source": "npm:@21st-dev/cli",
+    "version": "latest",
+    "note": "21st.dev CLI (bin `21st`) — standalone CLI + a pack of 7 skills, no MCP, no API key: auth is `21st login` (browser token in ~/.config/21st). Install: npm install -g @21st-dev/cli. The skill pack is staged-installed into skills-external/21st-* by install-plugins.sh Step 8.7 — `21st skills install` refuses to write through the ~/.claude/skills symlink."
+  },
+  "higgsfield": {
+    "source": "npm:@higgsfield/cli",
+    "version": "latest",
+    "note": "Higgsfield CLI (bins `higgsfield`, `higgs`) — image, video, audio and brand media generation, metered credits; auth is `higgsfield auth login` (browser). Install: npm install -g @higgsfield/cli. The package vendors its binary in a postinstall script; if npm holds it back, add --allow-scripts=@higgsfield/cli. The upstream skills are git-cloned from https://github.com/higgsfield-ai/skills (tracks main, no pin) into skills-external/higgsfield-* by lib/higgsfield-skills.sh (install-plugins.sh Step 8.6, refreshed by update-all.sh); a skill upstream removes keeps its last local copy. OFF by default and in no profile: `lib/toggle-external.sh enable higgsfield` links the 7 allowlisted media skills (HIGGSFIELD_MEDIA_SKILLS), `enable higgsfield-websites` the landing-page aid."
+  },
   "graphifyy": {
     "source": "pypi:graphifyy",
     "version": "latest",
@@ -38,9 +48,47 @@
     "managed_by": "curl",
     "note": "Emil Kowalski's design engineering skill — UI polish, animations, component craft. Machine-owned: curl'd to skills-external/emil-design-eng/ (gitignored, re-fetched by update-all.sh), symlinked by link.sh."
   },
+  "agent-skills": {
+    "source": "https://github.com/addyosmani/agent-skills",
+    "commit": "2686b620fc1fed2e8f60c704839c766b8594c6b6",
+    "skills": ["observability-and-instrumentation", "deprecation-and-migration", "ci-cd-and-automation"],
+    "managed_by": "curl",
+    "note": "Three dev-lifecycle skills from addyosmani/agent-skills, vendored the emil-design-eng way but COMMIT-pinned (not main-branch tracking): each lands in skills-external/<name>/SKILL.md (gitignored, symlinked by link.sh), install-plugins.sh Step 8e curls all three at this commit when absent, update-all.sh re-fetches at the SAME commit on every run (a pin, not an auto-advance). Bump the commit deliberately to pick up upstream changes; the scripts read it from here, never hardcode it. Both install-plugins.sh and update-all.sh vendor this entry through lib/vendor-skills.sh's vendor_pinned_skills() — the shared helper also used by the \"mengto-skills\" entry below."
+  },
+  "mengto-skills": {
+    "source": "https://github.com/MengTo/Skills",
+    "commit": "a965851e27dc179e693fde1bee94457a64e1a7a5",
+    "path": "agent-skills/web-design",
+    "skills": {
+      "scroll-world-storytelling": ["SKILL.md", "REFERENCES.md"],
+      "build-threejs-scroll-worlds": ["SKILL.md", "references/kage-anatomy.md", "references/quality-and-qa.md", "references/realtime-architecture.md", "references/scroll-conductor.js", "references/world-bible.md"],
+      "scroll-scrubbed-visual-sequence": ["SKILL.md", "REFERENCES.md"],
+      "scroll-scrubbed-word-reveal": ["SKILL.md", "REFERENCES.md"],
+      "scroll-progress-timeline": ["SKILL.md", "REFERENCES.md"]
+    },
+    "managed_by": "curl",
+    "note": "Five scroll-choreography skills from MengTo/Skills (agent-skills/web-design), vendored the agent-skills way but with an explicit per-skill file list (SKILL.md + REFERENCES.md, or references/*.md + references/scroll-conductor.js for build-threejs-scroll-worlds) instead of the SKILL.md-only default. Never vendored: demo/, agents/, or any binary asset upstream ships alongside each skill. Text-only, byte-for-byte copies (Codex-isms in the source text stay). Bump the commit deliberately to pick up an upstream edit; install-plugins.sh Step 8e and update-all.sh 7.3 both read it from here via lib/vendor-skills.sh's vendor_pinned_skills(), never hardcoded."
+  },
+  "superpowers": {
+    "source": "https://github.com/obra/superpowers",
+    "commit": "5bf4e78011075bcfc0dc295f0724994cd123ee71",
+    "path": "skills",
+    "skills": {
+      "brainstorming": ["SKILL.md", "spec-document-reviewer-prompt.md", "visual-companion.md", "scripts/frame-template.html", "scripts/helper.js", "scripts/server.cjs", "scripts/start-server.sh", "scripts/stop-server.sh"],
+      "writing-plans": ["SKILL.md", "plan-document-reviewer-prompt.md"],
+      "subagent-driven-development": ["SKILL.md", "implementer-prompt.md", "re-review-prompt.md", "task-reviewer-prompt.md", "scripts/review-package", "scripts/sdd-workspace", "scripts/task-brief"],
+      "test-driven-development": ["SKILL.md", "writing-good-tests.md"],
+      "requesting-code-review": ["SKILL.md", "code-reviewer.md"],
+      "using-git-worktrees": ["SKILL.md"],
+      "writing-skills": ["SKILL.md", "anthropic-best-practices.md", "examples/CLAUDE_MD_TESTING.md", "graphviz-conventions.dot", "persuasion-principles.md", "render-graphs.js", "testing-skills-with-subagents.md"]
+    },
+    "managed_by": "curl",
+    "always_on": true,
+    "note": "Seven superpowers skills vendored byte-for-byte at the v6.4.1 tag commit (obra/superpowers), always on (no profile lists them). Bump the commit deliberately. Scripts inside run as `bash scripts/<x>`, no exec bit needed. Upstream cross-references to the plugin prefix and to the 8 non-vendored skills stay in the text; CLAUDE.global.md Skill routing maps them."
+  },
   "impeccable": {
     "source": "npm:impeccable",
-    "version": "3.2.0",
-    "note": "Design anti-pattern detector (45 deterministic rules, CLI 'impeccable detect', exit 0/2) + /impeccable skill (23 verbs) by pbakaus. Pin = CLI version; the skill dist has its own release track fetched by 'skills install'. Pinned for audit reproducibility (LRN-077 class: a rules update silently changes audit output). Requires Node >= 24 — install step skips gracefully below that. Machine-owned: synced to skills-external/impeccable/ (gitignored), symlinked by link.sh."
+    "version": "4.1.0",
+    "note": "Design anti-pattern detector (45 deterministic rules, CLI 'impeccable detect', exit 0/2) + /impeccable skill (23 verbs) + 4 impeccable-* subagents, by pbakaus. Pin = CLI version ONLY: the skill dist and the engine binary have their own release tracks, fetched by 'skills install' at install time, so this pin does not freeze audit output the way a semgrep pin does. It still gates the CLI deliberately (LRN-077 class). BEWARE: the pin rots — the CLI downloads its skill dist at install time and an older release's artifact disappears upstream (3.2.0 -> 'Download failed: invalid zip data', 2026-09-22, which left 'make plugin' printing a run-it-yourself warning). install-plugins.sh Step 8d and update-all.sh therefore fall back to @latest on a pin failure and warn to bump this version. Requires Node >= 24. Installed at --scope=global: lands in ~/.claude/skills/impeccable + ~/.claude/agents/impeccable-*.md, both symlinks into this repo, both gitignored."
   }
 }

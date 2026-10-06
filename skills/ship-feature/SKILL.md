@@ -1,5 +1,6 @@
 ---
 name: ship-feature
+effort: xhigh
 description: 'Use when shipping a new feature end-to-end — needs design brainstorm, planning, TDD implementation with subagents, error recovery, code review, and finish. Multi-agent orchestrator (9-step pipeline). Triggers: "ship feature", "ship-feature", "build and merge", "feature end-to-end", "implement and ship".'
 argument-hint: <feature description>
 allowed-tools: Read, Write, Edit, Bash, Grep, Glob
@@ -13,6 +14,7 @@ Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
 judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
 gate prints the remedy; end the turn — no later step, no dispatch. Nominal
 (big) path is silent.
+EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-107): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
 
 ## REQUEST
 $ARGUMENTS
@@ -32,7 +34,8 @@ Verify the project has a `CLAUDE.md` and print a brief orientation summary:
 ls CLAUDE.md .claude/CLAUDE.md 2>/dev/null | head -1
 git branch --show-current 2>/dev/null || echo "not a git repo"
 git log --oneline -3 --format="%h %<(50,trunc)%s" 2>/dev/null || true
-ls .gsd/ROADMAP.md 2>/dev/null | head -1
+# gsd-pi ≥ 3: state in .gsd/STATE.md + gsd.db + milestones/<ID>/<ID>-ROADMAP.md (no .gsd/ROADMAP.md)
+ls .gsd/ 2>/dev/null >/dev/null && head -20 .gsd/STATE.md 2>/dev/null
 ```
 - **CLAUDE.md found** → read it silently, then print orientation header (informational, not a gate):
   ```
@@ -41,7 +44,7 @@ ls .gsd/ROADMAP.md 2>/dev/null | head -1
   Stack   : <stack from CLAUDE.md>
   Branch  : <current git branch>
   Recent  : <last 3 commit messages>
-  GSD     : <current milestone if .gsd/ROADMAP.md exists, else "not initialized">
+  GSD     : <current milestone read from .gsd/STATE.md if .gsd/ exists, else "not initialized">
   ```
   Continue to STEP 1.
 - **Not found** →
@@ -99,7 +102,7 @@ approved at STEP 3 ENRICHES it, and STEP 5's verifier judges the diff against
 the ENRICHED contract. This is the only flow where the contract grows mid-run.
 
 ## STEP 1 — BRAINSTORM
-Invoke `superpowers:brainstorming` — but FEED it the STEP 0d digest as binding context,
+Invoke `brainstorming` (vendored superpowers skill) — but FEED it the STEP 0d digest as binding context,
 not the raw request alone:
   "Feature request: <$ARGUMENTS>.
    In-force constraints (must hold): <only the IN-FORCE + ALREADY-SEEN items from 0d's
@@ -111,13 +114,20 @@ Inject ONLY what constrains: the NON-BINDING count does NOT enter the brainstorm
 (the injection inherits the OUTPUT filter — detail what binds, drop what doesn't).
 Consumption = INPUT INJECTION (we can't modify the external skill; we control its input).
 Refine request into validated design via Socratic questioning. Don't proceed until design approved.
+Turns after a user reply run at the session level until a tool call is paired with `Skill(effort-xhigh)` (effort-shift: turn reset).
 
 ## STEP 2 — PLAN
-Invoke `superpowers:writing-plans` with the validated design AND the 0d digest: every task
+`Skill(effort-xhigh)` first, sent with the next tool call (effort-shift: turn reset; brainstorm turns after a user reply run at the session level, and the vendored `brainstorming` pin applies only when the user invokes it).
+Invoke `writing-plans` (vendored superpowers skill) with the validated design AND the 0d digest: every task
 must be consistent with the in-force constraints; where a task implements or affects one,
 note the ID inline. Break design into tasks (2-5 min each). Each task: exact file paths, full code, verification steps.
+Then run pass B of `$HOME/.claude/lib/contract-interview.md` against the plan:
+every VISIBLE / PUBLIC NAME / SCOPE choice the plan settles that neither the
+request nor the STEP 1 brainstorm settled (check the contract's CLARIFICATIONS
+first) → one batch before STEP 2b; answers append to the contract `[gated]`.
 
 ## STEP 2b — CHALLENGE THE PLAN (adversarial, before the gate)
+`Skill(effort-xhigh)` first (effort-shift: own level before the challenge; send it in the same message as the challenger dispatch).
 Before the human sees the plan, harden it. Run `$HOME/.claude/lib/challenge-plan.md`:
 - `PLAN` = the plan STEP 2 wrote under `docs/superpowers/plans/`
 - `KIND` = `build-plan`
@@ -164,11 +174,12 @@ judges the diff against this ENRICHED contract, not the STEP 0e seed — so a
 criterion the design introduced is verified, not lost.
 
 ## STEP 4 — IMPLEMENT
+First: `Skill(effort-medium)` (effort-shift: dispatch span starts; send it in the same message as this step's first dispatch).
 Start the feature branch off develop, then implement on it:
 ```bash
 bash "$HOME/.claude/lib/gitflow.sh" start feature <name>
 ```
-Invoke `superpowers:subagent-driven-development` for the per-task implement loop
+Invoke `subagent-driven-development` (vendored superpowers skill) for the per-task implement loop
 **and** the final whole-branch review **only**. Do NOT run its terminal
 `finishing-a-development-branch` step — this orchestrator owns integration via
 `gitflow finish` (STEP 9). When SDD's flow reaches "Use
@@ -182,7 +193,8 @@ this loop.
 
 ## STEP 4b — ERROR RECOVERY (if STEP 4 fails)
 If a subagent returns a build error, failing test, or type error:
-1. Load `$HOME/.claude/agents/analyzer.md` in DEBUG MODE on the exact error output.
+1. `Skill(effort-max)` (effort-shift: error recovery; send it in the same message as the Read of the analyzer file below), then load
+   `$HOME/.claude/agents/analyzer.md` in DEBUG MODE on the exact error output.
    Produce: root cause hypotheses (ordered), affected files, what NOT to touch.
 2. Present gate:
 ```
@@ -198,8 +210,10 @@ OPTIONS :
   C) Abort feature — preserve work done so far
 ```
 3. Wait for user choice. Do NOT auto-fix. Do NOT proceed without explicit approval.
-4. If A → apply minimal fix, re-run STEP 4 for the failed task only. Max 2 retry attempts.
+4. On resume the turn is at the session level (effort-shift: turn reset).
+   If A → `Skill(effort-medium)` sent with the re-dispatch, apply minimal fix, re-run STEP 4 for the failed task only. Max 2 retry attempts.
    If still failing after 2 → fall back to options B or C.
+   If B or C → `Skill(effort-xhigh)` first, sent with the next tool call.
    If B → before skipping: scan remaining task list for tasks that depend on the failed task
      (look for references to the same file or function in subsequent tasks).
      If dependents found → present: "Tasks [N, M] depend on the skipped task.
@@ -229,7 +243,8 @@ conformity + security vs. craft/design) — both run, neither subsumes the
 other ([[LRN-095]]).
 
 ## STEP 6 — CODE REVIEW
-Invoke `superpowers:requesting-code-review`. **Model routing (BDR-077):** the
+`Skill(effort-xhigh)` first, sent with the review dispatch (effort-shift: judgment dispatch; the reviewer is a built-in and inherits the level in force).
+Invoke `requesting-code-review` (vendored superpowers skill). **Model routing (BDR-077):** the
 review subagent it dispatches MUST carry `model: "opus"` in the Agent call —
 craft review is dispatched judgment, never inherited from the session. Fix
 all CRITICAL before proceeding.
@@ -258,9 +273,11 @@ Feature shipped implies at least one design decision worth capturing. Run this B
 4. Append approved entries to the registries. Update the Index table at the top of each file.
 5. Append a one-line entry to `.claude/memory/journal.md` under today's date heading (`## YYYY-MM-DD`).
 
-**Language rule**: written entries are ALWAYS in English (see CLAUDE.md "Memory registries" § Language). The interactive gate above may mirror the user's language; the appended entries must not.
+**Language rule**: written entries are ALWAYS English AND caveman — fragments, articles dropped, code/IDs/quoted errors verbatim — per CLAUDE.md "Memory registries" (Always English, always caveman). The interactive gate above may mirror the user's language; the appended entries must not.
 
 If nothing substantive to log → print `CAPITALIZE: nothing substantive to log` and skip.
+
+`Skill(effort-low)` first (effort-shift: bookkeeping tail; send it in the same message as the memory-commit command).
 
 **Then commit the memory** — follow `$HOME/.claude/lib/capitalize-commit.md`: it
 surgically commits what capitalize just wrote (`.claude/memory` + `.claude/tasks`

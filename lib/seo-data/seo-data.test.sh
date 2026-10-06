@@ -23,9 +23,13 @@ has   "list shows client-a"            "$LIST" '"client-a"'
 has   "list shows client-b"            "$LIST" '"client-b"'
 has   "list shows a property"          "$LIST" 'sc-domain:a.com'
 hasnt "list redacts refresh tokens"    "$LIST" 'RT_AAA'
-PERM="$(stat -c '%a' "$STORE")"
+# stat -c is GNU only; python3 gives the same octal mode on BSD and GNU
+octal_perm() {
+  python3 -I -c 'import os,stat,sys; print(oct(stat.S_IMODE(os.stat(sys.argv[1]).st_mode))[2:])' "$1"
+}
+PERM="$(octal_perm "$STORE")"
 [ "$PERM" = "600" ] && ok "store file is 0600" || no "store file 0600" "got $PERM"
-DPERM="$(stat -c '%a' "$(dirname "$STORE")")"
+DPERM="$(octal_perm "$(dirname "$STORE")")"
 [ "$DPERM" = "700" ] && ok "store dir is 0700" || no "store dir 0700" "got $DPERM"
 rm -rf "$TMP"
 
@@ -136,7 +140,7 @@ import safe_fetch as sf
 try: sf.safe_fetch("file:///etc/passwd"); print("OK")
 except sf.UnsafeTarget: print("REFUSED")')"
 has "non-http scheme refused"     "$SCHEME" 'REFUSED'
-IMP="$(/bin/grep -E "^(import|from) " "$SD/safe_fetch.py" | /bin/grep -cvE "gzip|http\.client|ipaddress|socket|ssl|urllib\.parse")"
+IMP="$(/usr/bin/grep -E "^(import|from) " "$SD/safe_fetch.py" | /usr/bin/grep -cvE "gzip|http\.client|ipaddress|socket|ssl|urllib\.parse")"
 [ "$IMP" = "0" ] && ok "safe_fetch is stdlib-only" || no "safe_fetch is stdlib-only" "$IMP non-stdlib imports"
 hasnt "no requests dependency"    "$(cat "$SD/safe_fetch.py")" 'import requests'
 
@@ -477,7 +481,7 @@ has   "clear reports ok"         "$CL" '"status": "ok"'
 has   "clear reports count"      "$CL" '"cleared": 1'
 L7="$(python3 "$SD/tokenstore.py" list --file "$S6")"
 has   "clear empties store"      "$L7" '"accounts": []'
-PERM6="$(stat -c '%a' "$S6")"
+PERM6="$(octal_perm "$S6")"
 [ "$PERM6" = "600" ] && ok "store stays 0600 after clear" || no "store 0600 after clear" "got $PERM6"
 # via the real fetch.sh dispatch layer
 python3 "$SD/tokenstore.py" set --file "$S6" --label back --refresh-token RT_BACK \

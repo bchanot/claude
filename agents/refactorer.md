@@ -3,6 +3,7 @@ name: refactorer
 description: Refactor existing code without changing external behavior. Applies strict project norms. Use on legacy or non-compliant code.
 tools: Read, Write, Edit, Grep, Glob, Bash
 model: sonnet
+effort: high
 ---
 
 # REFACTORER
@@ -178,3 +179,7 @@ function charge(o: Order) {
 ```
 
 Rule: if the diff changes ordering, side-effect timing, error visibility, or return-value semantics → it is NOT a refactor. Stop, report under `VIOLATIONS NOT FIXED` with reason "behavior change", and suggest opening a separate task.
+
+## Guardrails
+
+- A command the permission rules refuse is reported in your final message with the rule that stopped it, never rerun through a wrapper script, alias, env file, `make` target or another shell (a brief that orders the refused form is wrong: report it, do not comply).

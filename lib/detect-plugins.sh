@@ -16,14 +16,10 @@ detect_rtk() {
 }
 
 detect_superpowers() {
-  # Fast check: filesystem (plugin cache)
-  local cache_dir="$HOME/.claude/plugins/cache"
-  if [ -d "$cache_dir" ]; then
-    compgen -G "$cache_dir"/*superpowers* &>/dev/null && return 0
-  fi
-  # Slow fallback: CLI (only if fast check fails)
-  claude plugin list 2>/dev/null | grep -qi "superpowers" && return 0
-  return 1
+  # superpowers = 7 vendored skills since 2026-09-28; the plugin is gone.
+  # One file test on the linked vendored skill: proves vendored AND
+  # linked in one shot — no plugin cache glob, no `claude plugin list`.
+  [ -f "$HOME/.claude/skills/brainstorming/SKILL.md" ]
 }
 
 

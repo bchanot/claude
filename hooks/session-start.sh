@@ -44,6 +44,25 @@ else
 fi
 unset _lib
 
+# ── gitflow hooks reconcile (BDR-095) ──
+# A repo's .githooks/ lags lib/gitflow.sh until someone re-runs install-hook
+# (LRN-114). Do it here, once per session, silently when current; the lib
+# prints the refreshed names, shown in the banner with a commit reminder.
+GF_REFRESHED=""
+_gf_lib="$(dirname "${BASH_SOURCE[0]}")/../lib/gitflow.sh"
+if [ -f "$_gf_lib" ] && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
+  GF_REFRESHED=$(bash "$_gf_lib" reconcile-hooks 2>/dev/null | sed -n 's/^gitflow hooks refreshed: *//p')
+fi
+unset _gf_lib
+
+# ── graphify threshold signal (BDR-097) ──
+# Informs, never acts: one banner line when the repo holds ≥ 200 tracked code
+# files and no graph. The user decides whether to build one.
+GRAPHIFY_HINT=""
+_gg_lib="$(dirname "${BASH_SOURCE[0]}")/../lib/graphify-gate.sh"
+if [ -f "$_gg_lib" ]; then GRAPHIFY_HINT=$(bash "$_gg_lib" "$PWD" 2>/dev/null); fi
+unset _gg_lib
+
 # ── Toggle plugin detection ──
 
 TOGGLE_ACTIVE=()
@@ -88,6 +107,12 @@ fi
 REPO_DIR="${_repo_dir:-}"
 unset _claude_real _repo_dir
 
+# Effort tiering (BDR-107): this env var beats every skill/agent `effort:` pin.
+EFFORT_WARN=""
+if [ -n "${CLAUDE_CODE_EFFORT_LEVEL:-}" ]; then
+  EFFORT_WARN="⚠️  CLAUDE_CODE_EFFORT_LEVEL=${CLAUDE_CODE_EFFORT_LEVEL} set: skill/agent effort pins ignored"
+fi
+
 # Detect plan and set passive token budget
 PLAN=$(detect_plan 2>/dev/null || echo "pro")
 case "$PLAN" in
@@ -99,8 +124,9 @@ esac
 
 # Quick passive token cost estimate
 # Only count plugins that are ACTIVE (detected as ON), not just installed
+# superpowers dropped 2026-09-28 (tier 2 of the skill-catalog prune): its
+# 7 vendored skills are counted by the skill catalog, not a plugin cost.
 _passive_t=0
-detect_superpowers 2>/dev/null && _passive_t=$((_passive_t + 800))
 
 # Token costs for toggle plugins — map display name to cost
 declare -A _plugin_costs=(
@@ -199,6 +225,15 @@ unset _active_count _inactive_count
 printf "│  🖥️  CLI : %-40s│\n" "$GSD_STATUS"
 [ -n "$TOKEN_WARN" ] && printf "│  💰 %-44s│\n" "${TOKEN_WARN:0:44}"
 printf "│  📦 v%-45s│\n" "$CONFIG_VERSION"
+if [ -n "$GF_REFRESHED" ]; then
+  _gf_line="hooks refreshed: $GF_REFRESHED → commit .githooks/"
+  printf "│  🪝 %-44s│\n" "${_gf_line:0:44}"
+  unset _gf_line
+fi
+if [ -n "$GRAPHIFY_HINT" ]; then
+  printf "│  🕸️  %-44s│\n" "${GRAPHIFY_HINT:0:44}"
+  printf "│             %-40s│\n" "→ /graphify (AST, seconds) — you decide"
+fi
 # CLAUDE.global.md line-count guard (anti-regression). BDR-062 supersedes
 # BDR-031's 275 target: 305 is the assumed reality (extraction done at
 # job1; further compression costs clarity > token gain) — warn past 320.
@@ -224,5 +259,6 @@ unset _remote_ver REPO_DIR
 echo "│  💡 /plugin-check  before starting a new project  │"
 echo "│  🩺 make doctor  full diagnostic                  │"
 echo "└───────────────────────────────────────────────────┘"
+[ -n "$EFFORT_WARN" ] && printf '%s\n' "$EFFORT_WARN"
 echo ""
 unset TOKEN_WARN

@@ -1,11 +1,12 @@
 #!/usr/bin/env bash
 # === deploy runbook (reference) — NOT run directly. Instantiated into the deploy checklist per delta. ===
 # Fixed steps run every deploy; # @delta: steps re-instantiate from the delta.
-# @config push_deploy_tags=false
 # NOTE grammar: glob=<pat>:each repeats the command per matching file (e.g. psql -f <each>);
 #               glob=<pat>:list runs once + lists matching files as VERIFY items; when=<pat,...> is conditional.
 # Style: one command per line, as typed in an interactive session — step 1 opens
 # the ssh session, later steps run ON the box; local steps say "(from your machine)".
+# One command = one physical line, however long: no `\` continuation, no heredoc.
+# The user pastes a line and presses Enter. `# VERIFY:` ends that same line.
 
 # 1) connect + pull the desired branch (fixed)
 ssh "$DEPLOY_HOST"

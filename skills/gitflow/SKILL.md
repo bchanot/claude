@@ -1,5 +1,6 @@
 ---
 name: gitflow
+effort: medium
 description: Use when a project needs gitflow branch operations — bootstrapping main+develop, starting a typed branch (feature/bugfix/release/hotfix), or integrating finished work by directed merge — or when an orchestrator must branch or merge under the gitflow model. Use when about to merge any branch into develop or main.
 ---
 
@@ -13,8 +14,10 @@ fan-out, init, `.gitignore` reconcile, the protected-base predicate — are in
 and bulletproofs the single judgment call: **`finish` merges only on an explicit
 human signal.**
 
-Replaces `finishing-a-development-branch` for gitflow flows — that skill is
-single-target and cannot do the directed / fan-out merges below.
+Replaces `finishing-a-development-branch` (upstream superpowers skill, not
+vendored here; `gitflow finish` is the only integration path) for gitflow
+flows — that skill is single-target and cannot do the directed / fan-out
+merges below.
 
 ## When to Use
 
@@ -35,6 +38,7 @@ develop [+ any open release/*]).
 bash ~/.claude/lib/gitflow.sh init [msg]          # main+develop; root-commit (fresh) or ensure (existing); reconcile .gitignore; install hook
 bash ~/.claude/lib/gitflow.sh start <type> <name> # branch from the correct base
 bash ~/.claude/lib/gitflow.sh finish              # directed merge of the CURRENT branch — HUMAN-GATED (below)
+bash ~/.claude/lib/gitflow.sh delete <branch>    # delete a merged branch, local + origin copy — refuses main/develop + anything unmerged
 bash ~/.claude/lib/gitflow.sh protected-base [br] # rc 0 on main/develop — the shared predicate
 ```
 
@@ -42,9 +46,18 @@ bash ~/.claude/lib/gitflow.sh protected-base [br] # rc 0 on main/develop — the
 
 | Current branch | Merges into | then |
 |---|---|---|
-| `feature/*` · `bugfix/*` · `chore/*` | develop | delete |
-| `release/*` | main + develop | delete |
-| `hotfix/*` | main + develop + any open `release/*` | delete |
+| `feature/*` · `bugfix/*` · `chore/*` | develop | delete local + `origin/` copy |
+| `release/*` | main + develop | delete local + `origin/` copy |
+| `hotfix/*` | main + develop + any open `release/*` | delete local + `origin/` copy |
+
+`delete` is `gitflow_delete`, the only path that removes a branch: it refuses
+`main`/`develop` (rc 6) and any branch not merged into develop or main (rc 5),
+and keeps the branch. The `origin/` copy is removed right after, once ITS
+tip passes the same check; a remote tip holding commits the bases lack is
+kept, loudly (T24). Hand `git branch -d` is denied — with an auto-pushed
+upstream it checks the wrong thing (T22a). A `reference-transaction` hook
+vetoes any deletion or rename of `main`/`develop` at the ref layer, in every
+repo.
 
 ## The finish gate — merge ONLY on an explicit human signal
 
@@ -75,7 +88,10 @@ On a protected base, assistance skills (`feat`/`bugfix`/`hotfix`) AND the standa
 memory/doc skills (`capitalize`/`close`/`prune-memory`/`reconcile`, TYPE `chore`)
 call `start <type>` to branch first; on a working branch they commit in place. Same
 `protected-base` predicate the out-of-skill hook uses. Caller→type map + rationale:
-`lib/gitflow-aiguillage.md`.
+`lib/gitflow-aiguillage.md`. `/capitalize` and `/close` auto-finish their memory-only
+`chore/*` branch into develop when THEY created it this run (BDR-068; `--no-push`
+opts out) — the only finish that fires without a live human signal; everything else
+stays human-gated.
 
 ## Failure modes (mechanical — lib return codes are the contract)
 
@@ -88,9 +104,13 @@ call `start <type>` to branch first; on a working branch they commit in place. S
 | `start`/`finish` rc=1 — checkout failed (dirty tree blocking, or branch already exists) | Report git's message verbatim; if the branch exists, ask resume-it vs new name. Never fall back to raw `git checkout -b` |
 | finish warning "transient artifacts … purge skipped, finishing without it" | Non-fatal BY CONTRACT (purge is best-effort, never aborts a finish) — finish continues; clean `docs/superpowers/` by hand later |
 | `init` rc=1 — socle commit failed | Recoverable: aborted BEFORE hook activation by design; fix the cause (hooks, perms), re-run `init` |
+| `delete`/`finish` rc=5 — branch not merged into develop or main | The branch still holds unmerged work: KEEP it, report it, never fall back to `git branch -d`/`-D`. Merge first (human gate), then re-run |
+| `delete` rc=6 — protected base | `main`/`develop` are never deleted. Stop; the request itself is the defect to report |
+| `delete`/`finish` warning "remote copy KEPT" or "NOT removed" | Non-fatal BY CONTRACT (remote cleanup is best-effort). KEPT = origin/<br> has a tip the bases lack: fetch, look, merge or leave it — never `git push --delete` by hand. NOT removed = origin unreachable or refused: report the printed command to the user |
 
 ## Common Mistakes
 
-- Using `finishing-a-development-branch` for a gitflow merge → it can't do directed/fan-out merges. Use `gitflow finish`.
+- Using `finishing-a-development-branch` (upstream superpowers skill, not vendored here) for a gitflow merge → it can't do directed/fan-out merges anyway. Use `gitflow finish`, the only integration path.
 - Hand-writing `git merge` instead of `gitflow finish` → loses fan-out, branch delete, base sync.
 - Calling `finish` because the work *looks* done → see the gate.
+- `git branch -d`/`-D` by hand → denied; a branch the lib refuses to delete still holds work. Keep it, say so.
