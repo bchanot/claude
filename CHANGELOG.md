@@ -2,9 +2,11 @@
 
 All notable changes to claude-config will be documented in this file.
 
-Format follows [Keep a Changelog](https://keepachangelog.com/).
+Format follows [Keep a Changelog](https://keepachangelog.com/) and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+
+Upgrading from 1.x: see [MIGRATION.md](./MIGRATION.md#upgrading-an-existing-machine-to-200).
 
 ### Added
 - **Higgsfield pack, off by default**: `make plugin` installs the `@higgsfield/cli` CLI (Step 8.6) and clones the skills of higgsfield-ai/skills into `skills-external/higgsfield-*` through the new `lib/higgsfield-skills.sh`; `make update` refreshes the skills, and the CLI when npm installed it; `make doctor` reports the CLI and its session without ever warning. The pack belongs to no profile: `lib/toggle-external.sh enable higgsfield` links the seven allowlisted media skills, `enable higgsfield-websites` the landing-page aid, and no `profile set` or `make link` re-enables either. `CLAUDE.global.md` routes explicit media-generation asks to it. Hermetic suite `lib/tests/higgsfield.test.sh`.
@@ -220,6 +222,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   seeded like a real tree (gstack off, nothing linked).
 
 ### Changed
+- Default session model `claude-fable-5-1` (settings.json `model`).
 - **`full` = everything the other profiles carry** (user rule: full does
   what every specialized profile does), minus the 9 removed gstack
   skills, the 21st generation/review trio and one named exception

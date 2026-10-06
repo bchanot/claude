@@ -112,6 +112,10 @@ arbitrary code execution (`Bash(*)`, wildcarded interpreters such as
 `permissions.allow` says. `awk` and `echo` pass through a static rule; `node`
 cannot.
 
+### Package installs
+
+Global npm installs run their install scripts with your rights on the whole machine. `npm install -g`, `npm i -g` and their `--global` spellings are in `permissions.deny`. An `autoMode.soft_deny` entry catches every other spelling (a flag after the package name, `npm add -g`) and holds the install until you name the package in the current turn, after Claude states its publisher, age, download volume, install scripts and known advisories. A second `soft_deny` entry covers `npx`, `pnpm dlx` and `yarn dlx` of a package absent from the manifest and lockfile. Project-local scripts and declared packages pass through `autoMode.allow`.
+
 ### Scope of intent
 
 A `soft_deny` clears on the user's instruction, and this config scopes that to
@@ -124,7 +128,7 @@ no separate setting for this.
 - `Read(**/.env)` only blocks the Read tool. `Bash(cat .env)` bypasses it unless separately denied.
   → Use `.claudeignore` for hard file exclusion regardless of tool.
 - `disableBypassPermissionsMode: "disable"` prevents switching to bypass mode mid-session.
-- Prefer `ask` over `allow` for anything touching external systems.
+- Prefer `autoMode.soft_deny` over `allow` for anything touching external systems.
 - `deny` in `~/.claude/settings.json` cannot be overridden by project-level `allow` — deny always wins.
 - Under `defaultMode: auto`, `ask` does not raise a prompt (see above). A destructive
   command belongs in `deny` or in `autoMode.soft_deny`, not in `ask`.

@@ -1,4 +1,6 @@
-# Migration guide — `.claude/` restructure (2026-04-23)
+# Migration guides
+
+## `.claude/` restructure (2026-04-23)
 
 The claude-config layout moved task tracking, memory registries, and audit
 reports out of scattered roots (`tasks/`, `SEO.md`, `HARDEN.md`, etc.) into
@@ -9,7 +11,7 @@ claude-config skills and were onboarded before this change.
 
 ---
 
-## TL;DR — full migration in one block
+### TL;DR — full migration in one block
 
 Run from the project root. Inspect the output before committing.
 
@@ -62,6 +64,8 @@ done
 #    .claude/memory/learnings.md (LRN-XXX format) then delete LESSONS.legacy.md
 
 # 6. Update .gitignore - see "Gitignore patch" section below
+#    (`bash ~/.claude/lib/gitflow.sh reconcile` appends only the missing
+#    template lines and never rewrites project rules.)
 
 # 7. Update CLAUDE.md - see "CLAUDE.md patch" section below
 
@@ -72,7 +76,7 @@ git check-ignore -v .claude/memory/decisions.md .claude/tasks/TODO.md 2>&1
 
 ---
 
-## Gitignore patch
+### Gitignore patch
 
 If your project's `.gitignore` contains a bare `.claude/` rule, it will ignore
 every memory/tasks/audit file you just created. Replace that line with:
@@ -84,9 +88,13 @@ every memory/tasks/audit file you just created. Replace that line with:
 !.claude/memory/
 !.claude/audits/
 !.claude/settings.json
+!.claude/deploy/
 # These stay ignored (per-machine state)
 .claude/settings.local.json
 .claude/agent-memory/
+.claude/gstack/
+.claude/deploy/PENDING.json
+.claude/deploy/NEXT.sh
 ```
 
 Verify after edit:
@@ -101,7 +109,7 @@ git check-ignore .claude/settings.local.json .claude/agent-memory/
 
 ---
 
-## CLAUDE.md patch
+### CLAUDE.md patch
 
 If your project's `CLAUDE.md` references `tasks/LESSONS.md` / `tasks/TODO.md`,
 update the `## Session start`, `## Workflow`, `## After code changes`, and
@@ -126,7 +134,7 @@ Add a new section referencing the registries (full template in
 
 ---
 
-## What gets committed vs ignored
+### What gets committed vs ignored
 
 | Path | Committed? | Reason |
 |------|-----------|--------|
@@ -134,12 +142,14 @@ Add a new section referencing the registries (full template in
 | `.claude/memory/*.md` | ✅ yes | Shared decisions/learnings/blockers |
 | `.claude/audits/*.md` | ✅ yes | Snapshot of project state — version-able |
 | `.claude/settings.json` | ✅ yes | Shared project config |
+| `.claude/deploy/*.md` | ✅ yes | Deploy runbook + incidents |
 | `.claude/settings.local.json` | 🚫 no | Per-machine overrides |
 | `.claude/agent-memory/` | 🚫 no | Per-session agent state |
+| `.claude/deploy/PENDING.json`, `NEXT.sh` | 🚫 no | Per-deploy transient state |
 
 ---
 
-## Post-migration sanity check
+### Post-migration sanity check
 
 ```bash
 # 1. No legacy tasks/ dir left
@@ -161,10 +171,29 @@ All four checks should be clean before committing the migration.
 
 ---
 
-## If anything goes wrong
+### If anything goes wrong
 
 - The migration block only uses `mv`, not `rm` — nothing is deleted.
 - Old `LESSONS.md` is preserved as `LESSONS.legacy.md` — review it, copy
   meaningful entries into `.claude/memory/learnings.md` (with `LRN-XXX` IDs),
   then delete.
 - To undo: `git checkout .` before commit.
+
+---
+
+## Upgrading an existing machine to 2.0.0
+
+2.0.0 removes components that 1.x installed. `make plugin` installs their replacements; the leftovers go by hand.
+
+```bash
+git pull --recurse-submodules
+make plugin     # vendors the 7 superpowers skills (Step 8e), installs the Higgsfield and 21st CLIs (8.6, 8.7), re-runs link.sh (10), applies the default profile (11)
+claude plugin uninstall superpowers@superpowers-marketplace   # once, if the plugin is still cached
+make doctor
+```
+
+- **Superpowers**: the plugin is gone. Its 7 wired skills are vendored at v6.4.1 and always on. The 8 other skills and the session-start injection are not replaced.
+- **Magic MCP**: replaced by the `21st` CLI (`21st login`, no API key). If 1.x registered the `magic` server, remove it from `~/.claude.json` and drop `MAGIC_API_KEY` from `~/.claude/.env`. Nothing reads them any more.
+- **Git hooks in every repo**: `link.sh` sets git's global `core.hooksPath` to `~/.claude/githooks`. Every repo on the machine now gets the gitflow pre-commit guard and pushes each commit as it lands. For a foreign clone: `git config gitflow.protect false` and `git config gitflow.autopush false`.
+- **Default profile**: a machine with no profile selected now runs `full`. Check with `make profile-current`. Nine gstack skills (`ship`, `land-and-deploy`, `setup-deploy`, `autoplan`, `context-save`, `learn`, `careful`, `guard`, `design-shotgun`) left every profile and are denylisted.
+- **Higgsfield**: installed, off by default. Nothing to do until you enable it.
