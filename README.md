@@ -461,3 +461,7 @@ make new-skill name=myskill # scaffold agent + skill files
 [`CHANGELOG.md`](./CHANGELOG.md) — version history ·
 [`MIGRATION.md`](./MIGRATION.md): upgrade guides ·
 [`templates/settings/SETTINGS.md`](templates/settings/SETTINGS.md): permission tiers and guardrails
+
+## License
+
+MIT, see [LICENSE](./LICENSE).
