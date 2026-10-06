@@ -2035,3 +2035,11 @@ dans un runner; capitalize reste main-loop.
 - [x] T3 BDR-084 + CHANGELOG + journal.
 - [x] T4 make test rc 0 + shellcheck clean (SC2016 silencé, littéral
       voulu). Merge NON fait — gate humain.
+
+## macos-portability follow-ups (2026-10-06)
+- [ ] effort-pins re-red trigger: update-all.sh applies effort pins only at
+      ~:572, after every vendoring step; an abort upstream drops them from the
+      gitignored SKILL.md again (effort-routing red). Pin after each vendoring
+      step or flag in doctor.
+- [ ] [deferred] Linux `make test` run before the next release: every
+      portability replacement is meant to be GNU-identical, unverified here.

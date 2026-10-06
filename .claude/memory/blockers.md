@@ -45,6 +45,8 @@ rules:
 | BLK-023 | 2026-09-28 | floor-guard SKIP pattern `xit(` (Jasmine) matches any `exit(` in python/JS test helpers → false ECARTS; workaround: no `exit(` in inline python, bash derives rc from output — 2026-09-28 | resolved |
 | BLK-024 | 2026-09-29 | update-all.sh re-fetched vendored skills but never re-applied the effort pins (lost until next `make plugin`); my first fix placed the re-apply BEFORE the late 21st refresh — rtk-truncated grep read as complete — 2026-09-29 | resolved |
 | BLK-025 | 2026-09-30 | deny rule `Bash(npm install -g *)` bypassed unknowingly by the alias `npm i -g` (pasted user instruction ran as typed); deny patterns are literal prefixes — 2026-09-30 | resolved (partial) |
+| BLK-026 | 2026-10-06 | `make test` red on macOS: 13 suites, GNU-only idioms in suite + 7 libs (SIGPIPE under pipefail, `sed -i`, `wc` padding, `stat -c`, `realpath -m`, bare `timeout`, `grep -oP`) | resolved |
+| BLK-027 | 2026-10-06 | this machine never ran `make link`/`make plugin`: no global `core.hooksPath` → post-commit push never fired, branches landed ahead of upstream; 11 vendored skills + `~/.claude/.env` missing | resolved (link) / open (plugin) |
 
 ---
 
@@ -282,3 +284,15 @@ rules:
 - **Real cause**: deny entries are literal patterns; `i` alias and `--global` spelling do not match. No refusal fired, so nothing signalled the guardrail. Not a deliberate reroute, same effect.
 - **Solution**: deny += `npm i -g *`, `npm install --global *`, `npm i --global *` (3dad33e, user go). Disclosed to the user at the design gate. Rule for me: before a global install, grep settings.json `deny` for the verb family, not the exact spelling.
 - **Status**: resolved (partial) 2026-09-30 — flag-after-package forms (`npm i <pkg> -g`, `npm add -g`, `npm -g i`) still pass; pattern grammar for a mid-string wildcard unverified. Open question left to the user. [[BDR-109]]
+
+## BLK-026 — `make test` red on macOS: GNU-only idioms — 2026-10-06
+- **Friction**: release prep for 2.0.0 ran `make test`: 13 suites red, ~45 FAIL. gitflow-test 15 "merged into" FAIL while merge commit present.
+- **Real cause**: suite + 7 libs written on Ubuntu. `cmd | grep -q` under `set -o pipefail`: grep exits at 1st match, producer SIGPIPE rc 141 (5/5 repro on `git log | grep -q`). Plus `sed -i` no suffix (BSD reads file as script), `wc -l` padded, `stat -c`, `touch -d`, `realpath -m` (gstack write-guard never fired), bare `timeout` off sanitized PATH (design gate UNVERIFIED), `grep -oP` (update-all `_plugins` empty), empty array under `set -u` on bash 3.2, extractor false positive in doctrine-citers. Effort pins also dropped on 2 gitignored SKILL.md (cause not established, re-applied by hand).
+- **Solution**: [[BDR-110]] forms at every site, 23 files, commit 0efdff0; regression tests T4b, Alphabet/Alpha flip, profile-set-managed T18, portability-census suite.
+- **Status**: resolved 2026-10-06. Open: Linux `make test` deferred (TODO); effort-pins re-red trigger (TODO).
+
+## BLK-027 — machine never onboarded: no global hooksPath, push hook silent — 2026-10-06
+- **Friction**: fix commit 0efdff0 and release/2.0.0 prep commit stayed `[ahead 1]`; nobody noticed until `git status -sb`.
+- **Real cause**: `make link` never run on this Mac → `core.hooksPath` unset (local + global), `~/.claude/githooks` absent. `gitflow start` pushes explicitly so branch creation looked fine; commits rely on the post-commit hook. `make link` also reports `make plugin` never ran (11 vendored skills absent) and `~/.claude/.env` missing.
+- **Solution**: pushed both branches by hand; `make link` run (user go) → `core.hooksPath=~/.claude/githooks`, 4 hooks installed. `make doctor` "Git hooks" section flags this; run it first on a new machine.
+- **Status**: resolved for hooks; open: `make plugin` + `.env` on this machine (user action).

@@ -208,6 +208,8 @@ rules:
 | LRN-186 | 2026-09-30 | `GIT_TERMINAL_PROMPT=0` does not stop credential prompts: editor terminals export `GIT_ASKPASS`; empty `GIT_ASKPASS` short-circuits core.askPass + SSH_ASKPASS | unattended `git clone` of a repo that may vanish or go private |
 | LRN-187 | 2026-09-30 | Vacuous fixtures: git drops empty dirs; a symlink to a surviving target is needed to test a symlink guard; a multi-call coreutils binary (uutils) dispatches on argv[0], so a renamed symlink fails | hermetic bash suites building git or PATH fixtures |
 | LRN-188 | 2026-09-30 | Contract oracle tied to code shape (`grep -A6` line window) breaks on the first refactor while the property still holds; assert the property over the whole unit | writing CHECK oracles |
+| LRN-189 | 2026-10-06 | `cmd \| grep -q` under pipefail = SIGPIPE false negative (rc 141); `>/dev/null` is NOT a fix (GNU grep treats it like -q); portable = producer out of the pipeline | any bash under `set -o pipefail`, tests and prod |
+| LRN-190 | 2026-10-06 | Contract oracles: join `\\` line continuations before regex; "lint clean" = no finding beyond base, not zero; never `rm -rf "$var"` inside a CHECK | writing CHECK: lines |
 
 ---
 
@@ -1690,3 +1692,11 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 ## LRN-188 — A CHECK oracle tied to code shape breaks on refactor; assert the property
 - **Context**: contract criterion 5 used `grep -A6 '^_higgsfield_probe()' | grep -c '</dev/null …' | grep -qx 2`. The gtimeout fallback reshaped the function into a loop: second redirect moved past the 6-line window → GATE 0 UNMET on correct code. Rewritten: extract the body `awk '/^fn\(\)/,/^}/'`, require the redirect on EVERY invocation line, control = strip redirects → differs. Orchestrator edited its own oracle outside a human gate, logged in the contract, surfaced to the user, fresh verifier judged it stricter.
 - **Apply**: oracles state a property over the whole unit (function body, section range), never a line window or an exact count of incidental lines; any oracle edit after a gate is logged + surfaced. [[LRN-093]], [[BDR-109]]
+
+## LRN-189 — `| grep -q` under pipefail is a SIGPIPE race, not a portability nit
+- **Context**: 15 gitflow-test assertions `git log … | grep -q "Merge …"` false on macOS, merge present. grep -q exits at first match → producer SIGPIPE → rc 141 → pipefail false. Linux hides it by write buffering, race exists there too (doc-shape fail-open). Challenger-verified: GNU grep main() sets done_on_match when stdout is /dev/null, so `grep PAT >/dev/null` keeps the race.
+- **Apply**: producer out of the pipeline. Tests: `grep -q PAT < <(cmd)`. Prod: call inside the condition `if grep -q PAT <<<"$(cmd 2>&1)"` (a bare `out=$(cmd)` aborts under `set -e` when the function runs bare). `printf '%s' "$v" | grep -q` safe (builtin, one write). Same class: `| head -1`, awk `{print; exit}`. Not decidable by text census → structural fix, no `grep -q` lint rule. [[BDR-110]]
+
+## LRN-190 — Oracle hygiene: wrapped lines, baselines, no rm -rf via variable
+- **Context**: GATE 0 criterion 4 NOT-MET while code correct: executor wrapped `grep -q … \` + `<<<"$(…)"` at 80 cols (my own style rule), single-line regex missed it. Criterion 7 `shellcheck` bare would fail on pre-existing info notes outside Health Stack scope. Criterion 2 CHECK held `rm -rf "$d"` (destructive-tools rule), executor's copy refused by permission system.
+- **Apply**: join continuations first (`sed -e ':a' -e 'N' -e '$!ba' -e 's/\\\n[[:space:]]*/ /g'`); lint criteria compare counts against base ref (`git show base:file | shellcheck -`); planted fixtures cleaned with `rm -f file; rmdir dir`. Oracle edits after a red floor logged in CLARIFICATIONS as "oracle maintenance", criterion text never loosened. Extends [[LRN-188]].
