@@ -6,6 +6,8 @@ Format follows [Keep a Changelog](https://keepachangelog.com/) and this project 
 
 ## [Unreleased]
 
+## [2.0.0] — 2026-10-06
+
 Upgrading from 1.x: see [MIGRATION.md](./MIGRATION.md#upgrading-an-existing-machine-to-200).
 
 ### Added
@@ -577,10 +579,9 @@ Upgrading from 1.x: see [MIGRATION.md](./MIGRATION.md#upgrading-an-existing-mach
   the plugin while the 7 symlinks are still linked, delete the
   `skills/<7>` symlinks or re-run `make plugin` to avoid duplicate skill
   descriptions.
-- The macOS portability fix has only been run on macOS. Its replacements are
-  meant to behave identically on GNU/Linux, and a Linux `make test` run is due
-  before the next release.
-
+- The macOS portability fix was verified on macOS only. Every replacement is
+  meant to behave identically on GNU/Linux; a Linux `make test` run is still
+  to be done after 2.0.0.
 ## [1.5.0] — 2026-09-13
 
 ### Added
