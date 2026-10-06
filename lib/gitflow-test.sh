@@ -354,6 +354,41 @@ gitflow_start feature nr >/dev/null 2>&1; echo w>w; git add w
 nr_out="$(git commit -q -m w 2>&1)"; nr_rc=$?
 chk "T18g no origin → silent, commit ok"            "[ $nr_rc -eq 0 ] && ! printf '%s' \"\$nr_out\" | grep -q FAILED"
 
+echo "T18m — manual-push mode: gitflow.autopush=false (human-set) → nothing pushed, finish still deletes"
+newrepo manual; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+bare="$WORK/manual.git"; git init -q --bare "$bare"; git remote add origin "$bare"
+git push -q -u origin main develop 2>/dev/null
+chk "T18m0 develop tracks origin/develop" "git rev-parse -q --verify 'develop@{u}' >/dev/null"
+git config gitflow.autopush false
+gitflow_start feature manual >/dev/null 2>&1
+chk "T18i start → branch local, no copy on origin" 'git rev-parse --verify -q refs/heads/feature/manual >/dev/null && ! git ls-remote --exit-code --heads origin feature/manual >/dev/null 2>&1'
+echo m>m.txt; git add m.txt; git commit -q -m m
+dev_remote_before=$(git -C "$bare" rev-parse develop)
+gitflow_finish >/dev/null 2>&1; fin_rc=$?
+chk "T18j finish → merged locally, origin develop unchanged, branch deleted" "[ $fin_rc -eq 0 ] && grep -q 'Merge feature/manual into develop' < <(git log develop --format=%s) && [ \"\$(git -C \"$bare\" rev-parse develop)\" = \"$dev_remote_before\" ] && ! git rev-parse --verify -q refs/heads/feature/manual >/dev/null"
+git config gitflow.autopush true; gitflow_start feature lag >/dev/null 2>&1
+git config gitflow.autopush false
+echo l>l.txt; git add l.txt; git commit -q -m l
+gitflow_finish >"$WORK/lag.out" 2>&1; lag_rc=$?
+chk "T18k lagging upstream → finish deletes, remote copy left in place" "[ $lag_rc -eq 0 ] && ! git rev-parse --verify -q refs/heads/feature/lag >/dev/null && [ \"\$(git -C \"$bare\" rev-parse develop)\" = \"$dev_remote_before\" ] && grep -q 'left in place' \"$WORK/lag.out\" && git ls-remote --exit-code --heads origin feature/lag >/dev/null 2>&1"
+git config gitflow.autopush true; gitflow_start feature np >/dev/null 2>&1
+git config gitflow.autopush false
+echo n>n.txt; git add n.txt; git commit -q -m n
+GITFLOW_NO_PUSH=1 gitflow_finish >"$WORK/np.out" 2>&1; np_rc=$?
+chk "T18o NO_PUSH → silent on the remote copy" "[ $np_rc -eq 0 ] && ! git rev-parse --verify -q refs/heads/feature/np >/dev/null && ! grep -q 'left in place' \"$WORK/np.out\" && git ls-remote --exit-code --heads origin feature/np >/dev/null 2>&1"
+git remote set-url origin /nonexistent/x.git
+gitflow_start feature off2 >"$WORK/off2.out" 2>&1
+chk "T18n offline, nothing recorded → silent, branch created" "! grep -q behind \"$WORK/off2.out\" && git rev-parse --verify -q refs/heads/feature/off2 >/dev/null"
+git remote set-url origin "$bare"; git checkout -q develop
+other="$WORK/manual-other"; git clone -q "$bare" "$other" 2>/dev/null
+( cd "$other" && git config user.email t@t && git config user.name t \
+  && git config core.hooksPath /dev/null && git checkout -q develop \
+  && echo o>o.txt && git add o.txt && git commit -q -m o \
+  && git push -q origin develop ) >/dev/null 2>&1
+div_err="$WORK/div.err"
+div_out=$(gitflow_start feature div 2>"$div_err")
+chk "T18l diverged base → warns on stderr, stdout stays the branch name" "[ \"$div_out\" = feature/div ] && grep -q 'behind origin/develop' \"$div_err\" && git rev-parse --verify -q refs/heads/feature/div >/dev/null"
+
 echo "T19 — installed hooks == emitted hooks in the config repo (LRN-114 drift gate)"
 if [ -d "$HERE/../.githooks" ]; then
   chk "T19a pre-commit installed == emitted"  'diff -q <(_gitflow_emit_pre_commit) "$HERE/../.githooks/pre-commit" >/dev/null'

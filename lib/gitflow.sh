@@ -70,15 +70,23 @@ gitflow_release_open() {
 
 # ── start ────────────────────────────────────────────────────────────────────
 
+# rc 0 when pushing is off: GITFLOW_NO_PUSH=1 (throwaway test repos) or
+# gitflow.autopush=false (manual-push mode, human-set: work machine, foreign
+# clone). The single reader of both flags for the lib's own push sites.
+_gitflow_push_off() {
+  [ "${GITFLOW_NO_PUSH:-0}" = 1 ] && return 0
+  [ "$(git config --bool --default true gitflow.autopush)" = false ]
+}
+
 # gitflow_start <type> <name> → checkout -b <type>/<name> from the correct base.
 # _gitflow_push_branch <br> → push + set upstream on origin (BDR-095: a remote
 # only backs up what it holds, so a branch is pushed the moment it exists).
 # Best effort BY CONTRACT: no origin, offline, or refused → loud warning, rc 0.
 # A failed push must never block the work, only make the gap visible.
-# GITFLOW_NO_PUSH=1 opts out (throwaway test repos).
+# Opt-outs: see _gitflow_push_off.
 _gitflow_push_branch() {
   local br="$1"
-  [ "${GITFLOW_NO_PUSH:-0}" = 1 ] && return 0
+  _gitflow_push_off && return 0
   git remote get-url origin >/dev/null 2>&1 || return 0
   if _gitflow_timeout git push -q -u --follow-tags origin "$br" >/dev/null 2>&1; then
     return 0
@@ -96,6 +104,20 @@ _gitflow_timeout() {
   fi
 }
 
+# _gitflow_sync_base → fast-forward the checked-out base from its upstream.
+# Never blocks. A base that cannot fast-forward while the remote is ahead (a
+# recorded divergence) is warned about: auto-push used to be the only thing
+# that surfaced it. No upstream, or offline with nothing recorded → silent.
+_gitflow_sync_base() {
+  local behind
+  _gitflow_timeout git pull --ff-only -q >/dev/null 2>&1 && return 0
+  git rev-parse -q --verify '@{u}' >/dev/null 2>&1 || return 0
+  behind=$(git rev-list --count 'HEAD..@{u}' 2>/dev/null || echo 0)
+  [ "$behind" -gt 0 ] || return 0
+  echo "gitflow: $(git symbolic-ref --short -q HEAD) is behind origin/$(git symbolic-ref --short -q HEAD) by $behind and cannot fast-forward — reconcile by hand (git pull, then push)" >&2
+  return 0
+}
+
 gitflow_start() {
   local type="${1:-}" name="${2:-}" base
   base="$(gitflow_base_for "$type")" || return 2
@@ -103,7 +125,7 @@ gitflow_start() {
   git rev-parse --verify -q "$base" >/dev/null \
     || { echo "gitflow_start: base '$base' missing — run 'gitflow init' first" >&2; return 3; }
   git checkout -q "$base" || return 1
-  git pull --ff-only -q 2>/dev/null || true   # best-effort sync; offline / no-upstream ok
+  _gitflow_sync_base   # best-effort sync; warns on divergence, never blocks
   git checkout -q -b "$type/$name" || return 1
   _gitflow_push_branch "$type/$name"
   echo "$type/$name"
@@ -114,7 +136,7 @@ gitflow_start() {
 _gitflow_merge_into() {            # _gitflow_merge_into <target> <source>
   local target="$1" source="$2"
   git checkout -q "$target" || return 1
-  git pull --ff-only -q 2>/dev/null || true
+  _gitflow_sync_base
   git merge --no-ff -q -m "Merge $source into $target" "$source" \
     || { echo "gitflow: conflict merging $source → $target — resolve, commit, re-run finish" >&2; return 4; }
   _gitflow_push_branch "$target"   # git merge fires post-merge, not post-commit; push here too
@@ -143,6 +165,15 @@ gitflow_merged_into_base() {
   return 1
 }
 
+# _gitflow_note_remote_left <br> → manual mode never deletes origin/<br>; say
+# so when a remote-tracking ref shows a copy exists (no network call).
+_gitflow_note_remote_left() {
+  local br="$1"
+  gitflow_protected_base "$br" && return 0
+  git rev-parse -q --verify "refs/remotes/origin/$br" >/dev/null || return 0
+  echo "gitflow: origin/$br left in place (manual push mode) — by hand: git push origin --delete $br" >&2
+}
+
 # _gitflow_delete_remote <br> → remove origin/<br> once the LOCAL copy is gone.
 # Same contract as the pushes (BDR-095): best effort, warn never fail; skipped
 # under GITFLOW_NO_PUSH=1, gitflow.autopush=false or no origin. The REMOTE tip
@@ -153,8 +184,11 @@ gitflow_merged_into_base() {
 _gitflow_delete_remote() {
   local br="$1" out rc tip
   [ "${GITFLOW_NO_PUSH:-0}" = 1 ] && return 0
-  [ "$(git config --bool --default true gitflow.autopush)" = false ] && return 0
   git remote get-url origin >/dev/null 2>&1 || return 0
+  if _gitflow_push_off; then
+    _gitflow_note_remote_left "$br"
+    return 0
+  fi
   gitflow_protected_base "$br" && return 0
   out="$(_gitflow_timeout git ls-remote --exit-code --heads origin "refs/heads/$br" 2>/dev/null)"; rc=$?
   [ "$rc" -eq 2 ] && return 0                         # no remote copy — nothing to remove
@@ -175,6 +209,17 @@ _gitflow_delete_remote() {
   return 0
 }
 
+# _gitflow_checkout_containing_base <br> → leave <br>, landing on the base that
+# contains it (develop first, main for a branch merged into main only).
+_gitflow_checkout_containing_base() {
+  local br="$1"
+  if git merge-base --is-ancestor "$br" "$GITFLOW_DEVELOP" 2>/dev/null; then
+    git checkout -q "$GITFLOW_DEVELOP"
+  else
+    git checkout -q "$GITFLOW_MAIN"
+  fi
+}
+
 # gitflow_delete <branch> → the one sanctioned way to delete a branch, local
 # copy then origin copy. finish calls it after its merges; the CLI exposes it
 # for a branch merged elsewhere (a Gitea PR, a hand merge). Refuses, branch
@@ -192,7 +237,11 @@ gitflow_delete() {
     echo "gitflow: REFUSED — '$br' is not merged into $GITFLOW_DEVELOP or $GITFLOW_MAIN — branch kept" >&2
     return 5
   fi
-  git checkout -q "$GITFLOW_DEVELOP" 2>/dev/null || git checkout -q "$GITFLOW_MAIN" 2>/dev/null
+  _gitflow_checkout_containing_base "$br"
+  # LRN-161: `-d` judges against the upstream when one is set, against HEAD
+  # otherwise. The ancestor check above is the real gate, so HEAD must be the
+  # base that contains <br> and a lagging upstream (manual mode) must go.
+  git branch -q --unset-upstream "$br" 2>/dev/null || true
   git branch -q -d "$br" || { echo "gitflow: git refused to delete '$br' — branch kept" >&2; return 5; }
   _gitflow_delete_remote "$br"
 }
