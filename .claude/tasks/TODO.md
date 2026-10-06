@@ -2043,3 +2043,15 @@ dans un runner; capitalize reste main-loop.
       step or flag in doctor.
 - [ ] [deferred] Linux `make test` run before the next release: every
       portability replacement is meant to be GNU-identical, unverified here.
+
+## doc-sync 2026-10-06 deferred (global audit before 2.0.0, user: log)
+- [ ] P16 LICENSE file + README License section — SPDX pick is the user's (Standard-Readme requires one; clone URL now public Gitea)
+- [ ] P43 CHANGELOG Known residual says "Linux make test due before next release" while 2.0.0 is being cut — run it or reword at release resume
+- [ ] P17 README restructure to Standard-Readme (Install / Usage / Configuration / License); move inline reference parts to USAGE.md, CONFIGURE.md from settings.json + .env.example
+- [ ] P18 README Requirements line (Linux apt/dnf/pacman + macOS brew) once the Linux run is done
+- [ ] P22 `make new-skill` scaffold: agent stub lacks `effort:` pin, skill stub lacks entry level, body loads `.claude/agents/$(name).md` instead of `$HOME/.claude/agents/<name>.md` → /hotfix
+- [ ] P31 USAGE narrative: Exemple 9 "sans superpowers" (vendored, always on), "Edit tool" bypasses /hotfix, Pattern E + Exemple 9 route bugs to /ship-feature instead of /bugfix|/hotfix
+- [ ] P32 USAGE missing sections: design work (21st CLI, design stack, /site-motion), media generation (Higgsfield toggles), gitflow auto-push + global hooks
+- [ ] P33 USAGE token figures ("Budget Pro ~11k tokens/5h", per-pattern) have no source in code — verify or drop
+- [ ] P34 USAGE + agents/plugin-advisor.md "gstack ON/OFF", "context7 ON" vocabulary — gstack is per-profile, ctx7 is a CLI; move both together
+- [ ] P41 templates/settings/settings.json: `permissions.ask` entries (npx, docker rm, make deploy, psql…) inert under defaultMode auto → config fix, not doc
