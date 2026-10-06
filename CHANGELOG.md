@@ -6,6 +6,15 @@ Format follows [Keep a Changelog](https://keepachangelog.com/) and this project 
 
 ## [Unreleased]
 
+### Added
+- **Manual-push mode**: `git config gitflow.autopush false` (human-set) now stops every push the gitflow lib makes, not only the post-commit / post-merge hooks. `gitflow start` and `finish` branch, commit and merge locally and push nothing; `gitflow delete` leaves the `origin/` copy in place and prints `git push origin --delete <br>` for the user to run. `hooks/unpushed-guard.sh` stays silent at turn end in this mode and opens each session with one `ℹ manual push mode:` line counting the commits no remote holds across every local branch; an unparseable `gitflow.autopush` value is named and treated as auto. Skills that push on their own do not honour the mode yet. Tests: `lib/gitflow-test.sh` T18m block, `lib/tests/unpushed-guard.test.sh` T10-T16.
+
+### Changed
+- `gitflow start` and `finish` warn on stderr when a base is behind origin and cannot fast-forward, instead of a silent `git pull --ff-only || true` (T18l, T18n).
+
+### Fixed
+- `gitflow delete` (and `finish`) land on the base that contains the branch and drop the branch's upstream before `git branch -d`, so a branch whose upstream lags (manual-push mode) is deleted instead of refused by git (T18k).
+
 ## [2.0.0] — 2026-10-06
 
 Upgrading from 1.x: see [MIGRATION.md](./MIGRATION.md#upgrading-an-existing-machine-to-200).

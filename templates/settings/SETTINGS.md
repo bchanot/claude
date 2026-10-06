@@ -167,12 +167,17 @@ fourth hook, `reference-transaction`, vetoes any deletion or rename of
 reach every repo two ways: `make link` generates `githooks/` from the lib
 and sets git's global `core.hooksPath` to `~/.claude/githooks` (a repo's own
 local `core.hooksPath` wins, by git's rules), and `hooks/session-start.sh`
-refreshes a repo's `.githooks/` when it lags the lib. Per-repo opt-outs for
-a foreign clone: `git config gitflow.protect false` (branch model) and
-`git config gitflow.autopush false` (push); `GITFLOW_NO_PUSH=1` for one
-command in a throwaway repo. `make doctor` checks the global setting and
-the generated dir. `hooks/unpushed-guard.sh` reports a branch ahead of its
-upstream at session start and at each turn end.
+refreshes a repo's `.githooks/` when it lags the lib. Per-repo opt-outs, set
+by a human: `git config gitflow.protect false` (branch model, foreign clone)
+and `git config gitflow.autopush false` (manual-push mode: the hooks,
+`start` and `finish` push nothing, and `delete` leaves the `origin/` copy in
+place, printing the command to remove it by hand); `GITFLOW_NO_PUSH=1` for
+one command in a throwaway repo. `start` and `finish` warn when a base is
+behind origin and cannot fast-forward. `make doctor` checks the global
+setting and the generated dir. `hooks/unpushed-guard.sh` reports a branch
+ahead of its upstream at session start and at each turn end; in manual-push
+mode it stays silent at turn end and gives one `ℹ manual push mode:` line at
+session start, counting unpushed commits across every local branch.
 
 ## managed-settings.json (enterprise)
 
