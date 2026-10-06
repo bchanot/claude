@@ -7,12 +7,12 @@ routing lines, complete scope, TTY fix on ctx7 + 21st (option A), deny aliases.
 - [x] /ship-feature run: 9 plan tasks, fix wave after the final review, doc sync, registries ([[BDR-109]])
 - [ ] parked (final review, rulings in BDR-109): remedy line ignores a pinned lock version (latent while `latest`); Step 8.6 spawns `higgsfield version` up to 3 times; rollback needs `npm uninstall -g @higgsfield/cli` + session removal + hand removal of `skills-external/higgsfield-*`
 - [ ] parked (per-task minors, none blocking): "rename" comment vs rm-then-mv; no `--` before the clone URL; ssh URL can prompt; no sweep of a stale `.higgsfield-stage.*`; timeout path itself untested; "pack not installed" when only unlisted skills are synced; doctor version read unbounded
-- [ ] user decision: close the remaining npm global-install spellings in settings.json deny (`npm i <pkg> -g`, `npm add -g`, `npm -g i`) — pattern grammar for a mid-string wildcard unverified ([[BLK-025]])
+- [x] user decision: close the remaining npm global-install spellings in settings.json deny (`npm i <pkg> -g`, `npm add -g`, `npm -g i`) — pattern grammar for a mid-string wildcard unverified ([[BLK-025]]) — CLOSED 2026-10-06 (reconcile, user go: soft_deny settings.json:472 names `npm add -g` + flag-after-package)
 - [ ] user decision: pin a commit for higgsfield-ai/skills and a version for `@higgsfield/cli` (security gate, 2 MEDIUM, accepted as is)
 - feature/higgsfield-pack merged into develop 2026-09-30 (df6dbce, user go)
 - [x] soft_deny "Global npm installs" entry merged 2026-09-30 (chore/npm-global-soft-deny)
 - [ ] user hand edit pending: remove the four `Bash(npm … -g|--global *)` lines from `permissions.deny` (they override the classifier); then the first global install is the live test of the entry
-- [ ] (was) user decision pending: npm global installs from `deny` to a prompt tier — `ask` does not prompt under `defaultMode: auto` ([[BDR-090]]); option = one `autoMode.soft_deny` entry (vet the package first), deny lines removed by the user by hand
+- [x] (was) user decision pending: npm global installs from `deny` to a prompt tier — `ask` does not prompt under `defaultMode: auto` ([[BDR-090]]); option = one `autoMode.soft_deny` entry (vet the package first), deny lines removed by the user by hand — DONE 2026-09-30 (soft_deny "Global npm installs", 95168c1; reconcile 2026-10-06)
 
 ## 2026-09-29 — effort round: every skill carries a level next to its model pin (feature/effort-round)
 User table: low fix-a-line/run-a-script · medium day-to-day · high refactor/resisting bug ·
@@ -889,7 +889,7 @@ versioned (durable, referenced by decisions.md e.g. BDR-076). Universal via the
       symmetry + /doc clean pass: README/USAGE/ARCHITECTURE.md) — 37c79f0
 - [x] merge chore/purge-transient-docs → develop (docs/ transient purge
       655e364 + reconcile e75ea79) — reaches main at next release
-- [ ] Makefile help text: profile-list help lists 5/10 profiles (:57) —
+- [ ] Makefile help text: profile-list help lists 5/10 profiles (:57) — (re-verified OPEN 2026-10-06: 11 profiles, Makefile:62 lists 5)
       1-line hotfix. (test glob :31 FIXED — has run-*.sh, reconcile 2026-08-25)
       Re-verified OPEN 2026-09-01: lib/profiles/ has 10, Makefile:57 lists 5
       (backend, full, seo, web-full, web missing).

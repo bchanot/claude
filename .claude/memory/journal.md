@@ -564,3 +564,4 @@ rules:
 
 ## 2026-10-06
 - /release-candidate 2.0.0 (user: MAJOR): prep DONE on release/2.0.0 (9d421e4), suite RED → user hold. Root cause = GNU-only idioms on new macOS machine ([[BLK-026]]). /bugfix on bugfix/macos-portability: 4 challenge passes → r3, bugfixer, GATE 0 MET, verifier CONFORME 9/9, security PASS, hardening (sed_profile keeps tmp on failed write), commit 0efdff0 + CHANGELOG docs commit; [[BDR-110]] [[LRN-189]] [[LRN-190]]. Found [[BLK-027]]: no global hooksPath here, `make link` run (user go), `make plugin` + `.env` still missing. Next: reconcile, prune-memory, doc-sync, resume release at STEP 4 after merging develop into release/2.0.0.
+- Reconcile 2026-10-06: TODO:15 + TODO:10 closed (npm soft_deny covers), TODO:892 re-verified open; 6 BLK external/open unchanged; BLK-018 due at the running release.
