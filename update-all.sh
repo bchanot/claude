@@ -603,8 +603,9 @@ fi
 echo ""
 echo "── Updating marketplace plugins..."
 if command -v claude &>/dev/null; then
+  # sed -n: BSD grep has no PCRE mode (rc 2 emptied the list)
   _plugins=$(claude plugin list 2>/dev/null \
-    | grep -oP '(?<=❯ )\S+' || true)
+    | sed -n 's/.*❯ \([^[:space:]][^[:space:]]*\).*/\1/p' || true)
   if [ -n "$_plugins" ]; then
     while IFS= read -r _p; do
       _name="${_p%%@*}"

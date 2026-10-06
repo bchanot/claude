@@ -265,13 +265,15 @@ skill_status() {
       # `claude plugin list` is the source of truth — settings.json may be
       # ahead of or behind reality if the user toggled outside this tool.
       if command -v "$CLAUDE_BIN" >/dev/null 2>&1; then
-        # Match the plugin block by name then check Status line
-        if "$CLAUDE_BIN" plugin list 2>/dev/null \
-           | awk -v p="$skill" '
+        # Match the plugin block by name then check Status line. List is
+        # captured first: an early-exit awk/grep -q in a pipe SIGPIPEs the
+        # producer (rc 141 under pipefail on macOS).
+        local plist
+        plist="$("$CLAUDE_BIN" plugin list 2>/dev/null)" || true
+        if grep -q "✔ enabled" < <(awk -v p="$skill" '
                /^[[:space:]]*❯ '"$skill"'@/ { found=1; next }
                found && /Status:/ { print; exit }
-             ' \
-           | grep -q "✔ enabled"; then
+             ' <<<"$plist"); then
           echo "enabled"
         else
           echo "disabled"
@@ -282,7 +284,7 @@ skill_status() {
       ;;
     mcp)
       if command -v "$CLAUDE_BIN" >/dev/null 2>&1 && \
-         "$CLAUDE_BIN" mcp list 2>/dev/null | grep -q "^${skill}"; then
+         grep -q "^${skill}" <<<"$("$CLAUDE_BIN" mcp list 2>/dev/null)"; then
         echo "enabled"
       else
         echo "disabled"
@@ -371,7 +373,10 @@ enable_skill() {
       if [ "$(skill_status "$skill" "$type")" = "enabled" ]; then
         : # already on
       elif command -v "$CLAUDE_BIN" >/dev/null 2>&1; then
-        if "$CLAUDE_BIN" plugin enable "${skill}@${marketplace}" 2>&1 | grep -qiE "enabled|already"; then
+        # CLI call stays inside the condition: a failing CLI must not abort
+        if grep -qiE "enabled|already" \
+             <<<"$("$CLAUDE_BIN" plugin enable \
+               "${skill}@${marketplace}" 2>&1)"; then
           ok "enabled plugin: ${skill}@${marketplace}"
         else
           warn "could not enable plugin: ${skill}@${marketplace}"
@@ -441,7 +446,8 @@ disable_skill() {
       if [ "$(skill_status "$skill" "$type")" = "disabled" ]; then
         : # already off
       elif command -v "$CLAUDE_BIN" >/dev/null 2>&1; then
-        if "$CLAUDE_BIN" plugin disable "$key" 2>&1 | grep -qiE "disabled|already"; then
+        if grep -qiE "disabled|already" \
+             <<<"$("$CLAUDE_BIN" plugin disable "$key" 2>&1)"; then
           ok "disabled plugin: $key"
         else
           warn "could not disable plugin: $key"

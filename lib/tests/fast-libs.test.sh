@@ -36,17 +36,17 @@ check T4-none "$(bash "$L" detect "$tmp/cpp" >/dev/null 2>&1; echo $?)" 1
 check T5-missing "$(bash "$L" cache-status "$tmp/js" || true)" missing
 mkdir -p "$tmp/js/.ctx7-cache"; touch "$tmp/js/.ctx7-cache/react-core.md"
 check T6-fresh "$(bash "$L" cache-status "$tmp/js")" fresh
-touch -d '10 days ago' "$tmp/js/.ctx7-cache/react-core.md"
+touch -t 200001010000 "$tmp/js/.ctx7-cache/react-core.md"
 check T7-stale "$(bash "$L" cache-status "$tmp/js" || true)" stale
 
 # --- hook: fires once per session, silent on stable projects ---
 hook() { printf '{"prompt":"add a hook","session_id":"%s","cwd":"%s"}' \
   "$1" "$2" | TMPDIR="$tmp" bash "$H"; }
 check H1-fires "$(hook s1 "$tmp/js" | grep -c 'Fast-moving')" 1
-check H2-once "$(hook s1 "$tmp/js" | wc -l)" 0
-check H3-cpp-quiet "$(hook s2 "$tmp/cpp" | wc -l)" 0
+check H2-once "$(hook s1 "$tmp/js" | wc -l | tr -d ' ')" 0
+check H3-cpp-quiet "$(hook s2 "$tmp/cpp" | wc -l | tr -d ' ')" 0
 check H4-notif-quiet \
   "$(printf '{"prompt":"<task-notification>x","session_id":"s3","cwd":"%s"}' \
-    "$tmp/js" | TMPDIR="$tmp" bash "$H" | wc -l)" 0
+    "$tmp/js" | TMPDIR="$tmp" bash "$H" | wc -l | tr -d ' ')" 0
 
 printf 'PASS=%s FAIL=%s\n' "$pass" "$fail"; [ "$fail" -eq 0 ]

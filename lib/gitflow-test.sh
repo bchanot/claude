@@ -48,7 +48,7 @@ chk "socle: re-ignore PENDING" 'grep -qxF ".claude/deploy/PENDING.json" .gitigno
 chk "hook installed"     '[ -x .githooks/pre-commit ] && [ "$(git config core.hooksPath)" = .githooks ]'
 chk "tree CLEAN after init"  '[ -z "$(git status --porcelain)" ]'
 chk "hook TRACKED in commit" 'git ls-files --error-unmatch .githooks/pre-commit >/dev/null 2>&1'
-chk "socle IN root commit"   'git show HEAD:.gitignore | grep -qxF ".claude/deploy/PENDING.json"'
+chk "socle IN root commit"   'grep -qxF ".claude/deploy/PENDING.json" < <(git show HEAD:.gitignore)'
 
 echo "T2b — init existing (master→main rename + adoption via chore/gitflow-adopt merge)"
 newrepo existing
@@ -59,10 +59,10 @@ hookon
 gitflow_init >/dev/null 2>&1
 chk "master→main renamed"   'git rev-parse --verify -q refs/heads/main >/dev/null && ! git rev-parse --verify -q refs/heads/master >/dev/null'
 chk "develop created"        'git rev-parse --verify -q refs/heads/develop >/dev/null'
-chk "adoption commit"        'git log main --oneline | grep -q "adopt gitflow"'
+chk "adoption commit"        'grep -q "adopt gitflow" < <(git log main --oneline)'
 chk "existing tree CLEAN"    '[ -z "$(git status --porcelain)" ]'
 chk "existing hook tracked"  'git ls-files --error-unmatch .githooks/pre-commit >/dev/null 2>&1'
-chk "kept project rule"      'git show HEAD:.gitignore | grep -qxF "node_modules/"'
+chk "kept project rule"      'grep -qxF "node_modules/" < <(git show HEAD:.gitignore)'
 
 echo "T2c — init existing under a LIVE pre-commit (global hooks simulated): socle lands via merge"
 newrepo live; git symbolic-ref HEAD refs/heads/master
@@ -73,9 +73,9 @@ git config core.hooksPath "$WORK/globalhooks"      # stands in for git's GLOBAL 
 # shellcheck disable=SC2034
 live_rc=0; GITFLOW_NO_PUSH=1 gitflow_init >/dev/null 2>&1 || live_rc=$?
 chk "T2c init succeeds under the live hook (rc 0)" "[ $live_rc -eq 0 ]"
-chk "T2c socle reached main via a merge commit"    'git log main --oneline -1 | grep -q "Merge chore/gitflow-adopt"'
-chk "T2c .gitignore socle on main"                 'git show main:.gitignore | grep -qxF ".claude/deploy/PENDING.json"'
-chk "T2c hooks tracked on main"                    'git ls-tree -r main --name-only | grep -q "^.githooks/pre-commit$"'
+chk "T2c socle reached main via a merge commit"    'grep -q "Merge chore/gitflow-adopt" < <(git log main --oneline -1)'
+chk "T2c .gitignore socle on main"                 'grep -qxF ".claude/deploy/PENDING.json" < <(git show main:.gitignore)'
+chk "T2c hooks tracked on main"                    'grep -q "^.githooks/pre-commit$" < <(git ls-tree -r main --name-only)'
 chk "T2c adoption branch deleted"                  '! git rev-parse --verify -q refs/heads/chore/gitflow-adopt >/dev/null'
 chk "T2c develop created from main"                '[ "$(git rev-parse develop)" = "$(git rev-parse main)" ]'
 chk "T2c repo hook active afterwards"              '[ "$(git config core.hooksPath)" = .githooks ]'
@@ -107,7 +107,7 @@ newrepo finfeat; echo a>a; hookon; gitflow_init >/dev/null 2>&1
 gitflow_start feature f1 >/dev/null 2>&1; echo w>w.txt; git add w.txt; git commit -q -m w
 main_before="$(git rev-parse main)"
 gitflow_finish >/dev/null 2>&1
-chk "merged into develop" 'git log develop --oneline | grep -q "Merge feature/f1 into develop"'
+chk "merged into develop" 'grep -q "Merge feature/f1 into develop" < <(git log develop --oneline)'
 chk "main untouched"      "[ \"\$(git rev-parse main)\" = \"$main_before\" ]"
 chk "branch deleted"      '! git rev-parse --verify -q refs/heads/feature/f1 >/dev/null'
 
@@ -117,7 +117,7 @@ gitflow_start chore c1 >/dev/null 2>&1
 mkdir -p .claude/memory; echo m>.claude/memory/x.md; git add -A; git commit -q -m "chore(memory)"
 main_before="$(git rev-parse main)"
 gitflow_finish >/dev/null 2>&1
-chk "chore merged into develop" 'git log develop --oneline | grep -q "Merge chore/c1 into develop"'
+chk "chore merged into develop" 'grep -q "Merge chore/c1 into develop" < <(git log develop --oneline)'
 chk "chore main untouched"      "[ \"\$(git rev-parse main)\" = \"$main_before\" ]"
 chk "chore branch deleted"      '! git rev-parse --verify -q refs/heads/chore/c1 >/dev/null'
 
@@ -125,8 +125,8 @@ echo "T7 — finish hotfix → main + develop fan-out"
 newrepo finhot; echo a>a; hookon; gitflow_init >/dev/null 2>&1
 gitflow_start hotfix h1 >/dev/null 2>&1; echo p>patch.txt; git add patch.txt; git commit -q -m patch
 gitflow_finish >/dev/null 2>&1
-chk "hotfix in main"     'git log main --oneline | grep -q "Merge hotfix/h1 into main"'
-chk "hotfix in develop"  'git log develop --oneline | grep -q "Merge hotfix/h1 into develop"'
+chk "hotfix in main"     'grep -q "Merge hotfix/h1 into main" < <(git log main --oneline)'
+chk "hotfix in develop"  'grep -q "Merge hotfix/h1 into develop" < <(git log develop --oneline)'
 chk "hotfix branch gone" '! git rev-parse --verify -q refs/heads/hotfix/h1 >/dev/null'
 
 echo "T8 — finish hotfix also lands in OPEN release"
@@ -134,7 +134,7 @@ newrepo finhotrel; echo a>a; hookon; gitflow_init >/dev/null 2>&1
 gitflow_start release 1.0 >/dev/null 2>&1; echo r>rel.txt; git add rel.txt; git commit -q -m relwork
 gitflow_start hotfix h2 >/dev/null 2>&1; echo p>p2.txt; git add p2.txt; git commit -q -m patch2
 gitflow_finish >/dev/null 2>&1
-chk "hotfix in open release" 'git log release/1.0 --oneline | grep -q "Merge hotfix/h2 into release/1.0"'
+chk "hotfix in open release" 'grep -q "Merge hotfix/h2 into release/1.0" < <(git log release/1.0 --oneline)'
 
 echo "T9 — reconcile is additive + idempotent + preserves project rules"
 newrepo recon; echo a>a; git add a; git commit -q -m a
@@ -181,11 +181,11 @@ mism_out="$(gitflow_finish bugfix other 2>&1)"; mism_rc=$?
 chk "arg-mismatch → nonzero rc"       "[ $mism_rc -ne 0 ]"
 chk "arg-mismatch → HEAD untouched"   '[ "$(git symbolic-ref --short HEAD)" = feature/standon ]'
 chk "arg-mismatch → branch kept"      'git rev-parse --verify -q refs/heads/feature/standon >/dev/null'
-chk "arg-mismatch → develop NOT merged" '! git log develop --oneline | grep -q "Merge feature/standon into develop"'
+chk "arg-mismatch → develop NOT merged" '! grep -q "Merge feature/standon into develop" < <(git log develop --oneline)'
 chk "arg-mismatch → message names both" 'printf "%s" "$mism_out" | grep -q "current branch" && printf "%s" "$mism_out" | grep -q "bugfix/other"'
 # match: naming the current branch explicitly finishes exactly like the no-arg path
 gitflow_finish feature standon >/dev/null 2>&1
-chk "arg-match → merged into develop" 'git log develop --oneline | grep -q "Merge feature/standon into develop"'
+chk "arg-match → merged into develop" 'grep -q "Merge feature/standon into develop" < <(git log develop --oneline)'
 chk "arg-match → branch deleted"      '! git rev-parse --verify -q refs/heads/feature/standon >/dev/null'
 
 echo "T13 — finish release fan-out (main+develop+delete), 2 open releases + bugfix→develop-only"
@@ -193,8 +193,8 @@ newrepo finrel; echo a>a; hookon; gitflow_init >/dev/null 2>&1
 gitflow_start release 9.9.9 >/dev/null 2>&1; echo v>VERSION; git add VERSION; git commit -q -m "bump 9.9.9"
 finish_rc=0; gitflow_finish >/dev/null 2>&1 || finish_rc=$?
 chk "T13a finish rc 0"                 "[ $finish_rc -eq 0 ]"
-chk "T13a main has release commit"     'git log main --oneline | grep -q "bump 9.9.9"'
-chk "T13a develop has release commit"  'git log develop --oneline | grep -q "bump 9.9.9"'
+chk "T13a main has release commit"     'grep -q "bump 9.9.9" < <(git log main --oneline)'
+chk "T13a develop has release commit"  'grep -q "bump 9.9.9" < <(git log develop --oneline)'
 chk "T13a release branch deleted"      '! git rev-parse --verify -q refs/heads/release/9.9.9 >/dev/null'
 
 newrepo finrel2; echo a>a; hookon; gitflow_init >/dev/null 2>&1
@@ -202,14 +202,14 @@ gitflow_start release 1.0 >/dev/null 2>&1; echo r1>r1; git add r1; git commit -q
 gitflow_start release 2.0 >/dev/null 2>&1; echo r2>r2; git add r2; git commit -q -m rel2
 gitflow_start hotfix hboth >/dev/null 2>&1; echo p>p; git add p; git commit -q -m hotfixboth
 gitflow_finish >/dev/null 2>&1
-chk "T13b hotfix in release/1.0" 'git log release/1.0 --oneline | grep -q "Merge hotfix/hboth into release/1.0"'
-chk "T13b hotfix in release/2.0" 'git log release/2.0 --oneline | grep -q "Merge hotfix/hboth into release/2.0"'
+chk "T13b hotfix in release/1.0" 'grep -q "Merge hotfix/hboth into release/1.0" < <(git log release/1.0 --oneline)'
+chk "T13b hotfix in release/2.0" 'grep -q "Merge hotfix/hboth into release/2.0" < <(git log release/2.0 --oneline)'
 
 newrepo finbugfix; echo a>a; hookon; gitflow_init >/dev/null 2>&1
 gitflow_start bugfix bx >/dev/null 2>&1; echo w>w.txt; git add w.txt; git commit -q -m bugfixwork
 main_before="$(git rev-parse main)"
 gitflow_finish >/dev/null 2>&1
-chk "T13c develop has bugfix commit" 'git log develop --oneline | grep -q "Merge bugfix/bx into develop"'
+chk "T13c develop has bugfix commit" 'grep -q "Merge bugfix/bx into develop" < <(git log develop --oneline)'
 chk "T13c main untouched"            "[ \"\$(git rev-parse main)\" = \"$main_before\" ]"
 chk "T13c bugfix branch deleted"     '! git rev-parse --verify -q refs/heads/bugfix/bx >/dev/null'
 
@@ -259,7 +259,7 @@ git add secret.txt
 gl_out="$(git commit -q -m "add secret" 2>&1)"; gl_rc=$?
 chk "T16a fake secret on feature branch → blocked" "[ $gl_rc -ne 0 ]"
 chk "T16a message mentions gitleaks"               'printf "%s" "$gl_out" | grep -qi gitleaks'
-chk "T16a nothing committed"          '! git log --oneline 2>/dev/null | grep -q "add secret"'
+chk "T16a nothing committed"          '! grep -q "add secret" < <(git log --oneline 2>/dev/null)'
 git restore --staged secret.txt 2>/dev/null || true; rm -f secret.txt
 
 # T16b — a clean commit is unaffected
@@ -295,19 +295,19 @@ gitflow_finish >/dev/null 2>&1
 # <sha>:path` proves BDR-065's "git history = the archive" recovery.
 # shellcheck disable=SC2034  # pf_add_sha is used in the deferred chk eval string
 pf_add_sha="$(git log develop --full-history --format=%H -- docs/superpowers/specs/s.md | tail -1)"
-chk "T17a merged into develop"           'git log develop --oneline | grep -q "Merge feature/pf into develop"'
+chk "T17a merged into develop"           'grep -q "Merge feature/pf into develop" < <(git log develop --oneline)'
 chk "T17a develop TIP has no transient"  '[ -z "$(git ls-tree -r develop --name-only -- docs/superpowers)" ]'
-chk "T17a purge commit on record"        'git log develop --oneline | grep -q "purge transient planning artifacts"'
+chk "T17a purge commit on record"        'grep -q "purge transient planning artifacts" < <(git log develop --oneline)'
 chk "T17a artifact recoverable from history" '[ "$(git show "$pf_add_sha":docs/superpowers/specs/s.md 2>/dev/null)" = spec ]'
-chk "T17a non-transient code survives"   'git ls-tree -r develop --name-only | grep -qx feat.txt'
+chk "T17a non-transient code survives"   'grep -qx feat.txt < <(git ls-tree -r develop --name-only)'
 chk "T17a feature branch deleted"        '! git rev-parse --verify -q refs/heads/feature/pf >/dev/null'
 
 # T17b — no artifacts → purge is a silent no-op, no spurious commit
 newrepo purgenone; echo a>a; hookon; gitflow_init >/dev/null 2>&1
 gitflow_start feature pn >/dev/null 2>&1; echo w>w.txt; git add w.txt; git commit -q -m w
 gitflow_finish >/dev/null 2>&1
-chk "T17b merged into develop"     'git log develop --oneline | grep -q "Merge feature/pn into develop"'
-chk "T17b no purge commit created" '! git log develop --oneline | grep -q "purge transient"'
+chk "T17b merged into develop"     'grep -q "Merge feature/pn into develop" < <(git log develop --oneline)'
+chk "T17b no purge commit created" '! grep -q "purge transient" < <(git log develop --oneline)'
 
 # T17c — opt-out (GITFLOW_PURGE_TRANSIENT=0) keeps the artifacts on develop
 newrepo purgeoff; echo a>a; hookon; gitflow_init >/dev/null 2>&1
@@ -330,7 +330,7 @@ newrepo pushsrc; echo a>a; hookon; gitflow_init >/dev/null 2>&1
 bare="$WORK/pushsrc.git"; git init -q --bare "$bare"; git remote add origin "$bare"
 git push -q origin main develop 2>/dev/null
 gitflow_start feature ap >/dev/null 2>&1
-chk "T18a start pushed the branch"        'git ls-remote --heads origin feature/ap | grep -q feature/ap'
+chk "T18a start pushed the branch"        'grep -q feature/ap < <(git ls-remote --heads origin feature/ap)'
 echo w>w; git add w; git commit -q -m w 2>/dev/null
 chk "T18b commit pushed by post-commit"   '[ "$(git rev-parse HEAD)" = "$(git -C "$bare" rev-parse feature/ap)" ]'
 echo w2>>w; git add w; GITFLOW_NO_PUSH=1 git commit -q -m w2 2>/dev/null
@@ -381,7 +381,7 @@ chk "T20b pre-commit rewritten == emitted" 'diff -q <(_gitflow_emit_pre_commit) 
 chk "T20c post-commit restored"            '[ -x .githooks/post-commit ]'
 chk "T20d second run is silent"            '[ -z "$(gitflow_reconcile_hooks 2>/dev/null)" ]'
 mkdir -p sub; cd sub || exit 1; echo "# stale" >> ../.githooks/post-merge
-chk "T20e works from a subdirectory"       'gitflow_reconcile_hooks 2>/dev/null | grep -q post-merge'
+chk "T20e works from a subdirectory"       'grep -q post-merge < <(gitflow_reconcile_hooks 2>/dev/null)'
 cd .. || exit 1
 newrepo plain; echo a>a; git add a; git commit -q -m a
 chk "T20f non-gitflow repo → silent, no .githooks created" '[ -z "$(gitflow_reconcile_hooks 2>/dev/null)" ] && [ ! -d .githooks ]'

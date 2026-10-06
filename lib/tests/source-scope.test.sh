@@ -45,8 +45,8 @@ case "$G" in *"*"*) check C2-grep-has-no-glob "has-glob" ok ;;
   *) check C2-grep-has-no-glob ok ok ;; esac
 
 # --- findargs: one token per line, 3 tokens per dir ---
-N="$(cd "$TMP/plain" && bash "$S" findargs | wc -l)"
-D="$(cd "$TMP/plain" && bash "$S" list | wc -l)"
+N="$(cd "$TMP/plain" && bash "$S" findargs | wc -l | tr -d ' ')"
+D="$(cd "$TMP/plain" && bash "$S" list | wc -l | tr -d ' ')"
 check D1-findargs-3-tokens-per-dir "$N" "$((D * 3))"
 check D2-findargs-first-token "$(cd "$TMP/plain" && bash "$S" findargs | head -1)" '!'
 
@@ -63,7 +63,7 @@ check E1-excludes-dist  "$(find . "${FEXCL[@]}" -name 'a.png' | grep -c '/dist/'
 check E2-keeps-src      "$(find . "${FEXCL[@]}" -name 'a.png' | grep -c '/src/')"   1
 check E3-excludes-nodem "$(find . "${FEXCL[@]}" -name '*.png' | grep -c 'node_modules')" 0
 # public/ survives: the audit's own resource checks live there
-check E4-keeps-public   "$(find . "${FEXCL[@]}" -name 'favicon.ico' | wc -l)" 1
+check E4-keeps-public   "$(find . "${FEXCL[@]}" -name 'favicon.ico' | wc -l | tr -d ' ')" 1
 cd / || exit 1
 
 # --- usage ---

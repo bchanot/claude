@@ -70,6 +70,7 @@ ensure_claude_on_path() {
   for cand in \
     "$HOME/.claude/local/claude" \
     "$HOME/.local/bin/claude" \
+    /opt/homebrew/bin/claude \
     /usr/local/bin/claude; do
     [ -x "$cand" ] && { PATH="$(dirname "$cand"):$PATH"; return; }
   done
@@ -94,6 +95,7 @@ ensure_21st_on_path() {
   local cand
   for cand in \
     "$HOME/.local/bin/21st" \
+    /opt/homebrew/bin/21st \
     /usr/local/bin/21st; do
     [ -x "$cand" ] && { PATH="$(dirname "$cand"):$PATH"; return; }
   done
@@ -113,7 +115,8 @@ ensure_21st_on_path
 # out; the FIRST LINE of stdout does. A token env, when already exported by
 # the user's shell profile, wins without a CLI call (never requested here:
 # tool calls don't share a shell, and a secret doesn't belong in a comment
-# or the transcript). `timeout 15` bounds a hung CLI; stdin is closed so a
+# or the transcript). A perl `alarm` of 15 s bounds a hung CLI (GNU
+# `timeout` is absent from the macOS system PATH); stdin is closed so a
 # CLI that reads stdin can't eat the gate's own `read` loop; stderr never
 # enters the match (stdout only). Echoes: in | out | unknown:<diagnostic>.
 twentyfirst_auth_state() {
@@ -122,11 +125,13 @@ twentyfirst_auth_state() {
     return
   fi
   local line rc
-  if line="$(timeout 15 21st whoami 2>/dev/null </dev/null | head -1)"; then
+  if line="$(perl -e 'alarm shift; exec @ARGV' 15 21st whoami \
+             2>/dev/null </dev/null)"; then
     rc=0
   else
     rc=$?
   fi
+  line="${line%%$'\n'*}"  # first line, without head(1) in a pipeline
   if [ "$rc" -eq 0 ]; then
     case "$line" in
       "Logged in as "*) echo in;  return ;;
@@ -160,14 +165,22 @@ tool_active() {
       ;;
     plugin)
       if ! command -v "$CLAUDE_BIN" >/dev/null 2>&1; then echo unknown; return; fi
-      if "$CLAUDE_BIN" plugin list 2>/dev/null \
-           | awk -v p="^[[:space:]]*❯ ${name}@" '$0 ~ p {f=1; next} f && /Status:/ {print; exit}' \
-           | grep -q "✔ enabled"
+      # capture first, then match: an early-exit awk/grep -q in a pipe
+      # SIGPIPEs the producer (rc 141 under pipefail on macOS)
+      local plist
+      plist="$("$CLAUDE_BIN" plugin list 2>/dev/null)" || true
+      if grep -q "✔ enabled" < <(awk -v p="^[[:space:]]*❯ ${name}@" \
+           '$0 ~ p {f=1; next} f && /Status:/ {print; exit}' <<<"$plist")
       then echo active; else echo inactive; fi
       ;;
     mcp)
       if ! command -v "$CLAUDE_BIN" >/dev/null 2>&1; then echo unknown; return; fi
-      if "$CLAUDE_BIN" mcp list 2>/dev/null | grep -q "^${name}"; then echo active; else echo inactive; fi
+      if grep -q "^${name}" \
+           <<<"$("$CLAUDE_BIN" mcp list 2>/dev/null)"; then
+        echo active
+      else
+        echo inactive
+      fi
       ;;
     cli)
       command -v "$name" >/dev/null 2>&1 || { echo inactive; return; }
@@ -222,7 +235,8 @@ print_unverified() {
     echo "  also unverified (claude CLI unreachable): ${unverified[*]}"
   fi
   local entry name diag
-  for entry in "${unverified_cli[@]}"; do
+  # bash 3.2 (macOS /bin/bash) errors on an empty array under set -u
+  for entry in ${unverified_cli[@]+"${unverified_cli[@]}"}; do
     name="${entry%% (*}"
     diag="${entry#*\(}"; diag="${diag%\)}"
     echo "  $name could not answer: $diag —" \

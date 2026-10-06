@@ -139,7 +139,7 @@ pack_hints() {
     21st)
       if ! command -v 21st >/dev/null 2>&1; then
         warn "the \`21st\` CLI is not on PATH — install it: npm i -g @21st-dev/cli"
-      elif ! 21st whoami 2>/dev/null | grep -q '^Logged in as '; then
+      elif ! grep -q '^Logged in as ' <<<"$(21st whoami 2>/dev/null)"; then
         warn "not signed in to 21st — component retrieval and 21st AI need: 21st login"
       fi
       ;;
