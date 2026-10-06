@@ -2055,3 +2055,13 @@ dans un runner; capitalize reste main-loop.
 - [ ] P33 USAGE token figures ("Budget Pro ~11k tokens/5h", per-pattern) have no source in code — verify or drop
 - [ ] P34 USAGE + agents/plugin-advisor.md "gstack ON/OFF", "context7 ON" vocabulary — gstack is per-profile, ctx7 is a CLI; move both together
 - [ ] P41 templates/settings/settings.json: `permissions.ask` entries (npx, docker rm, make deploy, psql…) inert under defaultMode auto → config fix, not doc
+
+## manual-push-mode (2026-10-06, /feat × 3)
+- [x] run A — `gitflow.autopush=false` honoured by `_gitflow_push_branch`, quiet unpushed-guard, doctrine line; plan `.claude/tasks/plans/2026-10-06-manual-push-mode-1632.md` → commit 2fc8830 on feature/manual-push-mode; verifier ECARTS(1) = AC6 only (design-tool-gate env red, pre-existing on develop) → human waiver; merge human-gated
+- [ ] run B — `hooks/push-guard.sh` PreToolUse (deny `git push` in manual mode) + test + settings.json (hook wiring, widen `gitflow.*` deny: `git config * gitflow.*`, `git -c gitflow.*`, `GIT_CONFIG_COUNT=*`; environment prose ~480/~499) + session-start banner push mode
+- [ ] run C — skills that push on their own, gate on `gitflow.autopush`: capitalize STEP 5C (`git push origin develop`), client-handover SKILL:48 + agents/client-handover-writer.md:586, release-candidate:96 + tour:273 "already on origin" claims
+- [ ] run B also: fail-CLOSED on an unparseable `gitflow.autopush` value in every reader at once (lib `_gitflow_push_off`, the two emitted push hooks, unpushed-guard) — run A keeps fail-open for consistency with the untouched emitters (security gate MEDIUM, 2026-10-06); `--end-of-options`/`--` on refname args and `printf %q` in copy-paste hints (LOW); `gitflow_delete`: check `_gitflow_checkout_containing_base` rc before `--unset-upstream` (LOW, 2nd gate)
+- [ ] ORDER: do not set `gitflow.autopush false` on the work machine before B + C are merged (until then `/close` still pushes develop)
+
+## test hermeticity (2026-10-06, found during manual-push-mode run A)
+- [ ] `lib/tests/design-tool-gate.test.sh` reds on any machine with the 21st CLI installed ("FAIL precondition: system-wide 21st present, CLI_ABSENT case not hermetic") — pre-existing on develop (fa67664), independent of the diff. Make the CLI_ABSENT case hermetic (PATH shim / stubbed probe) so `make test` is green on a design-profile machine. Until then full-suite oracles (`make test` exit 0) cannot be MET here.
