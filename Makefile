@@ -1,7 +1,7 @@
 .PHONY: help install plugin link doctor update new-skill profile profile-list profile-current profile-reset onboard test scan-secrets seo-connect
 
 help: ## Show available commands
-	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  make %-14s %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  make %-16s %s\n", $$1, $$2}'
 
 install: ## First-time setup: install Claude Code + auth + symlinks + plugins
 	bash install.sh
@@ -41,7 +41,7 @@ test: ## Run deterministic tests hermetically (one: make test suite=lib/tests/x.
 			*) bash "$$t" || fail=1 ;; \
 		esac; done; exit $$fail
 
-scan-secrets: ## Gitleaks sweep: this repo's history + ~/.claude (job7 backstop). Extra repos: make scan-secrets repos="path1 path2"
+scan-secrets: ## Gitleaks sweep: this repo's history + ~/.claude. Extra repos: make scan-secrets repos="path1 path2"
 	@command -v gitleaks >/dev/null 2>&1 || { echo "gitleaks not installed — https://github.com/gitleaks/gitleaks"; exit 1; }
 	@mkdir -p .audit
 	@fail=0; \
@@ -59,7 +59,7 @@ scan-secrets: ## Gitleaks sweep: this repo's history + ~/.claude (job7 backstop)
 profile: ## Run profile.sh (usage: make profile cmd="set design")
 	@bash lib/profile.sh $(cmd)
 
-profile-list: ## List skill profiles (design, dev, qa, audit, minimal)
+profile-list: ## List skill profiles (audit, backend, design, dev, full, max, minimal, qa, seo, web, web-full)
 	@bash lib/profile.sh list
 
 profile-current: ## Show the active profile (label + match)

@@ -101,7 +101,8 @@ check_kind STUB "$rc" 2 "$out" 'FLOOR STUB'
 
 # ── THRESHOLD_DOWN ────────────────────────────────────────────────────────
 d=$(mk_repo threshold); base=$(git -C "$d" rev-parse HEAD)
-sed -i 's/lines: 80/lines: 60/' "$d/vitest.config.ts"
+# BSD sed -i needs a suffix argument
+sed -i.bak 's/lines: 80/lines: 60/' "$d/vitest.config.ts" && rm -f "$d/vitest.config.ts.bak"
 out=$(cd "$d" && bash "$LIB" "$base" 2>&1); rc=$?
 check_kind THRESHOLD_DOWN "$rc" 2 "$out" 'FLOOR THRESHOLD_DOWN'
 

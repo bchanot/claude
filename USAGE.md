@@ -83,7 +83,7 @@ Tu veux...
 │    → /prune-memory           ← curer / compresser les registres .claude/memory/
 │
 └─ Quelque chose ne marche pas ?
-     → /health    ← diagnostic complet (symlinks, plugins, permissions, token budget)
+     → make doctor   ← diagnostic d'installation (symlinks, plugins, permissions, hooks, token budget)
 ```
 
 ### Règle de décision simplifiée
@@ -122,7 +122,7 @@ Tu veux...
 | Changer profil skills | `/profile` |
 | Audit/polish design (anti-slop) | `/impeccable` |
 | Sweep groupé tous axes (nettoyage + sécu + reconcile + doc) | `/tour` |
-| Rien ne marche | `/health` |
+| Rien ne marche | `make doctor` (terminal) |
 
 ---
 
@@ -147,10 +147,10 @@ Tu veux...
 | `/commit-change` | Commits bien structurés | Groupe les changements par unité logique |
 | `/gitflow` | Opérations de branches gitflow | Bootstrap main+develop, branche typée, merge dirigé |
 | `/release-candidate` | Couper une release versionnée (develop en avance sur main) | Finalise version.txt + CHANGELOG, merge develop→main, tag, push |
-| `/deploy` | Déployer via le runbook du projet | Instancie le delta depuis le dernier deploy, reprend à froid |
+| `/deploy` | Déployer via le runbook du projet | Instancie le delta depuis le dernier deploy, reprend à froid ; tu exécutes la checklist, Claude ne déploie jamais |
 | `/graphify` | Navigation codebase large-scope | Knowledge graph, pour tâches multi-fichiers |
 | `/skills-perso` | Lister ses skills personnels | Skills créés dans ~/.claude/skills/ |
-| `/health` | Quand quelque chose ne fonctionne pas | Lance doctor.sh |
+| `/health` | Tableau de bord qualité du code (gstack) | Le diagnostic d'installation est `make doctor` |
 | `/status` | Reprendre après une pause | Snapshot : plugins, git, GSD milestone |
 | `/audit-delta` | Audit récurrent du delta depuis le dernier run | Axes : conformité / bugs / dead code / sécurité |
 | `/capitalize` | Avant /clear ou /compact | Flush contexte non capitalisé + réconcilie .claude/tasks/TODO.md |
@@ -181,7 +181,7 @@ audits avec fix), xhigh pour l'architecture et l'audit avant validation
 (`/ship-feature`, `/onboard`, `/analyze`). Les orchestrateurs décalent
 ensuite le niveau par phase (`lib/effort-shift.md`), et `/effort-max` tapé à
 la main relance un tour bloqué au maximum. Les skills externes vendorés
-(pile design, superpowers, 21st) reçoivent leur niveau de
+(pile design, superpowers, agent-skills, skills scroll MengTo, 21st) reçoivent leur niveau de
 `lib/effort-pins.txt`. Un skill chargé seul par Claude n'applique pas son
 niveau : il doit partir avec un autre appel d'outil dans le même message.
 
@@ -220,9 +220,9 @@ Hotfix/quick fix          → tout OFF (skills superpowers vendorisés, toujours
 # → STEP 1  : interview (skip si prompt complet)
 # → STEP 4  : ★ GATE — valider l'architecture
 # → STEP 7  : ★ GATE — valider le plan d'implémentation
-# → STEP 8-10 : implémentation TDD + review
-# → STEP 10b-c: capitalize mémoire + sync README (avant finish)
-# → STEP 11   : finish (merge / commit initial)
+# → STEP 8-10 : implémentation TDD + gates verify/sécurité + review
+# → STEP 10b-c: capitalize mémoire + sync docs publiques (avant finish)
+# → STEP 11   : finish, `gitflow finish` vers develop sur ton feu vert explicite
 
 # 3. Features suivantes
 /ship-feature "description de la feature"
@@ -240,7 +240,7 @@ Hotfix/quick fix          → tout OFF (skills superpowers vendorisés, toujours
 
 # Dans un terminal (depuis le dossier projet) :
 gsd                  # démarrer une session
-/gsd init            # initialise .gsd/ + ROADMAP (une fois, à la demande)
+/gsd init            # initialise .gsd/ + milestones (une fois, à la demande)
 /gsd auto            # mode autonome, walk away
 
 # Pour suivre :
@@ -274,9 +274,12 @@ cd mon-projet-existant/
 | 1  | Archetype detection (scan ~/.claude/lib/project-archetypes/*.md) | archétype SELECTED + implications auto |
 | 1b | Gate monorepo (A/B/C si détecté) | mode choisi |
 | 2  | Config baseline (onboarder agent) | CLAUDE.md, settings.json, .claudeignore, .claude/tasks/ + .claude/memory/ + .claude/audits/ |
+| 2.5| Lib d'animation (`motion`), proposée, opt-in | dépendance si acceptée |
+| 2.6| Gitflow init (main + develop, hooks) | branches + .githooks/ |
 | 3  | Interview deep = business minimum (users, deadlines, équipe, légal, perfs) + adaptative par archétype | brief enrichi |
 | 3.5| ctx7 doc audit — fast-libs détectées, cache pré-fetché si besoin | .ctx7-cache/ |
 | 4  | Graphify (proposé dès 200 fichiers code, l'utilisateur décide) | graphify-out/GRAPH_REPORT.md |
+| 4.5| Espace d'audit + contexte archétype | .onboard-audit/archetype-context.md |
 | 5  | Analyze read-only (analyzer agent) | .onboard-audit/analyze.md |
 | 6  | Audits parallèles selon archétype : | .onboard-audit/*.md (9 fichiers max) |
 |    |   — dette tech (general-purpose, audit read-only) |
@@ -287,6 +290,7 @@ cd mon-projet-existant/
 |    |   — performance (Lighthouse ou static bundle audit) |
 |    |   — accessibilité (axe ou static a11y audit) |
 | 7  | Synthèse structurée dans .claude/audits/ | ONBOARD_REPORT, AUDIT_GOOD, AUDIT_ISSUES, AUDIT_PROPOSALS |
+| 7b | Challenge adversarial des propositions avant la gate | AUDIT_PROPOSALS.md challengé |
 | 8  | Validation gate utilisateur | choix A/B/C/D/E |
 | 9  | Backlog .claude/tasks/TODO.md séquencé avec /skill recommandé par tâche | .claude/tasks/TODO.md |
 
@@ -308,7 +312,7 @@ cat .claude/audits/ONBOARD_REPORT.md
 # Multi-session (GSD) : gsd init à la main — voir docs gsd-pi
 ```
 
-**Archétypes supportés (P1)** : static-html, wordpress, nextjs-app-router, astro-static, react-spa, rest-api-node, rest-api-python, cli-tool, library, dotfiles-meta.
+**Archétypes supportés** : astro-static, cli-tool, data-notebook, desktop-electron, docker-compose-infra, dotfiles-meta, drupal, firmware-embedded, game-engine-native, ghost, library, mobile-expo, mobile-flutter, nextjs-app-router, react-spa, rest-api-node, rest-api-python, shopify, static-html, strapi, terraform-infra, web-game, woocommerce, wordpress.
 Ajouter un archétype : créer `~/.claude/lib/project-archetypes/<name>.md` (voir `_TEMPLATE.md`).
 
 ### Pattern D — Hotfix / bugfix · ~200-800t
@@ -340,7 +344,7 @@ Ajouter un archétype : créer `~/.claude/lib/project-archetypes/<name>.md` (voi
 ```
 # Feature simple, pas d'orchestration lourde
 /feat "ajouter un endpoint GET /api/v1/users/:id/stats"
-# → planning léger, implémentation directe, tests
+# → plan + challenge, exécuteur `feater`, gates fraîches verifier + sécurité
 # Pas de brainstorming superpowers, pas de gate de validation
 ```
 
@@ -351,7 +355,7 @@ Ajouter un archétype : créer `~/.claude/lib/project-archetypes/<name>.md` (voi
 | Scope | Feature complète, multi-fichiers | 1-5 fichiers max |
 | Orchestration | Pipeline superpowers complet | Planning léger, direct |
 | Gate de validation | Oui | Non |
-| Code review auto | Oui (superpowers) | Non |
+| Code review auto | Oui (superpowers) | Gates verifier + security-auditor |
 | Tokens estimés | ~1500-3000t | ~300-600t |
 
 ---
@@ -530,7 +534,7 @@ Convention: snake_case Python, camelCase TypeScript."
 **Workflow long avec GSD v2 :**
 ```
 # Après /init-project, on initialise GSD à la demande (plus auto-bootstrappé).
-# Le ROADMAP.md généré par `gsd init` contiendra :
+# Les roadmaps de milestone (`.gsd/milestones/<ID>/<ID>-ROADMAP.md`) contiendront :
 #   Milestone 1: Boutique in-app + Stripe
 #   Milestone 2: PvP + matchmaking
 #   Milestone 3: Leaderboard + saisons
@@ -538,7 +542,7 @@ Convention: snake_case Python, camelCase TypeScript."
 # Dans un terminal :
 cd cardforge/
 gsd                  # démarre session GSD
-/gsd init            # crée .gsd/ + ROADMAP (à la demande — plus auto à l'init)
+/gsd init            # crée .gsd/ + milestones (à la demande — plus auto à l'init)
 /gsd auto            # GSD travaille sur Milestone 1 de façon autonome
 # → research Stripe API + docs
 # → plan décomposé en tâches
@@ -556,7 +560,7 @@ gsd                  # démarre session GSD
 gsd
 /gsd quick "Implémenter la boutique in-app avec Stripe"
 # ou
-/gsd auto  # si ROADMAP.md est déjà à jour
+/gsd auto  # si la roadmap du milestone est à jour
 ```
 
 ---
@@ -876,7 +880,7 @@ PROJECT STATUS
 CONFIG
   Version   : v2.5.0
   Plugins ON: context7 (~200t), skills superpowers vendorisés (toujours actifs, 0 t passif)
-  GSD v2    : installed (2.64.0)
+  GSD v2    : installed (3.0.0)
 
 PROJECT
   CLAUDE.md : found
@@ -951,13 +955,13 @@ Updated: Slice 4 plan — Payment Element instead of CardElement
 Continue? (yes)
 ```
 
-GSD v2 met à jour le plan dans `.gsd/ROADMAP.md` sans perdre le travail déjà fait.
+GSD v2 met à jour le plan dans la base GSD (`.gsd/gsd.db`) sans perdre le travail déjà fait.
 
 #### Ce que ce workflow démontre
 
 - **`/status`** est le point d'entrée naturel après une pause — snapshot complet en 1 commande.
 - **GSD v2 `step mode`** est préférable à `auto` après une longue pause — permet de vérifier que les décisions sont toujours valides.
-- **`.gsd/ROADMAP.md`** est la source de vérité du progress — parsé par `/status` et par GSD lui-même.
+- **La base GSD (`.gsd/gsd.db`)** est la source de vérité du progress; `/status` la lit via `gsd headless query`.
 - **`/gsd discuss`** permet de modifier l'architecture en cours de route sans recommencer depuis zéro.
 ---
 

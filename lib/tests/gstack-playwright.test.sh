@@ -123,8 +123,9 @@ check T7-update-conflict-nondestructive "$t7_state" "1:Y:Y"
 
 # ── T8 — no destructive command anywhere in the lib source ───────────────
 d8=OK
-sed 's/#.*//' "$L" | grep -qE 'git [^|;]*(checkout|reset|clean|stash)' && d8=BAD
-sed 's/#.*//' "$L" | grep -qwE '(rm|rmdir|unlink|truncate|mv)' && d8=BAD
+# producer out of the pipe: grep -q SIGPIPEs it under pipefail on BSD
+grep -qE 'git [^|;]*(checkout|reset|clean|stash)' < <(sed 's/#.*//' "$L") && d8=BAD
+grep -qwE '(rm|rmdir|unlink|truncate|mv)' < <(sed 's/#.*//' "$L") && d8=BAD
 check T8-no-destructive-command "$d8" OK
 
 # ── T9-T14 — browsers-report, fixture cache + playwright-core installs ───

@@ -38,7 +38,7 @@ check T6b-no-name-still-frontmatter "$(fm_effort "$EXT/noname/SKILL.md")" "low"
 snap="$(cat "$EXT"/*/SKILL.md)"
 bash "$LIB" "$REPO" >/dev/null 2>&1
 check T7-idempotent "$(cat "$EXT"/*/SKILL.md)" "$snap"
-check T7b-no-tmp-left "$(find "$EXT" -name '*.tmp' | wc -l)" 0
+check T7b-no-tmp-left "$(find "$EXT" -name '*.tmp' | wc -l | tr -d ' ')" 0
 
 # rejections: nothing written, rc 1
 for bad in 'alpha turbo' '../evil high' 'alpha high extra'; do
@@ -96,7 +96,7 @@ else
   printf 'ro high\n' > "$WORK/h14/lib/effort-pins.txt"
   chmod 555 "$d14"; out="$(bash "$LIB" "$WORK/h14" 2>&1)"; rc=$?; chmod 755 "$d14"
   check T14-write-failure-no-temp \
-    "$rc|$(printf '%s' "$out" | grep -c 'ERR ')|$(find "$d14" -name 'SKILL.md.*' | wc -l)" "1|1|0"
+    "$rc|$(printf '%s' "$out" | grep -c 'ERR ')|$(find "$d14" -name 'SKILL.md.*' | wc -l | tr -d ' ')" "1|1|0"
 fi
 
 # T15: SIGINT during the awk write removes the temp sibling, exit 130
@@ -106,7 +106,7 @@ bash -c 'source "$1"; awk() { kill -INT $$; sleep 2; }
   _effort_pin_write "$2" sig high' _ "$LIB" "$d15/SKILL.md" >/dev/null 2>&1
 rc=$?
 check T15-sigint-removes-temp \
-  "$rc|$(find "$d15" -name 'SKILL.md.*' | wc -l)" "130|0"
+  "$rc|$(find "$d15" -name 'SKILL.md.*' | wc -l | tr -d ' ')" "130|0"
 
 # T15b: previous INT trap restored on a normal return, no EXIT trap set
 mkrepo h15b tr; d15b="$WORK/h15b/skills-external/tr"

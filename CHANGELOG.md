@@ -2,9 +2,11 @@
 
 All notable changes to claude-config will be documented in this file.
 
-Format follows [Keep a Changelog](https://keepachangelog.com/).
+Format follows [Keep a Changelog](https://keepachangelog.com/) and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
+
+Upgrading from 1.x: see [MIGRATION.md](./MIGRATION.md#upgrading-an-existing-machine-to-200).
 
 ### Added
 - **Higgsfield pack, off by default**: `make plugin` installs the `@higgsfield/cli` CLI (Step 8.6) and clones the skills of higgsfield-ai/skills into `skills-external/higgsfield-*` through the new `lib/higgsfield-skills.sh`; `make update` refreshes the skills, and the CLI when npm installed it; `make doctor` reports the CLI and its session without ever warning. The pack belongs to no profile: `lib/toggle-external.sh enable higgsfield` links the seven allowlisted media skills, `enable higgsfield-websites` the landing-page aid, and no `profile set` or `make link` re-enables either. `CLAUDE.global.md` routes explicit media-generation asks to it. Hermetic suite `lib/tests/higgsfield.test.sh`.
@@ -220,6 +222,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   seeded like a real tree (gstack off, nothing linked).
 
 ### Changed
+- Default session model `claude-fable-5-1` (settings.json `model`).
 - **`full` = everything the other profiles carry** (user rule: full does
   what every specialized profile does), minus the 9 removed gstack
   skills, the 21st generation/review trio and one named exception
@@ -466,6 +469,26 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   plugin cache or `claude plugin list`.
 
 ### Fixed
+- **`make test` was red on macOS: the suite and seven scripts assumed a GNU
+  userland.** Under `pipefail`, `cmd | grep -q` lets grep exit at the first
+  match and the producer dies of SIGPIPE (rc 141): `lib/gitflow-test.sh`
+  reported 15 false "merged into" failures and `lib/doc-shape.sh` failed open.
+  `update-all.sh` read the marketplace plugin list with `grep -oP`, which BSD
+  grep rejects, so `make update` updated no marketplace plugin on macOS. The
+  design gate bounded `21st whoami` with `timeout`, absent from the macOS
+  system PATH, and reported READY BUT UNVERIFIED. `lib/gstack-links.sh` relied
+  on `realpath -m`, so its refusal to write into the gstack submodule never
+  fired. Producers are now captured before matching. In-place edits use
+  `sed -i.bak` in tests and a temp-sibling copy on the user's shell profile. The
+  other idioms have portable forms: `tr -d ' '` after `wc -l`, python3 for
+  file modes, `touch -t`, a `realpath -m` emulation that refuses `..`, perl
+  `alarm` for the 15 s bound and `sed -n` token extraction.
+  `lib/design-tool-gate.sh` also looks for `claude` and `21st` under
+  `/opt/homebrew/bin` and no longer trips on an empty array under macOS's bash
+  3.2. A failing `claude plugin enable` no longer aborts `profile set`. New
+  hermetic suite `lib/tests/portability-census.test.sh` flags GNU-only idioms
+  (`sed -i` without suffix, `stat -c`, `realpath -m`, `touch -d`, `grep -P`,
+  bare `/bin/grep`) in tracked shell files.
 - `install-plugins.sh` never offered the ctx7 and 21st logins: both blocks required stdout to be a terminal, and stdout is the `tee` pipe of the install log. They now test stdin alone, as `update-all.sh` already did.
 - `lib/effort-pins.sh` residual LOW (security re-gate of BDR-108): INT/TERM trap removes the mktemp sibling and exits 130 (never an EXIT trap, the installer owns one); the post-write re-read message no longer claims CRLF and is reached by a stubbed unit test; the rejected map line is printed through `printf '%q'` so a caller's `echo -e` cannot interpret map content; the fixture suite guards its `mktemp -d` and skips the read-only case visibly under root.
 - `update-all.sh` re-fetched the vendored skills at every run but never re-applied the effort pins: brainstorming/writing-plans lost their xhigh until the next `make plugin` (BDR-107 gap, closed by `lib/effort-pins.sh`).
@@ -554,6 +577,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/).
   the plugin while the 7 symlinks are still linked, delete the
   `skills/<7>` symlinks or re-run `make plugin` to avoid duplicate skill
   descriptions.
+- The macOS portability fix has only been run on macOS. Its replacements are
+  meant to behave identically on GNU/Linux, and a Linux `make test` run is due
+  before the next release.
 
 ## [1.5.0] — 2026-09-13
 
