@@ -230,6 +230,11 @@ if [ -n "$GF_REFRESHED" ]; then
   printf "│  🪝 %-44s│\n" "${_gf_line:0:44}"
   unset _gf_line
 fi
+# ── manual-push mode (BDR-111): one lock line when this repo never auto-pushes ──
+# %-46s, not 44: bash printf pads by BYTES and "—" is 3 bytes (2 extra).
+if [ "$(git config --bool --default true gitflow.autopush 2>/dev/null)" = false ]; then
+  printf "│  🔒 %-46s│\n" "push : manual (autopush=false) — ! git push"
+fi
 if [ -n "$GRAPHIFY_HINT" ]; then
   printf "│  🕸️  %-44s│\n" "${GRAPHIFY_HINT:0:44}"
   printf "│             %-40s│\n" "→ /graphify (AST, seconds) — you decide"
