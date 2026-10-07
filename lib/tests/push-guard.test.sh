@@ -145,6 +145,42 @@ nocwd=$(jq -n '{tool_input:{command:"git push"}}')
 out=$(cd "$M" && printf '%s' "$nocwd" | bash "$H" 2>/dev/null)
 check T39-no-cwd "$(jq -r '.hookSpecificOutput.permissionDecision' <<<"$out")" deny
 
+# ── hardening: candidate cap, git failure, quote-prefixed cd ──
+cmd48=""; for i in $(seq 1 25); do cmd48="${cmd48}cd /x$i;"; done
+run "$cmd48 git push" "$WORK/auto"
+check T48-cap-deny "$(verdict)" deny
+check T48-cap-reason "$(grep -c 'too many directory tokens' <<<"$(reason)")" 1
+cmd48b=""; for i in 1 2 3 4 5; do cmd48b="${cmd48b}cd \"$M\";"; done
+run "$cmd48b git push" "$WORK/plain"
+check T48b-dedup-detect "$(verdict)" deny
+check T48b-manual-reason "$(grep -c 'manual push mode' <<<"$(reason)")" 1
+
+# T49: git absent from PATH: the mode cannot be read, so deny (fail closed).
+mkdir -p "$WORK/nogit"
+for tool in bash cat grep sed tr jq dirname basename mktemp head sort wc; do
+  real=$(command -v "$tool") || continue
+  case "$real" in /*) ln -sf "$real" "$WORK/nogit/$tool" ;; esac
+done
+payload49=$(jq -n --arg c 'git push' --arg d "$M" \
+  '{tool_input:{command:$c},cwd:$d}')
+out49=$(printf '%s' "$payload49" | PATH="$WORK/nogit" "$(command -v bash)" "$H" 2>/dev/null); rc49=$?
+check T49-rc "$rc49" 0
+check T49-deny "$(jq -r '.hookSpecificOutput.permissionDecision' <<<"$out49")" deny
+check T49-reason "$(jq -r '.hookSpecificOutput.permissionDecisionReason' <<<"$out49" | grep -cE 'git|internal error')" 1
+
+# T49b: an existing but unenterable candidate dir fails closed.
+mkdir -p "$WORK/locked"; chmod 000 "$WORK/locked"
+if [ -r "$WORK/locked" ] || (cd "$WORK/locked" 2>/dev/null); then
+  echo "SKIP T49b-unreadable (chmod 000 ineffective for this user)"
+else
+  check T49b-unreadable "$(fire "cd \"$WORK/locked\" && git push" "$WORK/plain")" deny
+fi
+chmod 755 "$WORK/locked"
+
+# T50: a cd that follows a quote is still extracted.
+check T50-bash-c-cd "$(fire "bash -c 'cd \"$M\" && git push'" "$WORK/plain")" deny
+check T50b-unquoted-arg "$(fire "bash -c 'cd $M && git push'" "$WORK/plain")" deny
+
 # ── settings.json wiring (file content only) ──
 S="$ROOT/settings.json"
 check T40-wiring "$(jq -e '.hooks.PreToolUse[]
