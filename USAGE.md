@@ -146,7 +146,7 @@ Tu veux...
 | `/geo` | Audit GEO uniquement (IA) | Visibilité ChatGPT, Perplexity, Claude, Gemini… |
 | `/commit-change` | Commits bien structurés | Groupe les changements par unité logique |
 | `/gitflow` | Opérations de branches gitflow | Bootstrap main+develop, branche typée, merge dirigé |
-| `/release-candidate` | Couper une release versionnée (develop en avance sur main) | Finalise version.txt + CHANGELOG, merge develop→main, tag, push |
+| `/release-candidate` | Couper une release versionnée (develop en avance sur main) | Finalise version.txt + CHANGELOG, merge develop→main, tag, push (mode auto-push, tag sur ton feu vert ; mode push manuel : une commande `! git push --atomic` que tu lances) |
 | `/deploy` | Déployer via le runbook du projet | Instancie le delta depuis le dernier deploy, reprend à froid ; tu exécutes la checklist, Claude ne déploie jamais |
 | `/graphify` | Navigation codebase large-scope | Knowledge graph, pour tâches multi-fichiers |
 | `/skills-perso` | Lister ses skills personnels | Skills créés dans ~/.claude/skills/ |

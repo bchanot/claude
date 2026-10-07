@@ -145,6 +145,8 @@ local trace, and the brief had authorized it. What holds now, by tier:
 | `chmod`/`chown -R`, `sudo`/`doas`/`pkexec`, disk tools (`dd`, `mkfs`, `shred`…), `chattr` | `permissions.deny` | The user runs them by hand. |
 | Docker volume drops, `system prune`, `compose down -v`, `--privileged`, the docker socket, `-v /:` | `permissions.deny` | Promoted from `soft_deny`: no in-session clearance for data drops. |
 | Git history destruction (`push --delete`/`--mirror`/`:ref`/`--force-with-lease`, `branch -D`, `filter-branch`, `reflog expire`, `stash clear`/`drop`, `clean -f`), `--no-verify`, `core.hooksPath` | `permissions.deny` | A remote is the backup; nothing rewrites or deletes what it holds. |
+| Writing the human-only `gitflow.*` toggles: any `git … config` spelling, section remove/rename, `git -c`, the git config env overrides, Edit/Write of git config files | `permissions.deny` | Claude never flips the mode that binds it. Side effect: the trailing glob also matches the bare read, so Claude cannot read `gitflow.autopush` through `git config`; hooks and `lib/gitflow.sh` still do, and skills read it through `gitflow.sh push-mode`. |
+| Pushing in manual-push mode (`gitflow.autopush false`, or any invalid value) | `hooks/push-guard.sh` (PreToolUse) + `autoMode.soft_deny` | `ask` is inert under auto mode. The hook denies the direct forms; the soft_deny covers scripted, aliased, subshell and sub-agent pushes, and a request in the turn does not clear it: the user types `! git push`. |
 | Destructive tool against a local path (variable, `~`, `..`, wildcard, outside cwd/tmp), even as a trace or a rehearsal a brief allows | `autoMode.hard_deny` | A pattern cannot express "the target resolves outside the project"; the classifier can. A sub-agent brief carries no user authority. |
 | `docker rm -f`, bind mount outside cwd; discarding uncommitted work | `autoMode.soft_deny` | Recoverable or user-intended in the turn. |
 
@@ -152,7 +154,8 @@ Rules apply to sub-agents (auto mode is inherited) and to each segment of
 a compound command; a tool nested in another command (`docker compose run …
 lftp`) is not matched by a static rule. The PreToolUse guard hook that scans
 the whole command, its executable spec in `lib/tests/guard-bash.test.sh`,
-is not shipped yet (BLK-022).
+is not shipped yet (BLK-022). `hooks/push-guard.sh` scans the command text
+for `git push` only, in manual-push mode (see below).
 
 Push discipline lives in `lib/gitflow.sh`: `start` pushes the branch,
 `finish` pushes each merge target, and the post-commit / post-merge hooks
@@ -167,12 +170,42 @@ fourth hook, `reference-transaction`, vetoes any deletion or rename of
 reach every repo two ways: `make link` generates `githooks/` from the lib
 and sets git's global `core.hooksPath` to `~/.claude/githooks` (a repo's own
 local `core.hooksPath` wins, by git's rules), and `hooks/session-start.sh`
-refreshes a repo's `.githooks/` when it lags the lib. Per-repo opt-outs for
-a foreign clone: `git config gitflow.protect false` (branch model) and
-`git config gitflow.autopush false` (push); `GITFLOW_NO_PUSH=1` for one
-command in a throwaway repo. `make doctor` checks the global setting and
-the generated dir. `hooks/unpushed-guard.sh` reports a branch ahead of its
-upstream at session start and at each turn end.
+refreshes a repo's `.githooks/` when it lags the lib. Per-repo opt-outs, set
+by a human: `git config gitflow.protect false` (branch model, foreign clone)
+and `git config gitflow.autopush false` (manual-push mode: the hooks,
+`start` and `finish` push nothing, and `delete` leaves the `origin/` copy in
+place, printing the command to remove it by hand); `GITFLOW_NO_PUSH=1` for
+one command in a throwaway repo. `start` and `finish` warn when a base is
+behind origin and cannot fast-forward. `make doctor` checks the global
+setting and the generated dir. `hooks/unpushed-guard.sh` reports a branch
+ahead of its upstream at session start and at each turn end; in manual-push
+mode it stays silent at turn end and gives one `ℹ manual push mode:` line at
+session start, counting unpushed commits across every local branch.
+In manual-push mode `hooks/push-guard.sh` (PreToolUse, `Bash|Monitor`) also
+refuses any `git push` Claude types, when the key reads false in the session
+cwd or in a literal `-C`/`cd` directory the command names (global config
+counts outside a repo). The refusal tells the user to run the push with
+`! git push`, and the session banner adds a `🔒 push : manual` line. The hook
+fails closed: an invalid value reads as manual, and a `cd`/`-C` directory
+token mixing quoted and unquoted parts, an unparseable payload that looks like
+a push, a missing `lib/gitflow.sh` or more than 20 directory tokens in one
+command refuses the push, in auto mode too. In manual mode it over-blocks any
+command where a `push` word follows a `git` token (`git stash push`, a grep
+for "git push").
+The misses listed in its header fall to an `autoMode.soft_deny` rule that no
+request in the turn clears. Skills read the mode through
+`bash ~/.claude/lib/gitflow.sh push-mode` (`auto`, `manual` or `invalid`,
+rc 0) and push nothing themselves, except the `/release-candidate` tag in
+auto-push mode on an explicit go. What they report as on origin or not
+pushed comes from `git rev-list --count origin/<br>..<br>` read afterwards,
+and a pending push is handed to the user as a complete `! git …` command.
+An invalid value (not a boolean, or a read that fails) is manual push mode
+for every reader: the hooks, `start`, `finish` and `delete` push nothing and
+say why on stderr, push-guard refuses, the banner shows
+`🔒 push : manual (autopush bad)` and the SessionStart line names the value.
+Exception: a repo with its own committed `.githooks/` runs its old hooks,
+which still push on an invalid value, until a session start refreshes them;
+commit the refresh.
 
 ## managed-settings.json (enterprise)
 

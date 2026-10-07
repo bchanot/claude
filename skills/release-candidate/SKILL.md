@@ -25,8 +25,9 @@ The two mechanical spans (prep, finish+tag) run on the sonnet-pinned
 gate needed here, dispatch does the job. This dispatcher keeps everything
 the executor must never own: the version-NUMBER decision (judgment — derives
 from semver change nature), and the two human gates (when to release, and
-the tag push). A human gate sits BETWEEN the two spans by construction, so the
-executor is never dispatched twice in one call.
+the tag push (auto-push mode; in manual push mode the user pushes main,
+develop and the tag in one command)). A human gate sits BETWEEN the two
+spans by construction, so the executor is never dispatched twice in one call.
 
 ## When to use
 - `develop` is ahead of `main` and you want to publish a version.
@@ -54,6 +55,8 @@ Read the `## [Unreleased]` section of `CHANGELOG.md` and the commits on
 `develop` since `main`. Apply the Versioning rule above (breaking → MAJOR,
 features → MINOR, fixes → PATCH) and settle `<X.Y.Z>` before dispatching
 anything — the executor never derives or second-guesses this number.
+The version must match `^[0-9]+\.[0-9]+\.[0-9]+$` before it is placed in
+any command or tag; anything else stops the run.
 
 ### STEP 3 — Dispatch: prep
 ```
@@ -93,10 +96,22 @@ Parse the `RELEASE-EXEC REPORT`:
   not an auto-retry.
 
 ### STEP 6 — Tag push GATE (ASK)
-`main` and `develop` are already on origin: the lib pushes every merge as
-it lands (`_gitflow_merge_into` + the post-merge hook, BDR-095). Only the
-tag is left. STOP. On explicit go only ([[LRN-069]]) — run the tag push
-HERE, in this dispatcher, never delegated to the executor:
+Read the state, separate Bash calls:
+`git rev-list --count origin/main..main 2>/dev/null || echo unknown`,
+`git rev-list --count origin/develop..develop 2>/dev/null || echo unknown`,
+`bash "$HOME/.claude/lib/gitflow.sh" push-mode`.
+- Anything other than `auto` from the verb (manual, invalid, empty, usage
+  error) OR either count ≠ 0 or `unknown` → Claude pushes nothing
+  (push-guard would refuse it in manual mode; a failed lib push is the
+  user's call, BDR-095). Print ONE command for the user and STOP, no
+  question: `! git push --atomic origin main develop v<X.Y.Z>` (invalid:
+  quote the verb's stderr line verbatim; auto with a count ≠ 0 or unknown:
+  say `main/develop not on origin (no remote-tracking ref or the lib's push
+  did not land)`; no origin remote (`git remote get-url origin` fails): say
+  `add an origin remote first`).
+- Push mode `auto` and both counts 0 → main and develop are on origin; only
+  the tag is left. STOP. On explicit go only ([[LRN-069]]) — run the tag
+  push HERE, never delegated:
 ```
 AskUserQuestion:
   Push tag v<X.Y.Z> to origin? — go / hold
@@ -105,13 +120,16 @@ Go →
 ```bash
 git push origin v<X.Y.Z>
 ```
-`hold` → stop; the release is on origin (main + develop), the tag stays local.
+`hold` → stop; the release is on origin (main + develop), the tag stays
+local until the next push of main (`--follow-tags` on every lib and hook
+push).
 
 ## Common mistakes
 - Tagging before `gitflow finish` → tag wouldn't sit on main's merge commit. Tag AFTER, on main.
 - Auto-firing finish because tests pass → finish is a HUMAN gate.
 - Restarting the tag at v1.0.0 → desyncs from the CHANGELOG lineage. Continue it.
 - Pushing the tag without the ASK gate → [[LRN-069]].
+- Pushing anything in manual push mode → print the one user command, push nothing.
 
 ## Validation
 `RC_WORK=$(mktemp -d) RC_TAG=1 bash lib/tests/run-release-candidate.sh` → 5/5 (fan-out + tag on main). `RC_TAG=0` reds the tag assertion — proves the lib alone never tags (the gap this skill fills).

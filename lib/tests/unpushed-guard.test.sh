@@ -38,4 +38,44 @@ check T8-dirty-start-reported "$(has "$(fire SessionStart "$PWD")" "uncommitted"
 out=$(jq -n --arg d "$PWD" '{hook_event_name:"SessionStart", cwd:$d}' | bash "$H" 2>/dev/null)
 check T9-start-adds-context "$(printf '%s' "$out" | jq -r '.hookSpecificOutput.hookEventName')" SessionStart
 
+# ── manual-push mode (gitflow.autopush=false) ──
+git checkout -q -- a
+git config gitflow.autopush false
+check T10-manual-clean-start "$(fire SessionStart "$PWD")" silent
+check T10-manual-clean-stop "$(fire Stop "$PWD")" silent
+echo m>m; git add m; git commit -q -m m
+git branch side HEAD; git checkout -q side; echo s>s; git add s; git commit -q -m s
+git checkout -q -
+check T11-manual-stop-silent "$(fire Stop "$PWD")" silent
+out=$(fire SessionStart "$PWD")
+check T11-manual-info "$(has "$out" "manual push mode")" yes
+check T11-manual-count "$(has "$out" "2 commit(s)")" yes
+check T11-manual-lists-branch "$(has "$out" "side")" yes
+check T11-manual-no-warning "$(has "$out" "unpushed work")" no
+git checkout -q -b fresh
+check T12-fresh-branch-repo-wide "$(has "$(fire SessionStart "$PWD")" "2 commit(s)")" yes
+git checkout -q -
+git push -q origin HEAD side 2>/dev/null; echo d>>a
+out=$(fire SessionStart "$PWD")
+check T13-dirty-info "$(has "$out" "manual push mode")" yes
+check T13-dirty-uncommitted "$(has "$out" "uncommitted")" yes
+check T13-dirty-no-commit-clause "$(has "$out" "commit(s) not on origin")" no
+check T13-dirty-stop-silent "$(fire Stop "$PWD")" silent
+git checkout -q -- a
+git config gitflow.autopush flase
+echo i>i; git add i; git commit -q -m i
+out=$(fire SessionStart "$PWD")
+check T14-invalid-named "$(has "$out" "not a boolean")" yes
+check T14-invalid-prefix "$(has "$out" "ℹ manual push mode:")" yes
+check T14-invalid-treated "$(has "$out" "treated as manual")" yes
+check T14-invalid-no-warn "$(has "$out" "unpushed work")" no
+check T14-invalid-stop-silent "$(fire Stop "$PWD")" silent
+git config --unset gitflow.autopush
+check T15-unset-auto-intact "$(has "$(fire Stop "$PWD")" "1 commit(s)")" yes
+git config gitflow.autopush false; git remote remove origin
+out=$(fire SessionStart "$PWD")
+check T16-no-origin-manual "$(has "$out" "manual push mode")" yes
+check T16-no-origin-clause "$(has "$out" "no 'origin' remote")" yes
+check T16-no-origin-stop-silent "$(fire Stop "$PWD")" silent
+
 printf 'PASS=%s FAIL=%s\n' "$pass" "$fail"; [ "$fail" -eq 0 ]

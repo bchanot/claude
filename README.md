@@ -18,7 +18,9 @@ Not a collection of prompts — an operating layer on top of Claude Code:
 - **Hooks and permissions** are deterministic guardrails: gitflow enforced
   by a pre-commit hook in every repo (`make link` points git's global
   `core.hooksPath` at `~/.claude/githooks`), every commit pushed by
-  post-commit and post-merge hooks, `main`/`develop` undeletable by a reference-transaction hook,
+  post-commit and post-merge hooks (nothing pushed in a repo the user puts
+  in manual-push mode, where a PreToolUse hook also refuses Claude's own
+  `git push`), `main`/`develop` undeletable by a reference-transaction hook,
   deny-first permission rules, secrets kept in `~/.claude/.env` and
   never in config files.
 - **Templates and memory** seed every project with persistent registries
@@ -182,7 +184,7 @@ a different package, ships its own conflicting `graphify` bin) — see
 | `/impeccable` | Design verbs (audit, polish, bolder…) + deterministic anti-slop detector (`npx impeccable detect`) |
 | `/commit-change` | Smart commit grouping from staged/unstaged changes |
 | `/gitflow` | Gitflow branch operations — bootstrap main+develop, start a typed branch, directed merge |
-| `/release-candidate` | Cut a versioned release — finalize version.txt + CHANGELOG, merge develop→main, tag, push |
+| `/release-candidate` | Cut a versioned release — finalize version.txt + CHANGELOG, merge develop→main, tag, push (auto-push mode, tag on your go; manual push mode: one `! git push --atomic` command you run) |
 | `/deploy` | Compose the deploy checklist from a project's committed runbook (delta only); you run it, the skill resumes cold on your report |
 | `/graphify` | Codebase knowledge graph — navigation for large-scope tasks |
 | `/plugin-check` | Check active plugins vs project needs — recommend enable/disable |

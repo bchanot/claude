@@ -5,8 +5,15 @@ hook=post-merge
 # holds. Never fails the commit: no origin / offline / refused → warning only.
 # Opt out for one command with GITFLOW_NO_PUSH=1 (throwaway repos, tests).
 [ "${GITFLOW_NO_PUSH:-0}" = 1 ] && exit 0
-# Per-repo opt-out (no push rights on a foreign clone): git config gitflow.autopush false
-[ "$(git config --bool --default true gitflow.autopush)" = false ] && exit 0
+# Manual-push mode (human-set): git config gitflow.autopush false. Fail closed:
+# an unparseable value or a config read failure also means "no push", named.
+# Mirrors gitflow_push_mode (lib/gitflow.sh); arms pinned by T18b/T18h/T18q2/T18q4.
+v=$(git config --bool gitflow.autopush 2>/dev/null); rc=$?
+case "$rc:$v" in
+  0:true|1:*) ;;
+  0:false) exit 0 ;;
+  *) echo "gitflow $hook: gitflow.autopush unreadable (git rc $rc) — NOT pushed, treated as manual push mode; fix the value by hand" >&2; exit 0 ;;
+esac
 git remote get-url origin >/dev/null 2>&1 || exit 0
 br=$(git symbolic-ref --short -q HEAD 2>/dev/null) || exit 0   # detached HEAD — nothing to track
 if command -v timeout >/dev/null 2>&1; then t="timeout ${GITFLOW_PUSH_TIMEOUT:-30}"; else t=""; fi

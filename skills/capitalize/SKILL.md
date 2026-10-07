@@ -10,7 +10,7 @@ description: |
   Triggers: "capitalize", "before clear/compact", "flush memory", "don't
   lose this", "avant de clear/compact", "capitalise ce qui manque",
   "close", "fin de journée", "checkpoint memory".
-argument-hint: "[--ritual] [--no-push] (scans conversation + git + TODO against .claude/memory/; --ritual adds the 3-question reflection; --no-push holds memory on chore/<name>: pushed to origin by the hooks, NOT merged (finish skipped), merge when ready; default = auto-finish into develop)"
+argument-hint: "[--ritual] [--no-push] (scans conversation + git + TODO against .claude/memory/; --ritual adds the 3-question reflection; --no-push holds memory on chore/<name>: pushed to origin by the hooks in auto-push mode, NOT merged (finish skipped), merge when ready; default = auto-finish into develop)"
 allowed-tools:
   - Read
   - Edit
@@ -317,7 +317,7 @@ journal-only example.
 Surgical scope is the helper's (stages ONLY `.claude/memory` + `.claude/tasks`,
 changed-paths-filtered, never `git add -A`). Do NOT hand-roll git here.
 
-## STEP 5C — AUTO-PERSIST THE MEMORY (finish + push)
+## STEP 5C — AUTO-PERSIST THE MEMORY (finish; the lib pushes in auto-push mode)
 
 Memory's value is cross-session persistence — a commit stranded on an unmerged
 `chore/<name>` branch is invisible to the next session sitting on develop, so the
@@ -332,17 +332,23 @@ pre-BDR-068 behavior):
   branch the memory already rides feature/bugfix — never auto-merge it), AND
 - `--no-push` was NOT passed (the hold escape hatch).
 
-Then, from the `chore/<name>` branch:
+Skip this step entirely (go to STEP 6, which prints the hold note) on
+`--no-push`, on a WORKING branch, or when STEP 5B returned rc 3.
 
-    bash "$HOME/.claude/lib/gitflow.sh" finish chore <name>   # merge → develop, delete branch
-    git push origin develop
+Otherwise, from the `chore/<name>` branch, THREE separate Bash calls, never combined. INVARIANT: no `git push` inside any Bash call of this skill (push-guard reads command text; the lib pushes develop itself in auto-push mode). The hints that tell the USER what to type (`! git push …`) are prose, kept on single lines.
 
-- **finish + push OK** → surface `develop <short> pushed` in STEP 6.
-- **push fails** (offline / rejected) → the merge to develop ALREADY happened
-  locally; report `merged to develop, push FAILED — push manually`. Do NOT retry
-  or reset the merge.
-- **`--no-push` / WORKING branch / rc 3** → skip this step; the commit stays where
-  it is. STEP 6 prints the manual-merge note.
+1. `bash "$HOME/.claude/lib/gitflow.sh" finish chore <name>` — merge → develop, delete branch, push develop in auto-push mode. rc≠0 → go to STEP 6 with the `finish failed` line (rc 1/4 skip calls 2-3; rc 5/2/6 with the ancestor check true still run them so the push state is reported): rc 4 = conflict, develop mid-merge, `chore/<name>` kept, NOT merged; rc 1 = checkout failed, NOT merged; rc 5/2/6 come from the delete AFTER the merge: check `git merge-base --is-ancestor chore/<name> develop` and report `merged, branch not deleted (rc <n>)` when it holds, `NOT merged` otherwise. Never say "merged" without that check.
+2. `bash "$HOME/.claude/lib/gitflow.sh" push-mode` → `auto | manual | invalid` (stderr names an invalid value).
+3. `git rev-list --count origin/develop..develop 2>/dev/null || echo unknown` → `ahead` (0 = on origin; `unknown` = no origin/develop ref, e.g. no origin remote).
+
+Outcomes, evaluated IN THIS ORDER (finish rc 0, or rc 5/2/6 with the branch merged — the wording then starts with `merged, branch not deleted (rc <n>) —` instead of `merged to develop —`):
+
+- **push mode `invalid`, `ahead` > 0 or unknown** → `merged to develop — <verb stderr line verbatim>: treated as manual push mode by every reader, nothing pushed (origin/develop is <ahead> commit(s) behind, or unknown). Fix the value by hand, then: ! git push origin develop` (append ` once a remote exists` when `ahead` is unknown).
+- **push mode `invalid`, `ahead` = 0** → `merged to develop — <verb stderr line verbatim>: pushed anyway, a hook in this repo still fails open (likely a stale .githooks/: a session-start reconcile refreshes it, commit the refresh) or a manual push. Fix the value by hand.`
+- **`ahead` = 0** → `develop <short> pushed` (auto-push mode did it).
+- **`ahead` = unknown** → `merged to develop — not on origin (no origin/develop ref; no remote or never fetched)`; push mode manual → add `You: ! git push origin develop once a remote exists`.
+- **`ahead` > 0, push mode `manual`** → `merged to develop — manual push mode: not pushed. You: ! git push origin develop`.
+- **`ahead` > 0, push mode `auto`** → `merged to develop — push FAILED (see finish stderr); push manually`. Do NOT retry or reset the merge.
 
 ## STEP 6 — FINAL OUTPUT + HANDOFF
 
@@ -355,7 +361,7 @@ CAPITALIZE COMPLETE — <YYYY-MM-DD>  (<pre-wipe flush | session-close>)
   TODO.md      : checked <N>, added <M>
   journal.md   : +1 line under ## <date>
   committed    : <mem_hash>  (chore(memory): …)   | ⚠️ NOT committed (rc 3 — see closing line)
-  persisted    : develop <short> pushed   | on chore/<name>, not merged (--no-push) | merged, push FAILED
+  persisted    : develop <short> pushed | merged, manual push mode: not pushed | merged, not on origin (no origin/develop) | merged, push FAILED | merged, autopush invalid, nothing pushed (<ahead> behind) | merged, autopush invalid, pushed anyway (stale hook or manual push) | finish rc <n>, not merged | merged, branch not deleted (rc <n>) | on chore/<name>, not merged (--no-push)
   dropped as already-captured: LRN-023, BLK-006
   ignored as noise: push/tag release
 ```
@@ -363,9 +369,18 @@ CAPITALIZE COMPLETE — <YYYY-MM-DD>  (<pre-wipe flush | session-close>)
 Then the closing line — pick by the STEP 5C persist result (`<mode>` = `Context
 flushed` for pre-wipe, `Session closed` for ritual):
 
-- **auto-persisted (default — branched off develop, pushed)** → `✅ <mode> + persisted to origin/develop (<short>). Next session: read .claude/memory/ at startup.`
-- **--no-push (held on branch)** → `✅ <mode> + committed on chore/<name> — pushed to origin by the hooks, NOT merged (--no-push: finish skipped). Merge when ready.`
+- **auto-persisted (push mode `auto`, finish rc 0 AND `ahead` = 0)** → `✅ <mode> + persisted to origin/develop (<short>). Next session: read .claude/memory/ at startup.`
+
+On the `--no-push` path ONLY read TWO facts first, each its own Bash call: `bash "$HOME/.claude/lib/gitflow.sh" push-mode` and `git rev-list --count origin/chore/<name>..chore/<name> 2>/dev/null || echo unknown` (`branch_ahead`). `<push mode>` below is the verb's word. The WORKING-branch and rc 3 paths have no `chore/<name>` and never use the mode.
+
+- **--no-push, `branch_ahead` = 0** → `✅ <mode> + committed on chore/<name> — pushed to origin by the hooks (auto-push mode), NOT merged (--no-push). Merge when ready.` With push mode `invalid`, replace `(auto-push mode)` with `(<verb stderr line verbatim>: pushed anyway, a hook still fails open, likely stale, or a manual push; fix the value by hand, commit the .githooks refresh)`.
+- **--no-push, `branch_ahead` > 0 or unknown** → `✅ <mode> + committed on chore/<name> — this disk only, not pushed (<push mode manual | no origin/chore ref>), NOT merged. You: ! git push -u origin chore/<name>; merge when ready.` With push mode `invalid`, append ` <verb stderr line verbatim>: treated as manual push mode, nothing pushed; fix the value by hand`.
+- **manual (merged, `ahead` > 0)** → `✅ <mode> + merged to develop — manual push mode: not pushed. You: ! git push origin develop`
+- **not on origin (push mode not `invalid`, merged, `ahead` unknown)** → `✅ <mode> + merged to develop — not on origin (no origin/develop ref).` Push mode manual → add `You: ! git push origin develop once a remote exists`.
+- **invalid (merged, ahead > 0 or unknown)** → `⚠️ <mode> + merged to develop — <verb stderr line verbatim>: treated as manual push mode by every reader, nothing pushed (origin/develop <ahead> behind). Fix the value by hand, then: ! git push origin develop` (+ ` once a remote exists` when unknown)
+- **invalid (merged, ahead = 0)** → `⚠️ <mode> + merged to develop — <verb stderr line verbatim>: pushed anyway, a hook still fails open, likely stale (refreshed by the next session-start reconcile; commit the refresh) or a manual push. Fix the value by hand.`
 - **push failed after merge** → `✅ <mode> + merged to develop — ⚠️ push FAILED (<reason>); merged locally, push manually.`
+- **finish failed** → `⚠️ <mode> + finish rc <n>: <stderr> — chore/<name> kept, NOT merged; resolve by hand.` (rc 1/4 only; rc 5/2/6 with the branch merged use the outcome lines above with the `merged, branch not deleted (rc <n>)` prefix, so the push state is still reported.)
 - **WORKING branch (rode a feature branch)** → `✅ <mode> + committed <mem_hash> on <branch>. Integrates when the branch merges.`
 - **commit skipped (rc 3)** → keep the ✅ on the WRITE but make the gap loud, never
   buried: `✅ <mode> — ⚠️ NOT committed (<reason: detached/merge/non-git>); entries safe on disk, commit manually.`
@@ -400,7 +415,7 @@ manual commit (rc 3).
   always produces a commit; only an unsafe git state (rc 3) skips it.
 - **Auto-persist the flush (STEP 5C, BDR-068)** — a memory-only commit on a
   `chore/<name>` branch THIS run created off develop auto-finishes → develop +
-  pushes; a scoped exception to LRN-069. `--no-push` holds it on the branch; a
+  pushes (the lib pushes develop in auto-push mode only; manual mode merges and leaves the push to the user); a scoped exception to LRN-069. `--no-push` holds it on the branch; a
   WORKING branch (memory rides feature/bugfix) or rc 3 skips it. NEVER auto-finish
   a branch the run did not create.
 - **Skip trivial** for the 4 ID registries; journal excepted.

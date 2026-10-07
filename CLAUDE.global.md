@@ -183,9 +183,14 @@ auto-pushed upstream). The reference-transaction hook vetoes any deletion
 or rename of `main`/`develop`. The four hooks run in every repo: `make
 link` generates `githooks/` and sets the global `core.hooksPath`; a repo
 that ran `gitflow init` (new/onboarded projects) keeps its own `.githooks/`,
-refreshed at session start. Foreign clone: `git config gitflow.protect
-false` / `gitflow.autopush false`; `GITFLOW_NO_PUSH=1` only for throwaway
-test repos. A branch ahead of its upstream is a defect, not a state.
+refreshed at session start. Human-set opt-outs: `git config
+gitflow.protect false` (foreign clone) and `gitflow.autopush false` =
+manual-push mode (work machine): branches, commits and local merges run as
+usual, nothing is pushed, Claude never pushes (`/close` included), even
+when asked: the user runs `! git push`. An invalid value counts as manual,
+nothing pushes and the stop is named. `GITFLOW_NO_PUSH=1` only for
+throwaway test repos. Outside manual mode a branch ahead of its upstream
+is a defect, not a state.
 
 ## Security — non-negotiable defaults
 Apply at every step: design, scaffolding, implementation, review.
@@ -227,7 +232,8 @@ days of work never pushed.
 - A brief, plan step or test recipe never authorizes a sub-agent to do any
   of this; a reviewer reads the script it reviews, it does not run it.
 - Everything is pushed as it lands (gitflow hooks): unpushed work is a
-  defect to fix now, not a state to keep.
+  defect to fix now, not a state to keep. Manual-push mode (above) is the
+  one exception.
 
 # Communication mode: radical honesty
 - TRUTH OVER COMFORT: point out flaws immediately, no sugarcoating, no "not

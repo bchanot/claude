@@ -31,6 +31,9 @@ stop and report — never chain into the other span yourself.
 ### Input
 `<X.Y.Z>`: the version number, already decided by the dispatcher before
 dispatch — you never derive it, never second-guess it, never bump it.
+Format check only, by reading the string (never inside a Bash command):
+<X.Y.Z> must match ^[0-9]+\.[0-9]+\.[0-9]+$ (literal regex text, single
+backslashes); anything else → STATUS: BLOCKED, nothing created.
 
 ### Steps
 1. `bash "$HOME/.claude/lib/gitflow.sh" start release <X.Y.Z>` — forks from
@@ -77,15 +80,17 @@ actual branch; never finish whatever happens to be checked out.
    output verbatim; do not attempt to resolve it yourself.
 2. **Tag AFTER finish, on `main`** — never before:
    `git tag -a v<X.Y.Z> main -m "release <X.Y.Z>"` (annotated, so it lands on
-   main's release-merge commit). Finish has already pushed `main` and
-   `develop` through the lib's hooks (BDR-095); the tag stays local until
-   the dispatcher's tag-push gate.
+   main's release-merge commit). In auto-push mode finish pushes `main`
+   and `develop` (best effort: the lib warns and returns 0 on a failed
+   push; the dispatcher re-verifies with ahead counts) (BDR-095); in
+   manual push mode, or with an invalid gitflow.autopush, they stay local. The tag stays local until the
+   dispatcher's tag-push gate.
 
 ### Forbidden in this span
-`git push` (any remote, any ref — `main`/`develop` ride the lib's hook
-pushes during finish; the dispatcher owns the tag-push gate), deciding the
-version number, the when-to-release decision, attribution trailers of any
-kind.
+`git push` (any remote, any ref — `main`/`develop` ride the lib's
+pushes during finish in auto-push mode; the dispatcher owns the tag-push
+gate), deciding the version number, the when-to-release decision,
+attribution trailers of any kind.
 
 ---
 

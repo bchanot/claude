@@ -68,17 +68,54 @@ gitflow_release_open() {
   [ -n "$(git for-each-ref --format='%(refname:short)' 'refs/heads/release/*')" ]
 }
 
+# gitflow_push_mode -> stdout auto | manual | invalid, rc 0 always. The ONE
+# reader skills may call: `git config ... gitflow.*` is statically denied to
+# Claude (BDR-112). manual = key reads false; auto = true or unset; invalid =
+# anything else (unparseable value, git failure); the raw value goes to
+# stderr so the caller can name it. Reads only. Ignores GITFLOW_NO_PUSH (a
+# test-repo switch, not a mode): a caller that pushes must not rely on this
+# verb alone, the lib's own push sites use _gitflow_push_off.
+gitflow_push_mode() {
+  local val rc raw
+  val=$(git config --bool gitflow.autopush 2>/dev/null); rc=$?
+  case "$rc:$val" in
+    0:false)    echo manual ;;
+    0:true|1:*) echo auto ;;
+    *) raw=$(git config gitflow.autopush 2>/dev/null | LC_ALL=C tr -cd '[:print:]' 2>/dev/null)
+       raw=${raw:0:64}
+       if [ -n "$raw" ]; then
+         echo "gitflow.sh push-mode: gitflow.autopush='$raw'" \
+              "is not a boolean (git rc $rc)" >&2
+       else
+         echo "gitflow.sh push-mode: could not read" \
+              "gitflow.autopush (git rc $rc)" >&2
+       fi
+       echo invalid ;;
+  esac
+  return 0
+}
+
 # ── start ────────────────────────────────────────────────────────────────────
+
+# rc 0 when pushing is off: GITFLOW_NO_PUSH=1 (throwaway test repos), or
+# gitflow.autopush not readable as `true`/unset — manual-push mode (false,
+# human-set) AND fail closed on an unparseable value or a config read
+# failure (BDR-114). The verb's stderr passes through: it names an invalid
+# value and is silent for auto/manual. Single reader for the lib's push sites.
+_gitflow_push_off() {
+  [ "${GITFLOW_NO_PUSH:-0}" = 1 ] && return 0
+  [ "$(gitflow_push_mode)" != auto ]
+}
 
 # gitflow_start <type> <name> → checkout -b <type>/<name> from the correct base.
 # _gitflow_push_branch <br> → push + set upstream on origin (BDR-095: a remote
 # only backs up what it holds, so a branch is pushed the moment it exists).
 # Best effort BY CONTRACT: no origin, offline, or refused → loud warning, rc 0.
 # A failed push must never block the work, only make the gap visible.
-# GITFLOW_NO_PUSH=1 opts out (throwaway test repos).
+# Opt-outs: see _gitflow_push_off.
 _gitflow_push_branch() {
   local br="$1"
-  [ "${GITFLOW_NO_PUSH:-0}" = 1 ] && return 0
+  _gitflow_push_off && return 0
   git remote get-url origin >/dev/null 2>&1 || return 0
   if _gitflow_timeout git push -q -u --follow-tags origin "$br" >/dev/null 2>&1; then
     return 0
@@ -96,6 +133,20 @@ _gitflow_timeout() {
   fi
 }
 
+# _gitflow_sync_base → fast-forward the checked-out base from its upstream.
+# Never blocks. A base that cannot fast-forward while the remote is ahead (a
+# recorded divergence) is warned about: auto-push used to be the only thing
+# that surfaced it. No upstream, or offline with nothing recorded → silent.
+_gitflow_sync_base() {
+  local behind
+  _gitflow_timeout git pull --ff-only -q >/dev/null 2>&1 && return 0
+  git rev-parse -q --verify '@{u}' >/dev/null 2>&1 || return 0
+  behind=$(git rev-list --count 'HEAD..@{u}' 2>/dev/null || echo 0)
+  [ "$behind" -gt 0 ] || return 0
+  echo "gitflow: $(git symbolic-ref --short -q HEAD) is behind origin/$(git symbolic-ref --short -q HEAD) by $behind and cannot fast-forward — reconcile by hand (git pull, then push)" >&2
+  return 0
+}
+
 gitflow_start() {
   local type="${1:-}" name="${2:-}" base
   base="$(gitflow_base_for "$type")" || return 2
@@ -103,7 +154,7 @@ gitflow_start() {
   git rev-parse --verify -q "$base" >/dev/null \
     || { echo "gitflow_start: base '$base' missing — run 'gitflow init' first" >&2; return 3; }
   git checkout -q "$base" || return 1
-  git pull --ff-only -q 2>/dev/null || true   # best-effort sync; offline / no-upstream ok
+  _gitflow_sync_base   # best-effort sync; warns on divergence, never blocks
   git checkout -q -b "$type/$name" || return 1
   _gitflow_push_branch "$type/$name"
   echo "$type/$name"
@@ -114,7 +165,7 @@ gitflow_start() {
 _gitflow_merge_into() {            # _gitflow_merge_into <target> <source>
   local target="$1" source="$2"
   git checkout -q "$target" || return 1
-  git pull --ff-only -q 2>/dev/null || true
+  _gitflow_sync_base
   git merge --no-ff -q -m "Merge $source into $target" "$source" \
     || { echo "gitflow: conflict merging $source → $target — resolve, commit, re-run finish" >&2; return 4; }
   _gitflow_push_branch "$target"   # git merge fires post-merge, not post-commit; push here too
@@ -143,9 +194,19 @@ gitflow_merged_into_base() {
   return 1
 }
 
+# _gitflow_note_remote_left <br> → push off (manual mode or invalid value) never
+# deletes origin/<br>; say so when a remote-tracking ref shows a copy exists
+# (no network call).
+_gitflow_note_remote_left() {
+  local br="$1"
+  gitflow_protected_base "$br" && return 0
+  git rev-parse -q --verify "refs/remotes/origin/$br" >/dev/null || return 0
+  echo "gitflow: origin/$br left in place (manual push mode) — by hand: git push origin --delete $br" >&2
+}
+
 # _gitflow_delete_remote <br> → remove origin/<br> once the LOCAL copy is gone.
 # Same contract as the pushes (BDR-095): best effort, warn never fail; skipped
-# under GITFLOW_NO_PUSH=1, gitflow.autopush=false or no origin. The REMOTE tip
+# when push is off (see _gitflow_push_off) or no origin. The REMOTE tip
 # is re-checked against develop/main before the delete: a commit pushed from
 # elsewhere that never reached a base (or that this clone has never fetched)
 # keeps the remote branch alive, loudly. Never a base, by construction and by
@@ -153,8 +214,11 @@ gitflow_merged_into_base() {
 _gitflow_delete_remote() {
   local br="$1" out rc tip
   [ "${GITFLOW_NO_PUSH:-0}" = 1 ] && return 0
-  [ "$(git config --bool --default true gitflow.autopush)" = false ] && return 0
   git remote get-url origin >/dev/null 2>&1 || return 0
+  if _gitflow_push_off; then
+    _gitflow_note_remote_left "$br"
+    return 0
+  fi
   gitflow_protected_base "$br" && return 0
   out="$(_gitflow_timeout git ls-remote --exit-code --heads origin "refs/heads/$br" 2>/dev/null)"; rc=$?
   [ "$rc" -eq 2 ] && return 0                         # no remote copy — nothing to remove
@@ -175,6 +239,17 @@ _gitflow_delete_remote() {
   return 0
 }
 
+# _gitflow_checkout_containing_base <br> → leave <br>, landing on the base that
+# contains it (develop first, main for a branch merged into main only).
+_gitflow_checkout_containing_base() {
+  local br="$1"
+  if git merge-base --is-ancestor "$br" "$GITFLOW_DEVELOP" 2>/dev/null; then
+    git checkout -q "$GITFLOW_DEVELOP"
+  else
+    git checkout -q "$GITFLOW_MAIN"
+  fi
+}
+
 # gitflow_delete <branch> → the one sanctioned way to delete a branch, local
 # copy then origin copy. finish calls it after its merges; the CLI exposes it
 # for a branch merged elsewhere (a Gitea PR, a hand merge). Refuses, branch
@@ -192,7 +267,11 @@ gitflow_delete() {
     echo "gitflow: REFUSED — '$br' is not merged into $GITFLOW_DEVELOP or $GITFLOW_MAIN — branch kept" >&2
     return 5
   fi
-  git checkout -q "$GITFLOW_DEVELOP" 2>/dev/null || git checkout -q "$GITFLOW_MAIN" 2>/dev/null
+  _gitflow_checkout_containing_base "$br"
+  # LRN-161: `-d` judges against the upstream when one is set, against HEAD
+  # otherwise. The ancestor check above is the real gate, so HEAD must be the
+  # base that contains <br> and a lagging upstream (manual mode) must go.
+  git branch -q --unset-upstream "$br" 2>/dev/null || true
   git branch -q -d "$br" || { echo "gitflow: git refused to delete '$br' — branch kept" >&2; return 5; }
   _gitflow_delete_remote "$br"
 }
@@ -431,8 +510,15 @@ cat <<'HOOK'
 # holds. Never fails the commit: no origin / offline / refused → warning only.
 # Opt out for one command with GITFLOW_NO_PUSH=1 (throwaway repos, tests).
 [ "${GITFLOW_NO_PUSH:-0}" = 1 ] && exit 0
-# Per-repo opt-out (no push rights on a foreign clone): git config gitflow.autopush false
-[ "$(git config --bool --default true gitflow.autopush)" = false ] && exit 0
+# Manual-push mode (human-set): git config gitflow.autopush false. Fail closed:
+# an unparseable value or a config read failure also means "no push", named.
+# Mirrors gitflow_push_mode (lib/gitflow.sh); arms pinned by T18b/T18h/T18q2/T18q4.
+v=$(git config --bool gitflow.autopush 2>/dev/null); rc=$?
+case "$rc:$v" in
+  0:true|1:*) ;;
+  0:false) exit 0 ;;
+  *) echo "gitflow $hook: gitflow.autopush unreadable (git rc $rc) — NOT pushed, treated as manual push mode; fix the value by hand" >&2; exit 0 ;;
+esac
 git remote get-url origin >/dev/null 2>&1 || exit 0
 br=$(git symbolic-ref --short -q HEAD 2>/dev/null) || exit 0   # detached HEAD — nothing to track
 if command -v timeout >/dev/null 2>&1; then t="timeout ${GITFLOW_PUSH_TIMEOUT:-30}"; else t=""; fi
@@ -548,6 +634,7 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     delete)         gitflow_delete "$@" ;;
     merged)         [ -n "${1:-}" ] || { echo "usage: gitflow.sh merged <branch>" >&2; exit 2; }
                     gitflow_merged_into_base "$1" ;;
+    push-mode)      gitflow_push_mode ;;
     hooks)          printf '%s\n' "${GITFLOW_HOOKS[@]}" ;;
     init)           gitflow_init "$@" ;;
     reconcile)      gitflow_reconcile_gitignore "$@" ;;
@@ -557,6 +644,6 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     global-hooks)   gitflow_global_hooks "$@" ;;
     emit-hook)      _gitflow_emit_hook "${1:-pre-commit}" \
                       || { echo "gitflow.sh emit-hook {$(IFS='|'; echo "${GITFLOW_HOOKS[*]}")}" >&2; exit 2; } ;;
-    *) echo "usage: gitflow.sh {type|protected-base|base-for|release-open|start|finish|delete <br>|merged <br>|init|reconcile|purge-transient|install-hook|reconcile-hooks|global-hooks <dir> [value]|hooks|emit-hook <name>}" >&2; exit 2 ;;
+    *) echo "usage: gitflow.sh {type|protected-base|base-for|release-open|start|finish|delete <br>|merged <br>|push-mode|init|reconcile|purge-transient|install-hook|reconcile-hooks|global-hooks <dir> [value]|hooks|emit-hook <name>}" >&2; exit 2 ;;
   esac
 fi
