@@ -53,7 +53,6 @@ _gf_lib="$(dirname "${BASH_SOURCE[0]}")/../lib/gitflow.sh"
 if [ -f "$_gf_lib" ] && git rev-parse --is-inside-work-tree >/dev/null 2>&1; then
   GF_REFRESHED=$(bash "$_gf_lib" reconcile-hooks 2>/dev/null | sed -n 's/^gitflow hooks refreshed: *//p')
 fi
-unset _gf_lib
 
 # ── graphify threshold signal (BDR-097) ──
 # Informs, never acts: one banner line when the repo holds ≥ 200 tracked code
@@ -232,9 +231,12 @@ if [ -n "$GF_REFRESHED" ]; then
 fi
 # ── manual-push mode (BDR-111): one lock line when this repo never auto-pushes ──
 # %-46s, not 44: bash printf pads by BYTES and "—" is 3 bytes (2 extra).
-if [ "$(git config --bool --default true gitflow.autopush 2>/dev/null)" = false ]; then
-  printf "│  🔒 %-46s│\n" "push : manual (autopush=false) — ! git push"
-fi
+_pm=$( [ -r "$_gf_lib" ] && bash "$_gf_lib" push-mode 2>/dev/null )
+case "$_pm" in
+  manual) printf "│  🔒 %-46s│\n" "push : manual (autopush=false) — ! git push" ;;
+  invalid) printf "│  🔒 %-46s│\n" "push : manual (autopush bad) — ! git push" ;;
+esac
+unset _pm _gf_lib
 if [ -n "$GRAPHIFY_HINT" ]; then
   printf "│  🕸️  %-44s│\n" "${GRAPHIFY_HINT:0:44}"
   printf "│             %-40s│\n" "→ /graphify (AST, seconds) — you decide"

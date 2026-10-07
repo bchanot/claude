@@ -240,12 +240,12 @@ order:
 5. Push state, only when a branch exists (report-only, skipped or
    dirty-tree projects have none: their row keeps `no branch`, no push
    column). Two read-only calls, probe first:
-   `git -C <abs project> remote get-url origin >/dev/null 2>&1 || echo no-origin`
+   `git -C "<abs project>" remote get-url origin >/dev/null 2>&1 || echo no-origin`
    then
-   `git -C <abs project> rev-list --count <branch> --not --remotes=origin 2>/dev/null || echo unknown`
+   `git -C "<abs project>" rev-list --count <branch> --not --remotes=origin 2>/dev/null || echo unknown`
    (`<branch>` = the name `gitflow start` returned, suffixed `-2`/`-3` on a
    same-day re-run — never the bare `chore/tour-<date>`). 0 → `on origin`;
-   else `local only → ! git -C <abs project> push -u origin <branch>` (probe
+   else `local only → ! git -C "<abs project>" push -u origin <branch>` (probe
    printed `no-origin` → `local only (no origin remote)`).
 
 ```markdown
@@ -282,7 +282,7 @@ without that approval — neither this repo's nor any target project's.
   never push `main`/`develop`** — "the tour is green" is not a signal.
   The gitflow hooks push the chore branch in auto-push mode only; when it
   is not on origin (manual push mode, or a `push FAILED` warning) the USER
-  pushes it — `! git -C <abs project> push -u origin <branch>` — the tour
+  pushes it — `! git -C "<abs project>" push -u origin <branch>` — the tour
   never pushes or retries.
 - Scoped pathspecs only; `git add -A` is forbidden.
 - Target TODO.md and target `.claude/memory/` are READ-ONLY. Reconcile

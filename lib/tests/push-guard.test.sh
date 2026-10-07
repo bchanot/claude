@@ -150,6 +150,14 @@ cmd48=""; for i in $(seq 1 25); do cmd48="${cmd48}cd /x$i;"; done
 run "$cmd48 git push" "$WORK/auto"
 check T48-cap-deny "$(verdict)" deny
 check T48-cap-reason "$(grep -c 'too many directory tokens' <<<"$(reason)")" 1
+cmd58=""; for i in $(seq 1 2000); do cmd58="${cmd58}cd /x$i;"; done
+t58=$SECONDS
+run "$cmd58 git push" "$WORK/auto"
+t58=$((SECONDS - t58))
+echo "T58 elapsed: ${t58}s"
+check T58-flood-deny "$(verdict)" deny
+check T58-flood-reason "$(grep -c 'too many directory tokens' <<<"$(reason)")" 1
+check T58-flood-fast "$([ "$t58" -lt 5 ] && echo yes || echo no)" yes
 cmd48b=""; for i in 1 2 3 4 5; do cmd48b="${cmd48b}cd \"$M\";"; done
 run "$cmd48b git push" "$WORK/plain"
 check T48b-dedup-detect "$(verdict)" deny
@@ -180,6 +188,69 @@ chmod 755 "$WORK/locked"
 # T50: a cd that follows a quote is still extracted.
 check T50-bash-c-cd "$(fire "bash -c 'cd \"$M\" && git push'" "$WORK/plain")" deny
 check T50b-unquoted-arg "$(fire "bash -c 'cd $M && git push'" "$WORK/plain")" deny
+
+# T51: a literal `true` is auto mode.
+mkrepo "$WORK/truerepo"; git -C "$WORK/truerepo" config gitflow.autopush true
+check T51-literal-true "$(fire 'git push' "$WORK/truerepo")" allow
+
+# T52: tokens that mix quoted and unquoted parts are refused, named.
+run "cd $WORK/auto'/../manual' && git push" "$WORK/plain"
+check T52-mixed-deny "$(verdict)" deny
+check T52-mixed-reason "$(grep -c 'mixes quoted and unquoted' <<<"$(reason)")" 1
+run "cd \"$WORK/manual/my dir\" && git push" "$WORK/plain"
+check T52b-quoted-deny "$(verdict)" deny
+check T52b-quoted-reason "$(grep -c 'manual push mode' <<<"$(reason)")" 1
+mkdir -p "$WORK/auto/bob's"
+check T52c-apostrophe-nopush "$(fire "cd \"$WORK/auto/bob's\" && git status" "$WORK/plain")" allow
+check T52c-apostrophe-auto "$(fire "cd \"$WORK/auto/bob's\" && git push" "$WORK/plain")" allow
+
+# T53: a backslash-escaped space is one word, unescaped and resolved.
+run "cd $WORK/manual/my\\ dir && git push" "$WORK/plain"
+check T53-escaped-space "$(verdict)" deny
+check T53-escaped-reason "$(grep -c 'manual push mode' <<<"$(reason)")" 1
+run "cd \"$WORK/manual\"/sub\"\" && git push" "$WORK/plain"
+check T53b-enclosed-mixed "$(verdict)" deny
+check T53b-mixed-reason "$(grep -c 'mixes quoted and unquoted' <<<"$(reason)")" 1
+
+# T54: a payload jq cannot parse (lone surrogate escape in cwd).
+bad54() { # bad54 <command-json-text>: broken payload on stdout
+  printf '{"tool_input":{"command":"%s"},"cwd":"\\ud800"}' "$1"
+}
+bad54 'git status' > "$WORK/bad.json"
+if jq -e . <"$WORK/bad.json" >/dev/null 2>&1; then
+  check T54-precondition-unparseable parsed unparsed
+fi
+out54=$(cd "$WORK/auto" && bad54 'git push' | bash "$H" 2>/dev/null); rc54=$?
+check T54-deny "$(jq -r '.hookSpecificOutput.permissionDecision' <<<"$out54")" deny
+check T54-internal "$(grep -c 'internal error' <<<"$out54")" 1
+check T54-rc "$rc54" 0
+out54=$(cd "$WORK/auto" && bad54 'git status' | bash "$H" 2>/dev/null)
+check T54b-no-push-allow "$out54" ""
+out54=$(cd "$WORK/auto" && bad54 'git add -A\ngit push' | bash "$H" 2>/dev/null)
+check T54c-escaped-newline "$(grep -c 'permissionDecision":"deny"' <<<"$out54")" 1
+out54=$(cd "$WORK/auto" \
+  && bad54 'git subtree push --prefix=x origin main' | bash "$H" 2>/dev/null)
+check T54d-loose "$(grep -c 'permissionDecision":"deny"' <<<"$out54")" 1
+
+# T55: a missing core tool (grep) warns on stderr and stays inactive.
+mkdir -p "$WORK/nogrep"
+for tool in bash cat jq git sed sort head; do
+  real=$(command -v "$tool") || continue
+  case "$real" in /*) ln -sf "$real" "$WORK/nogrep/$tool" ;; esac
+done
+out55=$(cd "$M" && printf '%s' "$payload47" \
+  | PATH="$WORK/nogrep" "$(command -v bash)" "$H" 2>"$WORK/nogrep.err"); rc55=$?
+check T55a-rc "$rc55" 0
+check T55b-stdout-empty "$out55" ""
+check T55c-warn "$(grep -c 'grep missing' "$WORK/nogrep.err")" 1
+
+# T56: lib missing (hook copied away from its lib/) denies, own reason.
+mkdir -p "$WORK/alone/hooks"; cp "$ROOT/hooks/push-guard.sh" "$WORK/alone/hooks/"
+saved_h=$H; H="$WORK/alone/hooks/push-guard.sh"
+run 'git push' "$M"
+H=$saved_h
+check T56-lib-missing "$(verdict)" deny
+check T56-reason "$(grep -c 'gitflow lib missing' <<<"$(reason)")" 1
 
 # ── settings.json wiring (file content only) ──
 S="$ROOT/settings.json"
@@ -213,12 +284,28 @@ Write(~/.config/git/config)
 EOF
 check T41-new-deny-present "$missing" ""
 
-# Nothing removed: every deny entry of the pre-run-B settings is still there.
-base=HEAD
-lost=$(git -C "$ROOT" show "$base:settings.json" 2>/dev/null \
-  | jq -r --slurpfile now "$S" \
-    '.permissions.deny[] | select(. as $e | ($now[0].permissions.deny | index($e)) == null)')
-check T42-nothing-removed "$lost" ""
+# Nothing removed: every deny entry of the fresher of origin/main and main
+# (the last release) is still there. Neither ref resolves: SKIP, no count.
+rv() { git -C "$ROOT" rev-parse -q --verify "$1" >/dev/null 2>&1; }
+base=""
+if rv origin/main && rv main; then
+  if git -C "$ROOT" merge-base --is-ancestor main origin/main; then
+    base=origin/main; else base=main; fi
+elif rv origin/main; then base=origin/main
+elif rv main; then base=main
+fi
+if [ -z "$base" ]; then
+  echo "SKIP T42 (no main ref)"
+else
+  echo "T42 base: $base"
+  basedeny=$(git -C "$ROOT" show "$base:settings.json" 2>/dev/null \
+    | jq -r '.permissions.deny[]' 2>/dev/null)
+  check T42-base-nonempty "$([ -n "$basedeny" ] && echo yes || echo no)" yes
+  lost=$(git -C "$ROOT" show "$base:settings.json" 2>/dev/null \
+    | jq -r --slurpfile now "$S" \
+      '.permissions.deny[] | select(. as $e | ($now[0].permissions.deny | index($e)) == null)')
+  check T42-nothing-removed "$lost" ""
+fi
 
 soft=$(jq -r '.autoMode.soft_deny[]' "$S")
 check T43a-soft-rule "$(grep -c 'manual-push mode' <<<"$soft" | tr -d ' ')" 1
@@ -235,5 +322,7 @@ check T45-banner-manual "$(grep -c 'push : manual (autopush=false)' <<<"$out")" 
 out=$(banner "$WORK/auto")
 check T46a-auto-control "$(grep -c 'Claude Code config' <<<"$out")" 1
 check T46b-auto-silent "$(grep -c 'push : manual' <<<"$out")" 0
+out=$(banner "$WORK/bad")
+check T57-banner-invalid "$(grep -c 'push : manual (autopush bad)' <<<"$out")" 1
 
 printf 'PASS=%s FAIL=%s\n' "$pass" "$fail"; [ "$fail" -eq 0 ]
