@@ -40,6 +40,7 @@ bash ~/.claude/lib/gitflow.sh start <type> <name> # branch from the correct base
 bash ~/.claude/lib/gitflow.sh finish              # directed merge of the CURRENT branch — HUMAN-GATED (below)
 bash ~/.claude/lib/gitflow.sh delete <branch>    # delete a merged branch, local + origin copy — refuses main/develop + anything unmerged
 bash ~/.claude/lib/gitflow.sh protected-base [br] # rc 0 on main/develop — the shared predicate
+bash ~/.claude/lib/gitflow.sh push-mode           # auto | manual | invalid on stdout, rc 0: the only way a skill reads gitflow.autopush; pushes nothing
 ```
 
 `finish` merges by the current branch's type:

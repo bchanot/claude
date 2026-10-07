@@ -184,7 +184,7 @@ a different package, ships its own conflicting `graphify` bin) — see
 | `/impeccable` | Design verbs (audit, polish, bolder…) + deterministic anti-slop detector (`npx impeccable detect`) |
 | `/commit-change` | Smart commit grouping from staged/unstaged changes |
 | `/gitflow` | Gitflow branch operations — bootstrap main+develop, start a typed branch, directed merge |
-| `/release-candidate` | Cut a versioned release — finalize version.txt + CHANGELOG, merge develop→main, tag, push |
+| `/release-candidate` | Cut a versioned release — finalize version.txt + CHANGELOG, merge develop→main, tag, push (auto-push mode, tag on your go; manual push mode: one `! git push --atomic` command you run) |
 | `/deploy` | Compose the deploy checklist from a project's committed runbook (delta only); you run it, the skill resumes cold on your report |
 | `/graphify` | Codebase knowledge graph — navigation for large-scope tasks |
 | `/plugin-check` | Check active plugins vs project needs — recommend enable/disable |
