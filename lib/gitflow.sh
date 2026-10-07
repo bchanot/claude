@@ -68,6 +68,32 @@ gitflow_release_open() {
   [ -n "$(git for-each-ref --format='%(refname:short)' 'refs/heads/release/*')" ]
 }
 
+# gitflow_push_mode -> stdout auto | manual | invalid, rc 0 always. The ONE
+# reader skills may call: `git config ... gitflow.*` is statically denied to
+# Claude (BDR-112). manual = key reads false; auto = true or unset; invalid =
+# anything else (unparseable value, git failure); the raw value goes to
+# stderr so the caller can name it. Reads only. Ignores GITFLOW_NO_PUSH (a
+# test-repo switch, not a mode): a caller that pushes must not rely on this
+# verb alone, the lib's own push sites use _gitflow_push_off.
+gitflow_push_mode() {
+  local val rc raw
+  val=$(git config --bool gitflow.autopush 2>/dev/null); rc=$?
+  case "$rc:$val" in
+    0:false)    echo manual ;;
+    0:true|1:*) echo auto ;;
+    *) raw=$(git config gitflow.autopush 2>/dev/null)
+       if [ -n "$raw" ]; then
+         echo "gitflow.sh push-mode: gitflow.autopush='$raw'" \
+              "is not a boolean (git rc $rc)" >&2
+       else
+         echo "gitflow.sh push-mode: could not read" \
+              "gitflow.autopush (git rc $rc)" >&2
+       fi
+       echo invalid ;;
+  esac
+  return 0
+}
+
 # ── start ────────────────────────────────────────────────────────────────────
 
 # rc 0 when pushing is off: GITFLOW_NO_PUSH=1 (throwaway test repos) or
@@ -597,6 +623,7 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     delete)         gitflow_delete "$@" ;;
     merged)         [ -n "${1:-}" ] || { echo "usage: gitflow.sh merged <branch>" >&2; exit 2; }
                     gitflow_merged_into_base "$1" ;;
+    push-mode)      gitflow_push_mode ;;
     hooks)          printf '%s\n' "${GITFLOW_HOOKS[@]}" ;;
     init)           gitflow_init "$@" ;;
     reconcile)      gitflow_reconcile_gitignore "$@" ;;
@@ -606,6 +633,6 @@ if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     global-hooks)   gitflow_global_hooks "$@" ;;
     emit-hook)      _gitflow_emit_hook "${1:-pre-commit}" \
                       || { echo "gitflow.sh emit-hook {$(IFS='|'; echo "${GITFLOW_HOOKS[*]}")}" >&2; exit 2; } ;;
-    *) echo "usage: gitflow.sh {type|protected-base|base-for|release-open|start|finish|delete <br>|merged <br>|init|reconcile|purge-transient|install-hook|reconcile-hooks|global-hooks <dir> [value]|hooks|emit-hook <name>}" >&2; exit 2 ;;
+    *) echo "usage: gitflow.sh {type|protected-base|base-for|release-open|start|finish|delete <br>|merged <br>|push-mode|init|reconcile|purge-transient|install-hook|reconcile-hooks|global-hooks <dir> [value]|hooks|emit-hook <name>}" >&2; exit 2 ;;
   esac
 fi

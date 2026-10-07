@@ -9,7 +9,7 @@ description: |
   (that is /prune-memory).
   Triggers: "close", "end session", "ferme la session", "session close",
   "checkpoint memory", "what did we learn", "retro rapide", "fin de journée".
-argument-hint: "[--no-push] (runs capitalize in ritual mode; --no-push holds memory on chore/<name>: pushed to origin by the hooks, NOT merged (finish skipped), merge when ready; default = auto-finish into develop)"
+argument-hint: "[--no-push] (runs capitalize in ritual mode; --no-push holds memory on chore/<name>: pushed to origin by the hooks in auto-push mode, NOT merged (finish skipped), merge when ready; default = auto-finish into develop)"
 allowed-tools:
   - Read
   - Edit
@@ -28,7 +28,7 @@ allowed-tools:
 Invoke the `capitalize` skill now and run it in **ritual mode**: the full
 pipeline (STEP 0 precheck → STEP 1 auto-scan → STEP 2 dedup → STEP 2B TODO
 reconcile → STEP 3 approval gate → STEP 4 write → STEP 5 journal → STEP 5B
-memory commit → STEP 5C auto-persist: finish + push, BDR-068 — pass
+memory commit → STEP 5C auto-persist: finish (push rides it in auto-push mode), BDR-068 — pass
 `--no-push` through to hold the chore branch instead → STEP 6 handoff),
 PLUS STEP 1B's explicit 3-question reflection (what did you decide / learn
 / block).

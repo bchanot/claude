@@ -37,8 +37,8 @@ exemption still lets a *manual* memory commit through on a protected base, but a
 skill-driven one now branches to `chore/*` first.
 
 **Integration is human-gated by default** — these flows commit, they do not merge.
-EXCEPTION: `/capitalize` + `/close` auto-persist their memory-only commit (finish →
-develop + push) when THEY branched a `chore/*` off develop this run (BDR-068 — a
+EXCEPTION: `/capitalize` + `/close` auto-persist their memory-only commit (finish → develop; the lib pushes develop in auto-push mode only)
+when THEY branched a `chore/*` off develop this run (BDR-068 — a
 scoped [[LRN-069]] exception; see the capitalize skill's STEP 5C). `/prune-memory`
 + `/reconcile` stay fully human-gated: never run `gitflow finish` from them.
 

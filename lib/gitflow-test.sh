@@ -172,6 +172,22 @@ if bash "$HERE/gitflow.sh" protected-base main;       then ok "cli protected-bas
 if bash "$HERE/gitflow.sh" protected-base feature/x;  then no "cli protected-base feature (rc0?)"; else ok "cli protected-base feature → rc1"; fi
 chk "cli base-for hotfix=main" '[ "$(bash "$HERE/gitflow.sh" base-for hotfix)" = main ]'
 
+echo "T11b — push-mode verb (the sanctioned reader for skills, BDR-112)"
+newrepo pm; echo a>a
+bash "$HERE/gitflow.sh" init >/dev/null 2>&1
+chk "cli push-mode default auto" '[ "$(bash "$HERE/gitflow.sh" push-mode)" = auto ]'
+git config gitflow.autopush true
+chk "cli push-mode true auto" '[ "$(bash "$HERE/gitflow.sh" push-mode)" = auto ]'
+git config gitflow.autopush false
+chk "cli push-mode manual" '[ "$(bash "$HERE/gitflow.sh" push-mode)" = manual ]'
+git config gitflow.autopush flase
+pm_out=$(bash "$HERE/gitflow.sh" push-mode 2>"$WORK/pm.err"); pm_rc=$?
+chk "cli push-mode invalid, rc 0, value on stderr" "[ $pm_rc -eq 0 ] && [ \"$pm_out\" = invalid ] && grep -q flase \"$WORK/pm.err\""
+printf '[gitflow\n' >> .git/config
+pm2_out=$(bash "$HERE/gitflow.sh" push-mode 2>/dev/null); pm2_rc=$?
+chk "cli push-mode corrupt config → invalid, rc 0" "[ $pm2_rc -eq 0 ] && [ \"$pm2_out\" = invalid ]"
+chk "cli usage lists push-mode" 'grep -q push-mode <<<"$(bash "$HERE/gitflow.sh" nope 2>&1)"'
+
 echo "T12 — finish arg-guard (named branch must equal current, else refuse)"
 newrepo finargs; echo a>a; hookon; gitflow_init >/dev/null 2>&1
 gitflow_start feature standon >/dev/null 2>&1; echo w>w.txt; git add w.txt; git commit -q -m w
