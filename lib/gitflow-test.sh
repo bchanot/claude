@@ -406,6 +406,30 @@ div_err="$WORK/div.err"
 div_out=$(gitflow_start feature div 2>"$div_err")
 chk "T18l diverged base → warns on stderr, stdout stays the branch name" "[ \"$div_out\" = feature/div ] && grep -q 'behind origin/develop' \"$div_err\" && git rev-parse --verify -q refs/heads/feature/div >/dev/null"
 
+echo "T18q — fail closed: unparseable gitflow.autopush → nothing pushes, named (BDR-114)"
+newrepo badval; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+bare="$WORK/badval.git"; git init -q --bare "$bare"; git remote add origin "$bare"
+git push -q -u origin main develop 2>/dev/null
+git config gitflow.autopush flase
+gitflow_start feature bad >/dev/null 2>"$WORK/q1.err"
+chk "T18q1 start → branch local, not on origin, value named" "git rev-parse --verify -q refs/heads/feature/bad >/dev/null && ! git ls-remote --exit-code --heads origin feature/bad >/dev/null 2>&1 && grep -q 'not a boolean' \"$WORK/q1.err\""
+echo b>b.txt; git add b.txt; git commit -q -m b 2>"$WORK/q2.err"
+chk "T18q2 commit → not pushed, hook says NOT pushed" "! git ls-remote --exit-code --heads origin feature/bad >/dev/null 2>&1 && grep -q 'NOT pushed' \"$WORK/q2.err\""
+dev_before=$(git -C "$bare" rev-parse develop)
+gitflow_finish >/dev/null 2>&1; q_rc=$?
+chk "T18q3 finish → merged locally, origin develop unchanged" "[ $q_rc -eq 0 ] && [ \"\$(git -C \"$bare\" rev-parse develop)\" = \"$dev_before\" ] && ! git rev-parse --verify -q refs/heads/feature/bad >/dev/null"
+git config gitflow.autopush true
+gitflow_start feature good >/dev/null 2>&1
+echo g>g.txt; git add g.txt; git commit -q -m g 2>/dev/null
+chk "T18q4 true → post-commit pushed (tips equal)" '[ "$(git rev-parse HEAD)" = "$(git -C "$bare" rev-parse feature/good)" ]'
+_gitflow_emit_push_hook post-commit > "$WORK/pc.sh"
+chk "T18q5a emitted hook carries the rc:value case" "[ -s \"$WORK/pc.sh\" ] && grep -qF 'case \"\$rc:\$v\"' \"$WORK/pc.sh\""
+if command -v shellcheck >/dev/null 2>&1; then
+  chk "T18q5 emitted hook is POSIX-clean" "shellcheck -s sh \"$WORK/pc.sh\""
+else
+  ok "T18q5 skipped (no shellcheck)"
+fi
+
 echo "T19 — installed hooks == emitted hooks in the config repo (LRN-114 drift gate)"
 if [ -d "$HERE/../.githooks" ]; then
   chk "T19a pre-commit installed == emitted"  'diff -q <(_gitflow_emit_pre_commit) "$HERE/../.githooks/pre-commit" >/dev/null'

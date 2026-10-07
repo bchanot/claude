@@ -66,8 +66,10 @@ git config gitflow.autopush flase
 echo i>i; git add i; git commit -q -m i
 out=$(fire SessionStart "$PWD")
 check T14-invalid-named "$(has "$out" "not a boolean")" yes
-check T14-invalid-treated-auto "$(has "$out" "unpushed work")" yes
-check T14-invalid-stop-auto "$(has "$(fire Stop "$PWD")" "1 commit(s)")" yes
+check T14-invalid-prefix "$(has "$out" "ℹ manual push mode:")" yes
+check T14-invalid-treated "$(has "$out" "treated as manual")" yes
+check T14-invalid-no-warn "$(has "$out" "unpushed work")" no
+check T14-invalid-stop-silent "$(fire Stop "$PWD")" silent
 git config --unset gitflow.autopush
 check T15-unset-auto-intact "$(has "$(fire Stop "$PWD")" "1 commit(s)")" yes
 git config gitflow.autopush false; git remote remove origin

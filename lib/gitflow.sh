@@ -97,12 +97,14 @@ gitflow_push_mode() {
 
 # ── start ────────────────────────────────────────────────────────────────────
 
-# rc 0 when pushing is off: GITFLOW_NO_PUSH=1 (throwaway test repos) or
-# gitflow.autopush=false (manual-push mode, human-set: work machine, foreign
-# clone). The single reader of both flags for the lib's own push sites.
+# rc 0 when pushing is off: GITFLOW_NO_PUSH=1 (throwaway test repos), or
+# gitflow.autopush not readable as `true`/unset — manual-push mode (false,
+# human-set) AND fail closed on an unparseable value or a config read
+# failure (BDR-114). The verb's stderr passes through: it names an invalid
+# value and is silent for auto/manual. Single reader for the lib's push sites.
 _gitflow_push_off() {
   [ "${GITFLOW_NO_PUSH:-0}" = 1 ] && return 0
-  [ "$(git config --bool --default true gitflow.autopush)" = false ]
+  [ "$(gitflow_push_mode)" != auto ]
 }
 
 # gitflow_start <type> <name> → checkout -b <type>/<name> from the correct base.
@@ -192,8 +194,9 @@ gitflow_merged_into_base() {
   return 1
 }
 
-# _gitflow_note_remote_left <br> → manual mode never deletes origin/<br>; say
-# so when a remote-tracking ref shows a copy exists (no network call).
+# _gitflow_note_remote_left <br> → push off (manual mode or invalid value) never
+# deletes origin/<br>; say so when a remote-tracking ref shows a copy exists
+# (no network call).
 _gitflow_note_remote_left() {
   local br="$1"
   gitflow_protected_base "$br" && return 0
@@ -203,7 +206,7 @@ _gitflow_note_remote_left() {
 
 # _gitflow_delete_remote <br> → remove origin/<br> once the LOCAL copy is gone.
 # Same contract as the pushes (BDR-095): best effort, warn never fail; skipped
-# under GITFLOW_NO_PUSH=1, gitflow.autopush=false or no origin. The REMOTE tip
+# when push is off (see _gitflow_push_off) or no origin. The REMOTE tip
 # is re-checked against develop/main before the delete: a commit pushed from
 # elsewhere that never reached a base (or that this clone has never fetched)
 # keeps the remote branch alive, loudly. Never a base, by construction and by
@@ -507,8 +510,15 @@ cat <<'HOOK'
 # holds. Never fails the commit: no origin / offline / refused → warning only.
 # Opt out for one command with GITFLOW_NO_PUSH=1 (throwaway repos, tests).
 [ "${GITFLOW_NO_PUSH:-0}" = 1 ] && exit 0
-# Per-repo opt-out (no push rights on a foreign clone): git config gitflow.autopush false
-[ "$(git config --bool --default true gitflow.autopush)" = false ] && exit 0
+# Manual-push mode (human-set): git config gitflow.autopush false. Fail closed:
+# an unparseable value or a config read failure also means "no push", named.
+# Mirrors gitflow_push_mode (lib/gitflow.sh); arms pinned by T18b/T18h/T18q2/T18q4.
+v=$(git config --bool gitflow.autopush 2>/dev/null); rc=$?
+case "$rc:$v" in
+  0:true|1:*) ;;
+  0:false) exit 0 ;;
+  *) echo "gitflow $hook: gitflow.autopush unreadable (git rc $rc) — NOT pushed, treated as manual push mode; fix the value by hand" >&2; exit 0 ;;
+esac
 git remote get-url origin >/dev/null 2>&1 || exit 0
 br=$(git symbolic-ref --short -q HEAD 2>/dev/null) || exit 0   # detached HEAD — nothing to track
 if command -v timeout >/dev/null 2>&1; then t="timeout ${GITFLOW_PUSH_TIMEOUT:-30}"; else t=""; fi
