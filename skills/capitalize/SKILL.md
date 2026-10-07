@@ -343,7 +343,8 @@ Otherwise, from the `chore/<name>` branch, THREE separate Bash calls, never comb
 
 Outcomes, evaluated IN THIS ORDER (finish rc 0, or rc 5/2/6 with the branch merged — the wording then starts with `merged, branch not deleted (rc <n>) —` instead of `merged to develop —`):
 
-- **push mode `invalid`** → `merged to develop — gitflow.autopush=<value from stderr> is not a boolean: the lib and hooks still push on an invalid value until run D (origin/develop is <ahead> commit(s) behind, or unknown); fix the value by hand`.
+- **push mode `invalid`, `ahead` > 0 or unknown** → `merged to develop — <verb stderr line verbatim>: treated as manual push mode by every reader, nothing pushed (origin/develop is <ahead> commit(s) behind, or unknown). Fix the value by hand, then: ! git push origin develop` (append ` once a remote exists` when `ahead` is unknown).
+- **push mode `invalid`, `ahead` = 0** → `merged to develop — <verb stderr line verbatim>: pushed anyway, a hook in this repo still fails open (likely a stale .githooks/: a session-start reconcile refreshes it, commit the refresh) or a manual push. Fix the value by hand.`
 - **`ahead` = 0** → `develop <short> pushed` (auto-push mode did it).
 - **`ahead` = unknown** → `merged to develop — not on origin (no origin/develop ref; no remote or never fetched)`; push mode manual → add `You: ! git push origin develop once a remote exists`.
 - **`ahead` > 0, push mode `manual`** → `merged to develop — manual push mode: not pushed. You: ! git push origin develop`.
@@ -360,7 +361,7 @@ CAPITALIZE COMPLETE — <YYYY-MM-DD>  (<pre-wipe flush | session-close>)
   TODO.md      : checked <N>, added <M>
   journal.md   : +1 line under ## <date>
   committed    : <mem_hash>  (chore(memory): …)   | ⚠️ NOT committed (rc 3 — see closing line)
-  persisted    : develop <short> pushed | merged, manual push mode: not pushed | merged, not on origin (no origin/develop) | merged, push FAILED | merged, gitflow.autopush invalid (<ahead> behind) | finish rc <n>, not merged | merged, branch not deleted (rc <n>) | on chore/<name>, not merged (--no-push)
+  persisted    : develop <short> pushed | merged, manual push mode: not pushed | merged, not on origin (no origin/develop) | merged, push FAILED | merged, autopush invalid, nothing pushed (<ahead> behind) | merged, autopush invalid, pushed anyway (stale hook or manual push) | finish rc <n>, not merged | merged, branch not deleted (rc <n>) | on chore/<name>, not merged (--no-push)
   dropped as already-captured: LRN-023, BLK-006
   ignored as noise: push/tag release
 ```
@@ -368,15 +369,16 @@ CAPITALIZE COMPLETE — <YYYY-MM-DD>  (<pre-wipe flush | session-close>)
 Then the closing line — pick by the STEP 5C persist result (`<mode>` = `Context
 flushed` for pre-wipe, `Session closed` for ritual):
 
-- **auto-persisted (5C: finish rc 0 AND `ahead` = 0)** → `✅ <mode> + persisted to origin/develop (<short>). Next session: read .claude/memory/ at startup.`
+- **auto-persisted (push mode `auto`, finish rc 0 AND `ahead` = 0)** → `✅ <mode> + persisted to origin/develop (<short>). Next session: read .claude/memory/ at startup.`
 
 On the `--no-push` path ONLY read TWO facts first, each its own Bash call: `bash "$HOME/.claude/lib/gitflow.sh" push-mode` and `git rev-list --count origin/chore/<name>..chore/<name> 2>/dev/null || echo unknown` (`branch_ahead`). `<push mode>` below is the verb's word. The WORKING-branch and rc 3 paths have no `chore/<name>` and never use the mode.
 
-- **--no-push, `branch_ahead` = 0** → `✅ <mode> + committed on chore/<name> — pushed to origin by the hooks (auto-push mode), NOT merged (--no-push). Merge when ready.`
-- **--no-push, `branch_ahead` > 0 or unknown** → `✅ <mode> + committed on chore/<name> — this disk only, not pushed (<push mode manual | no origin/chore ref>), NOT merged. You: ! git push -u origin chore/<name>; merge when ready.` With push mode `invalid`, append ` gitflow.autopush=<value> is not a boolean: fix it by hand`.
+- **--no-push, `branch_ahead` = 0** → `✅ <mode> + committed on chore/<name> — pushed to origin by the hooks (auto-push mode), NOT merged (--no-push). Merge when ready.` With push mode `invalid`, replace `(auto-push mode)` with `(<verb stderr line verbatim>: pushed anyway, a hook still fails open, likely stale, or a manual push; fix the value by hand, commit the .githooks refresh)`.
+- **--no-push, `branch_ahead` > 0 or unknown** → `✅ <mode> + committed on chore/<name> — this disk only, not pushed (<push mode manual | no origin/chore ref>), NOT merged. You: ! git push -u origin chore/<name>; merge when ready.` With push mode `invalid`, append ` <verb stderr line verbatim>: treated as manual push mode, nothing pushed; fix the value by hand`.
 - **manual (merged, `ahead` > 0)** → `✅ <mode> + merged to develop — manual push mode: not pushed. You: ! git push origin develop`
-- **not on origin (merged, `ahead` unknown)** → `✅ <mode> + merged to develop — not on origin (no origin/develop ref).` Push mode manual → add `You: ! git push origin develop once a remote exists`.
-- **invalid (merged)** → `⚠️ <mode> + merged to develop — gitflow.autopush=<value> is not a boolean; lib/hooks still push on it until run D (origin/develop <ahead> behind). Fix the value by hand.`
+- **not on origin (push mode not `invalid`, merged, `ahead` unknown)** → `✅ <mode> + merged to develop — not on origin (no origin/develop ref).` Push mode manual → add `You: ! git push origin develop once a remote exists`.
+- **invalid (merged, ahead > 0 or unknown)** → `⚠️ <mode> + merged to develop — <verb stderr line verbatim>: treated as manual push mode by every reader, nothing pushed (origin/develop <ahead> behind). Fix the value by hand, then: ! git push origin develop` (+ ` once a remote exists` when unknown)
+- **invalid (merged, ahead = 0)** → `⚠️ <mode> + merged to develop — <verb stderr line verbatim>: pushed anyway, a hook still fails open, likely stale (refreshed by the next session-start reconcile; commit the refresh) or a manual push. Fix the value by hand.`
 - **push failed after merge** → `✅ <mode> + merged to develop — ⚠️ push FAILED (<reason>); merged locally, push manually.`
 - **finish failed** → `⚠️ <mode> + finish rc <n>: <stderr> — chore/<name> kept, NOT merged; resolve by hand.` (rc 1/4 only; rc 5/2/6 with the branch merged use the outcome lines above with the `merged, branch not deleted (rc <n>)` prefix, so the push state is still reported.)
 - **WORKING branch (rode a feature branch)** → `✅ <mode> + committed <mem_hash> on <branch>. Integrates when the branch merges.`

@@ -533,7 +533,7 @@ After loops finish (success, stall, or override), capture:
 
 ---
 
-## STEP 5 — COMMIT + PUSH (only if files changed)
+## STEP 5 — COMMIT + PUSH STATE READ (only if files changed)
 
 ```bash
 CHANGED_DURING_PIPELINE=$(git diff --name-only "$PIPELINE_BASE_SHA"..HEAD)
@@ -542,18 +542,18 @@ PENDING_CHANGES=$(git status --porcelain)
 
 If both empty → skip to STEP 6.
 
-**Gitflow precondition (report-only fallback).** Before any commit or push,
-confirm this is a gitflow repo:
+**Gitflow precondition (report-only fallback).** Before any commit,
+confirm this is a gitflow repo (the pipeline never pushes):
 
 ```bash
 git rev-parse --verify -q develop >/dev/null 2>&1 && echo DEVELOP_OK
 [ -f "$HOME/.claude/lib/gitflow.sh" ] && echo LIB_OK
 ```
 
-If `develop` is missing OR the gitflow lib is unavailable → **do NOT commit,
-do NOT push.** Leave the changes in the working tree and record in the STEP 8
-summary: "Commit/push skipped — no gitflow model in this repo; publish the
-listed changes manually before deploy." Continue to STEP 6.
+If `develop` is missing OR the gitflow lib is unavailable → **do NOT commit
+(and never push).** Leave the changes in the working tree and record in the
+STEP 8 summary: "Commit skipped — no gitflow model in this repo; publish the
+listed changes by hand before deploy." Continue to STEP 6.
 
 If `PENDING_CHANGES` non-empty → invoke /commit-change skill via subagent:
 

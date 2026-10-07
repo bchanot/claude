@@ -31,6 +31,9 @@ stop and report — never chain into the other span yourself.
 ### Input
 `<X.Y.Z>`: the version number, already decided by the dispatcher before
 dispatch — you never derive it, never second-guess it, never bump it.
+Format check only, by reading the string (never inside a Bash command):
+<X.Y.Z> must match ^[0-9]+\.[0-9]+\.[0-9]+$ (literal regex text, single
+backslashes); anything else → STATUS: BLOCKED, nothing created.
 
 ### Steps
 1. `bash "$HOME/.claude/lib/gitflow.sh" start release <X.Y.Z>` — forks from
@@ -80,7 +83,7 @@ actual branch; never finish whatever happens to be checked out.
    main's release-merge commit). In auto-push mode finish pushes `main`
    and `develop` (best effort: the lib warns and returns 0 on a failed
    push; the dispatcher re-verifies with ahead counts) (BDR-095); in
-   manual push mode they stay local. The tag stays local until the
+   manual push mode, or with an invalid gitflow.autopush, they stay local. The tag stays local until the
    dispatcher's tag-push gate.
 
 ### Forbidden in this span
