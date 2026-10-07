@@ -186,9 +186,11 @@ that ran `gitflow init` (new/onboarded projects) keeps its own `.githooks/`,
 refreshed at session start. Human-set opt-outs: `git config
 gitflow.protect false` (foreign clone) and `gitflow.autopush false` =
 manual-push mode (work machine): branches, commits and local merges run as
-usual, nothing is pushed, Claude never pushes (`/close` included) unless
-the user asks; `GITFLOW_NO_PUSH=1` only for throwaway test repos. Outside
-manual mode a branch ahead of its upstream is a defect, not a state.
+usual, nothing is pushed, Claude never pushes (`/close` included), even
+when asked: the user runs `! git push`. An invalid value counts as manual,
+nothing pushes and the stop is named. `GITFLOW_NO_PUSH=1` only for
+throwaway test repos. Outside manual mode a branch ahead of its upstream
+is a defect, not a state.
 
 ## Security — non-negotiable defaults
 Apply at every step: design, scaffolding, implementation, review.
