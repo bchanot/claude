@@ -62,7 +62,7 @@ and degrading Google's NAP-consistency signal.
 Pipeline (each step gates the next):
 1. Baseline audits: SEO+GEO and security hardening in parallel.
 2. Fix loops: apply each audit's bundle (AUTO items, ONE gate for GATED ones) and re-audit until ≥17/20 or `MAX_ITERATIONS` hit.
-3. Commit + push if files changed.
+3. Commit if files changed (the hooks push in auto-push mode; the push state is read, never assumed).
 4. Deploy pause: list deploy artifacts + process, wait for user confirmation.
 5. Live-site validation against the deployed URL.
 6. Per-axis gate: every score ≥17/20 OR stop + roadmap.
@@ -567,39 +567,44 @@ If `PENDING_CHANGES` non-empty → invoke /commit-change skill via subagent:
 > commit). Use Conventional Commits format. After committing, return the
 > SHA list."
 
-Then, **before pushing, STOP and ask for an explicit GO** — the push is an
-outward-facing action and never fires autonomously:
+**PUSH STATE READ.** Three separate Bash calls, never combined, read-only:
+`git branch --show-current` → `<br>`;
+`git remote get-url origin >/dev/null 2>&1 && echo origin || echo no-origin`;
+`git rev-list --count origin/<br>..<br> 2>/dev/null || echo unknown` →
+`ahead`. Validate `<br>` against `^[A-Za-z0-9._/-]+$` before using it
+anywhere (git accepts shell metacharacters in branch names). On mismatch:
+state = `unknown (branch name contains characters this pipeline refuses to
+interpolate: push by hand after renaming the branch)`, interpolate NOTHING,
+skip the rev-list and the verb. The validated `<br>` is the only name ever
+placed in a `! git push -u origin <br>` hint (STEP 5, deploy brief,
+reports); every re-run of PUSH STATE READ inherits this rule.
+If `ahead` ≠ 0 and origin exists:
+`bash "$HOME/.claude/lib/gitflow.sh" push-mode` → anything other than `auto`
+is treated like `manual` (stderr line kept verbatim when `invalid`).
+State, first match wins, in this order: (1) no commits were made this run
+or the gitflow fallback left changes uncommitted →
+`nothing to push (no commits this run)` / `uncommitted changes (no gitflow
+model): publish by hand`, stop; (2) `<br>` invalid → the unknown state
+above; (3) `no-origin` → `not on origin (no origin remote: add one first)`;
+(4) `ahead` = 0 → `on origin`; (5) otherwise (`ahead` > 0 or `unknown`)
+→ `pending — you: ! git push -u origin <br>` + reason: push mode `manual` →
+`(manual push mode)`, `auto` → `(not on origin: no remote-tracking ref or
+the hook push did not land)`, `invalid` → `(<verb stderr line verbatim>)`.
+The pipeline never runs `git push` itself.
 
-> AskUserQuestion — "Changes committed on `<CURRENT_BRANCH>`. Push to origin now?
-> - A) Yes — push `<CURRENT_BRANCH>` to origin
-> - B) No — I'll push manually before confirming deploy"
+`pending` → tell the user NOW: `Commits are local only. Push first:
+! git push -u origin <br>`.
 
-Only on **A** run the push; on **B** skip it and note "push deferred to user"
-in the STEP 8 summary, then continue.
-
-> **Red flag — STOP:** never `git push` without option-A GO; never
-> `gitflow finish`/`merge`. This pipeline commits and (on GO) pushes a working
-> branch — it never integrates into a protected branch.
-
-```bash
-CURRENT_BRANCH=$(git branch --show-current)
-git push origin "$CURRENT_BRANCH" 2>&1
-```
-
-If push fails (no remote, auth issue, conflict): capture error, report to
-user via AskUserQuestion:
-
-```
-"Push failed: <error>. Pipeline needs the changes published before deploy.
-Options:
-- A) Retry push (after I fix it manually)
-- B) Skip push — I'll publish manually before confirming deploy
-- C) Abort pipeline"
-```
+> **Red flag — STOP:** never `git push` (the hooks push in auto-push mode;
+> otherwise the user does); never `gitflow finish`/`merge`. This pipeline
+> commits a working branch — it never integrates into a protected branch.
 
 ---
 
 ## STEP 6 — DEPLOY PAUSE
+
+Re-run PUSH STATE READ (every path reaches STEP 6, some without STEP 5's
+read).
 
 Skip if `PROJECT_TYPE != web` (non-web has no deploy-then-validate flow —
 set `VALIDATE_SKIPPED=true` and jump to STEP 8).
@@ -625,10 +630,15 @@ Commits added in this session:
 
 Tailor to project deploy method (use DEPLOY_HINTS):
 
-- **Vercel/Netlify/Cloudflare Pages auto-deploy from git**: "Push has been
-  done. The platform deploys automatically — usually 1-3 min. Watch the
-  dashboard. Tell me when the new version is live."
-- **GitHub Actions / GitLab CI**: "Workflow `<file>` should run on push.
+When the state is `pending`, the brief OPENS with
+`First push: ! git push -u origin <br>`. When `on origin`, keep "Push has
+been done. …".
+
+- **Vercel/Netlify/Cloudflare Pages auto-deploy from git**: "The platform
+  deploys automatically after your push (a working branch gives a preview
+  at most; production builds from the production branch) — usually 1-3
+  min. Watch the dashboard. Tell me when the new version is live."
+- **GitHub Actions / GitLab CI**: "Workflow `<file>` runs on your push.
   Watch CI status. Tell me when it's green and live."
 - **Manual upload (FTP / SSH)**: "Upload these files to the server: `<list>`.
   If using rsync, here's a template: `rsync -avz dist/ user@server:/path`."
@@ -649,6 +659,9 @@ AskUserQuestion:
   - B) Not yet — I'll come back (this stops the pipeline; re-run /client-handover later)
   - C) Skip /web-validate — proceed to handover doc with VALIDATE marked SKIPPED
 ```
+
+After option A "Deployed": re-run PUSH STATE READ; still `pending` → ask
+again (the live site cannot hold these commits).
 
 If A → proceed to STEP 7. If B → exit cleanly with state report. If C →
 mark `VALIDATE_SKIPPED=true` and jump to STEP 8.
@@ -683,8 +696,8 @@ SCORE_VALIDATE_AFTER=$(extract_score .claude/audits/VALIDATE.md)
 Note: VALIDATE has no `_BEFORE` (first run is post-deploy). The before/after
 table for VALIDATE shows `—` for before, `<score>` for after.
 
-If /web-validate produced new fixes in source code, run STEP 5 again (mini-commit
-+ push) BEFORE moving to STEP 8 — but DO NOT loop /web-validate. The remaining
+If /web-validate produced new fixes in source code, run STEP 5 again (mini-commit;
+push state read, never assumed) BEFORE moving to STEP 8 — but DO NOT loop /web-validate. The remaining
 deploy of those fixes is mentioned to the user in the final doc.
 
 ---
@@ -806,8 +819,13 @@ Below-threshold audits:
 Roadmap written to .claude/audits/HANDOVER-ROADMAP.md.
 Tasks appended to .claude/tasks/TODO.md.
 
+Push: <state>
+
 Resolve P0 items, then re-run /client-handover.
 ```
+
+Re-run PUSH STATE READ right before printing this report (never reuse
+the STEP 5 snapshot).
 
 If `ALL_PASS = true` → proceed to STEP 9 (memory load + doc generation).
 
@@ -1170,9 +1188,13 @@ Parse the returned `HANDOVER-DOC REPORT`:
 - `STATUS: DONE` → report the `MD` / `HTML` / `PDF` paths to the user,
   plus the `GATES` line and any `NOTES` caveats (e.g. `[À COMPLÉTER]`
   markers left in NAP, deploy chapter included/skipped).
+  Re-run PUSH STATE READ right before printing, then add the bullet:
+  - Push: <state>
 - `STATUS: BLOCKED` → surface the report verbatim (including which
   PACKAGE field the doc-writer flagged) and stop — do not retry or
-  patch the PACKAGE silently.
+  patch the PACKAGE silently. Re-run PUSH STATE READ and add the same
+  bullet:
+  - Push: <state>
 
 In BOTH branches, then clean the transient draft:
 `rm -f ".audit/handover-draft-${RUNID}.md"` (run-scoped, gitignored —

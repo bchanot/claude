@@ -237,6 +237,16 @@ order:
    and says so in the summary.
 4. Confirm `git status --porcelain` is clean (runtime junk the sandbox
    cannot delete, e.g. `__pycache__/`, becomes a report residual line).
+5. Push state, only when a branch exists (report-only, skipped or
+   dirty-tree projects have none: their row keeps `no branch`, no push
+   column). Two read-only calls, probe first:
+   `git -C <abs project> remote get-url origin >/dev/null 2>&1 || echo no-origin`
+   then
+   `git -C <abs project> rev-list --count <branch> --not --remotes=origin 2>/dev/null || echo unknown`
+   (`<branch>` = the name `gitflow start` returned, suffixed `-2`/`-3` on a
+   same-day re-run — never the bare `chore/tour-<date>`). 0 → `on origin`;
+   else `local only → ! git -C <abs project> push -u origin <branch>` (probe
+   printed `no-origin` → `local only (no origin remote)`).
 
 ```markdown
 ## Tour 2026-07-04 — branch chore/tour-2026-07-04 — 2 iterations — CONVERGED
@@ -255,8 +265,8 @@ any project line with contract-changing fixes left open for decision):
 
 ```
 TOUR COMPLETE — 2026-07-04
-  ~/proj/api    : CONVERGED (2 it.) — 3 fixed, 1 suggested | chore/tour-2026-07-04, 4 commits
-  ~/proj/site   : NOT CONVERGED (3 it.) — 2 open residuals  | chore/tour-2026-07-04, 6 commits
+  ~/proj/api    : CONVERGED (2 it.) — 3 fixed, 1 suggested | chore/tour-2026-07-04, 4 commits | on origin
+  ~/proj/site   : NOT CONVERGED (3 it.) — 2 open residuals  | chore/tour-2026-07-04, 6 commits | local only → ! git -C ~/proj/site push -u origin chore/tour-2026-07-04
   ~/proj/lib    : report-only (dirty tree)                  | no branch
   Branches left UNMERGED — review each, then `gitflow finish` on your GO.
   Reconcile suggestions pending — apply via /reconcile.
@@ -270,9 +280,10 @@ without that approval — neither this repo's nor any target project's.
 
 - Branch via the gitflow lib; **never `gitflow finish`, never merge,
   never push `main`/`develop`** — "the tour is green" is not a signal.
-  The chore branch's own commits are pushed by the gitflow hooks
-  (BDR-095); a `push FAILED` hook warning is a report residual, fixed
-  with a plain `git push -u origin chore/tour-<date>`.
+  The gitflow hooks push the chore branch in auto-push mode only; when it
+  is not on origin (manual push mode, or a `push FAILED` warning) the USER
+  pushes it — `! git -C <abs project> push -u origin <branch>` — the tour
+  never pushes or retries.
 - Scoped pathspecs only; `git add -A` is forbidden.
 - Target TODO.md and target `.claude/memory/` are READ-ONLY. Reconcile
   produces suggestions, not edits.
