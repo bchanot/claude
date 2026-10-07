@@ -6,6 +6,7 @@
 # (the chk helper EVALs its second arg; single-quoted assertion strings are
 #  intentional — they must not expand at definition time.)
 set -uo pipefail
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
 HERE="$(cd "$(dirname "$0")" && pwd)"
 # Do NOT override GITFLOW_GITIGNORE_TEMPLATE: the lib self-resolves it from its
 # own location (../templates), which is correct in both the repo and installed.

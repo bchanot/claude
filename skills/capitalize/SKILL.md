@@ -317,7 +317,7 @@ journal-only example.
 Surgical scope is the helper's (stages ONLY `.claude/memory` + `.claude/tasks`,
 changed-paths-filtered, never `git add -A`). Do NOT hand-roll git here.
 
-## STEP 5C — AUTO-PERSIST THE MEMORY (finish + push)
+## STEP 5C — AUTO-PERSIST THE MEMORY (finish; the lib pushes in auto-push mode)
 
 Memory's value is cross-session persistence — a commit stranded on an unmerged
 `chore/<name>` branch is invisible to the next session sitting on develop, so the
@@ -337,11 +337,11 @@ Skip this step entirely (go to STEP 6, which prints the hold note) on
 
 Otherwise, from the `chore/<name>` branch, THREE separate Bash calls, never combined. INVARIANT: no `git push` inside any Bash call of this skill (push-guard reads command text; the lib pushes develop itself in auto-push mode). The hints that tell the USER what to type (`! git push …`) are prose, kept on single lines.
 
-1. `bash "$HOME/.claude/lib/gitflow.sh" finish chore <name>` — merge → develop, delete branch, push develop in auto-push mode. rc≠0 → skip calls 2-3, go to STEP 6 with the `finish failed` line: rc 4 = conflict, develop mid-merge, `chore/<name>` kept, NOT merged; rc 1 = checkout failed, NOT merged; rc 5/2/6 come from the delete AFTER the merge: check `git merge-base --is-ancestor chore/<name> develop` and report `merged, branch not deleted (rc <n>)` when it holds, `NOT merged` otherwise. Never say "merged" without that check.
+1. `bash "$HOME/.claude/lib/gitflow.sh" finish chore <name>` — merge → develop, delete branch, push develop in auto-push mode. rc≠0 → go to STEP 6 with the `finish failed` line (rc 1/4 skip calls 2-3; rc 5/2/6 with the ancestor check true still run them so the push state is reported): rc 4 = conflict, develop mid-merge, `chore/<name>` kept, NOT merged; rc 1 = checkout failed, NOT merged; rc 5/2/6 come from the delete AFTER the merge: check `git merge-base --is-ancestor chore/<name> develop` and report `merged, branch not deleted (rc <n>)` when it holds, `NOT merged` otherwise. Never say "merged" without that check.
 2. `bash "$HOME/.claude/lib/gitflow.sh" push-mode` → `auto | manual | invalid` (stderr names an invalid value).
 3. `git rev-list --count origin/develop..develop 2>/dev/null || echo unknown` → `ahead` (0 = on origin; `unknown` = no origin/develop ref, e.g. no origin remote).
 
-Outcomes, evaluated IN THIS ORDER (all require finish rc 0):
+Outcomes, evaluated IN THIS ORDER (finish rc 0, or rc 5/2/6 with the branch merged — the wording then starts with `merged, branch not deleted (rc <n>) —` instead of `merged to develop —`):
 
 - **push mode `invalid`** → `merged to develop — gitflow.autopush=<value from stderr> is not a boolean: the lib and hooks still push on an invalid value until run D (origin/develop is <ahead> commit(s) behind, or unknown); fix the value by hand`.
 - **`ahead` = 0** → `develop <short> pushed` (auto-push mode did it).
@@ -368,16 +368,17 @@ CAPITALIZE COMPLETE — <YYYY-MM-DD>  (<pre-wipe flush | session-close>)
 Then the closing line — pick by the STEP 5C persist result (`<mode>` = `Context
 flushed` for pre-wipe, `Session closed` for ritual):
 
-- **auto-persisted (default — branched off develop, pushed)** → `✅ <mode> + persisted to origin/develop (<short>). Next session: read .claude/memory/ at startup.`
-On the `--no-push` path (and on any 5B-committed path where 5C did not run) read TWO facts first, each its own Bash call: `bash "$HOME/.claude/lib/gitflow.sh" push-mode` and `git rev-list --count origin/chore/<name>..chore/<name> 2>/dev/null || echo unknown` (`branch_ahead`). `<push mode>` below is the verb's word.
+- **auto-persisted (5C: finish rc 0 AND `ahead` = 0)** → `✅ <mode> + persisted to origin/develop (<short>). Next session: read .claude/memory/ at startup.`
+
+On the `--no-push` path ONLY read TWO facts first, each its own Bash call: `bash "$HOME/.claude/lib/gitflow.sh" push-mode` and `git rev-list --count origin/chore/<name>..chore/<name> 2>/dev/null || echo unknown` (`branch_ahead`). `<push mode>` below is the verb's word. The WORKING-branch and rc 3 paths have no `chore/<name>` and never use the mode.
 
 - **--no-push, `branch_ahead` = 0** → `✅ <mode> + committed on chore/<name> — pushed to origin by the hooks (auto-push mode), NOT merged (--no-push). Merge when ready.`
 - **--no-push, `branch_ahead` > 0 or unknown** → `✅ <mode> + committed on chore/<name> — this disk only, not pushed (<push mode manual | no origin/chore ref>), NOT merged. You: ! git push -u origin chore/<name>; merge when ready.` With push mode `invalid`, append ` gitflow.autopush=<value> is not a boolean: fix it by hand`.
 - **manual (merged, `ahead` > 0)** → `✅ <mode> + merged to develop — manual push mode: not pushed. You: ! git push origin develop`
-- **not on origin (merged, `ahead` unknown)** → `✅ <mode> + merged to develop — not on origin (no origin/develop ref).`
+- **not on origin (merged, `ahead` unknown)** → `✅ <mode> + merged to develop — not on origin (no origin/develop ref).` Push mode manual → add `You: ! git push origin develop once a remote exists`.
 - **invalid (merged)** → `⚠️ <mode> + merged to develop — gitflow.autopush=<value> is not a boolean; lib/hooks still push on it until run D (origin/develop <ahead> behind). Fix the value by hand.`
 - **push failed after merge** → `✅ <mode> + merged to develop — ⚠️ push FAILED (<reason>); merged locally, push manually.`
-- **finish failed** → `⚠️ <mode> + finish rc <n>: <stderr> — chore/<name> kept, NOT merged (or: merged, branch not deleted); resolve by hand.`
+- **finish failed** → `⚠️ <mode> + finish rc <n>: <stderr> — chore/<name> kept, NOT merged; resolve by hand.` (rc 1/4 only; rc 5/2/6 with the branch merged use the outcome lines above with the `merged, branch not deleted (rc <n>)` prefix, so the push state is still reported.)
 - **WORKING branch (rode a feature branch)** → `✅ <mode> + committed <mem_hash> on <branch>. Integrates when the branch merges.`
 - **commit skipped (rc 3)** → keep the ✅ on the WRITE but make the gap loud, never
   buried: `✅ <mode> — ⚠️ NOT committed (<reason: detached/merge/non-git>); entries safe on disk, commit manually.`

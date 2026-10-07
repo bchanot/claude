@@ -81,7 +81,8 @@ gitflow_push_mode() {
   case "$rc:$val" in
     0:false)    echo manual ;;
     0:true|1:*) echo auto ;;
-    *) raw=$(git config gitflow.autopush 2>/dev/null)
+    *) raw=$(git config gitflow.autopush 2>/dev/null | LC_ALL=C tr -cd '[:print:]' 2>/dev/null)
+       raw=${raw:0:64}
        if [ -n "$raw" ]; then
          echo "gitflow.sh push-mode: gitflow.autopush='$raw'" \
               "is not a boolean (git rc $rc)" >&2

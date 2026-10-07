@@ -571,7 +571,7 @@ If `PENDING_CHANGES` non-empty → invoke /commit-change skill via subagent:
 `git branch --show-current` → `<br>`;
 `git remote get-url origin >/dev/null 2>&1 && echo origin || echo no-origin`;
 `git rev-list --count origin/<br>..<br> 2>/dev/null || echo unknown` →
-`ahead`. Validate `<br>` against `^[A-Za-z0-9._/-]+$` before using it
+`ahead`. Validate `<br>` against `^[A-Za-z0-9._/][A-Za-z0-9._/-]*$` before using it
 anywhere (git accepts shell metacharacters in branch names). On mismatch:
 state = `unknown (branch name contains characters this pipeline refuses to
 interpolate: push by hand after renaming the branch)`, interpolate NOTHING,
