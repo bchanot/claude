@@ -18,7 +18,9 @@ Not a collection of prompts — an operating layer on top of Claude Code:
 - **Hooks and permissions** are deterministic guardrails: gitflow enforced
   by a pre-commit hook in every repo (`make link` points git's global
   `core.hooksPath` at `~/.claude/githooks`), every commit pushed by
-  post-commit and post-merge hooks, `main`/`develop` undeletable by a reference-transaction hook,
+  post-commit and post-merge hooks (nothing pushed in a repo the user puts
+  in manual-push mode, where a PreToolUse hook also refuses Claude's own
+  `git push`), `main`/`develop` undeletable by a reference-transaction hook,
   deny-first permission rules, secrets kept in `~/.claude/.env` and
   never in config files.
 - **Templates and memory** seed every project with persistent registries

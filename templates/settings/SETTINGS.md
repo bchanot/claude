@@ -145,6 +145,8 @@ local trace, and the brief had authorized it. What holds now, by tier:
 | `chmod`/`chown -R`, `sudo`/`doas`/`pkexec`, disk tools (`dd`, `mkfs`, `shred`…), `chattr` | `permissions.deny` | The user runs them by hand. |
 | Docker volume drops, `system prune`, `compose down -v`, `--privileged`, the docker socket, `-v /:` | `permissions.deny` | Promoted from `soft_deny`: no in-session clearance for data drops. |
 | Git history destruction (`push --delete`/`--mirror`/`:ref`/`--force-with-lease`, `branch -D`, `filter-branch`, `reflog expire`, `stash clear`/`drop`, `clean -f`), `--no-verify`, `core.hooksPath` | `permissions.deny` | A remote is the backup; nothing rewrites or deletes what it holds. |
+| Writing the human-only `gitflow.*` toggles: any `git … config` spelling, section remove/rename, `git -c`, the git config env overrides, Edit/Write of git config files | `permissions.deny` | Claude never flips the mode that binds it. Side effect: the trailing glob also matches the bare read, so Claude cannot read `gitflow.autopush` through `git config`; hooks and `lib/gitflow.sh` still do. |
+| Pushing in manual-push mode (`gitflow.autopush false`) | `hooks/push-guard.sh` (PreToolUse) + `autoMode.soft_deny` | `ask` is inert under auto mode. The hook denies the direct forms; the soft_deny covers scripted, aliased, subshell and sub-agent pushes, and a request in the turn does not clear it: the user types `! git push`. |
 | Destructive tool against a local path (variable, `~`, `..`, wildcard, outside cwd/tmp), even as a trace or a rehearsal a brief allows | `autoMode.hard_deny` | A pattern cannot express "the target resolves outside the project"; the classifier can. A sub-agent brief carries no user authority. |
 | `docker rm -f`, bind mount outside cwd; discarding uncommitted work | `autoMode.soft_deny` | Recoverable or user-intended in the turn. |
 
@@ -152,7 +154,8 @@ Rules apply to sub-agents (auto mode is inherited) and to each segment of
 a compound command; a tool nested in another command (`docker compose run …
 lftp`) is not matched by a static rule. The PreToolUse guard hook that scans
 the whole command, its executable spec in `lib/tests/guard-bash.test.sh`,
-is not shipped yet (BLK-022).
+is not shipped yet (BLK-022). `hooks/push-guard.sh` scans the command text
+for `git push` only, in manual-push mode (see below).
 
 Push discipline lives in `lib/gitflow.sh`: `start` pushes the branch,
 `finish` pushes each merge target, and the post-commit / post-merge hooks
@@ -178,6 +181,18 @@ setting and the generated dir. `hooks/unpushed-guard.sh` reports a branch
 ahead of its upstream at session start and at each turn end; in manual-push
 mode it stays silent at turn end and gives one `ℹ manual push mode:` line at
 session start, counting unpushed commits across every local branch.
+In manual-push mode `hooks/push-guard.sh` (PreToolUse, `Bash|Monitor`) also
+refuses any `git push` Claude types, when the key reads false in the session
+cwd or in a literal `-C`/`cd` directory the command names (global config
+counts outside a repo). The refusal tells the user to run the push with
+`! git push`, and the session banner adds a `🔒 push : manual` line. The hook
+fails closed: a non-boolean value reads as manual, and a git failure while
+reading the key or more than 20 directory tokens in one command refuses the
+push, in auto mode too. In manual mode it over-blocks any command where a
+`push` word follows a `git` token (`git stash push`, a grep for "git push").
+The misses listed in its header fall to an `autoMode.soft_deny` rule that no
+request in the turn clears. Skills that push on their own are not adapted
+yet.
 
 ## managed-settings.json (enterprise)
 

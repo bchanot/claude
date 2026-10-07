@@ -56,9 +56,10 @@ and keeps the branch. The `origin/` copy is removed right after, once ITS
 tip passes the same check; a remote tip holding commits the bases lack is
 kept, loudly (T24). In manual-push mode (`git config gitflow.autopush
 false`, human-set) nothing is pushed: `start` and `finish` stay local, and
-the `origin/` copy is left in place (T18i-T18k). Hand `git branch -d` is
-denied — with an auto-pushed upstream it checks the wrong thing (T22a). A
-`reference-transaction` hook vetoes any deletion or rename of
+the `origin/` copy is left in place (T18i-T18k). A `git push` Claude types is
+refused by `hooks/push-guard.sh`; the user pushes with `! git push`. Hand
+`git branch -d` is denied — with an auto-pushed upstream it checks the wrong
+thing (T22a). A `reference-transaction` hook vetoes any deletion or rename of
 `main`/`develop` at the ref layer, in every repo.
 
 ## The finish gate — merge ONLY on an explicit human signal
@@ -109,7 +110,7 @@ stays human-gated.
 | `delete`/`finish` rc=5 — branch not merged into develop or main | The branch still holds unmerged work: KEEP it, report it, never fall back to `git branch -d`/`-D`. Merge first (human gate), then re-run |
 | `delete` rc=6 — protected base | `main`/`develop` are never deleted. Stop; the request itself is the defect to report |
 | `delete`/`finish` warning "remote copy KEPT" or "NOT removed" | Non-fatal BY CONTRACT (remote cleanup is best-effort). KEPT = origin/<br> has a tip the bases lack: fetch, look, merge or leave it — never `git push --delete` by hand. NOT removed = origin unreachable or refused: report the printed command to the user |
-| `delete`/`finish` warning "origin/<br> left in place (manual push mode)" | Expected in manual-push mode, not a failure. Pass the printed `git push origin --delete <br>` to the user; never run it (manual mode: no push unless the user asks, and `push --delete` is denied by settings) |
+| `delete`/`finish` warning "origin/<br> left in place (manual push mode)" | Expected in manual-push mode, not a failure. Pass the printed `git push origin --delete <br>` to the user; never run it (manual mode: Claude never pushes, even when asked in the turn; the user runs it with `!`. `push --delete` is also denied by settings) |
 | `start`/`finish` warning "<base> is behind origin/<base> by N and cannot fast-forward" | Non-fatal BY CONTRACT: the branch is still created and the merge still runs on the local base. The base has diverged from origin: report it to the user, who reconciles (`git pull`, then push). Never rebase or force-push a base |
 
 ## Common Mistakes
