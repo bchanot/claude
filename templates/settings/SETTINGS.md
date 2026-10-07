@@ -146,7 +146,7 @@ local trace, and the brief had authorized it. What holds now, by tier:
 | Docker volume drops, `system prune`, `compose down -v`, `--privileged`, the docker socket, `-v /:` | `permissions.deny` | Promoted from `soft_deny`: no in-session clearance for data drops. |
 | Git history destruction (`push --delete`/`--mirror`/`:ref`/`--force-with-lease`, `branch -D`, `filter-branch`, `reflog expire`, `stash clear`/`drop`, `clean -f`), `--no-verify`, `core.hooksPath` | `permissions.deny` | A remote is the backup; nothing rewrites or deletes what it holds. |
 | Writing the human-only `gitflow.*` toggles: any `git … config` spelling, section remove/rename, `git -c`, the git config env overrides, Edit/Write of git config files | `permissions.deny` | Claude never flips the mode that binds it. Side effect: the trailing glob also matches the bare read, so Claude cannot read `gitflow.autopush` through `git config`; hooks and `lib/gitflow.sh` still do, and skills read it through `gitflow.sh push-mode`. |
-| Pushing in manual-push mode (`gitflow.autopush false`) | `hooks/push-guard.sh` (PreToolUse) + `autoMode.soft_deny` | `ask` is inert under auto mode. The hook denies the direct forms; the soft_deny covers scripted, aliased, subshell and sub-agent pushes, and a request in the turn does not clear it: the user types `! git push`. |
+| Pushing in manual-push mode (`gitflow.autopush false`, or any invalid value) | `hooks/push-guard.sh` (PreToolUse) + `autoMode.soft_deny` | `ask` is inert under auto mode. The hook denies the direct forms; the soft_deny covers scripted, aliased, subshell and sub-agent pushes, and a request in the turn does not clear it: the user types `! git push`. |
 | Destructive tool against a local path (variable, `~`, `..`, wildcard, outside cwd/tmp), even as a trace or a rehearsal a brief allows | `autoMode.hard_deny` | A pattern cannot express "the target resolves outside the project"; the classifier can. A sub-agent brief carries no user authority. |
 | `docker rm -f`, bind mount outside cwd; discarding uncommitted work | `autoMode.soft_deny` | Recoverable or user-intended in the turn. |
 
@@ -186,10 +186,12 @@ refuses any `git push` Claude types, when the key reads false in the session
 cwd or in a literal `-C`/`cd` directory the command names (global config
 counts outside a repo). The refusal tells the user to run the push with
 `! git push`, and the session banner adds a `🔒 push : manual` line. The hook
-fails closed: a non-boolean value reads as manual, and a git failure while
-reading the key or more than 20 directory tokens in one command refuses the
-push, in auto mode too. In manual mode it over-blocks any command where a
-`push` word follows a `git` token (`git stash push`, a grep for "git push").
+fails closed: an invalid value reads as manual, and a `cd`/`-C` directory
+token mixing quoted and unquoted parts, an unparseable payload that looks like
+a push, a missing `lib/gitflow.sh` or more than 20 directory tokens in one
+command refuses the push, in auto mode too. In manual mode it over-blocks any
+command where a `push` word follows a `git` token (`git stash push`, a grep
+for "git push").
 The misses listed in its header fall to an `autoMode.soft_deny` rule that no
 request in the turn clears. Skills read the mode through
 `bash ~/.claude/lib/gitflow.sh push-mode` (`auto`, `manual` or `invalid`,
@@ -197,8 +199,13 @@ rc 0) and push nothing themselves, except the `/release-candidate` tag in
 auto-push mode on an explicit go. What they report as on origin or not
 pushed comes from `git rev-list --count origin/<br>..<br>` read afterwards,
 and a pending push is handed to the user as a complete `! git …` command.
-An invalid value is named, but the lib and the git hooks still push on it
-as auto; only push-guard fails closed on it.
+An invalid value (not a boolean, or a read that fails) is manual push mode
+for every reader: the hooks, `start`, `finish` and `delete` push nothing and
+say why on stderr, push-guard refuses, the banner shows
+`🔒 push : manual (autopush bad)` and the SessionStart line names the value.
+Exception: a repo with its own committed `.githooks/` runs its old hooks,
+which still push on an invalid value, until a session start refreshes them;
+commit the refresh.
 
 ## managed-settings.json (enterprise)
 
