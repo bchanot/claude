@@ -1,0 +1,8 @@
+{
+  "name": "model-router",
+  "version": "0.1.0",
+  "description": "Routes every model request (main loop and sub-agents) to the model and effort its phase deserves, from a user config, a route tool, /route and skill or prompt rules.",
+  "author": {
+    "name": "bchanot"
+  }
+}
