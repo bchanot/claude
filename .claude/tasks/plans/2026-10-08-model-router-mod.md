@@ -95,6 +95,27 @@ does many different things inside one run. So:
 | verify | sonnet | xhigh | verifier, security-auditor |
 | mechanical | haiku | low | cp/mv, git bookkeeping, status collection, listing |
 
+## Decisions 2026-10-08 (evening, user via AskUserQuestion)
+- LOADING (supersedes "CLAUDE_CODE_PLUGIN_DIRS via settings.json + link.sh"):
+  PLUGIN_DIRS needs absolute paths, settings `env` has no `$HOME`
+  expansion, settings.json is tracked and shared across machines; a local
+  marketplace `add` writes an absolute path into settings.json too. Chosen:
+  tracked relative symlink `skills/<name>` → `../mods/<name>`; Claude Code
+  loads it as `<name>@skills-dir`, in place (docs plugins/loading; probe in
+  an isolated HOME: listed, enabled, loaded). Repo scripts walking skills/
+  glob `*/SKILL.md` or fixed names: unaffected. User asked why not
+  `~/.claude/mods`: Claude Code scans no such folder, a link there loads
+  nothing.
+- PRECEDENCE: `ultrathink` (prompt rule) and a typed `/effort-<l>` become a
+  FLOOR for the main turn: derived routes may go above, never below; it
+  lifts a lower sticky `/route`. Main loop only.
+- settings.json: the user's uncommitted `/model` change (model → opus) is
+  theirs to manage; never staged.
+- Live 2026-10-08: Skill(effort-low) bridge answered in place, next request
+  `low`; `ultrathink` turn on Opus ran at `max` (engine base `medium`);
+  Explore without params spawned on `claude-sonnet-5-5`, all 3 steps
+  `medium` (no spawn/step race observed).
+
 ## Wave 0 — spike (dev-mods folder, hot reload, this session)
 - [x] W0.1 minimal mod: `/route` command, `route` tool, `turn.step` logging +
       rewrite, `agent.spawn` rewrite, `ultrathink` → max, spinner suffix
