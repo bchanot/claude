@@ -48,6 +48,7 @@ rules:
 | BLK-026 | 2026-10-06 | `make test` red on macOS: 13 suites, GNU-only idioms in suite + 7 libs (SIGPIPE under pipefail, `sed -i`, `wc` padding, `stat -c`, `realpath -m`, bare `timeout`, `grep -oP`) | resolved |
 | BLK-027 | 2026-10-06 | this machine never ran `make link`/`make plugin`: no global `core.hooksPath` → post-commit push never fired, branches landed ahead of upstream; 11 vendored skills + `~/.claude/.env` missing | resolved (link) / open (plugin) |
 | BLK-028 | 2026-10-06 | notify-attention on a VS Code client: bell + toast silent-degradation faults (merge of BLK-019 + BLK-020): terminalBell sound default off, ext hooks only terminals born after activation, Code muted in Windows mixer | resolved |
+| BLK-029 | 2026-10-08 | Claude Code mods (2.1.294): alias → id resolution for a model set by a hook lags the Agent tool's (`sonnet` → `claude-sonnet-5`, 404); Agent tool schema refuses full ids | upstream |
 
 ---
 
@@ -305,3 +306,11 @@ rules:
 - **Probe order (do FIRST, before server archaeology)**: fresh VS Code terminal, `printf '\a\a\033]777;notify;Test;hello\033\\'` → splits terminal path from client renderer; palette `Help: List Signal Sounds` → Terminal Bell preview bypasses terminal/BEL/hook/dtach/ext, isolates renderer audio in one step.
 - **Status**: resolved (BLK-019 2026-09-01, BLK-020 A+B 2026-09-02/03). Sources superseded by this entry; bodies kept for history.
 - **Reference**: `~/.claude/hooks/notify-attention.sh` header documents the setting; [[LRN-145]] terminalSequence-not-/dev/tty; silent-degradation class [[LRN-047]]; sources [[BLK-019]], [[BLK-020]].
+
+## BLK-029 — Mods: model alias set by a hook resolves to a stale id (`sonnet` → `claude-sonnet-5`, 404) — 2026-10-08
+- **Friction**: model-router spike. Sub-agent routed by `agent.spawn` or `tool.call Agent` rewrite with alias `sonnet`/`haiku` → "model_not_found HTTP 404, model sent to the API: claude-sonnet-5". Same alias typed by the model in the Agent tool param → `claude-sonnet-5-5`, OK.
+- **Real cause**: two alias tables in the CLI (2.1.294): the Agent tool's is current, the function-hooks path's is stale. Not an access issue (`/model` lists all four tiers; explicit haiku/sonnet dispatches answered).
+- **Solution**: hooks write full ids (`claude-sonnet-5-5`, `claude-haiku-4-5-20251001`, `claude-opus-5-5`, `claude-fable-5-1`) from the mod's own table; Agent tool param rewrite stays alias-only (schema enum) → the mod sets the model at `agent.spawn`, not at the param.
+- **Status**: upstream (report to anthropics/claude-code with the request id `req_011Cfppp7VFt8z2Pd3zJrpUi`); workaround in model-router.
+- **Reference**: [[LRN-203]], plan `.claude/tasks/plans/2026-10-08-model-router-mod.md`.
+

@@ -1,5 +1,14 @@
 # TODO
 
+## 2026-10-08 — model-router mod: one mod routes model + effort per request (feature/model-router-mod)
+Plan `.claude/tasks/plans/2026-10-08-model-router-mod.md`. Decisions 2026-10-08: main-loop
+model switch spike-first then flag off; load via `CLAUDE_CODE_PLUGIN_DIRS` + link.sh;
+migration of shifters/pins/model-gate in wave 2 after proof; names model-router / route / /route.
+- [x] W0 spike in dev-mods (hot reload): facts a-d established 2026-10-08 (plan file § Spike facts); e moved to W1.10
+- [ ] W1 core mod in `mods/model-router/` (config, route tool, /route, agents, skills, prompt rules, visibility, tests, install)
+- [ ] W2 migration: 15 skills off `Skill(effort-*)`, remove shifters + effort-pins + model-gate, census repointed, docs
+- [ ] W3 optional: step heuristics, haiku classifier, quota-aware downgrade, A/B
+
 ## 2026-09-30 — Higgsfield pack: CLI + skills in the install process, off by default (feature/higgsfield-pack)
 Contract `.claude/tasks/contracts/2026-09-30-higgsfield-pack-1412.md`, spec + plan under
 `docs/superpowers/` (transient). Approved 2026-09-30: toggle pack off by default, two toggles,
