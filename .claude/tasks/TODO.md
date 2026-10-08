@@ -5,7 +5,9 @@ Plan `.claude/tasks/plans/2026-10-08-model-router-mod.md`. Decisions 2026-10-08:
 model switch spike-first then flag off; load via `CLAUDE_CODE_PLUGIN_DIRS` + link.sh;
 migration of shifters/pins/model-gate in wave 2 after proof; names model-router / route / /route.
 - [x] W0 spike in dev-mods (hot reload): facts a-d established 2026-10-08 (plan file § Spike facts); e moved to W1.10
-- [ ] W1 core mod in `mods/model-router/` (config, route tool, /route, agents, skills, prompt rules, visibility, tests, install)
+- [x] W1-A the mod in `mods/model-router/` (b721c94, contract `2026-10-08-model-router-w1a-1533`, plan r3): challenge 3 lenses + 1 confirmation (2 BLOCKER + 10 MAJOR closed by named changes), feater DONE first pass, GATE 0 MET 5/5, verifier CONFORME 6/6, security PASS (4 MEDIUM + 5 LOW reported, below)
+- [ ] W1-A hardening (security report, user decision): `/route` command origin check (`composer` only); in-agent `route` must not re-model the agent (strip `route.model` for agent loops, drop the dead per-step model path, align the tool description); ReDoS caps on config patterns (length ≤ 200, test ≤ 4 KB); one log per session in every `.catch` + log the silent config drops; phase key charset `^[a-z][a-z0-9_-]{0,31}$`; `additionalProperties: false` on the tool schema + `typeof e.skill`; post-`next` bookkeeping in try/catch; config file size cap 64 KB. Deferred by design: effort ceiling for model-declared routes; window check beyond haiku.
+- [ ] W1-B install + docs: `mods/` symlink + `CLAUDE_CODE_PLUGIN_DIRS` in settings.json env via link.sh, root `.gitignore` for the engine-laid `mods/*/tsconfig.json` + `.claude-plugin/types/`, doctor line, README/USAGE/CHANGELOG (doc-sync deferred here from the 1-A /feat run: nothing to document before the install exists), live test in session (swap the spike for the real mod)
 - [ ] W2 migration: 15 skills off `Skill(effort-*)`, remove shifters + effort-pins + model-gate, census repointed, docs
 - [ ] W3 optional: step heuristics, haiku classifier, quota-aware downgrade, A/B
 
