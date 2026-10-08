@@ -200,3 +200,41 @@ test('a tabled agent steps at its table effort', async ($, on) => {
   await runStep($, stepInput('a1'))
   expect(seen).toEqual([{ model: 'claude-fable-5-1', effort: 'medium' }])
 })
+
+test('/route from a non-composer origin is refused, state kept', async (
+  $, on) => {
+  await boot($, on)
+  await route($, 'judge')
+  const out = await $.command.run({
+    command: 'route',
+    args: 'mechanical',
+    origin: { kind: 'plugin', name: 'x' },
+    presentation: { isFullscreen: false, columns: 80 },
+  })
+  expect(out.text).toContain('user-only')
+  expect(mainLine(await route($, 'show'))).toContain('user judge')
+})
+
+test('an in-agent route sets effort only, the model stays', async ($, on) => {
+  const seen: Seen[] = []
+  recordSteps(on, seen)
+  await boot($, on)
+  await $.tool.call({
+    tool: 'mcp__model-router__route',
+    phase: 'judge',
+    agentId: 'a1',
+  })
+  await runStep($, { ...stepInput('a1'), model: 'claude-sonnet-5-5' })
+  expect(seen).toEqual([{ model: 'claude-sonnet-5-5', effort: 'xhigh' }])
+})
+
+test('a rule only scans the first 4096 chars of a prompt', async ($, on) => {
+  on('prompt.submit', ($, e) => ({ text: e.text }))
+  await boot($, on)
+  await $.prompt.submit({
+    text: 'x'.repeat(5000) + ' ultrathink',
+    wait: false,
+    origin: { kind: 'composer' },
+  })
+  expect(mainLine(await route($, 'show'))).toContain('session defaults')
+})

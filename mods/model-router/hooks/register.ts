@@ -24,11 +24,7 @@ type Rule = { re: RegExp; phase: string }
 type Source = 'user' | 'model' | 'skill' | 'prompt' | 'slash'
 type Routed = { phase: string; route: Route; source: Source }
 type Loop = {
-  effort?: Level
-  model?: string // routed by the table or an in-agent call
-  spawnModel: string // the engine's model at spawn
-  frozen: boolean // fork or workflow agent: never re-modelled
-  explicitModel: boolean // Agent call gave a model: axis frozen
+  effort?: Level // an agent's model is fixed at spawn: effort is its only axis
   explicitEffort: boolean // Agent call gave an effort: axis frozen
 }
 type State = {
@@ -44,6 +40,7 @@ type State = {
   off: boolean // /route off: every hook passes through
   lastMain: string // "model/effort" of the last main step (spinner)
   windowWarned: boolean // context-window warning already logged this turn
+  warned: Set<string> // hooks whose fail-open was already logged
 }
 type Log = (text: string) => void
 type StepIn = Readonly<TurnStepInput>
@@ -62,6 +59,10 @@ const TOOL = 'mcp__model-router__route'
 const EFFORT_SKILL = /^effort-(low|medium|high|xhigh|max)$/
 const OVERRIDE = '.claude/model-router.json'
 const HAIKU = 'claude-haiku'
+const MAX_PATTERN = 200 // chars of a prompt-rule pattern
+const MAX_PROMPT_SCAN = 4096 // chars of a prompt a rule is run against
+const MAX_CONFIG_BYTES = 65536 // override file size
+const PHASE_KEY = /^[a-z][a-z0-9_-]{0,31}$/
 
 const DEFAULT_CONFIG: Config = {
   models: {
@@ -123,7 +124,12 @@ function mergeTable<T>(
   log: Log,
 ): Record<string, T> {
   const out = { ...base }
-  if (!isRecord(user)) return out
+  if (!isRecord(user)) {
+    if (user !== undefined) {
+      log(`model-router: config ${name} ignored: not an object`)
+    }
+    return out
+  }
   for (const [key, value] of Object.entries(user)) {
     const ok = key === '__proto__' ? undefined : accept(key, value)
     if (ok === undefined) log(`model-router: config ${name}.${key} ignored`)
@@ -141,8 +147,8 @@ const acceptWindow = (key: string, v: unknown): number | undefined =>
     : undefined
 
 function acceptPhase(models: Record<string, string>) {
-  return (_key: string, v: unknown): Route | undefined => {
-    if (!isRecord(v)) return undefined
+  return (key: string, v: unknown): Route | undefined => {
+    if (!PHASE_KEY.test(key) || !isRecord(v)) return undefined
     const route: Route = {}
     if (v.effort !== undefined) {
       if (!isLevel(v.effort)) return undefined
@@ -158,7 +164,9 @@ function acceptPhase(models: Record<string, string>) {
 
 function acceptPhaseRef(phases: Record<string, Route>) {
   return (_key: string, v: unknown): string | undefined =>
-    typeof v === 'string' && hasKey(phases, v) ? v : undefined
+    typeof v === 'string' && PHASE_KEY.test(v) && hasKey(phases, v)
+      ? v
+      : undefined
 }
 
 function compiles(pattern: string): boolean {
@@ -174,6 +182,7 @@ function acceptRule(phases: Record<string, Route>, v: unknown) {
   if (!isRecord(v)) return undefined
   const { pattern, phase } = v
   if (typeof pattern !== 'string' || typeof phase !== 'string') return undefined
+  if (pattern.length > MAX_PATTERN) return undefined
   return hasKey(phases, phase) && compiles(pattern)
     ? { pattern, phase }
     : undefined
@@ -186,7 +195,12 @@ function mergePrompt(
   phases: Record<string, Route>,
   log: Log,
 ): PromptRule[] {
-  if (!Array.isArray(user)) return base
+  if (!Array.isArray(user)) {
+    if (user !== undefined) {
+      log('model-router: config prompt ignored: not a list')
+    }
+    return base
+  }
   const rules: PromptRule[] = []
   for (const item of user as unknown[]) {
     const rule = acceptRule(phases, item)
@@ -202,7 +216,10 @@ const pickBool = (v: unknown, fallback: boolean): boolean =>
 /** Defaults overlaid with the user's entries, each validated first. */
 function mergeConfig(user: unknown, log: Log): Config {
   const base = structuredClone(DEFAULT_CONFIG)
-  if (!isRecord(user)) return base
+  if (!isRecord(user)) {
+    if (user !== undefined) log('model-router: config ignored: not an object')
+    return base
+  }
   const models = mergeTable(
     base.models, user.models, 'models', acceptModel, log)
   const phases = mergeTable(
@@ -222,6 +239,24 @@ function mergeConfig(user: unknown, log: Log): Config {
   }
 }
 
+/** The file's text, or undefined (logged) when it exceeds the cap. */
+async function readCapped(
+  $: Api,
+  path: string,
+  log: Log,
+): Promise<string | undefined> {
+  const tooBig =
+    `model-router: ${OVERRIDE} over ${MAX_CONFIG_BYTES} bytes; defaults`
+  if ((await $.fs.stat(path)).size > MAX_CONFIG_BYTES) {
+    log(tooBig)
+    return undefined
+  }
+  const text = await $.fs.read(path)
+  if (text.length <= MAX_CONFIG_BYTES) return text
+  log(tooBig)
+  return undefined
+}
+
 async function readOverride(
   $: Api,
   log: Log,
@@ -231,7 +266,8 @@ async function readOverride(
     if (!home) return undefined
     const path = `${home}/${OVERRIDE}`
     if (!(await $.fs.exists(path))) return undefined
-    return { path, data: JSON.parse(await $.fs.read(path)) }
+    const text = await readCapped($, path, log)
+    return text === undefined ? undefined : { path, data: JSON.parse(text) }
   } catch (err) {
     log(`model-router: ${OVERRIDE} unreadable (${String(err)}); defaults`)
     return undefined
@@ -271,6 +307,28 @@ function newState(cfg: Config, source: string): State {
     off: false,
     lastMain: '',
     windowWarned: false,
+    warned: new Set(),
+  }
+}
+
+/** Logs a hook's fail-open once per session; never throws itself. */
+function warnOnce(st: State, $: Api, hook: string, kind: string): void {
+  if (st.warned.has(hook)) return
+  st.warned.add(hook)
+  try {
+    $.ui.log(`model-router: ${hook} failed (${kind}): ` +
+      'routing skipped for this event')
+  } catch {
+    // a failing log must not break the fail-open itself
+  }
+}
+
+/** Runs post-`next` bookkeeping so its failure can never re-run `next`. */
+function safely(st: State, $: Api, hook: string, work: () => void): void {
+  try {
+    work()
+  } catch {
+    warnOnce(st, $, hook, 'bookkeeping')
   }
 }
 
@@ -281,9 +339,6 @@ function loopOf(st: State, agentId: string): Loop {
   const known = st.loops.get(agentId)
   if (known) return known
   const fresh: Loop = {
-    spawnModel: '',
-    frozen: false,
-    explicitModel: false,
     explicitEffort: false,
   }
   st.loops.set(agentId, fresh)
@@ -293,7 +348,6 @@ function loopOf(st: State, agentId: string): Loop {
 /** Writes a route on an agent loop, never on an axis given explicitly. */
 function writeLoop(loop: Loop, route: Route): void {
   if (!loop.explicitEffort) loop.effort = route.effort
-  if (!loop.explicitModel) loop.model = route.model
 }
 
 function clearRoutes(st: State): void {
@@ -439,10 +493,11 @@ async function registerTool($: Api, st: State): Promise<void> {
     await $.tool.register({
       name: 'route',
       description:
-        'Declare the phase of the work ahead so the next model requests ' +
-        'run at the effort (and model) it deserves. Call it before a span ' +
-        'of work changes nature (planning, orchestrating, mechanical ' +
-        'work). It acts on the calling loop only; no model choice here. ' +
+        'Declare the phase of the work ahead so the next requests of THIS ' +
+        'loop run at the right effort (and, on the main loop, the model ' +
+        'when the switch is on). Call it before a span of work changes ' +
+        'nature (planning, orchestrating, mechanical work). Effort only ' +
+        'for a sub-agent; the model of a sub-agent is fixed at spawn. ' +
         `Phases: ${Object.keys(st.cfg.phases).join(', ')}.`,
       inputSchema: {
         type: 'object',
@@ -451,6 +506,7 @@ async function registerTool($: Api, st: State): Promise<void> {
           effort: { type: 'string', enum: [...LEVELS] },
           clear: { type: 'boolean', description: 'drop this loop\'s route' },
         },
+        additionalProperties: false,
       },
     })
   } catch (err) {
@@ -516,10 +572,12 @@ function routedText(st: State, agentId: string | undefined, p: Picked): string {
   }
   const loop = agentId === undefined ? undefined : st.loops.get(agentId)
   const effort = loop?.explicitEffort ? undefined : p.route.effort
-  const model = agentId === undefined && !st.cfg.mainModelSwitch
-    ? undefined
-    : loop?.explicitModel ? undefined : p.route.model
-  const modelNote = p.route.model && model === undefined ? ' (switch off)' : ''
+  const model = agentId === undefined && st.cfg.mainModelSwitch
+    ? p.route.model
+    : undefined
+  const modelNote = !p.route.model || model !== undefined
+    ? ''
+    : agentId === undefined ? ' (switch off)' : ' (fixed at spawn)'
   return `routed ${agentId === undefined ? 'main' : 'this agent'} to ` +
     `${p.phase}: effort ${effort ?? 'unchanged'}, model ` +
     `${model === undefined ? 'unchanged' : resolveModel(st.cfg, model)}` +
@@ -619,16 +677,12 @@ function spawnRoute(cfg: Config, e: SpawnIn, frozen: boolean) {
 }
 
 function trackLoop(st: State, e: SpawnIn, started: {
-  model: string
   agentId?: string
-}, route: Route | undefined, frozen: boolean): void {
+}, route: Route | undefined): void {
   const given = st.explicitEffort.get(e.tool_use_id)
   st.explicitEffort.delete(e.tool_use_id)
   if (started.agentId === undefined) return
   st.loops.set(started.agentId, {
-    spawnModel: started.model,
-    frozen,
-    explicitModel: e.model !== undefined,
     explicitEffort: given !== undefined,
     effort: given ? undefined : route?.effort,
   })
@@ -638,13 +692,7 @@ function trackLoop(st: State, e: SpawnIn, started: {
 
 function agentPlan(st: State, e: StepIn): Plan {
   const loop = e.agentId === undefined ? undefined : st.loops.get(e.agentId)
-  const wanted = loop?.model
-  const reroute = loop && wanted !== undefined && !loop.frozen &&
-    e.model === loop.spawnModel
-  return {
-    model: reroute ? resolveModel(st.cfg, wanted) : e.model,
-    effort: loop?.effort ?? e.effort,
-  }
+  return { model: e.model, effort: loop?.effort ?? e.effort }
 }
 
 /** True when the context still fits the target model's known window. */
@@ -719,14 +767,29 @@ function registerSession(on: On, st: State): void {
     await registerCommand($)
     refresh($, st)
     return next(e)
-  }).catch(($, e, next) => next(e))
+  }).catch(($, e, next) => {
+    warnOnce(st, $, 'session.start', next.error.kind)
+    return next(e)
+  })
   on('session.end', async ($, e, next) => {
     Object.assign(st, newState(st.cfg, st.source))
     return next(e)
-  }).catch(($, e, next) => next(e))
-  on('command.run', { command: 'route' }, async ($, e) => ({
-    text: await handleCommand($, st, e.args),
-  })).catch(($, e, next) => ({ text: `route failed (${next.error.kind})` }))
+  }).catch(($, e, next) => {
+    warnOnce(st, $, 'session.end', next.error.kind)
+    return next(e)
+  })
+}
+
+function registerCommandHook(on: On, st: State): void {
+  on('command.run', { command: 'route' }, async ($, e) => {
+    if (e.origin.kind !== 'composer') {
+      return { text: 'route: user-only command' }
+    }
+    return { text: await handleCommand($, st, e.args) }
+  }).catch(($, e, next) => {
+    warnOnce(st, $, 'command.run', next.error.kind)
+    return { text: `route failed (${next.error.kind})` }
+  })
 }
 
 function registerRouteTool(on: On, st: State): void {
@@ -735,28 +798,36 @@ function registerRouteTool(on: On, st: State): void {
     refresh($, st)
     vlog($, st, `route ${e.agentId ?? 'main'}: ${JSON.stringify(out)}`)
     return out
-  }).catch(($, e, next) => ({
-    result: `route failed (${next.error.kind}); nothing routed`,
-  }))
+  }).catch(($, e, next) => {
+    warnOnce(st, $, 'route tool', next.error.kind)
+    return { result: `route failed (${next.error.kind}); nothing routed` }
+  })
 }
 
 function registerSkills(on: On, st: State): void {
   on('tool.call', { tool: 'Skill' }, async ($, e, next) => {
-    if (st.off) return next(e)
-    const level = EFFORT_SKILL.exec(e.skill)?.[1]
-    if (isLevel(level)) return effortBridge(st, e.agentId, e.skill, level)
+    const skill = typeof e.skill === 'string' ? e.skill : undefined
+    if (st.off || skill === undefined) return next(e)
+    const level = EFFORT_SKILL.exec(skill)?.[1]
+    if (isLevel(level)) return effortBridge(st, e.agentId, skill, level)
     st.skillCalls += 1
     try {
-      onSkillLoad(st, e.skill, e.agentId)
+      safely(st, $, 'Skill', () => onSkillLoad(st, skill, e.agentId))
       return await next(e)
     } finally {
       st.skillCalls -= 1
     }
-  }).catch(($, e, next) => next(e))
+  }).catch(($, e, next) => {
+    warnOnce(st, $, 'Skill', next.error.kind)
+    return next(e)
+  })
   on('skill.prompt', async ($, e, next) => {
     if (st.off || st.skillCalls > 0) return next(e)
     return slashEffort(st, e.skill, e.text) ?? next(e)
-  }).catch(($, e, next) => next(e))
+  }).catch(($, e, next) => {
+    warnOnce(st, $, 'skill.prompt', next.error.kind)
+    return next(e)
+  })
 }
 
 function registerAgents(on: On, st: State): void {
@@ -765,7 +836,13 @@ function registerAgents(on: On, st: State): void {
       st.explicitEffort.set(e.tool_use_id, e.effort)
     }
     return next(e)
-  }).catch(($, e, next) => next(e))
+  }).catch(($, e, next) => {
+    warnOnce(st, $, 'Agent', next.error.kind)
+    return next(e)
+  })
+}
+
+function registerSpawn(on: On, st: State): void {
   on('agent.spawn', async ($, e, next) => {
     if (st.off) return next(e)
     const frozen = e.fork || e.workflow !== undefined
@@ -775,11 +852,18 @@ function registerAgents(on: On, st: State): void {
     const started = await next(wanted === undefined
       ? e
       : { ...e, model: resolveModel(st.cfg, wanted) })
-    if (started.deny !== undefined) return started
-    trackLoop(st, e, started, route, frozen)
-    vlog($, st, `spawn ${e.subagentType}: ${e.model ?? '-'} → ${started.model}`)
+    if (typeof started.agentId === 'string') {
+      safely(st, $, 'agent.spawn', () => {
+        trackLoop(st, e, started, route)
+        vlog($, st,
+          `spawn ${e.subagentType}: ${e.model ?? '-'} → ${started.model}`)
+      })
+    }
     return started
-  }).catch(($, e, next) => next(e))
+  }).catch(($, e, next) => {
+    warnOnce(st, $, 'agent.spawn', next.error.kind)
+    return next(e)
+  })
 }
 
 function registerTurns(on: On, st: State): void {
@@ -790,22 +874,28 @@ function registerTurns(on: On, st: State): void {
     if (e.agentId === undefined) noteMain($, st, plan)
     vlog($, st, stepLog(e, plan))
     const result = yield* next(changed ? withPlan(e, plan) : e)
-    vlog($, st, `step ${e.index} answered by ${result.usage?.model ?? '?'}`)
+    safely(st, $, 'turn.step', () => vlog($, st,
+      `step ${e.index} answered by ${result.usage?.model ?? '?'}`))
     return result
   }).catch(async function* ($, e, next) {
+    warnOnce(st, $, 'turn.step', next.error.kind)
     return yield* next(e)
   })
   on('turn.complete', async ($, e, next) => {
     if (e.agentId !== undefined) st.loops.delete(e.agentId)
     else endMainTurn($, st)
     return next(e)
-  }).catch(($, e, next) => next(e))
+  }).catch(($, e, next) => {
+    warnOnce(st, $, 'turn.complete', next.error.kind)
+    return next(e)
+  })
 }
 
 function registerPrompt(on: On, st: State): void {
   on('prompt.submit', async ($, e, next) => {
     if (st.off || e.origin.kind !== 'composer') return next(e)
-    const rule = st.rules.find(r => r.re.test(e.text))
+    const scanned = e.text.slice(0, MAX_PROMPT_SCAN)
+    const rule = st.rules.find(r => r.re.test(scanned))
     const route = rule ? phaseRoute(st.cfg, rule.phase) : undefined
     if (rule && route) {
       const routed: Routed = { phase: rule.phase, route, source: 'prompt' }
@@ -815,20 +905,28 @@ function registerPrompt(on: On, st: State): void {
       refresh($, st)
     }
     return next(e)
-  }).catch(($, e, next) => next(e))
+  }).catch(($, e, next) => {
+    warnOnce(st, $, 'prompt.submit', next.error.kind)
+    return next(e)
+  })
   on('ui.render', { component: 'Spinner' }, async ($, e, next) => {
     if (st.off || !st.cfg.spinner || !st.lastMain) return next(e)
     const suffix = ` · ${st.lastMain}…`
     return next({ ...e, props: { ...e.props, suffix } })
-  }).catch(($, e, next) => next(e))
+  }).catch(($, e, next) => {
+    warnOnce(st, $, 'ui.render', next.error.kind)
+    return next(e)
+  })
 }
 
 export const register: Register = on => {
   const st = newState(mergeConfig(undefined, () => undefined), 'defaults')
   registerSession(on, st)
+  registerCommandHook(on, st)
   registerRouteTool(on, st)
   registerSkills(on, st)
   registerAgents(on, st)
+  registerSpawn(on, st)
   registerTurns(on, st)
   registerPrompt(on, st)
 }
