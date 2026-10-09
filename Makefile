@@ -34,12 +34,15 @@ test: ## Run deterministic tests hermetically (one: make test suite=lib/tests/x.
 	@# fire inside the throwaway repos the suites build. The export lives
 	@# HERE so nobody has to type the (denied) env-prefix form by hand.
 	@export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null; \
-	fail=0; for t in $(or $(suite),$(SUITES)); do \
+	fail=0; red=""; for t in $(or $(suite),$(SUITES)); do \
 		echo "== $$t"; \
 		case "$$(basename "$$t")" in \
-			run-release-candidate.sh) RC_WORK=$$(mktemp -d) RC_TAG=1 bash "$$t" || fail=1 ;; \
-			*) bash "$$t" || fail=1 ;; \
-		esac; done; exit $$fail
+			run-release-candidate.sh) RC_WORK=$$(mktemp -d) RC_TAG=1 bash "$$t" || { fail=1; red="$$red $$t"; echo "FAIL $$t"; } ;; \
+			*) bash "$$t" || { fail=1; red="$$red $$t"; echo "FAIL $$t"; } ;; \
+		esac; done; \
+	if [ $$fail -eq 0 ]; then echo "all suites green"; \
+	else echo "$$(echo $$red | wc -w | tr -d ' ') suite(s) red:$$red"; fi; \
+	exit $$fail
 
 scan-secrets: ## Gitleaks sweep: this repo's history + ~/.claude. Extra repos: make scan-secrets repos="path1 path2"
 	@command -v gitleaks >/dev/null 2>&1 || { echo "gitleaks not installed — https://github.com/gitleaks/gitleaks"; exit 1; }
