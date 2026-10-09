@@ -61,6 +61,7 @@ rules:
 | EVAL-038 | 2026-09-29 | correction of EVAL-037: 94 % of sub-agent usage records carry no `output_tokens_details` (Fable subs at xhigh read 0 thinking, impossible with always-on thinking) → sub-agent thinking UNMEASURED, not ≈0; main loop 100 % counted; weighted-cost split (61/39) still holds | `effort-audit.py` prints coverage + CAVEAT; cite the cost split only; agent effort pins stay unmeasured; a tier move on a price argument = judgment, not figure |
 | EVAL-039 | 2026-09-30 | ship-feature run higgsfield-pack: plan dry-run in scratch → 0 executor failure on 7 tasks; challenge found 7 MAJOR I missed; floor-guard caught 2 shellcheck suppressions of mine; final review found README/code gap | keep |
 | EVAL-040 | 2026-10-08 | model-router w1a plan: 3 challengers + 1 confirmation found 2 BLOCKER + 14 MAJOR on a plan judged closed; executor then passed every gate first time | keep the round, never dispatch a mod plan without it |
+| EVAL-041 | 2026-10-09 | model-router W1-C plan: 3 lenses FATAL (4 BLOCKER + 20 MAJOR) then 2 confirmations each FATAL with a NEW BLOCKER in my own revision; executor DONE first pass, 3 short text/hardening rounds | one confirmation is not enough when a revision removes a whole mechanism; the plan carried the risk, the code almost none |
 
 ---
 
@@ -378,4 +379,11 @@ Dogfood: 3 blind lenses attacked the v1 plan for the plan-challenge feature itse
 - **Method**: 3 blind opus challengers (simplicity CONCERNS(3), robustness CONCERNS(6), correctness FATAL(8)) + 1 confirmation (CONCERNS(4)); every BLOCKER/MAJOR closed by a named plan change (r2, r3); then feater, GATE 0, verifier, security.
 - **Anomaly**: r1 carried 2 BLOCKER (explicit Agent `model` overridden at every step; Skill bridge answer shape refused by the output schema → doublon kept) + 10 MAJOR, all invisible to me: spike levers carried over as design (`agentsNext`, per-step model rewrite), a table copying 21 pins = third source of truth, writes on main from sub-agent loops. Confirmation found 4 more MAJOR (explicit params vs in-agent writes, `e.wait`, vacuous test assertions, haiku effort). Executor then DONE first pass, verifier CONFORME 6/6, security PASS: the plan was the whole risk.
 - **Action**: a mod plan always goes through the full round + confirmation; test assertions must read the one line that carries the value; spike code is a FACT source, never a design source ([[BDR-115]], [[LRN-205]], [[LRN-206]]).
+
+## EVAL-041 — model-router W1-C: the plan was the whole risk, two confirmations were needed
+- **Date**: 2026-10-09
+- **Output checked**: plan `.claude/tasks/plans/2026-10-09-model-router-tiers-1237.md` r1 → r4 (absolute tiers, breaker, derived phases), written with every engine fact in hand.
+- **Method**: 3 blind opus challengers (simplicity FATAL(6), correctness FATAL(11), robustness FATAL(11)) → r2; confirmation FATAL(8) with a NEW BLOCKER introduced by r2 (per-step engine-fallback detection climbing the backoff) → r3; second confirmation FATAL(4) with a NEW BLOCKER introduced by r3 (`lastPlan` reset vs kept) → r4; executor DONE first pass; verifier ECARTS ×2 on texts (3 gaps) + hardening (4 items) → CONFORME; security PASS.
+- **Anomaly**: 6 BLOCKER + 29 MAJOR over four revisions, each confirmation found a flaw my own fix had introduced; the doctrine cap (one confirmation) would have shipped r2 with a 5-hour false outage. The executor never needed a re-dispatch for logic: all later rounds were text truthfulness and hardening.
+- **Action**: when a revision REMOVES or REPLACES a mechanism, re-challenge once more (state the deviation); keep plan sections additive with an explicit precedence line (r4 > r3 > r2) so executors and verifiers read one law; name superseded clauses of prior contracts in the Disposition. Links [[EVAL-040]], [[LRN-207]], [[BDR-115]].
 
