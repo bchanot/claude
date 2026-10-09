@@ -350,3 +350,129 @@ R15. Disposition, superseded clauses named: floor contract AC4 "`turnMain`
 R16. Live verification after reload (orchestrator, not the executor): the
     `[1m]` carry-over on a fallback id, `PostModelSwitch` `source: 'auto'`
     semantics, `StopFailure` reaching the mod with `agent_id`.
+
+## r3 — confirmation pass (FATAL(8): 1 BLOCKER, 6 MAJOR): BINDING over r2 where they conflict
+S1. R5 (engine-fallback detection at every step) is REMOVED: no comparison of
+    `e.model` with `$.session.model()` at steps, no mark from it. The
+    engine's own fallback is learned ONLY through `classic.PostModelSwitch`
+    `source: 'auto'`, which now MARKS `canonical(from_model)` down with one
+    strike (15 min) when `from_model` is a table id, logging
+    `requested_model`, `to_model`. (R6(c) "auto → log only" is void.) A mark
+    is idempotent per episode: `markDown` on an id already down adds NO
+    strike and logs nothing; strikes count episodes (a mark after expiry).
+S2. `st.sessionModel` (raw string) is read once at `session.start` through
+    `$.session.model()` inside try/catch ('' on failure) and refreshed in the
+    `PostModelSwitch` hook from `e.to_model` (any source). No other
+    `$.session.model()` call anywhere; texts use `st.sessionModel`.
+S3. Within a turn the main model is STICKY once moved: `cur` for the decision
+    is `st.lastPlan?.model ?? e.model` (the model actually sent last; lastPlan
+    is reset at `endMainTurn` so each turn starts from the engine's model).
+    After an upgrade (plan → fable), a later cheaper phase in the same turn
+    (implement → work) goes through the CHEAPER branch against cur = fable:
+    gated by `mainModelSwitch` + windowOk, so no return trip and no second
+    cold read. After a fallback (fable down → opus), later steps stay on opus
+    for the turn. "Keep cur" returns the exact string last sent (`e.model`
+    verbatim on the first step), so `[1m]` is preserved; a resolved
+    replacement carries `[1m]` only when the raw session string carries it
+    AND the target alias is not haiku.
+S4. decideMain spelled out (order binding): off → cur · unknown cur (no table
+    alias) → cur, logged once · cur down → first available of [wanted (if
+    a table id and not down), nextAvailable(cur)] that passes windowOk, else
+    cur · wanted undefined → cur · wanted unknown to the table (explicit full
+    id such as `claude-x-9`) → treated as CHEAPER (gated by `mainModelSwitch`,
+    windowOk) · same alias → cur · better → `mainUpgrade && tokens ≤
+    upgradeMaxTokens && windowOk` ? wanted : cur · cheaper → `mainModelSwitch
+    && windowOk` ? wanted : cur. `ctx.tokens` from `$.session.usage()` read
+    once per main step (catch → 0); texts read it the same way (async), so a
+    text and the step agree. `nextAvailable(cur)` walks `fallback` from the
+    alias after cur's (unknown cur → from the top) skipping down ids; at
+    spawn, `nextAvailable` walks from the tier's last alias.
+    `model_not_found` marks show `until reload` in texts.
+S5. Derived orchestrate (R8 rewritten): D1 affects BACKGROUND dispatches only.
+    In the main Agent `tool.call` hook: push as in R8 (source not model/skill,
+    `pushed` null) BEFORE `next`; after `next`: read the RESULT — `status ===
+    'async_launched'` → add `result.agentId` to `pushed.spawnIds`; any other
+    status or a deny → nothing to wait for from this call. Pop rule unchanged
+    (spawnIds empty after the call, or the last id's `turn.complete`); no
+    `spawnByCall` map. Documented: a foreground dispatch pushes and pops
+    inside one call, so no main step runs at orchestrate for it (fine: main
+    is blocked meanwhile).
+S6. Breaker targets keep their value until replaced: `st.lastPlan` is NOT
+    reset at `endMainTurn` (only the spinner text is cleared via a separate
+    `st.spinner` string); `agentModels` entries are deleted at `session.end`
+    only, never at an agent's `turn.complete` (the StopFailure/turn.complete
+    order is unverified; R16 gains it).
+S7. R9 patterns: compile with `iu`; on a SyntaxError retry with `i` (B1
+    override files keep working); a pattern failing both is dropped, logged.
+S8. R11: the route tool description is STATIC text (registered once): "the
+    main loop moves up to a phase's tier by itself (below the context cap),
+    down only with the switch on; a sub-agent's model is fixed at spawn".
+    `show`, `routedText`, `mainNote`, `statusLine` call `decideMain` with
+    `cur = st.lastPlan?.model ?? st.sessionModel` and the same tokens read.
+S9. Tests, kit recipe (replaces R14 details): `boot(model = 'claude-fable-5-1')`
+    registers, before the first `$` call, bottom hooks `on('session.model',
+    () => ({ value: model }))` (answer shape per the Op results in the
+    declarations), `on('classic.StopFailure', ($, e) => <passthrough result>)`,
+    `on('classic.PostModelSwitch', …)`, and installs `mock.clock(on)`; every
+    breaker test advances the mock clock. `derived` recipe: prompt
+    "planifie …" (source 'prompt'), then `$.tool.call({ tool: 'Agent', … })`
+    whose bottom hook returns `{ result: { status: 'async_launched',
+    agentId: 'a1', … } }` (read the Agent RESULT type for the required
+    fields) → `/route show` main line says `derived orchestrate`; then
+    `$.turn.complete({ agentId: 'a1', … })` → main line says `prompt plan`.
+    Second derived test: same, but a route tool call `reflect` after the
+    dispatch → the pop does not overwrite `model reflect`. `engine fallback`
+    test: `$.classic.PostModelSwitch({ from_model: 'claude-fable-5-1',
+    to_model: 'claude-opus-5-5', source: 'auto', … })` → fable listed under
+    `down:`; a plan route step does not go back to fable; a second auto
+    switch inside the hold adds no strike (show prints the same until).
+    Strikes test: expire (advance clock) → mark again → until doubles.
+S10. AC3 fix: the `fallback:` and `tiers:` greps run inside the
+    DEFAULT_CONFIG awk range.
+S11. R16 gains: the order of `classic.StopFailure` vs `turn.complete`; whether
+    the engine's fallback on a hook-rewritten request raises `PostModelSwitch`.
+
+## r4 — second confirmation (FATAL(4): 1 BLOCKER, 3 MAJOR): BINDING over r3 where they conflict; the last revision, executor dispatched on it
+T1. Two fields, no contradiction: `st.turnModel: string | undefined` is the
+    STICKY cur, set ONLY when `decideMain` moved the model (upgrade,
+    downgrade or fallback), reset in `endMainTurn` and at `session.end`;
+    `st.lastPlan` (the plan actually sent last, breaker target) is KEPT across
+    turns and never used as cur. `cur = st.turnModel ?? e.model`. "Keep cur"
+    returns `st.turnModel` when set, else `e.model` VERBATIM: an unrouted step
+    never re-sends a model the router did not choose this turn, so an
+    engine fallback that lands in `e.model` is respected by construction.
+    S3's "lastPlan is reset at endMainTurn" is void (S6 stands).
+T2. Auto switch marking (S1 refined): on `PostModelSwitch` `source: 'auto'`,
+    let `sent = canonical(st.lastPlan?.model)` and `to = canonical(to_model)`.
+    If `to === sent` → nothing (the engine landed where the router already
+    was, or the router's own rewrite surfaced as a switch). Else the mark
+    target is `sent` when it is a table id (the model actually sent), else
+    `canonical(from_model)` when THAT is a table id, else nothing. Always
+    log `from_model`, `to_model`, `requested_model`. R16 gains: which
+    `from_model` the event carries after a router upgrade, and whether a
+    router rewrite itself raises an `auto` switch.
+T3. `st.sessionModel` is PRESERVED through the `session.end` rebuild (listed
+    with `down`, strikes, `agentModels`). `canonical()` never prefix-matches
+    an empty string or a string that does not start with `claude-`: both
+    map to UNKNOWN (returned unchanged, no table id). The `[1m]` carry reads
+    the raw string of the step (`e.model`, or `st.turnModel`), never
+    `sessionModel`. `sessionModel` is used by texts only; when it is '' or
+    unknown, texts print the engine word `session model` instead of an id.
+T4. Tokens: `ctx.tokens: number | undefined` (undefined on a failed or absent
+    read). The upgrade cap treats undefined as 0 (upgrade allowed: the targets
+    are fable/opus, no window entry); `windowOk` treats undefined as NOT
+    fitting (fail closed, as today).
+T5. Marks: strikes are per EPISODE (a mark on an id already down adds no
+    strike and no log), but a `model_not_found` arriving during a timed hold
+    LENGTHENS it to "until reload" (logged once). Auto marks use the same
+    episode backoff (15 → 30 → 60 → 120 → 300 min).
+T6. S5 race: on an `async_launched` result with `st.pushed === null`, push
+    again first (if `turnMain?.source` still allows it), then add the id.
+T7. Tests assert hold DURATIONS (minutes until, computed from the mock clock)
+    or the presence of the id under `down:`, never a literal `HH:MM`.
+    `show` prints `down: <id> for <n> min (<reason>)` (and `until reload`),
+    computed from the pruned map and the clock value passed in.
+T8. R16 final list (live, orchestrator): StopFailure vs turn.complete order;
+    PostModelSwitch on a rewritten-request fallback and its `from_model`;
+    whether a router rewrite raises `auto`; `[1m]` carry validity on opus;
+    `$.session.model()` string form.
