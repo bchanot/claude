@@ -186,3 +186,167 @@ required fields; `prompt.submit`). Engine effort `high` in steps.
   cold-cache step).
 - Deferred: repo agents' frontmatter pins cannot fall back (the mod does not
   see them in wave 1) → wave 2 moves them into the table with tiers.
+
+## r2 — challenge round (3 lenses, all FATAL: 4 BLOCKER, 20 MAJOR): BINDING, overrides every section above where they conflict
+R1. ONE phase field for the fallback-aware choice: `Route = { tier?: string;
+    model?: string; effort?: Level }`. Default phases use `tier:` only (plan,
+    reflect, orchestrate, escalate → best; judge → big; implement, write,
+    verify, explore → work; mechanical → cheap). `acceptPhase` refuses a route
+    carrying both `tier` and `model`, and refuses a `tiers` key that collides
+    with a `models` alias. The earlier "model: 'best'" drafts and the "no new
+    tier field" sentence are VOID. `/route model=<alias|id>` keeps writing
+    `model`; the route tool schema is unchanged.
+R2. Ids: `canonical(st, id)` = strip a trailing `[1m]`, then alias → table id,
+    then two-way prefix match against the table ids (`id.startsWith(tableId)
+    || tableId.startsWith(id)`), else the id itself. `aliasOf(st, id)` and
+    `modelRank(st, id)` (= index of the alias in `fallback`, `undefined` when
+    unknown) work on canonical ids. The existing effort `rank` keeps its name.
+    Breaker keys, `agentModels` values and comparisons are canonical. When the
+    current main model carries `[1m]`, a resolved replacement carries `[1m]`
+    too (the long-context tier is a property of the session, not of the
+    alias); log the first time it happens (unverified live: see Verify).
+R3. Model axis per slot: `routeModelName(route) = route.tier ?? route.model`;
+    the main model axis is the FIRST defined `routeModelName` across
+    userMain, turnMain, turnFloor (per-axis, like B1's effort). `resolveName`
+    turns that name into an available id: a `tiers` key → first alias of the
+    list not down → `models` id; a tier whose every alias is down →
+    `nextAvailable(st, cur)` (global chain) → may be `undefined` (keep cur);
+    an alias or full id → canonical id, never skipped (explicit means explicit).
+R4. Main decision `decideMain(st, cur, wanted, ctx)` → `{ model, why }`, used
+    by `mainPlan` AND by every text (texts pass `cur = canonical(await
+    $.session.model())`); order is BINDING:
+    1. `st.off` → cur.
+    2. `rankCur = modelRank(cur)`; UNKNOWN cur (not in the table) → cur, log
+       once per session (`model-router: <id> unknown to the models table; no
+       model switch`), the breaker still applies at step 3 if it is down.
+    3. cur DOWN → `wanted` if defined and not down, else `nextAvailable(cur)`;
+       apply `windowOk`; if nothing fits → cur (why `fallback`).
+    4. `wanted` undefined or `aliasOf(wanted) === aliasOf(cur)` → cur.
+    5. `modelRank(wanted) < rankCur` (better) → `cfg.mainUpgrade &&
+       ctx.tokens <= cfg.upgradeMaxTokens` ? wanted (why `upgrade`) : cur
+       (why `upgrade skipped: context <n> tokens over <max>` or `switch off`).
+    6. cheaper → `cfg.mainModelSwitch && windowOk` ? wanted (why `downgrade`)
+       : cur (why `switch off`).
+    New config scalar `upgradeMaxTokens` (default 200000): an upgrade pays a
+    cold read of the whole context on the new model (LRN-204); above the
+    threshold it is skipped and logged once per turn. `ctx.tokens` comes from
+    `$.session.usage()` read once per main step (fail → treat as 0).
+R5. Engine fallback respected: at every main step `sess = canonical(await
+    $.session.model())`; when `canonical(e.model) !== sess`, the engine is on
+    a fallback → `markDown(sess, 'engine fallback')` and `cur = e.model` (the
+    router never upgrades back to the model the engine just left).
+R6. Breaker inputs (replace the r1 list): (a) `classic.StopFailure` with
+    `error` ∈ rate_limit | overloaded | billing_error | model_not_found →
+    `markDown(target)` where target = `st.agentModels.get(e.agent_id)` when
+    `e.agent_id` is set, else `st.lastPlan?.model`; other errors (context
+    limit = invalid_request, server_error, auth, max_output_tokens…) → nothing;
+    (b) R5's engine-fallback detection; (c) `classic.PostModelSwitch`: source
+    `command | picker | sdk` → `st.down.delete(canonical(to_model))` and reset
+    its strikes (the user's explicit `/model` wins); source `auto` → LOG only
+    (`requested_model`, from, to), never a mark (unverified semantics).
+    `turn.complete` `reason` is NOT a breaker input any more (context-limit
+    and network errors are not availability); refusal → nothing.
+    Backoff per canonical id: strikes 1, 2, 3… → 15, 30, 60, 120, 300 min
+    (cap); `model_not_found` → until `/route reload`. `markDown` logs ALWAYS:
+    `model-router: <id> unavailable (<reason>) until <HH:MM>; routing falls
+    back`. Inert while `st.off`.
+    Lifecycle: `/route reload` clears `down` and strikes BEFORE loading the
+    config (whatever the read result); `session.end` (/clear) KEEPS `down`,
+    strikes and `agentModels` (availability is account-wide); expired
+    entries are pruned at the start of any hook that reads them, with `now`
+    read ONLY when `st.down.size > 0` (`$.clock.now()`), passed explicitly to
+    the helpers (no clock read in sync text functions: they receive the
+    pruned map).
+R7. Agent models: `st.agentModels: Map<agentId, canonicalId>` set at spawn
+    from `started.model` (canonicalized; an alias answered by a hook above is
+    mapped through the table); deleted with the loop. No `Loop.model`,
+    `spawnModel` or `loop.model` identifier anywhere (W1-A AC8 grep).
+    `spawnRoute` resolves `route.tier ?? route.model` through `resolveName`
+    (skips down aliases); explicit `e.model` still wins even when down.
+    Deferred (noted): agents without a table row and no explicit model follow
+    `parentModel`; forks always inherit; neither falls back in wave 1.
+R8. Derived orchestrate (D1) made exact: state `pushed: { prev: Routed | null;
+    spawnIds: Set<string> } | null`. In the main Agent `tool.call` hook:
+    before `next`, if `st.turnMain?.source` is not 'model' or 'skill' and
+    `st.pushed` is null → `st.pushed = { prev: st.turnMain, spawnIds: new Set() }`
+    and `st.turnMain = { phase: 'orchestrate', route: phases.orchestrate,
+    source: 'derived' }`; after `next` resolves: the spawned `agentId` (from
+    `st.spawnByCall: Map<tool_use_id, agentId>` filled at `agent.spawn`) is
+    added to `pushed.spawnIds`; if NO agent was registered for this
+    `tool_use_id` (foreground run already finished, or denied) → nothing to
+    wait for from this call. Pop rule: when `pushed.spawnIds` is empty after
+    the Agent call returned, or when the LAST id of `pushed.spawnIds` ends
+    (`turn.complete` with that agentId, deleted from the set), and
+    `st.turnMain?.source === 'derived'` → `st.turnMain = pushed.prev`,
+    `st.pushed = null`. A route/skill write in between (source model/skill)
+    replaces turnMain; the pop then only clears `pushed`. `endMainTurn`
+    clears `pushed` and `spawnByCall`. In `turn.complete` for an agent, delete
+    the loop and the maps FIRST, inside `safely`, before any other work.
+R9. Prompt default rules (D2) made safe: rules scanned in two passes (floor
+    rules, then default rules), each pass first match; absent `mode` →
+    'floor' (B1 override files keep their meaning). Default rules are SKIPPED
+    when the trimmed text starts with `/` (slash commands and skills route
+    themselves), when the same prompt carries a floor match or sets
+    `typedSlash` (the user's explicit level wins), or when typed mid-turn.
+    Patterns compile with flags `iu` and the defaults use Unicode-aware
+    guards instead of `\b`: `(?<![\p{L}\p{N}-])(plan|planifie|planning|
+    brainstorm|architecture|con[cç]ois|design)(?![\p{L}\p{N}-])` and the
+    reflect list likewise; the validator requires the pattern to compile
+    with `iu`. A default-rule route is written to `turnMain` (source
+    'prompt'); it never lowers (no cheap/work default rule shipped).
+R10. Classifier (D3) DEFERRED to wave 2: no `classifier` key, no code.
+R11. Texts: `routedText`, `effortBridge`/`mainNote`, `slashEffort`, `show`,
+    `statusLine`, the route tool description and `mainOnHaiku` derive their
+    MODEL words from `decideMain` with `cur = canonical(await
+    $.session.model())` (hooks are async; `show` becomes async — the
+    command hook awaits it); they print the decided id and `why`
+    (`upgrade`, `fallback`, `switch off`, `unchanged`). The tool description
+    says: "the main loop moves UP to a phase's tier by itself, DOWN only with
+    the switch on; a sub-agent's model is fixed at spawn". `show` prints:
+    `upgrade: on|off`, `switch (downgrade): on|off`, `down: <id> until <HH:MM>
+    (<reason>) …| none`, each phase as `name=<tier or model>→<resolved id>/<effort>`.
+    Existing test 3f (`/route model=sonnet` shows `claude-sonnet-5-5`) is
+    adapted: on the kit's session model the line reads `asked claude-sonnet-5-5,
+    keeps <cur> (switch off)`; the alias→id resolution is asserted on the
+    `asked` part.
+R12. `st.lastPlan: Plan | null` replaces `lastMain` and `lastMainModel`; the
+    spinner text is derived at render; `endMainTurn` resets it.
+R13. Config validation additions: `tiers` values non-empty arrays of alias
+    keys (bad entries dropped, logged), `fallback` deduplicated non-empty
+    alias list (else default, logged), `cooldownMinutes` and
+    `upgradeMaxTokens` positive integers, `mode` ∈ floor|default, a log at
+    load when `tiers.best[0] !== fallback[0]` (rank comes from `fallback`
+    alone). `mainModelSwitch` documented as DOWNGRADE-only in the Config
+    comment.
+R14. Tests (≥ 43 total, names carry the contract words): keep all 30; add:
+    `tier` (plan on a haiku session → fable xhigh, with mock.clock installed
+    where the breaker is touched), `downgrade` (mechanical on fable keeps
+    fable, switch off), `fallback` (plan route + `$.classic.StopFailure({
+    error: 'rate_limit', … })` on main after a fable step → next step
+    `claude-opus-5-5` at xhigh; `/route reload` → fable again), `breaker`
+    ×3 (an aborted/`invalid_request` failure never marks down; backoff expiry
+    via `mock.clock` advance restores fable; `/model` command
+    `PostModelSwitch source: 'command'` clears a down model), `engine fallback`
+    (`$.session.model` mocked/answered as fable while the step arrives on
+    opus → no upgrade back, fable marked down), `unknown` (cur
+    `claude-zz-9` never switches), `spawn` (Explore → opus while sonnet is
+    down through an agent StopFailure with `agent_id`), `derived` ×2 (push on
+    dispatch, pop when the spawned agent ends → plan back; a route call after
+    the dispatch is NOT overwritten by the pop), `default rule` ×3 (planifie
+    → plan then a route call overrides; `/analyze …` typed → no rule;
+    `/effort-low pourquoi …` → no default rule, floor low), `per axis`
+    (`/route effort=low` sticky + turn `plan` tier → model axis = best).
+    Read `mock.clock` and how `$.session.model` is answered in the kit
+    (a bottom `on('session.model', …)` hook) before writing them.
+R15. Disposition, superseded clauses named: floor contract AC4 "`turnMain`
+    only ever holds 'model' or 'skill' sources" → now also 'derived' and
+    'prompt'; W1-A AC6 "main-loop model changes happen only when
+    `mainModelSwitch` is true" → true for DOWNGRADES only; upgrades follow
+    `mainUpgrade` + `upgradeMaxTokens`, and the breaker/engine-fallback path
+    moves off a dead model unconditionally; BDR-115 (6) window guard → applied
+    to every switch (up, down, fallback) through `windowOk`. The tiers
+    contract AC5 reads "every B1/1-A criterion still holds EXCEPT the three
+    clauses above".
+R16. Live verification after reload (orchestrator, not the executor): the
+    `[1m]` carry-over on a fallback id, `PostModelSwitch` `source: 'auto'`
+    semantics, `StopFailure` reaching the mod with `agent_id`.
