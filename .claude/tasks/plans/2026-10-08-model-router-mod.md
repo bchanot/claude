@@ -116,6 +116,21 @@ does many different things inside one run. So:
   Explore without params spawned on `claude-sonnet-5-5`, all 3 steps
   `medium` (no spawn/step race observed).
 
+## Decisions 2026-10-09 (user, after the wave-1 table was shown)
+- No "session model" phase: every phase names an ABSOLUTE tier (best = fable,
+  opus, sonnet · big = opus, fable, sonnet · work = sonnet, opus · cheap = haiku,
+  sonnet); a haiku session asked to plan runs on fable. Reflection and planning
+  always on the best available model.
+- Availability = circuit breaker (turn error/refusal, engine auto switch), not
+  quota reading (rateLimits are account windows). Fallback fable → opus →
+  sonnet → haiku, effort unchanged ("plus de crédit fable → opus xhigh").
+- The user never types /route: prompt default rules, dispatch push/pop
+  (orchestrate while agents run, previous route restored), skills table
+  (wave 2), optional classifier. Main upgrade allowed by default, downgrade
+  still gated (cold-cache cost).
+- Sequence agreed: 1-C lands → user /reload-plugins → live test → commit →
+  wave 2.
+
 ## Wave 0 — spike (dev-mods folder, hot reload, this session)
 - [x] W0.1 minimal mod: `/route` command, `route` tool, `turn.step` logging +
       rewrite, `agent.spawn` rewrite, `ultrathink` → max, spinner suffix
