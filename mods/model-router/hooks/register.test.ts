@@ -1,6 +1,6 @@
 import { test, expect } from 'claude-code/testing'
 import type { Engine } from 'claude-code/testing'
-import type { On } from 'claude-code'
+import type { On, TurnStepInput } from 'claude-code'
 
 /** Fires session.start so the mod loads its config and registers /route. */
 async function boot($: Engine, on: On): Promise<void> {
@@ -84,7 +84,7 @@ test('/route bogus names the phases', async ($, on) => {
   }
 })
 
-test('ultrathink in a prompt sets escalate on main', async ($, on) => {
+test('ultrathink in a prompt sets a max floor on main', async ($, on) => {
   on('prompt.submit', ($, e) => ({ text: e.text }))
   await boot($, on)
   await $.prompt.submit({
@@ -92,7 +92,7 @@ test('ultrathink in a prompt sets escalate on main', async ($, on) => {
     wait: false,
     origin: { kind: 'composer' },
   })
-  expect(mainLine(await route($, 'show'))).toContain('prompt escalate')
+  expect(mainLine(await route($, 'show'))).toContain('floor max')
 })
 
 test('/route model: alias resolved, id passed, typo refused', async (
@@ -169,7 +169,7 @@ const stepInput = (agentId?: string) => ({
 /** Streams one turn.step to its end; the hooks run as the chunks flow. */
 async function runStep(
   $: Engine,
-  input: ReturnType<typeof stepInput>,
+  input: TurnStepInput,
 ): Promise<void> {
   const stream = $.turn.step(input)
   for await (const _chunk of stream) {
@@ -237,4 +237,212 @@ test('a rule only scans the first 4096 chars of a prompt', async ($, on) => {
     origin: { kind: 'composer' },
   })
   expect(mainLine(await route($, 'show'))).toContain('session defaults')
+})
+
+// ---- user effort floor -------------------------------------------------
+
+const ROUTE_TOOL = 'mcp__model-router__route'
+
+/** A main (or agent) step as the engine would make it: engine effort high. */
+const highStep = (agentId?: string): TurnStepInput => ({
+  ...stepInput(agentId),
+  effort: 'high' as const,
+})
+
+/** Types `ultrathink` in the composer, idle or over a running turn. */
+async function ultrathink($: Engine, turnId?: string): Promise<void> {
+  await $.prompt.submit({
+    text: 'ultrathink please',
+    wait: turnId !== undefined,
+    origin: { kind: 'composer' },
+    ...(turnId === undefined ? {} : { turnId }),
+  })
+}
+
+/** Ends a main turn: the floor's life is bounded by this event. */
+async function endTurn($: Engine): Promise<void> {
+  await $.turn.complete({
+    turnId: 'u1',
+    answer: '',
+    durationMs: 1,
+    isAborted: false,
+    reason: 'answer',
+  })
+}
+
+/** One main step; returns the effort that reached the bottom hook. */
+async function stepEffort($: Engine, seen: Seen[]): Promise<unknown> {
+  await runStep($, highStep())
+  return seen[seen.length - 1]?.effort
+}
+
+/** Boots with a bottom step recorder and prompt/turn hooks in place. */
+async function bootFloor($: Engine, on: On): Promise<Seen[]> {
+  const seen: Seen[] = []
+  recordSteps(on, seen)
+  on('prompt.submit', ($, e) => ({ text: e.text }))
+  on('turn.complete', () => ({ text: '' }))
+  on('tool.call', { tool: 'Skill' }, () => ({
+    result: { success: true, commandName: 'other' },
+  }))
+  on('agent.spawn', ($, e) => ({
+    model: e.model ?? e.parentModel,
+    agentId: 'a1',
+  }))
+  await boot($, on)
+  return seen
+}
+
+test('floor: ultrathink survives a model route', async ($, on) => {
+  const seen = await bootFloor($, on)
+  await ultrathink($)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'orchestrate' })
+  expect(await stepEffort($, seen)).toBe('max')
+})
+
+test('floor: typed /effort-medium clamps low, lets max pass', async (
+  $, on) => {
+  const seen = await bootFloor($, on)
+  await $.skill.prompt({ skill: 'effort-medium', text: 'x' })
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'mechanical' })
+  expect(await stepEffort($, seen)).toBe('medium')
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'escalate' })
+  expect(await stepEffort($, seen)).toBe('max')
+})
+
+test('floor: typed /effort-low lowers an unrouted turn', async ($, on) => {
+  const seen = await bootFloor($, on)
+  const out = await $.skill.prompt({ skill: 'effort-low', text: 'x' })
+  expect(out.text).toContain('minimum')
+  expect(await stepEffort($, seen)).toBe('low')
+})
+
+test('floor: survives a skill load', async ($, on) => {
+  const seen = await bootFloor($, on)
+  await ultrathink($)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'orchestrate' })
+  await $.tool.call({ tool: 'Skill', skill: 'other' })
+  expect(await stepEffort($, seen)).toBe('max')
+  expect(mainLine(await route($, 'show'))).not.toContain('orchestrate')
+})
+
+test('floor: lifts a lower sticky, then ends with the turn', async (
+  $, on) => {
+  const seen = await bootFloor($, on)
+  await route($, 'effort=low')
+  await ultrathink($)
+  expect(await stepEffort($, seen)).toBe('max')
+  await endTurn($)
+  expect(await stepEffort($, seen)).toBe('low')
+})
+
+test('floor: main only, an agent step is unaffected', async ($, on) => {
+  const seen = await bootFloor($, on)
+  await $.agent.spawn(spawnInput())
+  await ultrathink($)
+  await runStep($, highStep('a1'))
+  expect(seen[0]?.effort).toBe('medium')
+})
+
+test('floor: /route clear removes it', async ($, on) => {
+  const seen = await bootFloor($, on)
+  await ultrathink($)
+  expect(mainLine(await route($, 'show'))).toContain('floor max')
+  await route($, 'clear')
+  expect(await stepEffort($, seen)).toBe('high')
+  expect(mainLine(await route($, 'show'))).not.toContain('floor')
+})
+
+test('floor: a mid-turn prompt applies now and is kept for the next', async (
+  $, on) => {
+  const seen = await bootFloor($, on)
+  await ultrathink($, 'u1')
+  expect(await stepEffort($, seen)).toBe('max')
+  await endTurn($)
+  expect(await stepEffort($, seen)).toBe('max')
+  await endTurn($)
+  expect(await stepEffort($, seen)).toBe('high')
+})
+
+test('floor: the route answer names the floor over a sticky', async (
+  $, on) => {
+  await bootFloor($, on)
+  await route($, 'effort=low')
+  await ultrathink($)
+  const out = await $.tool.call({ tool: ROUTE_TOOL, phase: 'plan' })
+  const text = JSON.stringify(out)
+  expect(text).toContain('user floor max (prompt rule escalate)')
+  expect(text).toContain('/route clear')
+})
+
+// `enabled: false` in ~/.claude/model-router.json cannot be reached here (the
+// kit has no fs); the shared off path is covered through `/route off`.
+test('floor: /route off keeps the floor from routing', async ($, on) => {
+  const seen = await bootFloor($, on)
+  await ultrathink($)
+  await route($, 'off')
+  expect(await stepEffort($, seen)).toBe('high')
+  expect(mainLine(await route($, 'show'))).not.toContain('floor')
+})
+
+test('per axis: a model-only sticky keeps the turn route effort', async (
+  $, on) => {
+  const seen = await bootFloor($, on)
+  await route($, 'model=sonnet')
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'orchestrate' })
+  expect(await stepEffort($, seen)).toBe('medium')
+})
+
+// The config-driven `offConfig` is re-applied in the same rebuild; only the
+// session-only off is reachable here (the kit has no fs).
+test('session.end rebuild drops a session-only /route off', async (
+  $, on) => {
+  on('session.end', ($, e) => ({ sessionId: e.sessionId }))
+  await boot($, on)
+  await route($, 'off')
+  await $.session.end({
+    reason: 'clear',
+    sessionId: 's1',
+    resume: { id: 's1' },
+  })
+  expect(await route($, 'show')).toContain('router: on')
+})
+
+// The kit has no fs: the reload read fails, so the previous cfg must stay.
+test('reload with an unreadable override keeps the previous config', async (
+  $, on) => {
+  await boot($, on)
+  await route($, 'switch on')
+  const out = await route($, 'reload')
+  expect(out).toContain('switch: on')
+  expect(await route($, 'show')).toContain('switch: on')
+})
+
+test('typed marker: a preload in a live agent is ignored', async ($, on) => {
+  const seen = await bootFloor($, on)
+  await $.agent.spawn(spawnInput())
+  const out = await $.skill.prompt({ skill: 'effort-max', text: 'x' })
+  expect(out.text?.startsWith('model-router: effort-max preload')).toBe(true)
+  expect(mainLine(await route($, 'show'))).not.toContain('floor')
+  expect(await stepEffort($, seen)).not.toBe('max')
+})
+
+test('typed marker: /effort-max seen at submit writes the floor', async (
+  $, on) => {
+  await bootFloor($, on)
+  await $.agent.spawn(spawnInput())
+  await $.prompt.submit({
+    text: '/effort-max go',
+    wait: false,
+    origin: { kind: 'composer' },
+  })
+  await $.skill.prompt({ skill: 'effort-max', text: 'x' })
+  expect(mainLine(await route($, 'show'))).toContain('floor max')
+})
+
+test('typed slash with no agent and no marker writes the floor', async (
+  $, on) => {
+  await bootFloor($, on)
+  await $.skill.prompt({ skill: 'effort-max', text: 'x' })
+  expect(mainLine(await route($, 'show'))).toContain('floor max')
 })

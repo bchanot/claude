@@ -19,6 +19,7 @@ type Config = {
   mainModelSwitch: boolean
   verbose: boolean
   spinner: boolean
+  enabled: boolean // false: every hook passes through (per machine)
 }
 type Rule = { re: RegExp; phase: string }
 type Source = 'user' | 'model' | 'skill' | 'prompt' | 'slash'
@@ -32,12 +33,17 @@ type State = {
   rules: Rule[]
   source: string // 'defaults' or the override path
   userMain: Routed | null // /route by the user, sticky until /route clear
-  turnMain: Routed | null // tool, skill, slash, prompt; dropped at turn end
-  pendingPrompt: Routed | null // typed mid-turn, promoted next turn
+  turnMain: Routed | null // model route tool, skill table row, Skill(effort-*)
+  // bridge; dropped at turn end
+  turnFloor: Routed | null // user-explicit level for this turn (prompt rule,
+  // typed /effort-<l>): a floor, main loop only
+  pendingPrompt: Routed | null // typed mid-turn: the next turn's floor
+  typedSlash: boolean // one-shot: prompt.submit saw a typed /effort-<l>
   loops: Map<string, Loop> // agentId -> that loop's routing
   explicitEffort: Map<string, Level> // Agent tool_use_id -> effort param
   skillCalls: number // Skill tool calls in flight
-  off: boolean // /route off: every hook passes through
+  off: boolean // /route off or config: every hook passes through
+  offConfig: boolean // `off` comes from the config key `enabled`
   lastMain: string // "model/effort" of the last main step (spinner)
   windowWarned: boolean // context-window warning already logged this turn
   warned: Set<string> // hooks whose fail-open was already logged
@@ -52,6 +58,9 @@ type RouteInput = {
   agentId?: string
 }
 type Picked = { phase: string; route: Route }
+type Effort = StepIn['effort']
+type EffortBy = 'floor' | 'sticky' | 'turn' | 'engine'
+type Decision = { effort: Effort; by: EffortBy }
 
 const LEVELS: readonly Level[] = ['low', 'medium', 'high', 'xhigh', 'max']
 const MODEL_ID = /^claude-[a-z0-9.-]+$/
@@ -91,6 +100,7 @@ const DEFAULT_CONFIG: Config = {
   mainModelSwitch: false,
   verbose: false,
   spinner: true,
+  enabled: true,
 }
 
 // ---- config ----------------------------------------------------------
@@ -213,6 +223,14 @@ function mergePrompt(
 const pickBool = (v: unknown, fallback: boolean): boolean =>
   typeof v === 'boolean' ? v : fallback
 
+/** The kill switch: a non-boolean value is dropped, and said so. */
+function pickEnabled(v: unknown, fallback: boolean, log: Log): boolean {
+  if (v !== undefined && typeof v !== 'boolean') {
+    log('model-router: config "enabled" is not a boolean; ignored')
+  }
+  return pickBool(v, fallback)
+}
+
 /** Defaults overlaid with the user's entries, each validated first. */
 function mergeConfig(user: unknown, log: Log): Config {
   const base = structuredClone(DEFAULT_CONFIG)
@@ -236,6 +254,7 @@ function mergeConfig(user: unknown, log: Log): Config {
     mainModelSwitch: pickBool(user.mainModelSwitch, base.mainModelSwitch),
     verbose: pickBool(user.verbose, base.verbose),
     spinner: pickBool(user.spinner, base.spinner),
+    enabled: pickEnabled(user.enabled, base.enabled, log),
   }
 }
 
@@ -246,7 +265,7 @@ async function readCapped(
   log: Log,
 ): Promise<string | undefined> {
   const tooBig =
-    `model-router: ${OVERRIDE} over ${MAX_CONFIG_BYTES} bytes; defaults`
+    `model-router: ${OVERRIDE} over ${MAX_CONFIG_BYTES} bytes`
   if ((await $.fs.stat(path)).size > MAX_CONFIG_BYTES) {
     log(tooBig)
     return undefined
@@ -257,30 +276,37 @@ async function readCapped(
   return undefined
 }
 
-async function readOverride(
-  $: Api,
-  log: Log,
-): Promise<{ path: string; data: unknown } | undefined> {
+type Override = { path: string; data: unknown } | 'absent' | 'failed'
+
+/** 'absent': no file (defaults apply). 'failed': present but unusable. */
+async function readOverride($: Api, log: Log): Promise<Override> {
   try {
     const home = await $.env.get('HOME')
-    if (!home) return undefined
+    if (!home) return 'absent'
     const path = `${home}/${OVERRIDE}`
-    if (!(await $.fs.exists(path))) return undefined
+    if (!(await $.fs.exists(path))) return 'absent'
     const text = await readCapped($, path, log)
-    return text === undefined ? undefined : { path, data: JSON.parse(text) }
+    if (text === undefined) return 'failed'
+    const data: unknown = JSON.parse(text)
+    if (isRecord(data)) return { path, data }
+    log(`model-router: ${OVERRIDE} is not an object`)
+    return 'failed'
   } catch (err) {
-    log(`model-router: ${OVERRIDE} unreadable (${String(err)}); defaults`)
-    return undefined
+    log(`model-router: ${OVERRIDE} unreadable (${String(err)})`)
+    return 'failed'
   }
 }
 
-/** Never throws; a failed read or parse leaves the defaults. */
+/** Never throws; undefined when the override exists but cannot be used. */
 async function loadConfig(
   $: Api,
   log: Log,
-): Promise<{ cfg: Config; source: string }> {
+): Promise<{ cfg: Config; source: string } | undefined> {
   const found = await readOverride($, log)
-  if (!found) return { cfg: mergeConfig(undefined, log), source: 'defaults' }
+  if (found === 'failed') return undefined
+  if (found === 'absent') {
+    return { cfg: mergeConfig(undefined, log), source: 'defaults' }
+  }
   return { cfg: mergeConfig(found.data, log), source: found.path }
 }
 
@@ -300,11 +326,14 @@ function newState(cfg: Config, source: string): State {
     source,
     userMain: null,
     turnMain: null,
+    turnFloor: null,
     pendingPrompt: null,
+    typedSlash: false,
     loops: new Map(),
     explicitEffort: new Map(),
     skillCalls: 0,
     off: false,
+    offConfig: false,
     lastMain: '',
     windowWarned: false,
     warned: new Set(),
@@ -335,6 +364,67 @@ function safely(st: State, $: Api, hook: string, work: () => void): void {
 /** The main loop's effective route: user /route > latest turn route. */
 const mainRoute = (st: State): Routed | null => st.userMain ?? st.turnMain
 
+const rank = (l: Level | undefined): number =>
+  l === undefined ? -1 : LEVELS.indexOf(l)
+
+/** Lifts `effort` to `floor`; a lower level, a number or none is replaced. */
+function floored(effort: Effort, floor: Level | undefined): Effort {
+  if (floor === undefined) return effort
+  return isLevel(effort) && rank(effort) >= rank(floor) ? effort : floor
+}
+
+/** Two floors in one turn: the higher level stays (a tie takes the new). */
+function higherFloor(cur: Routed | null, next: Routed): Routed {
+  return cur && rank(cur.route.effort) > rank(next.route.effort) ? cur : next
+}
+
+/**
+ * The one decision of the main loop's effort. The user's floor is the turn's
+ * default (no sticky or turn route names an effort) and its minimum.
+ * `by` names who set the value: the floor when it raised or supplied it.
+ */
+function mainEffort(st: State, engine: Effort): Decision {
+  const sticky = st.userMain?.route.effort
+  const named = sticky ?? st.turnMain?.route.effort
+  const floor = st.turnFloor?.route.effort
+  const base = named ?? floor ?? engine
+  const effort = floored(base, floor)
+  if (floor !== undefined && (named === undefined || effort !== base)) {
+    return { effort, by: 'floor' }
+  }
+  if (named === undefined) return { effort, by: 'engine' }
+  return { effort, by: sticky === undefined ? 'turn' : 'sticky' }
+}
+
+/** Model axis: sticky, then turn route, then the floor's own model. */
+const mainModel = (st: State): string | undefined =>
+  st.userMain?.route.model ??
+  st.turnMain?.route.model ??
+  st.turnFloor?.route.model
+
+const floorSource = (f: Routed): string =>
+  f.source === 'prompt' ? `prompt rule ${f.phase}` : `typed /${f.phase}`
+
+const floorWord = (f: Routed): string =>
+  `user floor ${f.route.effort ?? '-'} (${floorSource(f)})`
+
+/**
+ * Why main will not run at `asked`, or '' when it will. Truthful tail of
+ * every answer that records an effort for the main loop.
+ */
+function mainNote(st: State, asked: Level | undefined): string {
+  const d = mainEffort(st, undefined)
+  if (d.by === 'floor') {
+    if (!st.turnFloor || asked === undefined || d.effort === asked) return ''
+    return `${floorWord(st.turnFloor)} keeps main at ${String(d.effort)}; ` +
+      '/route clear to drop it'
+  }
+  return d.by === 'sticky' && st.userMain
+    ? `a sticky /route ${st.userMain.phase} is in force and wins until ` +
+      '/route clear'
+    : ''
+}
+
 function loopOf(st: State, agentId: string): Loop {
   const known = st.loops.get(agentId)
   if (known) return known
@@ -353,20 +443,56 @@ function writeLoop(loop: Loop, route: Route): void {
 function clearRoutes(st: State): void {
   st.userMain = null
   st.turnMain = null
+  st.turnFloor = null
   st.pendingPrompt = null
 }
+
+/** Config `enabled: false` switches the router off; true lifts only that. */
+function applyEnabled(st: State, enabled: boolean): void {
+  if (!enabled) {
+    st.off = true
+    st.offConfig = true
+  } else if (st.offConfig) {
+    st.off = false
+    st.offConfig = false
+  }
+}
+
+const routerWord = (st: State): string =>
+  st.off ? (st.offConfig ? 'off (config)' : 'off') : 'on'
 
 // ---- text ------------------------------------------------------------
 
 const modelText = (cfg: Config, model: string | undefined): string =>
   model === undefined ? '-' : resolveModel(cfg, model)
 
+/** The floor's level when it carries one and the router is on. */
+function liveFloor(st: State): { f: Routed; level: Level } | undefined {
+  const f = st.turnFloor
+  const level = f?.route.effort
+  return st.off || !f || level === undefined ? undefined : { f, level }
+}
+
+/** True when the switch would put the main loop on a haiku model. */
+function mainOnHaiku(st: State): boolean {
+  const model = mainModel(st)
+  return st.cfg.mainModelSwitch && model !== undefined &&
+    resolveModel(st.cfg, model).startsWith(HAIKU)
+}
+
+function effortWord(st: State): string {
+  if (mainOnHaiku(st)) return '- (haiku takes none)'
+  return String(mainEffort(st, undefined).effort ?? '-')
+}
+
 function mainText(st: State): string {
   const r = mainRoute(st)
-  if (!r) return 'main: session defaults'
-  const model = modelText(st.cfg, r.route.model)
+  const live = liveFloor(st)
+  const floor = live ? ` · floor ${live.level} (${live.f.phase})` : ''
+  if (!r) return 'main: session defaults' + floor
+  const model = modelText(st.cfg, mainModel(st))
   return `main: ${r.source} ${r.phase} · model ${model} · effort ${
-    r.route.effort ?? '-'}`
+    effortWord(st)}${floor}`
 }
 
 function phasesText(cfg: Config): string {
@@ -381,7 +507,7 @@ function show(st: State): string {
   const flag = (b: boolean) => (b ? 'on' : 'off')
   return [
     mainText(st),
-    `router: ${st.off ? 'off' : 'on'} · switch: ${flag(c.mainModelSwitch)} · ` +
+    `router: ${routerWord(st)} · switch: ${flag(c.mainModelSwitch)} · ` +
       `verbose: ${flag(c.verbose)} · spinner: ${flag(c.spinner)}`,
     `live loops: ${st.loops.size}`,
     phasesText(c),
@@ -391,8 +517,12 @@ function show(st: State): string {
 
 function statusLine(st: State): string {
   const r = mainRoute(st)
-  const now = st.off ? 'off' : r ? `${r.source} ${r.phase}` : 'session defaults'
-  return `route: ${now}${st.cfg.mainModelSwitch ? ' · switch on' : ''}`
+  const now = st.off
+    ? routerWord(st)
+    : r ? `${r.source} ${r.phase}` : 'session defaults'
+  const floor = liveFloor(st)
+  return `route: ${now}${floor ? ` · floor ${floor.level}` : ''}${
+    st.cfg.mainModelSwitch ? ' · switch on' : ''}`
 }
 
 const refresh = ($: Api, st: State): void => $.ui.status(statusLine(st))
@@ -450,12 +580,21 @@ function setUserRoute($: Api, st: State, args: string): string {
   return show(st)
 }
 
-/** (Re)loads the config into the state and re-registers the route tool. */
+/**
+ * (Re)loads the config into the state and re-registers the route tool.
+ * An unusable override keeps the previous config: the kill switch fails
+ * closed, never back to the defaults.
+ */
 async function reloadConfig($: Api, st: State): Promise<void> {
   const loaded = await loadConfig($, text => $.ui.log(text))
-  st.cfg = loaded.cfg
-  st.rules = compileRules(loaded.cfg)
-  st.source = loaded.source
+  if (loaded) {
+    st.cfg = loaded.cfg
+    st.rules = compileRules(loaded.cfg)
+    st.source = loaded.source
+    applyEnabled(st, loaded.cfg.enabled)
+  } else {
+    $.ui.log('model-router: override unreadable; keeping the previous config')
+  }
   await registerTool($, st)
 }
 
@@ -472,6 +611,7 @@ async function handleCommand($: Api, st: State, args: string): Promise<string> {
     case 'on':
     case 'off':
       st.off = head === 'off'
+      st.offConfig = false
       refresh($, st)
       return show(st)
     case 'reload':
@@ -557,7 +697,11 @@ function applyRoute(st: State, agentId: string | undefined, p: Picked): void {
 function clearLoop(st: State, agentId: string | undefined): string {
   if (agentId === undefined) {
     st.turnMain = null
-    return 'route cleared for main'
+    const f = st.turnFloor
+    const held = f && f.route.effort !== undefined
+      ? `; ${floorWord(f)} still holds, /route clear drops it`
+      : ''
+    return 'route cleared for main' + held
   }
   const loop = st.loops.get(agentId)
   if (loop) writeLoop(loop, {})
@@ -566,10 +710,8 @@ function clearLoop(st: State, agentId: string | undefined): string {
 
 /** Truthful answer: states what the calling loop will actually do. */
 function routedText(st: State, agentId: string | undefined, p: Picked): string {
-  if (agentId === undefined && st.userMain) {
-    return `recorded ${p.phase} for this turn, but a sticky /route ` +
-      `${st.userMain.phase} is in force; it wins until /route clear`
-  }
+  const note = agentId === undefined ? mainNote(st, p.route.effort) : ''
+  if (note) return `recorded ${p.phase} for this turn, but ${note}`
   const loop = agentId === undefined ? undefined : st.loops.get(agentId)
   const effort = loop?.explicitEffort ? undefined : p.route.effort
   const model = agentId === undefined && st.cfg.mainModelSwitch
@@ -610,9 +752,10 @@ function effortBridge(st: State, agentId: string | undefined, skill: string,
   if (agentId === undefined) {
     const route = { ...st.turnMain?.route, effort: level }
     st.turnMain = { phase: skill, route, source: 'skill' }
-    return skillResult(skill, st.userMain
-      ? `model-router: ${skill} recorded, but a sticky /route ` +
-        `${st.userMain.phase} is in force and wins until /route clear.`
+    const note = mainNote(st, level)
+    return skillResult(skill, note
+      ? `model-router: ${skill} recorded, but ${note}; the ${skill} skill ` +
+        'text was not loaded.'
       : `model-router: effort → ${level} for this loop from the next ` +
         `request on; the ${skill} skill text was not loaded.`)
   }
@@ -631,7 +774,7 @@ function onSkillLoad(st: State, skill: string, agentId: string | undefined) {
   const table = hasKey(st.cfg.skills, skill) ? st.cfg.skills[skill] : undefined
   const route = table === undefined ? undefined : phaseRoute(st.cfg, table)
   if (agentId === undefined) {
-    if (st.turnMain && st.turnMain.source !== 'prompt') st.turnMain = null
+    st.turnMain = null
     if (table !== undefined && route) {
       st.turnMain = { phase: table, route, source: 'skill' }
     }
@@ -641,16 +784,36 @@ function onSkillLoad(st: State, skill: string, agentId: string | undefined) {
   if (loop) writeLoop(loop, { effort: route?.effort })
 }
 
-/** A user-typed /effort-<l>: prepends one line, args ride in the text. */
+/** A user-typed /effort-<l>: a floor for the turn, prepends one line. */
 function slashEffort(st: State, skill: string, text: string) {
   const level = EFFORT_SKILL.exec(skill)?.[1]
   if (!isLevel(level)) return undefined
-  st.turnMain = { phase: skill, route: { effort: level }, source: 'slash' }
-  const line = st.userMain
-    ? `Effort ${level} recorded; the sticky /route ${st.userMain.phase} ` +
-      'wins until /route clear.'
-    : `Effort shifted to ${level} by model-router for this turn.`
+  const route: Route = { effort: level }
+  const slash: Routed = { phase: skill, route, source: 'slash' }
+  st.turnFloor = higherFloor(st.turnFloor, slash)
+  const note = mainNote(st, level)
+  const line = `Effort ${level} set by model-router for the main loop this ` +
+    'turn (minimum; a higher route still applies).' +
+    (note ? ` But ${note}.` : '')
   return { text: line + '\n' + text }
+}
+
+/**
+ * Floor write for a skill.prompt. Only a typed slash may write it: the
+ * marker from prompt.submit attests the typing. Without it, a live
+ * sub-agent means the prompt is a preload inside that agent: ignored.
+ */
+function guardedSlash(st: State, skill: string, text: string) {
+  if (!EFFORT_SKILL.test(skill)) return undefined
+  if (st.typedSlash) {
+    st.typedSlash = false
+  } else if (st.loops.size > 0) {
+    return {
+      text: `model-router: ${skill} preload inside a live sub-agent is ` +
+        'ignored on the main loop.\n' + text,
+    }
+  }
+  return slashEffort(st, skill, text)
 }
 
 // ---- agents ----------------------------------------------------------
@@ -714,9 +877,8 @@ async function windowOk($: Api, st: State, id: string): Promise<boolean> {
 }
 
 async function mainPlan($: Api, st: State, e: StepIn): Promise<Plan> {
-  const set = mainRoute(st)
-  const effort = set?.route.effort ?? e.effort
-  const wanted = set?.route.model
+  const { effort } = mainEffort(st, e.effort)
+  const wanted = mainModel(st)
   if (wanted === undefined || !st.cfg.mainModelSwitch) {
     return { model: e.model, effort }
   }
@@ -751,8 +913,10 @@ function noteMain($: Api, st: State, plan: Plan): void {
 }
 
 function endMainTurn($: Api, st: State): void {
-  st.turnMain = st.pendingPrompt
+  st.turnFloor = st.pendingPrompt
   st.pendingPrompt = null
+  st.turnMain = null
+  st.typedSlash = false
   st.explicitEffort.clear()
   st.lastMain = ''
   st.windowWarned = false
@@ -773,6 +937,9 @@ function registerSession(on: On, st: State): void {
   })
   on('session.end', async ($, e, next) => {
     Object.assign(st, newState(st.cfg, st.source))
+    // session.start never fires after /clear: re-apply the config's
+    // `enabled` so a config-disabled router (offConfig) stays off.
+    applyEnabled(st, st.cfg.enabled)
     return next(e)
   }).catch(($, e, next) => {
     warnOnce(st, $, 'session.end', next.error.kind)
@@ -823,7 +990,10 @@ function registerSkills(on: On, st: State): void {
   })
   on('skill.prompt', async ($, e, next) => {
     if (st.off || st.skillCalls > 0) return next(e)
-    return slashEffort(st, e.skill, e.text) ?? next(e)
+    const out = guardedSlash(st, e.skill, e.text)
+    if (!out) return next(e)
+    refresh($, st)
+    return out
   }).catch(($, e, next) => {
     warnOnce(st, $, 'skill.prompt', next.error.kind)
     return next(e)
@@ -891,6 +1061,15 @@ function registerTurns(on: On, st: State): void {
   })
 }
 
+/**
+ * A prompt's level is a floor now; typed mid-turn (`wait` is ignored, the
+ * engine queues either way) it is also kept for the next turn.
+ */
+function floorFromPrompt(st: State, midTurn: boolean, routed: Routed): void {
+  st.turnFloor = higherFloor(st.turnFloor, routed)
+  if (midTurn) st.pendingPrompt = higherFloor(st.pendingPrompt, routed)
+}
+
 function registerPrompt(on: On, st: State): void {
   on('prompt.submit', async ($, e, next) => {
     if (st.off || e.origin.kind !== 'composer') return next(e)
@@ -899,11 +1078,10 @@ function registerPrompt(on: On, st: State): void {
     const route = rule ? phaseRoute(st.cfg, rule.phase) : undefined
     if (rule && route) {
       const routed: Routed = { phase: rule.phase, route, source: 'prompt' }
-      // Typed mid-turn and asked to wait: it belongs to the NEXT turn.
-      if (e.turnId !== undefined && e.wait) st.pendingPrompt = routed
-      else st.turnMain = routed
+      floorFromPrompt(st, e.turnId !== undefined, routed)
       refresh($, st)
     }
+    if (e.text.trimStart().startsWith('/effort-')) st.typedSlash = true
     return next(e)
   }).catch(($, e, next) => {
     warnOnce(st, $, 'prompt.submit', next.error.kind)
