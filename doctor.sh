@@ -155,6 +155,64 @@ unset _dv_active_profile _dv_profile_file
 
 echo ""
 
+# ────────────────────────────────────────────────────────────
+# 2c. Mods (mods/<name>/ plugins, loaded through the tracked
+# skills/<name> symlink as <name>@skills-dir). Fail-soft: a missing link
+# is info (the user may have removed it on purpose), never an error.
+# ────────────────────────────────────────────────────────────
+echo "── Mods ──"
+
+# Prints enabled|disabled|absent|unknown for $1 read from the JSON on stdin;
+# always exits 0 so a bad payload cannot abort doctor under set -e.
+mod_state() {
+  python3 -c '
+import json, sys
+try:
+    rows = json.load(sys.stdin)
+    row = [r for r in rows if r.get("id") == sys.argv[1] + "@skills-dir"]
+    print("absent" if not row else
+          "enabled" if row[0].get("enabled") is True else "disabled")
+except Exception:
+    print("unknown")
+' "$1" 2>/dev/null || true
+}
+
+_mods_list=""
+if command -v claude &>/dev/null; then
+  if ! _mods_list=$(claude plugin list --json 2>/dev/null); then
+    warn "mods: claude plugin list failed — load state not checked"
+    _mods_list=""
+  fi
+fi
+
+_mods_seen=0
+for _mod_manifest in "$REPO"/mods/*/.claude-plugin/plugin.json; do
+  [ -f "$_mod_manifest" ] || continue
+  _mods_seen=$((_mods_seen + 1))
+  _mod=$(basename "$(dirname "$(dirname "$_mod_manifest")")")
+  _mod_link="$HOME/.claude/skills/$_mod"
+  if ! { [ -L "$_mod_link" ] || [ -e "$_mod_link" ]; }; then
+    info "mod $_mod: not linked (skills/$_mod absent) — git checkout skills/$_mod if wanted"
+    continue
+  fi
+  if [ "$_mod_link" -ef "$REPO/mods/$_mod" ]; then
+    pass "mod $_mod: loading link ~/.claude/skills/$_mod"
+  else
+    warn "mod $_mod: ~/.claude/skills/$_mod does not resolve to $REPO/mods/$_mod"
+  fi
+  [ -n "$_mods_list" ] || continue
+  case "$(printf '%s' "$_mods_list" | mod_state "$_mod")" in
+    enabled) pass "mod $_mod: enabled as $_mod@skills-dir" ;;
+    disabled) warn "mod $_mod: disabled (\"$_mod@skills-dir\": false in enabledPlugins)" ;;
+    absent) warn "mod $_mod: not listed as @skills-dir — run: claude plugin validate mods/$_mod (policy, manifest or name conflict)" ;;
+    *) warn "mod $_mod: claude plugin list output not understood" ;;
+  esac
+done
+[ "$_mods_seen" -gt 0 ] || info "no mods"
+unset _mods_list _mods_seen _mod_manifest _mod _mod_link
+
+echo ""
+
 # ── Playwright browsers (read-only report; NOT nested under gstack — 2 of
 # the 3 registered installs are gsd-pi, not gstack) ──
 echo "── Playwright browsers ──"
