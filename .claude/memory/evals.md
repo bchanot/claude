@@ -60,6 +60,7 @@ rules:
 | EVAL-037 | 2026-09-28 | correction of EVAL-035/036 counts: transcript records are per content block; deduped by message.id → main-loop thinking share 99.9%, thinking share of weighted cost 5.6%, sonnet think/msg 26→0.2, A/B requests 9→8 | conclusions hold (sharper: main-loop thinking 96.6%→99.9%, weighted-cost thinking corrected 8.4%→5.6%); effort-audit.py dedupes from a3b479e+ |
 | EVAL-038 | 2026-09-29 | correction of EVAL-037: 94 % of sub-agent usage records carry no `output_tokens_details` (Fable subs at xhigh read 0 thinking, impossible with always-on thinking) → sub-agent thinking UNMEASURED, not ≈0; main loop 100 % counted; weighted-cost split (61/39) still holds | `effort-audit.py` prints coverage + CAVEAT; cite the cost split only; agent effort pins stay unmeasured; a tier move on a price argument = judgment, not figure |
 | EVAL-039 | 2026-09-30 | ship-feature run higgsfield-pack: plan dry-run in scratch → 0 executor failure on 7 tasks; challenge found 7 MAJOR I missed; floor-guard caught 2 shellcheck suppressions of mine; final review found README/code gap | keep |
+| EVAL-040 | 2026-10-08 | model-router w1a plan: 3 challengers + 1 confirmation found 2 BLOCKER + 14 MAJOR on a plan judged closed; executor then passed every gate first time | keep the round, never dispatch a mod plan without it |
 
 ---
 
@@ -370,3 +371,11 @@ Dogfood: 3 blind lenses attacked the v1 plan for the plan-challenge feature itse
 - **Method**: plan code dry-run in a scratch copy before the gate (suite per stage 0/5→5/0, 6/8→14/0, 14/1→15/0, 15/1→16/0, 4 mutation tests); 3 challengers + 1 confirmation; SDD per-task reviews; GATE 0/1/2 twice; final review on opus.
 - **Anomaly**: my first plan was green in dry-run and still wrong on 7 MAJOR points (shim vs binary, unbounded toggle probe, denylist membership, vacuous fixtures, askpass prompt): a dry-run proves the code does what I wrote, not that I wrote the right thing. Floor-guard flagged 2 `shellcheck disable=SC2016` I added to keep "shellcheck clean" green. Final review found the README promised drift reporting that the enabled state never reached. doc-syncer patch hit a shape escalation because I filed a script-comment edit under MINOR doc. One oracle of mine was shape-bound ([[LRN-188]]).
 - **Action**: keep the pre-gate dry-run (0 executor failure, 1 fix round in 7 tasks) AND the challenge (orthogonal finds); never silence a linter to satisfy a criterion, rewrite the line; doc patch plans carry public-doc paths only, script comments go as code commits.
+
+## EVAL-040 — model-router w1a: the challenge round caught what the author could not see
+- **Date**: 2026-10-08
+- **Output checked**: plan `.claude/tasks/plans/2026-10-08-model-router-w1a-1533.md` r1, written after a successful spike with every harness fact in hand.
+- **Method**: 3 blind opus challengers (simplicity CONCERNS(3), robustness CONCERNS(6), correctness FATAL(8)) + 1 confirmation (CONCERNS(4)); every BLOCKER/MAJOR closed by a named plan change (r2, r3); then feater, GATE 0, verifier, security.
+- **Anomaly**: r1 carried 2 BLOCKER (explicit Agent `model` overridden at every step; Skill bridge answer shape refused by the output schema → doublon kept) + 10 MAJOR, all invisible to me: spike levers carried over as design (`agentsNext`, per-step model rewrite), a table copying 21 pins = third source of truth, writes on main from sub-agent loops. Confirmation found 4 more MAJOR (explicit params vs in-agent writes, `e.wait`, vacuous test assertions, haiku effort). Executor then DONE first pass, verifier CONFORME 6/6, security PASS: the plan was the whole risk.
+- **Action**: a mod plan always goes through the full round + confirmation; test assertions must read the one line that carries the value; spike code is a FACT source, never a design source ([[BDR-115]], [[LRN-205]], [[LRN-206]]).
+

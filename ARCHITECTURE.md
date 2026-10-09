@@ -26,6 +26,7 @@ claude-config/
 ├── rules/                 # Rule files deployed to ~/.claude/rules (path-scoped or always-on)
 ├── agents/                # Execution units called by skills (never invoked directly)
 ├── skills/                # Entry points invoked via /skill-name
+├── mods/                  # Claude Code mods (function-hooks plugins), loaded through the skills/<name> symlink
 ├── skills-external/       # Vendored skill packs: gstack submodule, design skills, superpowers, agent-skills, MengTo scroll skills, 21st and Higgsfield packs (machine-owned copies gitignored)
 ├── templates/             # Per-project templates (CLAUDE.md, settings, memory registries, deploy runbook, gitignore)
 └── lib/                   # Shared libs: gitflow, profiles, vendoring, effort pins, gates, archetypes, tests
@@ -35,5 +36,6 @@ claude-config/
 
 - `skills/` = entry points you invoke via `/skill-name`
 - `agents/` = execution units called by skills (never invoked directly by user)
+- `mods/` = Claude Code mods (function-hooks plugins); each loads through the tracked symlink `skills/<name>` as `<name>@skills-dir`, live at the next session
 - `templates/` = symlinked to `~/.claude/templates/` — copy into projects via `/onboard` or manually
 - **Graphify** builds a knowledge graph of any codebase (`/graphify query`), producing a navigable wiki in `graphify-out/wiki/`. This map helps Claude understand project structure, find relevant code faster, and reason across files. Essential for large-scope tasks (multi-file features, complex bugs, architectural changes). Small tasks should skip it and read files directly. Proposed only from 200 tracked code files: the session-start banner informs, the user decides; nothing builds a graph without that go.

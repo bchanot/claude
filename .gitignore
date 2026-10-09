@@ -262,3 +262,7 @@ skills-external/.higgsfield-stage.*/
 # ── gitflow standard socle (added by gitflow_init; additive, safe to edit) ──
 *.log
 !.claude/deploy/
+
+# mods/: the engine lays tsconfig.json beside a loaded mod; its
+# .claude-plugin/types/ ignores itself
+mods/*/tsconfig.json

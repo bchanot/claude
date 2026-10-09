@@ -163,6 +163,7 @@ Tu veux...
 | `/pdf-translate` | Traduire un PDF vers une autre langue | Sortie HTML fidèle (images, layout, style préservés) |
 | `/impeccable` | Audit/polish design + détecteur anti-slop déterministe | 23 verbes ; `npx impeccable detect` (exit 0/2) |
 | `/tour` | Sweep groupé sur un ou plusieurs projets | Sécu + nettoyage + reconcile + doc, boucle jusqu'à un pass propre |
+| `/route` | Voir ou fixer la route du mod model-router | show / clear / off / on / reload / <phase> / model=… effort=… / switch on\|off / verbose on\|off |
 | `/profile` | Changer le profil de skills | web / seo / web-full / full / max / backend / design / dev / qa / audit / minimal |
 
 > Cette table couvre les skills personnels principaux. Les plugins (gstack,
@@ -184,6 +185,8 @@ la main relance un tour bloqué au maximum. Les skills externes vendorés
 (pile design, superpowers, agent-skills, skills scroll MengTo, 21st) reçoivent leur niveau de
 `lib/effort-pins.txt`. Un skill chargé seul par Claude n'applique pas son
 niveau : il doit partir avec un autre appel d'outil dans le même message.
+
+Avec le mod model-router (`mods/model-router/`, actif dans chaque session), le niveau suit la phase à chaque requête. Le mod répond lui-même à `Skill(effort-*)` : le niveau s'applique dès la requête suivante et le texte des skills `effort-*` n'est plus chargé. Écrire `ultrathink` dans un prompt, ou taper `/effort-<niveau>`, fixe le niveau par défaut et le minimum du tour principal. Les sous-agents intégrés suivent leur route : Explore en sonnet/medium, Plan en opus/xhigh. `/route` affiche ou fixe la route (`/route show`, `/route clear`, `/route off`). La config par machine, optionnelle, vit dans `~/.claude/model-router.json` ; `"enabled": false` y coupe le mod sur cette machine.
 
 ## Les plugins — décision rapide
 
