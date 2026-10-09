@@ -98,6 +98,66 @@ repo root `bash ~/.claude/lib/gates.sh run .claude/tasks/contracts/2026-10-08-mo
   skills-dir copy in that session; doctor reads `claude plugin list` from a
   fresh process, which sees only the skills-dir copy.
 
+## r2 — challenge round (3 lenses, 0 BLOCKER, 5 MAJOR): BINDING, overrides the sections above where they conflict
+W1. ORDER: this plan runs AFTER the floor plan (B1) is committed and green
+    on the same branch: the suite and doctor test whatever register.ts is
+    on disk.
+W2. `.gitignore`: add ONLY `mods/*/tsconfig.json` with the comment
+    `# mods/: the engine lays tsconfig.json beside a loaded mod; its
+    .claude-plugin/types/ ignores itself`. (The types folder carries its
+    own `.gitignore` holding `*`.)
+W3. Link step idempotent: `[ -L skills/model-router ] || ln -s
+    ../mods/model-router skills/model-router` (a bare `ln -s` re-run would
+    create a nested link inside the mod).
+W4. `lib/tests/mods.test.sh` fail-soft and bounded:
+    - capability probe, not presence: `command -v claude` AND `claude plugin
+      test --help >/dev/null 2>&1`; otherwise ONE `SKIP: claude plugin test
+      unavailable (<reason>) — validate/test not run` line, checks (1)-(2)
+      still decide the exit code;
+    - `claude plugin validate` and `claude plugin test` captured with `2>&1`;
+      the validate verdict is the line matching `Validation passed`, with
+      `warning` searched only in that captured output;
+    - every CLI call bounded: `timeout 120` when available (coreutils /
+      `gtimeout`), else a background-and-wait guard; a timeout is a FAIL
+      naming it;
+    - no mod found → FAIL (never vacuous).
+W5. doctor `── Mods ──` fail-soft under `set -euo pipefail`:
+    - `[ -L "$link" ] || [ -e "$link" ]` BEFORE any readlink; compare with
+      `[ "$link" -ef "$REPO/mods/<name>" ]` (handles logical vs physical
+      repo paths), never string equality on `readlink -f`;
+    - a missing link is `info "mod <name>: not linked (skills/<name> absent)
+      — git checkout skills/<name> if wanted"`, NOT `fail` (a user may
+      remove the link on purpose; doctor red forever would break
+      update-all's final doctor run);
+    - ONE `claude plugin list --json` call before the loop, inside
+      `if ! out=$(claude plugin list --json 2>/dev/null); then warn "mods:
+      claude plugin list failed — load state not checked"; out=""; fi`; the
+      python3 parse reads stdin, exits 0 always, prints `enabled|disabled|
+      absent|unknown` per name (any parse error → `unknown`);
+    - wording: `pass "mod <name>: enabled as <name>@skills-dir"` (not
+      "loaded": the list proves enablement, not a successful load);
+      `disabled` → warn naming `"<name>@skills-dir": false`; `absent` →
+      `warn "mod <name>: not listed as @skills-dir — run: claude plugin
+      validate mods/<name> (policy, manifest or name conflict)"` (a fresh
+      process rescans skills/, so a restart changes nothing); `unknown` →
+      warn "list output not understood";
+    - `claude` missing → nothing (doctor's Prerequisites section already
+      fails on it); no override-file JSON check (the mod validates its own
+      config and logs at session start).
+W6. CLAUDE.md `## mods/` also says: the only per-machine off switch is
+    `"enabled": false` in `~/.claude/<name>.json` (untracked); an
+    `enabledPlugins` `"<name>@skills-dir": false` entry works too but lands
+    in the TRACKED settings.json, so it dirties every machine's tree; and
+    that a hot-reload / `--plugin-dir` copy of the same name shadows the
+    skills-dir copy for that session (docs plugins/loading "Name
+    conflicts"), so the dev link in `~/.claude/dev-mods/<session>/` must
+    be removed before `/reload-plugins` is read as a test of the skills-dir
+    path.
+W7. `update-all.sh` runs `claude plugin update` over every listed plugin
+    (lines ~606-618): a `@skills-dir` entry will produce one recurring
+    warn there. Accepted residual, logged in TODO (an update-all edit is
+    out of this contract's FILE SCOPE).
+
 ## Disposition
 - honors BDR-115 (mod in `mods/`, single source); amends its "Load:" line
   (PLUGIN_DIRS → skills-dir link), to be recorded at capitalize.

@@ -19,17 +19,21 @@ Q: doctor scope / A: per mod: the loading link resolves into the repo mod dir; `
    CHECK: [ -L skills/model-router ] && [ "$(readlink skills/model-router)" = "../mods/model-router" ] && ! git check-ignore -q skills/model-router && echo LINK-OK
    EXPECT: LINK-OK
    EVIDENCE: pending
-2. Engine-laid files are ignored: a mod's root `tsconfig.json` and anything under its `.claude-plugin/types/`; the tracked mod files are not ignored.
-   CHECK: git check-ignore -q mods/model-router/tsconfig.json && git check-ignore -q mods/model-router/.claude-plugin/types/claude-code/index.d.ts && ! git check-ignore -q mods/model-router/hooks/register.ts && ! git check-ignore -q mods/model-router/.claude-plugin/plugin.json && echo IGNORE-OK
+2. Engine-laid files are ignored for ANY mod: a mod's root `tsconfig.json` (root `.gitignore`; the `.claude-plugin/types/` folder ignores itself); the tracked mod files are not ignored.
+   CHECK: git check-ignore -q mods/model-router/tsconfig.json && git check-ignore -q mods/zz-future/tsconfig.json && ! git check-ignore -q mods/model-router/hooks/register.ts && ! git check-ignore -q mods/model-router/.claude-plugin/plugin.json && [ -z "$(git status --short mods/)" ] && echo IGNORE-OK
    EXPECT: IGNORE-OK
    EVIDENCE: pending
-3. `lib/tests/mods.test.sh` passes on the repo and fails on a fixture that lacks the loading link (positive control through `MODS_ROOT`).
-   CHECK: make test suite=lib/tests/mods.test.sh >/dev/null 2>&1 && W=$(mktemp -d) && mkdir -p "$W/mods" "$W/skills" && cp -R mods/model-router "$W/mods/" && ! MODS_ROOT="$W" bash lib/tests/mods.test.sh >/dev/null 2>&1 && ln -s ../mods/model-router "$W/skills/model-router" && MODS_ROOT="$W" bash lib/tests/mods.test.sh >/dev/null 2>&1 && echo MODS-SUITE-OK
+3. `lib/tests/mods.test.sh` passes on the repo, fails on a fixture that lacks the loading link, fails on an empty `mods/`, and SKIPs (exit 0) the CLI checks when `claude plugin test` is unavailable (probe by capability, PATH-shadowed `claude` in the control).
+   CHECK: make test suite=lib/tests/mods.test.sh >/dev/null 2>&1 && W=$(mktemp -d) && mkdir -p "$W/mods" "$W/skills" "$W/bin" && cp -R mods/model-router "$W/mods/" && ! MODS_ROOT="$W" bash lib/tests/mods.test.sh >/dev/null 2>&1 && ln -s ../mods/model-router "$W/skills/model-router" && MODS_ROOT="$W" bash lib/tests/mods.test.sh >/dev/null 2>&1 && printf '#!/bin/sh\nexit 1\n' > "$W/bin/claude" && chmod +x "$W/bin/claude" && PATH="$W/bin:$PATH" MODS_ROOT="$W" bash lib/tests/mods.test.sh 2>&1 | grep -q '^SKIP' && E=$(mktemp -d) && mkdir -p "$E/mods" "$E/skills" && ! MODS_ROOT="$E" bash lib/tests/mods.test.sh >/dev/null 2>&1 && echo MODS-SUITE-OK
    EXPECT: MODS-SUITE-OK
    EVIDENCE: pending
-4. `doctor.sh` prints a `── Mods ──` section with a ✓ line for the model-router loading link.
-   CHECK: out=$(bash doctor.sh 2>&1); echo "$out" | sed -n '/── Mods ──/,/^$/p' | grep -q '✓.*model-router' && echo DOCTOR-MODS-OK
+4. `doctor.sh` prints a `── Mods ──` section with a ✓ line for model-router; with the link absent (HOME pointed at a scratch `.claude` whose `skills/` lacks the link) the section prints an info line, doctor reaches its summary and exits 0 for that section's sake (no new error).
+   CHECK: out=$(bash doctor.sh 2>&1); echo "$out" | sed -n '/── Mods ──/,/^$/p' | grep -q '✓.*model-router' && H=$(mktemp -d) && mkdir -p "$H/.claude/skills" && o2=$(HOME="$H" bash doctor.sh 2>&1); echo "$o2" | sed -n '/── Mods ──/,/^$/p' | grep -qi 'not linked' && echo "$o2" | grep -q '═══' && echo DOCTOR-MODS-OK
    EXPECT: DOCTOR-MODS-OK
+   EVIDENCE: pending
+4b. The mod is enabled through the tracked link in a FRESH process: `claude plugin list --json` lists `model-router@skills-dir` with `enabled: true` (run after the dev-mods link is removed, see W6).
+   CHECK: claude plugin list --json 2>/dev/null | python3 -c 'import json,sys; rows=json.load(sys.stdin); ok=any(r.get("id")=="model-router@skills-dir" and r.get("enabled") is True for r in rows); sys.exit(0 if ok else 1)' && echo LOADED-OK
+   EXPECT: LOADED-OK
    EVIDENCE: pending
 5. `CLAUDE.md` has a `## mods/` section naming the `skills/<name>` relative symlink, the `@skills-dir` origin, why not `CLAUDE_CODE_PLUGIN_DIRS`, the gitignored engine-laid files, `~/.claude/<name>.json`, the suite command and how to turn a mod off.
    CHECK: grep -q '^## mods/' CLAUDE.md && grep -q '@skills-dir' CLAUDE.md && grep -q 'CLAUDE_CODE_PLUGIN_DIRS' CLAUDE.md && grep -q 'mods.test.sh' CLAUDE.md && grep -q '<name>.json' CLAUDE.md && grep -q '@skills-dir": false' CLAUDE.md && echo CLAUDEMD-OK
@@ -39,7 +43,9 @@ Q: doctor scope / A: per mod: the loading link resolves into the repo mod dir; `
    CHECK: shellcheck lib/tests/mods.test.sh doctor.sh && make test suite=lib/tests/doctrine-citers.test.sh >/dev/null 2>&1 && echo HEALTH-OK
    EXPECT: HEALTH-OK
    EVIDENCE: pending
-7. Judged by reading: no change to settings.json, link.sh or any install script; the user's settings.json working-tree diff is untouched; the suite SKIPs (explicit SKIP line, exit 0 for that part) only the `claude`-dependent checks when `claude` is absent, and fails when no mod is found at all; doctor's new section never increments the core-link counter (`_LINK_PASS`) and never fails on a missing `claude`; the CLAUDE.md section is terse English matching the file's style.
+7. Judged by reading: no change to settings.json, link.sh or any install script; the suite probes the CAPABILITY (`claude plugin test --help`), bounds every CLI call in time, captures `2>&1`, SKIPs with a reason, fails when no mod is found; doctor's section is fail-soft under `set -euo pipefail` (existence test before readlink, `-ef` comparison, one guarded `claude plugin list --json`, python exits 0 with `unknown` on any parse error), never increments `_LINK_PASS`, says "enabled" not "loaded", treats a missing link as info; the link step is idempotent; CLAUDE.md names the per-machine `"enabled": false` switch, the tracked-settings cost of `enabledPlugins`, and the dev-copy shadowing rule; the CLAUDE.md section is terse English matching the file's style.
+Q (r2): ordering / A: this contract runs after the floor contract (`2026-10-08-model-router-floor-1835`) is committed and green. [orchestrator]
+Q (r2): update-all `claude plugin update` over `@skills-dir` / A: accepted residual (one recurring warn), logged in TODO; out of FILE SCOPE. [orchestrator]
 
 ## FILE SCOPE
 skills/model-router (new symlink) · .gitignore · lib/tests/mods.test.sh (new) · doctor.sh · CLAUDE.md
