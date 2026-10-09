@@ -88,7 +88,7 @@ every call site.
 | doc-syncer | sonnet pin; audit mode dispatched `model="opus"` | two-mode: audit (drift judgment, opus) / patch (mechanical apply, sonnet) |
 | handover-doc-writer | sonnet pin; synthesize mode dispatched `model="opus"` | two-mode: synthesize (opus) / render (sonnet) — client deliverable |
 | interviewer, client-handover-writer | unpinned (inline-load = session model) | they ARE the main loop — a frontmatter pin would be inert |
-| Explore (built-in) | inherit session (Fable/Opus) | search feeds reflection — kept on the big model, not pinned down |
+| Explore, Plan (built-in) | model-router mod: Explore → sonnet/medium, Plan → opus/xhigh, set at spawn; an explicit `model=` on the call wins; mod off: inherit session | built-ins routed per phase by the mod |
 
 The pure-execution skills `/doc`, `/status`, `/commit-change`,
 `/release-candidate` **dispatch** their agent (instead of inline-loading it)
@@ -108,11 +108,25 @@ entry level (`/status` low … `/ship-feature` xhigh); the vendored externals
 `lib/effort-pins.txt`, re-applied by `lib/effort-pins.sh` after every
 vendoring step. Orchestrators shift per phase through the `effort-low` …
 `effort-max` skills (`lib/effort-shift.md`, always sent with another tool
-call: a lone Skill call applies nothing). Model pins stay tier aliases
+call: a lone Skill call applies nothing (mod off)). Model pins stay tier aliases
 (`sonnet`, `opus`, `haiku`, `fable`): the latest version of a tier is also
 the cheapest or same-priced, so the quality/price trade-off is tier × effort,
 never version. Census `lib/tests/effort-routing.test.sh`; transcript audit
 `python3 lib/effort-audit.py`.
+
+### model-router mod
+
+`mods/model-router/` is a Claude Code mod (a function-hooks plugin) that applies this table per request. It loads in every session through the tracked symlink `skills/model-router`, as `model-router@skills-dir`.
+
+- Main loop: every request gets the effort of the phase in force. The mod answers `Skill(effort-*)` itself and applies the level from the next request on, so the five `effort-*` skills no longer load while it is on.
+- Built-in sub-agents: Explore runs on sonnet/medium, Plan on opus/xhigh. An explicit `model` on the Agent call wins.
+- User floor: `ultrathink` in a prompt, or a typed `/effort-<level>`, sets the main turn's default and minimum effort.
+- `/route` (user command) shows or sets the route: `show`, `clear`, `off`, `on`, `reload`, a phase name, `model=<alias|id> effort=<level>`, `switch on|off`, `verbose on|off`. The model sets routes through a `route` tool.
+- The spinner suffix and the status line under the prompt show the route in force.
+
+Optional per-machine config: `~/.claude/model-router.json`. Keys: `models` (alias → full id), `windows` (context window per full id), `phases`, `agents`, `skills`, `prompt` (rules), `mainModelSwitch` (default `false`), `verbose` (default `false`), `spinner` (default `true`), `enabled` (default `true`; `false` turns the mod off on that machine). `/route reload` re-reads it.
+
+Limits: the main loop changes model only with `mainModelSwitch` on, and each switch into another model costs one cold-cache step. The hooks send full model ids, so the `models` table has to follow new model versions.
 
 ---
 
@@ -204,7 +218,8 @@ a different package, ships its own conflicting `graphify` bin) — see
 | `/profile` | Activate a skill profile (web / seo / web-full / full / max / backend / design / dev / qa / audit / minimal) (default: full) |
 | `/tour` | Grouped all-axes sweep — cleanup + security + reconcile + doc, fix and loop until clean |
 | `/site-motion` | Site-level motion: scroll engine choice, page transitions, pin/scrub sequencing across a page or Astro route (design stack) |
-| `/effort-low` … `/effort-max` | Effort shifters the orchestrators send per phase; type `/effort-max` to re-run a stuck turn at maximum |
+| `/effort-low` … `/effort-max` | Effort shifters the orchestrators send per phase (answered by the model-router mod when on); typed by you, they set the main turn's default and minimum effort |
+| `/route` | model-router mod: show or set the main-loop route (show, clear, off, on, reload, <phase>, model=… effort=…, switch on\|off, verbose on\|off) |
 
 > This table lists personal skills. Gstack skills (investigate, review, retro,
 > office-hours, cso…) and marketplace plugins add many more — run
@@ -452,7 +467,7 @@ make profile-reset          # go to the default profile (full)
 make new-skill name=myskill # scaffold agent + skill files
 ```
 
-`doctor.sh` checks: symlinks, GStack submodule, vendored skills (curl-pinned externals in `plugins.lock.json` + `link.sh`'s `EXTERNAL_SKILLS`, per the active profile), Playwright browser cache, prerequisites (git, Node, Cargo, Python, Claude Code), plugins, permissions, token budget, config consistency, git hooks (global core.hooksPath + generated githooks/), scratchpad (TMPDIR quota), Higgsfield CLI and session, seo-data layer.
+`doctor.sh` checks: symlinks, GStack submodule, vendored skills (curl-pinned externals in `plugins.lock.json` + `link.sh`'s `EXTERNAL_SKILLS`, per the active profile), Playwright browser cache, prerequisites (git, Node, Cargo, Python, Claude Code), plugins, permissions, token budget, config consistency, git hooks (global core.hooksPath + generated githooks/), mods (loading link and `@skills-dir` state), scratchpad (TMPDIR quota), Higgsfield CLI and session, seo-data layer.
 
 ---
 
