@@ -1,11 +1,32 @@
-import { test, expect } from 'claude-code/testing'
-import type { Engine } from 'claude-code/testing'
+import { test, expect, mock } from 'claude-code/testing'
+import type { Engine, MockClock } from 'claude-code/testing'
 import type { On, TurnStepInput } from 'claude-code'
 
-/** Fires session.start so the mod loads its config and registers /route. */
-async function boot($: Engine, on: On): Promise<void> {
+const FABLE = 'claude-fable-5-1'
+const OPUS = 'claude-opus-5-5'
+const SONNET = 'claude-sonnet-5-5'
+const HAIKU = 'claude-haiku-4-5-20251001'
+
+/**
+ * Fires session.start so the mod loads its config and registers /route.
+ * The bottom hooks the router reads are in place before the first `$` call:
+ * the session model, the classic failure and switch events, a mock clock,
+ * a small context (`tokens`; null = usage unanswered, size unknown).
+ */
+async function boot(
+  $: Engine,
+  on: On,
+  model: string = FABLE,
+  tokens: number | null = 1000,
+): Promise<MockClock> {
+  const clock = mock.clock(on)
+  on('session.model', () => ({ value: model }))
+  on('classic.StopFailure', () => ({}))
+  on('classic.PostModelSwitch', () => ({}))
+  if (tokens !== null) usageOf(on, tokens)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   await $.session.start({ cwd: '/tmp', surface: null, isInteractive: false })
+  return clock
 }
 
 /** Runs `/route <args>` as the user would type it. */
@@ -99,7 +120,7 @@ test('/route model: alias resolved, id passed, typo refused', async (
   $, on) => {
   await boot($, on)
   const alias = await route($, 'model=sonnet')
-  expect(mainLine(alias)).toContain('claude-sonnet-5-5')
+  expect(mainLine(alias)).toContain('asked claude-sonnet-5-5, keeps ')
   const id = await route($, 'model=claude-x-9')
   expect(mainLine(id)).toContain('claude-x-9')
   expect(await route($, 'model=sonet')).toContain('unknown')
@@ -445,4 +466,381 @@ test('typed slash with no agent and no marker writes the floor', async (
   await bootFloor($, on)
   await $.skill.prompt({ skill: 'effort-max', text: 'x' })
   expect(mainLine(await route($, 'show'))).toContain('floor max')
+})
+
+// ---- tiers, breaker, derived phases -------------------------------------
+
+type Rig = { seen: Seen[]; clock: MockClock; specs: (string | undefined)[] }
+
+type Failure = 'rate_limit' | 'overloaded' | 'invalid_request'
+
+/** Bottom hooks for a routed run, then the boot; `specs` records spawns. */
+async function bootRig(
+  $: Engine,
+  on: On,
+  model: string = FABLE,
+  tokens: number | null = 1000,
+): Promise<Rig> {
+  const seen: Seen[] = []
+  const specs: (string | undefined)[] = []
+  recordSteps(on, seen)
+  on('prompt.submit', ($, e) => ({ text: e.text }))
+  on('turn.complete', () => ({ text: '' }))
+  on('agent.spawn', ($, e) => {
+    specs.push(e.model)
+    return { model: e.model ?? e.parentModel, agentId: 'a1' }
+  })
+  on('tool.call', { tool: 'Agent' }, () => ({
+    result: {
+      status: 'async_launched' as const,
+      agentId: 'a1',
+      description: 'd',
+      prompt: 'p',
+      outputFile: '/tmp/o',
+    },
+  }))
+  const clock = await boot($, on, model, tokens)
+  return { seen, clock, specs }
+}
+
+/** One main step on `model`; returns what reached the bottom hook. */
+async function stepOn($: Engine, rig: Rig, model: string): Promise<Seen> {
+  await runStep($, { ...highStep(), model })
+  return rig.seen[rig.seen.length - 1] ?? { model: '', effort: undefined }
+}
+
+const failWith = ($: Engine, error: Failure, agentId?: string) =>
+  $.classic.StopFailure({
+    error,
+    ...(agentId === undefined ? {} : { agent_id: agentId }),
+  })
+
+const switchTo = (
+  $: Engine,
+  from: string,
+  to: string,
+  source: 'command' | 'auto',
+) => $.classic.PostModelSwitch({
+  from_model: from,
+  to_model: to,
+  requested_model: null,
+  source,
+  context_tokens: 0,
+  prompt_cache_warm: false,
+  cache_ttl: '5m',
+  estimated_cache_write_usd: 0,
+  pricing: 'catalog',
+})
+
+const planRoute = ($: Engine) =>
+  $.tool.call({ tool: ROUTE_TOOL, phase: 'plan' })
+
+/** A bottom `session.usage` answering a context of `tokens`. */
+function usageOf(on: On, tokens: number): void {
+  on('session.usage', () => ({
+    value: {
+      startedAt: 0,
+      context: { window: 1000000, tokens },
+      rateLimits: [],
+    },
+  }))
+}
+
+test('tier: a plan route upgrades a haiku session to fable xhigh', async (
+  $, on) => {
+  const rig = await bootRig($, on, HAIKU)
+  await planRoute($)
+  expect(await stepOn($, rig, HAIKU)).toEqual({
+    model: FABLE,
+    effort: 'xhigh',
+  })
+})
+
+test('tier: show prints the resolved id of each phase and a down line', async (
+  $, on) => {
+  await bootRig($, on)
+  const text = await route($, 'show')
+  expect(text).toContain('plan=best→claude-fable-5-1/xhigh')
+  expect(text).toContain('judge=big→claude-opus-5-5/xhigh')
+  expect(text).toContain('down: none')
+})
+
+test('tier: an upgrade is skipped above the context cap', async ($, on) => {
+  const rig = await bootRig($, on, SONNET, 300000)
+  await planRoute($)
+  expect(await stepOn($, rig, SONNET)).toEqual({
+    model: SONNET,
+    effort: 'xhigh',
+  })
+})
+
+test('cap: unknown usage blocks the upgrade', async ($, on) => {
+  const rig = await bootRig($, on, HAIKU, null)
+  await planRoute($)
+  expect((await stepOn($, rig, HAIKU)).model).toBe(HAIKU)
+})
+
+test('cap: a down model leaves for a better wanted only under the cap', async (
+  $, on) => {
+  const rig = await bootRig($, on, OPUS, 300000)
+  await planRoute($)
+  await stepOn($, rig, OPUS)
+  await failWith($, 'rate_limit')
+  expect((await stepOn($, rig, OPUS)).model).toBe(SONNET)
+})
+
+test('breaker: model_not_found on a non-table id marks nothing', async (
+  $, on) => {
+  const rig = await bootRig($, on)
+  await planRoute($)
+  await stepOn($, rig, 'claude-zz-9')
+  await $.classic.StopFailure({ error: 'model_not_found' })
+  expect(await route($, 'show')).toContain('down: none')
+})
+
+test('downgrade: mechanical on fable keeps the model, switch off', async (
+  $, on) => {
+  const rig = await bootRig($, on)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'mechanical' })
+  expect(await stepOn($, rig, FABLE)).toEqual({ model: FABLE, effort: 'low' })
+})
+
+test('downgrade: the switch on moves main to the cheap tier', async (
+  $, on) => {
+  const rig = await bootRig($, on)
+  await route($, 'switch on')
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'mechanical' })
+  const sent = await stepOn($, rig, FABLE)
+  expect(sent.model).toBe(HAIKU)
+  expect(sent.effort).toBeUndefined()
+})
+
+test('fallback: a rate limit on fable moves plan to opus xhigh', async (
+  $, on) => {
+  const rig = await bootRig($, on)
+  await planRoute($)
+  expect((await stepOn($, rig, FABLE)).model).toBe(FABLE)
+  await failWith($, 'rate_limit')
+  expect(await stepOn($, rig, FABLE)).toEqual({ model: OPUS, effort: 'xhigh' })
+  expect(await route($, 'show')).toContain('claude-fable-5-1 for 15 min')
+  await route($, 'reload')
+  expect((await stepOn($, rig, FABLE)).model).toBe(FABLE)
+})
+
+test('breaker: an invalid_request or a turn error never marks down', async (
+  $, on) => {
+  const rig = await bootRig($, on)
+  await planRoute($)
+  await stepOn($, rig, FABLE)
+  await failWith($, 'invalid_request')
+  await $.turn.complete({
+    turnId: 'u1',
+    answer: '',
+    durationMs: 1,
+    isAborted: false,
+    reason: 'error',
+  })
+  expect((await stepOn($, rig, FABLE)).model).toBe(FABLE)
+  expect(await route($, 'show')).toContain('down: none')
+})
+
+test('breaker: the hold lapses with the clock, a second one doubles', async (
+  $, on) => {
+  const rig = await bootRig($, on)
+  await planRoute($)
+  await stepOn($, rig, FABLE)
+  await failWith($, 'overloaded')
+  await rig.clock.advance(15 * 60000)
+  expect(await route($, 'show')).toContain('down: none')
+  await endTurn($)
+  await planRoute($)
+  expect((await stepOn($, rig, FABLE)).model).toBe(FABLE)
+  await failWith($, 'overloaded')
+  expect(await route($, 'show')).toContain('claude-fable-5-1 for 30 min')
+})
+
+test('breaker: a /model command clears the mark of its target', async (
+  $, on) => {
+  const rig = await bootRig($, on)
+  await planRoute($)
+  await stepOn($, rig, FABLE)
+  await failWith($, 'rate_limit')
+  expect(await route($, 'show')).toContain('claude-fable-5-1 for')
+  await switchTo($, OPUS, FABLE, 'command')
+  expect(await route($, 'show')).toContain('down: none')
+  expect((await stepOn($, rig, FABLE)).model).toBe(FABLE)
+})
+
+test('breaker: model_not_found holds until the reload', async ($, on) => {
+  const rig = await bootRig($, on)
+  await planRoute($)
+  await stepOn($, rig, FABLE)
+  await $.classic.StopFailure({ error: 'model_not_found' })
+  await rig.clock.advance(24 * 3600000)
+  expect(await route($, 'show')).toContain('until reload (model_not_found)')
+})
+
+test('engine fallback: an auto switch marks the model it left, once', async (
+  $, on) => {
+  const rig = await bootRig($, on)
+  await switchTo($, FABLE, OPUS, 'auto')
+  const first = await route($, 'show')
+  expect(first).toContain('claude-fable-5-1 for 15 min (engine fallback)')
+  await planRoute($)
+  expect((await stepOn($, rig, OPUS)).model).toBe(OPUS)
+  await rig.clock.advance(60000)
+  await switchTo($, FABLE, OPUS, 'auto')
+  expect(await route($, 'show')).toContain('claude-fable-5-1 for 14 min')
+})
+
+test('unknown: a session model absent from the table is never switched', async (
+  $, on) => {
+  const rig = await bootRig($, on)
+  await planRoute($)
+  expect((await stepOn($, rig, 'claude-zz-9')).model).toBe('claude-zz-9')
+})
+
+test('spawn: Explore goes to opus while sonnet is down', async ($, on) => {
+  const rig = await bootRig($, on)
+  await $.agent.spawn(spawnInput())
+  await failWith($, 'overloaded', 'a1')
+  await $.agent.spawn(spawnInput())
+  expect(rig.specs).toEqual([SONNET, OPUS])
+})
+
+/** Types a plain prompt, idle, in the composer. */
+const typed = ($: Engine, text: string) => $.prompt.submit({
+  text,
+  wait: false,
+  origin: { kind: 'composer' },
+})
+
+const dispatch = ($: Engine) =>
+  $.tool.call({ tool: 'Agent', description: 'd', prompt: 'p' })
+
+const agentEnds = ($: Engine) => $.turn.complete({
+  turnId: 'a1',
+  agentId: 'a1',
+  answer: '',
+  durationMs: 1,
+  isAborted: false,
+  reason: 'answer',
+})
+
+test('derived: a dispatch pushes orchestrate, the end pops the prompt', async (
+  $, on) => {
+  await bootRig($, on)
+  await typed($, 'planifie la migration')
+  expect(mainLine(await route($, 'show'))).toContain('prompt plan')
+  await dispatch($)
+  expect(mainLine(await route($, 'show'))).toContain('derived orchestrate')
+  await agentEnds($)
+  expect(mainLine(await route($, 'show'))).toContain('prompt plan')
+})
+
+test('derived: a route declared after the dispatch survives the pop', async (
+  $, on) => {
+  await bootRig($, on)
+  await typed($, 'planifie la migration')
+  await dispatch($)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'reflect' })
+  await agentEnds($)
+  expect(mainLine(await route($, 'show'))).toContain('model reflect')
+})
+
+test('default rule: planifie sets plan, a later route overrides', async (
+  $, on) => {
+  const rig = await bootRig($, on, HAIKU)
+  await typed($, 'planifie la migration')
+  expect(await stepOn($, rig, HAIKU)).toEqual({ model: FABLE, effort: 'xhigh' })
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'implement' })
+  const line = mainLine(await route($, 'show'))
+  expect(line).toContain('model implement')
+  expect(line).not.toContain('prompt')
+})
+
+test('default rule: a typed slash command gets no default rule', async (
+  $, on) => {
+  await bootRig($, on)
+  await typed($, '/analyze pourquoi ça plante')
+  expect(mainLine(await route($, 'show'))).toContain('session defaults')
+})
+
+test('default rule: /effort-low pourquoi sets the floor, no default', async (
+  $, on) => {
+  await bootRig($, on)
+  await typed($, '/effort-low pourquoi ça plante')
+  await $.skill.prompt({ skill: 'effort-low', text: 'x' })
+  const line = mainLine(await route($, 'show'))
+  expect(line).toContain('floor low')
+  expect(line).not.toContain('reflect')
+})
+
+test('per axis: a model-less sticky never hides a turn route tier', async (
+  $, on) => {
+  const rig = await bootRig($, on, HAIKU)
+  await route($, 'effort=low')
+  await planRoute($)
+  expect(await stepOn($, rig, HAIKU)).toEqual({ model: FABLE, effort: 'low' })
+})
+
+// ---- texts follow the decision, from the turn's model ------------------
+
+test('text: effort-only route on a down model says fallback', async (
+  $, on) => {
+  const rig = await bootRig($, on)
+  await stepOn($, rig, FABLE)
+  await failWith($, 'rate_limit')
+  const out = await $.tool.call({ tool: ROUTE_TOOL, effort: 'low' })
+  expect(JSON.stringify(out)).toContain(`model ${OPUS} (fallback)`)
+})
+
+test('text: /route effort= on a down model names the fallback', async (
+  $, on) => {
+  const rig = await bootRig($, on)
+  await stepOn($, rig, FABLE)
+  await failWith($, 'rate_limit')
+  await route($, 'effort=low')
+  expect(mainLine(await route($, 'show'))).toContain(`${OPUS} (fallback)`)
+})
+
+test('text: show names the session model after the turn ended', async (
+  $, on) => {
+  const rig = await bootRig($, on, HAIKU)
+  await planRoute($)
+  expect((await stepOn($, rig, HAIKU)).model).toBe(FABLE)
+  await endTurn($)
+  await route($, 'mechanical')
+  const line = mainLine(await route($, 'show'))
+  expect(line).toContain(`model ${HAIKU}`)
+  expect(line).not.toContain(FABLE)
+})
+
+test('text: show reflects a /model command to opus', async ($, on) => {
+  const rig = await bootRig($, on)
+  await stepOn($, rig, FABLE)
+  await switchTo($, FABLE, OPUS, 'command')
+  await route($, 'mechanical')
+  const line = mainLine(await route($, 'show'))
+  expect(line).toContain(OPUS)
+  expect(line).not.toContain(FABLE)
+})
+
+test('text: an unknown session model prints "session model"', async (
+  $, on) => {
+  await bootRig($, on, 'mystery-model')
+  await route($, 'plan')
+  expect(mainLine(await route($, 'show'))).toContain('keeps session model')
+})
+
+test('text: show names the model a floor upgrade moves to', async (
+  $, on) => {
+  await bootRig($, on, HAIKU)
+  await $.prompt.submit({
+    text: 'ultrathink please',
+    wait: false,
+    origin: { kind: 'composer' },
+  })
+  const line = mainLine(await route($, 'show'))
+  expect(line).toContain(`${FABLE} (upgrade)`)
 })
