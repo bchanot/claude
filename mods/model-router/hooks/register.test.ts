@@ -23,6 +23,8 @@ async function boot(
   on('session.model', () => ({ value: model }))
   on('classic.StopFailure', () => ({}))
   on('classic.PostModelSwitch', () => ({}))
+  on('skill.prompt', ($, e) => ({ text: e.text }))
+  on('agent.offer', () => ({ isOffered: true }))
   if (tokens !== null) usageOf(on, tokens)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   await $.session.start({ cwd: '/tmp', surface: null, isInteractive: false })
@@ -55,24 +57,6 @@ const spawnInput = (model?: string) => ({
   background: false,
   fork: false,
   ...(model === undefined ? {} : { model }),
-})
-
-test('Skill(effort-low) is answered without next, route shows low', async (
-  $, on) => {
-  let reached = false
-  on('tool.call', { tool: 'Skill' }, () => {
-    reached = true
-    return { result: { success: true, commandName: 'bottom' } }
-  })
-  await boot($, on)
-  const out = await $.tool.call({ tool: 'Skill', skill: 'effort-low' })
-  expect(out).toMatchObject({
-    result: { success: true, commandName: 'effort-low' },
-  })
-  expect(reached).toBe(false)
-  const line = mainLine(await route($, 'show'))
-  expect(line).toContain('skill effort-low')
-  expect(line).toContain('effort low')
 })
 
 test('route tool with phase orchestrate sets medium on main', async (
@@ -321,30 +305,14 @@ test('floor: ultrathink survives a model route', async ($, on) => {
   expect(await stepEffort($, seen)).toBe('max')
 })
 
-test('floor: typed /effort-medium clamps low, lets max pass', async (
+test('floor: survives a skill load; an unrowed skill keeps the route', async (
   $, on) => {
-  const seen = await bootFloor($, on)
-  await $.skill.prompt({ skill: 'effort-medium', text: 'x' })
-  await $.tool.call({ tool: ROUTE_TOOL, phase: 'mechanical' })
-  expect(await stepEffort($, seen)).toBe('medium')
-  await $.tool.call({ tool: ROUTE_TOOL, phase: 'escalate' })
-  expect(await stepEffort($, seen)).toBe('max')
-})
-
-test('floor: typed /effort-low lowers an unrouted turn', async ($, on) => {
-  const seen = await bootFloor($, on)
-  const out = await $.skill.prompt({ skill: 'effort-low', text: 'x' })
-  expect(out.text).toContain('minimum')
-  expect(await stepEffort($, seen)).toBe('low')
-})
-
-test('floor: survives a skill load', async ($, on) => {
   const seen = await bootFloor($, on)
   await ultrathink($)
   await $.tool.call({ tool: ROUTE_TOOL, phase: 'orchestrate' })
   await $.tool.call({ tool: 'Skill', skill: 'other' })
   expect(await stepEffort($, seen)).toBe('max')
-  expect(mainLine(await route($, 'show'))).not.toContain('orchestrate')
+  expect(mainLine(await route($, 'show'))).toContain('model orchestrate')
 })
 
 test('floor: lifts a lower sticky, then ends with the turn', async (
@@ -437,35 +405,6 @@ test('reload with an unreadable override keeps the previous config', async (
   const out = await route($, 'reload')
   expect(out).toContain('switch: on')
   expect(await route($, 'show')).toContain('switch: on')
-})
-
-test('typed marker: a preload in a live agent is ignored', async ($, on) => {
-  const seen = await bootFloor($, on)
-  await $.agent.spawn(spawnInput())
-  const out = await $.skill.prompt({ skill: 'effort-max', text: 'x' })
-  expect(out.text?.startsWith('model-router: effort-max preload')).toBe(true)
-  expect(mainLine(await route($, 'show'))).not.toContain('floor')
-  expect(await stepEffort($, seen)).not.toBe('max')
-})
-
-test('typed marker: /effort-max seen at submit writes the floor', async (
-  $, on) => {
-  await bootFloor($, on)
-  await $.agent.spawn(spawnInput())
-  await $.prompt.submit({
-    text: '/effort-max go',
-    wait: false,
-    origin: { kind: 'composer' },
-  })
-  await $.skill.prompt({ skill: 'effort-max', text: 'x' })
-  expect(mainLine(await route($, 'show'))).toContain('floor max')
-})
-
-test('typed slash with no agent and no marker writes the floor', async (
-  $, on) => {
-  await bootFloor($, on)
-  await $.skill.prompt({ skill: 'effort-max', text: 'x' })
-  expect(mainLine(await route($, 'show'))).toContain('floor max')
 })
 
 // ---- tiers, breaker, derived phases -------------------------------------
@@ -766,16 +705,6 @@ test('default rule: a typed slash command gets no default rule', async (
   expect(mainLine(await route($, 'show'))).toContain('session defaults')
 })
 
-test('default rule: /effort-low pourquoi sets the floor, no default', async (
-  $, on) => {
-  await bootRig($, on)
-  await typed($, '/effort-low pourquoi ça plante')
-  await $.skill.prompt({ skill: 'effort-low', text: 'x' })
-  const line = mainLine(await route($, 'show'))
-  expect(line).toContain('floor low')
-  expect(line).not.toContain('reflect')
-})
-
 test('per axis: a model-less sticky never hides a turn route tier', async (
   $, on) => {
   const rig = await bootRig($, on, HAIKU)
@@ -843,4 +772,459 @@ test('text: show names the model a floor upgrade moves to', async (
   })
   const line = mainLine(await route($, 'show'))
   expect(line).toContain(`${FABLE} (upgrade)`)
+})
+
+// ---- wave 2: skill rows, run slot, agent rows ---------------------------
+
+const skillPrompt = ($: Engine, skill: string) =>
+  $.skill.prompt({ skill, text: 'x' })
+
+const loadSkill = ($: Engine, skill: string, agentId?: string) =>
+  $.tool.call({
+    tool: 'Skill',
+    skill,
+    ...(agentId === undefined ? {} : { agentId }),
+  })
+
+/** bootRig plus a bottom Skill tool, so a model-loaded skill goes through. */
+async function bootRun($: Engine, on: On, model: string = FABLE) {
+  on('tool.call', { tool: 'Skill' }, () => ({
+    result: { success: true, commandName: 'bottom' },
+  }))
+  return bootRig($, on, model)
+}
+
+const spawnOf = (agent: string, extra: object = {}) =>
+  ({ ...spawnInput(), subagentType: agent, ...extra })
+
+const offerOf = ($: Engine, agent: string, source: string) =>
+  $.agent.offer({
+    agent,
+    description: 'd',
+    source,
+    provider: { plugin: 'engine', tier: 'core' },
+  })
+
+/**
+ * A ui.log recorder. The kit refuses a bottom hook for a void event, so the
+ * hook sits on top and swallows the missing implementation below it.
+ */
+function recordLogs(on: On): string[] {
+  const lines: string[] = []
+  on('ui.log', async ($, e, next) => {
+    lines.push(e.text)
+    try {
+      await next(e)
+    } catch {
+      // nothing implements ui.log below the recorder in the kit
+    }
+  })
+  return lines
+}
+
+test('typed /feat routes main to its row, best tier', async ($, on) => {
+  await bootRun($, on)
+  await typed($, '/feat add a thing')
+  await skillPrompt($, 'feat')
+  const line = mainLine(await route($, 'show'))
+  expect(line).toContain('skill reflect')
+  expect(line).toContain('effort high')
+  expect(line).toContain('[tier best]')
+})
+
+test('typed slash: a foreign origin arms nothing, fallback refused', async (
+  $, on) => {
+  await bootRun($, on)
+  await $.prompt.submit({
+    text: '/feat x',
+    wait: false,
+    origin: { kind: 'channel', server: 'slack' },
+  })
+  await skillPrompt($, 'feat')
+  expect(mainLine(await route($, 'show'))).toContain('session defaults')
+})
+
+test('typed slash: a preload in a live sub-agent leaves main alone', async (
+  $, on) => {
+  await bootRun($, on)
+  await typed($, 'hello')
+  await $.agent.spawn(spawnOf('feater'))
+  await skillPrompt($, 'feat')
+  expect(mainLine(await route($, 'show'))).toContain('session defaults')
+})
+
+test('typed slash: no live loop and an allowed origin still routes', async (
+  $, on) => {
+  await bootRun($, on)
+  await typed($, 'hello')
+  await skillPrompt($, 'feat')
+  expect(mainLine(await route($, 'show'))).toContain('skill reflect')
+})
+
+test('typed slash: an sdk origin arms the marker', async ($, on) => {
+  await bootRun($, on)
+  await $.prompt.submit({
+    text: '/status',
+    wait: false,
+    origin: { kind: 'sdk' },
+  })
+  await $.agent.spawn(spawnOf('feater'))
+  await skillPrompt($, 'status')
+  expect(mainLine(await route($, 'show'))).toContain('skill mechanical')
+})
+
+test('typed slash: a mid-turn /status waits for the turn end', async (
+  $, on) => {
+  await bootRun($, on)
+  await $.prompt.submit({
+    text: '/status',
+    wait: true,
+    origin: { kind: 'composer' },
+    turnId: 'u1',
+  })
+  await skillPrompt($, 'status')
+  expect(mainLine(await route($, 'show'))).toContain('session defaults')
+  await endTurn($)
+  await skillPrompt($, 'status')
+  expect(mainLine(await route($, 'show'))).toContain('skill mechanical')
+})
+
+test('skill without a row keeps the route; a rowed one replaces it', async (
+  $, on) => {
+  await bootRun($, on)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'plan' })
+  await loadSkill($, 'find-docs')
+  expect(mainLine(await route($, 'show'))).toContain('model plan')
+  await loadSkill($, 'gitflow')
+  expect(mainLine(await route($, 'show'))).toContain('skill implement')
+})
+
+test('run slot: survives route calls and the turn end', async ($, on) => {
+  await bootRun($, on)
+  await loadSkill($, 'feat')
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'orchestrate' })
+  await endTurn($)
+  expect(mainLine(await route($, 'show'))).toContain('run reflect')
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'plan' })
+  await endTurn($)
+  expect(mainLine(await route($, 'show'))).toContain('run reflect')
+})
+
+test('run slot: a model-loaded helper skill keeps it', async ($, on) => {
+  await bootRun($, on)
+  await loadSkill($, 'feat')
+  await loadSkill($, 'using-git-worktrees')
+  expect(mainLine(await route($, 'show'))).toContain('skill mechanical')
+  await endTurn($)
+  expect(mainLine(await route($, 'show'))).toContain('run reflect')
+})
+
+test('run slot: a typed non-best skill drops it', async ($, on) => {
+  await bootRun($, on)
+  await loadSkill($, 'feat')
+  await endTurn($)
+  await typed($, '/status')
+  await skillPrompt($, 'status')
+  await endTurn($)
+  expect(mainLine(await route($, 'show'))).toContain('session defaults')
+})
+
+test('run slot: /route clear and /route off drop it', async ($, on) => {
+  await bootRun($, on)
+  await loadSkill($, 'feat')
+  expect(await route($, 'clear')).toContain('run slot dropped')
+  await endTurn($)
+  expect(mainLine(await route($, 'show'))).toContain('session defaults')
+  await loadSkill($, 'feat')
+  await route($, 'off')
+  await route($, 'on')
+  await endTurn($)
+  expect(mainLine(await route($, 'show'))).toContain('session defaults')
+})
+
+test('run slot: a user /model switch drops it, an auto one does not', async (
+  $, on) => {
+  await bootRun($, on)
+  await loadSkill($, 'feat')
+  await endTurn($)
+  await switchTo($, FABLE, OPUS, 'auto')
+  expect(mainLine(await route($, 'show'))).toContain('run reflect')
+  await switchTo($, FABLE, OPUS, 'command')
+  expect(mainLine(await route($, 'show'))).toContain('session defaults')
+})
+
+test('run slot: a Skill call inside a sub-agent never touches it', async (
+  $, on) => {
+  await bootRun($, on)
+  await loadSkill($, 'feat', 'a1')
+  await endTurn($)
+  expect(mainLine(await route($, 'show'))).toContain('session defaults')
+})
+
+test('run slot: route(clear) clears the turn and names the run', async (
+  $, on) => {
+  await bootRun($, on)
+  await loadSkill($, 'feat')
+  const out = await $.tool.call({ tool: ROUTE_TOOL, clear: true })
+  expect(JSON.stringify(out)).toContain('run reflect still holds')
+})
+
+test('route answer names the id even with a floor in force', async (
+  $, on) => {
+  await bootRun($, on)
+  await ultrathink($)
+  const out = await $.tool.call({ tool: ROUTE_TOOL, phase: 'plan' })
+  const text = JSON.stringify(out)
+  expect(text).toContain(`model ${FABLE}`)
+  expect(text).toContain('user floor max')
+})
+
+test('agent row: feater spawns on sonnet and steps at medium', async (
+  $, on) => {
+  const rig = await bootRun($, on)
+  const out = await $.agent.spawn(spawnOf('feater'))
+  expect(rig.specs).toEqual([SONNET])
+  expect(out.model).toBe(SONNET)
+  await runStep($, { ...highStep('a1'), model: SONNET })
+  expect(rig.seen[rig.seen.length - 1]).toEqual({
+    model: SONNET,
+    effort: 'medium',
+  })
+})
+
+/** Spawn feater, load a skill inside it, return the effort of its step. */
+async function effortAfterSkill($: Engine, on: On, skill: string) {
+  const rig = await bootRun($, on)
+  await $.agent.spawn(spawnOf('feater'))
+  await loadSkill($, skill, 'a1')
+  await runStep($, { ...highStep('a1'), model: SONNET })
+  return rig.seen[rig.seen.length - 1].effort
+}
+
+test('agent skill: an unrowed one leaves the loop effort', async ($, on) => {
+  expect(await effortAfterSkill($, on, 'find-docs')).toBe('medium')
+})
+
+test('agent skill: a rowed one writes the loop effort', async ($, on) => {
+  expect(await effortAfterSkill($, on, 'status')).toBe('low')
+})
+
+test('agent row: judge moves up to fable when opus is down', async (
+  $, on) => {
+  const rig = await bootRun($, on)
+  await switchTo($, OPUS, SONNET, 'auto')
+  await $.agent.spawn(spawnOf('plan-challenger'))
+  expect(rig.specs).toEqual([FABLE])
+})
+
+test('agent row: opus and fable down, no write and one log line', async (
+  $, on) => {
+  const logs = recordLogs(on)
+  const rig = await bootRun($, on)
+  await switchTo($, OPUS, SONNET, 'auto')
+  await switchTo($, FABLE, SONNET, 'auto')
+  await $.agent.spawn(spawnOf('plan-challenger'))
+  await $.agent.spawn(spawnOf('plan-challenger'))
+  expect(rig.specs).toEqual([undefined, undefined])
+  const down = logs.filter(l => l.includes('frontmatter model kept'))
+  expect(down).toEqual([
+    'model-router: plan-challenger tier big down, frontmatter model kept',
+  ])
+})
+
+test('agent row: explicit model, explicit effort and fork win', async (
+  $, on) => {
+  const rig = await bootRun($, on)
+  await $.agent.spawn(spawnOf('feater', { model: 'opus' }))
+  await $.agent.spawn(spawnOf('feater', { fork: true }))
+  expect(rig.specs).toEqual(['opus', undefined])
+  await $.tool.call({
+    tool: 'Agent',
+    description: 'd',
+    prompt: 'p',
+    effort: 'low',
+    tool_use_id: 't1',
+  })
+  await $.agent.spawn(spawnOf('feater'))
+  await runStep($, { ...highStep('a1'), model: SONNET })
+  expect(rig.seen[rig.seen.length - 1]?.effort).toBe('high')
+})
+
+test('agent row: a project definition keeps its own model', async ($, on) => {
+  const rig = await bootRun($, on)
+  await offerOf($, 'verifier', 'projectSettings')
+  await offerOf($, 'feater', 'userSettings')
+  await $.agent.spawn(spawnOf('verifier'))
+  await $.agent.spawn(spawnOf('feater'))
+  expect(rig.specs).toEqual([undefined, SONNET])
+})
+
+test('agent row: an override null drops the row', async ($, on) => {
+  on('env.get', () => ({ value: '/home/t' }))
+  on('fs.exists', () => ({ value: true }))
+  on('fs.stat', () => ({
+    value: { kind: 'file' as const, size: 40, mtimeMs: 0, isLink: false },
+  }))
+  on('fs.read', () => ({ value: '{"agents":{"verifier":null}}' }))
+  const rig = await bootRun($, on)
+  await $.agent.spawn(spawnOf('verifier'))
+  await $.agent.spawn(spawnOf('feater'))
+  expect(rig.specs).toEqual([undefined, SONNET])
+})
+
+test('show lists the write and apply phases', async ($, on) => {
+  await bootRun($, on)
+  const text = await route($, 'show')
+  expect(text).toContain('apply=work→claude-sonnet-5-5/low')
+  expect(text).toContain('write=work→claude-sonnet-5-5/high')
+})
+
+// ---- wave 2: typed-slash origins, spawning counter, spawn exclusions ----
+
+/** A promise the test settles by hand, to hold a hook in flight. */
+function deferred() {
+  let release: () => void = () => {}
+  const gate = new Promise<void>(r => { release = r })
+  return { gate, release }
+}
+
+test('typed slash: an in-flight spawn refuses the fallback', async (
+  $, on) => {
+  const hold = deferred()
+  const entered = deferred()
+  on('prompt.submit', ($, e) => ({ text: e.text }))
+  on('agent.spawn', async ($, e) => {
+    entered.release()
+    await hold.gate
+    return { model: e.model ?? e.parentModel, agentId: 'a1' }
+  })
+  await boot($, on)
+  await typed($, 'hello')
+  const spawned = $.agent.spawn(spawnOf('feater'))
+  await entered.gate
+  await skillPrompt($, 'feat')
+  expect(mainLine(await route($, 'show'))).toContain('session defaults')
+  hold.release()
+  await spawned
+})
+
+test('typed slash: a bridge origin arms the marker', async ($, on) => {
+  await bootRun($, on)
+  await $.prompt.submit({
+    text: '/feat x',
+    wait: false,
+    origin: { kind: 'bridge' },
+  })
+  await $.agent.spawn(spawnOf('feater'))
+  await skillPrompt($, 'feat')
+  expect(mainLine(await route($, 'show'))).toContain('skill reflect')
+})
+
+test('typed slash: a promoted mid-turn marker routes past a live loop', async (
+  $, on) => {
+  await bootRun($, on)
+  await $.agent.spawn(spawnOf('feater'))
+  await $.prompt.submit({
+    text: '/status',
+    wait: true,
+    origin: { kind: 'composer' },
+    turnId: 'u1',
+  })
+  await endTurn($)
+  await skillPrompt($, 'status')
+  expect(mainLine(await route($, 'show'))).toContain('skill mechanical')
+})
+
+test('agent row: any provider plugin applies, a local definition not', async (
+  $, on) => {
+  const rig = await bootRun($, on)
+  const provider = { plugin: 'some-plugin', tier: 'core' as const }
+  await $.agent.spawn(spawnOf('feater', { provider }))
+  await offerOf($, 'verifier', 'localSettings')
+  await $.agent.spawn(spawnOf('verifier', { provider }))
+  expect(rig.specs).toEqual([SONNET, undefined])
+})
+
+test('agent row: a workflow spawn is untouched, model and effort', async (
+  $, on) => {
+  const rig = await bootRun($, on)
+  await $.agent.spawn(spawnOf('feater', { workflow: {} }))
+  expect(rig.specs).toEqual([undefined])
+  await runStep($, { ...highStep('a1'), model: SONNET })
+  expect(rig.seen[rig.seen.length - 1]?.effort).toBe('high')
+})
+
+test('typed slash: the marker binds to its skill name only', async (
+  $, on) => {
+  await bootRun($, on)
+  await typed($, '/status')
+  await $.agent.spawn(spawnOf('feater'))
+  await skillPrompt($, 'feat')
+  expect(mainLine(await route($, 'show'))).toContain('session defaults')
+})
+
+test('typed slash: the marker is one-shot', async ($, on) => {
+  await bootRun($, on)
+  await typed($, '/status')
+  await $.agent.spawn(spawnOf('feater'))
+  await skillPrompt($, 'status')
+  expect(mainLine(await route($, 'show'))).toContain('skill mechanical')
+  await route($, 'clear')
+  await skillPrompt($, 'status')
+  expect(mainLine(await route($, 'show'))).toContain('session defaults')
+})
+
+test('skill.prompt nested in a Skill call leaves the run slot', async (
+  $, on) => {
+  on('tool.call', { tool: 'Skill' }, async (_api, e) => {
+    await skillPrompt($, 'status')
+    return { result: { success: true, commandName: String(e.skill) } }
+  })
+  await bootRig($, on, FABLE)
+  await typed($, '/status')
+  await loadSkill($, 'feat')
+  await endTurn($)
+  expect(mainLine(await route($, 'show'))).toContain('run reflect')
+})
+
+/** Submits a prompt from `kind` over a running turn (mid-turn). */
+const queued = ($: Engine, kind: string, text: string) =>
+  $.prompt.submit({
+    text,
+    wait: true,
+    origin: { kind },
+    turnId: 'u1',
+  })
+
+test('idle fallback: a mid-turn foreign prompt never arms it', async (
+  $, on) => {
+  await bootRun($, on)
+  await queued($, 'channel', 'hello')
+  await endTurn($)
+  await skillPrompt($, 'status')
+  expect(mainLine(await route($, 'show'))).toContain('session defaults')
+})
+
+test('idle fallback: a mid-turn composer prompt promotes the allowance', async (
+  $, on) => {
+  await bootRun($, on)
+  await $.prompt.submit({
+    text: 'hello',
+    wait: false,
+    origin: { kind: 'channel' },
+  })
+  await queued($, 'composer', 'hello')
+  await endTurn($)
+  await skillPrompt($, 'status')
+  expect(mainLine(await route($, 'show'))).toContain('skill mechanical')
+})
+
+test('spawning: a finished spawn no longer counts as a live loop', async (
+  $, on) => {
+  await bootRun($, on)
+  await $.agent.spawn(spawnOf('feater'))
+  await agentEnds($)
+  await typed($, 'hello')
+  await skillPrompt($, 'status')
+  expect(mainLine(await route($, 'show'))).toContain('skill mechanical')
 })

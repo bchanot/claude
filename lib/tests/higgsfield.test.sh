@@ -321,24 +321,20 @@ expect link-sh    "$(count link.sh higgsfield)" 0
 expect profile-sh "$(count lib/profile.sh higgsfield)" 0
 expect profiles \
   "$(cat "$ROOT"/lib/profiles/*.profile | grep -cF higgsfield)" 0
-expect pins-map   "$(count lib/effort-pins.txt higgsfield)" 0
 verdict OFF_BY_DEFAULT_WIRING
 
 # ln_first / ln_last <file> <fixed string> — line number of a match.
 ln_first() { grep -nF -- "$2" "$ROOT/$1" | head -1 | cut -d: -f1; }
 ln_last()  { grep -nF -- "$2" "$ROOT/$1" | tail -1 | cut -d: -f1; }
-PINS="apply_effort_pins \"\$REPO\""
 
-# install-plugins.sh: the sync sits in Step 8.6, before the effort pins
-# (BDR-108); the CLI is proven by a probe, not by its shim; every login
-# offer tests stdin alone (stdout is the tee pipe).
+# install-plugins.sh: the sync sits in Step 8.6; the CLI is proven by a
+# probe, not by its shim; every login offer tests stdin alone (stdout is
+# the tee pipe).
 sync_ln="$(ln_last install-plugins.sh 'higgsfield_sync_skills')"
 expect after-8.5 "$(yn test "$sync_ln" -gt \
   "$(ln_first install-plugins.sh 'Step 8.5: External skills')")" yes
 expect before-8.7 "$(yn test "$sync_ln" -lt \
   "$(ln_first install-plugins.sh 'Step 8.7: 21st.dev')")" yes
-expect before-pins "$(yn test "$sync_ln" -lt \
-  "$(ln_last install-plugins.sh "$PINS")")" yes
 expect probe-gates \
   "$(yn test "$(count install-plugins.sh 'if higgsfield_cli_ok')" -ge 3)" yes
 expect control "$(echo 'if [ -t 0 ] && [ -t 1 ]; then' | grep -cF -- '-t 1')" 1
@@ -347,14 +343,12 @@ expect stdin-tests \
   "$(yn test "$(count install-plugins.sh '[ -t 0 ]')" -ge 3)" yes
 verdict INSTALL_WIRING
 
-# update-all.sh: refresh before the 21st block and before the pins re-apply,
-# and the updated CLI is proven by the probe, after the npm call.
+# update-all.sh: refresh before the 21st block, and the updated CLI is
+# proven by the probe, after the npm call.
 NPM_UP="npm install -g \"\$HF_PKG\""
 sync_ln="$(ln_last update-all.sh 'higgsfield_sync_skills')"
 expect before-21st "$(yn test "$sync_ln" -lt \
   "$(ln_first update-all.sh '7.4. Update the 21st.dev')")" yes
-expect before-pins "$(yn test "$sync_ln" -lt \
-  "$(ln_last update-all.sh "$PINS")")" yes
 expect probe-after-npm "$(yn test \
   "$(ln_first update-all.sh 'higgsfield_cli_ok')" -gt \
   "$(ln_last update-all.sh "$NPM_UP")")" yes

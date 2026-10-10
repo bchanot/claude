@@ -35,7 +35,7 @@ single `GATES — VERDICT:` line:
 - `UNMET(n)` → hand the dev the CONTRACT path + the `NOT-MET` rows verbatim,
   nothing else; re-run GATE 0. **No verifier is dispatched** — a red build or
   a red suite is not a judgement call, and paying an LLM to discover it is
-  waste. **Max 3 floor iterations** → `Skill(effort-max)` (effort-shift: cap reached, diagnose at max before escalating; send it in the same message as the first tool call that gathers the escalation evidence), then STOP + human escalation with the rows.
+  waste. **Max 3 floor iterations** → `mcp__model-router__route(phase="escalate")` (route: cap reached, diagnose at max before escalating; send it with the first tool call that gathers the escalation evidence), then STOP + human escalation with the rows.
 - `ABANDONED(n)` → floor green but a handoff stands. Continue to GATE 1; the
   verifier surfaces it and its `ABANDONED(n)` verdict routes to the human
   gate.
@@ -74,7 +74,7 @@ Parse its single `VERIFY — VERDICT:` line:
   lines (NOT-MET / out-of-scope), nothing else: re-dispatch a FRESH executor
   with those inputs only, never redo the fix by hand. Then re-run GATE 0 and
   re-dispatch a FRESH verifier. Repeat.
-  **Max 3 conformity iterations** → `Skill(effort-max)` (effort-shift: cap reached, diagnose at max before escalating; send it in the same message as the first tool call that gathers the escalation evidence), then STOP + human escalation with the
+  **Max 3 conformity iterations** → `mcp__model-router__route(phase="escalate")` (route: cap reached, diagnose at max before escalating; send it with the first tool call that gathers the escalation evidence), then STOP + human escalation with the
   CRITERIA table (the contract-vs-realized diff).
 - `ABANDONED(n)` → direct human gate, never a dev loop (a dev cannot close
   what was proven impossible). The human lifts the abandonment or accepts
@@ -104,9 +104,10 @@ Parse its single `SECURITY — VERDICT:` line:
   (re-dispatch a FRESH executor, never fix by hand). Then re-run GATE 0, then
   **re-verify the REQUEST first** (GATE 1, fresh verifier) — a security fix
   can drift the behavior — **then re-run GATE 2** (fresh auditor), in that
-  order. **Max 3 security iterations** → `Skill(effort-max)` (effort-shift: cap reached, diagnose at max before escalating; send it in the same message as the first tool call that gathers the escalation evidence), then STOP + human escalation with the
+  order. **Max 3 security iterations** → `mcp__model-router__route(phase="escalate")` (route: cap reached, diagnose at max before escalating; send it with the first tool call that gathers the escalation evidence), then STOP + human escalation with the
   BLOCKING table. Every STOP text names the level reached (`$CLAUDE_EFFORT`)
-  and suggests `/effort-max` for the relaunch.
+  and suggests relaunching with `ultrathink` in the prompt (turn floor) or
+  `/route effort=max` (sticky, `/route clear` after).
 - `DEGRADED` (semgrep absent) → does NOT block on the tool's absence; surface
   the checklist result + recommend `make plugin`. A DEGRADED run that still
   BLOCKs (grep-caught secret/injection) blocks like any other.

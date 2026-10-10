@@ -60,8 +60,8 @@ audit, report, and patch.
 Parse `$ARGUMENTS`:
 
 - **`MODE: patch`** — the dispatcher approved a PATCH PLAN and re-dispatches
-  this agent to APPLY it. Jump to MODE: PATCH section. Runs on the sonnet
-  frontmatter pin.
+  this agent to APPLY it. Jump to MODE: PATCH section. Runs on its sonnet
+  row (frontmatter = off-state floor).
 - **`MODE: audit`** (or no explicit MODE — audit is the default) — analysis
   half, dispatched with `model: "opus"` (judgment tier; the call-site
   override takes precedence over the sonnet pin). **READ-ONLY: Write and

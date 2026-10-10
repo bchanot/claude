@@ -38,7 +38,7 @@ The dispatcher (/seo) runs this agent as a 3-stage pipeline; /harden and
   terminated by the line `COLLECTION COMPLETE — RUNID: <RUNID>`, then
   emits a short `COLLECT REPORT` (`STATUS: DONE | BLOCKED`, RUNID,
   COVERAGE counts) and STOPS. No scoring, no findings, no bundle.
-- **`MODE: judge`** — runs on the opus frontmatter pin (audit judgment).
+- **`MODE: judge`** — runs on its opus row (audit judgment; frontmatter = off-state floor).
   FIRST loads `.audit/seo-signals-<RUNID>.md`: absent, RUNID mismatch, or
   missing `COLLECTION COMPLETE` sentinel → emit
   `SEO JUDGE — VERDICT: ERROR(<reason>)` and STOP (fail closed — NEVER

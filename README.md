@@ -71,10 +71,14 @@ commands, settings, secrets, maintenance.
 
 Doctrine: the session model (Fable) does main-loop reflection ONLY —
 brainstorm, plan, contract, audit judgment, gates, loop decisions — enforced
-by a blocking gate (`lib/model-gate.md` + `lib/model-check.sh`) at the entry
-of the 15 reflection skills (the orchestrators plus `/analyze`). Nothing dispatched inherits silently:
-typed agents carry a frontmatter pin, built-ins get an explicit `model=` at
-every call site.
+by a blocking gate (`lib/model-gate.md`) at the entry
+of the 15 reflection skills (the orchestrators plus `/analyze`): the skill
+calls the model-router `route` tool and its answer, which names the model
+id the main loop runs on, is the witness. A non-Fable/Opus id or the mod
+off stops the skill (`/route on` resumes the mod). Nothing dispatched
+inherits silently: typed agents run on their model-router row, their
+`model:` frontmatter being the off-state floor; built-ins get an explicit
+`model=` at every call site.
 
 | Agent | Model | Tier |
 |---|---|---|
@@ -100,31 +104,37 @@ children are dispatched `model:"fable"` (they carry reflection).
 ## Effort routing (BDR-107, BDR-108)
 
 Second axis of the same table: how hard each phase thinks. Session default
-`high`. Every typed agent carries an `effort:` pin next to its `model:` (low
-appliers, medium executors, high judgment, xhigh challengers and gates; none
-on haiku, which rejects the parameter). Every user-invoked skill carries an
-entry level (`/status` low … `/ship-feature` xhigh); the vendored externals
-(design stack, superpowers, agent-skills, MengTo scroll skills, 21st) get theirs from
-`lib/effort-pins.txt`, re-applied by `lib/effort-pins.sh` after every
-vendoring step. Orchestrators shift per phase through the `effort-low` …
-`effort-max` skills (`lib/effort-shift.md`, always sent with another tool
-call: a lone Skill call applies nothing (mod off)). Model pins stay tier aliases
+`high`. The model-router mod (below) holds the live source: one phase row
+per repo skill and agent, each phase naming a tier and an effort level
+(`plan` best/xhigh, `reflect` best/high, `orchestrate` best/medium,
+`escalate` best/max, `judge` big/xhigh, `implement` work/medium, `write`
+work/high, `verify` work/xhigh, `explore` work/medium, `apply` work/low,
+`mechanical` cheap/low). The `model:` and `effort:` frontmatter of every
+typed agent and user-invoked skill stays as the off-state floor, kept equal
+to the rows by the census `lib/tests/effort-routing.test.sh`: low
+appliers, medium executors, high writers, xhigh judgment and gates (none
+on haiku, which rejects the parameter); `/status` low … `/ship-feature`
+xhigh. The vendored externals (design stack, superpowers, agent-skills,
+MengTo scroll skills, 21st) get their level from their row only.
+Orchestrators declare each phase through the `mcp__model-router__route`
+tool (`lib/effort-shift.md`): `orchestrate` at a dispatch span, `reflect`
+or `plan` when reflection resumes, `apply` at the bookkeeping tail,
+`escalate` at the verify-secure caps. Model pins stay tier aliases
 (`sonnet`, `opus`, `haiku`, `fable`): the latest version of a tier is also
-the cheapest or same-priced, so the quality/price trade-off is tier × effort,
-never version. Census `lib/tests/effort-routing.test.sh`; transcript audit
-`python3 lib/effort-audit.py`.
+the cheapest or same-priced, so the quality/price trade-off is tier ×
+effort, never version. Transcript audit `python3 lib/effort-audit.py`.
 
 ### model-router mod
 
 `mods/model-router/` is a Claude Code mod (a function-hooks plugin) that applies this table per request. It loads in every session through the tracked symlink `skills/model-router`, as `model-router@skills-dir`.
 
-- Main loop: every request gets the effort of the phase in force. The mod answers `Skill(effort-*)` itself and applies the level from the next request on, so the five `effort-*` skills no longer load while it is on.
-- Built-in sub-agents: Explore runs on sonnet/medium, Plan on opus/xhigh. An explicit `model` on the Agent call wins.
-- User floor: `ultrathink` in a prompt, or a typed `/effort-<level>`, sets the main turn's default and minimum effort.
-- `/route` (user command) shows or sets the route: `show`, `clear`, `off`, `on`, `reload`, a phase name, `model=<alias|id> effort=<level>`, `switch on|off`, `verbose on|off`. The model sets routes through a `route` tool.
+- Main loop: every request gets the route in force. A typed skill with a row routes the main loop to it; a best-tier row (`plan`, `reflect`, `orchestrate`, `escalate`) holds across turns in a run slot until `/route clear`, `/route off`, a user `/model` or a typed skill on a non-best row. A skill without a row leaves the route as it is.
+- Sub-agents: a routed agent gets its row's model at spawn, within its tier and only upward from its frontmatter model, and the row's effort on every step. Explicit `model` / `effort` params on the Agent call win; a project-defined agent of the same name keeps its own definition. Built-ins: Explore runs on sonnet/medium, Plan on opus/xhigh.
+- Levers inside a run: `ultrathink` in a prompt sets the turn's minimum effort; `/route effort=max` holds until `/route clear`. The built-in `/effort` is not a lever inside a run, rows and routes outrank it.
+- `/route` (user command) shows or sets the route: `show`, `clear`, `off`, `on`, `reload`, a phase name, `model=<alias|id> effort=<level>`, `switch on|off`, `verbose on|off`. `/route show` names the run slot when one holds (`main: run <phase>`). The model sets routes through a `route` tool.
 - The spinner suffix and the status line under the prompt show the route in force.
 
-Optional per-machine config: `~/.claude/model-router.json`. Keys: `models` (alias → full id), `windows` (context window per full id), `phases`, `agents`, `skills`, `prompt` (rules), `mainModelSwitch` (default `false`), `verbose` (default `false`), `spinner` (default `true`), `enabled` (default `true`; `false` turns the mod off on that machine). `/route reload` re-reads it.
+Optional per-machine config: `~/.claude/model-router.json`. Keys: `models` (alias → full id), `windows` (context window per full id), `phases`, `agents`, `skills`, `prompt` (rules), `mainModelSwitch` (default `false`), `verbose` (default `false`), `spinner` (default `true`), `enabled` (default `true`; `false` turns the mod off on that machine). A `null` value in `agents` or `skills` drops a default row. `/route reload` re-reads it.
 
 Limits: the main loop changes model only with `mainModelSwitch` on, and each switch into another model costs one cold-cache step. The hooks send full model ids, so the `models` table has to follow new model versions.
 
@@ -218,7 +228,6 @@ a different package, ships its own conflicting `graphify` bin) — see
 | `/profile` | Activate a skill profile (web / seo / web-full / full / max / backend / design / dev / qa / audit / minimal) (default: full) |
 | `/tour` | Grouped all-axes sweep — cleanup + security + reconcile + doc, fix and loop until clean |
 | `/site-motion` | Site-level motion: scroll engine choice, page transitions, pin/scrub sequencing across a page or Astro route (design stack) |
-| `/effort-low` … `/effort-max` | Effort shifters the orchestrators send per phase (answered by the model-router mod when on); typed by you, they set the main turn's default and minimum effort |
 | `/route` | model-router mod: show or set the main-loop route (show, clear, off, on, reload, <phase>, model=… effort=…, switch on\|off, verbose on\|off) |
 
 > This table lists personal skills. Gstack skills (investigate, review, retro,

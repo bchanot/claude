@@ -3,7 +3,7 @@ name: analyzer
 description: Analyze code, codebase, or problem before any modification. Produces a factual report without proposing solutions. Use proactively before any refactoring, design, or implementation.
 tools: Read, Grep, Glob, Bash
 model: opus
-effort: high
+effort: xhigh
 memory: project
 ---
 

@@ -21,7 +21,7 @@ type Config = {
   models: Record<string, string> // alias -> full id
   windows: Record<string, number> // full id -> context window (tokens)
   phases: Record<string, Route>
-  agents: Record<string, string> // built-in subagentType -> phase
+  agents: Record<string, string> // subagentType -> phase
   skills: Record<string, string> // skill name -> phase
   prompt: PromptRule[]
   tiers: Record<string, string[]> // tier -> alias preference, best first
@@ -35,7 +35,7 @@ type Config = {
   enabled: boolean // false: every hook passes through (per machine)
 }
 type Rule = { re: RegExp; phase: string; mode: PromptMode }
-type Source = 'user' | 'model' | 'skill' | 'prompt' | 'slash' | 'derived'
+type Source = 'user' | 'model' | 'skill' | 'prompt' | 'run' | 'derived'
 type Routed = { phase: string; route: Route; source: Source }
 type Hold = { until: number; reason: string } // until: ms, Infinity = reload
 type Pushed = { prev: Routed | null; spawnIds: Set<string> }
@@ -48,12 +48,19 @@ type State = {
   rules: Rule[]
   source: string // 'defaults' or the override path
   userMain: Routed | null // /route by the user, sticky until /route clear
-  turnMain: Routed | null // model route tool, skill table row, Skill(effort-*)
-  // bridge, prompt default rule, derived orchestrate; dropped at turn end
-  turnFloor: Routed | null // user-explicit level for this turn (prompt rule,
-  // typed /effort-<l>): a floor, main loop only
+  turnMain: Routed | null // model route tool, skill table row, prompt
+  // default rule, derived orchestrate; dropped at turn end
+  runMain: Routed | null // best-tier skill row: spans the turns of a run;
+  // only a skill, /route clear|off or a user /model write or drop it
+  turnFloor: Routed | null // user-explicit level for this turn (prompt rule):
+  // a floor, main loop only
   pendingPrompt: Routed | null // typed mid-turn: the next turn's floor
-  typedSlash: boolean // one-shot: prompt.submit saw a typed /effort-<l>
+  typedSlash: string | null // the rowed skill the user typed at prompt.submit
+  pendingSlash: string | null // same, typed mid-turn: promoted at turn end
+  promptAllowed: boolean // this turn's prompt came from a typing origin
+  pendingAllowed: boolean // same, for the mid-turn prompt
+  spawning: number // agent.spawn hooks in flight (preloads fire inside)
+  offers: Map<string, string> // subagentType -> definition source
   loops: Map<string, Loop> // agentId -> that loop's routing
   explicitEffort: Map<string, Level> // Agent tool_use_id -> effort param
   skillCalls: number // Skill tool calls in flight
@@ -88,7 +95,19 @@ type Decision = { effort: Effort; by: EffortBy }
 const LEVELS: readonly Level[] = ['low', 'medium', 'high', 'xhigh', 'max']
 const MODEL_ID = /^claude-[a-z0-9.-]+$/
 const TOOL = 'mcp__model-router__route'
-const EFFORT_SKILL = /^effort-(low|medium|high|xhigh|max)$/
+const BEST = 'best' // the tier whose skill rows hold for a whole run
+// Origins that are a person typing: only these arm a typed slash.
+const TYPED_ORIGINS: ReadonlySet<string> = new Set([
+  'composer', 'sdk', 'bridge',
+])
+// Definition sources of a foreign repo's own agent: its row is skipped.
+const PROJECT_SOURCES: ReadonlySet<string> = new Set([
+  'projectSettings', 'localSettings',
+])
+// PostModelSwitch sources a person chose (auto and resume are not).
+const USER_SWITCH: ReadonlySet<string> = new Set([
+  'command', 'picker', 'sdk',
+])
 const OVERRIDE = '.claude/model-router.json'
 const HAIKU = 'claude-haiku'
 const MAX_PATTERN = 200 // chars of a prompt-rule pattern
@@ -132,14 +151,69 @@ const DEFAULT_CONFIG: Config = {
     escalate: { tier: 'best', effort: 'max' },
     judge: { tier: 'big', effort: 'xhigh' },
     implement: { tier: 'work', effort: 'medium' },
-    write: { tier: 'work', effort: 'medium' },
+    write: { tier: 'work', effort: 'high' },
     verify: { tier: 'work', effort: 'xhigh' },
     explore: { tier: 'work', effort: 'medium' },
+    apply: { tier: 'work', effort: 'low' },
     mechanical: { tier: 'cheap', effort: 'low' },
   },
-  // Built-ins only: repo agents keep their frontmatter pin (wave 2).
-  agents: { Explore: 'explore', Plan: 'judge' },
-  skills: {},
+  // phase = role; one row per routed repo skill/agent (wave 2); a
+  // project-level agent of the same name shadows its row (see spawnRoute).
+  agents: {
+    // explore
+    Explore: 'explore',
+    // judge
+    Plan: 'judge', 'plan-challenger': 'judge', 'plugin-advisor': 'judge',
+    'seo-analyzer': 'judge', 'geo-analyzer': 'judge', analyzer: 'judge',
+    // implement
+    feater: 'implement', bugfixer: 'implement', 'code-cleaner': 'implement',
+    scaffolder: 'implement', onboarder: 'implement',
+    // write
+    'commit-changer': 'write', 'doc-syncer': 'write',
+    'handover-doc-writer': 'write', refactorer: 'write',
+    // apply
+    hotfixer: 'apply', 'release-executor': 'apply', 'plugin-probe': 'apply',
+    'validator-analyzer': 'apply',
+    // verify
+    verifier: 'verify', 'security-auditor': 'verify',
+    // mechanical
+    'status-reporter': 'mechanical',
+  },
+  skills: {
+    // plan
+    'ship-feature': 'plan', 'init-project': 'plan', onboard: 'plan',
+    tour: 'plan', 'audit-delta': 'plan', analyze: 'plan',
+    'code-clean': 'plan', 'client-handover': 'plan', brainstorming: 'plan',
+    'writing-plans': 'plan', 'requesting-code-review': 'plan',
+    '21st-ui-review': 'plan',
+    // reflect
+    feat: 'reflect', hotfix: 'reflect', bugfix: 'reflect',
+    refactor: 'reflect', 'web-validate': 'reflect', harden: 'reflect',
+    seo: 'reflect', geo: 'reflect', 'site-motion': 'reflect',
+    'frontend-design': 'reflect', 'emil-design-eng': 'reflect',
+    'design-motion-principles': 'reflect', '21st-ui-build': 'reflect',
+    'scroll-world-storytelling': 'reflect',
+    'build-threejs-scroll-worlds': 'reflect',
+    'scroll-scrubbed-visual-sequence': 'reflect',
+    'scroll-scrubbed-word-reveal': 'reflect',
+    'scroll-progress-timeline': 'reflect',
+    'subagent-driven-development': 'reflect', 'writing-skills': 'reflect',
+    'deprecation-and-migration': 'reflect', '21st-ai': 'reflect',
+    '21st-ui-explore': 'reflect',
+    // implement
+    gitflow: 'implement', 'prune-memory': 'implement',
+    'pdf-translate': 'implement', 'ci-cd-and-automation': 'implement',
+    'observability-and-instrumentation': 'implement',
+    'test-driven-development': 'implement',
+    // apply
+    'commit-change': 'apply', 'release-candidate': 'apply', doc: 'apply',
+    capitalize: 'apply', close: 'apply', reconcile: 'apply', deploy: 'apply',
+    // mechanical
+    status: 'mechanical', profile: 'mechanical', 'plugin-check': 'mechanical',
+    'skills-perso': 'mechanical', 'using-git-worktrees': 'mechanical',
+    '21st-cli-use': 'mechanical', '21st-registry': 'mechanical',
+    '21st-design-sync': 'mechanical',
+  },
   // `floor` rules set the turn's minimum effort; `default` rules set the
   // turn's route, which a route call or a skill overrides. Neither lowers.
   prompt: [
@@ -386,6 +460,25 @@ function mergeRouting(
   }
 }
 
+/** A row table: `name: null` in the override drops a default row. */
+function mergeRows(
+  base: Record<string, string>,
+  user: unknown,
+  name: string,
+  ref: (key: string, value: unknown) => string | undefined,
+  log: Log,
+): Record<string, string> {
+  const entries = isRecord(user) ? Object.entries(user) : []
+  const kept = isRecord(user)
+    ? Object.fromEntries(entries.filter(([, v]) => v !== null))
+    : user
+  const rows = mergeTable(base, kept, name, ref, log)
+  for (const [key, value] of entries) {
+    if (value === null && key !== '__proto__') delete rows[key]
+  }
+  return rows
+}
+
 /** Defaults overlaid with the user's entries, each validated first. */
 function mergeConfig(user: unknown, log: Log): Config {
   const base = structuredClone(DEFAULT_CONFIG)
@@ -405,8 +498,8 @@ function mergeConfig(user: unknown, log: Log): Config {
     windows: mergeTable(
       base.windows, user.windows, 'windows', acceptWindow, log),
     phases,
-    agents: mergeTable(base.agents, user.agents, 'agents', ref, log),
-    skills: mergeTable(base.skills, user.skills, 'skills', ref, log),
+    agents: mergeRows(base.agents, user.agents, 'agents', ref, log),
+    skills: mergeRows(base.skills, user.skills, 'skills', ref, log),
     prompt: mergePrompt(base.prompt, user.prompt, phases, log),
     mainModelSwitch: pickBool(user.mainModelSwitch, base.mainModelSwitch),
     verbose: pickBool(user.verbose, base.verbose),
@@ -487,9 +580,15 @@ function newState(cfg: Config, source: string): State {
     source,
     userMain: null,
     turnMain: null,
+    runMain: null,
     turnFloor: null,
     pendingPrompt: null,
-    typedSlash: false,
+    typedSlash: null,
+    pendingSlash: null,
+    promptAllowed: false,
+    pendingAllowed: false,
+    spawning: 0,
+    offers: new Map(),
     loops: new Map(),
     explicitEffort: new Map(),
     skillCalls: 0,
@@ -511,7 +610,8 @@ function newState(cfg: Config, source: string): State {
 
 /**
  * /clear rebuilds the state but keeps what is account- or process-wide:
- * the breaker (a model's quota outlives the conversation) and the model.
+ * the breaker (a model's quota outlives the conversation), the model and
+ * the agent definitions' sources (the listing is not offered again).
  */
 function resetSession(st: State): void {
   const kept = {
@@ -519,6 +619,7 @@ function resetSession(st: State): void {
     strikes: st.strikes,
     agentModels: st.agentModels,
     sessionModel: st.sessionModel,
+    offers: st.offers,
   }
   Object.assign(st, newState(st.cfg, st.source), kept)
 }
@@ -788,10 +889,11 @@ function decideMain(
     : downgradeCall(st, cur, wanted, tokens)
 }
 
-/** Model axis: sticky, then turn route, then the floor's own model. */
+/** Model axis: sticky, turn route, run slot, then the floor's own model. */
 const mainModel = (st: State): string | undefined =>
   routeName(st.userMain?.route) ??
   routeName(st.turnMain?.route) ??
+  routeName(st.runMain?.route) ??
   routeName(st.turnFloor?.route)
 
 async function readTokens($: Api): Promise<number | undefined> {
@@ -827,8 +929,9 @@ function logCall($: Api, st: State, call: Call): void {
   }
 }
 
-/** The main loop's effective route: user /route > latest turn route. */
-const mainRoute = (st: State): Routed | null => st.userMain ?? st.turnMain
+/** The main loop's effective route: user /route > turn route > run slot. */
+const mainRoute = (st: State): Routed | null =>
+  st.userMain ?? st.turnMain ?? st.runMain
 
 const rank = (l: Level | undefined): number =>
   l === undefined ? -1 : LEVELS.indexOf(l)
@@ -851,7 +954,8 @@ function higherFloor(cur: Routed | null, next: Routed): Routed {
  */
 function mainEffort(st: State, engine: Effort): Decision {
   const sticky = st.userMain?.route.effort
-  const named = sticky ?? st.turnMain?.route.effort
+  const named = sticky ?? st.turnMain?.route.effort ??
+    st.runMain?.route.effort
   const floor = st.turnFloor?.route.effort
   const base = named ?? floor ?? engine
   const effort = floored(base, floor)
@@ -862,11 +966,8 @@ function mainEffort(st: State, engine: Effort): Decision {
   return { effort, by: sticky === undefined ? 'turn' : 'sticky' }
 }
 
-const floorSource = (f: Routed): string =>
-  f.source === 'prompt' ? `prompt rule ${f.phase}` : `typed /${f.phase}`
-
 const floorWord = (f: Routed): string =>
-  `user floor ${f.route.effort ?? '-'} (${floorSource(f)})`
+  `user floor ${f.route.effort ?? '-'} (prompt rule ${f.phase})`
 
 /**
  * Why main will not run at `asked`, or '' when it will. Truthful tail of
@@ -903,6 +1004,7 @@ function writeLoop(loop: Loop, route: Route): void {
 function clearRoutes(st: State): void {
   st.userMain = null
   st.turnMain = null
+  st.runMain = null
   st.turnFloor = null
   st.pendingPrompt = null
 }
@@ -1122,14 +1224,18 @@ async function handleCommand($: Api, st: State, args: string): Promise<string> {
     case '':
     case 'show':
       return show($, st)
-    case 'clear':
+    case 'clear': {
+      const run = st.runMain !== null
       clearRoutes(st)
       refresh($, st)
-      return 'route cleared\n' + (await show($, st))
+      return 'route cleared' + (run ? '; run slot dropped' : '') +
+        '\n' + (await show($, st))
+    }
     case 'on':
     case 'off':
       st.off = head === 'off'
       st.offConfig = false
+      if (st.off) st.runMain = null
       refresh($, st)
       return show($, st)
     case 'reload':
@@ -1218,20 +1324,28 @@ function clearLoop(st: State, agentId: string | undefined): string {
     const held = f && f.route.effort !== undefined
       ? `; ${floorWord(f)} still holds, /route clear drops it`
       : ''
-    return 'route cleared for main' + held
+    const run = st.runMain
+      ? `; run ${st.runMain.phase} still holds`
+      : ''
+    return 'route cleared for main' + held + run
   }
   const loop = st.loops.get(agentId)
   if (loop) writeLoop(loop, {})
   return 'route cleared for this agent'
 }
 
-/** What the main loop's model will do, in the words of the decision. */
+/** The id the next main step runs on, with the decision's reason. */
 async function mainAnswer($: Api, st: State): Promise<string> {
-  const { call, wanted } = await snapshot($, st)
-  if (call.moved) return `${idWord(st, call.model)} (${call.why})`
-  const quiet = call.why === 'unchanged' ||
-    (wanted === undefined && !isFallback(call))
-  return quiet ? 'unchanged' : `unchanged (${call.why})`
+  const { call } = await snapshot($, st)
+  return `${idWord(st, call.model)} (${call.why})`
+}
+
+/** Main's answer: effort and model asked, the sticky/floor note appended. */
+async function mainRoutedText($: Api, st: State, p: Picked) {
+  const base = `routed main to ${p.phase}: effort ${
+    p.route.effort ?? 'unchanged'}, model ${await mainAnswer($, st)}`
+  const note = mainNote(st, p.route.effort)
+  return note ? `${base}; but ${note}` : base
 }
 
 /** Truthful answer: states what the calling loop will actually do. */
@@ -1241,15 +1355,11 @@ async function routedText(
   agentId: string | undefined,
   p: Picked,
 ): Promise<string> {
-  const note = agentId === undefined ? mainNote(st, p.route.effort) : ''
-  if (note) return `recorded ${p.phase} for this turn, but ${note}`
-  const loop = agentId === undefined ? undefined : st.loops.get(agentId)
-  const effort = loop?.explicitEffort ? undefined : p.route.effort
-  const model = agentId === undefined
-    ? await mainAnswer($, st)
-    : routeName(p.route) ? 'unchanged (fixed at spawn)' : 'unchanged'
-  return `routed ${agentId === undefined ? 'main' : 'this agent'} to ` +
-    `${p.phase}: effort ${effort ?? 'unchanged'}, model ${model}`
+  if (agentId === undefined) return mainRoutedText($, st, p)
+  const explicit = st.loops.get(agentId)?.explicitEffort
+  const model = routeName(p.route) ? 'unchanged (fixed at spawn)' : 'unchanged'
+  return `routed this agent to ${p.phase}: effort ${
+    explicit ? 'unchanged' : p.route.effort ?? 'unchanged'}, model ${model}`
 }
 
 async function handleRouteTool($: Api, st: State, e: RouteInput) {
@@ -1267,79 +1377,59 @@ async function handleRouteTool($: Api, st: State, e: RouteInput) {
 
 // ---- skills ----------------------------------------------------------
 
-const skillResult = (skill: string, line: string) => ({
-  result: { success: true, commandName: skill, status: 'inline' as const },
-  context: [line],
-})
-
-/** Answers Skill(effort-<l>) in place: one writer, the skill never loads. */
-function effortBridge(st: State, agentId: string | undefined, skill: string,
-  level: Level) {
-  if (agentId === undefined) {
-    const route = { ...st.turnMain?.route, effort: level }
-    st.turnMain = { phase: skill, route, source: 'skill' }
-    const note = mainNote(st, level)
-    return skillResult(skill, note
-      ? `model-router: ${skill} recorded, but ${note}; the ${skill} skill ` +
-        'text was not loaded.'
-      : `model-router: effort → ${level} for this loop from the next ` +
-        `request on; the ${skill} skill text was not loaded.`)
-  }
-  const loop = loopOf(st, agentId)
-  if (loop.explicitEffort) {
-    return skillResult(skill, 'model-router: this agent was dispatched with ' +
-      'an explicit effort; the shift does not apply.')
-  }
-  loop.effort = level
-  return skillResult(skill, `model-router: effort → ${level} for this ` +
-    `loop from the next request on; the ${skill} skill text was not loaded.`)
-}
-
-/** A non-effort skill load: resets the loop's route, applies its table row. */
-function onSkillLoad(st: State, skill: string, agentId: string | undefined) {
-  const table = hasKey(st.cfg.skills, skill) ? st.cfg.skills[skill] : undefined
-  const route = table === undefined ? undefined : phaseRoute(st.cfg, table)
-  if (agentId === undefined) {
-    st.turnMain = null
-    if (table !== undefined && route) {
-      st.turnMain = { phase: table, route, source: 'skill' }
-    }
-    return
-  }
-  const loop = route ? loopOf(st, agentId) : st.loops.get(agentId)
-  if (loop) writeLoop(loop, { effort: route?.effort })
-}
-
-/** A user-typed /effort-<l>: a floor for the turn, prepends one line. */
-function slashEffort(st: State, skill: string, text: string) {
-  const level = EFFORT_SKILL.exec(skill)?.[1]
-  if (!isLevel(level)) return undefined
-  const route: Route = { effort: level }
-  const slash: Routed = { phase: skill, route, source: 'slash' }
-  st.turnFloor = higherFloor(st.turnFloor, slash)
-  const note = mainNote(st, level)
-  const line = `Effort ${level} set by model-router for the main loop this ` +
-    'turn (minimum; a higher route still applies).' +
-    (note ? ` But ${note}.` : '')
-  return { text: line + '\n' + text }
+/** A skill's table row: its phase and that phase's route, if both exist. */
+function skillRow(st: State, skill: string): Picked | undefined {
+  const phase = hasKey(st.cfg.skills, skill) ? st.cfg.skills[skill] : undefined
+  const route = phase === undefined ? undefined : phaseRoute(st.cfg, phase)
+  return phase !== undefined && route ? { phase, route } : undefined
 }
 
 /**
- * Floor write for a skill.prompt. Only a typed slash may write it: the
- * marker from prompt.submit attests the typing. Without it, a live
- * sub-agent means the prompt is a preload inside that agent: ignored.
+ * A rowed skill on main sets the turn route; a best-tier row also holds the
+ * run slot. A typed non-best row drops the run; one the model loads (a
+ * helper skill inside a run) leaves it.
  */
-function guardedSlash(st: State, skill: string, text: string) {
-  if (!EFFORT_SKILL.test(skill)) return undefined
-  if (st.typedSlash) {
-    st.typedSlash = false
-  } else if (st.loops.size > 0) {
-    return {
-      text: `model-router: ${skill} preload inside a live sub-agent is ` +
-        'ignored on the main loop.\n' + text,
-    }
+function routeMainBySkill(st: State, row: Picked, typed: boolean): void {
+  const turn: Routed = { phase: row.phase, route: { ...row.route },
+    source: 'skill' }
+  st.turnMain = turn
+  if (row.route.tier === BEST) st.runMain = { ...turn, source: 'run' }
+  else if (typed) st.runMain = null
+}
+
+/** A model-loaded skill: its row applies; an unrowed one changes nothing. */
+function onSkillLoad(st: State, skill: string, agentId: string | undefined) {
+  const row = skillRow(st, skill)
+  if (agentId === undefined) {
+    if (row) routeMainBySkill(st, row, false)
+    return
   }
-  return slashEffort(st, skill, text)
+  if (row) writeLoop(loopOf(st, agentId), row.route)
+}
+
+type TypedPath = 'typed-marker' | 'typed-fallback'
+
+/**
+ * Whether a skill.prompt on main is the user's own typing. The marker from
+ * prompt.submit names the skill; failing that, an allowed-origin prompt with
+ * no live or spawning sub-agent (a preload fires inside one) still counts.
+ */
+function typedPath(st: State, skill: string): TypedPath | undefined {
+  if (st.typedSlash === skill) {
+    st.typedSlash = null
+    return 'typed-marker'
+  }
+  const idle = st.loops.size === 0 && st.spawning === 0
+  return st.promptAllowed && idle ? 'typed-fallback' : undefined
+}
+
+function applyTypedSkill($: Api, st: State, skill: string): void {
+  const row = skillRow(st, skill)
+  const path = typedPath(st, skill)
+  if (row === undefined || path === undefined) return
+  routeMainBySkill(st, row, true)
+  refresh($, st)
+  vlog($, st, `skill ${skill}: ${path} → ${row.phase}`)
 }
 
 // ---- agents ----------------------------------------------------------
@@ -1347,27 +1437,60 @@ function guardedSlash(st: State, skill: string, text: string) {
 type SpawnIn = {
   tool_use_id: string
   subagentType: string
-  provider: { plugin: string }
   model?: string
   fork: boolean
   workflow?: unknown
 }
 
 /**
- * The table row of a built-in agent. Known limit: provider.plugin ===
- * 'engine' is the best built-in test at spawn; a user agent named Explore
- * in a foreign project also matches (wave 1: sonnet/medium on it).
+ * The table row of an agent, for every provider. Skipped for a fork, a
+ * workflow agent, and an agent whose definition came from the project (a
+ * foreign repo's own verifier.md). Known limit: the source is recorded by
+ * name only, so an offer fired inside a sub-agent with another cwd
+ * overwrites it; no record = the row applies (fail-open on routing).
  */
-function spawnRoute(cfg: Config, e: SpawnIn, frozen: boolean) {
-  if (frozen || e.provider.plugin !== 'engine') return undefined
-  if (!hasKey(cfg.agents, e.subagentType)) return undefined
-  const phase = cfg.agents[e.subagentType]
-  return phase === undefined ? undefined : phaseRoute(cfg, phase)
+function spawnRoute(st: State, e: SpawnIn, frozen: boolean) {
+  if (frozen || !hasKey(st.cfg.agents, e.subagentType)) return undefined
+  if (PROJECT_SOURCES.has(st.offers.get(e.subagentType) ?? '')) {
+    return undefined
+  }
+  const phase = st.cfg.agents[e.subagentType]
+  return phase === undefined ? undefined : phaseRoute(st.cfg, phase)
+}
+
+/** Once per turn: a spawn whose tier has nothing at or above its head. */
+function tierDownLog($: Api, st: State, agent: string, tier: string): void {
+  const text = `model-router: ${agent} tier ${tier} down, ` +
+    'frontmatter model kept'
+  const key = `spawn-down:${agent}:${tier}`
+  if (st.turnLogged.has(key)) return
+  st.turnLogged.add(key)
+  $.ui.log(text)
+}
+
+/**
+ * The first model of the route's tier that is not down, only when it ranks
+ * at or above the tier's head: an agent moves UP from its frontmatter alias,
+ * never below. Nothing qualifies: no write, the frontmatter model runs.
+ */
+function inTier($: Api, st: State, agent: string, tier: string) {
+  const aliases = hasKey(st.cfg.tiers, tier) ? st.cfg.tiers[tier] : undefined
+  const head = aliases?.[0]
+  const headId = head === undefined ? undefined : st.cfg.models[head]
+  if (aliases === undefined || headId === undefined) return undefined
+  const id = availableIn(st, aliases)
+  if (id !== undefined && (id === headId || ranksAbove(st, id, headId))) {
+    return id
+  }
+  tierDownLog($, st, agent, tier)
+  return undefined
 }
 
 /** The model a spawn is rewritten to; an explicit `model` param wins. */
-function spawnTarget(st: State, e: SpawnIn, route: Route | undefined) {
-  return e.model === undefined ? resolveRoute(st, route) : undefined
+function spawnTarget($: Api, st: State, e: SpawnIn, route: Route | undefined) {
+  if (e.model !== undefined || route === undefined) return undefined
+  if (route.tier === undefined) return resolveRoute(st, route)
+  return inTier($, st, e.subagentType, route.tier)
 }
 
 function trackLoop(st: State, e: SpawnIn, started: {
@@ -1493,7 +1616,10 @@ function endMainTurn($: Api, st: State): void {
   st.turnMain = null
   st.pushed = null
   st.turnModel = undefined
-  st.typedSlash = false
+  st.typedSlash = st.pendingSlash
+  st.promptAllowed = st.pendingAllowed
+  st.pendingSlash = null
+  st.pendingAllowed = false
   st.explicitEffort.clear()
   st.spinner = ''
   st.turnLogged.clear()
@@ -1554,6 +1680,7 @@ async function onAutoSwitch($: Api, st: State, e: SwitchIn): Promise<void> {
 /** Any model change: keeps `sessionModel`; a user choice clears its mark. */
 async function onModelSwitch($: Api, st: State, e: SwitchIn): Promise<void> {
   st.sessionModel = e.to_model
+  if (USER_SWITCH.has(e.source)) st.runMain = null
   if (st.off || e.source === 'resume') return
   if (e.source === 'auto') await onAutoSwitch($, st, e)
   else clearBreaker(st, canonical(st.cfg, e.to_model))
@@ -1637,8 +1764,6 @@ function registerSkills(on: On, st: State): void {
   on('tool.call', { tool: 'Skill' }, async ($, e, next) => {
     const skill = typeof e.skill === 'string' ? e.skill : undefined
     if (st.off || skill === undefined) return next(e)
-    const level = EFFORT_SKILL.exec(skill)?.[1]
-    if (isLevel(level)) return effortBridge(st, e.agentId, skill, level)
     st.skillCalls += 1
     try {
       safely(st, $, 'Skill', () => onSkillLoad(st, skill, e.agentId))
@@ -1652,10 +1777,8 @@ function registerSkills(on: On, st: State): void {
   })
   on('skill.prompt', async ($, e, next) => {
     if (st.off || st.skillCalls > 0) return next(e)
-    const out = guardedSlash(st, e.skill, e.text)
-    if (!out) return next(e)
-    refresh($, st)
-    return out
+    safely(st, $, 'skill.prompt', () => applyTypedSkill($, st, e.skill))
+    return next(e)
   }).catch(($, e, next) => {
     warnOnce(st, $, 'skill.prompt', next.error.kind)
     return next(e)
@@ -1679,26 +1802,47 @@ function registerAgents(on: On, st: State): void {
   })
 }
 
+/** Bookkeeping once the agent started: its loop, its model, a log line. */
+function afterSpawn(
+  $: Api,
+  st: State,
+  e: SpawnIn,
+  started: { agentId?: unknown; model: string },
+  route: Route | undefined,
+): void {
+  if (typeof started.agentId !== 'string') return
+  const agentId = started.agentId
+  safely(st, $, 'agent.spawn', () => {
+    trackLoop(st, e, { agentId }, route)
+    rememberAgent(st, agentId, started.model)
+    vlog($, st,
+      `spawn ${e.subagentType}: ${e.model ?? '-'} → ${started.model}`)
+  })
+}
+
 function registerSpawn(on: On, st: State): void {
+  on('agent.offer', async ($, e, next) => {
+    if (!st.off) st.offers.set(e.agent, e.source)
+    return next(e)
+  }).catch(($, e, next) => {
+    warnOnce(st, $, 'agent.offer', next.error.kind)
+    return next(e)
+  })
   on('agent.spawn', async ($, e, next) => {
     if (st.off) return next(e)
-    await prune($, st)
-    const frozen = e.fork || e.workflow !== undefined
-    const route = spawnRoute(st.cfg, e, frozen)
-    const wanted = spawnTarget(st, e, route)
-    const started = await next(wanted === undefined
-      ? e
-      : { ...e, model: wanted })
-    if (typeof started.agentId === 'string') {
-      const agentId = started.agentId
-      safely(st, $, 'agent.spawn', () => {
-        trackLoop(st, e, started, route)
-        rememberAgent(st, agentId, started.model)
-        vlog($, st,
-          `spawn ${e.subagentType}: ${e.model ?? '-'} → ${started.model}`)
-      })
+    st.spawning += 1
+    try {
+      await prune($, st)
+      const route = spawnRoute(st, e, e.fork || e.workflow !== undefined)
+      const wanted = spawnTarget($, st, e, route)
+      const started = await next(wanted === undefined
+        ? e
+        : { ...e, model: wanted })
+      afterSpawn($, st, e, started, route)
+      return started
+    } finally {
+      st.spawning = Math.max(0, st.spawning - 1)
     }
-    return started
   }).catch(($, e, next) => {
     warnOnce(st, $, 'agent.spawn', next.error.kind)
     return next(e)
@@ -1767,14 +1911,41 @@ function routeFromPrompt(st: State, text: string, midTurn: boolean): void {
     floorFromPrompt(st, midTurn, routed)
   }
   const slash = text.trimStart().startsWith('/')
-  if (text.trimStart().startsWith('/effort-')) st.typedSlash = true
   if (!midTurn && !slash && !floor) defaultFromPrompt(st, scanned)
+}
+
+/** The rowed skill a slash prompt names, else null. */
+function typedSkill(st: State, text: string): string | null {
+  const typed = text.trimStart()
+  if (!typed.startsWith('/')) return null
+  const name = typed.slice(1).split(/\s/, 1)[0] ?? ''
+  return hasKey(st.cfg.skills, name) ? name : null
+}
+
+/**
+ * Records what skill.prompt needs to tell a typed slash from a preload: the
+ * skill named and whether a person typed it. A mid-turn prompt waits in the
+ * pending slots for the turn end; a foreign one leaves them alone. A later
+ * queued prompt replaces an earlier one (a shortcut: one pending slot).
+ */
+function noteTyped(st: State, kind: string, text: string, midTurn: boolean) {
+  const allowed = TYPED_ORIGINS.has(kind)
+  const slash = allowed ? typedSkill(st, text) : null
+  if (!midTurn) {
+    st.typedSlash = slash
+    st.promptAllowed = allowed
+  } else if (allowed) {
+    st.pendingSlash = slash
+    st.pendingAllowed = true
+  }
 }
 
 function registerPrompt(on: On, st: State): void {
   on('prompt.submit', async ($, e, next) => {
-    if (st.off || e.origin.kind !== 'composer') return next(e)
-    routeFromPrompt(st, e.text, e.turnId !== undefined)
+    if (st.off) return next(e)
+    const midTurn = e.turnId !== undefined
+    noteTyped(st, e.origin.kind, e.text, midTurn)
+    if (e.origin.kind === 'composer') routeFromPrompt(st, e.text, midTurn)
     refresh($, st)
     return next(e)
   }).catch(($, e, next) => {

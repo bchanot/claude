@@ -97,7 +97,7 @@ Parse `$ARGUMENTS` for optional flags:
 
 ---
 
-EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-107): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
+ROUTING: follow $HOME/.claude/lib/effort-shift.md (phases via mcp__model-router__route).
 
 ## STEP 1 — PRE-FLIGHT
 
@@ -227,7 +227,7 @@ Store `DEPLOYED_URL` for STEP 7. If empty, ask user during STEP 6.
 ---
 
 ## STEP 3 — BASELINE AUDITS (parallel)
-First: `Skill(effort-high)` (effort-shift: judgment dispatch; the fable skill-runners are built-ins and inherit the level in force; high is the entry level of the audits they run).
+Every skill-runner dispatch below carries an explicit `effort="high"` (route: built-ins never inherit a main route; high is the entry level of the audits they run).
 
 Goal: capture `SCORE_*_BEFORE` so the client doc shows the delta.
 
@@ -262,10 +262,10 @@ the gate.
 
 **Model routing (BDR-077):** EVERY `general-purpose` skill-runner dispatch in
 this pipeline (initial audits, fix-loop re-dispatches, commit-change,
-web-validate) carries `model: "fable"` — the child hosts gated orchestration
-on the pipeline's behalf; it must never inherit the session model.
+web-validate) carries `model: "fable"` and `effort="high"` — the child hosts gated
+orchestration on the pipeline's behalf; it must never inherit the session model.
 
-For web projects, dispatch in **a single message with two parallel Agent calls** (each with `model: "fable"`):
+For web projects, dispatch in **a single message with two parallel Agent calls** (each with `model: "fable"`, `effort="high"`):
 
 | Audit (web)   | Subagent          | Prompt template |
 |---------------|-------------------|-----------------|
@@ -424,7 +424,7 @@ for CSO) in the format
 
 ### Re-dispatch prompt template (SEO + GEO loop)
 
-Send to `general-purpose` subagent (`model: "fable"`):
+Send to `general-purpose` subagent (`model: "fable"`, `effort="high"`):
 
 > Read `~/.claude/skills/seo/SKILL.md` and re-run it on this project in
 > **conservative (audit-only) intervention mode**: re-score and leave both
@@ -455,7 +455,7 @@ Send to `general-purpose` subagent (`model: "fable"`):
 
 ### Re-dispatch prompt template (HARDEN loop)
 
-Send to `general-purpose` subagent (`model: "fable"`):
+Send to `general-purpose` subagent (`model: "fable"`, `effort="high"`):
 
 > Read `~/.claude/skills/harden/SKILL.md` and re-run it with `--fix` ONLY
 > up to the bundle: stop at `READY TO APPLY — awaiting dispatcher
@@ -468,7 +468,7 @@ Send to `general-purpose` subagent (`model: "fable"`):
 
 ### Re-dispatch prompt template (CSO loop — non-web only)
 
-Send to `general-purpose` subagent (`model: "fable"`):
+Send to `general-purpose` subagent (`model: "fable"`, `effort="high"`):
 
 > Read `~/.claude/skills/cso/SKILL.md` and re-run it in **daily mode**.
 > Previous score: **`<SCORE_CSO_PREVIOUS>`/20** — below threshold.
@@ -557,7 +557,7 @@ listed changes by hand before deploy." Continue to STEP 6.
 
 If `PENDING_CHANGES` non-empty → invoke /commit-change skill via subagent:
 
-> Dispatch `general-purpose` subagent (`model: "fable"`). Prompt:
+> Dispatch `general-purpose` subagent (`model: "fable"`, `effort="high"`). Prompt:
 >
 > "Read `~/.claude/skills/commit-change/SKILL.md` and execute. All pending
 > changes were produced by the client-handover ship pipeline during the
@@ -677,7 +677,7 @@ Skip if `VALIDATE_SKIPPED=true` or `PROJECT_TYPE != web` (in either case
 ensure `VALIDATE_SKIPPED=true` is set so the gate logic in STEP 8 treats
 VALIDATE as not-applicable rather than failed).
 
-Dispatch `general-purpose` subagent (`model: "fable"`):
+Dispatch `general-purpose` subagent (`model: "fable"`, `effort="high"`):
 
 > Read `~/.claude/skills/web-validate/SKILL.md` and execute against the
 > deployed URL: `<DEPLOYED_URL>`. Audit W3C HTML validity (validator.nu),

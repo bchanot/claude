@@ -174,19 +174,20 @@ Tu veux...
 
 ### Niveau d'effort
 
-Chaque commande démarre à un niveau de réflexion fixé dans son frontmatter
-(`effort:`) : low pour la tenue de registre (`/status`, `/close`,
+Chaque commande a une ligne de phase dans le mod model-router
+(`mods/model-router/`, actif dans chaque session), qui fixe son niveau de
+réflexion : low pour la tenue de registre (`/status`, `/close`,
 `/commit-change`), medium pour le courant (`/gitflow`, `/prune-memory`),
-high pour un fix ou un refactor (`/feat`, `/hotfix`, `/bugfix`, `/refactor`,
-audits avec fix), xhigh pour l'architecture et l'audit avant validation
-(`/ship-feature`, `/onboard`, `/analyze`). Les orchestrateurs décalent
-ensuite le niveau par phase (`lib/effort-shift.md`), et `/effort-max` tapé à
-la main relance un tour bloqué au maximum. Les skills externes vendorés
-(pile design, superpowers, agent-skills, skills scroll MengTo, 21st) reçoivent leur niveau de
-`lib/effort-pins.txt`. Un skill chargé seul par Claude n'applique pas son
-niveau : il doit partir avec un autre appel d'outil dans le même message.
+high pour un fix ou un refactor (`/feat`, `/hotfix`, `/bugfix`,
+`/refactor`, audits avec fix), xhigh pour l'architecture et l'audit avant
+validation (`/ship-feature`, `/onboard`, `/analyze`). Le frontmatter
+(`model:`, `effort:`) garde les mêmes valeurs et sert de plancher quand le
+mod est coupé. Les orchestrateurs déclarent ensuite chaque phase via
+l'outil `mcp__model-router__route` (`lib/effort-shift.md`). Les skills
+externes vendorés (pile design, superpowers, agent-skills, skills scroll
+MengTo, 21st) ont aussi leur ligne.
 
-Avec le mod model-router (`mods/model-router/`, actif dans chaque session), le niveau suit la phase à chaque requête. Le mod répond lui-même à `Skill(effort-*)` : le niveau s'applique dès la requête suivante et le texte des skills `effort-*` n'est plus chargé. Écrire `ultrathink` dans un prompt, ou taper `/effort-<niveau>`, fixe le niveau par défaut et le minimum du tour principal. Les sous-agents intégrés suivent leur route : Explore en sonnet/medium, Plan en opus/xhigh. `/route` affiche ou fixe la route (`/route show`, `/route clear`, `/route off`). La config par machine, optionnelle, vit dans `~/.claude/model-router.json` ; `"enabled": false` y coupe le mod sur cette machine.
+Taper un skill qui a une ligne route la boucle principale dessus. Une ligne du tier best (plan, reflect, orchestrate, escalate) tient d'un tour à l'autre pendant tout le run, jusqu'à `/route clear`, `/route off`, un `/model` tapé ou un skill d'un autre tier tapé. Pour relancer un tour bloqué : `ultrathink` dans le prompt (plancher du tour) ou `/route effort=max` (tient jusqu'à `/route clear`). Le `/effort` intégré n'a pas d'effet dans un run : les lignes et les routes passent devant. Les sous-agents reçoivent le modèle de leur ligne au lancement (dans leur tier, jamais en dessous de leur frontmatter) et son niveau à chaque étape ; un `model` ou `effort` explicite sur l'appel gagne. Explore tourne en sonnet/medium, Plan en opus/xhigh. `/route show` affiche la route en cours, slot de run compris (`main: run <phase>`). La config par machine, optionnelle, vit dans `~/.claude/model-router.json` ; `"enabled": false` y coupe le mod sur cette machine, et une ligne à `null` y retire une ligne par défaut.
 
 ## Les plugins — décision rapide
 

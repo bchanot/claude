@@ -14,7 +14,7 @@ Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
 judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
 gate prints the remedy; end the turn — no later step, no dispatch. Nominal
 (big) path is silent.
-EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-107): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
+ROUTING: follow $HOME/.claude/lib/effort-shift.md (phases via mcp__model-router__route).
 
 ## REQUEST
 $ARGUMENTS
@@ -114,10 +114,10 @@ Inject ONLY what constrains: the NON-BINDING count does NOT enter the brainstorm
 (the injection inherits the OUTPUT filter — detail what binds, drop what doesn't).
 Consumption = INPUT INJECTION (we can't modify the external skill; we control its input).
 Refine request into validated design via Socratic questioning. Don't proceed until design approved.
-Turns after a user reply run at the session level until a tool call is paired with `Skill(effort-xhigh)` (effort-shift: turn reset).
+The first step of every turn after a user reply is `mcp__model-router__route(phase="plan")` (route: resumed turn).
 
 ## STEP 2 — PLAN
-`Skill(effort-xhigh)` first, sent with the next tool call (effort-shift: turn reset; brainstorm turns after a user reply run at the session level, and the vendored `brainstorming` pin applies only when the user invokes it).
+`mcp__model-router__route(phase="plan")` first (route: resumed turn after the brainstorm gate).
 Invoke `writing-plans` (vendored superpowers skill) with the validated design AND the 0d digest: every task
 must be consistent with the in-force constraints; where a task implements or affects one,
 note the ID inline. Break design into tasks (2-5 min each). Each task: exact file paths, full code, verification steps.
@@ -127,7 +127,7 @@ request nor the STEP 1 brainstorm settled (check the contract's CLARIFICATIONS
 first) → one batch before STEP 2b; answers append to the contract `[gated]`.
 
 ## STEP 2b — CHALLENGE THE PLAN (adversarial, before the gate)
-`Skill(effort-xhigh)` first (effort-shift: own level before the challenge; send it in the same message as the challenger dispatch).
+`mcp__model-router__route(phase="plan")` first (route: own level before the challenge; send it with the challenger dispatch).
 Before the human sees the plan, harden it. Run `$HOME/.claude/lib/challenge-plan.md`:
 - `PLAN` = the plan STEP 2 wrote under `docs/superpowers/plans/`
 - `KIND` = `build-plan`
@@ -174,7 +174,7 @@ judges the diff against this ENRICHED contract, not the STEP 0e seed — so a
 criterion the design introduced is verified, not lost.
 
 ## STEP 4 — IMPLEMENT
-First: `Skill(effort-medium)` (effort-shift: dispatch span starts; send it in the same message as this step's first dispatch).
+First: `mcp__model-router__route(phase="orchestrate")` (route: dispatch span starts; send it with this step's first dispatch).
 Start the feature branch off develop, then implement on it:
 ```bash
 bash "$HOME/.claude/lib/gitflow.sh" start feature <name>
@@ -186,14 +186,15 @@ Invoke `subagent-driven-development` (vendored superpowers skill) for the per-ta
 finishing-a-development-branch", stop and return.
 
 **Model routing (BDR-066):** every subagent dispatched under SDD — per-task
-implementers AND its reviewers — MUST carry `model: "sonnet"` in the Agent
+implementers AND its reviewers — MUST carry `model: "sonnet"` and
+`effort="medium"` (the `implement` level; a main route never reaches a child) in the Agent
 call. The plan is closed; execution and plan-conformity review are sonnet
 work. Reflection (task decomposition, review verdict arbitration) stays in
 this loop.
 
 ## STEP 4b — ERROR RECOVERY (if STEP 4 fails)
 If a subagent returns a build error, failing test, or type error:
-1. `Skill(effort-max)` (effort-shift: error recovery; send it in the same message as the Read of the analyzer file below), then load
+1. `mcp__model-router__route(phase="escalate")` (route: error recovery; send it with the Read of the analyzer file below), then load
    `$HOME/.claude/agents/analyzer.md` in DEBUG MODE on the exact error output.
    Produce: root cause hypotheses (ordered), affected files, what NOT to touch.
 2. Present gate:
@@ -210,10 +211,10 @@ OPTIONS :
   C) Abort feature — preserve work done so far
 ```
 3. Wait for user choice. Do NOT auto-fix. Do NOT proceed without explicit approval.
-4. On resume the turn is at the session level (effort-shift: turn reset).
-   If A → `Skill(effort-medium)` sent with the re-dispatch, apply minimal fix, re-run STEP 4 for the failed task only. Max 2 retry attempts.
+4. On resume: `mcp__model-router__route(phase="plan")` first (route: resumed turn).
+   If A → `mcp__model-router__route(phase="orchestrate")` sent with the re-dispatch, apply minimal fix, re-run STEP 4 for the failed task only. Max 2 retry attempts.
    If still failing after 2 → fall back to options B or C.
-   If B or C → `Skill(effort-xhigh)` first, sent with the next tool call.
+   If B or C → continue at the plan level set above.
    If B → before skipping: scan remaining task list for tasks that depend on the failed task
      (look for references to the same file or function in subsequent tasks).
      If dependents found → present: "Tasks [N, M] depend on the skipped task.
@@ -243,9 +244,8 @@ conformity + security vs. craft/design) — both run, neither subsumes the
 other ([[LRN-095]]).
 
 ## STEP 6 — CODE REVIEW
-`Skill(effort-xhigh)` first, sent with the review dispatch (effort-shift: judgment dispatch; the reviewer is a built-in and inherits the level in force).
 Invoke `requesting-code-review` (vendored superpowers skill). **Model routing (BDR-077):** the
-review subagent it dispatches MUST carry `model: "opus"` in the Agent call —
+review subagent it dispatches MUST carry `model: "opus"` and `effort="xhigh"` in the Agent call —
 craft review is dispatched judgment, never inherited from the session. Fix
 all CRITICAL before proceeding.
 
@@ -277,7 +277,7 @@ Feature shipped implies at least one design decision worth capturing. Run this B
 
 If nothing substantive to log → print `CAPITALIZE: nothing substantive to log` and skip.
 
-`Skill(effort-low)` first (effort-shift: bookkeeping tail; send it in the same message as the memory-commit command).
+`mcp__model-router__route(phase="apply")` first (route: bookkeeping tail; send it with the memory-commit command).
 
 **Then commit the memory** — follow `$HOME/.claude/lib/capitalize-commit.md`: it
 surgically commits what capitalize just wrote (`.claude/memory` + `.claude/tasks`
