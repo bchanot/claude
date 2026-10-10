@@ -48,8 +48,8 @@ type State = {
   rules: Rule[]
   source: string // 'defaults' or the override path
   userMain: Routed | null // /route by the user, sticky until /route clear
-  turnMain: Routed | null // model route tool, skill table row, Skill(effort-*)
-  // bridge, prompt default rule, derived orchestrate; dropped at turn end
+  turnMain: Routed | null // model route tool, skill table row, prompt
+  // default rule, derived orchestrate; dropped at turn end
   runMain: Routed | null // best-tier skill row: spans the turns of a run;
   // only a skill, /route clear|off or a user /model write or drop it
   turnFloor: Routed | null // user-explicit level for this turn (prompt rule):
@@ -95,7 +95,6 @@ type Decision = { effort: Effort; by: EffortBy }
 const LEVELS: readonly Level[] = ['low', 'medium', 'high', 'xhigh', 'max']
 const MODEL_ID = /^claude-[a-z0-9.-]+$/
 const TOOL = 'mcp__model-router__route'
-const EFFORT_SKILL = /^effort-(low|medium|high|xhigh|max)$/
 const BEST = 'best' // the tier whose skill rows hold for a whole run
 // Origins that are a person typing: only these arm a typed slash.
 const TYPED_ORIGINS: ReadonlySet<string> = new Set([
@@ -1378,34 +1377,6 @@ async function handleRouteTool($: Api, st: State, e: RouteInput) {
 
 // ---- skills ----------------------------------------------------------
 
-const skillResult = (skill: string, line: string) => ({
-  result: { success: true, commandName: skill, status: 'inline' as const },
-  context: [line],
-})
-
-/** Answers Skill(effort-<l>) in place: one writer, the skill never loads. */
-function effortBridge(st: State, agentId: string | undefined, skill: string,
-  level: Level) {
-  if (agentId === undefined) {
-    const route = { ...st.turnMain?.route, effort: level }
-    st.turnMain = { phase: skill, route, source: 'skill' }
-    const note = mainNote(st, level)
-    return skillResult(skill, note
-      ? `model-router: ${skill} recorded, but ${note}; the ${skill} skill ` +
-        'text was not loaded.'
-      : `model-router: effort → ${level} for this loop from the next ` +
-        `request on; the ${skill} skill text was not loaded.`)
-  }
-  const loop = loopOf(st, agentId)
-  if (loop.explicitEffort) {
-    return skillResult(skill, 'model-router: this agent was dispatched with ' +
-      'an explicit effort; the shift does not apply.')
-  }
-  loop.effort = level
-  return skillResult(skill, `model-router: effort → ${level} for this ` +
-    `loop from the next request on; the ${skill} skill text was not loaded.`)
-}
-
 /** A skill's table row: its phase and that phase's route, if both exist. */
 function skillRow(st: State, skill: string): Picked | undefined {
   const phase = hasKey(st.cfg.skills, skill) ? st.cfg.skills[skill] : undefined
@@ -1793,8 +1764,6 @@ function registerSkills(on: On, st: State): void {
   on('tool.call', { tool: 'Skill' }, async ($, e, next) => {
     const skill = typeof e.skill === 'string' ? e.skill : undefined
     if (st.off || skill === undefined) return next(e)
-    const level = EFFORT_SKILL.exec(skill)?.[1]
-    if (isLevel(level)) return effortBridge(st, e.agentId, skill, level)
     st.skillCalls += 1
     try {
       safely(st, $, 'Skill', () => onSkillLoad(st, skill, e.agentId))

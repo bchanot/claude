@@ -106,11 +106,11 @@ the MAIN loop, never here):
 - Dispatch THREE fresh challengers IN PARALLEL, one per lens
   (correctness / robustness / simplicity), each blind to the others.
 - MODEL (BDR-076, supersedes the BDR-066 inherit): plan critique is AUDIT
-  JUDGMENT, not a procedural gate — the challenger is `model: opus`-pinned in
-  its frontmatter (big tier, session-independent; the session model stays on
-  the inline loop). Never `model: "sonnet"` — a silent judgment downgrade.
-  (Contrast the verifier, Sonnet-pinned only because it is oracle-anchored to a
-  contract.)
+  JUDGMENT, not a procedural gate — the challenger is routed to the `judge`
+  row (opus) by the model-router, the `model: opus` frontmatter being the off-state floor (big
+  tier; the session model stays on the inline loop). Never `model: "sonnet"` —
+  a silent judgment downgrade. (Contrast the verifier on its `verify` row and
+  the executors on their `implement` row, both sonnet, oracle-anchored to a contract.)
 - FAIL-SAFE — never fail open: a malformed/empty verdict, a missing `PROOF`, or
   a dead challenger → retry ONCE fresh; a 2nd failure → escalate to the human and
   NAME the lens. Never report "plan challenged" on a silently dropped lens (same

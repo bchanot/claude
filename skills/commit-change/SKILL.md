@@ -73,7 +73,7 @@ $ARGUMENTS"
 
 (`model="opus"` — BDR-077: propose = narrative reconstruction + capitalize
 routing, judgment tier; the call-site override takes precedence over the
-sonnet frontmatter pin. Apply, STEP 4, stays on the pin.)
+sonnet row (frontmatter = off-state floor). Apply, STEP 4, stays on its row.)
 
 Read the returned `COMMIT PLAN` + `EDGE CASES` + `CAPITALIZE CANDIDATES`,
 terminated by `READY TO APPLY — awaiting dispatcher confirmation`.

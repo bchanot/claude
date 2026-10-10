@@ -14,7 +14,7 @@ Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
 judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
 gate prints the remedy; end the turn — no later step, no dispatch. Nominal
 (big) path is silent.
-EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-107): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
+ROUTING: follow $HOME/.claude/lib/effort-shift.md (phases via mcp__model-router__route).
 
 ## REQUEST
 $ARGUMENTS
@@ -368,7 +368,7 @@ Lire le bloc `audit_stack:` du fichier `~/.claude/lib/project-archetypes/<archet
 | Entry | Action | Livraison |
 |---|---|---|
 | `analyze` | Déjà fait en STEP 5 | L3a |
-| `code-clean` | Spawn subagent `general-purpose` (audit-only, `model="opus"` — BDR-076: dispatched audits off the session model) | L3a |
+| `code-clean` | Spawn subagent `general-purpose` (audit-only, `model="opus"`, `effort="xhigh"` — BDR-076: dispatched audits off the session model) | L3a |
 | `cso` | Si gstack ON → Skill(cso). Sinon → Agent general-purpose avec checklist OWASP + deps audit | L3a |
 | `doc` | Spawn subagent `doc-syncer` (auto-mode OFF, report-only) | L3a |
 | `seo` | Subagents seo-analyzer + geo-analyzer en parallèle | L3b |
@@ -385,6 +385,7 @@ Lancer EN PARALLÈLE (un seul message, plusieurs Agent calls) les audits corresp
 Agent(
   subagent_type="general-purpose",
   model="opus",
+  effort="xhigh",
   description="Onboard — code-clean audit only (read-only, opus)",
   prompt="""
   AUDIT-ONLY mode — NO fixes, NO refactoring, NO file modifications.
@@ -422,6 +423,7 @@ bash $HOME/.claude/lib/toggle-external.sh list 2>/dev/null | grep -E "^gstack\s+
   Agent(
     subagent_type="general-purpose",
     model="opus",
+    effort="xhigh",
     description="Onboard — security audit fallback (archetype-adaptive)",
     prompt="""
     READ-ONLY security audit. No file modifications.
@@ -546,6 +548,7 @@ flux de dev sont deux formes distinctes ([[BDR-050]] pipeline dev ≠ audit).
 Agent(
   subagent_type="doc-syncer",
   model="opus",
+  effort="xhigh",
   description="Onboard — doc drift audit only",
   prompt="""
   MODE: audit — REPORT-ONLY, NO edits, NO auto-sync (no patch dispatch
@@ -666,6 +669,7 @@ Si le skill ne supporte pas `--output`, capturer la sortie et écrire à la main
 Agent(
   subagent_type="general-purpose",
   model="opus",
+  effort="xhigh",
   description="Onboard — static design review fallback",
   prompt="""
   AUDIT-ONLY mode — NO edits. Static design review du code UI.
@@ -710,6 +714,7 @@ Puis parser le JSON Lighthouse (scores perf/a11y/bp/seo/pwa + top opportunities)
 Agent(
   subagent_type="general-purpose",
   model="opus",
+  effort="xhigh",
   description="Onboard — static perf audit",
   prompt="""
   AUDIT-ONLY mode — NO edits.
@@ -753,6 +758,7 @@ Parser axe-core résultats (violations, incomplete, inapplicable, passes) → `.
 Agent(
   subagent_type="general-purpose",
   model="opus",
+  effort="xhigh",
   description="Onboard — static a11y audit",
   prompt="""
   AUDIT-ONLY mode — NO edits.
@@ -799,6 +805,7 @@ Spawn un subagent synthétiseur (isolé, chargé uniquement du contenu de `.onbo
 Agent(
   subagent_type="general-purpose",
   model="opus",
+  effort="xhigh",
   description="Onboard — synthèse vers .claude/audits/",
   prompt="""
   Lire tous les fichiers de <PROJECT_ROOT>/.onboard-audit/ :
@@ -892,7 +899,7 @@ Vérifier que les 4 fichiers `.claude/audits/ONBOARD_REPORT.md`, `.claude/audits
 ---
 
 ## STEP 7b — CHALLENGE THE PROPOSALS (before the human gate)
-`Skill(effort-xhigh)` first (effort-shift: own level before the challenge; send it in the same message as the challenger dispatch).
+`mcp__model-router__route(phase="plan")` first (route: own level before the challenge; send it with the challenger dispatch).
 The 4 audit files are on disk; `AUDIT_PROPOSALS.md` is the artifact worth
 attacking before the human spends a gate on it. Run
 `$HOME/.claude/lib/challenge-plan.md` with `PLAN` =

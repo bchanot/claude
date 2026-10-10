@@ -1,85 +1,58 @@
-# Effort shift — phase-level reasoning effort on the main loop (BDR-107)
+# Route doctrine — phase-level model and effort on the main loop (BDR-107)
 
 Shared include, companion of `lib/model-gate.md`: the gate fixes WHICH model
-reflects, this include fixes HOW HARD each phase thinks. The rungs are the
-user's: low (fix a line, run a script) · medium (day-to-day) · high
-(refactor, resisting bug) · xhigh (architecture, audit before validation) ·
-max (stuck error, judged need).
+reflects, the model-router mod (`mods/model-router`) fixes HOW HARD each
+phase thinks. Rungs: low (fix a line, run a script) · medium (day-to-day) ·
+high (refactor, resisting bug) · xhigh (architecture, audit before
+validation) · max (stuck error, judged need).
 
-## Mechanics (verified on Claude Code 2.1.283)
+## The tool
 
-- **Pairing rule**: a `Skill(effort-<level>)` call applies its effort only
-  when the same assistant message carries at least one other tool call
-  after it; a lone Skill call is a no-op. Send the shift together with the
-  step's first tool call, shift first. That paired call already runs at the
-  new level: pair a downward shift with a pinned-agent dispatch or a
-  Read/Bash, never with a built-in judgment dispatch (`general-purpose`,
-  `model: "opus"`), which would inherit it.
-- Re-loading a shifter already loaded in the conversation re-applies its
-  effort (the harness only dedupes the skill text), so bounce-back
-  sequences such as medium → max → medium work.
-- A skill's `effort:` frontmatter applies from the moment it loads to the
-  end of the turn: on the user's `/skill` unconditionally, and on a
-  `Skill(...)` call by Claude only under the pairing rule above (a skill
-  Claude loads alone, such as `brainstorming` or `writing-plans`, applies
-  nothing). Last loaded wins, both directions. The prompt cache survives a
-  shift.
-- **Stacked skills share one level**: skills that load together in one
-  build (the design stack) all pin the same level, since the last loaded
-  wins. Vendored externals get their level from `lib/effort-pins.txt`,
-  re-applied by `lib/effort-pins.sh` after every vendoring step; repo
-  skills carry it in their frontmatter.
-- Dispatched agents run on their own `effort:` pin, never on a shift.
-  Unpinned agents inherit the level in force at dispatch.
-- Headless sessions (`-p`, `claude agents`, SDK) ignore skill-level effort:
-  the run stays at the session level. `CLAUDE_CODE_EFFORT_LEVEL` beats every
-  frontmatter; keep it unset (the session banner warns).
+`mcp__model-router__route` (params `phase` | `effort` | `clear`). It is a
+deferred tool: when not loaded, run
+`ToolSearch("select:mcp__model-router__route")` once per session. A route
+applies from the next request on, paired with
+another tool call or not (pairing only saves a request). The answer always
+names the id and effort main runs on. A skill with a row routes itself on
+load; a skill without one changes nothing, the last ROWED skill wins.
+
+## Wiring points
+
+1. Dispatch span starts → `route(phase="orchestrate")`, sent with the
+   dispatch.
+2. Reflection resumes (challenge synthesis, verdict, plan revision) →
+   `route(phase="reflect")` or `"plan"` per the skill's own level; the line
+   before every `lib/challenge-plan.md` call.
+3. Bookkeeping tail (memory commit, doc commit) → `route(phase="apply")`.
+4. Escalation → `route(phase="escalate")`: verify-secure loop caps and
+   ship-feature STEP 4b. Not automatic: the challenge fail-safe and "gone
+   WRONG → STOP"; their STOP text names the levers below.
+5. Built-in judgment dispatch (`general-purpose` `model="opus"`, `model:
+   "fable"` skill-runners) → explicit `effort=` on the Agent call (`xhigh`
+   for opus reviewers, `high` for fable runners). A main route never
+   reaches a child. Typed agents run on their row, never on a shift.
+6. After a prose gate that ends the turn, the resumed reflection phase
+   starts with its own route call.
+
+## Run slot and levers
+
+A best-tier skill row survives the end of the turn (a run spans prose
+gates); `/route clear`, `/route off` and a user `/model` drop it. Levers for a
+relaunch: `ultrathink` in the prompt (turn floor) or `/route effort=max`
+(sticky, `/route clear` after).
+Builtin `/effort` is NOT a lever inside a run: rows and routes outrank it.
+
+## Limits
+
+- A skill typed while a background agent is live routes only through the
+  typed marker (unverified live 2026-10-10).
+- Headless (`-p`, SDK) runs the hooks, so routing works there too.
+- Mod off: typed agents fall back to their `model:`/`effort:` frontmatter.
 
 Measure the split any time: `python3 ~/.claude/lib/effort-audit.py`
 (thinking/output/cache tokens per scope, model and effort).
 
-## Shifters
-
-`Skill(effort-low)` · `Skill(effort-medium)` · `Skill(effort-high)` ·
-`Skill(effort-xhigh)` · `Skill(effort-max)`. One tool call, one-line body,
-always sent with another tool call (Pairing rule).
-Typed by the user, `/effort-max` is a turn-scoped max: the relaunch lever
-after a STOP. `ultrathink` only adds an in-context nudge; the API level
-does not move.
-
-## Wiring — per orchestrator
-
-1. A dispatch span starts (executor, collector, fan-out) →
-   `Skill(effort-medium)`.
-2. Reflection resumes after a dispatch span (challenge synthesis, verdict,
-   plan revision) → `Skill(effort-<the skill's own level>)`. Concretely:
-   the line before every `lib/challenge-plan.md` call.
-3. The bookkeeping tail (memory commit, doc commit) → `Skill(effort-low)`.
-4. Escalation → `Skill(effort-max)`, then the skill's own level again once
-   the diagnosis is produced. Automatic points: verify-secure loop caps
-   (GATE 0 floor, GATE 1 conformity, GATE 2 security) and ship-feature
-   STEP 4b. Not automatic, by doctrine: the challenge fail-safe (a mute
-   challenger is an infrastructure failure) and "gone WRONG → STOP" (STOP
-   precedes any further reasoning); their STOP text names the level
-   reached and suggests `/effort-max` for the relaunch.
-5. Before any built-in or unpinned dispatch that carries judgment (a
-   `general-purpose` with `model: "opus"` or `"fable"`, the code reviewer
-   of requesting-code-review, a skill-runner) → `Skill(effort-<own level>)`
-   paired with that dispatch: built-ins inherit the level in force, and a
-   medium set earlier in the span would downgrade them.
-
-## Re-assert
-
-- After any nested `Skill(...)` whose frontmatter carries a different
-  effort (feat → commit-change), reload the orchestrator's own level.
-- After a prose gate that ends the turn, the resumed turn runs at the
-  session level. If the resumed phase is reflection, its first step is
-  `Skill(effort-<own level>)`; dispatch and orchestration phases need
-  nothing.
-
 ## Never
 
-- A shift never inside a dispatched agent: pins rule there.
+- A route inside a dispatched agent: its row rules there.
 - Max is for diagnosis, not for retrying the same fix harder.
-- A medium shift never precedes a judgment dispatch in the same span
-  without an own-level shift paired with that dispatch.

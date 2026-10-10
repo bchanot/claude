@@ -57,7 +57,7 @@ The parent dispatches this agent TWICE, with the FULL PACKAGE both times
   (`STATUS: DONE | BLOCKED`, RUNID, phase-cluster count, per-chapter word
   counts) and STOPS — STEP 13-16, the final MD, HTML and PDF are NEVER
   this mode's job.
-- **`MODE: render`** — runs on the sonnet frontmatter pin. FIRST loads the
+- **`MODE: render`** — runs on its sonnet row (frontmatter = off-state floor). FIRST loads the
   draft: absent file, RUNID mismatch, or missing `DRAFT COMPLETE` sentinel
   → `STATUS: BLOCKED` naming the cause (fail closed — never synthesize a
   missing draft, never render a partial one). Then runs STEP 13 → 14 →

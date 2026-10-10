@@ -30,7 +30,7 @@ Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
 judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
 gate prints the remedy; end the turn — no later step, no dispatch. Nominal
 (big) path is silent.
-EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-107): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
+ROUTING: follow $HOME/.claude/lib/effort-shift.md (phases via mcp__model-router__route).
 
 One pipeline per project: **security → clean → re-verify → reconcile →
 doc → convergence re-audit**, looping until a full pass applies zero new
@@ -169,8 +169,8 @@ honestly in the summary. Never loop past 3.
 
 ### Phase B — CLEAN
 
-1. Dispatch a read-only cleanup audit (analyzer — opus-pinned, BDR-076 —
-   or general-purpose with `model="opus"`; NOT the sonnet code-cleaner,
+1. Dispatch a read-only cleanup audit (analyzer — opus row, BDR-076 —
+   or general-purpose with `model="opus"`, `effort="xhigh"`; NOT the sonnet code-cleaner,
    which is now a fix executor): dead code, unused imports/exports,
    commented-out blocks, stale flags, norm violations. Findings as
    `id | file:line | finding | proposed fix`.

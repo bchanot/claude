@@ -14,7 +14,7 @@ Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
 judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
 gate prints the remedy; end the turn — no later step, no dispatch. Nominal
 (big) path is silent.
-EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-107): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
+ROUTING: follow $HOME/.claude/lib/effort-shift.md (phases via mcp__model-router__route).
 
 ## REQUEST
 $ARGUMENTS
@@ -181,12 +181,12 @@ This is the deterministic scaffold commit owner (closes BLK-010). The MVP is
 implemented on a `feature/*` branch off `develop` (STEP 8).
 
 ## STEP 6 — PLAN
-`Skill(effort-xhigh)` first, sent with the next tool call (effort-shift: turn reset; gate #1 ended the turn and the vendored `writing-plans` pin applies only when the user invokes it).
+`mcp__model-router__route(phase="plan")` first (route: resumed turn; gate #1 ended the turn).
 Invoke `writing-plans` (vendored superpowers skill) with BRIEF + skeleton.
 Granular tasks (2-5 min each), exact file paths, TDD: tests before code.
 
 ## STEP 6b — CHALLENGE THE PLAN (before the gate)
-`Skill(effort-xhigh)` first (effort-shift: own level before the challenge; send it in the same message as the challenger dispatch).
+`mcp__model-router__route(phase="plan")` first (route: own level before the challenge; send it with the challenger dispatch).
 Before the human sees the implementation plan, harden it. Run
 `$HOME/.claude/lib/challenge-plan.md` with `PLAN` = the plan STEP 6 wrote under
 `docs/superpowers/plans/`, `KIND` = `build-plan`, `SCOPE` = the skeleton + task file
@@ -212,7 +212,7 @@ Approve and start? (yes / request changes)
 Changes → back to STEP 6. Approved → continue.
 
 ## STEP 8 — IMPLEMENT
-First: `Skill(effort-medium)` (effort-shift: dispatch span starts; send it in the same message as this step's first dispatch).
+First: `mcp__model-router__route(phase="orchestrate")` (route: dispatch span starts; send it with this step's first dispatch).
 Start the MVP feature branch off develop, then implement on it:
 ```bash
 bash "$HOME/.claude/lib/gitflow.sh" start feature mvp
@@ -224,7 +224,8 @@ Invoke `subagent-driven-development` (vendored superpowers skill) for the per-ta
 finishing-a-development-branch", stop and return.
 
 **Model routing (BDR-066):** every subagent dispatched under SDD — per-task
-implementers AND its reviewers — MUST carry `model: "sonnet"` in the Agent
+implementers AND its reviewers — MUST carry `model: "sonnet"` and
+`effort="medium"` (the `implement` level; a main route never reaches a child) in the Agent
 call. The plan is closed; execution and plan-conformity review are sonnet
 work. Reflection (task decomposition, review verdict arbitration) stays in
 this loop.
@@ -261,9 +262,8 @@ against the founding contract. Distinct axis from STEP 10 code review
 ([[LRN-095]]) — both run.
 
 ## STEP 10 — CODE REVIEW
-`Skill(effort-xhigh)` first, sent with the review dispatch (effort-shift: judgment dispatch; the reviewer is a built-in and inherits the level in force).
 Invoke `requesting-code-review` (vendored superpowers skill). **Model routing (BDR-077):** the
-review subagent it dispatches MUST carry `model: "opus"` in the Agent call —
+review subagent it dispatches MUST carry `model: "opus"` and `effort="xhigh"` in the Agent call —
 craft review is dispatched judgment, never inherited from the session. Fix
 all CRITICAL before proceeding.
 
@@ -316,7 +316,7 @@ articles dropped, code/IDs/quoted errors verbatim — per CLAUDE.md "Memory
 registries" (Always English, always caveman). The gate may mirror the user's
 language; entries must not.
 
-`Skill(effort-low)` first (effort-shift: bookkeeping tail; send it in the same message as the memory-commit command).
+`mcp__model-router__route(phase="apply")` first (route: bookkeeping tail; send it with the memory-commit command).
 
 **Then commit the memory** — follow `$HOME/.claude/lib/capitalize-commit.md`: it
 surgically commits the approved founding decisions (`.claude/memory` +

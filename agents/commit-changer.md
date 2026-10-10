@@ -10,7 +10,7 @@ effort: high
 
 > MODEL (BDR-077): `MODE: propose` is dispatched with `model="opus"` (the
 > call-site override — narrative reconstruction + capitalize routing are
-> judgment); `MODE: apply` runs on the sonnet frontmatter pin (mechanical
+> judgment); `MODE: apply` runs on its sonnet row (frontmatter = off-state floor; mechanical
 > staging/committing of an approved plan).
 
 Reconstruct the development narrative from a working directory. The goal

@@ -59,24 +59,6 @@ const spawnInput = (model?: string) => ({
   ...(model === undefined ? {} : { model }),
 })
 
-test('Skill(effort-low) is answered without next, route shows low', async (
-  $, on) => {
-  let reached = false
-  on('tool.call', { tool: 'Skill' }, () => {
-    reached = true
-    return { result: { success: true, commandName: 'bottom' } }
-  })
-  await boot($, on)
-  const out = await $.tool.call({ tool: 'Skill', skill: 'effort-low' })
-  expect(out).toMatchObject({
-    result: { success: true, commandName: 'effort-low' },
-  })
-  expect(reached).toBe(false)
-  const line = mainLine(await route($, 'show'))
-  expect(line).toContain('skill effort-low')
-  expect(line).toContain('effort low')
-})
-
 test('route tool with phase orchestrate sets medium on main', async (
   $, on) => {
   await boot($, on)
@@ -985,14 +967,6 @@ test('run slot: route(clear) clears the turn and names the run', async (
   await loadSkill($, 'feat')
   const out = await $.tool.call({ tool: ROUTE_TOOL, clear: true })
   expect(JSON.stringify(out)).toContain('run reflect still holds')
-})
-
-test('Skill(effort-low) bridge is not sticky', async ($, on) => {
-  await bootRun($, on)
-  await loadSkill($, 'effort-low')
-  expect(mainLine(await route($, 'show'))).toContain('effort low')
-  await endTurn($)
-  expect(mainLine(await route($, 'show'))).toContain('session defaults')
 })
 
 test('route answer names the id even with a floor in force', async (

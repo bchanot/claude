@@ -937,10 +937,6 @@ for _ext_skill in "${EXT_SKILL_NAMES[@]}"; do
 done
 echo ""
 
-# Effort pins (BDR-107, BDR-108): every vendored external gets its entry
-# level from lib/effort-pins.txt, re-applied ONCE after the last vendoring
-# step (the 21st pack, STEP 8.7) — see apply_effort_pins there.
-
 # ============================================================
 # STEP 8.5 — EXTERNAL SKILLS (npx skills add …)
 # ============================================================
@@ -1005,8 +1001,7 @@ echo ""
 # profile: `lib/toggle-external.sh enable higgsfield` turns the media skills
 # on, `enable higgsfield-websites` the landing-page aid. Keeping it out of
 # link.sh and of every profile is what stops a re-run from re-enabling it
-# (BDR-093). This step runs before Step 8.7 so the effort pins are still
-# re-applied after the last vendoring step (BDR-108).
+# (BDR-093).
 echo "── Step 8.6: Higgsfield CLI + skill pack ───────────────────"
 echo ""
 # shellcheck source=lib/higgsfield-skills.sh disable=SC1091
@@ -1127,13 +1122,6 @@ if command -v 21st &>/dev/null; then
   fi
   rm -rf "$TFD_STAGE"
 fi
-
-# Effort pins (BDR-107, BDR-108): the vendored externals carry no `effort:`
-# upstream and every vendoring step above rewrites SKILL.md. Re-apply the
-# entry levels from lib/effort-pins.txt once, after the LAST such step.
-# shellcheck source=lib/effort-pins.sh disable=SC1091
-source "$REPO/lib/effort-pins.sh"
-apply_effort_pins "$REPO" || warn "effort pins: map lines rejected — fix lib/effort-pins.txt"
 
 # Auth — detect, then offer login ONLY in an interactive TTY. A non-interactive
 # run (CI / headless / re-run) must never open a browser or block on OAuth.

@@ -30,7 +30,7 @@ Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
 judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
 gate prints the remedy; end the turn — no later step, no dispatch. Nominal
 (big) path is silent.
-EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-107): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
+ROUTING: follow $HOME/.claude/lib/effort-shift.md (phases via mcp__model-router__route).
 
 This skill orchestrates TWO specialist agents running in parallel, then
 merges their output into a single `.claude/audits/SEO.md` report. It is the main
@@ -325,7 +325,7 @@ templating.
 **PHASE A — collect (both domains, one message):**
 
 ```
-Skill(effort-medium)   # effort-shift: dispatch span starts; send with the Agent call below in ONE message
+mcp__model-router__route(phase="orchestrate")   # route: dispatch span starts; send with the Agent call below in ONE message
 Agent(subagent_type="seo-analyzer", model="sonnet")
 prompt: """
 MODE: collect
@@ -460,7 +460,7 @@ sentinel, emit the COLLECT REPORT, stop. No scoring, no bundle.
 ```
 
 **PHASE B — judge (both domains, one message, AFTER both COLLECT REPORTs
-are DONE):** no `model=` override — the opus frontmatter pins apply.
+are DONE):** no `model=` override — the opus rows apply (frontmatter = off-state floor).
 
 ```
 Agent(subagent_type="seo-analyzer")
@@ -510,7 +510,7 @@ the reports."
 ```
 
 ## STEP 1b — CHALLENGE THE FIX BUNDLE (advisory, before apply)
-`Skill(effort-high)` first (effort-shift: own level before the challenge; send it in the same message as the challenger dispatch).
+`mcp__model-router__route(phase="reflect")` first (route: own level before the challenge; send it with the challenger dispatch).
 Both envelopes now carry a `## FIX BUNDLE` — worth attacking before any edit lands.
 **Skip if intervention mode = conservative** (nothing is applied). Else persist both
 bundles (seo + geo, verbatim) to `.claude/tasks/plans/<date>-<slug>-<HHMM>.md`, then run
@@ -558,7 +558,7 @@ The two bundles may touch the same shared template (meta vs JSON-LD). Apply
 For each AUTO item, dispatch its `applier` at L1, passing the item verbatim:
 
 ```
-Skill(effort-medium)   # effort-shift: dispatch span starts; send with the Agent call below in ONE message
+mcp__model-router__route(phase="orchestrate")   # route: dispatch span starts; send with the Agent call below in ONE message
 Agent(subagent_type="hotfixer")     # or "feater" per the item's applier
 prompt: "<paste the bundle item: files, concern, current, expected,
   framework note + shared-file discipline>.
