@@ -154,6 +154,13 @@
       "orchestrate": "orchestrate"
     }
   },
-  "changed": {},
+  "changed": {
+    "agents": {
+      "security-auditor": {
+        "from": "verify",
+        "to": "judge"
+      }
+    }
+  },
   "ask": true
 }
