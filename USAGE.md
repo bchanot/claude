@@ -163,7 +163,7 @@ Tu veux...
 | `/pdf-translate` | Traduire un PDF vers une autre langue | Sortie HTML fidèle (images, layout, style préservés) |
 | `/impeccable` | Audit/polish design + détecteur anti-slop déterministe | 23 verbes ; `npx impeccable detect` (exit 0/2) |
 | `/tour` | Sweep groupé sur un ou plusieurs projets | Sécu + nettoyage + reconcile + doc, boucle jusqu'à un pass propre |
-| `/route` | Voir ou fixer la route du mod model-router | show / clear / off / on / reload / <phase> / model=… effort=… / switch on\|off / verbose on\|off |
+| `/route` | Voir ou fixer la route du mod model-router | show / clear / off / on / reload / pending / ask on\|off / <phase> / model=… effort=… / switch on\|off / verbose on\|off |
 | `/profile` | Changer le profil de skills | web / seo / web-full / full / max / backend / design / dev / qa / audit / minimal |
 
 > Cette table couvre les skills personnels principaux. Les plugins (gstack,
@@ -174,8 +174,8 @@ Tu veux...
 
 ### Niveau d'effort
 
-Chaque commande a une ligne de phase dans le mod model-router
-(`mods/model-router/`, actif dans chaque session), qui fixe son niveau de
+Chaque commande a une ligne de phase dans `mods/model-router/routing.json`,
+le fichier suivi du mod model-router (actif dans chaque session), qui fixe son niveau de
 réflexion : low pour la tenue de registre (`/status`, `/close`,
 `/commit-change`), medium pour le courant (`/gitflow`, `/prune-memory`),
 high pour un fix ou un refactor (`/feat`, `/hotfix`, `/bugfix`,
@@ -187,7 +187,9 @@ l'outil `mcp__model-router__route` (`lib/effort-shift.md`). Les skills
 externes vendorés (pile design, superpowers, agent-skills, skills scroll
 MengTo, 21st) ont aussi leur ligne.
 
-Taper un skill qui a une ligne route la boucle principale dessus. Une ligne du tier best (plan, reflect, orchestrate, escalate) tient d'un tour à l'autre pendant tout le run, jusqu'à `/route clear`, `/route off`, un `/model` tapé ou un skill d'un autre tier tapé. Pour relancer un tour bloqué : `ultrathink` dans le prompt (plancher du tour) ou `/route effort=max` (tient jusqu'à `/route clear`). Le `/effort` intégré n'a pas d'effet dans un run : les lignes et les routes passent devant. Les sous-agents reçoivent le modèle de leur ligne au lancement (dans leur tier, jamais en dessous de leur frontmatter) et son niveau à chaque étape ; un `model` ou `effort` explicite sur l'appel gagne. Explore tourne en sonnet/medium, Plan en opus/xhigh. `/route show` affiche la route en cours, slot de run compris (`main: run <phase>`). La config par machine, optionnelle, vit dans `~/.claude/model-router.json` ; `"enabled": false` y coupe le mod sur cette machine, et une ligne à `null` y retire une ligne par défaut.
+Taper un skill qui a une ligne route la boucle principale dessus. Une ligne du tier best (plan, reflect, orchestrate, escalate) tient d'un tour à l'autre pendant tout le run, jusqu'à `/route clear`, `/route off`, un `/model` tapé ou un skill d'un autre tier tapé. Pour relancer un tour bloqué : `ultrathink` dans le prompt (plancher du tour) ou `/route effort=max` (tient jusqu'à `/route clear`). Le `/effort` intégré n'a pas d'effet dans un run : les lignes et les routes passent devant. Les sous-agents reçoivent le modèle de leur ligne au lancement (dans leur tier, jamais en dessous de leur frontmatter) et son niveau à chaque étape ; un `model` ou `effort` explicite sur l'appel gagne. Explore tourne en sonnet/medium, Plan en opus/xhigh. `/route show` affiche la route en cours, slot de run compris (`main: run <phase>`). Première utilisation : la première fois qu'un skill avec ligne est tapé, qu'un agent avec ligne est lancé ou qu'une phase est déclarée sur la boucle principale via l'outil `route`, le mod demande une fois si la route convient. Pour une ligne : Later, Keep ou deux phases alternatives (Other accepte un nom de phase) ; pour une phase déclarée : Later ou Keep. Un changement demande ensuite Everywhere ou This project only (exception rangée sous le remote origin du dépôt réduit à `host/path`, jamais d'identifiants). La réponse est écrite dans `routing.json` ; Later redemande à une session suivante. Un seul dialogue à la fois, jamais en headless (`-p`) ni dans un sous-agent, et le modèle n'écrit jamais ce fichier. Chaque réponse laisse le repo de config modifié : commite-le depuis ce repo. `/route pending` liste ce qui reste à confirmer, `/route ask off|on` coupe ou rallume le dialogue.
+
+La config par machine, optionnelle, vit dans `~/.claude/model-router.json` et passe devant `routing.json` ; `"enabled": false` y coupe le mod sur cette machine, `"ask": false` y coupe le dialogue, une ligne à `null` y retire une ligne. Un `.claude/model-router.json` dans un projet n'est jamais lu. Les phases et les lignes se modifient à la main dans `routing.json` ; `/route reload` relit les deux fichiers.
 
 ## Les plugins — décision rapide
 
