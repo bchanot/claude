@@ -2039,7 +2039,7 @@ test('T3: routing.json unreadable at the dialog asks nothing', async (
   expect(w.asked).toEqual([])
 })
 
-test('T1: a failed write applies the default, key left unasked', async (
+test('T1: a failed write applies the default, key stays asked', async (
   $, on) => {
   const logs = recordLogs(on)
   const w = asks(['Keep', 'Later'])
@@ -2050,24 +2050,39 @@ test('T1: a failed write applies the default, key left unasked', async (
   expect(logs.join('\n')).toContain('first-use dialog failed')
   w.failWrite = false
   await typeFeat($)
+  expect(w.asked).toHaveLength(1)
+})
+
+test('T1: after a failed write the next session asks again', async (
+  $, on) => {
+  on('session.end', ($, e) => ({ sessionId: e.sessionId }))
+  const w = asks(['Keep', 'Later'])
+  await bootRun($, on, FABLE, w)
+  w.failWrite = true
+  await typeFeat($)
+  w.failWrite = false
+  await clearOf($)
+  await typeFeat($)
   expect(w.asked).toHaveLength(2)
 })
 
 const failures = (logs: string[]): string[] =>
   logs.filter(l => l.includes('first-use dialog failed'))
 
-test('T1: two failed writes log the failure once', async ($, on) => {
+test('T1: two rows failing to write log the failure once', async (
+  $, on) => {
   const logs = recordLogs(on)
   const w = asks(['Keep', 'Keep'])
   await bootRun($, on, FABLE, w)
   w.failWrite = true
   await typeFeat($)
-  await typeFeat($)
+  await typed($, '/status')
+  await skillPrompt($, 'status')
   expect(w.asked).toHaveLength(2)
   expect(failures(logs)).toHaveLength(1)
 })
 
-test('T1: a rebuild failing after the write leaves the key unasked', async (
+test('T1: a rebuild failing after the write keeps the key asked', async (
   $, on) => {
   const logs = recordLogs(on)
   const w = asks([...TO_IMPLEMENT, 'Everywhere'])
@@ -2077,7 +2092,7 @@ test('T1: a rebuild failing after the write leaves the key unasked', async (
   expect((routingOf(w).skills as Rec).feat).toBe('implement')
   expect(await mainNow($)).toContain('skill reflect')
   const pending = (await route($, 'pending')).split('\n')
-  expect(pending[1]).toBe('asked this session: none')
+  expect(pending[1]).toBe('asked this session: skills:feat')
   expect(failures(logs)).toHaveLength(1)
   expect(failures(logs)[0]).toContain('rebuild failed after the write')
 })
@@ -2827,15 +2842,21 @@ for (const [label, phase] of [
   })
 }
 
-test('change: an alias no phase uses is a Later and says so', async (
+/** The shipped mechanical phase moved off haiku: no shipped phase uses it. */
+const lowMechanical = (f: Rec): void => {
+  (f.phases as Rec).mechanical = { tier: 'work', effort: 'low' }
+}
+
+test('change: an alias no shipped phase uses is a Later and says so', async (
   $, on) => {
   const toasts = recordToasts(on)
   const w = asks(['Change', 'haiku (cheap)'], {
-    home: { phases: { mechanical: { tier: 'work', effort: 'low' } } },
+    edit: lowMechanical,
   })
   await bootRun($, on, FABLE, w)
   await typeFeat($)
-  expect(toasts).toContain('no phase uses haiku')
+  expect(toasts).toContain(
+    'no shipped phase uses haiku: add one to routing.json')
   expect(w.asked).toHaveLength(2)
   expect(w.written).toEqual([])
 })
@@ -3529,4 +3550,830 @@ test('forget: a non-composer origin is refused, nothing written', async (
   })
   expect(out.text).toContain('user-only')
   expect(w.written).toEqual([])
+})
+
+// ---- wave 4-A: transition logs --------------------------------------------
+
+type LoggedOpts = {
+  model?: string
+  answeredBy?: (planned: string) => string // the model a step answers on
+  world?: World
+  verbose?: boolean // default true
+  stepMark?: string // the bottom step pushes this into `logs`
+}
+
+const usageFor = (model: string) => ({
+  model,
+  input_tokens: 0,
+  output_tokens: 0,
+  cache_read_input_tokens: 0,
+  cache_creation_input_tokens: 0,
+})
+
+type Logged = { logs: string[]; seen: Seen[] }
+
+/** A run with every bottom hook a logged scenario needs, verbose on. */
+async function bootLogged(
+  $: Engine,
+  on: On,
+  o: LoggedOpts = {},
+): Promise<Logged> {
+  const logs = recordLogs(on)
+  const seen: Seen[] = []
+  let spawned = 0
+  on('turn.step', async function* ($, e) {
+    seen.push({ model: e.model, effort: e.effort })
+    if (o.stepMark !== undefined) logs.push(o.stepMark)
+    return {
+      turnId: e.turnId,
+      index: e.index,
+      answer: '',
+      toolUses: [],
+      stopReason: 'end_turn' as const,
+      usage: o.answeredBy ? usageFor(o.answeredBy(e.model)) : null,
+    }
+  })
+  on('prompt.submit', ($, e) => ({ text: e.text }))
+  on('turn.complete', () => ({ text: '' }))
+  on('session.end', ($, e) => ({ sessionId: e.sessionId }))
+  on('tool.call', { tool: 'Skill' }, () => ({
+    result: { success: true, commandName: 'bottom' },
+  }))
+  on('tool.call', { tool: 'Agent' }, () => ({
+    result: {
+      status: 'async_launched' as const,
+      agentId: 'a1',
+      description: 'd',
+      prompt: 'p',
+      outputFile: '/tmp/o',
+    },
+  }))
+  on('agent.spawn', ($, e) => ({
+    model: e.model ?? e.parentModel,
+    agentId: `a${++spawned}`,
+  }))
+  await boot($, on, o.model ?? FABLE, 1000, o.world ?? newWorld())
+  if (o.verbose !== false) await route($, 'verbose on')
+  logs.splice(0)
+  return { logs, seen }
+}
+
+const mainWord = (from: string, to: string, why: string): string =>
+  `main: ${from} → ${to} (${why})`
+
+test('logs: a main that never changes logs nothing', async ($, on) => {
+  const { logs } = await bootLogged($, on)
+  for (let i = 0; i < 3; i++) await runStep($, highStep())
+  expect(logs).toEqual([])
+})
+
+test('logs: a route-tool plan logs one line, not one per step', async (
+  $, on) => {
+  const { logs } = await bootLogged($, on)
+  await planRoute($)
+  await runStep($, highStep())
+  await runStep($, highStep())
+  expect(logs).toEqual([
+    mainWord('fable/high', 'fable/xhigh', 'plan: route tool'),
+  ])
+})
+
+test('logs: a typed skill names itself as the cause', async ($, on) => {
+  const { logs } = await bootLogged($, on)
+  await typeFeat($)
+  await runStep($, stepInput())
+  expect(logs).toEqual([
+    mainWord('fable/low', 'fable/high', 'reflect: skill /feat'),
+  ])
+})
+
+test('logs: an upgrade rides on the same line', async ($, on) => {
+  const { logs } = await bootLogged($, on, { model: SONNET })
+  await typeFeat($)
+  await runStep($, { ...highStep(), model: SONNET })
+  expect(logs).toEqual([
+    mainWord('sonnet/high', 'fable/high', 'reflect: skill /feat, upgrade'),
+  ])
+})
+
+test('logs: a downgrade is a switch', async ($, on) => {
+  const { logs } = await bootLogged($, on)
+  await route($, 'switch on')
+  await route($, 'mechanical')
+  await runStep($, highStep())
+  expect(logs).toEqual([
+    mainWord('fable/high', 'haiku/-', 'mechanical: sticky /route, switch'),
+  ])
+})
+
+test('logs: a model down names the alias it left', async ($, on) => {
+  const { logs } = await bootLogged($, on)
+  await runStep($, highStep())
+  await failWith($, 'rate_limit')
+  logs.splice(0)
+  await runStep($, highStep())
+  expect(logs).toEqual([
+    mainWord('fable/high', 'opus/high', 'session, fallback: fable down'),
+  ])
+})
+
+test('logs: derived orchestrate logs once per turn', async ($, on) => {
+  const { logs } = await bootLogged($, on)
+  await runStep($, highStep())
+  await dispatch($)
+  await runStep($, highStep())
+  await agentEnds($)
+  await runStep($, highStep())
+  await dispatch($)
+  await runStep($, highStep())
+  const waves = logs.filter(l => l.includes('orchestrate: dispatch'))
+  expect(waves).toEqual([
+    mainWord('fable/high', 'fable/medium', 'orchestrate: dispatch'),
+  ])
+})
+
+test('logs: an ultrathink floor names the prompt floor', async ($, on) => {
+  const { logs } = await bootLogged($, on)
+  await ultrathink($)
+  await runStep($, highStep())
+  expect(logs).toEqual([
+    mainWord('fable/high', 'fable/max', 'escalate: prompt floor'),
+  ])
+})
+
+test('logs: a sticky /route names itself', async ($, on) => {
+  const { logs } = await bootLogged($, on)
+  await route($, 'xhigh')
+  await runStep($, highStep())
+  expect(logs).toEqual([
+    mainWord('fable/high', 'fable/xhigh', 'custom: sticky /route'),
+  ])
+})
+
+test('logs: a default prompt rule says prompt rule', async ($, on) => {
+  const { logs } = await bootLogged($, on)
+  await typed($, 'explain why it fails')
+  await runStep($, stepInput())
+  expect(logs).toEqual([
+    mainWord('fable/low', 'fable/high', 'reflect: prompt rule'),
+  ])
+})
+
+test('logs: after /clear the first step compares to the engine', async (
+  $, on) => {
+  const { logs } = await bootLogged($, on)
+  await route($, 'xhigh')
+  await runStep($, highStep())
+  logs.splice(0)
+  await clearOf($)
+  await runStep($, highStep())
+  expect(logs).toEqual([])
+})
+
+test('logs: /route on after off compares to the engine', async ($, on) => {
+  const { logs } = await bootLogged($, on)
+  await route($, 'xhigh')
+  await runStep($, highStep())
+  await endTurn($)
+  await route($, 'off')
+  await route($, 'on')
+  await runStep($, highStep())
+  expect(logs.filter(l => l.includes('sticky'))).toHaveLength(2)
+})
+
+test('logs: a failing log never unroutes the step', async ($, on) => {
+  const { logs, seen } = await bootLogged($, on)
+  await route($, 'xhigh')
+  const poison = { toString: 1 } // String(poison) throws
+  await runStep($, { ...highStep(), effort: poison as never })
+  expect(seen[seen.length - 1]?.effort).toBe('xhigh')
+  expect(logs.join('\n')).toContain('turn.step log failed')
+})
+
+test('logs: verbose off logs no transition', async ($, on) => {
+  const { logs } = await bootLogged($, on, { verbose: false })
+  await planRoute($)
+  await runStep($, highStep())
+  await typeFeat($)
+  await $.agent.spawn(spawnOf('feater'))
+  expect(logs).toEqual([])
+})
+
+test('logs: the transition line precedes the step below it', async (
+  $, on) => {
+  const { logs } = await bootLogged($, on, { stepMark: 'STEP' })
+  await planRoute($)
+  await runStep($, highStep())
+  expect(logs).toEqual([
+    mainWord('fable/high', 'fable/xhigh', 'plan: route tool'),
+    'STEP',
+  ])
+})
+
+test('logs: switch warnings keep their exact texts', async ($, on) => {
+  const logs = recordLogs(on)
+  const home = { verbose: 'ON', enabled: 'no' }
+  await bootRun($, on, FABLE, newWorld({ home }))
+  expect(logs).toContain('config "verbose" is not a boolean; ignored')
+  expect(logs).toContain(
+    'model-router: config "enabled" is not a boolean; ignored')
+})
+
+for (const bad of ['ON', 1, null]) {
+  test(`logs: verbose ${JSON.stringify(bad)} falls back to off`, async (
+    $, on) => {
+    const logs = recordLogs(on)
+    await bootRun($, on, FABLE, newWorld({ home: { verbose: bad } }))
+    expect(logs.filter(l => l.includes('"verbose" is not a boolean')))
+      .toHaveLength(1)
+    expect(await route($, 'show')).toContain('verbose: off')
+  })
+}
+
+test('logs: verbose true in the override turns the lines on', async (
+  $, on) => {
+  await bootRun($, on, FABLE, newWorld({ home: { verbose: true } }))
+  expect(await route($, 'show')).toContain('verbose: on')
+})
+
+/** What each of the old firehose lines would have been triggered by. */
+const LEGACY: [string, string, ($: Engine) => Promise<unknown>][] = [
+  ['step', 'step ', $ => runStep($, highStep())],
+  ['answered by', 'answered by', $ => runStep($, highStep())],
+  ['skill path', 'skill ', $ => typeFeat($)],
+  ['route json', 'route main', $ => planRoute($)],
+  ['spawn', 'spawn ', $ => $.agent.spawn(spawnOf('feater'))],
+]
+
+for (const [name, text, act] of LEGACY) {
+  test(`logs: the old ${name} line is gone at true`, async ($, on) => {
+    const { logs } = await bootLogged($, on)
+    await act($)
+    await runStep($, highStep())
+    expect(logs.filter(l => l.includes(text))).toEqual([])
+  })
+}
+
+// ---- wave 4-A: agent lines ----------------------------------------------
+
+const handoffs = (logs: string[]): string[] =>
+  logs.filter(l => l.includes(' → agent '))
+
+/** A main step first, so the hand-off starts from fable/high. */
+async function afterMainStep($: Engine, on: On, o: LoggedOpts = {}) {
+  const run = await bootLogged($, on, o)
+  await runStep($, highStep())
+  return run
+}
+
+test('logs: a rowed spawn is one hand-off line, then silence', async (
+  $, on) => {
+  const { logs } = await afterMainStep($, on)
+  await $.agent.spawn(spawnOf('feater'))
+  const line = 'main fable/high → agent feater sonnet/medium ' +
+    '(row implement, row)'
+  expect(logs).toEqual([line])
+  await runStep($, { ...highStep('a1'), model: SONNET })
+  await runStep($, { ...highStep('a1'), model: SONNET })
+  expect(logs).toEqual([line])
+})
+
+test('logs: an explicit model is its own cause', async ($, on) => {
+  const { logs } = await afterMainStep($, on)
+  await $.agent.spawn(spawnOf('feater', { model: 'opus' }))
+  expect(logs).toEqual([
+    'main fable/high → agent feater opus/medium ' +
+      '(explicit, row)',
+  ])
+})
+
+test('logs: an explicit effort is one line, then silence', async ($, on) => {
+  const { logs } = await afterMainStep($, on)
+  await $.tool.call({
+    tool: 'Agent', description: 'd', prompt: 'p', effort: 'low',
+    tool_use_id: 't1',
+  })
+  await $.agent.spawn(spawnOf('feater'))
+  const line = 'main fable/high → agent feater sonnet/low ' +
+    '(row implement, explicit)'
+  expect(logs).toEqual([line])
+  await runStep($, { ...stepInput('a1'), model: SONNET })
+  expect(logs).toEqual([line])
+})
+
+test('logs: a haiku spawn shows no effort, then silence', async ($, on) => {
+  const world = newWorld({
+    edit: f => { (f.agents as Rec).feater = 'mechanical' },
+  })
+  const { logs } = await afterMainStep($, on, { world })
+  await $.agent.spawn(spawnOf('feater'))
+  const line = 'main fable/high → agent feater haiku/- ' +
+    '(row mechanical, row)'
+  expect(logs).toEqual([line])
+  await runStep($, { ...highStep('a1'), model: HAIKU })
+  expect(logs).toEqual([line])
+})
+
+test('logs: three parallel challengers are one hand-off line', async (
+  $, on) => {
+  const { logs } = await afterMainStep($, on)
+  await Promise.all([1, 2, 3].map(() =>
+    $.agent.spawn(spawnOf('plan-challenger'))))
+  expect(handoffs(logs)).toHaveLength(1)
+})
+
+test('logs: two agent types to one model are two hand-offs', async (
+  $, on) => {
+  const { logs } = await afterMainStep($, on)
+  await $.agent.spawn(spawnOf('feater'))
+  await $.agent.spawn(spawnOf('Explore'))
+  expect(handoffs(logs)).toHaveLength(2)
+})
+
+test('logs: one agent type to two models is two hand-offs', async (
+  $, on) => {
+  const { logs } = await afterMainStep($, on)
+  await $.agent.spawn(spawnOf('feater'))
+  await $.agent.spawn(spawnOf('feater', { model: 'opus' }))
+  expect(handoffs(logs)).toHaveLength(2)
+})
+
+test('logs: a tier moved up in-tier names the alias that was down', async (
+  $, on) => {
+  const { logs } = await bootLogged($, on)
+  await switchTo($, OPUS, SONNET, 'auto')
+  await $.agent.spawn(spawnOf('plan-challenger'))
+  expect(handoffs(logs)).toEqual([
+    'main fable/- → agent plan-challenger fable/xhigh ' +
+      '(fallback: opus down, row)',
+  ])
+})
+
+test('logs: a tier down keeps the frontmatter, said as such', async (
+  $, on) => {
+  const { logs } = await bootLogged($, on)
+  await switchTo($, OPUS, SONNET, 'auto')
+  await switchTo($, FABLE, SONNET, 'auto')
+  await $.agent.spawn(spawnOf('plan-challenger'))
+  expect(handoffs(logs)[0]).toContain('(frontmatter, row)')
+})
+
+test('logs: an in-agent route tool move is one line', async ($, on) => {
+  const { logs } = await afterMainStep($, on)
+  await $.agent.spawn(spawnOf('feater'))
+  logs.splice(0)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'judge', agentId: 'a1' })
+  await runStep($, { ...highStep('a1'), model: SONNET })
+  await runStep($, { ...highStep('a1'), model: SONNET })
+  expect(logs).toEqual([
+    'agent feater: sonnet/medium → sonnet/xhigh (route tool)',
+  ])
+})
+
+test('logs: an agent moving twice logs both moves', async ($, on) => {
+  const { logs } = await afterMainStep($, on)
+  await $.agent.spawn(spawnOf('feater'))
+  logs.splice(0)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'judge', agentId: 'a1' })
+  await runStep($, { ...highStep('a1'), model: SONNET })
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'implement', agentId: 'a1' })
+  await runStep($, { ...highStep('a1'), model: SONNET })
+  expect(logs).toHaveLength(2)
+  expect(logs[1]).toContain('sonnet/xhigh → sonnet/medium (route tool)')
+})
+
+test('logs: an in-agent skill move names the skill', async ($, on) => {
+  const { logs } = await afterMainStep($, on)
+  await $.agent.spawn(spawnOf('feater'))
+  logs.splice(0)
+  await loadSkill($, 'status', 'a1')
+  await runStep($, { ...highStep('a1'), model: SONNET })
+  expect(logs).toEqual([
+    'agent feater: sonnet/medium → sonnet/low (skill status)',
+  ])
+})
+
+const answers = (logs: string[]): string[] =>
+  logs.filter(l => l.includes('answered by'))
+
+/** One agent step on the planned model, the engine answering on `by`. */
+async function agentAnswer($: Engine, on: On, by: string, planned = SONNET) {
+  const run = await afterMainStep($, on, { answeredBy: () => by })
+  await $.agent.spawn(spawnOf('feater'))
+  await runStep($, { ...highStep('a1'), model: planned })
+  await runStep($, { ...highStep('a1'), model: planned })
+  return run
+}
+
+test('logs: an agent answered by another model is said once', async (
+  $, on) => {
+  const { logs } = await agentAnswer($, on, OPUS)
+  expect(answers(logs)).toEqual([
+    'agent feater answered by opus instead of sonnet',
+  ])
+})
+
+test('logs: a [1m] suffix alone is not an answer anomaly', async ($, on) => {
+  const { logs } = await agentAnswer($, on, SONNET, `${SONNET}[1m]`)
+  expect(answers(logs)).toEqual([])
+})
+
+test('logs: a [1m] usage against a bare plan is no anomaly', async (
+  $, on) => {
+  const { logs } = await agentAnswer($, on, `${SONNET}[1m]`)
+  expect(answers(logs)).toEqual([])
+})
+
+test('logs: a second agent answering off-plan logs its own line', async (
+  $, on) => {
+  const { logs } = await afterMainStep($, on, { answeredBy: () => OPUS })
+  await $.agent.spawn(spawnOf('feater'))
+  await $.agent.spawn(spawnOf('Explore'))
+  for (const id of ['a1', 'a2']) {
+    await runStep($, { ...highStep(id), model: SONNET })
+    await runStep($, { ...highStep(id), model: SONNET })
+  }
+  expect(answers(logs)).toHaveLength(2)
+})
+
+test('logs: one agent answering two off-plan models logs twice', async (
+  $, on) => {
+  let n = 0
+  const { logs } = await afterMainStep($, on, {
+    answeredBy: () => (++n % 2 ? OPUS : FABLE) })
+  await $.agent.spawn(spawnOf('feater'))
+  for (let i = 0; i < 4; i++) {
+    await runStep($, { ...highStep('a1'), model: SONNET })
+  }
+  expect(answers(logs)).toHaveLength(2)
+})
+
+test('logs: an unanswered usage says nothing', async ($, on) => {
+  const { logs } = await afterMainStep($, on)
+  await $.agent.spawn(spawnOf('feater'))
+  await runStep($, { ...highStep('a1'), model: SONNET })
+  expect(answers(logs)).toEqual([])
+})
+
+test('logs: main answered by another model says nothing here', async (
+  $, on) => {
+  const { logs } = await bootLogged($, on, { answeredBy: () => OPUS })
+  await runStep($, highStep())
+  expect(answers(logs)).toEqual([])
+  expect(logs).toEqual([]) // no bookkeeping warning either
+})
+
+test('logs: verbose off says no answer anomaly either', async ($, on) => {
+  const { logs } = await bootLogged($, on, {
+    answeredBy: () => OPUS, verbose: false })
+  await $.agent.spawn(spawnOf('feater'))
+  await runStep($, { ...highStep('a1'), model: SONNET })
+  expect(answers(logs)).toEqual([])
+})
+
+// ---- wave 4-A: log guards ------------------------------------------------
+
+const CTRL = '\u0007' // a control char inside a name
+const LONG = `${'a'.repeat(30)}${CTRL}${'b'.repeat(30)}`
+const CUT = `${'a'.repeat(30)}${'b'.repeat(9)}…` // 40 clean code points
+const hasCtrl = (text: string): boolean => /[\p{Cc}\p{Cf}]/u.test(text)
+
+/** A phase named LONG (with a bidi mark), as a routing.json may hold it. */
+const hostilePhase = `${'a'.repeat(30)}\u202e${'b'.repeat(30)}`
+const withPhase = (f: Rec): void => {
+  (f.phases as Rec)[hostilePhase] = { tier: 'best', effort: 'xhigh' }
+}
+
+test('logs: two dispatches in one turn are one hand-off, main moved between',
+  async ($, on) => {
+    const { logs } = await afterMainStep($, on)
+    await $.agent.spawn(spawnOf('feater'))
+    await route($, 'xhigh')
+    await runStep($, highStep())
+    await $.agent.spawn(spawnOf('feater'))
+    expect(handoffs(logs)).toHaveLength(1)
+  })
+
+test('logs: an agent type is cleaned in the hand-off line', async (
+  $, on) => {
+  const { logs } = await afterMainStep($, on)
+  await $.agent.spawn(spawnOf(LONG, { model: 'opus' }))
+  expect(handoffs(logs)).toHaveLength(1)
+  expect(handoffs(logs)[0]).toContain(`agent ${CUT} `)
+  expect(hasCtrl(logs.join('\n'))).toBe(false)
+})
+
+test('logs: a model id is cleaned in the hand-off line', async ($, on) => {
+  const { logs } = await afterMainStep($, on)
+  await $.agent.spawn(spawnOf('feater', { model: `m${LONG}` }))
+  expect(handoffs(logs)).toHaveLength(1)
+  expect(handoffs(logs)[0]).toContain(
+    `feater m${'a'.repeat(30)}${'b'.repeat(8)}…/`)
+  expect(hasCtrl(logs.join('\n'))).toBe(false)
+})
+
+test('logs: an agent type is cleaned in a later move line', async (
+  $, on) => {
+  const { logs } = await afterMainStep($, on)
+  await $.agent.spawn(spawnOf(LONG, { model: 'opus' }))
+  logs.splice(0)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'judge', agentId: 'a1' })
+  await runStep($, { ...highStep('a1'), model: OPUS })
+  expect(logs).toHaveLength(1)
+  expect(logs[0]).toContain(`agent ${CUT}: `)
+  expect(hasCtrl(logs[0] ?? '')).toBe(false)
+})
+
+test('logs: an unchanged sticky /route logs once across turns', async (
+  $, on) => {
+  const { logs } = await bootLogged($, on)
+  await route($, 'xhigh')
+  for (let i = 0; i < 3; i++) {
+    await runStep($, highStep())
+    await endTurn($)
+  }
+  expect(logs.filter(l => l.includes('sticky /route'))).toHaveLength(1)
+})
+
+test('logs: an engine-picked effort is named in the hand-off', async (
+  $, on) => {
+  const { logs } = await afterMainStep($, on)
+  await $.agent.spawn(spawnOf('stranger', { model: 'opus' }))
+  expect(handoffs(logs)).toHaveLength(1)
+  expect(handoffs(logs)[0]).toContain('(explicit, engine)')
+})
+
+// ---- wave 4-A: residuals of waves 3-A, 3-B, 3-C ---------------------------
+
+test('residual a: a failing forget write answers without the cause', async (
+  $, on) => {
+  const w = forgetWorld(confirmedFeat)
+  await bootRun($, on, FABLE, w)
+  w.failWrite = true
+  const out = await route($, 'forget feat')
+  expect(out).toBe('forget not applied, see the log')
+})
+
+test('residual a: a failing forget write logs the cause', async ($, on) => {
+  const logs = recordLogs(on)
+  const w = forgetWorld(confirmedFeat)
+  await bootRun($, on, FABLE, w)
+  w.failWrite = true
+  await route($, 'forget feat')
+  expect(logs.some(l => l.startsWith('forget failed: ')))
+    .toBe(true)
+})
+
+test('residual a: a failing ask write answers without the cause', async (
+  $, on) => {
+  const logs = recordLogs(on)
+  const w = newWorld()
+  await bootRun($, on, FABLE, w)
+  w.failWrite = true
+  expect(await route($, 'ask off')).toBe('ask not applied, see the log')
+  expect(logs.some(l => l.startsWith('ask failed: ')))
+    .toBe(true)
+})
+
+test('residual a: an ask saved but not rebuilt says so', async ($, on) => {
+  const w = newWorld()
+  await bootRun($, on, FABLE, w)
+  w.onWrite = () => { w.files.set(HOME_FILE, '{nope') }
+  expect(await route($, 'ask off')).toBe(
+    'ask saved, config not rebuilt: /route reload')
+  expect(routingOf(w).ask).toBe(false)
+})
+
+const ODD = 'x‮y' // a bidi override inside a name
+
+const bidi = '‮'
+
+test('residual b: a restored row name is cleaned in the answer', async (
+  $, on) => {
+  const w = newWorld({ edit: f => {
+    (f.skills as Rec)[ODD] = 'plan'
+    f.changed = { skills: { [ODD]: { from: 'reflect', to: 'plan' } } }
+  } })
+  await bootRun($, on, FABLE, w)
+  const out = await route($, `forget ${ODD}`)
+  expect(out).toContain('(skills.xy → reflect:')
+})
+
+test('residual b: a restored row\'s old phase is cleaned too', async (
+  $, on) => {
+  const w = newWorld({ edit: f => {
+    (f.skills as Rec).feat = `pl${bidi}an`
+    f.changed = { skills: { feat: { from: 'reflect', to: `pl${bidi}an` } } }
+  } })
+  await bootRun($, on, FABLE, w)
+  const out = await route($, 'forget feat')
+  expect(out).toContain('was aligned to plan,')
+  expect(out).not.toContain(bidi)
+})
+
+test('residual b: a refused restore\'s phase is cleaned', async ($, on) => {
+  const w = newWorld({ edit: brokenRestore(
+    { from: `no${bidi}such`, to: 'judge' }) })
+  await bootRun($, on, FABLE, w)
+  const out = await route($, 'forget feater')
+  expect(out).toContain('nosuch is not a known phase')
+  expect(out).not.toContain(bidi)
+})
+
+test('residual b: a refused restore\'s row name is cleaned', async (
+  $, on) => {
+  const w = newWorld({ edit: f => {
+    f.changed = { skills: { [ODD]: { from: 5, to: 'plan' } } }
+  } })
+  await bootRun($, on, FABLE, w)
+  const out = await route($, `forget ${ODD}`)
+  expect(out).toContain('skills.xy: no phase recorded')
+})
+
+test('residual b: a long row name is cut in the answer only', async (
+  $, on) => {
+  const name = 'a'.repeat(45)
+  const w = newWorld({ edit: f => {
+    (f.skills as Rec)[name] = 'plan'
+    f.changed = { skills: { [name]: { from: 'reflect', to: 'plan' } } }
+  } })
+  await bootRun($, on, FABLE, w)
+  const out = await route($, `forget ${name}`)
+  expect(out).toContain(`(skills.${'a'.repeat(39)}… → reflect:`)
+  expect((routingOf(w).skills as Rec)[name]).toBe('reflect')
+})
+
+test('residual c: a name outside the skill charset names no file', async (
+  $, on) => {
+  const w = newWorld({ edit: f => {
+    (f.agents as Rec)['../x'] = 'judge'
+    f.changed = { agents: { '../x': { from: 'implement', to: 'judge' } } }
+  } })
+  await bootRun($, on, FABLE, w)
+  const out = await route($, 'forget ../x')
+  expect(out).toContain('1 row(s) restored')
+  expect(out).not.toContain('was aligned to')
+})
+
+/** A file whose `kind` table holds `__proto__` as an OWN key. */
+const protoRow = (kind: string, entry: unknown) => (f: Rec): void => {
+  const rows = (f[kind] ?? {}) as Rec
+  Object.defineProperty(rows, '__proto__', {
+    value: entry, enumerable: true, configurable: true, writable: true,
+  })
+  f[kind] = rows
+}
+
+test('residual d: a __proto__ restore is refused, plan and apply agree', async (
+  $, on) => {
+  const w = newWorld({ edit: f => {
+    protoRow('skills', 'plan')(f)
+    const changed: Rec = {}
+    protoRow('changed', changed)(f)
+    const skills: Rec = {}
+    Object.defineProperty(skills, '__proto__', {
+      value: { from: 'reflect', to: 'plan' },
+      enumerable: true, configurable: true, writable: true,
+    })
+    f.changed = { skills }
+  } })
+  await bootRun($, on, FABLE, w)
+  const out = await route($, 'forget __proto__')
+  expect(out).toContain('skills.__proto__: reserved name')
+  expect(w.written).toEqual([])
+})
+
+test('residual e: a changed.phases entry is never restored', async ($, on) => {
+  const w = newWorld({ edit: f => {
+    (f.phases as Rec).plan = 'reflect'
+    f.changed = { phases: { plan: { from: 'reflect', to: 'reflect' } } }
+  } })
+  await bootRun($, on, FABLE, w)
+  expect(await route($, 'forget plan')).toBe('nothing to forget for plan')
+  expect(w.written).toEqual([])
+})
+
+/** The efforts the Change chain offers for fable, from the second question. */
+async function fableEfforts($: Engine, on: On, fx: Fixture) {
+  const w = asks(['Change', 'fable (best)', 'Later'], fx)
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  return w.asked[2]?.options
+}
+
+const FABLE_EFFORTS = ['medium', 'high', 'xhigh', 'max']
+
+test('residual f: a null phase in the file is ignored, no crash', async (
+  $, on) => {
+  const edit = (f: Rec): void => { (f.phases as Rec).plan = null }
+  expect(await fableEfforts($, on, { edit })).toEqual(FABLE_EFFORTS)
+})
+
+test('residual f: a file without phases offers the code defaults', async (
+  $, on) => {
+  const edit = (f: Rec): void => { delete f.phases }
+  expect(await fableEfforts($, on, { edit })).toEqual(FABLE_EFFORTS)
+})
+
+const CUSTOM_CHEAP = { phases: { custom: { tier: 'cheap', effort: 'high' } } }
+
+test('residual f: an override-only phase is not offered', async ($, on) => {
+  const w = asks(['Change', 'haiku (cheap)', 'Later'], { home: CUSTOM_CHEAP })
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  expect(w.asked[2]?.text).toContain('Use mechanical for feat')
+})
+
+test('residual f: an override-only phase is never written', async ($, on) => {
+  const w = asks(['Change', 'haiku (cheap)', 'high', 'Everywhere'],
+    { home: CUSTOM_CHEAP })
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  expect((routingOf(w).skills as Rec).feat).toBe('reflect')
+  expect(w.written).toEqual([])
+})
+
+test('residual f: the target is a shipped phase the override redefines', async (
+  $, on) => {
+  const w = asks(['Change', 'haiku (cheap)', 'Everywhere'], {
+    home: { phases: { mechanical: { tier: 'work', effort: 'medium' } } },
+  })
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  expect((routingOf(w).skills as Rec).feat).toBe('mechanical')
+})
+
+test('residual f: an alias only an override phase uses toasts, Later', async (
+  $, on) => {
+  const toasts = recordToasts(on)
+  const w = asks(['Change', 'haiku (cheap)'], {
+    edit: lowMechanical,
+    home: { phases: { custom: { tier: 'cheap', effort: 'low' } } },
+  })
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  expect(toasts).toContain(
+    'no shipped phase uses haiku: add one to routing.json')
+  expect(w.written).toEqual([])
+})
+
+test('residual b: a hostile restored phase is cleaned in the clause', async (
+  $, on) => {
+  const w = newWorld({ edit: f => {
+    withPhase(f)
+    ;(f.skills as Rec).feat = 'plan'
+    f.changed = { skills: { feat: { from: hostilePhase, to: 'plan' } } }
+  } })
+  await bootRun($, on, FABLE, w)
+  const out = await route($, 'forget feat')
+  expect(out).toContain(`skills.feat → ${CUT}:`)
+  expect(hasCtrl(out)).toBe(false)
+})
+
+// ---- wave 4-A: hostile skill name ----------------------------------------
+
+const HOSTILE_SKILL = `${'a'.repeat(30)}‮${CTRL}${'b'.repeat(30)}`
+const skillWorld = (): World => newWorld({ edit: f => {
+  (f.skills as Rec)[HOSTILE_SKILL] = 'plan'
+} })
+
+/** The name a line shows after `marker`, up to the closing char. */
+const nameAfter = (line: string, marker: string, end: string): string =>
+  line.slice(line.indexOf(marker) + marker.length).split(end)[0]
+
+test('logs: a hostile skill name is cleaned in the main line', async (
+  $, on) => {
+  const { logs } = await bootLogged($, on, { world: skillWorld() })
+  await runStep($, highStep())
+  logs.splice(0)
+  await loadSkill($, HOSTILE_SKILL)
+  await runStep($, { ...highStep(), effort: 'low' as const })
+  const line = logs.find(l => l.includes('skill /')) ?? ''
+  const name = nameAfter(line, 'skill /', ')')
+  expect(name).not.toBe('')
+  expect(hasCtrl(line)).toBe(false)
+  expect([...name].length).toBeLessThanOrEqual(40)
+})
+
+test('logs: a hostile skill name is cleaned in the agent cause', async (
+  $, on) => {
+  const { logs } = await afterMainStep($, on, { world: skillWorld() })
+  await $.agent.spawn(spawnOf('feater'))
+  logs.splice(0)
+  await loadSkill($, HOSTILE_SKILL, 'a1')
+  await runStep($, { ...highStep('a1'), model: SONNET })
+  const line = logs.find(l => l.includes('(skill ')) ?? ''
+  const name = nameAfter(line, '(skill ', ')')
+  expect(name).not.toBe('')
+  expect(hasCtrl(line)).toBe(false)
+  expect([...name].length).toBeLessThanOrEqual(40)
+})
+
+test('logs: an ended agent forgets its answer marks (reused id)', async (
+  $, on) => {
+  const { logs } = await agentAnswer($, on, OPUS)
+  await agentEnds($)
+  await $.agent.spawn(spawnOf('feater'))
+  await runStep($, { ...highStep('a1'), model: SONNET })
+  expect(answers(logs)).toHaveLength(2)
 })
