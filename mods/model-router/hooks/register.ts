@@ -32,17 +32,27 @@ type Config = {
   upgradeMaxTokens: number // above this context an upgrade is skipped
   mainModelSwitch: boolean // gates DOWNGRADES only
   verbose: boolean
+  classify: boolean // a small-model guess of the typed prompt's phase
   spinner: boolean
   enabled: boolean // false: every hook passes through (per machine)
 }
 type Rule = { re: RegExp; phase: string; mode: PromptMode }
-type Source = 'user' | 'model' | 'skill' | 'prompt' | 'run' | 'derived'
-type Routed = { phase: string; route: Route; source: Source }
+type Source =
+  | 'user' | 'model' | 'skill' | 'prompt' | 'run' | 'derived' | 'classifier'
+type Routed = {
+  phase: string
+  route: Route
+  source: Source
+  label?: string // the skill a skill route came from, for the logs
+}
 type Hold = { until: number; reason: string } // until: ms, Infinity = reload
 type Pushed = { prev: Routed | null; spawnIds: Set<string> }
 type Loop = {
   effort?: Level // an agent's model is fixed at spawn: effort is its only axis
   explicitEffort: boolean // Agent call gave an effort: axis frozen
+  type?: string // subagentType, for the log lines
+  last?: Plan // the plan this loop last ran, once it was told
+  cause?: string // who set the effort in force, for the log lines
 }
 type State = {
   cfg: Config
@@ -83,13 +93,21 @@ type State = {
   override: Rec | undefined // the machine override's data, if it loaded
   loaded: boolean // the layers were read once (else: lazily, on first use)
   rebuildDue: boolean // /clear: re-read the layers at the next prompt
-  toggles: { switch?: boolean; verbose?: boolean } // session toggles
+  toggles: Partial<Record<Toggle, boolean>> // session toggles
+  engineBase: NonNullable<Effort> | null // engine effort of main's first step
+  classifyFails: number // classifier failures in a row
+  classifyUntil: number // classifier paused until (ms); 0 = running
   asking: string | null // key of the one first-use dialog in flight
   asked: Set<string> // keys answered (or failed) this session
   writes: Promise<unknown> // the serialized routing.json write chain
 }
 type Log = (text: string) => void
 type StepIn = Readonly<TurnStepInput>
+type PromptIn = {
+  text: string
+  turnId?: string
+  origin: { kind: string }
+}
 type Plan = { model: string; effort: StepIn['effort'] }
 type RouteInput = {
   phase?: unknown
@@ -99,6 +117,7 @@ type RouteInput = {
 }
 type Picked = { phase: string; route: Route }
 type Effort = StepIn['effort']
+type Toggle = 'switch' | 'verbose' | 'classify'
 type EffortBy = 'floor' | 'sticky' | 'turn' | 'engine'
 type Decision = { effort: Effort; by: EffortBy }
 type Rec = Record<string, unknown>
@@ -113,6 +132,7 @@ type Memory = {
   base: Record<Row, Table> // the file's rows, before any project layer
   confirmed: Record<Kind, Table> // name -> the phase a Keep endorsed
   about: Table // phase -> its one-line meaning, shown in the dialog only
+  filePhases: Record<string, Route> // the shipped phases: defaults + the file
   local: Record<Row, Set<string>> // rows of projects[key] or the override
   key: string | undefined // normalized repo key; undefined = no project layer
 }
@@ -167,6 +187,23 @@ const UNAVAILABLE: ReadonlySet<string> = new Set([
   'rate_limit', 'overloaded', 'billing_error', 'model_not_found',
 ])
 const PHASE_KEY = /^[a-z][a-z0-9_-]{0,31}$/
+// Prompt classifier: label -> the phase whose effort the turn takes. `chat`
+// (and any label not here) routes nothing.
+const CLASSIFY_LABELS: readonly string[] =
+  ['design', 'analysis', 'coding', 'bookkeeping', 'chat']
+const LABEL_PHASE: Readonly<Record<string, string>> = {
+  design: 'plan',
+  analysis: 'reflect',
+  coding: 'implement',
+  bookkeeping: 'apply',
+}
+const CLASSIFY_MIN = 12 // code points of a typed prompt worth a call
+const CLASSIFY_MS = 3000 // the call is abandoned after this
+const CLASSIFY_MAX = 2000 // code points sent whole; longer: head + tail
+const CLASSIFY_HEAD = 500
+const CLASSIFY_TAIL = 1500
+const CLASSIFY_FAILS = 3 // failures in a row that pause the classifier
+const TIMEOUT: unique symbol = Symbol('classify timeout')
 
 const DEFAULT_CONFIG: Config = {
   models: {
@@ -223,6 +260,7 @@ const DEFAULT_CONFIG: Config = {
   ],
   mainModelSwitch: false,
   verbose: false,
+  classify: true,
   spinner: true,
   enabled: true,
 }
@@ -414,10 +452,15 @@ function mergePrompt(
 const pickBool = (v: unknown, fallback: boolean): boolean =>
   typeof v === 'boolean' ? v : fallback
 
-/** The kill switch: a non-boolean value is dropped, and said so. */
-function pickEnabled(v: unknown, fallback: boolean, log: Log): boolean {
+/** A switch key: a non-boolean is dropped, and `warning` is logged. */
+function pickSwitch(
+  warning: string,
+  v: unknown,
+  fallback: boolean,
+  log: Log,
+): boolean {
   if (v !== undefined && typeof v !== 'boolean') {
-    log('model-router: config "enabled" is not a boolean; ignored')
+    log(warning)
   }
   return pickBool(v, fallback)
 }
@@ -496,9 +539,15 @@ function mergeConfig(
     skills: mergeRows(base.skills, user.skills, 'skills', ref, log),
     prompt: mergePrompt(base.prompt, user.prompt, phases, log),
     mainModelSwitch: pickBool(user.mainModelSwitch, base.mainModelSwitch),
-    verbose: pickBool(user.verbose, base.verbose),
+    verbose: pickSwitch(
+      'config "verbose" is not a boolean; ignored', user.verbose, base.verbose, log),
+    classify: pickSwitch(
+      'model-router: config "classify" is not a boolean; ignored',
+      user.classify, base.classify, log),
     spinner: pickBool(user.spinner, base.spinner),
-    enabled: pickEnabled(user.enabled, base.enabled, log),
+    enabled: pickSwitch(
+      'model-router: config "enabled" is not a boolean; ignored',
+      user.enabled, base.enabled, log),
   }
 }
 
@@ -584,6 +633,7 @@ function emptyMemory(): Memory {
     base: { skills: {}, agents: {} },
     confirmed: { skills: {}, agents: {}, phases: {} },
     about: {},
+    filePhases: {},
     local: { skills: new Set(), agents: new Set() },
     key: undefined,
   }
@@ -630,6 +680,7 @@ function buildMemory(
       phases: strTable(sure.phases),
     },
     about: aboutOf(file.phases, log),
+    filePhases: mergeConfig({ phases: file.phases }, () => undefined).phases,
     local: { skills: local('skills'), agents: local('agents') },
     key,
   }
@@ -826,6 +877,9 @@ function newState(cfg: Config, source: string): State {
     loaded: false,
     rebuildDue: false,
     toggles: {},
+    engineBase: null,
+    classifyFails: 0,
+    classifyUntil: 0,
     asking: null,
     asked: new Set(),
     writes: Promise.resolve(),
@@ -834,7 +888,8 @@ function newState(cfg: Config, source: string): State {
 
 /**
  * /clear rebuilds the state but keeps what is account- or process-wide:
- * the breaker (a model's quota outlives the conversation), the model, the
+ * the breaker, the classifier's pause and effort baseline (a model's quota
+ * and the user's own /effort outlive the conversation), the model, the
  * agent definitions' sources (the listing is not offered again), the config
  * with its session toggles and the dialog in flight. The layers are read
  * again at the next prompt; the config is swapped only if that read works.
@@ -851,6 +906,9 @@ function resetSession(st: State): void {
     override: st.override,
     loaded: st.loaded,
     toggles: st.toggles,
+    engineBase: st.engineBase,
+    classifyFails: st.classifyFails,
+    classifyUntil: st.classifyUntil,
     asking: st.asking,
     writes: st.writes,
   }
@@ -1185,11 +1243,12 @@ function higherFloor(cur: Routed | null, next: Routed): Routed {
  * The one decision of the main loop's effort. The user's floor is the turn's
  * default (no sticky or turn route names an effort) and its minimum.
  * `by` names who set the value: the floor when it raised or supplied it.
+ * `skipTurn`: the turn route yields (a classified effort under a user /effort).
  */
-function mainEffort(st: State, engine: Effort): Decision {
+function mainEffort(st: State, engine: Effort, skipTurn = false): Decision {
   const sticky = st.userMain?.route.effort
-  const named = sticky ?? st.turnMain?.route.effort ??
-    st.runMain?.route.effort
+  const turn = skipTurn ? undefined : st.turnMain?.route.effort
+  const named = sticky ?? turn ?? st.runMain?.route.effort
   const floor = st.turnFloor?.route.effort
   const base = named ?? floor ?? engine
   const effort = floored(base, floor)
@@ -1231,8 +1290,10 @@ function loopOf(st: State, agentId: string): Loop {
 }
 
 /** Writes a route on an agent loop, never on an axis given explicitly. */
-function writeLoop(loop: Loop, route: Route): void {
-  if (!loop.explicitEffort) loop.effort = route.effort
+function writeLoop(loop: Loop, route: Route, cause: string): void {
+  if (loop.explicitEffort) return
+  loop.effort = route.effort
+  loop.cause = cause
 }
 
 function clearRoutes(st: State): void {
@@ -1348,7 +1409,8 @@ async function show($: Api, st: State): Promise<string> {
     mainText(st, s),
     `router: ${routerWord(st)} · switch: ${flag(c.mainModelSwitch)} ` +
       `(downgrade) · upgrade: ${flag(c.mainUpgrade)} · verbose: ${
-        flag(c.verbose)} · spinner: ${flag(c.spinner)}`,
+        flag(c.verbose)} · classify: ${flag(c.classify)} · spinner: ${
+        flag(c.spinner)}`,
     downText(st, s.now),
     `live loops: ${st.loops.size}`,
     phasesText(st),
@@ -1362,12 +1424,15 @@ function statusLine(st: State): string {
     ? routerWord(st)
     : r ? `${r.source} ${r.phase}` : 'session defaults'
   const floor = liveFloor(st)
+  const paused = st.cfg.classify && st.classifyUntil !== 0
   return `route: ${now}${floor ? ` · floor ${floor.level}` : ''}${
-    st.cfg.mainModelSwitch ? ' · switch on' : ''}`
+    st.cfg.mainModelSwitch ? ' · switch on' : ''}${
+    paused ? ' · classifier: paused' : ''}`
 }
 
 const refresh = ($: Api, st: State): void => $.ui.status(statusLine(st))
 
+/** The one gate of the verbose lines, which say transitions only. */
 function vlog($: Api, st: State, text: string): void {
   if (st.cfg.verbose) $.ui.log(text)
 }
@@ -1409,12 +1474,11 @@ function parseRoute(cfg: Config, args: string): Routed | string {
 async function toggle(
   $: Api,
   st: State,
-  what: string,
+  what: Toggle,
   arg: string | undefined,
 ): Promise<string> {
   if (arg !== 'on' && arg !== 'off') return `usage: /route ${what} on|off`
-  if (what === 'switch') st.toggles.switch = arg === 'on'
-  else st.toggles.verbose = arg === 'on'
+  st.toggles[what] = arg === 'on'
   applyToggles(st)
   return show($, st)
 }
@@ -1429,9 +1493,10 @@ async function setUserRoute($: Api, st: State, args: string) {
 
 /** Session toggles outlive any rebuild of the config. */
 function applyToggles(st: State): void {
-  const { switch: downgrade, verbose } = st.toggles
+  const { switch: downgrade, verbose, classify } = st.toggles
   if (downgrade !== undefined) st.cfg.mainModelSwitch = downgrade
   if (verbose !== undefined) st.cfg.verbose = verbose
+  if (classify !== undefined) st.cfg.classify = classify
 }
 
 function applyLoaded(st: State, loaded: Loaded, log: Log): void {
@@ -1475,6 +1540,8 @@ async function ensureConfig($: Api, st: State, atPrompt = false) {
 /** The breaker is cleared first, whatever the config read then does. */
 async function reloadCommand($: Api, st: State): Promise<string> {
   clearBreaker(st)
+  st.classifyFails = 0
+  st.classifyUntil = 0
   await reloadConfig($, st)
   refresh($, st)
   return 'config reloaded\n' + (await show($, st))
@@ -1497,6 +1564,7 @@ async function handleCommand($: Api, st: State, args: string): Promise<string> {
     case 'off':
       st.off = head === 'off'
       st.offConfig = false
+      st.lastPlan = null // the next step compares to the engine's input
       if (st.off) st.runMain = null
       refresh($, st)
       return show($, st)
@@ -1510,6 +1578,7 @@ async function handleCommand($: Api, st: State, args: string): Promise<string> {
       return forgetCommand($, st, rest)
     case 'switch':
     case 'verbose':
+    case 'classify':
       return toggle($, st, head, rest[0])
     default:
       return setUserRoute($, st, args)
@@ -1746,29 +1815,36 @@ async function askModel($: Api, st: State, req: RowReq) {
   return label === undefined ? undefined : CHOICE_ALIASES[labels.indexOf(label)]
 }
 
-/** The efforts of the phases headed by `alias`, ascending, four at most. */
-function effortsOf(cfg: Config, alias: string): Level[] {
-  const found = Object.values(cfg.phases)
+/**
+ * The efforts of the shipped phases headed by `alias`, ascending, four at
+ * most. A phase only the machine override defines is never offered: the
+ * answer is written into the tracked file.
+ */
+function effortsOf(cfg: Config, shipped: Record<string, Route>, alias: string) {
+  const found = Object.values(shipped)
     .filter(r => headAlias(cfg, r) === alias).map(r => r.effort)
   return LEVELS.filter(level => found.includes(level)).slice(0, 4)
 }
 
 /** One effort is no question; none is a Later, said. */
 async function askEffort($: Api, st: State, alias: string) {
-  const efforts = effortsOf(st.cfg, alias)
-  if (efforts.length === 0) $.ui.toast(`no phase uses ${alias}`)
+  const efforts = effortsOf(st.cfg, st.mem.filePhases, alias)
+  if (efforts.length === 0) {
+    $.ui.toast(`no shipped phase uses ${alias}: add one to ${ROUTING}`)
+  }
   if (efforts.length < 2) return efforts[0]
   const label = await askStep($, `Which effort on ${alias}?`, efforts)
   return efforts.find(effort => effort === label)
 }
 
-/** The row's current phase when it matches, else the first that does. */
-function targetPhase(cfg: Config, now: string, alias: string, effort: Level) {
+/** The row's phase when it matches, else the first shipped one that does. */
+function targetPhase(st: State, now: string, alias: string, effort: Level) {
+  const shipped = st.mem.filePhases
   const fits = (name: string): boolean => {
-    const route = phaseRoute(cfg, name)
-    return route?.effort === effort && headAlias(cfg, route) === alias
+    const route = hasKey(shipped, name) ? shipped[name] : undefined
+    return route?.effort === effort && headAlias(st.cfg, route) === alias
   }
-  return fits(now) ? now : Object.keys(cfg.phases).find(fits)
+  return fits(now) ? now : Object.keys(shipped).find(fits)
 }
 
 /** Change: model, then effort, mapped to a phase of the table. */
@@ -1776,7 +1852,7 @@ async function changeRoute($: Api, st: State, req: RowReq): Promise<Answer> {
   const alias = await askModel($, st, req)
   const effort = alias === undefined ? undefined : await askEffort($, st, alias)
   if (alias === undefined || effort === undefined) return { act: 'later' }
-  const phase = targetPhase(st.cfg, req.phase, alias, effort)
+  const phase = targetPhase(st, req.phase, alias, effort)
   if (phase === undefined) return { act: 'later' }
   return phase === req.phase ? { act: 'keep' } : { act: 'change', phase }
 }
@@ -1890,6 +1966,12 @@ function writeRouting($: Api, st: State, patch: Patch): Promise<boolean> {
   return run
 }
 
+/** A write that failed: the cause goes to the log, never to the answer. */
+function failedWrite($: Api, cmd: string, err: unknown): string {
+  $.ui.log(`${cmd} failed: ${String(err)}`)
+  return `${cmd} not applied, see the log`
+}
+
 async function saveAnswer($: Api, st: State, req: Req, ans: Answer) {
   if (ans.act === 'keep') return writeRouting($, st, keepPatch(req))
   if (ans.act !== 'change' || !isRowReq(req)) return false
@@ -1899,10 +1981,21 @@ async function saveAnswer($: Api, st: State, req: Req, ans: Answer) {
   return writeRouting($, st, patch)
 }
 
-/** The dialog and what follows; true when routing.json was rewritten. */
+/**
+ * The dialog and what follows; true when routing.json was rewritten. A
+ * failure before the user answered leaves the key unasked (the next use
+ * asks again); one after it keeps the key asked, the answer being given.
+ */
 async function runDialog($: Api, st: State, req: Req, text: string) {
   st.asked.add(keyOf(req))
-  return saveAnswer($, st, req, await decide($, st, req, text))
+  let answer: Answer
+  try {
+    answer = await decide($, st, req, text)
+  } catch (err) {
+    st.asked.delete(keyOf(req))
+    throw err
+  }
+  return saveAnswer($, st, req, answer)
 }
 
 function failOnce($: Api, st: State, err: unknown): void {
@@ -1932,7 +2025,6 @@ async function confirmFirst(
     if (!(await refreshMemory($, st)) || !wantsAsk(st, req)) return false
     return await runDialog($, st, req, await say())
   } catch (err) {
-    st.asked.delete(keyOf(req))
     failOnce($, st, err)
     return false
   } finally {
@@ -1990,7 +2082,7 @@ async function confirmSkill($: Api, st: State, skill: string, row: Picked) {
   if (!(await confirmFirst($, st, req, say))) return
   const after = skillRow(st, skill)
   if (after === undefined) return
-  routeMainBySkill(st, after, true)
+  routeMainBySkill(st, skill, after, true)
   refresh($, st)
   if (after.phase !== row.phase) await toastChange($, st, skill)
 }
@@ -2049,7 +2141,9 @@ async function askCommand($: Api, st: State, arg: string | undefined) {
       return `${ROUTING} missing or unreadable: ask unchanged`
     }
   } catch (err) {
-    return `ask not applied (${String(err)})`
+    return err instanceof RebuildFailed
+      ? 'ask saved, config not rebuilt: /route reload'
+      : failedWrite($, 'ask', err)
   }
   const local = st.mem.askLocal
   const note = local === undefined ? '' : `; ~/${OVERRIDE} sets ask ${
@@ -2065,10 +2159,11 @@ async function askCommand($: Api, st: State, arg: string | undefined) {
 
 type Target = { label: string; name?: string; only?: 'projects' }
 type Restore = { kind: Kind; name: string; from: string; to: string }
+type Kept = { kind: Kind; name: string; reason: string }
 type ForgetPlan = {
   confirmed: [Kind, string][]
   restores: Restore[]
-  kept: string[] // refused restores, with the reason
+  kept: Kept[] // refused restores, with the reason
   projects: [string, Kind, string][] // repo key, kind, name
 }
 
@@ -2084,14 +2179,26 @@ function targetOf(arg: string): Target {
 }
 
 /** The [kind, name, value] entries of a kind-keyed table the target picks. */
-function decided(tables: unknown, t: Target): [Kind, string, unknown][] {
+function decided(
+  tables: unknown,
+  t: Target,
+  kinds: readonly Kind[] = KINDS,
+): [Kind, string, unknown][] {
   if (!isRecord(tables)) return []
-  return Object.entries(tables).filter(([kind]) => isKind(kind))
+  return Object.entries(tables).filter(([kind]) => isKind(kind) &&
+    kinds.includes(kind))
     .flatMap(([kind, rows]) => isRecord(rows) ? Object.keys(rows)
       .filter(name => t.name === undefined || name === t.name)
       .map(name => [kind as Kind, name, rows[name]] as [Kind, string, unknown])
       : [])
 }
+
+/** A fragment read from the file, as it may enter an answer. */
+const shown = (text: string): string => clean(text, NAME_CAP)
+
+const keptText = (k: Kept): string => `${k.kind}.${shown(k.name)}: ${k.reason}`
+const keptList = (plan: ForgetPlan): string =>
+  plan.kept.map(keptText).join('; ')
 
 /** The restore a `changed` entry allows, or why it is refused. */
 function restoreOf(
@@ -2101,6 +2208,7 @@ function restoreOf(
   entry: unknown,
 ): Restore | string {
   const { from, to } = isRecord(entry) ? entry : ({} as Rec)
+  if (name === '__proto__') return 'reserved name, edit routing.json'
   if (typeof from !== 'string') return 'no phase recorded to return to'
   const rows = subRec(file, kind)
   if (typeof to !== 'string' || !hasKey(rows, name) || rows[name] !== to) {
@@ -2108,7 +2216,7 @@ function restoreOf(
   }
   if (!hasKey(subRec(file, 'phases'), from) &&
       !hasKey(DEFAULT_CONFIG.phases, from)) {
-    return `${from} is not a known phase`
+    return `${shown(from)} is not a known phase`
   }
   return { kind, name, from, to }
 }
@@ -2122,9 +2230,9 @@ function forgetPlan(file: Rec, t: Target): ForgetPlan {
     for (const [kind, name] of decided(file.confirmed, t)) {
       plan.confirmed.push([kind, name])
     }
-    for (const [kind, name, entry] of decided(file.changed, t)) {
+    for (const [kind, name, entry] of decided(file.changed, t, ROWS)) {
       const done = restoreOf(file, kind, name, entry)
-      if (typeof done === 'string') plan.kept.push(`${kind}.${name}: ${done}`)
+      if (typeof done === 'string') plan.kept.push({ kind, name, reason: done })
       else plan.restores.push(done)
     }
   }
@@ -2191,7 +2299,7 @@ function idleAnswer(
 ): string | undefined {
   if (removals(plan) > 0) return undefined
   if (plan.kept.length > 0) {
-    return `nothing restored for ${t.label}: ${plan.kept.join('; ')}`
+    return `nothing restored for ${t.label}: ${keptList(plan)}`
   }
   const keys = askedKeys(st, t)
   if (keys.length === 0) {
@@ -2214,6 +2322,7 @@ async function confirmForget($: Api, plan: ForgetPlan): Promise<boolean> {
 
 /** Where a restored row's frontmatter lives; none for a built-in agent. */
 function floorFile(r: Restore): string | undefined {
+  if (!SKILL_NAME.test(r.name)) return undefined
   if (r.kind === 'skills') return `skills/${r.name}/SKILL.md`
   return r.kind === 'agents' && !BUILTIN_AGENTS.has(r.name)
     ? `agents/${r.name}.md`
@@ -2225,10 +2334,12 @@ function restoreClause(st: State, r: Restore): string {
   const alias = (route && headAlias(DEFAULT_CONFIG, route)) ?? 'its own model'
   const values = `${alias} at ${route?.effort ?? 'its own effort'}`
   const file = floorFile(r)
+  const effort = route?.effort ?? '-'
   const realign = file === undefined ? '' : `; if ${file} was aligned to ${
-    r.to}, set model: ${alias}, effort: ${route?.effort ?? '-'} and its ` +
-    'lock in lib/tests/model-routing.test.sh, then `make test`'
-  return ` (${r.kind}.${r.name} → ${r.from}: ${values}${realign})`
+    shown(r.to)}, set model: ${alias}, effort: ${effort} and its lock in ` +
+    'lib/tests/model-routing.test.sh, then `make test`'
+  const row = `${r.kind}.${shown(r.name)} → ${shown(r.from)}`
+  return ` (${row}: ${values}${realign})`
 }
 
 /** Restored skill rows whose old phase the current run still holds. */
@@ -2238,13 +2349,13 @@ function runKeeps(st: State, plan: ForgetPlan): string {
   const kept = plan.restores.find(r => r.kind === 'skills' &&
     live.some(slot => slot?.phase === r.to))
   return kept === undefined ? '' :
-    `; current run may keep ${kept.to}: /route clear to apply`
+    `; current run may keep ${shown(kept.to)}: /route clear to apply`
 }
 
 /** The one answer of every form, from the counts really applied. */
 function forgetAnswer(st: State, t: Target, plan: ForgetPlan): string {
   const kept = plan.kept.length === 0 ? '' :
-    `, ${plan.kept.length} restore(s) kept: ${plan.kept.join('; ')}`
+    `, ${plan.kept.length} restore(s) kept: ${keptList(plan)}`
   const name = t.name
   const wins = name !== undefined &&
     ROWS.some(kind => st.mem.local[kind].has(name))
@@ -2269,7 +2380,7 @@ async function forgetWrite($: Api, st: State, t: Target, seen: ForgetPlan) {
   } catch (err) {
     return err instanceof RebuildFailed
       ? 'saved, config not rebuilt: /route reload'
-      : `forget not applied (${String(err)})`
+      : failedWrite($, 'forget', err)
   }
   askedKeys(st, t).forEach(key => st.asked.delete(key))
   return forgetAnswer(st, t, out.plan ?? seen)
@@ -2349,7 +2460,8 @@ async function registerCommand($: Api): Promise<void> {
       argumentHint:
         '[show|clear|off|on|reload|pending|ask on|off|' +
         'forget <name|all|projects>|<phase>|' +
-        'model=<alias|id> effort=<level>|switch on|off|verbose on|off]',
+        'model=<alias|id> effort=<level>|switch on|off|verbose on|off|' +
+        'classify on|off]',
       immediate: true,
     })
   } catch (err) {
@@ -2378,7 +2490,7 @@ function applyRoute(st: State, agentId: string | undefined, p: Picked): void {
   if (agentId === undefined) {
     st.turnMain = { phase: p.phase, route: p.route, source: 'model' }
   } else {
-    writeLoop(loopOf(st, agentId), p.route)
+    writeLoop(loopOf(st, agentId), p.route, 'route tool')
   }
 }
 
@@ -2395,7 +2507,7 @@ function clearLoop(st: State, agentId: string | undefined): string {
     return 'route cleared for main' + held + run
   }
   const loop = st.loops.get(agentId)
-  if (loop) writeLoop(loop, {})
+  if (loop) writeLoop(loop, {}, 'route tool')
   return 'route cleared for this agent'
 }
 
@@ -2457,9 +2569,14 @@ function skillRow(st: State, skill: string): Picked | undefined {
  * run slot. A typed non-best row drops the run; one the model loads (a
  * helper skill inside a run) leaves it.
  */
-function routeMainBySkill(st: State, row: Picked, typed: boolean): void {
+function routeMainBySkill(
+  st: State,
+  skill: string,
+  row: Picked,
+  typed: boolean,
+): void {
   const turn: Routed = { phase: row.phase, route: { ...row.route },
-    source: 'skill' }
+    source: 'skill', label: clean(skill, NAME_CAP) }
   st.turnMain = turn
   if (row.route.tier === BEST) st.runMain = { ...turn, source: 'run' }
   else if (typed) st.runMain = null
@@ -2469,10 +2586,10 @@ function routeMainBySkill(st: State, row: Picked, typed: boolean): void {
 function onSkillLoad(st: State, skill: string, agentId: string | undefined) {
   const row = skillRow(st, skill)
   if (agentId === undefined) {
-    if (row) routeMainBySkill(st, row, false)
+    if (row) routeMainBySkill(st, skill, row, false)
     return
   }
-  if (row) writeLoop(loopOf(st, agentId), row.route)
+  if (row) writeLoop(loopOf(st, agentId), row.route, `skill ${clean(skill, NAME_CAP)}`)
 }
 
 type TypedPath = 'typed-marker' | 'typed-fallback'
@@ -2496,9 +2613,8 @@ function armTypedSkill($: Api, st: State, skill: string) {
   const row = skillRow(st, skill)
   const path = typedPath(st, skill)
   if (row === undefined || path === undefined) return undefined
-  routeMainBySkill(st, row, true)
+  routeMainBySkill(st, skill, row, true)
   refresh($, st)
-  vlog($, st, `skill ${skill}: ${path} → ${row.phase}`)
   return row
 }
 
@@ -2519,6 +2635,7 @@ type SpawnIn = {
   subagentType: string
   model?: string
   parentAgentId?: string // set when the spawn happens inside an agent
+  parentModel?: string // the model the spawning loop runs on
   fork: boolean
   workflow?: unknown
 }
@@ -2574,16 +2691,34 @@ function spawnTarget($: Api, st: State, e: SpawnIn, route: Route | undefined) {
   return inTier($, st, e.subagentType, route.tier)
 }
 
-function trackLoop(st: State, e: SpawnIn, started: {
-  agentId?: string
-}, route: Route | undefined): void {
-  const given = st.explicitEffort.get(e.tool_use_id)
-  st.explicitEffort.delete(e.tool_use_id)
-  if (started.agentId === undefined) return
-  st.loops.set(started.agentId, {
+/** Spawn facts the bookkeeping after the engine started the agent needs. */
+type Spawned = {
+  e: SpawnIn
+  started: { agentId?: unknown; model: string }
+  route: Route | undefined // the row's route in force, if any
+  wanted: string | undefined // the model the hook asked for, if it did
+}
+
+/** Who set a new agent's effort: the Agent call, its row, or the engine. */
+function spawnEffortCause(given: Level | undefined, route: Route | undefined) {
+  if (given !== undefined) return 'explicit'
+  return route?.effort === undefined ? 'engine' : 'row'
+}
+
+function trackLoop(
+  st: State,
+  sp: Spawned,
+  agentId: string,
+  given: Level | undefined,
+): Loop {
+  const loop: Loop = {
     explicitEffort: given !== undefined,
-    effort: given ? undefined : route?.effort,
-  })
+    effort: given ? undefined : sp.route?.effort,
+    type: sp.e.subagentType,
+    cause: spawnEffortCause(given, sp.route),
+  }
+  st.loops.set(agentId, loop)
+  return loop
 }
 
 /** The breaker's target for an agent's failure; oldest entries dropped. */
@@ -2638,8 +2773,189 @@ function afterDispatch(st: State, result: unknown): void {
 /** An agent's loop ended: forget it, pop when it was the last awaited. */
 function endAgent(st: State, agentId: string): void {
   st.loops.delete(agentId)
+  for (const key of st.logged) {
+    if (key.startsWith(`answered:${agentId}:`)) st.logged.delete(key)
+  }
   const awaited = st.pushed?.spawnIds
   if (awaited?.delete(agentId) && awaited.size === 0) popOrchestrate(st)
+}
+
+// ---- transition logs -----------------------------------------------------
+// `verbose` says WHEN a loop changes model or effort, with a few words of
+// cause; a step that changes nothing logs nothing.
+
+const NAME_CAP = 40 // code points of any name read from outside, in a line
+
+const isHaiku = (cfg: Config, id: string): boolean =>
+  canonical(cfg, id).startsWith(HAIKU)
+
+/** The table alias of a model id (a `[1m]` marker kept), else the id. */
+function nameOf(cfg: Config, id: string): string {
+  const bare = canonical(cfg, id)
+  const marker = ONE_M.test(id) ? '[1m]' : ''
+  return clean((aliasOf(cfg, bare) ?? bare) + marker, NAME_CAP)
+}
+
+/** "alias/effort": a plan in a log line. */
+const planWord = (cfg: Config, plan: Plan): string =>
+  `${nameOf(cfg, plan.model)}/${String(plan.effort ?? '-')}`
+
+/** Logged at `true` only, and once per turn per `key` (default: text). */
+function turnLine($: Api, st: State, text: string, key = text): void {
+  if (!st.cfg.verbose || st.turnLogged.has(key)) return
+  st.turnLogged.add(key)
+  vlog($, st, text)
+}
+
+const agentLabel = (st: State, agentId: string): string =>
+  `agent ${clean(st.loops.get(agentId)?.type ?? agentId.slice(0, 8), NAME_CAP)}`
+
+/** The route slot a main effort came from, in words. */
+function slotWord(slot: Routed | null): string {
+  const label = slot?.label === undefined ? '' : ` /${slot.label}`
+  switch (slot?.source) {
+    case 'model': return 'route tool'
+    case 'prompt': return 'prompt rule'
+    case 'derived': return 'dispatch'
+    case 'classifier': return 'classifier'
+    case 'skill':
+    case 'run': return 'skill' + label
+    default: return 'session'
+  }
+}
+
+type Cause = { phase?: string; word: string }
+
+/** Who supplied main's effort: the phase of that slot, and a few words. */
+function effortCause(st: State, by: EffortBy): Cause {
+  if (by === 'floor') {
+    return { phase: st.turnFloor?.phase, word: 'prompt floor' }
+  }
+  if (by === 'sticky') {
+    return { phase: st.userMain?.phase, word: 'sticky /route' }
+  }
+  if (by === 'engine') return { phase: mainRoute(st)?.phase, word: 'session' }
+  const named = st.turnMain?.route.effort === undefined
+    ? st.runMain
+    : st.turnMain
+  return { phase: named?.phase, word: slotWord(named) }
+}
+
+/** Why the model moved, when it did. */
+function modelCause(st: State, why: Why): string | undefined {
+  const { call, cur } = why
+  if (!call.moved) return undefined
+  if (call.why === 'upgrade') return 'upgrade'
+  if (call.why === 'downgrade') return 'switch'
+  return `fallback: ${nameOf(st.cfg, cur)} down`
+}
+
+/** "main: a → b (phase: cause[, model cause])", or none when unchanged. */
+function mainMove(
+  st: State,
+  from: Plan,
+  step: Step,
+): string | undefined {
+  const [was, now] = [planWord(st.cfg, from), planWord(st.cfg, step.plan)]
+  if (step.why === undefined || was === now) return undefined
+  const { phase, word } = effortCause(st, step.why.by)
+  const causes = [word, modelCause(st, step.why)].filter(c => c !== undefined)
+  const lead = phase === undefined ? '' : `${clean(phase, NAME_CAP)}: `
+  return `main: ${was} → ${now} (${lead}${causes.join(', ')})`
+}
+
+/** "agent x: a → b (cause)": a later move; the loop remembers `plan`. */
+function agentMove(st: State, e: StepIn, plan: Plan): string | undefined {
+  const id = e.agentId
+  const loop = id === undefined ? undefined : st.loops.get(id)
+  if (id === undefined) return undefined
+  const from = loop?.last ?? { model: e.model, effort: e.effort }
+  if (loop) loop.last = plan
+  const [was, now] = [planWord(st.cfg, from), planWord(st.cfg, plan)]
+  return was === now
+    ? undefined
+    : `${agentLabel(st, id)}: ${was} → ${now} (${
+      loop?.cause ?? 'engine'})`
+}
+
+/** The step's transition line; `prev` is main's plan before this step. */
+function logMove(
+  $: Api,
+  st: State,
+  e: StepIn,
+  prev: Plan | null,
+  step: Step,
+): void {
+  const line = e.agentId === undefined
+    ? mainMove(st, prev ?? { model: e.model, effort: e.effort }, step)
+    : agentMove(st, e, step.plan)
+  if (line !== undefined) turnLine($, st, line)
+}
+
+/** An agent answered on a model other than the planned one: said once. */
+function logAnswer(
+  $: Api,
+  st: State,
+  agentId: string | undefined,
+  plan: Plan,
+  usage: { model: string } | null | undefined,
+): void {
+  if (agentId === undefined || !st.cfg.verbose || !usage) return
+  const got = canonical(st.cfg, usage.model)
+  const key = `answered:${agentId}:${got}`
+  if (got === canonical(st.cfg, plan.model) || st.logged.has(key)) return
+  st.logged.add(key)
+  vlog($, st, `${agentLabel(st, agentId)} answered by ${
+    nameOf(st.cfg, got)} instead of ${nameOf(st.cfg, plan.model)}`)
+}
+
+type Handoff = { to: Plan; modelCause: string; effortCause: string }
+
+/** Why an agent runs on the model it was sent to. */
+function spawnModelCause(st: State, sp: Spawned): string {
+  const { e, route, wanted } = sp
+  if (e.model !== undefined) return 'explicit'
+  if (route === undefined || wanted === undefined) return 'frontmatter'
+  const head = headAlias(st.cfg, route)
+  const lead = head === undefined ? undefined : st.cfg.models[head]
+  const phase = clean(st.cfg.agents[e.subagentType] ?? '', NAME_CAP)
+  return route.tier !== undefined && lead !== wanted
+    ? `fallback: ${nameOf(st.cfg, head ?? '')} down`
+    : `row ${phase}`
+}
+
+/** What a dispatch hands the agent, or undefined when nothing was given. */
+function handoffOf(
+  st: State,
+  sp: Spawned,
+  given: Level | undefined,
+): Handoff | undefined {
+  const { e, route, started } = sp
+  if (route === undefined && e.model === undefined && given === undefined) {
+    return undefined
+  }
+  const effort = isHaiku(st.cfg, started.model)
+    ? undefined
+    : given ?? route?.effort
+  return {
+    to: { model: started.model, effort },
+    modelCause: spawnModelCause(st, sp),
+    effortCause: spawnEffortCause(given, route),
+  }
+}
+
+/** "main a → agent x b (model cause, effort cause)": the dispatch itself. */
+function handoffLine(st: State, e: SpawnIn, hand: Handoff): string {
+  const parent = e.parentAgentId
+  const lead = parent === undefined ? 'main' : agentLabel(st, parent)
+  const known = parent === undefined
+    ? st.lastPlan
+    : st.loops.get(parent)?.last
+  const from = known ?? { model: e.parentModel ?? st.sessionModel,
+    effort: undefined }
+  return `${lead} ${planWord(st.cfg, from)} → agent ${
+    clean(e.subagentType, NAME_CAP)} ${planWord(st.cfg, hand.to)} (${
+    hand.modelCause}, ${hand.effortCause})`
 }
 
 // ---- turn steps ------------------------------------------------------
@@ -2649,40 +2965,53 @@ function agentPlan(st: State, e: StepIn): Plan {
   return { model: e.model, effort: loop?.effort ?? e.effort }
 }
 
+/** What a main plan was decided from: the log words are built from it. */
+type Why = { by: EffortBy; call: Call; cur: string }
+type Step = { plan: Plan; why?: Why }
+
+/** The engine effort of main's first step: what the user left as default. */
+function noteEngineBase(st: State, e: StepIn): void {
+  if (st.engineBase === null && e.effort !== undefined) {
+    st.engineBase = e.effort
+  }
+}
+
+/** A user /effort beats a guessed phase: the engine effort left its base. */
+function userMovedEffort(st: State, e: StepIn): boolean {
+  return st.turnMain?.source === 'classifier' && e.effort !== undefined &&
+    st.engineBase !== null && e.effort !== st.engineBase
+}
+
 /**
  * The main loop's plan: effort from the floor/sticky/turn decision, model
  * from `decideMain`. `cur` is the model the router moved this turn, else
  * the engine's own (verbatim: an engine fallback is respected).
  */
-async function mainPlan($: Api, st: State, e: StepIn): Promise<Plan> {
-  const { effort } = mainEffort(st, e.effort)
+async function mainPlan($: Api, st: State, e: StepIn): Promise<Step> {
+  noteEngineBase(st, e)
+  const { effort, by } = mainEffort(st, e.effort, userMovedEffort(st, e))
   await prune($, st)
   const cur = st.turnModel ?? e.model
   const { call } = await decideFor($, st, cur)
   logCall($, st, call)
   if (call.moved) st.turnModel = call.model
-  return { model: call.model, effort }
+  return { plan: { model: call.model, effort }, why: { by, call, cur } }
 }
 
-async function planStep($: Api, st: State, e: StepIn): Promise<Plan> {
-  const plan = e.agentId === undefined
+async function planStep($: Api, st: State, e: StepIn): Promise<Step> {
+  const step: Step = e.agentId === undefined
     ? await mainPlan($, st, e)
-    : agentPlan(st, e)
+    : { plan: agentPlan(st, e) }
   // Haiku takes no effort: omit it rather than send a hook-set value.
-  return plan.model.startsWith(HAIKU) ? { ...plan, effort: undefined } : plan
+  return step.plan.model.startsWith(HAIKU)
+    ? { ...step, plan: { ...step.plan, effort: undefined } }
+    : step
 }
 
 function withPlan(e: StepIn, plan: Plan): StepIn {
   const { effort: _replaced, ...rest } = e
   const base = { ...rest, model: plan.model }
   return plan.effort === undefined ? base : { ...base, effort: plan.effort }
-}
-
-function stepLog(e: StepIn, plan: Plan): string {
-  const id = e.agentId
-  const loop = id === undefined ? 'main' : `agent ${id.slice(0, 8)}`
-  return `step ${e.index} ${loop}: ${e.model}/${String(e.effort)} → ` +
-    `${plan.model}/${String(plan.effort)}`
 }
 
 function noteMain($: Api, st: State, plan: Plan): void {
@@ -2846,7 +3175,6 @@ function registerRouteTool(on: On, st: State): void {
     await ensureConfig($, st)
     const out = await handleRouteTool($, st, e)
     refresh($, st)
-    vlog($, st, `route ${e.agentId ?? 'main'}: ${JSON.stringify(out)}`)
     return out
   }).catch(($, e, next) => {
     warnOnce(st, $, 'route tool', next.error.kind)
@@ -2900,20 +3228,23 @@ function registerAgents(on: On, st: State): void {
 }
 
 /** Bookkeeping once the agent started: its loop, its model, a log line. */
-function afterSpawn(
-  $: Api,
-  st: State,
-  e: SpawnIn,
-  started: { agentId?: unknown; model: string },
-  route: Route | undefined,
-): void {
-  if (typeof started.agentId !== 'string') return
-  const agentId = started.agentId
+function afterSpawn($: Api, st: State, sp: Spawned): void {
+  if (typeof sp.started.agentId !== 'string') return
+  const agentId = sp.started.agentId
   safely(st, $, 'agent.spawn', () => {
-    trackLoop(st, e, { agentId }, route)
-    rememberAgent(st, agentId, started.model)
-    vlog($, st,
-      `spawn ${e.subagentType}: ${e.model ?? '-'} → ${started.model}`)
+    const given = st.explicitEffort.get(sp.e.tool_use_id)
+    st.explicitEffort.delete(sp.e.tool_use_id)
+    const loop = trackLoop(st, sp, agentId, given)
+    rememberAgent(st, agentId, sp.started.model)
+    const hand = handoffOf(st, sp, given)
+    if (hand === undefined) return
+    // an effort the engine picks is unknown here: the first step tells it
+    if (hand.effortCause !== 'engine' || isHaiku(st.cfg, hand.to.model)) {
+      loop.last = hand.to
+    }
+    if (!st.cfg.verbose) return
+    const key = `handoff:${sp.e.subagentType}:${planWord(st.cfg, hand.to)}`
+    turnLine($, st, handoffLine(st, sp.e, hand), key)
   })
 }
 
@@ -2936,7 +3267,7 @@ function registerSpawn(on: On, st: State): void {
       const started = await next(wanted === undefined
         ? e
         : { ...e, model: wanted })
-      afterSpawn($, st, e, started, route)
+      afterSpawn($, st, { e, started, route, wanted })
       return started
     } finally {
       st.spawning = Math.max(0, st.spawning - 1)
@@ -2950,13 +3281,15 @@ function registerSpawn(on: On, st: State): void {
 function registerTurns(on: On, st: State): void {
   on('turn.step', async function* ($, e, next) {
     if (st.off) return yield* next(e)
-    const plan = await planStep($, st, e)
+    const step = await planStep($, st, e)
+    const plan = step.plan
     const changed = plan.model !== e.model || plan.effort !== e.effort
+    const prev = st.lastPlan // main's last plan, before noteMain replaces it
     if (e.agentId === undefined) noteMain($, st, plan)
-    vlog($, st, stepLog(e, plan))
+    safely(st, $, 'turn.step log', () => logMove($, st, e, prev, step))
     const result = yield* next(changed ? withPlan(e, plan) : e)
-    safely(st, $, 'turn.step', () => vlog($, st,
-      `step ${e.index} answered by ${result.usage?.model ?? '?'}`))
+    safely(st, $, 'turn.step', () =>
+      logAnswer($, st, e.agentId, plan, result.usage))
     return result
   }).catch(async function* ($, e, next) {
     warnOnce(st, $, 'turn.step', next.error.kind)
@@ -3038,6 +3371,126 @@ function noteTyped(st: State, kind: string, text: string, midTurn: boolean) {
   }
 }
 
+// ---- prompt classifier -----------------------------------------------
+// A typed prompt no rule, skill, route or floor covers is guessed by one
+// small-model call: the phase's EFFORT becomes the turn's default (never a
+// model move, never a dialog, never a file write). The call is bounded and
+// every failure leaves the prompt as it was.
+
+/** The whole text up to CLASSIFY_MAX code points, else its head and tail. */
+function sampleOf(text: string): string {
+  const points = Array.from(text.trim())
+  if (points.length <= CLASSIFY_MAX) return points.join('')
+  return points.slice(0, CLASSIFY_HEAD).join('') +
+    points.slice(-CLASSIFY_TAIL).join('')
+}
+
+/** No route in force on main and the classifier is on and not paused. */
+const classifierIdle = (st: State): boolean =>
+  !st.off && st.cfg.classify && st.classifyUntil === 0 &&
+  mainRoute(st) === null && st.turnFloor === null
+
+/** A lapsed pause ends here, before any other guard (no stale marker). */
+async function expirePause($: Api, st: State): Promise<void> {
+  if (st.classifyUntil === 0 || (await $.clock.now()) < st.classifyUntil) {
+    return
+  }
+  st.classifyUntil = 0
+  refresh($, st)
+}
+
+/** The small model is the haiku id: marked down, or main already runs it. */
+async function smallModelBusy($: Api, st: State): Promise<boolean> {
+  await prune($, st)
+  const small = st.cfg.models.haiku
+  const main = st.turnModel ?? st.sessionModel
+  return (small !== undefined && st.down.has(small)) || isHaiku(st.cfg, main)
+}
+
+/** The guards of D8, in order; the text itself is checked last. */
+async function classifierWanted($: Api, st: State, e: PromptIn) {
+  if (!st.cfg.classify || e.origin.kind !== 'composer') return false
+  if (e.turnId !== undefined) return false
+  await expirePause($, st)
+  const text = e.text.trim()
+  if (text.startsWith('/') || Array.from(text).length < CLASSIFY_MIN) {
+    return false
+  }
+  return classifierIdle(st) && !(await smallModelBusy($, st))
+}
+
+/** One failure; the third in a row pauses the classifier, said once. */
+async function countFailure($: Api, st: State): Promise<void> {
+  st.classifyFails += 1
+  if (st.classifyFails < CLASSIFY_FAILS) return
+  st.classifyFails = 0
+  st.classifyUntil = (await $.clock.now()) + st.cfg.cooldownMinutes * 60000
+  $.ui.toast(`classifier paused ${st.cfg.cooldownMinutes} min (${
+    CLASSIFY_FAILS} failures)`)
+  refresh($, st)
+}
+
+/** classify's own abort cause: a user interrupt, not a failure. */
+const isAbort = (err: unknown): boolean =>
+  err instanceof Error && (err.name === 'AbortError' ||
+    /\baborted\b/i.test(err.message))
+
+/** The label, or TIMEOUT; rejects like classify or when the dispatch aborts. */
+function raceClassify($: Api, text: string, signal: AbortSignal) {
+  return Promise.race([
+    $.model.classify(sampleOf(text), CLASSIFY_LABELS),
+    $.clock.sleep(CLASSIFY_MS, { signal })
+      .then((): typeof TIMEOUT => TIMEOUT),
+  ])
+}
+
+/** The label, or undefined: no answer, an interrupt or a counted failure. */
+async function askClassifier(
+  $: Api,
+  st: State,
+  text: string,
+  signal: AbortSignal,
+): Promise<string | undefined> {
+  let label: string | undefined | typeof TIMEOUT
+  try {
+    label = await raceClassify($, text, signal)
+  } catch (err) {
+    if (!signal.aborted && !isAbort(err)) await countFailure($, st)
+    return undefined
+  }
+  if (label === TIMEOUT) {
+    await countFailure($, st)
+    return undefined
+  }
+  st.classifyFails = 0
+  return label
+}
+
+/** The turn route of a label: its phase's effort only; false = nothing. */
+function routeFromLabel(st: State, label: string): boolean {
+  const phase = hasKey(LABEL_PHASE, label) ? LABEL_PHASE[label] : undefined
+  const effort = phase === undefined
+    ? undefined
+    : phaseRoute(st.cfg, phase)?.effort
+  if (phase === undefined || effort === undefined) return false
+  st.turnMain = { phase, route: { effort }, source: 'classifier' }
+  return true
+}
+
+/** Fills an empty route with the guessed phase's effort; never throws on it. */
+async function classifyPrompt(
+  $: Api,
+  st: State,
+  e: PromptIn,
+  signal: AbortSignal,
+): Promise<void> {
+  if (!(await classifierWanted($, st, e))) return
+  const label = await askClassifier($, st, e.text, signal)
+  // a route that landed meanwhile wins; a late answer never crosses turns
+  if (label === undefined || signal.aborted || !classifierIdle(st)) return
+  if (routeFromLabel(st, label)) refresh($, st)
+}
+
 function registerPrompt(on: On, st: State): void {
   on('prompt.submit', async ($, e, next) => {
     await ensureConfig($, st, true)
@@ -3046,6 +3499,7 @@ function registerPrompt(on: On, st: State): void {
     noteTyped(st, e.origin.kind, e.text, midTurn)
     if (e.origin.kind === 'composer') routeFromPrompt(st, e.text, midTurn)
     refresh($, st)
+    await classifyPrompt($, st, e, next.signal)
     return next(e)
   }).catch(($, e, next) => {
     warnOnce(st, $, 'prompt.submit', next.error.kind)

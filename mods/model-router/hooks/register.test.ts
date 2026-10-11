@@ -2039,7 +2039,7 @@ test('T3: routing.json unreadable at the dialog asks nothing', async (
   expect(w.asked).toEqual([])
 })
 
-test('T1: a failed write applies the default, key left unasked', async (
+test('T1: a failed write applies the default, key stays asked', async (
   $, on) => {
   const logs = recordLogs(on)
   const w = asks(['Keep', 'Later'])
@@ -2050,24 +2050,39 @@ test('T1: a failed write applies the default, key left unasked', async (
   expect(logs.join('\n')).toContain('first-use dialog failed')
   w.failWrite = false
   await typeFeat($)
+  expect(w.asked).toHaveLength(1)
+})
+
+test('T1: after a failed write the next session asks again', async (
+  $, on) => {
+  on('session.end', ($, e) => ({ sessionId: e.sessionId }))
+  const w = asks(['Keep', 'Later'])
+  await bootRun($, on, FABLE, w)
+  w.failWrite = true
+  await typeFeat($)
+  w.failWrite = false
+  await clearOf($)
+  await typeFeat($)
   expect(w.asked).toHaveLength(2)
 })
 
 const failures = (logs: string[]): string[] =>
   logs.filter(l => l.includes('first-use dialog failed'))
 
-test('T1: two failed writes log the failure once', async ($, on) => {
+test('T1: two rows failing to write log the failure once', async (
+  $, on) => {
   const logs = recordLogs(on)
   const w = asks(['Keep', 'Keep'])
   await bootRun($, on, FABLE, w)
   w.failWrite = true
   await typeFeat($)
-  await typeFeat($)
+  await typed($, '/status')
+  await skillPrompt($, 'status')
   expect(w.asked).toHaveLength(2)
   expect(failures(logs)).toHaveLength(1)
 })
 
-test('T1: a rebuild failing after the write leaves the key unasked', async (
+test('T1: a rebuild failing after the write keeps the key asked', async (
   $, on) => {
   const logs = recordLogs(on)
   const w = asks([...TO_IMPLEMENT, 'Everywhere'])
@@ -2077,7 +2092,7 @@ test('T1: a rebuild failing after the write leaves the key unasked', async (
   expect((routingOf(w).skills as Rec).feat).toBe('implement')
   expect(await mainNow($)).toContain('skill reflect')
   const pending = (await route($, 'pending')).split('\n')
-  expect(pending[1]).toBe('asked this session: none')
+  expect(pending[1]).toBe('asked this session: skills:feat')
   expect(failures(logs)).toHaveLength(1)
   expect(failures(logs)[0]).toContain('rebuild failed after the write')
 })
@@ -2827,15 +2842,21 @@ for (const [label, phase] of [
   })
 }
 
-test('change: an alias no phase uses is a Later and says so', async (
+/** The shipped mechanical phase moved off haiku: no shipped phase uses it. */
+const lowMechanical = (f: Rec): void => {
+  (f.phases as Rec).mechanical = { tier: 'work', effort: 'low' }
+}
+
+test('change: an alias no shipped phase uses is a Later and says so', async (
   $, on) => {
   const toasts = recordToasts(on)
   const w = asks(['Change', 'haiku (cheap)'], {
-    home: { phases: { mechanical: { tier: 'work', effort: 'low' } } },
+    edit: lowMechanical,
   })
   await bootRun($, on, FABLE, w)
   await typeFeat($)
-  expect(toasts).toContain('no phase uses haiku')
+  expect(toasts).toContain(
+    'no shipped phase uses haiku: add one to routing.json')
   expect(w.asked).toHaveLength(2)
   expect(w.written).toEqual([])
 })
@@ -3529,4 +3550,1449 @@ test('forget: a non-composer origin is refused, nothing written', async (
   })
   expect(out.text).toContain('user-only')
   expect(w.written).toEqual([])
+})
+
+// ---- wave 4-A: transition logs --------------------------------------------
+
+type LoggedOpts = {
+  model?: string
+  answeredBy?: (planned: string) => string // the model a step answers on
+  world?: World
+  verbose?: boolean // default true
+  stepMark?: string // the bottom step pushes this into `logs`
+}
+
+const usageFor = (model: string) => ({
+  model,
+  input_tokens: 0,
+  output_tokens: 0,
+  cache_read_input_tokens: 0,
+  cache_creation_input_tokens: 0,
+})
+
+type Logged = { logs: string[]; seen: Seen[] }
+
+/** A run with every bottom hook a logged scenario needs, verbose on. */
+async function bootLogged(
+  $: Engine,
+  on: On,
+  o: LoggedOpts = {},
+): Promise<Logged> {
+  const logs = recordLogs(on)
+  const seen: Seen[] = []
+  let spawned = 0
+  on('turn.step', async function* ($, e) {
+    seen.push({ model: e.model, effort: e.effort })
+    if (o.stepMark !== undefined) logs.push(o.stepMark)
+    return {
+      turnId: e.turnId,
+      index: e.index,
+      answer: '',
+      toolUses: [],
+      stopReason: 'end_turn' as const,
+      usage: o.answeredBy ? usageFor(o.answeredBy(e.model)) : null,
+    }
+  })
+  on('prompt.submit', ($, e) => ({ text: e.text }))
+  on('turn.complete', () => ({ text: '' }))
+  on('session.end', ($, e) => ({ sessionId: e.sessionId }))
+  on('tool.call', { tool: 'Skill' }, () => ({
+    result: { success: true, commandName: 'bottom' },
+  }))
+  on('tool.call', { tool: 'Agent' }, () => ({
+    result: {
+      status: 'async_launched' as const,
+      agentId: 'a1',
+      description: 'd',
+      prompt: 'p',
+      outputFile: '/tmp/o',
+    },
+  }))
+  on('agent.spawn', ($, e) => ({
+    model: e.model ?? e.parentModel,
+    agentId: `a${++spawned}`,
+  }))
+  await boot($, on, o.model ?? FABLE, 1000, o.world ?? newWorld())
+  if (o.verbose !== false) await route($, 'verbose on')
+  logs.splice(0)
+  return { logs, seen }
+}
+
+const mainWord = (from: string, to: string, why: string): string =>
+  `main: ${from} → ${to} (${why})`
+
+test('logs: a main that never changes logs nothing', async ($, on) => {
+  const { logs } = await bootLogged($, on)
+  for (let i = 0; i < 3; i++) await runStep($, highStep())
+  expect(logs).toEqual([])
+})
+
+test('logs: a route-tool plan logs one line, not one per step', async (
+  $, on) => {
+  const { logs } = await bootLogged($, on)
+  await planRoute($)
+  await runStep($, highStep())
+  await runStep($, highStep())
+  expect(logs).toEqual([
+    mainWord('fable/high', 'fable/xhigh', 'plan: route tool'),
+  ])
+})
+
+test('logs: a typed skill names itself as the cause', async ($, on) => {
+  const { logs } = await bootLogged($, on)
+  await typeFeat($)
+  await runStep($, stepInput())
+  expect(logs).toEqual([
+    mainWord('fable/low', 'fable/high', 'reflect: skill /feat'),
+  ])
+})
+
+test('logs: an upgrade rides on the same line', async ($, on) => {
+  const { logs } = await bootLogged($, on, { model: SONNET })
+  await typeFeat($)
+  await runStep($, { ...highStep(), model: SONNET })
+  expect(logs).toEqual([
+    mainWord('sonnet/high', 'fable/high', 'reflect: skill /feat, upgrade'),
+  ])
+})
+
+test('logs: a downgrade is a switch', async ($, on) => {
+  const { logs } = await bootLogged($, on)
+  await route($, 'switch on')
+  await route($, 'mechanical')
+  await runStep($, highStep())
+  expect(logs).toEqual([
+    mainWord('fable/high', 'haiku/-', 'mechanical: sticky /route, switch'),
+  ])
+})
+
+test('logs: a model down names the alias it left', async ($, on) => {
+  const { logs } = await bootLogged($, on)
+  await runStep($, highStep())
+  await failWith($, 'rate_limit')
+  logs.splice(0)
+  await runStep($, highStep())
+  expect(logs).toEqual([
+    mainWord('fable/high', 'opus/high', 'session, fallback: fable down'),
+  ])
+})
+
+test('logs: derived orchestrate logs once per turn', async ($, on) => {
+  const { logs } = await bootLogged($, on)
+  await runStep($, highStep())
+  await dispatch($)
+  await runStep($, highStep())
+  await agentEnds($)
+  await runStep($, highStep())
+  await dispatch($)
+  await runStep($, highStep())
+  const waves = logs.filter(l => l.includes('orchestrate: dispatch'))
+  expect(waves).toEqual([
+    mainWord('fable/high', 'fable/medium', 'orchestrate: dispatch'),
+  ])
+})
+
+test('logs: an ultrathink floor names the prompt floor', async ($, on) => {
+  const { logs } = await bootLogged($, on)
+  await ultrathink($)
+  await runStep($, highStep())
+  expect(logs).toEqual([
+    mainWord('fable/high', 'fable/max', 'escalate: prompt floor'),
+  ])
+})
+
+test('logs: a sticky /route names itself', async ($, on) => {
+  const { logs } = await bootLogged($, on)
+  await route($, 'xhigh')
+  await runStep($, highStep())
+  expect(logs).toEqual([
+    mainWord('fable/high', 'fable/xhigh', 'custom: sticky /route'),
+  ])
+})
+
+test('logs: a default prompt rule says prompt rule', async ($, on) => {
+  const { logs } = await bootLogged($, on)
+  await typed($, 'explain why it fails')
+  await runStep($, stepInput())
+  expect(logs).toEqual([
+    mainWord('fable/low', 'fable/high', 'reflect: prompt rule'),
+  ])
+})
+
+test('logs: after /clear the first step compares to the engine', async (
+  $, on) => {
+  const { logs } = await bootLogged($, on)
+  await route($, 'xhigh')
+  await runStep($, highStep())
+  logs.splice(0)
+  await clearOf($)
+  await runStep($, highStep())
+  expect(logs).toEqual([])
+})
+
+test('logs: /route on after off compares to the engine', async ($, on) => {
+  const { logs } = await bootLogged($, on)
+  await route($, 'xhigh')
+  await runStep($, highStep())
+  await endTurn($)
+  await route($, 'off')
+  await route($, 'on')
+  await runStep($, highStep())
+  expect(logs.filter(l => l.includes('sticky'))).toHaveLength(2)
+})
+
+test('logs: a failing log never unroutes the step', async ($, on) => {
+  const { logs, seen } = await bootLogged($, on)
+  await route($, 'xhigh')
+  const poison = { toString: 1 } // String(poison) throws
+  await runStep($, { ...highStep(), effort: poison as never })
+  expect(seen[seen.length - 1]?.effort).toBe('xhigh')
+  expect(logs.join('\n')).toContain('turn.step log failed')
+})
+
+test('logs: verbose off logs no transition', async ($, on) => {
+  const { logs } = await bootLogged($, on, { verbose: false })
+  await planRoute($)
+  await runStep($, highStep())
+  await typeFeat($)
+  await $.agent.spawn(spawnOf('feater'))
+  expect(logs).toEqual([])
+})
+
+test('logs: the transition line precedes the step below it', async (
+  $, on) => {
+  const { logs } = await bootLogged($, on, { stepMark: 'STEP' })
+  await planRoute($)
+  await runStep($, highStep())
+  expect(logs).toEqual([
+    mainWord('fable/high', 'fable/xhigh', 'plan: route tool'),
+    'STEP',
+  ])
+})
+
+test('logs: switch warnings keep their exact texts', async ($, on) => {
+  const logs = recordLogs(on)
+  const home = { verbose: 'ON', enabled: 'no' }
+  await bootRun($, on, FABLE, newWorld({ home }))
+  expect(logs).toContain('config "verbose" is not a boolean; ignored')
+  expect(logs).toContain(
+    'model-router: config "enabled" is not a boolean; ignored')
+})
+
+for (const bad of ['ON', 1, null]) {
+  test(`logs: verbose ${JSON.stringify(bad)} falls back to off`, async (
+    $, on) => {
+    const logs = recordLogs(on)
+    await bootRun($, on, FABLE, newWorld({ home: { verbose: bad } }))
+    expect(logs.filter(l => l.includes('"verbose" is not a boolean')))
+      .toHaveLength(1)
+    expect(await route($, 'show')).toContain('verbose: off')
+  })
+}
+
+test('logs: verbose true in the override turns the lines on', async (
+  $, on) => {
+  await bootRun($, on, FABLE, newWorld({ home: { verbose: true } }))
+  expect(await route($, 'show')).toContain('verbose: on')
+})
+
+/** What each of the old firehose lines would have been triggered by. */
+const LEGACY: [string, string, ($: Engine) => Promise<unknown>][] = [
+  ['step', 'step ', $ => runStep($, highStep())],
+  ['answered by', 'answered by', $ => runStep($, highStep())],
+  ['skill path', 'skill ', $ => typeFeat($)],
+  ['route json', 'route main', $ => planRoute($)],
+  ['spawn', 'spawn ', $ => $.agent.spawn(spawnOf('feater'))],
+]
+
+for (const [name, text, act] of LEGACY) {
+  test(`logs: the old ${name} line is gone at true`, async ($, on) => {
+    const { logs } = await bootLogged($, on)
+    await act($)
+    await runStep($, highStep())
+    expect(logs.filter(l => l.includes(text))).toEqual([])
+  })
+}
+
+// ---- wave 4-A: agent lines ----------------------------------------------
+
+const handoffs = (logs: string[]): string[] =>
+  logs.filter(l => l.includes(' → agent '))
+
+/** A main step first, so the hand-off starts from fable/high. */
+async function afterMainStep($: Engine, on: On, o: LoggedOpts = {}) {
+  const run = await bootLogged($, on, o)
+  await runStep($, highStep())
+  return run
+}
+
+test('logs: a rowed spawn is one hand-off line, then silence', async (
+  $, on) => {
+  const { logs } = await afterMainStep($, on)
+  await $.agent.spawn(spawnOf('feater'))
+  const line = 'main fable/high → agent feater sonnet/medium ' +
+    '(row implement, row)'
+  expect(logs).toEqual([line])
+  await runStep($, { ...highStep('a1'), model: SONNET })
+  await runStep($, { ...highStep('a1'), model: SONNET })
+  expect(logs).toEqual([line])
+})
+
+test('logs: an explicit model is its own cause', async ($, on) => {
+  const { logs } = await afterMainStep($, on)
+  await $.agent.spawn(spawnOf('feater', { model: 'opus' }))
+  expect(logs).toEqual([
+    'main fable/high → agent feater opus/medium ' +
+      '(explicit, row)',
+  ])
+})
+
+test('logs: an explicit effort is one line, then silence', async ($, on) => {
+  const { logs } = await afterMainStep($, on)
+  await $.tool.call({
+    tool: 'Agent', description: 'd', prompt: 'p', effort: 'low',
+    tool_use_id: 't1',
+  })
+  await $.agent.spawn(spawnOf('feater'))
+  const line = 'main fable/high → agent feater sonnet/low ' +
+    '(row implement, explicit)'
+  expect(logs).toEqual([line])
+  await runStep($, { ...stepInput('a1'), model: SONNET })
+  expect(logs).toEqual([line])
+})
+
+test('logs: a haiku spawn shows no effort, then silence', async ($, on) => {
+  const world = newWorld({
+    edit: f => { (f.agents as Rec).feater = 'mechanical' },
+  })
+  const { logs } = await afterMainStep($, on, { world })
+  await $.agent.spawn(spawnOf('feater'))
+  const line = 'main fable/high → agent feater haiku/- ' +
+    '(row mechanical, row)'
+  expect(logs).toEqual([line])
+  await runStep($, { ...highStep('a1'), model: HAIKU })
+  expect(logs).toEqual([line])
+})
+
+test('logs: three parallel challengers are one hand-off line', async (
+  $, on) => {
+  const { logs } = await afterMainStep($, on)
+  await Promise.all([1, 2, 3].map(() =>
+    $.agent.spawn(spawnOf('plan-challenger'))))
+  expect(handoffs(logs)).toHaveLength(1)
+})
+
+test('logs: two agent types to one model are two hand-offs', async (
+  $, on) => {
+  const { logs } = await afterMainStep($, on)
+  await $.agent.spawn(spawnOf('feater'))
+  await $.agent.spawn(spawnOf('Explore'))
+  expect(handoffs(logs)).toHaveLength(2)
+})
+
+test('logs: one agent type to two models is two hand-offs', async (
+  $, on) => {
+  const { logs } = await afterMainStep($, on)
+  await $.agent.spawn(spawnOf('feater'))
+  await $.agent.spawn(spawnOf('feater', { model: 'opus' }))
+  expect(handoffs(logs)).toHaveLength(2)
+})
+
+test('logs: a tier moved up in-tier names the alias that was down', async (
+  $, on) => {
+  const { logs } = await bootLogged($, on)
+  await switchTo($, OPUS, SONNET, 'auto')
+  await $.agent.spawn(spawnOf('plan-challenger'))
+  expect(handoffs(logs)).toEqual([
+    'main fable/- → agent plan-challenger fable/xhigh ' +
+      '(fallback: opus down, row)',
+  ])
+})
+
+test('logs: a tier down keeps the frontmatter, said as such', async (
+  $, on) => {
+  const { logs } = await bootLogged($, on)
+  await switchTo($, OPUS, SONNET, 'auto')
+  await switchTo($, FABLE, SONNET, 'auto')
+  await $.agent.spawn(spawnOf('plan-challenger'))
+  expect(handoffs(logs)[0]).toContain('(frontmatter, row)')
+})
+
+test('logs: an in-agent route tool move is one line', async ($, on) => {
+  const { logs } = await afterMainStep($, on)
+  await $.agent.spawn(spawnOf('feater'))
+  logs.splice(0)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'judge', agentId: 'a1' })
+  await runStep($, { ...highStep('a1'), model: SONNET })
+  await runStep($, { ...highStep('a1'), model: SONNET })
+  expect(logs).toEqual([
+    'agent feater: sonnet/medium → sonnet/xhigh (route tool)',
+  ])
+})
+
+test('logs: an agent moving twice logs both moves', async ($, on) => {
+  const { logs } = await afterMainStep($, on)
+  await $.agent.spawn(spawnOf('feater'))
+  logs.splice(0)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'judge', agentId: 'a1' })
+  await runStep($, { ...highStep('a1'), model: SONNET })
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'implement', agentId: 'a1' })
+  await runStep($, { ...highStep('a1'), model: SONNET })
+  expect(logs).toHaveLength(2)
+  expect(logs[1]).toContain('sonnet/xhigh → sonnet/medium (route tool)')
+})
+
+test('logs: an in-agent skill move names the skill', async ($, on) => {
+  const { logs } = await afterMainStep($, on)
+  await $.agent.spawn(spawnOf('feater'))
+  logs.splice(0)
+  await loadSkill($, 'status', 'a1')
+  await runStep($, { ...highStep('a1'), model: SONNET })
+  expect(logs).toEqual([
+    'agent feater: sonnet/medium → sonnet/low (skill status)',
+  ])
+})
+
+const answers = (logs: string[]): string[] =>
+  logs.filter(l => l.includes('answered by'))
+
+/** One agent step on the planned model, the engine answering on `by`. */
+async function agentAnswer($: Engine, on: On, by: string, planned = SONNET) {
+  const run = await afterMainStep($, on, { answeredBy: () => by })
+  await $.agent.spawn(spawnOf('feater'))
+  await runStep($, { ...highStep('a1'), model: planned })
+  await runStep($, { ...highStep('a1'), model: planned })
+  return run
+}
+
+test('logs: an agent answered by another model is said once', async (
+  $, on) => {
+  const { logs } = await agentAnswer($, on, OPUS)
+  expect(answers(logs)).toEqual([
+    'agent feater answered by opus instead of sonnet',
+  ])
+})
+
+test('logs: a [1m] suffix alone is not an answer anomaly', async ($, on) => {
+  const { logs } = await agentAnswer($, on, SONNET, `${SONNET}[1m]`)
+  expect(answers(logs)).toEqual([])
+})
+
+test('logs: a [1m] usage against a bare plan is no anomaly', async (
+  $, on) => {
+  const { logs } = await agentAnswer($, on, `${SONNET}[1m]`)
+  expect(answers(logs)).toEqual([])
+})
+
+test('logs: a second agent answering off-plan logs its own line', async (
+  $, on) => {
+  const { logs } = await afterMainStep($, on, { answeredBy: () => OPUS })
+  await $.agent.spawn(spawnOf('feater'))
+  await $.agent.spawn(spawnOf('Explore'))
+  for (const id of ['a1', 'a2']) {
+    await runStep($, { ...highStep(id), model: SONNET })
+    await runStep($, { ...highStep(id), model: SONNET })
+  }
+  expect(answers(logs)).toHaveLength(2)
+})
+
+test('logs: one agent answering two off-plan models logs twice', async (
+  $, on) => {
+  let n = 0
+  const { logs } = await afterMainStep($, on, {
+    answeredBy: () => (++n % 2 ? OPUS : FABLE) })
+  await $.agent.spawn(spawnOf('feater'))
+  for (let i = 0; i < 4; i++) {
+    await runStep($, { ...highStep('a1'), model: SONNET })
+  }
+  expect(answers(logs)).toHaveLength(2)
+})
+
+test('logs: an unanswered usage says nothing', async ($, on) => {
+  const { logs } = await afterMainStep($, on)
+  await $.agent.spawn(spawnOf('feater'))
+  await runStep($, { ...highStep('a1'), model: SONNET })
+  expect(answers(logs)).toEqual([])
+})
+
+test('logs: main answered by another model says nothing here', async (
+  $, on) => {
+  const { logs } = await bootLogged($, on, { answeredBy: () => OPUS })
+  await runStep($, highStep())
+  expect(answers(logs)).toEqual([])
+  expect(logs).toEqual([]) // no bookkeeping warning either
+})
+
+test('logs: verbose off says no answer anomaly either', async ($, on) => {
+  const { logs } = await bootLogged($, on, {
+    answeredBy: () => OPUS, verbose: false })
+  await $.agent.spawn(spawnOf('feater'))
+  await runStep($, { ...highStep('a1'), model: SONNET })
+  expect(answers(logs)).toEqual([])
+})
+
+// ---- wave 4-A: log guards ------------------------------------------------
+
+const CTRL = '\u0007' // a control char inside a name
+const LONG = `${'a'.repeat(30)}${CTRL}${'b'.repeat(30)}`
+const CUT = `${'a'.repeat(30)}${'b'.repeat(9)}…` // 40 clean code points
+const hasCtrl = (text: string): boolean => /[\p{Cc}\p{Cf}]/u.test(text)
+
+/** A phase named LONG (with a bidi mark), as a routing.json may hold it. */
+const hostilePhase = `${'a'.repeat(30)}\u202e${'b'.repeat(30)}`
+const withPhase = (f: Rec): void => {
+  (f.phases as Rec)[hostilePhase] = { tier: 'best', effort: 'xhigh' }
+}
+
+test('logs: two dispatches in one turn are one hand-off, main moved between',
+  async ($, on) => {
+    const { logs } = await afterMainStep($, on)
+    await $.agent.spawn(spawnOf('feater'))
+    await route($, 'xhigh')
+    await runStep($, highStep())
+    await $.agent.spawn(spawnOf('feater'))
+    expect(handoffs(logs)).toHaveLength(1)
+  })
+
+test('logs: an agent type is cleaned in the hand-off line', async (
+  $, on) => {
+  const { logs } = await afterMainStep($, on)
+  await $.agent.spawn(spawnOf(LONG, { model: 'opus' }))
+  expect(handoffs(logs)).toHaveLength(1)
+  expect(handoffs(logs)[0]).toContain(`agent ${CUT} `)
+  expect(hasCtrl(logs.join('\n'))).toBe(false)
+})
+
+test('logs: a model id is cleaned in the hand-off line', async ($, on) => {
+  const { logs } = await afterMainStep($, on)
+  await $.agent.spawn(spawnOf('feater', { model: `m${LONG}` }))
+  expect(handoffs(logs)).toHaveLength(1)
+  expect(handoffs(logs)[0]).toContain(
+    `feater m${'a'.repeat(30)}${'b'.repeat(8)}…/`)
+  expect(hasCtrl(logs.join('\n'))).toBe(false)
+})
+
+test('logs: an agent type is cleaned in a later move line', async (
+  $, on) => {
+  const { logs } = await afterMainStep($, on)
+  await $.agent.spawn(spawnOf(LONG, { model: 'opus' }))
+  logs.splice(0)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'judge', agentId: 'a1' })
+  await runStep($, { ...highStep('a1'), model: OPUS })
+  expect(logs).toHaveLength(1)
+  expect(logs[0]).toContain(`agent ${CUT}: `)
+  expect(hasCtrl(logs[0] ?? '')).toBe(false)
+})
+
+test('logs: an unchanged sticky /route logs once across turns', async (
+  $, on) => {
+  const { logs } = await bootLogged($, on)
+  await route($, 'xhigh')
+  for (let i = 0; i < 3; i++) {
+    await runStep($, highStep())
+    await endTurn($)
+  }
+  expect(logs.filter(l => l.includes('sticky /route'))).toHaveLength(1)
+})
+
+test('logs: an engine-picked effort is named in the hand-off', async (
+  $, on) => {
+  const { logs } = await afterMainStep($, on)
+  await $.agent.spawn(spawnOf('stranger', { model: 'opus' }))
+  expect(handoffs(logs)).toHaveLength(1)
+  expect(handoffs(logs)[0]).toContain('(explicit, engine)')
+})
+
+// ---- wave 4-A: residuals of waves 3-A, 3-B, 3-C ---------------------------
+
+test('residual a: a failing forget write answers without the cause', async (
+  $, on) => {
+  const w = forgetWorld(confirmedFeat)
+  await bootRun($, on, FABLE, w)
+  w.failWrite = true
+  const out = await route($, 'forget feat')
+  expect(out).toBe('forget not applied, see the log')
+})
+
+test('residual a: a failing forget write logs the cause', async ($, on) => {
+  const logs = recordLogs(on)
+  const w = forgetWorld(confirmedFeat)
+  await bootRun($, on, FABLE, w)
+  w.failWrite = true
+  await route($, 'forget feat')
+  expect(logs.some(l => l.startsWith('forget failed: ')))
+    .toBe(true)
+})
+
+test('residual a: a failing ask write answers without the cause', async (
+  $, on) => {
+  const logs = recordLogs(on)
+  const w = newWorld()
+  await bootRun($, on, FABLE, w)
+  w.failWrite = true
+  expect(await route($, 'ask off')).toBe('ask not applied, see the log')
+  expect(logs.some(l => l.startsWith('ask failed: ')))
+    .toBe(true)
+})
+
+test('residual a: an ask saved but not rebuilt says so', async ($, on) => {
+  const w = newWorld()
+  await bootRun($, on, FABLE, w)
+  w.onWrite = () => { w.files.set(HOME_FILE, '{nope') }
+  expect(await route($, 'ask off')).toBe(
+    'ask saved, config not rebuilt: /route reload')
+  expect(routingOf(w).ask).toBe(false)
+})
+
+const ODD = 'x‮y' // a bidi override inside a name
+
+const bidi = '‮'
+
+test('residual b: a restored row name is cleaned in the answer', async (
+  $, on) => {
+  const w = newWorld({ edit: f => {
+    (f.skills as Rec)[ODD] = 'plan'
+    f.changed = { skills: { [ODD]: { from: 'reflect', to: 'plan' } } }
+  } })
+  await bootRun($, on, FABLE, w)
+  const out = await route($, `forget ${ODD}`)
+  expect(out).toContain('(skills.xy → reflect:')
+})
+
+test('residual b: a restored row\'s old phase is cleaned too', async (
+  $, on) => {
+  const w = newWorld({ edit: f => {
+    (f.skills as Rec).feat = `pl${bidi}an`
+    f.changed = { skills: { feat: { from: 'reflect', to: `pl${bidi}an` } } }
+  } })
+  await bootRun($, on, FABLE, w)
+  const out = await route($, 'forget feat')
+  expect(out).toContain('was aligned to plan,')
+  expect(out).not.toContain(bidi)
+})
+
+test('residual b: a refused restore\'s phase is cleaned', async ($, on) => {
+  const w = newWorld({ edit: brokenRestore(
+    { from: `no${bidi}such`, to: 'judge' }) })
+  await bootRun($, on, FABLE, w)
+  const out = await route($, 'forget feater')
+  expect(out).toContain('nosuch is not a known phase')
+  expect(out).not.toContain(bidi)
+})
+
+test('residual b: a refused restore\'s row name is cleaned', async (
+  $, on) => {
+  const w = newWorld({ edit: f => {
+    f.changed = { skills: { [ODD]: { from: 5, to: 'plan' } } }
+  } })
+  await bootRun($, on, FABLE, w)
+  const out = await route($, `forget ${ODD}`)
+  expect(out).toContain('skills.xy: no phase recorded')
+})
+
+test('residual b: a long row name is cut in the answer only', async (
+  $, on) => {
+  const name = 'a'.repeat(45)
+  const w = newWorld({ edit: f => {
+    (f.skills as Rec)[name] = 'plan'
+    f.changed = { skills: { [name]: { from: 'reflect', to: 'plan' } } }
+  } })
+  await bootRun($, on, FABLE, w)
+  const out = await route($, `forget ${name}`)
+  expect(out).toContain(`(skills.${'a'.repeat(39)}… → reflect:`)
+  expect((routingOf(w).skills as Rec)[name]).toBe('reflect')
+})
+
+test('residual c: a name outside the skill charset names no file', async (
+  $, on) => {
+  const w = newWorld({ edit: f => {
+    (f.agents as Rec)['../x'] = 'judge'
+    f.changed = { agents: { '../x': { from: 'implement', to: 'judge' } } }
+  } })
+  await bootRun($, on, FABLE, w)
+  const out = await route($, 'forget ../x')
+  expect(out).toContain('1 row(s) restored')
+  expect(out).not.toContain('was aligned to')
+})
+
+/** A file whose `kind` table holds `__proto__` as an OWN key. */
+const protoRow = (kind: string, entry: unknown) => (f: Rec): void => {
+  const rows = (f[kind] ?? {}) as Rec
+  Object.defineProperty(rows, '__proto__', {
+    value: entry, enumerable: true, configurable: true, writable: true,
+  })
+  f[kind] = rows
+}
+
+test('residual d: a __proto__ restore is refused, plan and apply agree', async (
+  $, on) => {
+  const w = newWorld({ edit: f => {
+    protoRow('skills', 'plan')(f)
+    const changed: Rec = {}
+    protoRow('changed', changed)(f)
+    const skills: Rec = {}
+    Object.defineProperty(skills, '__proto__', {
+      value: { from: 'reflect', to: 'plan' },
+      enumerable: true, configurable: true, writable: true,
+    })
+    f.changed = { skills }
+  } })
+  await bootRun($, on, FABLE, w)
+  const out = await route($, 'forget __proto__')
+  expect(out).toContain('skills.__proto__: reserved name')
+  expect(w.written).toEqual([])
+})
+
+test('residual e: a changed.phases entry is never restored', async ($, on) => {
+  const w = newWorld({ edit: f => {
+    (f.phases as Rec).plan = 'reflect'
+    f.changed = { phases: { plan: { from: 'reflect', to: 'reflect' } } }
+  } })
+  await bootRun($, on, FABLE, w)
+  expect(await route($, 'forget plan')).toBe('nothing to forget for plan')
+  expect(w.written).toEqual([])
+})
+
+/** The efforts the Change chain offers for fable, from the second question. */
+async function fableEfforts($: Engine, on: On, fx: Fixture) {
+  const w = asks(['Change', 'fable (best)', 'Later'], fx)
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  return w.asked[2]?.options
+}
+
+const FABLE_EFFORTS = ['medium', 'high', 'xhigh', 'max']
+
+test('residual f: a null phase in the file is ignored, no crash', async (
+  $, on) => {
+  const edit = (f: Rec): void => { (f.phases as Rec).plan = null }
+  expect(await fableEfforts($, on, { edit })).toEqual(FABLE_EFFORTS)
+})
+
+test('residual f: a file without phases offers the code defaults', async (
+  $, on) => {
+  const edit = (f: Rec): void => { delete f.phases }
+  expect(await fableEfforts($, on, { edit })).toEqual(FABLE_EFFORTS)
+})
+
+const CUSTOM_CHEAP = { phases: { custom: { tier: 'cheap', effort: 'high' } } }
+
+test('residual f: an override-only phase is not offered', async ($, on) => {
+  const w = asks(['Change', 'haiku (cheap)', 'Later'], { home: CUSTOM_CHEAP })
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  expect(w.asked[2]?.text).toContain('Use mechanical for feat')
+})
+
+test('residual f: an override-only phase is never written', async ($, on) => {
+  const w = asks(['Change', 'haiku (cheap)', 'high', 'Everywhere'],
+    { home: CUSTOM_CHEAP })
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  expect((routingOf(w).skills as Rec).feat).toBe('reflect')
+  expect(w.written).toEqual([])
+})
+
+test('residual f: the target is a shipped phase the override redefines', async (
+  $, on) => {
+  const w = asks(['Change', 'haiku (cheap)', 'Everywhere'], {
+    home: { phases: { mechanical: { tier: 'work', effort: 'medium' } } },
+  })
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  expect((routingOf(w).skills as Rec).feat).toBe('mechanical')
+})
+
+test('residual f: an alias only an override phase uses toasts, Later', async (
+  $, on) => {
+  const toasts = recordToasts(on)
+  const w = asks(['Change', 'haiku (cheap)'], {
+    edit: lowMechanical,
+    home: { phases: { custom: { tier: 'cheap', effort: 'low' } } },
+  })
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  expect(toasts).toContain(
+    'no shipped phase uses haiku: add one to routing.json')
+  expect(w.written).toEqual([])
+})
+
+test('residual b: a hostile restored phase is cleaned in the clause', async (
+  $, on) => {
+  const w = newWorld({ edit: f => {
+    withPhase(f)
+    ;(f.skills as Rec).feat = 'plan'
+    f.changed = { skills: { feat: { from: hostilePhase, to: 'plan' } } }
+  } })
+  await bootRun($, on, FABLE, w)
+  const out = await route($, 'forget feat')
+  expect(out).toContain(`skills.feat → ${CUT}:`)
+  expect(hasCtrl(out)).toBe(false)
+})
+
+// ---- wave 4-A: hostile skill name ----------------------------------------
+
+const HOSTILE_SKILL = `${'a'.repeat(30)}‮${CTRL}${'b'.repeat(30)}`
+const skillWorld = (): World => newWorld({ edit: f => {
+  (f.skills as Rec)[HOSTILE_SKILL] = 'plan'
+} })
+
+/** The name a line shows after `marker`, up to the closing char. */
+const nameAfter = (line: string, marker: string, end: string): string =>
+  line.slice(line.indexOf(marker) + marker.length).split(end)[0]
+
+test('logs: a hostile skill name is cleaned in the main line', async (
+  $, on) => {
+  const { logs } = await bootLogged($, on, { world: skillWorld() })
+  await runStep($, highStep())
+  logs.splice(0)
+  await loadSkill($, HOSTILE_SKILL)
+  await runStep($, { ...highStep(), effort: 'low' as const })
+  const line = logs.find(l => l.includes('skill /')) ?? ''
+  const name = nameAfter(line, 'skill /', ')')
+  expect(name).not.toBe('')
+  expect(hasCtrl(line)).toBe(false)
+  expect([...name].length).toBeLessThanOrEqual(40)
+})
+
+test('logs: a hostile skill name is cleaned in the agent cause', async (
+  $, on) => {
+  const { logs } = await afterMainStep($, on, { world: skillWorld() })
+  await $.agent.spawn(spawnOf('feater'))
+  logs.splice(0)
+  await loadSkill($, HOSTILE_SKILL, 'a1')
+  await runStep($, { ...highStep('a1'), model: SONNET })
+  const line = logs.find(l => l.includes('(skill ')) ?? ''
+  const name = nameAfter(line, '(skill ', ')')
+  expect(name).not.toBe('')
+  expect(hasCtrl(line)).toBe(false)
+  expect([...name].length).toBeLessThanOrEqual(40)
+})
+
+test('logs: an ended agent forgets its answer marks (reused id)', async (
+  $, on) => {
+  const { logs } = await agentAnswer($, on, OPUS)
+  await agentEnds($)
+  await $.agent.spawn(spawnOf('feater'))
+  await runStep($, { ...highStep('a1'), model: SONNET })
+  expect(answers(logs)).toHaveLength(2)
+})
+
+// ---- wave 4-B: prompt classifier -----------------------------------------
+
+type Ask = { text: string; labels: readonly string[]; options: unknown }
+type Reply = (n: number) => Promise<string | undefined> | string | undefined
+type Cls = {
+  asks: Ask[]
+  seen: Seen[]
+  clock: MockClock
+  logs: string[]
+  toasts: string[]
+  status: string[]
+  world: World
+}
+type ClsOpts = {
+  reply?: Reply
+  model?: string
+  world?: World
+  verbose?: boolean
+}
+
+const PLAIN = 'refactor the billing module please'
+const PAUSE_MS = 15 * 60000 // cooldownMinutes default, in ms
+
+/** A ui.status recorder, same shape as recordLogs. */
+function recordStatus(on: On): string[] {
+  const lines: string[] = []
+  on('ui.status', async ($, e, next) => {
+    lines.push(e.text ?? '')
+    try {
+      await next(e)
+    } catch {
+      // nothing implements ui.status below the recorder in the kit
+    }
+  })
+  return lines
+}
+
+/** A bottom `model.classify` answering `reply`; records every ask. */
+async function bootCls($: Engine, on: On, o: ClsOpts = {}): Promise<Cls> {
+  const logs = recordLogs(on)
+  const toasts = recordToasts(on)
+  const status = recordStatus(on)
+  const seen: Seen[] = []
+  const asks: Ask[] = []
+  recordSteps(on, seen)
+  on('prompt.submit', ($, e) => ({ text: e.text }))
+  on('turn.complete', () => ({ text: '' }))
+  on('session.end', ($, e) => ({ sessionId: e.sessionId }))
+  on('tool.call', { tool: 'Skill' }, () => ({
+    result: { success: true, commandName: 'bottom' },
+  }))
+  on('agent.spawn', ($, e) => ({
+    model: e.model ?? e.parentModel,
+    agentId: 'a1',
+  }))
+  on('model.classify', async (_$, e) => {
+    asks.push({ text: e.text, labels: e.labels, options: e.options })
+    return { value: await (o.reply ?? (() => 'coding'))(asks.length) }
+  })
+  const world = o.world ?? newWorld()
+  const clock = await boot($, on, o.model ?? FABLE, 1000, world)
+  if (o.verbose) await route($, 'verbose on')
+  logs.splice(0)
+  return { asks, seen, clock, logs, toasts, status, world }
+}
+
+const clearSession = ($: Engine) => $.session.end({
+  reason: 'clear',
+  sessionId: 's1',
+  resume: { id: 's1' },
+})
+
+/** The effort a main step reaches the bottom with (engine asks high). */
+async function clsEffort($: Engine, c: Cls): Promise<unknown> {
+  await runStep($, highStep())
+  return c.seen[c.seen.length - 1]?.effort
+}
+
+const never = (): Promise<never> => new Promise(() => undefined)
+const boom = (): never => {
+  throw new Error('overloaded')
+}
+
+/** `n` typed prompts that each fail, a turn end between them. */
+async function failTimes($: Engine, n: number): Promise<void> {
+  for (let i = 0; i < n; i++) {
+    await typed($, PLAIN)
+    await endTurn($)
+  }
+}
+
+const LABELS_EFFORT: [string, string][] = [
+  ['design', 'xhigh'],
+  ['analysis', 'high'],
+  ['coding', 'medium'],
+  ['bookkeeping', 'low'],
+]
+
+test('classify: one call with the five labels and no model option', async (
+  $, on) => {
+  const c = await bootCls($, on)
+  await typed($, PLAIN)
+  expect(c.asks).toEqual([{
+    text: PLAIN,
+    labels: ['design', 'analysis', 'coding', 'bookkeeping', 'chat'],
+    options: undefined,
+  }])
+})
+
+for (const [label, effort] of LABELS_EFFORT) {
+  test(`classify: ${label} becomes the turn effort ${effort}`, async (
+    $, on) => {
+    const c = await bootCls($, on, { reply: () => label })
+    await runStep($, highStep())
+    await typed($, PLAIN)
+    expect(await clsEffort($, c)).toBe(effort)
+  })
+}
+
+test('classify: coding lowers the engine effort to medium', async ($, on) => {
+  const c = await bootCls($, on)
+  await typed($, PLAIN)
+  expect(await clsEffort($, c)).toBe('medium')
+})
+
+test('classify: a chat answer routes nothing', async ($, on) => {
+  const c = await bootCls($, on, { reply: () => 'chat' })
+  await typed($, PLAIN)
+  expect(await clsEffort($, c)).toBe('high')
+})
+
+test('classify: no label at all routes nothing', async ($, on) => {
+  const c = await bootCls($, on, { reply: () => undefined })
+  await typed($, PLAIN)
+  expect(await clsEffort($, c)).toBe('high')
+})
+
+test('classify: a label naming an object key routes nothing', async (
+  $, on) => {
+  const c = await bootCls($, on, { reply: () => 'constructor' })
+  await typed($, PLAIN)
+  expect(await clsEffort($, c)).toBe('high')
+})
+
+test('classify: an unknown label neither warns nor counts', async ($, on) => {
+  const c = await bootCls($, on, { reply: () => 'nonsense' })
+  await failTimes($, 4)
+  expect(c.asks).toHaveLength(4)
+  expect(c.toasts).toEqual([])
+  expect(c.logs).toEqual([])
+})
+
+test('classify: the main model never moves for a design guess', async (
+  $, on) => {
+  const c = await bootCls($, on, { model: SONNET, reply: () => 'design' })
+  await typed($, PLAIN)
+  await runStep($, { ...highStep(), model: SONNET })
+  expect(c.seen[c.seen.length - 1]).toEqual({ model: SONNET, effort: 'xhigh' })
+})
+
+test('classify: the route carries no tier', async ($, on) => {
+  const c = await bootCls($, on, { reply: () => 'design' })
+  await typed($, PLAIN)
+  const line = mainLine(await route($, 'show'))
+  expect(line).toContain('classifier plan')
+  expect(line).not.toContain('[tier')
+  expect(c.asks).toHaveLength(1)
+})
+
+test('classify: the route is gone at turn.complete', async ($, on) => {
+  const c = await bootCls($, on, { reply: () => 'design' })
+  await typed($, PLAIN)
+  await endTurn($)
+  expect(await clsEffort($, c)).toBe('high')
+  expect(mainLine(await route($, 'show'))).toContain('session defaults')
+})
+
+test('classify: a route tool call in the turn replaces it', async ($, on) => {
+  const c = await bootCls($, on, { reply: () => 'bookkeeping' })
+  await typed($, PLAIN)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'plan' })
+  expect(await clsEffort($, c)).toBe('xhigh')
+})
+
+test('classify: a typed skill in the turn replaces it', async ($, on) => {
+  const c = await bootCls($, on, { reply: () => 'design' })
+  await typed($, PLAIN)
+  await typed($, '/feat add a thing')
+  await skillPrompt($, 'feat')
+  expect(await clsEffort($, c)).toBe('high')
+})
+
+test('classify: a user /effort change beats the guessed effort', async (
+  $, on) => {
+  const c = await bootCls($, on, { reply: () => 'design' })
+  await runStep($, highStep())
+  await typed($, PLAIN)
+  await runStep($, { ...highStep(), effort: 'low' as const })
+  expect(c.seen[c.seen.length - 1]?.effort).toBe('low')
+})
+
+test('classify: the baseline survives /clear', async ($, on) => {
+  const c = await bootCls($, on, { reply: () => 'design' })
+  await runStep($, highStep())
+  await clearSession($)
+  await typed($, PLAIN)
+  await runStep($, { ...highStep(), effort: 'low' as const })
+  expect(c.seen[c.seen.length - 1]?.effort).toBe('low')
+})
+
+test('classify: a baseline-effort step takes the guessed effort', async (
+  $, on) => {
+  const c = await bootCls($, on, { reply: () => 'design' })
+  await runStep($, highStep())
+  await typed($, PLAIN)
+  await runStep($, highStep())
+  expect(c.seen[c.seen.length - 1]?.effort).toBe('xhigh')
+})
+
+// ---- the guards: one clause each ---
+
+/** The prompt is typed, then the asks are counted. */
+async function asksFor($: Engine, c: Cls, text: string): Promise<number> {
+  await typed($, text)
+  return c.asks.length
+}
+
+test('classify guard: text under 12 characters is not sent', async (
+  $, on) => {
+  const c = await bootCls($, on)
+  expect(await asksFor($, c, 'hello world')).toBe(0)
+})
+
+test('classify guard: 12 characters are sent', async ($, on) => {
+  const c = await bootCls($, on)
+  expect(await asksFor($, c, 'hello worlds')).toBe(1)
+})
+
+test('classify guard: padded short text is not sent', async ($, on) => {
+  const c = await bootCls($, on)
+  expect(await asksFor($, c, '        short        ')).toBe(0)
+})
+
+test('classify guard: a padded slash prompt is not sent', async ($, on) => {
+  const c = await bootCls($, on)
+  expect(await asksFor($, c, '  /feat add a long thing')).toBe(0)
+})
+
+test('classify guard: the sample is sent trimmed', async ($, on) => {
+  const c = await bootCls($, on)
+  await typed($, `   ${PLAIN}   `)
+  expect(c.asks.map(a => a.text)).toEqual([PLAIN])
+})
+
+test('classify guard: a slash prompt is not sent', async ($, on) => {
+  const c = await bootCls($, on)
+  expect(await asksFor($, c, '/unknown with a long argument')).toBe(0)
+})
+
+test('classify guard: a non-composer origin is not sent', async ($, on) => {
+  const c = await bootCls($, on)
+  await $.prompt.submit({ text: PLAIN, wait: false, origin: { kind: 'sdk' } })
+  expect(c.asks).toHaveLength(0)
+})
+
+test('classify guard: a mid-turn prompt is not sent', async ($, on) => {
+  const c = await bootCls($, on)
+  await queued($, 'composer', PLAIN)
+  expect(c.asks).toHaveLength(0)
+})
+
+test('classify guard: a keyword rule match is not sent', async ($, on) => {
+  const c = await bootCls($, on)
+  expect(await asksFor($, c, 'please review the billing module')).toBe(0)
+})
+
+test('classify guard: ultrathink is not sent', async ($, on) => {
+  const c = await bootCls($, on)
+  expect(await asksFor($, c, 'ultrathink about the billing module')).toBe(0)
+})
+
+test('classify guard: a sticky /route is not overridden', async ($, on) => {
+  const c = await bootCls($, on)
+  await route($, 'mechanical')
+  expect(await asksFor($, c, PLAIN)).toBe(0)
+})
+
+test('classify guard: a held run slot is not sent', async ($, on) => {
+  const c = await bootCls($, on)
+  await typed($, '/feat add a thing')
+  await skillPrompt($, 'feat')
+  await endTurn($)
+  expect(await asksFor($, c, PLAIN)).toBe(0)
+})
+
+test('classify guard: a carried floor is not sent', async ($, on) => {
+  const c = await bootCls($, on)
+  await queued($, 'composer', 'ultrathink about the billing module')
+  await endTurn($)
+  expect(await asksFor($, c, PLAIN)).toBe(0)
+})
+
+test('classify guard: a sub-agent never reaches the classifier', async (
+  $, on) => {
+  const c = await bootCls($, on)
+  await $.agent.spawn(spawnInput())
+  await runStep($, highStep('a1'))
+  expect(c.asks).toHaveLength(0)
+})
+
+test('classify guard: a config classify=false is not sent', async ($, on) => {
+  const c = await bootCls($, on, {
+    world: newWorld({ home: { classify: false } }),
+  })
+  expect(await asksFor($, c, PLAIN)).toBe(0)
+})
+
+test('classify guard: /route classify off is not sent', async ($, on) => {
+  const c = await bootCls($, on)
+  await route($, 'classify off')
+  expect(await asksFor($, c, PLAIN)).toBe(0)
+})
+
+test('classify guard: the mod off is not sent', async ($, on) => {
+  const c = await bootCls($, on)
+  await route($, 'off')
+  expect(await asksFor($, c, PLAIN)).toBe(0)
+})
+
+test('classify guard: a haiku id marked down is not sent', async ($, on) => {
+  const c = await bootCls($, on)
+  await switchTo($, HAIKU, SONNET, 'auto')
+  expect(await asksFor($, c, PLAIN)).toBe(0)
+})
+
+test('classify guard: a main loop on haiku is not sent', async ($, on) => {
+  const c = await bootCls($, on, { model: HAIKU })
+  expect(await asksFor($, c, PLAIN)).toBe(0)
+})
+
+test('classify guard: a phase without effort routes nothing', async (
+  $, on) => {
+  const world = newWorld({ edit: f => {
+    (f.phases as Rec).plan = { tier: 'best' }
+  } })
+  const c = await bootCls($, on, { reply: () => 'design', world })
+  await typed($, PLAIN)
+  expect(await clsEffort($, c)).toBe('high')
+})
+
+test('classify guard: a non-best skill turn leaves the next open', async (
+  $, on) => {
+  const c = await bootCls($, on)
+  await typed($, '/status now')
+  await skillPrompt($, 'status')
+  await endTurn($)
+  expect(await asksFor($, c, PLAIN)).toBe(1)
+})
+
+test('classify guard: /route clear reopens it after a best-tier run', async (
+  $, on) => {
+  const c = await bootCls($, on)
+  await typed($, '/feat add a thing')
+  await skillPrompt($, 'feat')
+  await endTurn($)
+  await route($, 'clear')
+  expect(await asksFor($, c, PLAIN)).toBe(1)
+})
+
+test('classify guard: a route landing during the call wins', async (
+  $, on) => {
+  let release: () => void = () => undefined
+  const gate = new Promise<void>(resolve => { release = resolve })
+  const c = await bootCls($, on, {
+    reply: async () => { await gate; return 'design' },
+  })
+  const pending = typed($, PLAIN)
+  await c.clock.settle()
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'mechanical' })
+  release()
+  await pending
+  expect(mainLine(await route($, 'show'))).toContain('model mechanical')
+  expect(await clsEffort($, c)).toBe('low')
+})
+
+// ---- bounded and fail-safe ---
+
+test('classify bound: a call never answering gives no route at 3 s', async (
+  $, on) => {
+  const c = await bootCls($, on, { reply: never })
+  const pending = typed($, PLAIN)
+  await c.clock.settle()
+  await c.clock.advance(3000)
+  await pending
+  expect(await clsEffort($, c)).toBe('high')
+})
+
+test('classify bound: the prompt proceeds after a timeout', async ($, on) => {
+  const c = await bootCls($, on, { reply: never })
+  const pending = typed($, PLAIN)
+  await c.clock.settle()
+  await c.clock.advance(3000)
+  expect((await pending).text).toBe(PLAIN)
+})
+
+test('classify bound: three timeouts pause the classifier', async ($, on) => {
+  const c = await bootCls($, on, { reply: never })
+  for (let i = 0; i < 3; i++) {
+    const pending = typed($, PLAIN)
+    await c.clock.settle()
+    await c.clock.advance(3000)
+    await pending
+  }
+  expect(c.toasts).toEqual(['classifier paused 15 min (3 failures)'])
+})
+
+test('classify bound: a rejection is not an error for the prompt', async (
+  $, on) => {
+  const c = await bootCls($, on, { reply: boom })
+  await typed($, PLAIN)
+  expect(c.logs.filter(l => l.includes('failed'))).toEqual([])
+})
+
+test('classify fail: three rejections pause with one toast', async ($, on) => {
+  const c = await bootCls($, on, { reply: boom })
+  await failTimes($, 3)
+  expect(c.toasts).toEqual(['classifier paused 15 min (3 failures)'])
+})
+
+test('classify fail: two rejections do not pause', async ($, on) => {
+  const c = await bootCls($, on, { reply: boom })
+  await failTimes($, 2)
+  expect(c.toasts).toEqual([])
+})
+
+test('classify fail: the status line shows the pause marker', async (
+  $, on) => {
+  const c = await bootCls($, on, { reply: boom })
+  await failTimes($, 3)
+  expect(c.status[c.status.length - 1]).toContain('classifier: paused')
+})
+
+test('classify fail: no call during the cooldown', async ($, on) => {
+  const c = await bootCls($, on, { reply: boom })
+  await failTimes($, 3)
+  expect(await asksFor($, c, PLAIN)).toBe(3)
+})
+
+test('classify fail: a settled answer resets the counter', async ($, on) => {
+  const c = await bootCls($, on, {
+    reply: n => (n === 3 ? 'chat' : boom()),
+  })
+  await failTimes($, 5)
+  expect(c.toasts).toEqual([])
+  expect(c.asks).toHaveLength(5)
+})
+
+test('classify pause: still paused one ms before the cooldown ends', async (
+  $, on) => {
+  const c = await bootCls($, on, { reply: boom })
+  await failTimes($, 3)
+  await c.clock.advance(PAUSE_MS - 1)
+  expect(await asksFor($, c, PLAIN)).toBe(3)
+})
+
+test('classify pause: resumes when the cooldown ends', async ($, on) => {
+  const c = await bootCls($, on, { reply: boom })
+  await failTimes($, 3)
+  await c.clock.advance(PAUSE_MS)
+  expect(await asksFor($, c, PLAIN)).toBe(4)
+})
+
+test('classify pause: the marker clears when it ends', async ($, on) => {
+  const c = await bootCls($, on, { reply: boom })
+  await failTimes($, 3)
+  await c.clock.advance(PAUSE_MS)
+  await typed($, '/status')
+  expect(c.status[c.status.length - 1]).not.toContain('paused')
+})
+
+test('classify pause: /clear keeps it', async ($, on) => {
+  const c = await bootCls($, on, { reply: boom })
+  await failTimes($, 3)
+  await clearSession($)
+  expect(await asksFor($, c, PLAIN)).toBe(3)
+})
+
+test('classify pause: /route reload clears it', async ($, on) => {
+  const c = await bootCls($, on, { reply: boom })
+  await failTimes($, 3)
+  await route($, 'reload')
+  expect(await asksFor($, c, PLAIN)).toBe(4)
+})
+
+// ---- sample ---
+
+test('classify sample: 2000 code points are sent whole', async ($, on) => {
+  const c = await bootCls($, on)
+  const text = 'é'.repeat(2000)
+  await typed($, text)
+  expect(c.asks[0]?.text).toBe(text)
+})
+
+test('classify sample: a longer text is cut to head and tail', async (
+  $, on) => {
+  const c = await bootCls($, on)
+  await typed($, 'H'.repeat(600) + 'M'.repeat(1000) + 'T'.repeat(1500))
+  expect(c.asks[0]?.text).toBe('H'.repeat(500) + 'T'.repeat(1500))
+})
+
+test('classify sample: a cut never leaves a lone surrogate', async (
+  $, on) => {
+  const c = await bootCls($, on)
+  await typed($, '😀'.repeat(2400))
+  const sent = c.asks[0]?.text ?? ''
+  expect(sent.isWellFormed()).toBe(true)
+  expect(Array.from(sent)).toHaveLength(2000)
+})
+
+// ---- no dialog, config, visibility ---
+
+test('classify: no dialog and no file write on a classified prompt', async (
+  $, on) => {
+  const c = await bootCls($, on, { world: newWorld({ ask: true }) })
+  await typed($, PLAIN)
+  expect(c.asks).toHaveLength(1)
+  expect(c.world.asked).toEqual([])
+  expect(c.world.written).toEqual([])
+})
+
+test('classify config: an invalid value keeps the default on', async (
+  $, on) => {
+  const c = await bootCls($, on, {
+    world: newWorld({ home: { classify: 'yes' } }),
+  })
+  expect(await asksFor($, c, PLAIN)).toBe(1)
+})
+
+test('classify config: an invalid value is logged once', async ($, on) => {
+  const c = await bootCls($, on, {
+    world: newWorld({ home: { classify: 'yes' } }),
+  })
+  await route($, 'reload')
+  const said = c.logs.filter(l => l.includes('"classify" is not a boolean'))
+  expect(said).toHaveLength(1)
+})
+
+test('classify config: /route show prints classify: on', async ($, on) => {
+  await bootCls($, on)
+  expect(await route($, 'show')).toContain('classify: on')
+})
+
+test('classify config: /route classify off prints classify: off', async (
+  $, on) => {
+  await bootCls($, on)
+  expect(await route($, 'classify off')).toContain('classify: off')
+})
+
+test('classify config: a bad toggle argument prints the usage', async (
+  $, on) => {
+  await bootCls($, on)
+  expect(await route($, 'classify maybe')).toBe('usage: /route classify on|off')
+})
+
+test('classify config: the toggle survives a rebuild', async ($, on) => {
+  const c = await bootCls($, on)
+  await route($, 'classify off')
+  expect(await route($, 'reload')).toContain('classify: off')
+  expect(await asksFor($, c, PLAIN)).toBe(0)
+})
+
+test('classify config: /route is refused from a plugin origin', async (
+  $, on) => {
+  await bootCls($, on)
+  const out = await $.command.run({
+    command: 'route',
+    args: 'classify off',
+    origin: { kind: 'plugin', name: 'x' },
+    presentation: { isFullscreen: false, columns: 80 },
+  })
+  expect(out.text).toContain('user-only')
+})
+
+test('classify visibility: the status line reads classifier <phase>', async (
+  $, on) => {
+  const c = await bootCls($, on, { reply: () => 'analysis' })
+  await typed($, PLAIN)
+  expect(c.status[c.status.length - 1]).toContain('route: classifier reflect')
+})
+
+test('classify visibility: verbose says (reflect: classifier)', async (
+  $, on) => {
+  const c = await bootCls($, on, { reply: () => 'analysis', verbose: true })
+  await runStep($, { ...highStep(), effort: 'low' as const })
+  await typed($, PLAIN)
+  await runStep($, { ...highStep(), effort: 'low' as const })
+  expect(c.logs).toContain(
+    mainWord('fable/low', 'fable/high', 'reflect: classifier'))
+})
+
+test('classify: a repeated undefined label never pauses', async ($, on) => {
+  const c = await bootCls($, on, { reply: () => undefined })
+  await failTimes($, 3)
+  expect(c.asks).toHaveLength(3)
+  expect(c.toasts).toEqual([])
+  expect(c.status.some(l => l.includes('paused'))).toBe(false)
+})
+
+test('classify: /route advertises classify on|off in its hint', async (
+  $, on) => {
+  const hints: unknown[] = []
+  on('command.register', (_$, e) => {
+    hints.push(e.argumentHint)
+    return { value: { command: e.name } }
+  })
+  await bootCls($, on)
+  expect(hints.join('\n')).toContain('classify on|off')
 })
