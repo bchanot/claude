@@ -1,0 +1,144 @@
+{
+  "phases": {
+    "plan": {
+      "tier": "best",
+      "effort": "xhigh"
+    },
+    "reflect": {
+      "tier": "best",
+      "effort": "high"
+    },
+    "orchestrate": {
+      "tier": "best",
+      "effort": "medium"
+    },
+    "escalate": {
+      "tier": "best",
+      "effort": "max"
+    },
+    "judge": {
+      "tier": "big",
+      "effort": "xhigh"
+    },
+    "implement": {
+      "tier": "work",
+      "effort": "medium"
+    },
+    "write": {
+      "tier": "work",
+      "effort": "high"
+    },
+    "verify": {
+      "tier": "work",
+      "effort": "xhigh"
+    },
+    "explore": {
+      "tier": "work",
+      "effort": "medium"
+    },
+    "apply": {
+      "tier": "work",
+      "effort": "low"
+    },
+    "mechanical": {
+      "tier": "cheap",
+      "effort": "low"
+    }
+  },
+  "skills": {
+    "ship-feature": "plan",
+    "init-project": "plan",
+    "onboard": "plan",
+    "tour": "plan",
+    "audit-delta": "plan",
+    "analyze": "plan",
+    "code-clean": "plan",
+    "client-handover": "plan",
+    "brainstorming": "plan",
+    "writing-plans": "plan",
+    "requesting-code-review": "plan",
+    "21st-ui-review": "plan",
+    "feat": "reflect",
+    "hotfix": "reflect",
+    "bugfix": "reflect",
+    "refactor": "reflect",
+    "web-validate": "reflect",
+    "harden": "reflect",
+    "seo": "reflect",
+    "geo": "reflect",
+    "site-motion": "reflect",
+    "frontend-design": "reflect",
+    "emil-design-eng": "reflect",
+    "design-motion-principles": "reflect",
+    "21st-ui-build": "reflect",
+    "scroll-world-storytelling": "reflect",
+    "build-threejs-scroll-worlds": "reflect",
+    "scroll-scrubbed-visual-sequence": "reflect",
+    "scroll-scrubbed-word-reveal": "reflect",
+    "scroll-progress-timeline": "reflect",
+    "subagent-driven-development": "reflect",
+    "writing-skills": "reflect",
+    "deprecation-and-migration": "reflect",
+    "21st-ai": "reflect",
+    "21st-ui-explore": "reflect",
+    "gitflow": "implement",
+    "prune-memory": "implement",
+    "pdf-translate": "implement",
+    "ci-cd-and-automation": "implement",
+    "observability-and-instrumentation": "implement",
+    "test-driven-development": "implement",
+    "commit-change": "apply",
+    "release-candidate": "apply",
+    "doc": "apply",
+    "capitalize": "apply",
+    "close": "apply",
+    "reconcile": "apply",
+    "deploy": "apply",
+    "status": "mechanical",
+    "profile": "mechanical",
+    "plugin-check": "mechanical",
+    "skills-perso": "mechanical",
+    "using-git-worktrees": "mechanical",
+    "21st-cli-use": "mechanical",
+    "21st-registry": "mechanical",
+    "21st-design-sync": "mechanical"
+  },
+  "agents": {
+    "Explore": "explore",
+    "Plan": "judge",
+    "plan-challenger": "judge",
+    "plugin-advisor": "judge",
+    "seo-analyzer": "judge",
+    "geo-analyzer": "judge",
+    "analyzer": "judge",
+    "feater": "implement",
+    "bugfixer": "implement",
+    "code-cleaner": "implement",
+    "scaffolder": "implement",
+    "onboarder": "implement",
+    "commit-changer": "write",
+    "doc-syncer": "write",
+    "handover-doc-writer": "write",
+    "refactorer": "write",
+    "hotfixer": "apply",
+    "release-executor": "apply",
+    "plugin-probe": "apply",
+    "validator-analyzer": "apply",
+    "verifier": "verify",
+    "security-auditor": "verify",
+    "status-reporter": "mechanical"
+  },
+  "projects": {},
+  "confirmed": {
+    "agents": {
+      "verifier": "verify",
+      "feater": "implement"
+    },
+    "phases": {
+      "verify": "verify",
+      "implement": "implement"
+    }
+  },
+  "changed": {},
+  "ask": true
+}

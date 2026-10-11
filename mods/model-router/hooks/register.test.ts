@@ -1,5 +1,5 @@
 import { test, expect, mock } from 'claude-code/testing'
-import type { Engine, MockClock } from 'claude-code/testing'
+import type { Engine, MockClock, Plugin } from 'claude-code/testing'
 import type { On, TurnStepInput } from 'claude-code'
 
 const FABLE = 'claude-fable-5-1'
@@ -7,17 +7,202 @@ const OPUS = 'claude-opus-5-5'
 const SONNET = 'claude-sonnet-5-5'
 const HAIKU = 'claude-haiku-4-5-20251001'
 
+type Rec = Record<string, unknown>
+type Asked = { text: string; options: string[]; header: string }
+
+const HOME = '/home/t'
+const HOME_FILE = `${HOME}/.claude/model-router.json`
+const ROOT = '/work/app'
+const REAL_ROOT = '/real/work/app'
+const REMOTE = 'https://github.com/acme/app.git'
+const KEY = 'github.com/acme/app'
+const REJECT = '<rejected>' // an answer the dialog never gets: headless
+
+/** What the bottom `fs`, `env`, `session.repo` and dialog hooks serve. */
+type World = {
+  files: Map<string, string> // 'routing' (routing.json) or a full path
+  reads: string[] // every path fs.read got
+  written: string[] // every path fs.write got
+  asked: Asked[] // the dialogs, in order
+  answers: string[] // queued dialog answers (REJECT = headless)
+  gate: Promise<void> | undefined // holds a dialog open until it settles
+  writeGate: Promise<void> | undefined // holds an fs.write open
+  failWrite: boolean // fs.write rejects
+  onAsk: (() => void) | undefined // called when a dialog opens
+  onWrite: (() => void) | undefined // called when an fs.write starts
+  repo: { root: string; remote: string | null } | null | 'fail'
+}
+
+type Fixture = {
+  ask?: boolean // routing.json `ask` (default false: no dialog)
+  edit?: (file: Rec) => void // tweaks the inline routing.json
+  routing?: 'absent' | 'broken'
+  home?: Rec | 'broken' // ~/.claude/model-router.json
+  answers?: string[]
+  repo?: World['repo']
+}
+
+/**
+ * The phases as shipped and the rows the tests use; the real table is
+ * locked by the census.
+ */
+const baseRouting = (): Rec => ({
+  phases: {
+    plan: { tier: 'best', effort: 'xhigh' },
+    reflect: { tier: 'best', effort: 'high' },
+    orchestrate: { tier: 'best', effort: 'medium' },
+    escalate: { tier: 'best', effort: 'max' },
+    judge: { tier: 'big', effort: 'xhigh' },
+    implement: { tier: 'work', effort: 'medium' },
+    write: { tier: 'work', effort: 'high' },
+    verify: { tier: 'work', effort: 'xhigh' },
+    explore: { tier: 'work', effort: 'medium' },
+    apply: { tier: 'work', effort: 'low' },
+    mechanical: { tier: 'cheap', effort: 'low' },
+  },
+  skills: {
+    feat: 'reflect',
+    status: 'mechanical',
+    gitflow: 'implement',
+    'using-git-worktrees': 'mechanical',
+  },
+  agents: {
+    Explore: 'explore',
+    'plan-challenger': 'judge',
+    feater: 'implement',
+    verifier: 'verify',
+  },
+  projects: {},
+  confirmed: {},
+  changed: {},
+  ask: false,
+})
+
+function newWorld(fx: Fixture = {}): World {
+  const file = baseRouting()
+  file.ask = fx.ask ?? false
+  fx.edit?.(file)
+  const files = new Map<string, string>()
+  if (fx.routing === 'broken') files.set('routing', '{nope')
+  else if (fx.routing !== 'absent') {
+    files.set('routing', JSON.stringify(file, null, 2))
+  }
+  if (fx.home !== undefined) {
+    files.set(HOME_FILE,
+      fx.home === 'broken' ? '{nope' : JSON.stringify(fx.home))
+  }
+  return {
+    files,
+    reads: [],
+    written: [],
+    asked: [],
+    answers: [...(fx.answers ?? [])],
+    gate: undefined,
+    writeGate: undefined,
+    failWrite: false,
+    onAsk: undefined,
+    onWrite: undefined,
+    repo: fx.repo === undefined ? { root: ROOT, remote: REMOTE } : fx.repo,
+  }
+}
+
+const slot = (path: string): string =>
+  path.endsWith('/routing.json') ? 'routing' : path
+
+/** routing.json as the world holds it now. */
+const routingOf = (w: World): Rec =>
+  JSON.parse(w.files.get('routing') ?? '{}') as Rec
+
+/**
+ * A path-aware fs, HOME, project root and repo: the kit has none (an fs call
+ * no hook answers is refused, never sent to the disk: see "writes: kit").
+ */
+function installWorld(on: On, w: World): void {
+  on('env.get', () => ({ value: HOME }))
+  on('fs.exists', (_a, e) => ({
+    value: w.files.has(slot(e.path)) || e.path === ROOT,
+  }))
+  on('fs.stat', (_a, e) => {
+    const text = w.files.get(slot(e.path))
+    if (text === undefined && e.path !== ROOT) throw new Error('ENOENT')
+    return {
+      value: {
+        kind: text === undefined ? 'dir' as const : 'file' as const,
+        size: text?.length ?? 0,
+        mtimeMs: 0,
+        isLink: false,
+        ...(e.resolve ? { realPath: REAL_ROOT } : {}),
+      },
+    }
+  })
+  on('fs.read', (_a, e) => {
+    w.reads.push(e.path)
+    const text = w.files.get(slot(e.path))
+    if (text === undefined) throw new Error('ENOENT')
+    return { value: text }
+  })
+  installWrite(on, w)
+  on('session.root', () => ({ value: ROOT }))
+  on('session.repo', () => {
+    if (w.repo === 'fail') throw new Error('no repo')
+    return { value: w.repo === null ? null : {
+      ...w.repo, internal: false, name: null,
+    } }
+  })
+  on('classic.CwdChanged', () => ({}))
+  installDialog(on, w)
+}
+
+/**
+ * The world's fs.write. Loud: a write anywhere but the routing.json the mod
+ * read fails the test (never a project tree, never the machine override).
+ */
+function installWrite(on: On, w: World): void {
+  on('fs.write', async (_a, e) => {
+    expect(slot(e.path) === 'routing' && w.reads.includes(e.path),
+      `the world never served ${e.path}`).toBe(true)
+    w.written.push(e.path)
+    w.onWrite?.()
+    await w.writeGate
+    if (w.failWrite) throw new Error('EACCES')
+    w.files.set(slot(e.path), e.text)
+    return { value: undefined }
+  })
+}
+
+/** The AskUserQuestion tool beneath `$.ui.ask`: records, then answers. */
+function installDialog(on: On, w: World): void {
+  on('tool.call', { tool: 'AskUserQuestion' }, async (_a, e) => {
+    const q = (e as unknown as { questions: Rec[] }).questions[0] ?? {}
+    const options = (q.options as { label: string }[] | undefined) ?? []
+    w.asked.push({
+      text: String(q.question),
+      options: options.map(o => o.label),
+      header: String(q.header),
+    })
+    w.onAsk?.()
+    await w.gate
+    const answer = w.answers.shift() ?? REJECT
+    if (answer === REJECT) return { deny: 'no one to ask' }
+    return { result: {
+      questions: e.questions, answers: { [String(q.question)]: answer },
+    } } as never
+  })
+}
+
 /**
  * Fires session.start so the mod loads its config and registers /route.
  * The bottom hooks the router reads are in place before the first `$` call:
  * the session model, the classic failure and switch events, a mock clock,
- * a small context (`tokens`; null = usage unanswered, size unknown).
+ * a small context (`tokens`; null = usage unanswered, size unknown), and
+ * the `world` (fs, repo, dialog) serving an inline routing.json.
  */
 async function boot(
   $: Engine,
   on: On,
   model: string = FABLE,
   tokens: number | null = 1000,
+  world: World = newWorld(),
 ): Promise<MockClock> {
   const clock = mock.clock(on)
   on('session.model', () => ({ value: model }))
@@ -25,6 +210,7 @@ async function boot(
   on('classic.PostModelSwitch', () => ({}))
   on('skill.prompt', ($, e) => ({ text: e.text }))
   on('agent.offer', () => ({ isOffered: true }))
+  installWorld(on, world)
   if (tokens !== null) usageOf(on, tokens)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
   await $.session.start({ cwd: '/tmp', surface: null, isInteractive: false })
@@ -364,8 +550,8 @@ test('floor: the route answer names the floor over a sticky', async (
   expect(text).toContain('/route clear')
 })
 
-// `enabled: false` in ~/.claude/model-router.json cannot be reached here (the
-// kit has no fs); the shared off path is covered through `/route off`.
+// `enabled: false` in ~/.claude/model-router.json has its own layers test;
+// this one covers the shared off path through `/route off`.
 test('floor: /route off keeps the floor from routing', async ($, on) => {
   const seen = await bootFloor($, on)
   await ultrathink($)
@@ -383,7 +569,7 @@ test('per axis: a model-only sticky keeps the turn route effort', async (
 })
 
 // The config-driven `offConfig` is re-applied in the same rebuild; only the
-// session-only off is reachable here (the kit has no fs).
+// session-only off is reached here (the config-driven one has its own test).
 test('session.end rebuild drops a session-only /route off', async (
   $, on) => {
   on('session.end', ($, e) => ({ sessionId: e.sessionId }))
@@ -397,11 +583,13 @@ test('session.end rebuild drops a session-only /route off', async (
   expect(await route($, 'show')).toContain('router: on')
 })
 
-// The kit has no fs: the reload read fails, so the previous cfg must stay.
+// The override breaks after the first load: the previous cfg must stay.
 test('reload with an unreadable override keeps the previous config', async (
   $, on) => {
-  await boot($, on)
+  const world = newWorld({ home: {} })
+  await boot($, on, FABLE, 1000, world)
   await route($, 'switch on')
+  world.files.set(HOME_FILE, '{nope')
   const out = await route($, 'reload')
   expect(out).toContain('switch: on')
   expect(await route($, 'show')).toContain('switch: on')
@@ -419,6 +607,7 @@ async function bootRig(
   on: On,
   model: string = FABLE,
   tokens: number | null = 1000,
+  world: World = newWorld(),
 ): Promise<Rig> {
   const seen: Seen[] = []
   const specs: (string | undefined)[] = []
@@ -438,7 +627,7 @@ async function bootRig(
       outputFile: '/tmp/o',
     },
   }))
-  const clock = await boot($, on, model, tokens)
+  const clock = await boot($, on, model, tokens, world)
   return { seen, clock, specs }
 }
 
@@ -787,11 +976,16 @@ const loadSkill = ($: Engine, skill: string, agentId?: string) =>
   })
 
 /** bootRig plus a bottom Skill tool, so a model-loaded skill goes through. */
-async function bootRun($: Engine, on: On, model: string = FABLE) {
+async function bootRun(
+  $: Engine,
+  on: On,
+  model: string = FABLE,
+  world: World = newWorld(),
+) {
   on('tool.call', { tool: 'Skill' }, () => ({
     result: { success: true, commandName: 'bottom' },
   }))
-  return bootRig($, on, model)
+  return bootRig($, on, model, 1000, world)
 }
 
 const spawnOf = (agent: string, extra: object = {}) =>
@@ -1060,13 +1254,8 @@ test('agent row: a project definition keeps its own model', async ($, on) => {
 })
 
 test('agent row: an override null drops the row', async ($, on) => {
-  on('env.get', () => ({ value: '/home/t' }))
-  on('fs.exists', () => ({ value: true }))
-  on('fs.stat', () => ({
-    value: { kind: 'file' as const, size: 40, mtimeMs: 0, isLink: false },
-  }))
-  on('fs.read', () => ({ value: '{"agents":{"verifier":null}}' }))
-  const rig = await bootRun($, on)
+  const world = newWorld({ home: { agents: { verifier: null } } })
+  const rig = await bootRun($, on, FABLE, world)
   await $.agent.spawn(spawnOf('verifier'))
   await $.agent.spawn(spawnOf('feater'))
   expect(rig.specs).toEqual([undefined, SONNET])
@@ -1227,4 +1416,1128 @@ test('spawning: a finished spawn no longer counts as a live loop', async (
   await typed($, 'hello')
   await skillPrompt($, 'status')
   expect(mainLine(await route($, 'show'))).toContain('skill mechanical')
+})
+
+// ---- wave 3-A: routing.json layers ---------------------------------------
+
+/** A ui.toast recorder, same shape as recordLogs. */
+function recordToasts(on: On): string[] {
+  const lines: string[] = []
+  on('ui.toast', async ($, e, next) => {
+    lines.push(e.text)
+    try {
+      await next(e)
+    } catch {
+      // nothing implements ui.toast below the recorder in the kit
+    }
+  })
+  return lines
+}
+
+const projectRows = (agents: Rec, key: string = KEY) => (file: Rec) => {
+  file.projects = { [key]: { agents } }
+}
+
+/** The model a `feater` spawn reaches the bottom hook with. */
+async function featerModel($: Engine, rig: Rig): Promise<string | undefined> {
+  await $.agent.spawn(spawnOf('feater'))
+  return rig.specs[rig.specs.length - 1]
+}
+
+test('layers: routing.json rows route a spawn', async ($, on) => {
+  const rig = await bootRun($, on)
+  expect(await featerModel($, rig)).toBe(SONNET)
+})
+
+test('layers: a projects[key] row beats the routing.json row', async (
+  $, on) => {
+  const w = newWorld({ edit: projectRows({ feater: 'judge' }) })
+  const rig = await bootRun($, on, FABLE, w)
+  expect(await featerModel($, rig)).toBe(OPUS)
+})
+
+test('layers: another repo key leaves the routing.json row', async (
+  $, on) => {
+  const w = newWorld({ edit: projectRows({ feater: 'judge' }, 'other/repo') })
+  const rig = await bootRun($, on, FABLE, w)
+  expect(await featerModel($, rig)).toBe(SONNET)
+})
+
+test('layers: the machine override beats the project row', async (
+  $, on) => {
+  const w = newWorld({
+    edit: projectRows({ feater: 'judge' }),
+    home: { agents: { feater: 'mechanical' } },
+  })
+  const rig = await bootRun($, on, FABLE, w)
+  expect(await featerModel($, rig)).toBe(HAIKU)
+})
+
+test('layers: a .claude/model-router.json in the project is never read', async (
+  $, on) => {
+  const w = newWorld()
+  const tree = `${ROOT}/.claude/model-router.json`
+  w.files.set(tree, '{"agents":{"feater":"judge"}}')
+  const rig = await bootRun($, on, FABLE, w)
+  expect(await featerModel($, rig)).toBe(SONNET)
+  expect(w.reads).not.toContain(tree)
+})
+
+test('layers: the machine override\'s ask:false is honored', async (
+  $, on) => {
+  const w = newWorld({ ask: true, home: { ask: false } })
+  await bootRun($, on, FABLE, w)
+  await typed($, '/feat x')
+  await skillPrompt($, 'feat')
+  expect(w.asked).toEqual([])
+})
+
+test('layers: a row on a phase the table lacks is ignored, logged', async (
+  $, on) => {
+  const logs = recordLogs(on)
+  const w = newWorld({
+    edit: f => { (f.agents as Rec).feater = 'ghost' },
+  })
+  const rig = await bootRun($, on, FABLE, w)
+  expect(await featerModel($, rig)).toBeUndefined()
+  expect(logs.join('\n')).toContain('config agents.feater ignored')
+})
+
+test('layers: an invalid routing.json phase falls back by name', async (
+  $, on) => {
+  const logs = recordLogs(on)
+  const w = newWorld({
+    edit: f => { f.phases = { reflect: { tier: 'nope' } } },
+  })
+  await bootRun($, on, FABLE, w)
+  const text = await route($, 'show')
+  expect(text).toContain('reflect=best→claude-fable-5-1/high')
+  expect(logs.join('\n')).toContain('config phases.reflect ignored')
+})
+
+test('layers: a valid routing.json phase replaces the default', async (
+  $, on) => {
+  const w = newWorld({
+    edit: f => { f.phases = { reflect: { tier: 'work', effort: 'low' } } },
+  })
+  await bootRun($, on, FABLE, w)
+  const text = await route($, 'show')
+  expect(text).toContain('reflect=work→claude-sonnet-5-5/low')
+})
+
+test('layers: a routing.json phase gone missing falls back, logged', async (
+  $, on) => {
+  const logs = recordLogs(on)
+  const w = newWorld({ edit: f => { delete (f.phases as Rec).reflect } })
+  await bootRun($, on, FABLE, w)
+  expect(await route($, 'show')).toContain('reflect=best→claude-fable-5-1/high')
+  expect(logs.filter(l => l.includes('lacks phases'))).toEqual([
+    'model-router: routing.json lacks phases reflect; code defaults kept',
+  ])
+})
+
+test('layers: a row may name a phase only the override defines', async (
+  $, on) => {
+  const logs = recordLogs(on)
+  const w = newWorld({
+    edit: f => {
+      ;(f.skills as Rec).feat = 'custom'
+      projectRows({ feater: 'custom' })(f)
+    },
+    home: { phases: { custom: { tier: 'cheap', effort: 'low' } } },
+  })
+  const rig = await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  expect(await mainNow($)).toContain('skill custom')
+  expect(await featerModel($, rig)).toBe(HAIKU)
+  expect(logs.join('\n')).not.toContain('ignored')
+})
+
+test('layers: show names routing.json as the config', async ($, on) => {
+  await bootRun($, on)
+  expect(await route($, 'show')).toContain('config: routing.json')
+})
+
+test('layers: first load skips a broken override, keeps routing.json', async (
+  $, on) => {
+  const logs = recordLogs(on)
+  const w = newWorld({ home: 'broken' })
+  const rig = await bootRun($, on, FABLE, w)
+  expect(await featerModel($, rig)).toBe(SONNET)
+  expect(logs.join('\n')).toContain('model-router.json unreadable')
+})
+
+test('layers: a later broken override keeps the whole previous config', async (
+  $, on) => {
+  const w = newWorld({ home: { agents: { feater: 'mechanical' } } })
+  const rig = await bootRun($, on, FABLE, w)
+  w.files.set(HOME_FILE, '{nope')
+  expect(await route($, 'reload')).toContain('config reloaded')
+  expect(await featerModel($, rig)).toBe(HAIKU)
+})
+
+test('layers: a routing.json gone missing keeps the previous config', async (
+  $, on) => {
+  const w = newWorld()
+  const rig = await bootRun($, on, FABLE, w)
+  w.files.delete('routing')
+  await route($, 'reload')
+  expect(await featerModel($, rig)).toBe(SONNET)
+})
+
+test('layers: routing.json unreadable at start means defaults, no rows', async (
+  $, on) => {
+  const logs = recordLogs(on)
+  const w = newWorld({ routing: 'broken', ask: true })
+  const rig = await bootRun($, on, FABLE, w)
+  expect(await featerModel($, rig)).toBeUndefined()
+  expect(await route($, 'show')).toContain('plan=best→claude-fable-5-1/xhigh')
+  const said = logs.filter(l => l.includes('routing.json unreadable'))
+  expect(said).toHaveLength(1)
+})
+
+test('layers: routing.json missing at start logs once, no rows', async (
+  $, on) => {
+  const logs = recordLogs(on)
+  const w = newWorld({ routing: 'absent' })
+  const rig = await bootRun($, on, FABLE, w)
+  expect(await featerModel($, rig)).toBeUndefined()
+  expect(logs.filter(l => l.includes('routing.json missing'))).toHaveLength(1)
+})
+
+test('layers: session toggles survive a rebuild', async ($, on) => {
+  await bootRun($, on)
+  await route($, 'switch on')
+  await route($, 'verbose on')
+  const out = await route($, 'reload')
+  expect(out).toContain('switch: on')
+  expect(out).toContain('verbose: on')
+})
+
+test('layers: /clear keeps the config, the next prompt re-reads it', async (
+  $, on) => {
+  on('session.end', ($, e) => ({ sessionId: e.sessionId }))
+  const w = newWorld()
+  const rig = await bootRun($, on, FABLE, w)
+  await clearOf($)
+  const before = w.reads.length
+  expect(await featerModel($, rig)).toBe(SONNET)
+  expect(w.reads.length).toBe(before)
+  const file = routingOf(w)
+  projectRows({ feater: 'judge' })(file)
+  w.files.set('routing', JSON.stringify(file))
+  await typed($, 'hello')
+  expect(await featerModel($, rig)).toBe(OPUS)
+})
+
+test('layers: /clear swaps nothing when the re-read fails', async ($, on) => {
+  on('session.end', ($, e) => ({ sessionId: e.sessionId }))
+  const w = newWorld()
+  const rig = await bootRun($, on, FABLE, w)
+  await clearOf($)
+  w.files.delete('routing')
+  await typed($, 'hello')
+  expect(await featerModel($, rig)).toBe(SONNET)
+})
+
+test('layers: a state that never saw session.start loads on first use', async (
+  $, on) => {
+  const w = newWorld()
+  installWorld(on, w)
+  on('agent.offer', () => ({ isOffered: true }))
+  const specs: (string | undefined)[] = []
+  on('agent.spawn', ($, e) => {
+    specs.push(e.model)
+    return { model: e.model ?? e.parentModel, agentId: 'a1' }
+  })
+  await $.agent.spawn(spawnOf('feater'))
+  expect(specs).toEqual([SONNET])
+})
+
+test('layers: a cwd change re-reads the layers for the new repo', async (
+  $, on) => {
+  const w = newWorld({
+    edit: projectRows({ feater: 'judge' }, 'github.com/o/two'),
+  })
+  const rig = await bootRun($, on, FABLE, w)
+  expect(await featerModel($, rig)).toBe(SONNET)
+  w.repo = { root: '/work/two', remote: 'git@GitHub.com:o/two.git' }
+  await $.classic.CwdChanged({ old_cwd: ROOT, new_cwd: '/work/two' })
+  expect(await featerModel($, rig)).toBe(OPUS)
+})
+
+test('layers: no remote gives no project key, no local: string', async (
+  $, on) => {
+  const w = asks(['implement', 'This project only'],
+    { repo: { root: ROOT, remote: null } })
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  expect(w.asked[1]?.options).toEqual(['Everywhere', 'Later'])
+  expect(w.written).toEqual([])
+  expect(w.files.get('routing')).not.toContain('local:')
+  expect(w.files.get('routing')).not.toContain(REAL_ROOT)
+})
+
+test('layers: a failing repo read skips only the project layer', async (
+  $, on) => {
+  const w = newWorld({ edit: projectRows({ feater: 'judge' }), repo: 'fail' })
+  const rig = await bootRun($, on, FABLE, w)
+  expect(await featerModel($, rig)).toBe(SONNET)
+})
+
+test('layers: a remote with credentials keys without them', async ($, on) => {
+  const w = newWorld({
+    edit: projectRows({ feater: 'judge' }),
+    repo: { root: ROOT, remote: 'https://me:tok@GitHub.com/acme/app/' },
+  })
+  const rig = await bootRun($, on, FABLE, w)
+  expect(await featerModel($, rig)).toBe(OPUS)
+})
+
+/** The project keys "This project only" stores for a remote. */
+async function keyedBy($: Engine, on: On, remote: string) {
+  const w = asks(['implement', 'This project only'],
+    { repo: { root: ROOT, remote } })
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  return { w, keys: Object.keys(routingOf(w).projects as Rec) }
+}
+
+for (const bad of [
+  'https://user:p@ss@Host.com/a/b.git',
+  'https://user:pa/ss@host/a/b.git',
+]) {
+  test(`layers: credentials never become a key: ${bad}`, async ($, on) => {
+    const { w, keys } = await keyedBy($, on, bad)
+    expect(keys).toEqual([])
+    expect(w.asked[1]?.options).toEqual(['Everywhere', 'Later'])
+    expect(w.files.get('routing')).not.toContain('ss@')
+  })
+}
+
+/** Remotes each rejected by exactly one guard of normalizeRemote. */
+for (const [guard, bad] of [
+  ['path @', 'https://user:12/ss@host/a/b.git'],
+  ['empty host', 'file:///srv/git/app.git'],
+  ['host [@:]', 'https://[::1]/a/b'],
+  ['non-URL', 'https:host/a/b'],
+  ['non-URL', 'weird remote'],
+] as const) {
+  test(`layers: ${guard} guard rejects ${bad}`, async ($, on) => {
+    const { w, keys } = await keyedBy($, on, bad)
+    expect(keys).toEqual([])
+    expect(w.asked[1]?.options).toEqual(['Everywhere', 'Later'])
+    expect(w.files.get('routing')).not.toContain('/srv/')
+    expect(w.files.get('routing')).not.toContain('ss@')
+  })
+}
+
+for (const [remote, key] of [
+  ['https://tok@host/a/b', 'host/a/b'],
+  ['git@github.com:acme/app.git', KEY],
+  [REMOTE, KEY],
+] as const) {
+  test(`layers: ${remote} keys as ${key}`, async ($, on) => {
+    expect((await keyedBy($, on, remote)).keys).toEqual([key])
+  })
+}
+
+// ---- wave 3-A: first-use dialog -------------------------------------------
+
+/** A world with dialogs on and the answers queued. */
+const asks = (answers: string[], fx: Fixture = {}) =>
+  newWorld({ ask: true, answers, ...fx })
+
+/** The user types /feat; the engine then loads the skill's prompt. */
+async function typeFeat($: Engine): Promise<void> {
+  await typed($, '/feat add a thing')
+  await skillPrompt($, 'feat')
+}
+
+const mainNow = async ($: Engine) => mainLine(await route($, 'show'))
+const confirmedOf = (w: World): Rec => routingOf(w).confirmed as Rec
+
+test('T1: a typed skill asks once, with the real id and effort', async (
+  $, on) => {
+  const w = asks(['Later'])
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  expect(w.asked).toHaveLength(1)
+  const first = w.asked[0] as Asked
+  expect(first.text).toContain('/feat')
+  expect(first.text).toContain('claude-fable-5-1 at high')
+  expect(first.options).toEqual(['Later', 'Keep', 'plan', 'implement'])
+  expect(first.header).toBe('model-router')
+})
+
+test('T1: the question follows the model main will really run on', async (
+  $, on) => {
+  const w = asks(['Later'])
+  await bootRun($, on, SONNET, w)
+  await typeFeat($)
+  expect(w.asked[0]?.text).toContain('claude-fable-5-1 at high')
+})
+
+test('T1: Keep writes the row and its phase, then the skill never asks', async (
+  $, on) => {
+  const w = asks(['Keep'])
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  expect(confirmedOf(w)).toEqual({
+    skills: { feat: 'reflect' },
+    phases: { reflect: 'reflect' },
+  })
+  await typeFeat($)
+  expect(w.asked).toHaveLength(1)
+})
+
+test('T1: Keep leaves the route as it was', async ($, on) => {
+  await bootRun($, on, FABLE, asks(['Keep']))
+  await typeFeat($)
+  expect(await mainNow($)).toContain('skill reflect')
+})
+
+test('T1: an alt then Everywhere rewrites the row and routes at once', async (
+  $, on) => {
+  const w = asks(['implement', 'Everywhere'])
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  const file = routingOf(w)
+  expect((file.skills as Rec).feat).toBe('implement')
+  expect((file.changed as Rec).skills).toEqual({
+    feat: { from: 'reflect', to: 'implement' },
+  })
+  expect(confirmedOf(w).skills).toEqual({ feat: 'implement' })
+  expect(await mainNow($)).toContain('skill implement')
+})
+
+test('T1: the scope question names the two scopes', async ($, on) => {
+  const w = asks(['implement', 'Later'])
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  expect(w.asked[1]?.options).toEqual(['Everywhere', 'This project only'])
+})
+
+test('T1: This project only writes the exception, not the row', async (
+  $, on) => {
+  const w = asks(['implement', 'This project only'])
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  const file = routingOf(w)
+  expect((file.skills as Rec).feat).toBe('reflect')
+  expect(file.projects).toEqual({ [KEY]: { skills: { feat: 'implement' } } })
+  expect(file.changed).toEqual({})
+  expect(confirmedOf(w).skills).toEqual({ feat: 'reflect' })
+  expect(await mainNow($)).toContain('skill implement')
+})
+
+test('T1: after a project exception no other project asks', async ($, on) => {
+  const w = asks(['implement', 'This project only'])
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  w.repo = { root: '/work/two', remote: 'https://github.com/acme/two.git' }
+  await $.classic.CwdChanged({ old_cwd: ROOT, new_cwd: '/work/two' })
+  await typeFeat($)
+  expect(w.asked).toHaveLength(2)
+  expect(await mainNow($)).toContain('skill reflect')
+})
+
+/** /clear: a new conversation, the config kept and re-read at the prompt. */
+function clearOf($: Engine) {
+  return $.session.end({
+    reason: 'clear',
+    sessionId: 's1',
+    resume: { id: 's1' },
+  })
+}
+
+test('T1: a second change keeps the first shipped phase in changed', async (
+  $, on) => {
+  on('session.end', ($, e) => ({ sessionId: e.sessionId }))
+  const w = asks(['implement', 'Everywhere', 'apply', 'Everywhere'])
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  const file = routingOf(w)
+  ;(file.confirmed as Rec).skills = {}
+  w.files.set('routing', JSON.stringify(file))
+  await clearOf($)
+  await typeFeat($)
+  expect(((routingOf(w).changed as Rec).skills as Rec).feat).toEqual({
+    from: 'reflect',
+    to: 'apply',
+  })
+})
+
+test('T1: a free-text phase counts as an alt', async ($, on) => {
+  const w = asks(['apply', 'Everywhere'])
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  expect((routingOf(w).skills as Rec).feat).toBe('apply')
+})
+
+test('T1: a free-text answer equal to the current phase is a Keep', async (
+  $, on) => {
+  const w = asks(['reflect'])
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  expect(confirmedOf(w).skills).toEqual({ feat: 'reflect' })
+  expect(w.asked).toHaveLength(1)
+})
+
+test('T1: Later applies the default, writes nothing, asks no more', async (
+  $, on) => {
+  const w = asks(['Later'])
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  await typeFeat($)
+  expect(w.written).toEqual([])
+  expect(w.asked).toHaveLength(1)
+  expect(await mainNow($)).toContain('skill reflect')
+})
+
+test('T1: a dismissed dialog is a Later', async ($, on) => {
+  const w = asks([REJECT])
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  await typeFeat($)
+  expect(w.written).toEqual([])
+  expect(w.asked).toHaveLength(1)
+  expect(await mainNow($)).toContain('skill reflect')
+})
+
+test('T1: an unknown phase is a Later and says so', async ($, on) => {
+  const toasts = recordToasts(on)
+  const w = asks(['banana'])
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  expect(w.written).toEqual([])
+  expect(toasts.join('\n')).toContain('unknown phase "banana"')
+  expect(await mainNow($)).toContain('skill reflect')
+})
+
+test('T1: a scope answer that is not a label is a Later', async ($, on) => {
+  const w = asks(['implement', 'whenever'])
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  expect(w.written).toEqual([])
+  expect(await mainNow($)).toContain('skill reflect')
+})
+
+test('T1: without a repo key only Everywhere is offered', async ($, on) => {
+  const w = asks(['implement', 'This project only'], { repo: 'fail' })
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  expect(w.asked[1]?.options).toEqual(['Everywhere', 'Later'])
+  expect(w.written).toEqual([])
+})
+
+test('T1: the model\'s own Skill call never asks', async ($, on) => {
+  const w = asks(['Keep'])
+  await bootRun($, on, FABLE, w)
+  await loadSkill($, 'feat')
+  expect(w.asked).toEqual([])
+})
+
+test('T1: a skill without a row never asks', async ($, on) => {
+  const w = asks(['Keep'])
+  await bootRun($, on, FABLE, w)
+  await typed($, '/other')
+  await skillPrompt($, 'other')
+  expect(w.asked).toEqual([])
+})
+
+test('T1: a project row counts as decided', async ($, on) => {
+  const w = asks(['Keep'], {
+    edit: f => { f.projects = { [KEY]: { skills: { feat: 'plan' } } } },
+  })
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  expect(w.asked).toEqual([])
+  expect(await mainNow($)).toContain('skill plan')
+})
+
+test('T1: a machine override row counts as decided', async ($, on) => {
+  const w = asks(['Keep'], { home: { skills: { feat: 'plan' } } })
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  expect(w.asked).toEqual([])
+})
+
+test('T1: another session\'s decision is seen before the dialog', async (
+  $, on) => {
+  const w = asks(['Keep'])
+  await bootRun($, on, FABLE, w)
+  const file = routingOf(w)
+  file.confirmed = { skills: { feat: 'reflect' } }
+  w.files.set('routing', JSON.stringify(file))
+  await typeFeat($)
+  expect(w.asked).toEqual([])
+})
+
+test('T1: `ask` turned off elsewhere is seen before the dialog', async (
+  $, on) => {
+  const w = asks(['Keep'])
+  await bootRun($, on, FABLE, w)
+  const file = routingOf(w)
+  file.ask = false
+  w.files.set('routing', JSON.stringify(file))
+  await typeFeat($)
+  expect(w.asked).toEqual([])
+})
+
+test('T1: a row edited by hand after a Keep asks again', async ($, on) => {
+  on('session.end', ($, e) => ({ sessionId: e.sessionId }))
+  const w = asks(['Keep', 'Later'])
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  const file = routingOf(w)
+  ;(file.skills as Rec).feat = 'plan'
+  w.files.set('routing', JSON.stringify(file))
+  await clearOf($)
+  await typeFeat($)
+  expect(w.asked).toHaveLength(2)
+})
+
+test('T1: ask false asks nothing', async ($, on) => {
+  const w = newWorld({ answers: ['Keep'] })
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  expect(w.asked).toEqual([])
+})
+
+test('T1: the router off asks nothing', async ($, on) => {
+  const w = asks(['Keep'])
+  await bootRun($, on, FABLE, w)
+  await route($, 'off')
+  await typeFeat($)
+  expect(w.asked).toEqual([])
+})
+
+test('T1: routing.json unreadable at the dialog asks nothing', async (
+  $, on) => {
+  const w = asks(['Keep'])
+  await bootRun($, on, FABLE, w)
+  w.files.delete('routing')
+  await typeFeat($)
+  expect(w.asked).toEqual([])
+  expect(await mainNow($)).toContain('skill reflect')
+})
+
+test('T3: routing.json unreadable at the dialog asks nothing', async (
+  $, on) => {
+  const w = asks(['Keep'], { routing: 'broken' })
+  await bootRun($, on, FABLE, w)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'orchestrate' })
+  expect(w.asked).toEqual([])
+})
+
+test('T1: a failed write applies the default, key left unasked', async (
+  $, on) => {
+  const logs = recordLogs(on)
+  const w = asks(['Keep', 'Later'])
+  await bootRun($, on, FABLE, w)
+  w.failWrite = true
+  await typeFeat($)
+  expect(await mainNow($)).toContain('skill reflect')
+  expect(logs.join('\n')).toContain('first-use dialog failed')
+  w.failWrite = false
+  await typeFeat($)
+  expect(w.asked).toHaveLength(2)
+})
+
+const failures = (logs: string[]): string[] =>
+  logs.filter(l => l.includes('first-use dialog failed'))
+
+test('T1: two failed writes log the failure once', async ($, on) => {
+  const logs = recordLogs(on)
+  const w = asks(['Keep', 'Keep'])
+  await bootRun($, on, FABLE, w)
+  w.failWrite = true
+  await typeFeat($)
+  await typeFeat($)
+  expect(w.asked).toHaveLength(2)
+  expect(failures(logs)).toHaveLength(1)
+})
+
+test('T1: a rebuild failing after the write leaves the key unasked', async (
+  $, on) => {
+  const logs = recordLogs(on)
+  const w = asks(['implement', 'Everywhere'])
+  await bootRun($, on, FABLE, w)
+  w.onWrite = () => { w.files.set(HOME_FILE, '{nope') }
+  await typeFeat($)
+  expect((routingOf(w).skills as Rec).feat).toBe('implement')
+  expect(await mainNow($)).toContain('skill reflect')
+  const pending = (await route($, 'pending')).split('\n')
+  expect(pending[1]).toBe('asked this session: none')
+  expect(failures(logs)).toHaveLength(1)
+  expect(failures(logs)[0]).toContain('rebuild failed after the write')
+})
+
+test('T1: a Keep toasts that routing.json changed', async ($, on) => {
+  const toasts = recordToasts(on)
+  await bootRun($, on, FABLE, asks(['Keep']))
+  await typeFeat($)
+  expect(toasts.join('\n')).toContain('routing.json updated: commit it')
+})
+
+test('writes: only routing.json, 2-space, keys in the documented order', async (
+  $, on) => {
+  const w = asks(['Keep'])
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  expect(w.written).toHaveLength(1)
+  expect(w.written[0]).toMatch(/\/mods\/model-router\/routing\.json$/)
+  expect(w.files.get('routing')).toMatch(/^\{\n {2}"phases"/)
+  expect(Object.keys(routingOf(w))).toEqual([
+    'phases', 'skills', 'agents', 'projects', 'confirmed', 'changed', 'ask',
+  ])
+})
+
+test('writes: a missing routing.json is never created', async ($, on) => {
+  const w = newWorld({ routing: 'absent' })
+  await bootRun($, on, FABLE, w)
+  const out = await route($, 'ask off')
+  expect(out).toContain('missing or unreadable')
+  expect(w.written).toEqual([])
+})
+
+test('writes: two writers on one file both land', async ($, on) => {
+  const w = asks(['Keep'])
+  await bootRun($, on, FABLE, w)
+  const held = deferred()
+  const seen = deferred()
+  w.writeGate = held.gate
+  w.onWrite = seen.release
+  const first = typeFeat($)
+  await seen.gate
+  w.onWrite = undefined
+  const second = route($, 'ask off')
+  await new Promise(r => setTimeout(r, 20)) // let a second writer start
+  held.release()
+  await first
+  await second
+  expect(routingOf(w).ask).toBe(false)
+  expect(confirmedOf(w).skills).toEqual({ feat: 'reflect' })
+})
+
+test('writes: the route tool never writes', async ($, on) => {
+  const w = newWorld()
+  await bootRun($, on, FABLE, w)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'plan' })
+  await $.tool.call({ tool: ROUTE_TOOL, effort: 'low' })
+  expect(w.written).toEqual([])
+})
+
+/** An alt answer, then `scope`: the world after the typed /feat. */
+async function changeFeat($: Engine, on: On, scope: string) {
+  const w = asks(['implement', scope])
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  return w
+}
+
+test('writes: an Everywhere change is one write', async ($, on) => {
+  const w = await changeFeat($, on, 'Everywhere')
+  expect(w.written).toHaveLength(1)
+  const file = routingOf(w)
+  expect((file.skills as Rec).feat).toBe('implement')
+  expect((file.changed as Rec).skills).toEqual({
+    feat: { from: 'reflect', to: 'implement' },
+  })
+  expect(confirmedOf(w).skills).toEqual({ feat: 'implement' })
+})
+
+test('writes: a This project only change is one write', async ($, on) => {
+  const w = await changeFeat($, on, 'This project only')
+  expect(w.written).toHaveLength(1)
+  const file = routingOf(w)
+  expect(file.projects).toEqual({ [KEY]: { skills: { feat: 'implement' } } })
+  expect(confirmedOf(w).skills).toEqual({ feat: 'reflect' })
+})
+
+/** Rebuilds the fixture in reverse key order: `ask` first, `phases` last. */
+function reverseKeys(file: Rec): void {
+  const copy = { ...file }
+  for (const key of Object.keys(copy)) delete file[key]
+  for (const key of Object.keys(copy).reverse()) file[key] = copy[key]
+}
+
+test('writes: an out-of-order routing.json is written back in order', async (
+  $, on) => {
+  const w = asks(['Keep'], { edit: reverseKeys })
+  expect(Object.keys(routingOf(w))).toEqual([
+    'ask', 'changed', 'confirmed', 'projects', 'agents', 'skills', 'phases',
+  ])
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  expect(w.written).toHaveLength(1)
+  expect(Object.keys(routingOf(w))).toEqual([
+    'phases', 'skills', 'agents', 'projects', 'confirmed', 'changed', 'ask',
+  ])
+})
+
+test('writes: an output over the cap is refused: a Later', async ($, on) => {
+  const toasts = recordToasts(on)
+  const pad = (f: Rec) => {
+    f.pad = 'x'.repeat(65536 - JSON.stringify(f, null, 2).length - 60)
+  }
+  const w = asks(['Keep'], { edit: pad })
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  expect(toasts.join('\n')).toContain(
+    'routing.json would exceed 65536 bytes: nothing saved')
+  expect(w.written).toEqual([])
+})
+
+const NOTHING_SAVED = 'routing.json is missing or unreadable: nothing saved'
+
+test('writes: routing.json gone at the save: a Later, kept asked', async (
+  $, on) => {
+  const toasts = recordToasts(on)
+  const w = asks(['Keep', 'Keep'])
+  await bootRun($, on, FABLE, w)
+  const saved = w.files.get('routing') ?? ''
+  w.onAsk = () => { w.files.delete('routing') }
+  await typeFeat($)
+  expect(toasts).toContain(NOTHING_SAVED)
+  expect(w.written).toEqual([])
+  expect(w.files.has('routing')).toBe(false)
+  expect(await mainNow($)).toContain('skill reflect')
+  w.onAsk = undefined
+  w.files.set('routing', saved)
+  await typeFeat($)
+  expect(w.asked).toHaveLength(1)
+  const pending = (await route($, 'pending')).split('\n')
+  expect(pending[1]).toBe('asked this session: skills:feat')
+})
+
+// The kit has no disk: an fs.write no hook answers, or whose mock throws
+// (the engine skips a failing hook), is refused by the kit's bottom. The
+// probe aims at /home/t, where nothing can be created: a real write would
+// fail there with a disk error, not this one.
+const REFUSED = 'no implementation for fs.write'
+
+/** An inline plugin: `/probe <path>` says what `$.fs.write` did. */
+const PROBE: Plugin = {
+  name: 'fs-probe',
+  register: on => {
+    on('command.run', { command: 'probe' }, async ($, e) => {
+      try {
+        await $.fs.write(e.args, 'x')
+        return { text: 'written' }
+      } catch (err) {
+        return { text: String(err) }
+      }
+    })
+  },
+}
+
+const probe = async ($: Engine): Promise<string> => (await $.command.run({
+  command: 'probe',
+  args: `${HOME}/never-written.json`,
+  origin: { kind: 'composer' },
+  presentation: { isFullscreen: false, columns: 80 },
+})).text ?? ''
+
+test('writes: kit: an fs.write no hook answers is refused', {
+  plugins: [PROBE],
+}, async $ => {
+  expect(await probe($)).toContain(REFUSED)
+})
+
+test('writes: kit: a throwing fs.write mock lands on the same refusal', {
+  plugins: [PROBE],
+}, async ($, on) => {
+  on('fs.write', () => {
+    throw new Error('EACCES')
+  })
+  expect(await probe($)).toContain(REFUSED)
+})
+
+// ---- wave 3-A: T2 agent spawns, T3 route tool ----------------------------
+
+test('T2: a rowed spawn asks with the model and effort it will get', async (
+  $, on) => {
+  const w = asks(['Later'])
+  await bootRun($, on, FABLE, w)
+  await $.agent.spawn(spawnOf('feater'))
+  const q = w.asked[0] as Asked
+  expect(q.text).toContain('First dispatch of feater')
+  expect(q.text).toContain('claude-sonnet-5-5 at medium')
+  expect(q.options).toEqual(['Later', 'Keep', 'judge', 'verify'])
+})
+
+test('T2: the question carries an explicit effort param', async ($, on) => {
+  const w = asks(['Later'])
+  await bootRun($, on, FABLE, w)
+  await $.tool.call({
+    tool: 'Agent',
+    description: 'd',
+    prompt: 'p',
+    effort: 'low',
+    tool_use_id: 't1',
+  })
+  await $.agent.spawn(spawnOf('feater'))
+  expect(w.asked[0]?.text).toContain('claude-sonnet-5-5 at low')
+})
+
+test('T2: Keep writes the agent row and the spawn goes on', async ($, on) => {
+  const w = asks(['Keep'])
+  const rig = await bootRun($, on, FABLE, w)
+  await $.agent.spawn(spawnOf('feater'))
+  expect(confirmedOf(w)).toEqual({
+    agents: { feater: 'implement' },
+    phases: { implement: 'implement' },
+  })
+  expect(rig.specs).toEqual([SONNET])
+  await $.agent.spawn(spawnOf('feater'))
+  expect(w.asked).toHaveLength(1)
+})
+
+test('T2: a change routes this very spawn with the new row', async (
+  $, on) => {
+  const w = asks(['judge', 'Everywhere'])
+  const rig = await bootRun($, on, FABLE, w)
+  await $.agent.spawn(spawnOf('feater'))
+  expect(rig.specs).toEqual([OPUS])
+})
+
+test('T2: an explicit model param never asks', async ($, on) => {
+  const w = asks(['Keep'])
+  await bootRun($, on, FABLE, w)
+  await $.agent.spawn(spawnOf('feater', { model: 'opus' }))
+  expect(w.asked).toEqual([])
+})
+
+test('T2: a spawn inside an agent never asks', async ($, on) => {
+  const w = asks(['Keep'])
+  const rig = await bootRun($, on, FABLE, w)
+  await $.agent.spawn(spawnOf('feater', { parentAgentId: 'a9' }))
+  expect(w.asked).toEqual([])
+  expect(rig.specs).toEqual([SONNET])
+})
+
+test('T2: a project-defined agent never asks', async ($, on) => {
+  const w = asks(['Keep'])
+  await bootRun($, on, FABLE, w)
+  await offerOf($, 'verifier', 'projectSettings')
+  await $.agent.spawn(spawnOf('verifier'))
+  expect(w.asked).toEqual([])
+})
+
+test('T2: an agent without a row never asks', async ($, on) => {
+  const w = asks(['Keep'])
+  await bootRun($, on, FABLE, w)
+  await $.agent.spawn(spawnOf('stranger'))
+  expect(w.asked).toEqual([])
+})
+
+test('T2: a parallel spawn of the same agent is routed unasked', async (
+  $, on) => {
+  const w = asks(['Keep'])
+  const rig = await bootRun($, on, FABLE, w)
+  const held = deferred()
+  const open = deferred()
+  w.gate = held.gate
+  w.onAsk = open.release
+  const owner = $.agent.spawn(spawnOf('feater'))
+  await open.gate
+  await $.agent.spawn(spawnOf('feater'))
+  expect(rig.specs).toEqual([SONNET])
+  held.release()
+  await owner
+  expect(w.asked).toHaveLength(1)
+  expect(rig.specs).toEqual([SONNET, SONNET])
+})
+
+test('T2: a parallel spawn of another agent is routed unasked', async (
+  $, on) => {
+  const w = asks(['Keep'])
+  const rig = await bootRun($, on, FABLE, w)
+  const held = deferred()
+  const open = deferred()
+  w.gate = held.gate
+  w.onAsk = open.release
+  const owner = $.agent.spawn(spawnOf('feater'))
+  await open.gate
+  await $.agent.spawn(spawnOf('plan-challenger'))
+  expect(rig.specs).toEqual([OPUS])
+  held.release()
+  await owner
+  expect(w.asked).toHaveLength(1)
+})
+
+test('T2: the unasked agent is asked at its next use', async ($, on) => {
+  const w = asks(['Keep', 'Keep'])
+  const rig = await bootRun($, on, FABLE, w)
+  const held = deferred()
+  const open = deferred()
+  w.gate = held.gate
+  w.onAsk = open.release
+  const owner = $.agent.spawn(spawnOf('feater'))
+  await open.gate
+  await $.agent.spawn(spawnOf('plan-challenger'))
+  held.release()
+  await owner
+  w.gate = undefined
+  await $.agent.spawn(spawnOf('plan-challenger'))
+  expect(w.asked).toHaveLength(2)
+  expect(rig.specs).toEqual([OPUS, SONNET, OPUS])
+})
+
+test('T3: a phase declared through the route tool asks Keep or Later', async (
+  $, on) => {
+  const w = asks(['Later'])
+  await bootRun($, on, FABLE, w)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'orchestrate' })
+  const q = w.asked[0] as Asked
+  expect(q.text).toContain('First use of orchestrate on the main loop')
+  expect(q.text).toContain('claude-fable-5-1 at medium')
+  expect(q.options).toEqual(['Later', 'Keep'])
+})
+
+test('T3: Keep endorses the phase in routing.json', async ($, on) => {
+  const w = asks(['Keep'])
+  await bootRun($, on, FABLE, w)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'orchestrate' })
+  expect(confirmedOf(w)).toEqual({ phases: { orchestrate: 'orchestrate' } })
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'orchestrate' })
+  expect(w.asked).toHaveLength(1)
+})
+
+test('T3: no change is offered, a phase name answer is a Later', async (
+  $, on) => {
+  const w = asks(['plan'])
+  await bootRun($, on, FABLE, w)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'orchestrate' })
+  expect(w.written).toEqual([])
+  expect(await mainNow($)).toContain('model orchestrate')
+})
+
+test('T3: a phase endorsed by a skill Keep is not asked again', async (
+  $, on) => {
+  const w = asks(['Keep'])
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'reflect' })
+  expect(w.asked).toHaveLength(1)
+})
+
+test('T3: an effort-only call never asks', async ($, on) => {
+  const w = asks(['Keep'])
+  await bootRun($, on, FABLE, w)
+  await $.tool.call({ tool: ROUTE_TOOL, effort: 'low' })
+  expect(w.asked).toEqual([])
+})
+
+test('T3: a route call inside an agent never asks', async ($, on) => {
+  const w = asks(['Keep'])
+  await bootRun($, on, FABLE, w)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'judge', agentId: 'a1' })
+  expect(w.asked).toEqual([])
+})
+
+test('a step never opens a dialog', async ($, on) => {
+  const w = asks(['Keep'])
+  const rig = await bootRig($, on, FABLE, 1000, w)
+  await runStep($, highStep())
+  expect(w.asked).toEqual([])
+  expect(rig.seen).toHaveLength(1)
+})
+
+// ---- wave 3-A: /route pending, ask, reload -------------------------------
+
+test('/route pending lists what is not confirmed, asked first', async (
+  $, on) => {
+  const w = asks(['Later'])
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  const lines = (await route($, 'pending')).split('\n')
+  expect(lines[0]).toBe('pending confirmation: 19')
+  expect(lines[1]).toBe('asked this session: skills:feat')
+  expect(lines[2]).toContain('agents:feater')
+  expect(lines[2]).toContain('phases:plan')
+  expect(lines[2]).not.toContain('skills:feat')
+})
+
+test('/route pending drops a confirmed row', async ($, on) => {
+  const w = asks(['Keep'])
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  const text = await route($, 'pending')
+  expect(text).toContain('pending confirmation: 17')
+  expect(text).not.toContain('phases:reflect')
+})
+
+test('/route ask off writes the flag and silences the dialog', async (
+  $, on) => {
+  const w = asks(['Keep'])
+  await bootRun($, on, FABLE, w)
+  expect(await route($, 'ask off')).toContain('ask off')
+  expect(routingOf(w).ask).toBe(false)
+  await typeFeat($)
+  expect(w.asked).toEqual([])
+})
+
+test('/route ask on turns the dialog back on', async ($, on) => {
+  const w = newWorld({ answers: ['Later'] })
+  await bootRun($, on, FABLE, w)
+  await route($, 'ask on')
+  expect(routingOf(w).ask).toBe(true)
+  await typeFeat($)
+  expect(w.asked).toHaveLength(1)
+})
+
+test('/route ask names a machine override that wins', async ($, on) => {
+  const w = newWorld({ home: { ask: false } })
+  await bootRun($, on, FABLE, w)
+  expect(await route($, 'ask on')).toContain('sets ask off and wins')
+})
+
+test('/route ask wants on or off', async ($, on) => {
+  const w = newWorld()
+  await bootRun($, on, FABLE, w)
+  expect(await route($, 'ask maybe')).toContain('usage: /route ask on|off')
+  expect(w.written).toEqual([])
+})
+
+test('/route ask refuses a user-less origin like the rest of /route', async (
+  $, on) => {
+  const w = newWorld()
+  await bootRun($, on, FABLE, w)
+  const out = await $.command.run({
+    command: 'route',
+    args: 'ask off',
+    origin: { kind: 'plugin', name: 'x' },
+    presentation: { isFullscreen: false, columns: 80 },
+  })
+  expect(out.text).toContain('user-only')
+  expect(w.written).toEqual([])
+})
+
+test('/route reload re-reads routing.json and the override', async (
+  $, on) => {
+  const w = newWorld()
+  const rig = await bootRun($, on, FABLE, w)
+  expect(await featerModel($, rig)).toBe(SONNET)
+  const file = routingOf(w)
+  ;(file.agents as Rec).feater = 'judge'
+  w.files.set('routing', JSON.stringify(file))
+  w.files.set(HOME_FILE, '{"agents":{"verifier":"mechanical"}}')
+  await route($, 'reload')
+  expect(await featerModel($, rig)).toBe(OPUS)
+  await $.agent.spawn(spawnOf('verifier'))
+  expect(rig.specs[rig.specs.length - 1]).toBe(HAIKU)
+})
+
+test('layers: enabled:false in the override survives /clear', async (
+  $, on) => {
+  on('session.end', ($, e) => ({ sessionId: e.sessionId }))
+  const w = newWorld({ home: { enabled: false } })
+  const rig = await bootRun($, on, FABLE, w)
+  expect(await route($, 'show')).toContain('router: off (config)')
+  await clearOf($)
+  expect(await route($, 'show')).toContain('router: off (config)')
+  expect(await featerModel($, rig)).toBeUndefined()
 })
