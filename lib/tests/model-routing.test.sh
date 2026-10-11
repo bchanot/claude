@@ -21,7 +21,7 @@ done
 has "agents/feater.md"          'model: sonnet'
 has "agents/hotfixer.md"        'model: sonnet'
 has "agents/verifier.md"        'model: sonnet'
-has "agents/security-auditor.md" 'model: sonnet'
+has "agents/security-auditor.md" 'model: opus'  # judge row since 2026-10-11 (user first-use decision)
 has "agents/analyzer.md"        'model: opus'
 # 4) /feat executor shape
 has "skills/feat/SKILL.md" 'subagent_type="feater"'
