@@ -145,14 +145,16 @@
       "verifier": "verify",
       "feater": "implement",
       "doc-syncer": "write",
-      "security-auditor": "judge"
+      "security-auditor": "judge",
+      "plan-challenger": "judge"
     },
     "phases": {
       "verify": "verify",
       "implement": "implement",
       "write": "write",
       "orchestrate": "orchestrate",
-      "escalate": "escalate"
+      "escalate": "escalate",
+      "judge": "judge"
     }
   },
   "changed": {
