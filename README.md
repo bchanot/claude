@@ -83,7 +83,8 @@ inherits silently: typed agents run on their model-router row, their
 | Agent | Model | Tier |
 |---|---|---|
 | feater, hotfixer, bugfixer | sonnet (pinned) | executors — code from a closed plan (feat), fix from a closed diagnosis (bugfix), fix-bundle appliers |
-| verifier, security-auditor | sonnet (pinned) | fresh gates (≤3×/loop) |
+| verifier | sonnet (pinned) | fresh gate (≤3×/loop) |
+| security-auditor | opus (judge row: opus/xhigh, the user's first-use decision; frontmatter floor aligned) | fresh gate (≤3×/loop) |
 | commit-changer, release-executor, code-cleaner | sonnet (pinned) | dispatched execution — grouping+commit / release spans / approved cleanup (audit + approval gates stay in the dispatcher) |
 | onboarder, scaffolder, refactorer, validator-analyzer, plugin-probe | sonnet (pinned) | workers — config generation, scaffold, refactor, deterministic W3C/WCAG runner, mechanical plugin probe |
 | status-reporter | haiku (pinned) | mechanical collector |
@@ -104,14 +105,17 @@ children are dispatched `model:"fable"` (they carry reflection).
 ## Effort routing (BDR-107, BDR-108)
 
 Second axis of the same table: how hard each phase thinks. Session default
-`high`. The model-router mod (below) holds the live source: one phase row
-per repo skill and agent, each phase naming a tier and an effort level
+`high`. The live source is `mods/model-router/routing.json`, tracked with the
+model-router mod (below): the phase table and one phase row per repo skill
+and agent, each phase naming a tier and an effort level
 (`plan` best/xhigh, `reflect` best/high, `orchestrate` best/medium,
 `escalate` best/max, `judge` big/xhigh, `implement` work/medium, `write`
 work/high, `verify` work/xhigh, `explore` work/medium, `apply` work/low,
 `mechanical` cheap/low). The `model:` and `effort:` frontmatter of every
 typed agent and user-invoked skill stays as the off-state floor, kept equal
-to the rows by the census `lib/tests/effort-routing.test.sh`: low
+to the rows by the census `lib/tests/effort-routing.test.sh` (a row
+changed through the first-use dialog passes with a `WARN floor drift` line
+until its frontmatter follows): low
 appliers, medium executors, high writers, xhigh judgment and gates (none
 on haiku, which rejects the parameter); `/status` low … `/ship-feature`
 xhigh. The vendored externals (design stack, superpowers, agent-skills,
@@ -131,10 +135,12 @@ effort, never version. Transcript audit `python3 lib/effort-audit.py`.
 - Main loop: every request gets the route in force. A typed skill with a row routes the main loop to it; a best-tier row (`plan`, `reflect`, `orchestrate`, `escalate`) holds across turns in a run slot until `/route clear`, `/route off`, a user `/model` or a typed skill on a non-best row. A skill without a row leaves the route as it is.
 - Sub-agents: a routed agent gets its row's model at spawn, within its tier and only upward from its frontmatter model, and the row's effort on every step. Explicit `model` / `effort` params on the Agent call win; a project-defined agent of the same name keeps its own definition. Built-ins: Explore runs on sonnet/medium, Plan on opus/xhigh.
 - Levers inside a run: `ultrathink` in a prompt sets the turn's minimum effort; `/route effort=max` holds until `/route clear`. The built-in `/effort` is not a lever inside a run, rows and routes outrank it.
-- `/route` (user command) shows or sets the route: `show`, `clear`, `off`, `on`, `reload`, a phase name, `model=<alias|id> effort=<level>`, `switch on|off`, `verbose on|off`. `/route show` names the run slot when one holds (`main: run <phase>`). The model sets routes through a `route` tool.
+- `/route` (user command) shows or sets the route: `show`, `clear`, `off`, `on`, `reload`, `pending` (rows and phases not confirmed yet), `ask on|off` (first-use dialog on or off), `forget <name|all|projects>` (takes decisions back: a changed row returns to its shipped phase; `all` and `projects` ask first), a phase name, `model=<alias|id> effort=<level>`, `switch on|off`, `verbose on|off`. `/route show` names the run slot when one holds (`main: run <phase>`). The model sets routes through a `route` tool.
+- First use: the first time a rowed skill is typed, a rowed agent is spawned or a phase is declared on the main loop through the `route` tool, the mod asks once whether the route is right. The question gives context: the skill's description (first sentence of its `SKILL.md` frontmatter) or the agent's, the phase with its `about` line, and the model id and effort the next step really runs on; a declared phase also says what uses it (rows, prompt rules). A row offers Later, Keep or Change; a declared phase offers Later or Keep. Change asks the model (fable, opus, sonnet, haiku, each shown with the tier it heads), then the effort among those the phases on that model use (shipped table: fable medium, high, xhigh or max; sonnet low, medium, high or xhigh; opus and haiku have one level each, so no question), then Everywhere or This project only. Rows stay phase names, so the pair maps to an existing phase: the row's current phase wins a tie and the same phase counts as Keep; a pair no phase offers needs a new phase added by hand in routing.json. Everywhere moves the row and records the shipped phase under `changed`; This project only stores an exception under `projects`, keyed by the origin remote reduced to `host/path` (no credentials, no local paths; a remote that cannot be read that way offers no project choice). Keep lands under `confirmed`; Later, a dismissed dialog or a free-text answer asks again next session. After a skill row changes, a toast names the model and effort that skill now runs on, plus the `/route switch on` hint when the main loop holds back a downgrade. One dialog at a time, never in a headless (`-p`) run, never inside a sub-agent.
+- Only a dialog answer, `/route ask on|off` or `/route forget` writes `routing.json`, never the model. Writes are serialized, capped at 64 KiB, and refused when the file is missing (it is never created). Each write leaves the config repo dirty; a toast reminds you to commit it from there.
 - The spinner suffix and the status line under the prompt show the route in force.
 
-Optional per-machine config: `~/.claude/model-router.json`. Keys: `models` (alias → full id), `windows` (context window per full id), `phases`, `agents`, `skills`, `prompt` (rules), `mainModelSwitch` (default `false`), `verbose` (default `false`), `spinner` (default `true`), `enabled` (default `true`; `false` turns the mod off on that machine). A `null` value in `agents` or `skills` drops a default row. `/route reload` re-reads it.
+Config layers: `mods/model-router/routing.json` (tracked: phases with their tier, effort and `about` line, rows, decisions, `ask`), then the optional per-machine `~/.claude/model-router.json`, which wins. A `.claude/model-router.json` inside a project is never read. Machine keys: `models` (alias → full id), `windows` (context window per full id), `tiers` (ordered alias lists per tier: `best` fable>opus>sonnet, `big` opus>fable>sonnet, `work` sonnet>opus, `cheap` haiku>sonnet; the first alias not down is used), `fallback` (the rank order of the aliases, best first, used by the breaker), `cooldownMinutes` (how long a model stays marked down after an availability error, 15 by default, doubling per episode up to 300), `mainUpgrade` (default `true`: the main loop may move up to a phase's tier), `upgradeMaxTokens` (default 200000: no main-loop upgrade above this context size, since an upgrade re-reads the whole context cold), `phases`, `agents`, `skills`, `prompt` (rules), `mainModelSwitch` (default `false`), `verbose` (default `false`), `spinner` (default `true`), `enabled` (default `true`; `false` turns the mod off on that machine), `ask` (overrides routing.json's `ask` on that machine). A `null` value in `agents` or `skills` drops a row. Edit phases and rows by hand in routing.json (a phase's `about`, 120 characters at most, is read from there only and shown in the dialog; a model and effort pair no phase offers needs a new phase there); without it the mod runs the code's default phases, with no rows and no dialog. `/route reload` re-reads both files.
 
 Limits: the main loop changes model only with `mainModelSwitch` on, and each switch into another model costs one cold-cache step. The hooks send full model ids, so the `models` table has to follow new model versions.
 
@@ -228,7 +234,7 @@ a different package, ships its own conflicting `graphify` bin) — see
 | `/profile` | Activate a skill profile (web / seo / web-full / full / max / backend / design / dev / qa / audit / minimal) (default: full) |
 | `/tour` | Grouped all-axes sweep — cleanup + security + reconcile + doc, fix and loop until clean |
 | `/site-motion` | Site-level motion: scroll engine choice, page transitions, pin/scrub sequencing across a page or Astro route (design stack) |
-| `/route` | model-router mod: show or set the main-loop route (show, clear, off, on, reload, <phase>, model=… effort=…, switch on\|off, verbose on\|off) |
+| `/route` | model-router mod: show or set the main-loop route (show, clear, off, on, reload, pending, ask on\|off, <phase>, model=… effort=…, switch on\|off, verbose on\|off) |
 
 > This table lists personal skills. Gstack skills (investigate, review, retro,
 > office-hours, cso…) and marketplace plugins add many more — run

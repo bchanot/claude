@@ -1,9 +1,10 @@
 // model-router: routes each model request (main loop and sub-agents) to the
 // model and effort its phase deserves. Phases name a TIER (an ordered list of
 // aliases, the first available wins); a circuit breaker fed by the engine's
-// own failure events marks a model down for a while. Phases, agents, skills
-// and prompt rules come from DEFAULT_CONFIG, overridable by
-// ~/.claude/model-router.json.
+// own failure events marks a model down for a while. Phases, skill and agent
+// rows come from routing.json (tracked next to this mod; the first use of a
+// row asks the user once, see "first use" below), the rest from
+// DEFAULT_CONFIG; ~/.claude/model-router.json overrides both per machine.
 // One writer per concern: the Agent tool's own params are never rewritten,
 // the spawn hook sets an agent's model once, turn.step sets efforts.
 import type { EngineInterface, On, Register, TurnStepInput } from 'claude-code'
@@ -61,6 +62,7 @@ type State = {
   pendingAllowed: boolean // same, for the mid-turn prompt
   spawning: number // agent.spawn hooks in flight (preloads fire inside)
   offers: Map<string, string> // subagentType -> definition source
+  descs: Map<string, string> // subagentType -> cleaned one-sentence offer line
   loops: Map<string, Loop> // agentId -> that loop's routing
   explicitEffort: Map<string, Level> // Agent tool_use_id -> effort param
   skillCalls: number // Skill tool calls in flight
@@ -77,6 +79,14 @@ type State = {
   logged: Set<string> // session-once log lines
   turnLogged: Set<string> // turn-once log lines
   warned: Set<string> // hooks whose fail-open was already logged
+  mem: Memory // what routing.json says about decisions, as last read
+  override: Rec | undefined // the machine override's data, if it loaded
+  loaded: boolean // the layers were read once (else: lazily, on first use)
+  rebuildDue: boolean // /clear: re-read the layers at the next prompt
+  toggles: { switch?: boolean; verbose?: boolean } // session toggles
+  asking: string | null // key of the one first-use dialog in flight
+  asked: Set<string> // keys answered (or failed) this session
+  writes: Promise<unknown> // the serialized routing.json write chain
 }
 type Log = (text: string) => void
 type StepIn = Readonly<TurnStepInput>
@@ -91,6 +101,21 @@ type Picked = { phase: string; route: Route }
 type Effort = StepIn['effort']
 type EffortBy = 'floor' | 'sticky' | 'turn' | 'engine'
 type Decision = { effort: Effort; by: EffortBy }
+type Rec = Record<string, unknown>
+type Table = Record<string, string>
+type Row = 'skills' | 'agents' // a table of rows in routing.json
+type Kind = Row | 'phases' // what a first-use decision is about
+/** What routing.json says about decisions, as last read. */
+type Memory = {
+  ok: boolean // the file was read: false = no dialog, no write
+  ask: boolean // dialogs on (the machine override wins over the file)
+  askLocal: boolean | undefined // the machine override's own `ask`
+  base: Record<Row, Table> // the file's rows, before any project layer
+  confirmed: Record<Kind, Table> // name -> the phase a Keep endorsed
+  about: Table // phase -> its one-line meaning, shown in the dialog only
+  local: Record<Row, Set<string>> // rows of projects[key] or the override
+  key: string | undefined // normalized repo key; undefined = no project layer
+}
 
 const LEVELS: readonly Level[] = ['low', 'medium', 'high', 'xhigh', 'max']
 const MODEL_ID = /^claude-[a-z0-9.-]+$/
@@ -109,6 +134,24 @@ const USER_SWITCH: ReadonlySet<string> = new Set([
   'command', 'picker', 'sdk',
 ])
 const OVERRIDE = '.claude/model-router.json'
+const ROUTING = 'routing.json' // next to plugin.json: the tracked source
+// Key order of a written routing.json; other keys follow, untouched.
+const ROUTING_ORDER: readonly string[] = [
+  'phases', 'skills', 'agents', 'projects', 'confirmed', 'changed', 'ask',
+]
+// First-use dialog: the answers, and what a question may carry of the outside.
+const LATER = 'Later'
+const KEEP = 'Keep'
+const CHANGE = 'Change'
+const EVERYWHERE = 'Everywhere'
+const THIS_PROJECT = 'This project only'
+const CHOICE_ALIASES: readonly string[] = ['fable', 'opus', 'sonnet', 'haiku']
+const MAX_DESC = 140 // chars of a skill or agent description in a question
+const MAX_ABOUT = 120 // chars of a phase `about`
+const MAX_DESCS = 256 // agent descriptions kept (oldest dropped)
+const SKILL_NAME = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/
+const ROWS: readonly Row[] = ['skills', 'agents']
+const KINDS: readonly Kind[] = ['skills', 'agents', 'phases']
 const HAIKU = 'claude-haiku'
 const MAX_PATTERN = 200 // chars of a prompt-rule pattern
 const MAX_PROMPT_SCAN = 4096 // chars of a prompt a rule is run against
@@ -157,63 +200,10 @@ const DEFAULT_CONFIG: Config = {
     apply: { tier: 'work', effort: 'low' },
     mechanical: { tier: 'cheap', effort: 'low' },
   },
-  // phase = role; one row per routed repo skill/agent (wave 2); a
-  // project-level agent of the same name shadows its row (see spawnRoute).
-  agents: {
-    // explore
-    Explore: 'explore',
-    // judge
-    Plan: 'judge', 'plan-challenger': 'judge', 'plugin-advisor': 'judge',
-    'seo-analyzer': 'judge', 'geo-analyzer': 'judge', analyzer: 'judge',
-    // implement
-    feater: 'implement', bugfixer: 'implement', 'code-cleaner': 'implement',
-    scaffolder: 'implement', onboarder: 'implement',
-    // write
-    'commit-changer': 'write', 'doc-syncer': 'write',
-    'handover-doc-writer': 'write', refactorer: 'write',
-    // apply
-    hotfixer: 'apply', 'release-executor': 'apply', 'plugin-probe': 'apply',
-    'validator-analyzer': 'apply',
-    // verify
-    verifier: 'verify', 'security-auditor': 'verify',
-    // mechanical
-    'status-reporter': 'mechanical',
-  },
-  skills: {
-    // plan
-    'ship-feature': 'plan', 'init-project': 'plan', onboard: 'plan',
-    tour: 'plan', 'audit-delta': 'plan', analyze: 'plan',
-    'code-clean': 'plan', 'client-handover': 'plan', brainstorming: 'plan',
-    'writing-plans': 'plan', 'requesting-code-review': 'plan',
-    '21st-ui-review': 'plan',
-    // reflect
-    feat: 'reflect', hotfix: 'reflect', bugfix: 'reflect',
-    refactor: 'reflect', 'web-validate': 'reflect', harden: 'reflect',
-    seo: 'reflect', geo: 'reflect', 'site-motion': 'reflect',
-    'frontend-design': 'reflect', 'emil-design-eng': 'reflect',
-    'design-motion-principles': 'reflect', '21st-ui-build': 'reflect',
-    'scroll-world-storytelling': 'reflect',
-    'build-threejs-scroll-worlds': 'reflect',
-    'scroll-scrubbed-visual-sequence': 'reflect',
-    'scroll-scrubbed-word-reveal': 'reflect',
-    'scroll-progress-timeline': 'reflect',
-    'subagent-driven-development': 'reflect', 'writing-skills': 'reflect',
-    'deprecation-and-migration': 'reflect', '21st-ai': 'reflect',
-    '21st-ui-explore': 'reflect',
-    // implement
-    gitflow: 'implement', 'prune-memory': 'implement',
-    'pdf-translate': 'implement', 'ci-cd-and-automation': 'implement',
-    'observability-and-instrumentation': 'implement',
-    'test-driven-development': 'implement',
-    // apply
-    'commit-change': 'apply', 'release-candidate': 'apply', doc: 'apply',
-    capitalize: 'apply', close: 'apply', reconcile: 'apply', deploy: 'apply',
-    // mechanical
-    status: 'mechanical', profile: 'mechanical', 'plugin-check': 'mechanical',
-    'skills-perso': 'mechanical', 'using-git-worktrees': 'mechanical',
-    '21st-cli-use': 'mechanical', '21st-registry': 'mechanical',
-    '21st-design-sync': 'mechanical',
-  },
+  // Rows (skill/agent -> phase) live in routing.json, the tracked source;
+  // a project-level agent of the same name shadows its row (see spawnRoute).
+  agents: {},
+  skills: {},
   // `floor` rules set the turn's minimum effort; `default` rules set the
   // turn's route, which a route call or a skill overrides. Neither lowers.
   prompt: [
@@ -479,9 +469,13 @@ function mergeRows(
   return rows
 }
 
-/** Defaults overlaid with the user's entries, each validated first. */
-function mergeConfig(user: unknown, log: Log): Config {
-  const base = structuredClone(DEFAULT_CONFIG)
+/** `seed` (the defaults) overlaid with the user's entries, each validated. */
+function mergeConfig(
+  user: unknown,
+  log: Log,
+  seed: Config = DEFAULT_CONFIG,
+): Config {
+  const base = structuredClone(seed)
   if (!isRecord(user)) {
     if (user !== undefined) log('model-router: config ignored: not an object')
     return base
@@ -512,10 +506,10 @@ function mergeConfig(user: unknown, log: Log): Config {
 async function readCapped(
   $: Api,
   path: string,
+  label: string,
   log: Log,
 ): Promise<string | undefined> {
-  const tooBig =
-    `model-router: ${OVERRIDE} over ${MAX_CONFIG_BYTES} bytes`
+  const tooBig = `model-router: ${label} over ${MAX_CONFIG_BYTES} bytes`
   if ((await $.fs.stat(path)).size > MAX_CONFIG_BYTES) {
     log(tooBig)
     return undefined
@@ -526,38 +520,259 @@ async function readCapped(
   return undefined
 }
 
-type Override = { path: string; data: unknown } | 'absent' | 'failed'
+type Layer = { path: string; data: Rec } | 'absent' | 'failed'
 
 /** 'absent': no file (defaults apply). 'failed': present but unusable. */
-async function readOverride($: Api, log: Log): Promise<Override> {
+async function readLayer(
+  $: Api,
+  path: string,
+  label: string,
+  log: Log,
+): Promise<Layer> {
   try {
-    const home = await $.env.get('HOME')
-    if (!home) return 'absent'
-    const path = `${home}/${OVERRIDE}`
     if (!(await $.fs.exists(path))) return 'absent'
-    const text = await readCapped($, path, log)
+    const text = await readCapped($, path, label, log)
     if (text === undefined) return 'failed'
     const data: unknown = JSON.parse(text)
     if (isRecord(data)) return { path, data }
-    log(`model-router: ${OVERRIDE} is not an object`)
+    log(`model-router: ${label} is not an object`)
     return 'failed'
+  } catch (err) {
+    log(`model-router: ${label} unreadable (${String(err)})`)
+    return 'failed'
+  }
+}
+
+const readRouting = ($: Api, log: Log): Promise<Layer> =>
+  readLayer($, `${$.plugin.root}/${ROUTING}`, ROUTING, log)
+
+async function readOverride($: Api, log: Log): Promise<Layer> {
+  try {
+    const home = await $.env.get('HOME')
+    if (!home) return 'absent'
+    return await readLayer($, `${home}/${OVERRIDE}`, OVERRIDE, log)
   } catch (err) {
     log(`model-router: ${OVERRIDE} unreadable (${String(err)})`)
     return 'failed'
   }
 }
 
-/** Never throws; undefined when the override exists but cannot be used. */
-async function loadConfig(
-  $: Api,
-  log: Log,
-): Promise<{ cfg: Config; source: string } | undefined> {
-  const found = await readOverride($, log)
-  if (found === 'failed') return undefined
-  if (found === 'absent') {
-    return { cfg: mergeConfig(undefined, log), source: 'defaults' }
+// ---- routing.json: decision memory and project exceptions --------------
+
+const strTable = (v: unknown): Table =>
+  isRecord(v)
+    ? Object.fromEntries(Object.entries(v).filter(
+      (entry): entry is [string, string] => typeof entry[1] === 'string'))
+    : {}
+
+const subRec = (v: unknown, key: string): Rec => {
+  const found = isRecord(v) && hasKey(v, key) ? v[key] : undefined
+  return isRecord(found) ? found : {}
+}
+
+/** The rows of `projects[key]`: this repo's exceptions. */
+function projectRows(file: Rec, key: string | undefined): Record<Row, Table> {
+  const mine = key === undefined ? {} : subRec(file.projects, key)
+  return { skills: strTable(mine.skills), agents: strTable(mine.agents) }
+}
+
+function emptyMemory(): Memory {
+  return {
+    ok: false,
+    ask: true,
+    askLocal: undefined,
+    base: { skills: {}, agents: {} },
+    confirmed: { skills: {}, agents: {}, phases: {} },
+    about: {},
+    local: { skills: new Set(), agents: new Set() },
+    key: undefined,
   }
-  return { cfg: mergeConfig(found.data, log), source: found.path }
+}
+
+/** The phases' `about` lines; a non-string or overlong one is dropped, said. */
+function aboutOf(phases: unknown, log: Log): Table {
+  const out: Table = {}
+  if (!isRecord(phases)) return out
+  for (const [name, phase] of Object.entries(phases)) {
+    const about = isRecord(phase) ? phase.about : undefined
+    if (about === undefined || name === '__proto__') continue
+    if (typeof about === 'string' && about.length <= MAX_ABOUT) {
+      out[name] = about
+    } else {
+      log(`model-router: ${ROUTING} phases.${name}.about ignored`)
+    }
+  }
+  return out
+}
+
+/** What the file and the machine override say about decisions. */
+function buildMemory(
+  file: Rec,
+  key: string | undefined,
+  override: Rec | undefined,
+  log: Log,
+): Memory {
+  const project = projectRows(file, key)
+  const flag = override?.ask
+  const askLocal = typeof flag === 'boolean' ? flag : undefined
+  const sure = subRec(file, 'confirmed')
+  const local = (row: Row): Set<string> => new Set([
+    ...Object.keys(project[row]), ...Object.keys(strTable(override?.[row])),
+  ])
+  return {
+    ok: true,
+    ask: askLocal ?? file.ask !== false,
+    askLocal,
+    base: { skills: strTable(file.skills), agents: strTable(file.agents) },
+    confirmed: {
+      skills: strTable(sure.skills),
+      agents: strTable(sure.agents),
+      phases: strTable(sure.phases),
+    },
+    about: aboutOf(file.phases, log),
+    local: { skills: local('skills'), agents: local('agents') },
+    key,
+  }
+}
+
+const SCP_REMOTE = /^[A-Za-z0-9._-]+@([A-Za-z0-9.-]+):([^:@]+)$/
+const URL_REMOTE = /^[a-z][a-z0-9+.-]*:\/\//i
+
+/** [host, path] of a remote, userinfo never read; undefined if unclear. */
+function remoteParts(url: string): [string, string] | undefined {
+  const scp = SCP_REMOTE.exec(url)
+  if (scp) return [scp[1] as string, scp[2] as string]
+  if (!URL_REMOTE.test(url)) return undefined
+  // a second `@` in the authority hides a secret in the userinfo
+  const authority = url.replace(URL_REMOTE, '').split('/')[0] ?? ''
+  if (authority.split('@').length > 2) return undefined
+  try {
+    const u = new URL(url)
+    return [u.host, u.pathname]
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * A repo's identity across clones and machines: its origin remote reduced to
+ * `host/path` (scheme, userinfo, `.git` and trailing slash dropped, host
+ * lowercased). A remote that cannot be read with certainty, or that leaves
+ * an `@` or `:` in the host or an `@` in the path, gives undefined: no
+ * credential ever reaches the tracked file.
+ */
+function normalizeRemote(url: string): string | undefined {
+  const parts = remoteParts(url.trim())
+  if (parts === undefined) return undefined
+  const host = parts[0].toLowerCase()
+  const path = parts[1].replace(/^\/+/, '').replace(/\/+$/, '')
+    .replace(/\.git$/i, '')
+  if (host === '' || path === '' || path.includes('@')) return undefined
+  return /[@:]/.test(host.replace(/:\d+$/, '')) ? undefined : `${host}/${path}`
+}
+
+async function projectKey($: Api): Promise<string | undefined> {
+  try {
+    const repo = await $.session.repo()
+    return repo?.remote ? normalizeRemote(repo.remote) : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/** routing.json's phases and rows as a user table, this repo's rows last. */
+function routingTables(file: Rec, key: string | undefined): Rec {
+  const project = projectRows(file, key)
+  return {
+    phases: file.phases,
+    skills: { ...strTable(file.skills), ...project.skills },
+    agents: { ...strTable(file.agents), ...project.agents },
+  }
+}
+
+type Loaded = {
+  cfg: Config
+  source: string
+  mem: Memory
+  override: Rec | undefined
+}
+
+function sourceWord(file: Layer, over: Layer): string {
+  const fileWord = typeof file === 'string' ? undefined : ROUTING
+  const overWord = typeof over === 'string' ? undefined : over.path
+  if (fileWord && overWord) return `${fileWord} + ${overWord}`
+  return fileWord ?? overWord ?? 'defaults'
+}
+
+/** A phase routing.json lacks keeps the code default: one line names them. */
+function logMissingPhases(phases: unknown, log: Log): void {
+  if (phases !== undefined && !isRecord(phases)) return // mergeTable says it
+  const missing = Object.keys(DEFAULT_CONFIG.phases)
+    .filter(name => !isRecord(phases) || !hasKey(phases, name))
+  if (missing.length === 0) return
+  log(`model-router: ${ROUTING} lacks phases ${missing.join(', ')}; ` +
+    'code defaults kept')
+}
+
+/**
+ * Defaults < routing.json < the machine override. The phases of both files
+ * merge first; every layer's rows then validate against that final table,
+ * so a routing.json row may name a phase only the override defines.
+ */
+function layerConfig(
+  tables: Rec | undefined,
+  override: Rec | undefined,
+  log: Log,
+): Config {
+  const seeded = mergeConfig(tables && { phases: tables.phases }, log)
+  const cfg = mergeConfig(
+    override && { ...override, skills: undefined, agents: undefined },
+    log, seeded)
+  const ref = acceptPhaseRef(cfg.phases)
+  for (const row of ROWS) {
+    const base = mergeRows(cfg[row], tables?.[row], row, ref, log)
+    cfg[row] = mergeRows(base, override?.[row], row, ref, log)
+  }
+  return cfg
+}
+
+/** Defaults < routing.json (phases, rows, this repo's rows) < override. */
+async function assemble(
+  $: Api,
+  file: Layer,
+  over: Layer,
+  log: Log,
+): Promise<Loaded> {
+  const fileData = typeof file === 'string' ? undefined : file.data
+  const override = typeof over === 'string' ? undefined : over.data
+  if (file === 'absent') {
+    log(`model-router: ${ROUTING} missing; default phases, no rows, no asks`)
+  }
+  const key = fileData === undefined ? undefined : await projectKey($)
+  if (fileData !== undefined) logMissingPhases(fileData.phases, log)
+  const cfg = layerConfig(
+    fileData && routingTables(fileData, key), override, log)
+  const mem = fileData === undefined
+    ? emptyMemory()
+    : buildMemory(fileData, key, override, log)
+  return { cfg, source: sourceWord(file, over), mem, override }
+}
+
+/**
+ * Reads the layers. At the first load a failed layer is skipped (logged); in
+ * every later read any failure, or a routing.json gone missing, returns
+ * undefined so the caller keeps the whole previous config.
+ */
+async function loadLayers(
+  $: Api,
+  first: boolean,
+  log: Log,
+): Promise<Loaded | undefined> {
+  const file = await readRouting($, log)
+  const over = await readOverride($, log)
+  const broken = file === 'failed' || file === 'absent' || over === 'failed'
+  if (broken && !first) return undefined
+  return assemble($, file, over, log)
 }
 
 /** Compiles the prompt rules; one that fails to compile is dropped, logged. */
@@ -589,6 +804,7 @@ function newState(cfg: Config, source: string): State {
     pendingAllowed: false,
     spawning: 0,
     offers: new Map(),
+    descs: new Map(),
     loops: new Map(),
     explicitEffort: new Map(),
     skillCalls: 0,
@@ -605,13 +821,23 @@ function newState(cfg: Config, source: string): State {
     logged: new Set(),
     turnLogged: new Set(),
     warned: new Set(),
+    mem: emptyMemory(),
+    override: undefined,
+    loaded: false,
+    rebuildDue: false,
+    toggles: {},
+    asking: null,
+    asked: new Set(),
+    writes: Promise.resolve(),
   }
 }
 
 /**
  * /clear rebuilds the state but keeps what is account- or process-wide:
- * the breaker (a model's quota outlives the conversation), the model and
- * the agent definitions' sources (the listing is not offered again).
+ * the breaker (a model's quota outlives the conversation), the model, the
+ * agent definitions' sources (the listing is not offered again), the config
+ * with its session toggles and the dialog in flight. The layers are read
+ * again at the next prompt; the config is swapped only if that read works.
  */
 function resetSession(st: State): void {
   const kept = {
@@ -620,8 +846,16 @@ function resetSession(st: State): void {
     agentModels: st.agentModels,
     sessionModel: st.sessionModel,
     offers: st.offers,
+    descs: st.descs,
+    mem: st.mem,
+    override: st.override,
+    loaded: st.loaded,
+    toggles: st.toggles,
+    asking: st.asking,
+    writes: st.writes,
   }
   Object.assign(st, newState(st.cfg, st.source), kept)
+  st.rebuildDue = st.loaded
 }
 
 /** Logs a hook's fail-open once per session; never throws itself. */
@@ -1179,8 +1413,9 @@ async function toggle(
   arg: string | undefined,
 ): Promise<string> {
   if (arg !== 'on' && arg !== 'off') return `usage: /route ${what} on|off`
-  if (what === 'switch') st.cfg.mainModelSwitch = arg === 'on'
-  else st.cfg.verbose = arg === 'on'
+  if (what === 'switch') st.toggles.switch = arg === 'on'
+  else st.toggles.verbose = arg === 'on'
+  applyToggles(st)
   return show($, st)
 }
 
@@ -1192,22 +1427,49 @@ async function setUserRoute($: Api, st: State, args: string) {
   return show($, st)
 }
 
+/** Session toggles outlive any rebuild of the config. */
+function applyToggles(st: State): void {
+  const { switch: downgrade, verbose } = st.toggles
+  if (downgrade !== undefined) st.cfg.mainModelSwitch = downgrade
+  if (verbose !== undefined) st.cfg.verbose = verbose
+}
+
+function applyLoaded(st: State, loaded: Loaded, log: Log): void {
+  st.cfg = loaded.cfg
+  st.rules = compileRules(loaded.cfg, log)
+  st.source = loaded.source
+  st.mem = loaded.mem
+  st.override = loaded.override
+  st.loaded = true
+  st.rebuildDue = false
+  applyToggles(st)
+  applyEnabled(st, loaded.cfg.enabled)
+}
+
 /**
- * (Re)loads the config into the state and re-registers the route tool.
- * An unusable override keeps the previous config: the kill switch fails
- * closed, never back to the defaults.
+ * (Re)loads the layers into the state and re-registers the route tool.
+ * After the first load an unusable layer keeps the whole previous config:
+ * the kill switch fails closed, never back to the defaults. True when the
+ * new config was swapped in.
  */
-async function reloadConfig($: Api, st: State): Promise<void> {
-  const loaded = await loadConfig($, text => $.ui.log(text))
-  if (loaded) {
-    st.cfg = loaded.cfg
-    st.rules = compileRules(loaded.cfg, text => $.ui.log(text))
-    st.source = loaded.source
-    applyEnabled(st, loaded.cfg.enabled)
-  } else {
-    $.ui.log('model-router: override unreadable; keeping the previous config')
-  }
+async function reloadConfig($: Api, st: State): Promise<boolean> {
+  const log = (text: string): void => $.ui.log(text)
+  const loaded = await loadLayers($, !st.loaded, log)
+  if (loaded) applyLoaded(st, loaded, log)
+  else log('model-router: config unreadable; keeping the previous config')
   await registerTool($, st)
+  return loaded !== undefined
+}
+
+/**
+ * The layers are read at session.start; a state that never saw it (a
+ * /reload-plugins re-runs register) loads on its first use. /clear leaves
+ * a re-read due, taken by the next prompt only (`atPrompt`).
+ */
+async function ensureConfig($: Api, st: State, atPrompt = false) {
+  if (st.loaded && !(atPrompt && st.rebuildDue)) return
+  st.rebuildDue = false
+  await reloadConfig($, st)
 }
 
 /** The breaker is cleared first, whatever the config read then does. */
@@ -1240,11 +1502,813 @@ async function handleCommand($: Api, st: State, args: string): Promise<string> {
       return show($, st)
     case 'reload':
       return reloadCommand($, st)
+    case 'pending':
+      return pendingText(st)
+    case 'ask':
+      return askCommand($, st, rest[0])
+    case 'forget':
+      return forgetCommand($, st, rest)
     case 'switch':
     case 'verbose':
       return toggle($, st, head, rest[0])
     default:
       return setUserRoute($, st, args)
+  }
+}
+
+// ---- first use: one dialog per row, the answer kept in routing.json -----
+// The first time a row routes (a typed skill, an agent spawn, a phase
+// declared through the route tool) the user confirms it once, for every
+// project; a change can be a project exception. Only a dialog answer,
+// `/route ask` or `/route forget` writes; nothing is asked on the step path
+// or in an agent.
+
+const HEADER = 'model-router'
+const UPDATED = 'routing.json updated: commit it from the config repo ' +
+  '(chore branch)'
+
+type Req = { kind: Kind; name: string; phase: string }
+type RowReq = Req & { kind: Row }
+type Answer =
+  | { act: 'later' }
+  | { act: 'keep' }
+  | { act: 'change'; phase: string }
+type Scope = 'everywhere' | 'project' | 'later'
+type Patch = (file: Rec) => void
+
+const keyOf = (req: { kind: Kind; name: string }): string =>
+  `${req.kind}:${req.name}`
+const isRowReq = (req: Req): req is RowReq => req.kind !== 'phases'
+const own = (t: Table, name: string): string | undefined =>
+  hasKey(t, name) ? t[name] : undefined
+
+/** Decided: a Keep or change confirmed the row, or a layer set it. */
+function isDecided(mem: Memory, kind: Kind, name: string): boolean {
+  if (kind === 'phases') return own(mem.confirmed.phases, name) === name
+  if (mem.local[kind].has(name)) return true
+  const base = own(mem.base[kind], name)
+  return base !== undefined && own(mem.confirmed[kind], name) === base
+}
+
+const wantsAsk = (st: State, req: Req): boolean =>
+  !st.off && st.mem.ask && !st.asked.has(keyOf(req)) &&
+  !isDecided(st.mem, req.kind, req.name)
+
+/** The file as it is now: another live session may have decided since. */
+async function refreshMemory($: Api, st: State): Promise<boolean> {
+  const file = await readRouting($, text => $.ui.log(text))
+  if (typeof file === 'string') return false
+  st.mem = buildMemory(
+    file.data, await projectKey($), st.override, () => undefined)
+  return true
+}
+
+async function askOr(
+  $: Api,
+  text: string,
+  options: readonly string[],
+): Promise<string> {
+  try {
+    return await $.ui.ask(text, { options, header: HEADER })
+  } catch {
+    return LATER // dismissed, or no one to ask (-p run)
+  }
+}
+
+// What a question says about its row. Everything read from outside (a
+// SKILL.md, an agent's listing line, routing.json) is cleaned and capped.
+
+/**
+ * Text safe in a question: every whitespace folded to a space, then control
+ * and format characters (bidi included) stripped, cut to `n` code points
+ * with an ellipsis (total <= n).
+ */
+function clean(text: string, n: number): string {
+  const flat = text.replace(/[\s\p{Z}]+/gu, ' ')
+    .replace(/[\p{Cc}\p{Cf}]/gu, '').replace(/ {2,}/g, ' ').trim()
+  const points = [...flat]
+  return points.length <= n ? flat : `${points.slice(0, n - 1).join('')}…`
+}
+
+/** The first sentence of a description, cleaned; undefined when empty. */
+function oneSentence(text: string): string | undefined {
+  const end = /\.(?:\s|$)/.exec(text)
+  const line = clean(end ? text.slice(0, end.index) : text, MAX_DESC)
+  return line === '' ? undefined : line
+}
+
+const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/
+const BLOCK_HEAD = /^[|>][+-]?\d*$/
+
+/** A YAML scalar without its quotes: `''` and JSON escapes resolved. */
+function unquote(value: string): string {
+  const quote = value[0]
+  if (value.length < 2 || value[value.length - 1] !== quote) return value
+  if (quote === "'") return value.slice(1, -1).replace(/''/g, "'")
+  if (quote !== '"') return value
+  try {
+    const parsed: unknown = JSON.parse(value)
+    return typeof parsed === 'string' ? parsed : value.slice(1, -1)
+  } catch {
+    return value.slice(1, -1)
+  }
+}
+
+/** `description:` of a SKILL.md frontmatter: plain, block or quoted. */
+function frontDescription(text: string): string | undefined {
+  const front = FRONTMATTER.exec(text)?.[1]
+  const lines = front === undefined ? [] : front.split(/\r?\n/)
+  const at = lines.findIndex(line => line.startsWith('description:'))
+  if (at < 0) return undefined
+  const head = (lines[at] ?? '').slice('description:'.length).trim()
+  const body: string[] = []
+  for (const line of lines.slice(at + 1)) {
+    if (line.trim() !== '' && !/^\s/.test(line)) break
+    body.push(line.trim())
+  }
+  const first = BLOCK_HEAD.test(head) ? '' : head
+  return unquote([first, ...body].filter(w => w !== '').join(' '))
+}
+
+/**
+ * A skill's description from ${HOME}/.claude/skills/<name>/SKILL.md: a
+ * regular file under the size cap, a name from the allowlist. Any failure
+ * gives undefined: the question names the skill alone.
+ */
+async function skillDesc($: Api, name: string): Promise<string | undefined> {
+  if (!SKILL_NAME.test(name)) return undefined
+  try {
+    const home = await $.env.get('HOME')
+    if (!home) return undefined
+    const path = `${home}/.claude/skills/${name}/SKILL.md`
+    if ((await $.fs.stat(path)).kind !== 'file') return undefined
+    const text = await readCapped($, path, 'SKILL.md', () => undefined)
+    const raw = text === undefined ? undefined : frontDescription(text)
+    return raw === undefined ? undefined : oneSentence(raw)
+  } catch {
+    return undefined
+  }
+}
+
+/** The agent listing line, cleaned once at offer time; oldest dropped. */
+function rememberOffer(
+  st: State,
+  e: { agent: string; source: string; description: string },
+): void {
+  st.offers.set(e.agent, e.source)
+  const given: unknown = e.description
+  const line = typeof given === 'string'
+    ? oneSentence(given.slice(0, 4096))
+    : undefined
+  st.descs.delete(e.agent)
+  if (line !== undefined) st.descs.set(e.agent, line)
+  if (st.descs.size <= MAX_DESCS) return
+  const oldest = st.descs.keys().next().value
+  if (oldest !== undefined) st.descs.delete(oldest)
+}
+
+const plural = (n: number, word: string): string =>
+  `${n} ${word}${n === 1 ? '' : 's'}`
+
+const withDesc = (lead: string, desc: string | undefined): string =>
+  desc === undefined ? lead : `${lead} — ${desc}`
+
+function aboutLine(st: State, phase: string): string | undefined {
+  const raw = own(st.mem.about, phase)
+  const line = raw === undefined ? '' : clean(raw, MAX_ABOUT)
+  return line === '' ? undefined : line
+}
+
+/** "Routed to <phase> (<about>)": the parenthesis only when about is set. */
+function routedTo(st: State, phase: string): string {
+  const about = aboutLine(st, phase)
+  return `Routed to ${phase}${about === undefined ? '' : ` (${about})`}`
+}
+
+/** Who uses a phase: its rows, the derived dispatch route, prompt rules. */
+function consumers(st: State, phase: string): string {
+  const { skills, agents, prompt } = st.cfg
+  const rows = [...Object.values(skills), ...Object.values(agents)]
+    .filter(p => p === phase).length
+  const rules = prompt.filter(r => r.phase === phase)
+  const floors = rules.filter(r => r.mode !== 'default').length
+  const parts = [plural(rows, 'row')]
+  if (phase === 'orchestrate') parts.push('the derived route of dispatches')
+  if (rules.length > floors) {
+    parts.push(plural(rules.length - floors, 'prompt rule'))
+  }
+  if (floors > 0) parts.push(plural(floors, 'floor rule'))
+  return `used by ${parts.join(', ')}`
+}
+
+// ---- the dialog's steps: ASK1 Later/Keep/Change, then model, effort, scope
+
+const optionsFor = (req: Req): string[] =>
+  isRowReq(req) ? [LATER, KEEP, CHANGE] : [LATER, KEEP]
+
+/**
+ * One step: the chosen label, or undefined (a Later). A dismissed or
+ * headless dialog is silent; any other answer is toasted, never echoed.
+ */
+async function askStep(
+  $: Api,
+  text: string,
+  labels: readonly string[],
+): Promise<string | undefined> {
+  const answer = await askOr($, text, labels)
+  if (answer === LATER) return undefined
+  if (labels.includes(answer)) return answer
+  $.ui.toast('answer not recognised, default kept')
+  return undefined
+}
+
+/** The alias a phase's route leads with: its tier's head, or its model. */
+function headAlias(cfg: Config, route: Route): string | undefined {
+  if (route.tier !== undefined) {
+    const list = hasKey(cfg.tiers, route.tier) ? cfg.tiers[route.tier] : []
+    return list?.[0]
+  }
+  if (route.model === undefined) return undefined
+  return hasKey(cfg.models, route.model)
+    ? route.model
+    : aliasOf(cfg, canonical(cfg, route.model))
+}
+
+/** "fable (best)": the alias and the tier it heads ("custom" if none). */
+function modelLabel(cfg: Config, alias: string): string {
+  const tier = Object.keys(cfg.tiers).find(t => cfg.tiers[t]?.[0] === alias)
+  return `${alias} (${tier ?? 'custom'})`
+}
+
+async function askModel($: Api, st: State, req: RowReq) {
+  const labels = CHOICE_ALIASES.map(a => modelLabel(st.cfg, a))
+  const label = await askStep($, `Which model for ${req.name}?`, labels)
+  return label === undefined ? undefined : CHOICE_ALIASES[labels.indexOf(label)]
+}
+
+/** The efforts of the phases headed by `alias`, ascending, four at most. */
+function effortsOf(cfg: Config, alias: string): Level[] {
+  const found = Object.values(cfg.phases)
+    .filter(r => headAlias(cfg, r) === alias).map(r => r.effort)
+  return LEVELS.filter(level => found.includes(level)).slice(0, 4)
+}
+
+/** One effort is no question; none is a Later, said. */
+async function askEffort($: Api, st: State, alias: string) {
+  const efforts = effortsOf(st.cfg, alias)
+  if (efforts.length === 0) $.ui.toast(`no phase uses ${alias}`)
+  if (efforts.length < 2) return efforts[0]
+  const label = await askStep($, `Which effort on ${alias}?`, efforts)
+  return efforts.find(effort => effort === label)
+}
+
+/** The row's current phase when it matches, else the first that does. */
+function targetPhase(cfg: Config, now: string, alias: string, effort: Level) {
+  const fits = (name: string): boolean => {
+    const route = phaseRoute(cfg, name)
+    return route?.effort === effort && headAlias(cfg, route) === alias
+  }
+  return fits(now) ? now : Object.keys(cfg.phases).find(fits)
+}
+
+/** Change: model, then effort, mapped to a phase of the table. */
+async function changeRoute($: Api, st: State, req: RowReq): Promise<Answer> {
+  const alias = await askModel($, st, req)
+  const effort = alias === undefined ? undefined : await askEffort($, st, alias)
+  if (alias === undefined || effort === undefined) return { act: 'later' }
+  const phase = targetPhase(st.cfg, req.phase, alias, effort)
+  if (phase === undefined) return { act: 'later' }
+  return phase === req.phase ? { act: 'keep' } : { act: 'change', phase }
+}
+
+async function decide($: Api, st: State, req: Req, text: string) {
+  const choice = await askStep($, text, optionsFor(req))
+  if (choice === KEEP) return { act: 'keep' } as const
+  if (choice === CHANGE && isRowReq(req)) return changeRoute($, st, req)
+  return { act: 'later' } as const
+}
+
+async function askScope(
+  $: Api,
+  st: State,
+  req: Req,
+  to: string,
+): Promise<Scope> {
+  const key = st.mem.key
+  const text = `Use ${to} for ${req.name} everywhere, or only in this project?`
+  const choice = await askStep($, text,
+    [EVERYWHERE, key === undefined ? LATER : THIS_PROJECT])
+  if (choice === EVERYWHERE) return 'everywhere'
+  return choice === THIS_PROJECT && key !== undefined ? 'project' : 'later'
+}
+
+function table(parent: Rec, key: string): Rec {
+  const found = isRecord(parent[key]) ? parent[key] : undefined
+  if (found) return found
+  const fresh: Rec = {}
+  parent[key] = fresh
+  return fresh
+}
+
+function setKey(target: Rec, key: string, value: unknown): void {
+  if (key !== '__proto__') target[key] = value
+}
+
+const confirmIn = (file: Rec, kind: Kind, name: string, phase: string) =>
+  setKey(table(table(file, 'confirmed'), kind), name, phase)
+
+/** A Keep endorses the row and its phase (no second ask at the route tool). */
+function keepPatch(req: Req): Patch {
+  return file => {
+    if (isRowReq(req)) confirmIn(file, req.kind, req.name, req.phase)
+    confirmIn(file, 'phases', req.phase, req.phase)
+  }
+}
+
+/**
+ * Everywhere: the row moves, `changed` keeps the FIRST shipped phase for
+ * the census. This project only: the row stays, the exception goes under
+ * the repo key and the base row counts as confirmed (nobody else asks).
+ */
+function changePatch(req: RowReq, to: string, scope: Scope, key?: string) {
+  return (file: Rec): void => {
+    const rows = table(file, req.kind)
+    const was = typeof rows[req.name] === 'string' ? rows[req.name] : req.phase
+    if (scope === 'project' && key !== undefined) {
+      const mine = table(table(file, 'projects'), key)
+      setKey(table(mine, req.kind), req.name, to)
+      confirmIn(file, req.kind, req.name, String(was))
+      return
+    }
+    const changed = table(table(file, 'changed'), req.kind)
+    const first = subRec(changed, req.name).from ?? was
+    setKey(rows, req.name, to)
+    setKey(changed, req.name, { from: first, to })
+    confirmIn(file, req.kind, req.name, to)
+  }
+}
+
+function serializeRouting(file: Rec): string {
+  const known = ROUTING_ORDER.filter(k => hasKey(file, k))
+  const extra = Object.keys(file).filter(k => !ROUTING_ORDER.includes(k))
+  const ordered = Object.fromEntries(
+    [...known, ...extra].map(k => [k, file[k]]))
+  return JSON.stringify(ordered, null, 2) + '\n'
+}
+
+/** The write landed but the config could not be rebuilt from it. */
+class RebuildFailed extends Error {}
+
+/**
+ * Read-modify-write of routing.json, one at a time (a chain). Refuses a
+ * missing or unparsable file and never creates it; rebuilds the config
+ * after, swapped only if the read works.
+ */
+async function writeNow($: Api, st: State, patch: Patch): Promise<boolean> {
+  const file = await readRouting($, text => $.ui.log(text))
+  if (typeof file === 'string') {
+    $.ui.toast(`${ROUTING} is missing or unreadable: nothing saved`)
+    return false
+  }
+  patch(file.data)
+  const out = serializeRouting(file.data)
+  if (out.length > MAX_CONFIG_BYTES) {
+    $.ui.toast(`${ROUTING} would exceed ${MAX_CONFIG_BYTES} bytes: ` +
+      'nothing saved')
+    return false
+  }
+  await $.fs.write(file.path, out)
+  const rebuilt = await reloadConfig($, st)
+  $.ui.toast(UPDATED)
+  if (!rebuilt) throw new RebuildFailed('rebuild failed after the write')
+  return true
+}
+
+function writeRouting($: Api, st: State, patch: Patch): Promise<boolean> {
+  const run = st.writes.then(() => writeNow($, st, patch))
+  st.writes = run.catch(() => undefined)
+  return run
+}
+
+async function saveAnswer($: Api, st: State, req: Req, ans: Answer) {
+  if (ans.act === 'keep') return writeRouting($, st, keepPatch(req))
+  if (ans.act !== 'change' || !isRowReq(req)) return false
+  const scope = await askScope($, st, req, ans.phase)
+  if (scope === 'later') return false
+  const patch = changePatch(req, ans.phase, scope, st.mem.key)
+  return writeRouting($, st, patch)
+}
+
+/** The dialog and what follows; true when routing.json was rewritten. */
+async function runDialog($: Api, st: State, req: Req, text: string) {
+  st.asked.add(keyOf(req))
+  return saveAnswer($, st, req, await decide($, st, req, text))
+}
+
+function failOnce($: Api, st: State, err: unknown): void {
+  const text = `model-router: first-use dialog failed (${String(err)}); ` +
+    'default route kept'
+  if (st.logged.has(text)) return
+  st.logged.add(text)
+  $.ui.log(text)
+}
+
+/**
+ * Asks once whether `req.phase` is the right route for this row. At most
+ * one dialog is open per session: any other use finds `asking` set and
+ * routes unasked. The caller awaits it outside `safely` (it never throws).
+ * `say` builds the question from the real decision, only if one is asked.
+ * True when routing.json changed: the caller recomputes its route.
+ */
+async function confirmFirst(
+  $: Api,
+  st: State,
+  req: Req,
+  say: () => Promise<string>,
+): Promise<boolean> {
+  if (st.asking !== null || !wantsAsk(st, req)) return false
+  st.asking = keyOf(req)
+  try {
+    if (!(await refreshMemory($, st)) || !wantsAsk(st, req)) return false
+    return await runDialog($, st, req, await say())
+  } catch (err) {
+    st.asked.delete(keyOf(req))
+    failOnce($, st, err)
+    return false
+  } finally {
+    st.asking = null
+  }
+}
+
+/** First-use question text: the id and level the next step really gets. */
+async function mainQuestion($: Api, st: State, lead: string) {
+  const v = await snapshot($, st)
+  return `${lead}: ${idWord(st, v.call.model)} at ${effortWord(st, v)}. OK?`
+}
+
+function spawnQuestion(
+  $: Api,
+  st: State,
+  e: SpawnIn,
+  req: Req,
+  route: Route,
+): string {
+  const id = spawnTarget($, st, e, route) ?? 'its own model'
+  const effort = st.explicitEffort.get(e.tool_use_id) ?? route.effort
+  const lead = withDesc(`First dispatch of ${req.name}`,
+    st.descs.get(req.name))
+  return `${lead}. ${routedTo(st, req.phase)}: ${id} at ${
+    effort ?? 'its own effort'}. OK?`
+}
+
+async function skillQuestion($: Api, st: State, skill: string, phase: string) {
+  const head = withDesc(`First route for /${skill}`, await skillDesc($, skill))
+  return mainQuestion($, st, `${head}. ${routedTo(st, phase)}`)
+}
+
+/** A downgrade the switch holds back: main keeps its model, said. */
+function downgradeHeld(st: State, v: Verdict, cur: string): boolean {
+  return v.wanted !== undefined && v.call.why === 'switch off' &&
+    !ranksAbove(st, v.wanted, canonical(st.cfg, cur))
+}
+
+/** After a Change: what main will really run, and the switch hint. */
+async function toastChange($: Api, st: State, skill: string) {
+  const cur = st.turnModel ?? st.sessionModel
+  const v = await decideFor($, st, cur)
+  const hint = downgradeHeld(st, v, cur)
+    ? ', main moves up only: /route switch on allows a downgrade'
+    : ''
+  $.ui.toast(`/${skill} now runs ${idWord(st, v.call.model)} at ${
+    effortWord(st, v)}${hint}`)
+}
+
+/** Typed skill: a changed row re-routes the turn at once. */
+async function confirmSkill($: Api, st: State, skill: string, row: Picked) {
+  const req: Req = { kind: 'skills', name: skill, phase: row.phase }
+  const say = () => skillQuestion($, st, skill, row.phase)
+  if (!(await confirmFirst($, st, req, say))) return
+  const after = skillRow(st, skill)
+  if (after === undefined) return
+  routeMainBySkill(st, after, true)
+  refresh($, st)
+  if (after.phase !== row.phase) await toastChange($, st, skill)
+}
+
+/** Rowed spawn: the route in force after the dialog (changed or not). */
+async function routeSpawn($: Api, st: State, e: SpawnIn) {
+  const frozen = e.fork || e.workflow !== undefined
+  const route = spawnRoute(st, e, frozen)
+  const phase = hasKey(st.cfg.agents, e.subagentType)
+    ? st.cfg.agents[e.subagentType]
+    : undefined
+  const inside = e.parentAgentId !== undefined || e.model !== undefined
+  if (!route || !phase || inside) return route
+  const req: Req = { kind: 'agents', name: e.subagentType, phase }
+  const say = async () => spawnQuestion($, st, e, req, route)
+  return (await confirmFirst($, st, req, say))
+    ? spawnRoute(st, e, frozen)
+    : route
+}
+
+/** A phase declared through the route tool: confirm-only. */
+async function confirmPhase($: Api, st: State, phase: string) {
+  const req: Req = { kind: 'phases', name: phase, phase }
+  const meaning = [aboutLine(st, phase), consumers(st, phase)]
+    .filter(part => part !== undefined).join('; ')
+  const lead = `First use of ${phase} on the main loop — ${meaning}`
+  await confirmFirst($, st, req, () => mainQuestion($, st, lead))
+}
+
+// ---- first-use commands ----------------------------------------------
+
+/** Rows and phases not confirmed yet, those asked this session first. */
+function pendingText(st: State): string {
+  const m = st.mem
+  if (!m.ok) return `${ROUTING} missing or unreadable: nothing to confirm`
+  const names = (kind: Kind): string[] => Object.keys(
+    kind === 'phases' ? st.cfg.phases : m.base[kind])
+    .filter(name => !isDecided(m, kind, name))
+  const all = KINDS.flatMap(kind => names(kind).map(name => ({ kind, name })))
+    .map(keyOf)
+  const asked = all.filter(k => st.asked.has(k))
+  const rest = all.filter(k => !st.asked.has(k))
+  return [
+    `pending confirmation: ${all.length}` +
+      (m.ask ? '' : ' (asking is off: /route ask on)'),
+    `asked this session: ${asked.join(' ') || 'none'}`,
+    `not asked yet: ${rest.join(' ') || 'none'}`,
+  ].join('\n')
+}
+
+async function askCommand($: Api, st: State, arg: string | undefined) {
+  if (arg !== 'on' && arg !== 'off') return 'usage: /route ask on|off'
+  const patch: Patch = file => { file.ask = arg === 'on' }
+  try {
+    if (!(await writeRouting($, st, patch))) {
+      return `${ROUTING} missing or unreadable: ask unchanged`
+    }
+  } catch (err) {
+    return `ask not applied (${String(err)})`
+  }
+  const local = st.mem.askLocal
+  const note = local === undefined ? '' : `; ~/${OVERRIDE} sets ask ${
+    local ? 'on' : 'off'} and wins here`
+  return `ask ${arg}${note}`
+}
+
+// ---- /route forget: the user takes decisions back -------------------------
+// Removes `confirmed` and `projects` entries and restores a `changed` row to
+// its shipped phase. The frontmatter floors are never touched. `all` and
+// `projects` ask first. Reserved words: a row named like them is edited by
+// hand.
+
+type Target = { label: string; name?: string; only?: 'projects' }
+type Restore = { kind: Kind; name: string; from: string; to: string }
+type ForgetPlan = {
+  confirmed: [Kind, string][]
+  restores: Restore[]
+  kept: string[] // refused restores, with the reason
+  projects: [string, Kind, string][] // repo key, kind, name
+}
+
+const REFUSED = 'forget refused: nothing saved'
+const FORGET_USAGE = 'usage: /route forget <name|all|projects>'
+const BUILTIN_AGENTS: ReadonlySet<string> = new Set(['Explore', 'Plan'])
+const isKind = (v: string): v is Kind => KINDS.some(kind => kind === v)
+
+function targetOf(arg: string): Target {
+  if (arg === 'all') return { label: 'all' }
+  if (arg === 'projects') return { label: 'projects', only: 'projects' }
+  return { label: arg, name: arg }
+}
+
+/** The [kind, name, value] entries of a kind-keyed table the target picks. */
+function decided(tables: unknown, t: Target): [Kind, string, unknown][] {
+  if (!isRecord(tables)) return []
+  return Object.entries(tables).filter(([kind]) => isKind(kind))
+    .flatMap(([kind, rows]) => isRecord(rows) ? Object.keys(rows)
+      .filter(name => t.name === undefined || name === t.name)
+      .map(name => [kind as Kind, name, rows[name]] as [Kind, string, unknown])
+      : [])
+}
+
+/** The restore a `changed` entry allows, or why it is refused. */
+function restoreOf(
+  file: Rec,
+  kind: Kind,
+  name: string,
+  entry: unknown,
+): Restore | string {
+  const { from, to } = isRecord(entry) ? entry : ({} as Rec)
+  if (typeof from !== 'string') return 'no phase recorded to return to'
+  const rows = subRec(file, kind)
+  if (typeof to !== 'string' || !hasKey(rows, name) || rows[name] !== to) {
+    return 'the row differs from the recorded change, edit routing.json'
+  }
+  if (!hasKey(subRec(file, 'phases'), from) &&
+      !hasKey(DEFAULT_CONFIG.phases, from)) {
+    return `${from} is not a known phase`
+  }
+  return { kind, name, from, to }
+}
+
+/** What the target removes from this file, and what it must keep. */
+function forgetPlan(file: Rec, t: Target): ForgetPlan {
+  const plan: ForgetPlan = {
+    confirmed: [], restores: [], kept: [], projects: [],
+  }
+  if (t.only !== 'projects') {
+    for (const [kind, name] of decided(file.confirmed, t)) {
+      plan.confirmed.push([kind, name])
+    }
+    for (const [kind, name, entry] of decided(file.changed, t)) {
+      const done = restoreOf(file, kind, name, entry)
+      if (typeof done === 'string') plan.kept.push(`${kind}.${name}: ${done}`)
+      else plan.restores.push(done)
+    }
+  }
+  const repos = isRecord(file.projects) ? file.projects : {}
+  for (const [repo, tables] of Object.entries(repos)) {
+    for (const [kind, name] of decided(tables, t)) {
+      plan.projects.push([repo, kind, name])
+    }
+  }
+  return plan
+}
+
+const removals = (plan: ForgetPlan): number =>
+  plan.confirmed.length + plan.restores.length + plan.projects.length
+const repoCount = (plan: ForgetPlan): number =>
+  new Set(plan.projects.map(entry => entry[0])).size
+
+/** Deletes one entry; an emptied kind table goes with it. */
+function dropEntry(parent: Rec, kind: string, name: string): void {
+  const rows = subRec(parent, kind)
+  delete rows[name]
+  if (Object.keys(rows).length === 0) delete parent[kind]
+}
+
+function applyPlan(file: Rec, plan: ForgetPlan): void {
+  const changed = subRec(file, 'changed')
+  const projects = subRec(file, 'projects')
+  for (const [kind, name] of plan.confirmed) {
+    dropEntry(subRec(file, 'confirmed'), kind, name)
+  }
+  for (const r of plan.restores) {
+    setKey(subRec(file, r.kind), r.name, r.from)
+    dropEntry(changed, r.kind, r.name)
+  }
+  for (const [repo, kind, name] of plan.projects) {
+    const mine = subRec(projects, repo)
+    dropEntry(mine, kind, name)
+    if (Object.keys(mine).length === 0) delete projects[repo]
+  }
+}
+
+/** Keys of this session's asked set the target covers. */
+function askedKeys(st: State, t: Target): string[] {
+  if (t.only === 'projects') return []
+  if (t.name === undefined) return [...st.asked]
+  const name = t.name
+  return KINDS.map(kind => keyOf({ kind, name })).filter(k => st.asked.has(k))
+}
+
+/** The machine override still sets the row: no forget reaches it. */
+function heldBy(st: State, t: Target): string | undefined {
+  const name = t.name
+  if (name === undefined) return undefined
+  return ROWS.some(kind => hasKey(strTable(st.override?.[kind]), name))
+    ? `~/${OVERRIDE}`
+    : undefined
+}
+
+/** The answer when nothing is written, or undefined when there is work. */
+function idleAnswer(
+  st: State,
+  t: Target,
+  plan: ForgetPlan,
+): string | undefined {
+  if (removals(plan) > 0) return undefined
+  if (plan.kept.length > 0) {
+    return `nothing restored for ${t.label}: ${plan.kept.join('; ')}`
+  }
+  const keys = askedKeys(st, t)
+  if (keys.length === 0) {
+    return t.name === undefined ? 'nothing to forget'
+      : `nothing to forget for ${t.name}`
+  }
+  keys.forEach(key => st.asked.delete(key))
+  const held = heldBy(st, t)
+  return `${t.label}: ${held === undefined
+    ? 'asked again at the next use'
+    : `still decided by ${held}`}, nothing was saved`
+}
+
+async function confirmForget($: Api, plan: ForgetPlan): Promise<boolean> {
+  const text = `Forget ${plural(removals(plan), 'decision')}: ` +
+    `${plan.restores.length} row(s) restored, ${plan.projects.length} ` +
+    `project exception(s) in ${plural(repoCount(plan), 'repo')}?`
+  return (await askOr($, text, ['Cancel', 'Forget'])) === 'Forget'
+}
+
+/** Where a restored row's frontmatter lives; none for a built-in agent. */
+function floorFile(r: Restore): string | undefined {
+  if (r.kind === 'skills') return `skills/${r.name}/SKILL.md`
+  return r.kind === 'agents' && !BUILTIN_AGENTS.has(r.name)
+    ? `agents/${r.name}.md`
+    : undefined
+}
+
+function restoreClause(st: State, r: Restore): string {
+  const route = phaseRoute(st.cfg, r.from) ?? phaseRoute(DEFAULT_CONFIG, r.from)
+  const alias = (route && headAlias(DEFAULT_CONFIG, route)) ?? 'its own model'
+  const values = `${alias} at ${route?.effort ?? 'its own effort'}`
+  const file = floorFile(r)
+  const realign = file === undefined ? '' : `; if ${file} was aligned to ${
+    r.to}, set model: ${alias}, effort: ${route?.effort ?? '-'} and its ` +
+    'lock in lib/tests/model-routing.test.sh, then `make test`'
+  return ` (${r.kind}.${r.name} → ${r.from}: ${values}${realign})`
+}
+
+/** Restored skill rows whose old phase the current run still holds. */
+function runKeeps(st: State, plan: ForgetPlan): string {
+  const live = [st.runMain, st.turnMain].filter(slot =>
+    slot !== null && (slot.source === 'run' || slot.source === 'skill'))
+  const kept = plan.restores.find(r => r.kind === 'skills' &&
+    live.some(slot => slot?.phase === r.to))
+  return kept === undefined ? '' :
+    `; current run may keep ${kept.to}: /route clear to apply`
+}
+
+/** The one answer of every form, from the counts really applied. */
+function forgetAnswer(st: State, t: Target, plan: ForgetPlan): string {
+  const kept = plan.kept.length === 0 ? '' :
+    `, ${plan.kept.length} restore(s) kept: ${plan.kept.join('; ')}`
+  const name = t.name
+  const wins = name !== undefined &&
+    ROWS.some(kind => st.mem.local[kind].has(name))
+    ? `; ~/${OVERRIDE} still sets ${name} and wins here`
+    : ''
+  return `forgot ${t.label}: ${plan.confirmed.length} confirmed, ${
+    plan.restores.length} row(s) restored, ${plan.projects.length} project ` +
+    `exception(s) removed${kept}` +
+    plan.restores.map(r => restoreClause(st, r)).join('') + wins +
+    runKeeps(st, plan) + '; other live sessions see it after /route reload'
+}
+
+/** One writer patch; the plan is recomputed on the file it really holds. */
+async function forgetWrite($: Api, st: State, t: Target, seen: ForgetPlan) {
+  const out: { plan?: ForgetPlan } = {}
+  const patch: Patch = file => {
+    out.plan = forgetPlan(file, t)
+    applyPlan(file, out.plan)
+  }
+  try {
+    if (!(await writeRouting($, st, patch))) return REFUSED
+  } catch (err) {
+    return err instanceof RebuildFailed
+      ? 'saved, config not rebuilt: /route reload'
+      : `forget not applied (${String(err)})`
+  }
+  askedKeys(st, t).forEach(key => st.asked.delete(key))
+  return forgetAnswer(st, t, out.plan ?? seen)
+}
+
+/** A row or phase called `all` or `projects` cannot be reached by name. */
+function reservedNote(file: Rec, t: Target): string {
+  if (t.name !== undefined) return ''
+  const clash = KINDS.some(kind => hasKey(subRec(file, kind), t.label))
+  return clash ? `; a row or phase named ${t.label} is reserved here: ` +
+    `edit ${ROUTING} by hand` : ''
+}
+
+async function forgetFlow($: Api, st: State, t: Target): Promise<string> {
+  await st.writes
+  const file = await readRouting($, text => $.ui.log(text))
+  if (typeof file === 'string') {
+    return `${ROUTING} is missing or unreadable: nothing saved`
+  }
+  const plan = forgetPlan(file.data, t)
+  const idle = idleAnswer(st, t, plan)
+  const note = reservedNote(file.data, t)
+  if (idle !== undefined) return idle + note
+  if (t.name === undefined && !(await confirmForget($, plan))) {
+    return `forget ${t.label} cancelled, nothing written` + note
+  }
+  return (await forgetWrite($, st, t, plan)) + note
+}
+
+/** The forget holds the single-dialog slot: no first-use dialog under it. */
+async function forgetCommand($: Api, st: State, args: string[]) {
+  if (args.length !== 1) return FORGET_USAGE
+  if (st.asking !== null) return 'answer the open dialog first'
+  const target = targetOf(args[0] ?? '')
+  st.asking = `forget:${target.label}`
+  try {
+    return await forgetFlow($, st, target)
+  } finally {
+    st.asking = null
   }
 }
 
@@ -1283,8 +2347,9 @@ async function registerCommand($: Api): Promise<void> {
       name: 'route',
       description: 'model-router: show or set the model and effort route',
       argumentHint:
-        '[show|clear|off|on|reload|<phase>|model=<alias|id> effort=<level>' +
-        '|switch on|off|verbose on|off]',
+        '[show|clear|off|on|reload|pending|ask on|off|' +
+        'forget <name|all|projects>|<phase>|' +
+        'model=<alias|id> effort=<level>|switch on|off|verbose on|off]',
       immediate: true,
     })
   } catch (err) {
@@ -1372,6 +2437,9 @@ async function handleRouteTool($: Api, st: State, e: RouteInput) {
   const picked = pickRoute(st.cfg, e.phase, e.effort)
   if (typeof picked === 'string') return { deny: picked }
   applyRoute(st, e.agentId, picked)
+  if (e.agentId === undefined && typeof e.phase === 'string') {
+    await confirmPhase($, st, picked.phase)
+  }
   return { result: await routedText($, st, e.agentId, picked) }
 }
 
@@ -1423,13 +2491,25 @@ function typedPath(st: State, skill: string): TypedPath | undefined {
   return st.promptAllowed && idle ? 'typed-fallback' : undefined
 }
 
-function applyTypedSkill($: Api, st: State, skill: string): void {
+/** Routes main by the typed skill's row; the row, for the first-use ask. */
+function armTypedSkill($: Api, st: State, skill: string) {
   const row = skillRow(st, skill)
   const path = typedPath(st, skill)
-  if (row === undefined || path === undefined) return
+  if (row === undefined || path === undefined) return undefined
   routeMainBySkill(st, row, true)
   refresh($, st)
   vlog($, st, `skill ${skill}: ${path} → ${row.phase}`)
+  return row
+}
+
+/** Bookkeeping that may fail without breaking the hook: fail-open. */
+function armed($: Api, st: State, skill: string): Picked | undefined {
+  try {
+    return armTypedSkill($, st, skill)
+  } catch {
+    warnOnce(st, $, 'skill.prompt', 'bookkeeping')
+    return undefined
+  }
 }
 
 // ---- agents ----------------------------------------------------------
@@ -1438,6 +2518,7 @@ type SpawnIn = {
   tool_use_id: string
   subagentType: string
   model?: string
+  parentAgentId?: string // set when the spawn happens inside an agent
   fork: boolean
   workflow?: unknown
 }
@@ -1736,11 +2817,23 @@ function registerBreaker(on: On, st: State): void {
   })
 }
 
+function registerCwd(on: On, st: State): void {
+  on('classic.CwdChanged', async ($, e, next) => {
+    // the repo key follows the directory: rebuild the layers
+    if (st.loaded) await reloadConfig($, st)
+    return next(e)
+  }).catch(($, e, next) => {
+    warnOnce(st, $, 'CwdChanged', next.error.kind)
+    return next(e)
+  })
+}
+
 function registerCommandHook(on: On, st: State): void {
   on('command.run', { command: 'route' }, async ($, e) => {
     if (e.origin.kind !== 'composer') {
       return { text: 'route: user-only command' }
     }
+    await ensureConfig($, st)
     return { text: await handleCommand($, st, e.args) }
   }).catch(($, e, next) => {
     warnOnce(st, $, 'command.run', next.error.kind)
@@ -1750,6 +2843,7 @@ function registerCommandHook(on: On, st: State): void {
 
 function registerRouteTool(on: On, st: State): void {
   on('tool.call', { tool: TOOL }, async ($, e) => {
+    await ensureConfig($, st)
     const out = await handleRouteTool($, st, e)
     refresh($, st)
     vlog($, st, `route ${e.agentId ?? 'main'}: ${JSON.stringify(out)}`)
@@ -1762,6 +2856,7 @@ function registerRouteTool(on: On, st: State): void {
 
 function registerSkills(on: On, st: State): void {
   on('tool.call', { tool: 'Skill' }, async ($, e, next) => {
+    await ensureConfig($, st)
     const skill = typeof e.skill === 'string' ? e.skill : undefined
     if (st.off || skill === undefined) return next(e)
     st.skillCalls += 1
@@ -1776,8 +2871,10 @@ function registerSkills(on: On, st: State): void {
     return next(e)
   })
   on('skill.prompt', async ($, e, next) => {
+    await ensureConfig($, st)
     if (st.off || st.skillCalls > 0) return next(e)
-    safely(st, $, 'skill.prompt', () => applyTypedSkill($, st, e.skill))
+    const row = armed($, st, e.skill)
+    if (row) await confirmSkill($, st, e.skill, row)
     return next(e)
   }).catch(($, e, next) => {
     warnOnce(st, $, 'skill.prompt', next.error.kind)
@@ -1822,18 +2919,19 @@ function afterSpawn(
 
 function registerSpawn(on: On, st: State): void {
   on('agent.offer', async ($, e, next) => {
-    if (!st.off) st.offers.set(e.agent, e.source)
+    if (!st.off) rememberOffer(st, e)
     return next(e)
   }).catch(($, e, next) => {
     warnOnce(st, $, 'agent.offer', next.error.kind)
     return next(e)
   })
   on('agent.spawn', async ($, e, next) => {
+    await ensureConfig($, st)
     if (st.off) return next(e)
     st.spawning += 1
     try {
       await prune($, st)
-      const route = spawnRoute(st, e, e.fork || e.workflow !== undefined)
+      const route = await routeSpawn($, st, e)
       const wanted = spawnTarget($, st, e, route)
       const started = await next(wanted === undefined
         ? e
@@ -1942,6 +3040,7 @@ function noteTyped(st: State, kind: string, text: string, midTurn: boolean) {
 
 function registerPrompt(on: On, st: State): void {
   on('prompt.submit', async ($, e, next) => {
+    await ensureConfig($, st, true)
     if (st.off) return next(e)
     const midTurn = e.turnId !== undefined
     noteTyped(st, e.origin.kind, e.text, midTurn)
@@ -1966,6 +3065,7 @@ export const register: Register = on => {
   const st = newState(mergeConfig(undefined, () => undefined), 'defaults')
   registerSession(on, st)
   registerBreaker(on, st)
+  registerCwd(on, st)
   registerCommandHook(on, st)
   registerRouteTool(on, st)
   registerSkills(on, st)

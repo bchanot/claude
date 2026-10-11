@@ -48,6 +48,11 @@ Builtin `/effort` is NOT a lever inside a run: rows and routes outrank it.
   typed marker (unverified live 2026-10-10).
 - Headless (`-p`, SDK) runs the hooks, so routing works there too.
 - Mod off: typed agents fall back to their `model:`/`effort:` frontmatter.
+- First use of a row asks once, with context (Later, Keep or Change: model,
+  then effort, then Everywhere or this project only); the answer is kept in
+  `mods/model-router/routing.json`. `/route pending` lists what is still
+  unconfirmed, `/route ask off|on` toggles the dialog, `/route forget
+  <name|all|projects>` takes a decision back.
 
 Measure the split any time: `python3 ~/.claude/lib/effort-audit.py`
 (thinking/output/cache tokens per scope, model and effort).
