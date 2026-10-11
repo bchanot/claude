@@ -62,6 +62,7 @@ type State = {
   pendingAllowed: boolean // same, for the mid-turn prompt
   spawning: number // agent.spawn hooks in flight (preloads fire inside)
   offers: Map<string, string> // subagentType -> definition source
+  descs: Map<string, string> // subagentType -> cleaned one-sentence offer line
   loops: Map<string, Loop> // agentId -> that loop's routing
   explicitEffort: Map<string, Level> // Agent tool_use_id -> effort param
   skillCalls: number // Skill tool calls in flight
@@ -111,6 +112,7 @@ type Memory = {
   askLocal: boolean | undefined // the machine override's own `ask`
   base: Record<Row, Table> // the file's rows, before any project layer
   confirmed: Record<Kind, Table> // name -> the phase a Keep endorsed
+  about: Table // phase -> its one-line meaning, shown in the dialog only
   local: Record<Row, Set<string>> // rows of projects[key] or the override
   key: string | undefined // normalized repo key; undefined = no project layer
 }
@@ -137,16 +139,17 @@ const ROUTING = 'routing.json' // next to plugin.json: the tracked source
 const ROUTING_ORDER: readonly string[] = [
   'phases', 'skills', 'agents', 'projects', 'confirmed', 'changed', 'ask',
 ]
-// First-use dialog: answers, and the phases offered as alternatives.
+// First-use dialog: the answers, and what a question may carry of the outside.
 const LATER = 'Later'
 const KEEP = 'Keep'
+const CHANGE = 'Change'
 const EVERYWHERE = 'Everywhere'
 const THIS_PROJECT = 'This project only'
-const ALTS: Record<Kind, readonly string[]> = {
-  skills: ['plan', 'reflect', 'implement', 'apply'],
-  agents: ['judge', 'implement', 'verify', 'apply'],
-  phases: [],
-}
+const CHOICE_ALIASES: readonly string[] = ['fable', 'opus', 'sonnet', 'haiku']
+const MAX_DESC = 140 // chars of a skill or agent description in a question
+const MAX_ABOUT = 120 // chars of a phase `about`
+const MAX_DESCS = 256 // agent descriptions kept (oldest dropped)
+const SKILL_NAME = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/
 const ROWS: readonly Row[] = ['skills', 'agents']
 const KINDS: readonly Kind[] = ['skills', 'agents', 'phases']
 const HAIKU = 'claude-haiku'
@@ -580,9 +583,26 @@ function emptyMemory(): Memory {
     askLocal: undefined,
     base: { skills: {}, agents: {} },
     confirmed: { skills: {}, agents: {}, phases: {} },
+    about: {},
     local: { skills: new Set(), agents: new Set() },
     key: undefined,
   }
+}
+
+/** The phases' `about` lines; a non-string or overlong one is dropped, said. */
+function aboutOf(phases: unknown, log: Log): Table {
+  const out: Table = {}
+  if (!isRecord(phases)) return out
+  for (const [name, phase] of Object.entries(phases)) {
+    const about = isRecord(phase) ? phase.about : undefined
+    if (about === undefined || name === '__proto__') continue
+    if (typeof about === 'string' && about.length <= MAX_ABOUT) {
+      out[name] = about
+    } else {
+      log(`model-router: ${ROUTING} phases.${name}.about ignored`)
+    }
+  }
+  return out
 }
 
 /** What the file and the machine override say about decisions. */
@@ -590,6 +610,7 @@ function buildMemory(
   file: Rec,
   key: string | undefined,
   override: Rec | undefined,
+  log: Log,
 ): Memory {
   const project = projectRows(file, key)
   const flag = override?.ask
@@ -608,6 +629,7 @@ function buildMemory(
       agents: strTable(sure.agents),
       phases: strTable(sure.phases),
     },
+    about: aboutOf(file.phases, log),
     local: { skills: local('skills'), agents: local('agents') },
     key,
   }
@@ -732,7 +754,7 @@ async function assemble(
     fileData && routingTables(fileData, key), override, log)
   const mem = fileData === undefined
     ? emptyMemory()
-    : buildMemory(fileData, key, override)
+    : buildMemory(fileData, key, override, log)
   return { cfg, source: sourceWord(file, over), mem, override }
 }
 
@@ -782,6 +804,7 @@ function newState(cfg: Config, source: string): State {
     pendingAllowed: false,
     spawning: 0,
     offers: new Map(),
+    descs: new Map(),
     loops: new Map(),
     explicitEffort: new Map(),
     skillCalls: 0,
@@ -823,6 +846,7 @@ function resetSession(st: State): void {
     agentModels: st.agentModels,
     sessionModel: st.sessionModel,
     offers: st.offers,
+    descs: st.descs,
     mem: st.mem,
     override: st.override,
     loaded: st.loaded,
@@ -1531,7 +1555,8 @@ const wantsAsk = (st: State, req: Req): boolean =>
 async function refreshMemory($: Api, st: State): Promise<boolean> {
   const file = await readRouting($, text => $.ui.log(text))
   if (typeof file === 'string') return false
-  st.mem = buildMemory(file.data, await projectKey($), st.override)
+  st.mem = buildMemory(
+    file.data, await projectKey($), st.override, () => undefined)
   return true
 }
 
@@ -1547,26 +1572,217 @@ async function askOr(
   }
 }
 
-function optionsFor(st: State, req: Req): string[] {
-  const alts = ALTS[req.kind]
-    .filter(p => p !== req.phase && hasKey(st.cfg.phases, p))
-  return req.kind === 'phases'
-    ? [LATER, KEEP]
-    : [LATER, KEEP, ...alts.slice(0, 2)]
+// What a question says about its row. Everything read from outside (a
+// SKILL.md, an agent's listing line, routing.json) is cleaned and capped.
+
+/**
+ * Text safe in a question: every whitespace folded to a space, then control
+ * and format characters (bidi included) stripped, cut to `n` code points
+ * with an ellipsis (total <= n).
+ */
+function clean(text: string, n: number): string {
+  const flat = text.replace(/[\s\p{Z}]+/gu, ' ')
+    .replace(/[\p{Cc}\p{Cf}]/gu, '').replace(/ {2,}/g, ' ').trim()
+  const points = [...flat]
+  return points.length <= n ? flat : `${points.slice(0, n - 1).join('')}…`
 }
 
-/** Keep, a phase of the table (an alt or free text), else Later. */
-function decide($: Api, st: State, req: Req, answer: string): Answer {
-  if (answer === KEEP) return { act: 'keep' }
-  if (answer === LATER || req.kind === 'phases') return { act: 'later' }
-  if (!hasKey(st.cfg.phases, answer)) {
-    const shown = answer.slice(0, 40).replace(/[\u0000-\u001f]/g, ' ')
-    $.ui.toast(`unknown phase "${shown}", default kept`)
-    return { act: 'later' }
+/** The first sentence of a description, cleaned; undefined when empty. */
+function oneSentence(text: string): string | undefined {
+  const end = /\.(?:\s|$)/.exec(text)
+  const line = clean(end ? text.slice(0, end.index) : text, MAX_DESC)
+  return line === '' ? undefined : line
+}
+
+const FRONTMATTER = /^---\r?\n([\s\S]*?)\r?\n---(?:\r?\n|$)/
+const BLOCK_HEAD = /^[|>][+-]?\d*$/
+
+/** A YAML scalar without its quotes: `''` and JSON escapes resolved. */
+function unquote(value: string): string {
+  const quote = value[0]
+  if (value.length < 2 || value[value.length - 1] !== quote) return value
+  if (quote === "'") return value.slice(1, -1).replace(/''/g, "'")
+  if (quote !== '"') return value
+  try {
+    const parsed: unknown = JSON.parse(value)
+    return typeof parsed === 'string' ? parsed : value.slice(1, -1)
+  } catch {
+    return value.slice(1, -1)
   }
-  return answer === req.phase
-    ? { act: 'keep' }
-    : { act: 'change', phase: answer }
+}
+
+/** `description:` of a SKILL.md frontmatter: plain, block or quoted. */
+function frontDescription(text: string): string | undefined {
+  const front = FRONTMATTER.exec(text)?.[1]
+  const lines = front === undefined ? [] : front.split(/\r?\n/)
+  const at = lines.findIndex(line => line.startsWith('description:'))
+  if (at < 0) return undefined
+  const head = (lines[at] ?? '').slice('description:'.length).trim()
+  const body: string[] = []
+  for (const line of lines.slice(at + 1)) {
+    if (line.trim() !== '' && !/^\s/.test(line)) break
+    body.push(line.trim())
+  }
+  const first = BLOCK_HEAD.test(head) ? '' : head
+  return unquote([first, ...body].filter(w => w !== '').join(' '))
+}
+
+/**
+ * A skill's description from ${HOME}/.claude/skills/<name>/SKILL.md: a
+ * regular file under the size cap, a name from the allowlist. Any failure
+ * gives undefined: the question names the skill alone.
+ */
+async function skillDesc($: Api, name: string): Promise<string | undefined> {
+  if (!SKILL_NAME.test(name)) return undefined
+  try {
+    const home = await $.env.get('HOME')
+    if (!home) return undefined
+    const path = `${home}/.claude/skills/${name}/SKILL.md`
+    if ((await $.fs.stat(path)).kind !== 'file') return undefined
+    const text = await readCapped($, path, 'SKILL.md', () => undefined)
+    const raw = text === undefined ? undefined : frontDescription(text)
+    return raw === undefined ? undefined : oneSentence(raw)
+  } catch {
+    return undefined
+  }
+}
+
+/** The agent listing line, cleaned once at offer time; oldest dropped. */
+function rememberOffer(
+  st: State,
+  e: { agent: string; source: string; description: string },
+): void {
+  st.offers.set(e.agent, e.source)
+  const given: unknown = e.description
+  const line = typeof given === 'string'
+    ? oneSentence(given.slice(0, 4096))
+    : undefined
+  st.descs.delete(e.agent)
+  if (line !== undefined) st.descs.set(e.agent, line)
+  if (st.descs.size <= MAX_DESCS) return
+  const oldest = st.descs.keys().next().value
+  if (oldest !== undefined) st.descs.delete(oldest)
+}
+
+const plural = (n: number, word: string): string =>
+  `${n} ${word}${n === 1 ? '' : 's'}`
+
+const withDesc = (lead: string, desc: string | undefined): string =>
+  desc === undefined ? lead : `${lead} — ${desc}`
+
+function aboutLine(st: State, phase: string): string | undefined {
+  const raw = own(st.mem.about, phase)
+  const line = raw === undefined ? '' : clean(raw, MAX_ABOUT)
+  return line === '' ? undefined : line
+}
+
+/** "Routed to <phase> (<about>)": the parenthesis only when about is set. */
+function routedTo(st: State, phase: string): string {
+  const about = aboutLine(st, phase)
+  return `Routed to ${phase}${about === undefined ? '' : ` (${about})`}`
+}
+
+/** Who uses a phase: its rows, the derived dispatch route, prompt rules. */
+function consumers(st: State, phase: string): string {
+  const { skills, agents, prompt } = st.cfg
+  const rows = [...Object.values(skills), ...Object.values(agents)]
+    .filter(p => p === phase).length
+  const rules = prompt.filter(r => r.phase === phase)
+  const floors = rules.filter(r => r.mode !== 'default').length
+  const parts = [plural(rows, 'row')]
+  if (phase === 'orchestrate') parts.push('the derived route of dispatches')
+  if (rules.length > floors) {
+    parts.push(plural(rules.length - floors, 'prompt rule'))
+  }
+  if (floors > 0) parts.push(plural(floors, 'floor rule'))
+  return `used by ${parts.join(', ')}`
+}
+
+// ---- the dialog's steps: ASK1 Later/Keep/Change, then model, effort, scope
+
+const optionsFor = (req: Req): string[] =>
+  isRowReq(req) ? [LATER, KEEP, CHANGE] : [LATER, KEEP]
+
+/**
+ * One step: the chosen label, or undefined (a Later). A dismissed or
+ * headless dialog is silent; any other answer is toasted, never echoed.
+ */
+async function askStep(
+  $: Api,
+  text: string,
+  labels: readonly string[],
+): Promise<string | undefined> {
+  const answer = await askOr($, text, labels)
+  if (answer === LATER) return undefined
+  if (labels.includes(answer)) return answer
+  $.ui.toast('answer not recognised, default kept')
+  return undefined
+}
+
+/** The alias a phase's route leads with: its tier's head, or its model. */
+function headAlias(cfg: Config, route: Route): string | undefined {
+  if (route.tier !== undefined) {
+    const list = hasKey(cfg.tiers, route.tier) ? cfg.tiers[route.tier] : []
+    return list?.[0]
+  }
+  if (route.model === undefined) return undefined
+  return hasKey(cfg.models, route.model)
+    ? route.model
+    : aliasOf(cfg, canonical(cfg, route.model))
+}
+
+/** "fable (best)": the alias and the tier it heads ("custom" if none). */
+function modelLabel(cfg: Config, alias: string): string {
+  const tier = Object.keys(cfg.tiers).find(t => cfg.tiers[t]?.[0] === alias)
+  return `${alias} (${tier ?? 'custom'})`
+}
+
+async function askModel($: Api, st: State, req: RowReq) {
+  const labels = CHOICE_ALIASES.map(a => modelLabel(st.cfg, a))
+  const label = await askStep($, `Which model for ${req.name}?`, labels)
+  return label === undefined ? undefined : CHOICE_ALIASES[labels.indexOf(label)]
+}
+
+/** The efforts of the phases headed by `alias`, ascending, four at most. */
+function effortsOf(cfg: Config, alias: string): Level[] {
+  const found = Object.values(cfg.phases)
+    .filter(r => headAlias(cfg, r) === alias).map(r => r.effort)
+  return LEVELS.filter(level => found.includes(level)).slice(0, 4)
+}
+
+/** One effort is no question; none is a Later, said. */
+async function askEffort($: Api, st: State, alias: string) {
+  const efforts = effortsOf(st.cfg, alias)
+  if (efforts.length === 0) $.ui.toast(`no phase uses ${alias}`)
+  if (efforts.length < 2) return efforts[0]
+  const label = await askStep($, `Which effort on ${alias}?`, efforts)
+  return efforts.find(effort => effort === label)
+}
+
+/** The row's current phase when it matches, else the first that does. */
+function targetPhase(cfg: Config, now: string, alias: string, effort: Level) {
+  const fits = (name: string): boolean => {
+    const route = phaseRoute(cfg, name)
+    return route?.effort === effort && headAlias(cfg, route) === alias
+  }
+  return fits(now) ? now : Object.keys(cfg.phases).find(fits)
+}
+
+/** Change: model, then effort, mapped to a phase of the table. */
+async function changeRoute($: Api, st: State, req: RowReq): Promise<Answer> {
+  const alias = await askModel($, st, req)
+  const effort = alias === undefined ? undefined : await askEffort($, st, alias)
+  if (alias === undefined || effort === undefined) return { act: 'later' }
+  const phase = targetPhase(st.cfg, req.phase, alias, effort)
+  if (phase === undefined) return { act: 'later' }
+  return phase === req.phase ? { act: 'keep' } : { act: 'change', phase }
+}
+
+async function decide($: Api, st: State, req: Req, text: string) {
+  const choice = await askStep($, text, optionsFor(req))
+  if (choice === KEEP) return { act: 'keep' } as const
+  if (choice === CHANGE && isRowReq(req)) return changeRoute($, st, req)
+  return { act: 'later' } as const
 }
 
 async function askScope(
@@ -1577,10 +1793,10 @@ async function askScope(
 ): Promise<Scope> {
   const key = st.mem.key
   const text = `Use ${to} for ${req.name} everywhere, or only in this project?`
-  const answer = await askOr($, text,
+  const choice = await askStep($, text,
     [EVERYWHERE, key === undefined ? LATER : THIS_PROJECT])
-  if (answer === EVERYWHERE) return 'everywhere'
-  return answer === THIS_PROJECT && key !== undefined ? 'project' : 'later'
+  if (choice === EVERYWHERE) return 'everywhere'
+  return choice === THIS_PROJECT && key !== undefined ? 'project' : 'later'
 }
 
 function table(parent: Rec, key: string): Rec {
@@ -1679,9 +1895,8 @@ async function saveAnswer($: Api, st: State, req: Req, ans: Answer) {
 
 /** The dialog and what follows; true when routing.json was rewritten. */
 async function runDialog($: Api, st: State, req: Req, text: string) {
-  const answer = await askOr($, text, optionsFor(st, req))
   st.asked.add(keyOf(req))
-  return saveAnswer($, st, req, decide($, st, req, answer))
+  return saveAnswer($, st, req, await decide($, st, req, text))
 }
 
 function failOnce($: Api, st: State, err: unknown): void {
@@ -1722,8 +1937,7 @@ async function confirmFirst(
 /** First-use question text: the id and level the next step really gets. */
 async function mainQuestion($: Api, st: State, lead: string) {
   const v = await snapshot($, st)
-  return `${lead} ${idWord(st, v.call.model)} at ${
-    effortWord(st, v)}. Keep it?`
+  return `${lead}: ${idWord(st, v.call.model)} at ${effortWord(st, v)}. OK?`
 }
 
 function spawnQuestion(
@@ -1735,21 +1949,44 @@ function spawnQuestion(
 ): string {
   const id = spawnTarget($, st, e, route) ?? 'its own model'
   const effort = st.explicitEffort.get(e.tool_use_id) ?? route.effort
-  return `First dispatch of ${req.name}: ${req.phase}, ${id} at ${
-    effort ?? 'its own effort'}. Keep it?`
+  const lead = withDesc(`First dispatch of ${req.name}`,
+    st.descs.get(req.name))
+  return `${lead}. ${routedTo(st, req.phase)}: ${id} at ${
+    effort ?? 'its own effort'}. OK?`
+}
+
+async function skillQuestion($: Api, st: State, skill: string, phase: string) {
+  const head = withDesc(`First route for /${skill}`, await skillDesc($, skill))
+  return mainQuestion($, st, `${head}. ${routedTo(st, phase)}`)
+}
+
+/** A downgrade the switch holds back: main keeps its model, said. */
+function downgradeHeld(st: State, v: Verdict, cur: string): boolean {
+  return v.wanted !== undefined && v.call.why === 'switch off' &&
+    !ranksAbove(st, v.wanted, canonical(st.cfg, cur))
+}
+
+/** After a Change: what main will really run, and the switch hint. */
+async function toastChange($: Api, st: State, skill: string) {
+  const cur = st.turnModel ?? st.sessionModel
+  const v = await decideFor($, st, cur)
+  const hint = downgradeHeld(st, v, cur)
+    ? ', main moves up only: /route switch on allows a downgrade'
+    : ''
+  $.ui.toast(`/${skill} now runs ${idWord(st, v.call.model)} at ${
+    effortWord(st, v)}${hint}`)
 }
 
 /** Typed skill: a changed row re-routes the turn at once. */
 async function confirmSkill($: Api, st: State, skill: string, row: Picked) {
   const req: Req = { kind: 'skills', name: skill, phase: row.phase }
-  const lead = `First route for /${skill}: ${row.phase}, next step`
-  if (!(await confirmFirst($, st, req, () => mainQuestion($, st, lead)))) {
-    return
-  }
+  const say = () => skillQuestion($, st, skill, row.phase)
+  if (!(await confirmFirst($, st, req, say))) return
   const after = skillRow(st, skill)
   if (after === undefined) return
   routeMainBySkill(st, after, true)
   refresh($, st)
+  if (after.phase !== row.phase) await toastChange($, st, skill)
 }
 
 /** Rowed spawn: the route in force after the dialog (changed or not). */
@@ -1771,7 +2008,9 @@ async function routeSpawn($: Api, st: State, e: SpawnIn) {
 /** A phase declared through the route tool: confirm-only. */
 async function confirmPhase($: Api, st: State, phase: string) {
   const req: Req = { kind: 'phases', name: phase, phase }
-  const lead = `First use of ${phase} on the main loop:`
+  const meaning = [aboutLine(st, phase), consumers(st, phase)]
+    .filter(part => part !== undefined).join('; ')
+  const lead = `First use of ${phase} on the main loop — ${meaning}`
   await confirmFirst($, st, req, () => mainQuestion($, st, lead))
 }
 
@@ -2418,7 +2657,7 @@ function afterSpawn(
 
 function registerSpawn(on: On, st: State): void {
   on('agent.offer', async ($, e, next) => {
-    if (!st.off) st.offers.set(e.agent, e.source)
+    if (!st.off) rememberOffer(st, e)
     return next(e)
   }).catch(($, e, next) => {
     warnOnce(st, $, 'agent.offer', next.error.kind)

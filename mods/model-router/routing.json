@@ -2,47 +2,58 @@
   "phases": {
     "plan": {
       "tier": "best",
-      "effort": "xhigh"
+      "effort": "xhigh",
+      "about": "design and architecture: the deepest thinking, before any code exists"
     },
     "reflect": {
       "tier": "best",
-      "effort": "high"
+      "effort": "high",
+      "about": "analysis, review and synthesis: reasoning about what already exists"
     },
     "orchestrate": {
       "tier": "best",
-      "effort": "medium"
+      "effort": "medium",
+      "about": "dispatching and coordinating sub-agents: mostly handing out work"
     },
     "escalate": {
       "tier": "best",
-      "effort": "max"
+      "effort": "max",
+      "about": "a stuck problem or a judged need: maximum effort, diagnosis only"
     },
     "judge": {
       "tier": "big",
-      "effort": "xhigh"
+      "effort": "xhigh",
+      "about": "independent judgment of work: audits, challenges and verdicts"
     },
     "implement": {
       "tier": "work",
-      "effort": "medium"
+      "effort": "medium",
+      "about": "writing the code of an already planned change"
     },
     "write": {
       "tier": "work",
-      "effort": "high"
+      "effort": "high",
+      "about": "writing prose and docs, or a careful edit that needs polish"
     },
     "verify": {
       "tier": "work",
-      "effort": "xhigh"
+      "effort": "xhigh",
+      "about": "checking a result against its spec: tests, security review, gates"
     },
     "explore": {
       "tier": "work",
-      "effort": "medium"
+      "effort": "medium",
+      "about": "reading and searching the codebase to answer a question"
     },
     "apply": {
       "tier": "work",
-      "effort": "low"
+      "effort": "low",
+      "about": "bookkeeping: commits, memory entries and other small edits"
     },
     "mechanical": {
       "tier": "cheap",
-      "effort": "low"
+      "effort": "low",
+      "about": "scripted or trivial work needing no judgment, on the cheapest model"
     }
   },
   "skills": {
@@ -125,7 +136,7 @@
     "plugin-probe": "apply",
     "validator-analyzer": "apply",
     "verifier": "verify",
-    "security-auditor": "verify",
+    "security-auditor": "judge",
     "status-reporter": "mechanical"
   },
   "projects": {},
@@ -133,12 +144,14 @@
     "agents": {
       "verifier": "verify",
       "feater": "implement",
-      "doc-syncer": "write"
+      "doc-syncer": "write",
+      "security-auditor": "judge"
     },
     "phases": {
       "verify": "verify",
       "implement": "implement",
-      "write": "write"
+      "write": "write",
+      "orchestrate": "orchestrate"
     }
   },
   "changed": {},
