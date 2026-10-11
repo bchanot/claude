@@ -4377,3 +4377,622 @@ test('logs: an ended agent forgets its answer marks (reused id)', async (
   await runStep($, { ...highStep('a1'), model: SONNET })
   expect(answers(logs)).toHaveLength(2)
 })
+
+// ---- wave 4-B: prompt classifier -----------------------------------------
+
+type Ask = { text: string; labels: readonly string[]; options: unknown }
+type Reply = (n: number) => Promise<string | undefined> | string | undefined
+type Cls = {
+  asks: Ask[]
+  seen: Seen[]
+  clock: MockClock
+  logs: string[]
+  toasts: string[]
+  status: string[]
+  world: World
+}
+type ClsOpts = {
+  reply?: Reply
+  model?: string
+  world?: World
+  verbose?: boolean
+}
+
+const PLAIN = 'refactor the billing module please'
+const PAUSE_MS = 15 * 60000 // cooldownMinutes default, in ms
+
+/** A ui.status recorder, same shape as recordLogs. */
+function recordStatus(on: On): string[] {
+  const lines: string[] = []
+  on('ui.status', async ($, e, next) => {
+    lines.push(e.text ?? '')
+    try {
+      await next(e)
+    } catch {
+      // nothing implements ui.status below the recorder in the kit
+    }
+  })
+  return lines
+}
+
+/** A bottom `model.classify` answering `reply`; records every ask. */
+async function bootCls($: Engine, on: On, o: ClsOpts = {}): Promise<Cls> {
+  const logs = recordLogs(on)
+  const toasts = recordToasts(on)
+  const status = recordStatus(on)
+  const seen: Seen[] = []
+  const asks: Ask[] = []
+  recordSteps(on, seen)
+  on('prompt.submit', ($, e) => ({ text: e.text }))
+  on('turn.complete', () => ({ text: '' }))
+  on('session.end', ($, e) => ({ sessionId: e.sessionId }))
+  on('tool.call', { tool: 'Skill' }, () => ({
+    result: { success: true, commandName: 'bottom' },
+  }))
+  on('agent.spawn', ($, e) => ({
+    model: e.model ?? e.parentModel,
+    agentId: 'a1',
+  }))
+  on('model.classify', async (_$, e) => {
+    asks.push({ text: e.text, labels: e.labels, options: e.options })
+    return { value: await (o.reply ?? (() => 'coding'))(asks.length) }
+  })
+  const world = o.world ?? newWorld()
+  const clock = await boot($, on, o.model ?? FABLE, 1000, world)
+  if (o.verbose) await route($, 'verbose on')
+  logs.splice(0)
+  return { asks, seen, clock, logs, toasts, status, world }
+}
+
+const clearSession = ($: Engine) => $.session.end({
+  reason: 'clear',
+  sessionId: 's1',
+  resume: { id: 's1' },
+})
+
+/** The effort a main step reaches the bottom with (engine asks high). */
+async function clsEffort($: Engine, c: Cls): Promise<unknown> {
+  await runStep($, highStep())
+  return c.seen[c.seen.length - 1]?.effort
+}
+
+const never = (): Promise<never> => new Promise(() => undefined)
+const boom = (): never => {
+  throw new Error('overloaded')
+}
+
+/** `n` typed prompts that each fail, a turn end between them. */
+async function failTimes($: Engine, n: number): Promise<void> {
+  for (let i = 0; i < n; i++) {
+    await typed($, PLAIN)
+    await endTurn($)
+  }
+}
+
+const LABELS_EFFORT: [string, string][] = [
+  ['design', 'xhigh'],
+  ['analysis', 'high'],
+  ['coding', 'medium'],
+  ['bookkeeping', 'low'],
+]
+
+test('classify: one call with the five labels and no model option', async (
+  $, on) => {
+  const c = await bootCls($, on)
+  await typed($, PLAIN)
+  expect(c.asks).toEqual([{
+    text: PLAIN,
+    labels: ['design', 'analysis', 'coding', 'bookkeeping', 'chat'],
+    options: undefined,
+  }])
+})
+
+for (const [label, effort] of LABELS_EFFORT) {
+  test(`classify: ${label} becomes the turn effort ${effort}`, async (
+    $, on) => {
+    const c = await bootCls($, on, { reply: () => label })
+    await runStep($, highStep())
+    await typed($, PLAIN)
+    expect(await clsEffort($, c)).toBe(effort)
+  })
+}
+
+test('classify: coding lowers the engine effort to medium', async ($, on) => {
+  const c = await bootCls($, on)
+  await typed($, PLAIN)
+  expect(await clsEffort($, c)).toBe('medium')
+})
+
+test('classify: a chat answer routes nothing', async ($, on) => {
+  const c = await bootCls($, on, { reply: () => 'chat' })
+  await typed($, PLAIN)
+  expect(await clsEffort($, c)).toBe('high')
+})
+
+test('classify: no label at all routes nothing', async ($, on) => {
+  const c = await bootCls($, on, { reply: () => undefined })
+  await typed($, PLAIN)
+  expect(await clsEffort($, c)).toBe('high')
+})
+
+test('classify: a label naming an object key routes nothing', async (
+  $, on) => {
+  const c = await bootCls($, on, { reply: () => 'constructor' })
+  await typed($, PLAIN)
+  expect(await clsEffort($, c)).toBe('high')
+})
+
+test('classify: an unknown label neither warns nor counts', async ($, on) => {
+  const c = await bootCls($, on, { reply: () => 'nonsense' })
+  await failTimes($, 4)
+  expect(c.asks).toHaveLength(4)
+  expect(c.toasts).toEqual([])
+  expect(c.logs).toEqual([])
+})
+
+test('classify: the main model never moves for a design guess', async (
+  $, on) => {
+  const c = await bootCls($, on, { model: SONNET, reply: () => 'design' })
+  await typed($, PLAIN)
+  await runStep($, { ...highStep(), model: SONNET })
+  expect(c.seen[c.seen.length - 1]).toEqual({ model: SONNET, effort: 'xhigh' })
+})
+
+test('classify: the route carries no tier', async ($, on) => {
+  const c = await bootCls($, on, { reply: () => 'design' })
+  await typed($, PLAIN)
+  const line = mainLine(await route($, 'show'))
+  expect(line).toContain('classifier plan')
+  expect(line).not.toContain('[tier')
+  expect(c.asks).toHaveLength(1)
+})
+
+test('classify: the route is gone at turn.complete', async ($, on) => {
+  const c = await bootCls($, on, { reply: () => 'design' })
+  await typed($, PLAIN)
+  await endTurn($)
+  expect(await clsEffort($, c)).toBe('high')
+  expect(mainLine(await route($, 'show'))).toContain('session defaults')
+})
+
+test('classify: a route tool call in the turn replaces it', async ($, on) => {
+  const c = await bootCls($, on, { reply: () => 'bookkeeping' })
+  await typed($, PLAIN)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'plan' })
+  expect(await clsEffort($, c)).toBe('xhigh')
+})
+
+test('classify: a typed skill in the turn replaces it', async ($, on) => {
+  const c = await bootCls($, on, { reply: () => 'design' })
+  await typed($, PLAIN)
+  await typed($, '/feat add a thing')
+  await skillPrompt($, 'feat')
+  expect(await clsEffort($, c)).toBe('high')
+})
+
+test('classify: a user /effort change beats the guessed effort', async (
+  $, on) => {
+  const c = await bootCls($, on, { reply: () => 'design' })
+  await runStep($, highStep())
+  await typed($, PLAIN)
+  await runStep($, { ...highStep(), effort: 'low' as const })
+  expect(c.seen[c.seen.length - 1]?.effort).toBe('low')
+})
+
+test('classify: the baseline survives /clear', async ($, on) => {
+  const c = await bootCls($, on, { reply: () => 'design' })
+  await runStep($, highStep())
+  await clearSession($)
+  await typed($, PLAIN)
+  await runStep($, { ...highStep(), effort: 'low' as const })
+  expect(c.seen[c.seen.length - 1]?.effort).toBe('low')
+})
+
+test('classify: a baseline-effort step takes the guessed effort', async (
+  $, on) => {
+  const c = await bootCls($, on, { reply: () => 'design' })
+  await runStep($, highStep())
+  await typed($, PLAIN)
+  await runStep($, highStep())
+  expect(c.seen[c.seen.length - 1]?.effort).toBe('xhigh')
+})
+
+// ---- the guards: one clause each ---
+
+/** The prompt is typed, then the asks are counted. */
+async function asksFor($: Engine, c: Cls, text: string): Promise<number> {
+  await typed($, text)
+  return c.asks.length
+}
+
+test('classify guard: text under 12 characters is not sent', async (
+  $, on) => {
+  const c = await bootCls($, on)
+  expect(await asksFor($, c, 'hello world')).toBe(0)
+})
+
+test('classify guard: 12 characters are sent', async ($, on) => {
+  const c = await bootCls($, on)
+  expect(await asksFor($, c, 'hello worlds')).toBe(1)
+})
+
+test('classify guard: padded short text is not sent', async ($, on) => {
+  const c = await bootCls($, on)
+  expect(await asksFor($, c, '        short        ')).toBe(0)
+})
+
+test('classify guard: a padded slash prompt is not sent', async ($, on) => {
+  const c = await bootCls($, on)
+  expect(await asksFor($, c, '  /feat add a long thing')).toBe(0)
+})
+
+test('classify guard: the sample is sent trimmed', async ($, on) => {
+  const c = await bootCls($, on)
+  await typed($, `   ${PLAIN}   `)
+  expect(c.asks.map(a => a.text)).toEqual([PLAIN])
+})
+
+test('classify guard: a slash prompt is not sent', async ($, on) => {
+  const c = await bootCls($, on)
+  expect(await asksFor($, c, '/unknown with a long argument')).toBe(0)
+})
+
+test('classify guard: a non-composer origin is not sent', async ($, on) => {
+  const c = await bootCls($, on)
+  await $.prompt.submit({ text: PLAIN, wait: false, origin: { kind: 'sdk' } })
+  expect(c.asks).toHaveLength(0)
+})
+
+test('classify guard: a mid-turn prompt is not sent', async ($, on) => {
+  const c = await bootCls($, on)
+  await queued($, 'composer', PLAIN)
+  expect(c.asks).toHaveLength(0)
+})
+
+test('classify guard: a keyword rule match is not sent', async ($, on) => {
+  const c = await bootCls($, on)
+  expect(await asksFor($, c, 'please review the billing module')).toBe(0)
+})
+
+test('classify guard: ultrathink is not sent', async ($, on) => {
+  const c = await bootCls($, on)
+  expect(await asksFor($, c, 'ultrathink about the billing module')).toBe(0)
+})
+
+test('classify guard: a sticky /route is not overridden', async ($, on) => {
+  const c = await bootCls($, on)
+  await route($, 'mechanical')
+  expect(await asksFor($, c, PLAIN)).toBe(0)
+})
+
+test('classify guard: a held run slot is not sent', async ($, on) => {
+  const c = await bootCls($, on)
+  await typed($, '/feat add a thing')
+  await skillPrompt($, 'feat')
+  await endTurn($)
+  expect(await asksFor($, c, PLAIN)).toBe(0)
+})
+
+test('classify guard: a carried floor is not sent', async ($, on) => {
+  const c = await bootCls($, on)
+  await queued($, 'composer', 'ultrathink about the billing module')
+  await endTurn($)
+  expect(await asksFor($, c, PLAIN)).toBe(0)
+})
+
+test('classify guard: a sub-agent never reaches the classifier', async (
+  $, on) => {
+  const c = await bootCls($, on)
+  await $.agent.spawn(spawnInput())
+  await runStep($, highStep('a1'))
+  expect(c.asks).toHaveLength(0)
+})
+
+test('classify guard: a config classify=false is not sent', async ($, on) => {
+  const c = await bootCls($, on, {
+    world: newWorld({ home: { classify: false } }),
+  })
+  expect(await asksFor($, c, PLAIN)).toBe(0)
+})
+
+test('classify guard: /route classify off is not sent', async ($, on) => {
+  const c = await bootCls($, on)
+  await route($, 'classify off')
+  expect(await asksFor($, c, PLAIN)).toBe(0)
+})
+
+test('classify guard: the mod off is not sent', async ($, on) => {
+  const c = await bootCls($, on)
+  await route($, 'off')
+  expect(await asksFor($, c, PLAIN)).toBe(0)
+})
+
+test('classify guard: a haiku id marked down is not sent', async ($, on) => {
+  const c = await bootCls($, on)
+  await switchTo($, HAIKU, SONNET, 'auto')
+  expect(await asksFor($, c, PLAIN)).toBe(0)
+})
+
+test('classify guard: a main loop on haiku is not sent', async ($, on) => {
+  const c = await bootCls($, on, { model: HAIKU })
+  expect(await asksFor($, c, PLAIN)).toBe(0)
+})
+
+test('classify guard: a phase without effort routes nothing', async (
+  $, on) => {
+  const world = newWorld({ edit: f => {
+    (f.phases as Rec).plan = { tier: 'best' }
+  } })
+  const c = await bootCls($, on, { reply: () => 'design', world })
+  await typed($, PLAIN)
+  expect(await clsEffort($, c)).toBe('high')
+})
+
+test('classify guard: a non-best skill turn leaves the next open', async (
+  $, on) => {
+  const c = await bootCls($, on)
+  await typed($, '/status now')
+  await skillPrompt($, 'status')
+  await endTurn($)
+  expect(await asksFor($, c, PLAIN)).toBe(1)
+})
+
+test('classify guard: /route clear reopens it after a best-tier run', async (
+  $, on) => {
+  const c = await bootCls($, on)
+  await typed($, '/feat add a thing')
+  await skillPrompt($, 'feat')
+  await endTurn($)
+  await route($, 'clear')
+  expect(await asksFor($, c, PLAIN)).toBe(1)
+})
+
+test('classify guard: a route landing during the call wins', async (
+  $, on) => {
+  let release: () => void = () => undefined
+  const gate = new Promise<void>(resolve => { release = resolve })
+  const c = await bootCls($, on, {
+    reply: async () => { await gate; return 'design' },
+  })
+  const pending = typed($, PLAIN)
+  await c.clock.settle()
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'mechanical' })
+  release()
+  await pending
+  expect(mainLine(await route($, 'show'))).toContain('model mechanical')
+  expect(await clsEffort($, c)).toBe('low')
+})
+
+// ---- bounded and fail-safe ---
+
+test('classify bound: a call never answering gives no route at 3 s', async (
+  $, on) => {
+  const c = await bootCls($, on, { reply: never })
+  const pending = typed($, PLAIN)
+  await c.clock.settle()
+  await c.clock.advance(3000)
+  await pending
+  expect(await clsEffort($, c)).toBe('high')
+})
+
+test('classify bound: the prompt proceeds after a timeout', async ($, on) => {
+  const c = await bootCls($, on, { reply: never })
+  const pending = typed($, PLAIN)
+  await c.clock.settle()
+  await c.clock.advance(3000)
+  expect((await pending).text).toBe(PLAIN)
+})
+
+test('classify bound: three timeouts pause the classifier', async ($, on) => {
+  const c = await bootCls($, on, { reply: never })
+  for (let i = 0; i < 3; i++) {
+    const pending = typed($, PLAIN)
+    await c.clock.settle()
+    await c.clock.advance(3000)
+    await pending
+  }
+  expect(c.toasts).toEqual(['classifier paused 15 min (3 failures)'])
+})
+
+test('classify bound: a rejection is not an error for the prompt', async (
+  $, on) => {
+  const c = await bootCls($, on, { reply: boom })
+  await typed($, PLAIN)
+  expect(c.logs.filter(l => l.includes('failed'))).toEqual([])
+})
+
+test('classify fail: three rejections pause with one toast', async ($, on) => {
+  const c = await bootCls($, on, { reply: boom })
+  await failTimes($, 3)
+  expect(c.toasts).toEqual(['classifier paused 15 min (3 failures)'])
+})
+
+test('classify fail: two rejections do not pause', async ($, on) => {
+  const c = await bootCls($, on, { reply: boom })
+  await failTimes($, 2)
+  expect(c.toasts).toEqual([])
+})
+
+test('classify fail: the status line shows the pause marker', async (
+  $, on) => {
+  const c = await bootCls($, on, { reply: boom })
+  await failTimes($, 3)
+  expect(c.status[c.status.length - 1]).toContain('classifier: paused')
+})
+
+test('classify fail: no call during the cooldown', async ($, on) => {
+  const c = await bootCls($, on, { reply: boom })
+  await failTimes($, 3)
+  expect(await asksFor($, c, PLAIN)).toBe(3)
+})
+
+test('classify fail: a settled answer resets the counter', async ($, on) => {
+  const c = await bootCls($, on, {
+    reply: n => (n === 3 ? 'chat' : boom()),
+  })
+  await failTimes($, 5)
+  expect(c.toasts).toEqual([])
+  expect(c.asks).toHaveLength(5)
+})
+
+test('classify pause: still paused one ms before the cooldown ends', async (
+  $, on) => {
+  const c = await bootCls($, on, { reply: boom })
+  await failTimes($, 3)
+  await c.clock.advance(PAUSE_MS - 1)
+  expect(await asksFor($, c, PLAIN)).toBe(3)
+})
+
+test('classify pause: resumes when the cooldown ends', async ($, on) => {
+  const c = await bootCls($, on, { reply: boom })
+  await failTimes($, 3)
+  await c.clock.advance(PAUSE_MS)
+  expect(await asksFor($, c, PLAIN)).toBe(4)
+})
+
+test('classify pause: the marker clears when it ends', async ($, on) => {
+  const c = await bootCls($, on, { reply: boom })
+  await failTimes($, 3)
+  await c.clock.advance(PAUSE_MS)
+  await typed($, '/status')
+  expect(c.status[c.status.length - 1]).not.toContain('paused')
+})
+
+test('classify pause: /clear keeps it', async ($, on) => {
+  const c = await bootCls($, on, { reply: boom })
+  await failTimes($, 3)
+  await clearSession($)
+  expect(await asksFor($, c, PLAIN)).toBe(3)
+})
+
+test('classify pause: /route reload clears it', async ($, on) => {
+  const c = await bootCls($, on, { reply: boom })
+  await failTimes($, 3)
+  await route($, 'reload')
+  expect(await asksFor($, c, PLAIN)).toBe(4)
+})
+
+// ---- sample ---
+
+test('classify sample: 2000 code points are sent whole', async ($, on) => {
+  const c = await bootCls($, on)
+  const text = 'é'.repeat(2000)
+  await typed($, text)
+  expect(c.asks[0]?.text).toBe(text)
+})
+
+test('classify sample: a longer text is cut to head and tail', async (
+  $, on) => {
+  const c = await bootCls($, on)
+  await typed($, 'H'.repeat(600) + 'M'.repeat(1000) + 'T'.repeat(1500))
+  expect(c.asks[0]?.text).toBe('H'.repeat(500) + 'T'.repeat(1500))
+})
+
+test('classify sample: a cut never leaves a lone surrogate', async (
+  $, on) => {
+  const c = await bootCls($, on)
+  await typed($, '😀'.repeat(2400))
+  const sent = c.asks[0]?.text ?? ''
+  expect(sent.isWellFormed()).toBe(true)
+  expect(Array.from(sent)).toHaveLength(2000)
+})
+
+// ---- no dialog, config, visibility ---
+
+test('classify: no dialog and no file write on a classified prompt', async (
+  $, on) => {
+  const c = await bootCls($, on, { world: newWorld({ ask: true }) })
+  await typed($, PLAIN)
+  expect(c.asks).toHaveLength(1)
+  expect(c.world.asked).toEqual([])
+  expect(c.world.written).toEqual([])
+})
+
+test('classify config: an invalid value keeps the default on', async (
+  $, on) => {
+  const c = await bootCls($, on, {
+    world: newWorld({ home: { classify: 'yes' } }),
+  })
+  expect(await asksFor($, c, PLAIN)).toBe(1)
+})
+
+test('classify config: an invalid value is logged once', async ($, on) => {
+  const c = await bootCls($, on, {
+    world: newWorld({ home: { classify: 'yes' } }),
+  })
+  await route($, 'reload')
+  const said = c.logs.filter(l => l.includes('"classify" is not a boolean'))
+  expect(said).toHaveLength(1)
+})
+
+test('classify config: /route show prints classify: on', async ($, on) => {
+  await bootCls($, on)
+  expect(await route($, 'show')).toContain('classify: on')
+})
+
+test('classify config: /route classify off prints classify: off', async (
+  $, on) => {
+  await bootCls($, on)
+  expect(await route($, 'classify off')).toContain('classify: off')
+})
+
+test('classify config: a bad toggle argument prints the usage', async (
+  $, on) => {
+  await bootCls($, on)
+  expect(await route($, 'classify maybe')).toBe('usage: /route classify on|off')
+})
+
+test('classify config: the toggle survives a rebuild', async ($, on) => {
+  const c = await bootCls($, on)
+  await route($, 'classify off')
+  expect(await route($, 'reload')).toContain('classify: off')
+  expect(await asksFor($, c, PLAIN)).toBe(0)
+})
+
+test('classify config: /route is refused from a plugin origin', async (
+  $, on) => {
+  await bootCls($, on)
+  const out = await $.command.run({
+    command: 'route',
+    args: 'classify off',
+    origin: { kind: 'plugin', name: 'x' },
+    presentation: { isFullscreen: false, columns: 80 },
+  })
+  expect(out.text).toContain('user-only')
+})
+
+test('classify visibility: the status line reads classifier <phase>', async (
+  $, on) => {
+  const c = await bootCls($, on, { reply: () => 'analysis' })
+  await typed($, PLAIN)
+  expect(c.status[c.status.length - 1]).toContain('route: classifier reflect')
+})
+
+test('classify visibility: verbose says (reflect: classifier)', async (
+  $, on) => {
+  const c = await bootCls($, on, { reply: () => 'analysis', verbose: true })
+  await runStep($, { ...highStep(), effort: 'low' as const })
+  await typed($, PLAIN)
+  await runStep($, { ...highStep(), effort: 'low' as const })
+  expect(c.logs).toContain(
+    mainWord('fable/low', 'fable/high', 'reflect: classifier'))
+})
+
+test('classify: a repeated undefined label never pauses', async ($, on) => {
+  const c = await bootCls($, on, { reply: () => undefined })
+  await failTimes($, 3)
+  expect(c.asks).toHaveLength(3)
+  expect(c.toasts).toEqual([])
+  expect(c.status.some(l => l.includes('paused'))).toBe(false)
+})
+
+test('classify: /route advertises classify on|off in its hint', async (
+  $, on) => {
+  const hints: unknown[] = []
+  on('command.register', (_$, e) => {
+    hints.push(e.argumentHint)
+    return { value: { command: e.name } }
+  })
+  await bootCls($, on)
+  expect(hints.join('\n')).toContain('classify on|off')
+})

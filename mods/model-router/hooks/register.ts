@@ -32,11 +32,13 @@ type Config = {
   upgradeMaxTokens: number // above this context an upgrade is skipped
   mainModelSwitch: boolean // gates DOWNGRADES only
   verbose: boolean
+  classify: boolean // a small-model guess of the typed prompt's phase
   spinner: boolean
   enabled: boolean // false: every hook passes through (per machine)
 }
 type Rule = { re: RegExp; phase: string; mode: PromptMode }
-type Source = 'user' | 'model' | 'skill' | 'prompt' | 'run' | 'derived'
+type Source =
+  | 'user' | 'model' | 'skill' | 'prompt' | 'run' | 'derived' | 'classifier'
 type Routed = {
   phase: string
   route: Route
@@ -91,13 +93,21 @@ type State = {
   override: Rec | undefined // the machine override's data, if it loaded
   loaded: boolean // the layers were read once (else: lazily, on first use)
   rebuildDue: boolean // /clear: re-read the layers at the next prompt
-  toggles: { switch?: boolean; verbose?: boolean } // session toggles
+  toggles: Partial<Record<Toggle, boolean>> // session toggles
+  engineBase: NonNullable<Effort> | null // engine effort of main's first step
+  classifyFails: number // classifier failures in a row
+  classifyUntil: number // classifier paused until (ms); 0 = running
   asking: string | null // key of the one first-use dialog in flight
   asked: Set<string> // keys answered (or failed) this session
   writes: Promise<unknown> // the serialized routing.json write chain
 }
 type Log = (text: string) => void
 type StepIn = Readonly<TurnStepInput>
+type PromptIn = {
+  text: string
+  turnId?: string
+  origin: { kind: string }
+}
 type Plan = { model: string; effort: StepIn['effort'] }
 type RouteInput = {
   phase?: unknown
@@ -107,6 +117,7 @@ type RouteInput = {
 }
 type Picked = { phase: string; route: Route }
 type Effort = StepIn['effort']
+type Toggle = 'switch' | 'verbose' | 'classify'
 type EffortBy = 'floor' | 'sticky' | 'turn' | 'engine'
 type Decision = { effort: Effort; by: EffortBy }
 type Rec = Record<string, unknown>
@@ -176,6 +187,23 @@ const UNAVAILABLE: ReadonlySet<string> = new Set([
   'rate_limit', 'overloaded', 'billing_error', 'model_not_found',
 ])
 const PHASE_KEY = /^[a-z][a-z0-9_-]{0,31}$/
+// Prompt classifier: label -> the phase whose effort the turn takes. `chat`
+// (and any label not here) routes nothing.
+const CLASSIFY_LABELS: readonly string[] =
+  ['design', 'analysis', 'coding', 'bookkeeping', 'chat']
+const LABEL_PHASE: Readonly<Record<string, string>> = {
+  design: 'plan',
+  analysis: 'reflect',
+  coding: 'implement',
+  bookkeeping: 'apply',
+}
+const CLASSIFY_MIN = 12 // code points of a typed prompt worth a call
+const CLASSIFY_MS = 3000 // the call is abandoned after this
+const CLASSIFY_MAX = 2000 // code points sent whole; longer: head + tail
+const CLASSIFY_HEAD = 500
+const CLASSIFY_TAIL = 1500
+const CLASSIFY_FAILS = 3 // failures in a row that pause the classifier
+const TIMEOUT: unique symbol = Symbol('classify timeout')
 
 const DEFAULT_CONFIG: Config = {
   models: {
@@ -232,6 +260,7 @@ const DEFAULT_CONFIG: Config = {
   ],
   mainModelSwitch: false,
   verbose: false,
+  classify: true,
   spinner: true,
   enabled: true,
 }
@@ -512,6 +541,9 @@ function mergeConfig(
     mainModelSwitch: pickBool(user.mainModelSwitch, base.mainModelSwitch),
     verbose: pickSwitch(
       'config "verbose" is not a boolean; ignored', user.verbose, base.verbose, log),
+    classify: pickSwitch(
+      'model-router: config "classify" is not a boolean; ignored',
+      user.classify, base.classify, log),
     spinner: pickBool(user.spinner, base.spinner),
     enabled: pickSwitch(
       'model-router: config "enabled" is not a boolean; ignored',
@@ -845,6 +877,9 @@ function newState(cfg: Config, source: string): State {
     loaded: false,
     rebuildDue: false,
     toggles: {},
+    engineBase: null,
+    classifyFails: 0,
+    classifyUntil: 0,
     asking: null,
     asked: new Set(),
     writes: Promise.resolve(),
@@ -853,7 +888,8 @@ function newState(cfg: Config, source: string): State {
 
 /**
  * /clear rebuilds the state but keeps what is account- or process-wide:
- * the breaker (a model's quota outlives the conversation), the model, the
+ * the breaker, the classifier's pause and effort baseline (a model's quota
+ * and the user's own /effort outlive the conversation), the model, the
  * agent definitions' sources (the listing is not offered again), the config
  * with its session toggles and the dialog in flight. The layers are read
  * again at the next prompt; the config is swapped only if that read works.
@@ -870,6 +906,9 @@ function resetSession(st: State): void {
     override: st.override,
     loaded: st.loaded,
     toggles: st.toggles,
+    engineBase: st.engineBase,
+    classifyFails: st.classifyFails,
+    classifyUntil: st.classifyUntil,
     asking: st.asking,
     writes: st.writes,
   }
@@ -1204,11 +1243,12 @@ function higherFloor(cur: Routed | null, next: Routed): Routed {
  * The one decision of the main loop's effort. The user's floor is the turn's
  * default (no sticky or turn route names an effort) and its minimum.
  * `by` names who set the value: the floor when it raised or supplied it.
+ * `skipTurn`: the turn route yields (a classified effort under a user /effort).
  */
-function mainEffort(st: State, engine: Effort): Decision {
+function mainEffort(st: State, engine: Effort, skipTurn = false): Decision {
   const sticky = st.userMain?.route.effort
-  const named = sticky ?? st.turnMain?.route.effort ??
-    st.runMain?.route.effort
+  const turn = skipTurn ? undefined : st.turnMain?.route.effort
+  const named = sticky ?? turn ?? st.runMain?.route.effort
   const floor = st.turnFloor?.route.effort
   const base = named ?? floor ?? engine
   const effort = floored(base, floor)
@@ -1369,7 +1409,8 @@ async function show($: Api, st: State): Promise<string> {
     mainText(st, s),
     `router: ${routerWord(st)} · switch: ${flag(c.mainModelSwitch)} ` +
       `(downgrade) · upgrade: ${flag(c.mainUpgrade)} · verbose: ${
-        flag(c.verbose)} · spinner: ${flag(c.spinner)}`,
+        flag(c.verbose)} · classify: ${flag(c.classify)} · spinner: ${
+        flag(c.spinner)}`,
     downText(st, s.now),
     `live loops: ${st.loops.size}`,
     phasesText(st),
@@ -1383,8 +1424,10 @@ function statusLine(st: State): string {
     ? routerWord(st)
     : r ? `${r.source} ${r.phase}` : 'session defaults'
   const floor = liveFloor(st)
+  const paused = st.cfg.classify && st.classifyUntil !== 0
   return `route: ${now}${floor ? ` · floor ${floor.level}` : ''}${
-    st.cfg.mainModelSwitch ? ' · switch on' : ''}`
+    st.cfg.mainModelSwitch ? ' · switch on' : ''}${
+    paused ? ' · classifier: paused' : ''}`
 }
 
 const refresh = ($: Api, st: State): void => $.ui.status(statusLine(st))
@@ -1431,12 +1474,11 @@ function parseRoute(cfg: Config, args: string): Routed | string {
 async function toggle(
   $: Api,
   st: State,
-  what: string,
+  what: Toggle,
   arg: string | undefined,
 ): Promise<string> {
   if (arg !== 'on' && arg !== 'off') return `usage: /route ${what} on|off`
-  if (what === 'switch') st.toggles.switch = arg === 'on'
-  else st.toggles.verbose = arg === 'on'
+  st.toggles[what] = arg === 'on'
   applyToggles(st)
   return show($, st)
 }
@@ -1451,9 +1493,10 @@ async function setUserRoute($: Api, st: State, args: string) {
 
 /** Session toggles outlive any rebuild of the config. */
 function applyToggles(st: State): void {
-  const { switch: downgrade, verbose } = st.toggles
+  const { switch: downgrade, verbose, classify } = st.toggles
   if (downgrade !== undefined) st.cfg.mainModelSwitch = downgrade
   if (verbose !== undefined) st.cfg.verbose = verbose
+  if (classify !== undefined) st.cfg.classify = classify
 }
 
 function applyLoaded(st: State, loaded: Loaded, log: Log): void {
@@ -1497,6 +1540,8 @@ async function ensureConfig($: Api, st: State, atPrompt = false) {
 /** The breaker is cleared first, whatever the config read then does. */
 async function reloadCommand($: Api, st: State): Promise<string> {
   clearBreaker(st)
+  st.classifyFails = 0
+  st.classifyUntil = 0
   await reloadConfig($, st)
   refresh($, st)
   return 'config reloaded\n' + (await show($, st))
@@ -1533,6 +1578,7 @@ async function handleCommand($: Api, st: State, args: string): Promise<string> {
       return forgetCommand($, st, rest)
     case 'switch':
     case 'verbose':
+    case 'classify':
       return toggle($, st, head, rest[0])
     default:
       return setUserRoute($, st, args)
@@ -2414,7 +2460,8 @@ async function registerCommand($: Api): Promise<void> {
       argumentHint:
         '[show|clear|off|on|reload|pending|ask on|off|' +
         'forget <name|all|projects>|<phase>|' +
-        'model=<alias|id> effort=<level>|switch on|off|verbose on|off]',
+        'model=<alias|id> effort=<level>|switch on|off|verbose on|off|' +
+        'classify on|off]',
       immediate: true,
     })
   } catch (err) {
@@ -2770,6 +2817,7 @@ function slotWord(slot: Routed | null): string {
     case 'model': return 'route tool'
     case 'prompt': return 'prompt rule'
     case 'derived': return 'dispatch'
+    case 'classifier': return 'classifier'
     case 'skill':
     case 'run': return 'skill' + label
     default: return 'session'
@@ -2921,13 +2969,27 @@ function agentPlan(st: State, e: StepIn): Plan {
 type Why = { by: EffortBy; call: Call; cur: string }
 type Step = { plan: Plan; why?: Why }
 
+/** The engine effort of main's first step: what the user left as default. */
+function noteEngineBase(st: State, e: StepIn): void {
+  if (st.engineBase === null && e.effort !== undefined) {
+    st.engineBase = e.effort
+  }
+}
+
+/** A user /effort beats a guessed phase: the engine effort left its base. */
+function userMovedEffort(st: State, e: StepIn): boolean {
+  return st.turnMain?.source === 'classifier' && e.effort !== undefined &&
+    st.engineBase !== null && e.effort !== st.engineBase
+}
+
 /**
  * The main loop's plan: effort from the floor/sticky/turn decision, model
  * from `decideMain`. `cur` is the model the router moved this turn, else
  * the engine's own (verbatim: an engine fallback is respected).
  */
 async function mainPlan($: Api, st: State, e: StepIn): Promise<Step> {
-  const { effort, by } = mainEffort(st, e.effort)
+  noteEngineBase(st, e)
+  const { effort, by } = mainEffort(st, e.effort, userMovedEffort(st, e))
   await prune($, st)
   const cur = st.turnModel ?? e.model
   const { call } = await decideFor($, st, cur)
@@ -3309,6 +3371,126 @@ function noteTyped(st: State, kind: string, text: string, midTurn: boolean) {
   }
 }
 
+// ---- prompt classifier -----------------------------------------------
+// A typed prompt no rule, skill, route or floor covers is guessed by one
+// small-model call: the phase's EFFORT becomes the turn's default (never a
+// model move, never a dialog, never a file write). The call is bounded and
+// every failure leaves the prompt as it was.
+
+/** The whole text up to CLASSIFY_MAX code points, else its head and tail. */
+function sampleOf(text: string): string {
+  const points = Array.from(text.trim())
+  if (points.length <= CLASSIFY_MAX) return points.join('')
+  return points.slice(0, CLASSIFY_HEAD).join('') +
+    points.slice(-CLASSIFY_TAIL).join('')
+}
+
+/** No route in force on main and the classifier is on and not paused. */
+const classifierIdle = (st: State): boolean =>
+  !st.off && st.cfg.classify && st.classifyUntil === 0 &&
+  mainRoute(st) === null && st.turnFloor === null
+
+/** A lapsed pause ends here, before any other guard (no stale marker). */
+async function expirePause($: Api, st: State): Promise<void> {
+  if (st.classifyUntil === 0 || (await $.clock.now()) < st.classifyUntil) {
+    return
+  }
+  st.classifyUntil = 0
+  refresh($, st)
+}
+
+/** The small model is the haiku id: marked down, or main already runs it. */
+async function smallModelBusy($: Api, st: State): Promise<boolean> {
+  await prune($, st)
+  const small = st.cfg.models.haiku
+  const main = st.turnModel ?? st.sessionModel
+  return (small !== undefined && st.down.has(small)) || isHaiku(st.cfg, main)
+}
+
+/** The guards of D8, in order; the text itself is checked last. */
+async function classifierWanted($: Api, st: State, e: PromptIn) {
+  if (!st.cfg.classify || e.origin.kind !== 'composer') return false
+  if (e.turnId !== undefined) return false
+  await expirePause($, st)
+  const text = e.text.trim()
+  if (text.startsWith('/') || Array.from(text).length < CLASSIFY_MIN) {
+    return false
+  }
+  return classifierIdle(st) && !(await smallModelBusy($, st))
+}
+
+/** One failure; the third in a row pauses the classifier, said once. */
+async function countFailure($: Api, st: State): Promise<void> {
+  st.classifyFails += 1
+  if (st.classifyFails < CLASSIFY_FAILS) return
+  st.classifyFails = 0
+  st.classifyUntil = (await $.clock.now()) + st.cfg.cooldownMinutes * 60000
+  $.ui.toast(`classifier paused ${st.cfg.cooldownMinutes} min (${
+    CLASSIFY_FAILS} failures)`)
+  refresh($, st)
+}
+
+/** classify's own abort cause: a user interrupt, not a failure. */
+const isAbort = (err: unknown): boolean =>
+  err instanceof Error && (err.name === 'AbortError' ||
+    /\baborted\b/i.test(err.message))
+
+/** The label, or TIMEOUT; rejects like classify or when the dispatch aborts. */
+function raceClassify($: Api, text: string, signal: AbortSignal) {
+  return Promise.race([
+    $.model.classify(sampleOf(text), CLASSIFY_LABELS),
+    $.clock.sleep(CLASSIFY_MS, { signal })
+      .then((): typeof TIMEOUT => TIMEOUT),
+  ])
+}
+
+/** The label, or undefined: no answer, an interrupt or a counted failure. */
+async function askClassifier(
+  $: Api,
+  st: State,
+  text: string,
+  signal: AbortSignal,
+): Promise<string | undefined> {
+  let label: string | undefined | typeof TIMEOUT
+  try {
+    label = await raceClassify($, text, signal)
+  } catch (err) {
+    if (!signal.aborted && !isAbort(err)) await countFailure($, st)
+    return undefined
+  }
+  if (label === TIMEOUT) {
+    await countFailure($, st)
+    return undefined
+  }
+  st.classifyFails = 0
+  return label
+}
+
+/** The turn route of a label: its phase's effort only; false = nothing. */
+function routeFromLabel(st: State, label: string): boolean {
+  const phase = hasKey(LABEL_PHASE, label) ? LABEL_PHASE[label] : undefined
+  const effort = phase === undefined
+    ? undefined
+    : phaseRoute(st.cfg, phase)?.effort
+  if (phase === undefined || effort === undefined) return false
+  st.turnMain = { phase, route: { effort }, source: 'classifier' }
+  return true
+}
+
+/** Fills an empty route with the guessed phase's effort; never throws on it. */
+async function classifyPrompt(
+  $: Api,
+  st: State,
+  e: PromptIn,
+  signal: AbortSignal,
+): Promise<void> {
+  if (!(await classifierWanted($, st, e))) return
+  const label = await askClassifier($, st, e.text, signal)
+  // a route that landed meanwhile wins; a late answer never crosses turns
+  if (label === undefined || signal.aborted || !classifierIdle(st)) return
+  if (routeFromLabel(st, label)) refresh($, st)
+}
+
 function registerPrompt(on: On, st: State): void {
   on('prompt.submit', async ($, e, next) => {
     await ensureConfig($, st, true)
@@ -3317,6 +3499,7 @@ function registerPrompt(on: On, st: State): void {
     noteTyped(st, e.origin.kind, e.text, midTurn)
     if (e.origin.kind === 'composer') routeFromPrompt(st, e.text, midTurn)
     refresh($, st)
+    await classifyPrompt($, st, e, next.signal)
     return next(e)
   }).catch(($, e, next) => {
     warnOnce(st, $, 'prompt.submit', next.error.kind)
