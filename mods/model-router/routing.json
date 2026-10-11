@@ -132,11 +132,13 @@
   "confirmed": {
     "agents": {
       "verifier": "verify",
-      "feater": "implement"
+      "feater": "implement",
+      "doc-syncer": "write"
     },
     "phases": {
       "verify": "verify",
-      "implement": "implement"
+      "implement": "implement",
+      "write": "write"
     }
   },
   "changed": {},
