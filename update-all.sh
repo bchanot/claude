@@ -599,6 +599,9 @@ if command -v claude &>/dev/null; then
   if [ -n "$_plugins" ]; then
     while IFS= read -r _p; do
       _name="${_p%%@*}"
+      # A mod loaded from skills/ (@skills-dir) lives in this repo: nothing
+      # to fetch, and `plugin update` warns on it every run.
+      case "$_p" in *@skills-dir) info "$_name: in-repo mod, skipped"; continue ;; esac
       info "Updating $_name..."
       # Pass the full "name@marketplace" spec — the CLI rejects
       # the bare name when several marketplaces are registered.
