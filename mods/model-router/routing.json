@@ -146,7 +146,8 @@
       "feater": "implement",
       "doc-syncer": "write",
       "security-auditor": "judge",
-      "plan-challenger": "judge"
+      "plan-challenger": "judge",
+      "analyzer": "judge"
     },
     "phases": {
       "verify": "verify",
@@ -157,13 +158,6 @@
       "judge": "judge"
     }
   },
-  "changed": {
-    "agents": {
-      "security-auditor": {
-        "from": "verify",
-        "to": "judge"
-      }
-    }
-  },
+  "changed": {},
   "ask": true
 }
