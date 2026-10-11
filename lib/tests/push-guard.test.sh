@@ -76,8 +76,10 @@ check T20-subtree "$(fire 'git subtree push --prefix=x origin main' "$M")" deny
 check T21-cd-amp "$(fire "(cd $M&&git push)" "$WORK/plain")" deny
 check T22-alias "$(fire 'git -c alias.p=push p' "$M")" deny
 check T23-send-pack "$(fire 'git send-pack origin' "$M")" deny
-check T24-grep-overblock "$(fire 'grep -rn "git push" skills/' "$M")" deny
-check T25-config-overblock "$(fire 'git config --get push.default' "$M")" deny
+# T24/T25 were over-blocks until the argv check: a push must be git's own
+# subcommand, in a simple command whose argv[0] is git.
+check T24-grep-argv "$(fire 'grep -rn "git push" skills/' "$M")" allow
+check T25-config-argv "$(fire 'git config --get push.default' "$M")" allow
 
 # ── manual: allow ──
 check T26-commit-msg "$(fire 'git status && git commit -m "fix push guard"' "$M")" allow
@@ -87,6 +89,43 @@ check T29-stash "$(fire 'git stash' "$M")" allow
 check T30-echo "$(fire 'echo pushed' "$M")" allow
 check T31-rg-C "$(fire 'rg -C 3 push src/' "$M")" allow
 check T32-branch "$(fire 'git branch --show-current' "$M")" allow
+
+# ── argv check: proven non-pushes allowed, unclear forms still denied ──
+check T59a-log-S "$(fire 'git log -S "git push" --oneline' "$M")" allow
+check T59b-stash-push "$(fire 'git stash push -m wip' "$M")" allow
+check T59c-help-push "$(fire 'git help push' "$M")" allow
+check T59d-add-file "$(fire 'git add push.sh' "$M")" allow
+check T59e-commit-msg "$(fire 'git commit -m "doc: git push flow"' "$M")" allow
+check T59f-heredoc "$(fire $'cat >> n.md <<EOF\n- run git push origin main\nEOF\ngit status' "$M")" allow
+check T59g-heredoc-tab "$(fire $'cat <<-EOF\n\tgit push\n\tEOF' "$M")" allow
+check T59h-herestring "$(fire 'grep -c push <<<"git push"' "$M")" allow
+check T59i-printf "$(fire 'printf "%s\n" "git push" > note.md' "$M")" allow
+check T59j-bash-c-grep "$(fire "bash -lc 'grep \"git push\" x'" "$M")" allow
+check T59k-rg "$(fire 'rg -n "git push" lib/' "$M")" allow
+check T60a-heredoc-then-push "$(fire $'cat <<EOF; git push\nx\nEOF' "$M")" deny
+check T60b-sudo "$(fire 'sudo git push' "$M")" deny
+check T60c-timeout "$(fire 'timeout 5 git push' "$M")" deny
+check T60d-eval-var "$(fire 'X="git push"; eval $X' "$M")" deny
+check T60e-backtick "$(fire 'echo `git push`' "$M")" deny
+check T60f-dollar-paren "$(fire 'echo $(git push)' "$M")" deny
+check T60g-redirect "$(fire 'git push 2>&1' "$M")" deny
+check T60h-if-bang "$(fire 'if ! git push; then echo no; fi' "$M")" deny
+check T60i-env-assign "$(fire 'GIT_TRACE=1 git push' "$M")" deny
+check T60j-global-opts "$(fire 'git -C /tmp -c x=y --no-pager push' "$M")" deny
+check T60k-quoted-argv0 "$(fire '"git" push origin main' "$M")" deny
+check T60l-sh-c-nested "$(fire "sh -c 'bash -c \"git push\"'" "$M")" deny
+check T60m-xargs "$(fire 'echo origin | xargs git push' "$M")" deny
+# T61: awk absent: the argv check is skipped, the text verdict stands.
+mkdir -p "$WORK/noawk"
+for tool in bash cat jq git grep sed sort head; do
+  real=$(command -v "$tool") || continue
+  case "$real" in /*) ln -sf "$real" "$WORK/noawk/$tool" ;; esac
+done
+payload61=$(jq -n --arg c 'grep -rn "git push" skills/' --arg d "$M" \
+  '{tool_input:{command:$c},cwd:$d}')
+out61=$(printf '%s' "$payload61" | PATH="$WORK/noawk" "$(command -v bash)" "$H" 2>/dev/null); rc61=$?
+check T61a-noawk-rc "$rc61" 0
+check T61b-noawk-text-verdict "$(jq -r '.hookSpecificOutput.permissionDecision' <<<"$out61")" deny
 
 # ── invalid value: fail closed ──
 run 'git push' "$WORK/bad"
