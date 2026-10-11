@@ -2956,3 +2956,577 @@ test('change: the current phase wins a tie, and counts as a Keep', async (
   expect(routingOf(w).changed).toEqual({})
   expect(confirmedOf(w).agents).toEqual({ Explore: 'explore' })
 })
+
+// ---- wave 3-C: /route forget -----------------------------------------------
+
+const TWO = 'github.com/acme/two'
+const FORGET_NOTE = 'other live sessions see it after /route reload'
+const MODEL_LOCK = 'lib/tests/model-routing.test.sh'
+
+/** A feater moved to judge, as a Change Everywhere would have left it. */
+const movedFeater = (file: Rec): void => {
+  (file.agents as Rec).feater = 'judge'
+  file.changed = { agents: { feater: { from: 'implement', to: 'judge' } } }
+  file.confirmed = { agents: { feater: 'judge' } }
+}
+
+/** Edits the inline routing.json with `extra` keys laid over it. */
+const decisions = (extra: Rec) => (file: Rec): void => {
+  Object.assign(file, extra)
+}
+
+/** A world with decisions in the file, for the forget tests. */
+const forgetWorld = (extra: Rec, answers: string[] = []) =>
+  newWorld({ edit: decisions(extra), answers })
+
+test('forget: a confirmed skill is removed and asked again', async ($, on) => {
+  const w = asks(['Keep', 'Later'])
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  expect(await route($, 'forget feat')).toContain('forgot feat: 1 confirmed')
+  expect(confirmedOf(w).skills).toBeUndefined()
+  await typeFeat($)
+  expect(w.asked).toHaveLength(2)
+})
+
+test('forget: /route pending lists a forgotten key again', async ($, on) => {
+  const w = asks(['Keep'])
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  await route($, 'forget feat')
+  const lines = (await route($, 'pending')).split('\n')
+  expect(lines[1]).toBe('asked this session: none')
+  expect(lines[2]).toContain('skills:feat')
+})
+
+test('forget: the answer closes on the other sessions\' reload', async (
+  $, on) => {
+  const w = forgetWorld({ confirmed: { skills: { feat: 'reflect' } } })
+  await bootRun($, on, FABLE, w)
+  expect(await route($, 'forget feat')).toMatch(new RegExp(`${FORGET_NOTE}$`))
+})
+
+test('forget: a changed agent goes back to its shipped phase', async (
+  $, on) => {
+  const w = newWorld({ edit: movedFeater })
+  const rig = await bootRun($, on, FABLE, w)
+  expect(await featerModel($, rig)).toBe(OPUS)
+  await route($, 'forget feater')
+  const file = routingOf(w)
+  expect((file.agents as Rec).feater).toBe('implement')
+  expect(file.changed).toEqual({})
+  expect(file.confirmed).toEqual({})
+  expect(await featerModel($, rig)).toBe(SONNET)
+})
+
+test('forget: a restored row names the frontmatter to realign', async (
+  $, on) => {
+  await bootRun($, on, FABLE, newWorld({ edit: movedFeater }))
+  expect(await route($, 'forget feater')).toContain(
+    ' (agents.feater → implement: sonnet at medium; if agents/feater.md ' +
+    'was aligned to judge, set model: sonnet, effort: medium and its lock in ' +
+    `${MODEL_LOCK}, then \`make test\`)`)
+})
+
+test('forget: a built-in agent restored names no file', async ($, on) => {
+  const w = forgetWorld({
+    agents: { Explore: 'write' },
+    changed: { agents: { Explore: { from: 'explore', to: 'write' } } },
+  })
+  await bootRun($, on, FABLE, w)
+  const out = await route($, 'forget Explore')
+  expect(out).toContain('(agents.Explore → explore: sonnet at medium)')
+})
+
+test('forget: the built-in Plan agent restored names no file', async (
+  $, on) => {
+  const w = forgetWorld({
+    agents: { Plan: 'write' },
+    changed: { agents: { Plan: { from: 'judge', to: 'write' } } },
+  })
+  await bootRun($, on, FABLE, w)
+  const out = await route($, 'forget Plan')
+  expect(out).toContain('(agents.Plan → judge:')
+  expect(out).not.toContain('agents/Plan.md')
+})
+
+test('forget all: a refused restore is kept, the rest removed', async (
+  $, on) => {
+  const w = forgetWorld({
+    agents: { Explore: 'judge' },
+    changed: { agents: { Explore: { from: 'explore', to: 'write' } } },
+    confirmed: { skills: { feat: 'reflect' } },
+  }, ['Forget'])
+  await bootRun($, on, FABLE, w)
+  const out = await route($, 'forget all')
+  expect(out).toContain('1 restore(s) kept: agents.Explore: the row differs')
+  expect(confirmedOf(w).skills).toBeUndefined()
+  expect(routingOf(w).changed).toEqual(
+    { agents: { Explore: { from: 'explore', to: 'write' } } })
+})
+
+test('forget: a phase is removed and the route tool asks again', async (
+  $, on) => {
+  const w = asks(['Keep', 'Later'])
+  await bootRun($, on, FABLE, w)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'orchestrate' })
+  expect(await route($, 'forget orchestrate')).toContain('1 confirmed')
+  expect(confirmedOf(w).phases).toBeUndefined()
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'orchestrate' })
+  expect(w.asked).toHaveLength(2)
+})
+
+const twoRepos = {
+  projects: {
+    [KEY]: { skills: { feat: 'plan' } },
+    [TWO]: { skills: { feat: 'apply' }, agents: { feater: 'judge' } },
+  },
+}
+
+test('forget: a name loses its exception in every repo', async ($, on) => {
+  const w = forgetWorld(twoRepos)
+  await bootRun($, on, FABLE, w)
+  const out = await route($, 'forget feat')
+  expect(out).toContain('2 project exception(s) removed')
+  expect(routingOf(w).projects).toEqual({
+    [TWO]: { agents: { feater: 'judge' } },
+  })
+})
+
+test('forget: an undecided row has nothing to forget, no write', async (
+  $, on) => {
+  const w = newWorld()
+  await bootRun($, on, FABLE, w)
+  expect(await route($, 'forget status')).toBe('nothing to forget for status')
+  expect(w.written).toEqual([])
+})
+
+test('forget: an unknown name has nothing to forget, no write', async (
+  $, on) => {
+  const w = newWorld()
+  await bootRun($, on, FABLE, w)
+  expect(await route($, 'forget zzz')).toContain('nothing to forget for zzz')
+  expect(w.written).toEqual([])
+})
+
+test('forget: a key only asked this session is reset, no write', async (
+  $, on) => {
+  const w = asks(['Later', 'Later'])
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  const out = await route($, 'forget feat')
+  expect(out).toContain('asked again at the next use, nothing was saved')
+  expect(w.written).toEqual([])
+  await typeFeat($)
+  expect(w.asked).toHaveLength(2)
+})
+
+test('forget: an asked key the override decides is said so', async (
+  $, on) => {
+  const w = asks(['Later'])
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  w.files.set(HOME_FILE, '{"skills":{"feat":"plan"}}')
+  await route($, 'reload')
+  const out = await route($, 'forget feat')
+  expect(out).toContain('still decided by ~/.claude/model-router.json')
+})
+
+for (const args of ['forget', 'forget a b']) {
+  test(`forget: "${args}" is a usage line, no write`, async ($, on) => {
+    const w = newWorld()
+    await bootRun($, on, FABLE, w)
+    expect(await route($, args)).toBe(
+      'usage: /route forget <name|all|projects>')
+    expect(w.written).toEqual([])
+  })
+}
+
+test('forget: a row named all is reserved, said', async ($, on) => {
+  const w = newWorld({ edit: f => { (f.skills as Rec).all = 'plan' } })
+  await bootRun($, on, FABLE, w)
+  const out = await route($, 'forget all')
+  expect(out).toContain('named all is reserved here: edit routing.json by hand')
+})
+
+/** `/route forget <args>` typed while a first-use dialog is held open. */
+async function forgetDuringDialog($: Engine, w: World, args: string) {
+  const held = deferred()
+  const seen = deferred()
+  w.gate = held.gate
+  w.onAsk = seen.release
+  const typing = typeFeat($)
+  await seen.gate
+  const out = await route($, args)
+  held.release()
+  await typing
+  return out
+}
+
+test('forget: refused while a dialog is open, nothing written', async (
+  $, on) => {
+  const w = asks(['Later'])
+  await bootRun($, on, FABLE, w)
+  const out = await forgetDuringDialog($, w, 'forget feat')
+  expect(out).toBe('answer the open dialog first')
+  expect(w.written).toEqual([])
+})
+
+const confirmedFeat = { confirmed: { skills: { feat: 'reflect' } } }
+
+test('forget all asks first: Cancel, then Forget', async ($, on) => {
+  const w = forgetWorld({ ...confirmedFeat, ...twoRepos }, ['Cancel'])
+  await bootRun($, on, FABLE, w)
+  await route($, 'forget all')
+  expect(w.asked[0]?.options).toEqual(['Cancel', 'Forget'])
+  expect(w.asked[0]?.header).toBe('model-router')
+})
+
+test('forget all: the question counts what it removes', async ($, on) => {
+  const w = forgetWorld({ ...confirmedFeat, ...twoRepos }, ['Cancel'])
+  await bootRun($, on, FABLE, w)
+  await route($, 'forget all')
+  expect(w.asked[0]?.text).toBe('Forget 4 decisions: 0 row(s) restored, ' +
+    '3 project exception(s) in 2 repos?')
+})
+
+test('forget all: Cancel writes nothing', async ($, on) => {
+  const w = forgetWorld(confirmedFeat, ['Cancel'])
+  await bootRun($, on, FABLE, w)
+  expect(await route($, 'forget all')).toContain('cancelled, nothing written')
+  expect(w.written).toEqual([])
+})
+
+for (const [what, answer] of [
+  ['a dismissed dialog', REJECT],
+  ['another answer', 'whenever'],
+] as const) {
+  test(`forget all: ${what} is a cancel`, async ($, on) => {
+    const w = forgetWorld(confirmedFeat, [answer])
+    await bootRun($, on, FABLE, w)
+    expect(await route($, 'forget all')).toContain('cancelled')
+    expect(w.written).toEqual([])
+  })
+}
+
+test('forget all: nothing to forget skips the question', async ($, on) => {
+  const w = newWorld({ answers: ['Forget'] })
+  await bootRun($, on, FABLE, w)
+  expect(await route($, 'forget all')).toBe('nothing to forget')
+  expect(w.asked).toEqual([])
+})
+
+test('forget all: empties confirmed, changed and projects', async ($, on) => {
+  const w = forgetWorld({
+    agents: { feater: 'judge' },
+    confirmed: { skills: { feat: 'reflect' }, agents: { feater: 'judge' } },
+    changed: movedChange(),
+    projects: twoRepos.projects,
+  }, ['Forget'])
+  await bootRun($, on, FABLE, w)
+  await route($, 'forget all')
+  const file = routingOf(w)
+  expect([file.confirmed, file.changed, file.projects]).toEqual([{}, {}, {}])
+})
+
+/** The `changed` table of a feater moved to judge. */
+function movedChange(): Rec {
+  return { agents: { feater: { from: 'implement', to: 'judge' } } }
+}
+
+test('forget all: the rows come back, the counts are said', async ($, on) => {
+  const w = forgetWorld({
+    agents: { feater: 'judge' },
+    confirmed: { skills: { feat: 'reflect' }, agents: { feater: 'judge' } },
+    changed: movedChange(),
+    projects: { [KEY]: { skills: { feat: 'plan' } } },
+  }, ['Forget'])
+  await bootRun($, on, FABLE, w)
+  const out = await route($, 'forget all')
+  expect(out).toContain('forgot all: 2 confirmed, 1 row(s) restored, ' +
+    '1 project exception(s) removed')
+  expect((routingOf(w).agents as Rec).feater).toBe('implement')
+})
+
+test('forget all: the asked set is cleared', async ($, on) => {
+  const w = asks(['Keep', 'Forget', 'Later'])
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  await route($, 'forget all')
+  await typeFeat($)
+  expect(w.asked).toHaveLength(3)
+})
+
+test('forget all: the plan is recomputed on the file the write reads', async (
+  $, on) => {
+  const w = forgetWorld(confirmedFeat, ['Forget'])
+  await bootRun($, on, FABLE, w)
+  w.onAsk = () => {
+    const file = routingOf(w)
+    file.confirmed = {
+      skills: { feat: 'reflect' },
+      agents: { verifier: 'verify' },
+    }
+    w.files.set('routing', JSON.stringify(file))
+  }
+  const out = await route($, 'forget all')
+  expect(out).toContain('2 confirmed')
+  expect(routingOf(w).confirmed).toEqual({})
+})
+
+test('forget all: the file vanishing during the question saves nothing', async (
+  $, on) => {
+  const w = forgetWorld(confirmedFeat, ['Forget'])
+  await bootRun($, on, FABLE, w)
+  w.onAsk = () => { w.files.delete('routing') }
+  expect(await route($, 'forget all')).toBe('forget refused: nothing saved')
+  expect(w.written).toEqual([])
+})
+
+test('forget all: holds the dialog slot while it asks', async ($, on) => {
+  const w = asks(['Forget'], { edit: decisions(confirmedFeat) })
+  await bootRun($, on, FABLE, w)
+  const held = deferred()
+  const seen = deferred()
+  w.gate = held.gate
+  w.onAsk = seen.release
+  const forgetting = route($, 'forget all')
+  await seen.gate
+  w.onAsk = undefined
+  await typed($, '/status')
+  await skillPrompt($, 'status')
+  expect(w.asked).toHaveLength(1)
+  held.release()
+  await forgetting
+})
+
+test('forget all: a second forget is refused while the first asks', async (
+  $, on) => {
+  const w = forgetWorld(confirmedFeat, ['Cancel'])
+  await bootRun($, on, FABLE, w)
+  const held = deferred()
+  const seen = deferred()
+  w.gate = held.gate
+  w.onAsk = seen.release
+  const first = route($, 'forget all')
+  await seen.gate
+  expect(await route($, 'forget feat')).toBe('answer the open dialog first')
+  held.release()
+  await first
+})
+
+test('forget projects: only the project exceptions go', async ($, on) => {
+  const w = forgetWorld({ ...confirmedFeat, ...twoRepos }, ['Forget'])
+  await bootRun($, on, FABLE, w)
+  await route($, 'forget projects')
+  expect(routingOf(w).projects).toEqual({})
+  expect(routingOf(w).confirmed).toEqual(confirmedFeat.confirmed)
+})
+
+test('forget projects: nothing to forget skips the question', async (
+  $, on) => {
+  const w = forgetWorld(confirmedFeat, ['Forget'])
+  await bootRun($, on, FABLE, w)
+  expect(await route($, 'forget projects')).toBe('nothing to forget')
+  expect(w.asked).toEqual([])
+})
+
+/** A moved feater whose recorded change no longer matches the file. */
+const brokenRestore = (changed: Rec, row = 'judge') => (file: Rec) => {
+  (file.agents as Rec).feater = row
+  file.changed = { agents: { feater: changed } }
+}
+
+for (const [why, changed, row, text] of [
+  ['the row differs', { from: 'implement', to: 'judge' }, 'write',
+    'differs from the recorded change'],
+  ['from is no phase', { from: 'nosuch', to: 'judge' }, 'judge',
+    'nosuch is not a known phase'],
+  ['from is not a string', { from: 5, to: 'judge' }, 'judge',
+    'no phase recorded'],
+] as const) {
+  test(`forget: a restore is refused when ${why}, entry kept`, async (
+    $, on) => {
+    const w = newWorld({ edit: brokenRestore(changed, row) })
+    await bootRun($, on, FABLE, w)
+    expect(await route($, 'forget feater')).toContain(text)
+    expect(w.written).toEqual([])
+    expect(routingOf(w).changed).toEqual({ agents: { feater: changed } })
+  })
+}
+
+test('forget: a refused restore reports it next to what was removed', async (
+  $, on) => {
+  const w = newWorld({ edit: f => {
+    brokenRestore({ from: 'implement', to: 'judge' }, 'write')(f)
+    f.confirmed = { agents: { feater: 'write' } }
+  } })
+  await bootRun($, on, FABLE, w)
+  const out = await route($, 'forget feater')
+  expect(out).toContain('1 confirmed, 0 row(s) restored')
+  expect(out).toContain('1 restore(s) kept: agents.feater:')
+})
+
+test('forget: the override still setting the row is said', async ($, on) => {
+  const w = newWorld({
+    edit: movedFeater,
+    home: { agents: { feater: 'judge' } },
+  })
+  await bootRun($, on, FABLE, w)
+  expect(await route($, 'forget feater')).toContain(
+    '; ~/.claude/model-router.json still sets feater and wins here')
+})
+
+test('forget: a restored skill the run still holds says /route clear', async (
+  $, on) => {
+  const w = newWorld({ edit: f => {
+    (f.skills as Rec).feat = 'plan'
+    f.changed = { skills: { feat: { from: 'reflect', to: 'plan' } } }
+    f.confirmed = { skills: { feat: 'plan' } }
+  } })
+  await bootRun($, on, FABLE, w)
+  await typed($, '/feat add a thing')
+  await skillPrompt($, 'feat')
+  expect(await route($, 'forget feat')).toContain(
+    '; current run may keep plan: /route clear to apply')
+})
+
+/** A feat moved to plan, as a Change Everywhere would have left it. */
+const movedFeat = (file: Rec): void => {
+  (file.skills as Rec).feat = 'plan'
+  file.changed = { skills: { feat: { from: 'reflect', to: 'plan' } } }
+  file.confirmed = { skills: { feat: 'plan' } }
+}
+
+const KEEPS = 'current run may keep'
+
+for (const answer of ['Cancel', REJECT]) {
+  test(`forget projects asks first: ${answer} saves nothing`, async (
+    $, on) => {
+    const w = forgetWorld(twoRepos, [answer])
+    await bootRun($, on, FABLE, w)
+    expect(await route($, 'forget projects')).toContain('cancelled')
+    expect(w.asked[0]?.options).toEqual(['Cancel', 'Forget'])
+    expect(w.written).toEqual([])
+  })
+}
+
+test('forget: a restored agent or other-phase skill keeps no run', async (
+  $, on) => {
+  const w = newWorld({ edit: f => {
+    movedFeat(f)
+    f.changed = { ...(f.changed as Rec), agents: {
+      feater: { from: 'implement', to: 'plan' } } }
+    ;(f.agents as Rec).feater = 'plan'
+    ;(f.skills as Rec).status = 'apply'
+    ;(f.changed as Rec).skills = { ...((f.changed as Rec).skills as Rec),
+      status: { from: 'mechanical', to: 'apply' } }
+  } })
+  await bootRun($, on, FABLE, w)
+  await typed($, '/feat add a thing')
+  await skillPrompt($, 'feat')
+  expect(await route($, 'forget feater')).not.toContain(KEEPS)
+  expect(await route($, 'forget status')).not.toContain(KEEPS)
+})
+
+test('forget: a phase the model routed is not a run to keep', async (
+  $, on) => {
+  const w = newWorld({ edit: f => {
+    (f.skills as Rec).status = 'plan'
+    f.changed = { skills: { status: { from: 'mechanical', to: 'plan' } } }
+    f.confirmed = { skills: { status: 'plan' } }
+  } })
+  await bootRun($, on, FABLE, w)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'plan' })
+  expect(await route($, 'forget status')).not.toContain(KEEPS)
+})
+
+test('forget: no machine pin on the name, no "wins here"', async ($, on) => {
+  const w = newWorld({
+    edit: decisions(confirmedFeat),
+    home: { skills: { hotfix: 'plan' } },
+  })
+  await bootRun($, on, FABLE, w)
+  const out = await route($, 'forget feat')
+  expect(out).toContain('forgot feat: 1 confirmed')
+  expect(out).not.toContain('wins here')
+})
+
+test('forget: a restored skill row names its SKILL.md to realign', async (
+  $, on) => {
+  await bootRun($, on, FABLE, newWorld({ edit: movedFeat }))
+  expect(await route($, 'forget feat')).toContain(
+    'if skills/feat/SKILL.md was aligned to plan, set model: ')
+})
+
+test('forget: a missing routing.json saves nothing', async ($, on) => {
+  const w = newWorld({ routing: 'absent' })
+  await bootRun($, on, FABLE, w)
+  expect(await route($, 'forget feat')).toContain('nothing saved')
+  expect(w.written).toEqual([])
+})
+
+test('forget: a rebuild failing after the write is said', async ($, on) => {
+  const w = forgetWorld(confirmedFeat)
+  await bootRun($, on, FABLE, w)
+  w.onWrite = () => { w.files.set(HOME_FILE, '{nope') }
+  expect(await route($, 'forget feat')).toBe(
+    'saved, config not rebuilt: /route reload')
+  expect(routingOf(w).confirmed).toEqual({})
+})
+
+test('forget: a failing write is not applied', async ($, on) => {
+  const w = forgetWorld(confirmedFeat)
+  await bootRun($, on, FABLE, w)
+  w.failWrite = true
+  expect(await route($, 'forget feat')).toContain('forget not applied')
+  expect(routingOf(w).confirmed).toEqual(confirmedFeat.confirmed)
+})
+
+test('forget: the route tool cannot forget', async ($, on) => {
+  const w = forgetWorld(confirmedFeat)
+  await bootRun($, on, FABLE, w)
+  await $.tool.call({ tool: ROUTE_TOOL, clear: true })
+  expect(w.written).toEqual([])
+  expect(routingOf(w).confirmed).toEqual(confirmedFeat.confirmed)
+})
+
+test('forget: a forget input to the route tool is refused', async (
+  $, on) => {
+  const w = forgetWorld(confirmedFeat)
+  await bootRun($, on, FABLE, w)
+  for (const input of [{ forget: 'feat' }, { phase: 'forget' }]) {
+    const out = await $.tool.call({ tool: ROUTE_TOOL, ...input })
+    expect(JSON.stringify(out)).toContain('"deny"')
+  }
+  expect(w.written).toEqual([])
+  expect(routingOf(w).confirmed).toEqual(confirmedFeat.confirmed)
+})
+
+test('forget projects: the asked set is kept, no re-ask', async ($, on) => {
+  const w = newWorld({
+    ask: true,
+    edit: decisions({ projects: { [TWO]: twoRepos.projects[TWO] } }),
+    answers: ['Later', 'Forget'],
+  })
+  await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  await route($, 'forget projects')
+  await typeFeat($)
+  expect(w.asked).toHaveLength(2)
+  expect(w.asked[1]?.options).toEqual(['Cancel', 'Forget'])
+})
+
+test('forget: a non-composer origin is refused, nothing written', async (
+  $, on) => {
+  const w = forgetWorld(confirmedFeat)
+  await bootRun($, on, FABLE, w)
+  const out = await $.command.run({
+    command: 'route',
+    args: 'forget feat',
+    origin: { kind: 'plugin', name: 'x' },
+    presentation: { isFullscreen: false, columns: 80 },
+  })
+  expect(out.text).toContain('user-only')
+  expect(w.written).toEqual([])
+})

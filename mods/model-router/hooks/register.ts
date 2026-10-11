@@ -1506,6 +1506,8 @@ async function handleCommand($: Api, st: State, args: string): Promise<string> {
       return pendingText(st)
     case 'ask':
       return askCommand($, st, rest[0])
+    case 'forget':
+      return forgetCommand($, st, rest)
     case 'switch':
     case 'verbose':
       return toggle($, st, head, rest[0])
@@ -1517,8 +1519,9 @@ async function handleCommand($: Api, st: State, args: string): Promise<string> {
 // ---- first use: one dialog per row, the answer kept in routing.json -----
 // The first time a row routes (a typed skill, an agent spawn, a phase
 // declared through the route tool) the user confirms it once, for every
-// project; a change can be a project exception. Only a dialog answer or
-// `/route ask` writes; nothing is asked on the step path or in an agent.
+// project; a change can be a project exception. Only a dialog answer,
+// `/route ask` or `/route forget` writes; nothing is asked on the step path
+// or in an agent.
 
 const HEADER = 'model-router'
 const UPDATED = 'routing.json updated: commit it from the config repo ' +
@@ -1853,6 +1856,9 @@ function serializeRouting(file: Rec): string {
   return JSON.stringify(ordered, null, 2) + '\n'
 }
 
+/** The write landed but the config could not be rebuilt from it. */
+class RebuildFailed extends Error {}
+
 /**
  * Read-modify-write of routing.json, one at a time (a chain). Refuses a
  * missing or unparsable file and never creates it; rebuilds the config
@@ -1874,7 +1880,7 @@ async function writeNow($: Api, st: State, patch: Patch): Promise<boolean> {
   await $.fs.write(file.path, out)
   const rebuilt = await reloadConfig($, st)
   $.ui.toast(UPDATED)
-  if (!rebuilt) throw new Error('rebuild failed after the write')
+  if (!rebuilt) throw new RebuildFailed('rebuild failed after the write')
   return true
 }
 
@@ -2051,6 +2057,261 @@ async function askCommand($: Api, st: State, arg: string | undefined) {
   return `ask ${arg}${note}`
 }
 
+// ---- /route forget: the user takes decisions back -------------------------
+// Removes `confirmed` and `projects` entries and restores a `changed` row to
+// its shipped phase. The frontmatter floors are never touched. `all` and
+// `projects` ask first. Reserved words: a row named like them is edited by
+// hand.
+
+type Target = { label: string; name?: string; only?: 'projects' }
+type Restore = { kind: Kind; name: string; from: string; to: string }
+type ForgetPlan = {
+  confirmed: [Kind, string][]
+  restores: Restore[]
+  kept: string[] // refused restores, with the reason
+  projects: [string, Kind, string][] // repo key, kind, name
+}
+
+const REFUSED = 'forget refused: nothing saved'
+const FORGET_USAGE = 'usage: /route forget <name|all|projects>'
+const BUILTIN_AGENTS: ReadonlySet<string> = new Set(['Explore', 'Plan'])
+const isKind = (v: string): v is Kind => KINDS.some(kind => kind === v)
+
+function targetOf(arg: string): Target {
+  if (arg === 'all') return { label: 'all' }
+  if (arg === 'projects') return { label: 'projects', only: 'projects' }
+  return { label: arg, name: arg }
+}
+
+/** The [kind, name, value] entries of a kind-keyed table the target picks. */
+function decided(tables: unknown, t: Target): [Kind, string, unknown][] {
+  if (!isRecord(tables)) return []
+  return Object.entries(tables).filter(([kind]) => isKind(kind))
+    .flatMap(([kind, rows]) => isRecord(rows) ? Object.keys(rows)
+      .filter(name => t.name === undefined || name === t.name)
+      .map(name => [kind as Kind, name, rows[name]] as [Kind, string, unknown])
+      : [])
+}
+
+/** The restore a `changed` entry allows, or why it is refused. */
+function restoreOf(
+  file: Rec,
+  kind: Kind,
+  name: string,
+  entry: unknown,
+): Restore | string {
+  const { from, to } = isRecord(entry) ? entry : ({} as Rec)
+  if (typeof from !== 'string') return 'no phase recorded to return to'
+  const rows = subRec(file, kind)
+  if (typeof to !== 'string' || !hasKey(rows, name) || rows[name] !== to) {
+    return 'the row differs from the recorded change, edit routing.json'
+  }
+  if (!hasKey(subRec(file, 'phases'), from) &&
+      !hasKey(DEFAULT_CONFIG.phases, from)) {
+    return `${from} is not a known phase`
+  }
+  return { kind, name, from, to }
+}
+
+/** What the target removes from this file, and what it must keep. */
+function forgetPlan(file: Rec, t: Target): ForgetPlan {
+  const plan: ForgetPlan = {
+    confirmed: [], restores: [], kept: [], projects: [],
+  }
+  if (t.only !== 'projects') {
+    for (const [kind, name] of decided(file.confirmed, t)) {
+      plan.confirmed.push([kind, name])
+    }
+    for (const [kind, name, entry] of decided(file.changed, t)) {
+      const done = restoreOf(file, kind, name, entry)
+      if (typeof done === 'string') plan.kept.push(`${kind}.${name}: ${done}`)
+      else plan.restores.push(done)
+    }
+  }
+  const repos = isRecord(file.projects) ? file.projects : {}
+  for (const [repo, tables] of Object.entries(repos)) {
+    for (const [kind, name] of decided(tables, t)) {
+      plan.projects.push([repo, kind, name])
+    }
+  }
+  return plan
+}
+
+const removals = (plan: ForgetPlan): number =>
+  plan.confirmed.length + plan.restores.length + plan.projects.length
+const repoCount = (plan: ForgetPlan): number =>
+  new Set(plan.projects.map(entry => entry[0])).size
+
+/** Deletes one entry; an emptied kind table goes with it. */
+function dropEntry(parent: Rec, kind: string, name: string): void {
+  const rows = subRec(parent, kind)
+  delete rows[name]
+  if (Object.keys(rows).length === 0) delete parent[kind]
+}
+
+function applyPlan(file: Rec, plan: ForgetPlan): void {
+  const changed = subRec(file, 'changed')
+  const projects = subRec(file, 'projects')
+  for (const [kind, name] of plan.confirmed) {
+    dropEntry(subRec(file, 'confirmed'), kind, name)
+  }
+  for (const r of plan.restores) {
+    setKey(subRec(file, r.kind), r.name, r.from)
+    dropEntry(changed, r.kind, r.name)
+  }
+  for (const [repo, kind, name] of plan.projects) {
+    const mine = subRec(projects, repo)
+    dropEntry(mine, kind, name)
+    if (Object.keys(mine).length === 0) delete projects[repo]
+  }
+}
+
+/** Keys of this session's asked set the target covers. */
+function askedKeys(st: State, t: Target): string[] {
+  if (t.only === 'projects') return []
+  if (t.name === undefined) return [...st.asked]
+  const name = t.name
+  return KINDS.map(kind => keyOf({ kind, name })).filter(k => st.asked.has(k))
+}
+
+/** The machine override still sets the row: no forget reaches it. */
+function heldBy(st: State, t: Target): string | undefined {
+  const name = t.name
+  if (name === undefined) return undefined
+  return ROWS.some(kind => hasKey(strTable(st.override?.[kind]), name))
+    ? `~/${OVERRIDE}`
+    : undefined
+}
+
+/** The answer when nothing is written, or undefined when there is work. */
+function idleAnswer(
+  st: State,
+  t: Target,
+  plan: ForgetPlan,
+): string | undefined {
+  if (removals(plan) > 0) return undefined
+  if (plan.kept.length > 0) {
+    return `nothing restored for ${t.label}: ${plan.kept.join('; ')}`
+  }
+  const keys = askedKeys(st, t)
+  if (keys.length === 0) {
+    return t.name === undefined ? 'nothing to forget'
+      : `nothing to forget for ${t.name}`
+  }
+  keys.forEach(key => st.asked.delete(key))
+  const held = heldBy(st, t)
+  return `${t.label}: ${held === undefined
+    ? 'asked again at the next use'
+    : `still decided by ${held}`}, nothing was saved`
+}
+
+async function confirmForget($: Api, plan: ForgetPlan): Promise<boolean> {
+  const text = `Forget ${plural(removals(plan), 'decision')}: ` +
+    `${plan.restores.length} row(s) restored, ${plan.projects.length} ` +
+    `project exception(s) in ${plural(repoCount(plan), 'repo')}?`
+  return (await askOr($, text, ['Cancel', 'Forget'])) === 'Forget'
+}
+
+/** Where a restored row's frontmatter lives; none for a built-in agent. */
+function floorFile(r: Restore): string | undefined {
+  if (r.kind === 'skills') return `skills/${r.name}/SKILL.md`
+  return r.kind === 'agents' && !BUILTIN_AGENTS.has(r.name)
+    ? `agents/${r.name}.md`
+    : undefined
+}
+
+function restoreClause(st: State, r: Restore): string {
+  const route = phaseRoute(st.cfg, r.from) ?? phaseRoute(DEFAULT_CONFIG, r.from)
+  const alias = (route && headAlias(DEFAULT_CONFIG, route)) ?? 'its own model'
+  const values = `${alias} at ${route?.effort ?? 'its own effort'}`
+  const file = floorFile(r)
+  const realign = file === undefined ? '' : `; if ${file} was aligned to ${
+    r.to}, set model: ${alias}, effort: ${route?.effort ?? '-'} and its ` +
+    'lock in lib/tests/model-routing.test.sh, then `make test`'
+  return ` (${r.kind}.${r.name} → ${r.from}: ${values}${realign})`
+}
+
+/** Restored skill rows whose old phase the current run still holds. */
+function runKeeps(st: State, plan: ForgetPlan): string {
+  const live = [st.runMain, st.turnMain].filter(slot =>
+    slot !== null && (slot.source === 'run' || slot.source === 'skill'))
+  const kept = plan.restores.find(r => r.kind === 'skills' &&
+    live.some(slot => slot?.phase === r.to))
+  return kept === undefined ? '' :
+    `; current run may keep ${kept.to}: /route clear to apply`
+}
+
+/** The one answer of every form, from the counts really applied. */
+function forgetAnswer(st: State, t: Target, plan: ForgetPlan): string {
+  const kept = plan.kept.length === 0 ? '' :
+    `, ${plan.kept.length} restore(s) kept: ${plan.kept.join('; ')}`
+  const name = t.name
+  const wins = name !== undefined &&
+    ROWS.some(kind => st.mem.local[kind].has(name))
+    ? `; ~/${OVERRIDE} still sets ${name} and wins here`
+    : ''
+  return `forgot ${t.label}: ${plan.confirmed.length} confirmed, ${
+    plan.restores.length} row(s) restored, ${plan.projects.length} project ` +
+    `exception(s) removed${kept}` +
+    plan.restores.map(r => restoreClause(st, r)).join('') + wins +
+    runKeeps(st, plan) + '; other live sessions see it after /route reload'
+}
+
+/** One writer patch; the plan is recomputed on the file it really holds. */
+async function forgetWrite($: Api, st: State, t: Target, seen: ForgetPlan) {
+  const out: { plan?: ForgetPlan } = {}
+  const patch: Patch = file => {
+    out.plan = forgetPlan(file, t)
+    applyPlan(file, out.plan)
+  }
+  try {
+    if (!(await writeRouting($, st, patch))) return REFUSED
+  } catch (err) {
+    return err instanceof RebuildFailed
+      ? 'saved, config not rebuilt: /route reload'
+      : `forget not applied (${String(err)})`
+  }
+  askedKeys(st, t).forEach(key => st.asked.delete(key))
+  return forgetAnswer(st, t, out.plan ?? seen)
+}
+
+/** A row or phase called `all` or `projects` cannot be reached by name. */
+function reservedNote(file: Rec, t: Target): string {
+  if (t.name !== undefined) return ''
+  const clash = KINDS.some(kind => hasKey(subRec(file, kind), t.label))
+  return clash ? `; a row or phase named ${t.label} is reserved here: ` +
+    `edit ${ROUTING} by hand` : ''
+}
+
+async function forgetFlow($: Api, st: State, t: Target): Promise<string> {
+  await st.writes
+  const file = await readRouting($, text => $.ui.log(text))
+  if (typeof file === 'string') {
+    return `${ROUTING} is missing or unreadable: nothing saved`
+  }
+  const plan = forgetPlan(file.data, t)
+  const idle = idleAnswer(st, t, plan)
+  const note = reservedNote(file.data, t)
+  if (idle !== undefined) return idle + note
+  if (t.name === undefined && !(await confirmForget($, plan))) {
+    return `forget ${t.label} cancelled, nothing written` + note
+  }
+  return (await forgetWrite($, st, t, plan)) + note
+}
+
+/** The forget holds the single-dialog slot: no first-use dialog under it. */
+async function forgetCommand($: Api, st: State, args: string[]) {
+  if (args.length !== 1) return FORGET_USAGE
+  if (st.asking !== null) return 'answer the open dialog first'
+  const target = targetOf(args[0] ?? '')
+  st.asking = `forget:${target.label}`
+  try {
+    return await forgetFlow($, st, target)
+  } finally {
+    st.asking = null
+  }
+}
+
 // ---- route tool ------------------------------------------------------
 
 async function registerTool($: Api, st: State): Promise<void> {
@@ -2086,7 +2347,8 @@ async function registerCommand($: Api): Promise<void> {
       name: 'route',
       description: 'model-router: show or set the model and effort route',
       argumentHint:
-        '[show|clear|off|on|reload|pending|ask on|off|<phase>|' +
+        '[show|clear|off|on|reload|pending|ask on|off|' +
+        'forget <name|all|projects>|<phase>|' +
         'model=<alias|id> effort=<level>|switch on|off|verbose on|off]',
       immediate: true,
     })
