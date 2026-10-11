@@ -151,7 +151,8 @@
       "verify": "verify",
       "implement": "implement",
       "write": "write",
-      "orchestrate": "orchestrate"
+      "orchestrate": "orchestrate",
+      "escalate": "escalate"
     }
   },
   "changed": {
