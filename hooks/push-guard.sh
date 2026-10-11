@@ -18,11 +18,20 @@
 # 'git push' reads as one mixed token, accepted, fail closed); a payload jq
 # cannot parse whose raw text (JSON escapes folded) looks like a push: static
 # deny, mode-blind, so a description naming a push also denies there.
-# OVER-BLOCKS in manual mode: any text carrying a later ` push` word after
-# a `git` token (git subtree push, git stash push, git log -S "git push",
-# grep -rn "git push" skills/, git config --get push.default, git add
-# push.sh, git help push, a commit message quoting "git push").
-# MISSES: "git" push, git "push", git pu\sh, git $'push', $g push; ~ / $VAR /
+# ARGV CHECK: once the text looks like a push, the command is split into
+# simple commands (quotes, escapes, `;` `&&` `||` `|` `(` `)` backticks,
+# heredoc bodies dropped) and the push must sit in one of them: argv[0] is
+# git (or */git) and its first non-option word is push or send-pack. A
+# command whose argv[0] is a plain program (grep, cat, echo, sed, rg...) or a
+# git subcommand other than push (log -S "git push", config --get
+# push.default, add push.sh, help push, stash push, commit -m "git push")
+# is proven not a push and allowed. `bash|sh|zsh -c <script>` recurses into
+# the script (depth 3). A wrapper (sudo, env, exec, command, eval, xargs,
+# timeout, nohup, find, ssh, alias, source, time, git subtree...) or an
+# assignment whose value reads as a push keeps the text verdict (deny).
+# awk missing, more than 2000 simple commands or a tokenizer failure keep
+# the text verdict too (fail closed).
+# MISSES: git pu\sh, git $'push', $g push; ~ / $VAR /
 # $(...) in -C or cd (never resolved, never eval'd); --git-dir / GIT_DIR; a
 # push hidden in a script, Makefile target, user alias or an alias planted
 # by a redirect into .git/config; cumulative relative `cd a && cd b` (each
@@ -69,18 +78,166 @@ bare=$(printf '%s' "$one" | sed -E "s/\"[^\"]*\"//g; s/'[^']*'//g")
 # JSON quotes are syntax, not shell quoting: keep them for the loose regexes.
 [ "$unparsed" = 1 ] && bare=$one
 
-# is_push: strict (full text), loose (quotes removed), alias definition.
+# Push regexes: strict (full text), loose (quotes removed), alias definition.
+STRICT='(^|[^[:alnum:]_.-])git([[:space:]]+-[^[:space:]]+([[:space:]]+[^[:space:]-][^[:space:]]*)?)*[[:space:]]+(push|send-pack)([^[:alnum:]_-]|$)'
+LOOSE='(^|[^[:alnum:]_.-])git[[:space:]]+([^|;&()]*[[:space:]])?(push|send-pack)([^[:alnum:]_-]|$)'
+ALIAS_RE='alias\.[^=[:space:]]+=[^[:space:]]*push'
+
+# is_push: the text prefilter; no match anywhere = not a push. The third
+# form drops the quote characters only ("git" push, git "push").
 is_push() {
-  local strict loose alias_re
-  strict='(^|[^[:alnum:]_.-])git([[:space:]]+-[^[:space:]]+([[:space:]]+[^[:space:]-][^[:space:]]*)?)*[[:space:]]+(push|send-pack)([^[:alnum:]_-]|$)'
-  loose='(^|[^[:alnum:]_.-])git[[:space:]]+([^|;&()]*[[:space:]])?(push|send-pack)([^[:alnum:]_-]|$)'
-  alias_re='alias\.[^=[:space:]]+=[^[:space:]]*push'
-  printf '%s' "$one" | grep -qE "$strict" && return 0
-  printf '%s' "$bare" | grep -qE "$loose" && return 0
-  printf '%s' "$bare" | grep -qE "$alias_re"
+  local unq=${one//\"/}; unq=${unq//\'/}
+  printf '%s' "$one" | grep -qE "$STRICT" && return 0
+  printf '%s' "$unq" | grep -qE "$STRICT" && return 0
+  printf '%s' "$bare" | grep -qE "$LOOSE" && return 0
+  printf '%s' "$bare" | grep -qE "$ALIAS_RE"
+}
+
+# simple_cmds: stdin text -> one simple command per line, words joined by
+# \037 (quotes removed, escapes resolved, heredoc bodies dropped). Pure
+# awk, never eval'd.
+simple_cmds() {
+  awk '
+  function endword() { if (have) { line = line (nw ? "\037" : "") word; nw++ }
+    word = ""; have = 0 }
+  function endcmd() { if (nw) print line; line = ""; nw = 0 }
+  function skip_heredocs(    k, e, ln) {
+    for (k = 1; k <= nh; k++) while (i <= n) {
+      e = index(substr(txt, i), "\n")
+      if (e == 0) { ln = substr(txt, i); i = n + 1 }
+      else { ln = substr(txt, i, e - 1); i += e }
+      sub(/^\t+/, "", ln); if (ln == hd[k]) break
+    }
+    nh = 0 }
+  function read_delim(    q, d) {
+    if (substr(txt, i, 1) == "-") i++
+    while (substr(txt, i, 1) ~ /[ \t]/) i++
+    d = ""
+    while (i <= n) { c = substr(txt, i, 1)
+      if (c ~ /[ \t\n;&|()<>]/) break
+      if (c == "\047" || c == "\"") { q = c; i++
+        while (i <= n && substr(txt, i, 1) != q) { d = d substr(txt, i, 1); i++ }
+        i++; continue }
+      if (c == "\\") { d = d substr(txt, i + 1, 1); i += 2; continue }
+      d = d c; i++ }
+    hd[++nh] = d }
+  BEGIN { RS = "\001" }
+  { txt = txt $0 }
+  END {
+    n = length(txt); i = 1; nw = 0; nh = 0; word = ""; have = 0; line = ""
+    while (i <= n) { c = substr(txt, i, 1)
+      if (c == "\047") { j = index(substr(txt, i + 1), "\047"); have = 1
+        if (j == 0) { word = word substr(txt, i + 1); i = n + 1 }
+        else { word = word substr(txt, i + 1, j - 1); i += j + 1 }
+        continue }
+      if (c == "\"") { i++; have = 1
+        while (i <= n) { c = substr(txt, i, 1)
+          if (c == "\"") { i++; break }
+          if (c == "\\" && i < n) { d = substr(txt, i + 1, 1)
+            if (d ~ /["\\$`\n]/) { if (d != "\n") word = word d; i += 2; continue } }
+          word = word c; i++ }
+        continue }
+      if (c == "\\") { if (i < n) { d = substr(txt, i + 1, 1)
+          if (d != "\n") { word = word d; have = 1 } i += 2 } else i++
+        continue }
+      if (c == "\n") { endword(); endcmd(); i++
+        if (nh) skip_heredocs(); continue }
+      if (c == " " || c == "\t") { endword(); i++; continue }
+      if (c == "<" && substr(txt, i + 1, 1) == "<" && substr(txt, i + 2, 1) != "<") {
+        endword(); i += 2; read_delim(); continue }
+      if (c ~ /[;|()`]/) { endword(); endcmd(); i++; continue }
+      if (c == "&") { p = i > 1 ? substr(txt, i - 1, 1) : ""; d = substr(txt, i + 1, 1)
+        if (p == ">" || p == "<" || d == ">") { word = word c; have = 1; i++; continue }
+        endword(); endcmd(); i++; continue }
+      word = word c; have = 1; i++ }
+    endword(); endcmd() }'
+}
+
+# text_push <text>: the text verdict on one simple command (quotes gone).
+text_push() { printf '%s' "$1" | grep -qE "$LOOSE|$ALIAS_RE"; }
+
+# git_subcmd <words...>: prints git'"'"'s subcommand (first word after the
+# global options; value-taking ones skip their argument).
+git_subcmd() {
+  local -a a=("$@"); local i=1
+  while [ "$i" -lt "${#a[@]}" ]; do
+    case "${a[i]}" in
+      -C|-c|--git-dir|--work-tree|--namespace|--exec-path|--super-prefix|--config-env|--list-cmds)
+        i=$((i + 2)); continue ;;
+      -*) i=$((i + 1)); continue ;;
+    esac
+    printf '%s' "${a[i]}"; return 0
+  done
+}
+
+# shell_c <depth> <words...>: a shell'"'"'s -c script, re-checked as a command
+# of its own; no -c = text verdict.
+shell_c() {
+  local depth=$1; shift; local -a a=("$@"); local i=1
+  while [ "$i" -lt "${#a[@]}" ]; do
+    case "${a[i]}" in
+      --*) ;;
+      -*c*) argv_push "${a[i + 1]:-}" "$((depth + 1))"; return ;;
+    esac
+    i=$((i + 1))
+  done
+  text_push "$*"
+}
+
+# seg_push <line> <depth>: rc 0 when this simple command is a push or
+# cannot be proven otherwise, rc 1 when it is proven not one.
+seg_push() {
+  local depth=$2 i=0 sub; local -a w
+  IFS=$'\037' read -r -a w <<<"$1"
+  while [ "$i" -lt "${#w[@]}" ]; do
+    case "${w[i]}" in
+      '{'|'}'|'!'|if|then|else|elif|fi|do|done|while|until|for|in|case|'esac'|coproc|function|select)
+        i=$((i + 1)) ;;
+      [A-Za-z_]*=*)
+        case "${w[i]%%=*}" in *[!A-Za-z0-9_]*) break ;; esac
+        text_push "${w[i]#*=}" && return 0
+        i=$((i + 1)) ;;
+      *) break ;;
+    esac
+  done
+  [ "$i" -lt "${#w[@]}" ] || return 1
+  local -a a=("${w[@]:i}")
+  case "${a[0]}" in
+    git|*/git)
+      sub=$(git_subcmd "${a[@]}")
+      case "$sub" in
+        push|send-pack) return 0 ;;
+        subtree) text_push "${a[*]}"; return ;;
+      esac
+      printf '%s' "${a[*]}" | grep -qE "$ALIAS_RE" ;;
+    bash|sh|zsh|dash|ksh|*/bash|*/sh|*/zsh|*/dash|*/ksh) shell_c "$depth" "${a[@]}" ;;
+    eval|exec|command|builtin|env|sudo|doas|nohup|timeout|xargs|nice|ionice|time|stdbuf|script|chroot|ssh|find|watch|parallel|alias|source|.)
+      text_push "${a[*]}" ;;
+    *) return 1 ;;
+  esac
+}
+
+# argv_push <text> <depth>: rc 1 only when every simple command of <text>
+# is proven not a push; anything unclear keeps the text verdict (rc 0).
+argv_push() {
+  local text=$1 depth=$2 lines nseg line
+  [ "$depth" -le 3 ] || return 0
+  lines=$(printf '%s' "$text" | simple_cmds) || return 0
+  nseg=$(printf '%s\n' "$lines" | grep -c .)
+  [ "$nseg" -le 2000 ] || return 0
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    seg_push "$line" "$depth" && return 0
+  done <<<"$lines"
+  return 1
 }
 
 is_push || exit 0
+# The text looked like a push: a parsed payload gets the argv check (an
+# unparseable one keeps the static deny below).
+if [ "$unparsed" = 0 ] && command -v awk >/dev/null 2>&1; then
+  argv_push "$cmd" 0 || exit 0
+fi
 
 # static_deny: the fixed fail-closed answer (no jq needed to build it).
 static_deny() {
