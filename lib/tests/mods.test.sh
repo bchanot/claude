@@ -37,10 +37,14 @@ manifest_name() {
 # cli_unavailable: prints the reason and returns 0 when the capability is missing.
 cli_unavailable() {
   command -v claude >/dev/null 2>&1 || { echo "claude not found"; return 0; }
-  local rc=0
-  bounded claude plugin test --help >/dev/null || rc=$?
+  local rc=0 out
+  out=$(bounded claude plugin test --help) || rc=$?
   [ "$rc" -eq 124 ] && { echo "probe timed out after ${CLI_TIMEOUT}s"; return 0; }
-  [ "$rc" -ne 0 ] && { echo "no 'claude plugin test' command"; return 0; }
+  # An unknown subcommand prints the generic `claude plugin` usage with rc 0:
+  # only the command's own usage line proves it exists.
+  if [ "$rc" -ne 0 ] || ! printf '%s' "$out" | grep -q 'claude plugin test'; then
+    echo "no 'claude plugin test' command"; return 0
+  fi
   return 1
 }
 

@@ -1581,13 +1581,47 @@ test('layers: show names routing.json as the config', async ($, on) => {
   expect(await route($, 'show')).toContain('config: routing.json')
 })
 
-test('layers: first load skips a broken override, keeps routing.json', async (
+test('layers: a broken override at first load turns the router off', async (
   $, on) => {
   const logs = recordLogs(on)
   const w = newWorld({ home: 'broken' })
-  const rig = await bootRun($, on, FABLE, w)
-  expect(await featerModel($, rig)).toBe(SONNET)
+  await bootRun($, on, FABLE, w)
   expect(logs.join('\n')).toContain('model-router.json unreadable')
+  expect(logs.join('\n')).toContain('router off (fail closed)')
+  expect(await route($, 'show')).toContain('router: off (config)')
+})
+
+test('layers: an override that is not a regular file fails closed', async (
+  $, on) => {
+  const logs = recordLogs(on)
+  const w = newWorld({ home: { verbose: true } })
+  w.kinds.set(HOME_FILE, 'other')
+  await bootRun($, on, FABLE, w)
+  expect(logs.join('\n')).toContain('model-router.json is not a regular file')
+  expect(await route($, 'show')).toContain('router: off (config)')
+})
+
+test('layers: prototype and malformed keys are dropped, named safely', async (
+  $, on) => {
+  const logs = recordLogs(on)
+  const w = newWorld()
+  w.files.set(HOME_FILE, '{"models":{"__proto__":"claude-x-1",' +
+    '"constructor":"claude-x-1","bad key\\n":"claude-x-1","mini":"claude-x-1"}}')
+  await bootRun($, on, FABLE, w)
+  expect(logs).toContain('model-router: config models.constructor ignored')
+  expect(logs.filter(l => l === 'model-router: config models.<key> ignored'))
+    .toHaveLength(2) // __proto__ and the key with a newline, both masked
+  expect(logs).toContain('model-router: config fallback lacks mini; appended')
+  const shown = await route($, 'nope')
+  expect(shown).toContain('mini')
+  expect(shown).not.toContain('constructor')
+})
+
+test('layers: a nested-quantifier prompt rule is dropped', async ($, on) => {
+  const logs = recordLogs(on)
+  const home = { prompt: [{ pattern: '(a+)+$', phase: 'plan' }] }
+  await bootRun($, on, FABLE, newWorld({ home }))
+  expect(logs).toContain('model-router: config prompt rule ignored')
 })
 
 test('layers: a later broken override keeps the whole previous config', async (
@@ -1595,7 +1629,7 @@ test('layers: a later broken override keeps the whole previous config', async (
   const w = newWorld({ home: { agents: { feater: 'mechanical' } } })
   const rig = await bootRun($, on, FABLE, w)
   w.files.set(HOME_FILE, '{nope')
-  expect(await route($, 'reload')).toContain('config reloaded')
+  expect(await route($, 'reload')).toContain('previous config kept')
   expect(await featerModel($, rig)).toBe(HAIKU)
 })
 
@@ -2094,7 +2128,7 @@ test('T1: a rebuild failing after the write keeps the key asked', async (
   const pending = (await route($, 'pending')).split('\n')
   expect(pending[1]).toBe('asked this session: skills:feat')
   expect(failures(logs)).toHaveLength(1)
-  expect(failures(logs)[0]).toContain('rebuild failed after the write')
+  expect(failures(logs)[0]).toContain('first-use dialog failed (Error)')
 })
 
 test('T1: a Keep toasts that routing.json changed', async ($, on) => {
@@ -3776,7 +3810,8 @@ test('logs: switch warnings keep their exact texts', async ($, on) => {
   await bootRun($, on, FABLE, newWorld({ home }))
   expect(logs).toContain('config "verbose" is not a boolean; ignored')
   expect(logs).toContain(
-    'model-router: config "enabled" is not a boolean; ignored')
+    'model-router: config "enabled" is not a boolean; router off (fail closed)')
+  expect(await route($, 'show')).toContain('router: off (config)')
 })
 
 for (const bad of ['ON', 1, null]) {

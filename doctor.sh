@@ -179,8 +179,12 @@ except Exception:
 
 _mods_list=""
 if command -v claude &>/dev/null; then
-  if ! _mods_list=$(claude plugin list --json 2>/dev/null); then
-    warn "mods: claude plugin list failed — load state not checked"
+  # Bounded: a hung CLI must not stall doctor (coreutils timeout; without
+  # it the call runs unbounded, as before).
+  _mods_timeout=""
+  command -v timeout >/dev/null 2>&1 && _mods_timeout="timeout 60"
+  if ! _mods_list=$($_mods_timeout claude plugin list --json 2>/dev/null); then
+    warn "mods: claude plugin list failed or timed out — load state not checked"
     _mods_list=""
   fi
 fi
@@ -209,7 +213,7 @@ for _mod_manifest in "$REPO"/mods/*/.claude-plugin/plugin.json; do
   esac
 done
 [ "$_mods_seen" -gt 0 ] || info "no mods"
-unset _mods_list _mods_seen _mod_manifest _mod _mod_link
+unset _mods_list _mods_seen _mod_manifest _mod _mod_link _mods_timeout
 
 echo ""
 

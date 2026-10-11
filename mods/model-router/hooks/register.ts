@@ -187,6 +187,15 @@ const UNAVAILABLE: ReadonlySet<string> = new Set([
   'rate_limit', 'overloaded', 'billing_error', 'model_not_found',
 ])
 const PHASE_KEY = /^[a-z][a-z0-9_-]{0,31}$/
+// A model alias key, and the shape a key must have to be echoed in a log.
+const KEY_NAME = /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,63}$/
+// Own keys that would shadow Object.prototype: never read, never written.
+const BAD_KEYS: ReadonlySet<string> = new Set([
+  '__proto__', 'constructor', 'prototype',
+])
+// A quantified group holding a quantifier, the shape behind catastrophic
+// backtracking ((a+)+$): rejected before compiling.
+const NESTED_QUANT = /\((?:[^()\\]|\\.)*[+*}](?:[^()\\]|\\.)*\)[+*{]/
 // Prompt classifier: label -> the phase whose effort the turn takes. `chat`
 // (and any label not here) routes nothing.
 const CLASSIFY_LABELS: readonly string[] =
@@ -274,6 +283,26 @@ const isFullId = (v: unknown): v is string =>
   typeof v === 'string' && MODEL_ID.test(v)
 const hasKey = (table: object, key: string): boolean =>
   Object.hasOwn(table, key)
+/** A row or phase key fit to read and write: never a prototype name. */
+const goodKey = (key: string): boolean => !BAD_KEYS.has(key)
+/** A key in a log line: short and printable, or a placeholder. */
+const keyWord = (key: string): string => KEY_NAME.test(key) ? key : '<key>'
+/** An error in a log line: its kind only; a message may quote the file. */
+function errWord(err: unknown): string {
+  if (!(err instanceof Error)) return typeof err
+  const code = (err as { code?: unknown }).code
+  return typeof code === 'string' && KEY_NAME.test(code)
+    ? `${err.name} ${code}`
+    : err.name
+}
+/** A log on the step path: a failing ui.log must not unroute the step. */
+function tryLog($: Api, text: string): void {
+  try {
+    $.ui.log(text)
+  } catch {
+    // the step matters more than its line
+  }
+}
 
 function isModelName(models: Record<string, string>, v: unknown): v is string {
   return typeof v === 'string' && (hasKey(models, v) || isFullId(v))
@@ -299,15 +328,18 @@ function mergeTable<T>(
     return out
   }
   for (const [key, value] of Object.entries(user)) {
-    const ok = key === '__proto__' ? undefined : accept(key, value)
-    if (ok === undefined) log(`model-router: config ${name}.${key} ignored`)
+    const ok = goodKey(key) ? accept(key, value) : undefined
+    if (ok === undefined) {
+      log(`model-router: config ${name}.${keyWord(key)} ignored`)
+    }
     else out[key] = ok
   }
   return out
 }
 
-const acceptModel = (_key: string, v: unknown): string | undefined =>
-  isFullId(v) ? v : undefined
+/** An alias is a short printable name; its value a full id. */
+const acceptModel = (key: string, v: unknown): string | undefined =>
+  KEY_NAME.test(key) && isFullId(v) ? v : undefined
 
 const acceptWindow = (key: string, v: unknown): number | undefined =>
   isFullId(key) && typeof v === 'number' && Number.isInteger(v) && v > 0
@@ -363,19 +395,21 @@ function withEveryAlias(
 ): string[] {
   const missing = Object.keys(models).filter(a => !chain.includes(a))
   if (missing.length > 0) {
-    log(`model-router: config fallback lacks ${missing.join(', ')}; appended`)
+    log(`model-router: config fallback lacks ${
+      missing.map(keyWord).join(', ')}; appended`)
   }
   return [...chain, ...missing]
 }
 
-/** The fallback chain: deduplicated aliases of `models`, else the default. */
+/** The fallback chain: deduplicated aliases of `models`, else the default;
+ * either way every alias ends up ranked. */
 function pickFallback(
   user: unknown,
   base: string[],
   models: Record<string, string>,
   log: Log,
 ): string[] {
-  if (user === undefined) return base
+  if (user === undefined) return withEveryAlias(base, models, log)
   const items = Array.isArray(user) ? (user as unknown[]) : []
   const kept = items.filter(
     (a): a is string => typeof a === 'string' && hasKey(models, a))
@@ -421,7 +455,9 @@ function acceptRule(
   if (mode !== undefined && mode !== 'floor' && mode !== 'default') {
     return undefined
   }
-  if (pattern.length > MAX_PATTERN) return undefined
+  if (pattern.length > MAX_PATTERN || NESTED_QUANT.test(pattern)) {
+    return undefined
+  }
   return hasKey(phases, phase) && buildRegex(pattern)
     ? { pattern, phase, mode: mode ?? 'floor' }
     : undefined
@@ -463,6 +499,14 @@ function pickSwitch(
     log(warning)
   }
   return pickBool(v, fallback)
+}
+
+/** The kill switch fails closed: a value that is not a boolean reads off. */
+function pickEnabled(v: unknown, fallback: boolean, log: Log): boolean {
+  if (v === undefined) return fallback
+  if (typeof v === 'boolean') return v
+  log('model-router: config "enabled" is not a boolean; router off (fail closed)')
+  return false
 }
 
 type Routing = Pick<Config, 'tiers' | 'fallback' | 'cooldownMinutes' |
@@ -507,7 +551,7 @@ function mergeRows(
     : user
   const rows = mergeTable(base, kept, name, ref, log)
   for (const [key, value] of entries) {
-    if (value === null && key !== '__proto__') delete rows[key]
+    if (value === null && goodKey(key)) delete rows[key]
   }
   return rows
 }
@@ -545,9 +589,7 @@ function mergeConfig(
       'model-router: config "classify" is not a boolean; ignored',
       user.classify, base.classify, log),
     spinner: pickBool(user.spinner, base.spinner),
-    enabled: pickSwitch(
-      'model-router: config "enabled" is not a boolean; ignored',
-      user.enabled, base.enabled, log),
+    enabled: pickEnabled(user.enabled, base.enabled, log),
   }
 }
 
@@ -559,7 +601,12 @@ async function readCapped(
   log: Log,
 ): Promise<string | undefined> {
   const tooBig = `model-router: ${label} over ${MAX_CONFIG_BYTES} bytes`
-  if ((await $.fs.stat(path)).size > MAX_CONFIG_BYTES) {
+  const info = await $.fs.stat(path)
+  if (info.kind !== 'file') {
+    log(`model-router: ${label} is not a regular file`)
+    return undefined
+  }
+  if (info.size > MAX_CONFIG_BYTES) {
     log(tooBig)
     return undefined
   }
@@ -587,7 +634,7 @@ async function readLayer(
     log(`model-router: ${label} is not an object`)
     return 'failed'
   } catch (err) {
-    log(`model-router: ${label} unreadable (${String(err)})`)
+    log(`model-router: ${label} unreadable (${errWord(err)})`)
     return 'failed'
   }
 }
@@ -601,7 +648,7 @@ async function readOverride($: Api, log: Log): Promise<Layer> {
     if (!home) return 'absent'
     return await readLayer($, `${home}/${OVERRIDE}`, OVERRIDE, log)
   } catch (err) {
-    log(`model-router: ${OVERRIDE} unreadable (${String(err)})`)
+    log(`model-router: ${OVERRIDE} unreadable (${errWord(err)})`)
     return 'failed'
   }
 }
@@ -645,7 +692,7 @@ function aboutOf(phases: unknown, log: Log): Table {
   if (!isRecord(phases)) return out
   for (const [name, phase] of Object.entries(phases)) {
     const about = isRecord(phase) ? phase.about : undefined
-    if (about === undefined || name === '__proto__') continue
+    if (about === undefined || !goodKey(name)) continue
     if (typeof about === 'string' && about.length <= MAX_ABOUT) {
       out[name] = about
     } else {
@@ -810,9 +857,10 @@ async function assemble(
 }
 
 /**
- * Reads the layers. At the first load a failed layer is skipped (logged); in
- * every later read any failure, or a routing.json gone missing, returns
- * undefined so the caller keeps the whole previous config.
+ * Reads the layers. At the first load a failed routing.json is skipped
+ * (logged) and a failed override turns the router off (the kill switch it
+ * may hold is unknown); in every later read any failure, or a routing.json
+ * gone missing, returns undefined so the caller keeps the previous config.
  */
 async function loadLayers(
   $: Api,
@@ -823,7 +871,13 @@ async function loadLayers(
   const over = await readOverride($, log)
   const broken = file === 'failed' || file === 'absent' || over === 'failed'
   if (broken && !first) return undefined
-  return assemble($, file, over, log)
+  const loaded = await assemble($, file, over, log)
+  if (over === 'failed') {
+    log(`model-router: ${OVERRIDE} unreadable at first load; ` +
+      'router off (fail closed) until a `/route reload` reads it')
+    loaded.cfg = { ...loaded.cfg, enabled: false }
+  }
+  return loaded
 }
 
 /** Compiles the prompt rules; one that fails to compile is dropped, logged. */
@@ -945,7 +999,7 @@ function canonical(cfg: Config, id: string): string {
   if (hasKey(cfg.models, bare)) return cfg.models[bare] ?? bare
   if (!bare.startsWith(PREFIX) || bare.length <= PREFIX.length) return bare
   const hit = Object.values(cfg.models).find(
-    known => bare.startsWith(known))
+    known => bare === known || bare.startsWith(`${known}-`))
   return hit ?? bare
 }
 
@@ -1213,11 +1267,11 @@ function logCall($: Api, st: State, call: Call): void {
   const key = call.logKey ?? call.log
   if (call.log !== undefined && key !== undefined && !st.turnLogged.has(key)) {
     st.turnLogged.add(key)
-    $.ui.log(call.log)
+    tryLog($, call.log)
   }
   if (call.once !== undefined && !st.logged.has(call.once)) {
     st.logged.add(call.once)
-    $.ui.log(call.once)
+    tryLog($, call.once)
   }
 }
 
@@ -1542,9 +1596,12 @@ async function reloadCommand($: Api, st: State): Promise<string> {
   clearBreaker(st)
   st.classifyFails = 0
   st.classifyUntil = 0
-  await reloadConfig($, st)
+  const swapped = await reloadConfig($, st)
   refresh($, st)
-  return 'config reloaded\n' + (await show($, st))
+  const head = swapped
+    ? 'config reloaded'
+    : 'config unreadable; previous config kept (see the log)'
+  return `${head}\n${await show($, st)}`
 }
 
 async function handleCommand($: Api, st: State, args: string): Promise<string> {
@@ -1724,7 +1781,12 @@ function rememberOffer(
   st: State,
   e: { agent: string; source: string; description: string },
 ): void {
+  st.offers.delete(e.agent)
   st.offers.set(e.agent, e.source)
+  if (st.offers.size > MAX_DESCS) {
+    const first = st.offers.keys().next().value
+    if (first !== undefined) st.offers.delete(first)
+  }
   const given: unknown = e.description
   const line = typeof given === 'string'
     ? oneSentence(given.slice(0, 4096))
@@ -1887,7 +1949,7 @@ function table(parent: Rec, key: string): Rec {
 }
 
 function setKey(target: Rec, key: string, value: unknown): void {
-  if (key !== '__proto__') target[key] = value
+  if (goodKey(key)) target[key] = value
 }
 
 const confirmIn = (file: Rec, kind: Kind, name: string, phase: string) =>
@@ -1968,7 +2030,7 @@ function writeRouting($: Api, st: State, patch: Patch): Promise<boolean> {
 
 /** A write that failed: the cause goes to the log, never to the answer. */
 function failedWrite($: Api, cmd: string, err: unknown): string {
-  $.ui.log(`${cmd} failed: ${String(err)}`)
+  $.ui.log(`${cmd} failed: ${errWord(err)}`)
   return `${cmd} not applied, see the log`
 }
 
@@ -1999,7 +2061,7 @@ async function runDialog($: Api, st: State, req: Req, text: string) {
 }
 
 function failOnce($: Api, st: State, err: unknown): void {
-  const text = `model-router: first-use dialog failed (${String(err)}); ` +
+  const text = `model-router: first-use dialog failed (${errWord(err)}); ` +
     'default route kept'
   if (st.logged.has(text)) return
   st.logged.add(text)
@@ -2208,7 +2270,7 @@ function restoreOf(
   entry: unknown,
 ): Restore | string {
   const { from, to } = isRecord(entry) ? entry : ({} as Rec)
-  if (name === '__proto__') return 'reserved name, edit routing.json'
+  if (!goodKey(name)) return 'reserved name, edit routing.json'
   if (typeof from !== 'string') return 'no phase recorded to return to'
   const rows = subRec(file, kind)
   if (typeof to !== 'string' || !hasKey(rows, name) || rows[name] !== to) {
@@ -2448,7 +2510,7 @@ async function registerTool($: Api, st: State): Promise<void> {
       },
     })
   } catch (err) {
-    $.ui.log(`model-router: route tool not registered: ${String(err)}`)
+    $.ui.log(`model-router: route tool not registered: ${errWord(err)}`)
   }
 }
 
@@ -2465,7 +2527,7 @@ async function registerCommand($: Api): Promise<void> {
       immediate: true,
     })
   } catch (err) {
-    $.ui.log(`model-router: /route not registered: ${String(err)}`)
+    $.ui.log(`model-router: /route not registered: ${errWord(err)}`)
   }
 }
 
@@ -2658,7 +2720,7 @@ function spawnRoute(st: State, e: SpawnIn, frozen: boolean) {
 
 /** Once per turn: a spawn whose tier has nothing at or above its head. */
 function tierDownLog($: Api, st: State, agent: string, tier: string): void {
-  const text = `model-router: ${agent} tier ${tier} down, ` +
+  const text = `model-router: ${keyWord(agent)} tier ${tier} down, ` +
     'frontmatter model kept'
   const key = `spawn-down:${agent}:${tier}`
   if (st.turnLogged.has(key)) return
@@ -3017,7 +3079,7 @@ function withPlan(e: StepIn, plan: Plan): StepIn {
 function noteMain($: Api, st: State, plan: Plan): void {
   st.lastPlan = plan
   st.spinner = `${plan.model.replace(/^claude-/, '')}/${plan.effort ?? '-'}`
-  refresh($, st)
+  safely(st, $, 'turn.step status', () => refresh($, st))
 }
 
 function endMainTurn($: Api, st: State): void {
@@ -3178,7 +3240,8 @@ function registerRouteTool(on: On, st: State): void {
     return out
   }).catch(($, e, next) => {
     warnOnce(st, $, 'route tool', next.error.kind)
-    return { result: `route failed (${next.error.kind}); nothing routed` }
+    return { result: `route failed (${next.error.kind}); ` +
+      'the route may be partly applied, check /route show' }
   })
 }
 
@@ -3399,7 +3462,10 @@ async function expirePause($: Api, st: State): Promise<void> {
   refresh($, st)
 }
 
-/** The small model is the haiku id: marked down, or main already runs it. */
+/**
+ * Best effort: `$.model.classify` takes no model and runs on the engine's
+ * small model, assumed to be the `haiku` alias (marked down, or main on it).
+ */
 async function smallModelBusy($: Api, st: State): Promise<boolean> {
   await prune($, st)
   const small = st.cfg.models.haiku
