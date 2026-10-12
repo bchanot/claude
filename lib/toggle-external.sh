@@ -347,7 +347,9 @@ list_all() {
 }
 
 usage() {
-  sed -n '3,26p' "$0" | sed 's/^# \?//'
+  # Header comment = lines 3 .. closing banner (dropped); no numeric range,
+  # so a longer tool list can no longer fall out of --help.
+  sed -n '3,/^# ====/p' "$0" | sed '$d' | sed 's/^# \?//'
   exit "${1:-0}"
 }
 
