@@ -214,45 +214,52 @@ def inspect(store_path, account, property, url):
             "last_crawl": isr.get("lastCrawlTime"),
             "rich_results": _norm_rich(ir)}
 
+def _build_parser():
+    p = argparse.ArgumentParser()
+    sub = p.add_subparsers(dest="cmd", required=True)
+    pc = sub.add_parser("crux")
+    pc.add_argument("--url", required=True)
+    pc.add_argument("--strategy", default="mobile", choices=["mobile", "desktop"])
+    pc.add_argument("--store", default=None)  # accepted+ignored: uniform fetch.sh dispatch
+    pq = sub.add_parser("queries")
+    pq.add_argument("--store", required=True)
+    pq.add_argument("--account", required=True)
+    pq.add_argument("--property", required=True)
+    pq.add_argument("--days", type=int, default=90)
+    pq.add_argument("--dim", default="query",
+                    help="one dimension, or a comma-separated list (query,page)")
+    pq.add_argument("--rows", type=int, default=100)
+    pn = sub.add_parser("cannibal")
+    pn.add_argument("--store", required=True)
+    pn.add_argument("--account", required=True)
+    pn.add_argument("--property", required=True)
+    pn.add_argument("--days", type=int, default=90)
+    pn.add_argument("--rows", type=int, default=1000)
+    pi = sub.add_parser("inspect")
+    pi.add_argument("--store", required=True)
+    pi.add_argument("--account", required=True)
+    pi.add_argument("--property", required=True)
+    pi.add_argument("--url", required=True)
+    return p
+
+
+def _dispatch(args):
+    if args.cmd == "crux":
+        print(json.dumps(crux(args.url, args.strategy), indent=2))
+    elif args.cmd == "queries":
+        print(json.dumps(queries(args.store, args.account, args.property,
+                                  args.days, args.dim, args.rows), indent=2))
+    elif args.cmd == "cannibal":
+        print(json.dumps(cannibal(args.store, args.account, args.property,
+                                   args.days, args.rows), indent=2))
+    elif args.cmd == "inspect":
+        print(json.dumps(inspect(args.store, args.account, args.property,
+                                  args.url), indent=2))
+
+
 def _cli():
     try:
-        p = argparse.ArgumentParser()
-        sub = p.add_subparsers(dest="cmd", required=True)
-        pc = sub.add_parser("crux")
-        pc.add_argument("--url", required=True)
-        pc.add_argument("--strategy", default="mobile", choices=["mobile", "desktop"])
-        pc.add_argument("--store", default=None)  # accepted+ignored: uniform fetch.sh dispatch
-        pq = sub.add_parser("queries")
-        pq.add_argument("--store", required=True)
-        pq.add_argument("--account", required=True)
-        pq.add_argument("--property", required=True)
-        pq.add_argument("--days", type=int, default=90)
-        pq.add_argument("--dim", default="query",
-                        help="one dimension, or a comma-separated list (query,page)")
-        pq.add_argument("--rows", type=int, default=100)
-        pn = sub.add_parser("cannibal")
-        pn.add_argument("--store", required=True)
-        pn.add_argument("--account", required=True)
-        pn.add_argument("--property", required=True)
-        pn.add_argument("--days", type=int, default=90)
-        pn.add_argument("--rows", type=int, default=1000)
-        pi = sub.add_parser("inspect")
-        pi.add_argument("--store", required=True)
-        pi.add_argument("--account", required=True)
-        pi.add_argument("--property", required=True)
-        pi.add_argument("--url", required=True)
-        args = p.parse_args()
-        if args.cmd == "crux":
-            print(json.dumps(crux(args.url, args.strategy), indent=2))
-        elif args.cmd == "queries":
-            print(json.dumps(queries(args.store, args.account, args.property,
-                                      args.days, args.dim, args.rows), indent=2))
-        elif args.cmd == "cannibal":
-            print(json.dumps(cannibal(args.store, args.account, args.property,
-                                       args.days, args.rows), indent=2))
-        elif args.cmd == "inspect":
-            print(json.dumps(inspect(args.store, args.account, args.property,
-                                      args.url), indent=2))
+        _dispatch(_build_parser().parse_args())
     except SystemExit as e:                       # argparse usage error
         if e.code not in (0, None):
             print(json.dumps({"status": "error", "reason": "bad_usage"}))

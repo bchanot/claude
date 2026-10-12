@@ -1,5 +1,11 @@
 # TODO
 
+## 2026-10-12 — code-clean whole repo (chore/code-clean)
+- [x] audit r1→r3 (3 lenses + confirmation), user approved all 14 non-deferred items, code-cleaner DONE, make test 47 green — plan `.claude/tasks/plans/2026-10-12-code-clean-0103.md`, scope `.claude/audits/CODE-CLEAN-SCOPE.md`
+- [x] fix BUGS-FOUND: toggle-external.sh usage() prints header 3-26, list ends at 32
+- [x] C4/C5 deferred dedupes via /refactor (tool_kind/tool_source + shared gstack_* in lib/gstack-removed.sh; 496-run golden identical) (tool list ×4, profile/toggle-external twins)
+- deferred: C1 gitflow-test.sh move (blocked: T19 drift lock), B13-B17 (no change by design)
+
 ## 2026-10-08 — model-router mod: one mod routes model + effort per request (feature/model-router-mod)
 Plan `.claude/tasks/plans/2026-10-08-model-router-mod.md`. Decisions 2026-10-08: main-loop
 model switch spike-first then flag off; load via `CLAUDE_CODE_PLUGIN_DIRS` + link.sh;

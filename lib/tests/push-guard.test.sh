@@ -2,6 +2,7 @@
 # lib/tests/push-guard.test.sh
 # hooks/push-guard.sh (BDR-111): denies `git push` in manual push mode,
 # silent otherwise. Also locks the settings.json wiring and the banner line.
+# shellcheck disable=SC2016  # single-quoted forms are the commands under test
 set -u
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"

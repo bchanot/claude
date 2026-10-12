@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # Deterministic tests for the seo-data engine (no network, no venv).
+# shellcheck disable=SC2015  # A && ok || no is deliberate (ok/no never fail)
 set -u
 REPO="$(cd "$(dirname "$0")/../.." && pwd)"
 SD="$REPO/lib/seo-data"

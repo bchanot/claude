@@ -11,7 +11,7 @@ set -uo pipefail
 GREP=/usr/bin/grep                                   # LRN-074: pin grep
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO="$(cd "$HERE/../.." && pwd)"
-cd "$REPO"
+cd "$REPO" || exit 1
 
 pass=0; fail=0; skip=0
 ok()   { echo "GREEN ✓ $*"; pass=$((pass+1)); }

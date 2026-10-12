@@ -48,7 +48,21 @@ lc="$(printf '%s' "$prompt" | tr '[:upper:]' '[:lower:]')"
 # French prose ("changement ux vu…"; 2 logged FPs, both FR). \bui\b KEPT
 # (zero logged FP, one logged true positive). NB: the log records only the
 # FIRST match per fire (head -1), so per-token FP rates aren't derivable.
-pattern='redesign|refonte|refont|ui/ux|ux/ui|\bui\b|ui kit|design system|design-system|front-?end design|\bnavbar\b|\bsidebar\b|\bmodal\b|\bbouton\b|\bbutton\b|formulaire|\bhero\b|\bheader\b|\bfooter\b|dropdown|tooltip|\bbadge\b|\bchart\b|graphique|accordion|carousel|\bslider\b|landing|\bdashboard\b|homepage|home page|\baccueil\b|\bécran\b|\becran\b|portfolio|maquette|mockup|wireframe|prototype|\bjoli\b|\bjolie\b|\bbeau\b|\bbelle\b|esth[eé]tique|aesthetic|\bvisuel\b|\bvisual\b|embellir|fignol|peaufin|polish|styliser|styling|stylesheet|\bskin\b|charte graphique|\bbrand\b|branding|\blogo\b|favicon|ic[oô]ne|\bicon\b|\bcss\b|tailwind|shadcn|couleur|gradient|d[eé]grad[eé]|\bombre\b|spacing|espacement|\bmarge\b|\bpadding\b|\bmargin\b|\bradius\b|arrondi|\bhover\b|dark mode|light mode|typograph|\bfont\b|\bfonts\b|font pairing|\bpolice\b|animation|\bmotion\b|micro-interaction|keyframe|glassmorph|neumorph|claymorph|skeuomorph|brutalis|bento|minimalis|responsive|figma'
+pattern='redesign|refonte|refont|ui/ux|ux/ui|\bui\b|ui kit|design system'
+pattern+='|design-system|front-?end design|\bnavbar\b|\bsidebar\b|\bmodal\b'
+pattern+='|\bbouton\b|\bbutton\b|formulaire|\bhero\b|\bheader\b|\bfooter\b'
+pattern+='|dropdown|tooltip|\bbadge\b|\bchart\b|graphique|accordion|carousel'
+pattern+='|\bslider\b|landing|\bdashboard\b|homepage|home page|\baccueil\b'
+pattern+='|\bécran\b|\becran\b|portfolio|maquette|mockup|wireframe|prototype'
+pattern+='|\bjoli\b|\bjolie\b|\bbeau\b|\bbelle\b|esth[eé]tique|aesthetic'
+pattern+='|\bvisuel\b|\bvisual\b|embellir|fignol|peaufin|polish|styliser'
+pattern+='|styling|stylesheet|\bskin\b|charte graphique|\bbrand\b|branding'
+pattern+='|\blogo\b|favicon|ic[oô]ne|\bicon\b|\bcss\b|tailwind|shadcn|couleur'
+pattern+='|gradient|d[eé]grad[eé]|\bombre\b|spacing|espacement|\bmarge\b'
+pattern+='|\bpadding\b|\bmargin\b|\bradius\b|arrondi|\bhover\b|dark mode'
+pattern+='|light mode|typograph|\bfont\b|\bfonts\b|font pairing|\bpolice\b'
+pattern+='|animation|\bmotion\b|micro-interaction|keyframe|glassmorph|neumorph'
+pattern+='|claymorph|skeuomorph|brutalis|bento|minimalis|responsive|figma'
 
 if printf '%s' "$lc" | grep -Eq "$pattern"; then
   # Counter: log the fire (time, matched token, excerpt) — best-effort, never blocks.

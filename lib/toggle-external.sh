@@ -42,10 +42,13 @@ set -euo pipefail
 REPO="${TOGGLE_EXTERNAL_REPO_OVERRIDE:-$(cd -P "$(dirname "$0")/.." && pwd)}"
 SKILLS_DIR="$REPO/skills"
 DISABLED_DIR="$REPO/skills-disabled"
+GSTACK_SRC="$REPO/skills-external/gstack"  # gstack submodule: its skills
 
 # GSTACK_REMOVED + gstack_is_removed() — single source, honored by the
-# `enable gstack` loop below. Resolved from $0 like REPO above, not from
-# $REPO/lib — gstack-removed.sh sits next to this file wherever it runs.
+# `enable gstack` loop below — plus the gstack helpers shared with
+# profile.sh (gstack_skills, gstack_park, gstack_unpark, gstack_parked_names).
+# Resolved from $0 like REPO above, not from $REPO/lib — gstack-removed.sh
+# sits next to this file wherever it runs.
 # shellcheck source=lib/gstack-removed.sh disable=SC1091
 source "$(dirname "$0")/gstack-removed.sh"
 
@@ -54,13 +57,39 @@ ok()   { echo -e "${GREEN}✓${NC} $1"; }
 warn() { echo -e "${YELLOW}⚠${NC}  $1"; }
 err()  { echo -e "${RED}✗${NC} $1"; }
 
-# All non-plugin tools this script can toggle.
+# All non-plugin tools this script can toggle, in `list` order. The one
+# roster: tool_kind() derives every tool's kind from it.
 MANAGED_TOOLS=(gstack emil-design-eng darwin-skill 21st higgsfield
   higgsfield-websites
-  observability-and-instrumentation deprecation-and-migration ci-cd-and-automation
+  observability-and-instrumentation deprecation-and-migration
+  ci-cd-and-automation
   scroll-world-storytelling build-threejs-scroll-worlds
   scroll-scrubbed-visual-sequence scroll-scrubbed-word-reveal
   scroll-progress-timeline)
+
+# Prints the kind of a tool: gstack | pack (21st, higgsfield) | single (one
+# symlink: every other MANAGED_TOOLS entry) | unknown. Exact-match loop, so
+# a name with spaces or glob characters can never match a roster entry.
+tool_kind() {
+  local tool="$1" managed
+  case "$tool" in
+    gstack)          echo gstack; return ;;
+    21st|higgsfield) echo pack; return ;;
+  esac
+  for managed in "${MANAGED_TOOLS[@]}"; do
+    [ "$managed" = "$tool" ] && { echo single; return; }
+  done
+  echo unknown
+}
+
+# Prints where a single-symlink tool is linked from: ~/.agents/skills for
+# darwin-skill, skills-external/ for the others.
+tool_source() {
+  case "$1" in
+    darwin-skill) echo "$HOME/.agents/skills/$1" ;;
+    *)            echo "$REPO/skills-external/$1" ;;
+  esac
+}
 
 # Prints the skill names that belong to the "21st" pack. Source of truth:
 # skills-external/21st-* — the `21st skills install` run in install-plugins.sh
@@ -117,8 +146,8 @@ pack_skills() {
 # tool exists (`timeout`, or `gtimeout` from Homebrew coreutils on macOS):
 # a closed-source binary must never hang a toggle, and what it prints (a
 # token) must never reach the terminal. Twin of _higgsfield_probe in
-# lib/higgsfield-skills.sh, kept here because this script takes no extra
-# `source` (the fixture suites copy it alone).
+# lib/higgsfield-skills.sh, kept here so the only file sourced beside this
+# script stays gstack-removed.sh (the fixture suites copy just those two).
 bounded() {
   local tool
   for tool in timeout gtimeout; do
@@ -158,41 +187,22 @@ pack_hints() {
   esac
 }
 
-# Prints the names (directory basenames) that belong to "gstack".
-# Source of truth: skills-external/gstack/*/SKILL.md. The repo's
-# skills/<name> symlinks are generated from these by gstack ./setup.
-gstack_skills() {
-  local gstack_src="$REPO/skills-external/gstack"
-  [ -d "$gstack_src" ] || return 0
-  for d in "$gstack_src"/*/; do
-    [ -f "${d}SKILL.md" ] || continue
-    basename "$d"
-  done
-}
-
 # Prints "enabled" / "disabled" / "missing" for a tool.
 status_tool() {
-  local tool="$1"
-  case "$tool" in
+  local tool="$1" installed=0 name
+  case "$(tool_kind "$tool")" in
     gstack)
-      [ -d "$REPO/skills-external/gstack" ] || { echo "missing"; return; }
+      [ -d "$GSTACK_SRC" ] || { echo "missing"; return; }
       while read -r name; do
         [ -e "$SKILLS_DIR/$name" ] && { echo "enabled"; return; }
-      done < <(gstack_skills)
+      done < <(gstack_skills "$GSTACK_SRC")
       echo "disabled"
       ;;
-    emil-design-eng|observability-and-instrumentation|deprecation-and-migration|ci-cd-and-automation| \
-    scroll-world-storytelling|build-threejs-scroll-worlds|scroll-scrubbed-visual-sequence| \
-    scroll-scrubbed-word-reveal|scroll-progress-timeline|higgsfield-websites)
-      [ -d "$REPO/skills-external/$tool" ] || { echo "missing"; return; }
+    single)
+      [ -d "$(tool_source "$tool")" ] || { echo "missing"; return; }
       [ -e "$SKILLS_DIR/$tool" ] && echo "enabled" || echo "disabled"
       ;;
-    darwin-skill)
-      [ -d "$HOME/.agents/skills/$tool" ] || { echo "missing"; return; }
-      [ -e "$SKILLS_DIR/$tool" ] && echo "enabled" || echo "disabled"
-      ;;
-    21st|higgsfield)
-      local installed=0
+    pack)
       while read -r name; do
         installed=1
         [ -e "$SKILLS_DIR/$name" ] && { echo "enabled"; return; }
@@ -204,141 +214,145 @@ status_tool() {
   esac
 }
 
+# Parks every live gstack skill (twin of profile.sh's disable_skill gstack
+# arm, kept separate: the messages differ).
+disable_gstack() {
+  local moved=0 name
+  while read -r name; do
+    [ -e "$SKILLS_DIR/$name" ] || continue
+    gstack_park "$SKILLS_DIR" "$DISABLED_DIR" "$name"
+    moved=$((moved + 1))
+  done < <(gstack_skills "$GSTACK_SRC")
+  ok "gstack disabled ($moved symlinks moved)"
+}
+
+# Parks one single-symlink external tool.
+disable_external_single() {
+  local tool="$1"
+  if [ -e "$SKILLS_DIR/$tool" ]; then
+    rm -rf "${DISABLED_DIR:?}/${tool:?}"
+    mv "$SKILLS_DIR/$tool" "$DISABLED_DIR/$tool"
+    ok "$tool disabled"
+  else
+    warn "$tool already disabled"
+  fi
+}
+
+# Parks every live skill of a pack (21st, higgsfield). Parked under the
+# plain skill name — same convention as the other externals, so profile.sh's
+# park/restore path stays interoperable.
+disable_pack() {
+  local tool="$1" parked=0 name
+  while read -r name; do
+    [ -e "$SKILLS_DIR/$name" ] || continue
+    rm -rf "${DISABLED_DIR:?}/${name:?}"
+    mv "$SKILLS_DIR/$name" "$DISABLED_DIR/$name"
+    parked=$((parked + 1))
+  done < <(pack_skills "$tool")
+  if [ "$parked" -gt 0 ]; then
+    ok "$tool disabled ($parked skills parked)"
+  else
+    warn "$tool already disabled"
+  fi
+}
+
 disable_tool() {
   local tool="$1"
   mkdir -p "$DISABLED_DIR"
-  case "$tool" in
-    gstack)
-      local moved=0
-      while read -r name; do
-        [ -e "$SKILLS_DIR/$name" ] || continue
-        # Clobber any stale destination. gstack ./setup now creates
-        # skills/<name>/ as directories, so mv onto an existing dir
-        # would nest it (gstack__<name>/<name>/) instead of renaming.
-        # Content is symlinks to the submodule — `gstack ./setup` regenerates.
-        rm -rf "$DISABLED_DIR/gstack__$name"
-        mv "$SKILLS_DIR/$name" "$DISABLED_DIR/gstack__$name"
-        moved=$((moved + 1))
-      done < <(gstack_skills)
-      ok "gstack disabled ($moved symlinks moved)"
-      ;;
-    emil-design-eng|darwin-skill|observability-and-instrumentation|deprecation-and-migration| \
-    ci-cd-and-automation|scroll-world-storytelling|build-threejs-scroll-worlds| \
-    scroll-scrubbed-visual-sequence|scroll-scrubbed-word-reveal|scroll-progress-timeline| \
-    higgsfield-websites)
-      if [ -e "$SKILLS_DIR/$tool" ]; then
-        rm -rf "${DISABLED_DIR:?}/${tool:?}"
-        mv "$SKILLS_DIR/$tool" "$DISABLED_DIR/$tool"
-        ok "$tool disabled"
-      else
-        warn "$tool already disabled"
-      fi
-      ;;
-    21st|higgsfield)
-      # Parked under the plain skill name — same convention as the other
-      # externals, so profile.sh's park/restore path stays interoperable.
-      local parked=0
-      while read -r name; do
-        [ -e "$SKILLS_DIR/$name" ] || continue
-        rm -rf "${DISABLED_DIR:?}/${name:?}"
-        mv "$SKILLS_DIR/$name" "$DISABLED_DIR/$name"
-        parked=$((parked + 1))
-      done < <(pack_skills "$tool")
-      if [ "$parked" -gt 0 ]; then
-        ok "$tool disabled ($parked skills parked)"
-      else
-        warn "$tool already disabled"
-      fi
-      ;;
+  case "$(tool_kind "$tool")" in
+    gstack) disable_gstack ;;
+    single) disable_external_single "$tool" ;;
+    pack)   disable_pack "$tool" ;;
     *) err "Unknown tool: $tool"; return 1 ;;
   esac
 }
 
+# Re-links the gstack skills parked as gstack__<name>, honoring the
+# policy denylist (lib/gstack-removed.sh).
+enable_gstack() {
+  local moved=0 skipped=0 name
+  while IFS= read -r name; do
+    if gstack_is_removed "$name"; then
+      warn "skipped (removed by policy, lib/gstack-removed.sh): $name"
+      skipped=$((skipped + 1))
+      continue
+    fi
+    gstack_unpark "$SKILLS_DIR" "$DISABLED_DIR" "$name"
+    moved=$((moved + 1))
+  done < <(gstack_parked_names "$DISABLED_DIR")
+  if [ "$moved" -eq 0 ] && [ "$skipped" -ge 1 ]; then
+    warn "only policy-removed skills remain parked (lib/gstack-removed.sh)"
+  elif [ "$moved" -eq 0 ]; then
+    warn "gstack was not disabled — re-run gstack setup to (re)create symlinks"
+  else
+    ok "gstack enabled ($moved symlinks restored)"
+  fi
+}
+
+# Enables one single-symlink external tool: restore from the parking dir,
+# else link its source (see tool_source).
+enable_external_single() {
+  local tool="$1" src
+  src="$(tool_source "$tool")"
+  if [ -e "$DISABLED_DIR/$tool" ]; then
+    rm -rf "${SKILLS_DIR:?}/${tool:?}"
+    mv "$DISABLED_DIR/$tool" "$SKILLS_DIR/$tool"
+    ok "$tool enabled"
+  elif [ -e "$SKILLS_DIR/$tool" ]; then
+    warn "$tool already enabled"
+  elif [ -d "$src" ]; then
+    ln -sf "$src" "$SKILLS_DIR/$tool"
+    ok "$tool enabled (symlink created → $src)"
+  else
+    err "$tool not installed at $src — run: make plugin"
+    return 1
+  fi
+  if [ "$tool" = "higgsfield-websites" ]; then pack_hints higgsfield; fi
+}
+
+# Enables a multi-skill pack (21st, higgsfield): restore parked skills,
+# link the missing ones, then print the CLI hints.
+enable_pack() {
+  local tool="$1" restored=0 linked=0
+  while read -r name; do
+    if [ -e "$DISABLED_DIR/$name" ]; then
+      rm -rf "${SKILLS_DIR:?}/${name:?}"
+      mv "$DISABLED_DIR/$name" "$SKILLS_DIR/$name"
+      restored=$((restored + 1))
+    elif [ -e "$SKILLS_DIR/$name" ]; then
+      : # already enabled
+    else
+      ln -sf "$REPO/skills-external/$name" "$SKILLS_DIR/$name"
+      linked=$((linked + 1))
+    fi
+  done < <(pack_skills "$tool")
+  if [ "$((restored + linked))" -eq 0 ]; then
+    if [ "$(status_tool "$tool")" = "missing" ]; then
+      err "$tool pack not installed in $REPO/skills-external — run: make plugin"
+      return 1
+    fi
+    warn "$tool already enabled"
+    # Enabled is the steady state, and Claude re-runs this on every
+    # media ask: the hints (upstream drift, CLI, session) show here too.
+    if [ "$tool" = "higgsfield" ]; then pack_hints higgsfield; fi
+    return 0
+  fi
+  ok "$tool enabled ($((restored + linked)) skills: $restored restored, $linked linked)"
+  pack_hints "$tool"
+}
+
 enable_tool() {
   local tool="$1"
-  case "$tool" in
-    gstack)
-      local moved=0 skipped=0
-      if [ -d "$DISABLED_DIR" ]; then
-        for entry in "$DISABLED_DIR"/gstack__*; do
-          [ -e "$entry" ] || continue
-          local name
-          name="$(basename "$entry" | sed 's/^gstack__//')"
-          if gstack_is_removed "$name"; then
-            warn "skipped (removed by policy, lib/gstack-removed.sh): $name"
-            skipped=$((skipped + 1))
-            continue
-          fi
-          rm -rf "${SKILLS_DIR:?}/${name:?}"
-          mv "$entry" "$SKILLS_DIR/$name"
-          moved=$((moved + 1))
-        done
-      fi
-      if [ "$moved" -eq 0 ] && [ "$skipped" -ge 1 ]; then
-        warn "only policy-removed skills remain parked (lib/gstack-removed.sh)"
-      elif [ "$moved" -eq 0 ]; then
-        warn "gstack was not disabled — re-run gstack setup to (re)create symlinks"
-      else
-        ok "gstack enabled ($moved symlinks restored)"
-      fi
-      ;;
-    emil-design-eng|darwin-skill|observability-and-instrumentation|deprecation-and-migration| \
-    ci-cd-and-automation|scroll-world-storytelling|build-threejs-scroll-worlds| \
-    scroll-scrubbed-visual-sequence|scroll-scrubbed-word-reveal|scroll-progress-timeline| \
-    higgsfield-websites)
-      local src
-      case "$tool" in
-        darwin-skill) src="$HOME/.agents/skills/$tool" ;;
-        *) src="$REPO/skills-external/$tool" ;;
-      esac
-      if [ -e "$DISABLED_DIR/$tool" ]; then
-        rm -rf "${SKILLS_DIR:?}/${tool:?}"
-        mv "$DISABLED_DIR/$tool" "$SKILLS_DIR/$tool"
-        ok "$tool enabled"
-      elif [ -e "$SKILLS_DIR/$tool" ]; then
-        warn "$tool already enabled"
-      elif [ -d "$src" ]; then
-        ln -sf "$src" "$SKILLS_DIR/$tool"
-        ok "$tool enabled (symlink created → $src)"
-      else
-        err "$tool not installed at $src — run: make plugin"
-        return 1
-      fi
-      if [ "$tool" = "higgsfield-websites" ]; then pack_hints higgsfield; fi
-      ;;
-    21st|higgsfield)
-      local restored=0 linked=0
-      while read -r name; do
-        if [ -e "$DISABLED_DIR/$name" ]; then
-          rm -rf "${SKILLS_DIR:?}/${name:?}"
-          mv "$DISABLED_DIR/$name" "$SKILLS_DIR/$name"
-          restored=$((restored + 1))
-        elif [ -e "$SKILLS_DIR/$name" ]; then
-          : # already enabled
-        else
-          ln -sf "$REPO/skills-external/$name" "$SKILLS_DIR/$name"
-          linked=$((linked + 1))
-        fi
-      done < <(pack_skills "$tool")
-      if [ "$((restored + linked))" -eq 0 ]; then
-        if [ "$(status_tool "$tool")" = "missing" ]; then
-          err "$tool pack not installed in $REPO/skills-external — run: make plugin"
-          return 1
-        fi
-        warn "$tool already enabled"
-        # Enabled is the steady state, and Claude re-runs this on every
-        # media ask: the hints (upstream drift, CLI, session) show here too.
-        if [ "$tool" = "higgsfield" ]; then pack_hints higgsfield; fi
-        return 0
-      fi
-      ok "$tool enabled ($((restored + linked)) skills: $restored restored, $linked linked)"
-      pack_hints "$tool"
-      ;;
+  case "$(tool_kind "$tool")" in
+    gstack) enable_gstack ;;
+    single) enable_external_single "$tool" ;;
+    pack)   enable_pack "$tool" ;;
     *) err "Unknown tool: $tool"; return 1 ;;
   esac
 }
 
 list_all() {
+  local t
   printf "%-20s %s\n" "TOOL" "STATUS"
   printf "%-20s %s\n" "----" "------"
   for t in "${MANAGED_TOOLS[@]}"; do
@@ -347,7 +361,9 @@ list_all() {
 }
 
 usage() {
-  sed -n '3,26p' "$0" | sed 's/^# \?//'
+  # Header comment = lines 3 .. closing banner (dropped); no numeric range,
+  # so a longer tool list can no longer fall out of --help.
+  sed -n '3,/^# ====/p' "$0" | sed '$d' | sed 's/^# \?//'
   exit "${1:-0}"
 }
 
