@@ -29,7 +29,8 @@ type Config = {
   fallback: string[] // alias order, best first: the rank and the fallback chain
   cooldownMinutes: number // breaker hold at the first strike
   mainUpgrade: boolean // main may move UP to a phase's tier by itself
-  upgradeMaxTokens: number // above this context an upgrade is skipped
+  upgradeMaxTokens: number // max cold read an upgrade may cost (LRN-204)
+  downgradeMaxTokens: number // max cold read a downgrade may cost (LRN-204)
   mainModelSwitch: boolean // gates DOWNGRADES only
   verbose: boolean
   classify: boolean // a small-model guess of the typed prompt's phase
@@ -45,6 +46,7 @@ type Routed = {
   source: Source
   label?: string // the skill a skill route came from, for the logs
 }
+type Served = { at: number; tokens: number } // ms, context tokens
 type Hold = { until: number; reason: string } // until: ms, Infinity = reload
 type Pushed = { prev: Routed | null; spawnIds: Set<string> }
 type Loop = {
@@ -94,7 +96,11 @@ type State = {
   loaded: boolean // the layers were read once (else: lazily, on first use)
   rebuildDue: boolean // /clear: re-read the layers at the next prompt
   toggles: Partial<Record<Toggle, boolean>> // session toggles
-  engineBase: NonNullable<Effort> | null // engine effort of main's first step
+  engineBase: NonNullable<Effort> | null // engine effort of the last turn's
+  // first main step
+  turnEngine: NonNullable<Effort> | null // same, for this turn
+  served: Map<string, Served> // canonical id -> main's last step on it
+  capSaid: boolean // the downgrade skip was logged for this cap crossing
   classifyFails: number // classifier failures in a row
   classifyUntil: number // classifier paused until (ms); 0 = running
   asking: string | null // key of the one first-use dialog in flight
@@ -196,8 +202,9 @@ const BAD_KEYS: ReadonlySet<string> = new Set([
 // A quantified group holding a quantifier, the shape behind catastrophic
 // backtracking ((a+)+$): rejected before compiling.
 const NESTED_QUANT = /\((?:[^()\\]|\\.)*[+*}](?:[^()\\]|\\.)*\)[+*{]/
-// Prompt classifier: label -> the phase whose effort the turn takes. `chat`
-// (and any label not here) routes nothing.
+// Prompt classifier: label -> the phase whose route the turn takes (effort,
+// and a model below the session's under the switch and the cold-read cap).
+// `chat` (and any label not here) routes nothing.
 const CLASSIFY_LABELS: readonly string[] =
   ['design', 'analysis', 'coding', 'bookkeeping', 'chat']
 const LABEL_PHASE: Readonly<Record<string, string>> = {
@@ -212,6 +219,9 @@ const CLASSIFY_MAX = 2000 // code points sent whole; longer: head + tail
 const CLASSIFY_HEAD = 500
 const CLASSIFY_TAIL = 1500
 const CLASSIFY_FAILS = 3 // failures in a row that pause the classifier
+// The account's prompt-cache TTL (1 h here; an engine-reported `cache_ttl`
+// would supersede it, TODO): a model that served main within it is warm.
+const CACHE_TTL_MS = 60 * 60000
 const TIMEOUT: unique symbol = Symbol('classify timeout')
 
 const DEFAULT_CONFIG: Config = {
@@ -232,7 +242,8 @@ const DEFAULT_CONFIG: Config = {
   fallback: ['fable', 'opus', 'sonnet', 'haiku'], // rank = index, best first
   cooldownMinutes: 15,
   mainUpgrade: true,
-  upgradeMaxTokens: 200000, // an upgrade re-reads the whole context cold
+  upgradeMaxTokens: 200000, // max cold read an upgrade may cost
+  downgradeMaxTokens: 120000, // max cold read a downgrade may cost (LRN-204)
   phases: {
     plan: { tier: 'best', effort: 'xhigh' },
     reflect: { tier: 'best', effort: 'high' },
@@ -267,7 +278,7 @@ const DEFAULT_CONFIG: Config = {
       mode: 'default',
     },
   ],
-  mainModelSwitch: false,
+  mainModelSwitch: true,
   verbose: false,
   classify: true,
   spinner: true,
@@ -509,8 +520,17 @@ function pickEnabled(v: unknown, fallback: boolean, log: Log): boolean {
   return false
 }
 
+/** The model switch fails closed: a non-boolean override reads off. */
+function pickModelSwitch(v: unknown, fallback: boolean, log: Log): boolean {
+  if (v === undefined) return fallback
+  if (typeof v === 'boolean') return v
+  log('model-router: config "mainModelSwitch" is not a boolean; ' +
+    'switch off')
+  return false
+}
+
 type Routing = Pick<Config, 'tiers' | 'fallback' | 'cooldownMinutes' |
-  'mainUpgrade' | 'upgradeMaxTokens'>
+  'mainUpgrade' | 'upgradeMaxTokens' | 'downgradeMaxTokens'>
 
 /** Tiers, fallback chain and breaker knobs, validated against `models`. */
 function mergeRouting(
@@ -534,6 +554,9 @@ function mergeRouting(
     mainUpgrade: pickBool(user.mainUpgrade, base.mainUpgrade),
     upgradeMaxTokens: pickPositive(
       user.upgradeMaxTokens, base.upgradeMaxTokens, 'upgradeMaxTokens', log),
+    downgradeMaxTokens: pickPositive(
+      user.downgradeMaxTokens, base.downgradeMaxTokens, 'downgradeMaxTokens',
+      log),
   }
 }
 
@@ -582,7 +605,8 @@ function mergeConfig(
     agents: mergeRows(base.agents, user.agents, 'agents', ref, log),
     skills: mergeRows(base.skills, user.skills, 'skills', ref, log),
     prompt: mergePrompt(base.prompt, user.prompt, phases, log),
-    mainModelSwitch: pickBool(user.mainModelSwitch, base.mainModelSwitch),
+    mainModelSwitch: pickModelSwitch(
+      user.mainModelSwitch, base.mainModelSwitch, log),
     verbose: pickSwitch(
       'config "verbose" is not a boolean; ignored', user.verbose, base.verbose, log),
     classify: pickSwitch(
@@ -932,6 +956,9 @@ function newState(cfg: Config, source: string): State {
     rebuildDue: false,
     toggles: {},
     engineBase: null,
+    turnEngine: null,
+    served: new Map(),
+    capSaid: false,
     classifyFails: 0,
     classifyUntil: 0,
     asking: null,
@@ -1120,9 +1147,15 @@ type Call = {
 const keep = (cur: string, why = 'unchanged', log?: string): Call =>
   ({ model: cur, why, moved: false, ...(log === undefined ? {} : { log }) })
 
-/** The replacement keeps the session's `[1m]` tier, haiku has none. */
-function moveTo(cur: string, target: string, why: string): Call {
-  const carried = ONE_M.test(cur) && !target.startsWith(HAIKU)
+/** The move keeps the `[1m]` tier of `cur` or the session; haiku has none. */
+function moveTo(
+  cur: string,
+  target: string,
+  why: string,
+  session: string,
+): Call {
+  const long = ONE_M.test(cur) || ONE_M.test(session)
+  const carried = long && !target.startsWith(HAIKU)
   const model = carried ? `${target}[1m]` : target
   const once = carried
     ? `model-router: ${why} to ${model}: the [1m] variant is carried over`
@@ -1139,11 +1172,38 @@ function fits(st: State, id: string, tokens: number | undefined): boolean {
 const noFit = (id: string): string =>
   `model-router: no switch to ${id}: context not known to fit`
 
-/** Why the upgrade cap blocks a move, or undefined. Unknown size = blocked. */
-function capBlock(st: State, tokens: number | undefined): string | undefined {
+/**
+ * Tokens a switch INTO `id` re-reads cold (LRN-204): the context minus what
+ * `id`'s cache holds, i.e. its last main step within the TTL. A context
+ * smaller than that step (compaction) drops the stale record.
+ */
+function coldRead(
+  st: State,
+  id: string,
+  tokens: number,
+  now: number,
+): number {
+  const key = canonical(st.cfg, id)
+  const hit = st.served.get(key)
+  if (hit === undefined || now - hit.at > CACHE_TTL_MS) return tokens
+  if (tokens < hit.tokens) {
+    st.served.delete(key)
+    return tokens
+  }
+  return tokens - hit.tokens
+}
+
+/** Why a cap blocks a move onto `id`, or undefined. Unknown size = blocked. */
+function coldBlock(
+  st: State,
+  id: string,
+  tokens: number | undefined,
+  max: number,
+  now: number,
+): string | undefined {
   if (tokens === undefined) return 'context size unknown'
-  const max = st.cfg.upgradeMaxTokens
-  return tokens > max ? `context ${tokens} tokens over ${max}` : undefined
+  const cold = coldRead(st, id, tokens, now)
+  return cold > max ? `cold read ${cold} tokens over ${max}` : undefined
 }
 
 /** True when `wanted` ranks above `id` in the fallback chain. */
@@ -1153,6 +1213,16 @@ function ranksAbove(st: State, wanted: string, id: string): boolean {
   return rw !== undefined && rc !== undefined && rw < rc
 }
 
+/** Main keeps its model: a cap said no, once per turn under its own key. */
+function skipped(cur: string, kind: string, block: string): Call {
+  const why = `${kind} skipped: ${block}`
+  const call = keep(cur, why, `model-router: ${why}`)
+  return { ...call, logKey: `${kind}-skipped` }
+}
+
+/** The state a decision reads besides the model: context size and clock. */
+type Reading = { tokens: number | undefined; now: number }
+
 /**
  * `cur` is down: `wanted`, else the next model of the chain that fits. A
  * better `wanted` is an upgrade and passes the same switch and cap.
@@ -1161,15 +1231,21 @@ function leaveDown(
   st: State,
   cur: string,
   wanted: string | undefined,
-  tokens: number | undefined,
+  read: Reading,
 ): Call {
   const id = canonical(st.cfg, cur)
-  const upOk = st.cfg.mainUpgrade && capBlock(st, tokens) === undefined
+  const max = st.cfg.upgradeMaxTokens
+  const upOk = (o: string): boolean => st.cfg.mainUpgrade &&
+    coldBlock(st, o, read.tokens, max, read.now) === undefined
   for (const option of [wanted, nextAvailable(st, id)]) {
     if (option === undefined || st.down.has(option)) continue
     if (aliasOf(st.cfg, option) === undefined) continue
-    if (option === wanted && !upOk && ranksAbove(st, option, id)) continue
-    if (fits(st, option, tokens)) return moveTo(cur, option, 'fallback')
+    if (option === wanted && ranksAbove(st, option, id) && !upOk(option)) {
+      continue
+    }
+    if (fits(st, option, read.tokens)) {
+      return moveTo(cur, option, 'fallback', st.sessionModel)
+    }
   }
   return keep(cur, 'fallback unavailable')
 }
@@ -1179,29 +1255,33 @@ function upgradeCall(
   st: State,
   cur: string,
   wanted: string,
-  tokens: number | undefined,
+  read: Reading,
 ): Call {
   if (!st.cfg.mainUpgrade) return keep(cur, 'switch off')
-  const block = capBlock(st, tokens)
-  if (block !== undefined) {
-    const why = `upgrade skipped: ${block}`
-    const call = keep(cur, why, `model-router: ${why}`)
-    return { ...call, logKey: 'upgrade-skipped' }
+  const block = coldBlock(
+    st, wanted, read.tokens, st.cfg.upgradeMaxTokens, read.now)
+  if (block !== undefined) return skipped(cur, 'upgrade', block)
+  if (!fits(st, wanted, read.tokens)) {
+    return keep(cur, 'no fit', noFit(wanted))
   }
-  if (!fits(st, wanted, tokens)) return keep(cur, 'no fit', noFit(wanted))
-  return moveTo(cur, wanted, 'upgrade')
+  return moveTo(cur, wanted, 'upgrade', st.sessionModel)
 }
 
-/** `wanted` is cheaper (or unranked): only with the downgrade switch on. */
+/** `wanted` is cheaper (or unranked): the switch and the cold-read cap. */
 function downgradeCall(
   st: State,
   cur: string,
   wanted: string,
-  tokens: number | undefined,
+  read: Reading,
 ): Call {
   if (!st.cfg.mainModelSwitch) return keep(cur, 'switch off')
-  if (!fits(st, wanted, tokens)) return keep(cur, 'no fit', noFit(wanted))
-  return moveTo(cur, wanted, 'downgrade')
+  const block = coldBlock(
+    st, wanted, read.tokens, st.cfg.downgradeMaxTokens, read.now)
+  if (block !== undefined) return skipped(cur, 'downgrade', block)
+  if (!fits(st, wanted, read.tokens)) {
+    return keep(cur, 'no fit', noFit(wanted))
+  }
+  return moveTo(cur, wanted, 'downgrade', st.sessionModel)
 }
 
 /** A model the table does not rank is never switched; said once. */
@@ -1213,8 +1293,32 @@ function unknownCall(cur: string, id: string): Call {
 }
 
 /**
+ * Main sits on a model the router moved it to and whose known window the
+ * context outgrew (haiku): back to the session model, when that is a known,
+ * ranked, available, non-haiku model. Otherwise undefined: the normal
+ * decision runs.
+ */
+function windowReturn(
+  st: State,
+  cur: string,
+  tokens: number | undefined,
+): Call | undefined {
+  const id = canonical(st.cfg, cur)
+  const home = canonical(st.cfg, st.sessionModel)
+  if (st.turnModel === undefined || tokens === undefined) return undefined
+  if (fits(st, id, tokens)) return undefined
+  const usable = modelRank(st.cfg, home) !== undefined &&
+    !st.down.has(home) && !isHaiku(st.cfg, home)
+  if (!usable) return undefined
+  const call = moveTo(cur, home, 'window', st.sessionModel)
+  const once = `model-router: context outgrew ${id}: back to ${home}`
+  return { ...call, once }
+}
+
+/**
  * The one decision of the main loop's model, in this order: router off, a
- * model the table does not rank (never touched), `cur` down (leave it,
+ * model the table does not rank (never touched), a model whose window the
+ * context outgrew (back to the session model), `cur` down (leave it,
  * always), no or same wanted model, a better one (upgrade), a cheaper one
  * (downgrade). Used by the step AND by every text, so they agree.
  */
@@ -1222,25 +1326,37 @@ function decideMain(
   st: State,
   cur: string,
   wanted: string | undefined,
-  tokens: number | undefined,
+  read: Reading,
 ): Call {
   const id = canonical(st.cfg, cur)
   if (st.off) return keep(cur)
   if (modelRank(st.cfg, id) === undefined) return unknownCall(cur, id)
-  if (st.down.has(id)) return leaveDown(st, cur, wanted, tokens)
+  const back = windowReturn(st, cur, read.tokens)
+  if (back !== undefined) return back
+  if (st.down.has(id)) return leaveDown(st, cur, wanted, read)
   if (wanted === undefined) return keep(cur)
   if (aliasOf(st.cfg, wanted) === aliasOf(st.cfg, id)) return keep(cur)
   return ranksAbove(st, wanted, id)
-    ? upgradeCall(st, cur, wanted, tokens)
-    : downgradeCall(st, cur, wanted, tokens)
+    ? upgradeCall(st, cur, wanted, read)
+    : downgradeCall(st, cur, wanted, read)
 }
 
-/** Model axis: sticky, turn route, run slot, then the floor's own model. */
+/**
+ * The slot that names main's model: sticky, turn route, run slot, then the
+ * floor's own model. A floor with a model beats a classifier's guess.
+ */
+function mainModelSlot(st: State): Routed | null {
+  const slots = [st.userMain, st.turnMain, st.runMain, st.turnFloor]
+  const slot = slots.find(s => routeName(s?.route) !== undefined) ?? null
+  const floor = st.turnFloor
+  if (slot?.source === 'classifier' && routeName(floor?.route) !== undefined) {
+    return floor
+  }
+  return slot
+}
+
 const mainModel = (st: State): string | undefined =>
-  routeName(st.userMain?.route) ??
-  routeName(st.turnMain?.route) ??
-  routeName(st.runMain?.route) ??
-  routeName(st.turnFloor?.route)
+  routeName(mainModelSlot(st)?.route)
 
 async function readTokens($: Api): Promise<number | undefined> {
   try {
@@ -1252,15 +1368,46 @@ async function readTokens($: Api): Promise<number | undefined> {
 
 type Verdict = { call: Call; wanted: string | undefined }
 
-/** What the main loop would run on from `cur`: wanted model + decision. */
-async function decideFor($: Api, st: State, cur: string): Promise<Verdict> {
-  const name = mainModel(st)
-  const wanted = name === undefined
-    ? undefined
-    : resolveName(st, name, canonical(st.cfg, cur))
-  const needsTokens = wanted !== undefined || st.down.size > 0
-  const tokens = needsTokens ? await readTokens($) : undefined
-  return { call: decideMain(st, cur, wanted, tokens), wanted }
+/**
+ * The model main is asked to run on from `cur`. A classifier's guess never
+ * ranks above the session model: it moves main down, never above the
+ * user's baseline.
+ */
+function wantedModel(st: State, cur: string): string | undefined {
+  const slot = mainModelSlot(st)
+  const name = routeName(slot?.route)
+  if (name === undefined) return undefined
+  const wanted = resolveName(st, name, canonical(st.cfg, cur))
+  const above = wanted !== undefined && slot?.source === 'classifier' &&
+    ranksAbove(st, wanted, canonical(st.cfg, st.sessionModel))
+  return above ? undefined : wanted
+}
+
+/** Reads the usage and the clock when a decision may need them. */
+async function readingFor(
+  $: Api,
+  st: State,
+  wanted: string | undefined,
+): Promise<Reading> {
+  const needs = wanted !== undefined || st.down.size > 0 ||
+    st.turnModel !== undefined
+  if (!needs) return { tokens: undefined, now: 0 }
+  return { tokens: await readTokens($), now: await $.clock.now() }
+}
+
+/**
+ * What the main loop would run on from `cur`: wanted model + decision. The
+ * step passes the `known` reading it took; a text reads for itself.
+ */
+async function decideFor(
+  $: Api,
+  st: State,
+  cur: string,
+  known?: Reading,
+): Promise<Verdict> {
+  const wanted = wantedModel(st, cur)
+  const read = known ?? await readingFor($, st, wanted)
+  return { call: decideMain(st, cur, wanted, read), wanted }
 }
 
 function logCall($: Api, st: State, call: Call): void {
@@ -1297,11 +1444,10 @@ function higherFloor(cur: Routed | null, next: Routed): Routed {
  * The one decision of the main loop's effort. The user's floor is the turn's
  * default (no sticky or turn route names an effort) and its minimum.
  * `by` names who set the value: the floor when it raised or supplied it.
- * `skipTurn`: the turn route yields (a classified effort under a user /effort).
  */
-function mainEffort(st: State, engine: Effort, skipTurn = false): Decision {
+function mainEffort(st: State, engine: Effort): Decision {
   const sticky = st.userMain?.route.effort
-  const turn = skipTurn ? undefined : st.turnMain?.route.effort
+  const turn = st.turnMain?.route.effort
   const named = sticky ?? turn ?? st.runMain?.route.effort
   const floor = st.turnFloor?.route.effort
   const base = named ?? floor ?? engine
@@ -1455,14 +1601,19 @@ async function snapshot($: Api, st: State) {
   return { now, ...(await decideFor($, st, cur)) }
 }
 
+/** The downgrade switch and, when on, the cold read it is capped at. */
+const switchWord = (c: Config): string => c.mainModelSwitch
+  ? `on (downgrade, cap ${c.downgradeMaxTokens} tokens cold)`
+  : 'off (downgrade)'
+
 async function show($: Api, st: State): Promise<string> {
   const c = st.cfg
   const flag = (b: boolean) => (b ? 'on' : 'off')
   const s = await snapshot($, st)
   return [
     mainText(st, s),
-    `router: ${routerWord(st)} · switch: ${flag(c.mainModelSwitch)} ` +
-      `(downgrade) · upgrade: ${flag(c.mainUpgrade)} · verbose: ${
+    `router: ${routerWord(st)} · switch: ${switchWord(c)} · upgrade: ${
+      flag(c.mainUpgrade)} · verbose: ${
         flag(c.verbose)} · classify: ${flag(c.classify)} · spinner: ${
         flag(c.spinner)}`,
     downText(st, s.now),
@@ -1480,7 +1631,7 @@ function statusLine(st: State): string {
   const floor = liveFloor(st)
   const paused = st.cfg.classify && st.classifyUntil !== 0
   return `route: ${now}${floor ? ` · floor ${floor.level}` : ''}${
-    st.cfg.mainModelSwitch ? ' · switch on' : ''}${
+    st.cfg.mainModelSwitch ? '' : ' · switch off'}${
     paused ? ' · classifier: paused' : ''}`
 }
 
@@ -1534,6 +1685,7 @@ async function toggle(
   if (arg !== 'on' && arg !== 'off') return `usage: /route ${what} on|off`
   st.toggles[what] = arg === 'on'
   applyToggles(st)
+  refresh($, st)
   return show($, st)
 }
 
@@ -1594,6 +1746,8 @@ async function ensureConfig($: Api, st: State, atPrompt = false) {
 /** The breaker is cleared first, whatever the config read then does. */
 async function reloadCommand($: Api, st: State): Promise<string> {
   clearBreaker(st)
+  st.served.clear()
+  st.capSaid = false
   st.classifyFails = 0
   st.classifyUntil = 0
   const swapped = await reloadConfig($, st)
@@ -2120,19 +2274,22 @@ async function skillQuestion($: Api, st: State, skill: string, phase: string) {
   return mainQuestion($, st, `${head}. ${routedTo(st, phase)}`)
 }
 
-/** A downgrade the switch holds back: main keeps its model, said. */
-function downgradeHeld(st: State, v: Verdict, cur: string): boolean {
-  return v.wanted !== undefined && v.call.why === 'switch off' &&
-    !ranksAbove(st, v.wanted, canonical(st.cfg, cur))
+/** A downgrade the switch or the cold-read cap holds back, said. */
+function downgradeHint(st: State, v: Verdict, cur: string): string {
+  const { wanted, call } = v
+  if (wanted === undefined) return ''
+  if (ranksAbove(st, wanted, canonical(st.cfg, cur))) return ''
+  if (call.why === 'switch off') {
+    return ', main moves up only: /route switch on allows a downgrade'
+  }
+  return call.why.startsWith('downgrade skipped') ? `, held: ${call.why}` : ''
 }
 
 /** After a Change: what main will really run, and the switch hint. */
 async function toastChange($: Api, st: State, skill: string) {
   const cur = st.turnModel ?? st.sessionModel
   const v = await decideFor($, st, cur)
-  const hint = downgradeHeld(st, v, cur)
-    ? ', main moves up only: /route switch on allows a downgrade'
-    : ''
+  const hint = downgradeHint(st, v, cur)
   $.ui.toast(`/${skill} now runs ${idWord(st, v.call.model)} at ${
     effortWord(st, v)}${hint}`)
 }
@@ -2495,9 +2652,9 @@ async function registerTool($: Api, st: State): Promise<void> {
         'Declare the phase of the work ahead so the next requests of THIS ' +
         'loop run at the right effort and model. Call it before a span of ' +
         'work changes nature (planning, orchestrating, mechanical work). ' +
-        'The main loop moves up to a phase\'s tier by itself (below the ' +
-        'context cap), down only with the switch on; a sub-agent\'s model ' +
-        'is fixed at spawn. ' +
+        'The main loop moves up or down to a phase\'s tier while the cold ' +
+        'read it costs fits the cap (down also needs the switch on); a ' +
+        'sub-agent\'s model is fixed at spawn. ' +
         `Phases: ${Object.keys(st.cfg.phases).join(', ')}.`,
       inputSchema: {
         type: 'object',
@@ -2626,6 +2783,13 @@ function skillRow(st: State, skill: string): Picked | undefined {
   return phase !== undefined && route ? { phase, route } : undefined
 }
 
+/** The run slot's model outranks the route's: a helper moves effort only. */
+function belowRun(st: State, route: Route): boolean {
+  const mine = resolveRoute(st, route)
+  const run = resolveRoute(st, st.runMain?.route)
+  return mine !== undefined && run !== undefined && ranksAbove(st, run, mine)
+}
+
 /**
  * A rowed skill on main sets the turn route; a best-tier row also holds the
  * run slot. A typed non-best row drops the run; one the model loads (a
@@ -2637,7 +2801,10 @@ function routeMainBySkill(
   row: Picked,
   typed: boolean,
 ): void {
-  const turn: Routed = { phase: row.phase, route: { ...row.route },
+  const route = !typed && belowRun(st, row.route)
+    ? { effort: row.route.effort }
+    : { ...row.route }
+  const turn: Routed = { phase: row.phase, route,
     source: 'skill', label: clean(skill, NAME_CAP) }
   st.turnMain = turn
   if (row.route.tier === BEST) st.runMain = { ...turn, source: 'run' }
@@ -2909,6 +3076,7 @@ function modelCause(st: State, why: Why): string | undefined {
   if (!call.moved) return undefined
   if (call.why === 'upgrade') return 'upgrade'
   if (call.why === 'downgrade') return 'switch'
+  if (call.why === 'window') return 'window'
   return `fallback: ${nameOf(st.cfg, cur)} down`
 }
 
@@ -3031,32 +3199,60 @@ function agentPlan(st: State, e: StepIn): Plan {
 type Why = { by: EffortBy; call: Call; cur: string }
 type Step = { plan: Plan; why?: Why }
 
-/** The engine effort of main's first step: what the user left as default. */
+/** The engine effort of this turn's first main step: the user's default. */
 function noteEngineBase(st: State, e: StepIn): void {
-  if (st.engineBase === null && e.effort !== undefined) {
-    st.engineBase = e.effort
+  if (st.turnEngine === null && e.effort !== undefined) {
+    st.turnEngine = e.effort
   }
 }
 
-/** A user /effort beats a guessed phase: the engine effort left its base. */
-function userMovedEffort(st: State, e: StepIn): boolean {
-  return st.turnMain?.source === 'classifier' && e.effort !== undefined &&
-    st.engineBase !== null && e.effort !== st.engineBase
+/**
+ * A user /effort beats a guessed phase: this turn's engine effort differs
+ * from the previous turn's, typed between the two.
+ */
+function userMovedEffort(st: State): boolean {
+  return st.turnMain?.source === 'classifier' && st.turnEngine !== null &&
+    st.engineBase !== null && st.turnEngine !== st.engineBase
+}
+
+/** Main ran `plan` at `read`: that model's cache holds this context now. */
+function noteServed(st: State, plan: Plan, read: Reading): void {
+  const id = canonical(st.cfg, plan.model)
+  if (read.tokens === undefined || aliasOf(st.cfg, id) === undefined) return
+  st.served.set(id, { at: read.now, tokens: read.tokens })
+}
+
+/**
+ * The downgrade skip is said once per cap crossing: it stays quiet until a
+ * downgrade succeeds. Returns the call the log line is taken from.
+ */
+function capLogged(st: State, call: Call): Call {
+  if (call.why === 'downgrade') st.capSaid = false
+  if (!call.why.startsWith('downgrade skipped')) return call
+  const said = st.capSaid
+  st.capSaid = true
+  if (!said) return call
+  const { log: _log, logKey: _key, ...quiet } = call
+  return quiet
 }
 
 /**
  * The main loop's plan: effort from the floor/sticky/turn decision, model
  * from `decideMain`. `cur` is the model the router moved this turn, else
- * the engine's own (verbatim: an engine fallback is respected).
+ * the engine's own (verbatim: an engine fallback is respected). Every step
+ * reads the context and the clock and records the model it ran on.
  */
 async function mainPlan($: Api, st: State, e: StepIn): Promise<Step> {
   noteEngineBase(st, e)
-  const { effort, by } = mainEffort(st, e.effort, userMovedEffort(st, e))
+  if (userMovedEffort(st)) st.turnMain = null
+  const { effort, by } = mainEffort(st, e.effort)
   await prune($, st)
   const cur = st.turnModel ?? e.model
-  const { call } = await decideFor($, st, cur)
-  logCall($, st, call)
+  const read = { tokens: await readTokens($), now: await $.clock.now() }
+  const { call } = await decideFor($, st, cur, read)
+  logCall($, st, capLogged(st, call))
   if (call.moved) st.turnModel = call.model
+  noteServed(st, { model: call.model, effort }, read)
   return { plan: { model: call.model, effort }, why: { by, call, cur } }
 }
 
@@ -3095,6 +3291,8 @@ function endMainTurn($: Api, st: State): void {
   st.explicitEffort.clear()
   st.spinner = ''
   st.turnLogged.clear()
+  if (st.turnEngine !== null) st.engineBase = st.turnEngine
+  st.turnEngine = null
   refresh($, st)
 }
 
@@ -3436,9 +3634,11 @@ function noteTyped(st: State, kind: string, text: string, midTurn: boolean) {
 
 // ---- prompt classifier -----------------------------------------------
 // A typed prompt no rule, skill, route or floor covers is guessed by one
-// small-model call: the phase's EFFORT becomes the turn's default (never a
-// model move, never a dialog, never a file write). The call is bounded and
-// every failure leaves the prompt as it was.
+// small-model call: the phase's effort becomes the turn's default and its
+// tier a model move DOWN only (under `mainModelSwitch` and the cold-read cap
+// `downgradeMaxTokens`; never above the session model; never a dialog or a
+// file write). The call is bounded and every failure leaves the prompt as
+// it was.
 
 /** The whole text up to CLASSIFY_MAX code points, else its head and tail. */
 function sampleOf(text: string): string {
@@ -3532,18 +3732,16 @@ async function askClassifier(
   return label
 }
 
-/** The turn route of a label: its phase's effort only; false = nothing. */
+/** The turn route of a label: its phase's tier and effort; false = none. */
 function routeFromLabel(st: State, label: string): boolean {
   const phase = hasKey(LABEL_PHASE, label) ? LABEL_PHASE[label] : undefined
-  const effort = phase === undefined
-    ? undefined
-    : phaseRoute(st.cfg, phase)?.effort
-  if (phase === undefined || effort === undefined) return false
-  st.turnMain = { phase, route: { effort }, source: 'classifier' }
+  const route = phase === undefined ? undefined : phaseRoute(st.cfg, phase)
+  if (phase === undefined || route?.effort === undefined) return false
+  st.turnMain = { phase, route: { ...route }, source: 'classifier' }
   return true
 }
 
-/** Fills an empty route with the guessed phase's effort; never throws on it. */
+/** Fills an empty route with the guessed phase's route; never throws on it. */
 async function classifyPrompt(
   $: Api,
   st: State,
