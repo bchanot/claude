@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================
 # lib/detect-plugins.sh — Single source of truth for plugin detection
-# Sourced by: session-start.sh, doctor.sh, install-plugins.sh
+# Sourced by: session-start.sh, doctor.sh, install-plugins.sh, update-all.sh
 #
 # Each function returns 0 (detected) or 1 (not detected).
 # No output — callers handle messaging.

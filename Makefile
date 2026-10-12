@@ -28,7 +28,7 @@ seo-connect: ## Connect a Google account for /seo FULL (creates venv, OAuth cons
 	@bash -c 'read -r -p "Label for this account (e.g. client-a): " label; \
 	 bash lib/seo-data/connect.sh --label "$$label"'
 
-SUITES = lib/tests/*.test.sh lib/seo-data/*.test.sh lib/gitflow-test.sh lib/tests/run-*.sh
+SUITES = lib/tests/*.test.sh lib/seo-data/*.test.sh lib/gitflow-test.sh lib/tests/run-*.sh skills/prune-memory/tests/run-deterministic.sh
 test: ## Run deterministic tests hermetically (one: make test suite=lib/tests/x.test.sh)
 	@# Hermetic git: the machine's global core.hooksPath (BDR-095) must not
 	@# fire inside the throwaway repos the suites build. The export lives

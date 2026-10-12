@@ -35,6 +35,19 @@ _out_of_scope() {                       # 0 = forbidden, 1 = in scope
 
 _scope_violations() { local p; for p in "$@"; do _out_of_scope "$p" && printf '%s\n' "$p"; done; }
 
+# Exits 4 with the REFUSED text (parsed by the calling skill) when any
+# passed path is outside the allowlist; returns normally otherwise.
+_refuse_outside_allowlist() {
+  local violations
+  mapfile -t violations < <(_scope_violations "$@")
+  if [ "${#violations[@]}" -gt 0 ]; then
+    { echo "deploy-commit: REFUSED — path(s) outside .claude/deploy/ allowlist:";
+      printf '  - %s\n' "${violations[@]}";
+      echo "deploy-commit: NOTHING committed. Caller must pass only .claude/deploy/ files."; } >&2
+    exit 4
+  fi
+}
+
 _ignored() { git check-ignore -q "$1"; }   # rc 0 = ignored
 
 _changed_only() {                       # echo passed files that actually have changes
@@ -48,24 +61,12 @@ _in_git_repo || { echo "deploy-commit: not a git repo" >&2; exit 2; }
 case "$cmd" in
   pending)
     [ "$#" -gt 0 ] || { echo "deploy-commit: pending needs file args" >&2; exit 2; }
-    mapfile -t violations < <(_scope_violations "$@")
-    if [ "${#violations[@]}" -gt 0 ]; then
-      { echo "deploy-commit: REFUSED — path(s) outside .claude/deploy/ allowlist:";
-        printf '  - %s\n' "${violations[@]}";
-        echo "deploy-commit: NOTHING committed. Caller must pass only .claude/deploy/ files."; } >&2
-      exit 4
-    fi
+    _refuse_outside_allowlist "$@"
     [ -n "$(_changed_only "$@")" ] && exit 0 || exit 1 ;;
   commit)
     msg="${1:-}"; shift || true
     [ -n "$msg" ] && [ "$#" -gt 0 ] || { echo "deploy-commit: commit needs <msg> <file>..." >&2; exit 2; }
-    mapfile -t violations < <(_scope_violations "$@")
-    if [ "${#violations[@]}" -gt 0 ]; then
-      { echo "deploy-commit: REFUSED — path(s) outside .claude/deploy/ allowlist:";
-        printf '  - %s\n' "${violations[@]}";
-        echo "deploy-commit: NOTHING committed. Caller must pass only .claude/deploy/ files."; } >&2
-      exit 4
-    fi
+    _refuse_outside_allowlist "$@"
     mapfile -t ignored_paths < <(for p in "$@"; do _ignored "$p" && printf '%s\n' "$p"; done)
     if [ "${#ignored_paths[@]}" -gt 0 ]; then
       { echo "deploy-commit: REFUSED — path(s) are git-ignored and will NOT persist; \`.claude/deploy/\` must be committable in this project:";
