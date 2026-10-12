@@ -134,6 +134,7 @@ rules:
 | BDR-110 | 2026-10-06 | Shell portability doctrine: native userland on macOS AND Linux, no Homebrew GNU tools on PATH; `lib/tests/portability-census.test.sh` locks deterministic GNU-only idioms | accepted |
 | BDR-115 | 2026-10-08 | model-router mod: pin = entry default, sub-tasks route finer; one writer per axis; full ids from the mod table; built-ins-only agents table until frontmatter pins go; state in closure | accepted |
 | BDR-116 | 2026-10-11 | model-router first-use confirmation: tracked routing.json = source of phases + rows + decisions; engine dialog at first use; project exceptions in user scope keyed by normalized remote; model never writes; census tolerates a decided row | accepted |
+| BDR-117 | 2026-10-12 | shared gstack helpers live in lib/gstack-removed.sh, not in a new lib | accepted |
 
 ---
 
@@ -1419,3 +1420,10 @@ Branch feature/user-writing-web-rules, UNMERGED (human gate).
 - **Alternatives rejected**: first-use dialog on classified phases (the TODO line said so; a dialog per plain prompt is noise and the phase is already confirmed through T3); writing the guess into routing.json; classifying mid-turn or sub-agent prompts; unbounded await (robustness BLOCKER r1: the classify call sat on the critical path with no clock race); `classify` as a tracked-file writer (session toggle + config key instead).
 - **Gates**: plan r1 → r3 (simplicity CONCERNS(4), robustness FATAL(6) BLOCKER unbounded await, correctness CONCERNS(4); confirmation robustness CONCERNS(4)); feater DONE (423) + 1 round (trim, argumentHint, repeated undefined: 428, each mutation-proven); GATE 0 MET; verifier ECARTS(2) coverage → CONFORME on #2; security PASS (0 findings; LOW accepted: pasted text can steer one turn's effort up, README says so). Abort paths judged by reading (`[gated]` clarification). Residual: `smallModelBusy` checks `cfg.models.haiku` while classify uses the engine's default small model (mismatch only when the two differ). Live AC9 open.
 - **Refs**: contract `.claude/tasks/contracts/2026-10-11-model-router-w4b-classifier-1858.md`, plan r3 same slug. Links [[EVAL-045]], [[LRN-210]].
+
+## BDR-117 — shared gstack helpers live in lib/gstack-removed.sh, not in a new lib [accepted] (2026-10-12)
+- **Decision**: C5 /refactor 2026-10-12. profile.sh + toggle-external.sh duplicated gstack_skills + park/unpark moves. Host gstack_skills/gstack_parked_names/gstack_park/gstack_unpark in lib/gstack-removed.sh; each takes dirs as args, no caller globals; plain-statement call only (errexit, [[LRN-215]]).
+- **Why**: only sourced file 5 fixture suites copy next to both scripts; new lib = every fixture breaks.
+- **Alternatives rejected**: new lib/gstack-helpers.sh + patch 5 fixtures (wider diff, fixture drift risk); keep twins (3 copies drifted once already).
+- **Cost**: file name says denylist, now hosts helpers; header comment states it.
+- **Refs**: commit 8444661. Links [[LRN-215]], [[EVAL-046]].
