@@ -58,7 +58,9 @@ ACTIVE_CACHE="$REPO/.active-profile"  # statusline reads this — keep fast (sin
 DEFAULT_PROFILE="full"  # profile in force when none is selected (cache absent, empty, or legacy "none")
 
 # GSTACK_REMOVED + gstack_is_removed() — single source, honored by every
-# "bring gstack back" path below (enable_all_gstack, enable_skill).
+# "bring gstack back" path below (enable_all_gstack, enable_skill) — plus the
+# gstack helpers shared with toggle-external.sh (gstack_skills, gstack_park,
+# gstack_unpark, gstack_parked_names).
 # shellcheck source=lib/gstack-removed.sh disable=SC1091
 source "$(dirname "${BASH_SOURCE[0]}")/gstack-removed.sh"
 
@@ -179,16 +181,6 @@ read_profile() {
     esac
     printf '%s\t%s\n' "$skill" "$type"
   done < "$file"
-}
-
-# All skills bundled in skills-external/gstack/
-gstack_skills() {
-  local src="$REPO/skills-external/gstack"
-  [ -d "$src" ] || return 0
-  for d in "$src"/*/; do
-    [ -f "${d}SKILL.md" ] || continue
-    basename "$d"
-  done
 }
 
 # Profile description (line starting with "# DESC: …")
@@ -318,73 +310,84 @@ profile_match() {
 
 # ── Enable / disable ──────────────────────────────────────
 
+# Enables a gstack skill: unpark it, or link it from the submodule.
+enable_gstack_skill() {
+  local skill="$1"
+  if gstack_is_removed "$skill"; then
+    warn "refusing to enable removed skill: $skill (lib/gstack-removed.sh \
+— a profile census failure, not a crash)"
+    return 0
+  elif [ -e "$DISABLED_DIR/gstack__$skill" ]; then
+    gstack_unpark "$SKILLS_DIR" "$DISABLED_DIR" "$skill"
+    ok "enabled: $skill"
+  elif [ -e "$DISABLED_DIR/$skill" ]; then
+    rm -rf "${SKILLS_DIR:?}/${skill:?}"
+    mv "$DISABLED_DIR/$skill" "$SKILLS_DIR/$skill"
+    ok "enabled: $skill"
+  elif [ -e "$SKILLS_DIR/$skill" ]; then
+    : # already enabled — silent
+  elif [ -d "$GSTACK_SRC/$skill" ]; then
+    # gstack is OFF by default: its skills live only in the submodule,
+    # never pre-symlinked into skills/. A profile that lists this gstack
+    # skill activates it on demand by symlinking the submodule skill dir
+    # in. disable_gstack_not_in() parks it again when an unrelated profile
+    # is set. The gstack/bin + browse/dist infra it relies on is created
+    # by link.sh, independent of this.
+    ln -sf "$GSTACK_SRC/$skill" "$SKILLS_DIR/$skill"
+    ok "enabled: $skill (gstack on-demand)"
+  elif [ ! -d "$GSTACK_SRC" ]; then
+    warn "missing: $skill — gstack submodule absent, run: git submodule update --init"
+  else
+    warn "missing: $skill — not found in gstack submodule ($GSTACK_SRC)"
+  fi
+}
+
+# Enables an external|personal skill: unpark it, or recreate the symlink.
+enable_linked_skill() {
+  local skill="$1" type="$2"
+  if [ -e "$DISABLED_DIR/$skill" ]; then
+    rm -rf "${SKILLS_DIR:?}/${skill:?}"
+    mv "$DISABLED_DIR/$skill" "$SKILLS_DIR/$skill"
+    ok "enabled: $skill ($type)"
+  elif [ -e "$SKILLS_DIR/$skill" ]; then
+    :
+  elif [ "$type" = external ] && [ -d "$REPO/skills-external/$skill" ]; then
+    # Symlink never created (or hand-removed): recreate it from the
+    # vendored pack — mirrors toggle-external.sh's from-source path.
+    ln -sf "$REPO/skills-external/$skill" "$SKILLS_DIR/$skill"
+    ok "enabled: $skill (external, symlink created)"
+  else
+    warn "missing: $skill ($type)"
+  fi
+}
+
+# Enables a plugin@<marketplace> skill through the claude CLI.
+enable_plugin_skill() {
+  local skill="$1" type="$2"
+  # type holds the marketplace: plugin@<marketplace>
+  local marketplace="${type#plugin@}"
+  if [ "$(skill_status "$skill" "$type")" = "enabled" ]; then
+    : # already on
+  elif command -v "$CLAUDE_BIN" >/dev/null 2>&1; then
+    # CLI call stays inside the condition: a failing CLI must not abort
+    if grep -qiE "enabled|already" \
+         <<<"$("$CLAUDE_BIN" plugin enable \
+           "${skill}@${marketplace}" 2>&1)"; then
+      ok "enabled plugin: ${skill}@${marketplace}"
+    else
+      warn "could not enable plugin: ${skill}@${marketplace}"
+    fi
+  else
+    info "claude CLI not in PATH — manual: claude plugin enable ${skill}@${marketplace}"
+  fi
+}
+
 enable_skill() {
   local skill="$1" type="$2"
   case "$type" in
-    gstack)
-      if gstack_is_removed "$skill"; then
-        warn "refusing to enable removed skill: $skill (lib/gstack-removed.sh \
-— a profile census failure, not a crash)"
-        return 0
-      elif [ -e "$DISABLED_DIR/gstack__$skill" ]; then
-        rm -rf "${SKILLS_DIR:?}/${skill:?}"
-        mv "$DISABLED_DIR/gstack__$skill" "$SKILLS_DIR/$skill"
-        ok "enabled: $skill"
-      elif [ -e "$DISABLED_DIR/$skill" ]; then
-        rm -rf "${SKILLS_DIR:?}/${skill:?}"
-        mv "$DISABLED_DIR/$skill" "$SKILLS_DIR/$skill"
-        ok "enabled: $skill"
-      elif [ -e "$SKILLS_DIR/$skill" ]; then
-        : # already enabled — silent
-      elif [ -d "$GSTACK_SRC/$skill" ]; then
-        # gstack is OFF by default: its skills live only in the submodule,
-        # never pre-symlinked into skills/. A profile that lists this gstack
-        # skill activates it on demand by symlinking the submodule skill dir
-        # in. disable_gstack_not_in() parks it again when an unrelated profile
-        # is set. The gstack/bin + browse/dist infra it relies on is created
-        # by link.sh, independent of this.
-        ln -sf "$GSTACK_SRC/$skill" "$SKILLS_DIR/$skill"
-        ok "enabled: $skill (gstack on-demand)"
-      elif [ ! -d "$GSTACK_SRC" ]; then
-        warn "missing: $skill — gstack submodule absent, run: git submodule update --init"
-      else
-        warn "missing: $skill — not found in gstack submodule ($GSTACK_SRC)"
-      fi
-      ;;
-    external|personal)
-      if [ -e "$DISABLED_DIR/$skill" ]; then
-        rm -rf "${SKILLS_DIR:?}/${skill:?}"
-        mv "$DISABLED_DIR/$skill" "$SKILLS_DIR/$skill"
-        ok "enabled: $skill ($type)"
-      elif [ -e "$SKILLS_DIR/$skill" ]; then
-        :
-      elif [ "$type" = external ] && [ -d "$REPO/skills-external/$skill" ]; then
-        # Symlink never created (or hand-removed): recreate it from the
-        # vendored pack — mirrors toggle-external.sh's from-source path.
-        ln -sf "$REPO/skills-external/$skill" "$SKILLS_DIR/$skill"
-        ok "enabled: $skill (external, symlink created)"
-      else
-        warn "missing: $skill ($type)"
-      fi
-      ;;
-    plugin@*)
-      # type holds the marketplace: plugin@<marketplace>
-      local marketplace="${type#plugin@}"
-      if [ "$(skill_status "$skill" "$type")" = "enabled" ]; then
-        : # already on
-      elif command -v "$CLAUDE_BIN" >/dev/null 2>&1; then
-        # CLI call stays inside the condition: a failing CLI must not abort
-        if grep -qiE "enabled|already" \
-             <<<"$("$CLAUDE_BIN" plugin enable \
-               "${skill}@${marketplace}" 2>&1)"; then
-          ok "enabled plugin: ${skill}@${marketplace}"
-        else
-          warn "could not enable plugin: ${skill}@${marketplace}"
-        fi
-      else
-        info "claude CLI not in PATH — manual: claude plugin enable ${skill}@${marketplace}"
-      fi
-      ;;
+    gstack) enable_gstack_skill "$skill" ;;
+    external|personal) enable_linked_skill "$skill" "$type" ;;
+    plugin@*) enable_plugin_skill "$skill" "$type" ;;
     plugin)
       # No marketplace specified — purely advisory.
       if [ "$(skill_status "$skill" plugin)" = "enabled" ]; then
@@ -419,8 +422,7 @@ disable_skill() {
     gstack)
       if [ -e "$SKILLS_DIR/$skill" ]; then
         mkdir -p "$DISABLED_DIR"
-        rm -rf "$DISABLED_DIR/gstack__$skill"
-        mv "$SKILLS_DIR/$skill" "$DISABLED_DIR/gstack__$skill"
+        gstack_park "$SKILLS_DIR" "$DISABLED_DIR" "$skill"
         ok "disabled: $skill"
       fi
       ;;
@@ -477,20 +479,17 @@ disable_skill() {
 # stdout so the caller can report it accurately; per-skill confirmations
 # go to stderr so that count is the only thing captured with `$(...)`.
 enable_all_gstack() {
-  local entry name restored=0
+  local name restored=0
   [ -d "$DISABLED_DIR" ] || { echo 0; return 0; }
-  for entry in "$DISABLED_DIR"/gstack__*; do
-    [ -e "$entry" ] || continue
-    name="$(basename "$entry" | sed 's/^gstack__//')"
+  while IFS= read -r name; do
     if gstack_is_removed "$name"; then
       info "skipped (removed by policy, lib/gstack-removed.sh): $name" >&2
       continue
     fi
-    rm -rf "${SKILLS_DIR:?}/${name:?}"
-    mv "$entry" "$SKILLS_DIR/$name"
+    gstack_unpark "$SKILLS_DIR" "$DISABLED_DIR" "$name"
     ok "re-enabled: $name" >&2
     restored=$((restored + 1))
-  done
+  done < <(gstack_parked_names "$DISABLED_DIR")
   echo "$restored"
 }
 
@@ -504,7 +503,7 @@ disable_gstack_not_in() {
   while read -r name; do
     [ -n "$name" ] || continue
     grep -qx "$name" "$keep_file" || disable_skill "$name" gstack
-  done < <(gstack_skills | sort -u)
+  done < <(gstack_skills "$GSTACK_SRC" | sort -u)
   rm -f "$keep_file"
 }
 
@@ -572,29 +571,58 @@ cmd_list() {
   done
 }
 
+# Snapshot of a profile's entries, claude-free: "<cat><TAB><name>" lines,
+# canonical name. A plugin's marketplace (plugin@<mp>) collapses to the
+# category "plugin".
+_show_entries() {
+  local skill type cat
+  while IFS=$'\t' read -r skill type; do
+    case "$type" in plugin@*|plugin) cat=plugin ;; *) cat="$type" ;; esac
+    printf '%s\t%s\n' "$cat" "$skill"
+  done < <(read_profile "$1")
+}
+
+# --plain: parsable contract for the design gate. One "<type><TAB><name>"
+# per line, grouped by type, NO status, NO claude calls.
+_show_plain() {
+  local entries=() cat e line
+  while IFS= read -r line; do entries+=("$line"); done < <(_show_entries "$1")
+  for cat in gstack external personal plugin mcp cli; do
+    for e in "${entries[@]}"; do
+      [ "${e%%$'\t'*}" = "$cat" ] && printf '%s\t%s\n' "$cat" "${e#*$'\t'}"
+    done
+  done
+  return 0
+}
+
+# Grouped by type, fixed order; empty groups skipped. Canonical name +
+# runtime status (existing skill_status — degrades to disabled if no claude).
+_show_grouped() {
+  local entries=() cat e line names skill status
+  while IFS= read -r line; do entries+=("$line"); done < <(_show_entries "$1")
+  for cat in gstack external personal plugin mcp cli; do
+    names=()
+    for e in "${entries[@]}"; do
+      [ "${e%%$'\t'*}" = "$cat" ] && names+=("${e#*$'\t'}")
+    done
+    [ "${#names[@]}" -eq 0 ] && continue
+    printf '%s (%d):\n' "$cat" "${#names[@]}"
+    for skill in "${names[@]}"; do
+      status="$(skill_status "$skill" "$cat")"
+      printf '  %-24s %s\n' "$skill" "$status"
+    done
+  done
+  return 0
+}
+
 cmd_show() {
   local prof="$1" plain=0
   [ "${2:-}" = "--plain" ] && plain=1
   local file="$PROFILES_DIR/$prof.profile"
   [ -f "$file" ] || { err "Profile not found: $prof"; return 1; }
 
-  # Snapshot entries once (claude-free): "<cat><TAB><name>", canonical name.
-  # A plugin's marketplace (plugin@<mp>) collapses to category "plugin".
-  local entries=() skill type cat
-  while IFS=$'\t' read -r skill type; do
-    case "$type" in plugin@*|plugin) cat=plugin ;; *) cat="$type" ;; esac
-    entries+=("$cat"$'\t'"$skill")
-  done < <(read_profile "$prof")
-
-  # --plain: parsable contract for the design gate. One "<type><TAB><name>"
-  # per line, grouped by type, NO status, NO claude calls.
   if [ "$plain" -eq 1 ]; then
-    local e
-    for cat in gstack external personal plugin mcp cli; do
-      for e in "${entries[@]}"; do
-        [ "${e%%$'\t'*}" = "$cat" ] && printf '%s\t%s\n' "$cat" "${e#*$'\t'}"
-      done
-    done
+    _show_plain "$prof"
     return 0
   fi
 
@@ -611,21 +639,7 @@ cmd_show() {
   fi
   echo ""
 
-  # Grouped by type, fixed order; empty groups skipped. Canonical name +
-  # runtime status (existing skill_status — degrades to disabled if no claude).
-  local e names status
-  for cat in gstack external personal plugin mcp cli; do
-    names=()
-    for e in "${entries[@]}"; do
-      [ "${e%%$'\t'*}" = "$cat" ] && names+=("${e#*$'\t'}")
-    done
-    [ "${#names[@]}" -eq 0 ] && continue
-    printf '%s (%d):\n' "$cat" "${#names[@]}"
-    for skill in "${names[@]}"; do
-      status="$(skill_status "$skill" "$cat")"
-      printf '  %-24s %s\n' "$skill" "$status"
-    done
-  done
+  _show_grouped "$prof"
 }
 
 cmd_apply() {
