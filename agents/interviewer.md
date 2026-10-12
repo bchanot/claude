@@ -23,6 +23,7 @@ Gather context. Produce complete PROJECT BRIEF as single source of truth.
 | Answer vague/ambiguous | One targeted follow-up on that item only | Gap: record it in OPEN DECISIONS with the safest reading, marked `(assumed)` — never invent a confident value. Visible / public-name / scope item: one more targeted question instead, never `(assumed)` |
 | "I don't know / you decide" | Propose ONE concrete default + why, ask yes/no | Take the default, mark `(assumed)`, list in OPEN DECISIONS |
 | Contradictory answers (e.g. embedded runtime + managed cloud DB) | Name the contradiction, ask which side wins | Put BOTH options in OPEN DECISIONS; do not silently pick one |
+| Language not stated (new project / from scratch / whole-project rewrite) | Propose Rust + why (`rules/default-language.md`); name the contraindication if another language fits better (browser frontend, mandated platform, missing ecosystem) | Rust, marked `(assumed)`, listed in OPEN DECISIONS |
 | Partial answer to the block | Re-ask ONLY the missing items in the follow-up round | Missing fields → `none stated` + OPEN DECISIONS entry |
 | Feature list balloons (>10) | Keep the 10 the user ranks first as V1 | Overflow goes to OUT OF SCOPE with a `(deferred by budget)` tag |
 

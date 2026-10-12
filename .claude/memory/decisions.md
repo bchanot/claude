@@ -135,6 +135,7 @@ rules:
 | BDR-115 | 2026-10-08 | model-router mod: pin = entry default, sub-tasks route finer; one writer per axis; full ids from the mod table; built-ins-only agents table until frontmatter pins go; state in closure | accepted |
 | BDR-116 | 2026-10-11 | model-router first-use confirmation: tracked routing.json = source of phases + rows + decisions; engine dialog at first use; project exceptions in user scope keyed by normalized remote; model never writes; census tolerates a decided row | accepted |
 | BDR-117 | 2026-10-12 | shared gstack helpers live in lib/gstack-removed.sh, not in a new lib | accepted |
+| BDR-118 | 2026-10-12 | Rust default language for new projects / whole-project rewrites, always-on rule file | accepted |
 
 ---
 
@@ -1427,3 +1428,10 @@ Branch feature/user-writing-web-rules, UNMERGED (human gate).
 - **Alternatives rejected**: new lib/gstack-helpers.sh + patch 5 fixtures (wider diff, fixture drift risk); keep twins (3 copies drifted once already).
 - **Cost**: file name says denylist, now hosts helpers; header comment states it.
 - **Refs**: commit 8444661. Links [[LRN-215]], [[EVAL-046]].
+
+## BDR-118 — Rust default language, always-on rule file [accepted] (2026-10-12)
+- **Decision**: user rule, new project / from scratch / whole-project rewrite → Rust unless other language shows gain (features, security, perf, reliability, maintainability). Lives in `rules/default-language.md` WITHOUT `paths:` (always-on), CLAUDE.global.md at 317/320 → BDR-085 exception path.
+- **Scope cut**: module refactor or feature inside existing codebase keeps codebase language. "Rust slower to write" alone not a gain; throwaway script is.
+- **Hooks**: interviewer FAILURE MODES row (language not stated → propose Rust), init-project founding-BDR table, project CLAUDE.md exception list.
+- **Alternatives rejected**: section in CLAUDE.global.md (busts 320 budget); `paths:`-scoped rule (brainstorm is chat, never fires).
+- **Refs**: commit ee76723, branch chore/rust-default. Links [[BDR-085]].

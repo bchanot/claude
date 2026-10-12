@@ -19,7 +19,8 @@ start, same cost as the global memory. Extract from CLAUDE.global.md only
 what can be path-scoped (the token win) or what is generated; always-on
 doctrine stays in CLAUDE.global.md. Exception: a standalone user-authored
 rule set that would bust the 320-line density budget may live here WITHOUT
-`paths:` (always-on load) — writing-style.md (BDR-085). `paths:` globs match against the
+`paths:` (always-on load) — writing-style.md (BDR-085), default-language.md
+(BDR-118). `paths:` globs match against the
 CURRENT project's tree — a broad glob (e.g. `rules/**`) can fire in foreign
 projects; keep rule bodies tiny.
 Docs: https://code.claude.com/docs/en/memory.md#path-specific-rules
