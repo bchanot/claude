@@ -277,9 +277,9 @@ Capture ONLY structuring decisions, not scaffold detail:
 
 | Capitalize — founding (BDR)                                  | Skip — scaffold detail            |
 |--------------------------------------------------------------|-----------------------------------|
-| Stack / framework choice + why (Astro vs Next)               | directory names, scaffolded files |
+| Stack / language choice + why (Rust default, Astro vs Next)  | directory names, scaffolded files |
 | Architecture pattern, data-flow shape                        | dev-tooling / formatter config    |
-| Doctrinal exclusions (public site = no SPA, API /v1 day one) | which template files were copied  |
+| Doctrinal exclusions (Rust default, no SPA, API /v1 day one) | which template files were copied  |
 | Security defaults adopted; conventions binding future code   | anything reversible / obvious     |
 
 Source the candidates from: the PROJECT BRIEF (STEP 1), the DESIGN's resolved
