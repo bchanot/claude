@@ -610,3 +610,4 @@ rules:
 
 ## 2026-10-13
 - model-router /feat `downgradeMaxTokens` (user: switch on by default, classifier may switch model early, back up to fable on reflection). Plan r1 context-size cap → challenge: cap must measure COLD READ (LRN-204), bypass dropped, classifier down-only vs session model; confirmation pass FATAL(7), BLOCKER served-record-on-routed-steps-only → r3. feater DONE 450 tests, verifier CONFORME 10/10, security PASS, commit 2ce203a on feature/router-downgrade-cap. Doc-sync + BDR/LRN/EVAL pending.
+- Residuals /feat (user "fix les residus"): plan r1 → 3 lenses FATAL×2 (BLOCKER: `e.model===undefined && route===undefined` ≠ "inherits", frontmatter model invisible to the hook) → allowlist `INHERITING_AGENTS` + built-in source + below-session guard; estimate via shared `withEstimate`, raw served record; TTL enum lookup. Confirmation CONCERNS(3) → r3. feater DONE 472 tests, verifier CONFORME 7/7, security PASS, commit 1be57a3. Doc-sync + capitalize pending.
