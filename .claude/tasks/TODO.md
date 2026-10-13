@@ -1,5 +1,11 @@
 # TODO
 
+## 2026-10-13 — model-router: cold-read cap, switch on by default, classifier routes down (feature/router-downgrade-cap)
+Contract `.claude/tasks/contracts/2026-10-13-router-downgrade-cap-0013.md`, plan r3 `.claude/tasks/plans/2026-10-13-router-downgrade-cap-0013.md`.
+- [x] /feat run: 3 lenses (10 MAJOR) → r2; confirmation pass FATAL(7) (BLOCKER: served record only on routed steps) → r3; feater DONE (19 tests + 3 extra, 450 pass), GATE 0 MET 4/4, verifier CONFORME 10/10 first pass, security PASS. Commit 2ce203a.
+- [ ] Residuals (accepted, from the challenge): (1) unrowed sub-agent with no explicit model spawned during a demoted turn may inherit the demoted `parentModel` (robustness #10): all repo agents rowed, built-ins carry `model=`; settle with a spawn test if a built-in ever drops its pin. (2) `session.usage().context.tokens` may lag the new prompt (robustness #11): a big paste can slip under the cap; economic guard, not a hard limit. (3) `CACHE_TTL_MS` = 60 min is this account's TTL assumed as a const; the engine's `PostModelSwitch.cache_ttl` field suggests it varies — adopt it when observed. (4) Observed during the run: `route` tool answered "model session model (model unknown to the table)" after settings.json `model` turned to `opus` (written by another session) — check `/route show` in a fresh session.
+- [ ] Live check (next sessions): a coding prompt on fable → spinner `sonnet-5-5/medium`; a reflect turn after → fable; above 120k cold read the skip line once; `/route show` cap text.
+
 ## 2026-10-12 — code-clean whole repo (chore/code-clean)
 - [x] audit r1→r3 (3 lenses + confirmation), user approved all 14 non-deferred items, code-cleaner DONE, make test 47 green — plan `.claude/tasks/plans/2026-10-12-code-clean-0103.md`, scope `.claude/audits/CODE-CLEAN-SCOPE.md`
 - [x] fix BUGS-FOUND: toggle-external.sh usage() prints header 3-26, list ends at 32
