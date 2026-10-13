@@ -56,6 +56,12 @@ type Loop = {
   last?: Plan // the plan this loop last ran, once it was told
   cause?: string // who set the effort in force, for the log lines
 }
+/** A submitted prompt's size where `session.usage` may not count it yet. */
+type Estimate = {
+  tokens: number
+  usage: number | undefined // context size read when the first entry came
+  unknown: boolean // carries a non-text item: the size cannot be guessed
+}
 type State = {
   cfg: Config
   rules: Rule[]
@@ -101,6 +107,9 @@ type State = {
   turnEngine: NonNullable<Effort> | null // same, for this turn
   served: Map<string, Served> // canonical id -> main's last step on it
   capSaid: boolean // the downgrade skip was logged for this cap crossing
+  cacheTtlMs: number // the prompt-cache TTL a cold read is measured against
+  promptEstimate: Estimate | null // the submitted prompt, not in usage yet
+  pendingEstimate: Estimate | null // same, typed mid-turn: next turn's
   classifyFails: number // classifier failures in a row
   classifyUntil: number // classifier paused until (ms); 0 = running
   asking: string | null // key of the one first-use dialog in flight
@@ -111,6 +120,8 @@ type Log = (text: string) => void
 type StepIn = Readonly<TurnStepInput>
 type PromptIn = {
   text: string
+  attachments?: readonly { type: string }[]
+  context?: readonly string[]
   turnId?: string
   origin: { kind: string }
 }
@@ -155,6 +166,11 @@ const TYPED_ORIGINS: ReadonlySet<string> = new Set([
 const PROJECT_SOURCES: ReadonlySet<string> = new Set([
   'projectSettings', 'localSettings',
 ])
+// Built-in agent types with no frontmatter model: an undefined `model` makes
+// them inherit the spawning loop's model.
+// shortcut: the frontmatter model of other types is invisible to the hook;
+// widen the set when the engine exposes it on agent.offer.
+const INHERITING_AGENTS: ReadonlySet<string> = new Set(['general-purpose'])
 // PostModelSwitch sources a person chose (auto and resume are not).
 const USER_SWITCH: ReadonlySet<string> = new Set([
   'command', 'picker', 'sdk',
@@ -219,9 +235,16 @@ const CLASSIFY_MAX = 2000 // code points sent whole; longer: head + tail
 const CLASSIFY_HEAD = 500
 const CLASSIFY_TAIL = 1500
 const CLASSIFY_FAILS = 3 // failures in a row that pause the classifier
-// The account's prompt-cache TTL (1 h here; an engine-reported `cache_ttl`
-// would supersede it, TODO): a model that served main within it is warm.
+// The account's prompt-cache TTL: a model that served main within it is
+// warm. 1 h default; replaced by the engine's `cache_ttl` at the first
+// model-switch event.
 const CACHE_TTL_MS = 60 * 60000
+// The engine's two `cache_ttl` values (a closed enum), in ms.
+const CACHE_TTLS: Readonly<Record<string, number>> = {
+  '5m': 5 * 60000,
+  '1h': 60 * 60000,
+}
+const ESTIMATE_DIVISOR = 3 // code points per token, conservative
 const TIMEOUT: unique symbol = Symbol('classify timeout')
 
 const DEFAULT_CONFIG: Config = {
@@ -959,6 +982,9 @@ function newState(cfg: Config, source: string): State {
     turnEngine: null,
     served: new Map(),
     capSaid: false,
+    cacheTtlMs: CACHE_TTL_MS,
+    promptEstimate: null,
+    pendingEstimate: null,
     classifyFails: 0,
     classifyUntil: 0,
     asking: null,
@@ -988,6 +1014,7 @@ function resetSession(st: State): void {
     loaded: st.loaded,
     toggles: st.toggles,
     engineBase: st.engineBase,
+    cacheTtlMs: st.cacheTtlMs,
     classifyFails: st.classifyFails,
     classifyUntil: st.classifyUntil,
     asking: st.asking,
@@ -1185,7 +1212,7 @@ function coldRead(
 ): number {
   const key = canonical(st.cfg, id)
   const hit = st.served.get(key)
-  if (hit === undefined || now - hit.at > CACHE_TTL_MS) return tokens
+  if (hit === undefined || now - hit.at > st.cacheTtlMs) return tokens
   if (tokens < hit.tokens) {
     st.served.delete(key)
     return tokens
@@ -1366,6 +1393,60 @@ async function readTokens($: Api): Promise<number | undefined> {
   }
 }
 
+/**
+ * The context size a cap reads: `raw` plus the pending prompt's estimate,
+ * unless usage already grew by half of it (the prompt was counted). Pure:
+ * the step and every text read the same figure. Unknown = blocked.
+ */
+function withEstimate(st: State, raw: number | undefined) {
+  const est = st.promptEstimate
+  if (raw === undefined || est === null) return raw
+  if (est.unknown) return undefined
+  const counted = est.usage !== undefined &&
+    raw - est.usage >= est.tokens / 2
+  return counted ? raw : raw + est.tokens
+}
+
+/** Sums an entry into a pending estimate; the first baseline is kept. */
+function sumEstimate(
+  cur: Estimate | null,
+  tokens: number,
+  usage: number | undefined,
+  unknown: boolean,
+): Estimate {
+  return {
+    tokens: (cur?.tokens ?? 0) + tokens,
+    usage: cur === null ? usage : cur.usage,
+    unknown: (cur?.unknown ?? false) || unknown,
+  }
+}
+
+/**
+ * Adds a submitted text (and a flag for a non-text item) to the pending
+ * estimate. A mid-turn entry waits for the next turn, where its baseline is
+ * reset; the first entry of a turn reads the usage as its baseline.
+ */
+async function addEstimate(
+  $: Api,
+  st: State,
+  size: { points: number; unknown: boolean },
+  midTurn: boolean,
+): Promise<void> {
+  const tokens = Math.ceil(size.points / ESTIMATE_DIVISOR)
+  if (midTurn) {
+    st.pendingEstimate = sumEstimate(
+      st.pendingEstimate, tokens, undefined, size.unknown)
+    return
+  }
+  const usage = st.promptEstimate === null ? await readTokens($) : undefined
+  st.promptEstimate = sumEstimate(
+    st.promptEstimate, tokens, usage, size.unknown)
+}
+
+/** Code points of a text, as the estimate counts them. */
+const pointsOf = (texts: readonly string[]): number =>
+  texts.reduce((n, t) => n + Array.from(t).length, 0)
+
 type Verdict = { call: Call; wanted: string | undefined }
 
 /**
@@ -1392,7 +1473,8 @@ async function readingFor(
   const needs = wanted !== undefined || st.down.size > 0 ||
     st.turnModel !== undefined
   if (!needs) return { tokens: undefined, now: 0 }
-  return { tokens: await readTokens($), now: await $.clock.now() }
+  const raw = await readTokens($)
+  return { tokens: withEstimate(st, raw), now: await $.clock.now() }
 }
 
 /**
@@ -1602,8 +1684,9 @@ async function snapshot($: Api, st: State) {
 }
 
 /** The downgrade switch and, when on, the cold read it is capped at. */
-const switchWord = (c: Config): string => c.mainModelSwitch
-  ? `on (downgrade, cap ${c.downgradeMaxTokens} tokens cold)`
+const switchWord = (st: State): string => st.cfg.mainModelSwitch
+  ? `on (downgrade, cap ${st.cfg.downgradeMaxTokens} tokens cold, ttl ${
+    Math.round(st.cacheTtlMs / 60000)} min)`
   : 'off (downgrade)'
 
 async function show($: Api, st: State): Promise<string> {
@@ -1612,7 +1695,7 @@ async function show($: Api, st: State): Promise<string> {
   const s = await snapshot($, st)
   return [
     mainText(st, s),
-    `router: ${routerWord(st)} · switch: ${switchWord(c)} · upgrade: ${
+    `router: ${routerWord(st)} · switch: ${switchWord(st)} · upgrade: ${
       flag(c.mainUpgrade)} · verbose: ${
         flag(c.verbose)} · classify: ${flag(c.classify)} · spinner: ${
         flag(c.spinner)}`,
@@ -2837,23 +2920,28 @@ function typedPath(st: State, skill: string): TypedPath | undefined {
   return st.promptAllowed && idle ? 'typed-fallback' : undefined
 }
 
-/** Routes main by the typed skill's row; the row, for the first-use ask. */
-function armTypedSkill($: Api, st: State, skill: string) {
+type Armed = { row: Picked | undefined; typed: boolean }
+
+/**
+ * Routes main by the typed skill's row; the row, for the first-use ask, and
+ * whether the user typed the skill (rowed or not: its body is theirs).
+ */
+function armTypedSkill($: Api, st: State, skill: string): Armed {
   const row = skillRow(st, skill)
-  const path = typedPath(st, skill)
-  if (row === undefined || path === undefined) return undefined
+  const typed = typedPath(st, skill) !== undefined
+  if (row === undefined || !typed) return { row: undefined, typed }
   routeMainBySkill(st, skill, row, true)
   refresh($, st)
-  return row
+  return { row, typed }
 }
 
 /** Bookkeeping that may fail without breaking the hook: fail-open. */
-function armed($: Api, st: State, skill: string): Picked | undefined {
+function armed($: Api, st: State, skill: string): Armed {
   try {
     return armTypedSkill($, st, skill)
   } catch {
     warnOnce(st, $, 'skill.prompt', 'bookkeeping')
-    return undefined
+    return { row: undefined, typed: false }
   }
 }
 
@@ -2913,9 +3001,31 @@ function inTier($: Api, st: State, agent: string, tier: string) {
   return undefined
 }
 
+/**
+ * A built-in inheriting type spawned by main while main sits below the
+ * session model (a demotion or a breaker fallback) would inherit that lower
+ * model: it starts on the session model instead. Forks and workflows are
+ * frozen, a nested spawn inherits an agent's model, never main's, and a
+ * shadowing project or user definition may carry its own frontmatter model.
+ */
+function sessionPin(st: State, e: SpawnIn): string | undefined {
+  const turn = st.turnModel
+  const inherits = INHERITING_AGENTS.has(e.subagentType) &&
+    st.offers.get(e.subagentType) === 'built-in'
+  const main = !e.fork && e.workflow === undefined &&
+    e.parentAgentId === undefined
+  if (turn === undefined || st.sessionModel === '' || !inherits || !main) {
+    return undefined
+  }
+  const session = canonical(st.cfg, st.sessionModel)
+  const demoted = ranksAbove(st, session, canonical(st.cfg, turn))
+  return demoted && !st.down.has(session) ? st.sessionModel : undefined
+}
+
 /** The model a spawn is rewritten to; an explicit `model` param wins. */
 function spawnTarget($: Api, st: State, e: SpawnIn, route: Route | undefined) {
-  if (e.model !== undefined || route === undefined) return undefined
+  if (e.model !== undefined) return undefined
+  if (route === undefined) return sessionPin(st, e)
   if (route.tier === undefined) return resolveRoute(st, route)
   return inTier($, st, e.subagentType, route.tier)
 }
@@ -3145,6 +3255,7 @@ type Handoff = { to: Plan; modelCause: string; effortCause: string }
 function spawnModelCause(st: State, sp: Spawned): string {
   const { e, route, wanted } = sp
   if (e.model !== undefined) return 'explicit'
+  if (route === undefined && wanted !== undefined) return 'session'
   if (route === undefined || wanted === undefined) return 'frontmatter'
   const head = headAlias(st.cfg, route)
   const lead = head === undefined ? undefined : st.cfg.models[head]
@@ -3161,7 +3272,9 @@ function handoffOf(
   given: Level | undefined,
 ): Handoff | undefined {
   const { e, route, started } = sp
-  if (route === undefined && e.model === undefined && given === undefined) {
+  const pinned = sp.wanted !== undefined
+  if (route === undefined && e.model === undefined && given === undefined &&
+    !pinned) {
     return undefined
   }
   const effort = isHaiku(st.cfg, started.model)
@@ -3248,11 +3361,15 @@ async function mainPlan($: Api, st: State, e: StepIn): Promise<Step> {
   const { effort, by } = mainEffort(st, e.effort)
   await prune($, st)
   const cur = st.turnModel ?? e.model
-  const read = { tokens: await readTokens($), now: await $.clock.now() }
-  const { call } = await decideFor($, st, cur, read)
+  const raw = await readTokens($)
+  const now = await $.clock.now()
+  const { call } = await decideFor(
+    $, st, cur, { tokens: withEstimate(st, raw), now })
   logCall($, st, capLogged(st, call))
   if (call.moved) st.turnModel = call.model
-  noteServed(st, { model: call.model, effort }, read)
+  // the record stays raw: an estimate in it would trip the compaction path
+  noteServed(st, { model: call.model, effort }, { tokens: raw, now })
+  st.promptEstimate = null // consumed by the turn's first main step
   return { plan: { model: call.model, effort }, why: { by, call, cur } }
 }
 
@@ -3278,7 +3395,21 @@ function noteMain($: Api, st: State, plan: Plan): void {
   safely(st, $, 'turn.step status', () => refresh($, st))
 }
 
+/**
+ * An estimate no step consumed, and one typed mid-turn, carry to the next
+ * turn with their baseline reset: added at its first step, never dropped.
+ */
+function carryEstimate(st: State): void {
+  const left = [st.promptEstimate, st.pendingEstimate]
+    .filter((x): x is Estimate => x !== null)
+  const sum = left.reduce<Estimate | null>(
+    (acc, x) => sumEstimate(acc, x.tokens, undefined, x.unknown), null)
+  st.promptEstimate = sum
+  st.pendingEstimate = null
+}
+
 function endMainTurn($: Api, st: State): void {
+  carryEstimate(st)
   st.turnFloor = st.pendingPrompt
   st.pendingPrompt = null
   st.turnMain = null
@@ -3327,7 +3458,13 @@ type SwitchIn = {
   to_model: string
   requested_model: string | null
   source: string
+  cache_ttl?: unknown
+  agent_id?: unknown // set when a sub-agent's model switched
 }
+
+/** The engine's `cache_ttl` in ms, or undefined for any other value. */
+const ttlOf = (v: unknown): number | undefined =>
+  typeof v === 'string' && hasKey(CACHE_TTLS, v) ? CACHE_TTLS[v] : undefined
 
 /**
  * The engine switched the model by itself. The model it left is marked, one
@@ -3347,9 +3484,15 @@ async function onAutoSwitch($: Api, st: State, e: SwitchIn): Promise<void> {
   markDown($, st, target, 'engine fallback', await $.clock.now())
 }
 
-/** Any model change: keeps `sessionModel`; a user choice clears its mark. */
+/**
+ * Any model change: keeps `sessionModel` and the cache TTL (main's own
+ * switches only); a user choice clears its mark.
+ */
 async function onModelSwitch($: Api, st: State, e: SwitchIn): Promise<void> {
-  st.sessionModel = e.to_model
+  if (e.agent_id === undefined) {
+    st.sessionModel = e.to_model
+    st.cacheTtlMs = ttlOf(e.cache_ttl) ?? st.cacheTtlMs
+  }
   if (USER_SWITCH.has(e.source)) st.runMain = null
   if (st.off || e.source === 'resume') return
   if (e.source === 'auto') await onAutoSwitch($, st, e)
@@ -3462,7 +3605,11 @@ function registerSkills(on: On, st: State): void {
   on('skill.prompt', async ($, e, next) => {
     await ensureConfig($, st)
     if (st.off || st.skillCalls > 0) return next(e)
-    const row = armed($, st, e.skill)
+    const { row, typed } = armed($, st, e.skill)
+    if (typed) {
+      const size = { points: pointsOf([e.text]), unknown: false }
+      await addEstimate($, st, size, false)
+    }
     if (row) await confirmSkill($, st, e.skill, row)
     return next(e)
   }).catch(($, e, next) => {
@@ -3755,12 +3902,21 @@ async function classifyPrompt(
   if (routeFromLabel(st, label)) refresh($, st)
 }
 
+/** What a prompt adds to the context: its text, context blocks, items. */
+function promptSize(e: PromptIn): { points: number; unknown: boolean } {
+  return {
+    points: pointsOf([e.text, ...(e.context ?? [])]),
+    unknown: (e.attachments ?? []).some(a => a.type === 'document'),
+  }
+}
+
 function registerPrompt(on: On, st: State): void {
   on('prompt.submit', async ($, e, next) => {
     await ensureConfig($, st, true)
     if (st.off) return next(e)
     const midTurn = e.turnId !== undefined
     noteTyped(st, e.origin.kind, e.text, midTurn)
+    await addEstimate($, st, promptSize(e), midTurn)
     if (e.origin.kind === 'composer') routeFromPrompt(st, e.text, midTurn)
     refresh($, st)
     await classifyPrompt($, st, e, next.signal)
