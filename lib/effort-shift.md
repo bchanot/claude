@@ -47,8 +47,12 @@ Builtin `/effort` is NOT a lever inside a run: rows and routes outrank it.
 - A skill typed while a background agent is live routes only through the
   typed marker (unverified live 2026-10-10).
 - Headless (`-p`, SDK) runs the hooks, so routing works there too.
-- A plain typed prompt with no route in force gets its turn effort from a
-  small-model classifier (effort only; `/route classify off`; never `-p`).
+- A plain typed prompt with no route in force is classified by a small
+  model: the guessed phase sets the turn's effort and, under
+  `mainModelSwitch` and `downgradeMaxTokens` (max cold read, default
+  120000), may move main DOWN, never up. A user `/model` only moves the
+  baseline the guess starts from (`/route classify off` to stop guessing;
+  never `-p`).
 - Mod off: typed agents fall back to their `model:`/`effort:` frontmatter.
 - First use of a row asks once, with context (Later, Keep or Change: model,
   then effort, then Everywhere or this project only); the answer is kept in

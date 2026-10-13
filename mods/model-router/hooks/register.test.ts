@@ -307,6 +307,7 @@ test('ultrathink in a prompt sets a max floor on main', async ($, on) => {
 test('/route model: alias resolved, id passed, typo refused', async (
   $, on) => {
   await boot($, on)
+  await route($, 'switch off')
   const alias = await route($, 'model=sonnet')
   expect(mainLine(alias)).toContain('asked claude-sonnet-5-5, keeps ')
   const id = await route($, 'model=claude-x-9')
@@ -606,11 +607,11 @@ test('reload with an unreadable override keeps the previous config', async (
   $, on) => {
   const world = newWorld({ home: {} })
   await boot($, on, FABLE, 1000, world)
-  await route($, 'switch on')
+  await route($, 'switch off')
   world.files.set(HOME_FILE, '{nope')
   const out = await route($, 'reload')
-  expect(out).toContain('switch: on')
-  expect(await route($, 'show')).toContain('switch: on')
+  expect(out).toContain('switch: off')
+  expect(await route($, 'show')).toContain('switch: off')
 })
 
 // ---- tiers, breaker, derived phases -------------------------------------
@@ -666,6 +667,8 @@ const switchTo = (
   from: string,
   to: string,
   source: 'command' | 'auto',
+  cache_ttl: '5m' | '1h' = '5m',
+  agent_id?: string,
 ) => $.classic.PostModelSwitch({
   from_model: from,
   to_model: to,
@@ -673,7 +676,8 @@ const switchTo = (
   source,
   context_tokens: 0,
   prompt_cache_warm: false,
-  cache_ttl: '5m',
+  cache_ttl,
+  ...(agent_id === undefined ? {} : { agent_id }),
   estimated_cache_write_usd: 0,
   pricing: 'catalog',
 })
@@ -681,8 +685,9 @@ const switchTo = (
 const planRoute = ($: Engine) =>
   $.tool.call({ tool: ROUTE_TOOL, phase: 'plan' })
 
-/** A bottom `session.usage` answering a context of `tokens`. */
-function usageOf(on: On, tokens: number): void {
+/** One bottom `session.usage` over a count `set` changes (never a second). */
+function usageVar(on: On, initial: number): { set: (n: number) => void } {
+  let tokens = initial
   on('session.usage', () => ({
     value: {
       startedAt: 0,
@@ -690,6 +695,24 @@ function usageOf(on: On, tokens: number): void {
       rateLimits: [],
     },
   }))
+  return { set: n => { tokens = n } }
+}
+
+/** A bottom `session.usage` answering a context of `tokens`. */
+function usageOf(on: On, tokens: number): void {
+  usageVar(on, tokens)
+}
+
+/** bootRig with a context size the test changes through `usage.set`. */
+async function bootRigVar(
+  $: Engine,
+  on: On,
+  model: string = FABLE,
+  tokens = 1000,
+  world: World = newWorld(),
+) {
+  const usage = usageVar(on, tokens)
+  return { rig: await bootRig($, on, model, null, world), usage }
 }
 
 test('tier: a plan route upgrades a haiku session to fable xhigh', async (
@@ -747,14 +770,14 @@ test('breaker: model_not_found on a non-table id marks nothing', async (
 test('downgrade: mechanical on fable keeps the model, switch off', async (
   $, on) => {
   const rig = await bootRig($, on)
+  await route($, 'switch off')
   await $.tool.call({ tool: ROUTE_TOOL, phase: 'mechanical' })
   expect(await stepOn($, rig, FABLE)).toEqual({ model: FABLE, effort: 'low' })
 })
 
-test('downgrade: the switch on moves main to the cheap tier', async (
+test('cap: a downgrade under the cold-read cap moves main', async (
   $, on) => {
   const rig = await bootRig($, on)
-  await route($, 'switch on')
   await $.tool.call({ tool: ROUTE_TOOL, phase: 'mechanical' })
   const sent = await stepOn($, rig, FABLE)
   expect(sent.model).toBe(HAIKU)
@@ -954,6 +977,7 @@ test('text: show names the session model after the turn ended', async (
 
 test('text: show reflects a /model command to opus', async ($, on) => {
   const rig = await bootRig($, on)
+  await route($, 'switch off')
   await stepOn($, rig, FABLE)
   await switchTo($, FABLE, OPUS, 'command')
   await route($, 'mechanical')
@@ -999,11 +1023,12 @@ async function bootRun(
   on: On,
   model: string = FABLE,
   world: World = newWorld(),
+  tokens: number | null = 1000,
 ) {
   on('tool.call', { tool: 'Skill' }, () => ({
     result: { success: true, commandName: 'bottom' },
   }))
-  return bootRig($, on, model, 1000, world)
+  return bootRig($, on, model, tokens, world)
 }
 
 const spawnOf = (agent: string, extra: object = {}) =>
@@ -1127,11 +1152,13 @@ test('run slot: survives route calls and the turn end', async ($, on) => {
   expect(mainLine(await route($, 'show'))).toContain('run reflect')
 })
 
-test('run slot: a model-loaded helper skill keeps it', async ($, on) => {
-  await bootRun($, on)
+test('run slot: a model-loaded helper skill moves effort only', async (
+  $, on) => {
+  const rig = await bootRun($, on)
   await loadSkill($, 'feat')
   await loadSkill($, 'using-git-worktrees')
   expect(mainLine(await route($, 'show'))).toContain('skill mechanical')
+  expect(await stepOn($, rig, FABLE)).toEqual({ model: FABLE, effort: 'low' })
   await endTurn($)
   expect(mainLine(await route($, 'show'))).toContain('run reflect')
 })
@@ -1664,10 +1691,10 @@ test('layers: routing.json missing at start logs once, no rows', async (
 
 test('layers: session toggles survive a rebuild', async ($, on) => {
   await bootRun($, on)
-  await route($, 'switch on')
+  await route($, 'switch off')
   await route($, 'verbose on')
   const out = await route($, 'reload')
-  expect(out).toContain('switch: on')
+  expect(out).toContain('switch: off')
   expect(out).toContain('verbose: on')
 })
 
@@ -2936,6 +2963,7 @@ test('change: a downgrade names the real route and the switch', async (
   const toasts = recordToasts(on)
   const w = asks([...TO_IMPLEMENT, 'Everywhere'])
   await bootRun($, on, FABLE, w)
+  await route($, 'switch off')
   await typeFeat($)
   expect((routingOf(w).skills as Rec).feat).toBe('implement')
   expect(toasts).toContain('/feat now runs claude-fable-5-1 at medium, ' +
@@ -3692,7 +3720,6 @@ test('logs: an upgrade rides on the same line', async ($, on) => {
 
 test('logs: a downgrade is a switch', async ($, on) => {
   const { logs } = await bootLogged($, on)
-  await route($, 'switch on')
   await route($, 'mechanical')
   await runStep($, highStep())
   expect(logs).toEqual([
@@ -4431,6 +4458,7 @@ type ClsOpts = {
   model?: string
   world?: World
   verbose?: boolean
+  tokens?: number // context size the usage hook answers (default 1000)
 }
 
 const PLAIN = 'refactor the billing module please'
@@ -4473,7 +4501,7 @@ async function bootCls($: Engine, on: On, o: ClsOpts = {}): Promise<Cls> {
     return { value: await (o.reply ?? (() => 'coding'))(asks.length) }
   })
   const world = o.world ?? newWorld()
-  const clock = await boot($, on, o.model ?? FABLE, 1000, world)
+  const clock = await boot($, on, o.model ?? FABLE, o.tokens ?? 1000, world)
   if (o.verbose) await route($, 'verbose on')
   logs.splice(0)
   return { asks, seen, clock, logs, toasts, status, world }
@@ -4565,7 +4593,7 @@ test('classify: an unknown label neither warns nor counts', async ($, on) => {
   expect(c.logs).toEqual([])
 })
 
-test('classify: the main model never moves for a design guess', async (
+test('classify: a design guess never moves a sonnet session up', async (
   $, on) => {
   const c = await bootCls($, on, { model: SONNET, reply: () => 'design' })
   await typed($, PLAIN)
@@ -4573,12 +4601,12 @@ test('classify: the main model never moves for a design guess', async (
   expect(c.seen[c.seen.length - 1]).toEqual({ model: SONNET, effort: 'xhigh' })
 })
 
-test('classify: the route carries no tier', async ($, on) => {
+test('classify: the route carries the tier', async ($, on) => {
   const c = await bootCls($, on, { reply: () => 'design' })
   await typed($, PLAIN)
   const line = mainLine(await route($, 'show'))
   expect(line).toContain('classifier plan')
-  expect(line).not.toContain('[tier')
+  expect(line).toContain('[tier best]')
   expect(c.asks).toHaveLength(1)
 })
 
@@ -4609,6 +4637,7 @@ test('classify: a user /effort change beats the guessed effort', async (
   $, on) => {
   const c = await bootCls($, on, { reply: () => 'design' })
   await runStep($, highStep())
+  await endTurn($)
   await typed($, PLAIN)
   await runStep($, { ...highStep(), effort: 'low' as const })
   expect(c.seen[c.seen.length - 1]?.effort).toBe('low')
@@ -4617,6 +4646,7 @@ test('classify: a user /effort change beats the guessed effort', async (
 test('classify: the baseline survives /clear', async ($, on) => {
   const c = await bootCls($, on, { reply: () => 'design' })
   await runStep($, highStep())
+  await endTurn($)
   await clearSession($)
   await typed($, PLAIN)
   await runStep($, { ...highStep(), effort: 'low' as const })
@@ -4789,6 +4819,7 @@ test('classify guard: a route landing during the call wins', async (
   const c = await bootCls($, on, {
     reply: async () => { await gate; return 'design' },
   })
+  await route($, 'switch off')
   const pending = typed($, PLAIN)
   await c.clock.settle()
   await $.tool.call({ tool: ROUTE_TOOL, phase: 'mechanical' })
@@ -5030,4 +5061,431 @@ test('classify: /route advertises classify on|off in its hint', async (
   })
   await bootCls($, on)
   expect(hints.join('\n')).toContain('classify on|off')
+})
+
+// ---- downgrade cap: the cold read -------------------------------------------
+
+const logsWith = (logs: string[], text: string): number =>
+  logs.filter(l => l.includes(text)).length
+
+const SKIP = 'downgrade skipped'
+
+test('cap: a downgrade above the cold-read cap keeps main', async ($, on) => {
+  const logs = recordLogs(on)
+  const rig = await bootRig($, on, FABLE, 300000)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'mechanical' })
+  expect(await stepOn($, rig, FABLE)).toEqual({ model: FABLE, effort: 'low' })
+  await stepOn($, rig, FABLE)
+  expect(logsWith(logs, `${SKIP}: cold read 300000 tokens over 120000`))
+    .toBe(1)
+})
+
+test('cap: unknown usage blocks the downgrade', async ($, on) => {
+  const logs = recordLogs(on)
+  const rig = await bootRig($, on, FABLE, null)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'mechanical' })
+  expect((await stepOn($, rig, FABLE)).model).toBe(FABLE)
+  expect(logsWith(logs, `${SKIP}: context size unknown`)).toBe(1)
+})
+
+test('cap: a user downgradeMaxTokens overrides the default', async (
+  $, on) => {
+  const world = newWorld({ home: { downgradeMaxTokens: 500 } })
+  const rig = await bootRig($, on, FABLE, 1000, world)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'mechanical' })
+  expect((await stepOn($, rig, FABLE)).model).toBe(FABLE)
+})
+
+/** Routes `phase` and steps once on FABLE; the model that was sent. */
+async function routedStep($: Engine, rig: Rig, phase: string) {
+  await $.tool.call({ tool: ROUTE_TOOL, phase })
+  return (await stepOn($, rig, FABLE)).model
+}
+
+test('cap: a warm model is cheap to return to, a cold one is capped', async (
+  $, on) => {
+  const logs = recordLogs(on)
+  const { rig, usage } = await bootRigVar($, on, FABLE, 100000)
+  expect(await routedStep($, rig, 'implement')).toBe(SONNET)
+  await endTurn($)
+  expect((await stepOn($, rig, FABLE)).model).toBe(FABLE)
+  await endTurn($)
+  usage.set(210000)
+  expect(await routedStep($, rig, 'implement')).toBe(SONNET)
+  await endTurn($)
+  // control: opus never served, the same context is a cold read of 210000
+  expect(await routedStep($, rig, 'judge')).toBe(FABLE)
+  expect(logsWith(logs, `${SKIP}: cold read 210000 tokens over 120000`))
+    .toBe(1)
+})
+
+test('cap: the served record expires after the TTL', async ($, on) => {
+  const { rig, usage } = await bootRigVar($, on, FABLE, 100000)
+  await routedStep($, rig, 'implement')
+  await endTurn($)
+  await stepOn($, rig, FABLE)
+  await endTurn($)
+  usage.set(210000)
+  await rig.clock.advance(61 * 60000)
+  expect(await routedStep($, rig, 'implement')).toBe(FABLE)
+})
+
+test('cap: /route reload forgets the served record', async ($, on) => {
+  const { rig, usage } = await bootRigVar($, on, FABLE, 100000)
+  await routedStep($, rig, 'implement')
+  await endTurn($)
+  await stepOn($, rig, FABLE)
+  await endTurn($)
+  usage.set(210000)
+  await route($, 'reload')
+  expect(await routedStep($, rig, 'implement')).toBe(FABLE)
+})
+
+test('cap: the skip line is said once until a downgrade succeeds', async (
+  $, on) => {
+  const logs = recordLogs(on)
+  const { rig, usage } = await bootRigVar($, on, FABLE, 300000)
+  for (let turn = 0; turn < 2; turn++) {
+    await routedStep($, rig, 'mechanical')
+    await endTurn($)
+  }
+  expect(logsWith(logs, SKIP)).toBe(1)
+  usage.set(1000)
+  expect(await routedStep($, rig, 'mechanical')).toBe(HAIKU)
+  await endTurn($)
+  usage.set(300000)
+  expect(await routedStep($, rig, 'mechanical')).toBe(FABLE)
+  expect(logsWith(logs, SKIP)).toBe(2)
+})
+
+test('cap: a smaller context than the record is cold', async ($, on) => {
+  const world = newWorld({ home: { downgradeMaxTokens: 40000 } })
+  const { rig, usage } = await bootRigVar($, on, SONNET, 100000, world)
+  await stepOn($, rig, SONNET)
+  await endTurn($)
+  await switchTo($, SONNET, FABLE, 'command')
+  usage.set(50000)
+  expect(await routedStep($, rig, 'implement')).toBe(FABLE)
+})
+
+test('window: haiku outgrown returns main to the session model', async (
+  $, on) => {
+  const logs = recordLogs(on)
+  const { rig, usage } = await bootRigVar($, on, FABLE, 1000)
+  expect(await routedStep($, rig, 'mechanical')).toBe(HAIKU)
+  usage.set(250000)
+  expect((await stepOn($, rig, FABLE)).model).toBe(FABLE)
+  await stepOn($, rig, FABLE)
+  expect(logsWith(logs, 'context outgrew')).toBe(1)
+})
+
+test('config: a quoted "false" mainModelSwitch reads as off with a warning',
+  async ($, on) => {
+    const logs = recordLogs(on)
+    const world = newWorld({ home: { mainModelSwitch: 'false' } })
+    await boot($, on, FABLE, 1000, world)
+    expect(await route($, 'show')).toContain('switch: off (downgrade)')
+    expect(logsWith(logs, 'mainModelSwitch" is not a boolean')).toBe(1)
+  })
+
+test('text: show names the switch and its cap', async ($, on) => {
+  await boot($, on)
+  expect(await route($, 'show')).toContain(
+    'switch: on (downgrade, cap 120000 tokens cold, ttl 60 min)')
+})
+
+test('status: the switch shows only when off', async ($, on) => {
+  const c = await bootCls($, on)
+  await route($, 'classify off')
+  expect(c.status[c.status.length - 1]).not.toContain('switch')
+  await route($, 'switch off')
+  expect(c.status[c.status.length - 1]).toContain(' · switch off')
+})
+
+test('toast: a downgrade held by the cap says so', async ($, on) => {
+  const toasts = recordToasts(on)
+  const w = asks([...TO_IMPLEMENT, 'Everywhere'])
+  await bootRun($, on, FABLE, w, 300000)
+  await typeFeat($)
+  expect(toasts).toContain('/feat now runs claude-fable-5-1 at medium, ' +
+    `held: ${SKIP}: cold read 300007 tokens over 120000`)
+})
+
+// ---- downgrade cap: the classifier's model axis ---------------------------
+
+const lastSeen = (c: Cls): Seen | undefined => c.seen[c.seen.length - 1]
+
+test('classify: coding moves main to sonnet medium under the cap', async (
+  $, on) => {
+  const c = await bootCls($, on)
+  await typed($, PLAIN)
+  await runStep($, highStep())
+  expect(lastSeen(c)).toEqual({ model: SONNET, effort: 'medium' })
+})
+
+test('classify: coding above the cap keeps fable at medium', async (
+  $, on) => {
+  const c = await bootCls($, on, { tokens: 300000 })
+  await typed($, PLAIN)
+  await runStep($, highStep())
+  expect(lastSeen(c)).toEqual({ model: FABLE, effort: 'medium' })
+})
+
+test('classify: a user /effort drops the model guess too', async ($, on) => {
+  const c = await bootCls($, on)
+  await runStep($, highStep())
+  await endTurn($)
+  await typed($, PLAIN)
+  await runStep($, { ...highStep(), effort: 'low' as const })
+  expect(lastSeen(c)).toEqual({ model: FABLE, effort: 'low' })
+  expect(mainLine(await route($, 'show'))).toContain('session defaults')
+})
+
+test('classify: a user /effort drops the guess for one turn only', async (
+  $, on) => {
+  const c = await bootCls($, on)
+  await runStep($, highStep())
+  await endTurn($)
+  const low = { ...highStep(), effort: 'low' as const }
+  await typed($, PLAIN)
+  await runStep($, low)
+  expect(lastSeen(c)).toEqual({ model: FABLE, effort: 'low' })
+  await endTurn($)
+  await typed($, PLAIN)
+  await runStep($, low)
+  expect(lastSeen(c)).toEqual({ model: SONNET, effort: 'medium' })
+})
+
+test('classify: a mid-turn ultrathink floor still reaches fable max', async (
+  $, on) => {
+  const c = await bootCls($, on)
+  await typed($, PLAIN)
+  await runStep($, highStep())
+  expect(lastSeen(c)?.model).toBe(SONNET)
+  await queued($, 'composer', 'ultrathink please')
+  await runStep($, highStep())
+  expect(lastSeen(c)).toEqual({ model: FABLE, effort: 'max' })
+})
+
+test('classify: a guessed sonnet rate-limited falls to opus, not haiku', async (
+  $, on) => {
+  const c = await bootCls($, on)
+  await typed($, PLAIN)
+  await runStep($, highStep())
+  expect(lastSeen(c)?.model).toBe(SONNET)
+  await failWith($, 'rate_limit')
+  await runStep($, highStep())
+  expect(lastSeen(c)?.model).toBe(OPUS)
+})
+
+// ---- cap residuals: session pin, prompt estimate, engine TTL ---------------
+
+const GP = 'general-purpose'
+
+/** A demoted main (fable session, mechanical route on haiku) + spawn rig. */
+async function demotedRig($: Engine, on: On, source = 'built-in') {
+  const { rig } = await bootRigVar($, on, FABLE, 1000)
+  await offerOf($, GP, source)
+  expect(await routedStep($, rig, 'mechanical')).toBe(HAIKU)
+  return rig
+}
+
+test('spawn: general-purpose during a demoted turn starts on the session model',
+  async ($, on) => {
+    const logs = recordLogs(on)
+    const rig = await demotedRig($, on)
+    await route($, 'verbose on')
+    await $.agent.spawn(spawnOf(GP, { parentModel: HAIKU }))
+    expect(rig.specs).toEqual([FABLE])
+    expect(logsWith(logs, `agent ${GP}`)).toBe(1)
+    expect(logsWith(logs, '(session, engine)')).toBe(1)
+  })
+
+test('spawn: no route in force leaves general-purpose untouched', async (
+  $, on) => {
+  const { rig } = await bootRigVar($, on, FABLE, 1000)
+  await offerOf($, GP, 'built-in')
+  await $.agent.spawn(spawnOf(GP, { parentModel: FABLE }))
+  expect(rig.specs).toEqual([undefined])
+})
+
+test('spawn: a rowed agent keeps its row during a demoted turn', async (
+  $, on) => {
+  const rig = await demotedRig($, on)
+  await $.agent.spawn(spawnOf('feater', { parentModel: HAIKU }))
+  expect(rig.specs).toEqual([SONNET])
+})
+
+test('spawn: a fork during a demoted turn is untouched', async ($, on) => {
+  const rig = await demotedRig($, on)
+  await $.agent.spawn(spawnOf(GP, { parentModel: HAIKU, fork: true }))
+  expect(rig.specs).toEqual([undefined])
+})
+
+test('spawn: a nested spawn during a demoted turn is untouched', async (
+  $, on) => {
+  const rig = await demotedRig($, on)
+  await $.agent.spawn(spawnOf(GP, { parentModel: HAIKU, parentAgentId: 'a1' }))
+  expect(rig.specs).toEqual([undefined])
+})
+
+test('spawn: a type outside the allowlist is untouched', async ($, on) => {
+  const rig = await demotedRig($, on)
+  await offerOf($, 'code-explorer', 'built-in')
+  await $.agent.spawn(spawnOf('code-explorer', { parentModel: HAIKU }))
+  expect(rig.specs).toEqual([undefined])
+})
+
+test('spawn: an upgraded main never pins general-purpose', async ($, on) => {
+  const { rig } = await bootRigVar($, on, HAIKU, 1000)
+  await offerOf($, GP, 'built-in')
+  await planRoute($)
+  expect((await stepOn($, rig, HAIKU)).model).toBe(FABLE)
+  await $.agent.spawn(spawnOf(GP, { parentModel: FABLE }))
+  expect(rig.specs).toEqual([undefined])
+})
+
+test('spawn: a shadowed general-purpose is never pinned', async ($, on) => {
+  const rig = await demotedRig($, on, 'projectSettings')
+  await $.agent.spawn(spawnOf(GP, { parentModel: HAIKU }))
+  expect(rig.specs).toEqual([undefined])
+})
+
+const longText = (points: number) => 'x'.repeat(points)
+
+/** Cap 110000, classifier off, a context of `tokens`; estimates need both. */
+function estimateRig($: Engine, on: On, tokens: number) {
+  const home = { classify: false, downgradeMaxTokens: 110000 }
+  return bootRigVar($, on, FABLE, tokens, newWorld({ home }))
+}
+
+test('cap: a pasted prompt counts before the first step', async ($, on) => {
+  const logs = recordLogs(on)
+  const { rig } = await estimateRig($, on, 100000)
+  await typed($, longText(60000))
+  expect(await routedStep($, rig, 'implement')).toBe(FABLE)
+  expect(logsWith(logs, `${SKIP}: cold read 120000 tokens over 110000`))
+    .toBe(1)
+})
+
+test('cap: the estimate is skipped once usage counted the prompt', async (
+  $, on) => {
+  const first = await estimateRig($, on, 100000)
+  await typed($, longText(60000))
+  first.usage.set(110000)
+  expect(await routedStep($, first.rig, 'implement')).toBe(SONNET)
+})
+
+test('cap: usage growth under half the estimate still adds it', async (
+  $, on) => {
+  const logs = recordLogs(on)
+  const { rig, usage } = await estimateRig($, on, 100000)
+  await typed($, longText(60000))
+  usage.set(109999)
+  expect(await routedStep($, rig, 'implement')).toBe(FABLE)
+  expect(logsWith(logs, 'cold read 129999 tokens over 110000')).toBe(1)
+})
+
+test('cap: the first main step consumes the estimate', async ($, on) => {
+  const { rig } = await estimateRig($, on, 100000)
+  await typed($, longText(60000))
+  expect(await routedStep($, rig, 'implement')).toBe(FABLE)
+  expect((await stepOn($, rig, FABLE)).model).toBe(SONNET)
+})
+
+test('cap: a mid-turn prompt is counted at the next turn first step', async (
+  $, on) => {
+  const { rig } = await estimateRig($, on, 100000)
+  await queued($, 'composer', longText(60000))
+  await endTurn($)
+  expect(await routedStep($, rig, 'implement')).toBe(FABLE)
+})
+
+test('cap: an estimate no step consumed is carried over the turn end', async (
+  $, on) => {
+  const { rig } = await estimateRig($, on, 100000)
+  await typed($, longText(60000))
+  await endTurn($)
+  expect(await routedStep($, rig, 'implement')).toBe(FABLE)
+})
+
+test('cap: a document attachment blocks the first step switch', async (
+  $, on) => {
+  const logs = recordLogs(on)
+  const { rig } = await estimateRig($, on, 1000)
+  await $.prompt.submit({
+    text: 'see the file',
+    wait: false,
+    origin: { kind: 'composer' },
+    attachments: [{ type: 'document' }],
+  })
+  expect(await routedStep($, rig, 'implement')).toBe(FABLE)
+  expect(logsWith(logs, `${SKIP}: context size unknown`)).toBe(1)
+  expect((await stepOn($, rig, FABLE)).model).toBe(SONNET)
+})
+
+test('cap: a typed skill body counts', async ($, on) => {
+  const { rig } = await estimateRig($, on, 100000)
+  await typed($, '/analyze')
+  await $.skill.prompt({ skill: 'analyze', text: longText(60000) })
+  expect(await routedStep($, rig, 'implement')).toBe(FABLE)
+})
+
+test('cap: a preload during a live spawn adds nothing', async ($, on) => {
+  const { rig } = await estimateRig($, on, 100000)
+  await typed($, 'hello')
+  await $.agent.spawn(spawnOf('feater'))
+  await $.skill.prompt({ skill: 'analyze', text: longText(60000) })
+  expect(await routedStep($, rig, 'implement')).toBe(SONNET)
+})
+
+/** A sonnet record of 100000 tokens, then `age` min later a 210000 context. */
+async function ttlCase($: Engine, on: On, ttl: '5m' | '1h', age: number) {
+  const { rig, usage } = await bootRigVar($, on, FABLE, 100000)
+  await switchTo($, FABLE, FABLE, 'command', ttl)
+  await routedStep($, rig, 'implement')
+  await endTurn($)
+  await stepOn($, rig, FABLE)
+  await endTurn($)
+  usage.set(210000)
+  await rig.clock.advance(age * 60000)
+  return routedStep($, rig, 'implement')
+}
+
+test('ttl: the engine 5m makes a 6 min old record cold', async ($, on) => {
+  expect(await ttlCase($, on, '5m', 6)).toBe(FABLE)
+})
+
+test('ttl: the engine 1h keeps a 59 min old record warm', async ($, on) => {
+  expect(await ttlCase($, on, '1h', 59)).toBe(SONNET)
+})
+
+test('ttl: a sub-agent switch event moves neither TTL nor session', async (
+  $, on) => {
+  const rig = await bootRig($, on)
+  await route($, 'switch off')
+  await stepOn($, rig, FABLE)
+  await switchTo($, FABLE, OPUS, 'command', '5m', 'a1')
+  const text = await route($, 'show')
+  await route($, 'mechanical')
+  const line = mainLine(await route($, 'show'))
+  expect(line).toContain(FABLE)
+  expect(line).not.toContain(OPUS)
+  expect(text).not.toContain('ttl 5 min')
+})
+
+test('ttl: /clear keeps the engine TTL', async ($, on) => {
+  on('session.end', ($, e) => ({ sessionId: e.sessionId }))
+  await bootRig($, on)
+  await switchTo($, FABLE, FABLE, 'command', '5m')
+  await clearSession($)
+  expect(await route($, 'show')).toContain('ttl 5 min')
+})
+
+test('ttl: show says 60 min by default and 5 min after a 5m event', async (
+  $, on) => {
+  await boot($, on)
+  expect(await route($, 'show')).toContain('ttl 60 min)')
+  await switchTo($, FABLE, FABLE, 'command', '5m')
+  expect(await route($, 'show')).toContain('ttl 5 min)')
 })

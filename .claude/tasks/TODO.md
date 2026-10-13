@@ -1,5 +1,13 @@
 # TODO
 
+## 2026-10-13 — model-router: cold-read cap, switch on by default, classifier routes down (feature/router-downgrade-cap)
+Contract `.claude/tasks/contracts/2026-10-13-router-downgrade-cap-0013.md`, plan r3 `.claude/tasks/plans/2026-10-13-router-downgrade-cap-0013.md`.
+- [x] /feat run: 3 lenses (10 MAJOR) → r2; confirmation pass FATAL(7) (BLOCKER: served record only on routed steps) → r3; feater DONE (19 tests + 3 extra, 450 pass), GATE 0 MET 4/4, verifier CONFORME 10/10 first pass, security PASS. Commit 2ce203a.
+- [x] Residuals (1)-(3) closed 2026-10-13, commit 1be57a3 (contract `.claude/tasks/contracts/2026-10-13-router-cap-residuals-1902.md`, plan r3): session pin for built-in `general-purpose` spawned by main below the session model; prompt-size estimate (text + context + typed skill body, code points / 3) added to the cap's size at the first main step unless usage grew by half; `document` attachment = unknown = blocked; engine `cache_ttl` ('5m'|'1h') adopted from main's PostModelSwitch. 3 lenses (2 BLOCKER same finding: frontmatter model invisible to the hook) → r2; confirmation CONCERNS(3) → r3; feater DONE 472 tests; verifier CONFORME 7/7; security PASS. Residual (4) "model unknown to the table" not reproduced since (later route answers named claude-fable-5-1): closed as transient.
+- [ ] Residuals left (accepted): TTL known only after the first PostModelSwitch of the process (no API exposes the account TTL; 60 min default before); hooks-below `context` and a dropped prompt leave the estimate conservative/stale; `onAutoSwitch` targets main's `lastPlan` even for a sub-agent's auto fallback (pre-existing); `agent_id: null` on a main switch (if the engine ever sends null) would freeze sessionModel/TTL updates.
+- [ ] LIVE CHECK: does `parentModel` follow the turn.step rewrite or the session model? Read general-purpose's step-0 `message.model` in a transcript during a demoted turn (if it is already the session model, the pin is a harmless no-op).
+- [ ] Live check (next sessions): a coding prompt on fable → spinner `sonnet-5-5/medium`; a reflect turn after → fable; above 120k cold read the skip line once; `/route show` cap text.
+
 ## 2026-10-12 — code-clean whole repo (chore/code-clean)
 - [x] audit r1→r3 (3 lenses + confirmation), user approved all 14 non-deferred items, code-cleaner DONE, make test 47 green — plan `.claude/tasks/plans/2026-10-12-code-clean-0103.md`, scope `.claude/audits/CODE-CLEAN-SCOPE.md`
 - [x] fix BUGS-FOUND: toggle-external.sh usage() prints header 3-26, list ends at 32
