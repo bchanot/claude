@@ -49,6 +49,7 @@ rules:
 | BLK-027 | 2026-10-06 | this machine never ran `make link`/`make plugin`: no global `core.hooksPath` → post-commit push never fired, branches landed ahead of upstream; 11 vendored skills + `~/.claude/.env` missing | resolved (link) / open (plugin) |
 | BLK-028 | 2026-10-06 | notify-attention on a VS Code client: bell + toast silent-degradation faults (merge of BLK-019 + BLK-020): terminalBell sound default off, ext hooks only terminals born after activation, Code muted in Windows mixer | resolved |
 | BLK-029 | 2026-10-08 | Claude Code mods (2.1.294): alias → id resolution for a model set by a hook lags the Agent tool's (`sonnet` → `claude-sonnet-5`, 404); Agent tool schema refuses full ids | upstream |
+| BLK-030 | 2026-10-15 | model-router kept routing best-tier phases to Fable out of usage credits: each new session + each hold lapse lost a turn to 429 `model_requires_usage_credits`; breaker reactive only | resolved |
 
 ---
 
@@ -314,3 +315,9 @@ rules:
 - **Status**: upstream (report to anthropics/claude-code with the request id `req_011Cfppp7VFt8z2Pd3zJrpUi`); workaround in model-router.
 - **Reference**: [[LRN-203]], plan `.claude/tasks/plans/2026-10-08-model-router-mod.md`.
 
+## BLK-030 — model-router routes main to Fable out of usage credits; turn lost every session + hold lapse — 2026-10-15
+- **Friction**: Fable 5.1 out of credits. `route(reflect)` answered `claude-fable-5-1 (upgrade)` after hold lapse; next request died `<synthetic>` "You're out of usage credits", `apiError: model_requires_usage_credits`, `error: rate_limit`, HTTP 429. Holds 15→30→60 min, user typed "reprends" each time.
+- **Real cause**: availability learned only reactively. Breaker (`markDown`) fed by `classic.StopFailure` + `PostModelSwitch auto`, i.e. AFTER real request died. Hold in-memory w/ backoff; nothing checked move target before main sent there. 429 body generic (no credits marker) → no cheap typed signal.
+- **Solution**: 2cccc43 (bugfix/router-probe-before-route). `decideFor` decides first, then probes decided move target once: `$.model.complete` raced vs `PROBE_MS` 8000 via shared `raceTimeout`; timeout/reject → `markDown(..., 'probe')` + ONE re-decision, no further probe. `verified` set kept across `/clear`, cleared by `markDown`. Never probes cur or held id. Config `probe` (default true). Stand-in effort one notch up (reflect xhigh, plan max, orchestrate high) when lower model replaces held tier head where head would have run; explicit/floor effort never bumped. 497 tests.
+- **Status**: resolved. Residuals in TODO (explicit `Agent(model:"fable")` pins, spawn path, session model itself out of credits, ≤8 s stall per new session).
+- **Reference**: [[LRN-218]], [[BDR-116]], [[BDR-115]], [[LRN-207]], contract `.claude/tasks/contracts/2026-10-14-router-probe-before-route-0005.md`, plan r3 `.claude/tasks/plans/2026-10-14-router-probe-before-route-0005.md`.
