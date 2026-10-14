@@ -34,6 +34,7 @@ type Config = {
   mainModelSwitch: boolean // gates DOWNGRADES only
   verbose: boolean
   classify: boolean // a small-model guess of the typed prompt's phase
+  probe: boolean // a move target is tried once before main is sent to it
   spinner: boolean
   enabled: boolean // false: every hook passes through (per machine)
 }
@@ -45,6 +46,7 @@ type Routed = {
   route: Route
   source: Source
   label?: string // the skill a skill route came from, for the logs
+  explicitEffort?: boolean // the effort was asked for, not the phase's own
 }
 type Served = { at: number; tokens: number } // ms, context tokens
 type Hold = { until: number; reason: string } // until: ms, Infinity = reload
@@ -92,6 +94,7 @@ type State = {
   sessionModel: string // the main loop's model as /model shows it, '' unknown
   down: Map<string, Hold> // canonical id -> unavailable until (breaker)
   strikes: Map<string, number> // canonical id -> episodes, drives the backoff
+  verified: Set<string> // canonical ids a probe saw answer (account-wide)
   agentModels: Map<string, string> // agentId -> exact id sent at spawn
   pushed: Pushed | null // derived orchestrate in force (background dispatch)
   logged: Set<string> // session-once log lines
@@ -132,7 +135,7 @@ type RouteInput = {
   clear?: unknown
   agentId?: string
 }
-type Picked = { phase: string; route: Route }
+type Picked = { phase: string; route: Route; explicitEffort?: boolean }
 type Effort = StepIn['effort']
 type Toggle = 'switch' | 'verbose' | 'classify'
 type EffortBy = 'floor' | 'sticky' | 'turn' | 'engine'
@@ -231,6 +234,8 @@ const LABEL_PHASE: Readonly<Record<string, string>> = {
 }
 const CLASSIFY_MIN = 12 // code points of a typed prompt worth a call
 const CLASSIFY_MS = 3000 // the call is abandoned after this
+const PROBE_MS = 8000 // a move target that has not answered by then is down
+const PROBE_TOKENS = 16 // the probe's reply cap
 const CLASSIFY_MAX = 2000 // code points sent whole; longer: head + tail
 const CLASSIFY_HEAD = 500
 const CLASSIFY_TAIL = 1500
@@ -245,7 +250,7 @@ const CACHE_TTLS: Readonly<Record<string, number>> = {
   '1h': 60 * 60000,
 }
 const ESTIMATE_DIVISOR = 3 // code points per token, conservative
-const TIMEOUT: unique symbol = Symbol('classify timeout')
+const TIMEOUT: unique symbol = Symbol('timeout')
 
 const DEFAULT_CONFIG: Config = {
   models: {
@@ -304,6 +309,7 @@ const DEFAULT_CONFIG: Config = {
   mainModelSwitch: true,
   verbose: false,
   classify: true,
+  probe: true,
   spinner: true,
   enabled: true,
 }
@@ -635,6 +641,9 @@ function mergeConfig(
     classify: pickSwitch(
       'model-router: config "classify" is not a boolean; ignored',
       user.classify, base.classify, log),
+    probe: pickSwitch(
+      'model-router: config "probe" is not a boolean; ignored',
+      user.probe, base.probe, log),
     spinner: pickBool(user.spinner, base.spinner),
     enabled: pickEnabled(user.enabled, base.enabled, log),
   }
@@ -968,6 +977,7 @@ function newState(cfg: Config, source: string): State {
     sessionModel: '',
     down: new Map(),
     strikes: new Map(),
+    verified: new Set(),
     agentModels: new Map(),
     pushed: null,
     logged: new Set(),
@@ -995,16 +1005,18 @@ function newState(cfg: Config, source: string): State {
 
 /**
  * /clear rebuilds the state but keeps what is account- or process-wide:
- * the breaker, the classifier's pause and effort baseline (a model's quota
- * and the user's own /effort outlive the conversation), the model, the
- * agent definitions' sources (the listing is not offered again), the config
- * with its session toggles and the dialog in flight. The layers are read
- * again at the next prompt; the config is swapped only if that read works.
+ * the breaker and the models a probe verified, the classifier's pause and
+ * effort baseline (a model's quota and the user's own /effort outlive the
+ * conversation), the model, the agent definitions' sources (the listing is
+ * not offered again), the config with its session toggles and the dialog in
+ * flight. The layers are read again at the next prompt; the config is
+ * swapped only if that read works.
  */
 function resetSession(st: State): void {
   const kept = {
     down: st.down,
     strikes: st.strikes,
+    verified: st.verified,
     agentModels: st.agentModels,
     sessionModel: st.sessionModel,
     offers: st.offers,
@@ -1146,7 +1158,8 @@ function markDown(
   st.strikes.set(id, strikes)
   const until = now + holdMinutes(st.cfg, strikes, reason) * 60000
   st.down.set(id, { until, reason })
-  $.ui.log(`model-router: ${id} unavailable (${reason}) ${
+  st.verified.delete(id)
+  tryLog($, `model-router: ${id} unavailable (${reason}) ${
     holdWord(until, now)}; routing falls back`)
 }
 
@@ -1447,7 +1460,11 @@ async function addEstimate(
 const pointsOf = (texts: readonly string[]): number =>
   texts.reduce((n, t) => n + Array.from(t).length, 0)
 
-type Verdict = { call: Call; wanted: string | undefined }
+type Verdict = {
+  call: Call
+  wanted: string | undefined
+  standIn: boolean // a lower model runs where the tier's held head would
+}
 
 /**
  * The model main is asked to run on from `cur`. A classifier's guess never
@@ -1478,8 +1495,122 @@ async function readingFor(
 }
 
 /**
+ * The race of a call against the clock: its value, or TIMEOUT. With a
+ * `signal` the wait rejects when the dispatch aborts.
+ */
+function raceTimeout<T>(
+  $: Api,
+  call: Promise<T>,
+  ms: number,
+  signal?: AbortSignal,
+): Promise<T | typeof TIMEOUT> {
+  return Promise.race([
+    call,
+    $.clock.sleep(ms, signal === undefined ? {} : { signal })
+      .then((): typeof TIMEOUT => TIMEOUT),
+  ])
+}
+
+/** True when `id` answered a tiny completion in time; no hook signal. */
+async function probeAnswers($: Api, id: string): Promise<boolean> {
+  try {
+    const ask = { model: id, prompt: 'ok', maxTokens: PROBE_TOKENS }
+    return (await raceTimeout($, $.model.complete(ask), PROBE_MS)) !== TIMEOUT
+  } catch {
+    return false
+  }
+}
+
+/**
+ * Tries a move target before main is sent to it. An answer verifies it,
+ * unless a failure landed meanwhile (the hold wins); a timeout or a
+ * rejection marks it down. True when the move may go ahead.
+ */
+async function probeModel($: Api, st: State, id: string): Promise<boolean> {
+  if (await probeAnswers($, id)) {
+    if (!st.down.has(id)) st.verified.add(id)
+  } else {
+    markDown($, st, id, 'probe', await $.clock.now())
+  }
+  return !st.down.has(id)
+}
+
+/** The table id a move lands on that still wants a probe, else undefined. */
+function unprobed(st: State, call: Call): string | undefined {
+  if (!call.moved || !st.cfg.probe || st.off) return undefined
+  const id = canonical(st.cfg, call.model)
+  const fresh = !st.verified.has(id) && !st.down.has(id)
+  return aliasOf(st.cfg, id) !== undefined && fresh ? id : undefined
+}
+
+type Decided = { call: Call; wanted: string | undefined }
+
+/** The decision, probing a move target once; a failed probe: decide again. */
+async function decideProbed(
+  $: Api,
+  st: State,
+  cur: string,
+  read: Reading,
+): Promise<Decided> {
+  const wanted = wantedModel(st, cur)
+  const call = decideMain(st, cur, wanted, read)
+  const id = unprobed(st, call)
+  if (id === undefined || await probeModel($, st, id)) return { call, wanted }
+  const after = wantedModel(st, cur)
+  return { call: decideMain(st, cur, after, read), wanted: after }
+}
+
+/** The held head of the tier the main model slot names, or undefined. */
+function heldHead(st: State): string | undefined {
+  const tier = mainModelSlot(st)?.route.tier
+  const list = tier !== undefined && hasKey(st.cfg.tiers, tier)
+    ? st.cfg.tiers[tier]
+    : undefined
+  const alias = list?.[0]
+  const id = alias === undefined ? undefined : st.cfg.models[alias]
+  return id !== undefined && st.down.has(id) ? id : undefined
+}
+
+/**
+ * With `head` available, the router would run it: the classifier ceiling
+ * does not refuse it and the decision lands on it (switch, caps, window).
+ */
+function wouldRunHead(
+  st: State,
+  cur: string,
+  head: string,
+  read: Reading,
+): boolean {
+  const capped = mainModelSlot(st)?.source === 'classifier' &&
+    ranksAbove(st, head, canonical(st.cfg, st.sessionModel))
+  if (capped) return false
+  const held = new Map([...st.down].filter(([id]) => id !== head))
+  const open: State = { ...st, down: held }
+  return canonical(st.cfg, decideMain(open, cur, head, read).model) === head
+}
+
+/**
+ * A lower model runs where the tier's head, held down, would have: the
+ * decision is that tier's resolution, ranked below the head, and the head
+ * would have been run. Pure; the step and every text read this one value.
+ */
+function isStandIn(
+  st: State,
+  cur: string,
+  d: Decided,
+  read: Reading,
+): boolean {
+  const head = heldHead(st)
+  if (st.off || head === undefined || d.wanted === undefined) return false
+  const id = canonical(st.cfg, d.call.model)
+  return id === d.wanted && ranksAbove(st, head, id) &&
+    wouldRunHead(st, cur, head, read)
+}
+
+/**
  * What the main loop would run on from `cur`: wanted model + decision. The
- * step passes the `known` reading it took; a text reads for itself.
+ * step passes the `known` reading it took; a text reads for itself. A move
+ * target is probed here, after the decision (see `decideProbed`).
  */
 async function decideFor(
   $: Api,
@@ -1487,9 +1618,9 @@ async function decideFor(
   cur: string,
   known?: Reading,
 ): Promise<Verdict> {
-  const wanted = wantedModel(st, cur)
-  const read = known ?? await readingFor($, st, wanted)
-  return { call: decideMain(st, cur, wanted, read), wanted }
+  const read = known ?? await readingFor($, st, wantedModel(st, cur))
+  const decided = await decideProbed($, st, cur, read)
+  return { ...decided, standIn: isStandIn(st, cur, decided, read) }
 }
 
 function logCall($: Api, st: State, call: Call): void {
@@ -1539,6 +1670,34 @@ function mainEffort(st: State, engine: Effort): Decision {
   }
   if (named === undefined) return { effort, by: 'engine' }
   return { effort, by: sticky === undefined ? 'turn' : 'sticky' }
+}
+
+/** The route slot that supplied a sticky or turn effort, else null. */
+function effortSlot(st: State, by: EffortBy): Routed | null {
+  if (by === 'sticky') return st.userMain
+  if (by !== 'turn') return null
+  return st.turnMain?.route.effort === undefined ? st.runMain : st.turnMain
+}
+
+/** One notch up on LEVELS; `max` stays. */
+const notchUp = (level: Level): Level =>
+  LEVELS[Math.min(rank(level) + 1, LEVELS.length - 1)] ?? level
+
+type Lifted = Decision & { standIn: boolean }
+
+/**
+ * A stand-in model runs the tier one notch up: only the effort the slot
+ * that names the tier supplied, never an explicit one, a floor's or an
+ * engine number. `standIn` is true when the level really moved.
+ */
+function standInEffort(st: State, d: Decision, v: Verdict): Lifted {
+  const level = d.effort
+  const slot = effortSlot(st, d.by)
+  const own = slot !== null && slot === mainModelSlot(st) &&
+    slot.explicitEffort !== true
+  if (!v.standIn || !own || !isLevel(level)) return { ...d, standIn: false }
+  const lifted = notchUp(level)
+  return { effort: lifted, by: d.by, standIn: lifted !== level }
 }
 
 const floorWord = (f: Routed): string =>
@@ -1636,10 +1795,19 @@ function tierWord(st: State, word: string): string {
   return tier ? `${word} [tier ${name}]` : word
 }
 
+/** "opus stands in for fable": the model that runs and the held head. */
+function standInWord(st: State, v: Verdict): string {
+  const head = aliasOf(st.cfg, heldHead(st) ?? '') ?? '?'
+  const alias = aliasOf(st.cfg, canonical(st.cfg, v.call.model)) ?? '?'
+  return `${alias} stands in for ${head}`
+}
+
 /** Haiku takes no effort: the main line says so when it will run there. */
 function effortWord(st: State, v: Verdict): string {
   if (v.call.model.startsWith(HAIKU)) return '- (haiku takes none)'
-  return String(mainEffort(st, undefined).effort ?? '-')
+  const d = standInEffort(st, mainEffort(st, undefined), v)
+  const word = String(d.effort ?? '-')
+  return d.standIn ? `${word} (${standInWord(st, v)})` : word
 }
 
 function mainText(st: State, v: Verdict): string {
@@ -1697,8 +1865,8 @@ async function show($: Api, st: State): Promise<string> {
     mainText(st, s),
     `router: ${routerWord(st)} · switch: ${switchWord(st)} · upgrade: ${
       flag(c.mainUpgrade)} · verbose: ${
-        flag(c.verbose)} · classify: ${flag(c.classify)} · spinner: ${
-        flag(c.spinner)}`,
+        flag(c.verbose)} · classify: ${flag(c.classify)} · probe: ${
+        flag(c.probe)} · spinner: ${flag(c.spinner)}`,
     downText(st, s.now),
     `live loops: ${st.loops.size}`,
     phasesText(st),
@@ -1756,7 +1924,9 @@ function parseRoute(cfg: Config, args: string): Routed | string {
   for (const word of words) {
     if (!applyToken(cfg, route, word)) return unknownText(cfg, word)
   }
-  return { phase: 'custom', route, source: 'user' }
+  const explicitEffort = route.effort !== undefined
+  return { phase: 'custom', route, source: 'user',
+    ...(explicitEffort ? { explicitEffort } : {}) }
 }
 
 async function toggle(
@@ -2785,12 +2955,14 @@ function pickRoute(cfg: Config, phase: unknown, effort: unknown) {
   }
   const route: Route = { ...named, ...(isLevel(effort) ? { effort } : {}) }
   const name = typeof phase === 'string' ? phase : `effort-${String(effort)}`
-  return { phase: name, route }
+  const explicit = isLevel(effort) ? { explicitEffort: true } : {}
+  return { phase: name, route, ...explicit }
 }
 
 function applyRoute(st: State, agentId: string | undefined, p: Picked): void {
   if (agentId === undefined) {
-    st.turnMain = { phase: p.phase, route: p.route, source: 'model' }
+    st.turnMain = { phase: p.phase, route: p.route, source: 'model',
+      ...(p.explicitEffort ? { explicitEffort: true } : {}) }
   } else {
     writeLoop(loopOf(st, agentId), p.route, 'route tool')
   }
@@ -2813,16 +2985,15 @@ function clearLoop(st: State, agentId: string | undefined): string {
   return 'route cleared for this agent'
 }
 
-/** The id the next main step runs on, with the decision's reason. */
-async function mainAnswer($: Api, st: State): Promise<string> {
-  const { call } = await snapshot($, st)
-  return `${idWord(st, call.model)} (${call.why})`
-}
-
 /** Main's answer: effort and model asked, the sticky/floor note appended. */
 async function mainRoutedText($: Api, st: State, p: Picked) {
-  const base = `routed main to ${p.phase}: effort ${
-    p.route.effort ?? 'unchanged'}, model ${await mainAnswer($, st)}`
+  const v = await snapshot($, st)
+  const d = standInEffort(st, mainEffort(st, undefined), v)
+  const effort = d.standIn
+    ? `${String(d.effort)} (${standInWord(st, v)})`
+    : p.route.effort ?? 'unchanged'
+  const base = `routed main to ${p.phase}: effort ${effort}, model ${
+    idWord(st, v.call.model)} (${v.call.why})`
   const note = mainNote(st, p.route.effort)
   return note ? `${base}; but ${note}` : base
 }
@@ -3199,7 +3370,9 @@ function mainMove(
   const [was, now] = [planWord(st.cfg, from), planWord(st.cfg, step.plan)]
   if (step.why === undefined || was === now) return undefined
   const { phase, word } = effortCause(st, step.why.by)
-  const causes = [word, modelCause(st, step.why)].filter(c => c !== undefined)
+  const standIn = step.why.standIn ? 'stand-in' : undefined
+  const causes = [word, standIn, modelCause(st, step.why)]
+    .filter(c => c !== undefined)
   const lead = phase === undefined ? '' : `${clean(phase, NAME_CAP)}: `
   return `main: ${was} → ${now} (${lead}${causes.join(', ')})`
 }
@@ -3309,8 +3482,8 @@ function agentPlan(st: State, e: StepIn): Plan {
 }
 
 /** What a main plan was decided from: the log words are built from it. */
-type Why = { by: EffortBy; call: Call; cur: string }
-type Step = { plan: Plan; why?: Why }
+type Why = { by: EffortBy; call: Call; cur: string; standIn: boolean }
+type Step = { plan: Plan; why?: Why; aborted?: boolean }
 
 /** The engine effort of this turn's first main step: the user's default. */
 function noteEngineBase(st: State, e: StepIn): void {
@@ -3355,27 +3528,43 @@ function capLogged(st: State, call: Call): Call {
  * the engine's own (verbatim: an engine fallback is respected). Every step
  * reads the context and the clock and records the model it ran on.
  */
-async function mainPlan($: Api, st: State, e: StepIn): Promise<Step> {
+async function mainPlan(
+  $: Api,
+  st: State,
+  e: StepIn,
+  signal: AbortSignal,
+): Promise<Step> {
   noteEngineBase(st, e)
   if (userMovedEffort(st)) st.turnMain = null
-  const { effort, by } = mainEffort(st, e.effort)
+  const base = mainEffort(st, e.effort)
   await prune($, st)
   const cur = st.turnModel ?? e.model
   const raw = await readTokens($)
   const now = await $.clock.now()
-  const { call } = await decideFor(
-    $, st, cur, { tokens: withEstimate(st, raw), now })
+  const v = await decideFor($, st, cur, { tokens: withEstimate(st, raw), now })
+  const { call } = v
+  const { effort, by, standIn } = standInEffort(st, base, v)
   logCall($, st, capLogged(st, call))
+  const step = { plan: { model: call.model, effort },
+    why: { by, call, cur, standIn } }
+  // Esc during a probe: the mark stands, but the abandoned step records
+  // nothing a later step would read as what main ran
+  if (signal.aborted) return { ...step, aborted: true }
   if (call.moved) st.turnModel = call.model
   // the record stays raw: an estimate in it would trip the compaction path
   noteServed(st, { model: call.model, effort }, { tokens: raw, now })
   st.promptEstimate = null // consumed by the turn's first main step
-  return { plan: { model: call.model, effort }, why: { by, call, cur } }
+  return step
 }
 
-async function planStep($: Api, st: State, e: StepIn): Promise<Step> {
+async function planStep(
+  $: Api,
+  st: State,
+  e: StepIn,
+  signal: AbortSignal,
+): Promise<Step> {
   const step: Step = e.agentId === undefined
-    ? await mainPlan($, st, e)
+    ? await mainPlan($, st, e, signal)
     : { plan: agentPlan(st, e) }
   // Haiku takes no effort: omit it rather than send a hook-set value.
   return step.plan.model.startsWith(HAIKU)
@@ -3689,11 +3878,13 @@ function registerSpawn(on: On, st: State): void {
 function registerTurns(on: On, st: State): void {
   on('turn.step', async function* ($, e, next) {
     if (st.off) return yield* next(e)
-    const step = await planStep($, st, e)
+    const step = await planStep($, st, e, next.signal)
     const plan = step.plan
     const changed = plan.model !== e.model || plan.effort !== e.effort
     const prev = st.lastPlan // main's last plan, before noteMain replaces it
-    if (e.agentId === undefined) noteMain($, st, plan)
+    if (e.agentId === undefined && step.aborted !== true) {
+      noteMain($, st, plan)
+    }
     safely(st, $, 'turn.step log', () => logMove($, st, e, prev, step))
     const result = yield* next(changed ? withPlan(e, plan) : e)
     safely(st, $, 'turn.step', () =>
@@ -3850,11 +4041,8 @@ const isAbort = (err: unknown): boolean =>
 
 /** The label, or TIMEOUT; rejects like classify or when the dispatch aborts. */
 function raceClassify($: Api, text: string, signal: AbortSignal) {
-  return Promise.race([
-    $.model.classify(sampleOf(text), CLASSIFY_LABELS),
-    $.clock.sleep(CLASSIFY_MS, { signal })
-      .then((): typeof TIMEOUT => TIMEOUT),
-  ])
+  const call = $.model.classify(sampleOf(text), CLASSIFY_LABELS)
+  return raceTimeout($, call, CLASSIFY_MS, signal)
 }
 
 /** The label, or undefined: no answer, an interrupt or a counted failure. */
