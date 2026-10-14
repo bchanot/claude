@@ -8,7 +8,8 @@ Apply unless repo-specific instructions override.
 - Simple, readable, maintainable > clever or compact.
 - One responsibility per function/method.
 - Preserve existing behavior unless asked.
-- Scope changes to task — no unrelated edits.
+- Scope changes to task — no unrelated edits. Literal ask: button color →
+  change the color, no theme or token system. Idea beyond scope → ask first.
 - Before writing code, stop at the first rung that applies: not needed
   (YAGNI) → reuse what the codebase has → stdlib → platform/runtime
   feature → dependency already installed → one line → the minimum that
@@ -23,7 +24,8 @@ Apply unless repo-specific instructions override.
 - No global state. Explicit data flow.
 
 ## Comments & readability
-- Document intent, not mechanics. Use project doc style (docstring, JSDoc…).
+- Self-explanatory code: names and structure carry the meaning. Comment only
+  what the code can't say (why, intent). Project doc style (docstring…).
 - Explicit, consistent names. Straight control flow, no hidden side effects.
 - Written deliverables (docs, reports, .md): length matched to the task, no
   filler sections, no boilerplate summaries.
