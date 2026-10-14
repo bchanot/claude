@@ -611,3 +611,7 @@ rules:
 ## 2026-10-13
 - model-router /feat `downgradeMaxTokens` (user: switch on by default, classifier may switch model early, back up to fable on reflection). Plan r1 context-size cap → challenge: cap must measure COLD READ (LRN-204), bypass dropped, classifier down-only vs session model; confirmation pass FATAL(7), BLOCKER served-record-on-routed-steps-only → r3. feater DONE 450 tests, verifier CONFORME 10/10, security PASS, commit 2ce203a on feature/router-downgrade-cap. Doc-sync + BDR/LRN/EVAL pending.
 - Residuals /feat (user "fix les residus"): plan r1 → 3 lenses FATAL×2 (BLOCKER: `e.model===undefined && route===undefined` ≠ "inherits", frontmatter model invisible to the hook) → allowlist `INHERITING_AGENTS` + built-in source + below-session guard; estimate via shared `withEstimate`, raw served record; TTL enum lookup. Confirmation CONCERNS(3) → r3. feater DONE 472 tests, verifier CONFORME 7/7, security PASS, commit 1be57a3. Doc-sync + capitalize pending.
+
+## 2026-10-15
+- /bugfix model-router: Fable out of credits still routed (BLK-030). Live check: `complete()` on credit-less model never settles → probe w/ 8 s timeout (LRN-218). Plan r1 BLOCKERs (loop, cur probed) → r3 decide-then-probe. User: stand-in effort one notch up, `probe` key, explicit fable pins out of scope. bugfixer 497 tests, GATE 0 MET, verifier CONFORME 11/11, security PASS. Commit 2cccc43, docs P1-P5, merged to develop on user signal.
+

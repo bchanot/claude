@@ -25,6 +25,10 @@ const TO_APPLY = ['Change', 'sonnet (work)', 'low']
 const TO_JUDGE = ['Change', 'opus (big)']
 const SCOPE_ASK = 3 // index of the scope question after a Change chain
 
+// What the engine answers a completion with: an object, not the documented
+// string (observed live); the router accepts any resolved shape.
+const PROBE_OK = { isAnswered: true, text: 'ok' } as unknown as string
+
 /** What the bottom `fs`, `env`, `session.repo` and dialog hooks serve. */
 type World = {
   files: Map<string, string> // 'routing' (routing.json) or a full path
@@ -40,6 +44,8 @@ type World = {
   repo: { root: string; remote: string | null } | null | 'fail'
   env: string | undefined // HOME as env.get answers it (undefined = unset)
   kinds: Map<string, 'file' | 'dir' | 'other'> // per-path stat kind override
+  complete: (model: string) => unknown // what a completion resolves to
+  completions: string[] // every model a completion was asked of
 }
 
 type Fixture = {
@@ -115,6 +121,8 @@ function newWorld(fx: Fixture = {}): World {
     repo: fx.repo === undefined ? { root: ROOT, remote: REMOTE } : fx.repo,
     env: fx.noHome ? undefined : HOME,
     kinds: new Map(),
+    complete: () => PROBE_OK,
+    completions: [],
   }
 }
 
@@ -228,6 +236,11 @@ async function boot(
   on('classic.PostModelSwitch', () => ({}))
   on('skill.prompt', ($, e) => ({ text: e.text }))
   on('agent.offer', () => ({ isOffered: true }))
+  // the probe of a move target: every model answers unless a test says not
+  on('model.complete', async (_$, e) => {
+    world.completions.push(e.model)
+    return { value: (await world.complete(e.model)) as string }
+  })
   installWorld(on, world)
   if (tokens !== null) usageOf(on, tokens)
   on('session.start', ($, e) => ({ cwd: e.cwd }))
@@ -784,13 +797,14 @@ test('cap: a downgrade under the cold-read cap moves main', async (
   expect(sent.effort).toBeUndefined()
 })
 
-test('fallback: a rate limit on fable moves plan to opus xhigh', async (
+test('fallback: a rate limit on fable moves plan to opus max', async (
   $, on) => {
   const rig = await bootRig($, on)
   await planRoute($)
   expect((await stepOn($, rig, FABLE)).model).toBe(FABLE)
   await failWith($, 'rate_limit')
-  expect(await stepOn($, rig, FABLE)).toEqual({ model: OPUS, effort: 'xhigh' })
+  // opus stands in for fable: plan's xhigh goes one notch up
+  expect(await stepOn($, rig, FABLE)).toEqual({ model: OPUS, effort: 'max' })
   expect(await route($, 'show')).toContain('claude-fable-5-1 for 15 min')
   await route($, 'reload')
   expect((await stepOn($, rig, FABLE)).model).toBe(FABLE)
@@ -5488,4 +5502,288 @@ test('ttl: show says 60 min by default and 5 min after a 5m event', async (
   expect(await route($, 'show')).toContain('ttl 60 min)')
   await switchTo($, FABLE, FABLE, 'command', '5m')
   expect(await route($, 'show')).toContain('ttl 5 min)')
+})
+
+// ---- probe: a move target answers before main is sent to it --------------
+
+const PROBE_MS = 8000
+const FABLE_PLAN = 'plan the billing migration'
+
+/** A world whose completions resolve as `complete(model)` says. */
+function probeWorld(
+  complete: (model: string) => unknown,
+  fx: Fixture = {},
+): World {
+  return { ...newWorld(fx), complete }
+}
+
+const hangsOn = (id: string) => (model: string): unknown =>
+  model === id ? never() : PROBE_OK
+const rejectsOn = (id: string) => (model: string): unknown =>
+  model === id ? Promise.reject(new Error('credits')) : PROBE_OK
+
+/** Lets a probe that never answers hit its bound while `work` waits on it. */
+async function pastProbe<T>(rig: Rig, work: Promise<T>): Promise<T> {
+  await rig.clock.settle()
+  await rig.clock.advance(PROBE_MS)
+  return work
+}
+
+/** The `down:` line of `show`. */
+const downLine = (text: string): string =>
+  text.split('\n').find(l => l.startsWith('down:')) ?? ''
+
+test('probe: a fable that never answers lands the plan step on opus', async (
+  $, on) => {
+  const world = probeWorld(hangsOn(FABLE))
+  const rig = await bootRig($, on, OPUS, 1000, world)
+  await typed($, FABLE_PLAN)
+  await pastProbe(rig, runStep($, { ...highStep(), model: OPUS }))
+  expect(rig.seen).toEqual([{ model: OPUS, effort: 'max' }])
+  expect(world.completions).toEqual([FABLE])
+  expect(downLine(await route($, 'show'))).toContain(
+    `${FABLE} for 15 min (probe)`)
+})
+
+test('probe: the route tool answers an opus id, never fable', async (
+  $, on) => {
+  const rig = await bootRig($, on, OPUS, 1000, probeWorld(hangsOn(FABLE)))
+  const out = await pastProbe(rig, $.tool.call({
+    tool: ROUTE_TOOL,
+    phase: 'reflect',
+  }))
+  const text = JSON.stringify(out)
+  expect(text).toContain(OPUS)
+  expect(text).not.toContain(FABLE)
+})
+
+test('probe: an answered probe is cached across turns', async ($, on) => {
+  const world = newWorld()
+  const rig = await bootRig($, on, OPUS, 1000, world)
+  await planRoute($)
+  expect((await stepOn($, rig, OPUS)).model).toBe(FABLE)
+  await endTurn($)
+  await planRoute($)
+  expect((await stepOn($, rig, OPUS)).model).toBe(FABLE)
+  expect(world.completions).toEqual([FABLE])
+})
+
+test('probe: a lapsed hold probes again and holds longer', async ($, on) => {
+  const world = probeWorld(hangsOn(FABLE))
+  const rig = await bootRig($, on, OPUS, 1000, world)
+  for (const wait of [15, 30]) {
+    await typed($, FABLE_PLAN)
+    await pastProbe(rig, runStep($, { ...highStep(), model: OPUS }))
+    expect(downLine(await route($, 'show'))).toContain(`for ${wait} min`)
+    await endTurn($)
+    await rig.clock.advance(wait * 60000)
+  }
+  expect(world.completions).toEqual([FABLE, FABLE])
+  expect(rig.seen.map(s => s.model)).toEqual([OPUS, OPUS])
+})
+
+test('probe: a rejection marks the target down like a timeout', async (
+  $, on) => {
+  const world = probeWorld(rejectsOn(FABLE))
+  const rig = await bootRig($, on, OPUS, 1000, world)
+  await planRoute($)
+  expect((await stepOn($, rig, OPUS)).model).toBe(OPUS)
+  expect(world.completions).toEqual([FABLE])
+  expect(downLine(await route($, 'show'))).toContain('(probe)')
+})
+
+for (const [shape, answer] of [
+  ['a string', 'ok'], ['an object', PROBE_OK], ['nothing', undefined],
+] as const) {
+  test(`probe: ${shape} as the answer lets the move go`, async ($, on) => {
+    const world = probeWorld(() => answer)
+    const rig = await bootRig($, on, OPUS, 1000, world)
+    await planRoute($)
+    expect((await stepOn($, rig, OPUS)).model).toBe(FABLE)
+    expect(world.completions).toEqual([FABLE])
+  })
+}
+
+test('probe: a failure during the flight keeps the target unverified', async (
+  $, on) => {
+  let open: () => void = () => undefined
+  const gate = new Promise<void>(resolve => { open = resolve })
+  const world = probeWorld(async () => { await gate; return PROBE_OK })
+  const rig = await bootRig($, on, OPUS, 1000, world)
+  await typed($, FABLE_PLAN)
+  const step = runStep($, { ...highStep(), model: OPUS })
+  await rig.clock.settle()
+  await switchTo($, FABLE, OPUS, 'auto')
+  open()
+  await step
+  expect(rig.seen).toEqual([{ model: OPUS, effort: 'max' }])
+  await endTurn($)
+  await rig.clock.advance(15 * 60000)
+  await typed($, FABLE_PLAN)
+  await runStep($, { ...highStep(), model: OPUS })
+  expect(world.completions).toEqual([FABLE, FABLE])
+})
+
+test('probe: an explicit route onto a held model probes once in all', async (
+  $, on) => {
+  const world = probeWorld(hangsOn(FABLE))
+  const rig = await bootRig($, on, OPUS, 1000, world)
+  await pastProbe(rig, route($, 'fable'))
+  await runStep($, { ...highStep(), model: OPUS })
+  await runStep($, { ...highStep(), model: OPUS })
+  await route($, 'show')
+  // fable is asked once; the second step leaves the held fable for opus,
+  // a move like any other, so opus is tried the same way
+  expect(world.completions).toEqual([FABLE, OPUS])
+  expect(rig.seen.map(s => s.model)).toEqual([FABLE, OPUS])
+})
+
+test('probe: no probe when the classifier guess is above the session', async (
+  $, on) => {
+  const world = probeWorld(hangsOn(FABLE))
+  const c = await bootCls($, on, {
+    model: SONNET, reply: () => 'design', world,
+  })
+  await typed($, PLAIN)
+  await runStep($, { ...highStep(), model: SONNET })
+  expect(world.completions).toEqual([])
+  expect(c.seen[c.seen.length - 1]?.model).toBe(SONNET)
+})
+
+test('probe: no probe when the upgrade switch refuses the move', async (
+  $, on) => {
+  const world = probeWorld(hangsOn(FABLE), { home: { mainUpgrade: false } })
+  const rig = await bootRig($, on, OPUS, 1000, world)
+  await planRoute($)
+  expect((await stepOn($, rig, OPUS)).model).toBe(OPUS)
+  expect(world.completions).toEqual([])
+})
+
+test('probe: the current model is never probed', async ($, on) => {
+  const world = probeWorld(hangsOn(FABLE))
+  const rig = await bootRig($, on, FABLE, 1000, world)
+  await planRoute($)
+  expect((await stepOn($, rig, FABLE)).model).toBe(FABLE)
+  expect(world.completions).toEqual([])
+})
+
+test('probe: false in the override makes no completion at all', async (
+  $, on) => {
+  const world = probeWorld(hangsOn(FABLE), { home: { probe: false } })
+  const rig = await bootRig($, on, OPUS, 1000, world)
+  await planRoute($)
+  expect((await stepOn($, rig, OPUS)).model).toBe(FABLE)
+  expect(world.completions).toEqual([])
+  expect(await route($, 'show')).toContain('probe: off')
+})
+
+test('probe: a non-boolean setting is ignored, logged, probe stays on', async (
+  $, on) => {
+  const logs = recordLogs(on)
+  const world = newWorld({ home: { probe: 'no' } })
+  const rig = await bootRig($, on, OPUS, 1000, world)
+  await planRoute($)
+  await stepOn($, rig, OPUS)
+  expect(world.completions).toEqual([FABLE])
+  expect(logs.some(l => l.includes('"probe" is not a boolean'))).toBe(true)
+  expect(await route($, 'show')).toContain('probe: on')
+})
+
+test('probe: /clear keeps the verified models', async ($, on) => {
+  on('session.end', ($, e) => ({ sessionId: e.sessionId }))
+  const world = newWorld()
+  const rig = await bootRig($, on, OPUS, 1000, world)
+  await planRoute($)
+  await stepOn($, rig, OPUS)
+  await clearSession($)
+  await planRoute($)
+  await stepOn($, rig, OPUS)
+  expect(world.completions).toEqual([FABLE])
+})
+
+// ---- stand-in: a lower model runs the tier one notch up ------------------
+
+/** Main on fable fails: the hold stands, the next move is a stand-in. */
+async function fableHeld($: Engine, rig: Rig): Promise<void> {
+  await stepOn($, rig, FABLE)
+  await failWith($, 'rate_limit')
+}
+
+test('stand-in: reflect on opus runs xhigh, and the answer says so', async (
+  $, on) => {
+  const rig = await bootRig($, on)
+  await fableHeld($, rig)
+  const out = await $.tool.call({ tool: ROUTE_TOOL, phase: 'reflect' })
+  expect(JSON.stringify(out)).toContain(
+    'effort xhigh (opus stands in for fable)')
+  expect(await stepOn($, rig, FABLE)).toEqual({ model: OPUS, effort: 'xhigh' })
+})
+
+test('stand-in: orchestrate goes medium to high, escalate stays max', async (
+  $, on) => {
+  const rig = await bootRig($, on)
+  await fableHeld($, rig)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'orchestrate' })
+  expect((await stepOn($, rig, FABLE)).effort).toBe('high')
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'escalate' })
+  expect((await stepOn($, rig, FABLE)).effort).toBe('max')
+})
+
+test('stand-in: an explicit effort is never bumped', async ($, on) => {
+  const rig = await bootRig($, on)
+  await fableHeld($, rig)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'reflect', effort: 'high' })
+  expect(await stepOn($, rig, FABLE)).toEqual({ model: OPUS, effort: 'high' })
+})
+
+test('stand-in: fable available, no bump', async ($, on) => {
+  const rig = await bootRig($, on, OPUS)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'reflect' })
+  expect(await stepOn($, rig, OPUS)).toEqual({ model: FABLE, effort: 'high' })
+})
+
+test('stand-in: a classifier guess above the session is no stand-in', async (
+  $, on) => {
+  const c = await bootCls($, on, { model: OPUS, reply: () => 'analysis' })
+  await switchTo($, FABLE, OPUS, 'auto')
+  await typed($, PLAIN)
+  await runStep($, { ...highStep(), model: OPUS })
+  expect(c.seen[c.seen.length - 1]).toEqual({ model: OPUS, effort: 'high' })
+})
+
+test('stand-in: with the upgrade switch off, no bump', async ($, on) => {
+  const world = newWorld({ home: { mainUpgrade: false } })
+  const rig = await bootRig($, on, OPUS, 1000, world)
+  await switchTo($, FABLE, OPUS, 'auto')
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'reflect' })
+  expect(await stepOn($, rig, OPUS)).toEqual({ model: OPUS, effort: 'high' })
+})
+
+test('stand-in: a sticky effort from another slot is not bumped', async (
+  $, on) => {
+  const rig = await bootRig($, on)
+  await fableHeld($, rig)
+  await route($, 'effort=low')
+  await planRoute($)
+  expect(await stepOn($, rig, FABLE)).toEqual({ model: OPUS, effort: 'low' })
+})
+
+test('stand-in: an ultrathink floor ends at max, not past it', async (
+  $, on) => {
+  const rig = await bootRig($, on)
+  await fableHeld($, rig)
+  await ultrathink($)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'reflect' })
+  expect(await stepOn($, rig, FABLE)).toEqual({ model: OPUS, effort: 'max' })
+})
+
+test('stand-in: the verbose line names it as a cause', async ($, on) => {
+  const logs = recordLogs(on)
+  const rig = await bootRig($, on)
+  await route($, 'verbose on')
+  await fableHeld($, rig)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'reflect' })
+  await stepOn($, rig, FABLE)
+  expect(logs.some(l => l.startsWith('main:') && l.includes('stand-in')))
+    .toBe(true)
 })
