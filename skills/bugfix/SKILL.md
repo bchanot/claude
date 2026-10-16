@@ -223,13 +223,9 @@ Parse the `BUGFIX-EXEC REPORT`:
    - `skip` → leave changes uncommitted, exit cleanly.
    - `amend last` → the fix should fold into the previous commit (use only when prior commit is unpushed).
 
-3. Commit using conventional format (after approval):
-   ```
-   fix(<scope>): <root cause description>
-
-   <what was wrong and why>
-   <what the fix does>
-   ```
+3. Commit after approval, message per `$HOME/.claude/lib/commit-message.md`
+   (project convention first, else short: root cause in the subject, at most
+   two sentences of body).
 4. Print summary:
    ```
    BUGFIX COMPLETE
