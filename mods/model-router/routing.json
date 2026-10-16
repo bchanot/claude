@@ -147,7 +147,14 @@
       "doc-syncer": "write",
       "security-auditor": "judge",
       "plan-challenger": "judge",
-      "analyzer": "judge"
+      "analyzer": "judge",
+      "hotfixer": "apply",
+      "code-cleaner": "implement",
+      "refactorer": "write",
+      "commit-changer": "write",
+      "bugfixer": "implement",
+      "plugin-probe": "apply",
+      "plugin-advisor": "judge"
     },
     "phases": {
       "verify": "verify",
@@ -155,7 +162,14 @@
       "write": "write",
       "orchestrate": "orchestrate",
       "escalate": "escalate",
-      "judge": "judge"
+      "judge": "judge",
+      "reflect": "reflect",
+      "plan": "plan",
+      "apply": "apply"
+    },
+    "skills": {
+      "gitflow": "implement",
+      "ship-feature": "plan"
     }
   },
   "changed": {},
