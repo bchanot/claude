@@ -236,7 +236,7 @@ async function boot(
   on('classic.PostModelSwitch', () => ({}))
   on('skill.prompt', ($, e) => ({ text: e.text }))
   on('agent.offer', () => ({ isOffered: true }))
-  // the probe of a move target: every model answers unless a test says not
+  // the probe of the model main runs on: every model answers unless a test says not
   on('model.complete', async (_$, e) => {
     world.completions.push(e.model)
     return { value: (await world.complete(e.model)) as string }
@@ -5504,7 +5504,7 @@ test('ttl: show says 60 min by default and 5 min after a 5m event', async (
   expect(await route($, 'show')).toContain('ttl 5 min)')
 })
 
-// ---- probe: a move target answers before main is sent to it --------------
+// ---- probe: the model main runs on answers before main is sent -----------
 
 const PROBE_MS = 8000
 const FABLE_PLAN = 'plan the billing migration'
@@ -5578,7 +5578,8 @@ test('probe: a lapsed hold probes again and holds longer', async ($, on) => {
     await endTurn($)
     await rig.clock.advance(wait * 60000)
   }
-  expect(world.completions).toEqual([FABLE, FABLE])
+  // the fallback opus is verified by its own probe the first time only
+  expect(world.completions).toEqual([FABLE, OPUS, FABLE])
   expect(rig.seen.map(s => s.model)).toEqual([OPUS, OPUS])
 })
 
@@ -5588,7 +5589,7 @@ test('probe: a rejection marks the target down like a timeout', async (
   const rig = await bootRig($, on, OPUS, 1000, world)
   await planRoute($)
   expect((await stepOn($, rig, OPUS)).model).toBe(OPUS)
-  expect(world.completions).toEqual([FABLE])
+  expect(world.completions).toEqual([FABLE, OPUS])
   expect(downLine(await route($, 'show'))).toContain('(probe)')
 })
 
@@ -5646,7 +5647,7 @@ test('probe: no probe when the classifier guess is above the session', async (
   })
   await typed($, PLAIN)
   await runStep($, { ...highStep(), model: SONNET })
-  expect(world.completions).toEqual([])
+  expect(world.completions).toEqual([SONNET])
   expect(c.seen[c.seen.length - 1]?.model).toBe(SONNET)
 })
 
@@ -5656,15 +5657,47 @@ test('probe: no probe when the upgrade switch refuses the move', async (
   const rig = await bootRig($, on, OPUS, 1000, world)
   await planRoute($)
   expect((await stepOn($, rig, OPUS)).model).toBe(OPUS)
-  expect(world.completions).toEqual([])
+  expect(world.completions).toEqual([OPUS])
 })
 
-test('probe: the current model is never probed', async ($, on) => {
+test('probe: a session model that never answers leaves for opus on the first step', async (
+  $, on) => {
   const world = probeWorld(hangsOn(FABLE))
+  const rig = await bootRig($, on, FABLE, 1000, world)
+  await typed($, FABLE_PLAN)
+  await pastProbe(rig, runStep($, { ...highStep(), model: FABLE }))
+  expect(rig.seen).toEqual([{ model: OPUS, effort: 'max' }])
+  expect(world.completions).toEqual([FABLE])
+  expect(downLine(await route($, 'show'))).toContain(
+    `${FABLE} for 15 min (probe)`)
+})
+
+test('probe: a healthy session model is probed once and kept', async (
+  $, on) => {
+  const world = newWorld()
   const rig = await bootRig($, on, FABLE, 1000, world)
   await planRoute($)
   expect((await stepOn($, rig, FABLE)).model).toBe(FABLE)
-  expect(world.completions).toEqual([])
+  await endTurn($)
+  await planRoute($)
+  expect((await stepOn($, rig, FABLE)).model).toBe(FABLE)
+  expect(world.completions).toEqual([FABLE])
+})
+
+test('probe: a lapsed hold on the session model probes it again', async (
+  $, on) => {
+  const world = probeWorld(hangsOn(FABLE))
+  const rig = await bootRig($, on, FABLE, 1000, world)
+  for (const wait of [15, 30]) {
+    await typed($, FABLE_PLAN)
+    await pastProbe(rig, runStep($, { ...highStep(), model: FABLE }))
+    expect(downLine(await route($, 'show'))).toContain(`for ${wait} min`)
+    await endTurn($)
+    await rig.clock.advance(wait * 60000)
+  }
+  // opus, the fallback, answers its own probe once
+  expect(world.completions).toEqual([FABLE, OPUS, FABLE])
+  expect(rig.seen.map(s => s.model)).toEqual([OPUS, OPUS])
 })
 
 test('probe: false in the override makes no completion at all', async (
