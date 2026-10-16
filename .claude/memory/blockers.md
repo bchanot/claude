@@ -50,6 +50,7 @@ rules:
 | BLK-028 | 2026-10-06 | notify-attention on a VS Code client: bell + toast silent-degradation faults (merge of BLK-019 + BLK-020): terminalBell sound default off, ext hooks only terminals born after activation, Code muted in Windows mixer | resolved |
 | BLK-029 | 2026-10-08 | Claude Code mods (2.1.294): alias → id resolution for a model set by a hook lags the Agent tool's (`sonnet` → `claude-sonnet-5`, 404); Agent tool schema refuses full ids | upstream |
 | BLK-030 | 2026-10-15 | model-router kept routing best-tier phases to Fable out of usage credits: each new session + each hold lapse lost a turn to 429 `model_requires_usage_credits`; breaker reactive only | resolved |
+| BLK-031 | 2026-10-16 | model-router: session starting on Fable w/o credits lost 1st turn + each hold lapse; probe skipped kept cur | resolved |
 
 ---
 
@@ -321,3 +322,10 @@ rules:
 - **Solution**: 2cccc43 (bugfix/router-probe-before-route). `decideFor` decides first, then probes decided move target once: `$.model.complete` raced vs `PROBE_MS` 8000 via shared `raceTimeout`; timeout/reject → `markDown(..., 'probe')` + ONE re-decision, no further probe. `verified` set kept across `/clear`, cleared by `markDown`. Never probes cur or held id. Config `probe` (default true). Stand-in effort one notch up (reflect xhigh, plan max, orchestrate high) when lower model replaces held tier head where head would have run; explicit/floor effort never bumped. 497 tests.
 - **Status**: resolved. Residuals in TODO (explicit `Agent(model:"fable")` pins, spawn path, session model itself out of credits, ≤8 s stall per new session).
 - **Reference**: [[LRN-218]], [[BDR-116]], [[BDR-115]], [[LRN-207]], contract `.claude/tasks/contracts/2026-10-14-router-probe-before-route-0005.md`, plan r3 `.claude/tasks/plans/2026-10-14-router-probe-before-route-0005.md`.
+
+## BLK-031 — model-router: session ON Fable w/o credits still loses 1st turn; probe skipped kept model — 2026-10-16
+- **Friction**: session model fable, credits out. Log `main: fable/high → fable/medium (implement: classifier)` then "You're out of usage credits", then `claude-fable-5-1 unavailable (rate_limit) for 15 min`. User suspected bad redeploy; not cause.
+- **Real cause**: 2cccc43 `unprobed()` required `call.moved`: only move target probed. Session model = cur, kept by `decideMain` → never probed. New process (empty `verified`) + hold lapse (`markDown` drops `verified`, cur = session model again) → real request to dead model. Residual of [[BLK-030]], accepted then.
+- **Solution**: c11cd3b drops `!call.moved` guard: model decision lands on (moved or kept) probed once if table id, unverified, not held. Fail → markDown 'probe', one re-decision → leaveDown → opus, stand-in effort +1. Cost ~1.3 s healthy / ≤8 s dead, 1st decision per process. Test `probe: a session model that never answers leaves for opus on the first step`.
+- **Status**: resolved. Open: leaveDown follows classifier `wanted` (implement → sonnet), not opus; "context size unknown" likely document attachment → `promptSize` unknown.
+- **Reference**: [[BLK-030]], [[LRN-218]], contract `.claude/tasks/contracts/2026-10-16-router-probe-session-model-1850.md`.
