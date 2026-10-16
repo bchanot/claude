@@ -34,7 +34,7 @@ type Config = {
   mainModelSwitch: boolean // gates DOWNGRADES only
   verbose: boolean
   classify: boolean // a small-model guess of the typed prompt's phase
-  probe: boolean // a move target is tried once before main is sent to it
+  probe: boolean // the model main would run on is tried once first
   spinner: boolean
   enabled: boolean // false: every hook passes through (per machine)
 }
@@ -234,7 +234,7 @@ const LABEL_PHASE: Readonly<Record<string, string>> = {
 }
 const CLASSIFY_MIN = 12 // code points of a typed prompt worth a call
 const CLASSIFY_MS = 3000 // the call is abandoned after this
-const PROBE_MS = 8000 // a move target that has not answered by then is down
+const PROBE_MS = 8000 // a probed model that has not answered by then is down
 const PROBE_TOKENS = 16 // the probe's reply cap
 const CLASSIFY_MAX = 2000 // code points sent whole; longer: head + tail
 const CLASSIFY_HEAD = 500
@@ -1522,9 +1522,9 @@ async function probeAnswers($: Api, id: string): Promise<boolean> {
 }
 
 /**
- * Tries a move target before main is sent to it. An answer verifies it,
- * unless a failure landed meanwhile (the hold wins); a timeout or a
- * rejection marks it down. True when the move may go ahead.
+ * Tries the model main would run on before main is sent to it. An answer
+ * verifies it, unless a failure landed meanwhile (the hold wins); a timeout
+ * or a rejection marks it down. True when main may go ahead on it.
  */
 async function probeModel($: Api, st: State, id: string): Promise<boolean> {
   if (await probeAnswers($, id)) {
@@ -1535,9 +1535,9 @@ async function probeModel($: Api, st: State, id: string): Promise<boolean> {
   return !st.down.has(id)
 }
 
-/** The table id a move lands on that still wants a probe, else undefined. */
+/** The table id the decision lands on (moved or kept) that wants a probe. */
 function unprobed(st: State, call: Call): string | undefined {
-  if (!call.moved || !st.cfg.probe || st.off) return undefined
+  if (!st.cfg.probe || st.off) return undefined
   const id = canonical(st.cfg, call.model)
   const fresh = !st.verified.has(id) && !st.down.has(id)
   return aliasOf(st.cfg, id) !== undefined && fresh ? id : undefined
@@ -1545,7 +1545,7 @@ function unprobed(st: State, call: Call): string | undefined {
 
 type Decided = { call: Call; wanted: string | undefined }
 
-/** The decision, probing a move target once; a failed probe: decide again. */
+/** The decision, probing the model it lands on once; failure: decide again. */
 async function decideProbed(
   $: Api,
   st: State,
@@ -1609,8 +1609,9 @@ function isStandIn(
 
 /**
  * What the main loop would run on from `cur`: wanted model + decision. The
- * step passes the `known` reading it took; a text reads for itself. A move
- * target is probed here, after the decision (see `decideProbed`).
+ * step passes the `known` reading it took; a text reads for itself. The
+ * model main would run on is probed here, after the decision (see
+ * `decideProbed`).
  */
 async function decideFor(
   $: Api,
