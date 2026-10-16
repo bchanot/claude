@@ -135,10 +135,10 @@ ACTION REQUIRED? YES / NO
 
 | Signal | Enable / Use | Disable / Skip | Notes |
 |---|---|---|---|
-| `frontend` | ui-ux-pro-max, frontend-design, design-motion-principles, impeccable | — | UI design + polish + motion. frontend-design = anti-AI-slop, design-motion-principles = motion/animation, impeccable = /impeccable verbs + deterministic detector (`npx impeccable detect`, 45 rules) — all external, symlinked |
+| `frontend` | impeccable, ui-ux-pro-max, design-motion-principles | — | UI design + polish + motion. design-motion-principles = motion/animation, impeccable = the Build path: /impeccable verbs + deterministic detector (`npx impeccable detect`, 61 rules) — all external, symlinked |
 | `mobile` (React Native/Expo/Flutter) | — | gstack (no browser QA), Docker N/A | ui-ux-pro-max optional |
 | `monorepo` | per-package plugin recommendations | avoid recommending gstack for whole repo if only one package has browser QA | Specify which plugin applies to which package |
-| `design-system` | ui-ux-pro-max, frontend-design, design-motion-principles, impeccable | — | Design tokens, theme, Storybook, motion; impeccable init persists the design context (DESIGN.md/PRODUCT.md) |
+| `design-system` | impeccable, ui-ux-pro-max, design-motion-principles | — | Design tokens, theme, Storybook, motion; impeccable init persists the design context (DESIGN.md/PRODUCT.md) |
 | `deploy` + `browser-qa` | gstack | — | Full-product workflow |
 | `multi-session` | gsd v2 CLI | — | Run `gsd` in terminal, not CC plugin |
 | `fast-libs` | context7 | — | Doc freshness critical |
@@ -189,12 +189,12 @@ When the plugin-advisor detects a `simple` or `hotfix` signal, suggest the appro
 | Project type | Plugins ON | OFF | Passive cost |
 |---|---|---|---|
 | Backend API / microservice | (superpowers skills always on), context7 (if fast libs) | ui-ux-pro-max, gstack | ~0t |
-| Frontend SPA / SSR | (superpowers skills always on), ui-ux-pro-max, frontend-design, design-motion-principles, context7 | gstack | ~600t |
-| Full-stack SaaS | (superpowers skills always on), gstack, ui-ux-pro-max, frontend-design, design-motion-principles, context7 | — | ~3400t |
+| Frontend SPA / SSR | (superpowers skills always on), ui-ux-pro-max, impeccable, design-motion-principles, context7 | gstack | ~600t |
+| Full-stack SaaS | (superpowers skills always on), gstack, ui-ux-pro-max, impeccable, design-motion-principles, context7 | — | ~3400t |
 | CLI tool / library | (superpowers skills always on) | all toggles | ~0t |
 | Multi-session large feature | (superpowers skills always on) + gsd v2 CLI (external) | — | ~0t CC |
 | Quick fix / hotfix | (superpowers skills always on) | all toggles | ~0t |
-| Design system / component lib | (superpowers skills always on), ui-ux-pro-max, frontend-design, design-motion-principles | gstack, gsd | ~400t |
+| Design system / component lib | (superpowers skills always on), ui-ux-pro-max, impeccable, design-motion-principles | gstack, gsd | ~400t |
 | Fast-evolving libs (Next.js etc.) | (superpowers skills always on), context7 | — | ~200t |
 | Enterprise multi-agent orchestration | (superpowers skills always on) + gsd v2 (external) | plugin-dev | ~0t CC |
 
@@ -219,7 +219,7 @@ RULE: IF "monorepo" signal detected:
 
 RULE: IF "frontend" signal OR .tsx/.jsx count > 0:
   → ui-ux-pro-max ON if "design-system" signal (~400t)
-  → frontend-design ON (external skill, 0t passive — symlink at ~/.claude/skills/frontend-design)
+  → impeccable ON (external skill, 0t passive — ~/.claude/skills/impeccable)
   → design-motion-principles ON if anim-lib-installed or description mentions animation/motion (external, 0t passive)
 
 RULE: IF "deploy" AND "browser-qa" signals:
@@ -261,7 +261,7 @@ RULE: IF `browser-qa` signal (e2e tests, Playwright/Cypress/Puppeteer in deps):
 
 RULE: IF `design-system` signal (tokens, theme files, Storybook present):
   → ui-ux-pro-max ON (~400t)
-  → frontend-design ON (external skill, 0t passive)
+  → impeccable ON (external skill, 0t passive)
   → design-motion-principles ON (external skill, 0t passive)
   → WARN if all three OFF with this signal: significant design gap
 

@@ -6,7 +6,7 @@
 # below trip the design gate. The rest of this profile (browser/plan/shotgun
 # tooling, graphify) is bundled for convenience but never blocks. Keep these
 # lines in sync when adding/removing a core design tool.
-# GATE-BLOCK: frontend-design ui-ux-pro-max emil-design-eng design-html
+# GATE-BLOCK: impeccable ui-ux-pro-max emil-design-eng design-html
 # GATE-BLOCK: design-motion-principles design-review design-consultation
 # GATE-BLOCK: 21st 21st-ui-build
 

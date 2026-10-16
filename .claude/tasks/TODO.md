@@ -1,5 +1,16 @@
 # TODO
 
+## 2026-10-16 — impeccable = Build path for all UI (chore/impeccable-build-path)
+User validated: frontend-design overlaps impeccable 4.6; gate still blocked on frontend-design. Supersedes the 2026-07-05 "complementary, keep both" call.
+- [x] CLAUDE.global.md Build line: impeccable leads, frontend-design = light path only, rule count 45 -> 61
+- [x] design.profile GATE-BLOCK: frontend-design out, impeccable in (frontend-design stays installed, profile-listed)
+- [x] lib/design-gate.md: core-set prose + section 5 (impeccable now blocking, so only the PRODUCT.md check remains)
+- [x] agents/plugin-advisor.md: frontend/design-system rows, package rows, two RULE blocks
+- [x] 45 -> 61 detector rules: README, plugins.lock.json note, install-plugins.sh comment + echo
+- [x] BDR-119 + CHANGELOG Unreleased + journal
+- [x] make test: 1 red suite = known design-tool-gate precondition (21st CLI installed, see 2026-10-06 entry), shellcheck clean, impeccable resolves under skills/
+- [ ] Residual (not done): model-router has no impeccable row (frontend-design has `reflect`); census test pins the table, own change.
+
 ## 2026-10-15 — short commit messages (feature/short-commit-messages)
 - [x] `lib/commit-message.md`: lookup of a documented convention (README, CONTRIBUTING, CLAUDE.md, `.claude/` rules, commitlint, template), else 50 words max, medium technical level. Git log is not a convention.
 - [x] Citers patched: commit-changer, bugfix STEP 6, feat STEP 5, hotfix STEP 4, client-handover-writer, CLAUDE.global.md (1 line, 320-line budget).
