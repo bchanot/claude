@@ -39,8 +39,8 @@ and if not, point at ONE command — `/profile design`.
 
 Tier does NOT change WHAT gets checked. Every non-trivial design tier draws from
 the one `design` profile — so the gate checks that profile's **design-core
-tools** (the `# GATE-BLOCK:` allowlist in `design.profile`: ui-ux-pro-max,
-frontend-design, emil-design-eng, design-motion-principles, design-html,
+tools** (the `# GATE-BLOCK:` allowlist in `design.profile`: impeccable,
+ui-ux-pro-max, emil-design-eng, design-motion-principles, design-html,
 design-review, design-consultation, the `21st` CLI and `21st-ui-build` — the
 canary for the whole 21st skill pack). The profile also bundles
 browser/plan/shotgun tooling and graphify for convenience; those never trip the
@@ -171,10 +171,9 @@ that only `/impeccable init` writes. Without it the skill runs on invented
 context, which is worse than not running it — and nothing else in the process
 says so, because init has to happen in the agent chat, not in an installer.
 
-**Fires when BOTH hold** — else stay silent:
-
-1. impeccable symlink present under `skills/` (non-blocking external — not on the `# GATE-BLOCK:` list, so §3 never checks it).
-2. The project has no `PRODUCT.md` at its root.
+**Fires when** the project has no `PRODUCT.md` at its root, else stay
+silent. impeccable itself is on the `# GATE-BLOCK:` list, so §3 has already
+guaranteed it is installed by the time this runs.
 
 Evaluate it on the same path as §4: after the toolchain resolves, never on the
 INCOMPLETE stop path. One line, non-blocking:

@@ -136,6 +136,7 @@ rules:
 | BDR-116 | 2026-10-11 | model-router first-use confirmation: tracked routing.json = source of phases + rows + decisions; engine dialog at first use; project exceptions in user scope keyed by normalized remote; model never writes; census tolerates a decided row | accepted |
 | BDR-117 | 2026-10-12 | shared gstack helpers live in lib/gstack-removed.sh, not in a new lib | accepted |
 | BDR-118 | 2026-10-12 | Rust default language for new projects / whole-project rewrites, always-on rule file | accepted |
+| BDR-119 | 2026-10-16 | impeccable = Build path for all UI; GATE-BLOCK swaps frontend-design for impeccable | accepted |
 
 ---
 
@@ -1439,3 +1440,11 @@ Branch feature/user-writing-web-rules, UNMERGED (human gate).
 - **Hooks**: interviewer FAILURE MODES row (language not stated → propose Rust), init-project founding-BDR table, project CLAUDE.md exception list.
 - **Alternatives rejected**: section in CLAUDE.global.md (busts 320 budget); `paths:`-scoped rule (brainstorm is chat, never fires).
 - **Refs**: commit ee76723, branch chore/rust-default. Links [[BDR-085]].
+
+## BDR-119 — impeccable = Build path for all UI, frontend-design out of the gate [accepted] (2026-10-16)
+- **Decision**: Build UI routes to impeccable (init, shape, new-work, craft floor, `impeccable detect`, fresh finish reviewer). `design.profile` GATE-BLOCK: impeccable in, frontend-design out. frontend-design stays installed + profile-listed: light path for a one-off visual w/o project context, never beside impeccable on same task.
+- **Why**: impeccable 4.6 craft-floor + new-work carry frontend-design's anti-default list (eyebrow, numbering, identical cards, hero metric, cream/serif, scattered motion) and add direction roll, 61 deterministic rules, fresh reviewer, PRODUCT.md/DESIGN.md. Gate blocked on frontend-design (likely source of install prompt seen in another project, not traced). 2026-07-05 "complementary, keep both" call assumed frontend-design kept aesthetic direction; no longer true. Skill dist drifts untracked (pin = CLI only).
+- **Gaps accepted**: tells only frontend-design names: middle-dot meta strings, arrow on buttons, short ALL-CAPS labels, tinted near-black. impeccable heavier: ~79k chars, init interview, mandatory seed roll on new world.
+- **Alternatives rejected**: both in gate (conflict: frontend-design lets brief earn an eyebrow, impeccable bans it); uninstall frontend-design (loses light path); impeccable non-blocking (gate stays blind to the main tool).
+- **Residual**: model-router has no impeccable row (frontend-design = `reflect`); census test pins the table, own change.
+- **Refs**: branch chore/impeccable-build-path. Supersedes TODO 2026-07-05 call (no BDR). Links [[BDR-094]] [[BDR-025]] [[BDR-105]].

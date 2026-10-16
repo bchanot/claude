@@ -798,7 +798,7 @@ fi
 echo ""
 
 # ── Step 8d: Impeccable (design detector + skill + subagents) ──
-# 45 deterministic detector rules (`impeccable detect`, exit 0/2), the
+# 61 deterministic detector rules (`impeccable detect`, exit 0/2), the
 # /impeccable skill (23 verbs) and 4 `impeccable-*` subagents.
 #
 # GLOBAL scope, no staging: the installer writes ~/.claude/skills/impeccable/
@@ -1313,7 +1313,7 @@ echo "    🔄 context7 CLI        — ctx7 (npm global, standalone or MCP setup
 echo "    🔄 graphifyy (CLI: graphify) — codebase knowledge graph (pipx, PreToolUse hook)"
 echo "    🔄 emil-design-eng     — UI polish, animations, component craft (curl → symlink)"
 echo "    🔄 frontend-design     — distinctive frontend interfaces, anti-AI-slop (anthropic-agent-skills)"
-echo "    🔄 impeccable          — /impeccable design verbs + 45-rule deterministic detector (npx impeccable detect)"
+echo "    🔄 impeccable          — /impeccable design verbs + 61-rule deterministic detector (npx impeccable detect)"
 echo "    🔄 design-motion-principles — motion/animation design, 3-designer lens (kylezantos)"
 echo "    🔄 agent-skills trio   — observability-and-instrumentation, deprecation-and-migration, ci-cd-and-automation (curl → symlink, pinned commit)"
 echo "    🔄 mengto scroll skills — scroll-world-storytelling, build-threejs-scroll-worlds, scroll-scrubbed-visual-sequence, scroll-scrubbed-word-reveal, scroll-progress-timeline (curl → symlink, pinned commit)"

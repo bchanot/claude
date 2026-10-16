@@ -615,3 +615,6 @@ rules:
 ## 2026-10-15
 - /bugfix model-router: Fable out of credits still routed (BLK-030). Live check: `complete()` on credit-less model never settles → probe w/ 8 s timeout (LRN-218). Plan r1 BLOCKERs (loop, cur probed) → r3 decide-then-probe. User: stand-in effort one notch up, `probe` key, explicit fable pins out of scope. bugfixer 497 tests, GATE 0 MET, verifier CONFORME 11/11, security PASS. Commit 2cccc43, docs P1-P5, merged to develop on user signal.
 
+
+## 2026-10-16
+- User asked if impeccable replaces frontend-design (install prompt in other project). Audit: yes for project UI, no for one-off visual. BDR-119: impeccable = Build path, GATE-BLOCK swap, doctrine Build line, advisor rows, rules 45 -> 61. frontend-design stays installed, light path. Branch chore/impeccable-build-path.
