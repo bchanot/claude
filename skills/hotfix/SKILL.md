@@ -190,10 +190,9 @@ Parse the `HOTFIX-EXEC REPORT`:
    - Structural failure (mute / unparsable / no VERDICT line) → treat as a
      failed gate: retry ONCE fresh; a 2nd structural failure → revert +
      escalate. A mute auditor is never a PASS.
-3. Commit using conventional format (only after smoke AND security pass):
-   ```
-   fix(<scope>): <what was wrong>
-   ```
+3. Commit only after smoke AND security pass, message per
+   `$HOME/.claude/lib/commit-message.md` (no convention: one subject line,
+   `fix(<scope>): <what was wrong>`).
 4. Print summary:
    ```
    HOTFIX APPLIED

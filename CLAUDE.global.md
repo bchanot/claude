@@ -193,6 +193,7 @@ when asked: the user runs `! git push`. An invalid value counts as manual,
 nothing pushes and the stop is named. `GITFLOW_NO_PUSH=1` only for
 throwaway test repos. Outside manual mode a branch ahead of its upstream
 is a defect, not a state.
+Commit messages: project convention, else 50 words max (lib/commit-message.md).
 
 ## Security — non-negotiable defaults
 Apply at every step: design, scaffolding, implementation, review.

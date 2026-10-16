@@ -191,12 +191,9 @@ run + one verifier + one security dispatch.
 
 ## STEP 5 — COMMIT
 
-Commit using conventional format:
-```
-feat(<scope>): <what was added>
-
-<brief description of the feature>
-```
+Commit with the message per `$HOME/.claude/lib/commit-message.md`
+(project convention first, else short: what was added, at most two
+sentences of body).
 
 If the feature touched multiple concerns (e.g., feature + config +
 test), consider splitting into 2-3 atomic commits grouped by logical

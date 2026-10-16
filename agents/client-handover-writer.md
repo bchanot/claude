@@ -564,8 +564,8 @@ If `PENDING_CHANGES` non-empty → invoke /commit-change skill via subagent:
 > auto-fix iterations of /seo, /harden (web) or /cso (non-web). Group into
 > atomic logical commits (e.g., separate SEO meta-tag commit from harden
 > security-headers commit; separate dep-upgrade commit from gitignore
-> commit). Use Conventional Commits format. After committing, return the
-> SHA list."
+> commit). Message per `~/.claude/lib/commit-message.md`. After committing,
+> return the SHA list."
 
 **PUSH STATE READ.** Three separate Bash calls, never combined, read-only:
 `git branch --show-current` → `<br>`;

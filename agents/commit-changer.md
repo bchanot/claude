@@ -123,18 +123,9 @@ artificially split what was done as one action.
 
 ### Commit message format
 
-Follow Conventional Commits and match the repo's existing style:
-
-```
-<type>(<scope>): <short description>
-
-<optional body — what and why, not how>
-```
-
-Types: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`, `style`, `perf`
-
-Keep the first line under 72 characters. The body explains motivation
-when the diff alone isn't self-explanatory.
+Follow `$HOME/.claude/lib/commit-message.md`: the project's documented
+convention if there is one, else a short message (50 words max, medium
+technical level). Run its lookup once for the whole plan.
 
 ### Capitalize candidates (draft only — decided later, written in `MODE: apply`)
 

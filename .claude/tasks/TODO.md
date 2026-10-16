@@ -1,5 +1,10 @@
 # TODO
 
+## 2026-10-15 — short commit messages (feature/short-commit-messages)
+- [x] `lib/commit-message.md`: lookup of a documented convention (README, CONTRIBUTING, CLAUDE.md, `.claude/` rules, commitlint, template), else 50 words max, medium technical level. Git log is not a convention.
+- [x] Citers patched: commit-changer, bugfix STEP 6, feat STEP 5, hotfix STEP 4, client-handover-writer, CLAUDE.global.md (1 line, 320-line budget).
+- [ ] Residual: `chore(memory)` / `docs:` helper commits untouched (already one line). release-executor prep message untouched (fixed one-liner).
+
 ## 2026-10-15 — model-router: probe a move target before routing main to it (bugfix/router-probe-before-route)
 Contract `.claude/tasks/contracts/2026-10-14-router-probe-before-route-0005.md`, plan r3 `.claude/tasks/plans/2026-10-14-router-probe-before-route-0005.md`.
 - [x] /bugfix run: Fable out of credits routed (BLK-030, LRN-218); r1 → r3; 497 tests, verifier CONFORME 11/11, security PASS; commit 2cccc43 + docs.
