@@ -19,7 +19,7 @@ User validated: frontend-design overlaps impeccable 4.6; gate still blocked on f
 ## 2026-10-15 — model-router: probe a move target before routing main to it (bugfix/router-probe-before-route)
 Contract `.claude/tasks/contracts/2026-10-14-router-probe-before-route-0005.md`, plan r3 `.claude/tasks/plans/2026-10-14-router-probe-before-route-0005.md`.
 - [x] /bugfix run: Fable out of credits routed (BLK-030, LRN-218); r1 → r3; 497 tests, verifier CONFORME 11/11, security PASS; commit 2cccc43 + docs.
-- [ ] Residuals (accepted): explicit `Agent(model:"fable")` pins (client-handover) still fail w/o credits (BDR-115 kept); spawn path not probed; session model itself out of credits → first turn fails reactively (cur never probed); no cross-session persistence → ≤8 s stall per new session; timed-out probe keeps retrying in engine (no cancel); `[1m]` gating unverified (bare id probed); no Esc regression test (kit cannot abort signal); probe sleep eats ~8 of 10 s `turn.step` budget.
+- [ ] Residuals (accepted): explicit `Agent(model:"fable")` pins (client-handover) still fail w/o credits (BDR-115 kept); spawn path not probed; session model itself out of credits → CLOSED 2026-10-16 c11cd3b (kept cur probed too); no cross-session persistence → ≤8 s stall per new session; timed-out probe keeps retrying in engine (no cancel); `[1m]` gating unverified (bare id probed); no Esc regression test (kit cannot abort signal); probe sleep eats ~8 of 10 s `turn.step` budget.
 - [ ] LIVE CHECK after `/reload-plugins`: best-tier phase w/ Fable out of credits → `/route show` lists fable down (probe), main on opus, effort bumped.
 
 ## 2026-10-13 — model-router: cold-read cap, switch on by default, classifier routes down (feature/router-downgrade-cap)
