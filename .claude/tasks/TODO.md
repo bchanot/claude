@@ -6,8 +6,8 @@ Source: geoffreylitt gist `explain-diff-html` (Notion variant dropped). Built th
 - [x] T2 `assets/template.html` (self-contained skeleton: light/dark tokens, TOC, diagram primitives, diff + quiz JS) + `references/components.md`
 - [x] T3 `scripts/check_explanation.py` (deterministic floor: name, location, sections, TOC, 5-question quiz, code escaping, no ASCII art, no em-dash, self-contained) + `lib/tests/explain-diff-check.test.sh` (17 checks: valid page, raw template, one mutant per check)
 - [x] T4 registration: full/max/dev profiles, routing.json row `reflect`, README + USAGE x2 + CHANGELOG
-- [ ] T5 skill-creator iteration 1: 3 evals x (with skill, baseline), grading, static viewer, user review
-- [ ] T6 `make test` + `impeccable detect` on the template; commit on the branch; merge = user go
+- [x] T5 skill-creator iteration 1 (runs on opus: Fable out of credits): 3 evals x (with skill, baseline), graded, pass rate 100% vs 45%; fixes faedb98 (arrow/edge class collision, bundled fill_template.py). Static viewer in session scratchpad. [ ] user review + iteration 2
+- [x] T6 `make test` all green, shellcheck clean, `impeccable detect` [] on the template, contrast >= 5.8:1 both themes; commits b353fac faedb98. [ ] merge = user go
 
 ## 2026-10-16 — impeccable = Build path for all UI (chore/impeccable-build-path)
 User validated: frontend-design overlaps impeccable 4.6; gate still blocked on frontend-design. Supersedes the 2026-07-05 "complementary, keep both" call.
