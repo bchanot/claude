@@ -113,11 +113,18 @@ less than three styled boxes.
 
 The skill folder is `$HOME/.claude/skills/explain-diff/`.
 
-1. Read `references/components.md` (the snippet catalog), then start from
-   a copy of `assets/template.html`.
-2. Replace every `{{…}}` placeholder. Section ids stay `background`,
-   `intuition`, `code` and `quiz`: the table of contents and the checker
-   rely on them.
+1. Read `references/components.md` (the snippet catalog) and the
+   placeholders of `assets/template.html`.
+2. Write each section body as its own HTML fragment file, the quiz as a
+   JSON list, and a `values.json` mapping every placeholder to its text or
+   to `@<fragment file>`. Keep these working files in a temporary folder,
+   never in the repo. Then build the page:
+   ```bash
+   python3 "$HOME/.claude/skills/explain-diff/scripts/fill_template.py" values.json <file>
+   ```
+   It refuses a missing or unknown placeholder. Section ids stay
+   `background`, `intuition`, `code` and `quiz`: the table of contents and
+   the checker rely on them.
 3. Code goes in `<pre>` blocks, HTML-escaped (`<` as `&lt;`, `>` as `&gt;`,
    `&` as `&amp;`). An unescaped `<T>` generic or JSX tag silently swallows
    the code that follows it.

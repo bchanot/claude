@@ -39,7 +39,7 @@ worth remembering), `risk` (what can still go wrong, or a follow-up).
 
 ## Flow of components
 
-Nodes left to right, an edge between each pair. The edge label carries the
+Nodes left to right, an `arrow` between each pair. Its label carries the
 example data that travels (a call, a payload, a return value). `hl` marks
 the component the change touches. On a phone the flow turns vertical.
 
@@ -48,10 +48,10 @@ the component the change touches. On a phone the flow turns vertical.
   <div class="flow">
     <div class="node"><span class="node-title">Browser</span>
       <span class="node-sub">guest g-42, no session</span></div>
-    <div class="edge">ensureGuest()</div>
+    <div class="arrow">ensureGuest()</div>
     <div class="node hl"><span class="node-title">fetchHint</span>
       <span class="node-sub">new: session first</span></div>
-    <div class="edge">rpc hint(day=12)</div>
+    <div class="arrow">rpc hint(day=12)</div>
     <div class="node"><span class="node-title">Database</span>
       <span class="node-sub">auth-gated RPC</span></div>
   </div>
@@ -60,7 +60,7 @@ the component the change touches. On a phone the flow turns vertical.
 </figure>
 ```
 
-A return value travels back through the label of the same edge
+A return value travels back through the label of the same arrow
 (`hint(day=12) → "starts with B"`) or through a second flow below.
 
 ## Row of states
@@ -70,7 +70,7 @@ Same markup with `state` nodes; `hl` marks the state the change adds.
 ```html
 <div class="flow">
   <div class="node state"><span class="node-title">running</span></div>
-  <div class="edge">crash ×3</div>
+  <div class="arrow">crash ×3</div>
   <div class="node state hl"><span class="node-title">stopped</span>
     <span class="node-sub">new: final</span></div>
 </div>

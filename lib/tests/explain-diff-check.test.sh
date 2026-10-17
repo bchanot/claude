@@ -97,5 +97,30 @@ out=$(python3 "$CHECK" "$D-dash.html")
 check T15-fail-line-names-check "$(printf '%s\n' "$out" \
   | grep -c '^FAIL em-dash:')" 1
 
+# fill_template.py: a valid values file builds a page the checker passes;
+# a missing placeholder is refused (rc 1).
+FILL="$SKILL/scripts/fill_template.py"
+python3 -I - "$SKILL/assets/template.html" "$WORK/values.json" <<'PY'
+import json, re, sys
+keys = set(re.findall(r"\{\{([A-Z_]+)\}\}", open(sys.argv[1]).read()))
+values = {k: "x" for k in keys}
+values.update(LANG="en", BACKGROUND_BODY="@bg.html", QUIZ_JSON=[
+    {"q": "Q?", "options": [
+        {"text": "a", "correct": True, "why": "yes </script>"},
+        {"text": "b", "correct": False, "why": "no"},
+        {"text": "c", "correct": False, "why": "no"}]}] * 5)
+json.dump(values, open(sys.argv[2], "w"))
+PY
+echo '<p>Fragment.</p>' > "$WORK/bg.html"
+python3 "$FILL" "$WORK/values.json" "$D-filled.html" >/dev/null
+check T16-filled-page-passes "$(rc "$D-filled.html")" 0
+check T17-fragment-inlined "$(grep -c '<p>Fragment.</p>' "$D-filled.html")" 1
+check T18-script-close-escaped "$(grep -c 'yes </script>' "$D-filled.html")" 0
+python3 -I -c 'import json, sys
+d = json.load(open(sys.argv[1])); d.pop("LANG")
+json.dump(d, open(sys.argv[2], "w"))' "$WORK/values.json" "$WORK/bad.json"
+python3 "$FILL" "$WORK/bad.json" "$D-bad.html" >/dev/null 2>&1
+check T19-missing-placeholder-refused "$?" 1
+
 printf 'explain-diff checker: %d pass, %d fail\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
