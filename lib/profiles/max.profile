@@ -62,6 +62,7 @@ document-release
 diagram
 make-pdf
 pdf-translate                     personal
+explain-diff                      personal
 
 # === Session hygiene + memory ========================================
 close                             personal

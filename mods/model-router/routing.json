@@ -73,6 +73,7 @@
     "hotfix": "reflect",
     "bugfix": "reflect",
     "refactor": "reflect",
+    "explain-diff": "reflect",
     "web-validate": "reflect",
     "harden": "reflect",
     "seo": "reflect",

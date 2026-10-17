@@ -1,5 +1,14 @@
 # TODO
 
+## 2026-10-17 — /explain-diff skill: HTML explanation of a diff (feature/explain-diff)
+Source: geoffreylitt gist `explain-diff-html` (Notion variant dropped). Built through the skill-creator loop (draft, evals with/without skill, user review).
+- [x] T1 `skills/explain-diff/SKILL.md` (target resolution, understand, 4 sections, style, save outside repo, check, hand-over) + `test-prompts.json`
+- [x] T2 `assets/template.html` (self-contained skeleton: light/dark tokens, TOC, diagram primitives, diff + quiz JS) + `references/components.md`
+- [x] T3 `scripts/check_explanation.py` (deterministic floor: name, location, sections, TOC, 5-question quiz, code escaping, no ASCII art, no em-dash, self-contained) + `lib/tests/explain-diff-check.test.sh` (17 checks: valid page, raw template, one mutant per check)
+- [x] T4 registration: full/max/dev profiles, routing.json row `reflect`, README + USAGE x2 + CHANGELOG
+- [ ] T5 skill-creator iteration 1: 3 evals x (with skill, baseline), grading, static viewer, user review
+- [ ] T6 `make test` + `impeccable detect` on the template; commit on the branch; merge = user go
+
 ## 2026-10-16 — impeccable = Build path for all UI (chore/impeccable-build-path)
 User validated: frontend-design overlaps impeccable 4.6; gate still blocked on frontend-design. Supersedes the 2026-07-05 "complementary, keep both" call.
 - [x] CLAUDE.global.md Build line: impeccable leads, frontend-design = light path only, rule count 45 -> 61
