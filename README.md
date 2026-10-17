@@ -227,6 +227,7 @@ a different package, ships its own conflicting `graphify` bin) — see
 | `/prune-memory` | Curate and compress the .claude/memory/ registries |
 | `/reconcile` | Confront declared status (TODO, registries) against real git/fs state — surface stale items |
 | `/pdf-translate` | Translate a PDF to another language, output as HTML (via Vision) |
+| `/explain-diff` | Explain a diff, commit, branch or PR as one self-contained HTML page (background, intuition, code walkthrough, 5-question quiz), saved outside the repo |
 | `/close` | End-of-session ritual — alias for `/capitalize --ritual` (dedup + TODO reconcile + 3-question reflection) |
 | `/harden` | Web hardening audit — HTTPS/TLS, HSTS, CSP, security headers |
 | `/web-validate` | W3C HTML/CSS validity + WCAG 2.1 accessibility audit |

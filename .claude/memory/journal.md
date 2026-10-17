@@ -619,3 +619,4 @@ rules:
 ## 2026-10-16
 - User asked if impeccable replaces frontend-design (install prompt in other project). Audit: yes for project UI, no for one-off visual. BDR-119: impeccable = Build path, GATE-BLOCK swap, doctrine Build line, advisor rows, rules 45 -> 61. frontend-design stays installed, light path. Branch chore/impeccable-build-path.
 - /bugfix model-router: session starting on dead Fable (no credits) lost 1st turn; probe skipped kept cur. c11cd3b `unprobed()` drops `call.moved`. 499 tests, verifier+security PASS. Merge on user signal.
+- /explain-diff skill built (feature/explain-diff) via skill-creator from geoffreylitt gist: SKILL.md + self-contained template + components catalog + checker + fill_template.py, suite 21 checks. Evals 3x2 on opus (Fable credits out, first dispatch 429): skill 100% vs baseline 45%, ~+90s/run. Fixed .edge class collision found in render. Merge awaits user go + viewer feedback.

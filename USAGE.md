@@ -119,6 +119,7 @@ Tu veux...
 | Visibilité IA (GEO seul) | `/geo` |
 | Livraison client finale | `/client-handover` |
 | Traduire un PDF | `/pdf-translate` |
+| Comprendre un changement pas suivi | `/explain-diff` |
 | Changer profil skills | `/profile` |
 | Audit/polish design (anti-slop) | `/impeccable` |
 | Sweep groupé tous axes (nettoyage + sécu + reconcile + doc) | `/tour` |
@@ -161,6 +162,7 @@ Tu veux...
 | `/web-validate` | Audit W3C + WCAG a11y | Avant livraison projet web |
 | `/client-handover` | Livraison client | Audits finaux + livrable brandé |
 | `/pdf-translate` | Traduire un PDF vers une autre langue | Sortie HTML fidèle (images, layout, style préservés) |
+| `/explain-diff` | Comprendre un commit, une branche ou une PR qu'on n'a pas suivis | Page HTML autonome hors du repo : contexte, intuition, code, quiz de 5 questions |
 | `/impeccable` | Audit/polish design + détecteur anti-slop déterministe | 23 verbes ; `npx impeccable detect` (exit 0/2) |
 | `/tour` | Sweep groupé sur un ou plusieurs projets | Sécu + nettoyage + reconcile + doc, boucle jusqu'à un pass propre |
 | `/route` | Voir ou fixer la route du mod model-router | show / clear / off / on / reload / pending / ask on\|off / <phase> / model=… effort=… / switch on\|off / classify on\|off (classifieur de prompt) / verbose on\|off (transitions seules) |

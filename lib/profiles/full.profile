@@ -59,6 +59,7 @@ qa-only
 doc                               personal
 document-release
 pdf-translate                     personal
+explain-diff                      personal
 
 # === Session hygiene + memory ========================================
 close                             personal
