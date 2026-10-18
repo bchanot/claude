@@ -52,6 +52,7 @@ SQL=supabase/migrations/0001_init.sql
 TSX=src/components/ContactForm.tsx
 NOTIFY=supabase/functions/notify/index.ts
 SMS=supabase/functions/sms/index.ts
+API=src/pages/api/notes.ts
 
 echo "== clean fixture"
 out=$(scan "$GOOD"); rc=$?
@@ -175,6 +176,32 @@ mutant firebase-loop WARN FN-SELF-TRIGGER \
 mutant key-body FAIL API-SECRET-LITERAL \
   'printf -- "-----BEGIN %s KEY-----\n%s\n" PRIVATE "$(head -c 40 /dev/zero | tr "\0" A)" > src/key.ts'
 
+echo "== injection"
+mutant sql-template FAIL INJ-SQL-CONCAT \
+  "printf '%s\n' 'const q = \`select id from notes where owner = \${owner}\`;' >> $API"
+mutant sql-concat FAIL INJ-SQL-CONCAT \
+  "printf '%s\n' 'const q = \"select id from notes where owner = \" + owner;' >> $API"
+mutant sql-fstring FAIL INJ-SQL-CONCAT \
+  "printf '%s\n' 'cur.execute(f\"delete from notes where id = {note_id}\")' > src/lib/cleanup.py"
+mutant sql-php-interpolation FAIL INJ-SQL-CONCAT \
+  "printf '%s\n' '<?php \$r = \$db->query(\"select id from notes where owner = \$owner\");' > src/lib/notes.php"
+mutant sql-py-concat FAIL INJ-SQL-CONCAT \
+  "printf '%s\n' 'cur.execute(\"select id from notes where owner = \" + owner)' > src/lib/cleanup.py"
+mutant sql-quoted-value FAIL INJ-SQL-CONCAT \
+  "printf '%s\n' \$'const q = \"select id from notes where owner = \\'\" + owner + \"\\'\";' >> $API"
+mutant sql-php-dot FAIL INJ-SQL-CONCAT \
+  "printf '%s\n' \$'<?php \$r = \$db->query(\"select id from notes where owner = \\'\" . \$owner . \"\\'\");' > src/lib/notes.php"
+mutant sql-raw-unsafe FAIL INJ-SQL-RAW-UNSAFE \
+  "printf '%s\n' 'const rows = await prisma.\$queryRawUnsafe(statement);' >> $API"
+mutant sql-dynamic-exec WARN INJ-SQL-DYNAMIC-EXEC \
+  "printf '%s\n' \"execute 'select count(*) from ' || tbl into n;\" >> $SQL"
+mutant postgrest-filter WARN INJ-POSTGREST-FILTER \
+  "printf '%s\n' 'const { data } = await supabase.from(\"notes\").select().or(\`owner.eq.\${who}\`);' >> $API"
+mutant nosql-operator WARN INJ-NOSQL-OPERATOR \
+  "printf '%s\n' 'const doc = await Notes.findOne({ owner: req.body.owner });' >> $API"
+mutant shell-db-tool FAIL INJ-SHELL-DB-TOOL \
+  "printf '%s\n' 'execSync(\`pg_dump --table=\${table} app > backup.sql\`);' > src/lib/backup.ts"
+
 echo "== benign patterns stay silent"
 benign() { # benign <label> <snippet>: a legitimate pattern raises nothing
   local label="$1" snippet="$2" dir="$WORK/$1"
@@ -227,6 +254,31 @@ benign i18n-password-label \
 ENVKEY='printf "SUPABASE_SERVICE_ROLE_KEY=%s.%s.signaturepart\n" "$(b64 "{\"alg\":\"HS256\"}")" "$(b64 "{\"role\":\"service_role\"}")" > .env.worker'
 benign env-worker-ignored "printf '.env.*\n' >> .gitignore; $ENVKEY"
 mutant env-worker-tracked FAIL SB-SERVICE-ROLE-LITERAL "$ENVKEY"
+
+benign parameterized-query \
+  "printf '%s\n' 'const r = await db.query(\"select id from notes where owner = \$1\", [owner]);' >> $API"
+benign tagged-sql-template \
+  "printf '%s\n' 'const r = await sql\`select id from notes where owner = \${owner}\`;' >> $API"
+benign typed-sql-tag \
+  "printf '%s\n' 'const r = await sql<Note[]>\`select id from notes where owner = \${owner}\`;' >> $API"
+benign express-raw-webhook \
+  "printf '%s\n' 'app.post(\"/hook\", express.raw({ type: \"application/json\" }), onHook);' >> $API"
+benign ui-copy-select \
+  "printf '%s\n' 'const hint = \`Select a plan from the list, \${name}\`;' >> $TSX"
+benign ui-copy-delete \
+  "printf '%s\n' 'const label = \"Delete from favorites \" + item.title;' >> $TSX"
+benign jquery-not \
+  "printf '%s\n' 'const rows = \$(\".row\").not(\".row-\" + id);' >> $TSX"
+benign argv-db-tool \
+  "printf '%s\n' 'spawnSync(\"pg_dump\", [\"--table\", table, \"app\"]);' > src/lib/backup.ts"
+benign format-dynamic-exec \
+  "printf '%s\n' \"execute format('select count(*) from %I', tbl) into n;\" >> $SQL"
+benign test-path-sql \
+  "mkdir -p src/__tests__; printf '%s\n' 'const q = \`select id from notes where owner = \${owner}\`;' > src/__tests__/notes.test.ts"
+benign minified-bundle \
+  "printf '%s\n' 'const q=\`select id from notes where owner = \${o}\`;' > src/lib/app.min.js"
+benign long-line-bundle \
+  "head -c 6000 /dev/zero | tr '\\0' x > src/lib/bundle.js; printf '%s\n' ' const q=\`select id from notes where owner = \${o}\`;' >> src/lib/bundle.js"
 
 echo "== transactional versus marketing senders"
 solo tx-only src/contact.ts 'import nodemailer from "nodemailer";'

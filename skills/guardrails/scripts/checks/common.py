@@ -161,3 +161,44 @@ def non_doc_files(project):
     """Files that can hold behavior: everything except docs and samples."""
     skip = (".md", ".mdx", ".txt", ".example", ".sample", ".template")
     return [p for p in project.files if not p.name.endswith(skip)]
+
+
+TEST_PATH = re.compile(
+    r"\.(?:test|spec|e2e|stories)\.|(?:^|/)(?:tests?|__tests__|spec|e2e"
+    r"|fixtures?|mocks?)/", re.I)
+BUILT_SEGMENTS = {"public", "static", "www", "assets"}
+MINIFIED_NAME = re.compile(r"\.min\.|\.bundle\.", re.I)
+LONG_LINE = 5000
+
+
+def _minified(project, path):
+    if MINIFIED_NAME.search(path.name):
+        return True
+    return any(len(line) > LONG_LINE
+               for line in project.text(path).splitlines())
+
+
+def code_files(project, exts=SOURCE_EXTS):
+    """Hand-written source: no tests, fixtures, built dirs, minified files."""
+    return [p for p in non_doc_files(project)
+            if p.suffix.lower() in exts
+            and not TEST_PATH.search(project.rel(p))
+            and not set(project.segments(p)) & BUILT_SEGMENTS
+            and not _minified(project, p)]
+
+
+def hits(project, files, regex, rule, message):
+    """One finding per match of a compiled regex over the given files."""
+    return [project.found(rule, path, m.start(), message)
+            for path in files
+            for m in regex.finditer(project.text(path))]
+
+
+def dedupe_lines(findings):
+    """One finding per (path, line): the first emitted wins."""
+    seen, out = set(), []
+    for finding in findings:
+        if (finding.path, finding.line) not in seen:
+            seen.add((finding.path, finding.line))
+            out.append(finding)
+    return out
