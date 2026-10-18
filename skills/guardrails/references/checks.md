@@ -26,15 +26,34 @@ default; a judged hit can be a false positive.
 | HOST-WAF-DDOS | MANUAL | firewall, DDoS and bot rules are dashboard settings | enable and confirm in the dashboard |
 | HOST-SPEND-CAP | MANUAL | hard spend cap is a plan setting | enable the cap; else budget alert plus a written kill switch |
 
-## a11y
+## injection
+
+Patterns are per language: a Postgres `$1` placeholder, a tagged template
+(`sql\`…\``, `sql<T>\`…\``), an argv array and test or fixture paths are
+silent by design.
 
 | Rule | Sev | Catches | Fix |
 |---|---|---|---|
-| A11Y-IMG-ALT | FAIL | `img` or `Image` without `alt` | describe it, or `alt=""` if decorative |
-| A11Y-FIELD-LABEL | FAIL | native input, select, textarea with no label | `label for`, wrapping label or `aria-label` |
-| A11Y-CLICK-NO-KEYBOARD | FAIL | click handler on a div or span lacking role, tabindex or key handler | use a `button` |
-| A11Y-FOCUS-OUTLINE | FAIL / WARN | focus outline removed; WARN when a `:focus-visible` style exists elsewhere | style `:focus-visible` instead |
-| A11Y-TABINDEX-POSITIVE | WARN | `tabindex` above 0 | use 0 or -1 and fix the DOM order |
+| INJ-SQL-RAW-UNSAFE | FAIL | `$queryRawUnsafe`, `$executeRawUnsafe`, `knex.raw`, `sequelize.query`, `Sequelize.literal`, Django `.objects.raw()` / `.extra()`, SQLAlchemy `text()` fed a variable; ActiveRecord `where("… #{}")` | bind the values, or the tagged `$queryRaw` |
+| INJ-SQL-CONCAT | FAIL | a SQL statement (select … from … where, insert into, update … set, delete … where, create/drop/alter) built with `${}`, `+`, an f-string, `%`, `.format`, PHP `$var`, Ruby `#{}`, `format!`, `Sprintf` | placeholders and a parameter list |
+| INJ-SQL-DYNAMIC-EXEC | WARN | plpgsql `EXECUTE '…' \|\| x` | `format('… %I %L', …)` and `USING` |
+| INJ-POSTGREST-FILTER | WARN | supabase-js `.or()`, `.filter()`, `.not()`, `.match()`, `.textSearch()` with an interpolated string, in a file that uses supabase | `.eq()` and friends, validated values |
+| INJ-NOSQL-OPERATOR | WARN | Mongo `$where` with a string; a filter taken from `req.body`, `req.query` or `req.params` | allowlist the fields, cast to string, `sanitizeFilter` |
+| INJ-SHELL-DB-TOOL | FAIL | a shell call naming psql, mysql, mysqldump, pg_dump, mongosh, redis-cli, sqlite3… with an interpolated argument | an argv array, no shell, validated input |
+
+## exposure
+
+| Rule | Sev | Catches | Fix |
+|---|---|---|---|
+| EXP-CONSOLE-DATA | WARN | `console.log/info/debug/dir/table` in client-reachable code with a data argument (user, session, response, token, body…); string literals are ignored | strip console calls in the production build, log server-side |
+| EXP-SOURCEMAP-PUBLIC | FAIL / WARN | `productionBrowserSourceMaps: true`, vite `sourcemap: true` or `'inline'`, `GENERATE_SOURCEMAP=true` in a committed non-dev env file, webpack `devtool` readable maps (FAIL in `webpack.prod*`, WARN elsewhere), a real `.map` under `public/` or `static/` (any size; vendored and `.min.` maps excluded); angular `sourceMap: true` (WARN) | off, or `hidden` and upload to the error tracker |
+| EXP-HYDRATED-SENSITIVE | WARN | a token, secret, key, password or ssn-like key returned by `getServerSideProps`, `getStaticProps`, a Remix `loader`, a SvelteKit `load` or set on `window.__STATE__`; a TS type member is skipped | return only the fields the page renders |
+| EXP-MARKUP-COMMENT | WARN | `<!-- -->` shipped to the browser (html, astro, php, ejs, hbs, twig, njk, liquid) with todo, fixme, debug, password, token, internal, staging, admin… | delete it, or move it to a code comment the build strips |
+| EXP-DATA-ATTR-SENSITIVE | WARN | `data-*` attribute or hidden input named secret, api-key, password, jwt, private, credential (csrf, xsrf, authenticity, nonce excluded) | keep it server-side, send an opaque id |
+| EXP-ERROR-STACK | FAIL | in a route file: `err.stack`, the error object, `traceback.format_exc()` or `getTraceAsString()` in a response | generic message out, full error in the server log |
+| EXP-ERROR-MESSAGE | WARN | in a route file: `err.message`, `str(e)`, `$e->getMessage()` sent as is | map to a safe message; validation errors are fine, DB errors are not |
+| EXP-DEBUG-ON | FAIL | `DEBUG = True` in a settings module (not dev/local/test), `APP_DEBUG=true` / `FLASK_DEBUG=1` in a committed non-dev env file, `app.debug = True`, `consider_all_requests_local = true`, `errorhandler()` mounted without an environment guard | env-driven, false in production |
+| EXP-RESPONSE-WIDE | WARN | a route returning `select *` / `select('*')` on a users-like table, or a single-line Prisma `findUnique/findFirst/findMany` without `select` or `omit` | an explicit field list |
 
 ## supabase
 
@@ -85,7 +104,16 @@ The scanner is regex over text. It cannot see:
 - whether consent was actually collected before the stored timestamp
 - whether a STOP reply reaches your store from the provider webhook
 - loops through queues, storage events, schedulers or third-party webhooks
-- keyboard traps, focus order, modal focus handling, color contrast
+- a SQL string assembled across several lines, or passed through a
+  variable before the query call (trace it by hand)
+- whether a template literal's tag parameterizes: tagged templates are
+  trusted
+- built output (`dist/`, `.next/`) and runtime state such as
+  `__NEXT_DATA__`: only the live probe sees a served map or a hydrated
+  token
+- a multi-line Prisma call or a value object spread into state: the
+  single-line rules stay silent
+- what the console or an XHR carries once the page runs: a browser walk
 - client-reachable code in unusual layouts (the rule uses path and
   `use client` heuristics, `.astro` is never flagged)
 - values built at runtime, minified bundles, anything over 1 MB
@@ -105,11 +133,9 @@ project: a contact form beside it and no subscriber storage gives WARN.
 The scanner skips log files and cache directories, and never follows symlinks.
 
 By design the scanner ignores: policies granted only to `service_role`,
-fields that are never rendered (`hidden`, `display: none`), click handlers
-that only stop propagation or sit on `role="presentation"`, focus styles
-that swap the outline for a border or shadow, UI route components, keys
+UI route components, keys
 inside git-ignored env files, and password literals in test, fixture and
-i18n files.
+i18n files, tagged SQL templates, placeholders with a separate parameter list, an argv array handed to a DB tool, console calls in server code, logging calls that carry a stack, `sourcemap: 'hidden'`, a debug flag read from the environment, dev, local and test env files and settings modules, minified files and built directories, and a hidden input or data attribute named csrf, xsrf, authenticity or nonce.
 
 ## Live Supabase checks (the user runs them in the SQL editor)
 
@@ -176,12 +202,14 @@ one opt-in POST burst for the rate-limit check, and stops at a request budget.
   "cors": true,
   "cors_path": "/api/v1/notes",
   "rate_limit": {"path": "/api/v1/auth/login", "method": "POST",
-                 "count": 20, "body": "{\"email\":\"t@t.io\",\"password\":\"x\"}"}
+                 "count": 20, "body": "{\"email\":\"t@t.io\",\"password\":\"x\"}"},
+  "exposure": {"error_routes": ["/api/v1/notes/not-a-number"]}
 }
 ```
 
 Environment, from test keys only, never `service_role`:
 `GUARDRAILS_ANON_KEY` (anon-read), `GUARDRAILS_JWT2` (cross-user).
+The fields probe sends `GUARDRAILS_JWT2` as a bearer when it is set. Every path in the plan starts with `/`: a path that could leave the named host is a usage error.
 
 | Probe | id | OPEN means | Read it against |
 |---|---|---|---|
@@ -190,18 +218,21 @@ Environment, from test keys only, never `service_role`:
 | no-auth route | `no-auth:<path>` | the route answered 200 with no token | API-ROUTE-NO-AUTH, object authz |
 | cors-reflect | `cors-reflect` | a foreign origin was reflected with credentials | API-CORS-WILDCARD |
 | rate-limit | `rate-limit` | the burst saw no 429 | HOST-NO-RATE-LIMIT |
+| sourcemap | `sourcemap:<script>` | a source map with sources answered 200 for a page script, or the script carries an inline map | EXP-SOURCEMAP-PUBLIC |
+| error-body | `error-body:<path>` | a 404 or a named error route returned a stack trace or an internal path | EXP-ERROR-STACK, EXP-DEBUG-ON |
+| fields | `fields:<path>` | a JSON 200 carried a password, salt, token, key or secret-like key (identifier-shaped names printed, never values) | EXP-RESPONSE-WIDE, EXP-HYDRATED-SENSITIVE |
 
 A verdict is an observation, not a verdict on the project. OPEN is a returned
 200 or returned rows; CLOSED is a refusal or an empty body; SKIPPED is a
 missing key; ERROR is a transport failure. A static FAIL confirmed OPEN leads
 the report. A CLOSED probe on a static FAIL still needs the fix: the dev
-target may differ from production.
+target may differ from production. An exposure target the probe could not observe (unreachable page, no same-host script, a refused or non-JSON route, a map fetch that failed) is SKIPPED or ERROR, never CLOSED. Run the exposure block against a production build or a staging URL: a dev server serves maps and tracebacks by design, and its OPEN verdicts are dev artefacts, not findings.
 
 Safety, enforced by the script and by the skill: `--authorized` is required;
 read-only methods only; the loopback or a URL the user named, never one you
 inferred; a login burst only with a throwaway test account on the user's go,
 because it can lock the user's own account; a redirect to another host is
-never followed, so a key never leaves the named host. Fuzzing, writes beyond
+never followed, so a key never leaves the named host. A script on another host is never fetched. An error route is a path you own and name; the probe never guesses one beyond its single random 404. Fuzzing, writes beyond
 the named login route, or probing a third party are out of scope: that is
 pentest, another contract.
 
