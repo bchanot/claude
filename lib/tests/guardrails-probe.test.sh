@@ -39,9 +39,9 @@ class H(BaseHTTPRequestHandler):
 
     def do_OPTIONS(self):
         origin = self.headers.get("Origin", "")
-        self._send(204, b"", {
-            "Access-Control-Allow-Origin": origin,
-            "Access-Control-Allow-Credentials": "true"})
+        upper = ("Access-Control-Allow-Origin", "Access-Control-Allow-Credentials")
+        names = tuple(n.lower() for n in upper) if self.path == "/lower" else upper
+        self._send(204, b"", {names[0]: origin, names[1]: "true"})
 
     def do_GET(self):
         path = self.path.split("?")[0]
@@ -58,6 +58,29 @@ class H(BaseHTTPRequestHandler):
             return self._send(429 if HITS["rl"] > 5 else 200, b"")
         if path == "/nolimit":
             return self._send(200, b"")
+        if path == "/":
+            return self._send(200, b'<html><script src="/app.js"></script>'
+                              b'<script src="/clean.js"></script>'
+                              b'<script src=/inline.js></script>'
+                              b'<script src="https://cdn.invalid/x.js"></script>'
+                              b'</html>')
+        if path == "/app.js":
+            return self._send(200, b"console.log(1);\n//# sourceMappingURL=app.js.map\n")
+        if path == "/app.js.map":
+            return self._send(200, b'{"version":3,"sources":["src/app.ts"],"mappings":""}')
+        if path == "/clean.js":
+            return self._send(200, b"console.log(2);\n")
+        if path == "/inline.js":
+            return self._send(200, b"console.log(3);\n//# sourceMappingURL="
+                              b"data:application/json;base64,eyJ2ZXJzaW9uIjozfQ==\n")
+        if path == "/boom":
+            return self._send(500, b"Traceback (most recent call last):\n"
+                              b'  File "app.py", line 12, in handler\n')
+        if path == "/api/me":
+            return self._send(200, b'{"id": 1, "email": "t@t.io", '
+                              b'"password_hash": "x", "profile": {"api_key": "y"}, '
+                              b'"next_page_token": "abc", "hashtags": []}',
+                              {"Content-Type": "application/json"})
         return self._send(404, b"")
 
 
@@ -145,6 +168,72 @@ printf '{"base_url": "%s", "rate_limit": {"path": "/x", "method": "DELETE"}}\n' 
   "$BASE" > "$WORK/bad.json"
 probe --authorized "$WORK/bad.json" >/dev/null 2>&1
 check "a write method in the plan exits 2" "$?" 2
+
+echo "== exposure probes"
+cat > "$WORK/exposure.json" <<EOF
+{"base_url": "$BASE",
+ "routes": [{"path": "/api/me"}, {"path": "/api/guarded"}, {"path": "/api/private"}],
+ "exposure": {"error_routes": ["/boom"]}}
+EOF
+OUT="$(probe --authorized "$WORK/exposure.json")"
+check "a served source map is OPEN" \
+  "$(verdict "$OUT" 'sourcemap:/app.js')" OPEN
+check "an inline data: source map is OPEN" \
+  "$(verdict "$OUT" 'sourcemap:/inline.js')" OPEN
+check "a script with no map is CLOSED" \
+  "$(verdict "$OUT" 'sourcemap:/clean.js')" CLOSED
+check "a foreign-host script is never probed" \
+  "$(printf '%s\n' "$OUT" | grep -c 'cdn.invalid')" 0
+check "a traceback in an error body is OPEN" \
+  "$(verdict "$OUT" 'error-body:/boom')" OPEN
+check "the random 404 path is CLOSED" \
+  "$(verdict "$OUT" 'error-body:/guardrails-probe-')" CLOSED
+check "sensitive keys in a JSON response are OPEN" \
+  "$(verdict "$OUT" 'fields:/api/me')" OPEN
+check "the sensitive key names are listed, never the values" \
+  "$(printf '%s\n' "$OUT" | grep -A1 'fields:/api/me' | grep -c 'api_key, password_hash$')" 1
+check "fields on a 401 is SKIPPED, never CLOSED" \
+  "$(verdict "$OUT" 'fields:/api/guarded')" SKIPPED
+check "fields on a non-JSON body is SKIPPED" \
+  "$(verdict "$OUT" 'fields:/api/private')" SKIPPED
+cat > "$WORK/unreachable.json" <<EOF
+{"base_url": "http://127.0.0.1:1", "exposure": {}}
+EOF
+OUT="$(probe --authorized "$WORK/unreachable.json")"
+check "an unreachable base page gives a SKIPPED sourcemap row" \
+  "$(verdict "$OUT" 'sourcemap')" SKIPPED
+printf '{"base_url": "%s", "exposure": {"error_routes": ["boom"]}}\n' "$BASE" > "$WORK/badexp.json"
+probe --authorized "$WORK/badexp.json" >/dev/null 2>&1
+check "an error route not starting with / exits 2" "$?" 2
+printf '{"base_url": "%s", "exposure": []}\n' "$BASE" > "$WORK/badexp2.json"
+probe --authorized "$WORK/badexp2.json" >/dev/null 2>&1
+check "a non-object exposure block exits 2" "$?" 2
+printf '{"base_url": "%s", "exposure": {"scripts": "/app.js"}}\n' "$BASE" > "$WORK/badexp3.json"
+probe --authorized "$WORK/badexp3.json" >/dev/null 2>&1
+check "a scripts string instead of a list exits 2" "$?" 2
+printf '{"base_url": "%s", "routes": [{"path": ".evil.invalid/x"}]}\n' "$BASE" > "$WORK/badroute.json"
+probe --authorized "$WORK/badroute.json" >/dev/null 2>&1
+check "a route path that could leave the host exits 2" "$?" 2
+printf '{"base_url": "%s", "routes": ["/x"]}\n' "$BASE" > "$WORK/badroute2.json"
+probe --authorized "$WORK/badroute2.json" >/dev/null 2>&1
+check "a route that is not an object exits 2" "$?" 2
+printf '{"base_url": "%s", "exposure": true}\n' "$BASE" > "$WORK/badexp4.json"
+probe --authorized "$WORK/badexp4.json" >/dev/null 2>&1
+check "a boolean exposure block exits 2 without a traceback" "$?" 2
+printf '{"base_url": "%s", "exposure": {"scripts": ["/does-not-exist.js"]}}\n' "$BASE" > "$WORK/stale.json"
+OUT="$(probe --authorized "$WORK/stale.json")"
+check "a listed script that answers 404 is SKIPPED, never CLOSED" \
+  "$(verdict "$OUT" 'sourcemap:/does-not-exist.js')" SKIPPED
+printf '{"base_url": "%s", "exposure": {"scripts": []}}\n' "$BASE" > "$WORK/noscript.json"
+OUT="$(probe --authorized "$WORK/noscript.json")"
+check "an empty scripts list still gives a SKIPPED sourcemap row" \
+  "$(verdict "$OUT" 'sourcemap')" SKIPPED
+cat > "$WORK/lower.json" <<EOF
+{"base_url": "$BASE", "cors": true, "cors_path": "/lower"}
+EOF
+OUT="$(probe --authorized "$WORK/lower.json")"
+check "lowercase CORS header names are still read" \
+  "$(verdict "$OUT" 'cors-reflect')" OPEN
 
 echo "== JSON output"
 check "json reports the open count" \
