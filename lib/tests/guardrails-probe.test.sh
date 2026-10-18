@@ -62,6 +62,7 @@ class H(BaseHTTPRequestHandler):
             return self._send(200, b'<html><script src="/app.js"></script>'
                               b'<script src="/clean.js"></script>'
                               b'<script src=/inline.js></script>'
+                              b'<script src="/biginline.js"></script>'
                               b'<script src="https://cdn.invalid/x.js"></script>'
                               b'</html>')
         if path == "/app.js":
@@ -73,6 +74,9 @@ class H(BaseHTTPRequestHandler):
         if path == "/inline.js":
             return self._send(200, b"console.log(3);\n//# sourceMappingURL="
                               b"data:application/json;base64,eyJ2ZXJzaW9uIjozfQ==\n")
+        if path == "/biginline.js":
+            return self._send(200, b"console.log(4);\n//# sourceMappingURL="
+                              b"data:application/json;base64," + b"A" * 20000)
         if path == "/boom":
             return self._send(500, b"Traceback (most recent call last):\n"
                               b'  File "app.py", line 12, in handler\n')
@@ -180,6 +184,8 @@ check "a served source map is OPEN" \
   "$(verdict "$OUT" 'sourcemap:/app.js')" OPEN
 check "an inline data: source map is OPEN" \
   "$(verdict "$OUT" 'sourcemap:/inline.js')" OPEN
+check "a large inline source map is OPEN" \
+  "$(verdict "$OUT" 'sourcemap:/biginline.js')" OPEN
 check "a script with no map is CLOSED" \
   "$(verdict "$OUT" 'sourcemap:/clean.js')" CLOSED
 check "a foreign-host script is never probed" \
@@ -228,6 +234,16 @@ printf '{"base_url": "%s", "exposure": {"scripts": []}}\n' "$BASE" > "$WORK/nosc
 OUT="$(probe --authorized "$WORK/noscript.json")"
 check "an empty scripts list still gives a SKIPPED sourcemap row" \
   "$(verdict "$OUT" 'sourcemap')" SKIPPED
+printf '{"base_url": "%s", "rate_limit": null}\n' "$BASE" > "$WORK/badrl.json"
+probe --authorized "$WORK/badrl.json" >/dev/null 2>&1
+check "a null rate_limit exits 2" "$?" 2
+printf '{"base_url": "%s", "routes": 5}\n' "$BASE" > "$WORK/badroutes.json"
+probe --authorized "$WORK/badroutes.json" >/dev/null 2>&1
+check "a non-list routes exits 2" "$?" 2
+printf '{"base_url": "%s", "supabase": {"url": "%s", "cross_user_paths": "/x"}}\n' \
+  "$BASE" "$BASE" > "$WORK/badcu.json"
+probe --authorized "$WORK/badcu.json" >/dev/null 2>&1
+check "a string cross_user_paths exits 2" "$?" 2
 cat > "$WORK/lower.json" <<EOF
 {"base_url": "$BASE", "cors": true, "cors_path": "/lower"}
 EOF

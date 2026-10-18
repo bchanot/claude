@@ -39,7 +39,8 @@ SCRIPT_CAP = 10
 SCRIPT_SRC = re.compile(r"<script[^>]+src=[\"']?([^\"'\s>]+)", re.I)
 MAP_COMMENT = re.compile(r"//[#@]\s*sourceMappingURL=(\S+)")
 TRACE_MARKERS = re.compile(
-    rb"Traceback \(most recent call last\)|\bat [\w.$<> ]+ \([^)\n]*:\d+:\d+\)"
+    rb"Traceback \(most recent call last\)"
+    rb"|\bat [\w.$<> ]{1,80} \([^)\n]*:\d+:\d+\)"
     rb"|File \"[^\"\n]+\", line \d+|SQLSTATE\[|syntax error at or near"
     rb"|node_modules/|/var/www/|Stack trace:|#\d+ /[\w/.-]+\.php\(\d+\)")
 SENSITIVE_KEY = re.compile(
@@ -190,7 +191,7 @@ def _route_probe(session, base, route):
 
 def probe_routes(session, plan):
     base = plan["base_url"].rstrip("/")
-    routes = [r for r in plan.get("routes", []) if not r.get("public")]
+    routes = [r for r in plan.get("routes") or [] if not r.get("public")]
     return [_route_probe(session, base, r) for r in routes]
 
 
@@ -261,12 +262,12 @@ def _page_scripts(session, base):
 
 
 def _map_candidates(script_url, resp):
-    urls = [script_url + ".map"]
+    bare = urlsplit(script_url)._replace(query="", fragment="").geturl()
+    urls = [bare + ".map"]
     header = resp.headers.get("sourcemap") or resp.headers.get("x-sourcemap")
     if header:
         urls.append(header)
-    tail = resp.body[-600:].decode("utf-8", "ignore")
-    comment = MAP_COMMENT.search(tail)
+    comment = MAP_COMMENT.search(resp.body.decode("utf-8", "ignore"))
     if comment:
         urls.append(comment.group(1))
     return list(dict.fromkeys(urls))
@@ -283,6 +284,9 @@ def _map_verdict(session, script_url, candidates):
         resp = fetch(session, "GET", target)
         if resp.error or resp.status is None:
             return "ERROR", target, resp.error or "no response"
+        if resp.status == 200 and len(resp.body) >= BODY_CAP:
+            return ("SKIPPED", target, "map answered 200 but its body is "
+                    "over 1 MB: sources not confirmed, fetch it by hand")
         if resp.status == 200 and b'"sources"' in resp.body:
             return "OPEN", target, "source map served with its sources"
     return "CLOSED", script_url, "no source map served for this script"
@@ -399,7 +403,7 @@ def probe_exposure(session, plan):
     base = plan["base_url"].rstrip("/")
     out = _sourcemaps(session, base, cfg)
     out += [_error_probe(session, base, p) for p in _error_paths(cfg)]
-    out += [_fields_probe(session, base, r) for r in plan.get("routes", [])]
+    out += [_fields_probe(session, base, r) for r in plan.get("routes") or []]
     return out
 
 
@@ -483,11 +487,23 @@ def _exposure_error(cfg):
     return ""
 
 
+def _shape_error(plan):
+    if "rate_limit" in plan and not isinstance(plan["rate_limit"], dict):
+        return "rate_limit must be an object"
+    if plan.get("routes") is not None and \
+            not isinstance(plan["routes"], list):
+        return "routes must be a list"
+    paths = _obj(plan, "supabase").get("cross_user_paths")
+    if paths is not None and not isinstance(paths, list):
+        return "supabase.cross_user_paths must be a list"
+    return ""
+
+
 def _plan_error(plan):
-    method = plan.get("rate_limit", {}).get("method", "GET").upper()
+    method = str(_obj(plan, "rate_limit").get("method", "GET")).upper()
     if method not in READ_METHODS and method != "POST":
         return f"rate_limit method {method} is not a probe method"
-    error = _exposure_error(plan.get("exposure"))
+    error = _exposure_error(plan.get("exposure")) or _shape_error(plan)
     if error:
         return error
     bad = [p for p in _plan_paths(plan)
