@@ -121,6 +121,7 @@ Tu veux...
 | Traduire un PDF | `/pdf-translate` |
 | Comprendre un changement pas suivi | `/explain-diff` |
 | Auditer garde-fous (RLS, a11y, consentement, fonctions, mots de passe) | `/guardrails` |
+| Sonder le projet en direct (lecture seule, cible à toi) | `/guardrails --live <url>` |
 | Changer profil skills | `/profile` |
 | Audit/polish design (anti-slop) | `/impeccable` |
 | Sweep groupé tous axes (nettoyage + sécu + reconcile + doc) | `/tour` |
@@ -164,7 +165,7 @@ Tu veux...
 | `/client-handover` | Livraison client | Audits finaux + livrable brandé |
 | `/pdf-translate` | Traduire un PDF vers une autre langue | Sortie HTML fidèle (images, layout, style préservés) |
 | `/explain-diff` | Comprendre un commit, une branche ou une PR qu'on n'a pas suivis | Page HTML autonome hors du repo : contexte, intuition, code, quiz de 5 questions |
-| `/guardrails` | Vérifier hébergement, a11y, Supabase RLS, consentement SMS/email, fonctions cloud, stockage des mots de passe | Scanner déterministe puis jugement ; rapport `.claude/audits/GUARDRAILS.md` |
+| `/guardrails` | Vérifier hébergement, a11y, Supabase RLS, consentement SMS/email, fonctions cloud, stockage des mots de passe | Scanner déterministe puis jugement ; rapport `.claude/audits/GUARDRAILS.md` ; `--live <url à toi>` sonde en lecture seule |
 | `/impeccable` | Audit/polish design + détecteur anti-slop déterministe | 23 verbes ; `npx impeccable detect` (exit 0/2) |
 | `/tour` | Sweep groupé sur un ou plusieurs projets | Sécu + nettoyage + reconcile + doc, boucle jusqu'à un pass propre |
 | `/route` | Voir ou fixer la route du mod model-router | show / clear / off / on / reload / pending / ask on\|off / <phase> / model=… effort=… / switch on\|off / classify on\|off (classifieur de prompt) / verbose on\|off (transitions seules) |

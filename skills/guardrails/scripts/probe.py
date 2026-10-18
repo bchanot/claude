@@ -1,0 +1,309 @@
+#!/usr/bin/env python3
+"""Live guardrails probe: observe a running target from outside, read-only.
+
+The static scan shows a protection is absent in the code. This observes what
+a running target the user owns and names actually returns. It sends GET, HEAD
+and OPTIONS only; a login burst is opt-in in the plan. It never writes data,
+never uses a service_role key, never follows a redirect to another host, and
+stops at a fixed request budget.
+
+Input is a plan JSON (built by the skill from the static findings) plus
+secrets from the environment, never the command line:
+  GUARDRAILS_ANON_KEY   Supabase anon/publishable key for the anon-read probe
+  GUARDRAILS_JWT2       a second test user's token for the cross-user probe
+
+A verdict is a factual observation, not a conclusion: the skill reads it
+against the static findings. OPEN means the request returned data or a 200,
+CLOSED means it was refused or empty. Exit codes: 0 no OPEN, 1 at least one
+OPEN, 2 usage error.
+"""
+import argparse
+import json
+import os
+import sys
+import urllib.error
+import urllib.request
+from dataclasses import asdict, dataclass
+from urllib.parse import quote, urlsplit
+
+READ_METHODS = {"GET", "HEAD", "OPTIONS"}
+FAKE_ORIGIN = "https://guardrails-probe.invalid"
+DEFAULT_BUDGET = 200
+BURST_CAP = 25
+BODY_CAP = 1_000_000
+
+
+@dataclass(frozen=True)
+class Response:
+    status: int  # None on a transport error
+    headers: dict
+    body: bytes
+    error: str = ""
+
+
+@dataclass(frozen=True)
+class Probe:
+    domain: str
+    id: str
+    verdict: str  # OPEN | CLOSED | SKIPPED | ERROR
+    target: str
+    message: str
+
+    def as_dict(self):
+        return asdict(self)
+
+
+class _SameHost(urllib.request.HTTPRedirectHandler):
+    """Follow a same-host redirect, drop one that leaves the host."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if urlsplit(newurl).netloc != urlsplit(req.full_url).netloc:
+            return None
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+class Session:
+    """Holds the redirect-guarded opener and the shared request budget."""
+
+    def __init__(self, timeout=8, budget=DEFAULT_BUDGET):
+        self.opener = urllib.request.build_opener(_SameHost())
+        self.timeout = timeout
+        self.budget = budget
+
+
+def _response_from(resp):
+    return Response(resp.status, dict(resp.headers), resp.read(BODY_CAP))
+
+
+def fetch(session, method, url, headers=None, body=None):
+    if session.budget <= 0:
+        return Response(None, {}, b"", "request budget exhausted")
+    session.budget -= 1
+    req = urllib.request.Request(
+        url, data=body, method=method, headers=headers or {})
+    try:
+        with session.opener.open(req, timeout=session.timeout) as resp:
+            return _response_from(resp)
+    except urllib.error.HTTPError as exc:
+        return Response(exc.code, dict(exc.headers), b"")
+    except (urllib.error.URLError, OSError, ValueError) as exc:
+        return Response(None, {}, b"", str(exc))
+
+
+def _verdict(ctx, response, is_open, msgs):
+    """ctx is (domain, id, target); msgs is (open_note, closed_note)."""
+    domain, pid, target = ctx
+    if response.error:
+        return Probe(domain, pid, "ERROR", target, response.error)
+    verdict = "OPEN" if is_open else "CLOSED"
+    note = f"HTTP {response.status}: {msgs[0] if is_open else msgs[1]}"
+    return Probe(domain, pid, verdict, target, note)
+
+
+def _nonempty_rows(body):
+    try:
+        data = json.loads(body or b"[]")
+    except ValueError:
+        return False
+    return isinstance(data, list) and len(data) > 0
+
+
+def _table_probe(session, base, table, headers):
+    target = f"{base}/rest/v1/{quote(table)}?select=*&limit=1"
+    resp = fetch(session, "GET", target, headers)
+    return _verdict(
+        ("supabase", f"anon-read:{table}", target), resp,
+        resp.status == 200 and _nonempty_rows(resp.body),
+        ("anon request returned rows", "anon request returned no row"))
+
+
+def probe_supabase(session, plan):
+    cfg = plan.get("supabase")
+    anon = os.environ.get("GUARDRAILS_ANON_KEY")
+    if not cfg or not cfg.get("tables"):
+        return []
+    if not anon:
+        return [Probe("supabase", "anon-read", "SKIPPED", cfg.get("url", ""),
+                      "set GUARDRAILS_ANON_KEY to run the anon-read probe")]
+    base = cfg["url"].rstrip("/")
+    headers = {"apikey": anon, "Authorization": f"Bearer {anon}"}
+    return [_table_probe(session, base, t, headers) for t in cfg["tables"]]
+
+
+def _cross_user_probe(session, base, path, headers):
+    target = base + path
+    resp = fetch(session, "GET", target, headers)
+    return _verdict(
+        ("supabase", f"cross-user:{path}", target), resp,
+        resp.status == 200 and _nonempty_rows(resp.body),
+        ("second user's token returned these rows",
+         "second user's token returned nothing"))
+
+
+def probe_cross_user(session, plan):
+    cfg = plan.get("supabase") or {}
+    paths = cfg.get("cross_user_paths") or []
+    jwt2 = os.environ.get("GUARDRAILS_JWT2")
+    if not paths:
+        return []
+    if not jwt2:
+        return [Probe("supabase", "cross-user", "SKIPPED", cfg.get("url", ""),
+                      "set GUARDRAILS_JWT2 to run the cross-user probe")]
+    headers = {"apikey": os.environ.get("GUARDRAILS_ANON_KEY", ""),
+               "Authorization": f"Bearer {jwt2}"}
+    base = cfg["url"].rstrip("/")
+    return [_cross_user_probe(session, base, p, headers) for p in paths]
+
+
+def _route_probe(session, base, route):
+    target = base + route["path"]
+    resp = fetch(session, "GET", target)
+    return _verdict(
+        ("api", f"no-auth:{route['path']}", target), resp,
+        resp.status == 200,
+        ("unauthenticated request returned 200",
+         "unauthenticated request was refused"))
+
+
+def probe_routes(session, plan):
+    base = plan["base_url"].rstrip("/")
+    routes = [r for r in plan.get("routes", []) if not r.get("public")]
+    return [_route_probe(session, base, r) for r in routes]
+
+
+def _cors_open(headers):
+    allow = headers.get("Access-Control-Allow-Origin", "")
+    creds = headers.get("Access-Control-Allow-Credentials", "").lower()
+    return allow in (FAKE_ORIGIN, "*") and creds == "true"
+
+
+def probe_cors(session, plan):
+    if not plan.get("cors"):
+        return []
+    base = plan["base_url"].rstrip("/")
+    headers = {"Origin": FAKE_ORIGIN, "Access-Control-Request-Method": "GET"}
+    resp = fetch(session, "OPTIONS", base + plan.get("cors_path", "/"), headers)
+    return [_verdict(
+        ("api", "cors-reflect", base), resp, _cors_open(resp.headers),
+        ("foreign origin reflected with credentials",
+         "foreign origin not reflected with credentials"))]
+
+
+def _burst_codes(session, url, method, body, count):
+    data = body.encode() if body else None
+    codes = []
+    for _ in range(count):
+        if session.budget <= 0:
+            break
+        codes.append(fetch(session, method, url, None, data).status)
+    return codes
+
+
+def _rate_verdict(target, codes):
+    sent = len([c for c in codes if c is not None])
+    throttled = 429 in codes
+    note = (f"sent {sent}, {'got a 429' if throttled else 'no 429'}: "
+            + ("throttled" if throttled else "no 429 seen on this route"))
+    return Probe("hosting", "rate-limit",
+                 "CLOSED" if throttled else "OPEN", target, note)
+
+
+def probe_rate_limit(session, plan):
+    cfg = plan.get("rate_limit")
+    if not cfg:
+        return []
+    target = plan["base_url"].rstrip("/") + cfg["path"]
+    codes = _burst_codes(
+        session, target, cfg.get("method", "GET").upper(),
+        cfg.get("body"), min(cfg.get("count", 20), BURST_CAP))
+    return [_rate_verdict(target, codes)]
+
+
+PROBES = (probe_supabase, probe_cross_user, probe_routes,
+          probe_cors, probe_rate_limit)
+
+
+def run_probes(session, plan):
+    results = []
+    for probe in PROBES:
+        results += probe(session, plan)
+    return results
+
+
+def _tally(results):
+    return {v: sum(p.verdict == v for p in results)
+            for v in ("OPEN", "CLOSED", "SKIPPED", "ERROR")}
+
+
+def _probe_row(probe):
+    return (f"  {probe.verdict:<8} {probe.domain:<9} {probe.id}  "
+            f"{probe.target}\n           {probe.message}")
+
+
+def _summary(results):
+    counts = _tally(results)
+    return f"\nopen: {counts['OPEN']}  " + ", ".join(
+        f"{v} {n}" for v, n in counts.items())
+
+
+def _render_text(plan, results):
+    body = [_probe_row(p) for p in results]
+    head = [f"guardrails live probe: {plan['base_url']}",
+            f"probes: {len(results)}  (read-only, bounded budget)"]
+    return "\n".join(head + [""] + body + [_summary(results)])
+
+
+def _render_json(plan, results):
+    return json.dumps({
+        "base_url": plan["base_url"],
+        "open": _tally(results)["OPEN"],
+        "probes": [p.as_dict() for p in results],
+    }, indent=2)
+
+
+def _load_plan(path):
+    try:
+        plan = json.loads(open(path, encoding="utf-8").read())
+    except (OSError, ValueError) as exc:
+        return None, f"cannot read plan: {exc}"
+    if not isinstance(plan, dict) or not plan.get("base_url"):
+        return None, "plan needs an object with a base_url"
+    return plan, ""
+
+
+def _plan_error(plan):
+    method = plan.get("rate_limit", {}).get("method", "GET").upper()
+    if method not in READ_METHODS and method != "POST":
+        return f"rate_limit method {method} is not a probe method"
+    return ""
+
+
+def parse_args(argv):
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument("plan", help="path to the probe plan JSON")
+    parser.add_argument(
+        "--authorized", action="store_true",
+        help="confirm you own the target and may test it (required)")
+    parser.add_argument("--json", action="store_true", help="JSON output")
+    return parser.parse_args(argv)
+
+
+def main(argv):
+    args = parse_args(argv)
+    plan, error = _load_plan(args.plan)
+    error = error or _plan_error(plan or {})
+    if error:
+        print(f"usage error: {error}", file=sys.stderr)
+        return 2
+    if not args.authorized:
+        print("refused: pass --authorized to confirm you own "
+              f"{plan['base_url']} and may probe it", file=sys.stderr)
+        return 2
+    results = run_probes(Session(), plan)
+    render = _render_json if args.json else _render_text
+    print(render(plan, results))
+    return 1 if any(p.verdict == "OPEN" for p in results) else 0
+
+
+if __name__ == "__main__":
+    sys.exit(main(sys.argv[1:]))

@@ -153,3 +153,54 @@ user's token, a GET on the first user's rows must return nothing.
   a retention rule for consent proof.
 - **Supabase**: the live queries above; spend cap on the plan; redirect URLs
   and email confirmation settings reviewed.
+
+## Live probe (`--live`, read-only)
+
+`probe.py` observes a running target the user owns and names. It is driven by
+a plan JSON built from the static findings; secrets come from the environment,
+never the plan or the command line. It sends GET, HEAD and OPTIONS only, with
+one opt-in POST burst for the rate-limit check, and stops at a request budget.
+
+```json
+{
+  "base_url": "http://localhost:5173",
+  "supabase": {
+    "url": "http://localhost:54321",
+    "tables": ["notes", "contacts"],
+    "cross_user_paths": ["/rest/v1/notes?select=*"]
+  },
+  "routes": [
+    {"path": "/api/v1/notes"},
+    {"path": "/api/v1/health", "public": true}
+  ],
+  "cors": true,
+  "cors_path": "/api/v1/notes",
+  "rate_limit": {"path": "/api/v1/auth/login", "method": "POST",
+                 "count": 20, "body": "{\"email\":\"t@t.io\",\"password\":\"x\"}"}
+}
+```
+
+Environment, from test keys only, never `service_role`:
+`GUARDRAILS_ANON_KEY` (anon-read), `GUARDRAILS_JWT2` (cross-user).
+
+| Probe | id | OPEN means | Read it against |
+|---|---|---|---|
+| anon-read | `anon-read:<table>` | the anon key read a row | SB-RLS-MISSING, SB-POLICY-* |
+| cross-user | `cross-user:<path>` | a second user's token read these rows | policy owner column (STEP 4) |
+| no-auth route | `no-auth:<path>` | the route answered 200 with no token | API-ROUTE-NO-AUTH, object authz |
+| cors-reflect | `cors-reflect` | a foreign origin was reflected with credentials | API-CORS-WILDCARD |
+| rate-limit | `rate-limit` | the burst saw no 429 | HOST-NO-RATE-LIMIT |
+
+A verdict is an observation, not a verdict on the project. OPEN is a returned
+200 or returned rows; CLOSED is a refusal or an empty body; SKIPPED is a
+missing key; ERROR is a transport failure. A static FAIL confirmed OPEN leads
+the report. A CLOSED probe on a static FAIL still needs the fix: the dev
+target may differ from production.
+
+Safety, enforced by the script and by the skill: `--authorized` is required;
+read-only methods only; the loopback or a URL the user named, never one you
+inferred; a login burst only with a throwaway test account on the user's go,
+because it can lock the user's own account; a redirect to another host is
+never followed, so a key never leaves the named host. Fuzzing, writes beyond
+the named login route, or probing a third party are out of scope: that is
+pentest, another contract.
