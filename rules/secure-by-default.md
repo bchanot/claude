@@ -5,7 +5,7 @@ a cloud function or a UI. Applies at design, scaffolding, implementation and
 review. A request that breaks one of these gets flagged, not silently done.
 What only a provider dashboard can set (spend cap, WAF, budget alert) is
 never claimed done: write it as a manual step in the project's deploy notes.
-`/guardrails` audits all of it.
+`/guardrails` audits all of it and fixes what the user accepts.
 
 ## Every API and every access
 - Default deny. Authentication and authorization checked server-side on every

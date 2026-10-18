@@ -1,26 +1,36 @@
 ---
 name: guardrails
 effort: high
-description: 'Use when auditing a project against the baseline guardrails: hosting (rate limit, CDN and firewall, spend cap), accessibility (keyboard, visible focus, alt text, field labels), Supabase (RLS on every table, owner-scoped policies, no service_role key client-side), SMS and email (recorded consent, unsubscribe, STOP), cloud functions (no self-trigger, instance cap, budget stop), plus API and access hygiene (auth on every route, CORS, secrets, password storage). Runs a deterministic scanner, judges each hit, writes .claude/audits/GUARDRAILS.md. Optional read-only live probe confirms a hole from outside on a target the user owns and names. Triggers: "guardrails", "garde-fous", "RLS activée ?", "audit supabase", "consentement sms", "plafond de dépense", "mots de passe en clair ?", "teste la sécurité de base du projet", "teste-le en conditions réelles", "sonde le projet en direct". Headers and TLS → /harden; secrets, CVE, OWASP → /cso; full WCAG → /web-validate.'
-argument-hint: '[project path] [--domain api,hosting,a11y,supabase,messaging,functions] [--exclude paths] [--live <url you own>]'
+description: 'Use when auditing a project against the baseline guardrails and fixing what fails: hosting (rate limit, CDN and firewall, spend cap), accessibility (keyboard, visible focus, alt text, field labels), Supabase (RLS on every table, owner-scoped policies, no service_role key client-side), SMS and email (recorded consent, unsubscribe, STOP), cloud functions (no self-trigger, instance cap, budget stop), plus API and access hygiene (auth on every route, CORS, secrets, password storage). Runs a deterministic scanner, judges each hit, writes .claude/audits/GUARDRAILS.md, then proposes fixes, applies only the ones the user accepts (bugfixer executor, fresh verifier and security gates) and re-scans to prove each one fixed. Optional read-only live probe confirms a hole from outside on a target the user owns and names. Triggers: "guardrails", "garde-fous", "RLS activée ?", "audit supabase", "consentement sms", "plafond de dépense", "mots de passe en clair ?", "teste la sécurité de base du projet", "corrige les garde-fous", "teste-le en conditions réelles", "sonde le projet en direct". Headers and TLS → /harden; secrets, CVE, OWASP → /cso; full WCAG → /web-validate.'
+argument-hint: '[project path] [--domain api,hosting,a11y,supabase,messaging,functions] [--exclude paths] [--live <url you own>] [--report-only]'
 ---
 
 # /guardrails
 
-Checks a project against `rules/secure-by-default.md`. A scanner reads the
-tree as data and finds what text can prove. This skill then judges the hits,
-covers what text cannot prove, lists what only a dashboard can set, and, on
-request, probes a running target the user owns to confirm a hole from outside.
+Checks a project against `rules/secure-by-default.md`, then fixes what the
+user accepts and proves each fix. A scanner reads the tree as data and finds
+what text can prove. This skill judges the hits, covers what text cannot
+prove, lists what only a dashboard can set and, on request, probes a running
+target the user owns. It then proposes fixes, applies the accepted ones and
+runs the scan again until every accepted fix is proven.
 
 The scanner proves absence of a protection, never presence of security. A
 clean scan means "no static finding", and the report says exactly that. A
 live probe proves the opposite direction: that a door is actually open.
+
+## MODEL GATE (blocking, before any other step)
+
+Run `$HOME/.claude/lib/model-gate.md`. Judging hits and designing fixes
+requires Fable or Opus. Verdict `small` → STOP: the gate prints the remedy.
+ROUTING: follow `$HOME/.claude/lib/effort-shift.md` (phases via
+`mcp__model-router__route`); each step below names its phase.
 
 ## STEP 1: Scope
 
 Work in the project the user names, else the current directory. Say in one
 line what you will scan. Domains: `api`, `hosting`, `a11y`, `supabase`,
 `messaging`, `functions`. The scanner skips the ones that do not apply.
+`--report-only` stops after STEP 7: audit, no fix.
 
 ## STEP 2: Run the scanner
 
@@ -86,7 +96,8 @@ never a third party.
    It sends GET, HEAD and OPTIONS only (the rate-limit burst is the one
    POST, opt-in in the plan, capped at 25 requests). It never writes data,
    never follows a redirect to another host, and stops at a request budget.
-   Exit 1 means at least one OPEN verdict.
+   Exit 1 means at least one OPEN verdict. Keep the plan file: STEP 11
+   replays it.
 3. **Cross the verdicts with the static findings.** A verdict is an
    observation, not a conclusion: OPEN means the request returned data or a
    200, CLOSED means it was refused or empty. A static FAIL confirmed OPEN in
@@ -112,9 +123,140 @@ Write `.claude/audits/GUARDRAILS.md`: one table per domain with status PASS,
 FAIL, WARN, MANUAL or N/A, the evidence, and the fix in one line. PASS means
 "no static finding". When a live probe ran, add a line for its verdict next
 to the matching static finding. Keep it short; no filler sections.
+`--report-only`, or nothing CONFIRMED and no OPEN verdict: reply with counts,
+the FAILs with file:line, any OPEN verdict and the MANUAL items, then stop.
 
-## STEP 8: Hand over
+## STEP 8: Propose fixes
 
-Reply with counts, the FAILs with file:line and a one-line fix each, any OPEN
-probe verdicts, and the MANUAL items. This skill audits; it does not fix. A
-fix goes through `/bugfix`, `/feat` or `/hotfix`.
+`mcp__model-router__route(phase="plan")`: designing a fix is the deepest
+thinking in this run, it goes to the plan row.
+
+One proposal per CONFIRMED finding, grouped by rule and file; merge pairs
+that one change closes (one middleware closes HOST-NO-RATE-LIMIT for every
+route). FALSE POSITIVE and ACCEPTED RISK get no proposal. Each proposal:
+
+- **number, rule, file(s)**, and the problem in one line;
+- **the fix**, concrete: file:line and the change, the SQL for a migration,
+  the label text for a field. Root cause, never a mask: a missing RLS gets
+  owner policies in the same migration, not a disabled check;
+- **choices the user sees** (label wording, CORS origins, owner column,
+  rate-limit numbers), each with your proposed value, named so the user can
+  change it;
+- **risk**: what it can break. `BREAKING` when it changes a contract a client
+  relies on (RLS without policies blocks the app, a CORS allowlist drops an
+  origin, a new required header). `DECISION` when no default is defensible
+  (consent model, retention period): the user picks before it can apply;
+- **proof**: the scanner pairs that must disappear (`RULE:path`), the probe
+  that must turn CLOSED, and a project test when one fits naturally.
+
+MANUAL items stay user steps (STEP 6), never proposals. A live OPEN verdict
+with no static finding gets a proposal whose proof is the probe alone.
+
+Save the proposals to `.claude/tasks/plans/<YYYY-MM-DD>-guardrails-<HHMM>.md`
+and append them to the report. In the reply, show them as a numbered list,
+one or two lines each, BREAKING and DECISION marked.
+
+## STEP 9: Approval (gate, ends the turn)
+
+Nothing is applied without the user's explicit acceptance. Ask once, then
+stop the turn:
+
+```
+Which fixes do I apply? "all" (every proposal except DECISION ones),
+numbers ("1,3,5-7"), "none", or an amendment ("2 with the label 'Email'").
+A DECISION proposal needs its number plus your choice.
+```
+
+On resume, `mcp__model-router__route(phase="reflect")`. "none" → stop,
+proposals stay in the report. An amendment rewrites that proposal in the plan
+file before anything else. Accepted set empty → stop.
+
+## STEP 10: Apply
+
+1. **Branch.** Not a git repository → stop: fixes need a diff to review.
+   On `main`/`develop`, `bash ~/.claude/lib/gitflow.sh start bugfix
+   guardrails-<YYYY-MM-DD>`; on a working branch, stay. Never `finish`.
+2. **Baseline**, before any edit:
+   `python3 -B <scan.py> <root> --json > .claude/audits/.guardrails-baseline.json`.
+   A derived file: never staged, never committed.
+3. **Contract** per `$HOME/.claude/lib/contract-interview.md` (STEP 4
+   template, `flow: guardrails`). REQUEST = the user's acceptance verbatim
+   plus the accepted proposals. One criterion per accepted proposal, its
+   oracle the scanner itself:
+   ```
+   1. <proposal 1 in one line>
+      CHECK: python3 -B "$HOME/.claude/skills/guardrails/scripts/scan.py" '<abs root>' --assert-absent 'RULE:path,RULE:path'
+      EXPECT: GUARDRAILS-CLEAR
+      EVIDENCE: pending
+   ```
+   Add one criterion for the project suite when one exists
+   (`CHECK: <test command> && echo TESTS-GREEN`, `EXPECT: TESTS-GREEN`). A
+   proof the scanner cannot run (probe, cross-user, manual SQL) is a
+   criterion without CHECK: STEP 11 settles it. FILE SCOPE = the files the
+   accepted proposals name. Paths go in single quotes; a path holding a
+   single quote is named to the user, never written into a CHECK.
+4. **Positive control.** Run each oracle once on the unfixed tree: it must
+   fail. An oracle that passes before the fix proves nothing; drop it, find
+   why, and say so.
+5. **Dispatch the executor**, one fresh `bugfixer` for the accepted set
+   (batches of 8 proposals at most, one after the other on the same branch):
+   ```
+   mcp__model-router__route(phase="orchestrate")   # send with the Agent call
+   Agent(subagent_type="bugfixer")
+   prompt: "CONTRACT: <path>
+   DIAGNOSIS: <each accepted finding: rule, file:line, evidence, root cause>
+   FIX PLAN: <the accepted proposals verbatim, with the user's choices; the
+   regression check of each is its contract oracle, plus the project test
+   the proposal names>
+   BRANCH: <current branch>
+   Apply to the letter. No commit, no branch ops, no security dispatch.
+   Finish with the BUGFIX-EXEC REPORT."
+   ```
+   `NEED-DECISION` routes per MID-RUN CLARIFICATION of the contract include:
+   a visible, public-name or scope question goes to the user verbatim.
+   `BLOCKED` → surface it, stop.
+6. **Gates** per `$HOME/.claude/lib/verify-secure-loop.md`, `CONTRACT` the
+   path above, `DIFF` the executor's working-tree diff, `TEST` the suite.
+   GATE 0 runs every scanner oracle (the per-fix proof), GATE 1 a fresh
+   verifier, GATE 2 a fresh security-auditor. Loop caps and escalation are
+   the include's; loop decisions stay in this main loop.
+
+## STEP 11: Re-pass (prove it all)
+
+`mcp__model-router__route(phase="reflect")`. The gates proved each accepted
+fix on its own; this pass proves the whole tree.
+
+1. Full scan against the baseline:
+   ```
+   python3 -B <scan.py> <root> --baseline .claude/audits/.guardrails-baseline.json
+   ```
+   Every accepted pair must show `FIXED`, and the run must end on
+   `GUARDRAILS-NO-NEW` (exit 0). A `NEW` hit is a regression the fix made.
+2. Live: when STEP 5 ran, replay the same plan on the same target once the
+   user has reloaded or redeployed it and says go. A fix in code is not live
+   until it runs. Each fixed proposal's probe must now read CLOSED.
+3. Settle the criteria without CHECK, by reading or by the user's answer for
+   a manual step.
+4. Add an "after" column to `.claude/audits/GUARDRAILS.md`: proposal,
+   before, after, evidence.
+
+Anything not fixed, or a NEW hit → one more round from STEP 8, limited to
+those items. Two rounds at most: after the second, stop with the residuals
+open and say so plainly. Never report a fix the re-pass did not prove.
+
+## STEP 12: Commit and hand over
+
+1. **Commit gate.** Show files, `git diff --stat` and the message, wait for
+   the user's go:
+   ```
+   GUARDRAILS: READY TO COMMIT
+   FILES   : <list>
+   MESSAGE : fix(security): <rules fixed, one line>
+   ```
+   Then `git add <files touched>` (never `-A`, never the baseline file) and
+   commit, project convention else 50 words at most.
+2. `mcp__model-router__route(phase="apply")` for the tail. Reply with: fixed
+   and proven (proposal, rule, file), still open and why, MANUAL steps left
+   for the user, the branch name. Merge waits for the user's explicit signal.
+3. Offer to capitalize a reusable lesson (a false-positive class, a fix
+   pattern), entry pre-filled, written only on approval.

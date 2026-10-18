@@ -204,3 +204,21 @@ because it can lock the user's own account; a redirect to another host is
 never followed, so a key never leaves the named host. Fuzzing, writes beyond
 the named login route, or probing a third party are out of scope: that is
 pentest, another contract.
+
+## Fix loop: oracles and re-pass
+
+Every accepted fix is proven by the scanner itself, never by the executor's
+word. Two check modes replace the report and its exit code:
+
+| Mode | Passes when | Marker | Used by |
+|---|---|---|---|
+| `--assert-absent RULE:path,...` | none of these FAIL/WARN pairs remains, the domain was scanned, the tree is not empty | `GUARDRAILS-CLEAR <n>` | a contract `CHECK:` run by `lib/gates.sh` (GATE 0) |
+| `--baseline before.json` | no FAIL/WARN hit appeared since the earlier `--json` run | `GUARDRAILS-NO-NEW` | STEP 11 re-pass |
+
+Pairs match on rule and file, not line: a fix moves lines. A MANUAL rule
+cannot be asserted (exit 2): no static scan proves a dashboard setting. An
+unscanned domain or an empty tree fails the assertion, because absence there
+proves nothing. Run every oracle once before the fix: it must fail.
+
+The baseline lists `FIXED` and `NEW` pairs with their hit counts and a
+remaining total. A `NEW` hit after a fix is a regression the fix made.

@@ -252,6 +252,66 @@ LAST_OUT=$(scan "$WORK/tx-bulk")
 check "a subscribers table makes the same senders fail" \
   "$(has FAIL MSG-NO-CONSENT-RECORD)" yes
 
+echo "== check modes (contract oracle and re-pass baseline)"
+IMG="A11Y-IMG-ALT:$TSX"
+cp -R "$GOOD" "$WORK/cm"; edit "$WORK/cm/$TSX" 's/ alt="Company logo"//'
+out=$(scan "$WORK/cm" --assert-absent "$IMG"); rc=$?
+check "positive control: the oracle fails while the hit is there" "$rc" 1
+check "a failing oracle never prints the marker" \
+  "$(printf '%s\n' "$out" | grep -c GUARDRAILS-CLEAR)" 0
+out=$(scan "$GOOD" --assert-absent "$IMG"); rc=$?
+check "the oracle passes once the hit is gone" "$rc" 0
+check "a passing oracle prints the marker" \
+  "$(printf '%s\n' "$out" | grep -c '^GUARDRAILS-CLEAR 1$')" 1
+out=$(scan "$GOOD" --domain api --assert-absent "$IMG"); rc=$?
+check "an unscanned domain proves nothing" "$rc" 1
+check "the control failure is named" \
+  "$(printf '%s\n' "$out" | grep -c '^  CONTROL ')" 1
+mkdir "$WORK/cm-empty"
+scan "$WORK/cm-empty" --assert-absent "$IMG" >/dev/null
+check "an empty tree proves nothing" "$?" 1
+scan "$GOOD" --assert-absent HOST-SPEND-CAP:. >/dev/null 2>&1
+check "a MANUAL rule cannot be asserted (exit 2)" "$?" 2
+scan "$GOOD" --assert-absent A11Y-IMG-ALT >/dev/null 2>&1
+check "an item without a path is a usage error" "$?" 2
+scan "$WORK/cm" --json > "$WORK/cm-before.json"
+out=$(scan "$GOOD" --baseline "$WORK/cm-before.json"); rc=$?
+check "baseline lists the fixed hit" \
+  "$(printf '%s\n' "$out" | grep -c '^  FIXED A11Y-IMG-ALT ')" 1
+check "baseline with no new hit exits 0 with the marker" \
+  "$rc:$(printf '%s\n' "$out" | grep -c '^GUARDRAILS-NO-NEW$')" "0:1"
+scan "$GOOD" --json > "$WORK/clean-before.json"
+out=$(scan "$WORK/cm" --baseline "$WORK/clean-before.json"); rc=$?
+check "baseline lists a new hit" \
+  "$(printf '%s\n' "$out" | grep -c '^  NEW   A11Y-IMG-ALT ')" 1
+check "baseline with a new hit exits 1 without the marker" \
+  "$rc:$(printf '%s\n' "$out" | grep -c GUARDRAILS-NO-NEW)" "1:0"
+printf 'not json' > "$WORK/bad.json"
+scan "$GOOD" --baseline "$WORK/bad.json" >/dev/null 2>&1
+check "an unreadable baseline exits 2" "$?" 2
+
+# contract <dir> <file>: a fix contract whose oracle is the scanner itself
+contract() {
+  cat > "$2" <<EOF
+# CONTRACT — guardrails-oracle-test
+## ACCEPTANCE CRITERIA
+1. every image in the contact form has an alt
+   CHECK: python3 -B '$SCAN' '$1' --assert-absent '$IMG'
+   EXPECT: GUARDRAILS-CLEAR
+   EVIDENCE: pending
+## FILE SCOPE
+$TSX
+EOF
+}
+contract "$WORK/cm" "$WORK/c-unfixed.md"
+bash "$ROOT/lib/gates.sh" run "$WORK/c-unfixed.md" >/dev/null 2>&1
+check "gates.sh: the oracle is UNMET before the fix" "$?" 2
+contract "$GOOD" "$WORK/c-fixed.md"
+bash "$ROOT/lib/gates.sh" run "$WORK/c-fixed.md" >/dev/null 2>&1
+check "gates.sh: the oracle is MET after the fix" "$?" 0
+check "gates.sh writes the evidence back" \
+  "$(grep -c 'EVIDENCE: pending' "$WORK/c-fixed.md")" 0
+
 echo "== cli"
 scan "$WORK/does-not-exist" >/dev/null 2>&1; check "bad path exits 2" "$?" 2
 scan --domain nope "$GOOD" >/dev/null 2>&1; check "bad domain exits 2" "$?" 2
