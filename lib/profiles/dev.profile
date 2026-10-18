@@ -19,6 +19,7 @@ code-clean                        personal
 commit-change                     personal
 explain-diff                      personal
 guardrails                        personal
+a11y                              personal
 
 # Dev-lifecycle skills (agent-skills trio)
 observability-and-instrumentation  external

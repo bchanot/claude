@@ -27,7 +27,7 @@ paths: ["**/*.html", "**/*.astro", "**/*.css", "**/*.scss", "**/*.tsx", "**/*.js
 - Motion: transform and opacity only; feedback under 200 ms, ease-out on
   entrances, never from scale(0); `will-change` only during an active
   animation; pause loops off-screen; honor `prefers-reduced-motion`.
-- Touch targets 44 px minimum; visible `:focus-visible` ring; status never
+- Touch targets 44 px minimum; keyboard and focus per `rules/a11y.md`; status never
   by color alone, add text or an icon.
 - Errors next to the field; empty state = one clear action; destructive
   action confirmed first.
@@ -36,7 +36,7 @@ paths: ["**/*.html", "**/*.astro", "**/*.css", "**/*.scss", "**/*.tsx", "**/*.js
 ## Before declaring a public site done
 Check: custom 404 · call to action in the first viewport · per-page
 title + description · share/OG image · favicons · robots.txt · sitemap ·
-alt text on images · layout tested at 375 px · loading states · form
+accessibility baseline (`rules/a11y.md`) · layout tested at 375 px · loading states · form
 error messages · confirmation page · real legal mentions · cookie banner
 with a working refuse option · audience measurement · contact address ·
 compressed images.

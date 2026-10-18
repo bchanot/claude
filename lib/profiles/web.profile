@@ -28,6 +28,7 @@ refactor                          personal
 
 # Validation companion (basic W3C/a11y check during build)
 web-validate                      personal
+a11y                              personal
 
 # External: design skills
 emil-design-eng                   external

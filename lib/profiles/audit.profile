@@ -6,6 +6,7 @@
 cso
 harden                            personal
 guardrails                        personal
+a11y                              personal
 analyze                           personal
 
 # SEO / GEO / web standards

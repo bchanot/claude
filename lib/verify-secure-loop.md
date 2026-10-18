@@ -1,4 +1,4 @@
-# Verify + secure loop — shared orchestrator include (feat, bugfix, guardrails)
+# Verify + secure loop — shared orchestrator include (feat, bugfix, guardrails, a11y)
 
 Runs in the ORCHESTRATOR MAIN LOOP after the dev step completes. Turns a
 finished diff into a verified, security-cleared change through two fresh
