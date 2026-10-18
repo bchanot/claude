@@ -75,6 +75,7 @@
     "refactor": "reflect",
     "explain-diff": "reflect",
     "guardrails": "reflect",
+    "a11y": "reflect",
     "web-validate": "reflect",
     "harden": "reflect",
     "seo": "reflect",
