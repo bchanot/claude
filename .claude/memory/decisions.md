@@ -138,6 +138,7 @@ rules:
 | BDR-118 | 2026-10-12 | Rust default language for new projects / whole-project rewrites, always-on rule file | accepted |
 | BDR-119 | 2026-10-16 | impeccable = Build path for all UI; GATE-BLOCK swaps frontend-design for impeccable | accepted |
 | BDR-120 | 2026-10-18 | Secure-by-default guardrails: always-on rule file + /guardrails stdlib scanner, passwords in api domain | accepted |
+| BDR-121 | 2026-10-18 | Guardrails fix loop reuses bugfix circuit; scanner = contract oracle, baseline re-pass | accepted |
 
 ---
 
@@ -1455,3 +1456,9 @@ Branch feature/user-writing-web-rules, UNMERGED (human gate).
 - **Why**: user ask. Dashboard-only items (spend cap, WAF, budget stop) stay MANUAL, never claimed done. Scanner proves absence of protection, never presence of security; clean scan = "no static finding". Calibrated on 8 real projects, each FP class fixed + locked by benign test.
 - **Alternatives rejected**: Rust scanner (interpreted skill script, no build step, default-language contraindication, same rank as explain-diff checker); section in CLAUDE.global.md (budget); `paths:`-scoped rule (never fires in chat/brainstorm); semgrep rules only (blind to migrations, policies, consent flow).
 - **Refs**: branch feature/secure-by-default, suite `lib/tests/guardrails-scan.test.sh` (89 checks). Links [[BDR-085]] [[BDR-118]].
+
+## BDR-121 — Guardrails fix loop reuses the bugfix circuit, scanner = oracle [accepted] (2026-10-18)
+- **Decision**: after report, proposals (route plan) -> prose approval gate -> bugfixer + verify-secure gates -> re-pass. Each accepted fix = contract criterion, CHECK = `scan.py --assert-absent RULE:path` (marker GUARDRAILS-CLEAR, positive control: fails before fix). Re-pass = `--baseline` vs pre-fix scan (GUARDRAILS-NO-NEW). 2 rounds max, residuals open. `--report-only` keeps audit alone.
+- **Why**: user ask. Proof by deterministic scanner, never executor's word; no new circuit to maintain.
+- **Alternatives rejected**: guardrails edits code itself (skips fresh gates); chain to /bugfix per finding (one interview + contract per hit, too heavy for 60 labels); LLM verifier as sole proof (verdict without execution).
+- **Refs**: feature/secure-by-default 73c25d7. Links [[BDR-120]].
