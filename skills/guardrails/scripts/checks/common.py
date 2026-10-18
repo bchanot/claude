@@ -72,12 +72,19 @@ def blank_markup_comments(text):
     return _blank(MARKUP_COMMENT, text)
 
 
-def _is_scannable(path):
+def _candidate(path):
+    """A regular, non-symlink, non-binary file the walker may list."""
     if path.name in SKIP_FILES or path.suffix.lower() in BINARY_EXTS:
         return False
     try:
-        return (path.is_file() and not path.is_symlink()
-                and path.stat().st_size <= MAX_BYTES)
+        return path.is_file() and not path.is_symlink()
+    except OSError:
+        return False
+
+
+def _small(path):
+    try:
+        return path.stat().st_size <= MAX_BYTES
     except OSError:
         return False
 
@@ -97,8 +104,8 @@ def _kept_dirs(root, base, dirs, prefixes):
 def _kept_files(root, base, names, prefixes):
     for name in names:
         path = Path(base) / name
-        if _is_scannable(path) and not _excluded(root, path, prefixes):
-            yield path
+        if _candidate(path) and not _excluded(root, path, prefixes):
+            yield path, _small(path)
 
 
 def _walk(root, prefixes):
@@ -113,7 +120,9 @@ class Project:
     def __init__(self, root, exclude=()):
         self.root = Path(root).resolve()
         prefixes = [e.strip("/") for e in exclude if e.strip("/")]
-        self.files = sorted(_walk(self.root, prefixes))
+        listed = sorted(_walk(self.root, prefixes))
+        self.files = [p for p, small in listed if small]
+        self.large = [p for p, small in listed if not small]
         self._text = {}
 
     def rel(self, path):
@@ -202,3 +211,27 @@ def dedupe_lines(findings):
             seen.add((finding.path, finding.line))
             out.append(finding)
     return out
+
+
+SERVER_SEGMENTS = {
+    "functions", "api", "server", "scripts", "tests", "test", "migrations",
+    "seed", ".github", "supabase", "tools",
+}
+CLIENT_SEGMENTS = {
+    "components", "public", "static", "client", "browser", "www", "islands",
+}
+CLIENT_EXTS = (".vue", ".svelte", ".html", ".htm")
+CLIENT_SCRIPT_EXTS = (".ts", ".tsx", ".js", ".jsx", ".mjs")
+
+
+def client_reachable(project, path):
+    """Heuristic: this file's text ends up in a browser bundle or page."""
+    segments = set(project.segments(path))
+    if segments & SERVER_SEGMENTS:
+        return False
+    if path.suffix.lower() in CLIENT_EXTS:
+        return True
+    if path.suffix.lower() not in CLIENT_SCRIPT_EXTS:
+        return False
+    head = project.text(path)[:300]
+    return bool(segments & CLIENT_SEGMENTS) or "use client" in head

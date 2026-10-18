@@ -98,7 +98,7 @@ def _weak_hash(project, files):
     ]
 
 
-def _log_args(args):
+def log_args(args):
     """Call arguments with string literals reduced to their interpolations."""
     return STRING.sub(
         lambda m: " ".join(re.findall(r"\{([^}]*)\}", m.group())), args)
@@ -110,7 +110,7 @@ def _logged(project, files):
             Rule(DOMAIN, "API-PASSWORD-LOGGED", "FAIL"), path, m.start(),
             "password reaches a log: never log credentials")
         for path, m in project.matches(LOG_CALL, files)
-        if LOGGED_NAME.search(_log_args(m.group(1)))
+        if LOGGED_NAME.search(log_args(m.group(1)))
     ]
 
 

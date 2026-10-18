@@ -202,6 +202,42 @@ mutant nosql-operator WARN INJ-NOSQL-OPERATOR \
 mutant shell-db-tool FAIL INJ-SHELL-DB-TOOL \
   "printf '%s\n' 'execSync(\`pg_dump --table=\${table} app > backup.sql\`);' > src/lib/backup.ts"
 
+echo "== exposure"
+mutant console-data WARN EXP-CONSOLE-DATA \
+  "printf '%s\n' 'console.log(\"saved\", session);' >> $TSX"
+mutant sourcemap-next FAIL EXP-SOURCEMAP-PUBLIC \
+  "printf '%s\n' 'module.exports = { productionBrowserSourceMaps: true };' > next.config.js"
+mutant sourcemap-vite-inline FAIL EXP-SOURCEMAP-PUBLIC \
+  "printf '%s\n' 'export default { build: { sourcemap: \"inline\" } };' > vite.config.ts"
+mutant sourcemap-webpack-warn WARN EXP-SOURCEMAP-PUBLIC \
+  "printf '%s\n' 'module.exports = { devtool: \"eval-source-map\" };' > webpack.config.js"
+mutant sourcemap-public-dir FAIL EXP-SOURCEMAP-PUBLIC \
+  "mkdir -p public/assets; printf '%s\n' '{\"version\":3,\"sources\":[\"src/app.ts\"],\"mappings\":\"AAAA\"}' > public/assets/app.js.map"
+mutant sourcemap-large-map FAIL EXP-SOURCEMAP-PUBLIC \
+  "mkdir -p public; head -c 1100000 /dev/zero | tr '\\0' a > public/app.js.map"
+mutant hydrated-sensitive WARN EXP-HYDRATED-SENSITIVE \
+  "printf '%s\n' 'export async function getServerSideProps() { return { props: { accessToken: process.env.CRM_TOKEN } }; }' > src/pages/account.tsx"
+mutant markup-comment WARN EXP-MARKUP-COMMENT \
+  "printf '%s\n' '<!-- staging login: see the internal wiki before release -->' > src/pages/index.html"
+mutant data-attr-sensitive WARN EXP-DATA-ATTR-SENSITIVE \
+  "printf '%s\n' '<div data-api-key={key}>x</div>' >> $TSX"
+mutant error-stack FAIL EXP-ERROR-STACK \
+  "printf '%s\n' 'export function onError(err: Error) { return new Response(err.stack, { status: 500 }); }' >> $API"
+mutant error-message WARN EXP-ERROR-MESSAGE \
+  "printf '%s\n' 'export function onFail(err: Error) { return Response.json({ error: err.message }, { status: 500 }); }' >> $API"
+mutant debug-on FAIL EXP-DEBUG-ON \
+  "printf '%s\n' 'DEBUG = True' > src/settings.py"
+mutant debug-env FAIL EXP-DEBUG-ON \
+  "printf '%s\n' 'APP_DEBUG=true' > .env.production"
+mutant response-wide WARN EXP-RESPONSE-WIDE \
+  "printf '%s\n' 'const { data } = await db.from(\"profiles\").select(\"*\");' >> $API"
+mutant error-stack-single-file FAIL EXP-ERROR-STACK \
+  "printf '%s\n' 'app.use((err, req, res, next) => res.status(500).send(err.stack));' > server.js"
+mutant hydrated-identifier WARN EXP-HYDRATED-SENSITIVE \
+  "printf '%s\n' 'export async function getServerSideProps() { const token = await crm(); return { props: { accessToken: token } }; }' > src/pages/account.tsx"
+mutant console-next-page WARN EXP-CONSOLE-DATA \
+  "printf '%s\n' 'export default function Home({ user }) { console.log(\"render\", user); return null; }' > src/pages/index.tsx"
+
 echo "== benign patterns stay silent"
 benign() { # benign <label> <snippet>: a legitimate pattern raises nothing
   local label="$1" snippet="$2" dir="$WORK/$1"
@@ -279,6 +315,53 @@ benign minified-bundle \
   "printf '%s\n' 'const q=\`select id from notes where owner = \${o}\`;' > src/lib/app.min.js"
 benign long-line-bundle \
   "head -c 6000 /dev/zero | tr '\\0' x > src/lib/bundle.js; printf '%s\n' ' const q=\`select id from notes where owner = \${o}\`;' >> src/lib/bundle.js"
+
+benign console-plain-string \
+  "printf '%s\n' 'console.log(\"ready\");' >> $TSX"
+benign console-string-data \
+  "printf '%s\n' 'console.log(\"loading data\");' >> $TSX"
+benign console-server-file \
+  "printf '%s\n' 'console.log(\"saved\", session);' >> $API"
+benign logger-stack \
+  "printf '%s\n' 'logger.error(\`notes failed \${res.statusCode}\`, err.stack);' >> $API"
+benign client-console-stack \
+  "printf '%s\n' 'console.warn(\"load failed\", err.stack);' >> $TSX"
+benign vite-hidden-sourcemap \
+  "printf '%s\n' 'export default { build: { sourcemap: \"hidden\" } };' > vite.config.ts"
+benign vendored-map \
+  "mkdir -p static/css; printf '%s\n' '{\"version\":3,\"mappings\":\"AAAA\"}' > static/css/bootstrap.min.css.map"
+benign level-map \
+  "mkdir -p public/levels; printf '%s\n' 'tiles 10x10' > public/levels/1.map"
+benign debug-from-env \
+  "printf '%s\n' 'DEBUG = os.environ.get(\"DEBUG\") == \"1\"' > src/settings.py"
+benign debug-local-settings \
+  "printf '%s\n' 'DEBUG = True' > src/settings_local.py"
+benign debug-lowercase-elsewhere \
+  "printf '%s\n' '    debug = True' > src/lib/tools.py"
+benign errorhandler-dev-guard \
+  "printf '%s\n' 'if (process.env.NODE_ENV === \"development\") app.use(errorhandler());' >> $API"
+benign flask-config-class \
+  "printf '%s\n' 'class DevelopmentConfig(Config):' '    DEBUG = True' > src/config.py"
+benign error-generic-message \
+  "printf '%s\n' 'export function onFail() { return Response.json({ error: \"internal error\" }, { status: 500 }); }' >> $API"
+benign ts-type-token \
+  "printf '%s\n' 'export async function getServerSideProps() { return { props: {} }; }' 'type Session = { token: string; };' > src/pages/account.tsx"
+benign no-semicolon-type \
+  "printf '%s\n' 'export async function getServerSideProps() { return { props: {} }; }' 'interface Props {' '  token: string' '}' > src/pages/account.tsx"
+benign prisma-multiline-select \
+  "printf '%s\n' 'const u = await prisma.user.findUnique({' '  where: { id },' '  select: { id: true },' '});' >> $API"
+benign csrf-hidden-input \
+  "printf '%s\n' '<input type=\"hidden\" name=\"csrf_secret\" value={csrf} />' >> $TSX"
+benign csrf-data-attr \
+  "printf '%s\n' '<form data-csrf-secret={csrf}>x</form>' >> $TSX"
+# A committed .env.development trips the api domain's API-ENV-NOT-IGNORED by
+# design (the fixture's .gitignore lists .env only), so this lock is scoped
+# to the exposure domain: a dev env file must raise no EXP finding.
+cp -R "$GOOD" "$WORK/env-dev"
+printf '%s\n' 'APP_DEBUG=true' 'GENERATE_SOURCEMAP=true' > "$WORK/env-dev/.env.development"
+out=$(scan --domain exposure "$WORK/env-dev")
+check "a dev env file raises no exposure finding" \
+  "$(printf '%s\n' "$out" | grep -c ' 0 FAIL, 0 WARN')" 1
 
 echo "== transactional versus marketing senders"
 solo tx-only src/contact.ts 'import nodemailer from "nodemailer";'

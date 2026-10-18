@@ -6,7 +6,9 @@ See scanner.py for the modes and exit codes.
 import sys
 
 import scanner
-from checks import a11y, apis, functions, hosting, injection, messaging, supabase
+from checks import (
+    a11y, apis, exposure, functions, hosting, injection, messaging, supabase,
+)
 
 CATALOGUE = scanner.Catalogue(
     name="guardrails",
@@ -18,11 +20,12 @@ CATALOGUE = scanner.Catalogue(
         "messaging": messaging,
         "functions": functions,
         "injection": injection,
+        "exposure": exposure,
     },
     rule_domains={
         "API": "api", "HOST": "hosting", "A11Y": "a11y", "SB": "supabase",
         "MSG": "messaging", "FN": "functions",
-        "INJ": "injection",
+        "INJ": "injection", "EXP": "exposure",
     },
     manual_rules=frozenset({
         "HOST-WAF-DDOS", "HOST-SPEND-CAP", "SB-RLS-LIVE",
