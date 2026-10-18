@@ -354,7 +354,7 @@ Agent(
     - Legal pages (mentions légales, CGV, privacy) — unless the issue is
       a security-header gap on those pages, not their content
     - Content quality, keyword density, readability
-    - a11y / WCAG (owned by /web-validate — W3C + WCAG audit)
+    - WCAG conformance (owned by /web-validate) and the keyboard, alt and label baseline (owned by /a11y)
     - W3C HTML / CSS syntactic validity (owned by /web-validate)
 
   If you detect an out-of-scope issue, DROP IT silently. Do NOT mention

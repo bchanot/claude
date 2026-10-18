@@ -8,7 +8,8 @@ description: |
   geo-analyzer concurrently, merges into .claude/audits/SEO.md.
   Triggers: "seo", "referencement", "meta tags", "JSON-LD", "sitemap",
   "robots.txt", "local SEO", "llms.txt", "ChatGPT visibility".
-  GEO only → /geo. W3C/a11y → /web-validate. Bugs → /bugfix.
+  GEO only → /geo. W3C/WCAG → /web-validate; keyboard, alt, labels →
+  /a11y. Bugs → /bugfix.
 argument-hint: optional keywords/scope, e.g. "local SEO plombier 91 94 77" or "SaaS B2B content strategy"
 allowed-tools:
   - Read

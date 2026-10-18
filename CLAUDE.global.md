@@ -273,7 +273,7 @@ cryptic names.
   finishing-a-development-branch → `gitflow finish` (human signal)
   systematic-debugging → bugfix
   verification-before-completion → the verifier gates
-- SEO+GEO → seo (GEO only → geo); W3C + WCAG a11y → web-validate;
+- SEO+GEO → seo (GEO only → geo); W3C + WCAG conformance → web-validate;
   security audit (secrets, CVE, OWASP) → cso
 - Media generation (image, video, audio, brand kit), explicit ask →
   Higgsfield pack, off by default: `bash ~/.claude/lib/toggle-external.sh
