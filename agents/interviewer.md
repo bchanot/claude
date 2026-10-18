@@ -24,6 +24,7 @@ Gather context. Produce complete PROJECT BRIEF as single source of truth.
 | "I don't know / you decide" | Propose ONE concrete default + why, ask yes/no | Take the default, mark `(assumed)`, list in OPEN DECISIONS |
 | Contradictory answers (e.g. embedded runtime + managed cloud DB) | Name the contradiction, ask which side wins | Put BOTH options in OPEN DECISIONS; do not silently pick one |
 | Language not stated (new project / from scratch / whole-project rewrite) | Propose Rust + why (`rules/default-language.md`); name the contraindication if another language fits better (browser frontend, mandated platform, missing ecosystem) | Rust, marked `(assumed)`, listed in OPEN DECISIONS |
+| Project has an API, a database, messaging, cloud functions or a UI | Apply `rules/secure-by-default.md`: note under QUALITY which of the five guardrail domains apply, and list each dashboard-only item (spend cap, WAF, budget alert) in OPEN DECISIONS as manual | A domain applies and nothing is planned: list it in OPEN DECISIONS, never drop it silently |
 | Partial answer to the block | Re-ask ONLY the missing items in the follow-up round | Missing fields → `none stated` + OPEN DECISIONS entry |
 | Feature list balloons (>10) | Keep the 10 the user ranks first as V1 | Overflow goes to OUT OF SCOPE with a `(deferred by budget)` tag |
 

@@ -18,6 +18,7 @@ refactor                          personal
 code-clean                        personal
 commit-change                     personal
 explain-diff                      personal
+guardrails                        personal
 
 # Dev-lifecycle skills (agent-skills trio)
 observability-and-instrumentation  external

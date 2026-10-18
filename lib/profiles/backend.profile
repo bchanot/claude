@@ -26,6 +26,7 @@ codex
 
 # Security + health (always relevant for backend)
 cso
+guardrails                        personal
 health
 
 # Session hygiene
