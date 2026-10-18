@@ -202,7 +202,7 @@ mutant sourcemap-webpack-warn WARN EXP-SOURCEMAP-PUBLIC \
 mutant sourcemap-public-dir FAIL EXP-SOURCEMAP-PUBLIC \
   "mkdir -p public/assets; printf '%s\n' '{\"version\":3,\"sources\":[\"src/app.ts\"],\"mappings\":\"AAAA\"}' > public/assets/app.js.map"
 mutant sourcemap-large-map FAIL EXP-SOURCEMAP-PUBLIC \
-  "mkdir -p public; head -c 1100000 /dev/zero | tr '\\0' a > public/app.js.map"
+  "mkdir -p public; { printf '%s' '{\"version\":3,\"sources\":[\"src/app.ts\"],\"mappings\":\"'; head -c 1100000 /dev/zero | tr '\\0' A; printf '%s\n' '\"}'; } > public/app.js.map"
 mutant hydrated-sensitive WARN EXP-HYDRATED-SENSITIVE \
   "printf '%s\n' 'export async function getServerSideProps() { return { props: { accessToken: process.env.CRM_TOKEN } }; }' > src/pages/account.tsx"
 mutant markup-comment WARN EXP-MARKUP-COMMENT \
@@ -241,6 +241,8 @@ benign() { # benign <label> <snippet>: a legitimate pattern raises nothing
   check "$label raises no FAIL or WARN" \
     "$(printf '%s\n' "$out" | grep -c ' 0 FAIL, 0 WARN')" 1
 }
+benign large-level-map \
+  "mkdir -p public/levels; head -c 1100000 /dev/zero | tr '\\0' x > public/levels/big.map"
 benign helper-under-api \
   "mkdir -p src/pages/api/helpers; printf '%s\n' 'export const fmt = () => 1;' > src/pages/api/helpers/format.ts"
 benign mailer-test-file \
@@ -461,6 +463,33 @@ mkdir "$WORK/linked"; ln -s "$GOOD" "$WORK/linked/escape"
 out=$(scan "$WORK/linked")
 check "symlinked directory is not followed" \
   "$(printf '%s\n' "$out" | grep -c '(0 files)')" 1
+
+echo "== regex timing"
+FAST="$(cd "$ROOT" && python3 -B - <<'PY'
+import importlib.util, sys, time
+sys.path.insert(0, "skills/guardrails/scripts")
+from checks import common, exposure
+spec = importlib.util.spec_from_file_location(
+    "probe", "skills/guardrails/scripts/probe.py")
+probe = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(probe)
+cases = [
+    (exposure.DATA_ATTR, "data-secret" * 20000),
+    (common.MARKUP_COMMENT, "<!--" * 50000),
+    (common.SQL_COMMENT, "/*" * 100000),
+    (probe.SCRIPT_SRC, "<script " * 25000),
+    (probe.TRACE_MARKERS, b"at a ( " * 28000),
+]
+slow = 0
+for pattern, text in cases:
+    start = time.perf_counter()
+    pattern.search(text)
+    slow += time.perf_counter() - start >= 1.0
+print("REGEX-FAST" if not slow else "REGEX-SLOW")
+PY
+)"
+check "adversarial inputs finish each regex under one second" \
+  "$(printf '%s\n' "$FAST" | grep -c 'REGEX-FAST')" 1
 
 echo "---"
 echo "passed: $PASS  failed: $FAIL"

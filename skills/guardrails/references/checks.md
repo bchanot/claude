@@ -220,7 +220,7 @@ The fields probe sends `GUARDRAILS_JWT2` as a bearer when it is set. Every path 
 | rate-limit | `rate-limit` | the burst saw no 429 | HOST-NO-RATE-LIMIT |
 | sourcemap | `sourcemap:<script>` | a source map with sources answered 200 for a page script, or the script carries an inline map | EXP-SOURCEMAP-PUBLIC |
 | error-body | `error-body:<path>` | a 404 or a named error route returned a stack trace or an internal path | EXP-ERROR-STACK, EXP-DEBUG-ON |
-| fields | `fields:<path>` | a JSON 200 carried a password, salt, token, key or secret-like key (identifier-shaped names printed, never values) | EXP-RESPONSE-WIDE, EXP-HYDRATED-SENSITIVE |
+| fields | `fields:<path>` | a JSON 200 carried a password, salt, token, hash, key or secret-like key (`private` only as private_key; identifier-shaped names printed, never values) | EXP-RESPONSE-WIDE, EXP-HYDRATED-SENSITIVE |
 
 A verdict is an observation, not a verdict on the project. OPEN is a returned
 200 or returned rows; CLOSED is a refusal or an empty body; SKIPPED is a

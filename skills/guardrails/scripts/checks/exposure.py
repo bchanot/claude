@@ -36,8 +36,8 @@ COMMENT_WORDS = re.compile(
     r"|api[-_ ]?key|internal|staging|localhost|admin|remove before"
     r"|do not commit|don'?t commit|temporary)\b", re.I)
 DATA_ATTR = re.compile(
-    r"\b(data-[\w-]*(?:secret|api-?_?key|password|passwd|jwt|private"
-    r"|credential|service-?role)[\w-]*)\s*=", re.I)
+    r"\b(data-[\w-]{0,60}(?:secret|api-?_?key|password|passwd|jwt|private"
+    r"|credential|service-?role)[\w-]{0,60})\s*=", re.I)
 HIDDEN_INPUT = re.compile(r"<input\b[^>\n]{0,300}>", re.I)
 SENSITIVE_NAME = re.compile(
     r"secret|api[-_]?key|password|passwd|jwt|private|credential", re.I)
@@ -147,14 +147,24 @@ def _public_map(project, path):
             and not VENDORED.search(project.rel(path)))
 
 
+def _large_map(project, path):
+    """A large public .map whose first 4 KB already hold a mappings key."""
+    if path.suffix.lower() != ".map" or not _public_map(project, path):
+        return False
+    try:
+        with path.open("rb") as handle:
+            return b'"mappings"' in handle.read(4096)
+    except OSError:
+        return False
+
+
 def _map_files(project):
     rule = Rule(DOMAIN, "EXP-SOURCEMAP-PUBLIC", "FAIL")
     out = hits(project, _env_files(project), ENV_MAPS, rule,
                "GENERATE_SOURCEMAP=true ships source maps")
     small = [p for p in project.with_ext(".map")
              if _public_map(project, p) and '"mappings"' in project.text(p)]
-    large = [p for p in project.large
-             if p.suffix.lower() == ".map" and _public_map(project, p)]
+    large = [p for p in project.large if _large_map(project, p)]
     return out + [project.found(rule, p, 0, "source map in a public directory")
                   for p in small + large]
 

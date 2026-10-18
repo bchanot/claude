@@ -54,9 +54,10 @@ def redact(value):
     return value[:6] + "..."
 
 
-SQL_COMMENT = re.compile(r"--[^\n]*|/\*.*?\*/", re.S)
+SQL_COMMENT = re.compile(r"--[^\n]*|/\*[\s\S]{0,4000}?\*/")
 MARKUP_COMMENT = re.compile(
-    r"<!--.*?-->|/\*.*?\*/|(?:^|(?<=\s))//[^\n]*", re.S | re.M)
+    r"<!--(?:[^<]|<(?!!--)){0,4000}?-->|/\*[\s\S]{0,4000}?\*/"
+    r"|(?:^|(?<=\s))//[^\n]*", re.M)
 
 
 def _blank(pattern, text):

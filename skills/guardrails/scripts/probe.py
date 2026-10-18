@@ -36,15 +36,16 @@ DEFAULT_BUDGET = 200
 BURST_CAP = 25
 BODY_CAP = 1_000_000
 SCRIPT_CAP = 10
-SCRIPT_SRC = re.compile(r"<script[^>]+src=[\"']?([^\"'\s>]+)", re.I)
+SCRIPT_SRC = re.compile(r"<script[^>]{1,300}src=[\"']?([^\"'\s>]+)", re.I)
 MAP_COMMENT = re.compile(r"//[#@]\s*sourceMappingURL=(\S+)")
 TRACE_MARKERS = re.compile(
     rb"Traceback \(most recent call last\)"
-    rb"|\bat [\w.$<> ]{1,80} \([^)\n]*:\d+:\d+\)"
+    rb"|\bat [\w.$<> ]{1,80} \([^)\n]{0,200}:\d+:\d+\)"
     rb"|File \"[^\"\n]+\", line \d+|SQLSTATE\[|syntax error at or near"
     rb"|node_modules/|/var/www/|Stack trace:|#\d+ /[\w/.-]+\.php\(\d+\)")
 SENSITIVE_KEY = re.compile(
-    r"(?:^|_)(?:password|passwd|pwd|salt|secret|api_?key|service_?role"
+    r"(?:^|_)(?:password|passwd|pwd|salt|secret|token|hash|api_?key"
+    r"|service_?role"
     r"|private_?key|(?:access|refresh|id|auth|api|session)_token|jwt|ssn"
     r"|iban|cvv|card_?number)(?:$|_)")
 IDENT = re.compile(r"[A-Za-z_][\w-]{0,31}")  # used with fullmatch
@@ -277,6 +278,8 @@ def _map_verdict(session, script_url, candidates):
     """(verdict, target, note) over the candidate map urls, fail closed."""
     for url in candidates:
         if url.startswith("data:"):
+            if "base64," not in url:
+                continue
             return "OPEN", script_url, "inline source map in the script"
         target = _same_host(script_url, url)
         if not target:
@@ -284,6 +287,9 @@ def _map_verdict(session, script_url, candidates):
         resp = fetch(session, "GET", target)
         if resp.error or resp.status is None:
             return "ERROR", target, resp.error or "no response"
+        if resp.status == 403 or (resp.status or 0) >= 500:
+            return ("SKIPPED", target,
+                    f"HTTP {resp.status}: map not readable, not confirmed")
         if resp.status == 200 and len(resp.body) >= BODY_CAP:
             return ("SKIPPED", target, "map answered 200 but its body is "
                     "over 1 MB: sources not confirmed, fetch it by hand")
@@ -369,7 +375,7 @@ def _key_note(keys):
 def _json_body(resp):
     try:
         return json.loads(resp.body), True
-    except ValueError:
+    except (ValueError, RecursionError):
         return None, False
 
 
@@ -493,6 +499,9 @@ def _shape_error(plan):
     if plan.get("routes") is not None and \
             not isinstance(plan["routes"], list):
         return "routes must be a list"
+    if plan.get("supabase") is not None and \
+            not isinstance(plan["supabase"], dict):
+        return "supabase must be an object"
     paths = _obj(plan, "supabase").get("cross_user_paths")
     if paths is not None and not isinstance(paths, list):
         return "supabase.cross_user_paths must be a list"

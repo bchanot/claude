@@ -63,6 +63,7 @@ class H(BaseHTTPRequestHandler):
                               b'<script src="/clean.js"></script>'
                               b'<script src=/inline.js></script>'
                               b'<script src="/biginline.js"></script>'
+                              b'<script src="/err.js"></script>'
                               b'<script src="https://cdn.invalid/x.js"></script>'
                               b'</html>')
         if path == "/app.js":
@@ -77,6 +78,13 @@ class H(BaseHTTPRequestHandler):
         if path == "/biginline.js":
             return self._send(200, b"console.log(4);\n//# sourceMappingURL="
                               b"data:application/json;base64," + b"A" * 20000)
+        if path == "/err.js":
+            return self._send(200, b"console.log(5);\n//# sourceMappingURL=err.js.map\n")
+        if path == "/err.js.map":
+            return self._send(503, b"")
+        if path == "/api/session":
+            return self._send(200, b'{"id": 2, "token": "t", "profile": {"private": false}}',
+                              {"Content-Type": "application/json"})
         if path == "/boom":
             return self._send(500, b"Traceback (most recent call last):\n"
                               b'  File "app.py", line 12, in handler\n')
@@ -176,7 +184,8 @@ check "a write method in the plan exits 2" "$?" 2
 echo "== exposure probes"
 cat > "$WORK/exposure.json" <<EOF
 {"base_url": "$BASE",
- "routes": [{"path": "/api/me"}, {"path": "/api/guarded"}, {"path": "/api/private"}],
+ "routes": [{"path": "/api/me"}, {"path": "/api/guarded"}, {"path": "/api/private"},
+            {"path": "/api/session"}],
  "exposure": {"error_routes": ["/boom"]}}
 EOF
 OUT="$(probe --authorized "$WORK/exposure.json")"
@@ -197,7 +206,13 @@ check "the random 404 path is CLOSED" \
 check "sensitive keys in a JSON response are OPEN" \
   "$(verdict "$OUT" 'fields:/api/me')" OPEN
 check "the sensitive key names are listed, never the values" \
-  "$(printf '%s\n' "$OUT" | grep -A1 'fields:/api/me' | grep -c 'api_key, password_hash$')" 1
+  "$(printf '%s\n' "$OUT" | grep -A1 'fields:/api/me' | grep -c 'api_key, next_page_token, password_hash$')" 1
+check "a bare token key is OPEN, a bare private key is not" \
+  "$(verdict "$OUT" 'fields:/api/session')" OPEN
+check "the session key list is token only" \
+  "$(printf '%s\n' "$OUT" | grep -A1 'fields:/api/session' | grep -c 'token$')" 1
+check "a 503 map answer is SKIPPED" \
+  "$(verdict "$OUT" 'sourcemap:/err.js')" SKIPPED
 check "fields on a 401 is SKIPPED, never CLOSED" \
   "$(verdict "$OUT" 'fields:/api/guarded')" SKIPPED
 check "fields on a non-JSON body is SKIPPED" \
@@ -244,6 +259,9 @@ printf '{"base_url": "%s", "supabase": {"url": "%s", "cross_user_paths": "/x"}}\
   "$BASE" "$BASE" > "$WORK/badcu.json"
 probe --authorized "$WORK/badcu.json" >/dev/null 2>&1
 check "a string cross_user_paths exits 2" "$?" 2
+printf '{"base_url": "%s", "supabase": 5}\n' "$BASE" > "$WORK/badsb.json"
+probe --authorized "$WORK/badsb.json" >/dev/null 2>&1
+check "a non-object supabase block exits 2" "$?" 2
 cat > "$WORK/lower.json" <<EOF
 {"base_url": "$BASE", "cors": true, "cors_path": "/lower"}
 EOF

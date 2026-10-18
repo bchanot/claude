@@ -114,7 +114,7 @@ defaults). Still GET only, same host, shared budget, `--authorized`.
 |---|---|
 | `sourcemap:<script path>` | for a script of the base page (`<script src>` on the same host, 10 at most, or the plan's `exposure.scripts`): `<url>.map`, the `SourceMap`/`X-SourceMap` header target or the trailing `sourceMappingURL` target answers 200 with `"sources"` |
 | `error-body:<path>` | the GET of `/guardrails-probe-<random>` or of a path in `exposure.error_routes` returns a body with a trace marker: `Traceback (most recent call last)`, `at … (file:N:N)`, `File "…", line N`, `SQLSTATE[`, `syntax error at or near`, `node_modules/`, `/var/www/`, `Stack trace:`, `#N /…php(N)` |
-| `fields:<path>` | the GET of a plan route returns JSON 200 whose keys (depth 4, 5 list items) match password, passwd, pwd, hash, salt, secret, token, api_key, apikey, service_role, private, ssn, iban, cvv, card_number. Only key names are printed, never values. Sent with `GUARDRAILS_JWT2` as bearer when set, anonymous otherwise |
+| `fields:<path>` | the GET of a plan route returns JSON 200 whose keys (depth 4, 5 list items) match password, passwd, pwd, hash, salt, secret, token, api_key, apikey, service_role, private_key, ssn, iban, cvv, card_number. Only key names are printed, never values. Sent with `GUARDRAILS_JWT2` as bearer when set, anonymous otherwise |
 
 One shared change, flip-tested: `fetch` keeps the body of a 4xx/5xx
 response (today it returns `b""`); headers stay the `HTTPMessage`, whose
