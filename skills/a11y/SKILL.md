@@ -46,10 +46,11 @@ missing; **WARN**, a pattern that is often wrong, judgment needed.
 ## STEP 3: Judge every FAIL and WARN
 
 Read the file around each line. Label it CONFIRMED, FALSE POSITIVE (say why)
-or ACCEPTED RISK (the user decides, never you). A decorative image with
-`alt=""`, a field labeled through `aria-labelledby`, a click handler on a
-`role="presentation"` overlay and an outline swapped for a visible border or
-ring are the usual false positives; `references/checks.md` lists the blind
+or ACCEPTED RISK (the user decides, never you). The scanner already
+stays silent on a decorative `alt=""`, a `role="presentation"` overlay and an
+outline swapped for a border or ring; the hits that are often false are a
+label wired through `aria-labelledby` in another file and an outline removal
+that a `:focus-visible` rule elsewhere covers (WARN); `references/checks.md` lists the blind
 spots. Check them before calling a hit false.
 
 ## STEP 4: Keyboard walk (on `--live`, read-only)
