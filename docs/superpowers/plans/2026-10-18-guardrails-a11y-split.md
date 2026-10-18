@@ -10,9 +10,9 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-18-guardrails-a11y-split-design.md`
 
-**Contract:** `.claude/tasks/contracts/2026-10-18-guardrails-a11y-split-inj-exp-2210.md` (criteria 4, 5 and 11 amended at the validation gate: real a11y path, non-zero rule counts)
+**Contract:** `.claude/tasks/contracts/2026-10-18-guardrails-a11y-split-inj-exp-2210.md` (criteria 4, 5 and 11 amended on 2026-10-19 after the plan challenge, shown at the validation gate: real a11y path, `test -f`, non-zero rule counts)
 
-**Revision 2 (after the three-lens challenge):** per-language injection patterns (a `$1` placeholder, a typed `sql<T>` tag, Express `raw()` and UI copy stay silent), compiled regexes with bounded gaps and shared helpers, exposure rules scoped to route files, settings modules and non-dev env files, `.map` files over 1 MB listed by the walker, a fail-closed probe with path validation, exposure probed against a production build, the guardrails description under 1024, routing.json staged alone, web-building and seo/harden citers patched.
+**Revision 2 (after the three-lens challenge):** per-language injection patterns (a `$1` placeholder, a typed `sql<T>` tag, Express `raw()` and UI copy stay silent), compiled regexes with bounded gaps and shared helpers, exposure rules scoped to route files, settings modules and non-dev env files, `.map` files over 1 MB listed by the walker, a fail-closed probe with path validation, exposure probed against a production build, the guardrails description under 1024, routing.json staged alone, web-building and seo/harden citers patched. **Revision 3 (confirmation pass):** quote-matched concat patterns with `+` in every language, the dev env lock scoped to the exposure domain, `DEBUG` anchored at column 0, error rules on every server file, hydrated exclusion limited to type-shaped values, Next pages and a root App counted as client code, sourcemap SKIPPED on a non-200 script, a truncated body, an off-host map or an empty list, plan validation that never raises, conditional stash pop, the contract amended on disk.
 
 ## Global Constraints
 
@@ -426,6 +426,12 @@ mutant sql-fstring FAIL INJ-SQL-CONCAT \
   "printf '%s\n' 'cur.execute(f\"delete from notes where id = {note_id}\")' > src/lib/cleanup.py"
 mutant sql-php-interpolation FAIL INJ-SQL-CONCAT \
   "printf '%s\n' '<?php \$r = \$db->query(\"select id from notes where owner = \$owner\");' > src/lib/notes.php"
+mutant sql-py-concat FAIL INJ-SQL-CONCAT \
+  "printf '%s\n' 'cur.execute(\"select id from notes where owner = \" + owner)' > src/lib/cleanup.py"
+mutant sql-quoted-value FAIL INJ-SQL-CONCAT \
+  "printf '%s\n' \$'const q = \"select id from notes where owner = \\'\" + owner + \"\\'\";' >> $API"
+mutant sql-php-dot FAIL INJ-SQL-CONCAT \
+  "printf '%s\n' \$'<?php \$r = \$db->query(\"select id from notes where owner = \\'\" . \$owner . \"\\'\");' > src/lib/notes.php"
 mutant sql-raw-unsafe FAIL INJ-SQL-RAW-UNSAFE \
   "printf '%s\n' 'const rows = await prisma.\$queryRawUnsafe(statement);' >> $API"
 mutant sql-dynamic-exec WARN INJ-SQL-DYNAMIC-EXEC \
@@ -462,13 +468,15 @@ benign format-dynamic-exec \
 benign test-path-sql \
   "mkdir -p src/__tests__; printf '%s\n' 'const q = \`select id from notes where owner = \${owner}\`;' > src/__tests__/notes.test.ts"
 benign minified-bundle \
-  "mkdir -p src/vendor; printf '%s\n' 'const q=\`select id from notes where owner = \${o}\`;' > src/vendor/app.min.js"
+  "printf '%s\n' 'const q=\`select id from notes where owner = \${o}\`;' > src/lib/app.min.js"
+benign long-line-bundle \
+  "head -c 6000 /dev/zero | tr '\\0' x > src/lib/bundle.js; printf '%s\n' ' const q=\`select id from notes where owner = \${o}\`;' >> src/lib/bundle.js"
 ```
 
-- [ ] **Step 3: Run the suite, the nine mutants must fail**
+- [ ] **Step 3: Run the suite, the twelve mutants must fail**
 
 Run: `make test suite=lib/tests/guardrails-scan.test.sh 2>&1 | grep -c 'FAIL .* raises'`
-Expected: `9` (the rules do not exist yet). The benign locks already pass, which is the point of writing them first.
+Expected: `12` (the rules do not exist yet). The two `$'…'` snippets use ANSI-C quoting so the SQL string can hold a single quote; after the outer double quotes are processed, `eval` sees `$'const q = "… = \'" + owner + "\'";'`. The benign locks already pass, which is the point of writing them first.
 
 - [ ] **Step 4: Create `skills/guardrails/scripts/checks/injection.py`**
 
@@ -493,21 +501,28 @@ STMT = (
     r"|\bwhere\s+[\w.\"]+\s*(?:=|like\b|in\b|<|>)"
     r"|create\s+(?:table|index)\s|drop\s+(?:table|index)\s"
     r"|alter\s+table\s|truncate\s+table\s)")
-Q = r"[^'\"\n]{0,200}"
-D = r"[^\"\n]{0,200}"
+DQ = r"[^\"\n]{0,200}"
+SQ = r"[^'\n]{0,200}"
+
+
+def _quoted(tail):
+    """A double- or single-quoted SQL statement string followed by tail."""
+    return rf"\"{DQ}?{STMT}{DQ}\"{tail}|'{SQ}?{STMT}{SQ}'{tail}"
+
+
 CONCAT = {
     JS_EXTS: re.compile(
-        rf"(?<![\w$)\]>])`[^`]{{0,400}}?{STMT}[^`]{{0,400}}?\$\{{"
-        rf"|['\"]{Q}?{STMT}{Q}['\"]\s*\+\s*[\w$(]", re.I),
+        rf"(?<![\w$)\]>])`[^`]{{0,400}}?{STMT}[^`]{{0,400}}?\$\{{|"
+        + _quoted(r"\s*\+\s*[\w$(]"), re.I),
     (".py",): re.compile(
-        rf"\bf['\"]{Q}?{STMT}"
-        rf"|['\"]{Q}?{STMT}{Q}['\"]\s*(?:%\s*[\w(]|\.format\()", re.I),
+        rf"\bf['\"][^'\"\n]{{0,200}}?{STMT}|"
+        + _quoted(r"\s*(?:%\s*[\w(]|\.format\(|\+\s*[\w(])"), re.I),
     (".php",): re.compile(
-        rf"\"{D}?{STMT}{D}\$[A-Za-z_]\w*"
-        rf"|['\"]{Q}?{STMT}{Q}['\"]\s*\.\s*\$[A-Za-z_]", re.I),
-    (".rb",): re.compile(rf"\"{D}?{STMT}{D}#\{{", re.I),
-    (".rs",): re.compile(rf"format!\(\s*\"{D}?{STMT}", re.I),
-    (".go",): re.compile(rf"fmt\.Sprintf\(\s*\"{D}?{STMT}", re.I),
+        rf"\"{DQ}?{STMT}{DQ}\$[A-Za-z_]\w*|"
+        + _quoted(r"\s*\.\s*\$[A-Za-z_]"), re.I),
+    (".rb",): re.compile(rf"\"{DQ}?{STMT}{DQ}#\{{", re.I),
+    (".rs",): re.compile(rf"format!\(\s*\"{DQ}?{STMT}", re.I),
+    (".go",): re.compile(rf"fmt\.Sprintf\(\s*\"{DQ}?{STMT}", re.I),
 }
 RAW = {
     JS_EXTS: re.compile(
@@ -743,6 +758,12 @@ mutant debug-env FAIL EXP-DEBUG-ON \
   "printf '%s\n' 'APP_DEBUG=true' > .env.production"
 mutant response-wide WARN EXP-RESPONSE-WIDE \
   "printf '%s\n' 'const { data } = await db.from(\"profiles\").select(\"*\");' >> $API"
+mutant error-stack-single-file FAIL EXP-ERROR-STACK \
+  "printf '%s\n' 'app.use((err, req, res, next) => res.status(500).send(err.stack));' > server.js"
+mutant hydrated-identifier WARN EXP-HYDRATED-SENSITIVE \
+  "printf '%s\n' 'export async function getServerSideProps() { const token = await crm(); return { props: { accessToken: token } }; }' > src/pages/account.tsx"
+mutant console-next-page WARN EXP-CONSOLE-DATA \
+  "printf '%s\n' 'export default function Home({ user }) { console.log(\"render\", user); return null; }' > src/pages/index.tsx"
 ```
 
 And these benign locks next to the Task 2 ones:
@@ -772,8 +793,8 @@ benign debug-lowercase-elsewhere \
   "printf '%s\n' '    debug = True' > src/lib/tools.py"
 benign errorhandler-dev-guard \
   "printf '%s\n' 'if (process.env.NODE_ENV === \"development\") app.use(errorhandler());' >> $API"
-benign env-development \
-  "printf '%s\n' 'APP_DEBUG=true' 'GENERATE_SOURCEMAP=true' > .env.development"
+benign flask-config-class \
+  "printf '%s\n' 'class DevelopmentConfig(Config):' '    DEBUG = True' > src/config.py"
 benign error-generic-message \
   "printf '%s\n' 'export function onFail() { return Response.json({ error: \"internal error\" }, { status: 500 }); }' >> $API"
 benign ts-type-token \
@@ -786,12 +807,20 @@ benign csrf-hidden-input \
   "printf '%s\n' '<input type=\"hidden\" name=\"csrf_secret\" value={csrf} />' >> $TSX"
 benign csrf-data-attr \
   "printf '%s\n' '<form data-csrf-secret={csrf}>x</form>' >> $TSX"
+# A committed .env.development trips the api domain's API-ENV-NOT-IGNORED by
+# design (the fixture's .gitignore lists .env only), so this lock is scoped
+# to the exposure domain: a dev env file must raise no EXP finding.
+cp -R "$GOOD" "$WORK/env-dev"
+printf '%s\n' 'APP_DEBUG=true' 'GENERATE_SOURCEMAP=true' > "$WORK/env-dev/.env.development"
+out=$(scan --domain exposure "$WORK/env-dev")
+check "a dev env file raises no exposure finding" \
+  "$(printf '%s\n' "$out" | grep -c ' 0 FAIL, 0 WARN')" 1
 ```
 
-- [ ] **Step 4: Run the suite, the fourteen mutants must fail**
+- [ ] **Step 4: Run the suite, the seventeen mutants must fail**
 
 Run: `make test suite=lib/tests/guardrails-scan.test.sh 2>&1 | grep -c 'FAIL .* raises'`
-Expected: `14`.
+Expected: `18`: the seventeen mutants plus the exposure-scoped dev-env check, whose `--domain exposure` is a usage error until the domain exists.
 
 - [ ] **Step 5: Create `skills/guardrails/scripts/checks/exposure.py`**
 
@@ -824,8 +853,10 @@ LOADER = re.compile(
     r"getServerSideProps|getStaticProps"
     r"|export\s+(?:async\s+)?function\s+(?:loader|load)\b"
     r"|export\s+const\s+(?:loader|load)\b|window\.__\w+__\s*=")
+TYPEISH = (r"(?:string|number|boolean|null|undefined|unknown|any|never"
+           r"|[A-Z][\w<>\[\]|]*)")
 HYDRATED = re.compile(
-    rf"\b{SENSITIVE}\s*:(?!\s*[\w<>\[\]|'\" ]+\s*(?:[;,}}]|$))", re.M)
+    rf"\b{SENSITIVE}\s*:(?!\s*{TYPEISH}\s*(?:[;,}}]|$))", re.M)
 COMMENT = re.compile(r"<!--(.*?)-->", re.S)
 COMMENT_WORDS = re.compile(
     r"\b(?:todo|fixme|hack|xxx|debug|password|passwd|secret|token"
@@ -852,7 +883,7 @@ ERROR_MESSAGE = re.compile(
     rf"{SENDING}[^\n]{{0,300}}?(?:\b{ERR}\.message\b|\bstr\({ERR}\)"
     rf"|\brepr\({ERR}\)|->getMessage\(\))")
 SETTINGS_NAME = re.compile(r"^(?:settings|config)", re.I)
-DEBUG_SETTINGS = re.compile(r"^\s*DEBUG\s*=\s*True\b", re.M)
+DEBUG_SETTINGS = re.compile(r"^DEBUG\s*=\s*True\b", re.M)
 DEBUG_ENV = re.compile(
     r"^\s*(?:APP_DEBUG\s*=\s*true|FLASK_DEBUG\s*=\s*1)\b", re.M | re.I)
 DEBUG_CODE = re.compile(
@@ -890,10 +921,19 @@ def _named(project, prefix):
     return [p for p in project.files if p.name.startswith(prefix)]
 
 
+def _client(project, path):
+    """client_reachable, plus Next pages and a root App component."""
+    if client_reachable(project, path):
+        return True
+    segments = project.segments(path)
+    return (path.suffix.lower() in (".tsx", ".jsx") and "api" not in segments
+            and ("pages" in segments or path.stem == "App"))
+
+
 def _console_data(project, files):
     rule = Rule(DOMAIN, "EXP-CONSOLE-DATA", "WARN")
     out = []
-    for path in (p for p in files if client_reachable(project, p)):
+    for path in (p for p in files if _client(project, p)):
         for m in CONSOLE.finditer(project.text(path)):
             if passwords.LOGGED_NAME.search(m.group(1)):
                 continue
@@ -988,12 +1028,12 @@ def _data_attrs(project):
     return out
 
 
-def _errors(project):
-    routes = route_files(project)
-    stack = hits(project, routes, ERROR_STACK,
+def _errors(project, files):
+    server = [p for p in files if not client_reachable(project, p)]
+    stack = hits(project, server, ERROR_STACK,
                  Rule(DOMAIN, "EXP-ERROR-STACK", "FAIL"),
                  "stack trace or error object sent to the client")
-    message = hits(project, routes, ERROR_MESSAGE,
+    message = hits(project, server, ERROR_MESSAGE,
                    Rule(DOMAIN, "EXP-ERROR-MESSAGE", "WARN"),
                    "raw exception message sent to the client")
     return dedupe_lines(stack + message)
@@ -1031,11 +1071,11 @@ def check(project):
     found = _console_data(project, files) + _map_config(project)
     found += _map_files(project) + _hydrated(project, files)
     found += _markup_comments(project) + _data_attrs(project)
-    found += _errors(project) + _debug(project, files)
+    found += _errors(project, files) + _debug(project, files)
     return found + _response_wide(project)
 ```
 
-Notes: `_env_files` strips the leading `.env` before the dev-token test so `.env.development`, `.env.local` and `.env.test` are skipped while `.env.production` and `.env` are kept. `route_files` already excludes test paths and client components, which is what keeps `logger-stack` and `client-console-stack` silent. `ENV_NAME` and `ENV_SAMPLE` exist in `apis.py`.
+Notes: `_env_files` strips the leading `.env` before the dev-token test so `.env.development`, `.env.local` and `.env.test` are skipped while `.env.production` and `.env` are kept (the api domain's API-ENV-NOT-IGNORED still judges whether such a file belongs in git). The error rules scan every non-client source file, so a single-file `server.js` or `app.py` counts; `logger-stack` stays silent because the SENDING prefix requires a real sending call (`res.status` does not match `res.statusCode`), and `client-console-stack` because `ContactForm.tsx` is client-reachable. `DEBUG = True` is anchored at column 0: a Flask `class DevelopmentConfig` attribute is indented and stays silent. `route_files` is still imported for `_response_wide`. `ENV_NAME` and `ENV_SAMPLE` exist in `apis.py`.
 
 - [ ] **Step 6: Register the domain**
 
@@ -1392,6 +1432,20 @@ check "a scripts string instead of a list exits 2" "$?" 2
 printf '{"base_url": "%s", "routes": [{"path": ".evil.invalid/x"}]}\n' "$BASE" > "$WORK/badroute.json"
 probe --authorized "$WORK/badroute.json" >/dev/null 2>&1
 check "a route path that could leave the host exits 2" "$?" 2
+printf '{"base_url": "%s", "routes": ["/x"]}\n' "$BASE" > "$WORK/badroute2.json"
+probe --authorized "$WORK/badroute2.json" >/dev/null 2>&1
+check "a route that is not an object exits 2" "$?" 2
+printf '{"base_url": "%s", "exposure": true}\n' "$BASE" > "$WORK/badexp4.json"
+probe --authorized "$WORK/badexp4.json" >/dev/null 2>&1
+check "a boolean exposure block exits 2 without a traceback" "$?" 2
+printf '{"base_url": "%s", "exposure": {"scripts": ["/does-not-exist.js"]}}\n' "$BASE" > "$WORK/stale.json"
+OUT="$(probe --authorized "$WORK/stale.json")"
+check "a listed script that answers 404 is SKIPPED, never CLOSED" \
+  "$(verdict "$OUT" 'sourcemap:/does-not-exist.js')" SKIPPED
+printf '{"base_url": "%s", "exposure": {"scripts": []}}\n' "$BASE" > "$WORK/noscript.json"
+OUT="$(probe --authorized "$WORK/noscript.json")"
+check "an empty scripts list still gives a SKIPPED sourcemap row" \
+  "$(verdict "$OUT" 'sourcemap')" SKIPPED
 cat > "$WORK/lower.json" <<EOF
 {"base_url": "$BASE", "cors": true, "cors_path": "/lower"}
 EOF
@@ -1403,7 +1457,7 @@ check "lowercase CORS header names are still read" \
 - [ ] **Step 2: Run the suite, the new checks must fail**
 
 Run: `make test suite=lib/tests/guardrails-probe.test.sh 2>&1 | grep -c '  FAIL '`
-Expected: at least 12 (the sourcemap, error-body and fields rows are absent; lowercase CORS reads CLOSED; the four exit-2 checks get 1 or 0).
+Expected: at least 14 (the sourcemap, error-body and fields rows are absent; lowercase CORS reads CLOSED; the six exit-2 checks get 1 or 0).
 
 - [ ] **Step 3: Patch `probe.py`**
 
@@ -1454,7 +1508,7 @@ SENSITIVE_KEY = re.compile(
     r"(?:^|_)(?:password|passwd|pwd|salt|secret|api_?key|service_?role"
     r"|private_?key|(?:access|refresh|id|auth|api|session)_token|jwt|ssn"
     r"|iban|cvv|card_?number)(?:$|_)")
-IDENT = re.compile(r"^[A-Za-z_][\w-]{0,31}$")
+IDENT = re.compile(r"[A-Za-z_][\w-]{0,31}")  # used with fullmatch
 ```
 
 Add the probes before `PROBES = (…)` and place `probe_exposure` BEFORE `probe_rate_limit` in the tuple (the burst is the largest budget consumer; exposure must not starve behind it):
@@ -1497,7 +1551,7 @@ def _map_verdict(session, script_url, candidates):
             return "OPEN", script_url, "inline source map in the script"
         target = _same_host(script_url, url)
         if not target:
-            continue
+            return "SKIPPED", url, "map url on another host, not fetched"
         resp = fetch(session, "GET", target)
         if resp.error or resp.status is None:
             return "ERROR", target, resp.error or "no response"
@@ -1511,6 +1565,12 @@ def _sourcemap_probe(session, script_url):
     resp = fetch(session, "GET", script_url)
     if resp.error:
         return Probe("exposure", pid, "ERROR", script_url, resp.error)
+    if resp.status != 200:
+        return Probe("exposure", pid, "SKIPPED", script_url,
+                     f"HTTP {resp.status}: script not served, map not read")
+    if len(resp.body) >= BODY_CAP:
+        return Probe("exposure", pid, "SKIPPED", script_url,
+                     "script body truncated: its map comment was not read")
     verdict, target, note = _map_verdict(
         session, script_url, _map_candidates(script_url, resp))
     return Probe("exposure", pid, verdict, target, note)
@@ -1521,7 +1581,8 @@ def _sourcemaps(session, base, cfg):
     if listed is None:
         urls, note = _page_scripts(session, base)
     else:
-        urls, note = [base + s for s in listed][:SCRIPT_CAP], ""
+        urls = [base + s for s in listed][:SCRIPT_CAP]
+        note = "" if urls else "no script listed in exposure.scripts"
     if note:
         return [Probe("exposure", "sourcemap", "SKIPPED", base, note)]
     return [_sourcemap_probe(session, u) for u in urls]
@@ -1568,7 +1629,7 @@ def _sensitive_keys(data):
 
 def _key_note(keys):
     """Identifier-shaped key names only; anything else is counted."""
-    shown = [k for k in keys if IDENT.match(k)]
+    shown = [k for k in keys if IDENT.fullmatch(k)]
     hidden = len(keys) - len(shown)
     return ", ".join(shown) + (f" (+{hidden} unprintable)" if hidden else "")
 
@@ -1621,12 +1682,17 @@ PROBES = (probe_supabase, probe_cross_user, probe_routes,
 Extend plan validation (replace `_plan_error`):
 
 ```python
+def _obj(plan, key):
+    value = plan.get(key)
+    return value if isinstance(value, dict) else {}
+
+
 def _plan_paths(plan):
-    cfg = plan.get("exposure") or {}
-    supa = plan.get("supabase") or {}
-    rate = plan.get("rate_limit") or {}
-    return ([r.get("path") if isinstance(r, dict) else r
-             for r in plan.get("routes", [])]
+    """Every path the probe would append to base_url (None when malformed)."""
+    routes = plan.get("routes") or []
+    cfg, supa, rate = _obj(plan, "exposure"), _obj(plan, "supabase"), \
+        _obj(plan, "rate_limit")
+    return ([r.get("path") if isinstance(r, dict) else None for r in routes]
             + list(supa.get("cross_user_paths") or [])
             + [plan.get("cors_path", "/"), rate.get("path", "/")]
             + list(cfg.get("scripts") or [])
@@ -1649,9 +1715,11 @@ def _plan_error(plan):
     if method not in READ_METHODS and method != "POST":
         return f"rate_limit method {method} is not a probe method"
     error = _exposure_error(plan.get("exposure"))
+    if error:
+        return error
     bad = [p for p in _plan_paths(plan)
            if not isinstance(p, str) or not p.startswith("/")]
-    return error or (f"plan path {bad[0]!r} must start with /" if bad else "")
+    return f"plan path {bad[0]!r} must start with /" if bad else ""
 ```
 
 Module docstring: after the `GUARDRAILS_JWT2` line add `                        (also sent as bearer by the fields probe when set)`; in the first paragraph add `With an exposure block in the plan it also reads what the page's scripts, error bodies and JSON responses give away; a target it could not observe is ERROR or SKIPPED, never CLOSED.`
@@ -1973,13 +2041,10 @@ In `rules/web-building.md` (same globs, so both load together on UI files): the 
 - [ ] **Step 5: Add the routing row, committing that one file alone**
 
 ```bash
-git status --short mods/model-router/routing.json
-```
-
-If it shows `M` (the pre-existing dialog decisions), stash that single file:
-
-```bash
-git stash push -m "pre-existing routing dialog decisions" -- mods/model-router/routing.json
+stashed=0
+if [ -n "$(git status --short mods/model-router/routing.json)" ]; then
+  git stash push -m "pre-existing routing dialog decisions" -- mods/model-router/routing.json && stashed=1
+fi
 ```
 
 Then in `mods/model-router/routing.json`, in the `skills` block, add the line `    "a11y": "reflect",` right after `    "guardrails": "reflect",`. Validate: `python3 -I -c 'import json; json.load(open("mods/model-router/routing.json"))'`.
@@ -1987,11 +2052,11 @@ Then in `mods/model-router/routing.json`, in the `skills` block, add the line ` 
 ```bash
 git add mods/model-router/routing.json
 git commit -m "chore(model-router): a11y skill row (reflect)"
-git stash pop
+if [ "$stashed" = 1 ]; then git stash pop; fi
 git stash list
 ```
 
-After the pop, `git stash list` must be empty and `git status --short` must show routing.json `M` again (the pre-existing hunks restored, at line 106 and later; the a11y row sits at line 78). A pop that reports a conflict is a STOP: do not touch the index, do not continue the task; report the conflict to the user with `git status` and wait. `settings.json` is never stashed and never staged.
+After the pop (only when the push ran), `git stash list` must be empty and `git status --short` must show routing.json `M` again (the pre-existing hunks restored, at line 106 and later; the a11y row sits at line 78). A pop that reports a conflict is a STOP: do not touch the index, do not continue the task; report the conflict to the user with `git status` and wait. `settings.json` is never stashed and never staged.
 
 - [ ] **Step 6: Profiles, locks and flow enums**
 
@@ -2250,7 +2315,7 @@ Run: `shellcheck *.sh hooks/*.sh lib/*.sh` (expected: no output).
 - [ ] **Step 2: Contract oracles**
 
 Run: `bash ~/.claude/lib/gates.sh run .claude/tasks/contracts/2026-10-18-guardrails-a11y-split-inj-exp-2210.md`
-Expected: every `CHECK:` criterion `MET`, evidence written back. Criteria 4, 5 and 11 were amended at the validation gate: they read `skills/a11y/scripts/a11y_checks.py`, require the file to exist and require a non-zero rule count (15 INJ+EXP rules, 5 A11Y rules), so a wrong path or an empty glob fails instead of passing vacuously.
+Expected: every `CHECK:` criterion `MET`, evidence written back. Criteria 4, 5 and 11 were amended on disk on 2026-10-19 (after the plan challenge, before Task 1): they read `skills/a11y/scripts/a11y_checks.py`, require the file to exist and require a non-zero rule count (15 INJ+EXP rules, 5 A11Y rules), so a wrong path or an empty glob fails instead of passing vacuously. Verify with `grep -n 'a11y_checks.py' <contract>` (three hits) before running the gates.
 
 - [ ] **Step 3: Smoke the two CLIs and the tree by hand**
 
@@ -2260,4 +2325,4 @@ python3 -B skills/a11y/scripts/scan.py lib/tests/fixtures/a11y-good | head -4
 git stash list
 git status --short
 ```
-Expected: `scanned: api, hosting, supabase, messaging, functions, injection, exposure`; `scanned: a11y`; an empty stash list; only the two pre-existing `M` files (`mods/model-router/routing.json`, `settings.json`) in the status.
+Expected: `scanned: api, hosting, supabase, messaging, functions, injection, exposure`; `scanned: a11y`; an empty stash list; in the status only the two pre-existing `M` files (`mods/model-router/routing.json`, `settings.json`) and the untracked contract `?? .claude/tasks/contracts/2026-10-18-guardrails-a11y-split-inj-exp-2210.md`, which the ship-feature memory commit (STEP 7) picks up with its evidence.

@@ -91,13 +91,13 @@ as injection for the console rule.
 | Rule | Sev | Catches |
 |---|---|---|
 | EXP-CONSOLE-DATA | WARN | `console.log/info/debug/dir/table` in a client-reachable file whose arguments name data (user, users, profile, session, token, account, customer, order, payment, response, res, data, result, rows, body, headers, props, state, error, err, json, payload, record, item, items); password identifiers are left to API-PASSWORD-LOGGED |
-| EXP-SOURCEMAP-PUBLIC | FAIL / WARN | FAIL: `productionBrowserSourceMaps: true` (next.config), `sourcemap: true` (vite.config), `devtool:` of `source-map`, `eval*`, `inline*`, `cheap*` in `webpack.prod*`, `GENERATE_SOURCEMAP=true` in a non-ignored env file, a `.map` file under `public/`, `static/`, `assets/` or `www/`. WARN: the same `devtool:` in another webpack config, `"sourceMap": true` in angular.json |
+| EXP-SOURCEMAP-PUBLIC | FAIL / WARN | FAIL: `productionBrowserSourceMaps: true` (next.config), `sourcemap: true` (vite.config), `devtool:` of `source-map`, `eval*`, `inline*`, `cheap*` in `webpack.prod*`, `GENERATE_SOURCEMAP=true` in a committed env file that is neither a sample nor named dev, local or test, a real `.map` file (any size, vendored and `.min.` maps excluded) under `public/`, `static/`, `assets/` or `www/`. WARN: the same `devtool:` in another webpack config, `"sourceMap": true` in angular.json |
 | EXP-HYDRATED-SENSITIVE | WARN | in a file defining `getServerSideProps`, `getStaticProps`, a Remix `loader`, a SvelteKit `load` or assigning `window.__*__ =`: an object key named token, accessToken, refreshToken, secret, apiKey, api_key, password, passwordHash, password_hash, serviceRole, service_role, privateKey, private_key, ssn, iban, stripeSecret, clientSecret, unless the line is a TS type member (`key: type;`) |
 | EXP-MARKUP-COMMENT | WARN | `<!-- … -->` in `.html .htm .astro .php .ejs .hbs .twig .njk .liquid` containing todo, fixme, hack, xxx, debug, password, passwd, secret, token, api key, internal, staging, localhost, admin, remove before, do not commit, temporary |
 | EXP-DATA-ATTR-SENSITIVE | WARN | a `data-*` attribute or a hidden input whose name contains secret, api-key, api_key, apikey, password, passwd, jwt, private, credential or service-role; names containing csrf, xsrf, authenticity or nonce are skipped |
 | EXP-ERROR-STACK | FAIL | a response built with `.stack` of an error, with the whole error object (`error: err` inside `json(`/`send(`), with `traceback.format_exc` or `getTraceAsString()` |
 | EXP-ERROR-MESSAGE | WARN | a response line carrying `err.message`, `error.message`, `e.message`, `str(e)`, `str(exc)`, `repr(e)`, `$e->getMessage()` next to a sending token (`res.`, `Response`, `json(`, `jsonify`, `send(`, `HTTPException`, `detail=`, `echo`) |
-| EXP-DEBUG-ON | FAIL | `DEBUG = True` in a settings module not named dev, local or test; `APP_DEBUG=true` or `FLASK_DEBUG=1` in a non-ignored env file; `app.debug = True` or `debug=True` in `app.run(`; `consider_all_requests_local = true` in `production.rb`; `errorhandler()` mounted in Express |
+| EXP-DEBUG-ON | FAIL | `DEBUG = True` in a settings module not named dev, local or test; `APP_DEBUG=true` or `FLASK_DEBUG=1` in a committed env file that is neither a sample nor named dev, local or test; `app.debug = True` or `debug=True` in `app.run(`; `consider_all_requests_local = true` in `production.rb`; `errorhandler()` mounted in Express |
 | EXP-RESPONSE-WIDE | WARN | in a route file: `.from('<users-like>').select('*')`, `select * from <users-like>` in a string, or a Prisma `user/profile/account/customer/member.findUnique/findFirst/findMany({` with no `select:` or `omit:` on the line. Users-like: users, profiles, accounts, customers, members, employees, patients, clients |
 
 Silent by design: `console.log("ready")`, any console call in a server
@@ -116,13 +116,19 @@ defaults). Still GET only, same host, shared budget, `--authorized`.
 | `error-body:<path>` | the GET of `/guardrails-probe-<random>` or of a path in `exposure.error_routes` returns a body with a trace marker: `Traceback (most recent call last)`, `at … (file:N:N)`, `File "…", line N`, `SQLSTATE[`, `syntax error at or near`, `node_modules/`, `/var/www/`, `Stack trace:`, `#N /…php(N)` |
 | `fields:<path>` | the GET of a plan route returns JSON 200 whose keys (depth 4, 5 list items) match password, passwd, pwd, hash, salt, secret, token, api_key, apikey, service_role, private, ssn, iban, cvv, card_number. Only key names are printed, never values. Sent with `GUARDRAILS_JWT2` as bearer when set, anonymous otherwise |
 
-Two shared changes, each flip-tested: `fetch` keeps the body of a 4xx/5xx
-response (today it returns `b""`), and response headers are stored with
-lowercased names, so `_cors_open` reads `access-control-allow-origin`.
+One shared change, flip-tested: `fetch` keeps the body of a 4xx/5xx
+response (today it returns `b""`); headers stay the `HTTPMessage`, whose
+`.get` already ignores case (a lowercase-header fixture proves it). A target
+the probe could not observe (unreachable page, no same-host script, a script
+not served or truncated, an off-host map, a refused or non-JSON route) is
+SKIPPED or ERROR, never CLOSED. Exposure runs against a production build or
+a staging URL: a dev server's OPEN verdicts are dev artefacts, no proposal.
 
 Plan validation: `exposure` must be an object; `scripts` and
-`error_routes` lists of strings; an `error_routes` entry must start with
-`/`. A script URL on another host is dropped, never fetched.
+`error_routes` lists; every path in the plan (`routes[].path`,
+`cross_user_paths`, `cors_path`, `rate_limit.path`, `scripts`,
+`error_routes`) a string starting with `/`, so no request can leave the
+named host. A script URL on another host is dropped, never fetched.
 
 ### Skill `/a11y`
 
