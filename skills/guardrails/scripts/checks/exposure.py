@@ -30,7 +30,7 @@ TYPEISH = (r"(?:string|number|boolean|null|undefined|unknown|any|never"
            r"|[A-Z][\w<>\[\]|]*)")
 HYDRATED = re.compile(
     rf"\b{SENSITIVE}\s*:(?!\s*{TYPEISH}\s*(?:[;,}}]|$))", re.M)
-COMMENT = re.compile(r"<!--(.*?)-->", re.S)
+COMMENT = re.compile(r"<!--([\s\S]{0,400}?)-->")
 COMMENT_WORDS = re.compile(
     r"\b(?:todo|fixme|hack|xxx|debug|password|passwd|secret|token"
     r"|api[-_ ]?key|internal|staging|localhost|admin|remove before"
@@ -58,19 +58,18 @@ ERROR_MESSAGE = re.compile(
 SETTINGS_NAME = re.compile(r"^(?:settings|config)", re.I)
 DEBUG_SETTINGS = re.compile(r"^DEBUG\s*=\s*True\b", re.M)
 DEBUG_ENV = re.compile(
-    r"^\s*(?:APP_DEBUG\s*=\s*true|FLASK_DEBUG\s*=\s*1)\b", re.M | re.I)
+    r"^[ \t]*(?:APP_DEBUG\s*=\s*true|FLASK_DEBUG\s*=\s*1)\b", re.M | re.I)
 DEBUG_CODE = re.compile(
     r"app\.debug\s*=\s*True|app\.run\([^)\n]{0,200}debug\s*=\s*True")
-DEBUG_HANDLER = re.compile(
-    r"^(?![^\n]*(?:development|NODE_ENV))[^\n]*app\.use\(\s*errorhandler\(\)",
-    re.M)
+DEBUG_HANDLER = re.compile(r"app\.use\(\s*errorhandler\(\)")
+ENV_GUARD = re.compile(r"development|NODE_ENV")
 DEBUG_RAILS = re.compile(r"consider_all_requests_local\s*=\s*true")
 NEXT_MAPS = re.compile(r"productionBrowserSourceMaps\s*:\s*true")
 VITE_MAPS = re.compile(r"\bsourcemap\s*:\s*(?:true|['\"]inline['\"])")
 WEBPACK_DEVTOOL = re.compile(
     r"\bdevtool\s*:\s*['\"](?:source-map|eval[\w-]*|inline[\w-]*"
     r"|cheap[\w-]*)['\"]")
-ENV_MAPS = re.compile(r"^\s*GENERATE_SOURCEMAP\s*=\s*true\b", re.M | re.I)
+ENV_MAPS = re.compile(r"^[ \t]*GENERATE_SOURCEMAP\s*=\s*true\b", re.M | re.I)
 ANGULAR_MAPS = re.compile(r"\"sourceMap\"\s*:\s*true")
 PUBLIC_DIRS = {"public", "static", "assets", "www"}
 VENDORED = re.compile(r"\.min\.|vendor|bootstrap|jquery", re.I)
@@ -219,6 +218,18 @@ def _settings_modules(project, files):
             and not DEV_TOKEN.search(p.stem)]
 
 
+def _handler_hits(project, files):
+    """errorhandler() mounted with no env guard in the 200 chars before."""
+    rule = Rule(DOMAIN, "EXP-DEBUG-ON", "FAIL")
+    return [project.found(rule, path, m.start(),
+                          "dev error handler mounted without an "
+                          "environment guard")
+            for path in files
+            for m in DEBUG_HANDLER.finditer(project.text(path))
+            if not ENV_GUARD.search(
+                project.text(path)[max(0, m.start() - 200):m.start()])]
+
+
 def _debug(project, files):
     rule = Rule(DOMAIN, "EXP-DEBUG-ON", "FAIL")
     out = hits(project, _settings_modules(project, files), DEBUG_SETTINGS,
@@ -227,8 +238,7 @@ def _debug(project, files):
                 "debug mode on in a committed env file")
     out += hits(project, files, DEBUG_CODE, rule,
                 "debug mode enabled in code")
-    out += hits(project, files, DEBUG_HANDLER, rule,
-                "dev error handler mounted without an environment guard")
+    out += _handler_hits(project, files)
     return out + hits(project, project.named("production.rb"), DEBUG_RAILS,
                       rule, "full error pages enabled in production")
 

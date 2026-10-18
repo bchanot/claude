@@ -231,6 +231,10 @@ mutant debug-env FAIL EXP-DEBUG-ON \
   "printf '%s\n' 'APP_DEBUG=true' > .env.production"
 mutant response-wide WARN EXP-RESPONSE-WIDE \
   "printf '%s\n' 'const { data } = await db.from(\"profiles\").select(\"*\");' >> $API"
+mutant response-wide-prisma WARN EXP-RESPONSE-WIDE \
+  "printf '%s\n' 'const u = await prisma.user.findUnique({ where: { id } });' >> $API"
+mutant response-wide-sql WARN EXP-RESPONSE-WIDE \
+  "printf '%s\n' 'const q = \"select * from users where id = \$1\";' >> $API"
 mutant error-stack-single-file FAIL EXP-ERROR-STACK \
   "printf '%s\n' 'app.use((err, req, res, next) => res.status(500).send(err.stack));' > server.js"
 mutant hydrated-identifier WARN EXP-HYDRATED-SENSITIVE \
@@ -340,6 +344,8 @@ benign debug-lowercase-elsewhere \
   "printf '%s\n' '    debug = True' > src/lib/tools.py"
 benign errorhandler-dev-guard \
   "printf '%s\n' 'if (process.env.NODE_ENV === \"development\") app.use(errorhandler());' >> $API"
+benign errorhandler-dev-guard-multiline \
+  "printf '%s\n' 'if (process.env.NODE_ENV === \"development\") {' '  app.use(errorhandler());' '}' >> $API"
 benign flask-config-class \
   "printf '%s\n' 'class DevelopmentConfig(Config):' '    DEBUG = True' > src/config.py"
 benign error-generic-message \
