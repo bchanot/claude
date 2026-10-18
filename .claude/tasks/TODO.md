@@ -1,5 +1,17 @@
 # TODO
 
+## 2026-10-18 — secure-by-default guardrails: 5 domains + /guardrails skill (feature/secure-by-default)
+User ask: hosting, a11y, Supabase, SMS/email consent, cloud functions must be baseline on every project, API and access secured systematically, plus a skill that tests all of it.
+Language call: scanner is Python stdlib, not Rust (default-language contraindication: skill scripts here are interpreted, no build step, same as explain-diff checker).
+- [x] T1 `rules/secure-by-default.md` always-on (no `paths:`, BDR-085 path: CLAUDE.global.md is at 320/320)
+- [x] T2 `skills/guardrails/scripts/` scanner: common, apis, hosting, a11y, supabase, messaging, functions + `scan.py` CLI (FAIL / WARN / MANUAL, exit 1 on FAIL)
+- [x] T3 `skills/guardrails/SKILL.md` + `references/checks.md` (rule catalogue, manual items, live Supabase queries) + `test-prompts.json`
+- [x] T4 `lib/tests/guardrails-scan.test.sh`: clean fixture passes, one mutant per FAIL rule
+- [x] T5 wiring: security-auditor checklist (+ scanner run), interviewer failure-mode row, init-project founding table
+- [x] T6 registration: profiles full/max/dev, routing.json row, README, USAGE x2, CHANGELOG
+- [x] T7 `make test` all green (70 guardrails checks), shellcheck clean, 25/80/5/5 limits met; calibrated on 8 real projects (game, faunosteo, zenquality, robin_petier, alphalink, game-deploy, config, explanations), 9 false-positive classes fixed and locked by benign tests. Journal done. [ ] BDR-120 awaits user approval; [ ] commit + merge = user go
+- [x] T8 passwords (user ask 2026-10-18): doctrine bullet in the rule (argon2id, no clear compare, no log, no literal, delegated auth), `checks/passwords.py` in the api domain (API-PASSWORD-PLAINTEXT / WEAK-HASH / LOGGED FAIL, LITERAL WARN), 8 mutants + 10 benign locks (89 checks), auditor maps PLAINTEXT to CRITICAL; calibrated on 7 projects: 0 hits after one FP fix (yaml volume mount `htpasswd:/etc/...`)
+
 ## 2026-10-17 — /explain-diff skill: HTML explanation of a diff (feature/explain-diff)
 Source: geoffreylitt gist `explain-diff-html` (Notion variant dropped). Built through the skill-creator loop (draft, evals with/without skill, user review).
 - [x] T1 `skills/explain-diff/SKILL.md` (target resolution, understand, 4 sections, style, save outside repo, check, hand-over) + `test-prompts.json`
