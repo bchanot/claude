@@ -137,6 +137,8 @@ rules:
 | BDR-117 | 2026-10-12 | shared gstack helpers live in lib/gstack-removed.sh, not in a new lib | accepted |
 | BDR-118 | 2026-10-12 | Rust default language for new projects / whole-project rewrites, always-on rule file | accepted |
 | BDR-119 | 2026-10-16 | impeccable = Build path for all UI; GATE-BLOCK swaps frontend-design for impeccable | accepted |
+| BDR-120 | 2026-10-18 | Secure-by-default guardrails: always-on rule file + /guardrails stdlib scanner, passwords in api domain | accepted |
+| BDR-121 | 2026-10-18 | Guardrails fix loop reuses bugfix circuit; scanner = contract oracle, baseline re-pass | accepted |
 
 ---
 
@@ -1448,3 +1450,15 @@ Branch feature/user-writing-web-rules, UNMERGED (human gate).
 - **Alternatives rejected**: both in gate (conflict: frontend-design lets brief earn an eyebrow, impeccable bans it); uninstall frontend-design (loses light path); impeccable non-blocking (gate stays blind to the main tool).
 - **Residual**: model-router has no impeccable row (frontend-design = `reflect`); census test pins the table, own change.
 - **Refs**: branch chore/impeccable-build-path. Supersedes TODO 2026-07-05 call (no BDR). Links [[BDR-094]] [[BDR-025]] [[BDR-105]].
+
+## BDR-120 — Secure-by-default guardrails: always-on rule + /guardrails scanner [accepted] (2026-10-18)
+- **Decision**: 5 domains (hosting, a11y, Supabase, SMS/email, cloud functions) + API/access hygiene = baseline every project. Rule `rules/secure-by-default.md` always-on, no `paths:` (CLAUDE.global.md at 320/320, BDR-085 path). `/guardrails` = stdlib py scanner (`skills/guardrails/scripts/scan.py`, FAIL/WARN/MANUAL, exit 1 on FAIL, read-only, never runs project code) + judgment + `.claude/audits/GUARDRAILS.md`. security-auditor gate runs `api,supabase`; FAIL → HIGH, secret/service_role/password-plaintext → CRITICAL. Passwords folded into api domain on user question, not sixth domain: same gate, same CRITICAL path.
+- **Why**: user ask. Dashboard-only items (spend cap, WAF, budget stop) stay MANUAL, never claimed done. Scanner proves absence of protection, never presence of security; clean scan = "no static finding". Calibrated on 8 real projects, each FP class fixed + locked by benign test.
+- **Alternatives rejected**: Rust scanner (interpreted skill script, no build step, default-language contraindication, same rank as explain-diff checker); section in CLAUDE.global.md (budget); `paths:`-scoped rule (never fires in chat/brainstorm); semgrep rules only (blind to migrations, policies, consent flow).
+- **Refs**: branch feature/secure-by-default, suite `lib/tests/guardrails-scan.test.sh` (89 checks). Links [[BDR-085]] [[BDR-118]].
+
+## BDR-121 — Guardrails fix loop reuses the bugfix circuit, scanner = oracle [accepted] (2026-10-18)
+- **Decision**: after report, proposals (route plan) -> prose approval gate -> bugfixer + verify-secure gates -> re-pass. Each accepted fix = contract criterion, CHECK = `scan.py --assert-absent RULE:path` (marker GUARDRAILS-CLEAR, positive control: fails before fix). Re-pass = `--baseline` vs pre-fix scan (GUARDRAILS-NO-NEW). 2 rounds max, residuals open. `--report-only` keeps audit alone.
+- **Why**: user ask. Proof by deterministic scanner, never executor's word; no new circuit to maintain.
+- **Alternatives rejected**: guardrails edits code itself (skips fresh gates); chain to /bugfix per finding (one interview + contract per hit, too heavy for 60 labels); LLM verifier as sole proof (verdict without execution).
+- **Refs**: feature/secure-by-default 73c25d7. Links [[BDR-120]].

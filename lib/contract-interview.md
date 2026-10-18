@@ -114,7 +114,7 @@ Template:
 
 ```markdown
 # CONTRACT — <slug>
-- date: <YYYY-MM-DD> | flow: <ship-feature|feat|bugfix|hotfix|init-project|onboard> | branch: <branch>
+- date: <YYYY-MM-DD> | flow: <ship-feature|feat|bugfix|hotfix|init-project|onboard|guardrails> | branch: <branch>
 - status: active
 
 ## REQUEST (verbatim — IMMUTABLE)

@@ -228,6 +228,7 @@ a different package, ships its own conflicting `graphify` bin) — see
 | `/reconcile` | Confront declared status (TODO, registries) against real git/fs state — surface stale items |
 | `/pdf-translate` | Translate a PDF to another language, output as HTML (via Vision) |
 | `/explain-diff` | Explain a diff, commit, branch or PR as one self-contained HTML page (background, intuition, code walkthrough, 5-question quiz), saved outside the repo |
+| `/guardrails` | Audit the five baseline guardrails (hosting, a11y, Supabase RLS, SMS/email consent, cloud functions) plus API hygiene (auth, CORS, secrets, password storage): deterministic scanner, then judgment, report in `.claude/audits/GUARDRAILS.md`. Then proposes fixes, applies the ones you accept and re-scans to prove each one. `--live <url you own>` adds a read-only probe that confirms a hole from outside |
 | `/close` | End-of-session ritual — alias for `/capitalize --ritual` (dedup + TODO reconcile + 3-question reflection) |
 | `/harden` | Web hardening audit — HTTPS/TLS, HSTS, CSP, security headers |
 | `/web-validate` | W3C HTML/CSS validity + WCAG 2.1 accessibility audit |

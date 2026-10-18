@@ -1,5 +1,24 @@
 # TODO
 
+## 2026-10-18 — secure-by-default guardrails: 5 domains + /guardrails skill (feature/secure-by-default)
+User ask: hosting, a11y, Supabase, SMS/email consent, cloud functions must be baseline on every project, API and access secured systematically, plus a skill that tests all of it.
+Language call: scanner is Python stdlib, not Rust (default-language contraindication: skill scripts here are interpreted, no build step, same as explain-diff checker).
+- [x] T1 `rules/secure-by-default.md` always-on (no `paths:`, BDR-085 path: CLAUDE.global.md is at 320/320)
+- [x] T2 `skills/guardrails/scripts/` scanner: common, apis, hosting, a11y, supabase, messaging, functions + `scan.py` CLI (FAIL / WARN / MANUAL, exit 1 on FAIL)
+- [x] T3 `skills/guardrails/SKILL.md` + `references/checks.md` (rule catalogue, manual items, live Supabase queries) + `test-prompts.json`
+- [x] T4 `lib/tests/guardrails-scan.test.sh`: clean fixture passes, one mutant per FAIL rule
+- [x] T5 wiring: security-auditor checklist (+ scanner run), interviewer failure-mode row, init-project founding table
+- [x] T6 registration: profiles full/max/dev, routing.json row, README, USAGE x2, CHANGELOG
+- [x] T7 `make test` all green (70 guardrails checks), shellcheck clean, 25/80/5/5 limits met; calibrated on 8 real projects (game, faunosteo, zenquality, robin_petier, alphalink, game-deploy, config, explanations), 9 false-positive classes fixed and locked by benign tests. Journal done. [ ] BDR-120 awaits user approval; [ ] commit + merge = user go
+- [x] T8 passwords (user ask 2026-10-18): doctrine bullet in the rule (argon2id, no clear compare, no log, no literal, delegated auth), `checks/passwords.py` in the api domain (API-PASSWORD-PLAINTEXT / WEAK-HASH / LOGGED FAIL, LITERAL WARN), 8 mutants + 10 benign locks (89 checks), auditor maps PLAINTEXT to CRITICAL; calibrated on 7 projects: 0 hits after one FP fix (yaml volume mount `htpasswd:/etc/...`)
+- [x] T9 live probe (user ask 2026-10-18, "attaque de l'exterieur ?"): `skills/guardrails/scripts/probe.py` read-only (GET/HEAD/OPTIONS, `--authorized` gate, env secrets, same-host redirect only, request budget, 25-req burst cap). 5 probes: anon-read, cross-user, no-auth route, cors-reflect, rate-limit. Suite `lib/tests/guardrails-probe.test.sh` 16/16 vs a localhost http.server fixture. SKILL STEP 5 + checks.md section + CHANGELOG/README/USAGE. Redirect-guard unit test blocked by the auto-mode classifier (SSRF-shaped fixture), guard is code-reviewed.
+- Fix loop (user ask 2026-10-18): audit -> fix proposals (Fable via route plan) -> user accepts -> fixes applied -> re-pass proves all fixed. Reuse /bugfix circuit: contract with scanner oracles, bugfixer executor, lib/verify-secure-loop.md gates.
+- [x] T10 scan.py `--assert-absent RULE:path,...` (contract oracle: exit + marker reflect only the listed pairs, positive control = domain applies + files>0) and `--baseline <json>` (re-pass: fixed / remaining / new); tests incl. positive control
+- [x] T11 SKILL.md: model gate, STEP propose (grouped per rule+path, visible choices named, MANUAL = user steps), STEP approve (prose gate), STEP fix (gitflow aiguillage, contract + oracles, bugfixer, verify-secure-loop), STEP re-pass (baseline diff + probe re-run on go, max 2 rounds), commit gate
+- [x] T12 citers: verify-secure-loop header, contract-interview flow list, bugfixer description, model-routing census adds guardrails
+- [x] T13 docs: checks.md oracle section, CHANGELOG, README, USAGE, test-prompts
+- [x] T14 make test green (scan suite 106: check modes + gates.sh UNMET->MET), oracle calibrated read-only on game: real hit -> PRESENT rc1, self-baseline -> NO-NEW rc0
+
 ## 2026-10-17 — /explain-diff skill: HTML explanation of a diff (feature/explain-diff)
 Source: geoffreylitt gist `explain-diff-html` (Notion variant dropped). Built through the skill-creator loop (draft, evals with/without skill, user review).
 - [x] T1 `skills/explain-diff/SKILL.md` (target resolution, understand, 4 sections, style, save outside repo, check, hand-over) + `test-prompts.json`

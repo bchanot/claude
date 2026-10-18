@@ -74,6 +74,7 @@
     "bugfix": "reflect",
     "refactor": "reflect",
     "explain-diff": "reflect",
+    "guardrails": "reflect",
     "web-validate": "reflect",
     "harden": "reflect",
     "seo": "reflect",
@@ -155,7 +156,8 @@
       "commit-changer": "write",
       "bugfixer": "implement",
       "plugin-probe": "apply",
-      "plugin-advisor": "judge"
+      "plugin-advisor": "judge",
+      "Explore": "explore"
     },
     "phases": {
       "verify": "verify",
@@ -166,7 +168,8 @@
       "judge": "judge",
       "reflect": "reflect",
       "plan": "plan",
-      "apply": "apply"
+      "apply": "apply",
+      "explore": "explore"
     },
     "skills": {
       "gitflow": "implement",

@@ -45,6 +45,7 @@ seo                               personal
 geo                               personal
 web-validate                      personal
 harden                            personal
+guardrails                        personal
 analyze                           personal
 cso
 

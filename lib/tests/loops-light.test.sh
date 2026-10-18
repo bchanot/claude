@@ -14,6 +14,7 @@ BUG="$REPO/agents/bugfixer.md"
 BSK="$REPO/skills/bugfix/SKILL.md"
 HOT="$REPO/agents/hotfixer.md"
 HSK="$REPO/skills/hotfix/SKILL.md"
+GSK="$REPO/skills/guardrails/SKILL.md"
 HSKL="$REPO/skills/hotfix/SKILL.md"
 PASS=0; FAIL=0
 
@@ -68,6 +69,15 @@ tf "bug fresh gates"            "$BSK" "the two fresh gates per"
 tf "bug uses shared include"    "$BSK" "lib/verify-secure-loop.md"
 tf "bug gate0 floor"            "$BSK" "GATE 0 — deterministic floor"
 tf "bug dispatches bugfixer"    "$BSK" 'subagent_type="bugfixer"'
+
+echo "── skills/guardrails/SKILL.md (fix loop reuses the bugfix circuit) ──"
+tf "guardrails contract include" "$GSK" "lib/contract-interview.md"
+tf "guardrails uses shared include" "$GSK" "lib/verify-secure-loop.md"
+tf "guardrails dispatches bugfixer" "$GSK" 'subagent_type="bugfixer"'
+tf "guardrails scanner is the oracle" "$GSK" "EXPECT: GUARDRAILS-CLEAR"
+tf "guardrails positive control" "$GSK" "Positive control"
+tf "guardrails approval gate" "$GSK" "Nothing is applied without the user's explicit acceptance"
+tf "guardrails re-pass baseline" "$GSK" "GUARDRAILS-NO-NEW"
 
 echo "── agents/bugfixer.md (bugfix executor — sonnet, no Agent) ──"
 tn "bugfixer lacks Agent tool"  "$BUG" "Agent"

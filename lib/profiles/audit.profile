@@ -5,6 +5,7 @@
 # Security
 cso
 harden                            personal
+guardrails                        personal
 analyze                           personal
 
 # SEO / GEO / web standards
