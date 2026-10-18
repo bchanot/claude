@@ -59,6 +59,7 @@ out=$(scan "$GOOD"); rc=$?
 check "clean exit code" "$rc" 0
 check "clean has no FAIL or WARN" \
   "$(printf '%s\n' "$out" | grep -c ' 0 FAIL, 0 WARN')" 1
+check "a11y is not scanned" "$(printf '%s\n' "$out" | grep -c '^\[a11y\]')" 0
 
 echo "== supabase"
 mutant rls-missing FAIL SB-RLS-MISSING \
@@ -134,19 +135,6 @@ echo "== hosting"
 mutant no-rate-limit FAIL HOST-NO-RATE-LIMIT "rm src/middleware.ts"
 mutant origin-exposed WARN HOST-ORIGIN-EXPOSED \
   "printf 'app = \"x\"\n' > fly.toml; edit docs/DEPLOY.md 's/Cloudflare/an edge proxy/'"
-
-echo "== a11y"
-mutant img-alt FAIL A11Y-IMG-ALT "edit $TSX 's/ alt=\"Company logo\"//'"
-mutant field-label FAIL A11Y-FIELD-LABEL "edit $TSX '/<label htmlFor=\"email\">/d'"
-mutant click-keyboard FAIL A11Y-CLICK-NO-KEYBOARD "edit $TSX 's/ onKeyDown={go}//'"
-mutant tabindex-positive WARN A11Y-TABINDEX-POSITIVE \
-  "edit $TSX 's/tabIndex={0}/tabIndex={2}/'"
-mutant focus-css-warn WARN A11Y-FOCUS-OUTLINE \
-  "printf 'a:focus { outline: none; }\n' > src/styles.css"
-mutant focus-css-fail FAIL A11Y-FOCUS-OUTLINE \
-  "printf 'a:focus { outline: none; }\n' > src/styles.css; edit $TSX 's/outline-none focus-visible:ring-2 focus-visible:ring-blue-500/x/'"
-mutant focus-tailwind FAIL A11Y-FOCUS-OUTLINE \
-  "edit $TSX 's/outline-none focus-visible:ring-2 focus-visible:ring-blue-500/outline-none/'"
 
 echo "== messaging"
 mutant no-consent FAIL MSG-NO-CONSENT-RECORD \
@@ -253,10 +241,6 @@ benign() { # benign <label> <snippet>: a legitimate pattern raises nothing
   check "$label raises no FAIL or WARN" \
     "$(printf '%s\n' "$out" | grep -c ' 0 FAIL, 0 WARN')" 1
 }
-benign comment-with-img-tag \
-  "printf '%s\n' '// the <img> below is decorative' >> $TSX"
-benign dialog-overlay-click \
-  "printf '%s\n' '<div role=\"dialog\" aria-label=\"x\" onClick={go}>y</div>' >> $TSX"
 benign helper-under-api \
   "mkdir -p src/pages/api/helpers; printf '%s\n' 'export const fmt = () => 1;' > src/pages/api/helpers/format.ts"
 benign mailer-test-file \
@@ -394,37 +378,37 @@ check "a subscribers table makes the same senders fail" \
   "$(has FAIL MSG-NO-CONSENT-RECORD)" yes
 
 echo "== check modes (contract oracle and re-pass baseline)"
-IMG="A11Y-IMG-ALT:$TSX"
-cp -R "$GOOD" "$WORK/cm"; edit "$WORK/cm/$TSX" 's/ alt="Company logo"//'
-out=$(scan "$WORK/cm" --assert-absent "$IMG"); rc=$?
+INJ="INJ-SQL-CONCAT:$API"
+cp -R "$GOOD" "$WORK/cm"; printf '%s\n' 'const q = `select id from notes where owner = ${owner}`;' >> "$WORK/cm/$API"
+out=$(scan "$WORK/cm" --assert-absent "$INJ"); rc=$?
 check "positive control: the oracle fails while the hit is there" "$rc" 1
 check "a failing oracle never prints the marker" \
   "$(printf '%s\n' "$out" | grep -c GUARDRAILS-CLEAR)" 0
-out=$(scan "$GOOD" --assert-absent "$IMG"); rc=$?
+out=$(scan "$GOOD" --assert-absent "$INJ"); rc=$?
 check "the oracle passes once the hit is gone" "$rc" 0
 check "a passing oracle prints the marker" \
   "$(printf '%s\n' "$out" | grep -c '^GUARDRAILS-CLEAR 1$')" 1
-out=$(scan "$GOOD" --domain api --assert-absent "$IMG"); rc=$?
+out=$(scan "$GOOD" --domain api --assert-absent "$INJ"); rc=$?
 check "an unscanned domain proves nothing" "$rc" 1
 check "the control failure is named" \
   "$(printf '%s\n' "$out" | grep -c '^  CONTROL ')" 1
 mkdir "$WORK/cm-empty"
-scan "$WORK/cm-empty" --assert-absent "$IMG" >/dev/null
+scan "$WORK/cm-empty" --assert-absent "$INJ" >/dev/null
 check "an empty tree proves nothing" "$?" 1
 scan "$GOOD" --assert-absent HOST-SPEND-CAP:. >/dev/null 2>&1
 check "a MANUAL rule cannot be asserted (exit 2)" "$?" 2
-scan "$GOOD" --assert-absent A11Y-IMG-ALT >/dev/null 2>&1
+scan "$GOOD" --assert-absent INJ-SQL-CONCAT >/dev/null 2>&1
 check "an item without a path is a usage error" "$?" 2
 scan "$WORK/cm" --json > "$WORK/cm-before.json"
 out=$(scan "$GOOD" --baseline "$WORK/cm-before.json"); rc=$?
 check "baseline lists the fixed hit" \
-  "$(printf '%s\n' "$out" | grep -c '^  FIXED A11Y-IMG-ALT ')" 1
+  "$(printf '%s\n' "$out" | grep -c '^  FIXED INJ-SQL-CONCAT ')" 1
 check "baseline with no new hit exits 0 with the marker" \
   "$rc:$(printf '%s\n' "$out" | grep -c '^GUARDRAILS-NO-NEW$')" "0:1"
 scan "$GOOD" --json > "$WORK/clean-before.json"
 out=$(scan "$WORK/cm" --baseline "$WORK/clean-before.json"); rc=$?
 check "baseline lists a new hit" \
-  "$(printf '%s\n' "$out" | grep -c '^  NEW   A11Y-IMG-ALT ')" 1
+  "$(printf '%s\n' "$out" | grep -c '^  NEW   INJ-SQL-CONCAT ')" 1
 check "baseline with a new hit exits 1 without the marker" \
   "$rc:$(printf '%s\n' "$out" | grep -c GUARDRAILS-NO-NEW)" "1:0"
 printf 'not json' > "$WORK/bad.json"
@@ -436,12 +420,12 @@ contract() {
   cat > "$2" <<EOF
 # CONTRACT — guardrails-oracle-test
 ## ACCEPTANCE CRITERIA
-1. every image in the contact form has an alt
-   CHECK: python3 -B '$SCAN' '$1' --assert-absent '$IMG'
+1. no SQL built from input in the notes route
+   CHECK: python3 -B '$SCAN' '$1' --assert-absent '$INJ'
    EXPECT: GUARDRAILS-CLEAR
    EVIDENCE: pending
 ## FILE SCOPE
-$TSX
+$API
 EOF
 }
 contract "$WORK/cm" "$WORK/c-unfixed.md"
@@ -456,17 +440,18 @@ check "gates.sh writes the evidence back" \
 echo "== cli"
 scan "$WORK/does-not-exist" >/dev/null 2>&1; check "bad path exits 2" "$?" 2
 scan --domain nope "$GOOD" >/dev/null 2>&1; check "bad domain exits 2" "$?" 2
+scan --domain a11y "$GOOD" >/dev/null 2>&1; check "a11y is no longer a guardrails domain (exit 2)" "$?" 2
 check "json is valid and counts FAIL" \
   "$(scan --json "$GOOD" | python3 -B -c 'import json,sys; print(json.load(sys.stdin)["summary"]["FAIL"])')" 0
-out=$(scan --domain a11y "$GOOD")
-check "domain filter keeps a11y" \
-  "$(printf '%s\n' "$out" | grep -c '^\[a11y\]')" 1
+out=$(scan --domain injection "$GOOD")
+check "domain filter keeps injection" \
+  "$(printf '%s\n' "$out" | grep -c '^\[injection\]')" 1
 check "domain filter drops supabase" \
   "$(printf '%s\n' "$out" | grep -c '^\[supabase\]')" 0
 cp -R "$GOOD" "$WORK/excl"
-edit "$WORK/excl/$TSX" 's/ alt="Company logo"//'
+printf '%s\n' 'const q = `select id from notes where owner = ${owner}`;' >> "$WORK/excl/$API"
 scan "$WORK/excl" >/dev/null 2>&1; check "mutated copy fails" "$?" 1
-scan --exclude src/components "$WORK/excl" >/dev/null 2>&1
+scan --exclude src/pages "$WORK/excl" >/dev/null 2>&1
 check "--exclude drops the finding" "$?" 0
 mkdir "$WORK/empty"
 out=$(scan "$WORK/empty")

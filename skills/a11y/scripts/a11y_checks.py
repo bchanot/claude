@@ -2,7 +2,7 @@
 import re
 from collections import namedtuple
 
-from .common import Rule, blank_markup_comments
+from checks.common import Rule, blank_markup_comments
 
 DOMAIN = "a11y"
 MARKUP_EXTS = (".html", ".htm", ".jsx", ".tsx", ".vue", ".svelte", ".astro")
