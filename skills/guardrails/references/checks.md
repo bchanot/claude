@@ -32,10 +32,13 @@ Patterns are per language: a Postgres `$1` placeholder, a tagged template
 (`sql\`…\``, `sql<T>\`…\``), an argv array and test or fixture paths are
 silent by design.
 
+One finding per line: INJ-SQL-CONCAT wins over INJ-SQL-RAW-UNSAFE when both
+match (an interpolation inside a raw escape stays FAIL).
+
 | Rule | Sev | Catches | Fix |
 |---|---|---|---|
-| INJ-SQL-RAW-UNSAFE | WARN | `$queryRawUnsafe`, `$executeRawUnsafe`, `knex.raw`, `sequelize.query`, `Sequelize.literal`, Django `.objects.raw()` / `.extra()`, SQLAlchemy `text()` fed a variable (a variable may hold a constant)| show it is a constant with bound values, else bind them; or the tagged `$queryRaw` |
 | INJ-SQL-CONCAT | FAIL | a SQL statement (select … from … where, insert into, update … set, delete … where, create/drop/alter) built with `${}`, `+`, an f-string, `%`, `.format`, PHP `$var`, Ruby `#{}` (ActiveRecord `where("… #{}")` included), `format!`, `Sprintf` | placeholders and a parameter list |
+| INJ-SQL-RAW-UNSAFE | WARN | `$queryRawUnsafe`, `$executeRawUnsafe`, `knex.raw`, `sequelize.query`, `Sequelize.literal`, Django `.objects.raw()` / `.extra()`, SQLAlchemy `text()` / `sa.text(` / `sqlalchemy.text(` fed a variable (a variable may hold a constant)| show it is a constant with bound values, else bind them; or the tagged `$queryRaw` |
 | INJ-SQL-DYNAMIC-EXEC | WARN | plpgsql `EXECUTE '…' \|\| x` | `format('… %I %L', …)` and `USING` |
 | INJ-POSTGREST-FILTER | WARN | supabase-js `.or()`, `.filter()`, `.not()`, `.match()`, `.textSearch()` with an interpolated string, in a file that uses supabase | `.eq()` and friends, validated values |
 | INJ-NOSQL-OPERATOR | WARN | Mongo `$where` with a string; a filter taken from `req.body`, `req.query` or `req.params` | allowlist the fields, cast to string, `sanitizeFilter` |

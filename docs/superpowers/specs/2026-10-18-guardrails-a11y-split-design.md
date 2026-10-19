@@ -68,7 +68,7 @@ option. `--domain a11y` is now a usage error (exit 2).
 
 Applies when the tree has a source file (`SOURCE_EXTS`) or a `.sql` file.
 Skips test, spec, fixture and mock paths. One finding per (path, line):
-when two rules match the same line the first in this order wins, so a
+when two rules match the same line the first in this order wins, so an
 interpolation inside a raw escape stays INJ-SQL-CONCAT (FAIL).
 
 | Rule | Sev | Catches |
