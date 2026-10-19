@@ -187,6 +187,10 @@ mutant shell-db-os-system FAIL INJ-SHELL-DB-TOOL \
   "printf '%s\n' 'os.system(\"psql \" + url)' > src/lib/backup.py"
 mutant shell-db-template FAIL INJ-SHELL-DB-TOOL \
   "printf '%s\n' 'exec(\`psql \${db}\`);' > src/lib/backup.ts"
+mutant sql-ruby-where-interp FAIL INJ-SQL-CONCAT \
+  "printf '%s\n' 'User.where(\"name = #{name}\")' > src/lib/users.rb"
+mutant shell-db-php-upper-var FAIL INJ-SHELL-DB-TOOL \
+  "printf '%s\n' '<?php shell_exec(\"mysqldump --host=\$Host app\");' > src/lib/dump.php"
 mutant sql-dynamic-exec WARN INJ-SQL-DYNAMIC-EXEC \
   "printf '%s\n' \"execute 'select count(*) from ' || tbl into n;\" >> $SQL"
 mutant postgrest-filter WARN INJ-POSTGREST-FILTER \
@@ -326,6 +330,8 @@ benign shell-db-argv-python \
   "printf '%s\n' 'subprocess.run([\"psql\", f\"--dbname={url}\"])' > src/lib/backup.py"
 benign shell-db-env-ref \
   "printf '%s\n' 'execSync(\"psql \$DATABASE_URL -f schema.sql\");' > src/lib/backup.ts"
+benign ruby-where-placeholder \
+  "printf '%s\n' 'User.where(\"name = ?\", name)' 'User.where(name: value)' > src/lib/users.rb"
 benign console-public-minified \
   "mkdir -p public/js; printf '%s\n' 'console.log(user);' > public/js/app.min.js"
 benign console-plain-string \

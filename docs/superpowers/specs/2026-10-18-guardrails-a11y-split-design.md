@@ -72,8 +72,8 @@ when two rules match the same line the first in this order wins.
 
 | Rule | Sev | Catches |
 |---|---|---|
-| INJ-SQL-RAW-UNSAFE | WARN | a raw escape fed a non-literal first argument: `$queryRawUnsafe(`, `$executeRawUnsafe(`, `knex.raw(`, `.raw(`, `.extra(`, `sequelize.query(`, `Sequelize.literal(`, `text(` when `sqlalchemy` is imported; ActiveRecord `.where("… #{`; WARN: a variable may hold a constant |
-| INJ-SQL-CONCAT | FAIL | a SQL statement string built from an expression: untagged template literal with `${`, quoted SQL followed by `+ identifier`, Python f-string, `%` operator or `.format(`, PHP `"… $var"` or `. $var`, Ruby `#{}`, Rust `format!(`, Go `fmt.Sprintf(` |
+| INJ-SQL-RAW-UNSAFE | WARN | a raw escape fed a non-literal first argument: `$queryRawUnsafe(`, `$executeRawUnsafe(`, `knex.raw(`, `.raw(`, `.extra(`, `sequelize.query(`, `Sequelize.literal(`, `text(` when `sqlalchemy` is imported; WARN: a variable may hold a constant |
+| INJ-SQL-CONCAT | FAIL | a SQL statement string built from an expression: untagged template literal with `${`, quoted SQL followed by `+ identifier`, Python f-string, `%` operator or `.format(`, PHP `"… $var"` or `. $var`, Ruby `#{}` (including ActiveRecord `.where("… #{`), Rust `format!(`, Go `fmt.Sprintf(` |
 | INJ-SQL-DYNAMIC-EXEC | WARN | plpgsql `EXECUTE` whose statement uses `\|\|` and is not `format(…)` (SQL files, comments blanked) |
 | INJ-POSTGREST-FILTER | WARN | supabase-js `.or(`, `.filter(`, `.not(`, `.match(`, `.textSearch(` with a template `${` or a `+` concatenation |
 | INJ-NOSQL-OPERATOR | WARN | Mongo `$where:` with a string, or `find`/`findOne`/`update*`/`delete*`/`countDocuments` whose filter is `req.body`, `req.query`, `req.params` or one field taken straight from them |

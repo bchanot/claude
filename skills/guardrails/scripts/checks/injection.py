@@ -37,7 +37,8 @@ CONCAT = {
     (".php",): re.compile(
         rf"\"{DQ}?{STMT}{DQ}\$[A-Za-z_]\w*|"
         + _quoted(r"\s*\.\s*\$[A-Za-z_]"), re.I),
-    (".rb",): re.compile(rf"\"{DQ}?{STMT}{DQ}#\{{", re.I),
+    (".rb",): re.compile(
+        rf"\"{DQ}?{STMT}{DQ}#\{{|\.where\(\s*\"{DQ}#\{{", re.I),
     (".rs",): re.compile(rf"format!\(\s*\"{DQ}?{STMT}", re.I),
     (".go",): re.compile(rf"fmt\.Sprintf\(\s*\"{DQ}?{STMT}", re.I),
 }
@@ -47,7 +48,6 @@ RAW = {
         r"|\bsequelize\.query|\b[Ss]equelize\.literal)\s*\(\s*(?![\s'\"`)])"),
     (".py",): re.compile(
         r"\.objects\.raw\(\s*(?![\s'\"`)])|\.extra\(\s*(?![\s'\"`)])"),
-    (".rb",): re.compile(r"\.where\(\s*\"[^\"\n]{0,200}#\{"),
 }
 SQLA_TEXT = re.compile(r"(?<![.\w])text\s*\(\s*(?![\s'\"`)])")
 DYNAMIC_EXEC = re.compile(r"\bexecute\s+(?:'[^']*'|\w+)\s*\|\|", re.I)
@@ -60,12 +60,17 @@ NOSQL = re.compile(
     r"|updateMany|deleteOne|deleteMany|countDocuments|replaceOne)\(\s*"
     r"(?:req\.(?:body|query|params)\b"
     r"|\{\s*\w+\s*:\s*req\.(?:body|query|params)\.\w+\s*[,}])")
-SHELL_DB = re.compile(
+SHELL_DB_HEAD = (
     r"\b(?:exec|execSync|spawn|spawnSync|system|popen|subprocess\.\w+"
     r"|os\.system|Command::new|shell_exec|passthru|proc_open)\s*\("
     r"[^\n]{0,300}?\b(?:psql|mysql|mysqldump|pg_dump|pg_restore|mongosh"
-    r"|mongo|mongodump|redis-cli|sqlite3|clickhouse-client)\b(?![\"']\s*[,\]])"
-    r"[^\n]{0,300}?(?:\$\{|\+\s*[\w$]|#\{|\{\w+\}|%s|\$[a-z_])")
+    r"|mongo|mongodump|redis-cli|sqlite3|clickhouse-client)"
+    r"\b(?![\"']\s*[,\]])[^\n]{0,300}?")
+SHELL_INTERP = r"(?:\$\{|\+\s*[\w$]|#\{|\{\w+\}|%s|"
+# An uppercase $NAME is a shell env reference, except in PHP where every
+# $name is a variable.
+SHELL_DB = re.compile(SHELL_DB_HEAD + SHELL_INTERP + r"\$[a-z_])")
+SHELL_DB_PHP = re.compile(SHELL_DB_HEAD + SHELL_INTERP + r"\$[A-Za-z_])")
 
 
 def applies(project):
@@ -127,9 +132,12 @@ def _nosql(project, files):
 
 
 def _shell_db(project, files):
-    return hits(project, files, SHELL_DB,
-                Rule(DOMAIN, "INJ-SHELL-DB-TOOL", "FAIL"),
-                "DB tool run through a shell with input: pass an argv")
+    rule = Rule(DOMAIN, "INJ-SHELL-DB-TOOL", "FAIL")
+    msg = "DB tool run through a shell with input: pass an argv"
+    php = _by_ext(files, (".php",))
+    other = [p for p in files if p not in php]
+    return (hits(project, other, SHELL_DB, rule, msg)
+            + hits(project, php, SHELL_DB_PHP, rule, msg))
 
 
 def check(project):

@@ -34,12 +34,12 @@ silent by design.
 
 | Rule | Sev | Catches | Fix |
 |---|---|---|---|
-| INJ-SQL-RAW-UNSAFE | WARN | `$queryRawUnsafe`, `$executeRawUnsafe`, `knex.raw`, `sequelize.query`, `Sequelize.literal`, Django `.objects.raw()` / `.extra()`, SQLAlchemy `text()` fed a variable (a variable may hold a constant); ActiveRecord `where("… #{}")` | show it is a constant with bound values, else bind them; or the tagged `$queryRaw` |
-| INJ-SQL-CONCAT | FAIL | a SQL statement (select … from … where, insert into, update … set, delete … where, create/drop/alter) built with `${}`, `+`, an f-string, `%`, `.format`, PHP `$var`, Ruby `#{}`, `format!`, `Sprintf` | placeholders and a parameter list |
+| INJ-SQL-RAW-UNSAFE | WARN | `$queryRawUnsafe`, `$executeRawUnsafe`, `knex.raw`, `sequelize.query`, `Sequelize.literal`, Django `.objects.raw()` / `.extra()`, SQLAlchemy `text()` fed a variable (a variable may hold a constant)| show it is a constant with bound values, else bind them; or the tagged `$queryRaw` |
+| INJ-SQL-CONCAT | FAIL | a SQL statement (select … from … where, insert into, update … set, delete … where, create/drop/alter) built with `${}`, `+`, an f-string, `%`, `.format`, PHP `$var`, Ruby `#{}` (ActiveRecord `where("… #{}")` included), `format!`, `Sprintf` | placeholders and a parameter list |
 | INJ-SQL-DYNAMIC-EXEC | WARN | plpgsql `EXECUTE '…' \|\| x` | `format('… %I %L', …)` and `USING` |
 | INJ-POSTGREST-FILTER | WARN | supabase-js `.or()`, `.filter()`, `.not()`, `.match()`, `.textSearch()` with an interpolated string, in a file that uses supabase | `.eq()` and friends, validated values |
 | INJ-NOSQL-OPERATOR | WARN | Mongo `$where` with a string; a filter taken from `req.body`, `req.query` or `req.params` | allowlist the fields, cast to string, `sanitizeFilter` |
-| INJ-SHELL-DB-TOOL | FAIL | a shell call naming psql, mysql, mysqldump, pg_dump, mongosh, redis-cli, sqlite3… with an interpolated argument (an argv array and a bare `$ENV_VAR` stay silent) | an argv array, no shell, validated input |
+| INJ-SHELL-DB-TOOL | FAIL | a shell call naming psql, mysql, mysqldump, pg_dump, mongosh, redis-cli, sqlite3… with an interpolated argument (an argv array and a bare `$ENV_VAR` stay silent; in PHP every `$name` counts) | an argv array, no shell, validated input |
 
 ## exposure
 
