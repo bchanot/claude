@@ -1129,6 +1129,7 @@ Runs the guardrails scan engine (skills/guardrails/scripts/scanner.py) on
 the a11y catalogue. Same options and exit codes; markers A11Y-CLEAR and
 A11Y-NO-NEW.
 """
+import importlib
 import sys
 from pathlib import Path
 
@@ -1139,8 +1140,8 @@ if not ENGINE.is_dir():
     sys.exit(2)
 sys.path.insert(0, str(ENGINE))
 
-import scanner  # noqa: E402
-import a11y_checks  # noqa: E402
+scanner = importlib.import_module("scanner")
+a11y_checks = importlib.import_module("a11y_checks")
 
 CATALOGUE = scanner.Catalogue(
     name="a11y",
@@ -1172,13 +1173,12 @@ The suite proves the a11y catalogue: the clean fixture, one mutant per rule, the
 # (positive control). The A11Y-CLEAR / A11Y-NO-NEW markers, the gates.sh
 # contract wiring and the rejection of guardrails rules are checked too; the
 # shared engine itself is proven in guardrails-scan.test.sh.
-# shellcheck disable=SC2016
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SCAN="$ROOT/skills/a11y/scripts/scan.py"
 GOOD="$ROOT/lib/tests/fixtures/a11y-good"
 WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
-PASS=0; FAIL=0; LAST_OUT=""; LAST_RC=0
+PASS=0; FAIL=0; LAST_OUT=""
 
 check() { # check <label> <got> <want>
   if [ "$2" = "$3" ]; then PASS=$((PASS+1)); echo "  PASS $1"
@@ -1201,7 +1201,7 @@ mutant() { # mutant <label> <SEVERITY> <RULE> <snippet run inside a copy>
   if ! ( cd "$dir" && eval "$snippet" ) >/dev/null 2>&1; then
     check "$label setup" failed ok; return
   fi
-  LAST_OUT=$(scan "$dir"); LAST_RC=$?
+  LAST_OUT=$(scan "$dir")
   check "$label raises $sev $rule" "$(has "$sev" "$rule")" yes
 }
 

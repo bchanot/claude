@@ -85,6 +85,9 @@ class H(BaseHTTPRequestHandler):
         if path == "/api/session":
             return self._send(200, b'{"id": 2, "token": "t", "profile": {"private": false}}',
                               {"Content-Type": "application/json"})
+        if path == "/api/clean":
+            return self._send(200, b'{"id": 7, "name": "Ada", "role": "member"}',
+                              {"Content-Type": "application/json"})
         if path == "/boom":
             return self._send(500, b"Traceback (most recent call last):\n"
                               b'  File "app.py", line 12, in handler\n')
@@ -185,7 +188,7 @@ echo "== exposure probes"
 cat > "$WORK/exposure.json" <<EOF
 {"base_url": "$BASE",
  "routes": [{"path": "/api/me"}, {"path": "/api/guarded"}, {"path": "/api/private"},
-            {"path": "/api/session"}],
+            {"path": "/api/session"}, {"path": "/api/clean"}],
  "exposure": {"error_routes": ["/boom"]}}
 EOF
 OUT="$(probe --authorized "$WORK/exposure.json")"
@@ -211,6 +214,8 @@ check "a bare token key is OPEN, a bare private key is not" \
   "$(verdict "$OUT" 'fields:/api/session')" OPEN
 check "the session key list is token only" \
   "$(printf '%s\n' "$OUT" | grep -A1 'fields:/api/session' | grep -c 'token$')" 1
+check "a clean JSON response is CLOSED" \
+  "$(verdict "$OUT" 'fields:/api/clean')" CLOSED
 check "a 503 map answer is SKIPPED" \
   "$(verdict "$OUT" 'sourcemap:/err.js')" SKIPPED
 check "fields on a 401 is SKIPPED, never CLOSED" \

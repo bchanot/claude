@@ -5,13 +5,12 @@
 # (positive control). The A11Y-CLEAR / A11Y-NO-NEW markers, the gates.sh
 # contract wiring and the rejection of guardrails rules are checked too; the
 # shared engine itself is proven in guardrails-scan.test.sh.
-# shellcheck disable=SC2016
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SCAN="$ROOT/skills/a11y/scripts/scan.py"
 GOOD="$ROOT/lib/tests/fixtures/a11y-good"
 WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
-PASS=0; FAIL=0; LAST_OUT=""; LAST_RC=0
+PASS=0; FAIL=0; LAST_OUT=""
 
 check() { # check <label> <got> <want>
   if [ "$2" = "$3" ]; then PASS=$((PASS+1)); echo "  PASS $1"
@@ -34,7 +33,7 @@ mutant() { # mutant <label> <SEVERITY> <RULE> <snippet run inside a copy>
   if ! ( cd "$dir" && eval "$snippet" ) >/dev/null 2>&1; then
     check "$label setup" failed ok; return
   fi
-  LAST_OUT=$(scan "$dir"); LAST_RC=$?
+  LAST_OUT=$(scan "$dir")
   check "$label raises $sev $rule" "$(has "$sev" "$rule")" yes
 }
 

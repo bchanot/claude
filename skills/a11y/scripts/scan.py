@@ -5,6 +5,7 @@ Runs the guardrails scan engine (skills/guardrails/scripts/scanner.py) on
 the a11y catalogue. Same options and exit codes; markers A11Y-CLEAR and
 A11Y-NO-NEW.
 """
+import importlib
 import sys
 from pathlib import Path
 
@@ -15,8 +16,8 @@ if not ENGINE.is_dir():
     sys.exit(2)
 sys.path.insert(0, str(ENGINE))
 
-import scanner  # noqa: E402
-import a11y_checks  # noqa: E402
+scanner = importlib.import_module("scanner")
+a11y_checks = importlib.import_module("a11y_checks")
 
 CATALOGUE = scanner.Catalogue(
     name="a11y",
