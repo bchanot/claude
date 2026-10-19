@@ -49,7 +49,8 @@ RAW = {
     (".py",): re.compile(
         r"\.objects\.raw\(\s*(?![\s'\"`)])|\.extra\(\s*(?![\s'\"`)])"),
 }
-SQLA_TEXT = re.compile(r"(?<![.\w])text\s*\(\s*(?![\s'\"`)])")
+SQLA_TEXT = re.compile(
+    r"(?:(?<![.\w])|(?<=\bsa\.)|(?<=\bsqlalchemy\.))text\s*\(\s*(?![\s'\"`)])")
 DYNAMIC_EXEC = re.compile(r"\bexecute\s+(?:'[^']*'|\w+)\s*\|\|", re.I)
 POSTGREST = re.compile(
     r"\.(?:or|filter|not|match|textSearch)\(\s*(?:`[^`\n]{0,200}\$\{"
@@ -135,14 +136,14 @@ def _shell_db(project, files):
     rule = Rule(DOMAIN, "INJ-SHELL-DB-TOOL", "FAIL")
     msg = "DB tool run through a shell with input: pass an argv"
     php = _by_ext(files, (".php",))
-    other = [p for p in files if p not in php]
+    other = [p for p in files if p.suffix.lower() != ".php"]
     return (hits(project, other, SHELL_DB, rule, msg)
             + hits(project, php, SHELL_DB_PHP, rule, msg))
 
 
 def check(project):
     files = code_files(project)
-    found = _raw_unsafe(project, files) + _concat(project, files)
+    found = _concat(project, files) + _raw_unsafe(project, files)
     found += _dynamic_exec(project) + _postgrest(project, files)
     found += _nosql(project, files) + _shell_db(project, files)
     return dedupe_lines(found)

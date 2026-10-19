@@ -68,16 +68,17 @@ option. `--domain a11y` is now a usage error (exit 2).
 
 Applies when the tree has a source file (`SOURCE_EXTS`) or a `.sql` file.
 Skips test, spec, fixture and mock paths. One finding per (path, line):
-when two rules match the same line the first in this order wins.
+when two rules match the same line the first in this order wins, so a
+interpolation inside a raw escape stays INJ-SQL-CONCAT (FAIL).
 
 | Rule | Sev | Catches |
 |---|---|---|
-| INJ-SQL-RAW-UNSAFE | WARN | a raw escape fed a non-literal first argument: `$queryRawUnsafe(`, `$executeRawUnsafe(`, `knex.raw(`, `.raw(`, `.extra(`, `sequelize.query(`, `Sequelize.literal(`, `text(` when `sqlalchemy` is imported; WARN: a variable may hold a constant |
 | INJ-SQL-CONCAT | FAIL | a SQL statement string built from an expression: untagged template literal with `${`, quoted SQL followed by `+ identifier`, Python f-string, `%` operator or `.format(`, PHP `"… $var"` or `. $var`, Ruby `#{}` (including ActiveRecord `.where("… #{`), Rust `format!(`, Go `fmt.Sprintf(` |
+| INJ-SQL-RAW-UNSAFE | WARN | a raw escape fed a non-literal first argument: `$queryRawUnsafe(`, `$executeRawUnsafe(`, `knex.raw(`, `.raw(`, `.extra(`, `sequelize.query(`, `Sequelize.literal(`, `text(` when `sqlalchemy` is imported; WARN: a variable may hold a constant |
 | INJ-SQL-DYNAMIC-EXEC | WARN | plpgsql `EXECUTE` whose statement uses `\|\|` and is not `format(…)` (SQL files, comments blanked) |
 | INJ-POSTGREST-FILTER | WARN | supabase-js `.or(`, `.filter(`, `.not(`, `.match(`, `.textSearch(` with a template `${` or a `+` concatenation |
 | INJ-NOSQL-OPERATOR | WARN | Mongo `$where:` with a string, or `find`/`findOne`/`update*`/`delete*`/`countDocuments` whose filter is `req.body`, `req.query`, `req.params` or one field taken straight from them |
-| INJ-SHELL-DB-TOOL | FAIL | `exec`, `execSync`, `spawn`, `spawnSync`, `system`, `popen`, `subprocess.*`, `os.system`, `Command::new`, `shell_exec`, `passthru`, `proc_open` naming psql, mysql, mysqldump, pg_dump, pg_restore, mongosh, mongo, mongodump, redis-cli, sqlite3 or clickhouse-client on a line that also interpolates (`${`, `+ x`, `#{`, `{x}`, `%s`, `$x`) |
+| INJ-SHELL-DB-TOOL | FAIL | `exec`, `execSync`, `spawn`, `spawnSync`, `system`, `popen`, `subprocess.*`, `os.system`, `Command::new`, `shell_exec`, `passthru`, `proc_open` naming psql, mysql, mysqldump, pg_dump, pg_restore, mongosh, mongo, mongodump, redis-cli, sqlite3 or clickhouse-client on a line that also interpolates (`${`, `+ x`, `#{`, `{x}`, `%s`, `$x`); outside PHP an uppercase `$NAME` is an env reference and stays silent |
 
 Silent by design: tagged templates (`sql\`…\``, `prisma.$queryRaw\`…\``),
 placeholders (`$1`, `?`, `%s` with a separate tuple), an argv array
@@ -114,7 +115,7 @@ defaults). Still GET only, same host, shared budget, `--authorized`.
 |---|---|
 | `sourcemap:<script path>` | for a script of the base page (`<script src>` on the same host, 10 at most, or the plan's `exposure.scripts`): `<url>.map`, the `SourceMap`/`X-SourceMap` header target or the trailing `sourceMappingURL` target answers 200 with `"sources"` |
 | `error-body:<path>` | the GET of `/guardrails-probe-<random>` or of a path in `exposure.error_routes` returns a body with a trace marker: `Traceback (most recent call last)`, `at … (file:N:N)`, `File "…", line N`, `SQLSTATE[`, `syntax error at or near`, `node_modules/`, `/var/www/`, `Stack trace:`, `#N /…php(N)` |
-| `fields:<path>` | the GET of a plan route returns JSON 200 whose keys (depth 4, 5 list items) match password, passwd, pwd, hash, salt, secret, token, api_key, apikey, service_role, private_key, ssn, iban, cvv, card_number. Only key names are printed, never values. Sent with `GUARDRAILS_JWT2` as bearer when set, anonymous otherwise |
+| `fields:<path>` | the GET of a plan route returns JSON 200 whose keys anywhere in the body (1 MB bound; a body that does not parse, too deep included, is SKIPPED) match password, passwd, pwd, hash, salt, secret, token, api_key, apikey, service_role, private_key, ssn, iban, cvv, card_number. Only key names are printed, never values. Sent with `GUARDRAILS_JWT2` as bearer when set, anonymous otherwise |
 
 One shared change, flip-tested: `fetch` keeps the body of a 4xx/5xx
 response (today it returns `b""`); headers stay the `HTTPMessage`, whose

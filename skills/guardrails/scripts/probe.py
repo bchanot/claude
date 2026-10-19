@@ -75,7 +75,10 @@ class Probe:
 
 def _stays_on_host(old_url, new_url):
     """Same host and port; the scheme may stay or upgrade, never downgrade."""
-    old, new = urlsplit(old_url), urlsplit(new_url)
+    try:
+        old, new = urlsplit(old_url), urlsplit(new_url)
+    except ValueError:
+        return False
     return old.netloc == new.netloc and (
         old.scheme == new.scheme or (old.scheme, new.scheme)
         == ("http", "https"))
@@ -258,7 +261,10 @@ def probe_rate_limit(session, plan):
 
 def _same_host(context, url):
     """Absolute url when it stays on context's host, else None."""
-    full = urljoin(context, url)
+    try:
+        full = urljoin(context, url)
+    except ValueError:
+        return None
     return full if _stays_on_host(context, full) else None
 
 
@@ -447,9 +453,9 @@ def _printable(text):
 
 
 def _probe_row(probe):
-    return _printable(
-        f"  {probe.verdict:<8} {probe.domain:<9} {probe.id}  "
-        f"{probe.target}\n           {probe.message}")
+    return (f"  {probe.verdict:<8} {probe.domain:<9} "
+            f"{_printable(probe.id)}  {_printable(probe.target)}\n"
+            f"           {_printable(probe.message)}")
 
 
 def _summary(results):
@@ -474,8 +480,13 @@ def _render_json(plan, results):
 
 
 def _http_url(value):
-    return isinstance(value, str) and urlsplit(value).scheme in (
-        "http", "https") and bool(urlsplit(value).netloc)
+    if not isinstance(value, str):
+        return False
+    try:
+        parts = urlsplit(value)
+    except ValueError:
+        return False
+    return parts.scheme in ("http", "https") and bool(parts.netloc)
 
 
 def _load_plan(path):

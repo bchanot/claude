@@ -108,6 +108,8 @@ class H(BaseHTTPRequestHandler):
         if path == "/offhost.js":
             return self._send(200, b"x();\n//# sourceMappingURL="
                               b"http://other.invalid/o.map\n")
+        if path == "/badmap.js":
+            return self._send(200, b"z();\n//# sourceMappingURL=http://[x\n")
         if path == "/trunc.js":
             return self._send(200, b"a" * 1_000_001)
         if path == "/bigmap.js":
@@ -312,7 +314,7 @@ echo "== exposure probes: map channels and fail-closed paths"
 cat > "$WORK/maps.json" <<EOF
 {"base_url": "$BASE",
  "exposure": {"scripts": ["/embed.js", "/redir.js", "/hdr.js", "/cmt.js",
-   "/offhost.js", "/trunc.js", "/bigmap.js"], "error_routes": []}}
+   "/offhost.js", "/trunc.js", "/bigmap.js", "/badmap.js"], "error_routes": []}}
 EOF
 OUT="$(probe --authorized "$WORK/maps.json")"
 check "a sourceMappingURL string inside code is CLOSED, not an inline map" \
@@ -325,6 +327,10 @@ check "a map named by the trailing comment is OPEN" \
   "$(verdict "$OUT" 'sourcemap:/cmt.js')" OPEN
 check "a map url on another host is SKIPPED" \
   "$(verdict "$OUT" 'sourcemap:/offhost.js')" SKIPPED
+check "a malformed map url is SKIPPED, no traceback" \
+  "$(verdict "$OUT" 'sourcemap:/badmap.js')" SKIPPED
+check "the message line keeps its newline and 11-space indent" \
+  "$(printf '%s\n' "$OUT" | grep -A1 'sourcemap:/offhost.js' | tail -1 | grep -c '^           [^ ]')" 1
 check "a truncated script is SKIPPED" \
   "$(verdict "$OUT" 'sourcemap:/trunc.js')" SKIPPED
 check "an oversize map is SKIPPED" \
@@ -349,6 +355,9 @@ echo "== plan validation and host guard"
 printf '{"base_url": "file:///tmp"}\n' > "$WORK/file.json"
 probe --authorized "$WORK/file.json" >/dev/null 2>&1
 check "a file:// base_url exits 2" "$?" 2
+printf '{"base_url": "http://[x"}\n' > "$WORK/v6.json"
+probe --authorized "$WORK/v6.json" >/dev/null 2>&1
+check "a malformed base_url exits 2" "$?" 2
 printf '{"base_url": 5}\n' > "$WORK/num.json"
 ERR="$(probe --authorized "$WORK/num.json" 2>&1 >/dev/null)"
 check "a non-string base_url exits 2 without a traceback" \

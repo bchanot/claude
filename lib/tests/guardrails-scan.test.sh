@@ -191,6 +191,14 @@ mutant sql-ruby-where-interp FAIL INJ-SQL-CONCAT \
   "printf '%s\n' 'User.where(\"name = #{name}\")' > src/lib/users.rb"
 mutant shell-db-php-upper-var FAIL INJ-SHELL-DB-TOOL \
   "printf '%s\n' '<?php shell_exec(\"mysqldump --host=\$Host app\");' > src/lib/dump.php"
+mutant concat-in-sqla-text FAIL INJ-SQL-CONCAT \
+  "printf '%s\n' 'import sqlalchemy' 'conn.execute(text(f\"select id from notes where owner = {owner}\"))' > src/lib/db.py"
+mutant concat-in-objects-raw FAIL INJ-SQL-CONCAT \
+  "printf '%s\n' 'User.objects.raw(f\"select id from notes where owner = {name}\")' > src/lib/db.py"
+mutant concat-in-knex-raw FAIL INJ-SQL-CONCAT \
+  "printf '%s\n' 'knex.raw(base + \" where id = \" + id);' >> $API"
+mutant sql-sqla-sa-text WARN INJ-SQL-RAW-UNSAFE \
+  "printf '%s\n' 'import sqlalchemy as sa' 'conn.execute(sa.text(q))' > src/lib/db.py"
 mutant sql-dynamic-exec WARN INJ-SQL-DYNAMIC-EXEC \
   "printf '%s\n' \"execute 'select count(*) from ' || tbl into n;\" >> $SQL"
 mutant postgrest-filter WARN INJ-POSTGREST-FILTER \
@@ -324,6 +332,8 @@ benign long-line-bundle \
 
 benign sqla-text-method \
   "printf '%s\n' 'import sqlalchemy' 'label = project.text(path)' > src/lib/db.py"
+benign sqla-resp-text \
+  "printf '%s\n' 'import sqlalchemy' 'body = resp.text(x)' > src/lib/db.py"
 benign shell-db-argv-spawn \
   "printf '%s\n' 'spawn(\"psql\", [\"-f\", file], {env});' > src/lib/backup.ts"
 benign shell-db-argv-python \
