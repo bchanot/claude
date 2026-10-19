@@ -261,7 +261,8 @@ def _response_wide(project):
 
 def check(project):
     files = code_files(project)
-    found = _console_data(project, files) + _map_config(project)
+    console = code_files(project, keep_built=True)
+    found = _console_data(project, console) + _map_config(project)
     found += _map_files(project) + _hydrated(project, files)
     found += _markup_comments(project) + _data_attrs(project)
     found += _errors(project, files) + _debug(project, files)

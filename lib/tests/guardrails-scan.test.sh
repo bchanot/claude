@@ -179,8 +179,14 @@ mutant sql-quoted-value FAIL INJ-SQL-CONCAT \
   "printf '%s\n' \$'const q = \"select id from notes where owner = \\'\" + owner + \"\\'\";' >> $API"
 mutant sql-php-dot FAIL INJ-SQL-CONCAT \
   "printf '%s\n' \$'<?php \$r = \$db->query(\"select id from notes where owner = \\'\" . \$owner . \"\\'\");' > src/lib/notes.php"
-mutant sql-raw-unsafe FAIL INJ-SQL-RAW-UNSAFE \
+mutant sql-raw-unsafe WARN INJ-SQL-RAW-UNSAFE \
   "printf '%s\n' 'const rows = await prisma.\$queryRawUnsafe(statement);' >> $API"
+mutant sql-sqla-text-var WARN INJ-SQL-RAW-UNSAFE \
+  "printf '%s\n' 'import sqlalchemy' 'conn.execute(text(query))' > src/lib/db.py"
+mutant shell-db-os-system FAIL INJ-SHELL-DB-TOOL \
+  "printf '%s\n' 'os.system(\"psql \" + url)' > src/lib/backup.py"
+mutant shell-db-template FAIL INJ-SHELL-DB-TOOL \
+  "printf '%s\n' 'exec(\`psql \${db}\`);' > src/lib/backup.ts"
 mutant sql-dynamic-exec WARN INJ-SQL-DYNAMIC-EXEC \
   "printf '%s\n' \"execute 'select count(*) from ' || tbl into n;\" >> $SQL"
 mutant postgrest-filter WARN INJ-POSTGREST-FILTER \
@@ -191,6 +197,12 @@ mutant shell-db-tool FAIL INJ-SHELL-DB-TOOL \
   "printf '%s\n' 'execSync(\`pg_dump --table=\${table} app > backup.sql\`);' > src/lib/backup.ts"
 
 echo "== exposure"
+mutant console-data-public-dir WARN EXP-CONSOLE-DATA \
+  "mkdir -p public/js; printf '%s\n' 'console.log(user);' > public/js/app.js"
+mutant data-attr-hidden-input WARN EXP-DATA-ATTR-SENSITIVE \
+  "printf '%s\n' '<input type=\"hidden\" name=\"api_key\" value={k} />' >> $TSX"
+mutant debug-errorhandler FAIL EXP-DEBUG-ON \
+  "printf '%s\n' 'app.use(errorhandler());' >> $API"
 mutant console-data WARN EXP-CONSOLE-DATA \
   "printf '%s\n' 'console.log(\"saved\", session);' >> $TSX"
 mutant sourcemap-next FAIL EXP-SOURCEMAP-PUBLIC \
@@ -306,6 +318,16 @@ benign minified-bundle \
 benign long-line-bundle \
   "head -c 6000 /dev/zero | tr '\\0' x > src/lib/bundle.js; printf '%s\n' ' const q=\`select id from notes where owner = \${o}\`;' >> src/lib/bundle.js"
 
+benign sqla-text-method \
+  "printf '%s\n' 'import sqlalchemy' 'label = project.text(path)' > src/lib/db.py"
+benign shell-db-argv-spawn \
+  "printf '%s\n' 'spawn(\"psql\", [\"-f\", file], {env});' > src/lib/backup.ts"
+benign shell-db-argv-python \
+  "printf '%s\n' 'subprocess.run([\"psql\", f\"--dbname={url}\"])' > src/lib/backup.py"
+benign shell-db-env-ref \
+  "printf '%s\n' 'execSync(\"psql \$DATABASE_URL -f schema.sql\");' > src/lib/backup.ts"
+benign console-public-minified \
+  "mkdir -p public/js; printf '%s\n' 'console.log(user);' > public/js/app.min.js"
 benign console-plain-string \
   "printf '%s\n' 'console.log(\"ready\");' >> $TSX"
 benign console-string-data \

@@ -34,12 +34,12 @@ silent by design.
 
 | Rule | Sev | Catches | Fix |
 |---|---|---|---|
-| INJ-SQL-RAW-UNSAFE | FAIL | `$queryRawUnsafe`, `$executeRawUnsafe`, `knex.raw`, `sequelize.query`, `Sequelize.literal`, Django `.objects.raw()` / `.extra()`, SQLAlchemy `text()` fed a variable; ActiveRecord `where("… #{}")` | bind the values, or the tagged `$queryRaw` |
+| INJ-SQL-RAW-UNSAFE | WARN | `$queryRawUnsafe`, `$executeRawUnsafe`, `knex.raw`, `sequelize.query`, `Sequelize.literal`, Django `.objects.raw()` / `.extra()`, SQLAlchemy `text()` fed a variable (a variable may hold a constant); ActiveRecord `where("… #{}")` | show it is a constant with bound values, else bind them; or the tagged `$queryRaw` |
 | INJ-SQL-CONCAT | FAIL | a SQL statement (select … from … where, insert into, update … set, delete … where, create/drop/alter) built with `${}`, `+`, an f-string, `%`, `.format`, PHP `$var`, Ruby `#{}`, `format!`, `Sprintf` | placeholders and a parameter list |
 | INJ-SQL-DYNAMIC-EXEC | WARN | plpgsql `EXECUTE '…' \|\| x` | `format('… %I %L', …)` and `USING` |
 | INJ-POSTGREST-FILTER | WARN | supabase-js `.or()`, `.filter()`, `.not()`, `.match()`, `.textSearch()` with an interpolated string, in a file that uses supabase | `.eq()` and friends, validated values |
 | INJ-NOSQL-OPERATOR | WARN | Mongo `$where` with a string; a filter taken from `req.body`, `req.query` or `req.params` | allowlist the fields, cast to string, `sanitizeFilter` |
-| INJ-SHELL-DB-TOOL | FAIL | a shell call naming psql, mysql, mysqldump, pg_dump, mongosh, redis-cli, sqlite3… with an interpolated argument | an argv array, no shell, validated input |
+| INJ-SHELL-DB-TOOL | FAIL | a shell call naming psql, mysql, mysqldump, pg_dump, mongosh, redis-cli, sqlite3… with an interpolated argument (an argv array and a bare `$ENV_VAR` stay silent) | an argv array, no shell, validated input |
 
 ## exposure
 
@@ -50,8 +50,8 @@ silent by design.
 | EXP-HYDRATED-SENSITIVE | WARN | a token, secret, key, password or ssn-like key returned by `getServerSideProps`, `getStaticProps`, a Remix `loader`, a SvelteKit `load` or set on `window.__STATE__`; a TS type member is skipped | return only the fields the page renders |
 | EXP-MARKUP-COMMENT | WARN | `<!-- -->` shipped to the browser (html, astro, php, ejs, hbs, twig, njk, liquid) with todo, fixme, debug, password, token, internal, staging, admin… | delete it, or move it to a code comment the build strips |
 | EXP-DATA-ATTR-SENSITIVE | WARN | `data-*` attribute or hidden input named secret, api-key, password, jwt, private, credential (csrf, xsrf, authenticity, nonce excluded) | keep it server-side, send an opaque id |
-| EXP-ERROR-STACK | FAIL | in a route file: `err.stack`, the error object, `traceback.format_exc()` or `getTraceAsString()` in a response | generic message out, full error in the server log |
-| EXP-ERROR-MESSAGE | WARN | in a route file: `err.message`, `str(e)`, `$e->getMessage()` sent as is | map to a safe message; validation errors are fine, DB errors are not |
+| EXP-ERROR-STACK | FAIL | in any server file: `err.stack`, the error object, `traceback.format_exc()` or `getTraceAsString()` in a response | generic message out, full error in the server log |
+| EXP-ERROR-MESSAGE | WARN | in any server file: `err.message`, `str(e)`, `$e->getMessage()` sent as is | map to a safe message; validation errors are fine, DB errors are not |
 | EXP-DEBUG-ON | FAIL | `DEBUG = True` in a settings module (not dev/local/test), `APP_DEBUG=true` / `FLASK_DEBUG=1` in a committed non-dev env file, `app.debug = True`, `consider_all_requests_local = true`, `errorhandler()` mounted without an environment guard | env-driven, false in production |
 | EXP-RESPONSE-WIDE | WARN | a route returning `select *` / `select('*')` on a users-like table, or a single-line Prisma `findUnique/findFirst/findMany` without `select` or `omit` | an explicit field list |
 

@@ -88,6 +88,40 @@ class H(BaseHTTPRequestHandler):
         if path == "/api/clean":
             return self._send(200, b'{"id": 7, "name": "Ada", "role": "member"}',
                               {"Content-Type": "application/json"})
+        if path == "/embed.js":
+            return self._send(200, b'var s="//# sourceMappingURL=data:'
+                              b'application/json;base64,"+btoa(m);\n')
+        if path == "/redir.js":
+            return self._send(200, b"console.log(6);\n")
+        if path == "/redir.js.map":
+            return self._send(302, b"", {"Location": "http://other.invalid/m"})
+        if path == "/hdr.js":
+            return self._send(200, b"console.log(7);\n",
+                              {"SourceMap": "/hdr.real.map"})
+        if path == "/hdr.real.map":
+            return self._send(200, b'{"version":3,"sources":["a.ts"]}')
+        if path == "/cmt.js":
+            return self._send(200, b"console.log(8);\n//# sourceMappingURL="
+                              b"cmt.real.map\n")
+        if path == "/cmt.real.map":
+            return self._send(200, b'{"version":3,"sources":["b.ts"]}')
+        if path == "/offhost.js":
+            return self._send(200, b"x();\n//# sourceMappingURL="
+                              b"http://other.invalid/o.map\n")
+        if path == "/trunc.js":
+            return self._send(200, b"a" * 1_000_001)
+        if path == "/bigmap.js":
+            return self._send(200, b"y();\n")
+        if path == "/bigmap.js.map":
+            return self._send(200, b'{"sources":["c.ts"],"x":"' + b"A" * 1_000_001)
+        if path == "/api/echo":
+            bearer = self.headers.get("Authorization", "")
+            body = b'{"id": 1, "password_hash": "x"}' if bearer else b'{"id": 1}'
+            return self._send(200, body, {"Content-Type": "application/json"})
+        if path == "/api/graphql":
+            return self._send(200, b'{"data": {"users": {"edges": [{"node": '
+                              b'{"passwordHash": "x"}}]}}}',
+                              {"Content-Type": "application/json"})
         if path == "/boom":
             return self._send(500, b"Traceback (most recent call last):\n"
                               b'  File "app.py", line 12, in handler\n')
@@ -273,6 +307,79 @@ EOF
 OUT="$(probe --authorized "$WORK/lower.json")"
 check "lowercase CORS header names are still read" \
   "$(verdict "$OUT" 'cors-reflect')" OPEN
+
+echo "== exposure probes: map channels and fail-closed paths"
+cat > "$WORK/maps.json" <<EOF
+{"base_url": "$BASE",
+ "exposure": {"scripts": ["/embed.js", "/redir.js", "/hdr.js", "/cmt.js",
+   "/offhost.js", "/trunc.js", "/bigmap.js"], "error_routes": []}}
+EOF
+OUT="$(probe --authorized "$WORK/maps.json")"
+check "a sourceMappingURL string inside code is CLOSED, not an inline map" \
+  "$(verdict "$OUT" 'sourcemap:/embed.js')" CLOSED
+check "a map that redirects off host is SKIPPED, never CLOSED" \
+  "$(verdict "$OUT" 'sourcemap:/redir.js')" SKIPPED
+check "a map named by the SourceMap header is OPEN" \
+  "$(verdict "$OUT" 'sourcemap:/hdr.js')" OPEN
+check "a map named by the trailing comment is OPEN" \
+  "$(verdict "$OUT" 'sourcemap:/cmt.js')" OPEN
+check "a map url on another host is SKIPPED" \
+  "$(verdict "$OUT" 'sourcemap:/offhost.js')" SKIPPED
+check "a truncated script is SKIPPED" \
+  "$(verdict "$OUT" 'sourcemap:/trunc.js')" SKIPPED
+check "an oversize map is SKIPPED" \
+  "$(verdict "$OUT" 'sourcemap:/bigmap.js')" SKIPPED
+
+echo "== fields probe: depth and bearer"
+cat > "$WORK/fields.json" <<EOF
+{"base_url": "$BASE",
+ "routes": [{"path": "/api/echo"}, {"path": "/api/graphql"}],
+ "exposure": {"scripts": [], "error_routes": []}}
+EOF
+OUT="$(probe --authorized "$WORK/fields.json")"
+check "a sensitive key nested past four levels is OPEN" \
+  "$(verdict "$OUT" 'fields:/api/graphql')" OPEN
+check "the fields probe sends the bearer (key seen only with it)" \
+  "$(verdict "$OUT" 'fields:/api/echo')" OPEN
+OUT="$(env -u GUARDRAILS_JWT2 python3 -B "$PROBE" --authorized "$WORK/fields.json")"
+check "without the bearer the same route is CLOSED" \
+  "$(verdict "$OUT" 'fields:/api/echo')" CLOSED
+
+echo "== plan validation and host guard"
+printf '{"base_url": "file:///tmp"}\n' > "$WORK/file.json"
+probe --authorized "$WORK/file.json" >/dev/null 2>&1
+check "a file:// base_url exits 2" "$?" 2
+printf '{"base_url": 5}\n' > "$WORK/num.json"
+ERR="$(probe --authorized "$WORK/num.json" 2>&1 >/dev/null)"
+check "a non-string base_url exits 2 without a traceback" \
+  "$(printf '%s\n' "$ERR" | grep -c 'Traceback')" 0
+probe --authorized "$WORK/num.json" >/dev/null 2>&1
+check "a non-string base_url exits 2" "$?" 2
+printf '{"base_url": "%s", "rate_limit": {"count": 5}}\n' "$BASE" > "$WORK/nopath.json"
+ERR="$(probe --authorized "$WORK/nopath.json" 2>&1 >/dev/null)"
+check "a rate_limit with no path gives a usage message, no traceback" \
+  "$(printf '%s\n' "$ERR" | grep -c 'rate_limit.path must be a string')" 1
+probe --authorized "$WORK/nopath.json" >/dev/null 2>&1
+check "a rate_limit with no path exits 2" "$?" 2
+printf '{"base_url": "%s", "routes": [{"path": "/a\\u001b[31mb"}]}\n' "$BASE" > "$WORK/ctl.json"
+check "a control character in a path is an ERROR row, no traceback" \
+  "$(probe --authorized "$WORK/ctl.json" 2>&1 | grep -c 'Traceback')" 0
+check "control characters of a target never reach the output" \
+  "$(probe --authorized "$WORK/ctl.json" | LC_ALL=C grep -c "$(printf '\033')")" 0
+same_host() { python3 -B -c '
+import sys
+sys.path.insert(0, sys.argv[1])
+import probe
+print(bool(probe._same_host(sys.argv[2], sys.argv[3])))' \
+  "$ROOT/skills/guardrails/scripts" "$1" "$2"; }
+check "an https to http move is not the same host" \
+  "$(same_host https://a.test/x http://a.test/y)" False
+check "a different port is not the same host" \
+  "$(same_host http://a.test/x http://a.test:81/y)" False
+check "a same-scheme same-host url is kept" \
+  "$(same_host http://a.test/x /y)" True
+check "an http to https upgrade on the host is kept" \
+  "$(same_host http://a.test/x https://a.test/y)" True
 
 echo "== JSON output"
 check "json reports the open count" \

@@ -49,7 +49,7 @@ RAW = {
         r"\.objects\.raw\(\s*(?![\s'\"`)])|\.extra\(\s*(?![\s'\"`)])"),
     (".rb",): re.compile(r"\.where\(\s*\"[^\"\n]{0,200}#\{"),
 }
-SQLA_TEXT = re.compile(r"\btext\s*\(\s*(?![\s'\"`)])")
+SQLA_TEXT = re.compile(r"(?<![.\w])text\s*\(\s*(?![\s'\"`)])")
 DYNAMIC_EXEC = re.compile(r"\bexecute\s+(?:'[^']*'|\w+)\s*\|\|", re.I)
 POSTGREST = re.compile(
     r"\.(?:or|filter|not|match|textSearch)\(\s*(?:`[^`\n]{0,200}\$\{"
@@ -64,8 +64,8 @@ SHELL_DB = re.compile(
     r"\b(?:exec|execSync|spawn|spawnSync|system|popen|subprocess\.\w+"
     r"|os\.system|Command::new|shell_exec|passthru|proc_open)\s*\("
     r"[^\n]{0,300}?\b(?:psql|mysql|mysqldump|pg_dump|pg_restore|mongosh"
-    r"|mongo|mongodump|redis-cli|sqlite3|clickhouse-client)\b[^\n]{0,300}?"
-    r"(?:\$\{|\+\s*[\w$]|#\{|\{\w+\}|%s|\$[A-Za-z_])")
+    r"|mongo|mongodump|redis-cli|sqlite3|clickhouse-client)\b(?![\"']\s*[,\]])"
+    r"[^\n]{0,300}?(?:\$\{|\+\s*[\w$]|#\{|\{\w+\}|%s|\$[a-z_])")
 
 
 def applies(project):
@@ -85,8 +85,9 @@ def _per_language(project, files, table, rule, message):
 
 
 def _raw_unsafe(project, files):
-    rule = Rule(DOMAIN, "INJ-SQL-RAW-UNSAFE", "FAIL")
-    msg = "raw SQL escape fed a non-literal: bind the values"
+    rule = Rule(DOMAIN, "INJ-SQL-RAW-UNSAFE", "WARN")
+    msg = ("raw SQL escape fed a non-literal: show it is a constant "
+           "with bound values, else bind them")
     sqla = [p for p in _by_ext(files, (".py",))
             if "sqlalchemy" in project.text(p)]
     return (_per_language(project, files, RAW, rule, msg)

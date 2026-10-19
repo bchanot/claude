@@ -21,6 +21,7 @@ CLOSED means it was refused or empty. Exit codes: 0 no OPEN, 1 at least one
 OPEN, 2 usage error.
 """
 import argparse
+import http.client
 import json
 import os
 import re
@@ -37,7 +38,8 @@ BURST_CAP = 25
 BODY_CAP = 1_000_000
 SCRIPT_CAP = 10
 SCRIPT_SRC = re.compile(r"<script[^>]{1,300}src=[\"']?([^\"'\s>]+)", re.I)
-MAP_COMMENT = re.compile(r"//[#@]\s*sourceMappingURL=(\S+)")
+MAP_COMMENT = re.compile(
+    r"^[ \t]*//[#@][ \t]*sourceMappingURL=(\S+)", re.M)
 TRACE_MARKERS = re.compile(
     rb"Traceback \(most recent call last\)"
     rb"|\bat [\w.$<> ]{1,80} \([^)\n]{0,200}:\d+:\d+\)"
@@ -71,11 +73,19 @@ class Probe:
         return asdict(self)
 
 
+def _stays_on_host(old_url, new_url):
+    """Same host and port; the scheme may stay or upgrade, never downgrade."""
+    old, new = urlsplit(old_url), urlsplit(new_url)
+    return old.netloc == new.netloc and (
+        old.scheme == new.scheme or (old.scheme, new.scheme)
+        == ("http", "https"))
+
+
 class _SameHost(urllib.request.HTTPRedirectHandler):
     """Follow a same-host redirect, drop one that leaves the host."""
 
     def redirect_request(self, req, fp, code, msg, headers, newurl):
-        if urlsplit(newurl).netloc != urlsplit(req.full_url).netloc:
+        if not _stays_on_host(req.full_url, newurl):
             return None
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
@@ -111,8 +121,10 @@ def fetch(session, method, url, headers=None, body=None):
             return _response_from(resp)
     except urllib.error.HTTPError as exc:
         return Response(exc.code, exc.headers, _error_body(exc))
-    except (urllib.error.URLError, OSError, ValueError) as exc:
-        return Response(None, {}, b"", str(exc))
+    except (urllib.error.URLError, OSError, ValueError,
+            http.client.HTTPException) as exc:
+        reason = str(exc)
+        return Response(None, {}, b"", reason)
 
 
 def _verdict(ctx, response, is_open, msgs):
@@ -247,7 +259,7 @@ def probe_rate_limit(session, plan):
 def _same_host(context, url):
     """Absolute url when it stays on context's host, else None."""
     full = urljoin(context, url)
-    return full if urlsplit(full).netloc == urlsplit(context).netloc else None
+    return full if _stays_on_host(context, full) else None
 
 
 def _page_scripts(session, base):
@@ -268,9 +280,9 @@ def _map_candidates(script_url, resp):
     header = resp.headers.get("sourcemap") or resp.headers.get("x-sourcemap")
     if header:
         urls.append(header)
-    comment = MAP_COMMENT.search(resp.body.decode("utf-8", "ignore"))
-    if comment:
-        urls.append(comment.group(1))
+    comments = MAP_COMMENT.findall(resp.body.decode("utf-8", "ignore"))
+    if comments:
+        urls.append(comments[-1])
     return list(dict.fromkeys(urls))
 
 
@@ -287,6 +299,9 @@ def _map_verdict(session, script_url, candidates):
         resp = fetch(session, "GET", target)
         if resp.error or resp.status is None:
             return "ERROR", target, resp.error or "no response"
+        if 300 <= resp.status < 400:
+            return ("SKIPPED", target, f"HTTP {resp.status}: map redirect "
+                    "dropped (off host or downgraded), not followed")
         if resp.status == 403 or (resp.status or 0) >= 500:
             return ("SKIPPED", target,
                     f"HTTP {resp.status}: map not readable, not confirmed")
@@ -341,20 +356,17 @@ def _error_paths(cfg):
     return [random_path] + list(cfg.get("error_routes") or [])
 
 
-def _keys(data, depth=0):
-    if depth > 4:
-        return []
-    if isinstance(data, dict):
-        found = [k for k in data if isinstance(k, str)]
-        for value in data.values():
-            found += _keys(value, depth + 1)
-        return found
-    if isinstance(data, list):
-        found = []
-        for value in data[:5]:
-            found += _keys(value, depth + 1)
-        return found
-    return []
+def _keys(data):
+    """Every string key of the whole body, walked without recursion."""
+    found, stack = [], [data]
+    while stack:
+        node = stack.pop()
+        if isinstance(node, dict):
+            found += [k for k in node if isinstance(k, str)]
+            stack += node.values()
+        elif isinstance(node, list):
+            stack += node
+    return found
 
 
 def _snake(key):
@@ -429,9 +441,15 @@ def _tally(results):
             for v in ("OPEN", "CLOSED", "SKIPPED", "ERROR")}
 
 
+def _printable(text):
+    """Control characters of a remote or plan string never reach the tty."""
+    return re.sub(r"[\x00-\x1f\x7f-\x9f]", "?", str(text))
+
+
 def _probe_row(probe):
-    return (f"  {probe.verdict:<8} {probe.domain:<9} {probe.id}  "
-            f"{probe.target}\n           {probe.message}")
+    return _printable(
+        f"  {probe.verdict:<8} {probe.domain:<9} {probe.id}  "
+        f"{probe.target}\n           {probe.message}")
 
 
 def _summary(results):
@@ -442,7 +460,7 @@ def _summary(results):
 
 def _render_text(plan, results):
     body = [_probe_row(p) for p in results]
-    head = [f"guardrails live probe: {plan['base_url']}",
+    head = [_printable(f"guardrails live probe: {plan['base_url']}"),
             f"probes: {len(results)}  (read-only, bounded budget)"]
     return "\n".join(head + [""] + body + [_summary(results)])
 
@@ -455,13 +473,18 @@ def _render_json(plan, results):
     }, indent=2)
 
 
+def _http_url(value):
+    return isinstance(value, str) and urlsplit(value).scheme in (
+        "http", "https") and bool(urlsplit(value).netloc)
+
+
 def _load_plan(path):
     try:
         plan = json.loads(open(path, encoding="utf-8").read())
     except (OSError, ValueError) as exc:
         return None, f"cannot read plan: {exc}"
-    if not isinstance(plan, dict) or not plan.get("base_url"):
-        return None, "plan needs an object with a base_url"
+    if not isinstance(plan, dict) or not _http_url(plan.get("base_url")):
+        return None, "plan needs an object with an http(s) base_url"
     return plan, ""
 
 
@@ -494,8 +517,11 @@ def _exposure_error(cfg):
 
 
 def _shape_error(plan):
-    if "rate_limit" in plan and not isinstance(plan["rate_limit"], dict):
+    rate = plan.get("rate_limit", {})
+    if not isinstance(rate, dict):
         return "rate_limit must be an object"
+    if rate and not isinstance(rate.get("path"), str):
+        return "rate_limit.path must be a string"
     if plan.get("routes") is not None and \
             not isinstance(plan["routes"], list):
         return "routes must be a list"
@@ -539,7 +565,8 @@ def main(argv):
         return 2
     if not args.authorized:
         print("refused: pass --authorized to confirm you own "
-              f"{plan['base_url']} and may probe it", file=sys.stderr)
+              f"{_printable(plan['base_url'])} and may probe it",
+              file=sys.stderr)
         return 2
     results = run_probes(Session(), plan)
     render = _render_json if args.json else _render_text

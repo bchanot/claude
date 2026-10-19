@@ -188,12 +188,16 @@ def _minified(project, path):
                for line in project.text(path).splitlines())
 
 
-def code_files(project, exts=SOURCE_EXTS):
-    """Hand-written source: no tests, fixtures, built dirs, minified files."""
+def code_files(project, exts=SOURCE_EXTS, keep_built=False):
+    """Hand-written source: no tests, fixtures, built dirs, minified files.
+
+    keep_built keeps public/, static/, www/ and assets/: they also hold the
+    hand-written browser scripts of server-rendered stacks."""
+    skipped = set() if keep_built else BUILT_SEGMENTS
     return [p for p in non_doc_files(project)
             if p.suffix.lower() in exts
             and not TEST_PATH.search(project.rel(p))
-            and not set(project.segments(p)) & BUILT_SEGMENTS
+            and not set(project.segments(p)) & skipped
             and not _minified(project, p)]
 
 
