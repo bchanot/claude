@@ -26,6 +26,11 @@ SOURCE_EXTS = {
 }
 
 
+def printable(text):
+    """Control characters of a remote string never reach the tty."""
+    return re.sub(r"[\x00-\x1f\x7f-\x9f\udc80-\udcff]", "?", str(text))
+
+
 @dataclass(frozen=True)
 class Rule:
     domain: str

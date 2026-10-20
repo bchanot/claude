@@ -22,6 +22,7 @@ SENSITIVE = (
     r"(?:token|accessToken|refreshToken|secret|apiKey|api_key|password"
     r"|passwordHash|password_hash|serviceRole|service_role|privateKey"
     r"|private_key|ssn|iban|stripeSecret|clientSecret)")
+EXPORT = re.compile(r"^export\b", re.M)
 LOADER = re.compile(
     r"getServerSideProps|getStaticProps"
     r"|export\s+(?:async\s+)?function\s+(?:loader|load)\b"
@@ -35,10 +36,15 @@ COMMENT_WORDS = re.compile(
     r"\b(?:todo|fixme|hack|xxx|debug|password|passwd|secret|token"
     r"|api[-_ ]?key|internal|staging|localhost|admin|remove before"
     r"|do not commit|don'?t commit|temporary)\b", re.I)
+SENSITIVE_WORD = (r"(?:secret|api-?_?key|password|passwd|jwt|private"
+                  r"|credential|service-?role)")
 DATA_ATTR = re.compile(
-    r"\b(data-[\w-]{0,60}(?:secret|api-?_?key|password|passwd|jwt|private"
-    r"|credential|service-?role)[\w-]{0,60})\s*=", re.I)
-HIDDEN_INPUT = re.compile(r"<input\b[^>\n]{0,300}>", re.I)
+    rf"\b(data-[\w-]{{0,60}}{SENSITIVE_WORD}[\w-]{{0,60}})\s*=", re.I)
+UI_ATTR = re.compile(
+    rf"{SENSITIVE_WORD}-(?:toggle|visible|visibility|show|hide|reveal|mask"
+    r"|strength|meter|hint|label|placeholder|confirm|error|required"
+    r"|pattern)$", re.I)
+HIDDEN_INPUT = re.compile(r"<input\b[^>]{0,300}>", re.I)
 SENSITIVE_NAME = re.compile(
     r"secret|api[-_]?key|password|passwd|jwt|private|credential", re.I)
 SAFE_NAME = re.compile(r"csrf|xsrf|authenticity|nonce", re.I)
@@ -76,7 +82,7 @@ VENDORED = re.compile(r"\.min\.|vendor|bootstrap|jquery", re.I)
 USERS = (r"(?:users|profiles|accounts|customers|members|employees"
          r"|patients|clients)")
 WIDE = re.compile(
-    rf"\.from\(\s*['\"]{USERS}['\"]\s*\)\s*\.select\(\s*['\"]\*['\"]\s*\)"
+    rf"\.from\(\s*['\"]{USERS}['\"]\s*\)\s*\.select\(\s*(?:['\"]\*['\"]\s*)?\)"
     rf"|select\s+\*\s+from\s+{USERS}\b"
     r"|\b(?:user|profile|account|customer|member)\.(?:findUnique|findFirst"
     r"|findMany)\(\s*\{(?![^\n]{0,300}\b(?:select|omit)\s*:)[^\n]{0,300}\}"
@@ -124,7 +130,8 @@ def _map_config(project):
     out += hits(project, _named(project, "vite.config"), VITE_MAPS, fail,
                 "build source maps enabled: use 'hidden' or false")
     prod = _named(project, "webpack.prod")
-    other = [p for p in _named(project, "webpack") if p not in prod]
+    other = [p for p in _named(project, "webpack")
+             if p not in prod and not DEV_TOKEN.search(p.name)]
     out += hits(project, prod, WEBPACK_DEVTOOL, fail,
                 "devtool emits readable source maps in production")
     out += hits(project, other, WEBPACK_DEVTOOL, warn,
@@ -148,12 +155,13 @@ def _public_map(project, path):
 
 
 def _large_map(project, path):
-    """A large public .map whose first 4 KB already hold a mappings key."""
+    """A large public .map whose first 4 KB hold a mappings or sources key."""
     if path.suffix.lower() != ".map" or not _public_map(project, path):
         return False
     try:
         with path.open("rb") as handle:
-            return b'"mappings"' in handle.read(4096)
+            head = handle.read(4096)
+        return b'"mappings"' in head or b'"sources"' in head
     except OSError:
         return False
 
@@ -169,11 +177,27 @@ def _map_files(project):
                   for p in small + large]
 
 
+def _hydrated_spans(text):
+    """(start, end) of each export chunk holding a loader, from its line."""
+    bounds = sorted({0, *(m.start() for m in EXPORT.finditer(text))})
+    spans = []
+    for start, end in zip(bounds, bounds[1:] + [len(text)]):
+        found = LOADER.search(text, start, end)
+        if found:
+            spans.append((text.rfind("\n", 0, found.start()) + 1, end))
+    return spans
+
+
 def _hydrated(project, files):
-    loaders = [p for p in files if LOADER.search(project.text(p))]
-    return hits(project, loaders, HYDRATED,
-                Rule(DOMAIN, "EXP-HYDRATED-SENSITIVE", "WARN"),
-                "sensitive key in server-to-client state")
+    rule = Rule(DOMAIN, "EXP-HYDRATED-SENSITIVE", "WARN")
+    out = []
+    for path in files:
+        text = project.text(path)
+        out += [project.found(rule, path, m.start(),
+                              "sensitive key in server-to-client state")
+                for begin, end in _hydrated_spans(text)
+                for m in HYDRATED.finditer(text, begin, end)]
+    return dedupe_lines(out)
 
 
 def _markup_comments(project):
@@ -202,7 +226,8 @@ def _data_attrs(project):
         out += [project.found(rule, path, m.start(),
                               "sensitive value in a data-* attribute")
                 for m in DATA_ATTR.finditer(text)
-                if not SAFE_NAME.search(m.group(1))]
+                if not SAFE_NAME.search(m.group(1))
+                and not UI_ATTR.search(m.group(1))]
         out += [project.found(rule, path, m.start(),
                               "sensitive value in a hidden input")
                 for m in HIDDEN_INPUT.finditer(text)

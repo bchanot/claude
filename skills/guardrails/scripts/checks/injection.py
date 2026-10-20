@@ -32,7 +32,8 @@ CONCAT = {
         rf"(?<![\w$)\]>])`[^`]{{0,400}}?{STMT}[^`]{{0,400}}?\$\{{|"
         + _quoted(r"\s*\+\s*[\w$(]"), re.I),
     (".py",): re.compile(
-        rf"\bf['\"][^'\"\n]{{0,200}}?{STMT}|"
+        rf"\b(?:rf|fr|f)['\"][^'\"\n]{{0,200}}?{STMT}"
+        rf"|\b(?:rf|fr|f)(?:\"\"\"|''')\s{{0,40}}{STMT}|"
         + _quoted(r"\s*(?:%\s*[\w(]|\.format\(|\+\s*[\w(])"), re.I),
     (".php",): re.compile(
         rf"\"{DQ}?{STMT}{DQ}\$[A-Za-z_]\w*|"
@@ -40,11 +41,12 @@ CONCAT = {
     (".rb",): re.compile(
         rf"\"{DQ}?{STMT}{DQ}#\{{|\.where\(\s*\"{DQ}#\{{", re.I),
     (".rs",): re.compile(rf"format!\(\s*\"{DQ}?{STMT}", re.I),
-    (".go",): re.compile(rf"fmt\.Sprintf\(\s*\"{DQ}?{STMT}", re.I),
+    (".go",): re.compile(
+        rf"fmt\.Sprintf\(\s*(?:\"{DQ}?{STMT}|`\s{{0,40}}{STMT})", re.I),
 }
 RAW = {
     JS_EXTS: re.compile(
-        r"(?:\$queryRawUnsafe|\$executeRawUnsafe|\bknex\.raw"
+        r"(?:\$queryRawUnsafe|\$executeRawUnsafe|\b(?:sql|db|trx|knex)\.raw"
         r"|\bsequelize\.query|\b[Ss]equelize\.literal)\s*\(\s*(?![\s'\"`)])"),
     (".py",): re.compile(
         r"\.objects\.raw\(\s*(?![\s'\"`)])|\.extra\(\s*(?![\s'\"`)])"),
@@ -56,7 +58,8 @@ POSTGREST = re.compile(
     r"\.(?:or|filter|not|match|textSearch)\(\s*(?:`[^`\n]{0,200}\$\{"
     r"|['\"][^'\"\n]{0,200}['\"]\s*\+\s*[\w$])")
 NOSQL = re.compile(
-    r"\$where\s*:\s*(?:['\"`]|\w)"
+    r"\$where\s*:\s*(?!\w{0,64}_(?:bool_)?exp\b|[A-Z]\w{0,64}!?\s*[),])"
+    r"(?:['\"`]|\w)"
     r"|\.(?:find|findOne|findOneAndUpdate|findOneAndDelete|updateOne"
     r"|updateMany|deleteOne|deleteMany|countDocuments|replaceOne)\(\s*"
     r"(?:req\.(?:body|query|params)\b"
@@ -67,7 +70,8 @@ SHELL_DB_HEAD = (
     r"[^\n]{0,300}?\b(?:psql|mysql|mysqldump|pg_dump|pg_restore|mongosh"
     r"|mongo|mongodump|redis-cli|sqlite3|clickhouse-client)"
     r"\b(?![\"']\s*[,\]])[^\n]{0,300}?")
-SHELL_INTERP = r"(?:\$\{|\+\s*[\w$]|#\{|\{\w+\}|%s|"
+SHELL_INTERP = (r"(?:\$\{|\+\s*[\w$]|#\{|\{\w+\}|%s"
+                r"|\{\}(?=[^\"{}\n]{0,12}\"\s*,)|")
 # An uppercase $NAME is a shell env reference, except in PHP where every
 # $name is a variable.
 SHELL_DB = re.compile(SHELL_DB_HEAD + SHELL_INTERP + r"\$[a-z_])")

@@ -254,6 +254,62 @@ mutant hydrated-identifier WARN EXP-HYDRATED-SENSITIVE \
 mutant console-next-page WARN EXP-CONSOLE-DATA \
   "printf '%s\n' 'export default function Home({ user }) { console.log(\"render\", user); return null; }' > src/pages/index.tsx"
 
+echo "== residual misses (hydrated chunks, dev configs, Go/py/Drizzle forms)"
+raises() { # raises <label> <file> <content> <SEVERITY> <RULE>: one-file mutant
+  solo "$1" "$2" "$3"
+  check "$1 raises $4 $5" "$(has "$4" "$5")" yes
+}
+HYD=EXP-HYDRATED-SENSITIVE
+raises hydrated-ssr-multiline-params src/pages/account.tsx \
+  $'export async function getServerSideProps({\n  req,\n}: Ctx) {\n  return { props: { accessToken: tok } };\n}' WARN $HYD
+raises hydrated-loader-oneline app/routes/b.tsx \
+  'export const loader = () => json({ token: t });' WARN $HYD
+raises hydrated-remix-multiline app/routes/c.tsx \
+  $'export async function loader() {\n  const t = await tok();\n  return json({ token: t });\n}' WARN $HYD
+raises hydrated-sveltekit-load src/routes/+page.server.ts \
+  $'export async function load() {\n  return { token: await t() };\n}' WARN $HYD
+raises hydrated-window-state src/state.ts \
+  $'window.__STATE__ = {\n  token: t\n};' WARN $HYD
+mutant webpack-prod-devtool FAIL EXP-SOURCEMAP-PUBLIC \
+  "printf '%s\n' 'module.exports = { devtool: \"eval-source-map\" };' > webpack.prod.js"
+raises data-attr-literal-password src/components/D1.tsx \
+  'export const D = () => <div data-password="hunter2" />;' WARN EXP-DATA-ATTR-SENSITIVE
+raises data-attr-hide-api-key src/components/D2.tsx \
+  'export const D = () => <div data-hide-api-key={k} />;' WARN EXP-DATA-ATTR-SENSITIVE
+raises data-attr-api-key-input-value src/components/D3.tsx \
+  'export const D = () => <div data-api-key-input-value={v} />;' WARN EXP-DATA-ATTR-SENSITIVE
+raises hidden-input-multiline src/components/F.tsx \
+  $'export const F = () => (\n  <input\n    type="hidden"\n    name="api_key"\n    value={k}\n  />\n);' WARN EXP-DATA-ATTR-SENSITIVE
+raises nosql-where-string src/api/m1.ts \
+  'db.find({ $where: "this.name == '"'"'" + name + "'"'"'" });' WARN INJ-NOSQL-OPERATOR
+raises nosql-where-identifier src/api/m2.ts \
+  'db.find({ $where: clause });' WARN INJ-NOSQL-OPERATOR
+raises nosql-where-call src/api/m3.ts \
+  'db.find({ $where: buildWhere(req.query) });' WARN INJ-NOSQL-OPERATOR
+raises sql-concat-go-backtick src/api/a.go \
+  $'package a\nfunc q(o string) string { return fmt.Sprintf(`select id from notes where owner = %s`, o) }' FAIL INJ-SQL-CONCAT
+raises sql-concat-go-quoted src/api/a2.go \
+  $'package a\nfunc q(o string) string { return fmt.Sprintf("select id from notes where owner = %s", o) }' FAIL INJ-SQL-CONCAT
+raises sql-concat-py-rf src/api/r.py \
+  $'def q(o):\n    return rf"select id from notes where owner = {o}"' FAIL INJ-SQL-CONCAT
+raises sql-concat-py-triple src/api/b.py \
+  $'def q(owner):\n    return f"""\n    select id from notes\n    where owner = {owner}\n    """' FAIL INJ-SQL-CONCAT
+raises raw-drizzle-sql-raw src/api/c.ts \
+  'export const r = (w) => db.execute(sql.raw(w));' WARN INJ-SQL-RAW-UNSAFE
+raises raw-db-raw src/api/d.ts \
+  'export const r = (w) => db.raw(w);' WARN INJ-SQL-RAW-UNSAFE
+raises raw-trx-raw src/api/e.ts \
+  'export const r = (w) => trx.raw(w);' WARN INJ-SQL-RAW-UNSAFE
+raises select-no-argument src/api/u.ts \
+  'export const u = () => supabase.from("users").select();' WARN EXP-RESPONSE-WIDE
+mkdir -p "$WORK/rollup/public"; printf '%s\n' 'export const a = 1;' > "$WORK/rollup/index.js"
+{ printf '%s' '{"version":3,"file":"app.js","sources":["a.ts"],"sourcesContent":["'
+  head -c 1100000 /dev/zero | tr '\0' x
+  printf '%s' '"],"names":[],"mappings":"AAAA"}'; } > "$WORK/rollup/public/app.js.map"
+LAST_OUT=$(scan "$WORK/rollup")
+check "rollup-ordered 1 MB map raises FAIL EXP-SOURCEMAP-PUBLIC" \
+  "$(has FAIL EXP-SOURCEMAP-PUBLIC)" yes
+
 echo "== benign patterns stay silent"
 benign() { # benign <label> <snippet>: a legitimate pattern raises nothing
   local label="$1" snippet="$2" dir="$WORK/$1"
@@ -301,6 +357,26 @@ benign log-with-password-label \
   "printf '%s\n' 'console.log(\"password reset sent to\", email);' > src/lib/reset.ts"
 benign i18n-password-label \
   "mkdir -p src/i18n; printf '%s\n' 'export const de = { password: \"Passwort\" };' > src/i18n/de.ts"
+benign remix-action-after-loader \
+  "mkdir -p app/routes; printf 'export async function loader() {\n  return json({ ok: true });\n}\nexport async function action({ request }) {\n  const form = await request.formData();\n  return json({ password: form.get(\"password\") });\n}\n' > app/routes/a.tsx"
+benign comment-names-loader-above-clean-one \
+  "mkdir -p app/routes; printf '// getServerSideProps is not used here\nexport async function loader() {\n  return json({ ok: true });\n}\n' > app/routes/n.tsx"
+benign webpack-dev-config \
+  "printf '%s\n' 'module.exports = { devtool: \"eval-source-map\" };' > webpack.dev.js"
+benign webpack-config-dev \
+  "printf '%s\n' 'module.exports = { devtool: \"eval-source-map\" };' > webpack.config.dev.js"
+benign data-attr-ui-suffixes \
+  "printf '%s\n' '<i data-password-toggle=\"true\" data-password-strength=\"3\" data-secret-visible=\"1\" />' > src/components/Toggle.tsx"
+benign graphql-bool-exp-variable \
+  "printf '%s\n' 'const q = gql\`query(\$where: users_bool_exp) { users(where: \$where) { id } }\`;' > src/lib/g.ts"
+benign graphql-capitalised-variable \
+  "printf '%s\n' 'const q = gql\`query(\$where: UsersWhere) { users(where: \$where) { id } }\`;' > src/lib/g2.ts"
+benign plain-triple-quoted-placeholder \
+  "printf '%s\n' 'Q = \"\"\"select id from notes where owner = %s\"\"\"' > src/lib/q.py"
+benign sql-raw-literal \
+  "printf '%s\n' 'export const n = () => db.execute(sql.raw(\"now()\"));' > src/lib/n.ts"
+benign select-with-fields \
+  "printf '%s\n' 'export const u = () => supabase.from(\"users\").select(\"id, name\");' >> $API"
 ENVKEY='printf "SUPABASE_SERVICE_ROLE_KEY=%s.%s.signaturepart\n" "$(b64 "{\"alg\":\"HS256\"}")" "$(b64 "{\"role\":\"service_role\"}")" > .env.worker'
 benign env-worker-ignored "printf '.env.*\n' >> .gitignore; $ENVKEY"
 mutant env-worker-tracked FAIL SB-SERVICE-ROLE-LITERAL "$ENVKEY"
@@ -502,11 +578,74 @@ out=$(scan "$WORK/linked")
 check "symlinked directory is not followed" \
   "$(printf '%s\n' "$out" | grep -c '(0 files)')" 1
 
+echo "== text output carries no control characters"
+ESCNAME=$(printf 'x\033[31m')
+cp -R "$GOOD" "$WORK/esc"
+printf 'export default function X({user}){ console.log(user); return null }\n' \
+  > "$WORK/esc/src/components/$ESCNAME.tsx"
+printf '%s\n' "create policy \"p$(printf '\033[2J')\" on public.notes for insert to authenticated with check (true);" >> "$WORK/esc/$SQL"
+out=$(scan "$WORK/esc" 2>&1)
+check "text report has no ESC byte" "$(printf '%s' "$out" | grep -c "$(printf '\033')")" 0
+check "text report still raises the console finding" \
+  "$(printf '%s\n' "$out" | grep -c 'EXP-CONSOLE-DATA')" 1
+check "text report still raises the open policy" \
+  "$(printf '%s\n' "$out" | grep -c 'SB-POLICY-OPEN-WRITE')" 1
+out=$(scan "$WORK/esc" --assert-absent "EXP-CONSOLE-DATA:src/components/$ESCNAME.tsx" 2>&1)
+check "assert-absent prints PRESENT with no ESC byte" \
+  "$(printf '%s' "$out" | grep -c "$(printf '\033')"):$(printf '%s\n' "$out" | grep -c PRESENT)" 0:1
+out=$(scan "$WORK/esc" --baseline "$WORK/clean-before.json" 2>&1)
+check "baseline rows have no ESC byte and list the new hit" \
+  "$(printf '%s' "$out" | grep -c "$(printf '\033')"):$(printf '%s\n' "$out" | grep -c '^  NEW ')" 0:2
+out=$(scan "$WORK/esc" --assert-absent "NOPE$(printf '\033[1m'):x" 2>&1)
+check "usage error has no ESC byte" \
+  "$(printf '%s' "$out" | grep -c "$(printf '\033')")" 0
+
+echo "== per-variant"
+mutant var-rust-format FAIL INJ-SQL-CONCAT \
+  "printf '%s\n' 'fn q(o: &str) -> String { format!(\"select id from notes where owner = {}\", o) }' > src/lib/q.rs"
+mutant var-django-objects-raw WARN INJ-SQL-RAW-UNSAFE \
+  "printf '%s\n' 'rows = Note.objects.raw(statement)' > src/lib/n.py"
+mutant var-django-extra WARN INJ-SQL-RAW-UNSAFE \
+  "printf '%s\n' 'rows = Note.objects.all().extra(clause)' > src/lib/n2.py"
+mutant var-knex-raw-alone WARN INJ-SQL-RAW-UNSAFE \
+  "printf '%s\n' 'const r = await knex.raw(statement);' > src/lib/k.ts"
+mutant var-execute-raw-unsafe WARN INJ-SQL-RAW-UNSAFE \
+  "printf '%s\n' 'await prisma.\$executeRawUnsafe(statement);' > src/lib/x.ts"
+mutant var-sequelize-query WARN INJ-SQL-RAW-UNSAFE \
+  "printf '%s\n' 'const r = await sequelize.query(statement);' > src/lib/s.ts"
+mutant var-sequelize-literal WARN INJ-SQL-RAW-UNSAFE \
+  "printf '%s\n' 'const w = Sequelize.literal(clause);' > src/lib/s2.ts"
+mutant var-generate-sourcemap FAIL EXP-SOURCEMAP-PUBLIC \
+  "printf '%s\n' 'GENERATE_SOURCEMAP=true' > .env.production"
+mutant var-vite-sourcemap-true FAIL EXP-SOURCEMAP-PUBLIC \
+  "printf '%s\n' 'export default { build: { sourcemap: true } };' > vite.config.ts"
+mutant var-angular-sourcemap WARN EXP-SOURCEMAP-PUBLIC \
+  "printf '%s\n' '{ \"sourceMap\": true }' > angular.json"
+mutant var-rails-local-requests FAIL EXP-DEBUG-ON \
+  "mkdir -p config/environments; printf '%s\n' 'config.consider_all_requests_local = true' > config/environments/production.rb"
+mutant var-flask-debug-env FAIL EXP-DEBUG-ON \
+  "printf '%s\n' 'FLASK_DEBUG=1' > .env.production"
+mutant var-flask-app-debug FAIL EXP-DEBUG-ON \
+  "printf '%s\n' 'app.debug = True' > src/lib/app.py"
+mutant var-shell-db-rust FAIL INJ-SHELL-DB-TOOL \
+  "printf '%s\n' 'let o = Command::new(\"psql\").arg(format!(\"-c {}\", q));' > src/lib/sh.rs"
+mutant var-shell-db-ruby FAIL INJ-SHELL-DB-TOOL \
+  "printf '%s\n' 'system(\"psql -c #{query}\")' > src/lib/sh.rb"
+mutant var-error-trace-php FAIL EXP-ERROR-STACK \
+  "printf '%s\n' '<?php echo \$e->getTraceAsString();' > src/lib/err.php"
+mutant var-error-message-flask WARN EXP-ERROR-MESSAGE \
+  "printf '%s\n' 'return jsonify(error=str(e)), 500' > src/lib/err.py"
+
+benign shell-db-psql-empty-options \
+  "printf '%s\n' 'execSync(\"psql -c select1\", {});' > src/lib/sh.ts"
+benign shell-db-rust-argv \
+  "printf '%s\n' 'let o = Command::new(\"psql\").arg(\"-c\").arg(q);' > src/lib/sh.rs"
+
 echo "== regex timing"
-FAST="$(cd "$ROOT" && python3 -B - <<'PY'
+cat > "$WORK/timing.py" <<'PY'
 import importlib.util, sys, time
 sys.path.insert(0, "skills/guardrails/scripts")
-from checks import common, exposure
+from checks import common, exposure, injection
 spec = importlib.util.spec_from_file_location(
     "probe", "skills/guardrails/scripts/probe.py")
 probe = importlib.util.module_from_spec(spec)
@@ -523,9 +662,70 @@ for pattern, text in cases:
     start = time.perf_counter()
     pattern.search(text)
     slow += time.perf_counter() - start >= 1.0
+JS = injection.CONCAT[injection.JS_EXTS]
+PYC = injection.CONCAT[(".py",)]
+GO = injection.CONCAT[(".go",)]
+unit = "select from "
+locked = [
+    (JS, "`" + unit * 7000),
+    (JS, "'" + unit * 7000),
+    (PYC, "f'" + unit * 7000),
+    (PYC, 'f"""' + unit * 7000),
+    (GO, "fmt.Sprintf(`" + unit * 7000),
+    (injection.NOSQL, "$where: " * 10000),
+    (exposure.HIDDEN_INPUT, "<input " * 11000),
+    (injection.SHELL_DB, "system(psql {} " * 1800),
+]
+for pattern, text in locked:
+    start = time.perf_counter()
+    miss = pattern.search(text) is None
+    slow += (not miss) or time.perf_counter() - start >= 1.0
+rows = [
+    (PYC, 'cur.execute("select id from notes where owner = %s" % owner)'),
+    (PYC, 'cur.execute("select id from notes where o = {}".format(o))'),
+    (JS, "const q = 'select id from notes where owner = ' + owner;"),
+    (injection.CONCAT[(".rb",)], 'q = "select id from notes where o = #{o}"'),
+    (injection.DYNAMIC_EXEC, "execute tbl || ' where true'"),
+    (injection.POSTGREST, "supabase.from('t').filter(`a.eq.${v}`)"),
+    (injection.POSTGREST, "supabase.from('t').not('a.eq.' + v)"),
+    (injection.POSTGREST, "supabase.from('t').match(`a.eq.${v}`)"),
+    (injection.POSTGREST, "supabase.from('t').textSearch(`a.${v}`)"),
+    (injection.POSTGREST, "supabase.from('t').or('a.eq.' + v)"),
+    (injection.NOSQL, "Notes.find(req.body)"),
+    (injection.NOSQL, "Notes.updateOne({ id: req.body.id }, {})"),
+    (injection.NOSQL, "Notes.findOneAndUpdate(req.query, {})"),
+    (injection.NOSQL, "Notes.deleteMany(req.params)"),
+    (injection.NOSQL, "Notes.countDocuments({ a: req.body.a })"),
+]
+senders = ("return jsonify(", "return JSONResponse(", "raise HTTPException(",
+           "raise X(detail=", "echo ", "reply.send(", "ctx.body = ")
+for sending in senders:
+    rows.append((exposure.ERROR_STACK, sending + "traceback.format_exc())"))
+    rows.append((exposure.ERROR_MESSAGE, sending + "str(e))"))
+rows += [
+    (exposure.ERROR_STACK, "echo $e->getTraceAsString();"),
+    (exposure.ERROR_STACK, "res.json({ error: err })"),
+    (exposure.ERROR_MESSAGE, "return jsonify(error=repr(e))"),
+    (exposure.ERROR_MESSAGE, "echo $e->getMessage();"),
+    (exposure.DEBUG_CODE, "app.debug = True"),
+]
+heads = ("Command::new(", "popen(", "passthru(", "proc_open(", "spawn(",
+         "system(")
+for head in heads:
+    for tail in ('"psql -c #{q}")', '"psql {q}")', '"psql %s" % q)',
+                 '"psql " + q)', '"psql ${q}")'):
+        rows.append((injection.SHELL_DB, head + tail))
+    rows.append((injection.SHELL_DB_PHP, head + '"psql $Q")'))
+for pattern, sample in rows:
+    slow += pattern.search(sample) is None
+loads = "export const load = 1\n" * 45000
+start = time.perf_counter()
+spans = exposure._hydrated_spans(loads)
+miss = all(exposure.HYDRATED.search(loads, b, e) is None for b, e in spans)
+slow += (not miss) or time.perf_counter() - start >= 1.0
 print("REGEX-FAST" if not slow else "REGEX-SLOW")
 PY
-)"
+FAST="$(cd "$ROOT" && python3 -B "$WORK/timing.py")"
 check "adversarial inputs finish each regex under one second" \
   "$(printf '%s\n' "$FAST" | grep -c 'REGEX-FAST')" 1
 
