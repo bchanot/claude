@@ -146,7 +146,9 @@ The scanner skips log files and cache directories, and never follows symlinks.
 By design the scanner ignores: policies granted only to `service_role`,
 UI route components, keys
 inside git-ignored env files, and password literals in test, fixture and
-i18n files, tagged SQL templates, placeholders with a separate parameter list, an argv array handed to a DB tool, console calls in server code, logging calls that carry a stack, `sourcemap: 'hidden'`, a debug flag read from the environment, dev, local and test env files and settings modules, minified files and built directories, a hidden input or data attribute named csrf, xsrf, authenticity or nonce, a generated `?` list in `IN (…)`, webpack dev configs, data-* names ending in a UI suffix, a loader scoped to its export chunk, and metadata keys in the fields probe.
+i18n files, tagged SQL templates, placeholders with a separate parameter list, an argv array handed to a DB tool, console calls in server code, logging calls that carry a stack, `sourcemap: 'hidden'`, a debug flag read from the environment, dev, local and test env files and settings modules, minified files and built directories, a hidden input or data attribute named csrf, xsrf, authenticity or nonce, webpack dev configs, data-* names ending in a UI suffix, a loader scoped to its export chunk, and metadata keys in the fields probe.
+
+Still flagged, judge by hand: INJ-SQL-CONCAT on a template literal that builds a generated `?` or `$n` list inside `IN (…)` while the values travel in a separate array; it is parameterised, drop it from the proposals.
 
 ## Live Supabase checks (the user runs them in the SQL editor)
 
