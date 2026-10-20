@@ -72,10 +72,10 @@ commands, settings, secrets, maintenance.
 Doctrine: the session model (Fable) does main-loop reflection ONLY —
 brainstorm, plan, contract, audit judgment, gates, loop decisions — enforced
 by a blocking gate (`lib/model-gate.md`) at the entry
-of the 15 reflection skills (the orchestrators plus `/analyze`): the skill
-calls the model-router `route` tool and its answer, which names the model
-id the main loop runs on, is the witness. A non-Fable/Opus id or the mod
-off stops the skill (`/route on` resumes the mod). Nothing dispatched
+of the 17 reflection skills (the orchestrators, `/analyze`, `/guardrails` and
+`/a11y`): the skill calls the model-router `route` tool and its answer, which
+names the model id the main loop runs on, is the witness. A non-Fable/Opus id or
+the mod off stops the skill (`/route on` resumes the mod). Nothing dispatched
 inherits silently: typed agents run on their model-router row, their
 `model:` frontmatter being the off-state floor; built-ins get an explicit
 `model=` at every call site.
