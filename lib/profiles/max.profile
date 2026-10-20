@@ -47,6 +47,7 @@ geo                               personal
 web-validate                      personal
 harden                            personal
 guardrails                        personal
+a11y                              personal
 analyze                           personal
 cso
 

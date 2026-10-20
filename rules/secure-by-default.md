@@ -1,4 +1,4 @@
-# Secure by default: five domains and every API
+# Secure by default: six domains and every API
 
 Scope: any project that has a public surface, an API, a database, messaging,
 a cloud function or a UI. Applies at design, scaffolding, implementation and
@@ -25,13 +25,20 @@ never claimed done: write it as a manual step in the project's deploy notes.
 - Hard spend cap if the host offers one. Otherwise a budget alert plus a
   written kill-switch step.
 
-## 2. Accessibility
-- Everything reachable and usable by keyboard, focus always visible.
-  `:focus-visible` styled, never `outline: none` without a replacement.
-- Every image has an `alt` (empty when decorative). Every field has a label;
-  a placeholder is not a label.
+## 2. Injection
+- Raw escapes (`$queryRawUnsafe`, `knex.raw`, `text()`, `.raw()`) take
+  bound values only; dynamic SQL in a function goes through `format()`
+  with `%I` / `%L` and `USING`.
+- A filter object never comes straight from the request: allowlist the
+  fields, cast the values. No shell command carries input into a DB tool.
 
-## 3. Supabase
+## 3. Exposure (what the browser can see)
+- No data in the browser console, no source map in production, no debug
+  flag in a committed config.
+- Hydrated state, `data-*` attributes, hidden fields and shipped HTML
+  comments carry no token, hash, key or secret.
+
+## 4. Supabase
 - RLS enabled on every table, in the migration that creates it.
 - Policies limited to the owner: `(select auth.uid())` per operation, role
   `authenticated`. No `using (true)` on writes, no anon write.
@@ -40,13 +47,13 @@ never claimed done: write it as a manual step in the project's deploy notes.
 - Views `security_invoker`. `security definer` functions pin `search_path`
   and revoke execute from anon. Buckets private by default.
 
-## 4. SMS and email
+## 5. SMS and email
 - Prior consent recorded per contact: who, when, channel, source, wording.
   No send without a consent row; check the suppression list before each send.
 - Every email has an unsubscribe link and `List-Unsubscribe`. Every marketing
   SMS says STOP, and a STOP reply is processed and stored automatically.
 
-## 5. Cloud functions
+## 6. Cloud functions
 - No function re-triggers itself: never write to the resource that fires it,
   never invoke itself. If unavoidable, guard with an idempotency flag.
 - Max instances (or reserved concurrency) and a timeout on every function.

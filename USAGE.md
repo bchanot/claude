@@ -115,12 +115,13 @@ Tu veux...
 | État réel du travail ouvert | `/reconcile` |
 | Fin de session (= /capitalize --ritual) | `/close` |
 | Audit web (TLS, CSP, headers) | `/harden` |
-| Validité HTML/CSS + a11y | `/web-validate` |
+| Validité HTML/CSS + conformité WCAG | `/web-validate` |
+| Accessibilité de base (clavier, alt, labels) puis corriger | `/a11y` |
 | Visibilité IA (GEO seul) | `/geo` |
 | Livraison client finale | `/client-handover` |
 | Traduire un PDF | `/pdf-translate` |
 | Comprendre un changement pas suivi | `/explain-diff` |
-| Auditer garde-fous (RLS, a11y, consentement, fonctions, mots de passe) puis corriger | `/guardrails` |
+| Auditer garde-fous (RLS, consentement, fonctions, mots de passe, injection SQL, fuites navigateur) puis corriger | `/guardrails` |
 | Sonder le projet en direct (lecture seule, cible à toi) | `/guardrails --live <url>` |
 | Changer profil skills | `/profile` |
 | Audit/polish design (anti-slop) | `/impeccable` |
@@ -161,11 +162,12 @@ Tu veux...
 | `/reconcile` | Connaître l'état réel du travail ouvert (TODO/registres douteux) | Confronte statut déclaré vs git/fs réel |
 | `/close` | Fin de session | Alias de /capitalize --ritual — dedup + TODO + réflexion 3 questions |
 | `/harden` | Audit sécurité web (SSL, CSP, HSTS) | Projet web avec config HTTP |
-| `/web-validate` | Audit W3C + WCAG a11y | Avant livraison projet web |
+| `/web-validate` | Audit W3C + conformité WCAG | Avant livraison projet web ; bases clavier/alt/labels → /a11y |
+| `/a11y` | Vérifier clavier, focus visible, alt, labels puis corriger | Scanner déterministe, parcours Tab sur `--live`, rapport `.claude/audits/A11Y.md`, propositions à valider (textes d'alt et de label = ton choix), re-passe qui prouve chaque correction |
 | `/client-handover` | Livraison client | Audits finaux + livrable brandé |
 | `/pdf-translate` | Traduire un PDF vers une autre langue | Sortie HTML fidèle (images, layout, style préservés) |
 | `/explain-diff` | Comprendre un commit, une branche ou une PR qu'on n'a pas suivis | Page HTML autonome hors du repo : contexte, intuition, code, quiz de 5 questions |
-| `/guardrails` | Vérifier hébergement, a11y, Supabase RLS, consentement SMS/email, fonctions cloud, stockage des mots de passe | Scanner déterministe, jugement, rapport `.claude/audits/GUARDRAILS.md`, propositions de correction à valider, re-passe qui prouve chaque correction ; `--live <url à toi>` sonde en lecture seule |
+| `/guardrails` | Vérifier hébergement, Supabase RLS, consentement SMS/email, fonctions cloud, stockage des mots de passe, injection SQL, exposition navigateur | Scanner déterministe, jugement, rapport `.claude/audits/GUARDRAILS.md`, propositions de correction à valider, re-passe qui prouve chaque correction ; `--live <url à toi>` sonde en lecture seule ; sonde `exposure` sur un build de production (source maps, corps d'erreur, clés sensibles) |
 | `/impeccable` | Audit/polish design + détecteur anti-slop déterministe | 23 verbes ; `npx impeccable detect` (exit 0/2) |
 | `/tour` | Sweep groupé sur un ou plusieurs projets | Sécu + nettoyage + reconcile + doc, boucle jusqu'à un pass propre |
 | `/route` | Voir ou fixer la route du mod model-router | show / clear / off / on / reload / pending / ask on\|off / <phase> / model=… effort=… / switch on\|off / classify on\|off (classifieur de prompt) / verbose on\|off (transitions seules) |

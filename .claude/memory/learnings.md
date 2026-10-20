@@ -210,6 +210,9 @@ rules:
 | LRN-188 | 2026-09-30 | Contract oracle tied to code shape (`grep -A6` line window) breaks on the first refactor while the property still holds; assert the property over the whole unit | writing CHECK oracles |
 | LRN-189 | 2026-10-06 | `cmd \| grep -q` under pipefail = SIGPIPE false negative (rc 141); `>/dev/null` is NOT a fix (GNU grep treats it like -q); portable = producer out of the pipeline | any bash under `set -o pipefail`, tests and prod |
 | LRN-190 | 2026-10-06 | Contract oracles: join `\\` line continuations before regex; "lint clean" = no finding beyond base, not zero; never `rm -rf "$var"` inside a CHECK | writing CHECK: lines |
+| LRN-219 | 2026-10-19 | Scanner regex over untrusted trees: bound every repeat, cap comment blankers, timing lock on adversarial file | any whole-file regex scanner |
+| LRN-220 | 2026-10-19 | Live probe verdicts fail closed by construction: fixture route per negative branch, 3xx = SKIPPED, depth/size limit = SKIPPED never CLOSED | writing probes and their suites |
+| LRN-221 | 2026-10-19 | Floor-guard suppressions: remove, never waive; contract CHECK asserts intent (symbol/behaviour), not one code spelling | suppressions, writing CHECK: lines |
 
 ---
 
@@ -1814,3 +1817,14 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Context**: model-router bugfix 2026-10-14/15, live scratch mod (`claude -p --plugin-dir`). `complete({model:'claude-opus-5-5', prompt:'ok', maxTokens:1})` resolved 1308 ms with OBJECT `{ isAnswered, text, usage }` (d.ts says string; maxTokens not honored, 43 output tokens). Same call on `claude-fable-5-1` without credits: no settle, no rejection after 900 s (client retries the 429). Plan r1 probed in a loop before deciding → BLOCKERs: unbounded spin on explicit alias, cur probed.
 - **Apply**: availability check via `complete()` = race vs own timeout, treat timeout + rejection as down, any resolved shape as up; never read `isAnswered:false` as failure (unobserved). Decide first, probe only the move target, once, skip cur and held ids, one re-decision without probe. No hook signal on the probe (Esc must not mark model down); probe sleep counts against 10 s `turn.step` budget. Links [[BLK-030]], [[LRN-207]].
 
+## LRN-219 — Scanner regex over untrusted trees: bound every repeat, cap every comment blanker, lock with a timing test on an adversarial file
+- **Context**: guardrails split 2026-10-19. Challenge + 3 review rounds found quadratic COMMENT / env regexes, unbounded `[^>]*` and `\S+`. Fixes: DATA_ATTR `[\w-]{0,60}`, SCRIPT_SRC `[^>]{1,300}`, TRACE_MARKERS `[^)\n]{0,200}`, SQL_COMMENT `/\*[\s\S]{0,4000}?\*/`, MARKUP_COMMENT tempered `<!--(?:[^<]|<(?!!--)){0,4000}?-->`. Residual ~1.4 s on adversarial 200k file, accepted.
+- **Apply**: whole-file regex = bounded repeats, tempered dot for nested delimiters, timing lock in the suite (`guardrails-scan.test.sh`), files > 1 MB listed by path (`Project.large`), `.map` head 4 KB only. Links [[BDR-122]].
+
+## LRN-220 — Live probe verdicts fail closed by construction: every negative branch needs its own fixture route, a 3xx reaching a verdict = dropped redirect = SKIPPED, a depth or size limit hit = SKIPPED never CLOSED
+- **Context**: same run. GATE 1 verifier: `fields` probe had OPEN + SKIPPED assertions, no CLOSED route. Opus review: three false verdicts (embedded `sourceMappingURL` string → OPEN; off-host map redirect dropped by `_SameHost` → 302 → CLOSED; sensitive key below depth 4 → CLOSED). Each = a code path no fixture route exercised.
+- **Apply**: per probe, fixture routes for OPEN, CLOSED, unobservable (SKIPPED), dropped redirect, truncated, oversize; anchor marker comments at line start and take the last; walk bounded bodies fully (iterative). Links [[BDR-122]], [[LRN-219]].
+
+## LRN-221 — Floor-guard suppressions: remove, never waive; contract oracles assert intent, not syntax
+- **Context**: GATE 1 counted 6 floor findings: `# noqa: E402` ×2 (import after `sys.path.insert`), a `# shellcheck disable=SC2016` copied from another suite (dead: deleting it raised nothing), 3 plan quotes of the same lines. `importlib.import_module` after the insert needs no noqa. Then criterion 16's CHECK grepped `^import scanner` and went red on the legit fix.
+- **Apply**: a suppression = first try the construct that needs none; test a copied `disable` by deleting it; a CHECK greps the symbol or behaviour (`scanner.Catalogue` loaded), never one spelling of the code. Links [[BDR-102]].

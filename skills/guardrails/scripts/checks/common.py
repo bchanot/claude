@@ -54,9 +54,10 @@ def redact(value):
     return value[:6] + "..."
 
 
-SQL_COMMENT = re.compile(r"--[^\n]*|/\*.*?\*/", re.S)
+SQL_COMMENT = re.compile(r"--[^\n]*|/\*[\s\S]{0,4000}?\*/")
 MARKUP_COMMENT = re.compile(
-    r"<!--.*?-->|/\*.*?\*/|(?:^|(?<=\s))//[^\n]*", re.S | re.M)
+    r"<!--(?:[^<]|<(?!!--)){0,4000}?-->|/\*[\s\S]{0,4000}?\*/"
+    r"|(?:^|(?<=\s))//[^\n]*", re.M)
 
 
 def _blank(pattern, text):
@@ -72,12 +73,19 @@ def blank_markup_comments(text):
     return _blank(MARKUP_COMMENT, text)
 
 
-def _is_scannable(path):
+def _candidate(path):
+    """A regular, non-symlink, non-binary file the walker may list."""
     if path.name in SKIP_FILES or path.suffix.lower() in BINARY_EXTS:
         return False
     try:
-        return (path.is_file() and not path.is_symlink()
-                and path.stat().st_size <= MAX_BYTES)
+        return path.is_file() and not path.is_symlink()
+    except OSError:
+        return False
+
+
+def _small(path):
+    try:
+        return path.stat().st_size <= MAX_BYTES
     except OSError:
         return False
 
@@ -97,8 +105,8 @@ def _kept_dirs(root, base, dirs, prefixes):
 def _kept_files(root, base, names, prefixes):
     for name in names:
         path = Path(base) / name
-        if _is_scannable(path) and not _excluded(root, path, prefixes):
-            yield path
+        if _candidate(path) and not _excluded(root, path, prefixes):
+            yield path, _small(path)
 
 
 def _walk(root, prefixes):
@@ -113,7 +121,9 @@ class Project:
     def __init__(self, root, exclude=()):
         self.root = Path(root).resolve()
         prefixes = [e.strip("/") for e in exclude if e.strip("/")]
-        self.files = sorted(_walk(self.root, prefixes))
+        listed = sorted(_walk(self.root, prefixes))
+        self.files = [p for p, small in listed if small]
+        self.large = [p for p, small in listed if not small]
         self._text = {}
 
     def rel(self, path):
@@ -161,3 +171,72 @@ def non_doc_files(project):
     """Files that can hold behavior: everything except docs and samples."""
     skip = (".md", ".mdx", ".txt", ".example", ".sample", ".template")
     return [p for p in project.files if not p.name.endswith(skip)]
+
+
+TEST_PATH = re.compile(
+    r"\.(?:test|spec|e2e|stories)\.|(?:^|/)(?:tests?|__tests__|spec|e2e"
+    r"|fixtures?|mocks?)/", re.I)
+BUILT_SEGMENTS = {"public", "static", "www", "assets"}
+MINIFIED_NAME = re.compile(r"\.min\.|\.bundle\.", re.I)
+LONG_LINE = 5000
+
+
+def _minified(project, path):
+    if MINIFIED_NAME.search(path.name):
+        return True
+    return any(len(line) > LONG_LINE
+               for line in project.text(path).splitlines())
+
+
+def code_files(project, exts=SOURCE_EXTS, keep_built=False):
+    """Hand-written source: no tests, fixtures, built dirs, minified files.
+
+    keep_built keeps public/, static/, www/ and assets/: they also hold the
+    hand-written browser scripts of server-rendered stacks."""
+    skipped = set() if keep_built else BUILT_SEGMENTS
+    return [p for p in non_doc_files(project)
+            if p.suffix.lower() in exts
+            and not TEST_PATH.search(project.rel(p))
+            and not set(project.segments(p)) & skipped
+            and not _minified(project, p)]
+
+
+def hits(project, files, regex, rule, message):
+    """One finding per match of a compiled regex over the given files."""
+    return [project.found(rule, path, m.start(), message)
+            for path in files
+            for m in regex.finditer(project.text(path))]
+
+
+def dedupe_lines(findings):
+    """One finding per (path, line): the first emitted wins."""
+    seen, out = set(), []
+    for finding in findings:
+        if (finding.path, finding.line) not in seen:
+            seen.add((finding.path, finding.line))
+            out.append(finding)
+    return out
+
+
+SERVER_SEGMENTS = {
+    "functions", "api", "server", "scripts", "tests", "test", "migrations",
+    "seed", ".github", "supabase", "tools",
+}
+CLIENT_SEGMENTS = {
+    "components", "public", "static", "client", "browser", "www", "islands",
+}
+CLIENT_EXTS = (".vue", ".svelte", ".html", ".htm")
+CLIENT_SCRIPT_EXTS = (".ts", ".tsx", ".js", ".jsx", ".mjs")
+
+
+def client_reachable(project, path):
+    """Heuristic: this file's text ends up in a browser bundle or page."""
+    segments = set(project.segments(path))
+    if segments & SERVER_SEGMENTS:
+        return False
+    if path.suffix.lower() in CLIENT_EXTS:
+        return True
+    if path.suffix.lower() not in CLIENT_SCRIPT_EXTS:
+        return False
+    head = project.text(path)[:300]
+    return bool(segments & CLIENT_SEGMENTS) or "use client" in head

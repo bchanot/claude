@@ -72,10 +72,10 @@ commands, settings, secrets, maintenance.
 Doctrine: the session model (Fable) does main-loop reflection ONLY —
 brainstorm, plan, contract, audit judgment, gates, loop decisions — enforced
 by a blocking gate (`lib/model-gate.md`) at the entry
-of the 15 reflection skills (the orchestrators plus `/analyze`): the skill
-calls the model-router `route` tool and its answer, which names the model
-id the main loop runs on, is the witness. A non-Fable/Opus id or the mod
-off stops the skill (`/route on` resumes the mod). Nothing dispatched
+of the 17 reflection skills (the orchestrators, `/analyze`, `/guardrails` and
+`/a11y`): the skill calls the model-router `route` tool and its answer, which
+names the model id the main loop runs on, is the witness. A non-Fable/Opus id or
+the mod off stops the skill (`/route on` resumes the mod). Nothing dispatched
 inherits silently: typed agents run on their model-router row, their
 `model:` frontmatter being the off-state floor; built-ins get an explicit
 `model=` at every call site.
@@ -228,10 +228,11 @@ a different package, ships its own conflicting `graphify` bin) — see
 | `/reconcile` | Confront declared status (TODO, registries) against real git/fs state — surface stale items |
 | `/pdf-translate` | Translate a PDF to another language, output as HTML (via Vision) |
 | `/explain-diff` | Explain a diff, commit, branch or PR as one self-contained HTML page (background, intuition, code walkthrough, 5-question quiz), saved outside the repo |
-| `/guardrails` | Audit the five baseline guardrails (hosting, a11y, Supabase RLS, SMS/email consent, cloud functions) plus API hygiene (auth, CORS, secrets, password storage): deterministic scanner, then judgment, report in `.claude/audits/GUARDRAILS.md`. Then proposes fixes, applies the ones you accept and re-scans to prove each one. `--live <url you own>` adds a read-only probe that confirms a hole from outside |
+| `/guardrails` | Audit the six baseline guardrails (hosting, Supabase RLS, SMS/email consent, cloud functions, injection, browser exposure) plus API hygiene (auth, CORS, secrets, password storage): deterministic scanner, then judgment, report in `.claude/audits/GUARDRAILS.md`. Then proposes fixes, applies the ones you accept and re-scans to prove each one. `--live <url you own>` adds a read-only probe that confirms a hole from outside (routes, CORS, rate limit, and against a production build: source maps served, error bodies, sensitive keys) |
+| `/a11y` | Accessibility baseline: keyboard reachability with a visible focus, an alt on every image, a label on every field. Deterministic scanner, Tab walk on `--live`, report in `.claude/audits/A11Y.md`, fixes proposed with the wording as your choice, applied on acceptance and re-scanned to prove them. Full WCAG → `/web-validate` |
 | `/close` | End-of-session ritual — alias for `/capitalize --ritual` (dedup + TODO reconcile + 3-question reflection) |
 | `/harden` | Web hardening audit — HTTPS/TLS, HSTS, CSP, security headers |
-| `/web-validate` | W3C HTML/CSS validity + WCAG 2.1 accessibility audit |
+| `/web-validate` | W3C HTML/CSS validity + WCAG 2.1 conformance audit (keyboard/alt/label basics → /a11y) |
 | `/geo` | GEO-only audit — AI-search visibility (ChatGPT, Perplexity, Claude, Gemini…) |
 | `/client-handover` | Final project delivery — audits + branded deliverable (Markdown / HTML / PDF) |
 | `/profile` | Activate a skill profile (web / seo / web-full / full / max / backend / design / dev / qa / audit / minimal) (default: full) |

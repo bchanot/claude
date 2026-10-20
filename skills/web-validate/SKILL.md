@@ -3,10 +3,11 @@ name: web-validate
 effort: high
 description: |
   Use when a web project needs W3C HTML/CSS validity or WCAG 2.1
-  accessibility audit. Dispatches the validator-analyzer agent, strict
+  conformance audit. Dispatches the validator-analyzer agent, strict
   scope (no meta/security-header noise).
-  Triggers: "validate", "w3c", "wcag", "a11y", "accessibility", "axe",
-  "pa11y", "accessibilité", "conformité web".
+  Triggers: "validate", "w3c", "wcag", "conformité wcag", "axe",
+  "pa11y", "conformité web", "validité html".
+  Keyboard, alt and label basics and their fixes → /a11y.
   CSP/HSTS/404 → /harden. Meta/sitemap → /seo. AI engines → /geo.
 argument-hint: "[URL] [--fix] [--local|--full] [--no-external]"
 allowed-tools:

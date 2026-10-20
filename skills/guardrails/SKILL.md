@@ -1,8 +1,8 @@
 ---
 name: guardrails
 effort: high
-description: 'Use when auditing a project against the baseline guardrails and fixing what fails: hosting (rate limit, CDN and firewall, spend cap), accessibility (keyboard, visible focus, alt text, field labels), Supabase (RLS on every table, owner-scoped policies, no service_role key client-side), SMS and email (recorded consent, unsubscribe, STOP), cloud functions (no self-trigger, instance cap, budget stop), plus API and access hygiene (auth on every route, CORS, secrets, password storage). Runs a deterministic scanner, judges each hit, writes .claude/audits/GUARDRAILS.md, then proposes fixes, applies only the ones the user accepts (bugfixer executor, fresh verifier and security gates) and re-scans to prove each one fixed. Optional read-only live probe confirms a hole from outside on a target the user owns and names. Triggers: "guardrails", "garde-fous", "RLS activée ?", "audit supabase", "consentement sms", "plafond de dépense", "mots de passe en clair ?", "teste la sécurité de base du projet", "corrige les garde-fous", "teste-le en conditions réelles", "sonde le projet en direct". Headers and TLS → /harden; secrets, CVE, OWASP → /cso; full WCAG → /web-validate.'
-argument-hint: '[project path] [--domain api,hosting,a11y,supabase,messaging,functions] [--exclude paths] [--live <url you own>] [--report-only]'
+description: 'Use when auditing a project against the baseline guardrails and fixing what fails. Headers and TLS → /harden; secrets, CVE, dependencies → /cso; keyboard, alt, labels → /a11y. Domains: hosting (rate limit, CDN, spend cap), Supabase (RLS, owner policies, no service_role client-side), SMS and email (consent, unsubscribe, STOP), cloud functions (no self-trigger, instance cap, budget stop), injection (SQL from input, raw escapes, NoSQL, shell into DB tools), exposure (console data, source maps, hydrated state, error bodies, debug mode, wide responses), plus API hygiene (auth, CORS, secrets, passwords). Scanner, judgment, .claude/audits/GUARDRAILS.md, fixes applied only on acceptance (bugfixer, verifier and security gates), re-scanned to prove them; optional read-only probe of a target you own. Triggers: "guardrails", "garde-fous", "RLS activée ?", "faille sql", "fuite navigateur", "plafond de dépense", "mots de passe en clair ?", "corrige les garde-fous", "sonde le projet en direct".'
+argument-hint: '[project path] [--domain api,hosting,supabase,messaging,functions,injection,exposure] [--exclude paths] [--live <url you own>] [--report-only]'
 ---
 
 # /guardrails
@@ -28,8 +28,8 @@ ROUTING: follow `$HOME/.claude/lib/effort-shift.md` (phases via
 ## STEP 1: Scope
 
 Work in the project the user names, else the current directory. Say in one
-line what you will scan. Domains: `api`, `hosting`, `a11y`, `supabase`,
-`messaging`, `functions`. The scanner skips the ones that do not apply.
+line what you will scan. Domains: `api`, `hosting`, `supabase`,
+`messaging`, `functions`, `injection`, `exposure`. The scanner skips the ones that do not apply.
 `--report-only` stops after STEP 7: audit, no fix.
 
 ## STEP 2: Run the scanner
@@ -71,21 +71,27 @@ Read the code for the domains that apply and answer, with file:line evidence:
   wording? Is a STOP reply wired from the provider webhook to the store?
 - **Functions**: trace every trigger to the resource it writes, including
   queues, storage events, schedulers and third-party webhooks.
-- **A11y**: with a dev server running, walk the main flow with Tab only
-  (`/browse`). Otherwise mark the keyboard walk-through as not done.
+- **Injection**: for each INJ hit, trace the interpolated value to its
+  source. A constant, an allowlisted identifier or a value already cast to
+  a number is a FALSE POSITIVE; anything that can come from a request,
+  a file or another user's row is CONFIRMED.
+- **Exposure**: read the code behind each EXP hit: is the logged object,
+  the hydrated key or the returned row really user data? With `--live`
+  against a production build (STEP 5), the probe answers for served
+  source maps, error bodies and sensitive keys; without it, say so.
 
 ## STEP 5: Live probe (only on `--live`, read-only)
 
 The static scan shows a protection is missing in the code. A probe shows the
 door is actually open. Run it only when the user asks, and only against a
 target the user owns and names: their local dev server first, a staging or
-production URL only on an explicit, specific go. Never a URL you inferred,
+production URL only on an explicit, specific go. The `exposure` block runs against a production build or a staging URL (`next build && next start`, `vite preview`, framework debug off): a dev server serves source maps and tracebacks by design, so its exposure OPEN verdicts are dev artefacts, reported as such, with no proposal and no re-pass requirement. Never a URL you inferred,
 never a third party.
 
 1. **Build the plan** `references/checks.md` describes. From the static
    findings fill a JSON plan: `base_url`, the Supabase `url` and `tables`,
    the `routes` (mark the ones meant to be public), `cors`, and a
-   `rate_limit` route if the user wants that one burst. Secrets never go in
+   `rate_limit` route if the user wants that one burst. Add an `exposure` block (`{}` for the defaults, `error_routes` for a route you own that answers an error to a malformed id, never a path you guess) so the probe reads source maps, error bodies and response keys; every path in the plan starts with `/`. Secrets never go in
    the plan or the command line: export `GUARDRAILS_ANON_KEY` and, for the
    cross-user probe, `GUARDRAILS_JWT2`, from test keys, never `service_role`.
 2. **Run it**, confirming ownership with `--authorized`:
@@ -100,7 +106,7 @@ never a third party.
    replays it.
 3. **Cross the verdicts with the static findings.** A verdict is an
    observation, not a conclusion: OPEN means the request returned data or a
-   200, CLOSED means it was refused or empty. A static FAIL confirmed OPEN in
+   200, CLOSED means it was refused or empty. SKIPPED and ERROR mean the target was not observed: never read either as proof of a fix. A static FAIL confirmed OPEN in
    the probe leads the report. A CLOSED probe on a static FAIL still needs the
    fix: the dev target may differ from production.
 4. **Guardrails on the probe itself**: read-only, test keys only, the
@@ -137,9 +143,9 @@ route). FALSE POSITIVE and ACCEPTED RISK get no proposal. Each proposal:
 
 - **number, rule, file(s)**, and the problem in one line;
 - **the fix**, concrete: file:line and the change, the SQL for a migration,
-  the label text for a field. Root cause, never a mask: a missing RLS gets
+  the parameter binding for a query. Root cause, never a mask: a missing RLS gets
   owner policies in the same migration, not a disabled check;
-- **choices the user sees** (label wording, CORS origins, owner column,
+- **choices the user sees** (allowlisted filter fields, CORS origins, owner column,
   rate-limit numbers), each with your proposed value, named so the user can
   change it;
 - **risk**: what it can break. `BREAKING` when it changes a contract a client
@@ -150,7 +156,8 @@ route). FALSE POSITIVE and ACCEPTED RISK get no proposal. Each proposal:
   that must turn CLOSED, and a project test when one fits naturally.
 
 MANUAL items stay user steps (STEP 6), never proposals. A live OPEN verdict
-with no static finding gets a proposal whose proof is the probe alone.
+with no static finding gets a proposal whose proof is the probe alone,
+unless STEP 5 marked it a dev artefact.
 
 Save the proposals to `.claude/tasks/plans/<YYYY-MM-DD>-guardrails-<HHMM>.md`
 and append them to the report. In the reply, show them as a numbered list,
@@ -163,7 +170,7 @@ stop the turn:
 
 ```
 Which fixes do I apply? "all" (every proposal except DECISION ones),
-numbers ("1,3,5-7"), "none", or an amendment ("2 with the label 'Email'").
+numbers ("1,3,5-7"), "none", or an amendment ("2 with the fields ['id','status']").
 A DECISION proposal needs its number plus your choice.
 ```
 

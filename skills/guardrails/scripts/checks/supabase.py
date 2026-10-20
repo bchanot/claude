@@ -5,7 +5,8 @@ import re
 from dataclasses import dataclass
 
 from .apis import ignore_patterns, is_ignored_env
-from .common import Rule, SOURCE_EXTS, blank_comments
+from .common import CLIENT_EXTS, Rule, SOURCE_EXTS, blank_comments
+from .common import client_reachable
 
 DOMAIN = "supabase"
 _NAME = r'(?:"?\w+"?\.)?"?\w+"?'
@@ -35,15 +36,6 @@ ANON_ROLES = {"anon", "public"}
 PRIVILEGED_ROLES = {"service_role", "postgres", "supabase_admin"}
 
 SERVICE_REF = r"service_role|SERVICE_ROLE|SUPABASE_SECRET_KEY|sb_secret_"
-SERVER_SEGMENTS = {
-    "functions", "api", "server", "scripts", "tests", "test", "migrations",
-    "seed", ".github", "supabase", "tools",
-}
-CLIENT_SEGMENTS = {
-    "components", "public", "static", "client", "browser", "www", "islands",
-}
-CLIENT_EXTS = (".vue", ".svelte", ".html", ".htm")
-SCRIPT_EXTS = (".ts", ".tsx", ".js", ".jsx", ".mjs")
 JWT = r"eyJ[\w-]{8,}\.(eyJ[\w-]{8,})\.[\w-]{8,}"
 MANIFESTS = (
     "package.json", "Cargo.toml", "requirements.txt", "pyproject.toml",
@@ -286,18 +278,6 @@ def _config(project):
     return out
 
 
-def _client_reachable(project, path):
-    segments = set(project.segments(path))
-    if segments & SERVER_SEGMENTS:
-        return False
-    if path.suffix.lower() in CLIENT_EXTS:
-        return True
-    if path.suffix.lower() not in SCRIPT_EXTS:
-        return False
-    head = project.text(path)[:300]
-    return bool(segments & CLIENT_SEGMENTS) or "use client" in head
-
-
 def _client_leaks(project):
     files = project.with_ext(*SOURCE_EXTS, *CLIENT_EXTS)
     return [
@@ -306,7 +286,7 @@ def _client_leaks(project):
             "service role or secret key referenced in client-reachable "
             "code: it bypasses RLS for anyone who reads the bundle")
         for path, m in project.matches(SERVICE_REF, files, 0)
-        if _client_reachable(project, path)
+        if client_reachable(project, path)
     ]
 
 

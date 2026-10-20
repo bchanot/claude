@@ -52,12 +52,14 @@ SQL=supabase/migrations/0001_init.sql
 TSX=src/components/ContactForm.tsx
 NOTIFY=supabase/functions/notify/index.ts
 SMS=supabase/functions/sms/index.ts
+API=src/pages/api/notes.ts
 
 echo "== clean fixture"
 out=$(scan "$GOOD"); rc=$?
 check "clean exit code" "$rc" 0
 check "clean has no FAIL or WARN" \
   "$(printf '%s\n' "$out" | grep -c ' 0 FAIL, 0 WARN')" 1
+check "a11y is not scanned" "$(printf '%s\n' "$out" | grep -c '^\[a11y\]')" 0
 
 echo "== supabase"
 mutant rls-missing FAIL SB-RLS-MISSING \
@@ -134,19 +136,6 @@ mutant no-rate-limit FAIL HOST-NO-RATE-LIMIT "rm src/middleware.ts"
 mutant origin-exposed WARN HOST-ORIGIN-EXPOSED \
   "printf 'app = \"x\"\n' > fly.toml; edit docs/DEPLOY.md 's/Cloudflare/an edge proxy/'"
 
-echo "== a11y"
-mutant img-alt FAIL A11Y-IMG-ALT "edit $TSX 's/ alt=\"Company logo\"//'"
-mutant field-label FAIL A11Y-FIELD-LABEL "edit $TSX '/<label htmlFor=\"email\">/d'"
-mutant click-keyboard FAIL A11Y-CLICK-NO-KEYBOARD "edit $TSX 's/ onKeyDown={go}//'"
-mutant tabindex-positive WARN A11Y-TABINDEX-POSITIVE \
-  "edit $TSX 's/tabIndex={0}/tabIndex={2}/'"
-mutant focus-css-warn WARN A11Y-FOCUS-OUTLINE \
-  "printf 'a:focus { outline: none; }\n' > src/styles.css"
-mutant focus-css-fail FAIL A11Y-FOCUS-OUTLINE \
-  "printf 'a:focus { outline: none; }\n' > src/styles.css; edit $TSX 's/outline-none focus-visible:ring-2 focus-visible:ring-blue-500/x/'"
-mutant focus-tailwind FAIL A11Y-FOCUS-OUTLINE \
-  "edit $TSX 's/outline-none focus-visible:ring-2 focus-visible:ring-blue-500/outline-none/'"
-
 echo "== messaging"
 mutant no-consent FAIL MSG-NO-CONSENT-RECORD \
   "for f in $SQL $NOTIFY $SMS; do edit \$f 's/consent_at/seen_at/g;s/consent_source/seen_src/g'; done"
@@ -175,6 +164,96 @@ mutant firebase-loop WARN FN-SELF-TRIGGER \
 mutant key-body FAIL API-SECRET-LITERAL \
   'printf -- "-----BEGIN %s KEY-----\n%s\n" PRIVATE "$(head -c 40 /dev/zero | tr "\0" A)" > src/key.ts'
 
+echo "== injection"
+mutant sql-template FAIL INJ-SQL-CONCAT \
+  "printf '%s\n' 'const q = \`select id from notes where owner = \${owner}\`;' >> $API"
+mutant sql-concat FAIL INJ-SQL-CONCAT \
+  "printf '%s\n' 'const q = \"select id from notes where owner = \" + owner;' >> $API"
+mutant sql-fstring FAIL INJ-SQL-CONCAT \
+  "printf '%s\n' 'cur.execute(f\"delete from notes where id = {note_id}\")' > src/lib/cleanup.py"
+mutant sql-php-interpolation FAIL INJ-SQL-CONCAT \
+  "printf '%s\n' '<?php \$r = \$db->query(\"select id from notes where owner = \$owner\");' > src/lib/notes.php"
+mutant sql-py-concat FAIL INJ-SQL-CONCAT \
+  "printf '%s\n' 'cur.execute(\"select id from notes where owner = \" + owner)' > src/lib/cleanup.py"
+mutant sql-quoted-value FAIL INJ-SQL-CONCAT \
+  "printf '%s\n' \$'const q = \"select id from notes where owner = \\'\" + owner + \"\\'\";' >> $API"
+mutant sql-php-dot FAIL INJ-SQL-CONCAT \
+  "printf '%s\n' \$'<?php \$r = \$db->query(\"select id from notes where owner = \\'\" . \$owner . \"\\'\");' > src/lib/notes.php"
+mutant sql-raw-unsafe WARN INJ-SQL-RAW-UNSAFE \
+  "printf '%s\n' 'const rows = await prisma.\$queryRawUnsafe(statement);' >> $API"
+mutant sql-sqla-text-var WARN INJ-SQL-RAW-UNSAFE \
+  "printf '%s\n' 'import sqlalchemy' 'conn.execute(text(query))' > src/lib/db.py"
+mutant shell-db-os-system FAIL INJ-SHELL-DB-TOOL \
+  "printf '%s\n' 'os.system(\"psql \" + url)' > src/lib/backup.py"
+mutant shell-db-template FAIL INJ-SHELL-DB-TOOL \
+  "printf '%s\n' 'exec(\`psql \${db}\`);' > src/lib/backup.ts"
+mutant sql-ruby-where-interp FAIL INJ-SQL-CONCAT \
+  "printf '%s\n' 'User.where(\"name = #{name}\")' > src/lib/users.rb"
+mutant shell-db-php-upper-var FAIL INJ-SHELL-DB-TOOL \
+  "printf '%s\n' '<?php shell_exec(\"mysqldump --host=\$Host app\");' > src/lib/dump.php"
+mutant concat-in-sqla-text FAIL INJ-SQL-CONCAT \
+  "printf '%s\n' 'import sqlalchemy' 'conn.execute(text(f\"select id from notes where owner = {owner}\"))' > src/lib/db.py"
+mutant concat-in-objects-raw FAIL INJ-SQL-CONCAT \
+  "printf '%s\n' 'User.objects.raw(f\"select id from notes where owner = {name}\")' > src/lib/db.py"
+mutant concat-in-knex-raw FAIL INJ-SQL-CONCAT \
+  "printf '%s\n' 'knex.raw(base + \" where id = \" + id);' >> $API"
+mutant sql-sqla-sa-text WARN INJ-SQL-RAW-UNSAFE \
+  "printf '%s\n' 'import sqlalchemy as sa' 'conn.execute(sa.text(q))' > src/lib/db.py"
+mutant sql-dynamic-exec WARN INJ-SQL-DYNAMIC-EXEC \
+  "printf '%s\n' \"execute 'select count(*) from ' || tbl into n;\" >> $SQL"
+mutant postgrest-filter WARN INJ-POSTGREST-FILTER \
+  "printf '%s\n' 'const { data } = await supabase.from(\"notes\").select().or(\`owner.eq.\${who}\`);' >> $API"
+mutant nosql-operator WARN INJ-NOSQL-OPERATOR \
+  "printf '%s\n' 'const doc = await Notes.findOne({ owner: req.body.owner });' >> $API"
+mutant shell-db-tool FAIL INJ-SHELL-DB-TOOL \
+  "printf '%s\n' 'execSync(\`pg_dump --table=\${table} app > backup.sql\`);' > src/lib/backup.ts"
+
+echo "== exposure"
+mutant console-data-public-dir WARN EXP-CONSOLE-DATA \
+  "mkdir -p public/js; printf '%s\n' 'console.log(user);' > public/js/app.js"
+mutant data-attr-hidden-input WARN EXP-DATA-ATTR-SENSITIVE \
+  "printf '%s\n' '<input type=\"hidden\" name=\"api_key\" value={k} />' >> $TSX"
+mutant debug-errorhandler FAIL EXP-DEBUG-ON \
+  "printf '%s\n' 'app.use(errorhandler());' >> $API"
+mutant console-data WARN EXP-CONSOLE-DATA \
+  "printf '%s\n' 'console.log(\"saved\", session);' >> $TSX"
+mutant sourcemap-next FAIL EXP-SOURCEMAP-PUBLIC \
+  "printf '%s\n' 'module.exports = { productionBrowserSourceMaps: true };' > next.config.js"
+mutant sourcemap-vite-inline FAIL EXP-SOURCEMAP-PUBLIC \
+  "printf '%s\n' 'export default { build: { sourcemap: \"inline\" } };' > vite.config.ts"
+mutant sourcemap-webpack-warn WARN EXP-SOURCEMAP-PUBLIC \
+  "printf '%s\n' 'module.exports = { devtool: \"eval-source-map\" };' > webpack.config.js"
+mutant sourcemap-public-dir FAIL EXP-SOURCEMAP-PUBLIC \
+  "mkdir -p public/assets; printf '%s\n' '{\"version\":3,\"sources\":[\"src/app.ts\"],\"mappings\":\"AAAA\"}' > public/assets/app.js.map"
+mutant sourcemap-large-map FAIL EXP-SOURCEMAP-PUBLIC \
+  "mkdir -p public; { printf '%s' '{\"version\":3,\"sources\":[\"src/app.ts\"],\"mappings\":\"'; head -c 1100000 /dev/zero | tr '\\0' A; printf '%s\n' '\"}'; } > public/app.js.map"
+mutant hydrated-sensitive WARN EXP-HYDRATED-SENSITIVE \
+  "printf '%s\n' 'export async function getServerSideProps() { return { props: { accessToken: process.env.CRM_TOKEN } }; }' > src/pages/account.tsx"
+mutant markup-comment WARN EXP-MARKUP-COMMENT \
+  "printf '%s\n' '<!-- staging login: see the internal wiki before release -->' > src/pages/index.html"
+mutant data-attr-sensitive WARN EXP-DATA-ATTR-SENSITIVE \
+  "printf '%s\n' '<div data-api-key={key}>x</div>' >> $TSX"
+mutant error-stack FAIL EXP-ERROR-STACK \
+  "printf '%s\n' 'export function onError(err: Error) { return new Response(err.stack, { status: 500 }); }' >> $API"
+mutant error-message WARN EXP-ERROR-MESSAGE \
+  "printf '%s\n' 'export function onFail(err: Error) { return Response.json({ error: err.message }, { status: 500 }); }' >> $API"
+mutant debug-on FAIL EXP-DEBUG-ON \
+  "printf '%s\n' 'DEBUG = True' > src/settings.py"
+mutant debug-env FAIL EXP-DEBUG-ON \
+  "printf '%s\n' 'APP_DEBUG=true' > .env.production"
+mutant response-wide WARN EXP-RESPONSE-WIDE \
+  "printf '%s\n' 'const { data } = await db.from(\"profiles\").select(\"*\");' >> $API"
+mutant response-wide-prisma WARN EXP-RESPONSE-WIDE \
+  "printf '%s\n' 'const u = await prisma.user.findUnique({ where: { id } });' >> $API"
+mutant response-wide-sql WARN EXP-RESPONSE-WIDE \
+  "printf '%s\n' 'const q = \"select * from users where id = \$1\";' >> $API"
+mutant error-stack-single-file FAIL EXP-ERROR-STACK \
+  "printf '%s\n' 'app.use((err, req, res, next) => res.status(500).send(err.stack));' > server.js"
+mutant hydrated-identifier WARN EXP-HYDRATED-SENSITIVE \
+  "printf '%s\n' 'export async function getServerSideProps() { const token = await crm(); return { props: { accessToken: token } }; }' > src/pages/account.tsx"
+mutant console-next-page WARN EXP-CONSOLE-DATA \
+  "printf '%s\n' 'export default function Home({ user }) { console.log(\"render\", user); return null; }' > src/pages/index.tsx"
+
 echo "== benign patterns stay silent"
 benign() { # benign <label> <snippet>: a legitimate pattern raises nothing
   local label="$1" snippet="$2" dir="$WORK/$1"
@@ -186,10 +265,8 @@ benign() { # benign <label> <snippet>: a legitimate pattern raises nothing
   check "$label raises no FAIL or WARN" \
     "$(printf '%s\n' "$out" | grep -c ' 0 FAIL, 0 WARN')" 1
 }
-benign comment-with-img-tag \
-  "printf '%s\n' '// the <img> below is decorative' >> $TSX"
-benign dialog-overlay-click \
-  "printf '%s\n' '<div role=\"dialog\" aria-label=\"x\" onClick={go}>y</div>' >> $TSX"
+benign large-level-map \
+  "mkdir -p public/levels; head -c 1100000 /dev/zero | tr '\\0' x > public/levels/big.map"
 benign helper-under-api \
   "mkdir -p src/pages/api/helpers; printf '%s\n' 'export const fmt = () => 1;' > src/pages/api/helpers/format.ts"
 benign mailer-test-file \
@@ -228,6 +305,94 @@ ENVKEY='printf "SUPABASE_SERVICE_ROLE_KEY=%s.%s.signaturepart\n" "$(b64 "{\"alg\
 benign env-worker-ignored "printf '.env.*\n' >> .gitignore; $ENVKEY"
 mutant env-worker-tracked FAIL SB-SERVICE-ROLE-LITERAL "$ENVKEY"
 
+benign parameterized-query \
+  "printf '%s\n' 'const r = await db.query(\"select id from notes where owner = \$1\", [owner]);' >> $API"
+benign tagged-sql-template \
+  "printf '%s\n' 'const r = await sql\`select id from notes where owner = \${owner}\`;' >> $API"
+benign typed-sql-tag \
+  "printf '%s\n' 'const r = await sql<Note[]>\`select id from notes where owner = \${owner}\`;' >> $API"
+benign express-raw-webhook \
+  "printf '%s\n' 'app.post(\"/hook\", express.raw({ type: \"application/json\" }), onHook);' >> $API"
+benign ui-copy-select \
+  "printf '%s\n' 'const hint = \`Select a plan from the list, \${name}\`;' >> $TSX"
+benign ui-copy-delete \
+  "printf '%s\n' 'const label = \"Delete from favorites \" + item.title;' >> $TSX"
+benign jquery-not \
+  "printf '%s\n' 'const rows = \$(\".row\").not(\".row-\" + id);' >> $TSX"
+benign argv-db-tool \
+  "printf '%s\n' 'spawnSync(\"pg_dump\", [\"--table\", table, \"app\"]);' > src/lib/backup.ts"
+benign format-dynamic-exec \
+  "printf '%s\n' \"execute format('select count(*) from %I', tbl) into n;\" >> $SQL"
+benign test-path-sql \
+  "mkdir -p src/__tests__; printf '%s\n' 'const q = \`select id from notes where owner = \${owner}\`;' > src/__tests__/notes.test.ts"
+benign minified-bundle \
+  "printf '%s\n' 'const q=\`select id from notes where owner = \${o}\`;' > src/lib/app.min.js"
+benign long-line-bundle \
+  "head -c 6000 /dev/zero | tr '\\0' x > src/lib/bundle.js; printf '%s\n' ' const q=\`select id from notes where owner = \${o}\`;' >> src/lib/bundle.js"
+
+benign sqla-text-method \
+  "printf '%s\n' 'import sqlalchemy' 'label = project.text(path)' > src/lib/db.py"
+benign sqla-resp-text \
+  "printf '%s\n' 'import sqlalchemy' 'body = resp.text(x)' > src/lib/db.py"
+benign shell-db-argv-spawn \
+  "printf '%s\n' 'spawn(\"psql\", [\"-f\", file], {env});' > src/lib/backup.ts"
+benign shell-db-argv-python \
+  "printf '%s\n' 'subprocess.run([\"psql\", f\"--dbname={url}\"])' > src/lib/backup.py"
+benign shell-db-env-ref \
+  "printf '%s\n' 'execSync(\"psql \$DATABASE_URL -f schema.sql\");' > src/lib/backup.ts"
+benign ruby-where-placeholder \
+  "printf '%s\n' 'User.where(\"name = ?\", name)' 'User.where(name: value)' > src/lib/users.rb"
+benign console-public-minified \
+  "mkdir -p public/js; printf '%s\n' 'console.log(user);' > public/js/app.min.js"
+benign console-plain-string \
+  "printf '%s\n' 'console.log(\"ready\");' >> $TSX"
+benign console-string-data \
+  "printf '%s\n' 'console.log(\"loading data\");' >> $TSX"
+benign console-server-file \
+  "printf '%s\n' 'console.log(\"saved\", session);' >> $API"
+benign logger-stack \
+  "printf '%s\n' 'logger.error(\`notes failed \${res.statusCode}\`, err.stack);' >> $API"
+benign client-console-stack \
+  "printf '%s\n' 'console.warn(\"load failed\", err.stack);' >> $TSX"
+benign vite-hidden-sourcemap \
+  "printf '%s\n' 'export default { build: { sourcemap: \"hidden\" } };' > vite.config.ts"
+benign vendored-map \
+  "mkdir -p static/css; printf '%s\n' '{\"version\":3,\"mappings\":\"AAAA\"}' > static/css/bootstrap.min.css.map"
+benign level-map \
+  "mkdir -p public/levels; printf '%s\n' 'tiles 10x10' > public/levels/1.map"
+benign debug-from-env \
+  "printf '%s\n' 'DEBUG = os.environ.get(\"DEBUG\") == \"1\"' > src/settings.py"
+benign debug-local-settings \
+  "printf '%s\n' 'DEBUG = True' > src/settings_local.py"
+benign debug-lowercase-elsewhere \
+  "printf '%s\n' '    debug = True' > src/lib/tools.py"
+benign errorhandler-dev-guard \
+  "printf '%s\n' 'if (process.env.NODE_ENV === \"development\") app.use(errorhandler());' >> $API"
+benign errorhandler-dev-guard-multiline \
+  "printf '%s\n' 'if (process.env.NODE_ENV === \"development\") {' '  app.use(errorhandler());' '}' >> $API"
+benign flask-config-class \
+  "printf '%s\n' 'class DevelopmentConfig(Config):' '    DEBUG = True' > src/config.py"
+benign error-generic-message \
+  "printf '%s\n' 'export function onFail() { return Response.json({ error: \"internal error\" }, { status: 500 }); }' >> $API"
+benign ts-type-token \
+  "printf '%s\n' 'export async function getServerSideProps() { return { props: {} }; }' 'type Session = { token: string; };' > src/pages/account.tsx"
+benign no-semicolon-type \
+  "printf '%s\n' 'export async function getServerSideProps() { return { props: {} }; }' 'interface Props {' '  token: string' '}' > src/pages/account.tsx"
+benign prisma-multiline-select \
+  "printf '%s\n' 'const u = await prisma.user.findUnique({' '  where: { id },' '  select: { id: true },' '});' >> $API"
+benign csrf-hidden-input \
+  "printf '%s\n' '<input type=\"hidden\" name=\"csrf_secret\" value={csrf} />' >> $TSX"
+benign csrf-data-attr \
+  "printf '%s\n' '<form data-csrf-secret={csrf}>x</form>' >> $TSX"
+# A committed .env.development trips the api domain's API-ENV-NOT-IGNORED by
+# design (the fixture's .gitignore lists .env only), so this lock is scoped
+# to the exposure domain: a dev env file must raise no EXP finding.
+cp -R "$GOOD" "$WORK/env-dev"
+printf '%s\n' 'APP_DEBUG=true' 'GENERATE_SOURCEMAP=true' > "$WORK/env-dev/.env.development"
+out=$(scan --domain exposure "$WORK/env-dev")
+check "a dev env file raises no exposure finding" \
+  "$(printf '%s\n' "$out" | grep -c ' 0 FAIL, 0 WARN')" 1
+
 echo "== transactional versus marketing senders"
 solo tx-only src/contact.ts 'import nodemailer from "nodemailer";'
 check "transactional-only mail exits 0" "$LAST_RC" 0
@@ -253,37 +418,37 @@ check "a subscribers table makes the same senders fail" \
   "$(has FAIL MSG-NO-CONSENT-RECORD)" yes
 
 echo "== check modes (contract oracle and re-pass baseline)"
-IMG="A11Y-IMG-ALT:$TSX"
-cp -R "$GOOD" "$WORK/cm"; edit "$WORK/cm/$TSX" 's/ alt="Company logo"//'
-out=$(scan "$WORK/cm" --assert-absent "$IMG"); rc=$?
+INJ="INJ-SQL-CONCAT:$API"
+cp -R "$GOOD" "$WORK/cm"; printf '%s\n' 'const q = `select id from notes where owner = ${owner}`;' >> "$WORK/cm/$API"
+out=$(scan "$WORK/cm" --assert-absent "$INJ"); rc=$?
 check "positive control: the oracle fails while the hit is there" "$rc" 1
 check "a failing oracle never prints the marker" \
   "$(printf '%s\n' "$out" | grep -c GUARDRAILS-CLEAR)" 0
-out=$(scan "$GOOD" --assert-absent "$IMG"); rc=$?
+out=$(scan "$GOOD" --assert-absent "$INJ"); rc=$?
 check "the oracle passes once the hit is gone" "$rc" 0
 check "a passing oracle prints the marker" \
   "$(printf '%s\n' "$out" | grep -c '^GUARDRAILS-CLEAR 1$')" 1
-out=$(scan "$GOOD" --domain api --assert-absent "$IMG"); rc=$?
+out=$(scan "$GOOD" --domain api --assert-absent "$INJ"); rc=$?
 check "an unscanned domain proves nothing" "$rc" 1
 check "the control failure is named" \
   "$(printf '%s\n' "$out" | grep -c '^  CONTROL ')" 1
 mkdir "$WORK/cm-empty"
-scan "$WORK/cm-empty" --assert-absent "$IMG" >/dev/null
+scan "$WORK/cm-empty" --assert-absent "$INJ" >/dev/null
 check "an empty tree proves nothing" "$?" 1
 scan "$GOOD" --assert-absent HOST-SPEND-CAP:. >/dev/null 2>&1
 check "a MANUAL rule cannot be asserted (exit 2)" "$?" 2
-scan "$GOOD" --assert-absent A11Y-IMG-ALT >/dev/null 2>&1
+scan "$GOOD" --assert-absent INJ-SQL-CONCAT >/dev/null 2>&1
 check "an item without a path is a usage error" "$?" 2
 scan "$WORK/cm" --json > "$WORK/cm-before.json"
 out=$(scan "$GOOD" --baseline "$WORK/cm-before.json"); rc=$?
 check "baseline lists the fixed hit" \
-  "$(printf '%s\n' "$out" | grep -c '^  FIXED A11Y-IMG-ALT ')" 1
+  "$(printf '%s\n' "$out" | grep -c '^  FIXED INJ-SQL-CONCAT ')" 1
 check "baseline with no new hit exits 0 with the marker" \
   "$rc:$(printf '%s\n' "$out" | grep -c '^GUARDRAILS-NO-NEW$')" "0:1"
 scan "$GOOD" --json > "$WORK/clean-before.json"
 out=$(scan "$WORK/cm" --baseline "$WORK/clean-before.json"); rc=$?
 check "baseline lists a new hit" \
-  "$(printf '%s\n' "$out" | grep -c '^  NEW   A11Y-IMG-ALT ')" 1
+  "$(printf '%s\n' "$out" | grep -c '^  NEW   INJ-SQL-CONCAT ')" 1
 check "baseline with a new hit exits 1 without the marker" \
   "$rc:$(printf '%s\n' "$out" | grep -c GUARDRAILS-NO-NEW)" "1:0"
 printf 'not json' > "$WORK/bad.json"
@@ -295,12 +460,12 @@ contract() {
   cat > "$2" <<EOF
 # CONTRACT — guardrails-oracle-test
 ## ACCEPTANCE CRITERIA
-1. every image in the contact form has an alt
-   CHECK: python3 -B '$SCAN' '$1' --assert-absent '$IMG'
+1. no SQL built from input in the notes route
+   CHECK: python3 -B '$SCAN' '$1' --assert-absent '$INJ'
    EXPECT: GUARDRAILS-CLEAR
    EVIDENCE: pending
 ## FILE SCOPE
-$TSX
+$API
 EOF
 }
 contract "$WORK/cm" "$WORK/c-unfixed.md"
@@ -315,17 +480,18 @@ check "gates.sh writes the evidence back" \
 echo "== cli"
 scan "$WORK/does-not-exist" >/dev/null 2>&1; check "bad path exits 2" "$?" 2
 scan --domain nope "$GOOD" >/dev/null 2>&1; check "bad domain exits 2" "$?" 2
+scan --domain a11y "$GOOD" >/dev/null 2>&1; check "a11y is no longer a guardrails domain (exit 2)" "$?" 2
 check "json is valid and counts FAIL" \
   "$(scan --json "$GOOD" | python3 -B -c 'import json,sys; print(json.load(sys.stdin)["summary"]["FAIL"])')" 0
-out=$(scan --domain a11y "$GOOD")
-check "domain filter keeps a11y" \
-  "$(printf '%s\n' "$out" | grep -c '^\[a11y\]')" 1
+out=$(scan --domain injection "$GOOD")
+check "domain filter keeps injection" \
+  "$(printf '%s\n' "$out" | grep -c '^\[injection\]')" 1
 check "domain filter drops supabase" \
   "$(printf '%s\n' "$out" | grep -c '^\[supabase\]')" 0
 cp -R "$GOOD" "$WORK/excl"
-edit "$WORK/excl/$TSX" 's/ alt="Company logo"//'
+printf '%s\n' 'const q = `select id from notes where owner = ${owner}`;' >> "$WORK/excl/$API"
 scan "$WORK/excl" >/dev/null 2>&1; check "mutated copy fails" "$?" 1
-scan --exclude src/components "$WORK/excl" >/dev/null 2>&1
+scan --exclude src/pages "$WORK/excl" >/dev/null 2>&1
 check "--exclude drops the finding" "$?" 0
 mkdir "$WORK/empty"
 out=$(scan "$WORK/empty")
@@ -335,6 +501,33 @@ mkdir "$WORK/linked"; ln -s "$GOOD" "$WORK/linked/escape"
 out=$(scan "$WORK/linked")
 check "symlinked directory is not followed" \
   "$(printf '%s\n' "$out" | grep -c '(0 files)')" 1
+
+echo "== regex timing"
+FAST="$(cd "$ROOT" && python3 -B - <<'PY'
+import importlib.util, sys, time
+sys.path.insert(0, "skills/guardrails/scripts")
+from checks import common, exposure
+spec = importlib.util.spec_from_file_location(
+    "probe", "skills/guardrails/scripts/probe.py")
+probe = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(probe)
+cases = [
+    (exposure.DATA_ATTR, "data-secret" * 20000),
+    (common.MARKUP_COMMENT, "<!--" * 50000),
+    (common.SQL_COMMENT, "/*" * 100000),
+    (probe.SCRIPT_SRC, "<script " * 25000),
+    (probe.TRACE_MARKERS, b"at a ( " * 28000),
+]
+slow = 0
+for pattern, text in cases:
+    start = time.perf_counter()
+    pattern.search(text)
+    slow += time.perf_counter() - start >= 1.0
+print("REGEX-FAST" if not slow else "REGEX-SLOW")
+PY
+)"
+check "adversarial inputs finish each regex under one second" \
+  "$(printf '%s\n' "$FAST" | grep -c 'REGEX-FAST')" 1
 
 echo "---"
 echo "passed: $PASS  failed: $FAIL"
