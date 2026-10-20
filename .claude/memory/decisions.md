@@ -139,6 +139,7 @@ rules:
 | BDR-119 | 2026-10-16 | impeccable = Build path for all UI; GATE-BLOCK swaps frontend-design for impeccable | accepted |
 | BDR-120 | 2026-10-18 | Secure-by-default guardrails: always-on rule file + /guardrails stdlib scanner, passwords in api domain | accepted |
 | BDR-121 | 2026-10-18 | Guardrails fix loop reuses bugfix circuit; scanner = contract oracle, baseline re-pass | accepted |
+| BDR-122 | 2026-10-19 | Guardrails split: /a11y standalone on shared scan engine, injection + exposure domains, exposure proven live by read-only probe | accepted |
 
 ---
 
@@ -1462,3 +1463,9 @@ Branch feature/user-writing-web-rules, UNMERGED (human gate).
 - **Why**: user ask. Proof by deterministic scanner, never executor's word; no new circuit to maintain.
 - **Alternatives rejected**: guardrails edits code itself (skips fresh gates); chain to /bugfix per finding (one interview + contract per hit, too heavy for 60 labels); LLM verifier as sole proof (verdict without execution).
 - **Refs**: feature/secure-by-default 73c25d7. Links [[BDR-120]].
+
+## BDR-122 — Guardrails split: /a11y standalone on the shared scan engine, injection + exposure domains, exposure proven live by the read-only probe [accepted] (2026-10-19)
+- **Decision**: a11y out of /guardrails → `skills/a11y` (own SKILL, Tab-only walk, report `.claude/audits/A11Y.md`, fix loop = bugfixer + verify-secure gates, scanner oracle A11Y-CLEAR / A11Y-NO-NEW). Shared engine `skills/guardrails/scripts/scanner.py` `Catalogue(name, domains, rule_domains, manual_rules)`, marker = name upper; a11y `scan.py` loads it via `importlib.import_module` after `sys.path` insert (no noqa). Guardrails = 7 domains: api, hosting, supabase, messaging, functions, injection (INJ-*, 6 rules), exposure (EXP-*, 9 rules). `rules/secure-by-default.md` six numbered domains; a11y doctrine → lazy `rules/a11y.md` (`paths:` globs), `rules/web-building.md` points at it. Probe exposure block sourcemap / error-body / fields: fail-closed (unobserved = SKIPPED or ERROR, never CLOSED), every plan path starts with `/`, same scheme+host only, production build target (dev-server OPEN = dev artefact). security-auditor gate keeps `--domain api,supabase`. INJ-SQL-RAW-UNSAFE = WARN (variable ≠ proof), INJ-SQL-CONCAT = FAIL.
+- **Why**: user ask 2026-10-18 (keyboard/alt/labels as own skill; SQL/DB injection; browser-visible info). One engine = one CLI contract, two catalogues, no drift. Lazy a11y rule keeps CLAUDE.global.md at 320.
+- **Alternatives rejected**: a11y as a `--domain` flag only (user wanted own report + walk); engine copied into skills/a11y (two CLIs drift); exposure probe against dev server (dev artefacts = false OPEN); semgrep-only (blind to live responses, policies).
+- **Refs**: branch feature/a11y-split-inj-exp, contract `.claude/tasks/contracts/2026-10-18-guardrails-a11y-split-inj-exp-2210.md`; spec + plan purged at finish (`git show 988038c:docs/superpowers/...`). Supersedes the domain list of [[BDR-120]]; links [[BDR-121]].

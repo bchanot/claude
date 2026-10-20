@@ -51,6 +51,7 @@ rules:
 | BLK-029 | 2026-10-08 | Claude Code mods (2.1.294): alias → id resolution for a model set by a hook lags the Agent tool's (`sonnet` → `claude-sonnet-5`, 404); Agent tool schema refuses full ids | upstream |
 | BLK-030 | 2026-10-15 | model-router kept routing best-tier phases to Fable out of usage credits: each new session + each hold lapse lost a turn to 429 `model_requires_usage_credits`; breaker reactive only | resolved |
 | BLK-031 | 2026-10-16 | model-router: session starting on Fable w/o credits lost 1st turn + each hold lapse; probe skipped kept cur | resolved |
+| BLK-032 | 2026-10-19 | Main loop pinned on Fable in long sessions: session model Fable 1M + downgrade cap 120k + prompt rule `plan` → inline code on Fable xhigh; user routing policy recorded for next /feat | open |
 
 ---
 
@@ -329,3 +330,7 @@ rules:
 - **Solution**: c11cd3b drops `!call.moved` guard: model decision lands on (moved or kept) probed once if table id, unverified, not held. Fail → markDown 'probe', one re-decision → leaveDown → opus, stand-in effort +1. Cost ~1.3 s healthy / ≤8 s dead, 1st decision per process. Test `probe: a session model that never answers leaves for opus on the first step`.
 - **Status**: resolved. Open: leaveDown follows classifier `wanted` (implement → sonnet), not opus; "context size unknown" likely document attachment → `promptSize` unknown.
 - **Reference**: [[BLK-030]], [[LRN-218]], contract `.claude/tasks/contracts/2026-10-16-router-probe-session-model-1850.md`.
+
+## BLK-032 — Main loop pinned on Fable in long sessions: session model Fable 1M + downgrade cap 120k + prompt rule `plan` → inline code on Fable xhigh [open]
+- **Cause**: `~/.claude/settings.json` `"model": "claude-fable-5-1[1m]"` (every session starts on Fable); model-router never moves main above the session model, moves DOWN only under `downgradeMaxTokens` 120000 (LRN-204 cold read) → a long session (faunosteo R4.x, context > 120k) never reaches `implement`/sonnet; prompt rule `(plan|design|architecture…)` → phase plan = best/xhigh each turn ("plan §B.1.7"). No doctrine ceiling: CLAUDE.md allows inline work "doable in a few tool calls", BDR-115 "pin = default, never ceiling".
+- **User policy 2026-10-19**: session model Opus 5.5; sonnet writes, opus decides what to write; Fable only for orchestrator reflection/plans and the important audits (security, functional), other judges opus. → next `/feat`: settings model, `judge` split, ceiling rule in CLAUDE.md, BDR superseding part of BDR-066 / BDR-115. Links [[BDR-066]], [[BDR-107]], [[BDR-115]], [[LRN-204]].
