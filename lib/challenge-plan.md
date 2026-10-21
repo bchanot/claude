@@ -47,7 +47,8 @@ JUDGMENT — the challengers are routed to the `judge` row (opus) by the model-r
 the `model: opus` frontmatter being the off-state floor: a big tier, off
 the session model. The session model (Fable)
 keeps only this loop — synthesis, RE-THINK, gate. Never sonnet: that would
-silently downgrade the judgment. (The executor gates stay sonnet.)
+silently downgrade the judgment. (The executors stay sonnet; the two merge
+gates sit on the `audit` row, Fable with an opus floor.)
 
 **Lens framing by `KIND`** (the agent's three lenses, read against the artifact):
 - `build-plan` — will it WORK / will it BREAK / is it needlessly COMPLEX.

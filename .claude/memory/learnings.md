@@ -243,6 +243,7 @@ rules:
 | LRN-221 | 2026-10-19 | Floor-guard suppressions: remove, never waive; contract CHECK asserts intent (symbol/behaviour), not one code spelling | suppressions, writing CHECK: lines |
 | LRN-222 | 2026-10-21 | Map an error to a verdict on a typed exception or carried constant, never on `str(err)`: URLError wraps its reason | probe/fetch error mapping, any err→verdict code |
 | LRN-223 | 2026-10-21 | Regex timing lock is vacuous when the input matches early: feed a non-matching worst-path input, assert `is None`, keep ≥ 2x margin under the lock | every bounded regex test |
+| LRN-224 | 2026-10-21 | Best-tier agent row floors on tier 2nd alias: inTier writes head-or-above only, fable frontmatter = no fallback in credit outage | pinning agents on best tier, census floors |
 
 ---
 
@@ -1866,3 +1867,7 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 ## LRN-223 — Regex timing lock is vacuous when the input matches early: non-matching worst-path input, assert `is None`, ≥ 2x margin
 - **Context**: plan r1 timing cases (LRN-219 lock, 1.0 s / 80 KB) fed inputs the bounded regex matched at the start, so they ran fast by construction and proved nothing (challenger BLOCKER, robustness lens). r3: inputs built to force the longest non-matching scan, cases assert `is None` and the elapsed time; SHELL_DB case at 0.65 s was too close to the lock → 1800 units (~29 KB) for margin.
 - **Apply**: one timing case per bounded regex, input that does NOT match and exercises the widest quantifier; assert the non-match too, else a regex that matches everything passes the lock; keep elapsed ≤ half the lock. Links [[LRN-219]], [[BLK-033]].
+
+## LRN-224 — Best-tier agent row floors on tier's 2nd alias: inTier writes head-or-above only
+- **Context**: feat A (routing policy BLK-032) moved verifier + security-auditor to new `audit` phase (best = fable>opus>sonnet). Plan r1 set frontmatter `model: fable` (census rule floor = tier head) and claimed "Fable down → falls to opus". False: `inTier` (register.ts) writes a model only if it is the head or ranks above it, else logs "tier … down, frontmatter model kept" → fable frontmatter = gates spawn on dead Fable every credit outage (BLK-030/031). Lower tiers never hit it (head sonnet/opus always has a higher alias). Caught by correctness + robustness lenses r1, not by plan author.
+- **Apply**: an agent on a best-tier row keeps opus frontmatter; router lifts to Fable when up. Census `tier_floor` (effort-routing.test.sh) locks 2nd alias for best. Residual: spawn path unprobed → first gate of an outage window still dies once, retry lands on floor (register.test.ts audit-row case b). Links [[BLK-030]], [[BLK-032]], [[LRN-204]].

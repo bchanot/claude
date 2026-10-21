@@ -69,6 +69,7 @@ const baseRouting = (): Rec => ({
     orchestrate: { tier: 'best', effort: 'medium' },
     escalate: { tier: 'best', effort: 'max' },
     judge: { tier: 'big', effort: 'xhigh' },
+    audit: { tier: 'best', effort: 'xhigh' },
     implement: { tier: 'work', effort: 'medium' },
     write: { tier: 'work', effort: 'high' },
     verify: { tier: 'work', effort: 'xhigh' },
@@ -1289,6 +1290,32 @@ test('agent row: opus and fable down, no write and one log line', async (
     'model-router: plan-challenger tier big down, frontmatter model kept',
   ])
 })
+
+const auditWorld = () => newWorld({
+  edit: f => { (f.agents as Rec)['security-auditor'] = 'audit' },
+})
+
+test('audit row: fable down, no write, frontmatter runs', async (
+  $, on) => {
+  const logs = recordLogs(on)
+  const rig = await bootRun($, on, FABLE, auditWorld())
+  await switchTo($, FABLE, SONNET, 'auto')
+  await $.agent.spawn(spawnOf('security-auditor'))
+  expect(rig.specs).toEqual([undefined])
+  const down = logs.filter(l => l.includes('frontmatter model kept'))
+  expect(down).toEqual([
+    'model-router: security-auditor tier best down, frontmatter model kept',
+  ])
+})
+
+test('audit row: first spawn dies on fable, the retry lands on the floor',
+  async ($, on) => {
+    const rig = await bootRun($, on, FABLE, auditWorld())
+    await $.agent.spawn(spawnOf('security-auditor'))
+    await failWith($, 'rate_limit', 'a1')
+    await $.agent.spawn(spawnOf('security-auditor'))
+    expect(rig.specs).toEqual([FABLE, undefined])
+  })
 
 test('agent row: explicit model, explicit effort and fork win', async (
   $, on) => {
@@ -2552,7 +2579,7 @@ test('/route pending lists what is not confirmed, asked first', async (
   await bootRun($, on, FABLE, w)
   await typeFeat($)
   const lines = (await route($, 'pending')).split('\n')
-  expect(lines[0]).toBe('pending confirmation: 19')
+  expect(lines[0]).toBe('pending confirmation: 20')
   expect(lines[1]).toBe('asked this session: skills:feat')
   expect(lines[2]).toContain('agents:feater')
   expect(lines[2]).toContain('phases:plan')
@@ -2564,7 +2591,7 @@ test('/route pending drops a confirmed row', async ($, on) => {
   await bootRun($, on, FABLE, w)
   await typeFeat($)
   const text = await route($, 'pending')
-  expect(text).toContain('pending confirmation: 17')
+  expect(text).toContain('pending confirmation: 18')
   expect(text).not.toContain('phases:reflect')
 })
 
