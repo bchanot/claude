@@ -107,7 +107,7 @@
     "capitalize": "apply",
     "close": "apply",
     "reconcile": "apply",
-    "deploy": "apply",
+    "deploy": "verify",
     "status": "mechanical",
     "profile": "mechanical",
     "plugin-check": "mechanical",
@@ -158,7 +158,8 @@
       "bugfixer": "implement",
       "plugin-probe": "apply",
       "plugin-advisor": "judge",
-      "Explore": "explore"
+      "Explore": "explore",
+      "release-executor": "apply"
     },
     "phases": {
       "verify": "verify",
@@ -174,9 +175,17 @@
     },
     "skills": {
       "gitflow": "implement",
-      "ship-feature": "plan"
+      "ship-feature": "plan",
+      "deploy": "verify"
     }
   },
-  "changed": {},
+  "changed": {
+    "skills": {
+      "deploy": {
+        "from": "apply",
+        "to": "verify"
+      }
+    }
+  },
   "ask": true
 }

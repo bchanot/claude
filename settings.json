@@ -1,12 +1,12 @@
 {
   "cleanupPeriodDays": 7,
+  "env": {
+    "ENABLE_STOP_REVIEW": "0"
+  },
   "attribution": {
     "commit": "",
     "pr": "",
     "sessionUrl": false
-  },
-  "env": {
-    "ENABLE_STOP_REVIEW": "0"
   },
   "permissions": {
     "allow": [
@@ -354,7 +354,7 @@
     "disableBypassPermissionsMode": "disable",
     "additionalDirectories": []
   },
-  "model": "claude-fable-5-1[1m]",
+  "model": "opus",
   "hooks": {
     "SessionStart": [
       {
