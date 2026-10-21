@@ -31,12 +31,15 @@ import urllib.request
 from dataclasses import asdict, dataclass
 from urllib.parse import quote, urljoin, urlsplit
 
+from checks.common import printable
+
 READ_METHODS = {"GET", "HEAD", "OPTIONS"}
 FAKE_ORIGIN = "https://guardrails-probe.invalid"
 DEFAULT_BUDGET = 200
 BURST_CAP = 25
 BODY_CAP = 1_000_000
 SCRIPT_CAP = 10
+BUDGET_EXHAUSTED = "request budget exhausted"
 SCRIPT_SRC = re.compile(r"<script[^>]{1,300}src=[\"']?([^\"'\s>]+)", re.I)
 MAP_COMMENT = re.compile(
     r"^[ \t]*//[#@][ \t]*sourceMappingURL=(\S+)", re.M)
@@ -50,6 +53,10 @@ SENSITIVE_KEY = re.compile(
     r"|service_?role"
     r"|private_?key|(?:access|refresh|id|auth|api|session)_token|jwt|ssn"
     r"|iban|cvv|card_?number)(?:$|_)")
+METADATA_KEY = re.compile(
+    r"^(?:has|is|needs|requires)_"
+    r"|_(?:type|count|length|url|expires?(?:_in)?|expiry|ttl|at)$"
+    r"|^(?:next_page_token|page_token|cursor|csrf_?token|xsrf_?token)$")
 IDENT = re.compile(r"[A-Za-z_][\w-]{0,31}")  # used with fullmatch
 
 
@@ -84,12 +91,25 @@ def _stays_on_host(old_url, new_url):
         == ("http", "https"))
 
 
+class _BudgetExhausted(urllib.error.URLError):
+    """The shared request budget ran out in the middle of a redirect."""
+
+
 class _SameHost(urllib.request.HTTPRedirectHandler):
-    """Follow a same-host redirect, drop one that leaves the host."""
+    """Follow a same-host redirect, drop one that leaves the host.
+
+    Each followed hop is a request: it is charged to the session budget.
+    """
+
+    def __init__(self, session):
+        self.session = session
 
     def redirect_request(self, req, fp, code, msg, headers, newurl):
         if not _stays_on_host(req.full_url, newurl):
             return None
+        if self.session.budget <= 0:
+            raise _BudgetExhausted(BUDGET_EXHAUSTED)
+        self.session.budget -= 1
         return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
@@ -97,7 +117,7 @@ class Session:
     """Holds the redirect-guarded opener and the shared request budget."""
 
     def __init__(self, timeout=8, budget=DEFAULT_BUDGET):
-        self.opener = urllib.request.build_opener(_SameHost())
+        self.opener = urllib.request.build_opener(_SameHost(self))
         self.timeout = timeout
         self.budget = budget
 
@@ -115,7 +135,7 @@ def _response_from(resp):
 
 def fetch(session, method, url, headers=None, body=None):
     if session.budget <= 0:
-        return Response(None, {}, b"", "request budget exhausted")
+        return Response(None, {}, b"", BUDGET_EXHAUSTED)
     session.budget -= 1
     req = urllib.request.Request(
         url, data=body, method=method, headers=headers or {})
@@ -124,6 +144,8 @@ def fetch(session, method, url, headers=None, body=None):
             return _response_from(resp)
     except urllib.error.HTTPError as exc:
         return Response(exc.code, exc.headers, _error_body(exc))
+    except _BudgetExhausted:
+        return Response(None, {}, b"", BUDGET_EXHAUSTED)
     except (urllib.error.URLError, OSError, ValueError,
             http.client.HTTPException) as exc:
         reason = str(exc)
@@ -140,20 +162,37 @@ def _verdict(ctx, response, is_open, msgs):
     return Probe(domain, pid, verdict, target, note)
 
 
-def _nonempty_rows(body):
-    try:
-        data = json.loads(body or b"[]")
-    except ValueError:
-        return False
-    return isinstance(data, list) and len(data) > 0
+def _rows_state(resp):
+    """rows | empty | unreadable: what a 200 body says about table rows."""
+    if not resp.body or len(resp.body) >= BODY_CAP:
+        return "unreadable"
+    data, is_json = _json_body(resp)
+    if not is_json:
+        return "unreadable"
+    return "rows" if isinstance(data, list) and data else "empty"
+
+
+def _rows_verdict(ctx, resp, msgs):
+    """ctx is (domain, id, target); msgs is (rows_note, empty_note)."""
+    if resp.error or resp.status in (401, 403, 404):
+        return _verdict(ctx, resp, False, msgs)
+    domain, pid, target = ctx
+    if resp.status != 200:
+        note = f"HTTP {resp.status}: not confirmed"
+        return Probe(domain, pid, "SKIPPED", target, note)
+    state = _rows_state(resp)
+    if state == "unreadable":
+        note = (f"HTTP {resp.status}: body not readable as JSON rows, "
+                "not confirmed")
+        return Probe(domain, pid, "SKIPPED", target, note)
+    return _verdict(ctx, resp, state == "rows", msgs)
 
 
 def _table_probe(session, base, table, headers):
     target = f"{base}/rest/v1/{quote(table)}?select=*&limit=1"
     resp = fetch(session, "GET", target, headers)
-    return _verdict(
+    return _rows_verdict(
         ("supabase", f"anon-read:{table}", target), resp,
-        resp.status == 200 and _nonempty_rows(resp.body),
         ("anon request returned rows", "anon request returned no row"))
 
 
@@ -173,9 +212,8 @@ def probe_supabase(session, plan):
 def _cross_user_probe(session, base, path, headers):
     target = base + path
     resp = fetch(session, "GET", target, headers)
-    return _verdict(
+    return _rows_verdict(
         ("supabase", f"cross-user:{path}", target), resp,
-        resp.status == 200 and _nonempty_rows(resp.body),
         ("second user's token returned these rows",
          "second user's token returned nothing"))
 
@@ -239,9 +277,13 @@ def _burst_codes(session, url, method, body, count):
     return codes
 
 
-def _rate_verdict(target, codes):
+def _rate_verdict(target, codes, count):
     sent = len([c for c in codes if c is not None])
     throttled = 429 in codes
+    if not throttled and sent < count:
+        return Probe("hosting", "rate-limit", "SKIPPED", target,
+                     "burst cut short (budget or transport), "
+                     "rate limit not confirmed")
     note = (f"sent {sent}, {'got a 429' if throttled else 'no 429'}: "
             + ("throttled" if throttled else "no 429 seen on this route"))
     return Probe("hosting", "rate-limit",
@@ -253,10 +295,11 @@ def probe_rate_limit(session, plan):
     if not cfg:
         return []
     target = plan["base_url"].rstrip("/") + cfg["path"]
+    count = min(cfg.get("count", 20), BURST_CAP)
     codes = _burst_codes(
         session, target, cfg.get("method", "GET").upper(),
-        cfg.get("body"), min(cfg.get("count", 20), BURST_CAP))
-    return [_rate_verdict(target, codes)]
+        cfg.get("body"), count)
+    return [_rate_verdict(target, codes, count)]
 
 
 def _same_host(context, url):
@@ -292,30 +335,47 @@ def _map_candidates(script_url, resp):
     return list(dict.fromkeys(urls))
 
 
+def _status_outcome(resp, target):
+    """Outcome of a fetched map candidate that answered with a status."""
+    if resp.status == 200 and len(resp.body) >= BODY_CAP:
+        return ("note", target, "map answered 200 but its body is over "
+                "1 MB: sources not confirmed, fetch it by hand")
+    if resp.status == 200 and b'"sources"' in resp.body:
+        return "open", target, "source map served with its sources"
+    if resp.status in (200, 404, 410):
+        return "negative", target, ""
+    return ("note", target,
+            f"HTTP {resp.status}: map not readable, not confirmed")
+
+
+def _map_outcome(session, script_url, url):
+    """(kind, target, note), kind in open | negative | note | error."""
+    if url.startswith("data:"):
+        return "open", script_url, "inline source map in the script"
+    target = _same_host(script_url, url)
+    if not target:
+        return "note", url, "map url on another host, not fetched"
+    resp = fetch(session, "GET", target)
+    if resp.error or resp.status is None:
+        return "error", target, resp.error or "no response"
+    return _status_outcome(resp, target)
+
+
 def _map_verdict(session, script_url, candidates):
-    """(verdict, target, note) over the candidate map urls, fail closed."""
+    """(verdict, target, note) over every candidate map url, fail closed."""
+    seen, notes = set(), []
     for url in candidates:
-        if url.startswith("data:"):
-            if "base64," not in url:
-                continue
-            return "OPEN", script_url, "inline source map in the script"
-        target = _same_host(script_url, url)
-        if not target:
-            return "SKIPPED", url, "map url on another host, not fetched"
-        resp = fetch(session, "GET", target)
-        if resp.error or resp.status is None:
-            return "ERROR", target, resp.error or "no response"
-        if 300 <= resp.status < 400:
-            return ("SKIPPED", target, f"HTTP {resp.status}: map redirect "
-                    "dropped (off host or downgraded), not followed")
-        if resp.status == 403 or (resp.status or 0) >= 500:
-            return ("SKIPPED", target,
-                    f"HTTP {resp.status}: map not readable, not confirmed")
-        if resp.status == 200 and len(resp.body) >= BODY_CAP:
-            return ("SKIPPED", target, "map answered 200 but its body is "
-                    "over 1 MB: sources not confirmed, fetch it by hand")
-        if resp.status == 200 and b'"sources"' in resp.body:
-            return "OPEN", target, "source map served with its sources"
+        key = _same_host(script_url, url) or url
+        if key in seen:
+            continue
+        seen.add(key)
+        kind, target, note = _map_outcome(session, script_url, url)
+        if kind in ("open", "error"):
+            return kind.upper(), target, note
+        if kind == "note":
+            notes.append(("SKIPPED", target, note))
+    if notes:
+        return notes[0]
     return "CLOSED", script_url, "no source map served for this script"
 
 
@@ -379,8 +439,13 @@ def _snake(key):
     return re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", key).replace("-", "_").lower()
 
 
+def _is_sensitive(key):
+    name = _snake(key)
+    return bool(SENSITIVE_KEY.search(name)) and not METADATA_KEY.search(name)
+
+
 def _sensitive_keys(data):
-    return sorted({k for k in _keys(data) if SENSITIVE_KEY.search(_snake(k))})
+    return sorted({k for k in _keys(data) if _is_sensitive(k)})
 
 
 def _key_note(keys):
@@ -447,15 +512,10 @@ def _tally(results):
             for v in ("OPEN", "CLOSED", "SKIPPED", "ERROR")}
 
 
-def _printable(text):
-    """Control characters of a remote or plan string never reach the tty."""
-    return re.sub(r"[\x00-\x1f\x7f-\x9f]", "?", str(text))
-
-
 def _probe_row(probe):
     return (f"  {probe.verdict:<8} {probe.domain:<9} "
-            f"{_printable(probe.id)}  {_printable(probe.target)}\n"
-            f"           {_printable(probe.message)}")
+            f"{printable(probe.id)}  {printable(probe.target)}\n"
+            f"           {printable(probe.message)}")
 
 
 def _summary(results):
@@ -466,7 +526,7 @@ def _summary(results):
 
 def _render_text(plan, results):
     body = [_probe_row(p) for p in results]
-    head = [_printable(f"guardrails live probe: {plan['base_url']}"),
+    head = [printable(f"guardrails live probe: {plan['base_url']}"),
             f"probes: {len(results)}  (read-only, bounded budget)"]
     return "\n".join(head + [""] + body + [_summary(results)])
 
@@ -527,6 +587,23 @@ def _exposure_error(cfg):
     return ""
 
 
+def _supabase_error(plan):
+    cfg = plan.get("supabase")
+    if cfg is None:
+        return ""
+    if not isinstance(cfg, dict):
+        return "supabase must be an object"
+    paths, tables = cfg.get("cross_user_paths"), cfg.get("tables")
+    if paths is not None and not isinstance(paths, list):
+        return "supabase.cross_user_paths must be a list"
+    if tables is not None and not (isinstance(tables, list) and all(
+            isinstance(t, str) for t in tables)):
+        return "supabase.tables must be a list of strings"
+    if (tables or paths) and not _http_url(cfg.get("url")):
+        return "supabase.url must be an http(s) url"
+    return ""
+
+
 def _shape_error(plan):
     rate = plan.get("rate_limit", {})
     if not isinstance(rate, dict):
@@ -536,13 +613,7 @@ def _shape_error(plan):
     if plan.get("routes") is not None and \
             not isinstance(plan["routes"], list):
         return "routes must be a list"
-    if plan.get("supabase") is not None and \
-            not isinstance(plan["supabase"], dict):
-        return "supabase must be an object"
-    paths = _obj(plan, "supabase").get("cross_user_paths")
-    if paths is not None and not isinstance(paths, list):
-        return "supabase.cross_user_paths must be a list"
-    return ""
+    return _supabase_error(plan)
 
 
 def _plan_error(plan):
@@ -567,17 +638,25 @@ def parse_args(argv):
     return parser.parse_args(argv)
 
 
+def _refusal(plan):
+    hosts = [plan["base_url"]]
+    supabase_url = _obj(plan, "supabase").get("url")
+    if supabase_url:
+        hosts.append(supabase_url)
+    owned = " and ".join(printable(h) for h in hosts)
+    return ("refused: pass --authorized to confirm you own "
+            f"{owned} and may probe {'them' if len(hosts) > 1 else 'it'}")
+
+
 def main(argv):
     args = parse_args(argv)
     plan, error = _load_plan(args.plan)
     error = error or _plan_error(plan or {})
     if error:
-        print(f"usage error: {error}", file=sys.stderr)
+        print(f"usage error: {printable(error)}", file=sys.stderr)
         return 2
     if not args.authorized:
-        print("refused: pass --authorized to confirm you own "
-              f"{_printable(plan['base_url'])} and may probe it",
-              file=sys.stderr)
+        print(_refusal(plan), file=sys.stderr)
         return 2
     results = run_probes(Session(), plan)
     render = _render_json if args.json else _render_text

@@ -127,6 +127,31 @@ class H(BaseHTTPRequestHandler):
         if path == "/boom":
             return self._send(500, b"Traceback (most recent call last):\n"
                               b'  File "app.py", line 12, in handler\n')
+        if path == "/hop1":
+            return self._send(302, b"", {"Location": "/hop2"})
+        if path == "/hop2":
+            return self._send(302, b"", {"Location": "/hop3"})
+        if path == "/hop3":
+            return self._send(200, b'{"ok": true}')
+        if path == "/rest/v1/deep":
+            return self._send(200, b"[" * 200000)
+        if path == "/meta/keys":
+            return self._send(200, b'{"tokenType": "bearer", "has_password": true, '
+                              b'"token_expires_in": 3600, "password_changed_at": "2026"}',
+                              {"Content-Type": "application/json"})
+        if path == "/forbidden.js":
+            return self._send(200, b"f();\n//# sourceMappingURL=forbidden-real.js.map\n")
+        if path == "/forbidden.js.map":
+            return self._send(403, b"")
+        if path == "/forbidden-real.js.map":
+            return self._send(200, b'{"version":3,"sources":["f.ts"]}')
+        if path == "/pct.js":
+            return self._send(200, b"p();\n//# sourceMappingURL=data:"
+                              b"application/json,%7B%22version%22%3A3%7D\n")
+        if path == "/limited.js":
+            return self._send(200, b"l();\n")
+        if path == "/limited.js.map":
+            return self._send(429, b"")
         if path == "/api/me":
             return self._send(200, b'{"id": 1, "email": "t@t.io", '
                               b'"password_hash": "x", "profile": {"api_key": "y"}, '
@@ -245,7 +270,7 @@ check "the random 404 path is CLOSED" \
 check "sensitive keys in a JSON response are OPEN" \
   "$(verdict "$OUT" 'fields:/api/me')" OPEN
 check "the sensitive key names are listed, never the values" \
-  "$(printf '%s\n' "$OUT" | grep -A1 'fields:/api/me' | grep -c 'api_key, next_page_token, password_hash$')" 1
+  "$(printf '%s\n' "$OUT" | grep -A1 'fields:/api/me' | grep -c 'api_key, password_hash$')" 1
 check "a bare token key is OPEN, a bare private key is not" \
   "$(verdict "$OUT" 'fields:/api/session')" OPEN
 check "the session key list is token only" \
@@ -336,6 +361,19 @@ check "a truncated script is SKIPPED" \
 check "an oversize map is SKIPPED" \
   "$(verdict "$OUT" 'sourcemap:/bigmap.js')" SKIPPED
 
+cat > "$WORK/maps2.json" <<EOF
+{"base_url": "$BASE",
+ "exposure": {"scripts": ["/forbidden.js", "/pct.js", "/limited.js"],
+   "error_routes": []}}
+EOF
+OUT="$(probe --authorized "$WORK/maps2.json")"
+check "a 403 first candidate does not hide a map the comment names" \
+  "$(verdict "$OUT" 'sourcemap:/forbidden.js')" OPEN
+check "a percent-encoded data: source map is OPEN" \
+  "$(verdict "$OUT" 'sourcemap:/pct.js')" OPEN
+check "a 429 on the only map candidate is SKIPPED, never CLOSED" \
+  "$(verdict "$OUT" 'sourcemap:/limited.js')" SKIPPED
+
 echo "== fields probe: depth and bearer"
 cat > "$WORK/fields.json" <<EOF
 {"base_url": "$BASE",
@@ -389,6 +427,68 @@ check "a same-scheme same-host url is kept" \
   "$(same_host http://a.test/x /y)" True
 check "an http to https upgrade on the host is kept" \
   "$(same_host http://a.test/x https://a.test/y)" True
+
+echo "== supabase plan, rows state, redirect budget, metadata keys"
+printf '{"base_url": "%s", "supabase": {"url": "file:///etc/hosts", "tables": ["t"]}}\n' \
+  "$BASE" > "$WORK/sbfile.json"
+ERR="$(probe --authorized "$WORK/sbfile.json" 2>&1 >/dev/null)"
+check "a file:// supabase url exits 2" \
+  "$(probe --authorized "$WORK/sbfile.json" >/dev/null 2>&1; echo $?)" 2
+check "the usage error names supabase.url" \
+  "$(printf '%s\n' "$ERR" | grep -c 'supabase.url must be an http(s) url')" 1
+printf '{"base_url": "%s", "supabase": {"tables": ["t"]}}\n' "$BASE" > "$WORK/sbnourl.json"
+ERR="$(probe --authorized "$WORK/sbnourl.json" 2>&1 >/dev/null)"
+check "tables without a supabase url is a usage error, no traceback" \
+  "$(printf '%s\n' "$ERR" | grep -c 'Traceback')" 0
+check "tables without a supabase url exits 2" \
+  "$(probe --authorized "$WORK/sbnourl.json" >/dev/null 2>&1; echo $?)" 2
+printf '{"base_url": "%s", "supabase": {"url": "%s", "tables": "notes"}}\n' \
+  "$BASE" "$BASE" > "$WORK/sbstr.json"
+check "a string tables exits 2" \
+  "$(probe --authorized "$WORK/sbstr.json" >/dev/null 2>&1; echo $?)" 2
+printf '{"base_url": "%s", "supabase": {"url": "https://a.test/\\u001b[2J", "tables": ["t"]}}\n' \
+  "$BASE" > "$WORK/sbesc.json"
+ERR="$(probe "$WORK/sbesc.json" 2>&1 >/dev/null)"
+check "the refusal names the supabase url, control character replaced" \
+  "$(printf '%s\n' "$ERR" | grep -cF 'and https://a.test/?[2J')" 1
+check "no ESC byte reaches the refusal" \
+  "$(printf '%s\n' "$ERR" | LC_ALL=C grep -c "$(printf '\033')")" 0
+cat > "$WORK/deep.json" <<EOF
+{"base_url": "$BASE", "supabase": {"url": "$BASE", "tables": ["deep"]}}
+EOF
+OUT="$(probe --authorized "$WORK/deep.json" 2>"$WORK/deep.err")"
+check "a deeply nested rows body is SKIPPED, never CLOSED" \
+  "$(verdict "$OUT" 'anon-read:deep')" SKIPPED
+check "a deeply nested rows body raises no traceback" \
+  "$(grep -c Traceback "$WORK/deep.err")" 0
+cat > "$WORK/cu401.json" <<EOF
+{"base_url": "$BASE", "supabase": {"url": "$BASE", "cross_user_paths": ["/api/guarded"]}}
+EOF
+OUT="$(probe --authorized "$WORK/cu401.json")"
+check "a cross-user read refused with 401 stays CLOSED" \
+  "$(verdict "$OUT" 'cross-user:/api/guarded')" CLOSED
+cat > "$WORK/meta.json" <<EOF
+{"base_url": "$BASE", "routes": [{"path": "/meta/keys"}],
+ "exposure": {"scripts": [], "error_routes": []}}
+EOF
+OUT="$(probe --authorized "$WORK/meta.json")"
+check "metadata keys (camelCase and snake) are never sensitive" \
+  "$(verdict "$OUT" 'fields:/meta/keys')" CLOSED
+hops() { python3 -B -c '
+import sys
+sys.path.insert(0, sys.argv[1])
+import probe
+base = sys.argv[2]
+s = probe.Session()
+r = probe.fetch(s, "GET", base + "/hop1")
+print(r.status, s.budget == probe.DEFAULT_BUDGET - 3)
+s = probe.Session(budget=2)
+print(probe.fetch(s, "GET", base + "/hop1").error == probe.BUDGET_EXHAUSTED)
+print(probe._route_probe(probe.Session(budget=2), base,
+                         {"path": "/hop1"}).verdict)' \
+  "$ROOT/skills/guardrails/scripts" "$BASE"; }
+check "a redirect chain is charged per hop and exhaustion reads ERROR" \
+  "$(hops | tr '\n' ' ')" "200 True True ERROR "
 
 echo "== JSON output"
 check "json reports the open count" \

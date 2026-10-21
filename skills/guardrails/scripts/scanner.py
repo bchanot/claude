@@ -19,7 +19,7 @@ from collections import Counter
 from dataclasses import dataclass
 from pathlib import Path
 
-from checks.common import Project
+from checks.common import Project, printable
 
 SEVERITY_RANK = {"FAIL": 0, "WARN": 1, "MANUAL": 2}
 GATED = ("FAIL", "WARN")
@@ -101,6 +101,11 @@ def _summary_line(findings):
         f"{n} {sev}" for sev, n in totals.items())
 
 
+def _safe_text(text):
+    """Control characters from file names and messages never reach the tty."""
+    return "\n".join(printable(line) for line in text.split("\n"))
+
+
 def render_text(project, cat, result):
     lines = [
         f"{cat.name} scan: {project.root} ({len(project.files)} files)",
@@ -110,7 +115,7 @@ def render_text(project, cat, result):
         lines.append("not applicable: " + ", ".join(result.skipped))
     for domain in result.applicable:
         lines += _domain_lines(domain, result.findings)
-    return "\n".join(lines + [_summary_line(result.findings)])
+    return _safe_text("\n".join(lines + [_summary_line(result.findings)]))
 
 
 def render_json(project, result):
@@ -236,7 +241,7 @@ def _scan(cat, args):
         print(text)
         return 1 if any(f.severity == "FAIL" for f in result.findings) else 0
     for _, lines in checks:
-        print("\n".join(lines))
+        print(_safe_text("\n".join(lines)))
     return 0 if all(ok for ok, _ in checks) else 1
 
 
@@ -244,6 +249,6 @@ def main(argv, cat):
     args = parse_args(argv, cat)
     error = _usage_error(cat, args)
     if error:
-        print(f"usage error: {error}", file=sys.stderr)
+        print(_safe_text(f"usage error: {error}"), file=sys.stderr)
         return 2
     return _scan(cat, args)

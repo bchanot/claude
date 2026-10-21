@@ -56,6 +56,10 @@ it ever reached git history is a separate check (`gitleaks git <repo>`).
 Heuristic blind spots are in `references/checks.md`: check them before
 calling a hit false.
 
+- INJ-SQL-CONCAT on `IN (${placeholders})` where the list is generated
+  `?`/`$n` markers and the values travel in a separate array: parameterised,
+  confirm by hand and drop it from the proposals.
+
 ## STEP 4: Cover what the scanner cannot
 
 Read the code for the domains that apply and answer, with file:line evidence:
@@ -93,8 +97,10 @@ never a third party.
    the `routes` (mark the ones meant to be public), `cors`, and a
    `rate_limit` route if the user wants that one burst. Add an `exposure` block (`{}` for the defaults, `error_routes` for a route you own that answers an error to a malformed id, never a path you guess) so the probe reads source maps, error bodies and response keys; every path in the plan starts with `/`. Secrets never go in
    the plan or the command line: export `GUARDRAILS_ANON_KEY` and, for the
-   cross-user probe, `GUARDRAILS_JWT2`, from test keys, never `service_role`.
-2. **Run it**, confirming ownership with `--authorized`:
+   cross-user probe, `GUARDRAILS_JWT2`, from test keys, never `service_role`. The fields probe sends
+   `GUARDRAILS_JWT2` as a bearer when set, so an OPEN there is what a
+   logged-in user sees.
+2. **Run it**, confirming ownership with `--authorized`. Before adding `--authorized`, show the user both hosts the plan names (`base_url` and the Supabase `url`, the latter read from the project's config and so untrusted) and get their go on both:
    ```
    python3 -B "$HOME/.claude/skills/guardrails/scripts/probe.py" \
      plan.json --authorized
@@ -201,7 +207,8 @@ file before anything else. Accepted set empty → stop.
    proof the scanner cannot run (probe, cross-user, manual SQL) is a
    criterion without CHECK: STEP 11 settles it. FILE SCOPE = the files the
    accepted proposals name. Paths go in single quotes; a path holding a
-   single quote is named to the user, never written into a CHECK.
+   single quote is named to the user, never written into a CHECK. The
+   RULE:path pairs come from the `--json` output, never from the text report.
 4. **Positive control.** Run each oracle once on the unfixed tree: it must
    fail. An oracle that passes before the fix proves nothing; drop it, find
    why, and say so.
