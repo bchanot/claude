@@ -213,6 +213,7 @@ rules:
 | LRN-219 | 2026-10-19 | Scanner regex over untrusted trees: bound every repeat, cap comment blankers, timing lock on adversarial file | any whole-file regex scanner |
 | LRN-220 | 2026-10-19 | Live probe verdicts fail closed by construction: fixture route per negative branch, 3xx = SKIPPED, depth/size limit = SKIPPED never CLOSED | writing probes and their suites |
 | LRN-221 | 2026-10-19 | Floor-guard suppressions: remove, never waive; contract CHECK asserts intent (symbol/behaviour), not one code spelling | suppressions, writing CHECK: lines |
+| LRN-224 | 2026-10-21 | Best-tier agent row floors on tier 2nd alias: inTier writes head-or-above only, fable frontmatter = no fallback in credit outage | pinning agents on best tier, census floors |
 
 ---
 
@@ -1828,3 +1829,7 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 ## LRN-221 — Floor-guard suppressions: remove, never waive; contract oracles assert intent, not syntax
 - **Context**: GATE 1 counted 6 floor findings: `# noqa: E402` ×2 (import after `sys.path.insert`), a `# shellcheck disable=SC2016` copied from another suite (dead: deleting it raised nothing), 3 plan quotes of the same lines. `importlib.import_module` after the insert needs no noqa. Then criterion 16's CHECK grepped `^import scanner` and went red on the legit fix.
 - **Apply**: a suppression = first try the construct that needs none; test a copied `disable` by deleting it; a CHECK greps the symbol or behaviour (`scanner.Catalogue` loaded), never one spelling of the code. Links [[BDR-102]].
+
+## LRN-224 — Best-tier agent row floors on tier's 2nd alias: inTier writes head-or-above only
+- **Context**: feat A (routing policy BLK-032) moved verifier + security-auditor to new `audit` phase (best = fable>opus>sonnet). Plan r1 set frontmatter `model: fable` (census rule floor = tier head) and claimed "Fable down → falls to opus". False: `inTier` (register.ts) writes a model only if it is the head or ranks above it, else logs "tier … down, frontmatter model kept" → fable frontmatter = gates spawn on dead Fable every credit outage (BLK-030/031). Lower tiers never hit it (head sonnet/opus always has a higher alias). Caught by correctness + robustness lenses r1, not by plan author.
+- **Apply**: an agent on a best-tier row keeps opus frontmatter; router lifts to Fable when up. Census `tier_floor` (effort-routing.test.sh) locks 2nd alias for best. Residual: spawn path unprobed → first gate of an outage window still dies once, retry lands on floor (register.test.ts audit-row case b). Links [[BLK-030]], [[BLK-032]], [[LRN-204]].

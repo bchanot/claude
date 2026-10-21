@@ -629,3 +629,6 @@ rules:
 
 ## 2026-10-19
 - Guardrails split shipped via /ship-feature (feature/a11y-split-inj-exp): /a11y skill on the shared engine, injection + exposure domains, probe exposure block, secure-by-default six domains. SDD 9 tasks, GATE 1 ECARTS(9)→CONFORME (fields CLOSED route, suppressions removed), GATE 2 PASS (7 LOW), opus review 0 Critical / 6 Important fixed. Routing finding: Fable pinned in long sessions (BLK-032), user policy recorded for a later /feat. Merge on user go.
+
+## 2026-10-21
+- /feat routing policy A (feature/routing-audit-phase, BLK-032): `audit` phase (best/xhigh) for verifier + security-auditor, opus frontmatter = outage floor (LRN-224), census tier_floor, citers. 2 challenge rounds (r1 2 BLOCKERs: dead-Fable floor, test fixture), GATE 0 15/15, verifier CONFORME, auditor PASS. d3635b6 dialog writes + session model opus, a7d747c, dae142b docs. Feat B next: ceiling rule, BDR, README doctrine.
