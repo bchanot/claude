@@ -210,6 +210,34 @@ rules:
 | LRN-188 | 2026-09-30 | Contract oracle tied to code shape (`grep -A6` line window) breaks on the first refactor while the property still holds; assert the property over the whole unit | writing CHECK oracles |
 | LRN-189 | 2026-10-06 | `cmd \| grep -q` under pipefail = SIGPIPE false negative (rc 141); `>/dev/null` is NOT a fix (GNU grep treats it like -q); portable = producer out of the pipeline | any bash under `set -o pipefail`, tests and prod |
 | LRN-190 | 2026-10-06 | Contract oracles: join `\\` line continuations before regex; "lint clean" = no finding beyond base, not zero; never `rm -rf "$var"` inside a CHECK | writing CHECK: lines |
+| LRN-191 | 2026-10-06 | `cmd | grep -q` under pipefail reintroduced one commit after BDR-110 banned it | writing `grep -q` in tests and prod under pipefail |
+| LRN-192 | 2026-10-06 | Turning auto-push off re-arms `git branch -d`'s upstream check (LRN-161 inverted) | deleting a branch in manual-push mode |
+| LRN-193 | 2026-10-06 | A revised plan gets a fresh challenger, not a re-read: r2 found 3 BLOCKERs inside r1's fixes | after a plan revision (challenge-plan) |
+| LRN-194 | 2026-10-07 | Permission globs: trailing ` *` matches end-of-string; a denied token poisons every command that names it | writing settings permission globs |
+| LRN-195 | 2026-10-07 | BSD sed: `N` on the last line quits without printing → the `:a;N;$!ba` fold returns EMPTY on single-line input | folding multi-line output portably |
+| LRN-196 | 2026-10-07 | A fail-closed Claude Code hook: trap must `exit 0`, cap attacker-sized loops, read git's rc not its value | writing a fail-closed Claude Code hook |
+| LRN-197 | 2026-10-07 | A skill's own `git push` after a lib finish or a hook-pushed commit is redundant since BDR-095: delete it, don't gate it | any skill that pushes after a lib finish |
+| LRN-198 | 2026-10-07 | Text read from git and pasted into a later Bash call is an injection sink: allowlist before interpolating | interpolating repo-read text into Bash |
+| LRN-199 | 2026-10-07 | Agent-level branching is prose on a printed word: shell state dies between Bash calls, and a text guard denies the… | skills that branch on a printed word |
+| LRN-200 | 2026-10-07 | `install-hook` and `global-hooks` write git config as a side effect; only `emit-hook > file` regenerates hooks… | regenerating gitflow hooks |
+| LRN-201 | 2026-10-07 | A flood cap must run before ANY per-token fork; a reorder reopened the timeout fail-open and only a timed 2… | guards with a flood cap |
+| LRN-202 | 2026-10-07 | Reading a stderr-then-stdout verb from a hook: `out=$(cmd 2>&1)`, last line = word, prefix line = reason; no temp… | hooks capturing a stderr+stdout verb |
+| LRN-203 | 2026-10-08 | Mod hooks: model ALIAS set by a hook resolves through stale table (`sonnet` → `claude-sonnet-5`, 404); write full… | mod hooks that set a model |
+| LRN-204 | 2026-10-08 | Main-loop model switch mid-turn works, costs one cold-cache step on the full context per switch INTO a model; return… | deciding a main-loop model switch |
+| LRN-205 | 2026-10-08 | A hook answering `tool.call` in place of a built-in tool must return that tool's OUTPUT schema shape; a string… | hooks answering `tool.call` for a built-in |
+| LRN-206 | 2026-10-08 | `claude plugin test` kit facts (2.1.294): nothing fires at load, inputs are the FULL event, a bottom hook is… | writing `claude plugin test` suites |
+| LRN-207 | 2026-10-09 | Model availability = typed API errors (`classic.StopFailure` rate_limit|overloaded|billing_error|model_not_found) +… | model availability breakers |
+| LRN-208 | 2026-10-09 | Security-auditor brief = scope only; iteration history and claimed closures violate the blind-scan contract | briefing the security-auditor |
+| LRN-209 | 2026-10-09 | Scope the test run to the diff; one full `make test` before the merge; `make test` now names the red suite; GNU make… | choosing the test run for a diff |
+| LRN-210 | 2026-10-10 | One coverage clause per contract criterion; a compound "covered by kit tests" criterion yields ECARTS forever with… | writing coverage criteria in a contract |
+| LRN-211 | 2026-10-10 | Typed-slash routing: name-bound marker + idle fallback; run slot separate from turn routes; engine records are the… | typed-slash routing in mods |
+| LRN-212 | 2026-10-11 | The engine hot-reloads a mod's hooks module from the working tree: unverified code runs live during its own feature… | developing a mod inside this repo |
+| LRN-213 | 2026-10-12 | grep-based dead-function census misses constructed-name callers | dead-function census before deletion |
+| LRN-214 | 2026-10-12 | shellcheck directive after the first command scopes to that command only; file-wide disable goes BEFORE `set -u` | placing shellcheck directives |
+| LRN-215 | 2026-10-12 | helper extracted from a `set -e` function must be called as a plain statement; `helper || …` / `if helper` switches… | extracting helpers from `set -e` functions |
+| LRN-216 | 2026-10-13 | Capping a main-loop model switch = cap the COLD READ (context − target's warm prefix), never the context size; the… | capping a main-loop model switch |
+| LRN-217 | 2026-10-13 | In an `agent.spawn` hook, "no explicit `model` and no routing row" does NOT mean "inherits the parent": the agent's… | rewriting a spawn's model in a hook |
+| LRN-218 | 2026-10-15 | `$.model.complete` as availability probe: credits-exhausted model NEVER settles (timeout = only failure signal);… | probing model availability with `complete()` |
 | LRN-219 | 2026-10-19 | Scanner regex over untrusted trees: bound every repeat, cap comment blankers, timing lock on adversarial file | any whole-file regex scanner |
 | LRN-220 | 2026-10-19 | Live probe verdicts fail closed by construction: fixture route per negative branch, 3xx = SKIPPED, depth/size limit = SKIPPED never CLOSED | writing probes and their suites |
 | LRN-221 | 2026-10-19 | Floor-guard suppressions: remove, never waive; contract CHECK asserts intent (symbol/behaviour), not one code spelling | suppressions, writing CHECK: lines |
