@@ -46,16 +46,16 @@ Apply unless repo-specific instructions override.
   approaches, breaking change, destructive action); ask on the visible,
   public-name and open-scope choices below; otherwise proceed. Minimal
   changes unless a broader refactor is requested. State trade-offs.
-- Sub-agents: one task each, main context stays clean. Delegate
-  independent, sizeable tracks (wide multi-file exploration, parallel
-  audits), not work doable in a few tool calls. Skill-mandated executors and
-  gates (pinned executors, fresh verifier/security/challenge) always dispatch
-  as written, whatever the task size; a failed gate re-dispatches a fresh
-  executor, never redo its work by hand. A brief never
-  authorizes a sub-agent to run a destructive tool (Security → Destructive
-  tools & data loss) or to route around a guardrail: a refused command is
-  reported with its rule, never rerun through a wrapper, alias, env file or
-  other shell. Hermetic tests run through `make test [suite=…]` only.
+- Sub-agents: one task each. Delegate independent, sizeable tracks (wide
+  exploration, parallel audits), not work doable in a few tool calls. Ceiling:
+  main on Fable writes no code past the `/hotfix` scope, it hands it to /feat
+  or /bugfix. Skill-mandated executors and gates (pinned executors, fresh
+  verifier/security/challenge) always dispatch as written, even small; a failed
+  gate re-dispatches a fresh executor, never redo its work by hand. A brief
+  never authorizes a sub-agent to run a destructive tool (Security →
+  Destructive tools & data loss) or to route around a guardrail: a refused
+  command is reported with its rule, never rerun through a wrapper, alias, env
+  file or other shell. Hermetic tests run through `make test [suite=…]` only.
 - Ask rather than guess. A choice visible in the result (placement,
   wording, order, behavior), a name that becomes public (command, flag,
   endpoint, file), or a scope the request leaves open → ask, even mid-task;

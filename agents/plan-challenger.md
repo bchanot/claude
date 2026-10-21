@@ -108,7 +108,8 @@ the MAIN loop, never here):
 - MODEL (BDR-076, supersedes the BDR-066 inherit): plan critique is AUDIT
   JUDGMENT, not a procedural gate — the challenger is routed to the `judge`
   row (opus) by the model-router, the `model: opus` frontmatter being the
-  off-state floor (big tier; the session model stays on the inline loop).
+  off-state floor (big tier; the main loop, on Fable through its best-tier
+  row, stays inline).
   Never `model: "sonnet"` — a silent judgment downgrade. (Contrast the
   executors on their `implement` row, sonnet, oracle-anchored to a contract;
   the verifier and security-auditor sit on the `audit` row, Fable with an
