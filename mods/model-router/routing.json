@@ -23,7 +23,12 @@
     "judge": {
       "tier": "big",
       "effort": "xhigh",
-      "about": "independent judgment of work: audits, challenges and verdicts"
+      "about": "independent judgment of work: challenges, analyses and reviews"
+    },
+    "audit": {
+      "tier": "best",
+      "effort": "xhigh",
+      "about": "the fresh gates: contract verdict and security scan; dispatched agents, not a main-loop phase"
     },
     "implement": {
       "tier": "work",
@@ -38,7 +43,7 @@
     "verify": {
       "tier": "work",
       "effort": "xhigh",
-      "about": "checking a result against its spec: tests, security review, gates"
+      "about": "checking a result against its spec: tests and suites"
     },
     "explore": {
       "tier": "work",
@@ -138,17 +143,17 @@
     "release-executor": "apply",
     "plugin-probe": "apply",
     "validator-analyzer": "apply",
-    "verifier": "verify",
-    "security-auditor": "judge",
+    "verifier": "audit",
+    "security-auditor": "audit",
     "status-reporter": "mechanical"
   },
   "projects": {},
   "confirmed": {
     "agents": {
-      "verifier": "verify",
+      "verifier": "audit",
       "feater": "implement",
       "doc-syncer": "write",
-      "security-auditor": "judge",
+      "security-auditor": "audit",
       "plan-challenger": "judge",
       "analyzer": "judge",
       "hotfixer": "apply",

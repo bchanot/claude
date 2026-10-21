@@ -278,6 +278,7 @@ const DEFAULT_CONFIG: Config = {
     orchestrate: { tier: 'best', effort: 'medium' },
     escalate: { tier: 'best', effort: 'max' },
     judge: { tier: 'big', effort: 'xhigh' },
+    audit: { tier: 'best', effort: 'xhigh' },
     implement: { tier: 'work', effort: 'medium' },
     write: { tier: 'work', effort: 'high' },
     verify: { tier: 'work', effort: 'xhigh' },
