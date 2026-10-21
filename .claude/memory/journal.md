@@ -629,3 +629,7 @@ rules:
 
 ## 2026-10-19
 - Guardrails split shipped via /ship-feature (feature/a11y-split-inj-exp): /a11y skill on the shared engine, injection + exposure domains, probe exposure block, secure-by-default six domains. SDD 9 tasks, GATE 1 ECARTS(9)→CONFORME (fields CLOSED route, suppressions removed), GATE 2 PASS (7 LOW), opus review 0 Critical / 6 Important fixed. Routing finding: Fable pinned in long sessions (BLK-032), user policy recorded for a later /feat. Merge on user go.
+
+## 2026-10-21
+- /prune-memory: learnings.md index backfilled LRN-191..218 (28 rows), c7ebc3d on chore/prune-learnings-index. Index 221 rows = 221 entries.
+- /bugfix guardrails residuals (bugfix/guardrails-residuals): plan r3 after 2 challenge rounds (4 BLOCKERs r1: WARN severity, budget must raise, three-way SKIPPED, vacuous timing; r2: `str(URLError)` wrap), contract 22 oracles, 3 part executors, GATE 0/1/2 green, 5a98c2c + 633faa2 (checks.md IN() wording caught by doc-syncer, not the gates). BLK-033, LRN-222/223. Two LOW parked. Both branches await merge signal. Next: /feat routing policy (BLK-032).

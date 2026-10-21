@@ -213,6 +213,8 @@ rules:
 | LRN-219 | 2026-10-19 | Scanner regex over untrusted trees: bound every repeat, cap comment blankers, timing lock on adversarial file | any whole-file regex scanner |
 | LRN-220 | 2026-10-19 | Live probe verdicts fail closed by construction: fixture route per negative branch, 3xx = SKIPPED, depth/size limit = SKIPPED never CLOSED | writing probes and their suites |
 | LRN-221 | 2026-10-19 | Floor-guard suppressions: remove, never waive; contract CHECK asserts intent (symbol/behaviour), not one code spelling | suppressions, writing CHECK: lines |
+| LRN-222 | 2026-10-21 | Map an error to a verdict on a typed exception or carried constant, never on `str(err)`: URLError wraps its reason | probe/fetch error mapping, any err→verdict code |
+| LRN-223 | 2026-10-21 | Regex timing lock is vacuous when the input matches early: feed a non-matching worst-path input, assert `is None`, keep ≥ 2x margin under the lock | every bounded regex test |
 
 ---
 
@@ -1828,3 +1830,11 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 ## LRN-221 — Floor-guard suppressions: remove, never waive; contract oracles assert intent, not syntax
 - **Context**: GATE 1 counted 6 floor findings: `# noqa: E402` ×2 (import after `sys.path.insert`), a `# shellcheck disable=SC2016` copied from another suite (dead: deleting it raised nothing), 3 plan quotes of the same lines. `importlib.import_module` after the insert needs no noqa. Then criterion 16's CHECK grepped `^import scanner` and went red on the legit fix.
 - **Apply**: a suppression = first try the construct that needs none; test a copied `disable` by deleting it; a CHECK greps the symbol or behaviour (`scanner.Catalogue` loaded), never one spelling of the code. Links [[BDR-102]].
+
+## LRN-222 — Map an error to a verdict on a typed exception or carried constant, never on `str(err)`
+- **Context**: guardrails residuals plan r2 detected budget exhaustion by `BUDGET_EXHAUSTED in str(err)`; `URLError` renders as `<urlopen error …>` and wraps the reason object, so the match never fired and the verdict stayed SKIPPED instead of ERROR. Challenger (correctness lens) caught it as BLOCKER before the contract. Fix: `_BudgetExhausted(URLError)` subclass carrying the constant, mapper uses `isinstance`, regression test raises the real type.
+- **Apply**: err→verdict code matches on type or an attribute the raiser sets; the test raises the real exception class through the real call path, never a hand-built message. Links [[LRN-220]], [[BLK-033]].
+
+## LRN-223 — Regex timing lock is vacuous when the input matches early: non-matching worst-path input, assert `is None`, ≥ 2x margin
+- **Context**: plan r1 timing cases (LRN-219 lock, 1.0 s / 80 KB) fed inputs the bounded regex matched at the start, so they ran fast by construction and proved nothing (challenger BLOCKER, robustness lens). r3: inputs built to force the longest non-matching scan, cases assert `is None` and the elapsed time; SHELL_DB case at 0.65 s was too close to the lock → 1800 units (~29 KB) for margin.
+- **Apply**: one timing case per bounded regex, input that does NOT match and exercises the widest quantifier; assert the non-match too, else a regex that matches everything passes the lock; keep elapsed ≤ half the lock. Links [[LRN-219]], [[BLK-033]].
