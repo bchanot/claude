@@ -14,7 +14,7 @@ Not a collection of prompts — an operating layer on top of Claude Code:
   full feature pipeline with validation gates.
 - **Agents** are the execution units skills dispatch to — each pinned to
   the cheapest model that can do the job (haiku collects, sonnet executes,
-  opus judges, the session model only reflects).
+  opus judges and runs the session, Fable plans and runs the merge gates).
 - **Hooks and permissions** are deterministic guardrails: gitflow enforced
   by a pre-commit hook in every repo (`make link` points git's global
   `core.hooksPath` at `~/.claude/githooks`), every commit pushed by
@@ -69,14 +69,17 @@ commands, settings, secrets, maintenance.
 
 ## Agent model routing (model-tiering v2)
 
-Doctrine: the session model (Fable) does main-loop reflection ONLY —
-brainstorm, plan, contract, audit judgment, gates, loop decisions — enforced
-by a blocking gate (`lib/model-gate.md`) at the entry
-of the 17 reflection skills (the orchestrators, `/analyze`, `/guardrails` and
-`/a11y`): the skill calls the model-router `route` tool and its answer, which
-names the model id the main loop runs on, is the witness. A non-Fable/Opus id or
-the mod off stops the skill (`/route on` resumes the mod). Nothing dispatched
-inherits silently: typed agents run on their model-router row, their
+Doctrine: the main loop runs on the `opus` session model; the model-router rows
+lift it to Fable for main-loop reflection ONLY: brainstorm, plan, contract,
+audit judgment, loop decisions. On Fable it writes no code past the `/hotfix`
+scope; the fresh gates run as dispatched agents on the `audit` row. The
+Fable/Opus model floor is enforced by a blocking gate (`lib/model-gate.md`) at
+the entry of the 17 reflection skills (the orchestrators, `/analyze`,
+`/guardrails` and `/a11y`): the skill calls the model-router `route` tool and
+its answer, which names the model id the main loop runs on, is the witness. A
+non-Fable/Opus id or the mod off stops the skill (`/route on` resumes the
+mod). Nothing dispatched inherits silently: typed agents run on their
+model-router row, their
 `model:` frontmatter being the off-state floor; built-ins get an explicit
 `model=` at every call site.
 
@@ -92,7 +95,7 @@ inherits silently: typed agents run on their model-router row, their
 | seo-analyzer, geo-analyzer | opus pin (judge mode); collect/template spans dispatched `model="sonnet"` | 3-mode audit pipelines — judgment fail-closed on opus, mechanical collect + templating on sonnet |
 | doc-syncer | sonnet pin; audit mode dispatched `model="opus"` | two-mode: audit (drift judgment, opus) / patch (mechanical apply, sonnet) |
 | handover-doc-writer | sonnet pin; synthesize mode dispatched `model="opus"` | two-mode: synthesize (opus) / render (sonnet) — client deliverable |
-| interviewer, client-handover-writer | unpinned (inline-load = session model) | they ARE the main loop — a frontmatter pin would be inert |
+| interviewer, client-handover-writer | unpinned (inline-load = the main loop's model) | they ARE the main loop — a frontmatter pin would be inert |
 | Explore, Plan (built-in) | model-router mod: Explore → sonnet/medium, Plan → opus/xhigh, set at spawn; an explicit `model=` on the call wins; mod off: inherit session | built-ins routed per phase by the mod |
 
 The pure-execution skills `/doc`, `/status`, `/commit-change`,

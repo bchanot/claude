@@ -51,7 +51,7 @@ rules:
 | BLK-029 | 2026-10-08 | Claude Code mods (2.1.294): alias → id resolution for a model set by a hook lags the Agent tool's (`sonnet` → `claude-sonnet-5`, 404); Agent tool schema refuses full ids | upstream |
 | BLK-030 | 2026-10-15 | model-router kept routing best-tier phases to Fable out of usage credits: each new session + each hold lapse lost a turn to 429 `model_requires_usage_credits`; breaker reactive only | resolved |
 | BLK-031 | 2026-10-16 | model-router: session starting on Fable w/o credits lost 1st turn + each hold lapse; probe skipped kept cur | resolved |
-| BLK-032 | 2026-10-19 | Main loop pinned on Fable in long sessions: session model Fable 1M + downgrade cap 120k + prompt rule `plan` → inline code on Fable xhigh; user routing policy recorded for next /feat | open |
+| BLK-032 | 2026-10-19 | Main loop pinned on Fable in long sessions: session model Fable 1M + downgrade cap 120k + prompt rule `plan` → inline code on Fable xhigh; feat A+B shipped (BDR-123), closes after feat C | open |
 | BLK-033 | 2026-10-21 | Guardrails residuals: probe trusted plan `supabase.url`, redirects free of budget, unread bodies read CLOSED, `str(URLError)` hid budget signal; rules 5 FP / 7 misses | resolved |
 
 ---

@@ -45,7 +45,7 @@ Agent(subagent_type="plan-challenger", description="challenge:<lens>", prompt=""
 **MODEL (BDR-076, supersedes the BDR-066 inherit):** plan critique is AUDIT
 JUDGMENT — the challengers are routed to the `judge` row (opus) by the model-router,
 the `model: opus` frontmatter being the off-state floor: a big tier, off
-the session model. The session model (Fable)
+the main loop. The main loop (Fable through its best-tier row)
 keeps only this loop — synthesis, RE-THINK, gate. Never sonnet: that would
 silently downgrade the judgment. (The executors stay sonnet; the two merge
 gates sit on the `audit` row, Fable with an opus floor.)

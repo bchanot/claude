@@ -140,6 +140,7 @@ rules:
 | BDR-120 | 2026-10-18 | Secure-by-default guardrails: always-on rule file + /guardrails stdlib scanner, passwords in api domain | accepted |
 | BDR-121 | 2026-10-18 | Guardrails fix loop reuses bugfix circuit; scanner = contract oracle, baseline re-pass | accepted |
 | BDR-122 | 2026-10-19 | Guardrails split: /a11y standalone on shared scan engine, injection + exposure domains, exposure proven live by read-only probe | accepted |
+| BDR-123 | 2026-10-21 | Routing policy: opus session model, Fable via best-tier rows for orchestrator reflection + merge gates, sonnet writes, doctrine ceiling on Fable main; supersedes parts of BDR-066 / BDR-115 | accepted |
 
 ---
 
@@ -1469,3 +1470,11 @@ Branch feature/user-writing-web-rules, UNMERGED (human gate).
 - **Why**: user ask 2026-10-18 (keyboard/alt/labels as own skill; SQL/DB injection; browser-visible info). One engine = one CLI contract, two catalogues, no drift. Lazy a11y rule keeps CLAUDE.global.md at 320.
 - **Alternatives rejected**: a11y as a `--domain` flag only (user wanted own report + walk); engine copied into skills/a11y (two CLIs drift); exposure probe against dev server (dev artefacts = false OPEN); semgrep-only (blind to live responses, policies).
 - **Refs**: branch feature/a11y-split-inj-exp, contract `.claude/tasks/contracts/2026-10-18-guardrails-a11y-split-inj-exp-2210.md`; spec + plan purged at finish (`git show 988038c:docs/superpowers/...`). Supersedes the domain list of [[BDR-120]]; links [[BDR-121]].
+
+## BDR-123 — Routing policy: opus session, Fable via rows for orchestrator reflection + merge gates, sonnet writes, ceiling on Fable main [accepted] (2026-10-21)
+- **Decision**: user policy 2026-10-19. `settings.json` session model `opus`; model-router best-tier rows lift main to Fable for reflection ONLY (brainstorm, plan, contract, audit judgment, loop decisions). Fresh gates (verifier, security-auditor) = `audit` phase best/xhigh, frontmatter floor `opus` (LRN-224). Other judges (plan-challenger, analyzer, code review) opus. Executors sonnet; "what to write" (plan, diagnosis, contract) opus. Doctrine ceiling (CLAUDE.global.md Sub-agents rule): main on Fable writes no code past `/hotfix` scope, hands it to `/feat` or `/bugfix`. Supersedes BDR-066 "reflection inline on session model (Fable)" + "verifier + security-auditor stay sonnet"; amends BDR-115 "pin = never ceiling" (agent pins unchanged, ceiling lives in doctrine on main writing code).
+- **Why**: BLK-032: session on Fable 1M + downgrade cap 120k + keyword `plan` rule → long sessions wrote code inline on Fable xhigh. Fable reserved for big reflection + important audits, rest opus/sonnet.
+- **Alternatives rejected**: fable frontmatter on gates (dead model in credit outage, LRN-224); general-purpose dispatch for small writes (inherits Fable); CLAUDE.global.md budget raise over 320 (bullet compacted instead).
+- **[deferred]** inline-writing best-tier skills = declared exception, visible in this repo only: design Build stack (frontend-design, 21st-ui-build, emil-design-eng, design-motion-principles Create, site-motion, build-threejs-scroll-worlds, scroll-*, 21st-ai), writing-skills, deprecation-and-migration, /tour single-project, /audit-delta STEP 3d, /harden STEP 3. Remap = own task (TODO).
+- **Known gaps**: default keyword prompt rules (plan|design|architecture, why|review|audit|analyze, ultrathink) lift main to Fable unwitnessed → feat C caps them at session model; Fable held down → opus stand-in, ceiling does not bind; stale "session model" citers `skills/feat/SKILL.md:6`, `skills/code-clean/SKILL.md:36`.
+- **Refs**: feat A feature/routing-audit-phase d3635b6 a7d747c dae142b; feat B feature/routing-ceiling-rule ef13713 887cf89, contract `.claude/tasks/contracts/2026-10-21-routing-ceiling-rule-1753.md`, plan `.claude/tasks/plans/2026-10-21-routing-ceiling-rule-1753.md`. Links [[BDR-066]] [[BDR-115]] [[BLK-032]] [[LRN-224]].

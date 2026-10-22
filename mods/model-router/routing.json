@@ -184,13 +184,6 @@
       "deploy": "verify"
     }
   },
-  "changed": {
-    "skills": {
-      "deploy": {
-        "from": "apply",
-        "to": "verify"
-      }
-    }
-  },
+  "changed": {},
   "ask": true
 }
