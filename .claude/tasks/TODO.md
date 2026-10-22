@@ -6,7 +6,10 @@
 - [ ] parked (GATE 2 LOW, 5a98c2c): probe table names not checked with `IDENT.fullmatch` per table (a `/` walks a path on the approved Supabase host); `printable` lets Unicode bidi/format controls (U+202E, U+2066…) through to the tty
 - [~] routing policy /feat (user 2026-10-19, BLK-032): settings model → Opus 5.5; `judge` split (security-auditor + verifier → Fable, plan-challenger/analyzer/code review → opus); executors stay sonnet, "what to write" on opus; ceiling rule: main on Fable never writes code beyond a hotfix edit → dispatched executor; BDR superseding part of BDR-066 / BDR-115.
   - [x] feat A audit phase: d3635b6 (dialog writes, session model opus), a7d747c (audit row, opus floor, census, citers), dae142b (docs); gates 0/1/2 green, LRN-224
-  - [ ] feat B: ceiling rule CLAUDE.global.md, BDR-123 superseding parts of BDR-066/115, README l.17 + l.72-73 doctrine (P2/P3 deferred), `skills/deploy/SKILL.md` effort low→xhigh (WARN floor drift)
+  - [x] feat B (feature/routing-ceiling-rule): ceiling rule CLAUDE.global.md, README doctrine, challenge citers, deploy `effort: xhigh`, routing.json `changed` cleared; ef13713 + 887cf89, gates 0/1/2 green, BDR-123; merge = user go
+  - [ ] feat C: cap the default keyword prompt rules (plan|design|architecture, why|review|audit|analyze, ultrathink) at the session model, effort only like the classifier; close BLK-032 after
+  - [ ] bugfix lib/tests/mods.test.sh:57: CLI 2.1.306 `claude plugin validate` advisory "plugin directory warning" (ICON_MISSING) read as failure; exclude that section, keep other warnings blocking
+  - [ ] deferred (BDR-123): remap inline-writing best-tier skills (design Build stack, writing-skills, deprecation-and-migration, /tour single-project, /audit-delta 3d, /harden STEP 3); stale citers skills/feat/SKILL.md:6, skills/code-clean/SKILL.md:36
   - [ ] residuals (accepted): spawn path unprobed, 1st gate of an outage window dies once (tour/onboard/audit-delta no retry); onAutoSwitch with main on opus marks nothing if engine auto-falls a gate off Fable
 
 ## 2026-10-18 — secure-by-default guardrails: 5 domains + /guardrails skill (feature/secure-by-default)
