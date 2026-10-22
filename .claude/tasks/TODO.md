@@ -8,7 +8,7 @@
   - [x] feat A audit phase: d3635b6 (dialog writes, session model opus), a7d747c (audit row, opus floor, census, citers), dae142b (docs); gates 0/1/2 green, LRN-224
   - [x] feat B (feature/routing-ceiling-rule): ceiling rule CLAUDE.global.md, README doctrine, challenge citers, deploy `effort: xhigh`, routing.json `changed` cleared; ef13713 + 887cf89, gates 0/1/2 green, BDR-123; merge = user go
   - [ ] feat C: cap the default keyword prompt rules (plan|design|architecture, why|review|audit|analyze, ultrathink) at the session model, effort only like the classifier; close BLK-032 after
-  - [ ] bugfix lib/tests/mods.test.sh:57: CLI 2.1.306 `claude plugin validate` advisory "plugin directory warning" (ICON_MISSING) read as failure; exclude that section, keep other warnings blocking
+  - [x] bugfix lib/tests/mods.test.sh (bugfix/mods-validate-advisory): verdict = `--strict` rc, positive control warnfix/cleanfix; 801992a, gates green, BLK-034 LRN-225; merge = user go. Residual: 3 historical contracts keep the old scrape oracle (BLK-034)
   - [ ] deferred (BDR-123): remap inline-writing best-tier skills (design Build stack, writing-skills, deprecation-and-migration, /tour single-project, /audit-delta 3d, /harden STEP 3); stale citers skills/feat/SKILL.md:6, skills/code-clean/SKILL.md:36
   - [ ] residuals (accepted): spawn path unprobed, 1st gate of an outage window dies once (tour/onboard/audit-delta no retry); onAutoSwitch with main on opus marks nothing if engine auto-falls a gate off Fable
 

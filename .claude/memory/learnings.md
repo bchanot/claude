@@ -244,6 +244,7 @@ rules:
 | LRN-222 | 2026-10-21 | Map an error to a verdict on a typed exception or carried constant, never on `str(err)`: URLError wraps its reason | probe/fetch error mapping, any err→verdict code |
 | LRN-223 | 2026-10-21 | Regex timing lock is vacuous when the input matches early: feed a non-matching worst-path input, assert `is None`, keep ≥ 2x margin under the lock | every bounded regex test |
 | LRN-224 | 2026-10-21 | Best-tier agent row floors on tier 2nd alias: inTier writes head-or-above only, fable frontmatter = no fallback in credit outage | pinning agents on best tier, census floors |
+| LRN-225 | 2026-10-22 | Gate on tool's exit-code contract, never its prose; positive control through gate's own helper on clean/dirty fixture pair; mktemp EXIT trap script-level | any test that wraps a CLI verdict |
 
 ---
 
@@ -1871,3 +1872,9 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 ## LRN-224 — Best-tier agent row floors on tier's 2nd alias: inTier writes head-or-above only
 - **Context**: feat A (routing policy BLK-032) moved verifier + security-auditor to new `audit` phase (best = fable>opus>sonnet). Plan r1 set frontmatter `model: fable` (census rule floor = tier head) and claimed "Fable down → falls to opus". False: `inTier` (register.ts) writes a model only if it is the head or ranks above it, else logs "tier … down, frontmatter model kept" → fable frontmatter = gates spawn on dead Fable every credit outage (BLK-030/031). Lower tiers never hit it (head sonnet/opus always has a higher alias). Caught by correctness + robustness lenses r1, not by plan author.
 - **Apply**: an agent on a best-tier row keeps opus frontmatter; router lifts to Fable when up. Census `tier_floor` (effort-routing.test.sh) locks 2nd alias for best. Residual: spawn path unprobed → first gate of an outage window still dies once, retry lands on floor (register.test.ts audit-row case b). Links [[BLK-030]], [[BLK-032]], [[LRN-204]].
+
+## LRN-225 — Gate on the tool's own exit-code contract, never on its prose; control through the gate's own helper on a clean/dirty pair
+
+- **Context**: BLK-034. `grep -qi warning` on `claude plugin validate` output broke when CLI 2.1.306 added an advisory section; first plan (sed range delete between two markers) was fail-open: closing marker printed only when findings > 0, else range ran to EOF and hid `✔ Validation passed with warnings`.
+- **Pattern**: (1) a CLI with `--strict` / `--json` / rc semantics → gate on rc, prose only in the ko message. (2) Positive control runs the SAME helper the gate uses (a copy of the invocation stays green when the gate drifts). (3) Pair of fixtures differing only in the guarded cause (warnfix vs cleanfix): parse error (`error: unknown option`, rc 1 on both) or scrape added back turns the pair red; a lone "rc must be 1" accepts any failure. (4) Inline sample strings test the author's literal, not the code: a check that cannot fail is not a check. (5) `WORK=$(mktemp -d); trap 'rm -rf "$WORK"' EXIT` stays script-level: `local` WORK + EXIT trap → `unbound variable` under `set -u`, dir leaks.
+- **Apply**: any suite wrapping a third-party CLI verdict (plugin validate, linters, validators). Links [[BLK-034]], [[LRN-223]].
