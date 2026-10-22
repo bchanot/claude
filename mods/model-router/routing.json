@@ -176,7 +176,8 @@
       "reflect": "reflect",
       "plan": "plan",
       "apply": "apply",
-      "explore": "explore"
+      "explore": "explore",
+      "audit": "audit"
     },
     "skills": {
       "gitflow": "implement",
