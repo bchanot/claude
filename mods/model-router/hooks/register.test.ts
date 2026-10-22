@@ -934,9 +934,10 @@ test('derived: a route declared after the dispatch survives the pop', async (
 
 test('default rule: planifie sets plan, a later route overrides', async (
   $, on) => {
-  const rig = await bootRig($, on, HAIKU)
+  // a keyword sets effort only: the fable session keeps its model
+  const rig = await bootRig($, on)
   await typed($, 'planifie la migration')
-  expect(await stepOn($, rig, HAIKU)).toEqual({ model: FABLE, effort: 'xhigh' })
+  expect(await stepOn($, rig, FABLE)).toEqual({ model: FABLE, effort: 'xhigh' })
   await $.tool.call({ tool: ROUTE_TOOL, phase: 'implement' })
   const line = mainLine(await route($, 'show'))
   expect(line).toContain('model implement')
@@ -1008,16 +1009,15 @@ test('text: an unknown session model prints "session model"', async (
   expect(mainLine(await route($, 'show'))).toContain('keeps session model')
 })
 
-test('text: show names the model a floor upgrade moves to', async (
+test('text: show names no model move for an ultrathink floor', async (
   $, on) => {
-  await bootRig($, on, HAIKU)
-  await $.prompt.submit({
-    text: 'ultrathink please',
-    wait: false,
-    origin: { kind: 'composer' },
-  })
+  // a floor names no model any more, so show has no upgrade to report
+  await bootRig($, on, OPUS)
+  await ultrathink($)
   const line = mainLine(await route($, 'show'))
-  expect(line).toContain(`${FABLE} (upgrade)`)
+  expect(line).toContain('floor max')
+  expect(line).not.toContain('(upgrade)')
+  expect(line).not.toContain(FABLE)
 })
 
 // ---- wave 2: skill rows, run slot, agent rows ---------------------------
@@ -5297,7 +5297,7 @@ test('classify: a user /effort drops the guess for one turn only', async (
   expect(lastSeen(c)).toEqual({ model: SONNET, effort: 'medium' })
 })
 
-test('classify: a mid-turn ultrathink floor still reaches fable max', async (
+test('classify: a mid-turn ultrathink floor raises effort only', async (
   $, on) => {
   const c = await bootCls($, on)
   await typed($, PLAIN)
@@ -5305,7 +5305,8 @@ test('classify: a mid-turn ultrathink floor still reaches fable max', async (
   expect(lastSeen(c)?.model).toBe(SONNET)
   await queued($, 'composer', 'ultrathink please')
   await runStep($, highStep())
-  expect(lastSeen(c)).toEqual({ model: FABLE, effort: 'max' })
+  // the floor names no model: the guess's sonnet holds, at the floor's max
+  expect(lastSeen(c)).toEqual({ model: SONNET, effort: 'max' })
 })
 
 test('classify: a guessed sonnet rate-limited falls to opus, not haiku', async (
@@ -5564,10 +5565,12 @@ test('probe: a fable that never answers lands the plan step on opus', async (
   $, on) => {
   const world = probeWorld(hangsOn(FABLE))
   const rig = await bootRig($, on, OPUS, 1000, world)
-  await typed($, FABLE_PLAN)
-  await pastProbe(rig, runStep($, { ...highStep(), model: OPUS }))
+  // a keyword no longer lifts: the route tool carries the plan tier
+  await pastProbe(rig, planRoute($))
+  await runStep($, { ...highStep(), model: OPUS })
   expect(rig.seen).toEqual([{ model: OPUS, effort: 'max' }])
-  expect(world.completions).toEqual([FABLE])
+  // fable probed by the route call, opus by the step
+  expect(world.completions).toEqual([FABLE, OPUS])
   expect(downLine(await route($, 'show'))).toContain(
     `${FABLE} for 15 min (probe)`)
 })
@@ -5599,8 +5602,9 @@ test('probe: a lapsed hold probes again and holds longer', async ($, on) => {
   const world = probeWorld(hangsOn(FABLE))
   const rig = await bootRig($, on, OPUS, 1000, world)
   for (const wait of [15, 30]) {
-    await typed($, FABLE_PLAN)
-    await pastProbe(rig, runStep($, { ...highStep(), model: OPUS }))
+    // the route tool lifts, a keyword no longer does
+    await pastProbe(rig, planRoute($))
+    await runStep($, { ...highStep(), model: OPUS })
     expect(downLine(await route($, 'show'))).toContain(`for ${wait} min`)
     await endTurn($)
     await rig.clock.advance(wait * 60000)
@@ -5638,18 +5642,20 @@ test('probe: a failure during the flight keeps the target unverified', async (
   const gate = new Promise<void>(resolve => { open = resolve })
   const world = probeWorld(async () => { await gate; return PROBE_OK })
   const rig = await bootRig($, on, OPUS, 1000, world)
-  await typed($, FABLE_PLAN)
-  const step = runStep($, { ...highStep(), model: OPUS })
+  // the route tool's probe is the one in flight (a keyword no longer lifts)
+  const call = planRoute($)
   await rig.clock.settle()
   await switchTo($, FABLE, OPUS, 'auto')
   open()
-  await step
+  await call
+  await runStep($, { ...highStep(), model: OPUS })
   expect(rig.seen).toEqual([{ model: OPUS, effort: 'max' }])
   await endTurn($)
   await rig.clock.advance(15 * 60000)
-  await typed($, FABLE_PLAN)
+  await planRoute($)
   await runStep($, { ...highStep(), model: OPUS })
-  expect(world.completions).toEqual([FABLE, FABLE])
+  // route probe fails in flight, the step probes opus, the second route fable
+  expect(world.completions).toEqual([FABLE, OPUS, FABLE])
 })
 
 test('probe: an explicit route onto a held model probes once in all', async (
@@ -5693,7 +5699,8 @@ test('probe: a session model that never answers leaves for opus on the first ste
   const rig = await bootRig($, on, FABLE, 1000, world)
   await typed($, FABLE_PLAN)
   await pastProbe(rig, runStep($, { ...highStep(), model: FABLE }))
-  expect(rig.seen).toEqual([{ model: OPUS, effort: 'max' }])
+  // a keyword names no tier: no stand-in notch, xhigh instead of max
+  expect(rig.seen).toEqual([{ model: OPUS, effort: 'xhigh' }])
   expect(world.completions).toEqual([FABLE])
   expect(downLine(await route($, 'show'))).toContain(
     `${FABLE} for 15 min (probe)`)
@@ -5846,4 +5853,68 @@ test('stand-in: the verbose line names it as a cause', async ($, on) => {
   await stepOn($, rig, FABLE)
   expect(logs.some(l => l.startsWith('main:') && l.includes('stand-in')))
     .toBe(true)
+})
+
+// ---- keyword cap: prompt rules and dispatches set effort only ------------
+
+test('keyword cap: a plan keyword on an opus session stays on opus at xhigh', async (
+  $, on) => {
+  const rig = await bootRig($, on, OPUS)
+  await typed($, 'plan the billing migration')
+  expect(await stepOn($, rig, OPUS)).toEqual({ model: OPUS, effort: 'xhigh' })
+})
+
+test('keyword cap: a reflect keyword on an opus session stays on opus at high', async (
+  $, on) => {
+  const rig = await bootRig($, on, OPUS)
+  await typed($, 'why does the cache miss')
+  expect(await stepOn($, rig, OPUS)).toEqual({ model: OPUS, effort: 'high' })
+})
+
+test('keyword cap: ultrathink on an opus session stays on opus at max', async (
+  $, on) => {
+  const rig = await bootRig($, on, OPUS)
+  await ultrathink($)
+  expect(await stepOn($, rig, OPUS)).toEqual({ model: OPUS, effort: 'max' })
+})
+
+test('keyword cap: a route tool call after a keyword still lifts to fable', async (
+  $, on) => {
+  const rig = await bootRig($, on, OPUS)
+  await typed($, 'plan the billing migration')
+  await planRoute($)
+  expect((await stepOn($, rig, OPUS)).model).toBe(FABLE)
+})
+
+test('keyword cap: a held fable gives no stand-in notch to a capped keyword', async (
+  $, on) => {
+  const world = newWorld()
+  const rig = await bootRig($, on, OPUS, 1000, world)
+  await switchTo($, FABLE, OPUS, 'auto')
+  await typed($, 'plan the billing migration')
+  expect(await stepOn($, rig, OPUS)).toEqual({ model: OPUS, effort: 'xhigh' })
+  expect(world.completions).not.toContain(FABLE)
+})
+
+test('keyword cap: a keyword inside a held best-tier run keeps the run on fable', async (
+  $, on) => {
+  const rig = await bootRun($, on, OPUS)
+  await loadSkill($, 'feat')
+  await endTurn($)
+  await typed($, 'plan the next step')
+  expect(await stepOn($, rig, OPUS)).toEqual({ model: FABLE, effort: 'xhigh' })
+})
+
+test('keyword cap: an unknown session model never lets a keyword lift main', async (
+  $, on) => {
+  const rig = await bootRig($, on, '')
+  await typed($, 'plan the billing migration')
+  expect((await stepOn($, rig, OPUS)).model).toBe(OPUS)
+})
+
+test('keyword cap: a dispatch outside a run keeps main on the session model', async (
+  $, on) => {
+  const rig = await bootRig($, on, OPUS)
+  await dispatch($)
+  expect(await stepOn($, rig, OPUS)).toEqual({ model: OPUS, effort: 'medium' })
 })

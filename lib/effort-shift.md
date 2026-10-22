@@ -53,6 +53,11 @@ Builtin `/effort` is NOT a lever inside a run: rows and routes outrank it.
   120000), may move main DOWN, never up. A user `/model` only moves the
   baseline the guess starts from (`/route classify off` to stop guessing;
   never `-p`).
+- Keyword prompt rules (`plan|design|architecture…`,
+  `why|review|audit…`), `ultrathink` and a background agent
+  dispatch (derived `orchestrate`) set the turn's effort only, never
+  a model above the session model: Fable on main comes only from a
+  skill row, the `route` tool or a typed `/route`.
 - Mod off: typed agents fall back to their `model:`/`effort:` frontmatter.
 - First use of a row asks once, with context (Later, Keep or Change: model,
   then effort, then Everywhere or this project only); the answer is kept in

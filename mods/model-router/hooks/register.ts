@@ -292,6 +292,7 @@ const DEFAULT_CONFIG: Config = {
   skills: {},
   // `floor` rules set the turn's minimum effort; `default` rules set the
   // turn's route, which a route call or a skill overrides. Neither lowers.
+  // Rules set the turn's effort only, never a model.
   prompt: [
     { pattern: '\\bultrathink\\b', phase: 'escalate', mode: 'floor' },
     {
@@ -351,6 +352,13 @@ function isModelName(models: Record<string, string>, v: unknown): v is string {
 
 function phaseRoute(cfg: Config, phase: string): Route | undefined {
   return hasKey(cfg.phases, phase) ? cfg.phases[phase] : undefined
+}
+
+/** A phase's effort alone: a route that never moves main's model. */
+function effortRoute(cfg: Config, phase: string): Route | undefined {
+  const route = phaseRoute(cfg, phase)
+  if (route === undefined) return undefined
+  return route.effort === undefined ? {} : { effort: route.effort }
 }
 
 /** Merges a user table over a default one, dropping invalid entries. */
@@ -1383,17 +1391,12 @@ function decideMain(
 }
 
 /**
- * The slot that names main's model: sticky, turn route, run slot, then the
- * floor's own model. A floor with a model beats a classifier's guess.
+ * The slot that names main's model: sticky, turn route, then run slot. A
+ * floor names no model (prompt rules set the effort only).
  */
 function mainModelSlot(st: State): Routed | null {
-  const slots = [st.userMain, st.turnMain, st.runMain, st.turnFloor]
-  const slot = slots.find(s => routeName(s?.route) !== undefined) ?? null
-  const floor = st.turnFloor
-  if (slot?.source === 'classifier' && routeName(floor?.route) !== undefined) {
-    return floor
-  }
-  return slot
+  const slots = [st.userMain, st.turnMain, st.runMain]
+  return slots.find(s => routeName(s?.route) !== undefined) ?? null
 }
 
 const mainModel = (st: State): string | undefined =>
@@ -3244,17 +3247,18 @@ function rememberAgent(st: State, agentId: string, model: string): void {
 // ---- derived orchestrate ---------------------------------------------
 
 /**
- * A main Agent dispatch is orchestration: the turn's route becomes
- * `orchestrate` until the spawned agents end. A route the model or a skill
- * declared is never replaced.
+ * A main Agent dispatch is orchestration: the turn's effort becomes
+ * orchestrate's until the spawned agents end; the model stays where it is
+ * (a held run keeps its model). A route the model or a skill declared is
+ * never replaced.
  */
 function pushOrchestrate(st: State): void {
   const src = st.turnMain?.source
-  const route = phaseRoute(st.cfg, 'orchestrate')
+  const route = effortRoute(st.cfg, 'orchestrate')
   if (st.pushed !== null || !route) return
   if (src === 'model' || src === 'skill') return
   st.pushed = { prev: st.turnMain, spawnIds: new Set() }
-  st.turnMain = { phase: 'orchestrate', route: { ...route }, source: 'derived' }
+  st.turnMain = { phase: 'orchestrate', route, source: 'derived' }
 }
 
 /** Restores the route from before the dispatch, unless one replaced it. */
@@ -3923,9 +3927,9 @@ const firstRule = (st: State, mode: PromptMode, text: string) =>
 /** A default rule sets the idle turn's route; routes and skills override. */
 function defaultFromPrompt(st: State, scanned: string): void {
   const rule = firstRule(st, 'default', scanned)
-  const route = rule ? phaseRoute(st.cfg, rule.phase) : undefined
+  const route = rule ? effortRoute(st.cfg, rule.phase) : undefined
   if (rule && route) {
-    st.turnMain = { phase: rule.phase, route: { ...route }, source: 'prompt' }
+    st.turnMain = { phase: rule.phase, route, source: 'prompt' }
   }
 }
 
@@ -3937,7 +3941,7 @@ function defaultFromPrompt(st: State, scanned: string): void {
 function routeFromPrompt(st: State, text: string, midTurn: boolean): void {
   const scanned = text.slice(0, MAX_PROMPT_SCAN)
   const floor = firstRule(st, 'floor', scanned)
-  const route = floor ? phaseRoute(st.cfg, floor.phase) : undefined
+  const route = floor ? effortRoute(st.cfg, floor.phase) : undefined
   if (floor && route) {
     const routed: Routed = { phase: floor.phase, route, source: 'prompt' }
     floorFromPrompt(st, midTurn, routed)
