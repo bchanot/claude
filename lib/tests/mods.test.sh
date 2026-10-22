@@ -2,13 +2,16 @@
 # lib/tests/mods.test.sh — every mods/<name>/ plugin: the manifest name
 # equals the folder, skills/<name> is the relative loading symlink
 # ../mods/<name>, and (when the CLI offers `claude plugin test`) the mod
-# passes `claude plugin validate` without warning and `claude plugin test`.
+# passes `claude plugin validate --strict` (per-file warnings are errors; the
+# advisory plugin-directory section does not change the exit code) and
+# `claude plugin test`.
 # MODS_ROOT overrides the repo root (fixture controls). Fails when no mod
 # is found, so it can never pass vacuously.
 set -u
 ROOT="${MODS_ROOT:-$(cd "$(dirname "$0")/../.." && pwd)}"
 CLI_TIMEOUT=120
 pass=0; fail=0
+WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
 ok() { pass=$((pass+1)); echo "PASS $1"; }
 ko() { fail=$((fail+1)); echo "FAIL $1"; }
 check() { if [ "$2" = "$3" ]; then ok "$1"; else ko "$1: got[$2] want[$3]"; fi; }
@@ -27,6 +30,11 @@ bounded() {
   if kill -0 "$pid" 2>/dev/null; then kill "$pid" 2>/dev/null; rc=124
   else wait "$pid" || rc=$?; fi
   cat "$out"; rm -f "$out"; return "$rc"
+}
+
+# validate_strict DIR: output in STRICT_OUT, rc of the CLI (124 = timeout).
+validate_strict() {
+  STRICT_OUT=$(bounded claude plugin validate --strict "$1")
 }
 
 manifest_name() {
@@ -50,19 +58,36 @@ cli_unavailable() {
 
 check_cli() {
   local name="$1" dir="$2" out rc=0
-  out=$(bounded claude plugin validate "$dir") || rc=$?
+  validate_strict "$dir" || rc=$?
   if [ "$rc" -eq 124 ]; then ko "$name: validate timed out after ${CLI_TIMEOUT}s"
-  elif ! printf '%s' "$out" | grep -q 'Validation passed'; then
-    ko "$name: validate did not pass: $(printf '%s' "$out" | head -3 | tr '\n' ' ')"
-  elif printf '%s' "$out" | grep -qi 'warning'; then
-    ko "$name: validate printed a warning"
-  else ok "$name: validate passed, no warning"; fi
+  elif [ "$rc" -ne 0 ]; then
+    local detail
+    detail=$(printf '%s' "$STRICT_OUT" | grep -E '^(✘|error:|⚠ Found)' \
+      | head -2 | tr '\n' ' ')
+    detail="$detail (rerun: claude plugin validate --strict $dir)"
+    ko "$name: validate --strict rc=$rc: $detail"
+  else ok "$name: validate --strict passed"; fi
   rc=0
   out=$(bounded claude plugin test "$dir") || rc=$?
   if [ "$rc" -eq 124 ]; then ko "$name: plugin test timed out after ${CLI_TIMEOUT}s"
   elif [ "$rc" -ne 0 ]; then
     ko "$name: plugin test rc=$rc: $(printf '%s' "$out" | tail -3 | tr '\n' ' ')"
   else ok "$name: plugin test passed"; fi
+}
+
+# strict_discriminates: --strict must fail per-file warnings, pass a clean one.
+strict_discriminates() {
+  local rc
+  mkdir -p "$WORK/warnfix/.claude-plugin" "$WORK/cleanfix/.claude-plugin"
+  echo '{"name":"warnfix"}' > "$WORK/warnfix/.claude-plugin/plugin.json"
+  echo '{"name":"cleanfix","version":"0.1.0","description":"d",'\
+'"author":{"name":"x"}}' > "$WORK/cleanfix/.claude-plugin/plugin.json"
+  rc=0; validate_strict "$WORK/cleanfix" || rc=$?
+  if [ "$rc" -eq 124 ]; then ko "strict control: validate timed out"
+  else check "strict control: clean fixture passes --strict" "$rc" 0; fi
+  rc=0; validate_strict "$WORK/warnfix" || rc=$?
+  if [ "$rc" -eq 124 ]; then ko "strict control: validate timed out"
+  else check "strict control: per-file warnings fail --strict" "$rc" 1; fi
 }
 
 manifests=()
@@ -76,6 +101,7 @@ if reason=$(cli_unavailable); then
   use_cli=0
   echo "SKIP: claude plugin test unavailable ($reason) — validate/test not run"
 fi
+[ "$use_cli" -eq 1 ] && strict_discriminates
 
 for m in ${manifests[@]+"${manifests[@]}"}; do
   dir="$(dirname "$(dirname "$m")")"; name="$(basename "$dir")"
