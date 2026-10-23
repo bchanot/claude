@@ -12,6 +12,9 @@ Done history before 2026-10-08 removed 2026-10-23 (git keeps it: `git log -p -- 
 - [ ] post-run-D residuals (gates, 2026-10-07): settings.json soft_deny names only `gitflow.autopush false` → add "or an unparseable value" (restriction only, settings run); capitalize STEP 6: manual mode with `ahead` = 0 (user pushed by hand between merge and read) matches no closing line, and the 5C `ahead` = 0 bullet still says "(auto-push mode did it)"; release-executor:86 line > 80 cols; push-guard header line 4 > 80 cols (pre-existing); unpushed-guard Stop silence now also covers a missing lib (SessionStart names it) — accepted
 - [ ] gitflow LOW leftovers (run B, rest done in run D 472cccb): `--end-of-options`/`--` on refname args and `printf %q` in copy-paste hints; `gitflow_delete`: check `_gitflow_checkout_containing_base` rc (lib/gitflow.sh:270) before `--unset-upstream`
 
+- [ ] docker host-root mount spellings uncovered by deny (security gate 2026-10-23, pre-existing): `--volume /:/x`, `-v=/:/x`, `--mount type=bind,source=/,...`; prove each with a harmless analogue (`--settings` one-rule file) before adding
+- [ ] 6 dead deny entries (`Bash(docker run * -v /:*)`, `Bash(git push * :*)`, 4 `Write(...)`) kept by the push-guard T41/T42 non-weakening lock; drop them with a justified-removal list in T42 at the next release (working forms added 2026-10-23)
+
 ### Release 3.0.0
 - [ ] MIGRATION.md "Upgrading to 3.0.0" (CHANGELOG Unreleased says breaking: typed `/effort-*` removed; only the 2.0.0 section exists)
 - [ ] routing.json `confirmed` (15 agents, 11 phases, 3 skills) ships to every clone (by design: decisions travel); revisit at the 3.0.0 cut
