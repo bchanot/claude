@@ -237,6 +237,19 @@ case "$_pm" in
   invalid) printf "│  🔒 %-46s│\n" "push : manual (autopush bad) — ! git push" ;;
 esac
 unset _pm _gf_lib
+# ── code origin: one line inside a git repo, none outside ──
+_co_lib="$(dirname "${BASH_SOURCE[0]}")/../lib/code-origin.sh"
+if [ -r "$_co_lib" ] && git rev-parse --git-dir >/dev/null 2>&1; then
+  _co=$(bash "$_co_lib" 2>/dev/null)
+  case "$_co" in
+    ours*) _co_line="code : ours (limites strictes)" ;;
+    foreign*) _co_line="code : foreign (${_co#foreign })" ;;
+    *) _co_line="" ;;
+  esac
+  [ -n "$_co_line" ] && printf "│  📐 %-44s│\n" "${_co_line:0:44}"
+  unset _co _co_line
+fi
+unset _co_lib
 if [ -n "$GRAPHIFY_HINT" ]; then
   printf "│  🕸️  %-44s│\n" "${GRAPHIFY_HINT:0:44}"
   printf "│             %-40s│\n" "→ /graphify (AST, seconds) — you decide"
