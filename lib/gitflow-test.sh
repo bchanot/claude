@@ -575,6 +575,13 @@ gitflow_delete feature/np >/dev/null 2>&1
 git config --unset gitflow.autopush
 chk "T24i gitflow.autopush=false → remote copy untouched" 'git ls-remote --exit-code --heads origin feature/np >/dev/null 2>&1'
 
+echo "T25 — CLI start outside a git repo fails"
+nogit="$WORK/nogit"; mkdir -p "$nogit"; cd "$nogit" || exit 1
+# shellcheck disable=SC2034  # read by the eval in chk
+nogit_out="$(bash "$HERE/gitflow.sh" start chore x 2>&1)"; nogit_rc=$?
+chk "T25a rc non-zero"       "[ $nogit_rc -ne 0 ]"
+chk "T25b names the missing base" 'printf "%s" "$nogit_out" | grep -q "base .develop. missing"'
+
 echo
 echo "==== RESULT: $PASS passed, $FAIL failed ===="
 [ "$FAIL" -eq 0 ]
