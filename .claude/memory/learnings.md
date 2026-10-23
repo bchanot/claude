@@ -246,6 +246,7 @@ rules:
 | LRN-224 | 2026-10-21 | Best-tier agent row floors on tier 2nd alias: inTier writes head-or-above only, fable frontmatter = no fallback in credit outage | pinning agents on best tier, census floors |
 | LRN-225 | 2026-10-22 | Gate on tool's exit-code contract, never its prose; positive control through gate's own helper on clean/dirty fixture pair; mktemp EXIT trap script-level | any test that wraps a CLI verdict |
 | LRN-226 | 2026-10-23 | Cap one axis of a layered route at the WRITER (effort-only route), never by filtering at the reader: reader cap shadows lower slots + depends on a baseline that can be unknown | any slot/precedence router, per-axis caps |
+| LRN-227 | 2026-10-23 | Root-commit author ≠ name the user remembers: check `git log --max-parents=0`; every root email the user ever used goes in `claude.identity` | code-origin claims, identity lists |
 
 ---
 
@@ -1885,3 +1886,7 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Context**: feat C model-router (BLK-032). r1 capped prompt routes inside `wantedModel` (drop model when above session). Challenge r1: capped `turnMain` still won slot order → hid held best-tier `runMain` (keyword reply in /feat run → opus); cap read `sessionModel`, '' after /reload-plugins → fail-open lift to fable.
 - **Pattern**: writer emits effort-only route (`{effort}`, no tier/model, same as `belowRun`); existing per-axis rule (model-less slot skipped for model axis) falls through to run slot or keeps cur. No baseline read, no new predicate, dead floor-model branch removed.
 - **Apply**: when a source must stop driving one axis, strip that axis where the route is written; check every lower-priority slot it used to shadow; a reader-side cap needs the baseline to be known at decision time, prove it or don't use it. Links [[BDR-123]], [[BDR-115]], [[EVAL-048]].
+
+## LRN-227 — Root-commit author ≠ name the user remembers; identity list must cover every root email
+- **Context**: BDR-124 verify. User expected lima `root n.turpault 2009`; real root = t.surrel 2009-02-25 (not shallow). Own repo root = `git@bchanot.fr`, absent from user.email + claude.identity → false foreign banner.
+- **Apply**: check origin claims against `git log --max-parents=0`, never memory. Every email ever used as root author → `git config --global --add claude.identity <email>`. Links [[BDR-124]].

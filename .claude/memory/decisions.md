@@ -141,6 +141,7 @@ rules:
 | BDR-121 | 2026-10-18 | Guardrails fix loop reuses bugfix circuit; scanner = contract oracle, baseline re-pass | accepted |
 | BDR-122 | 2026-10-19 | Guardrails split: /a11y standalone on shared scan engine, injection + exposure domains, exposure proven live by read-only probe | accepted |
 | BDR-123 | 2026-10-21 | Routing policy: opus session model, Fable via best-tier rows for orchestrator reflection + merge gates, sonnet writes, doctrine ceiling on Fable main; supersedes parts of BDR-066 / BDR-115 | accepted |
+| BDR-124 | 2026-10-23 | Foreign code keeps its own style (lib/code-origin.sh, `git config claude.origin`), limits strict in our code only | accepted |
 
 ---
 
@@ -1479,3 +1480,10 @@ Branch feature/user-writing-web-rules, UNMERGED (human gate).
 - **Known gaps**: default keyword prompt rules (plan|design|architecture, why|review|audit|analyze, ultrathink) lift main to Fable unwitnessed → feat C caps them at session model; Fable held down → opus stand-in, ceiling does not bind; stale "session model" citers `skills/feat/SKILL.md:6`, `skills/code-clean/SKILL.md:36`.
 - **Refs**: feat A feature/routing-audit-phase d3635b6 a7d747c dae142b; feat B feature/routing-ceiling-rule ef13713 887cf89, contract `.claude/tasks/contracts/2026-10-21-routing-ceiling-rule-1753.md`, plan `.claude/tasks/plans/2026-10-21-routing-ceiling-rule-1753.md`. Links [[BDR-066]] [[BDR-115]] [[BLK-032]] [[LRN-224]].
 - **Amendment (2026-10-23, feat C 786ee13 + docs d2d590f)**: keyword-lift gap CLOSED: prompt rules (keywords, `ultrathink`, user rules) + derived `orchestrate` on main Agent dispatch (user pick 2026-10-23) write effort-only routes; model axis falls through to held run or stays on cur. Amends [[BDR-115]] amendment 2026-10-13 clause "ultrathink floor model beats guess": mid-turn ultrathink after classifier demotion keeps guessed model that turn (floor raises effort only). Accepted edges: haiku session → keywords no-op; session model held → keyword turn = plain-turn fallback (sonnet), not fable; no stand-in notch on keyword/dispatch turns; dispatch after demotion orchestrates on demoted model. Rejected: cap in `wantedModel` (r1) → shadowed held run slot + fail-open on `sessionModel` '' after /reload-plugins. Contract `.claude/tasks/contracts/2026-10-23-router-keyword-cap-0019.md`, plan r2.1 `.claude/tasks/plans/2026-10-23-router-keyword-cap-0019.md`. Links [[LRN-226]], [[EVAL-048]].
+
+## BDR-124 — Foreign code keeps its own style; limits strict in our code only [accepted] (2026-10-23)
+- **Decision**: CLAUDE.global.md header: strict limits in our code, "Foreign code: keep its style" section wins on foreign code (granularity, layout, naming, comments, idioms; limits = guidelines; no refactor toward our norms unless asked). Origin = `lib/code-origin.sh`: `git config claude.origin` (ours|foreign, per clone, invalid → foreign) > root commit author vs `user.email` + global `claude.identity` list; undecidable (no git, shallow, no commit) → foreign, said. Session banner line `code : ours|foreign (reason)`. refactorer, /refactor, /audit-delta conformity follow it; refactorer cites CLAUDE.md limits, no copy.
+- **Why**: lima (third-party, 2009): extracted `rtnh_put_via6()` for 25-line limit while neighbour branches work inline; user had to inline back reusing in-scope vars/sizeof.
+- **Alternatives rejected**: marker file committed in foreign repo (pollutes third-party tree); limits everywhere (breaks foreign style); per-file heuristics (unverifiable).
+- **Known gaps**: "Session start" rule still creates `.claude/memory/` in foreign repos (out of scope). CLAUDE.global.md now 328L > 320 warn.
+- **Refs**: chore/foreign-code-style 70e0f9a 71d28f8 052a704 5c6e368, merge 1a14265. Links [[LRN-227]].
