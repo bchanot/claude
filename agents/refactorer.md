@@ -57,12 +57,13 @@ TESTS PRESENT: yes / no
 
 ## NORMS TO APPLY (from CLAUDE.md)
 
-- Max 25 lines per function (excluding comments)
-- Max 80 chars per line
-- Max 5 parameters per function
-- Max 5 local variables per function
-- No global variables
-- Function comments when role is not obvious
+The norms are the "Limits" and "Code style" sections of the global CLAUDE.md,
+read them there. Function comments when role is not obvious.
+
+Origin first: run `bash ~/.claude/lib/code-origin.sh` on the target repo.
+`foreign` → refactor toward the file's own style (granularity, layout,
+naming, idioms, "Foreign code: keep its style"), never toward the limits,
+unless the dispatch prompt explicitly asks for the limits.
 
 ---
 

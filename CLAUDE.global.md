@@ -2,7 +2,20 @@
      Repo-specific instructions live in ./CLAUDE.md (project scope). -->
 
 # Global coding preferences
-Apply unless repo-specific instructions override.
+Strict in our code (project started by the user or Claude). Foreign
+code (`bash ~/.claude/lib/code-origin.sh` → foreign) → "Foreign
+code" wins. Repo-specific instructions override both.
+
+## Foreign code: keep its style
+- Existing code's style is the norm unless the user says otherwise:
+  function granularity, file layout, naming, comment density, error
+  handling, idioms. Write like the neighbouring code.
+- Neighbours work inline → work inline: no function, helper or
+  abstraction the file would not have written. Reuse what is in
+  scope (variables, macros, sizeof).
+- Limits become guidelines: exceed them where the file's style
+  needs it.
+- No refactor toward our norms unless asked.
 
 ## Code style
 - Simple, readable, maintainable > clever or compact.
@@ -17,7 +30,7 @@ Apply unless repo-specific instructions override.
 - Assumed shortcut → `shortcut:` comment at the site (limit + upgrade
   path), harvested into TODO.md so "later" stays findable.
 
-## Limits (adapt to language)
+## Limits (our code: strict; foreign code: see above)
 - Max 25 logic lines/function (executable statements; comments and
   error-handling boilerplate don't count), 80 chars/line, 5 params, 5 locals.
 - Too many params → struct/object. Too many vars → split/extract.

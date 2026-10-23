@@ -277,7 +277,9 @@ Then offer to capitalize (per CLAUDE.md): recurring finding patterns →
   FIRST, then check changed code against those norms. This repo's:
   ≤25 logic lines/function, ≤80 chars/line, ≤5 params, ≤5 locals, no
   global state, intent-not-mechanics comments, explicit naming, versioned
-  APIs (`/api/v1/`), no-SPA-for-public-sites, security defaults.
+  APIs (`/api/v1/`), no-SPA-for-public-sites, security defaults. Foreign
+  code (`bash ~/.claude/lib/code-origin.sh` → foreign): measure consistency
+  with the existing style instead of the limits; security stays strict.
 - **deadcode** — dead/zombie introduced OR orphaned by the delta: unused
   functions/exports/imports/vars, unreachable branches, stale feature
   flags, commented-out blocks, references to deleted files/symbols
