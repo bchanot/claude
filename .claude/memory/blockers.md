@@ -231,6 +231,7 @@ rules:
 - **Real cause**: gitflow doctrine "finish only on explicit human signal" lives in DISPATCHER transcript (user ask + STEP 4 AskUserQuestion go); subagent transcript starts fresh → classifier sees consequential merge with zero authorization evidence. Structural: any human-gated action dispatched to a subagent loses its gate evidence.
 - **Solution** (workaround): dispatcher ran `gitflow.sh finish` + tag inline after its own human gate — where the signal is real. Release completed clean (main `648bc6e`, tag v1.3.1).
 - **Status**: open. Candidate fixes: (a) quote gate evidence verbatim in span prompt — untested vs classifier; (b) move finish+tag span permanently inline in /release-candidate — keeps prep span dispatched, costs the sonnet pin on ~5 mechanical commands, cheap; (c) permission rule allowing subagent `gitflow.sh finish` — weakens the guard, refused. Decide at next release.
+- **Status (2026-10-23, reconcile)**: open. Did not recur at 2.0.0 (journal: release-executor finish passed), no fix applied (release-candidate SKILL.md:88-90 still dispatches `SPAN: finish`). Decide (a)/(b) at 3.0.0.
 - **Reference**: skill `release-candidate` STEP 5. Pattern adjacent [[LRN-089]] (ambient-state/context assumptions across boundaries). Journal 2026-07-20.
 
 ## BLK-019 — notify-attention bell silent, toast OK (VS Code client default) — 2026-09-01
