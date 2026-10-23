@@ -642,3 +642,4 @@ rules:
 ## 2026-10-23
 - Remote bugfix/mods-validate-advisory delete blocked by auto-mode classifier → user runs `git push origin --delete`. routing.json audit confirm committed eb4771e.
 - /feat C (feature/router-keyword-cap): r1 cap in wantedModel killed by 3 BLOCKERs → r2 effort-only routes at writers + derived orchestrate (user pick), confirmation SOLID. 786ee13, verifier CONFORME 1st pass (1st died 429 Fable), auditor PASS, docs d2d590f. BLK-032 resolved, LRN-226, EVAL-048. Merge on user go.
+- /reconcile TODO (chore/todo-reconcile): 2190 → ~200 lines. Done history pre-10-08 dropped (git archive), 46 open → 35 grouped (actionable, release 3.0.0, docs, user, blocked, live checks, optional, parked, known limits). Done: P16, P43, Linux run, Makefile help; obsolete: effort-pins items, fable live check; 5 hidden prose follow-ups lifted. BLK-018 status line: decide at 3.0.0. Engine gap: `reconcile_blk_open` ignores header `[resolved]` tag (BLK-032..034 false open).
