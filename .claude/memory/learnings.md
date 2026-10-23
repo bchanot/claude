@@ -245,6 +245,7 @@ rules:
 | LRN-223 | 2026-10-21 | Regex timing lock is vacuous when the input matches early: feed a non-matching worst-path input, assert `is None`, keep ≥ 2x margin under the lock | every bounded regex test |
 | LRN-224 | 2026-10-21 | Best-tier agent row floors on tier 2nd alias: inTier writes head-or-above only, fable frontmatter = no fallback in credit outage | pinning agents on best tier, census floors |
 | LRN-225 | 2026-10-22 | Gate on tool's exit-code contract, never its prose; positive control through gate's own helper on clean/dirty fixture pair; mktemp EXIT trap script-level | any test that wraps a CLI verdict |
+| LRN-226 | 2026-10-23 | Cap one axis of a layered route at the WRITER (effort-only route), never by filtering at the reader: reader cap shadows lower slots + depends on a baseline that can be unknown | any slot/precedence router, per-axis caps |
 
 ---
 
@@ -1878,3 +1879,9 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Context**: BLK-034. `grep -qi warning` on `claude plugin validate` output broke when CLI 2.1.306 added an advisory section; first plan (sed range delete between two markers) was fail-open: closing marker printed only when findings > 0, else range ran to EOF and hid `✔ Validation passed with warnings`.
 - **Pattern**: (1) a CLI with `--strict` / `--json` / rc semantics → gate on rc, prose only in the ko message. (2) Positive control runs the SAME helper the gate uses (a copy of the invocation stays green when the gate drifts). (3) Pair of fixtures differing only in the guarded cause (warnfix vs cleanfix): parse error (`error: unknown option`, rc 1 on both) or scrape added back turns the pair red; a lone "rc must be 1" accepts any failure. (4) Inline sample strings test the author's literal, not the code: a check that cannot fail is not a check. (5) `WORK=$(mktemp -d); trap 'rm -rf "$WORK"' EXIT` stays script-level: `local` WORK + EXIT trap → `unbound variable` under `set -u`, dir leaks.
 - **Apply**: any suite wrapping a third-party CLI verdict (plugin validate, linters, validators). Links [[BLK-034]], [[LRN-223]].
+
+## LRN-226 — Cap one axis of a layered route at the writer, not at the reader
+
+- **Context**: feat C model-router (BLK-032). r1 capped prompt routes inside `wantedModel` (drop model when above session). Challenge r1: capped `turnMain` still won slot order → hid held best-tier `runMain` (keyword reply in /feat run → opus); cap read `sessionModel`, '' after /reload-plugins → fail-open lift to fable.
+- **Pattern**: writer emits effort-only route (`{effort}`, no tier/model, same as `belowRun`); existing per-axis rule (model-less slot skipped for model axis) falls through to run slot or keeps cur. No baseline read, no new predicate, dead floor-model branch removed.
+- **Apply**: when a source must stop driving one axis, strip that axis where the route is written; check every lower-priority slot it used to shadow; a reader-side cap needs the baseline to be known at decision time, prove it or don't use it. Links [[BDR-123]], [[BDR-115]], [[EVAL-048]].

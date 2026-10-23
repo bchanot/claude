@@ -638,3 +638,7 @@ rules:
 
 ## 2026-10-22
 - feat B merged (df38fd4). /bugfix mods.test.sh (bugfix/mods-validate-advisory): CLI 2.1.306 advisory ICON_MISSING section read as warning → verdict = `claude plugin validate --strict` rc through one helper + warnfix/cleanfix control; plan r3 (3 lenses + 1 re-challenge, sed-range fail-open killed), GATE 0 7/7, verifier ECARTS = out-of-scope routing.json dialog write (`confirmed.phases.audit`, uncommitted, user call), auditor PASS. 801992a. BLK-034, LRN-225. Next: feat C keyword rules capped at session model, close BLK-032.
+
+## 2026-10-23
+- Remote bugfix/mods-validate-advisory delete blocked by auto-mode classifier → user runs `git push origin --delete`. routing.json audit confirm committed eb4771e.
+- /feat C (feature/router-keyword-cap): r1 cap in wantedModel killed by 3 BLOCKERs → r2 effort-only routes at writers + derived orchestrate (user pick), confirmation SOLID. 786ee13, verifier CONFORME 1st pass (1st died 429 Fable), auditor PASS, docs d2d590f. BLK-032 resolved, LRN-226, EVAL-048. Merge on user go.

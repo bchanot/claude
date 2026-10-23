@@ -51,7 +51,7 @@ rules:
 | BLK-029 | 2026-10-08 | Claude Code mods (2.1.294): alias → id resolution for a model set by a hook lags the Agent tool's (`sonnet` → `claude-sonnet-5`, 404); Agent tool schema refuses full ids | upstream |
 | BLK-030 | 2026-10-15 | model-router kept routing best-tier phases to Fable out of usage credits: each new session + each hold lapse lost a turn to 429 `model_requires_usage_credits`; breaker reactive only | resolved |
 | BLK-031 | 2026-10-16 | model-router: session starting on Fable w/o credits lost 1st turn + each hold lapse; probe skipped kept cur | resolved |
-| BLK-032 | 2026-10-19 | Main loop pinned on Fable in long sessions: session model Fable 1M + downgrade cap 120k + prompt rule `plan` → inline code on Fable xhigh; feat A+B shipped (BDR-123), closes after feat C | open |
+| BLK-032 | 2026-10-19 | Main loop pinned on Fable in long sessions: session model Fable 1M + downgrade cap 120k + prompt rule `plan` → inline code on Fable xhigh; feat A+B shipped (BDR-123), closed by feat C 786ee13 | resolved |
 | BLK-033 | 2026-10-21 | Guardrails residuals: probe trusted plan `supabase.url`, redirects free of budget, unread bodies read CLOSED, `str(URLError)` hid budget signal; rules 5 FP / 7 misses | resolved |
 | BLK-034 | 2026-10-22 | mods.test.sh red on CLI 2.1.306: whole-output `warning` grep caught advisory plugin-directory section (ICON_MISSING, blocking: false); verdict = `--strict` exit code now | resolved |
 
@@ -333,9 +333,11 @@ rules:
 - **Status**: resolved. Open: leaveDown follows classifier `wanted` (implement → sonnet), not opus; "context size unknown" likely document attachment → `promptSize` unknown.
 - **Reference**: [[BLK-030]], [[LRN-218]], contract `.claude/tasks/contracts/2026-10-16-router-probe-session-model-1850.md`.
 
-## BLK-032 — Main loop pinned on Fable in long sessions: session model Fable 1M + downgrade cap 120k + prompt rule `plan` → inline code on Fable xhigh [open]
+## BLK-032 — Main loop pinned on Fable in long sessions: session model Fable 1M + downgrade cap 120k + prompt rule `plan` → inline code on Fable xhigh [resolved]
 - **Cause**: `~/.claude/settings.json` `"model": "claude-fable-5-1[1m]"` (every session starts on Fable); model-router never moves main above the session model, moves DOWN only under `downgradeMaxTokens` 120000 (LRN-204 cold read) → a long session (faunosteo R4.x, context > 120k) never reaches `implement`/sonnet; prompt rule `(plan|design|architecture…)` → phase plan = best/xhigh each turn ("plan §B.1.7"). No doctrine ceiling: CLAUDE.md allows inline work "doable in a few tool calls", BDR-115 "pin = default, never ceiling".
 - **User policy 2026-10-19**: session model Opus 5.5; sonnet writes, opus decides what to write; Fable only for orchestrator reflection/plans and the important audits (security, functional), other judges opus. → next `/feat`: settings model, `judge` split, ceiling rule in CLAUDE.md, BDR superseding part of BDR-066 / BDR-115. Links [[BDR-066]], [[BDR-107]], [[BDR-115]], [[LRN-204]].
+
+- **Solution (2026-10-23)**: feat A+B (BDR-123) + feat C 786ee13 (feature/router-keyword-cap): keyword prompt rules, `ultrathink` floor, derived `orchestrate` dispatch write effort-only routes (`effortRoute`, `belowRun` pattern) → never lift main above session model; held best-tier run keeps its model (per-axis fall-through); `mainModelSlot` drops `turnFloor`. Fable on main only via skill row, `route` tool, `/route`. Docs d2d590f. Links [[LRN-226]], [[EVAL-048]].
 
 ## BLK-033 — Guardrails residuals: probe trusted plan `supabase.url`, redirects free of budget, unread bodies read CLOSED; rules 5 FP / 7 misses [resolved]
 - **Friction**: GATE 2 of the a11y split (f586304) left a MEDIUM + 3 LOW on probe.py, opus review left Minors on the rules. Parked in TODO, fixed via `/bugfix` 2026-10-20/21.
