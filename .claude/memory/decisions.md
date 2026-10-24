@@ -142,7 +142,7 @@ rules:
 | BDR-122 | 2026-10-19 | Guardrails split: /a11y standalone on shared scan engine, injection + exposure domains, exposure proven live by read-only probe | accepted |
 | BDR-123 | 2026-10-21 | Routing policy: opus session model, Fable via best-tier rows for orchestrator reflection + merge gates, sonnet writes, doctrine ceiling on Fable main; supersedes parts of BDR-066 / BDR-115 | accepted |
 | BDR-124 | 2026-10-23 | Foreign code keeps its own style (lib/code-origin.sh, `git config claude.origin`), limits strict in our code only | accepted |
-| BDR-125 | 2026-10-23 | Context mod: subtract-only JIT injection + deterministic guards; supersedes BDR-031 (conditional load proven reliable) | accepted · phases 0-4 planned |
+| BDR-125 | 2026-10-23 | Context mod: subtract-only JIT injection + deterministic guards; supersedes BDR-031 (conditional load proven reliable) | accepted · phases 0-5 planned |
 
 ---
 
@@ -1497,4 +1497,5 @@ Branch feature/user-writing-web-rules, UNMERGED (human gate).
 - **Constraints kept**: no forced continuation (BDR-083, BDR-087), no per-turn capitalize nag (BDR-037), hints never over-fire (LRN-091), skill hint advisory never forced invocation. Prompt cache: context/sections computed once per conversation; per-prompt context appended (no bust).
 - **Alternatives rejected**: hide executor agents via `agent.offer` (breaks dispatch, proven); move writing-style/communication out (apply every turn, same cost); rewrite shown answer (`turn.complete` only appends below); Stop-hook enforcement (BDR-083).
 - **Refs**: probe `scratchpad/ctxprobe` (session-local, not committed), plugin-authoring types 2.1.306 (`prompt.context`, `prompt.compose`, `prompt.section`, `prompt.attachment`, `prompt.submit`, `tool.call`). Supersedes [[BDR-031]]; links [[BLK-009]], [[LRN-175]], [[LRN-054]], [[LRN-091]], [[BDR-115]].
+- **Amendment (2026-10-24, user)**: phase 5 added: per-project virtual profiles, concurrent sessions (today `lib/profile.sh` global: one profile for all open sessions), auto-pick from fingerprint or pinned `/profile set`, per-skill advert of needed helpers; plugin project-scope `enabledPlugins` to verify. Advisor toast refused. Each phase deletes what it obsoletes (scripts, hooks, tests, doctrine). Full specs: TODO "Context mod queue". Probe bench kept at `.claude/tasks/plans/2026-10-24-context-mod-probe/`.
 
