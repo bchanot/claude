@@ -3,6 +3,64 @@
 ## Open (reconciled 2026-10-23, /reconcile)
 Done history before 2026-10-08 removed 2026-10-23 (git keeps it: `git log -p -- .claude/tasks/TODO.md`); decisions live in `.claude/memory/`.
 
+### Context mod queue (BDR-125): one /ship-feature per phase, in order 0 → 5
+Shared rules for every phase:
+- Baseline first: `claude -p "/context"` at repo root (2026-10-23: 30.2k always-on = memory files 11.6k, skills 10k, agents 2.6k, system 2.5k, MCP instr 2.2k, tools 1.1k). Same measure after; the delta is a phase criterion.
+- Proof bench: `.claude/tasks/plans/2026-10-24-context-mod-probe/` (canary per lever + negative control, fresh `claude -p --plugin-dir`). Every lever a phase uses is re-proved there before code, every "to verify" below becomes a canary criterion.
+- Subtract-only: source text stays in CLAUDE.global.md / rules / CLAUDE.md, marked `<!-- jit:<id> -->` … `<!-- /jit -->`; the mod drops a marked section only where it re-delivers it on a trigger. Mod off (`~/.claude/context-mod.json` `"enabled": false`) or hook throws → full text loads as today. Guards use `.catch` deny (fail closed); injections fail open.
+- Inject once per context: mod ledger in `$.state` of what it injected; reset on `session.compact` and `session.end` reason `clear`; re-inject at the next trigger. Canary test after a real compaction is a criterion (documented, not yet proved).
+- Never: forced continuation / Stop block (BDR-083, BDR-087), per-turn nag (BDR-037), forced skill invocation, hiding a dispatchable agent via `agent.offer` (breaks dispatch, proved).
+- Cleanup is part of each phase: delete what the phase makes obsolete (scripts, hooks, tests, doctrine lines, Makefile targets, doctor checks), grep every citer and patch in the same branch (doctrine-citers census in `make test`).
+
+- [ ] **Phase 0, no mod: split project CLAUDE.md + fix higgsfield MCP**
+  - Move the 4 project CLAUDE.md sections (graphify vendored skill 1.4k chars, mods/ 1.3k, rules/ maintenance 1.3k, transient planning artifacts 0.9k) to `.claude/rules/<name>.md` with `paths:` (`skills/graphify/**`; `mods/**`, `skills/model-router`; `rules/**`; `docs/superpowers/**`). Project scope only: no ~/.claude link points at `.claude/` (checked 2026-10-24); never into `rules/` (= ~/.claude/rules, every project).
+  - `.gitignore:122` ignores `.claude/*`: add `!.claude/rules/`.
+  - Higgsfield: MCP declared user-scope in ~/.claude.json (`higgsfield` http) and connected while `toggle-external.sh` says disabled; make `toggle-external.sh enable|disable higgsfield` own `claude mcp add|remove -s user higgsfield` (the user runs the first removal), + doctor check "toggle state = MCP state".
+  - Proof: canary per moved rule (ABSENT at start, PRESENT after Read of a matching file); `/context` delta (~1.9k memory files + higgsfield MCP share).
+  - Cleanup: CLAUDE.md keeps a 2-line pointer ("rules under .claude/rules load on path"); fix citers of the moved headings.
+
+- [ ] **Phase 1, mod `context`: marked-section subtraction + JIT injection + project fingerprint**
+  - New mod `mods/context/` (+ `skills/context` link, census row in mods.test.sh), config `~/.claude/context-mod.json`.
+  - Fingerprint at `session.start` (fs only, cached in `$.state`): stack (package.json deps astro/next/react/vue/svelte, Cargo.toml, go.mod, pyproject), web public vs app, `supabase/`, messaging deps (twilio, sendgrid, resend, mailgun), `functions/` or serverless config, `graphify-out/graph.json`, tracked code file count, code origin via `lib/code-origin.sh` (ours / foreign), gitflow repo, `.claude/memory/` present, empty dir.
+  - Marked sections and triggers: Design work (UI file Read/Edit or UI prompt, same detector as `hooks/design-toolchain-reminder.sh`); graphify (graph.json exists → stays in context block); Public websites never SPA + Web APIs versioned + rules/default-language.md (empty dir, or skill.prompt of init-project / ship-feature / brainstorming / refactor); secure-by-default sections 4 Supabase / 5 SMS-email / 6 cloud functions (fingerprint); gitflow detail (keep 3 core lines; full text on first Bash git/gitflow call); Memory registries format (keep 2 lines; full text on Read/Edit/Write under `.claude/memory/`); "Our code" vs "Foreign code" variant (origin → inject only the applicable one, at first code Read).
+  - Delivery: always-on part via `prompt.context` (drop/rewrite `claudeMd` instructionFiles); JIT via `tool.call` result `context` (Read comes before Edit, so guidance lands before the write) and `prompt.submit` `context`; skill-triggered via `skill.prompt` append.
+  - Drop the unused auto-memory system section (`prompt.section` name `memory`, dir `~/.claude/projects/*/memory/` empty 2026-10-23) behind a config flag.
+  - Proof: canary per section (ABSENT without trigger, PRESENT after it, once only, again after /clear and after a compaction); mod-off run loads everything; `claude plugin test` unit suite; `/context` delta (~4.4k est.).
+  - Cleanup: `hooks/design-toolchain-reminder.sh` + its settings.json registration + `lib/tests/design-toolchain-reminder.test.sh` (the mod injects the section itself); the hook's "(already in context)" text; CLAUDE.global.md lines that only pointed at the moved text; BDR-031 citers.
+
+- [ ] **Phase 2, guards in the context mod (deny with reason, deterministic)**
+  - Registries: Edit/Write on `.claude/memory/{decisions,learnings,blockers,evals}.md` refused when the new heading is not `## <PFX>-<max+1> — `, the Index row is missing or mismatched, an existing entry line is removed or rewritten (append-only; status tag edits allowed by explicit rule), or the added text reads French (accent-ratio heuristic, threshold tested on the real registries: zero false positive required).
+  - Merge gate: Bash running `gitflow.sh finish` refused unless the last user message (recorded at `prompt.submit` origin composer) carries an explicit signal (merge it / merge le / merger / fusionne / feature OK / ship it, FR+EN list, tested on this session's real phrasings) or an AskUserQuestion answer approving the merge in the same turn.
+  - Commit message: `git commit -m/-F` over 50 words refused unless a project convention file exists (lib/commit-message.md lookup order).
+  - Code limits on OUR code only (origin from phase 1): after Edit/Write, report lines > 80 cols and functions > 25 logic lines as result `context`, never deny (language support: sh, ts/js, py, rs first; others skipped).
+  - Destructive guard: re-attempt G2 (BLK-022) as a `tool.call` guard in TS against `lib/tests/guard-bash.test.sh` 214 cases; if the safety classifier withholds it again, record and stop.
+  - Proof: one fixture per refusal + one benign twin per rule (no false positive), `.catch` fail-closed test, live canary run.
+  - Cleanup: doctrine prose that only restated an enforced rule shrinks to one line + pointer (gitflow "finish only on explicit human signal", commit-message limit, registry format); `lib/commit-message.md` keeps the convention lookup only if still cited.
+
+- [ ] **Phase 3, listings: skills filtered + routing hint + agent descriptions**
+  - Skill listing: `prompt.attachment` type `skill_listing` (30,031 chars measured) rewritten from the fingerprint: categories per skill live in routing.json (new `contexts` field beside the phase row); a skill with no category stays SHOWN (new skills always appear); census test in make test fails on an uncategorised skill; kept skills get their full description back from SKILL.md frontmatter (LRN-175 truncation). Handle the listing delta sent mid-session.
+  - To verify first (canary): a skill hidden from the listing still runs when typed (`/name`) and through the Skill tool.
+  - Routing hint: classifier (reuse model-router's small-model call) maps a typed prompt to one skill; inject one line via `prompt.submit` `context` only above a confidence threshold, never on slash prompts, mid-turn or inside a run; names hidden skills too. Replaces the CLAUDE.global.md "Skill routing" table (2.1k chars).
+  - Agent listing: `agent_listing_delta` (9,098 chars) rewritten with short descriptions for skill-dispatched executors, names kept. To verify first: dispatch of a trimmed agent still works (agent.offer untouched).
+  - MCP: drop instructions + deferred tool names of servers the fingerprint/toggles mark irrelevant (higgsfield off, claude.ai connectors in a coding repo) via `mcp_instructions_delta` / `deferred_tools_delta`; ToolSearch still finds them.
+  - Proof: canaries (hidden skill ABSENT, control PRESENT, typed hidden skill runs, trimmed agent dispatches), hint precision measured on a fixed prompt set (no hint on chat/bookkeeping), `/context` delta (~5-7.5k est.).
+  - Cleanup: CLAUDE.global.md Skill routing section → 2 lines; LRN-043 routing-line rule superseded; doctor skill-listing budget check updated.
+
+- [ ] **Phase 4, active memory**
+  - Session digest via `prompt.context` block (re-read on compaction/clear by the engine): open BLK (body status, last block wins, as lib/reconcile.sh reads it), actionable TODO items (Open § Actionable), last journal heading + line; only when `.claude/memory/` exists.
+  - Per-prompt retrieval: local score of registry headings (`## BDR|LRN|BLK|EVAL-` lines) against the typed prompt, top 3-5 `ID — title` lines as `prompt.submit` `context` above a threshold; no model call. Optional `memory_search` tool (`$.tool.register`, `isDeferred: false`) for skills (analyze-before-plan pass 1 calls it instead of grep).
+  - Capitalization proposals on observed milestones only: a `feat`/`fix` commit or a `gitflow finish` seen in `tool.call` → one context note at the next prompt (never per turn, never at Stop).
+  - Proof: digest canary after start, after compaction, after /clear; retrieval precision on 10 real prompts from journal history; zero note on turns without milestone.
+  - Cleanup: CLAUDE.global.md "Session start" step 1 (read registries) → mod; "Proactive capitalization" paragraph shrinks; analyze-before-plan pass 1 points at the tool; fix the reconcile engine gap seen 2026-10-23 (`reconcile_blk_open` ignores header `[resolved]`) since the digest reuses it.
+
+- [ ] **Phase 5, per-project profiles, native and concurrent (user ask 2026-10-24)**
+  - Today `lib/profile.sh` is global (symlinks skills/ ↔ skills-disabled/, `claude plugin enable|disable` user scope): every open session shares one profile. Target: each session gets its own profile, so web in one project, full in another, backend in a third, at the same time.
+  - Virtual profile in the context mod: all skills stay installed; the session's profile filters the skill listing, agent descriptions and MCP names (phase 3 mechanism). Profile pick: pinned per project (mod slash command `/profile set <name>`, stored in `$.store` keyed by origin remote `host/path`), else auto from the fingerprint (astro/next site → web, Cargo.toml/go.mod without frontend → backend, else full).
+  - Per-skill activation: when a skill loads (`skill.prompt`), the skills/agents it needs (declared in routing.json, e.g. ship-feature → impeccable stack on a UI project) are advertised in its prompt even if the profile hides them.
+  - Plugins (hooks/MCP of real plugins): to verify whether project-scope `enabledPlugins` in `.claude/settings.local.json` is honoured; if yes, the mod writes nothing itself (never writes settings: BDR-116 spirit) and `/profile set` prints the line for the user; mid-session plugin toggling is not native, say so.
+  - Proof: two concurrent sessions in two repos with different profiles, canaries prove different listings; typed `/profile set` persists across restarts; per-skill advert canary.
+  - Cleanup: `lib/profile.sh set|apply|reset` symlink toggling + `skills-disabled/` (24 entries), Makefile `profile*` targets, `/profile` skill, plugin-gate prose tied to global toggling (`lib/plugin-gate.md`, plugin-probe/plugin-advisor briefs), banner hint "/plugin-check before starting a new project", doctor profile checks, profile tests; keep `lib/profiles/*.profile` as the profile definitions the mod reads.
+
 ### Actionable
 - [ ] deferred (BDR-123): remap inline-writing best-tier skills (design Build stack, writing-skills, deprecation-and-migration, /tour single-project, /audit-delta 3d, /harden STEP 3); stale citers skills/feat/SKILL.md:6, skills/code-clean/SKILL.md:36; + impeccable row in routing.json (design Build stack has none; frontend-design has `reflect`; census test pins the table)
 - [ ] parked (GATE 2 LOW, 5a98c2c): probe table names not checked with `IDENT.fullmatch` per table (a `/` walks a path on the approved Supabase host); `printable` lets Unicode bidi/format controls (U+202E, U+2066…) through to the tty
