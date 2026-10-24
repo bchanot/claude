@@ -52,7 +52,7 @@ rules:
 | BDR-028 | 2026-06-27 | Hand-curated config install-immutable (auto-revert guard) + de-vendor installer-managed skills | accepted |
 | BDR-029 | 2026-06-27 | Installer auto-fixes gstack browser on an OS newer than its pinned Playwright supports | accepted |
 | BDR-030 | 2026-06-27 | gstack skills activated ON-DEMAND per profile, not pre-installed; OFF by default stays | accepted |
-| BDR-031 | 2026-06-27 | global CLAUDE.md lightening = COMPRESSION, not path-scope / externalization | accepted · 275-line target superseded by BDR-062 |
+| BDR-031 | 2026-06-27 | global CLAUDE.md lightening = COMPRESSION, not path-scope / externalization | superseded by BDR-125 · 275-line target superseded by BDR-062 |
 | BDR-032 | 2026-06-27 | skill `/validate` → `/web-validate` (rename user surface, keep internals) | accepted |
 | BDR-033 | 2026-06-27 | design-gate §4: anim-lib suggestion — suggest-only, non-blocking, stateless 1-line | accepted |
 | BDR-034 | 2026-06-26 | Coupled-capitalize invariant v1 — memory commit auto per dev flow (Frame 2) | accepted |
@@ -142,6 +142,7 @@ rules:
 | BDR-122 | 2026-10-19 | Guardrails split: /a11y standalone on shared scan engine, injection + exposure domains, exposure proven live by read-only probe | accepted |
 | BDR-123 | 2026-10-21 | Routing policy: opus session model, Fable via best-tier rows for orchestrator reflection + merge gates, sonnet writes, doctrine ceiling on Fable main; supersedes parts of BDR-066 / BDR-115 | accepted |
 | BDR-124 | 2026-10-23 | Foreign code keeps its own style (lib/code-origin.sh, `git config claude.origin`), limits strict in our code only | accepted |
+| BDR-125 | 2026-10-23 | Context mod: subtract-only JIT injection + deterministic guards; supersedes BDR-031 (conditional load proven reliable) | accepted · phases 0-4 planned |
 
 ---
 
@@ -604,7 +605,7 @@ rules:
 ## BDR-031 — global CLAUDE.md lightening = COMPRESSION, not path-scope / externalization
 
 - **Date**: 2026-06-25
-- **Status**: accepted
+- **Status**: accepted; SUPERSEDED 2026-10-23 by [[BDR-125]] (conditional load now proven reliable + mod injection)
 - **Decision**: lighten the universal global CLAUDE.md (`~/.claude/CLAUDE.md`, loaded every session in every project) by COMPRESSION only — denser prose, drop name-obvious routing lines, trim decorative whitespace. NOT by path-scoping rules under `~/.claude/rules/`, NOT by externalizing sections to on-demand files. Result: 317 → 275 lines.
 - **Why**: user-level path-scoped rules (`paths:` frontmatter under `~/.claude/rules/`) do NOT load in CC 2.1.190 (#21858, [[BLK-009]]) — proven by probe. Conditional/scoped loading is therefore an unreliable lever for this user; compression is the only mechanism that actually cuts every-session token cost without depending on the broken feature.
 - **Caveats**: future GLOBAL memory must stay tiny — with conditional loading broken, anything global loads in EVERY project unconditionally; fold that constraint into the global-memory design once a backup exists. Caveman pass to ~250 was explicitly DECLINED: marginal ~25-line gain vs real risk (changes the nature of instructions-to-follow; no evidence caveman is followed better than prose; CLAUDE.md is the most-edited file → caveman = painful to re-read/amend). 275 readable > 250 caveman.
@@ -1487,3 +1488,13 @@ Branch feature/user-writing-web-rules, UNMERGED (human gate).
 - **Alternatives rejected**: marker file committed in foreign repo (pollutes third-party tree); limits everywhere (breaks foreign style); per-file heuristics (unverifiable).
 - **Known gaps**: "Session start" rule still creates `.claude/memory/` in foreign repos (out of scope). CLAUDE.global.md now 328L > 320 warn.
 - **Refs**: chore/foreign-code-style 70e0f9a 71d28f8 052a704 5c6e368, merge 1a14265. Links [[LRN-227]].
+
+## BDR-125 — Context mod: subtract-only JIT injection + deterministic guards; supersedes BDR-031 [accepted] (2026-10-23)
+- **Decision**: user ask "move always-on doctrine into a mod, make it hard". Always-on context = 30.2k tok (`/context`, opus, repo root): memory files 11.6k, skill listing 10k, agents 2.6k, system 2.5k, MCP instr 2.2k, tools 1.1k. Mod = (a) SUBTRACT a marked CLAUDE.md/rules section only when it can re-deliver it JIT on a deterministic trigger, (b) turn mechanically checkable rules into tool.call guards (deny + reason). Source text stays in CLAUDE.md/rules with markers: mod off or hook throws → hook skipped → full content loads as today (fail-safe). Per-turn rules (writing-style, communication, workflow core) stay always-on.
+- **Why**: BDR-031 premise dead. Proven 2026-10-23 by throwaway probe mod + fresh `claude -p --plugin-dir` canaries (unique tokens + negative controls): `prompt.context` drops an instruction file (default-language ABSENT, writing-style PRESENT) and adds blocks; `prompt.compose` adds system section; `prompt.section` drops one (auto-memory ABSENT); `prompt.submit` `context` + `tool.call` result `context` inject; `prompt.attachment` rewrite of `skill_listing` drops a skill (scrape ABSENT, seo PRESENT); user `paths:` rules load on Read (web-security, rest-api). Facts: `agent.offer` false → agent undispatchable ("Agent type not found"); `command.describe` isHidden = typeahead only.
+- **Phases** (each a future /ship-feature): 0 no mod: project CLAUDE.md sections → project `paths:` rules, higgsfield MCP declared in ~/.claude.json while toggle disabled. 1 context mod: marked-section subtraction + JIT (design, graphify, web/SPA + API + language, secure-by-default domains by fingerprint, gitflow detail, registry format, foreign/our code variant), project fingerprint, drop unused auto-memory section. 2 guards: registry writes (next ID, index row, append-only, English), merge gate (`gitflow finish` needs explicit signal in last user msg), commit msg ≤50 words, 80-col/function-length feedback on our code. 3 listings: skill listing filtered by fingerprint + descriptions restored, classifier one-line skill hint replaces routing table, agent descriptions trimmed (names kept; dispatch to verify). 4 active memory: session digest (open BLK, actionable TODO, last journal) re-injected after compaction + per-prompt local heading score (top 3-5 above threshold).
+- **Est. gain**: ~13-15k of 30.2k tok (measured chars × measured chars/token ratios; estimate). Main value = relevance + hard guarantees, not tokens.
+- **Constraints kept**: no forced continuation (BDR-083, BDR-087), no per-turn capitalize nag (BDR-037), hints never over-fire (LRN-091), skill hint advisory never forced invocation. Prompt cache: context/sections computed once per conversation; per-prompt context appended (no bust).
+- **Alternatives rejected**: hide executor agents via `agent.offer` (breaks dispatch, proven); move writing-style/communication out (apply every turn, same cost); rewrite shown answer (`turn.complete` only appends below); Stop-hook enforcement (BDR-083).
+- **Refs**: probe `scratchpad/ctxprobe` (session-local, not committed), plugin-authoring types 2.1.306 (`prompt.context`, `prompt.compose`, `prompt.section`, `prompt.attachment`, `prompt.submit`, `tool.call`). Supersedes [[BDR-031]]; links [[BLK-009]], [[LRN-175]], [[LRN-054]], [[LRN-091]], [[BDR-115]].
+
