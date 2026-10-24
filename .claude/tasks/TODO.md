@@ -3,7 +3,7 @@
 ## Open (reconciled 2026-10-23, /reconcile)
 Done history before 2026-10-08 removed 2026-10-23 (git keeps it: `git log -p -- .claude/tasks/TODO.md`); decisions live in `.claude/memory/`.
 
-### Context mod queue (BDR-125): one /ship-feature per phase, in order 0 → 5
+### Context mod queue (BDR-125): one /ship-feature per phase, order (user 2026-10-24): 0 → 4a → 1 → 2 → 3 → 4b-4d → 5
 Shared rules for every phase:
 - Baseline first: `claude -p "/context"` at repo root (2026-10-23: 30.2k always-on = memory files 11.6k, skills 10k, agents 2.6k, system 2.5k, MCP instr 2.2k, tools 1.1k). Same measure after; the delta is a phase criterion.
 - Proof bench: `.claude/tasks/plans/2026-10-24-context-mod-probe/` (canary per lever + negative control, fresh `claude -p --plugin-dir`). Every lever a phase uses is re-proved there before code, every "to verify" below becomes a canary criterion.
