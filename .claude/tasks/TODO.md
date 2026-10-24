@@ -18,6 +18,11 @@ Shared rules for every phase:
   - Higgsfield: MCP declared user-scope in ~/.claude.json (`higgsfield` http) and connected while `toggle-external.sh` says disabled; make `toggle-external.sh enable|disable higgsfield` own `claude mcp add|remove -s user higgsfield` (the user runs the first removal), + doctor check "toggle state = MCP state".
   - Proof: canary per moved rule (ABSENT at start, PRESENT after Read of a matching file); `/context` delta (~1.9k memory files + higgsfield MCP share).
   - Cleanup: CLAUDE.md keeps a 2-line pointer ("rules under .claude/rules load on path"); fix citers of the moved headings.
+  - Other projects (user ask 2026-10-24). Measured project CLAUDE.md, loaded every session of that project: faunosteo 50,228 chars (bigger than the global one), zenquality 23,378, game 14,918, robin_petier 12,895, config 4,990, integration_alphalink 4,249; none has `.claude/rules/`. Splitting is judgment (always-on: overview, stack, commands, conventions; path-scoped: one module, Docker, a folder), so no background automation and no new skill:
+    - `/onboard` gets a `split` mode (skill edit through /writing-skills: pressure test RED first): read the project CLAUDE.md, classify each section always-on vs path-scoped, propose globs from the real tree, user approves per project, write `.claude/rules/<name>.md` + slim CLAUDE.md + `!.claude/rules/` in .gitignore when `.claude/*` is ignored.
+    - Generators fixed at the source: onboarder + scaffolder (init-project) emit path rules from day one, so new projects are born split.
+    - One pass over the git repos in ~/Documents/ (this repo first, then by size: faunosteo, zenquality, game, robin_petier, config, integration_alphalink): one `chore/claude-md-split` branch per repo, per-project approval, never an automatic merge (user signal per repo), `/context` before/after per project recorded in that project's journal.
+    - Proof: per project, canary that a moved section is ABSENT at start and PRESENT after a Read of a matching file; total always-on delta across the 7 projects.
 
 - [ ] **Phase 1, mod `context`: marked-section subtraction + JIT injection + project fingerprint**
   - New mod `mods/context/` (+ `skills/context` link, census row in mods.test.sh), config `~/.claude/context-mod.json`.
