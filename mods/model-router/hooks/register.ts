@@ -7,7 +7,10 @@
 // DEFAULT_CONFIG; ~/.claude/model-router.json overrides both per machine.
 // One writer per concern: the Agent tool's own params are never rewritten,
 // the spawn hook sets an agent's model once, turn.step sets efforts.
-import type { EngineInterface, On, Register, TurnStepInput } from 'claude-code'
+import type {
+  CommandRunInput, CommandRunResult, EngineInterface, Next, On, Register,
+  TurnStepInput,
+} from 'claude-code'
 
 type Api = EngineInterface
 type Level = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
@@ -47,6 +50,7 @@ type Routed = {
   source: Source
   label?: string // the skill a skill route came from, for the logs
   explicitEffort?: boolean // the effort was asked for, not the phase's own
+  explicitModel?: boolean // the model was chosen by hand in the scope dialog
 }
 type Served = { at: number; tokens: number } // ms, context tokens
 type Hold = { until: number; reason: string } // until: ms, Infinity = reload
@@ -190,6 +194,15 @@ const KEEP = 'Keep'
 const CHANGE = 'Change'
 const EVERYWHERE = 'Everywhere'
 const THIS_PROJECT = 'This project only'
+// `/model <name>` scope dialog. PROJECT_SCOPE differs from THIS_PROJECT, the
+// first-use label: both are fixed by their own contracts.
+const PROJECT_SCOPE = 'This project'
+const CONVERSATION = 'This conversation'
+const MODEL_SCOPES: readonly string[] = [
+  PROJECT_SCOPE, CONVERSATION, EVERYWHERE,
+]
+const NO_SCOPE = 'model: no scope chosen, nothing changed'
+const LOCAL_SETTINGS = '.claude/settings.local.json'
 const CHOICE_ALIASES: readonly string[] = ['fable', 'opus', 'sonnet', 'haiku']
 const MAX_DESC = 140 // chars of a skill or agent description in a question
 const MAX_ABOUT = 120 // chars of a phase `about`
@@ -254,12 +267,12 @@ const TIMEOUT: unique symbol = Symbol('timeout')
 
 const DEFAULT_CONFIG: Config = {
   models: {
-    haiku: 'claude-haiku-4-5-20251001',
+    haiku: 'claude-haiku-5-5',
     sonnet: 'claude-sonnet-5-5',
     opus: 'claude-opus-5-5',
     fable: 'claude-fable-5-1',
   },
-  windows: { 'claude-haiku-4-5-20251001': 200000 },
+  windows: {},
   // A tier is an ordered alias list: the first one not down is used.
   tiers: {
     best: ['fable', 'opus', 'sonnet'],
@@ -1365,13 +1378,12 @@ function windowReturn(
 }
 
 /**
- * The one decision of the main loop's model, in this order: router off, a
- * model the table does not rank (never touched), a model whose window the
- * context outgrew (back to the session model), `cur` down (leave it,
- * always), no or same wanted model, a better one (upgrade), a cheaper one
- * (downgrade). Used by the step AND by every text, so they agree.
+ * The automatic chain, in this order: router off, a model the table does
+ * not rank (never touched), a model whose window the context outgrew (back
+ * to the session model), `cur` down (leave it, always), no or same wanted
+ * model, a better one (upgrade), a cheaper one (downgrade).
  */
-function decideMain(
+function automaticCall(
   st: State,
   cur: string,
   wanted: string | undefined,
@@ -1388,6 +1400,57 @@ function decideMain(
   return ranksAbove(st, wanted, id)
     ? upgradeCall(st, cur, wanted, read)
     : downgradeCall(st, cur, wanted, read)
+}
+
+/** The sticky model slot holds a model chosen by hand, and it is `wanted`. */
+function handPicked(
+  st: State,
+  wanted: string | undefined,
+): wanted is string {
+  return wanted !== undefined && st.userMain?.explicitModel === true &&
+    mainModelSlot(st) === st.userMain
+}
+
+/**
+ * A hand pick (the scope dialog) always switches: no switch flag, no cold
+ * read cap, ahead of every automatic rule. Undefined when it cannot run
+ * (held down, or the context outgrew its known window): then it waits.
+ */
+function handCall(
+  st: State,
+  cur: string,
+  wanted: string,
+  read: Reading,
+): Call | undefined {
+  const usable = !st.down.has(canonical(st.cfg, wanted)) &&
+    fits(st, wanted, read.tokens)
+  if (!usable) return undefined
+  if (aliasOf(st.cfg, wanted) === aliasOf(st.cfg, canonical(st.cfg, cur))) {
+    return keep(cur)
+  }
+  return moveTo(cur, wanted, 'hand pick', st.sessionModel)
+}
+
+/**
+ * The one decision of the main loop's model: a hand pick when one can run,
+ * else the automatic chain. Used by the step AND by every text, so they
+ * agree.
+ */
+function decideMain(
+  st: State,
+  cur: string,
+  wanted: string | undefined,
+  read: Reading,
+): Call {
+  if (st.off || !handPicked(st, wanted)) {
+    return automaticCall(st, cur, wanted, read)
+  }
+  const hand = handCall(st, cur, wanted, read)
+  if (hand !== undefined) return hand
+  const call = automaticCall(st, cur, undefined, read)
+  const once = `model-router: ${canonical(st.cfg, wanted)} is held down or ` +
+    'does not fit; hand pick waits'
+  return { ...call, once: call.once ?? once }
 }
 
 /**
@@ -2052,6 +2115,316 @@ async function handleCommand($: Api, st: State, args: string): Promise<string> {
     default:
       return setUserRoute($, st, args)
   }
+}
+
+// ---- /model <name>: the scope of a switch ---------------------------------
+// A typed `/model <name>` of a model the table knows asks where it applies.
+// Everywhere is the native command (user settings.json); the two others set
+// a sticky model route, This project also pins `model` in the project's
+// settings.local.json. Fail-open to native only before an answer.
+
+type ModelNext = Next<'command.run'>
+type PreSwitchNext = Next<'classic.PreModelSwitch'>
+type PreSwitchIn = Parameters<PreSwitchNext>[0]
+type Local = { data: Rec; created: boolean }
+type Unreadable = { cause: string }
+
+/** An alias or a full id of the table; haiku has no `[1m]` variant. */
+function knownModel(cfg: Config, token: string): boolean {
+  const bare = token.replace(ONE_M, '')
+  const id = hasKey(cfg.models, bare) ? cfg.models[bare] ?? bare : bare
+  if (!Object.values(cfg.models).includes(id)) return false
+  return !(ONE_M.test(token) && id.startsWith(HAIKU))
+}
+
+/** The id a token stands for, `[1m]` kept; never `canonical` (it strips). */
+function fullId(cfg: Config, token: string): string {
+  const bare = token.replace(ONE_M, '')
+  if (!hasKey(cfg.models, bare)) return token
+  return `${cfg.models[bare] ?? bare}${ONE_M.test(token) ? '[1m]' : ''}`
+}
+
+/** A user switch by hand: sticky model, the run slot dropped, effort kept. */
+function stickyModel($: Api, st: State, bare: string): void {
+  const prev = st.userMain
+  const effort = prev?.route.effort
+  st.userMain = {
+    phase: 'custom',
+    route: { model: bare, ...(effort === undefined ? {} : { effort }) },
+    source: 'user',
+    explicitModel: true,
+    ...(prev?.explicitEffort ? { explicitEffort: true } : {}),
+  }
+  st.runMain = null
+  refresh($, st)
+}
+
+/** Everywhere: a sticky model or tier would route main back after native. */
+function dropStickyModel(st: State): void {
+  if (st.userMain === null) return
+  const { explicitModel: _hand, ...rest } = st.userMain
+  const effort = rest.route.effort
+  st.userMain = effort === undefined
+    ? null
+    : { ...rest, phase: 'custom', route: { effort } }
+}
+
+async function localPath($: Api): Promise<string | undefined> {
+  try {
+    return `${await $.session.root()}/${LOCAL_SETTINGS}`
+  } catch {
+    return undefined
+  }
+}
+
+/** The file's text; null when absent (`stat` rejects and `exists` false). */
+async function localText(
+  $: Api,
+  path: string,
+): Promise<string | null | Unreadable> {
+  try {
+    let info
+    try {
+      info = await $.fs.stat(path)
+    } catch (err) {
+      if (!(await $.fs.exists(path))) return null
+      return { cause: `fs error ${errWord(err)}` }
+    }
+    if (info.isLink) return { cause: 'settings.local.json is a link' }
+    if (info.kind !== 'file') return { cause: 'not a regular file' }
+    if (info.size > MAX_CONFIG_BYTES) return { cause: 'too large' }
+    const text = await $.fs.read(path)
+    return text.length > MAX_CONFIG_BYTES ? { cause: 'too large' } : text
+  } catch (err) {
+    return { cause: `fs error ${errWord(err)}` }
+  }
+}
+
+/** The local settings as an object, or a fixed cause word; never throws. */
+async function readLocalSettings(
+  $: Api,
+  path: string,
+): Promise<Local | string> {
+  const text = await localText($, path)
+  if (text === null) return { data: {}, created: true }
+  if (typeof text !== 'string') return text.cause
+  let data: unknown
+  try {
+    data = JSON.parse(text)
+  } catch {
+    return 'not JSON'
+  }
+  return isRecord(data) ? { data, created: false } : 'not an object'
+}
+
+/** The project's `.claude`: absent is fine, a link or a file is not. */
+async function claudeDirCause($: Api, path: string): Promise<string | null> {
+  const dir = path.slice(0, path.lastIndexOf('/'))
+  try {
+    let info
+    try {
+      info = await $.fs.stat(dir)
+    } catch (err) {
+      if (!(await $.fs.exists(dir))) return null
+      return `fs error ${errWord(err)}`
+    }
+    if (info.isLink) return '.claude is a link'
+    return info.kind === 'dir' ? null : '.claude is not a directory'
+  } catch (err) {
+    return `fs error ${errWord(err)}`
+  }
+}
+
+/** 'written', 'created', or a fixed cause word (never an error message). */
+async function writeLocalModel($: Api, id: string): Promise<string> {
+  const path = await localPath($)
+  if (path === undefined) return 'project root unknown'
+  const bad = await claudeDirCause($, path)
+  if (bad !== null) return bad
+  const local = await readLocalSettings($, path)
+  if (typeof local === 'string') return local
+  local.data.model = id
+  try {
+    await $.fs.write(path, `${JSON.stringify(local.data, null, 2)}\n`)
+  } catch (err) {
+    return `fs error ${errWord(err)}`
+  }
+  return local.created ? 'created' : 'written'
+}
+
+/** The question: the id, the three scopes, the project pin if any. */
+async function scopeQuestion($: Api, id: string): Promise<string> {
+  const path = await localPath($)
+  const local = path === undefined ? '' : await readLocalSettings($, path)
+  const pin = typeof local === 'string' ? undefined : local.data.model
+  const note = typeof pin === 'string'
+    ? `Note: this project pins ${clean(pin, 60)} in ${LOCAL_SETTINGS}: ` +
+      'at launch here, the project pin wins over Everywhere\n'
+    : ''
+  return `${PROJECT_SCOPE}: ${LOCAL_SETTINGS} of this repo (wins at ` +
+    `launch) + route now · ${CONVERSATION}: route now, nothing written · ` +
+    `${EVERYWHERE}: user settings.json, every project\n${note}` +
+    `Switch main to ${id} where?`
+}
+
+/** The route cannot hold `[1m]`: the session's variant is what carries. */
+function variantNote(st: State, token: string, bareFull: string): string {
+  const long = ONE_M.test(token) || ONE_M.test(st.sessionModel)
+  return long && !bareFull.startsWith(HAIKU)
+    ? " ([1m] follows the session's variant)"
+    : ''
+}
+
+function writtenText(id: string, wrote: string): string {
+  if (wrote !== 'written' && wrote !== 'created') {
+    return `model: ${LOCAL_SETTINGS} not written (${wrote})`
+  }
+  return `model: ${id} written to ${LOCAL_SETTINGS} (remove its "model" key ` +
+    `to undo)${wrote === 'created' ? ', file created: keep it gitignored' : ''}`
+}
+
+/** This project (file + route) or This conversation (route only). */
+async function applyLocalScope(
+  $: Api,
+  st: State,
+  token: string,
+  toFile: boolean,
+): Promise<string> {
+  const id = fullId(st.cfg, token)
+  const wrote = toFile ? await writeLocalModel($, id) : undefined
+  const bare = token.replace(ONE_M, '')
+  clearBreaker(st, canonical(st.cfg, bare)) // a hand pick, like a native one
+  stickyModel($, st, bare)
+  if (wrote !== undefined && wrote !== 'written' && wrote !== 'created') {
+    $.ui.toast(`settings.local.json not written: ${wrote}`)
+  }
+  const route = `sticky route ${fullId(st.cfg, bare)}`
+  const head = wrote === undefined
+    ? `model: ${route} for this conversation`
+    : `${writtenText(id, wrote)}; ${route} set`
+  const note = variantNote(st, token, fullId(st.cfg, bare))
+  return `${head}${note}\n${await show($, st)}`
+}
+
+/** How a dialog entry reaches native, names its failures, checks it. */
+type ScopeVia = {
+  everywhere: () => Promise<CommandRunResult> // the native switch
+  warnKey: string // the fail-open log key of this entry
+  stillHere?: () => Promise<boolean> // false: the dialog's moment is gone
+}
+
+/**
+ * The scope question and its answer, for both entries. Before an answer a
+ * failure fails open (the caller's `.catch`); after one native never runs
+ * on a failure: a text says what to do.
+ */
+async function scopeDialog(
+  $: Api,
+  st: State,
+  token: string,
+  via: ScopeVia,
+): Promise<CommandRunResult> {
+  const question = await scopeQuestion($, fullId(st.cfg, token))
+  const answer = await askOr($, question, MODEL_SCOPES)
+  if (!MODEL_SCOPES.includes(answer)) return { text: NO_SCOPE }
+  try {
+    if (via.stillHere !== undefined && !(await via.stillHere())) {
+      return { text: 'model: the conversation changed, nothing applied' }
+    }
+    if (answer === EVERYWHERE) {
+      dropStickyModel(st)
+      return await via.everywhere()
+    }
+    return { text: await applyLocalScope(
+      $, st, token, answer === PROJECT_SCOPE) }
+  } catch (err) {
+    warnOnce(st, $, via.warnKey, errWord(err))
+    return { text: `model failed (${errWord(err)}); the file write or the ` +
+      `sticky route may have landed: check /route show and ${LOCAL_SETTINGS}` }
+  }
+}
+
+async function handleModelCommand(
+  $: Api,
+  st: State,
+  e: CommandRunInput,
+  next: ModelNext,
+): Promise<CommandRunResult> {
+  await ensureConfig($, st)
+  const tokens = e.args.trim().split(/\s+/)
+  const token = tokens[0] ?? ''
+  if (st.off || e.origin.kind !== 'composer' || tokens.length !== 1 ||
+    !knownModel(st.cfg, token) ||
+    (await $.session.surfaces()).length === 0 || st.asking !== null) {
+    return next(e)
+  }
+  st.asking = `model:${token}`
+  try {
+    return await scopeDialog($, st, token,
+      { everywhere: () => next(e), warnKey: 'command.run model' })
+  } finally {
+    st.asking = null
+  }
+}
+
+// The /model picker: the engine draws nothing while a PreModelSwitch hook
+// runs, so the switch is denied at once and the question comes after the
+// hook returned. Everywhere then runs the native command (its own hooks
+// pass through); the two local scopes never reach native.
+
+const PICKER_DELAY_MS = 300
+const PICKER_DENY = 'model-router asks where this switch applies'
+const PICKER_BUSY = 'answer the open dialog first'
+
+const pickerDeny = {
+  permissionDecision: 'deny' as const,
+  permissionDecisionReason: PICKER_DENY,
+}
+
+/** The question after the deny; always frees the slot, never throws. */
+async function pickerDialog(
+  $: Api,
+  st: State,
+  asked: string,
+  conv: string,
+): Promise<void> {
+  try {
+    await $.clock.sleep(PICKER_DELAY_MS)
+    const out = await scopeDialog($, st, asked, {
+      everywhere: () => $.command.run({ command: 'model', args: asked })
+        .then(() => ({})),
+      warnKey: 'PreModelSwitch picker',
+      stillHere: async () => (await $.session.id()) === conv,
+    })
+    if (out.text !== undefined) tryLog($, out.text)
+  } catch (err) {
+    warnOnce(st, $, 'PreModelSwitch picker', errWord(err))
+  } finally {
+    st.asking = null
+  }
+}
+
+async function handlePicker(
+  $: Api,
+  st: State,
+  e: PreSwitchIn,
+  next: PreSwitchNext,
+) {
+  if (e.source !== 'picker') return next(e)
+  await ensureConfig($, st)
+  const asked = e.requested_model
+  if (st.off || typeof asked !== 'string' || !knownModel(st.cfg, asked) ||
+    (await $.session.surfaces()).length === 0) {
+    return next(e)
+  }
+  const conv = await $.session.id()
+  if (st.asking !== null) {
+    $.ui.toast(PICKER_BUSY)
+    return pickerDeny
+  }
+  st.asking = `picker:${asked}`
+  void pickerDialog($, st, asked, conv)
+  return pickerDeny
 }
 
 // ---- first use: one dialog per row, the answer kept in routing.json -----
@@ -3364,6 +3737,7 @@ function modelCause(st: State, why: Why): string | undefined {
   if (call.why === 'upgrade') return 'upgrade'
   if (call.why === 'downgrade') return 'switch'
   if (call.why === 'window') return 'window'
+  if (call.why === 'hand pick') return 'hand pick'
   return `fallback: ${nameOf(st.cfg, cur)} down`
 }
 
@@ -3679,6 +4053,12 @@ async function onAutoSwitch($: Api, st: State, e: SwitchIn): Promise<void> {
   markDown($, st, target, 'engine fallback', await $.clock.now())
 }
 
+/** A native user switch on main ends a hand pick, the picker's own aside. */
+const handPickEnds = (st: State, e: SwitchIn): boolean =>
+  USER_SWITCH.has(e.source) && e.agent_id === undefined &&
+  st.userMain?.explicitModel === true &&
+  st.asking?.startsWith('picker:') !== true
+
 /**
  * Any model change: keeps `sessionModel` and the cache TTL (main's own
  * switches only); a user choice clears its mark.
@@ -3689,6 +4069,7 @@ async function onModelSwitch($: Api, st: State, e: SwitchIn): Promise<void> {
     st.cacheTtlMs = ttlOf(e.cache_ttl) ?? st.cacheTtlMs
   }
   if (USER_SWITCH.has(e.source)) st.runMain = null
+  if (handPickEnds(st, e)) dropStickyModel(st)
   if (st.off || e.source === 'resume') return
   if (e.source === 'auto') await onAutoSwitch($, st, e)
   else clearBreaker(st, canonical(st.cfg, e.to_model))
@@ -3756,6 +4137,18 @@ function registerCwd(on: On, st: State): void {
 }
 
 function registerCommandHook(on: On, st: State): void {
+  on('command.run', { command: 'model' }, async ($, e, next) =>
+    handleModelCommand($, st, e, next)
+  ).catch(($, e, next) => {
+    warnOnce(st, $, 'command.run model', next.error.kind)
+    return next(e)
+  })
+  on('classic.PreModelSwitch', async ($, e, next) =>
+    handlePicker($, st, e, next)
+  ).catch(($, e, next) => {
+    warnOnce(st, $, 'PreModelSwitch', next.error.kind)
+    return next(e)
+  })
   on('command.run', { command: 'route' }, async ($, e) => {
     if (e.origin.kind !== 'composer') {
       return { text: 'route: user-only command' }

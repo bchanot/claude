@@ -5,7 +5,7 @@ import type { On, TurnStepInput } from 'claude-code'
 const FABLE = 'claude-fable-5-1'
 const OPUS = 'claude-opus-5-5'
 const SONNET = 'claude-sonnet-5-5'
-const HAIKU = 'claude-haiku-4-5-20251001'
+const HAIKU = 'claude-haiku-5-5'
 
 type Rec = Record<string, unknown>
 type Asked = { text: string; options: string[]; header: string }
@@ -39,11 +39,22 @@ type World = {
   gate: Promise<void> | undefined // holds a dialog open until it settles
   writeGate: Promise<void> | undefined // holds an fs.write open
   failWrite: boolean // fs.write rejects
+  clockFailsAfterAsk: boolean // clock.now rejects once a dialog opened
+  sleepFails: boolean // clock.sleep rejects (the picker's delay)
+  sessionId: string // what session.id answers
   onAsk: (() => void) | undefined // called when a dialog opens
   onWrite: (() => void) | undefined // called when an fs.write starts
   repo: { root: string; remote: string | null } | null | 'fail'
   env: string | undefined // HOME as env.get answers it (undefined = unset)
   kinds: Map<string, 'file' | 'dir' | 'other'> // per-path stat kind override
+  dirs: Map<string, {
+    kind: 'dir' | 'file' | 'other'
+    isLink: boolean
+    exists?: false // a dangling link: stat answers, exists does not
+  }>
+  // paths fs.exists/fs.stat answer for, with or without file text
+  brokenStat: Set<string> // paths that exist but whose stat rejects
+  surfaces: readonly string[] // what session.surfaces answers ([] = headless)
   complete: (model: string) => unknown // what a completion resolves to
   completions: string[] // every model a completion was asked of
 }
@@ -56,6 +67,9 @@ type Fixture = {
   answers?: string[]
   repo?: World['repo']
   noHome?: boolean // HOME unset: env.get answers undefined
+  surfaces?: readonly string[] // default ['terminal']
+  clockFailsAfterAsk?: boolean // see World; the rig gets no MockClock
+  sleepFails?: boolean // see World; the rig gets no MockClock
 }
 
 /**
@@ -117,18 +131,27 @@ function newWorld(fx: Fixture = {}): World {
     gate: undefined,
     writeGate: undefined,
     failWrite: false,
+    clockFailsAfterAsk: fx.clockFailsAfterAsk ?? false,
+    sleepFails: fx.sleepFails ?? false,
+    sessionId: 's1',
     onAsk: undefined,
     onWrite: undefined,
     repo: fx.repo === undefined ? { root: ROOT, remote: REMOTE } : fx.repo,
     env: fx.noHome ? undefined : HOME,
     kinds: new Map(),
+    dirs: new Map(),
+    brokenStat: new Set(),
+    surfaces: fx.surfaces ?? ['terminal'],
     complete: () => PROBE_OK,
     completions: [],
   }
 }
 
+const LOCAL_FILE = `${ROOT}/.claude/settings.local.json`
+
 const slot = (path: string): string => {
   if (path.endsWith('/routing.json')) return 'routing'
+  if (path === LOCAL_FILE) return 'local'
   // the engine resolves a relative path against its cwd: `undefined/...`
   // (a HOME read as unset and not guarded) comes back absolute
   const rel = /\/(undefined\/\.claude\/.*)$/.exec(path)
@@ -146,18 +169,23 @@ const routingOf = (w: World): Rec =>
 function installWorld(on: On, w: World): void {
   on('env.get', () => ({ value: w.env }))
   on('fs.exists', (_a, e) => ({
-    value: w.files.has(slot(e.path)) || e.path === ROOT,
+    value: w.dirs.get(e.path)?.exists === false ? false :
+      w.files.has(slot(e.path)) || e.path === ROOT || w.dirs.has(e.path),
   }))
   on('fs.stat', (_a, e) => {
     const text = w.files.get(slot(e.path))
-    if (text === undefined && e.path !== ROOT) throw new Error('ENOENT')
+    const known = w.dirs.get(e.path)
+    if (w.brokenStat.has(e.path)) throw new Error('EIO')
+    if (text === undefined && e.path !== ROOT && known === undefined) {
+      throw new Error('ENOENT')
+    }
     return {
       value: {
-        kind: w.kinds.get(e.path) ??
+        kind: known?.kind ?? w.kinds.get(e.path) ??
           (text === undefined ? 'dir' as const : 'file' as const),
         size: text?.length ?? 0,
         mtimeMs: 0,
-        isLink: false,
+        isLink: known?.isLink ?? false,
         ...(e.resolve ? { realPath: REAL_ROOT } : {}),
       },
     }
@@ -170,6 +198,7 @@ function installWorld(on: On, w: World): void {
   })
   installWrite(on, w)
   on('session.root', () => ({ value: ROOT }))
+  on('session.surfaces', () => ({ value: w.surfaces as never }))
   on('session.repo', () => {
     if (w.repo === 'fail') throw new Error('no repo')
     return { value: w.repo === null ? null : {
@@ -180,13 +209,19 @@ function installWorld(on: On, w: World): void {
   installDialog(on, w)
 }
 
+/** The paths the world's fs.write accepts: see installWrite. */
+const worldServes = (w: World, path: string): boolean =>
+  path === LOCAL_FILE || (slot(path) === 'routing' && w.reads.includes(path))
+
 /**
  * The world's fs.write. Loud: a write anywhere but the routing.json the mod
  * read fails the test (never a project tree, never the machine override).
+ * One carve-out: the project's .claude/settings.local.json, which the
+ * /model scope dialog writes, read or not (a missing file is created).
  */
 function installWrite(on: On, w: World): void {
   on('fs.write', async (_a, e) => {
-    expect(slot(e.path) === 'routing' && w.reads.includes(e.path),
+    expect(worldServes(w, e.path),
       `the world never served ${e.path}`).toBe(true)
     w.written.push(e.path)
     w.onWrite?.()
@@ -217,6 +252,31 @@ function installDialog(on: On, w: World): void {
   })
 }
 
+/** A clock that rejects once a dialog opened (no MockClock: never advanced). */
+function failingClock(on: On, w: World): MockClock {
+  on('clock.now', () => {
+    if (w.asked.length > 0) throw new Error('boom')
+    return { value: 0 }
+  })
+  on('clock.sleep', () => ({ value: undefined }))
+  return undefined as unknown as MockClock
+}
+
+/** A clock whose sleep rejects (LRN-229: a whole-clock replacement). */
+function sleepFailsClock(on: On): MockClock {
+  on('clock.now', () => ({ value: 0 }))
+  on('clock.sleep', () => {
+    throw new Error('boom')
+  })
+  return undefined as unknown as MockClock
+}
+
+/** The clock the world asks for: a mock one unless a fixture breaks it. */
+function clockOf(on: On, w: World): MockClock {
+  if (w.clockFailsAfterAsk) return failingClock(on, w)
+  return w.sleepFails ? sleepFailsClock(on) : mock.clock(on)
+}
+
 /**
  * Fires session.start so the mod loads its config and registers /route.
  * The bottom hooks the router reads are in place before the first `$` call:
@@ -231,10 +291,12 @@ async function boot(
   tokens: number | null = 1000,
   world: World = newWorld(),
 ): Promise<MockClock> {
-  const clock = mock.clock(on)
+  const clock = clockOf(on, world)
   on('session.model', () => ({ value: model }))
   on('classic.StopFailure', () => ({}))
   on('classic.PostModelSwitch', () => ({}))
+  on('classic.PreModelSwitch', () => ({}))
+  on('session.id', () => ({ value: world.sessionId }))
   on('skill.prompt', ($, e) => ({ text: e.text }))
   on('agent.offer', () => ({ isOffered: true }))
   // the probe of the model main runs on: every model answers unless a test says not
@@ -680,7 +742,7 @@ const switchTo = (
   $: Engine,
   from: string,
   to: string,
-  source: 'command' | 'auto',
+  source: 'command' | 'auto' | 'picker',
   cache_ttl: '5m' | '1h' = '5m',
   agent_id?: string,
 ) => $.classic.PostModelSwitch({
@@ -882,6 +944,15 @@ test('unknown: a session model absent from the table is never switched', async (
   const rig = await bootRig($, on)
   await planRoute($)
   expect((await stepOn($, rig, 'claude-zz-9')).model).toBe('claude-zz-9')
+})
+
+test('unknown: the haiku alias id is in the table, a route moves it', async (
+  $, on) => {
+  const logs = recordLogs(on)
+  const rig = await bootRig($, on, HAIKU)
+  await planRoute($)
+  expect((await stepOn($, rig, HAIKU)).model).toBe(FABLE)
+  expect(logsWith(logs, 'unknown to the models table')).toBe(0)
 })
 
 test('spawn: Explore goes to opus while sonnet is down', async ($, on) => {
@@ -5212,7 +5283,8 @@ test('cap: a smaller context than the record is cold', async ($, on) => {
 test('window: haiku outgrown returns main to the session model', async (
   $, on) => {
   const logs = recordLogs(on)
-  const { rig, usage } = await bootRigVar($, on, FABLE, 1000)
+  const world = newWorld({ home: { windows: { [HAIKU]: 200000 } } })
+  const { rig, usage } = await bootRigVar($, on, FABLE, 1000, world)
   expect(await routedStep($, rig, 'mechanical')).toBe(HAIKU)
   usage.set(250000)
   expect((await stepOn($, rig, FABLE)).model).toBe(FABLE)
@@ -5917,4 +5989,734 @@ test('keyword cap: a dispatch outside a run keeps main on the session model', as
   const rig = await bootRig($, on, OPUS)
   await dispatch($)
   expect(await stepOn($, rig, OPUS)).toEqual({ model: OPUS, effort: 'medium' })
+})
+
+// ---- /model <name>: the scope dialog -------------------------------------
+
+const SCOPES = ['This project', 'This conversation', 'Everywhere']
+const FABLE_1M = `${FABLE}[1m]`
+const NO_SCOPE = 'model: no scope chosen, nothing changed'
+
+type ModelRig = {
+  w: World
+  ran: string[] // the args the native /model got
+  toasts: string[]
+  rig: Rig
+}
+
+/** Boots with a bottom native /model that records its args. */
+async function bootModel(
+  $: Engine,
+  on: On,
+  answers: string[],
+  session: string = OPUS,
+  fx: Fixture = {},
+): Promise<ModelRig> {
+  const ran: string[] = []
+  on('command.run', { command: 'model' }, (_a, e) => {
+    ran.push(e.args)
+    return { text: 'native' }
+  })
+  const toasts = recordToasts(on)
+  const w = newWorld({ answers, ...fx })
+  const rig = await bootRig($, on, session, 1000, w)
+  return { w, ran, toasts, rig }
+}
+
+/** Runs `/model <args>` as typed (or from another origin). */
+async function modelCmd(
+  $: Engine,
+  args: string,
+  kind: 'composer' | 'sdk' = 'composer',
+): Promise<string> {
+  const out = await $.command.run({
+    command: 'model',
+    args,
+    origin: { kind },
+    presentation: { isFullscreen: false, columns: 80 },
+  })
+  return out.text ?? ''
+}
+
+const localOf = (w: World): Rec =>
+  JSON.parse(w.files.get('local') ?? '{}') as Rec
+
+test('model command: asks the three scopes, the full id, native not run', async (
+  $, on) => {
+  const m = await bootModel($, on, ['Later', 'Later'])
+  await modelCmd($, 'fable')
+  await modelCmd($, 'claude-fable-5-1[1m]')
+  expect(m.w.asked.map(q => q.options)).toEqual([SCOPES, SCOPES])
+  expect(m.w.asked.map(q => q.header)).toEqual(['model-router', 'model-router'])
+  const [plain, long] = m.w.asked as [Asked, Asked]
+  expect(plain.text.endsWith(`Switch main to ${FABLE} where?`)).toBe(true)
+  expect(long.text.endsWith(`Switch main to ${FABLE_1M} where?`)).toBe(true)
+  expect(m.ran).toEqual([])
+})
+
+test('model command: This project writes the full id and keeps the keys', async (
+  $, on) => {
+  const m = await bootModel($, on, ['This project'])
+  m.w.files.set('local', JSON.stringify({ permissions: { allow: ['Bash'] } }))
+  m.w.dirs.set(`${ROOT}/.claude`, { kind: 'dir', isLink: false })
+  const out = await modelCmd($, 'fable')
+  expect(localOf(m.w)).toEqual({
+    permissions: { allow: ['Bash'] }, model: FABLE,
+  })
+  expect(m.w.files.get('local')).toBe(
+    JSON.stringify(localOf(m.w), null, 2) + '\n')
+  expect(out).toContain(`${FABLE} written to .claude/settings.local.json`)
+  expect(out).toContain('remove its "model" key to undo')
+  expect(out).not.toContain('file created')
+  expect(m.toasts).toEqual([])
+  expect(m.ran).toEqual([])
+  expect((await stepOn($, m.rig, OPUS)).model).toBe(FABLE)
+})
+
+test('model command: This project keeps [1m] verbatim in the file', async (
+  $, on) => {
+  const m = await bootModel($, on, ['This project', 'This project'])
+  await modelCmd($, 'fable[1m]')
+  expect(localOf(m.w).model).toBe(FABLE_1M)
+  await modelCmd($, 'claude-fable-5-1[1m]')
+  expect(localOf(m.w).model).toBe(FABLE_1M)
+  expect((await stepOn($, m.rig, OPUS)).model).toBe(FABLE)
+})
+
+test('model command: the [1m] note shows only for a token or session [1m]', async (
+  $, on) => {
+  const m = await bootModel($, on, ['This project', 'This project'])
+  expect(await modelCmd($, 'fable')).not.toContain('[1m] follows')
+  expect(await modelCmd($, 'fable[1m]')).toContain(
+    "[1m] follows the session's variant")
+  expect(m.ran).toEqual([])
+})
+
+test('model command: a [1m] session adds the note to a plain token', async (
+  $, on) => {
+  await bootModel($, on, ['This project'], `${OPUS}[1m]`)
+  expect(await modelCmd($, 'fable')).toContain('[1m] follows')
+})
+
+test('model command: This project creates the file when absent', async (
+  $, on) => {
+  const m = await bootModel($, on, ['This project'])
+  const out = await modelCmd($, 'opus')
+  expect(localOf(m.w)).toEqual({ model: OPUS })
+  expect(out).toContain('file created: keep it gitignored')
+  expect(m.toasts).toEqual([])
+})
+
+const BAD_TEXT: [string, string, string][] = [
+  ['null', 'null', 'not an object'],
+  ['an array', '[]', 'not an object'],
+  ['a string', '"x"', 'not an object'],
+  ['broken JSON', '{nope', 'not JSON'],
+  ['over the size cap', JSON.stringify({ pad: 'x'.repeat(70000) }),
+    'too large'],
+]
+
+for (const [name, text, cause] of BAD_TEXT) {
+  test(`model command: This project refuses a file: ${name}`, async (
+    $, on) => {
+    const m = await bootModel($, on, ['This project'])
+    m.w.files.set('local', text)
+    expect(await modelCmd($, 'fable')).toContain(`not written (${cause})`)
+    expect(m.w.files.get('local')).toBe(text)
+    expect(m.w.written).toEqual([])
+    expect(m.toasts).toEqual([`settings.local.json not written: ${cause}`])
+    expect(mainLine(await route($, 'show'))).toContain('user custom')
+  })
+}
+
+const refusals: [string, (w: World) => void, string][] = [
+  ['.claude link', w => w.dirs.set(`${ROOT}/.claude`,
+    { kind: 'dir', isLink: true }), '.claude is a link'],
+  ['.claude file', w => w.dirs.set(`${ROOT}/.claude`,
+    { kind: 'file', isLink: false }), '.claude is not a directory'],
+  ['settings link', w => {
+    w.files.set('local', '{}')
+    w.dirs.set(LOCAL_FILE, { kind: 'file', isLink: true })
+  }, 'settings.local.json is a link'],
+  ['.claude dangling link', w => w.dirs.set(`${ROOT}/.claude`,
+    { kind: 'other', isLink: true, exists: false }), '.claude is a link'],
+  ['settings dangling link', w => w.dirs.set(LOCAL_FILE,
+    { kind: 'other', isLink: true, exists: false }),
+  'settings.local.json is a link'],
+  ['settings dir', w => {
+    w.files.set('local', '{}')
+    w.dirs.set(LOCAL_FILE, { kind: 'dir', isLink: false })
+  }, 'not a regular file'],
+  ['stat error', w => {
+    w.files.set('local', '{}')
+    w.brokenStat.add(LOCAL_FILE)
+  }, 'fs error HooksError'],
+]
+
+for (const [name, setup, cause] of refusals) {
+  test(`model command: This project refuses: ${name}`, async ($, on) => {
+    const m = await bootModel($, on, ['This project'])
+    setup(m.w)
+    const before = m.w.files.get('local')
+    const out = await modelCmd($, 'fable')
+    expect(out).toContain(`not written (${cause})`)
+    expect(m.w.files.get('local')).toBe(before)
+    expect(m.w.written).toEqual([])
+    expect(m.toasts).toEqual([`settings.local.json not written: ${cause}`])
+    expect(mainLine(await route($, 'show'))).toContain('user custom')
+    expect(m.ran).toEqual([])
+  })
+}
+
+test('model command: a failing write reports an fs error, route set', async (
+  $, on) => {
+  const m = await bootModel($, on, ['This project'])
+  m.w.failWrite = true
+  const out = await modelCmd($, 'fable')
+  expect(out).toContain('not written (fs error')
+  expect(m.toasts).toHaveLength(1)
+  expect(out).not.toContain('EACCES')
+  expect(mainLine(await route($, 'show'))).toContain('user custom')
+})
+
+test('model command: This conversation sets the route, writes nothing', async (
+  $, on) => {
+  const m = await bootModel($, on, ['This conversation'])
+  await route($, 'effort=max')
+  const out = await modelCmd($, 'fable')
+  expect(out).toContain(`sticky route ${FABLE} for this conversation`)
+  expect(m.w.written).toEqual([])
+  expect(m.w.files.has('local')).toBe(false)
+  expect(m.ran).toEqual([])
+  const line = mainLine(await route($, 'show'))
+  expect(line).toContain('user custom')
+  expect(line).toContain('effort max')
+  expect((await stepOn($, m.rig, OPUS)).model).toBe(FABLE)
+})
+
+test('model command: the local scopes drop the run slot', async ($, on) => {
+  on('command.run', { command: 'model' }, () => ({ text: 'native' }))
+  await bootRun($, on, OPUS, newWorld({ answers: ['This conversation'] }))
+  await loadSkill($, 'feat')
+  await endTurn($)
+  expect(await modelCmd($, 'sonnet')).toContain('sticky route')
+  expect(await route($, 'clear')).not.toContain('run slot dropped')
+})
+
+test('model command: Everywhere runs native, args unchanged', async (
+  $, on) => {
+  const m = await bootModel($, on, ['Everywhere'])
+  expect(await modelCmd($, 'opus')).toBe('native')
+  expect(m.ran).toEqual(['opus'])
+  expect(m.w.written).toEqual([])
+})
+
+test('model command: Everywhere drops an earlier sticky model', async (
+  $, on) => {
+  const m = await bootModel($, on, ['This conversation', 'Everywhere'])
+  await modelCmd($, 'fable')
+  expect(mainLine(await route($, 'show'))).toContain('user custom')
+  await modelCmd($, 'opus')
+  expect(mainLine(await route($, 'show'))).toContain('session defaults')
+  expect(m.ran).toEqual(['opus'])
+})
+
+test('model command: Everywhere drops a sticky tier too, keeps effort', async (
+  $, on) => {
+  const m = await bootModel($, on, ['Everywhere'])
+  await route($, 'plan')
+  await modelCmd($, 'opus')
+  const line = mainLine(await route($, 'show'))
+  expect(line).toContain('effort xhigh')
+  expect(line).not.toContain(FABLE)
+  expect(m.ran).toEqual(['opus'])
+})
+
+test('model command: no dialog for a call native owns', async ($, on) => {
+  const m = await bootModel($, on, [])
+  const args = ['', 'fable opus', 'default', 'opusplan', 'claude-opus-5-6',
+    'haiku[1m]', 'whatever']
+  for (const a of args) expect(await modelCmd($, a)).toBe('native')
+  expect(m.ran).toEqual(args)
+  expect(m.w.asked).toEqual([])
+})
+
+test('model command: no dialog from another origin', async ($, on) => {
+  const m = await bootModel($, on, [])
+  expect(await modelCmd($, 'fable', 'sdk')).toBe('native')
+  expect(m.w.asked).toEqual([])
+})
+
+test('model command: no dialog when the router is off', async ($, on) => {
+  const m = await bootModel($, on, [])
+  await route($, 'off')
+  expect(await modelCmd($, 'fable')).toBe('native')
+  expect(m.w.asked).toEqual([])
+})
+
+test('model command: no dialog without a surface', async ($, on) => {
+  const m = await bootModel($, on, [], OPUS, { surfaces: [] })
+  expect(await modelCmd($, 'fable')).toBe('native')
+  expect(m.w.asked).toEqual([])
+})
+
+test('model command: a second /model while one is open goes native', async (
+  $, on) => {
+  const m = await bootModel($, on, ['This conversation'])
+  const held = deferred()
+  const open = deferred()
+  m.w.gate = held.gate
+  m.w.onAsk = open.release
+  const first = modelCmd($, 'fable')
+  await open.gate
+  expect(await modelCmd($, 'opus')).toBe('native')
+  held.release()
+  expect(await first).toContain('sticky route')
+  expect(m.w.asked).toHaveLength(1)
+})
+
+test('model command: the question notes a project pin only when set', async (
+  $, on) => {
+  const m = await bootModel($, on, ['Later', 'Later'])
+  await modelCmd($, 'fable')
+  m.w.files.set('local', JSON.stringify({ model: OPUS }))
+  await modelCmd($, 'fable')
+  const [bare, pinned] = m.w.asked as [Asked, Asked]
+  expect(bare.text).not.toContain('pins')
+  const lines = pinned.text.split('\n')
+  const note = lines[lines.length - 2] ?? ''
+  expect(note).toContain(
+    `this project pins ${OPUS} in .claude/settings.local.json`)
+  expect(note).toContain('the project pin wins')
+  expect(lines[lines.length - 1]).toBe(`Switch main to ${FABLE} where?`)
+})
+
+test('model command: Esc or free text cancels, nothing changes', async (
+  $, on) => {
+  const m = await bootModel($, on, [])
+  expect(await modelCmd($, 'fable')).toBe(NO_SCOPE)
+  m.w.answers.push('maybe')
+  expect(await modelCmd($, 'fable')).toBe(NO_SCOPE)
+  expect(m.ran).toEqual([])
+  expect(m.w.written).toEqual([])
+  expect(mainLine(await route($, 'show'))).toContain('session defaults')
+})
+
+test('model command: Everywhere: native runs once, its throw is reported, not re-run', async (
+  $, on) => {
+  const ran: string[] = []
+  on('command.run', { command: 'model' }, (_a, e) => {
+    ran.push(e.args)
+    throw new Error('boom')
+  })
+  await bootRig($, on, OPUS, 1000, newWorld({ answers: ['Everywhere'] }))
+  const out = await modelCmd($, 'opus')
+  expect(out).toContain('model failed (')
+  expect(out).toContain('/route show')
+  expect(out).not.toContain('boom')
+  expect(ran).toEqual(['opus'])
+})
+
+for (const scope of ['This conversation', 'This project']) {
+  test(`model command: ${scope}: a throw after the answer never reaches native`, async (
+    $, on) => {
+    // the dialog is answered, then the status text reads the clock
+    const m = await bootModel($, on, [scope], OPUS, {
+      clockFailsAfterAsk: true,
+    })
+    const out = await modelCmd($, 'fable')
+    expect(out).toContain('model failed (')
+    expect(out).toContain('/route show')
+    expect(out).not.toContain('boom')
+    expect(m.ran).toEqual([])
+  })
+}
+
+test('writes: kit: only the project settings.local.json is carved out', {
+  plugins: [PROBE],
+}, async ($, on) => {
+  const m = await bootModel($, on, [])
+  const out = await $.command.run({
+    command: 'probe',
+    args: LOCAL_FILE,
+    origin: { kind: 'composer' },
+    presentation: { isFullscreen: false, columns: 80 },
+  })
+  expect(out.text).toBe('written')
+  for (const path of [`${ROOT}/.claude/settings.json`,
+    `${LOCAL_FILE}.bak`, `${ROOT}/other/settings.local.json`, HOME_FILE]) {
+    expect(worldServes(m.w, path), path).toBe(false)
+  }
+  expect(worldServes(m.w, LOCAL_FILE)).toBe(true)
+})
+
+// ---- /model picker: deny now, ask after ----------------------------------
+
+const BUSY = 'answer the open dialog first'
+const DENY = 'model-router asks where this switch applies'
+
+type SwitchSource = 'picker' | 'command' | 'sdk'
+
+/** The PreModelSwitch input of a switch to `requested` from `source`. */
+const preSwitch = (requested: string | null, source: SwitchSource) => ({
+  from_model: OPUS,
+  to_model: requested ?? OPUS,
+  requested_model: requested,
+  source,
+  context_tokens: 0,
+  prompt_cache_warm: false,
+  cache_ttl: '5m' as const,
+  estimated_cache_write_usd: 0,
+  pricing: 'catalog' as const,
+})
+
+const pick = (
+  $: Engine,
+  requested: string | null,
+  source: SwitchSource = 'picker',
+) => $.classic.PreModelSwitch(preSwitch(requested, source))
+
+/** Lets the timers and the hooks of the deferred dialog run. */
+async function settle(done: () => boolean = () => false): Promise<void> {
+  for (let i = 0; i < 100 && !done(); i++) {
+    await new Promise(r => setTimeout(r, 0))
+  }
+  for (let i = 0; i < 5; i++) await new Promise(r => setTimeout(r, 0))
+}
+
+type PickerRig = ModelRig & { logs: string[] }
+
+async function bootPicker(
+  $: Engine,
+  on: On,
+  answers: string[],
+  fx: Fixture = {},
+): Promise<PickerRig> {
+  const logs = recordLogs(on)
+  const m = await bootModel($, on, answers, OPUS, fx)
+  return { ...m, logs }
+}
+
+/** The picker's switch, then the deferred question answered. */
+async function pickAndAnswer(
+  $: Engine,
+  p: PickerRig,
+  requested: string,
+): Promise<unknown> {
+  const out = await pick($, requested)
+  await p.rig.clock.advance(300)
+  await settle(() => p.w.asked.length > 0 && p.logs.length > 0)
+  return out
+}
+
+test('picker: a known model is denied at once, the question comes after', async (
+  $, on) => {
+  const p = await bootPicker($, on, ['This conversation'])
+  const held = deferred()
+  p.w.gate = held.gate
+  const out = await pick($, 'fable')
+  expect(JSON.stringify(out)).toContain(DENY)
+  expect(JSON.stringify(out)).toContain('deny')
+  expect(p.w.asked).toEqual([])
+  await p.rig.clock.advance(300)
+  await settle(() => p.w.asked.length > 0)
+  const [q] = p.w.asked as [Asked]
+  expect(q.options).toEqual(SCOPES)
+  expect(q.header).toBe('model-router')
+  expect(q.text.endsWith(`Switch main to ${FABLE} where?`)).toBe(true)
+  held.release()
+  await settle()
+  expect(p.ran).toEqual([])
+})
+
+const PASSTHROUGH: [string, string | null, SwitchSource][] = [
+  ['source command', 'fable', 'command'],
+  ['source sdk', 'fable', 'sdk'],
+  ['Default (null)', null, 'picker'],
+  ['opusplan', 'opusplan', 'picker'],
+  ['an unknown id', 'claude-opus-5-6', 'picker'],
+]
+
+for (const [name, requested, source] of PASSTHROUGH) {
+  test(`picker: ${name} passes through, no question`, async ($, on) => {
+    const p = await bootPicker($, on, ['This project'])
+    const out = await pick($, requested, source)
+    await p.rig.clock.advance(300)
+    await settle()
+    expect(JSON.stringify(out)).not.toContain('deny')
+    expect(p.w.asked).toEqual([])
+    expect(p.toasts).toEqual([])
+  })
+}
+
+test('picker: router off passes through', async ($, on) => {
+  const p = await bootPicker($, on, [])
+  await route($, 'off')
+  expect(JSON.stringify(await pick($, 'fable'))).not.toContain('deny')
+  await settle()
+  expect(p.w.asked).toEqual([])
+})
+
+test('picker: no surface passes through', async ($, on) => {
+  const p = await bootPicker($, on, [], { surfaces: [] })
+  expect(JSON.stringify(await pick($, 'fable'))).not.toContain('deny')
+  await settle()
+  expect(p.w.asked).toEqual([])
+})
+
+test('picker: an open dialog denies with a toast, never native', async (
+  $, on) => {
+  const p = await bootPicker($, on, ['This conversation'])
+  const held = deferred()
+  const open = deferred()
+  p.w.gate = held.gate
+  p.w.onAsk = open.release
+  const first = modelCmd($, 'fable')
+  await open.gate
+  const out = await pick($, 'sonnet')
+  expect(JSON.stringify(out)).toContain('deny')
+  expect(p.toasts).toEqual([BUSY])
+  held.release()
+  await first
+  expect(p.w.asked).toHaveLength(1)
+  expect(p.ran).toEqual([])
+})
+
+test('picker: This project writes the full id, native never runs', async (
+  $, on) => {
+  const p = await bootPicker($, on, ['This project'])
+  await pickAndAnswer($, p, 'fable')
+  expect(localOf(p.w)).toEqual({ model: FABLE })
+  expect(p.logs.join('\n')).toContain(`${FABLE} written to`)
+  expect(p.ran).toEqual([])
+  expect((await stepOn($, p.rig, OPUS)).model).toBe(FABLE)
+})
+
+test('picker: This conversation routes only, writes nothing', async (
+  $, on) => {
+  const p = await bootPicker($, on, ['This conversation'])
+  await pickAndAnswer($, p, 'fable')
+  expect(p.w.written).toEqual([])
+  expect(p.logs.join('\n')).toContain('for this conversation')
+  expect(p.ran).toEqual([])
+  expect((await stepOn($, p.rig, OPUS)).model).toBe(FABLE)
+})
+
+test('picker: Everywhere drops a hand pick, runs native once', async (
+  $, on) => {
+  const p = await bootPicker($, on, ['This conversation', 'Everywhere'])
+  await modelCmd($, 'fable')
+  await pickAndAnswer($, p, 'sonnet')
+  expect(p.ran).toEqual(['sonnet'])
+  expect(p.w.asked).toHaveLength(2)
+  expect(p.w.written).toEqual([])
+  expect(mainLine(await route($, 'show'))).toContain('session defaults')
+  expect(p.logs.filter(l => l.includes('native'))).toEqual([])
+})
+
+test('picker: dismissed logs the no-scope text and frees the slot', async (
+  $, on) => {
+  const p = await bootPicker($, on, [])
+  await pickAndAnswer($, p, 'fable')
+  expect(p.logs).toContain(NO_SCOPE)
+  expect(p.ran).toEqual([])
+  expect(p.w.written).toEqual([])
+  await pickAndAnswer($, p, 'fable')
+  expect(p.w.asked).toHaveLength(2)
+})
+
+test('picker: a throwing sleep is logged under its key, slot freed', async (
+  $, on) => {
+  const logs = recordLogs(on)
+  const m = await bootModel($, on, ['This project'], OPUS,
+    { sleepFails: true })
+  expect(JSON.stringify(await pick($, 'fable'))).toContain('deny')
+  await settle(() => logs.some(l => l.includes('PreModelSwitch picker')))
+  expect(logs.join('\n')).toContain('PreModelSwitch picker failed')
+  expect(m.w.asked).toEqual([])
+  expect(m.w.written).toEqual([])
+  const again = await pick($, 'fable')
+  expect(JSON.stringify(again)).toContain('deny')
+  expect(m.toasts).toEqual([])
+})
+
+test('picker: a throw after the answer is logged, native never runs', async (
+  $, on) => {
+  const logs = recordLogs(on)
+  const m = await bootModel($, on, ['This conversation'], OPUS,
+    { clockFailsAfterAsk: true })
+  await pick($, 'fable')
+  await settle(() => logs.some(l => l.includes('model failed (')))
+  expect(logs.join('\n')).toContain('model failed (')
+  expect(m.ran).toEqual([])
+  await pick($, 'fable')
+  await settle()
+  expect(m.w.asked).toHaveLength(2)
+})
+
+test('picker: a changed conversation applies nothing', async ($, on) => {
+  const p = await bootPicker($, on, ['This project'])
+  const held = deferred()
+  const open = deferred()
+  p.w.gate = held.gate
+  p.w.onAsk = open.release
+  await pick($, 'fable')
+  await p.rig.clock.advance(300)
+  await open.gate
+  p.w.sessionId = 's2'
+  held.release()
+  await settle(() => p.logs.length > 0)
+  expect(p.logs.join('\n')).toContain('conversation changed')
+  expect(p.w.written).toEqual([])
+  expect(mainLine(await route($, 'show'))).toContain('session defaults')
+})
+
+test('picker: a native switch passes without a second dialog', async (
+  $, on) => {
+  const p = await bootPicker($, on, ['Everywhere'])
+  await pickAndAnswer($, p, 'opus')
+  expect(JSON.stringify(await pick($, 'opus', 'command'))).not.toContain('deny')
+  expect(p.w.asked).toHaveLength(1)
+})
+
+test('picker: a pick clears the mark of its target', async ($, on) => {
+  const p = await bootPicker($, on, ['This conversation'])
+  await route($, 'model=fable')
+  await stepOn($, p.rig, FABLE)
+  await failWith($, 'overloaded')
+  expect(await route($, 'show')).toContain('claude-fable-5-1 for')
+  await pickAndAnswer($, p, 'fable')
+  expect(await route($, 'show')).toContain('down: none')
+})
+
+test('picker: a PostModelSwitch of a denied pick keeps the hand pick', async (
+  $, on) => {
+  const p = await bootPicker($, on, ['This conversation', 'This conversation'])
+  await modelCmd($, 'fable')
+  const held = deferred()
+  p.w.gate = held.gate
+  await pick($, 'sonnet')
+  await switchTo($, OPUS, SONNET, 'picker')
+  held.release()
+  await settle()
+  expect(mainLine(await route($, 'show'))).toContain('user custom')
+})
+
+// ---- hand pick: a model chosen by hand always switches --------------------
+
+type HandRig = {
+  w: World
+  rig: Rig
+  usage: { set: (n: number) => void }
+  logs: string[]
+}
+
+async function bootHand(
+  $: Engine,
+  on: On,
+  answers: string[],
+  session: string = OPUS,
+  tokens = 1000,
+  fx: Fixture = {},
+): Promise<HandRig> {
+  on('command.run', { command: 'model' }, () => ({ text: 'native' }))
+  const logs = recordLogs(on)
+  const w = newWorld({ answers, ...fx })
+  const { rig, usage } = await bootRigVar($, on, session, tokens, w)
+  return { w, rig, usage, logs }
+}
+
+test('hand pick: a held-down target waits across the turn boundary', async (
+  $, on) => {
+  const h = await bootHand($, on, ['This conversation'])
+  await modelCmd($, 'fable')
+  expect((await stepOn($, h.rig, OPUS)).model).toBe(FABLE)
+  await failWith($, 'overloaded')
+  await endTurn($)
+  expect((await stepOn($, h.rig, OPUS)).model).toBe(OPUS)
+  await stepOn($, h.rig, OPUS)
+  expect(h.logs.filter(l => l.includes('hand pick waits'))).toHaveLength(1)
+  await endTurn($)
+  await h.rig.clock.advance(15 * 60000)
+  expect((await stepOn($, h.rig, OPUS)).model).toBe(FABLE)
+})
+
+test('hand pick: the current model down leaves it for the hand pick', async (
+  $, on) => {
+  const h = await bootHand($, on, ['This conversation'], OPUS, 300000,
+    { home: { mainUpgrade: false } })
+  await stepOn($, h.rig, OPUS)
+  await failWith($, 'overloaded')
+  await endTurn($)
+  await modelCmd($, 'fable')
+  expect((await stepOn($, h.rig, OPUS)).model).toBe(FABLE)
+})
+
+test('hand pick: an unranked session model does not trap it', async (
+  $, on) => {
+  const h = await bootHand($, on, ['This conversation'], 'claude-zz-9')
+  await modelCmd($, 'opus')
+  expect((await stepOn($, h.rig, 'claude-zz-9')).model).toBe(OPUS)
+})
+
+test('hand pick: over the upgrade cap and with the switch off still moves', async (
+  $, on) => {
+  const h = await bootHand($, on, ['This conversation'], OPUS, 300000,
+    { home: { mainUpgrade: false } })
+  await modelCmd($, 'fable')
+  expect((await stepOn($, h.rig, OPUS)).model).toBe(FABLE)
+  await endTurn($)
+  expect((await stepOn($, h.rig, OPUS)).model).toBe(FABLE)
+})
+
+test('hand pick: over the downgrade cap with switch off still moves', async (
+  $, on) => {
+  const h = await bootHand($, on, ['This conversation'], FABLE, 300000)
+  await route($, 'switch off')
+  await modelCmd($, 'sonnet')
+  expect((await stepOn($, h.rig, FABLE)).model).toBe(SONNET)
+})
+
+test('hand pick: a typed /route model= keeps the caps', async ($, on) => {
+  const h = await bootHand($, on, [], OPUS, 300000)
+  await route($, 'model=fable')
+  expect((await stepOn($, h.rig, OPUS)).model).toBe(OPUS)
+})
+
+test('hand pick: the current model pinned and down falls to the next', async (
+  $, on) => {
+  const h = await bootHand($, on, ['This conversation'])
+  await modelCmd($, 'opus')
+  expect((await stepOn($, h.rig, OPUS)).model).toBe(OPUS)
+  await failWith($, 'overloaded')
+  const same = (await stepOn($, h.rig, OPUS)).model
+  expect(same).not.toBe(OPUS)
+  await endTurn($)
+  expect((await stepOn($, h.rig, OPUS)).model).toBe(same)
+})
+
+test('hand pick: a target that fails mid-turn is left', async ($, on) => {
+  const h = await bootHand($, on, ['This conversation'])
+  await modelCmd($, 'fable')
+  expect((await stepOn($, h.rig, OPUS)).model).toBe(FABLE)
+  await failWith($, 'overloaded')
+  expect((await stepOn($, h.rig, OPUS)).model).not.toBe(FABLE)
+})
+
+test('hand pick: outgrowing a known window still returns home', async (
+  $, on) => {
+  const h = await bootHand($, on, ['This conversation'], FABLE, 1000,
+    { home: { windows: { [HAIKU]: 200000 } } })
+  await modelCmd($, 'haiku')
+  expect((await stepOn($, h.rig, FABLE)).model).toBe(HAIKU)
+  h.usage.set(250000)
+  expect((await stepOn($, h.rig, FABLE)).model).toBe(FABLE)
+})
+
+test('hand pick: a native user switch drops it', async ($, on) => {
+  const h = await bootHand($, on, ['This conversation'])
+  await modelCmd($, 'fable')
+  await switchTo($, OPUS, SONNET, 'picker')
+  expect((await stepOn($, h.rig, SONNET)).model).toBe(SONNET)
+  expect(mainLine(await route($, 'show'))).toContain('session defaults')
 })

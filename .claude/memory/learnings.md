@@ -1890,3 +1890,19 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 ## LRN-227 — Root-commit author ≠ name the user remembers; identity list must cover every root email
 - **Context**: BDR-124 verify. User expected lima `root n.turpault 2009`; real root = t.surrel 2009-02-25 (not shallow). Own repo root = `git@bchanot.fr`, absent from user.email + claude.identity → false foreign banner.
 - **Apply**: check origin claims against `git log --max-parents=0`, never memory. Every email ever used as root author → `git config --global --add claude.identity <email>`. Links [[BDR-124]].
+
+## LRN-228 — Absence test in untrusted tree: stat first, `exists` only after stat rejects
+- **Context**: BDR-126 contract (main wrote it) said "absent = `$.fs.exists` false". GATE 2 MEDIUM: `exists` may follow links → dangling symlink reads absent → `$.fs.write` creates link target. `stat` answers `isLink` even dangling.
+- **Apply**: stat → resolves: isLink/kind/size checks; rejects → `exists` false = absent, true = fs error. Same for parent dir. Contract wording for a write path gets the same scrutiny as code. Links [[BDR-126]].
+
+## LRN-229 — Mod test kit: forcing a throw after a dialog answer
+- **Context**: BDR-126 post-answer throw test. Kit drops `$.ui.status` (void event, hook never reached); bottom hooks register once ("registered twice"); hooks after first `$` call refused; `session.usage` swallowed by `readTokens`.
+- **Apply**: swap the mock clock at boot behind a fixture flag: `clock.now` answers until a dialog opened, then rejects (`show` → `readingFor` throws). Flag off by default; a test advancing that clock breaks. Links [[BDR-126]].
+
+## LRN-230 — Native model alias moves under the mod silently; table facts rot with it
+- **Context**: BLK-035. haiku alias 4.5 → 5.5, no error anywhere; only signal = mod log `unknown to the models table`. Mod also hardcodes 4.5 facts (200K window, no effort).
+- **Apply**: at each Claude Code upgrade, check `cfg.models` ids vs claude-api skill model table (context, effort support); grep code for model-specific facts (`startsWith(HAIKU)`, windows) in same pass. A per-model behaviour rule names its model version in a comment. Links [[BLK-035]], [[LRN-203]].
+
+## LRN-231 — PreModelSwitch hook: no dialog inside; deny at once, ask in a continuation
+- **Context**: picker spike 2026-10-25 (dev mod, user-run). `$.ui.ask` awaited inside `classic.PreModelSwitch` never renders: UI frozen on "Running PreModelSwitch hooks… (Esc to cancel)". Returning `{ permissionDecision: 'deny', permissionDecisionReason }` at once blocks switch AND user settings.json write; engine prints "Model switch to X was blocked by a PreModelSwitch hook: <reason>".
+- **Apply**: launch `void (async () => { await $.clock.sleep(300); … $.ui.ask … })()` before returning the deny; hold any shared dialog slot synchronously before return, free it in the continuation's `finally`. `$.command.run({ command: 'model', args })` from the continuation re-enters as PreModelSwitch source `command` + command.run origin plugin: gate both. Links [[BDR-127]].
