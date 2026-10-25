@@ -183,7 +183,8 @@
       "gitflow": "implement",
       "ship-feature": "plan",
       "deploy": "verify",
-      "feat": "reflect"
+      "feat": "reflect",
+      "bugfix": "reflect"
     }
   },
   "changed": {},
