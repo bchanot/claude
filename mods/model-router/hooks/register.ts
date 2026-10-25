@@ -211,6 +211,7 @@ const SKILL_NAME = /^[A-Za-z0-9][A-Za-z0-9._:-]*$/
 const ROWS: readonly Row[] = ['skills', 'agents']
 const KINDS: readonly Kind[] = ['skills', 'agents', 'phases']
 const HAIKU = 'claude-haiku'
+const NO_EFFORT = 'claude-haiku-4' // Haiku 4.x takes no effort; 5.x does
 const MAX_PATTERN = 200 // chars of a prompt-rule pattern
 const MAX_PROMPT_SCAN = 4096 // chars of a prompt a rule is run against
 const MAX_CONFIG_BYTES = 65536 // override file size
@@ -1870,9 +1871,9 @@ function standInWord(st: State, v: Verdict): string {
   return `${alias} stands in for ${head}`
 }
 
-/** Haiku takes no effort: the main line says so when it will run there. */
+/** Haiku 4.x takes no effort: the main line says so when it runs there. */
 function effortWord(st: State, v: Verdict): string {
-  if (v.call.model.startsWith(HAIKU)) return '- (haiku takes none)'
+  if (takesNoEffort(st.cfg, v.call.model)) return '- (haiku 4 takes none)'
   const d = standInEffort(st, mainEffort(st, undefined), v)
   const word = String(d.effort ?? '-')
   return d.standIn ? `${word} (${standInWord(st, v)})` : word
@@ -3678,6 +3679,9 @@ const NAME_CAP = 40 // code points of any name read from outside, in a line
 const isHaiku = (cfg: Config, id: string): boolean =>
   canonical(cfg, id).startsWith(HAIKU)
 
+const takesNoEffort = (cfg: Config, id: string): boolean =>
+  canonical(cfg, id).startsWith(NO_EFFORT)
+
 /** The table alias of a model id (a `[1m]` marker kept), else the id. */
 function nameOf(cfg: Config, id: string): string {
   const bare = canonical(cfg, id)
@@ -3830,7 +3834,7 @@ function handoffOf(
     !pinned) {
     return undefined
   }
-  const effort = isHaiku(st.cfg, started.model)
+  const effort = takesNoEffort(st.cfg, started.model)
     ? undefined
     : given ?? route?.effort
   return {
@@ -3946,8 +3950,8 @@ async function planStep(
   const step: Step = e.agentId === undefined
     ? await mainPlan($, st, e, signal)
     : { plan: agentPlan(st, e) }
-  // Haiku takes no effort: omit it rather than send a hook-set value.
-  return step.plan.model.startsWith(HAIKU)
+  // Haiku 4.x takes no effort: omit it rather than send a hook-set value.
+  return takesNoEffort(st.cfg, step.plan.model)
     ? { ...step, plan: { ...step.plan, effort: undefined } }
     : step
 }
@@ -4235,7 +4239,8 @@ function afterSpawn($: Api, st: State, sp: Spawned): void {
     const hand = handoffOf(st, sp, given)
     if (hand === undefined) return
     // an effort the engine picks is unknown here: the first step tells it
-    if (hand.effortCause !== 'engine' || isHaiku(st.cfg, hand.to.model)) {
+    if (hand.effortCause !== 'engine' ||
+      takesNoEffort(st.cfg, hand.to.model)) {
       loop.last = hand.to
     }
     if (!st.cfg.verbose) return

@@ -3,6 +3,7 @@ name: status-reporter
 description: Read-only project-status engine — dispatched by /status. Collects plugin roster + passive-cost estimate (doctor.sh constants), git state, build/tests, GSD milestone into one snapshot.
 tools: Read, Bash, Glob, Grep
 model: haiku
+effort: low
 ---
 
 # STATUS REPORTER

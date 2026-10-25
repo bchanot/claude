@@ -167,7 +167,6 @@ check_agent() {
   phase="$(row_of "$RD" agents "$name")"
   [ -n "$phase" ] || { ko "agents/$name: no row in routing.json"; return; }
   floor_check "$RD" agents "$name" model "$(fm_val "$R/$f" model)" "$phase" "agents/$name"
-  [ "$(field_of "$RD" "$phase" model)" = haiku ] && return
   floor_check "$RD" agents "$name" effort "$(fm_val "$R/$f" effort)" "$phase" "agents/$name"
 }
 while IFS= read -r f; do check_agent "$f"; done < <(

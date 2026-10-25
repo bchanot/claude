@@ -857,7 +857,52 @@ test('cap: a downgrade under the cold-read cap moves main', async (
   await $.tool.call({ tool: ROUTE_TOOL, phase: 'mechanical' })
   const sent = await stepOn($, rig, FABLE)
   expect(sent.model).toBe(HAIKU)
+  expect(sent.effort).toBe('low')
+})
+
+const HAIKU_4 = 'claude-haiku-4-5-20251001'
+const HAIKU_4_HOME = { home: { models: { haiku: HAIKU_4 } } }
+
+test('haiku 5: /route show prints the effort, not "takes none"', async (
+  $, on) => {
+  await bootRig($, on)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'mechanical' })
+  const line = mainLine(await route($, 'show'))
+  expect(line).toContain('effort low')
+  expect(line).not.toContain('takes none')
+})
+
+test('haiku 4: a routed step keeps no effort, show says so', async (
+  $, on) => {
+  const rig = await bootRig($, on, FABLE, 1000, newWorld(HAIKU_4_HOME))
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'mechanical' })
+  const sent = await stepOn($, rig, FABLE)
+  expect(sent.model).toBe(HAIKU_4)
   expect(sent.effort).toBeUndefined()
+  expect(mainLine(await route($, 'show'))).toContain('haiku 4 takes none')
+})
+
+test('haiku 5: an unrouted step passes the engine effort', async (
+  $, on) => {
+  const rig = await bootRig($, on, HAIKU)
+  expect(await stepOn($, rig, HAIKU)).toEqual({
+    model: HAIKU,
+    effort: 'high',
+  })
+})
+
+test('haiku 5: a plan keyword on a haiku session is xhigh', async (
+  $, on) => {
+  const rig = await bootRig($, on, HAIKU)
+  await $.prompt.submit({
+    text: 'plan the migration',
+    wait: false,
+    origin: { kind: 'composer' },
+  })
+  expect(await stepOn($, rig, HAIKU)).toEqual({
+    model: HAIKU,
+    effort: 'xhigh',
+  })
 })
 
 test('fallback: a rate limit on fable moves plan to opus max', async (
@@ -3835,7 +3880,8 @@ test('logs: a downgrade is a switch', async ($, on) => {
   await route($, 'mechanical')
   await runStep($, highStep())
   expect(logs).toEqual([
-    mainWord('fable/high', 'haiku/-', 'mechanical: sticky /route, switch'),
+    mainWord('fable/high', 'haiku/low',
+      'mechanical: sticky /route, switch'),
   ])
 })
 
@@ -4035,13 +4081,14 @@ test('logs: an explicit effort is one line, then silence', async ($, on) => {
   expect(logs).toEqual([line])
 })
 
-test('logs: a haiku spawn shows no effort, then silence', async ($, on) => {
+test('logs: a haiku spawn shows its effort, then silence', async (
+  $, on) => {
   const world = newWorld({
     edit: f => { (f.agents as Rec).feater = 'mechanical' },
   })
   const { logs } = await afterMainStep($, on, { world })
   await $.agent.spawn(spawnOf('feater'))
-  const line = 'main fable/high → agent feater haiku/- ' +
+  const line = 'main fable/high → agent feater haiku/low ' +
     '(row mechanical, row)'
   expect(logs).toEqual([line])
   await runStep($, { ...highStep('a1'), model: HAIKU })
@@ -4062,6 +4109,31 @@ test('logs: two agent types to one model are two hand-offs', async (
   await $.agent.spawn(spawnOf('feater'))
   await $.agent.spawn(spawnOf('Explore'))
   expect(handoffs(logs)).toHaveLength(2)
+})
+
+test('logs: a haiku 4 spawn shows no effort, then silence', async (
+  $, on) => {
+  const world = newWorld({
+    ...HAIKU_4_HOME,
+    edit: f => { (f.agents as Rec).feater = 'mechanical' },
+  })
+  const { logs } = await afterMainStep($, on, { world })
+  await $.agent.spawn(spawnOf('feater'))
+  const line = 'main fable/high → agent feater haiku/- ' +
+    '(row mechanical, row)'
+  expect(logs).toEqual([line])
+  await runStep($, { ...highStep('a1'), model: HAIKU_4 })
+  expect(logs).toEqual([line])
+})
+
+test('logs: an unrowed haiku spawn is silent at its first step', async (
+  $, on) => {
+  const { logs } = await afterMainStep($, on)
+  await $.agent.spawn(spawnOf('unrowed', { model: 'haiku' }))
+  const line = 'main fable/high → agent unrowed haiku/- (explicit, engine)'
+  expect(logs).toEqual([line])
+  await runStep($, { ...highStep('a1'), model: HAIKU })
+  expect(logs).toEqual([line])
 })
 
 test('logs: one agent type to two models is two hand-offs', async (
