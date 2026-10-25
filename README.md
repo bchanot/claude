@@ -120,8 +120,8 @@ to the rows by the census `lib/tests/effort-routing.test.sh` (a best-tier
 row floors on the tier's second alias, opus, since Fable is credit-gated; a
 row changed through the first-use dialog passes with a `WARN floor drift` line
 until its frontmatter follows): low
-appliers, medium executors, high writers, xhigh judgment and gates (none
-on haiku, which rejects the parameter); `/status` low … `/ship-feature`
+appliers, medium executors, high writers, xhigh judgment and gates;
+`/status` low … `/ship-feature`
 xhigh. The vendored externals (design stack, superpowers, agent-skills,
 MengTo scroll skills, 21st) get their level from their row only.
 Orchestrators declare each phase through the `mcp__model-router__route`

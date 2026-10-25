@@ -1902,6 +1902,7 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 ## LRN-230 — Native model alias moves under the mod silently; table facts rot with it
 - **Context**: BLK-035. haiku alias 4.5 → 5.5, no error anywhere; only signal = mod log `unknown to the models table`. Mod also hardcodes 4.5 facts (200K window, no effort).
 - **Apply**: at each Claude Code upgrade, check `cfg.models` ids vs claude-api skill model table (context, effort support); grep code for model-specific facts (`startsWith(HAIKU)`, windows) in same pass. A per-model behaviour rule names its model version in a comment. Links [[BLK-035]], [[LRN-203]].
+- **Addendum (2026-10-25, 8e93507)**: model fact changes → SCOPE old rule to old version (`claude-haiku-4`), never delete: old model stays reachable (override, full id). Negative control: revert to family prefix → tests red. 2 of 3 challenge lenses caught the delete-instead-of-scope plan.
 
 ## LRN-231 — PreModelSwitch hook: no dialog inside; deny at once, ask in a continuation
 - **Context**: picker spike 2026-10-25 (dev mod, user-run). `$.ui.ask` awaited inside `classic.PreModelSwitch` never renders: UI frozen on "Running PreModelSwitch hooks… (Esc to cancel)". Returning `{ permissionDecision: 'deny', permissionDecisionReason }` at once blocks switch AND user settings.json write; engine prints "Model switch to X was blocked by a PreModelSwitch hook: <reason>".
