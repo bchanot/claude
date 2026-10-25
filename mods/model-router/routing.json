@@ -182,7 +182,9 @@
     "skills": {
       "gitflow": "implement",
       "ship-feature": "plan",
-      "deploy": "verify"
+      "deploy": "verify",
+      "feat": "reflect",
+      "bugfix": "reflect"
     }
   },
   "changed": {},
