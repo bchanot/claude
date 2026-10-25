@@ -110,3 +110,133 @@ Shared rules for every phase:
   - Proof: two concurrent conversations in one project and two projects, canaries prove different listings, MCP and hooks per pack; `/context` per profile; old global toggling gone and nothing references `skills-disabled/`.
   - Cleanup: `lib/profile.sh` symlink toggling + `skills-disabled/` (24 entries), user-scope plugin toggling in `set|apply|reset`, Makefile `profile*` targets rewired, `/profile` skill rewritten for packs, plugin-gate prose tied to global toggling, banner hint "/plugin-check before starting a new project", doctor profile checks, profile tests rewritten; `lib/profiles/*.profile` stay as the definitions.
 
+
+## RE-CHALLENGE 2026-10-25 (Fable) — synthesis
+
+Lenses: correctness CONCERNS(13), robustness FATAL(18, 1 BLOCKER),
+simplicity CONCERNS(14), native-features guide (CLI 2.1.308, code.claude.com),
+own bench r3 (gitflow finish ask rules G1-G7). Facts re-verified by main:
+reconcile.sh:60-67 drops the entry's own header while BLK-032..034 carry
+`[resolved]` there (false-open); brainstorming vendored + gitignored
+(.gitignore:78); nothing machine-reads `## Index` (analyze-before-plan.md:42,
+reconcile.sh:9).
+
+### BLOCKER (robustness 1) — closed by plan change
+hard_deny naming mod disarm paths/sources → the auto classifier would refuse
+all later mod maintenance and every `--plugin-dir` bench. CHANGE: hard_deny
+names only off switches (`~/.claude/<mod>.json` `"enabled": false`,
+`enabledPlugins` false, `disableAllHooks`) and "never edit
+`permissions.ask/deny` to pass a gate"; never a path, file or source line.
+
+### Cross-phase changes
+- P-A proof budget (simp 15): a moved path rule gets a static check
+  (frontmatter parses, each glob matches ≥1 `git ls-files` path per project)
+  + one session logged by the InstructionsLoaded hook. Model canaries only
+  for hook/mod levers.
+- P-B status model (corr, rob, simp 12): one parser, "last status-bearing
+  line wins", own-header `[tag]` read first; fix reconcile_blk_current_status.
+  No Meta backfill, no fourth status location.
+- P-C Index (simp 13): remove the four generated Index blocks in one
+  /prune-memory curation; `memory.sh index` prints it on demand; drop the
+  Index steps in capitalize, ship-feature, commit-changer, prune-memory §D.
+- P-D doctrine never deleted while a mod replaces it (corr, rob): phase 3
+  "cleanups" become jit-marks; mod-off contract = text still present.
+
+### Phase 0
+- KEEP gitignore socle; ADD `!.claude/rules/` (directory-form ignores would
+  untrack rules).
+- CHANGE higgsfield MCP (simp 4, guide): one-time user-run `claude mcp remove
+  -s user higgsfield`; no toggle-external ownership, no doctor check; the
+  phase 5 pack `.mcp.json` owns it. `disabledMcpjsonServers` does not reach
+  user-scope servers; the `/mcp` toggle writes `~/.claude.json`.
+- CHANGE proof budget → P-A.
+
+### Phase 4a
+- SHRINK to `memory.sh add|status|journal|check|index` + flock on add + P-B
+  + P-C. Validator runs inside `add`/`check`, not the generated pre-commit
+  (undecidable there, exits 0 on working branches anyway).
+- DROP Meta backfill (434 entries), `scope`/`critical` labels, English
+  validator (1 of 1,290 entries above 1% accents), Index==generated check.
+- ADD per-file v2 marker: 8 v1 projects keep working, doctor warns.
+
+### Phase 1
+- Design work (simp 9): append the section to rules/web-building.md (same
+  globs); design-toolchain-reminder.sh keeps a one-liner pointing there
+  (2,131 fires logged: no 1.5k per fire).
+- SPA/language/API (simp 10): one lib/architecture-defaults.md read by our
+  own skills; Web APIs into rules/rest-api.md; no empty-dir injection; no
+  edit in vendored brainstorming.
+- Supabase / cloud functions: path rules fail open at scaffold → keep the
+  always-on lines in CLAUDE.global.md, body path-scoped in
+  rules/secure-by-default.md (supabase/**, functions/**, migrations).
+- Graphify threshold: one always-on line stays.
+- DROP "origin line" item (session-start.sh:240-251 already prints it).
+- ADD agent description diet here (simp 1): trim `description:` in
+  agents/*.md (5,755 of 9,098 chars), no mod, no canary.
+
+### Phase 5
+- Profiles: lib/profiles/<name>.json is the source of truth, no generator,
+  no `~/.claude/profiles/` artifact (simp 19).
+- Detection: /plugin-check advisor maps to pack profiles; session-start
+  prints one line when no profile is set; no fingerprint (simp 6).
+- Cleanup list += lib/toggle-external.sh (retire or rewire to packs),
+  lib/tests/higgsfield.test.sh, the CLAUDE.global.md toggle line, every
+  writer of the old layout (install-plugins.sh, update-all.sh, gstack, 21st).
+- `autoMemoryEnabled:false`: migrate existing auto memories first
+  (faunosteo, jeux-deploy, robin-petier), doctor warns.
+- Enable scope: `--settings` conversation copy when present, else
+  `.claude/settings.local.json` (local > project > user); never user scope
+  mid-skill. `skillOverrides` does not reach plugin skills: packs hide by
+  disabling. Router rows must also match `<plugin>:<name>` (test).
+
+### Phase 2
+- Merge gate → native ask rules, no mod (simp 7, bench r3):
+  `Bash(bash */gitflow.sh finish*)`, `Bash(gitflow_finish*)`,
+  `Bash(git merge *)`; evaluate `Bash(git pull *)` and `git push x:develop`
+  forms. Trade-off: BDR-068 /close auto-finish gets one dialog click (ask
+  beats allow, no exemption). The three-condition exception detector was
+  never true anyway (finish runs in the user's reply turn).
+- Routing guard hosted in model-router (owner of `turnMain.source`; mod
+  state is plugin-private): write free when `turnMain.source ∈ {skill,
+  model}` this turn or a `/route` sticky; Edit/Write/NotebookEdit only; Bash
+  write forms deferred until a measured evasion; the deny names the skill;
+  hard_deny gains "a guard redirect is not a refusal to route around".
+- Shell deny hygiene: keep rtk rc=3 passthrough + re-pin + twin census.
+  Interpreters (`python3 -c` 211, `node -e` 450 calls in 14 days, 491 from
+  sub-agents) → autoMode soft_deny prose, not static ask. Static ask only:
+  `Bash(sh -c *)`, `Bash(bash)`, `Bash(sh)`, `Bash(bash -s*)`,
+  `Bash(bash <(*)`. Replace `Bash(/*)` (kills rtk absolute twins) by
+  `Bash(/bin/sh *)`, `Bash(/bin/bash *)`, `Bash(/usr/bin/env bash*)`,
+  `Bash(/usr/bin/env sh*)`. Deny `Bash(awk *system(*`.
+- Commit-msg hook: DEFER (4 of 78 commits over 50 words since
+  lib/commit-message.md; generated hooks miss 6 of 7 repos on
+  `core.hooksPath=.githooks`). Code-limit hook stays (462 of 19,161 added
+  lines over 80 cols).
+- Alternative noted: mods `tool.check` (2.1.304+) returns ask/deny after
+  PreToolUse; still heavier than an ask rule.
+
+### Phase 3
+- DROP skill listing filter, `contexts` field, census (phase 5 packs +
+  SLASH_COMMAND_TOOL_CHAR_BUDGET already give 0 name-only lines); routing
+  hint classifier (no measured miss; table lines move into our skills'
+  descriptions, ≤3 lines for vendored aliases stay); agent listing rewrite
+  (phase 1 diet); higgsfield deltas. `prompt.attachment` kinds are not
+  confirmed by the docs text (types file only).
+- REMAINS: prompt.compose deltas for doctrine a carrier replaced + P-D.
+  Phase 3 becomes CONDITIONAL: measure the always-on residual after
+  0/4a/1/5/2; build only if the residual a mod can carry conditionally is
+  worth it. Shared rules (jit-marker, $.state ledger) move into 4c.
+
+### Phase 4b-4d
+- 4c = intent rerank (14/22) + error 4-gram (exact); digest in
+  session-start.sh on `source: compact|clear` (SessionStart matchers;
+  mods' session.compact only skips); SubagentStart twin if needed. Defer
+  read-path triggers, Bash command triggers, "critical → deny once",
+  Tier 1, cross-repo index, memory_search.
+- 4b: redact at capture, bounded ring, gitleaks in add; $.store 4 MiB cap.
+- 4d: deferred until an injection log shows misses or noise.
+
+### Not verified / residual
+- `updatedInput` then deny: measured here (deny after rewrite); docs silent.
+- `$.ui.ask` inside a sub-agent: unverified, moot with the native gate.
+- Path rules after compaction: unproven (rob minor).
