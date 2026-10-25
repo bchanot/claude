@@ -1898,3 +1898,7 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 ## LRN-229 — Mod test kit: forcing a throw after a dialog answer
 - **Context**: BDR-126 post-answer throw test. Kit drops `$.ui.status` (void event, hook never reached); bottom hooks register once ("registered twice"); hooks after first `$` call refused; `session.usage` swallowed by `readTokens`.
 - **Apply**: swap the mock clock at boot behind a fixture flag: `clock.now` answers until a dialog opened, then rejects (`show` → `readingFor` throws). Flag off by default; a test advancing that clock breaks. Links [[BDR-126]].
+
+## LRN-230 — Native model alias moves under the mod silently; table facts rot with it
+- **Context**: BLK-035. haiku alias 4.5 → 5.5, no error anywhere; only signal = mod log `unknown to the models table`. Mod also hardcodes 4.5 facts (200K window, no effort).
+- **Apply**: at each Claude Code upgrade, check `cfg.models` ids vs claude-api skill model table (context, effort support); grep code for model-specific facts (`startsWith(HAIKU)`, windows) in same pass. A per-model behaviour rule names its model version in a comment. Links [[BLK-035]], [[LRN-203]].
