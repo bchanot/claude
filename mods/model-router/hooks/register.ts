@@ -50,6 +50,7 @@ type Routed = {
   source: Source
   label?: string // the skill a skill route came from, for the logs
   explicitEffort?: boolean // the effort was asked for, not the phase's own
+  explicitModel?: boolean // the model was chosen by hand in the scope dialog
 }
 type Served = { at: number; tokens: number } // ms, context tokens
 type Hold = { until: number; reason: string } // until: ms, Infinity = reload
@@ -1377,13 +1378,12 @@ function windowReturn(
 }
 
 /**
- * The one decision of the main loop's model, in this order: router off, a
- * model the table does not rank (never touched), a model whose window the
- * context outgrew (back to the session model), `cur` down (leave it,
- * always), no or same wanted model, a better one (upgrade), a cheaper one
- * (downgrade). Used by the step AND by every text, so they agree.
+ * The automatic chain, in this order: router off, a model the table does
+ * not rank (never touched), a model whose window the context outgrew (back
+ * to the session model), `cur` down (leave it, always), no or same wanted
+ * model, a better one (upgrade), a cheaper one (downgrade).
  */
-function decideMain(
+function automaticCall(
   st: State,
   cur: string,
   wanted: string | undefined,
@@ -1400,6 +1400,57 @@ function decideMain(
   return ranksAbove(st, wanted, id)
     ? upgradeCall(st, cur, wanted, read)
     : downgradeCall(st, cur, wanted, read)
+}
+
+/** The sticky model slot holds a model chosen by hand, and it is `wanted`. */
+function handPicked(
+  st: State,
+  wanted: string | undefined,
+): wanted is string {
+  return wanted !== undefined && st.userMain?.explicitModel === true &&
+    mainModelSlot(st) === st.userMain
+}
+
+/**
+ * A hand pick (the scope dialog) always switches: no switch flag, no cold
+ * read cap, ahead of every automatic rule. Undefined when it cannot run
+ * (held down, or the context outgrew its known window): then it waits.
+ */
+function handCall(
+  st: State,
+  cur: string,
+  wanted: string,
+  read: Reading,
+): Call | undefined {
+  const usable = !st.down.has(canonical(st.cfg, wanted)) &&
+    fits(st, wanted, read.tokens)
+  if (!usable) return undefined
+  if (aliasOf(st.cfg, wanted) === aliasOf(st.cfg, canonical(st.cfg, cur))) {
+    return keep(cur)
+  }
+  return moveTo(cur, wanted, 'hand pick', st.sessionModel)
+}
+
+/**
+ * The one decision of the main loop's model: a hand pick when one can run,
+ * else the automatic chain. Used by the step AND by every text, so they
+ * agree.
+ */
+function decideMain(
+  st: State,
+  cur: string,
+  wanted: string | undefined,
+  read: Reading,
+): Call {
+  if (st.off || !handPicked(st, wanted)) {
+    return automaticCall(st, cur, wanted, read)
+  }
+  const hand = handCall(st, cur, wanted, read)
+  if (hand !== undefined) return hand
+  const call = automaticCall(st, cur, undefined, read)
+  const once = `model-router: ${canonical(st.cfg, wanted)} is held down or ` +
+    'does not fit; hand pick waits'
+  return { ...call, once: call.once ?? once }
 }
 
 /**
@@ -2073,6 +2124,8 @@ async function handleCommand($: Api, st: State, args: string): Promise<string> {
 // settings.local.json. Fail-open to native only before an answer.
 
 type ModelNext = Next<'command.run'>
+type PreSwitchNext = Next<'classic.PreModelSwitch'>
+type PreSwitchIn = Parameters<PreSwitchNext>[0]
 type Local = { data: Rec; created: boolean }
 type Unreadable = { cause: string }
 
@@ -2099,6 +2152,7 @@ function stickyModel($: Api, st: State, bare: string): void {
     phase: 'custom',
     route: { model: bare, ...(effort === undefined ? {} : { effort }) },
     source: 'user',
+    explicitModel: true,
     ...(prev?.explicitEffort ? { explicitEffort: true } : {}),
   }
   st.runMain = null
@@ -2108,10 +2162,11 @@ function stickyModel($: Api, st: State, bare: string): void {
 /** Everywhere: a sticky model or tier would route main back after native. */
 function dropStickyModel(st: State): void {
   if (st.userMain === null) return
-  const effort = st.userMain.route.effort
+  const { explicitModel: _hand, ...rest } = st.userMain
+  const effort = rest.route.effort
   st.userMain = effort === undefined
     ? null
-    : { ...st.userMain, phase: 'custom', route: { effort } }
+    : { ...rest, phase: 'custom', route: { effort } }
 }
 
 async function localPath($: Api): Promise<string | undefined> {
@@ -2238,6 +2293,7 @@ async function applyLocalScope(
   const id = fullId(st.cfg, token)
   const wrote = toFile ? await writeLocalModel($, id) : undefined
   const bare = token.replace(ONE_M, '')
+  clearBreaker(st, canonical(st.cfg, bare)) // a hand pick, like a native one
   stickyModel($, st, bare)
   if (wrote !== undefined && wrote !== 'written' && wrote !== 'created') {
     $.ui.toast(`settings.local.json not written: ${wrote}`)
@@ -2250,24 +2306,39 @@ async function applyLocalScope(
   return `${head}${note}\n${await show($, st)}`
 }
 
-/** After an answer native never runs on a failure: a text says what to do. */
-async function answerScope(
+/** How a dialog entry reaches native, names its failures, checks it. */
+type ScopeVia = {
+  everywhere: () => Promise<CommandRunResult> // the native switch
+  warnKey: string // the fail-open log key of this entry
+  stillHere?: () => Promise<boolean> // false: the dialog's moment is gone
+}
+
+/**
+ * The scope question and its answer, for both entries. Before an answer a
+ * failure fails open (the caller's `.catch`); after one native never runs
+ * on a failure: a text says what to do.
+ */
+async function scopeDialog(
   $: Api,
   st: State,
-  e: CommandRunInput,
-  next: ModelNext,
-  answer: string,
+  token: string,
+  via: ScopeVia,
 ): Promise<CommandRunResult> {
+  const question = await scopeQuestion($, fullId(st.cfg, token))
+  const answer = await askOr($, question, MODEL_SCOPES)
+  if (!MODEL_SCOPES.includes(answer)) return { text: NO_SCOPE }
   try {
+    if (via.stillHere !== undefined && !(await via.stillHere())) {
+      return { text: 'model: the conversation changed, nothing applied' }
+    }
     if (answer === EVERYWHERE) {
       dropStickyModel(st)
-      return await next(e)
+      return await via.everywhere()
     }
-    const text = await applyLocalScope(
-      $, st, e.args.trim(), answer === PROJECT_SCOPE)
-    return { text }
+    return { text: await applyLocalScope(
+      $, st, token, answer === PROJECT_SCOPE) }
   } catch (err) {
-    warnOnce(st, $, 'command.run model', errWord(err))
+    warnOnce(st, $, via.warnKey, errWord(err))
     return { text: `model failed (${errWord(err)}); the file write or the ` +
       `sticky route may have landed: check /route show and ${LOCAL_SETTINGS}` }
   }
@@ -2289,13 +2360,71 @@ async function handleModelCommand(
   }
   st.asking = `model:${token}`
   try {
-    const question = await scopeQuestion($, fullId(st.cfg, token))
-    const answer = await askOr($, question, MODEL_SCOPES)
-    if (!MODEL_SCOPES.includes(answer)) return { text: NO_SCOPE }
-    return await answerScope($, st, e, next, answer)
+    return await scopeDialog($, st, token,
+      { everywhere: () => next(e), warnKey: 'command.run model' })
   } finally {
     st.asking = null
   }
+}
+
+// The /model picker: the engine draws nothing while a PreModelSwitch hook
+// runs, so the switch is denied at once and the question comes after the
+// hook returned. Everywhere then runs the native command (its own hooks
+// pass through); the two local scopes never reach native.
+
+const PICKER_DELAY_MS = 300
+const PICKER_DENY = 'model-router asks where this switch applies'
+const PICKER_BUSY = 'answer the open dialog first'
+
+const pickerDeny = {
+  permissionDecision: 'deny' as const,
+  permissionDecisionReason: PICKER_DENY,
+}
+
+/** The question after the deny; always frees the slot, never throws. */
+async function pickerDialog(
+  $: Api,
+  st: State,
+  asked: string,
+  conv: string,
+): Promise<void> {
+  try {
+    await $.clock.sleep(PICKER_DELAY_MS)
+    const out = await scopeDialog($, st, asked, {
+      everywhere: () => $.command.run({ command: 'model', args: asked })
+        .then(() => ({})),
+      warnKey: 'PreModelSwitch picker',
+      stillHere: async () => (await $.session.id()) === conv,
+    })
+    if (out.text !== undefined) tryLog($, out.text)
+  } catch (err) {
+    warnOnce(st, $, 'PreModelSwitch picker', errWord(err))
+  } finally {
+    st.asking = null
+  }
+}
+
+async function handlePicker(
+  $: Api,
+  st: State,
+  e: PreSwitchIn,
+  next: PreSwitchNext,
+) {
+  if (e.source !== 'picker') return next(e)
+  await ensureConfig($, st)
+  const asked = e.requested_model
+  if (st.off || typeof asked !== 'string' || !knownModel(st.cfg, asked) ||
+    (await $.session.surfaces()).length === 0) {
+    return next(e)
+  }
+  const conv = await $.session.id()
+  if (st.asking !== null) {
+    $.ui.toast(PICKER_BUSY)
+    return pickerDeny
+  }
+  st.asking = `picker:${asked}`
+  void pickerDialog($, st, asked, conv)
+  return pickerDeny
 }
 
 // ---- first use: one dialog per row, the answer kept in routing.json -----
@@ -3608,6 +3737,7 @@ function modelCause(st: State, why: Why): string | undefined {
   if (call.why === 'upgrade') return 'upgrade'
   if (call.why === 'downgrade') return 'switch'
   if (call.why === 'window') return 'window'
+  if (call.why === 'hand pick') return 'hand pick'
   return `fallback: ${nameOf(st.cfg, cur)} down`
 }
 
@@ -3923,6 +4053,12 @@ async function onAutoSwitch($: Api, st: State, e: SwitchIn): Promise<void> {
   markDown($, st, target, 'engine fallback', await $.clock.now())
 }
 
+/** A native user switch on main ends a hand pick, the picker's own aside. */
+const handPickEnds = (st: State, e: SwitchIn): boolean =>
+  USER_SWITCH.has(e.source) && e.agent_id === undefined &&
+  st.userMain?.explicitModel === true &&
+  st.asking?.startsWith('picker:') !== true
+
 /**
  * Any model change: keeps `sessionModel` and the cache TTL (main's own
  * switches only); a user choice clears its mark.
@@ -3933,6 +4069,7 @@ async function onModelSwitch($: Api, st: State, e: SwitchIn): Promise<void> {
     st.cacheTtlMs = ttlOf(e.cache_ttl) ?? st.cacheTtlMs
   }
   if (USER_SWITCH.has(e.source)) st.runMain = null
+  if (handPickEnds(st, e)) dropStickyModel(st)
   if (st.off || e.source === 'resume') return
   if (e.source === 'auto') await onAutoSwitch($, st, e)
   else clearBreaker(st, canonical(st.cfg, e.to_model))
@@ -4004,6 +4141,12 @@ function registerCommandHook(on: On, st: State): void {
     handleModelCommand($, st, e, next)
   ).catch(($, e, next) => {
     warnOnce(st, $, 'command.run model', next.error.kind)
+    return next(e)
+  })
+  on('classic.PreModelSwitch', async ($, e, next) =>
+    handlePicker($, st, e, next)
+  ).catch(($, e, next) => {
+    warnOnce(st, $, 'PreModelSwitch', next.error.kind)
     return next(e)
   })
   on('command.run', { command: 'route' }, async ($, e) => {

@@ -42,15 +42,25 @@ relaunch: `ultrathink` in the prompt (turn floor) or `/route effort=max`
 (sticky, `/route clear` after).
 Builtin `/effort` is NOT a lever inside a run: rows and routes outrank it.
 
-`/model <name>` typed with a name the router knows asks the scope (Esc
-changes nothing). This project writes the full id as `model` into
+`/model <name>` typed, or a pick in the `/model` picker, with a name the
+router knows asks the scope (Esc changes nothing). The picker's switch is
+held first: the engine prints that a hook blocked it, then the question
+comes. This project writes the full id as `model` into
 `.claude/settings.local.json` (created if absent: keep it gitignored) and
 sets a sticky model route. This conversation sets the sticky route only,
 nothing written. Everywhere is the native command: user `settings.json`,
 every project. The two non-native answers drop the run slot like a native
 switch and keep a sticky effort; Everywhere drops an earlier sticky model.
-No args, an unknown name or a run with no surface (`-p`) go native, no
-question. The file is the session root's: in a worktree, that worktree's.
+Picker Default, no args, an unknown name or a run with no surface (`-p`)
+go native, no question. A native switch (`/config` Model row included)
+drops a hand pick. The file is the session root's: in a worktree, that
+worktree's.
+
+A model chosen in that dialog (a hand pick) always switches: no cold-read
+cap, no `mainUpgrade` or `mainModelSwitch` flag, an unranked session model
+included. A pick held down keeps main where it is (one log) until it is
+back; the window guard needs a `windows` entry (none shipped). A typed
+`/route model=` keeps the caps. `/clear` drops a hand pick until relaunch.
 
 ## Limits
 
@@ -68,7 +78,8 @@ question. The file is the session root's: in a worktree, that worktree's.
   `why|review|audit…`), `ultrathink` and a background agent
   dispatch (derived `orchestrate`) set the turn's effort only, never
   a model above the session model: Fable on main comes only from a
-  skill row, the `route` tool or a typed `/route`.
+  skill row, the `route` tool, a typed `/route` or a hand pick (`/model`,
+  picker).
 - Mod off: typed agents fall back to their `model:`/`effort:` frontmatter.
 - First use of a row asks once, with context (Later, Keep or Change: model,
   then effort, then Everywhere or this project only); the answer is kept in
