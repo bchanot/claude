@@ -1890,3 +1890,11 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 ## LRN-227 — Root-commit author ≠ name the user remembers; identity list must cover every root email
 - **Context**: BDR-124 verify. User expected lima `root n.turpault 2009`; real root = t.surrel 2009-02-25 (not shallow). Own repo root = `git@bchanot.fr`, absent from user.email + claude.identity → false foreign banner.
 - **Apply**: check origin claims against `git log --max-parents=0`, never memory. Every email ever used as root author → `git config --global --add claude.identity <email>`. Links [[BDR-124]].
+
+## LRN-228 — Absence test in untrusted tree: stat first, `exists` only after stat rejects
+- **Context**: BDR-126 contract (main wrote it) said "absent = `$.fs.exists` false". GATE 2 MEDIUM: `exists` may follow links → dangling symlink reads absent → `$.fs.write` creates link target. `stat` answers `isLink` even dangling.
+- **Apply**: stat → resolves: isLink/kind/size checks; rejects → `exists` false = absent, true = fs error. Same for parent dir. Contract wording for a write path gets the same scrutiny as code. Links [[BDR-126]].
+
+## LRN-229 — Mod test kit: forcing a throw after a dialog answer
+- **Context**: BDR-126 post-answer throw test. Kit drops `$.ui.status` (void event, hook never reached); bottom hooks register once ("registered twice"); hooks after first `$` call refused; `session.usage` swallowed by `readTokens`.
+- **Apply**: swap the mock clock at boot behind a fixture flag: `clock.now` answers until a dialog opened, then rejects (`show` → `readingFor` throws). Flag off by default; a test advancing that clock breaks. Links [[BDR-126]].
