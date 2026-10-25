@@ -357,6 +357,7 @@ rules:
 - **Cause**: DEFAULT_CONFIG `haiku: 'claude-haiku-4-5-20251001'` + `windows` 200K entry; native alias moved to `claude-haiku-5-5` (1M, effort low–max) silently.
 - **Solution**: 2c39524 (feature/model-scope-dialog): haiku → `claude-haiku-5-5`, `windows: {}`; regression test + window test on explicit override. Negative control: revert → 20 tests red.
 - **Residual**: "haiku takes no effort" strip (effortWord, step plan, isHaiku sites, census `effort-routing.test.sh:170`) still 4.5-era → `mechanical` (low) runs haiku at default medium. Follow-up /bugfix. Links [[LRN-230]], [[BDR-126]].
+- **Status 2026-10-25**: residual resolved 8e93507 (bugfix/router-haiku-effort): no-effort guard scoped to Haiku 4.x, Haiku 5.x gets route effort; negative control (family prefix) → 6 tests red.
 
 ## BLK-036 — bare `/model` picker writes tracked user settings for a per-project intent [resolved]
 - **Friction**: user picked haiku in native picker in integration_alphalink, wanted that project only → `"model": "haiku"` landed in tracked user settings.json (every project). Restored opus by hand; haiku pinned in alphalink `.claude/settings.local.json`.
