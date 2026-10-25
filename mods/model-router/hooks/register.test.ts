@@ -39,11 +39,20 @@ type World = {
   gate: Promise<void> | undefined // holds a dialog open until it settles
   writeGate: Promise<void> | undefined // holds an fs.write open
   failWrite: boolean // fs.write rejects
+  clockFailsAfterAsk: boolean // clock.now rejects once a dialog opened
   onAsk: (() => void) | undefined // called when a dialog opens
   onWrite: (() => void) | undefined // called when an fs.write starts
   repo: { root: string; remote: string | null } | null | 'fail'
   env: string | undefined // HOME as env.get answers it (undefined = unset)
   kinds: Map<string, 'file' | 'dir' | 'other'> // per-path stat kind override
+  dirs: Map<string, {
+    kind: 'dir' | 'file' | 'other'
+    isLink: boolean
+    exists?: false // a dangling link: stat answers, exists does not
+  }>
+  // paths fs.exists/fs.stat answer for, with or without file text
+  brokenStat: Set<string> // paths that exist but whose stat rejects
+  surfaces: readonly string[] // what session.surfaces answers ([] = headless)
   complete: (model: string) => unknown // what a completion resolves to
   completions: string[] // every model a completion was asked of
 }
@@ -56,6 +65,8 @@ type Fixture = {
   answers?: string[]
   repo?: World['repo']
   noHome?: boolean // HOME unset: env.get answers undefined
+  surfaces?: readonly string[] // default ['terminal']
+  clockFailsAfterAsk?: boolean // see World; the rig gets no MockClock
 }
 
 /**
@@ -117,18 +128,25 @@ function newWorld(fx: Fixture = {}): World {
     gate: undefined,
     writeGate: undefined,
     failWrite: false,
+    clockFailsAfterAsk: fx.clockFailsAfterAsk ?? false,
     onAsk: undefined,
     onWrite: undefined,
     repo: fx.repo === undefined ? { root: ROOT, remote: REMOTE } : fx.repo,
     env: fx.noHome ? undefined : HOME,
     kinds: new Map(),
+    dirs: new Map(),
+    brokenStat: new Set(),
+    surfaces: fx.surfaces ?? ['terminal'],
     complete: () => PROBE_OK,
     completions: [],
   }
 }
 
+const LOCAL_FILE = `${ROOT}/.claude/settings.local.json`
+
 const slot = (path: string): string => {
   if (path.endsWith('/routing.json')) return 'routing'
+  if (path === LOCAL_FILE) return 'local'
   // the engine resolves a relative path against its cwd: `undefined/...`
   // (a HOME read as unset and not guarded) comes back absolute
   const rel = /\/(undefined\/\.claude\/.*)$/.exec(path)
@@ -146,18 +164,23 @@ const routingOf = (w: World): Rec =>
 function installWorld(on: On, w: World): void {
   on('env.get', () => ({ value: w.env }))
   on('fs.exists', (_a, e) => ({
-    value: w.files.has(slot(e.path)) || e.path === ROOT,
+    value: w.dirs.get(e.path)?.exists === false ? false :
+      w.files.has(slot(e.path)) || e.path === ROOT || w.dirs.has(e.path),
   }))
   on('fs.stat', (_a, e) => {
     const text = w.files.get(slot(e.path))
-    if (text === undefined && e.path !== ROOT) throw new Error('ENOENT')
+    const known = w.dirs.get(e.path)
+    if (w.brokenStat.has(e.path)) throw new Error('EIO')
+    if (text === undefined && e.path !== ROOT && known === undefined) {
+      throw new Error('ENOENT')
+    }
     return {
       value: {
-        kind: w.kinds.get(e.path) ??
+        kind: known?.kind ?? w.kinds.get(e.path) ??
           (text === undefined ? 'dir' as const : 'file' as const),
         size: text?.length ?? 0,
         mtimeMs: 0,
-        isLink: false,
+        isLink: known?.isLink ?? false,
         ...(e.resolve ? { realPath: REAL_ROOT } : {}),
       },
     }
@@ -170,6 +193,7 @@ function installWorld(on: On, w: World): void {
   })
   installWrite(on, w)
   on('session.root', () => ({ value: ROOT }))
+  on('session.surfaces', () => ({ value: w.surfaces as never }))
   on('session.repo', () => {
     if (w.repo === 'fail') throw new Error('no repo')
     return { value: w.repo === null ? null : {
@@ -180,13 +204,19 @@ function installWorld(on: On, w: World): void {
   installDialog(on, w)
 }
 
+/** The paths the world's fs.write accepts: see installWrite. */
+const worldServes = (w: World, path: string): boolean =>
+  path === LOCAL_FILE || (slot(path) === 'routing' && w.reads.includes(path))
+
 /**
  * The world's fs.write. Loud: a write anywhere but the routing.json the mod
  * read fails the test (never a project tree, never the machine override).
+ * One carve-out: the project's .claude/settings.local.json, which the
+ * /model scope dialog writes, read or not (a missing file is created).
  */
 function installWrite(on: On, w: World): void {
   on('fs.write', async (_a, e) => {
-    expect(slot(e.path) === 'routing' && w.reads.includes(e.path),
+    expect(worldServes(w, e.path),
       `the world never served ${e.path}`).toBe(true)
     w.written.push(e.path)
     w.onWrite?.()
@@ -217,6 +247,15 @@ function installDialog(on: On, w: World): void {
   })
 }
 
+/** A clock that rejects once a dialog opened (no MockClock: never advanced). */
+function failingClock(on: On, w: World): MockClock {
+  on('clock.now', () => {
+    if (w.asked.length > 0) throw new Error('boom')
+    return { value: 0 }
+  })
+  return undefined as unknown as MockClock
+}
+
 /**
  * Fires session.start so the mod loads its config and registers /route.
  * The bottom hooks the router reads are in place before the first `$` call:
@@ -231,7 +270,9 @@ async function boot(
   tokens: number | null = 1000,
   world: World = newWorld(),
 ): Promise<MockClock> {
-  const clock = mock.clock(on)
+  const clock = world.clockFailsAfterAsk
+    ? failingClock(on, world)
+    : mock.clock(on)
   on('session.model', () => ({ value: model }))
   on('classic.StopFailure', () => ({}))
   on('classic.PostModelSwitch', () => ({}))
@@ -5917,4 +5958,363 @@ test('keyword cap: a dispatch outside a run keeps main on the session model', as
   const rig = await bootRig($, on, OPUS)
   await dispatch($)
   expect(await stepOn($, rig, OPUS)).toEqual({ model: OPUS, effort: 'medium' })
+})
+
+// ---- /model <name>: the scope dialog -------------------------------------
+
+const SCOPES = ['This project', 'This conversation', 'Everywhere']
+const FABLE_1M = `${FABLE}[1m]`
+const NO_SCOPE = 'model: no scope chosen, nothing changed'
+
+type ModelRig = {
+  w: World
+  ran: string[] // the args the native /model got
+  toasts: string[]
+  rig: Rig
+}
+
+/** Boots with a bottom native /model that records its args. */
+async function bootModel(
+  $: Engine,
+  on: On,
+  answers: string[],
+  session: string = OPUS,
+  fx: Fixture = {},
+): Promise<ModelRig> {
+  const ran: string[] = []
+  on('command.run', { command: 'model' }, (_a, e) => {
+    ran.push(e.args)
+    return { text: 'native' }
+  })
+  const toasts = recordToasts(on)
+  const w = newWorld({ answers, ...fx })
+  const rig = await bootRig($, on, session, 1000, w)
+  return { w, ran, toasts, rig }
+}
+
+/** Runs `/model <args>` as typed (or from another origin). */
+async function modelCmd(
+  $: Engine,
+  args: string,
+  kind: 'composer' | 'sdk' = 'composer',
+): Promise<string> {
+  const out = await $.command.run({
+    command: 'model',
+    args,
+    origin: { kind },
+    presentation: { isFullscreen: false, columns: 80 },
+  })
+  return out.text ?? ''
+}
+
+const localOf = (w: World): Rec =>
+  JSON.parse(w.files.get('local') ?? '{}') as Rec
+
+test('model command: asks the three scopes, the full id, native not run', async (
+  $, on) => {
+  const m = await bootModel($, on, ['Later', 'Later'])
+  await modelCmd($, 'fable')
+  await modelCmd($, 'claude-fable-5-1[1m]')
+  expect(m.w.asked.map(q => q.options)).toEqual([SCOPES, SCOPES])
+  expect(m.w.asked.map(q => q.header)).toEqual(['model-router', 'model-router'])
+  const [plain, long] = m.w.asked as [Asked, Asked]
+  expect(plain.text.endsWith(`Switch main to ${FABLE} where?`)).toBe(true)
+  expect(long.text.endsWith(`Switch main to ${FABLE_1M} where?`)).toBe(true)
+  expect(m.ran).toEqual([])
+})
+
+test('model command: This project writes the full id and keeps the keys', async (
+  $, on) => {
+  const m = await bootModel($, on, ['This project'])
+  m.w.files.set('local', JSON.stringify({ permissions: { allow: ['Bash'] } }))
+  m.w.dirs.set(`${ROOT}/.claude`, { kind: 'dir', isLink: false })
+  const out = await modelCmd($, 'fable')
+  expect(localOf(m.w)).toEqual({
+    permissions: { allow: ['Bash'] }, model: FABLE,
+  })
+  expect(m.w.files.get('local')).toBe(
+    JSON.stringify(localOf(m.w), null, 2) + '\n')
+  expect(out).toContain(`${FABLE} written to .claude/settings.local.json`)
+  expect(out).toContain('remove its "model" key to undo')
+  expect(out).not.toContain('file created')
+  expect(m.toasts).toEqual([])
+  expect(m.ran).toEqual([])
+  expect((await stepOn($, m.rig, OPUS)).model).toBe(FABLE)
+})
+
+test('model command: This project keeps [1m] verbatim in the file', async (
+  $, on) => {
+  const m = await bootModel($, on, ['This project', 'This project'])
+  await modelCmd($, 'fable[1m]')
+  expect(localOf(m.w).model).toBe(FABLE_1M)
+  await modelCmd($, 'claude-fable-5-1[1m]')
+  expect(localOf(m.w).model).toBe(FABLE_1M)
+  expect((await stepOn($, m.rig, OPUS)).model).toBe(FABLE)
+})
+
+test('model command: the [1m] note shows only for a token or session [1m]', async (
+  $, on) => {
+  const m = await bootModel($, on, ['This project', 'This project'])
+  expect(await modelCmd($, 'fable')).not.toContain('[1m] follows')
+  expect(await modelCmd($, 'fable[1m]')).toContain(
+    "[1m] follows the session's variant")
+  expect(m.ran).toEqual([])
+})
+
+test('model command: a [1m] session adds the note to a plain token', async (
+  $, on) => {
+  await bootModel($, on, ['This project'], `${OPUS}[1m]`)
+  expect(await modelCmd($, 'fable')).toContain('[1m] follows')
+})
+
+test('model command: This project creates the file when absent', async (
+  $, on) => {
+  const m = await bootModel($, on, ['This project'])
+  const out = await modelCmd($, 'opus')
+  expect(localOf(m.w)).toEqual({ model: OPUS })
+  expect(out).toContain('file created: keep it gitignored')
+  expect(m.toasts).toEqual([])
+})
+
+const BAD_TEXT: [string, string, string][] = [
+  ['null', 'null', 'not an object'],
+  ['an array', '[]', 'not an object'],
+  ['a string', '"x"', 'not an object'],
+  ['broken JSON', '{nope', 'not JSON'],
+  ['over the size cap', JSON.stringify({ pad: 'x'.repeat(70000) }),
+    'too large'],
+]
+
+for (const [name, text, cause] of BAD_TEXT) {
+  test(`model command: This project refuses a file: ${name}`, async (
+    $, on) => {
+    const m = await bootModel($, on, ['This project'])
+    m.w.files.set('local', text)
+    expect(await modelCmd($, 'fable')).toContain(`not written (${cause})`)
+    expect(m.w.files.get('local')).toBe(text)
+    expect(m.w.written).toEqual([])
+    expect(m.toasts).toEqual([`settings.local.json not written: ${cause}`])
+    expect(mainLine(await route($, 'show'))).toContain('user custom')
+  })
+}
+
+const refusals: [string, (w: World) => void, string][] = [
+  ['.claude link', w => w.dirs.set(`${ROOT}/.claude`,
+    { kind: 'dir', isLink: true }), '.claude is a link'],
+  ['.claude file', w => w.dirs.set(`${ROOT}/.claude`,
+    { kind: 'file', isLink: false }), '.claude is not a directory'],
+  ['settings link', w => {
+    w.files.set('local', '{}')
+    w.dirs.set(LOCAL_FILE, { kind: 'file', isLink: true })
+  }, 'settings.local.json is a link'],
+  ['.claude dangling link', w => w.dirs.set(`${ROOT}/.claude`,
+    { kind: 'other', isLink: true, exists: false }), '.claude is a link'],
+  ['settings dangling link', w => w.dirs.set(LOCAL_FILE,
+    { kind: 'other', isLink: true, exists: false }),
+  'settings.local.json is a link'],
+  ['settings dir', w => {
+    w.files.set('local', '{}')
+    w.dirs.set(LOCAL_FILE, { kind: 'dir', isLink: false })
+  }, 'not a regular file'],
+  ['stat error', w => {
+    w.files.set('local', '{}')
+    w.brokenStat.add(LOCAL_FILE)
+  }, 'fs error HooksError'],
+]
+
+for (const [name, setup, cause] of refusals) {
+  test(`model command: This project refuses: ${name}`, async ($, on) => {
+    const m = await bootModel($, on, ['This project'])
+    setup(m.w)
+    const before = m.w.files.get('local')
+    const out = await modelCmd($, 'fable')
+    expect(out).toContain(`not written (${cause})`)
+    expect(m.w.files.get('local')).toBe(before)
+    expect(m.w.written).toEqual([])
+    expect(m.toasts).toEqual([`settings.local.json not written: ${cause}`])
+    expect(mainLine(await route($, 'show'))).toContain('user custom')
+    expect(m.ran).toEqual([])
+  })
+}
+
+test('model command: a failing write reports an fs error, route set', async (
+  $, on) => {
+  const m = await bootModel($, on, ['This project'])
+  m.w.failWrite = true
+  const out = await modelCmd($, 'fable')
+  expect(out).toContain('not written (fs error')
+  expect(m.toasts).toHaveLength(1)
+  expect(out).not.toContain('EACCES')
+  expect(mainLine(await route($, 'show'))).toContain('user custom')
+})
+
+test('model command: This conversation sets the route, writes nothing', async (
+  $, on) => {
+  const m = await bootModel($, on, ['This conversation'])
+  await route($, 'effort=max')
+  const out = await modelCmd($, 'fable')
+  expect(out).toContain(`sticky route ${FABLE} for this conversation`)
+  expect(m.w.written).toEqual([])
+  expect(m.w.files.has('local')).toBe(false)
+  expect(m.ran).toEqual([])
+  const line = mainLine(await route($, 'show'))
+  expect(line).toContain('user custom')
+  expect(line).toContain('effort max')
+  expect((await stepOn($, m.rig, OPUS)).model).toBe(FABLE)
+})
+
+test('model command: the local scopes drop the run slot', async ($, on) => {
+  on('command.run', { command: 'model' }, () => ({ text: 'native' }))
+  await bootRun($, on, OPUS, newWorld({ answers: ['This conversation'] }))
+  await loadSkill($, 'feat')
+  await endTurn($)
+  expect(await modelCmd($, 'sonnet')).toContain('sticky route')
+  expect(await route($, 'clear')).not.toContain('run slot dropped')
+})
+
+test('model command: Everywhere runs native, args unchanged', async (
+  $, on) => {
+  const m = await bootModel($, on, ['Everywhere'])
+  expect(await modelCmd($, 'opus')).toBe('native')
+  expect(m.ran).toEqual(['opus'])
+  expect(m.w.written).toEqual([])
+})
+
+test('model command: Everywhere drops an earlier sticky model', async (
+  $, on) => {
+  const m = await bootModel($, on, ['This conversation', 'Everywhere'])
+  await modelCmd($, 'fable')
+  expect(mainLine(await route($, 'show'))).toContain('user custom')
+  await modelCmd($, 'opus')
+  expect(mainLine(await route($, 'show'))).toContain('session defaults')
+  expect(m.ran).toEqual(['opus'])
+})
+
+test('model command: Everywhere drops a sticky tier too, keeps effort', async (
+  $, on) => {
+  const m = await bootModel($, on, ['Everywhere'])
+  await route($, 'plan')
+  await modelCmd($, 'opus')
+  const line = mainLine(await route($, 'show'))
+  expect(line).toContain('effort xhigh')
+  expect(line).not.toContain(FABLE)
+  expect(m.ran).toEqual(['opus'])
+})
+
+test('model command: no dialog for a call native owns', async ($, on) => {
+  const m = await bootModel($, on, [])
+  const args = ['', 'fable opus', 'default', 'opusplan', 'claude-opus-5-6',
+    'haiku[1m]', 'whatever']
+  for (const a of args) expect(await modelCmd($, a)).toBe('native')
+  expect(m.ran).toEqual(args)
+  expect(m.w.asked).toEqual([])
+})
+
+test('model command: no dialog from another origin', async ($, on) => {
+  const m = await bootModel($, on, [])
+  expect(await modelCmd($, 'fable', 'sdk')).toBe('native')
+  expect(m.w.asked).toEqual([])
+})
+
+test('model command: no dialog when the router is off', async ($, on) => {
+  const m = await bootModel($, on, [])
+  await route($, 'off')
+  expect(await modelCmd($, 'fable')).toBe('native')
+  expect(m.w.asked).toEqual([])
+})
+
+test('model command: no dialog without a surface', async ($, on) => {
+  const m = await bootModel($, on, [], OPUS, { surfaces: [] })
+  expect(await modelCmd($, 'fable')).toBe('native')
+  expect(m.w.asked).toEqual([])
+})
+
+test('model command: a second /model while one is open goes native', async (
+  $, on) => {
+  const m = await bootModel($, on, ['This conversation'])
+  const held = deferred()
+  const open = deferred()
+  m.w.gate = held.gate
+  m.w.onAsk = open.release
+  const first = modelCmd($, 'fable')
+  await open.gate
+  expect(await modelCmd($, 'opus')).toBe('native')
+  held.release()
+  expect(await first).toContain('sticky route')
+  expect(m.w.asked).toHaveLength(1)
+})
+
+test('model command: the question notes a project pin only when set', async (
+  $, on) => {
+  const m = await bootModel($, on, ['Later', 'Later'])
+  await modelCmd($, 'fable')
+  m.w.files.set('local', JSON.stringify({ model: OPUS }))
+  await modelCmd($, 'fable')
+  const [bare, pinned] = m.w.asked as [Asked, Asked]
+  expect(bare.text).not.toContain('pins')
+  const lines = pinned.text.split('\n')
+  const note = lines[lines.length - 2] ?? ''
+  expect(note).toContain(
+    `this project pins ${OPUS} in .claude/settings.local.json`)
+  expect(note).toContain('the project pin wins')
+  expect(lines[lines.length - 1]).toBe(`Switch main to ${FABLE} where?`)
+})
+
+test('model command: Esc or free text cancels, nothing changes', async (
+  $, on) => {
+  const m = await bootModel($, on, [])
+  expect(await modelCmd($, 'fable')).toBe(NO_SCOPE)
+  m.w.answers.push('maybe')
+  expect(await modelCmd($, 'fable')).toBe(NO_SCOPE)
+  expect(m.ran).toEqual([])
+  expect(m.w.written).toEqual([])
+  expect(mainLine(await route($, 'show'))).toContain('session defaults')
+})
+
+test('model command: Everywhere: native runs once, its throw is reported, not re-run', async (
+  $, on) => {
+  const ran: string[] = []
+  on('command.run', { command: 'model' }, (_a, e) => {
+    ran.push(e.args)
+    throw new Error('boom')
+  })
+  await bootRig($, on, OPUS, 1000, newWorld({ answers: ['Everywhere'] }))
+  const out = await modelCmd($, 'opus')
+  expect(out).toContain('model failed (')
+  expect(out).toContain('/route show')
+  expect(out).not.toContain('boom')
+  expect(ran).toEqual(['opus'])
+})
+
+for (const scope of ['This conversation', 'This project']) {
+  test(`model command: ${scope}: a throw after the answer never reaches native`, async (
+    $, on) => {
+    // the dialog is answered, then the status text reads the clock
+    const m = await bootModel($, on, [scope], OPUS, {
+      clockFailsAfterAsk: true,
+    })
+    const out = await modelCmd($, 'fable')
+    expect(out).toContain('model failed (')
+    expect(out).toContain('/route show')
+    expect(out).not.toContain('boom')
+    expect(m.ran).toEqual([])
+  })
+}
+
+test('writes: kit: only the project settings.local.json is carved out', {
+  plugins: [PROBE],
+}, async ($, on) => {
+  const m = await bootModel($, on, [])
+  const out = await $.command.run({
+    command: 'probe',
+    args: LOCAL_FILE,
+    origin: { kind: 'composer' },
+    presentation: { isFullscreen: false, columns: 80 },
+  })
+  expect(out.text).toBe('written')
+  for (const path of [`${ROOT}/.claude/settings.json`,
+    `${LOCAL_FILE}.bak`, `${ROOT}/other/settings.local.json`, HOME_FILE]) {
+    expect(worldServes(m.w, path), path).toBe(false)
+  }
+  expect(worldServes(m.w, LOCAL_FILE)).toBe(true)
 })

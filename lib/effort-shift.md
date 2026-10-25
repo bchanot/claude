@@ -42,6 +42,16 @@ relaunch: `ultrathink` in the prompt (turn floor) or `/route effort=max`
 (sticky, `/route clear` after).
 Builtin `/effort` is NOT a lever inside a run: rows and routes outrank it.
 
+`/model <name>` typed with a name the router knows asks the scope (Esc
+changes nothing). This project writes the full id as `model` into
+`.claude/settings.local.json` (created if absent: keep it gitignored) and
+sets a sticky model route. This conversation sets the sticky route only,
+nothing written. Everywhere is the native command: user `settings.json`,
+every project. The two non-native answers drop the run slot like a native
+switch and keep a sticky effort; Everywhere drops an earlier sticky model.
+No args, an unknown name or a run with no surface (`-p`) go native, no
+question. The file is the session root's: in a worktree, that worktree's.
+
 ## Limits
 
 - A skill typed while a background agent is live routes only through the
@@ -51,8 +61,9 @@ Builtin `/effort` is NOT a lever inside a run: rows and routes outrank it.
   model: the guessed phase sets the turn's effort and, under
   `mainModelSwitch` and `downgradeMaxTokens` (max cold read, default
   120000), may move main DOWN, never up. A user `/model` only moves the
-  baseline the guess starts from (`/route classify off` to stop guessing;
-  never `-p`).
+  baseline the guess starts from (Everywhere; the two other scopes set a
+  sticky route, which the classifier never overrides) (`/route classify
+  off` to stop guessing; never `-p`).
 - Keyword prompt rules (`plan|design|architecture…`,
   `why|review|audit…`), `ultrathink` and a background agent
   dispatch (derived `orchestrate`) set the turn's effort only, never

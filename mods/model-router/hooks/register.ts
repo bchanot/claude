@@ -7,7 +7,10 @@
 // DEFAULT_CONFIG; ~/.claude/model-router.json overrides both per machine.
 // One writer per concern: the Agent tool's own params are never rewritten,
 // the spawn hook sets an agent's model once, turn.step sets efforts.
-import type { EngineInterface, On, Register, TurnStepInput } from 'claude-code'
+import type {
+  CommandRunInput, CommandRunResult, EngineInterface, Next, On, Register,
+  TurnStepInput,
+} from 'claude-code'
 
 type Api = EngineInterface
 type Level = 'low' | 'medium' | 'high' | 'xhigh' | 'max'
@@ -190,6 +193,15 @@ const KEEP = 'Keep'
 const CHANGE = 'Change'
 const EVERYWHERE = 'Everywhere'
 const THIS_PROJECT = 'This project only'
+// `/model <name>` scope dialog. PROJECT_SCOPE differs from THIS_PROJECT, the
+// first-use label: both are fixed by their own contracts.
+const PROJECT_SCOPE = 'This project'
+const CONVERSATION = 'This conversation'
+const MODEL_SCOPES: readonly string[] = [
+  PROJECT_SCOPE, CONVERSATION, EVERYWHERE,
+]
+const NO_SCOPE = 'model: no scope chosen, nothing changed'
+const LOCAL_SETTINGS = '.claude/settings.local.json'
 const CHOICE_ALIASES: readonly string[] = ['fable', 'opus', 'sonnet', 'haiku']
 const MAX_DESC = 140 // chars of a skill or agent description in a question
 const MAX_ABOUT = 120 // chars of a phase `about`
@@ -2054,6 +2066,238 @@ async function handleCommand($: Api, st: State, args: string): Promise<string> {
   }
 }
 
+// ---- /model <name>: the scope of a switch ---------------------------------
+// A typed `/model <name>` of a model the table knows asks where it applies.
+// Everywhere is the native command (user settings.json); the two others set
+// a sticky model route, This project also pins `model` in the project's
+// settings.local.json. Fail-open to native only before an answer.
+
+type ModelNext = Next<'command.run'>
+type Local = { data: Rec; created: boolean }
+type Unreadable = { cause: string }
+
+/** An alias or a full id of the table; haiku has no `[1m]` variant. */
+function knownModel(cfg: Config, token: string): boolean {
+  const bare = token.replace(ONE_M, '')
+  const id = hasKey(cfg.models, bare) ? cfg.models[bare] ?? bare : bare
+  if (!Object.values(cfg.models).includes(id)) return false
+  return !(ONE_M.test(token) && id.startsWith(HAIKU))
+}
+
+/** The id a token stands for, `[1m]` kept; never `canonical` (it strips). */
+function fullId(cfg: Config, token: string): string {
+  const bare = token.replace(ONE_M, '')
+  if (!hasKey(cfg.models, bare)) return token
+  return `${cfg.models[bare] ?? bare}${ONE_M.test(token) ? '[1m]' : ''}`
+}
+
+/** A user switch by hand: sticky model, the run slot dropped, effort kept. */
+function stickyModel($: Api, st: State, bare: string): void {
+  const prev = st.userMain
+  const effort = prev?.route.effort
+  st.userMain = {
+    phase: 'custom',
+    route: { model: bare, ...(effort === undefined ? {} : { effort }) },
+    source: 'user',
+    ...(prev?.explicitEffort ? { explicitEffort: true } : {}),
+  }
+  st.runMain = null
+  refresh($, st)
+}
+
+/** Everywhere: a sticky model or tier would route main back after native. */
+function dropStickyModel(st: State): void {
+  if (st.userMain === null) return
+  const effort = st.userMain.route.effort
+  st.userMain = effort === undefined
+    ? null
+    : { ...st.userMain, phase: 'custom', route: { effort } }
+}
+
+async function localPath($: Api): Promise<string | undefined> {
+  try {
+    return `${await $.session.root()}/${LOCAL_SETTINGS}`
+  } catch {
+    return undefined
+  }
+}
+
+/** The file's text; null when absent (`stat` rejects and `exists` false). */
+async function localText(
+  $: Api,
+  path: string,
+): Promise<string | null | Unreadable> {
+  try {
+    let info
+    try {
+      info = await $.fs.stat(path)
+    } catch (err) {
+      if (!(await $.fs.exists(path))) return null
+      return { cause: `fs error ${errWord(err)}` }
+    }
+    if (info.isLink) return { cause: 'settings.local.json is a link' }
+    if (info.kind !== 'file') return { cause: 'not a regular file' }
+    if (info.size > MAX_CONFIG_BYTES) return { cause: 'too large' }
+    const text = await $.fs.read(path)
+    return text.length > MAX_CONFIG_BYTES ? { cause: 'too large' } : text
+  } catch (err) {
+    return { cause: `fs error ${errWord(err)}` }
+  }
+}
+
+/** The local settings as an object, or a fixed cause word; never throws. */
+async function readLocalSettings(
+  $: Api,
+  path: string,
+): Promise<Local | string> {
+  const text = await localText($, path)
+  if (text === null) return { data: {}, created: true }
+  if (typeof text !== 'string') return text.cause
+  let data: unknown
+  try {
+    data = JSON.parse(text)
+  } catch {
+    return 'not JSON'
+  }
+  return isRecord(data) ? { data, created: false } : 'not an object'
+}
+
+/** The project's `.claude`: absent is fine, a link or a file is not. */
+async function claudeDirCause($: Api, path: string): Promise<string | null> {
+  const dir = path.slice(0, path.lastIndexOf('/'))
+  try {
+    let info
+    try {
+      info = await $.fs.stat(dir)
+    } catch (err) {
+      if (!(await $.fs.exists(dir))) return null
+      return `fs error ${errWord(err)}`
+    }
+    if (info.isLink) return '.claude is a link'
+    return info.kind === 'dir' ? null : '.claude is not a directory'
+  } catch (err) {
+    return `fs error ${errWord(err)}`
+  }
+}
+
+/** 'written', 'created', or a fixed cause word (never an error message). */
+async function writeLocalModel($: Api, id: string): Promise<string> {
+  const path = await localPath($)
+  if (path === undefined) return 'project root unknown'
+  const bad = await claudeDirCause($, path)
+  if (bad !== null) return bad
+  const local = await readLocalSettings($, path)
+  if (typeof local === 'string') return local
+  local.data.model = id
+  try {
+    await $.fs.write(path, `${JSON.stringify(local.data, null, 2)}\n`)
+  } catch (err) {
+    return `fs error ${errWord(err)}`
+  }
+  return local.created ? 'created' : 'written'
+}
+
+/** The question: the id, the three scopes, the project pin if any. */
+async function scopeQuestion($: Api, id: string): Promise<string> {
+  const path = await localPath($)
+  const local = path === undefined ? '' : await readLocalSettings($, path)
+  const pin = typeof local === 'string' ? undefined : local.data.model
+  const note = typeof pin === 'string'
+    ? `Note: this project pins ${clean(pin, 60)} in ${LOCAL_SETTINGS}: ` +
+      'at launch here, the project pin wins over Everywhere\n'
+    : ''
+  return `${PROJECT_SCOPE}: ${LOCAL_SETTINGS} of this repo (wins at ` +
+    `launch) + route now · ${CONVERSATION}: route now, nothing written · ` +
+    `${EVERYWHERE}: user settings.json, every project\n${note}` +
+    `Switch main to ${id} where?`
+}
+
+/** The route cannot hold `[1m]`: the session's variant is what carries. */
+function variantNote(st: State, token: string, bareFull: string): string {
+  const long = ONE_M.test(token) || ONE_M.test(st.sessionModel)
+  return long && !bareFull.startsWith(HAIKU)
+    ? " ([1m] follows the session's variant)"
+    : ''
+}
+
+function writtenText(id: string, wrote: string): string {
+  if (wrote !== 'written' && wrote !== 'created') {
+    return `model: ${LOCAL_SETTINGS} not written (${wrote})`
+  }
+  return `model: ${id} written to ${LOCAL_SETTINGS} (remove its "model" key ` +
+    `to undo)${wrote === 'created' ? ', file created: keep it gitignored' : ''}`
+}
+
+/** This project (file + route) or This conversation (route only). */
+async function applyLocalScope(
+  $: Api,
+  st: State,
+  token: string,
+  toFile: boolean,
+): Promise<string> {
+  const id = fullId(st.cfg, token)
+  const wrote = toFile ? await writeLocalModel($, id) : undefined
+  const bare = token.replace(ONE_M, '')
+  stickyModel($, st, bare)
+  if (wrote !== undefined && wrote !== 'written' && wrote !== 'created') {
+    $.ui.toast(`settings.local.json not written: ${wrote}`)
+  }
+  const route = `sticky route ${fullId(st.cfg, bare)}`
+  const head = wrote === undefined
+    ? `model: ${route} for this conversation`
+    : `${writtenText(id, wrote)}; ${route} set`
+  const note = variantNote(st, token, fullId(st.cfg, bare))
+  return `${head}${note}\n${await show($, st)}`
+}
+
+/** After an answer native never runs on a failure: a text says what to do. */
+async function answerScope(
+  $: Api,
+  st: State,
+  e: CommandRunInput,
+  next: ModelNext,
+  answer: string,
+): Promise<CommandRunResult> {
+  try {
+    if (answer === EVERYWHERE) {
+      dropStickyModel(st)
+      return await next(e)
+    }
+    const text = await applyLocalScope(
+      $, st, e.args.trim(), answer === PROJECT_SCOPE)
+    return { text }
+  } catch (err) {
+    warnOnce(st, $, 'command.run model', errWord(err))
+    return { text: `model failed (${errWord(err)}); the file write or the ` +
+      `sticky route may have landed: check /route show and ${LOCAL_SETTINGS}` }
+  }
+}
+
+async function handleModelCommand(
+  $: Api,
+  st: State,
+  e: CommandRunInput,
+  next: ModelNext,
+): Promise<CommandRunResult> {
+  await ensureConfig($, st)
+  const tokens = e.args.trim().split(/\s+/)
+  const token = tokens[0] ?? ''
+  if (st.off || e.origin.kind !== 'composer' || tokens.length !== 1 ||
+    !knownModel(st.cfg, token) ||
+    (await $.session.surfaces()).length === 0 || st.asking !== null) {
+    return next(e)
+  }
+  st.asking = `model:${token}`
+  try {
+    const question = await scopeQuestion($, fullId(st.cfg, token))
+    const answer = await askOr($, question, MODEL_SCOPES)
+    if (!MODEL_SCOPES.includes(answer)) return { text: NO_SCOPE }
+    return await answerScope($, st, e, next, answer)
+  } finally {
+    st.asking = null
+  }
+}
+
 // ---- first use: one dialog per row, the answer kept in routing.json -----
 // The first time a row routes (a typed skill, an agent spawn, a phase
 // declared through the route tool) the user confirms it once, for every
@@ -3756,6 +4000,12 @@ function registerCwd(on: On, st: State): void {
 }
 
 function registerCommandHook(on: On, st: State): void {
+  on('command.run', { command: 'model' }, async ($, e, next) =>
+    handleModelCommand($, st, e, next)
+  ).catch(($, e, next) => {
+    warnOnce(st, $, 'command.run model', next.error.kind)
+    return next(e)
+  })
   on('command.run', { command: 'route' }, async ($, e) => {
     if (e.origin.kind !== 'composer') {
       return { text: 'route: user-only command' }
