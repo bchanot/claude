@@ -5,7 +5,7 @@ import type { On, TurnStepInput } from 'claude-code'
 const FABLE = 'claude-fable-5-1'
 const OPUS = 'claude-opus-5-5'
 const SONNET = 'claude-sonnet-5-5'
-const HAIKU = 'claude-haiku-4-5-20251001'
+const HAIKU = 'claude-haiku-5-5'
 
 type Rec = Record<string, unknown>
 type Asked = { text: string; options: string[]; header: string }
@@ -923,6 +923,15 @@ test('unknown: a session model absent from the table is never switched', async (
   const rig = await bootRig($, on)
   await planRoute($)
   expect((await stepOn($, rig, 'claude-zz-9')).model).toBe('claude-zz-9')
+})
+
+test('unknown: the haiku alias id is in the table, a route moves it', async (
+  $, on) => {
+  const logs = recordLogs(on)
+  const rig = await bootRig($, on, HAIKU)
+  await planRoute($)
+  expect((await stepOn($, rig, HAIKU)).model).toBe(FABLE)
+  expect(logsWith(logs, 'unknown to the models table')).toBe(0)
 })
 
 test('spawn: Explore goes to opus while sonnet is down', async ($, on) => {
@@ -5253,7 +5262,8 @@ test('cap: a smaller context than the record is cold', async ($, on) => {
 test('window: haiku outgrown returns main to the session model', async (
   $, on) => {
   const logs = recordLogs(on)
-  const { rig, usage } = await bootRigVar($, on, FABLE, 1000)
+  const world = newWorld({ home: { windows: { [HAIKU]: 200000 } } })
+  const { rig, usage } = await bootRigVar($, on, FABLE, 1000, world)
   expect(await routedStep($, rig, 'mechanical')).toBe(HAIKU)
   usage.set(250000)
   expect((await stepOn($, rig, FABLE)).model).toBe(FABLE)

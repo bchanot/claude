@@ -266,12 +266,12 @@ const TIMEOUT: unique symbol = Symbol('timeout')
 
 const DEFAULT_CONFIG: Config = {
   models: {
-    haiku: 'claude-haiku-4-5-20251001',
+    haiku: 'claude-haiku-5-5',
     sonnet: 'claude-sonnet-5-5',
     opus: 'claude-opus-5-5',
     fable: 'claude-fable-5-1',
   },
-  windows: { 'claude-haiku-4-5-20251001': 200000 },
+  windows: {},
   // A tier is an ordered alias list: the first one not down is used.
   tiers: {
     best: ['fable', 'opus', 'sonnet'],
