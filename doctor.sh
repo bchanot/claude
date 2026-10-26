@@ -73,7 +73,7 @@ check_symlink() {
 check_symlink "CLAUDE.md"
 # check_symlink only asserts the canonical path lands inside $REPO — after a
 # `git pull` without `link.sh`, ~/.claude/CLAUDE.md can still resolve inside
-# $REPO but at the wrong file (the 29-line project CLAUDE.md instead of
+# $REPO but at the wrong file (the project CLAUDE.md instead of
 # CLAUDE.global.md), passing green while the global doctrine is silently gone.
 _claude_md_target=$(readlink "$HOME/.claude/CLAUDE.md" 2>/dev/null || true)
 if [ "$_claude_md_target" != "$REPO/CLAUDE.global.md" ]; then
