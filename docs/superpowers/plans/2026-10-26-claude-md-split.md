@@ -12,7 +12,7 @@
 **Contract:** `.claude/tasks/contracts/2026-10-26-claude-md-split-0042.md`
 **Branch:** `feature/claude-md-split`, already started off develop (spec 2c8e4a2, plan r1 420448a). **Implement in place on this checkout, no worktree**: `~/.claude/{lib,agents,skills,hooks,settings.json}` are symlinks into this repo, and Tasks 6, 8 and 11 exercise the live links.
 
-Spec deltas, decided while planning (r2, after the three-lens challenge): a `matches <glob>` subcommand (the split mode's only glob oracle, so the skill never consults `git ls-files`); `emit <skeleton> <out>` (writes a skeleton with the matching globs only); `-C <dir>` on every subcommand (a dispatched agent's cwd is the session's, never the project's); `extract` refuses a glob that matches nothing and a heading that does not occur exactly once; the hook also logs `session_id`, `agent_id`, `agent_type`, `globs` and rotates above 5 MB; the graphify rule drops `.graphify_version` (it lives under `skills/graphify/`, already covered); the onboarder's default-mode PHASE 4 is untouched (the gitignore socle reaches onboarded projects through STEP 2.6 `gitflow init`).
+Spec deltas, decided while planning (r2 after the three-lens challenge, r3 after the correctness confirmation): a `matches <glob>` subcommand (the split mode's only glob oracle, so the skill never consults `git ls-files`); `emit <skeleton> <out>` (writes a skeleton with the matching globs only); `-C <dir>` on every subcommand (a dispatched agent's cwd is the session's, never the project's); `extract` refuses a glob that matches nothing and a heading that does not occur exactly once; the hook also logs `session_id`, `agent_id`, `agent_type`, `globs` and rotates above 5 MB; the graphify rule drops `.graphify_version` (it lives under `skills/graphify/`, already covered); the onboarder's default-mode PHASE 4 is untouched (the gitignore socle reaches onboarded projects through STEP 2.6 `gitflow init`). r3: `matches` reads its whole pipe through awk (a `head` reader gives the writer SIGPIPE, rc 141 under `pipefail`, so any glob with more than a pipe buffer of hits read as "no match"); the no-jq hook test runs `"$BASH"` (a temporary `PATH=/nonexistent` makes `bash` itself unfindable, rc 127); the Task 8 dry run branches the scratch first (the global pre-commit hook blocks a CLAUDE.md commit on `develop`); the onboarder checks the commit rc, rolls back on failure and verifies `HEAD:` with `cat-file`; globs carry no braces (`compgen -G` does not expand them).
 
 Baseline, taken 2026-10-26 before any edit (`claude -p "/context"` at the repo root, CLAUDE.md unchanged): total 32.2k; Memory files 11.6k, of which project CLAUDE.md 2.1k; Skills 10k; Custom agents 2.6k; System prompt 4.4k; MCP instructions 2.2k.
 
@@ -25,7 +25,9 @@ Baseline, taken 2026-10-26 before any edit (`claude -p "/context"` at the repo r
 - Hooks never print to stdout (stdout reaches the model) and never block.
 - The doctrine-citers census (`lib/tests/doctrine-citers.test.sh`) flags any `CLAUDE.md` followed within 12 chars by a double quote in skills/agents/lib/rules/hooks: new text never writes `CLAUDE.md "…"`; headings in command templates are single-quoted.
 - Commit on the feature branch only, one commit per task, message under 50 words, no attribution lines.
-- Frontmatter shape is exactly `paths: ["glob", "glob"]` on one line (as `rules/a11y.md`).
+- Frontmatter shape is exactly `paths: ["glob", "glob"]` on one line (as `rules/a11y.md`). No brace glob (`*.{ts,tsx}`): `compgen -G` does no brace expansion, so one glob per extension.
+- A pipeline whose reader may stop early (`head`, `grep -q`) gives the writer SIGPIPE; under `set -o pipefail` that is rc 141 on the whole pipeline. The lib never puts `head` after a producer: awk reads the pipe to its end.
+- A temporary assignment `PATH=/nonexistent cmd` applies to the lookup of `cmd` itself: write `"$BASH"`, never `bash`, when the test blanks PATH.
 - Commands with a shell variable in a path are denied by the permission rules in this repo: write literal paths in every Bash step; agent templates say `<PROJECT_ROOT>` and the executor substitutes the literal.
 - Deferred, for the human gate: the pre-commit `.claude/**` exemption lets a rules-only commit land directly on develop/main `[deferred 2026-10-26]` (phase 2, guards, narrows it; split mode always branches first).
 
@@ -34,7 +36,8 @@ Baseline, taken 2026-10-26 before any edit (`claude -p "/context"` at the repo r
 1. A heading inside a fenced code block, or a duplicated heading, must never be moved: `sections` ignores fenced lines, `extract` refuses unless the fence-aware count is exactly 1 (T6, T8e, T8f in Task 1).
 2. A literal glob (no `*?[`) that names a missing file must fail `check` and be pruned by `emit`: bash never expands a plain word, so the matcher uses `compgen -G` (T2c, T12b, T12f in Tasks 1 and 9).
 3. A glob that matches only under `node_modules/`, `.venv/`, `vendor/`, `target/`, `dist/`, `build/` or `.git/` counts as no match (T2d in Task 1).
-4. A dispatched onboarder must act on the project root it was given, never on the session cwd: every lib call carries `-C <PROJECT_ROOT>`, every git call `-C` (Task 8 asserts the scratch repo got the commit and this repo stayed clean).
+4. A dispatched onboarder must act on the project root it was given, never on the session cwd: every lib call carries `-C <PROJECT_ROOT>`, every git call `-C` (Task 8 asserts the scratch repo got the commit on its chore branch and this repo's status is unchanged).
+6. A glob with thousands of hits (a real repo's `src/**`) must still be a match: `matches` reads the whole pipe (T5k, T5l in Task 1).
 5. The hook must exit 0 and print nothing when `jq` is absent or the log dir is unwritable (T10f-T10h in Task 2).
 
 ---
@@ -50,9 +53,9 @@ Baseline, taken 2026-10-26 before any edit (`claude -p "/context"` at the repo r
 
 - [ ] **Step 1: Write the failing suite (T1-T9)**
 
-Create `lib/tests/project-rules.test.sh`:
+Create `lib/tests/project-rules.test.sh` (4-backtick fence: the heredoc inside holds a ``` line):
 
-```bash
+````bash
 #!/usr/bin/env bash
 # lib/tests/project-rules.test.sh — lib/project-rules.sh (check / matches /
 # sections / extract / emit) and hooks/instructions-loaded.sh. Flip-tests
@@ -134,6 +137,15 @@ err=$(bash "$PR" matches 'nope/**' 2>&1 >/dev/null); rc=$?
 check T5h-no-match-rc "$rc" 1
 check T5i-no-match-stderr "$err" 'no match: nope/**'
 bash "$PR" matches '**/*.test.*' >/dev/null 2>&1; check T5j-dep-only-no-match "$?" 1
+# T5k a glob with more than a pipe buffer of hits is still a match (no
+# SIGPIPE from an early reader); T5m braces are not expanded by compgen
+mkdir -p many
+seq -f 'many/file-%04.0f-xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx' 1 3000 \
+  | xargs touch
+bash "$PR" matches 'many/**' >/dev/null; check T5k-many-hits-rc "$?" 0
+check T5l-three-lines "$(bash "$PR" matches 'many/**' | wc -l | tr -d ' ')" 3
+bash "$PR" matches 'src/**/*.{ts,tz}' >/dev/null 2>&1
+check T5m-brace-glob-no-match "$?" 1
 
 # T6 sections lists headings with sizes, fence-aware
 cat > CLAUDE.md <<'EOF'
@@ -186,7 +198,7 @@ check T8e-duplicate-heading-rc "$?" 2
 check T8e2-both-gammas-kept "$(grep -c '^## Gamma' CLAUDE.md)" 2
 bash "$PR" extract CLAUDE.md 'not a heading' .claude/rules/nah.md '["src/**"]' 2>/dev/null
 check T8f-fenced-only-rc "$?" 2
-check T8g-nothing-written "$(ls .claude/rules | tr '\n' ' ')" 'alpha.md good.md '
+check T8g-nothing-written "$(cd .claude/rules && printf '%s ' *)" 'alpha.md good.md '
 
 # T9 extract refuses malformed globs and a glob that matches nothing
 bash "$PR" extract CLAUDE.md 'Beta' .claude/rules/beta.md 'src/**' 2>/dev/null
@@ -198,14 +210,14 @@ check T9d-beta-still-there "$(grep -c '^## Beta' CLAUDE.md)" 1
 
 echo "PASS=$pass FAIL=$fail"
 [ "$fail" -eq 0 ]
-```
+````
 
 (T6c: the Alpha section spans `## Alpha`, `aaa`, blank, `---`, blank; each line counts its length plus one newline: 9+4+1+4+1 = 19.)
 
 - [ ] **Step 2: Run the suite, verify it fails**
 
 Run: `bash lib/tests/project-rules.test.sh`
-Expected: many `FAIL …` lines (the lib does not exist), last line `PASS=0 FAIL=…`, exit 1.
+Expected: many `FAIL …` lines (the lib does not exist), last line `PASS=… FAIL=…` with FAIL above 40 (a few negative checks such as T6d, T8b, T9c pass with no lib), exit 1.
 
 - [ ] **Step 3: Write the lib**
 
@@ -226,13 +238,15 @@ Create `lib/project-rules.sh`:
 #   emit <skeleton> <out>   the rule with the matching globs only (rc 1
 #                           when none matches, nothing written)
 # Globs match the WORKING TREE (compgen -G with globstar and dotglob,
-# through symlinks), dependency dirs excluded: the engine matches the path
-# the model reads, tracked or not; a typo matches nothing either way. A
-# frontmatter line `# static-check: skip` exempts a rule whose files only
-# exist mid-run. A rule without frontmatter or without `paths:` is an
-# always-on rule: reported, never failed.
+# through symlinks, no brace expansion: one glob per extension),
+# dependency dirs excluded: the engine matches the path the model reads,
+# tracked or not; a typo matches nothing either way. A frontmatter line
+# `# static-check: skip` exempts a rule whose files only exist mid-run. A
+# rule without frontmatter or without `paths:` is an always-on rule:
+# reported, never failed. No `head` after a producer: an early reader
+# gives the writer SIGPIPE (rc 141 under pipefail).
 
-_RULES_DEP_DIRS='(^|/)(node_modules|\.venv|venv|vendor|target|dist|build|\.git)/'
+_RULES_DEPS='(^|/)(node_modules|\.venv|venv|vendor|target|dist|build|\.git)/'
 
 _rules_frontmatter() {  # <file> → frontmatter body on stdout, rc 1 if none
   awk 'NR == 1 && $0 != "---" { exit 1 }
@@ -255,7 +269,7 @@ _rules_globs() {
 
 _rules_hits() {  # <glob> → matching paths outside dependency dirs, rc 1 none
   ( shopt -s globstar dotglob; compgen -G "$1" ) 2>/dev/null \
-    | grep -Ev "$_RULES_DEP_DIRS"
+    | grep -Ev "$_RULES_DEPS"
 }
 
 _rules_matching() {  # <globs, one per line> → JSON array of the matching ones
@@ -279,14 +293,16 @@ _rules_check_file() {  # <rule.md> → rc 0 ok or always-on, rc 1 with culprits
   printf '%s\n' "$fm" | grep -qx '# static-check: skip' && skip=1
   while IFS= read -r g; do
     if [ "$skip" = 1 ]; then echo "$1: SKIP $g"; continue; fi
-    _rules_hits "$g" >/dev/null || { echo "$1: glob matches nothing: $g"; bad=1; }
+    _rules_hits "$g" >/dev/null \
+      || { echo "$1: glob matches nothing: $g"; bad=1; }
   done <<< "$globs"
   [ "$bad" = 0 ]
 }
 
 project_rules_check() {  # [rules-dir] → rc 0 all ok, rc 2 with culprits named
   local dir="${1:-.claude/rules}" f n=0 bad=0
-  [ -d "$dir" ] || { echo "project-rules: 0 rule(s) ok ($dir absent)"; return 0; }
+  [ -d "$dir" ] \
+    || { echo "project-rules: 0 rule(s) ok ($dir absent)"; return 0; }
   for f in "$dir"/*.md; do
     [ -e "$f" ] || continue
     n=$((n + 1))
@@ -297,8 +313,10 @@ project_rules_check() {  # [rules-dir] → rc 0 all ok, rc 2 with culprits named
 }
 
 project_rules_matches() {  # <glob> → rc 0 + the first 3 hits, rc 1 none
-  _rules_hits "$1" | head -3
-  [ "${PIPESTATUS[0]}" -eq 0 ] || { echo "no match: $1" >&2; return 1; }
+  # awk reads the pipe to its end: a `head` reader would SIGPIPE the
+  # producer on any glob with more than a pipe buffer of hits (rc 141).
+  _rules_hits "$1" | awk 'NR <= 3 { print } END { exit NR == 0 }' \
+    || { echo "no match: $1" >&2; return 1; }
 }
 
 project_rules_sections() {  # <file> → chars, line, heading per ## section
@@ -380,7 +398,8 @@ project_rules_emit() {  # <skeleton.md> <out.md> → the rule, matching globs on
 _project_rules_main() {
   set -uo pipefail
   if [ "${1:-}" = "-C" ]; then
-    cd "${2:?dir}" 2>/dev/null || { echo "project-rules: no dir $2" >&2; return 2; }
+    cd "${2:?dir}" 2>/dev/null \
+      || { echo "project-rules: no dir $2" >&2; return 2; }
     shift 2
   fi
   case "${1:-}" in
@@ -446,7 +465,9 @@ check T10e-ids-kept "$(jq -r '[.session_id, .agent_id, .globs[0]] | join(",")' "
 out=$(printf '%s' "$IN" | CLAUDE_INSTRUCTIONS_LOG=/proc/nowhere/il.jsonl bash "$HOOK"); rc=$?
 check T10f-unwritable-log-rc0 "$rc" 0
 check T10g-unwritable-log-stdout-empty "$out" ""
-out=$(printf '%s' "$IN" | CLAUDE_INSTRUCTIONS_LOG="$LOG" PATH=/nonexistent bash "$HOOK"); rc=$?
+# "$BASH", not bash: the blank PATH applies to the command lookup too (rc 127)
+out=$(printf '%s' "$IN" \
+  | CLAUDE_INSTRUCTIONS_LOG="$LOG" PATH=/nonexistent "$BASH" "$HOOK"); rc=$?
 check T10h-no-jq-rc0 "$rc" 0
 check T10i-no-jq-stdout-empty "$out" ""
 check T10j-no-jq-nothing-appended "$(wc -l < "$LOG" | tr -d ' ')" 1
@@ -657,8 +678,8 @@ lib/project-rules.sh check` (runs in `make test`).
 
 - [ ] **Step 5: Verify**
 
-Run: `bash lib/project-rules.sh check; bash lib/tests/project-rules.test.sh | tail -1; git status --short .claude/rules CLAUDE.md; git diff HEAD --stat -- CLAUDE.md; wc -c .claude/rules/*.md`
-Expected: `transient-artifacts.md: SKIP docs/superpowers/**`, `… SKIP .audit/**`, `project-rules: 4 rule(s) ok`; `FAIL=0`; four `??` entries under `.claude/rules/` plus ` M CLAUDE.md`; the four rule files sum to roughly the 4,960 chars the sections held (T7 proves `extract` is verbatim; the sizes are the sanity check).
+Run: `bash lib/project-rules.sh check; bash lib/tests/project-rules.test.sh | tail -1; git status --short --untracked-files=all .claude/rules CLAUDE.md; git diff HEAD --stat -- CLAUDE.md; wc -c .claude/rules/*.md`
+Expected: `transient-artifacts.md: SKIP docs/superpowers/**`, `… SKIP .audit/**`, `project-rules: 4 rule(s) ok`; `FAIL=0`; four `??` entries under `.claude/rules/` (`--untracked-files=all`, else git collapses the new dir into one line) plus ` M CLAUDE.md`; the four rule files sum to roughly the 4,960 chars the sections held (T7 proves `extract` is verbatim; the sizes are the sanity check).
 
 - [ ] **Step 6: Commit**
 
@@ -702,9 +723,9 @@ Line 7 (`User-scope rules, deployed to …`) stays.
 
 Run:
 ```bash
-grep -rnE 'CLAUDE\.md \(project scope\)|29-line project CLAUDE\.md|Machine-owned: the vendored|§ ?Transient planning|"rules/ maintenance"|"mods/ — function-hooks"' rules/ doctor.sh skills/ agents/ lib/ hooks/ README.md ARCHITECTURE.md --include='*.md' --include='*.sh' | grep -v 'skills-external\|skills/graphify/\|lib/tests/project-rules'
+grep -rnE 'CLAUDE\.md`? \(project scope\)|29-line project CLAUDE\.md|Machine-owned: the vendored|§ ?Transient planning|"rules/ maintenance"|"mods/ — function-hooks"' rules/ doctor.sh skills/ agents/ lib/ hooks/ README.md ARCHITECTURE.md --include='*.md' --include='*.sh' | grep -v 'skills-external\|skills/graphify/\|lib/tests/project-rules'
 ```
-Expected: no output. (`lib/gitflow.sh:21` mentions transient planning artifacts in a comment about the purge, not as a citation: leave it. `install-plugins.sh` GUARDED_CONFIGS keeps `CLAUDE.md`: leave it. `ARCHITECTURE.md` is the doc pipeline's, STEP 8.)
+Expected: no output. (The optional backtick matches the README's `` `CLAUDE.md` (project scope) `` form: on today's tree, before Step 1, this grep returns rules/README.md:9 and doctor.sh:76; after Steps 1-2 nothing.) (`lib/gitflow.sh:21` mentions transient planning artifacts in a comment about the purge, not as a citation: leave it. `install-plugins.sh` GUARDED_CONFIGS keeps `CLAUDE.md`: leave it. `ARCHITECTURE.md` is the doc pipeline's, STEP 8.)
 
 - [ ] **Step 4: make test + commit**
 
@@ -774,9 +795,9 @@ STEP 3 (~line 201): replace `Après réponses : **mettre à jour le brouillon CL
 
 RULES: replace `- NO skipping STEP 0, 1, 2 — ils sont obligatoires.` with `- NO skipping STEP 0, 1, 2 — ils sont obligatoires (split mode runs its own steps, § SPLIT MODE).` and replace `- Si `CLAUDE.md` existe : le lire, ne pas l'écraser sans fusion après STEP 3.` with `- Si `CLAUDE.md` existe : le lire, ne pas l'écraser sans fusion après STEP 3 (default flow; split mode edits it on the approved table).`
 
-- [ ] **Step 4: § SPLIT MODE appended at the end of the skill**
+- [ ] **Step 4: § SPLIT MODE appended at the end of the skill** (4-backtick fence, inner ``` blocks are part of the text)
 
-```markdown
+````markdown
 
 ---
 
@@ -815,10 +836,11 @@ CLAUDE.md` lists every `##` section with its size. For each one decide:
 - path-scoped: one module or folder, Docker, migrations, CI, a tool's
   gotchas, a vendored or machine-owned area. Propose `<name>` (kebab, the
   section's subject) and globs (a folder → `dir/**`, a tool → its config
-  files) and verify EVERY proposed glob with `bash
-  ~/.claude/lib/project-rules.sh -C <ROOT> matches '<glob>'` (rc 0) before
-  showing it. A heading containing `'` or `|` is not split by this mode
-  (say so; the user renames it first).
+  files; never a brace glob `*.{ts,tsx}`: one glob per extension, the
+  oracle does no brace expansion) and verify EVERY proposed glob with
+  `bash ~/.claude/lib/project-rules.sh -C <ROOT> matches '<glob>'` (rc 0)
+  before showing it. A heading containing `'` or `|` is not split by this
+  mode (say so; the user renames it first).
 
 S5 — GATE (mandatory stop). Print the table, then end the turn:
 
@@ -840,11 +862,14 @@ dispatch: `Agent(subagent_type="onboarder")`, prompt = `MODE: split`,
 `PROJECT_ROOT: <ROOT>`, `TABLE:` the approved rows, one per line as
 `<heading> | <name> | <globs-json>` (LRN-126: every field crosses the
 prompt). It pre-flights every row, then extracts, writes the pointer
-section, secures the gitignore negation, runs `check`, commits, and
-verifies the rules are tracked. A `STOP:` report comes back here with the
-rollback already done (nothing committed): fix the row, re-dispatch the
-WHOLE table (nothing was moved). A `STOP:` after a commit cannot happen
-(the commit is the last step).
+section, secures the gitignore negation, runs `check`, commits (message
+per the project's commit convention), and verifies every rule is in
+`HEAD`. Two STOP shapes come back:
+- `STOP: <row> — <reason> (rollback done, nothing committed)`: the tree is
+  back to the branch tip; fix the row, re-dispatch the WHOLE table.
+- `STOP: <name> not in HEAD after commit <hash> (commit kept)`: never
+  re-dispatch (the headings are gone from CLAUDE.md); show the user the
+  hash and `git -C <ROOT> show --stat <hash>`, the user decides.
 
 S7 — AFTER. `claude -p "/context"` again from `<ROOT>`; append to that
 project's `.claude/memory/journal.md` under today's date: `CLAUDE.md
@@ -864,7 +889,7 @@ CONTEXT : <before> → <after> (Memory files)
 BRANCH  : chore/claude-md-split (<hash>) — merge on your signal
 PROOF   : pending — fresh session + the jq filter above
 ```
-```
+````
 
 - [ ] **Step 5: Onboarder: mode header, RULES exemption, `MODE: split` section**
 
@@ -877,9 +902,9 @@ Two modes. No `MODE:` line in the brief → the generator below (PHASES 1-6).
 
 RULES line 170: replace `- NO destructive writes: never overwrite CLAUDE.md if it exists without asking (print path + STOP, let orchestrator decide).` with `- NO destructive writes: never overwrite CLAUDE.md if it exists without asking (print path + STOP, let orchestrator decide). MODE: split edits it by design, row by row, on the approved TABLE.`
 
-Append at the end of the file:
+Append at the end of the file (4-backtick fence, inner ``` blocks are part of the text):
 
-```markdown
+````markdown
 
 ---
 
@@ -899,7 +924,10 @@ S0 — PREFLIGHT (no write before every row passes):
   `printf '!.claude/rules/\n' >> <PROJECT_ROOT>/.gitignore`
   then re-run `check-ignore`; still rc 0 → STOP: "ignore form cannot be
   negated (BDR-003: use the `.claude/*` file form)", and `git -C
-  <PROJECT_ROOT> checkout -- .gitignore`.
+  <PROJECT_ROOT> checkout -- .gitignore`. Remember whether this step
+  appended (`GITIGNORE_TOUCHED`): `.gitignore` enters the later `add`,
+  `checkout` and `commit` only then (a repo with no `.gitignore` is rc 1
+  here and never names it: a missing pathspec is a fatal git error).
 - per row: `PR sections CLAUDE.md` lists `## <heading>` exactly once;
   `<PROJECT_ROOT>/.claude/rules/<name>.md` does not exist; every glob of
   `<globs-json>` passes `PR matches '<glob>'` (rc 0). Any failure → STOP
@@ -911,8 +939,10 @@ S1 — EXTRACT, per row (single quotes around the heading):
 bash ~/.claude/lib/project-rules.sh -C <PROJECT_ROOT> extract CLAUDE.md '<heading>' .claude/rules/<name>.md '<globs-json>'
 ```
 rc ≠ 0 (should not happen after S0) → ROLLBACK: `git -C <PROJECT_ROOT>
-checkout -- CLAUDE.md .gitignore`, delete every `.claude/rules/<name>.md`
-this run wrote, then STOP with the row and the lib's message.
+reset -q`, `git -C <PROJECT_ROOT> checkout -- CLAUDE.md` (plus
+`.gitignore` when S0 appended to it), delete every
+`.claude/rules/<name>.md` this run wrote (literal paths, one `rm` per
+row), then STOP with the row and the lib's message.
 
 S2 — POINTER. If CLAUDE.md has no `## Path-scoped rules` section, append:
 ```markdown
@@ -930,22 +960,31 @@ bash ~/.claude/lib/project-rules.sh -C <PROJECT_ROOT> check
 ```
 rc ≠ 0 → ROLLBACK as in S1, STOP with the culprit lines. rc 0 →
 ```bash
-git -C <PROJECT_ROOT> add CLAUDE.md .claude/rules .gitignore
-git -C <PROJECT_ROOT> commit -m "chore(claude-md): split <k> section(s) into .claude/rules/"
-git -C <PROJECT_ROOT> ls-files --error-unmatch .claude/rules/<name>.md   # per row
+git -C <PROJECT_ROOT> add CLAUDE.md .claude/rules   # + .gitignore when S0 appended
+git -C <PROJECT_ROOT> commit -m "<message>"
 ```
-A rule `ls-files` cannot find → report it as `STOP: <name> not tracked
-after commit` (the commit stays; the orchestrator decides).
+`<message>` follows the project's commit convention (its CLAUDE.md commit
+rules: allowed types and scopes); with none, `chore: split <k> CLAUDE.md
+section(s) into .claude/rules/`. Commit rc ≠ 0 (a hook refused it, e.g.
+the gitflow pre-commit on a protected branch, or gitleaks) → ROLLBACK as
+in S1, STOP with the hook's output verbatim. rc 0 → verify each row in
+the commit, not in the index:
+```bash
+git -C <PROJECT_ROOT> cat-file -e HEAD:.claude/rules/<name>.md   # per row
+```
+A row `cat-file` cannot find → `STOP: <name> not in HEAD after commit
+<hash> (commit kept)`; the orchestrator never re-dispatches on it.
 
 OUTPUT:
 ```
 SPLIT DONE: <k> rule(s) — <name>.md (<globs>), …
 CLAUDE.md: <lines before> → <lines after> lines
 CHECK    : project-rules: <k> rule(s) ok
-COMMIT   : <hash> — all rules tracked
+COMMIT   : <hash> — all rules in HEAD
 ```
-or `STOP: <row> — <reason> (rollback done, nothing committed)`.
-```
+or `STOP: <row> — <reason> (rollback done, nothing committed)`, or
+`STOP: <name> not in HEAD after commit <hash> (commit kept)`.
+````
 
 - [ ] **Step 6: Locks still hold**
 
@@ -976,8 +1015,10 @@ Expected (GREEN): the report says it took MODE DISPATCH → § SPLIT MODE, ran S
 
 - [ ] **Step 3: Executor dry run (onboarder, MODE: split) on the scratch**
 
+Before the dispatch, mirror the skill's S3 (the scratch is on `develop`, and the global `core.hooksPath` pre-commit blocks any commit there that stages a path outside `.claude/`): `git -C /tmp/claude-1000/-home-bchanot-Documents-claude/ea0efe5f-67aa-4f89-9e2a-ba0ac8695999/scratchpad/split-green switch -c chore/claude-md-split`, and snapshot this repo: `git status --porcelain > /tmp/claude-1000/-home-bchanot-Documents-claude/ea0efe5f-67aa-4f89-9e2a-ba0ac8695999/scratchpad/status-before.txt; git rev-parse HEAD`.
+
 Dispatch `Agent(subagent_type="onboarder")` with `MODE: split`, `PROJECT_ROOT: <split-green path>`, `TABLE:` two rows: `rules/ maintenance | rules-maintenance | ["rules/**"]` and `mods/ — function-hooks plugins (Claude Code mods) | mods | ["mods/**"]`.
-Expected: `SPLIT DONE: 2 rule(s)` with `all rules tracked`; `git -C <split-green path> log --oneline -1` shows the split commit; `.gitignore` there ends with `!.claude/rules/`; `bash lib/project-rules.sh -C <split-green path> check` prints `2 rule(s) ok`; and THIS repo is untouched: `git status --porcelain` empty here and `git log --oneline -1` unchanged.
+Expected: `SPLIT DONE: 2 rule(s)` with `all rules in HEAD`; `git -C <split-green path> log --oneline -1 --decorate` shows the split commit on `chore/claude-md-split` (the post-commit push hook warns about the missing origin, never blocks); `.gitignore` there ends with `!.claude/rules/`; `bash lib/project-rules.sh -C <split-green path> check` prints `2 rule(s) ok`; and THIS repo is untouched: `git status --porcelain | diff - /tmp/claude-1000/-home-bchanot-Documents-claude/ea0efe5f-67aa-4f89-9e2a-ba0ac8695999/scratchpad/status-before.txt` empty (the untracked contract file is in both) and `git rev-parse HEAD` unchanged.
 
 - [ ] **Step 4: Record**
 
@@ -1072,9 +1113,9 @@ paths: [".github/workflows/**", ".gitlab-ci.yml", ".circleci/**"]
 
 - [ ] **Step 3: Onboarder PHASE 5b**
 
-In `agents/onboarder.md`, after the PHASE 5 block (after `**Do NOT overwrite existing content.**` and before the `---` that precedes PHASE 6), add:
+In `agents/onboarder.md`, after the PHASE 5 block (after `**Do NOT overwrite existing content.**` and before the `---` that precedes PHASE 6), add (4-backtick fence, the inner ```bash block is part of the text):
 
-```markdown
+````markdown
 
 ## PHASE 5b — PATH-SCOPED RULES (born split)
 
@@ -1093,19 +1134,21 @@ bash ~/.claude/lib/project-rules.sh -C <PROJECT_ROOT> emit ~/.claude/templates/p
 Then `bash ~/.claude/lib/project-rules.sh -C <PROJECT_ROOT> check` must print
 `N rule(s) ok`. The `!.claude/rules/` negation comes from the gitflow socle
 at /onboard STEP 2.6 (`gitflow init` reconciles it); PHASE 4 stays as is.
-```
+````
 
 - [ ] **Step 4: Scaffolder PHASE 3b**
 
-In `agents/scaffolder.md`, after the PHASE 3 block (its last stack line, before the `---` that precedes `## PHASE 4`), add:
+In `agents/scaffolder.md`, after the PHASE 3 block (its last stack line, before the `---` that precedes `## PHASE 4`), add (4-backtick fence, the inner ```bash block is part of the text):
 
-```markdown
+````markdown
 
 ## PHASE 3b — PATH-SCOPED RULES (born split)
 
 After PHASE 3 wrote the files and BEFORE PHASE 4 installs dependencies
-(installed packages must not match the globs). For each of `docker`,
-`testing`, `ci`, one uniform loop:
+(installed packages must not match the globs). `<PROJECT_ROOT>` is the
+project root PHASE 1 wrote `CLAUDE.md` into, as a literal absolute path
+(`pwd` there; it is not an INPUT, the scaffold defines it). For each of
+`docker`, `testing`, `ci`, one uniform loop:
 ```bash
 bash ~/.claude/lib/project-rules.sh -C <PROJECT_ROOT> emit ~/.claude/templates/project-rules/<name>.md .claude/rules/<name>.md
 ```
@@ -1117,7 +1160,7 @@ skipped (a plain scaffold yields `docker.md` when Docker is relevant, and
 `N rule(s) ok`. The `.gitignore` negation `!.claude/rules/` comes from the
 gitflow socle at STEP 5f (`gitflow init` reconciles it before the root
 commit); do not add `.claude` lines to the stack `.gitignore` yourself.
-```
+````
 
 - [ ] **Step 5: Verify**
 
@@ -1179,9 +1222,10 @@ Expected: exactly four lines with `load_reason: path_glob_match`, one per `.clau
 
 - [ ] **Step 3: Sub-agent loads**
 
-Dispatch `Agent(subagent_type="general-purpose", model="sonnet", effort="low")`: "Read `rules/a11y.md` and `install-plugins.sh` in /home/bchanot/Documents/claude, then reply with the single word done." Then
-`jq -c 'select(.agent_id != null and (.file_path|contains("/.claude/rules/")) and .ts >= "<start>") | {agent_type, file_path, load_reason}' ~/.claude/logs/instructions-loaded.jsonl`.
-Expected: two lines (rules-maintenance, graphify-vendored) with an `agent_id` → path rules load inside sub-agents. Zero lines → they do not: record it (journal + STEP 7 LRN), and the per-repo pass keeps sub-agent-needed sections always-on; whether this repo's two hazards (graphify untrack-then-merge, mods `[ -L ]` guard) return as always-on one-liners is the user's call at the next gate.
+Note the time, then dispatch `Agent(subagent_type="general-purpose", model="sonnet", effort="low")`: "Read `rules/a11y.md` and `install-plugins.sh` in /home/bchanot/Documents/claude, then reply with the single word done." Then two filters:
+1. Control, does the hook see sub-agent loads at all: `jq -c 'select(.agent_id != null and .ts >= "<start>") | {agent_type, memory_type, file_path}' ~/.claude/logs/instructions-loaded.jsonl` (`agent_id` is optional in the hook input, "present only when the hook fires from within a subagent"). Zero lines → the event does not fire, or carries no `agent_id`, inside sub-agents: the sub-agent question is UNANSWERED (not "no"), record that, and the per-repo pass keeps sub-agent-needed sections always-on until a later probe answers it.
+2. With at least one control line: `jq -c 'select(.agent_id != null and (.file_path|contains("/.claude/rules/")) and .ts >= "<start>") | {agent_type, file_path, load_reason}' ~/.claude/logs/instructions-loaded.jsonl`.
+Expected: two lines (rules-maintenance, graphify-vendored) with an `agent_id` → path rules load inside sub-agents. Zero lines with a non-empty control → they do not: record it (journal + STEP 7 LRN), and the per-repo pass keeps sub-agent-needed sections always-on; whether this repo's two hazards (graphify untrack-then-merge, mods `[ -L ]` guard) return as always-on one-liners is the user's call at the next gate.
 
 ---
 
@@ -1189,5 +1233,6 @@ Expected: two lines (rules-maintenance, graphify-vendored) with an `agent_id` �
 
 - Spec coverage: §1 rules → Task 4; `.gitignore` + socle → Task 3; §2 check/sections/extract (+ matches, emit, -C) + suite → Task 1 (emit Task 9), hook + settings → Task 2, proof → Task 11; §3 skill + onboarder split + RED/GREEN → Tasks 6-8; §4 skeletons + generators + template header → Task 9; §5 citers → Task 5 (ARCHITECTURE.md is STEP 8's), TODO → Task 10, higgsfield user step → Task 10 TODO line + STEP 7 journal; §6 testing → every task's verify step + Task 10 Step 2; §7 pre-commit exemption → deferred, Task 10 TODO line.
 - Placeholder scan: none. Every code step carries its content.
-- Type consistency: `extract` arg order `<file> <heading> <out> <globs-json>` is the same in the lib, the suite, Task 4 and the onboarder S1; `emit <skeleton> <out>` the same in the lib, T12, PHASE 5b and PHASE 3b; `-C <dir>` precedes the subcommand everywhere; the skip marker string `# static-check: skip` is identical in the lib grep, T4 and Task 4 Step 3; the `check` success line `project-rules: N rule(s) ok` is what T3c, T5b, T5d, T11b and the agents quote; the `matches` stderr line `no match: <glob>` is what T5i expects.
-- Review Focus: 1 → T6d/T8e/T8f, 2 → T2c/T12b/T12f, 3 → T2d/T5j, 4 → Task 8 Step 3 assertions, 5 → T10f-T10j. All pinned.
+- Type consistency: `extract` arg order `<file> <heading> <out> <globs-json>` is the same in the lib, the suite, Task 4 and the onboarder S1; `emit <skeleton> <out>` the same in the lib, T12, PHASE 5b and PHASE 3b; `-C <dir>` precedes the subcommand everywhere; the skip marker string `# static-check: skip` is identical in the lib grep, T4 and Task 4 Step 3; the `check` success line `project-rules: N rule(s) ok` is what T3c, T5b, T5d, T11b and the agents quote; the `matches` stderr line `no match: <glob>` is what T5i expects; the onboarder's success line `all rules in HEAD` is what Task 8 Step 3 expects; the two STOP shapes in onboarder S3 are the two the skill's S6 handles.
+- Review Focus: 1 → T6d/T8e/T8f, 2 → T2c/T12b/T12f, 3 → T2d/T5j, 4 → Task 8 Step 3 assertions, 5 → T10f-T10j, 6 → T5k/T5l. All pinned.
+- r3 lint pass on the plan's own code: every line of the lib block is 80 columns or fewer (the four over-long r2 lines are wrapped, `_RULES_DEPS` renamed); the suite has no `ls` pipe (T8g uses `printf '%s ' *`); the lib has no `head` after a producer.
