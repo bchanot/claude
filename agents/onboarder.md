@@ -177,6 +177,7 @@ FILES WRITTEN:
   ✅ .claude/memory/journal.md          (created | unchanged)
   ✅ .claude/memory/evals.md            (created | unchanged)
   ✅ .claude/audits/                    (created | unchanged)
+  [✅ .claude/rules/<name>.md]       (per skeleton that matched: docker | testing | ci)
   [✅ ROADMAP.md]   (if generate_roadmap)
 PLACEHOLDERS   : <null enrichment keys left as TODO(/onboard STEP 3), or none>
 ```
@@ -202,28 +203,38 @@ per line, `<heading> | <name> | <globs-json>` (heading without `## `). No
 BRIEF; PHASES 1-6 do not run. `PR` below stands for
 `bash ~/.claude/lib/project-rules.sh -C <PROJECT_ROOT>`.
 
-S0 — PREFLIGHT (no write before every row passes):
-- `git -C <PROJECT_ROOT> status --porcelain` is empty, else STOP.
-- gitignore: `git -C <PROJECT_ROOT> check-ignore -q .claude/rules/probe.md`
-  rc 0 means the rules would be ignored → append the negation (portable,
-  lands after any `.claude/*` line). If `<PROJECT_ROOT>/.gitignore` does
-  not exist, STOP: the ignore comes from outside the repo (global excludes
-  or `.git/info/exclude`); the user decides. Guard the trailing newline
-  first: `[ -n "$(tail -c1 <PROJECT_ROOT>/.gitignore)" ] && echo >>
-  <PROJECT_ROOT>/.gitignore` so the negation never glues onto the last
-  line. Then:
-  `printf '!.claude/rules/\n' >> <PROJECT_ROOT>/.gitignore`
-  then re-run `check-ignore`; still rc 0 → STOP: "ignore form cannot be
-  negated (BDR-003: use the `.claude/*` file form)", and `git -C
-  <PROJECT_ROOT> checkout -- .gitignore`. Remember whether this step
-  appended (`GITIGNORE_TOUCHED`): `.gitignore` enters the later `add`,
-  `checkout` and `commit` only then (a repo with no `.gitignore` is rc 1
-  here and never names it: a missing pathspec is a fatal git error).
-- per row: `PR sections CLAUDE.md` lists `## <heading>` exactly once;
-  `<PROJECT_ROOT>/.claude/rules/<name>.md` does not exist; every glob of
-  `<globs-json>` passes `PR matches '<glob>'` (rc 0). Any failure → STOP
-  with the row and the reason (nothing written yet besides the gitignore
-  line, which the STOP reverts).
+S0 — PREFLIGHT (no write before every step passes):
+1. `git -C <PROJECT_ROOT> status --porcelain` is empty, else STOP.
+2. `PR check` is rc 0, else STOP with its culprit lines: a pre-existing
+   rule the oracle cannot parse (the one-line `paths: ["a", "b"]` form
+   only) is fixed by the user before any split.
+3. Per row, by reading the row (never a shell test that embeds it):
+   `<name>` matches `[a-z0-9][a-z0-9-]*`; the heading has no `'`; every
+   glob is relative, with no `'`, no leading `/`, no `..`. A row that
+   fails → STOP with the row and the field.
+4. Per row: `PR sections CLAUDE.md` lists `## <heading>` exactly once;
+   `<PROJECT_ROOT>/.claude/rules/<name>.md` does not exist; every glob of
+   `<globs-json>` passes `PR matches '<glob>'` (rc 0). Any failure → STOP
+   with the row and the reason.
+5. gitignore, in this order:
+   a. `git -C <PROJECT_ROOT> check-ignore -q .claude/rules/probe.md`;
+      rc 1 → nothing to do, `GITIGNORE_TOUCHED` stays unset, go to S1.
+   b. rc 0 and `<PROJECT_ROOT>/.gitignore` does not exist → STOP: the
+      ignore comes from outside the repo (global excludes or
+      `.git/info/exclude`); the user decides.
+   c. Trailing-newline guard: `[ -n "$(tail -c1 <PROJECT_ROOT>/.gitignore)" ]
+      && echo >> <PROJECT_ROOT>/.gitignore` (rc 1 when already
+      newline-terminated is fine).
+   d. Append the negation (portable, lands after any `.claude/*` line):
+      `printf '!.claude/rules/\n' >> <PROJECT_ROOT>/.gitignore`
+   e. Re-run `check-ignore`; still rc 0 → `git -C <PROJECT_ROOT> checkout
+      -- .gitignore`, then STOP: "ignore form cannot be negated (BDR-003:
+      use the `.claude/*` file form)".
+   f. Set `GITIGNORE_TOUCHED`: `.gitignore` enters the later `add`,
+      `checkout` and `commit` only then (a missing pathspec is a fatal
+      git error).
+A STOP after 5.d reverts the gitignore line (5.e); nothing else was
+written.
 
 S1 — EXTRACT, per row (single quotes around the heading):
 ```bash
@@ -242,8 +253,12 @@ S2 — POINTER. If CLAUDE.md has no `## Path-scoped rules` section, append:
 Project rules live in `.claude/rules/<name>.md` and load on Read of a file
 matching their `paths:` (never at session start): <name>, <name>.
 ```
-Else add the new names to its list. Collapse runs of blank lines left by
-the extraction (never more than one).
+Else add the new names to its list (Edit tool, or `cat >> <PROJECT_ROOT>/CLAUDE.md`
+with a heredoc; never Write the whole file: subtract-only). Then squeeze
+the blank runs the extraction left, through a literal temp path:
+`cat -s <PROJECT_ROOT>/CLAUDE.md > <PROJECT_ROOT>/CLAUDE.md.tmp && cat
+<PROJECT_ROOT>/CLAUDE.md.tmp > <PROJECT_ROOT>/CLAUDE.md && rm
+<PROJECT_ROOT>/CLAUDE.md.tmp`.
 
 S3 — CHECK, COMMIT, VERIFY TRACKED.
 ```bash
@@ -251,9 +266,12 @@ bash ~/.claude/lib/project-rules.sh -C <PROJECT_ROOT> check
 ```
 rc ≠ 0 → ROLLBACK as in S1, STOP with the culprit lines. rc 0 →
 ```bash
-git -C <PROJECT_ROOT> add CLAUDE.md .claude/rules   # + .gitignore when S0 appended
+git -C <PROJECT_ROOT> add -- CLAUDE.md .claude/rules/<name>.md   # one literal path per row, + .gitignore when GITIGNORE_TOUCHED
 git -C <PROJECT_ROOT> commit -m "<message>"
 ```
+Never `add` the directory: a
+pre-existing rule that S0's negation made visible would ride along
+unlisted.
 `<message>` follows the project's commit convention (its CLAUDE.md commit
 rules: allowed types and scopes); with none, `chore: split <k> CLAUDE.md
 section(s) into .claude/rules/`. Commit rc ≠ 0 (a hook refused it, e.g.

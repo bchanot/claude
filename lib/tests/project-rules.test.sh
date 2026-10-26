@@ -121,6 +121,7 @@ check T6b-beta-line "$(printf '%s\n' "$out" | awk -F'\t' '$3=="## Beta"{print $2
 check T6c-alpha-chars "$(printf '%s\n' "$out" | awk -F'\t' '$3=="## Alpha"{print $1}')" 19
 check T6d-fenced-not-listed "$(printf '%s\n' "$out" | grep -c 'not a heading')" 0
 
+cp CLAUDE.md "$FIX/orig.md"
 # T7 extract moves the section, writes the frontmatter, demotes the title
 bash "$PR" extract CLAUDE.md 'Alpha' .claude/rules/alpha.md '["src/**"]' >/dev/null
 check T7-extract-rc "$?" 0
@@ -132,6 +133,10 @@ check T7f-section-gone "$(grep -c '^## Alpha' CLAUDE.md)" 0
 check T7g-beta-kept "$(grep -c '^## Beta' CLAUDE.md)" 1
 check T7h-fenced-line-kept "$(grep -c '^## not a heading' CLAUDE.md)" 1
 bash "$PR" check >/dev/null; check T7i-check-passes "$?" 0
+# T7j subtract-only: one deletion hunk, removed = heading + body + separators
+check T7j-one-hunk "$(diff "$FIX/orig.md" CLAUDE.md | grep -c '^[0-9]')" 1
+check T7k-no-additions "$(diff "$FIX/orig.md" CLAUDE.md | grep -c '^> ')" 0
+check T7l-removed-lines "$(diff "$FIX/orig.md" CLAUDE.md | grep '^< ' | cut -c3- | grep -vE '^(---)?$' | tr '\n' '|')" '## Alpha|aaa|'
 
 # T8 extract refuses: missing heading, existing target, duplicate, fenced-only
 bash "$PR" extract CLAUDE.md 'Alpha' .claude/rules/alpha2.md '["src/**"]' 2>/dev/null
@@ -155,6 +160,29 @@ check T9b-unmatched-glob-rc "$?" 2
 check T9c-nothing-written "$([ -e .claude/rules/beta.md ] && echo yes || echo no)" no
 check T9d-beta-still-there "$(grep -c '^## Beta' CLAUDE.md)" 1
 
+# T9e a failed source rewrite is rc 2 and leaves no rule behind
+TMPDIR=/nonexistent bash "$PR" extract CLAUDE.md 'Beta' .claude/rules/beta.md '["src/**"]' 2>/dev/null
+check T9e-no-tmp-rc "$?" 2
+check T9f-no-tmp-nothing-written "$([ -e .claude/rules/beta.md ] && echo yes || echo no)" no
+check T9g-no-tmp-beta-still-there "$(grep -c '^## Beta' CLAUDE.md)" 1
+chmod a-w CLAUDE.md
+bash "$PR" extract CLAUDE.md 'Beta' .claude/rules/beta.md '["src/**"]' 2>/dev/null
+check T9h-unwritable-src-rc "$?" 2
+check T9i-unwritable-src-rule-removed "$([ -e .claude/rules/beta.md ] && echo yes || echo no)" no
+chmod u+w CLAUDE.md
+check T9j-unwritable-src-beta-still-there "$(grep -c '^## Beta' CLAUDE.md)" 1
+
+# T9k a mid-file H1 ends the section (foreign CLAUDE.md with several parts)
+mkdir -p "$FIX/h1/src" && cd "$FIX/h1" || exit 1
+echo x > src/a.ts
+printf '## A\naaa\n\n# Part Two\nintro\n\n## B\nbbb\n' > CLAUDE.md
+check T9k-h1-ends-section "$(bash "$PR" sections CLAUDE.md | awk -F'\t' '$3=="## A"{print $1}')" 10
+bash "$PR" extract CLAUDE.md 'A' .claude/rules/a.md '["src/**"]' >/dev/null
+check T9l-h1-kept "$(grep -c '^# Part Two' CLAUDE.md)" 1
+check T9m-h1-intro-kept "$(grep -c '^intro' CLAUDE.md)" 1
+check T9n-rule-body-stops-at-h1 "$(tail -1 .claude/rules/a.md)" aaa
+cd "$FIX" || exit 1
+
 # T10 the hook appends one jq line, prints nothing, never fails
 HOOK="$ROOT/hooks/instructions-loaded.sh"
 LOG="$FIX/il.jsonl"
@@ -168,12 +196,12 @@ check T10e-ids-kept "$(jq -r '[.session_id, .agent_id, .globs[0]] | join(",")' "
 out=$(printf '%s' "$IN" | CLAUDE_INSTRUCTIONS_LOG=/proc/nowhere/il.jsonl bash "$HOOK"); rc=$?
 check T10f-unwritable-log-rc0 "$rc" 0
 check T10g-unwritable-log-stdout-empty "$out" ""
-# "$BASH", not bash: the blank PATH applies to the command lookup too (rc 127)
+# "$BASH", not bash: a blank PATH applies to the command lookup too (rc 127); this proves the contract (rc 0, silent, nothing appended), not the jq guard
 out=$(printf '%s' "$IN" \
   | CLAUDE_INSTRUCTIONS_LOG="$LOG" PATH=/nonexistent "$BASH" "$HOOK"); rc=$?
-check T10h-no-jq-rc0 "$rc" 0
-check T10i-no-jq-stdout-empty "$out" ""
-check T10j-no-jq-nothing-appended "$(wc -l < "$LOG" | tr -d ' ')" 1
+check T10h-empty-path-rc0 "$rc" 0
+check T10i-empty-path-stdout-empty "$out" ""
+check T10j-empty-path-nothing-appended "$(wc -l < "$LOG" | tr -d ' ')" 1
 head -c 5300000 /dev/zero | tr '\0' 'x' > "$LOG"
 printf '%s' "$IN" | CLAUDE_INSTRUCTIONS_LOG="$LOG" bash "$HOOK"
 check T10k-rotated "$([ -e "$LOG.1" ] && echo yes || echo no)" yes

@@ -8,11 +8,15 @@
 #                       path; rc 2 with the culprit named
 #   matches <glob>      rc 0 + the first hits, rc 1 none
 #   sections <file>     chars, line, heading per top-level ## section
+#                       (a section ends at the next # or ## heading
+#                       outside a fence)
 #   extract <file> <heading> <out> <globs-json>   move one section to a rule
 #   emit <skeleton> <out>   the rule with the matching globs only (rc 1
 #                           when none matches, nothing written)
 # Globs match the WORKING TREE (compgen -G with globstar and dotglob,
-# through symlinks, no brace expansion: one glob per extension;
+# no brace expansion: one glob per extension; a symlinked dir matches
+# when the glob names it, globstar never descends into a symlink met
+# under `**`;
 # dotglob makes `*` match dotfiles, which the engine's matcher skips: a
 # glob that only hits hidden paths passes here but never loads),
 # dependency dirs excluded (unless the glob names one: `vendor/**` is a
@@ -104,11 +108,12 @@ project_rules_matches() {  # <glob> → rc 0 + the first 3 hits, rc 1 none
 project_rules_sections() {  # <file> → chars, line, heading per ## section
   [ -f "$1" ] || { echo "project-rules: $1 not found" >&2; return 2; }
   awk '
+    function flush() { if (h != "") printf "%d\t%d\t%s\n", c, l, h; h = "" }
     /^```/ { fence = !fence }
-    /^## / && !fence { if (h != "") printf "%d\t%d\t%s\n", c, l, h
-                       h = $0; l = NR; c = 0 }
+    /^# / && !fence { flush() }
+    /^## / && !fence { flush(); h = $0; l = NR; c = 0 }
     h != "" { c += length($0) + 1 }
-    END { if (h != "") printf "%d\t%d\t%s\n", c, l, h }' "$1"
+    END { flush() }' "$1"
 }
 
 _rules_heading_count() {  # <file> <heading> → fence-aware count of "## h"
@@ -121,7 +126,7 @@ _rules_section_body() {  # <file> <heading> → body, trailing ---/blank trimmed
   awk -v h="## $2" '
     /^```/ { fence = !fence }
     !fence && $0 == h { on = 1; next }
-    !fence && on && /^## / { exit }
+    !fence && on && (/^## / || /^# /) { exit }
     on { buf[++n] = $0 }
     END { while (n > 0 && (buf[n] == "" || buf[n] == "---")) n--
           for (i = 1; i <= n; i++) print buf[i] }' "$1"
@@ -131,7 +136,7 @@ _rules_without_section() {  # <file> <heading> → the file minus that section
   awk -v h="## $2" '
     /^```/ { fence = !fence }
     !fence && $0 == h { skip = 1; next }
-    !fence && skip && /^## / { skip = 0 }
+    !fence && skip && (/^## / || /^# /) { skip = 0 }
     !skip { print }' "$1"
 }
 
@@ -154,10 +159,15 @@ project_rules_extract() {  # <file> <heading> <out.md> <globs-json>
   [ -e "$out" ] && { echo "project-rules: $out exists" >&2; return 2; }
   _rules_globs_all_match "$globs" || return 2
   mkdir -p "$(dirname "$out")"
+  tmp=$(mktemp) || { echo "project-rules: no temp file" >&2; return 2; }
   { printf -- '---\npaths: %s\n---\n\n# %s\n' "$globs" "$heading"
     _rules_section_body "$src" "$heading"; } > "$out"
-  tmp=$(mktemp)
-  _rules_without_section "$src" "$heading" > "$tmp" && cat "$tmp" > "$src"
+  if ! { _rules_without_section "$src" "$heading" > "$tmp" \
+         && cat "$tmp" > "$src"; }; then
+    rm -f "$tmp" "$out"
+    echo "project-rules: $src not rewritten, $out removed" >&2
+    return 2
+  fi
   rm -f "$tmp"
   echo "project-rules: moved '## $heading' to $out"
 }

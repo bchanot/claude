@@ -117,6 +117,7 @@ L'agent génère :
 - `.claudeignore`
 - `.gitignore` (safety check)
 - `.claude/tasks/TODO.md`, `.claude/memory/{decisions,learnings,blockers,journal,evals}.md`
+- `.claude/rules/<name>.md` pour chaque squelette dont un glob matche (docker, testing, ci) — placeholders listés avec ceux du CLAUDE.md
 - **Pas encore** `ROADMAP.md` (GSD multi-session : `gsd init` à la main, voir docs gsd-pi — cf. Next steps)
 
 Si `CLAUDE.md` existe déjà : lire son contenu, ne PAS écraser — fusionner après STEP 3.
@@ -1103,8 +1104,11 @@ run /onboard` and stop. `git -C <ROOT> status --porcelain` empty (whole
 tree) and the current branch is `develop` (or `main` when no `develop`
 exists), else stop and say why: the split branches off develop, and an
 in-flight feature branch or dirty file would be classified on one version
-and extracted on another. `.claude/rules/` already holding rules → list
-them, continue (new rules add to them).
+and extracted on another. `.claude/rules/` already holding rules → `bash
+~/.claude/lib/project-rules.sh -C <ROOT> check`; rc ≠ 0 → stop with the
+culprit lines (the user fixes them first: the oracle reads the one-line
+`paths: ["a", "b"]` form only); rc 0 → list them, continue (new rules add
+to them).
 
 S2 — BASELINE. `claude -p "/context"` from `<ROOT>` (refused → ask the user
 to run `! claude -p "/context"`); note the `Memory files` total and the
@@ -1127,10 +1131,11 @@ CLAUDE.md` lists every `##` section with its size. For each one decide:
   files; never a brace glob `*.{ts,tsx}`: one glob per extension, the
   oracle does no brace expansion) and verify EVERY proposed glob with
   `bash ~/.claude/lib/project-rules.sh -C <ROOT> matches '<glob>'` (rc 0)
-  before showing it. A heading containing
-  `'` or `|`, or a glob containing `|`, is not split by this mode (the
-  TABLE rows are `|`-separated; say so, the user renames or re-globs
-  first).
+  before showing it. Row shape, checked before a row enters the TABLE: `<name>` matches
+  `[a-z0-9][a-z0-9-]*`; globs are relative, no `'`, no leading `/`, no
+  `..`, no `|`; the heading has no `'` and no `|` (the rows are
+  `|`-separated and the executor single-quotes both). A section that fails
+  is not split by this mode: say so, the user renames or re-globs first.
 
 S5 — GATE (mandatory stop). Print the table, then end the turn:
 
