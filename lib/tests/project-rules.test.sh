@@ -174,5 +174,13 @@ printf '%s' "$IN" | CLAUDE_INSTRUCTIONS_LOG="$LOG" bash "$HOOK"
 check T10k-rotated "$([ -e "$LOG.1" ] && echo yes || echo no)" yes
 check T10l-fresh-log-one-line "$(wc -l < "$LOG" | tr -d ' ')" 1
 
+# T11 the real rules of this repo pass the check (4 rules, 1 skip-marked)
+out=$(bash "$PR" -C "$ROOT" check); rc=$?
+[ "$rc" -eq 0 ] || printf '%s\n' "$out"
+check T11-repo-rules-pass "$rc" 0
+check T11b-four-rules "$(printf '%s\n' "$out" | grep -c '4 rule(s) ok')" 1
+check T11c-transient-skipped \
+  "$(printf '%s\n' "$out" | grep -c 'transient-artifacts.md: SKIP docs/superpowers/\*\*')" 1
+
 echo "PASS=$pass FAIL=$fail"
 [ "$fail" -eq 0 ]
