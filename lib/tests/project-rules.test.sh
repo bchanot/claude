@@ -182,5 +182,23 @@ check T11b-four-rules "$(printf '%s\n' "$out" | grep -c '4 rule(s) ok')" 1
 check T11c-transient-skipped \
   "$(printf '%s\n' "$out" | grep -c 'transient-artifacts.md: SKIP docs/superpowers/\*\*')" 1
 
+# T12 skeletons: emit keeps the matching globs only, skips when none match
+mkdir -p "$FIX/gen/tests" && cd "$FIX/gen" || exit 1
+echo x > Dockerfile; echo y > tests/test_a.py
+bash "$PR" emit "$ROOT/templates/project-rules/docker.md" .claude/rules/docker.md >/dev/null
+check T12-docker-emitted "$?" 0
+check T12b-docker-globs-pruned "$(sed -n '2p' .claude/rules/docker.md)" 'paths: ["Dockerfile*"]'
+check T12c-docker-body-kept "$(grep -c '^# Docker' .claude/rules/docker.md)" 1
+bash "$PR" emit "$ROOT/templates/project-rules/testing.md" .claude/rules/testing.md >/dev/null
+check T12d-testing-emitted "$?" 0
+check T12e-testing-globs-pruned "$(sed -n '2p' .claude/rules/testing.md)" 'paths: ["tests/**"]'
+bash "$PR" emit "$ROOT/templates/project-rules/ci.md" .claude/rules/ci.md 2>/dev/null
+check T12f-ci-not-emitted-rc "$?" 1
+check T12g-ci-not-written "$([ -e .claude/rules/ci.md ] && echo yes || echo no)" no
+bash "$PR" emit "$ROOT/templates/project-rules/docker.md" .claude/rules/docker.md 2>/dev/null
+check T12h-existing-target-rc "$?" 2
+bash "$PR" check >/dev/null; check T12i-emitted-rules-pass-check "$?" 0
+cd "$FIX" || exit 1
+
 echo "PASS=$pass FAIL=$fail"
 [ "$fail" -eq 0 ]

@@ -128,6 +128,24 @@ ls ${PROJECT_ROOT}/.claude/tasks/TODO.md ${PROJECT_ROOT}/.claude/memory/ 2>/dev/
 
 **Do NOT overwrite existing content.**
 
+## PHASE 5b — PATH-SCOPED RULES (born split)
+
+For each of `docker`, `testing`, `ci`:
+```bash
+bash ~/.claude/lib/project-rules.sh -C <PROJECT_ROOT> emit ~/.claude/templates/project-rules/<name>.md .claude/rules/<name>.md
+```
+- rc 0 → written with the globs that match this tree; its stub comments
+  are `<!-- TODO(/onboard STEP 3): … -->` placeholders the orchestrator's
+  STEP 3 fills (list them in OUTPUT beside the CLAUDE.md placeholders).
+  Fill now only what the BRIEF already settles (`docker` commands from
+  `build_cmd`, `testing` layout from `test_cmd`); never duplicate the
+  always-on Build/Test sections.
+- rc 1 → no match, nothing written, skip silently.
+- rc 2 → the file exists: keep it, never overwrite.
+Then `bash ~/.claude/lib/project-rules.sh -C <PROJECT_ROOT> check` must print
+`N rule(s) ok`. The `!.claude/rules/` negation comes from the gitflow socle
+at /onboard STEP 2.6 (`gitflow init` reconciles it); PHASE 4 stays as is.
+
 ---
 
 ## PHASE 6 — GSD v2 ROADMAP (optional, per orchestrator flag)
