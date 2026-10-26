@@ -150,5 +150,29 @@ check T9b-unmatched-glob-rc "$?" 2
 check T9c-nothing-written "$([ -e .claude/rules/beta.md ] && echo yes || echo no)" no
 check T9d-beta-still-there "$(grep -c '^## Beta' CLAUDE.md)" 1
 
+# T10 the hook appends one jq line, prints nothing, never fails
+HOOK="$ROOT/hooks/instructions-loaded.sh"
+LOG="$FIX/il.jsonl"
+IN='{"hook_event_name":"InstructionsLoaded","session_id":"s1","agent_id":"a1","agent_type":"general-purpose","cwd":"/p","file_path":"/p/.claude/rules/x.md","memory_type":"Project","load_reason":"path_glob_match","globs":["src/**"],"trigger_file_path":"/p/src/a.ts"}'
+out=$(printf '%s' "$IN" | CLAUDE_INSTRUCTIONS_LOG="$LOG" bash "$HOOK"); rc=$?
+check T10-hook-rc "$rc" 0
+check T10b-stdout-empty "$out" ""
+check T10c-one-line "$(wc -l < "$LOG" | tr -d ' ')" 1
+check T10d-reason-kept "$(jq -r '.load_reason' "$LOG")" path_glob_match
+check T10e-ids-kept "$(jq -r '[.session_id, .agent_id, .globs[0]] | join(",")' "$LOG")" 's1,a1,src/**'
+out=$(printf '%s' "$IN" | CLAUDE_INSTRUCTIONS_LOG=/proc/nowhere/il.jsonl bash "$HOOK"); rc=$?
+check T10f-unwritable-log-rc0 "$rc" 0
+check T10g-unwritable-log-stdout-empty "$out" ""
+# "$BASH", not bash: the blank PATH applies to the command lookup too (rc 127)
+out=$(printf '%s' "$IN" \
+  | CLAUDE_INSTRUCTIONS_LOG="$LOG" PATH=/nonexistent "$BASH" "$HOOK"); rc=$?
+check T10h-no-jq-rc0 "$rc" 0
+check T10i-no-jq-stdout-empty "$out" ""
+check T10j-no-jq-nothing-appended "$(wc -l < "$LOG" | tr -d ' ')" 1
+head -c 5300000 /dev/zero | tr '\0' 'x' > "$LOG"
+printf '%s' "$IN" | CLAUDE_INSTRUCTIONS_LOG="$LOG" bash "$HOOK"
+check T10k-rotated "$([ -e "$LOG.1" ] && echo yes || echo no)" yes
+check T10l-fresh-log-one-line "$(wc -l < "$LOG" | tr -d ' ')" 1
+
 echo "PASS=$pass FAIL=$fail"
 [ "$fail" -eq 0 ]
