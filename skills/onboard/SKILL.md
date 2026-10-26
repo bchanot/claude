@@ -1127,8 +1127,10 @@ CLAUDE.md` lists every `##` section with its size. For each one decide:
   files; never a brace glob `*.{ts,tsx}`: one glob per extension, the
   oracle does no brace expansion) and verify EVERY proposed glob with
   `bash ~/.claude/lib/project-rules.sh -C <ROOT> matches '<glob>'` (rc 0)
-  before showing it. A heading containing `'` or `|` is not split by this
-  mode (say so; the user renames it first).
+  before showing it. A heading containing
+  `'` or `|`, or a glob containing `|`, is not split by this mode (the
+  TABLE rows are `|`-separated; say so, the user renames or re-globs
+  first).
 
 S5 — GATE (mandatory stop). Print the table, then end the turn:
 

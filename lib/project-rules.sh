@@ -12,8 +12,11 @@
 #   emit <skeleton> <out>   the rule with the matching globs only (rc 1
 #                           when none matches, nothing written)
 # Globs match the WORKING TREE (compgen -G with globstar and dotglob,
-# through symlinks, no brace expansion: one glob per extension),
-# dependency dirs excluded: the engine matches the path the model reads,
+# through symlinks, no brace expansion: one glob per extension;
+# dotglob makes `*` match dotfiles, which the engine's matcher skips: a
+# glob that only hits hidden paths passes here but never loads),
+# dependency dirs excluded (unless the glob names one: `vendor/**` is a
+# valid rule): the engine matches the path the model reads,
 # tracked or not; a typo matches nothing either way. A frontmatter line
 # `# static-check: skip` exempts a rule whose files only exist mid-run. A
 # rule without frontmatter or without `paths:` is an always-on rule:
@@ -42,6 +45,10 @@ _rules_globs() {
 }
 
 _rules_hits() {  # <glob> → matching paths outside dependency dirs, rc 1 none
+  case "$1" in  # a glob that names a dependency dir is not filtered
+    node_modules/*|.venv/*|venv/*|vendor/*|target/*|dist/*|build/*|.git/*)
+      ( shopt -s globstar dotglob; compgen -G "$1" ) 2>/dev/null; return ;;
+  esac
   ( shopt -s globstar dotglob; compgen -G "$1" ) 2>/dev/null \
     | grep -Ev "$_RULES_DEPS"
 }
@@ -62,7 +69,8 @@ _rules_check_file() {  # <rule.md> → rc 0 ok or always-on, rc 1 with culprits
   globs=$(_rules_globs "$fm")
   case $? in
     1) echo "$1: always-on (no paths:)"; return 0 ;;
-    2) echo "$1: paths: is not a JSON array of strings"; return 1 ;;
+    2) echo "$1: paths: must be one line:" \
+         "paths: [\"a\", \"b\"]"; return 1 ;;
   esac
   printf '%s\n' "$fm" | grep -qx '# static-check: skip' && skip=1
   while IFS= read -r g; do

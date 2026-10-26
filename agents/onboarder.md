@@ -206,7 +206,12 @@ S0 — PREFLIGHT (no write before every row passes):
 - `git -C <PROJECT_ROOT> status --porcelain` is empty, else STOP.
 - gitignore: `git -C <PROJECT_ROOT> check-ignore -q .claude/rules/probe.md`
   rc 0 means the rules would be ignored → append the negation (portable,
-  lands after any `.claude/*` line):
+  lands after any `.claude/*` line). If `<PROJECT_ROOT>/.gitignore` does
+  not exist, STOP: the ignore comes from outside the repo (global excludes
+  or `.git/info/exclude`); the user decides. Guard the trailing newline
+  first: `[ -n "$(tail -c1 <PROJECT_ROOT>/.gitignore)" ] && echo >>
+  <PROJECT_ROOT>/.gitignore` so the negation never glues onto the last
+  line. Then:
   `printf '!.claude/rules/\n' >> <PROJECT_ROOT>/.gitignore`
   then re-run `check-ignore`; still rc 0 → STOP: "ignore form cannot be
   negated (BDR-003: use the `.claude/*` file form)", and `git -C

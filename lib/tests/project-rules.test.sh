@@ -47,7 +47,7 @@ printf -- '---\npaths: src/**\n---\n\n# Malformed\n' > .claude/rules/nofm.md
 out=$(bash "$PR" check); rc=$?
 check T3f-malformed-paths-fails "$rc" 2
 check T3g-named \
-  "$(printf '%s\n' "$out" | grep -c 'nofm.md: paths: is not a JSON array of strings')" 1
+  "$(printf '%s\n' "$out" | grep -c 'nofm.md: paths: must be one line')" 1
 rm .claude/rules/nofm.md
 
 # T4 the skip marker passes an unmatched glob, and only in its own file
@@ -88,6 +88,11 @@ bash "$PR" matches 'many/**' >/dev/null; check T5k-many-hits-rc "$?" 0
 check T5l-three-lines "$(bash "$PR" matches 'many/**' | wc -l | tr -d ' ')" 3
 bash "$PR" matches 'src/**/*.{ts,tz}' >/dev/null 2>&1
 check T5m-brace-glob-no-match "$?" 1
+# T5n a glob that names a dependency dir is a match (vendored area rule)
+mkdir -p vendor/lib && echo v > vendor/lib/a.js
+bash "$PR" matches 'vendor/**' >/dev/null; check T5n-named-dep-dir-rc "$?" 0
+bash "$PR" matches '**/a.js' >/dev/null 2>&1
+check T5o-unnamed-dep-dir-still-filtered "$?" 1
 
 # T6 sections lists headings with sizes, fence-aware
 cat > CLAUDE.md <<'EOF'
