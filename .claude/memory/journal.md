@@ -661,3 +661,4 @@ rules:
 
 ## 2026-10-27
 - Phase 0 split STEP 6: opus/xhigh review 0 Critical 2 Important 8 Minor (extract rc 0 on failed rewrite; `###` granularity for faunosteo = 0b decision, TODO) → 0b59687, re-review 0 open, make test all GREEN. Capitalized BDR-128, LRN-232/233, EVAL-051. Next: doc-sync, merge on user go; user step still pending: `claude mcp remove -s user higgsfield`.
+- /feat rules-h3-extract (feature/rules-h3-extract): extract takes `'### title'`, sections --depth 3, split S4/S0 rows; 3 lenses SOLID/CONCERNS(2)/CONCERNS(1) + confirmation FATAL(2) (LC_COLLATE glob order, re-emission leaked to ##) → r3; feater DONE 116/116; GATE 0 MET; verifier ECARTS(1 floor: SC2016 suppression) → CONFORME 8/8; auditor PASS (3 pre-existing MEDIUM queued); ab5049e. LRN-234. Merge on user go, then 0b.

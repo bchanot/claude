@@ -199,7 +199,8 @@ PLACEHOLDERS   : <null enrichment keys left as TODO(/onboard STEP 3), or none>
 
 INPUTS: `PROJECT_ROOT` (absolute; written as a literal path in every
 command below, never through a variable), `TABLE` = the approved rows, one
-per line, `<heading> | <name> | <globs-json>` (heading without `## `). No
+per line, `<heading> | <name> | <globs-json>` (heading without `## `; a
+subsection row starts with `### ` and is passed to `extract` as written). No
 BRIEF; PHASES 1-6 do not run. `PR` below stands for
 `bash ~/.claude/lib/project-rules.sh -C <PROJECT_ROOT>`.
 
@@ -209,10 +210,14 @@ S0 — PREFLIGHT (no write before every step passes):
    rule the oracle cannot parse (the one-line `paths: ["a", "b"]` form
    only) is fixed by the user before any split.
 3. Per row, by reading the row (never a shell test that embeds it):
-   `<name>` matches `[a-z0-9][a-z0-9-]*`; the heading has no `'`; every
+   `<name>` matches `[a-z0-9][a-z0-9-]*`; the heading has no `'`; a heading
+   whose leading `#` run is followed by a space starts with `### `; any other
+   leading `#` is a bare `##` title (`#1 priority`); every
    glob is relative, with no `'`, no leading `/`, no `..`. A row that
    fails → STOP with the row and the field.
-4. Per row: `PR sections CLAUDE.md` lists `## <heading>` exactly once;
+4. Per row: `PR sections --depth 3 CLAUDE.md` lists the row's heading exactly
+   once (`## <heading>` for a bare row; a `### ` row's heading as written);
+   a `### ` row whose parent `##` is also a row → STOP with both rows;
    `<PROJECT_ROOT>/.claude/rules/<name>.md` does not exist; every glob of
    `<globs-json>` passes `PR matches '<glob>'` (rc 0). Any failure → STOP
    with the row and the reason.
@@ -236,7 +241,8 @@ S0 — PREFLIGHT (no write before every step passes):
 A STOP after 5.d reverts the gitignore line (5.e); nothing else was
 written.
 
-S1 — EXTRACT, per row (single quotes around the heading):
+S1 — EXTRACT, per row (single quotes around the heading, passed as the row
+wrote it: bare, or with its `### ` prefix):
 ```bash
 bash ~/.claude/lib/project-rules.sh -C <PROJECT_ROOT> extract CLAUDE.md '<heading>' .claude/rules/<name>.md '<globs-json>'
 ```
