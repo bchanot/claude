@@ -208,7 +208,7 @@ a different package, ships its own conflicting `graphify` bin) — see
 |---|---|
 | `/init-project` | Initialize a complete project from scratch (full orchestrator, 12+ steps) |
 | `/ship-feature` | Ship a feature end-to-end with validation gates (full orchestrator) |
-| `/onboard` | Onboard an existing project: CLAUDE.md, settings, .claudeignore, archetype audits, report and a sequenced TODO backlog |
+| `/onboard` | Onboard an existing project: CLAUDE.md, settings, .claudeignore, path rules, archetype audits, report and a sequenced TODO backlog. `/onboard split` moves the path-bound sections of an existing CLAUDE.md into `.claude/rules/` (loaded on Read of a matching file) |
 | `/feat` | Small feature implementation (1-5 files, lightweight) |
 | `/bugfix` | Structured bug fix with root cause investigation |
 | `/hotfix` | Quick fix for superficial bugs (typos, CSS, config — max 2 files) |
