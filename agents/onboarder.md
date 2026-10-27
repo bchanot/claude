@@ -211,8 +211,10 @@ S0 — PREFLIGHT (no write before every step passes):
    only) is fixed by the user before any split.
 3. Per row, by reading the row (never a shell test that embeds it):
    `<name>` matches `[a-z0-9][a-z0-9-]*`; the heading has no `'`; a heading
-   whose leading `#` run is followed by a space starts with `### `; any other
-   leading `#` is a bare `##` title (`#1 priority`); every
+   starting with `# ` or `####` (space or not) is refused by the lib (rc 2):
+   STOP with the row; one starting with `## ` → STOP too (a bare row carries
+   no `## `); one starting with `### ` is a subsection; any other leading
+   `#` is a bare `##` title (`#1 priority`); every
    glob is relative, with no `'`, no leading `/`, no `..`. A row that
    fails → STOP with the row and the field.
 4. Per row: `PR sections --depth 3 CLAUDE.md` lists the row's heading exactly

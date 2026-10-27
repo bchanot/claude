@@ -183,6 +183,52 @@ check T9m-h1-intro-kept "$(grep -c '^intro' CLAUDE.md)" 1
 check T9n-rule-body-stops-at-h1 "$(tail -1 .claude/rules/a.md)" aaa
 cd "$FIX" || exit 1
 
+# T9o extract refuses an absolute, a .. or a symlinked <out>, before any write,
+# each refusal named on stderr
+err=$(bash "$PR" extract CLAUDE.md 'Beta' "$FIX/abs.md" '["nowhere/**"]' 2>&1 >/dev/null)
+check T9o-absolute-out-rc "$?" 2
+check T9o2-absolute-reason-before-globs "$(printf '%s\n' "$err" | grep -c 'must be relative')" 1
+check T9p-absolute-nothing-written "$([ -e "$FIX/abs.md" ] && echo yes || echo no)" no
+err=$(bash "$PR" extract CLAUDE.md 'Beta' .claude/rules/../escape.md '["src/**"]' 2>&1 >/dev/null)
+check T9q-dotdot-out-rc "$?" 2
+check T9q2-dotdot-reason "$(printf '%s\n' "$err" | grep -c 'must not contain')" 1
+check T9r-dotdot-nothing-written "$([ -e .claude/escape.md ] && echo yes || echo no)" no
+bash "$PR" extract CLAUDE.md 'Beta' nope/.. '["src/**"]' 2>/dev/null
+check T9r2-trailing-dotdot-rc "$?" 2
+check T9r3-trailing-dotdot-no-dir "$([ -e nope ] && echo yes || echo no)" no
+mkdir -p "$FIX/sub/src" && cd "$FIX/sub" || exit 1
+echo x > src/a.ts
+printf '## Beta\nbbb\n' > CLAUDE.md
+bash "$PR" extract CLAUDE.md 'Beta' ../escape.md '["src/**"]' 2>/dev/null
+check T9s-leading-dotdot-rc "$?" 2
+check T9s2-leading-dotdot-nothing-written "$([ -e "$FIX/escape.md" ] && echo yes || echo no)" no
+cd "$FIX" || exit 1
+ln -s "$FIX/absent.md" .claude/rules/dangling.md
+err=$(bash "$PR" extract CLAUDE.md 'Beta' .claude/rules/dangling.md '["src/**"]' 2>&1 >/dev/null)
+check T9t-dangling-symlink-rc "$?" 2
+check T9t2-dangling-reason "$(printf '%s\n' "$err" | grep -c 'exists')" 1
+check T9u-dangling-still-link "$([ -L .claude/rules/dangling.md ] && echo yes || echo no)" yes
+rm -f .claude/rules/dangling.md
+check T9v-refusals-keep-beta "$(grep -c '^## Beta' CLAUDE.md)" 1
+
+# T9w a failed mkdir (named on stderr) or a failed rule write is rc 2, the
+# source untouched and no rule left behind; the trailing-slash case holds as root
+touch .claude/rules/notadir
+err=$(bash "$PR" extract CLAUDE.md 'Beta' .claude/rules/notadir/beta.md '["src/**"]' 2>&1 >/dev/null)
+check T9w-mkdir-fails-rc "$?" 2
+check T9w2-mkdir-fails-reason "$(printf '%s\n' "$err" | grep -c '^project-rules: cannot create')" 1
+check T9x-mkdir-fails-beta-kept "$(grep -c '^## Beta' CLAUDE.md)" 1
+bash "$PR" extract CLAUDE.md 'Beta' .claude/rules/beta.md/ '["src/**"]' 2>/dev/null
+check T9x2-eisdir-write-rc "$?" 2
+check T9x3-eisdir-beta-kept "$(grep -c '^## Beta' CLAUDE.md)" 1
+check T9x4-eisdir-nothing-written "$([ -e .claude/rules/beta.md ] && echo yes || echo no)" no
+mkdir .claude/rules/ro && chmod a-w .claude/rules/ro
+bash "$PR" extract CLAUDE.md 'Beta' .claude/rules/ro/beta.md '["src/**"]' 2>/dev/null
+check T9y-write-fails-rc "$?" 2
+check T9z-write-fails-beta-kept "$(grep -c '^## Beta' CLAUDE.md)" 1
+check T9z2-write-fails-no-rule "$([ -e .claude/rules/ro/beta.md ] && echo yes || echo no)" no
+chmod u+w .claude/rules/ro
+
 # T10 the hook appends one jq line, prints nothing, never fails
 HOOK="$ROOT/hooks/instructions-loaded.sh"
 LOG="$FIX/il.jsonl"
