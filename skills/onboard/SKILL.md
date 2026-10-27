@@ -1119,8 +1119,16 @@ claude-md-split`. A project without gitflow (no `develop`):
 `git -C <ROOT> switch -c chore/claude-md-split`, and say so. Everything
 after this step reads the branched file.
 
-S4 — CLASSIFY. `bash ~/.claude/lib/project-rules.sh -C <ROOT> sections
-CLAUDE.md` lists every `##` section with its size. For each one decide:
+S4 — CLASSIFY. `bash ~/.claude/lib/project-rules.sh -C <ROOT> sections --depth 3
+CLAUDE.md` lists every `##` section with its size and, under it, its
+`###` subsections with theirs (the parent's size includes them).
+An always-on parent (conventions, overview) whose subsections are
+path-bound (one module, one tool) keeps its intro and the subsections move,
+one row each, heading written `### <title>` in the TABLE (the prefix marks
+the level; a bare heading means `##`). A `###` title must be unique across
+the whole file, like a `##` one, and a `###` row's parent is never itself a
+move row (the parent would carry the child away first; say so, the user
+picks one). For each one decide:
 - always-on: project overview, stack, build/test/lint commands, folder
   structure, conventions that apply everywhere, exceptions to global rules,
   workflow expectations, key dependencies, anything needed before a file is
@@ -1144,9 +1152,13 @@ SPLIT — <project> CLAUDE.md (<chars> chars, <n> sections) on chore/claude-md-s
 | # | section | chars | verdict | rule file | paths |
 | 1 | Stack | 420 | keep | | |
 | 2 | Docker | 1,340 | move | docker.md | ["Dockerfile*", "docker-compose*"] |
+| 3 | ### Supabase | 2,210 | move | supabase.md | ["supabase/**"] |
 ...
 Moves <k> sections, <m> chars (<p>% of the file). Approve, edit a row, or "keep everything".
 ```
+A `###` row's section cell is the exact heading argument, prefix included,
+nothing else (no parent breadcrumb: the cell crosses to the onboarder
+verbatim).
 "keep everything" ends the mode with no change (`bash
 ~/.claude/lib/gitflow.sh delete chore/claude-md-split`). An edited row's
 globs are re-verified with `matches` before they enter the TABLE. The

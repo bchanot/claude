@@ -7,10 +7,12 @@
 #   check [rules-dir]   every path rule parses and every glob matches ≥1
 #                       path; rc 2 with the culprit named
 #   matches <glob>      rc 0 + the first hits, rc 1 none
-#   sections <file>     chars, line, heading per top-level ## section
-#                       (a section ends at the next # or ## heading
-#                       outside a fence)
-#   extract <file> <heading> <out> <globs-json>   move one section to a rule
+#   sections [--depth 2|3] <file>   chars, line, heading per ## section
+#                       (--depth 3 adds the ### subsections; a section
+#                       ends at the next heading of level ≤ its own)
+#   extract <file> <heading> <out> <globs-json>   move one section to a
+#                       rule (bare heading = ##; "### title" = a subsection;
+#                       a ### moved last keeps its parent's trailing ---)
 #   emit <skeleton> <out>   the rule with the matching globs only (rc 1
 #                           when none matches, nothing written)
 # Globs match the WORKING TREE (compgen -G with globstar and dotglob,
@@ -105,39 +107,68 @@ project_rules_matches() {  # <glob> → rc 0 + the first 3 hits, rc 1 none
     || { echo "no match: $1" >&2; return 1; }
 }
 
-project_rules_sections() {  # <file> → chars, line, heading per ## section
+project_rules_sections() {  # [--depth 2|3] <file> → chars, line, heading
+  local depth=2
+  if [ "${1:-}" = "--depth" ]; then depth="${2:-}"; shift 2; fi
+  case "$depth" in 2|3) ;; *)
+    echo "project-rules: --depth takes 2 or 3" >&2; return 2 ;; esac
+  [ $# -eq 1 ] \
+    || { echo "project-rules: sections [--depth 2|3] <file>" >&2; return 2; }
   [ -f "$1" ] || { echo "project-rules: $1 not found" >&2; return 2; }
-  awk '
-    function flush() { if (h != "") printf "%d\t%d\t%s\n", c, l, h; h = "" }
+  awk -v depth="$depth" '
+    function flush2() {
+      if (h2 != "") printf "%d\t%d\t%s\n", c2, l2, h2; h2 = "" }
+    function flush3() {
+      if (h3 != "") printf "%d\t%d\t%s\n", c3, l3, h3; h3 = "" }
     /^```/ { fence = !fence }
-    /^# / && !fence { flush() }
-    /^## / && !fence { flush(); h = $0; l = NR; c = 0 }
-    h != "" { c += length($0) + 1 }
-    END { flush() }' "$1"
+    /^# / && !fence { flush3(); flush2() }
+    /^## / && !fence { flush3(); flush2(); h2 = $0; l2 = NR; c2 = 0 }
+    /^### / && !fence && depth == 3 { flush3(); h3 = $0; l3 = NR; c3 = 0 }
+    h2 != "" { c2 += length($0) + 1 }
+    h3 != "" { c3 += length($0) + 1 }
+    END { flush3(); flush2() }' "$1" | sort -t "$(printf '\t')" -k2,2n
 }
 
-_rules_heading_count() {  # <file> <heading> → fence-aware count of "## h"
-  awk -v h="## $2" '/^```/ { fence = !fence }
-                    !fence && $0 == h { n++ }
-                    END { print n + 0 }' "$1"
+_rules_heading_line() {  # <heading arg> → "## t" | "### t" on stdout, rc 2
+  case "$1" in
+    '## '*|'### '*) printf '%s\n' "$1" ;;
+    '# '*|'####'*)
+      echo "project-rules: heading level must be ## or ###: $1" >&2
+      return 2 ;;
+    *) printf '## %s\n' "$1" ;;
+  esac
 }
 
-_rules_section_body() {  # <file> <heading> → body, trailing ---/blank trimmed
-  awk -v h="## $2" '
+_rules_heading_count() {  # <file> <heading line> → fence-aware count
+  awk -v h="$2" '/^```/ { fence = !fence }
+                 !fence && $0 == h { n++ }
+                 END { print n + 0 }' "$1"
+}
+
+_rules_section_body() {  # <file> <heading line> → body, ---/blank trimmed
+  awk -v h="$2" '
+    BEGIN { lvl = index(h, " ") - 1 }
     /^```/ { fence = !fence }
     !fence && $0 == h { on = 1; next }
-    !fence && on && (/^## / || /^# /) { exit }
+    !fence && on && match($0, /^#+ /) && RLENGTH - 1 <= lvl { exit }
     on { buf[++n] = $0 }
     END { while (n > 0 && (buf[n] == "" || buf[n] == "---")) n--
           for (i = 1; i <= n; i++) print buf[i] }' "$1"
 }
 
-_rules_without_section() {  # <file> <heading> → the file minus that section
-  awk -v h="## $2" '
+_rules_without_section() {  # <file> <heading line> → the file minus it
+  # a ### ended by a lower-level heading gives its trailing ---/blank run
+  # back to the source (the parent's closing separator); a ## keeps today's
+  # behaviour, its run travels with it
+  awk -v h="$2" '
+    BEGIN { lvl = index(h, " ") - 1 }
     /^```/ { fence = !fence }
-    !fence && $0 == h { skip = 1; next }
-    !fence && skip && (/^## / || /^# /) { skip = 0 }
-    !skip { print }' "$1"
+    !fence && $0 == h { skip = 1; n = 0; next }
+    !fence && skip && match($0, /^#+ /) && RLENGTH - 1 <= lvl {
+      if (lvl == 3 && RLENGTH - 1 < lvl) for (i = 1; i <= n; i++) print buf[i]
+      skip = 0 }
+    skip { if ($0 == "" || $0 == "---") buf[++n] = $0; else n = 0; next }
+    { print }' "$1"
 }
 
 _rules_globs_all_match() {  # <globs-json> → rc 0 valid and every glob matches
@@ -152,24 +183,25 @@ _rules_globs_all_match() {  # <globs-json> → rc 0 valid and every glob matches
 }
 
 project_rules_extract() {  # <file> <heading> <out.md> <globs-json>
-  local src="$1" heading="$2" out="$3" globs="$4" tmp
-  [ "$(_rules_heading_count "$src" "$heading")" = 1 ] || {
-    echo "project-rules: heading must occur exactly once: ## $heading" >&2
+  local src="$1" out="$3" globs="$4" hline tmp
+  hline=$(_rules_heading_line "$2") || return 2
+  [ "$(_rules_heading_count "$src" "$hline")" = 1 ] || {
+    echo "project-rules: heading must occur exactly once: $hline" >&2
     return 2; }
   [ -e "$out" ] && { echo "project-rules: $out exists" >&2; return 2; }
   _rules_globs_all_match "$globs" || return 2
   mkdir -p "$(dirname "$out")"
   tmp=$(mktemp) || { echo "project-rules: no temp file" >&2; return 2; }
-  { printf -- '---\npaths: %s\n---\n\n# %s\n' "$globs" "$heading"
-    _rules_section_body "$src" "$heading"; } > "$out"
-  if ! { _rules_without_section "$src" "$heading" > "$tmp" \
+  { printf -- '---\npaths: %s\n---\n\n# %s\n' "$globs" "${hline#* }"
+    _rules_section_body "$src" "$hline"; } > "$out"
+  if ! { _rules_without_section "$src" "$hline" > "$tmp" \
          && cat "$tmp" > "$src"; }; then
     rm -f "$tmp" "$out"
     echo "project-rules: $src not rewritten, $out removed" >&2
     return 2
   fi
   rm -f "$tmp"
-  echo "project-rules: moved '## $heading' to $out"
+  echo "project-rules: moved '$hline' to $out"
 }
 
 project_rules_emit() {  # <skeleton.md> <out.md> → the rule, matching globs only
@@ -197,13 +229,14 @@ _project_rules_main() {
   case "${1:-}" in
     check)    project_rules_check "${2:-.claude/rules}" ;;
     matches)  project_rules_matches "${2:?glob}" ;;
-    sections) project_rules_sections "${2:?file}" ;;
+    sections) project_rules_sections "${@:2}" ;;
     extract)  project_rules_extract "${2:?file}" "${3:?heading}" "${4:?out}" \
                                     "${5:?globs-json}" ;;
     emit)     project_rules_emit "${2:?skeleton}" "${3:?out}" ;;
     *) echo "usage: project-rules.sh [-C dir] check [rules-dir] | matches" \
-            "<glob> | sections <file> | extract <file> <heading> <out>" \
-            "<globs-json> | emit <skeleton> <out>" >&2; return 2 ;;
+            "<glob> | sections [--depth 2|3] <file> | extract <file>" \
+            "<heading> <out> <globs-json> | emit <skeleton> <out>" >&2
+       return 2 ;;
   esac
 }
 

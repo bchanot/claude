@@ -233,5 +233,68 @@ check T12h-existing-target-rc "$?" 2
 bash "$PR" check >/dev/null; check T12i-emitted-rules-pass-check "$?" 0
 cd "$FIX" || exit 1
 
+# T13 ### subsections: hidden at depth 2, listed at depth 3, extractable,
+# a ### moved last gives its parent's --- back, a ## parent takes its ###
+mkdir -p "$FIX/d3/src" && cd "$FIX/d3" || exit 1
+echo x > src/a.ts
+cat > CLAUDE.md <<'EOF'
+# Top
+
+## P
+intro
+
+### Sub
+s1
+```
+### fenced
+```
+#### deep
+s2
+
+### Sub2
+s3
+
+---
+
+## Q
+q
+EOF
+cp CLAUDE.md "$FIX/orig3.md"
+fence=$(printf '\140\140\140')
+check T13-depth2-unchanged "$(bash "$PR" sections CLAUDE.md | cut -f1,3 | tr '\t\n' ' |')" '74 ## P|7 ## Q|'
+out=$(bash "$PR" sections --depth 3 CLAUDE.md)
+check T13b-depth3-file-order "$(printf '%s\n' "$out" | cut -f3 | tr '\n' '|')" '## P|### Sub|### Sub2|## Q|'
+check T13c-sub-chars-and-line "$(printf '%s\n' "$out" | awk -F'\t' '$3=="### Sub"{print $1 "," $2}')" '44,6'
+check T13d-parent-same-as-depth2 "$(printf '%s\n' "$out" | awk -F'\t' '$3=="## P"{print $1}')" 74
+bash "$PR" sections --depth 4 CLAUDE.md 2>/dev/null; check T13e-bad-depth-rc "$?" 2
+bash "$PR" sections CLAUDE.md --depth 3 2>/dev/null; check T13f-flag-after-file-rc "$?" 2
+bash "$PR" extract CLAUDE.md '### Sub' .claude/rules/sub.md '["src/**"]' >/dev/null
+check T13g-extract-sub-rc "$?" 0
+check T13h-rule-title "$(sed -n '5p' .claude/rules/sub.md)" '# Sub'
+check T13i-removed-lines "$(diff "$FIX/orig3.md" CLAUDE.md | grep '^< ' | cut -c3- | grep -vE '^(---)?$' | tr '\n' '|')" "### Sub|s1|$fence|### fenced|$fence|#### deep|s2|"
+check T13j-rule-ends-before-sub2 "$(tail -1 .claude/rules/sub.md)" 's2'
+cp CLAUDE.md "$FIX/mid3.md"
+bash "$PR" extract CLAUDE.md '### Sub2' .claude/rules/sub2.md '["src/**"]' >/dev/null
+check T13k-last-child-rc "$?" 0
+check T13l-last-child-removed-lines "$(diff "$FIX/mid3.md" CLAUDE.md | grep '^< ' | cut -c3- | tr '\n' '|')" '### Sub2|s3|'
+check T13m-parent-separator-kept "$(grep -c '^---$' CLAUDE.md)" 1
+check T13n-no-additions "$(diff "$FIX/mid3.md" CLAUDE.md | grep -c '^> ')" 0
+check T13o-q-kept "$(grep -c '^## Q' CLAUDE.md)" 1
+bash "$PR" extract CLAUDE.md '#### deep' .claude/rules/deep.md '["src/**"]' 2>/dev/null
+check T13p-level4-rc "$?" 2
+check T13p2-level4-msg "$(bash "$PR" extract CLAUDE.md '#### deep' .claude/rules/deep.md '["src/**"]' 2>&1 >/dev/null | grep -c 'heading level must be ## or ###')" 1
+bash "$PR" extract CLAUDE.md '# Top' .claude/rules/top.md '["src/**"]' 2>/dev/null
+check T13q-level1-rc "$?" 2
+check T13q2-level1-msg "$(bash "$PR" extract CLAUDE.md '# Top' .claude/rules/top.md '["src/**"]' 2>&1 >/dev/null | grep -c 'heading level must be ## or ###')" 1
+check T13r-nothing-else-written "$(cd .claude/rules && printf '%s\n' * | wc -l | tr -d ' ')" 2
+cp "$FIX/orig3.md" CLAUDE.md
+bash "$PR" extract CLAUDE.md 'P' .claude/rules/p.md '["src/**"]' >/dev/null
+check T13s-parent-takes-children "$(grep -c '^### Sub' .claude/rules/p.md)" 2
+check T13t-parent-extract-q-kept "$(grep -c '^## Q' CLAUDE.md)" 1
+printf '## #1 priority\nbody\n' > hash.md
+bash "$PR" extract hash.md '#1 priority' .claude/rules/hash.md '["src/**"]' >/dev/null
+check T13u-bare-title-starting-with-hash "$?" 0
+cd "$FIX" || exit 1
+
 echo "PASS=$pass FAIL=$fail"
 [ "$fail" -eq 0 ]
