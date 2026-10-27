@@ -182,18 +182,35 @@ _rules_globs_all_match() {  # <globs-json> → rc 0 valid and every glob matches
   done <<< "$globs"
 }
 
+_rules_out_path_ok() {  # <out> → rc 2 when absolute, has a .. part, or exists
+  # shortcut: lexical only, a symlinked component is not resolved (no
+  # portable realpath -m); upgrade = resolve the parent dir with cd -P
+  case "$1" in
+    /*) echo "project-rules: out must be relative: $1" >&2; return 2 ;;
+    ..|../*|*/..|*/../*)
+      echo "project-rules: out must not contain ..: $1" >&2; return 2 ;;
+  esac
+  if [ -e "$1" ] || [ -L "$1" ]; then
+    echo "project-rules: $1 exists" >&2; return 2
+  fi
+}
+
 project_rules_extract() {  # <file> <heading> <out.md> <globs-json>
   local src="$1" out="$3" globs="$4" hline tmp
   hline=$(_rules_heading_line "$2") || return 2
   [ "$(_rules_heading_count "$src" "$hline")" = 1 ] || {
     echo "project-rules: heading must occur exactly once: $hline" >&2
     return 2; }
-  [ -e "$out" ] && { echo "project-rules: $out exists" >&2; return 2; }
+  _rules_out_path_ok "$out" || return 2
   _rules_globs_all_match "$globs" || return 2
-  mkdir -p "$(dirname "$out")"
+  mkdir -p "$(dirname "$out")" \
+    || { echo "project-rules: cannot create $(dirname "$out")" >&2; return 2; }
   tmp=$(mktemp) || { echo "project-rules: no temp file" >&2; return 2; }
-  { printf -- '---\npaths: %s\n---\n\n# %s\n' "$globs" "${hline#* }"
-    _rules_section_body "$src" "$hline"; } > "$out"
+  { printf -- '---\npaths: %s\n---\n\n# %s\n' "$globs" "${hline#* }" \
+      && _rules_section_body "$src" "$hline"; } > "$out" \
+    || { rm -f "$tmp" "$out"
+         echo "project-rules: $out not written, $src untouched" >&2
+         return 2; }
   if ! { _rules_without_section "$src" "$hline" > "$tmp" \
          && cat "$tmp" > "$src"; }; then
     rm -f "$tmp" "$out"
