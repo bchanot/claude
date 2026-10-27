@@ -45,6 +45,7 @@ chk "develop exists"     'git rev-parse --verify -q refs/heads/develop >/dev/nul
 chk "root commit on main" '[ -n "$(git rev-parse -q --verify main)" ]'
 chk "gitignore created"  '[ -f .gitignore ]'
 chk "socle: !.claude/deploy/" 'grep -qxF "!.claude/deploy/" .gitignore'
+chk "socle: !.claude/rules/" 'grep -qxF "!.claude/rules/" .gitignore'
 chk "socle: re-ignore PENDING" 'grep -qxF ".claude/deploy/PENDING.json" .gitignore'
 chk "hook installed"     '[ -x .githooks/pre-commit ] && [ "$(git config core.hooksPath)" = .githooks ]'
 chk "tree CLEAN after init"  '[ -z "$(git status --porcelain)" ]'

@@ -139,7 +139,7 @@ Tu veux...
 | `/feat` | Petite feature (1-5 fichiers) | Léger, pas d'orchestration lourde |
 | `/bugfix` | Bug avec investigation root cause | Hypothèses, diagnostic, fix minimal |
 | `/hotfix` | Bug superficiel (typo, CSS, config) | Max 2 fichiers, cause évidente |
-| `/onboard` | Projet existant non géré par ce config | Génère CLAUDE.md + settings |
+| `/onboard` | Projet existant non géré par ce config | Génère CLAUDE.md + settings ; `/onboard split` découpe un CLAUDE.md existant en règles `.claude/rules/` |
 | `/plugin-check` | Avant de démarrer tout travail | Aussi embarqué en STEP 0 des orchestrateurs |
 | `/analyze` | Comprendre du code avant de le modifier | Read-only, aucune solution proposée |
 | `/analyze` + erreur | Diagnostiquer un test/build qui échoue | Mode DEBUG : hypothèses ordonnées |
@@ -286,7 +286,7 @@ cd mon-projet-existant/
 | 0  | plugin-advisor — détection signaux + activation plugins | recommandations plugins |
 | 1  | Archetype detection (scan ~/.claude/lib/project-archetypes/*.md) | archétype SELECTED + implications auto |
 | 1b | Gate monorepo (A/B/C si détecté) | mode choisi |
-| 2  | Config baseline (onboarder agent) | CLAUDE.md, settings.json, .claudeignore, .claude/tasks/ + .claude/memory/ + .claude/audits/ |
+| 2  | Config baseline (onboarder agent) | CLAUDE.md, settings.json, .claudeignore, .claude/tasks/ + .claude/memory/ + .claude/audits/ + .claude/rules/ (docker, testing, ci si un glob matche) |
 | 2.5| Lib d'animation (`motion`), proposée, opt-in | dépendance si acceptée |
 | 2.6| Gitflow init (main + develop, hooks) | branches + .githooks/ |
 | 3  | Interview deep = business minimum (users, deadlines, équipe, légal, perfs) + adaptative par archétype | brief enrichi |
@@ -311,6 +311,7 @@ cd mon-projet-existant/
 ```
 /onboard "Python FastAPI"              # hint stack
 /onboard force-archetype:wordpress     # override detection
+/onboard split                         # CLAUDE.md existant → règles .claude/rules/ (sections liées à un chemin)
 ```
 
 **Après /onboard :**

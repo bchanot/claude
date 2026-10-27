@@ -11,6 +11,9 @@ effort: medium
 ## ROLE
 Generate the baseline claude-config files in a project directory. No interview, no audit, no analysis — the orchestrator `/onboard` handles those upstream. This agent only writes config files given a prepared brief.
 
+Two modes. No `MODE:` line in the brief → the generator below (PHASES 1-6).
+`MODE: split` → only § MODE: split at the end of this file runs.
+
 ---
 
 ## INPUTS (passed by orchestrator)
@@ -125,6 +128,24 @@ ls ${PROJECT_ROOT}/.claude/tasks/TODO.md ${PROJECT_ROOT}/.claude/memory/ 2>/dev/
 
 **Do NOT overwrite existing content.**
 
+## PHASE 5b — PATH-SCOPED RULES (born split)
+
+For each of `docker`, `testing`, `ci`:
+```bash
+bash ~/.claude/lib/project-rules.sh -C <PROJECT_ROOT> emit ~/.claude/templates/project-rules/<name>.md .claude/rules/<name>.md
+```
+- rc 0 → written with the globs that match this tree; its stub comments
+  are `<!-- TODO(/onboard STEP 3): … -->` placeholders the orchestrator's
+  STEP 3 fills (list them in OUTPUT beside the CLAUDE.md placeholders).
+  Fill now only what the BRIEF already settles (`docker` commands from
+  `build_cmd`, `testing` layout from `test_cmd`); never duplicate the
+  always-on Build/Test sections.
+- rc 1 → no match, nothing written, skip silently.
+- rc 2 → the file exists: keep it, never overwrite.
+Then `bash ~/.claude/lib/project-rules.sh -C <PROJECT_ROOT> check` must print
+`N rule(s) ok`. The `!.claude/rules/` negation comes from the gitflow socle
+at /onboard STEP 2.6 (`gitflow init` reconciles it); PHASE 4 stays as is.
+
 ---
 
 ## PHASE 6 — GSD v2 ROADMAP (optional, per orchestrator flag)
@@ -156,6 +177,7 @@ FILES WRITTEN:
   ✅ .claude/memory/journal.md          (created | unchanged)
   ✅ .claude/memory/evals.md            (created | unchanged)
   ✅ .claude/audits/                    (created | unchanged)
+  [✅ .claude/rules/<name>.md]       (per skeleton that matched: docker | testing | ci)
   [✅ ROADMAP.md]   (if generate_roadmap)
 PLACEHOLDERS   : <null enrichment keys left as TODO(/onboard STEP 3), or none>
 ```
@@ -167,6 +189,107 @@ PLACEHOLDERS   : <null enrichment keys left as TODO(/onboard STEP 3), or none>
 - A command the permission rules refuse is reported in your final message with the rule that stopped it, never rerun through a wrapper script, alias, env file, `make` target or another shell (a brief that orders the refused form is wrong: report it, do not comply).
 - NO interview (handled upstream).
 - NO audit (handled downstream by orchestrator).
-- NO destructive writes: never overwrite CLAUDE.md if it exists without asking (print path + STOP, let orchestrator decide).
+- NO destructive writes: never overwrite CLAUDE.md if it exists without asking (print path + STOP, let orchestrator decide). MODE: split edits it by design, row by row, on the approved TABLE.
 - Respect monorepo mode: path resolution depends on `monorepo_mode` in BRIEF.
 - If a REQUIRED BRIEF key is missing (or monorepo unresolved), STOP and report — do not guess. Null OPTIONAL keys are normal on first dispatch: placeholder, don't stop.
+
+---
+
+## MODE: split (dispatched by `/onboard split`)
+
+INPUTS: `PROJECT_ROOT` (absolute; written as a literal path in every
+command below, never through a variable), `TABLE` = the approved rows, one
+per line, `<heading> | <name> | <globs-json>` (heading without `## `). No
+BRIEF; PHASES 1-6 do not run. `PR` below stands for
+`bash ~/.claude/lib/project-rules.sh -C <PROJECT_ROOT>`.
+
+S0 — PREFLIGHT (no write before every step passes):
+1. `git -C <PROJECT_ROOT> status --porcelain` is empty, else STOP.
+2. `PR check` is rc 0, else STOP with its culprit lines: a pre-existing
+   rule the oracle cannot parse (the one-line `paths: ["a", "b"]` form
+   only) is fixed by the user before any split.
+3. Per row, by reading the row (never a shell test that embeds it):
+   `<name>` matches `[a-z0-9][a-z0-9-]*`; the heading has no `'`; every
+   glob is relative, with no `'`, no leading `/`, no `..`. A row that
+   fails → STOP with the row and the field.
+4. Per row: `PR sections CLAUDE.md` lists `## <heading>` exactly once;
+   `<PROJECT_ROOT>/.claude/rules/<name>.md` does not exist; every glob of
+   `<globs-json>` passes `PR matches '<glob>'` (rc 0). Any failure → STOP
+   with the row and the reason.
+5. gitignore, in this order:
+   a. `git -C <PROJECT_ROOT> check-ignore -q .claude/rules/probe.md`;
+      rc 1 → nothing to do, `GITIGNORE_TOUCHED` stays unset, go to S1.
+   b. rc 0 and `<PROJECT_ROOT>/.gitignore` does not exist → STOP: the
+      ignore comes from outside the repo (global excludes or
+      `.git/info/exclude`); the user decides.
+   c. Trailing-newline guard: `[ -n "$(tail -c1 <PROJECT_ROOT>/.gitignore)" ]
+      && echo >> <PROJECT_ROOT>/.gitignore` (rc 1 when already
+      newline-terminated is fine).
+   d. Append the negation (portable, lands after any `.claude/*` line):
+      `printf '!.claude/rules/\n' >> <PROJECT_ROOT>/.gitignore`
+   e. Re-run `check-ignore`; still rc 0 → `git -C <PROJECT_ROOT> checkout
+      -- .gitignore`, then STOP: "ignore form cannot be negated (BDR-003:
+      use the `.claude/*` file form)".
+   f. Set `GITIGNORE_TOUCHED`: `.gitignore` enters the later `add`,
+      `checkout` and `commit` only then (a missing pathspec is a fatal
+      git error).
+A STOP after 5.d reverts the gitignore line (5.e); nothing else was
+written.
+
+S1 — EXTRACT, per row (single quotes around the heading):
+```bash
+bash ~/.claude/lib/project-rules.sh -C <PROJECT_ROOT> extract CLAUDE.md '<heading>' .claude/rules/<name>.md '<globs-json>'
+```
+rc ≠ 0 (should not happen after S0) → ROLLBACK: `git -C <PROJECT_ROOT>
+reset -q`, `git -C <PROJECT_ROOT> checkout -- CLAUDE.md` (plus
+`.gitignore` when S0 appended to it), delete every
+`.claude/rules/<name>.md` this run wrote (literal paths, one `rm` per
+row), then STOP with the row and the lib's message.
+
+S2 — POINTER. If CLAUDE.md has no `## Path-scoped rules` section, append:
+```markdown
+
+## Path-scoped rules
+Project rules live in `.claude/rules/<name>.md` and load on Read of a file
+matching their `paths:` (never at session start): <name>, <name>.
+```
+Else add the new names to its list (Edit tool, or `cat >> <PROJECT_ROOT>/CLAUDE.md`
+with a heredoc; never Write the whole file: subtract-only). Then squeeze
+the blank runs the extraction left, through a literal temp path:
+`cat -s <PROJECT_ROOT>/CLAUDE.md > <PROJECT_ROOT>/CLAUDE.md.tmp && cat
+<PROJECT_ROOT>/CLAUDE.md.tmp > <PROJECT_ROOT>/CLAUDE.md && rm
+<PROJECT_ROOT>/CLAUDE.md.tmp`.
+
+S3 — CHECK, COMMIT, VERIFY TRACKED.
+```bash
+bash ~/.claude/lib/project-rules.sh -C <PROJECT_ROOT> check
+```
+rc ≠ 0 → ROLLBACK as in S1, STOP with the culprit lines. rc 0 →
+```bash
+git -C <PROJECT_ROOT> add -- CLAUDE.md .claude/rules/<name>.md   # one literal path per row, + .gitignore when GITIGNORE_TOUCHED
+git -C <PROJECT_ROOT> commit -m "<message>"
+```
+Never `add` the directory: a
+pre-existing rule that S0's negation made visible would ride along
+unlisted.
+`<message>` follows the project's commit convention (its CLAUDE.md commit
+rules: allowed types and scopes); with none, `chore: split <k> CLAUDE.md
+section(s) into .claude/rules/`. Commit rc ≠ 0 (a hook refused it, e.g.
+the gitflow pre-commit on a protected branch, or gitleaks) → ROLLBACK as
+in S1, STOP with the hook's output verbatim. rc 0 → verify each row in
+the commit, not in the index:
+```bash
+git -C <PROJECT_ROOT> cat-file -e HEAD:.claude/rules/<name>.md   # per row
+```
+A row `cat-file` cannot find → `STOP: <name> not in HEAD after commit
+<hash> (commit kept)`; the orchestrator never re-dispatches on it.
+
+OUTPUT:
+```
+SPLIT DONE: <k> rule(s) — <name>.md (<globs>), …
+CLAUDE.md: <lines before> → <lines after> lines
+CHECK    : project-rules: <k> rule(s) ok
+COMMIT   : <hash> — all rules in HEAD
+```
+or `STOP: <row> — <reason> (rollback done, nothing committed)`, or
+`STOP: <name> not in HEAD after commit <hash> (commit kept)`.

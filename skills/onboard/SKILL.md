@@ -1,8 +1,8 @@
 ---
 name: onboard
 effort: xhigh
-description: 'Use when bringing an existing repo into the claude-config framework — needs archetype detection, config install, full multi-axis audit (debt/SEO/GEO/UI-UX/perf/security/a11y/docs), and prioritized backlog. Multi-agent orchestrator. Do NOT use for repos created via /init-project. Triggers: "onboard", "onboard project", "audit existing repo", "setup existing project".'
-argument-hint: '[optional hints: "Python FastAPI" | "Next.js monorepo" | "force-archetype:wordpress"]'
+description: 'Use when bringing an existing repo into the claude-config framework — needs archetype detection, config install, full multi-axis audit (debt/SEO/GEO/UI-UX/perf/security/a11y/docs), and prioritized backlog. Multi-agent orchestrator. Default flow: do NOT use it for repos created via /init-project. Triggers: "onboard", "onboard project", "audit existing repo", "setup existing project". `split` mode (any repo): "onboard split", "split the project instructions", "découpe le fichier CLAUDE", "path-scoped rules".'
+argument-hint: '[split | optional hints: "Python FastAPI" | "Next.js monorepo" | "force-archetype:wordpress"]'
 allowed-tools: Read, Write, Edit, Bash, Glob, Grep, Agent, Skill
 ---
 
@@ -18,6 +18,13 @@ ROUTING: follow $HOME/.claude/lib/effort-shift.md (phases via mcp__model-router_
 
 ## REQUEST
 $ARGUMENTS
+
+---
+
+## MODE DISPATCH
+`$ARGUMENTS` whose first token is `split` → jump to § SPLIT MODE (end of
+this file); STEP 0 to FINAL OUTPUT do not run. Anything else → the flow
+below, unchanged.
 
 ---
 
@@ -110,6 +117,7 @@ L'agent génère :
 - `.claudeignore`
 - `.gitignore` (safety check)
 - `.claude/tasks/TODO.md`, `.claude/memory/{decisions,learnings,blockers,journal,evals}.md`
+- `.claude/rules/<name>.md` pour chaque squelette dont un glob matche (docker, testing, ci) — placeholders listés avec ceux du CLAUDE.md
 - **Pas encore** `ROADMAP.md` (GSD multi-session : `gsd init` à la main, voir docs gsd-pi — cf. Next steps)
 
 Si `CLAUDE.md` existe déjà : lire son contenu, ne PAS écraser — fusionner après STEP 3.
@@ -198,7 +206,7 @@ Ne pas redemander ce qui est déjà dans :
 
 Présenter toutes les questions en UN BLOC. Attendre les réponses. STOP.
 
-Après réponses : **mettre à jour le brouillon CLAUDE.md** avec les infos obtenues.
+Après réponses : **mettre à jour le brouillon CLAUDE.md** avec les infos obtenues, et les placeholders `<!-- TODO(/onboard STEP 3): … -->` des `.claude/rules/*.md` émis en PHASE 5b (Docker, tests, CI : leurs réponses vont dans la règle, pas dans CLAUDE.md).
 
 ---
 
@@ -1034,11 +1042,11 @@ Pour démarrer : lire .claude/tasks/TODO.md, choisir une tâche P0, lancer le /s
 ---
 
 ## RULES
-- NO skipping STEP 0, 1, 2 — ils sont obligatoires.
+- NO skipping STEP 0, 1, 2 — ils sont obligatoires (split mode runs its own steps, § SPLIT MODE).
 - NO audit agressif : chaque subagent doit recevoir "AUDIT-ONLY, no file modifications".
 - STEP 1 doit proposer un override `force-archetype:<name>` si l'utilisateur sait déjà.
 - Monorepo : toujours demander le mode (A/B/C) avant STEP 2.
-- Si `CLAUDE.md` existe : le lire, ne pas l'écraser sans fusion après STEP 3.
+- Si `CLAUDE.md` existe : le lire, ne pas l'écraser sans fusion après STEP 3 (default flow; split mode edits it on the approved table).
 - STEP 3 : ne redemande jamais ce qui est déjà dans README ou manifests.
 - STEP 3.5 : si ctx7 absent + fast-libs, WARN mais ne bloque pas.
 - STEP 4 : graphify proposé seulement si `graphify-gate.sh` imprime une ligne (≥ 200 fichiers code, pas de graphe — BDR-097) ; l'utilisateur décide, jamais de build sans oui explicite.
@@ -1078,4 +1086,101 @@ NEXT STEPS   :
   2. Démarrer par la première tâche P0 de .claude/tasks/TODO.md avec le skill indiqué
   3. GSD (multi-session) : `gsd init` à la main, voir docs gsd-pi
   4. .onboard-audit/ peut être supprimé (raw data consommée en synthèse)
+```
+
+---
+
+## SPLIT MODE — `/onboard split` (BDR-125 phase 0)
+
+Move the path-bound sections of an existing project `CLAUDE.md` into
+`.claude/rules/<name>.md` path rules (loaded on Read of a matching file),
+so the always-on context of that project shrinks. Judgment here, writes by
+the onboarder, `lib/project-rules.sh` as the only glob oracle. The MODEL
+GATE above has run. `mcp__model-router__route(phase="plan")` first.
+`<ROOT>` below is the project root as a literal absolute path.
+
+S1 — PRECONDITIONS. `CLAUDE.md` at `<ROOT>`, else print `nothing to split —
+run /onboard` and stop. `git -C <ROOT> status --porcelain` empty (whole
+tree) and the current branch is `develop` (or `main` when no `develop`
+exists), else stop and say why: the split branches off develop, and an
+in-flight feature branch or dirty file would be classified on one version
+and extracted on another. `.claude/rules/` already holding rules → `bash
+~/.claude/lib/project-rules.sh -C <ROOT> check`; rc ≠ 0 → stop with the
+culprit lines (the user fixes them first: the oracle reads the one-line
+`paths: ["a", "b"]` form only); rc 0 → list them, continue (new rules add
+to them).
+
+S2 — BASELINE. `claude -p "/context"` from `<ROOT>` (refused → ask the user
+to run `! claude -p "/context"`); note the `Memory files` total and the
+project CLAUDE.md row.
+
+S3 — BRANCH. `cd <ROOT> && bash ~/.claude/lib/gitflow.sh start chore
+claude-md-split`. A project without gitflow (no `develop`):
+`git -C <ROOT> switch -c chore/claude-md-split`, and say so. Everything
+after this step reads the branched file.
+
+S4 — CLASSIFY. `bash ~/.claude/lib/project-rules.sh -C <ROOT> sections
+CLAUDE.md` lists every `##` section with its size. For each one decide:
+- always-on: project overview, stack, build/test/lint commands, folder
+  structure, conventions that apply everywhere, exceptions to global rules,
+  workflow expectations, key dependencies, anything needed before a file is
+  read (how to run the project), even when it names a folder;
+- path-scoped: one module or folder, Docker, migrations, CI, a tool's
+  gotchas, a vendored or machine-owned area. Propose `<name>` (kebab, the
+  section's subject) and globs (a folder → `dir/**`, a tool → its config
+  files; never a brace glob `*.{ts,tsx}`: one glob per extension, the
+  oracle does no brace expansion) and verify EVERY proposed glob with
+  `bash ~/.claude/lib/project-rules.sh -C <ROOT> matches '<glob>'` (rc 0)
+  before showing it. Row shape, checked before a row enters the TABLE: `<name>` matches
+  `[a-z0-9][a-z0-9-]*`; globs are relative, no `'`, no leading `/`, no
+  `..`, no `|`; the heading has no `'` and no `|` (the rows are
+  `|`-separated and the executor single-quotes both). A section that fails
+  is not split by this mode: say so, the user renames or re-globs first.
+
+S5 — GATE (mandatory stop). Print the table, then end the turn:
+
+```
+SPLIT — <project> CLAUDE.md (<chars> chars, <n> sections) on chore/claude-md-split
+| # | section | chars | verdict | rule file | paths |
+| 1 | Stack | 420 | keep | | |
+| 2 | Docker | 1,340 | move | docker.md | ["Dockerfile*", "docker-compose*"] |
+...
+Moves <k> sections, <m> chars (<p>% of the file). Approve, edit a row, or "keep everything".
+```
+"keep everything" ends the mode with no change (`bash
+~/.claude/lib/gitflow.sh delete chore/claude-md-split`). An edited row's
+globs are re-verified with `matches` before they enter the TABLE. The
+approved rows are the TABLE handed to the onboarder, verbatim.
+
+S6 — EXECUTE. `mcp__model-router__route(phase="orchestrate")` with the
+dispatch: `Agent(subagent_type="onboarder")`, prompt = `MODE: split`,
+`PROJECT_ROOT: <ROOT>`, `TABLE:` the approved rows, one per line as
+`<heading> | <name> | <globs-json>` (LRN-126: every field crosses the
+prompt). It pre-flights every row, then extracts, writes the pointer
+section, secures the gitignore negation, runs `check`, commits (message
+per the project's commit convention), and verifies every rule is in
+`HEAD`. Two STOP shapes come back:
+- `STOP: <row> — <reason> (rollback done, nothing committed)`: the tree is
+  back to the branch tip; fix the row, re-dispatch the WHOLE table.
+- `STOP: <name> not in HEAD after commit <hash> (commit kept)`: never
+  re-dispatch (the headings are gone from CLAUDE.md); show the user the
+  hash and `git -C <ROOT> show --stat <hash>`, the user decides.
+
+S7 — AFTER. `claude -p "/context"` again from `<ROOT>`; append to that
+project's `.claude/memory/journal.md` under today's date: `CLAUDE.md
+split: <k> sections → .claude/rules/ (<names>), always-on <before> →
+<after>`. Tell the user the proof step: a fresh session in that project
+that Reads one file per rule, then `jq -c 'select(.memory_type=="Project"
+and (.file_path|contains("/.claude/rules/")))'
+~/.claude/logs/instructions-loaded.jsonl | tail`. Never `finish`: the
+merge is the user's signal.
+
+FINAL OUTPUT:
+```
+SPLIT COMPLETE: <project>
+RULES   : <k> files under .claude/rules/ (<names>)
+CLAUDE.md: <before chars> → <after chars>
+CONTEXT : <before> → <after> (Memory files)
+BRANCH  : chore/claude-md-split (<hash>) — merge on your signal
+PROOF   : pending — fresh session + the jq filter above
 ```

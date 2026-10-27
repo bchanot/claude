@@ -73,6 +73,25 @@ Empty structure only: imports + empty main/init. No logic.
 `.dockerignore`: node_modules, .git, .env, dist/build/target, __pycache__.
 Add `COMPOSE_PROJECT_NAME=<slug>` to `.env.example`.
 
+## PHASE 3b — PATH-SCOPED RULES (born split)
+
+After PHASE 3 wrote the files and BEFORE PHASE 4 installs dependencies
+(installed packages must not match the globs). `<PROJECT_ROOT>` is the
+project root PHASE 1 wrote `CLAUDE.md` into, as a literal absolute path
+(`pwd` there; it is not an INPUT, the scaffold defines it). For each of
+`docker`, `testing`, `ci`, one uniform loop:
+```bash
+bash ~/.claude/lib/project-rules.sh -C <PROJECT_ROOT> emit ~/.claude/templates/project-rules/<name>.md .claude/rules/<name>.md
+```
+rc 0 → fill its stubs from the DESIGN (image, compose services, test
+layout, pipeline jobs), no placeholders left; rc 1 → nothing matched,
+skipped (a plain scaffold yields `docker.md` when Docker is relevant, and
+`testing.md` only when the stack scaffolds a test file). Then
+`bash ~/.claude/lib/project-rules.sh -C <PROJECT_ROOT> check` prints
+`N rule(s) ok`. The `.gitignore` negation `!.claude/rules/` comes from the
+gitflow socle at STEP 5f (`gitflow init` reconciles it before the root
+commit); do not add `.claude` lines to the stack `.gitignore` yourself.
+
 ---
 
 ## PHASE 4 — INSTALL DEPS

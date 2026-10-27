@@ -20,16 +20,17 @@ claude-config/
 ├── update-all.sh          # One-command update for all components
 ├── Makefile               # Unified entry point: make install / doctor / update / test (make help)
 ├── plugins.lock.json      # Version pinning for non-marketplace dependencies and vendored skills
-├── hooks/                 # Claude Code hooks: session start, statusline, RTK rewrite, ctx7 + design-toolchain reminders, attention notify, unpushed-work guard, manual-mode push guard
+├── hooks/                 # Claude Code hooks: session start, statusline, RTK rewrite, ctx7 + design-toolchain reminders, attention notify, unpushed-work guard, manual-mode push guard, instruction-load log
 ├── githooks/              # Generated git hooks (pre-commit, post-commit, post-merge, reference-transaction), git's global core.hooksPath
 ├── .githooks/             # This repo's own copy of the same hooks
+├── .claude/rules/         # This repo's project path rules (paths: frontmatter), loaded on Read of a matching file
 ├── rules/                 # Rule files deployed to ~/.claude/rules (path-scoped or always-on)
 ├── agents/                # Execution units called by skills (never invoked directly)
 ├── skills/                # Entry points invoked via /skill-name
 ├── mods/                  # Claude Code mods (function-hooks plugins), loaded through the skills/<name> symlink
 ├── skills-external/       # Vendored skill packs: gstack submodule, design skills, superpowers, agent-skills, MengTo scroll skills, 21st and Higgsfield packs (machine-owned copies gitignored)
-├── templates/             # Per-project templates (CLAUDE.md, settings, memory registries, deploy runbook, gitignore)
-└── lib/                   # Shared libs: gitflow, profiles, vendoring, route doctrine, gates, archetypes, tests
+├── templates/             # Per-project templates (CLAUDE.md, settings, memory registries, path-rule skeletons, deploy runbook, gitignore)
+└── lib/                   # Shared libs: gitflow, profiles, vendoring, route doctrine, gates, archetypes, project-rule oracle, tests
 ```
 
 ## Architecture principles
