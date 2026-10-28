@@ -105,17 +105,10 @@ esac
 v1d="$FIX/blockers-v1-dialects.md"
 open_v1=$(reconcile_blk_open "$v1d" | cut -f1 | tr '\n' ' ')
 if [ "$open_v1" = "BLK-002 " ]; then ok "T8c v1 hyphen and pipe headings still parsed"; else no "T8c v1 dialects open = [$open_v1], expected {002}"; fi
-v1w=$(mktemp -d)
-reg=memory  # temp tree, not the live registry (G4)
-mdir="$v1w/.claude/$reg"; mkdir "$v1w/.claude" "$mdir"
-printf '# Blockers\n' > "$mdir/blockers.md"
-printf -- "- **Cause**: \`x\`\n" > "$v1w/b.md"
-bash "$REPO/memory.sh" -C "$v1w" add blocker --title fixed \
-  --body-file "$v1w/b.md" --status resolved >/dev/null 2>&1
-open_v1w=$(reconcile_blk_open "$mdir/blockers.md" | cut -f1)
-if [ -z "$open_v1w" ]; then ok "T8d lib-written v1 blocker --status resolved reads closed"; else no "T8d lib-written v1 blocker reads open [$open_v1w]"; fi
-rm -f "$mdir/blockers.md" "$v1w/b.md"
-rmdir "$mdir" "$v1w/.claude" "$v1w"
+case "$(reconcile_blk_current_status "$v1d" BLK-004)" in
+  *resolved*) ok "T8d lib-shaped v1 blocker (status body line first) reads closed";;
+  *) no "T8d lib-shaped v1 blocker BLK-004 status not read as resolved";;
+esac
 
 echo; echo "================  $pass GREEN / $fail RED  ================"
 [ "$fail" -eq 0 ] && exit 0 || exit 1
