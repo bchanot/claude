@@ -422,6 +422,12 @@ v1blk d15/probed '## BLK-003 — three, open' 'Status: open' '' \
 bash "$MEM" upgrade d15/probed >/dev/null 2>&1
 check T15-probed-no-repair "$(grep -c 'upgrade)' d15/probed/blockers.md)" 0
 check T15-probed-open "$(memory_word_of d15/probed/blockers.md BLK-003)" open
+# a heading line quoted inside a ``` fence does not end the entry's range
+v1blk d15/fenced '## BLK-003 — three' 'Status: resolved' '```' \
+  '### BLK-001 — quoted' '```' 'Status: open'
+bash "$MEM" upgrade d15/fenced >/dev/null 2>&1
+check T15-fenced-no-repair "$(grep -c 'upgrade)' d15/fenced/blockers.md)" 0
+check T15-fenced-open "$(memory_word_of d15/fenced/blockers.md BLK-003)" open
 # `## ID—x` (no space) is no v1-visible heading: no silent flip
 v1blk d15/nospace '## BLK-001—x' 'Status: resolved' '' \
   '## BLK-002 — y' 'Status: open'

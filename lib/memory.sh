@@ -580,14 +580,23 @@ _mem_heading_ids() {  # <file> <PREFIX> → the entry IDs, any heading level
 _MEM_LEGACY_RE='status|RESOLVED|REVERTED|upstream|resolved|[^a-z]open'
 memory_legacy_status() {  # <file> <ID> [<end>] → the v1 lexical status line
   # (reconcile reads it on a v1 blockers file; `upgrade` proves its verdicts
-  # against it). The range ends at the next line matching <end> (BRE,
-  # default `^## BLK-`, reconcile's own). v1: drop every <end> line first: the
-  # range is inclusive of the NEXT entry's header, which may carry a status.
-  local end="${3:-^## BLK-}"
-  sed -n "/^## ${2} /,/$end/p" "$1" \
-    | "$MEM_GREP" -v "$end" \
-    | "$MEM_GREP" -iE "$_MEM_LEGACY_RE" \
-    | tail -1
+  # against it). Default range: `## ID` to the next `## BLK-`, reconcile's
+  # own. With <end> (ERE) the range is fence-aware: it stops at the next
+  # heading matching <end> outside a ``` fence, and that header is not read.
+  local end="${3:-}"
+  if [ -z "$end" ]; then
+    sed -n "/^## ${2} /,/^## BLK-/p" "$1" \
+      | "$MEM_GREP" -v '^## BLK-' \
+      | "$MEM_GREP" -iE "$_MEM_LEGACY_RE" \
+      | tail -1
+    return
+  fi
+  RE="$_MEM_LEGACY_RE" awk -v id="$2" -v end="$end" '
+    /^```/ { fence = !fence }
+    !fence && $0 ~ end { on = 0 }
+    !fence && $0 ~ "^## " id " " { on = 1; next }
+    on && tolower($0) ~ tolower(ENVIRON["RE"]) { last = $0 }
+    END { if (last != "") print last }' "$1"
 }
 
 _mem_legacy_open() {  # <old file> <ID> → rc 0 when reconcile's v1 reader
