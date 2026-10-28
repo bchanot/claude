@@ -47,3 +47,10 @@ entry_prefix: BLK
 
 ## BLK-042 — no status anywhere
 - **Solution**: fail-open guard, `data:` OPEN in prose.
+
+## BLK-043 — DNS resolved to stale IP after failover [open] (2026-10-28)
+- **Friction**: `dig` answers the old address.
+
+## BLK-044 — reopened after a regression [resolved] (2026-10-28)
+- **Cause**: `abc` reverted the fix.
+- **Status (2026-10-28)**: open again, not resolved by abc

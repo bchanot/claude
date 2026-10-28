@@ -5,7 +5,7 @@
 # real check on this repo's registries.
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-MEM="${MEM_UNDER_TEST:-$ROOT/lib/memory.sh}"
+MEM="$ROOT/lib/memory.sh"
 pass=0; fail=0
 check() { if [ "$2" = "$3" ]; then pass=$((pass+1)); else fail=$((fail+1));
   printf 'FAIL %s: got[%s] want[%s]\n' "$1" "$2" "$3"; fi; }
@@ -59,6 +59,9 @@ check T2b-blocker-needs-backtick "$?" 2
 check T2c-unchanged "$(cksum < "$B")" "$sum"
 bash "$MEM" add learning --title t --body-file plain.md >/dev/null
 check T2d-learning-without-backtick "$?" 0
+printf 'x\n```\nopen fence\n' > fence.md
+bash "$MEM" add learning --title f --body-file fence.md 2>/dev/null
+check T2e-open-fence-body "$?" 2
 
 # T3 status: a dated line ends the entry, before the next heading's blank
 bash "$MEM" status BLK-001 'resolved abc1234'
@@ -72,6 +75,11 @@ bash "$MEM" status BLK-404 x 2>/dev/null
 check T3e-unknown-id "$?" 2
 bash "$MEM" status BLK-001 "$(printf 'a\nb')" 2>/dev/null
 check T3f-multi-line "$?" 2
+bash "$MEM" status BLK-001 'reopened by abc' 2>/dev/null
+check T3g-needs-status-word "$?" 2
+bash "$MEM" status BLK-002 'open \b \n \| kept'
+check T3h-backslash-verbatim "$(tail -1 "$B")" \
+  '- **Status (2026-10-27)**: open \b \n \| kept'
 
 # T4 journal: appended under today, heading created once, old date untouched
 J=.claude/memory/journal.md
@@ -82,6 +90,8 @@ check T4b-order "$(tail -2 "$J" | tr '\n' '|')" '- first|- second|'
 check T4c-old-kept "$(sed -n '/^## 2026-10-26$/,/^$/p' "$J" | grep -c '^- old$')" 1
 bash "$MEM" journal "$(printf 'a\nb')" 2>/dev/null
 check T4d-multi-line "$?" 2
+bash "$MEM" journal 'grep \bword\b w/ \n'
+check T4e-backslash-verbatim "$(tail -1 "$J")" '- grep \bword\b w/ \n'
 
 # T5 --supersedes: forward link on the new entry, status line on the old one
 L=.claude/memory/learnings.md
@@ -134,6 +144,21 @@ mkdir v1 && printf '# Decisions\n\n## BDR-001 - legacy\n' > v1/decisions.md
 err=$(bash "$MEM" check v1 2>&1 >/dev/null); rc=$?
 check T7e-v1-rc "$rc" 0
 check T7f-v1-named "$(printf '%s\n' "$err" | grep -c '^memory: v1: v1/decisions.md$')" 1
+printf '\n## BDR-006 — fenced\n```\nx\n' >> .claude/memory/decisions.md
+err=$(bash "$MEM" check 2>&1 >/dev/null); rc=$?
+check T7g-open-fence-rc "$rc" 2
+check T7h-open-fence-named "$(printf '%s\n' "$err" | grep -c 'fence open at end')" 1
+cat d.bak > .claude/memory/decisions.md
+# a duplicate a merge left behind blocks neither add nor a staged append
+printf '\n## BDR-005 — merged twice (2026-10-27)\nx\n' >> .claude/memory/decisions.md
+check T7i-dup-still-adds "$(bash "$MEM" add decision --title after --body-file plain.md)" BDR-006
+check T7j-dup-still-reported "$(bash "$MEM" check >/dev/null 2>&1; echo $?)" 2
+git add -A && git commit -qm dup
+bash "$MEM" add decision --title later --body-file plain.md >/dev/null
+git add .claude/memory/decisions.md
+check T7k-dup-staged-append "$(bash "$MEM" check --staged >/dev/null 2>&1; echo $?)" 0
+git reset -q
+cat d.bak > .claude/memory/decisions.md
 
 # T8 check --staged: an append passes, a removed entry line is rc 2
 git add -A && git commit -qm base
@@ -148,6 +173,12 @@ err=$(bash "$MEM" check --staged 2>&1 >/dev/null); rc=$?
 check T8b-removed-line-rc "$rc" 2
 check T8c-named "$(printf '%s\n' "$err" | grep -c 'removed inside an entry')" 1
 git checkout -q HEAD -- "$B"
+cp "$B" b.keep
+sed '/^format: 2$/d' b.keep > "$B" && git add "$B"
+check T8d-downgrade-refused "$(bash "$MEM" check --staged >/dev/null 2>&1; echo $?)" 2
+git rm -q --cached "$B"
+check T8e-deletion-refused "$(bash "$MEM" check --staged >/dev/null 2>&1; echo $?)" 2
+git reset -q && cat b.keep > "$B"
 
 # T9 upgrade: Index-only dates and statuses become body lines, the marker
 # lands, the Index goes, headings untouched; idempotent; refusals keep the file
@@ -168,6 +199,7 @@ entry_prefix: BDR
 | BDR-002 | 2026-01-02 | stale index | accepted |
 | BDR-003 | 2026-01-03 | gone | superseded by BDR-004 |
 | BDR-004 | 2026-01-04 | no status | accepted |
+| BDR-005 | 2026-01-05 | suffix date | accepted |
 
 ---
 
@@ -183,6 +215,9 @@ entry_prefix: BDR
 
 ## BDR-004 — no status
 body
+
+## BDR-005 — suffix date — 2026-01-05
+- **Status**: accepted
 EOF
 cat > .claude/memory/learnings.md <<'EOF'
 ---
@@ -207,13 +242,17 @@ y
 EOF
 D=.claude/memory/decisions.md
 heads=$(grep '^## BDR-' "$D")
-bash "$MEM" upgrade >/dev/null 2>&1
-check T9-rc "$?" 0
+err=$(bash "$MEM" upgrade 2>&1 >/dev/null); rc=$?
+check T9-rc "$rc" 0
+check T9n-dropped-named "$(printf '%s\n' "$err" | grep -c '^memory: BDR-002: kept body shipped, dropped Index accepted$')" 1
 check T9b-marker "$(sed -n 2p "$D")" 'format: 2'
 check T9c-no-index "$(grep -c '^## Index$\|^| BDR-' "$D")" 0
 check T9d-headings-same "$(grep '^## BDR-' "$D")" "$heads"
 check T9e-index-out "$(bash "$MEM" index decision | sed -n '5,8p' | tr '\n' '#')" \
   '| BDR-001 | 2026-01-01 | kept | accepted |#| BDR-002 | 2026-01-02 | stale index | shipped |#| BDR-003 | 2026-01-03 | gone | superseded |#| BDR-004 | 2026-01-04 | no status | accepted |#'
+for loc in C en_US.UTF-8; do
+  check "T9r-suffix-date-$loc" "$(LC_ALL=$loc bash "$MEM" index decision | grep -c '^| BDR-005 | 2026-01-05 | suffix date | accepted |$')" 1
+done
 check T9f-lrn-superseded "$(bash "$MEM" index learning | grep -c '^| LRN-001 | 2026-02-01 | old | superseded |$')" 1
 check T9g-lrn-applies-dropped "$(grep -c 'any shell' .claude/memory/learnings.md)" 0
 check T9h-check-green "$(bash "$MEM" check; echo $?)" 0
@@ -245,6 +284,15 @@ printf '# Evals\n\n## EVAL-001 | 2026 | pipe dialect\n' > .claude/memory/evals.m
 bash "$MEM" upgrade >/dev/null 2>&1
 check T9l-no-frontmatter-rc "$?" 2
 check T9m-dialect-untouched "$(sed -n 1p .claude/memory/evals.md)" '# Evals'
+printf -- '---\ntype: evals_registry\nentry_prefix: EVAL\n---\n\n## Index\n\n| ID | Date | Output | Action |\n|----|------|--------|--------|\n\n## EVAL-001 - hyphen dialect\nx\n' \
+  > .claude/memory/evals.md
+err=$(bash "$MEM" upgrade 2>&1 >/dev/null)
+check T9o-hyphen-refused "$(printf '%s\n' "$err" | grep -c 'heading dialect " - ": not upgraded')" 1
+printf -- '---\ntype: evals_registry\nentry_prefix: EVAL\n---\n\n## Index\n\n| ID | Date | Output | Action |\n|----|------|--------|--------|\n\n## EVAL-001 — empty index (2026-04-01)\nx\n' \
+  > .claude/memory/evals.md
+bash "$MEM" upgrade >/dev/null 2>&1
+check T9p-empty-index-upgraded "$(sed -n 2p .claude/memory/evals.md)" 'format: 2'
+check T9q-empty-index-heading "$(grep -c '^## EVAL-001 — empty index' .claude/memory/evals.md)" 1
 cd "$FIX" || exit 1
 
 # T10 parser: header tag and labelled lines only, last wins, open ranks last
@@ -255,6 +303,22 @@ check T10c-fail-open-ignored "$(word st.md BLK-034)" resolved
 check T10d-final-wins "$(word st.md BLK-008)" resolved
 check T10e-accepted-before-open "$(word st.md BLK-040)" accepted
 check T10f-mid-title-bracket "$(word st.md BLK-041)" open
+check T10h-title-prose-ignored "$(word st.md BLK-043)" open
+check T10i-dated-lead-word "$(word st.md BLK-044)" open
+# shellcheck source=/dev/null
+check T10j-tag-only "$(. "$MEM"; memory_entry_status st.md BLK-043)" '[open]'
+closed() {  # <word> → yes when memory_closed accepts it
+  # shellcheck source=/dev/null
+  (. "$MEM"; memory_closed "$1") && echo yes || echo no; }
+check T10k-closed "$(closed resolved)$(closed superseded)$(closed deprecated)" yesyesyes
+check T10l-not-closed "$(closed accepted)$(closed open)$(closed upstream)" nonono
+mkdir -p v1h/.claude/memory
+printf '# Blockers\n\n## BLK-001 - hyphen\n- **Status**: resolved\n\n## BLK-002 | 2026-05-18 | pipe\nStatus: open\n' \
+  > v1h/.claude/memory/blockers.md
+check T10m-hyphen-dialect "$(word v1h/.claude/memory/blockers.md BLK-001)" resolved
+check T10n-pipe-dialect "$(word v1h/.claude/memory/blockers.md BLK-002)" open
+bash "$MEM" -C v1h status BLK-002 'resolved by abc' 2>/dev/null
+check T10o-status-on-v1-pipe "$(word v1h/.claude/memory/blockers.md BLK-002)" resolved
 # shellcheck source=/dev/null
 (. "$MEM"; memory_entry_status st.md BLK-042) >/dev/null
 check T10g-no-candidate-rc "$?" 1
