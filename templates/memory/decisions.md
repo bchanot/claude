@@ -1,4 +1,5 @@
 ---
+format: 2
 type: decisions_registry
 entry_prefix: BDR
 schema:
@@ -19,22 +20,14 @@ rules:
 
 # Decisions registry (BDR)
 
-## Index
+<!-- Written only by `bash ~/.claude/lib/memory.sh add decision --title "<title>"
+--body-file <file> [--status accepted]` (it allocates the ID). Entry shape:
 
-| ID | Date | Title | Status |
-|----|------|-------|--------|
+  ## BDR-NNN — <title> [accepted] (YYYY-MM-DD)
+  - **Decision**: <what was chosen>
+  - **Why**: <motivation>
+  - **Rejected alternatives**: <each option, why rejected>
+  - **Reference**: <commit / PR / file>
 
-<!-- Append entries below. Template:
-
-## BDR-XXX - <title>
-
-- **Date**: YYYY-MM-DD
-- **Status**: proposed | accepted | deprecated | superseded
-- **Decision**: <what was chosen>
-- **Why**: <motivation>
-- **Rejected alternatives**:
-  - Option A - <why rejected>
-  - Option B - <why rejected>
-- **Reference**: <commit / PR / file>
-
+Later status: `bash ~/.claude/lib/memory.sh status BDR-NNN "superseded by BDR-NNN"`.
 -->

@@ -1,4 +1,5 @@
 ---
+format: 2
 type: evals_registry
 entry_prefix: EVAL
 schema:
@@ -18,19 +19,13 @@ rules:
 
 # Evals registry (EVAL)
 
-## Index
+<!-- Written only by `bash ~/.claude/lib/memory.sh add eval --title "<output>"
+--body-file <file> [--status keep]` (it allocates the ID). Entry shape:
 
-| ID | Date | Output | Action |
-|----|------|--------|--------|
-
-<!-- Append entries below. Template:
-
-## EVAL-XXX - <output>
-
-- **Date**: YYYY-MM-DD
-- **Output**: <what was produced>
-- **Method**: <how it was evaluated>
-- **Anomalies**: <what is wrong, missing, surprising>
-- **Action**: keep | correct | deprecate
+  ## EVAL-NNN — <output> [keep] (YYYY-MM-DD)
+  - **Output**: <what was produced>
+  - **Method**: <how it was evaluated>
+  - **Anomalies**: <what is wrong, missing, surprising>
+  - **Action**: <keep | correct | deprecate>
 
 -->

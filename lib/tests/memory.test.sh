@@ -381,5 +381,17 @@ check T14o-no-restore-noise "$(tr -d ' ' < rs)" 0
 # T12 this repo's registries pass the check
 check T12-live-check "$(bash "$MEM" -C "$ROOT" check >/dev/null 2>&1; echo $?)" 0
 
+# T13 templates are born v2; the session banner names a v1 project only
+for t in decisions learnings blockers evals; do
+  check "T13-template-$t-v2" "$(sed -n 2p "$ROOT/templates/memory/$t.md")" 'format: 2'
+  check "T13b-template-$t-no-index" "$(grep -c '^## Index$' "$ROOT/templates/memory/$t.md")" 0
+done
+banner() { (cd "$1" && SESSION_START_OFFLINE=1 bash "$ROOT/hooks/session-start.sh" \
+  </dev/null 2>/dev/null) | grep -c "${2:-registry v1}"; }
+check T13c-banner-v1-v2 "$(banner "$FIX/v1h" 'registry v1: 1 file(s) (memory.sh check)')/$(banner "$FIX")" 1/0
+cp "$FIX/v1h/.claude/memory/blockers.md" v1h.bak
+printf -- '---\nformat: 2\n---\n' > "$FIX/v1h/.claude/memory/blockers.md"
+check T13d-banner-flips-off "$(banner "$FIX/v1h")" 0
+cat v1h.bak > "$FIX/v1h/.claude/memory/blockers.md"
 echo "PASS=$pass FAIL=$fail"
 [ "$fail" -eq 0 ]
