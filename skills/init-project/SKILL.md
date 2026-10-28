@@ -298,9 +298,7 @@ capitalizes NOTHING. Do NOT fabricate a BDR to fill the step. Print
    [ decisions.md ]  BDR-XXX — <decision> — <1-line why>
    Valider lesquels ? (all / <IDs> / edit / skip)
    ```
-3. Append approved entries to the existing registries (bootstrapped at STEP 5,
-   in the root commit) + update the Index. Append a journal line under today's
-   heading in `.claude/memory/journal.md`.
+3. Write approved entries to the registries bootstrapped at STEP 5 (in the root commit), and the journal line, per `lib/capitalize-commit.md` § WRITE.
 
 **Hash rule — founding decisions carry NO commit hash; use path + date only.**
 This is by nature, not an omission: a founding decision is made at DESIGN

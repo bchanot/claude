@@ -270,8 +270,8 @@ Feature shipped implies at least one design decision worth capturing. Run this B
    
    Valider lesquels ? (all / <IDs> / edit / skip)
    ```
-4. Append approved entries to the registries. Update the Index table at the top of each file.
-5. Append a one-line entry to `.claude/memory/journal.md` under today's date heading (`## YYYY-MM-DD`).
+4. Write approved entries per `lib/capitalize-commit.md` § WRITE (`memory.sh add`, one call each; no Index to update).
+5. Journal line: `memory.sh journal` (same section).
 
 **Language rule**: written entries are ALWAYS English AND caveman — fragments, articles dropped, code/IDs/quoted errors verbatim — per CLAUDE.md "Memory registries" (Always English, always caveman). The interactive gate above may mirror the user's language; the appended entries must not.
 

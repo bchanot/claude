@@ -1179,7 +1179,7 @@ per the project's commit convention), and verifies every rule is in
   hash and `git -C <ROOT> show --stat <hash>`, the user decides.
 
 S7 — AFTER. `claude -p "/context"` again from `<ROOT>`; append to that
-project's `.claude/memory/journal.md` under today's date: `CLAUDE.md
+project's journal (`bash "$HOME/.claude/lib/memory.sh" -C <ROOT> journal`): `CLAUDE.md
 split: <k> sections → .claude/rules/ (<names>), always-on <before> →
 <after>`. Tell the user the proof step: a fresh session in that project
 that Reads one file per rule, then `jq -c 'select(.memory_type=="Project"

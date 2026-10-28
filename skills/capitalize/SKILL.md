@@ -140,7 +140,7 @@ with no dedup.
 
 For every candidate from STEP 1 (and STEP 1B), check whether it is already
 captured before proposing it. Pull the distinctive keyword(s) of the candidate
-and grep the relevant registry (Index + bodies):
+and grep the relevant registry (headings + bodies):
 
 ```bash
 # Example: candidate is a learning about "cd -P symlink resolution"
@@ -246,14 +246,8 @@ Registries first (in registry order), then the TODO.
 
 Registry entries — for each approved:
 
-1. Read the target registry file.
-2. Next sequential ID = scan existing `## <PREFIX>-NNN` body headings, take max,
-   +1 (e.g. last `## BDR-018` → `BDR-019`). Never reuse, never renumber.
-3. Append the full entry at the **end** of the body (never rewrite existing
-   entries — append-only).
-4. Add one row to the `## Index` table at the top: `| <ID> | <date> | <title>
-   | <status> |` (column set varies per file — match that file's header row).
-5. Body in **caveman English** per CLAUDE.md memory format: drop articles +
+1. Write each approved entry per `lib/capitalize-commit.md` § WRITE (`memory.sh add`, one call each; a resolved blocker: `memory.sh status <ID> "resolved <hash>"`).
+2. Body in **caveman English** per CLAUDE.md memory format: drop articles +
    filler, fragments OK, short synonyms. Keep code/URLs/error-quotes/IDs/dates
    verbatim. Entries are ALWAYS English even if the STEP 3 prompt mirrored the
    user's language.
@@ -269,8 +263,7 @@ TODO — for each approved:
 Write one timeline line under today's `## YYYY-MM-DD` heading — even if every
 candidate was skipped or already captured.
 
-- Heading exists → append a bullet.
-- Missing → create `## YYYY-MM-DD` and write 3-5 bullets summarizing the session.
+- `bash "$HOME/.claude/lib/memory.sh" journal "<line>"` per bullet (it creates today's heading when missing).
 
 Reference any IDs written this run AND the TODO ops:
 `BDR-019 + LRN-026 capitalized; checked 1 done, added 1 task.`
@@ -302,6 +295,7 @@ Follow `~/.claude/lib/capitalize-commit.md`:
    - **rc 3** → unsafe git state (detached / merge / rebase) or not a git repo:
      memory stays in the working tree, surface the helper's stderr, do NOT retry.
      The flush is safe on disk; STEP 6 must say NOT committed, not ✅-all.
+   - **rc 5 / rc 6** → nothing committed; surface the helper's stderr; meaning and recovery in `lib/capitalize-commit.md` (rc 6: fix the registry, then /commit-change). STEP 6 says NOT committed.
    - **rc 0, hash EMPTY → must NOT happen from this step.** STEP 5 always writes
      the journal line, so memory is ALWAYS pending at 5B → the helper always has
      ≥1 change → the hash is non-empty by construction. An empty hash here means
