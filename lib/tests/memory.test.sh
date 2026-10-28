@@ -385,6 +385,9 @@ v1blk() {  # <dir> <body…> → <dir>/blockers.md with a v1 frontmatter
   mkdir -p "$1"; { printf -- '---\ntype: blockers_registry\n'
     printf 'entry_prefix: BLK\n---\n\n# Blockers\n'; shift; printf '%s\n' "$@"
   } > "$(dirname "$1/x")/blockers.md"; }
+memory_word_of() {  # <file> <ID> → the strict reader's status word
+  bash -c '. "$1"; memory_status_word "$(memory_entry_status "$2" "$3")"' \
+    _ "$MEM" "$1" "$2"; }
 openset() { bash -c '. "$1/lib/reconcile.sh"; reconcile_blk_open "$2"' _ \
   "$ROOT" "$1" | cut -f1 | tr '\n' ' '; }
 dialect() {  # <name> <heading regex expected> — fixture already in d15/<name>
@@ -395,6 +398,8 @@ dialect() {  # <name> <heading regex expected> — fixture already in d15/<name>
   check "T15-$1-v2" "$(sed -n 2p "$f")" 'format: 2'
   check "T15-$1-heading" "$(grep -c "$2" "$f")" 1
   check "T15-$1-check" "$(bash "$MEM" check "d15/$1" 2>&1; echo $?)" 0
+  # a ### file: reconcile's v1 reader never saw its entries (asserted below)
+  [ "${3:-}" = unseen ] && before=$(openset "$f")
   check "T15-$1-verdicts" "$(openset "$f")" "$before"
   sum=$(cksum < "$f"); bash "$MEM" upgrade "d15/$1" >/dev/null 2>&1
   check "T15-$1-idempotent" "$(cksum < "$f")" "$sum"; }
@@ -406,7 +411,19 @@ v1blk d15/pipe '## BLK-001 | 2026-05-18 | pipe, resolved' 'Status: resolved' '' 
 dialect pipe '^## BLK-001 — pipe, resolved (2026-05-18)$'
 v1blk d15/hashes '### BLK-001 — three hashes, resolved' 'Status: resolved' '' \
   '### BLK-002 — three hashes, open' 'Status: open'
-dialect hashes '^## BLK-001 — three hashes, resolved$'
+dialect hashes '^## BLK-001 — three hashes, resolved$' unseen
+# ### entries were never in the v1 reader's set: no repair line, strict read
+check T15-hashes-no-repair "$(grep -c 'upgrade)' d15/hashes/blockers.md)" 0
+check T15-hashes-1-resolved "$(memory_word_of d15/hashes/blockers.md BLK-001)" resolved
+check T15-hashes-2-open "$(memory_word_of d15/hashes/blockers.md BLK-002)" open
+# RECONCILE_GREP reaches reconcile's v1 pipeline
+v1blk d15/v1only '## BLK-001 — v1 file' 'Status: resolved'
+printf '#!/bin/sh\necho STUB >&2\nexec /usr/bin/grep "$@"\n' > gstub
+chmod +x gstub
+stubbed=$(RECONCILE_GREP="$PWD/gstub" bash -c \
+  '. "$1/lib/reconcile.sh"; reconcile_blk_current_status "$2" BLK-001' \
+  _ "$ROOT" d15/v1only/blockers.md 2>&1 >/dev/null | grep -c STUB)
+check T15-reconcile-grep "$([ "$stubbed" -gt 0 ] && echo reached || echo missed)" reached
 v1blk d15/suffix '## BLK-001 — suffix — RESOLVED' 'Status: resolved in repo' \
   '' '## BLK-002 — suffix, open' 'Status: open'
 dialect suffix '^## BLK-001 — suffix — RESOLVED$'
@@ -437,7 +454,8 @@ check T15-fix-named "$(printf '%s\n' "$err" | grep -c 'BLK-001: v1 reader open, 
 v1blk d15/tamper '## BLK-001 | 2026-05-18 | lost closure' \
   'date: 2026-06-02 · status: RESOLVED'
 sum=$(cksum < d15/tamper/blockers.md)
-err=$( ( . "$MEM"; _mem_upgrade_repair() { :; }; memory_upgrade d15/tamper ) 2>&1 >/dev/null )
+err=$(bash -c '. "$1"; _mem_upgrade_repair() { :; }; memory_upgrade "$2"' \
+  _ "$MEM" d15/tamper 2>&1 >/dev/null)
 check T15-tamper-rc "$?" 2
 check T15-tamper-culprit "$(printf '%s\n' "$err" | grep -c 'moved a verdict: BLK-001')" 1
 check T15-tamper-untouched "$(cksum < d15/tamper/blockers.md)" "$sum"

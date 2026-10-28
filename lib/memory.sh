@@ -587,9 +587,8 @@ memory_legacy_status() {  # <file> <ID> → the v1 lexical status line (reconcil
     | tail -1
 }
 
-_mem_legacy_open() {  # <old file> <ID> → rc 0 when reconcile's v1 reader lists
-  local st           # the blocker open: enumerated by its `## ID` heading and
-  "$MEM_GREP" -qE "^## $2([^0-9]|$)" "$1" || return 1   # not RESOLVED
+_mem_legacy_open() {  # <old file> <ID> → rc 0 when reconcile's v1 reader
+  local st           # lists the blocker open (its status is not RESOLVED)
   st=$(memory_legacy_status "$1" "$2")
   case "$st" in *RESOLVED*|*resolved*) return 1 ;; esac
 }
@@ -609,6 +608,8 @@ _mem_verdict_diff() {  # <old> <new> → "ID<TAB>word" per blocker whose open /
   ix=$(_mem_index_stated "$1" BLK)
   for id in $(_mem_heading_ids "$2" BLK); do
     printf '%s\n' "$ix" | "$MEM_GREP" -qx "$id" && continue
+    # the v1 reader enumerates `## ID` headings only: no verdict to keep
+    "$MEM_GREP" -qE "^## $id([^0-9]|$)" "$1" || continue
     _mem_legacy_open "$1" "$id" && was=open || was=resolved
     memory_closed "$(memory_status_word "$(memory_entry_status "$2" "$id")")" \
       && now=resolved || now=open

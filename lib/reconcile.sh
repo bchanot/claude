@@ -67,7 +67,7 @@ reconcile_oracle_path_present() { [ -e "${1:?}" ]; }   # $1 path → rc 0 if it 
 # `**Statut** :`) carry status where the strict parser cannot see it.
 reconcile_blk_current_status() {
   if memory_is_v2 "$1"; then memory_entry_status "$1" "$2"; return; fi
-  memory_legacy_status "$1" "$2"
+  MEM_GREP="$RECONCILE_GREP" memory_legacy_status "$1" "$2"
 }
 # blockers whose CURRENT status does not close them → "id<TAB>status".
 # v2: memory_closed (resolved | superseded | deprecated); v1: the substring.
