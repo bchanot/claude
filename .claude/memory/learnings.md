@@ -1,4 +1,5 @@
 ---
+format: 2
 type: learnings_registry
 entry_prefix: LRN
 schema:
@@ -15,242 +16,6 @@ rules:
 ---
 
 # Learnings registry (LRN)
-
-## Index
-
-| ID | Date | Pattern | Applies to |
-|----|------|---------|------------|
-| LRN-001 | 2026-04-22 | `rtk` shape-compression breaks pipes | any pipeline chaining `rtk curl/cat/read` into `jq`, `python -c`, `awk` |
-| LRN-002 | 2026-04-23 | Moving report-file paths requires grepping bash READS, not just WRITES | any refactor that moves a generated file used by a dispatcher |
-| LRN-003 | 2026-04-27 | Claude Code `disable*` settings use sentinel string `"disable"`, not boolean | any change to `permissions.defaultMode` or related blocker keys |
-| LRN-004 | 2026-04-27 | `framer-motion` rebranded `motion` Nov 2024 — different packages per framework | any new project recommending animation lib; auditing legacy imports |
-| LRN-005 | 2026-05-03 | `claude plugin install` does NOT enable — separate `claude plugin enable` required | every plugin installer targeting ALWAYS-ON status |
-| LRN-006 | 2026-05-03 | `caveman-shrink` (and any MCP middleware proxy) non-functional without upstream wrapper | any MCP middleware/proxy package — never `claude mcp add` it bare |
-| LRN-007 | 2026-05-06 | `toggle-external.sh enable` missed source-only state (3rd lifecycle case) | toggle scripts for tools with separate install + symlink steps |
-| LRN-008 | 2026-05-06 | Biggest skill-quality wins from edge-case tables, not workflow rewrites | any skill <85 — first check for FAILURE PATHS / EDGE CASES / ERROR HANDLING section |
-| LRN-009 | 2026-05-06 | Dry-run scoring noise wrongly triggers reverts on already-strong skills | darwin-skill ratchet on skills >91 — relax or use real subagent eval |
-| LRN-010 | 2026-05-06 | `~/.claude/skills,agents` symlink to Documents/claude — git from `~/.claude` fails | any optimization or batch edit on personal skills/agents |
-| LRN-011 | 2026-05-07 | Single subagent emits N independently-gated scores → labeled extraction + axis-aware loop + per-axis escalation | any audit pipeline shipping multiple gated metrics from one subagent |
-| LRN-012 | 2026-05-07 | Bash heredoc + stdin pipe collision = silent empty output | any shell pipeline piping data into `python3 - <<'PY' ... PY` (or any heredoc'd interpreter) |
-| LRN-013 | 2026-05-07 | marked CLI 16.x ignore stdin, dump own cli.js source | any shell MD→HTML via npx marked — use `-i FILE` not stdin |
-| LRN-014 | 2026-05-11 | Pandoc base gfm strips header id attrs — need `gfm+gfm_auto_identifiers` | any MD→HTML/PDF with cross-references (`[§4](#nap)`) via pandoc |
-| LRN-015 | 2026-05-11 | BrightLocal Free Tools retired 2026 — Moz Local Citation Checker is free replacement | client SEO/NAP docs — re-validate tool URLs + free-tier status annually |
-| LRN-016 | 2026-05-11 | Pandoc GFM checkbox markup breaks adjacent-sibling CSS — target `li > input` directly | styling task-list checkboxes in pandoc-rendered HTML/PDF |
-| LRN-017 | 2026-05-12 | Thin-dispatcher SKILL.md round-1 win = fallback + frontmatter triggers (+15 to +30) | any `/darwin-skill` round-1 on a dispatcher SKILL.md |
-| LRN-018 | 2026-05-12 | Darwin eval subagents drift on total math — recompute in main thread | any subagent-driven SKILL.md rescore |
-| LRN-019 | 2026-05-15 | Deployable-project doc split: README dev-quickstart + DEPLOY 14-section prod-VPS topology | any onboard/doc-syncer/scaffold producing docs for a deployable project |
-| LRN-020 | 2026-05-18 | profile-sentinel-collision: literal labels in cmd output must not match profile filenames | a CLI reporting a real named-identifier OR a "nothing applied" state — keep sentinels outside the namespace (string-eq consumers break) |
-| LRN-021 | 2026-05-20 | Refactor commands→skills must sweep `~/.claude/commands/` for orphan wrappers | any refactor moving `agents/foo.md` → `skills/foo/SKILL.md`; onboard/init-project audits |
-| LRN-022 | 2026-05-21 | audit `lib/profiles/*.profile` against the gstack skill list after every submodule bump | any gstack submodule bump / external-skill-source move; a "missing:" warning = upstream rename/deletion (link.sh can't fix) |
-| LRN-023 | 2026-05-21 | scripts invoked via symlink must resolve `$REPO` with `cd -P` (physical), not logical `cd` | any script invoked via a symlink that derives its repo root from `$BASH_SOURCE` (cd -P/realpath; Python .resolve()) |
-| LRN-024 | 2026-06-02 | New sibling command sharing logic → extract helper + refactor existing caller, never copy-paste; assert pre/post state equality | adding a subcommand/branch reusing logic inline in a peer command |
-| LRN-025 | 2026-06-02 | `.gitignore` gstack allowlist must cover ALL toggleable skills (incl. parked) — else enabling one = untracked git noise | any toggle that moves local-symlink skills into a tracked dir; post-submodule-bump reconcile |
-| LRN-026 | 2026-06-09 | `disable-model-invocation: false` = ENABLED not blocking; only `true` blocks (model + orchestrator); binary, no per-caller | Claude Code skill frontmatter; deciding self-route/chain vs human-only entry point |
-| LRN-027 | 2026-06-11 | Agents improvise audit boundaries from file dates when no machine state — periodic skills need machine-readable state file, never inference | any recurring/periodic skill needing "since last run" semantics |
-| LRN-028 | 2026-06-11 | "no-skill" subagent baselines invalid when the skill is installed globally | any A/B skill eval / TDD RED baseline / darwin with-vs-without — control must REMOVE the capability, not omit mention |
-| LRN-029 | 2026-06-11 | an edit adding an exception to a blanket rule will contradict it — counterbalanced blind judges catch it | skill/doc/spec edits adding a branch/exception; scoring any self-modified artifact (counterbalanced blind judges) |
-| LRN-030 | 2026-06-18 | Opus 4.8 under-delegates subagents/memory/custom-tools by default — counter via explicit CLAUDE.md fan-out rule | any Opus 4.8 session; tuning delegation; inline-vs-subagent decision |
-| LRN-031 | 2026-06-19 | Skill value = gate + anti-noise + determinism, not re-coding what a capable agent does free | building/reviewing any skill; writing-skills TDD fixture design |
-| LRN-032 | 2026-06-19 | a rule has a domain; applying it outside = category error — check artifact type first | invoking a limit/convention/style rule — confirm it governs THIS artifact class |
-| LRN-033 | 2026-06-19 | multibyte separator breaks `printf %-Ns` byte-width padding — pad via `${#}` char-count | aligning any column with non-ASCII (·, —, box-drawing, accents) |
-| LRN-034 | 2026-06-21 | narrated state ≠ ground truth; the missed alarm was internal contradiction — verify vs git | anyone asserts "X is done" — verify (git/file/grep) before building on it |
-| LRN-035 | 2026-06-21 | honest dedup: name-mention ≠ definition-instance; a dosage rule can make "dedup" a no-op | any "X repeated N times → factor it" — audit what each occurrence IS |
-| LRN-036 | 2026-06-21 | `command -v <cli>` in a shelled-out script depends on PATH carrying the cli's bin, not the alias | any script shelling out a CLI from a hook/subshell |
-| LRN-037 | 2026-06-21 | verify the load-bearing scenario on the REAL subject in REAL context, not a stub/logic argument | any "fixed/works" claim on a critical path — produce the real run output |
-| LRN-038 | 2026-06-23 | Playwright host-platform override for distros newer than its hardcoded support list | any pinned tool with an OS allowlist breaking on a fresh OS upgrade |
-| LRN-039 | 2026-06-23 | installers drift hand-curated config → snapshot+trap-restore guard; anchor gitignore for pollution | audit a fresh install with `git status` right after `make install` |
-| LRN-040 | 2026-06-23 | OS newer than a pinned tool = TWO layers (version build + security policy) | "tool X broke after an OS upgrade" — check both build-support and OS hardening |
-| LRN-041 | 2026-06-23 | a check reading a symlink an earlier install step makes → false negative if that step's precondition unmet | any "X not found in FILE" where FILE is a symlink/derived path |
-| LRN-042 | 2026-06-23 | `npx skills add` / gstack `./setup` resolve install target RELATIVE TO CWD — repo CWD = wrong dir | before any `npx <x> add` / `<tool> init` that materializes a dotfile dir, set CWD |
-| LRN-043 | 2026-06-25 | CLAUDE.md skill-routing: cut name-obvious lines, keep only non-derivable signal + dense catch-all | compressing any routing/dispatch table whose entries the model sees elsewhere |
-| LRN-044 | 2026-06-25 | Edit/Write refuse to write THROUGH a symlink — pass the resolved real path | before editing any `~/.claude/...` config file — resolve it first |
-| LRN-045 | 2026-06-25 | renaming a command: audit exact-name leak-guard / forbidden-token regexes | when renaming, grep the BARE old token inside regex/test/gate files |
-| LRN-046 | 2026-06-25 | Destructive skill: deterministic oracle (byte-identical / count census) > semantic judge | any destructive/irreversible skill; behavioral-oracle TDD |
-| LRN-047 | 2026-06-25 | A noisy safety guard (13/13 FP) = a guard you learn to ignore = risk → refine, don't tolerate | any guard/alert/lint that can false-positive |
-| LRN-048 | 2026-06-25 | A "0/OK/pass" must prove it LOOKED (counted both sides), else verify hard-wired to pass | any verify/test/lint reporting success |
-| LRN-049 | 2026-06-25 | non-destructive repeated nudge: stateless-minimal surface > state marker (conditional on stakes) | any repeated advisory in a stateless surface — bound noise before reaching for a marker |
-| LRN-050 | 2026-06-25 | on a symlinked/live file, show-before-write is the ONLY control gate | before editing any file — check if it is live, treat pre-write diff as an approval gate |
-| LRN-051 | 2026-06-26 | `git commit -- pathspec` strict on no-match → filter scoped commits to changed paths | any scoped-commit automation |
-| LRN-052 | 2026-06-26 | Hash-anchoring: 2 cases it does NOT apply (pre-code founding, squash-merge) | capitalizing founding/arch decisions; squash repos |
-| LRN-053 | 2026-06-26 | Read-before teeth = verifiable disposition in the artifact, not the act of reading | any read-before / check-before wiring |
-| LRN-054 | 2026-06-26 | No deterministic oracle for "already in context" → never add a presence-skip branch | skip-if-seen optimizations over conversation state |
-| LRN-055 | 2026-06-26 | Body `## ID —` headings = drift-immune index; the `## Index` table is not | choosing a substrate to index/select over |
-| LRN-056 | 2026-06-26 | `grep PAT dir/*.md` on absent dir ERRORS (exit 2), not no-op → guard `[ -d ]` | any glob-fed scan that must no-op on nothing |
-| LRN-057 | 2026-06-26 | Match consumption mechanism to consumer (mechanical / external-cognitive / inline) | wiring any produce→consume invariant |
-| LRN-058 | 2026-06-27 | Same bug-class ≠ same fix — verify the twin shares the fix's PRECONDITION before replicating | porting a fix to a "same bug" twin |
-| LRN-059 | 2026-06-27 | Step-number SWAP flips meanings (sweep refs) ≠ letter-suffix insertion (shifts nothing) | any pipeline renumber |
-| LRN-060 | 2026-06-27 | Fail-closed guard proven by what it REFUSES (loudly); pass dynamic lists as argv not separator-string | automated scoped-commit / destructive guards |
-| LRN-061 | 2026-06-27 | Runtime net for an unwired skill → check the wiring first (deterministic gap = fix structurally; non-det aléa = net OK, cf BDR-033) | "build a hook/watcher to catch when X isn't done" |
-| LRN-062 | 2026-06-27 | deploy first-run detection = file-existence, never `git describe` | any "first run vs incremental" tool — detect by explicit on-disk marker |
-| LRN-063 | 2026-06-27 | delta-since-marker = `git diff --name-only X HEAD` (two endpoints), never rev-list/three-dot | any delta-since-checkpoint over git — explicit two endpoints for tree diff |
-| LRN-064 | 2026-06-27 | surgical-commit helper family partitions `.claude/`; new subtree needs own allowlist sibling | adding a committable `.claude/X` subtree |
-| LRN-065 | 2026-06-27 | cross-session cold-resume skill = disk-bridge read-first (audit-delta convention) | any "do work → user acts out-of-band → resume later" skill |
-| LRN-066 | 2026-06-27 | surgical-commit must fail LOUD on git-ignored target paths (else silent no-op) | any helper relying on `git status --porcelain` to detect changes |
-| LRN-067 | 2026-06-28 | pipeline that LOOKS 2-level can terminate at SAME level; human-mediated step (interactive menu) masks the double-action until automated | replacing an interactive/human step with a deterministic one over a delegated sub-skill |
-| LRN-068 | 2026-06-29 | enforcement-bootstrap must be transactional: activate the guard LAST + gate it on the bootstrap commit succeeding; precheck identity | any init that installs a hook/protection AND commits |
-| LRN-069 | 2026-06-29 | token-authed remote writes under CC perms: inline-env (never `export`), token in header not argv, keep `git push` on ASK as the gate | scripting git/curl writes to a private remote from tool calls |
-| LRN-070 | 2026-06-29 | clean-tree-gated migration blocked by a dirty submodule → diagnose pointer-vs-content; for a local edit use `submodule.<name>.ignore=dirty`, never blind reset | migrating/releasing a superproject whose submodule carries intentional local edits |
-| LRN-071 | 2026-06-29 | fail-loud must cover the helper's OWN commit, not just its inputs — 3rd occurrence of the swallowed-commit pattern (a failed op masked by a later returning-0 statement) | any helper whose return value gates a downstream "success" — audit every fallible internal op propagates, esp. the commit |
-| LRN-072 | 2026-06-29 | a stranded-artifact bug can be fixed by NOT creating the artifact (negative diff), not by plumbing its commit — if the producing step is speculative/unused, delete it | a stranded/duplicated/uncommitted-artifact bug — before building machinery, ask if the PRODUCING step is wanted; speculative-at-creation → remove, deliberate-on-demand → keep |
-| LRN-073 | 2026-06-29 | a skill's worked-example must use FICTIONAL ids, never live registry ids (they prime real-data behavior) | any skill/agent with a worked example over the SAME data it operates on — use reserved/fictional ids; test deterministically that no live id appears |
-| LRN-074 | 2026-06-29 | system `grep`/`awk` may be ugrep/mawk: don't assume flag-parsing, use `/usr/bin/grep`, watch the RED go red (4th command-assumption miss this session) | any shell test/guard riding on grep/awk/sed semantics — pin `/usr/bin/<tool>`, run the assertion, confirm it reds on the defect before trusting green |
-| LRN-075 | 2026-06-30 | skill-vs-no-skill RED must test the UNGUIDED control: a "use git + justify" baseline makes a capable agent succeed (contaminated RED); real failure shows only on the tempting prompt | building any skill whose value is determinism/gate over a capable agent — strip guidance AND tempt the failure; control succeeds → don't author (or rescope) |
-| LRN-076 | 2026-06-30 | append-only registry status mutates in place (UPDATE/FINAL blocks): CURRENT status = LAST status line, not Index, not first; range scan inclusive of next header bleeds a sibling's status word | parsing any in-place-mutated status; take last line, bound entry exclusive of next header |
-| LRN-077 | 2026-06-30 | test fixtures must carry NEUTRAL names — a name that telegraphs the answer lets the subject pass by reading the name, not doing the work | designing any test fixture/path; same symptom as [[LRN-074]] (passes for WRONG reason), distinct cause (leaky fixture vs assumed command) |
-| LRN-078 | 2026-06-30 | semver number DERIVES from the change nature, not "justify a target"; solo-repo "breaking" = requires a migration of own usage; a removal nothing invokes = Removed not breaking | choosing a release version; classifying MAJOR/MINOR/PATCH; deciding if a removal is breaking |
-| LRN-079 | 2026-06-30 | orchestrator-skill TDD = replay the prescribed flow on a throwaway repo (gitflow-test style): RED runs the flow minus the new step → the outcome assertion reds on the gap | testing a skill that orchestrates an existing mechanic + one new step |
-| LRN-080 | 2026-06-30 | before adding an instruction "to make the model do X", measure if it ALREADY does X — universal conventions (--help…) it often does; the behavioral RED can KILL the chantier (phantom value) | proposing any global instruction to elicit a behavior; CLAUDE.md additions |
-| LRN-081 | 2026-06-30 | Claude commit trailers (Co-Authored-By + Claude-Session) only on Claude-COMPOSED content; a commit merely STAGING user-authored text gets none — staging ≠ authorship | committing on the user's behalf; memory-commit.sh appends trailers by default |
-| LRN-082 | 2026-06-30 | Trigger-cleared on a multi-motif exclusion lifts only the named motif — re-check the others before acting | any "exclusion lifted / precondition cleared" — verify ALL grounds, not just the named one |
-| LRN-083 | 2026-06-30 | subagents are an INVALID instrument for measuring main-loop spontaneous routing — SUBAGENT-STOP + delegated framing pin them to the no-route floor | any RED of whether the MAIN loop self-invokes; use fresh main-loop sessions, observe via the human |
-| LRN-084 | 2026-07-01 | protection hook enforces PROD not the full branch-flow; exemption masked the rule-vs-guard divergence | a guard exempts a class / checks one predicate — verify it encodes full intent |
-| LRN-085 | 2026-07-01 | Idempotent CLI install/update: `command -v` skip-if-present guard + detect channel (`npm ls -g` vs native symlink) before choosing updater; never `npm --force` over a bin npm doesn't own | any installer/updater for a CLI with >1 install channel |
-| LRN-086 | 2026-07-02 | External-tool-generated skill: prove provenance by mtime (not repo grep), gitignore + regen via install-step; guard regen on ABSENCE when the tool co-writes a user-editable config | any untracked skill/dir a tool (ctx7, etc.) drops into the repo |
-| LRN-087 | 2026-07-02 | presence-flag ≠ capability — rtk silently dead after .bashrc wipe; emitted commands need ABSOLUTE bin paths (they run in another shell); integrity pin = live machinery, re-pin on hook edit | any PATH-dependent capability + hand-managed shell profile; hooks emitting commands for another shell |
-| LRN-088 | 2026-07-02 | token-cutting intuition inverts under measurement — verbosity beats cardinality (gstack 34 skills ≈ 592 tok vs pr-review 6 agents ≈ 2,183) | any "disable X to save tokens" — measure per-item bytes first; profiles toggle skills, not plugin payloads |
-| LRN-089 | 2026-07-03 | pass-through wrapper (CLI `"$@"` → fn deriving target from ambient state: HEAD/cwd/env) silently ignores its args = silent contract violation; guard = args are an ASSERTION, refuse when they disagree with state | any dispatcher forwarding args to a callee that reads ambient state instead of the args |
-| LRN-090 | 2026-06-30 | external-repo audit: open WIRED subsystems (hooks/runners) before declarative (docs/rules); described capability ≠ wired capability | auditing an external config/framework repo for transferable value |
-| LRN-091 | 2026-07-03 | keyword-triggered soft-nudge hook w/ bare common tokens over-fires on non-UI work → tuned out; bare only when UI sense dominates, else bigram-or-drop | any advisory/nudge hook keyed on keywords |
-| LRN-092 | 2026-07-03 | SAST smoke test w/ the OFFICIAL example secret = vacuous pass (rules exclude documented example keys by design); validate w/ realistic payloads + measure tier coverage before trusting a gate ruleset | smoke-testing any detector/gate — never the canonical example payload |
-| LRN-093 | 2026-07-03 | grep -F pattern w/ embedded newline = per-line OR = lock that matches anything; structure locks single-line only, flip-test new locks | writing any grep-based structure lock / census test |
-| LRN-094 | 2026-07-03 | SAST severity ≠ exploitability — semgrep ERROR conflates real vulns + hardening recos; metadata does NOT cleanly separate them (measured) → metadata refinement = noisy gate; ERROR-threshold + diff-scoping is the containment | mapping a SAST tool's output to a blocking gate |
-| LRN-095 | 2026-07-03 | orthogonal gates don't contaminate — a conformity verifier must PASS correct-but-insecure code (security is a separate gate's job); proven live (CONFORME on a feature carrying a SQLi); fusing the two degrades each | designing multi-dimension review/verify/audit gates |
-| LRN-096 | 2026-07-04 | a backstop/guard is code — reliable ONLY after a flip-test proves it CAN fail; an unproven guard replacing an advisory = a vacuous guard (LRN-048 applied to guards); flip-test mandatory at guard creation | building any deterministic guard/lint/backstop |
-| LRN-097 | 2026-07-04 | community blog pattern ≠ official feature — "contexts dir" doesn't exist in Claude Code; verify feature against official docs (claude-code-guide) BEFORE building infra; the intent was already covered by real mechanisms (agents/skills/rules) | any "add support for X" request naming a Claude Code feature |
-| LRN-098 | 2026-07-04 | `/model` rewrites settings.json (model line + key reorder) — pending diff after model switch = side-effect, not intent; 2 occurrences | any settings.json commit; any "commit file X" — read diff, verify content matches intent |
-| LRN-099 | 2026-07-05 | auto-orchestrator autonomy boundary: git discipline transfers naturally (branch, no-merge), declared-state discipline does NOT — baseline silently rewrote target TODO + authored registries + scope-crept | designing any auto/headless flow — enumerate declared surfaces, mark each read-only or gated |
-| LRN-100 | 2026-07-05 | tool gated on clean tree must clean its OWN scratch (else self-DoS next run); contract-changing auto-fix needs structural BREAKING flag in the reviewed artifact | any recurring tool w/ cleanliness precondition; any auto-fix touching an API contract |
-| LRN-101 | 2026-07-05 | nginx `add_header` inheritance trap: ANY add_header in a location block drops ALL inherited server-level headers on those responses — audit headers on LIVE responses (`curl -I`), never by reading the config; declared infra can be stale (prod ≠ repo stack) | any nginx project audit (zenquality, faunosteo…); any security-header claim |
-| LRN-102 | 2026-07-05 | deliverable text placed BEFORE a tool call may never render — only the turn's FINAL text is guaranteed displayed; a checklist printed above AskUserQuestion was invisible to the user | any flow whose deliverable is conversational text (checklist, commands, report): end the turn with it, blocking questions come before, never after |
-| LRN-103 | — | BLK-009 was stale: re-probe confirms `paths:` frontmatter works at BOTH levels now | before acting on ANY open upstream/tool blocker cited to justify a fix, a caveat, or a design const… |
-| LRN-104 | — | a hook's output message is part of its test contract; no runner = regression invisible | change any hook/script output consumed by a test → run its test same commit. `make test` now the de… |
-| LRN-105 | 2026-07-06 | explorer subagent ran a build tool (`graphify .`) mid read-only audit despite prose instructions to only Read/Grep/Bash-read — the runtime observed a config-protection sentinel deny message and self-corrected only after an explicit main-session correction, not from the original prompt | superseded by LRN-165 |
-| LRN-106 | 2026-07-06 | job3-B1 froze a fixture + repointed run-reconcile.sh's T2 off the live registry, declared "unblocked", 20/20 green — job4 (next audit, same file, same day) found T3+T5 in the SAME FILE still read the live registry, same fragility, untouched | superseded by LRN-164 |
-| LRN-107 | — | read-only subagent mandates must ban copying secret VALUES, not just mutations | superseded by LRN-165 |
-| LRN-108 | — | `claude mcp add --env KEY=value` writes the VALUE literally; use `${VAR}` unless you mean to | adding ANY MCP server with a secret via `claude mcp add --env`, single-quote the value using `${VAR… |
-| LRN-109 | 2026-07-07 | job8: `skills` CLI (vercel-labs/skills) fetches only `skillPath` (often just SKILL.md), not sibling refs/scripts/templates the skill text references — darwin-skill install gap, not drift/tamper | installing/auditing any skill via the `skills` CLI whose SKILL.md references relative paths — verify those paths exist post-install, don't trust `skillFolderHash` alone |
-| LRN-110 | 2026-07-07 | job8: `21st_magic_component_builder` (magic MCP) opens unauth'd 127.0.0.1 callback server, CORS `*`, no token check, 10min window — any local POST lands verbatim in the tool result the model consumes = local prompt-injection channel | any MCP tool that opens a local callback/listener server to receive async results — check auth + origin scoping on the listener, not just the outbound call |
-| LRN-111 | 2026-07-07 | job8: empty permissions.allow for a risky MCP tool is a VALID posture (not a gap) when transcript census shows zero real invocations — pre-authorizing unused surface buys nothing, ask-gate costs nothing | deciding whether to allowlist any tool/command — check real usage before assuming "no entry = todo" |
-| LRN-112 | 2026-07-08 | job9: CC nested subagent dispatch SUPPORTED since v2.1.172 (cap 5 levels, `Agent` must be in subagent `tools:`) — "flattens to 1 level" is the pre-2.1.172 regime; live env v2.1.203. Contradicts the operating premise of the whole job1-9 series | a subagent-dispatches-subagent design is VERSION-CONTINGENT, not "broken" — check CC version before flagging; fix = raise floor or re-architect to bundle→L1 |
-| LRN-113 | 2026-07-08 | partial-pattern-fix = recurring defect of the job1-9 series: fix the cited instance, leave the twins (trailer A1, YAML A4, attribution A5, hook A2). An adversarial review catches twins later; nothing catches them at commit time | superseded by LRN-164 |
-| LRN-114 | 2026-07-08 | editing a hook GENERATOR (_gitflow_emit_pre_commit) does NOT update the INSTALLED hook (.githooks/pre-commit) — silent drift; T10 diffs the allow/block verdict not content, T16 emits fresh in a throwaway repo → job7 gitleaks backstop inert on the repo 8 days | after editing a template-generated artifact: reinstall (install-hook) + a gate that diffs installed==emit |
-| LRN-115 | 2026-07-08 | analyzer Edit/Write grants (seo/geo/validator) are NOT dead: needed to write the REPORT (VALIDATE/SEO/GEO.md); the "never edit" rule targets CODE, instruction-level (same as the patron) — verified false-positive | do NOT re-flag as a tool-grant defect; a report-only agent keeps Write for its own report |
-| LRN-116 | 2026-07-08 | memory backfill release→develop: a BLK marked "resolved" can have its RESOLUTION (code) missing from develop — BLK-016 resolved on release but rtk fix e58037c never back-merged → bug LIVE on develop | superseded by LRN-167 |
-| LRN-117 | 2026-07-08 | a release/develop fork silently orphans FUNCTIONAL code on develop, not just memory — RC soak fixes (find-skills, make-update TTY, rtk version-guard) lived only on release for the fork's duration; the review's memory back-merge caught only ~half | superseded by LRN-167 |
-| LRN-118 | — | Gitflow-conformity audit: "commits-code" vs "applies-but-defers-commit" is the line that sorts real findings… | any fleet/skill conformity audit — (1) triage by "autonomous commit/push reached?", not "file writt… |
-| LRN-119 | — | Fail-open engine contract for optional external data (real-if-connected, else graceful) | any "use real data if credentials present, else degrade" seam — put the contract in the shell entry… |
-| LRN-120 | — | SDD final-review base = `git merge-base`, NOT the ledger's recorded BASE | for ANY whole-branch/final review, derive base from `git merge-base <target> HEAD`, never a stored/… |
-| LRN-121 | — | Shell allowlist validation: `grep -Eq` is fragile; use a whole-string POSIX `case` | validate shell input WHOLE-STRING (`case` or bash `[[ =~ ]]`), never `grep -q` (per-line). Set `LC_… |
-| LRN-122 | — | git mv + recreate source path in same commit = rename detection dead | ANY rename-and-replace-in-place (config forks, template splits, versioned API files). Old path must… |
-| LRN-123 | — | "resolves inside repo" symlink check green-lights stale link once old path re-occupied | symlink/path health checks → assert exact expected target whenever the old target path can be re-oc… |
-| LRN-124 | — | derived scan artifacts don't belong in git; a tooling hint saying "safe to commit" manufactures the leak | derived security artifacts (scan reports, triage JSONs, audit findings) stay local/ignored; only th… |
-| LRN-125 | — | don't make an agent dual-use across model tiers; route the audit consumer to a big-model agent, not the sonne… | before making an agent dual-use, check both consumers are on the SAME tier. Audit/reflection consum… |
-| LRN-126 | — | splitting a monolith agent severs every IMPLICIT data path; forward each consumed field through the handoff c… | when splitting an agent, enumerate EVERY field the child reads (grep child for its input vocabulary… |
-| LRN-127 | — | SDD implementers must not run destructive git ops on files outside their task scope | dispatch briefs for SDD implementers / fix-subagents MUST bar destructive git ops outside the named… |
-| LRN-128 | — | a version RESET (backward bump) is editorial reflection, not the forward-only release-executor | version RESET or any non-standard release → do PREP MANUALLY inline (big model), use `gitflow.sh` o… |
-| LRN-129 | — | `git cherry` (patch-id) proves a stale/divergent branch has nothing orphaned before you delete it | before abandoning/deleting a divergent branch, `git cherry -v <mainline> <branch>` then content-ver… |
-| LRN-130 | 2026-07-16 | Claude Code deny glob = absolute, no exemption mechanism — 2026-07-16 | — |
-| LRN-131 | 2026-07-17 | WebSearch is NOT verification for a number — SEO blogs cross-cite into fake consensus; require primary source + `measured:` field | superseded by LRN-168 |
-| LRN-132 | 2026-07-17 | a subagent summary is a CLAIM, not a fact — 7 disproven in one session (incl. 3 I reproduced writing the fixes) | superseded by LRN-168 |
-| LRN-133 | 2026-07-17 | an omission must stay LEGIBLE, never silent — tool that can't measure says so in its output | designing any audit/measure output; deciding what a cap/refusal/N-A emits |
-| LRN-134 | 2026-07-17 | resolve-then-pin in stdlib http.client beats monkeypatching getaddrinfo — dual-stack, thread-safe, no requests; classify the OS-resolved IP not the URL text | closing SSRF/DNS-rebinding on any Python HTTP egress |
-| LRN-135 | 2026-07-17 | a prefix-only scan for a dangerous construct is bypassable by padding — scan the WHOLE document | refusing any hostile construct (DTD/directive/marker) before parse |
-| LRN-136 | 2026-07-17 | config-protection live state follows checked-out branch's symlinked settings.json (2026-07-17) | — |
-| LRN-137 | — | mode-based re-tiering beats file splits for mixed-tier agents | before splitting any agent across model tiers, try MODE + `model=` first; create a new agent file o… |
-| LRN-138 | 2026-07-22 | gitignore ≠ delete for run-time artifacts read from disk (2026-07-22) | "don't merge transient X" → ask: does the run read X from disk? does X travel via git (worktree, fo… |
-| LRN-139 | 2026-07-30 | model-trait compensations invert across generations; state WHEN-guidance, not direction (2026-07-30) | at every model-generation bump, grep config for trait-compensating language ("counters model tenden… |
-| LRN-140 | 2026-08-02 | de-prescription findings: dedup evaporates, self-verify is default, recall survives (2026-08-02) | — |
-| LRN-141 | 2026-08-24 | adopting an external skill: take the invariants, refuse the machinery (2026-08-24) | — |
-| LRN-142 | 2026-08-24 | structure locks are fixed-string: reflowing a doctrine paragraph reds them (2026-08-24) | superseded by LRN-166 |
-| LRN-143 | 2026-08-26 | `cmd \| head \|\| fallback` — pipeline rc is head's (0), fallback dead; bounded output → drop head, else pipefail | any probe/fallback bash in skills before trusting `\|\|` |
-| LRN-144 | — | census locks grep EXACT single-line phrases; prose rewrap breaks them | superseded by LRN-166 |
-| LRN-145 | — | hooks reach the terminal only via terminalSequence JSON field | — |
-| LRN-146 | — | Notification event alone misses end-of-turn; Stop is the missing event | — |
-| LRN-147 | — | VS Code restores terminals BEFORE ext activation → toast dies every restart | superseded by LRN-163 |
-| LRN-148 | — | terminal instrumentation is per-terminal + unpredictable; pre-flight test before attaching | superseded by LRN-163 |
-| LRN-149 | — | Stop hook payload carries background_tasks; use it to skip premature signals | — |
-| LRN-150 | 2026-09-15 | Sourced lib shares caller shell: bare `ok/warn/info` override its printers, and its `set -e` applies inside | any new lib/*.sh |
-| LRN-151 | 2026-09-15 | Playwright cache truth = union over `.links`, dir name maps `_`→`-`, revisionOverrides exist | shared versioned binary caches |
-| LRN-152 | 2026-09-15 | git `protocol.file=user` blocks submodule fixtures; `-c` misses the code under test, `GIT_CONFIG_*` env does not | tests building git fixtures |
-| LRN-153 | 2026-09-15 | `autoMode` lists replace built-ins without `"$defaults"`; a user-scope block reaches every project | any `autoMode` edit |
-| LRN-154 | 2026-09-15 | `git rm --cached` + merge into a branch that still tracks the file DELETES it from disk | untracking a generated file |
-| LRN-155 | 2026-09-16 | ask under auto: doc says prompt, probe on 2.1.273 says no; re-probe after upgrades | any permission-tier reasoning |
-| LRN-156 | 2026-09-16 | autoMode.allow = exception tier; static interpreter allow suspended under auto → conditions live in prose | conditional permissions |
-| LRN-157 | 2026-09-16 | gap-only trigger blind to taste → add a trigger class, not budget; ask at plan, mid-run for leftovers | any "ask more" request |
-| LRN-158 | 2026-09-22 | Installer refusing symlinked paths vs a symlinked config dir → stage under a throwaway HOME, move the result | any vendor installer writing into ~/.claude or ~/.config |
-| LRN-159 | 2026-09-22 | A pin whose payload is fetched at install time rots: pin + fallback, and read the installer's output, not its… | any `install-plugins.sh` step whose pinned tool downloads something at install time. Probe both HOM… |
-| LRN-160 | 2026-09-22 | Prose guardrails are judgment, not boundary: a well-argued brief walks a sub-agent through them | any new destructive capability → static deny first, prose second, doctrine third. Any orchestrator… |
-| LRN-161 | 2026-09-24 | `git branch -d` guards against the UPSTREAM once one is set: auto-push turns it into a no-op guard | any change to upstream/push config → re-read every `-d`, `--ff-only`, `@{u}`-relative guard. New de… |
-| LRN-162 | 2026-09-24 | graphify measured: free AST map, paid semantic pass, 2-3k tokens per query, noise from `.claude/` | measure a "context saver" before adopting it — build time, artifact size, tokens per use, noise sou… |
-| LRN-163 | 2026-09-24 | VS Code terminal instrumentation is per-terminal and unpredictable: pre-flight the pty before attaching | notify-attention over Remote-SSH; any client-side terminal-parsing ext |
-| LRN-164 | 2026-09-24 | one fixed occurrence ≠ pattern closed: grep the whole surface, add a guard with teeth | any "fix pattern X" task; reads-live-state, banned tokens, stale pins |
-| LRN-165 | 2026-09-24 | a read-only sub-agent mandate constrains files, not tools: name the banned commands, ban copying secret values | every sub-agent brief framed read-only / audit / verify with Bash or config access |
-| LRN-166 | 2026-09-24 | structure and census locks are fixed single-line strings: a prose rewrap reds them with zero doctrine lost | editing any doctrine, skill or agent file under lib/tests locks |
-| LRN-167 | 2026-09-24 | a release/develop fork strands CODE on develop: a "resolved" blocker or a parallel-merged feature can miss its fix | any long-lived fork (release/*, long feature); back-merging a resolved blocker |
-| LRN-168 | 2026-09-24 | a relayed claim is not a fact: WebSearch consensus and sub-agent summaries both need a primary source or a live test | any number, feature or finding relayed by search or by a sub-agent before it shapes a plan or a client deliverable |
-| LRN-169 | 2026-09-24 | a coherence audit is cheap when parallel and read-only, and its findings are claims: spot-check, then fix every citer | any doctrine or skill rule change; sub-agent briefs; environment-dependent tests |
-| LRN-170 | 2026-09-25 | "count == 0" ≠ "all on" when default state is "nothing installed": verify a fast-path premise on the live tree | status/current/detect commands, installer "is X applied?" checks, plan premises copied from stale comments |
-| LRN-171 | 2026-09-25 | sub-agent sandbox: grep shim returns EMPTY inside `$(...)` for patterns holding literal `$VAR` — oracles pin `command grep` | contract CHECK lines, hermetic test greps, hooks parsing grep output |
-| LRN-172 | 2026-09-27 | TF-IDF cosine on a 2-doc corpus is identically 0: similarity self-tests need N ≥ 4, a same-corpus positive control and a sensitivity re-run | fixtures for any corpus-normalised statistic (idf, z-score, ranking), "distinct pair passes" tests |
-| LRN-173 | 2026-09-27 | contract oracles written from memory failed twice: run the CHECK on the precedent files first, census greps via `git grep` (tracked only), `EVIDENCE: pending` mandatory for gates.sh | contract CHECK lines, precedent-mirroring criteria, gates.sh ledgers |
-| LRN-174 | 2026-09-28 | a coverage census must grep plugin DATA files (CSV/JSON search DBs), not only SKILL.md prose; and a registry sample is not the upstream catalog, list the tree | before claiming a gap in installed skills; before scoping an external-repo evaluation |
-| LRN-175 | 2026-09-28 | skill listing budget ≈1 % ctx, least-invoked skills lose their description (78/150 name-only); pruning under the cap buys routing + no broken-body invocation, not listing chars; doctor undercount = find w/o -L + single-line desc grep | before any "save tokens by removing skills" claim; doctor token section |
-| LRN-176 | 2026-09-28 | gates.sh `CHECK:` is single-line: a heredoc body reads as prose, the oracle runs `python3 -` on empty stdin and lands NOT-MET "marker absent", never ERROR; multi-line oracle → `<contract>.oracles/*.py` | writing contract oracles longer than one line |
-| LRN-177 | 2026-09-28 | gstack skills hardcode `~/.claude/skills/gstack/<path>` (83 paths: bin, scripts, ETHOS.md, */sections, review/specialists, make-pdf/dist, freeze/bin…); only bin + browse/dist were linked → dead skills and vacuous hooks (exit 127); ./setup plants a global symlink; whole-dir link exposes nested SKILL.md; `apply` is additive, `set` parks | any gstack wiring change, any "gstack skill fails" report |
-| LRN-178 | 2026-09-28 | a top-level `source` added to a lib breaks every hermetic suite that copies that lib alone into a fixture; grep the `cp` lists before adding one, or source lazily inside the branch that needs it | adding `source` to profile.sh / toggle-external.sh / any lib the suites copy |
-| LRN-179 | 2026-09-28 | Skill `effort:` frontmatter shifts the MAIN LOOP for the rest of the turn on user slash invocation AND on interactive Skill-tool loads (last loaded wins, both directions, prompt cache kept); NOT applied in `-p`/headless; agent pins always honoured, unpinned agents inherit session | effort tiering; any skill or agent that must think more or less than the session |
-| LRN-180 | 2026-09-28 | Skill-tool effort override needs a paired tool call: a lone Skill(effort-*) call is a no-op; a load in the same message as another tool call applies (the paired call already sees it); re-load re-applies (text deduped); skills Claude loads alone (brainstorming, writing-plans) apply nothing | every orchestrator shift; amends LRN-179 |
-| LRN-181 | 2026-09-29 | Stacked skills share ONE effort level: skill `effort:` = last loaded wins, so a stack loaded in one build (design toolchain) with two levels gets an effort that depends on load order; a skill Claude loads alone applies nothing (LRN-180) | one level per stack in `lib/effort-pins.txt`; load the stack paired with the first Read; copy the stack level when vendoring a new design skill |
-| LRN-182 | 2026-09-29 | Effort/thinking baselines are generation-bound and aliases move silently: `sonnet` resolved sonnet-5 then sonnet-5-5 mid-period, Sonnet 5.5 recalibrated its effort levels; EVAL-036 measured one generation | re-run `lib/effort-audit.py` after an alias moves; cite the generation in any effort measurement; never pin a version for it (older gen never cheaper) |
-| LRN-183 | 2026-09-30 | npm CLI that vendors its binary in a postinstall script: `command -v` proves the JS shim only; npm can hold the script back at install AND at any update | any installer/doctor/toggle check of such a CLI → probe a real subcommand |
-| LRN-184 | 2026-09-30 | Pack membership on an unpinned upstream = explicit allowlist, never "all except X": a renamed or added upstream item would be linked with no review | toggles / vendoring of any upstream tracked at main |
-| LRN-185 | 2026-09-30 | Under `exec > >(tee)` stdout is a pipe: `[ -t 1 ]` is always false; interactive offers must test stdin alone | any installer that logs through tee |
-| LRN-186 | 2026-09-30 | `GIT_TERMINAL_PROMPT=0` does not stop credential prompts: editor terminals export `GIT_ASKPASS`; empty `GIT_ASKPASS` short-circuits core.askPass + SSH_ASKPASS | unattended `git clone` of a repo that may vanish or go private |
-| LRN-187 | 2026-09-30 | Vacuous fixtures: git drops empty dirs; a symlink to a surviving target is needed to test a symlink guard; a multi-call coreutils binary (uutils) dispatches on argv[0], so a renamed symlink fails | hermetic bash suites building git or PATH fixtures |
-| LRN-188 | 2026-09-30 | Contract oracle tied to code shape (`grep -A6` line window) breaks on the first refactor while the property still holds; assert the property over the whole unit | writing CHECK oracles |
-| LRN-189 | 2026-10-06 | `cmd \| grep -q` under pipefail = SIGPIPE false negative (rc 141); `>/dev/null` is NOT a fix (GNU grep treats it like -q); portable = producer out of the pipeline | any bash under `set -o pipefail`, tests and prod |
-| LRN-190 | 2026-10-06 | Contract oracles: join `\\` line continuations before regex; "lint clean" = no finding beyond base, not zero; never `rm -rf "$var"` inside a CHECK | writing CHECK: lines |
-| LRN-191 | 2026-10-06 | `cmd | grep -q` under pipefail reintroduced one commit after BDR-110 banned it | writing `grep -q` in tests and prod under pipefail |
-| LRN-192 | 2026-10-06 | Turning auto-push off re-arms `git branch -d`'s upstream check (LRN-161 inverted) | deleting a branch in manual-push mode |
-| LRN-193 | 2026-10-06 | A revised plan gets a fresh challenger, not a re-read: r2 found 3 BLOCKERs inside r1's fixes | after a plan revision (challenge-plan) |
-| LRN-194 | 2026-10-07 | Permission globs: trailing ` *` matches end-of-string; a denied token poisons every command that names it | writing settings permission globs |
-| LRN-195 | 2026-10-07 | BSD sed: `N` on the last line quits without printing → the `:a;N;$!ba` fold returns EMPTY on single-line input | folding multi-line output portably |
-| LRN-196 | 2026-10-07 | A fail-closed Claude Code hook: trap must `exit 0`, cap attacker-sized loops, read git's rc not its value | writing a fail-closed Claude Code hook |
-| LRN-197 | 2026-10-07 | A skill's own `git push` after a lib finish or a hook-pushed commit is redundant since BDR-095: delete it, don't gate it | any skill that pushes after a lib finish |
-| LRN-198 | 2026-10-07 | Text read from git and pasted into a later Bash call is an injection sink: allowlist before interpolating | interpolating repo-read text into Bash |
-| LRN-199 | 2026-10-07 | Agent-level branching is prose on a printed word: shell state dies between Bash calls, and a text guard denies the… | skills that branch on a printed word |
-| LRN-200 | 2026-10-07 | `install-hook` and `global-hooks` write git config as a side effect; only `emit-hook > file` regenerates hooks… | regenerating gitflow hooks |
-| LRN-201 | 2026-10-07 | A flood cap must run before ANY per-token fork; a reorder reopened the timeout fail-open and only a timed 2… | guards with a flood cap |
-| LRN-202 | 2026-10-07 | Reading a stderr-then-stdout verb from a hook: `out=$(cmd 2>&1)`, last line = word, prefix line = reason; no temp… | hooks capturing a stderr+stdout verb |
-| LRN-203 | 2026-10-08 | Mod hooks: model ALIAS set by a hook resolves through stale table (`sonnet` → `claude-sonnet-5`, 404); write full… | mod hooks that set a model |
-| LRN-204 | 2026-10-08 | Main-loop model switch mid-turn works, costs one cold-cache step on the full context per switch INTO a model; return… | deciding a main-loop model switch |
-| LRN-205 | 2026-10-08 | A hook answering `tool.call` in place of a built-in tool must return that tool's OUTPUT schema shape; a string… | hooks answering `tool.call` for a built-in |
-| LRN-206 | 2026-10-08 | `claude plugin test` kit facts (2.1.294): nothing fires at load, inputs are the FULL event, a bottom hook is… | writing `claude plugin test` suites |
-| LRN-207 | 2026-10-09 | Model availability = typed API errors (`classic.StopFailure` rate_limit|overloaded|billing_error|model_not_found) +… | model availability breakers |
-| LRN-208 | 2026-10-09 | Security-auditor brief = scope only; iteration history and claimed closures violate the blind-scan contract | briefing the security-auditor |
-| LRN-209 | 2026-10-09 | Scope the test run to the diff; one full `make test` before the merge; `make test` now names the red suite; GNU make… | choosing the test run for a diff |
-| LRN-210 | 2026-10-10 | One coverage clause per contract criterion; a compound "covered by kit tests" criterion yields ECARTS forever with… | writing coverage criteria in a contract |
-| LRN-211 | 2026-10-10 | Typed-slash routing: name-bound marker + idle fallback; run slot separate from turn routes; engine records are the… | typed-slash routing in mods |
-| LRN-212 | 2026-10-11 | The engine hot-reloads a mod's hooks module from the working tree: unverified code runs live during its own feature… | developing a mod inside this repo |
-| LRN-213 | 2026-10-12 | grep-based dead-function census misses constructed-name callers | dead-function census before deletion |
-| LRN-214 | 2026-10-12 | shellcheck directive after the first command scopes to that command only; file-wide disable goes BEFORE `set -u` | placing shellcheck directives |
-| LRN-215 | 2026-10-12 | helper extracted from a `set -e` function must be called as a plain statement; `helper || …` / `if helper` switches… | extracting helpers from `set -e` functions |
-| LRN-216 | 2026-10-13 | Capping a main-loop model switch = cap the COLD READ (context − target's warm prefix), never the context size; the… | capping a main-loop model switch |
-| LRN-217 | 2026-10-13 | In an `agent.spawn` hook, "no explicit `model` and no routing row" does NOT mean "inherits the parent": the agent's… | rewriting a spawn's model in a hook |
-| LRN-218 | 2026-10-15 | `$.model.complete` as availability probe: credits-exhausted model NEVER settles (timeout = only failure signal);… | probing model availability with `complete()` |
-| LRN-219 | 2026-10-19 | Scanner regex over untrusted trees: bound every repeat, cap comment blankers, timing lock on adversarial file | any whole-file regex scanner |
-| LRN-220 | 2026-10-19 | Live probe verdicts fail closed by construction: fixture route per negative branch, 3xx = SKIPPED, depth/size limit = SKIPPED never CLOSED | writing probes and their suites |
-| LRN-221 | 2026-10-19 | Floor-guard suppressions: remove, never waive; contract CHECK asserts intent (symbol/behaviour), not one code spelling | suppressions, writing CHECK: lines |
-| LRN-222 | 2026-10-21 | Map an error to a verdict on a typed exception or carried constant, never on `str(err)`: URLError wraps its reason | probe/fetch error mapping, any err→verdict code |
-| LRN-223 | 2026-10-21 | Regex timing lock is vacuous when the input matches early: feed a non-matching worst-path input, assert `is None`, keep ≥ 2x margin under the lock | every bounded regex test |
-| LRN-224 | 2026-10-21 | Best-tier agent row floors on tier 2nd alias: inTier writes head-or-above only, fable frontmatter = no fallback in credit outage | pinning agents on best tier, census floors |
-| LRN-225 | 2026-10-22 | Gate on tool's exit-code contract, never its prose; positive control through gate's own helper on clean/dirty fixture pair; mktemp EXIT trap script-level | any test that wraps a CLI verdict |
-| LRN-226 | 2026-10-23 | Cap one axis of a layered route at the WRITER (effort-only route), never by filtering at the reader: reader cap shadows lower slots + depends on a baseline that can be unknown | any slot/precedence router, per-axis caps |
-| LRN-227 | 2026-10-23 | Root-commit author ≠ name the user remembers: check `git log --max-parents=0`; every root email the user ever used goes in `claude.identity` | code-origin claims, identity lists |
-| LRN-232 | 2026-10-27 | Path rules load inside sub-agents (agent_id in hook log); a "does X load" proof prompt must name the Read tool call | per-repo split pass, any load proof |
-| LRN-233 | 2026-10-27 | Bash under pipefail: head after producer = rc 141, blanked PATH hides bash (rc 127), unchecked mktemp+rewrite chain = rc 0 with source unchanged; compgen -G no braces, dotglob over-matches, globstar skips symlinks under ** | any bash lib with pipes, temp files, globs |
-| LRN-234 | 2026-10-27 | Bash glob order follows LC_COLLATE, make test pins no locale: tests count or name files, never assert a listing; a new-case behaviour fix is gated on the case and proven by an old-vs-new differential on real files | any test listing a dir; any change to a lib with an existing output contract |
-| LRN-235 | 2026-10-27 | bash `!` on a redirected compound command is blind to the redirect failure (rc 1 before `!`): catch with `cmd || { …; return 2; }`; a guard whose only observable is a stderr line is asserted on that line, anchored on the lib prefix | any `if ! { … } > f`; any test on a stderr reason |
 
 ---
 
@@ -932,65 +697,78 @@ rules:
 - **Reference**: [[BDR-037]], [[BDR-034]] (rollout this completes), [[BDR-033]] (the GOOD net — contrast). Conditions [[LRN-047]], [[LRN-049]], [[LRN-054]].
 
 ## LRN-062 — deploy first-run detection = file-existence, never `git describe`
+- **Date**: 2026-06-27
 - **pattern**: detect "first deploy / no prior marker" by `[ -f .claude/deploy/STATE.json ]` (deterministic). NEVER `git describe --tags --match 'deploy/*'` — it errors `fatal: No names found, cannot describe anything`, exit 128, when no matching tag exists (verified git 2.53). Oracle = committed `STATE.json` holding `deployed_sha` (external ledger; never infer from context — [[LRN-054]]).
 - **context**: deploy skill design. The describe-128 result is only the REASON NOT to use describe — never the detection path.
 - **future application**: any "first run vs incremental" tool — detect by an explicit on-disk marker's existence, not by a git query that errors on the empty case.
 
 ## LRN-063 — delta-since-marker = `git diff --name-only <base> HEAD` (two endpoints), never rev-list/three-dot
+- **Date**: 2026-06-27
 - **pattern**: "files changed since marker X" = `git diff --name-only <X_sha> HEAD` — two explicit endpoints = literal tree diff. NEVER `git rev-list X..HEAD` (ancestry → phantom deltas after rebase: an orphaned marker yields the whole history). NEVER three-dot `X...HEAD` (merge-base → UNDERCOUNTS on divergence). Verified git 2.53 (linear: all forms agree; diverged: two-dot = both sides, three-dot = one side only).
 - **context**: deploy delta mechanism. Footgun: `git diff A..B` ≡ `git diff A B` (two endpoints), but `rev-list A..B` = ancestry — same `..` token, different meaning per command.
 - **future application**: any delta-since-checkpoint over git — explicit two endpoints for the tree diff (artifact list); reserve `rev-list` for commit-counting only.
 
 ## LRN-064 — surgical-commit helper family partitions `.claude/`; a new subtree needs its own allowlist sibling
+- **Date**: 2026-06-27
 - **pattern**: the surgical-commit helpers each own a `.claude/` partition by OPPOSITE rules — `memory-commit.sh` ALLOWLISTS `.claude/memory`+`.claude/tasks`; `doc-commit.sh` EXCLUDES all `.claude/**` (loud rc 4, BDR-022 — [[LRN-060]], [[BDR-036]]). So committing a NEW `.claude/` subtree (e.g. `.claude/deploy/`) can reuse NEITHER: doc-commit refuses it, memory-commit ignores it. Verified live: real `doc-commit.sh` → rc 4 on `.claude/deploy/PROCEDURE.md`. Solution: mint a sibling (`deploy-commit.sh`) with a TARGET allowlist for the new subtree — guard order = traversal `*..*` reject FIRST, then `.claude/deploy/*` allow, else refuse. Inherit rc 3 unsafe-git, short-hash stdout, changed-paths filter.
 - **future application**: adding a committable `.claude/X` subtree → new allowlist sibling, don't bend an existing helper; order the path guard traversal-first.
 
 ## LRN-065 — cross-session cold-resume skill = disk-bridge read-first (audit-delta convention)
+- **Date**: 2026-06-27
 - **pattern**: a skill that hands BACK control mid-flow (user acts out-of-band) and RESUMES — possibly in a NEW session, context gone — must carry ALL resume state on disk. A bridge file's PRESENCE = the wait-marker ("in flight, awaiting report"); STEP 0 reads it FIRST and resumes from its captured `{base, target, delta, step_reached}` WITHOUT recomputing (HEAD may have moved during the gap → "current HEAD" is wrong). Convention = audit-delta "the state file is the only memory between runs", extended from run-to-run to a MID-FLOW pause. `client-handover` only pauses in-context (synchronous), NOT cold — deploy is the first cold-resume form. A `runbook_rev` (FULL sha) does double duty: in-flow regenerate trigger + cold-resume staleness check; regenerate the instantiated artifact if ABSENT or stale. Pressure-test confirmed (fresh agent resumed from the bridge, excluded the moved-HEAD temptation).
 - **future application**: any "do work → user acts out-of-band → resume later" skill — persist a disk bridge, read it first, never recompute on resume; mark the wait by the bridge's existence, not by conversation context.
 
 ## LRN-066 — surgical-commit must fail LOUD on git-ignored target paths (else silent no-op)
+- **Date**: 2026-06-27
 - **pattern**: `git status --porcelain -- <path>` HIDES git-ignored paths → a surgical-commit helper that filters changes via porcelain SILENTLY no-ops (rc 1) when the target project ignores the path (e.g. `.claude/` wholesale) → the artifact never persists, the skill silently forgets. Fix: guard with `git check-ignore -q <path>` BEFORE the changed-filter; any passed path ignored → LOUD refusal + dedicated rc (5), never a silent no-op. Fail-closed/loud over silent. (Same porcelain mechanism as the changed-filter — [[LRN-051]].)
 - **context**: `deploy-commit.sh`; the FINAL whole-branch review caught it (per-task reviews could not — it is a skill↔target-repo seam). Applies to the whole memory/doc/deploy-commit family.
 - **future application**: any helper relying on `git status --porcelain` to detect changes — add a `git check-ignore` guard; a path that must persist but is ignored has to fail loud, not no-op.
 
 ## LRN-067 — a pipeline that looks 2-level can finish at the SAME level; a human-mediated step masks the collision until automated
+- **Date**: 2026-06-28
 - **pattern**: orchestrator delegating to a sub-skill can LOOK two-level (sub assembles, orchestrator integrates) yet sub's TERMINAL node operates at SAME level as orchestrator's finish → double-integration. `subagent-driven-development` assembles tasks on ONE branch (no per-task sub-branches — true) BUT its last flowchart node IS `finishing-a-development-branch` = feature→base merge, the SAME act as the orchestrator's FINISH. init-project (STEP 8 SDD + STEP 11 finish) AND ship-feature (STEP 4 SDD + STEP 9 finish) BOTH invoked finish TWICE. Latent, not visibly broken: SDD's terminal finish is INTERACTIVE (menu → human picks "keep as-is"), so the human SILENTLY de-duplicated. Collision SURFACES when orchestrator's finish becomes DETERMINISTIC (gitflow finish) → real double-merge. Fix = scope the sub-skill by instruction to stop before its terminal step (NO fork — the finish is a flowchart node the controller follows, not a script; verified by reading SDD's scripts). Pressure-test: RED agent chained finish ("literal next node in the flowchart"); GREEN with scope instruction stopped + returned.
 - **context**: gitflow chantier, wiring orchestrators onto `gitflow finish`. Mapping (premise #6) caught it by READING the real (SDD `SKILL.md` + `scripts/`) BEFORE coding — seam-bug class `deploy` hit, caught earlier this time. Two human-gate backstops survive a missed instruction: SDD's interactive menu + the `gitflow finish` human gate ([[LRN-054]] — no oracle; deterministic layer carries the dangerous case).
 - **future application**: before replacing interactive/human-mediated step with deterministic one, check whether delegated sub-skill's TERMINAL step operates at same level — human gate may have silently de-duplicated a double-action. Read the sub-skill's real flow (nodes + scripts), don't assume "distinct levels".
 
 ## LRN-068 — enforcement-bootstrap must be transactional: activate the guard LAST and gate it on the bootstrap commit succeeding
+- **Date**: 2026-06-29
 - **pattern**: routine that BOTH installs enforcement guard (pre-commit hook, branch protection, lock) AND makes bootstrap commit must be transactional, else partial run strands it. Two teeth: (a) precheck preconditions (git identity, clean tree) and fail LOUD before ANY mutation; (b) the guard-activation step must NOT run if the guarded bootstrap commit failed — order activation LAST and gate it on commit success. A `cmd_a || cmd_b` form SWALLOWS cmd_b's failure when a later stmt returns 0 → the failure never propagates; use explicit `if ! …; then … || return 1; fi`.
 - **context**: `gitflow_init` ([[BLK-012]]). Existing-repo path swallowed the socle-commit failure (`git diff --cached --quiet || git commit`, then `git branch develop` returned 0 masking it) → init CONTINUED and ran `gitflow_activate_hook` though the socle was never committed → every re-run self-blocked (commit on main blocked by the hook just installed). Fresh-repo path already propagated → asymmetry was the bug. Fix: fatal socle commit + identity precheck; verified on identity-less repo → aborts rc1 with ZERO mutation, 57/57 tests green.
 - **future application**: any init/bootstrap installing enforcement (hooks, protection, immutability) + committing — activate LAST, gate on the commit, precheck identity/clean-tree up front, make every link propagate (no `||` swallow). TEST partial-failure path (identity-less / commit-blocked repo) → must abort with zero mutation and stay re-runnable.
 
 ## LRN-069 — token-authed remote writes under CC perms: inline-env (never `export`), token in the header, keep `git push` on ASK as the real gate
+- **Date**: 2026-06-29
 - **pattern**: a secrets-guard `Bash(export *)` in `permissions.deny` auto-denies ANY command whose FIRST token is `export …` — a false positive (`export GIT_CONFIG_VALUE_0="Authorization: token $TOK" …` reads as blocked when only the `export` prefix tripped it, not the git/curl op). Correct model for token-authed remote writes from tool calls: (a) INLINE env assignment `GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=http.extraHeader GIT_CONFIG_VALUE_0="Authorization: token $TOK" git push …` (no `export` keyword → passes; token rides the http header via git env-config, NEVER in argv nor written to the clone's `.git/config`); (b) keep `Bash(git push *)` on ASK (not deny) — that prompt IS the per-write human gate; don't suppress it, don't allow-list pushes in settings.
 - **context**: gitflow migration on Gitea. 3 consecutive tool-call denials traced to `Bash(export *)` (false positive); an earlier INLINE-env `ls-remote` passed; the user's own `!` shell ran the same `git push` fine (not under CC perms). Confirmed `git push` is ASK by design = the right gate locus, NOT `export *`.
 - **future application**: scripting token-authed git/curl writes under CC perms → inline env (never `export`), token in `Authorization` header (curl `-H`, git `GIT_CONFIG_*` extraHeader), keep `git push` on ASK as the approval. Tool-call denied unexpectedly → read `permissions.deny` for an over-broad prefix rule (`export *`, `env`, `printenv`) catching a false positive BEFORE concluding the op itself is blocked.
 
 ## LRN-070 — clean-tree-gated migration + a dirty submodule: diagnose pointer-vs-content, ignore=dirty not blind reset
+- **Date**: 2026-06-29
 - **pattern**: op gated on clean tree (`git status --porcelain`) blocked by submodule showing ` M`. FIRST distinguish: (a) **pointer move** — gitlink (HEAD) ≠ submodule HEAD → resettable via `git submodule update`/`checkout`; (b) **dirty content** — gitlink UNCHANGED, files modified INSIDE submodule → local edit. For intentional local edit, `checkout --`/`submodule update` correctly REFUSE to discard it, and blind "reset" would DESTROY it. Exclude it non-destructively: `git config submodule.<name>.ignore dirty` (local `.git/config`) → status stops reporting submodule's dirty content, gate passes, edit preserved. Commit to `.gitmodules` to share ignore across clones.
 - **context**: claude gitflow self-migration. `skills-external/gstack` showed ` M`; gitlink `070722a` == submodule HEAD `070722a` (NOT a pointer move), 2 tracked-modified files (`bun.lock`+`package.json`) = the [[BLK-008]] Playwright 1.61 bump (Ubuntu 26.04 browser). Planned "reset" (D2) would have discarded browser fix; `submodule.skills-external/gstack.ignore=dirty` cleared tree for `migrate_local`, bump intact.
 - **future application**: any clean-tree-gated op (migrate/release/bisect) on a superproject with a submodule carrying intentional local edits → diagnose pointer-vs-content FIRST (compare gitlink to submodule HEAD); for content, `submodule.<name>.ignore=dirty`, never a blind reset. Cross-ref [[BLK-008]] (gstack -dirty by design).
 
 ## LRN-071 — fail-loud must cover the helper's OWN commit, not just its inputs — 3rd occurrence of the swallowed-commit pattern
+- **Date**: 2026-06-29
 - **pattern**: a surgical-commit helper guarded LOUD on its INPUTS (scope) but SILENT on its OWN `git commit`. `doc-commit.sh`: `set -uo pipefail` (no `-e`) + unguarded `git commit` → on rejection (pre-commit hook on a protected branch / signing / etc.) execution CONTINUES: `printf "committed"` lies, `git rev-parse --short HEAD` emits the PREVIOUS HEAD hash, function exits 0. Orchestrator reads rc 0 + non-empty hash → believes success; docs silently uncommitted, tree dirty (RISK-2).
 - **RECURRENT (3×) — audit systematically, not an isolated bug**: same fail-silent-where-it-must-fail-loud class in the surgical-commit family — [[LRN-066]] (`deploy-commit.sh`: porcelain hides a git-ignored path → silent no-op; fix = loud rc 5) + [[LRN-068]]/[[BLK-012]] (`gitflow_init`: socle-commit failure swallowed by `||` then `git branch` returned 0 → init continued past the dead commit) + this. The common mechanism: a fallible op (esp. a commit) whose failure isn't propagated, MASKED by a later returning-0 statement. The motif RETURNS; treat it as a known smell.
 - **fix**: guard the commit — `if ! git commit …; then LOUD + return 5; fi`. rc 5 = "tried, git refused" (distinct from rc 3 = "could not start"). Empty stdout (no stale hash), loud stderr. Proven by T8: RED showed the masking (rc 0 + stale hash + false "committed"), GREEN rc 5 + empty + REJECTED, 32/32.
 - **future application**: any helper whose RETURN VALUE gates a downstream "success" — audit that EVERY fallible internal op propagates its failure, ESPECIALLY the load-bearing commit. `set -uo pipefail` without `-e` does NOT abort mid-function; an unchecked failing command followed by a returning-0 line exits 0 and lies. Check `cmd || other` forms, no-`-e` blocks, every "report success after the op" line. Test the partial-failure path (commit-blocked repo) → must fail loud, empty, non-zero.
 
 ## LRN-072 — a stranded-artifact bug can be fixed by NOT creating the artifact (negative diff), not by plumbing its commit
+- **Date**: 2026-06-29
 - **pattern**: 3rd member of post-FINISH-artifact class (memory, docs, GSD ROADMAP) — but UNLIKE first two (real artifacts ALWAYS produced → couple a commit), GSD artifact came from SPECULATIVE, opt-in, rarely-used producer (init-project auto-bootstrapping multi-session engine at project creation). Reflex fix (reorder + build `gsd-commit.sh` + tests) = machinery to faithfully commit artifact nobody uses. The right fix was a NEGATIVE diff: delete the producer → orphan never created → bug dissolves, zero new code (BLK-011).
 - **the refutation that got there**: framing "ROADMAP redundant with TODO" WRONG (gsd ≫ roadmap = state machine/crash-recovery/cost/parallel/worktree; TODO ≠ gsd ROADMAP = different altitude + consumer). Reading REFUTED both premises, yet the CONCLUSION (remove the step) held for a STRONGER reason: speculatively scaffolding a heavy engine the sole user doesn't use, at creation, is bad per se. Right answer, reason corrected before engraving — change QUESTION before changing code.
 - **future application**: stranded / duplicated / uncommitted-artifact bug → BEFORE building machinery for artifact, ask whether step that PRODUCES it is used / wanted / non-speculative. Speculative or unused (esp. personal/single-user repo) → DELETE producer; cleanest fix = absent one. Distinguish speculative-at-creation (REMOVE) from deliberate-on-demand (KEEP). Family: [[BLK-010]], [[BLK-011]], [[BDR-036]].
 
 ## LRN-073 — a skill's worked-example must use FICTIONAL ids, never live registry ids (they prime real-data behavior)
+- **Date**: 2026-06-29
 - **pattern**: prune-memory's STEP-2 plan example named real LRN-014 + LRN-016 ("merge these"). A real-data run merged exactly that pair — though they're COMPLEMENTARY (header-ids vs checkbox-CSS), a merge its own rule forbids. Example ids that match live entries, in context at audit time, PRIME the action: you can't tell "judged correctly" from "pattern-matched its own example".
 - **fix**: fictionalize example ids (9xx — can't match a live registry) + make the example model a CORRECT action. Lock it DETERMINISTICALLY ([[LRN-046]]): assert the example carries only fictional ids — not a flaky behavioral "did priming fire" test (RED-7).
 - **future application**: any skill/agent whose instructions contain a worked example over the SAME data it operates on (registries/files/records) → use reserved/fictional identifiers; test deterministically that no live id appears in the example block.
 
 ## LRN-074 — system `grep`/`awk` may be ugrep/mawk: don't assume flag-parsing, use `/usr/bin/grep`, watch the RED go red
+- **Date**: 2026-06-29
 - **pattern**: a RED-7 test used `grep -vE '-9[0-9][0-9]$'`; the system grep is UGREP → parsed the leading `-9..` as an OPTION → errored → empty → FALSE GREEN (a RED that never goes red). Caught only because the output was READ, not assumed. 4th time this session an assumed command behavior was false on execution (after `set -o pipefail` + `grep -q` SIGPIPE, …). The skill's own verify already hard-codes `/usr/bin/grep` (line 189) for this exact reason — re-learned.
 - **fix**: `/usr/bin/grep` (GNU) where GNU semantics matter; avoid leading-dash regex args (or use `-e`/`--`); never trust the system tool is GNU/POSIX (mawk≠gawk, ugrep≠grep).
 - **future application**: any shell test/guard whose correctness rides on grep/awk/sed semantics → pin `/usr/bin/<tool>` AND run the assertion, confirming it goes red on the defect before trusting green. Execute, don't assume command behavior. RECURRENT motif — audit any "assumed tool behavior" the way the fail-silent family ([[LRN-066]]/[[LRN-071]]) is audited.
@@ -1104,42 +882,49 @@ rules:
 - **Reference**: `lib/gitflow.sh` gitflow_finish arg-guard, `lib/gitflow-test.sh` T12. [[BLK-015]].
 
 ## LRN-090 — external-repo audit: open WIRED subsystems before declarative
+- **Date**: 2026-06-30
 - **pattern**: auditing external config/framework repo for transferable value → rank subsystems WIRED (executable: hooks/, runners, dispatchers) vs DECLARATIVE (docs, rules/, aspirational frontmatter). Wired > declarative: declarative often inert (ECC rules/ `paths:` = 0 consumers; eval-harness = SKILL.md, no runner — "belle méthodo / vaporware"); wired = a real mechanism worth adapting.
 - **context**: ECC 2nd-look 2026-07-03 (Opus 4.8, 6 agents, repo unchanged since 01/07). [[BDR-047]] audit (01/07) inventoried the declarative surface + concluded zero import — right on facts, but hooks/ (ECC's only live subsystem) was OUT of scope and held the sole real adaptation → config-protection PreToolUse guard.
 - **future application**: next external-repo value audit → enumerate hooks/, scripts/, runners FIRST; treat rules/docs/SKILL.md as claims to verify ("is it wired?"), not value. Described capability ≠ wired capability.
 - **cousin**: [[LRN-087]] presence-flag ≠ capability; [[LRN-089]] forwarded-args silently dropped — same family: a visible signal (a file, a flag, a `paths:`) lying about real behavior.
 
 ## LRN-091 — a soft-nudge hook that over-fires gets ignored (banner-blindness)
+- **Date**: 2026-07-03
 - **pattern**: keyword-triggered nudge (design-toolchain reminder) with bare common tokens fires on non-UI work → reader tunes it out. Same class as a diagnostic that cries false [[LRN-047]]: a signal wrong too often stops being read.
 - **rule**: keep a token BARE only when its UI sense dominates largely in a dev context (glassmorphism, navbar). Token common in non-UI talk (design, component, theme, transition, frontend) → require a UI-specific bigram (design system, front-end design) or drop; in doubt → bigram-or-drop. Borderline standalone nouns (dashboard, animation) may stay bare as an assumed call — the fire-log arbitrates later on data, not gut. (NOT "never bare tokens" — animation stays bare here by design.)
 - **context**: design-toolchain-reminder.sh — 07-02 tightening (dropped page/form/menu/…) insufficient; 6 bare tokens still false-fired ~6×/session during the ECC config audit (design, ecc_dashboard.py, component, frontend, theme, transition, palette). 07-03 fix: dropped them, dashboard→`\bdashboard\b` (filename match killed, "admin dashboard" kept), added a fire-log (time+token+excerpt). `lib/tests/design-toolchain-reminder.test.sh` locks it (18 checks).
 - **cousin**: [[LRN-047]] a doctor that cries false is ignored.
 
 ## LRN-092 — SAST smoke test: official example keys are rule-excluded — "no findings" proves nothing
+- **Date**: 2026-07-03
 - **pattern**: smoke-testing a SAST/secret detector w/ the OFFICIAL example payload (AWS `AKIA...EXAMPLE`) → 0 findings BY DESIGN — rules exclude documented example keys to kill FP. A vacuous pass, [[LRN-048]] class (a pass must prove it looked). Validate w/ realistic-shaped payloads AND enumerate what the tier does NOT catch before trusting a ruleset as a gate.
 - **context**: lot 1 semgrep-install dogfood 2026-07-03. `p/secrets`+`p/security-audit` community tier: anonymous fetch OK (52 rules, no login), `subprocess-shell-true` detected ERROR; MISSED %-format SQLi on bare cursor (no recognized DB-API context) + fake-checksum `ghp_` token. Gap logged for security-auditor agent design (consider adding `p/owasp-top-ten`).
 - **future application**: any detector/gate smoke test — craft realistic payloads, never the canonical example; measure the miss-list on purpose-built fixtures; size the gate's blocking scope on that data.
 - **cousin**: [[LRN-048]] a 0/OK must prove it looked; [[LRN-047]] noisy guard = ignored guard; conditions [[BDR-048]].
 
 ## LRN-093 — grep -F with an embedded newline = per-line OR = vacuous lock
+- **Date**: 2026-07-03
 - **pattern**: a fixed-string grep pattern containing a newline is treated as MULTIPLE patterns (one per line) — match succeeds if ANY line matches. A structure lock written that way passes on essentially anything (`"no\n    forced loop"` → matches any "no") = a lock that proves nothing, [[LRN-048]] class.
 - **context**: lot 2 `lib/tests/contract-verifier.test.sh`, caught in self-review BEFORE first run; replaced by a single-line distinctive anchor ("proceed straight to the security gate").
 - **future application**: structure locks / census greps = ONE line per pattern, always; a clause spanning lines → lock a distinctive single-line fragment. Flip-test every new lock (prove it CAN fail) before trusting its green.
 - **cousin**: [[LRN-048]] a pass must prove it looked; [[LRN-046]] deterministic-oracle discipline.
 
 ## LRN-094 — SAST severity ≠ exploitability; metadata does not cleanly separate — don't refine on it
+- **Date**: 2026-07-03
 - **pattern**: semgrep `ERROR` conflates exploitable vulns (SQLi, secrets, command injection) with hardening recommendations (Dockerfile missing-USER, npm release-age). The obvious refinement — gate on `metadata.impact`/`likelihood`/`confidence` — does NOT work: measured, the Dockerfile hygiene ERROR (`impact=MEDIUM likelihood=LOW`) is indistinguishable from a tainted-SQL ERROR (`impact=MEDIUM likelihood=MEDIUM`), and a real command-injection reads `impact=LOW likelihood=HIGH`. Metadata-based severity = a noisy, non-deterministic gate ([[LRN-077]] class).
 - **context**: lot 3 security-auditor design 2026-07-03. Measured on 2 real repos (faunosteo, game): the only added blocking ERROR from owasp-top-ten is Dockerfile hygiene, contained because gate mode scopes to the DIFF (a pre-existing infra finding can't block an unrelated code change).
 - **future application**: mapping any SAST to a blocking gate — take the tool's ERROR/blocking level as the deterministic threshold, contain FP by SCOPING (diff, not repo), NOT by a metadata heuristic or a hand-maintained hygiene denylist ([[LRN-049]]: match guard cost to proven stake — build the denylist only if hygiene ERRORs prove noisy on a real project).
 - **cousin**: [[LRN-047]] noisy gate = ignored; [[LRN-077]] non-deterministic gate; conditions [[BDR-048]].
 
 ## LRN-095 — Orthogonal gates don't contaminate: a conformity check must pass correct-but-insecure code
+- **Date**: 2026-07-03
 - **pattern**: pipeline with distinct gates (request-conformity, security): each judges ONLY its dimension. A conformity verifier must return CONFORME on code that is correct-but-insecure — the vuln is the SECURITY gate's job, not a conformity gap. Proven live: `get_item` feature satisfying its contract with a `%`-interpolation SQLi → verifier CONFORME, security-auditor BLOCK(1). Fusing both into one "quality" gate makes each worse: conformity check hunts vulns (scope creep, misses conformity), security check judges feature-completeness (dilutes).
 - **context**: lot 4 verify-secure-loop dogfood 2026-07-03. Orthogonality is WHY the order invariant matters (re-verify request before re-scan security): two independent axes re-checked independently.
 - **future application**: any multi-dimension gate (review lenses, verify+audit, correctness+perf) — keep each gate single-axis and let a finding on axis B pass axis A's gate; compose verdicts in the orchestrator, don't merge the judges.
 - **cousin**: [[BDR-050]] the pipeline; [[BDR-049]] fresh verifier; conditions [[LRN-083]].
 
 ## LRN-096 — A backstop is code: prove it can FAIL (flip-test) before trusting its green
+- **Date**: 2026-07-04
 - **pattern**: deterministic guard replacing forgettable advisory is itself code; UNPROVEN guard = vacuous guard — [[LRN-048]] (a pass must prove it looked) applied to guards. LRN-093 backstop (refuse `\n` in grep/tf patterns) shipped with regex requiring whitespace before `tf` → silently MISSED `tf` at line start (where real locks sit). Flip-test (feed guard a KNOWN offender, assert it bites) caught the hole; without it guard would have green-lit the very class it was built to kill. So: a flip-test is MANDATORY at guard creation, part of the guard, not optional QA.
 - **why it matters**: the whole point of a backstop is that it fires on the bad case; a guard that can't fail proves nothing and is WORSE than the advisory it replaced (false confidence). Advisory→backstop move ([[LRN-047]] [[LRN-091]]) sound only if backstop verified against a real miss.
 - **context**: lot 5 `lib/tests/no-vacuous-locks.test.sh` 2026-07-04. Built guard, flip-test RED'd (regex too weak, missed line-start `tf`), fixed regex, flip-test green. Guard ships WITH flip-test inline, self-proves on every run.
@@ -1147,6 +932,7 @@ rules:
 - **cousin**: [[LRN-048]] prove it looked; [[LRN-093]] the class this guards; [[LRN-046]] deterministic-oracle discipline.
 
 ## LRN-097 — Community blog pattern ≠ official feature: verify against docs before building infra
+- **Date**: 2026-07-04
 - **pattern**: user requested a `~/.claude/contexts/` dir + symlink, with 3 example "context mode" files (review/research/dev) from a community pattern. Official docs check (claude-code-guide agent): NO contexts feature exists in Claude Code — no loader, no `/context <name>`, nothing reads that dir. Building it = dead infra. The underlying intent (modal postures) was ALREADY covered by real mechanisms: review → verifier/security-auditor/review skills; research → analyzer/Explore; dev norms → CLAUDE.md always-on. One proposed "context" even CONTRADICTED standing doctrine ("get it working first" vs "root causes only").
 - **why it matters**: plausible-looking blog patterns import silently as "features"; the cost is not just dead files — norms moved into a nonexistent loader silently STOP applying. Gate: any request naming a Claude Code capability → verify against official docs BEFORE writing files; then map the intent onto the real mechanism.
 - **context**: 2026-07-04 rules-dir chantier. `rules/` (real feature, verified: paths-scoped lazy loading) was built; `contexts/` (nonexistent) was refused with the doc citation.
@@ -1154,6 +940,7 @@ rules:
 - **cousin**: [[LRN-086]] provenance discipline; [[LRN-046]] verify before trust; CLAUDE.md "Never assume — verify".
 
 ## LRN-098 — `/model` silently rewrites settings.json: read the diff before any settings commit
+- **Date**: 2026-07-04
 - **pattern**: `/model` persists the switch by REWRITING settings.json — changes `model` line AND reorders keys (attribution block moved to top). Pending settings.json diff after a model switch = side-effect, not intent. 2nd occurrence: ae8ad86 undid the first (opus-4-8 restored); today "commit settings.json" nearly re-committed fable-5 as default right after that undo. Catch came from reading DIFF CONTENT, not filename: request said commit, diff contradicted prior intentional commit → surfaced, user chose `git restore`.
 - **why it matters**: "dirty settings.json" reads as innocent drift; blind commit flips default model for ALL sessions + silently reverses an explicit prior decision. A request "commit file X" is about the file — content must still match user intent.
 - **context**: 2026-07-04 RC 1.0.0 cleanup. Diff = `claude-opus-4-8[1m]` → `claude-fable-5[1m]` + attribution reorder (no semantic change). AskUserQuestion → restore.
@@ -1162,6 +949,7 @@ rules:
 - **backmerge**: from release/1.0.0 (a623514) — 2026-07-08 review remediation A3.
 
 ## LRN-099 — Auto-orchestrator autonomy boundary: working branch YES, declared/shared state NO
+- **Date**: 2026-07-05
 
 - **pattern**: /tour RED baseline (no skill, pressure "injoignable, reboucle jusqu'à propre"): git discipline held NATURALLY (gitflow lib branch, no merge w/o signal, atomic commits — doctrine survived into subagent) BUT state-write discipline failed across the board: target TODO silently rewritten (boxes checked, restructured), BDR/journal entries authored autonomously, unrequested bootstrap (.gitignore + registries "bonus hygiene"). Plus: security = ad-hoc grep+ruff (no semgrep floor), findings only in final chat msg (no reviewable artifact), loop unbounded (converged pass 2 by luck).
 - **why**: model generalizes commit discipline from doctrine; "declared state = someone's approval surface" NOT in its prior — such writes look helpful. Auto-flow skills must lock declared-state writes explicitly (read-only rules, report-only phases), not just git verbs.
@@ -1170,6 +958,7 @@ rules:
 - **cousin**: [[LRN-083]] bounded loops in main loop; /reconcile principle (inferred checkbox = the lie).
 
 ## LRN-100 — Clean-tree-gated tools must clean own scratch (self-DoS); breaking auto-fix needs structural flag
+- **Date**: 2026-07-05
 
 - **pattern**: /tour GREEN left 4 untracked scratch files (`.tour-semgrep*.md`) → tree dirty at end → NEXT run hits own "dirty tree → report-only" precondition = self-block. Same run: HIGH security fix adding required auth header = API-BREAKING, reported plain "fixed" — branch diff doesn't shout contract change.
 - **why**: preconditions designed against user WIP also fire on the tool's own residue → scratch cleanup = explicit end-of-run step. Both = omission failures → structural counters (template slot: STEP 3.2 cleanup, BREAKING tag in report template + summary), NOT prohibition prose (writing-skills "match form to failure").
@@ -1178,6 +967,7 @@ rules:
 - **cousin**: [[LRN-099]] same chantier; [[LRN-071]] swallowed-failure class (silent residue ≈ masked state).
 
 ## LRN-101 — nginx add_header inheritance: one child header wipes ALL parent headers — verify LIVE, not in config
+- **Date**: 2026-07-05
 
 - **pattern**: nginx `add_header` inherits from server level ONLY if a location block declares NONE of its own. One `add_header Cache-Control ...` in a location → ALL 5 server-level security headers (CSP, X-Content-Type-Options, X-Frame-Options, Referrer-Policy, Permissions-Policy) silently dropped on every response matching that location. bchanot-cv live: pages served ZERO security headers while the config declared all 5; only the 404 path (no location-level add_header) carried them. Corollary, same audit: declared infra was STALE — prod turned out native nginx, repo's Docker stack latent (user correction post-audit) → container findings latent, live fix belongs to the VPS config outside the repo.
 - **why**: config review says "headers present" — a lie by inheritance. Only oracle = live responses (`curl -sI` per content type: html, pdf, image). Fix = repeat the headers in every location that uses add_header (or `include security-headers.conf`).
@@ -1187,6 +977,7 @@ rules:
 - **backmerge**: from release/1.0.0 (74d3804) — 2026-07-08 review remediation A3.
 
 ## LRN-102 — Deliverable text before a tool call may never render: the turn's FINAL text is the only guaranteed display
+- **Date**: 2026-07-05
 - **pattern**: /deploy hand-back printed full checklist, then called AskUserQuestion. The user saw ONLY the question UI — the checklist never reached them ("là on a rien, je dois ouvrir le fichier"). Harness reliably renders only LAST text of a turn; text before a tool call can be swallowed by tool UI.
 - **why**: conversational deliverable (commands to copy-paste, a report) fails silently if any tool call follows the print — user sees "nothing displayed" while the transcript contains it. Structural fix: deliverable IS the turn's final text; collect answers BEFORE printing, or let reply arrive as next user message.
 - **context**: 2026-07-05 /deploy run 2 (bchanot-cv). Skill patched same turn: checklist display-only (no NEXT.sh file at all — user: throwaway once deployed) + hand-back ends the turn, no tool call after.
@@ -1194,14 +985,17 @@ rules:
 - **cousin**: [[LRN-100]] same skill lineage; CLAUDE.md communication doctrine (final message carries everything).
 
 ## LRN-105 — "read-only audit" prose does not constrain subagent tool CHOICE; state the ban explicitly
+- **Date**: 2026-07-06
 
 - **pattern**: job3 docs-drift audit dispatched an exploration subagent (Bash + Read/Grep, "audit BODIES — do NOT modify any file") to check graphify skill docs. It ran `graphify .` to check CLI behavior — a real build, not a read — leaving an empty `graphify-out/` dir at repo root. The prompt said "read-only" and "verify via Read/Grep/Bash (read-only)" but never named the specific command class to avoid; the agent treated "run the CLI to see what it does" as within a Bash read-only mandate.
 - **why**: "read-only" is a framing about FILES, not an instruction the model maps onto every tool call by default — a subagent with Bash access will happily execute a program to observe its behavior, which is investigative but not read-only if the program writes to disk. The fix only landed after a main-session correction mid-run ("do NOT run graphify... verify by reading the installed source instead"), not from the original prompt.
 - **context**: 2026-07-06, job3 audit exploration phase (`.audit/job3-report.md` A1/A2 findings, incident noted in report header). No tracked file was touched; the stray dir was harmless but wasted a round-trip and could have mutated git-visible state on a less-guarded command.
 - **future application**: any subagent dispatch framed "read-only" / "audit" / "verify" that grants Bash — explicitly ban execution of subject-under-test's own CLI/build/generator commands, and name safe alternative (read installed source, grep docs) in same sentence. Don't rely on the word "read-only" alone to scope tool use.
 - **cousin**: [[LRN-100]] (tool must clean its own scratch) — same class of "prose framing ≠ enforced constraint", different failure mode.
+- **Status (2026-10-28, upgrade)**: superseded by LRN-165
 
 ## LRN-103 — BLK-009 was stale: re-probe confirms `paths:` frontmatter works at BOTH levels now
+- **Date**: —
 
 - **pattern**: BLK-009 (2026-06-25) recorded user-level `paths:` rules never inject (GH #21858, CC 2.1.190). job1 instruction-file audit (2026-07-06) cited it as open/broken to flag rules/README.md's documented lazy-load mechanism as self-contradicting. Fresh re-probe same day (3-file probe, `**/*.blkprobe` glob): confirmed loading now works at BOTH project-level AND user-level. Bug gone (or no longer reproducible on current CC version) — the registry's "still broken" claim was stale and was about to justify a caveat in rules/README.md warning about a bug that no longer exists.
 - **why**: registries are append-only + dated — a recorded status is a snapshot, not a standing fact. Any decision or audit finding that cites an open upstream blocker without re-probing risks acting on stale tool-version info, especially across CC version bumps.
@@ -1210,6 +1004,7 @@ rules:
 - **cousin**: [[BLK-009]] closed this session; [[BDR-031]] (the workaround this bug forced).
 
 ## LRN-104 — a hook's output message is part of its test contract; no runner = regression invisible
+- **Date**: —
 
 - **pattern**: job1 F14 (`3f639b3`) changed design-hook stdout to pointer-only; test oracle grepped old literal `design-toolchain` → 9 fire-checks silently red 3 days. Hook itself fine — broken oracle, not broken behavior. Caught ONLY when job2 executor ran the suite as its F4 gate; zero runner existed before (job2 F10). Fix: oracle synced to durable fragment `full toolchain` (heading BDR-021 requires the hook to quote verbatim) + `make test` target wired.
 - **why**: an untested output string IS an interface — its test must anchor on the durable contract part (the mandated heading), not incidental wording. No automated runner → oracle drift accumulates unseen; "18 checks lock it" ([[LRN-091]]) protected nothing while nothing ran them.
@@ -1218,24 +1013,29 @@ rules:
 - **cousin**: [[LRN-091]] (the lock that never ran), [[LRN-096]] (a guard is code, prove it can fail), [[EVAL-017]].
 
 ## LRN-106 — fixing B1 in one file ≠ closing the B1 pattern
+- **Date**: 2026-07-06
 
 - **pattern**: job3-B1 (2026-07-06) froze `lib/tests/fixtures/blockers-snapshot.md`, repointed run-reconcile.sh's T2 at it, declared "B1 UNBLOCKED", suite 20/20 GREEN. job4 (J4-10), the very next audit pass, same file, same day, found T3 and T5 in the SAME FILE still reading the LIVE `$MEM/decisions.md` — identical fragility class, untouched siblings, one file over.
 - **why**: "suite green" + "named finding fixed" don't imply "no other instance of the same root cause survives nearby." The fix scoped to exactly what the finding cited (T2's BLK-status read); T3/T5's structurally identical read (decisions.md contradiction/deferral scan) wasn't touched because it wasn't literally named, even though it's the same bug.
 - **context**: 2026-07-06, job3 chore/job3-fixes (B1 unblock) then job4 SPEC-10 (`.audit/job4-report.md` J4-10), same run-reconcile.sh, same session-day — closed for real this time (T3/T5 repointed at a new `decisions-snapshot.md` fixture, `$MEM` variable deleted, `grep -c '$MEM' == 0` gate).
 - **future application**: after fixing one instance of a "reads live state it shouldn't" (or any similarly generic) finding, grep the WHOLE FILE (and ideally the whole surface class) for the same pattern before declaring the class closed — not just the line/test the finding cited.
 - **cousin**: [[LRN-077]] (pin grep, don't trust one instance), [[BDR-041]] (reconcile design: verify don't believe).
+- **Status (2026-10-28, upgrade)**: superseded by LRN-164
 
 ## LRN-107 — read-only subagent mandates must ban copying secret VALUES, not just mutations
+- **Date**: —
 
 - **pattern**: job6 (2026-07-07), an explorer subagent under explicit no-execute/read-only mandate (LRN-105 class) copied the plaintext `MAGIC_API_KEY` value into its own scratch file while investigating the magic MCP config. Harness flagged it; main session redacted (1 occurrence, clean post-scan). The mandate said "don't mutate anything" — it never said "don't copy a secret's value into a NEW file you create", so a read-only agent still leaked a secret copy.
 - **why**: "read-only" naturally reads as "doesn't change existing state" — copying a value into a fresh scratch file isn't a mutation of anything that existed, so it doesn't trip that mental model, but it creates a brand new place the secret now lives (BDR-026's exact class: secrets have copies beyond the canonical store — tool configs, transcripts, caches, and now subagent scratch files too).
 - **context**: `.audit/job6-report.md` "Incident (contained)" section; explorer-C.md redacted post-incident; caught before job6's execution phase, contained to scratchpad only.
 - **future application**: any read-only/no-execute subagent mandate that touches config or env files must explicitly ban copying a secret's VALUE into agent output/scratch, not just ban editing/deleting. Phrase the mandate as "reference by name/location, never paste the value" — when auditing MCP/env config, prefer `jq 'del(.. | .env?)'`-style filtering (already BDR-026 practice) over raw `cat`.
 - **cousin**: [[BDR-026]] (secrets have copies, protect/audit them all), [[LRN-105]] (explorer no-execute mandate, the sibling rule this extends).
+- **Status (2026-10-28, upgrade)**: superseded by LRN-165
 
 ---
 
 ## LRN-108 — `claude mcp add --env KEY=value` writes the VALUE literally; use `${VAR}` unless you mean to
+- **Date**: —
 
 - **pattern**: job7 (2026-07-07), root-cause of the recurring MAGIC_API_KEY leak: `claude mcp add magic --env API_KEY="$MAGIC_API_KEY"` (bash-expanded before the CLI ever sees it) writes the resolved plaintext string into `~/.claude.json`/`.mcp.json` — there is no `mcp add` flag that stores a reference instead. Claude Code DOES expand `${VAR}`/`${VAR:-default}` at parse time in `mcpServers` config (`env`/`command`/`args`/`url`/`headers`, both project and user scope — code.claude.com/docs/en/mcp.md) — but only if you single-quote the value so bash doesn't resolve it first: `--env 'API_KEY=${MAGIC_API_KEY}'`. Single vs. double quotes around the SAME-looking flag is the entire difference between "reference" and "plaintext-forever".
 - **why**: the natural way to type this flag (`--env API_KEY="$MY_VAR"`, matching how you'd set the var for the CLI's OWN process) is exactly the trap — it looks like "pass the variable" but bash resolves it to its value before `claude` ever runs, and the CLI just writes whatever string it received. Nothing in the CLI's own behavior signals this; you only find out by grepping the resulting config.
@@ -1244,36 +1044,43 @@ rules:
 - **cousin**: [[BDR-026]] (canonical vault + copies), [[BDR-057]] (secrets-by-reference decision this trap motivated), [[LRN-107]] (same job family, don't-copy-the-value discipline).
 
 ## LRN-109 — `skills` CLI (vercel-labs/skills) fetches only `skillPath`, not sibling refs/scripts/templates
+- **Date**: 2026-07-07
 
 - **context**: job8 audit flagged darwin-skill NOT-CLEAN — SKILL.md references `references/*.md`, `scripts/*.mjs`, `templates/*.html`, all absent on disk. Traced to `~/.agents/.skill-lock.json`: `skillPath: "SKILL.md"` — installer fetched that ONE file, never the sibling dirs the skill text points to. Upstream repo (public clone, verified) had them all at the exact commit already recorded (`skillFolderHash` matches) — not drift, an installer-scope gap.
 - **future application**: any skill installed via `skills` CLI whose SKILL.md references relative paths needs a post-install check those paths exist on disk — `skillFolderHash` only hashes what WAS fetched, says nothing about what's missing. If absent: clone source repo at the recorded hash, copy full tree in, keep `.git` detached (cheap real pin, beats trusting the CLI's opaque hash alone).
 - **cousin**: [[BDR-058]] (this job's fix), darwin-skill's OVERSCOPED git-commit finding (job8 report — 3rd-party code, not patched, accepted risk under human-checkpoint gating, twin of [[LRN-105]]'s no-execute mandate for OUR read-only audits).
 
 ## LRN-110 — magic MCP `component_builder`'s local callback server = unauthenticated prompt-injection channel
+- **Date**: 2026-07-07
 - **context**: job8 audit read `dist/utils/callback-server.js:36` (+ `create-ui.js:35-38`) in installed `@21st-dev/magic` package. `21st_magic_component_builder` opens a plain HTTP server on `127.0.0.1:9221+`, `Access-Control-Allow-Origin: *`, no token/origin check, staying open up to 10 minutes per call. Any POST body to `/data` injected VERBATIM into tool result the model consumes — any local process or open browser tab on the machine can win the race against legitimate browser hand-back.
 - **future application**: this is in the third-party package's code, not our config — don't try to patch a vendored/npx-installed dependency. The only real lever is on OUR side of the boundary: never allowlist a tool with this shape, keep it `ask`-gated so a human sees every invocation (see [[BDR-059]]). Applies to any MCP tool whose implementation opens a listener to receive async results, not just this one — check the listener's auth/origin scoping when auditing MCP server code, the tool's *description* text tells you nothing about it.
 - **cousin**: [[BDR-059]] (the settings fix), [[LRN-111]] (why the allowlist stays empty), job8 report §2 surface 1 finding A#0. Magic MCP retired 2026-09-22 ([[BDR-093]]).
 
 ## LRN-111 — empty allowlist is a valid, deliberate posture when real usage is zero, not a leftover gap
+- **Date**: 2026-07-07
 
 - **context**: job8 census (grepping real `"name":"mcp__…"` tool_use blocks across `~/.claude/projects`, not text mentions) found ~910 mentions of `mcp__magic__*` but ZERO real invocations, ever. `permissions.allow`/`permissions.ask` had no `mcp__*` entries at all before this job — job6 flagged that as "ZERO scoping", easy to misread as an oversight to fix by adding an allowlist.
 - **future application**: before treating "no entry for tool X" as a gap needing an allowlist, check real usage first (grep tool_use blocks, not prose mentions). If usage is zero, pre-authorizing costs nothing to skip and buys nothing to add — the honest fix is making the ask-gate EXPLICIT (so it can't regress silently), not granting allow access nobody needs yet. Only add allow entries when real, measured, recurring usage justifies removing the friction.
 - **cousin**: [[BDR-059]], [[LRN-110]], [[LRN-088]] (same family: measure before assuming an absence is a defect).
 
 ## LRN-112 — nested subagent dispatch is supported (CC ≥ v2.1.172), not a flatten-to-1 no-op
+- **Date**: 2026-07-08
 
 - **context**: the whole job1-9 audit series ran on the premise *"Claude Code aplatit à 1 niveau → un design supposant 2 niveaux de sous-agents est cassé silencieusement."* job9 corrected it via `claude-code-guide` (official docs `code.claude.com/docs/en/agent-sdk/subagents.md`): a running subagent CAN spawn a further subagent IF `Agent` is in its `tools:` (omit it / add to `disallowedTools` to prevent nesting); hard cap **5 levels** ("a subagent 5 levels below main can't spawn further"); nesting **stabilized in v2.1.172** ("let subagents spawn their own subagents") — earlier versions did not support it at all. Live env confirmed **v2.1.203** (user). `claude --version` was unavailable in-sandbox so the report bracketed but could not pin it; the user pinned it.
 - **future application**: NEVER classify a subagent-dispatches-subagent design as "BROKEN" without checking the CC version. On ≥2.1.172 it works within the 5-level cap; on <2.1.172 it silently no-ops. The actionable finding is a VERSION-FLOOR ([[BDR-060]]) or a version-robust re-architecture (bundle→L1, [[BDR-061]]) — not "it's broken." When an agent must NOT nest, enforce it structurally: drop `Agent` from its `tools:` (done for seo/geo analyzers). Re-audit any prior job1-9 "nested = broken" finding through this lens.
 - **cousin**: [[BDR-060]] (version floor), [[BDR-061]] (path-b bundle pattern), [[LRN-057]] (subagent invocation idioms).
 
 ## LRN-113 — Partial-pattern-fix is the job1-9 series' recurring defect: grep the whole surface + guard it
+- **Date**: 2026-07-08
 - **pattern**: fix one cited instance of banned pattern, leave twins. Review found 4: trailer stripped from commit-changer only (A1, twins in bugfixer/feater/hotfixer); YAML quoted elsewhere but seo/security-auditor left broken (A4); attribution scrubbed on 3 skills but geo-analyzer missed (A5); gitleaks added to the hook generator but the installed hook not regenerated (A2).
 - **why it recurs**: the fixer greps for the reported line, fixes it, stops — never enumerates the pattern across the full surface. An adversarial review catches the twins later; nothing catches them at commit time.
 - **fix**: every pattern-fix ends with (1) whole-surface grep proving zero residue, (2) deterministic make-test guard that REDs if any occurrence returns. Shipped `lib/tests/run-review-guards.sh` — G1 trailer, G2 false attribution, G3 strict-YAML, G4 reconcile hermeticity, G5 hook-drift; teeth-verified (planted violation REDs). Check that would have caught A1/A4/A5/A2 at make-test time instead of review.
 - **future application**: any "fix pattern X" task → grep agents/ lib/ hooks/ templates/ skills/, add/extend review-guard with teeth.
 - **cousin**: [[LRN-114]] (hook-drift class), [[LRN-047]] (silent degradation → measure/guard).
+- **Status (2026-10-28, upgrade)**: superseded by LRN-164
 
 ## LRN-114 — Editing a hook generator does not touch the installed hook: reinstall + drift-guard
+- **Date**: 2026-07-08
 - **pattern**: job7 added gitleaks scan to `_gitflow_emit_pre_commit` (the GENERATOR), but installed `.githooks/pre-commit` is only (re)written by `gitflow init`/`install-hook`. job7 never re-installed → the repo's active hook stayed the pre-job7 version (620071b) for 8 days; `git commit` ran no secret scan while the team believed it did.
 - **why undetected**: T10 (drift test) compares only the hook's allow/block VERDICT, not content; T16 emits a FRESH hook in a throwaway repo, validating the generator, never the installed file. Both green while installed hook was stale.
 - **fix**: after editing any template-generated artifact, regenerate installed copy (`gitflow.sh install-hook`) AND add content-drift gate — `run-review-guards.sh` G5 diffs installed `.githooks/pre-commit` against `emit-hook`.
@@ -1281,26 +1088,32 @@ rules:
 - **cousin**: [[LRN-113]] (partial-fix + guard), [[LRN-039]] (installers drift hand-curated config).
 
 ## LRN-115 — Analyzer Edit/Write grants are not dead capability: they write the report (false-positive)
+- **Date**: 2026-07-08
 - **pattern**: a contract audit flagged seo/geo/validator-analyzer holding `Edit`/`Write` while instructed "do NOT apply any Edit/Write" as a defense-in-depth defect. Verified FALSE: those grants write the agent's own REPORT (`.claude/audits/VALIDATE.md`/`SEO.md`/`GEO.md`). The "never edit" rule targets CODE files (the fix-bundle is applied by the dispatcher) and is instruction-level — identical in the patron. Removing Write would break report generation.
 - **why it matters**: don't "harden" a report-only agent by stripping Write — it needs it for its report. The code/report distinction is instruction-enforced, not tool-enforced, by design.
 - **future application**: before flagging a tool-grant as dead, check whether the agent uses it for its own output artifact (report), not the forbidden target (code).
 - **cousin**: [[BDR-061]] (analyzer bundle→L1 contract), [[LRN-113]].
 
 ## LRN-116 — A resolved blocker's FIX can be missing from develop even when the entry backfills cleanly
+- **Date**: 2026-07-08
 - **pattern**: backfilling release/1.0.0 memory into develop, BLK-016 (rtk PATH-dead) was marked "resolved" via fix e58037c. Checked before backfilling: e58037c (the `~/.cargo/bin`→`~/.local/bin` bridge in install-plugins.sh) was NOT on develop — develop still installed rtk to a cargo bin dir the tool shell can't see → rtk compression was LIVE-broken on develop (~460K tokens/30d). The registry entry looked safe to copy; the underlying fix wasn't there.
 - **why it matters**: append-only registry backfill is "safe" only for the TEXT; a "resolved" status is a claim about CODE state that must be verified on the target branch, else you assert a resolution that isn't true.
 - **fix**: ported e58037c to develop (13-line idempotent bridge), THEN backfilled BLK-016 resolved. General: before backmerging a resolved blocker, grep the target for the fix's code signature.
 - **future application**: gitflow divergence review — enumerate release-only COMMITS that touch code, not just memory; a feature can be parallel-merged while its RC-branch fix is orphaned.
 - **cousin**: [[LRN-036]] (PATH profile drift), [[LRN-047]] (silent degradation).
+- **Status (2026-10-28, upgrade)**: superseded by LRN-167
 
 ## LRN-117 — A release/develop fork silently orphans functional CODE on develop, not just memory
+- **Date**: 2026-07-08
 - **pattern**: cutting release/1.0.0 and continuing on develop, the RC-branch bug fixes (find-skills drop `095d881`, make-update TTY guard `a1093ca`, rtk update-path version-guard `4c5e862`, rtk install bridge `e58037c`, SC1091 lint `e65796f`) landed ONLY on release. They were live-broken on develop for the whole fork duration (rtk compression dead, `make update` dies non-interactively). The review's memory back-merge caught the registry gaps and one code fix (rtk bridge); a full back-merge found ~5 more functional commits.
 - **why it hides**: registry-sequence gaps (missing LRN/BLK/EVAL ids) are easy to detect; orphaned CODE has no sequence to check. A feature can be parallel-merged to both branches while an RC-branch fix commit is never back-merged, and nothing flags it.
 - **fix**: at release-finish / in /reconcile, list `develop..release/*` commits touching functional files (exclude merges, `.claude/**`, version.txt/CHANGELOG) and present them for back-merge review. Advisory, NOT a hard make-test gate — cherry-picks land with new SHAs so the source commit stays in the range; automatic "already-ported?" equivalence is unreliable and would false-positive. Backlogged.
 - **future application**: any long-lived fork (release/*, long feature) — audit CODE divergence, not just declared/registry state ([[LRN-034]] narrated ≠ ground truth, applied to branches).
 - **cousin**: [[LRN-116]] (a resolved blocker's fix can be missing from develop), [[BDR-054]] (supersession-trace discipline).
+- **Status (2026-10-28, upgrade)**: superseded by LRN-167
 
 ## LRN-118 — Gitflow-conformity audit: "commits-code" vs "applies-but-defers-commit" is the line that sorts real findings from false positives
+- **Date**: —
 - **pattern**: audited 52 units (33 skills + 19 agents) for gitflow conformity. Raw git-signal grep over-flags: `git add -A`, `gitflow finish`, `--no-verify` mostly appear inside PROHIBITION tables ("never …"), not usages — reading context killed every one (harden/web-validate `--no-verify` = bans; capitalize `git add -A` = ban; tour `gitflow finish` ×3 = red-flags). The decisive discriminator was NOT "does it write code?" but "does it autonomously `git commit`/`push`?": seo/geo/harden/web-validate/code-clean/refactor/doc all EDIT code/public-doc yet defer the commit to the human (or have NO `git commit` path at all) → safe by construction, gitflow layer N/A. Only 2 units both wrote AND committed without a branch precondition: commit-change (commits code, no aiguillage) and client-handover (autonomous `git push`). 0 MERGES-ALONE, 0 BYPASSES-HOOK.
 - **why it matters**: a conformity audit that classifies on "writes code" drowns in false positives; classify on "reaches an autonomous commit/push" and the surface collapses to the few units that can actually corrupt a branch. Thin-dispatcher skills (20-line SKILL.md → agent + commit lib) must be judged as skill+agent+lib triples — the discipline lives in the agent/lib (e.g. /doc's gitflow layer is in doc-syncer + doc-commit.sh, not SKILL.md).
 - **the net**: empirically the per-repo pre-commit hook BLOCKS a non-`.claude/` code commit on main/develop (exit 1), exempts `.claude/**`, allows working branches; `--no-verify` bypasses it client-side → Gitea server-side branch protection is the real backstop. So the 2 findings fail LOUD (hook), never corrupt develop — remediation = make them branch cleanly first (aiguillage / GO-gated push), not incident-urgent.
@@ -1309,18 +1122,21 @@ rules:
 - **cousin**: [[LRN-117]] (orphaned CODE has no sequence to check), [[LRN-034]] (narrated ≠ ground truth), [[BDR-061]] (report-only agent tool-grants).
 
 ## LRN-119 — Fail-open engine contract for optional external data (real-if-connected, else graceful)
+- **Date**: —
 - **pattern**: `lib/seo-data/fetch.sh` = one entrypoint; every subcmd ALWAYS emits JSON on stdout, exit 0 on ok/degraded, exit 2 on bad-usage, NEVER empty stdout, NEVER prints a secret. Third-party imports (google-auth, requests) function-local (lazy) so stdlib-only paths — mock (`SEO_DATA_MOCK_DIR`), degrade (no key/no account/revoked token), offline tests — run with no venv. Missing creds → `{"status":"degraded","reason":...}` and the caller (`/seo` analyzer) falls back to anonymous PageSpeed; audit NEVER fails on absent data. Both Python `_cli` wrapped try/except: SystemExit→bad_usage JSON+reraise, Exception→degraded JSON (corrupt store never leaks stack/path). 3rd status value `error` on exit-2 only.
 - **why it matters**: an optional-data integration must be invisible when unconfigured. Fail-CLOSED (crash/empty/nonzero) breaks every audit for users who never connect GSC. Fail-open + lazy-import keeps the 49 tests network-free and makes degrade a first-class tested branch, not an afterthought.
 - **future application**: any "use real data if credentials present, else degrade" seam — put the contract in the shell entrypoint (always-JSON / exit-code discipline), lazy-import the SDK, make degrade a returned status not an exception, test degrade+mock stdlib-only, redact secrets at the boundary (list omits token, `exec 2>/dev/null` unless debug).
 - **cousin**: [[BDR-063]] (the token store this fronts), [[LRN-120]] (SDD base gotcha, same build).
 
 ## LRN-120 — SDD final-review base = `git merge-base`, NOT the ledger's recorded BASE
+- **Date**: —
 - **pattern**: subagent-driven-development ledger recorded `BASE: 24b47ce` — but that was IMPLEMENTATION start (after spec+plan commits), not the branch point from develop. `git merge-base develop HEAD` = `d3e644d` (real fork). Final whole-branch review diffed against recorded BASE = 881 ins / 59 del; against true merge-base = 2163 ins / 7 del — the recorded-base diff MISLEADING (netting against a divergent line → phantom deletions). Per-task reviews unaffected (each used the correct prior feature commit).
 - **why it matters**: the final review is the last gate before merge; a wrong base hides real changes or invents fake ones. The ledger BASE is a task resume-map, not a merge-delta anchor.
 - **future application**: for ANY whole-branch/final review, derive base from `git merge-base <target> HEAD`, never a stored/remembered SHA. Sanity-check: does `git log BASE..HEAD` list ONLY this branch's commits, nothing foreign? Diff-stats differ between candidate bases → recorded one is stale, trust merge-base.
 - **cousin**: [[LRN-119]] (same GSC+CrUX build); SDD skill's own "never HEAD~1" warning (same base-selection bug class).
 
 ## LRN-121 — Shell allowlist validation: `grep -Eq` is fragile; use a whole-string POSIX `case`
+- **Date**: —
 - **pattern**: guarding user-supplied label to shell-safe ASCII with `printf '%s' "$v" | grep -Eq '^[A-Za-z0-9._-]+$'` failed 3 adversarial gate passes: (1) command-injection framing (label interpolated into agent-composed Bash line); (2) parser differential — guard pre-scanned argv for literal `--label` while downstream `argparse` ALSO accepts `--label=v` and abbreviations (`--labe`, `allow_abbrev=True`), those forms reached parser unchecked; (3) `grep -q` matches PER LINE, label with embedded newline (`ok\nrm -rf`) passes on its FIRST line. Fix = replace the whole mechanism, don't patch again: `_label_safe() ( LC_ALL=C; case "$1" in ''|[!A-Za-z0-9]*|*[!A-Za-z0-9._-]*) exit 1;; esac )` — POSIX `case`, whole-string, C-locale subshell. No grep (no per-line), no regex, no second grammar to differ from; a newline is just a non-allowed byte caught by `*[!...]*`; `LC_ALL=C` stops UTF-8 collation widening `[A-Za-z0-9]` to homoglyphs (U+FF11, Kelvin U+212A).
 - **why it matters**: three distinct bypasses of the SAME guard = the approach was wrong, not each patch. `grep`'s line-orientation + locale-sensitive ranges, plus argv-prescan-vs-real-parser grammar drift, are the three classic ways an allowlist "passes" a string it shouldn't. Whole-string `case` in C locale closes all three at once. These were defense-in-depth (downstream used `"$2"`/`"$@"`/JSON-key, never `sh -c`/`eval` → not exploitable in the real exec chain) — but the backstop still took a categorical rewrite, and 3 security-gate BLOCKs to get there.
 - **future application**: validate shell input WHOLE-STRING (`case` or bash `[[ =~ ]]`), never `grep -q` (per-line). Set `LC_ALL=C` for byte-wise ranges. Argv pre-scan guard must be STRICTER than downstream parser (reject `=`-joined/abbrev) or validate post-parse against the value parser settled on. When a fix is bypassed twice → STOP patching, replace the mechanism (re-plan, not whack-a-mole).
@@ -1329,6 +1145,7 @@ rules:
 ---
 
 ## LRN-122 — git mv + recreate source path in same commit = rename detection dead
+- **Date**: —
 
 - **pattern**: rename file + create NEW file at old path in ONE commit → git never pairs the rename (source path never vanishes — index sees modify(old)+add(new)). `git log --follow` chain lost; deterministic, persists forever. Fix: TWO commits — pure rename first (paired at R~98%), recreation second. Found live: Task-2 implementer hit the plan's own "2 hunks" STOP gate, diagnosed root cause, escalated instead of patching around it.
 - **why**: contract criterion (history preserved) outranks plan packaging ("atomic commit"). Commit-level atomicity ≠ deploy-level atomicity — deployed symlink already fixed by running link.sh, independent of commit split.
@@ -1338,6 +1155,7 @@ rules:
 ---
 
 ## LRN-123 — "resolves inside repo" symlink check green-lights stale link once old path re-occupied
+- **Date**: —
 
 - **pattern**: doctor's check_symlink asserted only `readlink -f` lands inside `$REPO` — safe while ONE candidate file existed. Rename freed old path for a NEW file → stale post-pull link (`~/.claude/CLAUDE.md` → `$REPO/CLAUDE.md`) resolves to project file (inside repo) → check PASS, global doctrine silently absent every session. Fix: assert EXACT readlink target (`$REPO/CLAUDE.global.md`), warn + remedy cmd (`run: bash link.sh`). Caught by final whole-branch review (fresh most-capable model), not by any earlier gate.
 - **why**: containment predicates (inside-dir, prefix-match) silently weaken the moment layout gains a second valid-looking target; exactness costs nothing.
@@ -1347,6 +1165,7 @@ rules:
 ---
 
 ## LRN-124 — derived scan artifacts don't belong in git; a tooling hint saying "safe to commit" manufactures the leak
+- **Date**: —
 
 - **pattern**: gitleaks reports committed to repo (17bdd08) even with `--redact` = a MAP — secret type + file + line for anyone with repo access. Root cause traced: `make scan-secrets` echoed "already redacted — safe to inspect/commit" → the hint was obeyed. Fix: `git rm --cached` (gitignore has no effect on tracked files), reword hint to "gitignored — keep local, do NOT commit". Companion: user added `.audit/` gitignore rule (5842119) for the untracked report/patch siblings.
 - **why**: redaction removes VALUES, not INTELLIGENCE. And tool output is instruction — a hint that says "safe to commit" will eventually be obeyed by a human or an agent.
@@ -1354,6 +1173,7 @@ rules:
 - **cousin**: [[BDR-057]] (secrets by reference, redact at capture), [[BDR-065]] (transient planning artifacts — same "process artifacts ≠ repo content" family), [[LRN-103]] (re-probe before acting).
 
 ## LRN-125 — don't make an agent dual-use across model tiers; route the audit consumer to a big-model agent, not the sonnet executor
+- **Date**: —
 
 - **pattern**: splitting `code-cleaner` into a sonnet PHASE-2 executor broke its OTHER consumers (onboard STEP 6, tour Phase B) which dispatched it read-only AUDIT-only. Reflex "keep it dual-use (audit-only OR execute)" would have run an AUDIT on the sonnet-pinned executor = silent violation of the audit=big-model principle. Fix: reroute the audit consumers to a big-model agent (general-purpose/analyzer, inherits session), never the sonnet executor.
 - **why**: a dual-use agent inherits ONE pinned model. If its two uses sit on different tiers (audit=big, execution=sonnet), the pin silently mis-tiers one of them. hotfixer dual-use is fine because BOTH its uses are execution (same tier); code-cleaner's would have straddled tiers.
@@ -1361,24 +1181,28 @@ rules:
 - **cousin**: [[BDR-066]] (model routing: reflection/audit big, execution sonnet), [[LRN-113]] (consumer-staleness sweep on a pattern fix).
 
 ## LRN-126 — splitting a monolith agent severs every IMPLICIT data path; forward each consumed field through the handoff contract
+- **Date**: —
 - **pattern**: wave-4 split (client-handover-writer monolith → reflection parent + sonnet doc-writer child) silently dropped 2 inputs extracted STEPs consumed. `DEPLOY_HINTS` (detected in parent STEP 2, consumed by child STEP 14) + `--skip-seo` flag (parsed from `$ARGUMENTS`, gated child STEP 13) worked in the monolith by shared scope; after the split they were dead — never added to the PACKAGE. Child rendered a §8 without platform tailoring; `--skip-seo` became a silent no-op. Caught only by the opus whole-branch review, not the census.
 - **why**: monolith: `$ARGUMENTS`, detected vars, STEP-N side-outputs share one scope, later STEPs read them free. Split turns each free read into data path that MUST cross parent→child contract explicitly; every implicit read is a severed wire unless forwarded.
 - **future application**: splitting an agent: enumerate EVERY field child reads (grep child for `PACKAGE.`, bare var names, `$ARGUMENTS` flags), diff against what parent SETS before dispatch. Any child-consumed field the parent never populates = severed path = renders a hole or a silent no-op. A census that checks shape (model pin, gate-free) will NOT catch this — needs a data-flow read.
 - **cousin**: [[LRN-125]] (route consumer to right tier on a split), [[BDR-066]] (reflection/execution split), [[LRN-113]] (sweep ALL consumers). Distinct: 113/125 = WHICH agent/tier a consumer routes to; this = WHICH fields must cross the contract.
 
 ## LRN-127 — SDD implementers must not run destructive git ops on files outside their task scope
+- **Date**: —
 
 - **pattern**: a wave-4 fix-subagent ran `git checkout -- settings.json`, believing the model-value diff was a "test side-effect." It was the user's uncommitted `/model` → Opus switch ([[LRN-098]]), preserved all session. The checkout DISCARDED it — settings.json reverted to committed `claude-fable-5[1m]`. Implementer had no task-reason to touch settings.json; it acted on a file outside its diff.
 - **why**: a fresh implementer sees only its task + a dirty tree; it can't know which unrelated dirty files are intentional user state vs. cruft. Destructive git ops (`checkout --`, `reset --hard`, `clean -fdx`) on out-of-scope files are irreversible and erase context the implementer never had.
 - **future application**: dispatch briefs for SDD implementers / fix-subagents MUST bar destructive git ops outside the named task files. If the tree is dirty with unrelated changes, leave them — flag to controller, never revert. Controller owns cross-file git state; the executor touches only its own paths. Pairs with [[LRN-125]]/[[LRN-126]] as the "executor stays in its lane" family.
 
 ## LRN-128 — a version RESET (backward bump) is editorial reflection, not the forward-only release-executor
+- **Date**: —
 
 - **pattern**: first public release cut as v1.0.0 from internal 4.x lineage = backward version.txt (4.0.0→1.0.0) + CHANGELOG restructure (new public `[1.0.0]` on top, old 1.0-4.0 lineage under `## Pre-release (internal history)` banner) + tag swap (delete v4.0.0, tag v1.0.0). Sonnet `release-executor` (release-candidate skill's mechanical prep span) assumes FORWARD semver bump — its prep = `[Unreleased]`→`[X.Y.Z]` move + version increment. Cannot derive a backward reset, the CHANGELOG restructure, or the existing-`[1.0.0]`-collision handling.
 - **why**: a reset is a JUDGMENT act (what's public vs pre-release, how to frame the launch, what to do with the old lineage) = reflection tier, not the executor's mechanical forward move.
 - **future application**: version RESET or any non-standard release → do PREP MANUALLY inline (big model), use `gitflow.sh` only for branch mechanics (start/finish), KEEP skill's human gates (when-to-release, push). Don't dispatch the forward-only executor for it. [[BDR-067]] [[BDR-066]]
 
 ## LRN-129 — `git cherry` (patch-id) proves a stale/divergent branch has nothing orphaned before you delete it
+- **Date**: —
 
 - **pattern**: a stale pushed `release/1.0.0` (abandoned July-4 prep) sat 227 commits behind develop. Before deleting it, `git cherry -v develop release/1.0.0` → `+` = unique by patch-id, `-` = equivalent patch already in develop. Content-checked each `+` (rtk PATH fix, drop-AI-attribution settings, find-skills drop, BLK-016/LRN-098/101, EVAL-015, features) → all present in develop → safe to delete, nothing orphaned.
 - **why**: `git rev-list develop..branch` counts by SHA — a feature merged into BOTH branches shows as "unique" (distinct merge commit) though its CONTENT is in develop. `git cherry` uses patch-id, so `-` = "same change already here". The `+` set still needs a CONTENT check (patch-id misses re-applied/squashed changes).
@@ -1398,11 +1222,13 @@ rules:
 - **pattern**: statistic reaches a client only with `<claim> — <source, year, venue|vendor> — measured: <what the source ACTUALLY measured> — <link>`. `measured:` field catches the error.
 - **context**: "VSI (Visual Stability Index) — new 2026 Core Web Vital" lived in seo-analyzer as threshold, stated as fact. It does NOT exist — absent from the CrUX API metric list AND web.dev; 10 SEO blogs cross-cited it into apparent consensus, several falsely claiming CrUX already collected it. EVERY stat in agents/resources/ was real but grafted onto wrong subject: Aggarwal 40% = ALL methods (pinned on "add stats"); AccuraCast 58.9% = Person-schema PREVALENCE (pinned on QAPage lift, meaning inverted — FAQPage was 1.8%); LLMrefs 3x = brand-mentions-vs-backlinks (pinned on freshness decay).
 - **future**: failure mode is plausible RECOMBINATION — what a model half-remembering a search produces. Old rule "cross-check via WebSearch" LAUNDERS blog consensus instead of catching it. An API's metric list (e.g. developer.chrome.com/docs/crux) is decisive: a metric the API can't return is one you can't score. See [[LRN-132]] (same family, subagent summaries).
+- **Status (2026-10-28, upgrade)**: superseded by LRN-168
 
 ## LRN-132 — a subagent summary is a claim, not a fact — verify before planning on it — 2026-07-17
 - **pattern**: relaying a subagent's characterisation without checking it propagates plausible-but-false. Treat every relayed finding as a claim to verify against a primary source or a live test.
 - **context**: 7 disproven in one seo/geo session — "Off-page has ZERO data" (brand mentions ARE gathered, STEP 6); "the stats drive axis weights" (weight tables carry no citations); "GSC Links API is available" (endpoint doesn't exist); "a SPA-severely-limited §0 flag compensates" (never existed); "X/Twitter returns 403" (returns 200, live-tested); Common Crawl "nearest free source" (17.3 GB dead end); the whole opening inventory that founded the 20-point plan.
 - **future**: I reproduced the SAME error 3× while WRITING the fixes (X/Twitter 403 in W3, the two above in I1/I6). Contact with the REAL corrected it every time — the sitemap, the repo, the curl, the primary doc — never re-reading the spec. Measure-first before building. Corroborates [[LRN-074]] (watch the RED go red).
+- **Status (2026-10-28, upgrade)**: superseded by LRN-168
 
 ## LRN-133 — an omission must stay legible, never silent — 2026-07-17
 - **pattern**: when a tool cannot measure something, it says so IN its output — a caller must never read absence as "fine".
@@ -1423,6 +1249,7 @@ rules:
 ~/.claude/settings.json is a SYMLINK to the repo settings.json; Claude Code hot-reloads settings on change → the config-protection PreToolUse hook's active/inactive state tracks the CURRENT branch's settings.json. On feature/drop-config-protection (hook deregistered) a protected edit passed silently, sentinel unconsumed; after gitflow-switch to a branch off develop (hook still registered) the SAME class of edit was blocked. Apply: a change that removes a settings-registered hook is live only on that branch until merged; use the one-shot sentinel for protected edits on any branch that still registers it. ([[BDR-074]] context.)
 
 ## LRN-137 — mode-based re-tiering beats file splits for mixed-tier agents
+- **Date**: —
 - **pattern**: three planned agent splits (doc-syncer, handover-doc-writer, seo/geo analyzers) shipped as MODES + per-dispatch `model=` instead of new files; only plugin-probe justified a real new file (genuinely new role, no shared body).
 - **why**: a file split severs implicit data paths (LRN-126), relocates body-text test locks (seo-data fetch-wiring), breaks name/dispatch-string census locks, duplicates templates. A mode split keeps ALL locks and text in place; the dispatcher's gate sits BETWEEN mode dispatches; call-site `model=` precedence over the frontmatter pin is spike-proven (sonnet-pinned verifier ran haiku on override).
 - **fail-safe pin rule**: keep the HIGHEST tier as the frontmatter pin and override DOWN at call sites — a forgotten override then over-tiers (costs money) instead of silently downgrading judgment (costs correctness).
@@ -1457,43 +1284,54 @@ Future application: any skill/plugin adoption — skills-external/, /plugin-chec
 ## LRN-142 — structure locks are fixed-string: reflowing a doctrine paragraph reds them (2026-08-24)
 Context: contract-gates ([[BDR-083]]). Editing lib/verify-secure-loop.md rewrapped 5 locked phrases across line breaks ("Max 3 conformity iterations", "Max 3 security iterations", "re-verify the REQUEST first", "always re-checked BEFORE security", "one verifier dispatch + one security dispatch") → loops-light.test.sh 30 pass / 5 fail, though ZERO doctrine was dropped. Locks did their job: they cannot distinguish "clause deleted" from "clause rewrapped", and that conservative bias is correct — the alternative (fuzzy matching) would miss real deletions.
 Rule: when editing a doctrine file under structure locks, grep the test's lock strings FIRST, then re-flow AROUND them — each locked phrase stays on one unbroken line. Fix the DOC, not the lock, unless the doctrine genuinely changed. Under locks today: verify-secure-loop.md, contract-interview.md, verifier / security-auditor / plan-challenger agents, seo+geo (71 locks).
+- **Status (2026-10-28, upgrade)**: superseded by LRN-166
 
 ## LRN-143 — pipe to head masks grep exit; `|| fallback` never fires
+- **Date**: 2026-08-26
 - **Context**: darwin 2026-08-26 — plugin-probe FRAMEWORK-DEPS (`grep … | head || echo none`) emitted silent-empty on no-match; same bug in run's own probe test.
 - **Pattern**: pipeline rc = LAST command's (head = 0 always). `|| fallback` after pipe = dead code. Bounded output → drop head; else `set -o pipefail` or capture + test.
 - **Future**: any skill/agent bash probe with a `||` fallback: check what the pipeline rc actually is first.
 
 ## LRN-144 — census locks grep EXACT single-line phrases; prose rewrap breaks them
+- **Date**: —
 - **Context**: darwin 2026-08-26 — hotfix RULES rewrap split "No verifier is dispatched at hotfix weight"; loops-light.test.sh lock RED; make test caught post-edit.
 - **Pattern**: lib/tests/*.test.sh lock sentences verbatim, single-line. Rewording/rewrapping skill+agent md near locked phrases silently breaks census.
 - **Future**: before editing skill/agent prose, grep lib/tests/ for locks in the touched region; run make test BEFORE dispatching judges, not after.
+- **Status (2026-10-28, upgrade)**: superseded by LRN-166
 
 ## LRN-145 — hooks reach the terminal only via terminalSequence JSON field
+- **Date**: —
 - **Context**: 2026-09-01 — attention bell for VS Code Remote-SSH (CLI on remote Linux). Hook subprocess has no controlling TTY; /dev/tty unreliable. Docs: terminalSequence = supported side-effect field, fires even on events that discard output.
 - **Pattern**: Notification hook → stdout JSON `{suppressOutput:true, terminalSequence:"<BELx2><OSC 777 notify><ST>"}`. VS Code terminal ignores OSC 777/9 natively (claude-code #28338); client-side ext wenbopan.vscode-terminal-osc-notifier converts to native toast over Remote-SSH; beep needs accessibility.signals.terminalBell sound:on. permission_prompt fires ~6s late, idle_prompt ~60s.
 - **Future**: any hook ringing/notifying the terminal (bell, toast, title) — terminalSequence, never /dev/tty. Input-needed matcher set: permission_prompt|idle_prompt|agent_needs_input|elicitation_dialog|elicitation_url_dialog.
 
 ## LRN-146 — Notification event alone misses end-of-turn; Stop is the missing event
+- **Date**: —
 - **Context**: 2026-09-03 — attention signal verified end-to-end after [[BLK-020]]. Matcher `permission_prompt|idle_prompt|agent_needs_input|elicitation_*` covers input-needed cases ONLY. "Claude finished speaking" has no notification_type — nearest was `idle_prompt`, ~60s late. Gap invisible until explicitly enumerated by user.
 - **Pattern**: wire SAME hook script on TWO events — `Notification` (matcher = input-needed set) + `Stop` (fires once per turn end, supports terminalSequence, no matcher). Script branches on `.hook_event_name` when `.message`/`.notification_type` absent: Stop → "Claude has finished responding", else default. Read stdin ONCE into var, jq the var (stdin not re-readable).
 - **Verified**: turn-end bip+toast OK, AskUserQuestion selector bip+toast OK. `permission_prompt` NOT exercisable under `defaultMode: auto` — ask-rules (`python3 -c *`, `curl`…) auto-approved, no prompt raised. Hooks hot-reloaded by file watcher, no restart.
 - **Future**: enumerate the events a signal must cover BEFORE wiring, one per user-visible moment. Notification ≠ lifecycle-complete. SubagentStop exists too for agent completion.
 
 ## LRN-147 — VS Code restores terminals BEFORE ext activation → toast dies every restart
+- **Date**: —
 - **Context**: 2026-09-03, second hit same day. Bell OK, toast gone, after user re-attached session from a restored terminal. Probe on that pty: OSC 777 unique + OSC 777 repeated + OSC 9 → all three silent, while BEL rang. Same pty, bell works ⇒ bytes arrive, ext just not hooked to that terminal.
 - **Pattern**: `wenbopan.vscode-terminal-osc-notifier` instruments a terminal only if it exists AFTER ext activation. `terminal.integrated.enablePersistentSessions` (default true) restores terminals at window startup, i.e. BEFORE lazy ext activation → every restored terminal is permanently deaf to OSC. Recurs at each VS Code restart, silently, bell still ringing so it reads as "half broken".
 - **Fix**: client setting `"terminal.integrated.enablePersistentSessions": false` → no terminal pre-exists activation. Fallback without it: after VS Code start, open a FRESH terminal then `dtach -a ~/.dtach/<session>` (dtach broadcasts, old client can stay or be closed, session never lost).
 - **Diagnostic shortcut**: bell rings + toast dead on the SAME pty = terminal-instrumentation fault, not audio, not hook, not server. Bell dead + toast alive = audio fault ([[BLK-020]] fault B). The two channels split the search space; check which one survives before anything else.
 - **Future**: any client-side terminal-parsing ext over Remote-SSH inherits this. Verify instrumentation on the ACTUAL attached pty after every restart, never assume yesterday's terminal.
+- **Status (2026-10-28, upgrade)**: superseded by LRN-163
 
 ## LRN-148 — terminal instrumentation is per-terminal + unpredictable; pre-flight test before attaching
+- **Date**: —
 - **Refines**: [[LRN-147]] blamed restored-terminals-born-before-activation. Too narrow — counter-example same day: two terminals SAME VS Code window, pts/3 (born 01:58:33) instrumented, pts/7 (born 01:59:29, LATER) deaf. Ext is GLOBAL (marketplace: Enable/Disable pause parsing extension-wide, no per-terminal setting), shells identical on every server-side measurable: `VSCODE_INJECTION=1`, TERM, TERM_PROGRAM, same `--init-file` shell-integration path, ~2-3s between shell start and dtach. Trigger NOT identified.
 - **Pattern**: treat instrumentation as a per-terminal property that can silently fail for unknown reasons. Cheap pre-flight before committing a long-lived session to a terminal: `printf '\a\a\033]777;notify;NEUF;test\033\\'` typed IN that terminal. Toast → instrumented, attach. Bell only → deaf terminal, open another. Costs 5s, replaces an hour of pty archaeology.
 - **Recovery**: deaf terminal never repairs. Open fresh terminal, pre-flight it, `dtach -a ~/.dtach/<session>`. dtach broadcasts, so old client may stay attached; session never at risk.
 - **Diagnostic split (holds)**: bell alive + toast dead = terminal instrumentation. Toast alive + bell dead = client audio ([[BLK-020]]). Neither = bytes never arrive.
 - **Future**: do NOT assert the born-before-activation cause as established — it fits the first incident, not the second. Unknown trigger is the honest state.
+- **Status (2026-10-28, upgrade)**: superseded by LRN-163
 
 ## LRN-149 — Stop hook payload carries background_tasks; use it to skip premature signals
+- **Date**: —
 - **Context**: 2026-09-03. User: "notif à la création d'un sous-agent alors qu'il faudrait pas". Instrumented hook, ran probe subagents: NEITHER subagent creation NOR completion calls the hook. Only event = `Stop`, fired when the turn ends right after spawning. Signal was real but LIED ("Finished responding" while work continued).
 - **Pattern**: dump the real payload (`printf '%s' "$payload" >> file.jsonl`) instead of trusting docs — docs list Stop fields without `background_tasks`, the wire has it: `[{"id","type":"subagent","status":"running","description","agent_type"}]`. Rule: on Stop, `(.background_tasks // []) | length` > 0 → exit 0 silent. Next turn end signals for real. Interaction events (permission/question) always signal, background or not.
 - **Fail-open**: field absent (older client) → still signal. Missed notification worse than extra one.
@@ -1666,232 +1504,288 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Reference**: contract `2026-09-25-default-profile-full-1254` criterion 12; verifier + executor reports 2026-09-25. Links [[LRN-074]] [[BDR-101]].
 
 ## LRN-172 — TF-IDF cosine on a 2-doc corpus is identically 0: similarity self-tests need N ≥ 4, a same-corpus positive control and a sensitivity re-run
+- **Date**: 2026-09-27
 - **Context**: A3 executor wrote a "distinct pair passes" fixture as a bare 2-doc corpus, documented the 0.00 as "the point being proven". Fresh verifier proved a near-duplicate pair also scores 0.00 at N=2: idf = log(N/df) = 0 for shared terms, unique terms never meet. Executor self-report "all markers printed" was true; the test was vacuous anyway.
 - **Fix shape**: one N=4 corpus: near-dup control 0.90 → FAIL, distinct pair 0.00 → silent, then swap one doc for a near-copy → 0.62 WARN appears. Marker printed only when all three hold.
 - **Apply**: any fixture for a corpus-normalised statistic asserts both directions in one corpus; "passes on a trivial corpus" proves nothing; markers prove the oracle, not the intent → keep the blind verifier ([[BDR-102]] [[EVAL-032]]).
 
 ## LRN-173 — contract oracles written from memory failed twice: run the CHECK on the precedent files first, census greps via `git grep`, `EVIDENCE: pending` mandatory
+- **Date**: 2026-09-27
 - **Context**: same run, two orchestrator oracle bugs. (1) "≤ 80 chars" over the whole file: rules/web-building.md line 2 (`paths:` frontmatter) is already 110 chars, so the criterion contradicted the precedent it named; executor returned NEED-DECISION instead of bending. (2) emil-citers census with `grep -rl` hit gitignored `install-*.log` at the repo root; `git grep -l` (tracked only) is the right census tool. (3) gates.sh `run` errors `runnable but has no EVIDENCE: line` unless each criterion carries `EVIDENCE: pending`.
 - **Apply**: before shipping a CHECK, run it against the files it claims to mirror; census oracles = `git grep`; contract skeleton carries `EVIDENCE: pending` per criterion (check /feat's template writes it). Oracle fixes are orchestrator-owned, never a re-dispatch ([[BDR-102]]).
 
 ## LRN-174 — a coverage census greps plugin data files too; a registry sample is not the catalog
+- **Date**: 2026-09-28
 - **Context**: I told the user Astro View Transitions had zero local mentions. ui-ux-pro-max's `data/stacks/astro.csv` rows 28-31 carry ClientRouter, `transition:name`, no-JS fallback; `motion.csv` carries GSAP pin/scrub, SplitText, parallax. My grep covered SKILL.md prose and archetypes, not the plugin's CSV search DB. Same day: the ui-skills registry showed 11 MengTo skills; the repo tree has 88 web-design skills, and the substantive ones were outside the sample.
 - **Apply**: census = `grep -rl` over the plugin cache including data dirs, then say "row in a search DB" vs "workflow"; evaluating an upstream = `git/trees?recursive=1` first, sample never. Correct the user the moment the miss is found ([[BDR-104]]).
 
 ## LRN-175 — the skill listing has a char budget; pruning under it buys routing, not context
+- **Date**: 2026-09-28
 - **Context**: 150 skills, 53.5k chars of descriptions, but the harness listed ~19k with a description and 78 name-only (profile, seo, tour, all ui-ux-pro-max, 14/15 superpowers, brightdata, synced). Budget ≈1 % of context (`SLASH_COMMAND_TOOL_CHAR_BUDGET`, community-documented), least-invoked skills lose theirs first. doctor.sh said 34 skills / 3.4k t: `find -maxdepth 2` without `-L` skipped every symlinked skill, `grep '^description:' | head -1` counted 0 for block scalars.
 - **Apply**: removing skills below the cap frees no context (the cap refills); the gain is descriptions back for kept skills + no accidental 50-100 KB broken body load (autoplan = 25k t to fail). Real context levers = session-start injections (superpowers 3.6 KB) and name-only lines. Measure with the census parser through symlinks ([[BDR-105]]).
 
 ## LRN-176 — a multi-line CHECK is silently truncated by gates.sh
+- **Date**: 2026-09-28
 - **Context**: four `CHECK: python3 - <<'PY' … PY` oracles parsed as one line each; the ledger validated (RUNNABLE 13/18), GATE 0 ran `python3 -` on an empty heredoc → rc 0, no marker → NOT-MET ×4 while every executor had self-checked green. Cause: `_set_attr` takes the rest of the `CHECK:` line only; the body lines are criterion prose.
 - **Apply**: one line per CHECK; anything longer lives in `<contract>.oracles/c<n>.py` next to the contract (committed with it) and the CHECK calls the file. Follow-up: gates.sh could refuse a CHECK containing `<<`. Sibling of [[LRN-173]] (run the CHECK on precedent files first).
 
 ## LRN-177 — the gstack helper-tree class: one lib, no SKILL.md exposed, dst never a symlink
+- **Date**: 2026-09-28
 - **Context**: make-pdf MAKE_PDF_NOT_AVAILABLE, diagram BUNDLE_MISSING, careful/guard/freeze hooks exit 127, cso and plan-*-review unable to read `sections/` — all one class: skills hardcode `~/.claude/skills/gstack/<path>`, link.sh (and two copies in install-plugins.sh / update-all.sh) linked only `bin` and `browse/dist`. Traps found by the challengers: gstack `./setup` plants `~/.claude/skills/gstack -> submodule` when absent (a helper writing into dst then nests links inside the submodule); `browser-skills/`, `openclaw/`, `node_modules/` are non-skill dirs holding nested SKILL.md (a whole-dir link would double-list skills); `profile.sh apply` only enables, `set`/`reset` park.
 - **Apply**: `lib/gstack-links.sh` is the single writer (skill dirs → children minus SKILL.md; non-skill dirs skipped when they hold a SKILL.md; `.git*`/`node_modules` by name; dst symlink removed, dst inside src refused); after a profile edit run `set full`, never `apply`; a gstack skill "failing" → check the census oracle first ([[BDR-105]]).
 
 ## LRN-178 — before a new top-level `source`, grep the fixture `cp` lists
+- **Date**: 2026-09-28
 - **Context**: twice in one day. E1b's `source gstack-removed.sh` in profile.sh/toggle-external.sh needed a `cp` line in three suites (profile-default, profile-set-managed, toggle-external-repo-resolution) — caught by the confirmation challenger, fixed in scope. My 21st helper plan would have added a second top-level `source` to toggle-external.sh with no fixture update → four suites red under `set -euo pipefail`; two challengers flagged it as BLOCKER, the helper was dropped.
 - **Apply**: `grep -n "cp .*lib/<file>" lib/tests/*.sh` before adding a `source` to a lib; either widen every fixture copy in the same change or source lazily inside the one branch that needs it. Prefer the inline predicate when only one caller needs the new semantics ([[BDR-105]]).
 
 ## LRN-179 — skill `effort:` shifts the main loop for the rest of the turn, interactive only
+- **Date**: 2026-09-28
 - **Context**: effort-tiering spike 2026-09-28, Claude Code 2.1.283, Fable 5.1. Probes = `$CLAUDE_EFFORT` in Bash + transcript `effort` field per request. User-typed `/probe-low` → whole turn `low`. Skill-tool load in interactive session → `max` then `xhigh`, last loaded wins, both directions; first request after the switch read 206,996 cached tokens, wrote 1,164 (cache kept). Three `-p` runs: neither `effort:` nor `model:` skill frontmatter applied via Skill tool. Agent pin honoured (impeccable `medium`), unpinned built-in on sonnet inherited `xhigh`. Docs agent claimed "ultrathink keyword does not exist": wrong, docs = in-context nudge, API effort unchanged. Harness claims get verified against the harness ([[LRN-046]]).
 - **Apply**: main-loop effort per phase = `Skill(effort-<level>)` on the main loop, never inside a dispatched agent; headless runs stay at session level; keep `CLAUDE_CODE_EFFORT_LEVEL` unset (beats every frontmatter). Spec `docs/superpowers/specs/2026-09-28-effort-tiering-design.md`.
 
 ## LRN-180 — Skill-tool effort override needs a paired tool call; a lone Skill call is a no-op (2.1.283)
+- **Date**: 2026-09-28
 - **Context**: effort-tiering smoke. Six lone `Skill(effort-*)` / probe loads left `$CLAUDE_EFFORT` unchanged; every load issued in the same assistant message as another tool call applied, and the paired Bash already saw the new level. Re-loading an already-loaded shifter re-applies (text deduped: "already loaded above"). Final review: `brainstorming` / `writing-plans` loaded alone by ship-feature and init-project → their vendored xhigh pin inert. Amends [[LRN-179]].
 - **Apply**: `Skill(effort-<level>)` always travels with the step's first tool call, shift first; pair a downward shift with a pinned executor or a Read/Bash, never with a built-in judgment dispatch; before any built-in judgment dispatch, pair the own-level shift with it; skills Claude loads alone do not apply their pin → re-assert with a paired shift at the resumed planning step ([[BDR-107]]).
 
 ## LRN-181 — Stacked skills share one effort level; a lone load applies none
+- **Date**: 2026-09-29
 - **Context**: design toolchain loads 5-8 skills in one build. Skill `effort:` frontmatter = last loaded wins, both directions ([[LRN-179]]). Two levels inside the stack → effort depends on load order, invisible. Plus [[LRN-180]]: a Skill call Claude issues alone is a no-op.
 - **Apply**: one level per stack (`lib/effort-pins.txt` design section, census `stack_levels` lock, site-motion frontmatter matches); doctrine "load the stack paired with the first Read of the target file"; new vendored design skill → copy the stack level. [[BDR-108]]
 
 ## LRN-182 — Effort baselines are generation-bound; model aliases move silently
+- **Date**: 2026-09-29
 - **Context**: transcripts of the last weeks show `sonnet` → claude-sonnet-5 (3069 msgs) then claude-sonnet-5-5 (recent), `opus` → opus-5 then opus-5-5, `fable` → fable-5 then fable-5-1. API reference: Sonnet 5.5 recalibrated effort levels ("start at medium for agentic coding"). [[EVAL-036]] A/B ran on one generation.
 - **Apply**: after an alias moves (new model in a tier) re-run `python3 lib/effort-audit.py` and re-read the pins; write the generation next to any effort figure; keep aliases (latest = cheapest or same price, never pin a version for a measurement). [[BDR-108]]
 
 ## LRN-183 — npm CLI with a vendored binary: probe it, `command -v` proves only the shim
+- **Date**: 2026-09-30
 - **Context**: `@higgsfield/cli` ships `bin/*.js` + `postinstall: node install.js` that downloads `vendor/hf`. npm 11.19 prints "install scripts not yet covered by allowScripts" and may hold the script back (`ignore-scripts`, `allow-scripts` policy), at first install and at any `npm install -g` update. Shim then exits 1 "binary not found". First plan gated on `command -v higgsfield`: installer said "already installed", doctor passed, toggle blamed the session. Three challenge lenses flagged it.
 - **Apply**: presence check = a real subcommand (`<cli> version`), silent, bounded, used in install gate, after every update, doctor, toggle hints; remedy line names `npm install -g --allow-scripts=<pkg> <pkg>`. [[BDR-109]]
 
 ## LRN-184 — Pack membership on an unpinned upstream: allowlist, never "all except X"
+- **Date**: 2026-09-30
 - **Context**: first `higgsfield_skills()` globbed `skills-external/higgsfield-*` minus `higgsfield-websites`. Upstream tracks main: a renamed `higgsfield-website` or a new deploy skill would be linked by the next `enable higgsfield`, which the routing line runs on every media ask. Breaks "websites on named ask only" and the house rule allowlist over denylist.
 - **Apply**: `HIGGSFIELD_MEDIA_SKILLS` array; unlisted synced skills reported by `pack_hints`, never linked; hints run on the already-enabled path too, else drift is silent in the steady state (final review finding). Same shape for any future pack tracked at main. [[BDR-109]]
 
 ## LRN-185 — `[ -t 1 ]` is dead under `exec > >(tee)`: interactive offers test stdin alone
+- **Date**: 2026-09-30
 - **Context**: install-plugins.sh:22 `exec > >(tee -a "$LOG_FILE") 2>&1`. ctx7 (Step 6) and 21st (Step 8.7) login offers required `[ -t 0 ] && [ -t 1 ]` → never shown in a normal run since they were written; install logs always took the "not signed in" branch. Found by the read-before analyzer. update-all.sh:75 already tested stdin alone.
 - **Apply**: in a script that redirects stdout to a pipe, gate prompts on `[ -t 0 ]`; lock it (`INSTALL_WIRING`: no `-t 1`, ≥3 `[ -t 0 ]`, positive control). [[BDR-109]]
 
 ## LRN-186 — `GIT_TERMINAL_PROMPT=0` alone does not stop a credential prompt
+- **Date**: 2026-09-30
 - **Context**: confirmation challenger: git asks GIT_ASKPASS → core.askPass → SSH_ASKPASS → terminal; the env var disables only the last. VS Code terminals export `GIT_ASKPASS=…/askpass.sh` → clone of a deleted/private GitHub repo opens an input box, installer hangs. Tried live against a missing repo: `GIT_TERMINAL_PROMPT=0 GIT_ASKPASS='' SSH_ASKPASS='' git -c credential.helper= -c core.askPass= clone … </dev/null` → rc 128 in 0 s.
 - **Apply**: every unattended clone in an installer uses that full form; an empty `GIT_ASKPASS` short-circuits the two later askpass sources. Hermetic suites cannot see it (local path clone, `GIT_CONFIG_GLOBAL=/dev/null`): one live try. [[BDR-109]]
 
 ## LRN-187 — Vacuous bash fixtures: empty dirs, symlink targets, multi-call binaries
+- **Date**: 2026-09-30
 - **Context**: three fixture traps in `lib/tests/higgsfield.test.sh`. (1) `mkdir higgsfield-empty` then `git add -A`: git tracks no empty dir, the clone never held it, `no-empty` passed by construction. (2) symlink `higgsfield-linked → higgsfield-generate`: target moved first, link dangled, guard never exercised; mutation test stayed green. (3) `ln -s $(command -v timeout) gtimeout` → rc 1: `/usr/bin/timeout` is uutils coreutils, dispatches on argv[0].
 - **Apply**: put a file in any dir a git fixture must carry; point a symlink fixture at a target that survives; alias a tool with a wrapper script, never a symlink; mutation-test each guard before trusting green. [[LRN-172]], [[BDR-109]]
 
 ## LRN-188 — A CHECK oracle tied to code shape breaks on refactor; assert the property
+- **Date**: 2026-09-30
 - **Context**: contract criterion 5 used `grep -A6 '^_higgsfield_probe()' | grep -c '</dev/null …' | grep -qx 2`. The gtimeout fallback reshaped the function into a loop: second redirect moved past the 6-line window → GATE 0 UNMET on correct code. Rewritten: extract the body `awk '/^fn\(\)/,/^}/'`, require the redirect on EVERY invocation line, control = strip redirects → differs. Orchestrator edited its own oracle outside a human gate, logged in the contract, surfaced to the user, fresh verifier judged it stricter.
 - **Apply**: oracles state a property over the whole unit (function body, section range), never a line window or an exact count of incidental lines; any oracle edit after a gate is logged + surfaced. [[LRN-093]], [[BDR-109]]
 
 ## LRN-189 — `| grep -q` under pipefail is a SIGPIPE race, not a portability nit
+- **Date**: 2026-10-06
 - **Context**: 15 gitflow-test assertions `git log … | grep -q "Merge …"` false on macOS, merge present. grep -q exits at first match → producer SIGPIPE → rc 141 → pipefail false. Linux hides it by write buffering, race exists there too (doc-shape fail-open). Challenger-verified: GNU grep main() sets done_on_match when stdout is /dev/null, so `grep PAT >/dev/null` keeps the race.
 - **Apply**: producer out of the pipeline. Tests: `grep -q PAT < <(cmd)`. Prod: call inside the condition `if grep -q PAT <<<"$(cmd 2>&1)"` (a bare `out=$(cmd)` aborts under `set -e` when the function runs bare). `printf '%s' "$v" | grep -q` safe (builtin, one write). Same class: `| head -1`, awk `{print; exit}`. Not decidable by text census → structural fix, no `grep -q` lint rule. [[BDR-110]]
 
 ## LRN-190 — Oracle hygiene: wrapped lines, baselines, no rm -rf via variable
+- **Date**: 2026-10-06
 - **Context**: GATE 0 criterion 4 NOT-MET while code correct: executor wrapped `grep -q … \` + `<<<"$(…)"` at 80 cols (my own style rule), single-line regex missed it. Criterion 7 `shellcheck` bare would fail on pre-existing info notes outside Health Stack scope. Criterion 2 CHECK held `rm -rf "$d"` (destructive-tools rule), executor's copy refused by permission system.
 - **Apply**: join continuations first (`sed -e ':a' -e 'N' -e '$!ba' -e 's/\\\n[[:space:]]*/ /g'`); lint criteria compare counts against base ref (`git show base:file | shellcheck -`); planted fixtures cleaned with `rm -f file; rmdir dir`. Oracle edits after a red floor logged in CLARIFICATIONS as "oracle maintenance", criterion text never loosened. Extends [[LRN-188]].
 
 ## LRN-191 — `cmd | grep -q` under pipefail reintroduced one commit after BDR-110 banned it
+- **Date**: 2026-10-06
 - **Context**: feater wrote T18j as `git log develop --format=%s | grep -q …` in a `set -uo pipefail` suite. Green alone ×3, red once under load (3 suites + agents in parallel): `grep -q` exits early → SIGPIPE on `git log` → rc 141 → `&&` chain fails. Demo: `seq 1 200000 | grep -q 1` fails 300/300 under pipefail, `grep -q 1 < <(seq …)` 0/300.
 - **Apply**: [[BDR-110]] form `grep -q PAT < <(cmd)` in tests, `<<<"$(cmd)"` in prod. Census can't catch it by text (BDR-110 chose no rule) → executor brief + verifier lens must name it: "no multi-line producer piped into `grep -q`". A flake seen ONCE under load is a bug, not noise: reproduce the mechanism before calling it flaky. Single-write `printf '%s' "$v" | grep -q` is safe.
 
 ## LRN-192 — Turning auto-push off re-arms `git branch -d`'s upstream check (LRN-161 inverted)
+- **Date**: 2026-10-06
 - **Context**: [[LRN-161]]: auto-push kept upstream in sync → `-d` a no-op guard. Manual-push mode: upstream lags → `-d` REFUSES a branch merged into HEAD ("not yet merged to origin/<br>") → `finish` merges then rc 5 false "unmerged". First fix `--unset-upstream` then `-d` regressed T22j (hotfix merged into main only, HEAD=develop → `-d` refuses).
 - **Apply**: after the explicit ancestor gate, checkout the base that CONTAINS the branch (`merge-base --is-ancestor br develop` ? develop : main), `--unset-upstream`, then `-d`. Any change to push/upstream config → re-read every `-d`, `--ff-only`, `@{u}` site AND the tests that assume upstream in sync (T22j class). Tests: gitflow-test T18k, T22j.
 
 ## LRN-193 — A revised plan gets a fresh challenger, not a re-read: r2 found 3 BLOCKERs inside r1's fixes
+- **Date**: 2026-10-06
 - **Context**: manual-push-mode plan. r1 (3 lenses) → 2 MAJOR, I rewrote 5 checklist items. Confirmation pass (1 fresh correctness challenger on the REVISED file) → FATAL(4): my `--unset-upstream` fix broke T22j; my T18l fixture never set develop's upstream (`push` without `-u`, init creates develop untracked); my T18n/T18l order made offline silence vacuous. All three were in text I had just written and re-read.
 - **Apply**: `challenge-plan.md` "re-challenge once if materially changed" is load-bearing, never skip it to save a dispatch. Brief the confirmation challenger on the NEW mechanics explicitly (state machine of new tests, fixture preconditions, ordering). Fixes to tests need the same fixture trace as the code (`-u`, upstream, what an earlier test leaves behind).
 
 ## LRN-194 — Permission globs: trailing ` *` matches end-of-string; a denied token poisons every command that names it
+- **Date**: 2026-10-07
 - **Context**: push-guard deny widening. Planned `Bash(git *config *gitflow.* *)` to deny writes (key + value) and spare the bare read for run C. Evidence: `git config --local core.hooksPath` (no value) is denied by `Bash(git config --local core.hooksPath *)` → ` *` also matches end. Second effect: once `Bash(*GIT_CONFIG_COUNT*)` style rules landed (settings.json symlinked = live), a contract CHECK, a grep and a commit message naming the tokens would all be denied — including the oracle meant to verify the rules.
 - **Apply**: (a) an infix/suffix glob cannot carve out a read of a denied key → give consumers a sanctioned reader (lib verb) instead; (b) a leading-`*` deny on a token makes the token unspeakable in command text → assertions about it live in test FILES (`make test`), never in CHECK commands, grep one-liners or commit subjects; (c) simplify: `Bash(git *config *gitflow.*)` already covers value writes, `--unset`, `--bool` forms. Links [[BDR-112]], [[BDR-100]].
 
 ## LRN-195 — BSD sed: `N` on the last line quits without printing → the `:a;N;$!ba` fold returns EMPTY on single-line input
+- **Date**: 2026-10-07
 - **Context**: push-guard plan folded `\`-newline with `sed -e ':a' -e 'N' -e '$!ba' -e 's/\\\n[[:space:]]*/ /g'` (the [[LRN-190]] idiom, written on GNU). `/usr/bin/sed` on macOS is BSD: `printf 'git push' | sed …` prints NOTHING. Every single-line command would have read as empty → guard dead in production, while a 2-line test passed. Caught by the confirmation challenger, not by tests.
 - **Apply**: fold in bash (`one=${cmd//$'\\\n'/ }; one=${one//$'\n'/ }`) or `sed -e ':a' -e '$!N' -e '$!ba'`. Add a single-line positive control to any multi-line normaliser test. [[BDR-110]] census can't catch it (structural, not textual). Links [[LRN-190]], [[BDR-112]].
 
 ## LRN-196 — A fail-closed Claude Code hook: trap must `exit 0`, cap attacker-sized loops, read git's rc not its value
+- **Date**: 2026-10-07
 - **Context**: push-guard hardening (security gate, 3 MEDIUM). (1) EXIT trap printed the static deny but kept the non-zero rc → Claude Code parses hook JSON only on exit 0 → deny ignored = allow. (2) Each literal `cd`/`-C` token cost a subshell + 3 git execs: 600 tokens = 12 s > 10 s hook timeout → timeout = non-blocking = allow. (3) `git config --bool --default true` returns empty on git absent / old git / unreadable dir → read as "auto" → allow.
 - **Apply**: `trap '… ; exit 0' EXIT`; deny path `out=$(jq …) || out=$STATIC; printf '%s' "$out"`; dedup (`sort -u`) + hard cap on command-controlled token counts, deny above the cap BEFORE any fork; distinguish `git config` rc 0/1/other (value / unset / failure → deny); record "decided" only after ≥1 clean evaluation. Lock each with a test (shim PATH without a tool, 25-token flood, chmod 000 dir with SKIP path). Measure the flood after the fix (20 000 tokens → 0.15 s). Links [[BDR-112]], [[BDR-087]], [[LRN-160]].
 
 ## LRN-197 — A skill's own `git push` after a lib finish or a hook-pushed commit is redundant since BDR-095: delete it, don't gate it
+- **Date**: 2026-10-07
 - **Context**: `/close` STEP 5C ran `gitflow finish` then `git push origin develop` (added 2026-07-16); the lib push landed 2026-09-22 and 5C was never revisited. `/client-handover` asked "Push to origin now?" after commit-change, whose commits the post-commit hook had already pushed. Both runs' first plan GATED the push on the mode; the simplicity lens found both pushes redundant.
 - **Apply**: before gating an action, ask whether it still does anything. Grep every `git push` in skills/agents after any change to hooks/lib push behaviour (BDR-100 surface rule); replace a redundant push + its question by a FACT read afterwards (`git rev-list --count origin/<br>..<br>`) and a user hint. Links [[BDR-113]], [[BDR-095]], [[LRN-113]].
 
 ## LRN-198 — Text read from git and pasted into a later Bash call is an injection sink: allowlist before interpolating
+- **Date**: 2026-10-07
 - **Context**: C2 replaced one Bash block (`CURRENT_BRANCH=$(git branch --show-current); git push origin "$CURRENT_BRANCH"`, quoted variable, safe) by three separate calls where the branch name is pasted as text into `git rev-list --count origin/<br>..<br>` and into `! git push -u origin <br>`. `git check-ref-format --branch 'x$(id)y'` rc 0: a hostile branch (PR checkout, crafted remote) runs its payload. Security gate BLOCK(1).
 - **Apply**: any name an agent READS (branch, tag, path from repo state) and later WRITES into command text must pass an allowlist first (`^[A-Za-z0-9._/][A-Za-z0-9._/-]*$`; leading `-` excluded = option injection); on mismatch interpolate nothing and say so. Prefer a quoted shell variable inside ONE call when the flow allows; when prose branching forces multi-call, the allowlist replaces the quotes. `<abs project>` from user args: same class, lower trust gap. Links [[BDR-113]], [[LRN-196]].
 
 ## LRN-199 — Agent-level branching is prose on a printed word: shell state dies between Bash calls, and a text guard denies the whole call
+- **Date**: 2026-10-07
 - **Context**: plan wrote `mode=$(gitflow.sh push-mode)` then `[ "$mode" = auto ] && git push origin develop`. Two failures: (a) separate calls → `$mode` empty → silent skip, rc 1 misread as "push FAILED"; (b) one call → push-guard's STRICT regex matches `&& git push origin` in the TEXT and denies the WHOLE call, so even `finish` never runs. Three lenses hit it independently.
 - **Apply**: a skill reads a word from a command's visible stdout, then branches in PROSE ("printed `auto` → run X as its own call; anything else → never issue X"). Never a shell variable across calls, never a conditional that contains a guarded token. Any text-only PreToolUse guard turns `cmd-you-wanted-to-avoid` inside a conditional into a denial of the surrounding command. Links [[BDR-112]], [[BDR-113]], [[LRN-191]].
 
 ## LRN-200 — `install-hook` and `global-hooks` write git config as a side effect; only `emit-hook > file` regenerates hooks config-free
+- **Date**: 2026-10-07
 - **Context**: D1 planned `install-hook` (= write hooks + a LOCAL hooks-path entry this repo must not gain: it runs on the global hooks) then `global-hooks <dir> <value>` ("returns before any write because the global value already matches"). The confirmation challenger read `~/.gitconfig`: rewritten 2 min earlier by the user's dotfiles installer (`@USER@` placeholders, no hooks path) → `global-hooks` WOULD have written the global config through a lib call, and `md5 .git/config` could not see it. User confirmed (own machine setup) and restored from the installer's backup; commits waited.
 - **Apply**: regenerate generated hooks with `bash lib/gitflow.sh emit-hook <name> > <dir>/<name>` (no config read/write, mode preserved); never `install-hook`/`global-hooks` from a flow. Evidence = md5 of `.git/config` AND a Read of `~/.gitconfig` before/after. Before any commit, check `git var GIT_COMMITTER_IDENT` is not a placeholder: an external installer can rewrite dotfiles mid-session. Links [[BDR-114]], [[LRN-114]], [[BLK-027]].
 
 ## LRN-201 — A flood cap must run before ANY per-token fork; a reorder reopened the timeout fail-open and only a timed 2 000-token test catches it
+- **Date**: 2026-10-07
 - **Context**: run B put the 20-token cap before resolution (20k tokens 0.15 s). D2 added `classify_tok` (one subshell + sed per token) and the executor ran it BEFORE the cap: 1,600 tokens = 13 s > the 10 s hook timeout = allow. Verifier CONFORME (suite max 21 tokens), security re-scan BLOCK(1). Fix: `arg_tokens | sort -u | grep -c .` then `> 20` deny, then classification on ≤20 survivors; T58 = 2,000 tokens, deny, `$SECONDS` < 5.
 - **Apply**: in any guard, order = count → cap → everything else; a cap without a timed flood test in the suite is a comment, not a guard. Re-measure the flood after every change to the token pipeline (security gate did: 0.13 s at 20k). Links [[BDR-114]], [[LRN-196]], [[LRN-104]].
 
 ## LRN-202 — Reading a stderr-then-stdout verb from a hook: `out=$(cmd 2>&1)`, last line = word, prefix line = reason; no temp file; lib path absolute before any cd
+- **Date**: 2026-10-07
 - **Context**: unpushed-guard plan used `2>"${TMPDIR:-/tmp}/x.$$"` + cat + rm: fail-OPEN when TMPDIR is full (`|| mode=auto`), predictable path, symlink-followable on shared /tmp, leaked on kill; `mode=$(cmd 2>&1 >/dev/null)` captures ONLY stderr. push-guard's `mktemp` variant added `set -u` trap hazards. The verb writes its stderr line BEFORE its stdout word in one process, so `${out##*$'\n'}` is the word and the `gitflow.sh push-mode:` line is the reason (select by prefix, not `head -1`: a bash startup warning could precede it). Resolve the lib path to an absolute one BEFORE the hook's `cd "$cwd"` (a relative invocation otherwise resolves into the target repo).
 - **Apply**: hooks never touch temp files for a one-line capture; anything but the expected word is treated as the fail-closed state, never as the default. Links [[BDR-114]], [[LRN-196]], [[LRN-199]].
 
 ## LRN-203 — Mod hooks: model ALIAS set by a hook resolves through stale table (`sonnet` → `claude-sonnet-5`, 404); write full ids; oracle = transcript fields, not `CLAUDE_EFFORT`
+- **Date**: 2026-10-08
 - **Context**: model-router spike 2026-10-08, CLI 2.1.294. `agent.spawn` or `tool.call Agent` param rewrite with alias `sonnet` → API got `claude-sonnet-5`, HTTP 404 model_not_found. Same alias passed by the model in the Agent tool param → `claude-sonnet-5-5`, fine. Full id `claude-sonnet-5-5` from hook → fine, every step answered by 5-5. Agent tool schema enum refuses full ids, so full ids reach API only via hooks. Effort rewrite at `turn.step` proven by transcript record field `effort` (high → medium); `CLAUDE_EFFORT` env + `perTurnEffort` stay at turn setting, blind to per-request rewrite.
 - **Apply**: any mod that sets a model carries its own alias → full-id table (one place to bump per tier release). Verify routing with transcript `message.model` + record `effort`, never env vars. Links [[BDR-108]] (aliases as pins: still right at the Agent-tool call site, wrong inside hooks), [[BLK-029]].
 
 ## LRN-204 — Main-loop model switch mid-turn works, costs one cold-cache step on the full context per switch INTO a model; return free (per-model cache, 1 h TTL)
+- **Date**: 2026-10-08
 - **Context**: spike 2026-10-08, fable → `claude-sonnet-5-5`/low for 3 steps on ~260k context, then back. Conversation intact (tools, results, thinking blocks from another model in history: no error). First sonnet step cache_read 0 (full 260k billed), next steps 237k cached; return to fable step read 263k cached.
 - **Apply**: switch the main loop only for spans long enough to amortize one uncached read of the whole context (many mechanical steps), never per tool call; short mechanical work → small-context haiku sub-agent. Haiku 4.5 window 200k: a long main loop cannot go to haiku at all. Flag off by default in model-router. Links [[LRN-203]], [[BDR-107]].
 
 ## LRN-205 — A hook answering `tool.call` in place of a built-in tool must return that tool's OUTPUT schema shape; a string result is refused and the tool runs anyway
+- **Date**: 2026-10-08
 - **Context**: model-router Skill bridge, plan r1: `{ result: '<string>' }` for `Skill(effort-*)`. Challenger: Skill has output schema `{ success, commandName, status?, … }` (claude-code-tools index.d.ts ~5139); core validates a hook's answer against it (claude-code index.d.ts ~12641), wrong shape = hook skipped = skill loads = the exact doublon the bridge exists to remove. Fix: `{ result: { success: true, commandName: e.skill, status: 'inline' }, context: ['…'] }`; text for the model goes in `context`, never in `result`.
 - **Apply**: before answering any `tool.call` without `next`, grep the tool's RESULT type in claude-code-tools and mirror it; put model-facing prose in `context`. Links [[BDR-115]], [[LRN-203]].
 
 ## LRN-206 — `claude plugin test` kit facts (2.1.294): nothing fires at load, inputs are the FULL event, a bottom hook is mandatory under every `next`, `turn.step` streams
+- **Date**: 2026-10-08
 - **Context**: model-router tests. Kit `$` is `EngineCall<E> = (e: Args<E>)`: `command.run` needs `origin` + `presentation`, `prompt.submit` needs `wait` + `origin`, `agent.spawn` needs `tool_use_id, description, provider, parentModel, background, fork`; the test file is type-checked with the hooks (tsc include). `session.start` does NOT fire at load → every test boots with a bottom `on('session.start')` + `$.session.start({ cwd, surface: null, isInteractive: false })`. A hook calling `next` hits the kit's bottom which throws unless the test registered one (`on('agent.spawn', ($, e) => ({ model: e.model, agentId: 'a1' }))`). `$.turn.step` returns a stream: drain with `for await` then await `.result` (awaiting `.result` alone runs no hook). No fs/network/process: defaults path only. Assert on the ONE line that carries the value (a `show()` listing every phase always contains every id and level).
 - **Apply**: write the boot helper first, type every input from the declarations, never relax a test to dodge a type. Links [[BDR-115]].
 
 ## LRN-207 — Model availability = typed API errors (`classic.StopFailure` rate_limit|overloaded|billing_error|model_not_found) + `PostModelSwitch auto`; never the turn-end reason, never `rateLimits`; sticky state and breaker target = two fields
+- **Date**: 2026-10-09
 - **Context**: model-router W1-C. `turn.complete reason: error` covers context-limit and network errors → a breaker fed by it marked fable down 15 min on a context overflow (challenge r1). `rateLimits` kinds are account windows (five_hour, seven_day, spend_limit), not per model. A per-step "engine fallback detection" (`e.model` ≠ `$.session.model()`) re-marked the session model at EVERY step → backoff climbed to the 5 h cap in one turn (confirmation r2). One field used both as sticky cur and as breaker target contradicted itself (reset at turn end vs kept).
 - **Apply**: feed a breaker only from typed error kinds that name unavailability; mark per EPISODE (idempotent while down), backoff 15→300 min, `model_not_found` until reload; a user `/model` clears, `/clear` keeps (account-wide). Keep `turnModel` (sticky, reset per turn) and `lastPlan` (breaker target, kept) separate; unrouted steps pass `e.model` verbatim so the engine's own fallback is respected. Links [[BDR-115]], [[LRN-204]].
 
 ## LRN-208 — Security-auditor brief = scope only; iteration history and claimed closures violate the blind-scan contract
+- **Date**: 2026-10-09
 - **Context**: W1-C gate 2026-10-09. I sent "previous PASS with 6 MEDIUM, closed: …" in the brief. Auditor: "The auditor contract says that is never sent and must be ignored … Please do not send it next time" (it scanned blind anyway). Same rule as the verifier (lib/verify-secure-loop.md: fresh, no history).
 - **Apply**: SCOPE + a neutral CONTEXT of what the code does; never prior verdicts, closures or accepted residuals. Residuals live in TODO, the auditor rediscovers them (that is the point). Links [[LRN-083]].
 
 ## LRN-209 — Scope the test run to the diff; one full `make test` before the merge; `make test` now names the red suite; GNU make rc 2 on a failed recipe
+- **Date**: 2026-10-09
 - **Context**: 2026-10-09 the pre-merge check took 454 s = full `make test` (48 suites) + a per-suite re-run to NAME the red one (aggregate rc, permanent env red design-tool-gate). Three more full passes earlier that day for mods/-only diffs. Hotfix efdd491: the recipe prints `FAIL <suite>` + `all suites green` / `<n> suite(s) red: …`. My oracle expected rc 1; GNU make returns 2 when a recipe line fails.
 - **Apply**: a diff confined to one component runs that component's suite + the doctrine census; the full suite runs ONCE before `gitflow finish`; read the FAIL lines, never re-run per suite. Oracles on `make` test `[ $rc -ne 0 ]`, not `-eq 1`. Links [[LRN-173]].
 
 ## LRN-210 — One coverage clause per contract criterion; a compound "covered by kit tests" criterion yields ECARTS forever with zero defects
+- **Date**: 2026-10-10
 - **Context**: W2-A contract criterion 3 bundled ~12 clauses under one "Covered by kit tests". Three fresh verifiers: ECARTS(3), (1), (1), each a NEW untested guard, code judged correct 3×. Cap hit, diagnosis at max, user accepted. 4 feater rounds added 30 tests (58 → 88), every one mutation-proven.
 - **Apply**: split coverage criteria: one clause = one criterion with its own test name; or make the oracle a mutation script (`CHECK:` flips the guard, expects a red test). Verifier reads clauses literally: write only what one test can prove. Links [[LRN-209]], [[EVAL-042]].
 
 ## LRN-211 — Typed-slash routing: name-bound marker + idle fallback; run slot separate from turn routes; engine records are the live oracle
+- **Date**: 2026-10-10
 - **Context**: mod needs "user typed /feat" from `skill.prompt`, which carries no origin. `prompt.submit` sees the raw `/name` first (composer|sdk|bridge): store the NAME (not a boolean; a bare flag leaked to the next preload), pending slot when mid-turn, consume only on the matching `skill.prompt`; fallback = no live/spawning loop AND allowed origin. Sticky run route in the SAME slot as turn routes was wiped by the first `route()` call (confirmation BLOCKER) → separate `runMain`, best-tier rows only (work/cheap rows leak low effort across turns). Live facts read from `~/.claude/projects/<repo>/<session>.jsonl` (+ `subagents/agent-*.jsonl`): `effort` + `message.model` per step. Typed `/status` → main low; analyzer step 0 opus/xhigh with frontmatter high (spawn bookkeeping precedes step 0; row beats frontmatter).
 - **Apply**: hook-side user-intent markers: bind to a name, add a pending slot for mid-turn, keep an ordering-independent fallback. Two lifetimes = two slots, never one slot with a source tag. Verify engine behaviour in the transcript jsonl, not in `$.ui.log`. Links [[BDR-115]], [[LRN-206]].
 
 ## LRN-212 — The engine hot-reloads a mod's hooks module from the working tree: unverified code runs live during its own feature run; dialogs answered there are facts; the kit never touches the disk
+- **Date**: 2026-10-11
 - **Context**: W3-A, 2026-10-10. Mid-run, `routing.json` gained decisions nobody expected (verifier → judge, feater → judge). First read: a kit test wrote the real file. Truth (feater, transcript timestamps = file mtimes to the second): the engine had reloaded `register.ts` from the working tree through the `skills/model-router` link, the live mod opened the T2 dialog on MY verifier/feater spawns, the user answered them in the terminal. The kit cannot write: an unmocked `fs.write` is refused ("no implementation"), a throwing mock lands on the same refusal; the real file's sha was stable across 10+ suite runs.
 - **Apply**: while a mod is under development in this repo, its working-tree code is LIVE in every session (no `/reload-plugins` needed): expect its side effects (dialogs, writes) during the gates; tell the user what dialogs will pop and what to answer; reset the data file deliberately at the gate. Blame the kit last: check mtimes against the transcript before assuming a test leak. Live answers = criterion evidence (record them `[gated]`). Links [[BDR-116]], [[LRN-206]], [[LRN-211]].
 
 
 ## LRN-213 — grep-based dead-function census misses constructed-name callers
+- **Date**: 2026-10-12
 - **Context**: code-clean 2026-10-12. `detect_gstack` / `detect_plugin_dev` (lib/detect-plugins.sh) had zero literal callers → flagged dead. Real caller: hooks/session-start.sh:80 `if "detect_$plugin"` over a name list. Deleting them = silent hook break on every session start.
 - **Apply**: before calling a function dead, grep its PREFIX in a quoted-expansion form (`"prefix_$`, `prefix_${`, `eval`, `declare -f`) and any name-list loop. Constructed dispatch = exclude + note in the plan so challengers do not re-raise. Links [[LRN-214]].
 
 ## LRN-214 — shellcheck directive after the first command scopes to that command only; file-wide disable goes BEFORE `set -u`
+- **Date**: 2026-10-12
 - **Context**: code-clean r1 placed `# shellcheck disable=SC2015` after `set -u` in seo-data.test.sh → two lenses proved via stdin that 26 of 27 sites stay red. Precedent in repo: lib/tests/effort-routing.test.sh:8 (before any command) silences file-wide.
 - **Apply**: file-level directive = between the shebang and the first command. Prove with `shellcheck` exit 0 on the edited file, not by reading. Links [[LRN-213]], [[LRN-215]].
 
 ## LRN-215 — helper extracted from a `set -e` function must be called as a plain statement; `helper || …` / `if helper` switches errexit OFF inside it
+- **Date**: 2026-10-12
 - **Context**: code-clean B5/B7/B9 split enable_tool / enable_skill / cmd_show out of `set -euo pipefail` scripts. r2 executor rule said `|| return $?`; confirmation lens: that form disables errexit inside the helper, so a failed `mv` (toggle-external.sh:273) would print `ok …` rc 0 instead of aborting — a path no golden capture sees. Plain call keeps `return 1` → errexit in caller → exit 1 as today.
 - **Apply**: split rule for -e scripts: plain calls only, never `||`, `&&`, `if`, `!` around an extracted helper. Golden capture (stdout + stderr + rc + fixture tree) before/after for every moved arm when the suite discards output. Links [[LRN-214]], [[EVAL-046]].
 
 ## LRN-216 — Capping a main-loop model switch = cap the COLD READ (context − target's warm prefix), never the context size; the warm record must be written on EVERY main step
+- **Date**: 2026-10-13
 - **Context**: model-router downgrade cap 2026-10-13. r1 compared context size to cap → after N coding turns sonnet warm, fable cold; context crosses cap → next coding turn starts on fable (cold) and cheap re-down refused = worst outcome. r2 fixed measure, but wrote `served` only on routed steps → unrouted steps on session model invisible → return to fable refused above 200k (confirmation pass BLOCKER). Per-model prefix cache (LRN-204): cost of switch INTO M = tokens − tokens at M's last step if within TTL, else all; context smaller than record = history rewritten (compaction) = cold.
 - **Apply**: any "switch model when cheap" logic: (1) keep `{at, tokens}` per model id, written at every step of the loop whatever the routing; (2) cost = delta vs that record within TTL, whole context otherwise or when record > current; (3) unknown size = blocked; (4) no special-case "return to session model" bypass, the measure covers it. A guess-sourced route ranks vs the SESSION model, not the current one, or a breaker fallback walks down to the cheapest tier. Links [[BDR-116]], [[LRN-204]], [[EVAL-047]].
 
 ## LRN-217 — In an `agent.spawn` hook, "no explicit `model` and no routing row" does NOT mean "inherits the parent": the agent's frontmatter `model:` is invisible to the hook; only an allowlist of types known to inherit is safe, and `agent.offer.source` tells a built-in from a shadowing definition
+- **Date**: 2026-10-13
 - **Context**: model-router residuals 2026-10-13, plan r1 pinned every unrowed, model-less spawn to the session model during a demoted turn. Two lenses BLOCKER: engine 2.1.296 builds the spawn input as `model: e.model` (Agent tool param only); frontmatter model never reaches `agent.spawn` nor `agent.offer`; `route === undefined` also covers frozen forks/workflows (hook model ignored) and project-source skips; nested spawns carry the SUB-AGENT's `parentModel`; `turnModel` is set on upgrades too. A repo/user `general-purpose.md` can shadow the built-in with its own `model:` → `offers.get(type) === 'built-in'` is the discriminator.
 - **Apply**: before rewriting a spawn's model, prove the agent would inherit: allowlist of built-in types with no frontmatter (`general-purpose`), source `built-in`, not fork/workflow, `parentAgentId` undefined, and the parent really sits below the baseline. Record what the hook cannot see as a `shortcut:` at the allowlist. Links [[BDR-116]], [[BDR-115]], [[LRN-203]].
 
 ## LRN-218 — `$.model.complete` as availability probe: credits-exhausted model NEVER settles (timeout = only failure signal); answer is an object; probe the decided target only, after the decision
+- **Date**: 2026-10-15
 - **Context**: model-router bugfix 2026-10-14/15, live scratch mod (`claude -p --plugin-dir`). `complete({model:'claude-opus-5-5', prompt:'ok', maxTokens:1})` resolved 1308 ms with OBJECT `{ isAnswered, text, usage }` (d.ts says string; maxTokens not honored, 43 output tokens). Same call on `claude-fable-5-1` without credits: no settle, no rejection after 900 s (client retries the 429). Plan r1 probed in a loop before deciding → BLOCKERs: unbounded spin on explicit alias, cur probed.
 - **Apply**: availability check via `complete()` = race vs own timeout, treat timeout + rejection as down, any resolved shape as up; never read `isAnswered:false` as failure (unobserved). Decide first, probe only the move target, once, skip cur and held ids, one re-decision without probe. No hook signal on the probe (Esc must not mark model down); probe sleep counts against 10 s `turn.step` budget. Links [[BLK-030]], [[LRN-207]].
 
 ## LRN-219 — Scanner regex over untrusted trees: bound every repeat, cap every comment blanker, lock with a timing test on an adversarial file
+- **Date**: 2026-10-19
 - **Context**: guardrails split 2026-10-19. Challenge + 3 review rounds found quadratic COMMENT / env regexes, unbounded `[^>]*` and `\S+`. Fixes: DATA_ATTR `[\w-]{0,60}`, SCRIPT_SRC `[^>]{1,300}`, TRACE_MARKERS `[^)\n]{0,200}`, SQL_COMMENT `/\*[\s\S]{0,4000}?\*/`, MARKUP_COMMENT tempered `<!--(?:[^<]|<(?!!--)){0,4000}?-->`. Residual ~1.4 s on adversarial 200k file, accepted.
 - **Apply**: whole-file regex = bounded repeats, tempered dot for nested delimiters, timing lock in the suite (`guardrails-scan.test.sh`), files > 1 MB listed by path (`Project.large`), `.map` head 4 KB only. Links [[BDR-122]].
 
 ## LRN-220 — Live probe verdicts fail closed by construction: every negative branch needs its own fixture route, a 3xx reaching a verdict = dropped redirect = SKIPPED, a depth or size limit hit = SKIPPED never CLOSED
+- **Date**: 2026-10-19
 - **Context**: same run. GATE 1 verifier: `fields` probe had OPEN + SKIPPED assertions, no CLOSED route. Opus review: three false verdicts (embedded `sourceMappingURL` string → OPEN; off-host map redirect dropped by `_SameHost` → 302 → CLOSED; sensitive key below depth 4 → CLOSED). Each = a code path no fixture route exercised.
 - **Apply**: per probe, fixture routes for OPEN, CLOSED, unobservable (SKIPPED), dropped redirect, truncated, oversize; anchor marker comments at line start and take the last; walk bounded bodies fully (iterative). Links [[BDR-122]], [[LRN-219]].
 
 ## LRN-221 — Floor-guard suppressions: remove, never waive; contract oracles assert intent, not syntax
+- **Date**: 2026-10-19
 - **Context**: GATE 1 counted 6 floor findings: `# noqa: E402` ×2 (import after `sys.path.insert`), a `# shellcheck disable=SC2016` copied from another suite (dead: deleting it raised nothing), 3 plan quotes of the same lines. `importlib.import_module` after the insert needs no noqa. Then criterion 16's CHECK grepped `^import scanner` and went red on the legit fix.
 - **Apply**: a suppression = first try the construct that needs none; test a copied `disable` by deleting it; a CHECK greps the symbol or behaviour (`scanner.Catalogue` loaded), never one spelling of the code. Links [[BDR-102]].
 
 ## LRN-222 — Map an error to a verdict on a typed exception or carried constant, never on `str(err)`
+- **Date**: 2026-10-21
 - **Context**: guardrails residuals plan r2 detected budget exhaustion by `BUDGET_EXHAUSTED in str(err)`; `URLError` renders as `<urlopen error …>` and wraps the reason object, so the match never fired and the verdict stayed SKIPPED instead of ERROR. Challenger (correctness lens) caught it as BLOCKER before the contract. Fix: `_BudgetExhausted(URLError)` subclass carrying the constant, mapper uses `isinstance`, regression test raises the real type.
 - **Apply**: err→verdict code matches on type or an attribute the raiser sets; the test raises the real exception class through the real call path, never a hand-built message. Links [[LRN-220]], [[BLK-033]].
 
 ## LRN-223 — Regex timing lock is vacuous when the input matches early: non-matching worst-path input, assert `is None`, ≥ 2x margin
+- **Date**: 2026-10-21
 - **Context**: plan r1 timing cases (LRN-219 lock, 1.0 s / 80 KB) fed inputs the bounded regex matched at the start, so they ran fast by construction and proved nothing (challenger BLOCKER, robustness lens). r3: inputs built to force the longest non-matching scan, cases assert `is None` and the elapsed time; SHELL_DB case at 0.65 s was too close to the lock → 1800 units (~29 KB) for margin.
 - **Apply**: one timing case per bounded regex, input that does NOT match and exercises the widest quantifier; assert the non-match too, else a regex that matches everything passes the lock; keep elapsed ≤ half the lock. Links [[LRN-219]], [[BLK-033]].
 
 ## LRN-224 — Best-tier agent row floors on tier's 2nd alias: inTier writes head-or-above only
+- **Date**: 2026-10-21
 - **Context**: feat A (routing policy BLK-032) moved verifier + security-auditor to new `audit` phase (best = fable>opus>sonnet). Plan r1 set frontmatter `model: fable` (census rule floor = tier head) and claimed "Fable down → falls to opus". False: `inTier` (register.ts) writes a model only if it is the head or ranks above it, else logs "tier … down, frontmatter model kept" → fable frontmatter = gates spawn on dead Fable every credit outage (BLK-030/031). Lower tiers never hit it (head sonnet/opus always has a higher alias). Caught by correctness + robustness lenses r1, not by plan author.
 - **Apply**: an agent on a best-tier row keeps opus frontmatter; router lifts to Fable when up. Census `tier_floor` (effort-routing.test.sh) locks 2nd alias for best. Residual: spawn path unprobed → first gate of an outage window still dies once, retry lands on floor (register.test.ts audit-row case b). Links [[BLK-030]], [[BLK-032]], [[LRN-204]].
 
 ## LRN-225 — Gate on the tool's own exit-code contract, never on its prose; control through the gate's own helper on a clean/dirty pair
+- **Date**: 2026-10-22
 
 - **Context**: BLK-034. `grep -qi warning` on `claude plugin validate` output broke when CLI 2.1.306 added an advisory section; first plan (sed range delete between two markers) was fail-open: closing marker printed only when findings > 0, else range ran to EOF and hid `✔ Validation passed with warnings`.
 - **Pattern**: (1) a CLI with `--strict` / `--json` / rc semantics → gate on rc, prose only in the ko message. (2) Positive control runs the SAME helper the gate uses (a copy of the invocation stays green when the gate drifts). (3) Pair of fixtures differing only in the guarded cause (warnfix vs cleanfix): parse error (`error: unknown option`, rc 1 on both) or scrape added back turns the pair red; a lone "rc must be 1" accepts any failure. (4) Inline sample strings test the author's literal, not the code: a check that cannot fail is not a check. (5) `WORK=$(mktemp -d); trap 'rm -rf "$WORK"' EXIT` stays script-level: `local` WORK + EXIT trap → `unbound variable` under `set -u`, dir leaks.
 - **Apply**: any suite wrapping a third-party CLI verdict (plugin validate, linters, validators). Links [[BLK-034]], [[LRN-223]].
 
 ## LRN-226 — Cap one axis of a layered route at the writer, not at the reader
+- **Date**: 2026-10-23
 
 - **Context**: feat C model-router (BLK-032). r1 capped prompt routes inside `wantedModel` (drop model when above session). Challenge r1: capped `turnMain` still won slot order → hid held best-tier `runMain` (keyword reply in /feat run → opus); cap read `sessionModel`, '' after /reload-plugins → fail-open lift to fable.
 - **Pattern**: writer emits effort-only route (`{effort}`, no tier/model, same as `belowRun`); existing per-axis rule (model-less slot skipped for model axis) falls through to run slot or keeps cur. No baseline read, no new predicate, dead floor-model branch removed.
 - **Apply**: when a source must stop driving one axis, strip that axis where the route is written; check every lower-priority slot it used to shadow; a reader-side cap needs the baseline to be known at decision time, prove it or don't use it. Links [[BDR-123]], [[BDR-115]], [[EVAL-048]].
 
 ## LRN-227 — Root-commit author ≠ name the user remembers; identity list must cover every root email
+- **Date**: 2026-10-23
 - **Context**: BDR-124 verify. User expected lima `root n.turpault 2009`; real root = t.surrel 2009-02-25 (not shallow). Own repo root = `git@bchanot.fr`, absent from user.email + claude.identity → false foreign banner.
 - **Apply**: check origin claims against `git log --max-parents=0`, never memory. Every email ever used as root author → `git config --global --add claude.identity <email>`. Links [[BDR-124]].
 
@@ -1913,17 +1807,21 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Apply**: launch `void (async () => { await $.clock.sleep(300); … $.ui.ask … })()` before returning the deny; hold any shared dialog slot synchronously before return, free it in the continuation's `finally`. `$.command.run({ command: 'model', args })` from the continuation re-enters as PreModelSwitch source `command` + command.run origin plugin: gate both. Links [[BDR-127]].
 
 ## LRN-232 — Path rules load inside sub-agents; a load proof prompt must name the Read tool call
+- **Date**: 2026-10-27
 - **Context**: phase 0 proof 2026-10-26. `InstructionsLoaded` hook fields: `session_id`, `agent_id` (sub-agents only), `agent_type`, `cwd`, `file_path`, `memory_type`, `load_reason`, `globs`, `trigger_file_path`. General-purpose sub-agent Reading `rules/a11y.md` → `.claude/rules/rules-maintenance.md` logged, `load_reason: path_glob_match`, `agent_id` set. First headless probe `claude -p "read these 4 files"` → 0 log lines: model answered from memory, never called Read. Re-run "Use the Read tool, one call per file" → 4 lines.
 - **Apply**: per-repo split pass may move sub-agent-needed sections; verify per repo: `jq -c 'select(.memory_type=="Project" and (.file_path|contains("/.claude/rules/")))' ~/.claude/logs/instructions-loaded.jsonl | tail`. Any "does X load / fire" proof prompt names the tool and the call count; 0 lines first means "did the model act", not "the feature is off". A `paths:` rule loads on Read, not on Write of a new file. Links [[BDR-128]], [[BDR-125]].
 
 ## LRN-233 — Bash under pipefail: `head` after a producer, blanked PATH, unchecked temp-file rewrite
+- **Date**: 2026-10-27
 - **Context**: `lib/project-rules.sh` 2026-10-26, caught by plan challenger r2 + opus review after 2 sonnet reviews. (1) `compgen -G '**/*' | head -3` → producer SIGPIPE on > pipe buffer of hits, pipeline rc 141 under `pipefail`. (2) `PATH=/nonexistent bash hook.sh` → rc 127: blank PATH applies to the lookup of `bash` itself. (3) `tmp=$(mktemp); f > "$tmp" && cat "$tmp" > src` unchecked → `TMPDIR=/nonexistent` gives rc 0, "moved" printed, src unchanged (I/O failure path untested by 5 reviewers). (4) `compgen -G`: no brace expansion; dotglob matches dotfiles the engine skips; globstar never descends a symlink met under `**` (`top/link/**` finds, `top/**` misses).
 - **Apply**: a bounded reader after a producer is awk, reads to the end: `awk 'NR <= 3 { print } END { exit NR == 0 }'`. `"$BASH"` when PATH is blanked in a test. `tmp=$(mktemp) || return 2`; rewrite as `if ! { f > "$tmp" && cat "$tmp" > src; }; then rm -f "$tmp" "$out"; return 2; fi` (SC2015 forbids `a && b || c`). Plan Review Focus: one failure-path test per file-rewriting function (`TMPDIR=/nonexistent`, `chmod a-w`; root ignores chmod). One glob per extension; test names say what they prove (a guard the final `exit 0` swallows is unobservable). Links [[BDR-128]], [[LRN-096]].
 
 ## LRN-234 — Glob order follows LC_COLLATE; gate a new-case fix on the case, prove the old contract by differential
+- **Date**: 2026-10-27
 - **Context**: feat rules-h3-extract 2026-10-27. Confirmation challenger ran the planned suite under en_US.UTF-8: `printf '%s ' *` gave `sub2.md sub.md `, want `sub.md sub2.md ` (punctuation ignored in UTF-8 collation; C order differs). `make test` (Makefile) pins no `LC_ALL`. Same pass: `###` separator re-emission written as `RLENGTH - 1 < lvl` also fired for `##` ended by an H1 → 5 of 2,162 `##` extracts on this repo's md files changed vs develop, against the immutable REQUEST "`##` behaviour unchanged"; the suite (T7-T13) stayed green either way.
 - **Apply**: a test never asserts a glob listing order: count (`printf '%s\n' * | wc -l`), name files, or pin `LC_ALL=C` in the recipe. A fix for a new case is gated on that case (`lvl == 3 && …`) so the existing contract stays byte-identical, and the proof is an old-vs-new differential on real inputs (every `##` of every tracked md), not the suite alone. Also: a `# shellcheck disable` in a diff trips the floor guard unless the contract authorizes it; build the offending literal instead (`printf '\140\140\140'` for backticks). Links [[LRN-233]], [[BDR-128]], [[LRN-096]].
 
 ## LRN-235 — bash `!` blind to a failed redirect on a compound command; assert guards on their stderr line, anchored
+- **Date**: 2026-10-27
 - **Context**: feat extract-hardening 2026-10-27. Plan r1 wrote `if ! { printf …; body; } > "$out"; then … return 2`. Two challengers + own probe on bash 5.3.9: redirect fails → bash returns 1 BEFORE applying `!`, `if` sees false, source rewritten, rc 0 = the bug unchanged. `! { echo a; } > bad; echo $?` → 1. shellcheck clean, floor guard blind. LRN-233 form works only because its redirects sit INSIDE the group. Same pass: `grep -c 'cannot create'` on captured stderr = 2 on GNU coreutils (mkdir prints `mkdir: cannot create directory …`), 1 on uutils (this host) → host-dependent test. mkdir rc check + write rc check give same rc and same fs state; only the stderr line tells them apart.
 - **Apply**: a redirected group is checked as `{ a && b; } > f || { cleanup; echo … >&2; return 2; }` (chain inside with `&&`, else the last command masks printf). Never `if ! { … } > f`. A guard whose only observable is a message gets a test on that message, `grep -c '^project-rules: …'` anchored on the lib's own prefix, never a bare word a system tool may also print. A fixture escape (`../x` from the fixture root, `ln -s /nonexistent`) runs from a subdir of the fixture and links inside it. Links [[LRN-233]], [[LRN-096]], [[BDR-128]].

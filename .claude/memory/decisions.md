@@ -1,4 +1,5 @@
 ---
+format: 2
 type: decisions_registry
 entry_prefix: BDR
 schema:
@@ -17,133 +18,6 @@ rules:
 ---
 
 # Decisions registry (BDR)
-
-## Index
-
-| ID | Date | Title | Status |
-|----|------|-------|--------|
-| BDR-001 | 2026-04-22 | Uniform --help helper via session-start hook (option C) | accepted · won't-build 2026-06-30 |
-| BDR-002 | 2026-04-23 | Move tasks/ + introduce memory + audits under .claude/ | accepted |
-| BDR-003 | 2026-04-23 | Gitignore wildcard + negations pattern for .claude/ | accepted |
-| BDR-004 | 2026-04-27 | Adopt auto permission mode as default | accepted |
-| BDR-005 | 2026-04-27 | `motion` as default animation library; advisor stays read-only | accepted |
-| BDR-006 | 2026-05-03 | Caveman as 4th always-on plugin (output compression) | accepted |
-| BDR-007 | 2026-05-04 | Skill profiles partition gstack by usage (design / dev / qa / audit / minimal) | accepted |
-| BDR-008 | 2026-05-04 | Profile system v2: extend to plugins + MCPs + CLIs (web/seo/web-full/backend) | accepted |
-| BDR-009 | 2026-05-05 | Mandate caveman format on .claude/memory/ registries | accepted |
-| BDR-010 | 2026-05-07 | Gate GEO independently at ≥17/20 in client-handover pipeline | accepted |
-| BDR-011 | 2026-05-07 | Client handover deliverable: 4-chapter structure + ZenQuality branded HTML/PDF | superseded by BDR-013 (6-chapter doc) |
-| BDR-012 | 2026-05-07 | client-handover cover: white bg + green accents + PNG logo default | accepted |
-| BDR-013 | 2026-05-11 | client-handover: 6-chapter doc — promote scores §2 + NAP §4 | accepted |
-| BDR-014 | 2026-05-11 | Personal SKILL.md descriptions: "Use when [triggers]…" pattern + 1024-char spec limit | accepted |
-| BDR-015 | 2026-05-12 | Exclude broken gstack symlinks from /darwin-skill scope (external ownership) | accepted · trigger cleared by BDR-043 |
-| BDR-016 | 2026-05-15 | doc-syncer: README AUTO+unconditional, DEPLOY.md prod-only + 14-section VPS template | accepted |
-| BDR-017 | 2026-05-18 | `full` profile = web-full + plan + dev superset for /init-project MVP | accepted |
-| BDR-018 | 2026-06-02 | `profile gstack on/off` verb — toggle gstack keeping active-profile label | accepted |
-| BDR-019 | 2026-06-09 | Remove `disable-model-invocation` repo-wide — align skills with CLAUDE.md routing | accepted |
-| BDR-020 | 2026-06-11 | `/audit-delta`: per-axis SHA markers + always-on fix gate + unreachable-first-run = full report-only | accepted |
-| BDR-021 | 2026-06-27 | CLAUDE.md restructure: contradiction purge, project-specific sections labeled, critical sections never compressed | accepted |
-| BDR-022 | 2026-06-18 | doc-syncer scoped to public docs; `.claude/` + `CLAUDE.md` read-only context, never targets; conventions + clean mode | accepted |
-| BDR-023 | 2026-06-19 | Merge /close into /capitalize — 2 modes + TODO reconcile; /close alias | accepted |
-| BDR-024 | 2026-06-27 | `profile show --plain` = claude-free parse contract for the design gate | accepted |
-| BDR-025 | 2026-06-27 | Design gate profile-based; remedy `/profile design`; magic required-but-manual; unknown → fail-visible; claude via PATH-repair | accepted |
-| BDR-026 | 2026-06-27 | Secret source-of-truth outside the repo (`~/.claude/.env`) reached via a `repo/.env` symlink | accepted |
-| BDR-027 | 2026-06-27 | Minimal npm-via-nvm bootstrap over a centralized prereq lib | accepted |
-| BDR-028 | 2026-06-27 | Hand-curated config install-immutable (auto-revert guard) + de-vendor installer-managed skills | accepted |
-| BDR-029 | 2026-06-27 | Installer auto-fixes gstack browser on an OS newer than its pinned Playwright supports | accepted |
-| BDR-030 | 2026-06-27 | gstack skills activated ON-DEMAND per profile, not pre-installed; OFF by default stays | accepted |
-| BDR-031 | 2026-06-27 | global CLAUDE.md lightening = COMPRESSION, not path-scope / externalization | superseded by BDR-125 · 275-line target superseded by BDR-062 |
-| BDR-032 | 2026-06-27 | skill `/validate` → `/web-validate` (rename user surface, keep internals) | accepted |
-| BDR-033 | 2026-06-27 | design-gate §4: anim-lib suggestion — suggest-only, non-blocking, stateless 1-line | accepted |
-| BDR-034 | 2026-06-26 | Coupled-capitalize invariant v1 — memory commit auto per dev flow (Frame 2) | accepted |
-| BDR-035 | 2026-06-26 | Analyze-before-plan invariant v1 — read-before bookend of coupled-capitalize | accepted |
-| BDR-036 | 2026-06-27 | Doc-sync coupled invariant — commit docs doc-syncer patches (twin of BDR-034, BUILT not reordered) | accepted |
-| BDR-037 | 2026-06-27 | v2 capitalize Stop-hook rejected → wire /capitalize+/close to the include | accepted |
-| BDR-038 | 2026-06-27 | deploy skill: per-project learning runbook, two-moment cold-resume | superseded by BDR-054 (NEXT.sh, hand-back) |
-| BDR-039 | 2026-06-29 | Gitea branch protection = Option-1 owner-pushable, not require-PR | accepted |
-| BDR-040 | 2026-06-29 | doc-syncer MINOR-shape oracle: deterministic floor under LLM's MINOR call | accepted |
-| BDR-041 | 2026-06-30 | /reconcile = deterministic declared-vs-real engine + thin gated skill (reconciler, not lister) | accepted |
-| BDR-042 | 2026-06-30 | /release-candidate = thin orchestrator over gitflow release; the tag lives in the skill, not the lib | accepted |
-| BDR-043 | 2026-06-30 | BDR-015 trigger cleared — 5 ex-broken gstack symlinks repaired → darwin re-baseline back in scope (unblocked, NOT run) | accepted |
-| BDR-044 | 2026-06-30 | auto-skill-dispatch won't-build — under-routing fear inverted to over-routing by cartography, then measured: model discriminates (clear→route, ambiguous→ask, trivial→abstain) | accepted · won't-build |
-| BDR-045 | 2026-07-01 | Standalone memory/doc skills branch to chore/* via aiguillage (hook exemption kept) | accepted |
-| BDR-046 | 2026-07-01 | Claude Code installs via official native installer (curl claude.ai/install.sh), drop npm from install.sh | accepted |
-| BDR-047 | 2026-07-01 | ECC audit → zero import; local config ahead of reference | accepted |
-| BDR-048 | 2026-07-03 | semgrep security gate: engine version + rulesets PINNED, never --config auto; upgrade = deliberate visible human jump | accepted |
-| BDR-049 | 2026-07-03 | verifier = fresh + blind (no iteration history) + disk-contract + PROOF-or-fail; mute ≠ PASS; scope enrichment via human micro-gate | accepted |
-| BDR-050 | 2026-07-03 | universal pipeline (contract→dev inline→fresh verify→fresh security, loops bounded 3× in main loop) with per-flow weighting; hotfix failure = revert not loop | accepted |
-| BDR-051 | 2026-07-04 | contract enrich-at-gate: the contract grows ONLY at a human micro-gate ([gated] marker); the verifier judges the ENRICHED contract, not the seed | accepted |
-| BDR-052 | 2026-07-05 | /tour auto mode = branch-as-gate: no mid-run approval gates; unmerged chore branch + per-project TOUR.md = deferred human gate; reconcile report-only; loop bounded 3× | accepted |
-| BDR-053 | 2026-07-06 | ctx7 single surface: keep find-docs skill, kill context7.md rule | accepted |
-| BDR-054 | 2026-07-06 | supersede BDR-038 NEXT.sh/hand-back artifacts — shipped impl removed both (52f6678, LRN-102) | accepted |
-| BDR-055 | 2026-07-07 | job5: delete memory-commit/doc-commit `pending` verbs — v2 hook rejected (BDR-037), J4-17 closed MOOT | accepted |
-| BDR-056 | 2026-07-07 | job6: deps policy = latest gated by integration, not KEEP-PINNED by default | accepted |
-| BDR-057 | 2026-07-07 | job7: secrets by reference not by value; redact at capture, not just at rest | accepted |
-| BDR-058 | 2026-07-07 | job8: darwin-skill reinstall full pinned tree, detached HEAD (skills CLI single-file-fetch gap) | accepted |
-| BDR-059 | 2026-07-07 | job8: explicit ask-gate for all 4 magic MCP tools, empty allow stays empty | accepted |
-| BDR-060 | 2026-07-08 | job9: CC orchestration floor = v2.1.172 (nested dispatch), supersedes implicit v2.1.83 whole-system floor | accepted |
-| BDR-061 | 2026-07-08 | job9: seo/geo analyzers → fix-bundle→L1 by doctrine (validator-analyzer pattern), not by version constraint | accepted |
-| BDR-062 | 2026-07-08 | supersede BDR-031's 275 CLAUDE.md target — 305 assumed reality (extraction done at job1; more compression costs clarity > tokens); guard threshold realigned 280→320 | accepted |
-| BDR-063 | 2026-07-10 | GSC multi-account: OAuth2 installed-app flow + label-keyed token store, explicit (account,property) args, no global state | accepted |
-| BDR-064 | 2026-07-14 | global memory split: repo file → CLAUDE.global.md (deployed name unchanged), CLAUDE.md freed for project scope; consumer/maintainer wording rule | accepted |
-| BDR-065 | 2026-07-14 | transient planning artifacts (superpowers spec/plan): committed during run, deleted post-merge; git history = archive; codified in project CLAUDE.md | accepted |
-| BDR-066 | 2026-07-15 | Model routing: reflection inline (session big model) + sonnet-pinned executors + blocking gate | accepted |
-| BDR-067 | 2026-07-16 | first public release: versioning reset to v1.0.0 (override "never restart at v1.0.0") — 2026-07-16 | SHIPPED |
-| BDR-068 | 2026-07-16 | /capitalize + /close auto-persist memory (finish→develop + push); scoped LRN-069 exception — 2026-07-16 | implemented on feature/close-auto-persist |
-| BDR-069 | 2026-07-16 | permissions deny: keep broad `.env.*` glob, keep `.env.example` name (option A) — 2026-07-16 | implemented on chore/fix-inert-write-deny-rules |
-| BDR-070 | 2026-07-17 | claude-seo: cherry-pick scripts into our tree, never install; /seo stays sole entry | accepted |
-| BDR-071 | 2026-07-17 | No viable free backlink source → Off-page axis stays brand-mentions-only (FINAL, not placeholder) | accepted |
-| BDR-072 | 2026-07-17 | SPA: honest refuse (On-page N/A, not zero), no headless browser (R2 over R1) | accepted |
-| BDR-073 | 2026-07-17 | Scoring: LLM judges findings+severity, engine does the arithmetic (deterministic /20) | accepted |
-| BDR-074 | 2026-07-17 | Remove config-protection edit-block guardrail | accepted |
-| BDR-075 | 2026-07-17 | Framework-wide 3-way adversarial plan-challenge phase | accepted |
-| BDR-076 | 2026-07-19 | Dispatched judgment agents pinned OPUS; session model = orchestration + inline reflection ONLY | accepted |
-| BDR-077 | 2026-07-19 | Model-tiering v2: 4-tier explicit routing, mode-based splits, no-inherit dispatches | accepted |
-| BDR-078 | 2026-07-20 | ctx7 coverage: central fast-libs list + once-per-session reminder hook; every code path covered | accepted |
-| BDR-079 | 2026-07-20 | profile `set` symmetric on managed externals + MCPs | accepted |
-| BDR-080 | 2026-07-21 | Bug routing inverted: /bugfix primary, /investigate explicit-only | accepted |
-| BDR-081 | 2026-07-30 | Config recalibrated for Claude 5 family (Opus 5 dispatch tier) | accepted |
-| BDR-082 | 2026-08-02 | seo/geo analyzers de-prescribed for Opus 5 (C1) | accepted |
-| BDR-083 | 2026-08-24 | Contract gates: deterministic floor (GATE 0) under the fresh verifier | accepted |
-| BDR-084 | 2026-08-24 | /tour multi-project: parallel runners (LRN-083 derogation, bounded), runner inherits session model | accepted |
-| BDR-085 | 2026-08-25 | User permanent rules: writing-style always-on in rules/, web build+security path-scoped | accepted |
-| BDR-086 | 2026-08-26 | darwin: threshold gates full loops; verified defects fixed regardless of unit score (paired-validated, batched checkpoint) | accepted |
-| BDR-087 | 2026-09-03 | Stop hook = attention signal only, never control flow; one script for Notification + Stop | accepted |
-| BDR-088 | 2026-09-15 | gstack Playwright bump shared via lib, re-applied after submodule update; update helper never touches the submodule tree | accepted |
-| BDR-089 | 2026-09-15 | No Playwright browser-cache pruner; read-only doctor report — .links proved 0 bytes reclaimable | accepted |
-| BDR-090 | 2026-09-15 | Destructive shell work → autoMode soft_deny/hard_deny; `ask` tier abandoned (inert under auto) | accepted |
-| BDR-091 | 2026-09-16 | Ask, don't guess: open-choice sweep (3 classes) at plan step + mid-run CLASS channel supersede "one question upfront" | accepted |
-| BDR-092 | 2026-09-16 | docker + node framed by the classifier via autoMode.allow + soft_deny; ask entries retired | accepted |
-| BDR-093 | 2026-09-22 | 21st.dev: magic MCP → CLI + skill pack; staged install past the ~/.claude/skills symlink; CLI = gate's required-manual | accepted |
-| BDR-094 | 2026-09-22 | impeccable: global-scope install through the repo symlinks, pin + @latest fallback, output-read failure check | accepted |
-| BDR-095 | 2026-09-22 | Data-loss guardrails: static deny for transfer/destructive tools, push every commit, brief ≠ user authority | accepted |
-| BDR-096 | 2026-09-24 | Branch deletion guard: lib-only delete after verified merge, main/develop undeletable at the ref layer | accepted |
-| BDR-097 | 2026-09-24 | graphify from 200 tracked code files: the banner informs, the user decides | accepted |
-| BDR-098 | 2026-09-24 | CLAUDE.global.md density pass 352 → 270: compression only, three name-obvious routing lines dropped | accepted |
-| BDR-099 | 2026-09-24 | C2 coherence: 30 doctrine/skill tensions resolved, doctrine wins, BDR-068 kept as the written exception | accepted |
-| BDR-100 | 2026-09-24 | Guardrail evasion and partial rule changes get mechanisms, not lessons: refusal ends the attempt, citers census in make test | accepted |
-| BDR-101 | 2026-09-25 | `full` = default profile: no selection ⇒ full in force, `reset` applies it, install applies it | accepted |
-| BDR-102 | 2026-09-27 | agent-skills: no plugin, vendor 3 skills + build floor-guard + routing census + rest-api rule | accepted |
-| BDR-103 | 2026-09-27 | 6-repo review: 5 verdicts, 3 criteria (grep-verified coverage, per-session cost, doctrine conflict); stars decided nothing | accepted |
-| BDR-104 | 2026-09-28 | MengTo motion pack: vendor 5 scroll skills pinned via shared lib/vendor-skills.sh + build personal skill site-motion; 17 skipped | accepted |
-| BDR-105 | 2026-09-28 | skill-catalog prune: 9 gstack out via GSTACK_REMOVED, full ⊇ every profile, max = everything, brightdata + frontend-design plugin off, security-guidance Stop review off, design gate asks `21st login` and waits | accepted |
-| BDR-106 | 2026-09-28 | superpowers: 7 wired skills vendored at v6.4.1 via lib/vendor-skills.sh (always_on lock class), plugin + marketplace dropped, citers by bare name, doctrine map for the 4 non-vendored refs | accepted |
-| BDR-107 | 2026-09-28 | Effort tiering: session high, effort pins on 20 agents (BDR-077 second axis), entry level on 30 skills, five paired shifter skills, max at loop caps + ship-feature 4b | accepted |
-| BDR-108 | 2026-09-29 | Effort round: level on every skill next to its model pin (3 repo + 25 vendored via `lib/effort-pins.txt` re-applied after the LAST vendoring step of install + resync), design stack ONE level (high), model pins stay tier aliases: quality/price trade-off = tier × effort, never version | accepted |
-| BDR-109 | 2026-09-30 | Higgsfield pack: npm CLI `latest` + 8 upstream skills git-cloned into gitignored `skills-external/higgsfield-*`, OFF by default, in no profile; two toggles (`higgsfield` = allowlist of 7 media skills, `higgsfield-websites` = landing-page aid, never website create/deploy/publish); CLI presence by probe; routing on explicit ask | accepted |
-| BDR-110 | 2026-10-06 | Shell portability doctrine: native userland on macOS AND Linux, no Homebrew GNU tools on PATH; `lib/tests/portability-census.test.sh` locks deterministic GNU-only idioms | accepted |
-| BDR-115 | 2026-10-08 | model-router mod: pin = entry default, sub-tasks route finer; one writer per axis; full ids from the mod table; built-ins-only agents table until frontmatter pins go; state in closure | accepted |
-| BDR-116 | 2026-10-11 | model-router first-use confirmation: tracked routing.json = source of phases + rows + decisions; engine dialog at first use; project exceptions in user scope keyed by normalized remote; model never writes; census tolerates a decided row | accepted |
-| BDR-117 | 2026-10-12 | shared gstack helpers live in lib/gstack-removed.sh, not in a new lib | accepted |
-| BDR-118 | 2026-10-12 | Rust default language for new projects / whole-project rewrites, always-on rule file | accepted |
-| BDR-119 | 2026-10-16 | impeccable = Build path for all UI; GATE-BLOCK swaps frontend-design for impeccable | accepted |
-| BDR-120 | 2026-10-18 | Secure-by-default guardrails: always-on rule file + /guardrails stdlib scanner, passwords in api domain | accepted |
-| BDR-121 | 2026-10-18 | Guardrails fix loop reuses bugfix circuit; scanner = contract oracle, baseline re-pass | accepted |
-| BDR-122 | 2026-10-19 | Guardrails split: /a11y standalone on shared scan engine, injection + exposure domains, exposure proven live by read-only probe | accepted |
-| BDR-123 | 2026-10-21 | Routing policy: opus session model, Fable via best-tier rows for orchestrator reflection + merge gates, sonnet writes, doctrine ceiling on Fable main; supersedes parts of BDR-066 / BDR-115 | accepted |
-| BDR-124 | 2026-10-23 | Foreign code keeps its own style (lib/code-origin.sh, `git config claude.origin`), limits strict in our code only | accepted |
-| BDR-125 | 2026-10-23 | Context mod: subtract-only JIT injection + deterministic guards; supersedes BDR-031 (conditional load proven reliable) | accepted · phases 0-5 planned |
-| BDR-128 | 2026-10-27 | Project path rules: one bash oracle (lib/project-rules.sh), /onboard split subtract-only, generators born split, InstructionsLoaded proof hook | accepted · 0b pending |
 
 ---
 
@@ -695,14 +569,17 @@ rules:
 - **Reference**: read-phase analysis (no hook code ever written); wiring commit (capitalize STEP 5B) follows. Completes [[BDR-034]] rollout; applies [[BDR-033]] doctrine to REJECT (not all nudges — the determinism split is [[LRN-061]]). See [[LRN-061]], [[LRN-047]], [[LRN-049]], [[LRN-054]].
 
 ## BDR-038 — deploy skill: per-project learning runbook, two-moment cold-resume
+- **Date**: 2026-06-27
 - **date**: 2026-06-27
 - **status**: accepted
 - **decision**: New `/deploy` skill = per-project runbook in `.claude/deploy/`. 5 artifacts: `PROCEDURE.md` (runbook, in-place edits), `INCIDENTS.md` (`DEP-NNN` ledger, append-only), `STATE.json` (deploy oracle, committed), `PENDING.json` (cold-resume bridge, gitignored), `NEXT.sh` (instantiated checklist, gitignored, hand-run). Two-moment spine: BEFORE (delta-instantiate `NEXT.sh` + hand back) → user deploys OUT-OF-BAND → AFTER (react: MARK success or LEARN from failure). Cold cross-session resume via `PENDING.json` (disk = only memory across the gap). Learn = atomic patch+incident (one `deploy-commit.sh` call, both files). New helper `lib/deploy-commit.sh` (allowlist `.claude/deploy/`). Built via subagent-driven-development (4 tasks).
 - **why**: deployment memory that LEARNS (runbook patched in place per failure) beats a frozen runbook; disk-bridge so a resume survives session loss.
 - **alternatives**: tag-oracle (rejected — lightweight-tag date unreliable, rebase-fragile, [[LRN-063]]); separate append-only ERRORS log (rejected — git history of `PROCEDURE.md`+`INCIDENTS.md` suffices, no `resolved-by` field); `NEXT.sh`-as-bridge (rejected — ephemeral ≠ persistent → separate `PENDING.json`); reuse doc/memory-commit (rejected — neither can commit `.claude/deploy/`, [[LRN-064]]).
 - **reference**: `skills/deploy/SKILL.md`, `lib/deploy-commit.sh`, `templates/deploy/`; branch `feat/deploy-skill` (b210e8d..79741e3, kept un-merged); spec `docs/specs/2026-06-27-deploy-skill-design.md`, plan `docs/plans/2026-06-27-deploy-skill.md`.
+- **Status (2026-10-28, upgrade)**: superseded by BDR-054 (NEXT.sh, hand-back)
 
 ## BDR-039 — Gitea branch protection = Option-1 owner-pushable, not require-PR
+- **Date**: 2026-06-29
 - **date**: 2026-06-29
 - **status**: accepted
 - **decision**: Protect `main` + `develop` on every gitflow-migrated Gitea repo with **Option 1 (owner-pushable)**: `enable_push=true` + `enable_push_whitelist=true` + `push_whitelist_usernames=[owner]`. Blocks force-push, branch deletion, and pushes by non-owners — while letting the owner push their LOCAL gitflow merges directly. NOT require-PR / required-review.
@@ -711,6 +588,7 @@ rules:
 - **reference**: `lib/gitflow-migrate.sh` `_protect()` (POST `/repos/{o}/{r}/branch_protections`, owner whitelist); applied to all 6 repos 2026-06-29 (journal). Hook backstop in `lib/gitflow.sh` (pre-commit); CLAUDE.md "Version control — gitflow (universal)". Pairs with [[LRN-069]] (the `git push` ASK gate at the tool-call layer).
 
 ## BDR-040 — doc-syncer MINOR-shape oracle: deterministic floor under LLM's MINOR call
+- **Date**: 2026-06-29
 - **date**: 2026-06-29
 - **status**: accepted
 - **Problem**: doc-syncer AUTO MODE classifies drift NONE/MINOR/SIGNIFICANT by LLM judgment, no deterministic backstop. SIGNIFICANT mislabeled MINOR → silent auto-patch + auto-commit, skips the SIGNIFICANT gate (RISK-1). Follow-up [[BDR-036]] flagged.
@@ -872,6 +750,7 @@ rules:
 - **Alternatives rejected**: `latest` (pipx house default, graphifyy-style) — fine for comfort tools, wrong for a blocking gate; `--config auto` — telemetry + non-determinism.
 - **Reference**: plugins.lock.json `semgrep` entry, install-plugins.sh STEP 7.5, update-all.sh step 6.2 — branch feature/semgrep-install `ccfecc9`. Conditions [[LRN-047]], [[LRN-085]]. Coverage caveat of the community rulesets: [[LRN-092]].
 - **Addendum 2026-07-03** (lot 3, measured): rulesets = `p/security-audit` + `p/secrets` + **`p/owasp-top-ten`**. owasp-top-ten is REQUIRED not optional — measured on realistic Flask code, the 2-ruleset baseline missed SQL injection + path traversal ENTIRELY (0 findings); owasp's taint rules catch them. Severity map: secrets ERROR→CRITICAL, other ERROR→HIGH (block), WARNING/INFO→reported. Blocking threshold = ERROR (per-RULE, not per-vuln — same class can straddle ERROR/WARNING; blocking WARNING too floods FP). FP measured shell/md only (faunosteo, game: sole added blocking ERROR = Dockerfile `missing-user` hygiene, contained by gate-mode diff-scoping). **Re-evaluate owasp FP at the first real web/python app project** (shell/md repos don't represent where the gate runs). See [[LRN-094]], agents/security-auditor.md branch feature/security-auditor `2b297bd`.
+- **Status (2026-10-28, upgrade)**: accepted
 
 ## BDR-049 — Verifier doctrine: fresh + blind + disk-contract + proof-or-fail
 
@@ -880,6 +759,7 @@ rules:
 - **Rationale**: dev self-score is always confident → not a gate. Verifier fed history anchors on prior verdicts → telescopic drift. Context-only contract dies at compaction, the verbatim with it.
 - **Alternatives rejected**: dev self-assessment as gate; cumulative verifier context ("cheaper" but anchored); gitignored run files (lose escalation reference + session-death survival).
 - **Reference**: lib/contract-interview.md + agents/verifier.md + lib/tests/contract-verifier.test.sh (31 locks) — branch feature/contract-verifier `6aed5ee`. Behavioral GREEN: planted-gap → ECARTS(2) exact; conform-under-injected-history → CONFORME (blindness held). Twin of [[BDR-048]] (security gate). Conditions [[LRN-048]], [[LRN-083]].
+- **Status (2026-10-28, upgrade)**: accepted
 
 ## BDR-050 — Universal verify+secure pipeline, weighted per flow (loops in the main loop)
 
@@ -888,6 +768,7 @@ rules:
 - **Rationale**: the value is the INDEPENDENCE of the gate (fresh subagent vs a rich contract), NOT delegating the dev — so dev stays inline in light flows and weighting lives on loops+questions, never on skipping a gate. hotfix reverts because a 3× loop would reintroduce the weight its identity excludes.
 - **Alternatives rejected**: dispatch the dev too (turns feat into ship-feature-bis); one merged "quality" gate (see [[LRN-095]] — orthogonal gates degrade if fused); hotfix loops like feat (breaks its 1-attempt identity).
 - **Reference**: lib/verify-secure-loop.md + wired feater/bugfixer/hotfixer + lib/tests/loops-light.test.sh (27 locks) — feature/verify-loops `0f0162d`. Behavioral GREEN (feat fixture): CONFORME→BLOCK(1) SQLi→fix→re-verify CONFORME→re-scan PASS, order invariant held. Builds on [[BDR-048]] [[BDR-049]]. Conditions [[LRN-083]] [[LRN-095]].
+- **Status (2026-10-28, upgrade)**: accepted
 
 ## BDR-051 — Contract enrich-at-gate: the contract grows only at a human micro-gate
 - **Date**: 2026-07-04
@@ -895,6 +776,7 @@ rules:
 - **Rationale**: raw request underspecifies (one-line "add validation" hides the schema-rejection requirement the design surfaces); verifier judging only the seed → every design decision unverified. Gating the growth keeps the contract honest (no silent scope creep) AND complete (design criteria are verified). Only flow where the contract is mutable mid-run — bounded to gate moments.
 - **Alternatives rejected**: freeze contract at creation (design criteria unverified — seed too thin); let dev enrich ([[BDR-049]] failure mode — dev justifies everything, scope constrains nothing); second contract per design (loses single-reference property).
 - **Reference**: ship-feature STEP 0e+3, init-project STEP 1+4, feature/verify-loops `1c69de2`. Behavioral GREEN: a `[gated 2026-07-04]` design criterion (reject unknown config keys) was read + judged NOT-MET by a fresh verifier across 3 rounds (dogfood). Builds on [[BDR-049]] [[BDR-050]].
+- **Status (2026-10-28, upgrade)**: accepted
 
 ## BDR-052 — /tour auto mode: branch-as-gate, declared state read-only
 
@@ -903,6 +785,7 @@ rules:
 - **Rationale**: mid-run gates defeat the skill's point (hands-off grouped sweep, user away). Auto-checking TODO reproduces the exact lie /reconcile catches — RED-proven, baseline did it. Branch+report = same approval semantics as audit-delta's 3c gate, moved after the fact where a headless run can afford it.
 - **Alternatives rejected**: per-phase AskUserQuestion gates (audit-delta model — blocks headless); one consolidated pre-fix gate (still blocks); auto-edit TODO on oracle proof (inference ≠ approval); plain-branch fallback on non-gitflow repos (violates lib-only doctrine → report-only instead).
 - **Reference**: skills/tour/SKILL.md + CLAUDE.md routing (feature/tour-skill `73e6a1c`). TDD trail [[LRN-099]] [[LRN-100]] [[EVAL-014]].
+- **Status (2026-10-28, upgrade)**: accepted
 
 ## BDR-053 — ctx7 single surface: keep find-docs skill, kill context7.md rule
 
@@ -911,6 +794,7 @@ rules:
 - **Rationale**: rule = ~490 tok/session session-start duplicate of the skill (job1 F10 + job2); skill self-suffices (876-char description carries the triggers, body has full CLI flow). Purge-in-installer beats one-shot rm: survives re-runs + manual `ctx7 setup`.
 - **Alternatives rejected**: kill skill keep rule (rule always-on, costs every session even non-lib work; skill lazy — wrong direction); hand-trim generated files (fight the generator, LRN-039 class); hand-edit lock hash (algo undocumented).
 - **Reference**: chore/ctx7-single-surface; job1 F10, job2 F8/F13. User decision 2026-07-06.
+- **Status (2026-10-28, upgrade)**: accepted
 
 ## BDR-054 — supersede BDR-038: NEXT.sh file + AskUserQuestion hand-back removed from /deploy
 
@@ -1077,12 +961,14 @@ rules:
 - **Alternatives rejected**: (plugin install) → both `/seo` coexist namespaced → non-deterministic dispatch, silently loses our FR-legal axis on an unpredictable fraction of runs. (install nothing) → forgoes render_page/url_safety/unlighthouse we lack.
 - **Verdict on parity**: their README lies (dual JSON-LD validator = 2 hyperlinks, zero `.py` calls; "zero-network"/"fully offline" false). Our system is more honest; we keep FR-legal (their whole repo: 2 hits), fix-bundle+ownership, trajectory-17/20, NAP anti-seed.
 - **Files**: none installed. Findings drove the whole seo-geo-integrity branch (21 commits).
+- **Status (2026-10-28, upgrade)**: accepted
 
 ## BDR-071 — no viable free backlink source: Off-page axis stays brand-mentions-only — 2026-07-17
 - **Decision**: I1's narrowed Off-page axis (brand mentions from STEP 6 only, backlinks+authority declared §14-unauditable) is the FINAL state, not a placeholder awaiting data.
 - **Why**: measured, not assumed. GSC has no links endpoint (API = Search Analytics/Sitemaps/Sites/URL-Inspection only; links report UI-only). Common Crawl hyperlinkgraph domain-edges = **17.3 GB gzipped** (+879MB vertices, +2.3GB ranks), HEAD-measured live. Scanning it per-audit is non-viable + abusive to a nonprofit. The reference impl (claude-seo commoncrawl_graph.py:169) caps download at 500 MiB = **2.9% of edges**, sorted by source ID → arbitrary slice reported as a backlink profile, "70/100 health". A random sample dressed as a measurement — the exact failure class the branch removes.
 - **Consequence**: B1/B2/B3 all killed. Weight (10-15%) unchanged — re-deriving for an axis that won't widen churns historical scores for nothing.
 - **Only free viable source**: Bing GetUrlLinks — first-party only (never a competitor), blocked on client's Bing account → raises W2's value ([[BLK-017]]), does not unblock it.
+- **Status (2026-10-28, upgrade)**: accepted
 
 ## BDR-072 — SPA: honest refuse, no headless browser (R2 chosen over R1) — 2026-07-17
 - **Decision**: rendercheck verdict `client-rendered` → On-page axis N/A, excluded from weighted global, NEVER scored zero. No Playwright, no Chromium. User-arbitrated.
@@ -1090,12 +976,14 @@ rules:
 - **GEO angle (sharper)**: AI crawlers (GPTBot/PerplexityBot/ClaudeBot) are WORSE at JS than Googlebot — fetch HTML, largely don't execute. A client-rendered site is near-invisible to the engines the audit serves → §0 alert + SSR/SSG top user action, aligns CLAUDE.global "public sites never SPA".
 - **Alternatives rejected**: R1 Playwright (~300MB Chromium, breaks bash+curl purity) — user chose refusal. Refusing IS the finding.
 - **Files**: lib/seo-data/render_check.py, seo/geo STEP-5 gates (20d3082).
+- **Status (2026-10-28, upgrade)**: accepted
 
 ## BDR-073 — deterministic scoring: split LLM judgement from arithmetic — 2026-07-17
 - **Decision**: LLM emits WHICH findings + severity (irreducible judgement); engine computes the /20. Reuses /harden's scale (-15/-8/-3/-1, clamp, /5 into /20) → one vocabulary across the family.
 - **Why**: /harden had a real scale (SKILL.md:435), /seo had NONE → every axis felt → two runs over identical code diverged, while /client-handover gates on 17/20. H2 sharpened it: once drift reports real change, a self-moving score is visibly noise. Same principle as engine-side cannibalisation grouping — never hand a model 1000 rows to add.
 - **Makes computable (was prose)**: "N/A is not a zero" (R2 on-page, I1 off-page) → axis excluded + weights renormalised, verified all-20 with 2 N/A → global 20.0. Prevalence: affected/sampled shift severity ONE step (≥50% escalate, single de-escalate).
 - **Files**: lib/seo-data/score.py (4818c61).
+- **Status (2026-10-28, upgrade)**: accepted
 
 ## BDR-074 — Remove config-protection edit-block guardrail [accepted] (2026-07-17)
 Deleted hooks/config-protection.sh + its settings.json PreToolUse registration + lib/tests/config-protection.test.sh. Hook blocked model Edit/Write on quality-gate files (settings.json, gitflow.sh, .githooks, doctor.sh, hooks, lib/tests, lint) via one-shot .claude/.config-edit-ok sentinel. Removed per user req — friction editing own config > guardrail value; user = human operator. Residual: gitflow pre-commit guard + Gitea branch protection still block direct code commits main/develop; only edit-time block gone. Alts rejected: warn-only (exit0+log), targeted relaxation. Supersedes any prior config-protection decision.
@@ -1157,6 +1045,7 @@ Branch feature/user-writing-web-rules, UNMERGED (human gate).
 - **Why**: leaving a verified destructive path (hotfix `git restore .` wiping tolerated user edits, file scored 85) unfixed = score-worship; rubric serves quality, not the inverse.
 - **Alternatives rejected**: strict threshold (ships known bugs); optimize-everything (cost, HL-4 diminishing returns).
 - **Reference**: run 2026-08-26, commits 6eceedb..6eac7fb, `.claude/audits/DARWIN-2026-08-26.md`.
+- **Status (2026-10-28, upgrade)**: accepted
 
 ## BDR-087 — Stop hook = attention signal only, never control flow
 - **Date**: 2026-09-03
