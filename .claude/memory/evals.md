@@ -66,6 +66,7 @@ rules:
 - **Method / why missed**: I treated the pre-existing `CLAUDE_LINES` as established and only touched the lines I was adding/removing. Spotting the redundancy needs cross-referencing TWO config layers (shell alias vs settings.json) — a semantic check I never ran. Masked further: the user's `.bashrc` is hand-managed and the alias line wasn't even present, so it looked inert.
 - **Anomaly**: not just dead config — a CLI flag (`--effort max`) silently OVERRIDES the settings.json value (`xhigh`). Real correctness bug.
 - **Action**: when editing installer shell-config, audit EACH existing line against the current settings.json / CLAUDE.md source of truth, not only the lines being changed. Removed the alias + added cleanup. General rule: reconcile config to ONE source of truth across env/alias/settings layers.
+- **Status (2026-10-28)**: correct (Index Action, upgrade)
 
 ---
 
@@ -246,6 +247,7 @@ Dogfood: 3 blind lenses attacked the v1 plan for the plan-challenge feature itse
 - **Method**: paired same-judge 3-majority per round (v2.1); judges live-exec where artifact executable (5 units: skills-perso, profile, plugin-pair, status-reporter, gitflow). Absolute scores triage-only. Totals main-thread (LRN-018 applied).
 - **Anomalies**: (1) 0 reverts/ties in 60 verdicts — homogeneous-better checked: skeptic lens found real residuals 3x (doctor.sh cost source, hotfix RULES leftover restore, FILE(S) new-marker) → judges engaged. (2) census lock RED on line-rewrap, make test caught → LRN-144. (3) head-pipe masked grep exit 2x → LRN-143.
 - **Action**: v2.1 paired = standard. Post-run absolute rescore skipped by design (would be judge-noise theater).
+- **Status (2026-10-28)**: keep (Index Action, upgrade)
 
 ---
 
@@ -335,6 +337,7 @@ Dogfood: 3 blind lenses attacked the v1 plan for the plan-challenge feature itse
 - **Method**: 3 blind opus challengers (simplicity CONCERNS(3), robustness CONCERNS(6), correctness FATAL(8)) + 1 confirmation (CONCERNS(4)); every BLOCKER/MAJOR closed by a named plan change (r2, r3); then feater, GATE 0, verifier, security.
 - **Anomaly**: r1 carried 2 BLOCKER (explicit Agent `model` overridden at every step; Skill bridge answer shape refused by the output schema → doublon kept) + 10 MAJOR, all invisible to me: spike levers carried over as design (`agentsNext`, per-step model rewrite), a table copying 21 pins = third source of truth, writes on main from sub-agent loops. Confirmation found 4 more MAJOR (explicit params vs in-agent writes, `e.wait`, vacuous test assertions, haiku effort). Executor then DONE first pass, verifier CONFORME 6/6, security PASS: the plan was the whole risk.
 - **Action**: a mod plan always goes through the full round + confirmation; test assertions must read the one line that carries the value; spike code is a FACT source, never a design source ([[BDR-115]], [[LRN-205]], [[LRN-206]]).
+- **Status (2026-10-28)**: keep the round, never dispatch a mod plan without it (Index Action, upgrade)
 
 ## EVAL-041 — model-router W1-C: the plan was the whole risk, two confirmations were needed
 - **Date**: 2026-10-09
