@@ -591,11 +591,11 @@ memory_legacy_status() {  # <file> <ID> [<end>] → the v1 lexical status line
       | tail -1
     return
   fi
-  RE="$_MEM_LEGACY_RE" awk -v id="$2" -v end="$end" '
-    /^```/ { fence = !fence }
-    !fence && $0 ~ end { on = 0 }
+  RE="$_MEM_LEGACY_RE" END_RE="$end" awk -v id="$2" '
+    /^```/ { fence = !fence; next }
+    !fence && $0 ~ ENVIRON["END_RE"] { on = 0 }
     !fence && $0 ~ "^## " id " " { on = 1; next }
-    on && tolower($0) ~ tolower(ENVIRON["RE"]) { last = $0 }
+    on && !fence && tolower($0) ~ tolower(ENVIRON["RE"]) { last = $0 }
     END { if (last != "") print last }' "$1"
 }
 

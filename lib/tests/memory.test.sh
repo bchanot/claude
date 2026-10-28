@@ -428,6 +428,16 @@ v1blk d15/fenced '## BLK-003 — three' 'Status: resolved' '```' \
 bash "$MEM" upgrade d15/fenced >/dev/null 2>&1
 check T15-fenced-no-repair "$(grep -c 'upgrade)' d15/fenced/blockers.md)" 0
 check T15-fenced-open "$(memory_word_of d15/fenced/blockers.md BLK-003)" open
+# status words inside a ``` fence are not the entry's status
+v1blk d15/fstat-a '## BLK-003 — three' 'Status: open' '```' 'Status: resolved' '```'
+bash "$MEM" upgrade d15/fstat-a >/dev/null 2>&1
+check T15-fenced-status-a-no-repair "$(grep -c 'upgrade)' d15/fstat-a/blockers.md)" 0
+check T15-fenced-status-a "$(memory_word_of d15/fstat-a/blockers.md BLK-003)" open
+v1blk d15/fstat-b '## BLK-003 — three' 'Status: open' '```' \
+  '## BLK-009 — quoted' 'Status: resolved' '```'
+bash "$MEM" upgrade d15/fstat-b >/dev/null 2>&1
+check T15-fenced-status-b-no-repair "$(grep -c 'upgrade)' d15/fstat-b/blockers.md)" 0
+check T15-fenced-status-b "$(memory_word_of d15/fstat-b/blockers.md BLK-003)" open
 # `## ID—x` (no space) is no v1-visible heading: no silent flip
 v1blk d15/nospace '## BLK-001—x' 'Status: resolved' '' \
   '## BLK-002 — y' 'Status: open'
