@@ -48,6 +48,16 @@ tune it there.
    - rc 3                     → unsafe git state (detached / merge in progress);
                                 memory stays in the working tree for a manual
                                 commit — surface the helper's stderr.
+   - rc 5                     → `git commit` rejected (hook, protected branch,
+                                signing); nothing committed, surface stderr.
+   - rc 6                     → `memory.sh check --staged` refused, nothing
+                                committed, nothing left staged. Two causes,
+                                named on stderr: a line removed inside an
+                                existing v2 entry (only appends pass), or a NEW
+                                culprit (duplicate ID, heading shape); an open
+                                code fence counts even when it predates the
+                                commit. Fix the file, then commit the fix with
+                                /commit-change; never bypass the helper.
 
    `<mem_hash>` is the MEMORY commit (the one that ADDS the entries). It is NOT
    the code-commit hash that capitalize anchored INSIDE the entries

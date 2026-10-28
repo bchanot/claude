@@ -155,6 +155,22 @@ if [ -z "$OUT" ]; then ok "stdout empty on rejection (no stale hash)"; else ko "
 if [ "$BEFORE" = "$AFTER" ]; then ok "HEAD unmoved"; else ko "HEAD moved despite rejection"; fi
 rm -rf "$R"
 
+echo "== check --staged chokepoint (v2 registry, phase 4a)"
+d="$(new_repo)"
+printf -- '---\nformat: 2\ntype: decisions_registry\nentry_prefix: BDR\n---\n\n## BDR-001 — kept (2026-10-27)\n- **Status**: accepted\n' \
+  > "$d/.claude/memory/decisions.md"
+git -C "$d" add -A && git -C "$d" commit -qm v2
+head_before=$(git -C "$d" rev-parse HEAD)
+sed 's/kept/rewritten/' "$d/.claude/memory/decisions.md" > "$d/x.tmp" \
+  && cat "$d/x.tmp" > "$d/.claude/memory/decisions.md"
+out="$(cd "$d" && bash "$HELPER" commit "chore(memory): bad" 2>/dev/null)"; rc=$?
+staged="$(git -C "$d" diff --cached --name-only)"
+if [ "$rc" -eq 6 ] && [ -z "$out" ] && [ -z "$staged" ] && [ "$(git -C "$d" rev-parse HEAD)" = "$head_before" ]; then ok "in-place edit of a v2 entry → rc 6, nothing committed, nothing staged"; else ko "rc=$rc out=[$out] staged=[$staged] — in-place edit committed or left staged"; fi
+git -C "$d" checkout -q HEAD -- .claude/memory/decisions.md
+printf '\n## BDR-002 — added (2026-10-27)\nbody\n' >> "$d/.claude/memory/decisions.md"
+out="$(cd "$d" && bash "$HELPER" commit "chore(memory): BDR-002" 2>/dev/null)"; rc=$?
+if [ "$rc" -eq 0 ] && [ -n "$out" ]; then ok "append to a v2 registry → committed"; else ko "append refused rc=$rc"; fi
+
 echo
 printf 'RESULT: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]
