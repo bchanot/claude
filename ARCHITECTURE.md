@@ -30,7 +30,7 @@ claude-config/
 ├── mods/                  # Claude Code mods (function-hooks plugins), loaded through the skills/<name> symlink
 ├── skills-external/       # Vendored skill packs: gstack submodule, design skills, superpowers, agent-skills, MengTo scroll skills, 21st and Higgsfield packs (machine-owned copies gitignored)
 ├── templates/             # Per-project templates (CLAUDE.md, settings, memory registries, path-rule skeletons, deploy runbook, gitignore)
-└── lib/                   # Shared libs: gitflow, profiles, vendoring, route doctrine, gates, archetypes, project-rule oracle, tests
+└── lib/                   # Shared libs: gitflow, memory registry writer, profiles, vendoring, route doctrine, gates, archetypes, project-rule oracle, tests
 ```
 
 ## Architecture principles
