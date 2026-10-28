@@ -416,6 +416,20 @@ dialect hashes '^## BLK-001 — three hashes, resolved$' unseen
 check T15-hashes-no-repair "$(grep -c 'upgrade)' d15/hashes/blockers.md)" 0
 check T15-hashes-1-resolved "$(memory_word_of d15/hashes/blockers.md BLK-001)" resolved
 check T15-hashes-2-open "$(memory_word_of d15/hashes/blockers.md BLK-002)" open
+# probe d: a ### entry after a ## one must not leak its status into it
+v1blk d15/probed '## BLK-003 — three, open' 'Status: open' '' \
+  '### BLK-001 — x' 'Status: resolved'
+bash "$MEM" upgrade d15/probed >/dev/null 2>&1
+check T15-probed-no-repair "$(grep -c 'upgrade)' d15/probed/blockers.md)" 0
+check T15-probed-open "$(memory_word_of d15/probed/blockers.md BLK-003)" open
+# `## ID—x` (no space) is no v1-visible heading: no silent flip
+v1blk d15/nospace '## BLK-001—x' 'Status: resolved' '' \
+  '## BLK-002 — y' 'Status: open'
+sum=$(cksum < d15/nospace/blockers.md)
+bash "$MEM" upgrade d15/nospace >/dev/null 2>&1
+check T15-nospace-refused "$?" 2
+check T15-nospace-untouched "$(cksum < d15/nospace/blockers.md)" "$sum"
+check T15-nospace-no-repair "$(grep -c 'upgrade)' d15/nospace/blockers.md)" 0
 # RECONCILE_GREP reaches reconcile's v1 pipeline
 v1blk d15/v1only '## BLK-001 — v1 file' 'Status: resolved'
 printf '#!/bin/sh\necho STUB >&2\nexec /usr/bin/grep "$@"\n' > gstub

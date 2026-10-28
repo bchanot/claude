@@ -577,19 +577,23 @@ _mem_heading_ids() {  # <file> <PREFIX> → the entry IDs, any heading level
   "$MEM_GREP" -oE "^#+ *$2-[0-9]+" "$1" | sed 's/^#* *//'
 }
 
-memory_legacy_status() {  # <file> <ID> → the v1 lexical status line (reconcile
-  # reads it on a v1 blockers file; `upgrade` proves its verdicts against it)
-  # v1: drop ALL `## BLK-` header lines first: the range is inclusive of the
-  # NEXT entry's header, and a sibling header may carry a status word.
-  sed -n "/^## ${2} /,/^## BLK-/p" "$1" \
-    | "$MEM_GREP" -v '^## BLK-' \
-    | "$MEM_GREP" -iE 'status|RESOLVED|REVERTED|upstream|resolved|[^a-z]open' \
+_MEM_LEGACY_RE='status|RESOLVED|REVERTED|upstream|resolved|[^a-z]open'
+memory_legacy_status() {  # <file> <ID> [<end>] → the v1 lexical status line
+  # (reconcile reads it on a v1 blockers file; `upgrade` proves its verdicts
+  # against it). The range ends at the next line matching <end> (BRE,
+  # default `^## BLK-`, reconcile's own). v1: drop every <end> line first: the
+  # range is inclusive of the NEXT entry's header, which may carry a status.
+  local end="${3:-^## BLK-}"
+  sed -n "/^## ${2} /,/$end/p" "$1" \
+    | "$MEM_GREP" -v "$end" \
+    | "$MEM_GREP" -iE "$_MEM_LEGACY_RE" \
     | tail -1
 }
 
 _mem_legacy_open() {  # <old file> <ID> → rc 0 when reconcile's v1 reader
-  local st           # lists the blocker open (its status is not RESOLVED)
-  st=$(memory_legacy_status "$1" "$2")
+  local st           # lists the blocker open (its status is not RESOLVED);
+  # upgrade reads the entry's own range, up to a heading of any level
+  st=$(memory_legacy_status "$1" "$2" '^##* *BLK-[0-9]')
   case "$st" in *RESOLVED*|*resolved*) return 1 ;; esac
 }
 
@@ -609,7 +613,7 @@ _mem_verdict_diff() {  # <old> <new> → "ID<TAB>word" per blocker whose open /
   for id in $(_mem_heading_ids "$2" BLK); do
     printf '%s\n' "$ix" | "$MEM_GREP" -qx "$id" && continue
     # the v1 reader enumerates `## ID` headings only: no verdict to keep
-    "$MEM_GREP" -qE "^## $id([^0-9]|$)" "$1" || continue
+    "$MEM_GREP" -qE "^## $id( |$)" "$1" || continue
     _mem_legacy_open "$1" "$id" && was=open || was=resolved
     memory_closed "$(memory_status_word "$(memory_entry_status "$2" "$id")")" \
       && now=resolved || now=open
