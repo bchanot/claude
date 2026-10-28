@@ -525,3 +525,22 @@ Run: `grep -c '^## Index' .claude/memory/*.md` → 0 everywhere; `make test suit
 /home/bchanot/repos/bchanot/trucks_at_work
 ```
 (pre-branch reader: `git show develop:lib/reconcile.sh > <tmp>` then source `<tmp>`; measured 2026-10-28 on copies: 13 of 13 distinct files identical.)
+
+---
+
+### Task 8: `upgrade` migrates every v1 dialect (user ask at the gate, 2026-10-28)
+
+User at STEP 3: "Il faudrait un système de migration pour que les fichiers v1 deviennent des fichiers v2 pour tout harmoniser". Same files, same `.claude/memory/` place, versioned and pushed with the code; v2 = `format: 2` + no Index.
+
+**Files:** `lib/memory.sh` (`upgrade` path only), `lib/tests/memory.test.sh` (new T15 block), `lib/tests/fixtures/blockers-v1-dialects.md` (extend if needed).
+
+**Behaviour** (replaces the dialect refusal of Deviation 6 for `upgrade` only):
+1. No frontmatter → prepend the matching `templates/memory/<name>.md` frontmatter (with `format: 2`) and keep the file's own body verbatim below it.
+2. Heading normalization, entry headings only (`^#+ *PREFIX-[0-9]+`): `## ID - t`, `## ID | date | t`, `### ID — t`, `## ID — t — date` → `## ID — t (date)`; the date comes from the heading, else the Index row, else the first `Date`/`date:` body line, else none. The title text is kept verbatim (only separators change). IDs never change.
+3. Status preservation: before rewriting, compute every entry's open/closed verdict with the v1 lexical reader (reconcile's legacy path, blockers) and the status word (all registries); after rewriting, if the strict v2 parser would read a different verdict or no status where the legacy reader had one, append `- **Status (<today>, upgrade)**: <word>` to that entry.
+4. Oracle (file untouched on any failure, rc 2, culprit named): same ID set and order; every entry's verdict before == after (blockers via the legacy reader vs `memory_closed`, others by status word when one existed); `check` green; idempotent second run.
+5. `upgrade` no longer refuses any of the measured dialects; it refuses only what the oracle cannot prove.
+
+**Tests (T15):** one fixture per dialect (hyphen, pipe, `###`, title-suffix `— RESOLVED`, `date: … · status:`, `**Statut** :`, no frontmatter) → upgraded, `check` green, verdicts preserved, idempotent; a tampered case where the oracle refuses and the file stays byte-identical. Proof on copies (read-only on the real repos): `upgrade` on a copy of each of the 13 other projects' registries is oracle-green; report the per-repo line counts.
+
+**Out of this branch:** applying it to the 13 other repos happens after the merge, one `chore/memory-v2` branch per repo, user approval per repo (phase 0b pattern), committed through `/commit-change` (a heading rename is an in-place edit, memory-commit refuses it by design).
