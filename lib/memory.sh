@@ -105,6 +105,8 @@ _mem_kind() {  # <kind> → "<file>.md <PREFIX>", rc 2 when unknown
 
 _mem_id_file() {  # <ID> → its registry path, rc 2 when the prefix is unknown
   local file
+  [[ "$1" =~ ^[A-Z]+-[0-9][0-9][0-9]+$ ]] \
+    || { echo "memory: not an entry ID: $1" >&2; return 2; }
   file=$(_mem_table 2 3 "${1%%-[0-9]*}") \
     || { echo "memory: not an entry ID: $1" >&2; return 2; }
   echo ".claude/memory/$file.md"
@@ -205,10 +207,12 @@ _mem_lock() {  # <lock file> <token> → rc 0 held, rc 2 after MEM_LOCK_TRIES
   # noclobber = open(O_EXCL) by bash itself: mkdir is not atomic under
   # uutils coreutils 0.10 (two concurrent mkdir both succeed)
   local lock="$1" tries=0 empty=0 t
+  [ -w "$(dirname "$lock")" ] \
+    || { echo "memory: cannot create lock: $lock" >&2; return 2; }
   until (set -C; echo "$(date +%s) $2" > "$lock") 2>/dev/null; do
     t=$(cat "$lock" 2>/dev/null)
     if [ -z "$t" ]; then empty=$((empty + 1)); else empty=0; fi
-    if _mem_stale "$t" "$empty"; then _mem_steal "$lock"; continue; fi
+    if _mem_stale "$t" "$empty"; then _mem_steal "$lock"; fi
     tries=$((tries + 1))
     [ "$tries" -lt "${MEM_LOCK_TRIES:-50}" ] \
       || { echo "memory: lock busy: $lock" >&2; return 2; }
@@ -447,6 +451,10 @@ memory_check() {  # [--staged] [<memory-dir>] → rc 2 on any culprit
   local staged="" dir f rc=0
   [ "${1:-}" = --staged ] && { staged=1; shift; }
   dir="${1:-.claude/memory}"
+  [ $# -le 1 ] && [ "${dir#-}" = "$dir" ] || { echo "usage: memory.sh" \
+    "check [--staged] [dir]" >&2; return 2; }
+  [ -n "$staged" ] || [ -d "$dir" ] \
+    || { echo "memory: no memory dir: $dir" >&2; return 2; }
   case "$staged:$dir" in 1:/*|1:..|1:../*|1:*/../*|1:*/..)
     echo "memory: check --staged takes a repo-relative dir: $dir" >&2
     return 2 ;;
@@ -517,7 +525,7 @@ _mem_index_rows() {  # <file> <PREFIX> → "| ID | date | title | word |" rows
         sub(/^ — /, "", d) }
       sub(/ \[[^]]*\] *$/, "", t); gsub(/\|/, "/", t); next }
     id == "" { next }
-    d == "" && sub(/^- \*\*Date\*\*: */, "") { d = substr($0, 1, 10) }
+    d == "" && sub(/^- \*\*Date\*\* *: */, "") { d = substr($0, 1, 10) }
     (w = mem_cand($0)) != "" { s = w }
     END { row() }' "$1"
 }
@@ -721,8 +729,22 @@ _mem_upgrade_build() {  # <file> <PREFIX> <out> → the v2 text, blocker
   return "$rc"
 }
 
+_mem_index_only_table() {  # <file> → rc 1 when ## Index holds a non-table
+  awk '$0 == "## Index" { on = 1; next }       # line outside a comment
+       !on { next }
+       cm { if (/-->/) cm = 0; next }
+       /^<!--/ { if ($0 !~ /-->/) cm = 1; next }
+       /^\|/ { tbl = 1; next }
+       /^#/ || /^---$/ || (tbl && /^$/) { exit }
+       /^$/ { next }
+       { bad = 1; exit }
+       END { exit bad }' "$1"
+}
+
 _mem_upgrade_ready() {  # <file> → rc 0 upgradable, 1 already v2, 2 refused
   memory_is_v2 "$1" && { echo "memory: $1 already v2" >&2; return 1; }
+  _mem_index_only_table "$1" || { echo "memory: $1: ## Index is not a" \
+    "table, not upgraded" >&2; return 2; }
   _mem_prefix "$1" > /dev/null
 }
 

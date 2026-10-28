@@ -502,6 +502,47 @@ check T15-tamper-rc "$?" 2
 check T15-tamper-culprit "$(printf '%s\n' "$err" | grep -c 'moved a verdict: BLK-001')" 1
 check T15-tamper-untouched "$(cksum < d15/tamper/blockers.md)" "$sum"
 
+# T16 final-review fixes
+# lock dir not writable: bounded, named, rc 2 (never a spin)
+chmod a-w .git
+out=$(timeout 10 bash "$MEM" journal x 2>&1); rc=$?
+chmod u+w .git
+check T16-lock-rc "$rc" 2
+check T16-lock-named "$(printf '%s\n' "$out" | grep -c 'memory: cannot create lock: ')" 1
+# a bare prefix is not an entry ID
+sum=$(cksum < "$B")
+bash "$MEM" status BLK "resolved abc" >/dev/null 2>&1
+check T16-bare-prefix-rc "$?" 2
+check T16-bare-prefix-untouched "$(cksum < "$B")" "$sum"
+# a bullet Index is refused, byte-identical
+mkdir -p t16/bul
+printf -- '---\ntype: blockers_registry\nentry_prefix: BLK\n---\n\n# B\n\n' \
+  > t16/bul/blockers.md
+printf '## Index\n\n- BLK-001 — x (resolved 2026-08-03)\n\n---\n\n' \
+  >> t16/bul/blockers.md
+printf '## BLK-001 — x\n- **Status**: resolved\n' >> t16/bul/blockers.md
+sum=$(cksum < t16/bul/blockers.md)
+err=$(bash "$MEM" upgrade t16/bul 2>&1 >/dev/null); rc=$?
+check T16-bullet-index-rc "$rc" 2
+check T16-bullet-index-named "$(printf '%s\n' "$err" | grep -c 'blockers.md: ## Index is not a table, not upgraded')" 1
+check T16-bullet-index-untouched "$(cksum < t16/bul/blockers.md)" "$sum"
+# check refuses nothing-to-check
+bash "$MEM" check --stagd >/dev/null 2>&1
+check T16-check-flag "$?" 2
+err=$(bash "$MEM" check /no/such/dir 2>&1); rc=$?
+check T16-check-nodir-rc "$rc" 2
+check T16-check-nodir-named "$(printf '%s\n' "$err" | grep -c 'memory: no memory dir: /no/such/dir')" 1
+# a `- **Date** :` body gets no second Date line
+mkdir -p t16/dt
+printf -- '---\ntype: blockers_registry\nentry_prefix: BLK\n---\n\n# B\n\n' \
+  > t16/dt/blockers.md
+{ printf '## Index\n\n| ID | Date | Title | Status |\n|---|---|---|---|\n'
+  printf '| BLK-001 | 2026-05-01 | x | open |\n\n---\n\n'
+  printf '## BLK-001 — x\n- **Date** : 2026-05-01\n- **Status**: open\n'
+} >> t16/dt/blockers.md
+bash "$MEM" upgrade t16/dt >/dev/null 2>&1
+check T16-date-spacing "$(grep -c '^- \*\*Date\*\*' t16/dt/blockers.md)" 1
+
 # T12 this repo's registries pass the check
 check T12-live-check "$(bash "$MEM" -C "$ROOT" check >/dev/null 2>&1; echo $?)" 0
 
