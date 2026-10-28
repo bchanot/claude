@@ -477,6 +477,13 @@ dialect nofm '^## BLK-001 — no frontmatter (2026-05-18)$'
 check T15-nofm-template "$(sed -n 1,3p d15/nofm/blockers.md | tr '\n' '#')" \
   '---#format: 2#type: blockers_registry#'
 check T15-nofm-body "$(grep -c '^# Blockers$' d15/nofm/blockers.md)" 1
+# a relative lib path plus -C from another cwd still finds the templates
+mkdir -p d15/relpath/.claude/memory
+printf '# Blockers\n\n## BLK-001 | 2026-05-18 | no frontmatter\n%s\n' \
+  '- **Statut** : resolved' > d15/relpath/.claude/memory/blockers.md
+(cd "$ROOT" && bash lib/memory.sh -C "$FIX/d15/relpath" upgrade >/dev/null 2>&1)
+check T15-relpath-rc "$?" 0
+check T15-relpath-format "$(grep -c '^format: 2$' d15/relpath/.claude/memory/blockers.md)" 1
 # an em-dash heading stays byte-identical, a dated one included
 v1blk d15/keep '## BLK-001 — keep — 2026-05-18' 'Status: open'
 bash "$MEM" upgrade d15/keep >/dev/null 2>&1

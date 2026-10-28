@@ -37,6 +37,8 @@
 # of any level, fenced or not. Free text reaches awk through ENVIRON,
 # never `-v` (which expands backslash escapes).
 
+# absolute before any `-C` cd: a relative $0 no longer resolves after it
+_MEM_LIB_DIR="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MEM_GREP="${MEM_GREP:-/usr/bin/grep}"
 _MEM_TABLE='decision decisions BDR
 learning learnings LRN
@@ -677,7 +679,7 @@ _mem_upgrade_front() {  # <file> → the file; one lacking a frontmatter gets
   local t first         # the template's (format: 2 is added with the rest)
   IFS= read -r first < "$1"
   if [ "$first" != --- ]; then
-    t="$(dirname "${BASH_SOURCE[0]}")/../templates/memory/${1##*/}"
+    t="$_MEM_LIB_DIR/../templates/memory/${1##*/}"
     [ -f "$t" ] || { echo "memory: no template for $1" >&2; return 2; }
     awk 'NR > 1 && /^---$/ { print; print ""; exit }
          $0 != "format: 2"' "$t"
