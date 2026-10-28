@@ -80,9 +80,10 @@ age comparisons. Today's date is in the system context.
 ### A. Obsolete — mark-superseded candidates
 - Decisions `status: proposed` older than 90 days → propose
   `status: deprecated` (no follow-up).
-- Decisions whose body contains "superseded by <ID>" but Index row still
-  says `accepted` → propose Index row fix to
-  `superseded by <that-ID>`.
+- Decisions whose body names a successor ("superseded by <ID>",
+  "Supersedes [[<ID>]]" on the newer one) but whose current status
+  (`bash "$HOME/.claude/lib/memory.sh" index decision`) still reads
+  `accepted` → propose `memory.sh status <ID> "superseded by <that-ID>"`.
 - Blockers `status: open` whose root cause matches a commit in last 30
   days (grep `git log --since=30.days --grep=<keyword>`) → propose
   `status: resolved` with commit ref.
@@ -108,12 +109,6 @@ age comparisons. Today's date is in the system context.
 - Detect filler density: count `\b(the|a|an|just|really|basically|actually|simply)\b`
   matches; if > 5% of word count → bloated.
 
-### D. Index drift
-- Body `## (BDR|LRN|BLK|EVAL)-NNN` heading exists but no matching row
-  in `## Index` table → propose Index backfill.
-- Index row exists but body entry missing → propose `status: deleted
-  (orphaned)` tombstone or removal of Index row (user decides).
-
 ## STEP 2 — PRESENT PLAN ★ MANDATORY STOP
 
 Print one block per registry. Example:
@@ -127,7 +122,7 @@ PRUNE PLAN — decisions.md (N entries → M after if approved)
   BDR-901 — example proposed decision — status: proposed since <90+ days ago>
             → mark: status: deprecated (no follow-up after 90 days)
   BDR-902 — example decision — body says superseded by BDR-903
-            → fix Index: status = "superseded by BDR-903"
+            → memory.sh status BDR-902 "superseded by BDR-903"
 
 [B. Similar — merge]
   LRN-901 + LRN-902 — SAME concept (two notes on the identical bug)
@@ -138,10 +133,7 @@ PRUNE PLAN — decisions.md (N entries → M after if approved)
 [C. Bloated — inline caveman rewrite]
   BDR-902 — body 612 words, filler density 7.2% → ~380 expected (-38%)
 
-[D. Index drift]
-  (none)
-
-Approve per category? (all / a / b / c / d / edit <ID> / skip)
+Approve per category? (all / a / b / c / edit <ID> / skip)
 ```
 
 Wait for user input. Default = nothing applied.
@@ -149,18 +141,22 @@ Wait for user input. Default = nothing applied.
 ## STEP 3 — APPLY APPROVED CHANGES
 
 Order: safe → destructive.
+Registry writes follow `lib/capitalize-commit.md` § WRITE (single writer).
 
-1. **Index drift fixes** — no body changes. Backfill missing rows, mark
-   orphans.
-2. **Status flag updates** — Index row status field only. Body untouched.
-3. **Merges** — write new merged entry (next-free ID); source IDs marked
-   `status: superseded by <new-ID>` in Index (body kept verbatim for
-   history). Merged body:
+1. **Status flag updates** — `bash "$HOME/.claude/lib/memory.sh" status <ID>
+   "<word> …"` appends a dated status line (text starts with a status word:
+   `deprecated, no follow-up after 90 days`); the body above stays verbatim.
+2. **Merges** — write the merged body to a scratch file, then
+   `bash "$HOME/.claude/lib/memory.sh" add <kind> --title "<title>"
+   --body-file <file> --supersedes <first source>` (next-free ID, forward
+   link, the first source marked superseded); each other source:
+   `memory.sh status <ID> "superseded by <new-ID>"`. Source bodies stay
+   verbatim for history. Merged body:
    - Preserves all `**Reference**:` lines (dedupe identical paths).
    - Caveman pass on prose during merge.
    - Keeps frontmatter fields: id (new), date (today), title, status
      (accepted), references (union).
-4. **Inline caveman compression** — preserve frontmatter exactly (id,
+3. **Inline caveman compression** — preserve frontmatter exactly (id,
    date, title, status, references). Rewrite prose body to fragments:
    - **NEGATION GUARD (deterministic, overrides every rule below):** never
      rewrite a sentence containing a negation token (`not`, `never`, `no`,
@@ -174,39 +170,13 @@ Order: safe → destructive.
    - Keep code blocks, URLs, error messages, file paths VERBATIM.
    - Keep IDs (BDR-XXX, LRN-XXX, commit hashes) verbatim.
 
-After each write, regenerate Index from body when rows changed.
-
 ## STEP 4 — VERIFY
 
 ```bash
-# Filename → ID-prefix map. Hard-mapped because filenames don't share
-# their first 3 chars with the prefix (decisions → BDR, not DEC).
-# A prior version derived the prefix via `basename | cut -c1-3`, which never
-# matched any heading and made verify a no-op (false-clean signal).
-declare -A PREFIX_MAP=(
-  [decisions]=BDR
-  [learnings]=LRN
-  [blockers]=BLK
-  [evals]=EVAL
-)
-
-# All body entries have Index rows; no orphans
-for fname in decisions learnings blockers evals; do
-  f=".claude/memory/${fname}.md"
-  [ -f "$f" ] || continue
-  prefix="${PREFIX_MAP[$fname]}"
-
-  /usr/bin/grep -oE "^## (${prefix})-[0-9]+" "$f" | while read marker; do
-    id="${marker##\#\# }"
-    /usr/bin/grep -q "^| ${id} " "$f" || echo "MISSING INDEX: $id in $f"
-  done
-  /usr/bin/grep -oE "^\| (${prefix})-[0-9]+ " "$f" | while read row; do
-    id=$(echo "$row" | awk '{print $2}')
-    # RED-6 fix: match id at a word boundary (space OR end-of-line) so a
-    # title-less heading "## BDR-009" is not flagged as a false orphan.
-    /usr/bin/grep -qE "^## ${id}( |\$)" "$f" || echo "ORPHAN INDEX: $id in $f"
-  done
-done
+# Structure: heading shape + unique IDs + no open fence (v2 registries; a
+# v1 one is named and skipped). Same verify the writer runs after every add.
+bash "$HOME/.claude/lib/memory.sh" check .claude/memory \
+  || echo "CHECK FAILED: fix the lines above before certifying"
 
 # RED-5 fidelity guard (count-based, per-entry x per-category). STEP 0 ensured
 # a clean tree, so git HEAD is the pre-prune backup. Fails the run if any
@@ -271,7 +241,7 @@ PRUNE COMPLETE
   journal.md   :  88 → 62 lines (-30%)
   evals.md     : no candidates
 
-INDEX SANITY: OK
+CHECK: OK
 NEXT: review `git diff .claude/memory/`, then `/commit-change`
 ```
 
@@ -302,7 +272,7 @@ NEXT: review `git diff .claude/memory/`, then `/commit-change`
 | Working tree dirty on registry files | STOP per PRECHECK; tell user to commit/stash first |
 | User says `skip` at STEP 2 | Exit cleanly, no writes |
 | Merge produces an entry > 600 words | Re-split — merge was too greedy. Re-prompt user to keep separate. |
-| Index sanity FAILED at STEP 4 | Print exact missing/orphan IDs. Do NOT auto-fix — user re-runs or hand-edits. |
+| `memory.sh check` FAILED at STEP 4 | Print its culprit lines. Do NOT auto-fix — user re-runs or hand-edits. |
 | Caveman compression result < 20% of original AND original had code blocks | Revert that entry's compression — flag as needing manual rewrite (likely stripped technical detail). |
 | Same file already compressed in same session | Skip C-category for that file; warn user that double-pass risks technical drift. |
 
@@ -320,7 +290,7 @@ NEXT: review `git diff .claude/memory/`, then `/commit-change`
 
 Baseline RED scenarios were run and their counters are embedded: the
 RED-2/RED-5/RED-6 guards live in the body above, and `tests/` holds the
-fixtures (red3-negation, red4-journal, red6-orphan) plus
+fixtures (red3-negation, red4-journal, red6-check) plus
 `run-deterministic.sh` and `run-behavioral.md`. New rationalizations a
 subagent finds → add the fixture and its counter to the "Common
 mistakes" / "Failure paths" tables (`tests/BACKLOG.md` tracks candidates).

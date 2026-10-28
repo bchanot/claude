@@ -272,7 +272,7 @@ A bugfix with an understood root cause is almost always worth one entry:
      [LRN-XXX — <pattern>]   (optionnel)
    Valider ? (all / blockers-only / edit / skip)
    ```
-4. Append approved entries + update the Index. Add a line to today's heading in `.claude/memory/journal.md`.
+4. Write approved entries per `lib/capitalize-commit.md` § WRITE: a new blocker `add blocker … --status resolved`, an existing one now fixed `status <BLK-ID> "resolved <hash>"`, an LRN `add learning …` (no status); the journal line `memory.sh journal`.
 
 **Language rule**: written entries are ALWAYS English AND caveman — fragments, articles dropped, code/IDs/quoted errors verbatim — per CLAUDE.md "Memory registries" (Always English, always caveman). The interactive gate may mirror the user's language; the appended entries must not.
 

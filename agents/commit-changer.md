@@ -217,10 +217,7 @@ Otherwise:
    hash and substitute `(ref step <n>)` → `(ref commit <hash>)` in every
    entry before writing. An entry that names no step (e.g. a pure LRN
    pattern) needs no ref.
-2. Append the resolved entries to their target registry file(s)
-   (`.claude/memory/decisions.md`, `blockers.md`, `learnings.md`) and
-   update each file's `## Index` table. Add a one-line summary of the
-   commit batch to today's heading in `.claude/memory/journal.md`.
+2. Write each resolved entry and one journal line for the batch per `$HOME/.claude/lib/capitalize-commit.md` § WRITE (`memory.sh -C <repo root> add …`, `memory.sh -C <repo root> journal …`; no Index to update).
 3. **Language rule**: written entries are ALWAYS in English and caveman,
    regardless of the language used in the dispatcher's approval exchange
    (CLAUDE.md "Memory registries", Always English, always caveman).

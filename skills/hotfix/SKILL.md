@@ -231,7 +231,7 @@ Hotfixes are often trivial (typo, config, import) — skip by default. But if th
 Default behaviour: `CAPITALIZE: hotfix trivial, skip` (no prompt, no output).
 Ask the user only when there is an actual candidate to propose.
 
-Always append a 1-line entry to today's heading in `.claude/memory/journal.md` (even trivial hotfix — journal is timeline, not signal).
+Always append a 1-line journal entry (even trivial hotfix — journal is timeline, not signal) and any approved BLK/LRN per `lib/capitalize-commit.md` § WRITE.
 
 **Language rule**: the journal line and any proposed BLK/LRN entries are ALWAYS written English AND caveman — fragments, articles dropped, code/IDs/quoted errors verbatim — per CLAUDE.md "Memory registries" (Always English, always caveman).
 

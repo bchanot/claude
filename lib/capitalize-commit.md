@@ -1,13 +1,13 @@
 # CAPITALIZE-COMMIT — couple the memory commit to the dev flow
 
-Inline snippet. Include at the END of any dev flow's CAPITALIZE step, AFTER the
-approved registry / journal / TODO entries are written. It commits ONLY the
+Inline snippet for any dev flow's CAPITALIZE step: § WRITE says how the approved
+registry and journal entries are written, then the rest commits ONLY the
 memory, surgically, so the flow never leaves an uncommitted `.claude/memory`
 behind and never embarks dangling code.
 
 This is the TAIL of capitalize, not a replacement: the SCAN + APPROVAL GATE that
-decide WHAT to write are unchanged and run before this snippet. Only the COMMIT
-of the already-approved entries is automated here.
+decide WHAT to write are unchanged and run before this snippet; § WRITE then
+writes them through lib/memory.sh and the COMMIT is automated here.
 
 ## WHEN TO RUN
 
@@ -29,6 +29,26 @@ If a flow should stay fully silent on a trivial run, that is the FLOW's gate
 policy (e.g. hotfix skipping the journal line), not this snippet's concern —
 tune it there.
 
+## WRITE (before the commit)
+
+Registry entries and journal lines are written only by `lib/memory.sh`,
+never by Edit or append; there is no `## Index` to update.
+
+- Entry: caveman body to a scratch file, then
+  `bash "$HOME/.claude/lib/memory.sh" [-C <project root>] add
+  <decision|learning|blocker|eval> --title "<title>" --body-file <file>
+  [--status <status>] [--supersedes <ID>]`. One call per entry; it
+  allocates the ID under a lock and prints it. A blocker body quotes ≥1
+  error in backticks. `-C` when the cwd is not the project root.
+- Status change on an existing entry:
+  `bash "$HOME/.claude/lib/memory.sh" status <ID> "<word> …"`, the text
+  starting with a status word (`resolved abc1234`, `open, reopened by …`,
+  `superseded by BDR-NNN`).
+- Journal: `bash "$HOME/.claude/lib/memory.sh" journal "<line>"`.
+- rc 2 names its reason (title chars, empty body, a status not starting
+  with a status word, an open code fence in the body or the registry,
+  unknown ID, lock busy): fix the input and re-run.
+
 ## DO
 
 1. Compose the message from the IDs just written + the flow, matching repo style
@@ -48,6 +68,16 @@ tune it there.
    - rc 3                     → unsafe git state (detached / merge in progress);
                                 memory stays in the working tree for a manual
                                 commit — surface the helper's stderr.
+   - rc 5                     → `git commit` rejected (hook, protected branch,
+                                signing); nothing committed, surface stderr.
+   - rc 6                     → `memory.sh check --staged` refused, nothing
+                                committed, nothing left staged. Two causes,
+                                named on stderr: a line removed inside an
+                                existing v2 entry (only appends pass), or a NEW
+                                culprit (duplicate ID, heading shape); an open
+                                code fence counts even when it predates the
+                                commit. Fix the file, then commit the fix with
+                                /commit-change; never bypass the helper.
 
    `<mem_hash>` is the MEMORY commit (the one that ADDS the entries). It is NOT
    the code-commit hash that capitalize anchored INSIDE the entries

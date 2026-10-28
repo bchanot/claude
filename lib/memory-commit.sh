@@ -7,7 +7,9 @@
 # happens to be dirty or staged is NEVER embarked.
 #
 # Usage (CLI):
-#   memory-commit.sh commit "<message>"  # surgical commit; exit 0 ok/no-op, 3 unsafe state
+#   memory-commit.sh commit "<message>"
+#       # surgical commit; exit 0 ok/no-op, 3 unsafe state,
+#       # 5 commit rejected, 6 check refused
 #
 # Output contract for `commit`: diagnostics go to stderr; on a real commit the
 # short hash of the MEMORY commit is the ONLY thing on stdout (empty on no-op or
@@ -18,6 +20,7 @@
 set -uo pipefail
 
 MC_PATHS=(".claude/memory" ".claude/tasks")
+MC_MEMORY_SH="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)/memory.sh"
 
 _in_git_repo() { git rev-parse --git-dir >/dev/null 2>&1; }
 
@@ -68,6 +71,17 @@ commit_memory() {
   # then commit ONLY those paths. The pathspec on `git commit` makes it a partial
   # commit: other staged files (dangling code) are not recorded.
   git add -- "${changed[@]}"
+  # Chokepoint (BDR-125 phase 4a): a staged v2 registry may only grow and
+  # never gains a new culprit (duplicate ID, bad heading, open fence). v1
+  # registries are skipped. Unstage on refusal so no later plain commit
+  # sweeps the refused change in.
+  if [ -d .claude/memory ] \
+    && ! bash "$MC_MEMORY_SH" check --staged .claude/memory; then
+    git reset -q -- "${changed[@]}"
+    echo "memory-commit: REFUSED — memory.sh check --staged failed (above);" \
+      "NOTHING committed, nothing left staged." >&2
+    return 6
+  fi
   if git diff --cached --quiet -- "${changed[@]}"; then
     echo "memory-commit: only ignored/no-op changes — no-op" >&2
     return 0

@@ -71,16 +71,20 @@ else
   red 5 "STEP 4 certifies OK after a safety-critical line was deleted (no fidelity check)"
 fi
 
-# ---- RED-6: STEP 4 verify must not false-orphan a title-less heading --------
-S6="$SANDBOX/red6"; mkdir -p "$S6/.claude/memory"
-cp "$HERE/fixtures/red6-orphan/.claude/memory/decisions.md" \
+# ---- RED-6: STEP 4 verify runs memory.sh check (duplicate ID caught) --------
+# v2 registries carry no Index; the structural verify is `memory.sh check`
+# (heading shape, unique IDs). HOME is pinned to a sandbox whose .claude/lib
+# is this repo's lib, so the run never depends on the machine's ~/.claude.
+S6="$SANDBOX/red6"; mkdir -p "$S6/.claude/memory" "$S6/home/.claude"
+ln -s "$HERE/../../../lib" "$S6/home/.claude/lib"
+cp "$HERE/fixtures/red6-check/.claude/memory/decisions.md" \
    "$S6/.claude/memory/decisions.md"
 extract_block "STEP 4" > "$S6/step4.sh"
-out="$( cd "$S6" && bash step4.sh 2>/dev/null )"
-if printf '%s\n' "$out" | grep -qE '^ORPHAN INDEX: BDR-009'; then
-  red 6 "verify emits FALSE 'ORPHAN INDEX: BDR-009' (body exists; trailing-space bug)"
+out="$( cd "$S6" && HOME="$S6/home" bash step4.sh 2>&1 )"
+if printf '%s\n' "$out" | grep -qE 'duplicate BDR-009'; then
+  green 6 "verify runs memory.sh check and names the duplicate BDR-009"
 else
-  green 6 "verify does not false-orphan the title-less heading"
+  red 6 "verify misses the duplicate BDR-009 (no memory.sh check in STEP 4)"
 fi
 
 # ---- RED-7: STEP 2 plan example must use FICTIONAL ids, never live registry ids

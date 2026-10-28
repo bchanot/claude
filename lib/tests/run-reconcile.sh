@@ -94,5 +94,21 @@ if reconcile_oracle_msg_committed "$orepo" "ahead commit"; then ok "T7c msg_comm
 if reconcile_oracle_msg_committed "$orepo" "nonexistent-message-xyz"; then no "T7c msg_committed should be rc≠0 for an absent message"; else ok "T7c msg_committed rc≠0 for an absent message"; fi
 rm -rf "$OWORK"
 
+echo; echo "=== T8 shared parser — header [tag] + labelled lines, prose never (BLK-032..034) ==="
+v2="$FIX/blockers-v2-status.md"
+open_v2=$(reconcile_blk_open "$v2" | cut -f1 | sort | tr '\n' ' ')
+if [ "$open_v2" = "BLK-040 BLK-041 BLK-042 BLK-043 BLK-044 " ]; then ok "T8a open = {040..044}: 032..034 and 008 closed, accepted stays open"; else no "T8a open = [$open_v2], expected {040,041,042,043,044}"; fi
+case "$(reconcile_blk_current_status "$v2" BLK-034)" in
+  '[resolved]') ok "T8b BLK-034 status = its own header tag, title never read";;
+  *) no "T8b BLK-034 read from prose (fail-open), not the header tag";;
+esac
+v1d="$FIX/blockers-v1-dialects.md"
+open_v1=$(reconcile_blk_open "$v1d" | cut -f1 | tr '\n' ' ')
+if [ "$open_v1" = "BLK-002 " ]; then ok "T8c v1 hyphen and pipe headings still parsed"; else no "T8c v1 dialects open = [$open_v1], expected {002}"; fi
+case "$(reconcile_blk_current_status "$v1d" BLK-004)" in
+  *resolved*) ok "T8d lib-shaped v1 blocker (status body line first) reads closed";;
+  *) no "T8d lib-shaped v1 blocker BLK-004 status not read as resolved";;
+esac
+
 echo; echo "================  $pass GREEN / $fail RED  ================"
 [ "$fail" -eq 0 ] && exit 0 || exit 1

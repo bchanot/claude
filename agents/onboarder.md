@@ -123,7 +123,7 @@ ls ${PROJECT_ROOT}/.claude/tasks/TODO.md ${PROJECT_ROOT}/.claude/memory/ 2>/dev/
   # TODO
   <!-- Claude writes tasks here before implementing. Format: - [ ] task -->
   ```
-- **.claude/memory/ missing** → `mkdir -p ${PROJECT_ROOT}/.claude/memory`, then for each of the 5 registries (`decisions.md`, `learnings.md`, `blockers.md`, `journal.md`, `evals.md`): if the file does not exist in `${PROJECT_ROOT}/.claude/memory/`, copy from `~/.claude/templates/memory/<name>.md` (YAML schema + empty index + inline template comment). If a registry file already exists → skip (do NOT overwrite).
+- **.claude/memory/ missing** → `mkdir -p ${PROJECT_ROOT}/.claude/memory`, then for each of the 5 registries (`decisions.md`, `learnings.md`, `blockers.md`, `journal.md`, `evals.md`): if the file does not exist in `${PROJECT_ROOT}/.claude/memory/`, copy from `~/.claude/templates/memory/<name>.md` (YAML schema with `format: 2` + inline template comment; no Index, entries go through `lib/memory.sh`). If a registry file already exists → skip (do NOT overwrite).
 - **.claude/audits/ missing** → `mkdir -p ${PROJECT_ROOT}/.claude/audits` (empty — populated later by `/onboard` audit phase).
 
 **Do NOT overwrite existing content.**

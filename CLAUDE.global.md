@@ -107,8 +107,8 @@ code" wins. Repo-specific instructions override both.
 
 ## Memory registries (`.claude/memory/`)
 Five registries persist across sessions; capitalize during and after work.
-Append-only: never rewrite past entries; curation (merge, supersede,
-compress) only via `/prune-memory`.
+Append-only, written only through `bash ~/.claude/lib/memory.sh` (add,
+status, journal), never by Edit; curation only via `/prune-memory`.
 
 | File | ID | Purpose |
 |---|---|---|
@@ -124,8 +124,8 @@ log → journal; whether the output actually worked → evals.
 
 **Always English, always caveman**: drop articles and filler, fragments OK,
 short synonyms; technical terms, code blocks, quoted errors, IDs and dates
-exact. Pattern `[thing] [action] [reason]. [next step].` Registries load
-every session; caveman cuts ~40% of the tokens with no substance lost.
+exact. Pattern `[thing] [action] [reason]. [next step].` Planning flows
+read the registries; caveman cuts ~40% of every read, no substance lost.
 Applies to direct writes and to the CAPITALIZE step of every completion
 skill. Prompts to the user may mirror their language; the entry is English.
 Legacy entries: compress on demand via `/prune-memory`.

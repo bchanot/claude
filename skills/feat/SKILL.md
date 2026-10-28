@@ -245,7 +245,7 @@ CAPITALIZE — proposé
 Valider ? (all / <IDs> / edit / skip)
 ```
 
-Always append a 1-line entry to today's heading in `.claude/memory/journal.md`.
+Approved entries and the always-written 1-line journal entry: per `lib/capitalize-commit.md` § WRITE (`memory.sh add` / `memory.sh journal`).
 
 **Language rule**: written entries are ALWAYS English AND caveman — fragments, articles dropped, code/IDs/quoted errors verbatim — per CLAUDE.md "Memory registries" (Always English, always caveman). The interactive gate may mirror the user's language; the appended entries must not.
 

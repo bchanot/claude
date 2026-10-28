@@ -10,6 +10,7 @@
 # nor believes a `[x]`/`[ ]` checkbox; it enumerates registry entries from the BODY
 # `## ID —` headings and decides "done/stale" from git/fs only. It practices what it
 # preaches — the recursive-coherence test (run-reconcile.sh T1) reds if this is broken.
+# v2 registries carry no Index at all (lib/memory.sh); v1 ones still may.
 #
 # HONEST LIMITS (graven, do not over-read):
 #   - Deferral detection is LEXICAL (reconcile_deferrals): it catches deferrals MARKED
@@ -28,6 +29,9 @@
 set -uo pipefail
 
 RECONCILE_GREP="${RECONCILE_GREP:-/usr/bin/grep}"   # LRN-074: pin grep, never assume GNU flags
+# the status parser and classifier are shared with lib/memory.sh (BDR-125 4a)
+# shellcheck source=/dev/null
+. "$(dirname "${BASH_SOURCE[0]}")/memory.sh"
 # markers that LEXICALLY signal a deferral/follow-up (honest limit: marked-only)
 RECONCILE_DEFER_RE='[Dd]efer|[Ff]ollow-?up|[Oo]ut.of.scope|OUT-OF-SCOPE|[Rr]econsider|[Rr]evisit|2e passage|won.t.do|optional\)|one-line ticket'
 
@@ -55,26 +59,30 @@ reconcile_oracle_msg_committed() {         # $1 repo, $2 grep → rc 0 if a comm
 }
 reconcile_oracle_path_present() { [ -e "${1:?}" ]; }   # $1 path → rc 0 if it still exists on disk
 
-# --- registry status: LAST status-bearing line wins (the BLK-008 trap A fell into) ---
-# $1 blockers file, $2 id. Echoes the current status line (compound/UPDATE/FINAL aware).
+# --- registry status: LAST candidate wins (the BLK-008 trap A fell into) ---
+# $1 blockers file, $2 id. A v2 registry (lib/memory.sh): the entry's own
+# header `[tag]` or a labelled body line, never a status word in prose or in
+# the title (the BLK-032..034 false-open). A v1 registry keeps the lexical
+# reader (memory_legacy_status): its dialects (title suffix `— RESOLVED`,
+# `date: … · status:`, `**Statut** :`) carry status where the strict parser
+# cannot see it.
 reconcile_blk_current_status() {
-  # drop ALL `## BLK-` header lines first: the range is inclusive of the NEXT entry's
-  # header, and a sibling header may carry a status word (e.g. BLK-005 "...upstream rename")
-  # → cross-entry bleed. The entry's own header carries no status, so dropping it is safe.
-  sed -n "/^## ${2} /,/^## BLK-/p" "$1" \
-    | "$RECONCILE_GREP" -v '^## BLK-' \
-    | "$RECONCILE_GREP" -iE 'status|RESOLVED|REVERTED|upstream|resolved|[^a-z]open' \
-    | tail -1
+  if memory_is_v2 "$1"; then memory_entry_status "$1" "$2"; return; fi
+  MEM_GREP="$RECONCILE_GREP" memory_legacy_status "$1" "$2"
 }
-# blockers whose CURRENT status is not resolved → emits "id<TAB>status"
+# blockers whose CURRENT status does not close them → "id<TAB>status".
+# v2: memory_closed (resolved | superseded | deprecated); v1: the substring.
 reconcile_blk_open() {
-  local id st
+  local id st v2=""
+  memory_is_v2 "$1" && v2=1
   for id in $(reconcile_enumerate_ids "$1" BLK); do
     st=$(reconcile_blk_current_status "$1" "$id")
-    case "$st" in
-      *RESOLVED*|*resolved*) : ;;
-      *) printf '%s\t%s\n' "$id" "$st" ;;
-    esac
+    if [ -n "$v2" ]; then
+      memory_closed "$(memory_status_word "$st")" && continue
+    else
+      case "$st" in *RESOLVED*|*resolved*) continue ;; esac
+    fi
+    printf '%s\t%s\n' "$id" "$st"
   done
 }
 

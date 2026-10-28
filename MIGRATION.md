@@ -60,8 +60,8 @@ for reg in decisions learnings blockers journal evals; do
   fi
 done
 
-# 5. If LESSONS.legacy.md had useful entries, convert them manually into
-#    .claude/memory/learnings.md (LRN-XXX format) then delete LESSONS.legacy.md
+# 5. If LESSONS.legacy.md had useful entries, convert each one with
+#    `bash ~/.claude/lib/memory.sh add learning --title … --body-file …`, then delete LESSONS.legacy.md
 
 # 6. Update .gitignore - see "Gitignore patch" section below
 #    (`bash ~/.claude/lib/gitflow.sh reconcile` appends only the missing
@@ -197,3 +197,9 @@ make doctor
 - **Git hooks in every repo**: `link.sh` sets git's global `core.hooksPath` to `~/.claude/githooks`. Every repo on the machine now gets the gitflow pre-commit guard and pushes each commit as it lands. For a foreign clone: `git config gitflow.protect false` and `git config gitflow.autopush false`.
 - **Default profile**: a machine with no profile selected now runs `full`. Check with `make profile-current`. Nine gstack skills (`ship`, `land-and-deploy`, `setup-deploy`, `autoplan`, `context-save`, `learn`, `careful`, `guard`, `design-shotgun`) left every profile and are denylisted.
 - **Higgsfield**: installed, off by default. Nothing to do until you enable it.
+
+## Memory registries v2 (2026-10-28)
+
+A v2 registry is the same `.claude/memory/<name>.md` file, versioned and pushed with the code, with `format: 2` in its frontmatter and no `## Index`. The session banner line `registry v1: N file(s) (memory.sh check)` flags a project still on v1. v1 stays readable and writable (lenient), and the `check --staged` chokepoint skips it.
+
+To migrate, run `bash ~/.claude/lib/memory.sh -C <project> upgrade` on a clean `.claude/memory`, then commit through `/commit-change` when headings were rewritten (memory-commit refuses heading rewrites by design). `upgrade` refuses a registry with duplicate IDs or a non-table Index and leaves the file untouched: a human renumbers or converts first.

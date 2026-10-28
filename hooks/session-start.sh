@@ -266,6 +266,19 @@ if [ -n "$REPO_DIR" ] && [ -f "$REPO_DIR/CLAUDE.global.md" ]; then
   fi
   unset _claude_lines
 fi
+# Registry v1 (BDR-125 phase 4a): a project registry without `format: 2`.
+# The lib names each v1 registry on stderr (`memory: v1: <file>`).
+_mem_lib="$(dirname "${BASH_SOURCE[0]}")/../lib/memory.sh"
+if [ -f "$_mem_lib" ] && [ -d .claude/memory ]; then
+  _v1=$(bash "$_mem_lib" check .claude/memory 2>&1 >/dev/null \
+    | grep -c '^memory: v1:' || true)
+  if [ "${_v1:-0}" -gt 0 ]; then
+    printf "│  ⚠️  %-44s│\n" "registry v1: ${_v1} file(s) (memory.sh check)"
+  fi
+  unset _v1
+fi
+unset _mem_lib
+
 # Version check: compare local vs remote (non-blocking)
 _remote_ver=""
 if [ -n "$REPO_DIR" ] && [ -d "$REPO_DIR/.git" ] && [ -z "${SESSION_START_OFFLINE:-}" ]; then
