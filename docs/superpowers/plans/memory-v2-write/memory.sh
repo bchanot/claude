@@ -25,9 +25,12 @@
 # words in _MEM_WORDS order, `open` last: "accepted, check OPEN" = accepted.
 # Closed = resolved | superseded | deprecated (memory_closed).
 # Lock: <git-common-dir>/memory.lock created under noclobber (flock(1) is
-# absent on macOS), a lock older than 30 s is stolen. Registry headings
-# are scanned outside ``` fences only; free text reaches awk through
-# ENVIRON, never `-v` (which expands backslash escapes).
+# absent on macOS), holding "<epoch> <token>"; released only by its token;
+# a lock older than 30 s (or seen empty 10 times) is stolen by one waiter
+# at a time (memory.lock.steal). Every writer runs on a verified backup
+# of its file, restored on failure or signal. Next ID = max over headings
+# of any level, fenced or not. Free text reaches awk through ENVIRON,
+# never `-v` (which expands backslash escapes).
 
 MEM_GREP="${MEM_GREP:-/usr/bin/grep}"
 _MEM_TABLE='decision decisions BDR
@@ -75,29 +78,34 @@ function mem_want(p, c, st,   w) {
 
 _mem_date() { printf '%s\n' "${MEMORY_DATE:-$(date +%F)}"; }
 
-_mem_row() {  # <column 1|2|3> <value> → "kind file PREFIX", rc 2 if none
-  awk -v c="$1" -v v="$2" '$c == v { print; f = 1; exit }
-                           END { exit f ? 0 : 2 }' <<< "$_MEM_TABLE"
+_mem_table() {  # <out col> [<key col> <value>] → matching cells, rc 2 if none
+  # the one reader of _MEM_TABLE (1 kind, 2 registry basename, 3 prefix)
+  awk -v o="$1" -v c="${2:-0}" -v v="${3:-}" '
+    c == 0 || $c == v { print $o; f = 1 }
+    END { exit f ? 0 : 2 }' <<< "$_MEM_TABLE"
 }
 
-_mem_names() { local k f p; while read -r k f p; do echo "$f"; done \
-  <<< "$_MEM_TABLE"; }
+_mem_names() { _mem_table 2; }  # the four registry basenames
 
 _mem_kind() {  # <kind> → "<file>.md <PREFIX>", rc 2 when unknown
-  local row file prefix
-  row=$(_mem_row 1 "$1") || {
+  local file
+  file=$(_mem_table 2 1 "$1") || {
     echo "memory: unknown kind: $1 (decision|learning|blocker|eval)" >&2
     return 2; }
-  read -r _ file prefix <<< "$row"
-  echo "$file.md $prefix"
+  echo "$file.md $(_mem_table 3 1 "$1")"
 }
 
 _mem_id_file() {  # <ID> → its registry path, rc 2 when the prefix is unknown
-  local row file
-  row=$(_mem_row 3 "${1%%-[0-9]*}") \
+  local file
+  file=$(_mem_table 2 3 "${1%%-[0-9]*}") \
     || { echo "memory: not an entry ID: $1" >&2; return 2; }
-  read -r _ file _ <<< "$row"
   echo ".claude/memory/$file.md"
+}
+
+_mem_prefix() {  # <registry path> → its prefix by basename, rc 2 if none
+  local base="${1##*/}"
+  _mem_table 3 2 "${base%.md}" \
+    || { echo "memory: $1: not a registry name" >&2; return 2; }
 }
 
 memory_is_v2() {  # <file> → rc 0 when the frontmatter carries `format: 2`
@@ -116,12 +124,22 @@ _mem_has_id() {  # <file> <ID> → rc 0 when a heading carries the ID
 }
 
 _mem_next_id() {  # <file> <PREFIX> → max heading ID + 1, zero-padded
+  # every heading level, fenced or not: a gap is harmless, a duplicate is
+  # not (trucks_at_work writes `### BDR-001`; a stray fence hides headings)
   awk -v p="$2" '
-    /^```/ { fence = !fence; next }
-    !fence && match($0, "^## " p "-[0-9]+") {
-      n = substr($0, length(p) + 5, RLENGTH - length(p) - 4) + 0
-      if (n > m) m = n }
+    match($0, "^#+ *" p "-[0-9]+") {
+      n = substr($0, RSTART, RLENGTH); sub(/^#+ *[A-Z]+-/, "", n)
+      if (n + 0 > m) m = n + 0 }
     END { printf "%s-%03d\n", p, m + 1 }' "$1"
+}
+
+_mem_heading_has() {  # <file> <ID> → rc 0 when a heading of any level has it
+  awk -v id="$2" 'match($0, "^#+ *" id "([^0-9]|$)") { f = 1; exit }
+                  END { exit !f }' "$1"
+}
+
+_mem_fence_open() {  # <file> → rc 0 when a ``` fence is left open
+  awk '/^```/ { n++ } END { exit !(n % 2) }' "$1"
 }
 
 memory_entry_status() {  # <file> <ID> → the winning candidate, rc 1 if none
@@ -157,17 +175,32 @@ _mem_lock_path() {  # → the lock file for the current repository
   echo "${TMPDIR:-/tmp}/memory-$(pwd | cksum | cut -d' ' -f1).lock"
 }
 
-_mem_lock() {  # <lock file> → rc 0 held, rc 2 after MEM_LOCK_TRIES waits
+_mem_stale() {  # <lock content> <times seen empty> → rc 0 when stealable
+  local t="${1%% *}"
+  if [ -z "$1" ]; then [ "$2" -ge 10 ]; return; fi
+  case "$t" in ''|*[!0-9]*) return 1 ;; esac
+  [ $(( $(date +%s) - t )) -gt 30 ]
+}
+
+_mem_steal() {  # <lock> → remove a stale lock; one stealer at a time
+  local g="$1.steal" seen
+  if ! (set -C; date +%s > "$g") 2>/dev/null; then
+    _mem_stale "$(cat "$g" 2>/dev/null) x" 0 && rm -f "$g"  # dead stealer
+    return 0
+  fi
+  seen=$(cat "$1" 2>/dev/null)
+  _mem_stale "$seen" 10 && rm -f "$1"  # age re-read under the guard
+  rm -f "$g"
+}
+
+_mem_lock() {  # <lock file> <token> → rc 0 held, rc 2 after MEM_LOCK_TRIES
   # noclobber = open(O_EXCL) by bash itself: mkdir is not atomic under
   # uutils coreutils 0.10 (two concurrent mkdir both succeed)
-  local lock="$1" tries=0 now t
-  until (set -C; date +%s > "$lock") 2>/dev/null; do
-    now=$(date +%s); t=$(cat "$lock" 2>/dev/null)
-    case "$t" in ''|*[!0-9]*) t=$now ;; esac  # holder still writing it
-    if [ $((now - t)) -gt 30 ]; then  # steal: rename first, never rm shared
-      mv "$lock" "$lock.stale.$$" 2>/dev/null && rm -f "$lock.stale.$$"
-      continue
-    fi
+  local lock="$1" tries=0 empty=0 t
+  until (set -C; echo "$(date +%s) $2" > "$lock") 2>/dev/null; do
+    t=$(cat "$lock" 2>/dev/null)
+    if [ -z "$t" ]; then empty=$((empty + 1)); else empty=0; fi
+    if _mem_stale "$t" "$empty"; then _mem_steal "$lock"; continue; fi
     tries=$((tries + 1))
     [ "$tries" -lt "${MEM_LOCK_TRIES:-50}" ] \
       || { echo "memory: lock busy: $lock" >&2; return 2; }
@@ -175,16 +208,45 @@ _mem_lock() {  # <lock file> → rc 0 held, rc 2 after MEM_LOCK_TRIES waits
   done
 }
 
-_mem_unlock() { rm -f "$1"; }
+_mem_unlock() {  # <lock> <token> → remove the lock only when it is ours
+  [ "$(cut -d' ' -f2 < "$1" 2>/dev/null)" = "$2" ] && rm -f "$1"
+  return 0
+}
 
-_mem_locked() {  # <fn> [args…] → run fn under the lock, its rc
-  local lock rc
-  lock=$(_mem_lock_path)
-  _mem_lock "$lock" || return 2
-  trap '_mem_unlock "$lock"; exit 130' INT TERM HUP
-  "$@"; rc=$?
-  trap - INT TERM HUP
-  _mem_unlock "$lock"
+_mem_restore() {  # <backup> <file> → put the verified copy back if changed
+  [ -s "$1" ] || return 0
+  cmp -s "$1" "$2" && return 0
+  cat "$1" > "$2" && echo "memory: $2 restored" >&2
+}
+
+_mem_backed() {  # <fn> <file> [args…] → fn on a verified backup of <file>,
+  # restored when fn fails or a signal lands. Runs inside _mem_locked: the
+  # trap reads that frame's __mem_lock / __mem_tok (dynamic scope), and
+  # every name here is __-prefixed so fn's own locals never shadow it.
+  local __mem_bak __mem_file="$2" __mem_old __mem_rc
+  __mem_bak=$(mktemp) || { echo "memory: no temp file" >&2; return 2; }
+  if ! { cat "$2" > "$__mem_bak" && cmp -s "$2" "$__mem_bak"; }; then
+    rm -f "$__mem_bak"; echo "memory: backup of $2 failed, nothing written" >&2
+    return 2
+  fi
+  __mem_old=$(trap -p INT TERM HUP)
+  trap '_mem_restore "$__mem_bak" "$__mem_file"
+        _mem_unlock "$__mem_lock" "$__mem_tok"; exit 130' INT TERM HUP
+  "$@"; __mem_rc=$?
+  trap - INT TERM HUP; eval "$__mem_old"
+  [ "$__mem_rc" = 0 ] || _mem_restore "$__mem_bak" "$__mem_file"
+  rm -f "$__mem_bak"
+  return "$__mem_rc"
+}
+
+_mem_locked() {  # <fn> <file> [args…] → fn under the lock, its rc; fn's
+  local __mem_lock __mem_tok out rc   # stdout is printed after the unlock
+  __mem_lock=$(_mem_lock_path); __mem_tok="$$.$RANDOM"
+  out=$(mktemp) || { echo "memory: no temp file" >&2; return 2; }
+  _mem_lock "$__mem_lock" "$__mem_tok" || { rm -f "$out"; return 2; }
+  _mem_backed "$@" > "$out"; rc=$?
+  _mem_unlock "$__mem_lock" "$__mem_tok"
+  cat "$out"; rm -f "$out"
   return "$rc"
 }
 
@@ -194,22 +256,26 @@ _mem_one_line() {  # <what> <text> → rc 2 when empty or multi-line
   esac
 }
 
-_mem_insert() {  # <file> <key> <line> → line ends the section, rc 1 if absent
-  local tmp
+_mem_insert() {  # <file> <key> <line> [exact] → line ends the section,
+  local tmp      # rc 1 if absent; exact: the heading is `## <key>` alone
   tmp=$(mktemp) || { echo "memory: no temp file" >&2; return 2; }
-  MEM_K="$2" MEM_INS="$3" awk "$_MEM_AWK"'
-    BEGIN { k = ENVIRON["MEM_K"]; ins = ENVIRON["MEM_INS"] }
+  MEM_K="$2" MEM_INS="$3" MEM_X="${4:-}" awk "$_MEM_AWK"'
+    BEGIN { k = ENVIRON["MEM_K"]; ins = ENVIRON["MEM_INS"]
+            x = ENVIRON["MEM_X"] != "" }
+    function hit(l) { return x ? l == "## " k : mem_key(l, k) }
     function flush(  i) { print ins; for (i = 1; i <= n; i++) print buf[i]
                           n = 0; done = 1 }
     /^```/ { fence = !fence }
     on && !fence && /^## / { flush(); on = 0 }
-    !done && !on && !fence && mem_key($0, k) { on = 1; print; next }
+    !done && !on && !fence && hit($0) { on = 1; print; next }
     on { if ($0 == "" || $0 == "---") { buf[++n] = $0; next }
          for (i = 1; i <= n; i++) print buf[i]; n = 0; print; next }
     { print }
     END { if (on) flush(); exit !done }' "$1" > "$tmp"
   case $? in
-    0) cat "$tmp" > "$1" || { rm -f "$tmp"; return 2; } ;;
+    0) cat "$tmp" > "$1" || {
+         echo "memory: write-back of $1 failed; full copy kept: $tmp" >&2
+         return 2; } ;;
     *) rm -f "$tmp"; return 1 ;;
   esac
   rm -f "$tmp"
@@ -240,7 +306,7 @@ memory_status() {  # <ID> <text>
 }
 
 _mem_journal_locked() {  # <file> <date> <line>
-  _mem_insert "$1" "$2" "$3"
+  _mem_insert "$1" "$2" "$3" exact
   case $? in
     1) printf '\n## %s\n%s\n' "$2" "$3" >> "$1" ;;
     0) return 0 ;;
@@ -264,8 +330,9 @@ _mem_add_valid() {  # <PREFIX> <title> <body-file> <status> <supersedes>
   esac
   [ "${#2}" -le 160 ] || { echo "memory: title over 160 chars" >&2; return 2; }
   case "$4" in *$'\n'*) _mem_one_line status "$4"; return 2 ;; esac
+  [ -z "$4" ] || _mem_status_text "$4" || return 2
   [ -s "$3" ] || { echo "memory: empty or missing body: $3" >&2; return 2; }
-  awk '/^```/ { n++ } END { exit n % 2 }' "$3" \
+  ! _mem_fence_open "$3" \
     || { echo "memory: body leaves a code fence open" >&2; return 2; }
   if [ "$1" = BLK ] && ! "$MEM_GREP" -q '`' "$3"; then
     echo "memory: a blocker body quotes ≥1 error in backticks" >&2; return 2
@@ -275,48 +342,52 @@ _mem_add_valid() {  # <PREFIX> <title> <body-file> <status> <supersedes>
   esac
 }
 
-_mem_entry_text() {  # <title> <body-file> <status> <supersedes> → stdout
-  local tag=""
-  [ -z "$3" ] || tag=" [$3]"
+_mem_entry_text() {  # <title> <body-file> <status> <supersedes> <v1>
+  local tag=""   # v1: the status is a body line (the v1 reconcile reader
+  [ -z "$3" ] || [ -n "$5" ] || tag=" [$3]"   # never reads the heading)
   printf '%s%s (%s)\n' "$1" "$tag" "$(_mem_date)"
+  [ -z "$3" ] || [ -z "$5" ] || printf -- '- **Status**: %s\n' "$3"
   awk '{ l[NR] = $0 } END { n = NR; while (n > 0 && l[n] == "") n--
                             for (i = 1; i <= n; i++) print l[i] }' "$2"
   [ -z "$4" ] || printf 'Supersedes [[%s]].\n' "$4"
 }
 
 _mem_add_locked() {  # <file> <PREFIX> <entry-file> <supersedes>
-  local f="$1" id bak rc=0
+  local f="$1" id pre rc=0   # runs under _mem_locked: failure = restore
+  if _mem_fence_open "$f"; then
+    echo "memory: $f leaves a code fence open; fix it first" >&2; return 2
+  fi
   id=$(_mem_next_id "$f" "$2")
-  bak=$(mktemp) || { echo "memory: no temp file" >&2; return 2; }
-  cat "$f" > "$bak"
-  trap 'cat "$bak" > "$f"; rm -f "$bak"; _mem_unlock "$(_mem_lock_path)"
-        exit 130' INT TERM HUP
+  if _mem_heading_has "$f" "$id"; then
+    echo "memory: $id already in a heading of $f" >&2; return 2
+  fi
+  pre=$(mktemp) || { echo "memory: no temp file" >&2; return 2; }
+  cat "$f" > "$pre"
   { printf '\n## %s — ' "$id"; cat "$3"; } >> "$f" || rc=2
   if [ "$rc" = 0 ] && [ -n "$4" ]; then
     _mem_insert "$f" "$4" "- **Status ($(_mem_date))**: superseded by $id" \
       || rc=2
   fi
   if [ "$rc" = 0 ] && memory_is_v2 "$f"; then
-    memory_check_file "$f" "$bak" || rc=2
+    memory_check_file "$f" "$2" "$pre" || rc=2
   fi
-  if [ "$rc" != 0 ]; then
-    cat "$bak" > "$f"; echo "memory: add refused, $f restored" >&2
-  else echo "$id"; fi
-  rm -f "$bak"
+  rm -f "$pre"
+  [ "$rc" = 0 ] && echo "$id"
   return "$rc"
 }
 
 memory_add() {  # <kind> <title> <body-file> <status> <supersedes>
-  local spec file entry rc
+  local spec file entry rc v1=""
   spec=$(_mem_kind "$1") || return 2
   file=".claude/memory/${spec% *}"
   _mem_add_valid "${spec#* }" "$2" "$3" "$4" "$5" || return 2
   [ -f "$file" ] || { echo "memory: no registry: $file" >&2; return 2; }
   [ -z "$5" ] || _mem_has_id "$file" "$5" \
     || { echo "memory: no entry $5 in $file" >&2; return 2; }
-  memory_is_v2 "$file" || echo "memory: v1 registry (no format: 2): $file" >&2
+  memory_is_v2 "$file" || {
+    v1=1; echo "memory: v1 registry (no format: 2): $file" >&2; }
   entry=$(mktemp) || { echo "memory: no temp file" >&2; return 2; }
-  _mem_entry_text "$2" "$3" "$4" "$5" > "$entry"
+  _mem_entry_text "$2" "$3" "$4" "$5" "$v1" > "$entry"
   _mem_locked _mem_add_locked "$file" "${spec#* }" "$entry" "$5"; rc=$?
   rm -f "$entry"
   return "$rc"
@@ -339,14 +410,6 @@ _mem_add_cli() {  # <kind> --title t --body-file f [--status s] [--supersedes I]
   memory_add "$kind" "$title" "$body" "$st" "$sup"
 }
 
-_mem_prefix() {  # <file> → the frontmatter entry_prefix, rc 2 when none
-  local p
-  p=$(awk 'NR > 1 && $0 == "---" { exit }
-           sub(/^entry_prefix: /, "") { print; exit }' "$1")
-  [ -n "$p" ] || { echo "memory: $1: no entry_prefix" >&2; return 2; }
-  echo "$p"
-}
-
 _mem_culprits() {  # <file> <PREFIX> → "<line>\t<reason>" per culprit
   awk -v p="$2" '
     /^```/ { fence = !fence; next }
@@ -359,15 +422,14 @@ _mem_culprits() {  # <file> <PREFIX> → "<line>\t<reason>" per culprit
     END { if (fence) print NR "\tcode fence open at end of file" }' "$1"
 }
 
-memory_check_file() {  # <file> [<reference>] [<name>] → rc 2 on a culprit
-  # with a reference, only culprits absent from it count (a duplicate a
-  # merge left behind never blocks the next append)
-  local p ref="${2:-/dev/null}" name="${3:-$1}"
-  p=$(_mem_prefix "$1") || return 2
+memory_check_file() {  # <file> <PREFIX> [<reference>] [<name>] → rc 2 on a
+  # culprit. With a reference only culprits absent from it count (a merge
+  # duplicate never blocks the next append); an open fence always counts
+  local p="$2" ref="${3:-/dev/null}" name="${4:-$1}"
   [ -s "$ref" ] || ref=/dev/null
   awk -F'\t' -v f="$name" '
     FILENAME == ARGV[1] { old[$2]++; next }
-    old[$2]-- > 0 { next }
+    $2 !~ /^code fence/ && old[$2]-- > 0 { next }
     { print "memory: " f ":" $1 ": " $2; bad = 1 }
     END { exit bad ? 2 : 0 }' \
     <(_mem_culprits "$ref" "$p") <(_mem_culprits "$1" "$p") >&2
@@ -377,12 +439,16 @@ memory_check() {  # [--staged] [<memory-dir>] → rc 2 on any culprit
   local staged="" dir f rc=0
   [ "${1:-}" = --staged ] && { staged=1; shift; }
   dir="${1:-.claude/memory}"
+  case "$staged:$dir" in 1:/*|1:..|1:../*|1:*/../*|1:*/..)
+    echo "memory: check --staged takes a repo-relative dir: $dir" >&2
+    return 2 ;;
+  esac
   for f in $(_mem_names); do
     f="$dir/$f.md"
     if [ -n "$staged" ]; then _mem_check_staged "$f" || rc=2; continue; fi
     [ -f "$f" ] || continue
     if ! memory_is_v2 "$f"; then echo "memory: v1: $f" >&2; continue; fi
-    memory_check_file "$f" || rc=2
+    memory_check_file "$f" "$(_mem_prefix "$f")" || rc=2
   done
   return "$rc"
 }
@@ -402,7 +468,7 @@ _mem_check_staged() {  # <file> → rc 2 on a new culprit or a lost v2 file
     echo "memory: $1: staged deletion, emptying or loss of format: 2" >&2
     rc=2
   elif [ -s "$s" ] && memory_is_v2 "$s"; then
-    memory_check_file "$s" "$h" "$1" || rc=2
+    memory_check_file "$s" "$(_mem_prefix "$1")" "$h" "$1" || rc=2
     _mem_removed_lines "$1" "$h" || rc=2
   fi
   rm -f "$h" "$s"
@@ -412,11 +478,12 @@ _mem_check_staged() {  # <file> → rc 2 on a new culprit or a lost v2 file
 _mem_removed_lines() {  # <file> <HEAD copy> → rc 2 when a hunk removes an
   local p first        # entry line (an Index sits above the first entry)
   [ -s "$2" ] || return 0
-  p=$(_mem_prefix "$2" 2>/dev/null) || return 0
+  p=$(_mem_prefix "$1" 2>/dev/null) || return 0
   first=$(awk -v p="$p" '/^```/ { fence = !fence; next }
     !fence && match($0, "^## " p "-[0-9]") { print NR; exit }' "$2")
   [ -n "$first" ] || return 0
-  git diff --cached -U0 -- "$1" | awk -v first="$first" -v f="$1" '
+  git -c diff.interHunkContext=0 diff --cached --no-color --no-ext-diff \
+    --no-textconv -U0 -- "$1" | awk -v first="$first" -v f="$1" '
     /^@@ / { split($2, a, ","); start = substr(a[1], 2) + 0
              cnt = (2 in a) ? a[2] + 0 : 1
              if (cnt > 0 && start + cnt - 1 >= first) {
@@ -505,7 +572,7 @@ _mem_upgrade_oracle() {  # <old> <new> <PREFIX> <rows> → rc 2 on a lost fact
   [ "$("$MEM_GREP" -E "^## $3-[0-9]" "$1")" \
     = "$("$MEM_GREP" -E "^## $3-[0-9]" "$2")" ] \
     || { echo "memory: upgrade changed a heading: $1" >&2; return 2; }
-  memory_check_file "$2" || return 2
+  memory_check_file "$2" "$3" || return 2
   o=$(_mem_index_rows "$1" "$3"); n=$(_mem_index_rows "$2" "$3")
   awk -F'\t' -v p="$3" -v MEMW="$_MEM_WORDS" "$_MEM_AWK"'
     function f(s, k) { split(s, a, / \| /); return a[k] }
@@ -559,7 +626,7 @@ memory_upgrade() {  # [<memory-dir>] → every template-born registry to v2
   local dir="${1:-.claude/memory}" f rc=0
   for f in $(_mem_names); do
     [ -f "$dir/$f.md" ] || continue
-    _mem_upgrade_file "$dir/$f.md" || rc=2
+    _mem_locked _mem_upgrade_file "$dir/$f.md" || rc=2
   done
   return "$rc"
 }

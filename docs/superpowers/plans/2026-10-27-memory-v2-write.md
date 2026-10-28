@@ -4,13 +4,13 @@
 
 **Goal:** `lib/memory.sh` becomes the only writer of `.claude/memory` registries, one status parser and one classifier serve memory.sh and reconcile on v2 registries, this repo's registries move to v2 (no `## Index`), every citer writes through the lib.
 
-**Architecture:** One sourceable bash lib on the `lib/project-rules.sh` skeleton (`-C <dir>`, verbs, rc 2 + named reason). The awk parser lives once in `_MEM_AWK` and is shared by `index`, `upgrade` and `lib/reconcile.sh` (v2 files). Writers serialize through a noclobber lock file in the git common dir. `memory-commit.sh` runs `check --staged` as the chokepoint. Revision r2 (2026-10-28) after a 3-lens challenge: FATAL(2) simplicity, CONCERNS(5) robustness, FATAL(6) correctness, every BLOCKER and MAJOR closed below.
+**Architecture:** One sourceable bash lib on the `lib/project-rules.sh` skeleton (`-C <dir>`, verbs, rc 2 + named reason). The awk parser lives once in `_MEM_AWK` and is shared by `index`, `upgrade` and `lib/reconcile.sh` (v2 files). Writers serialize through a noclobber lock file in the git common dir. `memory-commit.sh` runs `check --staged` as the chokepoint. Revision r2 (2026-10-28) after a 3-lens challenge: FATAL(2) simplicity, CONCERNS(5) robustness, FATAL(6) correctness, every BLOCKER and MAJOR closed. Revision r3 (2026-10-28) after the confirmation round (CONCERNS(1) / CONCERNS(3) / CONCERNS(3), no BLOCKER): any-level ID allocation, open fence always refused, v1 status as a body line, one verified backup + trap for every writer, token lock with a serialized steal, exact journal key, staged-dir guard.
 
 **Tech Stack:** bash 5, POSIX awk (no gawk-only features, no `{n}` intervals, no byte-count slicing around `—`), git. Tests via `make test`.
 
 **Spec:** `docs/superpowers/specs/2026-10-27-memory-v2-write-design.md` (user-approved 2026-10-27). Contract: `.claude/tasks/contracts/2026-10-27-memory-v2-write-2030.md`.
 
-**Reference implementation (proven r2):** `docs/superpowers/plans/memory-v2-write/` holds `memory.sh`, `memory.test.sh`, `blockers-v2-status.md`, `blockers-v1-dialects.md`. Proven in a mock repo: suite `PASS=97 FAIL=0` five runs in a row and under `LC_ALL=C`, shellcheck clean, no `# shellcheck disable`, no line over 80 chars. `upgrade` on a copy of this repo's live registries: oracle-green, `check`-green, idempotent, its diff `--staged`-green, 26 statuses and 129 dates materialized, one Index status dropped and named (BDR-012). Task 2 and Task 3 code below was applied to a `git clone --shared` of this repo and run through `make test`. Task 1 copies the files; do not rewrite them.
+**Reference implementation (proven r3):** `docs/superpowers/plans/memory-v2-write/` holds `memory.sh`, `memory.test.sh`, `blockers-v2-status.md`, `blockers-v1-dialects.md`. Proven on a `git clone --shared` of this repo through `make test`: suite `PASS=112 FAIL=0` five runs in a row and under `LC_ALL=C` (the 15 r3 checks T14* are red against the r2 lib, 12 of them), 12 concurrent writers starting from a stale lock: 0 overlaps, 12 distinct IDs, no lock left (3 rounds), shellcheck clean, no `# shellcheck disable`, no line over 80 chars. `upgrade` on a copy of this repo's live registries: oracle-green, `check`-green, idempotent, its diff `--staged`-green, 26 statuses and 129 dates materialized, one Index status dropped and named (BDR-012). Task 2, 3 and 4 code below was applied to that clone and run through `make test` (run-reconcile 28 GREEN / 1 RED where the red is T6c, the gitignored `skills/darwin-skill` absent from a clone; run-deterministic 18/18; memory suite with T13 122/122). `_mem_next_id` equals max heading ID + 1 on all 59 registries of the 15 repos on this machine (r2 gave BDR-001 / LRN-001 / BLK-001 on trucks_at_work's `###` registries: duplicates). Task 1 copies the files; do not rewrite them.
 
 ## Global Constraints
 
@@ -27,22 +27,23 @@
 
 ## Deviations from the spec (named for the human gate)
 
-1. **Lock** = a file created under bash noclobber (`open(O_EXCL)`), not a `mkdir` dir: uutils `mkdir` 0.10 on this host is not atomic (5 concurrent adds lost 2-4 entries). Same path, same 30 s steal; the steal renames the stale lock to a private name before removing it, never `rm` on the shared path. Released by an INT/TERM/HUP trap (an interrupted `add` also restores its backup), not an EXIT trap: a sourced lib must not own the caller's EXIT.
+1. **Lock and backup**: the lock is a file created under bash noclobber (`open(O_EXCL)`), not a `mkdir` dir: uutils `mkdir` 0.10 on this host is not atomic (5 concurrent adds lost 2-4 entries). It holds `<epoch> <pid>.<RANDOM>` and is removed only by its owner's token. A lock older than 30 s, or seen empty on 10 consecutive tries (holder died between create and write), is stolen by one waiter at a time (`memory.lock.steal`, itself noclobber, age re-read under it). Every writer (`add`, `status`, `journal`, `upgrade`) runs on a backup of its file verified by `cmp` (rc 2 before any write if the copy is short), restored on failure or on INT/TERM/HUP; the caller's own traps are saved and put back. No EXIT trap: a sourced lib must not own the caller's EXIT. **Residuals for the gate:** (a) a holder alive but slower than 30 s loses the lock to a stealer and both write (its token no longer matches, so it never removes the new lock); (b) a stealer that dies holding `memory.lock.steal` makes the next waiter clear it once older than 30 s; two waiters doing that at the same moment can both enter the steal section. Both need a crash or a 30 s stall; a write lost that way shows as a `check` culprit (duplicate ID) or a missing entry, never silently in v2.
 2. **`journal` takes no `--date`**: `MEMORY_DATE` already pins the date for tests.
 3. **`upgrade` body wins**: an Index status reaches the body only when the body has none, or when the Index says superseded/deprecated and the body does not. Every other conflicting Index status is dropped and named on stderr (`memory: BDR-012: kept body shipped, dropped Index accepted`, the only one on this repo).
 4. **Status word**: a lib-written `**Status (YYYY-MM-DD…)**:` line reads its leading word (`status` requires the text to start with one: "open, reopened by abc"); other labelled lines rank words in `_MEM_WORDS` order, `open` last ("accepted. check OPEN" = accepted). A heading candidate is its `[tag]` only, never the title.
 5. **One classifier on v2, the lexical reader kept on v1**: on a v2 registry reconcile classifies by word (`memory_closed`: resolved | superseded | deprecated); `accepted` on a blocker stays open. On a v1 registry reconcile keeps today's lexical reader verbatim: the strict parser, measured on copies of all 13 other projects' blockers, changed the open set of 4 (config `— RESOLVED` title suffix, game `date: … · status:`, zenquality and angelscar356 `**Statut** :`); with the v1 branch the 13 sets are identical to today.
-6. **Heading dialects**: `mem_key` accepts `## ID` followed by any non-alphanumeric char (` — `, ` - `, ` | `), so `status` and `--supersedes` work on v1 hyphen and pipe files. The em-dash shape check is v2-only. `upgrade` refuses a non-em-dash file (`heading dialect " - ": not upgraded`) and a file without frontmatter; the banner says `memory.sh check`, never promises an upgrade.
+6. **Heading dialects**: `mem_key` accepts `## ID` followed by any non-alphanumeric char (` — `, ` - `, ` | `), so `status` and `--supersedes` work on v1 hyphen and pipe files. ID allocation reads every heading level, fenced or not (`### BDR-001` in trucks_at_work, a stray fence elsewhere), and a v1 add whose ID already sits in any heading is refused. `status` on a `###` registry stays rc 2 "no entry" (loud, not silent). A v1 `add --status s` writes `- **Status**: s` as the first body line instead of a heading tag: the v1 reconcile reader never reads the entry's own heading. The em-dash shape check is v2-only. `upgrade` refuses a non-em-dash file (`heading dialect " - ": not upgraded`) and a file without frontmatter; the banner says `memory.sh check`, never promises an upgrade.
 7. **Journal template** carries no `format: 2`: journal.md is not a registry (`check` excludes it). Contract criterion 8 says "every `templates/memory/*.md`": the four registry templates.
 8. **awk programs**: an embedded awk program counts as one statement toward the 25-logic-line limit (`_mem_upgrade_text`, `_mem_upgrade_oracle`, `_mem_index_rows` hold 20-30 awk lines). Splitting them would scatter one parser across files.
+9. **`--staged` removal rule**: a removed line counts only from the first entry heading down (the spec said any `-` line). The Index sits above the first entry, so Task 7's upgrade commit goes through memory-commit like any memory commit; the diff runs with `-c diff.interHunkContext=0 --no-color --no-ext-diff --no-textconv` so user git config cannot fold or hide hunks. An open code fence always counts as a culprit, even when it predates the commit (it hides headings from allocation).
 
 ## Review Focus
 
-1. **Concurrent writers.** The noclobber lock is proven by T6e/T6f (red with the mkdir lock on this host). An interrupted add restores its backup and frees the lock.
+1. **Concurrent writers.** The noclobber lock is proven by T6e/T6f (red with the mkdir lock on this host) and T14i (12 writers from a stale lock). Unlock by token (T14g), empty-lock steal (T14h). Every writer restores its verified backup on failure or signal and frees the lock. Residuals named in Deviation 1.
 2. **Status words in prose and titles.** "fail-open", "`data:` OPEN", a title saying "DNS resolved", "open again, not resolved by abc": T10b/c/h/i and run-reconcile T8a/b.
 3. **Index-only facts at upgrade.** 13 BDR statuses, BDR-038 + BLK-019/020 + 12 LRN supersessions, 129 dates; a stale Index (BDR-012) never overwrites the body and is named. BLK-019/020 must read closed after Task 7 (superseded).
 4. **v1 projects keep working.** 13 other repos run this lib through `~/.claude/lib`: v1 writes are lenient, `check` never fails on v1, `--staged` ignores v1, reconcile on v1 is byte-for-byte today's reader (Deviation 5), `status` works on hyphen and pipe headings (T10m-o).
-5. **The chokepoint never blocks a legitimate commit.** Only NEW culprits count (a duplicate a merge left behind blocks neither `add` nor a staged append: T7i-k); the upgrade commit passes (Index lines sit above the first entry); a refused commit leaves nothing staged.
+5. **The chokepoint never blocks a legitimate commit.** Only NEW culprits count (a duplicate a merge left behind blocks neither `add` nor a staged append: T7i-k), except an open code fence, which always blocks until fixed (T14e/f); the upgrade commit passes (Index lines sit above the first entry); a refused commit leaves nothing staged.
 
 ---
 
@@ -54,7 +55,7 @@
 - Create: `lib/tests/fixtures/blockers-v2-status.md` (copy of `…/blockers-v2-status.md`)
 - Create: `lib/tests/fixtures/blockers-v1-dialects.md` (copy of `…/blockers-v1-dialects.md`; used by Task 2)
 
-**Interfaces (produced, used by Tasks 2-7):** `memory_entry_status <file> <ID>` (winning candidate: `[tag]` or the labelled line; rc 1 if none), `memory_status_word <line>` (status word or first 40 chars), `memory_closed <word>` (rc 0 for resolved | superseded | deprecated), `memory_is_v2 <file>`, `_mem_names` (the four registry basenames, from `_MEM_TABLE`), `memory_check [--staged] [<dir>]`, `memory_add`, `memory_status`, `memory_journal`, `memory_index`, `memory_upgrade`. CLI: `bash lib/memory.sh [-C dir] add|status|journal|index|check|upgrade …`. Env: `MEMORY_DATE`, `MEM_GREP`, `MEM_LOCK_TRIES`.
+**Interfaces (produced, used by Tasks 2-7):** `memory_entry_status <file> <ID>` (winning candidate: `[tag]` or the labelled line; rc 1 if none), `memory_status_word <line>` (status word or first 40 chars), `memory_closed <word>` (rc 0 for resolved | superseded | deprecated), `memory_is_v2 <file>`, `memory_check [--staged] [<dir>]` (prints `memory: v1: <file>` per v1 registry on stderr, the banner's input), `memory_add`, `memory_status`, `memory_journal`, `memory_index`, `memory_upgrade`. CLI: `bash lib/memory.sh [-C dir] add|status|journal|index|check|upgrade …`. Env: `MEMORY_DATE`, `MEM_GREP`, `MEM_LOCK_TRIES`.
 
 - [ ] **Step 1: Copy the four files**
 
@@ -68,7 +69,7 @@ chmod +x lib/memory.sh lib/tests/memory.test.sh
 
 - [ ] **Step 2: Run the suite and the static checks**
 
-Run: `make test suite=lib/tests/memory.test.sh` three times → each ends `PASS=97 FAIL=0` and `all suites green` (T6e race must be stable).
+Run: `make test suite=lib/tests/memory.test.sh` three times → each ends `PASS=112 FAIL=0` and `all suites green` (T6e and T14i races must be stable).
 Run: `shellcheck lib/memory.sh lib/tests/memory.test.sh && awk 'length > 80' lib/memory.sh` → no output after shellcheck.
 Run: `make test suite=lib/tests/portability-census.test.sh` → green.
 
@@ -86,7 +87,7 @@ git commit -m "feat(memory): lib/memory.sh single registry writer — add/status
 **Files:**
 - Modify: `lib/reconcile.sh` (source line after `RECONCILE_GREP=`; `reconcile_blk_current_status` and `reconcile_blk_open` with their comments)
 - Modify: `lib/tests/run-reconcile.sh` (T8 block before the final summary line)
-- Modify: `skills/reconcile/SKILL.md:25`
+- Modify: `skills/reconcile/SKILL.md:25` and `:54`
 
 **Interfaces:** consumes `memory_is_v2`, `memory_entry_status`, `memory_status_word`, `memory_closed`. `reconcile_blk_current_status` and `reconcile_blk_open` keep their signatures.
 
@@ -104,6 +105,16 @@ esac
 v1d="$FIX/blockers-v1-dialects.md"
 open_v1=$(reconcile_blk_open "$v1d" | cut -f1 | tr '\n' ' ')
 if [ "$open_v1" = "BLK-002 " ]; then ok "T8c v1 hyphen and pipe headings still parsed"; else no "T8c v1 dialects open = [$open_v1], expected {002}"; fi
+v1w=$(mktemp -d)
+mkdir "$v1w/.claude" "$v1w/.claude/memory"
+printf '# Blockers\n' > "$v1w/.claude/memory/blockers.md"
+printf -- '- **Cause**: `x`\n' > "$v1w/b.md"
+bash "$REPO/memory.sh" -C "$v1w" add blocker --title fixed \
+  --body-file "$v1w/b.md" --status resolved >/dev/null 2>&1
+open_v1w=$(reconcile_blk_open "$v1w/.claude/memory/blockers.md" | cut -f1)
+if [ -z "$open_v1w" ]; then ok "T8d lib-written v1 blocker --status resolved reads closed"; else no "T8d lib-written v1 blocker reads open [$open_v1w]"; fi
+rm -f "$v1w/.claude/memory/blockers.md" "$v1w/b.md"
+rmdir "$v1w/.claude/memory" "$v1w/.claude" "$v1w"
 ```
 
 - [ ] **Step 2: Run, expect red** — `make test suite=lib/tests/run-reconcile.sh` → T8a and T8b red (today: 032..034 open, BLK-034 read from prose).
@@ -153,9 +164,9 @@ reconcile_blk_open() {
 
 Header comment: insert one line right after line 12 (`# preaches — the recursive-coherence test (run-reconcile.sh T1) reds if this is broken.`): `# v2 registries carry no Index at all (lib/memory.sh); v1 ones still may.`
 
-- [ ] **Step 4: Run, expect green** — `make test suite=lib/tests/run-reconcile.sh` → `28 GREEN / 0 RED` (T1-T7 unchanged, T8a/b/c green). `make test suite=lib/tests/run-review-guards.sh` → green (G4: T8 reads fixtures only).
+- [ ] **Step 4: Run, expect green** — `make test suite=lib/tests/run-reconcile.sh` → `29 GREEN / 0 RED` (T1-T7 unchanged, T8a/b/c/d green; T8d is red against the r2 lib, which put the status in the heading tag the v1 reader drops). `make test suite=lib/tests/run-review-guards.sh` → green (G4: T8 reads fixtures only).
 
-- [ ] **Step 5: Skill line** — `skills/reconcile/SKILL.md:25`: replace `` (`reconcile_oracle_*`, `reconcile_blk_current_status` = last block wins) `` by `` (`reconcile_oracle_*`, `reconcile_blk_current_status` = last candidate wins: header `[tag]` or a labelled status line on a v2 registry via `lib/memory.sh`, today's lexical reader on v1) ``.
+- [ ] **Step 5: Skill lines** — `skills/reconcile/SKILL.md:54`: `→ 25/25,` → `→ 29/29,`. `skills/reconcile/SKILL.md:25`: replace `` (`reconcile_oracle_*`, `reconcile_blk_current_status` = last block wins) `` by `` (`reconcile_oracle_*`, `reconcile_blk_current_status` = last candidate wins: header `[tag]` or a labelled status line on a v2 registry via `lib/memory.sh`, today's lexical reader on v1) ``.
 
 - [ ] **Step 6: Commit**
 
@@ -228,8 +239,9 @@ if [ "$rc" -eq 0 ] && [ -n "$out" ]; then ok "append to a v2 registry → commit
                                 committed, nothing left staged. Two causes,
                                 named on stderr: a line removed inside an
                                 existing v2 entry (only appends pass), or a NEW
-                                culprit (duplicate ID, heading shape, open
-                                fence). Fix the file, then commit the fix with
+                                culprit (duplicate ID, heading shape); an open
+                                code fence counts even when it predates the
+                                commit. Fix the file, then commit the fix with
                                 /commit-change; never bypass the helper.
 ```
 
@@ -259,14 +271,17 @@ for t in decisions learnings blockers evals; do
   check "T13b-template-$t-no-index" "$(grep -c '^## Index$' "$ROOT/templates/memory/$t.md")" 0
 done
 banner() { (cd "$1" && SESSION_START_OFFLINE=1 bash "$ROOT/hooks/session-start.sh" \
-  </dev/null 2>/dev/null); }
-check T13c-banner-v1 "$(banner "$FIX/v1h" | grep -c 'registry v1: 1 file(s) (memory.sh check)')" 1
-check T13d-banner-v2 "$(banner "$FIX" | grep -c 'registry v1')" 0
+  </dev/null 2>/dev/null) | grep -c "${2:-registry v1}"; }
+check T13c-banner-v1-v2 "$(banner "$FIX/v1h" 'registry v1: 1 file(s) (memory.sh check)')/$(banner "$FIX")" 1/0
+cp "$FIX/v1h/.claude/memory/blockers.md" v1h.bak
+printf -- '---\nformat: 2\n---\n' > "$FIX/v1h/.claude/memory/blockers.md"
+check T13d-banner-flips-off "$(banner "$FIX/v1h")" 0
+cat v1h.bak > "$FIX/v1h/.claude/memory/blockers.md"
 ```
 
-(`$FIX/v1h` is the v1 pipe/hyphen project T10 built; `$FIX/.claude/memory` is v2. The hook resolves `memory.sh` next to itself, so the test exercises `$ROOT/lib/memory.sh`, never the installed copy.)
+(`$FIX/v1h` is the v1 pipe/hyphen project T10 built; `$FIX/.claude/memory` is v2. T13c reads both projects in one check (`1/0`), red until the banner exists; T13d turns the same v1 project v2 and expects the line gone. The hook resolves `memory.sh` next to itself, so the test exercises `$ROOT/lib/memory.sh`, never the installed copy.)
 
-- [ ] **Step 2: Run, expect red** — `make test suite=lib/tests/memory.test.sh` → the ten T13 checks fail.
+- [ ] **Step 2: Run, expect red** — `make test suite=lib/tests/memory.test.sh` → 9 checks red (the eight template checks and T13c); T13d is green before and after, it guards the flip-off once T13c is green.
 
 - [ ] **Step 3: Templates** — in each of the four registry templates: insert `format: 2` as line 2 (right after the opening `---`); delete `## Index`, the blank line after it, the two table lines and the blank line after them; replace the `<!-- Append entries below. Template: … -->` comment by (shown for blockers; the heading line is indented two spaces so no line starts with `## `):
 
@@ -289,15 +304,11 @@ decisions → `decision`, `<title>`, `[accepted]`, labels Decision / Why / Rejec
 
 ```bash
 # Registry v1 (BDR-125 phase 4a): a project registry without `format: 2`.
+# The lib names each v1 registry on stderr (`memory: v1: <file>`).
 _mem_lib="$(dirname "${BASH_SOURCE[0]}")/../lib/memory.sh"
 if [ -f "$_mem_lib" ] && [ -d .claude/memory ]; then
-  # shellcheck source=/dev/null
-  _v1=$(. "$_mem_lib"; n=0
-    for f in $(_mem_names); do
-      f=".claude/memory/$f.md"
-      [ -f "$f" ] && ! memory_is_v2 "$f" && n=$((n + 1))
-    done
-    echo "$n")
+  _v1=$(bash "$_mem_lib" check .claude/memory 2>&1 >/dev/null \
+    | grep -c '^memory: v1:' || true)
   if [ "${_v1:-0}" -gt 0 ]; then
     printf "│  ⚠️  %-44s│\n" "registry v1: ${_v1} file(s) (memory.sh check)"
   fi
@@ -308,7 +319,7 @@ unset _mem_lib
 
 - [ ] **Step 5: Onboarder line** — `agents/onboarder.md:126`: `(YAML schema + empty index + inline template comment)` → `(YAML schema with \`format: 2\` + inline template comment; no Index, entries go through \`lib/memory.sh\`)`.
 
-- [ ] **Step 6: Run, expect green** — `make test suite=lib/tests/memory.test.sh` → `PASS=107 FAIL=0`. `make test suite=lib/tests/push-guard.test.sh` → green: its banner checks grep specific strings. From this task until Task 7 this repo's own banner shows `registry v1: 4 file(s) (memory.sh check)` (its registries are still v1); that is expected.
+- [ ] **Step 6: Run, expect green** — `make test suite=lib/tests/memory.test.sh` → `PASS=122 FAIL=0`. `make test suite=lib/tests/push-guard.test.sh` → green: its banner checks grep specific strings. From this task until Task 7 this repo's own banner shows `registry v1: 4 file(s) (memory.sh check)` (its registries are still v1); that is expected.
 
 - [ ] **Step 7: Commit**
 
@@ -323,7 +334,7 @@ git commit -m "feat(memory): templates born v2 (format: 2, no Index); session ba
 
 **Files:** `lib/capitalize-commit.md` (new WRITE section), `skills/capitalize/SKILL.md` (STEP 2 `:143`, STEP 4 items 1-4, STEP 5 bullets, STEP 5B rc list), `skills/feat/SKILL.md:248`, `skills/bugfix/SKILL.md:275`, `skills/hotfix/SKILL.md:234`, `skills/ship-feature/SKILL.md:273-274`, `skills/init-project/SKILL.md:301-303`, `agents/commit-changer.md:220-223`, `skills/onboard/SKILL.md` S7, `lib/analyze-before-plan.md:42-43` and `:100-102`, `agents/analyzer.md:98-99`, `CLAUDE.global.md`.
 
-- [ ] **Step 1: The one WRITE section** — in `lib/capitalize-commit.md`, insert before `## DO`:
+- [ ] **Step 1: The one WRITE section** — in `lib/capitalize-commit.md`, first the intro: `Inline snippet. Include at the END of any dev flow's CAPITALIZE step, AFTER the` / `approved registry / journal / TODO entries are written. It commits ONLY the` → `Inline snippet for any dev flow's CAPITALIZE step: § WRITE says how the approved` / `registry and journal entries are written, then the rest commits ONLY the` (the two lines after it unchanged), and `decide WHAT to write are unchanged and run before this snippet. Only the COMMIT` / `of the already-approved entries is automated here.` → `decide WHAT to write are unchanged and run before this snippet; § WRITE then` / `writes them through lib/memory.sh and the COMMIT is automated here.`. Then insert before `## DO`:
 
 ```
 ## WRITE (before the commit)
@@ -342,8 +353,9 @@ never by Edit or append; there is no `## Index` to update.
   starting with a status word (`resolved abc1234`, `open, reopened by …`,
   `superseded by BDR-NNN`).
 - Journal: `bash "$HOME/.claude/lib/memory.sh" journal "<line>"`.
-- rc 2 names its reason (title chars, empty body, open code fence, unknown
-  ID): fix the input and re-run.
+- rc 2 names its reason (title chars, empty body, a status not starting
+  with a status word, an open code fence in the body or the registry,
+  unknown ID, lock busy): fix the input and re-run.
 ```
 
 - [ ] **Step 2: capitalize**
@@ -474,6 +486,8 @@ git commit -m "feat(prune-memory): v2 registries — § D dropped, status and me
 
 **Files:** `.claude/memory/{decisions,learnings,blockers,evals}.md` (by the lib only). `upgrade` already transforms on a temp copy and runs its oracle before replacing any file; the registries are tracked, so no dry run.
 
+- [ ] **Step 0: Clean memory precondition** — `git diff --quiet HEAD -- .claude/memory .claude/tasks || { echo "STOP: uncommitted memory or tasks; commit them first"; exit 1; }`. The rollback below and the memory-commit sweep both rely on it.
+
 - [ ] **Step 1: Upgrade in place and commit through the chokepoint**
 
 ```bash
@@ -481,7 +495,7 @@ bash lib/memory.sh upgrade
 bash lib/memory.sh check && echo CHECK-OK
 bash "$HOME/.claude/lib/memory-commit.sh" commit "chore(memory): registries v2 — Index removed, Index-only dates and statuses materialized (memory.sh upgrade)"
 ```
-Expected: four `memory: upgraded …` lines and one stderr line `memory: BDR-012: kept body shipped, dropped Index accepted`; `CHECK-OK`; memory-commit prints a hash (Index lines sit above the first entry, every other change is an insertion). If `upgrade` returns rc 2: `git checkout -- .claude/memory`, report its stderr, stop.
+Expected: four `memory: upgraded …` lines and one stderr line `memory: BDR-012: kept body shipped, dropped Index accepted`; `CHECK-OK`; memory-commit prints a hash (Index lines sit above the first entry, every other change is an insertion). If `upgrade` returns rc 2: each file is already restored from its verified backup; `git checkout -- .claude/memory` (safe only after Step 0) puts any upgraded sibling back, report the stderr, stop.
 
 - [ ] **Step 2: Verify the live facts**
 Run: `bash -c '. lib/reconcile.sh; reconcile_blk_open .claude/memory/blockers.md | cut -f1 | tr "\n" " "'` → exactly `BLK-001 BLK-003 BLK-017 BLK-018 BLK-021 BLK-022 BLK-029 ` (measured on an upgraded copy 2026-10-28: 032..034 resolved, 019/020 superseded = closed).

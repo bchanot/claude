@@ -330,6 +330,54 @@ check T11b-bad-dir "$?" 2
 bash "$MEM" frobnicate 2>/dev/null
 check T11c-usage "$?" 2
 
+# T14 r3: any-level ID allocation, open fence refused, v1 status as a body
+# line, token lock, empty-lock steal, journal exact key, --staged dir
+cd "$FIX" || exit 1
+mkdir -p h3/.claude/memory && cd h3 || exit 1
+printf '# Decisions\n\n### BDR-001 — a\nx\n\n### BDR-007 — b\ny\n' \
+  > .claude/memory/decisions.md
+check T14-h3-next "$(bash "$MEM" add decision --title c --body-file "$FIX/plain.md" 2>/dev/null)" BDR-008
+printf '# Blockers\n\n## BLK-001 - legacy\n- Status: open\n' \
+  > .claude/memory/blockers.md
+bash "$MEM" add blocker --title fixed --body-file "$FIX/body.md" \
+  --status resolved >/dev/null 2>&1
+check T14b-v1-no-tag "$(grep -c '^## BLK-002 — fixed (2026-10-27)$' .claude/memory/blockers.md)" 1
+check T14c-v1-status-line "$(sed -n '/^## BLK-002/{n;p;}' .claude/memory/blockers.md)" '- **Status**: resolved'
+bash "$MEM" add blocker --title t --body-file "$FIX/body.md" --status fixed 2>/dev/null
+check T14d-status-word-required "$?" 2
+cd "$FIX" || exit 1
+cp .claude/memory/evals.md e.bak
+printf '\n```\nunclosed\n' >> .claude/memory/evals.md
+sum=$(cksum < .claude/memory/evals.md)
+bash "$MEM" add eval --title t --body-file plain.md >/dev/null 2>&1
+check T14e-open-fence-refused "$?" 2
+check T14f-open-fence-untouched "$(cksum < .claude/memory/evals.md)" "$sum"
+cat e.bak > .claude/memory/evals.md
+lock="$(git rev-parse --git-common-dir)/memory.lock"
+echo "$(date +%s) someone.1" > "$lock"
+# shellcheck source=/dev/null
+(. "$MEM"; _mem_unlock "$lock" me.2)
+check T14g-foreign-token-kept "$(cut -d' ' -f2 "$lock")" someone.1
+: > "$lock"
+check T14h-empty-lock-stolen "$(bash "$MEM" add eval --title e --body-file plain.md)" EVAL-002
+echo "$(( $(date +%s) - 60 )) dead.1" > "$lock"
+for i in 1 2 3 4 5 6 7 8 9 10 11 12; do
+  bash "$MEM" add learning --title "r$i" --body-file plain.md > "lr$i" &
+done
+wait
+check T14i-twelve-distinct "$(cat lr1 lr2 lr3 lr4 lr5 lr6 lr7 lr8 lr9 lr10 lr11 lr12 | sort -u | wc -l | tr -d ' ')" 12
+check T14j-no-lock-left "$([ -e "$lock" ] || [ -e "$lock.steal" ] && echo left || echo none)" none
+check T14k-check-green "$(bash "$MEM" check; echo $?)" 0
+J=.claude/memory/journal.md
+printf '\n## 2026-10-28 (cont. 1) — legacy\n- kept\n' >> "$J"
+MEMORY_DATE=2026-10-28 bash "$MEM" journal 'new day'
+check T14l-cont-not-matched "$(grep -c '^## 2026-10-28$' "$J")" 1
+check T14m-cont-untouched "$(sed -n '/(cont. 1)/{n;p;}' "$J")" '- kept'
+bash "$MEM" check --staged /abs 2>/dev/null
+check T14n-staged-absolute "$?" 2
+bash "$MEM" status BLK-404 'open' 2>&1 >/dev/null | grep -c restored > rs
+check T14o-no-restore-noise "$(tr -d ' ' < rs)" 0
+
 # T12 this repo's registries pass the check
 check T12-live-check "$(bash "$MEM" -C "$ROOT" check >/dev/null 2>&1; echo $?)" 0
 
