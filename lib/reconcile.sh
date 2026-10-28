@@ -63,16 +63,11 @@ reconcile_oracle_path_present() { [ -e "${1:?}" ]; }   # $1 path → rc 0 if it 
 # $1 blockers file, $2 id. A v2 registry (lib/memory.sh): the entry's own
 # header `[tag]` or a labelled body line, never a status word in prose or in
 # the title (the BLK-032..034 false-open). A v1 registry keeps the lexical
-# reader below: its dialects (title suffix `— RESOLVED`, `date: … · status:`,
+# reader (memory_legacy_status): its dialects (title suffix `— RESOLVED`, `date: … · status:`,
 # `**Statut** :`) carry status where the strict parser cannot see it.
 reconcile_blk_current_status() {
   if memory_is_v2 "$1"; then memory_entry_status "$1" "$2"; return; fi
-  # v1: drop ALL `## BLK-` header lines first: the range is inclusive of the
-  # NEXT entry's header, and a sibling header may carry a status word.
-  sed -n "/^## ${2} /,/^## BLK-/p" "$1" \
-    | "$RECONCILE_GREP" -v '^## BLK-' \
-    | "$RECONCILE_GREP" -iE 'status|RESOLVED|REVERTED|upstream|resolved|[^a-z]open' \
-    | tail -1
+  memory_legacy_status "$1" "$2"
 }
 # blockers whose CURRENT status does not close them → "id<TAB>status".
 # v2: memory_closed (resolved | superseded | deprecated); v1: the substring.

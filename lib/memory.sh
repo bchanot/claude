@@ -15,7 +15,12 @@
 #                 --staged: only NEW culprits vs HEAD, no line removed
 #                 inside an entry, no v2 registry deleted or downgraded
 #   upgrade [<memory-dir>]   v1 → v2: Index-only dates and statuses become
-#                 body lines, `format: 2`, `## Index` removed, oracle first
+#                 body lines, `format: 2`, `## Index` removed; a missing
+#                 frontmatter comes from the template, ` - ` / ` | date | `
+#                 / `###` headings take the `## ID — title (date)` shape;
+#                 a blocker whose open / closed verdict (reconcile's v1
+#                 reader) would move gets a `Status (…, upgrade)` line; the
+#                 oracle (IDs, check, verdicts) runs first, else rc 2
 # <kind> = decision | learning | blocker | eval. MEMORY_DATE overrides today.
 # Status of an entry: the last candidate wins. A candidate is the heading's
 # trailing `[tag]`, or a body line whose bold label names Status, Resolution,
@@ -556,8 +561,9 @@ _mem_upgrade_text() {  # <rows> <file> <PREFIX> → the v2 text on stdout
     /^```/ { fence = !fence }
     $0 == "## Index" { skip = 1; next }
     skip { if (/^\|/) { tbl = 1; next }
-           if (!tbl || $0 == "") { if (tbl) skip = 0; next }
-           skip = 0 }
+           if (tbl) { skip = 0; if ($0 == "") next }
+           else if ($0 ~ /^#/ || $0 == "---") skip = 0
+           else next }
     !fence && /^## / { flush(); split($0, w, " ")
       cur = (w[2] in col) ? w[2] : ""; print
       if (cur != "" && !hd[cur] && dt[cur] != "") print "- **Date**: " dt[cur]
@@ -567,12 +573,70 @@ _mem_upgrade_text() {  # <rows> <file> <PREFIX> → the v2 text on stdout
     END { flush() }' "$1" <(_mem_index_rows "$2" "$3") "$2"
 }
 
-_mem_upgrade_oracle() {  # <old> <new> <PREFIX> <rows> → rc 2 on a lost fact
+_mem_heading_ids() {  # <file> <PREFIX> → the entry IDs, any heading level
+  "$MEM_GREP" -oE "^#+ *$2-[0-9]+" "$1" | sed 's/^#* *//'
+}
+
+memory_legacy_status() {  # <file> <ID> → the v1 lexical status line (reconcile
+  # reads it on a v1 blockers file; `upgrade` proves its verdicts against it)
+  # v1: drop ALL `## BLK-` header lines first: the range is inclusive of the
+  # NEXT entry's header, and a sibling header may carry a status word.
+  sed -n "/^## ${2} /,/^## BLK-/p" "$1" \
+    | "$MEM_GREP" -v '^## BLK-' \
+    | "$MEM_GREP" -iE 'status|RESOLVED|REVERTED|upstream|resolved|[^a-z]open' \
+    | tail -1
+}
+
+_mem_legacy_open() {  # <old file> <ID> → rc 0 when reconcile's v1 reader lists
+  local st           # the blocker open: enumerated by its `## ID` heading and
+  "$MEM_GREP" -qE "^## $2([^0-9]|$)" "$1" || return 1   # not RESOLVED
+  st=$(memory_legacy_status "$1" "$2")
+  case "$st" in *RESOLVED*|*resolved*) return 1 ;; esac
+}
+
+_mem_index_stated() {  # <old> <PREFIX> → IDs whose Index status upgrade
+  # writes into the body (mem_want): a fact the v1 reader never saw
+  awk -F'\t' -v p="$2" -v MEMW="$_MEM_WORDS" "$_MEM_AWK"'
+    FILENAME == ARGV[1] { col[$1] = $3; next }
+    { split($0, a, / \| /); id = a[1]; sub(/^\| /, "", id); s = a[4]
+      sub(/ \|$/, "", s)
+      if (id in col && mem_want(p, col[id], s) != "") print id }' \
+    <(_mem_index_table "$1") <(_mem_index_rows "$1" "$2")
+}
+
+_mem_verdict_diff() {  # <old> <new> → "ID<TAB>word" per blocker whose open /
+  local id was now ix    # closed verdict moved (word = the old verdict)
+  ix=$(_mem_index_stated "$1" BLK)
+  for id in $(_mem_heading_ids "$2" BLK); do
+    printf '%s\n' "$ix" | "$MEM_GREP" -qx "$id" && continue
+    _mem_legacy_open "$1" "$id" && was=open || was=resolved
+    memory_closed "$(memory_status_word "$(memory_entry_status "$2" "$id")")" \
+      && now=resolved || now=open
+    [ "$was" = "$now" ] || printf '%s\t%s\n' "$id" "$was"
+  done
+}
+
+_mem_upgrade_repair() {  # <old> <new> <PREFIX> → no blocker loses its closure
+  # v1 closed, strict reader open (a dialect it cannot read): a status line
+  # restores it. v1 open, strict closed is the BLK-032..034 fix (prose words
+  # read as status by the v1 reader): kept, named
+  local id word
+  [ "$3" = BLK ] || return 0
+  while IFS=$'\t' read -r id word; do
+    if [ "$word" = open ]; then
+      echo "memory: $id: v1 reader open, strict reader closed (kept)" >&2
+      continue
+    fi
+    _mem_insert "$2" "$id" "- **Status ($(_mem_date), upgrade)**: $word" \
+      || return 2
+  done < <(_mem_verdict_diff "$1" "$2")
+}
+
+_mem_upgrade_oracle() {  # <old> <new> <PREFIX> → rc 2 on a lost fact
   local o n
-  [ "$("$MEM_GREP" -E "^## $3-[0-9]" "$1")" \
-    = "$("$MEM_GREP" -E "^## $3-[0-9]" "$2")" ] \
-    || { echo "memory: upgrade changed a heading: $1" >&2; return 2; }
-  memory_check_file "$2" "$3" || return 2
+  [ "$(_mem_heading_ids "$1" "$3")" = "$(_mem_heading_ids "$2" "$3")" ] \
+    || { echo "memory: upgrade changed the entry IDs: $1" >&2; return 2; }
+  memory_check_file "$2" "$3" "" "$1" || return 2
   o=$(_mem_index_rows "$1" "$3"); n=$(_mem_index_rows "$2" "$3")
   awk -F'\t' -v p="$3" -v MEMW="$_MEM_WORDS" "$_MEM_AWK"'
     function f(s, k) { split(s, a, / \| /); return a[k] }
@@ -584,39 +648,78 @@ _mem_upgrade_oracle() {  # <old> <new> <PREFIX> <rows> → rc 2 on a lost fact
       m = mem_want(p, col[id], old[id])
       want = m != "" ? mem_word(m) : old[id]
       if (dt[id] != "" && d == "") bad = bad " " id ":date"
-      if (want != "" && s != want) bad = bad " " id ":" s "!=" want }
+      if (want != "" && p != "BLK" && s != want)
+        bad = bad " " id ":" s "!=" want }
     END { if (bad != "") { print "memory: upgrade lost:" bad; exit 2 } }' \
-    "$4" <(printf '%s\n' "$o") <(printf '%s\n' "$n") >&2
+    <(_mem_index_table "$1") <(printf '%s\n' "$o") \
+    <(printf '%s\n' "$n") >&2 || return 2
+  o=$(_mem_verdict_diff "$1" "$2" | awk -F'\t' '$2 == "resolved" \
+    { printf "%s ", $1 }')
+  [ -z "$o" ] || { echo "memory: upgrade moved a verdict: $o" >&2; return 2; }
+}
+
+_mem_upgrade_front() {  # <file> → the file; one lacking a frontmatter gets
+  local t first         # the template's (format: 2 is added with the rest)
+  IFS= read -r first < "$1"
+  if [ "$first" != --- ]; then
+    t="$(dirname "${BASH_SOURCE[0]}")/../templates/memory/${1##*/}"
+    [ -f "$t" ] || { echo "memory: no template for $1" >&2; return 2; }
+    awk 'NR > 1 && /^---$/ { print; print ""; exit }
+         $0 != "format: 2"' "$t"
+  fi
+  cat "$1"
+}
+
+_mem_upgrade_headings() {  # <file> <PREFIX> → entry headings in the v2 shape
+  # `## ID — title` stays byte-identical; ` - ` and ` | date | ` separators
+  # and any other level are rewritten, the title text and the ID kept; a
+  # heading that would still not be v2 (`### ID amendment`) is left as is
+  awk -v p="$2" '
+    /^```/ { fence = !fence }
+    fence || !match($0, "^#+ *" p "-[0-9]+") { print; next }
+    { lead = substr($0, 1, RLENGTH); rest = substr($0, RLENGTH + 1)
+      if (lead ~ /^## / && rest ~ /^ — ./) { print; next }
+      sub(/^#+ */, "", lead); d = ""
+      if (rest ~ /^ [|] /) { rest = substr(rest, 4)
+        if (match(rest, "^[0-9][0-9/-]* [|] ")) {
+          d = substr(rest, 1, RLENGTH - 3); rest = substr(rest, RLENGTH + 1) }
+        rest = " — " rest (d != "" ? " (" d ")" : "") }
+      else if (rest ~ /^ - /) rest = " — " substr(rest, 4)
+      cand = "## " lead rest
+      print (cand ~ "^## " p "-[0-9][0-9][0-9]+ — ." ? cand : $0) }' "$1"
+}
+
+_mem_upgrade_build() {  # <file> <PREFIX> <out> → the v2 text, blocker
+  local front src rows rc=0   # verdicts kept
+  front=$(mktemp); src=$(mktemp); rows=$(mktemp)
+  [ -n "$front" ] && [ -n "$src" ] && [ -n "$rows" ] \
+    || { rm -f "$front" "$src" "$rows"; echo "memory: no temp file" >&2
+         return 2; }
+  { _mem_upgrade_front "$1" > "$front" \
+      && _mem_upgrade_headings "$front" "$2" > "$src" \
+      && _mem_index_table "$src" > "$rows" \
+      && _mem_upgrade_text "$rows" "$src" "$2" > "$3" \
+      && _mem_upgrade_repair "$1" "$3" "$2"; } || rc=2
+  rm -f "$front" "$src" "$rows"
+  return "$rc"
 }
 
 _mem_upgrade_ready() {  # <file> → rc 0 upgradable, 1 already v2, 2 refused
-  local first p
-  IFS= read -r first < "$1"
-  [ "$first" = --- ] \
-    || { echo "memory: $1: no frontmatter, not upgraded" >&2; return 2; }
   memory_is_v2 "$1" && { echo "memory: $1 already v2" >&2; return 1; }
-  p=$(_mem_prefix "$1") || return 2
-  awk -v p="$p" '/^```/ { fence = !fence; next }
-    !fence && match($0, "^## " p "-[0-9]+") \
-      && substr($0, RLENGTH + 1) !~ /^( — |$)/ {
-      print "memory: " FILENAME ": heading dialect \"" \
-            substr($0, RLENGTH + 1, 3) "\": not upgraded"; bad = 1; exit }
-    END { exit bad ? 2 : 0 }' "$1" >&2
+  _mem_prefix "$1" > /dev/null
 }
 
 _mem_upgrade_file() {  # <file> → rc 0 upgraded or already v2, rc 2 refused
-  local p rows new rc=0
+  local p new rc=0
   _mem_upgrade_ready "$1"; rc=$?
   [ "$rc" = 1 ] && return 0
   [ "$rc" = 0 ] || return 2
   p=$(_mem_prefix "$1") || return 2
-  rows=$(mktemp) || { echo "memory: no temp file" >&2; return 2; }
-  new=$(mktemp) || { rm -f "$rows"; echo "memory: no temp file" >&2; return 2; }
-  _mem_index_table "$1" > "$rows"
-  { _mem_upgrade_text "$rows" "$1" "$p" > "$new" \
-      && _mem_upgrade_oracle "$1" "$new" "$p" "$rows" \
+  new=$(mktemp) || { echo "memory: no temp file" >&2; return 2; }
+  { _mem_upgrade_build "$1" "$p" "$new" \
+      && _mem_upgrade_oracle "$1" "$new" "$p" \
       && cat "$new" > "$1"; } || rc=2
-  rm -f "$rows" "$new"
+  rm -f "$new"
   [ "$rc" = 0 ] && echo "memory: upgraded $1"
   [ "$rc" = 0 ] || echo "memory: $1 left as it was" >&2
   return "$rc"

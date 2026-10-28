@@ -282,12 +282,12 @@ check T9j-oracle-refuses "$?" 2
 check T9k-refused-untouched "$(cksum < .claude/memory/blockers.md)" "$sum"
 printf '# Evals\n\n## EVAL-001 | 2026 | pipe dialect\n' > .claude/memory/evals.md
 bash "$MEM" upgrade >/dev/null 2>&1
-check T9l-no-frontmatter-rc "$?" 2
-check T9m-dialect-untouched "$(sed -n 1p .claude/memory/evals.md)" '# Evals'
+check T9l-no-frontmatter-v2 "$(sed -n 2p .claude/memory/evals.md)" 'format: 2'
+check T9m-pipe-heading "$(grep -c '^## EVAL-001 — pipe dialect (2026)$' .claude/memory/evals.md)" 1
 printf -- '---\ntype: evals_registry\nentry_prefix: EVAL\n---\n\n## Index\n\n| ID | Date | Output | Action |\n|----|------|--------|--------|\n\n## EVAL-001 - hyphen dialect\nx\n' \
   > .claude/memory/evals.md
-err=$(bash "$MEM" upgrade 2>&1 >/dev/null)
-check T9o-hyphen-refused "$(printf '%s\n' "$err" | grep -c 'heading dialect " - ": not upgraded')" 1
+bash "$MEM" upgrade >/dev/null 2>&1
+check T9o-hyphen-upgraded "$(grep -c '^## EVAL-001 — hyphen dialect$' .claude/memory/evals.md)" 1
 printf -- '---\ntype: evals_registry\nentry_prefix: EVAL\n---\n\n## Index\n\n| ID | Date | Output | Action |\n|----|------|--------|--------|\n\n## EVAL-001 — empty index (2026-04-01)\nx\n' \
   > .claude/memory/evals.md
 bash "$MEM" upgrade >/dev/null 2>&1
@@ -377,6 +377,70 @@ bash "$MEM" check --staged /abs 2>/dev/null
 check T14n-staged-absolute "$?" 2
 bash "$MEM" status BLK-404 'open' 2>&1 >/dev/null | grep -c restored > rs
 check T14o-no-restore-noise "$(tr -d ' ' < rs)" 0
+
+# T15 upgrade migrates every measured v1 dialect; the oracle refuses what it
+# cannot prove. Blockers fixtures: the open set (reconcile's reader) before
+# and after must be the same, the check green, a second run a no-op
+v1blk() {  # <dir> <body…> → <dir>/blockers.md with a v1 frontmatter
+  mkdir -p "$1"; { printf -- '---\ntype: blockers_registry\n'
+    printf 'entry_prefix: BLK\n---\n\n# Blockers\n'; shift; printf '%s\n' "$@"
+  } > "$(dirname "$1/x")/blockers.md"; }
+openset() { bash -c '. "$1/lib/reconcile.sh"; reconcile_blk_open "$2"' _ \
+  "$ROOT" "$1" | cut -f1 | tr '\n' ' '; }
+dialect() {  # <name> <heading regex expected> — fixture already in d15/<name>
+  local f="d15/$1/blockers.md" before
+  before=$(openset "$f")
+  bash "$MEM" upgrade "d15/$1" >/dev/null 2>&1
+  check "T15-$1-rc" "$?" 0
+  check "T15-$1-v2" "$(sed -n 2p "$f")" 'format: 2'
+  check "T15-$1-heading" "$(grep -c "$2" "$f")" 1
+  check "T15-$1-check" "$(bash "$MEM" check "d15/$1" 2>&1; echo $?)" 0
+  check "T15-$1-verdicts" "$(openset "$f")" "$before"
+  sum=$(cksum < "$f"); bash "$MEM" upgrade "d15/$1" >/dev/null 2>&1
+  check "T15-$1-idempotent" "$(cksum < "$f")" "$sum"; }
+v1blk d15/hyphen '## BLK-001 - hyphen, resolved' 'Status: resolved' '' \
+  '## BLK-002 - hyphen, open' 'Status: open'
+dialect hyphen '^## BLK-001 — hyphen, resolved$'
+v1blk d15/pipe '## BLK-001 | 2026-05-18 | pipe, resolved' 'Status: resolved' '' \
+  '## BLK-002 | 2026-05-19 | pipe, open' 'Status: open'
+dialect pipe '^## BLK-001 — pipe, resolved (2026-05-18)$'
+v1blk d15/hashes '### BLK-001 — three hashes, resolved' 'Status: resolved' '' \
+  '### BLK-002 — three hashes, open' 'Status: open'
+dialect hashes '^## BLK-001 — three hashes, resolved$'
+v1blk d15/suffix '## BLK-001 — suffix — RESOLVED' 'Status: resolved in repo' \
+  '' '## BLK-002 — suffix, open' 'Status: open'
+dialect suffix '^## BLK-001 — suffix — RESOLVED$'
+v1blk d15/datestatus '## BLK-001 — one line' \
+  'date: 2026-06-02 · status: RESOLVED 2026-06-04' '' \
+  '## BLK-002 — one line open' 'date: 2026-06-02 · status: open'
+dialect datestatus '^- \*\*Status ([0-9-]*, upgrade)\*\*: resolved$'
+check T15-datestatus-one-line "$(grep -c 'upgrade)' d15/datestatus/blockers.md)" 1
+v1blk d15/statut '## BLK-001 — fr' '- **Statut** : resolved' '' \
+  '## BLK-002 — fr open' '- **Statut** : open'
+dialect statut '^- \*\*Status ([0-9-]*, upgrade)\*\*: resolved$'
+mkdir -p d15/nofm
+printf '# Blockers\n\n## BLK-001 | 2026-05-18 | no frontmatter\n%s\n' \
+  '- **Statut** : resolved' > d15/nofm/blockers.md
+dialect nofm '^## BLK-001 — no frontmatter (2026-05-18)$'
+check T15-nofm-template "$(sed -n 1,3p d15/nofm/blockers.md | tr '\n' '#')" \
+  '---#format: 2#type: blockers_registry#'
+check T15-nofm-body "$(grep -c '^# Blockers$' d15/nofm/blockers.md)" 1
+# an em-dash heading stays byte-identical, a dated one included
+v1blk d15/keep '## BLK-001 — keep — 2026-05-18' 'Status: open'
+bash "$MEM" upgrade d15/keep >/dev/null 2>&1
+check T15-keep-heading "$(grep -c '^## BLK-001 — keep — 2026-05-18$' d15/keep/blockers.md)" 1
+# v1 open, strict reader closed: kept and named (BLK-032..034)
+v1blk d15/fix '## BLK-001 — prose' 'Status: Resolved'
+err=$(bash "$MEM" upgrade d15/fix 2>&1 >/dev/null)
+check T15-fix-named "$(printf '%s\n' "$err" | grep -c 'BLK-001: v1 reader open, strict reader closed')" 1
+# tampered: no status line lands, the oracle refuses, the file is untouched
+v1blk d15/tamper '## BLK-001 | 2026-05-18 | lost closure' \
+  'date: 2026-06-02 · status: RESOLVED'
+sum=$(cksum < d15/tamper/blockers.md)
+err=$( ( . "$MEM"; _mem_upgrade_repair() { :; }; memory_upgrade d15/tamper ) 2>&1 >/dev/null )
+check T15-tamper-rc "$?" 2
+check T15-tamper-culprit "$(printf '%s\n' "$err" | grep -c 'moved a verdict: BLK-001')" 1
+check T15-tamper-untouched "$(cksum < d15/tamper/blockers.md)" "$sum"
 
 # T12 this repo's registries pass the check
 check T12-live-check "$(bash "$MEM" -C "$ROOT" check >/dev/null 2>&1; echo $?)" 0
