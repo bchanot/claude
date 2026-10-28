@@ -75,7 +75,8 @@ function mem_key(line, key,   c) {
   return c == "" || c !~ /[0-9A-Za-z]/ }
 function mem_want(p, c, st,   w) {
   w = mem_word(c)
-  if (p == "EVAL" || w == "") return ""
+  if (w == "") return ""
+  if (p == "EVAL") return st == "" ? c : ""
   if (p == "LRN") return c ~ /^superseded by/ ? c : ""
   if (st == "" || (w ~ /^(superseded|deprecated)$/ && st != w)) return c
   return "" }

@@ -293,6 +293,11 @@ printf -- '---\ntype: evals_registry\nentry_prefix: EVAL\n---\n\n## Index\n\n| I
 bash "$MEM" upgrade >/dev/null 2>&1
 check T9p-empty-index-upgraded "$(sed -n 2p .claude/memory/evals.md)" 'format: 2'
 check T9q-empty-index-heading "$(grep -c '^## EVAL-001 — empty index' .claude/memory/evals.md)" 1
+printf -- '---\ntype: evals_registry\nentry_prefix: EVAL\n---\n\n## Index\n\n| ID | Date | Output | Action |\n|----|------|--------|--------|\n| EVAL-001 | 2026-04-01 | a | correct |\n| EVAL-002 | 2026-04-02 | b | correct |\n\n## EVAL-001 — prose action\n- **Action**: fix the prompt next round\n\n## EVAL-002 — body wins\n- **Action**: keep it\n' \
+  > .claude/memory/evals.md
+bash "$MEM" upgrade >/dev/null 2>&1
+check T9s-eval-index-action-kept "$(sed -n '/^## EVAL-001/,/^## EVAL-002/p' .claude/memory/evals.md | grep -c 'upgrade)\*\*: correct$')" 1
+check T9t-eval-body-wins "$(sed -n '/^## EVAL-002/,$p' .claude/memory/evals.md | grep -c 'upgrade)')" 0
 cd "$FIX" || exit 1
 
 # T10 parser: header tag and labelled lines only, last wins, open ranks last

@@ -7,8 +7,9 @@
 # happens to be dirty or staged is NEVER embarked.
 #
 # Usage (CLI):
-#   memory-commit.sh commit "<message>"  # surgical commit; exit 0 ok/no-op, 3 unsafe
-#                                        # state, 5 commit rejected, 6 check refused
+#   memory-commit.sh commit "<message>"
+#       # surgical commit; exit 0 ok/no-op, 3 unsafe state,
+#       # 5 commit rejected, 6 check refused
 #
 # Output contract for `commit`: diagnostics go to stderr; on a real commit the
 # short hash of the MEMORY commit is the ONLY thing on stdout (empty on no-op or
