@@ -26,6 +26,8 @@ source "$REPO/lib/gstack-playwright.sh"
 source "$REPO/lib/doctor-vendored.sh"
 # shellcheck source=lib/doctor-skills.sh disable=SC1091
 source "$REPO/lib/doctor-skills.sh"
+# shellcheck source=lib/doctor-automem.sh disable=SC1091
+source "$REPO/lib/doctor-automem.sh"
 # shellcheck source=lib/higgsfield-skills.sh disable=SC1091
 source "$REPO/lib/higgsfield-skills.sh"
 
@@ -37,8 +39,8 @@ echo ""
 # 1. Core symlinks
 # ────────────────────────────────────────────────────────────
 echo "── Symlinks ──"
-# Expected: CLAUDE.md, settings.json, agents, skills, templates, hooks/session-start.sh
-_EXPECTED_LINKS=7
+# Expected: CLAUDE.md, settings.json, agents, skills, templates, lib, rules, hooks/session-start.sh
+_EXPECTED_LINKS=8
 _LINK_PASS=0
 
 check_symlink() {
@@ -87,6 +89,7 @@ check_symlink "agents"
 check_symlink "skills"
 check_symlink "templates"
 check_symlink "lib"
+check_symlink "rules"
 check_symlink "hooks/session-start.sh"
 info "Symlinks: ${_LINK_PASS}/${_EXPECTED_LINKS} OK"
 unset _EXPECTED_LINKS _LINK_PASS
@@ -470,6 +473,25 @@ else
   pass "TMPDIR=$_sp on $_sp_fs (no per-user tmpfs quota in the way)"
 fi
 unset _sp _sp_fs _sp_opts
+echo ""
+
+# ────────────────────────────────────────────────────────────
+# 5d. Auto memory (BDR-125 phase 1): "autoMemoryEnabled": false, so a file
+# left under ~/.claude/projects/<slug>/memory/ is never loaded again.
+# ────────────────────────────────────────────────────────────
+echo "── Auto memory ──"
+if jq -e '.autoMemoryEnabled == false' "$REPO/settings.json" >/dev/null 2>&1; then
+  pass "settings.json: autoMemoryEnabled false"
+else
+  warn "settings.json: autoMemoryEnabled is not false — the auto-memory section loads every session (BDR-125 phase 1)"
+fi
+_am=$(automem_leftover_dirs "$HOME/.claude/projects")
+if [ "$_am" -gt 0 ]; then
+  warn "auto memory: $_am project dir(s) still hold files under ~/.claude/projects/*/memory/ (never loaded) — migrate them to the project registries, then remove them by hand"
+else
+  pass "auto memory: no leftover file under ~/.claude/projects/*/memory/"
+fi
+unset _am
 echo ""
 
 # ────────────────────────────────────────────────────────────
