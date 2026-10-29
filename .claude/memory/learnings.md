@@ -1833,3 +1833,19 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 ## LRN-237 — A migration oracle sharing the transform reader proves nothing: own range per reader, assert on the entry, prove with the user invocation (2026-10-28)
 - **Context**: memory v2 `upgrade` verdict oracle, 2026-10-28. Oracle compared each blocker's open/closed verdict, legacy reader before vs strict reader after. Four review rounds each found a range leak the oracle shared: `###` entry invisible to v1 reader counted closed → `resolved` written on an open blocker; `## BLK-003` range swallowed a following `### BLK-001`; a `### ` heading quoted in a fence ended the range; status lines inside a fence read. Tests stayed green because they checked the reconcile enumerator, blind to `###`. Separately: template path derived after `-C` cd → upgrade rc 2 only when the lib is called by relative path; implementers always used absolute paths.
 - **Apply**: an oracle sharing the transform's reader proves nothing: give each reader its own entry range (end at next heading of any level, fence-aware, skip fenced status). Assert on the entry itself, not via an enumerator. Prove a CLI on real data copies with the invocation users type (relative path + `-C`). Resolve a lib's own dir at source time (`cd -P` before any `cd`). [[BDR-129]], [[LRN-096]].
+
+## LRN-238 — Path rules match gitignore-style and load on Read only: pointers say Read before writing (2026-10-29)
+- **Pattern**: engine path-rule match = gitignore-style. InstructionsLoaded logs globs normalized (`**/supabase/**` → `**/supabase`, `rules/**` → `rules`), match at any depth, hidden dirs included. Load on Read only, never Write of new file.
+- **Application**: an always-on pointer to a path rule must say "Read it before writing a new <file>", not "loads on X files". Plan, spec and user approval all missed it; final opus review caught it (I1, fixed 789a2b2). Static compgen check proves parsing only; load proof = logged headless session naming the Read tool.
+
+## LRN-239 — Live Claude Code rewrites settings.json from memory on its next settings write (2026-10-29)
+- **Pattern**: running Claude Code re-serializes its in-memory settings into user `settings.json` on any later settings write: a `/model` "Everywhere" value + key order came back after a manual restore (seen 2026-10-29, twice).
+- **Application**: after `/model` in a live session, restore the tracked file, then re-check before any commit or finish; stash UI writes (BDR-131). Restart ends it.
+
+## LRN-240 — autoMemoryEnabled false also drops sub-agent memory: project (2026-10-29)
+- **Pattern**: `"autoMemoryEnabled": false` also removes a sub-agent's `memory: project` section. Proof 2026-10-29: analyzer asked for its agent-memory section → NO; same probe with `claude -p --settings '{"autoMemoryEnabled": true}'` → YES "# Persistent Agent Memory".
+- **Application**: before toggling auto memory, check `memory:` frontmatter users and `.claude/agent-memory/*` contents (here 4 dirs, all empty: no loss). Dead field `memory: project` in agents/analyzer.md → TODO.
+
+## LRN-241 — Classify a usage log by source before trusting its counts (2026-10-29)
+- **Pattern**: design-toolchain fire log 2026-10-28: 2,779 fires = 1,770 suite prompts (tests ran with the real HOME) + 857 `<agent-message` hand-backs + 152 real prompts. TODO's "2,131 fires" premise was noise.
+- **Application**: classify a usage log by prompt prefix and known test strings before using its counts as evidence; hook suites run under a temp HOME (fixed 4bbb3c5).

@@ -1,6 +1,6 @@
 ---
 name: geo-analyzer
-description: GEO audit agent for AI search engines — dispatched by /geo and /seo. Audits AI crawlers, llms.txt, entity signals, Schema.org; emits a fix bundle (dispatcher applies), scored report. Classical SEO → seo-analyzer agent.
+description: GEO audit agent for AI search engines, dispatched by /geo and /seo. AI crawlers, llms.txt, entity signals, Schema.org; emits a fix bundle and a scored report. Classical SEO → seo-analyzer.
 tools: Read, Edit, Write, Bash, Grep, Glob, WebFetch, WebSearch
 model: opus
 effort: xhigh

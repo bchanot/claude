@@ -45,8 +45,9 @@ design-review, design-consultation, the `21st` CLI and `21st-ui-build` — the
 canary for the whole 21st skill pack). The profile also bundles
 browser/plan/shotgun tooling and graphify for convenience; those never trip the
 gate. Motion (`design-motion-principles`) and static-HTML (`design-html`) are
-already in the core set — checked regardless; their CLAUDE.md "+motion /
-+static" notes say which tool you'll lean on, not a separate activation step.
+already in the core set — checked regardless; the Design work section
+(`rules/web-building.md`) names them as the motion and static tools, not a
+separate activation step.
 `site-motion` (personal skill, site-level scroll/page choreography) rides the
 same Build chain but isn't on the GATE-BLOCK list: it ships with the repo,
 nothing to install or verify.

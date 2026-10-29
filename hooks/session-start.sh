@@ -7,7 +7,7 @@
 
 # ── Quick health check (filesystem only, no subprocesses) ──
 BROKEN=()
-for f in CLAUDE.md settings.json agents skills; do
+for f in CLAUDE.md settings.json agents skills rules; do
   [ ! -e "$HOME/.claude/$f" ] && BROKEN+=("$f")
 done
 
@@ -254,9 +254,9 @@ if [ -n "$GRAPHIFY_HINT" ]; then
   printf "│  🕸️  %-44s│\n" "${GRAPHIFY_HINT:0:44}"
   printf "│             %-40s│\n" "→ /graphify (AST, seconds) — you decide"
 fi
-# CLAUDE.global.md line-count guard (anti-regression). BDR-062 supersedes
-# BDR-031's 275 target: 305 is the assumed reality (extraction done at
-# job1; further compression costs clarity > token gain) — warn past 320.
+# CLAUDE.global.md line-count guard (anti-regression, BDR-062): warn past
+# 320. BDR-125 phase 1 moved Design work, the graphify usage and the
+# architecture defaults to their carriers.
 if [ -n "$REPO_DIR" ] && [ -f "$REPO_DIR/CLAUDE.global.md" ]; then
   _claude_lines=$(wc -l < "$REPO_DIR/CLAUDE.global.md")
   if [ "$_claude_lines" -gt 320 ]; then
@@ -293,5 +293,20 @@ echo "│  💡 /plugin-check  before starting a new project  │"
 echo "│  🩺 make doctor  full diagnostic                  │"
 echo "└───────────────────────────────────────────────────┘"
 [ -n "$EFFORT_WARN" ] && printf '%s\n' "$EFFORT_WARN"
+# graphify usage (BDR-125 phase 1): the rules left CLAUDE.global.md, which
+# keeps the 200-file threshold and a one-line reminder; they print where a
+# graph exists.
+_gx_root=$(git rev-parse --show-toplevel 2>/dev/null)
+if [ -n "$_gx_root" ] && [ -f "$_gx_root/graphify-out/graph.json" ]; then
+  cat <<'EOF'
+graphify (graphify-out/graph.json present):
+- Codebase-wide question → `graphify query`; relationships → `path A B`;
+  concept → `explain`. Scoped subgraph beats raw grep.
+- Known file / small task → read directly, no graphify.
+- `wiki/index.md` → broad-nav entry; `GRAPH_REPORT.md` → whole-architecture.
+- After editing code → `graphify update .` (AST-only, free).
+EOF
+fi
+unset _gx_root
 echo ""
 unset TOKEN_WARN

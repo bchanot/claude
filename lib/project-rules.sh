@@ -19,8 +19,12 @@
 # no brace expansion: one glob per extension; a symlinked dir matches
 # when the glob names it, globstar never descends into a symlink met
 # under `**`;
-# dotglob makes `*` match dotfiles, which the engine's matcher skips: a
-# glob that only hits hidden paths passes here but never loads),
+# dotglob makes `*` match dotfiles; the engine reaches hidden dirs too. Its
+# matcher looks gitignore-style (InstructionsLoaded log, 2026-10-26:
+# `paths: ["rules/**"]` logged as `globs: ["rules"]` and loaded on a Read
+# of `.claude/rules/*.md`): a trailing `/**` dropped, a pattern without an
+# inner `/` matching at any depth. A glob can thus load where this check
+# does not look; the load proof is the logged session, not this check),
 # dependency dirs excluded (unless the glob names one: `vendor/**` is a
 # valid rule): the engine matches the path the model reads,
 # tracked or not; a typo matches nothing either way. A frontmatter line

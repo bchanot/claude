@@ -1,6 +1,6 @@
 ---
 name: plugin-advisor
-description: Plugin-fit REASONER — dispatched by lib/plugin-gate.md with a PROBE REPORT (from plugin-probe). Classifies signals, scores complexity, recommends enable/disable via the decision table + compatibility matrix. Report-only.
+description: Plugin-fit REASONER dispatched by lib/plugin-gate.md with a PROBE REPORT from plugin-probe. Classifies signals, scores complexity, recommends enable/disable. Report-only.
 tools: Read, Glob, Grep
 model: opus
 effort: xhigh

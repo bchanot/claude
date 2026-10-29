@@ -203,3 +203,7 @@ make doctor
 A v2 registry is the same `.claude/memory/<name>.md` file, versioned and pushed with the code, with `format: 2` in its frontmatter and no `## Index`. The session banner line `registry v1: N file(s) (memory.sh check)` flags a project still on v1. v1 stays readable and writable (lenient), and the `check --staged` chokepoint skips it.
 
 To migrate, run `bash ~/.claude/lib/memory.sh -C <project> upgrade` on a clean `.claude/memory`, then commit through `/commit-change` when headings were rewritten (memory-commit refuses heading rewrites by design). `upgrade` refuses a registry with duplicate IDs or a non-table Index and leaves the file untouched: a human renumbers or converts first.
+
+## Auto memory off (2026-10-29)
+
+`settings.json` now sets `"autoMemoryEnabled": false`, so Claude Code no longer loads `~/.claude/projects/<slug>/memory/`. Anything left there is knowledge no session reads. `make doctor` (section "Auto memory") counts the project dirs that still hold files. For each one, move what is worth keeping into that project's registries with `bash ~/.claude/lib/memory.sh -C <project> add <kind> --title … --body-file …`, then delete the leftover dir by hand.

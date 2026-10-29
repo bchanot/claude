@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # design-toolchain-reminder.sh
 #
-# UserPromptSubmit hook. When the prompt carries a UI/design signal, inject a
-# reminder to mobilize the full design toolchain (tiered by scope, per CLAUDE.global.md
-# "Design work — full toolchain"). A UserPromptSubmit hook's stdout is appended
-# to the model's context, so the cat block below becomes additional guidance.
+# UserPromptSubmit hook. When the prompt carries a UI/design signal, point the
+# model at the design toolchain section (tiered by scope). Since BDR-125
+# phase 1 it lives in rules/web-building.md § "Design work — full toolchain",
+# not in CLAUDE.global.md: it loads by itself on a UI file Read, and a
+# chat-only design request needs this pointer. A UserPromptSubmit hook's
+# stdout is appended to the model's context.
 #
 # This is a soft nudge: the tiered rule itself says trivial work uses NO
 # toolchain, so a false positive (e.g. "API design") costs only a reminder the
@@ -25,10 +27,11 @@ prompt="$(printf '%s' "$input" \
   2>/dev/null || true)"
 [ -z "$prompt" ] && prompt="$input"
 
-# Harness-generated turns (subagent/task notifications) are not user
-# requests — never fire on them (CLAUDE.global.md trigger = a design/UI *request*).
+# Harness-generated turns (task notifications, sub-agent hand-backs: 857 of
+# 2,779 logged fires on 2026-10-28) are not user requests — never fire on
+# them (the Design work trigger = a design/UI *request*).
 case "$prompt" in
-  '<task-notification>'*) exit 0 ;;
+  '<task-notification>'*|'<agent-message'*) exit 0 ;;
 esac
 
 lc="$(printf '%s' "$prompt" | tr '[:upper:]' '[:lower:]')"
@@ -72,7 +75,7 @@ if printf '%s' "$lc" | grep -Eq "$pattern"; then
     "$(printf '%s' "$lc" | grep -oiE "$pattern" | head -1 || true)" \
     "$(printf '%s' "$prompt" | tr '\n\t' '  ' | cut -c1-100)" >> "$logf" 2>/dev/null || true
   cat <<'EOF'
-Design work detected → apply global CLAUDE.md section "Design work — full toolchain" (already in context). Trivial (≤2 files, cosmetic) → /hotfix.
+Design work detected → Read ~/.claude/rules/web-building.md § "Design work — full toolchain" first. Trivial (≤2 files, cosmetic) → /hotfix.
 EOF
 fi
 

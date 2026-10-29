@@ -1,6 +1,6 @@
 ---
 name: seo-analyzer
-description: 'Classical SEO audit agent (Google, Bing) — dispatched from /seo. Live audit: Core Web Vitals, on-page, technical, local SEO, legal (FR). Emits a fix bundle (dispatcher applies) + scored report. AI/GEO → geo-analyzer agent.'
+description: 'Classical SEO audit agent (Google, Bing), dispatched from /seo: Core Web Vitals, on-page, technical, local SEO, legal (FR). Emits a fix bundle + scored report. AI/GEO → geo-analyzer.'
 tools: Read, Edit, Write, Bash, Grep, Glob, WebFetch, WebSearch
 model: opus
 effort: xhigh
@@ -539,8 +539,8 @@ it is.
 
 **§0 line, mandatory when not server-rendered:**
 `Rendering: client-rendered — On-page NOT scored (content absent from served
-HTML). Global score excludes it. Fix: SSR/SSG (CLAUDE.md: public sites are
-never SPAs).`
+HTML). Global score excludes it. Fix: SSR/SSG
+(lib/architecture-defaults.md: public sites are never SPAs).`
 
 This is the honest half of the R1/R2 call: we do not render JS (no Playwright,
 no Chromium), so we do not pretend to see what JS paints. Refusing is the

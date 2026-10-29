@@ -140,30 +140,10 @@ their CAPITALIZE step. Session close (`/close` = `/capitalize --ritual`):
 what was decided → decisions, learned → learnings, blocked → blockers.
 
 # Architecture decisions
-Override default framework/tooling choices at project creation, scaffolding,
-brainstorming.
-
-## Public websites — never SPA
-A public site meant to be indexed (landing, portfolio, blog, e-commerce,
-docs) is never a pure SPA (CRA, Vite React, Vue SPA): the empty HTML shell
-hides content from search and AI engines, SEO and GEO destroyed.
-- **Astro** by default for informational sites: static HTML at build, zero
-  JS by default, React/Vue/Svelte islands for interactive parts.
-- **Next.js** when dynamic SSR is needed (personalized content, server-side
-  auth, API routes, hybrid app).
-- **React SPA** only for what needs no indexing: admin panels, dashboards,
-  auth-gated apps, internal tools. Mixed project: Astro/Next for public,
-  React island (`client:only`) for admin.
-- At brainstorming (`/init-project`, `/ship-feature` STEP 1), public site
-  and no framework named → propose Astro, explain why not SPA. Never
-  silently pick React CRA.
-
-## Web APIs — always versioned
-Every endpoint versioned from day one: `/api/v1/...`, no bare `/api/`; the
-router mirrors it (`api/v1/routes/`). Breaking change → `v2`, the old
-version keeps working and clients migrate at their pace; non-breaking
-additions → current version. Each version is a self-contained contract,
-never bent to match a newer one.
+New project, scaffolding, stack brainstorm or whole-project rewrite: Rust
+by default, a public site is never a SPA (Astro; Next.js when SSR is
+needed), every web API versioned `/api/v1/` from day one. Read
+`~/.claude/lib/architecture-defaults.md` before proposing a stack.
 
 ## Version control — gitflow (universal)
 Every git action follows gitflow, inside a skill or for an ad-hoc commit.
@@ -277,7 +257,8 @@ cryptic names.
 - Docs post-ship → document-release (doc if gstack off); stale-doc audit → doc
 - Grouped all-axes sweep ("tir groupé", fix + loop until clean) → tour
 - Open-work inventory / "queue empty?" / stale TODO vs git → reconcile
-- Design / UI (build, system, audit, polish) → "Design work" below
+- Design / UI (build, system, audit, polish) → Read
+  `~/.claude/rules/web-building.md` § "Design work" first
 - Architecture review → plan-eng-review
 - Before /clear or /compact → capitalize; end-of-session ritual → close
 - superpowers skills are vendored, called by bare name; an upstream
@@ -293,41 +274,16 @@ cryptic names.
   enable higgsfield`, then Read the skill under `~/.claude/skills/`;
   `higgsfield generate cost` before a paid run. Landing page "with
   Higgsfield", named ask → `enable higgsfield-websites`: an aid inside
-  Design work and the site rules, never `website create|deploy|publish`.
+  the Design work rules (`rules/web-building.md`), never
+  `website create|deploy|publish`.
 gstack OFF → its skills (investigate, qa, review, health, retro,
 office-hours…) are gone: use the fallback above, else say so.
-
-## Design work — full toolchain (tiered by scope)
-Trigger = UI work: editing a component/style file (.tsx/.vue/.svelte/.css…)
-or a design/UI request, not the word "design" alone. Single source for
-design routing; the design-toolchain hook reinforces it.
-- Trivial (≤2 files, one cosmetic value) → /hotfix, no toolchain.
-- Build UI (component, page, redesign) → impeccable (build path: init,
-  shape, new-work, craft floor, fresh finish reviewer) + ui-ux-pro-max +
-  21st-ui-build (catalog + generation) + emil-design-eng (polish) +
-  design-motion-principles (motion) + design-html (static) + site-motion.
-  Floor: `impeccable detect <files>` (61 rules, exit 2). frontend-design
-  only for a one-off visual with no project context, not beside impeccable.
-- Design system / brand → design-consultation first, then the build tools.
-- Review / audit → design-review + emil-design-eng + design-motion-principles
-  + /impeccable audit|critique + `impeccable detect` floor.
-- The vendored stack members route to `reflect` (high) through their
-  model-router rows (`mods/model-router`); the last rowed skill loaded
-  wins and an unrowed member (plugin, gstack) changes nothing.
-Scope doubt → ask or default to Build, never silently skip. Gate: light
-skills run `~/.claude/lib/design-gate.md`, orchestrators plugin-check. 21st =
-CLI (`npm i -g @21st-dev/cli`, `21st login`), no MCP, no key; search free,
-`21st get`/`generate` metered → generation, not micro-tweaks. 21st-ai /
-ui-explore / ui-review are `max`-profile only.
 
 ## graphify
 
 Threshold: graphify from 200 tracked code files, never below (banner line
 `graphify? N code files ≥ 200, no graph` informs, the user decides; never
-build or `graphify claude install` without that go). ALL rules below apply
-only if `graphify-out/graph.json` exists — else read files directly.
-- Codebase-wide question → `graphify query`; relationships → `path A B`;
-  concept → `explain`. Scoped subgraph beats raw grep.
-- Known file / small task → read directly, no graphify.
-- `wiki/index.md` → broad-nav entry; `GRAPH_REPORT.md` → whole-architecture.
-- After editing code → `graphify update .` (AST-only, free).
+build or `graphify claude install` without that go). With a graph
+(`graphify-out/graph.json`): `graphify query` before raw grep on
+codebase-wide questions, `graphify update .` after code edits; the session
+banner prints the rest.

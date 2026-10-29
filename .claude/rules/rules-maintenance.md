@@ -9,15 +9,18 @@ Modular instruction files loaded by Claude Code alongside the global memory.
 projects). One rule = one file = one concern.
 
 A rule WITH `paths:` YAML frontmatter (glob list) loads lazily — only when
-Claude reads a file matching a glob; a rule WITHOUT it loads at session
-start, same cost as the global memory. Extract from CLAUDE.global.md only
-what can be path-scoped (the token win) or what is generated; always-on
-doctrine stays in CLAUDE.global.md. Exception: a standalone user-authored
-rule set that would bust the 320-line density budget may live here WITHOUT
-`paths:` (always-on load) — writing-style.md (BDR-085), default-language.md
-(BDR-118), secure-by-default.md (BDR-120). `paths:` globs match against the
-CURRENT project's tree — a broad glob (e.g. `rules/**`) can fire in foreign
-projects; keep rule bodies tiny.
+Claude Reads a file matching a glob (never on the Write of a new file;
+sub-agents too); a rule WITHOUT it loads at session start, same cost as the
+global memory. Doctrine leaves CLAUDE.global.md only for a carrier that fires
+when it is needed (BDR-125 phase 1: a path rule, a hook, a lib our skills
+Read), with one always-on line wherever plain chat still needs the rule.
+Exception: a standalone user-authored rule set that would bust the 320-line
+density budget may live here WITHOUT `paths:` (always-on load) —
+writing-style.md (BDR-085), secure-by-default.md (BDR-120);
+`lib/tests/user-rules.test.sh` locks that set. `paths:` globs match against
+the CURRENT project's tree, gitignore-style (a pattern without an inner `/`
+matches at any depth, hidden dirs included) — a broad glob (e.g. `rules/**`)
+can fire in foreign projects; keep rule bodies tiny.
 Docs: https://code.claude.com/docs/en/memory.md#path-specific-rules
 
 Machine-owned: `rules/context7.md` is DELETED BY DESIGN (BDR-053,

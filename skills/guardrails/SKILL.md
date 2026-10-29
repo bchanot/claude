@@ -7,7 +7,8 @@ argument-hint: '[project path] [--domain api,hosting,supabase,messaging,function
 
 # /guardrails
 
-Checks a project against `rules/secure-by-default.md`, then fixes what the
+Checks a project against `rules/secure-by-default.md` (domains 4 and 6 in
+full: `rules/supabase.md`, `rules/cloud-functions.md`), then fixes what the
 user accepts and proves each fix. A scanner reads the tree as data and finds
 what text can prove. This skill judges the hits, covers what text cannot
 prove, lists what only a dashboard can set and, on request, probes a running

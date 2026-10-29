@@ -71,6 +71,9 @@ Load `$HOME/.claude/agents/analyzer.md`. Analyze BRIEF: existing code, stack con
 
 ## STEP 3 — DESIGN
 Invoke `brainstorming` (vendored superpowers skill) with BRIEF + ANALYSIS REPORT.
+Read `~/.claude/lib/architecture-defaults.md` first and pass it as binding
+context: its defaults (Rust, never a SPA for a public site, `/api/v1/`) hold
+unless the BRIEF names otherwise.
 Produce DESIGN: stack+versions, full folder tree, module responsibilities, data flow, interfaces (signatures only), config+tooling, test strategy, resolved decisions, prereqs list.
 Then run pass B of `$HOME/.claude/lib/contract-interview.md` against the DESIGN
 (minus what the BRIEF and the brainstorm settled): one batch before STEP 4;
@@ -102,7 +105,8 @@ BDR-077 : le design est CLOS au gate #1, le scaffold est de l'exécution,
 plus jamais inline sur le modèle de session). Pass IN THE PROMPT (LRN-126 —
 every field the scaffolder consumes crosses the dispatch): BRIEF (verbatim)
 + DESIGN (verbatim) + paths `~/.claude/templates/project-CLAUDE.md` +
-`~/.claude/CLAUDE.md`. A STOP (missing input) comes back as its report —
+`~/.claude/CLAUDE.md` + `~/.claude/lib/architecture-defaults.md`. A STOP
+(missing input) comes back as its report —
 resolve here, re-dispatch. The ~30s liveness pings are THIS loop's job
 while waiting.
 Creates: CLAUDE.md, `.claude/settings.json`, `.claudeignore`, `.gitignore`, `.env.example`, empty entry points. NO README, NO features.

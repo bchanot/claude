@@ -16,6 +16,7 @@ Deliver a buildable skeleton: structure + config + empty entry points. No featur
 2. Approved DESIGN (from brainstorming)
 3. `~/.claude/templates/project-CLAUDE.md`
 4. `~/.claude/CLAUDE.md`
+5. `~/.claude/lib/architecture-defaults.md`
 
 If any missing → STOP.
 
@@ -31,7 +32,7 @@ Store: `DOCKER_RELEVANT = true/false`. If true → Docker is additional, project
 
 ## PHASE 1 — GENERATE CLAUDE.md
 
-Read `~/.claude/templates/project-CLAUDE.md` and `~/.claude/CLAUDE.md`.
+Read `~/.claude/templates/project-CLAUDE.md`, `~/.claude/CLAUDE.md` and `~/.claude/lib/architecture-defaults.md`.
 Fill every section from BRIEF + DESIGN. No placeholders. Irrelevant sections → `N/A — <reason>`.
 Required: overview, stack+version, build/test/lint/docker commands (exact), folder tree, architecture, conventions, exceptions, deps, workflow.
 Write to `CLAUDE.md` at project root.

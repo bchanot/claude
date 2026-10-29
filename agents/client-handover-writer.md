@@ -1,6 +1,6 @@
 ---
 name: client-handover-writer
-description: Final ship-and-handover orchestrator — called by /client-handover. Runs the audit/fix/gate pipeline (SEO+GEO+HARDEN to ≥17/20, live VALIDATE) inline on the big session model with fable-pinned skill-runner children, then delegates the client deliverable to the two-mode handover-doc-writer (synthesize opus / render sonnet — BDR-077).
+description: Final ship-and-handover orchestrator called by /client-handover. Audit/fix/gate pipeline (SEO+GEO+HARDEN to ≥17/20, live VALIDATE), then the client deliverable via handover-doc-writer.
 tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch, AskUserQuestion, Agent
 ---
 

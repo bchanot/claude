@@ -39,13 +39,9 @@ never claimed done: write it as a manual step in the project's deploy notes.
   comments carry no token, hash, key or secret.
 
 ## 4. Supabase
-- RLS enabled on every table, in the migration that creates it.
-- Policies limited to the owner: `(select auth.uid())` per operation, role
-  `authenticated`. No `using (true)` on writes, no anon write.
-- No `service_role` or secret key client-side: not in a bundle, not in a
-  `NEXT_PUBLIC_`, `VITE_` or `PUBLIC_` variable.
-- Views `security_invoker`. `security definer` functions pin `search_path`
-  and revoke execute from anon. Buckets private by default.
+- RLS on every table, never a service_role or secret key client-side.
+  Full domain: ~/.claude/rules/supabase.md; Read it before writing a
+  migration, policy or client (a new file's Write loads no path rule).
 
 ## 5. SMS and email
 - Prior consent recorded per contact: who, when, channel, source, wording.
@@ -54,7 +50,6 @@ never claimed done: write it as a manual step in the project's deploy notes.
   SMS says STOP, and a STOP reply is processed and stored automatically.
 
 ## 6. Cloud functions
-- No function re-triggers itself: never write to the resource that fires it,
-  never invoke itself. If unavoidable, guard with an idempotency flag.
-- Max instances (or reserved concurrency) and a timeout on every function.
-- Budget alert wired to an automatic stop beyond the budget.
+- Max instances and a timeout on every function, never a self-trigger.
+  Full domain: ~/.claude/rules/cloud-functions.md; Read it before
+  writing a function (a new file's Write loads no path rule).

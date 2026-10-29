@@ -273,8 +273,9 @@ Then offer to capitalize (per CLAUDE.md): recurring finding patterns →
   errors, resource leaks (missing trap/close/finally). Improvements only
   when concrete and local: simplification, dedup against an existing
   helper, obvious perf.
-- **conformity** — read project `CLAUDE.md` (+ `~/.claude/CLAUDE.md`)
-  FIRST, then check changed code against those norms. This repo's:
+- **conformity** — read project `CLAUDE.md` (+ `~/.claude/CLAUDE.md` and
+  `~/.claude/lib/architecture-defaults.md`) FIRST, then check changed code
+  against those norms. This repo's:
   ≤25 logic lines/function, ≤80 chars/line, ≤5 params, ≤5 locals, no
   global state, intent-not-mechanics comments, explicit naming, versioned
   APIs (`/api/v1/`), no-SPA-for-public-sites, security defaults. Foreign

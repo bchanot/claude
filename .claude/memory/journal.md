@@ -668,3 +668,6 @@ rules:
 
 ## 2026-10-28
 - Phase 4a memory v2 shipped on feature/memory-v2-write: lib/memory.sh single writer, registries v2 (9698473), shared parser fixes BLK-032..034, upgrade migrates 12/14 repos on copies (game, trucks_at_work refused). 2 challenge rounds + 8 task reviews + 4 Task 8 fix rounds + verifier x2 + opus final (lock spin, bare-prefix status, bullet Index). BDR-129, LRN-236, LRN-237, EVAL-052. Merge on user go.
+
+## 2026-10-29
+- Phase 1 context diet (feature/context-diet): 8 tasks SDD + final opus review (I1 Write gap fixed 789a2b2), GATE 0 MET, verifier CONFORME 21/21 after 2 micro-gates, security PASS. /context 30.5k → 26.2k (own −2.8k). Load proof: faunosteo supabase.md + web-building.md, game cloud-functions.md + supabase.md path_glob_match. robin_petier BDR-075 (auto memory migrated, chore/memory-lan-server). BDR-130/131, LRN-238..241, EVAL-053. Faunosteo/game: nothing lost.
