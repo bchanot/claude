@@ -12,6 +12,7 @@
 
 ## Global Constraints
 
+- Execute IN PLACE in `/home/bchanot/Documents/claude` on `feature/context-diet`, no worktree: `~/.claude/{CLAUDE.md,rules,lib,hooks,settings.json}` are symlinks into this checkout and Task 7 relies on the user's uncommitted hunks in THIS working tree.
 - Branch `feature/context-diet` (exists). Never commit on develop/main. Never `--no-verify`. Never `git add -A` / `git add .`: add the exact paths listed in the task.
 - Moved text is moved VERBATIM (byte-identical lines) unless the task shows the new text. The oracles compare against develop commit `017a28b`.
 - Hook stdout strings name deployed paths (`~/.claude/...`); maintainer comments name `CLAUDE.global.md` (BDR-064).
@@ -59,22 +60,16 @@ with
 
 ```bash
 H="$(cd "$(dirname "$0")/../.." && pwd)/hooks/design-toolchain-reminder.sh"
-# Every hook call runs under a throwaway HOME: the fire log is
-# ~/.claude/logs/design-toolchain-fires.log and the suite must never write the
+# Every hook call runs under a throwaway HOME (the fire log is
+# $HOME/.claude/logs/design-toolchain-fires.log): the suite never writes the
 # real one (1,770 of 2,779 logged fires were this suite's prompts, 2026-10-28).
 T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
-REAL_LOG="$HOME/.claude/logs/design-toolchain-fires.log"
-real_before="$(wc -l < "$REAL_LOG" 2>/dev/null || echo 0)"
+export HOME="$T"
 LINE='Design work detected → Read ~/.claude/rules/web-building.md § "Design work — full toolchain" first. Trivial (≤2 files, cosmetic) → /hotfix.'
 pass=0; fail=0
 ```
 
-Replace the `fire()` definition (2 lines) with
-
-```bash
-fire() { if printf '{"prompt":"%s"}' "$1" | HOME="$T" bash "$H" | grep -q 'full toolchain'; then
-  echo fire; else echo quiet; fi; }
-```
+(`fire()` stays as it is: the exported HOME covers it. The L1 block keeps its own `tmp` HOME.)
 
 After the line `check D11-bare-ux ...` add
 
@@ -88,18 +83,10 @@ After the line `check F10-bare-ui ...` add
 check F11-pasted     "$(fire '<pasted_content> add a button')" fire
 
 # --- The one-liner is a contract (LRN-104): exact text ---
-check O1-exact-line "$(printf '{"prompt":"add a button"}' | HOME="$T" bash "$H")" "$LINE"
+check O1-exact-line "$(printf '{"prompt":"add a button"}' | bash "$H")" "$LINE"
+# the fires above landed in the throwaway HOME, positively (not a global count)
+check G1-fires-in-temp-home "$([ -s "$T/.claude/logs/design-toolchain-fires.log" ] && echo yes)" yes
 ```
-
-Replace the last line `printf 'PASS=%s FAIL=%s\n' "$pass" "$fail"; [ "$fail" -eq 0 ]` with
-
-```bash
-check G1-real-log-untouched "$(wc -l < "$REAL_LOG" 2>/dev/null || echo 0)" "$real_before"
-
-printf 'PASS=%s FAIL=%s\n' "$pass" "$fail"; [ "$fail" -eq 0 ]
-```
-
-(The L1 block keeps its own `tmp` dir unchanged.)
 
 - [ ] **Step 2: Run it, expect FAIL**
 
@@ -163,9 +150,9 @@ Design work detected → Read ~/.claude/rules/web-building.md § "Design work �
 
 - [ ] **Step 4: Move the section**
 
-Cut the whole section from `CLAUDE.global.md`: from the line `## Design work — full toolchain (tiered by scope)` through the line `ui-explore / ui-review are \`max\`-profile only.` (23 lines), plus the one blank line that follows it, so `## graphify` follows the Skill-routing block's last line `office-hours…) are gone: use the fallback above, else say so.` and one blank line.
+Cut the whole section from `CLAUDE.global.md`: from the line `## Design work — full toolchain (tiered by scope)` through the line `ui-explore / ui-review are \`max\`-profile only.` (22 lines, CLAUDE.global.md:300-321), plus the one blank line that follows it (322), so `## graphify` follows the Skill-routing block's last line `office-hours…) are gone: use the fallback above, else say so.` and one blank line. Never touch the `## graphify` heading.
 
-Append to `rules/web-building.md`: one blank line, then those 23 lines byte-identical (the file must END with `ui-explore / ui-review are \`max\`-profile only.` + newline). Do not touch its frontmatter.
+Append to `rules/web-building.md`: one blank line, then those 22 lines byte-identical (the file must END with `ui-explore / ui-review are \`max\`-profile only.` + newline). Do not touch its frontmatter.
 
 - [ ] **Step 5: Retarget the two CLAUDE.global.md pointers**
 
@@ -245,57 +232,49 @@ git commit -m "feat(design): Design work moves to rules/web-building.md, hook po
 
 **Files:**
 - Modify: `CLAUDE.global.md` (`## graphify` section, now the last section)
-- Modify: `hooks/session-start.sh` (line-count guard comment ~257-259; new block before the final `echo ""`)
-- Create: `lib/tests/session-start-graphify.test.sh`
+- Modify: `hooks/session-start.sh` (quick health-check list line ~10; line-count guard comment ~257-259; new block before the final `echo ""`)
+- Modify: `lib/tests/graphify-gate.test.sh` (new S-checks before its final `echo "PASS=…"`)
 
 **Interfaces:**
 - Produces: when `$(git rev-parse --show-toplevel)/graphify-out/graph.json` exists, session-start stdout carries, after the box, the block shown in Step 3 (first line `graphify (graphify-out/graph.json present):`).
 
-- [ ] **Step 1: Write the failing test**
+- [ ] **Step 1: Write the failing checks**
 
-Create `lib/tests/session-start-graphify.test.sh`:
+In `lib/tests/graphify-gate.test.sh`, insert before the final `echo "PASS=$pass FAIL=$fail"` (reuse its `mkrepo`, `check`, `$WORK/plain`; one banner run per fixture state):
 
 ```bash
-#!/usr/bin/env bash
-# lib/tests/session-start-graphify.test.sh — the graphify usage rules print
-# from hooks/session-start.sh only when the repo root holds
-# graphify-out/graph.json (BDR-125 phase 1: the body left CLAUDE.global.md).
-set -u
-ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
-pass=0; fail=0
-check() { if [ "$2" = "$3" ]; then pass=$((pass+1)); else fail=$((fail+1));
-  printf 'FAIL %s: got[%s] want[%s]\n' "$1" "$2" "$3"; fi; }
-banner() { (cd "$1" && SESSION_START_OFFLINE=1 bash "$ROOT/hooks/session-start.sh" \
-  </dev/null 2>/dev/null); }
-usage() { banner "$1" | grep -c 'graphify query'; }
-
-git init -q "$WORK/repo"; git -C "$WORK/repo" config core.hooksPath /dev/null
-mkdir -p "$WORK/repo/app/sub" "$WORK/plain"
-check T1-no-graph-silent "$(usage "$WORK/repo")" 0
-check T1b-banner-control "$(banner "$WORK/repo" | grep -c 'Claude Code config')" 1
-mkdir -p "$WORK/repo/graphify-out"; echo '{}' > "$WORK/repo/graphify-out/graph.json"
-check T2-graph-prints "$(usage "$WORK/repo")" 1
-check T3-from-subdir "$(usage "$WORK/repo/app/sub")" 1
-check T4-update-rule "$(banner "$WORK/repo" | grep -c 'graphify update \.')" 1
-check T5-not-a-repo "$(usage "$WORK/plain")" 0
-check T5b-not-a-repo-banner "$(banner "$WORK/plain" | grep -c 'Claude Code config')" 1
-
-printf 'PASS=%s FAIL=%s\n' "$pass" "$fail"; [ "$fail" -eq 0 ]
+# ── session-start prints the usage rules only where a graph exists
+#    (BDR-125 phase 1: the body left CLAUDE.global.md) ──
+SS="$(cd "$(dirname "$0")/../.." && pwd)/hooks/session-start.sh"
+banner() { (cd "$1" && SESSION_START_OFFLINE=1 bash "$SS" </dev/null 2>/dev/null); }
+d=$(mkrepo ss 1)
+out=$(banner "$d")
+check S1-banner-control "$(grep -c 'Claude Code config' <<<"$out")" 1
+check S1b-no-graph-silent "$(grep -c 'graphify query' <<<"$out")" 0
+mkdir -p "$d/graphify-out" "$d/app/sub"; echo '{}' > "$d/graphify-out/graph.json"
+out=$(banner "$d")
+check S2-graph-prints "$(grep -c 'graphify query' <<<"$out")" 1
+check S2b-update-rule "$(grep -c 'graphify update \.' <<<"$out")" 1
+check S3-from-subdir "$(banner "$d/app/sub" | grep -c 'graphify query')" 1
+out=$(banner "$WORK/plain")
+check S4-not-a-repo "$(grep -c 'graphify query' <<<"$out")/$(grep -c 'Claude Code config' <<<"$out")" 0/1
 ```
 
 - [ ] **Step 2: Run it, expect FAIL**
 
-Run: `make test suite=lib/tests/session-start-graphify.test.sh`
-Expected: FAIL on T2, T3, T4 (got 0); T1, T1b, T5, T5b pass.
+Run: `make test suite=lib/tests/graphify-gate.test.sh`
+Expected: FAIL on S2, S2b, S3 (got 0); T1-T9, S1, S1b, S4 pass.
 
-- [ ] **Step 3: Add the block to session-start.sh**
+- [ ] **Step 3: Edit session-start.sh**
 
-In `hooks/session-start.sh`, between the line `[ -n "$EFFORT_WARN" ] && printf '%s\n' "$EFFORT_WARN"` and the final `echo ""`, insert:
+Replace `for f in CLAUDE.md settings.json agents skills; do` (quick health check, ~line 10) with `for f in CLAUDE.md settings.json agents skills rules; do` (Design work and the Supabase / cloud-functions bodies now live only under `~/.claude/rules`).
+
+Between the line `[ -n "$EFFORT_WARN" ] && printf '%s\n' "$EFFORT_WARN"` and the final `echo ""`, insert:
 
 ```bash
 # graphify usage (BDR-125 phase 1): the rules left CLAUDE.global.md, which
-# keeps only the 200-file threshold; they print where a graph exists.
+# keeps the 200-file threshold and a one-line reminder; they print where a
+# graph exists.
 _gx_root=$(git rev-parse --show-toplevel 2>/dev/null)
 if [ -n "$_gx_root" ] && [ -f "$_gx_root/graphify-out/graph.json" ]; then
   cat <<'EOF'
@@ -328,7 +307,7 @@ with
 
 - [ ] **Step 4: Trim the CLAUDE.global.md section**
 
-Replace the whole `## graphify` section (heading through `- After editing code → \`graphify update .\` (AST-only, free).`) with:
+Replace the whole `## graphify` section (heading through `- After editing code → \`graphify update .\` (AST-only, free).`) with the lines below. The reminder clause stays always-on because dispatched sub-agents load CLAUDE.md, never the main session's SessionStart output:
 
 ```
 ## graphify
@@ -336,18 +315,19 @@ Replace the whole `## graphify` section (heading through `- After editing code �
 Threshold: graphify from 200 tracked code files, never below (banner line
 `graphify? N code files ≥ 200, no graph` informs, the user decides; never
 build or `graphify claude install` without that go). With a graph
-(`graphify-out/graph.json`), the session banner prints the usage rules.
+(`graphify-out/graph.json`): `graphify query` before raw grep,
+`graphify update .` after code edits; the session banner prints the rest.
 ```
 
 - [ ] **Step 5: Run, expect PASS**
 
-Run: `make test suite=lib/tests/session-start-graphify.test.sh`, `make test suite=lib/tests/graphify-gate.test.sh`, `make test suite=lib/tests/memory.test.sh`, `make test suite=lib/tests/push-guard.test.sh` (the last two grep the banner).
-Expected: four `all suites green`. `shellcheck hooks/session-start.sh lib/tests/session-start-graphify.test.sh` clean.
+Run: `make test suite=lib/tests/graphify-gate.test.sh`, `make test suite=lib/tests/memory.test.sh`, `make test suite=lib/tests/push-guard.test.sh` (the last two grep the banner).
+Expected: three `all suites green`. `shellcheck hooks/session-start.sh lib/tests/graphify-gate.test.sh` clean.
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add CLAUDE.global.md hooks/session-start.sh lib/tests/session-start-graphify.test.sh
+git add CLAUDE.global.md hooks/session-start.sh lib/tests/graphify-gate.test.sh
 git commit -m "feat(graphify): usage rules print from session-start only where a graph exists"
 ```
 
@@ -359,7 +339,8 @@ git commit -m "feat(graphify): usage rules print from session-start only where a
 - Create: `lib/architecture-defaults.md`
 - Delete: `rules/default-language.md` (`git rm`)
 - Modify: `CLAUDE.global.md` (`# Architecture decisions` H1: intro + `## Public websites — never SPA` + `## Web APIs — always versioned`, ~142-167)
-- Modify: `rules/rest-api.md` (`## Versioning`)
+- Modify: `rules/rest-api.md` (`## Versioning`; the `/api/tasks` example in `## Naming`)
+- Modify: `.claude/rules/rules-maintenance.md` (second paragraph)
 - Modify: `lib/project-archetypes/rest-api-node.md:58`
 - Modify (readers): `skills/init-project/SKILL.md` (STEP 3, STEP 5), `agents/interviewer.md:26`, `agents/scaffolder.md` (INPUTS REQUIRED, PHASE 1), `skills/ship-feature/SKILL.md` (STEP 1), `skills/onboard/SKILL.md` (STEP 6), `skills/audit-delta/SKILL.md:276`, `agents/seo-analyzer.md:542-543`
 
@@ -379,10 +360,8 @@ Create `lib/architecture-defaults.md` with exactly this structure:
 # Architecture defaults — read before proposing a stack
 
 Read at project creation, scaffolding, a stack brainstorm or a whole-project
-rewrite: /init-project (interviewer, STEP 3 design, scaffolder),
-/ship-feature STEP 1, /onboard audits, /audit-delta conformity. The
-always-on line under `~/.claude/CLAUDE.md` § "Architecture decisions" names
-the three defaults; the detail lives here (BDR-125 phase 1).
+rewrite (BDR-125 phase 1). The three defaults are named always-on in
+`~/.claude/CLAUDE.md` § "Architecture decisions"; the detail lives here.
 
 <the `## Public websites — never SPA` section of CLAUDE.global.md, byte-identical: heading + its 13 body lines, up to and including `  silently pick React CRA.`>
 
@@ -427,6 +406,26 @@ router mirrors it (`api/v1/routes/`). Breaking change → `v2`, the old
 version keeps working and clients migrate at their pace; non-breaking
 additions → current version. Each version is a self-contained contract,
 never bent to match a newer one.
+```
+
+In the same file, `## Naming` now contradicts it: replace `Plural nouns for endpoints (\`/api/tasks\`), no verbs.` with `Plural nouns for endpoints (\`/api/v1/tasks\`), no verbs.`
+
+In `.claude/rules/rules-maintenance.md` (it names `default-language.md` as an always-on exception, which `c1-readers.sh` reads as a stale citer), replace the paragraph that starts `A rule WITH \`paths:\` YAML frontmatter` and ends `keep rule bodies tiny.` with (it names `lib/tests/user-rules.test.sh`, which Task 5 of this branch creates):
+
+```
+A rule WITH `paths:` YAML frontmatter (glob list) loads lazily — only when
+Claude Reads a file matching a glob (never on the Write of a new file;
+sub-agents too); a rule WITHOUT it loads at session start, same cost as the
+global memory. Doctrine leaves CLAUDE.global.md only for a carrier that fires
+when it is needed (BDR-125 phase 1: a path rule, a hook, a lib our skills
+Read), with one always-on line wherever plain chat still needs the rule.
+Exception: a standalone user-authored rule set that would bust the 320-line
+density budget may live here WITHOUT `paths:` (always-on load) —
+writing-style.md (BDR-085), secure-by-default.md (BDR-120);
+`lib/tests/user-rules.test.sh` locks that set. `paths:` globs match against
+the CURRENT project's tree, gitignore-style (a pattern without an inner `/`
+matches at any depth, hidden dirs included) — a broad glob (e.g. `rules/**`)
+can fire in foreign projects; keep rule bodies tiny.
 ```
 
 In `lib/project-archetypes/rest-api-node.md` replace
@@ -525,6 +524,7 @@ Run: `bash .claude/tasks/contracts/c1-arch-moved.sh` → `ARCH-MOVED`; `bash .cl
 
 ```bash
 git add lib/architecture-defaults.md CLAUDE.global.md rules/rest-api.md \
+  .claude/rules/rules-maintenance.md \
   lib/project-archetypes/rest-api-node.md agents/interviewer.md agents/scaffolder.md \
   agents/seo-analyzer.md skills/init-project/SKILL.md skills/ship-feature/SKILL.md \
   skills/onboard/SKILL.md skills/audit-delta/SKILL.md
@@ -631,12 +631,11 @@ git commit -m "feat(rules): Supabase and cloud-functions bodies become path rule
 
 ---
 
-### Task 5: user-rules suite locks the always-on set; matching facts documented
+### Task 5: user-rules suite locks the always-on set; engine matching documented
 
 **Files:**
 - Create: `lib/tests/user-rules.test.sh`
 - Modify: `lib/project-rules.sh` (header comment lines 21-23 only)
-- Modify: `.claude/rules/rules-maintenance.md` (second paragraph)
 
 **Interfaces:**
 - Consumes: `_rules_frontmatter <file>` (rc 1 = no frontmatter) and `_rules_globs <frontmatter>` (rc 0 globs, 1 no `paths:`, 2 malformed) from `lib/project-rules.sh` (sourced; it runs nothing when sourced).
@@ -724,36 +723,14 @@ with
 # does not look; the load proof is the logged session, not this check),
 ```
 
-- [ ] **Step 4: Update rules-maintenance.md**
-
-In `.claude/rules/rules-maintenance.md` replace the paragraph that starts `A rule WITH \`paths:\` YAML frontmatter` and ends `keep rule bodies tiny.` with:
-
-```
-A rule WITH `paths:` YAML frontmatter (glob list) loads lazily — only when
-Claude Reads a file matching a glob (never on the Write of a new file;
-sub-agents too); a rule WITHOUT it loads at session start, same cost as the
-global memory. Doctrine leaves CLAUDE.global.md only for a carrier that fires
-when it is needed (BDR-125 phase 1): a path rule (Design work →
-web-building.md; Supabase, cloud functions → supabase.md, cloud-functions.md),
-a hook (graphify usage → session-start.sh) or a lib our skills Read
-(lib/architecture-defaults.md), with one always-on line wherever plain chat
-still needs the rule. Exception: a standalone user-authored rule set that
-would bust the 320-line density budget may live here WITHOUT `paths:`
-(always-on load) — writing-style.md (BDR-085), secure-by-default.md
-(BDR-120); `lib/tests/user-rules.test.sh` locks that set. `paths:` globs
-match against the CURRENT project's tree, gitignore-style (a pattern without
-an inner `/` matches at any depth, hidden dirs included) — a broad glob (e.g.
-`rules/**`) can fire in foreign projects; keep rule bodies tiny.
-```
-
-- [ ] **Step 5: Run, expect PASS**
+- [ ] **Step 4: Run, expect PASS**
 
 Run: `make test suite=lib/tests/project-rules.test.sh` and `make test suite=lib/tests/user-rules.test.sh` → `all suites green`; `bash lib/project-rules.sh check` → `project-rules: 4 rule(s) ok`; `shellcheck lib/project-rules.sh lib/tests/user-rules.test.sh` clean.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add lib/tests/user-rules.test.sh lib/project-rules.sh .claude/rules/rules-maintenance.md
+git add lib/tests/user-rules.test.sh lib/project-rules.sh
 git commit -m "test(rules): user-rules suite locks the always-on set; engine matching documented"
 ```
 
@@ -776,13 +753,16 @@ In `lib/tests/doctrine-citers.test.sh`, after the `citers_check()` function (bef
 # _citers_extract_files <file>… → "file:line:target:name" per citation of a
 # heading in another doctrine file: `rules/<f>.md § Label` or
 # `lib/<f>.md § Label`, backticks around the path and quotes around the
-# label allowed. An unquoted label ends at the first character that is not a
-# letter, space or hyphen: quote a label that prose follows. A citation of
+# label allowed. A quoted label runs to its closing quote (`—` included); an
+# unquoted one ends at the first character that is not a letter, space or
+# hyphen: quote a label that prose follows. A citation of
 # `.claude/rules/<f>.md § X` would be read as `rules/<f>.md` (none exist;
 # ERE has no lookbehind and the portability census bans grep -P).
 _citers_extract_files() {
-  /usr/bin/grep -nHoE '(rules|lib)/[a-z0-9-]+\.md`? § ?"?[A-Z][A-Za-z][A-Za-z -]{1,40}' "$@" 2>/dev/null \
-    | sed -E 's/^([^:]+:[0-9]+):(.*\.md)`? § ?"?(.*)$/\1:\2:\3/; s/[[:space:]]+$//'
+  /usr/bin/grep -nHoE '(rules|lib)/[a-z0-9-]+\.md`? § ?"[^"]{2,60}"' "$@" 2>/dev/null \
+    | sed -E 's/^([^:]+:[0-9]+):(.*\.md)`? § ?"([^"]+)"$/\1:\2:\3/'
+  /usr/bin/grep -nHoE '(rules|lib)/[a-z0-9-]+\.md`? § ?[A-Z][A-Za-z][A-Za-z -]{1,40}' "$@" 2>/dev/null \
+    | sed -E 's/^([^:]+:[0-9]+):(.*\.md)`? § ?(.*)$/\1:\2:\3/; s/[[:space:]]+$//'
 }
 
 # citers_check_files <root> <file>… → DANGLING lines; rc = their count (capped 99)
@@ -809,10 +789,14 @@ printf '## WRITE (before the commit)\n' > "$FIX/lib/cc.md"
 # shellcheck disable=SC2016  # literal backticks in the fixture
 printf 'ok: see `rules/api.md` § Versioning, and lib/cc.md § WRITE (x)\n' > "$FIX/fgood.md"
 printf 'quoted: rules/api.md § "Versioning" first\n' >> "$FIX/fgood.md"
+printf '## Design work — full toolchain (tiered)\n' > "$FIX/rules/web.md"
+printf 'dash: rules/web.md § "Design work — full toolchain" first\n' >> "$FIX/fgood.md"
 printf 'bad: rules/api.md § "Version", rules/none.md § Alpha, lib/cc.md § Read\n' > "$FIX/fbad.md"
+printf 'dash: rules/web.md § "Design work — full kit" first\n' >> "$FIX/fbad.md"
 citers_check_files "$FIX" "$FIX/fgood.md" >/dev/null; check T4-file-citations-resolve "$?" 0
 out=$(citers_check_files "$FIX" "$FIX/fbad.md"); rc=$?
-check T5-file-dangling-caught "$rc" 3
+check T5-file-dangling-caught "$rc" 4
+check T5d-quoted-label-whole "$(printf '%s\n' "$out" | grep -c 'full kit')" 1
 check T5b-missing-file-named "$(printf '%s\n' "$out" | grep -c 'rules/none.md')" 1
 check T5c-prefix-not-a-heading "$(printf '%s\n' "$out" | grep -c '"Version"')" 1
 ```
@@ -834,6 +818,9 @@ sed 's/^## Versioning$/## Version policy/' "$ROOT/rules/rest-api.md" > "$FIX/cop
 (cd "$ROOT" && citers_check_files "$FIX/copy" lib/architecture-defaults.md \
   lib/project-archetypes/rest-api-node.md) >/dev/null
 check T7b-real-rename-bites "$?" 2
+# the hook's pointer is checked whole, not as its "Design work" prefix
+check T7c-hook-label-whole "$(cd "$ROOT" && _citers_extract_files hooks/design-toolchain-reminder.sh \
+  | grep -c ':rules/web-building.md:Design work — full toolchain$')" 2
 ```
 
 Also update the file header comment: after the line `# skill's own sections and are out of scope.` add:
@@ -862,7 +849,9 @@ git commit -m "test(census): resolve rules/ and lib/ § citations against their 
 **Files:**
 - Modify: `settings.json` (ONE line; the user's hunks stay unstaged)
 - Create: `lib/doctor-automem.sh`, `lib/tests/doctor-automem.test.sh`
-- Modify: `doctor.sh` (source line near 28; new section 5d after 5c "Scratchpad")
+- Modify: `doctor.sh` (source line near 28; `check_symlink "rules"` + `_EXPECTED_LINKS=8`; new section 5d after 5c "Scratchpad")
+
+**Precondition:** the controller confirms C1 (the robin_petier entry) is committed before Step 6: Step 6 switches auto memory off for every session on the machine.
 
 **Interfaces:**
 - Produces: `automem_leftover_dirs <projects_dir>` → prints the number of `<projects_dir>/*/memory` dirs holding ≥ 1 file; always rc 0.
@@ -897,6 +886,9 @@ check T4-nested-file-counts "$(automem_leftover_dirs "$W/p")" 2
 mkdir -p "$W/p/-home-c/memory/empty-sub"
 check T5-empty-subdir-silent "$(automem_leftover_dirs "$W/p")" 2
 check T6-rc0-under-errexit "$(bash -c 'set -euo pipefail; source "$1"; automem_leftover_dirs "$2" >/dev/null; echo "rc$?"' _ "$LIB" "$W/nope")" rc0
+# doctor.sh calls it on "$HOME/.claude/projects": the same call under a temp HOME
+mkdir -p "$W/h/.claude/projects/-home-x/memory"; echo z > "$W/h/.claude/projects/-home-x/memory/a.md"
+check T7-via-temp-home "$(HOME="$W/h" bash -c 'source "$1"; automem_leftover_dirs "$HOME/.claude/projects"' _ "$LIB")" 1
 
 printf 'PASS=%s FAIL=%s\n' "$pass" "$fail"; [ "$fail" -eq 0 ]
 ```
@@ -938,6 +930,8 @@ automem_leftover_dirs() {
 ```
 
 - [ ] **Step 4: Wire doctor.sh**
+
+Replace `_EXPECTED_LINKS=7` with `_EXPECTED_LINKS=8`, and after `check_symlink "lib"` add `check_symlink "rules"` (Design work and the Supabase / cloud-functions bodies now live only under `~/.claude/rules`).
 
 After the two lines
 
@@ -982,7 +976,7 @@ Run: `make test suite=lib/tests/doctor-automem.test.sh` → `all suites green`; 
 
 - [ ] **Step 6: settings.json, one line, staged alone**
 
-The working tree holds the user's own uncommitted hunks (`"model"`, `"theme"`): leave them. Stage only the new key, built from HEAD's version:
+The working tree holds the user's own uncommitted hunks (three today: `"model"` changed at @@359, `"theme"` + `"switchModelsOnFlag"` added at @@489, the trailing `"switchModelsOnFlag"` removed at @@542): leave them. Stage only the new key, built from HEAD's version:
 
 ```bash
 tmp=$(mktemp)
@@ -992,10 +986,11 @@ jq -e '.autoMemoryEnabled == false' "$tmp" >/dev/null || { echo "bad edit"; rm -
 blob=$(git hash-object -w "$tmp"); rm -f "$tmp"
 git update-index --cacheinfo "100644,$blob,settings.json"
 sed -i.bak 's/^  "effortLevel": "high",$/&\n  "autoMemoryEnabled": false,/' settings.json && rm settings.json.bak
+jq -e '.autoMemoryEnabled == false' settings.json >/dev/null || { echo "worktree edit missed"; exit 1; }
 git diff --cached settings.json
 ```
 
-Expected: the cached diff is exactly one added line `+  "autoMemoryEnabled": false,`; `git diff settings.json` still shows the user's `model`/`theme` hunks and nothing about autoMemoryEnabled; `jq -e '.autoMemoryEnabled == false' settings.json` → true.
+Expected: the cached diff is exactly one added line `+  "autoMemoryEnabled": false,`; `git diff settings.json` still shows the user's three hunks and nothing about autoMemoryEnabled; `jq -e '.autoMemoryEnabled == false' settings.json` → true.
 
 - [ ] **Step 7: Commit**
 
@@ -1070,6 +1065,9 @@ git commit -m "chore(agents): descriptions trimmed to ≤ 200 chars at the sourc
 
 ## Controller steps (main loop, not dispatched)
 
-- **C1 — robin_petier entry** (after the STEP 3 gate approves its text): `cd ~/Documents/robin_petier && bash ~/.claude/lib/gitflow.sh start chore memory-lan-server`, then `bash ~/.claude/lib/memory.sh -C ~/Documents/robin_petier add decision --title "<approved>" --body-file <abs path>`, memory commit per `lib/capitalize-commit.md`, no merge (user go).
-- **C2 — proofs** (after Task 8): `bash lib/project-rules.sh -C <project> matches '<glob>'` per new glob (faunosteo, game; `**/serverless.*` named if nowhere); one headless `claude -p` per moved path rule naming the Read tool (faunosteo supabase file, game `supabase/functions/*`, a UI file) → `path_glob_match` lines from `~/.claude/logs/instructions-loaded.jsonl`; `claude -p "/context"` vs baseline; analyzer `memory: project` check after an analyzer dispatch. All journaled.
+- **C0 — track the oracles** (before Task 1): commit the contract and `.claude/tasks/contracts/c1-*.sh` on this branch (`chore(contract)`), so every task and reviewer reads them from HEAD.
+- **C1 — robin_petier entry** (after the STEP 3 gate approves its text, BEFORE Task 7 Step 6): `cd ~/Documents/robin_petier && bash ~/.claude/lib/gitflow.sh start chore memory-lan-server`, then `bash ~/.claude/lib/memory.sh -C ~/Documents/robin_petier add decision --title "<approved>" --status accepted --body-file <abs path>`, memory commit per `lib/capitalize-commit.md`, no merge (user go). robin_petier CLAUDE.md:192/:201 cite "Web APIs — always versioned" / "Public websites — never SPA" as global rules: both headings live on in `lib/architecture-defaults.md`, no patch; journal it.
+- **C2 — proofs** (after Task 8): `bash lib/project-rules.sh -C <project> matches '<glob>'` per new glob (faunosteo, game; `**/serverless.*` named if nowhere); one headless `claude -p` per moved path rule naming the Read tool (faunosteo supabase file, game `supabase/functions/*`, a UI file) → `path_glob_match` lines from `~/.claude/logs/instructions-loaded.jsonl`; `claude -p "/context"` vs baseline; analyzer `memory: project` check after an analyzer dispatch. All journaled. If the analyzer memory turns out disabled by `autoMemoryEnabled: false`: STOP and ask the user (revert the line, or keep it and record a BDR).
 - **C3 — oracles**: `GATES_TIMEOUT=900 bash ~/.claude/lib/gates.sh run .claude/tasks/contracts/2026-10-28-context-diet-1944.md`.
+- **C4 — TODO.md** (STEP 7 memory commit): phase 1 checked with its proof numbers, follow-ups added (the user removes the auto-memory dirs; any deferred item from the gate).
+- **C5 — finish precondition**: `gitflow finish` checks out develop, which git refuses while the user's settings.json hunks are uncommitted (this branch changes settings.json). Before finish the user decides: commit their hunks (own `chore(settings)` commit) or `git stash push -- settings.json` around the finish and `git stash pop` after. Never `git checkout -- settings.json` / restore it (it is the live ~/.claude/settings.json and loses the edits).

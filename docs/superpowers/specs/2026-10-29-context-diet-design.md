@@ -22,7 +22,7 @@ Custom agents 2.6k).
 | CLAUDE.global.md § Design work — full toolchain (tiered by scope) | appended verbatim to `rules/web-building.md` (same UI globs) | Skill-routing line points to it; design hook one-liner says Read it |
 | CLAUDE.global.md § graphify usage body | `hooks/session-start.sh`, free lines after the box, only when `<repo root>/graphify-out/graph.json` exists | `## graphify` + the 200-file threshold rule |
 | CLAUDE.global.md § Public websites — never SPA + `rules/default-language.md` | `lib/architecture-defaults.md` (verbatim, H1 of the language rule demoted to H2) | one line under `# Architecture decisions` naming Rust default, never SPA, `/api/v1`, the lib path |
-| CLAUDE.global.md § Web APIs — always versioned | `rules/rest-api.md` § Versioning (full text, replaces "Not repeated here"); the lib carries a one-line summary + pointer | named in the architecture line |
+| CLAUDE.global.md § Web APIs — always versioned | `rules/rest-api.md` § Versioning (full text, replaces "Not repeated here"; the § Naming example becomes `/api/v1/tasks`); the lib carries a one-line summary + pointer | named in the architecture line |
 | `rules/secure-by-default.md` §4 Supabase, §6 Cloud functions bodies | `rules/supabase.md` (`**/supabase/**`, `**/*supabase*.*`), `rules/cloud-functions.md` (`**/functions/**`, `**/serverless.*`, `**/firebase.json`), bullets verbatim | the two headings stay, one line each (critical rule + pointer) |
 | `agents/*.md` `description:` (23 tracked) | trimmed at the source to ≤ 200 chars | n/a |
 
@@ -38,7 +38,13 @@ exactly `writing-style.md` + `secure-by-default.md`.
   needed), every web API versioned `/api/v1/` from day one. Read
   `~/.claude/lib/architecture-defaults.md` before proposing a stack.`
 - CLAUDE.global.md Skill routing: `Design / UI (build, system, audit,
-  polish) → Read ~/.claude/rules/web-building.md § Design work first`.
+  polish) → Read `~/.claude/rules/web-building.md` § "Design work" first`
+  (the quotes end the label for the extended census; plan challenge
+  2026-10-29).
+- CLAUDE.global.md § graphify keeps, after the threshold: `With a graph
+  (graphify-out/graph.json): graphify query before raw grep, graphify
+  update . after code edits; the session banner prints the rest.`
+  (sub-agents load CLAUDE.md, never the SessionStart output).
 - Design hook stdout: `Design work detected → Read
   ~/.claude/rules/web-building.md § "Design work — full toolchain" first.
   Trivial (≤2 files, cosmetic) → /hotfix.` (one line).
@@ -117,3 +123,6 @@ v2 upgrade pass; settings.json `model`/`theme` lines written by the user's
   only; loading is proved by the logged sessions.
 - `**/functions/**` also fires in non-cloud `functions/` dirs (≈80 tokens of
   noise there), accepted.
+- `gitflow finish` refuses while the user's settings.json hunks are
+  uncommitted (this branch changes settings.json): the user commits or
+  stashes them first; never a checkout of the live file.
