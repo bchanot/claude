@@ -237,6 +237,10 @@ function installDialog(on: On, w: World): void {
   on('tool.call', { tool: 'AskUserQuestion' }, async (_a, e) => {
     const q = (e as unknown as { questions: Rec[] }).questions[0] ?? {}
     const options = (q.options as { label: string }[] | undefined) ?? []
+    // the engine takes 2-4 options: a wider ask fails the suite
+    if (options.length < 2 || options.length > 4) {
+      throw new Error(`AskUserQuestion takes 2-4 options, got ${options.length}`)
+    }
     w.asked.push({
       text: String(q.question),
       options: options.map(o => o.label),
@@ -6306,7 +6310,7 @@ test('model command: Everywhere drops a sticky tier too, keeps effort', async (
 
 test('model command: no dialog for a call native owns', async ($, on) => {
   const m = await bootModel($, on, [])
-  const args = ['', 'fable opus', 'default', 'opusplan', 'claude-opus-5-6',
+  const args = ['fable opus', 'default', 'opusplan', 'claude-opus-5-6',
     'haiku[1m]', 'whatever']
   for (const a of args) expect(await modelCmd($, a)).toBe('native')
   expect(m.ran).toEqual(args)
@@ -6315,21 +6319,26 @@ test('model command: no dialog for a call native owns', async ($, on) => {
 
 test('model command: no dialog from another origin', async ($, on) => {
   const m = await bootModel($, on, [])
-  expect(await modelCmd($, 'fable', 'sdk')).toBe('native')
+  for (const a of ['fable', '']) {
+    expect(await modelCmd($, a, 'sdk')).toBe('native')
+  }
   expect(m.w.asked).toEqual([])
+  expect(m.ran).toEqual(['fable', ''])
 })
 
 test('model command: no dialog when the router is off', async ($, on) => {
   const m = await bootModel($, on, [])
   await route($, 'off')
-  expect(await modelCmd($, 'fable')).toBe('native')
+  for (const a of ['fable', '']) expect(await modelCmd($, a)).toBe('native')
   expect(m.w.asked).toEqual([])
+  expect(m.ran).toEqual(['fable', ''])
 })
 
 test('model command: no dialog without a surface', async ($, on) => {
   const m = await bootModel($, on, [], OPUS, { surfaces: [] })
-  expect(await modelCmd($, 'fable')).toBe('native')
+  for (const a of ['fable', '']) expect(await modelCmd($, a)).toBe('native')
   expect(m.w.asked).toEqual([])
+  expect(m.ran).toEqual(['fable', ''])
 })
 
 test('model command: a second /model while one is open goes native', async (
@@ -6342,9 +6351,11 @@ test('model command: a second /model while one is open goes native', async (
   const first = modelCmd($, 'fable')
   await open.gate
   expect(await modelCmd($, 'opus')).toBe('native')
+  expect(await modelCmd($, '')).toBe('native')
   held.release()
   expect(await first).toContain('sticky route')
   expect(m.w.asked).toHaveLength(1)
+  expect(m.ran).toEqual(['opus', ''])
 })
 
 test('model command: the question notes a project pin only when set', async (
@@ -6403,6 +6414,127 @@ for (const scope of ['This conversation', 'This project']) {
     expect(m.ran).toEqual([])
   })
 }
+
+// ---- bare /model: the router's own dialog ---------------------------------
+
+const STEP1 = ['fable (best)', 'opus (big)', 'sonnet (work)',
+  'Other model (native picker)']
+const VARIANTS = ['Standard', '[1m]']
+const NO_MODEL = 'model: no model chosen, nothing changed'
+const OPUS_1M = `${OPUS}[1m]`
+
+test('bare model: step 1 lists the table and the native picker', async (
+  $, on) => {
+  const m = await bootModel($, on, [])
+  expect(await modelCmd($, '')).toBe(NO_MODEL)
+  const [q] = m.w.asked as [Asked]
+  expect(q.options).toEqual(STEP1)
+  expect(q.header).toBe('model-router')
+  expect(q.text).toContain(OPUS)
+  expect(q.text.endsWith('Which model?')).toBe(true)
+  expect(m.ran).toEqual([])
+})
+
+test('bare model: opus, [1m], This project writes the full id', async (
+  $, on) => {
+  const m = await bootModel($, on,
+    ['opus (big)', '[1m]', 'This project'])
+  await modelCmd($, '')
+  expect(m.w.asked.map(q => q.options)).toEqual([STEP1, VARIANTS, SCOPES])
+  const variant = m.w.asked[1] as Asked
+  expect(variant.text.endsWith('Which variant of opus?')).toBe(true)
+  expect(localOf(m.w).model).toBe(OPUS_1M)
+  expect(m.ran).toEqual([])
+})
+
+test('bare model: the current model asks its scope too', async ($, on) => {
+  const m = await bootModel($, on,
+    ['opus (big)', 'Standard', 'This conversation'])
+  expect(await modelCmd($, '')).toContain(`sticky route ${OPUS}`)
+  expect(m.w.asked).toHaveLength(3)
+  expect(m.ran).toEqual([])
+})
+
+test('bare model: Other model runs native with empty args, no scope', async (
+  $, on) => {
+  const m = await bootModel($, on, ['Other model (native picker)'])
+  expect(await modelCmd($, '')).toBe('native')
+  expect(m.ran).toEqual([''])
+  expect(m.w.asked).toHaveLength(1)
+})
+
+test('bare model: a pick inside the native picker asks, never BUSY', async (
+  $, on) => {
+  const ran: string[] = []
+  const outs: unknown[] = []
+  on('command.run', { command: 'model' }, async (_a, e) => {
+    ran.push(e.args)
+    outs.push(await pick($, SONNET))
+    return { text: 'native' }
+  })
+  const toasts = recordToasts(on)
+  const w = newWorld({ answers: ['Other model (native picker)', 'Later'] })
+  const rig = await bootRig($, on, OPUS, 1000, w)
+  expect(await modelCmd($, '')).toBe('native')
+  expect(JSON.stringify(outs)).toContain(DENY)
+  await rig.clock.advance(300)
+  await settle(() => w.asked.length > 1)
+  expect(w.asked[1]?.options).toEqual(SCOPES)
+  expect(toasts).toEqual([])
+  expect(ran).toEqual([''])
+})
+
+test('bare model: Esc at step 1 or 2 changes nothing', async ($, on) => {
+  const m = await bootModel($, on, [REJECT, 'sonnet (work)', REJECT])
+  expect(await modelCmd($, '')).toBe(NO_MODEL)
+  expect(m.w.asked).toHaveLength(1)
+  expect(await modelCmd($, '')).toBe(NO_MODEL)
+  expect(m.w.asked).toHaveLength(3)
+  expect(m.ran).toEqual([])
+  expect(m.w.written).toEqual([])
+  expect(mainLine(await route($, 'show'))).toContain('session defaults')
+})
+
+test('bare model: Everywhere runs native with the token', async ($, on) => {
+  const m = await bootModel($, on, ['sonnet (work)', 'Standard',
+    'Everywhere', 'sonnet (work)', '[1m]', 'Everywhere'])
+  await modelCmd($, '')
+  await modelCmd($, '')
+  expect(m.ran).toEqual(['sonnet', 'sonnet[1m]'])
+})
+
+test('bare model: [1m] with This conversation carries the note', async (
+  $, on) => {
+  await bootModel($, on, ['fable (best)', '[1m]', 'This conversation'])
+  expect(await modelCmd($, '')).toContain("[1m] follows the session's variant")
+})
+
+test('bare model: a native throw is reported, native runs once', async (
+  $, on) => {
+  const ran: string[] = []
+  on('command.run', { command: 'model' }, (_a, e) => {
+    ran.push(e.args)
+    throw new Error('boom')
+  })
+  await bootRig($, on, OPUS, 1000,
+    newWorld({ answers: ['Other model (native picker)'] }))
+  const out = await modelCmd($, '')
+  expect(out).toContain('model: native picker failed (')
+  expect(out).not.toContain('boom')
+  expect(ran).toEqual([''])
+})
+
+test('kit: an AskUserQuestion of 5 options is refused', async ($, on) => {
+  await bootModel($, on, ['x'])
+  const labels = ['a', 'b', 'c', 'd', 'e']
+  await expect($.tool.call({
+    tool: 'AskUserQuestion',
+    questions: [{
+      question: 'q?', header: 'h', multiSelect: false,
+      options: labels.map(label => ({ label, description: label })),
+    }],
+  } as never)).rejects.toThrow()
+})
 
 test('writes: kit: only the project settings.local.json is carved out', {
   plugins: [PROBE],

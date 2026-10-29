@@ -43,7 +43,12 @@ relaunch: `ultrathink` in the prompt (turn floor) or `/route effort=max`
 Builtin `/effort` is NOT a lever inside a run: rows and routes outrank it.
 
 `/model <name>` typed, or a pick in the `/model` picker, with a name the
-router knows asks the scope (Esc changes nothing). The picker's switch is
+router knows asks the scope (Esc changes nothing). A bare `/model` asks
+which model first (fable, opus, sonnet, or
+`Other model (native picker)`, which opens the native picker; haiku goes
+through it or `/model haiku`), then Standard or `[1m]`, then the same
+scope question, the current model included; Esc changes nothing. The
+picker's switch is
 held first: the engine prints that a hook blocked it, then the question
 comes. This project writes the full id as `model` into
 `.claude/settings.local.json` (created if absent: keep it gitignored) and
@@ -51,7 +56,7 @@ sets a sticky model route. This conversation sets the sticky route only,
 nothing written. Everywhere is the native command: user `settings.json`,
 every project. The two non-native answers drop the run slot like a native
 switch and keep a sticky effort; Everywhere drops an earlier sticky model.
-Picker Default, no args, an unknown name or a run with no surface (`-p`)
+Picker Default, an unknown name or a run with no surface (`-p`)
 go native, no question. A native switch (`/config` Model row included)
 drops a hand pick. The file is the session root's: in a worktree, that
 worktree's.
