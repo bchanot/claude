@@ -24,12 +24,16 @@ Q: the engine's `$.ui.ask` takes 2-4 labels (3 lenses BLOCKER on the 8-row layou
 7. lib/effort-shift.md and README.md describe the bare `/model` dialog (Other model = native picker, Esc changes nothing) and no longer list "no args" among the native passthroughs; CHANGELOG [Unreleased] carries the change. [gated 2026-10-29: README + CHANGELOG added]
    CHECK: grep -q 'Other model (native picker)' lib/effort-shift.md && ! grep -q 'Picker Default, no args' lib/effort-shift.md && ! grep -q "Default, no args" README.md && grep -q 'bare `/model`' CHANGELOG.md && echo DOC-OK
    EXPECT: DOC-OK
-   EVIDENCE: pending
+   EVIDENCE: MET exit=0 marker-found :: DOC-OK
 8. Mod suite green (register.test.ts through `claude plugin test`) and the full suite green.
    CHECK: make test 2>&1 | tail -1
    EXPECT: all suites green
-   EVIDENCE: pending
+   EVIDENCE: MET exit=0 marker-found :: all suites green
 9. Live proof (controller, after `/reload-plugins`, user-run): bare `/model` shows step 1; opus → `[1m]` → This project → `.claude/settings.local.json` `model` becomes `claude-opus-5-5[1m]`. If the engine never routes a bare `/model` through `command.run`, this criterion fails and is reported, not worked around.
 
 ## FILE SCOPE
 mods/model-router/hooks/register.ts, mods/model-router/hooks/register.test.ts, lib/effort-shift.md, README.md, CHANGELOG.md [gated 2026-10-29], .claude/tasks/contracts/2026-10-29-bare-model-dialog-1617.md, .claude/tasks/plans/2026-10-29-bare-model-dialog-1617.md
+
+## PROOF — controller, 2026-10-29
+- c9 live (user-run): `/reload-plugins` (3 plugins, 7 hooks), bare `/model` → step 1 → opus → `[1m]` → This project → "model: claude-opus-5-5[1m] written to .claude/settings.local.json …; sticky route claude-opus-5-5 set ([1m] follows the session's variant)"; user: "tout est bien apparu et a bien été changé". The engine routes a bare `/model` through command.run.
+- GATE 0 MET (c7 DOC-OK, c8 all suites green); GATE 1 verifier 8/9 MET + c9 UNVERIFIABLE (now proven above); GATE 2 security PASS (semgrep 0, checklist 0).

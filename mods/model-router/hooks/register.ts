@@ -202,6 +202,11 @@ const MODEL_SCOPES: readonly string[] = [
   PROJECT_SCOPE, CONVERSATION, EVERYWHERE,
 ]
 const NO_SCOPE = 'model: no scope chosen, nothing changed'
+const NATIVE_PICKER = 'Other model (native picker)'
+const NO_MODEL = 'model: no model chosen, nothing changed'
+const BARE_ALIASES: readonly string[] = ['fable', 'opus', 'sonnet']
+const STANDARD = 'Standard'
+const LONG = '[1m]'
 const LOCAL_SETTINGS = '.claude/settings.local.json'
 const CHOICE_ALIASES: readonly string[] = ['fable', 'opus', 'sonnet', 'haiku']
 const MAX_DESC = 140 // chars of a skill or agent description in a question
@@ -2118,8 +2123,9 @@ async function handleCommand($: Api, st: State, args: string): Promise<string> {
   }
 }
 
-// ---- /model <name>: the scope of a switch ---------------------------------
-// A typed `/model <name>` of a model the table knows asks where it applies.
+// ---- /model: the scope of a switch ----------------------------------------
+// A typed `/model <name>` of a model the table knows asks where it applies;
+// a bare `/model` opens the router's dialog (model, variant, then scope).
 // Everywhere is the native command (user settings.json); the two others set
 // a sticky model route, This project also pins `model` in the project's
 // settings.local.json. Fail-open to native only before an answer.
@@ -2345,6 +2351,49 @@ async function scopeDialog(
   }
 }
 
+/**
+ * The bare `/model` dialog: which model, which variant, then the scope.
+ * Returns 'native' when the user picks the native picker.
+ */
+async function bareModelDialog(
+  $: Api,
+  st: State,
+  e: CommandRunInput,
+  next: ModelNext,
+): Promise<CommandRunResult | 'native'> {
+  const labels = BARE_ALIASES.map(a => modelLabel(st.cfg, a))
+  const session = clean(st.sessionModel || 'unknown', 60)
+  const model = await askOr($, `Session: ${session}\nWhich model?`,
+    [...labels, NATIVE_PICKER])
+  if (model === NATIVE_PICKER) return 'native'
+  const alias = BARE_ALIASES[labels.indexOf(model)]
+  if (alias === undefined) return { text: NO_MODEL }
+  const variant = await askOr($,
+    `${STANDARD}: standard context · ${LONG}: 1M context (a conversation ` +
+    `route follows the session's variant)\nWhich variant of ${alias}?`,
+    [STANDARD, LONG])
+  if (variant !== STANDARD && variant !== LONG) return { text: NO_MODEL }
+  const token = variant === LONG ? `${alias}${LONG}` : alias
+  return scopeDialog($, st, token,
+    { everywhere: () => next({ ...e, args: token }),
+      warnKey: 'command.run model' })
+}
+
+/** Native after the dialog slot is free: a pick inside it asks its scope. */
+async function nativePicker(
+  $: Api,
+  st: State,
+  e: CommandRunInput,
+  next: ModelNext,
+): Promise<CommandRunResult> {
+  try {
+    return await next(e)
+  } catch (err) {
+    warnOnce(st, $, 'command.run model', errWord(err))
+    return { text: `model: native picker failed (${errWord(err)})` }
+  }
+}
+
 async function handleModelCommand(
   $: Api,
   st: State,
@@ -2354,18 +2403,23 @@ async function handleModelCommand(
   await ensureConfig($, st)
   const tokens = e.args.trim().split(/\s+/)
   const token = tokens[0] ?? ''
+  const bare = token === ''
   if (st.off || e.origin.kind !== 'composer' || tokens.length !== 1 ||
-    !knownModel(st.cfg, token) ||
+    (!bare && !knownModel(st.cfg, token)) ||
     (await $.session.surfaces()).length === 0 || st.asking !== null) {
     return next(e)
   }
   st.asking = `model:${token}`
+  let out: CommandRunResult | 'native'
   try {
-    return await scopeDialog($, st, token,
-      { everywhere: () => next(e), warnKey: 'command.run model' })
+    out = bare
+      ? await bareModelDialog($, st, e, next)
+      : await scopeDialog($, st, token,
+        { everywhere: () => next(e), warnKey: 'command.run model' })
   } finally {
     st.asking = null
   }
+  return out === 'native' ? nativePicker($, st, e, next) : out
 }
 
 // The /model picker: the engine draws nothing while a PreModelSwitch hook
