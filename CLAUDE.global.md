@@ -303,10 +303,6 @@ office-hours…) are gone: use the fallback above, else say so.
 
 Threshold: graphify from 200 tracked code files, never below (banner line
 `graphify? N code files ≥ 200, no graph` informs, the user decides; never
-build or `graphify claude install` without that go). ALL rules below apply
-only if `graphify-out/graph.json` exists — else read files directly.
-- Codebase-wide question → `graphify query`; relationships → `path A B`;
-  concept → `explain`. Scoped subgraph beats raw grep.
-- Known file / small task → read directly, no graphify.
-- `wiki/index.md` → broad-nav entry; `GRAPH_REPORT.md` → whole-architecture.
-- After editing code → `graphify update .` (AST-only, free).
+build or `graphify claude install` without that go). With a graph
+(`graphify-out/graph.json`): `graphify query` before raw grep,
+`graphify update .` after code edits; the session banner prints the rest.
