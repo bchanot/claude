@@ -50,7 +50,7 @@ Shared rules for every phase:
   - [ ] Measure the design hook's "Read … first" re-Read cost (instructions-loaded log) before adding "once per session".
   - [ ] Probe: path rules seen injected after a Bash `sed -n` read (final review M8): confirm Read-only semantics before a later phase relies on it.
   - [ ] Minor: relative `rules/supabase.md` paths in interviewer.md / guardrails SKILL.md beside absolute ones; agent description losses ("dispatcher applies", "no dispatch", gate-in-dispatcher; security-auditor names no dispatcher).
-  - [ ] robin_petier `chore/memory-lan-server` (BDR-075): merge on user go (approved 2026-10-29).
+  - [x] robin_petier `chore/memory-lan-server` (BDR-075): merged 2026-10-29 (6877443).
   - Facts 2026-10-24 (scratchpad pathtest, memtest): a `paths:` rule loads on Read of a matching file, NOT on Write of a new file; `"autoMemoryEnabled": false` removes the auto-memory system section; classic SessionStart / UserPromptSubmit hooks inject additionalContext; instruction files reload on compaction natively. `hooks/design-toolchain-reminder.sh` fired 2,131 times (16 to 210 per day); `brainstorming` is vendored and gitignored (.gitignore:78), an edit there does not persist.
   - Section → carrier:
     - auto-memory system section → `"autoMemoryEnabled": false` in settings.json. Before: migrate existing auto memories in faunosteo, jeux-deploy, robin_petier into their registries (user review), doctor warns when an auto-memory dir is non-empty.
