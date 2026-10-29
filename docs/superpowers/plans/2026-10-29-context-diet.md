@@ -19,7 +19,7 @@
 - Foreign-style repo: match the neighbouring code (inline shell, `check()` test idiom, `PASS=%s FAIL=%s` footer, comments only for the why). Doctrine lines ≤ 80 chars; do not add a line over 80 chars to CLAUDE.global.md (3 exist today).
 - Tests run only through `make test suite=<path>` or the full `make test`. shellcheck: `shellcheck *.sh hooks/*.sh lib/*.sh` (+ any new `lib/tests/*.sh` you create).
 - Bash pitfalls: no `head` reading a producer under pipefail (SIGPIPE rc 141); a sourced lib never changes the caller's shell options.
-- `settings.json` has two hunks the USER wrote (`"model"` and `"theme"`, from `/model`): never stage or revert them (Task 7 gives the exact recipe).
+- `settings.json` carries one uncommitted UI line (`"theme": "dark"`): never stage or revert it (Task 7 gives the exact recipe).
 - No destructive commands, no file outside this repo (the robin_petier write is a controller step, not yours).
 
 ## Review Focus
@@ -979,7 +979,7 @@ Run: `make test suite=lib/tests/doctor-automem.test.sh` → `all suites green`; 
 
 - [ ] **Step 6: settings.json, one line, staged alone**
 
-The working tree holds the user's own uncommitted hunks (three today: `"model"` changed at @@359, `"theme"` + `"switchModelsOnFlag"` added at @@489, the trailing `"switchModelsOnFlag"` removed at @@542): leave them. Stage only the new key, built from HEAD's version:
+The working tree holds one uncommitted line written by the Claude Code UI, `"theme": "dark",` right after `"effortLevel": "high",` (gate 2026-10-29: UI writes are stashed, never committed): leave it. Stage only the new key, built from HEAD's version:
 
 ```bash
 tmp=$(mktemp)
@@ -993,7 +993,7 @@ jq -e '.autoMemoryEnabled == false' settings.json >/dev/null || { echo "worktree
 git diff --cached settings.json
 ```
 
-Expected: the cached diff is exactly one added line `+  "autoMemoryEnabled": false,`; `git diff settings.json` still shows the user's three hunks and nothing about autoMemoryEnabled; `jq -e '.autoMemoryEnabled == false' settings.json` → true.
+Expected: the cached diff is exactly one added line `+  "autoMemoryEnabled": false,`; `git diff settings.json` still shows only the `"theme"` line and nothing about autoMemoryEnabled; `jq -e '.autoMemoryEnabled == false' settings.json` → true.
 
 - [ ] **Step 7: Commit**
 
@@ -1004,7 +1004,7 @@ git show --stat HEAD | cat
 git diff --stat settings.json | cat
 ```
 
-Expected: the commit lists settings.json with `1 +`; the user's hunks remain unstaged.
+Expected: the commit lists settings.json with `1 +`; the `"theme"` line remains unstaged.
 
 ---
 
