@@ -210,7 +210,7 @@ has "agents/client-handover-writer.md" 'ROUTING: follow $HOME/.claude/lib/effort
 # ── (f) doctrine includes ────────────────────────────────────────────────
 has "lib/model-gate.md" 'mcp__model-router__route'
 has "lib/effort-shift.md" 'ToolSearch'
-has "CLAUDE.global.md" 'route to `reflect` (high) through their'
+has "rules/web-building.md" 'route to `reflect` (high) through their'
 
 # ── (g) session default and hooks (unchanged locks) ──────────────────────
 has "settings.json" '"effortLevel": "high"'

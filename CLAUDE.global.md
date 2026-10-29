@@ -277,7 +277,8 @@ cryptic names.
 - Docs post-ship → document-release (doc if gstack off); stale-doc audit → doc
 - Grouped all-axes sweep ("tir groupé", fix + loop until clean) → tour
 - Open-work inventory / "queue empty?" / stale TODO vs git → reconcile
-- Design / UI (build, system, audit, polish) → "Design work" below
+- Design / UI (build, system, audit, polish) → Read
+  `~/.claude/rules/web-building.md` § "Design work" first
 - Architecture review → plan-eng-review
 - Before /clear or /compact → capitalize; end-of-session ritual → close
 - superpowers skills are vendored, called by bare name; an upstream
@@ -293,32 +294,10 @@ cryptic names.
   enable higgsfield`, then Read the skill under `~/.claude/skills/`;
   `higgsfield generate cost` before a paid run. Landing page "with
   Higgsfield", named ask → `enable higgsfield-websites`: an aid inside
-  Design work and the site rules, never `website create|deploy|publish`.
+  the Design work rules (`rules/web-building.md`), never
+  `website create|deploy|publish`.
 gstack OFF → its skills (investigate, qa, review, health, retro,
 office-hours…) are gone: use the fallback above, else say so.
-
-## Design work — full toolchain (tiered by scope)
-Trigger = UI work: editing a component/style file (.tsx/.vue/.svelte/.css…)
-or a design/UI request, not the word "design" alone. Single source for
-design routing; the design-toolchain hook reinforces it.
-- Trivial (≤2 files, one cosmetic value) → /hotfix, no toolchain.
-- Build UI (component, page, redesign) → impeccable (build path: init,
-  shape, new-work, craft floor, fresh finish reviewer) + ui-ux-pro-max +
-  21st-ui-build (catalog + generation) + emil-design-eng (polish) +
-  design-motion-principles (motion) + design-html (static) + site-motion.
-  Floor: `impeccable detect <files>` (61 rules, exit 2). frontend-design
-  only for a one-off visual with no project context, not beside impeccable.
-- Design system / brand → design-consultation first, then the build tools.
-- Review / audit → design-review + emil-design-eng + design-motion-principles
-  + /impeccable audit|critique + `impeccable detect` floor.
-- The vendored stack members route to `reflect` (high) through their
-  model-router rows (`mods/model-router`); the last rowed skill loaded
-  wins and an unrowed member (plugin, gstack) changes nothing.
-Scope doubt → ask or default to Build, never silently skip. Gate: light
-skills run `~/.claude/lib/design-gate.md`, orchestrators plugin-check. 21st =
-CLI (`npm i -g @21st-dev/cli`, `21st login`), no MCP, no key; search free,
-`21st get`/`generate` metered → generation, not micro-tweaks. 21st-ai /
-ui-explore / ui-review are `max`-profile only.
 
 ## graphify
 

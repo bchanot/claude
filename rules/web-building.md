@@ -43,3 +43,26 @@ compressed images.
 Report the missing items to the user instead of inventing them. Internal
 tools and dashboards: only the relevant items apply. Deep audits stay
 with /seo, /harden, /web-validate.
+
+## Design work — full toolchain (tiered by scope)
+Trigger = UI work: editing a component/style file (.tsx/.vue/.svelte/.css…)
+or a design/UI request, not the word "design" alone. Single source for
+design routing; the design-toolchain hook reinforces it.
+- Trivial (≤2 files, one cosmetic value) → /hotfix, no toolchain.
+- Build UI (component, page, redesign) → impeccable (build path: init,
+  shape, new-work, craft floor, fresh finish reviewer) + ui-ux-pro-max +
+  21st-ui-build (catalog + generation) + emil-design-eng (polish) +
+  design-motion-principles (motion) + design-html (static) + site-motion.
+  Floor: `impeccable detect <files>` (61 rules, exit 2). frontend-design
+  only for a one-off visual with no project context, not beside impeccable.
+- Design system / brand → design-consultation first, then the build tools.
+- Review / audit → design-review + emil-design-eng + design-motion-principles
+  + /impeccable audit|critique + `impeccable detect` floor.
+- The vendored stack members route to `reflect` (high) through their
+  model-router rows (`mods/model-router`); the last rowed skill loaded
+  wins and an unrowed member (plugin, gstack) changes nothing.
+Scope doubt → ask or default to Build, never silently skip. Gate: light
+skills run `~/.claude/lib/design-gate.md`, orchestrators plugin-check. 21st =
+CLI (`npm i -g @21st-dev/cli`, `21st login`), no MCP, no key; search free,
+`21st get`/`generate` metered → generation, not micro-tweaks. 21st-ai /
+ui-explore / ui-review are `max`-profile only.
