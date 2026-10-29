@@ -491,7 +491,7 @@ make profile-reset          # go to the default profile (full)
 make new-skill name=myskill # scaffold agent + skill files
 ```
 
-`doctor.sh` checks: symlinks, GStack submodule, vendored skills (curl-pinned externals in `plugins.lock.json` + `link.sh`'s `EXTERNAL_SKILLS`, per the active profile), Playwright browser cache, prerequisites (git, Node, Cargo, Python, Claude Code), plugins, permissions, token budget, config consistency, git hooks (global core.hooksPath + generated githooks/), mods (loading link and `@skills-dir` state), scratchpad (TMPDIR quota), Higgsfield CLI and session, seo-data layer.
+`doctor.sh` checks: symlinks, GStack submodule, vendored skills (curl-pinned externals in `plugins.lock.json` + `link.sh`'s `EXTERNAL_SKILLS`, per the active profile), Playwright browser cache, prerequisites (git, Node, Cargo, Python, Claude Code), plugins, permissions, token budget, config consistency, git hooks (global core.hooksPath + generated githooks/), mods (loading link and `@skills-dir` state), scratchpad (TMPDIR quota), Higgsfield CLI and session, seo-data layer, auto memory (`autoMemoryEnabled` false in `settings.json`, leftover files under `~/.claude/projects/*/memory/`).
 
 ---
 
