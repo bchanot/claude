@@ -284,5 +284,6 @@ office-hours…) are gone: use the fallback above, else say so.
 Threshold: graphify from 200 tracked code files, never below (banner line
 `graphify? N code files ≥ 200, no graph` informs, the user decides; never
 build or `graphify claude install` without that go). With a graph
-(`graphify-out/graph.json`): `graphify query` before raw grep,
-`graphify update .` after code edits; the session banner prints the rest.
+(`graphify-out/graph.json`): `graphify query` before raw grep on
+codebase-wide questions, `graphify update .` after code edits; the session
+banner prints the rest.

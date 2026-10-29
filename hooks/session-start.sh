@@ -256,7 +256,7 @@ if [ -n "$GRAPHIFY_HINT" ]; then
 fi
 # CLAUDE.global.md line-count guard (anti-regression, BDR-062): warn past
 # 320. BDR-125 phase 1 moved Design work, the graphify usage and the
-# architecture defaults to their carriers (333 → ~285 lines).
+# architecture defaults to their carriers.
 if [ -n "$REPO_DIR" ] && [ -f "$REPO_DIR/CLAUDE.global.md" ]; then
   _claude_lines=$(wc -l < "$REPO_DIR/CLAUDE.global.md")
   if [ "$_claude_lines" -gt 320 ]; then

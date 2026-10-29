@@ -44,6 +44,6 @@ CLI, systems and tooling; the exception stays scoped to the part that
 earned it.
 
 ## Web APIs — always versioned
-Every endpoint `/api/v1/...` from day one; breaking change → `v2`, the old
-version keeps working. Full rule: `~/.claude/rules/rest-api.md` § Versioning
-(loads on API files).
+Every endpoint `/api/v1/...` from day one, the router mirrors it
+(`api/v1/routes/`); breaking change → `v2`, the old version keeps working.
+Full rule: `~/.claude/rules/rest-api.md` § Versioning (loads on API files).

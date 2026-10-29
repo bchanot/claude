@@ -39,8 +39,9 @@ never claimed done: write it as a manual step in the project's deploy notes.
   comments carry no token, hash, key or secret.
 
 ## 4. Supabase
-- RLS on every table, never a service_role or secret key client-side. Full
-  domain: rules/supabase.md (loads on Supabase files).
+- RLS on every table, never a service_role or secret key client-side.
+  Full domain: ~/.claude/rules/supabase.md; Read it before writing a
+  migration, policy or client (a new file's Write loads no path rule).
 
 ## 5. SMS and email
 - Prior consent recorded per contact: who, when, channel, source, wording.
@@ -49,5 +50,6 @@ never claimed done: write it as a manual step in the project's deploy notes.
   SMS says STOP, and a STOP reply is processed and stored automatically.
 
 ## 6. Cloud functions
-- Max instances and a timeout on every function, never a self-trigger. Full
-  domain: rules/cloud-functions.md (loads on function files).
+- Max instances and a timeout on every function, never a self-trigger.
+  Full domain: ~/.claude/rules/cloud-functions.md; Read it before
+  writing a function (a new file's Write loads no path rule).
