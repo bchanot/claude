@@ -1849,3 +1849,11 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 ## LRN-241 — Classify a usage log by source before trusting its counts (2026-10-29)
 - **Pattern**: design-toolchain fire log 2026-10-28: 2,779 fires = 1,770 suite prompts (tests ran with the real HOME) + 857 `<agent-message` hand-backs + 152 real prompts. TODO's "2,131 fires" premise was noise.
 - **Application**: classify a usage log by prompt prefix and known test strings before using its counts as evidence; hook suites run under a temp HOME (fixed 4bbb3c5).
+
+## LRN-242 — ui.ask takes 2-4 options: enforce engine limits in the test double (2026-10-29)
+- **Pattern**: `$.ui.ask` / AskUserQuestion takes 2-4 option labels (claude-code.d.ts:468, :2122) + its own free-text Other. Out-of-range ask most likely rejects → askOr → LATER → dead dialog. Test kit `installDialog` used to accept any count: 8-row plan would have shipped green.
+- **Application**: kit now throws outside 2-4 (register.test.ts); multi-choice > 4 → split into steps. Engine contract limits belong in the test double.
+
+## LRN-243 — Interactive engine behavior: one discriminating user test before the fix plan (2026-10-29)
+- **Pattern**: bugfix diagnosis twice wrong before code: "proven" cause was a logged-out OpenRouter session; real cause found by challengers reading timestamps + session model (same-model pick). A 30 s user-run discriminating test (pick a different model) settled it; a second (`/model opus` typed) proved `$.ui.ask` renders in command.run before building on it.
+- **Application**: interactive-only engine behavior → design one discriminating user test, ask it in plain text (an open AskUserQuestion blocks the user's slash commands), before any fix plan hardens.

@@ -331,3 +331,8 @@ rules:
 - **Cause**: BDR-126 dialog fires only on `/model <name>`; spec said "no args → native picker untouched". Picker = real usage path. Main applied spec without flagging gap.
 - **Next**: /feat picker scope: pick model in picker, then ask project vs user scope. Check engine types for a settings-write intercept first; else mod must restore user settings (BDR-116 amendment, user call). Links [[BDR-126]].
 - **Status 2026-10-25**: resolved for the picker, 2202964 (BDR-127: PreModelSwitch deny + deferred scope dialog, no user-settings write by the mod). Residual: `/config` Model row still native (source `command`).
+
+## BLK-037 — Same-model /model pick fires no PreModelSwitch: no scope question, project pin stays [resolved] (2026-10-29)
+- **Friction**: `/model` picker, pick = session's current model (Opus 5.5) → native "Set model to `Opus 5.5` and saved as your default… settings.local.json pins `Fable 5.1` — that applies on restart"; no scope question; project pin stays.
+- **Real cause**: engine fires no `PreModelSwitch` when the pick equals the session model (nothing to switch) → handlePicker (BDR-127) never runs. Proof 2026-10-29: user picked Sonnet 5.5 (different) → "Model switch to Sonnet 5.5 was blocked by a PreModelSwitch hook". First guess (gateway ids `anthropic/claude-opus-5.5`) was a logged-out OpenRouter session, not the bug (3 lenses FATAL).
+- **Solution**: bare `/model` opens router dialog in command.run (BDR-132), 657e5cb.
