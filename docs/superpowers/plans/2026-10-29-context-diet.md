@@ -686,6 +686,9 @@ check F1-path-rule "$(rule_kind "$FIX/a.md")" path
 check F2-no-frontmatter-always "$(rule_kind "$FIX/b.md")" always
 check F3-multiline-paths-bad "$(rule_kind "$FIX/c.md")" bad
 check F4-extra-always-on-seen "$(always_on "$FIX")" "b.md"
+# the R2 lock itself bites on a dir whose always-on set differs
+cp "$FIX/b.md" "$FIX/writing-style.md"; cp "$FIX/b.md" "$FIX/secure-by-default.md"
+check F5-lock-bites "$([ "$(always_on "$FIX")" = "secure-by-default.md writing-style.md" ] && echo match || echo mismatch)" mismatch
 
 # ── the real rules ──
 bad=""
@@ -851,7 +854,7 @@ git commit -m "test(census): resolve rules/ and lib/ § citations against their 
 - Create: `lib/doctor-automem.sh`, `lib/tests/doctor-automem.test.sh`
 - Modify: `doctor.sh` (source line near 28; `check_symlink "rules"` + `_EXPECTED_LINKS=8`; new section 5d after 5c "Scratchpad")
 
-**Precondition:** the controller confirms C1 (the robin_petier entry) is committed before Step 6: Step 6 switches auto memory off for every session on the machine.
+**Precondition (controller):** Task 7 is dispatched only once C1 (the robin_petier entry) is committed: Step 6 switches auto memory off for every session on the machine.
 
 **Interfaces:**
 - Produces: `automem_leftover_dirs <projects_dir>` → prints the number of `<projects_dir>/*/memory` dirs holding ≥ 1 file; always rc 0.
@@ -931,7 +934,7 @@ automem_leftover_dirs() {
 
 - [ ] **Step 4: Wire doctor.sh**
 
-Replace `_EXPECTED_LINKS=7` with `_EXPECTED_LINKS=8`, and after `check_symlink "lib"` add `check_symlink "rules"` (Design work and the Supabase / cloud-functions bodies now live only under `~/.claude/rules`).
+Replace `_EXPECTED_LINKS=7` with `_EXPECTED_LINKS=8`, replace the comment line `# Expected: CLAUDE.md, settings.json, agents, skills, templates, hooks/session-start.sh` with `# Expected: CLAUDE.md, settings.json, agents, skills, templates, lib, rules, hooks/session-start.sh`, and after `check_symlink "lib"` add `check_symlink "rules"` (Design work and the Supabase / cloud-functions bodies now live only under `~/.claude/rules`).
 
 After the two lines
 
