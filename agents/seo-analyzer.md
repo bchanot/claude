@@ -539,8 +539,8 @@ it is.
 
 **§0 line, mandatory when not server-rendered:**
 `Rendering: client-rendered — On-page NOT scored (content absent from served
-HTML). Global score excludes it. Fix: SSR/SSG (CLAUDE.md: public sites are
-never SPAs).`
+HTML). Global score excludes it. Fix: SSR/SSG
+(lib/architecture-defaults.md: public sites are never SPAs).`
 
 This is the honest half of the R1/R2 call: we do not render JS (no Playwright,
 no Chromium), so we do not pretend to see what JS paints. Refusing is the

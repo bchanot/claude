@@ -140,30 +140,10 @@ their CAPITALIZE step. Session close (`/close` = `/capitalize --ritual`):
 what was decided → decisions, learned → learnings, blocked → blockers.
 
 # Architecture decisions
-Override default framework/tooling choices at project creation, scaffolding,
-brainstorming.
-
-## Public websites — never SPA
-A public site meant to be indexed (landing, portfolio, blog, e-commerce,
-docs) is never a pure SPA (CRA, Vite React, Vue SPA): the empty HTML shell
-hides content from search and AI engines, SEO and GEO destroyed.
-- **Astro** by default for informational sites: static HTML at build, zero
-  JS by default, React/Vue/Svelte islands for interactive parts.
-- **Next.js** when dynamic SSR is needed (personalized content, server-side
-  auth, API routes, hybrid app).
-- **React SPA** only for what needs no indexing: admin panels, dashboards,
-  auth-gated apps, internal tools. Mixed project: Astro/Next for public,
-  React island (`client:only`) for admin.
-- At brainstorming (`/init-project`, `/ship-feature` STEP 1), public site
-  and no framework named → propose Astro, explain why not SPA. Never
-  silently pick React CRA.
-
-## Web APIs — always versioned
-Every endpoint versioned from day one: `/api/v1/...`, no bare `/api/`; the
-router mirrors it (`api/v1/routes/`). Breaking change → `v2`, the old
-version keeps working and clients migrate at their pace; non-breaking
-additions → current version. Each version is a self-contained contract,
-never bent to match a newer one.
+New project, scaffolding, stack brainstorm or whole-project rewrite: Rust
+by default, a public site is never a SPA (Astro; Next.js when SSR is
+needed), every web API versioned `/api/v1/` from day one. Read
+`~/.claude/lib/architecture-defaults.md` before proposing a stack.
 
 ## Version control — gitflow (universal)
 Every git action follows gitflow, inside a skill or for an ad-hoc commit.

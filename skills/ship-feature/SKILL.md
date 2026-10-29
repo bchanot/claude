@@ -110,6 +110,9 @@ not the raw request alone:
    Existing code that bears: <ANALYSIS CONTEXT / KEY COMPONENTS from 0d>.
    Brainstorm WITHIN these — don't re-explore a direction an in-force BDR rejects or a
    BLK already closed."
+When the feature picks a language, a framework or an API shape, Read
+`~/.claude/lib/architecture-defaults.md` first and add its defaults to the
+in-force constraints.
 Inject ONLY what constrains: the NON-BINDING count does NOT enter the brainstorm input
 (the injection inherits the OUTPUT filter — detail what binds, drop what doesn't).
 Consumption = INPUT INJECTION (we can't modify the external skill; we control its input).

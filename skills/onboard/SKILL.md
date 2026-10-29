@@ -371,6 +371,10 @@ Attendre la fin. Vérifier que `.onboard-audit/analyze.md` existe et est non vid
 
 Lire le bloc `audit_stack:` du fichier `~/.claude/lib/project-archetypes/<archetype>.md`.
 
+Les audits jugent l'architecture contre `~/.claude/lib/architecture-defaults.md`
+(site public jamais SPA, API `/api/v1/`, Rust par défaut pour une réécriture) :
+passer ce chemin dans chaque brief d'audit.
+
 **Mapping audit_stack entry → action :**
 
 | Entry | Action | Livraison |
