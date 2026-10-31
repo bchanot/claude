@@ -18,9 +18,12 @@
 #                 body lines, `format: 2`, `## Index` removed; a missing
 #                 frontmatter comes from the template, ` - ` / ` | date | `
 #                 / `###` headings take the `## ID — title (date)` shape;
-#                 a blocker whose open / closed verdict (reconcile's v1
-#                 reader) would move gets a `Status (…, upgrade)` line; the
-#                 oracle (IDs, check, verdicts) runs first, else rc 2
+#                 a blocker the v1 reader closed but the strict one reads
+#                 open gets a `Status (…, upgrade)` line only when its v1
+#                 line is a Status/Statut label holding one closed word;
+#                 a prose or mixed closure is named and refused (record
+#                 it with `status`, re-run); the oracle (IDs, check,
+#                 verdicts, one upgrade line per entry) runs first, else rc 2
 # <kind> = decision | learning | blocker | eval. MEMORY_DATE overrides today.
 # Status of an entry: the last candidate wins. A candidate is the heading's
 # trailing `[tag]`, or a body line whose bold label names Status, Resolution,
@@ -593,7 +596,8 @@ memory_legacy_status() {  # <file> <ID> [<end>] → the v1 lexical status line
   # (reconcile reads it on a v1 blockers file; `upgrade` proves its verdicts
   # against it). Default range: `## ID` to the next `## BLK-`, reconcile's
   # own. With <end> (ERE) the range is fence-aware: it stops at the next
-  # heading matching <end> outside a ``` fence, and that header is not read.
+  # heading matching <end> outside a ``` fence, and that header is not read;
+  # a same-ID sub-heading (`### ID UPDATE`) continues the range, unread.
   local end="${3:-}"
   if [ -z "$end" ]; then
     sed -n "/^## ${2} /,/^## BLK-/p" "$1" \
@@ -604,6 +608,7 @@ memory_legacy_status() {  # <file> <ID> [<end>] → the v1 lexical status line
   fi
   RE="$_MEM_LEGACY_RE" END_RE="$end" awk -v id="$2" '
     /^```/ { fence = !fence; next }
+    !fence && $0 ~ ("^#+ *" id "( |$)") && on { next }
     !fence && $0 ~ ENVIRON["END_RE"] { on = 0 }
     !fence && $0 ~ "^## " id " " { on = 1; next }
     on && !fence && tolower($0) ~ tolower(ENVIRON["RE"]) { last = $0 }
@@ -627,34 +632,78 @@ _mem_index_stated() {  # <old> <PREFIX> → IDs whose Index status upgrade
     <(_mem_index_table "$1") <(_mem_index_rows "$1" "$2")
 }
 
+_mem_explicit_status() {  # <old> <new> <ID> → rc 0 when the v1 line is a
+  local v1 win      # dated status line written by `memory.sh status`, which
+  v1=$(memory_legacy_status "$1" "$3" '^##* *BLK-[0-9]')   # the strict
+  win=$(memory_entry_status "$2" "$3")                     # reader rightly wins
+  [ "$v1" = "$win" ] || return 1
+  printf '%s\n' "$v1" | "$MEM_GREP" -qE '^- \*\*Status \([0-9]' || return 1
+  case "$v1" in *", upgrade)"*) return 1 ;; esac
+}
+
 _mem_verdict_diff() {  # <old> <new> → "ID<TAB>word" per blocker whose open /
-  local id was now ix    # closed verdict moved (word = the old verdict)
-  ix=$(_mem_index_stated "$1" BLK)
-  for id in $(_mem_heading_ids "$2" BLK); do
+  local id was now ix    # closed verdict moved (word = the old verdict, or
+  ix=$(_mem_index_stated "$1" BLK)    # `explicit`: a dated status line)
+  for id in $(_mem_heading_ids "$2" BLK | awk '!seen[$0]++'); do
     printf '%s\n' "$ix" | "$MEM_GREP" -qx "$id" && continue
     # the v1 reader enumerates `## ID` headings only: no verdict to keep
     "$MEM_GREP" -qE "^## $id( |$)" "$1" || continue
     _mem_legacy_open "$1" "$id" && was=open || was=resolved
     memory_closed "$(memory_status_word "$(memory_entry_status "$2" "$id")")" \
       && now=resolved || now=open
-    [ "$was" = "$now" ] || printf '%s\t%s\n' "$id" "$was"
+    [ "$was" = "$now" ] && continue
+    [ "$was" = resolved ] && _mem_explicit_status "$1" "$2" "$id" \
+      && was=explicit
+    printf '%s\t%s\n' "$id" "$was"
   done
 }
 
+_mem_v1_word() {  # <v1 line> → the one status word of its status/statut
+  # label (e.g. `status: resolved`), nothing for prose or a mixed label
+  L="$1" MEMW="$_MEM_WORDS" awk 'BEGIN {
+    s = tolower(ENVIRON["L"]); n = split(ENVIRON["MEMW"], w, " ")
+    if (!match(s, /(status|statut)[^a-z:]*:[* ]*/)) exit
+    s = substr(s, RSTART + RLENGTH)
+    for (i = 1; i <= n; i++)
+      if (s ~ ("(^|[^a-z])" w[i] "([^a-z]|$)")) { c++; word = w[i] }
+    if (c == 1) print word }'
+}
+
+_mem_repair_one() {  # <old> <new> <ID> → write the v1 closure when its line
+  local v1 word      # names one closed word, else name the ID and refuse
+  v1=$(memory_legacy_status "$1" "$3" '^##* *BLK-[0-9]')
+  word=$(_mem_v1_word "$v1")
+  if ! memory_closed "$word"; then
+    echo "memory: $3: v1 closed by an unlabelled or mixed line, status" \
+      "unknown: ${v1:0:100}" >&2
+    echo "memory: $3: record it from the project root: memory.sh status" \
+      "$3 \"<word>, …\" (the leading word decides), then re-run upgrade" >&2
+    return 0
+  fi
+  echo "memory: $3: wrote upgrade status $word from v1 line: ${v1:0:100}" >&2
+  _mem_insert "$2" "$3" "- **Status ($(_mem_date), upgrade)**: $word" \
+    || return 2
+}
+
 _mem_upgrade_repair() {  # <old> <new> <PREFIX> → no blocker loses its closure
-  # v1 closed, strict reader open (a dialect it cannot read): a status line
-  # restores it. v1 open, strict closed is the BLK-032..034 fix (prose words
-  # read as status by the v1 reader): kept, named
-  local id word
+  # v1 closed, strict reader open (a dialect it cannot read): a labelled v1
+  # line restores it, prose or a mixed label is named and left to the oracle.
+  # v1 open, strict closed is the BLK-032..034 fix (prose words read as
+  # status by the v1 reader): kept, named. The diff is read in full before
+  # the first insert rewrites the file under it
+  local id word rows
   [ "$3" = BLK ] || return 0
+  rows=$(_mem_verdict_diff "$1" "$2")
+  [ -n "$rows" ] || return 0
   while IFS=$'\t' read -r id word; do
-    if [ "$word" = open ]; then
-      echo "memory: $id: v1 reader open, strict reader closed (kept)" >&2
-      continue
-    fi
-    _mem_insert "$2" "$id" "- **Status ($(_mem_date), upgrade)**: $word" \
-      || return 2
-  done < <(_mem_verdict_diff "$1" "$2")
+    case "$word" in
+      open) echo "memory: $id: v1 reader open, strict reader closed (kept)" \
+              >&2 ;;
+      explicit) echo "memory: $id: dated status line kept, v1 reader closed" \
+                  "by prose" >&2 ;;
+      *) _mem_repair_one "$1" "$2" "$id" || return 2 ;;
+    esac
+  done <<< "$rows"
 }
 
 _mem_upgrade_oracle() {  # <old> <new> <PREFIX> → rc 2 on a lost fact
@@ -681,6 +730,18 @@ _mem_upgrade_oracle() {  # <old> <new> <PREFIX> → rc 2 on a lost fact
   o=$(_mem_verdict_diff "$1" "$2" | awk -F'\t' '$2 == "resolved" \
     { printf "%s ", $1 }')
   [ -z "$o" ] || { echo "memory: upgrade moved a verdict: $o" >&2; return 2; }
+  _mem_upgrade_dups "$2" "$3"
+}
+
+_mem_upgrade_dups() {  # <new> <PREFIX> → rc 2 when an entry holds two
+  local d             # `, upgrade)` status lines
+  d=$(awk -v p="$2" '
+    /^```/ { fence = !fence }
+    fence { next }
+    $0 ~ "^## " p "-[0-9]+" { id = $2; next }
+    /^- \*\*Status \([^)]*, upgrade\)\*\*:/ && ++n[id] == 2 {
+      printf "%s:dup ", id }' "$1")
+  [ -z "$d" ] || { echo "memory: upgrade lost: $d" >&2; return 2; }
 }
 
 _mem_upgrade_front() {  # <file> → the file; one lacking a frontmatter gets

@@ -1857,3 +1857,13 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 ## LRN-243 — Interactive engine behavior: one discriminating user test before the fix plan (2026-10-29)
 - **Pattern**: bugfix diagnosis twice wrong before code: "proven" cause was a logged-out OpenRouter session; real cause found by challengers reading timestamps + session model (same-model pick). A 30 s user-run discriminating test (pick a different model) settled it; a second (`/model opus` typed) proved `$.ui.ask` renders in command.run before building on it.
 - **Application**: interactive-only engine behavior → design one discriminating user test, ask it in plain text (an open AskUserQuestion blocks the user's slash commands), before any fix plan hardens.
+
+## LRN-244 — Never stream a reader over a file the same loop rewrites in place (2026-10-31)
+- **Context**: BLK-038 fix 2026-10-30. `_mem_upgrade_repair` looped `while … done < <(_mem_verdict_diff old new)` while `_mem_insert` rewrote `new` in place (`cat "$tmp" > "$1"`).
+- **Pattern**: process substitution runs concurrently with the loop body. Reader sees a torn file → nondeterministic extra row. Config pre-upgrade blockers: CLI upgrade wrote BLK-003 repair 6 of 6 replays, stage-by-stage trace and live run 345ee68 wrote none.
+- **Apply**: never stream a reader over a file the same loop rewrites. Capture the full output into a variable first (`rows=$(…)`), then loop over a here-string. Found only by a byte-for-byte replay oracle on real data, not by unit fixtures.
+
+## LRN-245 — A migration must not cement a lexical legacy verdict: carry only a labelled single-word status, refuse and name the rest (2026-10-31)
+- **Context**: phase 4a per-repo pass 2026-10-30, BLK-038. `memory.sh upgrade` turned the v1 lexical reader's closed verdict into an explicit `Status (…, upgrade): resolved` line; oracle "open set unchanged" passed because both readers agreed on the wrong verdict.
+- **Pattern**: prose lines of the same shape carried opposite truth (orbistep BLK-021 "already resolved it" = really open; BLK-026 "ADDENDUM: resolved same day" = really resolved). No lexical rule decides prose.
+- **Apply**: a migration carries a status only from a labelled line holding exactly one status word; everything else is named and refused, the human records the truth (`memory.sh status`), then re-run. Audit every written repair line against its source line before trusting "verdicts unchanged" ([[LRN-237]]).

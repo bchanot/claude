@@ -467,6 +467,7 @@ v1blk d15/datestatus '## BLK-001 — one line' \
   '## BLK-002 — one line open' 'date: 2026-06-02 · status: open'
 dialect datestatus '^- \*\*Status ([0-9-]*, upgrade)\*\*: resolved$'
 check T15-datestatus-one-line "$(grep -c 'upgrade)' d15/datestatus/blockers.md)" 1
+check T15-datestatus-word "$(memory_word_of d15/datestatus/blockers.md BLK-001)" resolved
 v1blk d15/statut '## BLK-001 — fr' '- **Statut** : resolved' '' \
   '## BLK-002 — fr open' '- **Statut** : open'
 dialect statut '^- \*\*Status ([0-9-]*, upgrade)\*\*: resolved$'
@@ -501,6 +502,69 @@ err=$(bash -c '. "$1"; _mem_upgrade_repair() { :; }; memory_upgrade "$2"' \
 check T15-tamper-rc "$?" 2
 check T15-tamper-culprit "$(printf '%s\n' "$err" | grep -c 'moved a verdict: BLK-001')" 1
 check T15-tamper-untouched "$(cksum < d15/tamper/blockers.md)" "$sum"
+
+# v1 closed by prose or a mixed label: refused and named, never guessed
+refused() {  # <name> <ID> → rc 2, file untouched, ID and remedy on stderr
+  local f="d15/$1/blockers.md" before err rc
+  before=$(cksum < "$f")
+  err=$(bash "$MEM" upgrade "d15/$1" 2>&1 >/dev/null); rc=$?
+  check "$3-rc" "$rc" 2
+  check "$3-untouched" "$(cksum < "$f")" "$before"
+  check "$3-named" "$(printf '%s\n' "$err" | grep -c "memory: $2: v1 closed")" 1
+  check "$3-remedy" "$(printf '%s\n' "$err" | grep -c "memory.sh status $2 ")" 1; }
+v1blk d15/prose '## BLK-001 — x' 'date: 2026-09-20 · status: open' \
+  'prose: another tab already resolved it'
+refused prose BLK-001 T15-prose-refused
+v1blk d15/mixdate '## BLK-001 — x' \
+  'date: 2026-10-17 | status: code resolved (abc) · SMTP open'
+refused mixdate BLK-001 T15-mixed-date-refused
+v1blk d15/mixstatut '## BLK-001 — x' '- **Statut** : resolved (x), open (y)'
+refused mixstatut BLK-001 T15-mixed-statut-refused
+# boundary: a strict candidate both readers close is no repair
+v1blk d15/mixbound '## BLK-001 — x' 'status: code resolved (abc) · SMTP open'
+bash "$MEM" upgrade d15/mixbound >/dev/null 2>&1
+check T15-mixed-strict-boundary "$?/$(grep -c 'upgrade)' d15/mixbound/blockers.md)" 0/0
+# a same-ID sub-heading neither doubles the repair nor hides a reopening
+v1blk d15/sub '## BLK-008 — x' 'date: 2026-07-20 · status: RESOLVED 2026-07-20' \
+  '### BLK-008 UPDATE 2026-07-20 (y)' 'body'
+bash "$MEM" upgrade d15/sub >/dev/null 2>&1
+check T15-subhead-one-repair "$?/$(grep -c 'upgrade)' d15/sub/blockers.md)" 0/1
+v1blk d15/subre '## BLK-008 — x' 'date: 2026-07-20 · status: RESOLVED' \
+  '### BLK-008 UPDATE 2026-07-20 (y)' 'Status: open, reopened'
+bash "$MEM" upgrade d15/subre >/dev/null 2>&1
+check T15-subhead-reopened "$?/$(grep -c 'upgrade)' d15/subre/blockers.md)/$(memory_word_of d15/subre/blockers.md BLK-008)" 0/0/open
+# the remedy converges, a "resolved" in its own text included
+remedy() {  # <name> <body…> → the project d15/<name> with a v1 blockers file
+  mkdir -p "d15/$1/.claude/memory"; local n="$1"; shift
+  v1blk "d15/$n/.claude/memory" "$@"; }
+remedy e '## BLK-001 — x' 'date: 2026-09-20 · status: open' \
+  'prose: another tab already resolved it'
+bash "$MEM" -C d15/e status BLK-001 'upstream, SMTP OVH; code resolved (x)' >/dev/null 2>&1
+E=d15/e/.claude/memory/blockers.md
+bash "$MEM" -C d15/e upgrade >/dev/null 2>&1
+check T15-remedy-roundtrip "$?/$(grep -c 'upgrade)' $E)/$(memory_word_of $E BLK-001)" 0/0/upstream
+remedy e2 '## BLK-001 — x' 'date: 2026-09-20 · status: open' \
+  '### BLK-001 UPDATE 2026-10-01 (y)' 'prose: another tab already resolved it'
+bash "$MEM" -C d15/e2 status BLK-001 'upstream, SMTP OVH; code resolved (x)' >/dev/null 2>&1
+E=d15/e2/.claude/memory/blockers.md
+bash "$MEM" -C d15/e2 upgrade >/dev/null 2>&1
+check T15-remedy-subhead "$?/$(grep -c 'upgrade)' $E)/$(memory_word_of $E BLK-001)" 0/0/upstream
+# a dated line then a later prose closure: the v1 line is the prose, refused
+v1blk d15/dated '## BLK-001 — x' 'date: x · status: open' \
+  '- **Status (2026-10-30)**: open, waiting' 'later prose: fixed, resolved in abc'
+refused dated BLK-001 T15-dated-then-prose-refused
+# the v1 range continues past a same-ID sub-heading (fails if it stops there)
+v1blk d15/range '## BLK-001 — x' 'prose: fixed, resolved in abc' \
+  '### BLK-001 UPDATE 2026-10-01 (y)' 'Status: open, reopened'
+bash "$MEM" upgrade d15/range >/dev/null 2>&1
+check T15-range-continues "$?/$(grep -c 'upgrade)' d15/range/blockers.md)" 0/0
+# the oracle refuses two upgrade lines under one entry
+v1blk d15/dup '## BLK-001 | 2026-05-18 | dup' 'date: 2026-06-02 · status: RESOLVED'
+err=$(bash -c '. "$1"; _mem_upgrade_repair() { local l
+  l="- **Status (2026-10-30, upgrade)**: resolved"
+  _mem_insert "$2" BLK-001 "$l"; _mem_insert "$2" BLK-001 "$l"; }
+  memory_upgrade "$2"' _ "$MEM" d15/dup 2>&1 >/dev/null)
+check T15-oracle-dup-refused "$?/$(printf '%s\n' "$err" | grep -c 'BLK-001:dup')" 2/1
 
 # T16 final-review fixes
 # lock dir not writable: bounded, named, rc 2 (never a spin)
