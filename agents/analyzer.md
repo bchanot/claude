@@ -4,7 +4,6 @@ description: Analyze code, codebase, or problem before any modification. Produce
 tools: Read, Grep, Glob, Bash
 model: opus
 effort: xhigh
-memory: project
 ---
 
 # ANALYZER
