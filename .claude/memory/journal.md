@@ -675,3 +675,4 @@ rules:
 
 ## 2026-10-31
 - Phase 4a per-repo pass: 12 repos upgraded to v2 on chore/memory-v2 (game headings demoted, trucks bullet Indexes dropped + BLK-001 resolved, robin BLK-013/015 closures kept); BLK-038 found (upgrade cemented prose false-closed) → /bugfix 2dae528, 3 lenses + confirmation, verifier CONFORME 6/6, security PASS, real-data replay oracle over 13 repos; game/zq redone with user statuses. LRN-244, LRN-245. faunosteo prepared off-repo (V1-2 active).
+- Step 2 suites: /hotfix 40a993c (absolute ~/.claude/rules paths in interviewer + guardrails) + 7899670 (analyzer memory field dropped), security PASS x2. Measured design hook: 59 fires, 0 web-building Reads (no once-per-session). Probe: Bash sed -n loads path rules like Read. Census blind spots: 0 real citations.
