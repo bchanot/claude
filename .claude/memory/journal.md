@@ -672,3 +672,6 @@ rules:
 ## 2026-10-29
 - Phase 1 context diet (feature/context-diet): 8 tasks SDD + final opus review (I1 Write gap fixed 789a2b2), GATE 0 MET, verifier CONFORME 21/21 after 2 micro-gates, security PASS. /context 30.5k → 26.2k (own −2.8k). Load proof: faunosteo supabase.md + web-building.md, game cloud-functions.md + supabase.md path_glob_match. robin_petier BDR-075 (auto memory migrated, chore/memory-lan-server). BDR-130/131, LRN-238..241, EVAL-053. Faunosteo/game: nothing lost.
 - /bugfix /model pin (BLK-037: same-model pick fires no PreModelSwitch; gateway-id plan dropped after 3 lenses FATAL) → /feat bare /model dialog (BDR-132) 657e5cb: 2 challenge rounds (ui.ask 2-4 cap BLOCKER), verifier 8/9 + live c9 MET, security PASS. LRN-242/243.
+
+## 2026-10-31
+- Phase 4a per-repo pass: 12 repos upgraded to v2 on chore/memory-v2 (game headings demoted, trucks bullet Indexes dropped + BLK-001 resolved, robin BLK-013/015 closures kept); BLK-038 found (upgrade cemented prose false-closed) → /bugfix 2dae528, 3 lenses + confirmation, verifier CONFORME 6/6, security PASS, real-data replay oracle over 13 repos; game/zq redone with user statuses. LRN-244, LRN-245. faunosteo prepared off-repo (V1-2 active).
