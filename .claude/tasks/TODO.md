@@ -46,12 +46,14 @@ Shared rules for every phase:
 - [x] **Phase 1, native context diet: no mod** (redesigned 2026-10-24, shrunk 2026-10-25: one carrier per section, existing files first)
   - Done 2026-10-29 on feature/context-diet (4bbb3c5..789a2b2): BDR-130, BDR-131, LRN-238..241, EVAL-053. `/context` 30.5k → 26.2k (own −2.8k). Verifier CONFORME 21/21, security PASS. Contract `.claude/tasks/contracts/2026-10-28-context-diet-1944.md` § PROOF.
   - [ ] User step: delete the auto-memory leftovers by hand (`~/.claude/projects/-home-bchanot-Documents-{faunosteo,jeux-deploy,robin-petier}/memory/`); doctor warns until then.
-  - [ ] Remove the dead `memory: project` field from agents/analyzer.md (auto memory off drops it, LRN-240).
+  - [x] Remove the dead `memory: project` field from agents/analyzer.md (/hotfix 7899670, 2026-10-31).
   - [ ] Deferred (gate 2026-10-29): "Skill routing" lines → our skills' `description:` (phase 3 bullet said phase 1 cleanup).
-  - [ ] Census blind spots: nested `lib/<dir>/x.md § Y`, templates/ and .claude/rules/ outside doctrine-citers.
-  - [ ] Measure the design hook's "Read … first" re-Read cost (instructions-loaded log) before adding "once per session".
-  - [ ] Probe: path rules seen injected after a Bash `sed -n` read (final review M8): confirm Read-only semantics before a later phase relies on it.
-  - [ ] Minor: relative `rules/supabase.md` paths in interviewer.md / guardrails SKILL.md beside absolute ones; agent description losses ("dispatcher applies", "no dispatch", gate-in-dispatcher; security-auditor names no dispatcher).
+  - [ ] Census blind spots: nested `lib/<dir>/x.md § Y`, templates/ and .claude/rules/ outside doctrine-citers. Measured 2026-10-31: 0 real citations in all three today (preventive).
+  - [x] Measure the design hook's "Read … first" re-Read cost (2026-10-31, transcripts since 789a2b2): 59 hook fires, 0 Read-tool reads of web-building.md, 8 Bash mentions (repo maintenance). Re-read cost ≈ 0 → no "once per session" needed.
+    - [ ] Design hook false positives: the pointer is almost never followed, and it fires on non-design prompts (fired on the 2026-10-30 phase 4a memory-work prompt). Decide: tighten the trigger, or drop the hook now that web-building.md loads by path. User call, nothing coded.
+  - [x] Probe Bash `sed -n` (2026-10-31, two `claude -p --model haiku` runs here, mods/model-router/.claude-plugin/plugin.json): Bash `sed -n` AND Read both log `path_glob_match` mods.md with that trigger file. Path rules load after a Bash read too; not isolated whether the harness or the rtk rewrite triggers it.
+  - [x] Minor: relative rule paths in interviewer.md / guardrails SKILL.md → `~/.claude/rules/` (/hotfix 40a993c).
+  - [ ] Agent description losses: user pick 2026-10-31 = restore "(dispatcher applies)" on geo-analyzer + seo-analyzer only; the rest closed (bodies keep it).
   - [x] robin_petier `chore/memory-lan-server` (BDR-075): merged 2026-10-29 (6877443).
   - Facts 2026-10-24 (scratchpad pathtest, memtest): a `paths:` rule loads on Read of a matching file, NOT on Write of a new file; `"autoMemoryEnabled": false` removes the auto-memory system section; classic SessionStart / UserPromptSubmit hooks inject additionalContext; instruction files reload on compaction natively. `hooks/design-toolchain-reminder.sh` fired 2,131 times (16 to 210 per day); `brainstorming` is vendored and gitignored (.gitignore:78), an edit there does not persist.
   - Section → carrier:
