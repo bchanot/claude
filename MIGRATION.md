@@ -202,7 +202,7 @@ make doctor
 
 A v2 registry is the same `.claude/memory/<name>.md` file, versioned and pushed with the code, with `format: 2` in its frontmatter and no `## Index`. The session banner line `registry v1: N file(s) (memory.sh check)` flags a project still on v1. v1 stays readable and writable (lenient), and the `check --staged` chokepoint skips it.
 
-To migrate, run `bash ~/.claude/lib/memory.sh -C <project> upgrade` on a clean `.claude/memory`, then commit through `/commit-change` when headings were rewritten (memory-commit refuses heading rewrites by design). `upgrade` refuses a registry with duplicate IDs or a non-table Index and leaves the file untouched: a human renumbers or converts first.
+To migrate, run `bash ~/.claude/lib/memory.sh -C <project> upgrade` on a clean `.claude/memory`, then commit through `/commit-change` when headings were rewritten (memory-commit refuses heading rewrites by design). `upgrade` refuses a registry with duplicate IDs or a non-table Index and leaves the file untouched: a human renumbers or converts first. A v1 blocker closure is carried over only from a `Status`/`Statut` label holding a single closed word. A blocker the v1 reader closed through prose or a mixed Status line is named with its v1 line and the whole run is refused (rc 2, file untouched). Record its real status with `bash ~/.claude/lib/memory.sh -C <project> status <ID> "<word>, …"` (the leading word decides), then re-run `upgrade`.
 
 ## Auto memory off (2026-10-29)
 
