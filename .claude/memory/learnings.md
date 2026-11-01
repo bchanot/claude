@@ -1867,3 +1867,17 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Context**: phase 4a per-repo pass 2026-10-30, BLK-038. `memory.sh upgrade` turned the v1 lexical reader's closed verdict into an explicit `Status (…, upgrade): resolved` line; oracle "open set unchanged" passed because both readers agreed on the wrong verdict.
 - **Pattern**: prose lines of the same shape carried opposite truth (orbistep BLK-021 "already resolved it" = really open; BLK-026 "ADDENDUM: resolved same day" = really resolved). No lexical rule decides prose.
 - **Apply**: a migration carries a status only from a labelled line holding exactly one status word; everything else is named and refused, the human records the truth (`memory.sh status`), then re-run. Audit every written repair line against its source line before trusting "verdicts unchanged" ([[LRN-237]]).
+
+## LRN-246 — Reflow proof: declare -f / declare -p diff, string splits executed on fixture (2026-11-01)
+**Context**: A9 reflow of reconcile.sh + memory-commit.sh (39 lines > 80 bytes) had to prove zero behaviour change (memory-v2-minors 48ade8f).
+
+**Pattern**: proof = `bash -c '. lib/x.sh; declare -f; declare -p <consts>'` before vs after, diff. Comment reflow and pipe/`&&` breaks normalize away. Surviving hunk = string split: review by hand, execute both versions on fixture, compare md5. Source old copy next to CURRENT deps so diff isolates the reflow.
+
+**Application**: any cosmetic reflow of a sourceable shell lib; name the proof in the contract criterion, verifier reproduces it.
+
+## LRN-247 — awk match() in shared helper clobbers caller RSTART, take substr first (2026-11-01)
+**Context**: `mem_has` (negation helper) calls awk `match()`; `mem_tag` read `RSTART` after calling `mem_word` → `mem_has`, T10h/T10j broke.
+
+**Pattern**: awk `match()` sets globals `RSTART`/`RLENGTH`; shared helper calling it clobbers caller's values. Take `substr(line, RSTART)` BEFORE calling any parser helper; audit every `RSTART` reader in programs embedding the shared awk block.
+
+**Application**: any `_MEM_AWK` change touching match(); same for `$0`, `NF` side effects of `sub()`/`split()` in helpers.

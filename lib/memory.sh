@@ -22,7 +22,8 @@
 #                 open gets a `Status (…, upgrade)` line only when its v1
 #                 line is a Status/Statut label holding one closed word;
 #                 a prose or mixed closure is named and refused (record
-#                 it with `status`, re-run); the oracle (IDs, check,
+#                 it with `status`, re-run); a `## Index` that is not a
+#                 table is refused (rc 2); the oracle (IDs, check,
 #                 verdicts, one upgrade line per entry) runs first, else rc 2
 # <kind> = decision | learning | blocker | eval. MEMORY_DATE overrides today.
 # Status of an entry: the last candidate wins. A candidate is the heading's
@@ -31,11 +32,15 @@
 # prose (title included) is never one (the BLK-032..034 false-open). A dated
 # `**Status (YYYY-MM-DD…)**:` line reads its leading word; other lines rank
 # words in _MEM_WORDS order, `open` last: "accepted, check OPEN" = accepted.
+# A word negated in its clause ("not resolved yet", "never superseded") is
+# not one: not|no|never|pas, at most one word before it, no `, ; . : ( ) ->`
+# `→` `—` between (mem_has).
 # Closed = resolved | superseded | deprecated (memory_closed).
 # Lock: <git-common-dir>/memory.lock created under noclobber (flock(1) is
 # absent on macOS), holding "<epoch> <token>"; released only by its token;
 # a lock older than 30 s (or seen empty 10 times) is stolen by one waiter
-# at a time (memory.lock.steal). Every writer runs on a verified backup
+# at a time (memory.lock.steal; dead when it holds a date over 30 s old or
+# has stayed empty over 60 s). Every writer runs on a verified backup
 # of its file, restored on failure or signal. Next ID = max over headings
 # of any level, fenced or not. Free text reaches awk through ENVIRON,
 # never `-v` (which expands backslash escapes).
@@ -43,6 +48,7 @@
 # absolute before any `-C` cd: a relative $0 no longer resolves after it
 _MEM_LIB_DIR="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MEM_GREP="${MEM_GREP:-/usr/bin/grep}"
+MEM_FIND="${MEM_FIND:-/usr/bin/find}"
 _MEM_TABLE='decision decisions BDR
 learning learnings LRN
 blocker blockers BLK
@@ -50,10 +56,22 @@ eval evals EVAL'
 _MEM_WORDS='resolved superseded deprecated upstream accepted implemented'
 _MEM_WORDS+=' shipped proposed keep correct deprecate open'
 _MEM_AWK='
+function mem_negated(pre,   n, a) {
+  gsub(/[,;.:()]|->|→|—/, "\001", pre); sub(/^.*\001/, "", pre)
+  gsub(/[^a-z0-9]+/, " ", pre); n = split(pre, a, " ")
+  return (n >= 1 && a[n] ~ /^(not|no|never|pas)$/) ||
+         (n >= 2 && a[n - 1] ~ /^(not|no|never|pas)$/) }
+function mem_has(t, w,   re, off, ws) {
+  re = "(^|[^a-z])" w "([^a-z]|$)"; off = 0
+  while (match(substr(t, off + 1), re)) {
+    ws = off + RSTART
+    if (substr(t, ws, 1) != substr(w, 1, 1)) ws++
+    if (!mem_negated(substr(t, 1, ws - 1))) return 1
+    off = ws + length(w) - 1 }
+  return 0 }
 function mem_word(s,   t, i, n, w) {
   t = tolower(s); n = split(MEMW, w, " ")
-  for (i = 1; i <= n; i++)
-    if (t ~ ("(^|[^a-z])" w[i] "([^a-z]|$)")) return w[i]
+  for (i = 1; i <= n; i++) if (mem_has(t, w[i])) return w[i]
   return "" }
 function mem_lead(s,   v, i, n, w) {
   v = s; sub(/^[^:]*\*\*: */, "", v); v = tolower(v)
@@ -65,8 +83,9 @@ function mem_lineword(s,   w) {
   return mem_word(s) }
 function mem_tag(line) {
   if (!match(line, /\[[^]]*\]( \([0-9-]+\))? *$/)) return ""
-  if (mem_word(substr(line, RSTART)) == "") return ""
-  line = substr(line, RSTART); sub(/\].*$/, "]", line); return line }
+  line = substr(line, RSTART)  # before mem_word: its match() moves RSTART
+  if (mem_word(line) == "") return ""
+  sub(/\].*$/, "]", line); return line }
 function mem_cand(line,   lab) {
   if (line ~ /^- \*\*[^*]+\*\*/) {
     lab = line; sub(/^- \*\*/, "", lab); sub(/\*\*.*/, "", lab)
@@ -198,7 +217,13 @@ _mem_stale() {  # <lock content> <times seen empty> → rc 0 when stealable
 _mem_steal() {  # <lock> → remove a stale lock; one stealer at a time
   local g="$1.steal" seen
   if ! (set -C; date +%s > "$g") 2>/dev/null; then
-    _mem_stale "$(cat "$g" 2>/dev/null) x" 0 && rm -f "$g"  # dead stealer
+    # dead stealer: an old date, or a file left empty for over 60 s
+    # shortcut: check-then-rm window (a waiter may remove and a new stealer
+    # recreate between the read and the rm); upgrade = re-check inode/mtime
+    # just before the rm, content cannot tell two empty files apart
+    if _mem_stale "$(cat "$g" 2>/dev/null) x" 0 \
+      || [ -n "$("$MEM_FIND" "$g" -prune -empty -mmin +1 2>/dev/null)" ]
+    then rm -f "$g"; fi
     return 0
   fi
   seen=$(cat "$1" 2>/dev/null)
@@ -338,6 +363,15 @@ memory_journal() {  # <line> → `- <line>` under today's heading
     || { echo "memory: journal line not written" >&2; return 2; }
 }
 
+_mem_body_heading() {  # <body-file> → rc 2 on an unfenced `## ` line: it
+  local n         # would split the entry (the checks read it as a heading)
+  n=$(awk '/^```/ { fence = !fence; next }
+           !fence && /^## / { print NR; exit }' "$1")
+  [ -z "$n" ] || {
+    echo "memory: add: body line $n starts with \"## \":" \
+      "use \"###\" or indent it" >&2; return 2; }
+}
+
 _mem_add_valid() {  # <PREFIX> <title> <body-file> <status> <supersedes>
   _mem_one_line title "$2" || return 2
   case "$2$4" in *'['*|*']'*|*'|'*)
@@ -349,6 +383,7 @@ _mem_add_valid() {  # <PREFIX> <title> <body-file> <status> <supersedes>
   [ -s "$3" ] || { echo "memory: empty or missing body: $3" >&2; return 2; }
   ! _mem_fence_open "$3" \
     || { echo "memory: body leaves a code fence open" >&2; return 2; }
+  _mem_body_heading "$3" || return 2
   if [ "$1" = BLK ] && ! "$MEM_GREP" -q '`' "$3"; then
     echo "memory: a blocker body quotes ≥1 error in backticks" >&2; return 2
   fi
@@ -472,17 +507,22 @@ memory_check() {  # [--staged] [<memory-dir>] → rc 2 on any culprit
   return "$rc"
 }
 
-_mem_blob() {  # <rev:path> <out file> → rc 1 when the blob is absent
-  git cat-file -e "$1" 2>/dev/null && git show "$1" > "$2"
+_mem_blob() {  # <rev:path> <out file> → rc 1 when absent, rc 2 when
+  # unreadable; the out file is empty on either
+  git cat-file -e "$1" 2>/dev/null || { : > "$2"; return 1; }
+  git cat-file blob "$1" > "$2" 2>/dev/null || { : > "$2"; return 2; }
 }
 
 _mem_check_staged() {  # <file> → rc 2 on a new culprit or a lost v2 file
-  local h s rc=0
+  local h s rc=0 hrc src
   h=$(mktemp) || { echo "memory: no temp file" >&2; return 2; }
   s=$(mktemp) || { rm -f "$h"; echo "memory: no temp file" >&2; return 2; }
-  _mem_blob "HEAD:./$1" "$h" || : > "$h"
-  _mem_blob ":./$1" "$s" || : > "$s"
-  if [ -s "$h" ] && memory_is_v2 "$h" && ! { [ -s "$s" ] && memory_is_v2 "$s"; }
+  _mem_blob "HEAD:./$1" "$h"; hrc=$?
+  _mem_blob ":./$1" "$s"; src=$?
+  if [ "$hrc" = 2 ] || [ "$src" = 2 ]; then
+    echo "memory: $1: cannot read the HEAD or the staged blob" >&2; rc=2
+  elif [ -s "$h" ] && memory_is_v2 "$h" \
+    && ! { [ -s "$s" ] && memory_is_v2 "$s"; }
   then
     echo "memory: $1: staged deletion, emptying or loss of format: 2" >&2
     rc=2
@@ -660,12 +700,12 @@ _mem_verdict_diff() {  # <old> <new> → "ID<TAB>word" per blocker whose open /
 
 _mem_v1_word() {  # <v1 line> → the one status word of its status/statut
   # label (e.g. `status: resolved`), nothing for prose or a mixed label
-  L="$1" MEMW="$_MEM_WORDS" awk 'BEGIN {
+  L="$1" MEMW="$_MEM_WORDS" awk "$_MEM_AWK"'BEGIN {
     s = tolower(ENVIRON["L"]); n = split(ENVIRON["MEMW"], w, " ")
     if (!match(s, /(status|statut)[^a-z:]*:[* ]*/)) exit
     s = substr(s, RSTART + RLENGTH)
     for (i = 1; i <= n; i++)
-      if (s ~ ("(^|[^a-z])" w[i] "([^a-z]|$)")) { c++; word = w[i] }
+      if (mem_has(s, w[i])) { c++; word = w[i] }
     if (c == 1) print word }'
 }
 
@@ -674,8 +714,8 @@ _mem_repair_one() {  # <old> <new> <ID> → write the v1 closure when its line
   v1=$(memory_legacy_status "$1" "$3" '^##* *BLK-[0-9]')
   word=$(_mem_v1_word "$v1")
   if ! memory_closed "$word"; then
-    echo "memory: $3: v1 closed by an unlabelled or mixed line, status" \
-      "unknown: ${v1:0:100}" >&2
+    echo "memory: $3: v1 closed by an unlabelled, mixed or negated line," \
+      "status unknown: ${v1:0:100}" >&2
     echo "memory: $3: record it from the project root: memory.sh status" \
       "$3 \"<word>, …\" (the leading word decides), then re-run upgrade" >&2
     return 0

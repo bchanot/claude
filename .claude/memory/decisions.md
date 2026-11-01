@@ -1450,3 +1450,12 @@ Branch feature/user-writing-web-rules, UNMERGED (human gate).
 - **Why**: user "il faut que ça soit systématique" (option A, 2026-10-29); BLK-037.
 - **Rejected**: 8 rows in one ask (engine cap 2-4, LRN-242); native picker + pin-conflict alert only (option B, not systematic); gateway-id normalization (would switch on routing in a gateway session).
 - **Supersedes**: BDR-126 "no args → native picker untouched". Live proof 2026-10-29: opus → [1m] → This project wrote `claude-opus-5-5[1m]`. Contract `.claude/tasks/contracts/2026-10-29-bare-model-dialog-1617.md`.
+
+## BDR-133 — Negated status word in clause does not count, shared v1/v2 negation helper [accepted] (2026-11-01)
+**Context**: v2 parser + v1 legacy reader read `Status: not resolved yet` as resolved (phase 4a minor, robin_petier EVAL-005 `keep, … not accepted until …` read accepted). User pick 2026-10-31/11-01.
+
+**Decision**: status word negated in its clause does not count. Negator `not|no|never|pas`, at most one word between negator and word, no clause boundary `, ; . : ( ) -> → —` between. Next non-negated occurrence still counts. One helper `mem_has` in `_MEM_AWK`, shared by `mem_word` (v2) and `_mem_v1_word` (v1), so `upgrade` refuses such v1 closure ("unlabelled, mixed or negated line") instead of cementing resolved. Word = maximal `[a-z0-9]` run, loop not ERE interval (BWK awk).
+
+**Alternatives**: ignore negation (keeps false closures); line-scope negation (`resolved, not open` would read none: wrong); NLP (no).
+
+**Consequences**: real-data replay 14 repos → 1 move (robin_petier EVAL-005 accepted → keep). mawk run in T17 guards BWK-class awk.
