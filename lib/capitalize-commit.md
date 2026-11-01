@@ -47,6 +47,7 @@ never by Edit or append; there is no `## Index` to update.
 - Journal: `bash "$HOME/.claude/lib/memory.sh" journal "<line>"`.
 - rc 2 names its reason (title chars, empty body, a status not starting
   with a status word, an open code fence in the body or the registry,
+  an unfenced body line starting `## ` (use `###` or indent it),
   unknown ID, lock busy): fix the input and re-run.
 
 ## DO
@@ -71,13 +72,17 @@ never by Edit or append; there is no `## Index` to update.
    - rc 5                     → `git commit` rejected (hook, protected branch,
                                 signing); nothing committed, surface stderr.
    - rc 6                     → `memory.sh check --staged` refused, nothing
-                                committed, nothing left staged. Two causes,
+                                committed, nothing left staged. Causes,
                                 named on stderr: a line removed inside an
-                                existing v2 entry (only appends pass), or a NEW
-                                culprit (duplicate ID, heading shape); an open
+                                existing v2 entry (only appends pass), a NEW
+                                culprit (duplicate ID, heading shape), or a
+                                HEAD or staged blob git cannot read; an open
                                 code fence counts even when it predates the
-                                commit. Fix the file, then commit the fix with
-                                /commit-change; never bypass the helper.
+                                commit. A path staged apart from its working
+                                tree loses that stage: stderr names it with
+                                its blob id and the git update-index restore
+                                command. Fix the file, then commit the fix
+                                with /commit-change; never bypass the helper.
 
    `<mem_hash>` is the MEMORY commit (the one that ADDS the entries). It is NOT
    the code-commit hash that capitalize anchored INSIDE the entries
