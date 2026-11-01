@@ -680,3 +680,4 @@ rules:
 
 ## 2026-11-01
 - memory-v2-minors /feat shipped (e4fb8f7 + 48ade8f): negated status words, dead empty steal, body `## ` refused, blob rc 1/2, rc 6 names dropped partial stages, reflow. Verifier CONFORME, security PASS, replay 14 repos = 1 expected move. Docs synced. Next: doc half, then phase 5 spikes.
+- memory-v2-minors-docs /feat shipped (dfbc8a7): § WRITE says every verb takes -C and --body-file absolute; tour/deploy/audit-delta point at § WRITE; evals template Later status line. Verifier CONFORME, security PASS. Phase 4a minors fully closed; MIGRATION.md:209 parked. Next: phase 5 spikes.

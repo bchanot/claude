@@ -28,4 +28,5 @@ rules:
   - **Anomalies**: <what is wrong, missing, surprising>
   - **Action**: <keep | correct | deprecate>
 
+Later status: `bash ~/.claude/lib/memory.sh status EVAL-NNN "deprecate, see BDR-NNN"`.
 -->
