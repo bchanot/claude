@@ -249,6 +249,7 @@ AUDIT-DELTA COMPLETE — 2026-06-11
 
 Then offer to capitalize (per CLAUDE.md): recurring finding patterns →
 `learnings.md`, audit verdicts → `evals.md`. Behind approval, never silent.
+Approved entries per `lib/capitalize-commit.md` § WRITE.
 
 ## Axis specs (subagent prompts)
 

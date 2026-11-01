@@ -275,6 +275,7 @@ TOUR COMPLETE — 2026-07-04
 Then offer to capitalize (gated, per CLAUDE.md): recurring cross-project
 patterns → learnings, tour verdict → evals. Never write registries
 without that approval — neither this repo's nor any target project's.
+Approved entries per `lib/capitalize-commit.md` § WRITE.
 
 ## Rules
 

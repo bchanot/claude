@@ -32,14 +32,16 @@ tune it there.
 ## WRITE (before the commit)
 
 Registry entries and journal lines are written only by `lib/memory.sh`,
-never by Edit or append; there is no `## Index` to update.
+never by Edit or append; there is no `## Index` to update. Every verb takes
+`-C <project root>` when the cwd is not the project root; it `cd`s first, so
+give `--body-file` an absolute path.
 
 - Entry: caveman body to a scratch file, then
   `bash "$HOME/.claude/lib/memory.sh" [-C <project root>] add
   <decision|learning|blocker|eval> --title "<title>" --body-file <file>
   [--status <status>] [--supersedes <ID>]`. One call per entry; it
   allocates the ID under a lock and prints it. A blocker body quotes ≥1
-  error in backticks. `-C` when the cwd is not the project root.
+  error in backticks.
 - Status change on an existing entry:
   `bash "$HOME/.claude/lib/memory.sh" status <ID> "<word> …"`, the text
   starting with a status word (`resolved abc1234`, `open, reopened by …`,
