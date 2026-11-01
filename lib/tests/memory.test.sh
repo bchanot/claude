@@ -607,6 +607,77 @@ printf -- '---\ntype: blockers_registry\nentry_prefix: BLK\n---\n\n# B\n\n' \
 bash "$MEM" upgrade t16/dt >/dev/null 2>&1
 check T16-date-spacing "$(grep -c '^- \*\*Date\*\*' t16/dt/blockers.md)" 1
 
+# T17 parked minors: dead empty steal file, negated status, body heading,
+# blob read errors
+# an empty steal file (stealer killed before its date write) is dead after
+# 60 s; a fresh one is a live stealer (over-reach guard: `-mmin +0` fails it)
+echo $(( $(date +%s) - 60 )) dead.1 > "$lock"
+: > "$lock.steal"; touch -t 202001010000 "$lock.steal"
+out=$(bash "$MEM" add learning --title steal --body-file plain.md 2>&1); rc=$?
+check T17-steal-empty-dead "$rc/$([ -e "$lock.steal" ] && echo kept || echo gone)/$([ -e "$lock" ] && echo held || echo free)" 0/gone/free
+echo $(( $(date +%s) - 60 )) dead.1 > "$lock"
+: > "$lock.steal"
+sum=$(cksum < .claude/memory/learnings.md)
+out=$(MEM_LOCK_TRIES=3 bash "$MEM" add learning --title steal \
+  --body-file plain.md 2>&1); rc=$?
+check T17-steal-empty-fresh "$rc/$([ -e "$lock.steal" ] && echo kept || echo gone)/$(printf '%s\n' "$out" | grep -c 'lock busy')/$(cksum < .claude/memory/learnings.md)" "2/kept/1/$sum"
+rm -f "$lock" "$lock.steal"
+# a status word negated in its clause is no status word
+negword() {  # <status text> → the entry's status word, empty when none
+  printf -- '---\nformat: 2\n---\n\n## BLK-001 — x\n- **Status**: %s\n' "$1" \
+    > neg.md
+  word neg.md BLK-001; }
+negcases() {  # <label> → the negation cases under the current awk
+  check "$1-not-resolved" "$(negword 'not resolved yet')" ''
+  check "$1-open-then-not" "$(negword 'open, not resolved yet')" open
+  check "$1-never" "$(negword 'never superseded')" ''
+  check "$1-closed-not-open" "$(negword 'resolved, not open')" resolved
+  check "$1-no-comma" "$(negword 'no repro, resolved')" resolved
+  check "$1-not-yet" "$(negword 'not yet resolved')" ''
+  check "$1-arrow" "$(negword '(JS off -> no dialog), accepted')" accepted
+  check "$1-two-between" "$(negword 'not reproduced but resolved')" resolved
+  check "$1-arrow-bare" "$(negword 'not reproducible -> resolved')" resolved
+  check "$1-semicolon" "$(negword 'not; resolved')" resolved
+  check "$1-unicode-arrow" "$(negword 'not → resolved')" resolved
+  check "$1-em-dash" "$(negword 'never — superseded')" superseded
+  check "$1-plain" "$(negword 'resolved')" resolved; }
+negcases T17-negated-status
+if [ -x /usr/bin/mawk ]; then
+  mkdir -p t17/mawk && ln -sf /usr/bin/mawk t17/mawk/awk
+  OLDPATH=$PATH; PATH="$FIX/t17/mawk:$PATH"
+  negcases T17-negated-status-mawk
+  PATH=$OLDPATH
+else echo "SKIP mawk absent"; fi
+# a v1 line the lexical reader closes but only by a negated word is refused
+v1blk d15/negated '## BLK-001 — x' 'Status: not resolved yet'
+refused negated BLK-001 T17-upgrade-negated-refused
+check T17-upgrade-negated-none "$(grep -c 'upgrade)' d15/negated/blockers.md)" 0
+# a body `## ` line would split the entry: refused; fenced it is text
+printf 'first\n## Sub\nsecond\n' > sub.md
+sum=$(cksum < .claude/memory/learnings.md)
+err=$(bash "$MEM" add learning --title sub --body-file sub.md 2>&1); rc=$?
+check T17-add-body-heading-refused "$rc/$(cksum < .claude/memory/learnings.md)/$(printf '%s\n' "$err" | grep -c 'body line 2 starts with "## "')" "2/$sum/1"
+printf 'first\n```\n## Sub\n```\nsecond\n' > subf.md
+out=$(bash "$MEM" add learning --title subf --body-file subf.md 2>&1); rc=$?
+check T17-add-body-heading-fenced "$rc/$(grep -c '^## Sub$' .claude/memory/learnings.md)" 0/1
+# _mem_blob: absent = rc 1 and an empty out file; unreadable = rc 2
+echo stale > blob.out
+(. "$MEM"; _mem_blob HEAD:./no/such blob.out); rc=$?
+check T17-blob-absent "$rc/$(wc -c < blob.out | tr -d ' ')" 1/0
+mkdir -p t17/ro/.claude/memory t17/shim
+reg decisions.md decisions_registry BDR 'Decisions registry (BDR)'
+cat .claude/memory/decisions.md > t17/ro/.claude/memory/decisions.md
+printf '#!/bin/sh\n[ "$1" = cat-file ] && [ "$2" = blob ] && exit 128\n' \
+  > t17/shim/git
+printf 'exec %s "$@"\n' "$(command -v git)" >> t17/shim/git
+chmod +x t17/shim/git
+(cd t17/ro && git init -q . && git config user.email t@t \
+  && git config user.name t && git add -A && git commit -qm base)
+(cd t17/ro && bash "$MEM" check --staged >/dev/null 2>&1)
+check T17-blob-readable-baseline "$?" 0
+err=$(cd t17/ro && PATH="$FIX/t17/shim:$PATH" bash "$MEM" check --staged 2>&1)
+check T17-blob-read-error "$?/$(printf '%s\n' "$err" | grep -c 'cannot read the HEAD or the staged blob')" 2/1
+
 # T12 this repo's registries pass the check
 check T12-live-check "$(bash "$MEM" -C "$ROOT" check >/dev/null 2>&1; echo $?)" 0
 

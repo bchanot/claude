@@ -49,6 +49,20 @@ _changed_paths() {
   done
 }
 
+# Paths staged differently from HEAD AND from the worktree: `git add` below
+# overwrites that staged blob, a refusal then resets it. One line per path,
+# with the blob id, so the dropped partial stage can be restored by hand.
+_partial_stages() {
+  local p mode oid
+  while IFS= read -r p; do
+    read -r mode oid _ < <(git ls-files -s -- "$p")
+    echo "memory-commit: partial stage dropped on: $p (blob $oid;" \
+      "restore: git update-index --cacheinfo $mode,$oid,$p)"
+  done < <(comm -12 \
+    <(git -c core.quotepath=off diff --cached --name-only -- "$@" | sort) \
+    <(git -c core.quotepath=off diff --name-only -- "$@" | sort))
+}
+
 # Surgical commit of the scoped paths only. Returns 0 (ok or no-op), 3 (unsafe).
 # On a real commit, prints the memory-commit short hash to stdout (stderr = diag).
 commit_memory() {
@@ -61,7 +75,7 @@ commit_memory() {
     echo "memory-commit: detached HEAD or merge/rebase in progress — skip (no commit)" >&2
     return 3
   fi
-  local changed
+  local changed partial
   mapfile -t changed < <(_changed_paths)
   if [ "${#changed[@]}" -eq 0 ]; then
     echo "memory-commit: nothing pending — no-op" >&2
@@ -70,6 +84,7 @@ commit_memory() {
   # Re-stage working-tree content of the scoped paths over any stale index entry,
   # then commit ONLY those paths. The pathspec on `git commit` makes it a partial
   # commit: other staged files (dangling code) are not recorded.
+  partial="$(_partial_stages "${changed[@]}")"
   git add -- "${changed[@]}"
   # Chokepoint (BDR-125 phase 4a): a staged v2 registry may only grow and
   # never gains a new culprit (duplicate ID, bad heading, open fence). v1
@@ -78,6 +93,7 @@ commit_memory() {
   if [ -d .claude/memory ] \
     && ! bash "$MC_MEMORY_SH" check --staged .claude/memory; then
     git reset -q -- "${changed[@]}"
+    [ -z "$partial" ] || printf '%s\n' "$partial" >&2
     echo "memory-commit: REFUSED — memory.sh check --staged failed (above);" \
       "NOTHING committed, nothing left staged." >&2
     return 6
