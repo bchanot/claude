@@ -8,7 +8,7 @@
 
 **Tech Stack:** bash 5, jq 1.8, python3 (census), Claude Code CLI 2.1.316 (skills-dir plugins, `enabledPlugins`, `deniedMcpServers`, `/reload-plugins`), `make test` suites `lib/tests/*.test.sh`.
 
-**Spec:** `docs/superpowers/specs/2026-11-01-phase5-profiles-packs-design.md`. Facts: scratchpad `p5/FACTS.md` (copied in § Facts below). Contract: `.claude/tasks/contracts/2026-11-01-phase5-profiles-packs-1300.md`.
+**Spec:** `docs/superpowers/specs/2026-11-01-phase5-profiles-packs-design.md`. Facts: § Facts below (the scratchpad `p5/FACTS.md` was session-local and is gone; the contract CLARIFICATIONS hold the same facts). Tasks 1 and 12 write their results to `$S/FACTS.md` AND to this plan's § Facts, so nothing lives only in a scratchpad again. Contract: `.claude/tasks/contracts/2026-11-01-phase5-profiles-packs-1300.md`.
 
 ## Global Constraints
 
@@ -73,7 +73,7 @@
 - [ ] **Step 1: Build the scratch pack and project**
 
 ```bash
-S=/tmp/claude-1000/-home-bchanot-Documents-claude/a1113f35-c77c-47c4-95de-a37231ae0306/scratchpad/p5
+S="$CLAUDE_SCRATCHPAD/p5"; mkdir -p "$S"   # CLAUDE_SCRATCHPAD = the session scratchpad dir announced at session start
 mkdir -p "$S/t1/proj" "$HOME/.claude/skills/pack-t1/.claude-plugin" \
   "$HOME/.claude/skills/pack-t1/skills/t1-alpha" "$S/t1/ext-beta"
 printf '{"name":"pack-t1","version":"0.0.1","description":"canary"}\n' \
@@ -1968,7 +1968,7 @@ git commit -m "docs: profiles and packs (README, USAGE, MIGRATION 2.1.0 bashrc s
 - [ ] **Step 1: Two conversations, one project, different profiles**
 
 ```bash
-S=/tmp/claude-1000/-home-bchanot-Documents-claude/a1113f35-c77c-47c4-95de-a37231ae0306/scratchpad/p5
+S="$CLAUDE_SCRATCHPAD/p5"; mkdir -p "$S"   # CLAUDE_SCRATCHPAD = the session scratchpad dir announced at session start
 mkdir -p "$S/t12/proj" && cd "$S/t12/proj" && git init -q && printf '# t12\n' > CLAUDE.md
 for p in dev web; do
   claude -p 'say hi' --model haiku --settings "$HOME/.claude/lib/profiles/$p.json" \
