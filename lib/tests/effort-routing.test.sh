@@ -159,15 +159,21 @@ while IFS= read -r f; do check_skill "$f"; done < <(
   cd "$R" && git ls-files 'skills/*/SKILL.md' 'skills-external/*/SKILL.md')
 
 # ── (b2) every skills row resolves to a skill (short, pack entry, parked) ─
+ext_named() { # ext_named <k>: <k> is in link.sh EXTERNAL_SKILLS
+  sed -n '/^EXTERNAL_SKILLS=(/,/)/p' "$R/link.sh" | grep -qw -- "$1"
+}
 row_resolves() { # row_resolves <key>
-  local k="$1" n
+  local k="$1" n p
   case "$k" in
-    pack-*:*) n="${k%%:*}"; [ -e "$R/skills/$n/skills/${k#*:}/SKILL.md" ];;
-    *) [ -e "$R/skills/$k/SKILL.md" ] || [ -n "$(skdir "$k")" ] \
+    pack-*:*) n="${k%%:*}"; p="$R/skills/$n/skills/${k#*:}"
+      [ -L "$p" ] || [ -e "$p/SKILL.md" ];;
+    *) [ -e "$R/skills/$k/SKILL.md" ] || ext_named "$k" \
+         || [ -L "$R/skills/$k" ] || [ -n "$(skdir "$k")" ] \
          || [ -e "$R/skills-external/$k/SKILL.md" ];;
   esac
 }
-[ -n "$(skdir seo)" ] && ! row_resolves ghost-skill \
+[ -L "$R/skills/pack-seo/skills/seo" ] || [ -d "$R/skills/pack-seo/skills/seo" ] \
+  && ! row_resolves ghost-skill \
   && ! row_resolves pack-seo:ghost && ! row_resolves pack-ghost:seo \
   && ok || ko "row_resolves: flip-test (ghost rows must fail)"
 while read -r kind key _; do

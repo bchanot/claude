@@ -21,6 +21,7 @@ if PATH=/usr/bin:/bin command -v 21st >/dev/null 2>&1 \
 fi
 WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
 mkdir -p "$WORK/bin" "$WORK/home"; export WORK
+export DESIGN_GATE_SKILLS_DIR="$WORK/none"
 printf '#!/usr/bin/env bash\ncat "$WORK/plain.txt"\n' > "$WORK/bin/profile.sh"
 cat > "$WORK/bin/21st" <<'EOF'
 #!/usr/bin/env bash
@@ -49,11 +50,22 @@ expect T1-ready 0 "READY — packs design + gstack-design + ui-ux-pro-max on (we
 plain off on on local dev; out="$(gate_run in "$WORK/bin")"; rc=$?
 expect T2-incomplete 10 "INCOMPLETE"; expect T2-remedy-local 10 "bash ~/.claude/lib/profile.sh set web"
 expect T2-names 10 "off: pack-design"
+expect T2-enable 10 "profile.sh enable design"
 plain on off off flag dev; out="$(gate_run in "$WORK/bin")"; rc=$?
 expect T3-remedy-flag 10 "relaunch this conversation with a design profile:  cc <name> web"
 expect T3-names 10 "off: pack-gstack-design plugin:ui-ux-pro-max@ui-ux-pro-max-skill"
-plain on on on local web; out="$(gate_run in "")"; rc=$?
+plain on on off local web; out="$(gate_run in "$WORK/bin")"; rc=$?
+expect T3a-plugin 10 "enable the plugin in a profile: set web"
+plain on on on local web
+mkdir -p "$WORK/repo/skills/pack-design/skills"
+ln -s /nonexistent "$WORK/repo/skills/pack-design/skills/x"
+out="$(DESIGN_GATE_SKILLS_DIR="$WORK/repo/skills" gate_run in "$WORK/bin")"
+rc=$?
+expect T3b-dangling 10 "not installed: pack-design:x (run make plugin)"
+rm -r "$WORK/repo"
+out="$(gate_run in "")"; rc=$?
 expect T4-no-cli 10 "21st needs the CLI: npm i -g @21st-dev/cli   then   21st login"
+case "$out" in *"profile.sh set web"*) bad T4-no-remedy "pack remedy shown";; *) ok T4-no-remedy;; esac
 out="$(gate_run out "$WORK/bin")"; rc=$?
 expect T5-signed-out 12 "SIGN-IN REQUIRED"; expect T5-ask 12 "! 21st login"
 out="$(gate_run garbage "$WORK/bin")"; rc=$?

@@ -341,7 +341,7 @@ if [ -d "$GSTACK_DIR" ]; then
   # On a distro newer than gstack's pinned Playwright supports, bump Playwright
   # BEFORE ./setup so its frozen-lockfile install picks up the new version and
   # the browse binary is rebuilt against it (avoids the "does not support
-  # chromium" fail). Non-fatal if it can't — gstack is OFF by default.
+  # chromium" fail). Non-fatal if it can't — gstack packs follow the profile (full = on).
   # See BLK-008 / LRN-040 / BDR-029; logic lives in lib/gstack-playwright.sh.
   gstack_bump_playwright_if_unsupported "$GSTACK_DIR"
 
@@ -1269,7 +1269,7 @@ echo "    🔄 21st skill pack     — 21st.dev CLI skills; linked by skills/pac
 echo "    🔄 higgsfield pack     — Higgsfield CLI media skills (image, video, audio, brand), OFF by default (bash lib/profile.sh enable higgsfield, then /reload-plugins; landing-page aid: enable higgsfield-websites)"
 echo ""
 echo "  All plugins installed at: user scope (~/.claude/plugins/)"
-echo "  GStack skills symlinked individually into ~/.claude/skills/ (→ submodule)"
+echo "  GStack skills live in packs skills/pack-gstack-*/ (symlinks into the submodule)"
 echo "  Emil Design Eng at: ~/.claude/skills/pack-design/skills/emil-design-eng/ (symlink → skills-external)"
 echo "  Frontend Design at: ~/.claude/skills/pack-design/skills/frontend-design/ (symlink → skills-external)"
 echo "  Design Motion Principles at: skills/pack-design/skills/design-motion-principles/ (symlink → skills-external)"

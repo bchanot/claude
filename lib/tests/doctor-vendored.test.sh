@@ -3,10 +3,11 @@
 # check_vendored_skills(): a fixture repo under mktemp with a fake
 # plugins.lock.json (single-path shape, list shape, dict shape with a
 # references/ file), a fake link.sh holding a multi-line
-# EXTERNAL_SKILLS=(...) array and a fake <claude_home>/skills dir. Cases: every file present + linked (ALL_PRESENT), a
+# EXTERNAL_SKILLS=(...) array and a fake <claude_home>/skills dir.
+# Cases: every file present + linked (ALL_PRESENT), a
 # list-shape skill missing its SKILL.md (FILE_MISSING), a dict-shape
 # skill missing one of two files — only that file is named
-# (DICT_FILES_COMPLETE), a profile-listed name with no symlink
+# (DICT_FILES_COMPLETE), a linked name with no symlink
 # (SYMLINK_MISSING_ACTIVE) or a symlink to the wrong target
 # (SYMLINK_WRONG_TARGET), an unreadable lock file degrading to a
 # warn instead of a fail (LOCK_UNREADABLE, rc 0), a lock entry whose

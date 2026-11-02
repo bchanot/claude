@@ -30,7 +30,8 @@ cc() {
     fi
   fi
   mkdir -p "$HOME/.cache/claude-tmp" "$HOME/.dtach"
-  # shellcheck disable=SC2016,SC1003  # the inner shell expands $HOME; '^\' is dtach's detach key
+  # The inner shell expands $HOME; '^\' is dtach's detach key.
+  # shellcheck disable=SC2016,SC1003
   CLAUDE_PROFILE="$profile" CLAUDE_PROFILE_SETTINGS="$settings" \
   TMPDIR="$HOME/.cache/claude-tmp" \
   systemd-run --user --quiet --collect --scope --slice=dev.slice \

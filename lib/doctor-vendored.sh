@@ -4,9 +4,8 @@
 # skills (curl-pinned externals in plugins.lock.json + link.sh's
 # EXTERNAL_SKILLS array). doctor.sh's "GStack submodule" section only
 # covers the gstack submodule — this covers the OTHER external skill
-# packs (emil-design-eng, the agent-skills trio, the five Mengto scroll
-# skills, the seven superpowers skills, and any name link.sh links with
-# no lock entry at all, e.g. frontend-design, design-motion-principles).
+# packs (the agent-skills trio, the seven superpowers skills, and any
+# name link.sh links with no lock entry at all).
 #
 # One entry point, `check_vendored_skills <repo> <claude_home>`, sourced
 # and called by doctor.sh. Two things checked
@@ -56,9 +55,7 @@ fi
 
 # _dv_lock_expectations <lockfile> — prints "<name>\t<file>" for every
 # skill named under a plugins.lock.json entry whose "managed_by" is
-# "curl", plus a THIRD column "\t1" when that entry is "always_on": true
-# (the superpowers entry is), ignored by the
-# $1==n {print $2} awk in _dv_check_files: a bare list defaults each name
+# "curl". A bare list defaults each name
 # to ["SKILL.md"]; a dict names its own per-skill file list; an entry
 # with neither (the emil-design-eng single-file "path" shape) is itself
 # the skill name, file "SKILL.md" (the literal "path" value is upstream
@@ -116,13 +113,12 @@ for key, entry in data.items():
         sys.exit(1)
     if not valid_skills(skills):
         sys.exit(1)
-    suffix = "\t1" if entry.get("always_on") is True else ""
     if skills is None:
-        print(f"{key}\tSKILL.md{suffix}")
+        print(f"{key}\tSKILL.md")
         continue
     for name, files in skill_files(skills).items():
         for file in files:
-            print(f"{name}\t{file}{suffix}")
+            print(f"{name}\t{file}")
 PY
 }
 

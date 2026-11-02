@@ -51,8 +51,8 @@ root (no `CLAUDE.md`, no `.git`), unreadable or invalid local JSON.
 
 ## Rules
 
-- Never write the user scope (`~/.claude/settings.json`); never run
-  `claude plugin enable|disable`. A pack need found mid-skill is proposed to
+- Never write the user scope (`~/.claude/settings.json`); never toggle
+  plugins through the `claude plugin` CLI. A pack need found mid-skill is proposed to
   the user (`set <n>` or `enable <pack>` + `/reload-plugins`, or a relaunch
   under `--settings`), written only on consent (lib/plugin-gate.md).
 - `deniedMcpServers` is a union across settings files: a `cc x web` over a

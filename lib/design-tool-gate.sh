@@ -15,16 +15,20 @@
 # Remedy on 10: source=flag → relaunch `cc <name> web` (a --settings
 # conversation is frozen); else `profile.sh set web` (or `enable design`)
 # then /reload-plugins. The CLI is a global npm install either way.
-# Usage: design-tool-gate.sh        (no argument; env DESIGN_GATE_PROFILE_SH)
+# READY also needs the packs to resolve: every skills/pack-<n>/skills/*
+# entry of pack-design and pack-gstack-design must have a SKILL.md.
+# Usage: design-tool-gate.sh  (no argument; env DESIGN_GATE_PROFILE_SH,
+#        DESIGN_GATE_SKILLS_DIR)
 # ============================================================
 set -euo pipefail
 
 REPO="$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROFILE_SH="${DESIGN_GATE_PROFILE_SH:-$REPO/lib/profile.sh}"
+SKILLS_DIR="${DESIGN_GATE_SKILLS_DIR:-$REPO/skills}"
 NEEDED=(pack-design pack-gstack-design
   "plugin:ui-ux-pro-max@ui-ux-pro-max-skill")
 
-# ---- 21st CLI on PATH + sign-in state (kept from the previous version) ----
+# ---- 21st CLI on PATH + sign-in state ---------------------------------------
 # Same sanitized-PATH problem for `21st` (an npm global bin): a PATH repair
 # for the 21st CLI only (claude is no longer called here). The npm global
 # bin dir is often missing from a hook's PATH. Probe for the binary directly
@@ -94,6 +98,13 @@ for k in "${NEEDED[@]}"; do
   [ "$(plain_get "$k")" = on ] || missing+=("$k")
 done
 source="$(plain_get source)"; profile="$(plain_get profile)"
+dangling=()
+for n in design gstack-design; do
+  for e in "$SKILLS_DIR/pack-$n/skills/"*; do
+    [ -e "$e" ] || [ -L "$e" ] || continue
+    [ -e "$e/SKILL.md" ] || dangling+=("pack-$n:${e##*/}")
+  done
+done
 
 # ---- 21st: CLI present, then signed in ---------------------------------------
 cli_hint=""; auth=in
@@ -103,19 +114,34 @@ else
   auth="$(twentyfirst_auth_state)"
 fi
 
-# ---- verdict -----------------------------------------------------------------
-if [ "${#missing[@]}" -gt 0 ] || [ -n "$cli_hint" ]; then
-  echo "design toolchain: INCOMPLETE"
-  [ "${#missing[@]}" -gt 0 ] && echo "  off: ${missing[*]}"
-  [ -n "$cli_hint" ] && echo "$cli_hint"
+# ---- remedy lines: set web, one enable per missing pack ---------------------
+print_remedy() {
+  local k
   if [ "$source" = flag ]; then
     echo "  → relaunch this conversation with a design profile:" \
          " cc <name> web"
-  else
-    echo "  → run:  bash ~/.claude/lib/profile.sh set web" \
-         "  (or: enable design)"
-    echo "    then /reload-plugins"
+    return
   fi
+  echo "  → run:  bash ~/.claude/lib/profile.sh set web"
+  for k in "${missing[@]}"; do
+    case "$k" in
+      pack-*) echo "    or:   profile.sh enable ${k#pack-}" ;;
+      *) echo "    (enable the plugin in a profile: set web)" ;;
+    esac
+  done
+  echo "    then /reload-plugins"
+}
+
+# ---- verdict -----------------------------------------------------------------
+if [ "${#missing[@]}" -gt 0 ] || [ "${#dangling[@]}" -gt 0 ] \
+   || [ -n "$cli_hint" ]; then
+  echo "design toolchain: INCOMPLETE"
+  [ "${#missing[@]}" -gt 0 ] && echo "  off: ${missing[*]}"
+  for e in ${dangling[@]+"${dangling[@]}"}; do
+    echo "  not installed: $e (run make plugin)"
+  done
+  [ -n "$cli_hint" ] && echo "$cli_hint"
+  [ "${#missing[@]}" -gt 0 ] && print_remedy
   exit 10
 fi
 case "$auth" in

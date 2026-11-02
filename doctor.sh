@@ -115,7 +115,11 @@ echo "── Packs ──"
 _pc="$(bash "$REPO/lib/pack-census.sh" --installed 2>&1)" && _pc_rc=0 || _pc_rc=$?
 while read -r _w; do [ -n "$_w" ] && warn "${_w#WARN }"; done < <(grep '^WARN' <<<"$_pc" || true)
 while read -r _r; do [ -n "$_r" ] && fail "${_r#RED }"; done < <(grep '^RED' <<<"$_pc" || true)
-[ "$_pc_rc" -eq 0 ] && pass "$(tail -1 <<<"$_pc")"
+if [ "$_pc_rc" -eq 0 ]; then
+  pass "$(tail -1 <<<"$_pc")"
+elif ! grep -q '^RED' <<<"$_pc"; then
+  fail "pack census failed (rc=$_pc_rc)"
+fi
 unset _pc _pc_rc _w _r
 
 echo ""
@@ -140,10 +144,12 @@ if grep -Eq 'alias cc=|dtach_claude' "$HOME/.bashrc" 2>/dev/null; then
 fi
 _ep_head="$(git -C "$REPO" show HEAD:settings.json 2>/dev/null | jq -S .enabledPlugins 2>/dev/null || true)"
 _ep_work="$(jq -S .enabledPlugins "$REPO/settings.json" 2>/dev/null || true)"
-if [ "$_ep_head" = "$_ep_work" ]; then
+if [ -z "$_ep_head" ] || [ -z "$_ep_work" ]; then
+  warn "enabledPlugins check skipped (jq or git show failed)"
+elif [ "$_ep_head" = "$_ep_work" ]; then
   pass "settings.json enabledPlugins matches HEAD (no user-scope residue)"
 else
-  warn "user-scope residue: $(diff <(echo "$_ep_head") <(echo "$_ep_work") | grep '^[<>]' | tr -s ' ' | tr '\n' ';'); restore per MIGRATION 2.1.0 step 1"
+  warn "user-scope residue: $(diff <(echo "$_ep_head") <(echo "$_ep_work") | grep '^[<>]' | tr -s ' ' | tr '\n' ';'); restore per MIGRATION "Profiles and packs" step 1"
 fi
 _m="$(jq -r '.model // "-"' "$REPO/settings.json" 2>/dev/null || echo "-")"
 if [ "$_m" = opus ]; then pass "settings.json model is opus"
