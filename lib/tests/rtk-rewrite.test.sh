@@ -42,4 +42,30 @@ check T9-unrelated-still-rewrites \
 check T10-unrelated-not-redacted \
   "$(raw 'cat /etc/hostname' | grep -c 'sed -E')" "0"
 
+# --- T11-T13: rtk exit-code protocol, hermetic (a PATH shim plays rtk) ---
+SHIM="$(mktemp -d)"; trap 'rm -rf "$SHIM"' EXIT
+cat > "$SHIM/rtk" <<'SH'
+#!/usr/bin/env bash
+case "$1" in
+  --version) echo "rtk 0.50.0" ;;
+  rewrite) case "$2" in
+      probe-ask) echo "rtk probe-ask"; exit 3 ;;
+      probe-read) echo "rtk read probe-read"; exit 0 ;;
+      *) exit 1 ;;
+    esac ;;
+esac
+SH
+chmod +x "$SHIM/rtk"
+shim_raw() { # shim_raw <cmd> -> hook stdout with the shim first on PATH
+  jq -n --arg cmd "$1" '{tool_input:{command:$cmd}}' \
+    | PATH="$SHIM:$PATH" bash "$H"
+}
+check T11-rc3-passthrough "$(shim_raw probe-ask)" ""
+check T12-rc0-still-rewrites \
+  "$(shim_raw probe-read | jq -r '.hookSpecificOutput.updatedInput.command')" \
+  "rtk read probe-read"
+check T13-pin-matches \
+  "$(cd "$(dirname "$H")" && sha256sum -c .rtk-hook.sha256 >/dev/null 2>&1 \
+     && echo ok || echo mismatch)" ok
+
 printf 'PASS=%s FAIL=%s\n' "$pass" "$fail"; [ "$fail" -eq 0 ]
