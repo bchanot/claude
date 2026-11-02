@@ -684,3 +684,4 @@ rules:
 
 ## 2026-11-02
 - phase 5 profiles+packs shipped on feature/phase5-profiles-packs (13 tasks SDD, 3-lens challenge, gates MET/CONFORME/PASS after 3 passes): 9 packs, 9 profile fragments, profile.sh one-jq current --plain, cc <name> [profile], census; BDR-134, LRN-248..253, BLK-039/040, EVAL-054; TODO: router ask-before-Fable queued
+- BDR-125 re-verification (gates x5, 31 SHAs, reconcile engine): 0 code defect, 5 done-but-open ticks → chore/todo-reconcile-bdr125 e58a617 (merge on signal); EVAL-055, LRN-255. /feat router-ask-tier (feature/router-ask-tier): plan r1 FATAL x2 → r3, feater 28 TIER tests, GATE 0 MET, verifier CONFORME 11/11, security PASS (1 LOW fixed); 9a24a62 + docs 789fd00; BDR-135, LRN-254. Merge on signal. Next: phase 2 guards via /ship-feature.
