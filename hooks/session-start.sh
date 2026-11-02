@@ -65,7 +65,8 @@ unset _gg_lib
 # ── Toggle plugin detection ──
 
 # One profile.sh run, shared with detect_gstack through PROFILE_PLAIN.
-PROFILE_PLAIN="$(bash "$HOME/.claude/lib/profile.sh" -C "$PWD" current --plain 2>/dev/null)" || PROFILE_PLAIN=""
+PROFILE_PLAIN="$(bash "$HOME/.claude/lib/profile.sh" -C "$PWD" current \
+  --plain 2>/dev/null)" || PROFILE_PLAIN=""
 export PROFILE_PLAIN
 
 TOGGLE_ACTIVE=()

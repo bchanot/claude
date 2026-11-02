@@ -177,7 +177,7 @@ ctx7 login                 # optional: OAuth / API key for higher rate limits
 | Component | Type | Description | Docs |
 |---|---|---|---|
 | **Superpowers skills** | Vendored (7, always on) | brainstorming, writing-plans, subagent-driven development, TDD, code review request, git worktrees, writing-skills — pinned v6.4.1 in plugins.lock.json, no plugin, no session injection | [obra/superpowers](https://github.com/obra/superpowers) |
-| **GStack** | Git submodule (per profile) | Product workflow skills: plan reviews, design, browser QA, security (`cso`), `health`. Linked by pack-gstack-dev, pack-gstack-browser and pack-gstack-design; 9 broken or doctrine-breaking skills are denylisted in `lib/gstack-removed.sh`. | [garrytan/gstack](https://github.com/garrytan/gstack) |
+| **GStack** | Git submodule (per profile) | Product workflow skills: plan reviews, design, browser QA, security (`cso`), `health`. Linked by pack-gstack-dev, pack-gstack-browser and pack-gstack-design; 9 broken or doctrine-breaking skills are denylisted in `lib/gstack-removed.list`. | [garrytan/gstack](https://github.com/garrytan/gstack) |
 | **GSD v2** | External CLI | Multi-session orchestration: crash recovery, cost tracking, parallel workers, context-fresh execution. | [gsd-build/gsd-2](https://github.com/gsd-build/gsd-2) |
 | **RTK** | CLI + hook (always on) | Rust Token Killer: the `hooks/rtk-rewrite.sh` PreToolUse hook rewrites Bash commands through `rtk` to cut output tokens. Zero passive cost. | [rtk-ai/rtk](https://github.com/rtk-ai/rtk) |
 | **security-guidance** | Plugin (always on) | Security hook. Regex layer and commit/push review on; the Stop-time diff review is off (`ENABLE_STOP_REVIEW=0`). | [anthropics/claude-code](https://github.com/anthropics/claude-code) |
@@ -382,8 +382,8 @@ npm i -g @21st-dev/cli
 an interactive terminal) and installs the skill pack that drives it:
 `21st-ui-build`, `-ui-explore`, `-ui-review`, `-cli-use`, `-ai`, plus the
 publishing skills `-registry`, `-design-sync` and `-video`. `21st-ui-build`
-and `21st-cli-use` sit in pack-design (on under `full`, `design`, `web` and
-`web-full`). `-ui-explore`, `-ui-review` and `-ai` sit in pack-extras (on
+and `21st-cli-use` sit in pack-design (on under `full`, `design` and
+`web`). `-ui-explore`, `-ui-review` and `-ai` sit in pack-extras (on
 under `max`, or after `bash lib/profile.sh enable extras`). `-registry`,
 `-design-sync` and `-video` stay unlinked in `skills-external/`.
 
@@ -423,7 +423,7 @@ The copies are machine-owned and gitignored. They follow upstream `main`,
 so a prompt change arrives with no diff to review, and a skill that
 upstream removes keeps its last local copy.
 
-The pack is off by default and belongs to no profile. It costs nothing until
+The pack is off by default and on in `max` only. It costs nothing until
 you ask for it:
 
 ```bash
@@ -434,7 +434,7 @@ bash lib/profile.sh disable higgsfield
 The pack (`skills/pack-higgsfield/skills/`) holds the 8 `higgsfield-*`
 skills.
 
-`higgsfield-websites` is kept apart. It helps with landing pages inside the
+`higgsfield-websites` is one of them. It helps with landing pages inside the
 design stack (assets, references), and `higgsfield website
 create|deploy|publish` stays unused. Claude runs `bash lib/profile.sh enable higgsfield` on
 a named media ask, then `/reload-plugins` (Skill routing in `CLAUDE.global.md`) and checks the price
@@ -477,7 +477,7 @@ make scan-secrets [repos="…"]  # gitleaks sweep of this repo's history and ~/.
 make help                   # list make targets
 make onboard                # onboard an existing project (run from its dir)
 make seo-connect            # connect a Google account for /seo FULL (OAuth consent)
-make profile cmd="set X" dir=/path/to/project    # activate a skill profile (web/seo/web-full/full/max/backend/design/dev/qa/audit/minimal)
+make profile cmd="set X" dir=/path/to/project    # activate a skill profile (web/seo/full/max/design/dev/qa/audit/minimal)
 make profile-list           # list skill profiles
 make profile-current dir=/path/to/project        # effective profile of this project and conversation
 make new-skill name=myskill # scaffold agent + skill files

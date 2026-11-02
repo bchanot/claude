@@ -201,26 +201,55 @@ make doctor
 ### Profiles and packs (2026-11)
 
 Run on every machine that pulls this version (the live tree may still be in
-an old profile). Step 3 is the only one that removes a real directory
-(`make plugin` runs `rm -rf skills-external/impeccable` before the move).
+an old profile). Run steps 1 and 2 before any commit on that machine: the
+removed `.gitignore` lines expose the old links as untracked files. Step 3
+is the only one that removes a real directory (`make plugin` replaces
+`skills-external/impeccable` on a refresh); steps 1 and 2 use `mv`, never
+`rm -r`.
 
-1. From the repo root (`cd ~/.claude`): `git pull --autostash` (a plain
-   `git pull` aborts when `settings.json` is modified locally and the
-   incoming commits touch it; autostash keeps your UI writes), then restore
-   the user-scope plugins the old `profile.sh` had toggled:
-   `ep="$(mktemp)"; next="$(mktemp)"; git show HEAD:settings.json | jq
-   .enabledPlugins > "$ep" && jq --slurpfile ep "$ep" '.enabledPlugins =
-   $ep[0]' settings.json > "$next" && cp "$next" settings.json; rm -f "$ep"
-   "$next"` (never `git checkout -- settings.json`: it would drop your UI
-   writes).
-2. Old layout: `find skills skills-disabled -maxdepth 1 -type l` lists the
-   flat links; remove every `skills-disabled/` link, and in `skills/`
-   everything except model-router
-   (the tracked link to `mods/model-router`), darwin-skill,
-   the seven superpowers and the agent-skills trio. If
-   `skills-disabled/impeccable` is a directory: `mv skills-disabled/impeccable
-   skills-external/impeccable`. Then `rmdir skills-disabled; rm -f
-   .active-profile`.
+1. From the repo root. `git pull --autostash` (a plain `git pull` aborts
+   when `settings.json` is modified locally and the incoming commits touch
+   it; autostash keeps your UI writes), then restore the user-scope plugins
+   the old `profile.sh` had toggled. Never `git checkout -- settings.json`:
+   it would drop your UI writes.
+
+   ```bash
+   cd ~/.claude
+   git pull --autostash
+   ep="$(mktemp)"; next="$(mktemp)"
+   git show HEAD:settings.json | jq .enabledPlugins > "$ep"
+   jq --slurpfile ep "$ep" '.enabledPlugins = $ep[0]' settings.json > "$next"
+   cp "$next" settings.json; rm -f "$ep" "$next"
+   ```
+
+2. Old layout. List the flat links first, then remove the links of
+   `skills-disabled/` and the links of `skills/` that are not kept
+   (model-router, darwin-skill, the seven superpowers, the agent-skills
+   trio). If `skills/impeccable` or `skills-disabled/impeccable` is a real
+   directory, `mv` it to `skills-external/impeccable` (never `rm`).
+
+   ```bash
+   cd ~/.claude
+   find skills skills-disabled -maxdepth 1 -type l
+   mkdir -p skills-external
+   for d in skills skills-disabled; do
+     if [ -d "$d/impeccable" ] && [ ! -L "$d/impeccable" ] \
+         && [ ! -e skills-external/impeccable ]; then
+       mv "$d/impeccable" skills-external/impeccable
+     fi
+   done
+   find skills-disabled -maxdepth 1 -type l -delete
+   find skills -maxdepth 1 -type l \
+     ! -name model-router ! -name darwin-skill \
+     ! -name observability-and-instrumentation \
+     ! -name deprecation-and-migration ! -name ci-cd-and-automation \
+     ! -name brainstorming ! -name writing-plans \
+     ! -name subagent-driven-development ! -name test-driven-development \
+     ! -name requesting-code-review ! -name using-git-worktrees \
+     ! -name writing-skills -delete
+   rmdir skills-disabled; rm -f .active-profile
+   ```
+
 3. `make link` (link.sh no longer links the design and scroll skills flat),
    `make plugin` (fills `skills-external/`; impeccable ends in
    `skills-external/impeccable`).

@@ -12,15 +12,15 @@ Agent(subagent_type="plugin-probe", description="plugin gate — probe",
       prompt="Run your probes from <PROJECT_ROOT>. Emit the PROBE REPORT.")
 ```
 
-## 2. VALIDATION CHECKPOINT (main loop — between probe and reasoner)
+## 2. VALIDATION CHECKPOINT (main loop: between probe and reasoner)
 
 Validate the PROBE REPORT before any reasoning:
 - `PROFILE` block holds a `profile=` line.
 - At least one project signal present (MANIFESTS / FRAMEWORK-DEPS /
   TSX-JSX-COUNT > 0 / DOCKER-COUNT > 0 / EMBEDDED hits). Else print
-  `⚠️ No project signals detected — recommendations will be conservative.`
+  `⚠️ No project signals detected: recommendations will be conservative.`
   and continue.
-- `CHECKPOINT profile-sh=UNAVAILABLE` → print `⚠️ profile.sh unavailable —
+- `CHECKPOINT profile-sh=UNAVAILABLE` → print `⚠️ profile.sh unavailable:
   recommendations will be advisory only, no auto-activation.` and SKIP
   step 5 (apply) entirely.
 - PROBE REPORT missing/unparsable → retry the probe ONCE fresh; a 2nd
@@ -44,7 +44,7 @@ Show the returned PLUGIN CHECK block.
   answered.
 - OK → print `✅ Plugin check passed — [active plugins] — complexity: <score>%`.
 
-## 5. APPLY GATE (main loop — only when the flow auto-activates)
+## 5. APPLY GATE (main loop: only when the flow auto-activates)
 
 If any plugin has ⚡ ENABLE status:
 1. List the changes:
@@ -60,7 +60,7 @@ If any plugin has ⚡ ENABLE status:
    refuses (rc 2, nothing written), so there is nothing to roll back: stop at
    the first non-zero rc, print its stderr, and continue with the current
    config. "customize" → user picks. "no" → proceed with current config.
-3. After a successful write print `✅ Applied N change(s) — run
+3. After a successful write print `✅ Applied N change(s): run
    /reload-plugins to load the packs in this session (connectors and model:
    next session).` In a `--settings` conversation (`PROFILE :` block says
    `source=flag`) the advisor emits no enable for a pack the flag turns off;

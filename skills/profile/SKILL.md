@@ -10,6 +10,9 @@ description: |
   "active profile", "quel profil", "profil design", "active les skills
   design", "enable higgsfield", "désactive gstack", "réduire le listing".
 argument-hint: list | show <name> | current | set <name> | unset | enable <pack> | disable <pack> | diff <name>
+allowed-tools:
+  - Bash
+  - Read
 ---
 
 # /profile — packs per project and per conversation

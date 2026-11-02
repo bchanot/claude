@@ -66,11 +66,13 @@ Exit codes: `0` = ready · `11` = ready-but-unverified (proceed, but surface it)
 
       design toolchain: INCOMPLETE
         off: pack-design plugin:ui-ux-pro-max@ui-ux-pro-max-skill
-        → run:  bash ~/.claude/lib/profile.sh set web   (or: enable design)
+        → run:  bash ~/.claude/lib/profile.sh set web
+          or:   bash ~/.claude/lib/profile.sh enable design
+          or:   bash ~/.claude/lib/profile.sh enable ui-ux-pro-max@ui-ux-pro-max-skill
           then /reload-plugins
 
-  - **source=local or default** → `profile.sh set web` (or `enable design`),
-    then `/reload-plugins`.
+  - **source=local or default** → `profile.sh set web`, or one `profile.sh
+    enable <pack | plugin id>` per entry listed as off, then `/reload-plugins`.
   - **source=flag** (the conversation runs under `claude --settings`, frozen)
     → relaunch it with a design profile: `cc <name> web`.
   - **the `21st` CLI TRIPS the gate** when absent (required for Build), it is
@@ -191,9 +193,9 @@ or profile, never a lone tool.
 
 ## IMPORTANT
 
-- Remedy is ALWAYS the printed line (`profile.sh set web` / `enable design`
+- Remedy is ALWAYS the printed line (`profile.sh set web` / `enable <pack>`
   + `/reload-plugins`, or `cc <name> web` under a flag), never an atomic
-  tool toggle — `current --plain` is the single source of what's active.
+  tool toggle; `current --plain` is the single source of what's active.
 - the `21st` CLI is REQUIRED (it trips the gate) and no profile can
   install it — the gate names the two commands; surface them to the user.
   Signed out → exit 12: ask `! 21st login`, wait, re-run; explicit opt-out

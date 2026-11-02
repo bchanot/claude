@@ -13,8 +13,9 @@
 #       11 ready-but-unverified (21st could not answer) · 12 sign-in
 #       required · 2 error (profile.sh failed or gave no pack lines).
 # Remedy on 10: source=flag → relaunch `cc <name> web` (a --settings
-# conversation is frozen); else `profile.sh set web` (or `enable design`)
-# then /reload-plugins. The CLI is a global npm install either way.
+# conversation is frozen); else `profile.sh set web`, or `enable <pack>` /
+# `enable <plugin id>` per missing entry, then /reload-plugins. The CLI is
+# a global npm install either way.
 # READY also needs the packs to resolve: every skills/pack-<n>/skills/*
 # entry of pack-design and pack-gstack-design must have a SKILL.md.
 # Usage: design-tool-gate.sh  (no argument; env DESIGN_GATE_PROFILE_SH,
@@ -29,11 +30,8 @@ NEEDED=(pack-design pack-gstack-design
   "plugin:ui-ux-pro-max@ui-ux-pro-max-skill")
 
 # ---- 21st CLI on PATH + sign-in state ---------------------------------------
-# Same sanitized-PATH problem for `21st` (an npm global bin): a PATH repair
-# for the 21st CLI only (claude is no longer called here). The npm global
-# bin dir is often missing from a hook's PATH. Probe for the binary directly
-# and prepend the dir that has it, otherwise a perfectly installed CLI reads
-# as "missing" and trips the gate.
+# A hook's PATH often lacks the npm global bin dir: find `21st` there and
+# prepend its dir, or an installed CLI reads as missing and trips the gate.
 ensure_21st_on_path() {
   command -v 21st >/dev/null 2>&1 && return
   local cand
@@ -125,8 +123,10 @@ print_remedy() {
   echo "  → run:  bash ~/.claude/lib/profile.sh set web"
   for k in "${missing[@]}"; do
     case "$k" in
-      pack-*) echo "    or:   profile.sh enable ${k#pack-}" ;;
-      *) echo "    (enable the plugin in a profile: set web)" ;;
+      pack-*)
+        echo "    or:   bash ~/.claude/lib/profile.sh enable ${k#pack-}" ;;
+      *)
+        echo "    or:   bash ~/.claude/lib/profile.sh enable ${k#plugin:}" ;;
     esac
   done
   echo "    then /reload-plugins"

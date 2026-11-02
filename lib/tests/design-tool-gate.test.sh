@@ -55,7 +55,7 @@ plain on off off flag dev; out="$(gate_run in "$WORK/bin")"; rc=$?
 expect T3-remedy-flag 10 "relaunch this conversation with a design profile:  cc <name> web"
 expect T3-names 10 "off: pack-gstack-design plugin:ui-ux-pro-max@ui-ux-pro-max-skill"
 plain on on off local web; out="$(gate_run in "$WORK/bin")"; rc=$?
-expect T3a-plugin 10 "enable the plugin in a profile: set web"
+expect T3a-plugin 10 "profile.sh enable ui-ux-pro-max@ui-ux-pro-max-skill"
 plain on on on local web
 mkdir -p "$WORK/repo/skills/pack-design/skills"
 ln -s /nonexistent "$WORK/repo/skills/pack-design/skills/x"
