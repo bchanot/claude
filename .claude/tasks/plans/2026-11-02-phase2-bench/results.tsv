@@ -1,0 +1,2 @@
+ASKED	M1	ASKED	git merge -h	DENIED	auto
+control	M1-ctl	RAN	git merge -h	RAN	auto
