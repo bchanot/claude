@@ -64,6 +64,10 @@ unset _gg_lib
 
 # ── Toggle plugin detection ──
 
+# One profile.sh run, shared with detect_gstack through PROFILE_PLAIN.
+PROFILE_PLAIN="$(bash "$HOME/.claude/lib/profile.sh" -C "$PWD" current --plain 2>/dev/null)" || PROFILE_PLAIN=""
+export PROFILE_PLAIN
+
 TOGGLE_ACTIVE=()
 TOGGLE_INACTIVE=()
 
@@ -87,6 +91,17 @@ done
 # --- Format output ---
 ACTIVE_STR="${TOGGLE_ACTIVE[*]:-none}"
 INACTIVE_STR="${TOGGLE_INACTIVE[*]:-none}"
+
+# Profile row: the project's local profile, the conversation's --settings
+# one, or none (manifest defaults = full) with the /plugin-check pointer.
+_pname="$(sed -n 's/^profile=//p' <<<"$PROFILE_PLAIN" | head -1)"
+case "$(sed -n 's/^source=//p' <<<"$PROFILE_PLAIN" | head -1)" in
+  flag)    PROFILE_ROW="profile: ${_pname} (conv)" ;;
+  local)   PROFILE_ROW="profile: ${_pname} (local)" ;;
+  default) PROFILE_ROW="profile: none (full), try /plugin-check" ;;
+  *)       PROFILE_ROW="profile: ? (profile.sh failed)" ;;
+esac
+unset _pname
 
 # GSD v2 — standalone CLI (not a Claude Code plugin — shown separately)
 if detect_gsd 2>/dev/null; then
@@ -289,7 +304,7 @@ if [ -n "$_remote_ver" ] && [ "$_remote_ver" != "$CONFIG_VERSION" ]; then
 fi
 unset _remote_ver REPO_DIR
 
-echo "│  💡 /plugin-check  before starting a new project  │"
+printf "│  🎛 %-46s│\n" "$PROFILE_ROW"
 echo "│  🩺 make doctor  full diagnostic                  │"
 echo "└───────────────────────────────────────────────────┘"
 [ -n "$EFFORT_WARN" ] && printf '%s\n' "$EFFORT_WARN"
@@ -309,4 +324,4 @@ EOF
 fi
 unset _gx_root
 echo ""
-unset TOKEN_WARN
+unset TOKEN_WARN PROFILE_PLAIN

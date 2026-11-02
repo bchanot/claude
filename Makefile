@@ -1,4 +1,4 @@
-.PHONY: help install plugin link doctor update new-skill profile profile-list profile-current profile-reset onboard test scan-secrets seo-connect
+.PHONY: help install plugin link doctor update new-skill profile profile-list profile-current onboard test scan-secrets seo-connect
 
 help: ## Show available commands
 	@grep -E '^[a-zA-Z_-]+:.*##' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*## "}; {printf "  make %-16s %s\n", $$1, $$2}'
@@ -33,7 +33,7 @@ test: ## Run deterministic tests hermetically (one: make test suite=lib/tests/x.
 	@# Hermetic git: the machine's global core.hooksPath (BDR-095) must not
 	@# fire inside the throwaway repos the suites build. The export lives
 	@# HERE so nobody has to type the (denied) env-prefix form by hand.
-	@export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null; \
+	@export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null; unset CLAUDE_PROFILE CLAUDE_PROFILE_SETTINGS; \
 	fail=0; red=""; for t in $(or $(suite),$(SUITES)); do \
 		echo "== $$t"; \
 		case "$$(basename "$$t")" in \
@@ -59,17 +59,14 @@ scan-secrets: ## Gitleaks sweep: this repo's history + ~/.claude. Extra repos: m
 	echo "Reports: .audit/scan-secrets-*.json (redacted; gitignored — keep local, do NOT commit)"; \
 	exit $$fail
 
-profile: ## Run profile.sh (usage: make profile cmd="set design")
-	@bash lib/profile.sh $(cmd)
+profile: ## profile.sh on a project (usage: make profile cmd="set design" dir=/path/to/project; default: this repo)
+	@bash lib/profile.sh -C "$(or $(dir),$(CURDIR))" $(cmd)
 
-profile-list: ## List skill profiles (audit, backend, design, dev, full, max, minimal, qa, seo, web, web-full)
+profile-list: ## List pack profiles (lib/profiles/*.json)
 	@bash lib/profile.sh list
 
-profile-current: ## Show the active profile (label + match)
-	@bash lib/profile.sh current
-
-profile-reset: ## Go to the default profile (full)
-	@bash lib/profile.sh reset
+profile-current: ## Effective profile of a project (dir=…; default: this repo)
+	@bash lib/profile.sh -C "$(or $(dir),$(CURDIR))" current
 
 new-skill: ## Create a new skill scaffold (usage: make new-skill name=myskill)
 	@test -n "$(name)" || (echo "Usage: make new-skill name=myskill" && exit 1)

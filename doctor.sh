@@ -111,18 +111,12 @@ else
   warn "GStack submodule missing — run: git submodule update --init"
 fi
 
-# GStack skills are exposed as PER-SKILL symlinks directly under skills/ (browse,
-# cso, review, …) pointing into skills-external/gstack/ — there is NO single
-# skills/gstack symlink (link.sh deliberately removes it: it duplicated the
-# top-level gstack SKILL.md alongside the per-skill entries). The bin/ +
-# browse/dist/ helper links under skills/gstack/ are checked in §7 Consistency.
-# `|| true` guards pipefail if skills/ is unexpectedly absent (checked above).
-gstack_skill_links=$( { find "$HOME/.claude/skills/" -maxdepth 1 -type l -lname '*skills-external/gstack/*' 2>/dev/null || true; } | wc -l | tr -d ' ')
-if [ "${gstack_skill_links:-0}" -gt 0 ]; then
-  pass "GStack: ${gstack_skill_links} skills linked (per-skill symlinks)"
-else
-  warn "GStack skills not linked — run: cd skills-external/gstack && ./setup"
-fi
+echo "── Packs ──"
+_pc="$(bash "$REPO/lib/pack-census.sh" --installed 2>&1)" && _pc_rc=0 || _pc_rc=$?
+while read -r _w; do [ -n "$_w" ] && warn "${_w#WARN }"; done < <(grep '^WARN' <<<"$_pc" || true)
+while read -r _r; do [ -n "$_r" ] && fail "${_r#RED }"; done < <(grep '^RED' <<<"$_pc" || true)
+[ "$_pc_rc" -eq 0 ] && pass "$(tail -1 <<<"$_pc")"
+unset _pc _pc_rc _w _r
 
 echo ""
 
@@ -132,29 +126,29 @@ echo ""
 # externals the GStack section above does not cover)
 # ────────────────────────────────────────────────────────────
 echo "── Vendored skills ──"
-# Mirrors lib/profile.sh's active_profile() (read_cache + the
-# blank/"none" -> DEFAULT_PROFILE fallback) without sourcing profile.sh
-# itself (its main() would run unconditionally) and without ever
-# invoking `claude`.
-_dv_active_profile=$(head -n1 "$REPO/.active-profile" 2>/dev/null \
-  | tr -d '[:space:]')
-[ -z "$_dv_active_profile" ] && _dv_active_profile="none"
-[ "$_dv_active_profile" = "none" ] && _dv_active_profile="full"
-# .active-profile's value is spliced into a lib/profiles/ path below —
-# reject anything outside the profile-name allowlist before that splice.
-if ! _dv_valid_profile_name "$_dv_active_profile"; then
-  warn ".active-profile has invalid value \"$_dv_active_profile\" — \
-falling back to profile full"
-  _dv_active_profile="full"
-fi
-_dv_profile_file="$REPO/lib/profiles/$_dv_active_profile.profile"
-if [ -f "$_dv_profile_file" ]; then
-  check_vendored_skills "$REPO" "$HOME/.claude" "$_dv_profile_file"
+check_vendored_skills "$REPO" "$HOME/.claude"
+
+echo ""
+echo "── Profiles ──"
+if grep -q 'lib/cc\.sh' "$HOME/.bashrc" 2>/dev/null; then
+  pass "\$HOME/.bashrc sources lib/cc.sh (cc <name> [profile])"
 else
-  # Active profile unresolved — every external is expected linked.
-  check_vendored_skills "$REPO" "$HOME/.claude"
+  warn "\$HOME/.bashrc does not source lib/cc.sh, add: [ -f \"\$HOME/.claude/lib/cc.sh\" ] && . \"\$HOME/.claude/lib/cc.sh\""
 fi
-unset _dv_active_profile _dv_profile_file
+if grep -Eq 'alias cc=|dtach_claude' "$HOME/.bashrc" 2>/dev/null; then
+  warn "\$HOME/.bashrc still has alias cc= or dtach_claude: remove them, the alias shadows cc()"
+fi
+_ep_head="$(git -C "$REPO" show HEAD:settings.json 2>/dev/null | jq -S .enabledPlugins 2>/dev/null || true)"
+_ep_work="$(jq -S .enabledPlugins "$REPO/settings.json" 2>/dev/null || true)"
+if [ "$_ep_head" = "$_ep_work" ]; then
+  pass "settings.json enabledPlugins matches HEAD (no user-scope residue)"
+else
+  warn "user-scope residue: $(diff <(echo "$_ep_head") <(echo "$_ep_work") | grep '^[<>]' | tr -s ' ' | tr '\n' ';'); restore per MIGRATION 2.1.0 step 1"
+fi
+_m="$(jq -r '.model // "-"' "$REPO/settings.json" 2>/dev/null || echo "-")"
+if [ "$_m" = opus ]; then pass "settings.json model is opus"
+else warn "settings.json model is $_m (tracked default is opus)"; fi
+unset _ep_head _ep_work _m
 
 echo ""
 
@@ -587,7 +581,7 @@ fi
 # every owned skill — permanent false-warn since. Inverted: warn if any
 # owned skill REintroduces the key (regression watch on BDR-019).
 PRESENT_DMI=()
-for f in "$HOME/.claude/skills/"*/SKILL.md; do
+for f in "$HOME/.claude/skills/"*/SKILL.md "$REPO"/skills/pack-*/skills/*/SKILL.md; do
   [ -f "$f" ] || continue
   dir=$(dirname "$f")
   # Skip external skills (symlinked directory or symlinked SKILL.md — not owned by this repo)
@@ -643,7 +637,7 @@ fi
 
 # Check CRLF — portable: grep -P not available on macOS BSD grep
 CRLF_FILES=()
-for f in "$REPO"/*.md "$REPO"/agents/*.md "$REPO"/skills/*/SKILL.md; do
+for f in "$REPO"/*.md "$REPO"/agents/*.md "$REPO"/skills/*/SKILL.md "$REPO"/skills/pack-*/skills/*/SKILL.md; do
   [ -f "$f" ] || continue
   if grep -c $'\r' "$f" 2>/dev/null | grep -q "^[^0]"; then
     CRLF_FILES+=("$(basename "$f")")
