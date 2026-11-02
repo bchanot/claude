@@ -2,7 +2,7 @@
   "cleanupPeriodDays": 7,
   "env": {
     "ENABLE_STOP_REVIEW": "0",
-    "SLASH_COMMAND_TOOL_CHAR_BUDGET": "40000"
+    "SLASH_COMMAND_TOOL_CHAR_BUDGET": "50000"
   },
   "attribution": {
     "commit": "",
