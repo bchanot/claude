@@ -1,0 +1,7 @@
+{
+  "name": "pack-gstack-browser",
+  "version": "1.0.0",
+  "description": "gstack browser tooling: browse, scrape, qa, benchmark, canary.",
+  "author": { "name": "bchanot" },
+  "defaultEnabled": true
+}

@@ -749,10 +749,10 @@ else
   fi
 fi
 # Symlink handled by link.sh
-if [ -L "$HOME/.claude/skills/emil-design-eng" ]; then
-  ok "emil-design-eng symlink OK"
+if [ -L "$HOME/.claude/skills/pack-design/skills/emil-design-eng" ]; then
+  ok "emil-design-eng linked by pack-design"
 else
-  info "Symlinking — will be created by link.sh"
+  info "pack-design link not present yet (git checkout)"
 fi
 echo ""
 
@@ -774,10 +774,10 @@ else
     warn "frontend-design: anthropic-agent-skills plugin not cached — install via: claude plugin install example-skills@anthropic-agent-skills"
   fi
 fi
-if [ -L "$HOME/.claude/skills/frontend-design" ]; then
-  ok "frontend-design symlink OK"
+if [ -L "$HOME/.claude/skills/pack-design/skills/frontend-design" ]; then
+  ok "frontend-design linked by pack-design"
 else
-  info "Symlinking — will be created by link.sh"
+  info "pack-design link not present yet (git checkout)"
 fi
 echo ""
 
@@ -790,10 +790,10 @@ if [ -f "$DMP_DIR/SKILL.md" ]; then
 else
   warn "design-motion-principles: not installed — clone from https://github.com/kylezantos/design-motion-principles"
 fi
-if [ -L "$HOME/.claude/skills/design-motion-principles" ]; then
-  ok "design-motion-principles symlink OK"
+if [ -L "$HOME/.claude/skills/pack-design/skills/design-motion-principles" ]; then
+  ok "design-motion-principles linked by pack-design"
 else
-  info "Symlinking — will be created by link.sh"
+  info "pack-design link not present yet (git checkout)"
 fi
 echo ""
 
@@ -1323,8 +1323,8 @@ echo "    🔄 higgsfield pack     — Higgsfield CLI media skills (image, video
 echo ""
 echo "  All plugins installed at: user scope (~/.claude/plugins/)"
 echo "  GStack skills symlinked individually into ~/.claude/skills/ (→ submodule)"
-echo "  Emil Design Eng at: ~/.claude/skills/emil-design-eng/ (symlink → skills-external)"
-echo "  Frontend Design at: ~/.claude/skills/frontend-design/ (symlink → skills-external)"
+echo "  Emil Design Eng at: ~/.claude/skills/pack-design/skills/emil-design-eng/ (symlink → skills-external)"
+echo "  Frontend Design at: ~/.claude/skills/pack-design/skills/frontend-design/ (symlink → skills-external)"
 echo "  Design Motion Principles at: ~/.claude/skills/design-motion-principles/ (symlink → skills-external)"
 echo "  Agent Skills trio at: ~/.claude/skills/{observability-and-instrumentation,deprecation-and-migration,ci-cd-and-automation}/ (symlink → skills-external)"
 echo "  Mengto scroll skills at: ~/.claude/skills/{scroll-world-storytelling,build-threejs-scroll-worlds,scroll-scrubbed-visual-sequence,scroll-scrubbed-word-reveal,scroll-progress-timeline}/ (symlink → skills-external)"

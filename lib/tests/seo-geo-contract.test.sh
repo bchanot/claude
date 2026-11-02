@@ -19,12 +19,12 @@ GEO=agents/geo-analyzer.md
 #    skills/geo STEP 1B) fail-closes on this exact shape
 has "$SEO" 'SEO JUDGE — VERDICT: ERROR('
 has "$GEO" 'GEO JUDGE — VERDICT: ERROR('
-has "skills/seo/SKILL.md" 'SEO JUDGE — VERDICT: ERROR('
-has "skills/geo/SKILL.md" 'GEO JUDGE — VERDICT: ERROR('
+has "skills/pack-seo/skills/seo/SKILL.md" 'SEO JUDGE — VERDICT: ERROR('
+has "skills/pack-seo/skills/geo/SKILL.md" 'GEO JUDGE — VERDICT: ERROR('
 
 # 2) fix-bundle section + apply sentinel — parsed by /seo STEP 1b/1.5 and
 #    /geo STEP 1b/2 before any L1 apply
-for f in "$SEO" "$GEO" skills/seo/SKILL.md skills/geo/SKILL.md; do
+for f in "$SEO" "$GEO" skills/pack-seo/skills/seo/SKILL.md skills/pack-seo/skills/geo/SKILL.md; do
   has "$f" '## FIX BUNDLE'
   has "$f" 'READY TO APPLY — awaiting dispatcher confirmation'
 done
@@ -32,8 +32,8 @@ done
 # 3) signals handoff — judge loads the collect artifact fail-closed
 has "$SEO" '.audit/seo-signals-'
 has "$GEO" '.audit/geo-signals-'
-has "skills/seo/SKILL.md" '.audit/seo-signals-<RUNID_SEO>.md'
-has "skills/geo/SKILL.md" '.audit/geo-signals-<RUNID>.md'
+has "skills/pack-seo/skills/seo/SKILL.md" '.audit/seo-signals-<RUNID_SEO>.md'
+has "skills/pack-seo/skills/geo/SKILL.md" '.audit/geo-signals-<RUNID>.md'
 
 # 4) STEP numbering — dispatchers reference agent step ranges literally:
 #    /seo: "STEP 2-5" collect · "STEP 6-11" seo judge · "STEP 6-12" geo
@@ -43,14 +43,14 @@ has "skills/geo/SKILL.md" '.audit/geo-signals-<RUNID>.md'
 #    and the ranges on the dispatcher side.
 for n in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14; do has "$SEO" "## STEP $n —"; done
 for n in 0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15; do has "$GEO" "## STEP $n —"; done
-has "skills/seo/SKILL.md" 'STEP 2-5'
-has "skills/seo/SKILL.md" 'STEP 6-11'
-has "skills/seo/SKILL.md" 'STEP 6-12'
-has "skills/seo/SKILL.md" 'STEP 12-14'
-has "skills/seo/SKILL.md" 'STEP 13-15'
-has "skills/geo/SKILL.md" 'STEP 0-5'
-has "skills/geo/SKILL.md" '6-12, report scoring'   # "STEP\n6-12" line-wraps
-has "skills/geo/SKILL.md" 'STEP 13-15'
+has "skills/pack-seo/skills/seo/SKILL.md" 'STEP 2-5'
+has "skills/pack-seo/skills/seo/SKILL.md" 'STEP 6-11'
+has "skills/pack-seo/skills/seo/SKILL.md" 'STEP 6-12'
+has "skills/pack-seo/skills/seo/SKILL.md" 'STEP 12-14'
+has "skills/pack-seo/skills/seo/SKILL.md" 'STEP 13-15'
+has "skills/pack-seo/skills/geo/SKILL.md" 'STEP 0-5'
+has "skills/pack-seo/skills/geo/SKILL.md" '6-12, report scoring'   # "STEP\n6-12" line-wraps
+has "skills/pack-seo/skills/geo/SKILL.md" 'STEP 13-15'
 
 # 5) collect-mode report emission (dispatcher waits on it between phases)
 has "$SEO" 'COLLECT REPORT'
@@ -71,7 +71,7 @@ has "$SEO" 'applier: bash'
 #    The emit instruction lives in /seo's DISPATCH PROMPTS, not in the agent
 #    specs (geo-analyzer.md never mentions it; seo-analyzer.md only once,
 #    incidentally — NOT locked, it is prose). Lock the dispatcher side only.
-has "skills/seo/SKILL.md" 'CROSS-AGENT NOTES TO'
+has "skills/pack-seo/skills/seo/SKILL.md" 'CROSS-AGENT NOTES TO'
 
 # 8) trajectory block — mandatory in envelopes (/geo audit-end deliverables,
 #    /seo §1 merge)

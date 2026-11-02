@@ -1,0 +1,7 @@
+{
+  "name": "pack-web-validate",
+  "version": "1.0.0",
+  "description": "W3C and WCAG conformance skill.",
+  "author": { "name": "bchanot" },
+  "defaultEnabled": true
+}

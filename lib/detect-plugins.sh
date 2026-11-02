@@ -26,10 +26,11 @@ detect_superpowers() {
 # --- Toggle plugins ---
 
 detect_gstack() {
-  # gstack is exposed via per-skill symlinks (browse, canary, qa, …);
+  # gstack is exposed via per-skill symlinks in pack-gstack-* (browse, canary, qa, …);
   # the legacy top-level symlink was removed to avoid duplicate entries.
   # Detect by checking any of its individual skills.
-  [ -L "$HOME/.claude/skills/browse" ] || [ -L "$HOME/.claude/skills/qa" ]
+  [ -L "$HOME/.claude/skills/pack-gstack-browser/skills/browse" ] \
+    || [ -L "$HOME/.claude/skills/pack-gstack-browser/skills/qa" ]
 }
 
 detect_gsd() {

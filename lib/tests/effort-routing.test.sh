@@ -8,6 +8,7 @@
 # shellcheck disable=SC2015,SC2016  # A && ok || ko is deliberate (ok/ko never fail)
 set -u
 R="$(cd "$(dirname "$0")/../.." && pwd)"
+skdir() { ls -d "$R"/skills/"$1" "$R"/skills/pack-*/skills/"$1" 2>/dev/null | head -1 | sed "s#^$R/##"; }
 MOD="$R/mods/model-router"
 RJ="$MOD/routing.json"
 REG="$MOD/hooks/register.ts"
@@ -185,7 +186,7 @@ done
 # ── (e) D3 wiring markers ────────────────────────────────────────────────
 mark() { # mark <phase> <skills...>
   local ph="$1" s; shift
-  for s in "$@"; do has "skills/$s/SKILL.md" "route(phase=\"$ph\")"; done
+  for s in "$@"; do has "$(skdir "$s")/SKILL.md" "route(phase=\"$ph\")"; done
 }
 mark orchestrate feat hotfix bugfix ship-feature init-project code-clean seo geo harden web-validate audit-delta
 mark apply feat hotfix bugfix ship-feature init-project
@@ -194,7 +195,7 @@ mark plan ship-feature init-project onboard code-clean audit-delta
 mark escalate ship-feature
 [ "$(grep -o 'route(phase="escalate")' "$R/lib/verify-secure-loop.md" | wc -l)" -eq 3 ] \
   && ok || ko "verify-secure-loop.md: escalate route must appear 3 times"
-for s in ship-feature init-project; do has "skills/$s/SKILL.md" 'effort="xhigh"'; done
+for s in ship-feature init-project; do has "$(skdir "$s")/SKILL.md" 'effort="xhigh"'; done
 has "skills/tour/SKILL.md" 'effort="xhigh"'
 n_opus="$(grep -c 'model="opus",$' "$R/skills/onboard/SKILL.md")"
 n_eff="$(grep -c 'effort="xhigh",$' "$R/skills/onboard/SKILL.md")"
@@ -203,7 +204,7 @@ n_eff="$(grep -c 'effort="xhigh",$' "$R/skills/onboard/SKILL.md")"
 bad="$(grep 'model: "fable"' "$R/agents/client-handover-writer.md" | grep -vc 'effort="high"')"
 [ "$bad" -eq 0 ] && ok || ko "client-handover-writer: $bad model: \"fable\" line(s) without effort=\"high\""
 for s in ship-feature init-project feat bugfix web-validate seo hotfix geo harden code-clean audit-delta tour onboard; do
-  has "skills/$s/SKILL.md" 'ROUTING: follow $HOME/.claude/lib/effort-shift.md'
+  has "$(skdir "$s")/SKILL.md" 'ROUTING: follow $HOME/.claude/lib/effort-shift.md'
 done
 has "agents/client-handover-writer.md" 'ROUTING: follow $HOME/.claude/lib/effort-shift.md'
 

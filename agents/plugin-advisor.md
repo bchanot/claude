@@ -219,7 +219,7 @@ RULE: IF "monorepo" signal detected:
 
 RULE: IF "frontend" signal OR .tsx/.jsx count > 0:
   → ui-ux-pro-max ON if "design-system" signal (~400t)
-  → impeccable ON (external skill, 0t passive — ~/.claude/skills/impeccable)
+  → impeccable ON (external skill, 0t passive — ~/.claude/skills/pack-design/skills/impeccable)
   → design-motion-principles ON if anim-lib-installed or description mentions animation/motion (external, 0t passive)
 
 RULE: IF "deploy" AND "browser-qa" signals:
