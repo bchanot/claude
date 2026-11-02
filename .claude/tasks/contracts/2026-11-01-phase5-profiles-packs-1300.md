@@ -13,14 +13,38 @@ Phase 5 of the context mod queue (BDR-125): per-project and per-conversation pro
 
 ## ACCEPTANCE CRITERIA
 1. The four spikes are recorded as measured facts (method, command, result) in the plan file, and the ones that changed since 2026-10-25 are named (connectors under `-p`).
-2. (design-derived criteria pending STEP 3)
+2. `[gated 2026-11-02]` Pack layout: nine packs `skills/pack-{design,scroll3d,seo,web-validate,gstack-dev,gstack-browser,gstack-design,higgsfield,extras}/` with a manifest whose `name` is the folder, 55 skill entries (relative symlinks into `skills-external/` or the four moved dirs seo, geo, web-validate, site-motion), no skill listed twice, none of the nine retired gstack names; `skills-disabled/`, `.active-profile`, `lib/toggle-external.sh` and `lib/profiles/*.profile` gone; the census (`lib/pack-census.sh`) finds no reader of the old layout in the contract scope (hooks lib agents skills rules templates mods, root `*.sh`, CLAUDE.global.md, README, USAGE, ARCHITECTURE, Makefile, plugins.lock.json, .gitignore; excluded: lib/tests/fixtures/, docs/, .claude/, CHANGELOG, MIGRATION).
+   CHECK: cd /home/bchanot/Documents/claude && out=$(bash lib/pack-census.sh 2>&1) && printf '%s\n' "$out" | grep -q '^PACKS OK 9 packs 55 skills' && [ ! -e skills-disabled ] && [ ! -e .active-profile ] && [ ! -e lib/toggle-external.sh ] && [ -z "$(ls lib/profiles/*.profile 2>/dev/null)" ] && [ -L skills/model-router ] && echo PACKS-OK
+   EXPECT: PACKS-OK
+3. `[gated 2026-11-02]` Profiles: eleven fragments `lib/profiles/{full,max,minimal,dev,backend,design,web,web-full,seo,qa,audit}.json` with the invariants of lib/profiles/README.md (same key set; model-router and security-guidance true; example-skills and brightdata false; both higgsfield connectors denied on exactly minimal, dev, backend, seo, qa, audit; full = manifest defaults); `lib/profile.sh` verbs list/show/current [--plain]/set/unset/enable/disable/diff with the merge, refusal (rc 2, nothing written), union, walk-up and timing semantics of the suite; `current --plain` keys as the plan § Task 3 states.
+   CHECK: cd /home/bchanot/Documents/claude && [ "$(ls lib/profiles/*.json | wc -l)" = 11 ] && a=$(make test suite=lib/tests/profile.test.sh 2>&1) && printf '%s\n' "$a" | grep -q 'FAIL=0' && echo PROFILE-OK
+   EXPECT: PROFILE-OK
+4. `[gated 2026-11-02]` Launcher: `lib/cc.sh` defines `cc <name> [profile]`; unknown profile → list + rc 2 and no session; with a profile `claude --settings lib/profiles/<profile>.json` runs with `CLAUDE_PROFILE`, `CLAUDE_PROFILE_SETTINGS` and `TMPDIR=$HOME/.cache/claude-tmp` exported through systemd-run + dtach; without a profile plain `claude`, TMPDIR still set, `.env` sourced.
+   CHECK: cd /home/bchanot/Documents/claude && a=$(make test suite=lib/tests/cc.test.sh 2>&1) && printf '%s\n' "$a" | grep -q 'FAIL=0' && echo CC-OK
+   EXPECT: CC-OK
+5. `[gated 2026-11-02]` Gates and hooks read `profile.sh current --plain`: design-tool-gate.sh needs pack-design, pack-gstack-design and ui-ux-pro-max on plus the 21st CLI signed in, remedy `profile.sh set web` (or `enable design`) + `/reload-plugins`, or `cc <name> web` when source=flag; statusline shows `profile: <n>` / `<n> (conv)` / `?`; the banner row shows the profile or `none (full), try /plugin-check`; no `/profile design`, `GATE-BLOCK`, `show --plain` or `skill_status` left in lib/design-gate.md, skills/feat, skills/bugfix, agents/plugin-advisor.md.
+   CHECK: cd /home/bchanot/Documents/claude && a=$(make test suite="lib/tests/design-tool-gate.test.sh lib/tests/statusline.test.sh" 2>&1) && printf '%s\n' "$a" | grep -q 'all suites green' && ! grep -rqn '/profile design\|GATE-BLOCK\|show design --plain\|skill_status' lib/design-gate.md skills/feat skills/bugfix agents/plugin-advisor.md && echo GATES-OK
+   EXPECT: GATES-OK
+6. `[gated 2026-11-02]` No user-scope write anywhere outside the installers' install-time enable: no `claude plugin enable|disable` and no `toggle-external` under lib/, hooks/, skills/, agents/; `profile.sh` and `cc.sh` never touch `~/.claude/settings.json`.
+   CHECK: cd /home/bchanot/Documents/claude && ! grep -rqn 'claude plugin enable\|claude plugin disable\|plugin enable\|plugin disable' lib hooks skills agents --include='*.sh' --include='*.md' && ! grep -q 'settings.json' lib/cc.sh && echo NO-USER-SCOPE
+   EXPECT: NO-USER-SCOPE
+7. `[gated 2026-11-02]` The branch is green and clean: `make test` all suites green; shellcheck clean and ≤ 80 columns on lib/profile.sh, lib/cc.sh, lib/pack-census.sh, lib/design-tool-gate.sh; `settings.json` changes on the branch limited to `env.SLASH_COMMAND_TOOL_CHAR_BUDGET` (no UI write, no `model`, no `enabledPlugins` drift committed); `doctor.sh` exits 0 (warns allowed).
+   CHECK: cd /home/bchanot/Documents/claude && t=$(make test 2>&1) && printf '%s\n' "$t" | grep -q 'all suites green' && shellcheck lib/profile.sh lib/cc.sh lib/pack-census.sh lib/design-tool-gate.sh && [ "$(LC_ALL=C awk 'length($0) > 80' lib/profile.sh lib/cc.sh lib/pack-census.sh lib/design-tool-gate.sh lib/profile-state.jq | wc -l)" = 0 ] && [ "$(git diff develop...HEAD -- settings.json | grep '^[-+] ' | grep -v 'SLASH_COMMAND_TOOL_CHAR_BUDGET\|ENABLE_STOP_REVIEW' | wc -l)" = 0 ] && bash doctor.sh >/dev/null 2>&1 && echo BRANCH-OK
+   EXPECT: BRANCH-OK
+8. `[gated 2026-11-02]` Proof recorded (plan Task 12, judged by the verifier from the executor's report and CHANGELOG): two concurrent conversations in one project under `--settings dev.json` / `web.json` list different packs and tool counts (higgsfield tools 0 vs 158); two projects with different local profiles differ; `enable seo` + `/reload-plugins` makes `/seo` and `/pack-seo:seo` resolve in a flagless conversation; `current --plain` timing recorded against the 50 ms target; listing budget value and per-profile name-only counts in CHANGELOG.
+9. `[gated 2026-11-02]` Docs: MIGRATION.md holds the 2.1.0 section (user-scope restore, old-layout cleanup by enumeration, `.bashrc` guarded source line and alias removal, per-project `set`); README/USAGE/ARCHITECTURE/CLAUDE.global.md name no `toggle-external.sh`, `skills-disabled` or `profile-reset`; the deniedMcpServers union is documented in `/profile` and USAGE.
+   CHECK: cd /home/bchanot/Documents/claude && grep -q '2.1.0' MIGRATION.md && grep -q 'lib/cc.sh' MIGRATION.md && ! grep -rqn 'toggle-external\|skills-disabled\|profile-reset' README.md USAGE.md ARCHITECTURE.md CLAUDE.global.md && grep -qi 'union' skills/profile/SKILL.md && echo DOCS-OK
+   EXPECT: DOCS-OK
 
-## FILE SCOPE (seed from the read-before; final at STEP 3)
-- lib/profile.sh, lib/profiles/*, lib/toggle-external.sh, lib/gstack-removed.sh, lib/higgsfield-skills.sh
-- skills/pack-*/ (new), skills/profile/SKILL.md, skills/plugin-check/SKILL.md
-- agents/plugin-probe.md, agents/plugin-advisor.md, lib/plugin-gate.md, lib/design-gate.md, lib/design-tool-gate.sh
-- hooks/session-start.sh, hooks/statusline.sh, lib/detect-plugins.sh, doctor.sh, lib/doctor-vendored.sh
-- install-plugins.sh, update-all.sh, link.sh, Makefile, settings.json (`enabledPlugins`, `env`)
-- mods/model-router/routing.json
-- lib/tests/profile-*.test.sh, gstack-removed.test.sh, toggle-external-repo-resolution.test.sh, higgsfield.test.sh, design-tool-gate.test.sh, effort-routing.test.sh, model-routing.test.sh, seo-geo-contract.test.sh, lib/skill-routing-census.py
-- CLAUDE.global.md, README.md, USAGE.md, MIGRATION.md, ARCHITECTURE.md, CHANGELOG.md
+## FILE SCOPE (final, STEP 3)
+- skills/pack-*/ (new: manifests + symlinks; moved: seo, geo, web-validate, site-motion)
+- lib/profile.sh, lib/profile-state.jq (new), lib/profiles/*.json (new) + README.md, lib/profiles/*.profile (deleted)
+- lib/cc.sh (new), lib/pack-census.sh (new), lib/pack-census-fragments.jq (new), lib/gstack-removed.list (new), lib/gstack-removed.sh, lib/toggle-external.sh (deleted), lib/higgsfield-skills.sh
+- lib/design-tool-gate.sh, lib/design-gate.md, lib/plugin-gate.md, agents/plugin-probe.md, agents/plugin-advisor.md, agents/client-handover-writer.md
+- skills/profile/SKILL.md + test-prompts.json, skills/onboard/SKILL.md, skills/plugin-check/SKILL.md, skills/feat/SKILL.md + test-prompts.json, skills/bugfix/SKILL.md
+- hooks/session-start.sh, hooks/statusline.sh, lib/detect-plugins.sh, doctor.sh, lib/doctor-vendored.sh, lib/doctor-skills.sh, link.sh, Makefile, .gitignore
+- install-plugins.sh, update-all.sh, plugins.lock.json, settings.json (`env` only, Task 13)
+- lib/skill-routing-census.py, mods/model-router/routing.json
+- lib/tests/: profile.test.sh, cc.test.sh, pack-census.test.sh, statusline.test.sh (new), fixtures/pack-census-old-citers.sh (new), design-tool-gate.test.sh, doctor-vendored.test.sh, higgsfield.test.sh, effort-routing.test.sh, model-routing.test.sh, seo-geo-contract.test.sh, plan-challenger.test.sh, doctrine-citers.test.sh, lib/seo-data/seo-data.test.sh; deleted: profile-default, profile-set-managed, profile-census, gstack-removed, toggle-external-repo-resolution
+- CLAUDE.global.md, README.md, USAGE.md, MIGRATION.md, ARCHITECTURE.md, CHANGELOG.md, rules/web-building.md
+- Working tree only (never committed): flat symlinks and skills-disabled/ removed, impeccable moved to skills-external/impeccable, settings.json user-scope enabledPlugins restored
