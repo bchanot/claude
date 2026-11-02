@@ -73,3 +73,9 @@ control	R1-ctl	RAN	rtk read .env	RAN	auto
 DENIED	R2	DENIED	/home/bchanot/.local/bin/rtk read .env --head-lines 3	DENIED	auto
 control	R2-ctl	RAN	/home/bchanot/.local/bin/rtk read .env --head-lines 3	RAN	auto
 G1	sub-agent ask	mode=auto	requested permissions=8	has been denied=0	usage: git merge=0 (the ask never ran unattended)
+live	L1	ASKED	git merge -h	DENIED	auto
+live	L2	ASKED	sh -c 'echo hi'	DENIED	auto
+live	L3	DENIED	awk 'BEGIN{system("echo hi")}'	DENIED	auto
+live	L4	RAN	git stash list	RAN	auto
+live	L5	ASKED	git push --dry-run origin HEAD:refs/heads/nowhere	DENIED	auto
+live	L6	ASKED	bash "$HOME/nonexistent/lib/gitflow.sh" finish	DENIED	auto
