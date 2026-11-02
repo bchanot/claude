@@ -4571,9 +4571,9 @@ function registerSkills(on: On, st: State): void {
         await tierAsk($, st, st.turnMain, `Skill /${clean(skill, NAME_CAP)}`)
       }
       const out = await next(e)
-      if (e.agentId === undefined && !('deny' in (out as Rec))) {
-        st.skillRun = true
-      }
+      const refused = typeof out === 'object' && out !== null &&
+        'deny' in out
+      if (e.agentId === undefined && !refused) st.skillRun = true
       return out
     } finally {
       st.skillCalls -= 1
