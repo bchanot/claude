@@ -43,7 +43,7 @@ r2 2026-11-02 after three lenses (correctness FATAL(11), robustness FATAL(10), s
 - model-router (`mods/model-router/hooks/register.ts`): `skillRow` matches `e.skill` by EXACT key in `routing.json` `skills`; `typedSkill` takes the text after `/` up to a space, so a typed `/pack-seo:seo` yields the key `pack-seo:seo` whatever the Skill tool reports. `/route show` prints `main: skill <phase> …`, never the skill name. Consequence: long-name rows are added unconditionally (Task 10); no router canary.
 - The Bash tool sets neither `CLAUDE_PROJECT_DIR` nor `CLAUDE_SCRATCHPAD`; its cwd persists across calls, so `profile.sh` resolves the project root by walking up.
 - 34 bare `jq -n 1` spawns = 118-137 ms on this machine: `current` must be one or two jq calls.
-- FACT-DANGLING = ? (Task 1).
+- FACT-DANGLING = kept (Task 1, 2026-11-02, headless haiku, pack-t1 OFF by manifest + `--settings` true): init listed `pack-t1:t1-alpha` (real dir) and `pack-t1:t1-beta` (symlink) next to the dangling `t1-gamma`; a dangling entry hides nothing. The census keeps WARN for a dangling target in `make test`, RED only with `--installed` on an ON pack. Run by the main loop (the implementer's compound call was denied by the permission rules; cleanup by `mv skills/pack-t1 <scratch>` instead of the `rm -f` trap).
 
 ## File Structure
 
