@@ -217,7 +217,7 @@ an old profile). Step 3 is the only one that removes a real directory
    flat links; remove every `skills-disabled/` link, and in `skills/`
    everything except model-router
    (the tracked link to `mods/model-router`), darwin-skill,
-   the seven superpowers and the agent-skills trio). If
+   the seven superpowers and the agent-skills trio. If
    `skills-disabled/impeccable` is a directory: `mv skills-disabled/impeccable
    skills-external/impeccable`. Then `rmdir skills-disabled; rm -f
    .active-profile`.
