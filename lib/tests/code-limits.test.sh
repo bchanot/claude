@@ -73,5 +73,13 @@ check T14-no-commit-not-cached \
   "$(find "$TMPDIR/claude-code-limits-s9" -name 'origin-*' | wc -l \
   | tr -d ' ')" 0
 
+# a tracked file reached through a symlinked dir: only the new line counts
+mkdir -p "$WORK/ours/sub" && ln -s "$WORK/ours/sub" "$WORK/link"
+printf '%s\n' "$big" > "$WORK/ours/sub/t.sh"
+git -C "$WORK/ours" add sub/t.sh && git -C "$WORK/ours" commit -q -m t
+echo short >> "$WORK/ours/sub/t.sh"
+x="$(jq -n --arg c "$(cat "$WORK/ours/sub/t.sh")" '{content:$c}')"
+check T15-symlinked-dir-tracked "$(fire "$WORK/link/t.sh" s10 "$x")" ""
+
 printf 'PASS=%d FAIL=%d\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

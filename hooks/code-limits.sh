@@ -68,6 +68,11 @@ columns: $list; our code keeps $LIMIT (CLAUDE.md Limits)." \
     '{hookSpecificOutput:{hookEventName:"PostToolUse",additionalContext:$c}}'
 }
 
+physical_path() { # physical_path <file>: dir symlinks resolved (BSD-safe)
+  local dir; dir="$(cd "$(dirname "$1")" 2>/dev/null && pwd -P)" || return 1
+  printf '%s/%s' "$dir" "$(basename "$1")"
+}
+
 checkable() { # checkable <file> <session>: worth reading at all
   [[ "$1" =~ $EXT_RE ]] && [[ "$2" =~ $SID_RE ]] && [ -f "$1" ] \
     && [ "$(wc -c < "$1")" -le "$MAX_BYTES" ]
@@ -79,6 +84,7 @@ main() {
   local file sid dir mark hits
   file="$(field .tool_input.file_path)"; sid="$(field .session_id)"
   checkable "$file" "$sid" || return 0
+  file="$(physical_path "$file")" || return 0
   [ -n "$(field .tool_input.new_string)" ] && export CL_EDIT=1
   dir="${TMPDIR:-/tmp}/claude-code-limits-$sid"
   mark="$dir/$(hash16 "$file")"
