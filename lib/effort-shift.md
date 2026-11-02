@@ -89,8 +89,9 @@ back; the window guard needs a `windows` entry (none shipped). A typed
 - First use of a row asks once, with context (Later, Keep or Change: model,
   then effort, then Everywhere or this project only); the answer is kept in
   `mods/model-router/routing.json`. `/route pending` lists what is still
-  unconfirmed, `/route ask off|on` toggles the dialog, `/route forget
-  <name|all|projects>` takes a decision back.
+  unconfirmed, `/route ask off|on` toggles the dialog, `/route ask-tier
+  off|on` the ask before a route lifts main or a rowed agent onto Fable,
+  `/route forget <name|all|projects>` takes a decision back.
 
 Measure the split any time: `python3 ~/.claude/lib/effort-audit.py`
 (thinking/output/cache tokens per scope, model and effort).

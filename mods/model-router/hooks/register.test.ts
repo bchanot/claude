@@ -61,6 +61,7 @@ type World = {
 
 type Fixture = {
   ask?: boolean // routing.json `ask` (default false: no dialog)
+  askTier?: 'best' | false // routing.json `askTier` (default false)
   edit?: (file: Rec) => void // tweaks the inline routing.json
   routing?: 'absent' | 'broken'
   home?: Rec | 'broken' // ~/.claude/model-router.json
@@ -107,11 +108,13 @@ const baseRouting = (): Rec => ({
   confirmed: {},
   changed: {},
   ask: false,
+  askTier: false,
 })
 
 function newWorld(fx: Fixture = {}): World {
   const file = baseRouting()
   file.ask = fx.ask ?? false
+  file.askTier = fx.askTier ?? false
   fx.edit?.(file)
   const files = new Map<string, string>()
   if (fx.routing === 'broken') files.set('routing', '{nope')
@@ -2335,7 +2338,8 @@ test('writes: only routing.json, 2-space, keys in the documented order', async (
   expect(w.written[0]).toMatch(/\/mods\/model-router\/routing\.json$/)
   expect(w.files.get('routing')).toMatch(/^\{\n {2}"phases"/)
   expect(Object.keys(routingOf(w))).toEqual([
-    'phases', 'skills', 'agents', 'projects', 'confirmed', 'changed', 'ask',
+    'phases', 'skills', 'agents', 'projects', 'confirmed', 'changed',
+    'ask', 'askTier',
   ])
 })
 
@@ -2412,13 +2416,15 @@ test('writes: an out-of-order routing.json is written back in order', async (
   $, on) => {
   const w = asks(['Keep'], { edit: reverseKeys })
   expect(Object.keys(routingOf(w))).toEqual([
-    'ask', 'changed', 'confirmed', 'projects', 'agents', 'skills', 'phases',
+    'askTier', 'ask', 'changed', 'confirmed', 'projects', 'agents', 'skills',
+    'phases',
   ])
   await bootRun($, on, FABLE, w)
   await typeFeat($)
   expect(w.written).toHaveLength(1)
   expect(Object.keys(routingOf(w))).toEqual([
-    'phases', 'skills', 'agents', 'projects', 'confirmed', 'changed', 'ask',
+    'phases', 'skills', 'agents', 'projects', 'confirmed', 'changed',
+    'ask', 'askTier',
   ])
 })
 
@@ -6923,4 +6929,349 @@ test('hand pick: a native user switch drops it', async ($, on) => {
   await switchTo($, OPUS, SONNET, 'picker')
   expect((await stepOn($, h.rig, SONNET)).model).toBe(SONNET)
   expect(mainLine(await route($, 'show'))).toContain('session defaults')
+})
+
+// ---- tier ask: before a route lifts main or a spawn onto the head --------
+
+const INSTEAD = 'Opus instead (big tier)'
+const STOP = 'Stop asking this session'
+const TIER_OPTIONS = ['Fable', INSTEAD, STOP]
+
+/** A world with the tier ask on; the first-use `ask` stays off. */
+const asksTier = (answers: string[], fx: Fixture = {}) =>
+  newWorld({ answers, askTier: 'best', ...fx })
+
+/** An extra skill row, for the tests that need a second typed skill. */
+const withRows = (rows: Table) => (file: Rec): void => {
+  Object.assign(file.skills as Rec, rows)
+}
+
+type Table = Record<string, string>
+
+const lastStep = async ($: Engine, rig: Rig, model = OPUS) =>
+  stepOn($, rig, model)
+
+/** Opus is down: an agent ran on it and hit a rate limit. */
+async function opusDown($: Engine): Promise<void> {
+  await $.agent.spawn(spawnOf('feater', { model: OPUS }))
+  await failWith($, 'rate_limit', 'a1')
+}
+
+test('TIER: a typed best skill from opus asks, with the reason', async (
+  $, on) => {
+  const w = asksTier(['Fable'], {
+    edit: setPhase('reflect', { about: 'analysis' }),
+  })
+  await bootRun($, on, OPUS, w)
+  await typeFeat($)
+  expect(w.asked).toHaveLength(1)
+  const q = w.asked[0] as Asked
+  expect(q.text).toContain('Skill /feat routes main to reflect (analysis): ' +
+    'claude-fable-5-1 at high. Run it on fable?')
+  expect(q.options).toEqual(TIER_OPTIONS)
+})
+
+test('TIER: Fable runs the route as it is', async ($, on) => {
+  const rig = await bootRun($, on, OPUS, asksTier(['Fable']))
+  await typeFeat($)
+  expect(await lastStep($, rig)).toEqual({ model: FABLE, effort: 'high' })
+})
+
+test('TIER: Opus instead runs the whole run on opus, once asked', async (
+  $, on) => {
+  const w = asksTier([INSTEAD])
+  const rig = await bootRun($, on, OPUS, w)
+  await typeFeat($)
+  expect(await lastStep($, rig)).toEqual({ model: OPUS, effort: 'high' })
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'orchestrate' })
+  expect(await lastStep($, rig)).toEqual({ model: OPUS, effort: 'medium' })
+  expect(mainLine(await route($, 'show'))).toContain(
+    '[tier big (instead of best)]')
+  await endTurn($)
+  expect((await lastStep($, rig)).model).toBe(OPUS)
+  expect(w.asked).toHaveLength(1)
+})
+
+test('TIER: a work route never inherits big; a typed skill asks again', async (
+  $, on) => {
+  const w = asksTier([INSTEAD, 'Fable'], {
+    edit: withRows({ bugfix: 'reflect' }),
+  })
+  const rig = await bootRun($, on, OPUS, w)
+  await typeFeat($)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'implement' })
+  expect((await lastStep($, rig)).model).toBe(SONNET)
+  expect(w.asked).toHaveLength(1)
+  await endTurn($)
+  await typed($, '/bugfix a thing')
+  await skillPrompt($, 'bugfix')
+  expect(w.asked).toHaveLength(2)
+  expect((await lastStep($, rig)).model).toBe(FABLE)
+})
+
+test('TIER: fable down after Opus instead is no stand-in', async ($, on) => {
+  const w = asksTier([INSTEAD])
+  const rig = await bootRun($, on, OPUS, w)
+  await typeFeat($)
+  await $.agent.spawn(spawnOf('feater', { model: FABLE }))
+  await failWith($, 'rate_limit', 'a1')
+  expect(await lastStep($, rig)).toEqual({ model: OPUS, effort: 'high' })
+  expect(await route($, 'show')).not.toContain('stands in for')
+})
+
+test('TIER: Stop asking silences the session and show says so', async (
+  $, on) => {
+  const w = asksTier([STOP])
+  const rig = await bootRun($, on, OPUS, w)
+  await typeFeat($)
+  expect(await lastStep($, rig)).toEqual({ model: FABLE, effort: 'high' })
+  await typeFeat($)
+  expect(w.asked).toHaveLength(1)
+  expect(await route($, 'show')).toContain(
+    'ask-tier: best (paused this session)')
+})
+
+test('TIER: a session already on fable asks nothing', async ($, on) => {
+  const w = asksTier([INSTEAD])
+  const rig = await bootRun($, on, FABLE, w)
+  await typeFeat($)
+  expect(w.asked).toEqual([])
+  expect((await lastStep($, rig, FABLE)).model).toBe(FABLE)
+})
+
+test('TIER: headless asks nothing and consumes no answer', async ($, on) => {
+  const w = asksTier([INSTEAD], { surfaces: [] })
+  const rig = await bootRun($, on, OPUS, w)
+  await typeFeat($)
+  expect(w.asked).toEqual([])
+  expect(w.answers).toEqual([INSTEAD])
+  expect((await lastStep($, rig)).model).toBe(FABLE)
+})
+
+test('TIER: a dismissed dialog runs fable and the span is not re-asked', async (
+  $, on) => {
+  const w = asksTier([REJECT])
+  const rig = await bootRun($, on, OPUS, w)
+  await typeFeat($)
+  expect(w.asked).toHaveLength(1)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'plan' })
+  expect(w.asked).toHaveLength(1)
+  expect((await lastStep($, rig)).model).toBe(FABLE)
+})
+
+test('TIER: the route tool asks on main, not inside an agent', async (
+  $, on) => {
+  const w = asksTier([INSTEAD])
+  await bootRun($, on, OPUS, w)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'plan', agentId: 'a1' })
+  expect(w.asked).toEqual([])
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'plan' })
+  expect(w.asked).toHaveLength(1)
+  expect(w.asked[0]?.text).toContain('Route tool routes main to plan')
+})
+
+test('TIER: /route <phase> assigns the slot only after the answer', async (
+  $, on) => {
+  const w = asksTier([INSTEAD])
+  const hold = deferred()
+  const open = deferred()
+  w.gate = hold.gate
+  w.onAsk = open.release
+  const rig = await bootRun($, on, OPUS, w)
+  const pending = route($, 'plan')
+  await open.gate
+  expect((await lastStep($, rig)).model).toBe(OPUS)
+  hold.release()
+  expect(mainLine(await pending)).toContain('user plan')
+  expect(await lastStep($, rig)).toEqual({ model: OPUS, effort: 'xhigh' })
+  expect(w.asked[0]?.text).toContain('/route routes main to plan')
+})
+
+test('TIER: Stop answered on /route pauses for real; model=fable skips', async (
+  $, on) => {
+  const w = asksTier([STOP])
+  await bootRun($, on, OPUS, w)
+  await route($, 'plan')
+  await typeFeat($)
+  expect(w.asked).toHaveLength(1)
+  await route($, 'clear')
+  const out = await route($, 'model=fable')
+  expect(w.asked).toHaveLength(1)
+  expect(mainLine(out)).toContain('user custom')
+})
+
+test('TIER: /route model=fable asks nothing', async ($, on) => {
+  const w = asksTier([INSTEAD])
+  await bootRun($, on, OPUS, w)
+  expect(mainLine(await route($, 'model=fable'))).toContain('user custom')
+  expect(w.asked).toEqual([])
+})
+
+test('TIER: a sticky route outranks the skill slot: no ask', async ($, on) => {
+  const w = asksTier([INSTEAD])
+  const rig = await bootRun($, on, OPUS, w)
+  await route($, 'model=opus')
+  await typeFeat($)
+  expect(w.asked).toEqual([])
+  expect((await lastStep($, rig)).model).toBe(OPUS)
+})
+
+test('TIER: mainUpgrade off means nothing to decide: no ask', async (
+  $, on) => {
+  const w = asksTier([INSTEAD], { home: { mainUpgrade: false } })
+  const rig = await bootRun($, on, OPUS, w)
+  await typeFeat($)
+  expect(w.asked).toEqual([])
+  expect((await lastStep($, rig)).model).toBe(OPUS)
+})
+
+test('TIER: opus down drops the Opus instead option', async ($, on) => {
+  const w = asksTier(['Fable'])
+  await bootRun($, on, SONNET, w)
+  await opusDown($)
+  await typeFeat($)
+  expect(w.asked[0]?.options).toEqual(['Fable', STOP])
+})
+
+test('TIER: a skill the model loads on main asks too', async ($, on) => {
+  const w = asksTier([INSTEAD], {
+    edit: withRows({ brainstorming: 'plan' }),
+  })
+  const rig = await bootRun($, on, OPUS, w)
+  await loadSkill($, 'brainstorming')
+  expect(w.asked).toHaveLength(1)
+  expect(w.asked[0]?.text).toContain('Skill /brainstorming routes main to plan')
+  expect(await lastStep($, rig)).toEqual({ model: OPUS, effort: 'xhigh' })
+})
+
+/** The verifier on audit, with an `about` line: a best-tier agent row. */
+const auditVerifier = (file: Rec): void => {
+  (file.agents as Table).verifier = 'audit'
+  setPhase('audit', { about: 'gates' })(file)
+}
+
+test('TIER: a rowed spawn asks once per type; Opus instead sticks', async (
+  $, on) => {
+  const w = asksTier([INSTEAD], { edit: auditVerifier })
+  const rig = await bootRun($, on, OPUS, w)
+  await $.agent.spawn(spawnOf('verifier'))
+  expect(w.asked).toHaveLength(1)
+  expect(w.asked[0]?.text).toContain('Agent verifier runs audit (gates) on ' +
+    'claude-fable-5-1 at xhigh')
+  expect(w.asked[0]?.options).toEqual(TIER_OPTIONS)
+  await $.agent.spawn(spawnOf('verifier'))
+  expect(w.asked).toHaveLength(1)
+  expect(rig.specs).toEqual([OPUS, OPUS])
+})
+
+test('TIER: Fable on a spawn runs the head', async ($, on) => {
+  const rig = await bootRun($, on, OPUS, asksTier(['Fable'], {
+    edit: auditVerifier,
+  }))
+  await $.agent.spawn(spawnOf('verifier'))
+  await $.agent.spawn(spawnOf('verifier'))
+  expect(rig.specs).toEqual([FABLE, FABLE])
+})
+
+test('TIER: an explicit model, a nested spawn and a work row never ask', async (
+  $, on) => {
+  const w = asksTier([INSTEAD], { edit: auditVerifier })
+  await bootRun($, on, OPUS, w)
+  await $.agent.spawn(spawnOf('verifier', { model: 'opus' }))
+  await $.agent.spawn(spawnOf('verifier', { parentAgentId: 'a1' }))
+  await $.agent.spawn(spawnOf('feater'))
+  expect(w.asked).toEqual([])
+})
+
+test('TIER: the first-use dialog runs first, then the tier ask', async (
+  $, on) => {
+  const w = asks(['Keep', INSTEAD], { askTier: 'best' })
+  const rig = await bootRun($, on, OPUS, w)
+  await typeFeat($)
+  expect(w.asked).toHaveLength(2)
+  expect(w.asked[0]?.text).toContain('First route for /feat')
+  expect(w.asked[1]?.text).toContain('routes main to reflect')
+  expect((await lastStep($, rig)).model).toBe(OPUS)
+})
+
+test('TIER: a stored spawn answer holds while another dialog is open', async (
+  $, on) => {
+  const w = asks(['Keep', INSTEAD], { askTier: 'best', edit: auditVerifier })
+  const rig = await bootRun($, on, OPUS, w)
+  await $.agent.spawn(spawnOf('verifier'))
+  const hold = deferred()
+  const open = deferred()
+  w.gate = hold.gate
+  w.onAsk = open.release
+  w.answers.push('Keep')
+  const other = $.agent.spawn(spawnOf('feater'))
+  await open.gate
+  await $.agent.spawn(spawnOf('verifier'))
+  hold.release()
+  await other
+  expect(w.asked).toHaveLength(3)
+  expect(rig.specs).toEqual([OPUS, OPUS, SONNET])
+})
+
+test('TIER: a dialog in flight routes a typed skill unasked', async ($, on) => {
+  const w = asks(['Keep'], { askTier: 'best' })
+  const hold = deferred()
+  const open = deferred()
+  w.gate = hold.gate
+  w.onAsk = open.release
+  const rig = await bootRun($, on, OPUS, w)
+  const other = $.agent.spawn(spawnOf('feater'))
+  await open.gate
+  await typeFeat($)
+  expect(w.asked).toHaveLength(1)
+  expect((await lastStep($, rig)).model).toBe(FABLE)
+  hold.release()
+  await other
+})
+
+test('TIER: /route ask-tier off and on write the key', async ($, on) => {
+  const w = asksTier([])
+  await bootRun($, on, OPUS, w)
+  expect(await route($, 'ask-tier off')).toBe('ask-tier off')
+  expect(routingOf(w).askTier).toBe(false)
+  await typeFeat($)
+  expect(w.asked).toEqual([])
+  expect(await route($, 'show')).toContain('ask-tier: off')
+  expect(await route($, 'ask-tier on')).toBe('ask-tier on')
+  expect(routingOf(w).askTier).toBe('best')
+})
+
+test('TIER: /route ask-tier takes on or off only', async ($, on) => {
+  const w = asksTier([])
+  await bootRun($, on, OPUS, w)
+  expect(await route($, 'ask-tier maybe')).toBe('usage: /route ask-tier on|off')
+  expect(await route($, 'ask-tier')).toBe('usage: /route ask-tier on|off')
+  expect(w.written).toEqual([])
+})
+
+test('TIER: the machine override wins over /route ask-tier', async ($, on) => {
+  const w = asksTier([INSTEAD], { home: { askTier: false } })
+  await bootRun($, on, OPUS, w)
+  expect(await route($, 'ask-tier on')).toContain('wins here')
+  await typeFeat($)
+  expect(w.asked).toEqual([])
+})
+
+test('TIER: an invalid askTier reads best and is logged once', async (
+  $, on) => {
+  const logs = recordLogs(on)
+  const w = asksTier(['Fable'], { edit: f => { f.askTier = 'work' } })
+  await bootRun($, on, OPUS, w)
+  await typeFeat($)
+  expect(w.asked).toHaveLength(1)
+  await route($, 'reload')
+  expect(logs.filter(l => l.includes('askTier must be'))).toHaveLength(1)
+})
+
+test('TIER: no routing.json means no ask; the route is set', async ($, on) => {
+  const w = asksTier([INSTEAD], { routing: 'absent' })
+  await bootRun($, on, OPUS, w)
+  await $.tool.call({ tool: ROUTE_TOOL, phase: 'plan' })
+  expect(w.asked).toEqual([])
+  expect(mainLine(await route($, 'show'))).toContain('model plan')
 })
