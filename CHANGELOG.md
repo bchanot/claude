@@ -62,6 +62,23 @@ Format follows [Keep a Changelog](https://keepachangelog.com/) and this project 
 - `/guardrails` residuals. The live probe fails closed in more cases: every followed same-host redirect is charged to the request budget, and a budget that runs out mid-redirect reads ERROR; an anon-read or cross-user answer that is not a 200 or a refusal, or a 200 whose body is empty, over 1 MB or not JSON, reads SKIPPED instead of CLOSED; a rate-limit burst cut short by the budget or the transport reads SKIPPED; the source-map probe tries every candidate map of a script instead of stopping at the first it cannot confirm, and a `data:` map is OPEN whatever its encoding; the fields probe no longer flags metadata keys (`token_type`, `has_password`, `next_page_token`). The plan's Supabase `url` must be an http(s) url when tables or cross-user paths are set, `supabase.tables` must be a list of strings, and the `--authorized` refusal names both hosts. Scanner and probe text output strip control characters from file names and remote strings. Static rules lose false positives (hydrated state read per export chunk, webpack dev configs, `data-*` names with a UI suffix such as `-toggle` or `-strength`, GraphQL `_bool_exp` and capitalised types under `$where`) and gain detections: Go backtick SQL in `fmt.Sprintf`, `rf` / `fr` and triple-quoted Python f-strings, `sql.raw` / `db.raw` / `trx.raw`, an empty `.select()` on a users table, a hidden input spanning lines, a Rust `{}` argument to a DB shell tool, a large public `.map` whose head holds `"sources"`. Tests: `lib/tests/guardrails-scan.test.sh`, `lib/tests/guardrails-probe.test.sh`.
 - `lib/tests/mods.test.sh` judges `claude plugin validate` by the exit code of `--strict` instead of scraping its output: per-file warnings exit 1 and fail the mod, and the advisory plugin-directory section that CLI 2.1.306 prints (`ICON_MISSING`, not blocking) no longer counts as a failure, as the old whole-output `warning` grep did. A failure prints the `✘` / `error:` lines and the `--strict` command to rerun. A positive control writes two scratch manifests in a temp dir and checks that `--strict` passes the clean one and fails the one with warnings, so the gate cannot pass vacuously.
 
+## 2.1.0 (unreleased) — Phase 5 profiles and packs
+
+### Added
+- **Packs**: nine skills-dir packs under `skills/pack-<n>/` (design, scroll3d, seo, web-validate, gstack-dev, gstack-browser, gstack-design, higgsfield, extras), each a manifest plus tracked symlinks into `skills-external/`. The installers only fill `skills-external/`; a pack is on or off as a unit. `lib/pack-census.sh` checks the packs (every skill linked once, targets resolve, doc citers) and runs in `make test`.
+- **Profiles as settings fragments**: `lib/profiles/<n>.json` replaces the flat-link profiles. `lib/profile.sh` verbs: `set`, `enable`, `disable`, `current` (`--plain` for hooks), `list`; `-C <dir>` targets a project, `make profile cmd="set X" dir=/path` and `make profile-current dir=/path`. A project with no local profile runs the manifest defaults (= `full`).
+- **`cc <name> [profile]`**: `lib/cc.sh`, sourced from `~/.bashrc`, starts a conversation under a profile fragment through `--settings`.
+- The design gate, the plugin gate and advisor, the statusline, the session banner and `doctor.sh` read `profile.sh current --plain`. `doctor.sh` gains Packs and Profiles sections and checks that `cc.sh` is sourced.
+
+### Changed
+- `link.sh` no longer links the design and scroll skills flat; impeccable moves to `skills-external/impeccable`. Docs and routing (`CLAUDE.global.md`, `/profile`, README, USAGE, ARCHITECTURE) speak packs.
+- Known limit: `cc x web` on a project in `dev` keeps the higgsfield connectors that `dev` denies (`deniedMcpServers` is a union); `profile.sh set web` in the project lifts them.
+- Listing budget before the packs: measured in Task 12.
+- Listing budget with the packs: measured in Task 13.
+
+### Removed
+- `skills-disabled/`, `lib/toggle-external.sh`, `.profile`, `.active-profile` and `make profile-reset`. `profile.sh enable higgsfield` replaces `toggle-external.sh`. Machine steps: MIGRATION.md, 2.1.0.
+
 ## [2.0.0] — 2026-10-06
 
 Upgrading from 1.x: see [MIGRATION.md](./MIGRATION.md#upgrading-an-existing-machine-to-200).

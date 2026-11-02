@@ -156,7 +156,7 @@ Limits: a main-loop switch re-reads cold the part of the context the target mode
 
 All scripts use their own location to find the repo — run them from anywhere.
 The plugins step logs to `install-YYYYMMDD-HHMMSS.log`.
-The last step applies the default profile, `full`, when none is selected, and re-applies an existing selection.
+The installers fill `skills-external/`; the packs under `skills/pack-*/` link it, on or off per project (`bash lib/profile.sh set <profile>`) or per conversation (`cc <name> <profile>`).
 
 **Optional — Context7** (fast doc lookup for React / Next.js / Prisma…): the plugins
 step installs the `ctx7` CLI and wires it into Claude Code. The doc-fetch surface is
@@ -177,7 +177,7 @@ ctx7 login                 # optional: OAuth / API key for higher rate limits
 | Component | Type | Description | Docs |
 |---|---|---|---|
 | **Superpowers skills** | Vendored (7, always on) | brainstorming, writing-plans, subagent-driven development, TDD, code review request, git worktrees, writing-skills — pinned v6.4.1 in plugins.lock.json, no plugin, no session injection | [obra/superpowers](https://github.com/obra/superpowers) |
-| **GStack** | Git submodule (per profile) | Product workflow skills: plan reviews, design, browser QA, security (`cso`), `health`. Linked per profile; 9 broken or doctrine-breaking skills are denylisted in `lib/gstack-removed.sh`. | [garrytan/gstack](https://github.com/garrytan/gstack) |
+| **GStack** | Git submodule (per profile) | Product workflow skills: plan reviews, design, browser QA, security (`cso`), `health`. Linked by pack-gstack-dev, pack-gstack-browser and pack-gstack-design; 9 broken or doctrine-breaking skills are denylisted in `lib/gstack-removed.sh`. | [garrytan/gstack](https://github.com/garrytan/gstack) |
 | **GSD v2** | External CLI | Multi-session orchestration: crash recovery, cost tracking, parallel workers, context-fresh execution. | [gsd-build/gsd-2](https://github.com/gsd-build/gsd-2) |
 | **RTK** | CLI + hook (always on) | Rust Token Killer: the `hooks/rtk-rewrite.sh` PreToolUse hook rewrites Bash commands through `rtk` to cut output tokens. Zero passive cost. | [rtk-ai/rtk](https://github.com/rtk-ai/rtk) |
 | **security-guidance** | Plugin (always on) | Security hook. Regex layer and commit/push review on; the Stop-time diff review is off (`ENABLE_STOP_REVIEW=0`). | [anthropics/claude-code](https://github.com/anthropics/claude-code) |
@@ -185,7 +185,7 @@ ctx7 login                 # optional: OAuth / API key for higher rate limits
 | **Context7** | CLI (`ctx7`) | Doc lookup for fast-evolving libs (Next.js, React, Prisma...), used through the `find-docs` skill. Works anonymously; optional `ctx7 login` raises rate limits. | [context7.com](https://context7.com/) |
 | **pr-review-toolkit** | Plugin (toggle) | Multi-agent PR review. | [anthropics/claude-code](https://github.com/anthropics/claude-code) |
 | **Graphify** | Python CLI | Codebase → knowledge graph → navigable wiki. Helps Claude map and search projects efficiently. | [pypi: graphifyy](https://pypi.org/project/graphifyy/) |
-| **21st.dev** | External CLI + skill pack | Component catalog and UI generation (`21st`), browser login, no API key. 7 skills in `skills-external/21st-*`, linked per profile (see the 21st.dev CLI section). | [npm: @21st-dev/cli](https://www.npmjs.com/package/@21st-dev/cli) |
+| **21st.dev** | External CLI + skill pack | Component catalog and UI generation (`21st`), browser login, no API key. 7 skills in `skills-external/21st-*`, linked by pack-design and pack-extras (see the 21st.dev CLI section). | [npm: @21st-dev/cli](https://www.npmjs.com/package/@21st-dev/cli) |
 | **Higgsfield** | External CLI + skill pack (off by default) | Image, video, audio and brand media generation, metered credits (see the Higgsfield CLI section). | [higgsfield-ai/skills](https://github.com/higgsfield-ai/skills) |
 | **Semgrep** | Python CLI (pinned) | SAST engine behind the security gate (`security-auditor`). | [pypi: semgrep](https://pypi.org/project/semgrep/) |
 | **Impeccable** | npm CLI + skill (pinned) | Deterministic anti-slop detector (`npx impeccable detect`, 61 rules) and the `/impeccable` design verbs. | [npm: impeccable](https://www.npmjs.com/package/impeccable) |
@@ -240,7 +240,7 @@ a different package, ships its own conflicting `graphify` bin) — see
 | `/web-validate` | W3C HTML/CSS validity + WCAG 2.1 conformance audit (keyboard/alt/label basics → /a11y) |
 | `/geo` | GEO-only audit — AI-search visibility (ChatGPT, Perplexity, Claude, Gemini…) |
 | `/client-handover` | Final project delivery — audits + branded deliverable (Markdown / HTML / PDF) |
-| `/profile` | Activate a skill profile (web / seo / web-full / full / max / backend / design / dev / qa / audit / minimal) (default: full) |
+| `/profile` | Set this project's pack profile (`set <n>`, `enable <pack>`), show the effective one (`current`) |
 | `/tour` | Grouped all-axes sweep — cleanup + security + reconcile + doc, fix and loop until clean |
 | `/site-motion` | Site-level motion: scroll engine choice, page transitions, pin/scrub sequencing across a page or Astro route (design stack) |
 | `/route` | model-router mod: show or set the main-loop route (show, clear, off, on, reload, pending, ask on\|off, <phase>, model=… effort=…, switch on\|off, classify on\|off, verbose on\|off: transitions only) |
@@ -380,13 +380,12 @@ npm i -g @21st-dev/cli
 
 `make plugin` does both (Step 8.7 installs the CLI, then offers the login in
 an interactive terminal) and installs the skill pack that drives it:
-`21st-ui-build`, `-ui-explore`, `-ui-review`, `-cli-use`, `-ai`, plus the two
-publishing skills `-registry` and `-design-sync`. Of the five design skills, `21st-ui-build` and
-`21st-cli-use` follow the active profile: on under `full`, the default profile, and under `design`,
-`web` and `web-full`. The other three, `-ui-explore`, `-ui-review` and
-`-ai`, are on under `max` only. The two publishing skills,
-`-registry` and `-design-sync`, are in no profile and stay parked until
-`bash lib/toggle-external.sh enable 21st` turns on all seven.
+`21st-ui-build`, `-ui-explore`, `-ui-review`, `-cli-use`, `-ai`, plus the
+publishing skills `-registry`, `-design-sync` and `-video`. `21st-ui-build`
+and `21st-cli-use` sit in pack-design (on under `full`, `design`, `web` and
+`web-full`). `-ui-explore`, `-ui-review` and `-ai` sit in pack-extras (on
+under `max`, or after `bash lib/profile.sh enable extras`). `-registry`,
+`-design-sync` and `-video` stay unlinked in `skills-external/`.
 
 The pack is machine-owned and gitignored. It cannot be installed the way
 upstream documents it (`21st install-skill`, i.e. `21st skills install
@@ -394,7 +393,7 @@ upstream documents it (`21st install-skill`, i.e. `21st skills install
 follow a symlink anywhere on that path, while `~/.claude/skills` is itself a
 symlink to this repo's `skills/`. So the install runs under a throwaway `HOME`
 and the result is moved into `skills-external/21st-*`, where
-`toggle-external.sh` and `profile.sh` symlink it in on demand.
+the pack symlinks reach it.
 
 The permission gate is now one `autoMode.soft_deny` entry covering the
 outward-facing verbs (`21st publish*`, `submit`, `edit`, `delete`,
@@ -425,21 +424,15 @@ so a prompt change arrives with no diff to review, and a skill that
 upstream removes keeps its last local copy.
 
 The pack is off by default and belongs to no profile. It costs nothing until
-you ask for it, and no `profile set` touches it:
+you ask for it:
 
 ```bash
-bash lib/toggle-external.sh enable higgsfield            # media skills
-bash lib/toggle-external.sh enable higgsfield-websites   # landing-page aid
-bash lib/toggle-external.sh disable higgsfield
-bash lib/toggle-external.sh disable higgsfield-websites
+bash lib/profile.sh enable higgsfield     # then /reload-plugins
+bash lib/profile.sh disable higgsfield
 ```
 
-`higgsfield` links a fixed list of seven media skills: generate, soul-id,
-product-photoshoot, brandkit, marketplace-cards, video-explainer and
-youtube-thumbnail. The list is `HIGGSFIELD_MEDIA_SKILLS` in
-`lib/toggle-external.sh`. A skill that upstream adds later is synced, and
-every `enable higgsfield` names it, the pack being on or not. It stays
-unlinked until it is added to the list.
+The pack (`skills/pack-higgsfield/skills/`) holds the 8 `higgsfield-*`
+skills.
 
 `higgsfield-websites` is kept apart. It helps with landing pages inside the
 design stack (assets, references), and `higgsfield website
@@ -486,12 +479,11 @@ make onboard                # onboard an existing project (run from its dir)
 make seo-connect            # connect a Google account for /seo FULL (OAuth consent)
 make profile cmd="set X"    # activate a skill profile (web/seo/web-full/full/max/backend/design/dev/qa/audit/minimal)
 make profile-list           # list skill profiles
-make profile-current        # show the active profile (full when none selected)
-make profile-reset          # go to the default profile (full)
+make profile-current        # effective profile of this project and conversation
 make new-skill name=myskill # scaffold agent + skill files
 ```
 
-`doctor.sh` checks: symlinks, GStack submodule, vendored skills (curl-pinned externals in `plugins.lock.json` + `link.sh`'s `EXTERNAL_SKILLS`, per the active profile), Playwright browser cache, prerequisites (git, Node, Cargo, Python, Claude Code), plugins, permissions, token budget, config consistency, git hooks (global core.hooksPath + generated githooks/), mods (loading link and `@skills-dir` state), scratchpad (TMPDIR quota), Higgsfield CLI and session, seo-data layer, auto memory (`autoMemoryEnabled` false in `settings.json`, leftover files under `~/.claude/projects/*/memory/`).
+`doctor.sh` checks: symlinks, GStack submodule, vendored skills (curl-pinned externals in `plugins.lock.json` + `link.sh`'s `EXTERNAL_SKILLS`), packs (census), profiles, Playwright browser cache, prerequisites (git, Node, Cargo, Python, Claude Code), plugins, permissions, token budget, config consistency, git hooks (global core.hooksPath + generated githooks/), mods (loading link and `@skills-dir` state), scratchpad (TMPDIR quota), Higgsfield CLI and session, seo-data layer, auto memory (`autoMemoryEnabled` false in `settings.json`, leftover files under `~/.claude/projects/*/memory/`).
 
 ---
 

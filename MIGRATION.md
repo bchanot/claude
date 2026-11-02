@@ -187,7 +187,7 @@ All four checks should be clean before committing the migration.
 
 ```bash
 git pull --recurse-submodules
-make plugin     # vendors the 7 superpowers skills (Step 8e), installs the Higgsfield and 21st CLIs (8.6, 8.7), re-runs link.sh (10), applies the default profile (11)
+make plugin     # vendors the 7 superpowers skills (Step 8e), installs the Higgsfield and 21st CLIs (8.6, 8.7), re-runs link.sh (10)
 claude plugin uninstall superpowers@superpowers-marketplace   # once, if the plugin is still cached
 make doctor
 ```
@@ -195,8 +195,39 @@ make doctor
 - **Superpowers**: the plugin is gone. Its 7 wired skills are vendored at v6.4.1 and always on. The 8 other skills and the session-start injection are not replaced.
 - **Magic MCP**: replaced by the `21st` CLI (`21st login`, no API key). If 1.x registered the `magic` server, remove it from `~/.claude.json` and drop `MAGIC_API_KEY` from `~/.claude/.env`. Nothing reads them any more.
 - **Git hooks in every repo**: `link.sh` sets git's global `core.hooksPath` to `~/.claude/githooks`. Every repo on the machine now gets the gitflow pre-commit guard and pushes each commit as it lands. For a foreign clone: `git config gitflow.protect false` and `git config gitflow.autopush false`.
-- **Default profile**: a machine with no profile selected now runs `full`. Check with `make profile-current`. Nine gstack skills (`ship`, `land-and-deploy`, `setup-deploy`, `autoplan`, `context-save`, `learn`, `careful`, `guard`, `design-shotgun`) left every profile and are denylisted.
+- **Default profile**: a project with no local profile runs the manifest defaults (= `full`). Check with `bash lib/profile.sh current`. Nine gstack skills (`ship`, `land-and-deploy`, `setup-deploy`, `autoplan`, `context-save`, `learn`, `careful`, `guard`, `design-shotgun`) left every profile and are denylisted.
 - **Higgsfield**: installed, off by default. Nothing to do until you enable it.
+
+### 2.1.0 — profiles and packs
+
+Run on every machine that pulls this version (the live tree may still be in
+an old profile; nothing below deletes a real directory).
+
+1. `git pull`, then restore the user-scope plugins the old `profile.sh` had
+   toggled: `git show HEAD:settings.json | jq .enabledPlugins > /tmp/ep.json
+   && jq --slurpfile ep /tmp/ep.json '.enabledPlugins = $ep[0]' settings.json
+   > /tmp/settings.next.json && cp /tmp/settings.next.json settings.json`
+   (never `git checkout -- settings.json`: it would drop your UI writes).
+2. Old layout: `find skills skills-disabled -maxdepth 1 -type l` lists the
+   flat links; remove the ones `make doctor` names as duplicates (every
+   `skills-disabled/` link, and in `skills/` everything except model-router
+   (the tracked link to `mods/model-router`), darwin-skill,
+   the seven superpowers and the agent-skills trio). If
+   `skills-disabled/impeccable` is a directory: `mv skills-disabled/impeccable
+   skills-external/impeccable`. Then `rmdir skills-disabled; rm -f
+   .active-profile`.
+3. `make link` (link.sh no longer links the design and scroll skills flat),
+   `make plugin` (fills `skills-external/`; impeccable ends in
+   `skills-external/impeccable`).
+4. `~/.bashrc`: delete `dtach_claude()` and `alias cc='dtach_claude'` (the
+   alias would shadow the function and drop the profile argument); add
+   `[ -f "$HOME/.claude/lib/cc.sh" ] && . "$HOME/.claude/lib/cc.sh"`. New
+   shell. `cc <name>` behaves as before; `cc <name> web` starts a conversation
+   under `lib/profiles/web.json`.
+5. Per project: `bash ~/.claude/lib/profile.sh set <profile>` then
+   `/reload-plugins`. `lib/toggle-external.sh` is gone (`profile.sh enable
+   higgsfield` replaces it).
+6. `make doctor` until no warn; `make test`.
 
 ## Memory registries v2 (2026-10-28)
 
