@@ -88,12 +88,18 @@ the prepped `release/<X.Y.Z>` branch stays as-is for a later run.
 ### STEP 5 — Finish + tag (main loop)
 The finish runs HERE: the `ask` rule on `gitflow.sh finish` prompts, and a
 sub-agent cannot put that prompt to you (BLK-018 option b).
+Two separate Bash calls: the branch check runs first, its output is read,
+then the finish runs.
 ```bash
 git branch --show-current          # must print release/<X.Y.Z>, else STOP
+```
+```bash
 bash "$HOME/.claude/lib/gitflow.sh" finish
 ```
 Prompt declined → nothing merged, the release branch kept: say so and STOP.
-A merge conflict → STOP, surface it verbatim (a human call). Then, on main:
+A merge conflict → STOP, surface it verbatim (a human call). Any other
+non-zero exit of `finish` also STOPS before the tag: "finish failed:
+surface its output verbatim, do not tag". Then, on main:
 ```bash
 git tag -a v<X.Y.Z> main -m "release <X.Y.Z>"
 ```
