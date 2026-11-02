@@ -18,10 +18,16 @@
 # TMPDIR goes to ~/.cache/claude-tmp either way (BLK-021).
 # ============================================================
 
+_cc_name_ok() { [[ "$1" =~ ^[a-z0-9][a-z0-9-]*$ ]]; }
+
 cc() {
   local name="${1:-claude-$(date +%H%M%S)}" profile="${2:-}"
   local lib="$HOME/.claude/lib" settings=""
+  _cc_name_ok "$name" \
+    || { echo "cc: invalid name '$name' (a-z 0-9 -)" >&2; return 2; }
   if [ -n "$profile" ]; then
+    _cc_name_ok "$profile" \
+      || { echo "cc: invalid profile '$profile' (a-z 0-9 -)" >&2; return 2; }
     settings="$lib/profiles/$profile.json"
     if [ ! -f "$settings" ]; then
       echo "cc: unknown profile '$profile'. Known:" >&2

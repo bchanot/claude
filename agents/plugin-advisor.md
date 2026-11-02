@@ -280,8 +280,8 @@ scope. Emit the exact command; never write files directly.
 |---|---|---|
 | public website, no SEO focus | `web` | `bash $HOME/.claude/lib/profile.sh set web` |
 | audit-only: SEO + GEO + W3C + WCAG | `seo` | `… set seo` |
-| public website end-to-end | `web-full` | `… set web-full` |
-| backend / API / library | `backend` | `… set backend` |
+| public website end-to-end | `full` | `… set full` |
+| backend / API / library | `dev` | `… set dev` |
 | heavy UI, no dev | `design` | `… set design` |
 | typical dev session | `dev` | `… set dev` |
 | browser QA only | `qa` | `… set qa` |

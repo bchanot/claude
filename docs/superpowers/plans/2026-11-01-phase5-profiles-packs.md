@@ -6,7 +6,7 @@ r2 2026-11-02 after three lenses (correctness FATAL(11), robustness FATAL(10), s
 
 **Goal:** Replace the global symlink profile system with skills-dir packs switched per project (`.claude/settings.local.json`) and per conversation (`claude --settings lib/profiles/<n>.json`), and delete the old mechanism.
 
-**Architecture:** Nine packs `skills/pack-<n>/` (manifest + tracked relative symlinks into `skills-external/`, four real skill dirs moved in). Eleven profiles `lib/profiles/<n>.json` are literal settings fragments. `lib/profile.sh` (bash) merges a fragment into the project's local settings; `lib/profile-state.jq` computes the effective state in ONE jq pass; `lib/cc.sh` launches a conversation with a fragment as `--settings`; gates, hooks and doctor read `profile.sh current --plain`.
+**Architecture:** Nine packs `skills/pack-<n>/` (manifest + tracked relative symlinks into `skills-external/`, four real skill dirs moved in). Nine profiles `lib/profiles/<n>.json` are literal settings fragments. `lib/profile.sh` (bash) merges a fragment into the project's local settings; `lib/profile-state.jq` computes the effective state in ONE jq pass; `lib/cc.sh` launches a conversation with a fragment as `--settings`; gates, hooks and doctor read `profile.sh current --plain`.
 
 **Tech Stack:** bash 5, jq 1.8, python3 (existing census only), Claude Code CLI 2.1.316, `make test` suites `lib/tests/*.test.sh`.
 
@@ -60,7 +60,7 @@ r2 2026-11-02 after three lenses (correctness FATAL(11), robustness FATAL(10), s
 |---|---|
 | `skills/pack-<n>/.claude-plugin/plugin.json` (9) | pack identity + `defaultEnabled` |
 | `skills/pack-<n>/skills/<s>` | tracked relative symlink, or the moved real dir (seo, geo, web-validate, site-motion) |
-| `lib/profiles/<n>.json` (11) + `README.md` | fragments + descriptions; `*.profile` deleted |
+| `lib/profiles/<n>.json` (9) + `README.md` | fragments + descriptions; `*.profile` deleted |
 | `lib/profile.sh` (rewrite) + `lib/profile-state.jq` (new) | CLI verbs; one jq program for the effective state |
 | `lib/cc.sh` (new) | `cc <name> [profile]` |
 | `lib/pack-census.sh` (new) | pack layout + fragment invariants + old-layout citers; `make test` and doctor |

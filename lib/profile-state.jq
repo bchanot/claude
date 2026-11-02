@@ -22,6 +22,7 @@ def listing($plugins; $on):
 | ($u | parse) as $U | ($p | parse) as $P
 | ($l | parse) as $L | ($f | parse) as $F
 | ([$profiles[].frag | ep | keys[]] | unique) as $ids
+| ([$profiles[].frag | dn[]] | unique) as $managed
 | ($m | map({key: .id, value: .on}) | from_entries) as $mdef
 | ($ids | map({key: ., value: ($mdef[.]
       // (if endswith("@skills-dir") and (is_pack | not) then true
@@ -40,12 +41,13 @@ def listing($plugins; $on):
 | (try ($cj | fromjson | .projects[$proj].disabledMcpServers // []
         | if length == 0 then "-" else join(",") end)
    catch (if $cj == "" then "-" else "unknown" end)) as $off
+| ([$denied[] | select(. as $x | $managed | index($x))]) as $mdenied
 | ([$profiles[] | select((.frag | ep) == $plugins
-       and ((.frag | dn | sort) == ($denied | sort)) and ($all | not))
+       and ((.frag | dn | sort) == ($mdenied | sort)) and ($all | not))
     | .name] | .[0] // "custom") as $name
 | {name: $name, source: $src, flag: $flagname, plugins: $plugins,
-   denied: $denied, all_denied: $all, model: $model, model_source: $msrc,
-   mcp_off: $off} as $s
+   denied: $denied, managed_denied: $mdenied, all_denied: $all,
+   model: $model, model_source: $msrc, mcp_off: $off} as $s
 | if $mode == "json" then $s
   elif $mode == "plain" then
     ( ["profile=\($s.name)", "source=\($s.source)", "flag=\($s.flag)"]

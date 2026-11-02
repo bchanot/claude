@@ -18,10 +18,8 @@ denied; `set web` in the project brings them back next session.
 - **max**: everything on, pr-review-toolkit included; for a one-off session, not a project.
 - **minimal**: no pack, no design plugin, connectors denied; the smallest listing.
 - **dev**: gstack-dev only; backend or tooling work without UI.
-- **backend**: same packs as dev; kept as a name for backend projects.
 - **design**: design, scroll3d, gstack-design, gstack-browser, ui-ux-pro-max; connectors present.
 - **web**: design + scroll3d + web-validate + the three gstack packs + ui-ux-pro-max; public site work.
-- **web-full**: web + seo; a site with SEO/GEO on top.
 - **seo**: seo, web-validate, gstack-browser, gstack-dev; audit and fixes on a live site.
 - **qa**: gstack-browser + web-validate; dogfooding and conformance only.
 - **audit**: seo, web-validate, gstack-dev, gstack-browser, pr-review-toolkit; read-mostly audits.
@@ -30,5 +28,5 @@ Invariants (checked by `lib/pack-census.sh`): the same key set in every
 fragment; `model-router@skills-dir` and `security-guidance@claude-code-plugins`
 true everywhere; `example-skills@anthropic-agent-skills` and
 `brightdata-plugin@synced` false everywhere; the connectors denied on exactly
-minimal, dev, backend, seo, qa, audit; `full` equal to the manifest defaults.
+minimal, dev, seo, qa, audit; `full` equal to the manifest defaults.
 Add your own profile as another `<name>.json` with the same key set.

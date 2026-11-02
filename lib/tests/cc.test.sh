@@ -56,6 +56,15 @@ check T3-rc "$rc" 0; check_has T3-argv "$log" "claude argv: "$'\n'
 check_has T3-profile-empty "$log" "CLAUDE_PROFILE="$'\n'
 check_has T3-tmpdir "$log" "TMPDIR=$FX/home/.cache/claude-tmp"
 
+# name allowlist: a path-like name or profile starts no session
+for args in "x ../y" "../x webx" "x web/x" "-x webx"; do
+  : > "$CC_LOG"
+  # shellcheck disable=SC2086
+  out="$(cc $args 2>&1)"; rc=$?
+  check "T6-rc-$args" "$rc" 2; check_has "T6-msg-$args" "$out" "cc: invalid"
+  check "T6-no-session-$args" "$(cat "$CC_LOG")" ""
+done
+
 printf 'CC_ENV_CANARY=1\n' > "$FX/home/.claude/.env"
 : > "$CC_LOG"; cc s4 webx; check_has T4-env "$(cat "$CC_LOG")" "canary=1"
 check T5-shellcheck "$(shellcheck "$ROOT/lib/cc.sh" >/dev/null 2>&1 && echo ok)" ok

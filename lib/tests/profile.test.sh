@@ -129,6 +129,55 @@ out="$(PROFILE_REPO_OVERRIDE="$FX" PROFILE_USER_SETTINGS="$FX/home/settings.json
        bash "$ROOT/lib/profile.sh" -C "$FX/proj/sub/deeper" current --plain | tr '\n' ' ')"
 check_has T19-walkup "$out" "profile=devx source=local "
 
+# managed-connector match: a user-scope deny of an unmanaged connector keeps
+# the profile name, shows in the plain lines, and never appears in diff
+printf '{"enabledPlugins": {"ui@mk": true}, "deniedMcpServers": [{"serverName": "claude.ai Gmail"}]}\n' > "$FX/home/settings.json"
+P set devx >/dev/null; out="$(plain)"
+check_has T21-managed-name "$out" "profile=devx source=local "
+check_has T21-plain-all "$out" "connector:claude.ai Gmail=denied"
+check T21-diff "$(P diff devx)" "no difference from devx"
+printf '{"enabledPlugins": {"ui@mk": true}}\n' > "$FX/home/settings.json"
+
+# diff skips the model line when the fragment has none
+check_has T22-diff-nomodel "$(P diff devx; jq -r .model "$L")" "no difference from devx"
+
+# name allowlist: a refused name writes nothing and reads no path
+cp "$L" "$FX/before-names.json"
+for v in "set ../../settings" "show ../x" "diff a/b" "enable ../x" "disable y/z"; do
+  # shellcheck disable=SC2086
+  out="$(P $v 2>&1)"; rc=$?
+  check "T23-name-rc-$v" "$rc" 2; check_has "T23-name-msg-$v" "$out" "invalid"
+done
+check T23-untouched "$(cmp -s "$FX/before-names.json" "$L" && echo same)" same
+check T23-no-escape "$([ -e "$FX/lib/settings.json" ] && echo leaked)" ""
+
+# unset with nothing managed left: no write; no local file: none created
+P unset >/dev/null; cp "$L" "$FX/before-unset.json"
+out="$(P unset)"; check_has T24-nothing "$out" "nothing to unset"
+check T24-untouched "$(cmp -s "$FX/before-unset.json" "$L" && echo same)" same
+rm "$L"; P unset >/dev/null; check T24-no-file "$([ -e "$L" ] && echo created)" ""
+
+# project root = parent of the git common dir; a worktree and a nested dir
+# holding its own CLAUDE.md both resolve to the main checkout
+G="$FX/gmain"; mkdir -p "$G/pkg/inner"; printf '# pkg\n' > "$G/pkg/inner/CLAUDE.md"
+git init -q "$G"
+git -C "$G" -c core.hooksPath=/dev/null -c user.email=t@t -c user.name=t commit -q --allow-empty -m x
+git -C "$G" -c core.hooksPath=/dev/null worktree add -q "$FX/wt" -b wt 2>/dev/null
+PX() { local d="$1"; shift; PROFILE_REPO_OVERRIDE="$FX" PROFILE_USER_SETTINGS="$FX/home/settings.json" \
+       PROFILE_CLAUDE_JSON="$FX/home/claude.json" bash "$ROOT/lib/profile.sh" -C "$d" "$@"; }
+PX "$FX/wt" set devx >/dev/null; rc=$?
+check T25-worktree-rc "$rc" 0
+check T25-worktree-main "$(jq -r '.enabledPlugins["pack-a@skills-dir"]' "$G/.claude/settings.local.json")" true
+check T25-worktree-none "$([ -e "$FX/wt/.claude/settings.local.json" ] && echo local)" ""
+check_has T25-nested "$(PX "$G/pkg/inner" current --plain | tr '\n' ' ')" "profile=devx source=local "
+
+# the walk stops below $HOME: a repo AT $HOME is not the project root
+H2="$FX/home2"; mkdir -p "$H2/work"; git init -q "$H2"; printf '# w\n' > "$H2/work/CLAUDE.md"
+HOME="$H2" PX "$H2/work" set devx >/dev/null; rc=$?
+check T26-home-rc "$rc" 0
+check T26-home-local "$([ -f "$H2/work/.claude/settings.local.json" ] && echo yes)" yes
+check T26-home-not-root "$([ -e "$H2/.claude" ] && echo leaked)" ""
+
 # timing: two jq calls, under 100 ms here (spec target 50 ms, measured in Task 12)
 t0=$(date +%s%N); P current --plain >/dev/null; t1=$(date +%s%N)
 ms=$(( (t1 - t0) / 1000000 )); echo "current --plain: ${ms} ms"

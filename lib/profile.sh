@@ -20,8 +20,12 @@
 #   profile.sh [-C <dir>] enable|disable <pack | plugin id>
 #   profile.sh [-C <dir>] diff <name>
 #
-# <dir> (default: cwd) resolves to the nearest ancestor holding .claude/,
-# CLAUDE.md or .git, so a subdirectory reads its project's settings.
+# <dir> (default: cwd) is the session dir. The project root, where the
+# local file lives, follows Claude Code: inside a git repo it is the parent
+# of the git common dir (a worktree resolves to the main checkout), unless
+# that is $HOME or above; otherwise the nearest ancestor holding .claude/,
+# CLAUDE.md or .git, below $HOME. The shared .claude/settings.json is read
+# from <dir> itself.
 # `current` = lib/profile-state.jq, ONE jq pass over: $CLAUDE_PROFILE_SETTINGS
 # (the --settings file lib/cc.sh exports), <root>/.claude/settings.local.json,
 # <root>/.claude/settings.json, ~/.claude/settings.json; a pack absent from
@@ -46,7 +50,8 @@ STATE_JQ="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)/profile-state.jq"
 USER_SETTINGS="${PROFILE_USER_SETTINGS:-$HOME/.claude/settings.json}"
 CLAUDE_JSON="${PROFILE_CLAUDE_JSON:-$HOME/.claude.json}"
 LOCAL_REL=".claude/settings.local.json"
-PROJECT="$PWD"
+PROJECT="$PWD"      # the project root: local settings, ~/.claude.json key
+SESSION_DIR="$PWD"  # the -C dir: shared project settings
 
 die() { echo "profile: $*" >&2; exit 2; }
 usage() {
@@ -55,8 +60,28 @@ usage() {
 }
 
 # ---- project root ----------------------------------------------------------
-find_root() { # $1 dir → nearest ancestor with .claude/, CLAUDE.md or .git
-  local d="$1"   # the walk stops below $HOME: ~/.claude is not a project
+NAME_RE='^[a-z0-9][a-z0-9-]*$'
+PACK_RE='^[A-Za-z0-9][A-Za-z0-9@._:-]*$'
+require_name() { # $1 value, $2 regex, $3 label: refuse before any path use
+  [[ "$1" =~ $2 ]] || die "invalid $3 '$1'"
+}
+home_or_above() { # $1 dir
+  [ "$1" = / ] && return 0
+  case "$HOME/" in "$1"/*) return 0 ;; esac
+  return 1
+}
+git_root() { # $1 dir → parent of the git common dir, unless $HOME or above
+  local common root
+  common="$(git -C "$1" rev-parse --path-format=absolute --git-common-dir \
+    2>/dev/null)" || return 1
+  [ "$(basename "$common")" = .git ] || return 1
+  root="$(dirname "$common")"
+  home_or_above "$root" && return 1
+  echo "$root"
+}
+find_root() { # $1 dir → the project root (see header)
+  local d="$1"
+  git_root "$d" && return 0
   while [ "$d" != / ] && [ "$d" != "$HOME" ]; do
     if [ -d "$d/.claude" ] || [ -f "$d/CLAUDE.md" ] || [ -e "$d/.git" ]; then
       echo "$d"; return 0
@@ -94,7 +119,7 @@ json_or_empty() { # $1 file → its JSON, {} when absent; rc 2 when invalid
 }
 read_local() {
   json_or_empty "$PROJECT/$LOCAL_REL" \
-    || die "$LOCAL_REL is not valid JSON — nothing written"
+    || die "$LOCAL_REL is not valid JSON, nothing written"
 }
 pack_default() { # $1 id → true | false | missing (manifest defaultEnabled)
   local m="$SKILLS_DIR/${1%@skills-dir}/.claude-plugin/plugin.json"
@@ -119,7 +144,7 @@ state() { # $1 mode: plain | human | json
   jq -rn --arg mode "$1" --arg proj "$PROJECT" --arg hasflag "$hasflag" \
     --arg flagname "${CLAUDE_PROFILE:--}" \
     --rawfile u "$(raw_or_null "$USER_SETTINGS")" \
-    --rawfile p "$(raw_or_null "$PROJECT/.claude/settings.json")" \
+    --rawfile p "$(raw_or_null "$SESSION_DIR/.claude/settings.json")" \
     --rawfile l "$(raw_or_null "$PROJECT/$LOCAL_REL")" \
     --rawfile f "$(raw_or_null "${CLAUDE_PROFILE_SETTINGS:-}")" \
     --rawfile cj "$(raw_or_null "$CLAUDE_JSON")" \
@@ -139,6 +164,7 @@ cmd_list() {
 }
 cmd_show() {
   local f id v tag
+  require_name "$1" "$NAME_RE" "profile name"
   f="$(profile_file "$1")"; [ -f "$f" ] || unknown_profile "$1"
   echo "profile $1: $(profile_desc "$1")"
   for id in $(jq -r '.enabledPlugins | keys[]' "$f"); do
@@ -169,11 +195,13 @@ after_write_hint() {
     "connectors and model apply to the next session"
   if have_flag; then
     echo "note: this conversation runs --settings ${CLAUDE_PROFILE:-?}:" \
-      "a pack it turns off stays off here — relaunch: cc <name> <profile>"
+      "the flag fragment fixes every managed key, so this write applies to" \
+      "other sessions only; relaunch: cc <name> <profile>"
   fi
 }
 cmd_set() {
   local f cur new
+  require_name "$1" "$NAME_RE" "profile name"
   f="$(profile_file "$1")"; [ -f "$f" ] || unknown_profile "$1"
   require_project_root; cur="$(read_local)"
   new="$(jq --argjson cur "$cur" \
@@ -206,6 +234,9 @@ cmd_unset() {
     | if (.deniedMcpServers | length) == 0 then del(.deniedMcpServers)
       else . end
     | if $pm != "-" and .model == $pm then del(.model) else . end' <<<"$cur")"
+  if [ "$(jq -c . <<<"$new")" = "$cur" ]; then
+    echo "nothing to unset in $LOCAL_REL (was: $name)"; return 0
+  fi
   write_local "$new"
   echo "profile keys removed from $LOCAL_REL (was: $name)"; after_write_hint
 }
@@ -218,6 +249,7 @@ resolve_id() { # design | pack-design | pack-design@skills-dir | <plugin id>
 }
 cmd_toggle() { # $1 true|false, $2 pack or plugin spelling
   local id cur new
+  require_name "$2" "$PACK_RE" "pack or plugin name"
   id="$(resolve_id "$2")"
   managed_ids | grep -qx -- "$id" \
     || die "unknown pack or plugin '$2' (known: $(managed_ids | tr '\n' ' '))"
@@ -229,17 +261,18 @@ cmd_toggle() { # $1 true|false, $2 pack or plugin spelling
 }
 cmd_diff() {
   local f out
+  require_name "$1" "$NAME_RE" "profile name"
   f="$(profile_file "$1")"; [ -f "$f" ] || unknown_profile "$1"
   out="$(jq -r --argjson e "$(state json)" '
     def onoff: if . then "on" else "off" end;
     (.enabledPlugins | to_entries[] | select($e.plugins[.key] != .value)
      | .key + ": " + ($e.plugins[.key] | onoff) + " → " + (.value | onoff)),
     (([(.deniedMcpServers // [])[] | .serverName] | sort) as $want
-     | ($e.denied | sort) as $have
+     | ($e.managed_denied | sort) as $have
      | if $want == $have then empty
        else "connectors denied: " + ($have | join(", ")) + " → "
             + ($want | join(", ")) end),
-    (if (.model // "-") != $e.model
+    (if .model != null and .model != $e.model
      then "model: " + $e.model + " → " + (.model // "-")
      else empty end)' "$f")"
   if [ -n "$out" ]; then echo "$out"; else echo "no difference from $1"; fi
@@ -255,6 +288,7 @@ while [ $# -gt 0 ]; do
     *) break ;;
   esac
 done
+SESSION_DIR="$PROJECT"
 PROJECT="$(find_root "$PROJECT")"
 case "${1:-}" in
   list)    cmd_list ;;
