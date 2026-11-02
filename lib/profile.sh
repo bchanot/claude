@@ -204,16 +204,16 @@ cmd_set() {
   require_name "$1" "$NAME_RE" "profile name"
   f="$(profile_file "$1")"; [ -f "$f" ] || unknown_profile "$1"
   require_project_root; cur="$(read_local)"
-  new="$(jq --argjson cur "$cur" \
+  new="$(jq --slurpfile p "$f" \
     --argjson names "$(managed_connectors | as_json_list)" '
-    . as $p | $cur
+    . as $cur | $p[0] as $p
     | .enabledPlugins = (($cur.enabledPlugins // {}) + $p.enabledPlugins)
     | .deniedMcpServers = ([($cur.deniedMcpServers // [])[]
         | select(.serverName as $s | ($names | index($s)) == null)]
         + ($p.deniedMcpServers // []))
     | if (.deniedMcpServers | length) == 0 then del(.deniedMcpServers)
       else . end
-    | if $p.model then .model = $p.model else . end' "$f")"
+    | if $p.model then .model = $p.model else . end' <<<"$cur")"
   write_local "$new"
   echo "profile $1 → $LOCAL_REL"; after_write_hint
 }
@@ -251,7 +251,7 @@ cmd_toggle() { # $1 true|false, $2 pack or plugin spelling
   local id cur new
   require_name "$2" "$PACK_RE" "pack or plugin name"
   id="$(resolve_id "$2")"
-  managed_ids | grep -qx -- "$id" \
+  managed_ids | grep -qxF -- "$id" \
     || die "unknown pack or plugin '$2' (known: $(managed_ids | tr '\n' ' '))"
   require_project_root; cur="$(read_local)"
   new="$(jq --arg id "$id" --argjson v "$1" \

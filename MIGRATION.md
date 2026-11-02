@@ -207,30 +207,47 @@ is the only one that removes a real directory (`make plugin` replaces
 `skills-external/impeccable` on a refresh); steps 1 and 2 use `mv`, never
 `rm -r`.
 
-1. From the repo root. `git pull --autostash` (a plain `git pull` aborts
-   when `settings.json` is modified locally and the incoming commits touch
-   it; autostash keeps your UI writes), then restore the user-scope plugins
-   the old `profile.sh` had toggled. Never `git checkout -- settings.json`:
-   it would drop your UI writes.
+1. From the clone root. `~/.claude` is a real directory of symlinks into
+   the clone, not the clone itself, so resolve the root first. `git pull
+   --autostash` (a plain `git pull` aborts when `settings.json` is modified
+   locally and the incoming commits touch it; autostash keeps your UI
+   writes), then restore the user-scope plugins the old `profile.sh` had
+   toggled. Never `git checkout -- settings.json`: it would drop your UI
+   writes.
 
    ```bash
-   cd ~/.claude
-   git pull --autostash
-   ep="$(mktemp)"; next="$(mktemp)"
-   git show HEAD:settings.json | jq .enabledPlugins > "$ep"
-   jq --slurpfile ep "$ep" '.enabledPlugins = $ep[0]' settings.json > "$next"
-   cp "$next" settings.json; rm -f "$ep" "$next"
+   root="$(dirname "$(readlink -f ~/.claude/settings.json)")" \
+     && cd "$root" || exit 1
+   git pull --autostash \
+     && ep="$(mktemp)" \
+     && git show HEAD:settings.json | jq -e '.enabledPlugins | objects' \
+       > "$ep" \
+     && next="$(mktemp)" \
+     && jq --slurpfile ep "$ep" '.enabledPlugins = $ep[0]' settings.json \
+       > "$next" \
+     && jq -e . "$next" >/dev/null && [ -s "$next" ] \
+     && cp "$next" settings.json
+   rm -f "$ep" "$next"
    ```
+
+   Every command is chained with `&&` so that a failed step never reaches
+   `cp`, which writes through the symlink into the live tracked
+   `settings.json`. `jq -e '.enabledPlugins | objects'` fails when HEAD
+   holds no object (a null would wipe every plugin). `jq -e .` and `[ -s ]`
+   refuse an invalid or empty result (an empty file would drop the plugins,
+   the deny rules and the hooks).
 
 2. Old layout. List the flat links first, then remove the links of
    `skills-disabled/` and the links of `skills/` that are not kept
    (model-router, darwin-skill, the seven superpowers, the agent-skills
    trio). If `skills/impeccable` or `skills-disabled/impeccable` is a real
-   directory, `mv` it to `skills-external/impeccable` (never `rm`).
+   directory, `mv` it to `skills-external/impeccable` (never `rm`). Run it
+   from `$root` (step 1). The trailing slash and `-mindepth 1` keep `find`
+   from matching the start point, which is itself a symlink in `~/.claude`.
 
    ```bash
-   cd ~/.claude
-   find skills skills-disabled -maxdepth 1 -type l
+   cd "$root" || exit 1
+   find skills/ skills-disabled/ -mindepth 1 -maxdepth 1 -type l
    mkdir -p skills-external
    for d in skills skills-disabled; do
      if [ -d "$d/impeccable" ] && [ ! -L "$d/impeccable" ] \
@@ -238,8 +255,8 @@ is the only one that removes a real directory (`make plugin` replaces
        mv "$d/impeccable" skills-external/impeccable
      fi
    done
-   find skills-disabled -maxdepth 1 -type l -delete
-   find skills -maxdepth 1 -type l \
+   find skills-disabled/ -mindepth 1 -maxdepth 1 -type l -delete
+   find skills/ -mindepth 1 -maxdepth 1 -type l \
      ! -name model-router ! -name darwin-skill \
      ! -name observability-and-instrumentation \
      ! -name deprecation-and-migration ! -name ci-cd-and-automation \
@@ -250,7 +267,7 @@ is the only one that removes a real directory (`make plugin` replaces
    rmdir skills-disabled; rm -f .active-profile
    ```
 
-3. `make link` (link.sh no longer links the design and scroll skills flat),
+3. From `$root`: `make link` (link.sh no longer links the design and scroll skills flat),
    `make plugin` (fills `skills-external/`; impeccable ends in
    `skills-external/impeccable`).
 4. `~/.bashrc`: delete `dtach_claude()` and `alias cc='dtach_claude'` (the

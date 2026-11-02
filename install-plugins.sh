@@ -892,7 +892,8 @@ else
     fi
     # The CLI writes into skills/impeccable (through the ~/.claude/skills
     # symlink); the copy lives in skills-external/, linked by pack-design.
-    cd "$REPO" && rm -rf skills-external/impeccable && mv "$IMP_SKILL_DIR" skills-external/impeccable
+    [ ! -L "$IMP_SKILL_DIR" ] && cd "$REPO" && rm -rf skills-external/impeccable \
+      && mv "$IMP_SKILL_DIR" skills-external/impeccable
     info "Per-project step, in the agent chat of each frontend project:  /impeccable init"
     info "  (writes PRODUCT.md — the design context every impeccable verb reads)"
   elif [ -f "$IMP_HOME/SKILL.md" ]; then

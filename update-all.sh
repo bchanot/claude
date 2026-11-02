@@ -448,7 +448,8 @@ print(d.get('impeccable',{}).get('version','latest'))
     if [ "$IMP_OK" = true ] && [ -f "$IMP_SKILL_DIR/SKILL.md" ]; then
       IMP_SKILL_VER=$(sed -n 's/^version:[[:space:]]*//p' "$IMP_SKILL_DIR/SKILL.md" | head -1)
       ok "impeccable refreshed (CLI ${IMP_VER:-latest}, skill ${IMP_SKILL_VER:-?})"
-      cd "$REPO" && rm -rf skills-external/impeccable && mv "$IMP_SKILL_DIR" skills-external/impeccable
+      [ ! -L "$IMP_SKILL_DIR" ] && cd "$REPO" && rm -rf skills-external/impeccable \
+        && mv "$IMP_SKILL_DIR" skills-external/impeccable
     else
       warn "impeccable refresh failed (${IMP_FAIL:-no SKILL.md written}) — existing copy kept"
     fi

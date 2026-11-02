@@ -1673,7 +1673,7 @@ MAJOR → change: user-scope residue `ui-ux-pro-max:false` (cor 6, rob 3) → Ta
 
 MINOR → change: router canary measures nothing + typed long slash never routed (cor 12, rob 17) → C1 dropped, long rows unconditional, row → skill test (simp 6, cor 22a) · SC1003 / SC2088 / widths / PASS counts / .gitignore anchors / `.gitignore` not scanned by `--include` / `\.profile` pattern / Task 13 diff shape / onboard :608 pack / banner overflow / `make profile` scope / `-e .git` / Review Focus names (cor 13-21, 24, 25) → fixed in place · T8-real install dependency (rob 16) → `--installed` flag, WARN in `make test` · Task 1 pack left behind (rob 11) → OFF pack via `--settings` + trap · `alias cc` (rob 12) → doctor warn, guarded source line · SIGPIPE in detect_gstack (rob 15) → here-string · unused knobs (simp 7) → `DESIGN_GATE_REPO_OVERRIDE`, `PACKS :`, `CC_LIB_DIR` dropped.
 
-Deferred, human-ack: none. Not done, said why: `.git/info/exclude` for `settings.local.json` (rob 14): onboarded projects ignore it already; the Claude Code write race is documented in `/profile`, not solved. Secret in `~/.bashrc:151` (rob 19, outside scope): reported to the user, no edit.
+Deferred, human-ack: none. Not done, said why: `.git/info/exclude` for `settings.local.json` (rob 14): onboarded projects ignore it already; the Claude Code write race is documented in `/profile`, not solved. A hardcoded credential in a dotfile (rob 19, outside scope) was reported to the user (location withheld), no edit.
 
 Lenses returned: correctness / robustness / simplicity.
 
