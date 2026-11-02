@@ -80,21 +80,17 @@ else
   _gstack_confirm="n"
 fi
 if [[ "$_gstack_confirm" =~ ^[Yy]$ ]]; then
-  # Capture gstack state before the update so we can restore it after
-  # ./setup runs (setup re-creates every symlink; without this, an
-  # update would silently re-enable a tool the user had disabled).
-  _gstack_state="unknown"
-  if [ -x "$REPO/lib/toggle-external.sh" ]; then
-    _gstack_state=$(bash "$REPO/lib/toggle-external.sh" status gstack 2>/dev/null || echo "unknown")
-  fi
-
   if gstack_submodule_update_with_bump "$REPO"; then
     if [ -d "skills-external/gstack" ]; then
       if [ -x "skills-external/gstack/setup" ]; then
-        if (cd skills-external/gstack && ./setup) 2>/dev/null; then
-          ok "GStack updated"
+        if [ -d "$HOME/.claude/skills/gstack" ] && [ ! -L "$HOME/.claude/skills/gstack" ]; then
+          if (cd skills-external/gstack && ./setup) 2>/dev/null; then
+            ok "GStack updated"
+          else
+            warn "GStack ./setup failed — submodule updated but setup did not complete"
+          fi
         else
-          warn "GStack ./setup failed — submodule updated but setup did not complete"
+          warn "gstack: ~/.claude/skills/gstack is not the helper tree yet — run 'make link' first, then 'make plugin' (setup would write skill dirs into skills/)"
         fi
       else
         warn "GStack ./setup not found or not executable — skipping"
@@ -111,12 +107,6 @@ if [[ "$_gstack_confirm" =~ ^[Yy]$ ]]; then
   GSTACK_DST="$HOME/.claude/skills/gstack"
   if [ -d "$GSTACK_DIR" ]; then
     link_gstack_helpers "$GSTACK_DIR" "$GSTACK_DST" >/dev/null
-  fi
-
-  # Restore prior enabled/disabled state
-  if [ "$_gstack_state" = "disabled" ] && [ -x "$REPO/lib/toggle-external.sh" ]; then
-    bash "$REPO/lib/toggle-external.sh" disable gstack >/dev/null
-    info "gstack was disabled before update — restored to disabled"
   fi
 else
   info "GStack update skipped"
@@ -418,9 +408,9 @@ imp_install() {
 }
 echo ""
 echo "── Updating impeccable..."
-IMP_SKILL_DIR="$HOME/.claude/skills/impeccable"
-IMP_PARKED="$REPO/skills-disabled/impeccable"
-if [ ! -f "$IMP_SKILL_DIR/SKILL.md" ] && [ ! -f "$IMP_PARKED/SKILL.md" ]; then
+IMP_SKILL_DIR="$REPO/skills/impeccable"
+IMP_HOME="$REPO/skills-external/impeccable"
+if [ ! -f "$IMP_HOME/SKILL.md" ]; then
   info "impeccable not installed — skipping (run: make plugin)"
 else
   IMP_VER=""
@@ -436,8 +426,6 @@ print(d.get('impeccable',{}).get('version','latest'))
   if [ -z "${IMP_NODE:-}" ] || [ "$IMP_NODE" -lt 24 ]; then
     info "impeccable update skipped — needs Node >= 24 (found ${IMP_NODE:-none}); existing copy kept"
   else
-    IMP_WAS_PARKED=false
-    [ -d "$IMP_PARKED" ] && IMP_WAS_PARKED=true
     # Pin honored (LRN-077 class: a silent rules update changes audit output
     # on unchanged code) — bump the pin deliberately, then update.
     IMP_PIN="${IMP_VER:-latest}"
@@ -454,11 +442,7 @@ print(d.get('impeccable',{}).get('version','latest'))
     if [ "$IMP_OK" = true ] && [ -f "$IMP_SKILL_DIR/SKILL.md" ]; then
       IMP_SKILL_VER=$(sed -n 's/^version:[[:space:]]*//p' "$IMP_SKILL_DIR/SKILL.md" | head -1)
       ok "impeccable refreshed (CLI ${IMP_VER:-latest}, skill ${IMP_SKILL_VER:-?})"
-      if [ "$IMP_WAS_PARKED" = true ]; then
-        rm -rf "${IMP_PARKED:?}"
-        mv "$IMP_SKILL_DIR" "$IMP_PARKED"
-        info "impeccable was parked by a profile — refreshed copy returned to skills-disabled/"
-      fi
+      cd "$REPO" && rm -rf skills-external/impeccable && mv "$IMP_SKILL_DIR" skills-external/impeccable
     else
       warn "impeccable refresh failed (${IMP_FAIL:-no SKILL.md written}) — existing copy kept"
     fi
@@ -467,8 +451,7 @@ fi
 
 # ── 7.3b. Update the Higgsfield CLI + skill pack ──
 # CLI: global npm bin. Skills: re-cloned by lib/higgsfield-skills.sh, which
-# replaces the SOURCE under skills-external/ only: a pack parked in
-# skills-disabled/ (symlinks to those sources) stays parked.
+# replaces the SOURCE under skills-external/ only; the packs link it.
 echo ""
 echo "── Updating Higgsfield CLI + skill pack..."
 if ! command -v higgsfield &>/dev/null; then
@@ -544,8 +527,7 @@ print(d.get('21st',{}).get('version','latest'))
     for _tfd in "$TFD_STAGE"/.claude/skills/*/; do
       [ -f "${_tfd}SKILL.md" ] || continue
       _tfd_name=$(basename "$_tfd")
-      # Refresh the SOURCE only. A parked copy in skills-disabled/ is left
-      # alone: re-enabling restores it, and the next update refreshes it.
+      # Refresh the SOURCE only; linked by pack-design / pack-extras.
       rm -rf "${REPO:?}/skills-external/${_tfd_name:?}"
       mv "$_tfd" "$REPO/skills-external/$_tfd_name"
       TFD_N=$((TFD_N + 1))

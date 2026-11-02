@@ -348,28 +348,23 @@ if [ -d "$GSTACK_DIR" ]; then
   info "Running GStack setup..."
   _gstack_setup_ok=0
   if [ -x "$GSTACK_DIR/setup" ]; then
-    if (cd "$GSTACK_DIR" && ./setup); then
-      _gstack_setup_ok=1
+    if [ -d "$HOME/.claude/skills/gstack" ] && [ ! -L "$HOME/.claude/skills/gstack" ]; then
+      if (cd "$GSTACK_DIR" && ./setup); then
+        _gstack_setup_ok=1
+      else
+        warn "GStack ./setup failed — check output above"
+      fi
     else
-      warn "GStack ./setup failed — check output above"
+      warn "gstack: ~/.claude/skills/gstack is not the helper tree yet — run 'make link' first, then 'make plugin' (setup would write skill dirs into skills/)"
     fi
   else
     warn "GStack ./setup not found or not executable — skipping"
   fi
 
-  # Default policy: gstack is installed but DISABLED — enable on demand
-  # via `bash lib/toggle-external.sh enable gstack`. Rationale: gstack
-  # ships ~40 skills that all load into context; keep them off until
-  # the user signals a project where they matter (browser QA, deploy).
-  if [ -x "$REPO/lib/toggle-external.sh" ] \
-     && [ "$(bash "$REPO/lib/toggle-external.sh" status gstack 2>/dev/null)" = "enabled" ]; then
-    info "Disabling gstack by default (no context cost until enabled)..."
-    bash "$REPO/lib/toggle-external.sh" disable gstack >/dev/null
-  fi
   # Success message gated on the real setup outcome — an unconditional ok
   # after a `|| warn` reads as success even when setup failed (LRN-071 class).
   if [ "$_gstack_setup_ok" -eq 1 ]; then
-    ok "GStack ready (disabled by default — enable: bash lib/toggle-external.sh enable gstack)"
+    ok "GStack ready (packs pack-gstack-dev / -browser / -design; profile.sh set <profile>)"
   else
     warn "GStack NOT ready — ./setup did not complete (see warnings above)"
   fi
@@ -801,11 +796,12 @@ echo ""
 # 61 deterministic detector rules (`impeccable detect`, exit 0/2), the
 # /impeccable skill (23 verbs) and 4 `impeccable-*` subagents.
 #
-# GLOBAL scope, no staging: the installer writes ~/.claude/skills/impeccable/
-# (skill + its self-contained engine binary) and ~/.claude/agents/
+# GLOBAL scope, no staging: the installer writes skills/impeccable/ through
+# the ~/.claude/skills symlink (skill + its self-contained engine binary) and ~/.claude/agents/
 # impeccable-*.md, and both of those are symlinks into this repo — so the
 # global install IS the repo install. Machine-owned and gitignored on both
-# sides. `--scope=project` was wrong twice over: it writes <cwd>/.claude/,
+# sides. The skill is then moved to skills-external/impeccable (pack-design
+# links it). `--scope=project` was wrong twice over: it writes <cwd>/.claude/,
 # which serves only the directory it ran in, and the staged `mv` that
 # followed it moved the skill alone, silently dropping the subagents.
 #
@@ -816,8 +812,8 @@ echo ""
 # @latest and says, loudly, that the lock needs bumping.
 echo "── Step 8d: Impeccable — design detector, skill + agents ──"
 echo ""
-IMP_SKILL_DIR="$HOME/.claude/skills/impeccable"
-IMP_PARKED="$REPO/skills-disabled/impeccable"
+IMP_SKILL_DIR="$REPO/skills/impeccable"
+IMP_HOME="$REPO/skills-external/impeccable"
 IMP_VER=$(pinned_version "impeccable")
 NODE_MAJOR=$(node -v 2>/dev/null | sed 's/^v//' | cut -d. -f1)
 
@@ -856,17 +852,12 @@ if [ "$IMP_READY" != true ]; then
   warn "impeccable: ~/.claude/skills and ~/.claude/agents are not this repo's symlinks yet"
   warn "  → run 'make link' first, then re-run 'make plugin'"
 elif [ -z "${NODE_MAJOR:-}" ] || [ "$NODE_MAJOR" -lt 24 ]; then
-  if [ -f "$IMP_SKILL_DIR/SKILL.md" ] || [ -f "$IMP_PARKED/SKILL.md" ]; then
+  if [ -f "$IMP_HOME/SKILL.md" ]; then
     ok "impeccable already present (update skipped — needs Node >= 24, found ${NODE_MAJOR:-none})"
   else
     warn "impeccable: needs Node >= 24 (found ${NODE_MAJOR:-none}) — skipped. Bump Node, then: make plugin"
   fi
 else
-  # A profile may hold impeccable parked in skills-disabled/. Install writes
-  # to the live slot, so remember the state and put the fresh copy back where
-  # it was — otherwise `make plugin` silently re-enables a disabled skill.
-  IMP_WAS_PARKED=false
-  [ -d "$IMP_PARKED" ] && IMP_WAS_PARKED=true
   IMP_USED=""
   if [ "$IMP_VER" != "latest" ]; then
     info "Installing impeccable ${IMP_VER} (pinned in plugins.lock.json, global scope)..."
@@ -893,14 +884,12 @@ else
     if [ "$IMP_AGENTS" -eq 0 ]; then
       warn "no impeccable-* agent landed in agents/ — the skill's finish/document verbs dispatch to them"
     fi
-    if [ "$IMP_WAS_PARKED" = true ]; then
-      rm -rf "${IMP_PARKED:?}"
-      mv "$IMP_SKILL_DIR" "$IMP_PARKED"
-      info "impeccable was parked by a profile — refreshed copy returned to skills-disabled/"
-    fi
+    # The CLI writes into skills/impeccable (through the ~/.claude/skills
+    # symlink); the copy lives in skills-external/, linked by pack-design.
+    cd "$REPO" && rm -rf skills-external/impeccable && mv "$IMP_SKILL_DIR" skills-external/impeccable
     info "Per-project step, in the agent chat of each frontend project:  /impeccable init"
     info "  (writes PRODUCT.md — the design context every impeccable verb reads)"
-  elif [ -f "$IMP_SKILL_DIR/SKILL.md" ] || [ -f "$IMP_PARKED/SKILL.md" ]; then
+  elif [ -f "$IMP_HOME/SKILL.md" ]; then
     ok "impeccable already present (install failed: ${IMP_FAIL:-no SKILL.md written} — existing copy kept)"
   else
     warn "impeccable install failed (${IMP_FAIL:-no SKILL.md written}) — run manually: npx impeccable skills install -y --providers=claude --scope=global --no-hooks"
@@ -998,7 +987,7 @@ echo ""
 # lib/higgsfield-skills.sh into skills-external/higgsfield-* (gitignored).
 #
 # Nothing is linked here. The pack is OFF by default and belongs to no
-# profile: `lib/toggle-external.sh enable higgsfield` turns the media skills
+# profile: `bash lib/profile.sh enable higgsfield` turns the media skills
 # on, `enable higgsfield-websites` the landing-page aid. Keeping it out of
 # link.sh and of every profile is what stops a re-run from re-enabling it
 # (BDR-093).
@@ -1054,7 +1043,7 @@ if higgsfield_cli_ok; then
   else
     info "Not signed in. Generation needs:  higgsfield auth login"
   fi
-  info "Pack is off by default — enable:  bash lib/toggle-external.sh enable higgsfield"
+  info "Pack is off by default — enable:  bash lib/profile.sh enable higgsfield, then /reload-plugins"
 fi
 echo ""
 
@@ -1071,13 +1060,8 @@ echo ""
 # <HOME>/.claude/skills/<name>/ and REFUSES to follow a symlink anywhere on
 # that path — and ~/.claude/skills IS a symlink to this repo's skills/. So
 # install under a staged HOME, then move each skill into skills-external/
-# (gitignored), where toggle-external.sh / profile.sh symlink it in.
+# (gitignored); skills/pack-design and skills/pack-extras link it.
 #
-# The pack's state is governed by profiles, not by this step: Step 11
-# applies the default profile (`full`), which links the five design skills
-# in; the two publishing skills (21st-registry, 21st-design-sync) stay on
-# demand — no profile lists them, so they are never auto-linked. A re-run
-# must never re-park what the selected profile or the user already enabled.
 echo "── Step 8.7: 21st.dev CLI + skill pack ─────────────────────"
 echo ""
 if command -v 21st &>/dev/null; then
@@ -1150,9 +1134,6 @@ if command -v 21st &>/dev/null; then
   fi
 fi
 
-# The pack's state is governed by profiles (Step 11), not parked here: a
-# re-run must never re-park what the selected profile or the user enabled.
-# See the Step 11 banner for how the default profile applies.
 echo ""
 
 # ============================================================
@@ -1258,40 +1239,6 @@ fi
 echo ""
 
 # ============================================================
-# STEP 11 — DEFAULT PROFILE
-# ============================================================
-# The profile decides which skills / externals / plugins are on. No
-# selection yet (.active-profile absent, empty or legacy "none" — same
-# rule as lib/profile.sh active_profile()) → apply the default via
-# `profile.sh reset`. An existing selection is re-applied (`set`). Plugin legs
-# are install-immutable (the EXIT guard restores settings.json, BDR-028;
-# the committed enabledPlugins already match the default profile), so
-# only the skill / external legs matter here.
-echo "── Step 11: Default profile ────────────────────────────────"
-echo ""
-if [ -f "$REPO/lib/profile.sh" ]; then
-  SEL="$(head -n1 "$REPO/.active-profile" 2>/dev/null | tr -d '[:space:]' || true)"
-  case "$SEL" in
-    ""|none)
-      info "No profile selected — applying the default profile (bash lib/profile.sh reset)..."
-      bash "$REPO/lib/profile.sh" reset \
-        || warn "default profile not applied — run: bash lib/profile.sh reset"
-      ;;
-    *)
-      # Steps 2 (gstack parked) and 10 (link.sh re-links the design
-      # externals) rewrite skill state on every run: re-apply the
-      # selection so its state comes back, label unchanged.
-      info "Profile kept: $SEL — re-applying it (bash lib/profile.sh set $SEL)..."
-      bash "$REPO/lib/profile.sh" set "$SEL" \
-        || warn "profile $SEL not re-applied — run: bash lib/profile.sh set $SEL"
-      ;;
-  esac
-else
-  warn "lib/profile.sh not found — skipping the default profile"
-fi
-echo ""
-
-# ============================================================
 # SUMMARY
 # ============================================================
 echo ""
@@ -1305,7 +1252,7 @@ echo "    ✅ rtk                 — token compression hook (0 tokens)"
 echo "    ✅ superpowers skills  — 7 vendored (brainstorming, writing-plans, subagent-driven-development, test-driven-development, requesting-code-review, using-git-worktrees, writing-skills), pinned v6.4.1, curl → symlink, no plugin, no session injection"
 echo ""
 echo "  TOGGLE (plugin state = settings.json enabledPlugins; skills/CLIs = profiles):"
-echo "    🔄 gstack              — disabled by default (toggle: lib/toggle-external.sh enable gstack)"
+echo "    🔄 gstack              — packs pack-gstack-dev / -browser / -design (bash lib/profile.sh set <profile> | enable <pack>, then /reload-plugins)"
 echo "    🔄 gsd v2              — standalone CLI 'gsd' (gsd-pi, not a Claude Code plugin)"
 echo "    🔄 pr-review-toolkit   — /review-pr + 6 PR agents (~2.2k tokens when enabled) [claude-code-plugins]"
 echo "    🔄 ui-ux-pro-max       — user scope (~780 tokens when enabled)"
@@ -1318,14 +1265,14 @@ echo "    🔄 design-motion-principles — motion/animation design, 3-designer 
 echo "    🔄 agent-skills trio   — observability-and-instrumentation, deprecation-and-migration, ci-cd-and-automation (curl → symlink, pinned commit)"
 echo "    🔄 mengto scroll skills — scroll-world-storytelling, build-threejs-scroll-worlds, scroll-scrubbed-visual-sequence, scroll-scrubbed-word-reveal, scroll-progress-timeline (curl → symlink, pinned commit)"
 echo "    🔄 darwin-skill        — autonomous skill optimizer (npx skills, ~/.agents/skills/)"
-echo "    🔄 21st skill pack     — 21st.dev CLI skills; design ones follow the profile (full by default), publishing ones on demand (toggle: lib/toggle-external.sh enable 21st)"
-echo "    🔄 higgsfield pack     — Higgsfield CLI media skills (image, video, audio, brand), OFF by default (toggle: lib/toggle-external.sh enable higgsfield; landing-page aid: enable higgsfield-websites)"
+echo "    🔄 21st skill pack     — 21st.dev CLI skills; linked by skills/pack-design and skills/pack-extras (bash lib/profile.sh set <profile> | enable <pack>, then /reload-plugins)"
+echo "    🔄 higgsfield pack     — Higgsfield CLI media skills (image, video, audio, brand), OFF by default (bash lib/profile.sh enable higgsfield, then /reload-plugins; landing-page aid: enable higgsfield-websites)"
 echo ""
 echo "  All plugins installed at: user scope (~/.claude/plugins/)"
 echo "  GStack skills symlinked individually into ~/.claude/skills/ (→ submodule)"
 echo "  Emil Design Eng at: ~/.claude/skills/pack-design/skills/emil-design-eng/ (symlink → skills-external)"
 echo "  Frontend Design at: ~/.claude/skills/pack-design/skills/frontend-design/ (symlink → skills-external)"
-echo "  Design Motion Principles at: ~/.claude/skills/design-motion-principles/ (symlink → skills-external)"
+echo "  Design Motion Principles at: skills/pack-design/skills/design-motion-principles/ (symlink → skills-external)"
 echo "  Agent Skills trio at: ~/.claude/skills/{observability-and-instrumentation,deprecation-and-migration,ci-cd-and-automation}/ (symlink → skills-external)"
 echo "  Mengto scroll skills at: ~/.claude/skills/{scroll-world-storytelling,build-threejs-scroll-worlds,scroll-scrubbed-visual-sequence,scroll-scrubbed-word-reveal,scroll-progress-timeline}/ (symlink → skills-external)"
 echo "  Superpowers skills at: ~/.claude/skills/{brainstorming,writing-plans,subagent-driven-development,test-driven-development,requesting-code-review,using-git-worktrees,writing-skills}/ (symlink → skills-external)"
