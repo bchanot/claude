@@ -287,7 +287,10 @@ scope. Emit the exact command; never write files directly.
 | browser QA only | `qa` | `… set qa` |
 | comprehensive audit | `audit` | `… set audit` |
 | narrow session | `minimal` | `… set minimal` |
-| one pack on top | — | `bash $HOME/.claude/lib/profile.sh enable <design|scroll3d|seo|web-validate|gstack-dev|gstack-browser|gstack-design|higgsfield|extras>` |
+| one pack on top | — | `bash $HOME/.claude/lib/profile.sh enable <pack>` |
+
+`<pack>` is one of design, scroll3d, seo, web-validate, gstack-dev,
+gstack-browser, gstack-design, higgsfield, extras.
 
 Read `PROFILE :` first: when it says `source=flag`, a pack it turns off
 cannot be enabled in this conversation; recommend `relaunch: cc <name>

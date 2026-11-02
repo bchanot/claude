@@ -198,19 +198,24 @@ make doctor
 - **Default profile**: a project with no local profile runs the manifest defaults (= `full`). Check with `bash lib/profile.sh current`. Nine gstack skills (`ship`, `land-and-deploy`, `setup-deploy`, `autoplan`, `context-save`, `learn`, `careful`, `guard`, `design-shotgun`) left every profile and are denylisted.
 - **Higgsfield**: installed, off by default. Nothing to do until you enable it.
 
-### 2.1.0: profiles and packs
+### Profiles and packs (2026-11)
 
 Run on every machine that pulls this version (the live tree may still be in
-an old profile; nothing below deletes a real directory).
+an old profile). Step 3 is the only one that removes a real directory
+(`make plugin` runs `rm -rf skills-external/impeccable` before the move).
 
-1. From the repo root (`cd ~/.claude`): `git pull`, then restore the user-scope plugins the old `profile.sh` had
-   toggled: `git show HEAD:settings.json | jq .enabledPlugins > /tmp/ep.json
-   && jq --slurpfile ep /tmp/ep.json '.enabledPlugins = $ep[0]' settings.json
-   > /tmp/settings.next.json && cp /tmp/settings.next.json settings.json`
-   (never `git checkout -- settings.json`: it would drop your UI writes).
+1. From the repo root (`cd ~/.claude`): `git pull --autostash` (a plain
+   `git pull` aborts when `settings.json` is modified locally and the
+   incoming commits touch it; autostash keeps your UI writes), then restore
+   the user-scope plugins the old `profile.sh` had toggled:
+   `ep="$(mktemp)"; next="$(mktemp)"; git show HEAD:settings.json | jq
+   .enabledPlugins > "$ep" && jq --slurpfile ep "$ep" '.enabledPlugins =
+   $ep[0]' settings.json > "$next" && cp "$next" settings.json; rm -f "$ep"
+   "$next"` (never `git checkout -- settings.json`: it would drop your UI
+   writes).
 2. Old layout: `find skills skills-disabled -maxdepth 1 -type l` lists the
-   flat links; remove the ones `make doctor` names as duplicates (every
-   `skills-disabled/` link, and in `skills/` everything except model-router
+   flat links; remove every `skills-disabled/` link, and in `skills/`
+   everything except model-router
    (the tracked link to `mods/model-router`), darwin-skill,
    the seven superpowers and the agent-skills trio). If
    `skills-disabled/impeccable` is a directory: `mv skills-disabled/impeccable
