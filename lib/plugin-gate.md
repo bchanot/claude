@@ -15,15 +15,14 @@ Agent(subagent_type="plugin-probe", description="plugin gate — probe",
 ## 2. VALIDATION CHECKPOINT (main loop — between probe and reasoner)
 
 Validate the PROBE REPORT before any reasoning:
-- `EXTERNAL` non-empty AND each listed plugin's directory appears under
-  `CHECKPOINT plugin-dirs`.
+- `PROFILE` block holds a `profile=` line.
 - At least one project signal present (MANIFESTS / FRAMEWORK-DEPS /
   TSX-JSX-COUNT > 0 / DOCKER-COUNT > 0 / EMBEDDED hits). Else print
   `⚠️ No project signals detected — recommendations will be conservative.`
   and continue.
-- `CHECKPOINT toggle-script=UNAVAILABLE` → print `⚠️ toggle script
-  unavailable — recommendations will be advisory only, no auto-activation.`
-  and SKIP step 5 (apply) entirely.
+- `CHECKPOINT profile-sh=UNAVAILABLE` → print `⚠️ profile.sh unavailable —
+  recommendations will be advisory only, no auto-activation.` and SKIP
+  step 5 (apply) entirely.
 - PROBE REPORT missing/unparsable → retry the probe ONCE fresh; a 2nd
   failure → STOP and surface (never reason over invented detection).
 
@@ -55,36 +54,17 @@ If any plugin has ⚡ ENABLE status:
      ⚡ Pre-fetch ctx7 docs for next.js, prisma
    Apply these changes? (yes / no / customize)
    ```
-2. "yes" → apply via the exact commands the advisor emitted. "customize" →
-   user picks. "no" → proceed with current config.
+2. "yes" → run the advisor's commands in order, each one `bash
+   "$HOME/.claude/lib/profile.sh" -C <PROJECT_ROOT> set <name>` or `enable
+   <pack>`. Each call writes `.claude/settings.local.json` atomically or
+   refuses (rc 2, nothing written), so there is nothing to roll back: stop at
+   the first non-zero rc, print its stderr, and continue with the current
+   config. "customize" → user picks. "no" → proceed with current config.
+3. After a successful write print `✅ Applied N change(s) — run
+   /reload-plugins to load the packs in this session (connectors and model:
+   next session).` In a `--settings` conversation (`PROFILE :` block says
+   `source=flag`) the advisor emits no enable for a pack the flag turns off;
+   it says `relaunch: cc <name> <profile>` instead.
 
-**Never auto-activate without showing the list and getting confirmation.**
-
-### Rollback on partial failure
-
-Track each toggle; roll back the partial set rather than leave a
-half-applied configuration:
-
-```bash
-applied=()
-for change in "${PROPOSED_CHANGES[@]}"; do
-  if bash "$HOME/.claude/lib/toggle-external.sh" enable "$change"; then
-    applied+=("$change")
-  else
-    echo "❌ failed to enable $change — rolling back ${#applied[@]} prior change(s)"
-    for prior in "${applied[@]}"; do
-      bash "$HOME/.claude/lib/toggle-external.sh" disable "$prior" \
-        || echo "⚠️ rollback of $prior also failed — manual cleanup required: see ~/.claude/plugins/cache"
-    done
-    exit 1
-  fi
-done
-```
-
-Surface: `✅ Applied N change(s).` — or on failure:
-
-```
-⚠️ Toggle failed at change <name>. Rolled back the N prior change(s).
-   To inspect manually: ls ~/.claude/plugins/cache; bash ~/.claude/lib/toggle-external.sh list
-   Re-run /plugin-check after fixing the underlying cause (e.g. permissions).
-```
+**Never auto-activate without showing the list and getting confirmation.
+Never write the user scope.**

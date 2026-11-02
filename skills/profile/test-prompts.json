@@ -1,5 +1,5 @@
 [
-  {"id": 1, "prompt": "profile list", "expected": "Skill runs `bash $HOME/.claude/lib/profile.sh list` and prints the table of every profile defined under lib/profiles/*.profile (10 today, incl. web, full, minimal) without extra commentary."},
-  {"id": 2, "prompt": "active les skills design — désactive le bruit gstack", "expected": "Skill interprets this as `set design` (destructive — disables non-listed gstack skills), confirms first since `set` is destructive, then runs `bash $HOME/.claude/lib/profile.sh set design` and reports the count of skills moved plus the reminder to start a new Claude session to pick up changes."},
-  {"id": 3, "prompt": "quel profil est actif?", "expected": "Skill runs `bash $HOME/.claude/lib/profile.sh current` and reports the detected active profile with its match percentage; does NOT toggle any symlinks."}
+  {"id": 1, "prompt": "profile list", "expected": "Skill runs `bash $HOME/.claude/lib/profile.sh -C \"$PWD\" list` and prints the profiles defined under lib/profiles/*.json (web, full, minimal, ...) without extra commentary."},
+  {"id": 2, "prompt": "active les skills design — désactive le bruit gstack", "expected": "Skill interprets this as `set design`, runs `bash $HOME/.claude/lib/profile.sh -C \"$PWD\" set design`, and reminds to run /reload-plugins (connectors and model apply to the next session)."},
+  {"id": 3, "prompt": "quel profil est actif?", "expected": "Skill runs `bash $HOME/.claude/lib/profile.sh -C \"$PWD\" current` and reports 'profile: <name> [local|default|conv ...]'; writes nothing."}
 ]

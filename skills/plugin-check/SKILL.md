@@ -12,8 +12,9 @@ plugin-probe (sonnet) → validation checkpoint → dispatch plugin-advisor
 dispatched, gates in this loop).
 
 /plugin-check is READ-ONLY advisory: SKIP the gate's step 5 (apply) — show
-the advisor's exact toggle commands for the user instead. Never write; user
-toggles via `claude plugin enable/disable`.
+the advisor's exact commands for the user instead. Never write: the user runs
+them (`lib/profile.sh` `set <profile>` / `enable <pack>` writes the
+project's `.claude/settings.local.json`, never the user scope).
 
 If `$HOME/.claude/lib/plugin-gate.md` unreachable: emit `Plugin gate include
 missing.` and STOP.
