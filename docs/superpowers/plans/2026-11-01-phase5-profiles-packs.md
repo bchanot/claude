@@ -24,7 +24,7 @@ r2 2026-11-02 after three lenses (correctness FATAL(11), robustness FATAL(10), s
 - Shell: `shellcheck` clean, 80 columns, ≤25 logic lines per function. Rules changed → every citer patched in the same commit.
 - Ids: packs `pack-<n>@skills-dir` (manifest `name` = folder); managed plugins `model-router@skills-dir`, `ui-ux-pro-max@ui-ux-pro-max-skill`, `security-guidance@claude-code-plugins`, `pr-review-toolkit@claude-code-plugins`, `example-skills@anthropic-agent-skills`, `brightdata-plugin@synced`. Connectors `claude.ai higgsfield`, `claude.ai Higgsfield AI`.
 - Tasks 2, 3 and 4 commit TOGETHER at the end of Task 4 (commit C1): between the pack creation and the retirement of `lib/toggle-external.sh` / old `lib/profile.sh`, no code that re-creates flat links may remain in `~/.claude`. Run no design work in another conversation until Task 6 lands.
-- `skills/gstack/` (helper tree without SKILL.md, `lib/gstack-links.sh`) stays, outside the packs. The core flat links that stay in `skills/`: `darwin-skill`, `brainstorming`, `writing-plans`, `subagent-driven-development`, `test-driven-development`, `requesting-code-review`, `using-git-worktrees`, `writing-skills`, `ci-cd-and-automation`, `deprecation-and-migration`, `observability-and-instrumentation`.
+- `skills/gstack/` (helper tree without SKILL.md, `lib/gstack-links.sh`) stays, outside the packs. The core flat links that stay in `skills/`: `model-router` (the TRACKED link to `../mods/model-router`, which loads `model-router@skills-dir`), `darwin-skill`, `brainstorming`, `writing-plans`, `subagent-driven-development`, `test-driven-development`, `requesting-code-review`, `using-git-worktrees`, `writing-skills`, `ci-cd-and-automation`, `deprecation-and-migration`, `observability-and-instrumentation`.
 
 ## Review Focus
 
@@ -104,7 +104,7 @@ The pack is OFF by manifest and ON only through `--settings`, so no concurrent c
 ### Task 2: Packs on disk, old layout removed, pack census (no commit: C1 lands at Task 4)
 
 **Files:**
-- Create: `skills/pack-{design,scroll3d,seo,web-validate,gstack-dev,gstack-browser,gstack-design,higgsfield,extras}/.claude-plugin/plugin.json`, the symlinks of Step 4, `lib/pack-census.sh`, `lib/tests/pack-census.test.sh`, `lib/gstack-removed.list`
+- Create: `skills/pack-{design,scroll3d,seo,web-validate,gstack-dev,gstack-browser,gstack-design,higgsfield,extras}/.claude-plugin/plugin.json`, the symlinks of Step 3, `lib/pack-census.sh`, `lib/pack-census-fragments.jq`, `lib/tests/pack-census.test.sh`, `lib/tests/fixtures/pack-census-old-citers.sh` (one line, exactly: `ls $HOME/.claude/skills/a2 skills-disabled/foo; bash lib/toggle-external.sh; cat .active-profile; lib/profiles/web.profile`), `lib/gstack-removed.list`
 - `git mv`: `skills/{site-motion,seo,geo,web-validate}`
 - Modify: `.gitignore` (by content anchors), the citers of Step 8
 - Working tree only: flat symlinks, `skills-disabled/`, `.active-profile`, `settings.json` residue
@@ -155,8 +155,8 @@ mk_pack() { # name defaultEnabled skill...
 }
 mk_pack alpha true a1 a2
 mk_pack beta false b1
-frag() { # name alpha beta deny(yes|no)
-  local d=""; [ "$4" = yes ] && d=', "deniedMcpServers": [{"serverName": "claude.ai X"}]'
+frag() { # name alpha beta deny(yes|no) — the two real connector names
+  local d=""; [ "$4" = yes ] && d=', "deniedMcpServers": [{"serverName": "claude.ai higgsfield"}, {"serverName": "claude.ai Higgsfield AI"}]'
   printf '{"enabledPlugins": {"model-router@skills-dir": true, "pack-alpha@skills-dir": %s, "pack-beta@skills-dir": %s, "security-guidance@claude-code-plugins": true, "example-skills@anthropic-agent-skills": false, "brightdata-plugin@synced": false}%s}\n' \
     "$2" "$3" "$d" > "$FX/lib/profiles/$1.json"; }
 frag full true false no; frag dev false false yes
@@ -195,7 +195,7 @@ check T6-nolist-rc "$rc" 1; check_has T6-nolist "$out" "RED lib/gstack-removed.l
 mv "$FX/lib/gstack-removed.list.off" "$FX/lib/gstack-removed.list"
 
 printf 'Read ~/.claude/skills/a1/SKILL.md\n' > "$FX/hooks/x.sh"
-printf 'ls $HOME/.claude/skills/a2 skills-disabled/foo; bash lib/toggle-external.sh; cat .active-profile; lib/profiles/web.profile\n' > "$FX/hooks/y.sh"
+cp "$ROOT/lib/tests/fixtures/pack-census-old-citers.sh" "$FX/hooks/y.sh"   # the old-layout terms live in a fixture, not in this file (the census scans lib/tests/)
 out="$(census)"; rc=$?
 check T7-citer-rc "$rc" 1
 check_has T7-citer-tilde "$out" "RED hooks/x.sh cites ~/.claude/skills/a1"
@@ -290,7 +290,8 @@ check_entry() { # $1 pack dir, $2 entry path
       red "$n: $s target missing (pack ON)"
     else echo "WARN $n: $s target missing (installer not run)"; fi
   fi
-  grep -qx -- "$s" "$REMOVED" && red "$n: $s is a retired gstack skill"
+  [ -f "$REMOVED" ] && grep -qx -- "$s" "$REMOVED" \
+    && red "$n: $s is a retired gstack skill"
   if [ -n "${seen[$s]:-}" ]; then
     red "$s listed twice: ${seen[$s]} and $n — rm ${seen[$s]} (a flat link)"
   else seen[$s]="$n"; fi
@@ -300,34 +301,41 @@ check_entry() { # $1 pack dir, $2 entry path
 check_fragments() {
   local files=("$PROFILES"/*.json) full="$PROFILES/full.json" out
   [ -f "$full" ] || { red "lib/profiles/full.json missing"; return; }
-  out="$(jq -rn --arg deny "$DENY_PROFILES" \
-    --argjson m "$(manifests_json)" -f "$REPO/lib/pack-census-fragments.jq" \
-    "${files[@]}")" || { red "lib/profiles: a fragment is not JSON"; return; }
+  out="$(jq -rn --arg deny "$DENY_PROFILES" --argjson m "$(manifests_json)" \
+    -f "$FRAG_JQ" "${files[@]}")" \
+    || { red "lib/profiles: a fragment is not JSON"; return; }
   [ -z "$out" ] || { echo "$out"; red=1; }
 }
 
 manifests_json() { # [{id, on}] for every pack manifest
-  jq -cn '[inputs | {id: (.name + "@skills-dir"), on: (.defaultEnabled != false)}]' \
+  jq -cn '[inputs | {id: (.name + "@skills-dir"),
+                     on: (.defaultEnabled != false)}]' \
     "$SKILLS"/pack-*/.claude-plugin/plugin.json 2>/dev/null || echo '[]'
 }
 
+# The old-layout terms are written with a bracketed last letter so this
+# file never matches itself; the test's fixture strings live in
+# lib/tests/fixtures/ (excluded) for the same reason.
 check_citers() { # $@ pack skill names → one grep over the contract scope
-  local args=(-e 'skills-disabled/' -e 'toggle-external' -e '\.active-profile'
-    -e 'lib/profiles/[a-z-]*\.profile') n hit
+  local args=(-e 'skills-disable[d]/' -e 'toggle-externa[l]'
+    -e '\.active-profil[e]' -e 'lib/profiles/[a-z-]*\.profil[e]') n hit
   for n in "$@"; do
     args+=(-e "~/.claude/skills/$n\b" -e "\$HOME/.claude/skills/$n\b")
   done
   hit="$( { grep -rno --include='*.sh' --include='*.md' --include='*.py' \
       --include='*.json' --include='Makefile' "${args[@]}" "$REPO"/hooks \
-      "$REPO"/lib "$REPO"/agents "$REPO"/skills "$REPO"/rules "$REPO"/templates \
-      "$REPO"/mods "$REPO"/*.sh "$REPO"/CLAUDE.global.md "$REPO"/README.md \
-      "$REPO"/USAGE.md "$REPO"/ARCHITECTURE.md "$REPO"/Makefile \
-      "$REPO"/plugins.lock.json 2>/dev/null
-      grep -no "${args[@]}" "$REPO"/.gitignore 2>/dev/null; } \
-    | grep -v -e '/lib/tests/fixtures/' -e '/skills/pack-' -e '/skills-external/' \
+      "$REPO"/lib "$REPO"/agents "$REPO"/skills "$REPO"/rules \
+      "$REPO"/templates "$REPO"/mods "$REPO"/*.sh "$REPO"/CLAUDE.global.md \
+      "$REPO"/README.md "$REPO"/USAGE.md "$REPO"/ARCHITECTURE.md \
+      "$REPO"/Makefile "$REPO"/plugins.lock.json 2>/dev/null
+      grep -nHo "${args[@]}" "$REPO"/.gitignore 2>/dev/null; } \
+    | grep -v -e '/lib/tests/fixtures/' -e '/skills/pack-' \
+      -e '/skills-external/' \
     | sed 's#:[0-9]*:#\t#' | sort -u || true)"
   [ -n "$hit" ] || return 0
-  while IFS=$'\t' read -r f m; do red "${f#"$REPO"/} cites ${m%/}"; done <<<"$hit"
+  while IFS=$'\t' read -r f m; do
+    red "${f#"$REPO"/} cites $m"
+  done <<<"$hit"
 }
 
 main() {
@@ -345,7 +353,6 @@ main() {
       check_entry "$p" "$e"; names+=("$(basename "$e")")
     done
   done
-  [ -f "$REMOVED" ] || : > "$REMOVED.absent"   # keep grep -qx from failing below
   check_fragments
   [ "${#names[@]}" -gt 0 ] && check_citers "${names[@]}"
   [ "$red" -eq 0 ] && echo "PACKS OK $packs packs $skills skills"
@@ -354,7 +361,7 @@ main() {
 main
 ```
 
-Remove the `: > "$REMOVED.absent"` line: instead `check_entry` guards `[ -f "$REMOVED" ] && grep -qx …`. (Written here so the reviewer sees the choice; the file must not create stray files.) `lib/pack-census-fragments.jq`:
+Two more lines near the top of the file, after `REMOVED=…`: `FRAG_JQ="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)/pack-census-fragments.jq"` (the program ships with the census, not with the `--repo` tree). And in `check_entry`, the retired check is guarded: `[ -f "$REMOVED" ] && grep -qx -- "$s" "$REMOVED" && red "$n: $s is a retired gstack skill"`. Every line ≤ 80 bytes (`LC_ALL=C awk 'length > 80'`), including the ones with `→` or `—`. `lib/pack-census-fragments.jq`:
 
 ```jq
 # lib/pack-census-fragments.jq — fragment invariants (lib/pack-census.sh).
@@ -384,7 +391,8 @@ def dn: [(.deniedMcpServers // [])[] | .serverName] | sort;
       then "RED lib/profiles/\($f): must deny no connector" else empty end ),
   ( if $f == "full.json" then
       ($mdef | to_entries[] | select($g.enabledPlugins[.key] != .value)
-       | "RED lib/profiles/full.json: \(.key) is \($g.enabledPlugins[.key]) but the manifest default is \(.value)")
+       | "RED lib/profiles/full.json: \(.key) is \($g.enabledPlugins[.key])"
+         + " but the manifest default is \(.value)")
     else empty end )
 ```
 
@@ -437,10 +445,10 @@ ls skills-external/impeccable/SKILL.md
 
 ```bash
 cd /home/bchanot/Documents/claude
-find skills -maxdepth 1 -type l | grep -v -x -e skills/darwin-skill -e skills/brainstorming -e skills/writing-plans -e skills/subagent-driven-development -e skills/test-driven-development -e skills/requesting-code-review -e skills/using-git-worktrees -e skills/writing-skills -e skills/ci-cd-and-automation -e skills/deprecation-and-migration -e skills/observability-and-instrumentation
+find skills -maxdepth 1 -type l | grep -v -x -e skills/model-router -e skills/darwin-skill -e skills/brainstorming -e skills/writing-plans -e skills/subagent-driven-development -e skills/test-driven-development -e skills/requesting-code-review -e skills/using-git-worktrees -e skills/writing-skills -e skills/ci-cd-and-automation -e skills/deprecation-and-migration -e skills/observability-and-instrumentation
 ```
 
-Read the list. Every printed path is a symlink (`-type l`): remove them in ONE `rm` call whose arguments are the printed names typed out (no variable, no glob). Then:
+Read the list: `skills/model-router` must NOT be in it (it is the tracked link that loads the router; `git ls-files -s skills/model-router` shows mode 120000). Every printed path is a symlink (`-type l`): remove them in ONE `rm` call whose arguments are the printed names typed out (no variable, no glob). Then:
 
 ```bash
 find skills-disabled -maxdepth 1 -type l
@@ -460,7 +468,7 @@ skills/impeccable
 skills-external/impeccable/
 ```
 
-Keep `agents/impeccable-*.md` and its comment. Delete the blocks headed `# 21st.dev skill pack symlinks` (through `skills/21st-*`) and `# Higgsfield skill pack symlinks` (through `skills/higgsfield-*`), the block `# Staging area used by lib/toggle-external.sh…` + `skills-disabled/`, and the block `# Profile cache…` + `.active-profile`. Keep every `skills-external/…` line.
+Keep `agents/impeccable-*.md` and its comment, and keep `.gstack/` (the line right below the `.active-profile` block). Delete the blocks headed `# 21st.dev skill pack symlinks` (through `skills/21st-*`) and `# Higgsfield skill pack symlinks` (through `skills/higgsfield-*`), the block `# Staging area used by lib/toggle-external.sh…` + `skills-disabled/`, and the block `# Profile cache…` + `.active-profile`. Keep every `skills-external/…` line.
 
 - [ ] **Step 7: Restore the user-scope residue (working tree, not a commit)**
 
@@ -489,8 +497,7 @@ print(sorted(p["name"] for p in d["plugins"] if p["name"].startswith("pack-")))
 print(len(d["skills"]), [s for s in d["skills"] if s.startswith("pack-seo:") or s == "pack-design:emil-design-eng"])' "$S/t2.jsonl"
 ```
 
-Expected: the seven ON packs, no `pack-higgsfield`/`pack-extras`, and `['pack-design:emil-design-eng', 'pack-seo:geo', 'pack-seo:seo']`. No commit yet (C1 at Task 4). `bash lib/pack-census.sh` at this point: only `RED lib/profiles/full.json missing` (Task 3 fixes), everything else clean; a RED citer here is fixed here.
-
+Expected: the seven ON packs, no `pack-higgsfield`/`pack-extras`, and `['pack-design:emil-design-eng', 'pack-seo:geo', 'pack-seo:seo']`. No commit yet (C1 at Task 4). `bash lib/pack-census.sh` at this point: `RED lib/profiles/full.json missing` (Task 3 fixes) plus RED citer lines on the files Tasks 6-11 rewrite (`skills/profile/SKILL.md`, `skills/onboard/SKILL.md`, `agents/plugin-probe.md`, `agents/plugin-advisor.md`, `lib/plugin-gate.md`, `hooks/statusline.sh`, `doctor.sh`, `lib/tests/design-tool-gate.test.sh`, `install-plugins.sh`, `update-all.sh`, `plugins.lock.json`, `README.md`, `CLAUDE.global.md`, and the old `lib/toggle-external.sh` / `lib/profile.sh` / `lib/tests/profile-*.test.sh` until Tasks 3-4 delete them). Those are expected; any OTHER RED (a moved-skill citer not in Step 8) is fixed here.
 ---
 
 ### Task 3: Profile fragments, `lib/profile.sh`, `lib/profile-state.jq` (no commit: C1 at Task 4)
@@ -737,13 +744,15 @@ def dn: [(.deniedMcpServers // [])[] | .serverName];
 def onoff: if . then "on" else "off" end;
 def is_pack: startswith("pack-") and endswith("@skills-dir");
 def short: sub("@skills-dir$"; "");
-def src_word($s): if $s.source == "flag" then "conv \($s.flag)" else $s.source end;
+def src_word($s):
+  if $s.source == "flag" then "conv \($s.flag)" else $s.source end;
 def listing($plugins; $on):
   [$plugins | to_entries[] | select(.value == $on) | .key | short]
   | if length == 0 then "none" else join(" ") end;
 
 [inputs | {name: name_of, frag: .}] as $profiles
-| ($u | parse) as $U | ($p | parse) as $P | ($l | parse) as $L | ($f | parse) as $F
+| ($u | parse) as $U | ($p | parse) as $P
+| ($l | parse) as $L | ($f | parse) as $F
 | ([$profiles[].frag | ep | keys[]] | unique) as $ids
 | ($m | map({key: .id, value: .on}) | from_entries) as $mdef
 | ($ids | map({key: ., value: ($mdef[.]
@@ -854,8 +863,8 @@ usage() {
 
 # ---- project root ----------------------------------------------------------
 find_root() { # $1 dir → nearest ancestor with .claude/, CLAUDE.md or .git
-  local d="$1"
-  while [ "$d" != / ]; do
+  local d="$1"   # the walk stops below $HOME: ~/.claude is not a project
+  while [ "$d" != / ] && [ "$d" != "$HOME" ]; do
     if [ -d "$d/.claude" ] || [ -f "$d/CLAUDE.md" ] || [ -e "$d/.git" ]; then
       echo "$d"; return 0
     fi
@@ -911,7 +920,7 @@ raw_or_null() { # $1 file → the path, or /dev/null when absent or unset
   if [ -n "$1" ] && [ -f "$1" ]; then echo "$1"; else echo /dev/null; fi
 }
 
-# ---- effective state: two jq calls --------------------------------------------
+# ---- effective state: two jq calls -----------------------------------------
 state() { # $1 mode: plain | human | json
   local hasflag=0; have_flag && hasflag=1
   jq -rn --arg mode "$1" --arg proj "$PROJECT" --arg hasflag "$hasflag" \
@@ -1038,7 +1047,8 @@ cmd_diff() {
        else "connectors denied: " + ($have | join(", ")) + " → "
             + ($want | join(", ")) end),
     (if (.model // "-") != $e.model
-     then "model: " + $e.model + " → " + (.model // "-") else empty end)' "$f")"
+     then "model: " + $e.model + " → " + (.model // "-")
+     else empty end)' "$f")"
   if [ -n "$out" ]; then echo "$out"; else echo "no difference from $1"; fi
 }
 
@@ -1103,7 +1113,7 @@ Then the edits above. `grep -rn 'gstack_park\|gstack_unpark\|gstack_parked_names
 
 - [ ] **Step 2: Green**
 
-Run: `make test suite="lib/tests/higgsfield.test.sh lib/tests/pack-census.test.sh lib/tests/profile.test.sh"` → green. `bash lib/pack-census.sh` → `PACKS OK 9 packs 55 skills`.
+Run: `make test suite="lib/tests/higgsfield.test.sh lib/tests/profile.test.sh"` → green. `bash lib/pack-census.sh` → RED citer lines ONLY on files Tasks 6-11 rewrite (the Task 2 Step 9 list minus the deleted libs and suites); no RED on packs, fragments or moved-skill citers. `pack-census.test.sh` T11-real (and so `make test` as a whole) stays red from C1 until Task 11; every other suite is green at C1.
 
 - [ ] **Step 3: Commit C1**
 
@@ -1257,7 +1267,7 @@ git commit -m "feat(cc): cc <name> [profile] runs claude --settings lib/profiles
 
 **Produces:** `design-tool-gate.sh` (no argument). Exit 0 / 10 / 11 / 12 / 2. First lines: `design toolchain: READY — packs design + gstack-design + ui-ux-pro-max on (<profile>)`; `design toolchain: INCOMPLETE`; `design toolchain: SIGN-IN REQUIRED — 21st CLI installed, not signed in`; `design toolchain: READY BUT UNVERIFIED — 21st could not answer: <diag>`. Env: `DESIGN_GATE_PROFILE_SH` (default `$REPO/lib/profile.sh`), `TWENTYFIRST_TOKEN` / `API_KEY_21ST`.
 
-- [ ] **Step 1: Failing suite** (replace `lib/tests/design-tool-gate.test.sh`; keep the file's CURRENT sanitised precondition at lines 20-22: `PATH=/usr/bin:/bin command -v 21st || [ -e /usr/local/bin/21st ] …` → exit 1 with its message)
+- [ ] **Step 1: Failing suite** (replace `lib/tests/design-tool-gate.test.sh`; keep the file's CURRENT sanitised precondition at lines 20-27, the whole `if … fi`: `PATH=/usr/bin:/bin command -v 21st || [ -e /usr/local/bin/21st ] …` → exit 1 with its message)
 
 ```bash
 #!/usr/bin/env bash
@@ -1273,7 +1283,7 @@ ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 PASS=0; FAIL=0
 ok()  { PASS=$((PASS+1)); echo "PASS $1"; }
 bad() { FAIL=$((FAIL+1)); echo "FAIL $1 — $2"; }
-<the current lines 20-22 precondition, unchanged>
+<the current lines 20-27 precondition (the whole if…fi), unchanged>
 WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
 mkdir -p "$WORK/bin" "$WORK/home"; export WORK
 printf '#!/usr/bin/env bash\ncat "$WORK/plain.txt"\n' > "$WORK/bin/profile.sh"
@@ -1440,12 +1450,13 @@ git commit -m "docs(plugin-gate): probe reads current --plain, advisor emits pro
 
 - [ ] **Step 1: Statusline test (failing)** — r1 text, with the fake `profile.sh` asserting `"$2" = "$FAKE_DIR"` and the statusline input `{"cwd": "<cwd>", "workspace": {"project_dir": "<FAKE_DIR>"}}`; cases local, flag `(conv)`, default, failing (`exit 2`), missing → `profile: ? |`.
 
-- [ ] **Step 2: `hooks/statusline.sh`**: line 8 `DIR=$(jq -r '.workspace.project_dir // .cwd // "."' …)` (keep the existing fallback shape); lines 23-34 →
+- [ ] **Step 2: `hooks/statusline.sh`**: line 8 keeps `DIR` (`.cwd`, used for FOLDER and BRANCH at lines 9, 15-17: unchanged display); add right after it `PROJ=$(printf '%s' "$INPUT" | jq -r '.workspace.project_dir // .cwd // "."' 2>/dev/null)` (same input variable and fallback shape as line 8); lines 23-34 →
 
 ```bash
 # Profile of this project and conversation: `profile.sh current --plain`
-# (two jq calls). `(conv)` = a --settings conversation. Any failure → "?".
-_plain="$(bash "$REPO/lib/profile.sh" -C "$DIR" current --plain 2>/dev/null)" || _plain=""
+# (two jq calls) on the session's project dir. `(conv)` = a --settings
+# conversation. Any failure → "?".
+_plain="$(bash "$REPO/lib/profile.sh" -C "$PROJ" current --plain 2>/dev/null)" || _plain=""
 PROFILE="$(sed -n 's/^profile=//p' <<<"$_plain" | head -1)"
 [ -n "$PROFILE" ] || PROFILE="?"
 [ "$(sed -n 's/^source=//p' <<<"$_plain" | head -1)" = flag ] && PROFILE="$PROFILE (conv)"
@@ -1464,7 +1475,7 @@ detect_gstack() {
 }
 ```
 
-`hooks/session-start.sh`: BEFORE the loop at line 70, compute `PROFILE_PLAIN="$(bash "$HOME/.claude/lib/profile.sh" -C "$PWD" current --plain 2>/dev/null)" || PROFILE_PLAIN=""; export PROFILE_PLAIN`; after line 90 build `PROFILE_ROW` from it (`flag` → `profile: <n> (conv)`, `local` → `profile: <n> (local)`, `default` → `profile: none (full) · try /plugin-check`, else `profile: ? (profile.sh failed)`); replace line 292 with `printf "│  🎛 %-44s│\n" "$PROFILE_ROW"` and check the right border aligns with the `🩺 make doctor` row (`bash hooks/session-start.sh | tail -4`). `unset PROFILE_PLAIN` at the end.
+`hooks/session-start.sh`: BEFORE the loop at line 70, compute `PROFILE_PLAIN="$(bash "$HOME/.claude/lib/profile.sh" -C "$PWD" current --plain 2>/dev/null)" || PROFILE_PLAIN=""; export PROFILE_PLAIN`; after line 90 build `PROFILE_ROW` from it (`flag` → `profile: <n> (conv)`, `local` → `profile: <n> (local)`, `default` → `profile: none (full), try /plugin-check`, else `profile: ? (profile.sh failed)`); replace line 292 with `printf "│  🎛 %-46s│\n" "$PROFILE_ROW"` (🎛 is a width-1 glyph where the other icons are width-2, hence 46, and `%-Ns` pads by bytes: keep the row ASCII) and check the right border aligns with the `🩺 make doctor` row (`bash hooks/session-start.sh | tail -4`). `unset PROFILE_PLAIN` at the end.
 
 - [ ] **Step 4: doctor, its libs, link.sh, Makefile**
 
@@ -1523,7 +1534,7 @@ fi
 
 Delete the `toggle-external.sh disable gstack` / status lines; ok message → `ok "GStack ready (packs pack-gstack-dev / -browser / -design; profile.sh set <profile>)"`.
 
-- [ ] **Step 2: impeccable** (`install-plugins.sh` 819-906, `update-all.sh` 406-473): `IMP_HOME="$REPO/skills-external/impeccable"` replaces `IMP_PARKED`; "already present" tests read `$IMP_HOME/SKILL.md`; after a successful install the park logic becomes
+- [ ] **Step 2: impeccable** (`install-plugins.sh` 819-906, `update-all.sh` 406-473): `IMP_SKILL_DIR="$REPO/skills/impeccable"` (the same directory the CLI writes through the `~/.claude/skills` symlink; spelled through `$REPO` so the census's `$HOME/.claude/skills/<pack skill>` pattern no longer matches a legitimate line) and `IMP_HOME="$REPO/skills-external/impeccable"` replaces `IMP_PARKED`; "already present" tests read `$IMP_HOME/SKILL.md`; after a successful install the park logic becomes
 
 ```bash
     cd "$REPO" && rm -rf skills-external/impeccable && mv "$IMP_SKILL_DIR" skills-external/impeccable
@@ -1531,7 +1542,7 @@ Delete the `toggle-external.sh disable gstack` / status lines; ok message → `o
 
 (literal relative path inside the repo; the installer `cd`s to `$REPO` at its top — check with `grep -n '^cd ' install-plugins.sh`, hence the explicit `cd "$REPO" &&` anyway). `IMP_WAS_PARKED` and its branch disappear; comments 804-806 say "moved to skills-external/impeccable (pack-design links it)".
 
-- [ ] **Step 3: Hints, Step 11, summary, lock note**: 1001 and 1057 `toggle-external.sh enable higgsfield` → `bash lib/profile.sh enable higgsfield` then `/reload-plugins`; 1074 → "`skills/pack-design` (`21st-ui-build`, `21st-cli-use`) and `skills/pack-extras` link it"; Step 11 (1264-1291) deleted; 1308, 1321-1322 → `packs: bash lib/profile.sh set <profile> | enable <pack>, then /reload-plugins`; `plugins.lock.json:31` note → `profile.sh enable higgsfield`; `update-all.sh:547` → "linked by pack-design / pack-extras".
+- [ ] **Step 3: Hints, Step 11, summary, lock note**: 1001 and 1057 `toggle-external.sh enable higgsfield` → `bash lib/profile.sh enable higgsfield` then `/reload-plugins`; 1074 → "`skills/pack-design` (`21st-ui-build`, `21st-cli-use`) and `skills/pack-extras` link it"; Step 11 (1264-1291) deleted; 1308, 1321-1322 → `packs: bash lib/profile.sh set <profile> | enable <pack>, then /reload-plugins`; `plugins.lock.json:31` note → `profile.sh enable higgsfield`; `plugins.lock.json:92` and `install-plugins.sh:804` (impeccable notes citing `~/.claude/skills/impeccable`) → "`skills-external/impeccable`, linked by pack-design"; `install-plugins.sh:1328` (a third `~/.claude/skills/<x>/` echo next to 1326-1327) → the pack path; `update-all.sh:547` → "linked by pack-design / pack-extras". After this step `bash lib/pack-census.sh` prints no RED on `install-plugins.sh`, `update-all.sh` or `plugins.lock.json`.
 
 - [ ] **Step 4: Verify and commit**
 
@@ -1583,7 +1594,8 @@ an old profile; nothing below deletes a real directory).
    (never `git checkout -- settings.json`: it would drop your UI writes).
 2. Old layout: `find skills skills-disabled -maxdepth 1 -type l` lists the
    flat links; remove the ones `make doctor` names as duplicates (every
-   `skills-disabled/` link, and in `skills/` everything except darwin-skill,
+   `skills-disabled/` link, and in `skills/` everything except model-router
+   (the tracked link to `mods/model-router`), darwin-skill,
    the seven superpowers and the agent-skills trio). If
    `skills-disabled/impeccable` is a directory: `mv skills-disabled/impeccable
    skills-external/impeccable`. Then `rmdir skills-disabled; rm -f
@@ -1634,7 +1646,7 @@ cd /home/bchanot/Documents/claude && S="$HOME/.cache/claude-tmp/p5"; mkdir -p "$
 git show HEAD:settings.json | jq '.env.SLASH_COMMAND_TOOL_CHAR_BUDGET = "<value>"' > "$S/settings.index.json"
 test -s "$S/settings.index.json" && git show HEAD:settings.json | diff - "$S/settings.index.json"   # expected: -1/+2 lines (ENABLE_STOP_REVIEW gains a comma, one key added)
 git update-index --cacheinfo 100644,"$(git hash-object -w "$S/settings.index.json")",settings.json
-git diff --cached --stat   # settings.json | 3 +-
+git diff --cached --stat   # settings.json | 3 ++-   (-1/+2: one key added, the previous env line gains a comma)
 git commit -m "feat(settings): SLASH_COMMAND_TOOL_CHAR_BUDGET=<value>: 0 name-only skills on full (+<n>k tokens), measured"
 jq '.env.SLASH_COMMAND_TOOL_CHAR_BUDGET = "<value>"' settings.json > "$S/settings.work.json" && test -s "$S/settings.work.json" && cp "$S/settings.work.json" settings.json
 git status --short settings.json   # ` M settings.json` (UI writes only)
@@ -1655,3 +1667,7 @@ MINOR → change: router canary measures nothing + typed long slash never routed
 Deferred, human-ack: none. Not done, said why: `.git/info/exclude` for `settings.local.json` (rob 14): onboarded projects ignore it already; the Claude Code write race is documented in `/profile`, not solved. Secret in `~/.bashrc:151` (rob 19, outside scope): reported to the user, no edit.
 
 Lenses returned: correctness / robustness / simplicity.
+
+## Confirmation pass (r2 → r3, correctness, FATAL(4) on r2)
+
+BLOCKER 1 (the Step 5 keep list dropped `skills/model-router`, the tracked link that loads the router) → `model-router` added to the keep list in Global Constraints, Task 2 Step 5 (with an explicit "must NOT be in the list" check) and MIGRATION step 2. BLOCKER 2 (the census matched its own pattern line and the test's fixture strings; permanent legitimate citers in the installers) → bracketed-letter patterns, fixture strings moved to `lib/tests/fixtures/pack-census-old-citers.sh`, `IMP_SKILL_DIR` spelled through `$REPO`, `plugins.lock.json:92`, `install-plugins.sh:804` and `:1328` added to Task 9. MAJOR 3 (census RED on files later tasks rewrite) → Task 2 Step 9 and Task 4 Step 2 expectations corrected: `pack-census.test.sh` T11-real red from C1 until Task 11, every other suite green. MAJOR 4 (`-f "$REPO/…jq"` resolved against the fixture) → `FRAG_JQ` next to the script. MINOR 5-11 fixed in place: `$m` printed whole, `-nHo` on `.gitignore`, the stray `: > "$REMOVED.absent"` line and the amending notes removed, lines wrapped ≤ 80 bytes, `find_root` stops below `$HOME`, banner `%-46s` and a comma instead of `·`, design-gate precondition lines 20-27, statusline keeps `DIR` and adds `PROJ`, `.gstack/` named as kept, `--stat` shape `3 ++-`. Verified green by the confirmation run (no finding): profile-state.jq and profile.sh under jq 1.8.1 (profile.test.sh 51/52 before the width fix, 13 ms for `current`), cc.test.sh 18/18, the Step 7 restore dry run, the Task 13 index recipe, the doctor snippet under pipefail, the gstack setup guard. These r3 fixes were not re-challenged (one confirmation pass, per the challenge doctrine); the gate reviewer reads them as the human check.
