@@ -65,7 +65,8 @@ check T12-rc0-still-rewrites \
   "$(shim_raw probe-read | jq -r '.hookSpecificOutput.updatedInput.command')" \
   "rtk read probe-read"
 check T13-pin-matches \
-  "$(cd "$(dirname "$H")" && sha256sum -c .rtk-hook.sha256 >/dev/null 2>&1 \
+  "$(cd "$(dirname "$H")" && { sha256sum -c .rtk-hook.sha256 \
+     || shasum -a 256 -c .rtk-hook.sha256; } >/dev/null 2>&1 \
      && echo ok || echo mismatch)" ok
 
 printf 'PASS=%s FAIL=%s\n' "$pass" "$fail"; [ "$fail" -eq 0 ]
