@@ -15,8 +15,8 @@ has()   { if grep -qF "$2" "$R/$1"; then ok; else ko "$1 missing: $2"; fi; }
 SEO=agents/seo-analyzer.md
 GEO=agents/geo-analyzer.md
 
-# 1) judge verdict grammar — DISPATCHER ERROR CONTRACT (skills/seo STEP 1,
-#    skills/geo STEP 1B) fail-closes on this exact shape
+# 1) judge verdict grammar — DISPATCHER ERROR CONTRACT (skills/pack-seo/skills/seo STEP 1,
+#    skills/pack-seo/skills/geo STEP 1B) fail-closes on this exact shape
 has "$SEO" 'SEO JUDGE — VERDICT: ERROR('
 has "$GEO" 'GEO JUDGE — VERDICT: ERROR('
 has "skills/pack-seo/skills/seo/SKILL.md" 'SEO JUDGE — VERDICT: ERROR('

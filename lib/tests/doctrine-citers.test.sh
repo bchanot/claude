@@ -186,14 +186,15 @@ citers_check_files "$FIX" "$FIX/t2.md" >/dev/null
 check T8h-template-rules-path "$rc1|$?" "0|1"
 
 # ── real census: the repo's own citers against CLAUDE.global.md ──────────────
+# (`impeccabl[e]` is a glob: the pack census must not read it as a citer.)
 mapfile -t FILES < <(cd "$ROOT" && find skills agents lib rules hooks -type f \( -name '*.md' -o -name '*.sh' \) \
-  -not -path 'skills/graphify/*' -not -path 'skills-external/impeccable/*' -not -path 'skills/synced/*' \
+  -not -path 'skills/graphify/*' -not -path 'skills/impeccabl[e]/*' -not -path 'skills-external/impeccable/*' -not -path 'skills/synced/*' \
   -not -path 'agents/impeccable-*' -not -path 'lib/tests/*' | sort)
 # T6 also scans the templates and this repo's own project rules; T3 must not
 # (there `CLAUDE.md` means a project CLAUDE.md, not the doctrine).
 mapfile -t FILES_ALL < <(cd "$ROOT" && find skills agents lib rules hooks \
   templates .claude/rules -type f \( -name '*.md' -o -name '*.sh' \) \
-  -not -path 'skills/graphify/*' -not -path 'skills-external/impeccable/*' \
+  -not -path 'skills/graphify/*' -not -path 'skills/impeccabl[e]/*' -not -path 'skills-external/impeccable/*' \
   -not -path 'skills/synced/*' -not -path 'agents/impeccable-*' \
   -not -path 'lib/tests/*' | sort)
 # T8f: the T6 list reaches the two blind trees, the T3 list does not

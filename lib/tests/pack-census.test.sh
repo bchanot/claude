@@ -53,8 +53,12 @@ mv "$FX/skills/pack-alpha/.claude-plugin/plugin.json.bak" "$FX/skills/pack-alpha
 
 ln -s ../skills-external/a1 "$FX/skills/a1"
 out="$(census)"; rc=$?
-check T5-dup-rc "$rc" 1; check_has T5-dup "$out" "RED a1 listed twice: skills/a1 and pack-alpha — rm skills/a1 (a flat link)"
+check T5-dup-rc "$rc" 1; check_has T5-dup "$out" "RED a1 listed twice: skills/a1 and pack-alpha; run: rm skills/a1 (a flat link)"
 rm "$FX/skills/a1"
+mkdir "$FX/skills/a1"; touch "$FX/skills/a1/SKILL.md"
+out="$(census)"
+check_has T5-dup-real "$out" "run: mv skills/a1 skills-external/a1 (a real dir)"
+rm -r "$FX/skills/a1"
 
 ln -s "../../../skills-external/a1" "$FX/skills/pack-alpha/skills/gs-dead"
 out="$(census)"; rc=$?
@@ -90,6 +94,17 @@ sed -i.bak 's/"security-guidance@claude-code-plugins": true/"security-guidance@c
 out="$(census)"; rc=$?
 check T10-fixed-rc "$rc" 1; check_has T10-fixed "$out" "RED lib/profiles/dev.json: security-guidance@claude-code-plugins must be true"
 mv "$FX/lib/profiles/dev.json.bak" "$FX/lib/profiles/dev.json"
+
+# identical fragments; a pack id with no manifest (WARN, not RED)
+cp "$FX/lib/profiles/dev.json" "$FX/lib/profiles/zdev.json"
+out="$(census)"; rc=$?
+check T13-same-rc "$rc" 1
+check_has T13-same "$out" "RED lib/profiles/dev.json and zdev.json are identical fragments"
+rm "$FX/lib/profiles/zdev.json"
+sed 's/pack-beta@skills-dir": false/pack-beta@skills-dir": false, "pack-ghost@skills-dir": false/' "$FX/lib/profiles/dev.json" > "$FX/lib/profiles/ghost.json"
+out="$(census)"; rc=$?
+check_has T14-ghost "$out" "WARN lib/profiles/ghost.json: names pack-ghost with no skills/pack-ghost/"
+rm "$FX/lib/profiles/ghost.json"
 
 # real repo, hermetic part
 out="$(bash "$ROOT/lib/pack-census.sh" 2>&1)"; rc=$?

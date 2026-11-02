@@ -35,7 +35,7 @@ PROFILES="$REPO/lib/profiles"
 REMOVED="$REPO/lib/gstack-removed.list"
 HERE="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FRAG_JQ="$HERE/pack-census-fragments.jq"
-DENY_PROFILES="audit backend dev minimal qa seo"   # spec § 2
+DENY_PROFILES="audit dev minimal qa seo"   # spec § 2
 red=0; packs=0; skills=0
 declare -A seen
 red() { echo "RED $*"; red=1; }
@@ -52,6 +52,11 @@ check_manifest() { # $1 pack dir
   [ "$name" = "$n" ] || red "$n: manifest name is $name"
 }
 
+dup_remedy() { # $1 skill listed flat and in a pack
+  if [ -L "$SKILLS/$1" ]; then echo "rm skills/$1 (a flat link)"
+  else echo "mv skills/$1 skills-external/$1 (a real dir)"; fi
+}
+
 check_entry() { # $1 pack dir, $2 entry path
   local n s; n="$(basename "$1")"; s="$(basename "$2")"
   if [ ! -e "$2/SKILL.md" ]; then
@@ -62,7 +67,7 @@ check_entry() { # $1 pack dir, $2 entry path
   [ -f "$REMOVED" ] && grep -qx -- "$s" "$REMOVED" \
     && red "$n: $s is a retired gstack skill"
   if [ -n "${seen[$s]:-}" ]; then
-    red "$s listed twice: ${seen[$s]} and $n — rm ${seen[$s]} (a flat link)"
+    red "$s listed twice: ${seen[$s]} and $n; run: $(dup_remedy "$s")"
   else seen[$s]="$n"; fi
   skills=$((skills+1))
 }
@@ -73,7 +78,8 @@ check_fragments() {
   out="$(jq -rn --arg deny "$DENY_PROFILES" --argjson m "$(manifests_json)" \
     -f "$FRAG_JQ" "${files[@]}")" \
     || { red "lib/profiles: a fragment is not JSON"; return; }
-  [ -z "$out" ] || { echo "$out"; red=1; }
+  [ -z "$out" ] || echo "$out"
+  ! grep -q '^RED' <<<"$out" || red=1
 }
 
 manifests_json() { # [{id, on}] for every pack manifest
@@ -82,6 +88,8 @@ manifests_json() { # [{id, on}] for every pack manifest
     "$SKILLS"/pack-*/.claude-plugin/plugin.json 2>/dev/null || echo '[]'
 }
 
+# A bare `skills/<pack skill>/` is stale; the layout is
+# `skills/pack-<n>/skills/<s>/`, and a path with any prefix passes.
 # The old-layout terms are written with a bracketed last letter so this
 # file never matches itself; the test's fixture strings live in
 # lib/tests/fixtures/ (excluded) for the same reason.
@@ -89,7 +97,8 @@ check_citers() { # $@ pack skill names → one grep over the contract scope
   local args=(-e 'skills-disable[d]/' -e 'toggle-externa[l]'
     -e '\.active-profil[e]' -e 'lib/profiles/[a-z-]*\.profil[e]') n hit
   for n in "$@"; do
-    args+=(-e "~/.claude/skills/$n\b" -e "\$HOME/.claude/skills/$n\b")
+    args+=(-e "~/.claude/skills/$n\b" -e "\$HOME/.claude/skills/$n\b"
+      -e "\(^\|[^A-Za-z0-9_./}~-]\)skills/$n/")
   done
   hit="$( { grep -rno --include='*.sh' --include='*.md' --include='*.py' \
       --include='*.json' --include='Makefile' "${args[@]}" "$REPO"/hooks \
@@ -98,9 +107,9 @@ check_citers() { # $@ pack skill names → one grep over the contract scope
       "$REPO"/README.md "$REPO"/USAGE.md "$REPO"/ARCHITECTURE.md \
       "$REPO"/Makefile "$REPO"/plugins.lock.json 2>/dev/null
       grep -nHo "${args[@]}" "$REPO"/.gitignore 2>/dev/null; } \
-    | grep -v -e '/lib/tests/fixtures/' -e '/skills/pack-' \
-      -e '/skills-external/' \
-    | sed 's#:[0-9]*:#\t#' | sort -u || true)"
+    | grep -v -e '/lib/tests/fixtures/' -e '/skills-external/' \
+    | sed -E 's#:[0-9]*:#\t#; s#\t[^\t](skills/[^/\t]+/)$#\t\1#' \
+    | sort -u || true)"
   [ -n "$hit" ] || return 0
   while IFS=$'\t' read -r f m; do
     red "${f#"$REPO"/} cites $m"

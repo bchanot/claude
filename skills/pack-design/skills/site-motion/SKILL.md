@@ -38,7 +38,7 @@ top of it.
   how a route transition should morph, how a WebGL hero should degrade →
   this skill.
 - Linting already-shipped motion against anti-slop rules →
-  `skills/impeccable/reference/animate.md` (`impeccable detect`) as the
+  `skills/pack-design/skills/impeccable/reference/animate.md` (`impeccable detect`) as the
   deterministic floor, or design-motion-principles' own audit workflow
   (`skills-external/design-motion-principles/workflows/audit.md`).
 - Non-motion defaults (fonts, color, spacing, the public-site checklist)

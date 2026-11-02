@@ -18,7 +18,7 @@ Owned by the agents, not this file — classical SEO weights are in
 weights varying by business type); GEO weights are in
 `agents/geo-analyzer.md` (STEP 10, 6 axes FULL / 5 axes LOCAL). Combined
 score formula (0.80/0.20 classical/GEO local-B2C, 0.75/0.25 SaaS/national) is
-in `skills/seo/SKILL.md` (~line 273).
+in `skills/pack-seo/skills/seo/SKILL.md` (~line 273).
 
 # Dedup rules — overlap with sibling skills
 
@@ -32,6 +32,6 @@ in `skills/seo/SKILL.md` (~line 273).
 
 # Envelope schema for `.claude/audits/SEO.md`
 
-Owned by `skills/seo/SKILL.md` (~lines 278-352, the real §0-§15 structure),
+Owned by `skills/pack-seo/skills/seo/SKILL.md` (~lines 278-352, the real §0-§15 structure),
 not this file — both agents' envelopes are keyed to it
 (`agents/seo-analyzer.md` STEP 13, `agents/geo-analyzer.md` STEP 14).

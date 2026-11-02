@@ -796,7 +796,7 @@ echo ""
 # 61 deterministic detector rules (`impeccable detect`, exit 0/2), the
 # /impeccable skill (23 verbs) and 4 `impeccable-*` subagents.
 #
-# GLOBAL scope, no staging: the installer writes skills/impeccable/ through
+# GLOBAL scope, no staging: the installer writes impeccable/ into skills/ through
 # the ~/.claude/skills symlink (skill + its self-contained engine binary) and ~/.claude/agents/
 # impeccable-*.md, and both of those are symlinks into this repo — so the
 # global install IS the repo install. Machine-owned and gitignored on both
@@ -814,6 +814,12 @@ echo "── Step 8d: Impeccable — design detector, skill + agents ──"
 echo ""
 IMP_SKILL_DIR="$REPO/skills/impeccable"
 IMP_HOME="$REPO/skills-external/impeccable"
+# A real skills/impeccable (older install) is adopted, never removed.
+if [ ! -e "$IMP_HOME" ] && [ -f "$IMP_SKILL_DIR/SKILL.md" ] \
+    && [ ! -L "$IMP_SKILL_DIR" ]; then
+  mkdir -p "$REPO/skills-external"
+  (cd "$REPO" && mv skills/impeccable skills-external/impeccable)
+fi
 IMP_VER=$(pinned_version "impeccable")
 NODE_MAJOR=$(node -v 2>/dev/null | sed 's/^v//' | cut -d. -f1)
 
@@ -986,11 +992,10 @@ echo ""
 # credits. Its skills come from github.com/higgsfield-ai/skills, cloned by
 # lib/higgsfield-skills.sh into skills-external/higgsfield-* (gitignored).
 #
-# Nothing is linked here. The pack is OFF by default and belongs to no
-# profile: `bash lib/profile.sh enable higgsfield` turns the media skills
-# on, `enable higgsfield-websites` the landing-page aid. Keeping it out of
-# link.sh and of every profile is what stops a re-run from re-enabling it
-# (BDR-093).
+# Nothing is linked here. pack-higgsfield is OFF by default and ON in `max`
+# only; `bash lib/profile.sh enable higgsfield` turns it on elsewhere. Its
+# 8 skills include `higgsfield-websites`. Keeping it out of link.sh is what
+# stops a re-run from re-enabling it (BDR-093).
 echo "── Step 8.6: Higgsfield CLI + skill pack ───────────────────"
 echo ""
 # shellcheck source=lib/higgsfield-skills.sh disable=SC1091
@@ -1266,7 +1271,7 @@ echo "    🔄 agent-skills trio   — observability-and-instrumentation, deprec
 echo "    🔄 mengto scroll skills — scroll-world-storytelling, build-threejs-scroll-worlds, scroll-scrubbed-visual-sequence, scroll-scrubbed-word-reveal, scroll-progress-timeline (curl → symlink, pinned commit)"
 echo "    🔄 darwin-skill        — autonomous skill optimizer (npx skills, ~/.agents/skills/)"
 echo "    🔄 21st skill pack     — 21st.dev CLI skills; linked by skills/pack-design and skills/pack-extras (bash lib/profile.sh set <profile> | enable <pack>, then /reload-plugins)"
-echo "    🔄 higgsfield pack     — Higgsfield CLI media skills (image, video, audio, brand), OFF by default (bash lib/profile.sh enable higgsfield, then /reload-plugins; landing-page aid: enable higgsfield-websites)"
+echo "    🔄 higgsfield pack     — Higgsfield CLI media skills (image, video, audio, brand), OFF by default (bash lib/profile.sh enable higgsfield, then /reload-plugins; landing-page aid: \`higgsfield-websites\` ships in pack-higgsfield)"
 echo ""
 echo "  All plugins installed at: user scope (~/.claude/plugins/)"
 echo "  GStack skills live in packs skills/pack-gstack-*/ (symlinks into the submodule)"

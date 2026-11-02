@@ -28,7 +28,7 @@
   "higgsfield": {
     "source": "npm:@higgsfield/cli",
     "version": "latest",
-    "note": "Higgsfield CLI (bins `higgsfield`, `higgs`) — image, video, audio and brand media generation, metered credits; auth is `higgsfield auth login` (browser). Install: npm install -g @higgsfield/cli. The package vendors its binary in a postinstall script; if npm holds it back, add --allow-scripts=@higgsfield/cli. The upstream skills are git-cloned from https://github.com/higgsfield-ai/skills (tracks main, no pin) into skills-external/higgsfield-* by lib/higgsfield-skills.sh (install-plugins.sh Step 8.6, refreshed by update-all.sh); a skill upstream removes keeps its last local copy. OFF by default and in no profile: `bash lib/profile.sh enable higgsfield` links the 7 allowlisted media skills (HIGGSFIELD_MEDIA_SKILLS), `enable higgsfield-websites` the landing-page aid."
+    "note": "Higgsfield CLI (bins `higgsfield`, `higgs`) — image, video, audio and brand media generation, metered credits; auth is `higgsfield auth login` (browser). Install: npm install -g @higgsfield/cli. The package vendors its binary in a postinstall script; if npm holds it back, add --allow-scripts=@higgsfield/cli. The upstream skills are git-cloned from https://github.com/higgsfield-ai/skills (tracks main, no pin) into skills-external/higgsfield-* by lib/higgsfield-skills.sh (install-plugins.sh Step 8.6, refreshed by update-all.sh); a skill upstream removes keeps its last local copy. 8 skills in pack-higgsfield (OFF by default, ON in max; `profile.sh enable higgsfield`)."
   },
   "graphifyy": {
     "source": "pypi:graphifyy",
@@ -44,7 +44,7 @@
   },
   "emil-design-eng": {
     "source": "https://github.com/emilkowalski/skill",
-    "path": "skills/emil-design-eng/SKILL.md",
+    "path": "./skills/emil-design-eng/SKILL.md",
     "managed_by": "curl",
     "note": "Emil Kowalski's design engineering skill — UI polish, animations, component craft. Machine-owned: curl'd to skills-external/emil-design-eng/ (gitignored, re-fetched by update-all.sh), linked by skills/pack-design."
   },

@@ -410,6 +410,12 @@ echo ""
 echo "── Updating impeccable..."
 IMP_SKILL_DIR="$REPO/skills/impeccable"
 IMP_HOME="$REPO/skills-external/impeccable"
+# A real skills/impeccable (older install) is adopted, never removed.
+if [ ! -e "$IMP_HOME" ] && [ -f "$IMP_SKILL_DIR/SKILL.md" ] \
+    && [ ! -L "$IMP_SKILL_DIR" ]; then
+  mkdir -p "$REPO/skills-external"
+  (cd "$REPO" && mv skills/impeccable skills-external/impeccable)
+fi
 if [ ! -f "$IMP_HOME/SKILL.md" ]; then
   info "impeccable not installed — skipping (run: make plugin)"
 else

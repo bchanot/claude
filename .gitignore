@@ -14,7 +14,7 @@ skills/using-git-worktrees
 skills/writing-skills
 
 # Impeccable — `impeccable skills install --scope=global` writes
-# skills/impeccable/ through the ~/.claude/skills symlink; install-plugins.sh
+# impeccable/ into the skills dir through the ~/.claude/skills symlink; install-plugins.sh
 # moves it to skills-external/impeccable (pack-design links it). Machine-owned.
 skills/impeccable
 skills-external/impeccable/
