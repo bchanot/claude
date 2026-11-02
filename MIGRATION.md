@@ -195,7 +195,7 @@ make doctor
 - **Superpowers**: the plugin is gone. Its 7 wired skills are vendored at v6.4.1 and always on. The 8 other skills and the session-start injection are not replaced.
 - **Magic MCP**: replaced by the `21st` CLI (`21st login`, no API key). If 1.x registered the `magic` server, remove it from `~/.claude.json` and drop `MAGIC_API_KEY` from `~/.claude/.env`. Nothing reads them any more.
 - **Git hooks in every repo**: `link.sh` sets git's global `core.hooksPath` to `~/.claude/githooks`. Every repo on the machine now gets the gitflow pre-commit guard and pushes each commit as it lands. For a foreign clone: `git config gitflow.protect false` and `git config gitflow.autopush false`.
-- **Default profile**: a project with no local profile runs the manifest defaults (= `full`). Check with `bash lib/profile.sh current`. Nine gstack skills (`ship`, `land-and-deploy`, `setup-deploy`, `autoplan`, `context-save`, `learn`, `careful`, `guard`, `design-shotgun`) left every profile and are denylisted.
+- **Default profile**: a project with no local profile runs the manifest defaults (= `full`). Check with `bash ~/.claude/lib/profile.sh current` from the project. Nine gstack skills (`ship`, `land-and-deploy`, `setup-deploy`, `autoplan`, `context-save`, `learn`, `careful`, `guard`, `design-shotgun`) left every profile and are denylisted.
 - **Higgsfield**: installed, off by default. Nothing to do until you enable it.
 
 ### Profiles and packs (2026-11)
@@ -216,9 +216,11 @@ is the only one that removes a real directory (`make plugin` replaces
    writes.
 
    ```bash
-   root="$(dirname "$(readlink -f ~/.claude/settings.json)")" \
-     && cd "$root" || exit 1
-   git pull --autostash \
+   ep= next=
+   root="$(dirname "$(readlink -f ~/.claude/settings.json)")"
+   [ -n "$root" ] && [ -f "$root/lib/profile.sh" ] && cd "$root" \
+     || { echo "no clone root"; false; } \
+     && git pull --autostash \
      && ep="$(mktemp)" \
      && git show HEAD:settings.json | jq -e '.enabledPlugins | objects' \
        > "$ep" \
@@ -232,39 +234,50 @@ is the only one that removes a real directory (`make plugin` replaces
 
    Every command is chained with `&&` so that a failed step never reaches
    `cp`, which writes through the symlink into the live tracked
-   `settings.json`. `jq -e '.enabledPlugins | objects'` fails when HEAD
-   holds no object (a null would wipe every plugin). `jq -e .` and `[ -s ]`
-   refuse an invalid or empty result (an empty file would drop the plugins,
-   the deny rules and the hooks).
+   `settings.json`; a failure prints `no clone root` or stops the chain
+   without closing your shell. `ep= next=` comes first so the final `rm -f`
+   never removes a file an earlier run named. `jq -e '.enabledPlugins |
+   objects'` fails when HEAD holds no object (a null would wipe every
+   plugin). `jq -e .` and `[ -s ]` refuse an invalid or empty result (an
+   empty file would drop the plugins, the deny rules and the hooks).
+
+   If the autostash pop conflicts, `settings.json` holds conflict markers:
+   the second `jq` then fails closed and nothing is copied. Resolve the
+   markers (`git stash list` shows the kept stash) before re-running step 1.
 
 2. Old layout. List the flat links first, then remove the links of
    `skills-disabled/` and the links of `skills/` that are not kept
    (model-router, darwin-skill, the seven superpowers, the agent-skills
    trio). If `skills/impeccable` or `skills-disabled/impeccable` is a real
-   directory, `mv` it to `skills-external/impeccable` (never `rm`). Run it
-   from `$root` (step 1). The trailing slash and `-mindepth 1` keep `find`
-   from matching the start point, which is itself a symlink in `~/.claude`.
+   directory, `mv` it to `skills-external/impeccable` (never `rm`). It
+   re-derives `$root`, so it also runs in a new shell; `mkdir -p
+   skills-disabled` lets a machine that never had that dir pass the same
+   chain, and `rmdir` removes it at the end. The trailing slash and
+   `-mindepth 1` keep `find` from matching the start point, which is itself
+   a symlink in `~/.claude`.
 
    ```bash
-   cd "$root" || exit 1
-   find skills/ skills-disabled/ -mindepth 1 -maxdepth 1 -type l
-   mkdir -p skills-external
-   for d in skills skills-disabled; do
-     if [ -d "$d/impeccable" ] && [ ! -L "$d/impeccable" ] \
-         && [ ! -e skills-external/impeccable ]; then
-       mv "$d/impeccable" skills-external/impeccable
-     fi
-   done
-   find skills-disabled/ -mindepth 1 -maxdepth 1 -type l -delete
-   find skills/ -mindepth 1 -maxdepth 1 -type l \
-     ! -name model-router ! -name darwin-skill \
-     ! -name observability-and-instrumentation \
-     ! -name deprecation-and-migration ! -name ci-cd-and-automation \
-     ! -name brainstorming ! -name writing-plans \
-     ! -name subagent-driven-development ! -name test-driven-development \
-     ! -name requesting-code-review ! -name using-git-worktrees \
-     ! -name writing-skills -delete
-   rmdir skills-disabled; rm -f .active-profile
+   root="$(dirname "$(readlink -f ~/.claude/settings.json)")"
+   [ -f "$root/lib/profile.sh" ] && cd "$root" \
+     || { echo "no clone root"; false; } \
+     && mkdir -p skills-disabled skills-external \
+     && find skills/ skills-disabled/ -mindepth 1 -maxdepth 1 -type l \
+     && for d in skills skills-disabled; do
+          if [ -d "$d/impeccable" ] && [ ! -L "$d/impeccable" ] \
+              && [ ! -e skills-external/impeccable ]; then
+            mv "$d/impeccable" skills-external/impeccable
+          fi
+        done \
+     && find skills-disabled/ -mindepth 1 -maxdepth 1 -type l -delete \
+     && find skills/ -mindepth 1 -maxdepth 1 -type l \
+          ! -name model-router ! -name darwin-skill \
+          ! -name observability-and-instrumentation \
+          ! -name deprecation-and-migration ! -name ci-cd-and-automation \
+          ! -name brainstorming ! -name writing-plans \
+          ! -name subagent-driven-development ! -name test-driven-development \
+          ! -name requesting-code-review ! -name using-git-worktrees \
+          ! -name writing-skills -delete \
+     && rmdir skills-disabled && rm -f .active-profile
    ```
 
 3. From `$root`: `make link` (link.sh no longer links the design and scroll skills flat),

@@ -156,7 +156,7 @@ Limits: a main-loop switch re-reads cold the part of the context the target mode
 
 All scripts use their own location to find the repo — run them from anywhere.
 The plugins step logs to `install-YYYYMMDD-HHMMSS.log`.
-The installers fill `skills-external/`; the packs under `skills/pack-*/` link it, on or off per project (`bash lib/profile.sh set <profile>`) or per conversation (`cc <name> <profile>`).
+The installers fill `skills-external/`; the packs under `skills/pack-*/` link it, on or off per project (`bash ~/.claude/lib/profile.sh set <profile>` from the project, then `/reload-plugins`) or per conversation (`cc <name> <profile>`). `cc` is a shell function from `lib/cc.sh`: add `[ -f "$HOME/.claude/lib/cc.sh" ] && . "$HOME/.claude/lib/cc.sh"` to `~/.bashrc` (`make doctor` warns until it is there).
 
 **Optional — Context7** (fast doc lookup for React / Next.js / Prisma…): the plugins
 step installs the `ctx7` CLI and wires it into Claude Code. The doc-fetch surface is
@@ -245,9 +245,12 @@ a different package, ships its own conflicting `graphify` bin) — see
 | `/site-motion` | Site-level motion: scroll engine choice, page transitions, pin/scrub sequencing across a page or Astro route (design stack) |
 | `/route` | model-router mod: show or set the main-loop route (show, clear, off, on, reload, pending, ask on\|off, <phase>, model=… effort=…, switch on\|off, classify on\|off, verbose on\|off: transitions only) |
 
-> This table lists personal skills. Gstack skills (investigate, review, retro,
-> office-hours, cso…) and marketplace plugins add many more — run
-> `/skills-perso` to list your hand-written skills, or browse `skills/`.
+> This table lists personal skills. `/seo` and `/geo` (pack-seo), `/web-validate`
+> (pack-web-validate) and `/site-motion` (pack-design) live in packs: a profile that
+> leaves the pack off hides them (`/profile current`). Gstack skills (investigate,
+> review, retro, office-hours, cso…) and marketplace plugins add many more; run
+> `/skills-perso` to list your hand-written skills, or browse `skills/` and
+> `skills/pack-*/skills/`.
 
 ---
 
@@ -384,7 +387,7 @@ an interactive terminal) and installs the skill pack that drives it:
 publishing skills `-registry`, `-design-sync` and `-video`. `21st-ui-build`
 and `21st-cli-use` sit in pack-design (on under `full`, `design` and
 `web`). `-ui-explore`, `-ui-review` and `-ai` sit in pack-extras (on
-under `max`, or after `bash lib/profile.sh enable extras`). `-registry`,
+under `max`, or after `bash ~/.claude/lib/profile.sh enable extras` in the project). `-registry`,
 `-design-sync` and `-video` stay unlinked in `skills-external/`.
 
 The pack is machine-owned and gitignored. It cannot be installed the way
@@ -427,8 +430,8 @@ The pack is off by default and on in `max` only. It costs nothing until
 you ask for it:
 
 ```bash
-bash lib/profile.sh enable higgsfield     # then /reload-plugins
-bash lib/profile.sh disable higgsfield
+bash ~/.claude/lib/profile.sh enable higgsfield    # from the project, then /reload-plugins
+bash ~/.claude/lib/profile.sh disable higgsfield
 ```
 
 The pack (`skills/pack-higgsfield/skills/`) holds the 8 `higgsfield-*`
@@ -436,7 +439,7 @@ skills.
 
 `higgsfield-websites` is one of them. It helps with landing pages inside the
 design stack (assets, references), and `higgsfield website
-create|deploy|publish` stays unused. Claude runs `bash lib/profile.sh enable higgsfield` on
+create|deploy|publish` stays unused. Claude runs `bash ~/.claude/lib/profile.sh enable higgsfield` on
 a named media ask, then `/reload-plugins` (Skill routing in `CLAUDE.global.md`) and checks the price
 with `higgsfield generate cost` before a paid run.
 
