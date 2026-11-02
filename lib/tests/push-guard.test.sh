@@ -365,4 +365,61 @@ check T46b-auto-silent "$(grep -c 'push : manual' <<<"$out")" 0
 out=$(banner "$WORK/bad")
 check T57-banner-invalid "$(grep -c 'push : manual (autopush bad)' <<<"$out")" 1
 
+# T62 rtk read twins: rtk rewrites cat/head/tail to `rtk read <path> [flags]`
+# (rc 0), so every Bash(cat|head|tail X) deny (X without a space) needs
+# Bash(rtk read X*) and the absolute Bash(*/rtk read X*). X keeps one *.
+twins_missing() { # twins_missing <settings> -> missing twin rules
+  local x t w
+  jq -r '.permissions.deny[]' "$1" \
+    | sed -nE 's/^Bash\((cat|head|tail) ([^ ]*)\)$/\2/p' | sort -u \
+    | while IFS= read -r x; do
+        t="rtk read ${x%\*}*"
+        for w in "Bash($t)" "Bash(*/$t)"; do
+          jq -e --arg w "$w" '.permissions.deny | index($w)' "$1" \
+            >/dev/null || echo "$w"
+        done
+      done
+}
+check T62-twins-present "$(twins_missing "$S")" ""
+T62F="$(mktemp)"
+jq '.permissions.deny += ["Bash(cat */ghost.key)"]' "$S" > "$T62F"
+check T62b-flip-missing-twin "$(twins_missing "$T62F" | /usr/bin/grep -F ghost.key | sort | paste -sd' ' -)" "Bash(*/rtk read */ghost.key*) Bash(rtk read */ghost.key*)"
+rm -f "$T62F"
+
+# T63 phase 2 rules present (adding is free; a removal is the user's edit)
+missing=""
+while IFS= read -r e; do
+  jq -e --arg e "$e" '(.permissions.ask + .permissions.deny) | index($e)' \
+    "$S" >/dev/null || missing="$missing [$e]"
+done <<'EOF'
+Bash(git merge *)
+Bash(bash *gitflow.sh finish*)
+Bash(sh *gitflow.sh finish*)
+Bash(sh -c *)
+Bash(sh -*c *)
+Bash(bash -*c *)
+Bash(dash -c *)
+Bash(bash)
+Bash(sh)
+Bash(bash <(*)
+Bash(/bin/sh *)
+Bash(/bin/bash *)
+Bash(/usr/bin/bash *)
+Bash(/usr/bin/sh *)
+Bash(/usr/bin/env bash*)
+Bash(/usr/bin/env sh*)
+Bash(awk *system(*)
+Bash(head * .env*)
+Bash(tail * .env*)
+Bash(head * */.env*)
+Bash(tail * */.env*)
+Bash(cat * .env*)
+Bash(cat * */.env*)
+EOF
+check T63-phase2-rules-present "$missing" ""
+check T63b-no-root-glob "$(jq -r '(.permissions.ask + .permissions.deny)[]' \
+  "$S" | grep -cxF 'Bash(/*)')" 0
+check T63c-parens-balanced "$(jq -r '(.permissions.ask + .permissions.deny)[]
+  | select(test("^[A-Za-z]+\\(") and (endswith(")") | not))' "$S")" ""
+
 printf 'PASS=%s FAIL=%s\n' "$pass" "$fail"; [ "$fail" -eq 0 ]
