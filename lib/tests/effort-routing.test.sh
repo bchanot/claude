@@ -159,6 +159,9 @@ while IFS= read -r f; do check_skill "$f"; done < <(
   cd "$R" && git ls-files 'skills/*/SKILL.md' 'skills-external/*/SKILL.md')
 
 # ── (b2) every skills row resolves to a skill (short, pack entry, parked) ─
+# Parked: written by `21st skills install` (install-plugins.sh Step 8.7),
+# in no pack, so absent from a fresh clone until that step ran.
+PARKED=" 21st-registry 21st-design-sync "
 ext_named() { # ext_named <k>: <k> is in link.sh EXTERNAL_SKILLS
   sed -n '/^EXTERNAL_SKILLS=(/,/)/p' "$R/link.sh" | grep -qw -- "$1"
 }
@@ -167,7 +170,8 @@ row_resolves() { # row_resolves <key>
   case "$k" in
     pack-*:*) n="${k%%:*}"; p="$R/skills/$n/skills/${k#*:}"
       [ -L "$p" ] || [ -e "$p/SKILL.md" ];;
-    *) [ -e "$R/skills/$k/SKILL.md" ] || ext_named "$k" \
+    *) case "$PARKED" in *" $k "*) return 0;; esac
+       [ -e "$R/skills/$k/SKILL.md" ] || ext_named "$k" \
          || [ -L "$R/skills/$k" ] || [ -n "$(skdir "$k")" ] \
          || [ -e "$R/skills-external/$k/SKILL.md" ];;
   esac
