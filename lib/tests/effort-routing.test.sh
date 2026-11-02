@@ -158,6 +158,23 @@ check_skill() {
 while IFS= read -r f; do check_skill "$f"; done < <(
   cd "$R" && git ls-files 'skills/*/SKILL.md' 'skills-external/*/SKILL.md')
 
+# ── (b2) every skills row resolves to a skill (short, pack entry, parked) ─
+row_resolves() { # row_resolves <key>
+  local k="$1" n
+  case "$k" in
+    pack-*:*) n="${k%%:*}"; [ -e "$R/skills/$n/skills/${k#*:}/SKILL.md" ];;
+    *) [ -e "$R/skills/$k/SKILL.md" ] || [ -n "$(skdir "$k")" ] \
+         || [ -e "$R/skills-external/$k/SKILL.md" ];;
+  esac
+}
+[ -n "$(skdir seo)" ] && ! row_resolves ghost-skill \
+  && ! row_resolves pack-seo:ghost && ! row_resolves pack-ghost:seo \
+  && ok || ko "row_resolves: flip-test (ghost rows must fail)"
+while read -r kind key _; do
+  [ "$kind" = skills ] || continue
+  row_resolves "$key" && ok || ko "routing.json: skills row '$key' resolves to no skill"
+done <<< "$RD"
+
 # ── (c) tracked agents with a row: tier floor == model:, effort == effort: ─
 NO_ROW_AGENTS=" interviewer client-handover-writer "
 check_agent() {
