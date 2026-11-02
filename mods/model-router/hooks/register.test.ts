@@ -7275,3 +7275,165 @@ test('TIER: no routing.json means no ask; the route is set', async ($, on) => {
   expect(w.asked).toEqual([])
   expect(mainLine(await route($, 'show'))).toContain('model plan')
 })
+
+// ---- GUARD: main-loop code writes go through a skill --------------------
+
+const GUARD = 'model-router: code is written inside a skill run.'
+
+function writeBottoms(on: On): void {
+  on('tool.call', { tool: 'Write' }, () => ({ result: 'w' as never }))
+  on('tool.call', { tool: 'Edit' }, () => ({ result: 'e' as never }))
+  on('tool.call', { tool: 'NotebookEdit' }, () => ({ result: 'n' as never }))
+}
+
+const write = ($: Engine, file: string, extra: Rec = {}) =>
+  $.tool.call({ tool: 'Write', file_path: file, content: 'x',
+    ...extra } as never)
+
+const denied = (out: unknown): string =>
+  String((out as { deny?: string }).deny ?? '')
+
+async function guardRig($: Engine, on: On, world: World = newWorld()) {
+  writeBottoms(on)
+  return bootRun($, on, OPUS, world)
+}
+
+test('GUARD: a main code write before any skill is redirected', async (
+  $, on) => {
+  await guardRig($, on)
+  expect(denied(await write($, `${ROOT}/src/a.ts`))).toContain(GUARD)
+})
+
+for (const free of ['README.md', 'notes.txt', '.claude/tasks/x.json',
+  'docs/a.ts']) {
+  test(`GUARD: ${free} is free`, async ($, on) => {
+    await guardRig($, on)
+    expect(denied(await write($, `${ROOT}/${free}`))).toBe('')
+  })
+}
+
+test('GUARD: config is code, a home .claude path is code', async (
+  $, on) => {
+  await guardRig($, on)
+  expect(denied(await write($, `${ROOT}/package.json`))).toContain(GUARD)
+  expect(denied(await write($, '/home/t/.claude/lib/x.sh'))).toContain(GUARD)
+  expect(denied(await write($, `${ROOT}/.claude/worktrees/w/a.ts`)))
+    .toContain(GUARD)
+})
+
+test('GUARD: a dot-dot path never counts as free', async ($, on) => {
+  await guardRig($, on)
+  expect(denied(await write($, `${ROOT}/.claude/../src/a.ts`)))
+    .toContain(GUARD)
+  expect(denied(await write($, `${ROOT}/docs/../src/a.ts`))).toContain(GUARD)
+  expect(denied(await write($, `${ROOT}/docs/..`))).toContain(GUARD)
+})
+
+test('GUARD: a sub-agent writes freely', async ($, on) => {
+  await guardRig($, on)
+  expect(denied(await write($, `${ROOT}/src/a.ts`, { agentId: 'a1' })))
+    .toBe('')
+})
+
+test('GUARD: a typed skill opens it for the session', async ($, on) => {
+  await guardRig($, on)
+  await typeFeat($)
+  await endTurn($)
+  await endTurn($)
+  expect(denied(await write($, `${ROOT}/src/a.ts`))).toBe('')
+})
+
+test('GUARD: a typed apply skill after a run keeps it open', async (
+  $, on) => {
+  await guardRig($, on)
+  await typeFeat($)
+  await endTurn($)
+  await typed($, '/status')
+  await skillPrompt($, 'status')
+  await endTurn($)
+  expect(denied(await write($, `${ROOT}/src/a.ts`))).toBe('')
+})
+
+test('GUARD: a model-loaded skill, rowed or not, opens it', async (
+  $, on) => {
+  await guardRig($, on)
+  await $.tool.call({ tool: 'Skill', skill: 'diagram' } as never)
+  await endTurn($)
+  expect(denied(await write($, `${ROOT}/src/a.ts`))).toBe('')
+})
+
+test('GUARD: a Skill call inside a sub-agent does not open it', async (
+  $, on) => {
+  await guardRig($, on)
+  await $.tool.call({ tool: 'Skill', skill: 'diagram',
+    agentId: 'a1' } as never)
+  expect(denied(await write($, `${ROOT}/src/a.ts`))).toContain(GUARD)
+})
+
+test('GUARD: a route-tool phase opens it for the turn only', async (
+  $, on) => {
+  await guardRig($, on)
+  await $.tool.call({ tool: 'mcp__model-router__route', phase: 'implement' })
+  expect(denied(await write($, `${ROOT}/src/a.ts`))).toBe('')
+  await endTurn($)
+  expect(denied(await write($, `${ROOT}/src/a.ts`))).toContain(GUARD)
+})
+
+test('GUARD: a typed /route opens it, /route clear closes it', async (
+  $, on) => {
+  await guardRig($, on)
+  await route($, 'plan')
+  expect(denied(await write($, `${ROOT}/src/a.ts`))).toBe('')
+  await route($, 'clear')
+  expect(denied(await write($, `${ROOT}/src/a.ts`))).toContain(GUARD)
+})
+
+test('GUARD: /route clear drops the skill latch too', async ($, on) => {
+  await guardRig($, on)
+  await typeFeat($)
+  await endTurn($)
+  await route($, 'clear')
+  expect(denied(await write($, `${ROOT}/src/a.ts`))).toContain(GUARD)
+})
+
+test('GUARD: /route off turns it off', async ($, on) => {
+  await guardRig($, on)
+  await route($, 'off')
+  expect(denied(await write($, `${ROOT}/src/a.ts`))).toBe('')
+})
+
+test('GUARD: /route off then on re-arms it', async ($, on) => {
+  await guardRig($, on)
+  await typeFeat($)
+  await endTurn($)
+  await route($, 'off')
+  await route($, 'on')
+  expect(denied(await write($, `${ROOT}/src/a.ts`))).toContain(GUARD)
+})
+
+test('GUARD: NotebookEdit and Edit are guarded too', async ($, on) => {
+  await guardRig($, on)
+  const nb = await $.tool.call({ tool: 'NotebookEdit',
+    notebook_path: `${ROOT}/n.ipynb`, new_source: 'x' } as never)
+  const ed = await $.tool.call({ tool: 'Edit', file_path: `${ROOT}/a.py`,
+    old_string: 'a', new_string: 'b' } as never)
+  expect(denied(nb)).toContain(GUARD)
+  expect(denied(ed)).toContain(GUARD)
+})
+
+test('GUARD: a /model hand pick does not open it', async ($, on) => {
+  on('command.run', { command: 'model' }, () => ({ text: 'native' }))
+  await guardRig($, on, newWorld({ answers: ['This conversation'] }))
+  await modelCmd($, 'sonnet')
+  expect(denied(await write($, `${ROOT}/src/a.ts`))).toContain(GUARD)
+})
+
+test('GUARD: /clear re-arms it', async ($, on) => {
+  on('session.end', ($, e) => ({ sessionId: e.sessionId }))
+  await guardRig($, on)
+  await typeFeat($)
+  await endTurn($)
+  expect(denied(await write($, `${ROOT}/src/a.ts`))).toBe('')
+  await clearSession($)
+  expect(denied(await write($, `${ROOT}/src/a.ts`))).toContain(GUARD)
+})

@@ -7,6 +7,7 @@
 // DEFAULT_CONFIG; ~/.claude/model-router.json overrides both per machine.
 // One writer per concern: the Agent tool's own params are never rewritten,
 // the spawn hook sets an agent's model once, turn.step sets efforts.
+// A main-loop code write before any skill ran is redirected to a skill.
 import type {
   CommandRunInput, CommandRunResult, EngineInterface, Next, On, Register,
   TurnStepInput,
@@ -79,6 +80,8 @@ type State = {
   // default rule, derived orchestrate; dropped at turn end
   runMain: Routed | null // best-tier skill row: spans the turns of a run;
   // only a skill, /route clear|off or a user /model write or drop it
+  skillRun: boolean // a skill ran on main this session: the write guard is
+  // open; dropped by /route clear|off and /clear
   turnFloor: Routed | null // user-explicit level for this turn (prompt rule):
   // a floor, main loop only
   pendingPrompt: Routed | null // typed mid-turn: the next turn's floor
@@ -1001,6 +1004,7 @@ function newState(cfg: Config, source: string): State {
     userMain: null,
     turnMain: null,
     runMain: null,
+    skillRun: false,
     turnFloor: null,
     pendingPrompt: null,
     typedSlash: null,
@@ -1871,6 +1875,7 @@ function clearRoutes(st: State): void {
   st.userMain = null
   st.turnMain = null
   st.runMain = null
+  st.skillRun = false
   st.turnFloor = null
   st.pendingPrompt = null
 }
@@ -2182,6 +2187,7 @@ async function handleCommand($: Api, st: State, args: string): Promise<string> {
       st.offConfig = false
       st.lastPlan = null // the next step compares to the engine's input
       if (st.off) st.runMain = null
+      if (st.off) st.skillRun = false
       refresh($, st)
       return show($, st)
     case 'reload':
@@ -3784,6 +3790,7 @@ type Armed = { row: Picked | undefined; typed: boolean }
 function armTypedSkill($: Api, st: State, skill: string): Armed {
   const row = skillRow(st, skill)
   const typed = typedPath(st, skill) !== undefined
+  if (typed) st.skillRun = true // unrowed too: its body is the user's
   if (row === undefined || !typed) return { row: undefined, typed }
   routeMainBySkill(st, skill, row, true)
   refresh($, st)
@@ -4385,6 +4392,74 @@ async function onModelSwitch($: Api, st: State, e: SwitchIn): Promise<void> {
   else clearBreaker(st, canonical(st.cfg, e.to_model))
 }
 
+// ---- routing guard: main-loop code goes through a skill (BDR-125 p2) ------
+// A main-loop Edit/Write/NotebookEdit of a code file is redirected until a
+// skill ran on main this session, a phase was declared this turn, or a typed
+// /route holds. Docs, <root>/.claude/ (worktrees excepted), <root>/docs/ and
+// sub-agents pass. Fail-open like every hook here. Limit: an unrowed typed
+// skill latches through the typed-fallback path (typedPath) only when no
+// sub-agent is live; the model's own Skill call latches it anyway.
+
+const DOC_FILE = /\.(md|txt)$/i
+const GUARD_REASON = 'model-router: code is written inside a skill run. ' +
+  'Enter /hotfix (≤2 files, obvious fix), /feat, /bugfix or /ship-feature, ' +
+  'or re-enter the skill you were running, then make this edit. This is a ' +
+  'redirect, not a refusal.'
+
+/** The path a write tool targets, from its own argument name. */
+function writtenPath(e: Rec): string | undefined {
+  const p = e.file_path ?? e.notebook_path
+  return typeof p === 'string' ? p : undefined
+}
+
+/** Docs, the project's .claude tree and docs/ are free; the rest is code. */
+function isFreePath(path: string, root: string): boolean {
+  if (path.includes('/../') || path.endsWith('/..')) return false
+  if (DOC_FILE.test(path)) return true
+  if (!path.startsWith(`${root}/`)) return false
+  const rel = path.slice(root.length + 1)
+  const claude = rel.startsWith('.claude/') &&
+    !rel.startsWith('.claude/worktrees/')
+  return claude || rel.startsWith('docs/')
+}
+
+/** A skill ran, a phase was declared this turn, or a typed /route holds. */
+function inRun(st: State): boolean {
+  const typed = st.userMain !== null && st.userMain.explicitModel !== true
+  return st.skillRun || st.turnMain?.source === 'model' || typed
+}
+
+async function guardWrite($: Api, st: State, e: Rec): Promise<boolean> {
+  await ensureConfig($, st)
+  if (st.off || e.agentId !== undefined || inRun(st)) return false
+  const path = writtenPath(e)
+  return path !== undefined && !isFreePath(path, await $.session.root())
+}
+
+function registerGuard(on: On, st: State): void {
+  on('tool.call', { tool: 'Edit' }, async ($, e, next) => {
+    if (await guardWrite($, st, e)) return { deny: GUARD_REASON } as never
+    return next(e)
+  }).catch(($, e, next) => {
+    warnOnce(st, $, 'Edit guard', next.error.kind)
+    return next(e)
+  })
+  on('tool.call', { tool: 'Write' }, async ($, e, next) => {
+    if (await guardWrite($, st, e)) return { deny: GUARD_REASON } as never
+    return next(e)
+  }).catch(($, e, next) => {
+    warnOnce(st, $, 'Write guard', next.error.kind)
+    return next(e)
+  })
+  on('tool.call', { tool: 'NotebookEdit' }, async ($, e, next) => {
+    if (await guardWrite($, st, e)) return { deny: GUARD_REASON } as never
+    return next(e)
+  }).catch(($, e, next) => {
+    warnOnce(st, $, 'NotebookEdit guard', next.error.kind)
+    return next(e)
+  })
+}
+
 // ---- registration ----------------------------------------------------
 
 async function readSessionModel($: Api): Promise<string> {
@@ -4495,7 +4570,11 @@ function registerSkills(on: On, st: State): void {
       if (e.agentId === undefined && skillRow(st, skill)) {
         await tierAsk($, st, st.turnMain, `Skill /${clean(skill, NAME_CAP)}`)
       }
-      return await next(e)
+      const out = await next(e)
+      if (e.agentId === undefined && !('deny' in (out as Rec))) {
+        st.skillRun = true
+      }
+      return out
     } finally {
       st.skillCalls -= 1
     }
@@ -4845,6 +4924,7 @@ export const register: Register = on => {
   registerRouteTool(on, st)
   registerSkills(on, st)
   registerAgents(on, st)
+  registerGuard(on, st)
   registerSpawn(on, st)
   registerTurns(on, st)
   registerPrompt(on, st)
