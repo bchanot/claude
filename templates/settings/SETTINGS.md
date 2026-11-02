@@ -77,18 +77,18 @@ machine. Project facts (this repo's deploy target, its secrets, its data)
 belong in that project's `.claude/settings.local.json`. A global block naming
 one repo feeds the classifier false facts in all the others.
 
-### `ask` is not a prompt under auto mode
+### `ask` prompts under auto mode
 
-Verified in-session (LRN-146, re-verified on 2.1.273 on 2026-09-16 with a
-`node -e` probe matching an `ask` rule): with `defaultMode: auto`, Bash rules
-in `permissions.ask` were auto-approved and raised no prompt. The auto-mode
-docs claim the opposite for "content-scoped" rules such as `Bash(git push *)`;
-the observed behavior wins until a probe shows a prompt. `deny` is the only
-tier the classifier cannot lift.
+Measured 2026-11-02 (headless bench under `defaultMode: auto`, then one
+interactive session): a Bash command matching `permissions.ask` raises a
+permission request; in `-p` it is refused. LRN-155 (2026-09-16, a `node -e`
+probe on 2.1.273: `ask` rules auto-approved interactively) is not
+reproduced; its cause is not established. `deny` is the only tier the
+classifier cannot lift.
 
-So for a destructive command you want gated but still reachable, `ask` is the
-wrong tier. Use `autoMode.soft_deny`: blocked until the user's intent clears
-it. Keep `deny` for what must never run at all.
+`ask` gates a command you approve per call; `soft_deny` gates one the
+classifier clears from your request. Keep `deny` for what must never run at
+all.
 
 ### Picking a tier
 
@@ -98,10 +98,8 @@ it. Keep `deny` for what must never run at all.
 | Never runs, and a pattern cannot express it (a read then a send, a prod target) | `autoMode.hard_deny` |
 | Runs when the user asks for it, blocked otherwise | `autoMode.soft_deny` |
 | Runs freely when a condition holds that only the classifier can judge (a local dev container, a package declared in the lockfile) | `autoMode.allow` |
+| Runs after you click, every time | `permissions.ask` |
 | Runs freely | `permissions.allow`, or nothing |
-
-`permissions.ask` is not on this list on purpose. Under `defaultMode: auto` it
-gates nothing.
 
 `autoMode.allow` is the exception tier: inside the classifier an `allow` entry
 overrides a matching `soft_deny`, built-in or yours, so word it as narrowly as
@@ -130,8 +128,7 @@ no separate setting for this.
 - `disableBypassPermissionsMode: "disable"` prevents switching to bypass mode mid-session.
 - Prefer `autoMode.soft_deny` over `allow` for anything touching external systems.
 - `deny` in `~/.claude/settings.json` cannot be overridden by project-level `allow` — deny always wins.
-- Under `defaultMode: auto`, `ask` does not raise a prompt (see above). A destructive
-  command belongs in `deny` or in `autoMode.soft_deny`, not in `ask`.
+- Under `defaultMode: auto`, `ask` prompts; a command that must never run belongs in `deny`.
 
 ## Data-loss guardrails (BDR-095)
 
@@ -146,7 +143,7 @@ local trace, and the brief had authorized it. What holds now, by tier:
 | Docker volume drops, `system prune`, `compose down -v`, `--privileged`, the docker socket, `-v /:` | `permissions.deny` | Promoted from `soft_deny`: no in-session clearance for data drops. |
 | Git history destruction (`push --delete`/`--mirror`/`:ref`/`--force-with-lease`, `branch -D`, `filter-branch`, `reflog expire`, `stash clear`/`drop`, `clean -f`), `--no-verify`, `core.hooksPath` | `permissions.deny` | A remote is the backup; nothing rewrites or deletes what it holds. |
 | Writing the human-only `gitflow.*` toggles: any `git … config` spelling, section remove/rename, `git -c`, the git config env overrides, Edit/Write of git config files | `permissions.deny` | Claude never flips the mode that binds it. Side effect: the trailing glob also matches the bare read, so Claude cannot read `gitflow.autopush` through `git config`; hooks and `lib/gitflow.sh` still do, and skills read it through `gitflow.sh push-mode`. |
-| Pushing in manual-push mode (`gitflow.autopush false`, or any invalid value) | `hooks/push-guard.sh` (PreToolUse) + `autoMode.soft_deny` | `ask` is inert under auto mode. The hook denies the direct forms; the soft_deny covers scripted, aliased, subshell and sub-agent pushes, and a request in the turn does not clear it: the user types `! git push`. |
+| Pushing in manual-push mode (`gitflow.autopush false`, or any invalid value) | `hooks/push-guard.sh` (PreToolUse) + `autoMode.soft_deny` | An `ask` would prompt, and a click would push. The hook denies the direct forms; the soft_deny covers scripted, aliased, subshell and sub-agent pushes, and a request in the turn does not clear it: the user types `! git push`. |
 | Destructive tool against a local path (variable, `~`, `..`, wildcard, outside cwd/tmp), even as a trace or a rehearsal a brief allows | `autoMode.hard_deny` | A pattern cannot express "the target resolves outside the project"; the classifier can. A sub-agent brief carries no user authority. |
 | `docker rm -f`, bind mount outside cwd; discarding uncommitted work | `autoMode.soft_deny` | Recoverable or user-intended in the turn. |
 

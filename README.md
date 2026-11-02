@@ -71,8 +71,8 @@ commands, settings, secrets, maintenance.
 
 Doctrine: the main loop runs on the `opus` session model; the model-router rows
 lift it to Fable for main-loop reflection ONLY: brainstorm, plan, contract,
-audit judgment, loop decisions. On Fable it writes no code past the `/hotfix`
-scope; the fresh gates run as dispatched agents on the `audit` row. The
+audit judgment, loop decisions. The main loop writes no code outside a skill run (the router's guard
+redirects it to a skill); the fresh gates run as dispatched agents on the `audit` row. The
 Fable/Opus model floor is enforced by a blocking gate (`lib/model-gate.md`) at
 the entry of the 17 reflection skills (the orchestrators, `/analyze`,
 `/guardrails` and `/a11y`): the skill calls the model-router `route` tool and
@@ -403,9 +403,24 @@ The permission gate is now one `autoMode.soft_deny` entry covering the
 outward-facing verbs (`21st publish*`, `submit`, `edit`, `delete`,
 `remove-from-catalog`, `profile set|upload`), because publishing a component
 puts it on a public listing under your account. That tier rather than `ask`:
-under `defaultMode: auto` (this config's default) `ask` rules were observed
-auto-approving with no prompt raised (LRN-153), so an `ask` entry would have
-declared an intent without gating anything.
+an ask prompt can be clicked through by reflex, and the soft_deny also covers
+scripted forms.
+
+### Static rule limits
+
+`ask` rules raise a permission prompt under `defaultMode: auto` (headless
+bench `.claude/tasks/plans/2026-11-02-phase2-bench/`, confirmed interactively
+on 2026-11-02). The matcher sees through `&&`, `;`, `|`, `env`, `timeout`,
+`xargs` and simple assignments. The phase 2 rules ask on `sh -c` and its flag
+forms (`sh -ec`, `bash -lc`, `dash -c`), a bare `bash` or `sh` fed by a
+heredoc, process substitution (`bash <(…)`) and the absolute shells `/bin/sh`,
+`/bin/bash`, `/usr/bin/sh`, `/usr/bin/bash`, `/usr/bin/env sh|bash`; they do
+not cover a script piped into `bash -s`, a sourced `gitflow_finish` or
+`git -C <dir> merge`. The matcher cannot see `$(…)` in command position, a
+quoted literal argument or an inline interpreter: those rest on the
+auto-mode classifier (`autoMode.soft_deny`, "Static rule blind spots"). The
+rtk hook passes any command its registry asks about or denies through
+unrewritten, so the native rules judge it as typed.
 
 ### Higgsfield CLI
 
