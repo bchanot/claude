@@ -73,7 +73,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/) and this project 
 ### Changed
 - `link.sh` no longer links the design and scroll skills flat; impeccable moves to `skills-external/impeccable`. Docs and routing (`CLAUDE.global.md`, `/profile`, README, USAGE, ARCHITECTURE) speak packs.
 - Known limit: `cc x web` on a project in `dev` keeps the higgsfield connectors that `dev` denies (`deniedMcpServers` is a union); `profile.sh set web` in the project lifts them.
-- Listing budget before the packs: measured in Task 12.
+- Measured in Task 12 (headless): dev = `pack-gstack-dev`, 41 tools, 0 higgsfield; web = the six web packs, 199 tools, 158 higgsfield; qa = `pack-gstack-browser pack-web-validate`; seo = qa + `pack-gstack-dev pack-seo`; qa and seo 41 tools, 0 higgsfield. `profile.sh current --plain` median 30 ms (target 50).
 - Listing budget with the packs: measured in Task 13.
 
 ### Removed
