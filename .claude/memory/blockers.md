@@ -195,6 +195,7 @@ rules:
 - **Status**: open. Candidate fixes: (a) quote gate evidence verbatim in span prompt — untested vs classifier; (b) move finish+tag span permanently inline in /release-candidate — keeps prep span dispatched, costs the sonnet pin on ~5 mechanical commands, cheap; (c) permission rule allowing subagent `gitflow.sh finish` — weakens the guard, refused. Decide at next release.
 - **Status (2026-10-23, reconcile)**: open. Did not recur at 2.0.0 (journal: release-executor finish passed), no fix applied (release-candidate SKILL.md:88-90 still dispatches `SPAN: finish`). Decide (a)/(b) at 3.0.0.
 - **Reference**: skill `release-candidate` STEP 5. Pattern adjacent [[LRN-089]] (ambient-state/context assumptions across boundaries). Journal 2026-07-20.
+- **Status (2026-11-02)**: resolved 536d39e: option b, /release-candidate runs gitflow.sh finish and the tag in the main loop under the ask prompt
 
 ## BLK-019 — notify-attention bell silent, toast OK (VS Code client default) — 2026-09-01
 - **Friction**: hook fired, Windows toast arrived, native bell never audible. User heard only Windows toast sound. Looked like half-broken hook.

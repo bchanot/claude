@@ -20,14 +20,15 @@ Turns the accumulated work on `develop` into a tagged release on `main`. THIN OR
 
 **Division of labour (lib = mechanic, skill = judgment):** the tag lives HERE, not in `gitflow.sh`, because it is release-specific (version + message + human decision) while the lib's fan-out is generic. **Consequence (accepted):** a release cut by calling `gitflow finish` directly, bypassing this skill, fans out but is NOT tagged — `/release-candidate` is the canonical release path.
 
-The two mechanical spans (prep, finish+tag) run on the sonnet-pinned
-`release-executor` subagent (dispatch makes the pin effective) — no model
-gate needed here, dispatch does the job. This dispatcher keeps everything
-the executor must never own: the version-NUMBER decision (judgment — derives
-from semver change nature), and the two human gates (when to release, and
+The prep span runs on the sonnet-pinned `release-executor` subagent
+(dispatch makes the pin effective) — no model gate needed here, dispatch
+does the job. This dispatcher keeps everything the executor must never own:
+the version-NUMBER decision (judgment — derives from semver change nature),
+the finish and tag (STEP 5, main loop), and the two human gates (when to
+release, and
 the tag push (auto-push mode; in manual push mode the user pushes main,
-develop and the tag in one command)). A human gate sits BETWEEN the two
-spans by construction, so the executor is never dispatched twice in one call.
+develop and the tag in one command)). A human gate sits between the prep
+span and the finish (STEP 4), so the executor is never dispatched twice.
 
 ## When to use
 - `develop` is ahead of `main` and you want to publish a version.
@@ -40,7 +41,7 @@ Not for: integrating a feature/bugfix → `gitflow finish` (via /ship-feature). 
 - The number DERIVES from the change nature (semver), not the reverse: a migration-requiring/breaking change → MAJOR; new features → MINOR; fixes → PATCH. Personal repo ⇒ "breaking" = requires a migration of your own usage. Decide the number BEFORE running.
 
 ## Flow
-**REQUIRED:** `lib/gitflow.sh` (the release mechanic, via the `release-executor` subagent). Clean tree, identity set, `develop` ahead of `main`.
+**REQUIRED:** `lib/gitflow.sh` (the release mechanic; the `release-executor` subagent runs the prep only). Clean tree, identity set, `develop` ahead of `main`.
 
 ### STEP 1 — Preconditions
 ```bash
@@ -84,16 +85,25 @@ Proceed only on an explicit human go. **Never fire on "tests pass"** — a
 green suite means ready to release, not authorized to. `hold` → stop here;
 the prepped `release/<X.Y.Z>` branch stays as-is for a later run.
 
-### STEP 5 — Dispatch: finish + tag
+### STEP 5 — Finish + tag (main loop)
+The finish runs HERE: the `ask` rule on `gitflow.sh finish` prompts, and a
+sub-agent cannot put that prompt to you (BLK-018 option b).
+Two separate Bash calls: the branch check runs first, its output is read,
+then the finish runs.
+```bash
+git branch --show-current          # must print release/<X.Y.Z>, else STOP
 ```
-Agent(subagent_type="release-executor")
-prompt: "SPAN: finish <X.Y.Z>"
+```bash
+bash "$HOME/.claude/lib/gitflow.sh" finish
 ```
-Parse the `RELEASE-EXEC REPORT`:
-- `STATUS: DONE` → continue to STEP 6, carrying the `TAG` value forward.
-- `STATUS: BLOCKED` → surface the blocker verbatim (e.g. a merge conflict
-  the fan-out hit), STOP — resolving a conflicted fan-out is a human call,
-  not an auto-retry.
+Prompt declined → nothing merged, the release branch kept: say so and STOP.
+A merge conflict → STOP, surface it verbatim (a human call). Any other
+non-zero exit of `finish` also STOPS before the tag: "finish failed:
+surface its output verbatim, do not tag". Then, on main:
+```bash
+git tag -a v<X.Y.Z> main -m "release <X.Y.Z>"
+```
+The tag stays local until STEP 6. Carry `TAG=v<X.Y.Z>` forward.
 
 ### STEP 6 — Tag push GATE (ASK)
 Read the state, separate Bash calls:

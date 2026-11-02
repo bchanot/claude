@@ -71,8 +71,8 @@ commands, settings, secrets, maintenance.
 
 Doctrine: the main loop runs on the `opus` session model; the model-router rows
 lift it to Fable for main-loop reflection ONLY: brainstorm, plan, contract,
-audit judgment, loop decisions. On Fable it writes no code past the `/hotfix`
-scope; the fresh gates run as dispatched agents on the `audit` row. The
+audit judgment, loop decisions. The main loop writes no code outside a skill run (the router's guard
+redirects it to a skill); the fresh gates run as dispatched agents on the `audit` row. The
 Fable/Opus model floor is enforced by a blocking gate (`lib/model-gate.md`) at
 the entry of the 17 reflection skills (the orchestrators, `/analyze`,
 `/guardrails` and `/a11y`): the skill calls the model-router `route` tool and
@@ -88,7 +88,7 @@ model-router row, their
 | feater, hotfixer, bugfixer | sonnet (pinned) | executors — code from a closed plan (feat), fix from a closed diagnosis (bugfix), fix-bundle appliers |
 | verifier | Fable (`audit` row: best/xhigh, opus frontmatter floor) | fresh gate (≤3×/loop) |
 | security-auditor | Fable (`audit` row: best/xhigh, opus frontmatter floor) | fresh gate (≤3×/loop) |
-| commit-changer, release-executor, code-cleaner | sonnet (pinned) | dispatched execution — grouping+commit / release spans / approved cleanup (audit + approval gates stay in the dispatcher) |
+| commit-changer, release-executor, code-cleaner | sonnet (pinned) | dispatched execution — grouping+commit / release prep span / approved cleanup (audit + approval gates stay in the dispatcher) |
 | onboarder, scaffolder, refactorer, validator-analyzer, plugin-probe | sonnet (pinned) | workers — config generation, scaffold, refactor, deterministic W3C/WCAG runner, mechanical plugin probe |
 | status-reporter | haiku (pinned) | mechanical collector |
 | analyzer, plan-challenger, plugin-advisor | opus (pinned) | dispatched judgment — pre-plan analysis, 3-lens adversarial plan challenge (`/ship-feature` STEP 2b), plugin-fit reasoning |
@@ -138,6 +138,7 @@ effort, never version. Transcript audit `python3 lib/effort-audit.py`.
 
 - Main loop: every request gets the route in force. A typed skill with a row routes the main loop to it; a best-tier row (`plan`, `reflect`, `orchestrate`, `escalate`; `audit` is an agent row, never typed) holds across turns in a run slot until `/route clear`, `/route off`, a user `/model` (typed with a name, bare, or picked in the `/model` picker, it asks the scope: this project, this conversation, everywhere) or a typed skill on a non-best row. A skill without a row leaves the route as it is. A rowed skill the model loads inside a best-tier run moves effort only when its row ranks below the run's model. Main routed onto a model whose context window the conversation outgrew returns to the session model. Before main runs on a model, the one it moves to or the one it keeps (the session's own model included), the mod probes it with one small completion bounded to 8 seconds; the step (and `/route show`, the route tool's answer) waits for it. A timeout or an error marks the model down (reason `probe`, held for `cooldownMinutes` like any breaker hold) and the decision is taken again once. A model already marked down is never probed, and a model that answered is not probed again, `/clear` included, until it is marked down. When a lower model stands in for its tier's head held down (Opus for Fable on a best-tier phase), the phase's own effort goes one notch up: `reflect` xhigh, `plan` max, `orchestrate` high, `escalate` stays max. An effort asked explicitly (`/route ... effort=`, the `route` tool's `effort`) or set by a floor is never raised. `/route show` and the route tool's answer print the level with `(opus stands in for fable)`; the verbose transition line names `stand-in` as a cause.
 - Sub-agents: a routed agent gets its row's model at spawn, within its tier and only upward from its frontmatter model, and the row's effort on every step. Explicit `model` / `effort` params on the Agent call win; a project-defined agent of the same name keeps its own definition. Built-ins: Explore runs on sonnet/medium, Plan on opus/xhigh. A built-in `general-purpose` agent that main spawns with no `model` param, while main runs below the session model (a downgrade or a breaker fallback), starts on the session model instead of inheriting the lower one; it is not pinned when the session model is marked down, for a fork, a workflow or a nested spawn, or when a project or user definition shadows the built-in. Other agent types are never pinned this way: the hook cannot see their frontmatter model.
+- Write guard: a main-loop Edit, Write or NotebookEdit of a code file is redirected with "model-router: code is written inside a skill run…" until a skill ran on the main loop in the session (typed or loaded by the model), a phase was declared this turn, or a typed `/route` holds. Free paths: `.md`, `.txt`, the project's `.claude/` except `worktrees/`, and `docs/`. Sub-agents write freely. `/route clear`, `/route off` and `/clear` re-arm the guard; `/route off` also turns it off, and `"enabled": false` in `~/.claude/model-router.json` turns the router and the guard off. A `/model` hand pick does not open it, and a `register.ts` reload resets it.
 - Levers inside a run: `ultrathink` in a prompt sets the turn's minimum effort; `/route effort=max` holds until `/route clear`. Keyword prompt rules (`plan`, `design`, `architecture`… take plan's effort; `why`, `review`, `audit`… reflect's), `ultrathink` and a main Agent dispatch (the derived `orchestrate` route, held until its background agents end) set the turn's effort only, never a model: they never lift main above the session model, and a held best-tier run keeps its model. Fable on main comes only from a skill row, the `route` tool, a typed `/route` or a hand pick (`/model`, picker). The built-in `/effort` is not a lever inside a run, rows and routes outrank it.
 - `/model` scope: a pick in the `/model` picker is held first (the engine prints that a hook blocked it), then the same question as `/model <name>` comes. A bare `/model` opens the router's model, variant and scope dialog: fable, opus or sonnet, then Standard or `[1m]`, then the scope, the current model included; `Other model (native picker)` opens the native picker (haiku goes through it or `/model haiku`) and Esc changes nothing. A pick while another dialog is open is refused with `answer the open dialog first`. The picker's Default, an unknown name or a headless run go native, no question. A model chosen in that dialog (a hand pick) always switches: no cold-read cap, no `mainUpgrade` or `mainModelSwitch` flag. A hand pick marked down keeps main where it is until it is back. A native switch (the `/config` Model row included) or `/clear` drops a hand pick; a typed `/route model=` keeps the caps.
 - Prompt classifier: a plain prompt typed in the composer (12 characters or more, not a slash command) that no keyword rule, skill, run slot, `/route` or floor covers is sent to the engine's small fast model, one call, bounded to 3 seconds (the prompt waits for it, typically under a second). The label (`design`, `analysis`, `coding`, `bookkeeping`, `chat`) maps to plan, reflect, implement or apply (`chat` routes nothing), and the turn takes that phase's route: its effort becomes the turn's default, and its model may move the main loop, never above the session model. A `coding` or `bookkeeping` guess moves main down only when `mainModelSwitch` is on and the cold read fits `downgradeMaxTokens`; an `ultrathink` floor in the same turn raises the effort only, the guess's model holds. No dialog opens and no file is written. The route is gone at the end of the turn, a later route call or typed skill replaces it, and a `/effort` you type between turns drops the guess for that turn only. A typed best-tier skill holds its run slot across turns, so nothing is classified there until `/route clear`. Long prompts are sampled (first 500 and last 1500 code points), so pasted text at the end can steer one turn's route. Three failures in a row pause it for `cooldownMinutes` (one toast, `classifier: paused` in the status line). Never in a sub-agent, mid-turn or under `-p`. Off per session with `/route classify off`, per machine with `"classify": false`. The status line reads `route: classifier <phase>`; `/route verbose on` adds the transition line.
@@ -403,9 +404,25 @@ The permission gate is now one `autoMode.soft_deny` entry covering the
 outward-facing verbs (`21st publish*`, `submit`, `edit`, `delete`,
 `remove-from-catalog`, `profile set|upload`), because publishing a component
 puts it on a public listing under your account. That tier rather than `ask`:
-under `defaultMode: auto` (this config's default) `ask` rules were observed
-auto-approving with no prompt raised (LRN-153), so an `ask` entry would have
-declared an intent without gating anything.
+an ask prompt can be clicked through by reflex, and the soft_deny also covers
+scripted forms.
+
+### Static rule limits
+
+`ask` rules raise a permission prompt under `defaultMode: auto` (headless
+bench `.claude/tasks/plans/2026-11-02-phase2-bench/`, confirmed interactively
+on 2026-11-02). The matcher sees through `&&`, `;`, `|`, `env`, `timeout`,
+`xargs` and simple assignments. The phase 2 rules ask on `sh -c` and its flag
+forms (`sh -ec`, `bash -lc`, `dash -c`), a bare `bash` or `sh` fed by a
+heredoc, process substitution (`bash <(…)`) and the absolute shells `/bin/sh`,
+`/bin/bash`, `/usr/bin/sh`, `/usr/bin/bash`, `/usr/bin/env sh|bash`. A script
+piped into a shell (`… | bash -s`) is already refused by the deny
+`Bash(* | bash -*)`. A sourced `gitflow_finish` and `git -C <dir> merge`
+escape the static rules. The matcher cannot see `$(…)` in command position, a
+quoted literal argument or an inline interpreter: those rest on the
+auto-mode classifier (`autoMode.soft_deny`, "Static rule blind spots"). The
+rtk hook passes any command its registry asks about or denies through
+unrewritten, so the native rules judge it as typed.
 
 ### Higgsfield CLI
 

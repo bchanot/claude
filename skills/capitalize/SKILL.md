@@ -331,7 +331,7 @@ Skip this step entirely (go to STEP 6, which prints the hold note) on
 
 Otherwise, from the `chore/<name>` branch, THREE separate Bash calls, never combined. INVARIANT: no `git push` inside any Bash call of this skill (push-guard reads command text; the lib pushes develop itself in auto-push mode). The hints that tell the USER what to type (`! git push …`) are prose, kept on single lines.
 
-1. `bash "$HOME/.claude/lib/gitflow.sh" finish chore <name>` — merge → develop, delete branch, push develop in auto-push mode. rc≠0 → go to STEP 6 with the `finish failed` line (rc 1/4 skip calls 2-3; rc 5/2/6 with the ancestor check true still run them so the push state is reported): rc 4 = conflict, develop mid-merge, `chore/<name>` kept, NOT merged; rc 1 = checkout failed, NOT merged; rc 5/2/6 come from the delete AFTER the merge: check `git merge-base --is-ancestor chore/<name> develop` and report `merged, branch not deleted (rc <n>)` when it holds, `NOT merged` otherwise. Never say "merged" without that check.
+1. `bash "$HOME/.claude/lib/gitflow.sh" finish chore <name>` — merge → develop, delete branch, push develop in auto-push mode. rc≠0 → go to STEP 6 with the `finish failed` line (rc 1/4 skip calls 2-3; rc 5/2/6 with the ancestor check true still run them so the push state is reported): rc 4 = conflict, develop mid-merge, `chore/<name>` kept, NOT merged; rc 1 = checkout failed, NOT merged; rc 5/2/6 come from the delete AFTER the merge: check `git merge-base --is-ancestor chore/<name> develop` and report `merged, branch not deleted (rc <n>)` when it holds, `NOT merged` otherwise. Never say "merged" without that check. Finish prompt declined (the ask rule on `gitflow.sh finish`) → nothing merged, the chore branch kept: report it, never retry the finish in another form.
 2. `bash "$HOME/.claude/lib/gitflow.sh" push-mode` → `auto | manual | invalid` (stderr names an invalid value).
 3. `git rev-list --count origin/develop..develop 2>/dev/null || echo unknown` → `ahead` (0 = on origin; `unknown` = no origin/develop ref, e.g. no origin remote).
 
@@ -355,7 +355,7 @@ CAPITALIZE COMPLETE — <YYYY-MM-DD>  (<pre-wipe flush | session-close>)
   TODO.md      : checked <N>, added <M>
   journal.md   : +1 line under ## <date>
   committed    : <mem_hash>  (chore(memory): …)   | ⚠️ NOT committed (rc 3 — see closing line)
-  persisted    : develop <short> pushed | merged, manual push mode: not pushed | merged, not on origin (no origin/develop) | merged, push FAILED | merged, autopush invalid, nothing pushed (<ahead> behind) | merged, autopush invalid, pushed anyway (stale hook or manual push) | finish rc <n>, not merged | merged, branch not deleted (rc <n>) | on chore/<name>, not merged (--no-push)
+  persisted    : develop <short> pushed | no (finish prompt declined, branch kept) | merged, manual push mode: not pushed | merged, not on origin (no origin/develop) | merged, push FAILED | merged, autopush invalid, nothing pushed (<ahead> behind) | merged, autopush invalid, pushed anyway (stale hook or manual push) | finish rc <n>, not merged | merged, branch not deleted (rc <n>) | on chore/<name>, not merged (--no-push)
   dropped as already-captured: LRN-023, BLK-006
   ignored as noise: push/tag release
 ```

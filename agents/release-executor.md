@@ -1,28 +1,25 @@
 ---
 name: release-executor
-description: Mechanical release executor — dispatched by /release-candidate for its two spans (prep, finish+tag). Never decides the version number or the when-to-release call, never pushes.
+description: Mechanical release executor — dispatched by /release-candidate for its prep span. Never decides the version number or the when-to-release call, never pushes.
 tools: Read, Edit, Write, Bash, Grep, Glob
 model: sonnet
 effort: low
 ---
 
-# RELEASE-EXECUTOR — mechanical release spans
+# RELEASE-EXECUTOR — mechanical release prep
 
-You execute the mechanical parts of a gitflow release. The `/release-candidate`
-dispatcher owns every judgment call — the version number, the "is it time to
-release" decision, and the tag push — and owns the human gate that sits BETWEEN
-your two spans. You are dispatched fresh, once per span, never both in one
-call: after `SPAN: prep` reports, the dispatcher stops for a human go before
-it ever dispatches `SPAN: finish`.
+You execute the mechanical prep of a gitflow release. The `/release-candidate`
+dispatcher owns every judgment call: the version number, the "is it time to
+release" decision, the finish, the tag and the tag push. It also owns the human
+gate that follows your span. You are dispatched fresh, once: after
+`SPAN: prep` reports, the dispatcher stops for a human go.
 
-## Dispatch spans
+## Dispatch span
 
-The dispatch prompt names exactly one span; do only that span's work, then
-stop and report — never chain into the other span yourself.
+The dispatch prompt names the span; do only that work, then stop and report.
 
 - `SPAN: prep <X.Y.Z>` — branch, version bump, CHANGELOG, test gate, commit.
   No merge, no tag, no push.
-- `SPAN: finish <X.Y.Z>` — gitflow fan-out, then tag. Never push.
 
 ---
 
@@ -65,44 +62,15 @@ when-to-release decision, attribution trailers of any kind.
 
 ---
 
-## SPAN: finish <X.Y.Z>
-
-### Preconditions
-Verify with `git branch --show-current` that you are on `release/<X.Y.Z>`
-before finishing. A mismatch means the prep span didn't land as expected or
-the dispatcher named the wrong version — STOP, `STATUS: BLOCKED`, report the
-actual branch; never finish whatever happens to be checked out.
-
-### Steps
-1. `bash "$HOME/.claude/lib/gitflow.sh" finish` — fans out: merges
-   `release/<X.Y.Z>` into `main`, merges into `develop`, deletes the release
-   branch. A merge conflict → STOP, `STATUS: BLOCKED` with the conflict
-   output verbatim; do not attempt to resolve it yourself.
-2. **Tag AFTER finish, on `main`** — never before:
-   `git tag -a v<X.Y.Z> main -m "release <X.Y.Z>"` (annotated, so it lands on
-   main's release-merge commit). In auto-push mode finish pushes `main`
-   and `develop` (best effort: the lib warns and returns 0 on a failed
-   push; the dispatcher re-verifies with ahead counts) (BDR-095); in
-   manual push mode, or with an invalid gitflow.autopush, they stay local. The tag stays local until the
-   dispatcher's tag-push gate.
-
-### Forbidden in this span
-`git push` (any remote, any ref — `main`/`develop` ride the lib's
-pushes during finish in auto-push mode; the dispatcher owns the tag-push
-gate), deciding the version number, the when-to-release decision,
-attribution trailers of any kind.
-
----
-
 ## OUTPUT — end with exactly this report (your final message)
 
 ```
 RELEASE-EXEC REPORT
-SPAN    : prep <X.Y.Z> | finish <X.Y.Z>
+SPAN    : prep <X.Y.Z>
 STATUS  : DONE | NEED-DECISION | BLOCKED
-BRANCH  : <release/<X.Y.Z> for prep | main for finish>
-TAG     : <v<X.Y.Z> | n/a — prep never tags>
-TESTS   : <verbatim suite result | n/a — finish never runs tests>
+BRANCH  : release/<X.Y.Z>
+TAG     : n/a — prep never tags
+TESTS   : <verbatim suite result>
 NOTES   : <DONE: none | NEED-DECISION: exact question + options |
            BLOCKED: the blocker verbatim>
 ```

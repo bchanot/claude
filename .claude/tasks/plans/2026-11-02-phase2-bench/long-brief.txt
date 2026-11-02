@@ -1,0 +1,15 @@
+Salut, j'ai une petite évolution à faire sur doctor.sh et je voudrais que tu t'en occupes.
+
+Contexte : depuis quelques semaines on s'appuie de plus en plus sur rtk pour réécrire les commandes shell, et plusieurs règles de permissions dépendent de son comportement. Le souci, c'est que doctor.sh ne dit rien de la version installée. Quand quelque chose se comporte bizarrement, je dois lancer rtk --version à la main, comparer avec ce que je me rappelle, et parfois je me rends compte que la machine de travail tourne sur une vieille version alors que celle de la maison est à jour. Ça m'a coûté une soirée entière la semaine dernière.
+
+Ce que je veux concrètement :
+
+1. Dans doctor.sh, ajouter une ligne dans le rapport qui affiche la version de rtk détectée, au même endroit et dans le même format que les autres outils déjà listés (git, jq, shellcheck, etc.). Si rtk n'est pas installé, la ligne doit le dire clairement plutôt que de planter ou de rester silencieuse, comme on le fait déjà pour les autres outils optionnels.
+
+2. Si la version est strictement inférieure à 0.23, afficher un avertissement, pas une erreur : doctor.sh ne doit pas changer son code de retour à cause de ça. L'avertissement doit dire quelle version a été trouvée, quelle version minimale est attendue, et suggérer de mettre rtk à jour. Attention à la comparaison : 0.9 est plus petit que 0.23 pour un humain qui lit les numéros de version, mais pas pour une comparaison de chaînes ou de nombres décimaux naïve. Il faut une vraie comparaison par composants, major puis minor, et tolérer un éventuel troisième composant ou un suffixe du genre -rc1 sans casser.
+
+3. Ajouter un test pour tout ça dans la suite existante, au même endroit que les tests de doctor.sh, avec le même style que les voisins. Je voudrais au minimum quatre cas : rtk absent, version récente (pas d'avertissement), version ancienne (avertissement), et une version avec un format inattendu (on ne plante pas, on affiche ce qu'on a lu et on passe). Les tests ne doivent pas dépendre du rtk réellement installé sur la machine : il faut pouvoir simuler la sortie de rtk --version, par exemple avec un faux exécutable placé en tête du PATH dans un répertoire temporaire.
+
+Quelques contraintes pour ne pas se marcher dessus. Je ne veux pas de nouvelle dépendance. Je ne veux pas que le seuil 0.23 soit écrit à trois endroits : une seule constante, nommée clairement, en haut du fichier ou à côté des autres seuils s'il y en a déjà. Le script doit rester lisible et passer shellcheck sans nouvel avertissement. Si tu vois que le fichier est déjà trop long ou que la fonction qui construit le rapport fait trop de choses, dis-le moi au lieu de tout réorganiser de ton côté : je préfère décider.
+
+Enfin, quand tu auras fini, dis-moi ce que tu as vérifié (tests, shellcheck, lancement réel de doctor.sh) et ce que tu n'as pas pu vérifier. Merci d'avance, et n'hésite pas si un point te paraît ambigu.

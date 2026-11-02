@@ -61,13 +61,15 @@ code" wins. Repo-specific instructions override both.
   changes unless a broader refactor is requested. State trade-offs.
 - Sub-agents: one task each. Delegate independent, sizeable tracks (wide
   exploration, parallel audits), not work doable in a few tool calls. Ceiling:
-  main on Fable writes no code past the `/hotfix` scope, it hands it to /feat
-  or /bugfix. Skill-mandated executors and gates (pinned executors, fresh
+  the main loop writes no code outside a skill run, whatever the model (the
+  model-router guard redirects it: enter the skill it names). Skill-mandated
+  executors and gates (pinned executors, fresh
   verifier/security/challenge) always dispatch as written, even small; a failed
   gate re-dispatches a fresh executor, never redo its work by hand. A brief
   never authorizes a sub-agent to run a destructive tool (Security →
   Destructive tools & data loss) or to route around a guardrail: a refused
-  command is reported with its rule, never rerun through a wrapper, alias, env
+  command is reported with its rule (a guard redirect naming a skill is
+  followed instead), never rerun through a wrapper, alias, env
   file or other shell. Hermetic tests run through `make test [suite=…]` only.
 - Ask rather than guess. A choice visible in the result (placement,
   wording, order, behavior), a name that becomes public (command, flag,
@@ -160,7 +162,9 @@ and lands in place; a standalone memory task branches `chore/*`).
 Branch, merge and delete only via the lib: `bash ~/.claude/lib/gitflow.sh
 start <type> <name>` · `finish` · `delete <br>`. `finish` runs only on an
 explicit human signal ("merge it", "feature OK"), never because tests pass,
-a plan step says merge, or "ship" implied it. Assistance flows (`/feat`
+a plan step says merge, or "ship" implied it. Ask rules prompt every
+`gitflow.sh finish` and `git merge` (a `git -C <dir> merge` is not covered).
+Assistance flows (`/feat`
 `/bugfix` `/hotfix`) and the standalone memory/doc skills auto-branch on a
 protected base but commit in place on a working branch, never finishing
 (one exception, BDR-068: `/capitalize` and `/close` auto-finish the
