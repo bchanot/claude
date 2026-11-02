@@ -7451,3 +7451,12 @@ test('GUARD: a deny-free Skill answer latches, the skill loads once', async (
   expect(ran).toBe(1)
   expect(denied(await write($, `${ROOT}/src/a.ts`))).toBe('')
 })
+
+test('GUARD: a denied Skill answer leaves the latch closed', async (
+  $, on) => {
+  on('tool.call', { tool: 'Skill' }, () => ({ deny: 'no such skill' }))
+  writeBottoms(on)
+  await bootRig($, on, OPUS, 1000, newWorld())
+  await $.tool.call({ tool: 'Skill', skill: 'diagram' } as never)
+  expect(denied(await write($, `${ROOT}/src/a.ts`))).toContain(GUARD)
+})
