@@ -5,6 +5,7 @@
 # adversarial behavior needs a live model (manual smoke), not a CI gate.
 set -u
 R="$(cd "$(dirname "$0")/../.." && pwd)"
+skdir() { ls -d "$R"/skills/"$1" "$R"/skills/pack-*/skills/"$1" 2>/dev/null | head -1 | sed "s#^$R/##"; }
 pass=0; fail=0
 ok() { pass=$((pass+1)); }
 ko() { fail=$((fail+1)); printf 'FAIL %s\n' "$1"; }
@@ -41,8 +42,8 @@ has "$L" "fix-bundle"
 # 3) every reflection orchestrator wires the phase + carries a challenge summary
 #    (hotfix wires it under a logic-only guard — STEP 1.8)
 for s in ship-feature init-project feat bugfix hotfix onboard audit-delta code-clean seo geo harden web-validate; do
-  has "skills/$s/SKILL.md" "lib/challenge-plan.md"
-  has "skills/$s/SKILL.md" "CHALLENGE SUMMARY"
+  has "$(skdir "$s")/SKILL.md" "lib/challenge-plan.md"
+  has "$(skdir "$s")/SKILL.md" "CHALLENGE SUMMARY"
 done
 
 printf 'plan-challenge structure lock: %d pass, %d fail\n' "$pass" "$fail"

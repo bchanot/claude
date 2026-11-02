@@ -421,7 +421,7 @@ Agent(
 **Décision selon plugin state :**
 ```bash
 # gstack actif ?
-bash $HOME/.claude/lib/toggle-external.sh list 2>/dev/null | grep -E "^gstack\s+(enabled|on)"
+bash $HOME/.claude/lib/profile.sh -C "$PWD" current --plain 2>/dev/null | grep -q '^pack-gstack-dev=on'
 ```
 
 - **gstack ON** → invoquer le skill cso via Skill tool en lui passant le contexte archétype :
@@ -605,7 +605,7 @@ Options :
 Pré-check ressources navigateur :
 ```bash
 # gstack actif ?
-bash $HOME/.claude/lib/toggle-external.sh list 2>/dev/null | grep -E "^gstack\s+(enabled|on)"
+bash $HOME/.claude/lib/profile.sh -C "$PWD" current --plain 2>/dev/null | grep -q '^pack-gstack-browser=on'
 # URL déployée fournie par l'utilisateur en STEP 3 ?
 echo "${BRIEF_deployed_url:-none}"
 # dev server launchable ?

@@ -4,12 +4,11 @@
 # skills (curl-pinned externals in plugins.lock.json + link.sh's
 # EXTERNAL_SKILLS array). doctor.sh's "GStack submodule" section only
 # covers the gstack submodule — this covers the OTHER external skill
-# packs (emil-design-eng, the agent-skills trio, the five Mengto scroll
-# skills, the seven superpowers skills, and any name link.sh links with
-# no lock entry at all, e.g. frontend-design, design-motion-principles).
+# packs (the agent-skills trio, the seven superpowers skills, and any
+# name link.sh links with no lock entry at all).
 #
-# One entry point, `check_vendored_skills <repo> <claude_home>
-# [profile_file]`, sourced and called by doctor.sh. Two things checked
+# One entry point, `check_vendored_skills <repo> <claude_home>`, sourced
+# and called by doctor.sh. Two things checked
 # per name in link.sh's EXTERNAL_SKILLS array:
 #   1. its file(s) exist under skills-external/<name>/ — expected file
 #      list comes from the matching plugins.lock.json entry (list shape
@@ -17,13 +16,8 @@
 #      emil-design-eng single-file "path" shape -> the key itself is the
 #      name, file "SKILL.md") or, when no lock entry names it at all,
 #      defaults to ["SKILL.md"].
-#   2. when the name is listed in <profile_file> (or no <profile_file>
-#      is passed — the "could not resolve the active profile" case),
-#      the <claude_home>/skills/<name> symlink points at
-#      <repo>/skills-external/<name>. A name absent from the profile is
-#      reported parked, not failed — unless its lock entry is
-#      "always_on": true (the superpowers entry is), in which case the
-#      symlink is checked regardless of the profile (see _dv_check_link).
+#   2. the <claude_home>/skills/<name> symlink points at
+#      <repo>/skills-external/<name>.
 #
 # Lock parsing via python3 argv (never string-spliced) — same pattern as
 # lib/vendor-skills.sh's _vendor_read_lock. link.sh's EXTERNAL_SKILLS
@@ -33,9 +27,7 @@
 # Every name/file pulled from the lock or link.sh is spliced into a
 # filesystem path (skills-external/<name>/<file>,
 # <claude_home>/skills/<name>): _dv_valid_item_name allowlists it first
-# (a rejection is a warn + skip, never a fail). doctor.sh's active
-# profile splices into lib/profiles/<name>.profile the same way, guarded
-# by _dv_valid_profile_name.
+# (a rejection is a warn + skip, never a fail).
 #
 # No `set -euo pipefail` here (mirrors lib/vendor-skills.sh): a sourced
 # lib must not change the caller's shell options.
@@ -63,9 +55,7 @@ fi
 
 # _dv_lock_expectations <lockfile> — prints "<name>\t<file>" for every
 # skill named under a plugins.lock.json entry whose "managed_by" is
-# "curl", plus a THIRD column "\t1" when that entry is "always_on": true
-# (the superpowers entry is) — read by _dv_is_always_on, ignored by the
-# $1==n {print $2} awk in _dv_check_files: a bare list defaults each name
+# "curl". A bare list defaults each name
 # to ["SKILL.md"]; a dict names its own per-skill file list; an entry
 # with neither (the emil-design-eng single-file "path" shape) is itself
 # the skill name, file "SKILL.md" (the literal "path" value is upstream
@@ -123,13 +113,12 @@ for key, entry in data.items():
         sys.exit(1)
     if not valid_skills(skills):
         sys.exit(1)
-    suffix = "\t1" if entry.get("always_on") is True else ""
     if skills is None:
-        print(f"{key}\tSKILL.md{suffix}")
+        print(f"{key}\tSKILL.md")
         continue
     for name, files in skill_files(skills).items():
         for file in files:
-            print(f"{name}\t{file}{suffix}")
+            print(f"{name}\t{file}")
 PY
 }
 
@@ -143,22 +132,6 @@ _dv_link_names() {
     | sed -e 's/^.*EXTERNAL_SKILLS=(//' -e 's/).*$//' \
     | tr -s '[:space:]' '\n' \
     | grep -v '^$'
-}
-
-# _dv_profile_has <profile_file> <name> — true when a line's FIRST
-# whitespace-separated token equals <name> (the profile line's label
-# column — comments and the type column are ignored).
-_dv_profile_has() {
-  local profile_file="$1" name="$2"
-  awk -v n="$name" '$1 == n { found=1 } END { exit !found }' "$profile_file"
-}
-
-# _dv_valid_profile_name <name> — true when <name> matches the
-# profile-name allowlist (letters, digits, underscore, hyphen only).
-# <name> is spliced into "lib/profiles/<name>.profile" by doctor.sh, so
-# a path-traversal or separator character must never reach it.
-_dv_valid_profile_name() {
-  [[ "$1" =~ ^[A-Za-z0-9_-]+$ ]]
 }
 
 # _dv_valid_item_name <name> — true when <name> (a skill name from
@@ -202,59 +175,28 @@ allowlist — skipped"
   [ "$all_ok" -eq 1 ]
 }
 
-# _dv_is_always_on <name> <lock_out> — true when <lock_out> (the
-# "<name>\t<file>[\t1]" lines from _dv_lock_expectations) carries the
-# always_on third column for <name>'s lock entry.
-_dv_is_always_on() {
-  local name="$1" lock_out="$2"
-  awk -F'\t' -v n="$name" '$1 == n && $3 == 1 { found=1 } \
-    END { exit !found }' <<< "$lock_out"
-}
-
-# _dv_check_link <claude_home> <repo> <name> <profile_file> <always_on> —
-# when <always_on> is "1" (the name's lock entry is "always_on": true),
-# the symlink is checked whatever <profile_file> says — never parked.
-# Otherwise, when <profile_file> is non-empty and does not list <name>,
-# reports it parked (info), not failed. Otherwise (listed, always_on, or
-# no <profile_file> was passed — active profile could not be resolved,
-# every external is then expected linked) checks the
-# <claude_home>/skills/<name> symlink points at
-# <repo>/skills-external/<name>.
+# _dv_check_link <claude_home> <repo> <name> — the
+# <claude_home>/skills/<name> symlink points at <repo>/skills-external/<name>.
 _dv_check_link() {
-  local claude_home="$1" repo="$2" name="$3" profile_file="$4" \
-    always_on="$5"
-  local link target label
-  if [ "$always_on" != "1" ] && [ -n "$profile_file" ] \
-       && ! _dv_profile_has "$profile_file" "$name"; then
-    label="$(basename "$profile_file" .profile)"
-    info "$name: parked by profile $label"
-    return
-  fi
-  link="$claude_home/skills/$name"
-  target="$repo/skills-external/$name"
+  local claude_home="$1" repo="$2" name="$3"
+  local link="$claude_home/skills/$name"
+  local target="$repo/skills-external/$name"
   if [ -L "$link" ] && [ "$(readlink "$link")" = "$target" ]; then
     pass "$name: vendored + linked"
   else
-    fail "$name: symlink missing/wrong — run: make link (or: bash \
-lib/profile.sh apply <profile>)"
+    fail "$name: symlink missing/wrong — run: make link"
   fi
 }
 
-# _dv_check_name <repo> <claude_home> <name> <profile_file> <lock_out> —
-# per-name dispatch for check_vendored_skills's loop: files first (the
-# link check runs only when every expected file is present, same as
-# before), then the symlink, passing _dv_is_always_on's verdict as
-# _dv_check_link's 5th param.
+# _dv_check_name <repo> <claude_home> <name> <lock_out> — per-name
+# dispatch: files first, the symlink only when every file is present.
 _dv_check_name() {
-  local repo="$1" claude_home="$2" name="$3" profile_file="$4" lock_out="$5"
-  local always_on=""
-  _dv_is_always_on "$name" "$lock_out" && always_on=1
+  local repo="$1" claude_home="$2" name="$3" lock_out="$4"
   _dv_check_files "$repo" "$name" "$lock_out" \
-    && _dv_check_link "$claude_home" "$repo" "$name" "$profile_file" \
-         "$always_on"
+    && _dv_check_link "$claude_home" "$repo" "$name"
 }
 
-# check_vendored_skills <repo> <claude_home> [profile_file] — see the
+# check_vendored_skills <repo> <claude_home> — see the
 # file header. Either the lock or link.sh being unreadable (or a
 # malformed lock entry — _dv_lock_expectations rc 1) is a warn, never a
 # fail; link.sh unreadable skips the whole check (there is nothing to
@@ -262,7 +204,7 @@ _dv_check_name() {
 # allowlist before it is spliced into a path — a rejected one is
 # warned and skipped, not failed.
 check_vendored_skills() {
-  local repo="$1" claude_home="$2" profile_file="${3:-}"
+  local repo="$1" claude_home="$2"
   local lock_out names name
 
   if ! lock_out="$(_dv_lock_expectations "$repo/plugins.lock.json")"; then
@@ -285,6 +227,6 @@ check skipped"
 item-name allowlist — skipped"
       continue
     fi
-    _dv_check_name "$repo" "$claude_home" "$name" "$profile_file" "$lock_out"
+    _dv_check_name "$repo" "$claude_home" "$name" "$lock_out"
   done <<< "$names"
 }

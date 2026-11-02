@@ -47,6 +47,7 @@ module = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(module)
 
 paths = glob.glob(skills_dir + "/*/SKILL.md")
+paths += glob.glob(skills_dir + "/pack-*/skills/*/SKILL.md")
 chars = sum(len(module.extract_description(p) or "") for p in paths)
 print(len(paths), chars)
 PY

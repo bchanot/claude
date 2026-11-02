@@ -15,16 +15,12 @@ Facts only — no signals, no recommendations, no complexity scoring.
 ## PROBES (run all; a failing probe reports its fallback string, never aborts)
 
 ```bash
-# Claude Code plugins
+# Packs, managed plugins, connectors, model: the effective state of THIS
+# project and conversation (lib/profile.sh, no claude call)
+bash "$HOME/.claude/lib/profile.sh" -C "$PWD" current --plain 2>/dev/null || echo "profile-unavailable"
+
+# Marketplace plugins actually installed (ids, enabled state)
 claude plugin list 2>/dev/null || echo "plugin-list-unavailable"
-
-# External (non-marketplace) tools status — gstack, emil-design-eng,
-# darwin-skill. Managed by lib/toggle-external.sh since
-# `claude plugin enable|disable` does not apply to them.
-bash "$HOME/.claude/lib/toggle-external.sh" list 2>/dev/null || echo "toggle-external-unavailable"
-
-# Active skill profile — design / dev / qa / audit / minimal / custom.
-bash "$HOME/.claude/lib/profile.sh" current 2>/dev/null || echo "profile-unavailable"
 
 # Context7 CLI
 command -v ctx7 &>/dev/null && ctx7 --version 2>/dev/null | head -1 || echo "ctx7-not-installed"
@@ -60,7 +56,7 @@ ls src/*.c 2>/dev/null | head -3
 ls package.json Cargo.toml go.mod pubspec.yaml setup.py pyproject.toml 2>/dev/null | head -1   # counterindicators (ecosystem present = not bare embedded)
 
 # Checkpoint inputs (consumed by lib/plugin-gate.md's validation checkpoint)
-[ -x "$HOME/.claude/lib/toggle-external.sh" ] && echo "toggle-script: executable" || echo "toggle-script: UNAVAILABLE"
+[ -f "$HOME/.claude/lib/profile.sh" ] && echo "profile-sh: available" || echo "profile-sh: UNAVAILABLE"
 ls "$HOME/.claude/plugins/cache" 2>/dev/null | head -10
 ls "$HOME/.agents/skills" 2>/dev/null | head -10
 ```
@@ -69,9 +65,8 @@ ls "$HOME/.agents/skills" 2>/dev/null | head -10
 
 ```
 PROBE REPORT
-PLUGINS        : <claude plugin list output, one per line>
-EXTERNAL      : <toggle-external list output>
-PROFILE       : <profile current output>
+PROFILE       : <current --plain block, verbatim>
+PLUGINS       : <claude plugin list output>
 CLIS          : ctx7=<v|absent> gsd=<v|absent> rtk=<v|absent>
 MANIFESTS     : <files found>
 FRAMEWORK-DEPS: <exact "dep": "version" pairs, or framework-deps-none>
@@ -80,7 +75,7 @@ DOCKER-COUNT  : <n>
 ANIM          : eligibility=<status|package|reason> installed=<lib|no>
 MONOREPO      : dirs=<hits> configs=<hits> parent=<hits>
 EMBEDDED      : cmake-pio=<hits> linker=<hits> makefile=<y/n> src-c=<hits> ecosystem=<first manifest|none>
-CHECKPOINT    : toggle-script=<executable|UNAVAILABLE> plugin-dirs=<cache+skills listing>
+CHECKPOINT    : profile-sh=<available|UNAVAILABLE> plugin-dirs=<cache+skills listing>
 ```
 
 ## RULES

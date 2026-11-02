@@ -2,159 +2,65 @@
 name: profile
 effort: low
 description: |
-  Partition Claude skills by purpose: design, dev, qa, audit, minimal.
-  Toggles symlinks between skills/ and skills-disabled/ to keep only
-  the skills relevant to the current kind of work.
-  Trigger: "profile", "skill profile", "design profile", "qa profile",
-  "switch to design", "set profile", "active profile", "quel profil",
-  "profil design", "active les skills design", "désactive gstack",
-  "réduire le bruit gstack".
-argument-hint: list | show <name> | current | apply <name> | set <name> | reset | gstack on|off | diff <a> <b>
+  Set the pack profile of THIS project (writes .claude/settings.local.json)
+  or show the effective one of this conversation. Packs are skills-dir
+  plugins (design, scroll3d, seo, web-validate, gstack-dev/-browser/-design,
+  higgsfield, extras); a profile is a settings fragment lib/profiles/<n>.json.
+  Trigger: "profile", "skill profile", "design profile", "set profile",
+  "active profile", "quel profil", "profil design", "active les skills
+  design", "enable higgsfield", "désactive gstack", "réduire le listing".
+argument-hint: list | show <name> | current | set <name> | unset | enable <pack> | disable <pack> | diff <name>
 allowed-tools:
   - Bash
   - Read
 ---
 
-# profile
+# /profile — packs per project and per conversation
 
-Activate a curated subset of skills for a specific kind of work — instead of
-carrying every gstack + personal skill in every session.
+Run `bash "$HOME/.claude/lib/profile.sh" -C "$PWD" $ARGUMENTS` and show its
+output. With no argument, run `current` and then `list`.
 
-## When to invoke
+## What a profile is
 
-- User asks to switch profile (`set design`, `profile dev`, `quel profil actif`).
-- User wants to see what's in a profile (`profile show qa`).
-- User wants to compare profiles (`profile diff design qa`).
-- User asks to "reduce gstack noise" or "only design skills".
+`lib/profiles/<name>.json` holds `enabledPlugins` (every pack and managed
+plugin, explicit), optional `deniedMcpServers` (the two higgsfield claude.ai
+connectors) and optional `model`. Descriptions: `lib/profiles/README.md`.
 
-## Profiles available
+- Per project: `set <name>` merges the fragment into
+  `.claude/settings.local.json` (other keys kept). Then `/reload-plugins`
+  loads the packs in this session; connectors and model apply to the next
+  session.
+- Per conversation: `cc <session> <name>` (lib/cc.sh) runs
+  `claude --settings lib/profiles/<name>.json`. That conversation is frozen:
+  editing the fragment or the local file changes nothing here, and a pack the
+  fragment turns off cannot come back; start another `cc`.
+- No profile: the manifest defaults, which equal `full` with the connectors
+  present.
 
-| Profile    | Use case |
-|------------|----------|
-| `web`      | Public website work — frontend + content + light dev |
-| `seo`      | SEO + GEO + W3C audit — search/AI indexability + standards |
-| `web-full` | Production website end-to-end — `web` + `seo` combined |
-| `full`     | Default — everything the other profiles carry, minus broken or doctrine-breaking gstack |
-| `max`      | Everything — full + parked tools (make-pdf, diagram, 21st generation trio) + pr-review-toolkit |
-| `backend`  | Backend / API / system dev — no design, no SEO |
-| `design`   | Visual QA, design systems, mockups, polish |
-| `dev`      | Daily code work — features, fixes, refactor, ship (any stack) |
-| `qa`       | Site testing, perf, canary, validation |
-| `audit`    | Comprehensive audit — security + SEO + GEO + W3C + perf + health |
-| `minimal`  | Strip all gstack skills (quiet session) |
+## Verbs
 
-## Mechanism
+| verb | effect |
+|---|---|
+| `list` | names + descriptions |
+| `show <n>` | the fragment: packs on/off, denied connectors, model; `missing` on a pack with no `skills/pack-<n>/` |
+| `current [--plain]` | effective state of this project and conversation; `--plain` is what gates and the statusline read |
+| `set <n>` | write the fragment into the local file |
+| `unset` | remove the managed keys from the local file |
+| `enable <pack>` / `disable <pack>` | one pack (`design`, `pack-design` or a plugin id) |
+| `diff <n>` | effective state against a fragment |
 
-Each profile is a plain-text file under `lib/profiles/<name>.profile` that
-lists items + types:
+Refusals (rc 2, nothing written): unknown profile or pack, not a project
+root (no `CLAUDE.md`, no `.git`), unreadable or invalid local JSON.
 
-| Type                    | Toggle mechanism |
-|-------------------------|------------------|
-| `gstack`                | symlink move skills/ ↔ skills-disabled/gstack__\<name\> |
-| `personal`              | symlink move skills/ ↔ skills-disabled/\<name\> (no prefix) |
-| `external`              | symlink move skills/ ↔ skills-disabled/\<name\> |
-| `plugin@<marketplace>`  | `claude plugin enable\|disable <name>@<marketplace>` (auto) |
-| `mcp`                   | advisory — prints manual `claude mcp add …` command (no server is managed today: `MANAGED_MCPS` is empty since 21st.dev moved to a CLI) |
-| `cli`                   | advisory only — reports installed/not-installed |
+## Rules
 
-**Always-on plugins** (`security-guidance`) and the vendored superpowers
-skills are never toggled by a profile — `set` will refuse to disable the
-plugin even if the profile omits it, and the 7 superpowers skills are
-linked outside any profile.
-**Managed plugins** that `set` may disable when not in profile:
-`ui-ux-pro-max@ui-ux-pro-max-skill`, `plugin-dev@claude-code-plugins`,
-`pr-review-toolkit@claude-code-plugins`. Other plugins are never auto-toggled.
-**Managed externals** (`emil-design-eng`, `frontend-design`,
-`design-motion-principles`, `impeccable`, and the five 21st design skills
-`21st-ui-build`, `21st-ui-explore`, `21st-ui-review`, `21st-cli-use`,
-`21st-ai`) follow the same symmetry (BDR-079): `set` enables them when the
-profile lists them (from parked state, or from `skills-external/` if the
-symlink never existed) and parks them when it does not — e.g. `set backend`
-after design work turns emil and the 21st pack off. `darwin-skill`,
-`21st-registry`, `21st-design-sync` and any other unlisted external are never
-auto-touched. gstack works the same
-all the way down: a profile listing gstack skills while the whole pack is
-off (via `toggle-external.sh`) re-enables JUST those skills on demand.
-
-**Default profile**: `full` is in force whenever `.active-profile` is
-absent, empty, or the legacy `none` (statusline, `current`, `gstack off`,
-`reset` all resolve it the same way). `reset` applies it (`set full`,
-exclusive); a fresh `make plugin` applies it too when nothing has ever
-been selected.
-
-## Commands
-
-```bash
-# List available profiles
-bash "$HOME/.claude/lib/profile.sh" list
-
-# Show profile contents + per-skill status
-bash "$HOME/.claude/lib/profile.sh" show <name>
-
-# Report the active profile (label + match %)
-bash "$HOME/.claude/lib/profile.sh" current
-
-# Enable skills in profile (additive — keeps others enabled)
-bash "$HOME/.claude/lib/profile.sh" apply <name>
-
-# Enable only skills in profile (disables non-listed gstack skills)
-bash "$HOME/.claude/lib/profile.sh" set <name>
-
-# Go to the default profile (full) — exclusive, same as `set full`
-bash "$HOME/.claude/lib/profile.sh" reset
-
-# Toggle gstack only, keeping the active-profile label intact
-bash "$HOME/.claude/lib/profile.sh" gstack on    # restore parked gstack skills on top of the current profile
-bash "$HOME/.claude/lib/profile.sh" gstack off   # disable gstack skills not in the active profile
-
-# Compare two profiles
-bash "$HOME/.claude/lib/profile.sh" diff <a> <b>
-```
-
-## Execution
-
-Run `lib/profile.sh` with the user's arguments. If user passed nothing, default
-to `list`. If user named a profile without a verb (e.g. "profile design"),
-treat it as `set <name>` — but confirm first because `set` disables other gstack
-skills.
-
-```bash
-bash "$HOME/.claude/lib/profile.sh" $ARGUMENTS
-```
-
-## Failure modes
-
-| Trigger | First move | If still stuck |
-|---|---|---|
-| `lib/profile.sh` absent (foreign machine, links broken) | `test -f "$HOME/.claude/lib/profile.sh"` before any verb; missing → propose `bash link.sh` from the config repo | STOP — never hand-move symlinks to emulate the script |
-| Unknown profile name (rc=1, `✗ Profile not found`) | Show `list` output + the closest existing name ("`desing` → did you mean `design`?") | Let the user pick — never guess-and-`set` |
-| Unknown verb (rc=1 + usage) | Re-map the request to the argument-hint verbs, retry once | Show usage, ask |
-| `set`/`apply` exits nonzero MID-TOGGLE (permission, plugin CLI failure) | State may be PARTIAL. Run `current` to show what actually took; name the failed item from the script's output | run `current`, then re-run `set <name>` or `reset` (both are full exclusive applies, not an always-safe undo) |
-| Plugin/MCP leg fails (marketplace/network) while symlink leg succeeded | Report the split state explicitly + print the manual `claude plugin`/`claude mcp` command for the failed leg | — |
-| `current` names a profile other than the one just set | Cache (`.active-profile`) was written by another tool or hand-edited — show the raw script output to the user | Never hand-patch `.active-profile` — re-run `set <name>` (or `reset`) to force it back |
-
-## Output policy
-
-- After `set` / `apply` / `reset` / `gstack on|off`: show the count of skills
-  moved + tell the user to start a new Claude session to pick up the changes
-  (Claude scans `skills/` at session start).
-- After `current`: report the active profile + match %; `default — not
-  applied yet` means the default profile is in force but not yet applied —
-  point the user at `reset`.
-- After `show`: render the grouped output directly — no extra commentary unless
-  the user asks.
-
-## Tradeoffs to mention if asked
-
-- gstack skills still depend on `~/.claude/skills/gstack/bin/` for telemetry,
-  update-check, learnings — script doesn't touch that infra. Disabled skills
-  are just hidden from Claude Code's scanner; the gstack repo stays installed.
-- Profile changes DO toggle the managed Claude Code plugins (ui-ux-pro-max,
-  plugin-dev, pr-review-toolkit) and the managed external packs
-  (emil-design-eng, frontend-design, design-motion-principles, impeccable,
-  the 21st design skills) — in BOTH directions: `set` enables what the profile
-  lists and disables the managed leftovers it doesn't (BDR-008, BDR-079).
-  Anything outside those allowlists stays manual: `claude plugin
-  enable|disable`, `bash lib/toggle-external.sh enable|disable <tool>`.
-- `set` is destructive in the sense that it disables non-listed gstack skills.
-  Use `apply` if the user wants additive behavior.
+- Never write the user scope (`~/.claude/settings.json`); never toggle
+  plugins through the `claude plugin` CLI. A pack need found mid-skill is proposed to
+  the user (`set <n>` or `enable <pack>` + `/reload-plugins`, or a relaunch
+  under `--settings`), written only on consent (lib/plugin-gate.md).
+- `deniedMcpServers` is a union across settings files: a `cc x web` over a
+  project set to `dev` keeps the connectors denied; `set web` in the
+  project brings them back for the next session.
+- `max` turns on `pack-extras` (diagram, make-pdf, 21st-ai, 21st-ui-explore,
+  21st-ui-review); `pack-higgsfield` is on in `max` only, else `enable
+  higgsfield` for a named media ask.

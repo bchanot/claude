@@ -474,6 +474,7 @@ rules:
 - **Caveats**: the symlink form (`skills/<name> -> skills-external/gstack/<name>`) differs from what gstack `./setup` would create (real dir + symlinked SKILL.md) — fine here because `./setup` never populates `skills/` in this layout, so no mixed-form collision. Browse RUNTIME still needs the built binary + sandbox env ([[BDR-029]]) — on-demand makes the skill DISCOVERABLE, not the browser functional on an unsupported OS. The old "try: bash link.sh" message was wrong (link.sh never creates gstack skills) → replaced with submodule-aware messages.
 - **Alternatives rejected**: full gstack integration (make `./setup` install into `skills/`) — user picked option 1, too invasive/version-fragile; leave `full` broken with honest 1-line warning — worse UX; pre-symlink all gstack at install — violates OFF-by-default context policy.
 - **Reference**: `lib/profile.sh` `GSTACK_SRC` + `enable_skill` gstack branch. Verified: `set full` → 0 missing, 35 on-demand; `minimal`↔`full` cycle re-parks/restores; git clean (gstack symlinks gitignored, [[LRN-025]]). Linked to [[LRN-042]], [[LRN-022]], [[BDR-018]] (gstack on/off verb).
+- **Status (2026-11-02)**: superseded by BDR-134
 
 ---
 
@@ -1459,3 +1460,13 @@ Branch feature/user-writing-web-rules, UNMERGED (human gate).
 **Alternatives**: ignore negation (keeps false closures); line-scope negation (`resolved, not open` would read none: wrong); NLP (no).
 
 **Consequences**: real-data replay 14 repos → 1 move (robin_petier EVAL-005 accepted → keep). mawk run in T17 guards BWK-class awk.
+
+## BDR-134 — Phase 5: packs are skills-dir plugins, profiles are settings fragments, nothing global (2026-11-02)
+- **Context**: one `~/.claude` serves every project and conversation. Old mechanism global: `skills/` ↔ `skills-disabled/` symlink moves + user-scope `claude plugin enable|disable` + `.active-profile`. One project's switch changed every open session.
+- **Decision**: heavy skill groups = skills-dir plugins `skills/pack-<n>/` (manifest + tracked relative symlinks into `skills-external/`, 4 real dirs moved). 9 packs: design, scroll3d, seo, web-validate, gstack-dev, gstack-browser, gstack-design, higgsfield (OFF), extras (OFF). Profiles = literal settings fragments `lib/profiles/<n>.json` (`enabledPlugins` explicit for every pack + managed plugin, `deniedMcpServers` both higgsfield connectors on minimal/dev/seo/qa/audit, optional `model`); 9 profiles (backend, web-full dropped: byte-identical to dev, full). Per project `profile.sh set` merges into `.claude/settings.local.json`; per conversation `cc <name> <profile>` = `claude --settings`. `profile.sh current --plain` single truth for gate, hooks, statusline, advisor. No profile = manifest defaults = full. Listing budget `SLASH_COMMAND_TOOL_CHAR_BUDGET=50000` (0 name-only on full, +4.5k tokens est.).
+- **Rationale**: measured 2026-11-01 (CLI 2.1.316): pack skills listed once as `pack:skill`, both names invoke; `--settings` false beats local true; `/reload-plugins` reloads a pack mid-session from a local edit but never re-reads a `--settings` file (frozen conversation → relaunch); connectors load under `-p`, denied per project by `serverName`, union across files.
+- **Alternatives rejected**: keep symlink toggling (global, races between sessions); pack `.mcp.json` for higgsfield (duplicates the claude.ai connector, needs interactive OAuth); per-request confirmation of the gate (gate reads settings state, not files).
+- **Supersedes**: BDR-030 (gstack via symlinks), BDR-079 (`set` symmetric on externals/MCPs), BDR-101 mechanism (full stays the policy). **Amends**: BDR-024/025 (`show --plain` → `current --plain`), BDR-109 (`higgsfield-websites` lives in pack-higgsfield, ON in `max` only; `profile.sh enable higgsfield` replaces both toggles; npm CLI unchanged).
+- **Accepted risks**: `cc.sh` keeps `set -a; . ~/.claude/.env` (all secrets in the claude env, as `dtach_claude` did); `deniedMcpServers` union = `cc x web` on a `dev` project keeps the connectors denied (`set web` in the project fixes it).
+- **Branch**: feature/phase5-profiles-packs; spec docs/superpowers/specs/2026-11-01-phase5-profiles-packs-design.md; contract .claude/tasks/contracts/2026-11-01-phase5-profiles-packs-1300.md.
+Supersedes [[BDR-030]].

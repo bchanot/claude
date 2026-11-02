@@ -1,0 +1,7 @@
+{
+  "name": "pack-extras",
+  "version": "1.0.0",
+  "description": "Occasional skills: diagram, make-pdf, 21st-ai, 21st-ui-explore, 21st-ui-review. OFF by default.",
+  "author": { "name": "bchanot" },
+  "defaultEnabled": false
+}

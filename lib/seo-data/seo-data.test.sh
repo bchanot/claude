@@ -539,7 +539,7 @@ tf "gitleaks allowlist store" "$REPO/.gitleaks.toml"  "seo-data/tokens"
 tf "gitignore venv"           "$REPO/.gitignore"      ".venv-seo-data"
 
 echo "── integration locks ──"
-tf "skill step0 account select" "$REPO/skills/seo/SKILL.md"      "COMPTE GOOGLE"
+tf "skill step0 account select" "$REPO/skills/pack-seo/skills/seo/SKILL.md"      "COMPTE GOOGLE"
 tf "analyzer calls fetch crux"  "$REPO/agents/seo-analyzer.md"   "fetch.sh crux"
 tf "analyzer calls fetch queries" "$REPO/agents/seo-analyzer.md" "fetch.sh queries"
 tf "analyzer gsc subsection"    "$REPO/agents/seo-analyzer.md"   "Performance GSC"
@@ -548,10 +548,10 @@ tf "geo-analyzer wires schema_gen" "$REPO/agents/geo-analyzer.md" "fetch.sh sche
 tf "geo-analyzer wires content_quality" "$REPO/agents/geo-analyzer.md" "fetch.sh content_quality"
 
 echo "── account-mgmt locks ──"
-tf "skill routes account verbs" "$REPO/skills/seo/SKILL.md" "forget --all"
-tf "skill connect wrapper path" "$REPO/skills/seo/SKILL.md" "lib/seo-data/connect.sh"
-tf "skill revocation notice"    "$REPO/skills/seo/SKILL.md" "myaccount.google.com/permissions"
-tf "skill label charset rule"   "$REPO/skills/seo/SKILL.md" "A-Za-z0-9._-"
+tf "skill routes account verbs" "$REPO/skills/pack-seo/skills/seo/SKILL.md" "forget --all"
+tf "skill connect wrapper path" "$REPO/skills/pack-seo/skills/seo/SKILL.md" "lib/seo-data/connect.sh"
+tf "skill revocation notice"    "$REPO/skills/pack-seo/skills/seo/SKILL.md" "myaccount.google.com/permissions"
+tf "skill label charset rule"   "$REPO/skills/pack-seo/skills/seo/SKILL.md" "A-Za-z0-9._-"
 
 echo "── readme lock ──"
 tf "readme documents fetch.sh" "$REPO/lib/seo-data/README.md" "fetch.sh"

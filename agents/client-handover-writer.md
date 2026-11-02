@@ -269,14 +269,14 @@ For web projects, dispatch in **a single message with two parallel Agent calls**
 
 | Audit (web)   | Subagent          | Prompt template |
 |---------------|-------------------|-----------------|
-| SEO + GEO     | `general-purpose` | "Read `~/.claude/skills/seo/SKILL.md` and execute it on this project. The /seo skill runs SEO + GEO in parallel and writes a unified report to `.claude/audits/SEO.md`. Run it in conservative mode: apply NOTHING, return the FIX BUNDLE (the handover main loop applies it — see 'Applying the bundle'). At the top of the report, the /seo skill MUST emit two distinct labeled score lines (already specified in its SKILL.md §1): `Score SEO (classique) : X.X / 20` and `Score GEO (IA) : X.X / 20`, plus the weighted global. The handover orchestrator parses SEO and GEO separately, so do not collapse them into a single `Score:` line. Return when the report file is written." |
+| SEO + GEO     | `general-purpose` | "Read `~/.claude/skills/pack-seo/skills/seo/SKILL.md` and execute it on this project. The /seo skill runs SEO + GEO in parallel and writes a unified report to `.claude/audits/SEO.md`. Run it in conservative mode: apply NOTHING, return the FIX BUNDLE (the handover main loop applies it — see 'Applying the bundle'). At the top of the report, the /seo skill MUST emit two distinct labeled score lines (already specified in its SKILL.md §1): `Score SEO (classique) : X.X / 20` and `Score GEO (IA) : X.X / 20`, plus the weighted global. The handover orchestrator parses SEO and GEO separately, so do not collapse them into a single `Score:` line. Return when the report file is written." |
 | HARDEN        | `general-purpose` | "Read `~/.claude/skills/harden/SKILL.md` and execute it on this project with `--fix` up to READY TO APPLY only: prepare the FIX BUNDLE (security headers, HSTS, CSP, HTTP→HTTPS redirects, canonical, 404 page), apply NOTHING — the handover main loop gates and applies it (see 'Applying the bundle'). Write report to `.claude/audits/HARDEN.md` with `Score: X/20` (or `X/100`) at the top. Return when the report file is written." |
 
 Non-web variant:
 
 | Audit (non-web) | Subagent          | Prompt template |
 |-----------------|-------------------|-----------------|
-| CSO             | `general-purpose` | "Read `~/.claude/skills/cso/SKILL.md` and execute in **daily mode** (8/10 confidence gate). Apply NOTHING: return the fixes as a FIX BUNDLE (gitignore additions and placeholder swaps tagged AUTO, dependency upgrades tagged GATED — the handover main loop applies AUTO and gates the rest, see 'Applying the bundle'). Write report to `.claude/audits/CSO.md` with `Score: X/20` (or `X/100`) at the top." |
+| CSO             | `general-purpose` | "Read `~/.claude/skills/pack-gstack-dev/skills/cso/SKILL.md` and execute in **daily mode** (8/10 confidence gate). Apply NOTHING: return the fixes as a FIX BUNDLE (gitignore additions and placeholder swaps tagged AUTO, dependency upgrades tagged GATED — the handover main loop applies AUTO and gates the rest, see 'Applying the bundle'). Write report to `.claude/audits/CSO.md` with `Score: X/20` (or `X/100`) at the top." |
 
 Wait for both subagents to complete (parallel return).
 
@@ -426,7 +426,7 @@ for CSO) in the format
 
 Send to `general-purpose` subagent (`model: "fable"`, `effort="high"`):
 
-> Read `~/.claude/skills/seo/SKILL.md` and re-run it on this project in
+> Read `~/.claude/skills/pack-seo/skills/seo/SKILL.md` and re-run it on this project in
 > **conservative (audit-only) intervention mode**: re-score and leave both
 > FIX BUNDLEs in `.claude/audits/SEO.md` ready-to-apply. Apply NOTHING and
 > ask the user NOTHING — the handover main loop is the dispatcher: it
@@ -470,7 +470,7 @@ Send to `general-purpose` subagent (`model: "fable"`, `effort="high"`):
 
 Send to `general-purpose` subagent (`model: "fable"`, `effort="high"`):
 
-> Read `~/.claude/skills/cso/SKILL.md` and re-run it in **daily mode**.
+> Read `~/.claude/skills/pack-gstack-dev/skills/cso/SKILL.md` and re-run it in **daily mode**.
 > Previous score: **`<SCORE_CSO_PREVIOUS>`/20** — below threshold.
 > Iteration `<N>` of `<MAX_ITERATIONS>`. Apply NOTHING: return the fixes as
 > a FIX BUNDLE in `.claude/audits/CSO.md` — gitignore additions and secret
@@ -679,7 +679,7 @@ VALIDATE as not-applicable rather than failed).
 
 Dispatch `general-purpose` subagent (`model: "fable"`, `effort="high"`):
 
-> Read `~/.claude/skills/web-validate/SKILL.md` and execute against the
+> Read `~/.claude/skills/pack-web-validate/skills/web-validate/SKILL.md` and execute against the
 > deployed URL: `<DEPLOYED_URL>`. Audit W3C HTML validity (validator.nu),
 > W3C CSS validity (jigsaw.w3.org), WCAG 2.1 a11y (axe-core, pa11y).
 > Apply NOTHING (the client controls deploy; the handover main loop applies

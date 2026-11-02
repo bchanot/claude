@@ -14,7 +14,7 @@ claude-config/
 ├── .env.example           # Placeholder template for ~/.claude/.env (secrets never committed)
 ├── settings.json          # Global permissions (deny / ask / allow) + autoMode classifier tiers
 ├── install.sh             # Bootstrap: Claude Code CLI + auth + submodules + link + plugins
-├── install-plugins.sh     # One-shot installer: prerequisites + all plugins + default profile
+├── install-plugins.sh     # One-shot installer: prerequisites + all plugins
 ├── link.sh                # Symlinks this repo into ~/.claude/, sets git's global core.hooksPath
 ├── doctor.sh              # Setup diagnostic
 ├── update-all.sh          # One-command update for all components
@@ -27,10 +27,11 @@ claude-config/
 ├── rules/                 # Rule files deployed to ~/.claude/rules (path-scoped or always-on)
 ├── agents/                # Execution units called by skills (never invoked directly)
 ├── skills/                # Entry points invoked via /skill-name
+│   └── pack-<n>/          # Skills-dir packs: manifest + tracked symlinks into skills-external/ (seo, geo, web-validate, site-motion: real dirs)
 ├── mods/                  # Claude Code mods (function-hooks plugins), loaded through the skills/<name> symlink
 ├── skills-external/       # Vendored skill packs: gstack submodule, design skills, superpowers, agent-skills, MengTo scroll skills, 21st and Higgsfield packs (machine-owned copies gitignored)
 ├── templates/             # Per-project templates (CLAUDE.md, settings, memory registries, path-rule skeletons, deploy runbook, gitignore)
-└── lib/                   # Shared libs: gitflow, memory registry writer, profiles, vendoring, route doctrine, gates, archetypes, architecture defaults, project-rule oracle, tests
+└── lib/                   # Shared libs: gitflow, memory registry writer, profiles (lib/profiles/*.json fragments, profile.sh, cc.sh), vendoring, route doctrine, gates, archetypes, architecture defaults, project-rule oracle, tests
 ```
 
 ## Architecture principles

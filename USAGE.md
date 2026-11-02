@@ -123,7 +123,7 @@ Tu veux...
 | Comprendre un changement pas suivi | `/explain-diff` |
 | Auditer garde-fous (RLS, consentement, fonctions, mots de passe, injection SQL, fuites navigateur) puis corriger | `/guardrails` |
 | Sonder le projet en direct (lecture seule, cible à toi) | `/guardrails --live <url>` |
-| Changer profil skills | `/profile` |
+| Changer le profil de packs du projet (`set`), ou l'état effectif (`current`) | `/profile` |
 | Audit/polish design (anti-slop) | `/impeccable` |
 | Sweep groupé tous axes (nettoyage + sécu + reconcile + doc) | `/tour` |
 | Rien ne marche | `make doctor` (terminal) |
@@ -171,10 +171,12 @@ Tu veux...
 | `/impeccable` | Audit/polish design + détecteur anti-slop déterministe | 23 verbes ; `npx impeccable detect` (exit 0/2) |
 | `/tour` | Sweep groupé sur un ou plusieurs projets | Sécu + nettoyage + reconcile + doc, boucle jusqu'à un pass propre |
 | `/route` | Voir ou fixer la route du mod model-router | show / clear / off / on / reload / pending / ask on\|off / <phase> / model=… effort=… / switch on\|off / classify on\|off (classifieur de prompt) / verbose on\|off (transitions seules) |
-| `/profile` | Changer le profil de skills | web / seo / web-full / full / max / backend / design / dev / qa / audit / minimal |
+| `/profile` | Changer le profil de packs du projet (`set`), ou l'état effectif (`current`) | Profils dans `lib/profiles/*.json`, packs dans `skills/pack-*/` |
 
-> Cette table couvre les skills personnels principaux. Les plugins (gstack,
-> pr-review-toolkit…) et marketplaces externes en ajoutent beaucoup d'autres —
+> Cette table couvre les skills personnels principaux. `/seo` et `/geo` (pack-seo)
+> et `/web-validate` (pack-web-validate) vivent dans des packs : un profil qui laisse
+> le pack éteint les masque (`/profile current`). Les plugins (gstack,
+> pr-review-toolkit…) et marketplaces externes en ajoutent beaucoup d'autres ;
 > `/skills-perso` liste tes skills personnels.
 
 ---
@@ -213,6 +215,8 @@ Hotfix/quick fix          → tout OFF (skills superpowers vendorisés, toujours
 ```
 
 **GSD v2** n'est pas un plugin Claude Code — c'est un CLI externe. Il ne consomme pas de tokens passifs. Tu le lances dans un terminal séparé avec `gsd`, puis `/gsd auto` pour le mode autonome.
+
+**Profils et packs.** Un profil se règle par projet (`/profile set web` puis `/reload-plugins`) ou par conversation (`cc <nom> web`, la conversation est figée: relance-la pour changer). Neuf profils: `full`, `max`, `minimal`, `dev`, `design`, `web`, `seo`, `qa`, `audit`. Sans profil, c'est `full`. Un `--settings` édité en cours de session reste sans effet. `cc x web` sur un projet en `dev` garde les connecteurs higgsfield refusés (union); `set web` dans le projet les rend. `cc` est une fonction de `lib/cc.sh`, à sourcer depuis `~/.bashrc` (`[ -f "$HOME/.claude/lib/cc.sh" ] && . "$HOME/.claude/lib/cc.sh"`) ; `make doctor` le signale tant qu'elle manque.
 
 ---
 

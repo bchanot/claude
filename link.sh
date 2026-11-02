@@ -72,14 +72,11 @@ else
   echo "⚠️  GStack submodule not found — run: git submodule update --init"
 fi
 
-# impeccable is NOT here: its installer writes the skill straight into
-# skills/ (and its agents into agents/) at --scope=global, so there is no
-# skills-external/ copy to symlink. See install-plugins.sh Step 8d.
-EXTERNAL_SKILLS=(emil-design-eng frontend-design design-motion-principles
-  observability-and-instrumentation deprecation-and-migration ci-cd-and-automation
-  scroll-world-storytelling build-threejs-scroll-worlds
-  scroll-scrubbed-visual-sequence scroll-scrubbed-word-reveal
-  scroll-progress-timeline brainstorming writing-plans
+# impeccable is NOT here: it lives in skills-external/impeccable (moved
+# there by install-plugins.sh Step 8d) and pack-design links it.
+# The design and scroll skills are pack symlinks now (skills/pack-*).
+EXTERNAL_SKILLS=(observability-and-instrumentation deprecation-and-migration
+  ci-cd-and-automation brainstorming writing-plans
   subagent-driven-development test-driven-development
   requesting-code-review using-git-worktrees writing-skills)
 for _ext_skill in "${EXTERNAL_SKILLS[@]}"; do

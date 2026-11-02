@@ -26,10 +26,12 @@ detect_superpowers() {
 # --- Toggle plugins ---
 
 detect_gstack() {
-  # gstack is exposed via per-skill symlinks (browse, canary, qa, …);
-  # the legacy top-level symlink was removed to avoid duplicate entries.
-  # Detect by checking any of its individual skills.
-  [ -L "$HOME/.claude/skills/browse" ] || [ -L "$HOME/.claude/skills/qa" ]
+  # gstack = the three packs; "on" = pack-gstack-dev on for this project and
+  # conversation. PROFILE_PLAIN (session-start) avoids a second profile.sh run.
+  local plain="${PROFILE_PLAIN:-}"
+  [ -n "$plain" ] || plain="$(bash "$HOME/.claude/lib/profile.sh" -C "$PWD" \
+    current --plain 2>/dev/null)" || return 1
+  grep -q '^pack-gstack-dev=on' <<<"$plain"
 }
 
 detect_gsd() {

@@ -1,0 +1,7 @@
+{
+  "name": "pack-gstack-dev",
+  "version": "1.0.0",
+  "description": "gstack engineering skills: review, investigate, codex, cso, health, freeze, retro, spec, skillify, office-hours, plan reviews, document-release.",
+  "author": { "name": "bchanot" },
+  "defaultEnabled": true
+}

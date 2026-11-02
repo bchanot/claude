@@ -681,3 +681,6 @@ rules:
 ## 2026-11-01
 - memory-v2-minors /feat shipped (e4fb8f7 + 48ade8f): negated status words, dead empty steal, body `## ` refused, blob rc 1/2, rc 6 names dropped partial stages, reflow. Verifier CONFORME, security PASS, replay 14 repos = 1 expected move. Docs synced. Next: doc half, then phase 5 spikes.
 - memory-v2-minors-docs /feat shipped (dfbc8a7): § WRITE says every verb takes -C and --body-file absolute; tour/deploy/audit-delta point at § WRITE; evals template Later status line. Verifier CONFORME, security PASS. Phase 4a minors fully closed; MIGRATION.md:209 parked. Next: phase 5 spikes.
+
+## 2026-11-02
+- phase 5 profiles+packs shipped on feature/phase5-profiles-packs (13 tasks SDD, 3-lens challenge, gates MET/CONFORME/PASS after 3 passes): 9 packs, 9 profile fragments, profile.sh one-jq current --plain, cc <name> [profile], census; BDR-134, LRN-248..253, BLK-039/040, EVAL-054; TODO: router ask-before-Fable queued

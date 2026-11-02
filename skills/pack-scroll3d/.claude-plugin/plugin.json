@@ -1,0 +1,7 @@
+{
+  "name": "pack-scroll3d",
+  "version": "1.0.0",
+  "description": "Scroll-driven and Three.js world skills (Mengto set).",
+  "author": { "name": "bchanot" },
+  "defaultEnabled": true
+}

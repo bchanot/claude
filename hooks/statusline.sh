@@ -6,6 +6,8 @@ INPUT=$(cat)
 
 MODEL=$(echo "$INPUT" | jq -r '.model.display_name // "?"')
 DIR=$(echo "$INPUT" | jq -r '.cwd // "?"')
+PROJ=$(echo "$INPUT" \
+  | jq -r '.workspace.project_dir // .cwd // "."' 2>/dev/null)
 FOLDER="${DIR##*/}"
 PCT=$(echo "$INPUT" | jq -r \
   '.context_window.used_percentage // 0' \
@@ -20,18 +22,15 @@ BRANCH_STR="${BRANCH:+ ($BRANCH)}"
 
 REPO="$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-# Default profile — same constant as lib/profile.sh's active_profile(),
-# read without sourcing the lib (speed). Unreadable lib → literal fallback.
-DEFAULT_PROFILE=$(sed -n 's/^DEFAULT_PROFILE="\([^"]*\)".*/\1/p' "$REPO/lib/profile.sh" 2>/dev/null)
-[ -n "$DEFAULT_PROFILE" ] || DEFAULT_PROFILE=full
-
-# Active profile (written by lib/profile.sh set|apply|reset to <repo>/.active-profile).
-# Read directly — `profile.sh current` is 12s+ and unusable in a statusline.
-# Cache absent/empty/legacy "none" (same rule as active_profile()) → default.
-PROFILE=$(head -n1 "$REPO/.active-profile" 2>/dev/null | tr -d '[:space:]')
-if [ -z "$PROFILE" ] || [ "$PROFILE" = "none" ]; then
-  PROFILE="$DEFAULT_PROFILE"
-fi
+# Profile of this project and conversation: `profile.sh current --plain`
+# (two jq calls) on the session's project dir. `(conv)` = a --settings
+# conversation. Any failure -> "?".
+_plain="$(bash "$REPO/lib/profile.sh" -C "$PROJ" current --plain \
+  2>/dev/null)" || _plain=""
+PROFILE="$(sed -n 's/^profile=//p' <<<"$_plain" | head -1)"
+[ -n "$PROFILE" ] || PROFILE="?"
+_src="$(sed -n 's/^source=//p' <<<"$_plain" | head -1)"
+[ "$_src" = flag ] && PROFILE="$PROFILE (conv)"
 
 # Effort level: the live value when the harness exports it (skill/agent
 # `effort:` shifts included, BDR-107), else the persisted settings.json key

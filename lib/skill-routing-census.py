@@ -25,6 +25,7 @@ import sys
 DEFAULT_ROOTS = ["~/.claude/skills", "~/.claude/plugins/cache"]
 ROOT_SUFFIXES = [
     "*/SKILL.md",
+    "pack-*/skills/*/SKILL.md",
     "*/*/*/skills/*/SKILL.md",
     "*/*/*/.claude/skills/*/SKILL.md",
 ]

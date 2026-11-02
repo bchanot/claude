@@ -19,7 +19,7 @@ Detection is NOT your job (plugin-probe did it); applying is NOT your job
 ## INPUT — PROBE REPORT (ground truth, from plugin-probe)
 
 The dispatcher passes `REQUEST` (the project description, verbatim) and the
-full `PROBE REPORT` (fields: PLUGINS, EXTERNAL, PROFILE, CLIS, MANIFESTS,
+full `PROBE REPORT` (fields: PROFILE, PLUGINS, CLIS, MANIFESTS,
 FRAMEWORK-DEPS, TSX-JSX-COUNT, DOCKER-COUNT, ANIM, MONOREPO, EMBEDDED,
 CHECKPOINT). Treat it as ground truth — never re-detect, never invent a
 field. PROBE REPORT missing or a field absent → emit
@@ -164,7 +164,7 @@ When the plugin-advisor detects a `simple` or `hotfix` signal, suggest the appro
 
 **Escalation path:** `/hotfix` → `/bugfix` → `/ship-feature` (bugs), `/feat` → `/ship-feature` (features). Each skill documents when to escalate to the next level.
 
-**Design gate:** `/feat`, `/hotfix`, and `/bugfix` include a lightweight design gate (`lib/design-gate.md`) that auto-detects UI/style signals and, if the design toolchain is incomplete, points the user at `/profile design`. This covers the gap where lightweight skills previously had no plugin awareness for design tasks.
+**Design gate:** `/feat`, `/hotfix`, and `/bugfix` include a lightweight design gate (`lib/design-gate.md`) that auto-detects UI/style signals and, if the design toolchain is incomplete, points the user at the remedy line it printed. This covers the gap where lightweight skills previously had no plugin awareness for design tasks.
 
 ---
 
@@ -219,7 +219,7 @@ RULE: IF "monorepo" signal detected:
 
 RULE: IF "frontend" signal OR .tsx/.jsx count > 0:
   → ui-ux-pro-max ON if "design-system" signal (~400t)
-  → impeccable ON (external skill, 0t passive — ~/.claude/skills/impeccable)
+  → impeccable ON (external skill, 0t passive — ~/.claude/skills/pack-design/skills/impeccable)
   → design-motion-principles ON if anim-lib-installed or description mentions animation/motion (external, 0t passive)
 
 RULE: IF "deploy" AND "browser-qa" signals:
@@ -271,60 +271,35 @@ RULE: IF `complex-arch` signal (multiple services, event bus, distributed system
 
 ---
 
-## TOGGLING EXTERNAL TOOLS
+## WRITING A PROFILE OR A PACK
 
-Marketplace plugins toggle via `claude plugin enable|disable <name>@<marketplace>`.
-Non-marketplace tools (gstack per-skill symlinks, emil-design-eng, darwin-skill)
-toggle via `bash $HOME/.claude/lib/toggle-external.sh enable|disable <tool>`.
+Everything switches through `lib/profile.sh`, per project, never the user
+scope. Emit the exact command; never write files directly.
 
-When a recommendation flips the state of one of those tools, emit the exact
-command — never write files directly.
-
-```
-# Enable gstack for a browser-QA signal:
-bash $HOME/.claude/lib/toggle-external.sh enable gstack
-
-# Disable darwin-skill when passive cost is too high for a hotfix:
-bash $HOME/.claude/lib/toggle-external.sh disable darwin-skill
-```
-
-`higgsfield` / `higgsfield-websites`: never recommended from project signals.
-They drive a paid generation service; explicit user ask only (CLAUDE.md
-"Skill routing").
-
-### Skill profiles (fine-grained partitioning, with plugin + MCP toggle)
-
-For task-shaped activation (web only, seo only, backend only, design only,
-etc.) prefer `lib/profile.sh` over toggling all of gstack at once. Profiles
-activate a curated subset of skills + plugins + MCPs and disable the rest of
-gstack + managed plugins — sessions stay focused and passive token cost drops.
-
-`profile set <name>` actually toggles plugins (`claude plugin enable|disable`)
-and external skill packs (delegates to `lib/toggle-external.sh`) — not just
-advisory. No MCP server is auto-toggled today. Always-on plugins (`security-guidance`)
-and the vendored superpowers skills are never toggled by a profile. Managed
-plugins that `set` may toggle:
-`ui-ux-pro-max@ui-ux-pro-max-skill`, `plugin-dev@claude-code-plugins`,
-`pr-review-toolkit@claude-code-plugins`. Other plugins are never auto-toggled.
-
-When the project signal matches one of the canonical profiles, recommend the
-matching `profile set` command:
-
-| Signal | Recommended profile | Command |
+| Signal | Profile | Command |
 |---|---|---|
-| `frontend` public website (no backend, no SEO focus) | `web` | `bash $HOME/.claude/lib/profile.sh set web` |
-| audit-only: SEO + GEO + W3C + WCAG | `seo` | `bash $HOME/.claude/lib/profile.sh set seo` |
-| public website end-to-end (build + audit) | `web-full` | `bash $HOME/.claude/lib/profile.sh set web-full` |
-| backend / API / system / library (no UI, no SEO) | `backend` | `bash $HOME/.claude/lib/profile.sh set backend` |
-| `design-system` (heavy UI work, no dev) | `design` | `bash $HOME/.claude/lib/profile.sh set design` |
-| `simple` / hotfix / typical dev session | `dev` | `bash $HOME/.claude/lib/profile.sh set dev` |
-| `browser-qa` (e2e tests, no design work) | `qa` | `bash $HOME/.claude/lib/profile.sh set qa` |
-| comprehensive audit (security + SEO + perf) | `audit` | `bash $HOME/.claude/lib/profile.sh set audit` |
-| narrow session, minimal noise | `minimal` | `bash $HOME/.claude/lib/profile.sh set minimal` |
+| public website, no SEO focus | `web` | `bash $HOME/.claude/lib/profile.sh set web` |
+| audit-only: SEO + GEO + W3C + WCAG | `seo` | `… set seo` |
+| public website end-to-end | `full` | `… set full` |
+| backend / API / library | `dev` | `… set dev` |
+| heavy UI, no dev | `design` | `… set design` |
+| typical dev session | `dev` | `… set dev` |
+| browser QA only | `qa` | `… set qa` |
+| comprehensive audit | `audit` | `… set audit` |
+| narrow session | `minimal` | `… set minimal` |
+| one pack on top | — | `bash $HOME/.claude/lib/profile.sh enable <pack>` |
 
-To go back to the default profile: `bash $HOME/.claude/lib/profile.sh reset`
-(= `set full`: enables full's list, parks non-listed gstack/managed items,
-toggles the managed plugins like any `set`).
+`<pack>` is one of design, scroll3d, seo, web-validate, gstack-dev,
+gstack-browser, gstack-design, higgsfield, extras.
+
+Read `PROFILE :` first: when it says `source=flag`, a pack it turns off
+cannot be enabled in this conversation; recommend `relaunch: cc <name>
+<profile>` instead of an `enable`. No profile = `full` (manifest defaults);
+`unset` returns to it. Every write needs `/reload-plugins` to load the
+packs; connectors and model apply to the next session.
+
+`higgsfield`: never recommended from project signals. It drives a paid
+generation service; explicit user ask only (CLAUDE.md "Skill routing").
 
 ## BLOCK if
 

@@ -270,14 +270,15 @@ cryptic names.
 - SEO+GEO → seo (GEO only → geo); W3C + WCAG conformance → web-validate;
   security audit (secrets, CVE, OWASP) → cso
 - Media generation (image, video, audio, brand kit), explicit ask →
-  Higgsfield pack, off by default: `bash ~/.claude/lib/toggle-external.sh
-  enable higgsfield`, then Read the skill under `~/.claude/skills/`;
-  `higgsfield generate cost` before a paid run. Landing page "with
-  Higgsfield", named ask → `enable higgsfield-websites`: an aid inside
-  the Design work rules (`rules/web-building.md`), never
-  `website create|deploy|publish`.
-gstack OFF → its skills (investigate, qa, review, health, retro,
-office-hours…) are gone: use the fallback above, else say so.
+  pack-higgsfield, off by default: `bash ~/.claude/lib/profile.sh enable
+  higgsfield` then `/reload-plugins`, then Read the skill under
+  `~/.claude/skills/pack-higgsfield/skills/`; `higgsfield generate cost`
+  before a paid run. Landing page "with Higgsfield", named ask → the same
+  pack's `higgsfield-websites`: an aid inside the Design work rules
+  (`rules/web-building.md`), never `website create|deploy|publish`.
+gstack packs OFF (`profile.sh current`) → their skills (investigate, qa,
+review, health, retro, office-hours…) are gone: use the fallback above,
+else say so.
 
 ## graphify
 
