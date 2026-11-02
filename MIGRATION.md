@@ -198,12 +198,12 @@ make doctor
 - **Default profile**: a project with no local profile runs the manifest defaults (= `full`). Check with `bash lib/profile.sh current`. Nine gstack skills (`ship`, `land-and-deploy`, `setup-deploy`, `autoplan`, `context-save`, `learn`, `careful`, `guard`, `design-shotgun`) left every profile and are denylisted.
 - **Higgsfield**: installed, off by default. Nothing to do until you enable it.
 
-### 2.1.0 — profiles and packs
+### 2.1.0: profiles and packs
 
 Run on every machine that pulls this version (the live tree may still be in
 an old profile; nothing below deletes a real directory).
 
-1. `git pull`, then restore the user-scope plugins the old `profile.sh` had
+1. From the repo root (`cd ~/.claude`): `git pull`, then restore the user-scope plugins the old `profile.sh` had
    toggled: `git show HEAD:settings.json | jq .enabledPlugins > /tmp/ep.json
    && jq --slurpfile ep /tmp/ep.json '.enabledPlugins = $ep[0]' settings.json
    > /tmp/settings.next.json && cp /tmp/settings.next.json settings.json`

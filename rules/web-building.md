@@ -65,4 +65,5 @@ Scope doubt → ask or default to Build, never silently skip. Gate: light
 skills run `~/.claude/lib/design-gate.md`, orchestrators plugin-check. 21st =
 CLI (`npm i -g @21st-dev/cli`, `21st login`), no MCP, no key; search free,
 `21st get`/`generate` metered → generation, not micro-tweaks. 21st-ai /
-ui-explore / ui-review are `max`-profile only (pack-extras; `profile.sh enable extras`).
+ui-explore / ui-review are `max`-profile only (pack-extras;
+`profile.sh enable extras`).

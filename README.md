@@ -185,7 +185,7 @@ ctx7 login                 # optional: OAuth / API key for higher rate limits
 | **Context7** | CLI (`ctx7`) | Doc lookup for fast-evolving libs (Next.js, React, Prisma...), used through the `find-docs` skill. Works anonymously; optional `ctx7 login` raises rate limits. | [context7.com](https://context7.com/) |
 | **pr-review-toolkit** | Plugin (toggle) | Multi-agent PR review. | [anthropics/claude-code](https://github.com/anthropics/claude-code) |
 | **Graphify** | Python CLI | Codebase → knowledge graph → navigable wiki. Helps Claude map and search projects efficiently. | [pypi: graphifyy](https://pypi.org/project/graphifyy/) |
-| **21st.dev** | External CLI + skill pack | Component catalog and UI generation (`21st`), browser login, no API key. 7 skills in `skills-external/21st-*`, linked by pack-design and pack-extras (see the 21st.dev CLI section). | [npm: @21st-dev/cli](https://www.npmjs.com/package/@21st-dev/cli) |
+| **21st.dev** | External CLI + skill pack | Component catalog and UI generation (`21st`), browser login, no API key. 8 skills in `skills-external/21st-*`, linked by pack-design and pack-extras (see the 21st.dev CLI section). | [npm: @21st-dev/cli](https://www.npmjs.com/package/@21st-dev/cli) |
 | **Higgsfield** | External CLI + skill pack (off by default) | Image, video, audio and brand media generation, metered credits (see the Higgsfield CLI section). | [higgsfield-ai/skills](https://github.com/higgsfield-ai/skills) |
 | **Semgrep** | Python CLI (pinned) | SAST engine behind the security gate (`security-auditor`). | [pypi: semgrep](https://pypi.org/project/semgrep/) |
 | **Impeccable** | npm CLI + skill (pinned) | Deterministic anti-slop detector (`npx impeccable detect`, 61 rules) and the `/impeccable` design verbs. | [npm: impeccable](https://www.npmjs.com/package/impeccable) |
@@ -436,8 +436,8 @@ skills.
 
 `higgsfield-websites` is kept apart. It helps with landing pages inside the
 design stack (assets, references), and `higgsfield website
-create|deploy|publish` stays unused. Claude enables either toggle itself on
-an explicit ask (Skill routing in `CLAUDE.global.md`) and checks the price
+create|deploy|publish` stays unused. Claude runs `bash lib/profile.sh enable higgsfield` on
+a named media ask, then `/reload-plugins` (Skill routing in `CLAUDE.global.md`) and checks the price
 with `higgsfield generate cost` before a paid run.
 
 The skills are cloned, not installed with `npx skills add`: that installer
@@ -477,9 +477,9 @@ make scan-secrets [repos="…"]  # gitleaks sweep of this repo's history and ~/.
 make help                   # list make targets
 make onboard                # onboard an existing project (run from its dir)
 make seo-connect            # connect a Google account for /seo FULL (OAuth consent)
-make profile cmd="set X"    # activate a skill profile (web/seo/web-full/full/max/backend/design/dev/qa/audit/minimal)
+make profile cmd="set X" dir=/path/to/project    # activate a skill profile (web/seo/web-full/full/max/backend/design/dev/qa/audit/minimal)
 make profile-list           # list skill profiles
-make profile-current        # effective profile of this project and conversation
+make profile-current dir=/path/to/project        # effective profile of this project and conversation
 make new-skill name=myskill # scaffold agent + skill files
 ```
 
