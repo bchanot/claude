@@ -44,6 +44,7 @@ type Config = {
 type Rule = { re: RegExp; phase: string; mode: PromptMode }
 type Source =
   | 'user' | 'model' | 'skill' | 'prompt' | 'run' | 'derived' | 'classifier'
+type Choice = 'best' | 'big' // the tier a span resolves through
 type Routed = {
   phase: string
   route: Route
@@ -51,6 +52,7 @@ type Routed = {
   label?: string // the skill a skill route came from, for the logs
   explicitEffort?: boolean // the effort was asked for, not the phase's own
   explicitModel?: boolean // the model was chosen by hand in the scope dialog
+  tierChoice?: Choice // the tier-ask answer: the span's tier, once asked
 }
 type Served = { at: number; tokens: number } // ms, context tokens
 type Hold = { until: number; reason: string } // until: ms, Infinity = reload
@@ -119,8 +121,10 @@ type State = {
   pendingEstimate: Estimate | null // same, typed mid-turn: next turn's
   classifyFails: number // classifier failures in a row
   classifyUntil: number // classifier paused until (ms); 0 = running
-  asking: string | null // key of the one first-use dialog in flight
+  asking: string | null // key of the one dialog in flight (first-use or tier)
   asked: Set<string> // keys answered (or failed) this session
+  tierPaused: boolean // "Stop asking this session": no tier ask until /clear
+  tierSpawn: Map<string, Choice> // agent type -> its tier-ask answer
   writes: Promise<unknown> // the serialized routing.json write chain
 }
 type Log = (text: string) => void
@@ -153,6 +157,8 @@ type Memory = {
   ok: boolean // the file was read: false = no dialog, no write
   ask: boolean // dialogs on (the machine override wins over the file)
   askLocal: boolean | undefined // the machine override's own `ask`
+  askTier: unknown // the file's raw `askTier` (absent = undefined)
+  askTierLocal: unknown // the machine override's raw `askTier`
   base: Record<Row, Table> // the file's rows, before any project layer
   confirmed: Record<Kind, Table> // name -> the phase a Keep endorsed
   about: Table // phase -> its one-line meaning, shown in the dialog only
@@ -186,13 +192,19 @@ const OVERRIDE = '.claude/model-router.json'
 const ROUTING = 'routing.json' // next to plugin.json: the tracked source
 // Key order of a written routing.json; other keys follow, untouched.
 const ROUTING_ORDER: readonly string[] = [
-  'phases', 'skills', 'agents', 'projects', 'confirmed', 'changed', 'ask',
+  'phases', 'skills', 'agents', 'projects', 'confirmed', 'changed',
+  'ask', 'askTier',
 ]
 // First-use dialog: the answers, and what a question may carry of the outside.
 const LATER = 'Later'
 const KEEP = 'Keep'
 const CHANGE = 'Change'
 const EVERYWHERE = 'Everywhere'
+// Tier ask: the answers; INSTEAD_TIER is the tier "Opus instead" resolves by.
+const TIER_HEAD = 'Fable'
+const TIER_INSTEAD = 'Opus instead (big tier)'
+const TIER_STOP = 'Stop asking this session'
+const INSTEAD_TIER = 'big'
 const THIS_PROJECT = 'This project only'
 // `/model <name>` scope dialog. PROJECT_SCOPE differs from THIS_PROJECT, the
 // first-use label: both are fixed by their own contracts.
@@ -761,6 +773,8 @@ function emptyMemory(): Memory {
     ok: false,
     ask: true,
     askLocal: undefined,
+    askTier: false,
+    askTierLocal: undefined,
     base: { skills: {}, agents: {} },
     confirmed: { skills: {}, agents: {}, phases: {} },
     about: {},
@@ -804,6 +818,8 @@ function buildMemory(
     ok: true,
     ask: askLocal ?? file.ask !== false,
     askLocal,
+    askTier: file.askTier,
+    askTierLocal: override?.askTier,
     base: { skills: strTable(file.skills), agents: strTable(file.agents) },
     confirmed: {
       skills: strTable(sure.skills),
@@ -1027,6 +1043,8 @@ function newState(cfg: Config, source: string): State {
     classifyUntil: 0,
     asking: null,
     asked: new Set(),
+    tierPaused: false,
+    tierSpawn: new Map(),
     writes: Promise.resolve(),
   }
 }
@@ -1138,6 +1156,41 @@ function resolveName(st: State, name: string, after?: string) {
   const last = tier[tier.length - 1]
   const from = after ?? (last === undefined ? undefined : st.cfg.models[last])
   return availableIn(st, tier) ?? nextAvailable(st, from)
+}
+
+/** The id of the head of the `best` tier, whatever `askTier` says. */
+function headId(st: State): string | undefined {
+  const list = hasKey(st.cfg.tiers, BEST) ? st.cfg.tiers[BEST] : undefined
+  const alias = list?.[0]
+  return alias === undefined ? undefined : st.cfg.models[alias]
+}
+
+/**
+ * The head a route is asked about before it applies; undefined = off. The
+ * machine override wins; an absent key reads best, so does any other value
+ * (asking is the safe side, `warnAskTier` says so once).
+ */
+function tierHead(st: State): string | undefined {
+  const value = st.mem.askTierLocal ?? st.mem.askTier
+  return value === false ? undefined : headId(st)
+}
+
+/** The `big` tier's models, the head left out, in order. */
+function insteadAliases(st: State): string[] {
+  const list = hasKey(st.cfg.tiers, INSTEAD_TIER)
+    ? st.cfg.tiers[INSTEAD_TIER]
+    : undefined
+  return (list ?? []).filter(alias => st.cfg.models[alias] !== headId(st))
+}
+
+/** What "Opus instead" runs: the first non-head `big` model that is up. */
+const insteadName = (st: State): string | undefined =>
+  availableIn(st, insteadAliases(st))
+
+/** "Opus instead" is offered only while its model is up (a true label). */
+function insteadOffered(st: State): boolean {
+  const id = st.cfg.models[insteadAliases(st)[0] ?? '']
+  return id !== undefined && !st.down.has(id)
 }
 
 function resolveRoute(st: State, route: Route | undefined) {
@@ -1546,7 +1599,9 @@ type Verdict = {
  */
 function wantedModel(st: State, cur: string): string | undefined {
   const slot = mainModelSlot(st)
-  const name = routeName(slot?.route)
+  const instead = slot?.tierChoice === 'big' && slot.route.tier === BEST
+  const name = instead ? insteadName(st) ?? routeName(slot.route)
+    : routeName(slot?.route)
   if (name === undefined) return undefined
   const wanted = resolveName(st, name, canonical(st.cfg, cur))
   const above = wanted !== undefined && slot?.source === 'classifier' &&
@@ -1675,6 +1730,7 @@ function isStandIn(
 ): boolean {
   const head = heldHead(st)
   if (st.off || head === undefined || d.wanted === undefined) return false
+  if (mainModelSlot(st)?.tierChoice === 'big') return false
   const id = canonical(st.cfg, d.call.model)
   return id === d.wanted && ranksAbove(st, head, id) &&
     wouldRunHead(st, cur, head, read)
@@ -1866,6 +1922,8 @@ function modelWord(st: State, v: Verdict): string {
 function tierWord(st: State, word: string): string {
   const name = mainModel(st)
   const tier = name !== undefined && hasKey(st.cfg.tiers, name)
+  const big = mainModelSlot(st)?.tierChoice === 'big'
+  if (tier && big) return `${word} [tier ${INSTEAD_TIER} (instead of ${name})]`
   return tier ? `${word} [tier ${name}]` : word
 }
 
@@ -1925,6 +1983,12 @@ async function snapshot($: Api, st: State) {
   return { now, ...(await decideFor($, st, cur)) }
 }
 
+/** `/route show`: the tier ask's state, a Stop answer included. */
+function askTierWord(st: State): string {
+  if (tierHead(st) === undefined) return 'off'
+  return st.tierPaused ? 'best (paused this session)' : BEST
+}
+
 /** The downgrade switch and, when on, the cold read it is capped at. */
 const switchWord = (st: State): string => st.cfg.mainModelSwitch
   ? `on (downgrade, cap ${st.cfg.downgradeMaxTokens} tokens cold, ttl ${
@@ -1940,7 +2004,8 @@ async function show($: Api, st: State): Promise<string> {
     `router: ${routerWord(st)} · switch: ${switchWord(st)} · upgrade: ${
       flag(c.mainUpgrade)} · verbose: ${
         flag(c.verbose)} · classify: ${flag(c.classify)} · probe: ${
-        flag(c.probe)} · spinner: ${flag(c.spinner)}`,
+        flag(c.probe)} · spinner: ${flag(c.spinner)} · ask-tier: ${
+        askTierWord(st)}`,
     downText(st, s.now),
     `live loops: ${st.loops.size}`,
     phasesText(st),
@@ -2019,6 +2084,8 @@ async function toggle(
 async function setUserRoute($: Api, st: State, args: string) {
   const parsed = parseRoute(st.cfg, args)
   if (typeof parsed === 'string') return parsed
+  const probe: State = { ...st, userMain: parsed }
+  await tierAsk($, st, parsed, '/route', probe)
   st.userMain = parsed
   refresh($, st)
   return show($, st)
@@ -2032,12 +2099,23 @@ function applyToggles(st: State): void {
   if (classify !== undefined) st.cfg.classify = classify
 }
 
+/** `askTier` takes "best" or false; any other value reads best, said once. */
+function warnAskTier(st: State, log: Log): void {
+  const bad = [st.mem.askTier, st.mem.askTierLocal].some(
+    v => v !== undefined && v !== BEST && v !== false)
+  const text = 'model-router: askTier must be "best" or false; read as best'
+  if (!bad || st.logged.has(text)) return
+  st.logged.add(text)
+  log(text)
+}
+
 function applyLoaded(st: State, loaded: Loaded, log: Log): void {
   st.cfg = loaded.cfg
   st.rules = compileRules(loaded.cfg, log)
   st.source = loaded.source
   st.mem = loaded.mem
   st.override = loaded.override
+  warnAskTier(st, log)
   st.loaded = true
   st.rebuildDue = false
   applyToggles(st)
@@ -2111,7 +2189,9 @@ async function handleCommand($: Api, st: State, args: string): Promise<string> {
     case 'pending':
       return pendingText(st)
     case 'ask':
-      return askCommand($, st, rest[0])
+      return flagCommand($, st, rest[0], ASK_FLAG)
+    case 'ask-tier':
+      return flagCommand($, st, rest[0], ASK_TIER_FLAG)
     case 'forget':
       return forgetCommand($, st, rest)
     case 'switch':
@@ -2486,8 +2566,11 @@ async function handlePicker(
 // The first time a row routes (a typed skill, an agent spawn, a phase
 // declared through the route tool) the user confirms it once, for every
 // project; a change can be a project exception. Only a dialog answer,
-// `/route ask` or `/route forget` writes; nothing is asked on the step path
-// or in an agent.
+// `/route ask`, `/route ask-tier` or `/route forget` writes; nothing is
+// asked on the step path
+// or in an agent. A route that would lift main, or a rowed spawn, onto the
+// head of `askTier` asks first: Fable, Opus instead, or stop for the session;
+// nothing is written.
 
 const HEADER = 'model-router'
 const UPDATED = 'routing.json updated: commit it from the config repo ' +
@@ -2650,11 +2733,14 @@ function aboutLine(st: State, phase: string): string | undefined {
   return line === '' ? undefined : line
 }
 
-/** "Routed to <phase> (<about>)": the parenthesis only when about is set. */
-function routedTo(st: State, phase: string): string {
+/** "<phase> (<about>)": the parenthesis only when about is set. */
+function phaseWord(st: State, phase: string): string {
   const about = aboutLine(st, phase)
-  return `Routed to ${phase}${about === undefined ? '' : ` (${about})`}`
+  return `${phase}${about === undefined ? '' : ` (${about})`}`
 }
+
+const routedTo = (st: State, phase: string): string =>
+  `Routed to ${phaseWord(st, phase)}`
 
 /** Who uses a phase: its rows, the derived dispatch route, prompt rules. */
 function consumers(st: State, phase: string): string {
@@ -2900,12 +2986,15 @@ async function runDialog($: Api, st: State, req: Req, text: string) {
   return saveAnswer($, st, req, answer)
 }
 
-function failOnce($: Api, st: State, err: unknown): void {
-  const text = `model-router: first-use dialog failed (${errWord(err)}); ` +
-    'default route kept'
+function logOnce($: Api, st: State, text: string): void {
   if (st.logged.has(text)) return
   st.logged.add(text)
   $.ui.log(text)
+}
+
+function failOnce($: Api, st: State, err: unknown): void {
+  logOnce($, st, `model-router: first-use dialog failed (${errWord(err)}); ` +
+    'default route kept')
 }
 
 /**
@@ -2984,12 +3073,14 @@ async function toastChange($: Api, st: State, skill: string) {
 async function confirmSkill($: Api, st: State, skill: string, row: Picked) {
   const req: Req = { kind: 'skills', name: skill, phase: row.phase }
   const say = () => skillQuestion($, st, skill, row.phase)
-  if (!(await confirmFirst($, st, req, say))) return
-  const after = skillRow(st, skill)
-  if (after === undefined) return
-  routeMainBySkill(st, skill, after, true)
-  refresh($, st)
-  if (after.phase !== row.phase) await toastChange($, st, skill)
+  if (await confirmFirst($, st, req, say)) {
+    const after = skillRow(st, skill)
+    if (after === undefined) return
+    routeMainBySkill(st, skill, after, true)
+    refresh($, st)
+    if (after.phase !== row.phase) await toastChange($, st, skill)
+  }
+  await tierAsk($, st, st.turnMain, `Skill /${clean(skill, NAME_CAP)}`)
 }
 
 /** Rowed spawn: the route in force after the dialog (changed or not). */
@@ -3003,9 +3094,10 @@ async function routeSpawn($: Api, st: State, e: SpawnIn) {
   if (!route || !phase || inside) return route
   const req: Req = { kind: 'agents', name: e.subagentType, phase }
   const say = async () => spawnQuestion($, st, e, req, route)
-  return (await confirmFirst($, st, req, say))
+  const after = (await confirmFirst($, st, req, say))
     ? spawnRoute(st, e, frozen)
     : route
+  return spawnTier($, st, e, after)
 }
 
 /** A phase declared through the route tool: confirm-only. */
@@ -3015,6 +3107,138 @@ async function confirmPhase($: Api, st: State, phase: string) {
     .filter(part => part !== undefined).join('; ')
   const lead = `First use of ${phase} on the main loop — ${meaning}`
   await confirmFirst($, st, req, () => mainQuestion($, st, lead))
+}
+
+// ---- tier ask: before a route lifts main or a spawn onto the head --------
+// One question per span at a route event (never in a step, LRN-231): Fable,
+// Opus instead (the span resolves through `big`), or stop for the session.
+// Headless, a dismissed dialog and a failure all run the route as it is.
+
+const tierOptions = (st: State): string[] => insteadOffered(st)
+  ? [TIER_HEAD, TIER_INSTEAD, TIER_STOP]
+  : [TIER_HEAD, TIER_STOP]
+
+/** The answer as the span's tier; Stop also pauses the asks. */
+function tierChoiceOf(st: State, label: string | undefined): Choice {
+  if (label === TIER_STOP) st.tierPaused = true
+  return label === TIER_INSTEAD ? 'big' : 'best'
+}
+
+/** The answer on the slot and on the run slot of its tier. */
+function stampTier(st: State, slot: Routed, choice: Choice): void {
+  slot.tierChoice = choice
+  const run = st.runMain
+  if (run !== null && run.route.tier === slot.route.tier) {
+    run.tierChoice = choice
+  }
+}
+
+/** A helper write keeps the choice of the span it belongs to: same tier. */
+function inheritedChoice(st: State, route: Route): { tierChoice?: Choice } {
+  const prev = [st.turnMain, st.runMain].find(slot =>
+    slot?.tierChoice !== undefined && slot.route.tier === route.tier)
+  const choice = route.tier === undefined ? undefined : prev?.tierChoice
+  return choice === undefined ? {} : { tierChoice: choice }
+}
+
+/** The pure guards, cheapest first: is this slot a candidate for the ask. */
+function tierWanted(st: State, slot: Routed, view: State): boolean {
+  const head = tierHead(st)
+  if (st.off || head === undefined || st.tierPaused) return false
+  if (canonical(st.cfg, st.turnModel ?? st.sessionModel) === head) return false
+  if (st.asking !== null || slot.tierChoice !== undefined) return false
+  return slot.route.tier === BEST && slot === mainModelSlot(view)
+}
+
+async function tierQuestion($: Api, st: State, slot: Routed, origin: string) {
+  const v = await snapshot($, st)
+  return canonical(st.cfg, v.call.model) !== tierHead(st) ? undefined
+    : `${origin} routes main to ${phaseWord(st, slot.phase)}: ${
+      idWord(st, v.call.model)} at ${effortWord(st, v)}. Run it on fable?`
+}
+
+/**
+ * Asks before `slot` (just set by `origin`) lifts main onto the head of
+ * `askTier`. Writes land on `st`; the decision is read from `view` (the
+ * `/route` path reads a probe, the slot is not assigned yet). The dialog
+ * holds `asking`; an answer after a /clear is dropped. Never throws.
+ */
+async function tierAsk(
+  $: Api,
+  st: State,
+  slot: Routed | null,
+  origin: string,
+  view: State = st,
+): Promise<void> {
+  if (slot === null || !tierWanted(st, slot, view)) return
+  st.asking = 'tier:main'
+  try {
+    if ((await $.session.surfaces()).length === 0) return
+    const text = await tierQuestion($, view, slot, origin)
+    if (text === undefined) return
+    const sid = await $.session.id()
+    const label = await askStep($, text, tierOptions(st))
+    if ((await $.session.id()) !== sid) return
+    stampTier(st, slot, tierChoiceOf(st, label))
+    if (slot.tierChoice === 'big') refresh($, st)
+  } catch (err) {
+    tierFailOnce($, st, err)
+  } finally {
+    st.asking = null
+  }
+}
+
+const tierFailOnce = ($: Api, st: State, err: unknown): void =>
+  logOnce($, st, `model-router: tier dialog failed (${errWord(err)}); ` +
+    'route kept')
+
+/** Opus instead for a spawn: its row's effort on the first non-head model. */
+function insteadRoute(st: State, route: Route): Route {
+  const model = insteadName(st)
+  return model === undefined ? route : { effort: route.effort, model }
+}
+
+function spawnTierText(st: State, e: SpawnIn, route: Route): string {
+  const phase = hasKey(st.cfg.agents, e.subagentType)
+    ? st.cfg.agents[e.subagentType]
+    : undefined
+  const effort = st.explicitEffort.get(e.tool_use_id) ?? route.effort
+  return `Agent ${clean(e.subagentType, NAME_CAP)} runs ${
+    phaseWord(st, phase ?? '?')} on ${tierHead(st)} at ${
+    effort ?? 'its own effort'}. Run it on fable?`
+}
+
+/** One question per agent type per session, answered before it spawns. */
+async function spawnTierAsk($: Api, st: State, e: SpawnIn, route: Route) {
+  const head = tierHead(st)
+  if (head === undefined || st.tierPaused || st.asking !== null) return
+  if (spawnTarget($, st, e, route) !== head) return
+  st.asking = `tier:agent:${e.subagentType}`
+  try {
+    if ((await $.session.surfaces()).length === 0) return
+    const sid = await $.session.id()
+    const label = await askStep($, spawnTierText(st, e, route), tierOptions(st))
+    if ((await $.session.id()) !== sid) return
+    st.tierSpawn.set(e.subagentType, tierChoiceOf(st, label))
+  } catch (err) {
+    tierFailOnce($, st, err)
+  } finally {
+    st.asking = null
+  }
+}
+
+/** A rowed spawn's route after the tier ask: the type's stored answer. */
+async function spawnTier(
+  $: Api,
+  st: State,
+  e: SpawnIn,
+  route: Route | undefined,
+) {
+  if (route === undefined || route.tier !== BEST) return route
+  if (!st.tierSpawn.has(e.subagentType)) await spawnTierAsk($, st, e, route)
+  return st.tierSpawn.get(e.subagentType) === 'big'
+    ? insteadRoute(st, route)
+    : route
 }
 
 // ---- first-use commands ----------------------------------------------
@@ -3038,22 +3262,46 @@ function pendingText(st: State): string {
   ].join('\n')
 }
 
-async function askCommand($: Api, st: State, arg: string | undefined) {
-  if (arg !== 'on' && arg !== 'off') return 'usage: /route ask on|off'
-  const patch: Patch = file => { file.ask = arg === 'on' }
+/** An on|off key of routing.json that `/route <word> on|off` writes. */
+type Flag = {
+  word: string
+  key: string
+  value: (on: boolean) => unknown
+  local: (m: Memory) => unknown // the machine override's own value
+}
+
+const ASK_FLAG: Flag = {
+  word: 'ask', key: 'ask', value: on => on, local: m => m.askLocal,
+}
+const ASK_TIER_FLAG: Flag = {
+  word: 'ask-tier',
+  key: 'askTier',
+  value: on => (on ? BEST : false),
+  local: m => m.askTierLocal,
+}
+
+async function flagCommand(
+  $: Api,
+  st: State,
+  arg: string | undefined,
+  flag: Flag,
+) {
+  const { word, key } = flag
+  if (arg !== 'on' && arg !== 'off') return `usage: /route ${word} on|off`
+  const patch: Patch = file => { file[key] = flag.value(arg === 'on') }
   try {
     if (!(await writeRouting($, st, patch))) {
-      return `${ROUTING} missing or unreadable: ask unchanged`
+      return `${ROUTING} missing or unreadable: ${word} unchanged`
     }
   } catch (err) {
     return err instanceof RebuildFailed
-      ? 'ask saved, config not rebuilt: /route reload'
-      : failedWrite($, 'ask', err)
+      ? `${word} saved, config not rebuilt: /route reload`
+      : failedWrite($, word, err)
   }
-  const local = st.mem.askLocal
-  const note = local === undefined ? '' : `; ~/${OVERRIDE} sets ask ${
-    local ? 'on' : 'off'} and wins here`
-  return `ask ${arg}${note}`
+  const local = flag.local(st.mem)
+  const note = local === undefined ? '' : `; ~/${OVERRIDE} sets ${key} ${
+    local === false ? 'off' : 'on'} and wins here`
+  return `${word} ${arg}${note}`
 }
 
 // ---- /route forget: the user takes decisions back -------------------------
@@ -3363,7 +3611,7 @@ async function registerCommand($: Api): Promise<void> {
       name: 'route',
       description: 'model-router: show or set the model and effort route',
       argumentHint:
-        '[show|clear|off|on|reload|pending|ask on|off|' +
+        '[show|clear|off|on|reload|pending|ask on|off|ask-tier on|off|' +
         'forget <name|all|projects>|<phase>|' +
         'model=<alias|id> effort=<level>|switch on|off|verbose on|off|' +
         'classify on|off]',
@@ -3395,7 +3643,8 @@ function pickRoute(cfg: Config, phase: unknown, effort: unknown) {
 function applyRoute(st: State, agentId: string | undefined, p: Picked): void {
   if (agentId === undefined) {
     st.turnMain = { phase: p.phase, route: p.route, source: 'model',
-      ...(p.explicitEffort ? { explicitEffort: true } : {}) }
+      ...(p.explicitEffort ? { explicitEffort: true } : {}),
+      ...inheritedChoice(st, p.route) }
   } else {
     writeLoop(loopOf(st, agentId), p.route, 'route tool')
   }
@@ -3457,6 +3706,7 @@ async function handleRouteTool($: Api, st: State, e: RouteInput) {
   applyRoute(st, e.agentId, picked)
   if (e.agentId === undefined && typeof e.phase === 'string') {
     await confirmPhase($, st, picked.phase)
+    await tierAsk($, st, st.turnMain, 'Route tool')
   }
   return { result: await routedText($, st, e.agentId, picked) }
 }
@@ -3492,7 +3742,8 @@ function routeMainBySkill(
     ? { effort: row.route.effort }
     : { ...row.route }
   const turn: Routed = { phase: row.phase, route,
-    source: 'skill', label: clean(skill, NAME_CAP) }
+    source: 'skill', label: clean(skill, NAME_CAP),
+    ...(typed ? {} : inheritedChoice(st, route)) }
   st.turnMain = turn
   if (row.route.tier === BEST) st.runMain = { ...turn, source: 'run' }
   else if (typed) st.runMain = null
@@ -3686,7 +3937,8 @@ function pushOrchestrate(st: State): void {
   if (st.pushed !== null || !route) return
   if (src === 'model' || src === 'skill') return
   st.pushed = { prev: st.turnMain, spawnIds: new Set() }
-  st.turnMain = { phase: 'orchestrate', route, source: 'derived' }
+  st.turnMain = { phase: 'orchestrate', route, source: 'derived',
+    ...inheritedChoice(st, route) }
 }
 
 /** Restores the route from before the dispatch, unless one replaced it. */
@@ -4240,6 +4492,9 @@ function registerSkills(on: On, st: State): void {
     st.skillCalls += 1
     try {
       safely(st, $, 'Skill', () => onSkillLoad(st, skill, e.agentId))
+      if (e.agentId === undefined && skillRow(st, skill)) {
+        await tierAsk($, st, st.turnMain, `Skill /${clean(skill, NAME_CAP)}`)
+      }
       return await next(e)
     } finally {
       st.skillCalls -= 1

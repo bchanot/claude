@@ -205,5 +205,6 @@
     }
   },
   "changed": {},
-  "ask": true
+  "ask": true,
+  "askTier": "best"
 }
