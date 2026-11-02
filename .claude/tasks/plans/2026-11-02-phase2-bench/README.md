@@ -34,3 +34,10 @@ not `auto` is invalid. `run.sh <label> <cmdfile> live` drops the isolation
 
 `long-brief.txt` is a pasted feature request (French) replayed by a later
 task; it is not a bench row.
+
+## Results 2026-11-02 (gate)
+Every control RAN, every row ran in `auto` (permissionMode column). Approved (approved.txt): 16 ask, 7 deny (the rtk read twins are generated in Task 6, shape proven by R1/R2).
+Not approved: `Bash(bash "*gitflow.sh" finish*)` (M3q RAN: the matcher does not take a quote inside the pattern; M3x shows `Bash(bash *gitflow.sh finish*)` already asks on the quoted call-site form `bash "$HOME/…/gitflow.sh" finish`, so the gate holds without it); `Bash(gitflow_finish*)` (M5 RAN: the sourced-function form is not caught, residual); `Bash(bash -s*)` (S4 RAN: `… | bash -s` is not caught, residual); A1b `Bash(awk *system*)` passed but A1 (narrower) is kept.
+H0 RAN: `head -5 .env` escapes `Bash(head .env)` natively, so the flag forms are needed.
+rtk.tsv: every ask-row command is rc 1 for `rtk rewrite` (no rewrite), M7 rc 3 (passed through since Task 2): no rtk twin needed for the asks.
+G1: an ask hit inside a headless sub-agent raised 8 permission requests and never ran.
