@@ -25,9 +25,10 @@ Check BOTH the task description AND the filesystem:
 
 ## DECISION
 
-Source of truth for activation is the **profile system** — never an atomic
-per-tool toggle. The gate's whole job: confirm the design toolchain is active,
-and if not, point at ONE command — `/profile design`.
+Source of truth is `profile.sh current --plain` (packs and managed plugins of
+THIS project and conversation) — never an atomic per-tool toggle. The gate's
+whole job: confirm the design toolchain is active, and if not, print ONE
+remedy line (see §3).
 
 ### 1. Tier — does the gate even apply?
 
@@ -37,52 +38,46 @@ and if not, point at ONE command — `/profile design`.
 - In doubt (trivial tweak vs real UI change) → do NOT silently skip: ask the
   user, or default to the Build tier.
 
-Tier does NOT change WHAT gets checked. Every non-trivial design tier draws from
-the one `design` profile — so the gate checks that profile's **design-core
-tools** (the `# GATE-BLOCK:` allowlist in `design.profile`: impeccable,
-ui-ux-pro-max, emil-design-eng, design-motion-principles, design-html,
-design-review, design-consultation, the `21st` CLI and `21st-ui-build` — the
-canary for the whole 21st skill pack). The profile also bundles
-browser/plan/shotgun tooling and graphify for convenience; those never trip the
-gate. Motion (`design-motion-principles`) and static-HTML (`design-html`) are
-already in the core set — checked regardless; the Design work section
-(`rules/web-building.md`) names them as the motion and static tools, not a
-separate activation step.
+Tier does NOT change WHAT gets checked. Every non-trivial design tier needs
+the same required set, declared as `NEEDED=` in `lib/design-tool-gate.sh`:
+packs `design` and `gstack-design`, the `ui-ux-pro-max` plugin, and the `21st`
+CLI signed in. Other packs and browser/plan tooling never trip the gate.
+Motion and static-HTML skills ride inside those packs; the Design work section
+(`rules/web-building.md`) names them, not a separate activation step.
 `site-motion` (personal skill, site-level scroll/page choreography) rides the
-same Build chain but isn't on the GATE-BLOCK list: it ships with the repo,
-nothing to install or verify.
+same Build chain but isn't required: it ships with the repo, nothing to
+install or verify.
 
 ### 2. State — run the deterministic check
 
     bash "$HOME/.claude/lib/design-tool-gate.sh"
 
-It reads the design-core tools (`# GATE-BLOCK:` in `design.profile`) plus their
-types (`profile.sh show design --plain`) and checks each on its own channel —
-skill symlink, `claude plugin list`, `claude mcp list`, `command -v`. It never
-reads `disabledMcpServers` (unreliable for bi-modal servers like context7).
-The core set lives in `design.profile`, not in the script or here — single source.
+It runs `profile.sh current --plain` and checks the `NEEDED=` entries of the
+script (the single source of the required set), then `command -v 21st` and
+`21st whoami`. It makes no `claude` call.
 
 Exit codes: `0` = ready · `11` = ready-but-unverified (proceed, but surface it) · `10` = incomplete (gate trips) · `12` = sign-in required (21st installed, signed out) · `2` = error.
 
 ### 3. Branch on the result
 
 - **0 / `READY`** → proceed silently. Toolchain is active.
-- **10 / `INCOMPLETE`** → STOP. The script reports up to three groups; relay
-  them and the remedy to the user:
+- **10 / `INCOMPLETE`** → STOP. The script names what is off and prints the
+  remedy; relay both to the user:
 
-      🎨 DESIGN DETECTED — the design toolchain isn't fully active.
-      activate with /profile design:        <skills / ui-ux-pro-max>
-      required + manual step:                <e.g. 21st — needs the CLI>
-      → run  /profile design  to activate it, then continue.
+      design toolchain: INCOMPLETE
+        off: pack-design plugin:ui-ux-pro-max@ui-ux-pro-max-skill
+        → run:  bash ~/.claude/lib/profile.sh set web   (or: enable design)
+          then /reload-plugins
 
-  - **activate with /profile design** → skills + the plugin; `/profile design`
-    turns them on directly.
-  - **required + manual step** → required tools the profile can't flip silently.
-    **the `21st` CLI lands here: it TRIPS the gate** (it's required for Build),
-    it is NOT a silent "optional". `/profile design` symlinks the 21st skills,
-    but the CLI they shell out to is a global npm install: tell the user to run
-    `npm i -g @21st-dev/cli` then `21st login` (no API key, no MCP).
-  - Do NOT hand-activate individual tools. The profile is the unit of activation.
+  - **source=local or default** → `profile.sh set web` (or `enable design`),
+    then `/reload-plugins`.
+  - **source=flag** (the conversation runs under `claude --settings`, frozen)
+    → relaunch it with a design profile: `cc <name> web`.
+  - **the `21st` CLI TRIPS the gate** when absent (required for Build), it is
+    NOT a silent "optional". It is a global npm install the profile cannot
+    do: tell the user to run `npm i -g @21st-dev/cli` then `21st login`
+    (no API key, no MCP).
+  - Do NOT hand-activate individual tools. Packs are the unit of activation.
 - **12 / `SIGN-IN REQUIRED`** → STOP. The 21st CLI is installed but `21st
   whoami` reports signed out. Relay the script's block, then ask the user to
   run `! 21st login` (the `!` prefix runs it in this session, browser flow,
@@ -100,22 +95,20 @@ Exit codes: `0` = ready · `11` = ready-but-unverified (proceed, but surface it)
   and needs the human. `TWENTYFIRST_TOKEN` is a shell-profile setting
   followed by a session restart, never an in-session `export` (tool calls
   don't share a shell, and a secret doesn't belong in the transcript).
-- **11 / `READY BUT UNVERIFIED`** → `claude` was unreachable, so the design
-  plugin (ui-ux-pro-max) could NOT be checked. Do NOT report a plain "ready":
-  proceed only after telling the user that N tool(s) went unverified and having
-  them confirm with `claude plugin list`. Fail-visible, not fail-silent. A
-  `21st (whoami: rc=… …)` entry in this block means the CLI itself could not
-  answer (a runtime/PATH problem, e.g. node under nvm) — the remedy is the
-  diagnostic the script prints, never a sign-in prompt; relay its own line.
+- **11 / `READY BUT UNVERIFIED`** → `21st whoami` could not answer (a
+  runtime/PATH problem, e.g. node under nvm). Do NOT report a plain "ready":
+  proceed only after telling the user, relaying the diagnostic the script
+  prints (`whoami: rc=… …`). Never a sign-in prompt. Fail-visible, not
+  fail-silent.
 
 ### 4. Animation library — suggest-only (fires only on a real motion signal)
 
 Orthogonal to the toolchain check above: §2-3 are about Claude's design TOOLS;
 this is about the PROJECT's runtime dep. Evaluate it only once the toolchain is
 resolved and you're actually proceeding with the build (READY, after the user
-ran `/profile design`, or after the sign-in re-run returns READY). Never on
-the INCOMPLETE stop path — that path has one action only (`/profile
-design`); don't stack an optional note on it.
+applied the remedy, or after the sign-in re-run returns READY). Never on
+the INCOMPLETE stop path — that path has one action only (the remedy
+line); don't stack an optional note on it.
 
 **Fires only when ALL THREE hold** — drop any one → no suggestion, stay silent:
 
@@ -160,7 +153,7 @@ count:
   10 libs incl gsap / react-spring / lottie) kills it the instant any anim lib
   lands, so only "eligible + pure-CSS + actively declined" ever sees it twice.
 - **Two "motion"s (agent-facing).** The lib `motion` (npm dep, this step) ≠ the
-  skill `design-motion-principles` (`# GATE-BLOCK:` core set, §2-3). The
+  skill `design-motion-principles` (inside the design packs, §2-3). The
   toolchain check handles the skill; this step handles the lib. Don't conflate
   them when talking to the user.
 
@@ -173,7 +166,7 @@ context, which is worse than not running it — and nothing else in the process
 says so, because init has to happen in the agent chat, not in an installer.
 
 **Fires when** the project has no `PRODUCT.md` at its root, else stay
-silent. impeccable itself is on the `# GATE-BLOCK:` list, so §3 has already
+silent. impeccable ships in the required design packs, so §3 has already
 guaranteed it is installed by the time this runs.
 
 Evaluate it on the same path as §4: after the toolchain resolves, never on the
@@ -192,25 +185,22 @@ INCOMPLETE stop path. One line, non-blocking:
 
 ### Other toolchains
 
-The script defaults to the `design` profile. A task needing another profile's
-toolchain passes it: `design-tool-gate.sh <profile>`. Scope comes from that
-profile's `# GATE-BLOCK:` line (absent → every skill/plugin/mcp entry). The
-remedy is always `/profile <that>` — a profile, never a lone tool.
+The script takes no argument: it checks the one design set (`NEEDED=`). A
+task needing another toolchain adds its own gate; the remedy stays a pack
+or profile, never a lone tool.
 
 ## IMPORTANT
 
-- Remedy is ALWAYS a profile (`/profile design`), never an atomic tool toggle —
-  the profile system is the single source of truth for what's active.
-- the `21st` CLI is REQUIRED (it trips the gate) and `/profile design` cannot
+- Remedy is ALWAYS the printed line (`profile.sh set web` / `enable design`
+  + `/reload-plugins`, or `cc <name> web` under a flag), never an atomic
+  tool toggle — `current --plain` is the single source of what's active.
+- the `21st` CLI is REQUIRED (it trips the gate) and no profile can
   install it — the gate names the two commands; surface them to the user.
   Signed out → exit 12: ask `! 21st login`, wait, re-run; explicit opt-out
   only, never a silent skip.
-- The design-core set (what trips the gate) is declared in `design.profile` on
-  the `# GATE-BLOCK:` line(s) — edit there to add/remove a blocking design tool,
-  not in the script.
-- The state check shells out to `claude` (plugin/mcp list): a few seconds.
-  Trivial / non-design tasks skip it entirely (no signal, or trivial tier).
-- `design-tool-gate.sh`'s per-type state checks MIRROR
-  `profile.sh:skill_status()` — change one, sync the other, except the 21st
-  auth state: gate-only, no skill_status counterpart.
+- The required set (what trips the gate) is `NEEDED=` in
+  `design-tool-gate.sh` — edit there to add/remove a blocking pack or plugin.
+- The gate makes no `claude` call; it runs `profile.sh current --plain` and
+  `21st whoami`. Trivial / non-design tasks skip it entirely.
+- The 21st sign-in state is gate-only: `profile.sh` has no counterpart.
 - Do NOT run this gate on pure backend/API/CLI tasks (no signals = no gate).

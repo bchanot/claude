@@ -1,95 +1,35 @@
 #!/usr/bin/env bash
 # ============================================================
-# lib/design-tool-gate.sh — Deterministic design-toolchain state check.
+# lib/design-tool-gate.sh — deterministic design-toolchain state check.
 #
-# Answers ONE question for the design gate (design-gate.md §DECISION):
-#   "Is the design toolchain active enough to proceed?"
+# Answers one question for lib/design-gate.md § DECISION: "is the design
+# toolchain active enough to proceed?" Source of truth = `profile.sh
+# current --plain` (packs + managed plugins of THIS project and
+# conversation). Required: pack-design, pack-gstack-design and the
+# ui-ux-pro-max plugin, plus the `21st` CLI signed in (gate-only state:
+# in / out / unknown, from `21st whoami`).
 #
-# Source of truth = the profile system. The gate never activates a single
-# tool atomically; it checks whether a profile's DESIGN-CORE tools (default
-# profile: `design`) are active and, if not, points at `/profile <name>`.
-#
-# Two inputs from the profile, both claude-free:
-#   - structure:  profile.sh show <profile> --plain   ->  "<type>\t<name>"
-#   - gate scope: the "# GATE-BLOCK:" line(s) in <profile>.profile — the
-#                 allowlist of tools the gate trips on. A comment, so
-#                 read_profile strips it and --plain never shows it. Absent
-#                 -> fall back to every skill/plugin/mcp entry (coarse).
-#
-# State (active or not) is checked per channel, by type. These per-type
-# checks MIRROR profile.sh:skill_status() — change one, sync the other,
-# except the 21st auth state: gate-only, no skill_status counterpart.
-#
-#   type                       channel                          class
-#   gstack|external|personal   skill symlink in skills/         blocking
-#   plugin                     `claude plugin list` -> enabled  blocking
-#   mcp | cli                  `claude mcp list` / command -v   required-manual
-#
-# Class:
-#   blocking         required + `/profile design` activates it directly.
-#   required-manual  required but the profile can't flip it silently (API
-#                    key / external install) — the gate STILL trips, names
-#                    it, and the remedy is `/profile design` + a manual step.
-#                    This is where the `21st` CLI lands: required, never
-#                    silent (npm i -g @21st-dev/cli, then 21st login).
-#                    21st's sign-in state is three-valued: in (active),
-#                    out (exit 12, ask to sign in), unknown (exit 11).
-# Both classes trip the gate. Tools NOT on the GATE-BLOCK allowlist are
-# ignored entirely (browser/plan/shotgun tooling, graphify).
-#
-# disabledMcpServers is NEVER read — unreliable for bi-modal servers
-# (context7 can appear there yet be active via another channel).
-#
-# Exit: 0 = ready · 11 = ready-but-unverified (proceed, say so) ·
-#       10 = incomplete (trips) · 12 = sign-in required (21st) · 2 = error.
-# Usage: design-tool-gate.sh [profile]        (default profile: design)
+# Exit: 0 ready · 10 incomplete (a pack or plugin off, or no 21st CLI) ·
+#       11 ready-but-unverified (21st could not answer) · 12 sign-in
+#       required · 2 error (profile.sh failed or gave no pack lines).
+# Remedy on 10: source=flag → relaunch `cc <name> web` (a --settings
+# conversation is frozen); else `profile.sh set web` (or `enable design`)
+# then /reload-plugins. The CLI is a global npm install either way.
+# Usage: design-tool-gate.sh        (no argument; env DESIGN_GATE_PROFILE_SH)
 # ============================================================
 set -euo pipefail
 
-REPO="${DESIGN_GATE_REPO_OVERRIDE:-$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+REPO="$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 PROFILE_SH="${DESIGN_GATE_PROFILE_SH:-$REPO/lib/profile.sh}"
-CLAUDE_BIN="${CLAUDE_BIN:-claude}"
-PROFILES_DIR="$REPO/lib/profiles"
-SKILLS_DIR="$REPO/skills"
-PROFILE="${1:-design}"
-PROFILE_FILE="$PROFILES_DIR/$PROFILE.profile"
+NEEDED=(pack-design pack-gstack-design
+  "plugin:ui-ux-pro-max@ui-ux-pro-max-skill")
 
-[ -x "$PROFILE_SH" ]  || { echo "design-gate: profile.sh not executable at $PROFILE_SH" >&2; exit 2; }
-[ -f "$PROFILE_FILE" ] || { echo "design-gate: profile '$PROFILE' not found" >&2; exit 2; }
-
-# Ensure the claude CLI + its node runtime are reachable even when a skill/hook
-# shells this script out with a sanitized PATH. The interactive alias
-# claude->dtach_claude never reaches a non-interactive subshell; the real binary
-# AND its node bin dir are what matter (claude's shebang needs node, same dir).
-# If `command -v claude` already resolves, do nothing; else probe known install
-# dirs and prepend. nvm keeps old node versions after an upgrade, so pick the
-# newest that actually ships claude (sort -V), not the first glob match.
-ensure_claude_on_path() {
-  command -v "$CLAUDE_BIN" >/dev/null 2>&1 && return
-  local cand
-  for cand in \
-    "$HOME/.claude/local/claude" \
-    "$HOME/.local/bin/claude" \
-    /opt/homebrew/bin/claude \
-    /usr/local/bin/claude; do
-    [ -x "$cand" ] && { PATH="$(dirname "$cand"):$PATH"; return; }
-  done
-  local m newest matches=()
-  for m in "$HOME"/.nvm/versions/node/*/bin/claude; do
-    [ -x "$m" ] && matches+=("$m")
-  done
-  if [ "${#matches[@]}" -gt 0 ]; then
-    newest="$(printf '%s\n' "${matches[@]}" | sort -V | tail -1)"
-    PATH="$(dirname "$newest"):$PATH"
-  fi
-}
-ensure_claude_on_path
-
-# Same sanitized-PATH problem for `21st` (an npm global bin), with a twist:
-# the repair above only fires when claude ITSELF is unresolvable, and claude
-# often lives in ~/.local/bin while the npm global bin dir is missing from a
-# hook's PATH. Probe for the binary directly and prepend the dir that has it,
-# otherwise a perfectly installed CLI reads as "missing" and trips the gate.
+# ---- 21st CLI on PATH + sign-in state (kept from the previous version) ----
+# Same sanitized-PATH problem for `21st` (an npm global bin): a PATH repair
+# for the 21st CLI only (claude is no longer called here). The npm global
+# bin dir is often missing from a hook's PATH. Probe for the binary directly
+# and prepend the dir that has it, otherwise a perfectly installed CLI reads
+# as "missing" and trips the gate.
 ensure_21st_on_path() {
   command -v 21st >/dev/null 2>&1 && return
   local cand
@@ -142,154 +82,56 @@ twentyfirst_auth_state() {
   echo "unknown:whoami: rc=$rc ${line:0:60}"
 }
 
-# Gate scope: the "# GATE-BLOCK:" allowlist (one or more lines, concatenated).
-# Empty => fall back to "every gate-relevant entry is in scope" (coarse).
-core_set="$(grep '^# GATE-BLOCK:' "$PROFILE_FILE" 2>/dev/null \
-            | sed 's/^# GATE-BLOCK:[[:space:]]*//' | tr '\n' ' ' || true)"
+# ---- packs and plugin from profile.sh ---------------------------------------
+plain="$(bash "$PROFILE_SH" -C "$PWD" current --plain 2>/dev/null)" \
+  || { echo "design-gate: profile.sh current --plain failed" >&2; exit 2; }
+grep -q '^pack-design=' <<<"$plain" || {
+  echo "design-gate: profile.sh current --plain gave no pack-design line" >&2
+  exit 2; }
+plain_get() { sed -n "s/^$1=//p" <<<"$plain" | head -1; }
+missing=()
+for k in "${NEEDED[@]}"; do
+  [ "$(plain_get "$k")" = on ] || missing+=("$k")
+done
+source="$(plain_get source)"; profile="$(plain_get profile)"
 
-# Membership in the allowlist. Empty allowlist = everything in scope.
-in_scope() {
-  [ -z "$core_set" ] && return 0
-  case " $core_set " in *" $1 "*) return 0 ;; *) return 1 ;; esac
-}
+# ---- 21st: CLI present, then signed in ---------------------------------------
+cli_hint=""; auth=in
+if ! command -v 21st >/dev/null 2>&1; then
+  cli_hint="    21st needs the CLI: npm i -g @21st-dev/cli   then   21st login"
+else
+  auth="$(twentyfirst_auth_state)"
+fi
 
-# State of one tool, by type. Mirrors profile.sh:skill_status() — keep in
-# sync, except the 21st auth state (gate-only, no skill_status counterpart).
-# Echoes: active | inactive | unknown (can't verify, claude absent) |
-#         signedout | unknown:<diagnostic>  (last two: 21st CLI only)
-tool_active() {
-  local name="$1" type="$2"
-  case "$type" in
-    gstack|external|personal)
-      if [ -e "$SKILLS_DIR/$name" ]; then echo active; else echo inactive; fi
-      ;;
-    plugin)
-      if ! command -v "$CLAUDE_BIN" >/dev/null 2>&1; then echo unknown; return; fi
-      # capture first, then match: an early-exit awk/grep -q in a pipe
-      # SIGPIPEs the producer (rc 141 under pipefail on macOS)
-      local plist
-      plist="$("$CLAUDE_BIN" plugin list 2>/dev/null)" || true
-      if grep -q "✔ enabled" < <(awk -v p="^[[:space:]]*❯ ${name}@" \
-           '$0 ~ p {f=1; next} f && /Status:/ {print; exit}' <<<"$plist")
-      then echo active; else echo inactive; fi
-      ;;
-    mcp)
-      if ! command -v "$CLAUDE_BIN" >/dev/null 2>&1; then echo unknown; return; fi
-      if grep -q "^${name}" \
-           <<<"$("$CLAUDE_BIN" mcp list 2>/dev/null)"; then
-        echo active
-      else
-        echo inactive
-      fi
-      ;;
-    cli)
-      command -v "$name" >/dev/null 2>&1 || { echo inactive; return; }
-      [ "$name" = "21st" ] || { echo active; return; }
-      local auth
-      auth="$(twentyfirst_auth_state)"
-      case "$auth" in
-        in)        echo active ;;
-        out)       echo signedout ;;
-        unknown:*) echo "$auth" ;;
-      esac
-      ;;
-    *) echo inactive ;;
-  esac
-}
-
-# Structure via the parse contract (claude-free). Fail loud on a bad profile —
-# an empty read must NOT silently report "ready".
-plain="$("$PROFILE_SH" show "$PROFILE" --plain 2>/dev/null)" \
-  || { echo "design-gate: 'profile.sh show $PROFILE --plain' failed" >&2; exit 2; }
-[ -n "$plain" ] || { echo "design-gate: profile '$PROFILE' is empty or unreadable" >&2; exit 2; }
-
-blocking=()    # inactive, /profile design activates it (skill/plugin)
-manual=()      # inactive, required but needs a manual step (mcp key / cli install)
-unverified=()  # can't check (claude CLI absent)
-signedout=()   # 21st CLI installed, not signed in
-unverified_cli=()  # 21st CLI: whoami answered something unexpected
-while IFS=$'\t' read -r type name; do
-  [ -n "$type" ] || continue
-  in_scope "$name" || continue        # ignore non-core tooling (browser, plan-*, graphify)
-  state="$(tool_active "$name" "$type")"
-  case "$state" in
-    active)     ;;
-    signedout)  signedout+=("$name") ;;
-    unknown)    unverified+=("$name") ;;
-    unknown:*)  unverified_cli+=("$name (${state#unknown:})") ;;
-    *)
-      case "$type" in
-        gstack|external|personal|plugin) blocking+=("$name") ;;
-        *)                               manual+=("$name") ;;
-      esac
-      ;;
-  esac
-done <<< "$plain"
-
-# print_unverified — the "also unverified" lines shared by the 10, 11 and 12
-# blocks: a claude-unreachable tool keeps its existing remedy; a 21st CLI
-# that answered whoami with something unexpected gets its own — the two are
-# never merged, so no block blames 21st for a claude problem or vice versa.
-print_unverified() {
-  if [ "${#unverified[@]}" -gt 0 ]; then
-    echo "  also unverified (claude CLI unreachable): ${unverified[*]}"
-  fi
-  local entry name diag
-  # bash 3.2 (macOS /bin/bash) errors on an empty array under set -u
-  for entry in ${unverified_cli[@]+"${unverified_cli[@]}"}; do
-    name="${entry%% (*}"
-    diag="${entry#*\(}"; diag="${diag%\)}"
-    echo "  $name could not answer: $diag —" \
-         "a CLI runtime/PATH problem (node under nvm?)," \
-         "not a sign-in problem; fix it, then re-run"
-  done
-}
-
-# Verdict — four outcomes, checked in order:
-#   blocking/manual non-empty -> INCOMPLETE (exit 10): the gate trips.
-#   else signedout non-empty  -> SIGN-IN REQUIRED (exit 12): ask the user to
-#     run `21st login`, end the turn, wait, re-run — never a silent skip.
-#   else unverified/unverified_cli non-empty -> READY BUT UNVERIFIED (exit
-#     11): fail-VISIBLE. claude unreachable and/or 21st couldn't answer
-#     whoami — never pass either as a silent READY.
-#   nothing pending           -> READY (exit 0).
-if [ "${#blocking[@]}" -gt 0 ] || [ "${#manual[@]}" -gt 0 ]; then
+# ---- verdict -----------------------------------------------------------------
+if [ "${#missing[@]}" -gt 0 ] || [ -n "$cli_hint" ]; then
   echo "design toolchain: INCOMPLETE"
-  if [ "${#blocking[@]}" -gt 0 ]; then
-    echo "  activate with /profile $PROFILE:  ${blocking[*]}"
+  [ "${#missing[@]}" -gt 0 ] && echo "  off: ${missing[*]}"
+  [ -n "$cli_hint" ] && echo "$cli_hint"
+  if [ "$source" = flag ]; then
+    echo "  → relaunch this conversation with a design profile:" \
+         " cc <name> web"
+  else
+    echo "  → run:  bash ~/.claude/lib/profile.sh set web" \
+         "  (or: enable design)"
+    echo "    then /reload-plugins"
   fi
-  if [ "${#manual[@]}" -gt 0 ]; then
-    echo "  required + manual step (external install / sign-in):  ${manual[*]}"
-    case " ${manual[*]} " in
-      *" 21st "*) echo "    21st needs the CLI: npm i -g @21st-dev/cli   then   21st login" ;;
-    esac
-  fi
-  print_unverified
-  echo "  → run:  /profile $PROFILE"
   exit 10
 fi
-
-if [ "${#signedout[@]}" -gt 0 ]; then
-  echo "design toolchain: SIGN-IN REQUIRED — 21st CLI installed, not signed in"
-  echo "  ask the user to run in this session:" \
-       " ! 21st login" \
-       "  (browser flow, saves a local token)"
-  echo "  then re-run this gate before any 21st step — never skip 21st silently"
-  print_unverified
-  exit 12
-fi
-
-if [ "${#unverified[@]}" -gt 0 ] || [ "${#unverified_cli[@]}" -gt 0 ]; then
-  echo "design toolchain: READY BUT UNVERIFIED —" \
-       "$(( ${#unverified[@]} + ${#unverified_cli[@]} )) tool(s) not checked"
-  print_unverified
-  if [ "${#unverified[@]}" -gt 0 ]; then
-    echo "  the gate could NOT confirm the design plugin (ui-ux-pro-max) is"
-    echo "  active. Proceed only after checking manually:"
-    echo "      claude plugin list"
-  fi
-  exit 11
-fi
-
-echo "design toolchain: READY — profile '$PROFILE' design tools active"
+case "$auth" in
+  out)
+    echo "design toolchain: SIGN-IN REQUIRED —" \
+         "21st CLI installed, not signed in"
+    echo "  ask the user to run in this session:  ! 21st login  (browser flow)"
+    echo "  then re-run this gate before any 21st step —" \
+         "never skip 21st silently"
+    exit 12 ;;
+  unknown:*)
+    echo "design toolchain: READY BUT UNVERIFIED — 21st could not answer:" \
+      "${auth#unknown:}"
+    echo "  a CLI runtime/PATH problem (node under nvm?), not a sign-in problem"
+    exit 11 ;;
+esac
+echo "design toolchain: READY —" \
+  "packs design + gstack-design + ui-ux-pro-max on ($profile)"
 exit 0
