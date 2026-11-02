@@ -88,7 +88,7 @@ model-router row, their
 | feater, hotfixer, bugfixer | sonnet (pinned) | executors — code from a closed plan (feat), fix from a closed diagnosis (bugfix), fix-bundle appliers |
 | verifier | Fable (`audit` row: best/xhigh, opus frontmatter floor) | fresh gate (≤3×/loop) |
 | security-auditor | Fable (`audit` row: best/xhigh, opus frontmatter floor) | fresh gate (≤3×/loop) |
-| commit-changer, release-executor, code-cleaner | sonnet (pinned) | dispatched execution — grouping+commit / release spans / approved cleanup (audit + approval gates stay in the dispatcher) |
+| commit-changer, release-executor, code-cleaner | sonnet (pinned) | dispatched execution — grouping+commit / release prep span / approved cleanup (audit + approval gates stay in the dispatcher) |
 | onboarder, scaffolder, refactorer, validator-analyzer, plugin-probe | sonnet (pinned) | workers — config generation, scaffold, refactor, deterministic W3C/WCAG runner, mechanical plugin probe |
 | status-reporter | haiku (pinned) | mechanical collector |
 | analyzer, plan-challenger, plugin-advisor | opus (pinned) | dispatched judgment — pre-plan analysis, 3-lens adversarial plan challenge (`/ship-feature` STEP 2b), plugin-fit reasoning |
@@ -415,9 +415,10 @@ on 2026-11-02). The matcher sees through `&&`, `;`, `|`, `env`, `timeout`,
 `xargs` and simple assignments. The phase 2 rules ask on `sh -c` and its flag
 forms (`sh -ec`, `bash -lc`, `dash -c`), a bare `bash` or `sh` fed by a
 heredoc, process substitution (`bash <(…)`) and the absolute shells `/bin/sh`,
-`/bin/bash`, `/usr/bin/sh`, `/usr/bin/bash`, `/usr/bin/env sh|bash`; they do
-not cover a script piped into `bash -s`, a sourced `gitflow_finish` or
-`git -C <dir> merge`. The matcher cannot see `$(…)` in command position, a
+`/bin/bash`, `/usr/bin/sh`, `/usr/bin/bash`, `/usr/bin/env sh|bash`. A script
+piped into a shell (`… | bash -s`) is already refused by the deny
+`Bash(* | bash -*)`. A sourced `gitflow_finish` and `git -C <dir> merge`
+escape the static rules. The matcher cannot see `$(…)` in command position, a
 quoted literal argument or an inline interpreter: those rest on the
 auto-mode classifier (`autoMode.soft_deny`, "Static rule blind spots"). The
 rtk hook passes any command its registry asks about or denies through

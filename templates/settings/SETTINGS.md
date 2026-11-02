@@ -125,6 +125,7 @@ no separate setting for this.
 
 - `Read(**/.env)` only blocks the Read tool. `Bash(cat .env)` bypasses it unless separately denied.
   → Use `.claudeignore` for hard file exclusion regardless of tool.
+- This config denies `cat`, `head` and `tail` of `.env*` (flag forms included, e.g. `head -5 .env`) and the `rtk read` twin of every such deny; `lib/tests/push-guard.test.sh` (T62) fails when a twin is missing.
 - `disableBypassPermissionsMode: "disable"` prevents switching to bypass mode mid-session.
 - Prefer `autoMode.soft_deny` over `allow` for anything touching external systems.
 - `deny` in `~/.claude/settings.json` cannot be overridden by project-level `allow` — deny always wins.
@@ -143,6 +144,7 @@ local trace, and the brief had authorized it. What holds now, by tier:
 | Docker volume drops, `system prune`, `compose down -v`, `--privileged`, the docker socket, `-v /:` | `permissions.deny` | Promoted from `soft_deny`: no in-session clearance for data drops. |
 | Git history destruction (`push --delete`/`--mirror`/`:ref`/`--force-with-lease`, `branch -D`, `filter-branch`, `reflog expire`, `stash clear`/`drop`, `clean -f`), `--no-verify`, `core.hooksPath` | `permissions.deny` | A remote is the backup; nothing rewrites or deletes what it holds. |
 | Writing the human-only `gitflow.*` toggles: any `git … config` spelling, section remove/rename, `git -c`, the git config env overrides, Edit/Write of git config files | `permissions.deny` | Claude never flips the mode that binds it. Side effect: the trailing glob also matches the bare read, so Claude cannot read `gitflow.autopush` through `git config`; hooks and `lib/gitflow.sh` still do, and skills read it through `gitflow.sh push-mode`. |
+| Merging: `git merge`, `bash`/`sh` `…gitflow.sh finish` | `permissions.ask` | `finish` runs only on an explicit human signal: one prompt per merge, and a declined prompt merges nothing. `git -C <dir> merge` and a sourced `gitflow_finish` escape the static rules; the sourced form falls to `autoMode.soft_deny` "Static rule blind spots". |
 | Pushing in manual-push mode (`gitflow.autopush false`, or any invalid value) | `hooks/push-guard.sh` (PreToolUse) + `autoMode.soft_deny` | An `ask` would prompt, and a click would push. The hook denies the direct forms; the soft_deny covers scripted, aliased, subshell and sub-agent pushes, and a request in the turn does not clear it: the user types `! git push`. |
 | Destructive tool against a local path (variable, `~`, `..`, wildcard, outside cwd/tmp), even as a trace or a rehearsal a brief allows | `autoMode.hard_deny` | A pattern cannot express "the target resolves outside the project"; the classifier can. A sub-agent brief carries no user authority. |
 | `docker rm -f`, bind mount outside cwd; discarding uncommitted work | `autoMode.soft_deny` | Recoverable or user-intended in the turn. |
