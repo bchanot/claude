@@ -419,3 +419,10 @@ Dogfood: 3 blind lenses attacked the v1 plan for the plan-challenge feature itse
 - **Method**: 3-lens plan challenge + confirmation pass, per-task reviews, final opus/xhigh whole-branch review, GATE 0 oracles (10 runnable, c1-*.sh positive-controlled before work), fresh verifier, security gate.
 - **Anomalies**: challenge found 4 MAJOR (c1-readers red mid-Task 3, worktree vs in place, finish blocked by user settings hunks, contract out of sync with r2); final review found the new-file Write gap (I1) everybody missed; verifier 1st run died on Fable credits (429), retry pinned opus; 2nd run ECARTS(5) all human micro-gate items (approved text not on disk, transient docs out of scope, 2 SC2016 waivers); every per-task review clean first pass.
 - **Action**: keep oracles + positive control before dispatch; brief reviewers on new-file Write semantics for path rules; record gate texts on disk (contract) so the verifier can match them.
+
+## EVAL-054 — Three-lens plan challenge + confirmation caught 5 BLOCKERs before execution (phase 5) (2026-11-02)
+- **Check**: plan r1 (2060 lines) attacked by three blind opus challengers + one confirmation pass before execution.
+- **Method**: challenge-plan.md; lenses correctness / robustness / simplicity; r2 rewritten; confirmation on r2.
+- **Result**: r1 FATAL(11)/FATAL(10)/CONCERNS(5): BLOCKER = plan written on a stale tree (profile backend live); 30 jq per statusline refresh; settings.json procedure that would have discarded user writes; test precedence inverted; doctor abort under pipefail; worktree incompatibility. Confirmation on r2: 2 more BLOCKERs (keep list dropped the tracked `skills/model-router` link; census matched itself). All fixed before Task 1. Execution then needed 4 fix rounds (gates/reviews), none on those aspects.
+- **Anomalies**: the simplicity lens duplicated two robustness findings; the confirmation pass still found BLOCKERs, so one pass is the floor, not the ceiling.
+- **Action**: keep the 3+1 shape for plans over ~1000 lines; add "live state verified at Task 0" to the plan template.

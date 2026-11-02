@@ -1881,3 +1881,33 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 **Pattern**: awk `match()` sets globals `RSTART`/`RLENGTH`; shared helper calling it clobbers caller's values. Take `substr(line, RSTART)` BEFORE calling any parser helper; audit every `RSTART` reader in programs embedding the shared awk block.
 
 **Application**: any `_MEM_AWK` change touching match(); same for `$0`, `NF` side effects of `sub()`/`split()` in helpers.
+
+## LRN-248 — skills-dir packs and claude.ai connectors: measured facts CLI 2.1.316 (2026-11-02)
+- **Pattern**: skills-dir pack = `~/.claude/skills/<pack>/.claude-plugin/plugin.json` + `skills/<s>/SKILL.md`. Loads as `<name>@skills-dir` (manifest name, not folder). Nested skills listed ONCE as `pack:skill`; `Skill(skill)`, `Skill(pack:skill)`, typed `/skill`, `/pack:skill` all resolve. `defaultEnabled:false` → OFF with nothing written; local or `--settings` true turns it on. `--settings` false beats local true. `/reload-plugins` re-reads `enabledPlugins` from the settings files (skills + hooks mid-session; pack `.mcp.json` needs a new session) but NOT a `--settings` file: a pack OFF by flag comes back only through a relaunch. claude.ai connectors load under `-p` (2.1.316; not on 2026-10-25); `deniedMcpServers:[{serverName:"claude.ai X"}]` per project drops them (199 → 192 tools), `disableClaudeAiConnectors:true` drops all (any-source-true); lists UNION across files; `serverUrl` wildcard matches nothing (no URL exposed). Tool budget bare project 199 = 28 builtin + 1 model-router + 158 higgsfield + 8 Claude Docs + 4 Indeed.
+- **Context**: phase 5 spikes, scratch projects, `claude -p … --output-format stream-json --verbose`, init message `plugins[] skills[] tools[] mcp_servers[]`.
+- **Apply**: any per-project/per-conversation tool switching; design gates read the effective state, not files.
+
+## LRN-249 — Claude Code settings root = git common dir; mirror it, stop below HOME (2026-11-02)
+- **Pattern**: Claude Code reads/writes `.claude/settings.local.json` at the git repo root (worktree → main checkout root, `git rev-parse --path-format=absolute --git-common-dir` parent); shared `.claude/settings.json` from the session dir. A tool mirroring the effective state must resolve the root the same way, stop below `$HOME` (`~/.claude/` is not a project), and fall back to the nearest `.claude/`/`CLAUDE.md`/`.git` outside git.
+- **Context**: `lib/profile.sh find_root`; code review caught the nearest-marker walk diverging in worktrees and monorepo packages.
+- **Apply**: statusline, hooks, gates run from `.cwd`/`project_dir`; never trust `$PWD` as the project.
+
+## LRN-250 — One jq pass over many files beats 30 jq spawns (13 ms vs 120 ms) (2026-11-02)
+- **Pattern**: one jq program beats many: 30 jq spawns ≈ 120 ms (34 × `jq -n 1` = 118-137 ms measured); `jq -rn --rawfile a f1 --rawfile b f2 … -f prog.jq inputs…` with `def parse: try fromjson catch {}` and `input_filename` reads every file (absent → /dev/null → `{}`) in one pass. `current --plain` = 2 jq processes, 13-30 ms (target 50).
+- **Context**: `lib/profile-state.jq`; statusline runs it on every refresh.
+- **Apply**: any hook or statusline computing state from several JSON files.
+
+## LRN-251 — Plan against a stale tree: re-survey at Task 0, derive removal lists at run time (2026-11-02)
+- **Pattern**: a plan written against a tree surveyed hours earlier is wrong by execution time: the live machine had switched to profile `backend` (impeccable parked as a real dir, 54 parked links, 20 flat links) between survey and plan; hardcoded `rm`/`mv` lists failed, and the only fix path a blind executor sees destroys the only install. Cure: Task 0 = snapshot (`find … -printf '%y %p %l'`) + verify assumptions; derive every removal list at run time (`find -type l`, remove by name); never delete a real dir, move it; keep the snapshot as the rollback recipe.
+- **Context**: phase 5 plan r1 → r2, caught by the robustness and correctness challengers before execution.
+- **Apply**: every plan touching machine-owned layout (symlinks, installs, caches).
+
+## LRN-252 — stream-json first line is hook_started; multi-turn canary on a FIFO; OFF pack via --settings (2026-11-02)
+- **Pattern**: `claude -p --output-format stream-json --verbose`: the FIRST line is a `type=system subtype=hook_started` event (session-start hook), not init; select `type == "system" && subtype == "init"` over all lines. Multi-turn headless = `--input-format stream-json` on a FIFO/coproc: send a turn, wait for its `result`, edit files, send the next (one session id throughout). A canary pack with `defaultEnabled:false` turned on only via `--settings` is invisible to every other conversation; clean up with `mv` (rm/trap calls get refused by the permission rules).
+- **Context**: phase 5 Task 1 and Task 12 canaries; the first reload canary mistakenly spanned two sessions.
+- **Apply**: every headless measurement of plugins/skills/tools.
+
+## LRN-253 — Commit a tracked file with uncommitted UI writes through the git index (2026-11-02)
+- **Pattern**: commit a change to a tracked file whose working copy carries uncommitted writes you must keep (settings.json UI writes): `git show HEAD:f | jq '<edit>' > tmp && git update-index --cacheinfo 100644,"$(git hash-object -w tmp)",f && git commit`, then patch the working copy with jq into a temp file and `cp` it back. Never `git checkout -- f`, never `git stash` (pop can take someone else's stash), never `git add -p` (interactive, unavailable), never `jq … > f` (truncates on failure).
+- **Context**: phase 5 Task 13 listing budget; BLK-039.
+- **Apply**: any commit to settings.json or another file the harness writes to.
