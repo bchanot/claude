@@ -20,8 +20,10 @@
 #               in settings.json keep read-only forms frictionless.
 #   1           No RTK equivalent → command continues unchanged into the
 #               redaction check below (still may be rewritten there)
-#   2           Deny rule matched → pass through (Claude Code native deny handles it)
-#   3 + stdout  Ask rule matched → pass the original through (native ask sees it)
+#   2           Deny rule matched → pass through (Claude Code native deny
+#               handles it)
+#   3 + stdout  Ask rule matched → pass the original through (native ask
+#               sees it)
 #
 # Independent of the above: any command whose FINAL form is a single-pipeline
 # `printenv`/`env` dump gets a redaction pipe appended (job7 — see below).
@@ -87,7 +89,8 @@ case $EXIT_CODE in
     REWRITTEN="$CMD"
     ;;
   2|3)
-    # 2 = rtk deny, 3 = rtk ask: keep the ORIGINAL command so Claude Code's
+    # 2 = rtk's own deny, which may have no settings rule behind it, e.g.
+    # bare env. 3 = rtk ask. Keep the ORIGINAL command so Claude Code's
     # native deny/ask judges it as typed (a `rtk <cmd>` rewrite matched no
     # native rule: bench 2026-10-25), and the redaction check still runs.
     REWRITTEN="$CMD"
@@ -134,7 +137,8 @@ fi
 ORIGINAL_INPUT=$(echo "$INPUT" | jq -c '.tool_input')
 UPDATED_INPUT=$(echo "$ORIGINAL_INPUT" | jq --arg cmd "$REWRITTEN" '.command = $cmd')
 
-# Rewrite WITHOUT a permissionDecision (rtk exit 0 only): the
+# Rewrite WITHOUT a permissionDecision (when the command was rewritten:
+# rtk rc 0, or the env-dump redaction): the
 # rewritten command goes through Claude Code's native allow/deny/ask
 # evaluation. Permission control lives in settings.json, not in rtk.
 jq -n \
