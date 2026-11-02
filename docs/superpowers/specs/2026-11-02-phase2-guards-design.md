@@ -152,3 +152,13 @@ any deny entry.
 Bench rows for every new rule; guard fixtures; code-limits suite; routing
 bench C4 / "doctor.sh rtk version" prompt in a throwaway clone enters a skill;
 the user runs `/close` once and clicks; `make test` green; shellcheck clean.
+
+## R2 amendments (plan challenge round 1, 2026-11-02; [USER] = to confirm at the STEP 3 gate)
+- Guard run signal [USER]: `State.skillRun`, a latch set by any skill typed by the user or loaded by the model on the main loop (rowed or not), dropped only by `/route clear|off` and `/clear`; plus a `route` phase declared this turn and a typed `/route` sticky (a `/model` hand pick does not count). Replaces the 16 routing rows (they would also have opened first-use and ask-tier dialogs). Reason text adds "or re-enter the skill you were running".
+- Free paths: `.md`/`.txt` anywhere, `<root>/.claude/` except `<root>/.claude/worktrees/`, `<root>/docs/`. A `~/.claude/...` path is code.
+- Merge gate [USER]: `Bash(git -C * merge *)` dropped (it asks on any `git -C … merge …` text, e.g. a sub-agent's commit message, and a background sub-agent's ask is refused); `Bash(bash "*gitflow.sh" finish*)` added for the quoted call-site form every skill types. The quoted form is a hard gate of the bench.
+- Shell forms [USER]: plus `sh -*c *`, `bash -*c *`, `dash -c *`, `/usr/bin/bash *`, `/usr/bin/sh *`; denies plus `cat * .env*`, `cat * */.env*`; awk rule spelled with balanced parentheses. Each lands only if the bench approves it.
+- rtk hook: arms 2 and 3 share `REWRITTEN="$CMD"` (the env-dump redaction still runs).
+- code-limits: untracked files report the payload's lines, never the whole file; 512 KiB cap; "no commit" origin not cached.
+- Release: finish and tag both run in the main loop; release-executor keeps `prep` only. A declined finish prompt stops `/release-candidate` and `/capitalize` 5C with "nothing merged".
+- `ask` under auto mode is confirmed interactively by the user before the doctrine is rewritten.
