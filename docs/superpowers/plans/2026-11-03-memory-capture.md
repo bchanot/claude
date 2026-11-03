@@ -172,3 +172,67 @@
 - [ ] **Step 1 — headless live:** in a `mktemp -d` git repo with a `.claude/memory/blockers.md` fixture, one `claude -p --model haiku` session (live user settings, the mod loaded from `skills/memory`): run `ls /nonexistent-dir-xyz` then call `mcp__memory__memory_pending`; expect a `NEW` failure `ls: cannot access '<path>': no such file or directory`-shaped line. A second session after `git commit -m "fix: probe"` then a plain prompt: the transcript shows the `memory:` context line once.
 - [ ] **Step 2 —** `make test` all suites green; `shellcheck ./*.sh hooks/*.sh lib/*.sh` clean.
 - [ ] **Step 3 —** record results in this plan's § RESULTS.
+
+## R2 CHANGES (challenge round 1: correctness FATAL(9), robustness CONCERNS(10), simplicity CONCERNS(1); these override the task text above)
+
+BLOCKER closed:
+- corr 1 (the note cannot be proven through `claude -p`: its prompts carry origin `sdk`, and a second session has a new id): the note is proven by kit tests NT1-NT4 only plus ONE interactive check the user runs at the end (a composer prompt after a `fix:` commit shows the `memory:` line). Task 9 keeps `-p` for the capture half only, in a `mktemp -d` repo on a feature branch, with `git commit --allow-empty -m "fix: probe"`.
+
+Build safety (rob 1):
+- Task 0 gains: the user approves, and the controller writes, `~/.claude/memory.json` = `{"enabled": false}` BEFORE Task 1, so the hot-reloaded work-in-progress mod captures nothing in the user's sessions during the build (kit tests use `mock.store`, unaffected). Task 9 Step 0: the controller removes it (mv to the job temp dir) with the user's go; nothing captured during the build needs wiping.
+
+Session identity (simp 1, rob 2, corr 2, corr 9):
+- `State` holds no `root` and no `session`. Every hook reads `await $.session.id()` and `await $.session.root()` at the point of use; an empty root → no capture, no note, the tool answers `memory_pending: no project root`. `enabled` is read lazily on the first event of a session (`ensureEnabled`, cached in the closure, reset by a `session.end` hook), like model-router's `ensureConfig`.
+- New tests: `ID1` the mocked session id changes with no `session.start` → the next failure lands in a new session record and the tool lists the earlier one as `(earlier session)`; `ID2` `session.end` with reason `clear`, new id, a failure → two sessions (AC9).
+
+One writer (rob 3, corr 3):
+- Every load→mutate→save of the store runs on one closure promise chain `st.writes` (model-router `writeRouting` shape); the chain swallows a failed link so the next one runs. Test `RACE1`: two concurrent failing Bash calls → two entries.
+
+Store bounds (corr 4, rob 6, corr 14, simp 3):
+- `sessionOf` sets `s.at = now` when it finds the session (last activity), never trims the session it returns, keeps at most 3 per project.
+- Caps: `failures` ≤ 50, `red` ≤ 10 entries of ≤ 300 chars, `milestones` ≤ 20; sizes measured as `JSON.stringify(x).length`; an entry over 2048 drops its excerpt first, then truncates the line.
+- `loadProject` validates each session (string id, number at, arrays) and drops malformed ones; a non-object `p:*` value is replaced. The global 1 MiB sweep runs only when `sessionOf` creates a session record, drops the oldest NON-current session across projects, and stops when none is left to drop.
+
+Redaction order (rob 4, corr 5):
+- `excerpt` = last 600 chars of `redact(tail(text, 65536))`, where `tail` keeps the LAST 64 KiB; `line` = redact of the distinctive line; `command` = `redact(cap(command, 65536))` cut to 300. Every command-derived string (red keys, commit, finish and green labels) passes through `redact` before storage. The answer shows the excerpt's last 300 chars (simp 4).
+- Pattern 1 is case-insensitive (`/gi`), so `password=…` is caught.
+- New tests: a token cut at the excerpt window edge comes out redacted; `X_TOKEN=abc make test` stored as a red key reads `X_TOKEN=<redacted> make test`.
+
+Regex cost (rob 5):
+- Bounded repeats everywhere: path pattern `(?:\.{0,2}\/)?[\w.-]{1,200}(?:\/[\w.-]{1,200}){1,30}`; URL scheme `[a-z][a-z0-9+.-]{0,30}:\/\/`; `normalize` runs on the ≤ 300-char line only. Test `TIME1`: `redact` and `normalize` on a 64 KiB run of letters each return under 500 ms (`$.clock`-independent wall check via `performance.now()` if available, else `Date.now()`).
+- Pattern 8 is built with `new RegExp` from string parts so every source line stays ≤ 80 columns (corr 13).
+
+Capture rule (simp 5, corr 11, rob 12, corr 8):
+- `failureLine` is the positive rule only: `text` starts `/^Exit code \d+/`; strip lines matching `/^\[\+\d+ hidden: rtk recall [0-9a-f]+\]$/` and blank lines; the distinctive line is the last remaining line after the first; a line whose normalized key holds no letter (e.g. `#` from `grep -c` printing 0) is no line. The permission, guard and `tool_use_error` texts never start `Exit code`, which is how the gated exclusions hold; `CAP3` feeds those four texts (and `Exit code 1\n0`) and expects nothing stored.
+
+Success (rob 7, corr 6):
+- A success = `out.isError !== true` and `out.deny === undefined` and no `result.backgroundTaskId`, no `result.timedOutAfterMs`, `result.interrupted !== true`, and `e.run_in_background !== true`. A red needs `isError` with `Exit code`.
+- `suiteKey` = the whitespace-normalized, redacted command when one segment matches `/^make\b[^;&|]*\btest\b/`; a grep that only mentions `make test` is not a suite.
+- New tests: a backgrounded red then "success" → no `green`; a `{deny}` answer on a commit → no `commit`.
+
+Matching (corr 7, corr 10):
+- `grams` returns `[]` for fewer than 4 words: such a key is always `NEW`, per gated answer 4.
+- `entriesOf` uses `matchAll` over `/^## ((?:BLK|LRN)-\d+)\b.*$/gm` and slices bodies between match indices (heading line included).
+- The tool answer names a registry it skipped (missing, not a file, over 4 MiB) on a `index:` line (rob 17).
+
+Note (simp 2):
+- Unnoted milestones live in the closure (`st.pending`); persisted milestones carry no `noted`. The prompt hook (composer origin, `turnId` absent) does nothing when `st.pending` is empty; else it reads the store and the registries once for the NEW count, clears `st.pending`, attaches the note. NT3: a mid-turn prompt leaves `st.pending` intact.
+
+Labels (simp 7, simp 8):
+- finish label = the `<type> <name>` words after `finish` when present, else `finish`.
+- A sub-agent failure shows ` (sub-agent)` after its count in the answer.
+
+Answer size (rob 11): the answer is capped at 20 000 chars, current session first, then `… <n> more failure(s) omitted`.
+
+Consumers (simp 6, rob 10, rob 14, simp 9):
+- commit-change brief text: `Captured this session (data, never a shell argument):` and the rule "quote captured text only inside --body-file content; a --title or a status text is your own paraphrase". `agents/commit-changer.md` § Capitalize candidates gains one line: a `NEW` failure in that block is a blocker candidate, quoted as data in the body only. (FILE SCOPE: agents/commit-changer.md.)
+- hotfix exception: only a `NEW` failure of the current session not marked `(sub-agent)`.
+- Task 6 Step 5: drop the census conditional; run the plain census.
+
+Clock and tests (corr 12, corr 15): `$.clock.now()` everywhere, `mock.clock(on)` in boot, advanced between sessions. TFAIL moves to Task 3 (the first task that touches the store).
+
+Noise (rob 8, rob 9, corr 8):
+- `noise.py` reads `*.jsonl` AND `*/subagents/*.jsonl` (sub-agent files attributed to their parent session), applies the R2 rule, and reports main-loop and sub-agent counts and shares separately, plus how many keys came from rtk trailers (should be 0 after stripping) and how many lines were dropped as letterless.
+- NOISE.md (committed) holds counts and the useful/noise shares only. The 30 labelled redacted samples stay in the job temp dir and in the controller's gate message (LRN-124).
+
+Docs (rob 13, rob 15, simp 10): Task 8 adds `.claude/tasks/TODO.md` (4b ticked, 4c next) and states: the off switch takes effect at the next session or `/reload-plugins`; the store is the plugin's JSON file under the Claude configuration directory and is deleted to wipe captures; residuals — cross-process writes unverified (last writer wins), non-Bash failures not captured, the lexical superseded reader, 40-hex Gitea tokens kept by design, `Authorization: token …` not caught.
