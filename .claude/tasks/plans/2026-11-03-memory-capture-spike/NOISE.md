@@ -88,3 +88,9 @@ the user decides (it amends gated answer 2, the capture rule):
   attention on ~70 % noise per call.
 
 `probe` alone is not worth its complexity (10 of 25 noise samples).
+
+## Decision (2026-11-04)
+
+Option A accepted by the user at the gate. Implemented as `ERRORISH` in
+`failureLine` (`mods/memory/hooks/register.ts`): contract answer 2-amended
+and criterion 15. `noise.py --tighten errorish` reproduces the shipped rule.
