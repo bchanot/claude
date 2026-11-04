@@ -18,6 +18,61 @@ const SWITCH_FILE = '.claude/memory.json'
 const MAX_SWITCH_BYTES = 65536
 const TOOL = 'memory_pending'
 
+const MAX_REGEX_INPUT = 65536
+const PEM = '-----'
+const PEM_KIND = '(?:[A-Z]+ )?PRIVATE KEY'
+
+// Redaction patterns, applied in order. Repeats are bounded where the
+// input is free text, so no pattern can run away on a 64 KiB input.
+const REDACTIONS: [RegExp, string][] = [
+  [/\b([A-Za-z_]*(?:TOKEN|API_KEY|SECRET|PASSWORD|PASSWD)[A-Za-z_]*)=\S+/gi,
+    '$1=<redacted>'],
+  [/sk_live_[0-9A-Za-z]{10,}/g, '<redacted:stripe>'],
+  [/AKIA[0-9A-Z]{16}/g, '<redacted:aws>'],
+  [/gh[pousr]_[A-Za-z0-9]{30,}/g, '<redacted:github>'],
+  [/xox[abprs]-[A-Za-z0-9-]{10,}/g, '<redacted:slack>'],
+  [/SG\.[A-Za-z0-9_-]{16,}\.[A-Za-z0-9_-]{16,}/g, '<redacted:sendgrid>'],
+  [/sb_secret_[A-Za-z0-9_-]{10,}/g, '<redacted:supabase>'],
+  [new RegExp(
+    `${PEM}BEGIN ${PEM_KIND}${PEM}[\\s\\S]*?` +
+      `(?:${PEM}END ${PEM_KIND}${PEM}|$)`,
+    'g',
+  ), '<redacted:private-key>'],
+  [/\bBearer\s+[A-Za-z0-9._~+/=-]{8,}/g, 'Bearer <redacted>'],
+  [/([a-z][a-z0-9+.-]{0,30}:\/\/)[^\s/@:]+:[^\s/@]+@/gi, '$1<redacted>@'],
+]
+
+const HEX_RUN = /\b[0-9a-f]{7,}\b/g
+const PATH = /(?:\.{0,2}\/)?[\w.-]{1,200}(?:\/[\w.-]{1,200}){1,30}/g
+
+/** The first `n` code units of `text` (input guard for regex work). */
+export function cap(text: string, n: number): string {
+  return text.slice(0, n)
+}
+
+/** The last `n` code units of `text` (the end of an output holds the error). */
+export function tail(text: string, n: number): string {
+  return n <= 0 ? '' : text.slice(-n)
+}
+
+/** Masks secret-shaped text; reads at most the first 64 KiB. */
+export function redact(text: string): string {
+  let out = cap(text, MAX_REGEX_INPUT)
+  for (const [pattern, mask] of REDACTIONS) out = out.replace(pattern, mask)
+  return out
+}
+
+/** A comparison key: volatile parts (hashes, paths, numbers) collapsed. */
+export function normalize(line: string): string {
+  return line
+    .toLowerCase()
+    .replace(HEX_RUN, '<hex>')
+    .replace(PATH, '<path>')
+    .replace(/\d+/g, '#')
+    .replace(/\s+/g, ' ')
+    .trim()
+}
+
 function newState(): State {
   return {
     enabled: null,
