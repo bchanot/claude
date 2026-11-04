@@ -3,6 +3,7 @@ import type { Engine, MockClock } from 'claude-code/testing'
 import type { On } from 'claude-code'
 import {
   cap, tail, redact, normalize, failureLine, sessionOf, addFailure,
+  entriesOf, isSuperseded, grams, buildIndex, matchOf, readRegistry,
 } from './register'
 
 const HOME = '/home/t'
@@ -14,6 +15,7 @@ type World = {
   switchText: string | undefined // ~/.claude/memory.json (undefined: absent)
   rootFails: boolean // session.root rejects
   id: string // what session.id answers now
+  root: string // what session.root answers now
   answer: unknown // what the Bash bottom answers now
   byCommand: Map<string, unknown> // answers that depend on the command
   clock: MockClock
@@ -21,6 +23,7 @@ type World = {
   sets: string[] // every store key written
   logs: string[] // every $.ui.log line
   tools: string[] // every tool name registered
+  files: Map<string, string | null> // other files (null: a directory)
 }
 
 type Opts = {
@@ -28,6 +31,7 @@ type Opts = {
   rootFails?: boolean
   seed?: Record<string, unknown> // the store at the start
   storeFails?: boolean // store.set rejects (a hand-made store)
+  files?: Record<string, string | null> // registries under the root
 }
 
 /**
@@ -51,10 +55,12 @@ function handStore(on: On, w: World, fails: boolean): void {
 async function boot($: Engine, on: On, o: Opts = {}): Promise<World> {
   const clock = mock.clock(on, { now: 1000 })
   const w: World = {
-    switchText: o.switchText, rootFails: o.rootFails ?? false, id: 's1',
+    switchText: o.switchText, rootFails: o.rootFails ?? false,
+    id: 's1', root: ROOT,
     answer: BASH_ANSWER, byCommand: new Map(), clock,
     kv: new Map(Object.entries(o.seed ?? {})),
     sets: [], logs: [], tools: [],
+    files: new Map(Object.entries(o.files ?? {})),
   }
   handStore(on, w, o.storeFails ?? false)
   on('tool.register', (_a, e) => {
@@ -63,6 +69,13 @@ async function boot($: Engine, on: On, o: Opts = {}): Promise<World> {
   })
   on('env.get', () => ({ value: HOME }))
   on('fs.stat', (_a, e) => {
+    if (w.files.has(e.path)) {
+      const text = w.files.get(e.path)
+      return { value: {
+        kind: text === null ? 'dir' as const : 'file' as const,
+        size: text?.length ?? 0, mtimeMs: 0, isLink: false,
+      } }
+    }
     if (e.path !== SWITCH || w.switchText === undefined) {
       throw new Error('ENOENT')
     }
@@ -72,6 +85,7 @@ async function boot($: Engine, on: On, o: Opts = {}): Promise<World> {
     } }
   })
   on('fs.read', (_a, e) => {
+    if (w.files.has(e.path)) return { value: w.files.get(e.path) ?? '' }
     if (e.path !== SWITCH || w.switchText === undefined) {
       throw new Error('ENOENT')
     }
@@ -79,7 +93,7 @@ async function boot($: Engine, on: On, o: Opts = {}): Promise<World> {
   })
   on('session.root', () => {
     if (w.rootFails) throw new Error('no root')
-    return { value: ROOT }
+    return { value: w.root }
   })
   on('session.id', () => ({ value: w.id }))
   on('session.start', (_a, e) => ({ cwd: e.cwd }))
@@ -489,4 +503,243 @@ test('addFailure: same key counts, a new key appends', () => {
   addFailure(s, f('x'))
   addFailure(s, f('y'))
   expect(s.failures.map(x => [x.key, x.count])).toEqual([['x', 2], ['y', 1]])
+})
+
+// ---- the registry index and memory_pending ----------------------------
+
+const REG = `${ROOT}/.claude/memory`
+const BLK = `${REG}/blockers.md`
+const LRN = `${REG}/learnings.md`
+const BLOCKERS = '## BLK-001 \u2014 x\n- **Status**: open\n' +
+  'seen: `fatal: unable to access remote`\n'
+const LEARNINGS = '## LRN-002 \u2014 y\n- **Status**: superseded\n' +
+  'old: `error: pathspec did not match anything`\n'
+const REGS = { [BLK]: BLOCKERS, [LRN]: LEARNINGS }
+const PENDING = 'mcp__memory__memory_pending'
+
+const pending = async ($: Engine): Promise<string> =>
+  String(((await $.tool.call({ tool: PENDING })) as { result: unknown })
+    .result)
+
+test('IDX1: a captured line the registry holds reads known BLK-001', async (
+  $, on,
+) => {
+  const w = await boot($, on, { files: REGS })
+  await failing($, w, EXIT1 + 'fatal: unable to access remote host', 'git pull')
+  expect(await pending($)).toBe([
+    'memory_pending (project app, 1 session(s))',
+    'index: read blockers.md, learnings.md',
+    'failures:',
+    '- known BLK-001 \u00d71 fatal: unable to access remote host' +
+      ' \u2014 command: git pull',
+    '  excerpt: Exit code 1\u23cefatal: unable to access remote host',
+  ].join('\n'))
+})
+
+test('IDX2: an unrelated line reads NEW', async ($, on) => {
+  const w = await boot($, on, { files: REGS })
+  await failing($, w, EXIT1 + 'completely different problem happened')
+  expect(await pending($)).toContain('- NEW \u00d71 completely different')
+})
+
+test('IDX3: a line matching only a superseded LRN reads NEW', async (
+  $, on,
+) => {
+  const w = await boot($, on, { files: REGS })
+  await failing($, w, EXIT1 + 'error: pathspec did not match anything')
+  expect(await pending($)).toContain('- NEW \u00d71 error: pathspec')
+})
+
+test('IDX4: no registry files, every failure NEW, both named', async (
+  $, on,
+) => {
+  const w = await boot($, on)
+  await failing($, w, EXIT1 + 'fatal: unable to access remote host')
+  const text = await pending($)
+  expect(text).toContain(
+    'index: skipped blockers.md (missing), learnings.md (missing)')
+  expect(text).toContain('- NEW \u00d71')
+})
+
+test('IDX5: an empty store answers nothing captured', async ($, on) => {
+  await boot($, on)
+  expect(await pending($)).toBe('memory_pending: nothing captured')
+})
+
+test('IDX6: the tool is not registered when disabled, and says off', async (
+  $, on,
+) => {
+  const w = await boot($, on, { switchText: '{"enabled": false}' })
+  expect(w.tools).toEqual([])
+  expect(await pending($))
+    .toBe('memory capture is off (~/.claude/memory.json)')
+})
+
+test('IDX7: the answer holds no unredacted runtime-built token', async (
+  $, on,
+) => {
+  const w = await boot($, on)
+  const token = 'gh' + 'p_' + 'Q'.repeat(36)
+  await failing($, w, EXIT1 + 'fatal: bad ' + token, 'git push ' + token)
+  const text = await pending($)
+  expect(text).toContain('<redacted:github>')
+  expect(text).not.toContain('QQQQ')
+})
+
+test('IDX8: the error span is indexed, not the prose between', async () => {
+  const body = '## BLK-009 \u2014 z\n`git rm` and later words ' +
+    '`fatal: unable to access remote host`\n'
+  const index = buildIndex([body])
+  expect(matchOf(index, normalize('fatal: unable to access remote host')))
+    .toBe('BLK-009')
+  expect(matchOf(index, normalize('and later words fatal unable')))
+    .toBeUndefined()
+})
+
+test('a key of fewer than 4 words has no gram, so it is NEW', () => {
+  expect(grams('a b c')).toEqual([])
+  expect(grams('a b c d e')).toEqual(['a b c d', 'b c d e'])
+  const index = buildIndex(['## BLK-001 x\n`aaa bbb ccc ddd`\n'])
+  expect(matchOf(index, 'aaa bbb ccc')).toBeUndefined()
+})
+
+test('entriesOf slices between headings, heading line included', () => {
+  const text = '## BLK-001 a\nx\n## other\ny\n## LRN-2 [b]\nz\n'
+  expect(entriesOf(text)).toEqual([
+    { id: 'BLK-001', body: '## BLK-001 a\nx\n## other\ny\n' },
+    { id: 'LRN-2', body: '## LRN-2 [b]\nz\n' },
+  ])
+})
+
+test('isSuperseded: the last status wins, else the heading tag', () => {
+  expect(isSuperseded('## LRN-1 a\n- **Status**: open\n- **Statut**: ' +
+    'superseded\n')).toBe(true)
+  expect(isSuperseded('## LRN-1 a\n- **Status**: superseded\n' +
+    '- **Status**: open\n')).toBe(false)
+  expect(isSuperseded('## LRN-1 [superseded] a\nbody\n')).toBe(true)
+  expect(isSuperseded('## LRN-1 [open] a\n')).toBe(false)
+})
+
+test('readRegistry: a directory and an over-size file read as empty', async (
+  $, on,
+) => {
+  const big = 'x'.repeat(4194305)
+  const w = await boot($, on, { files: { [BLK]: null, [LRN]: big } })
+  expect(await readRegistry($ as never, BLK)).toBe('')
+  expect(await readRegistry($ as never, LRN)).toBe('')
+  await failing($, w, EXIT1 + 'fatal: bad thing')
+  expect(await pending($)).toContain(
+    'index: skipped blockers.md (not a file), learnings.md (over 4 MiB)')
+})
+
+test('an empty root answers no project root', async ($, on) => {
+  const w = await boot($, on)
+  w.root = ''
+  expect(await pending($)).toBe('memory_pending: no project root')
+})
+
+test('milestones, sub-agent, earlier session and order', async ($, on) => {
+  const mk = (id: string, at: number, failures: unknown[], ms: unknown[]) =>
+    ({ id, at, failures, milestones: ms, red: [] })
+  const f = (line: string, agent = false) => ({
+    key: line, line, excerpt: 'a\nb', command: 'c', agent, at: 1, count: 2,
+  })
+  const seed = { [`p:${ROOT}`]: { sessions: [
+    mk('s1', 900, [f('known one fatal: unable to access remote host'),
+      f('brand new line here ok', true)],
+    [{ kind: 'commit', label: 'fix: x', at: 3600000 * 14 + 120000 }]),
+    mk('s0', 100, [f('old trouble in town today')], []),
+  ] } }
+  const w = await boot($, on, { seed, files: REGS })
+  expect(w.kv.size).toBe(1)
+  expect(await pending($)).toBe([
+    'memory_pending (project app, 2 session(s))',
+    'index: read blockers.md, learnings.md',
+    'milestones (this session):',
+    '- commit fix: x (14:02)',
+    'failures:',
+    '- NEW \u00d72 (sub-agent) brand new line here ok \u2014 command: c',
+    '  excerpt: a\u23ceb',
+    '- known BLK-001 \u00d72 known one fatal: unable to access remote host' +
+      ' \u2014 command: c',
+    '  excerpt: a\u23ceb',
+    '- NEW \u00d72 (earlier session) old trouble in town today' +
+      ' \u2014 command: c',
+    '  excerpt: a\u23ceb',
+  ].join('\n'))
+})
+
+test('the excerpt shows its last 300 characters', async ($, on) => {
+  const w = await boot($, on)
+  await failing($, w, EXIT1 + 'x'.repeat(400) + '\nfatal: tail marker')
+  const text = await pending($)
+  const shown = text.split('excerpt: ')[1] ?? ''
+  expect(shown.length).toBe(300)
+  expect(shown.endsWith('fatal: tail marker')).toBe(true)
+})
+
+test('the failure list is capped at 20000 chars with a count', async (
+  $, on,
+) => {
+  const f = (i: number) => ({
+    key: `k${i}`, line: `line ${i} ${'y'.repeat(300)}`,
+    excerpt: 'e'.repeat(300), command: 'c', agent: false, at: 1, count: 1,
+  })
+  const failures = Array.from({ length: 50 }, (_, i) => f(i))
+  const seed = { [`p:${ROOT}`]: { sessions: [
+    { id: 's1', at: 1, milestones: [], red: [], failures },
+  ] } }
+  await boot($, on, { seed })
+  const text = await pending($)
+  expect(text).toMatch(/\n\u2026 \d+ more failure\(s\) omitted$/)
+  expect(text.length).toBeLessThan(20300)
+})
+
+test('ID1/ID2: after an id change the earlier session is marked', async (
+  $, on,
+) => {
+  const w = await boot($, on)
+  await failing($, w, EXIT1 + 'boom one here today')
+  w.id = 's2'
+  await w.clock.advance(10)
+  await failing($, w, EXIT1 + 'boom two here today')
+  const text = await pending($)
+  expect(text).toContain('session(s))')
+  expect(text).toContain('- NEW \u00d71 boom two here today')
+  expect(text).toContain('(earlier session) boom one here today')
+  expect(text.indexOf('boom two')).toBeLessThan(text.indexOf('boom one'))
+})
+
+const endSession = ($: Engine) =>
+  $.session.end({ reason: 'clear', sessionId: 's1', resume: { id: 's1' } })
+
+test('session.end re-reads the switch and registers the tool again', async (
+  $, on,
+) => {
+  const w = await boot($, on, { switchText: '{"enabled": false}' })
+  expect(w.tools).toEqual([])
+  w.switchText = undefined
+  await endSession($)
+  await bash($, 'ls')
+  expect(w.tools).toEqual(['memory_pending'])
+  w.switchText = '{"enabled": false}'
+  await endSession($)
+  expect(await pending($))
+    .toBe('memory capture is off (~/.claude/memory.json)')
+})
+
+test('the tool failing answers a stable text, not a throw', async (
+  $, on,
+) => {
+  const w = await boot($, on, { rootFails: true })
+  expect(await pending($)).toBe(
+    'memory_pending failed (throw); nothing returned')
+  expect(w.logs.some(l => l.startsWith('memory: memory_pending hook')))
+    .toBe(true)
+})
+
+test('the tool never writes the store', async ($, on) => {
+  const w = await boot($, on, { files: REGS })
+  await pending($)
+  expect(w.sets).toEqual([])
 })

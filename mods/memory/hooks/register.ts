@@ -17,6 +17,7 @@ type State = {
 const SWITCH_FILE = '.claude/memory.json'
 const MAX_SWITCH_BYTES = 65536
 const TOOL = 'memory_pending'
+const SERVED_TOOL = 'mcp__memory__memory_pending'
 
 const MAX_REGEX_INPUT = 65536
 const PEM = '-----'
@@ -278,6 +279,194 @@ async function sweepStore($: Api, curKey: string, id: string): Promise<void> {
   }
 }
 
+// The registry error index: which captured failures a registry knows.
+const REGISTRIES = ['blockers.md', 'learnings.md']
+const MAX_REGISTRY = 4194304
+const MIN_SPAN = 12
+const GRAM_WORDS = 4
+const HEADING = /^## ((?:BLK|LRN)-\d+)\b.*$/gm
+const SPAN = /`([^`\n]+)`/g
+const STATUS = /^\s*-\s*\*\*Stat(?:us|ut)[^*]*\*\*\s*:?\s*([A-Za-z-]+)/gim
+
+type Entry = { id: string; body: string }
+
+/** Why a registry is not read, or `undefined` when it is readable. */
+async function skipReason($: Api, path: string): Promise<string | undefined> {
+  try {
+    const info = await $.fs.stat(path)
+    if (info.kind !== 'file') return 'not a file'
+    return info.size > MAX_REGISTRY ? 'over 4 MiB' : undefined
+  } catch {
+    return 'missing'
+  }
+}
+
+/** A registry's text; `''` when missing, not a file or over 4 MiB. */
+export async function readRegistry($: Api, path: string): Promise<string> {
+  if ((await skipReason($, path)) !== undefined) return ''
+  try {
+    return await $.fs.read(path)
+  } catch {
+    return ''
+  }
+}
+
+/** The BLK/LRN entries; a body runs from its heading to the next one. */
+export function entriesOf(text: string): Entry[] {
+  const heads = [...text.matchAll(HEADING)]
+  return heads.map((m, i) => ({
+    id: m[1] ?? '',
+    body: text.slice(m.index ?? 0, heads[i + 1]?.index ?? text.length),
+  }))
+}
+
+// shortcut: a lexical reader, not memory.sh's shared parser (that lives in
+// shell); upgrade = call the parser once the engine exposes a CLI run in
+// hooks.
+/** The last labelled status reads superseded; else the heading `[tag]`. */
+export function isSuperseded(body: string): boolean {
+  const last = [...body.matchAll(STATUS)].pop()
+  if (last !== undefined) return (last[1] ?? '').toLowerCase() === 'superseded'
+  return /\[superseded\]/i.test(body.split('\n', 1)[0] ?? '')
+}
+
+/** Every window of 4 words; a key of fewer words has none (always NEW). */
+export function grams(normLine: string): string[] {
+  const words = normLine.split(/[^a-z0-9<>#]+/).filter(Boolean)
+  if (words.length < GRAM_WORDS) return []
+  return words
+    .slice(0, words.length - GRAM_WORDS + 1)
+    .map((_, i) => words.slice(i, i + GRAM_WORDS).join(' '))
+}
+
+function spansOf(body: string): string[] {
+  return [...body.matchAll(SPAN)]
+    .map(m => m[1] ?? '')
+    .filter(span => span.length >= MIN_SPAN)
+}
+
+function indexEntry(index: Map<string, string>, entry: Entry): void {
+  if (isSuperseded(entry.body)) return
+  for (const span of spansOf(entry.body)) {
+    for (const gram of grams(normalize(span))) {
+      if (!index.has(gram)) index.set(gram, entry.id)
+    }
+  }
+}
+
+/** gram -> first ID, over the backticked spans of live entries. */
+export function buildIndex(texts: string[]): Map<string, string> {
+  const index = new Map<string, string>()
+  for (const text of texts) {
+    for (const entry of entriesOf(text)) indexEntry(index, entry)
+  }
+  return index
+}
+
+/** The registry ID of the first gram of `key` the index holds. */
+export function matchOf(
+  index: Map<string, string>,
+  key: string,
+): string | undefined {
+  for (const gram of grams(key)) {
+    const id = index.get(gram)
+    if (id !== undefined) return id
+  }
+  return undefined
+}
+
+type Registries = { index: Map<string, string>; note: string }
+
+async function loadIndex($: Api, root: string): Promise<Registries> {
+  const texts: string[] = []
+  const read: string[] = []
+  const skipped: string[] = []
+  for (const name of REGISTRIES) {
+    const path = `${root}/.claude/memory/${name}`
+    const why = await skipReason($, path)
+    if (why !== undefined) {
+      skipped.push(`${name} (${why})`)
+      continue
+    }
+    texts.push(await readRegistry($, path))
+    read.push(name)
+  }
+  const parts = [
+    read.length > 0 ? `read ${read.join(', ')}` : '',
+    skipped.length > 0 ? `skipped ${skipped.join(', ')}` : '',
+  ]
+  return {
+    index: buildIndex(texts),
+    note: `index: ${parts.filter(Boolean).join('; ')}`,
+  }
+}
+
+// The answer of memory_pending: data for the model, never executed.
+const ANSWER_CAP = 20000
+const EXCERPT_SHOWN = 300
+const OFF_TEXT = 'memory capture is off (~/.claude/memory.json)'
+const NOTHING_TEXT = 'memory_pending: nothing captured'
+
+type Row = { f: Failure; id: string | undefined; earlier: boolean }
+
+/** Current-session NEW, current-session known, then earlier sessions. */
+function rowsOf(p: Project, curId: string, index: Map<string, string>) {
+  const rows: Row[] = p.sessions.flatMap(s => s.failures.map(f => ({
+    f, id: matchOf(index, f.key), earlier: s.id !== curId,
+  })))
+  const rank = (r: Row) => (r.earlier ? 2 : r.id === undefined ? 0 : 1)
+  return rows.sort((a, b) => rank(a) - rank(b))
+}
+
+function failureText({ f, id, earlier }: Row): string {
+  const tag = id === undefined ? 'NEW' : `known ${id}`
+  const marks = (f.agent ? ' (sub-agent)' : '') +
+    (earlier ? ' (earlier session)' : '')
+  const head = `- ${tag} ×${f.count}${marks} ${f.line} — command: ${f.command}`
+  if (f.excerpt === '') return head
+  const shown = tail(f.excerpt, EXCERPT_SHOWN).replace(/\r?\n/g, '⏎')
+  return `${head}\n  excerpt: ${shown}`
+}
+
+function milestoneText(m: Milestone): string {
+  const hhmm = new Date(m.at).toISOString().slice(11, 16)
+  return `- ${m.kind} ${m.label} (${hhmm})`
+}
+
+/** The failure list within ANSWER_CAP; the rest is counted, not shown. */
+function capFailures(items: string[]): string[] {
+  const kept: string[] = []
+  let used = 0
+  for (const item of items) {
+    if (used + item.length + 1 > ANSWER_CAP) break
+    kept.push(item)
+    used += item.length + 1
+  }
+  const omitted = items.length - kept.length
+  return omitted > 0 ? [...kept, `… ${omitted} more failure(s) omitted`] : kept
+}
+
+export function formatPending(
+  root: string,
+  p: Project,
+  curId: string,
+  rx: Registries,
+): string {
+  const rows = rowsOf(p, curId, rx.index)
+  const ms = p.sessions.find(s => s.id === curId)?.milestones ?? []
+  if (rows.length === 0 && ms.length === 0) return NOTHING_TEXT
+  const name = root.split('/').filter(Boolean).pop() ?? root
+  const out = [`memory_pending (project ${name}, ${p.sessions.length} ` +
+    'session(s))', rx.note]
+  if (ms.length > 0) {
+    out.push('milestones (this session):', ...ms.map(milestoneText))
+  }
+  if (rows.length > 0) {
+    out.push('failures:', ...capFailures(rows.map(failureText)))
+  }
+  return out.join('\n')
+}
+
 /** Runs `job` after every earlier write; a failed link breaks nothing. */
 function queueWrite(st: State, job: () => Promise<void>): Promise<void> {
   const run = st.writes.then(job)
@@ -331,15 +520,21 @@ async function loadEnabled($: Api): Promise<boolean> {
   }
 }
 
-/** The tool the model calls to list the pending captures (body: later). */
+/** The tool the model calls to list the failures and milestones captured. */
 async function registerTool($: Api): Promise<void> {
   try {
     await $.tool.register({
       name: TOOL,
       description:
-        'List the failures and milestones captured in this project and ' +
-        'not yet written to the memory registries.',
-      inputSchema: { type: 'object', additionalProperties: false },
+        'Failures and milestones this mod captured in the current ' +
+        'project\'s recent sessions, each failure NEW or known <registry ' +
+        'ID>. Call it first in /capitalize and every CAPITALIZE step; it ' +
+        'never writes anything.',
+      inputSchema: {
+        type: 'object',
+        properties: {},
+        additionalProperties: false,
+      },
     })
   } catch {
     $.ui.log('memory: tool not registered')
@@ -356,6 +551,28 @@ async function ensureEnabled($: Api, st: State): Promise<boolean> {
   st.enabled = await loadEnabled($)
   if (st.enabled) await registerTool($)
   return st.enabled
+}
+
+/** The tool's answer; reads the store and the registries, writes nothing. */
+async function pendingAnswer($: Api, st: State): Promise<string> {
+  if (!(await ensureEnabled($, st))) return OFF_TEXT
+  const root = await $.session.root()
+  if (root === '') return 'memory_pending: no project root'
+  const id = await $.session.id()
+  await st.writes
+  const project = await loadProject($, root)
+  return formatPending(root, project, id, await loadIndex($, root))
+}
+
+function registerPending(on: On, st: State): void {
+  on('tool.call', { tool: SERVED_TOOL }, async $ => ({
+    result: await pendingAnswer($, st),
+  })).catch(($, _e, next) => {
+    warnOnce(st, $, 'memory_pending', next.error.kind)
+    return {
+      result: `memory_pending failed (${next.error.kind}); nothing returned`,
+    }
+  })
 }
 
 function registerSession(on: On, st: State): void {
@@ -426,5 +643,6 @@ export const register: Register = on => {
   const st = newState()
   registerSession(on, st)
   registerBash(on, st)
+  registerPending(on, st)
   registerPrompt(on, st)
 }
