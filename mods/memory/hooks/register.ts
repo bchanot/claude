@@ -503,12 +503,74 @@ function queueWrite(st: State, job: () => Promise<void>): Promise<void> {
 
 type Where = { root: string; id: string }
 
-async function recordFailure($: Api, at: Where, f: Failure): Promise<void> {
+/** Load, change the current session, save; sweeps when it is created. */
+async function mutateSession(
+  $: Api,
+  at: Where,
+  now: number,
+  change: (s: Session) => void,
+): Promise<void> {
   const p = await loadProject($, at.root)
   const created = !p.sessions.some(s => s.id === at.id)
-  addFailure(sessionOf(p, at.id, f.at), f)
+  change(sessionOf(p, at.id, now))
   await saveProject($, at.root, p)
   if (created) await sweepStore($, storeKey(at.root), at.id)
+}
+
+const recordFailure = ($: Api, at: Where, f: Failure) =>
+  mutateSession($, at, f.at, s => addFailure(s, f))
+
+// Milestones: a commit, a gitflow finish, a suite gone from red to green.
+// Regexes read at most 64 KiB of one command and use bounded repeats.
+const MAX_LABEL = 80
+const ENV_PREFIX = '(?:[A-Za-z_]\\w{0,60}=\\S{0,200}[ \\t]{1,5}){0,10}'
+const SUITE_SEGMENT = new RegExp(
+  `^${ENV_PREFIX}make\\b[^;&|]{0,1000}\\btest\\b`,
+)
+const COMMIT_SEGMENT = new RegExp(
+  `^${ENV_PREFIX}git(?:[ \\t]{1,5}-C[ \\t]{1,5}\\S{1,200})?` +
+    '[ \\t]{1,5}commit\\b',
+)
+const COMMIT_MESSAGE = new RegExp(
+  '-[a-z]{0,5}m[ \\t]{1,5}(["\']?)(feat|fix)(\\([^)\\n]{0,80}\\))?!?:' +
+    '[ \\t]{0,5}([^"\'\\n]{0,80})',
+)
+const FINISH = new RegExp(
+  '(?:^|[\\s;&|])(?:bash|sh)[ \\t]{1,5}\\S{0,200}gitflow\\.sh"?' +
+    '[ \\t]{1,5}finish\\b(?:[ \\t]{1,5}([a-z]{1,20})[ \\t]{1,5}' +
+    '([\\w./-]{1,60}))?',
+)
+const FINISH_CHORE = /\bfinish[ \t]{1,5}chore\b/
+
+/** The `;` `&&` `||` newline separated parts of a command. */
+export function segments(command: string): string[] {
+  return cap(command, MAX_REGEX_INPUT).split(/&&|\|\||;|\n/)
+    .map(s => s.trim())
+}
+
+const label = (text: string) => redact(text).slice(0, MAX_LABEL)
+
+/** The redacted, whitespace-normalized command when it runs a suite. */
+export function suiteKeyOf(command: string): string | undefined {
+  if (!segments(command).some(s => SUITE_SEGMENT.test(s))) return undefined
+  return redact(cap(command, MAX_REGEX_INPUT)).replace(/\s+/g, ' ').trim()
+    .slice(0, MAX_RED_LEN)
+}
+
+/** `<type><scope>: <subject>` of a feat/fix commit, else `undefined`. */
+export function commitLabel(command: string): string | undefined {
+  if (!segments(command).some(s => COMMIT_SEGMENT.test(s))) return undefined
+  const m = COMMIT_MESSAGE.exec(cap(command, MAX_REGEX_INPUT))
+  if (m === null) return undefined
+  return label(`${m[2]}${m[3] ?? ''}: ${(m[4] ?? '').trim()}`)
+}
+
+/** `<type> <name>` after a gitflow finish, `finish` alone, or undefined. */
+export function finishLabel(command: string): string | undefined {
+  const text = cap(command, MAX_REGEX_INPUT)
+  const m = FINISH.exec(text)
+  if (m === null || FINISH_CHORE.test(text)) return undefined
+  return m[1] === undefined ? 'finish' : label(`${m[1]} ${m[2]}`)
 }
 
 function newState(): State {
@@ -641,6 +703,90 @@ async function captureFailure(
   }
 }
 
+type BashEvent = {
+  command?: unknown
+  agentId?: unknown
+  run_in_background?: unknown
+}
+type BashOut = {
+  isError?: boolean
+  deny?: unknown
+  text?: string
+  result?: {
+    backgroundTaskId?: unknown
+    timedOutAfterMs?: unknown
+    interrupted?: unknown
+  }
+}
+
+/** A finished foreground command that was neither denied nor failed. */
+function isSuccess(e: BashEvent, out: BashOut): boolean {
+  const r = out.result
+  return out.isError !== true && out.deny === undefined &&
+    r?.backgroundTaskId === undefined && r?.timedOutAfterMs === undefined &&
+    r?.interrupted !== true && e.run_in_background !== true
+}
+
+/** The suite a failed command ran, remembered as red until it passes. */
+function recordRed($: Api, st: State, at: Where, key: string, now: number) {
+  return queueWrite(st, () => mutateSession($, at, now, s => {
+    if (!s.red.includes(key)) s.red = [...s.red, key]
+  }))
+}
+
+/** Commit and finish milestones of a success; green when the suite was red. */
+function recordSuccess(
+  $: Api,
+  st: State,
+  at: Where,
+  command: string,
+  now: number,
+): Promise<void> {
+  const found = [
+    ['commit', commitLabel(command)],
+    ['finish', finishLabel(command)],
+  ].filter((m): m is [Milestone['kind'], string] => m[1] !== undefined)
+  const key = suiteKeyOf(command)
+  return queueWrite(st, async () => {
+    const cur = (await loadProject($, at.root)).sessions
+      .find(s => s.id === at.id)
+    const green = key !== undefined && cur?.red.includes(key) === true
+    if (found.length === 0 && !green) return
+    const added = found.map(([kind, text]) => ({ kind, label: text, at: now }))
+    if (green) added.push({ kind: 'green', label: label(key), at: now })
+    await mutateSession($, at, now, s => {
+      s.milestones = [...s.milestones, ...added]
+      if (green) s.red = s.red.filter(r => r !== key)
+    })
+    st.pending.push(...added.map(m => `${m.kind} ${m.label}`))
+  })
+}
+
+/** Milestones of a main-loop Bash answer; never throws. */
+async function captureMilestones(
+  $: Api,
+  st: State,
+  at: Where,
+  e: BashEvent,
+  out: BashOut,
+): Promise<void> {
+  try {
+    if (e.agentId !== undefined) return
+    const command = String(e.command ?? '')
+    const now = await $.clock.now()
+    const key = suiteKeyOf(command)
+    if (out.isError === true) {
+      if (key !== undefined && EXIT_CODE.test(String(out.text ?? ''))) {
+        await recordRed($, st, at, key, now)
+      }
+    } else if (isSuccess(e, out)) {
+      await recordSuccess($, st, at, command, now)
+    }
+  } catch {
+    warnOnce(st, $, 'Bash milestones', 'store')
+  }
+}
+
 function registerBash(on: On, st: State): void {
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     if (!(await ensureEnabled($, st))) return next(e)
@@ -649,6 +795,7 @@ function registerBash(on: On, st: State): void {
     if (at.root === '') return next(e)
     const out = await next(e)
     await captureFailure($, st, at, e, out)
+    await captureMilestones($, st, at, e, out as BashOut)
     return out
   }).catch(($, e, next) => {
     warnOnce(st, $, 'Bash', next.error.kind)
@@ -656,10 +803,34 @@ function registerBash(on: On, st: State): void {
   })
 }
 
+/** Failures of the current session no registry entry knows. */
+async function newFailureCount($: Api, st: State, at: Where): Promise<number> {
+  await st.writes
+  const p = await loadProject($, at.root)
+  const { index } = await loadIndex($, at.root)
+  const cur = p.sessions.find(s => s.id === at.id)
+  return (cur?.failures ?? []).filter(isFailure)
+    .filter(f => matchOf(index, f.key) === undefined).length
+}
+
+/** The note for the oldest unnoted milestone; clears what it covers. */
+async function noteFor($: Api, st: State, at: Where): Promise<string> {
+  const first = st.pending[0] ?? ''
+  st.pending = []
+  const n = await newFailureCount($, st, at)
+  return `memory: ${first} \u2014 ${n} new failure mode(s) this session;` +
+    ' /capitalize when ready.'
+}
+
 function registerPrompt(on: On, st: State): void {
   on('prompt.submit', async ($, e, next) => {
-    await ensureEnabled($, st)
-    return next(e)
+    if (!(await ensureEnabled($, st))) return next(e)
+    const mine = e.origin.kind === 'composer' && e.turnId === undefined
+    if (!mine || st.pending.length === 0) return next(e)
+    const at = { root: await $.session.root(), id: await $.session.id() }
+    if (at.root === '') return next(e)
+    const note = await noteFor($, st, at)
+    return next({ ...e, context: [...(e.context ?? []), note] })
   }).catch(($, e, next) => {
     warnOnce(st, $, 'prompt.submit', next.error.kind)
     return next(e)

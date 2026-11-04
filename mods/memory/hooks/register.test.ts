@@ -4,6 +4,7 @@ import type { On } from 'claude-code'
 import {
   cap, tail, redact, normalize, failureLine, sessionOf, addFailure,
   entriesOf, isSuperseded, grams, buildIndex, matchOf,
+  segments, suiteKeyOf, commitLabel, finishLabel,
 } from './register'
 
 const HOME = '/home/t'
@@ -838,4 +839,286 @@ test('a throwing exists probe names the registry, keeps the other', async (
   expect(text).toContain(
     'index: read learnings.md; skipped blockers.md (unreadable)')
   expect(text).toContain('- known LRN-002 \u00d71')
+})
+
+// Task 5: milestones and the one-line note.
+type Stored = {
+  milestones: { kind: string; label: string; at: number }[]
+  red: string[]
+}
+const stored = (w: World): Stored =>
+  (projectOf(w)?.sessions[0] ?? { milestones: [], red: [] }) as
+    unknown as Stored
+const kinds = (w: World) => stored(w).milestones.map(m => m.kind)
+const labels = (w: World) => stored(w).milestones.map(m => m.label)
+
+const OK = { result: { stdout: 'ok', stderr: '' } }
+const RED = { result: { stdout: '', stderr: '' }, isError: true,
+  text: 'Exit code 2\nmake: *** [test] Error 1' }
+const FINISH_CMD = 'bash "$HOME/.claude/lib/gitflow.sh" finish'
+
+/** Bash calls whose answer is `answer`, one command at a time. */
+async function run(
+  $: Engine, w: World, command: string, answer: unknown = OK,
+): Promise<void> {
+  w.answer = answer
+  await bash($, command)
+}
+
+test('segments splits on && || ; and newline', () => {
+  expect(segments('a && b||c;d\ne')).toEqual(['a', 'b', 'c', 'd', 'e'])
+})
+
+test('suiteKeyOf: a make test segment, never a mention', () => {
+  expect(suiteKeyOf('cd x &&  make   test suite=a'))
+    .toBe('cd x && make test suite=a')
+  expect(suiteKeyOf('grep "make test" notes.md')).toBeUndefined()
+  expect(suiteKeyOf('make build')).toBeUndefined()
+  expect(suiteKeyOf('X_TOKEN=abc make test'))
+    .toBe('X_TOKEN=<redacted> make test')
+})
+
+test('commitLabel: feat and fix only, any segment, -am and env', () => {
+  expect(commitLabel('git add a && git commit -m "fix(x): y"'))
+    .toBe('fix(x): y')
+  expect(commitLabel("git -C /r commit -qm 'feat!: big one'"))
+    .toBe('feat: big one')
+  expect(commitLabel('A=1 git commit -am "feat: z"')).toBe('feat: z')
+  expect(commitLabel('git commit -m "chore: z"')).toBeUndefined()
+  expect(commitLabel('echo git commit -m "fix: z"')).toBeUndefined()
+  expect(commitLabel('git commit -m "fix: ' + 'w'.repeat(200) + '"'))
+    .toBe('fix: ' + 'w'.repeat(75))
+})
+
+test('finishLabel: type and name, bare finish, chore excluded', () => {
+  expect(finishLabel(FINISH_CMD)).toBe('finish')
+  expect(finishLabel('bash ~/.claude/lib/gitflow.sh finish feature x'))
+    .toBe('feature x')
+  expect(finishLabel('bash ~/.claude/lib/gitflow.sh finish chore x'))
+    .toBeUndefined()
+  expect(finishLabel('echo gitflow.sh finish')).toBeUndefined()
+})
+
+test('MS1: a fix commit success stores one commit milestone', async (
+  $, on,
+) => {
+  const w = await boot($, on)
+  await run($, w, 'git add a && git commit -m "fix(x): y"')
+  expect(kinds(w)).toEqual(['commit'])
+  expect(labels(w)).toEqual(['fix(x): y'])
+  expect(stored(w).milestones[0]?.at).toBe(w.clock.now())
+})
+
+test('MS2: a chore commit stores nothing', async ($, on) => {
+  const w = await boot($, on)
+  await run($, w, 'git commit -m "chore: z"')
+  expect(w.kv.size).toBe(0)
+})
+
+test('MS3 MS4: finish stores a milestone, finish chore none', async (
+  $, on,
+) => {
+  const w = await boot($, on)
+  await run($, w, 'bash ~/.claude/lib/gitflow.sh finish chore x')
+  expect(w.kv.size).toBe(0)
+  await run($, w, FINISH_CMD)
+  expect(kinds(w)).toEqual(['finish'])
+  expect(labels(w)).toEqual(['finish'])
+})
+
+test('MS5: red then green gives one green; green alone none', async (
+  $, on,
+) => {
+  const w = await boot($, on)
+  await run($, w, 'make test suite=a')
+  expect(w.kv.size).toBe(0)
+  await run($, w, 'make test suite=a', RED)
+  expect(stored(w).red).toEqual(['make test suite=a'])
+  await run($, w, 'make test suite=a')
+  expect(kinds(w)).toEqual(['green'])
+  expect(labels(w)).toEqual(['make test suite=a'])
+  expect(stored(w).red).toEqual([])
+  await run($, w, 'make test suite=a')
+  expect(kinds(w)).toEqual(['green'])
+})
+
+test('MS5b: a red of another suite does not turn green', async ($, on) => {
+  const w = await boot($, on)
+  await run($, w, 'make test suite=a', RED)
+  await run($, w, 'make test suite=b')
+  expect(kinds(w)).toEqual([])
+})
+
+test('MS6: a sub-agent commit and red store no milestone', async (
+  $, on,
+) => {
+  const w = await boot($, on)
+  w.answer = OK
+  await $.tool.call({ tool: 'Bash', command: 'git commit -m "fix: a"',
+    agentId: 'a1' })
+  w.answer = RED
+  await $.tool.call({ tool: 'Bash', command: 'make test', agentId: 'a1' })
+  expect(stored(w).red).toEqual([])
+  expect(kinds(w)).toEqual([])
+})
+
+test('a backgrounded, timed out or interrupted run is no success', async (
+  $, on,
+) => {
+  const w = await boot($, on)
+  await run($, w, 'make test', RED)
+  for (const result of [{ backgroundTaskId: 'b1' }, { timedOutAfterMs: 9 },
+    { interrupted: true }]) {
+    await run($, w, 'make test', { result: { stdout: '', ...result } })
+  }
+  w.answer = OK
+  await $.tool.call({ tool: 'Bash', command: 'make test',
+    run_in_background: true })
+  expect(kinds(w)).toEqual([])
+  await run($, w, 'make test')
+  expect(kinds(w)).toEqual(['green'])
+})
+
+test('a deny answer on a commit stores no milestone', async ($, on) => {
+  const w = await boot($, on)
+  await run($, w, 'git commit -m "fix: a"', { deny: 'blocked' })
+  expect(kinds(w)).toEqual([])
+})
+
+test('a red key is stored redacted', async ($, on) => {
+  const w = await boot($, on)
+  await run($, w, 'X_TOKEN=abc make test', RED)
+  expect(stored(w).red).toEqual(['X_TOKEN=<redacted> make test'])
+})
+
+test('a commit label is stored redacted', async ($, on) => {
+  const w = await boot($, on)
+  await run($, w, `git commit -m "fix: ${'sk_live_' + 'a'.repeat(12)}"`)
+  expect(labels(w)).toEqual(['fix: <redacted:stripe>'])
+})
+
+test('a red answer without Exit code is no red', async ($, on) => {
+  const w = await boot($, on)
+  await run($, w, 'make test', { ...RED, text: 'denied by a guard' })
+  expect(w.kv.size).toBe(0)
+})
+
+test('milestones keep 20, red keeps 10 of 300 chars', async ($, on) => {
+  const w = await boot($, on)
+  for (let i = 0; i < 22; i++) {
+    await run($, w, `git commit -m "fix: n${i}"`)
+  }
+  expect(labels(w)).toHaveLength(20)
+  expect(labels(w)[0]).toBe('fix: n2')
+  for (let i = 0; i < 12; i++) {
+    await run($, w, `make test suite=${i}`, RED)
+  }
+  expect(stored(w).red).toHaveLength(10)
+  await run($, w, `make test ${'x'.repeat(400)}`, RED)
+  expect(stored(w).red.at(-1)).toHaveLength(300)
+})
+
+test('a stored commit milestone shows in the memory_pending answer', async (
+  $, on,
+) => {
+  const w = await boot($, on)
+  await run($, w, 'git commit -m "fix(x): y"')
+  expect(await pending($)).toBe([
+    'memory_pending (project app, 1 session(s))',
+    'index: skipped blockers.md (missing), learnings.md (missing)',
+    'milestones (this session):',
+    '- commit fix(x): y (00:00)',
+  ].join('\n'))
+})
+
+/** Boots with a bottom prompt hook that records the context it gets. */
+async function bootNotes(
+  $: Engine, on: On, o: Opts = {},
+): Promise<{ w: World; seen: (readonly string[] | undefined)[] }> {
+  const seen: (readonly string[] | undefined)[] = []
+  on('prompt.submit', (_a, e) => {
+    seen.push(e.context)
+    return { text: e.text }
+  })
+  return { w: await boot($, on, o), seen }
+}
+
+const composer = ($: Engine, turnId?: string) => $.prompt.submit({
+  text: 'next', wait: turnId !== undefined, origin: { kind: 'composer' },
+  ...(turnId === undefined ? {} : { turnId }),
+})
+
+test('NT1 NT2: one note after a milestone, none after', async ($, on) => {
+  const { w, seen } = await bootNotes($, on)
+  await failing($, w, EXIT1 + 'fatal: bad thing', 'git push')
+  await run($, w, 'git commit -m "fix(x): y"')
+  await composer($)
+  expect(seen).toEqual([[
+    'memory: commit fix(x): y \u2014 1 new failure mode(s) this session;' +
+      ' /capitalize when ready.',
+  ]])
+  await composer($)
+  expect(seen[1]).toBeUndefined()
+})
+
+test('NT1b: a known failure is not counted as new', async ($, on) => {
+  const { w, seen } = await bootNotes($, on, { files: REGS })
+  await failing($, w, EXIT1 + 'fatal: unable to access remote host', 'git')
+  await run($, w, 'git commit -m "fix: y"')
+  await composer($)
+  expect(seen[0]?.[0]).toContain('\u2014 0 new failure mode(s)')
+})
+
+test('NT3: a mid-turn prompt gets no note and keeps the milestone', async (
+  $, on,
+) => {
+  const { w, seen } = await bootNotes($, on)
+  await run($, w, 'git commit -m "fix: y"')
+  await composer($, 'u1')
+  expect(seen[0]).toBeUndefined()
+  await composer($)
+  expect(seen[1]).toHaveLength(1)
+})
+
+test('NT4: no milestone, no context added', async ($, on) => {
+  const { seen } = await bootNotes($, on)
+  await composer($)
+  expect(seen).toEqual([undefined])
+})
+
+test('a prompt that is not from the composer gets no note', async (
+  $, on,
+) => {
+  const { w, seen } = await bootNotes($, on)
+  await run($, w, 'git commit -m "fix: y"')
+  await $.prompt.submit({ text: 'x', wait: false, origin: { kind: 'sdk' } })
+  expect(seen[0]).toBeUndefined()
+  await composer($)
+  expect(seen[1]).toHaveLength(1)
+})
+
+test('an existing context is kept and the note appended', async ($, on) => {
+  const { w, seen } = await bootNotes($, on)
+  await run($, w, 'git commit -m "fix: y"')
+  await $.prompt.submit({ text: 'x', wait: false, context: ['keep'],
+    origin: { kind: 'composer' } })
+  expect(seen[0]?.[0]).toBe('keep')
+  expect(seen[0]).toHaveLength(2)
+})
+
+test('session.end drops the unnoted milestones', async ($, on) => {
+  const { w, seen } = await bootNotes($, on)
+  await run($, w, 'git commit -m "fix: y"')
+  await endSession($)
+  await composer($)
+  expect(seen[0]).toBeUndefined()
+})
+
+test('MTOFF: switched off, no milestone and no note', async ($, on) => {
+  const { w, seen } = await bootNotes($, on,
+    { switchText: '{"enabled": false}' })
+  await run($, w, 'git commit -m "fix: y"')
+  await composer($)
+  expect(w.kv.size).toBe(0)
+  expect(seen[0]).toBeUndefined()
 })
