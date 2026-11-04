@@ -23,6 +23,7 @@ Brainstorm answers `[gated 2026-11-03]` (user: "oui" to recommendations 1-8):
 6. Redaction: TS pattern set = `KEY=value` for TOKEN|API_KEY|SECRET|PASSWORD|PASSWD, the 7 /guardrails SECRET_PATTERNS, `Bearer` tokens, URLs with `user:pass@`; 40-hex SHAs kept; no gitleaks call.
 7. Consumers: /capitalize, /close and CAPITALIZE steps call it first; /commit-change calls it before dispatching commit-changer and passes the result; /hotfix stays silent unless the tool returns a new failure.
 8. The tool stays deferred like `route`; skills load it with `ToolSearch` once per session.
+2-amended `[gated 2026-11-04]` (noise gate, plan Task 7 step 3; user: option A): the distinctive line must hold an error-shaped word, matched case-insensitive on the redacted line by `error|fatal|cannot|can't|no such|not found|denied|failed|failure|unexpected|invalid|exception|traceback|panic|usage:|SC\d{4}|> \d+|assert`; a line without one is no line and the failure is dropped (same treatment as a letterless line). Measured on 14 days of transcripts (NOISE.md): 83 % noise on the shipped rule, every useful sample kept by the filter, 81 → 27 captures. Options B (no sub-agent capture) and C (ship as is) declined.
 
 ## ACCEPTANCE CRITERIA (seed, enriched at STEP 3 `[gated]`)
 1. A mod captures failures (scope decided at the brainstorm) as entries {normalized line, verbatim excerpt, command, tool, time}, redacted BEFORE storage, in a bounded store layout decided at the brainstorm (entries per session, bytes per entry, eviction of stale sessions, total under the 4 MiB `$.store` cap).
@@ -56,6 +57,10 @@ STEP 3 gate `[gated 2026-11-04]` (user: "oui aux deux, lance"): plan r3 (`docs/s
 14. `[gated 2026-11-04]` Whole branch: `make test` all suites green and shellcheck clean on the health stack; settings.json untouched by the branch.
    CHECK: cd /home/bchanot/Documents/claude && t=$(make test 2>&1) && printf '%s\n' "$t" | /usr/bin/grep -q 'all suites green' && shellcheck ./*.sh hooks/*.sh lib/*.sh && [ -z "$(git diff develop...HEAD --stat -- settings.json)" ] && echo BRANCH-OK
    EXPECT: BRANCH-OK
+   EVIDENCE: pending
+15. `[gated 2026-11-04]` Error-shaped line filter (answer 2-amended): `register.ts` holds the `ERRORISH` pattern, `register.test.ts` holds `CAP11` (an `Exit code 1` whose last line is `rc=0` stores nothing; `ls: cannot access` and `unexpected EOF while looking for matching` lines are stored), the mods suite is green.
+   CHECK: cd /home/bchanot/Documents/claude && /usr/bin/grep -q 'ERRORISH' mods/memory/hooks/register.ts && /usr/bin/grep -q 'CAP11' mods/memory/hooks/register.test.ts && a=$(make test suite=lib/tests/mods.test.sh 2>&1) && printf '%s\n' "$a" | /usr/bin/grep -q 'all suites green' && echo ERRORISH-OK
+   EXPECT: ERRORISH-OK
    EVIDENCE: pending
 
 ## FILE SCOPE (final, STEP 3 `[gated 2026-11-04]`)
