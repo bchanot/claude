@@ -104,7 +104,8 @@ AskUserQuestion:
   uncommitted for a later run.
 - `edit <n>` → re-dispatch `commit-changer` with `MODE: propose` and the
   user's correction for step N folded into the prompt (plus the "Captured
-  this session" block, as in STEP 1), so all grouping /
+  this session" block: reuse the same captured block from STEP 1, do not
+  call the tool again), so all grouping /
   message judgment stays on the dispatched propose mode (`model="opus"`,
   BDR-077 — never redrawn inline on the session model); show the redrawn
   plan and re-ask.
