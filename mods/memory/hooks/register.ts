@@ -128,8 +128,8 @@ const RTK_TRAILER =
 /**
  * The line that tells what failed, from an already redacted answer: the
  * last line after the first of an `Exit code N` text. `undefined` when the
- * text is another kind, has no such line, the line holds no letter, or the
- * redacted line is not error-shaped (`ERRORISH`); no earlier line is tried.
+ * text is another kind, has no such line, or the redacted line is not
+ * error-shaped (`ERRORISH`); no earlier line is tried.
  */
 export function failureLine(text: string): string | undefined {
   if (!EXIT_CODE.test(text)) return undefined
@@ -138,8 +138,6 @@ export function failureLine(text: string): string | undefined {
     .filter(l => l !== '')
   if (lines.length < 2) return undefined
   const line = (lines[lines.length - 1] ?? '').slice(0, MAX_LINE)
-  const letters = normalize(line).replace(/<path>|<hex>|#/g, '')
-  if (!/\p{L}/u.test(letters)) return undefined
   return ERRORISH.test(line) ? line : undefined
 }
 

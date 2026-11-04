@@ -285,6 +285,7 @@ test('failureLine: the last line after the first, trailers stripped', () => {
   expect(failureLine('Exit code 1')).toBeUndefined()
   expect(failureLine('boom\nfatal: x')).toBeUndefined()
   expect(failureLine(EXIT1 + '/tmp/a/b 12 deadbeef1')).toBeUndefined()
+  expect(failureLine(EXIT1 + 'FATAL: disk full')).toBe('FATAL: disk full')
 })
 
 test('CAP1: a failed command stores one failure with its line', async (
@@ -307,7 +308,7 @@ test('CAP2: Exit code alone stores nothing', async ($, on) => {
   expect(w.sets).toEqual([])
 })
 
-test('CAP3: excluded texts and a letterless line store nothing', async (
+test('CAP3: excluded texts and a no-error-word line store nothing', async (
   $, on,
 ) => {
   const w = await boot($, on)
@@ -327,6 +328,7 @@ test('CAP11: a last line that is not error-shaped stores nothing', async (
 ) => {
   const w = await boot($, on)
   await failing($, w, EXIT1 + 'rc=0')
+  await failing($, w, EXIT1 + 'error x\nrc=0')
   await failing($, w, EXIT1 + '== before')
   expect(w.sets).toEqual([])
 })
@@ -341,6 +343,10 @@ test('CAP11: error-shaped last lines are stored, line literal', async (
     'https://www.shellcheck.net/wiki/SC2016 -- ' +
       "Expressions don't expand in singl...",
     'doctor.sh: 4 added lines > 80',
+    'FATAL: disk full',
+    "can't open",
+    'assertion failed: assert x',
+    'permission denied',
   ]
   for (const line of lines) await failing($, w, 'Exit code 2\n' + line)
   expect(failuresOf(w).map(f => f.line)).toEqual(lines)
