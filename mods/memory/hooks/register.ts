@@ -25,8 +25,11 @@ const PEM_KIND = '(?:[A-Z]+ )?PRIVATE KEY'
 // Redaction patterns, applied in order. Repeats are bounded where the
 // input is free text, so no pattern can run away on a 64 KiB input.
 const REDACTIONS: [RegExp, string][] = [
-  [/\b([A-Za-z_]*(?:TOKEN|API_KEY|SECRET|PASSWORD|PASSWD)[A-Za-z_]*)=\S+/gi,
-    '$1=<redacted>'],
+  [new RegExp(
+    '\\b([A-Za-z_]{0,60}(?:TOKEN|API_KEY|SECRET|PASSWORD|PASSWD)' +
+      '[A-Za-z_]{0,60})=\\S+',
+    'gi',
+  ), '$1=<redacted>'],
   [/sk_live_[0-9A-Za-z]{10,}/g, '<redacted:stripe>'],
   [/AKIA[0-9A-Z]{16}/g, '<redacted:aws>'],
   [/gh[pousr]_[A-Za-z0-9]{30,}/g, '<redacted:github>'],

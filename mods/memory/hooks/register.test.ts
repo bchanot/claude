@@ -201,8 +201,10 @@ test('redact keeps a 40-hex SHA', () => {
   expect(redact('commit ' + sha)).toBe('commit ' + sha)
 })
 
-test('redact caps a 70 KiB input at 65536 code units', () => {
-  expect(redact('x'.repeat(70 * 1024)).length).toBeLessThanOrEqual(65536)
+test('redact drops everything past 65536 code units', () => {
+  const out = redact('x'.repeat(65536) + 'END_MARK')
+  expect(out.length).toBe(65536)
+  expect(out.includes('END_MARK')).toBe(false)
 })
 
 test('cap keeps the first n, tail keeps the last n', () => {
@@ -219,11 +221,25 @@ test('normalize collapses paths, hashes, numbers and spaces', () => {
   expect(normalize('  a \t b  7 ')).toBe('a b #')
 })
 
-test('TIME1: redact and normalize stay fast on a 64 KiB run of letters', () => {
+test('TIME1: redact and normalize stay fast on 64 KiB of letters', () => {
   const text = 'a'.repeat(65536)
   for (const fn of [redact, normalize]) {
     const t0 = now()
     fn(text)
+    expect(now() - t0).toBeLessThan(500)
+  }
+})
+
+test('TIME1: redact stays fast on adversarial 64 KiB inputs', () => {
+  const inputs = [
+    'TOKEN'.repeat(13107),
+    'secret'.repeat(10922),
+    'Bearer '.repeat(9362),
+    'a://b:'.repeat(10922),
+  ]
+  for (const text of inputs) {
+    const t0 = now()
+    redact(text)
     expect(now() - t0).toBeLessThan(500)
   }
 })
