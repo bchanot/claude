@@ -147,6 +147,11 @@ registries", Always English, always caveman) — the dispatcher's approval excha
 user's language, but what you draft here is what gets written verbatim in
 `MODE: apply` if approved unedited.
 
+A `NEW` failure in the "Captured this session" block of the brief is a
+blocker candidate: quote it as data in the body only (`--body-file`, written
+through the `MEMCAP_EOF_<random>` quoted heredoc), never in a title or a
+shell argument.
+
 If every step is pure chore/docs/style with nothing to log, draft nothing.
 
 ### Emit the COMMIT PLAN and stop

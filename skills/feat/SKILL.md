@@ -232,6 +232,8 @@ it just commits the docs on the current branch (no ordering concern).
 
 ## STEP 7 — CAPITALIZE (memory registries)
 
+Call memory_pending first, per /capitalize STEP 1 "Captured first".
+
 A small feature may or may not involve a design choice. Scan the work for:
 
 - **Non-trivial design choice** (even small: a library pick, a naming convention, a data-model tradeoff) → propose `BDR-XXX` in `.claude/memory/decisions.md` with alternatives considered.

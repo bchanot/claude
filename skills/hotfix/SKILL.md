@@ -229,6 +229,10 @@ Hotfixes are often trivial (typo, config, import) — skip by default. But if th
 - Bug that cost real time to locate despite being "superficial" → propose `BLK-XXX` in `.claude/memory/blockers.md` (status: resolved).
 
 Default behaviour: `CAPITALIZE: hotfix trivial, skip` (no prompt, no output).
+Exception: call memory_pending first (per /capitalize STEP 1 "Captured
+first"); tool unavailable → the default behaviour above. When it returns a
+NEW failure of the current session not marked (sub-agent), propose one
+blocker draft per such failure through the same gate.
 Ask the user only when there is an actual candidate to propose.
 
 Always append a 1-line journal entry (even trivial hotfix — journal is timeline, not signal) and any approved BLK/LRN per `lib/capitalize-commit.md` § WRITE.

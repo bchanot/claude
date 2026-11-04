@@ -686,3 +686,9 @@ rules:
 - phase 5 profiles+packs shipped on feature/phase5-profiles-packs (13 tasks SDD, 3-lens challenge, gates MET/CONFORME/PASS after 3 passes): 9 packs, 9 profile fragments, profile.sh one-jq current --plain, cc <name> [profile], census; BDR-134, LRN-248..253, BLK-039/040, EVAL-054; TODO: router ask-before-Fable queued
 - BDR-125 re-verification (gates x5, 31 SHAs, reconcile engine): 0 code defect, 5 done-but-open ticks → chore/todo-reconcile-bdr125 e58a617 (merge on signal); EVAL-055, LRN-255. /feat router-ask-tier (feature/router-ask-tier): plan r1 FATAL x2 → r3, feater 28 TIER tests, GATE 0 MET, verifier CONFORME 11/11, security PASS (1 LOW fixed); 9a24a62 + docs 789fd00; BDR-135, LRN-254. Merge on signal. Next: phase 2 guards via /ship-feature.
 - Phase 2 guards (feature/phase2-guards): bench 16 ask + 7 deny approved (quoted finish rule, gitflow_finish*, bash -s* not), rtk rc 3 passthrough, router write guard (skill latch), code-limits hook, settings via index, release finish in main loop. Plan r1 FATAL x2 → r3; SDD 11 tasks; final review fix wave; gates: verifier ECARTS → human rulings (16 replaces 11, criteria 1/5/7 amended, USAGE in scope), security PASS (MEDIUM rtk read -n .env queued). BDR-136, LRN-256/257, EVAL-056, BLK-018 resolved. Merge on user signal; /close click after merge.
+
+## 2026-11-03
+- Phase 3 closed, not built (user /context 2026-11-03: full 40k, dev 38.4k, web 40k; connector instr have a native lever, jit-subtractable doctrine ~1-2k). dev System tools 11.5k vs 7.6k full: tool-search threshold suspected, queued. Phase 2 merged 29624d7. Next: phase 4b capture on feature/memory-capture.
+
+## 2026-11-04
+- 2026-11-04 — 4b memory capture built on feature/memory-capture (mod, consumers, docs, noise 83 % → errorish filter; GATE 0 MET, verifier ECARTS(1) interactive half, security PASS ×3); interactive note check + merge pending user; 4c next.

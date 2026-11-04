@@ -254,6 +254,8 @@ craft review is dispatched judgment, never inherited from the session. Fix
 all CRITICAL before proceeding.
 
 ## STEP 7 — CAPITALIZE (memory registries)
+Call memory_pending first, per /capitalize STEP 1 "Captured first".
+
 Feature shipped implies at least one design decision worth capturing. Run this BEFORE STEP 9 FINISH — the implementation commits (STEP 4) already exist, so the entries' hash references are valid, and the memory commit lands on the branch that FINISH integrates (otherwise it strands outside the PR):
 
 1. Scan conversation context for:

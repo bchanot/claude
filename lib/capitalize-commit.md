@@ -34,7 +34,10 @@ tune it there.
 Registry entries and journal lines are written only by `lib/memory.sh`,
 never by Edit or append; there is no `## Index` to update. Every verb takes
 `-C <project root>` when the cwd is not the project root; it `cd`s first, so
-give `--body-file` an absolute path.
+give `--body-file` an absolute path. Captured text (memory_pending lines,
+commands, excerpts) goes into the body file only, written through a quoted
+heredoc with a unique delimiter (`MEMCAP_EOF_<random>`), never `echo`/`printf`,
+never a shell argument.
 
 - Entry: caveman body to a scratch file, then
   `bash "$HOME/.claude/lib/memory.sh" [-C <project root>] add
