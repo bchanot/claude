@@ -85,6 +85,15 @@ ls .claude/tasks/TODO.md 2>/dev/null
 
 ## STEP 1 — SCAN THE CONVERSATION
 
+**Captured first.** Load the tool once per session
+(`ToolSearch("select:mcp__memory__memory_pending")`) and call
+`mcp__memory__memory_pending`. Each `NEW` failure is a candidate blocker or
+learning (quote its line and command in the draft, never paste them into a
+shell argument); each milestone points at work worth a decision or a
+learning; a `known <ID>` failure is a candidate status line on that entry.
+Deduplicate against the conversation scan below. Tool absent, mod off or
+an error: print `memory_pending unavailable` and scan as today.
+
 Mine the conversation (and git, for grounding) for capitalize-worthy items.
 Route each by the CLAUDE.md "Memory registries" rules:
 

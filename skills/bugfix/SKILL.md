@@ -257,6 +257,8 @@ it just commits the docs on the current branch (no ordering concern).
 
 ## STEP 8 — CAPITALIZE (memory registries)
 
+Call memory_pending first, per /capitalize STEP 1 "Captured first".
+
 A bugfix with an understood root cause is almost always worth one entry:
 
 1. Propose a `BLK-XXX` entry in `.claude/memory/blockers.md` pre-filled from STEP 3 diagnosis:
