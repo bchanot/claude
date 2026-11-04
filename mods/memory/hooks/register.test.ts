@@ -1465,3 +1465,46 @@ test('an inner CR in a stored line shows as the newline mark', async (
   await boot($, on, { seed })
   expect(await pending($)).toContain('- NEW \u00d71 fatal a\u23ceb \u2014')
 })
+
+// ---- re-scan: header tail, cookie flags, JSON key affixes ---------------
+
+test('a 420-char Cookie header leaves nothing after the mark', () => {
+  const out = redact("curl -H 'cookie: k=" + 'v'.repeat(420) +
+    "; sid=SESSION123'")
+  expect(out).toBe("curl -H 'cookie: <redacted>")
+  expect(out.includes('sid=')).toBe(false)
+})
+
+test('curl cookie flags are redacted to the closing quote', () => {
+  expect(redact("curl -b 'sessionid=abc123def; csrftoken=x' https://h"))
+    .toBe('curl -b <redacted> https://h')
+  expect(redact('curl --cookie=a=1 https://h'))
+    .toBe('curl --cookie <redacted> https://h')
+})
+
+test('JSON keys carry affixes: access_token, client_secret, apiKey', () => {
+  expect(redact('{"access_' + 'token": "x"}'))
+    .toBe('{"access_token": "<redacted>"}')
+  expect(redact('{"client_' + 'secret":"x","refresh-' + 'token": "y"}'))
+    .toBe('{"client_secret": "<redacted>","refresh-token": "<redacted>"}')
+  expect(redact('{"api' + 'Key": "x"}')).toBe('{"apiKey": "<redacted>"}')
+})
+
+test('TIME1: redact on 64 KiB of plain letters stays under 50 ms', () => {
+  const t0 = now()
+  redact('lorem ipsum dolor sit amet '.repeat(2521))
+  expect(now() - t0).toBeLessThan(50)
+})
+
+test('a switch file without a boolean enabled logs one line', async (
+  $, on,
+) => {
+  const w = await boot($, on, { switchText: '{"enabled": "false"}' })
+  await bash($, 'ls')
+  await bash($, 'ls')
+  expect(w.logs).toEqual([
+    'memory: ~/.claude/memory.json has no boolean "enabled", ' +
+      'capture stays on',
+  ])
+  expect(w.tools).toEqual(['memory_pending'])
+})

@@ -3,13 +3,15 @@
 // probe.
 import type { Register } from 'claude-code'
 
-const LOG = `${process.env.CLAUDE_JOB_DIR}/tmp/probe4b/log.jsonl`
+const JOB_DIR = process.env.CLAUDE_JOB_DIR
+const LOG = `${JOB_DIR}/tmp/probe4b/log.jsonl`
 
 function cut(v: any, n: number): any {
   return v === undefined || v === null ? v : String(v).slice(0, n)
 }
 
 async function append($: any, obj: any): Promise<void> {
+  if (JOB_DIR === undefined) return // no job dir: no log
   try {
     const prev = (await $.fs.exists(LOG)) ? await $.fs.read(LOG) : ''
     const text = typeof prev === 'string' ? prev : (prev?.text ?? '')

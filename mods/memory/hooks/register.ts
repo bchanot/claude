@@ -20,13 +20,20 @@ const TOOL = 'memory_pending'
 const SERVED_TOOL = 'mcp__memory__memory_pending'
 const SWITCH_UNREADABLE =
   'memory: ~/.claude/memory.json unreadable, capture stays on'
+const SWITCH_INVALID =
+  'memory: ~/.claude/memory.json has no boolean "enabled", capture stays on'
 
 const MAX_REGEX_INPUT = 65536
 const PEM = '-----'
 const PEM_KIND = '(?:[A-Z]+ )?PRIVATE KEY'
 // a value: a quoted string up to its closing quote, else up to a space
 const VALUE = '("[^"\\n]{0,400}"|\'[^\'\\n]{0,400}\'|\\S+)'
-const SECRET_KEY = '(?:password|token|secret|api_key)'
+const SECRET_KEY = '(?:password|token|secret|api_?key)'
+// the JSON key may hold `-`; the bare pair key may not (a `-` run would
+// make every word start rescan 60 characters)
+const keyWord = (cls: string) => `${cls}{0,60}${SECRET_KEY}${cls}{0,60}`
+const JSON_KEY = keyWord('[A-Za-z0-9_-]')
+const PAIR_KEY = keyWord('[A-Za-z0-9_]')
 
 // Redaction patterns, applied in order: the JWT shape first (so a secret
 // named variable still ends as `NAME=<redacted>` through pattern 1, and any
@@ -42,6 +49,9 @@ const REDACTIONS: [RegExp, string][] = [
       '\\.[A-Za-z0-9_-]{8,}',
     'g',
   ), '<redacted:jwt>'],
+  // before pattern 1: a cookie jar `k=v; token=x` is one value
+  [new RegExp(`(?<=^|\\s)(-b|--cookie)(?:=|[ \\t]{1,5})${VALUE}`, 'g'),
+    '$1 <redacted>'],
   [new RegExp(
     '\\b([A-Za-z0-9_]{0,60}(?:TOKEN|API_KEY|SECRET|PASSWORD|PASSWD)' +
       '[A-Za-z0-9_]{0,60})=' + VALUE,
@@ -59,7 +69,8 @@ const REDACTIONS: [RegExp, string][] = [
     'g',
   ), '<redacted:private-key>'],
   [/\bBearer\s+[A-Za-z0-9._~+/=-]{8,}/g, 'Bearer <redacted>'],
-  [/([a-z][a-z0-9+.-]{0,30}:\/\/)[^\s/@:]+:[^\s/@]+@/gi, '$1<redacted>@'],
+  [/(?<![a-z0-9+.-])([a-z][a-z0-9+.-]{0,30}:\/\/)[^\s/@:]+:[^\s/@]+@/gi,
+    '$1<redacted>@'],
   [/(?<=^|\s)(-u|--user)[ \t]{1,5}\S{1,200}:\S*/g, '$1 <redacted>'],
   [/--password(?:=|[ \t]{1,5})\S*/g, '--password <redacted>'],
   [/Authorization:[ \t]{0,5}(Basic|Bearer|token)[ \t]{1,5}\S*/gi,
@@ -71,19 +82,20 @@ const REDACTIONS: [RegExp, string][] = [
   [/AIza[A-Za-z0-9_-]{20,}/g, '<redacted:google>'],
   [/npm_[A-Za-z0-9]{10,}/g, '<redacted:npm>'],
   [/--(token|api-key|secret)(?:=|[ \t]{1,5})\S*/g, '--$1 <redacted>'],
-  [/(X-Api-Key|PRIVATE-TOKEN|Cookie):[ \t]{0,5}[^\n]{1,400}/gi,
+  [/(X-Api-Key|PRIVATE-TOKEN|Cookie):[ \t]{0,5}[^\n]*/gi,
     '$1: <redacted>'],
   [new RegExp(
-    `"(${SECRET_KEY})"[ \\t]{0,5}:[ \\t]{0,5}"[^"\\n]{0,400}"`,
+    `"(${JSON_KEY})"[ \\t]{0,5}:[ \\t]{0,5}"[^"\\n]{0,400}"`,
     'gi',
   ), '"$1": "<redacted>"'],
   // a value already `<redacted…>` (pattern 1) is not marked twice
   [new RegExp(
-    `\\b([A-Za-z0-9_]{0,60}${SECRET_KEY}[A-Za-z0-9_]{0,60})` +
+    `\\b(${PAIR_KEY})` +
       `[ \\t]{0,5}[:=][ \\t]{0,5}(?!<redacted)${VALUE}`,
     'gi',
   ), '$1: <redacted>'],
-  [/([a-z][a-z0-9+.-]{0,30}:\/\/)[0-9a-f]{40}@/gi, '$1<redacted>@'],
+  [/(?<![a-z0-9+.-])([a-z][a-z0-9+.-]{0,30}:\/\/)[0-9a-f]{40}@/gi,
+    '$1<redacted>@'],
 ]
 
 const HEX_RUN = /\b[0-9a-f]{7,}\b/g
@@ -698,8 +710,10 @@ async function loadEnabled($: Api, st: State): Promise<boolean> {
     const info = await $.fs.stat(path)
     if (info.kind !== 'file' || info.size > MAX_SWITCH_BYTES) return true
     const data: unknown = JSON.parse(await $.fs.read(path))
-    if (typeof data !== 'object' || data === null) return true
-    return (data as { enabled?: unknown }).enabled !== false
+    const enabled = (data as { enabled?: unknown } | null)?.enabled
+    if (typeof enabled === 'boolean') return enabled
+    logOnce(st, $, 'switch', SWITCH_INVALID)
+    return true
   } catch {
     if (path !== '' && !(await isGone($, path))) {
       logOnce(st, $, 'switch', SWITCH_UNREADABLE)
