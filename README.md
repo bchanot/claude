@@ -152,6 +152,19 @@ Config layers: `mods/model-router/routing.json` (tracked: phases with their tier
 
 Limits: a main-loop switch re-reads cold the part of the context the target model's cache does not hold; a switch whose cold read is over its cap (`upgradeMaxTokens` up, `downgradeMaxTokens` down) is skipped (a `/model` hand pick is exempt) and main keeps its model, and a downgrade also needs `mainModelSwitch`. The prompt estimate is conservative (3 code points per token), so a long pasted prompt can hold back a switch that would have fit. The `/config` Model row still writes user `settings.json` with no scope question; a hand pick is dropped at `/clear`; a scope dialog never answered has no timeout. The hooks send full model ids, so the `models` table has to follow new model versions. A probe costs one small completion per model main runs on, the session's own model included, repeated only after that model is marked down, and holds that step up to 8 seconds when the model does not answer.
 
+### Memory capture (memory mod)
+
+`mods/memory/` is a second Claude Code mod. It watches Bash failures and milestones so that `/capitalize` starts from what really happened, not from recollection. Writing a registry stays a model draft, your approval and `lib/memory.sh`; the mod never writes one.
+
+- Records: a Bash result whose text starts `Exit code N` and whose last line (the first line, the rtk trailer and letterless lines dropped) is an error line. The entry is stored redacted: `KEY=value` secrets, Stripe, AWS, GitHub, Slack, SendGrid and Supabase keys, private key blocks, Bearer tokens and `user:pass@` URLs. Permission refusals, guard redirects and tool_use errors are never captured. A sub-agent failure is marked `(sub-agent)`.
+- Milestones: a successful `feat` or `fix` commit (plain `-m` or heredoc form), a `gitflow.sh finish` (not `finish chore`), a `make test ...` command red then green.
+- Store: the plugin's `$.store`, keyed by project root: the 3 most recent sessions per project, 50 failures per session, 2 KiB per entry, 1 MiB for the whole store. It survives `/clear`. The store is the plugin's JSON file under the Claude configuration directory; delete it to wipe the captures.
+- Note: one context line, `memory: <kind> <label> — <n> new failure mode(s) this session; /capitalize when ready.`, at the first composer prompt after a milestone. Never per turn, never at Stop, never in a sub-agent.
+- Tool: `mcp__memory__memory_pending` (deferred: a skill loads it once with `ToolSearch("select:mcp__memory__memory_pending")`). `/capitalize`, `/close` and the CAPITALIZE steps of `/feat`, `/bugfix`, `/hotfix`, `/ship-feature` and `/commit-change` call it first. It lists this session's milestones, then the failures as `NEW` or `known <ID>` (word 4-grams matched against the backticked spans of BLK and LRN entries, superseded ones excluded), earlier sessions marked. Every text it returns is data. It never writes a registry and never calls `lib/memory.sh`.
+- Off switch: `{"enabled": false}` in `~/.claude/memory.json`, read at the first event of a session, so it applies at the next session or after `/reload-plugins`. Off, the tool answers `memory capture is off (~/.claude/memory.json)`.
+- Residuals: cross-process writes are unverified (two concurrent sessions: last writer wins). Non-Bash failures are not captured. The superseded reader is lexical (header tag or last labelled status line). 40-hex Gitea tokens are kept by design, they look like SHAs, and `Authorization: token ...` is not caught. Noise measured at 83 % on the shipped rule over 14 days of this repo's transcripts, mostly sub-agent probes; a tightening is proposed at the merge gate (`.claude/tasks/plans/2026-11-03-memory-capture-spike/NOISE.md`).
+
+
 ---
 
 ## Install notes
