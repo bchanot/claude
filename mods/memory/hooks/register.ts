@@ -23,12 +23,18 @@ const MAX_REGEX_INPUT = 65536
 const PEM = '-----'
 const PEM_KIND = '(?:[A-Z]+ )?PRIVATE KEY'
 
-// Redaction patterns, applied in order. Repeats are bounded where the
+// Redaction patterns, applied in order: the JWT shape first (so a secret
+// named variable still ends as `NAME=<redacted>` through pattern 1, and any
+// other name keeps `NAME=<redacted:jwt>`), then the name rule, the vendor
+// shapes, PEM, Bearer, URL credentials, and last the command-line shapes
+// (-u user:pass, --password, Authorization). Repeats are bounded where the
 // input is free text, so no pattern can run away on a 64 KiB input.
 const REDACTIONS: [RegExp, string][] = [
+  [/eyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g,
+    '<redacted:jwt>'],
   [new RegExp(
-    '\\b([A-Za-z_]{0,60}(?:TOKEN|API_KEY|SECRET|PASSWORD|PASSWD)' +
-      '[A-Za-z_]{0,60})=\\S+',
+    '\\b([A-Za-z0-9_]{0,60}(?:TOKEN|API_KEY|SECRET|PASSWORD|PASSWD)' +
+      '[A-Za-z0-9_]{0,60})=\\S+',
     'gi',
   ), '$1=<redacted>'],
   [/sk_live_[0-9A-Za-z]{10,}/g, '<redacted:stripe>'],
@@ -44,6 +50,10 @@ const REDACTIONS: [RegExp, string][] = [
   ), '<redacted:private-key>'],
   [/\bBearer\s+[A-Za-z0-9._~+/=-]{8,}/g, 'Bearer <redacted>'],
   [/([a-z][a-z0-9+.-]{0,30}:\/\/)[^\s/@:]+:[^\s/@]+@/gi, '$1<redacted>@'],
+  [/(?<=^|\s)(-u|--user)[ \t]{1,5}\S{1,200}:\S{1,200}/g, '$1 <redacted>'],
+  [/--password(?:=|[ \t]{1,5})\S{1,200}/g, '--password <redacted>'],
+  [/Authorization:[ \t]{0,5}(Basic|Bearer|token)[ \t]{1,5}\S{1,400}/gi,
+    'Authorization: $1 <redacted>'],
 ]
 
 const HEX_RUN = /\b[0-9a-f]{7,}\b/g
@@ -128,17 +138,26 @@ const RTK_TRAILER =
 /**
  * The line that tells what failed, from an already redacted answer: the
  * last line after the first of an `Exit code N` text. `undefined` when the
- * text is another kind, has no such line, or the redacted line is not
- * error-shaped (`ERRORISH`); no earlier line is tried.
+ * text is another kind, has no such line, or the redacted line holds no
+ * letter or is not error-shaped (`ERRORISH`); no earlier line is tried.
  */
 export function failureLine(text: string): string | undefined {
-  if (!EXIT_CODE.test(text)) return undefined
+  return EXIT_CODE.test(text) ? lastLine(text) : undefined
+}
+
+/** The error-shaped last line of a redacted text with a letter in it. */
+function lastLine(text: string): string | undefined {
   const lines = text.split('\n')
     .map(l => l.slice(-LINE_WINDOW).replace(RTK_TRAILER, '').trim())
     .filter(l => l !== '')
   if (lines.length < 2) return undefined
   const line = (lines[lines.length - 1] ?? '').slice(0, MAX_LINE)
-  return ERRORISH.test(line) ? line : undefined
+  return hasLetter(line) && ERRORISH.test(line) ? line : undefined
+}
+
+/** A letter outside the `<path>`, `<hex>` and `#` placeholders. */
+function hasLetter(line: string): boolean {
+  return /\p{L}/u.test(normalize(line).replace(/<path>|<hex>/g, ''))
 }
 
 function isSession(v: unknown): v is Session {
@@ -206,8 +225,9 @@ function buildFailure(
   agent: boolean,
   at: number,
 ): Failure | undefined {
+  if (!EXIT_CODE.test(text)) return undefined
   const red = redact(tail(text, MAX_REGEX_INPUT))
-  const line = failureLine(red)
+  const line = lastLine(red)
   if (line === undefined) return undefined
   return fitEntry({
     key: normalize(line),
@@ -345,13 +365,20 @@ export function isSuperseded(body: string): boolean {
   return /\[superseded\]/i.test(body.split('\n', 1)[0] ?? '')
 }
 
-/** Every window of 4 words; a key of fewer words has none (always NEW). */
+const PLACEHOLDERS = new Set(['#', '<path>', '<hex>'])
+
+/**
+ * Every window of 4 words, except one made only of placeholders (it
+ * carries no content); a key of fewer words has none (always NEW).
+ */
 export function grams(normLine: string): string[] {
   const words = normLine.split(/[^a-z0-9<>#]+/).filter(Boolean)
   if (words.length < GRAM_WORDS) return []
   return words
     .slice(0, words.length - GRAM_WORDS + 1)
-    .map((_, i) => words.slice(i, i + GRAM_WORDS).join(' '))
+    .map((_, i) => words.slice(i, i + GRAM_WORDS))
+    .filter(win => !win.every(w => PLACEHOLDERS.has(w)))
+    .map(win => win.join(' '))
 }
 
 function spansOf(body: string): string[] {
@@ -422,6 +449,8 @@ const EXCERPT_SHOWN = 300
 const OFF_TEXT = 'memory capture is off (~/.claude/memory.json)'
 const NOTHING_TEXT = 'memory_pending: nothing captured'
 
+const NEWLINES = /\r\n?|\n/g
+
 const isText = (...v: unknown[]) => v.every(x => typeof x === 'string')
 
 /** The store is data: a malformed element is skipped, never thrown on. */
@@ -454,14 +483,17 @@ function failureText({ f, id, earlier }: Row): string {
   const tag = id === undefined ? 'NEW' : `known ${id}`
   const marks = (f.agent ? ' (sub-agent)' : '') +
     (earlier ? ' (earlier session)' : '')
-  const head = `- ${tag} ×${f.count}${marks} ${f.line} — command: ${f.command}`
+  const cmd = f.command.replace(NEWLINES, '⏎')
+  const head = `- ${tag} ×${f.count}${marks} ${f.line} — command: ${cmd}`
   if (f.excerpt === '') return head
-  const shown = tail(f.excerpt, EXCERPT_SHOWN).replace(/\r\n?|\n/g, '⏎')
+  const shown = tail(f.excerpt, EXCERPT_SHOWN).replace(NEWLINES, '⏎')
   return `${head}\n  excerpt: ${shown}`
 }
 
 function milestoneText(m: Milestone): string {
-  const hhmm = new Date(m.at).toISOString().slice(11, 16)
+  const d = new Date(m.at)
+  const two = (n: number) => String(n).padStart(2, '0')
+  const hhmm = `${two(d.getHours())}:${two(d.getMinutes())}`
   return `- ${m.kind} ${m.label} (${hhmm})`
 }
 
@@ -698,6 +730,7 @@ function registerSession(on: On, st: State): void {
   on('session.end', async ($, e, next) => {
     st.enabled = null
     st.pending = []
+    st.warned.clear()
     return next(e)
   }).catch(($, e, next) => {
     warnOnce(st, $, 'session.end', next.error.kind)
@@ -757,6 +790,10 @@ function recordRed($: Api, st: State, at: Where, key: string, now: number) {
   }))
 }
 
+/** `commit fix: x`; a bare `finish` is not said twice. */
+const noteLabel = (m: Milestone) =>
+  m.label === m.kind ? m.kind : `${m.kind} ${m.label}`
+
 /** Commit and finish milestones of a success; green when the suite was red. */
 function recordSuccess(
   $: Api,
@@ -770,6 +807,7 @@ function recordSuccess(
     ['finish', finishLabel(command)],
   ].filter((m): m is [Milestone['kind'], string] => m[1] !== undefined)
   const key = suiteKeyOf(command)
+  if (found.length === 0 && key === undefined) return Promise.resolve()
   return queueWrite(st, async () => {
     const cur = (await loadProject($, at.root)).sessions
       .find(s => s.id === at.id)
@@ -781,8 +819,7 @@ function recordSuccess(
       s.milestones = [...s.milestones, ...added]
       if (green) s.red = s.red.filter(r => r !== key)
     })
-    st.pending = [...st.pending, ...added.map(m => `${m.kind} ${m.label}`)]
-      .slice(-MAX_PENDING)
+    st.pending = [...st.pending, ...added.map(noteLabel)].slice(-MAX_PENDING)
   })
 }
 

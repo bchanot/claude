@@ -28,6 +28,8 @@ type World = {
   unreadable: Set<string> // paths whose fs.read throws
   statFails: Set<string> // paths whose fs.stat throws though they exist
   existsFails: Set<string> // paths whose fs.exists throws
+  gets: number // store.get calls
+  getsFail: boolean // store.get throws
 }
 
 type Opts = {
@@ -47,7 +49,11 @@ type Opts = {
  * store.set hook to observe or fail it.
  */
 function handStore(on: On, w: World, fails: boolean): void {
-  on('store.get', (_a, e) => ({ value: w.kv.get(e.key) }))
+  on('store.get', (_a, e) => {
+    w.gets++
+    if (w.getsFail) throw new Error('boom')
+    return { value: w.kv.get(e.key) }
+  })
   on('store.keys', () => ({ value: [...w.kv.keys()] }))
   on('store.delete', (_a, e) => ({ value: void w.kv.delete(e.key) }))
   on('store.set', (_a, e) => {
@@ -71,6 +77,7 @@ async function boot($: Engine, on: On, o: Opts = {}): Promise<World> {
     unreadable: new Set(o.unreadable ?? []),
     statFails: new Set(o.statFails ?? []),
     existsFails: new Set(o.existsFails ?? []),
+    gets: 0, getsFail: false,
   }
   handStore(on, w, o.storeFails ?? false)
   on('tool.register', (_a, e) => {
@@ -308,7 +315,7 @@ test('CAP2: Exit code alone stores nothing', async ($, on) => {
   expect(w.sets).toEqual([])
 })
 
-test('CAP3: excluded texts and a no-error-word line store nothing', async (
+test('CAP3: excluded texts and a letterless line store nothing', async (
   $, on,
 ) => {
   const w = await boot($, on)
@@ -682,6 +689,13 @@ test('an empty root answers no project root', async ($, on) => {
   expect(await pending($)).toBe('memory_pending: no project root')
 })
 
+/** HH:MM of the local clock, from the Date API (not the code under test). */
+const localHhmm = (at: number) => {
+  const d = new Date(at)
+  const two = (n: number) => String(n).padStart(2, '0')
+  return `${two(d.getHours())}:${two(d.getMinutes())}`
+}
+
 test('milestones, sub-agent, earlier session and order', async ($, on) => {
   const mk = (id: string, at: number, failures: unknown[], ms: unknown[]) =>
     ({ id, at, failures, milestones: ms, red: [] })
@@ -700,7 +714,7 @@ test('milestones, sub-agent, earlier session and order', async ($, on) => {
     'memory_pending (project app, 2 session(s))',
     'index: read blockers.md, learnings.md',
     'milestones (this session):',
-    '- commit fix: x (14:02)',
+    '- commit fix: x (' + localHhmm(3600000 * 14 + 120000) + ')',
     'failures:',
     '- NEW \u00d72 (sub-agent) brand new line here ok \u2014 command: c',
     '  excerpt: a\u23ceb',
@@ -826,7 +840,7 @@ test('malformed stored elements are skipped, valid ones listed', async (
   }] } }
   await boot($, on, { seed })
   const text = await pending($)
-  expect(text).toContain('- commit fine (00:01)')
+  expect(text).toContain('- commit fine (' + localHhmm(60000) + ')')
   expect(text).toContain('- NEW \u00d71 good line here ok')
   expect(text).not.toContain('bad')
 })
@@ -1057,7 +1071,7 @@ test('a stored commit milestone shows in the memory_pending answer', async (
     'memory_pending (project app, 1 session(s))',
     'index: skipped blockers.md (missing), learnings.md (missing)',
     'milestones (this session):',
-    '- commit fix(x): y (00:00)',
+    '- commit fix(x): y (' + localHhmm(1000) + ')',
   ].join('\n'))
 })
 
@@ -1219,4 +1233,120 @@ test('pending keeps the 20 latest milestones', async ($, on) => {
   for (let i = 0; i < 22; i++) await run($, w, `git commit -m "fix: n${i}"`)
   await composer($)
   expect(seen[0]?.[0]).toContain('memory: commit fix: n2 ')
+})
+
+test('I2: names with digits are redacted', () => {
+  expect(redact('OAUTH2_CLIENT_' + 'SECRET=abc'))
+    .toBe('OAUTH2_CLIENT_SECRET=<redacted>')
+  expect(redact('S3_' + 'SECRET=abc')).toBe('S3_SECRET=<redacted>')
+  expect(redact('TOKEN' + '_V2=abc')).toBe('TOKEN_V2=<redacted>')
+})
+
+const JWT = 'eyJ' + 'a'.repeat(20) + '.eyJ' + 'b'.repeat(20) + '.' +
+  'c'.repeat(20)
+
+test('I2: a JWT is redacted alone and inside an env value', () => {
+  expect(redact('t ' + JWT + ' z')).toBe('t <redacted:jwt> z')
+  expect(redact('SUPABASE_SERVICE_ROLE_KEY=' + JWT))
+    .toBe('SUPABASE_SERVICE_ROLE_KEY=<redacted:jwt>')
+  expect(redact('MY_' + 'TOKEN=' + JWT)).toBe('MY_TOKEN=<redacted>')
+})
+
+test('I2: credentials on the command line are redacted', () => {
+  expect(redact('curl -u ' + 'bob:hunter2 https://x'))
+    .toBe('curl -u <redacted> https://x')
+  expect(redact('curl --user ' + 'bob:hunter2 https://x'))
+    .toBe('curl --user <redacted> https://x')
+  expect(redact('mysql --pass' + 'word hunter2 db'))
+    .toBe('mysql --password <redacted> db')
+  expect(redact('mysql --pass' + 'word=hunter2 db'))
+    .toBe('mysql --password <redacted> db')
+  expect(redact('Authorization: Ba' + 'sic dXNlcjpwdw== z'))
+    .toBe('Authorization: Basic <redacted> z')
+  expect(redact('Authorization: Bea' + 'rer abcdefgh12345 z'))
+    .toBe('Authorization: Bearer <redacted> z')
+  expect(redact('Authorization: to' + 'ken abc123 z'))
+    .toBe('Authorization: token <redacted> z')
+})
+
+test('IDX9: a placeholder-only gram is not indexed nor matched', () => {
+  const span = '`connect 10.0.0.1:5432 refused 12 34`'
+  const index = buildIndex(['## LRN-074 x\n' + span + '\n'])
+  const key = normalize('Error at 2026-11-04 12:00:00.123 timeout')
+  expect(matchOf(index, key)).toBeUndefined()
+  expect(grams('# # # # x')).toEqual(['# # # x'])
+  expect(grams('a # <path> <hex> b'))
+    .toEqual(['a # <path> <hex>', '# <path> <hex> b'])
+})
+
+test('M1: a letterless last line is dropped, one with letters kept', async (
+  $, on,
+) => {
+  const w = await boot($, on)
+  await failing($, w, 'Exit code 1\n> 2')
+  expect(w.sets).toEqual([])
+  await failing($, w, 'Exit code 1\n> 2 lines differ')
+  expect(failuresOf(w).map(f => f.line)).toEqual(['> 2 lines differ'])
+})
+
+test('M2: a plain successful ls touches the store not at all', async (
+  $, on,
+) => {
+  const w = await boot($, on)
+  await bash($, 'ls')
+  expect(w.gets).toBe(0)
+  expect(w.sets).toEqual([])
+})
+
+test('M3: a 70000-char failing text is captured', async ($, on) => {
+  const w = await boot($, on)
+  await failing($, w, 'Exit code 1\n' + 'x\n'.repeat(35000) + 'fatal: end')
+  expect(failuresOf(w).map(f => f.line)).toEqual(['fatal: end'])
+})
+
+test('M4: a heredoc command shows on one answer line', async ($, on) => {
+  const w = await boot($, on)
+  await failing($, w, EXIT1 + 'fatal: no', HEREDOC('feat: z'))
+  const out = await pending($)
+  expect(out).toContain('command: git commit -m "$(cat <<\'EOF\'\u23cefeat: z')
+  expect(out.split('\n').filter(l => l.startsWith('- NEW'))).toHaveLength(1)
+  expect(out.split('\n')).toHaveLength(5)
+})
+
+test('M5: the milestone time is the local one', async ($, on) => {
+  const w = await boot($, on)
+  await run($, w, 'git commit -m "fix: y"')
+  expect(await pending($)).toContain(`(${localHhmm(1000)})`)
+})
+
+test('NT5: a bare finish reads once in the note', async ($, on) => {
+  const { w, seen } = await bootNotes($, on)
+  await run($, w, FINISH_CMD)
+  await composer($)
+  expect(seen).toEqual([[
+    'memory: finish \u2014 0 new failure mode(s) this session;' +
+      ' /capitalize when ready.',
+  ]])
+})
+
+test('M12: a throwing note step passes the prompt unchanged', async (
+  $, on,
+) => {
+  const { w, seen } = await bootNotes($, on)
+  await run($, w, 'git commit -m "fix: y"')
+  w.getsFail = true
+  await composer($)
+  expect(seen).toEqual([undefined])
+  expect(w.logs.filter(l => l.includes('prompt.submit'))).toHaveLength(1)
+})
+
+test('session.end lets a hook error log again', async ($, on) => {
+  const w = await boot($, on, { rootFails: true })
+  await bash($, 'ls')
+  await bash($, 'ls')
+  const warns = () => w.logs.filter(l => l.startsWith('memory: Bash hook'))
+  expect(warns()).toHaveLength(1)
+  await endSession($)
+  await bash($, 'ls')
+  expect(warns()).toHaveLength(2)
 })
