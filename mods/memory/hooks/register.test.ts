@@ -25,6 +25,8 @@ type World = {
   tools: string[] // every tool name registered
   files: Map<string, string | null> // other files (null: a directory)
   unreadable: Set<string> // paths whose fs.read throws
+  statFails: Set<string> // paths whose fs.stat throws though they exist
+  existsFails: Set<string> // paths whose fs.exists throws
 }
 
 type Opts = {
@@ -34,6 +36,8 @@ type Opts = {
   storeFails?: boolean // store.set rejects (a hand-made store)
   files?: Record<string, string | null> // registries under the root
   unreadable?: string[] // paths whose fs.read throws
+  statFails?: string[] // paths whose fs.stat throws though they exist
+  existsFails?: string[] // paths whose fs.exists throws
 }
 
 /**
@@ -64,6 +68,8 @@ async function boot($: Engine, on: On, o: Opts = {}): Promise<World> {
     sets: [], logs: [], tools: [],
     files: new Map(Object.entries(o.files ?? {})),
     unreadable: new Set(o.unreadable ?? []),
+    statFails: new Set(o.statFails ?? []),
+    existsFails: new Set(o.existsFails ?? []),
   }
   handStore(on, w, o.storeFails ?? false)
   on('tool.register', (_a, e) => {
@@ -71,10 +77,12 @@ async function boot($: Engine, on: On, o: Opts = {}): Promise<World> {
     return { value: undefined } as never
   })
   on('env.get', () => ({ value: HOME }))
-  on('fs.exists', (_a, e) => ({
-    value: w.files.has(e.path) || e.path === SWITCH,
-  }))
+  on('fs.exists', (_a, e) => {
+    if (w.existsFails.has(e.path)) throw new Error('EIO')
+    return { value: w.files.has(e.path) || e.path === SWITCH }
+  })
   on('fs.stat', (_a, e) => {
+    if (w.statFails.has(e.path)) throw new Error('EIO')
     if (w.files.has(e.path)) {
       const text = w.files.get(e.path)
       return { value: {
@@ -808,4 +816,26 @@ test('a span of 12 chars is indexed, one of 11 is not', () => {
   const at11 = buildIndex(['## BLK-001 x\n`aa bb cc dd`\n'])
   expect(at12.size).toBe(1)
   expect(at11.size).toBe(0)
+})
+
+test('a rejected stat on an existing registry is unreadable', async (
+  $, on,
+) => {
+  const w = await boot($, on, { files: REGS, statFails: [BLK] })
+  await failing($, w, EXIT1 + 'error: pathspec did not match anything')
+  expect(await pending($)).toContain(
+    'index: read learnings.md; skipped blockers.md (unreadable)')
+})
+
+test('a throwing exists probe names the registry, keeps the other', async (
+  $, on,
+) => {
+  const files = { [BLK]: BLOCKERS, [LRN]: LEARNINGS.replace(
+    'superseded', 'open') }
+  const w = await boot($, on, { files, statFails: [BLK], existsFails: [BLK] })
+  await failing($, w, EXIT1 + 'error: pathspec did not match anything')
+  const text = await pending($)
+  expect(text).toContain(
+    'index: read learnings.md; skipped blockers.md (unreadable)')
+  expect(text).toContain('- known LRN-002 \u00d71')
 })

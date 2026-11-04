@@ -294,6 +294,15 @@ type Entry = { id: string; body: string }
 
 type Read = { text: string } | { why: string }
 
+/** True only when exists says no; a throwing probe cannot tell. */
+async function isGone($: Api, path: string): Promise<boolean> {
+  try {
+    return !(await $.fs.exists(path))
+  } catch {
+    return false
+  }
+}
+
 /** One stat, one read: the text, or why the registry is skipped. */
 // a rejected stat means missing only when exists says so
 async function tryRead($: Api, path: string): Promise<Read> {
@@ -302,19 +311,13 @@ async function tryRead($: Api, path: string): Promise<Read> {
     if (info.kind !== 'file') return { why: 'not a file' }
     if (info.size > MAX_REGISTRY) return { why: 'over 4 MiB' }
   } catch {
-    return { why: (await $.fs.exists(path)) ? 'unreadable' : 'missing' }
+    return { why: (await isGone($, path)) ? 'missing' : 'unreadable' }
   }
   try {
     return { text: await $.fs.read(path) }
   } catch {
     return { why: 'unreadable' }
   }
-}
-
-/** A registry's text; `''` when skipped (missing, not a file, too big). */
-export async function readRegistry($: Api, path: string): Promise<string> {
-  const r = await tryRead($, path)
-  return 'text' in r ? r.text : ''
 }
 
 /** The BLK/LRN entries; a body runs from its heading to the next one. */
