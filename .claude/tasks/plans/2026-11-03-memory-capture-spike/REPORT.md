@@ -1,5 +1,5 @@
 # probe4b report (CLI 2.1.317, claude -p, haiku, --setting-sources local)
-Raw log: /home/bchanot/.claude/jobs/8573ce6f/tmp/probe4b/log.jsonl (per case: log.cN.jsonl; full streams: out.cN.jsonl)
+Raw log: $CLAUDE_JOB_DIR/tmp/probe4b/log.jsonl (per case: log.cN.jsonl; full streams: out.cN.jsonl)
 Mod loaded: init event plugins list contains {"name":"probe4b","source":"probe4b@inline","version":"0.1.0"}.
 
 | case | isError | keys of out | deny | text | gitOperation | classic events |

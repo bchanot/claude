@@ -1,7 +1,9 @@
 """Offline noise measurement of the memory mod capture rule.
 
-1:1 port of failureLine / normalize / redact of
-mods/memory/hooks/register.ts. Read-only, stdout only.
+Port of the capture rule (failureLine, normalize, letter and errorish
+tests) of mods/memory/hooks/register.ts; the redaction port covers
+patterns 1-10 only, not the 6-amended / 6-bis shapes: samples are for
+counting, never for pasting. Read-only, stdout only.
 Run: python3 -I noise.py [--dir D] [--days 14] [--samples 30] [--seed N]
 """
 import argparse

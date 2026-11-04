@@ -1,6 +1,9 @@
+// SPIKE PROBE — do not load: logs raw Bash output (command, stdout, text)
+// unredacted to a jsonl file. Kept as the record of the 2026-11-03 engine
+// probe.
 import type { Register } from 'claude-code'
 
-const LOG = '/home/bchanot/.claude/jobs/8573ce6f/tmp/probe4b/log.jsonl'
+const LOG = `${process.env.CLAUDE_JOB_DIR}/tmp/probe4b/log.jsonl`
 
 function cut(v: any, n: number): any {
   return v === undefined || v === null ? v : String(v).slice(0, n)
