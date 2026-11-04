@@ -1541,3 +1541,28 @@ test('TIME1: round 3 shapes stay fast on 64 KiB', () => {
     expect(now() - t0).toBeLessThan(50)
   }
 })
+
+// ---- round 4: Set-Cookie, curl segment prefixes --------------------------
+
+test('a Set-Cookie response header is redacted', () => {
+  expect(redact('< Set-Coo' + 'kie: session=abc123def; Path=/'))
+    .toBe('< Set-Cookie: <redacted>')
+})
+
+test('-b is redacted behind sudo, rtk, env and $( prefixes', () => {
+  expect(redact('sudo curl -b "sid=abc" h')).toBe('sudo curl -b <redacted> h')
+  expect(redact('x=$(curl -b "sid=abc" h)'))
+    .toBe('x=$(curl -b <redacted> h)')
+  expect(redact('X=1 rtk curl -b a=b h')).toBe('X=1 rtk curl -b <redacted> h')
+  expect(redact('echo -b a')).toBe('echo -b a')
+})
+
+test('TIME1: curl prefix shapes stay fast on 64 KiB', () => {
+  for (const unit of ['x=$(curl -b a;', 'sudo '.repeat(3) + 'x=1 ', 'X=1 ']) {
+    const text = unit.repeat(Math.ceil(65536 / unit.length))
+    redact(text.slice(0, 1024))
+    const t0 = now()
+    redact(text)
+    expect(now() - t0).toBeLessThan(30)
+  }
+})

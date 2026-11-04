@@ -83,8 +83,8 @@ const REDACTIONS: [RegExp, string][] = [
   [/npm_[A-Za-z0-9]{10,}/g, '<redacted:npm>'],
   [/--(token|api-key|secret)(?:=|[ \t]{1,5})\S*/g, '--$1 <redacted>'],
   [new RegExp(
-    '(?<![A-Za-z0-9-])([A-Za-z0-9-]{0,30}api[_-]?key|PRIVATE-TOKEN|Cookie):' +
-      '[ \\t]{0,5}[^\\n]*',
+    '(?<![A-Za-z0-9-])([A-Za-z0-9-]{0,30}api[_-]?key|PRIVATE-TOKEN|' +
+      '(?:Set-)?Cookie):[ \\t]{0,5}[^\\n]*',
     'gi',
   ), '$1: <redacted>'],
   [new RegExp(
@@ -103,9 +103,11 @@ const REDACTIONS: [RegExp, string][] = [
 
 const QUOTED = /'[^'\n]*'|"[^"\n]*"/g
 const SEPARATOR = /[;&|\n]+/g
+// before `curl`: ( $( NAME=value  NAME=$(  sudo  rtk
 const CURL_SEGMENT = new RegExp(
-  '^[ \\t(]{0,5}(?:rtk[ \\t]{1,5})?' +
-    '(?:[A-Za-z_]\\w{0,60}=\\S{0,200}[ \\t]{1,5}){0,10}curl\\b',
+  '^[ \\t(]{0,5}(?:\\$\\()?(?:[A-Za-z_]\\w{0,60}=' +
+    '(?:\\S{0,200}[ \\t]{1,5}|\\$\\()|(?:sudo|rtk)[ \\t]{1,5}){0,10}' +
+    'curl\\b',
 )
 const COOKIE_FLAG = new RegExp(`(?<=^|\\s)-b[ \\t]{1,5}${VALUE}`, 'g')
 
