@@ -30,8 +30,11 @@ const PEM_KIND = '(?:[A-Z]+ )?PRIVATE KEY'
 // (-u user:pass, --password, Authorization). Repeats are bounded where the
 // input is free text, so no pattern can run away on a 64 KiB input.
 const REDACTIONS: [RegExp, string][] = [
-  [/eyJ[A-Za-z0-9_-]{8,}\.eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}/g,
-    '<redacted:jwt>'],
+  [new RegExp(
+    '(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]{8,}\\.eyJ[A-Za-z0-9_-]{8,}' +
+      '\\.[A-Za-z0-9_-]{8,}',
+    'g',
+  ), '<redacted:jwt>'],
   [new RegExp(
     '\\b([A-Za-z0-9_]{0,60}(?:TOKEN|API_KEY|SECRET|PASSWORD|PASSWD)' +
       '[A-Za-z0-9_]{0,60})=\\S+',
@@ -50,9 +53,9 @@ const REDACTIONS: [RegExp, string][] = [
   ), '<redacted:private-key>'],
   [/\bBearer\s+[A-Za-z0-9._~+/=-]{8,}/g, 'Bearer <redacted>'],
   [/([a-z][a-z0-9+.-]{0,30}:\/\/)[^\s/@:]+:[^\s/@]+@/gi, '$1<redacted>@'],
-  [/(?<=^|\s)(-u|--user)[ \t]{1,5}\S{1,200}:\S{1,200}/g, '$1 <redacted>'],
-  [/--password(?:=|[ \t]{1,5})\S{1,200}/g, '--password <redacted>'],
-  [/Authorization:[ \t]{0,5}(Basic|Bearer|token)[ \t]{1,5}\S{1,400}/gi,
+  [/(?<=^|\s)(-u|--user)[ \t]{1,5}\S{1,200}:\S*/g, '$1 <redacted>'],
+  [/--password(?:=|[ \t]{1,5})\S*/g, '--password <redacted>'],
+  [/Authorization:[ \t]{0,5}(Basic|Bearer|token)[ \t]{1,5}\S*/gi,
     'Authorization: $1 <redacted>'],
 ]
 

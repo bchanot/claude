@@ -1252,6 +1252,21 @@ test('I2: a JWT is redacted alone and inside an env value', () => {
   expect(redact('MY_' + 'TOKEN=' + JWT)).toBe('MY_TOKEN=<redacted>')
 })
 
+test('TIME1: redact stays fast on 64 KiB of eyJ repeats', () => {
+  const t0 = now()
+  redact('eyJ'.repeat(21845))
+  expect(now() - t0).toBeLessThan(500)
+})
+
+test('I2: a long credential leaves no tail in clear', () => {
+  const long = 'p'.repeat(300)
+  expect(redact('x --pass' + 'word ' + long + ' z'))
+    .toBe('x --password <redacted> z')
+  expect(redact('curl -u bob:' + long)).toBe('curl -u <redacted>')
+  expect(redact('Authorization: Ba' + 'sic ' + long))
+    .toBe('Authorization: Basic <redacted>')
+})
+
 test('I2: credentials on the command line are redacted', () => {
   expect(redact('curl -u ' + 'bob:hunter2 https://x'))
     .toBe('curl -u <redacted> https://x')
