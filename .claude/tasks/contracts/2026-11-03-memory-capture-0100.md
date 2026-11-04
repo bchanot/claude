@@ -35,8 +35,31 @@ Brainstorm answers `[gated 2026-11-03]` (user: "oui" to recommendations 1-8):
 8. The mod fails open on every hook, has the `~/.claude/<name>.json` `"enabled": false` off switch, passes `claude plugin validate --strict` and `claude plugin test` (mods suite green), and `make test` is green.
 9. Proof: a failure in session N is visible through `memory_pending` in the same session and survives a /clear as decided; the noise rate measured on real transcripts before shipping (LRN-047).
 
-## FILE SCOPE (seed; final at STEP 3)
+STEP 3 gate `[gated 2026-11-04]` (user: "oui aux deux, lance"): plan r3 (`docs/superpowers/plans/2026-11-03-memory-capture.md`, f2daf76, § R2 and § R3 override the task text) approved; the build-time off switch `~/.claude/memory.json` `{"enabled": false}` approved (written by the controller before Task 1, moved away before Task 9).
+
+10. `[gated 2026-11-04]` Mod tests: `mods/memory/hooks/register.test.ts` holds the plan's named tests (TOFF, TFAIL, the redaction set, CAP1-CAP10, ID1, ID2, RACE1, TIME1, IDX1-IDX8, MS1-MS6, NT1-NT4) and the mods suite is green; `mods/memory/hooks/register.ts` holds no line over 80 columns.
+   CHECK: cd /home/bchanot/Documents/claude && T=mods/memory/hooks/register.test.ts && for n in TOFF TFAIL CAP1 CAP3 CAP8 CAP10 ID1 ID2 RACE1 TIME1 IDX1 IDX3 IDX8 MS1 MS3 MS4 MS5 NT1 NT3; do /usr/bin/grep -q "$n" "$T" || exit 1; done && [ "$(awk 'length($0) > 80' mods/memory/hooks/register.ts | wc -l)" = 0 ] && a=$(make test suite=lib/tests/mods.test.sh 2>&1) && printf '%s\n' "$a" | /usr/bin/grep -q 'all suites green' && echo MOD-OK
+   EXPECT: MOD-OK
+   EVIDENCE: pending
+11. `[gated 2026-11-04]` Mod layout: manifest name `memory`, `hooks/hooks.json` modules `./register.ts`, tracked link `skills/memory -> ../mods/memory`; the tool name in code is `memory_pending` and the served name `mcp__memory__memory_pending`.
+   CHECK: cd /home/bchanot/Documents/claude && jq -e '.name == "memory"' mods/memory/.claude-plugin/plugin.json >/dev/null && [ "$(readlink skills/memory)" = "../mods/memory" ] && git ls-files --error-unmatch skills/memory >/dev/null 2>&1 && /usr/bin/grep -q "mcp__memory__memory_pending" mods/memory/hooks/register.ts && echo LAYOUT-OK
+   EXPECT: LAYOUT-OK
+   EVIDENCE: pending
+12. `[gated 2026-11-04]` Consumers: capitalize carries the bold label `**Captured first.**`; feat, bugfix, ship-feature, hotfix and commit-change name `memory_pending`; agents/commit-changer.md names the captured block and the heredoc channel.
+   CHECK: cd /home/bchanot/Documents/claude && /usr/bin/grep -q '\*\*Captured first\.\*\*' skills/capitalize/SKILL.md && for f in feat bugfix ship-feature hotfix commit-change; do /usr/bin/grep -q 'memory_pending' "skills/$f/SKILL.md" || exit 1; done && /usr/bin/grep -q 'MEMCAP_EOF' agents/commit-changer.md && echo CONSUMERS-OK
+   EXPECT: CONSUMERS-OK
+   EVIDENCE: pending
+13. `[gated 2026-11-04]` Noise measured: `.claude/tasks/plans/2026-11-03-memory-capture-spike/NOISE.md` holds main-loop and sub-agent counts and the noise share, and no captured sample line (no `excerpt`, no `command:` lines).
+   CHECK: cd /home/bchanot/Documents/claude/.claude/tasks/plans/2026-11-03-memory-capture-spike && [ -s NOISE.md ] && /usr/bin/grep -qi 'sub-agent' NOISE.md && /usr/bin/grep -qi 'noise' NOISE.md && ! /usr/bin/grep -qiE '^\s*-?\s*(excerpt|command):' NOISE.md && echo NOISE-OK
+   EXPECT: NOISE-OK
+   EVIDENCE: pending
+14. `[gated 2026-11-04]` Whole branch: `make test` all suites green and shellcheck clean on the health stack; settings.json untouched by the branch.
+   CHECK: cd /home/bchanot/Documents/claude && t=$(make test 2>&1) && printf '%s\n' "$t" | /usr/bin/grep -q 'all suites green' && shellcheck ./*.sh hooks/*.sh lib/*.sh && [ -z "$(git diff develop...HEAD --stat -- settings.json)" ] && echo BRANCH-OK
+   EXPECT: BRANCH-OK
+   EVIDENCE: pending
+
+## FILE SCOPE (final, STEP 3 `[gated 2026-11-04]`)
 - mods/<name>/ (new mod: .claude-plugin/plugin.json, hooks/hooks.json, hooks/register.ts, hooks/register.test.ts), skills/<name> link — or mods/model-router if the brainstorm picks it as host
-- skills/capitalize/SKILL.md, skills/close/SKILL.md, skills/{feat,bugfix,hotfix,ship-feature,commit-change}/SKILL.md, agents/commit-changer.md, lib/capitalize-commit.md
+- skills/capitalize/SKILL.md, skills/close/SKILL.md, skills/{feat,bugfix,hotfix,ship-feature,commit-change}/SKILL.md, agents/commit-changer.md (§ Capitalize candidates, one line), lib/capitalize-commit.md (unchanged unless a citer needs it)
 - CLAUDE.global.md ("Proactive capitalization", only if the brainstorm changes it), README.md, USAGE.md, CHANGELOG.md, ARCHITECTURE.md
 - .claude/tasks/TODO.md, .claude/tasks/plans/ (spike notes), docs/superpowers/{specs,plans} (transient)
