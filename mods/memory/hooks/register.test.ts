@@ -1,7 +1,9 @@
 import { test, expect, mock } from 'claude-code/testing'
-import type { Engine } from 'claude-code/testing'
+import type { Engine, MockClock } from 'claude-code/testing'
 import type { On } from 'claude-code'
-import { cap, tail, redact, normalize } from './register'
+import {
+  cap, tail, redact, normalize, failureLine, sessionOf, addFailure,
+} from './register'
 
 const HOME = '/home/t'
 const SWITCH = `${HOME}/.claude/memory.json`
@@ -11,30 +13,50 @@ const BASH_ANSWER = { result: { stdout: 'ok', stderr: '' } }
 type World = {
   switchText: string | undefined // ~/.claude/memory.json (undefined: absent)
   rootFails: boolean // session.root rejects
-  logs: string[] // every $.ui.log line
+  id: string // what session.id answers now
+  answer: unknown // what the Bash bottom answers now
+  byCommand: Map<string, unknown> // answers that depend on the command
+  clock: MockClock
+  kv: Map<string, unknown> // the store
   sets: string[] // every store key written
+  logs: string[] // every $.ui.log line
   tools: string[] // every tool name registered
 }
 
-/** The bottom hooks the mod reads, over a fake world. */
-async function boot(
-  $: Engine,
-  on: On,
-  switchText?: string,
-  rootFails = false,
-): Promise<World> {
-  const w: World = { switchText, rootFails, logs: [], sets: [], tools: [] }
-  mock.clock(on)
-  // not mock.store: the test must see every key written
-  const kv = new Map<string, unknown>()
-  on('store.get', (_a, e) => ({ value: kv.get(e.key) }))
-  on('store.keys', () => ({ value: [...kv.keys()] }))
-  on('store.delete', (_a, e) => ({ value: void kv.delete(e.key) }))
+type Opts = {
+  switchText?: string
+  rootFails?: boolean
+  seed?: Record<string, unknown> // the store at the start
+  storeFails?: boolean // store.set rejects (a hand-made store)
+}
+
+/**
+ * The plugin's store over a Map the test can read and count. mock.store
+ * is not used: it offers no read-back, and the kit refuses a second
+ * store.set hook to observe or fail it.
+ */
+function handStore(on: On, w: World, fails: boolean): void {
+  on('store.get', (_a, e) => ({ value: w.kv.get(e.key) }))
+  on('store.keys', () => ({ value: [...w.kv.keys()] }))
+  on('store.delete', (_a, e) => ({ value: void w.kv.delete(e.key) }))
   on('store.set', (_a, e) => {
+    if (fails) throw new Error('disk full')
     w.sets.push(e.key)
-    kv.set(e.key, e.value)
+    w.kv.set(e.key, JSON.parse(JSON.stringify(e.value)))
     return { value: undefined }
   })
+}
+
+/** The bottom hooks the mod reads, over a fake world. */
+async function boot($: Engine, on: On, o: Opts = {}): Promise<World> {
+  const clock = mock.clock(on, { now: 1000 })
+  const w: World = {
+    switchText: o.switchText, rootFails: o.rootFails ?? false, id: 's1',
+    answer: BASH_ANSWER, byCommand: new Map(), clock,
+    kv: new Map(Object.entries(o.seed ?? {})),
+    sets: [], logs: [], tools: [],
+  }
+  handStore(on, w, o.storeFails ?? false)
   on('tool.register', (_a, e) => {
     w.tools.push(e.name)
     return { value: undefined } as never
@@ -59,13 +81,15 @@ async function boot(
     if (w.rootFails) throw new Error('no root')
     return { value: ROOT }
   })
-  on('session.id', () => ({ value: 's1' }))
+  on('session.id', () => ({ value: w.id }))
   on('session.start', (_a, e) => ({ cwd: e.cwd }))
   on('ui.log', (_a, e) => {
     w.logs.push(String((e as { text?: unknown }).text))
     return { value: undefined } as never
   })
-  on('tool.call', { tool: 'Bash' }, () => BASH_ANSWER as never)
+  on('tool.call', { tool: 'Bash' }, (_a, e) =>
+    (w.byCommand.get(e.command) ?? w.answer) as never)
+  on('session.end', (_a, e) => ({ sessionId: e.sessionId }))
   await $.session.start({ cwd: '/tmp', surface: null, isInteractive: false })
   return w
 }
@@ -73,11 +97,33 @@ async function boot(
 const bash = ($: Engine, command: string) =>
   $.tool.call({ tool: 'Bash', command })
 
-test('TOFF: enabled false passes a Bash answer through, store empty',
+/** Answers the next Bash call with a failed command's text. */
+function failWith(w: World, text: string): void {
+  w.answer = { result: { stdout: '', stderr: '' }, text, isError: true }
+}
+
+const failing = async ($: Engine, w: World, text: string, cmd = 'make') => {
+  failWith(w, text)
+  return bash($, cmd)
+}
+
+type Project = { sessions: { id: string; at: number; failures: Fail[] }[] }
+type Fail = {
+  key: string; line: string; excerpt: string; command: string
+  agent: boolean; at: number; count: number
+}
+
+const projectOf = (w: World, root = ROOT) =>
+  w.kv.get(`p:${root}`) as Project | undefined
+
+const failuresOf = (w: World) =>
+  projectOf(w)?.sessions[0]?.failures ?? []
+
+test('TOFF: enabled false passes a failing answer, stores nothing',
   async ($, on) => {
-    const w = await boot($, on, '{"enabled": false}')
-    const out = await bash($, 'make test')
-    expect(out).toEqual(BASH_ANSWER)
+    const w = await boot($, on, { switchText: '{"enabled": false}' })
+    const out = await failing($, w, 'Exit code 1\nfatal: bad thing')
+    expect(out).toEqual(w.answer)
     expect(w.sets).toEqual([])
   })
 
@@ -88,20 +134,20 @@ test('an absent switch file keeps the mod on', async ($, on) => {
 })
 
 test('a malformed switch file keeps the mod on', async ($, on) => {
-  const w = await boot($, on, '{nope')
+  const w = await boot($, on, { switchText: '{nope' })
   expect(await bash($, 'ls')).toEqual(BASH_ANSWER)
   expect(w.logs).toEqual([])
   expect(w.tools).toEqual(['memory_pending'])
 })
 
 test('the tool is not registered when the switch is off', async ($, on) => {
-  const w = await boot($, on, '{"enabled": false}')
+  const w = await boot($, on, { switchText: '{"enabled": false}' })
   expect(w.tools).toEqual([])
 })
 
 test('FAILOPEN: a rejecting session.root still returns the answer',
   async ($, on) => {
-    const w = await boot($, on, undefined, true)
+    const w = await boot($, on, { rootFails: true })
     expect(await bash($, 'ls')).toEqual(BASH_ANSWER)
     expect(await bash($, 'ls')).toEqual(BASH_ANSWER)
     const warns = w.logs.filter(l => l.startsWith('memory: Bash hook'))
@@ -180,4 +226,251 @@ test('TIME1: redact and normalize stay fast on a 64 KiB run of letters', () => {
     fn(text)
     expect(now() - t0).toBeLessThan(500)
   }
+})
+
+const EXIT1 = 'Exit code 1\n'
+
+test('failureLine: the last line after the first, trailers stripped', () => {
+  expect(failureLine(EXIT1 + 'a\nfatal: bad thing')).toBe('fatal: bad thing')
+  expect(failureLine('Exit code 2\nboom here [+3 hidden: rtk recall ab12]'))
+    .toBe('boom here')
+  expect(failureLine('Exit code 2\nreal\n[full output: rtk recall ab12]'))
+    .toBe('real')
+  expect(failureLine('Exit code 1')).toBeUndefined()
+  expect(failureLine('boom\nfatal: x')).toBeUndefined()
+  expect(failureLine(EXIT1 + '/tmp/a/b 12 deadbeef1')).toBeUndefined()
+})
+
+test('CAP1: a failed command stores one failure with its line', async (
+  $, on,
+) => {
+  const w = await boot($, on)
+  await failing($, w, EXIT1 + 'fatal: bad thing', 'git push')
+  const f = failuresOf(w)
+  expect(f).toHaveLength(1)
+  expect(f[0]?.line).toBe('fatal: bad thing')
+  expect(f[0]?.key).toBe('fatal: bad thing')
+  expect(f[0]?.command).toBe('git push')
+  expect(f[0]?.agent).toBe(false)
+  expect(f[0]?.at).toBe(w.clock.now())
+})
+
+test('CAP2: Exit code alone stores nothing', async ($, on) => {
+  const w = await boot($, on)
+  await failing($, w, 'Exit code 1')
+  expect(w.sets).toEqual([])
+})
+
+test('CAP3: excluded texts and a letterless line store nothing', async (
+  $, on,
+) => {
+  const w = await boot($, on)
+  const texts = [
+    'Permission to use Bash has been denied',
+    "Claude requested it and you haven't granted it yet",
+    'model-router: refused',
+    'x <tool_use_error>nope</tool_use_error>',
+    'Exit code 1\n0',
+  ]
+  for (const text of texts) await failing($, w, text)
+  expect(w.sets).toEqual([])
+})
+
+test('CAP4: the same line twice is one entry with count 2', async (
+  $, on,
+) => {
+  const w = await boot($, on)
+  await failing($, w, EXIT1 + 'fatal: bad thing 1')
+  await w.clock.advance(5)
+  await failing($, w, EXIT1 + 'fatal: bad thing 2')
+  const f = failuresOf(w)
+  expect(f).toHaveLength(1)
+  expect(f[0]?.count).toBe(2)
+  expect(f[0]?.at).toBe(1005)
+})
+
+const letters = (i: number) =>
+  String.fromCharCode(97 + (i % 26)) + String.fromCharCode(97 + (i / 26 | 0))
+
+test('CAP5: 51 distinct lines keep 50, the oldest dropped', async (
+  $, on,
+) => {
+  const w = await boot($, on)
+  for (let i = 0; i < 51; i++) {
+    await failing($, w, EXIT1 + `boom ${letters(i)}`)
+  }
+  const f = failuresOf(w)
+  expect(f).toHaveLength(50)
+  expect(f[0]?.line).toBe(`boom ${letters(1)}`)
+  expect(f[49]?.line).toBe(`boom ${letters(50)}`)
+})
+
+test('CAP6: a 4th session drops the oldest of the project', async (
+  $, on,
+) => {
+  const w = await boot($, on)
+  for (const id of ['s1', 's2', 's3', 's4']) {
+    w.id = id
+    await w.clock.advance(10)
+    await failing($, w, EXIT1 + `boom ${id}`)
+  }
+  const ids = projectOf(w)?.sessions.map(s => s.id)
+  expect(ids).toEqual(['s4', 's3', 's2'])
+})
+
+test('CAP7: a sub-agent call stores agent true', async ($, on) => {
+  const w = await boot($, on)
+  failWith(w, EXIT1 + 'fatal: bad thing')
+  await $.tool.call({ tool: 'Bash', command: 'make', agentId: 'a1' })
+  expect((failuresOf(w))[0]?.agent).toBe(true)
+})
+
+test('CAP8: a runtime-built token in the command is stored redacted',
+  async ($, on) => {
+    const w = await boot($, on)
+    await failing($, w, EXIT1 + 'fatal: bad thing',
+      'X_' + 'TOKEN=abc123 make test')
+    expect((failuresOf(w))[0]?.command)
+      .toBe('X_TOKEN=<redacted> make test')
+  })
+
+test('CAP9: the model gets the bottom answer, byte for byte', async (
+  $, on,
+) => {
+  const w = await boot($, on)
+  const out = await failing($, w, EXIT1 + 'fatal: bad thing')
+  expect(JSON.stringify(out)).toBe(JSON.stringify(w.answer))
+})
+
+test('CAP10: an over-cap store evicts the oldest other session', async (
+  $, on,
+) => {
+  const big = (id: string, at: number) => ({
+    id, at, milestones: [], red: [],
+    failures: [{ key: 'k', line: 'l', excerpt: 'x'.repeat(600000),
+      command: 'c', agent: false, at, count: 1 }],
+  })
+  const seed = { 'p:/other': { sessions: [big('o2', 20), big('o1', 10)] } }
+  const w = await boot($, on, { seed })
+  await failing($, w, EXIT1 + 'fatal: bad thing')
+  const other = projectOf(w, '/other')
+  expect(other?.sessions.map(s => s.id)).toEqual(['o2'])
+  expect(failuresOf(w)).toHaveLength(1)
+})
+
+test('a sweep with nothing droppable keeps the current session', async (
+  $, on,
+) => {
+  const seed = { 'p:/work/app': { sessions: [{
+    id: 's1', at: 1, milestones: [], red: [],
+    failures: [{ key: 'k', line: 'l', excerpt: 'x'.repeat(1100000),
+      command: 'c', agent: false, at: 1, count: 1 }],
+  }] } }
+  const w = await boot($, on, { seed })
+  await failing($, w, EXIT1 + 'fatal: bad thing')
+  expect(projectOf(w)?.sessions.map(s => s.id)).toEqual(['s1'])
+})
+
+test('a token cut at the excerpt window edge comes out redacted', async (
+  $, on,
+) => {
+  const w = await boot($, on)
+  const token = 'gh' + 'p_' + 'Q'.repeat(36)
+  await failing($, w, EXIT1 + 'fatal: ' + token + 'z'.repeat(580))
+  const f = (failuresOf(w))[0]
+  expect(f?.excerpt).toContain('<redacted:github>')
+  expect(f?.excerpt).not.toContain('QQQQ')
+  expect(f?.line).not.toContain('QQQQ')
+})
+
+test('a PEM body as the last line leaves no body in line or key', async (
+  $, on,
+) => {
+  const w = await boot($, on)
+  const pem = PEM + 'BEGIN PRIVATE KEY' + PEM + '\n' + 'MIIBVgIBADAN'.repeat(5)
+  await failing($, w, EXIT1 + pem)
+  const f = (failuresOf(w))[0]
+  expect(f?.line).toBe('<redacted:private-key>')
+  expect(f?.key).toBe('<redacted:private-key>')
+  expect(JSON.stringify(f)).not.toContain('MIIB')
+})
+
+test('ENTRY1: an entry over 2048 drops its excerpt first', async ($, on) => {
+  const w = await boot($, on)
+  const text = EXIT1 + '"'.repeat(700) + '\n' + 'a"'.repeat(150)
+  await failing($, w, text, '"'.repeat(400))
+  const f = (failuresOf(w))[0]
+  expect(JSON.stringify(f).length).toBeLessThanOrEqual(2048)
+  expect(f?.excerpt).toBe('')
+  expect(f?.line.length).toBe(300)
+})
+
+test('ID1: a changed session id with no session.start is a new record',
+  async ($, on) => {
+    const w = await boot($, on)
+    await failing($, w, EXIT1 + 'boom one')
+    w.id = 's2'
+    await w.clock.advance(10)
+    await failing($, w, EXIT1 + 'boom two')
+    const ids = projectOf(w)?.sessions.map(s => s.id)
+    expect(ids).toEqual(['s2', 's1'])
+  })
+
+test('ID2: session.end clear then a new id gives two sessions', async (
+  $, on,
+) => {
+  const w = await boot($, on)
+  await failing($, w, EXIT1 + 'boom one')
+  await $.session.end({
+    reason: 'clear', sessionId: 's1', resume: { id: 's1' },
+  })
+  w.id = 's2'
+  await w.clock.advance(10)
+  await failing($, w, EXIT1 + 'boom two')
+  expect(projectOf(w)?.sessions).toHaveLength(2)
+})
+
+test('RACE1: two concurrent failing calls store two entries', async (
+  $, on,
+) => {
+  const w = await boot($, on)
+  const answer = (text: string) =>
+    ({ result: { stdout: '', stderr: '' }, text, isError: true })
+  w.byCommand.set('a', answer(EXIT1 + 'boom one'))
+  w.byCommand.set('b', answer(EXIT1 + 'boom two'))
+  const calls = [bash($, 'a'), bash($, 'b')]
+  await Promise.all(calls)
+  expect(failuresOf(w)).toHaveLength(2)
+})
+
+test('TFAIL: a store that throws still returns the bottom answer',
+  async ($, on) => {
+    const w = await boot($, on, { storeFails: true })
+    const out = await failing($, w, EXIT1 + 'fatal: bad thing')
+    expect(JSON.stringify(out)).toBe(JSON.stringify(w.answer))
+    const again = await failing($, w, EXIT1 + 'fatal: bad thing')
+    expect(JSON.stringify(again)).toBe(JSON.stringify(w.answer))
+    expect(w.logs.filter(l => l.startsWith('memory: Bash capture')))
+      .toHaveLength(1)
+  })
+
+test('sessionOf stamps the found session, never trims it', () => {
+  const mk = (id: string, at: number) =>
+    ({ id, at, failures: [], milestones: [], red: [] })
+  const p = { sessions: [mk('a', 1), mk('b', 2), mk('c', 3), mk('d', 4)] }
+  const s = sessionOf(p, 'a', 9)
+  expect(s.at).toBe(9)
+  expect(p.sessions.map(x => x.id)).toEqual(['a', 'd', 'c'])
+})
+
+test('addFailure: same key counts, a new key appends', () => {
+  const s = sessionOf({ sessions: [] }, 's', 1)
+  const f = (key: string) =>
+    ({
+      key, line: key, excerpt: '', command: '', agent: false, at: 1, count: 1,
+    })
+  addFailure(s, f('x'))
+  addFailure(s, f('x'))
+  addFailure(s, f('y'))
+  expect(s.failures.map(x => [x.key, x.count])).toEqual([['x', 2], ['y', 1]])
 })
