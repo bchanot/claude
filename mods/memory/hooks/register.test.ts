@@ -87,7 +87,8 @@ async function boot($: Engine, on: On, o: Opts = {}): Promise<World> {
   on('env.get', () => ({ value: HOME }))
   on('fs.exists', (_a, e) => {
     if (w.existsFails.has(e.path)) throw new Error('EIO')
-    return { value: w.files.has(e.path) || e.path === SWITCH }
+    return { value: w.files.has(e.path) ||
+      (e.path === SWITCH && w.switchText !== undefined) }
   })
   on('fs.stat', (_a, e) => {
     if (w.statFails.has(e.path)) throw new Error('EIO')
@@ -173,8 +174,17 @@ test('an absent switch file keeps the mod on', async ($, on) => {
 test('a malformed switch file keeps the mod on', async ($, on) => {
   const w = await boot($, on, { switchText: '{nope' })
   expect(await bash($, 'ls')).toEqual(BASH_ANSWER)
-  expect(w.logs).toEqual([])
+  expect(await bash($, 'ls')).toEqual(BASH_ANSWER)
+  expect(w.logs).toEqual([
+    'memory: ~/.claude/memory.json unreadable, capture stays on',
+  ])
   expect(w.tools).toEqual(['memory_pending'])
+})
+
+test('an absent switch file logs nothing', async ($, on) => {
+  const w = await boot($, on)
+  await bash($, 'ls')
+  expect(w.logs).toEqual([])
 })
 
 test('the tool is not registered when the switch is off', async ($, on) => {
@@ -1364,4 +1374,94 @@ test('session.end lets a hook error log again', async ($, on) => {
   await endSession($)
   await bash($, 'ls')
   expect(warns()).toHaveLength(2)
+})
+
+// ---- 6-bis: vendor prefixes, flags, headers, JSON, pairs, URL user ------
+
+const SIX_BIS: [string, string, string][] = [
+  ['anthropic', 't ' + 'sk-' + 'ant-' + 'api03-AbC_dEf-123 z',
+    't <redacted:anthropic> z'],
+  ['openai', 't ' + 'sk-' + 'proj-' + 'AbCdEf_123-xyz z',
+    't <redacted:openai> z'],
+  ['github pat', 't ' + 'github_' + 'pat_' + '11ABCDEFG_0123456789 z',
+    't <redacted:github> z'],
+  ['gitlab', 't ' + 'gl' + 'pat-' + 'abcDEF-12345_xyz z',
+    't <redacted:gitlab> z'],
+  ['google', 't ' + 'AI' + 'za' + 'SyA-1234567890_abcdefGHIJ z',
+    't <redacted:google> z'],
+  ['npm', 't ' + 'npm' + '_' + 'abcdEFGH0123 z', 't <redacted:npm> z'],
+  ['flag token', 'cli --tok' + 'en abc123 run', 'cli --token <redacted> run'],
+  ['flag api-key=', 'cli --api' + '-key=abc123 run',
+    'cli --api-key <redacted> run'],
+  ['flag secret', 'cli --sec' + 'ret abc123', 'cli --secret <redacted>'],
+  ['header x-api-key', 'curl -H "x-api' + '-key: abc 123" u',
+    'curl -H "x-api-key: <redacted>'],
+  ['header private-token', 'PRIVATE-' + 'TOKEN: abc',
+    'PRIVATE-TOKEN: <redacted>'],
+  ['header cookie', 'Coo' + 'kie: a=1; b=2\nnext', 'Cookie: <redacted>\nnext'],
+  ['json', '{"pass' + 'word": "a b", "x": 1}',
+    '{"password": "<redacted>", "x": 1}'],
+  ['json upper key', '{"TOK' + 'EN":"abc"}', '{"TOKEN": "<redacted>"}'],
+  ['pair colon', 'tok' + 'en: abc123 end', 'token: <redacted> end'],
+  ['pair spaced', 'aws_sec' + 'ret_access_key = abc123 end',
+    'aws_secret_access_key: <redacted> end'],
+  ['pair quoted', 'PASS' + 'WORD="a b" end', 'PASSWORD=<redacted> end'],
+  ['pair single quoted', "sec" + "ret: 'a b' end", 'secret: <redacted> end'],
+  ['pair after pattern 1 not doubled', 'X_TOK' + 'EN=abc end',
+    'X_TOKEN=<redacted> end'],
+  ['hex url user', 'git clone https://' + 'a'.repeat(20) + '1'.repeat(20) +
+    '@host/x', 'git clone https://<redacted>@host/x'],
+]
+
+for (const [name, input, expected] of SIX_BIS) {
+  test(`redact 6-bis ${name}`, () => {
+    expect(redact(input)).toBe(expected)
+  })
+}
+
+test('redact 6-bis keeps a bare 40-hex SHA and a short hex URL user', () => {
+  const sha = 'a'.repeat(20) + '1'.repeat(20)
+  expect(redact('at ' + sha + '@host')).toBe('at ' + sha + '@host')
+  expect(redact('https://abc123@host')).toBe('https://abc123@host')
+})
+
+test('redact 6-bis residual: user:p@ss@host keeps its tail', () => {
+  expect(redact('git clone https://user:p@ss@host/x'))
+    .toBe('git clone https://<redacted>@ss@host/x')
+})
+
+test('TIME1: each 6-bis rule stays fast on 64 KiB adversarial input', () => {
+  const inputs = [
+    'sk-ant-'.repeat(9362), 'github_pat_'.repeat(5958), 'npm_'.repeat(16384),
+    '--token '.repeat(8192), 'Cookie:'.repeat(9362), '"token":'.repeat(8192),
+    'token: '.repeat(9362), 'a_token ='.repeat(7282), 'x://'.repeat(16384),
+    'a'.repeat(30) + ' token:'.repeat(9362),
+    '"password": "'.repeat(5041), "token='".repeat(9362),
+    ('a'.repeat(60) + 'token' + 'b'.repeat(60) + ' ').repeat(361),
+  ]
+  for (const text of inputs) {
+    const t0 = now()
+    redact(text)
+    expect(now() - t0).toBeLessThan(10)
+  }
+})
+
+test('the registry index caps a 1 MiB span before normalize', () => {
+  const body = '## BLK-001 x\n`' + 'fatal word '.repeat(95326) + '`\n'
+  const t0 = now()
+  const index = buildIndex([body])
+  expect(now() - t0).toBeLessThan(50)
+  expect(index.size).toBeGreaterThan(0)
+})
+
+test('an inner CR in a stored line shows as the newline mark', async (
+  $, on,
+) => {
+  const seed = { [`p:${ROOT}`]: { sessions: [{
+    id: 's1', at: 5, milestones: [], red: [],
+    failures: [{ key: 'k', line: 'fatal a\rb', excerpt: '', command: 'c',
+      agent: false, at: 1, count: 1 }],
+  }] } }
+  await boot($, on, { seed })
+  expect(await pending($)).toContain('- NEW \u00d71 fatal a\u23ceb \u2014')
 })

@@ -18,17 +18,24 @@ const SWITCH_FILE = '.claude/memory.json'
 const MAX_SWITCH_BYTES = 65536
 const TOOL = 'memory_pending'
 const SERVED_TOOL = 'mcp__memory__memory_pending'
+const SWITCH_UNREADABLE =
+  'memory: ~/.claude/memory.json unreadable, capture stays on'
 
 const MAX_REGEX_INPUT = 65536
 const PEM = '-----'
 const PEM_KIND = '(?:[A-Z]+ )?PRIVATE KEY'
+// a value: a quoted string up to its closing quote, else up to a space
+const VALUE = '("[^"\\n]{0,400}"|\'[^\'\\n]{0,400}\'|\\S+)'
+const SECRET_KEY = '(?:password|token|secret|api_key)'
 
 // Redaction patterns, applied in order: the JWT shape first (so a secret
 // named variable still ends as `NAME=<redacted>` through pattern 1, and any
 // other name keeps `NAME=<redacted:jwt>`), then the name rule, the vendor
 // shapes, PEM, Bearer, URL credentials, and last the command-line shapes
-// (-u user:pass, --password, Authorization). Repeats are bounded where the
-// input is free text, so no pattern can run away on a 64 KiB input.
+// (-u user:pass, --password, Authorization), then the 6-bis shapes: vendor
+// prefixes, --token flags, API-key headers, JSON and `key: value` pairs, a
+// hex URL user. Repeats are bounded where the input is free text, so no
+// pattern can run away on a 64 KiB input.
 const REDACTIONS: [RegExp, string][] = [
   [new RegExp(
     '(?<![A-Za-z0-9_-])eyJ[A-Za-z0-9_-]{8,}\\.eyJ[A-Za-z0-9_-]{8,}' +
@@ -37,7 +44,7 @@ const REDACTIONS: [RegExp, string][] = [
   ), '<redacted:jwt>'],
   [new RegExp(
     '\\b([A-Za-z0-9_]{0,60}(?:TOKEN|API_KEY|SECRET|PASSWORD|PASSWD)' +
-      '[A-Za-z0-9_]{0,60})=\\S+',
+      '[A-Za-z0-9_]{0,60})=' + VALUE,
     'gi',
   ), '$1=<redacted>'],
   [/sk_live_[0-9A-Za-z]{10,}/g, '<redacted:stripe>'],
@@ -57,6 +64,26 @@ const REDACTIONS: [RegExp, string][] = [
   [/--password(?:=|[ \t]{1,5})\S*/g, '--password <redacted>'],
   [/Authorization:[ \t]{0,5}(Basic|Bearer|token)[ \t]{1,5}\S*/gi,
     'Authorization: $1 <redacted>'],
+  [/sk-ant-[A-Za-z0-9_-]{10,}/g, '<redacted:anthropic>'],
+  [/sk-proj-[A-Za-z0-9_-]{10,}/g, '<redacted:openai>'],
+  [/github_pat_[A-Za-z0-9_]{10,}/g, '<redacted:github>'],
+  [/glpat-[A-Za-z0-9_-]{10,}/g, '<redacted:gitlab>'],
+  [/AIza[A-Za-z0-9_-]{20,}/g, '<redacted:google>'],
+  [/npm_[A-Za-z0-9]{10,}/g, '<redacted:npm>'],
+  [/--(token|api-key|secret)(?:=|[ \t]{1,5})\S*/g, '--$1 <redacted>'],
+  [/(X-Api-Key|PRIVATE-TOKEN|Cookie):[ \t]{0,5}[^\n]{1,400}/gi,
+    '$1: <redacted>'],
+  [new RegExp(
+    `"(${SECRET_KEY})"[ \\t]{0,5}:[ \\t]{0,5}"[^"\\n]{0,400}"`,
+    'gi',
+  ), '"$1": "<redacted>"'],
+  // a value already `<redacted…>` (pattern 1) is not marked twice
+  [new RegExp(
+    `\\b([A-Za-z0-9_]{0,60}${SECRET_KEY}[A-Za-z0-9_]{0,60})` +
+      `[ \\t]{0,5}[:=][ \\t]{0,5}(?!<redacted)${VALUE}`,
+    'gi',
+  ), '$1: <redacted>'],
+  [/([a-z][a-z0-9+.-]{0,30}:\/\/)[0-9a-f]{40}@/gi, '$1<redacted>@'],
 ]
 
 const HEX_RUN = /\b[0-9a-f]{7,}\b/g
@@ -122,6 +149,7 @@ const MAX_MILESTONES = 20
 const MAX_RED = 10
 const MAX_RED_LEN = 300
 const MAX_LINE = 300
+const MAX_SPAN = 300 // a registry span is capped before normalize
 const MAX_COMMAND = 300
 const EXCERPT_LEN = 600
 const MAX_ENTRY = 2048
@@ -386,7 +414,7 @@ export function grams(normLine: string): string[] {
 
 function spansOf(body: string): string[] {
   return [...body.matchAll(SPAN)]
-    .map(m => m[1] ?? '')
+    .map(m => (m[1] ?? '').slice(0, MAX_SPAN))
     .filter(span => span.length >= MIN_SPAN)
 }
 
@@ -487,7 +515,8 @@ function failureText({ f, id, earlier }: Row): string {
   const marks = (f.agent ? ' (sub-agent)' : '') +
     (earlier ? ' (earlier session)' : '')
   const cmd = f.command.replace(NEWLINES, '⏎')
-  const head = `- ${tag} ×${f.count}${marks} ${f.line} — command: ${cmd}`
+  const line = f.line.replace(NEWLINES, '⏎')
+  const head = `- ${tag} ×${f.count}${marks} ${line} — command: ${cmd}`
   if (f.excerpt === '') return head
   const shown = tail(f.excerpt, EXCERPT_SHOWN).replace(NEWLINES, '⏎')
   return `${head}\n  excerpt: ${shown}`
@@ -642,27 +671,39 @@ function newState(): State {
 
 /** Logs a hook's fail-open once per session; never throws itself. */
 function warnOnce(st: State, $: Api, hook: string, kind: string): void {
-  if (st.warned.has(hook)) return
-  st.warned.add(hook)
+  logOnce(st, $, hook, `memory: ${hook} hook failed (${kind}); passed through`)
+}
+
+/** Logs `text` once per session under `key`; never throws itself. */
+function logOnce(st: State, $: Api, key: string, text: string): void {
+  if (st.warned.has(key)) return
+  st.warned.add(key)
   try {
-    $.ui.log(`memory: ${hook} hook failed (${kind}); passed through`)
+    $.ui.log(text)
   } catch {
     // a failing log must not break the fail-open itself
   }
 }
 
-/** True unless the user's switch file says `enabled: false`. */
-async function loadEnabled($: Api): Promise<boolean> {
+/**
+ * True unless the user's switch file says `enabled: false`. A file that
+ * exists but cannot be read or parsed keeps capture on and logs one line.
+ */
+async function loadEnabled($: Api, st: State): Promise<boolean> {
+  let path = ''
   try {
     const home = await $.env.get('HOME')
     if (!home) return true
-    const path = `${home}/${SWITCH_FILE}`
+    path = `${home}/${SWITCH_FILE}`
     const info = await $.fs.stat(path)
     if (info.kind !== 'file' || info.size > MAX_SWITCH_BYTES) return true
     const data: unknown = JSON.parse(await $.fs.read(path))
     if (typeof data !== 'object' || data === null) return true
     return (data as { enabled?: unknown }).enabled !== false
   } catch {
+    if (path !== '' && !(await isGone($, path))) {
+      logOnce(st, $, 'switch', SWITCH_UNREADABLE)
+    }
     return true
   }
 }
@@ -695,7 +736,7 @@ async function registerTool($: Api): Promise<void> {
  */
 async function ensureEnabled($: Api, st: State): Promise<boolean> {
   if (st.enabled !== null) return st.enabled
-  st.enabled = await loadEnabled($)
+  st.enabled = await loadEnabled($, st)
   if (st.enabled) await registerTool($)
   return st.enabled
 }
