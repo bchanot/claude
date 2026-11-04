@@ -692,3 +692,4 @@ rules:
 
 ## 2026-11-04
 - 2026-11-04 — 4b memory capture built on feature/memory-capture (mod, consumers, docs, noise 83 % → errorish filter; GATE 0 MET, verifier ECARTS(1) interactive half, security PASS ×3); interactive note check + merge pending user; 4c next.
+- 2026-11-04 — 4b memory capture merged into develop (dfadf8a); live proof: note once after fix: commit, NEW failure survives /clear; 4c follow-up (earlier-session milestones) in TODO; 4c next.
