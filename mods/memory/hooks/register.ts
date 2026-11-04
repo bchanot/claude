@@ -116,13 +116,20 @@ const STORE_CAP = 1048576
 const LINE_WINDOW = 1000 // bounds the trailer regex on one long line
 
 const EXIT_CODE = /^Exit code \d+/
+export const ERRORISH = new RegExp(
+  'error|fatal|cannot|can\'t|no such|not found|denied|failed|failure|' +
+  'unexpected|invalid|exception|traceback|panic|usage:|SC\\d{4}|' +
+  '> \\d+|assert',
+  'i',
+)
 const RTK_TRAILER =
   /\s*\[(?:\+\d+ hidden|full output): rtk recall [0-9a-f]+\]$/
 
 /**
  * The line that tells what failed, from an already redacted answer: the
  * last line after the first of an `Exit code N` text. `undefined` when the
- * text is another kind, has no such line, or the line holds no letter.
+ * text is another kind, has no such line, the line holds no letter, or the
+ * redacted line is not error-shaped (`ERRORISH`); no earlier line is tried.
  */
 export function failureLine(text: string): string | undefined {
   if (!EXIT_CODE.test(text)) return undefined
@@ -132,7 +139,8 @@ export function failureLine(text: string): string | undefined {
   if (lines.length < 2) return undefined
   const line = (lines[lines.length - 1] ?? '').slice(0, MAX_LINE)
   const letters = normalize(line).replace(/<path>|<hex>|#/g, '')
-  return /\p{L}/u.test(letters) ? line : undefined
+  if (!/\p{L}/u.test(letters)) return undefined
+  return ERRORISH.test(line) ? line : undefined
 }
 
 function isSession(v: unknown): v is Session {

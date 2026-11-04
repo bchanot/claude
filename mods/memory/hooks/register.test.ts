@@ -278,10 +278,10 @@ const EXIT1 = 'Exit code 1\n'
 
 test('failureLine: the last line after the first, trailers stripped', () => {
   expect(failureLine(EXIT1 + 'a\nfatal: bad thing')).toBe('fatal: bad thing')
-  expect(failureLine('Exit code 2\nboom here [+3 hidden: rtk recall ab12]'))
-    .toBe('boom here')
-  expect(failureLine('Exit code 2\nreal\n[full output: rtk recall ab12]'))
-    .toBe('real')
+  expect(failureLine('Exit code 2\nfatal here [+3 hidden: rtk recall ab12]'))
+    .toBe('fatal here')
+  expect(failureLine('Exit code 2\nreal error\n[full output: rtk recall ab12]'))
+    .toBe('real error')
   expect(failureLine('Exit code 1')).toBeUndefined()
   expect(failureLine('boom\nfatal: x')).toBeUndefined()
   expect(failureLine(EXIT1 + '/tmp/a/b 12 deadbeef1')).toBeUndefined()
@@ -322,6 +322,30 @@ test('CAP3: excluded texts and a letterless line store nothing', async (
   expect(w.sets).toEqual([])
 })
 
+test('CAP11: a last line that is not error-shaped stores nothing', async (
+  $, on,
+) => {
+  const w = await boot($, on)
+  await failing($, w, EXIT1 + 'rc=0')
+  await failing($, w, EXIT1 + '== before')
+  expect(w.sets).toEqual([])
+})
+
+test('CAP11: error-shaped last lines are stored, line literal', async (
+  $, on,
+) => {
+  const w = await boot($, on)
+  const lines = [
+    "ls: cannot access '/x/y': No such file or directory",
+    "/bin/bash: eval: line 157: unexpected EOF while looking for matching ``'",
+    'https://www.shellcheck.net/wiki/SC2016 -- ' +
+      "Expressions don't expand in singl...",
+    'doctor.sh: 4 added lines > 80',
+  ]
+  for (const line of lines) await failing($, w, 'Exit code 2\n' + line)
+  expect(failuresOf(w).map(f => f.line)).toEqual(lines)
+})
+
 test('CAP4: the same line twice is one entry with count 2', async (
   $, on,
 ) => {
@@ -343,12 +367,12 @@ test('CAP5: 51 distinct lines keep 50, the oldest dropped', async (
 ) => {
   const w = await boot($, on)
   for (let i = 0; i < 51; i++) {
-    await failing($, w, EXIT1 + `boom ${letters(i)}`)
+    await failing($, w, EXIT1 + `error ${letters(i)}`)
   }
   const f = failuresOf(w)
   expect(f).toHaveLength(50)
-  expect(f[0]?.line).toBe(`boom ${letters(1)}`)
-  expect(f[49]?.line).toBe(`boom ${letters(50)}`)
+  expect(f[0]?.line).toBe(`error ${letters(1)}`)
+  expect(f[49]?.line).toBe(`error ${letters(50)}`)
 })
 
 test('CAP6: a 4th session drops the oldest of the project', async (
@@ -358,7 +382,7 @@ test('CAP6: a 4th session drops the oldest of the project', async (
   for (const id of ['s1', 's2', 's3', 's4']) {
     w.id = id
     await w.clock.advance(10)
-    await failing($, w, EXIT1 + `boom ${id}`)
+    await failing($, w, EXIT1 + `error ${id}`)
   }
   const ids = projectOf(w)?.sessions.map(s => s.id)
   expect(ids).toEqual(['s4', 's3', 's2'])
@@ -434,16 +458,16 @@ test('a PEM body as the last line leaves no body in line or key', async (
 ) => {
   const w = await boot($, on)
   const pem = PEM + 'BEGIN PRIVATE KEY' + PEM + '\n' + 'MIIBVgIBADAN'.repeat(5)
-  await failing($, w, EXIT1 + pem)
+  await failing($, w, EXIT1 + 'error: ' + pem)
   const f = (failuresOf(w))[0]
-  expect(f?.line).toBe('<redacted:private-key>')
-  expect(f?.key).toBe('<redacted:private-key>')
+  expect(f?.line).toBe('error: <redacted:private-key>')
+  expect(f?.key).toBe('error: <redacted:private-key>')
   expect(JSON.stringify(f)).not.toContain('MIIB')
 })
 
 test('ENTRY1: an entry over 2048 drops its excerpt first', async ($, on) => {
   const w = await boot($, on)
-  const text = EXIT1 + '"'.repeat(700) + '\n' + 'a"'.repeat(150)
+  const text = EXIT1 + '"'.repeat(700) + '\n' + 'error' + 'a"'.repeat(150)
   await failing($, w, text, '"'.repeat(400))
   const f = (failuresOf(w))[0]
   expect(JSON.stringify(f).length).toBeLessThanOrEqual(2048)
@@ -454,10 +478,10 @@ test('ENTRY1: an entry over 2048 drops its excerpt first', async ($, on) => {
 test('ID1: a changed session id with no session.start is a new record',
   async ($, on) => {
     const w = await boot($, on)
-    await failing($, w, EXIT1 + 'boom one')
+    await failing($, w, EXIT1 + 'error one')
     w.id = 's2'
     await w.clock.advance(10)
-    await failing($, w, EXIT1 + 'boom two')
+    await failing($, w, EXIT1 + 'error two')
     const ids = projectOf(w)?.sessions.map(s => s.id)
     expect(ids).toEqual(['s2', 's1'])
   })
@@ -466,13 +490,13 @@ test('ID2: session.end clear then a new id gives two sessions', async (
   $, on,
 ) => {
   const w = await boot($, on)
-  await failing($, w, EXIT1 + 'boom one')
+  await failing($, w, EXIT1 + 'error one')
   await $.session.end({
     reason: 'clear', sessionId: 's1', resume: { id: 's1' },
   })
   w.id = 's2'
   await w.clock.advance(10)
-  await failing($, w, EXIT1 + 'boom two')
+  await failing($, w, EXIT1 + 'error two')
   expect(projectOf(w)?.sessions).toHaveLength(2)
 })
 
@@ -482,8 +506,8 @@ test('RACE1: two concurrent failing calls store two entries', async (
   const w = await boot($, on)
   const answer = (text: string) =>
     ({ result: { stdout: '', stderr: '' }, text, isError: true })
-  w.byCommand.set('a', answer(EXIT1 + 'boom one'))
-  w.byCommand.set('b', answer(EXIT1 + 'boom two'))
+  w.byCommand.set('a', answer(EXIT1 + 'error one'))
+  w.byCommand.set('b', answer(EXIT1 + 'error two'))
   const calls = [bash($, 'a'), bash($, 'b')]
   await Promise.all(calls)
   expect(failuresOf(w)).toHaveLength(2)
@@ -554,7 +578,7 @@ test('IDX1: a captured line the registry holds reads known BLK-001', async (
 
 test('IDX2: an unrelated line reads NEW', async ($, on) => {
   const w = await boot($, on, { files: REGS })
-  await failing($, w, EXIT1 + 'completely different problem happened')
+  await failing($, w, EXIT1 + 'completely different error happened')
   expect(await pending($)).toContain('- NEW \u00d71 completely different')
 })
 
@@ -713,15 +737,15 @@ test('ID1/ID2: after an id change the earlier session is marked', async (
   $, on,
 ) => {
   const w = await boot($, on)
-  await failing($, w, EXIT1 + 'boom one here today')
+  await failing($, w, EXIT1 + 'error one here today')
   w.id = 's2'
   await w.clock.advance(10)
-  await failing($, w, EXIT1 + 'boom two here today')
+  await failing($, w, EXIT1 + 'error two here today')
   const text = await pending($)
   expect(text).toContain('session(s))')
-  expect(text).toContain('- NEW \u00d71 boom two here today')
-  expect(text).toContain('(earlier session) boom one here today')
-  expect(text.indexOf('boom two')).toBeLessThan(text.indexOf('boom one'))
+  expect(text).toContain('- NEW \u00d71 error two here today')
+  expect(text).toContain('(earlier session) error one here today')
+  expect(text.indexOf('error two')).toBeLessThan(text.indexOf('error one'))
 })
 
 const endSession = ($: Engine) =>
