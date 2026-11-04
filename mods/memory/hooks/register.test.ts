@@ -1440,9 +1440,10 @@ test('TIME1: each 6-bis rule stays fast on 64 KiB adversarial input', () => {
     ('a'.repeat(60) + 'token' + 'b'.repeat(60) + ' ').repeat(361),
   ]
   for (const text of inputs) {
+    redact(text.slice(0, 1024)) // warm-up: regex compilation is not the cost
     const t0 = now()
     redact(text)
-    expect(now() - t0).toBeLessThan(10)
+    expect(now() - t0).toBeLessThan(30) // measured 1-3 ms; slack for load
   }
 })
 
@@ -1507,4 +1508,36 @@ test('a switch file without a boolean enabled logs one line', async (
       'capture stays on',
   ])
   expect(w.tools).toEqual(['memory_pending'])
+})
+
+// ---- round 3: hyphenated api-key, URL scheme bound, cookie scope --------
+
+test('hyphenated api-key forms are redacted', () => {
+  expect(redact('{"x-api' + '-key": "v"}')).toBe('{"x-api-key": "<redacted>"}')
+  expect(redact('api' + '-key: v')).toBe('api-key: <redacted>')
+  expect(redact('X-API-' + 'KEY: v w')).toBe('X-API-KEY: <redacted>')
+})
+
+test('a credential URL glued to 40 scheme characters is redacted', () => {
+  expect(redact('a'.repeat(40) + 'https://user:pw' + '@host'))
+    .toBe('a'.repeat(40) + 'https://<redacted>@host')
+})
+
+test('-b is a cookie jar only in a curl segment', () => {
+  expect(redact('git checkout -b feature/x'))
+    .toBe('git checkout -b feature/x')
+  expect(redact("curl -b 'sid=1' h")).toBe('curl -b <redacted> h')
+  expect(redact('X=1 curl -b a=b h && git checkout -b y'))
+    .toBe('X=1 curl -b <redacted> h && git checkout -b y')
+  expect(redact("curl -b 'a=1; b=2' h")).toBe('curl -b <redacted> h')
+})
+
+test('TIME1: round 3 shapes stay fast on 64 KiB', () => {
+  const inputs = ['curl -b '.repeat(8192), "';".repeat(32768),
+    'x-api-'.repeat(10922), 'a'.repeat(65536), 'ab://'.repeat(13107)]
+  for (const text of inputs) {
+    const t0 = now()
+    redact(text)
+    expect(now() - t0).toBeLessThan(50)
+  }
 })

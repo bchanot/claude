@@ -28,7 +28,7 @@ const PEM = '-----'
 const PEM_KIND = '(?:[A-Z]+ )?PRIVATE KEY'
 // a value: a quoted string up to its closing quote, else up to a space
 const VALUE = '("[^"\\n]{0,400}"|\'[^\'\\n]{0,400}\'|\\S+)'
-const SECRET_KEY = '(?:password|token|secret|api_?key)'
+const SECRET_KEY = '(?:password|token|secret|api[_-]?key)'
 // the JSON key may hold `-`; the bare pair key may not (a `-` run would
 // make every word start rescan 60 characters)
 const keyWord = (cls: string) => `${cls}{0,60}${SECRET_KEY}${cls}{0,60}`
@@ -50,8 +50,8 @@ const REDACTIONS: [RegExp, string][] = [
     'g',
   ), '<redacted:jwt>'],
   // before pattern 1: a cookie jar `k=v; token=x` is one value
-  [new RegExp(`(?<=^|\\s)(-b|--cookie)(?:=|[ \\t]{1,5})${VALUE}`, 'g'),
-    '$1 <redacted>'],
+  [new RegExp(`(?<=^|\\s)--cookie(?:=|[ \\t]{1,5})${VALUE}`, 'g'),
+    '--cookie <redacted>'],
   [new RegExp(
     '\\b([A-Za-z0-9_]{0,60}(?:TOKEN|API_KEY|SECRET|PASSWORD|PASSWD)' +
       '[A-Za-z0-9_]{0,60})=' + VALUE,
@@ -69,7 +69,7 @@ const REDACTIONS: [RegExp, string][] = [
     'g',
   ), '<redacted:private-key>'],
   [/\bBearer\s+[A-Za-z0-9._~+/=-]{8,}/g, 'Bearer <redacted>'],
-  [/(?<![a-z0-9+.-])([a-z][a-z0-9+.-]{0,30}:\/\/)[^\s/@:]+:[^\s/@]+@/gi,
+  [/(?<![a-z0-9+.-])([a-z][a-z0-9+.-]{0,200}:\/\/)[^\s/@:]+:[^\s/@]+@/gi,
     '$1<redacted>@'],
   [/(?<=^|\s)(-u|--user)[ \t]{1,5}\S{1,200}:\S*/g, '$1 <redacted>'],
   [/--password(?:=|[ \t]{1,5})\S*/g, '--password <redacted>'],
@@ -82,8 +82,11 @@ const REDACTIONS: [RegExp, string][] = [
   [/AIza[A-Za-z0-9_-]{20,}/g, '<redacted:google>'],
   [/npm_[A-Za-z0-9]{10,}/g, '<redacted:npm>'],
   [/--(token|api-key|secret)(?:=|[ \t]{1,5})\S*/g, '--$1 <redacted>'],
-  [/(X-Api-Key|PRIVATE-TOKEN|Cookie):[ \t]{0,5}[^\n]*/gi,
-    '$1: <redacted>'],
+  [new RegExp(
+    '(?<![A-Za-z0-9-])([A-Za-z0-9-]{0,30}api[_-]?key|PRIVATE-TOKEN|Cookie):' +
+      '[ \\t]{0,5}[^\\n]*',
+    'gi',
+  ), '$1: <redacted>'],
   [new RegExp(
     `"(${JSON_KEY})"[ \\t]{0,5}:[ \\t]{0,5}"[^"\\n]{0,400}"`,
     'gi',
@@ -94,9 +97,17 @@ const REDACTIONS: [RegExp, string][] = [
       `[ \\t]{0,5}[:=][ \\t]{0,5}(?!<redacted)${VALUE}`,
     'gi',
   ), '$1: <redacted>'],
-  [/(?<![a-z0-9+.-])([a-z][a-z0-9+.-]{0,30}:\/\/)[0-9a-f]{40}@/gi,
+  [/(?<![a-z0-9+.-])([a-z][a-z0-9+.-]{0,200}:\/\/)[0-9a-f]{40}@/gi,
     '$1<redacted>@'],
 ]
+
+const QUOTED = /'[^'\n]*'|"[^"\n]*"/g
+const SEPARATOR = /[;&|\n]+/g
+const CURL_SEGMENT = new RegExp(
+  '^[ \\t(]{0,5}(?:rtk[ \\t]{1,5})?' +
+    '(?:[A-Za-z_]\\w{0,60}=\\S{0,200}[ \\t]{1,5}){0,10}curl\\b',
+)
+const COOKIE_FLAG = new RegExp(`(?<=^|\\s)-b[ \\t]{1,5}${VALUE}`, 'g')
 
 const HEX_RUN = /\b[0-9a-f]{7,}\b/g
 const PATH = /(?:\.{0,2}\/)?[\w.-]{1,200}(?:\/[\w.-]{1,200}){1,30}/g
@@ -111,9 +122,30 @@ export function tail(text: string, n: number): string {
   return n <= 0 ? '' : text.slice(-n)
 }
 
+/**
+ * `curl -b <jar>` redacted per command segment: `-b` means a cookie jar
+ * only after `curl`. Segments are cut on separators outside quotes (the
+ * blanked copy has the same length, so its cuts apply to the text).
+ */
+function redactCurlCookie(text: string): string {
+  if (!text.includes('-b')) return text
+  const blank = text.replace(QUOTED, q => ' '.repeat(q.length))
+  const parts: string[] = []
+  let from = 0
+  for (const m of [...blank.matchAll(SEPARATOR), null]) {
+    const end = m?.index ?? text.length
+    const seg = text.slice(from, end)
+    const hit = seg.includes('-b') && CURL_SEGMENT.test(seg)
+    parts.push(hit ? seg.replace(COOKIE_FLAG, '-b <redacted>') : seg)
+    parts.push(m?.[0] ?? '')
+    from = end + (m?.[0].length ?? 0)
+  }
+  return parts.join('')
+}
+
 /** Masks secret-shaped text; reads at most the first 64 KiB. */
 export function redact(text: string): string {
-  let out = cap(text, MAX_REGEX_INPUT)
+  let out = redactCurlCookie(cap(text, MAX_REGEX_INPUT))
   for (const [pattern, mask] of REDACTIONS) out = out.replace(pattern, mask)
   return out
 }
