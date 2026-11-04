@@ -93,4 +93,4 @@ the user decides (it amends gated answer 2, the capture rule):
 
 Option A accepted by the user at the gate. Implemented as `ERRORISH` in
 `failureLine` (`mods/memory/hooks/register.ts`): contract answer 2-amended
-and criterion 15. `noise.py --tighten errorish` approximates the shipped rule: it has no letter test, which `failureLine` also applies.
+and criterion 15. `noise.py --tighten errorish` reproduces the shipped rule (its `failure_line` applies `has_letter`).
