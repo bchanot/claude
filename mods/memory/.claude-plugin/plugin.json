@@ -1,0 +1,8 @@
+{
+  "name": "memory",
+  "version": "0.1.0",
+  "description": "Captures what fails in a session (failed Bash runs, commits, finished branches) and hands it to the memory registries, fail-open, with a per-machine off switch.",
+  "author": {
+    "name": "bchanot"
+  }
+}
