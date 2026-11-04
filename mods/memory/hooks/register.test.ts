@@ -1122,3 +1122,71 @@ test('MTOFF: switched off, no milestone and no note', async ($, on) => {
   expect(w.kv.size).toBe(0)
   expect(seen[0]).toBeUndefined()
 })
+
+const HEREDOC = (subject: string) =>
+  `git commit -m "$(cat <<'EOF'\n${subject}\n\nbody\nEOF\n)"`
+
+test('MS7: a heredoc commit message counts, a chore one does not', async (
+  $, on,
+) => {
+  const w = await boot($, on)
+  await run($, w, HEREDOC('chore: nope'))
+  expect(w.kv.size).toBe(0)
+  await run($, w, HEREDOC('fix(memory): heredoc subject'))
+  expect(labels(w)).toEqual(['fix(memory): heredoc subject'])
+  expect(commitLabel('git commit -m "$(cat <<EOF\nfeat!: a\nEOF\n)"'))
+    .toBe('feat: a')
+  expect(commitLabel('git commit -m "$(cat <<"EOF"\nfix: b\nEOF\n)"'))
+    .toBe('fix: b')
+})
+
+test('a later git log -m does not make a chore commit a fix', () => {
+  expect(commitLabel('git commit -m "chore: a" && git log -m "fix: b"'))
+    .toBeUndefined()
+})
+
+test('finish is read per segment', () => {
+  expect(finishLabel('echo bash x/gitflow.sh finish')).toBeUndefined()
+  expect(finishLabel(
+    'bash ~/.claude/lib/gitflow.sh finish feature x && echo finish chore'))
+    .toBe('feature x')
+  expect(finishLabel('FOO=1 bash g/gitflow.sh finish')).toBe('finish')
+})
+
+test('rtk and subshell prefixes still read as a commit', () => {
+  expect(commitLabel('rtk git commit -m "fix: r"')).toBe('fix: r')
+  expect(commitLabel('(git commit -m "fix: s")')).toBe('fix: s')
+})
+
+test('a secret straddling the 80 cut does not escape the label', () => {
+  const secret = 'sk_live_' + 'a'.repeat(30)
+  const out = commitLabel(`git commit -m "fix: ${'w'.repeat(60)} ${secret}"`)
+  expect(out).toBe('fix: ' + 'w'.repeat(60) + ' <redacted:stri')
+})
+
+test('a finish label is stored redacted', async ($, on) => {
+  const w = await boot($, on)
+  await run($, w, 'bash ~/.claude/lib/gitflow.sh finish feature TOKEN=abc')
+  expect(labels(w)).toEqual(['feature TOKEN=<redacted>'])
+})
+
+test('the first of two -m is the subject', () => {
+  expect(commitLabel("git commit -m 'fix: a' -m 'body'")).toBe('fix: a')
+})
+
+test('an env-prefixed suite keeps its prefix in the green label', async (
+  $, on,
+) => {
+  const w = await boot($, on)
+  await run($, w, 'X=1 make test suite=a', RED)
+  await run($, w, 'X=1 make test suite=a')
+  expect(kinds(w)).toEqual(['green'])
+  expect(labels(w)).toEqual(['X=1 make test suite=a'])
+})
+
+test('pending keeps the 20 latest milestones', async ($, on) => {
+  const { w, seen } = await bootNotes($, on)
+  for (let i = 0; i < 22; i++) await run($, w, `git commit -m "fix: n${i}"`)
+  await composer($)
+  expect(seen[0]?.[0]).toContain('memory: commit fix: n2 ')
+})

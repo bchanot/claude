@@ -523,22 +523,29 @@ const recordFailure = ($: Api, at: Where, f: Failure) =>
 // Milestones: a commit, a gitflow finish, a suite gone from red to green.
 // Regexes read at most 64 KiB of one command and use bounded repeats.
 const MAX_LABEL = 80
+const MAX_PENDING = 20
 const ENV_PREFIX = '(?:[A-Za-z_]\\w{0,60}=\\S{0,200}[ \\t]{1,5}){0,10}'
 const SUITE_SEGMENT = new RegExp(
   `^${ENV_PREFIX}make\\b[^;&|]{0,1000}\\btest\\b`,
 )
 const COMMIT_SEGMENT = new RegExp(
-  `^${ENV_PREFIX}git(?:[ \\t]{1,5}-C[ \\t]{1,5}\\S{1,200})?` +
-    '[ \\t]{1,5}commit\\b',
+  `^[(\\s]{0,5}(?:rtk[ \\t]{1,5})?${ENV_PREFIX}` +
+    'git(?:[ \\t]{1,5}-C[ \\t]{1,5}\\S{1,200})?[ \\t]{1,5}commit\\b',
 )
+const CONVENTIONAL = '(feat|fix)(\\([^)\\n]{0,80}\\))?!?:[ \\t]{0,5}'
 const COMMIT_MESSAGE = new RegExp(
-  '-[a-z]{0,5}m[ \\t]{1,5}(["\']?)(feat|fix)(\\([^)\\n]{0,80}\\))?!?:' +
-    '[ \\t]{0,5}([^"\'\\n]{0,80})',
+  `-[a-z]{0,5}m[ \\t]{1,5}(["']?)${CONVENTIONAL}([^"'\\n]{0,300})`,
+)
+// -m "$(cat <<'EOF' newline subject: the subject is the first body line
+const COMMIT_HEREDOC = new RegExp(
+  '-[a-z]{0,5}m[ \\t]{1,5}"\\$\\(cat[ \\t]{1,5}<<-?["\']?' +
+    '[A-Za-z_]{1,20}["\']?[ \\t]{0,5}\\n[ \\t]{0,20}' +
+    `${CONVENTIONAL}([^\\n]{0,300})`,
 )
 const FINISH = new RegExp(
-  '(?:^|[\\s;&|])(?:bash|sh)[ \\t]{1,5}\\S{0,200}gitflow\\.sh"?' +
+  `^${ENV_PREFIX}(?:bash|sh)[ \\t]{1,5}\\S{0,200}gitflow\\.sh"?` +
     '[ \\t]{1,5}finish\\b(?:[ \\t]{1,5}([a-z]{1,20})[ \\t]{1,5}' +
-    '([\\w./-]{1,60}))?',
+    '([\\w.=/-]{1,60}))?',
 )
 const FINISH_CHORE = /\bfinish[ \t]{1,5}chore\b/
 
@@ -557,20 +564,30 @@ export function suiteKeyOf(command: string): string | undefined {
     .slice(0, MAX_RED_LEN)
 }
 
+function conventional(type?: string, scope?: string, subject?: string) {
+  return label(`${type}${scope ?? ''}: ${(subject ?? '').trim()}`)
+}
+
 /** `<type><scope>: <subject>` of a feat/fix commit, else `undefined`. */
 export function commitLabel(command: string): string | undefined {
-  if (!segments(command).some(s => COMMIT_SEGMENT.test(s))) return undefined
-  const m = COMMIT_MESSAGE.exec(cap(command, MAX_REGEX_INPUT))
-  if (m === null) return undefined
-  return label(`${m[2]}${m[3] ?? ''}: ${(m[4] ?? '').trim()}`)
+  const text = cap(command, MAX_REGEX_INPUT)
+  const seg = segments(command).find(s => COMMIT_SEGMENT.test(s))
+  if (seg === undefined) return undefined
+  const rest = text.slice(Math.max(0, text.indexOf(seg)))
+  const h = COMMIT_HEREDOC.exec(rest)
+  if (h !== null) return conventional(h[1], h[2], h[3])
+  const m = COMMIT_MESSAGE.exec(seg)
+  return m === null ? undefined : conventional(m[2], m[3], m[4])
 }
 
 /** `<type> <name>` after a gitflow finish, `finish` alone, or undefined. */
 export function finishLabel(command: string): string | undefined {
-  const text = cap(command, MAX_REGEX_INPUT)
-  const m = FINISH.exec(text)
-  if (m === null || FINISH_CHORE.test(text)) return undefined
-  return m[1] === undefined ? 'finish' : label(`${m[1]} ${m[2]}`)
+  for (const seg of segments(command)) {
+    const m = FINISH.exec(seg)
+    if (m === null || FINISH_CHORE.test(seg)) continue
+    return m[1] === undefined ? 'finish' : label(`${m[1]} ${m[2]}`)
+  }
+  return undefined
 }
 
 function newState(): State {
@@ -758,7 +775,8 @@ function recordSuccess(
       s.milestones = [...s.milestones, ...added]
       if (green) s.red = s.red.filter(r => r !== key)
     })
-    st.pending.push(...added.map(m => `${m.kind} ${m.label}`))
+    st.pending = [...st.pending, ...added.map(m => `${m.kind} ${m.label}`)]
+      .slice(-MAX_PENDING)
   })
 }
 
