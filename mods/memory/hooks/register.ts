@@ -286,29 +286,35 @@ const MIN_SPAN = 12
 const GRAM_WORDS = 4
 const HEADING = /^## ((?:BLK|LRN)-\d+)\b.*$/gm
 const SPAN = /`([^`\n]+)`/g
-const STATUS = /^\s*-\s*\*\*Stat(?:us|ut)[^*]*\*\*\s*:?\s*([A-Za-z-]+)/gim
+// [ \t] not \s: a multiline regex must not cross newlines (quadratic).
+const STATUS =
+  /^[ \t]*-[ \t]*\*\*Stat(?:us|ut)[^*\n]*\*\*[ \t]*:?[ \t]*([A-Za-z-]+)/gim
 
 type Entry = { id: string; body: string }
 
-/** Why a registry is not read, or `undefined` when it is readable. */
-async function skipReason($: Api, path: string): Promise<string | undefined> {
+type Read = { text: string } | { why: string }
+
+/** One stat, one read: the text, or why the registry is skipped. */
+// a rejected stat means missing only when exists says so
+async function tryRead($: Api, path: string): Promise<Read> {
   try {
     const info = await $.fs.stat(path)
-    if (info.kind !== 'file') return 'not a file'
-    return info.size > MAX_REGISTRY ? 'over 4 MiB' : undefined
+    if (info.kind !== 'file') return { why: 'not a file' }
+    if (info.size > MAX_REGISTRY) return { why: 'over 4 MiB' }
   } catch {
-    return 'missing'
+    return { why: (await $.fs.exists(path)) ? 'unreadable' : 'missing' }
+  }
+  try {
+    return { text: await $.fs.read(path) }
+  } catch {
+    return { why: 'unreadable' }
   }
 }
 
-/** A registry's text; `''` when missing, not a file or over 4 MiB. */
+/** A registry's text; `''` when skipped (missing, not a file, too big). */
 export async function readRegistry($: Api, path: string): Promise<string> {
-  if ((await skipReason($, path)) !== undefined) return ''
-  try {
-    return await $.fs.read(path)
-  } catch {
-    return ''
-  }
+  const r = await tryRead($, path)
+  return 'text' in r ? r.text : ''
 }
 
 /** The BLK/LRN entries; a body runs from its heading to the next one. */
@@ -383,12 +389,12 @@ async function loadIndex($: Api, root: string): Promise<Registries> {
   const skipped: string[] = []
   for (const name of REGISTRIES) {
     const path = `${root}/.claude/memory/${name}`
-    const why = await skipReason($, path)
-    if (why !== undefined) {
-      skipped.push(`${name} (${why})`)
+    const r = await tryRead($, path)
+    if ('why' in r) {
+      skipped.push(`${name} (${r.why})`)
       continue
     }
-    texts.push(await readRegistry($, path))
+    texts.push(r.text)
     read.push(name)
   }
   const parts = [
@@ -407,13 +413,30 @@ const EXCERPT_SHOWN = 300
 const OFF_TEXT = 'memory capture is off (~/.claude/memory.json)'
 const NOTHING_TEXT = 'memory_pending: nothing captured'
 
+const isText = (...v: unknown[]) => v.every(x => typeof x === 'string')
+
+/** The store is data: a malformed element is skipped, never thrown on. */
+function isFailure(v: unknown): v is Failure {
+  const f = v as Partial<Failure> | null
+  return typeof f === 'object' && f !== null &&
+    isText(f.key, f.line, f.excerpt, f.command) &&
+    Number.isFinite(f.count)
+}
+
+function isMilestone(v: unknown): v is Milestone {
+  const m = v as Partial<Milestone> | null
+  return typeof m === 'object' && m !== null && isText(m.kind, m.label) &&
+    Number.isFinite(m.at) && Math.abs(m.at as number) < 8.64e15
+}
+
 type Row = { f: Failure; id: string | undefined; earlier: boolean }
 
 /** Current-session NEW, current-session known, then earlier sessions. */
 function rowsOf(p: Project, curId: string, index: Map<string, string>) {
-  const rows: Row[] = p.sessions.flatMap(s => s.failures.map(f => ({
-    f, id: matchOf(index, f.key), earlier: s.id !== curId,
-  })))
+  const rows: Row[] = p.sessions.flatMap(s =>
+    s.failures.filter(isFailure).map(f => ({
+      f, id: matchOf(index, f.key), earlier: s.id !== curId,
+    })))
   const rank = (r: Row) => (r.earlier ? 2 : r.id === undefined ? 0 : 1)
   return rows.sort((a, b) => rank(a) - rank(b))
 }
@@ -424,7 +447,7 @@ function failureText({ f, id, earlier }: Row): string {
     (earlier ? ' (earlier session)' : '')
   const head = `- ${tag} ×${f.count}${marks} ${f.line} — command: ${f.command}`
   if (f.excerpt === '') return head
-  const shown = tail(f.excerpt, EXCERPT_SHOWN).replace(/\r?\n/g, '⏎')
+  const shown = tail(f.excerpt, EXCERPT_SHOWN).replace(/\r\n?|\n/g, '⏎')
   return `${head}\n  excerpt: ${shown}`
 }
 
@@ -453,7 +476,8 @@ export function formatPending(
   rx: Registries,
 ): string {
   const rows = rowsOf(p, curId, rx.index)
-  const ms = p.sessions.find(s => s.id === curId)?.milestones ?? []
+  const cur = p.sessions.find(s => s.id === curId)
+  const ms = (cur?.milestones ?? []).filter(isMilestone)
   if (rows.length === 0 && ms.length === 0) return NOTHING_TEXT
   const name = root.split('/').filter(Boolean).pop() ?? root
   const out = [`memory_pending (project ${name}, ${p.sessions.length} ` +

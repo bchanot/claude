@@ -3,7 +3,7 @@ import type { Engine, MockClock } from 'claude-code/testing'
 import type { On } from 'claude-code'
 import {
   cap, tail, redact, normalize, failureLine, sessionOf, addFailure,
-  entriesOf, isSuperseded, grams, buildIndex, matchOf, readRegistry,
+  entriesOf, isSuperseded, grams, buildIndex, matchOf,
 } from './register'
 
 const HOME = '/home/t'
@@ -24,6 +24,7 @@ type World = {
   logs: string[] // every $.ui.log line
   tools: string[] // every tool name registered
   files: Map<string, string | null> // other files (null: a directory)
+  unreadable: Set<string> // paths whose fs.read throws
 }
 
 type Opts = {
@@ -32,6 +33,7 @@ type Opts = {
   seed?: Record<string, unknown> // the store at the start
   storeFails?: boolean // store.set rejects (a hand-made store)
   files?: Record<string, string | null> // registries under the root
+  unreadable?: string[] // paths whose fs.read throws
 }
 
 /**
@@ -61,6 +63,7 @@ async function boot($: Engine, on: On, o: Opts = {}): Promise<World> {
     kv: new Map(Object.entries(o.seed ?? {})),
     sets: [], logs: [], tools: [],
     files: new Map(Object.entries(o.files ?? {})),
+    unreadable: new Set(o.unreadable ?? []),
   }
   handStore(on, w, o.storeFails ?? false)
   on('tool.register', (_a, e) => {
@@ -68,6 +71,9 @@ async function boot($: Engine, on: On, o: Opts = {}): Promise<World> {
     return { value: undefined } as never
   })
   on('env.get', () => ({ value: HOME }))
+  on('fs.exists', (_a, e) => ({
+    value: w.files.has(e.path) || e.path === SWITCH,
+  }))
   on('fs.stat', (_a, e) => {
     if (w.files.has(e.path)) {
       const text = w.files.get(e.path)
@@ -85,6 +91,7 @@ async function boot($: Engine, on: On, o: Opts = {}): Promise<World> {
     } }
   })
   on('fs.read', (_a, e) => {
+    if (w.unreadable.has(e.path)) throw new Error('EIO')
     if (w.files.has(e.path)) return { value: w.files.get(e.path) ?? '' }
     if (e.path !== SWITCH || w.switchText === undefined) {
       throw new Error('ENOENT')
@@ -620,13 +627,11 @@ test('isSuperseded: the last status wins, else the heading tag', () => {
   expect(isSuperseded('## LRN-1 [open] a\n')).toBe(false)
 })
 
-test('readRegistry: a directory and an over-size file read as empty', async (
+test('a directory and an over-size file are skipped on the index line', async (
   $, on,
 ) => {
   const big = 'x'.repeat(4194305)
   const w = await boot($, on, { files: { [BLK]: null, [LRN]: big } })
-  expect(await readRegistry($ as never, BLK)).toBe('')
-  expect(await readRegistry($ as never, LRN)).toBe('')
   await failing($, w, EXIT1 + 'fatal: bad thing')
   expect(await pending($)).toContain(
     'index: skipped blockers.md (not a file), learnings.md (over 4 MiB)')
@@ -742,4 +747,65 @@ test('the tool never writes the store', async ($, on) => {
   const w = await boot($, on, { files: REGS })
   await pending($)
   expect(w.sets).toEqual([])
+})
+
+test('TIME1: an index over 80000 newlines builds in under 500 ms', () => {
+  const body = '## BLK-001 x\n' + '\n'.repeat(80000) + '- **Status**: open\n' +
+    '\r\n'.repeat(40000) + '`fatal: unable to access remote`\n'
+  const t0 = now()
+  const index = buildIndex([body])
+  expect(now() - t0).toBeLessThan(500)
+  expect(index.size).toBe(2)
+})
+
+test('a registry whose read throws is named unreadable', async ($, on) => {
+  const w = await boot($, on, { files: REGS, unreadable: [BLK] })
+  await failing($, w, EXIT1 + 'fatal: unable to access remote host')
+  const text = await pending($)
+  expect(text).toContain(
+    'index: read learnings.md; skipped blockers.md (unreadable)')
+  expect(text).toContain('- NEW \u00d71')
+})
+
+test('a lone CR in the excerpt shows as the newline mark', async ($, on) => {
+  const w = await boot($, on)
+  await failing($, w, EXIT1 + 'a\rb\r\nc\nfatal: end')
+  expect(await pending($)).toContain(
+    'excerpt: Exit code 1\u23cea\u23ceb\u23cec\u23cefatal: end')
+})
+
+test('malformed stored elements are skipped, valid ones listed', async (
+  $, on,
+) => {
+  const ok = { key: 'good line here ok', line: 'good line here ok',
+    excerpt: '', command: 'c', agent: false, at: 1, count: 1 }
+  const seed = { [`p:${ROOT}`]: { sessions: [{
+    id: 's1', at: 1, red: [],
+    failures: [{ ...ok, key: 42 }, null, ok],
+    milestones: [{ kind: 'commit', label: 'x', at: 'bad' }, null,
+      { kind: 'commit', label: 'fine', at: 60000 }],
+  }] } }
+  await boot($, on, { seed })
+  const text = await pending($)
+  expect(text).toContain('- commit fine (00:01)')
+  expect(text).toContain('- NEW \u00d71 good line here ok')
+  expect(text).not.toContain('bad')
+})
+
+test('a registry of exactly 4 MiB is read, one byte more skipped', async (
+  $, on,
+) => {
+  const w = await boot($, on, { files: {
+    [BLK]: 'x'.repeat(4194304), [LRN]: 'x'.repeat(4194305),
+  } })
+  await failing($, w, EXIT1 + 'fatal: bad thing')
+  expect(await pending($)).toContain(
+    'index: read blockers.md; skipped learnings.md (over 4 MiB)')
+})
+
+test('a span of 12 chars is indexed, one of 11 is not', () => {
+  const at12 = buildIndex(['## BLK-001 x\n`aa bb cc ddd`\n'])
+  const at11 = buildIndex(['## BLK-001 x\n`aa bb cc dd`\n'])
+  expect(at12.size).toBe(1)
+  expect(at11.size).toBe(0)
 })
