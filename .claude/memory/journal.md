@@ -689,3 +689,6 @@ rules:
 
 ## 2026-11-03
 - Phase 3 closed, not built (user /context 2026-11-03: full 40k, dev 38.4k, web 40k; connector instr have a native lever, jit-subtractable doctrine ~1-2k). dev System tools 11.5k vs 7.6k full: tool-search threshold suspected, queued. Phase 2 merged 29624d7. Next: phase 4b capture on feature/memory-capture.
+
+## 2026-11-04
+- 2026-11-04 — 4b memory capture built on feature/memory-capture (mod, consumers, docs, noise 83 % → errorish filter; GATE 0 MET, verifier ECARTS(1) interactive half, security PASS ×3); interactive note check + merge pending user; 4c next.
