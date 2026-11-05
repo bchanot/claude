@@ -852,11 +852,22 @@ function failureText({ f, id, earlier }: Row): string {
   return `${head}\n  excerpt: ${shown}`
 }
 
-function milestoneText(m: Milestone): string {
+function milestoneText(m: Milestone, earlier = false): string {
   const d = new Date(m.at)
   const two = (n: number) => String(n).padStart(2, '0')
   const hhmm = `${two(d.getHours())}:${two(d.getMinutes())}`
-  return `- ${m.kind} ${m.label} (${hhmm})`
+  const mark = earlier ? ' (earlier session)' : ''
+  return `- ${m.kind} ${m.label} (${hhmm})${mark}`
+}
+
+/** Current session first, then the earlier ones, newest session first. */
+function milestoneLines(p: Project, curId: string): string[] {
+  const lines = (s: Session) => s.milestones.filter(isMilestone)
+    .map(m => milestoneText(m, s.id !== curId))
+  const cur = p.sessions.filter(s => s.id === curId)
+  const old = p.sessions.filter(s => s.id !== curId)
+    .sort((a, b) => b.at - a.at)
+  return [...cur, ...old].flatMap(lines)
 }
 
 /** The failure list within ANSWER_CAP; the rest is counted, not shown. */
@@ -879,14 +890,13 @@ export function formatPending(
   rx: Registries,
 ): string {
   const rows = rowsOf(p, curId, rx.index)
-  const cur = p.sessions.find(s => s.id === curId)
-  const ms = (cur?.milestones ?? []).filter(isMilestone)
+  const ms = milestoneLines(p, curId)
   if (rows.length === 0 && ms.length === 0) return NOTHING_TEXT
   const name = root.split('/').filter(Boolean).pop() ?? root
   const out = [`memory_pending (project ${name}, ${p.sessions.length} ` +
     'session(s))', rx.note]
   if (ms.length > 0) {
-    out.push('milestones (this session):', ...ms.map(milestoneText))
+    out.push('milestones:', ...ms)
   }
   if (rows.length > 0) {
     out.push('failures:', ...capFailures(rows.map(failureText)))
@@ -1391,9 +1401,29 @@ async function captureMilestones(
 }
 
 /**
+ * The live BLK or LRN entry `key` matches. The match runs on every entry
+ * first: the status reader is spawned only for a candidate ID.
+ */
+async function liveCandidate(
+  $: Api,
+  root: string,
+  key: string,
+): Promise<Entry | undefined> {
+  const { texts } = await readRegistries($, root, FAILURE_FILES)
+  const all = assembleEntries(texts, new Map())
+  const failing = all.filter(e => FAILURE_KINDS.has(e.kind))
+  const id = matchOf(buildIndex(failing, undefined), key)
+  if (id === undefined) return undefined
+  const status = await statusMap($, root)
+  if (status === undefined || !isLive(status, id)) return undefined
+  return assembleEntries(texts, status).find(e => e.id === id)
+}
+
+/**
  * The known-error line of a failure: `memory: known <entry>` when a live
  * BLK or LRN matches and the context has not seen it nor spent its budget.
- * '' otherwise. Claims after the last await.
+ * '' otherwise. Claims synchronously once the reads are done; only the
+ * log write follows.
  */
 async function knownLine(
   $: Api,
@@ -1403,15 +1433,13 @@ async function knownLine(
   agent: string | undefined,
 ): Promise<string> {
   if (!(await ensureRecall($, st))) return ''
-  const rx = await loadRegistries($, at.root, FAILURE_FILES)
-  if (rx.status === undefined) return ''
-  const id = matchOf(rx.index, f.key)
-  const entry = rx.entries.find(e => e.id === id)
+  const entry = await liveCandidate($, at.root, f.key)
   if (entry === undefined) return ''
   const line = `memory: known ${recallLine(entry)}`
   const key = contextKey(at.id, agent)
+  const now = await $.clock.now()
   if (claim(st, key, [entry.id], [line.length]).length === 0) return ''
-  const record = { at: await $.clock.now(), session: at.id, ids: [entry.id] }
+  const record = { at: now, session: at.id, ids: [entry.id] }
   await appendLog($, st, at.root, {
     ...record, agent: agent ?? 'main', channel: 'tool',
   }).catch(() => undefined)

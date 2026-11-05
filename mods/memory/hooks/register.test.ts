@@ -785,7 +785,7 @@ test('milestones, sub-agent, earlier session and order', async ($, on) => {
   expect(await pending($)).toBe([
     'memory_pending (project app, 2 session(s))',
     'index: read blockers.md, learnings.md',
-    'milestones (this session):',
+    'milestones:',
     '- commit fix: x (' + localHhmm(3600000 * 14 + 120000) + ')',
     'failures:',
     '- NEW \u00d72 (sub-agent) brand new line here ok \u2014 command: c',
@@ -797,6 +797,39 @@ test('milestones, sub-agent, earlier session and order', async ($, on) => {
       ' \u2014 command: c',
     '  excerpt: a\u23ceb',
   ].join('\n'))
+})
+
+test('PM1: current milestone first, then the earlier one', async (
+  $, on,
+) => {
+  const mk = (id: string, at: number, ms: unknown[]) =>
+    ({ id, at, failures: [], milestones: ms, red: [] })
+  const seed = { [`p:${ROOT}`]: { sessions: [
+    mk('s0', 100, [{ kind: 'commit', label: 'fix: old', at: 7200000 }]),
+    mk('s1', 900, [{ kind: 'commit', label: 'fix: new', at: 3600000 }]),
+  ] } }
+  await boot($, on, { seed })
+  expect(await pending($)).toBe([
+    'memory_pending (project app, 2 session(s))',
+    'index: skipped blockers.md (missing), learnings.md (missing)',
+    'milestones:',
+    '- commit fix: new (' + localHhmm(3600000) + ')',
+    '- commit fix: old (' + localHhmm(7200000) + ') (earlier session)',
+  ].join('\n'))
+})
+
+test('PM2: only an earlier milestone is not nothing captured', async (
+  $, on,
+) => {
+  const seed = { [`p:${ROOT}`]: { sessions: [
+    { id: 's0', at: 100, failures: [], red: [],
+      milestones: [{ kind: 'commit', label: 'fix: probe', at: 3600000 }] },
+  ] } }
+  await boot($, on, { seed })
+  const text = await pending($)
+  expect(text).not.toBe('memory_pending: nothing captured')
+  expect(text).toContain(
+    '- commit fix: probe (' + localHhmm(3600000) + ') (earlier session)')
 })
 
 test('the excerpt shows its last 300 characters', async ($, on) => {
@@ -1143,7 +1176,7 @@ test('a stored commit milestone shows in the memory_pending answer', async (
   expect(await pending($)).toBe([
     'memory_pending (project app, 1 session(s))',
     'index: skipped blockers.md (missing), learnings.md (missing)',
-    'milestones (this session):',
+    'milestones:',
     '- commit fix(x): y (' + localHhmm(1000) + ')',
   ].join('\n'))
 })
@@ -2627,6 +2660,17 @@ test('TE4: the same failure 20 times in one context injects once',
     expect(injected).toBe(1)
   })
 
+test('TE7: the status reader runs only for a candidate', async (
+  $, on,
+) => {
+  const w = await bootKnown($, on)
+  const known = w.runs.length
+  await failing($, w, EXIT1 + 'fatal: nothing alike zebra quartz')
+  expect(w.runs.length).toBe(known)
+  await failing($, w, EXIT1 + KN_SPAN)
+  expect(w.runs.length - known).toBe(1)
+})
+
 test('TE4b: two concurrent failing calls inject one line', async (
   $, on,
 ) => {
@@ -2760,4 +2804,5 @@ test('PC2: a throwing recall still lets the note attach', async ($, on) => {
     origin: { kind: 'composer' } })
   expect(added).toHaveLength(1)
   expect(added[0]).toContain('memory: commit fix: y')
+  expect(w.logs.filter(l => l.includes('prompt.submit'))).toEqual([])
 })
