@@ -9,19 +9,33 @@ type Api = EngineInterface
 
 type State = {
   enabled: boolean | null // null: not read yet this session
+  recall: boolean | null // the "recall" key, read with `enabled`
   warned: Set<string>
   pending: string[] // milestones not yet shown in a note
   writes: Promise<void> // the one chain every store write runs on
+  seen: Map<string, Set<string>> // context key -> injected IDs
+  spent: Map<string, number> // context key -> chars injected
+  fresh: Set<string> // sessions whose next qualifying prompt starts a context
+  lastPrompt: Map<string, number> // session id -> time of its last prompt
 }
+
+export const IDLE_MS = 1800000
+export const RECALL_CAP = 1500
+export const HAIKU = 'claude-haiku-5-5'
+export const RERANK_MS = 3000
 
 const SWITCH_FILE = '.claude/memory.json'
 const MAX_SWITCH_BYTES = 65536
+const CONTEXT_STARTS = new Set(['startup', 'clear', 'compact'])
 const TOOL = 'memory_pending'
 const SERVED_TOOL = 'mcp__memory__memory_pending'
 const SWITCH_UNREADABLE =
   'memory: ~/.claude/memory.json unreadable, capture stays on'
 const SWITCH_INVALID =
   'memory: ~/.claude/memory.json has no boolean "enabled", capture stays on'
+
+const SWITCH_RECALL_INVALID =
+  'memory: ~/.claude/memory.json has no boolean "recall", recall stays on'
 
 const MAX_REGEX_INPUT = 65536
 const PEM = '-----'
@@ -686,8 +700,10 @@ export function bm25Rank(entries: Entry[], query: string, k: number): Entry[] {
 /** The haiku prompt: the redacted user prompt and one line per candidate. */
 export function rerankPrompt(query: string, cands: Entry[]): string {
   const lines = cands.map(c => `${c.id} | ${c.title} | ${c.lesson}`)
+  // redact first: a secret straddling the cut would escape its pattern
+  const asked = cap(redact(cap(query, MAX_REGEX_INPUT)), MAX_QUERY)
   return (
-    `Prompt: ${redact(cap(query, MAX_QUERY))}\nCandidates:\n` +
+    `Prompt: ${asked}\nCandidates:\n` +
     `${lines.join('\n')}\nAnswer with at most ${MAX_PICKS} candidate IDs ` +
     'that would help with this prompt, comma separated, or none.'
   )
@@ -721,6 +737,7 @@ export function recallBlock(lines: string[], max: number): string {
 /** The dedup key of a failure text, as `buildFailure` stores it. */
 export function failureKey(text: string, command: string): string | undefined {
   void command // the key comes from the output only; kept for the harness
+  if (!EXIT_CODE.test(text)) return undefined
   const line = lastLine(redact(tail(text, MAX_REGEX_INPUT)))
   return line === undefined ? undefined : normalize(line)
 }
@@ -881,6 +898,57 @@ function queueWrite(st: State, job: () => Promise<void>): Promise<void> {
   return run
 }
 
+export type LogRecord = {
+  at: number
+  session: string
+  agent: string
+  channel: 'prompt' | 'tool'
+  ids: string[]
+}
+
+const LOG_PREFIX = 'l:'
+const MAX_LOG = 200
+const MAX_LOG_BYTES = 65536
+
+function isLogRecord(v: unknown): v is LogRecord {
+  const r = v as Partial<LogRecord> | null
+  return typeof r === 'object' && r !== null &&
+    typeof r.at === 'number' && typeof r.session === 'string' &&
+    typeof r.agent === 'string' &&
+    (r.channel === 'prompt' || r.channel === 'tool') &&
+    Array.isArray(r.ids) && r.ids.every(i => typeof i === 'string')
+}
+
+const logKey = (root: string) => LOG_PREFIX + root.slice(0, MAX_ROOT)
+
+/** The injection log of a project; malformed records are dropped. */
+export async function loadLog($: Api, root: string): Promise<LogRecord[]> {
+  const raw = await $.store.get(logKey(root))
+  return Array.isArray(raw) ? raw.filter(isLogRecord) : []
+}
+
+/** The newest records that fit MAX_LOG and MAX_LOG_BYTES serialized. */
+function fitLog(log: LogRecord[]): LogRecord[] {
+  let kept = log.slice(-MAX_LOG)
+  while (kept.length > 0 && JSON.stringify(kept).length > MAX_LOG_BYTES) {
+    kept = kept.slice(1)
+  }
+  return kept
+}
+
+/** Appends an injection record on the write chain; the oldest fall off. */
+export function appendLog(
+  $: Api,
+  st: State,
+  root: string,
+  record: LogRecord,
+): Promise<void> {
+  return queueWrite(st, async () => {
+    const log = await loadLog($, root)
+    await $.store.set(logKey(root), fitLog([...log, record]))
+  })
+}
+
 type Where = { root: string; id: string }
 
 /** Load, change the current session, save; sweeps when it is created. */
@@ -970,12 +1038,17 @@ export function finishLabel(command: string): string | undefined {
   return undefined
 }
 
-function newState(): State {
+export function newState(): State {
   return {
     enabled: null,
+    recall: null,
     warned: new Set(),
     pending: [],
     writes: Promise.resolve(),
+    seen: new Map(),
+    spent: new Map(),
+    fresh: new Set(),
+    lastPrompt: new Map(),
   }
 }
 
@@ -995,28 +1068,43 @@ function logOnce(st: State, $: Api, key: string, text: string): void {
   }
 }
 
+type Switch = { enabled: boolean; recall: boolean }
+
 /**
- * True unless the user's switch file says `enabled: false`. A file that
- * exists but cannot be read or parsed keeps capture on and logs one line.
+ * The switch file's two keys. An absent key is on; a present non-boolean
+ * logs one line and counts as absent. `enabled: false` cuts recall too.
  */
-async function loadEnabled($: Api, st: State): Promise<boolean> {
+export function switchOf($: Api, st: State, data: unknown): Switch {
+  const keys = (data ?? {}) as { enabled?: unknown; recall?: unknown }
+  if (keys.enabled !== undefined && typeof keys.enabled !== 'boolean') {
+    logOnce(st, $, 'switch', SWITCH_INVALID)
+  }
+  if (keys.recall !== undefined && typeof keys.recall !== 'boolean') {
+    logOnce(st, $, 'switch-recall', SWITCH_RECALL_INVALID)
+  }
+  const enabled = keys.enabled !== false
+  return { enabled, recall: enabled && keys.recall !== false }
+}
+
+/**
+ * The user's switch file. A file that exists but cannot be read or parsed
+ * keeps everything on and logs one line.
+ */
+async function loadEnabled($: Api, st: State): Promise<Switch> {
+  const on = { enabled: true, recall: true }
   let path = ''
   try {
     const home = await $.env.get('HOME')
-    if (!home) return true
+    if (!home) return on
     path = `${home}/${SWITCH_FILE}`
     const info = await $.fs.stat(path)
-    if (info.kind !== 'file' || info.size > MAX_SWITCH_BYTES) return true
-    const data: unknown = JSON.parse(await $.fs.read(path))
-    const enabled = (data as { enabled?: unknown } | null)?.enabled
-    if (typeof enabled === 'boolean') return enabled
-    logOnce(st, $, 'switch', SWITCH_INVALID)
-    return true
+    if (info.kind !== 'file' || info.size > MAX_SWITCH_BYTES) return on
+    return switchOf($, st, JSON.parse(await $.fs.read(path)))
   } catch {
     if (path !== '' && !(await isGone($, path))) {
       logOnce(st, $, 'switch', SWITCH_UNREADABLE)
     }
-    return true
+    return on
   }
 }
 
@@ -1048,9 +1136,60 @@ async function registerTool($: Api): Promise<void> {
  */
 async function ensureEnabled($: Api, st: State): Promise<boolean> {
   if (st.enabled !== null) return st.enabled
-  st.enabled = await loadEnabled($, st)
+  const sw = await loadEnabled($, st)
+  st.enabled = sw.enabled
+  st.recall = sw.recall
   if (st.enabled) await registerTool($)
   return st.enabled
+}
+
+/** True when the mod is on and the "recall" key does not turn it off. */
+async function ensureRecall($: Api, st: State): Promise<boolean> {
+  return (await ensureEnabled($, st)) && st.recall === true
+}
+
+const contextKey = (session: string, agent: string | undefined) =>
+  `${session}:${agent ?? 'main'}`
+
+/** Forgets what a session's contexts injected. */
+function forgetContexts(st: State, session: string): void {
+  for (const map of [st.seen, st.spent]) {
+    for (const key of [...map.keys()]) {
+      if (key.startsWith(`${session}:`)) map.delete(key)
+    }
+  }
+}
+
+/** A new context: nothing injected yet, the next prompt may recall. */
+export function onContextStart(st: State, session: string): void {
+  forgetContexts(st, session)
+  st.fresh.add(session)
+}
+
+/**
+ * Takes the IDs not yet seen in the context whose line costs (`chars`,
+ * parallel to `ids`) still fit RECALL_CAP, and records them. Synchronous:
+ * called after the last await, so two racing callers never both claim.
+ */
+export function claim(
+  st: State,
+  key: string,
+  ids: string[],
+  chars: number[],
+): string[] {
+  const seen = st.seen.get(key) ?? new Set<string>()
+  let spent = st.spent.get(key) ?? 0
+  const taken: string[] = []
+  ids.forEach((id, i) => {
+    const cost = chars[i] ?? 0
+    if (seen.has(id) || spent + cost > RECALL_CAP) return
+    seen.add(id)
+    spent += cost
+    taken.push(id)
+  })
+  st.seen.set(key, seen)
+  st.spent.set(key, spent)
+  return taken
 }
 
 /** The tool's answer; reads the store and the registries, writes nothing. */
@@ -1076,6 +1215,41 @@ function registerPending(on: On, st: State): void {
   })
 }
 
+/** The ending session's recall state; other sessions keep theirs. */
+export function endContext(st: State, session: string): void {
+  forgetContexts(st, session)
+  st.fresh.delete(session)
+  st.lastPrompt.delete(session)
+}
+
+/**
+ * A context starts on startup, clear and compact (not resume or fork).
+ * An agent's start resets that agent's key only.
+ */
+export function resetContext(
+  st: State,
+  source: string,
+  session: string,
+  agent: string | undefined,
+): void {
+  if (!CONTEXT_STARTS.has(source)) return
+  if (agent === undefined) return onContextStart(st, session)
+  const key = contextKey(session, agent)
+  st.seen.delete(key)
+  st.spent.delete(key)
+}
+
+function registerContext(on: On, st: State): void {
+  on('classic.SessionStart', async ($, e, next) => {
+    const session = e.session_id ?? await $.session.id()
+    resetContext(st, e.source, session, e.agent_id)
+    return next(e)
+  }).catch(($, e, next) => {
+    warnOnce(st, $, 'SessionStart', next.error.kind)
+    return next(e)
+  })
+}
+
 function registerSession(on: On, st: State): void {
   on('session.start', async ($, e, next) => {
     await ensureEnabled($, st)
@@ -1086,8 +1260,10 @@ function registerSession(on: On, st: State): void {
   })
   on('session.end', async ($, e, next) => {
     st.enabled = null
+    st.recall = null
     st.pending = []
     st.warned.clear()
+    endContext(st, e.sessionId)
     return next(e)
   }).catch(($, e, next) => {
     warnOnce(st, $, 'session.end', next.error.kind)
@@ -1258,6 +1434,7 @@ function registerPrompt(on: On, st: State): void {
 export const register: Register = on => {
   const st = newState()
   registerSession(on, st)
+  registerContext(on, st)
   registerBash(on, st)
   registerPending(on, st)
   registerPrompt(on, st)

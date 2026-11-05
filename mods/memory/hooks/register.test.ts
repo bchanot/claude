@@ -8,7 +8,10 @@ import {
   buildIndex, matchOf, deErrno, tokensOf, bm25Rank, rerankPrompt,
   parseIds, recallLine, recallBlock, failureKey,
   segments, suiteKeyOf, commitLabel, finishLabel,
+  newState, switchOf, claim, onContextStart, resetContext, endContext,
+  appendLog, loadLog, RECALL_CAP,
 } from './register'
+import type { LogRecord } from './register'
 
 const HOME = '/home/t'
 const SWITCH = `${HOME}/.claude/memory.json`
@@ -157,6 +160,7 @@ async function boot($: Engine, on: On, o: Opts = {}): Promise<World> {
   on('tool.call', { tool: 'Bash' }, (_a, e) =>
     (w.byCommand.get(e.command) ?? w.answer) as never)
   on('session.end', (_a, e) => ({ sessionId: e.sessionId }))
+  on('classic.SessionStart', () => ({}))
   await $.session.start({ cwd: '/tmp', surface: null, isInteractive: false })
   return w
 }
@@ -1772,7 +1776,7 @@ test('assembleEntries joins kind, memory.sh title, lesson and body', () => {
   expect(assembleEntries([body], new Map())[0]?.title).toBe('')
 })
 
-test('TIMEentries: entriesOf and lessonOf on 64 KiB fields, under 50 ms', () => {
+test('TIMEentries: entriesOf, lessonOf on 64 KiB fields, under 50 ms', () => {
   const bodies = [
     '## BLK-001 x\n- Solution: ' + 'a'.repeat(65536 - 26),
     '## BLK-001 x\n- Solution: ' + 'a. '.repeat(21000),
@@ -1919,6 +1923,18 @@ test('RB7: failureKey is the normalized last line of the redacted tail', () => {
   expect(failureKey('Exit code 1\nrm: /tmp/x/y: Permission denied', 'rm x'))
     .toBe('rm: <path>: permission denied')
   expect(failureKey('', 'ls')).toBeUndefined()
+  expect(failureKey('make: *** [all] Error 2', 'make')).toBeUndefined()
+})
+
+test('RB6b: a secret straddling char 2000 of the query is redacted', () => {
+  const secret = 'sk_live_' + 'a'.repeat(24)
+  const q = 'x'.repeat(1979) + ' ' + secret + ' tail'
+  const p = rerankPrompt(q, [])
+  expect(q.indexOf(secret)).toBeLessThan(2000)
+  expect(q.indexOf(secret) + secret.length).toBeGreaterThan(2000)
+  expect(p).toContain('<redacted:stripe>')
+  expect(p).not.toContain('sk_live_')
+  expect(p).not.toContain('aaaa')
 })
 
 test('TIMErank: tokensOf and parseIds on 64 KiB, under 50 ms', () => {
@@ -1928,3 +1944,207 @@ test('TIMErank: tokensOf and parseIds on 64 KiB, under 50 ms', () => {
   parseIds('BDR-1 '.repeat(10000) + 'LRN-'.repeat(15000), [], 3)
   expect(now() - t0).toBeLessThan(50)
 })
+
+// ---- recall: switch key, injection log, per-context ledger -------------
+
+test('SW1: no enabled key with "recall": false logs nothing', async (
+  $, on,
+) => {
+  const w = await boot($, on, { switchText: '{"recall": false}' })
+  await bash($, 'ls')
+  expect(w.logs).toEqual([])
+  expect(w.tools).toEqual(['memory_pending'])
+})
+
+test('SW2: a non-boolean "recall" logs one line, recall stays on', async (
+  $, on,
+) => {
+  const w = await boot($, on, { switchText: '{"recall": "no"}' })
+  await bash($, 'ls')
+  await bash($, 'ls')
+  expect(w.logs).toEqual([
+    'memory: ~/.claude/memory.json has no boolean "recall", ' +
+      'recall stays on',
+  ])
+  expect(w.tools).toEqual(['memory_pending'])
+})
+
+test('SW3: switchOf reads the two keys', () => {
+  const $ = { ui: { log: () => undefined } } as never
+  const of = (data: unknown) => switchOf($, newState(), data)
+  expect(of({})).toEqual({ enabled: true, recall: true })
+  expect(of({ recall: false })).toEqual({ enabled: true, recall: false })
+  expect(of({ recall: 'no' })).toEqual({ enabled: true, recall: true })
+  expect(of({ enabled: false })).toEqual({ enabled: false, recall: false })
+  expect(of({ enabled: false, recall: true }))
+    .toEqual({ enabled: false, recall: false })
+  expect(of(null)).toEqual({ enabled: true, recall: true })
+})
+
+test('SW4: enabled false turns everything off, silently', async ($, on) => {
+  const w = await boot($, on, { switchText: '{"enabled": false}' })
+  await failing($, w, 'Exit code 1\nfatal: bad thing')
+  expect(w.logs).toEqual([])
+  expect(w.tools).toEqual([])
+  expect(w.sets).toEqual([])
+})
+
+/** A state that holds injections for two sessions and an agent. */
+function ledger() {
+  const st = newState()
+  for (const key of ['s1:main', 's1:a1', 's2:main']) {
+    st.seen.set(key, new Set(['BLK-001']))
+    st.spent.set(key, 100)
+  }
+  return st
+}
+
+test('CS1: startup, clear and compact reset the session, mark it fresh',
+  () => {
+    for (const source of ['startup', 'clear', 'compact']) {
+      const st = ledger()
+      resetContext(st, source, 's1', undefined)
+      expect([...st.seen.keys()]).toEqual(['s2:main'])
+      expect([...st.spent.keys()]).toEqual(['s2:main'])
+      expect([...st.fresh]).toEqual(['s1'])
+    }
+  })
+
+test('CS2: resume and fork change nothing', () => {
+  const st = ledger()
+  resetContext(st, 'resume', 's1', undefined)
+  resetContext(st, 'fork', 's1', undefined)
+  expect([...st.seen.keys()]).toEqual(['s1:main', 's1:a1', 's2:main'])
+  expect([...st.spent.values()]).toEqual([100, 100, 100])
+  expect(st.fresh.size).toBe(0)
+})
+
+test('CS3: an agent start resets only that agent key', () => {
+  const st = ledger()
+  resetContext(st, 'startup', 's1', 'a1')
+  expect([...st.seen.keys()]).toEqual(['s1:main', 's2:main'])
+  expect([...st.spent.keys()]).toEqual(['s1:main', 's2:main'])
+  expect(st.fresh.size).toBe(0)
+})
+
+test('CS4: the classic SessionStart event passes through the hook',
+  async ($, on) => {
+    const w = await boot($, on)
+    const out = await $.classic.SessionStart({
+      hook_event_name: 'SessionStart', transcript_path: '/t', cwd: ROOT,
+      session_id: 's1', source: 'compact',
+    } as never)
+    expect(out).toEqual({})
+    expect(w.logs).toEqual([])
+  })
+
+test('CS5: endContext clears only the ending session', () => {
+  const st = ledger()
+  for (const id of ['s1', 's2']) {
+    st.fresh.add(id)
+    st.lastPrompt.set(id, 5)
+  }
+  endContext(st, 's1')
+  expect([...st.seen.keys()]).toEqual(['s2:main'])
+  expect([...st.spent.keys()]).toEqual(['s2:main'])
+  expect([...st.fresh]).toEqual(['s2'])
+  expect([...st.lastPrompt.keys()]).toEqual(['s2'])
+})
+
+test('onContextStart is the one reset: forgets then marks fresh', () => {
+  const st = ledger()
+  onContextStart(st, 's2')
+  expect([...st.seen.keys()]).toEqual(['s1:main', 's1:a1'])
+  expect([...st.fresh]).toEqual(['s2'])
+})
+
+test('CL1: claim returns the unseen IDs that fit and records them', () => {
+  const st = newState()
+  const got = claim(st, 'k', ['A-1', 'B-2', 'C-3'], [400, 400, 400])
+  expect(got).toEqual(['A-1', 'B-2', 'C-3'])
+  expect(st.spent.get('k')).toBe(1200)
+  expect([...(st.seen.get('k') ?? [])]).toEqual(['A-1', 'B-2', 'C-3'])
+})
+
+test('CL2: claim excludes the seen and stops at the budget', () => {
+  const st = newState()
+  expect(claim(st, 'k', ['A-1'], [900])).toEqual(['A-1'])
+  // A-1 is seen; B-2 (700) would pass 1500, C-3 (600) fits exactly
+  expect(claim(st, 'k', ['A-1', 'B-2', 'C-3'], [900, 700, 600]))
+    .toEqual(['C-3'])
+  expect(st.spent.get('k')).toBe(RECALL_CAP)
+  expect(st.seen.get('k')?.has('B-2')).toBe(false)
+  expect(claim(st, 'k', ['B-2'], [1])).toEqual([])
+})
+
+test('CL3: claim keys are independent', () => {
+  const st = newState()
+  claim(st, 's1:main', ['A-1'], [1500])
+  expect(claim(st, 's1:a1', ['A-1'], [1500])).toEqual(['A-1'])
+})
+
+/** The plugin's $.store over the world's Map, for the pure log calls. */
+const storeApi = (w: World) => ({ store: {
+  get: async (k: string) => w.kv.get(k),
+  set: async (k: string, v: unknown) => {
+    w.sets.push(k)
+    w.kv.set(k, JSON.parse(JSON.stringify(v)))
+  },
+} }) as never
+
+const REC = (at: number, ids = ['BLK-001']): LogRecord =>
+  ({ at, session: 's1', agent: 'main', channel: 'prompt', ids })
+
+test('LG1: a log in l:<root> survives a capture and a sweep', async (
+  $, on,
+) => {
+  const big = (id: string, at: number) => ({
+    id, at, milestones: [], red: [],
+    failures: [{ key: 'k', line: 'l', excerpt: 'x'.repeat(600000),
+      command: 'c', agent: false, at, count: 1 }],
+  })
+  const seed = {
+    'l:/work/app': [REC(7)],
+    'p:/other': { sessions: [big('o2', 20), big('o1', 10)] },
+  }
+  const w = await boot($, on, { seed })
+  await failing($, w, EXIT1 + 'fatal: bad thing')
+  expect(projectOf(w, '/other')?.sessions.map(s => s.id)).toEqual(['o2'])
+  expect(w.kv.get('l:/work/app')).toEqual([REC(7)])
+  expect(projectOf(w)?.sessions).toHaveLength(1)
+})
+
+test('LG2: 205 appends keep the newest 200', async ($, on) => {
+  const w = await boot($, on)
+  const st = newState()
+  const api = storeApi(w)
+  for (let at = 0; at < 205; at++) await appendLog(api, st, ROOT, REC(at))
+  const log = w.kv.get(`l:${ROOT}`) as LogRecord[]
+  expect(log).toHaveLength(200)
+  expect(log[0]?.at).toBe(5)
+  expect(log[199]?.at).toBe(204)
+  expect(w.sets.every(k => k === `l:${ROOT}`)).toBe(true)
+})
+
+test('LG3: over 64 KiB serialized, the oldest records are dropped',
+  async ($, on) => {
+    const w = await boot($, on)
+    const st = newState()
+    const ids = ['X'.repeat(10000)]
+    for (let at = 0; at < 10; at++) {
+      await appendLog(storeApi(w), st, ROOT, REC(at, ids))
+    }
+    const log = w.kv.get(`l:${ROOT}`) as LogRecord[]
+    expect(log.map(r => r.at)).toEqual([4, 5, 6, 7, 8, 9])
+    expect(JSON.stringify(log).length).toBeLessThanOrEqual(65536)
+  })
+
+test('LG4: loadLog drops malformed records; project key untouched',
+  async ($, on) => {
+    const bad = { at: 'x', session: 's1', agent: 'main', ids: [] }
+    const w = await boot($, on, { seed: {
+      [`l:${ROOT}`]: [REC(1), bad, null, { ...REC(2), channel: 'x' }],
+    } })
+    expect(await loadLog(storeApi(w), ROOT)).toEqual([REC(1)])
+    expect(w.kv.has(`p:${ROOT}`)).toBe(false)
+  })
