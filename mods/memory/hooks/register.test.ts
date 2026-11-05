@@ -1,6 +1,6 @@
 import { test, expect, mock } from 'claude-code/testing'
 import type { Engine, MockClock } from 'claude-code/testing'
-import type { On } from 'claude-code'
+import type { On, EngineInterface as Api } from 'claude-code'
 import type { Entry, Kind } from './register'
 import {
   cap, tail, redact, normalize, failureLine, sessionOf, addFailure,
@@ -9,7 +9,8 @@ import {
   parseIds, recallLine, recallBlock, failureKey,
   segments, suiteKeyOf, commitLabel, finishLabel,
   newState, switchOf, claim, onContextStart, resetContext, endContext,
-  appendLog, loadLog, RECALL_CAP,
+  appendLog, loadLog, RECALL_CAP, isTrigger, promptContext,
+  DESIGN_RULE, ANALYSIS_RULE, HAIKU, RERANK_MS, IDLE_MS,
 } from './register'
 import type { LogRecord } from './register'
 
@@ -30,6 +31,15 @@ const INDEX_OUT = [
 
 /** How the process bottom answers: a stdout, or a way to fail. */
 type Proc = { stdout: string } | 'throw' | 'exit2' | 'hang'
+
+/** How the model bottom answers: a text, a non-answer, or a failure. */
+type Model = { text: string } | 'unanswered' | 'throw' | 'hang'
+
+/** What the model bottom was asked. */
+type Ask = {
+  model: string; prompt: string; effort: unknown
+  maxTokens: unknown; timeoutMs: unknown
+}
 
 type World = {
   home: string | undefined // what env.get answers for HOME
@@ -52,6 +62,8 @@ type World = {
   runs: string[][] // every process.run argv
   gets: number // store.get calls
   getsFail: boolean // store.get throws
+  model: Model // what `model.complete` does now
+  asks: Ask[] // every model.complete call
 }
 
 type Opts = {
@@ -100,7 +112,7 @@ async function boot($: Engine, on: On, o: Opts = {}): Promise<World> {
     statFails: new Set(o.statFails ?? []),
     existsFails: new Set(o.existsFails ?? []),
     proc: { stdout: INDEX_OUT }, runs: [], home: HOME,
-    gets: 0, getsFail: false,
+    gets: 0, getsFail: false, model: { text: 'none' }, asks: [],
   }
   handStore(on, w, o.storeFails ?? false)
   on('tool.register', (_a, e) => {
@@ -146,6 +158,19 @@ async function boot($: Engine, on: On, o: Opts = {}): Promise<World> {
       ? { exitCode: 2, stdout: '' } : { exitCode: 0, stdout: w.proc.stdout }
     return { value: { ...done, stderr: '', isStdoutTruncated: false,
       isStderrTruncated: false } }
+  })
+  on('model.complete', async (_a, e) => {
+    const x = e as unknown as Ask
+    w.asks.push({ model: x.model, prompt: x.prompt, effort: x.effort,
+      maxTokens: x.maxTokens, timeoutMs: x.timeoutMs })
+    if (w.model === 'throw') throw new Error('api down')
+    if (w.model === 'hang') await new Promise(() => undefined)
+    const usage = { input_tokens: 0, output_tokens: 0 }
+    const done = w.model === 'unanswered'
+      ? { isAnswered: false, reason: 'api-error', status: 500,
+        error: 'server_error', usage }
+      : { isAnswered: true, text: w.model.text, usage }
+    return { value: done } as never
   })
   on('session.root', () => {
     if (w.rootFails) throw new Error('no root')
@@ -2148,3 +2173,394 @@ test('LG4: loadLog drops malformed records; project key untouched',
     expect(await loadLog(storeApi(w), ROOT)).toEqual([REC(1)])
     expect(w.kv.has(`p:${ROOT}`)).toBe(false)
   })
+
+// ---- intent recall at the prompt ---------------------------------------
+
+const DECISIONS = `${REG}/decisions.md`
+const entryText = (id: string, title: string, label: string, lesson: string) =>
+  `## ${id} \u2014 ${title}\n- **Status**: open\n- **${label}**: ${lesson}\n`
+const rowsOut = (rows: [string, string][]) => [
+  '.claude/memory/x.md', '', '| ID | Date | Title | Status |',
+  '|---|---|---|---|',
+  ...rows.map(([id, title]) => `| ${id} | 2026-01-01 | ${title} | open |`), '',
+].join('\n')
+
+const BLK1_LINE = 'BLK-001 mod design \u2014 Keep the suite small and ' +
+  'concevoir the mod first.'
+const BLK1 = entryText('BLK-001', 'mod design', 'Solution',
+  'Keep the suite small and concevoir the mod first.')
+const LRN2 = entryText('LRN-002', 'design notes', 'Pattern',
+  'Write design notes before coding.')
+const REC_FILES = { [BLK]: BLK1, [LRN]: LRN2 }
+const REC_INDEX = rowsOut([['BLK-001', 'mod design'],
+  ['LRN-002', 'design notes']])
+
+const GO = 'on va concevoir la suite du mod'
+const DESIGN = 'design the mod suite please'
+const NOTES = 'write notes about the mod now'
+
+/** Boots the notes world with recall fixtures; the model picks BLK-001. */
+async function bootRecall($: Engine, on: On, o: Opts = {}) {
+  const r = await bootNotes($, on, { files: REC_FILES, ...o })
+  r.w.proc = { stdout: REC_INDEX }
+  r.w.model = { text: 'BLK-001' }
+  return r
+}
+
+const start = ($: Engine, source = 'startup') => $.classic.SessionStart({
+  hook_event_name: 'SessionStart', transcript_path: '/t', cwd: ROOT,
+  session_id: 's1', source,
+} as never)
+
+const say = ($: Engine, text: string, turnId?: string) => $.prompt.submit({
+  text, wait: turnId !== undefined, origin: { kind: 'composer' },
+  ...(turnId === undefined ? {} : { turnId }),
+})
+
+const BLOCK1 = `memory recall:\n${BLK1_LINE}`
+
+test('IR1: the first prompt of a context asks and injects the block',
+  async ($, on) => {
+    const { w, seen } = await bootRecall($, on)
+    await start($)
+    await say($, GO)
+    expect(w.asks).toHaveLength(1)
+    expect(w.asks[0]).toMatchObject({ model: 'claude-haiku-5-5',
+      effort: 'low', maxTokens: 64, timeoutMs: 3000 })
+    expect(w.asks[0]?.prompt).toContain('BLK-001 | mod design | ')
+    expect(seen).toEqual([[BLOCK1]])
+  })
+
+test('IR2 IR3: an ordinary prompt 1 min later is silent, 31 min asks',
+  async ($, on) => {
+    const { w, seen } = await bootRecall($, on)
+    await start($)
+    await say($, GO)
+    await w.clock.advance(60000)
+    await say($, NOTES)
+    expect(w.asks).toHaveLength(1)
+    expect(seen[1]).toBeUndefined()
+    await w.clock.advance(1860000)
+    await say($, NOTES)
+    expect(w.asks).toHaveLength(2)
+  })
+
+test('IR4: slash, mid-turn, sdk and short prompts never ask', async (
+  $, on,
+) => {
+  const { w, seen } = await bootRecall($, on)
+  await start($)
+  await say($, '/feat add design notes')
+  await say($, DESIGN, 'u1')
+  await $.prompt.submit({ text: DESIGN, wait: false, origin: { kind: 'sdk' } })
+  await say($, 'design note')
+  expect(w.asks).toEqual([])
+  expect(seen.every(c => c === undefined)).toBe(true)
+  await say($, DESIGN)
+  expect(w.asks).toHaveLength(1)
+})
+
+test('IR5: an ID that is not a candidate is never injected', async (
+  $, on,
+) => {
+  const { w, seen } = await bootRecall($, on)
+  w.model = { text: 'BDR-999, BLK-001' }
+  await start($)
+  await say($, GO)
+  expect(seen).toEqual([[BLOCK1]])
+})
+
+test('IR5b: none, an unanswered call and a throw add nothing', async (
+  $, on,
+) => {
+  const { w, seen } = await bootRecall($, on)
+  await start($)
+  for (const m of [{ text: 'none' }, 'unanswered', 'throw'] as Model[]) {
+    w.model = m
+    await say($, DESIGN)
+  }
+  expect(w.asks).toHaveLength(3)
+  expect(seen.every(c => c === undefined)).toBe(true)
+})
+
+test('IR5c: a call that never settles passes after RERANK_MS', async (
+  $, on,
+) => {
+  const { w, seen } = await bootRecall($, on)
+  w.model = 'hang'
+  await start($)
+  const p = say($, DESIGN)
+  await w.clock.advance(RERANK_MS)
+  await p
+  expect(w.asks).toHaveLength(1)
+  expect(seen).toEqual([undefined])
+})
+
+test('IR6: compact starts a new context, resume does not', async ($, on) => {
+  const { w, seen } = await bootRecall($, on)
+  await start($)
+  await say($, GO)
+  await start($, 'compact')
+  await say($, GO)
+  expect(w.asks).toHaveLength(2)
+  expect(seen).toEqual([[BLOCK1], [BLOCK1]])
+  await start($, 'resume')
+  await say($, NOTES)
+  expect(w.asks).toHaveLength(2)
+})
+
+test('IR7: BLK-001 is injected once, later asks never list it', async (
+  $, on,
+) => {
+  const { w, seen } = await bootRecall($, on)
+  await start($)
+  for (let i = 0; i < 3; i++) await say($, DESIGN)
+  expect(w.asks).toHaveLength(3)
+  expect(w.asks[1]?.prompt).not.toContain('BLK-001')
+  expect(w.asks[2]?.prompt).not.toContain('BLK-001')
+  expect(seen).toEqual([[BLOCK1], undefined, undefined])
+})
+
+test('IR8: every candidate already seen means no ask at all', async (
+  $, on,
+) => {
+  const { w } = await bootRecall($, on, { files: { [BLK]: BLK1 } })
+  await start($)
+  await say($, DESIGN)
+  await say($, DESIGN)
+  expect(w.asks).toHaveLength(1)
+})
+
+test('IR9: "recall": false asks nothing, the note still attaches', async (
+  $, on,
+) => {
+  const { w, seen } = await bootRecall($, on,
+    { switchText: '{"enabled": true, "recall": false}' })
+  await start($)
+  await run($, w, 'git commit -m "fix: y"')
+  await say($, DESIGN)
+  expect(w.asks).toEqual([])
+  expect(seen[0]).toHaveLength(1)
+  expect(seen[0]?.[0]).toContain('memory: commit fix: y')
+})
+
+test('IR9b: a non-boolean "recall" logs one line, recall stays on', async (
+  $, on,
+) => {
+  const { w, seen } = await bootRecall($, on,
+    { switchText: '{"recall": "no"}' })
+  await start($)
+  await say($, GO)
+  expect(seen).toEqual([[BLOCK1]])
+  expect(w.logs).toEqual([
+    'memory: ~/.claude/memory.json has no boolean "recall", recall stays on',
+  ])
+})
+
+for (const proc of ['throw', 'exit2'] as const) {
+  test(`IR10: status reader ${proc}: no ask, prompt unchanged`, async (
+    $, on,
+  ) => {
+    const { w, seen } = await bootRecall($, on)
+    w.proc = proc
+    await start($)
+    await say($, GO)
+    expect(w.asks).toEqual([])
+    expect(seen).toEqual([undefined])
+  })
+}
+
+test('IR11: an injection leaves one log record; 205 keep 200', async (
+  $, on,
+) => {
+  const { w } = await bootRecall($, on)
+  await start($)
+  await say($, GO)
+  expect(await loadLog(storeApi(w), ROOT)).toEqual([
+    { at: 1000, session: 's1', agent: 'main', channel: 'prompt',
+      ids: ['BLK-001'] },
+  ])
+  for (let i = 0; i < 204; i++) {
+    await start($, 'clear')
+    await say($, GO)
+  }
+  expect(await loadLog(storeApi(w), ROOT)).toHaveLength(200)
+})
+
+test('IR12: a pending milestone and a trigger give [note, block]', async (
+  $, on,
+) => {
+  const { w, seen } = await bootRecall($, on)
+  await start($)
+  await run($, w, 'git commit -m "fix: y"')
+  await say($, GO)
+  expect(seen).toHaveLength(1)
+  expect(seen[0]?.[0]).toContain('memory: commit fix: y')
+  expect(seen[0]?.[1]).toBe(BLOCK1)
+})
+
+test('registries load once per prompt for the note and the recall', async (
+  $, on,
+) => {
+  const { w } = await bootRecall($, on)
+  await start($)
+  await run($, w, 'git commit -m "fix: y"')
+  const before = w.runs.length
+  await say($, GO)
+  expect(w.runs.length - before).toBe(1)
+})
+
+test('RP1: 3 failed reranks in a row pause it 15 min, a success resets',
+  async ($, on) => {
+    const { w } = await bootRecall($, on)
+    w.model = 'unanswered'
+    await start($)
+    for (let i = 0; i < 4; i++) await say($, DESIGN)
+    expect(w.asks).toHaveLength(3)
+    await w.clock.advance(900000)
+    await say($, DESIGN)
+    expect(w.asks).toHaveLength(4)
+  })
+
+test('RP2: a success between failures keeps the pause away', async (
+  $, on,
+) => {
+  const { w } = await bootRecall($, on)
+  await start($)
+  for (const m of ['unanswered', 'unanswered', { text: 'none' },
+    'unanswered', 'unanswered', 'unanswered'] as Model[]) {
+    w.model = m
+    await say($, DESIGN)
+  }
+  expect(w.asks).toHaveLength(6)
+  await say($, DESIGN)
+  expect(w.asks).toHaveLength(6)
+})
+
+test('RP3: timeouts and throws count like failures', async ($, on) => {
+  const { w } = await bootRecall($, on)
+  await start($)
+  w.model = 'throw'
+  await say($, DESIGN)
+  await say($, DESIGN)
+  w.model = 'hang'
+  const p = say($, DESIGN)
+  await w.clock.advance(RERANK_MS)
+  await p
+  await say($, DESIGN)
+  expect(w.asks).toHaveLength(3)
+})
+
+test('TIMErules: both rules on 64 KiB of letters, under 50 ms', () => {
+  const text = 'a'.repeat(65536)
+  const t0 = now()
+  expect(DESIGN_RULE.test(text)).toBe(false)
+  expect(ANALYSIS_RULE.test(text)).toBe(false)
+  expect(isTrigger(text, false, 0)).toBe(false)
+  expect(now() - t0).toBeLessThan(50)
+})
+
+test('isTrigger: rules, fresh, idle, slash and length', () => {
+  expect(isTrigger('please review this module', false, 0)).toBe(true)
+  expect(isTrigger('on va concevoir la suite', false, 0)).toBe(false)
+  expect(isTrigger('on va concevoir la suite', true, 0)).toBe(true)
+  expect(isTrigger('on va concevoir la suite', false, IDLE_MS)).toBe(true)
+  expect(isTrigger('/feat design the thing', true, IDLE_MS)).toBe(false)
+  expect(isTrigger('design note', true, 0)).toBe(false)
+  expect(isTrigger('un-design-ed thing here', false, 0)).toBe(false)
+  expect(HAIKU).toBe('claude-haiku-5-5')
+})
+
+/**
+ * The few calls promptContext makes, over the world: the test's own `$` has
+ * no session.root, and a hook's `$` is refused outside its module.
+ */
+const fakeApi = (w: World): Api => ({
+  session: { root: async () => w.root, id: async () => w.id },
+  clock: { now: async () => w.clock.now(),
+    sleep: () => new Promise<void>(() => undefined) },
+  env: { get: async () => w.home },
+  fs: {
+    stat: async (p: string) => {
+      const text = w.files.get(p)
+      if (text === undefined) throw new Error('ENOENT')
+      return { kind: 'file', size: text?.length ?? 0 }
+    },
+    read: async (p: string) => w.files.get(p) ?? '',
+    exists: async (p: string) => w.files.has(p),
+  },
+  process: { run: async () => ({ exitCode: 0,
+    stdout: (w.proc as { stdout: string }).stdout }) },
+  model: { complete: async (a: Ask) => {
+    w.asks.push(a)
+    return { isAnswered: true, text: (w.model as { text: string }).text }
+  } },
+  store: storeApi(w).store,
+  ui: { log: () => undefined },
+}) as unknown as Api
+
+/** A state past the switch read, so promptContext skips the tool setup. */
+const switchedOn = () => Object.assign(newState(), {
+  enabled: true, recall: true })
+
+/** A recall entry whose line is 381 characters: 90 title, 280 lesson. */
+const longEntry = (n: number) => {
+  const field = 'alpha '.repeat(50).slice(0, 279) + '.'
+  return entryText(`BLK-00${n}`, 't'.repeat(89) + n, 'Solution', field)
+}
+
+test('SP1: an ordinary prompt resets the main key spent budget', async (
+  $, on,
+) => {
+  const ids = ['BLK-001', 'BLK-002', 'BLK-003']
+  const w = await boot($, on, { files: {
+    [BLK]: [1, 2, 3].map(longEntry).join('\n') } })
+  const api = () => fakeApi(w)
+  w.proc = { stdout: rowsOut(ids.map(id =>
+    [id, 't'.repeat(89) + id.slice(-1)])) }
+  w.model = { text: ids.join(', ') }
+  const st = switchedOn()
+  const e = (text: string) => ({ text, origin: { kind: 'composer' } })
+  onContextStart(st, 's1')
+  const [block] = await promptContext(api(), st, e('design alpha now'))
+  expect(block?.length).toBe(1160) // 14 header + 3 x (381 line + 1)
+  expect(st.spent.get('s1:main')).toBe(1160)
+  expect(await promptContext(api(), st, e('nothing special at all')))
+    .toEqual([])
+  expect(st.spent.has('s1:main')).toBe(false)
+  // a 400-char line fits after the reset; 1160 + 400 > 1500 would not
+  expect(claim(st, 's1:main', ['KNOWN-1'], [400])).toEqual(['KNOWN-1'])
+})
+
+test('SP2: a prompt without a known last prompt is not idle', async (
+  $, on,
+) => {
+  const w = await boot($, on, { files: REC_FILES })
+  w.proc = { stdout: REC_INDEX }
+  const api = () => fakeApi(w)
+  const st = switchedOn()
+  const e = { text: NOTES, origin: { kind: 'composer' } }
+  expect(await promptContext(api(), st, e)).toEqual([])
+  expect(w.asks).toEqual([])
+  expect(st.lastPrompt.get('s1')).toBe(1000)
+})
+
+test('CL4: a missing cost refuses the id, it is not free', () => {
+  const st = newState()
+  expect(claim(st, 'k', ['A-1', 'B-2'], [10])).toEqual(['A-1'])
+  expect(st.seen.get('k')?.has('B-2')).toBe(false)
+})
+
+test('LG5: two appends fired together keep both records', async (
+  $, on,
+) => {
+  const w = await boot($, on)
+  const st = newState()
+  const api = storeApi(w)
+  await Promise.all([
+    appendLog(api, st, ROOT, REC(1)),
+    appendLog(api, st, ROOT, REC(2)),
+  ])
+  expect((w.kv.get(`l:${ROOT}`) as LogRecord[]).map(r => r.at))
+    .toEqual([1, 2])
+})

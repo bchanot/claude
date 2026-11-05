@@ -17,6 +17,7 @@ type State = {
   spent: Map<string, number> // context key -> chars injected
   fresh: Set<string> // sessions whose next qualifying prompt starts a context
   lastPrompt: Map<string, number> // session id -> time of its last prompt
+  rerank: { fails: number; until: number } // failures in a row, pause end
 }
 
 export const IDLE_MS = 1800000
@@ -724,9 +725,11 @@ export function recallLine(e: Entry): string {
   return e.lesson === '' ? head : `${head} — ${e.lesson}`
 }
 
+const RECALL_HEADER = 'memory recall:'
+
 /** The injected block; a line that would pass `max` characters is dropped. */
 export function recallBlock(lines: string[], max: number): string {
-  const header = 'memory recall:'
+  const header = RECALL_HEADER
   let block = header
   for (const line of lines) {
     if (block.length + 1 + line.length <= max) block += `\n${line}`
@@ -906,6 +909,8 @@ export type LogRecord = {
   ids: string[]
 }
 
+// shortcut: one `l:<root>` key per project, so no cap across roots; upgrade
+// path: one global log key, or a sweep of the `l:` keys by age.
 const LOG_PREFIX = 'l:'
 const MAX_LOG = 200
 const MAX_LOG_BYTES = 65536
@@ -1049,6 +1054,7 @@ export function newState(): State {
     spent: new Map(),
     fresh: new Set(),
     lastPrompt: new Map(),
+    rerank: { fails: 0, until: 0 },
   }
 }
 
@@ -1181,8 +1187,9 @@ export function claim(
   let spent = st.spent.get(key) ?? 0
   const taken: string[] = []
   ids.forEach((id, i) => {
-    const cost = chars[i] ?? 0
-    if (seen.has(id) || spent + cost > RECALL_CAP) return
+    const cost = chars[i]
+    // a missing cost refuses the id: unknown is not free
+    if (cost === undefined || seen.has(id) || spent + cost > RECALL_CAP) return
     seen.add(id)
     spent += cost
     taken.push(id)
@@ -1398,33 +1405,202 @@ function registerBash(on: On, st: State): void {
 }
 
 /** Failures of the current session no registry entry knows. */
-async function newFailureCount($: Api, st: State, at: Where): Promise<number> {
+async function newFailureCount(
+  $: Api,
+  st: State,
+  at: Where,
+  index: Map<string, string>,
+): Promise<number> {
   await st.writes
   const p = await loadProject($, at.root)
-  const { index } = await loadRegistries($, at.root, FAILURE_FILES)
   const cur = p.sessions.find(s => s.id === at.id)
   return (cur?.failures ?? []).filter(isFailure)
     .filter(f => matchOf(index, f.key) === undefined).length
 }
 
 /** The note for the oldest unnoted milestone; clears what it covers. */
-async function noteFor($: Api, st: State, at: Where): Promise<string> {
+async function noteFor(
+  $: Api,
+  st: State,
+  at: Where,
+  rx: Registries,
+): Promise<string> {
   const first = st.pending[0] ?? ''
   st.pending = []
-  const n = await newFailureCount($, st, at)
+  const n = await newFailureCount($, st, at, rx.index)
   return `memory: ${first} \u2014 ${n} new failure mode(s) this session;` +
     ' /capitalize when ready.'
 }
 
+// The default prompt rules of the model router (mods/model-router, commit
+// 9bbd1d5): a prompt that designs or analyses asks for recall.
+const WORD_BEFORE = '(?<![\\p{L}\\p{N}-])'
+const WORD_AFTER = '(?![\\p{L}\\p{N}-])'
+const wordRule = (words: string) =>
+  new RegExp(`${WORD_BEFORE}(${words})${WORD_AFTER}`, 'iu')
+
+export const DESIGN_RULE = wordRule(
+  'plan|planifie|planning|brainstorm|architecture|con[c\\u00e7]ois|design',
+)
+export const ANALYSIS_RULE = wordRule(
+  'pourquoi|why|explique|explain|analyse|analyze|comprendre|understand|' +
+    'review|audit',
+)
+
+const MIN_PROMPT = 12 // code points
+const MAX_CANDS = 30
+const RERANK_FAILS = 3 // failed reranks in a row that pause it
+const RERANK_PAUSE_MS = 900000
+
+/** True when a prompt may ask for recall: fresh context, idle, or a rule. */
+export function isTrigger(
+  text: string,
+  fresh: boolean,
+  idleMs: number,
+): boolean {
+  if (text.startsWith('/') || Array.from(text).length < MIN_PROMPT) {
+    return false
+  }
+  const asked = cap(text, MAX_REGEX_INPUT)
+  return fresh || idleMs >= IDLE_MS ||
+    DESIGN_RULE.test(asked) || ANALYSIS_RULE.test(asked)
+}
+
+/** Counts a rerank: the third failure in a row pauses it for 15 min. */
+function countRerank(st: State, ok: boolean, now: number): void {
+  if (ok) {
+    st.rerank.fails = 0
+    return
+  }
+  st.rerank.fails += 1
+  if (st.rerank.fails < RERANK_FAILS) return
+  st.rerank = { fails: 0, until: now + RERANK_PAUSE_MS }
+}
+
+/** The haiku answer, or undefined: failed, unanswered, late or paused. */
+async function askRerank(
+  $: Api,
+  st: State,
+  text: string,
+  cands: Entry[],
+): Promise<string | undefined> {
+  const now = await $.clock.now()
+  if (now < st.rerank.until) return undefined
+  const ask = {
+    model: HAIKU,
+    prompt: rerankPrompt(text, cands),
+    effort: 'low' as const,
+    maxTokens: 64,
+    timeoutMs: RERANK_MS,
+  }
+  const call = $.model.complete(ask).catch((): undefined => undefined)
+  const late = $.clock.sleep(RERANK_MS).then((): undefined => undefined)
+  const out = await Promise.race([call, late])
+  const answer = out?.isAnswered === true ? out.text : undefined
+  countRerank(st, answer !== undefined, now)
+  return answer
+}
+
+/** Live entries of the context not injected yet, best BM25 first. */
+function candidatesFor(
+  st: State,
+  key: string,
+  rx: Registries,
+  text: string,
+): Entry[] {
+  const { status } = rx
+  if (status === undefined) return []
+  const seen = st.seen.get(key)
+  const open = rx.entries.filter(e => isLive(status, e.id) && !seen?.has(e.id))
+  return bm25Rank(open, text, MAX_CANDS)
+}
+
+/**
+ * The recall block for a prompt: BM25 candidates, haiku picks, the ledger
+ * claim, the log. '' when nothing is to be injected.
+ */
+async function recallFor(
+  $: Api,
+  st: State,
+  at: Where,
+  text: string,
+  rx: Registries,
+): Promise<string> {
+  const key = contextKey(at.id, undefined)
+  const cands = candidatesFor(st, key, rx, text)
+  if (cands.length === 0) return ''
+  const answer = await askRerank($, st, text, cands)
+  const byId = new Map(cands.map(c => [c.id, c]))
+  const picked = parseIds(answer ?? '', cands, MAX_PICKS)
+    .flatMap(id => byId.get(id) ?? [])
+  const when = await $.clock.now()
+  // the header is charged to the first line of the block
+  const costs = picked.map((e, i) =>
+    recallLine(e).length + 1 + (i === 0 ? RECALL_HEADER.length : 0))
+  const taken = claim(st, key, picked.map(e => e.id), costs)
+  const block = recallBlock(
+    picked.filter(e => taken.includes(e.id)).map(recallLine), RECALL_CAP)
+  if (block === '') return ''
+  const record = { at: when, session: at.id, agent: 'main', ids: taken }
+  await appendLog($, st, at.root, { ...record, channel: 'prompt' })
+    .catch(() => undefined)
+  return block
+}
+
+const ALL_FILES = ['decisions.md', ...FAILURE_FILES]
+
+/** The contexts a prompt adds: the 4b note, then the recall block. */
+async function additions(
+  $: Api,
+  st: State,
+  at: Where,
+  text: string,
+  wantRecall: boolean,
+): Promise<string[]> {
+  const rx = await loadRegistries($, at.root, ALL_FILES)
+  const note = st.pending.length > 0 ? await noteFor($, st, at, rx) : ''
+  const block = wantRecall
+    ? await recallFor($, st, at, text, rx).catch(() => '')
+    : ''
+  return [note, block].filter(part => part !== '')
+}
+
+type PromptIn = {
+  text: string
+  turnId?: string | undefined
+  origin: { kind: string }
+}
+
+/**
+ * The contexts to append to a composer prompt; [] for any other prompt. A
+ * new prompt starts a new turn: the main key's `spent` budget resets.
+ */
+export async function promptContext(
+  $: Api,
+  st: State,
+  e: PromptIn,
+): Promise<string[]> {
+  if (!(await ensureEnabled($, st))) return []
+  if (e.origin.kind !== 'composer' || e.turnId !== undefined) return []
+  const at = { root: await $.session.root(), id: await $.session.id() }
+  if (at.root === '') return []
+  const now = await $.clock.now()
+  const last = st.lastPrompt.get(at.id)
+  const idle = last === undefined ? 0 : now - last // unknown: not idle
+  st.lastPrompt.set(at.id, now)
+  st.spent.delete(contextKey(at.id, undefined))
+  const wantRecall = (await ensureRecall($, st)) &&
+    isTrigger(e.text, st.fresh.has(at.id), idle)
+  if (wantRecall) st.fresh.delete(at.id)
+  if (!wantRecall && st.pending.length === 0) return []
+  return additions($, st, at, e.text, wantRecall)
+}
+
 function registerPrompt(on: On, st: State): void {
   on('prompt.submit', async ($, e, next) => {
-    if (!(await ensureEnabled($, st))) return next(e)
-    const mine = e.origin.kind === 'composer' && e.turnId === undefined
-    if (!mine || st.pending.length === 0) return next(e)
-    const at = { root: await $.session.root(), id: await $.session.id() }
-    if (at.root === '') return next(e)
-    const note = await noteFor($, st, at)
-    return next({ ...e, context: [...(e.context ?? []), note] })
+    const added = await promptContext($, st, e)
+    if (added.length === 0) return next(e)
+    return next({ ...e, context: [...(e.context ?? []), ...added] })
   }).catch(($, e, next) => {
     warnOnce(st, $, 'prompt.submit', next.error.kind)
     return next(e)
