@@ -448,6 +448,16 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "matcher": "Bash|Monitor",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/extract-guard.sh",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "Notification": [
@@ -570,7 +580,8 @@
       "Undeclared node packages: `npx <pkg>`, `pnpm dlx` or `yarn dlx` of a package absent from the manifest and lockfile runs code fetched at call time; `npm install <name>` or `pnpm add <name>` adds a dependency the house rule requires naming first. Clear only when the user named the package in this turn.",
       "Global npm installs: `npm install -g`, `npm i -g`, `npm add -g`, the `--global` spellings and a flag placed after the package name. A global package runs its install scripts with the user's rights on the whole machine. Before running one, state the package, its publisher, its age and download volume, whether it carries install scripts, and any known advisory. Clear only when the user named the package in this turn.",
       "Publishing to the 21st.dev public catalog: `21st publish`, `publish-theme`, `publish-template`, `publish-gradient`, `publish-ascii`, `submit` and `resubmit` push a component, theme or template from this machine onto a public listing under the user's account; `21st edit`, `delete`, `withdraw`, `remove-from-catalog` and `21st profile set|upload` change or remove what is already published there. Retrieval and generation (`search`, `logo`, `get`, `add`, `generate`, `iterate`) are ordinary design work and pass. Clear only when the user asked to publish or change that specific item in this turn.",
-      "Static rule blind spots: the permission matcher cannot see `$(…)` in command position, a quoted literal argument (`echo \"SECRET\"`, `git push origin \":ref\"`), an inline interpreter (`python3 -c`, `python -c`, `node -e`, `perl -e`), a script piped into a shell (`… | bash -s`) or a sourced shell function (`source …/gitflow.sh; gitflow_finish`). A command that uses one of these shapes to reach an action a deny or ask rule names is that action: refuse it unless the user asked for that exact action in this turn."
+      "Static rule blind spots: the permission matcher cannot see `$(…)` in command position, a quoted literal argument (`echo \"SECRET\"`, `git push origin \":ref\"`), an inline interpreter (`python3 -c`, `python -c`, `node -e`, `perl -e`), a script piped into a shell (`… | bash -s`) or a sourced shell function (`source …/gitflow.sh; gitflow_finish`). A command that uses one of these shapes to reach an action a deny or ask rule names is that action: refuse it unless the user asked for that exact action in this turn.",
+      "Extracting, unpacking or recursively copying a package or an archive into / or a system directory (/usr, /etc, /bin, /sbin, /lib*, /boot, /opt, /var, /srv, /root), on this machine or on a remote machine or VM (ssh, vaas-cli ssh, a script it runs): refuse; list the archive, extract into a work dir and use PATH or PYTHONPATH, or tell the user there is no package manager."
     ],
     "hard_deny": [
       "$defaults",

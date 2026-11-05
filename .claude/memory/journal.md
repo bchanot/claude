@@ -693,3 +693,6 @@ rules:
 ## 2026-11-04
 - 2026-11-04 — 4b memory capture built on feature/memory-capture (mod, consumers, docs, noise 83 % → errorish filter; GATE 0 MET, verifier ECARTS(1) interactive half, security PASS ×3); interactive note check + merge pending user; 4c next.
 - 2026-11-04 — 4b memory capture merged into develop (dfadf8a); live proof: note once after fix: commit, NEW failure survives /clear; 4c follow-up (earlier-session milestones) in TODO; 4c next.
+
+## 2026-11-05
+- 2026-11-05: extract-guard built on feature/extract-guard (hook, soft_deny, doctrine; verifier CONFORME, security PASS); live in settings working copy; 4c paused at plan r2; merge pending user.
