@@ -29,3 +29,7 @@ User: "Plancher de contenu" — no intent recall on a prompt with fewer than 5 c
 ## After the content floor (debdead) and the bound decision
 
 Same harness, same seed: 15 prompts meet the trigger (was 24), all sampled; 14 injections; n = 41 entries; relevant 25 / 41 = 61 % counting entries written after the prompt (temporal leakage, 6 entries), 19 / 35 = 54 % excluding them. Still under the 64 % bar; the misses are vague follow-ups, the hits are topical prompts. haiku `duration_api_ms` > 3000 over the three runs: 16 / 55 = 29 % (> 25 % bar); > 4500: 1 / 55; > 5000: 1 / 55. User decision: `RERANK_MS` = 5000.
+
+## After the final-review fixes (2397c36: 2-letter stop words, log trigger/outcome, log keys in the sweep)
+
+Same harness, same seed: still 15 prompts meet the trigger (the 2-letter stop words did not change this sample), 14 injections, n = 40 entries; relevant 30 / 40 = 75 % counting entries written after the prompt (8 such entries), 22 / 32 = 69 % excluding them; haiku > 3000 ms 1 / 15, > 5000 ms 1 / 15. Reading: the rerank is not deterministic (different picks run to run) and the labels are one labeller's on a small sample; across the four measured runs the relevant share ranged about 54-75 %. The injection log (now with `trigger` and `outcome`) is the real-use measure for 4d.
