@@ -1185,7 +1185,7 @@ export function onContextStart(st: State, session: string): void {
 /**
  * Takes the IDs not yet seen in the context whose line costs (`chars`,
  * parallel to `ids`) still fit RECALL_CAP, and records them. Synchronous:
- * called after the last await, so two racing callers never both claim.
+ * called after the reads, so two racing callers never both claim.
  */
 export function claim(
   st: State,
@@ -1401,8 +1401,8 @@ async function captureMilestones(
 }
 
 /**
- * The live BLK or LRN entry `key` matches. The match runs on every entry
- * first: the status reader is spawned only for a candidate ID.
+ * The live BLK or LRN entry `key` matches. A match on every entry gates
+ * the status reader; the live entry is then rematched on the statuses.
  */
 async function liveCandidate(
   $: Api,
@@ -1415,8 +1415,11 @@ async function liveCandidate(
   const id = matchOf(buildIndex(failing, undefined), key)
   if (id === undefined) return undefined
   const status = await statusMap($, root)
-  if (status === undefined || !isLive(status, id)) return undefined
-  return assembleEntries(texts, status).find(e => e.id === id)
+  if (status === undefined) return undefined
+  const entries = assembleEntries(texts, status)
+  const kept = entries.filter(e => FAILURE_KINDS.has(e.kind))
+  const liveId = matchOf(buildIndex(kept, status), key)
+  return entries.find(e => e.id === liveId)
 }
 
 /**

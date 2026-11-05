@@ -2671,6 +2671,19 @@ test('TE7: the status reader runs only for a candidate', async (
   expect(w.runs.length - known).toBe(1)
 })
 
+test('TE7b: a live successor sharing the span of a dead entry wins', async (
+  $, on,
+) => {
+  const older = entryText('BLK-001', 'old remote access', 'Solution',
+    'Old fix.') + `seen: \`${KN_SPAN}\`\n`
+  const w = await bootKnown($, on, { files: { [BLK]: older + KN_ENTRY } })
+  w.proc = { stdout: [
+    '| BLK-001 | 2026-01-01 | old remote access | superseded |',
+    '| BLK-002 | 2026-02-01 | remote access | open |'].join('\n') }
+  const out = await failing($, w, EXIT1 + KN_SPAN)
+  expect(out).toEqual({ ...(w.answer as object), context: [KN_LINE] })
+})
+
 test('TE4b: two concurrent failing calls inject one line', async (
   $, on,
 ) => {
