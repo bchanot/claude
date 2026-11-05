@@ -149,6 +149,15 @@ EOF
 run $'git commit -m "$(cat <<\'EOF\'\nfeat: x\n\nbody about archives\nEOF\n)"'
 check quiet-heredoc-commit "$RC [$OUT]" "0 []"
 
+# angle-bracket placeholders are words, real redirections are not
+allow 'dpkg -x <pkg> <dir>'
+allow 'tar -xf <archive> -C <dir>'
+allow $'git commit -F - <<\'EOF\'\nnever run dpkg -x <pkg> <rootdir>\nEOF'
+deny 'dpkg -x p.deb /'
+deny 'cp -r a /opt/app >log'
+deny 'dpkg -x <pkg> /'
+deny 'dpkg -x <pkg> </dev/null'
+
 # ── timed flood cases ──
 flood=$(awk 'BEGIN { for (i = 1; i <= 5001; i++) print "echo " i; print "tar xf a" }')
 SECONDS=0; run "$flood"; el=$SECONDS

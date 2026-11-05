@@ -10,7 +10,7 @@
 # Silent on every allowed command. jq, awk, grep, sed, tr or wc missing: one
 # stderr warning, allow. A command that names no watched word (also with
 # quotes and backslashes removed) never reaches awk; past that prefilter a
-# command over 256 KiB or an awk failure denies (fail closed). The cap bounds
+# command over 64 KiB or an awk failure denies (fail closed). The cap bounds
 # the awk tokenizer, which rebuilds a word by concatenation.
 #
 # The parser is one POSIX awk program (bash 3.2 safe). Its tokenizer is
@@ -219,7 +219,23 @@ function redir(   c, d, op) {
   word = word op; have = 1; endword()
 }
 
-function op_item(c) {
+# length of an angle-bracket placeholder (<pkg>, <root-dir>) at i, else 0:
+# no valid redirection has that shape: kept as an ordinary (quoted) word
+function placeholder(   k, ch) {
+  if (have || substr(txt, i, 1) != "<") return 0
+  if (substr(txt, i + 1, 1) !~ /^[A-Za-z]$/) return 0
+  for (k = i + 2; k <= n && k <= i + 41; k++) {
+    ch = substr(txt, k, 1)
+    if (ch == ">") break
+    if (ch !~ /^[A-Za-z0-9_.-]$/) return 0
+  }
+  if (substr(txt, k, 1) != ">") return 0
+  if (k < n && !index(" \t\n;|()&", substr(txt, k + 1, 1))) return 0
+  return k - i + 1
+}
+
+function op_item(c,   pl) {
+  if ((pl = placeholder())) { word = substr(txt, i, pl); have = 1; wq = 1; i += pl; return }
   if (c == "(") { endword(); endcmd(); SD[++sdn] = DIR; i++ }
   else if (c == ")") { endword(); endcmd(); if (sdn > 0) DIR = SD[sdn--]; i++ }
   else if (c == ";" || c == "|") { endword(); endcmd(); i++ }
