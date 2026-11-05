@@ -25,3 +25,7 @@ The noise sits on content-free prompts triggered by idle time (short approvals):
 ## Decision (2026-11-05)
 
 User: "Plancher de contenu" — no intent recall on a prompt with fewer than 5 content words (stop words excluded); recall ships on and switchable (`"recall": false`); the injection log (4c) feeds the 4d measurement on real use. The 3 s rerank bound stays (timeout share 20 % < 25 %).
+
+## After the content floor (debdead) and the bound decision
+
+Same harness, same seed: 15 prompts meet the trigger (was 24), all sampled; 14 injections; n = 41 entries; relevant 25 / 41 = 61 % counting entries written after the prompt (temporal leakage, 6 entries), 19 / 35 = 54 % excluding them. Still under the 64 % bar; the misses are vague follow-ups, the hits are topical prompts. haiku `duration_api_ms` > 3000 over the three runs: 16 / 55 = 29 % (> 25 % bar); > 4500: 1 / 55; > 5000: 1 / 55. User decision: `RERANK_MS` = 5000.
