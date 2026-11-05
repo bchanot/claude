@@ -2149,6 +2149,8 @@ const storeApi = (w: World) => ({ store: {
     w.sets.push(k)
     w.kv.set(k, JSON.parse(JSON.stringify(v)))
   },
+  keys: async () => [...w.kv.keys()],
+  delete: async (k: string) => void w.kv.delete(k),
 } }) as never
 
 const REC = (at: number, ids = ['BLK-001']): LogRecord =>
@@ -2198,6 +2200,56 @@ test('LG3: over 64 KiB serialized, the oldest records are dropped',
     expect(JSON.stringify(log).length).toBeLessThanOrEqual(65536)
   })
 
+test('LG5: a record without trigger and outcome stays valid', async (
+  $, on,
+) => {
+  const bad = { ...REC(3), trigger: 'x' }
+  const odd = { ...REC(4), outcome: 'x' }
+  const ok = { ...REC(5), trigger: 'idle', outcome: 'none' }
+  const seed = { [`l:${ROOT}`]: [REC(1), bad, odd, ok] }
+  const w = await boot($, on, { seed })
+  expect(await loadLog(storeApi(w), ROOT)).toEqual([REC(1), ok])
+})
+
+/** A raw log of `n` records of about `kb` KiB, the newest at `at`. */
+const bigLog = (at: number, kb: number) =>
+  [REC(at, ['X'.repeat(kb * 1024)])]
+
+test('LG6: over the engine cap, the oldest l: key goes first', async (
+  $, on,
+) => {
+  const seed: Record<string, unknown> = {}
+  for (let i = 1; i <= 68; i++) seed[`l:/r${i}`] = bigLog(i * 10, 60)
+  const w = await boot($, on, { seed })
+  await failing($, w, EXIT1 + 'fatal: bad thing')
+  expect(w.kv.has('l:/r1')).toBe(false)
+  expect(w.kv.has('l:/r68')).toBe(true)
+  expect(failuresOf(w)).toHaveLength(1)
+  const bytes = [...w.kv.values()].reduce(
+    (n: number, v) => n + JSON.stringify(v).length, 0)
+  expect(bytes).toBeLessThanOrEqual(4194304)
+})
+
+test('LG7: the current root log is never evicted while others exist',
+  async ($, on) => {
+    const seed: Record<string, unknown> = { [`l:${ROOT}`]: bigLog(1, 60) }
+    for (let i = 1; i <= 68; i++) seed[`l:/r${i}`] = bigLog(i * 10, 60)
+    const w = await boot($, on, { seed })
+    await failing($, w, EXIT1 + 'fatal: bad thing')
+    expect(w.kv.has(`l:${ROOT}`)).toBe(true)
+    expect(w.kv.has('l:/r1')).toBe(false)
+  })
+
+test('LG8: a new log key sweeps too, before its own write', async (
+  $, on,
+) => {
+  const w = await boot($, on)
+  for (let i = 1; i <= 68; i++) w.kv.set(`l:/r${i}`, bigLog(i * 10, 60))
+  await appendLog(storeApi(w), newState(), ROOT, REC(900))
+  expect(w.kv.has('l:/r1')).toBe(false)
+  expect(w.kv.get(`l:${ROOT}`)).toEqual([REC(900)])
+})
+
 test('LG4: loadLog drops malformed records; project key untouched',
   async ($, on) => {
     const bad = { at: 'x', session: 's1', agent: 'main', ids: [] }
@@ -2229,7 +2281,7 @@ const REC_FILES = { [BLK]: BLK1, [LRN]: LRN2 }
 const REC_INDEX = rowsOut([['BLK-001', 'mod design'],
   ['LRN-002', 'design notes']])
 
-const GO = 'on va concevoir la suite du mod'
+const GO = 'on va concevoir la suite du mod memory recall'
 const DESIGN = 'design the mod suite and tests please'
 const NOTES = 'write notes about the mod now'
 
@@ -2252,6 +2304,81 @@ const say = ($: Engine, text: string, turnId?: string) => $.prompt.submit({
 })
 
 const BLOCK1 = `memory recall:\n${BLK1_LINE}`
+
+/** The `trigger` and `outcome` of every logged ask, oldest first. */
+async function askLog(w: World) {
+  return (await loadLog(storeApi(w), ROOT))
+    .map(r => [r.trigger, r.outcome, r.ids])
+}
+
+test('LO1: a fresh ask that injects logs fresh and injected', async (
+  $, on,
+) => {
+  const { w } = await bootRecall($, on)
+  await start($)
+  await say($, GO)
+  expect(await askLog(w)).toEqual([['fresh', 'injected', ['BLK-001']]])
+})
+
+test('LO2: idle and keyword triggers are told apart', async ($, on) => {
+  const { w } = await bootRecall($, on)
+  await start($)
+  await say($, GO)
+  await w.clock.advance(1860000)
+  await say($, NOTES)
+  await say($, DESIGN)
+  expect((await askLog(w)).map(r => r[0]))
+    .toEqual(['fresh', 'idle', 'keyword'])
+})
+
+test('LO3: an answer of none logs an empty ask', async ($, on) => {
+  const { w, seen } = await bootRecall($, on)
+  w.model = { text: 'none' }
+  await start($)
+  await say($, GO)
+  expect(seen).toEqual([undefined])
+  expect(await askLog(w)).toEqual([['fresh', 'none', []]])
+})
+
+test('LO4: no candidate left logs none without asking', async ($, on) => {
+  const { w } = await bootRecall($, on)
+  w.proc = { stdout: rowsOut([['BLK-001', 'x'], ['LRN-002', 'y']])
+    .replace(/open/g, 'superseded') }
+  await start($)
+  await say($, GO)
+  expect(w.asks).toEqual([])
+  expect(await askLog(w)).toEqual([['fresh', 'none', []]])
+})
+
+test('LO5: an unanswered call and a throw log timeout', async ($, on) => {
+  const { w } = await bootRecall($, on)
+  await start($)
+  for (const m of ['unanswered', 'throw'] as Model[]) {
+    w.model = m
+    await say($, DESIGN)
+  }
+  expect(await askLog(w)).toEqual([
+    ['fresh', 'timeout', []], ['keyword', 'timeout', []],
+  ])
+})
+
+test('LO6: an ask during the pause logs paused', async ($, on) => {
+  const { w } = await bootRecall($, on)
+  w.model = 'unanswered'
+  await start($)
+  for (let i = 0; i < 4; i++) await say($, DESIGN)
+  expect((await askLog(w)).map(r => r[1]))
+    .toEqual(['timeout', 'timeout', 'timeout', 'paused'])
+  expect(w.asks).toHaveLength(3)
+})
+
+test('LO7: a pick the ledger refuses logs refused', async ($, on) => {
+  const { w } = await bootRecall($, on)
+  await start($)
+  await Promise.all([say($, GO), say($, DESIGN)])
+  expect((await askLog(w)).map(r => r[1]).sort())
+    .toEqual(['injected', 'refused'])
+})
 
 test('IR1: the first prompt of a context asks and injects the block',
   async ($, on) => {
@@ -2412,7 +2539,7 @@ test('IR11: an injection leaves one log record; 205 keep 200', async (
   await say($, GO)
   expect(await loadLog(storeApi(w), ROOT)).toEqual([
     { at: 1000, session: 's1', agent: 'main', channel: 'prompt',
-      ids: ['BLK-001'] },
+      ids: ['BLK-001'], trigger: 'fresh', outcome: 'injected' },
   ])
   for (let i = 0; i < 204; i++) {
     await start($, 'clear')
@@ -2495,11 +2622,12 @@ test('TIMErules: both rules on 64 KiB of letters, under 50 ms', () => {
 })
 
 test('isTrigger: rules, fresh, idle, slash and length', () => {
+  const SUITE = 'on va concevoir la suite du mod memory'
   const long = 'please review this module and the new tests'
   expect(isTrigger(long, false, 0)).toBe(true)
-  expect(isTrigger('on va concevoir la suite', false, 0)).toBe(false)
-  expect(isTrigger('on va concevoir la suite', true, 0)).toBe(true)
-  expect(isTrigger('on va concevoir la suite', false, IDLE_MS)).toBe(true)
+  expect(isTrigger(SUITE, false, 0)).toBe(false)
+  expect(isTrigger(SUITE, true, 0)).toBe(true)
+  expect(isTrigger(SUITE, false, IDLE_MS)).toBe(true)
   expect(isTrigger('/feat design the thing', true, IDLE_MS)).toBe(false)
   expect(isTrigger('design note', true, 0)).toBe(false)
   expect(isTrigger('un-design-ed thing here', false, 0)).toBe(false)
@@ -2508,6 +2636,14 @@ test('isTrigger: rules, fresh, idle, slash and length', () => {
 
 test('isTrigger: fewer than five content words never triggers', () => {
   expect(MIN_CONTENT_WORDS).toBe(5)
+  // 2-letter function words (finding I1) are no content
+  for (const vague of ['ok tu peux continuer la suite stp',
+    'ok je valide, on passe à la suite', 'is it ok to do it now']) {
+    expect(isTrigger(vague, true, 0)).toBe(false)
+    expect(isTrigger(vague, false, IDLE_MS)).toBe(false)
+  }
+  const topical = 'why does the recall rerank pick stale memory entries'
+  expect(isTrigger(topical, false, 0)).toBe(true)
   expect(isTrigger('oui ça me convient', true, 0)).toBe(false)
   expect(isTrigger('non pas de changement go', false, IDLE_MS)).toBe(false)
   expect(isTrigger('i approve all for all', false, IDLE_MS)).toBe(false)
@@ -2733,7 +2869,7 @@ test('TE6b: an unavailable status reader injects nothing', async (
   expect(out).toEqual(w.answer)
 })
 
-test('TE7: at 1448 chars spent, a 200-char line is refused', async (
+test('TE7c: at 1448 chars spent, a 200-char line is refused', async (
   $, on,
 ) => {
   // four lines of 362 chars (57 title + 280 lesson) = 1448 spent

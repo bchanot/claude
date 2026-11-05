@@ -401,6 +401,40 @@ async function sweepStore($: Api, curKey: string, id: string): Promise<void> {
   }
 }
 
+// The engine rejects every `$.store.set` once the store passes 4 MiB in all.
+// The `p:` keys are swept at STORE_CAP; the `l:` keys are swept here, oldest
+// first, so the two together stay under the engine cap and capture lives.
+const ENGINE_CAP = 4194304
+const ENGINE_MARGIN = 131072 // room for the next session and log write
+
+type Weighed = { key: string; size: number; at: number }
+
+/** A store key's bytes and, for a log, the `at` of its newest record. */
+async function weigh($: Api, key: string): Promise<Weighed> {
+  const raw = await $.store.get(key)
+  const size = JSON.stringify(raw ?? null).length
+  const times = Array.isArray(raw) ? raw.filter(isLogRecord).map(r => r.at) : []
+  return { key, size, at: Math.max(0, ...times) }
+}
+
+/**
+ * Deletes the oldest `l:` keys, by their newest record, while the `p:`
+ * and `l:` keys together pass the engine cap. Never the `keep` key.
+ */
+async function sweepLogs($: Api, keep: string): Promise<void> {
+  const ours = (await $.store.keys())
+    .filter(k => k.startsWith(STORE_PREFIX) || k.startsWith(LOG_PREFIX))
+  const all = await Promise.all(ours.map(k => weigh($, k)))
+  let total = all.reduce((n, w) => n + w.size, 0)
+  const logs = all.filter(w => w.key.startsWith(LOG_PREFIX) && w.key !== keep)
+    .sort((a, b) => a.at - b.at)
+  for (const w of logs) {
+    if (total <= ENGINE_CAP - ENGINE_MARGIN) break
+    await $.store.delete(w.key)
+    total -= w.size
+  }
+}
+
 // The registry error index: which captured failures a registry knows.
 const MAX_REGISTRY = 4194304
 const MIN_SPAN = 12
@@ -639,11 +673,16 @@ async function statusMap($: Api, root: string): Promise<StatusMap | undefined> {
   }
 }
 
+// Function words, 3+ letters first, then the 2-letter FR and EN ones: TOKEN
+// takes 2+ letters, so without them "ok tu peux continuer la suite stp"
+// counts 7 content words and passes the floor. At most 120 words.
 const STOP_WORDS = new Set(
   ('the and for with that this from are was were not but you your have has ' +
     'had will can all any its into than then them they their there what ' +
     'when which who how why les des une pour dans avec est pas que qui sur ' +
-    'par aux ces ses son mais ont sont plus comme').split(' '),
+    'par aux ces ses son mais ont sont plus comme ' +
+    'ok tu je il on la le de du et en un au ce se sa ne ni ou si ' +
+    'is it to do of in at an be by or as if so we me my no go up').split(' '),
 )
 const TOKEN = /[\p{L}\p{N}]{2,40}/gu
 const MAX_QUERY = 2000
@@ -913,16 +952,26 @@ function queueWrite(st: State, job: () => Promise<void>): Promise<void> {
   return run
 }
 
+export type Trigger = 'fresh' | 'idle' | 'keyword' | 'tool'
+export type Outcome = 'injected' | 'none' | 'timeout' | 'refused' | 'paused'
+
+const TRIGGERS: string[] = ['fresh', 'idle', 'keyword', 'tool']
+const OUTCOMES: string[] = ['injected', 'none', 'timeout', 'refused', 'paused']
+
+// `trigger` and `outcome` are absent on records written before 4c's review.
 export type LogRecord = {
   at: number
   session: string
   agent: string
   channel: 'prompt' | 'tool'
   ids: string[]
+  trigger?: Trigger
+  outcome?: Outcome
 }
 
-// shortcut: one `l:<root>` key per project, so no cap across roots; upgrade
-// path: one global log key, or a sweep of the `l:` keys by age.
+// shortcut: one `l:<root>` key per project (about 28 KiB at 200 records),
+// swept by `sweepLogs` against the engine's 4 MiB store cap, oldest key
+// first; upgrade path: one global log key, or a smaller per-root cap.
 const LOG_PREFIX = 'l:'
 const MAX_LOG = 200
 const MAX_LOG_BYTES = 65536
@@ -933,7 +982,9 @@ function isLogRecord(v: unknown): v is LogRecord {
     typeof r.at === 'number' && typeof r.session === 'string' &&
     typeof r.agent === 'string' &&
     (r.channel === 'prompt' || r.channel === 'tool') &&
-    Array.isArray(r.ids) && r.ids.every(i => typeof i === 'string')
+    Array.isArray(r.ids) && r.ids.every(i => typeof i === 'string') &&
+    (r.trigger === undefined || TRIGGERS.includes(r.trigger)) &&
+    (r.outcome === undefined || OUTCOMES.includes(r.outcome))
 }
 
 const logKey = (root: string) => LOG_PREFIX + root.slice(0, MAX_ROOT)
@@ -962,6 +1013,7 @@ export function appendLog(
 ): Promise<void> {
   return queueWrite(st, async () => {
     const log = await loadLog($, root)
+    if (log.length === 0) await sweepLogs($, logKey(root))
     await $.store.set(logKey(root), fitLog([...log, record]))
   })
 }
@@ -979,7 +1031,10 @@ async function mutateSession(
   const created = !p.sessions.some(s => s.id === at.id)
   change(sessionOf(p, at.id, now))
   await saveProject($, at.root, p)
-  if (created) await sweepStore($, storeKey(at.root), at.id)
+  if (created) {
+    await sweepStore($, storeKey(at.root), at.id)
+    await sweepLogs($, logKey(at.root))
+  }
 }
 
 const recordFailure = ($: Api, at: Where, f: Failure) =>
@@ -1447,6 +1502,7 @@ async function knownLine(
   const record = { at: now, session: at.id, ids: [entry.id] }
   await appendLog($, st, at.root, {
     ...record, agent: agent ?? 'main', channel: 'tool',
+    trigger: 'tool', outcome: 'injected',
   }).catch(() => undefined)
   return line
 }
@@ -1537,20 +1593,27 @@ const MAX_CANDS = 30
 const RERANK_FAILS = 3 // failed reranks in a row that pause it
 const RERANK_PAUSE_MS = 900000
 
-/** True when a prompt may ask for recall: fresh context, idle, or a rule. */
-export function isTrigger(
+/** What made a prompt ask for recall: a fresh context, idle, or a rule. */
+export function triggerKind(
   text: string,
   fresh: boolean,
   idleMs: number,
-): boolean {
+): Exclude<Trigger, 'tool'> | undefined {
   if (text.startsWith('/') || Array.from(text).length < MIN_PROMPT) {
-    return false
+    return undefined
   }
-  if (tokensOf(text).length < MIN_CONTENT_WORDS) return false
+  if (tokensOf(text).length < MIN_CONTENT_WORDS) return undefined
+  if (fresh) return 'fresh'
+  if (idleMs >= IDLE_MS) return 'idle'
   const asked = cap(text, MAX_REGEX_INPUT)
-  return fresh || idleMs >= IDLE_MS ||
-    DESIGN_RULE.test(asked) || ANALYSIS_RULE.test(asked)
+  return DESIGN_RULE.test(asked) || ANALYSIS_RULE.test(asked)
+    ? 'keyword'
+    : undefined
 }
+
+/** True when a prompt may ask for recall. */
+export const isTrigger = (text: string, fresh: boolean, idleMs: number) =>
+  triggerKind(text, fresh, idleMs) !== undefined
 
 /** Counts a rerank: the third failure in a row pauses it for 15 min. */
 function countRerank(st: State, ok: boolean, now: number): void {
@@ -1563,15 +1626,14 @@ function countRerank(st: State, ok: boolean, now: number): void {
   st.rerank = { fails: 0, until: now + RERANK_PAUSE_MS }
 }
 
-/** The haiku answer, or undefined: failed, unanswered, late or paused. */
+/** The haiku answer, or undefined: failed, unanswered or late. */
 async function askRerank(
   $: Api,
   st: State,
   text: string,
   cands: Entry[],
+  now: number,
 ): Promise<string | undefined> {
-  const now = await $.clock.now()
-  if (now < st.rerank.until) return undefined
   const ask = {
     model: HAIKU,
     prompt: rerankPrompt(text, cands),
@@ -1601,38 +1663,70 @@ function candidatesFor(
   return bm25Rank(open, text, MAX_CANDS)
 }
 
+type Ask = { at: Where; text: string; trigger: Exclude<Trigger, 'tool'> }
+type Picked = { block: string; ids: string[]; outcome: Outcome }
+
+const nothing = (outcome: Outcome): Picked => ({ block: '', ids: [], outcome })
+
+/** The candidates a model answer names, in the answer's order. */
+function picksOf(answer: string, cands: Entry[]): Entry[] {
+  const byId = new Map(cands.map(c => [c.id, c]))
+  return parseIds(answer, cands, MAX_PICKS).flatMap(id => byId.get(id) ?? [])
+}
+
+/** Claims the picks one by one; the header is charged to the first taken. */
+function claimPicks(st: State, key: string, picked: Entry[]): string[] {
+  const taken: string[] = []
+  for (const e of picked) {
+    const header = taken.length === 0 ? RECALL_HEADER.length : 0
+    taken.push(...claim(st, key, [e.id], [recallLine(e).length + 1 + header]))
+  }
+  return taken
+}
+
+/** Asks haiku among the candidates and claims its picks. */
+async function pickRecall(
+  $: Api,
+  st: State,
+  key: string,
+  text: string,
+  cands: Entry[],
+): Promise<Picked> {
+  const now = await $.clock.now()
+  if (now < st.rerank.until) return nothing('paused')
+  const answer = await askRerank($, st, text, cands, now)
+  if (answer === undefined) return nothing('timeout')
+  const picked = picksOf(answer, cands)
+  if (picked.length === 0) return nothing('none')
+  const taken = claimPicks(st, key, picked)
+  const block = recallBlock(
+    picked.filter(e => taken.includes(e.id)).map(recallLine), RECALL_CAP)
+  if (block === '') return nothing('refused')
+  return { block, ids: taken, outcome: 'injected' }
+}
+
 /**
  * The recall block for a prompt: BM25 candidates, haiku picks, the ledger
- * claim, the log. '' when nothing is to be injected.
+ * claim. Every ask is logged with its outcome; '' when nothing is injected.
  */
 async function recallFor(
   $: Api,
   st: State,
-  at: Where,
-  text: string,
+  ask: Ask,
   rx: Registries,
 ): Promise<string> {
-  const key = contextKey(at.id, undefined)
-  const cands = candidatesFor(st, key, rx, text)
-  if (cands.length === 0) return ''
-  const answer = await askRerank($, st, text, cands)
-  const byId = new Map(cands.map(c => [c.id, c]))
-  const picked = parseIds(answer ?? '', cands, MAX_PICKS)
-    .flatMap(id => byId.get(id) ?? [])
-  const when = await $.clock.now()
-  const taken: string[] = []
-  for (const e of picked) {
-    // the header is charged to the first line actually taken
-    const header = taken.length === 0 ? RECALL_HEADER.length : 0
-    taken.push(...claim(st, key, [e.id], [recallLine(e).length + 1 + header]))
+  const key = contextKey(ask.at.id, undefined)
+  const cands = candidatesFor(st, key, rx, ask.text)
+  const got = cands.length === 0
+    ? nothing('none')
+    : await pickRecall($, st, key, ask.text, cands)
+  const record = {
+    at: await $.clock.now(), session: ask.at.id, agent: 'main',
+    ids: got.ids, trigger: ask.trigger, outcome: got.outcome,
   }
-  const block = recallBlock(
-    picked.filter(e => taken.includes(e.id)).map(recallLine), RECALL_CAP)
-  if (block === '') return ''
-  const record = { at: when, session: at.id, agent: 'main', ids: taken }
-  await appendLog($, st, at.root, { ...record, channel: 'prompt' })
+  await appendLog($, st, ask.at.root, { ...record, channel: 'prompt' })
     .catch(() => undefined)
-  return block
+  return got.block
 }
 
 const ALL_FILES = ['decisions.md', ...FAILURE_FILES]
@@ -1643,7 +1737,7 @@ async function additions(
   st: State,
   at: Where,
   text: string,
-  wantRecall: boolean,
+  trigger: Ask['trigger'] | undefined,
 ): Promise<string[]> {
   const rx = await loadRegistries($, at.root, ALL_FILES)
   // separate failures: a throw in one never drops the other
@@ -1653,8 +1747,8 @@ async function additions(
       return ''
     })
     : ''
-  const block = wantRecall
-    ? await recallFor($, st, at, text, rx).catch(() => '')
+  const block = trigger !== undefined
+    ? await recallFor($, st, { at, text, trigger }, rx).catch(() => '')
     : ''
   return [note, block].filter(part => part !== '')
 }
@@ -1683,11 +1777,12 @@ export async function promptContext(
   const idle = last === undefined ? 0 : now - last // unknown: not idle
   st.lastPrompt.set(at.id, now)
   st.spent.delete(contextKey(at.id, undefined))
-  const wantRecall = (await ensureRecall($, st)) &&
-    isTrigger(e.text, st.fresh.has(at.id), idle)
-  if (wantRecall) st.fresh.delete(at.id)
-  if (!wantRecall && st.pending.length === 0) return []
-  return additions($, st, at, e.text, wantRecall)
+  const trigger = (await ensureRecall($, st))
+    ? triggerKind(e.text, st.fresh.has(at.id), idle)
+    : undefined
+  if (trigger !== undefined) st.fresh.delete(at.id)
+  if (trigger === undefined && st.pending.length === 0) return []
+  return additions($, st, at, e.text, trigger)
 }
 
 function registerPrompt(on: On, st: State): void {
