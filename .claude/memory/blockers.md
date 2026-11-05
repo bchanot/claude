@@ -364,3 +364,9 @@ rules:
 - **Real cause**: the installed gitleaks does not honour the allowlist block under the hook's invocation (rules compiled in; allowlist silently ignored).
 - **Solution**: secret-shaped fixtures built at runtime by concatenation (`'AKIA' + 'I'.repeat(16)`, `'eyJ' + 'a'.repeat(20) + …`), expected strings stay literal (LRN-237); spec and NOISE.md quote shapes by reference, never a literal.
 - **Status**: resolved 2026-11-03.
+
+## BLK-042 — Package extracted into the root filesystem of a VM replaced usr-merge symlinks and overwrote system binaries [resolved] (2026-11-05)
+- **Friction**: on a VM (vaas-cli ssh, no package manager), a Debian package was extracted with `dpkg -x` into the root filesystem; system binaries overwritten, usr-merge symlinks (bin, sbin, lib, lib64) replaced by real directories carrying the archive's paths.
+- **Real cause**: no rule or guard named package/archive extraction into system dirs; the ssh deny rule did not cover vaas-cli ssh; extraction improvised instead of telling the user there was no package manager.
+- **Solution**: `hooks/extract-guard.sh` (deny before run, quoted remote scripts re-scanned) + soft_deny line + doctrine bullet (list first, extract into a literal mktemp -d path, PATH/PYTHONPATH, no package manager → tell the user). See the extract-guard BDR.
+- **Status**: resolved 2026-11-05.

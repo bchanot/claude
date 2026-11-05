@@ -146,6 +146,7 @@ local trace, and the brief had authorized it. What holds now, by tier:
 | Writing the human-only `gitflow.*` toggles: any `git … config` spelling, section remove/rename, `git -c`, the git config env overrides, Edit/Write of git config files | `permissions.deny` | Claude never flips the mode that binds it. Side effect: the trailing glob also matches the bare read, so Claude cannot read `gitflow.autopush` through `git config`; hooks and `lib/gitflow.sh` still do, and skills read it through `gitflow.sh push-mode`. |
 | Merging: `git merge`, `bash`/`sh` `…gitflow.sh finish` | `permissions.ask` | `finish` runs only on an explicit human signal: one prompt per merge, and a declined prompt merges nothing. `git -C <dir> merge` and a sourced `gitflow_finish` escape the static rules; the sourced form falls to `autoMode.soft_deny` "Static rule blind spots". |
 | Pushing in manual-push mode (`gitflow.autopush false`, or any invalid value) | `hooks/push-guard.sh` (PreToolUse) + `autoMode.soft_deny` | An `ask` would prompt, and a click would push. The hook denies the direct forms; the soft_deny covers scripted, aliased, subshell and sub-agent pushes, and a request in the turn does not clear it: the user types `! git push`. |
+| Extracting or recursively copying a package or an archive into `/` or a system directory (`dpkg -x`, `dpkg-deb -x`/`-R`, `tar x`, `unzip`, `cpio -i`/`-p`, recursive `cp`), on this machine or on a VM through a quoted `ssh`, `vaas-cli ssh` or `bash -c` script | `hooks/extract-guard.sh` (PreToolUse) + `autoMode.soft_deny` | On usr-merge systems an archive carrying `/bin` or `/lib` replaces those symlinks with real directories. A static rule cannot read a destination inside a quoted remote script; the hook parses the command, re-scans every quoted script and refuses a destination it cannot resolve. The soft_deny covers what the text does not show (a script file, an alias, a variable set in an earlier call). |
 | Destructive tool against a local path (variable, `~`, `..`, wildcard, outside cwd/tmp), even as a trace or a rehearsal a brief allows | `autoMode.hard_deny` | A pattern cannot express "the target resolves outside the project"; the classifier can. A sub-agent brief carries no user authority. |
 | `docker rm -f`, bind mount outside cwd; discarding uncommitted work | `autoMode.soft_deny` | Recoverable or user-intended in the turn. |
 
@@ -154,7 +155,9 @@ a compound command; a tool nested in another command (`docker compose run …
 lftp`) is not matched by a static rule. The PreToolUse guard hook that scans
 the whole command, its executable spec in `lib/tests/guard-bash.test.sh`,
 is not shipped yet (BLK-022). `hooks/push-guard.sh` scans the command text
-for `git push` only, in manual-push mode (see below).
+for `git push` only, in manual-push mode (see below), and
+`hooks/extract-guard.sh` for an extraction into a system directory only,
+quoted remote scripts included.
 
 Push discipline lives in `lib/gitflow.sh`: `start` pushes the branch,
 `finish` pushes each merge target, and the post-commit / post-merge hooks

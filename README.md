@@ -21,7 +21,8 @@ Not a collection of prompts — an operating layer on top of Claude Code:
   post-commit and post-merge hooks (nothing pushed in a repo the user puts
   in manual-push mode, where a PreToolUse hook also refuses Claude's own
   `git push`), `main`/`develop` undeletable by a reference-transaction hook,
-  deny-first permission rules, secrets kept in `~/.claude/.env` and
+  package and archive extraction into system directories refused by a
+  PreToolUse hook (here or on a VM over ssh), deny-first permission rules, secrets kept in `~/.claude/.env` and
   never in config files.
 - **Templates and memory** seed every project with persistent registries
   (decisions, learnings, blockers, journal, evals) — what a session

@@ -20,7 +20,7 @@ claude-config/
 ├── update-all.sh          # One-command update for all components
 ├── Makefile               # Unified entry point: make install / doctor / update / test (make help)
 ├── plugins.lock.json      # Version pinning for non-marketplace dependencies and vendored skills
-├── hooks/                 # Claude Code hooks: session start, statusline, RTK rewrite, ctx7 + design-toolchain reminders, attention notify, unpushed-work guard, manual-mode push guard, instruction-load log, code-limits line-width signal
+├── hooks/                 # Claude Code hooks: session start, statusline, RTK rewrite, ctx7 + design-toolchain reminders, attention notify, unpushed-work guard, manual-mode push guard, system-dir extraction guard, instruction-load log, code-limits line-width signal
 ├── githooks/              # Generated git hooks (pre-commit, post-commit, post-merge, reference-transaction), git's global core.hooksPath
 ├── .githooks/             # This repo's own copy of the same hooks
 ├── .claude/rules/         # This repo's project path rules (paths: frontmatter), loaded on Read of a matching file

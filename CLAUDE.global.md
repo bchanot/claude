@@ -221,6 +221,14 @@ days of work never pushed.
 - Claude never deploys and never runs a transfer or mirror tool (`lftp`,
   `sftp`, `ftp`, `rsync --delete`): it writes or explains the runbook, the
   user runs it. A test is a dev server on this machine, nothing more.
+- Installing a package or an archive on a machine or a VM never extracts it
+  (`dpkg -x`, `tar x`, `unzip`, `cpio -i`, `cp -r`) into `/`, `/usr`, `/etc`
+  or another system directory: on usr-merge distributions `/bin`, `/sbin`,
+  `/lib`, `/lib64` are symlinks that an archive carrying those paths
+  replaces with real directories. List it first (`dpkg -c`, `tar tf`),
+  extract into a literal `mktemp -d` path and use PATH or PYTHONPATH; no
+  package manager on the target → say so to the user, never improvise.
+  `hooks/extract-guard.sh` refuses these commands.
 - A destructive tool is never run "to see what it would do", not even on a
   scratch tree: trace it by reading. If a run is unavoidable, the target is
   a fresh `mktemp -d` path written literally in the same command, after a
