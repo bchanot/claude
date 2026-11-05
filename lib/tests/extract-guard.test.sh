@@ -77,6 +77,7 @@ deny 't'"'a'"'r xf a.tar -C /'
 deny '"t"ar xf a.tar -C /'
 deny $'ta\\\nr xf a.tar -C /'
 deny $'$\'tar\' xf a.tar -C /'
+deny '$"tar" xf a.tar -C /'
 deny $'tar xf a.tar -C $\'\\x2f\''
 deny $'echo \x01# ; tar xf a.tar -C /'
 deny 'tar xf a.tar -C /u?r'
@@ -163,12 +164,14 @@ check rescan-299-allow "$RC [$OUT]" "0 []"
 check rescan-299-fast "$([ "$el" -le 3 ] && echo ok || echo "slow ${el}s")" ok
 over=$(awk "BEGIN { for (i = 1; i <= 301; i++) print \"bash -c 'cp -r a b'\" }")
 run "$over"; check rescan-301-deny "$RC $(decision)" "0 deny"
-big=$(awk 'BEGIN { for (i = 0; i < 30000; i++) print "echo tar xf" }')
+big=$(awk 'BEGIN { for (i = 0; i < 7000; i++) print "echo tar xf" }')
 SECONDS=0; run "$big"; el=$SECONDS
-check cap-300k-deny "$RC $(decision)" "0 deny"
-check cap-300k-reason "$(printf '%s' "$OUT" | jq -r \
+check cap-70k-deny "$RC $(decision)" "0 deny"
+check cap-70k-reason "$(printf '%s' "$OUT" | jq -r \
   '.hookSpecificOutput.permissionDecisionReason' | grep -c 'too large')" 1
-check cap-300k-fast "$([ "$el" -le 2 ] && echo ok || echo "slow ${el}s")" ok
+check cap-70k-fast "$([ "$el" -le 2 ] && echo ok || echo "slow ${el}s")" ok
+small=$(awk 'BEGIN { for (i = 0; i < 4000; i++) print "echo hello wor" }')
+run "$small"; check cap-60k-silent "$RC [$OUT]" "0 []"
 deep="bash -c \"bash -c 'bash -c \\\"bash -c \\\\\\\"tar xf a\\\\\\\"\\\"'\""
 run "$deep"; check nesting-deny "$RC $(decision)" "0 deny"
 check nesting-reason-names-rule "$(printf '%s' "$OUT" | jq -r \

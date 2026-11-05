@@ -23,9 +23,12 @@
 # MISSES: a destination built outside the text (script file, Makefile, alias,
 # variable set in an earlier call); old-style tar `C` letter (tar xfC a
 # /usr), --dir= abbreviations, --one-top-level=; a tool name built by $'\x74'
-# escapes (the prefilter strips only quotes and backslashes); archive members
-# escaping a safe -C (../../usr, -P); a cd to a system dir in a remote shell
-# then an extraction with no destination; option values read as tool words.
+# escapes (the prefilter strips only quotes and backslashes) or by expansion
+# (t$'a'r, t$''ar, t$"a"r, t${x}ar, an empty $() or backticks inside a
+# name): mostly stopped by the prefilter, the soft_deny line is the net;
+# archive members escaping a safe -C (../../usr, -P); a cd to a system dir in a
+# remote shell then an extraction with no destination; option values read as
+# tool words.
 # ACCEPTED FALSE POSITIVES: text holding a complete extraction into a system
 # dir, `dpkg -x <word>` with no directory, a glob or brace destination, and
 # a quoted script run after a cd to a system dir (cd / && ssh vm "tar xf a":
@@ -231,6 +234,7 @@ function token(   c) {
   c = substr(txt, i, 1)
   if (c == "'" || c == "\"" || c == "\\" || c == "`") quoted(c)
   else if (c == "$" && substr(txt, i + 1, 1) == "'") ansi()
+  else if (c == "$" && substr(txt, i + 1, 1) == "\"") { i++; quoted("\"") }
   else if (c == "$" && substr(txt, i + 1, 1) == "(") subst()
   else if (c == "\n") { endword(); endcmd(); i++; if (nh) read_heredocs() }
   else if (c == " " || c == "\t") { endword(); i++ }
@@ -429,7 +433,7 @@ END {
 AWK
 
 size=$(printf '%s' "$cmd" | wc -c | tr -d ' ')
-if [ "$size" -gt 262144 ]; then
+if [ "$size" -gt 65536 ]; then
   reason="extract-guard: refused: command too large to check; run it yourself if it is safe: ! <command> (CLAUDE.md § Destructive tools & data loss)"
 else
   reason=$(printf '%s' "$cmd" | LC_ALL=C awk "$PROG" 2>/dev/null) || {
