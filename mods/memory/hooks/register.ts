@@ -112,6 +112,7 @@ const CURL_SEGMENT = new RegExp(
 const COOKIE_FLAG = new RegExp(`(?<=^|\\s)-b[ \\t]{1,5}${VALUE}`, 'g')
 
 const HEX_RUN = /\b[0-9a-f]{7,}\b/g
+const IO_ERROR = /input\/output error/g
 const PATH = /(?:\.{0,2}\/)?[\w.-]{1,200}(?:\/[\w.-]{1,200}){1,30}/g
 
 /** The first `n` code units of `text` (input guard for regex work). */
@@ -156,6 +157,7 @@ export function redact(text: string): string {
 export function normalize(line: string): string {
   return line
     .toLowerCase()
+    .replace(IO_ERROR, '<errno>') // before PATH reads its slash
     .replace(HEX_RUN, '<hex>')
     .replace(PATH, '<path>')
     .replace(/\d+/g, '#')
@@ -465,7 +467,7 @@ export function parseIndex(stdout: string): StatusMap {
   for (const line of stdout.split('\n')) {
     const m = INDEX_ROW.exec(line.slice(0, MAX_INDEX_ROW))
     if (m === null) continue
-    const word = (m[3] ?? '').trim().match(/^[A-Za-z-]+/)?.[0] ?? ''
+    const word = (m[3] ?? '').trim().match(/^[A-Za-z]+/)?.[0] ?? ''
     const title = (m[2] ?? '').trim()
     rows.set(m[1] ?? '', { status: word.toLowerCase(), title })
   }
@@ -514,14 +516,33 @@ export function assembleEntries(texts: string[], index: StatusMap): Entry[] {
   })
 }
 
-const PLACEHOLDERS = new Set(['#', '<path>', '<hex>'])
+export const ERRNO_PHRASES: readonly string[] = [
+  'no such file or directory', 'permission denied', 'command not found',
+  'is a directory', 'not a directory', 'file exists',
+  'directory not empty', 'operation not permitted',
+  'no space left on device', 'connection refused', 'connection timed out',
+  'broken pipe', 'resource temporarily unavailable', 'invalid argument',
+  'too many open files', 'read-only file system',
+  'device or resource busy', 'input/output error',
+]
+
+// Word-bounded literals; `input/output error` is already `<errno>` here.
+const ERRNO = new RegExp(
+  `(?<![a-z0-9])(?:${ERRNO_PHRASES.join('|')})(?![a-z0-9])`, 'g')
+
+/** Each errno phrase of a normalized line, as `<errno>`. */
+export function deErrno(normLine: string): string {
+  return normLine.replace(ERRNO, '<errno>')
+}
+
+const PLACEHOLDERS = new Set(['#', '<path>', '<hex>', '<errno>'])
 
 /**
  * Every window of 4 words, except one made only of placeholders (it
  * carries no content); a key of fewer words has none (always NEW).
  */
 export function grams(normLine: string): string[] {
-  const words = normLine.split(/[^a-z0-9<>#]+/).filter(Boolean)
+  const words = deErrno(normLine).split(/[^a-z0-9<>#]+/).filter(Boolean)
   if (words.length < GRAM_WORDS) return []
   return words
     .slice(0, words.length - GRAM_WORDS + 1)

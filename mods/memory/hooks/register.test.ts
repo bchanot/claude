@@ -4,7 +4,7 @@ import type { On } from 'claude-code'
 import {
   cap, tail, redact, normalize, failureLine, sessionOf, addFailure,
   entriesOf, parseIndex, isLive, lessonOf, assembleEntries, grams,
-  buildIndex, matchOf,
+  buildIndex, matchOf, deErrno,
   segments, suiteKeyOf, commitLabel, finishLabel,
 } from './register'
 
@@ -27,6 +27,7 @@ const INDEX_OUT = [
 type Proc = { stdout: string } | 'throw' | 'exit2' | 'hang'
 
 type World = {
+  home: string | undefined // what env.get answers for HOME
   switchText: string | undefined // ~/.claude/memory.json (undefined: absent)
   rootFails: boolean // session.root rejects
   id: string // what session.id answers now
@@ -93,7 +94,7 @@ async function boot($: Engine, on: On, o: Opts = {}): Promise<World> {
     unreadable: new Set(o.unreadable ?? []),
     statFails: new Set(o.statFails ?? []),
     existsFails: new Set(o.existsFails ?? []),
-    proc: { stdout: INDEX_OUT }, runs: [],
+    proc: { stdout: INDEX_OUT }, runs: [], home: HOME,
     gets: 0, getsFail: false,
   }
   handStore(on, w, o.storeFails ?? false)
@@ -101,7 +102,7 @@ async function boot($: Engine, on: On, o: Opts = {}): Promise<World> {
     w.tools.push(e.name)
     return { value: undefined } as never
   })
-  on('env.get', () => ({ value: HOME }))
+  on('env.get', () => ({ value: w.home }))
   on('fs.exists', (_a, e) => {
     if (w.existsFails.has(e.path)) throw new Error('EIO')
     return { value: w.files.has(e.path) ||
@@ -1651,8 +1652,8 @@ for (const [name, proc] of [
     w.proc = proc
     await failing($, w, EXIT1 + SR_LINE)
     const text = await pending($)
-    expect(text).toContain(
-      'index: read blockers.md, learnings.md; status reader unavailable')
+    expect(text.split('\n').find(l => l.startsWith('index:')))
+      .toBe('index: read blockers.md, learnings.md; status reader unavailable')
     expect(text).toContain('- known BLK-001 ×1 ' + SR_LINE)
   })
 }
@@ -1664,10 +1665,10 @@ test('SR5: process.run never settles, the answer comes at 2500 ms', async (
   await failing($, w, EXIT1 + SR_LINE)
   w.proc = 'hang'
   const answer = pending($)
-  await new Promise(r => setTimeout(r, 20)) // let the call reach its wait
   await w.clock.advance(2500)
   const text = await answer
-  expect(text).toContain('read blockers.md, learnings.md; status reader unav')
+  expect(text.split('\n').find(l => l.startsWith('index:')))
+    .toBe('index: read blockers.md, learnings.md; status reader unavailable')
   expect(text).toContain('- known BLK-001 ×1 ' + SR_LINE)
 })
 
@@ -1679,6 +1680,35 @@ test('SR7: no registry read, no process run, no unavailable note', async (
   const text = await pending($)
   expect(w.runs).toEqual([])
   expect(text).not.toContain('status reader')
+})
+
+test('SR8: HOME unset, status unavailable, fails open', async ($, on) => {
+  const w = await boot($, on, { files: REGS })
+  await failing($, w, EXIT1 + SR_LINE)
+  w.home = undefined
+  const text = await pending($)
+  expect(w.runs).toEqual([])
+  expect(text.split('\n').find(l => l.startsWith('index:')))
+    .toBe('index: read blockers.md, learnings.md; status reader unavailable')
+  expect(text).toContain('- known BLK-001 ×1 ' + SR_LINE)
+})
+
+test('SR9: the status word is its leading letters only', () => {
+  const row = '| BDR-031 | 2026-06-25 | t | superseded-by BDR-040 |'
+  expect(parseIndex(row).get('BDR-031')?.status).toBe('superseded')
+})
+
+test('TIMEindex: parseIndex on 64 KiB stays under 50 ms', () => {
+  const rows = [
+    '| LRN-001 | 2026-01-01 | ' + 'a | '.repeat(16000) + ' | open |',
+    '| BLK-001 | ' + '|'.repeat(65000),
+    ('| LRN-002 | 2026-01-01 | t | open |\n').repeat(2000),
+  ]
+  for (const text of rows) {
+    const t0 = now()
+    parseIndex(text.slice(0, 65536))
+    expect(now() - t0).toBeLessThan(50)
+  }
 })
 
 test('LS1: a BDR Decision reads its first sentence', () => {
@@ -1752,4 +1782,53 @@ test('TIMEentries: entriesOf and lessonOf on 64 KiB fields, under 50 ms', () => 
     for (const part of entriesOf(text)) lessonOf('BLK', part.body)
     expect(now() - t0).toBeLessThan(50)
   }
+})
+
+// ---- Task 2 (phase 4c): errno phrases out of the error index ----
+
+const ER_ENTRY = '## LRN-009 e\n- **Status**: open\n'
+
+test('ER1: an ENOENT line never makes another ENOENT known', async (
+  $, on,
+) => {
+  const text = ER_ENTRY +
+    'seen: `cat: x: No such file or directory (os error 2)`\n'
+  const w = await boot($, on, { files: { [LRN]: text } })
+  w.proc = { stdout: '| LRN-009 | 2026-01-01 | e | open |' }
+  await failing($, w,
+    EXIT1 + "ls: cannot access '/tmp/zz': No such file or directory")
+  expect(await pending($)).toContain('- NEW ×1 ls: cannot access')
+})
+
+test('ER2: content grams still match around an errno-free line', async (
+  $, on,
+) => {
+  const text = ER_ENTRY + 'seen: `fatal: unable to access remote host thing`\n'
+  const w = await boot($, on, { files: { [LRN]: text } })
+  w.proc = { stdout: '| LRN-009 | 2026-01-01 | e | open |' }
+  await failing($, w, EXIT1 + 'fatal: unable to access remote host thing')
+  expect(await pending($)).toContain('- known LRN-009 ×1 fatal:')
+})
+
+test('ER3: deErrno replaces a phrase on a normalized line', () => {
+  expect(deErrno('cat: <path>: no such file or directory (os error #)'))
+    .toBe('cat: <path>: <errno> (os error #)')
+  expect(deErrno('xpermission denied here')).toBe('xpermission denied here')
+})
+
+test('ER4: a gram of placeholders only is skipped', () => {
+  expect(grams('<errno> <path> # <hex>')).toEqual([])
+})
+
+test('ER5: input/output error becomes <errno> despite the path rule', () => {
+  expect(normalize('cp: Input/output error (os error 5)'))
+    .toBe('cp: <errno> (os error #)')
+  expect(normalize('read /dev/sda1: input/output error'))
+    .toBe('read <path>: <errno>')
+})
+
+test('TIMEerrno: deErrno on 64 KiB of a phrase prefix, under 50 ms', () => {
+  const t0 = now()
+  deErrno('no such file or '.repeat(4096))
+  expect(now() - t0).toBeLessThan(50)
 })
