@@ -1,10 +1,12 @@
 import { test, expect, mock } from 'claude-code/testing'
 import type { Engine, MockClock } from 'claude-code/testing'
 import type { On } from 'claude-code'
+import type { Entry, Kind } from './register'
 import {
   cap, tail, redact, normalize, failureLine, sessionOf, addFailure,
   entriesOf, parseIndex, isLive, lessonOf, assembleEntries, grams,
-  buildIndex, matchOf, deErrno,
+  buildIndex, matchOf, deErrno, tokensOf, bm25Rank, rerankPrompt,
+  parseIds, recallLine, recallBlock, failureKey,
   segments, suiteKeyOf, commitLabel, finishLabel,
 } from './register'
 
@@ -1830,5 +1832,99 @@ test('ER5: input/output error becomes <errno> despite the path rule', () => {
 test('TIMEerrno: deErrno on 64 KiB of a phrase prefix, under 50 ms', () => {
   const t0 = now()
   deErrno('no such file or '.repeat(4096))
+  expect(now() - t0).toBeLessThan(50)
+})
+
+const mk = (id: string, title: string, lesson: string, body = ''): Entry =>
+  ({ id, kind: id.slice(0, 3) as Kind, title, lesson, body })
+
+const RB_ENTRIES = [
+  mk('LRN-001', 'css grid gaps', 'Use gap.', 'layout of cards'),
+  mk('BLK-002', 'heredoc quoting breaks', 'Quote the delimiter.',
+    'shell heredoc quoting eats the dollar sign in shell scripts'),
+  mk('BDR-003', 'store keys', 'Prefix them.', 'kv store naming'),
+]
+
+test('RB1: bm25Rank puts the heredoc entry first, drops score 0', () => {
+  const ids = bm25Rank(RB_ENTRIES, 'quoting heredoc shell', 5).map(e => e.id)
+  expect(ids).toEqual(['BLK-002'])
+  expect(bm25Rank(RB_ENTRIES, 'the and for', 5)).toEqual([])
+  expect(tokensOf('The Heredoc, a b ÉTÉ 42')).toEqual(['heredoc', 'été', '42'])
+})
+
+test('RB1b: ties go by numeric ID order, k bounds the result', () => {
+  const twin = [mk('LRN-10', 'zed', ''), mk('LRN-9', 'zed', '')]
+  expect(bm25Rank(twin, 'zed', 5).map(e => e.id)).toEqual(['LRN-9', 'LRN-10'])
+  expect(bm25Rank(twin, 'zed', 1).map(e => e.id)).toEqual(['LRN-9'])
+})
+
+test('RB2: parseIds keeps candidate IDs once, in order, up to max', () => {
+  const cands = [mk('BLK-041', 't', ''), mk('LRN-258', 't', '')]
+  expect(parseIds('BLK-041, BDR-999, LRN-258', cands, 3))
+    .toEqual(['BLK-041', 'LRN-258'])
+  expect(parseIds('LRN-258 BLK-041 LRN-258', cands, 1)).toEqual(['LRN-258'])
+  expect(parseIds('none', cands, 3)).toEqual([])
+})
+
+test('RB3: long Decisions give ellipsis lessons and a block under cap', () => {
+  const field = 'Use alpha ' + 'x'.repeat(1990)
+  const es = ['BDR-001', 'BDR-002', 'BDR-003'].map(id =>
+    assembleEntries([`## ${id} — t\n- **Decision**: ${field}\n`],
+      new Map([[id, { status: 'accepted', title: 'T' + id }]]))[0]!)
+  for (const e of es) expect(recallLine(e).endsWith('…')).toBe(true)
+  const block = recallBlock(es.map(recallLine), 1500)
+  expect(block.length).toBeLessThanOrEqual(1500)
+  expect(block.split('\n')[0]).toBe('memory recall:')
+  expect(block.split('\n')[1]).toBe(
+    'BDR-001 TBDR-001 — Use alpha ' + 'x'.repeat(280 - 11) + '…')
+})
+
+test('RB3b: recallLine and recallBlock edges', () => {
+  expect(recallLine(mk('LRN-1', 'T', 'a;'))).toBe('LRN-1 T — a;')
+  expect(recallLine(mk('LRN-1', 'T', 'Use X.'))).toBe('LRN-1 T — Use X.')
+  expect(recallLine(mk('LRN-1', 'T', ''))).toBe('LRN-1 T')
+  expect(recallBlock(['a'.repeat(50)], 20)).toBe('')
+  expect(recallBlock(['a'.repeat(50), 'bb'], 20)).toBe('memory recall:\nbb')
+  expect(recallBlock([], 100)).toBe('')
+})
+
+test('RB4: rerankPrompt is the literal prompt', () => {
+  const cands = [mk('LRN-1', 'T one', 'Do a.'), mk('BLK-2', 'T two', '')]
+  expect(rerankPrompt('fix the heredoc', cands)).toBe(
+    'Prompt: fix the heredoc\nCandidates:\nLRN-1 | T one | Do a.\n' +
+    'BLK-2 | T two | \nAnswer with at most 3 candidate IDs that would ' +
+    'help with this prompt, comma separated, or none.')
+})
+
+test('RB5: 500 entries and a 64 KiB query rank under 300 ms', () => {
+  const es = Array.from({ length: 500 }, (_, i) =>
+    mk(`LRN-${i + 1}`, `t${i}`, 'l', `w${i} word `.repeat(160)))
+  const head = 'w7 '.padEnd(2000, 'z ')
+  const t0 = now()
+  const a = bm25Rank(es, head + 'w9 '.repeat(20000), 5).map(e => e.id)
+  expect(now() - t0).toBeLessThan(300)
+  const b = bm25Rank(es, head + 'w300 '.repeat(20000), 5).map(e => e.id)
+  expect(a).toEqual(b)
+  expect(a[0]).toBe('LRN-8')
+})
+
+test('RB6: a secret-shaped token is redacted in the rerank prompt', () => {
+  const secret = 'sk_live_' + 'a'.repeat(24)
+  const p = rerankPrompt(`use ${secret} now`, [])
+  expect(p).toContain('<redacted:stripe>')
+  expect(p).not.toContain(secret)
+})
+
+test('RB7: failureKey is the normalized last line of the redacted tail', () => {
+  expect(failureKey('Exit code 1\nrm: /tmp/x/y: Permission denied', 'rm x'))
+    .toBe('rm: <path>: permission denied')
+  expect(failureKey('', 'ls')).toBeUndefined()
+})
+
+test('TIMErank: tokensOf and parseIds on 64 KiB, under 50 ms', () => {
+  const t0 = now()
+  tokensOf('ab '.repeat(21000))
+  tokensOf('x'.repeat(65536))
+  parseIds('BDR-1 '.repeat(10000) + 'LRN-'.repeat(15000), [], 3)
   expect(now() - t0).toBeLessThan(50)
 })

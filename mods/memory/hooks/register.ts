@@ -622,6 +622,109 @@ async function statusMap($: Api, root: string): Promise<StatusMap | undefined> {
   }
 }
 
+const STOP_WORDS = new Set(
+  ('the and for with that this from are was were not but you your have has ' +
+    'had will can all any its into than then them they their there what ' +
+    'when which who how why les des une pour dans avec est pas que qui sur ' +
+    'par aux ces ses son mais ont sont plus comme').split(' '),
+)
+const TOKEN = /[\p{L}\p{N}]{2,40}/gu
+const MAX_QUERY = 2000
+const MAX_DOC = 65536
+const BM25_K1 = 1.2
+const BM25_B = 0.75
+const MAX_PICKS = 3
+
+/** Lowercase word runs (2-40 letters or digits) minus function words. */
+export function tokensOf(text: string): string[] {
+  const words = cap(text, MAX_DOC).toLowerCase().match(TOKEN) ?? []
+  return words.filter(w => !STOP_WORDS.has(w))
+}
+
+type Doc = { entry: Entry; tf: Map<string, number>; len: number }
+
+function docOf(entry: Entry): Doc {
+  const tokens = tokensOf(`${entry.title} ${entry.lesson} ${entry.body}`)
+  const tf = new Map<string, number>()
+  for (const t of tokens) tf.set(t, (tf.get(t) ?? 0) + 1)
+  return { entry, tf, len: tokens.length }
+}
+
+function scoreOf(
+  doc: Doc, terms: string[], df: Map<string, number>, n: number, avg: number,
+): number {
+  let score = 0
+  for (const term of terms) {
+    const f = doc.tf.get(term) ?? 0
+    if (f === 0) continue
+    const d = df.get(term) ?? 0
+    const idf = Math.log(1 + (n - d + 0.5) / (d + 0.5))
+    const norm = 1 - BM25_B + (BM25_B * doc.len) / avg
+    score += (idf * f * (BM25_K1 + 1)) / (f + BM25_K1 * norm)
+  }
+  return score
+}
+
+/** The `k` best entries for a query (BM25), highest first, score > 0. */
+export function bm25Rank(entries: Entry[], query: string, k: number): Entry[] {
+  const terms = [...new Set(tokensOf(cap(query, MAX_QUERY)))]
+  const docs = entries.map(docOf)
+  const df = new Map<string, number>()
+  for (const d of docs) for (const t of d.tf.keys()) {
+    df.set(t, (df.get(t) ?? 0) + 1)
+  }
+  const avg = docs.reduce((sum, d) => sum + d.len, 0) / (docs.length || 1)
+  return docs
+    .map(d => ({ e: d.entry, s: scoreOf(d, terms, df, docs.length, avg || 1) }))
+    .filter(x => x.s > 0)
+    .sort((a, b) => b.s - a.s ||
+      a.e.id.localeCompare(b.e.id, 'en', { numeric: true }))
+    .slice(0, k)
+    .map(x => x.e)
+}
+
+/** The haiku prompt: the redacted user prompt and one line per candidate. */
+export function rerankPrompt(query: string, cands: Entry[]): string {
+  const lines = cands.map(c => `${c.id} | ${c.title} | ${c.lesson}`)
+  return (
+    `Prompt: ${redact(cap(query, MAX_QUERY))}\nCandidates:\n` +
+    `${lines.join('\n')}\nAnswer with at most ${MAX_PICKS} candidate IDs ` +
+    'that would help with this prompt, comma separated, or none.'
+  )
+}
+
+const ID_IN_ANSWER = /(?:BDR|LRN|BLK)-\d{1,5}/g
+
+/** The candidate IDs named in a model answer, deduplicated, in order. */
+export function parseIds(text: string, cands: Entry[], max: number): string[] {
+  const known = new Set(cands.map(c => c.id))
+  const found = cap(text, MAX_REGEX_INPUT).match(ID_IN_ANSWER) ?? []
+  return [...new Set(found)].filter(id => known.has(id)).slice(0, max)
+}
+
+/** One recall line; the lesson keeps its own terminator. */
+export function recallLine(e: Entry): string {
+  const head = `${e.id} ${e.title}`
+  return e.lesson === '' ? head : `${head} — ${e.lesson}`
+}
+
+/** The injected block; a line that would pass `max` characters is dropped. */
+export function recallBlock(lines: string[], max: number): string {
+  const header = 'memory recall:'
+  let block = header
+  for (const line of lines) {
+    if (block.length + 1 + line.length <= max) block += `\n${line}`
+  }
+  return block === header ? '' : block
+}
+
+/** The dedup key of a failure text, as `buildFailure` stores it. */
+export function failureKey(text: string, command: string): string | undefined {
+  void command // the key comes from the output only; kept for the harness
+  const line = lastLine(redact(tail(text, MAX_REGEX_INPUT)))
+  return line === undefined ? undefined : normalize(line)
+}
+
 type Registries = {
   entries: Entry[]
   status: StatusMap | undefined
