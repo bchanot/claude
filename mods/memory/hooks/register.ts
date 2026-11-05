@@ -1529,6 +1529,8 @@ export const ANALYSIS_RULE = wordRule(
 )
 
 const MIN_PROMPT = 12 // code points
+// Measurement gate: fewer content words than this never asks for recall.
+export const MIN_CONTENT_WORDS = 5
 const MAX_CANDS = 30
 const RERANK_FAILS = 3 // failed reranks in a row that pause it
 const RERANK_PAUSE_MS = 900000
@@ -1542,6 +1544,7 @@ export function isTrigger(
   if (text.startsWith('/') || Array.from(text).length < MIN_PROMPT) {
     return false
   }
+  if (tokensOf(text).length < MIN_CONTENT_WORDS) return false
   const asked = cap(text, MAX_REGEX_INPUT)
   return fresh || idleMs >= IDLE_MS ||
     DESIGN_RULE.test(asked) || ANALYSIS_RULE.test(asked)

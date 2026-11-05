@@ -9,7 +9,7 @@ import {
   parseIds, recallLine, recallBlock, failureKey,
   segments, suiteKeyOf, commitLabel, finishLabel,
   newState, switchOf, claim, onContextStart, resetContext, endContext,
-  appendLog, loadLog, RECALL_CAP, isTrigger, promptContext,
+  appendLog, loadLog, RECALL_CAP, isTrigger, MIN_CONTENT_WORDS, promptContext,
   DESIGN_RULE, ANALYSIS_RULE, HAIKU, RERANK_MS, IDLE_MS,
 } from './register'
 import type { LogRecord } from './register'
@@ -2230,7 +2230,7 @@ const REC_INDEX = rowsOut([['BLK-001', 'mod design'],
   ['LRN-002', 'design notes']])
 
 const GO = 'on va concevoir la suite du mod'
-const DESIGN = 'design the mod suite please'
+const DESIGN = 'design the mod suite and tests please'
 const NOTES = 'write notes about the mod now'
 
 /** Boots the notes world with recall fixtures; the model picks BLK-001. */
@@ -2495,7 +2495,8 @@ test('TIMErules: both rules on 64 KiB of letters, under 50 ms', () => {
 })
 
 test('isTrigger: rules, fresh, idle, slash and length', () => {
-  expect(isTrigger('please review this module', false, 0)).toBe(true)
+  const long = 'please review this module and the new tests'
+  expect(isTrigger(long, false, 0)).toBe(true)
   expect(isTrigger('on va concevoir la suite', false, 0)).toBe(false)
   expect(isTrigger('on va concevoir la suite', true, 0)).toBe(true)
   expect(isTrigger('on va concevoir la suite', false, IDLE_MS)).toBe(true)
@@ -2503,6 +2504,16 @@ test('isTrigger: rules, fresh, idle, slash and length', () => {
   expect(isTrigger('design note', true, 0)).toBe(false)
   expect(isTrigger('un-design-ed thing here', false, 0)).toBe(false)
   expect(HAIKU).toBe('claude-haiku-5-5')
+})
+
+test('isTrigger: fewer than five content words never triggers', () => {
+  expect(MIN_CONTENT_WORDS).toBe(5)
+  expect(isTrigger('oui ça me convient', true, 0)).toBe(false)
+  expect(isTrigger('non pas de changement go', false, IDLE_MS)).toBe(false)
+  expect(isTrigger('i approve all for all', false, IDLE_MS)).toBe(false)
+  expect(isTrigger('design the mod suite please', false, 0)).toBe(false)
+  expect(isTrigger('la spec me convient, écris le plan maintenant stp',
+    true, 0)).toBe(true)
 })
 
 /**
@@ -2556,7 +2567,8 @@ test('SP1: an ordinary prompt resets the main key spent budget', async (
   const st = switchedOn()
   const e = (text: string) => ({ text, origin: { kind: 'composer' } })
   onContextStart(st, 's1')
-  const [block] = await promptContext(api(), st, e('design alpha now'))
+  const [block] = await promptContext(api(), st,
+    e('design alpha now, whole team'))
   expect(block?.length).toBe(1160) // 14 header + 3 x (381 line + 1)
   expect(st.spent.get('s1:main')).toBe(1160)
   expect(await promptContext(api(), st, e('nothing special at all')))
@@ -2765,7 +2777,7 @@ test('TE9: a recall of ~1160 chars, an ordinary prompt, then a ~395 known ' +
     [`BLK-00${n}`, 't'.repeat(89) + n])) }
   w.model = { text: 'BLK-001, BLK-002, BLK-003' }
   await start($)
-  await say($, 'design alpha now')
+  await say($, 'design alpha now, whole team')
   expect(seen[0]?.[0]?.length).toBe(1160) // 14 + 3 x (381 + 1)
   await say($, 'nothing special at all')
   const out = await failing($, w, EXIT1 + span) as { context?: string[] }
@@ -2790,7 +2802,8 @@ test('RB8: a first pick the budget refuses leaves spent equal to the block',
     } } }) as unknown as Api
     onContextStart(st, 's1')
     const [block] = await promptContext(api,
-      st, { text: 'design alpha now', origin: { kind: 'composer' } })
+      st, { text: 'design alpha now, whole team',
+        origin: { kind: 'composer' } })
     expect(block).toBe('memory recall:\nBLK-002 beta — alpha b.')
     expect(st.spent.get('s1:main')).toBe(1150 + (block?.length ?? 0))
     expect(st.seen.get('s1:main')?.has('BLK-001')).toBe(false)
