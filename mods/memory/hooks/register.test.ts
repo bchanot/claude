@@ -64,6 +64,11 @@ type World = {
   getsFail: boolean // store.get throws
   model: Model // what `model.complete` does now
   asks: Ask[] // every model.complete call
+  storeCap: number // store.set rejects when the store would pass this size
+  rejected: number // store.set calls rejected (full store or rejectSets)
+  rejectSets: number // the next store.set calls to reject whatever the size
+  gitProtect: string | undefined // `git config gitflow.protect` (absent: exit 1)
+  gitRuns: string[][] // every git process.run argv
 }
 
 type Opts = {
@@ -75,6 +80,16 @@ type Opts = {
   unreadable?: string[] // paths whose fs.read throws
   statFails?: string[] // paths whose fs.stat throws though they exist
   existsFails?: string[] // paths whose fs.exists throws
+  storeCap?: number // total serialized bytes the store accepts
+  rejectSets?: number // reject this many store.set calls, then accept
+  gitProtect?: string // what `git config --get gitflow.protect` prints
+}
+
+/** The bytes the store holds, counting `key` as empty (it is rewritten). */
+function storedSize(w: World, key: string): number {
+  let n = 0
+  for (const [k, v] of w.kv) if (k !== key) n += JSON.stringify(v).length
+  return n
 }
 
 /**
@@ -92,6 +107,13 @@ function handStore(on: On, w: World, fails: boolean): void {
   on('store.delete', (_a, e) => ({ value: void w.kv.delete(e.key) }))
   on('store.set', (_a, e) => {
     if (fails) throw new Error('disk full')
+    const over = storedSize(w, e.key) + JSON.stringify(e.value).length >
+      w.storeCap
+    if (over || w.rejectSets > 0) {
+      w.rejectSets = Math.max(0, w.rejectSets - 1)
+      w.rejected++
+      throw new Error('store full')
+    }
     w.sets.push(e.key)
     w.kv.set(e.key, JSON.parse(JSON.stringify(e.value)))
     return { value: undefined }
@@ -113,6 +135,9 @@ async function boot($: Engine, on: On, o: Opts = {}): Promise<World> {
     existsFails: new Set(o.existsFails ?? []),
     proc: { stdout: INDEX_OUT }, runs: [], home: HOME,
     gets: 0, getsFail: false, model: { text: 'none' }, asks: [],
+    storeCap: o.storeCap ?? Infinity, rejected: 0,
+    rejectSets: o.rejectSets ?? 0,
+    gitProtect: o.gitProtect, gitRuns: [],
   }
   handStore(on, w, o.storeFails ?? false)
   on('tool.register', (_a, e) => {
@@ -151,6 +176,13 @@ async function boot($: Engine, on: On, o: Opts = {}): Promise<World> {
     return { value: w.switchText }
   })
   on('process.run', async (_a, e) => {
+    if (e.argv[0] === 'git') {
+      w.gitRuns.push([...e.argv])
+      const out = w.gitProtect
+      return { value: { exitCode: out === undefined ? 1 : 0,
+        stdout: out === undefined ? '' : `${out}\n`, stderr: '',
+        isStdoutTruncated: false, isStderrTruncated: false } }
+    }
     w.runs.push([...e.argv])
     if (w.proc === 'throw') throw new Error('spawn failed')
     if (w.proc === 'hang') await new Promise(() => undefined)
@@ -2967,4 +2999,98 @@ test('PC2: a throwing recall still lets the note attach', async ($, on) => {
   expect(added).toHaveLength(1)
   expect(added[0]).toContain('memory: commit fix: y')
   expect(w.logs.filter(l => l.includes('prompt.submit'))).toEqual([])
+})
+
+// ---- store sweep before the save, one retry on a rejected set ----------
+
+const ENGINE_BYTES = 4194304
+const fill = (n: number) => 'x'.repeat(n - 2) // n serialized bytes
+
+test('SW1: a full store and a new session: swept first, the save lands',
+  async ($, on) => {
+    const w = await boot($, on, {
+      storeCap: ENGINE_BYTES,
+      seed: { 'l:/a': fill(1400000), 'l:/b': fill(1400000),
+        'l:/c': fill(1394240) },
+    })
+    await failing($, w, EXIT1 + 'fatal: bad thing')
+    expect(failuresOf(w)).toHaveLength(1)
+    expect(w.kv.has('l:/a')).toBe(false)
+    expect(w.rejected).toBe(0)
+  })
+
+test('SW2: a rejected set sweeps and retries once, the retry lands',
+  async ($, on) => {
+    const w = await boot($, on, { rejectSets: 1 })
+    await failing($, w, EXIT1 + 'fatal: bad thing')
+    expect(w.rejected).toBe(1)
+    expect(failuresOf(w)).toHaveLength(1)
+  })
+
+test('SW3: a set rejected twice is not retried a third time', async (
+  $, on,
+) => {
+  const w = await boot($, on, { rejectSets: 5 })
+  const out = await failing($, w, EXIT1 + 'fatal: bad thing')
+  expect(out).toEqual(w.answer)
+  expect(w.rejected).toBe(2)
+})
+
+test('SW4: a rejected log set retries once and lands', async ($, on) => {
+  const { w } = await bootRecall($, on, { rejectSets: 1 })
+  await start($)
+  await say($, GO)
+  expect(w.rejected).toBe(1)
+  expect(await askLog(w)).toEqual([['fresh', 'injected', ['BLK-001']]])
+})
+
+// ---- a foreign repository gets no recall and no known line -------------
+
+test('FR1: gitflow.protect false: no known line, capture still works',
+  async ($, on) => {
+    const w = await bootKnown($, on, { gitProtect: 'false' })
+    const out = await failing($, w, EXIT1 + KN_SPAN)
+    expect(out).toEqual(w.answer)
+    expect(failuresOf(w)).toHaveLength(1)
+    expect(w.gitRuns[0]).toEqual(
+      ['git', '-C', ROOT, 'config', '--get', 'gitflow.protect'])
+  })
+
+test('FR2: gitflow.protect false: no recall, memory_pending answers',
+  async ($, on) => {
+    const { w, seen } = await bootRecall($, on, { gitProtect: 'false' })
+    await start($)
+    await run($, w, 'git commit -m "fix: y"')
+    await say($, GO)
+    expect(seen[0]?.some(c => c.startsWith('memory recall:')) ?? false)
+      .toBe(false)
+    expect(w.asks).toHaveLength(0)
+    expect(await pending($)).toContain('fix: y')
+  })
+
+const protectCases: [string, Opts][] = [
+  ['true', { gitProtect: 'true' }], ['absent', {}],
+]
+for (const [name, opts] of protectCases) {
+  test(`FR3: gitflow.protect ${name}: known line unchanged`, async ($, on) => {
+    const w = await bootKnown($, on, opts)
+    const out = await failing($, w, EXIT1 + KN_SPAN)
+    expect(out).toEqual({ ...(w.answer as object), context: [KN_LINE] })
+  })
+
+  test(`FR3: gitflow.protect ${name}: recall unchanged`, async ($, on) => {
+    const { seen } = await bootRecall($, on, opts)
+    await start($)
+    await say($, GO)
+    expect(seen[0]?.[0]).toBe(BLOCK1)
+  })
+}
+
+test('FR4: the protect read happens once per root and session', async (
+  $, on,
+) => {
+  const w = await bootKnown($, on, { gitProtect: 'true' })
+  await failing($, w, EXIT1 + KN_SPAN)
+  await failing($, w, EXIT1 + 'fatal: other zebra quartz', 'make b')
+  expect(w.gitRuns).toHaveLength(1)
 })

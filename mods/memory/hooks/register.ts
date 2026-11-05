@@ -20,6 +20,7 @@ type State = {
   fresh: Set<string> // sessions whose next qualifying prompt starts a context
   lastPrompt: Map<string, number> // session id -> time of its last prompt
   rerank: { fails: number; until: number } // failures in a row, pause end
+  foreign: Map<string, boolean> // project root -> gitflow.protect is false
 }
 
 export const IDLE_MS = 1800000
@@ -673,6 +674,20 @@ async function statusMap($: Api, root: string): Promise<StatusMap | undefined> {
   }
 }
 
+/**
+ * True when the project's git config marks it foreign (`gitflow.protect`
+ * is `false`). Read once per root and session; any failure: not foreign.
+ */
+async function isForeign($: Api, st: State, root: string): Promise<boolean> {
+  const known = st.foreign.get(root)
+  if (known !== undefined) return known
+  const out = await runWithin(
+    $, ['git', '-C', root, 'config', '--get', 'gitflow.protect'])
+  const foreign = out?.trim() === 'false'
+  st.foreign.set(root, foreign)
+  return foreign
+}
+
 // Function words, 3+ letters first, then the 2-letter FR and EN ones: TOKEN
 // takes 2+ letters, so without them "ok tu peux continuer la suite stp"
 // counts 7 content words and passes the floor. At most 120 words.
@@ -1004,6 +1019,19 @@ function fitLog(log: LogRecord[]): LogRecord[] {
   return kept
 }
 
+/** Runs `write`; if it rejects, sweeps once and runs it a second time. */
+async function retryOnce(
+  sweep: () => Promise<void>,
+  write: () => Promise<void>,
+): Promise<void> {
+  try {
+    await write()
+  } catch {
+    await sweep()
+    await write()
+  }
+}
+
 /** Appends an injection record on the write chain; the oldest fall off. */
 export function appendLog(
   $: Api,
@@ -1014,27 +1042,38 @@ export function appendLog(
   return queueWrite(st, async () => {
     const log = await loadLog($, root)
     if (log.length === 0) await sweepLogs($, logKey(root))
-    await $.store.set(logKey(root), fitLog([...log, record]))
+    await retryOnce(
+      () => sweepLogs($, logKey(root)),
+      () => $.store.set(logKey(root), fitLog([...log, record])),
+    )
   })
 }
 
 type Where = { root: string; id: string }
 
-/** Load, change the current session, save; sweeps when it is created. */
+const sweepAll = async ($: Api, at: Where) => {
+  await sweepStore($, storeKey(at.root), at.id)
+  await sweepLogs($, logKey(at.root))
+}
+
+/**
+ * Load, change the current session, save. A new session sweeps the store
+ * first, so the save fits; a rejected save sweeps and retries once.
+ */
 async function mutateSession(
   $: Api,
   at: Where,
   now: number,
   change: (s: Session) => void,
 ): Promise<void> {
-  const p = await loadProject($, at.root)
-  const created = !p.sessions.some(s => s.id === at.id)
-  change(sessionOf(p, at.id, now))
-  await saveProject($, at.root, p)
-  if (created) {
-    await sweepStore($, storeKey(at.root), at.id)
-    await sweepLogs($, logKey(at.root))
+  const save = async () => {
+    const p = await loadProject($, at.root)
+    change(sessionOf(p, at.id, now))
+    await saveProject($, at.root, p)
   }
+  const known = await loadProject($, at.root)
+  if (!known.sessions.some(s => s.id === at.id)) await sweepAll($, at)
+  await retryOnce(() => sweepAll($, at), save)
 }
 
 const recordFailure = ($: Api, at: Where, f: Failure) =>
@@ -1122,6 +1161,7 @@ export function newState(): State {
     fresh: new Set(),
     lastPrompt: new Map(),
     rerank: { fails: 0, until: 0 },
+    foreign: new Map(),
   }
 }
 
@@ -1493,6 +1533,7 @@ async function knownLine(
   agent: string | undefined,
 ): Promise<string> {
   if (!(await ensureRecall($, st))) return ''
+  if (await isForeign($, st, at.root)) return ''
   const entry = await liveCandidate($, at.root, f.key)
   if (entry === undefined) return ''
   const line = `memory: known ${recallLine(entry)}`
@@ -1777,7 +1818,9 @@ export async function promptContext(
   const idle = last === undefined ? 0 : now - last // unknown: not idle
   st.lastPrompt.set(at.id, now)
   st.spent.delete(contextKey(at.id, undefined))
-  const trigger = (await ensureRecall($, st))
+  const recalling = (await ensureRecall($, st)) &&
+    !(await isForeign($, st, at.root))
+  const trigger = recalling
     ? triggerKind(e.text, st.fresh.has(at.id), idle)
     : undefined
   if (trigger !== undefined) st.fresh.delete(at.id)
