@@ -3,6 +3,8 @@
 // and the per-session state. Every hook reads the session id and root at
 // the point of use, never from a cache. A hook that fails passes the event
 // through unchanged: the mod may never break a tool call or a prompt.
+// It also recalls: registry entries on a qualifying prompt and a known-error
+// line on a Bash failure, both switchable with "recall": false.
 import type { EngineInterface, On, Register } from 'claude-code'
 
 type Api = EngineInterface
