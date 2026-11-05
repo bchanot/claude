@@ -23,7 +23,7 @@ type State = {
 export const IDLE_MS = 1800000
 export const RECALL_CAP = 1500
 export const HAIKU = 'claude-haiku-5-5'
-export const RERANK_MS = 3000
+export const RERANK_MS = 5000
 
 const SWITCH_FILE = '.claude/memory.json'
 const MAX_SWITCH_BYTES = 65536

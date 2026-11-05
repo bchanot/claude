@@ -2260,7 +2260,7 @@ test('IR1: the first prompt of a context asks and injects the block',
     await say($, GO)
     expect(w.asks).toHaveLength(1)
     expect(w.asks[0]).toMatchObject({ model: 'claude-haiku-5-5',
-      effort: 'low', maxTokens: 64, timeoutMs: 3000 })
+      effort: 'low', maxTokens: 64, timeoutMs: 5000 })
     expect(w.asks[0]?.prompt).toContain('BLK-001 | mod design | ')
     expect(seen).toEqual([[BLOCK1]])
   })
