@@ -389,24 +389,45 @@ _digest_journal() {  # <root> → last journal bullet
   [ -n "$last" ] && echo "- journal: ${last#- }"
 }
 
-# The block: header + lines, whole lines dropped from the end until ≤ 800.
+# The block: header + open BLK lines + count line + todo lines + journal.
+# Over 800 chars: todo lines go (last to first); header, open BLK lines
+# (3 x 160 max), count line and journal stay, which always fits in 800.
 # Built in a variable and printed once, so a failure mid-way prints nothing.
-_memory_digest() {  # <project-root>
-  local root=$1 lib line block="" lines=()
-  lib="$(dirname "${BASH_SOURCE[0]}")/../lib/memory.sh"
-  [ -d "$root/.claude/memory" ] || return 0
-  [ -f "$lib" ] && while IFS= read -r line; do lines+=("$line"); done \
-    < <(_digest_blockers "$root" "$lib")
-  while IFS= read -r line; do lines+=("$line"); done < <(_digest_todo "$root")
-  while IFS= read -r line; do lines+=("$line"); done < <(_digest_journal "$root")
-  [ "${#lines[@]}" -gt 0 ] || return 0
-  block="memory digest:"
-  for line in "${lines[@]}"; do
-    line=$(_digest_cut "$line")
-    [ $((${#block} + ${#line} + 1)) -le 800 ] || break
-    block+=$'\n'"$line"
+_digest_assemble() {  # reads the arrays blk, cnt, todo, jr of the caller
+  local block i
+  while :; do
+    block="memory digest:"
+    for i in "${blk[@]}" "${cnt[@]}" "${todo[@]}" "${jr[@]}"; do
+      block+=$'\n'"$i"
+    done
+    [ "${#block}" -le 800 ] && break
+    if [ "${#todo[@]}" -gt 0 ]; then unset 'todo[-1]'
+    else break; fi
   done
   printf '%s\n' "$block"
+}
+
+_digest_collect() {  # <array name> <line source output on stdin>
+  local -n _dc=$1; local line
+  while IFS= read -r line; do _dc+=("$(_digest_cut "$line")"); done
+}
+
+_memory_digest() {  # <project-root>
+  local root=$1 lib line blk=() cnt=() todo=() jr=()
+  lib="$(dirname "${BASH_SOURCE[0]}")/../lib/memory.sh"
+  [ -d "$root/.claude/memory" ] || return 0
+  if [ -f "$lib" ]; then
+    while IFS= read -r line; do
+      case "$line" in
+        "- open: +"*) cnt+=("$line") ;;
+        *) blk+=("$(_digest_cut "$line")") ;;
+      esac
+    done < <(_digest_blockers "$root" "$lib")
+  fi
+  _digest_collect todo < <(_digest_todo "$root")
+  _digest_collect jr < <(_digest_journal "$root")
+  [ $((${#blk[@]} + ${#cnt[@]} + ${#todo[@]} + ${#jr[@]})) -gt 0 ] || return 0
+  _digest_assemble
 }
 if [ "$_ss_digest" = 1 ]; then
   _ss_root=$(git rev-parse --show-toplevel 2>/dev/null) || _ss_root=$PWD

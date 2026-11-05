@@ -85,18 +85,40 @@ done
 out=$(cd "$p" && LC_ALL=C.UTF-8 bash "$SS" </dev/null 2>/dev/null | digest | tail -1)
 check SD6-len-160 "${#out}" 160
 
-# SD7: 10 open BLK with long titles, long todos and journal -> whole lines, <= 800
+# SD7: 3 open BLK + 3 long todos + a journal line over the 800 cap: todo
+# lines drop from the last, the journal and every BLK line stay
+rep() { printf "%$2s" '' | tr ' ' "$1"; }
 p=$(mkproj sd7)
-lt=$(printf 'title%.0s ' $(seq 1 40))
-for i in 1 2 3 4 5 6 7 8 9 10; do blk "$p" "$i" open "$lt"; done
-printf '### Actionable\n- [ ] %s\n- [ ] %s\n- [ ] %s\n' "$lt" "$lt" "$lt" > "$p/.claude/tasks/TODO.md"
-printf '## d\n- %s\n' "$lt$lt" > "$p/.claude/memory/journal.md"
+for i in 1 2 3; do blk "$p" "$i" open "$(rep b 100)"; done
+printf '### Actionable\n- [ ] A%s\n- [ ] B%s\n- [ ] C%s\n' \
+  "$(rep x 200)" "$(rep x 200)" "$(rep x 200)" > "$p/.claude/tasks/TODO.md"
+printf '## d\n- %s\n' "$(rep j 100)" > "$p/.claude/memory/journal.md"
+want="memory digest:
+- open: BLK-001 $(rep b 100)
+- open: BLK-002 $(rep b 100)
+- open: BLK-003 $(rep b 100)
+- todo: A$(rep x 150)…
+- todo: B$(rep x 150)…
+- journal: $(rep j 100)"
 out=$(run "$p" - | digest)
+check SD7-drops-last-todo "$out" "$want"
 check SD7-le-800 "$([ "${#out}" -le 800 ] && echo yes || echo no)" yes
-check SD7-header "$(printf '%s' "$out" | head -1)" 'memory digest:'
-check SD7-whole-lines "$(printf '%s\n' "$out" | tail -n +2 | grep -vc '^- \(open: BLK-\|open: +\|todo: \|journal: \)')" 0
-check SD7-dropped-from-end "$(printf '%s' "$out" | grep -c 'journal:')" 0
-check SD7-lines-le-160 "$(printf '%s\n' "$out" | awk 'length($0) > 160' | wc -l | tr -d ' ')" 0
+
+# SD7b: the worst case (10 open BLK, long titles, 3 long todos, 160-char
+# journal): all todos drop, 3 BLK + count + journal stay, whole lines, <= 800
+p=$(mkproj sd7b)
+for i in 1 2 3 4 5 6 7 8 9 10; do blk "$p" "$i" open "$(rep b 300)"; done
+blk "$p" 11 upstream "Up"
+printf '### Actionable\n- [ ] %s\n- [ ] %s\n' "$(rep x 300)" "$(rep x 300)" \
+  > "$p/.claude/tasks/TODO.md"
+printf '## d\n- %s\n' "$(rep j 300)" > "$p/.claude/memory/journal.md"
+out=$(run "$p" - | digest)
+check SD7b-le-800 "$([ "${#out}" -le 800 ] && echo yes || echo no)" yes
+check SD7b-no-todo "$(printf '%s\n' "$out" | grep -c '^- todo:')" 0
+check SD7b-3-blk "$(printf '%s\n' "$out" | grep -c '^- open: BLK-')" 3
+check SD7b-count-line "$(printf '%s\n' "$out" | grep -x -- '- open: +7 more, +1 upstream')" '- open: +7 more, +1 upstream'
+check SD7b-journal "$(printf '%s\n' "$out" | tail -1)" "- journal: $(rep j 148)…"
+check SD7b-lines-le-160 "$(printf '%s\n' "$out" | awk 'length($0) > 160' | wc -l | tr -d ' ')" 0
 
 # SD9: copy of the script beside a failing / malformed lib; blockers dir
 mkdir -p "$WORK/sd9/hooks" "$WORK/sd9/lib"
