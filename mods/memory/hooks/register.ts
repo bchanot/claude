@@ -383,17 +383,40 @@ async function sweepStore($: Api, curKey: string, id: string): Promise<void> {
 }
 
 // The registry error index: which captured failures a registry knows.
-const REGISTRIES = ['blockers.md', 'learnings.md']
 const MAX_REGISTRY = 4194304
 const MIN_SPAN = 12
 const GRAM_WORDS = 4
-const HEADING = /^## ((?:BLK|LRN)-\d+)\b.*$/gm
+// the ID only: a bounded capture carries no `$`, so a long heading stays one
+const HEADING = /^## ((?:BDR|LRN|BLK)-\d+)\b/gm
 const SPAN = /`([^`\n]+)`/g
-// [ \t] not \s: a multiline regex must not cross newlines (quadratic).
-const STATUS =
-  /^[ \t]*-[ \t]*\*\*Stat(?:us|ut)[^*\n]*\*\*[ \t]*:?[ \t]*([A-Za-z-]+)/gim
+const STATUS_WAIT_MS = 2500 // our own race over the process's 2000 ms
+const STATUS_TIMEOUT_MS = 2000
+const MAX_INDEX_ROW = 1000
+const DEAD = new Set(['superseded', 'deprecated'])
+const INDEX_ROW = new RegExp(
+  '^\\|[ \\t]{0,5}((?:BDR|LRN|BLK)-\\d+)[ \\t]{0,5}\\|[^|]{0,40}\\|' +
+    '(.{0,900})\\|([^|]{0,100})\\|[ \\t]{0,5}$',
+)
+const MAX_TITLE = 100
+const MAX_LESSON = 280
+const MAX_FIELD = 2000
+const LESSON_LABELS: Record<Kind, string[]> = {
+  BDR: ['Decision'],
+  LRN: ['Apply', 'Future application', 'Pattern'],
+  BLK: ['Solution', 'Real cause'],
+}
 
-type Entry = { id: string; body: string }
+export type Kind = 'BDR' | 'LRN' | 'BLK'
+export type Entry = {
+  id: string
+  kind: Kind
+  title: string
+  lesson: string
+  body: string
+}
+type Part = { id: string; body: string }
+type Listed = { status: string; title: string }
+export type StatusMap = Map<string, Listed>
 
 type Read = { text: string } | { why: string }
 
@@ -423,8 +446,8 @@ async function tryRead($: Api, path: string): Promise<Read> {
   }
 }
 
-/** The BLK/LRN entries; a body runs from its heading to the next one. */
-export function entriesOf(text: string): Entry[] {
+/** The entries' ID and body; a body runs from its heading to the next. */
+export function entriesOf(text: string): Part[] {
   const heads = [...text.matchAll(HEADING)]
   return heads.map((m, i) => ({
     id: m[1] ?? '',
@@ -432,14 +455,63 @@ export function entriesOf(text: string): Entry[] {
   }))
 }
 
-// shortcut: a lexical reader, not memory.sh's shared parser (that lives in
-// shell); upgrade = call the parser once the engine exposes a CLI run in
-// hooks.
-/** The last labelled status reads superseded; else the heading `[tag]`. */
-export function isSuperseded(body: string): boolean {
-  const last = [...body.matchAll(STATUS)].pop()
-  if (last !== undefined) return (last[1] ?? '').toLowerCase() === 'superseded'
-  return /\[superseded\]/i.test(body.split('\n', 1)[0] ?? '')
+/**
+ * ID -> status word and title, from the rows `memory.sh index` prints
+ * (`| ID | Date | Title | Status |`); the status is its lowercased first
+ * word, `''` when empty.
+ */
+export function parseIndex(stdout: string): StatusMap {
+  const rows: StatusMap = new Map()
+  for (const line of stdout.split('\n')) {
+    const m = INDEX_ROW.exec(line.slice(0, MAX_INDEX_ROW))
+    if (m === null) continue
+    const word = (m[3] ?? '').trim().match(/^[A-Za-z-]+/)?.[0] ?? ''
+    const title = (m[2] ?? '').trim()
+    rows.set(m[1] ?? '', { status: word.toLowerCase(), title })
+  }
+  return rows
+}
+
+/** False when the ID is superseded or deprecated, or the map lacks it. */
+export function isLive(status: StatusMap, id: string): boolean {
+  const row = status.get(id)
+  return row !== undefined && !DEAD.has(row.status)
+}
+
+/** `text` cut to `n` characters, the last one `…` when it was cut. */
+function clip(text: string, n: number): string {
+  return text.length > n ? `${text.slice(0, n - 1)}…` : text
+}
+
+/** The first sentence: up to `. ` or `; ` before a capital, or the end. */
+function firstSentence(field: string): string {
+  return /^(.*?[.;])(?:[ \t]+(?=[A-Z])|$)/.exec(field)?.[1] ?? field
+}
+
+/**
+ * The one-line lesson of an entry: the first sentence of its first labelled
+ * field, in the order of its kind; `''` when none is there.
+ */
+export function lessonOf(kind: Kind, body: string): string {
+  for (const label of LESSON_LABELS[kind]) {
+    const line = new RegExp(
+      `^[ \\t]*-[ \\t]*(?:\\*\\*)?${label}(?:\\*\\*)?[ \\t]*:[ \\t]*` +
+        `(.{0,${MAX_FIELD}})`,
+      'im',
+    ).exec(body)
+    const field = (line?.[1] ?? '').trim()
+    if (line !== null) return clip(firstSentence(field), MAX_LESSON)
+  }
+  return ''
+}
+
+/** The entries of registry texts, titled by `memory.sh index`'s rows. */
+export function assembleEntries(texts: string[], index: StatusMap): Entry[] {
+  return texts.flatMap(entriesOf).map(({ id, body }) => {
+    const kind = id.slice(0, 3) as Kind
+    const title = clip(index.get(id)?.title ?? '', MAX_TITLE)
+    return { id, kind, title, lesson: lessonOf(kind, body), body }
+  })
 }
 
 const PLACEHOLDERS = new Set(['#', '<path>', '<hex>'])
@@ -465,7 +537,6 @@ function spansOf(body: string): string[] {
 }
 
 function indexEntry(index: Map<string, string>, entry: Entry): void {
-  if (isSuperseded(entry.body)) return
   for (const span of spansOf(entry.body)) {
     for (const gram of grams(normalize(span))) {
       if (!index.has(gram)) index.set(gram, entry.id)
@@ -473,11 +544,19 @@ function indexEntry(index: Map<string, string>, entry: Entry): void {
   }
 }
 
-/** gram -> first ID, over the backticked spans of live entries. */
-export function buildIndex(texts: string[]): Map<string, string> {
+/**
+ * gram -> first ID, over the backticked spans of live entries. Without
+ * statuses (`undefined`) every entry is indexed: advisory, never injected.
+ */
+export function buildIndex(
+  entries: Entry[],
+  status: StatusMap | undefined,
+): Map<string, string> {
   const index = new Map<string, string>()
-  for (const text of texts) {
-    for (const entry of entriesOf(text)) indexEntry(index, entry)
+  for (const entry of entries) {
+    if (status === undefined || isLive(status, entry.id)) {
+      indexEntry(index, entry)
+    }
   }
   return index
 }
@@ -494,15 +573,54 @@ export function matchOf(
   return undefined
 }
 
-type Registries = { index: Map<string, string>; note: string }
+/** The stdout of `argv` on exit 0; `undefined` on any other end or 2.5 s. */
+async function runWithin($: Api, argv: string[]): Promise<string | undefined> {
+  const stop = new AbortController()
+  const timer = $.clock.sleep(STATUS_WAIT_MS, { signal: stop.signal })
+    .then(() => undefined, () => undefined)
+  const run = $.process.run(argv, { timeoutMs: STATUS_TIMEOUT_MS })
+    .then(r => (r.exitCode === 0 ? r.stdout : undefined), () => undefined)
+  try {
+    return await Promise.race([run, timer])
+  } finally {
+    stop.abort()
+  }
+}
 
-async function loadIndex($: Api, root: string): Promise<Registries> {
+/** The statuses `memory.sh index` prints; `undefined` when unavailable. */
+async function statusMap($: Api, root: string): Promise<StatusMap | undefined> {
+  try {
+    const home = await $.env.get('HOME')
+    if (!home) return undefined
+    const out = await runWithin(
+      $, ['bash', `${home}/.claude/lib/memory.sh`, '-C', root, 'index'])
+    const rows = out === undefined ? undefined : parseIndex(out)
+    return rows?.size ? rows : undefined
+  } catch {
+    return undefined
+  }
+}
+
+type Registries = {
+  entries: Entry[]
+  status: StatusMap | undefined
+  index: Map<string, string>
+  note: string
+}
+
+type Loaded = { texts: string[]; note: string }
+
+/** The texts of the named registries and the first part of the note. */
+async function readRegistries(
+  $: Api,
+  root: string,
+  names: string[],
+): Promise<Loaded> {
   const texts: string[] = []
   const read: string[] = []
   const skipped: string[] = []
-  for (const name of REGISTRIES) {
-    const path = `${root}/.claude/memory/${name}`
-    const r = await tryRead($, path)
+  for (const name of names) {
+    const r = await tryRead($, `${root}/.claude/memory/${name}`)
     if ('why' in r) {
       skipped.push(`${name} (${r.why})`)
       continue
@@ -514,9 +632,31 @@ async function loadIndex($: Api, root: string): Promise<Registries> {
     read.length > 0 ? `read ${read.join(', ')}` : '',
     skipped.length > 0 ? `skipped ${skipped.join(', ')}` : '',
   ]
+  return { texts, note: `index: ${parts.filter(Boolean).join('; ')}` }
+}
+
+const FAILURE_FILES = ['blockers.md', 'learnings.md']
+const FAILURE_KINDS = new Set<Kind>(['BLK', 'LRN'])
+
+/**
+ * The entries of the named registries with their statuses, and the error
+ * index over the BLK and LRN ones. No registry read: no process run.
+ */
+async function loadRegistries(
+  $: Api,
+  root: string,
+  names: string[],
+): Promise<Registries> {
+  const { texts, note } = await readRegistries($, root, names)
+  const status = texts.length > 0 ? await statusMap($, root) : undefined
+  const entries = assembleEntries(texts, status ?? new Map())
+  const failing = entries.filter(e => FAILURE_KINDS.has(e.kind))
+  const lost = texts.length > 0 && status === undefined
   return {
-    index: buildIndex(texts),
-    note: `index: ${parts.filter(Boolean).join('; ')}`,
+    entries,
+    status,
+    index: buildIndex(failing, status),
+    note: lost ? `${note}; status reader unavailable` : note,
   }
 }
 
@@ -797,7 +937,8 @@ async function pendingAnswer($: Api, st: State): Promise<string> {
   const id = await $.session.id()
   await st.writes
   const project = await loadProject($, root)
-  return formatPending(root, project, id, await loadIndex($, root))
+  const rx = await loadRegistries($, root, FAILURE_FILES)
+  return formatPending(root, project, id, rx)
 }
 
 function registerPending(on: On, st: State): void {
@@ -960,7 +1101,7 @@ function registerBash(on: On, st: State): void {
 async function newFailureCount($: Api, st: State, at: Where): Promise<number> {
   await st.writes
   const p = await loadProject($, at.root)
-  const { index } = await loadIndex($, at.root)
+  const { index } = await loadRegistries($, at.root, FAILURE_FILES)
   const cur = p.sessions.find(s => s.id === at.id)
   return (cur?.failures ?? []).filter(isFailure)
     .filter(f => matchOf(index, f.key) === undefined).length

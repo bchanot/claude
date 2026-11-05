@@ -3,7 +3,8 @@ import type { Engine, MockClock } from 'claude-code/testing'
 import type { On } from 'claude-code'
 import {
   cap, tail, redact, normalize, failureLine, sessionOf, addFailure,
-  entriesOf, isSuperseded, grams, buildIndex, matchOf,
+  entriesOf, parseIndex, isLive, lessonOf, assembleEntries, grams,
+  buildIndex, matchOf,
   segments, suiteKeyOf, commitLabel, finishLabel,
 } from './register'
 
@@ -11,6 +12,19 @@ const HOME = '/home/t'
 const SWITCH = `${HOME}/.claude/memory.json`
 const ROOT = '/work/app'
 const BASH_ANSWER = { result: { stdout: 'ok', stderr: '' } }
+
+/** What `memory.sh index` prints for the fixture registries below. */
+const INDEX_OUT = [
+  '.claude/memory/blockers.md', '',
+  '| ID | Date | Title | Status |', '|---|---|---|---|',
+  '| BLK-001 | 2026-01-01 | x | open |', '',
+  '.claude/memory/learnings.md', '',
+  '| ID | Date | Title | Status |', '|---|---|---|---|',
+  '| LRN-002 | 2026-01-01 | y | superseded |', '',
+].join('\n')
+
+/** How the process bottom answers: a stdout, or a way to fail. */
+type Proc = { stdout: string } | 'throw' | 'exit2' | 'hang'
 
 type World = {
   switchText: string | undefined // ~/.claude/memory.json (undefined: absent)
@@ -28,6 +42,8 @@ type World = {
   unreadable: Set<string> // paths whose fs.read throws
   statFails: Set<string> // paths whose fs.stat throws though they exist
   existsFails: Set<string> // paths whose fs.exists throws
+  proc: Proc // what `memory.sh index` does now
+  runs: string[][] // every process.run argv
   gets: number // store.get calls
   getsFail: boolean // store.get throws
 }
@@ -77,6 +93,7 @@ async function boot($: Engine, on: On, o: Opts = {}): Promise<World> {
     unreadable: new Set(o.unreadable ?? []),
     statFails: new Set(o.statFails ?? []),
     existsFails: new Set(o.existsFails ?? []),
+    proc: { stdout: INDEX_OUT }, runs: [],
     gets: 0, getsFail: false,
   }
   handStore(on, w, o.storeFails ?? false)
@@ -114,6 +131,15 @@ async function boot($: Engine, on: On, o: Opts = {}): Promise<World> {
       throw new Error('ENOENT')
     }
     return { value: w.switchText }
+  })
+  on('process.run', async (_a, e) => {
+    w.runs.push([...e.argv])
+    if (w.proc === 'throw') throw new Error('spawn failed')
+    if (w.proc === 'hang') await new Promise(() => undefined)
+    const done = w.proc === 'exit2'
+      ? { exitCode: 2, stdout: '' } : { exitCode: 0, stdout: w.proc.stdout }
+    return { value: { ...done, stderr: '', isStdoutTruncated: false,
+      isStderrTruncated: false } }
   })
   on('session.root', () => {
     if (w.rootFails) throw new Error('no root')
@@ -580,6 +606,10 @@ const LEARNINGS = '## LRN-002 \u2014 y\n- **Status**: superseded\n' +
 const REGS = { [BLK]: BLOCKERS, [LRN]: LEARNINGS }
 const PENDING = 'mcp__memory__memory_pending'
 
+/** The error index of one registry text, every entry live (no statuses). */
+const idxOf = (text: string) =>
+  buildIndex(assembleEntries([text], new Map()), undefined)
+
 const pending = async ($: Engine): Promise<string> =>
   String(((await $.tool.call({ tool: PENDING })) as { result: unknown })
     .result)
@@ -652,7 +682,7 @@ test('IDX7: the answer holds no unredacted runtime-built token', async (
 test('IDX8: the error span is indexed, not the prose between', async () => {
   const body = '## BLK-009 \u2014 z\n`git rm` and later words ' +
     '`fatal: unable to access remote host`\n'
-  const index = buildIndex([body])
+  const index = idxOf(body)
   expect(matchOf(index, normalize('fatal: unable to access remote host')))
     .toBe('BLK-009')
   expect(matchOf(index, normalize('and later words fatal unable')))
@@ -662,7 +692,7 @@ test('IDX8: the error span is indexed, not the prose between', async () => {
 test('a key of fewer than 4 words has no gram, so it is NEW', () => {
   expect(grams('a b c')).toEqual([])
   expect(grams('a b c d e')).toEqual(['a b c d', 'b c d e'])
-  const index = buildIndex(['## BLK-001 x\n`aaa bbb ccc ddd`\n'])
+  const index = idxOf('## BLK-001 x\n`aaa bbb ccc ddd`\n')
   expect(matchOf(index, 'aaa bbb ccc')).toBeUndefined()
 })
 
@@ -674,13 +704,13 @@ test('entriesOf slices between headings, heading line included', () => {
   ])
 })
 
-test('isSuperseded: the last status wins, else the heading tag', () => {
-  expect(isSuperseded('## LRN-1 a\n- **Status**: open\n- **Statut**: ' +
-    'superseded\n')).toBe(true)
-  expect(isSuperseded('## LRN-1 a\n- **Status**: superseded\n' +
-    '- **Status**: open\n')).toBe(false)
-  expect(isSuperseded('## LRN-1 [superseded] a\nbody\n')).toBe(true)
-  expect(isSuperseded('## LRN-1 [open] a\n')).toBe(false)
+test('isLive: superseded and deprecated are dead, an absent ID too', () => {
+  const m = parseIndex(INDEX_OUT)
+  expect(isLive(m, 'BLK-001')).toBe(true)
+  expect(isLive(m, 'LRN-002')).toBe(false)
+  expect(isLive(m, 'BLK-999')).toBe(false)
+  expect(isLive(parseIndex('| BDR-001 | d | t | deprecated |\n'), 'BDR-001'))
+    .toBe(false)
 })
 
 test('a directory and an over-size file are skipped on the index line', async (
@@ -816,7 +846,7 @@ test('TIME1: an index over 80000 newlines builds in under 500 ms', () => {
   const body = '## BLK-001 x\n' + '\n'.repeat(80000) + '- **Status**: open\n' +
     '\r\n'.repeat(40000) + '`fatal: unable to access remote`\n'
   const t0 = now()
-  const index = buildIndex([body])
+  const index = idxOf(body)
   expect(now() - t0).toBeLessThan(500)
   expect(index.size).toBe(2)
 })
@@ -867,8 +897,8 @@ test('a registry of exactly 4 MiB is read, one byte more skipped', async (
 })
 
 test('a span of 12 chars is indexed, one of 11 is not', () => {
-  const at12 = buildIndex(['## BLK-001 x\n`aa bb cc ddd`\n'])
-  const at11 = buildIndex(['## BLK-001 x\n`aa bb cc dd`\n'])
+  const at12 = idxOf('## BLK-001 x\n`aa bb cc ddd`\n')
+  const at11 = idxOf('## BLK-001 x\n`aa bb cc dd`\n')
   expect(at12.size).toBe(1)
   expect(at11.size).toBe(0)
 })
@@ -888,6 +918,7 @@ test('a throwing exists probe names the registry, keeps the other', async (
   const files = { [BLK]: BLOCKERS, [LRN]: LEARNINGS.replace(
     'superseded', 'open') }
   const w = await boot($, on, { files, statFails: [BLK], existsFails: [BLK] })
+  w.proc = { stdout: INDEX_OUT.replace('superseded', 'open') }
   await failing($, w, EXIT1 + 'error: pathspec did not match anything')
   const text = await pending($)
   expect(text).toContain(
@@ -1296,7 +1327,7 @@ test('I2: credentials on the command line are redacted', () => {
 
 test('IDX9: a placeholder-only gram is not indexed nor matched', () => {
   const span = '`connect 10.0.0.1:5432 refused 12 34`'
-  const index = buildIndex(['## LRN-074 x\n' + span + '\n'])
+  const index = idxOf('## LRN-074 x\n' + span + '\n')
   const key = normalize('Error at 2026-11-04 12:00:00.123 timeout')
   expect(matchOf(index, key)).toBeUndefined()
   expect(grams('# # # # x')).toEqual(['# # # x'])
@@ -1450,7 +1481,7 @@ test('TIME1: each 6-bis rule stays fast on 64 KiB adversarial input', () => {
 test('the registry index caps a 1 MiB span before normalize', () => {
   const body = '## BLK-001 x\n`' + 'fatal word '.repeat(95326) + '`\n'
   const t0 = now()
-  const index = buildIndex([body])
+  const index = idxOf(body)
   expect(now() - t0).toBeLessThan(50)
   expect(index.size).toBeGreaterThan(0)
 })
@@ -1564,5 +1595,161 @@ test('TIME1: curl prefix shapes stay fast on 64 KiB', () => {
     const t0 = now()
     redact(text)
     expect(now() - t0).toBeLessThan(30)
+  }
+})
+
+// ---- Task 1 (phase 4c): statuses from memory.sh, entries with lessons ----
+
+const SR_LINE = 'fatal: unable to access remote host'
+
+test('SR1: parseIndex reads ID, lowercased status word and title', () => {
+  const out = [
+    '.claude/memory/decisions.md', '',
+    '| ID | Date | Title | Status |', '|---|---|---|---|',
+    '| BDR-031 | 2026-06-25 | t | superseded |',
+    '| LRN-001 | 2026-01-01 | a | b | Open (2026) |',
+    '| LRN-003 | 2026-01-01 | t |  |',
+  ].join('\n')
+  expect([...parseIndex(out)]).toEqual([
+    ['BDR-031', { status: 'superseded', title: 't' }],
+    ['LRN-001', { status: 'open', title: 'a | b' }],
+    ['LRN-003', { status: '', title: 't' }],
+  ])
+})
+
+test('SR2: a superseded entry is not indexed, a live one is known', async (
+  $, on,
+) => {
+  const w = await boot($, on, { files: REGS })
+  w.proc = { stdout: INDEX_OUT.replace('| open |', '| superseded |') }
+  await failing($, w, EXIT1 + SR_LINE)
+  expect(await pending($)).toContain('- NEW ×1 ' + SR_LINE)
+  w.proc = { stdout: INDEX_OUT.replace('| superseded |', '| open |') }
+  await failing($, w, EXIT1 + 'error: pathspec did not match anything')
+  expect(await pending($)).toContain('- known LRN-002 ×1 error: path')
+})
+
+test('SR2b: the process is run once, with the memory.sh argv', async (
+  $, on,
+) => {
+  const w = await boot($, on, { files: REGS })
+  await pending($)
+  expect(w.runs).toEqual([
+    ['bash', '/home/t/.claude/lib/memory.sh', '-C', '/work/app', 'index'],
+  ])
+})
+
+for (const [name, proc] of [
+  ['SR3: process.run throws', 'throw'],
+  ['SR4: exit code 2', 'exit2'],
+  ['SR6: an empty stdout', { stdout: '' }],
+] as const) {
+  test(`${name}: advisory known, status reader unavailable`, async (
+    $, on,
+  ) => {
+    const w = await boot($, on, { files: REGS })
+    w.proc = proc
+    await failing($, w, EXIT1 + SR_LINE)
+    const text = await pending($)
+    expect(text).toContain(
+      'index: read blockers.md, learnings.md; status reader unavailable')
+    expect(text).toContain('- known BLK-001 ×1 ' + SR_LINE)
+  })
+}
+
+test('SR5: process.run never settles, the answer comes at 2500 ms', async (
+  $, on,
+) => {
+  const w = await boot($, on, { files: REGS })
+  await failing($, w, EXIT1 + SR_LINE)
+  w.proc = 'hang'
+  const answer = pending($)
+  await new Promise(r => setTimeout(r, 20)) // let the call reach its wait
+  await w.clock.advance(2500)
+  const text = await answer
+  expect(text).toContain('read blockers.md, learnings.md; status reader unav')
+  expect(text).toContain('- known BLK-001 ×1 ' + SR_LINE)
+})
+
+test('SR7: no registry read, no process run, no unavailable note', async (
+  $, on,
+) => {
+  const w = await boot($, on)
+  await failing($, w, EXIT1 + SR_LINE)
+  const text = await pending($)
+  expect(w.runs).toEqual([])
+  expect(text).not.toContain('status reader')
+})
+
+test('LS1: a BDR Decision reads its first sentence', () => {
+  expect(lessonOf('BDR', '## BDR-1 t\n- **Decision**: Use X. Then Y.\n'))
+    .toBe('Use X.')
+})
+
+test('LS2: an LRN takes Apply before Pattern', () => {
+  const body = '## LRN-1 t\n- **Pattern**: p one\n- **Apply**: do it now\n'
+  expect(lessonOf('LRN', body)).toBe('do it now')
+  expect(lessonOf('LRN', '## LRN-1 t\n- **Pattern**: p one\n'))
+    .toBe('p one')
+})
+
+test('LS3: a BLK plain label, Solution before Real cause', () => {
+  expect(lessonOf('BLK', '## BLK-1 t\n- Real cause: c\n- Solution: fix z\n'))
+    .toBe('fix z')
+  expect(lessonOf('BLK', '## BLK-1 t\n- **Real cause**: only c\n'))
+    .toBe('only c')
+  expect(lessonOf('BLK', '## BLK-1 t\n- **Friction**: f\n')).toBe('')
+})
+
+test('LS4: a 2000-char field is cut at 280 ending with an ellipsis', () => {
+  const text = lessonOf('BDR', '## BDR-1 t\n- **Decision**: ' +
+    'a'.repeat(2000) + '\n')
+  expect(text).toHaveLength(280)
+  expect(text.endsWith('a…')).toBe(true)
+})
+
+test('LS5: a 2001-char Decision still yields a lesson cut at 280', () => {
+  const text = lessonOf('BDR', '## BDR-1 t\n- **Decision**: ' +
+    'b'.repeat(2001) + '\nnext line\n')
+  expect(text).toHaveLength(280)
+  expect(text.endsWith('…')).toBe(true)
+})
+
+test('LS6: `; ` ends the sentence before a capital only', () => {
+  expect(lessonOf('BDR', '- Decision: a; Then b')).toBe('a;')
+  expect(lessonOf('BDR', '- Decision: a; then b. c')).toBe('a; then b. c')
+})
+
+test('EN1: a heading of 320 chars is still an entry; ## Notes is not', () => {
+  const text = '## BDR-007 — ' + 'T'.repeat(320) + '\nbody\n## Notes\nx\n'
+  const parts = entriesOf(text)
+  expect(parts.map(p => p.id)).toEqual(['BDR-007'])
+  expect(parts[0]?.body).toBe(text) // the 4b rule: up to the next entry
+})
+
+test('assembleEntries joins kind, memory.sh title, lesson and body', () => {
+  const body = '## LRN-009 — t [open] (2026-01-02)\n- **Apply**: do z. Ok\n'
+  const long = 'W'.repeat(150)
+  const index = parseIndex(
+    `| LRN-009 | 2026-01-02 | ${long} | open |\n`)
+  const [e] = assembleEntries([body], index)
+  expect(e).toEqual({
+    id: 'LRN-009', kind: 'LRN', title: 'W'.repeat(99) + '…',
+    lesson: 'do z.', body,
+  })
+  expect(assembleEntries([body], new Map())[0]?.title).toBe('')
+})
+
+test('TIMEentries: entriesOf and lessonOf on 64 KiB fields, under 50 ms', () => {
+  const bodies = [
+    '## BLK-001 x\n- Solution: ' + 'a'.repeat(65536 - 26),
+    '## BLK-001 x\n- Solution: ' + 'a. '.repeat(21000),
+    '## BLK-001 x\n' + ' '.repeat(65536) + '- Solution: y',
+    '## BLK-001 x\n' + '- '.repeat(32768),
+  ]
+  for (const text of bodies) {
+    const t0 = now()
+    for (const part of entriesOf(text)) lessonOf('BLK', part.body)
+    expect(now() - t0).toBeLessThan(50)
   }
 })

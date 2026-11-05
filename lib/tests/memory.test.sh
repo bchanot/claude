@@ -693,5 +693,20 @@ cp "$FIX/v1h/.claude/memory/blockers.md" v1h.bak
 printf -- '---\nformat: 2\n---\n' > "$FIX/v1h/.claude/memory/blockers.md"
 check T13d-banner-flips-off "$(banner "$FIX/v1h")" 0
 cat v1h.bak > "$FIX/v1h/.claude/memory/blockers.md"
+# T18 the mod's entriesOf reads the same IDs as memory.sh index on this repo's
+# registries (parseIndex lists no EVAL row); FAILS when they are absent
+parity=$(R="$ROOT" OUT="$(bash "$MEM" -C "$ROOT" index 2>/dev/null)" \
+  bun -e '
+import { readFileSync } from "node:fs"
+const { entriesOf, parseIndex } =
+  await import(`${process.env.R}/mods/memory/hooks/register.ts`)
+const read = n => readFileSync(`${process.env.R}/.claude/memory/${n}.md`, "utf8")
+const a = new Set(["decisions", "learnings", "blockers"]
+  .flatMap(n => entriesOf(read(n)).map(e => e.id)))
+const b = new Set(parseIndex(process.env.OUT ?? "").keys())
+const diff = [...a].filter(x => !b.has(x)).concat([...b].filter(x => !a.has(x)))
+console.log(a.size > 0 && diff.length === 0 ? "same" : `differ ${diff}`)
+' 2>&1)
+check T18-entriesOf-vs-index-ids "$parity" same
 echo "PASS=$pass FAIL=$fail"
 [ "$fail" -eq 0 ]
