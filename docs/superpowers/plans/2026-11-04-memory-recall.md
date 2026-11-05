@@ -206,3 +206,53 @@ Source handling: `_ss_source=''`; `if [ ! -t 0 ]; then _ss_in=$(timeout 1 cat 2>
 - [ ] **Headless:** a `mktemp -d` repo on a feature branch, `.claude/memory/blockers.md` fixture with a BLK whose backticked span is `` `fatal: unable to access probe remote xyz` ``, `claude -p --model haiku` runs `git ls-remote https://127.0.0.1:9/probe.git` style command failing with that text (or a script echoing it to stderr with exit 1), then reports the context lines it saw: expect `memory: known BLK-001 …`.
 - [ ] **Interactive (user):** in a fresh session in this repo, a design prompt → the transcript holds one `memory recall:` attachment on that prompt; `/compact` → the next session-start context holds `memory digest:`; record both in the contract § PROOF.
 - [ ] `make test` all green; `shellcheck ./*.sh hooks/*.sh lib/*.sh` clean.
+
+## R2 CHANGES (challenge r1: correctness CONCERNS(5), robustness CONCERNS(4), simplicity CONCERNS(1); no BLOCKER; these override the task text above)
+
+Task split: Task 4 becomes **4a** (switch key, log store, ledger and its resets: IR6, IR9, IR11 + the tests below) and **4b** (trigger, BM25 candidates, rerank: IR1-IR5, IR7, IR8, IR10, IR12, TIMErules). Task 5 depends on 4a only.
+
+Task 0 (rob 11): tell the user before Task 1 that the working-tree mod is live in their sessions and the executors' from the first save, and that adding `"recall": false` to `~/.claude/memory.json` themselves is the kill switch during the build.
+
+Task 1 — reader:
+- `boot` in register.test.ts gains one `process.run` bottom driven by a World field (default: a literal `memory.sh index` stdout matching the fixture registries, BLK-001 open, LRN-002 superseded), so IDX1, the order test and NT1b keep their meaning; IDX3 is re-anchored on that stdout; SR3-SR5 set the field to throw / exit 2 / hang (corr 3).
+- `parseIndex` returns `Map<id, {status, title}>`; titles come from memory.sh (fence-aware, tag and date stripped), `entriesOf` only splits bodies (heading regex = 4b `HEADING` widened to `BDR|LRN|BLK`, no title capture); EN1's title oracle moves to SR1 (simp 2).
+- Bounded captures carry no `$`: the label regex takes `.{0,2000}` as a prefix of the line, the heading `[^\n]{0,300}` likewise; tests at a 2 001-char Decision (lesson still cut at 280) and a 320-char heading (still an entry) (corr 4, rob 5).
+- `loadRegistries($, root, names)`: the 4b callers (`pendingAnswer`, `newFailureCount`) pass `['blockers.md', 'learnings.md']` and keep their `index:` line unchanged; recall passes the three files (simp 3).
+- Status unavailable: `memory_pending` still labels NEW/known from all entries (advisory), with `status reader unavailable` on the `index:` line; injections stay off (rob 7).
+- A real-registry check in the test (skipped when the repo files are absent): the `entriesOf` IDs equal the `parseIndex` IDs on this repo (rob 6).
+- `isLive`: an ID absent from the map while the map exists is NOT live (fail closed on AC3) (rob 6).
+- `process.run` is skipped when no registry file was read (rob 3).
+
+Task 2 — errno phrases: `input/output error` is listed as `<path> error` (normalize already turned `input/output` into `<path>`); ER case for it (corr 7, rob 14).
+
+Task 3 — harness-facing exports: export `isTrigger`, `IDLE_MS`, `DESIGN_RULE`, `ANALYSIS_RULE` and a `failureKey(text, command)` wrapper of the `buildFailure` chain (tail → redact → lastLine → normalize) for the harness (simp 5, corr 12).
+
+Task 4a — ledger:
+- The main key's `spent` resets on EVERY composer non-mid-turn prompt (outside the trigger branch); test: recall on prompt 1, ordinary prompt 2, then a known error is injected (corr 1, rob 1).
+- One context-start call site: the `classic.SessionStart` hook on `startup | clear | compact` (not `session.start`); `resume` changes nothing; a `classic.SessionStart` carrying `agent_id` resets only that agent's key; `session.end` clears by the ending session's id only; keys use `$.session.id()` (corr 9, simp 4).
+- A missing `lastPrompt` means not idle (rob 10).
+- Check-and-record of `seen`/`spent` run synchronously after the last await; test: two concurrent failing Bash calls → one injection (rob 9).
+- The log: `saveProject` persists `log`; the sweep keeps a project key that still holds a log (it drops sessions first); test: an injection, then a failure capture, then a sweep → the log still holds the record (corr 11, rob 8).
+- Switch: an absent `enabled` key with `"recall": false` logs nothing; only a present non-boolean logs (corr 6).
+
+Task 4b — trigger and rerank:
+- Registries load once per `prompt.submit` and are shared by the 4b note and recall (rob 3).
+- A consecutive-failure pause for the rerank, modelled on the router's: 3 failed or timed-out reranks in a row → no rerank for 15 min (in the closure), reset on a success; test (rob 3).
+
+Task 5 — sub-agent delivery of the known line is verified headless in Task 10 or listed as a residual (corr 10).
+
+Task 7 — digest (corr 2, 8, 13; rob 2, 13; simp 1):
+- Open BLK come from `bash "$_mem_lib" -C "$root" index blocker` (rows `| ID | date | title | status |`, status `open` listed, `upstream` counted), NOT `reconcile_blk_open`; reconcile.sh is not sourced.
+- The digest runs in a subshell: `( _memory_digest "$root" ) 2>/dev/null || true`; the lib path is `$(dirname "${BASH_SOURCE[0]}")/../lib/memory.sh` (like the neighbours), never `$_repo_dir` (unset by then).
+- stdin is read at the TOP of session-start.sh, behind `command -v timeout jq` (without them: no source, the digest prints only on an empty-stdin manual run, never guessed as startup).
+- Cuts are char-safe (awk under a UTF-8 locale, or `cut -c` checked with a non-ASCII SD6 line containing `—`).
+- SD9: a digest that hits an unset variable still exits 0 and leaves the banner intact.
+
+Task 8 — harness (corr 5, 12, 15; rob 4; simp 5):
+- Prompts from main-loop files whose `entrypoint == "cli"` only (no `sdk-*` sessions); the walk reuses `noise.py`'s `pairs_of`/`find_files` logic as reference (ported in TS, the source named).
+- haiku runs from a `mktemp -d` cwd with `--setting-sources local`, no tools; latency from the JSON `duration_api_ms`, labelled an upper bound.
+- Every share is reported with its n; fewer than 10 injections on a channel → "insufficient sample" at the gate, not a pass or a fail.
+
+Task 9 — docs: also the plugin.json `description` and the register.ts header comment (no version bump) (simp 6, corr 14).
+
+Task 10 — headless recipe copies LRN-260 (`GITFLOW_NO_PUSH=1`, `--allowedTools` naming the one probe command) (rob 12); a memory fixture body is written with Write + `--body-file`, never a heredoc quoting an extraction command (extract-guard, LRN-262).
