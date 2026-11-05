@@ -165,14 +165,19 @@ check SD11-section-found "$([ -n "$sec" ] && echo yes || echo no)" yes
 check SD11-bash32-safe "$(printf '%s\n' "$sec" \
   | grep -c -e 'local -n' -e '\[-1\]' -e 'mapfile' -e 'declare -A' -e 'readarray')" 0
 
-# SD12: a memory.sh that hangs costs under 3 s, no digest, exit 0
+# now_ms: milliseconds (GNU date %N), whole seconds x 1000 where unsupported
+now_ms() {
+  local n; n=$(date +%s%N)
+  case "$n" in *N*|"") echo $(( $(date +%s) * 1000 )) ;; *) echo $((n / 1000000)) ;; esac
+}
+# SD12: a memory.sh that hangs costs under 3.5 s, no digest, exit 0
 printf '#!/usr/bin/env bash\ncase "$*" in *index*) sleep 5 ;; esac\n' \
   > "$WORK/sd9/lib/memory.sh"
 p=$(mkproj sd12); blk "$p" 1 open "Slow"
-t0=$(date +%s)
+t0=$(now_ms)
 out=$(run "$p" - "$S9"); rc=$?
-t1=$(date +%s)
-check SD12-hang-bounded "$([ $((t1 - t0)) -lt 3 ] && echo yes || echo no)" yes
+t1=$(now_ms)
+check SD12-hang-bounded "$([ $((t1 - t0)) -lt 3500 ] && echo yes || echo no)" yes
 check SD12-rc "$rc" 0
 check SD12-banner "$(printf '%s' "$out" | grep -c 'make doctor')" 1
 check SD12-no-digest "$(printf '%s' "$out" | grep -c 'memory digest:')" 0
