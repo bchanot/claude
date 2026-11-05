@@ -1285,17 +1285,19 @@ async function captureFailure(
   at: Where,
   e: { command?: unknown; agentId?: unknown },
   out: { isError?: boolean; text?: string },
-): Promise<void> {
+): Promise<Failure | undefined> {
   try {
-    if (out.isError !== true) return
+    if (out.isError !== true) return undefined
     const agent = e.agentId !== undefined
     const f = buildFailure(
       String(out.text ?? ''), String(e.command ?? ''), agent,
       await $.clock.now(),
     )
     if (f !== undefined) await queueWrite(st, () => recordFailure($, at, f))
+    return f
   } catch {
     warnOnce(st, $, 'Bash capture', 'store')
+    return undefined
   }
 }
 
@@ -1388,6 +1390,52 @@ async function captureMilestones(
   }
 }
 
+/**
+ * The known-error line of a failure: `memory: known <entry>` when a live
+ * BLK or LRN matches and the context has not seen it nor spent its budget.
+ * '' otherwise. Claims after the last await.
+ */
+async function knownLine(
+  $: Api,
+  st: State,
+  at: Where,
+  f: Failure,
+  agent: string | undefined,
+): Promise<string> {
+  if (!(await ensureRecall($, st))) return ''
+  const rx = await loadRegistries($, at.root, FAILURE_FILES)
+  if (rx.status === undefined) return ''
+  const id = matchOf(rx.index, f.key)
+  const entry = rx.entries.find(e => e.id === id)
+  if (entry === undefined) return ''
+  const line = `memory: known ${recallLine(entry)}`
+  const key = contextKey(at.id, agent)
+  if (claim(st, key, [entry.id], [line.length]).length === 0) return ''
+  const record = { at: await $.clock.now(), session: at.id, ids: [entry.id] }
+  await appendLog($, st, at.root, {
+    ...record, agent: agent ?? 'main', channel: 'tool',
+  }).catch(() => undefined)
+  return line
+}
+
+/** The known line of a failing answer; '' on any failure (fail open). */
+async function knownContext(
+  $: Api,
+  st: State,
+  at: Where,
+  e: BashEvent,
+  f: Failure | undefined,
+): Promise<string> {
+  if (f === undefined) return ''
+  try {
+    const agent = typeof e.agentId === 'string' ? e.agentId : undefined
+    return await knownLine($, st, at, f, agent)
+  } catch {
+    warnOnce(st, $, 'Bash known', 'recall')
+    return ''
+  }
+}
+
 function registerBash(on: On, st: State): void {
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     if (!(await ensureEnabled($, st))) return next(e)
@@ -1395,9 +1443,11 @@ function registerBash(on: On, st: State): void {
     const at = { root: await $.session.root(), id: await $.session.id() }
     if (at.root === '') return next(e)
     const out = await next(e)
-    await captureFailure($, st, at, e, out)
+    const f = await captureFailure($, st, at, e, out)
     await captureMilestones($, st, at, e, out as BashOut)
-    return out
+    const line = await knownContext($, st, at, e, f)
+    if (line === '') return out
+    return { ...out, context: [...(out.context ?? []), line] }
   }).catch(($, e, next) => {
     warnOnce(st, $, 'Bash', next.error.kind)
     return next(e)
@@ -1534,10 +1584,12 @@ async function recallFor(
   const picked = parseIds(answer ?? '', cands, MAX_PICKS)
     .flatMap(id => byId.get(id) ?? [])
   const when = await $.clock.now()
-  // the header is charged to the first line of the block
-  const costs = picked.map((e, i) =>
-    recallLine(e).length + 1 + (i === 0 ? RECALL_HEADER.length : 0))
-  const taken = claim(st, key, picked.map(e => e.id), costs)
+  const taken: string[] = []
+  for (const e of picked) {
+    // the header is charged to the first line actually taken
+    const header = taken.length === 0 ? RECALL_HEADER.length : 0
+    taken.push(...claim(st, key, [e.id], [recallLine(e).length + 1 + header]))
+  }
   const block = recallBlock(
     picked.filter(e => taken.includes(e.id)).map(recallLine), RECALL_CAP)
   if (block === '') return ''
@@ -1558,7 +1610,13 @@ async function additions(
   wantRecall: boolean,
 ): Promise<string[]> {
   const rx = await loadRegistries($, at.root, ALL_FILES)
-  const note = st.pending.length > 0 ? await noteFor($, st, at, rx) : ''
+  // separate failures: a throw in one never drops the other
+  const note = st.pending.length > 0
+    ? await noteFor($, st, at, rx).catch(() => {
+      warnOnce(st, $, 'prompt.submit', 'note')
+      return ''
+    })
+    : ''
   const block = wantRecall
     ? await recallFor($, st, at, text, rx).catch(() => '')
     : ''

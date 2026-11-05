@@ -1716,6 +1716,7 @@ test('SR7: no registry read, no process run, no unavailable note', async (
 test('SR8: HOME unset, status unavailable, fails open', async ($, on) => {
   const w = await boot($, on, { files: REGS })
   await failing($, w, EXIT1 + SR_LINE)
+  w.runs = [] // the capture's known-line step ran the reader once
   w.home = undefined
   const text = await pending($)
   expect(w.runs).toEqual([])
@@ -2563,4 +2564,200 @@ test('LG5: two appends fired together keep both records', async (
   ])
   expect((w.kv.get(`l:${ROOT}`) as LogRecord[]).map(r => r.at))
     .toEqual([1, 2])
+})
+
+// ---- known-error line on failing commands ------------------------------
+
+const KN_SPAN = 'fatal: unable to access remote host'
+const KN_ENTRY = entryText('BLK-002', 'remote access', 'Solution',
+  'Check the VPN first.') + `seen: \`${KN_SPAN}\`\n`
+const KN_LINE = 'memory: known BLK-002 remote access — ' +
+  'Check the VPN first.'
+
+/** A world whose BLK-002 is open and matches KN_SPAN. */
+async function bootKnown($: Engine, on: On, o: Opts = {}) {
+  const w = await boot($, on, { files: { [BLK]: KN_ENTRY }, ...o })
+  w.proc = { stdout: rowsOut([['BLK-002', 'remote access']]) }
+  return w
+}
+
+const asAgent = ($: Engine, command = 'make') =>
+  $.tool.call({ tool: 'Bash', command, agentId: 'a1' } as never)
+
+test('TE1: a known failure gains the context line, keeps its shape',
+  async ($, on) => {
+    const w = await bootKnown($, on)
+    const out = await failing($, w, EXIT1 + KN_SPAN)
+    expect(out).toEqual({ ...(w.answer as object), context: [KN_LINE] })
+  })
+
+test('TE2: an ENOENT line adds no context key', async ($, on) => {
+  const text = ER_ENTRY +
+    'seen: `cat: x: No such file or directory (os error 2)`\n'
+  const w = await boot($, on, { files: { [LRN]: text } })
+  w.proc = { stdout: '| LRN-009 | 2026-01-01 | e | open |' }
+  const out = await failing($, w,
+    EXIT1 + "ls: cannot access '/tmp/zz': No such file or directory")
+  expect(out).toEqual(w.answer)
+  expect('context' in (out as object)).toBe(false)
+})
+
+test('TE3: a sub-agent and the main loop each get the line', async (
+  $, on,
+) => {
+  const w = await bootKnown($, on)
+  failWith(w, EXIT1 + KN_SPAN)
+  const sub = await asAgent($)
+  expect((sub as { context?: string[] }).context).toEqual([KN_LINE])
+  const main = await bash($, 'make')
+  expect((main as { context?: string[] }).context).toEqual([KN_LINE])
+  const again = await asAgent($)
+  expect('context' in (again as object)).toBe(false)
+})
+
+test('TE4: the same failure 20 times in one context injects once',
+  async ($, on) => {
+    const w = await bootKnown($, on)
+    failWith(w, EXIT1 + KN_SPAN)
+    let injected = 0
+    for (let i = 0; i < 20; i++) {
+      const out = await bash($, 'make') as { context?: string[] }
+      if (out.context !== undefined) injected++
+    }
+    expect(injected).toBe(1)
+  })
+
+test('TE4b: two concurrent failing calls inject one line', async (
+  $, on,
+) => {
+  const w = await bootKnown($, on)
+  failWith(w, EXIT1 + KN_SPAN)
+  const outs = await Promise.all([bash($, 'make'), bash($, 'make')]) as
+    { context?: string[] }[]
+  expect(outs.filter(o => o.context !== undefined)).toHaveLength(1)
+  expect(await loadLog(storeApi(w), ROOT)).toHaveLength(1)
+})
+
+test('TE5: "recall": false adds no line, the capture is stored',
+  async ($, on) => {
+    const w = await bootKnown($, on, {
+      switchText: '{"enabled": true, "recall": false}' })
+    const out = await failing($, w, EXIT1 + KN_SPAN)
+    expect(out).toEqual(w.answer)
+    expect(failuresOf(w)).toHaveLength(1)
+  })
+
+test('TE6: a superseded entry injects nothing', async ($, on) => {
+  const w = await bootKnown($, on)
+  w.proc = { stdout: [
+    '| BLK-002 | 2026-01-01 | remote access | superseded |'].join('\n') }
+  const out = await failing($, w, EXIT1 + KN_SPAN)
+  expect(out).toEqual(w.answer)
+})
+
+test('TE6b: an unavailable status reader injects nothing', async (
+  $, on,
+) => {
+  const w = await bootKnown($, on)
+  w.proc = 'exit2'
+  const out = await failing($, w, EXIT1 + KN_SPAN)
+  expect(out).toEqual(w.answer)
+})
+
+test('TE7: at 1448 chars spent, a 200-char line is refused', async (
+  $, on,
+) => {
+  // four lines of 362 chars (57 title + 280 lesson) = 1448 spent
+  const names = ['alpha', 'bravo', 'charlie', 'delta', 'echo']
+  const spanOf = (n: string) => `fatal: ${n} cluster is down`
+  const body = (i: number, title: number, lesson: number) => entryText(
+    `BLK-01${i}`, 't'.repeat(title - 1) + i, 'Solution',
+    'l'.repeat(lesson - 1) + '.') + `seen: \`${spanOf(names[i] ?? '')}\`\n`
+  const texts = [0, 1, 2, 3].map(i => body(i, 57, 280))
+  texts.push(body(4, 50, 125)) // 14 + 8 + 50 + 3 + 125 = 200
+  const rows = texts.map((_t, i): [string, string] =>
+    [`BLK-01${i}`, 't'.repeat(i === 4 ? 49 : 56) + i])
+  const w = await boot($, on, { files: { [BLK]: texts.join('\n') } })
+  w.proc = { stdout: rowsOut(rows) }
+  for (let i = 0; i < 4; i++) {
+    const out = await failing($, w, EXIT1 + spanOf(names[i] ?? '')) as
+      { context?: string[] }
+    expect(out.context?.[0]?.length).toBe(362)
+  }
+  const last = await failing($, w, EXIT1 + spanOf('echo'))
+  expect(last).toEqual(w.answer)
+})
+
+test('TE8: a failing known-line step returns the answer unchanged',
+  async ($, on) => {
+    const w = await bootKnown($, on)
+    w.proc = 'throw'
+    const out = await failing($, w, EXIT1 + KN_SPAN)
+    expect(out).toEqual(w.answer)
+    expect(failuresOf(w)).toHaveLength(1)
+  })
+
+test('TE9: a recall of ~1160 chars, an ordinary prompt, then a ~395 known ' +
+  'line is injected', async ($, on) => {
+  const span = 'fatal: alpha cluster is down'
+  const known = entryText('BLK-004', 't'.repeat(89) + '4', 'Solution',
+    'alpha '.repeat(50).slice(0, 279) + '.') + `seen: \`${span}\`\n`
+  const { w, seen } = await bootNotes($, on, { files: { [BLK]:
+    [...[1, 2, 3].map(longEntry), known].join('\n') } })
+  w.proc = { stdout: rowsOut([1, 2, 3, 4].map((n): [string, string] =>
+    [`BLK-00${n}`, 't'.repeat(89) + n])) }
+  w.model = { text: 'BLK-001, BLK-002, BLK-003' }
+  await start($)
+  await say($, 'design alpha now')
+  expect(seen[0]?.[0]?.length).toBe(1160) // 14 + 3 x (381 + 1)
+  await say($, 'nothing special at all')
+  const out = await failing($, w, EXIT1 + span) as { context?: string[] }
+  // 1160 + 395 > 1500: only the per-prompt reset lets it through
+  expect(out.context?.[0]?.length).toBe(395)
+})
+
+test('RB8: a first pick the budget refuses leaves spent equal to the block',
+  async ($, on) => {
+    const w = await boot($, on, { files: { [BLK]: [
+      longEntry(1),
+      entryText('BLK-002', 'beta', 'Solution', 'alpha b.'),
+    ].join('\n') } })
+    w.proc = { stdout: rowsOut([
+      ['BLK-001', 't'.repeat(89) + '1'], ['BLK-002', 'beta']]) }
+    w.model = { text: 'BLK-001, BLK-002' }
+    const st = switchedOn()
+    // another caller spends 1150 while the rerank is in flight
+    const api = Object.assign(fakeApi(w), { model: { complete: async () => {
+      claim(st, 's1:main', ['X'], [1150])
+      return { isAnswered: true, text: 'BLK-001, BLK-002' }
+    } } }) as unknown as Api
+    onContextStart(st, 's1')
+    const [block] = await promptContext(api,
+      st, { text: 'design alpha now', origin: { kind: 'composer' } })
+    expect(block).toBe('memory recall:\nBLK-002 beta — alpha b.')
+    expect(st.spent.get('s1:main')).toBe(1150 + (block?.length ?? 0))
+    expect(st.seen.get('s1:main')?.has('BLK-001')).toBe(false)
+  })
+
+test('PC1: a throwing note still lets the recall attach', async ($, on) => {
+  const { w, seen } = await bootRecall($, on)
+  await start($)
+  await run($, w, 'git commit -m "fix: y"')
+  w.getsFail = true
+  await say($, GO)
+  expect(seen[0]).toEqual([BLOCK1])
+})
+
+test('PC2: a throwing recall still lets the note attach', async ($, on) => {
+  const w = await boot($, on, { files: REC_FILES })
+  w.proc = { stdout: REC_INDEX }
+  const st = switchedOn()
+  st.pending = ['commit fix: y']
+  const api = Object.assign(fakeApi(w), { model: { complete: async () => ({
+    get isAnswered(): boolean { throw new Error('boom') },
+  }) } }) as unknown as Api
+  const added = await promptContext(api, st, { text: GO,
+    origin: { kind: 'composer' } })
+  expect(added).toHaveLength(1)
+  expect(added[0]).toContain('memory: commit fix: y')
 })
