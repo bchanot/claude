@@ -7,9 +7,11 @@
 # /var/folders, $HOME). An unresolvable destination ($VAR, $(..)) is refused.
 #
 # Deny form: JSON on stdout, exit 0 (shape of hooks/push-guard.sh, BDR-111).
-# Silent on every allowed command. jq, awk or grep missing: one stderr
-# warning, allow. A command that names no watched word never reaches awk;
-# past that prefilter an awk failure denies (fail closed).
+# Silent on every allowed command. jq, awk, grep, sed, tr or wc missing: one
+# stderr warning, allow. A command that names no watched word (also with
+# quotes and backslashes removed) never reaches awk; past that prefilter a
+# command over 256 KiB or an awk failure denies (fail closed). The cap bounds
+# the awk tokenizer, which rebuilds a word by concatenation.
 #
 # The parser is one POSIX awk program (bash 3.2 safe). Its tokenizer is
 # adapted from push-guard.sh simple_cmds at fe7d5cd: newlines inside quotes
@@ -19,15 +21,19 @@
 # vaas-cli ssh, bash -c, sudo sh -c, find -exec all fall out of it).
 #
 # MISSES: a destination built outside the text (script file, Makefile, alias,
-# variable set in an earlier call); old-style tar `C` letter (tar xfC a /usr),
-# --dir= abbreviations, --one-top-level=; archive members escaping a safe -C
-# (../../usr, -P); a cd to a system dir in a remote shell then an extraction
-# with no destination; option values read as tool words. ACCEPTED FALSE
-# POSITIVES: text holding a complete extraction into a system dir, or `dpkg
-# -x <word>` with no directory. The autoMode soft_deny rule is the net.
+# variable set in an earlier call); old-style tar `C` letter (tar xfC a
+# /usr), --dir= abbreviations, --one-top-level=; a tool name built by $'\x74'
+# escapes (the prefilter strips only quotes and backslashes); archive members
+# escaping a safe -C (../../usr, -P); a cd to a system dir in a remote shell
+# then an extraction with no destination; option values read as tool words.
+# ACCEPTED FALSE POSITIVES: text holding a complete extraction into a system
+# dir, `dpkg -x <word>` with no directory, a glob or brace destination, and
+# a quoted script run after a cd to a system dir (cd / && ssh vm "tar xf a":
+# the script inherits the caller's directory; a ( .. ) subshell restores
+# it). The autoMode soft_deny rule is the net.
 set -u
 
-for t in jq awk grep; do
+for t in jq awk grep sed tr wc; do
   command -v "$t" >/dev/null 2>&1 || {
     echo "extract-guard: $t missing, guard inactive" >&2
     exit 0
@@ -37,20 +43,29 @@ done
 cmd=$(jq -r '.tool_input.command // empty' 2>/dev/null) || exit 0
 [ -n "$cmd" ] || exit 0
 
+SOH=$'\001'
 WATCHED='(^|[^[:alnum:]_.-])(dpkg|dpkg-deb|tar|bsdtar|gtar|unzip|cpio|cp)([^[:alnum:]_-]|$)'
-printf '%s' "$cmd" | grep -qE "$WATCHED" || exit 0
+hit() { printf '%s' "$1" | grep -qE "$WATCHED"; }
+# second look with quotes, backslashes and backslash-newline removed, so
+# t'a'r, "t"ar, ta\<newline>r and $'tar' still reach the parser
+flat=$(printf '%s' "$cmd" | tr '\n' '\001' | sed "s/\\\\$SOH//g" \
+  | tr -d "'\"\\\\")
+hit "$cmd" || hit "$flat" || exit 0
 
 IFS= read -r -d '' PROG <<'AWK' || true
 function base(s) { sub(/^.*\//, "", s); return s }
 function hasblank(w) { return index(w, " ") || index(w, "\t") || index(w, "\n") }
 function deny(msg) { print msg; exit 0 }
+function toobig() {
+  deny("extract-guard: refused: command too large to check; run it yourself if it is safe: ! <command> (CLAUDE.md § Destructive tools & data loss)")
+}
 
 function enqueue(t, d, dir) {
   if (d > 3) {
-    if (t ~ WRE) deny("extract-guard: refused: nesting too deep to check a command that names an extraction tool; run it yourself if it is safe: ! <command>")
+    if (t ~ WRE) deny("extract-guard: refused: nesting too deep to check a command that names an extraction tool; run it yourself if it is safe: ! <command> (CLAUDE.md § Destructive tools & data loss)")
     return
   }
-  if (++nenq > 300) deny("extract-guard: refused: command too large to check; run it yourself if it is safe: ! <command>")
+  if (++nenq > 300) toobig()
   qn++; QT[qn] = t; QD[qn] = d; QDIR[qn] = dir
 }
 
@@ -109,12 +124,38 @@ function dquote(   c, d) {
   }
 }
 
+# $'...' at i (ANSI-C quoting): content kept, \n \t \xHH \NNN decoded
+function ansi(   c, d) {
+  have = 1; wq = 1; i += 2
+  while (i <= n) {
+    c = substr(txt, i, 1)
+    if (c == "'") { i++; return }
+    if (c != "\\") { word = word c; i++; continue }
+    d = substr(txt, i + 1, 1); i += 2
+    if (d == "n") word = word "\n"
+    else if (d == "t") word = word "\t"
+    else if (d == "x" || d ~ /^[0-7]$/) word = word ansi_num(d)
+    else word = word d
+  }
+}
+
+# up to two more digits after \x (hex) or the octal digit d
+function ansi_num(d,   rad, left, v, dg) {
+  rad = (d == "x") ? 16 : 8; left = 2
+  v = (d == "x") ? -1 : d + 0
+  while (left > 0 && i <= n) {
+    dg = index("0123456789abcdef", tolower(substr(txt, i, 1)))
+    if (dg == 0 || dg > rad) break
+    v = (v < 0 ? 0 : v) * rad + dg - 1; i++; left--
+  }
+  return v <= 0 ? "" : sprintf("%c", v)
+}
+
 function quoted(c,   j, d) {
   if (c == "'") {
     have = 1; wq = 1
-    j = index(substr(txt, i + 1), "'")
-    if (j == 0) { word = word substr(txt, i + 1); i = n + 1 }
-    else { word = word substr(txt, i + 1, j - 1); i += j + 1 }
+    j = qend(i, "'")
+    word = word substr(txt, i + 1, j - i - 1); i = j + 1
   } else if (c == "\"") { have = 1; wq = 1; i++; dquote()
   } else if (c == "`") bq()
   else {
@@ -148,9 +189,8 @@ function read_heredocs(   k, e, ln, chk, body) {
   for (k = 1; k <= nh; k++) {
     body = ""
     while (i <= n) {
-      e = index(substr(txt, i), "\n")
-      if (e == 0) { ln = substr(txt, i); i = n + 1 }
-      else { ln = substr(txt, i, e - 1); i += e }
+      for (e = i; e <= n && substr(txt, e, 1) != "\n"; e++) ;
+      ln = substr(txt, i, e - i); i = e + 1
       chk = ln; sub(/^\t+/, "", chk)
       if (chk == hd[k]) break
       body = body ln "\n"
@@ -177,7 +217,9 @@ function redir(   c, d, op) {
 }
 
 function op_item(c) {
-  if (c == ";" || c == "|" || c == "(" || c == ")") { endword(); endcmd(); i++ }
+  if (c == "(") { endword(); endcmd(); SD[++sdn] = DIR; i++ }
+  else if (c == ")") { endword(); endcmd(); if (sdn > 0) DIR = SD[sdn--]; i++ }
+  else if (c == ";" || c == "|") { endword(); endcmd(); i++ }
   else if (c == "&" && substr(txt, i + 1, 1) != ">") { endword(); endcmd(); i++ }
   else if (c == "<" && substr(txt, i + 1, 2) == "<<") {
     endword(); word = "<<<"; have = 1; endword(); i += 3
@@ -188,6 +230,7 @@ function op_item(c) {
 function token(   c) {
   c = substr(txt, i, 1)
   if (c == "'" || c == "\"" || c == "\\" || c == "`") quoted(c)
+  else if (c == "$" && substr(txt, i + 1, 1) == "'") ansi()
   else if (c == "$" && substr(txt, i + 1, 1) == "(") subst()
   else if (c == "\n") { endword(); endcmd(); i++; if (nh) read_heredocs() }
   else if (c == " " || c == "\t") { endword(); i++ }
@@ -198,17 +241,18 @@ function token(   c) {
 
 function scan(t, d, dir) {
   txt = t; n = length(t); i = 1; cdep = d; DIR = dir
-  word = ""; have = 0; wq = 0; nrw = 0; nh = 0
+  word = ""; have = 0; wq = 0; nrw = 0; nh = 0; sdn = 0
   while (i <= n) token()
   endword(); endcmd()
 }
 
-# absolute normalized path; "$" = unresolvable; "" = relative without a cwd
+# absolute normalized path; "$" = unresolvable (also glob and brace); "" = relative without a cwd
 function norm(p,   nc, k, c, sp, out) {
   if (p ~ /^~(\/|$)/) p = "/HOME" substr(p, 2)
   else if (p ~ /^[$]HOME(\/|$)/) p = "/HOME" substr(p, 6)
   else if (p ~ /^[$][{]HOME[}](\/|$)/) p = "/HOME" substr(p, 8)
   if (substr(p, 1, 1) == "~" || index(p, "$") || index(p, "`")) return "$"
+  if (p ~ /[[*?]/ || p ~ /[{][^}]*(,|[.][.])[^}]*[}]/) return "$"
   if (substr(p, 1, 1) != "/") {
     if (DIR == "" || DIR == "$") return DIR
     p = DIR "/" p
@@ -292,13 +336,20 @@ function det_unzip(   j, w, lst) {
   ext = !lst
 }
 
-function det_cpio(   j, w, x, t) {
+# -i extracts; -p (copy-pass) writes into its first non-option word
+function det_cpio(   j, w, x, t, p, first) {
   for (j = 1; j <= na; j++) {
     w = A[j]
     if (w == "--extract") x = 1
-    else if (w ~ /^-[A-Za-z]+$/) { if (w ~ /i/) x = 1; if (w ~ /t/) t = 1 }
-    if (dopt(j, "D", "directory")) { adddest(); j += DSKIP }
+    else if (w == "--pass-through") p = 1
+    else if (w ~ /^-[A-Za-z]+$/) {
+      if (w ~ /i/) x = 1; if (w ~ /t/) t = 1; if (w ~ /p/) p = 1
+    }
+    if (dopt(j, "D", "directory")) { adddest(); j += DSKIP; continue }
+    if (w ~ /^-[REFHIOM]$/) j++
+    else if (w !~ /^-/ && first == "") first = w
   }
+  if (p && first != "") { DV = first; adddest(); ext = 1; return }
   ext = (x && !t)
 }
 
@@ -336,7 +387,7 @@ function detect(b, k,   j) {
   na = 0; nd = 0; ext = 0; absent = 0
   for (j = k + 1; j <= nw; j++) A[++na] = W[j]
   A[na + 1] = ""
-  if ((work += na + 1) > 300000) deny("extract-guard: refused: command too large to check; run it yourself if it is safe: ! <command>")
+  if ((work += na + 1) > 300000) toobig()
   if (b ~ /^(tar|bsdtar|gtar)$/) det_tar()
   else if (b == "dpkg" || b == "dpkg-deb") det_dpkg(b)
   else if (b == "unzip") det_unzip()
@@ -347,7 +398,7 @@ function detect(b, k,   j) {
 
 # one simple command: drop redirections, track cd, run each watched tool
 function process(   k, w, skip) {
-  if (++nrec > 5000) deny("extract-guard: refused: command too large to check; run it yourself if it is safe: ! <command>")
+  if (++nrec > 5000) toobig()
   nw = 0
   for (k = 1; k <= nrw; k++) {
     w = RW[k]
@@ -370,17 +421,22 @@ BEGIN {
   WRE = "(^|[^[:alnum:]_.-])(dpkg|dpkg-deb|tar|bsdtar|gtar|unzip|cpio|cp)([^[:alnum:]_-]|$)"
   BARE = "^[0-9]*(>>|>[|]|>&|>|<&|<>|<<<|<|&>>|&>)$"
 }
-{ all = all $0 }
+{ all = (NR > 1 ? all RS : "") $0 }
 END {
   scan(all, 0, "")
   while (qh < qn) { qh++; scan(QT[qh], QD[qh], QDIR[qh]) }
 }
 AWK
 
-reason=$(printf '%s' "$cmd" | LC_ALL=C awk "$PROG" 2>/dev/null) || {
-  word=$(printf '%s' "$cmd" | grep -oE 'dpkg-deb|dpkg|bsdtar|gtar|tar|unzip|cpio|cp' | head -n 1)
-  reason="extract-guard: refused: the checker failed on a command that names $word; run it yourself if it is safe: ! <command>"
-}
+size=$(printf '%s' "$cmd" | wc -c | tr -d ' ')
+if [ "$size" -gt 262144 ]; then
+  reason="extract-guard: refused: command too large to check; run it yourself if it is safe: ! <command> (CLAUDE.md § Destructive tools & data loss)"
+else
+  reason=$(printf '%s' "$cmd" | LC_ALL=C awk "$PROG" 2>/dev/null) || {
+    word=$(printf '%s' "$flat" | grep -oE 'dpkg-deb|dpkg|bsdtar|gtar|tar|unzip|cpio|cp' | head -n 1)
+    reason="extract-guard: refused: the checker failed on a command that names $word; run it yourself if it is safe: ! <command> (CLAUDE.md § Destructive tools & data loss)"
+  }
+fi
 [ -n "$reason" ] || exit 0
 jq -cn --arg r "$reason" '{hookSpecificOutput:{hookEventName:"PreToolUse",permissionDecision:"deny",permissionDecisionReason:$r}}'
 exit 0

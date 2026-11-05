@@ -14,7 +14,8 @@ check() { if [ "$2" = "$3" ]; then pass=$((pass+1)); else fail=$((fail+1));
 
 OUT=""; RC=0
 run() { # run <cmd>
-  OUT=$(jq -n --arg c "$1" '{tool_name:"Bash",tool_input:{command:$c}}' \
+  OUT=$(printf '%s' "$1" \
+    | jq -Rs '{tool_name:"Bash",tool_input:{command:.}}' \
     | bash "$H" 2>/dev/null); RC=$?
 }
 decision() { printf '%s' "$OUT" \
@@ -68,6 +69,21 @@ deny 'busybox tar -xf a.tar -C /'
 deny 'for f in *.deb; do dpkg -x $f /; done'
 deny 'cd "$work" && tar xf a.tar'
 deny "bash -c \"ssh vm 'sh -c \\\"bash -c \\\\\\\"tar xf a -C /\\\\\\\"\\\"'\""
+deny 'dpkg-deb -x p.deb /'
+deny 'dpkg --extract p.deb /usr'
+deny 'cd / && ssh vm "tar xf a"'
+deny '(cd /; tar xf a.tar)'
+deny 't'"'a'"'r xf a.tar -C /'
+deny '"t"ar xf a.tar -C /'
+deny $'ta\\\nr xf a.tar -C /'
+deny $'$\'tar\' xf a.tar -C /'
+deny $'tar xf a.tar -C $\'\\x2f\''
+deny $'echo \x01# ; tar xf a.tar -C /'
+deny 'tar xf a.tar -C /u?r'
+deny 'cp -r build /{usr,}'
+deny 'cp -r build /op*'
+deny 'cp -r build dist*'
+deny 'find . | cpio -pdm /'
 
 # two violations: exactly one JSON object
 run 'dpkg -x a.deb / ; tar -xf a.tar -C /usr'
@@ -83,6 +99,10 @@ allow 'tar -xf a.tar -C ~/x'
 allow 'tar -xf a.tar -C "$HOME/x"'
 allow 'tar -xf a.tar -C /var/folders/ab/T/tmp.X'
 allow 'tar -xf a.tar -C /var/tmp/w'
+allow 'tar -xf a.tar -C /home/u/proj/build'
+allow 'cd /home/u/proj && unzip a.zip'
+allow '(cd / && ls) && tar xf a.tar'
+allow 'find . | cpio -pdm /tmp/w'
 allow 'dpkg -c p.deb'
 allow 'dpkg -R -i debs/'
 allow 'unzip -l a.zip'
@@ -143,8 +163,17 @@ check rescan-299-allow "$RC [$OUT]" "0 []"
 check rescan-299-fast "$([ "$el" -le 3 ] && echo ok || echo "slow ${el}s")" ok
 over=$(awk "BEGIN { for (i = 1; i <= 301; i++) print \"bash -c 'cp -r a b'\" }")
 run "$over"; check rescan-301-deny "$RC $(decision)" "0 deny"
+big=$(awk 'BEGIN { for (i = 0; i < 30000; i++) print "echo tar xf" }')
+SECONDS=0; run "$big"; el=$SECONDS
+check cap-300k-deny "$RC $(decision)" "0 deny"
+check cap-300k-reason "$(printf '%s' "$OUT" | jq -r \
+  '.hookSpecificOutput.permissionDecisionReason' | grep -c 'too large')" 1
+check cap-300k-fast "$([ "$el" -le 2 ] && echo ok || echo "slow ${el}s")" ok
 deep="bash -c \"bash -c 'bash -c \\\"bash -c \\\\\\\"tar xf a\\\\\\\"\\\"'\""
 run "$deep"; check nesting-deny "$RC $(decision)" "0 deny"
+check nesting-reason-names-rule "$(printf '%s' "$OUT" | jq -r \
+  '.hookSpecificOutput.permissionDecisionReason' \
+  | grep -c 'Destructive tools & data loss')" 1
 
 # ── plumbing ──
 BASH_BIN=$(command -v bash)
