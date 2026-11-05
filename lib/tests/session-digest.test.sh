@@ -159,5 +159,23 @@ check SD10-no-jq-no-digest "$(printf '%s' "$out" | grep -c 'memory digest:')" 0
 check SD10-no-jq-banner "$(printf '%s' "$out" | grep -c 'make doctor')" 1
 check SD10-jq-really-absent "$(PATH="$bin" command -v jq | wc -l | tr -d ' ')" 0
 
+# SD11: the digest section stays bash 3.2 safe (macOS)
+sec=$(sed -n '/^# ── memory digest ──/,/^unset _ss_digest/p' "$SS")
+check SD11-section-found "$([ -n "$sec" ] && echo yes || echo no)" yes
+check SD11-bash32-safe "$(printf '%s\n' "$sec" \
+  | grep -c -e 'local -n' -e '\[-1\]' -e 'mapfile' -e 'declare -A' -e 'readarray')" 0
+
+# SD12: a memory.sh that hangs costs under 3 s, no digest, exit 0
+printf '#!/usr/bin/env bash\ncase "$*" in *index*) sleep 5 ;; esac\n' \
+  > "$WORK/sd9/lib/memory.sh"
+p=$(mkproj sd12); blk "$p" 1 open "Slow"
+t0=$(date +%s)
+out=$(run "$p" - "$S9"); rc=$?
+t1=$(date +%s)
+check SD12-hang-bounded "$([ $((t1 - t0)) -lt 3 ] && echo yes || echo no)" yes
+check SD12-rc "$rc" 0
+check SD12-banner "$(printf '%s' "$out" | grep -c 'make doctor')" 1
+check SD12-no-digest "$(printf '%s' "$out" | grep -c 'memory digest:')" 0
+
 printf 'session-digest: %d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

@@ -10,6 +10,8 @@
 # Digest on startup | clear | compact, and on an empty source from a manual
 # terminal run; never on resume. Without timeout or jq the source is
 # unknowable: digest only when stdin is a terminal, never from a hook.
+# A non-JSON stdin makes jq print nothing: it reads as an empty source and
+# the digest prints.
 _ss_digest=0
 if command -v timeout >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
   _ss_source=""
@@ -350,7 +352,8 @@ _digest_cut() {
   [ "${#v}" -le 160 ] && { printf '%s' "$v"; return; }
   v="${v:0:159}"
   if command -v iconv >/dev/null 2>&1; then
-    while [ -n "$v" ] && ! printf '%s' "$v" | iconv -f UTF-8 -t UTF-8 >/dev/null 2>&1; do
+    while [ -n "$v" ] \
+      && ! printf '%s' "$v" | iconv -f UTF-8 -t UTF-8 >/dev/null 2>&1; do
       v="${v%?}"
     done
   fi
@@ -359,7 +362,9 @@ _digest_cut() {
 
 # Open BLK (≤ 3 listed, the rest counted) and upstream count, as digest lines.
 _digest_blockers() {  # <root> <memory.sh>
-  local row line rest status title open=0 upstream=0 more=""
+  local row line rest status title open=0 upstream=0 more="" tmo=()
+  # a hung memory.sh must not stall every session start
+  command -v timeout >/dev/null 2>&1 && tmo=(timeout 2)
   while IFS= read -r row; do
     [[ "$row" == "| BLK-"* ]] || continue
     line="${row#| }"; line="${line% |}"
@@ -371,7 +376,7 @@ _digest_blockers() {  # <root> <memory.sh>
         [ "$open" -le 3 ] && echo "- open: ${line%% | *} $title" ;;
       upstream) upstream=$((upstream + 1)) ;;
     esac
-  done < <(bash "$2" -C "$1" index blocker 2>/dev/null)
+  done < <("${tmo[@]}" bash "$2" -C "$1" index blocker 2>/dev/null)
   [ "$open" -gt 3 ] && more="+$((open - 3)) more"
   [ "$upstream" -gt 0 ] && more="${more:+$more, }+${upstream} upstream"
   [ -n "$more" ] && echo "- open: $more"
@@ -390,26 +395,21 @@ _digest_journal() {  # <root> → last journal bullet
 }
 
 # The block: header + open BLK lines + count line + todo lines + journal.
-# Over 800 chars: todo lines go (last to first); header, open BLK lines
-# (3 x 160 max), count line and journal stay, which always fits in 800.
+# Todo lines are added in order while the block stays <= 800 chars, so the
+# last ones drop first; header, open BLK lines (3 x 160 max), count line and
+# journal always stay and always fit. The only loop is bounded by the todo
+# count (3). Stays bash 3.2 safe (checked by SD11).
 # Built in a variable and printed once, so a failure mid-way prints nothing.
 _digest_assemble() {  # reads the arrays blk, cnt, todo, jr of the caller
-  local block i
-  while :; do
-    block="memory digest:"
-    for i in "${blk[@]}" "${cnt[@]}" "${todo[@]}" "${jr[@]}"; do
-      block+=$'\n'"$i"
-    done
-    [ "${#block}" -le 800 ] && break
-    if [ "${#todo[@]}" -gt 0 ]; then unset 'todo[-1]'
-    else break; fi
+  local head="memory digest:" tail="" body="" line size
+  for line in "${blk[@]}" "${cnt[@]}"; do head+=$'\n'"$line"; done
+  for line in "${jr[@]}"; do tail=$'\n'"$line"; done
+  size=$((${#head} + ${#tail}))
+  for line in "${todo[@]}"; do
+    [ $((size + ${#line} + 1)) -le 800 ] || break
+    body+=$'\n'"$line"; size=$((size + ${#line} + 1))
   done
-  printf '%s\n' "$block"
-}
-
-_digest_collect() {  # <array name> <line source output on stdin>
-  local -n _dc=$1; local line
-  while IFS= read -r line; do _dc+=("$(_digest_cut "$line")"); done
+  printf '%s%s%s\n' "$head" "$body" "$tail"
 }
 
 _memory_digest() {  # <project-root>
@@ -424,8 +424,10 @@ _memory_digest() {  # <project-root>
       esac
     done < <(_digest_blockers "$root" "$lib")
   fi
-  _digest_collect todo < <(_digest_todo "$root")
-  _digest_collect jr < <(_digest_journal "$root")
+  while IFS= read -r line; do todo+=("$(_digest_cut "$line")"); done \
+    < <(_digest_todo "$root")
+  while IFS= read -r line; do jr+=("$(_digest_cut "$line")"); done \
+    < <(_digest_journal "$root")
   [ $((${#blk[@]} + ${#cnt[@]} + ${#todo[@]} + ${#jr[@]})) -gt 0 ] || return 0
   _digest_assemble
 }
