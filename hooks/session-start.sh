@@ -5,6 +5,24 @@
 # git fetch for the version/update check near the end.
 # ============================================================
 
+# ── Session source (memory digest gate) ──
+# stdin carries the hook JSON. Read it first, before any child can eat it.
+# Digest on startup | clear | compact, and on an empty source from a manual
+# terminal run; never on resume. Without timeout or jq the source is
+# unknowable: digest only when stdin is a terminal, never from a hook.
+_ss_digest=0
+if command -v timeout >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
+  _ss_source=""
+  if [ ! -t 0 ]; then
+    _ss_in=$(timeout 1 cat 2>/dev/null)
+    _ss_source=$(printf '%s' "$_ss_in" | jq -r '.source // empty' 2>/dev/null)
+  fi
+  case "$_ss_source" in ""|startup|clear|compact) _ss_digest=1 ;; esac
+  unset _ss_in _ss_source
+elif [ -t 0 ]; then
+  _ss_digest=1
+fi
+
 # ── Quick health check (filesystem only, no subprocesses) ──
 BROKEN=()
 for f in CLAUDE.md settings.json agents skills rules; do
@@ -324,5 +342,78 @@ graphify (graphify-out/graph.json present):
 EOF
 fi
 unset _gx_root
+# ── memory digest ──
+# Cut a line at 160 chars with an ellipsis; a cut that split a multibyte
+# char (non-UTF-8 locale) loses trailing chars until iconv accepts it.
+_digest_cut() {
+  local v=$1
+  [ "${#v}" -le 160 ] && { printf '%s' "$v"; return; }
+  v="${v:0:159}"
+  if command -v iconv >/dev/null 2>&1; then
+    while [ -n "$v" ] && ! printf '%s' "$v" | iconv -f UTF-8 -t UTF-8 >/dev/null 2>&1; do
+      v="${v%?}"
+    done
+  fi
+  printf '%s…' "$v"
+}
+
+# Open BLK (≤ 3 listed, the rest counted) and upstream count, as digest lines.
+_digest_blockers() {  # <root> <memory.sh>
+  local row line rest status title open=0 upstream=0 more=""
+  while IFS= read -r row; do
+    [[ "$row" == "| BLK-"* ]] || continue
+    line="${row#| }"; line="${line% |}"
+    rest="${line#* | }"; rest="${rest#* | }"
+    [[ "$rest" == *" | "* ]] || continue
+    status="${rest##* | }"; title="${rest% | *}"
+    case "$status" in
+      open) open=$((open + 1))
+        [ "$open" -le 3 ] && echo "- open: ${line%% | *} $title" ;;
+      upstream) upstream=$((upstream + 1)) ;;
+    esac
+  done < <(bash "$2" -C "$1" index blocker 2>/dev/null)
+  [ "$open" -gt 3 ] && more="+$((open - 3)) more"
+  [ "$upstream" -gt 0 ] && more="${more:+$more, }+${upstream} upstream"
+  [ -n "$more" ] && echo "- open: $more"
+}
+
+_digest_todo() {  # <root> → first 3 unchecked Actionable items
+  awk '/^### Actionable/ { on = 1; next } /^#/ { on = 0 }
+    on && sub(/^- \[ \] /, "") && n++ < 3 { print "- todo: " $0 }' \
+    "$1/.claude/tasks/TODO.md"
+}
+
+_digest_journal() {  # <root> → last journal bullet
+  local last
+  last=$(grep '^- ' "$1/.claude/memory/journal.md" | tail -1)
+  [ -n "$last" ] && echo "- journal: ${last#- }"
+}
+
+# The block: header + lines, whole lines dropped from the end until ≤ 800.
+# Built in a variable and printed once, so a failure mid-way prints nothing.
+_memory_digest() {  # <project-root>
+  local root=$1 lib line block="" lines=()
+  lib="$(dirname "${BASH_SOURCE[0]}")/../lib/memory.sh"
+  [ -d "$root/.claude/memory" ] || return 0
+  [ -f "$lib" ] && while IFS= read -r line; do lines+=("$line"); done \
+    < <(_digest_blockers "$root" "$lib")
+  while IFS= read -r line; do lines+=("$line"); done < <(_digest_todo "$root")
+  while IFS= read -r line; do lines+=("$line"); done < <(_digest_journal "$root")
+  [ "${#lines[@]}" -gt 0 ] || return 0
+  block="memory digest:"
+  for line in "${lines[@]}"; do
+    line=$(_digest_cut "$line")
+    [ $((${#block} + ${#line} + 1)) -le 800 ] || break
+    block+=$'\n'"$line"
+  done
+  printf '%s\n' "$block"
+}
+if [ "$_ss_digest" = 1 ]; then
+  _ss_root=$(git rev-parse --show-toplevel 2>/dev/null) || _ss_root=$PWD
+  ( _memory_digest "$_ss_root" ) 2>/dev/null || true
+  unset _ss_root
+fi
+unset _ss_digest
+
 echo ""
 unset TOKEN_WARN PROFILE_PLAIN
