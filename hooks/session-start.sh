@@ -5,6 +5,11 @@
 # git fetch for the version/update check near the end.
 # ============================================================
 
+# Recursion guard (BLK-043): defense-in-depth, no live caller. Relies on
+# Claude Code passing the env to hooks.
+[ -n "${SESSION_START_RUNNING:-}" ] && exit 0
+export SESSION_START_RUNNING=1
+
 # ── Session source (memory digest gate) ──
 # stdin carries the hook JSON. Read it first, before any child can eat it.
 # Digest on startup | clear | compact, and on an empty source from a manual
@@ -153,7 +158,6 @@ PLAN=$(detect_plan 2>/dev/null || echo "pro")
 case "$PLAN" in
   max)  _budget=20000; PLAN_LABEL="Max" ;;
   pro)  _budget=11000; PLAN_LABEL="Pro" ;;
-  free) _budget=5000;  PLAN_LABEL="Free" ;;
   *)    _budget=11000; PLAN_LABEL="Pro" ;;
 esac
 

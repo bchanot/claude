@@ -18,7 +18,7 @@ detect_rtk() {
 detect_superpowers() {
   # superpowers = 7 vendored skills since 2026-09-28; the plugin is gone.
   # One file test on the linked vendored skill: proves vendored AND
-  # linked in one shot — no plugin cache glob, no `claude plugin list`.
+  # linked in one shot — no plugin cache glob, no `plugin list` CLI call.
   [ -f "$HOME/.claude/skills/brainstorming/SKILL.md" ]
 }
 
@@ -65,7 +65,9 @@ detect_graphifyy() {
 # --- Plan detection ---
 
 detect_plan() {
-  # Detect Claude plan: max, pro, or free.
+  # Detect Claude plan: max or pro.
+  # Never call the `claude` CLI here: it starts a session whose
+  # SessionStart hook calls detect_plan again (BLK-043).
   # Checks ~/.claude.json for model access hints.
   # Returns plan name on stdout, always exits 0.
   local claude_json="$HOME/.claude.json"
@@ -80,13 +82,5 @@ detect_plan() {
       echo "max"; return 0
     fi
   fi
-  # Fallback: check if claude CLI reports plan
-  local plan
-  plan=$(claude config get planType 2>/dev/null || true)
-  case "$plan" in
-    max|Max|MAX) echo "max" ;;
-    pro|Pro|PRO) echo "pro" ;;
-    free|Free|FREE) echo "free" ;;
-    *) echo "pro" ;;  # default assumption
-  esac
+  echo "pro"
 }
