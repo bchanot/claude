@@ -5,6 +5,11 @@
 # git fetch for the version/update check near the end.
 # ============================================================
 
+# Recursion guard (BLK-043): defense-in-depth, no live caller. Relies on
+# Claude Code passing the env to hooks.
+[ -n "${SESSION_START_RUNNING:-}" ] && exit 0
+export SESSION_START_RUNNING=1
+
 # ── Quick health check (filesystem only, no subprocesses) ──
 BROKEN=()
 for f in CLAUDE.md settings.json agents skills; do
@@ -118,7 +123,6 @@ PLAN=$(detect_plan 2>/dev/null || echo "pro")
 case "$PLAN" in
   max)  _budget=20000; PLAN_LABEL="Max" ;;
   pro)  _budget=11000; PLAN_LABEL="Pro" ;;
-  free) _budget=5000;  PLAN_LABEL="Free" ;;
   *)    _budget=11000; PLAN_LABEL="Pro" ;;
 esac
 
