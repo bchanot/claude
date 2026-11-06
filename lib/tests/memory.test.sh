@@ -708,5 +708,17 @@ const diff = [...a].filter(x => !b.has(x)).concat([...b].filter(x => !a.has(x)))
 console.log(a.size > 0 && diff.length === 0 ? "same" : `differ ${diff}`)
 ' 2>&1)
 check T18-entriesOf-vs-index-ids "$parity" same
+# T19 a path that looks like an awk assignment (x=1.md) is a file, not stdin
+printf 'x\n## sneaky\n' > 'x=1.md'
+sum=$(cksum < .claude/memory/learnings.md)
+bash "$MEM" add learning --title eq --body-file x=1.md </dev/null >/dev/null 2>&1
+check T19-assign-body-heading-rc "$?/$(cksum < .claude/memory/learnings.md)" "2/$sum"
+printf 'clean-eq-body\n' > 'x=1.md'
+bash "$MEM" add learning --title eq --body-file x=1.md </dev/null >/dev/null 2>&1
+check T19b-assign-body-written "$(grep -c '^clean-eq-body$' .claude/memory/learnings.md)" 1
+mkdir 'a=b' && printf '# Decisions\n\n## BDR-001 - legacy\n' > 'a=b/decisions.md'
+err=$(bash "$MEM" check 'a=b' 2>&1 >/dev/null </dev/null)
+check T19c-assign-dir-read "$(printf '%s\n' "$err" | grep -c '^memory: v1: ./a=b/decisions.md$')" 1
+
 echo "PASS=$pass FAIL=$fail"
 [ "$fail" -eq 0 ]
