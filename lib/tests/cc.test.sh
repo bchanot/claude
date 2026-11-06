@@ -12,7 +12,7 @@ check() { if [ "$2" = "$3" ]; then pass=$((pass+1)); else fail=$((fail+1));
   printf 'FAIL %s: got[%s] want[%s]\n' "$1" "$2" "$3"; fi; }
 check_has() { case "$2" in *"$3"*) pass=$((pass+1));; *) fail=$((fail+1));
   printf 'FAIL %s: [%s] does not contain [%s]\n' "$1" "$2" "$3";; esac; }
-FX="$(mktemp -d)"; trap 'rm -rf "$FX"' EXIT
+FX="$(mktemp -d)" || exit 1; trap 'rm -rf "$FX"' EXIT
 mkdir -p "$FX/bin" "$FX/home/.claude/lib/profiles"
 cp "$ROOT/lib/cc.sh" "$ROOT/lib/profile.sh" "$FX/home/.claude/lib/"
 printf '{"enabledPlugins": {"x@skills-dir": true}}\n' > "$FX/home/.claude/lib/profiles/webx.json"
@@ -34,6 +34,11 @@ cat > "$FX/bin/claude" <<'EOT'
   echo "TMPDIR=${TMPDIR-unset}"; echo "canary=${CC_ENV_CANARY-unset}"; } >> "$CC_LOG"
 EOT
 chmod +x "$FX/bin/"*
+# shellcheck source=lib/tests/claude-stub.sh
+. "$ROOT/lib/tests/claude-stub.sh"
+for c in claude systemd-run dtach; do
+  PATH="$FX/bin:$PATH" stub_first_or_die "$c" "$FX/bin/$c"
+done
 export CC_LOG="$FX/log" HOME="$FX/home"
 PATH="$FX/bin:$PATH"
 # shellcheck disable=SC1091

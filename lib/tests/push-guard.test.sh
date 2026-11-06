@@ -7,7 +7,7 @@ set -u
 export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 H="$ROOT/hooks/push-guard.sh"
-WORK=$(mktemp -d)
+WORK=$(mktemp -d) || exit 1
 trap 'rm -rf "$WORK"' EXIT
 pass=0; fail=0
 check() { if [ "$2" = "$3" ]; then pass=$((pass+1)); else fail=$((fail+1));
@@ -352,6 +352,10 @@ check T43a-soft-rule "$(grep -c 'manual-push mode' <<<"$soft" | tr -d ' ')" 1
 check T43b-clearance "$(grep -c "does not clear it: the user types \`! git push\`" <<<"$soft")" 1
 
 # ── session banner ──
+# shellcheck source=lib/tests/claude-stub.sh
+. "$ROOT/lib/tests/claude-stub.sh"
+mkdir -p "$WORK/cs" || exit 1
+claude_stub_install "$WORK/cs"
 banner() { # banner <dir>
   (cd "$1" && SESSION_START_OFFLINE=1 bash "$ROOT/hooks/session-start.sh" \
     </dev/null 2>/dev/null)
@@ -422,4 +426,5 @@ check T63b-no-root-glob "$(jq -r '(.permissions.ask + .permissions.deny)[]' \
 check T63c-parens-balanced "$(jq -r '(.permissions.ask + .permissions.deny)[]
   | select(test("^[A-Za-z]+\\(") and (endswith(")") | not))' "$S")" ""
 
+check no-claude-calls "$(claude_stub_calls)" 0
 printf 'PASS=%s FAIL=%s\n' "$pass" "$fail"; [ "$fail" -eq 0 ]

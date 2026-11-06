@@ -2,8 +2,11 @@
 # lib/tests/graphify-gate.test.sh — "propose graphify" threshold signal (BDR-097).
 set -u
 LIB="$(cd "$(dirname "$0")/../.." && pwd)/lib/graphify-gate.sh"
-WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
+WORK="$(mktemp -d)" || exit 1; trap 'rm -rf "$WORK"' EXIT
 pass=0; fail=0
+. "$(dirname "$0")/claude-stub.sh"
+mkdir -p "$WORK/cs" || exit 1
+claude_stub_install "$WORK/cs"
 check() { if [ "$2" = "$3" ]; then pass=$((pass+1)); else fail=$((fail+1));
   printf 'FAIL %s: got[%s] want[%s]\n' "$1" "$2" "$3"; fi; }
 # gate(dir) -> the signal line, or "silent"
@@ -71,6 +74,8 @@ check S2b-update-rule "$(grep -c 'graphify update \.' <<<"$out")" 1
 check S3-from-subdir "$(banner "$d/app/sub" | grep -c 'graphify query')" 1
 out=$(banner "$WORK/plain")
 check S4-not-a-repo "$(grep -c 'graphify query' <<<"$out")/$(grep -c 'Claude Code config' <<<"$out")" 0/1
+
+check no-claude-calls "$(claude_stub_calls)" 0
 
 echo "PASS=$pass FAIL=$fail"
 [ "$fail" -eq 0 ]

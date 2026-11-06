@@ -9,7 +9,7 @@ MEM="$ROOT/lib/memory.sh"
 pass=0; fail=0
 check() { if [ "$2" = "$3" ]; then pass=$((pass+1)); else fail=$((fail+1));
   printf 'FAIL %s: got[%s] want[%s]\n' "$1" "$2" "$3"; fi; }
-FIX=$(mktemp -d); trap 'rm -rf "$FIX"' EXIT
+FIX=$(mktemp -d) || exit 1; trap 'rm -rf "$FIX"' EXIT
 cd "$FIX" || exit 1
 git init -q . && git config user.email t@t && git config user.name t
 export MEMORY_DATE=2026-10-27
@@ -686,6 +686,12 @@ for t in decisions learnings blockers evals; do
   check "T13-template-$t-v2" "$(sed -n 2p "$ROOT/templates/memory/$t.md")" 'format: 2'
   check "T13b-template-$t-no-index" "$(grep -c '^## Index$' "$ROOT/templates/memory/$t.md")" 0
 done
+# Stub work dir outside $FIX: the fixture repo's `git add -A` must not
+# commit the stub. Installed here so earlier cases see the repo unceilinged.
+# shellcheck source=lib/tests/claude-stub.sh
+. "$ROOT/lib/tests/claude-stub.sh"
+CSW=$(mktemp -d) || exit 1; trap 'rm -rf "$FIX" "$CSW"' EXIT
+claude_stub_install "$CSW"
 banner() { (cd "$1" && SESSION_START_OFFLINE=1 bash "$ROOT/hooks/session-start.sh" \
   </dev/null 2>/dev/null) | grep -c "${2:-registry v1}"; }
 check T13c-banner-v1-v2 "$(banner "$FIX/v1h" 'registry v1: 1 file(s) (memory.sh check)')/$(banner "$FIX")" 1/0
@@ -720,5 +726,6 @@ mkdir 'a=b' && printf '# Decisions\n\n## BDR-001 - legacy\n' > 'a=b/decisions.md
 err=$(bash "$MEM" check 'a=b' 2>&1 >/dev/null </dev/null)
 check T19c-assign-dir-read "$(printf '%s\n' "$err" | grep -c '^memory: v1: ./a=b/decisions.md$')" 1
 
+check no-claude-calls "$(claude_stub_calls)" 0
 echo "PASS=$pass FAIL=$fail"
 [ "$fail" -eq 0 ]
