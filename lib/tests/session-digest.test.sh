@@ -195,6 +195,16 @@ check SD12-rc "$rc" 0
 check SD12-banner "$(printf '%s' "$out" | grep -c 'make doctor')" 1
 check SD12-no-digest "$(printf '%s' "$out" | grep -c 'memory digest:')" 0
 
+# SD16: a memory.sh whose `check` hangs costs under 3.5 s, exit 0
+printf '#!/usr/bin/env bash\ncase "$*" in *check*) sleep 10 ;; esac\n' \
+  > "$WORK/sd9/lib/memory.sh"
+p=$(mkproj sd16)
+t0=$(now_ms)
+out=$(run "$p" - "$S9"); rc=$?
+t1=$(now_ms)
+check SD16-hang-bounded "$([ $((t1 - t0)) -lt 3500 ] && echo yes || echo no)" yes
+check SD16-rc "$rc" 0
+
 # mkhome <name> [json]: a HOME that links the real ~/.claude entries and
 # holds the given memory.json (none when omitted); prints its path.
 mkhome() {
