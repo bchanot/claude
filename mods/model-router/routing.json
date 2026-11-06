@@ -201,7 +201,8 @@
       "ship-feature": "plan",
       "deploy": "verify",
       "feat": "reflect",
-      "bugfix": "reflect"
+      "bugfix": "reflect",
+      "capitalize": "apply"
     }
   },
   "changed": {},
