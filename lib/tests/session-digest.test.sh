@@ -10,6 +10,19 @@ pass=0; fail=0
 check() { if [ "$2" = "$3" ]; then pass=$((pass+1)); else fail=$((fail+1));
   printf 'FAIL %s: got[%s] want[%s]\n' "$1" "$2" "$3"; fi; }
 
+# Stub claude (BLK-043): a hook run that calls the CLI logs a line here
+# instead of starting a session that re-runs this hook.
+CLAUDE_LOG="$WORK/claude.log"; : >"$CLAUDE_LOG"
+mkdir -p "$WORK/stub"
+printf '#!/bin/sh\necho "$*" >>"%s"\n' "$CLAUDE_LOG" >"$WORK/stub/claude"
+chmod +x "$WORK/stub/claude"
+export PATH="$WORK/stub:$PATH"
+calls() { wc -l <"$CLAUDE_LOG" | tr -d ' '; }
+# SD0: positive control, the stub is reached through PATH
+claude probe
+check SD0-stub-reached "$(calls)" 1
+: >"$CLAUDE_LOG"
+
 # mkproj <name> -> path with an empty memory dir
 mkproj() {
   mkdir -p "$WORK/$1/.claude/memory" "$WORK/$1/.claude/tasks"
@@ -226,6 +239,9 @@ git -C "$p" config gitflow.protect false
 check SD14c-false "$(run "$p" "$WORK/startup.json" | digests)" 0
 check SD14d-banner "$(run "$p" "$WORK/startup.json" | grep -c '^$')" \
   "$(run "$p" "$WORK/startup.json" | grep -c '^$')"
+
+# SD15: no hook run of this suite called the claude CLI (BLK-043)
+check SD15-no-claude-calls "$(calls)" 0
 
 printf 'session-digest: %d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
