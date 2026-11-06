@@ -20,7 +20,7 @@ claude-config/
 ├── update-all.sh          # One-command update for all components
 ├── Makefile               # Unified entry point: make install / doctor / update / test (make help)
 ├── plugins.lock.json      # Version pinning for non-marketplace dependencies and vendored skills
-├── hooks/                 # Claude Code hooks: session start, statusline, RTK rewrite, ctx7 + design-toolchain reminders, attention notify, unpushed-work guard, manual-mode push guard, system-dir extraction guard, instruction-load log, code-limits line-width signal
+├── hooks/                 # Claude Code hooks: session start, statusline, RTK rewrite, ctx7 + design-toolchain reminders, attention notify, unpushed-work guard, manual-mode push guard, system-dir extraction guard, instruction-load log, memory digest at session start, code-limits line-width signal
 ├── githooks/              # Generated git hooks (pre-commit, post-commit, post-merge, reference-transaction), git's global core.hooksPath
 ├── .githooks/             # This repo's own copy of the same hooks
 ├── .claude/rules/         # This repo's project path rules (paths: frontmatter), loaded on Read of a matching file
@@ -38,6 +38,6 @@ claude-config/
 
 - `skills/` = entry points you invoke via `/skill-name`
 - `agents/` = execution units called by skills (never invoked directly by user)
-- `mods/` = Claude Code mods (function-hooks plugins); each loads through the tracked symlink `skills/<name>` as `<name>@skills-dir`, live at the next session; `mods/model-router/routing.json` (tracked) holds the phase table (tier, effort and the `about` line the first-use dialog shows), every skill and agent row and the first-use decisions; the mod also redirects a main-loop code write made outside a skill run to a skill (README, "Write guard"); `mods/memory/` is the capture mod (Bash failures and milestones in the plugin store, read by `memory_pending`)
+- `mods/` = Claude Code mods (function-hooks plugins); each loads through the tracked symlink `skills/<name>` as `<name>@skills-dir`, live at the next session; `mods/model-router/routing.json` (tracked) holds the phase table (tier, effort and the `about` line the first-use dialog shows), every skill and agent row and the first-use decisions; the mod also redirects a main-loop code write made outside a skill run to a skill (README, "Write guard"); `mods/memory/` is the capture mod (Bash failures and milestones in the plugin store, read by `memory_pending`) that also recalls registry entries and known errors
 - `templates/` = symlinked to `~/.claude/templates/` — copy into projects via `/onboard` or manually
 - **Graphify** builds a knowledge graph of any codebase (`/graphify query`), producing a navigable wiki in `graphify-out/wiki/`. This map helps Claude understand project structure, find relevant code faster, and reason across files. Essential for large-scope tasks (multi-file features, complex bugs, architectural changes). Small tasks should skip it and read files directly. Proposed only from 200 tracked code files: the session-start banner informs, the user decides; nothing builds a graph without that go. Where `graphify-out/graph.json` exists, the session-start hook prints the graphify usage rules.

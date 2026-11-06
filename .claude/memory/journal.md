@@ -696,3 +696,8 @@ rules:
 
 ## 2026-11-05
 - 2026-11-05: extract-guard built on feature/extract-guard (hook, soft_deny, doctrine; verifier CONFORME, security PASS); live in settings working copy; 4c paused at plan r2; merge pending user.
+
+## 2026-11-06
+- 2026-11-06: machine OOM reboot 2026-11-05 23:55 root-caused: detect_plan `claude config get planType` fork bomb via SessionStart (BLK-043), SD13 fake HOME trigger. /bugfix: 3 lenses → r2 (hotfix off main, worktree), GATE 0 MET, verifier ECARTS(1 SC2016) → CONFORME, security PASS ×2; 49aa2ff. BLK-044 open (oom_score_adj -1000). Merge + Part B pending.
+- capitalize pre-compact: 2 learnings (hook never calls claude CLI; worktree ignored symlinks + diff3); TODO BLK-043 merge checked, Part B kept. 4c digest switch committed 4a7ce37.
+- 2026-11-06: BLK-043 Part B /hotfix 2f45452: session-digest suite stubs claude CLI (SD0 control, SD15 zero calls), 53/53 under TasksMax=256, security PASS (MEDIUM stub-first-on-PATH queued in TODO shortcut). 4c merge pending user.

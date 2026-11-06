@@ -3,25 +3,43 @@
 // and the per-session state. Every hook reads the session id and root at
 // the point of use, never from a cache. A hook that fails passes the event
 // through unchanged: the mod may never break a tool call or a prompt.
+// It also recalls: registry entries on a qualifying prompt and a known-error
+// line on a Bash failure, both switchable with "recall": false.
 import type { EngineInterface, On, Register } from 'claude-code'
 
 type Api = EngineInterface
 
 type State = {
   enabled: boolean | null // null: not read yet this session
+  recall: boolean | null // the "recall" key, read with `enabled`
   warned: Set<string>
   pending: string[] // milestones not yet shown in a note
   writes: Promise<void> // the one chain every store write runs on
+  seen: Map<string, Set<string>> // context key -> injected IDs
+  spent: Map<string, number> // context key -> chars injected
+  fresh: Set<string> // sessions whose next qualifying prompt starts a context
+  lastPrompt: Map<string, number> // session id -> time of its last prompt
+  rerank: { fails: number; until: number } // failures in a row, pause end
+  foreign: Map<string, boolean> // project root -> gitflow.protect is false
 }
+
+export const IDLE_MS = 1800000
+export const RECALL_CAP = 1500
+export const HAIKU = 'claude-haiku-5-5'
+export const RERANK_MS = 5000
 
 const SWITCH_FILE = '.claude/memory.json'
 const MAX_SWITCH_BYTES = 65536
+const CONTEXT_STARTS = new Set(['startup', 'clear', 'compact'])
 const TOOL = 'memory_pending'
 const SERVED_TOOL = 'mcp__memory__memory_pending'
 const SWITCH_UNREADABLE =
   'memory: ~/.claude/memory.json unreadable, capture stays on'
 const SWITCH_INVALID =
   'memory: ~/.claude/memory.json has no boolean "enabled", capture stays on'
+
+const SWITCH_RECALL_INVALID =
+  'memory: ~/.claude/memory.json has no boolean "recall", recall stays on'
 
 const MAX_REGEX_INPUT = 65536
 const PEM = '-----'
@@ -112,6 +130,7 @@ const CURL_SEGMENT = new RegExp(
 const COOKIE_FLAG = new RegExp(`(?<=^|\\s)-b[ \\t]{1,5}${VALUE}`, 'g')
 
 const HEX_RUN = /\b[0-9a-f]{7,}\b/g
+const IO_ERROR = /input\/output error/g
 const PATH = /(?:\.{0,2}\/)?[\w.-]{1,200}(?:\/[\w.-]{1,200}){1,30}/g
 
 /** The first `n` code units of `text` (input guard for regex work). */
@@ -156,6 +175,7 @@ export function redact(text: string): string {
 export function normalize(line: string): string {
   return line
     .toLowerCase()
+    .replace(IO_ERROR, '<errno>') // before PATH reads its slash
     .replace(HEX_RUN, '<hex>')
     .replace(PATH, '<path>')
     .replace(/\d+/g, '#')
@@ -382,18 +402,75 @@ async function sweepStore($: Api, curKey: string, id: string): Promise<void> {
   }
 }
 
+// The engine rejects every `$.store.set` once the store passes 4 MiB in all.
+// The `p:` keys are swept at STORE_CAP; the `l:` keys are swept here, oldest
+// first, so the two together stay under the engine cap and capture lives.
+const ENGINE_CAP = 4194304
+const ENGINE_MARGIN = 131072 // room for the next session and log write
+
+type Weighed = { key: string; size: number; at: number }
+
+/** A store key's bytes and, for a log, the `at` of its newest record. */
+async function weigh($: Api, key: string): Promise<Weighed> {
+  const raw = await $.store.get(key)
+  const size = JSON.stringify(raw ?? null).length
+  const times = Array.isArray(raw) ? raw.filter(isLogRecord).map(r => r.at) : []
+  return { key, size, at: Math.max(0, ...times) }
+}
+
+/**
+ * Deletes the oldest `l:` keys, by their newest record, while the `p:`
+ * and `l:` keys together pass the engine cap. Never the `keep` key.
+ */
+async function sweepLogs($: Api, keep: string): Promise<void> {
+  const ours = (await $.store.keys())
+    .filter(k => k.startsWith(STORE_PREFIX) || k.startsWith(LOG_PREFIX))
+  const all = await Promise.all(ours.map(k => weigh($, k)))
+  let total = all.reduce((n, w) => n + w.size, 0)
+  const logs = all.filter(w => w.key.startsWith(LOG_PREFIX) && w.key !== keep)
+    .sort((a, b) => a.at - b.at)
+  for (const w of logs) {
+    if (total <= ENGINE_CAP - ENGINE_MARGIN) break
+    await $.store.delete(w.key)
+    total -= w.size
+  }
+}
+
 // The registry error index: which captured failures a registry knows.
-const REGISTRIES = ['blockers.md', 'learnings.md']
 const MAX_REGISTRY = 4194304
 const MIN_SPAN = 12
 const GRAM_WORDS = 4
-const HEADING = /^## ((?:BLK|LRN)-\d+)\b.*$/gm
+// the ID only: a bounded capture carries no `$`, so a long heading stays one
+const HEADING = /^## ((?:BDR|LRN|BLK)-\d+)\b/gm
 const SPAN = /`([^`\n]+)`/g
-// [ \t] not \s: a multiline regex must not cross newlines (quadratic).
-const STATUS =
-  /^[ \t]*-[ \t]*\*\*Stat(?:us|ut)[^*\n]*\*\*[ \t]*:?[ \t]*([A-Za-z-]+)/gim
+const STATUS_WAIT_MS = 2500 // our own race over the process's 2000 ms
+const STATUS_TIMEOUT_MS = 2000
+const MAX_INDEX_ROW = 1000
+const DEAD = new Set(['superseded', 'deprecated'])
+const INDEX_ROW = new RegExp(
+  '^\\|[ \\t]{0,5}((?:BDR|LRN|BLK)-\\d+)[ \\t]{0,5}\\|[^|]{0,40}\\|' +
+    '(.{0,900})\\|([^|]{0,100})\\|[ \\t]{0,5}$',
+)
+const MAX_TITLE = 100
+const MAX_LESSON = 280
+const MAX_FIELD = 2000
+const LESSON_LABELS: Record<Kind, string[]> = {
+  BDR: ['Decision'],
+  LRN: ['Apply', 'Future application', 'Pattern'],
+  BLK: ['Solution', 'Real cause'],
+}
 
-type Entry = { id: string; body: string }
+export type Kind = 'BDR' | 'LRN' | 'BLK'
+export type Entry = {
+  id: string
+  kind: Kind
+  title: string
+  lesson: string
+  body: string
+}
+type Part = { id: string; body: string }
+type Listed = { status: string; title: string }
+export type StatusMap = Map<string, Listed>
 
 type Read = { text: string } | { why: string }
 
@@ -423,8 +500,8 @@ async function tryRead($: Api, path: string): Promise<Read> {
   }
 }
 
-/** The BLK/LRN entries; a body runs from its heading to the next one. */
-export function entriesOf(text: string): Entry[] {
+/** The entries' ID and body; a body runs from its heading to the next. */
+export function entriesOf(text: string): Part[] {
   const heads = [...text.matchAll(HEADING)]
   return heads.map((m, i) => ({
     id: m[1] ?? '',
@@ -432,24 +509,92 @@ export function entriesOf(text: string): Entry[] {
   }))
 }
 
-// shortcut: a lexical reader, not memory.sh's shared parser (that lives in
-// shell); upgrade = call the parser once the engine exposes a CLI run in
-// hooks.
-/** The last labelled status reads superseded; else the heading `[tag]`. */
-export function isSuperseded(body: string): boolean {
-  const last = [...body.matchAll(STATUS)].pop()
-  if (last !== undefined) return (last[1] ?? '').toLowerCase() === 'superseded'
-  return /\[superseded\]/i.test(body.split('\n', 1)[0] ?? '')
+/**
+ * ID -> status word and title, from the rows `memory.sh index` prints
+ * (`| ID | Date | Title | Status |`); the status is its lowercased first
+ * word, `''` when empty.
+ */
+export function parseIndex(stdout: string): StatusMap {
+  const rows: StatusMap = new Map()
+  for (const line of stdout.split('\n')) {
+    const m = INDEX_ROW.exec(line.slice(0, MAX_INDEX_ROW))
+    if (m === null) continue
+    const word = (m[3] ?? '').trim().match(/^[A-Za-z]+/)?.[0] ?? ''
+    const title = (m[2] ?? '').trim()
+    rows.set(m[1] ?? '', { status: word.toLowerCase(), title })
+  }
+  return rows
 }
 
-const PLACEHOLDERS = new Set(['#', '<path>', '<hex>'])
+/** False when the ID is superseded or deprecated, or the map lacks it. */
+export function isLive(status: StatusMap, id: string): boolean {
+  const row = status.get(id)
+  return row !== undefined && !DEAD.has(row.status)
+}
+
+/** `text` cut to `n` characters, the last one `…` when it was cut. */
+function clip(text: string, n: number): string {
+  return text.length > n ? `${text.slice(0, n - 1)}…` : text
+}
+
+/** The first sentence: up to `. ` or `; ` before a capital, or the end. */
+function firstSentence(field: string): string {
+  return /^(.*?[.;])(?:[ \t]+(?=[A-Z])|$)/.exec(field)?.[1] ?? field
+}
+
+/**
+ * The one-line lesson of an entry: the first sentence of its first labelled
+ * field, in the order of its kind; `''` when none is there.
+ */
+export function lessonOf(kind: Kind, body: string): string {
+  for (const label of LESSON_LABELS[kind]) {
+    const line = new RegExp(
+      `^[ \\t]*-[ \\t]*(?:\\*\\*)?${label}(?:\\*\\*)?[ \\t]*:[ \\t]*` +
+        `(.{0,${MAX_FIELD}})`,
+      'im',
+    ).exec(body)
+    const field = (line?.[1] ?? '').trim()
+    if (line !== null) return clip(firstSentence(field), MAX_LESSON)
+  }
+  return ''
+}
+
+/** The entries of registry texts, titled by `memory.sh index`'s rows. */
+export function assembleEntries(texts: string[], index: StatusMap): Entry[] {
+  return texts.flatMap(entriesOf).map(({ id, body }) => {
+    const kind = id.slice(0, 3) as Kind
+    const title = clip(index.get(id)?.title ?? '', MAX_TITLE)
+    return { id, kind, title, lesson: lessonOf(kind, body), body }
+  })
+}
+
+export const ERRNO_PHRASES: readonly string[] = [
+  'no such file or directory', 'permission denied', 'command not found',
+  'is a directory', 'not a directory', 'file exists',
+  'directory not empty', 'operation not permitted',
+  'no space left on device', 'connection refused', 'connection timed out',
+  'broken pipe', 'resource temporarily unavailable', 'invalid argument',
+  'too many open files', 'read-only file system',
+  'device or resource busy', 'input/output error',
+]
+
+// Word-bounded literals; `input/output error` is already `<errno>` here.
+const ERRNO = new RegExp(
+  `(?<![a-z0-9])(?:${ERRNO_PHRASES.join('|')})(?![a-z0-9])`, 'g')
+
+/** Each errno phrase of a normalized line, as `<errno>`. */
+export function deErrno(normLine: string): string {
+  return normLine.replace(ERRNO, '<errno>')
+}
+
+const PLACEHOLDERS = new Set(['#', '<path>', '<hex>', '<errno>'])
 
 /**
  * Every window of 4 words, except one made only of placeholders (it
  * carries no content); a key of fewer words has none (always NEW).
  */
 export function grams(normLine: string): string[] {
-  const words = normLine.split(/[^a-z0-9<>#]+/).filter(Boolean)
+  const words = deErrno(normLine).split(/[^a-z0-9<>#]+/).filter(Boolean)
   if (words.length < GRAM_WORDS) return []
   return words
     .slice(0, words.length - GRAM_WORDS + 1)
@@ -465,7 +610,6 @@ function spansOf(body: string): string[] {
 }
 
 function indexEntry(index: Map<string, string>, entry: Entry): void {
-  if (isSuperseded(entry.body)) return
   for (const span of spansOf(entry.body)) {
     for (const gram of grams(normalize(span))) {
       if (!index.has(gram)) index.set(gram, entry.id)
@@ -473,11 +617,19 @@ function indexEntry(index: Map<string, string>, entry: Entry): void {
   }
 }
 
-/** gram -> first ID, over the backticked spans of live entries. */
-export function buildIndex(texts: string[]): Map<string, string> {
+/**
+ * gram -> first ID, over the backticked spans of live entries. Without
+ * statuses (`undefined`) every entry is indexed: advisory, never injected.
+ */
+export function buildIndex(
+  entries: Entry[],
+  status: StatusMap | undefined,
+): Map<string, string> {
   const index = new Map<string, string>()
-  for (const text of texts) {
-    for (const entry of entriesOf(text)) indexEntry(index, entry)
+  for (const entry of entries) {
+    if (status === undefined || isLive(status, entry.id)) {
+      indexEntry(index, entry)
+    }
   }
   return index
 }
@@ -494,15 +646,181 @@ export function matchOf(
   return undefined
 }
 
-type Registries = { index: Map<string, string>; note: string }
+/** The stdout of `argv` on exit 0; `undefined` on any other end or 2.5 s. */
+async function runWithin($: Api, argv: string[]): Promise<string | undefined> {
+  const stop = new AbortController()
+  const timer = $.clock.sleep(STATUS_WAIT_MS, { signal: stop.signal })
+    .then(() => undefined, () => undefined)
+  const run = $.process.run(argv, { timeoutMs: STATUS_TIMEOUT_MS })
+    .then(r => (r.exitCode === 0 ? r.stdout : undefined), () => undefined)
+  try {
+    return await Promise.race([run, timer])
+  } finally {
+    stop.abort()
+  }
+}
 
-async function loadIndex($: Api, root: string): Promise<Registries> {
+/** The statuses `memory.sh index` prints; `undefined` when unavailable. */
+async function statusMap($: Api, root: string): Promise<StatusMap | undefined> {
+  try {
+    const home = await $.env.get('HOME')
+    if (!home) return undefined
+    const out = await runWithin(
+      $, ['bash', `${home}/.claude/lib/memory.sh`, '-C', root, 'index'])
+    const rows = out === undefined ? undefined : parseIndex(out)
+    return rows?.size ? rows : undefined
+  } catch {
+    return undefined
+  }
+}
+
+/**
+ * True when the project's git config marks it foreign (`gitflow.protect`
+ * is `false`). Read once per root and session; any failure: not foreign.
+ */
+async function isForeign($: Api, st: State, root: string): Promise<boolean> {
+  const known = st.foreign.get(root)
+  if (known !== undefined) return known
+  const out = await runWithin(
+    $, ['git', '-C', root, 'config', '--get', 'gitflow.protect'])
+  const foreign = out?.trim() === 'false'
+  st.foreign.set(root, foreign)
+  return foreign
+}
+
+// Function words, 3+ letters first, then the 2-letter FR and EN ones: TOKEN
+// takes 2+ letters, so without them "ok tu peux continuer la suite stp"
+// counts 7 content words and passes the floor. At most 120 words.
+const STOP_WORDS = new Set(
+  ('the and for with that this from are was were not but you your have has ' +
+    'had will can all any its into than then them they their there what ' +
+    'when which who how why les des une pour dans avec est pas que qui sur ' +
+    'par aux ces ses son mais ont sont plus comme ' +
+    'ok tu je il on la le de du et en un au ce se sa ne ni ou si ' +
+    'is it to do of in at an be by or as if so we me my no go up').split(' '),
+)
+const TOKEN = /[\p{L}\p{N}]{2,40}/gu
+const MAX_QUERY = 2000
+const MAX_DOC = 65536
+const BM25_K1 = 1.2
+const BM25_B = 0.75
+const MAX_PICKS = 3
+
+/** Lowercase word runs (2-40 letters or digits) minus function words. */
+export function tokensOf(text: string): string[] {
+  const words = cap(text, MAX_DOC).toLowerCase().match(TOKEN) ?? []
+  return words.filter(w => !STOP_WORDS.has(w))
+}
+
+type Doc = { entry: Entry; tf: Map<string, number>; len: number }
+
+function docOf(entry: Entry): Doc {
+  const tokens = tokensOf(`${entry.title} ${entry.lesson} ${entry.body}`)
+  const tf = new Map<string, number>()
+  for (const t of tokens) tf.set(t, (tf.get(t) ?? 0) + 1)
+  return { entry, tf, len: tokens.length }
+}
+
+function scoreOf(
+  doc: Doc, terms: string[], df: Map<string, number>, n: number, avg: number,
+): number {
+  let score = 0
+  for (const term of terms) {
+    const f = doc.tf.get(term) ?? 0
+    if (f === 0) continue
+    const d = df.get(term) ?? 0
+    const idf = Math.log(1 + (n - d + 0.5) / (d + 0.5))
+    const norm = 1 - BM25_B + (BM25_B * doc.len) / avg
+    score += (idf * f * (BM25_K1 + 1)) / (f + BM25_K1 * norm)
+  }
+  return score
+}
+
+/** The `k` best entries for a query (BM25), highest first, score > 0. */
+export function bm25Rank(entries: Entry[], query: string, k: number): Entry[] {
+  const terms = [...new Set(tokensOf(cap(query, MAX_QUERY)))]
+  const docs = entries.map(docOf)
+  const df = new Map<string, number>()
+  for (const d of docs) for (const t of d.tf.keys()) {
+    df.set(t, (df.get(t) ?? 0) + 1)
+  }
+  const avg = docs.reduce((sum, d) => sum + d.len, 0) / (docs.length || 1)
+  return docs
+    .map(d => ({ e: d.entry, s: scoreOf(d, terms, df, docs.length, avg || 1) }))
+    .filter(x => x.s > 0)
+    .sort((a, b) => b.s - a.s ||
+      a.e.id.localeCompare(b.e.id, 'en', { numeric: true }))
+    .slice(0, k)
+    .map(x => x.e)
+}
+
+/** The haiku prompt: the redacted user prompt and one line per candidate. */
+export function rerankPrompt(query: string, cands: Entry[]): string {
+  const lines = cands.map(c => `${c.id} | ${c.title} | ${c.lesson}`)
+  // redact first: a secret straddling the cut would escape its pattern
+  const asked = cap(redact(cap(query, MAX_REGEX_INPUT)), MAX_QUERY)
+  return (
+    `Prompt: ${asked}\nCandidates:\n` +
+    `${lines.join('\n')}\nAnswer with at most ${MAX_PICKS} candidate IDs ` +
+    'that would help with this prompt, comma separated, or none.'
+  )
+}
+
+const ID_IN_ANSWER = /(?:BDR|LRN|BLK)-\d{1,5}/g
+
+/** The candidate IDs named in a model answer, deduplicated, in order. */
+export function parseIds(text: string, cands: Entry[], max: number): string[] {
+  const known = new Set(cands.map(c => c.id))
+  const found = cap(text, MAX_REGEX_INPUT).match(ID_IN_ANSWER) ?? []
+  return [...new Set(found)].filter(id => known.has(id)).slice(0, max)
+}
+
+/** One recall line; the lesson keeps its own terminator. */
+export function recallLine(e: Entry): string {
+  const head = `${e.id} ${e.title}`
+  return e.lesson === '' ? head : `${head} — ${e.lesson}`
+}
+
+const RECALL_HEADER = 'memory recall:'
+
+/** The injected block; a line that would pass `max` characters is dropped. */
+export function recallBlock(lines: string[], max: number): string {
+  const header = RECALL_HEADER
+  let block = header
+  for (const line of lines) {
+    if (block.length + 1 + line.length <= max) block += `\n${line}`
+  }
+  return block === header ? '' : block
+}
+
+/** The dedup key of a failure text, as `buildFailure` stores it. */
+export function failureKey(text: string, command: string): string | undefined {
+  void command // the key comes from the output only; kept for the harness
+  if (!EXIT_CODE.test(text)) return undefined
+  const line = lastLine(redact(tail(text, MAX_REGEX_INPUT)))
+  return line === undefined ? undefined : normalize(line)
+}
+
+type Registries = {
+  entries: Entry[]
+  status: StatusMap | undefined
+  index: Map<string, string>
+  note: string
+}
+
+type Loaded = { texts: string[]; note: string }
+
+/** The texts of the named registries and the first part of the note. */
+async function readRegistries(
+  $: Api,
+  root: string,
+  names: string[],
+): Promise<Loaded> {
   const texts: string[] = []
   const read: string[] = []
   const skipped: string[] = []
-  for (const name of REGISTRIES) {
-    const path = `${root}/.claude/memory/${name}`
-    const r = await tryRead($, path)
+  for (const name of names) {
+    const r = await tryRead($, `${root}/.claude/memory/${name}`)
     if ('why' in r) {
       skipped.push(`${name} (${r.why})`)
       continue
@@ -514,9 +832,31 @@ async function loadIndex($: Api, root: string): Promise<Registries> {
     read.length > 0 ? `read ${read.join(', ')}` : '',
     skipped.length > 0 ? `skipped ${skipped.join(', ')}` : '',
   ]
+  return { texts, note: `index: ${parts.filter(Boolean).join('; ')}` }
+}
+
+const FAILURE_FILES = ['blockers.md', 'learnings.md']
+const FAILURE_KINDS = new Set<Kind>(['BLK', 'LRN'])
+
+/**
+ * The entries of the named registries with their statuses, and the error
+ * index over the BLK and LRN ones. No registry read: no process run.
+ */
+async function loadRegistries(
+  $: Api,
+  root: string,
+  names: string[],
+): Promise<Registries> {
+  const { texts, note } = await readRegistries($, root, names)
+  const status = texts.length > 0 ? await statusMap($, root) : undefined
+  const entries = assembleEntries(texts, status ?? new Map())
+  const failing = entries.filter(e => FAILURE_KINDS.has(e.kind))
+  const lost = texts.length > 0 && status === undefined
   return {
-    index: buildIndex(texts),
-    note: `index: ${parts.filter(Boolean).join('; ')}`,
+    entries,
+    status,
+    index: buildIndex(failing, status),
+    note: lost ? `${note}; status reader unavailable` : note,
   }
 }
 
@@ -568,11 +908,22 @@ function failureText({ f, id, earlier }: Row): string {
   return `${head}\n  excerpt: ${shown}`
 }
 
-function milestoneText(m: Milestone): string {
+function milestoneText(m: Milestone, earlier = false): string {
   const d = new Date(m.at)
   const two = (n: number) => String(n).padStart(2, '0')
   const hhmm = `${two(d.getHours())}:${two(d.getMinutes())}`
-  return `- ${m.kind} ${m.label} (${hhmm})`
+  const mark = earlier ? ' (earlier session)' : ''
+  return `- ${m.kind} ${m.label} (${hhmm})${mark}`
+}
+
+/** Current session first, then the earlier ones, newest session first. */
+function milestoneLines(p: Project, curId: string): string[] {
+  const lines = (s: Session) => s.milestones.filter(isMilestone)
+    .map(m => milestoneText(m, s.id !== curId))
+  const cur = p.sessions.filter(s => s.id === curId)
+  const old = p.sessions.filter(s => s.id !== curId)
+    .sort((a, b) => b.at - a.at)
+  return [...cur, ...old].flatMap(lines)
 }
 
 /** The failure list within ANSWER_CAP; the rest is counted, not shown. */
@@ -595,14 +946,13 @@ export function formatPending(
   rx: Registries,
 ): string {
   const rows = rowsOf(p, curId, rx.index)
-  const cur = p.sessions.find(s => s.id === curId)
-  const ms = (cur?.milestones ?? []).filter(isMilestone)
+  const ms = milestoneLines(p, curId)
   if (rows.length === 0 && ms.length === 0) return NOTHING_TEXT
   const name = root.split('/').filter(Boolean).pop() ?? root
   const out = [`memory_pending (project ${name}, ${p.sessions.length} ` +
     'session(s))', rx.note]
   if (ms.length > 0) {
-    out.push('milestones (this session):', ...ms.map(milestoneText))
+    out.push('milestones:', ...ms)
   }
   if (rows.length > 0) {
     out.push('failures:', ...capFailures(rows.map(failureText)))
@@ -617,20 +967,113 @@ function queueWrite(st: State, job: () => Promise<void>): Promise<void> {
   return run
 }
 
+export type Trigger = 'fresh' | 'idle' | 'keyword' | 'tool'
+export type Outcome = 'injected' | 'none' | 'timeout' | 'refused' | 'paused'
+
+const TRIGGERS: string[] = ['fresh', 'idle', 'keyword', 'tool']
+const OUTCOMES: string[] = ['injected', 'none', 'timeout', 'refused', 'paused']
+
+// `trigger` and `outcome` are absent on records written before 4c's review.
+export type LogRecord = {
+  at: number
+  session: string
+  agent: string
+  channel: 'prompt' | 'tool'
+  ids: string[]
+  trigger?: Trigger
+  outcome?: Outcome
+}
+
+// shortcut: one `l:<root>` key per project (about 28 KiB at 200 records),
+// swept by `sweepLogs` against the engine's 4 MiB store cap, oldest key
+// first; upgrade path: one global log key, or a smaller per-root cap.
+const LOG_PREFIX = 'l:'
+const MAX_LOG = 200
+const MAX_LOG_BYTES = 65536
+
+function isLogRecord(v: unknown): v is LogRecord {
+  const r = v as Partial<LogRecord> | null
+  return typeof r === 'object' && r !== null &&
+    typeof r.at === 'number' && typeof r.session === 'string' &&
+    typeof r.agent === 'string' &&
+    (r.channel === 'prompt' || r.channel === 'tool') &&
+    Array.isArray(r.ids) && r.ids.every(i => typeof i === 'string') &&
+    (r.trigger === undefined || TRIGGERS.includes(r.trigger)) &&
+    (r.outcome === undefined || OUTCOMES.includes(r.outcome))
+}
+
+const logKey = (root: string) => LOG_PREFIX + root.slice(0, MAX_ROOT)
+
+/** The injection log of a project; malformed records are dropped. */
+export async function loadLog($: Api, root: string): Promise<LogRecord[]> {
+  const raw = await $.store.get(logKey(root))
+  return Array.isArray(raw) ? raw.filter(isLogRecord) : []
+}
+
+/** The newest records that fit MAX_LOG and MAX_LOG_BYTES serialized. */
+function fitLog(log: LogRecord[]): LogRecord[] {
+  let kept = log.slice(-MAX_LOG)
+  while (kept.length > 0 && JSON.stringify(kept).length > MAX_LOG_BYTES) {
+    kept = kept.slice(1)
+  }
+  return kept
+}
+
+/** Runs `write`; if it rejects, sweeps once and runs it a second time. */
+async function retryOnce(
+  sweep: () => Promise<void>,
+  write: () => Promise<void>,
+): Promise<void> {
+  try {
+    await write()
+  } catch {
+    await sweep()
+    await write()
+  }
+}
+
+/** Appends an injection record on the write chain; the oldest fall off. */
+export function appendLog(
+  $: Api,
+  st: State,
+  root: string,
+  record: LogRecord,
+): Promise<void> {
+  return queueWrite(st, async () => {
+    const log = await loadLog($, root)
+    if (log.length === 0) await sweepLogs($, logKey(root))
+    await retryOnce(
+      () => sweepLogs($, logKey(root)),
+      () => $.store.set(logKey(root), fitLog([...log, record])),
+    )
+  })
+}
+
 type Where = { root: string; id: string }
 
-/** Load, change the current session, save; sweeps when it is created. */
+const sweepAll = async ($: Api, at: Where) => {
+  await sweepStore($, storeKey(at.root), at.id)
+  await sweepLogs($, logKey(at.root))
+}
+
+/**
+ * Load, change the current session, save. A new session sweeps the store
+ * first, so the save fits; a rejected save sweeps and retries once.
+ */
 async function mutateSession(
   $: Api,
   at: Where,
   now: number,
   change: (s: Session) => void,
 ): Promise<void> {
-  const p = await loadProject($, at.root)
-  const created = !p.sessions.some(s => s.id === at.id)
-  change(sessionOf(p, at.id, now))
-  await saveProject($, at.root, p)
-  if (created) await sweepStore($, storeKey(at.root), at.id)
+  const save = async () => {
+    const p = await loadProject($, at.root)
+    change(sessionOf(p, at.id, now))
+    await saveProject($, at.root, p)
+  }
+  const known = await loadProject($, at.root)
+  if (!known.sessions.some(s => s.id === at.id)) await sweepAll($, at)
+  await retryOnce(() => sweepAll($, at), save)
 }
 
 const recordFailure = ($: Api, at: Where, f: Failure) =>
@@ -706,12 +1149,19 @@ export function finishLabel(command: string): string | undefined {
   return undefined
 }
 
-function newState(): State {
+export function newState(): State {
   return {
     enabled: null,
+    recall: null,
     warned: new Set(),
     pending: [],
     writes: Promise.resolve(),
+    seen: new Map(),
+    spent: new Map(),
+    fresh: new Set(),
+    lastPrompt: new Map(),
+    rerank: { fails: 0, until: 0 },
+    foreign: new Map(),
   }
 }
 
@@ -731,28 +1181,43 @@ function logOnce(st: State, $: Api, key: string, text: string): void {
   }
 }
 
+type Switch = { enabled: boolean; recall: boolean }
+
 /**
- * True unless the user's switch file says `enabled: false`. A file that
- * exists but cannot be read or parsed keeps capture on and logs one line.
+ * The switch file's two keys. An absent key is on; a present non-boolean
+ * logs one line and counts as absent. `enabled: false` cuts recall too.
  */
-async function loadEnabled($: Api, st: State): Promise<boolean> {
+export function switchOf($: Api, st: State, data: unknown): Switch {
+  const keys = (data ?? {}) as { enabled?: unknown; recall?: unknown }
+  if (keys.enabled !== undefined && typeof keys.enabled !== 'boolean') {
+    logOnce(st, $, 'switch', SWITCH_INVALID)
+  }
+  if (keys.recall !== undefined && typeof keys.recall !== 'boolean') {
+    logOnce(st, $, 'switch-recall', SWITCH_RECALL_INVALID)
+  }
+  const enabled = keys.enabled !== false
+  return { enabled, recall: enabled && keys.recall !== false }
+}
+
+/**
+ * The user's switch file. A file that exists but cannot be read or parsed
+ * keeps everything on and logs one line.
+ */
+async function loadEnabled($: Api, st: State): Promise<Switch> {
+  const on = { enabled: true, recall: true }
   let path = ''
   try {
     const home = await $.env.get('HOME')
-    if (!home) return true
+    if (!home) return on
     path = `${home}/${SWITCH_FILE}`
     const info = await $.fs.stat(path)
-    if (info.kind !== 'file' || info.size > MAX_SWITCH_BYTES) return true
-    const data: unknown = JSON.parse(await $.fs.read(path))
-    const enabled = (data as { enabled?: unknown } | null)?.enabled
-    if (typeof enabled === 'boolean') return enabled
-    logOnce(st, $, 'switch', SWITCH_INVALID)
-    return true
+    if (info.kind !== 'file' || info.size > MAX_SWITCH_BYTES) return on
+    return switchOf($, st, JSON.parse(await $.fs.read(path)))
   } catch {
     if (path !== '' && !(await isGone($, path))) {
       logOnce(st, $, 'switch', SWITCH_UNREADABLE)
     }
-    return true
+    return on
   }
 }
 
@@ -784,9 +1249,61 @@ async function registerTool($: Api): Promise<void> {
  */
 async function ensureEnabled($: Api, st: State): Promise<boolean> {
   if (st.enabled !== null) return st.enabled
-  st.enabled = await loadEnabled($, st)
+  const sw = await loadEnabled($, st)
+  st.enabled = sw.enabled
+  st.recall = sw.recall
   if (st.enabled) await registerTool($)
   return st.enabled
+}
+
+/** True when the mod is on and the "recall" key does not turn it off. */
+async function ensureRecall($: Api, st: State): Promise<boolean> {
+  return (await ensureEnabled($, st)) && st.recall === true
+}
+
+const contextKey = (session: string, agent: string | undefined) =>
+  `${session}:${agent ?? 'main'}`
+
+/** Forgets what a session's contexts injected. */
+function forgetContexts(st: State, session: string): void {
+  for (const map of [st.seen, st.spent]) {
+    for (const key of [...map.keys()]) {
+      if (key.startsWith(`${session}:`)) map.delete(key)
+    }
+  }
+}
+
+/** A new context: nothing injected yet, the next prompt may recall. */
+export function onContextStart(st: State, session: string): void {
+  forgetContexts(st, session)
+  st.fresh.add(session)
+}
+
+/**
+ * Takes the IDs not yet seen in the context whose line costs (`chars`,
+ * parallel to `ids`) still fit RECALL_CAP, and records them. Synchronous:
+ * called after the reads, so two racing callers never both claim.
+ */
+export function claim(
+  st: State,
+  key: string,
+  ids: string[],
+  chars: number[],
+): string[] {
+  const seen = st.seen.get(key) ?? new Set<string>()
+  let spent = st.spent.get(key) ?? 0
+  const taken: string[] = []
+  ids.forEach((id, i) => {
+    const cost = chars[i]
+    // a missing cost refuses the id: unknown is not free
+    if (cost === undefined || seen.has(id) || spent + cost > RECALL_CAP) return
+    seen.add(id)
+    spent += cost
+    taken.push(id)
+  })
+  st.seen.set(key, seen)
+  st.spent.set(key, spent)
+  return taken
 }
 
 /** The tool's answer; reads the store and the registries, writes nothing. */
@@ -797,7 +1314,8 @@ async function pendingAnswer($: Api, st: State): Promise<string> {
   const id = await $.session.id()
   await st.writes
   const project = await loadProject($, root)
-  return formatPending(root, project, id, await loadIndex($, root))
+  const rx = await loadRegistries($, root, FAILURE_FILES)
+  return formatPending(root, project, id, rx)
 }
 
 function registerPending(on: On, st: State): void {
@@ -811,6 +1329,41 @@ function registerPending(on: On, st: State): void {
   })
 }
 
+/** The ending session's recall state; other sessions keep theirs. */
+export function endContext(st: State, session: string): void {
+  forgetContexts(st, session)
+  st.fresh.delete(session)
+  st.lastPrompt.delete(session)
+}
+
+/**
+ * A context starts on startup, clear and compact (not resume or fork).
+ * An agent's start resets that agent's key only.
+ */
+export function resetContext(
+  st: State,
+  source: string,
+  session: string,
+  agent: string | undefined,
+): void {
+  if (!CONTEXT_STARTS.has(source)) return
+  if (agent === undefined) return onContextStart(st, session)
+  const key = contextKey(session, agent)
+  st.seen.delete(key)
+  st.spent.delete(key)
+}
+
+function registerContext(on: On, st: State): void {
+  on('classic.SessionStart', async ($, e, next) => {
+    const session = e.session_id ?? await $.session.id()
+    resetContext(st, e.source, session, e.agent_id)
+    return next(e)
+  }).catch(($, e, next) => {
+    warnOnce(st, $, 'SessionStart', next.error.kind)
+    return next(e)
+  })
+}
+
 function registerSession(on: On, st: State): void {
   on('session.start', async ($, e, next) => {
     await ensureEnabled($, st)
@@ -821,8 +1374,10 @@ function registerSession(on: On, st: State): void {
   })
   on('session.end', async ($, e, next) => {
     st.enabled = null
+    st.recall = null
     st.pending = []
     st.warned.clear()
+    endContext(st, e.sessionId)
     return next(e)
   }).catch(($, e, next) => {
     warnOnce(st, $, 'session.end', next.error.kind)
@@ -837,17 +1392,19 @@ async function captureFailure(
   at: Where,
   e: { command?: unknown; agentId?: unknown },
   out: { isError?: boolean; text?: string },
-): Promise<void> {
+): Promise<Failure | undefined> {
   try {
-    if (out.isError !== true) return
+    if (out.isError !== true) return undefined
     const agent = e.agentId !== undefined
     const f = buildFailure(
       String(out.text ?? ''), String(e.command ?? ''), agent,
       await $.clock.now(),
     )
     if (f !== undefined) await queueWrite(st, () => recordFailure($, at, f))
+    return f
   } catch {
     warnOnce(st, $, 'Bash capture', 'store')
+    return undefined
   }
 }
 
@@ -940,6 +1497,75 @@ async function captureMilestones(
   }
 }
 
+/**
+ * The live BLK or LRN entry `key` matches. A match on every entry gates
+ * the status reader; the live entry is then rematched on the statuses.
+ */
+async function liveCandidate(
+  $: Api,
+  root: string,
+  key: string,
+): Promise<Entry | undefined> {
+  const { texts } = await readRegistries($, root, FAILURE_FILES)
+  const all = assembleEntries(texts, new Map())
+  const failing = all.filter(e => FAILURE_KINDS.has(e.kind))
+  const id = matchOf(buildIndex(failing, undefined), key)
+  if (id === undefined) return undefined
+  const status = await statusMap($, root)
+  if (status === undefined) return undefined
+  const entries = assembleEntries(texts, status)
+  const kept = entries.filter(e => FAILURE_KINDS.has(e.kind))
+  const liveId = matchOf(buildIndex(kept, status), key)
+  return entries.find(e => e.id === liveId)
+}
+
+/**
+ * The known-error line of a failure: `memory: known <entry>` when a live
+ * BLK or LRN matches and the context has not seen it nor spent its budget.
+ * '' otherwise. Claims synchronously once the reads are done; only the
+ * log write follows.
+ */
+async function knownLine(
+  $: Api,
+  st: State,
+  at: Where,
+  f: Failure,
+  agent: string | undefined,
+): Promise<string> {
+  if (!(await ensureRecall($, st))) return ''
+  if (await isForeign($, st, at.root)) return ''
+  const entry = await liveCandidate($, at.root, f.key)
+  if (entry === undefined) return ''
+  const line = `memory: known ${recallLine(entry)}`
+  const key = contextKey(at.id, agent)
+  const now = await $.clock.now()
+  if (claim(st, key, [entry.id], [line.length]).length === 0) return ''
+  const record = { at: now, session: at.id, ids: [entry.id] }
+  await appendLog($, st, at.root, {
+    ...record, agent: agent ?? 'main', channel: 'tool',
+    trigger: 'tool', outcome: 'injected',
+  }).catch(() => undefined)
+  return line
+}
+
+/** The known line of a failing answer; '' on any failure (fail open). */
+async function knownContext(
+  $: Api,
+  st: State,
+  at: Where,
+  e: BashEvent,
+  f: Failure | undefined,
+): Promise<string> {
+  if (f === undefined) return ''
+  try {
+    const agent = typeof e.agentId === 'string' ? e.agentId : undefined
+    return await knownLine($, st, at, f, agent)
+  } catch {
+    warnOnce(st, $, 'Bash known', 'recall')
+    return ''
+  }
+}
+
 function registerBash(on: On, st: State): void {
   on('tool.call', { tool: 'Bash' }, async ($, e, next) => {
     if (!(await ensureEnabled($, st))) return next(e)
@@ -947,9 +1573,11 @@ function registerBash(on: On, st: State): void {
     const at = { root: await $.session.root(), id: await $.session.id() }
     if (at.root === '') return next(e)
     const out = await next(e)
-    await captureFailure($, st, at, e, out)
+    const f = await captureFailure($, st, at, e, out)
     await captureMilestones($, st, at, e, out as BashOut)
-    return out
+    const line = await knownContext($, st, at, e, f)
+    if (line === '') return out
+    return { ...out, context: [...(out.context ?? []), line] }
   }).catch(($, e, next) => {
     warnOnce(st, $, 'Bash', next.error.kind)
     return next(e)
@@ -957,33 +1585,254 @@ function registerBash(on: On, st: State): void {
 }
 
 /** Failures of the current session no registry entry knows. */
-async function newFailureCount($: Api, st: State, at: Where): Promise<number> {
+async function newFailureCount(
+  $: Api,
+  st: State,
+  at: Where,
+  index: Map<string, string>,
+): Promise<number> {
   await st.writes
   const p = await loadProject($, at.root)
-  const { index } = await loadIndex($, at.root)
   const cur = p.sessions.find(s => s.id === at.id)
   return (cur?.failures ?? []).filter(isFailure)
     .filter(f => matchOf(index, f.key) === undefined).length
 }
 
 /** The note for the oldest unnoted milestone; clears what it covers. */
-async function noteFor($: Api, st: State, at: Where): Promise<string> {
+async function noteFor(
+  $: Api,
+  st: State,
+  at: Where,
+  rx: Registries,
+): Promise<string> {
   const first = st.pending[0] ?? ''
   st.pending = []
-  const n = await newFailureCount($, st, at)
+  const n = await newFailureCount($, st, at, rx.index)
   return `memory: ${first} \u2014 ${n} new failure mode(s) this session;` +
     ' /capitalize when ready.'
 }
 
+// The default prompt rules of the model router (mods/model-router, commit
+// 9bbd1d5): a prompt that designs or analyses asks for recall.
+const WORD_BEFORE = '(?<![\\p{L}\\p{N}-])'
+const WORD_AFTER = '(?![\\p{L}\\p{N}-])'
+const wordRule = (words: string) =>
+  new RegExp(`${WORD_BEFORE}(${words})${WORD_AFTER}`, 'iu')
+
+export const DESIGN_RULE = wordRule(
+  'plan|planifie|planning|brainstorm|architecture|con[c\\u00e7]ois|design',
+)
+export const ANALYSIS_RULE = wordRule(
+  'pourquoi|why|explique|explain|analyse|analyze|comprendre|understand|' +
+    'review|audit',
+)
+
+const MIN_PROMPT = 12 // code points
+// Measurement gate: fewer content words than this never asks for recall.
+export const MIN_CONTENT_WORDS = 5
+const MAX_CANDS = 30
+const RERANK_FAILS = 3 // failed reranks in a row that pause it
+const RERANK_PAUSE_MS = 900000
+
+/** What made a prompt ask for recall: a fresh context, idle, or a rule. */
+export function triggerKind(
+  text: string,
+  fresh: boolean,
+  idleMs: number,
+): Exclude<Trigger, 'tool'> | undefined {
+  if (text.startsWith('/') || Array.from(text).length < MIN_PROMPT) {
+    return undefined
+  }
+  if (tokensOf(text).length < MIN_CONTENT_WORDS) return undefined
+  if (fresh) return 'fresh'
+  if (idleMs >= IDLE_MS) return 'idle'
+  const asked = cap(text, MAX_REGEX_INPUT)
+  return DESIGN_RULE.test(asked) || ANALYSIS_RULE.test(asked)
+    ? 'keyword'
+    : undefined
+}
+
+/** True when a prompt may ask for recall. */
+export const isTrigger = (text: string, fresh: boolean, idleMs: number) =>
+  triggerKind(text, fresh, idleMs) !== undefined
+
+/** Counts a rerank: the third failure in a row pauses it for 15 min. */
+function countRerank(st: State, ok: boolean, now: number): void {
+  if (ok) {
+    st.rerank.fails = 0
+    return
+  }
+  st.rerank.fails += 1
+  if (st.rerank.fails < RERANK_FAILS) return
+  st.rerank = { fails: 0, until: now + RERANK_PAUSE_MS }
+}
+
+/** The haiku answer, or undefined: failed, unanswered or late. */
+async function askRerank(
+  $: Api,
+  st: State,
+  text: string,
+  cands: Entry[],
+  now: number,
+): Promise<string | undefined> {
+  const ask = {
+    model: HAIKU,
+    prompt: rerankPrompt(text, cands),
+    effort: 'low' as const,
+    maxTokens: 64,
+    timeoutMs: RERANK_MS,
+  }
+  const call = $.model.complete(ask).catch((): undefined => undefined)
+  const late = $.clock.sleep(RERANK_MS).then((): undefined => undefined)
+  const out = await Promise.race([call, late])
+  const answer = out?.isAnswered === true ? out.text : undefined
+  countRerank(st, answer !== undefined, now)
+  return answer
+}
+
+/** Live entries of the context not injected yet, best BM25 first. */
+function candidatesFor(
+  st: State,
+  key: string,
+  rx: Registries,
+  text: string,
+): Entry[] {
+  const { status } = rx
+  if (status === undefined) return []
+  const seen = st.seen.get(key)
+  const open = rx.entries.filter(e => isLive(status, e.id) && !seen?.has(e.id))
+  return bm25Rank(open, text, MAX_CANDS)
+}
+
+type Ask = { at: Where; text: string; trigger: Exclude<Trigger, 'tool'> }
+type Picked = { block: string; ids: string[]; outcome: Outcome }
+
+const nothing = (outcome: Outcome): Picked => ({ block: '', ids: [], outcome })
+
+/** The candidates a model answer names, in the answer's order. */
+function picksOf(answer: string, cands: Entry[]): Entry[] {
+  const byId = new Map(cands.map(c => [c.id, c]))
+  return parseIds(answer, cands, MAX_PICKS).flatMap(id => byId.get(id) ?? [])
+}
+
+/** Claims the picks one by one; the header is charged to the first taken. */
+function claimPicks(st: State, key: string, picked: Entry[]): string[] {
+  const taken: string[] = []
+  for (const e of picked) {
+    const header = taken.length === 0 ? RECALL_HEADER.length : 0
+    taken.push(...claim(st, key, [e.id], [recallLine(e).length + 1 + header]))
+  }
+  return taken
+}
+
+/** Asks haiku among the candidates and claims its picks. */
+async function pickRecall(
+  $: Api,
+  st: State,
+  key: string,
+  text: string,
+  cands: Entry[],
+): Promise<Picked> {
+  const now = await $.clock.now()
+  if (now < st.rerank.until) return nothing('paused')
+  const answer = await askRerank($, st, text, cands, now)
+  if (answer === undefined) return nothing('timeout')
+  const picked = picksOf(answer, cands)
+  if (picked.length === 0) return nothing('none')
+  const taken = claimPicks(st, key, picked)
+  const block = recallBlock(
+    picked.filter(e => taken.includes(e.id)).map(recallLine), RECALL_CAP)
+  if (block === '') return nothing('refused')
+  return { block, ids: taken, outcome: 'injected' }
+}
+
+/**
+ * The recall block for a prompt: BM25 candidates, haiku picks, the ledger
+ * claim. Every ask is logged with its outcome; '' when nothing is injected.
+ */
+async function recallFor(
+  $: Api,
+  st: State,
+  ask: Ask,
+  rx: Registries,
+): Promise<string> {
+  const key = contextKey(ask.at.id, undefined)
+  const cands = candidatesFor(st, key, rx, ask.text)
+  const got = cands.length === 0
+    ? nothing('none')
+    : await pickRecall($, st, key, ask.text, cands)
+  const record = {
+    at: await $.clock.now(), session: ask.at.id, agent: 'main',
+    ids: got.ids, trigger: ask.trigger, outcome: got.outcome,
+  }
+  await appendLog($, st, ask.at.root, { ...record, channel: 'prompt' })
+    .catch(() => undefined)
+  return got.block
+}
+
+const ALL_FILES = ['decisions.md', ...FAILURE_FILES]
+
+/** The contexts a prompt adds: the 4b note, then the recall block. */
+async function additions(
+  $: Api,
+  st: State,
+  at: Where,
+  text: string,
+  trigger: Ask['trigger'] | undefined,
+): Promise<string[]> {
+  const rx = await loadRegistries($, at.root, ALL_FILES)
+  // separate failures: a throw in one never drops the other
+  const note = st.pending.length > 0
+    ? await noteFor($, st, at, rx).catch(() => {
+      warnOnce(st, $, 'prompt.submit', 'note')
+      return ''
+    })
+    : ''
+  const block = trigger !== undefined
+    ? await recallFor($, st, { at, text, trigger }, rx).catch(() => '')
+    : ''
+  return [note, block].filter(part => part !== '')
+}
+
+type PromptIn = {
+  text: string
+  turnId?: string | undefined
+  origin: { kind: string }
+}
+
+/**
+ * The contexts to append to a composer prompt; [] for any other prompt. A
+ * new prompt starts a new turn: the main key's `spent` budget resets.
+ */
+export async function promptContext(
+  $: Api,
+  st: State,
+  e: PromptIn,
+): Promise<string[]> {
+  if (!(await ensureEnabled($, st))) return []
+  if (e.origin.kind !== 'composer' || e.turnId !== undefined) return []
+  const at = { root: await $.session.root(), id: await $.session.id() }
+  if (at.root === '') return []
+  const now = await $.clock.now()
+  const last = st.lastPrompt.get(at.id)
+  const idle = last === undefined ? 0 : now - last // unknown: not idle
+  st.lastPrompt.set(at.id, now)
+  st.spent.delete(contextKey(at.id, undefined))
+  const recalling = (await ensureRecall($, st)) &&
+    !(await isForeign($, st, at.root))
+  const trigger = recalling
+    ? triggerKind(e.text, st.fresh.has(at.id), idle)
+    : undefined
+  if (trigger !== undefined) st.fresh.delete(at.id)
+  if (trigger === undefined && st.pending.length === 0) return []
+  return additions($, st, at, e.text, trigger)
+}
+
 function registerPrompt(on: On, st: State): void {
   on('prompt.submit', async ($, e, next) => {
-    if (!(await ensureEnabled($, st))) return next(e)
-    const mine = e.origin.kind === 'composer' && e.turnId === undefined
-    if (!mine || st.pending.length === 0) return next(e)
-    const at = { root: await $.session.root(), id: await $.session.id() }
-    if (at.root === '') return next(e)
-    const note = await noteFor($, st, at)
-    return next({ ...e, context: [...(e.context ?? []), note] })
+    const added = await promptContext($, st, e)
+    if (added.length === 0) return next(e)
+    return next({ ...e, context: [...(e.context ?? []), ...added] })
   }).catch(($, e, next) => {
     warnOnce(st, $, 'prompt.submit', next.error.kind)
     return next(e)
@@ -993,6 +1842,7 @@ function registerPrompt(on: On, st: State): void {
 export const register: Register = on => {
   const st = newState()
   registerSession(on, st)
+  registerContext(on, st)
   registerBash(on, st)
   registerPending(on, st)
   registerPrompt(on, st)
