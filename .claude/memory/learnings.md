@@ -1966,3 +1966,15 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Pattern**: fresh `git worktree` lacks gitignored symlinks of main tree (`skills/darwin-skill`) → suites reading them go red (run-reconcile T6c): environment, not diff. Recreate link before blaming change.
 - **Context**: hotfix worktree 2026-11-06; back-merge conflict used diff3 style.
 - **Future use**: worktree setup → mirror ignored symlinks (`git status --ignored`). Conflict resolution here: strip `|||||||` base marker too, not only `<<<<<<<`/`=======`/`>>>>>>>`.
+
+## LRN-265 — awk reads an assignment-shaped path operand as var=value and reads stdin: normalize at entry (2026-11-06)
+
+- **Pattern**: awk takes an operand matching `^[A-Za-z_][A-Za-z0-9_]*=` as `var=value` assignment, not file → reads stdin. User path `x=1.md` or dir `a=b` → checks pass vacuously, content from stdin (empty, or tty hang). Fix at entry point, not per call site: prefix `./` only to assignment-shaped relative paths (output byte-identical otherwise); `printf '%s\n'` not `echo` (`-n` name).
+- **Context**: `lib/memory.sh` `--body-file`, `check`/`upgrade` dir; ~30 awk calls take file operands; fix 9b3961e + 7ca6b18. Regression runs `</dev/null` or red-before hangs on terminal.
+- **Future use**: any shell lib passing user paths to awk (or `sed`-like tools with operand syntax): normalize once where path enters. Review grep: `awk '…' "$var"` with user-sourced var.
+
+## LRN-266 — Bench the existing rule against a new form before adding twins; --no-renames in path allowlists (2026-11-06)
+
+- **Pattern**: before adding a guard rule for a new form, bench whether EXISTING rule already covers it. Claude Code permission `*` spans spaces: `Bash(rtk read */.env*)` already denies `rtk read -n sub/.env` (`*` = `-n sub`); only root-level target escaped → 2 rules, not 20. Bench row must test old rule on new cmd (proves need), not new rule alone (proves only match). Also gate on `sent` column = intended cmd (model may reorder args). Path allowlists over git output: `--name-only` lists rename destination only → use `--no-renames` so source path is checked.
+- **Context**: bugfix/safety-residuals 2026-11-06: plan r1 had 20 deny lines, simplicity + correctness lenses cut to 2; bench R3-R7 (results.tsv). Pre-commit allowlist c5bd0f8 T21f rename case.
+- **Future use**: every deny/ask addition (BDR-136 bench) and every path-based guard: (1) row with existing rule × new form first, (2) rename case in allowlist tests.
