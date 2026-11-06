@@ -370,3 +370,16 @@ rules:
 - **Real cause**: no rule or guard named package/archive extraction into system dirs; the ssh deny rule did not cover vaas-cli ssh; extraction improvised instead of telling the user there was no package manager.
 - **Solution**: `hooks/extract-guard.sh` (deny before run, quoted remote scripts re-scanned) + soft_deny line + doctrine bullet (list first, extract into a literal mktemp -d path, PATH/PYTHONPATH, no package manager → tell the user). See the extract-guard BDR.
 - **Status**: resolved 2026-11-05.
+
+## BLK-043 — detect_plan CLI fallback forks claude from SessionStart hook: recursive fork bomb, OOM, reboot [open] (2026-11-06)
+- **Friction**: `make test suite=lib/tests/session-digest.test.sh` (uncommitted SD13 cases) ate 14 GiB in 45 s, 2026-11-05 23:49; earlyoom killed valheim, node, mariadb, docker, audio; kernel OOM; machine rebooted 23:55; all sessions + RC lost. OOM dump: 126 `claude`, 396 `bash`, 124 `sh`.
+- **Real cause**: `lib/detect-plugins.sh` `detect_plan` falls back to `claude config get planType` when `$HOME/.claude.json` lacks plan markers. claude 2.1.318 has no `config` subcommand → words read as prompt → full session → its SessionStart hook (`hooks/session-start.sh:158`) calls `detect_plan` again, same HOME → unbounded recursion. SD13 `mkhome` linked `~/.claude/*` but not `~/.claude.json`. Prod survives only via internal flags `tengu_cobalt_compass` + `tengu_harbor` in `~/.claude.json`; flag rename upstream → every session start recurses.
+- **Solution**: pending /bugfix (plan `.claude/tasks/plans/2026-11-06-detect-plan-fork-bomb-0030.md`): CLI fallback dropped (default pro), hook recursion guard env marker, suite-wide `claude` stub in PATH + regression cases.
+- **Status**: open 2026-11-06, fix in progress.
+- **Status (2026-11-06)**: resolved 49aa2ff (hotfix/detect-plan-fork-bomb): CLI fallback dropped, env guard SESSION_START_RUNNING, lib/tests/detect-plan.test.sh red on main lib, green after; merge pending user
+
+## BLK-044 — claude processes run with oom_score_adj -1000 of unknown origin: OOM killers spare a runaway claude [open] (2026-11-06)
+- **Friction**: during the detect_plan fork bomb (2026-11-05 23:49), every `claude`, `bash`, `grep` child carried `oom_score_adj=-1000`; earlyoom and kernel OOM could not kill the runaway, killed every other service instead (valheim, mariadb, docker, networkd, logind) until reboot. Live session 2026-11-06 still shows `-1000`.
+- **Real cause**: unknown. Not set by the repo (`lib/cc.sh`, hooks: no OOMScoreAdjust). Suspects: inherited from launcher (dtach under `systemd-run --user --scope`, sshd, or the RC/remote-control process).
+- **Solution**: none yet. Next: trace `/proc/<pid>/oom_score_adj` up the parent chain of a live claude; then set `OOMScoreAdjust` (e.g. 500) on the `cc` scope so a claude runaway dies first.
+- **Status**: open 2026-11-06.

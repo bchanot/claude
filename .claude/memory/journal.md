@@ -696,3 +696,6 @@ rules:
 
 ## 2026-11-05
 - 2026-11-05: extract-guard built on feature/extract-guard (hook, soft_deny, doctrine; verifier CONFORME, security PASS); live in settings working copy; 4c paused at plan r2; merge pending user.
+
+## 2026-11-06
+- 2026-11-06: machine OOM reboot 2026-11-05 23:55 root-caused: detect_plan `claude config get planType` fork bomb via SessionStart (BLK-043), SD13 fake HOME trigger. /bugfix: 3 lenses → r2 (hotfix off main, worktree), GATE 0 MET, verifier ECARTS(1 SC2016) → CONFORME, security PASS ×2; 49aa2ff. BLK-044 open (oom_score_adj -1000). Merge + Part B pending.
