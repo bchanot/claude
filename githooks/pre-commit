@@ -34,13 +34,15 @@ case "$br" in
   *) exit 0 ;;                                              # working branch — allow
 esac
 
-# whitelist: all-staged-under-.claude/ (memory/doc/deploy helpers) or
-# .githooks/ (the hooks themselves, refreshed by the lib) — allow
-if [ -z "$(git diff --cached --name-only | grep -vE '^\.(claude|githooks)/' | head -1)" ]; then
+# whitelist: every staged path under .claude/{memory,tasks,audits,deploy}/ or
+# .githooks/ (memory/doc/deploy helpers, the hooks themselves) — allow. Rules,
+# settings, agents, skills stay blocked. --no-renames lists a rename's source
+# too, so a git mv out of a blocked path cannot hide.
+if [ -z "$(git diff --cached --name-only --no-renames | grep -vE '^(\.claude/(memory|tasks|audits|deploy)|\.githooks)/' | head -1)" ]; then
   exit 0
 fi
 
 echo "gitflow pre-commit: BLOCKED — direct commit on '$br'." >&2
 echo "  Branch from the right base (feature/bugfix->develop, hotfix->main), or merge." >&2
-echo "  (.claude/** and .githooks/** commits are exempt; foreign clone? git config gitflow.protect false)" >&2
+echo "  (.claude/{memory,tasks,audits,deploy}/ and .githooks/ commits are exempt; foreign clone? git config gitflow.protect false)" >&2
 exit 1

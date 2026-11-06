@@ -157,8 +157,9 @@ open release; prod incidents only, a small fix on develop is a `bugfix`).
 `master` → `main` everywhere.
 
 Never commit code on `main` or `develop`: branch first as `<type>/<name>`
-(a `.claude/**` memory/config commit that follows merged work is hook-exempt
-and lands in place; a standalone memory task branches `chore/*`).
+(a commit under the `.claude/{memory,tasks,audits,deploy}/` allowlist that
+follows merged work is hook-exempt and lands in place; a standalone memory
+task branches `chore/*`).
 Branch, merge and delete only via the lib: `bash ~/.claude/lib/gitflow.sh
 start <type> <name>` · `finish` · `delete <br>`. `finish` runs only on an
 explicit human signal ("merge it", "feature OK"), never because tests pass,
@@ -169,10 +170,10 @@ Assistance flows (`/feat`
 protected base but commit in place on a working branch, never finishing
 (one exception, BDR-068: `/capitalize` and `/close` auto-finish the
 memory-only `chore/*` they created this run), so they branch to `chore/*`
-via the aiguillage, not the `.claude/**` exemption.
+via the aiguillage, not the hook allowlist.
 Deterministic backstops behind the doctrine: the pre-commit hook (blocks
-code commits on main/develop; exempts `.claude/**`, `.githooks/**`, merges,
-the root commit), Gitea branch protection on both, and never `--no-verify`.
+code commits on main/develop; exempts the `.claude/{memory,tasks,audits,
+deploy}/` allowlist, `.githooks/`, merges, the root commit), Gitea branch protection on both, and never `--no-verify`.
 Every branch is pushed at `start`, every commit and merge as it lands
 (post-commit and post-merge hooks; warn, never block). A branch is deleted
 only by `finish` or `delete`, local and `origin/` copy alike: never
