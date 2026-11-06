@@ -1,4 +1,4 @@
-# Memory Feedback (phase 4d) Implementation Plan
+# Memory Feedback (phase 4d) Implementation Plan — r2
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -8,33 +8,88 @@ local labels, a `/memory-feedback` skill, a session-start reminder, and a
 fixed-threshold gate.
 
 **Architecture:** The mod (`mods/memory/hooks/register.ts`) logs `cands`
-and `ms` on prompt records. A bun reader in `lib/memory-feedback/` (four
-focused modules: thresholds, labels, transcripts, metrics, plus the CLI)
-imports the mod's own log validator, joins records to transcript
-attachments, writes a text worksheet only to the scratchpad, and keeps IDs
-and enums in `~/.claude/memory-feedback/` (0600). A shell lib prints the
-reminder line in the banner. The skill drives labelling.
+and `ms` on prompt records and exports its log validator. A bun reader in
+`lib/memory-feedback/` (labels, metrics, transcripts, CLI) joins records to
+transcript attachments, redacts and writes a text worksheet only to the
+scratchpad, and keeps IDs and enums in `~/.claude/memory-feedback/` (0600,
+append-only labels). A plain shell script prints the reminder line. The
+skill drives labelling and records a gate verdict once, in this config repo.
 
-**Tech Stack:** TypeScript on bun (`bun test`, `node:fs`), Claude Code mod
-kit (`claude-code/testing`), bash 3.2-safe shell, jq-free banner check.
+**Tech Stack:** TypeScript on bun (`bun test`, `node:fs`, `node:crypto`,
+`node:child_process`), Claude Code mod kit (`claude-code/testing`), bash
+3.2-safe shell.
 
 **Spec:** `docs/superpowers/specs/2026-11-06-memory-feedback-design.md`
 **Contract:** `.claude/tasks/contracts/2026-11-06-memory-feedback-4d-1825.md`
 
+## r2 changes (3-lens challenge, 2026-11-06)
+
+correctness FATAL(7: 1 BLOCKER), robustness CONCERNS(6 MAJOR), simplicity
+CONCERNS(1 MAJOR). Named changes:
+
+- C1 BLOCKER: a real `tool.call` attachment carries `toolUseID` =
+  `<tool_use id>-context`; `joinTool` strips the suffix; fixture X5 uses it.
+- C2: tool walks read `assistant`/`user` records only and dedupe
+  `tool_result` by id (api-request-blob replays); X5 carries a replay.
+- C3: M6 helper `.flat()`. C4: `oneAsk` typed `$: Engine`.
+- C5/R6: no `stat -c` (portability census): age via `find -mtime`; census
+  run in Task 6.
+- C6/R5/R14: the skill resolves bun (`command -v bun || ~/.bun/bin/bun`),
+  runs it from the reader's dir, stops on any non-zero rc.
+- C7: STEP 6 writes only into this config repo (`-C "$CFG"`); actions on
+  another repo's entries are shown, never written.
+- R1: prompt, reply, command and known line pass the mod's `redact`
+  before the cut; a planted secret test.
+- R2: noisy and promotion are keyed by repo tag + ID; the tag is
+  `basename#sha1(root)[0:6]` (same-basename repos stay apart).
+- R3: `labels.tsv` is append-only (`appendFileSync`), backed up to
+  `labels.tsv.bak` first; an unreadable line fails loudly, never dropped.
+- R4/C14: `state.json` records when each gate verdict was first reached;
+  `apply` prints `NEW: …` only on that transition; STEP 6 acts only on NEW;
+  the reminder stops once both gates are recorded (`"closed":true`).
+- S1 (partial): the tool extension is a pure function of time (no
+  `toolExtended` flag); `state.json` stays for the verdict record and as
+  the run marker the reminder reads.
+- R7: `ms` clamped to a non-negative integer. R8: transcripts cached per
+  session; sub-agent files loaded only for sub-agent tool records.
+- R9: records younger than 30 min are left for the next run.
+- R10: a root at the log cap whose oldest record is newer than the last
+  run is reported as a possible eviction. C10: torn transcript lines
+  counted in the worksheet header.
+- R11/S7: the reminder is a plain script. R12: silent with
+  `"recall": false`. R13: the CLI refuses a dir inside a git work tree.
+- R15: the skill is user-invoked. R16: a corrupt `state.json` fails
+  loudly; state is written before the labels. R17: `sample` subcommand
+  replaces `shuf`; test temp dirs removed.
+- S2/C11: `test` only as `<item> - test`. S3: one `clockStart` rule.
+  S4: `cited` stays in the worksheet only. S5/C12: miss causes are what
+  the worksheet supports: `no-overlap` or `overlap`. S6: `worksheet`
+  writes a skeleton draft. C13: the empty run skips the spot check.
+  C15: lost rows count in the late share and the ms p90. C17: unreadable
+  state case. C18: jq on the newest record. C19: suites through
+  `make test suite=…`. C8/C9: RED expectations corrected.
+- Deviations from the approved spec, surfaced at the gate: reader in
+  `lib/memory-feedback/` (not `mods/memory/feedback/`: `claude plugin
+  validate --strict` and `plugin test` must not see non-mod files); miss
+  causes reduced to `no-overlap | overlap`; `labels.tsv` drops `cited`;
+  noisy and promotion lines carry a repo tag.
+
 ## Global Constraints
 
 - No prompt or reply text in the plugin store, `labels.tsv`, `state.json`,
-  `FEEDBACK.md` or any committed file; text only in `<dir>/worksheet.md` and
-  `<dir>/items.json` where `<dir>` is the session scratchpad (LRN-124,
-  LRN-261).
-- `~/.claude/memory-feedback/` created 0700, every file in it 0600, writes
-  through a temp file and a rename.
+  `FEEDBACK.md` or any committed file; text only in `<dir>/worksheet.md`
+  and `<dir>/items.json`, `<dir>` being the session scratchpad, and only
+  after the mod's `redact` (LRN-124, LRN-261, BDR-057).
+- `~/.claude/memory-feedback/` created 0700, every file in it 0600.
+  `labels.tsv` is append-only; `state.json` and `FEEDBACK.md` go through a
+  temp file and a rename.
 - Our code: at most 25 logic lines per function, 80 columns, 5 params, no
   global mutable state.
 - No new dependency: bun built-ins and `node:*` only.
-- Shell is bash 3.2-safe (no `mapfile`, `declare -A`, `local -n`).
-- Every suite that runs the hook, the mod kit or bun runs contained:
-  `systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" <cmd> </dev/null`.
+- Shell is bash 3.2-safe and portable (no `stat -c`, no `shuf`, no
+  `mapfile`, no `declare -A`).
+- Every suite runs through `make test suite=<path>`, contained:
+  `systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" make test suite=<path> </dev/null`.
 - Never run the real `claude` CLI except through
   `make test suite=lib/tests/mods.test.sh` (its existing
   `claude plugin validate|test`), contained as above.
@@ -42,51 +97,47 @@ kit (`claude-code/testing`), bash 3.2-safe shell, jq-free banner check.
   test lands before the code, the change stays additive.
 - Retention stays `cleanupPeriodDays: 7` (BDR-057).
 - Thresholds live only in `lib/memory-feedback/thresholds.ts` (BDR-100).
-- Spec deviation, internal: the reader lives in `lib/memory-feedback/`
-  instead of `mods/memory/feedback/` so `claude plugin validate --strict`
-  and `claude plugin test` never see non-mod files; `state.json` holds
-  `lastRun` and `toolExtended` only, the labelled set is derived from
-  `labels.tsv` (one source); `labels.tsv` also carries machine rows `ask`
-  (one per record) and `lost`, and the draft accepts `checked -` and
-  `test -`.
+- Registry and TODO writes from the skill go to this config repo only,
+  through `lib/memory.sh -C "$CFG"` (BDR-129).
 
 ## Review Focus
 
-1. The store file is read while the engine rewrites it (torn JSON): the
-   reader must fail loudly, write nothing, and say to retry. Test in Task 5.
-2. A record whose transcript expired or was never written: counted `lost`,
-   no crash, no label asked. Tests in Tasks 4 and 5.
-3. A labeller draft that is incomplete, labels an entry twice, or invents an
-   ID: refused whole, nothing written. Tests in Task 2 and Task 5.
-4. `apply` run twice on the same worksheet: refused, `labels.tsv`
-   unchanged. Test in Task 5.
-5. The first run before any record carries `cands`: the worksheet says
-   there is nothing to label, `apply` records the run only, the reminder
-   goes quiet for 5 days. Tests in Tasks 5 and 6.
+1. The store file read while the engine rewrites it (torn JSON): the
+   reader fails loudly, writes nothing, says to retry. Test R1.
+2. A record whose transcript expired, or a session still running: the
+   first is `lost` and counted, the second is left for the next run. Tests
+   X4, R2, R3.
+3. A labeller draft that is incomplete, labels an entry twice, invents an
+   ID or tags one entry `test`: refused whole, nothing written. Tests L3,
+   R4.
+4. `labels.tsv` damaged by a hand edit: the next run fails loudly and the
+   `.bak` copy exists; nothing is silently dropped. Test L7.
+5. A secret typed in a prompt or a failing command: masked in the
+   worksheet. Test R3.
 
 ---
 
 ### Task 1: `cands` and `ms` in the injection log (4d.1)
 
 Implements spec §1. BDR-137 (log in `$.store`, caps), LRN-212 (live
-edit), BDR-125 (no runtime cited flag).
+edit), BDR-125 (no runtime cited flag), LRN-261 (exports for the reader).
 
 **Files:**
-- Modify: `mods/memory/hooks/register.ts:973-1003` (types, validator),
-  `:1700-1771` (`Picked`, `pickRecall`, `recallFor`)
+- Modify: `mods/memory/hooks/register.ts:973-1003` (types, validator,
+  exports), `:1700-1771` (`Picked`, `pickRecall`, `recallFor`)
 - Test: `mods/memory/hooks/register.test.ts` (after `LO7`, ~line 2420)
 
 **Interfaces:**
 - Produces: `export type LogRecord` with `cands?: number`, `ms?: number`;
-  `export const LOG_PREFIX = 'l:'`; `export function isLogRecord(v:
-  unknown): v is LogRecord` (both were module-private).
+  `export const LOG_PREFIX = 'l:'`; `export const MAX_LOG = 200`;
+  `export function isLogRecord(v: unknown): v is LogRecord` (all three
+  were module-private). `redact` is already exported.
 
 - [ ] **Step 1: Write the failing kit tests**
 
-Add after the `LO7` test in `register.test.ts`, and add `isLogRecord` to
-the existing value import list from `./register` at the top of the file
-(`Api` and `On` are already imported as types at lines 3; `Model` is the
-file's own type at line 36):
+Add `isLogRecord` to the existing value import list from `./register` at
+the top of `register.test.ts`; `Engine` is already imported as a type
+(line 2). Add after the `LO7` test:
 
 ```ts
 /** [outcome, cands, ms] of every logged ask, oldest first. */
@@ -96,7 +147,7 @@ async function askMeta(w: World) {
 }
 
 /** The single ask of a fresh world answered by `model`. */
-async function oneAsk($: Api, on: On, model?: Model) {
+async function oneAsk($: Engine, on: On, model?: Model) {
   const { w } = await bootRecall($, on)
   if (model !== undefined) w.model = model
   await start($)
@@ -125,7 +176,7 @@ test('LF1c: an unanswered ask logs cands and ms', async ($, on) => {
   expect(ms).toBe(0)
 })
 
-test('LF2: no candidate and a pause log no ms', async ($, on) => {
+test('LF2: no candidate logs cands 0 and no ms', async ($, on) => {
   const { w } = await bootRecall($, on)
   w.proc = { stdout: rowsOut([['BLK-001', 'x'], ['LRN-002', 'y']])
     .replace(/open/g, 'superseded') }
@@ -156,16 +207,16 @@ test('LF4: cands and ms are optional counts', async ($, on) => {
 })
 ```
 
-- [ ] **Step 2: Run the suite, see the four new tests fail**
+- [ ] **Step 2: Run the suite, see it fail**
 
 Run: `systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" make test suite=lib/tests/mods.test.sh </dev/null`
-Expected: FAIL on `memory: plugin test` naming LF1-LF4 (LF1, LF1b, LF1c, LF2, LF3, LF4) (cands undefined,
-`isLogRecord` not exported). Every other test still passes.
+Expected: `FAIL memory: plugin test` (the whole file is red: `isLogRecord`
+is not exported, so the module link fails before any test runs).
 
 - [ ] **Step 3: Implement**
 
-In `register.ts`, replace the `LogRecord` type, `LOG_PREFIX` and
-`isLogRecord` block (lines ~976-1003) with:
+In `register.ts`, replace the `LogRecord` type, `LOG_PREFIX`, `MAX_LOG`
+and `isLogRecord` block (lines ~976-1003) with:
 
 ```ts
 // `trigger` and `outcome` are absent on records written before 4c's
@@ -186,7 +237,7 @@ export type LogRecord = {
 // swept by `sweepLogs` against the engine's 4 MiB store cap, oldest key
 // first; upgrade path: one global log key, or a smaller per-root cap.
 export const LOG_PREFIX = 'l:'
-const MAX_LOG = 200
+export const MAX_LOG = 200
 const MAX_LOG_BYTES = 65536
 
 /** Absent, or a non-negative integer. */
@@ -225,7 +276,8 @@ async function pickRecall(
   const now = await $.clock.now()
   if (now < st.rerank.until) return nothing('paused')
   const answer = await askRerank($, st, text, cands, now)
-  const ms = (await $.clock.now()) - now
+  // a clock step back must not make the record invalid (isCount)
+  const ms = Math.max(0, Math.round((await $.clock.now()) - now))
   if (answer === undefined) return { ...nothing('timeout'), ms }
   const picked = picksOf(answer, cands)
   if (picked.length === 0) return { ...nothing('none'), ms }
@@ -250,7 +302,8 @@ In `recallFor`, replace the `record` literal:
 - [ ] **Step 4: Run the suite, see it pass**
 
 Run: `systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" make test suite=lib/tests/mods.test.sh </dev/null`
-Expected: every check PASS, including `memory: plugin test passed`.
+Expected: every check PASS, including `memory: validate --strict passed`
+and `memory: plugin test passed`.
 
 - [ ] **Step 5: Commit**
 
@@ -264,75 +317,105 @@ git commit -m "feat(memory): log cands and rerank ms on prompt recall"
 ### Task 2: Labels, draft and state files
 
 Implements spec §2 (labels.tsv, draft, state). LRN-124 (IDs and enums
-only), LRN-027 (machine-readable state), LRN-168 (labels are claims, the
-draft is checked).
+only), LRN-027 (machine-readable state), LRN-168 (the draft is checked).
 
 **Files:**
 - Create: `lib/memory-feedback/labels.ts`
 - Test: `lib/memory-feedback/labels.test.ts`
+- Create: `lib/tests/memory-feedback.test.sh` (the `make test` entry for
+  every bun test of `lib/memory-feedback/`)
 
 **Interfaces:**
-- Produces: `Channel`, `Label`, `Item`, `Row`, `Draft`, `State` types;
-  `keyOf(r: { session: string; at: number; channel: string }): string`;
-  `toLine(r: Row): string`; `fromLine(line: string): Row | undefined`;
-  `writeSafe(file: string, text: string): void`;
-  `readRows(file: string): Row[]`; `writeRows(file: string, rows: Row[]):
-  void`; `readState(file: string): State`; `writeState(file: string, s:
-  State): void`; `parseDraft(text: string, items: Item[]): Draft[] |
-  string`; `rowsOf(it: Item, drafts: Draft[]): Row[]`.
+- Produces: types `Channel`, `Label`, `Item`, `Row`, `Draft`, `State`;
+  `tagOf(root: string): string`; `keyOf(r: { session: string; at: number;
+  channel: string }): string`; `toLine(r: Row): string`; `fromLine(line:
+  string): Row | undefined`; `writeSafe(file: string, text: string): void`;
+  `readRows(file: string): Row[]` (throws on a damaged line);
+  `appendRows(file: string, rows: Row[]): void`; `readState(file: string):
+  State` (throws on a corrupt file); `writeState(file: string, s: State):
+  void`; `parseDraft(text: string, items: Item[]): Draft[] | string`;
+  `rowsOf(it: Item, drafts: Draft[]): Row[]`; `skeleton(items: Item[]):
+  string`.
 
-- [ ] **Step 1: Write the failing tests**
+- [ ] **Step 1: Write the suite entry `lib/tests/memory-feedback.test.sh`**
+
+```bash
+#!/usr/bin/env bash
+# lib/tests/memory-feedback.test.sh — the bun unit suite of
+# lib/memory-feedback (phase 4d reader, labels, metrics, transcripts).
+# Fails when bun is absent: it never passes vacuously.
+set -u
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+command -v bun >/dev/null 2>&1 || { echo "FAIL bun not on PATH"; exit 1; }
+cd "$ROOT/lib/memory-feedback" || exit 1
+bun test 2>&1
+```
+
+Then `mkdir -p lib/memory-feedback && chmod +x lib/tests/memory-feedback.test.sh`.
+
+- [ ] **Step 2: Write the failing tests**
 
 `lib/memory-feedback/labels.test.ts`:
 
 ```ts
-import { expect, test } from 'bun:test'
+import { afterAll, expect, test } from 'bun:test'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import {
-  fromLine, parseDraft, readRows, readState, rowsOf, toLine, writeRows,
-  writeState, type Item, type Row,
+  appendRows, fromLine, parseDraft, readRows, readState, rowsOf, skeleton,
+  tagOf, toLine, writeState, type Item, type Row,
 } from './labels.ts'
 
+const dirs: string[] = []
+const tmp = () => {
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'mf-'))
+  dirs.push(d)
+  return d
+}
+afterAll(() => dirs.forEach(d => fs.rmSync(d, { recursive: true })))
+
 const item = (n: number, over: Partial<Item> = {}): Item => ({
-  n, root: 'r', session: `s${n}`, at: 1000 + n, channel: 'prompt',
+  n, root: 'r#000000', session: `s${n}`, at: 1000 + n, channel: 'prompt',
   trigger: 'fresh', outcome: 'injected', cands: 4, ms: 900,
   ids: ['BDR-001', 'LRN-002'], cited: ['BDR-001'], lost: false, ...over,
 })
 const ITEMS = [item(1), item(2, { ids: [], outcome: 'none' })]
-const tmp = () => fs.mkdtempSync(path.join(os.tmpdir(), 'mf-'))
+const OK = '1\tBDR-001\trelevant\n1\tLRN-002\tirrelevant'
 
 test('L1: a row survives the TSV round trip', () => {
-  const r: Row = { at: 5, root: 'r', session: 's', channel: 'tool',
-    trigger: 'tool', outcome: 'injected', cands: undefined, ms: undefined,
-    pick: 1, id: 'BLK-003', cited: true, label: 'relevant', cause: '' }
+  const r: Row = { at: 5, root: 'r#000000', session: 's',
+    channel: 'tool', trigger: 'tool', outcome: 'injected',
+    cands: undefined, ms: undefined, pick: 1, id: 'BLK-003',
+    label: 'relevant', cause: '' }
   expect(fromLine(toLine(r))).toEqual(r)
   expect(fromLine('at\troot')).toBeUndefined()
 })
 
 test('L2: a complete draft parses', () => {
-  const d = parseDraft([
-    '1\tBDR-001\trelevant', '1\tLRN-002\tirrelevant',
-    '2\tBDR-009\tmissed\tno-overlap', '1\t-\tchecked', '# note',
-  ].join('\n'), ITEMS)
+  const d = parseDraft([OK, '2\tBDR-009\tmissed\tno-overlap',
+    '1\t-\tchecked', '# note'].join('\n'), ITEMS)
   expect(Array.isArray(d) && d.length).toBe(4)
 })
 
 test('L3: every bad draft is refused with a reason', () => {
   const bad = [
-    '1\tBDR-001\tmaybe',                       // unknown label
-    '9\tBDR-001\trelevant',                    // unknown item
-    '1\tBLK-777\trelevant\n1\tBDR-001\trelevant\n1\tLRN-002\trelevant',
-    '1\tBDR-001\trelevant',                    // LRN-002 unlabelled
-    '1\tBDR-001\trelevant\n1\tBDR-001\trelevant\n1\tLRN-002\trelevant',
-    '1\tBDR-001\trelevant\n1\tLRN-002\trelevant\n2\tBDR-001\tmissed\tbad',
-    '1\tBDR-001\trelevant\n1\tLRN-002\tmissed\tdeclined',
+    '1\tBDR-001\tmaybe\n1\tLRN-002\trelevant',      // unknown label
+    `${OK}\n9\tBDR-001\trelevant`,                   // unknown item
+    `${OK}\n1\tBLK-777\trelevant`,                   // not injected there
+    '1\tBDR-001\trelevant',                          // LRN-002 unlabelled
+    `${OK}\n1\tBDR-001\trelevant`,                   // labelled twice
+    `${OK}\n2\tBDR-001\tmissed\tbad`,                // unknown cause
+    `${OK}\n1\tLRN-002\tmissed\toverlap`,            // missed but injected
+    '1\tBDR-001\ttest\n1\tLRN-002\trelevant',        // per-id test
+    '1\tBDR-001\t\n1\tLRN-002\trelevant',            // blank skeleton label
   ]
-  for (const text of bad) expect(typeof parseDraft(text, ITEMS)).toBe('string')
+  for (const text of bad) {
+    expect(typeof parseDraft(text, ITEMS)).toBe('string')
+  }
 })
 
-test('L4: test - marks a whole item, no entry label needed', () => {
+test('L4: `- test` marks a whole item, no entry label needed', () => {
   expect(Array.isArray(parseDraft('1\t-\ttest', ITEMS))).toBe(true)
 })
 
@@ -343,43 +426,62 @@ test('L5: a lost item takes no label', () => {
 })
 
 test('L6: rowsOf writes an ask row then the entry rows', () => {
-  const d = parseDraft('1\tBDR-001\trelevant\n1\tLRN-002\tirrelevant',
-    [item(1)])
+  const d = parseDraft(OK, [item(1)])
   if (typeof d === 'string') throw new Error(d)
-  const rows = rowsOf(item(1), d)
-  expect(rows.map(r => [r.label, r.id, r.pick, r.cited])).toEqual([
-    ['ask', '', undefined, false],
-    ['relevant', 'BDR-001', 1, true],
-    ['irrelevant', 'LRN-002', 2, false],
+  expect(rowsOf(item(1), d).map(r => [r.label, r.id, r.pick])).toEqual([
+    ['ask', '', undefined], ['relevant', 'BDR-001', 1],
+    ['irrelevant', 'LRN-002', 2],
   ])
   expect(rowsOf(item(3, { lost: true }), [])[0]?.label).toBe('lost')
 })
 
-test('L7: files are 0600 in a 0700 dir, state defaults', () => {
+test('L7: append-only labels, a backup, a loud damaged line', () => {
   const dir = path.join(tmp(), 'mf')
-  writeRows(path.join(dir, 'labels.tsv'), rowsOf(item(1), []))
+  const file = path.join(dir, 'labels.tsv')
+  appendRows(file, rowsOf(item(1), []))
+  appendRows(file, rowsOf(item(2), []))
   expect(fs.statSync(dir).mode & 0o777).toBe(0o700)
-  expect(fs.statSync(path.join(dir, 'labels.tsv')).mode & 0o777)
-    .toBe(0o600)
-  expect(readRows(path.join(dir, 'labels.tsv'))).toHaveLength(1)
-  expect(readState(path.join(dir, 'state.json')))
-    .toEqual({ lastRun: 0, toolExtended: false })
-  writeState(path.join(dir, 'state.json'), { lastRun: 9, toolExtended: true })
-  expect(readState(path.join(dir, 'state.json')))
-    .toEqual({ lastRun: 9, toolExtended: true })
+  expect(fs.statSync(file).mode & 0o777).toBe(0o600)
+  expect(readRows(file)).toHaveLength(2)
+  expect(readRows(`${file}.bak`)).toHaveLength(1)
+  fs.appendFileSync(file, 'broken line\n')
+  expect(() => readRows(file)).toThrow('labels.tsv.bak')
+})
+
+test('L8: state defaults, round trip, a corrupt file throws', () => {
+  const f = path.join(tmp(), 'state.json')
+  expect(readState(f)).toEqual({ lastRun: 0, closed: false })
+  writeState(f, { lastRun: 9, promptAt: 9, closed: false })
+  expect(readState(f)).toEqual({ lastRun: 9, promptAt: 9, closed: false })
+  fs.writeFileSync(f, '{oops')
+  expect(() => readState(f)).toThrow('state.json')
+})
+
+test('L9: repo tags keep same-named repos apart', () => {
+  expect(tagOf('/a/x')).toMatch(/^x#[0-9a-f]{6}$/)
+  expect(tagOf('/a/x')).toBe(tagOf('/a/x'))
+  expect(tagOf('/a/x')).not.toBe(tagOf('/b/x'))
+})
+
+test('L10: the skeleton draft lists each injected id once', () => {
+  const lines = skeleton([item(1), item(2, { ids: [] }),
+    item(3, { lost: true })]).split('\n').filter(l => !l.startsWith('#'))
+  expect(lines.filter(l => l !== '')).toEqual(['1\tBDR-001\t', '1\tLRN-002\t'])
 })
 ```
 
-- [ ] **Step 2: Run, see them fail**
+- [ ] **Step 3: Run, see them fail**
 
-Run: `cd lib/memory-feedback && systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" bun test labels.test.ts </dev/null`
+Run: `systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" make test suite=lib/tests/memory-feedback.test.sh </dev/null`
 Expected: FAIL, `Cannot find module './labels.ts'`.
 
-- [ ] **Step 3: Write `labels.ts`**
+- [ ] **Step 4: Write `labels.ts`**
 
 ```ts
-// lib/memory-feedback/labels.ts: labels.tsv rows, the labeller's draft and
-// state.json (phase 4d). IDs and enums only, never text (LRN-124).
+// lib/memory-feedback/labels.ts: labels.tsv rows (append-only), the
+// labeller's draft and state.json (phase 4d). IDs, enums and repo tags
+// only, never text (LRN-124).
+import { createHash } from 'node:crypto'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 
@@ -387,8 +489,8 @@ export type Channel = 'prompt' | 'tool'
 export type Label = 'relevant' | 'irrelevant' | 'test' | 'missed' |
   'checked' | 'ask' | 'lost'
 const DRAFT_LABELS = ['relevant', 'irrelevant', 'test', 'missed', 'checked']
-const ENTRY_LABELS = ['relevant', 'irrelevant', 'test']
-const CAUSES = ['no-overlap', 'rank-over-30', 'declined', 'not-triggered']
+const ENTRY_LABELS = ['relevant', 'irrelevant']
+const CAUSES = ['no-overlap', 'overlap']
 const ID_RE = /^(BDR|LRN|BLK)-\d{3,}$/
 
 /** One worksheet item: a log record and what the join found. */
@@ -400,13 +502,21 @@ export type Item = {
 export type Row = {
   at: number; root: string; session: string; channel: Channel
   trigger: string; outcome: string; cands?: number; ms?: number
-  pick?: number; id: string; cited: boolean; label: Label; cause: string
+  pick?: number; id: string; label: Label; cause: string
 }
 export type Draft = { item: number; id: string; label: Label; cause: string }
-export type State = { lastRun: number; toolExtended: boolean }
+/** promptAt/toolAt: when each gate verdict was first reached. */
+export type State = {
+  lastRun: number; promptAt?: number; toolAt?: number; closed: boolean
+}
 
 const COLS = ['at', 'root', 'session', 'channel', 'trigger', 'outcome',
-  'cands', 'ms', 'pick', 'id', 'cited', 'label', 'cause']
+  'cands', 'ms', 'pick', 'id', 'label', 'cause']
+const HEADER = COLS.join('\t') + '\n'
+
+/** A repo tag: basename + 6 hex of the path (same names stay apart). */
+export const tagOf = (root: string) => `${path.basename(root)}#` +
+  createHash('sha1').update(root).digest('hex').slice(0, 6)
 
 /** One record's identity: session ids are unique across repos. */
 export const keyOf = (r: { session: string; at: number; channel: string }) =>
@@ -418,8 +528,8 @@ const opt = (s: string | undefined) =>
 
 export function toLine(r: Row): string {
   return [r.at, r.root, r.session, r.channel, r.trigger, r.outcome,
-    num(r.cands), num(r.ms), num(r.pick), r.id, r.cited ? '1' : '0',
-    r.label, r.cause].join('\t')
+    num(r.cands), num(r.ms), num(r.pick), r.id, r.label, r.cause]
+    .join('\t')
 }
 
 /** A labels.tsv line as a row; the header or a short line: undefined. */
@@ -430,36 +540,52 @@ export function fromLine(line: string): Row | undefined {
     at: Number(f[0]), root: f[1] ?? '', session: f[2] ?? '',
     channel: f[3] as Channel, trigger: f[4] ?? '', outcome: f[5] ?? '',
     cands: opt(f[6]), ms: opt(f[7]), pick: opt(f[8]), id: f[9] ?? '',
-    cited: f[10] === '1', label: f[11] as Label, cause: f[12] ?? '',
+    label: f[10] as Label, cause: f[11] ?? '',
   }
 }
 
+const mkdir = (file: string) =>
+  fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 })
+
 /** Writes through a 0600 temp file and a rename; the dir is made 0700. */
 export function writeSafe(file: string, text: string): void {
-  fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 })
+  mkdir(file)
   const tmp = `${file}.${process.pid}.tmp`
   fs.writeFileSync(tmp, text, { mode: 0o600 })
   fs.renameSync(tmp, file)
 }
 
+/** Every row; a damaged line fails loudly, it is never dropped. */
 export function readRows(file: string): Row[] {
   if (!fs.existsSync(file)) return []
-  return fs.readFileSync(file, 'utf8').split('\n').map(fromLine)
-    .filter((r): r is Row => r !== undefined)
+  const lines = fs.readFileSync(file, 'utf8').split('\n')
+  return lines.flatMap((line, i) => {
+    if (line === '' || line === HEADER.trimEnd()) return []
+    const r = fromLine(line)
+    if (r !== undefined) return [r]
+    throw new Error(`labels.tsv line ${i + 1} unreadable: fix it by hand ` +
+      'or restore labels.tsv.bak')
+  })
 }
 
-export function writeRows(file: string, rows: Row[]): void {
-  writeSafe(file, [COLS.join('\t'), ...rows.map(toLine)].join('\n') + '\n')
+/** Appends rows; the previous file is copied to labels.tsv.bak first. */
+export function appendRows(file: string, rows: Row[]): void {
+  mkdir(file)
+  if (fs.existsSync(file)) fs.copyFileSync(file, `${file}.bak`)
+  else fs.writeFileSync(file, HEADER, { mode: 0o600 })
+  fs.appendFileSync(file, rows.map(r => toLine(r) + '\n').join(''))
 }
 
-/** state.json; absent or unreadable gives a first-run state. */
+/** state.json; absent: a first run; unparsable: a loud error. */
 export function readState(file: string): State {
+  if (!fs.existsSync(file)) return { lastRun: 0, closed: false }
   try {
     const s = JSON.parse(fs.readFileSync(file, 'utf8'))
-    return { lastRun: Number(s.lastRun) || 0,
-      toolExtended: s.toolExtended === true }
+    const at = (v: unknown) => typeof v === 'number' ? v : undefined
+    return { lastRun: Number(s.lastRun) || 0, promptAt: at(s.promptAt),
+      toolAt: at(s.toolAt), closed: s.closed === true }
   } catch {
-    return { lastRun: 0, toolExtended: false }
+    throw new Error(`state.json unreadable (${file}): fix or delete it`)
   }
 }
 
@@ -473,7 +599,7 @@ function parseLine(line: string): Draft | string {
   const item = Number(f[0])
   const label = f[2] ?? ''
   if (!Number.isInteger(item)) return `bad item: ${f[0]}`
-  if (!DRAFT_LABELS.includes(label)) return `bad label: ${label}`
+  if (!DRAFT_LABELS.includes(label)) return `bad label: '${label}'`
   return { item, id: f[1] ?? '', label: label as Label, cause: f[3] ?? '' }
 }
 
@@ -498,8 +624,8 @@ function fitError(d: Draft, it: Item | undefined): string {
 function completeError(drafts: Draft[], items: Item[]): string {
   const whole = new Set(drafts.filter(d => d.id === '-' &&
     d.label === 'test').map(d => d.item))
-  const got = drafts.filter(d => d.id !== '-' &&
-    ENTRY_LABELS.includes(d.label)).map(d => `${d.item}:${d.id}`)
+  const got = drafts.filter(d => ENTRY_LABELS.includes(d.label))
+    .map(d => `${d.item}:${d.id}`)
   if (new Set(got).size !== got.length) return 'an entry is labelled twice'
   for (const it of items) {
     if (it.lost || whole.has(it.n)) continue
@@ -532,35 +658,43 @@ const base = (it: Item) => ({
 
 /** The labels.tsv rows of one item: its ask row, then its draft rows. */
 export function rowsOf(it: Item, drafts: Draft[]): Row[] {
-  const head: Row = { ...base(it), id: '', cited: false,
+  const head: Row = { ...base(it), id: '',
     label: it.lost ? 'lost' : 'ask', cause: '' }
   const mine = drafts.filter(d => d.item === it.n).map((d): Row => ({
     ...base(it), id: d.id === '-' ? '' : d.id,
     pick: it.ids.includes(d.id) ? it.ids.indexOf(d.id) + 1 : undefined,
-    cited: it.cited.includes(d.id), label: d.label, cause: d.cause,
+    label: d.label, cause: d.cause,
   }))
   return [head, ...mine]
 }
+
+/** A draft to fill in: one `<item> <id> ` line per injected id. */
+export function skeleton(items: Item[]): string {
+  const lines = items.filter(i => !i.lost)
+    .flatMap(i => i.ids.map(id => `${i.n}\t${id}\t`))
+  return ['# fill the 3rd column: relevant or irrelevant', ...lines]
+    .join('\n') + '\n'
+}
 ```
 
-- [ ] **Step 4: Run, see them pass**
+- [ ] **Step 5: Run, see them pass**
 
-Run: `cd lib/memory-feedback && systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" bun test labels.test.ts </dev/null`
-Expected: 7 pass, 0 fail.
+Run: `systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" make test suite=lib/tests/memory-feedback.test.sh </dev/null`
+Expected: 10 pass, 0 fail; `all suites green`.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add lib/memory-feedback/labels.ts lib/memory-feedback/labels.test.ts
-git commit -m "feat(memory-feedback): labels, draft validation and state"
+git add lib/memory-feedback/labels.ts lib/memory-feedback/labels.test.ts lib/tests/memory-feedback.test.sh
+git commit -m "feat(memory-feedback): append-only labels, draft and state"
 ```
 
 ---
 
 ### Task 3: Thresholds and metrics (4d.3, pure)
 
-Implements spec §4. BDR-100 (thresholds in one file), LRN-241 (test rows
-excluded).
+Implements spec §4. BDR-100 (thresholds in one file), LRN-241 (`test`
+items excluded).
 
 **Files:**
 - Create: `lib/memory-feedback/thresholds.ts`
@@ -569,14 +703,14 @@ excluded).
 
 **Interfaces:**
 - Consumes: `Row`, `Label`, `keyOf` from `./labels.ts` (Task 2).
-- Produces:
-  `export type Metrics`, `export function metricsOf(rows: Row[]): Metrics`,
-  `export type Verdict = { prompt: Gate; tool: ToolGate; extendTool: boolean }`,
-  `export function gateVerdict(m: Metrics, now: number, extended: boolean): Verdict`,
-  `export function actionsOf(m: Metrics, v: Verdict): string[]`,
-  `export function renderFeedback(m: Metrics, v: Verdict, now: number): string`,
-  `export function p90(values: number[]): number | undefined`,
-  `export function precision(rows: Row[]): number | undefined`.
+- Produces: `type Metrics`; `clockStart(rows: Row[], logAts: number[]):
+  number | undefined`; `metricsOf(rows: Row[]): Metrics`;
+  `type Verdict = { prompt: Gate; tool: ToolGate }`;
+  `gateVerdict(m: Metrics, now: number): Verdict`;
+  `actionsOf(m: Metrics, v: Verdict): string[]`;
+  `renderFeedback(m: Metrics, v: Verdict, now: number): string`;
+  `p90(values: number[]): number | undefined`;
+  `precision(rows: Row[]): number | undefined`.
 
 - [ ] **Step 1: Write `thresholds.ts`**
 
@@ -611,8 +745,8 @@ export const T = {
 import { expect, test } from 'bun:test'
 import { DAY_MS, GATE_DAYS } from './thresholds.ts'
 import {
-  actionsOf, gateVerdict, metricsOf, p90, precision, renderFeedback,
-  type Metrics,
+  actionsOf, clockStart, gateVerdict, metricsOf, p90, precision,
+  renderFeedback, type Metrics,
 } from './metrics.ts'
 import type { Label, Row } from './labels.ts'
 
@@ -620,9 +754,9 @@ let clock = 1000
 /** A labels.tsv row; each call gets its own `at` unless given. */
 function row(over: Partial<Row> & { label: Label }): Row {
   clock += 1
-  return { at: clock, root: 'r', session: 's1', channel: 'prompt',
+  return { at: clock, root: 'r#000000', session: 's1', channel: 'prompt',
     trigger: 'fresh', outcome: 'injected', cands: 3, ms: 900,
-    id: 'BDR-001', cited: false, cause: '', ...over }
+    id: 'BDR-001', cause: '', ...over }
 }
 /** One injected ask with entries labelled `labels`, picks 1..n. */
 function ask(labels: Label[], over: Partial<Row> = {}): Row[] {
@@ -632,67 +766,74 @@ function ask(labels: Label[], over: Partial<Row> = {}): Row[] {
     id: `LRN-00${i + 1}`, pick: i + 1 }))]
 }
 
-test('M1: precision and p90', () => {
+test('M1: precision, p90 and the clock start rule', () => {
   const r = ask(['relevant', 'irrelevant', 'relevant', 'relevant'])
   expect(precision(r)).toBe(0.75)
   expect(precision([])).toBeUndefined()
   expect(p90([5, 1, 9, 3, 7, 2, 8, 4, 6, 10])).toBe(9)
   expect(p90([])).toBeUndefined()
+  expect(clockStart(r, [1])).toBe(r[0]?.at)
+  expect(clockStart([], [7, 3])).toBe(3)
+  expect(clockStart([], [])).toBeUndefined()
 })
 
-test('M2: a test row excludes its whole item', () => {
-  const rows = [...ask(['relevant']), ...ask(['irrelevant', 'test'])]
+test('M2: a `- test` row excludes its whole item', () => {
+  const t = ask(['irrelevant'])
+  const rows = [...ask(['relevant']), ...t,
+    row({ at: t[0]!.at, id: '', label: 'test' })]
   const m = metricsOf(rows)
   expect(m.precision).toBe(1)
   expect(m.promptN).toBe(1)
 })
 
-test('M3: noisy at 3 hits, promotion at 3 in 2 sessions', () => {
+test('M3: noisy and promotion keyed by repo and ID', () => {
   const noisy = [1, 2, 3].flatMap(() => ask(['irrelevant']))
-  expect(metricsOf(noisy).noisy).toEqual(['LRN-001'])
+  expect(metricsOf(noisy).noisy).toEqual(['r#000000 LRN-001'])
   expect(metricsOf(noisy.slice(0, 4)).noisy).toEqual([])
+  const split = [...noisy.slice(0, 4), ...ask(['irrelevant'],
+    { root: 'other#111111' })]
+  expect(metricsOf(split).noisy).toEqual([])
   const one = [1, 2, 3].flatMap(() => ask(['relevant']))
   expect(metricsOf(one).promote).toEqual([])
   const two = [...one, ...ask(['relevant'], { session: 's2' })]
-  expect(metricsOf(two).promote).toEqual(['LRN-001'])
+  expect(metricsOf(two).promote).toEqual(['r#000000 LRN-001'])
 })
 
-test('M4: late share counts asks with candidates only', () => {
+test('M4: late share counts asks with candidates, lost ones too', () => {
   const rows = [
     row({ id: '', label: 'ask', outcome: 'timeout' }),
-    row({ id: '', label: 'ask', outcome: 'paused' }),
+    row({ id: '', label: 'lost', outcome: 'paused' }),
     row({ id: '', label: 'ask', outcome: 'none', cands: 0 }),
     ...ask(['relevant']),
   ]
   expect(metricsOf(rows).late).toBeCloseTo(2 / 3)
+  expect(metricsOf(rows).lost).toBe(1)
 })
 
 /** Metrics with `n` prompt asks and `t` tool injections, clock at 0. */
 function m(n: number, t: number): Metrics {
   const p = Array.from({ length: n }, () => ask(['relevant'])).flat()
-  const tl = Array.from({ length: t }, () =>
-    ask(['relevant'], { channel: 'tool', trigger: 'tool', cands: undefined }))
+  const tl = Array.from({ length: t }, () => ask(['relevant'],
+    { channel: 'tool', trigger: 'tool', cands: undefined })).flat()
   return { ...metricsOf([...p, ...tl]), start: 0 }
 }
 const CAP = GATE_DAYS * DAY_MS
 
 test('M5: the prompt gate at 20 asks or at the cap', () => {
-  expect(gateVerdict(m(19, 0), 1, false).prompt).toBe('open')
-  expect(gateVerdict(m(20, 0), 1, false).prompt).toBe('reached')
-  expect(gateVerdict(m(3, 0), CAP, false).prompt).toBe('reached')
+  expect(gateVerdict(m(19, 0), 1).prompt).toBe('open')
+  expect(gateVerdict(m(20, 0), 1).prompt).toBe('reached')
+  expect(gateVerdict(m(3, 0), CAP).prompt).toBe('reached')
   const none = { ...metricsOf([]), start: undefined }
-  expect(gateVerdict(none, CAP * 9, false))
-    .toEqual({ prompt: 'open', tool: 'open', extendTool: false })
+  expect(gateVerdict(none, CAP * 9))
+    .toEqual({ prompt: 'open', tool: 'open' })
 })
 
-test('M6: the tool gate extends once, then closes', () => {
-  expect(gateVerdict(m(0, 10), 1, false).tool).toBe('reached')
-  expect(gateVerdict(m(0, 9), CAP - 1, false).tool).toBe('open')
-  expect(gateVerdict(m(0, 9), CAP, false))
-    .toMatchObject({ tool: 'extended', extendTool: true })
-  expect(gateVerdict(m(0, 9), 2 * CAP - 1, true))
-    .toMatchObject({ tool: 'extended', extendTool: false })
-  expect(gateVerdict(m(0, 9), 2 * CAP, true).tool).toBe('insufficient')
+test('M6: the tool gate extends once by time, then closes', () => {
+  expect(gateVerdict(m(0, 10), 1).tool).toBe('reached')
+  expect(gateVerdict(m(0, 9), CAP - 1).tool).toBe('open')
+  expect(gateVerdict(m(0, 9), CAP).tool).toBe('extended')
+  expect(gateVerdict(m(0, 9), 2 * CAP - 1).tool).toBe('extended')
+  expect(gateVerdict(m(0, 9), 2 * CAP).tool).toBe('insufficient')
 })
 
 test('M7: actions only once a gate is reached', () => {
@@ -700,33 +841,33 @@ test('M7: actions only once a gate is reached', () => {
     ask([i % 3 === 0 ? 'relevant' : 'irrelevant'], { trigger: 'idle' }))
     .flat() // 7/20 relevant: under 64 % overall and under 50 % for idle
   const mm = { ...metricsOf(idle), start: 0 }
-  expect(actionsOf(mm, gateVerdict(mm, 1, false)))
+  expect(actionsOf(mm, gateVerdict(mm, 1)))
     .toContain('prompt precision under 64 %: tighten or drop the idle trigger')
   const open = { ...mm, promptN: 2 }
-  expect(actionsOf(open, gateVerdict(open, 1, false))).toEqual([])
+  expect(actionsOf(open, gateVerdict(open, 1))).toEqual([])
 })
 
-test('M8: rerank latency actions', () => {
+test('M8: rerank latency action', () => {
   const slow = Array.from({ length: 20 }, () =>
     ask(['relevant'], { ms: 2400 })).flat()
   const mm = { ...metricsOf(slow), start: 0 }
-  expect(actionsOf(mm, gateVerdict(mm, 1, false)))
+  expect(actionsOf(mm, gateVerdict(mm, 1)))
     .toContain('rerank p90 under 2500 ms: lower RERANK_MS')
 })
 
-test('M9: FEEDBACK.md has no repo name and no prompt text', () => {
-  const rows = ask(['relevant'], { root: 'secret-client-repo' })
-  const text = renderFeedback(metricsOf(rows),
-    gateVerdict(metricsOf(rows), 1, false), 0)
-  expect(text).not.toContain('secret-client-repo')
+test('M9: FEEDBACK.md counts, no repo tag without a noisy entry', () => {
+  const rows = ask(['relevant'], { root: 'client#abcdef' })
+  const mm = metricsOf(rows)
+  const text = renderFeedback(mm, gateVerdict(mm, 1), 0)
+  expect(text).not.toContain('client#abcdef')
   expect(text).toContain('Prompt gate: open (1/20)')
 })
 ```
 
 - [ ] **Step 3: Run, see them fail**
 
-Run: `cd lib/memory-feedback && systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" bun test metrics.test.ts </dev/null`
-Expected: FAIL, `Cannot find module './metrics.ts'`.
+Run: `systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" make test suite=lib/tests/memory-feedback.test.sh </dev/null`
+Expected: FAIL, `Cannot find module './metrics.ts'`; labels tests pass.
 
 - [ ] **Step 4: Write `metrics.ts`**
 
@@ -741,7 +882,7 @@ import { keyOf, type Row } from './labels.ts'
 
 export type Gate = 'open' | 'reached'
 export type ToolGate = Gate | 'extended' | 'insufficient'
-export type Verdict = { prompt: Gate; tool: ToolGate; extendTool: boolean }
+export type Verdict = { prompt: Gate; tool: ToolGate }
 type Rate = number | undefined
 export type Metrics = {
   start?: number; promptN: number; toolN: number; lost: number
@@ -756,8 +897,17 @@ const isEntry = (r: Row) =>
 const under = (v: Rate, t: number) => v !== undefined && v < t
 const pct = (v: Rate) => v === undefined ? 'n/a' : `${Math.round(v * 100)} %`
 const day = (ms: number) => new Date(ms).toISOString().slice(0, 10)
+const entryKey = (r: Row) => `${r.root} ${r.id}`
 
-/** Rows of items with no `test` row anywhere (LRN-241). */
+/** The gate clock start: the first labelled row with cands, else the
+ * first log record with cands (one rule for reader and metrics). */
+export function clockStart(rows: Row[], logAts: number[]): Rate {
+  const labelled = rows.filter(r => r.cands !== undefined).map(r => r.at)
+  const ats = labelled.length > 0 ? labelled : logAts
+  return ats.length === 0 ? undefined : Math.min(...ats)
+}
+
+/** Rows of items with no `test` row (LRN-241). */
 function liveRows(rows: Row[]): Row[] {
   const test = new Set(rows.filter(r => r.label === 'test').map(keyOf))
   return rows.filter(r => !test.has(keyOf(r)))
@@ -784,7 +934,7 @@ function byTrigger(entries: Row[]): Record<string, Rate> {
   return out
 }
 
-/** timeout + paused share among asks that had candidates. */
+/** timeout + paused among asks (lost ones too) that had candidates. */
 function lateShare(asks: Row[]): Rate {
   const had = asks.filter(r => (r.cands ?? 0) > 0)
   const late = had.filter(r =>
@@ -800,20 +950,20 @@ function misses(rows: Row[]): { rate: Rate; sampled: number } {
   return { rate: share(missed.size, sampled.size), sampled: sampled.size }
 }
 
-/** IDs injected noisyHits times or more and never relevant. */
+/** `<repo tag> <ID>` injected noisyHits times or more, never relevant. */
 function noisy(entries: Row[]): string[] {
-  return [...new Set(entries.map(r => r.id))].filter(id => {
-    const mine = entries.filter(r => r.id === id)
+  return [...new Set(entries.map(entryKey))].filter(k => {
+    const mine = entries.filter(r => entryKey(r) === k)
     return mine.length >= T.noisyHits &&
       mine.every(r => r.label !== 'relevant')
   }).sort()
 }
 
-/** IDs relevant promoteHits times in promoteSessions sessions or more. */
+/** `<repo tag> <ID>` relevant promoteHits times in promoteSessions. */
 function promote(entries: Row[]): string[] {
   const rel = entries.filter(r => r.label === 'relevant')
-  return [...new Set(rel.map(r => r.id))].filter(id => {
-    const mine = rel.filter(r => r.id === id)
+  return [...new Set(rel.map(entryKey))].filter(k => {
+    const mine = rel.filter(r => entryKey(r) === k)
     return mine.length >= T.promoteHits &&
       new Set(mine.map(r => r.session)).size >= T.promoteSessions
   }).sort()
@@ -823,16 +973,16 @@ function promote(entries: Row[]): string[] {
 const itemsOf = (entries: Row[], ch: string) =>
   new Set(entries.filter(r => r.channel === ch).map(keyOf)).size
 
-/** Every 4d signal; the clock starts at the first row carrying cands. */
+/** Every 4d signal, from labels.tsv rows. */
 export function metricsOf(all: Row[]): Metrics {
   const rows = liveRows(all)
   const entries = rows.filter(isEntry)
   const prompt = entries.filter(r => r.channel === 'prompt')
-  const asks = rows.filter(r => r.channel === 'prompt' && r.label === 'ask')
-  const starts = all.filter(r => r.cands !== undefined).map(r => r.at)
+  const asks = rows.filter(r => r.channel === 'prompt' &&
+    (r.label === 'ask' || r.label === 'lost'))
   const miss = misses(rows)
   return {
-    start: starts.length === 0 ? undefined : Math.min(...starts),
+    start: clockStart(all, []),
     promptN: itemsOf(entries, 'prompt'), toolN: itemsOf(entries, 'tool'),
     lost: rows.filter(r => r.label === 'lost').length,
     precision: precision(prompt), byTrigger: byTrigger(prompt),
@@ -844,32 +994,26 @@ export function metricsOf(all: Row[]): Metrics {
   }
 }
 
-function toolGate(n: number, now: number, cap: number, ext: boolean):
-  { tool: ToolGate; extendTool: boolean } {
-  if (n >= TOOL_GATE_N) return { tool: 'reached', extendTool: false }
-  if (now < cap) return { tool: 'open', extendTool: false }
-  if (!ext) return { tool: 'extended', extendTool: true }
-  if (now < cap + GATE_DAYS * DAY_MS) {
-    return { tool: 'extended', extendTool: false }
-  }
-  return { tool: 'insufficient', extendTool: false }
+/** The tool gate by count, else by time: one extension, then closed. */
+function toolGate(n: number, now: number, cap: number): ToolGate {
+  if (n >= TOOL_GATE_N) return 'reached'
+  if (now < cap) return 'open'
+  return now < cap + GATE_DAYS * DAY_MS ? 'extended' : 'insufficient'
 }
 
 /** Each channel's gate; the prompt gate never waits for the tool gate. */
-export function gateVerdict(m: Metrics, now: number, ext: boolean): Verdict {
-  if (m.start === undefined) {
-    return { prompt: 'open', tool: 'open', extendTool: false }
-  }
+export function gateVerdict(m: Metrics, now: number): Verdict {
+  if (m.start === undefined) return { prompt: 'open', tool: 'open' }
   const cap = m.start + GATE_DAYS * DAY_MS
   const prompt: Gate =
     m.promptN >= PROMPT_GATE_N || now >= cap ? 'reached' : 'open'
-  return { prompt, ...toolGate(m.toolN, now, cap, ext) }
+  return { prompt, tool: toolGate(m.toolN, now, cap) }
 }
 
 /** The worst trigger under the floor; ties go idle, keyword, fresh. */
 function worstTrigger(by: Record<string, Rate>): string | undefined {
-  const order = ['idle', 'keyword', 'fresh']
-  const low = order.filter(k => under(by[k], T.triggerFloor))
+  const low = ['idle', 'keyword', 'fresh']
+    .filter(k => under(by[k], T.triggerFloor))
   low.sort((a, b) => (by[a] ?? 0) - (by[b] ?? 0))
   return low[0]
 }
@@ -905,19 +1049,18 @@ export function actionsOf(m: Metrics, v: Verdict): string[] {
     out.push(`tool precision under ${pct(T.toolKeep)}: ` +
       'require 2 matched 4-grams, or exclude the entry')
   }
-  out.push(...m.noisy.map(id => `noisy: /prune-memory rewrites ${id}`))
-  out.push(...m.promote.map(id => `promotion candidate (BDR-100): ${id}`))
+  out.push(...m.noisy.map(k => `noisy: /prune-memory rewrites ${k}`))
+  out.push(...m.promote.map(k => `promotion candidate (BDR-100): ${k}`))
   return out
 }
 
 function toolLine(m: Metrics, v: Verdict): string {
-  const n = `${m.toolN}/${TOOL_GATE_N}`
   return v.tool === 'insufficient'
     ? `Tool gate: insufficient sample n=${m.toolN}, closed`
-    : `Tool gate: ${v.tool} (${n})`
+    : `Tool gate: ${v.tool} (${m.toolN}/${TOOL_GATE_N})`
 }
 
-/** FEEDBACK.md: counts and shares, IDs only in the last three lists. */
+/** FEEDBACK.md: counts and shares; repo tags only in the last lists. */
 export function renderFeedback(m: Metrics, v: Verdict, now: number) {
   const acts = actionsOf(m, v)
   return [
@@ -943,8 +1086,8 @@ export function renderFeedback(m: Metrics, v: Verdict, now: number) {
 
 - [ ] **Step 5: Run, see them pass**
 
-Run: `cd lib/memory-feedback && systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" bun test labels.test.ts metrics.test.ts </dev/null`
-Expected: 16 pass, 0 fail.
+Run: `systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" make test suite=lib/tests/memory-feedback.test.sh </dev/null`
+Expected: 19 pass, 0 fail (10 labels + 9 metrics).
 
 - [ ] **Step 6: Commit**
 
@@ -958,7 +1101,7 @@ git commit -m "feat(memory-feedback): thresholds, metrics and gate verdicts"
 ### Task 4: Transcript join
 
 Implements spec §2 (join). EVAL-037 (one record per content block),
-LRN-261 (the mod's types imported, not ported).
+LRN-261 (the mod's type imported).
 
 **Files:**
 - Create: `lib/memory-feedback/transcripts.ts`
@@ -967,10 +1110,11 @@ LRN-261 (the mod's types imported, not ported).
 **Interfaces:**
 - Consumes: `type LogRecord` from `../../mods/memory/hooks/register.ts`
   (Task 1).
-- Produces: `type Rec`; `JOIN_MS`; `slugOf(root: string): string`;
-  `sessionFiles(projects: string, root: string, session: string):
-  string[]`; `records(file: string): Rec[]`; `composerText(r: Rec): string
-  | undefined`; `type PromptJoin = { prompt: string; injected: string;
+- Produces: `type Rec`; `type Loaded = { recs: Rec[]; torn: number }`;
+  `JOIN_MS`; `slugOf(root: string): string`; `sessionFiles(projects:
+  string, root: string, session: string, withSub: boolean): string[]`;
+  `records(file: string): Loaded`; `composerText(r: Rec): string |
+  undefined`; `type PromptJoin = { prompt: string; injected: string;
   reply: string }`; `joinPrompt(recs: Rec[], rec: LogRecord): PromptJoin |
   undefined`; `type ToolJoin = { command: string; known: string; next:
   boolean[] }`; `joinTool(recs: Rec[], rec: LogRecord): ToolJoin |
@@ -981,7 +1125,7 @@ LRN-261 (the mod's types imported, not ported).
 `lib/memory-feedback/transcripts.test.ts`:
 
 ```ts
-import { expect, test } from 'bun:test'
+import { afterAll, expect, test } from 'bun:test'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
@@ -991,6 +1135,8 @@ import {
   type Rec,
 } from './transcripts.ts'
 
+const dirs: string[] = []
+afterAll(() => dirs.forEach(d => fs.rmSync(d, { recursive: true })))
 const T0 = Date.parse('2026-11-10T10:00:00.000Z')
 const iso = (ms: number) => new Date(T0 + ms).toISOString()
 const user = (ms: number, text: string): Rec => ({ type: 'user',
@@ -1005,18 +1151,21 @@ const hook = (ms: number, name: string, lines: string[], use?: string) => ({
 const rec = (over: Partial<LogRecord>): LogRecord => ({ at: T0, session: 's',
   agent: 'main', channel: 'prompt', ids: ['BDR-001'], trigger: 'fresh',
   outcome: 'injected', ...over })
+const JOIN_LATE = 10001 // one ms past JOIN_MS
 
-test('X1: slug, files and a torn line', () => {
+test('X1: slug, files, sub-agent files on demand, torn lines counted', () => {
   expect(slugOf('/home/a.b/c_d')).toBe('-home-a-b-c-d')
   const p = fs.mkdtempSync(path.join(os.tmpdir(), 'mf-'))
+  dirs.push(p)
   const dir = path.join(p, slugOf('/r'))
   fs.mkdirSync(path.join(dir, 's', 'subagents'), { recursive: true })
   fs.writeFileSync(path.join(dir, 's.jsonl'), '{"a":1}\n{"torn')
   fs.writeFileSync(path.join(dir, 's', 'subagents', 'x.jsonl'), '{"b":2}\n')
-  const files = sessionFiles(p, '/r', 's')
-  expect(files.map(f => path.basename(f))).toEqual(['s.jsonl', 'x.jsonl'])
-  expect(records(files[0]!)).toEqual([{ a: 1 }])
-  expect(sessionFiles(p, '/r', 'gone')).toEqual([])
+  const all = sessionFiles(p, '/r', 's', true)
+  expect(all.map(f => path.basename(f))).toEqual(['s.jsonl', 'x.jsonl'])
+  expect(sessionFiles(p, '/r', 's', false)).toHaveLength(1)
+  expect(records(all[0]!)).toEqual({ recs: [{ a: 1 }], torn: 1 })
+  expect(sessionFiles(p, '/r', 'gone', true)).toEqual([])
 })
 
 test('X2: composer prompts only', () => {
@@ -1041,41 +1190,44 @@ test('X3: an injected ask joins prompt, block and deduped reply', () => {
     injected: 'memory recall:\nBDR-001 x', reply: 'see BDR-001\ndone' })
 })
 
-const JOIN_LATE = 10001 // one ms past JOIN_MS
+test('X4: a non-injected ask joins its prompt; a missing turn is lost',
+  () => {
+    const recs = [user(-3000, 'plan the reader')]
+    expect(joinPrompt(recs, rec({ outcome: 'timeout', ids: [] })))
+      .toEqual({ prompt: 'plan the reader', injected: '', reply: '' })
+    expect(joinPrompt([], rec({ outcome: 'none', ids: [] })))
+      .toBeUndefined()
+    const late = [user(0, 'x'), hook(JOIN_LATE, 'prompt.submit',
+      ['memory recall:\nBDR-001 x'])]
+    expect(joinPrompt(late, rec({}))).toBeUndefined()
+  })
 
-test('X4: a non-injected ask joins its prompt; no turn is lost', () => {
-  const recs = [user(-3000, 'plan the reader')]
-  expect(joinPrompt(recs, rec({ outcome: 'timeout', ids: [] })))
-    .toEqual({ prompt: 'plan the reader', injected: '', reply: '' })
-  expect(joinPrompt([], rec({ outcome: 'none', ids: [] }))).toBeUndefined()
-  const late = [user(0, 'x'), hook(JOIN_LATE, 'prompt.submit',
-    ['memory recall:\nBDR-001 x'])]
-  expect(joinPrompt(late, rec({}))).toBeUndefined()
-})
-
-test('X5: a tool record joins command and the next results', () => {
-  const recs: Rec[] = [
-    { type: 'assistant', timestamp: iso(0), message: { id: 'a', content: [
-      { type: 'tool_use', id: 'u1', name: 'Bash',
-        input: { command: 'make test' } }] } },
-    { type: 'user', timestamp: iso(5), message: { content: [
-      { type: 'tool_result', tool_use_id: 'u1', is_error: true }] } },
-    hook(10, 'tool.call', ['memory: known BLK-003 — x'], 'u1'),
-    { type: 'assistant', timestamp: iso(20), message: { id: 'b', content: [
-      { type: 'tool_use', id: 'u2', name: 'Bash', input: {} }] } },
-    { type: 'user', timestamp: iso(25), message: { content: [
-      { type: 'tool_result', tool_use_id: 'u2', is_error: false }] } },
-  ]
-  const r = rec({ channel: 'tool', ids: ['BLK-003'], trigger: 'tool' })
-  expect(joinTool(recs, r)).toEqual({ command: 'make test',
-    known: 'memory: known BLK-003 — x', next: [false] })
-  expect(joinTool(recs, { ...r, ids: ['BLK-009'] })).toBeUndefined()
-})
+test('X5: a tool record joins through the -context id, replays ignored',
+  () => {
+    const use = (ms: number, id: string, command?: string): Rec => ({
+      type: 'assistant', timestamp: iso(ms), message: { id: `a${id}`,
+        content: [{ type: 'tool_use', id, name: 'Bash',
+          input: command ? { command } : {} }] } })
+    const result = (ms: number, id: string, err: boolean, type = 'user') =>
+      ({ type, timestamp: iso(ms), message: { content: [
+        { type: 'tool_result', tool_use_id: id, is_error: err }] } })
+    const recs: Rec[] = [
+      use(0, 'u1', 'make test'), result(5, 'u1', true),
+      hook(10, 'tool.call', ['memory: known BLK-003 — x'], 'u1-context'),
+      result(15, 'u1', true, 'api-request-blob'), // a replay, not a call
+      use(20, 'u2'), result(25, 'u2', false),
+      result(30, 'u2', false), // a duplicate result of the same call
+    ]
+    const r = rec({ channel: 'tool', ids: ['BLK-003'], trigger: 'tool' })
+    expect(joinTool(recs, r)).toEqual({ command: 'make test',
+      known: 'memory: known BLK-003 — x', next: [false] })
+    expect(joinTool(recs, { ...r, ids: ['BLK-009'] })).toBeUndefined()
+  })
 ```
 
 - [ ] **Step 2: Run, see them fail**
 
-Run: `cd lib/memory-feedback && systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" bun test transcripts.test.ts </dev/null`
+Run: `systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" make test suite=lib/tests/memory-feedback.test.sh </dev/null`
 Expected: FAIL, `Cannot find module './transcripts.ts'`.
 
 - [ ] **Step 3: Write `transcripts.ts`**
@@ -1088,22 +1240,24 @@ import * as path from 'node:path'
 import type { LogRecord } from '../../mods/memory/hooks/register.ts'
 
 export type Rec = Record<string, any>
+export type Loaded = { recs: Rec[]; torn: number }
 export const JOIN_MS = 10000 // attachment written at most this after `at`
 const NEAR_MS = 60000 // composer prompt at most this far from the ask
 const WRAPPERS = ['<command-', '<local-command', '<system-reminder']
 const RECALL_HEAD = 'memory recall:'
 const KNOWN_HEAD = 'memory: known '
+const CONTEXT_SUFFIX = /-context$/ // tool.call attachments: <id>-context
 
 /** The transcript folder name of a project root. */
 export const slugOf = (root: string) => root.replace(/[^A-Za-z0-9]/g, '-')
 
-/** The main transcript of a session, then its sub-agent ones. */
+/** The main transcript of a session, then its sub-agent ones if asked. */
 export function sessionFiles(
-  projects: string, root: string, session: string,
+  projects: string, root: string, session: string, withSub: boolean,
 ): string[] {
   const dir = path.join(projects, slugOf(root))
   const sub = path.join(dir, session, 'subagents')
-  const subs = fs.existsSync(sub)
+  const subs = withSub && fs.existsSync(sub)
     ? fs.readdirSync(sub).filter(f => f.endsWith('.jsonl')).sort()
       .map(f => path.join(sub, f))
     : []
@@ -1111,14 +1265,15 @@ export function sessionFiles(
     .filter(f => fs.existsSync(f))
 }
 
-/** Parsed lines of a transcript; a torn or partial line is skipped. */
-export function records(file: string): Rec[] {
-  const out: Rec[] = []
+/** Parsed lines of a transcript; torn or partial lines are counted. */
+export function records(file: string): Loaded {
+  const recs: Rec[] = []
+  let torn = 0
   for (const raw of fs.readFileSync(file, 'utf8').split('\n')) {
     if (raw.trim() === '') continue
-    try { out.push(JSON.parse(raw)) } catch { /* torn line */ }
+    try { recs.push(JSON.parse(raw)) } catch { torn += 1 }
   }
-  return out
+  return { recs, torn }
 }
 
 const tsOf = (r: Rec) => Date.parse(String(r.timestamp ?? ''))
@@ -1228,24 +1383,28 @@ export function joinPrompt(
     reply: replyAfter(recs, Math.max(t, p?.t ?? t)) }
 }
 
+/** Blocks of real calls and results: blob replays are skipped. */
+const callBlocks = (recs: Rec[]) => recs
+  .filter(r => r.type === 'assistant' || r.type === 'user')
+  .flatMap(blocksOf)
+
 /** The command of a Bash tool_use. */
-function bashCommand(recs: Rec[], useId: string): string {
-  for (const b of recs.flatMap(blocksOf)) {
-    if (b.type === 'tool_use' && b.id === useId) {
-      return String(b.input?.command ?? '')
-    }
-  }
-  return ''
+function bashCommand(blocks: Rec[], useId: string): string {
+  const b = blocks.find(x => x.type === 'tool_use' && x.id === useId)
+  return String(b?.input?.command ?? '')
 }
 
 /** Whether each of the next 3 Bash results after `useId` failed. */
-function nextResults(recs: Rec[], useId: string): boolean[] {
+function nextResults(blocks: Rec[], useId: string): boolean[] {
   const bash = new Set<string>()
+  const done = new Set<string>()
   const out: boolean[] = []
   let after = false
-  for (const b of recs.flatMap(blocksOf)) {
+  for (const b of blocks) {
     if (b.type === 'tool_use' && b.name === 'Bash') bash.add(b.id)
     if (b.type !== 'tool_result' || !bash.has(b.tool_use_id)) continue
+    if (done.has(b.tool_use_id)) continue
+    done.add(b.tool_use_id)
     if (after && out.length < 3) out.push(b.is_error === true)
     if (b.tool_use_id === useId) after = true
   }
@@ -1258,18 +1417,20 @@ export type ToolJoin = { command: string; known: string; next: boolean[] }
 export function joinTool(recs: Rec[], rec: LogRecord): ToolJoin | undefined {
   const needle = KNOWN_HEAD + (rec.ids[0] ?? '')
   const att = attachmentAfter(recs, rec.at, 'tool.call', needle)
-  const useId = att?.attachment?.toolUseID
-  if (att === undefined || typeof useId !== 'string') return undefined
-  return { command: bashCommand(recs, useId),
+  const raw = att?.attachment?.toolUseID
+  if (att === undefined || typeof raw !== 'string') return undefined
+  const useId = raw.replace(CONTEXT_SUFFIX, '')
+  const blocks = callBlocks(recs)
+  return { command: bashCommand(blocks, useId),
     known: hookText(att, 'tool.call') ?? '',
-    next: nextResults(recs, useId) }
+    next: nextResults(blocks, useId) }
 }
 ```
 
 - [ ] **Step 4: Run, see them pass**
 
-Run: `cd lib/memory-feedback && systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" bun test </dev/null`
-Expected: 21 pass, 0 fail (5 transcripts + 7 labels + 9 metrics).
+Run: `systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" make test suite=lib/tests/memory-feedback.test.sh </dev/null`
+Expected: 24 pass, 0 fail (10 labels + 9 metrics + 5 transcripts).
 
 - [ ] **Step 5: Commit**
 
@@ -1280,50 +1441,64 @@ git commit -m "feat(memory-feedback): join log records to transcript turns"
 
 ---
 
-### Task 5: Reader CLI and its suite
+### Task 5: Reader CLI
 
-Implements spec §2 (commands, population, worksheet, apply). LRN-241
-(population from the gate clock), LRN-133 (lost counted), LRN-261 (imports
-`isLogRecord` and `LOG_PREFIX`).
+Implements spec §2 (commands, population, worksheet, apply). LRN-241,
+LRN-133 (lost and torn counted), LRN-261 (imports `isLogRecord`,
+`LOG_PREFIX`, `MAX_LOG`, `redact`), BDR-057 (redact before writing).
 
 **Files:**
 - Create: `lib/memory-feedback/reader.ts`
 - Test: `lib/memory-feedback/reader.test.ts`
-- Create: `lib/tests/memory-feedback.test.sh` (the `make test` entry)
 
 **Interfaces:**
-- Consumes: Task 1 `LOG_PREFIX`, `isLogRecord`, `LogRecord`; Task 2
-  `keyOf`, `parseDraft`, `readRows`, `readState`, `rowsOf`, `writeRows`,
-  `writeSafe`, `writeState`, `Item`; Task 3 `gateVerdict`, `metricsOf`,
-  `renderFeedback`; Task 4 `joinPrompt`, `joinTool`, `records`,
-  `sessionFiles`, `Rec`.
-- Produces: `type Paths = { store: string; projects: string; out: string
-  }`; `storeFile(dir: string): string`; `readLogs(file: string): Logged[]`;
-  `population(logs: Logged[], labelled: Set<string>): Logged[]`;
-  `worksheet(dir: string, p: Paths): number`; `apply(dir: string, p: Paths,
-  now: number): string`; CLI `bun reader.ts worksheet|apply <abs dir>`
-  (rc 0 ok, 1 error on stderr, 2 usage).
+- Consumes: Task 1 `LOG_PREFIX`, `MAX_LOG`, `isLogRecord`, `redact`,
+  `LogRecord`; Task 2 `appendRows`, `keyOf`, `parseDraft`, `readRows`,
+  `readState`, `rowsOf`, `skeleton`, `tagOf`, `writeSafe`, `writeState`,
+  `Item`, `State`; Task 3 `clockStart`, `gateVerdict`, `metricsOf`,
+  `renderFeedback`, `Verdict`; Task 4 `joinPrompt`, `joinTool`, `records`,
+  `sessionFiles`, `Loaded`.
+- Produces: `type Paths`; `type Logged`; `storeFile(dir: string): string`;
+  `readLogs(file: string): Logged[]`; `population(logs: Logged[], done:
+  Set<string>, start: number | undefined, now: number): Logged[]`;
+  `worksheet(dir: string, p: Paths, now: number): number`; `apply(dir:
+  string, p: Paths, now: number): string`; `sample(dir: string, n: number):
+  string[]`; `checkDir(dir: string | undefined): string`; CLI
+  `bun reader.ts worksheet|apply|sample <abs dir>` (rc 0 ok, 1 error on
+  stderr, 2 usage or refused dir).
 
 - [ ] **Step 1: Write the failing tests**
 
 `lib/memory-feedback/reader.test.ts`:
 
 ```ts
-import { expect, test } from 'bun:test'
+import { afterAll, expect, test } from 'bun:test'
+import { spawnSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { slugOf } from './transcripts.ts'
 import {
-  apply, population, readLogs, storeFile, worksheet, type Paths,
+  apply, checkDir, population, readLogs, sample, storeFile, worksheet,
+  type Paths,
 } from './reader.ts'
 
+const dirs: string[] = []
+afterAll(() => dirs.forEach(d => fs.rmSync(d, { recursive: true })))
+const mk = (pfx: string) => {
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), pfx))
+  dirs.push(d)
+  return d
+}
 const T0 = Date.parse('2026-11-10T10:00:00.000Z')
+const NOW = T0 + 2 * 3600000 // every fixture record is 2 h old
 const iso = (ms: number) => new Date(T0 + ms).toISOString()
+// built at run time: no secret-shaped literal in the repo (BLK-041)
+const PLANTED = ['API', 'TOKEN'].join('_') + '=' + 'hunter' + '2value'
 
-/** A fixture home: store, one transcript, an empty out dir, a work dir. */
+/** A fixture home: store, one transcript, an out dir, a work dir. */
 function fixture(store: unknown): { p: Paths; work: string } {
-  const home = fs.mkdtempSync(path.join(os.tmpdir(), 'mf-'))
+  const home = mk('mf-')
   const p = { store: path.join(home, 'store'),
     projects: path.join(home, 'projects'), out: path.join(home, 'mf') }
   fs.mkdirSync(p.store)
@@ -1333,23 +1508,24 @@ function fixture(store: unknown): { p: Paths; work: string } {
   fs.mkdirSync(dir, { recursive: true })
   fs.writeFileSync(path.join(dir, 's1.jsonl'), [
     { type: 'user', timestamp: iso(-50), origin: { kind: 'human' },
-      message: { content: 'design the reader gate' } },
+      message: { content: `design the reader gate with ${PLANTED}` } },
     { type: 'attachment', timestamp: iso(400), attachment: {
       type: 'hook_additional_context', hookName: 'prompt.submit',
       content: ['memory recall:\nBDR-001 x'] } },
     { type: 'assistant', timestamp: iso(900),
       message: { id: 'm', content: [{ type: 'text', text: 'per BDR-001' }] } },
   ].map(r => JSON.stringify(r)).join('\n') + '\n')
-  const work = fs.mkdtempSync(path.join(os.tmpdir(), 'mf-work-'))
-  return { p, work }
+  return { p, work: mk('mf-work-') }
 }
 const REC = (at: number, over = {}) => ({ at, session: 's1', agent: 'main',
   channel: 'prompt', ids: ['BDR-001'], trigger: 'fresh',
   outcome: 'injected', cands: 5, ms: 800, ...over })
 const STORE = { 'l:/repo/x': [
-  REC(T0 - 9e6, { cands: undefined }),  // before 4d.1: out of population
-  REC(T0), REC(T0 + 60000, { session: 'gone' }),  // second one lost
+  REC(T0 - 9e6, { cands: undefined }), // before 4d.1: out of population
+  REC(T0), REC(T0 + 60000, { session: 'gone' }), // the second one lost
 ], 'p:/repo/x': { sessions: [] } }
+const draft = (work: string, text: string) =>
+  fs.writeFileSync(path.join(work, 'labels-draft.tsv'), text)
 
 test('R1: no store file, or a torn one, fails loudly', () => {
   const { p } = fixture('{"l:/x": [tor')
@@ -1357,125 +1533,148 @@ test('R1: no store file, or a torn one, fails loudly', () => {
   expect(() => storeFile(path.join(p.store, 'none'))).toThrow('no memory')
 })
 
-test('R2: population starts at the first cands record, skips labelled', () => {
+test('R2: population from the clock start, unlabelled, 30 min old', () => {
   const { p } = fixture(STORE)
   const logs = readLogs(storeFile(p.store))
-  expect(population(logs, new Set()).map(l => l.rec.at))
+  expect(population(logs, new Set(), T0, NOW).map(l => l.rec.at))
     .toEqual([T0, T0 + 60000])
-  expect(population(logs, new Set([`s1|${T0}|prompt`]))).toHaveLength(1)
-  expect(population(logs.slice(0, 1), new Set())).toEqual([])
+  expect(population(logs, new Set([`s1|${T0}|prompt`]), T0, NOW))
+    .toHaveLength(1)
+  expect(population(logs, new Set(), T0, T0 + 600000)).toHaveLength(0)
+  expect(population(logs, new Set(), undefined, NOW)).toEqual([])
 })
 
-test('R3: worksheet writes 0600 text files and a lost item', () => {
-  const { p, work } = fixture(STORE)
-  expect(worksheet(work, p)).toBe(2)
-  const sheet = fs.readFileSync(path.join(work, 'worksheet.md'), 'utf8')
-  expect(sheet).toContain('design the reader gate')
-  expect(sheet).toContain('LOST')
-  for (const f of ['worksheet.md', 'items.json']) {
-    expect(fs.statSync(path.join(work, f)).mode & 0o777).toBe(0o600)
-  }
-  const items = JSON.parse(fs.readFileSync(
-    path.join(work, 'items.json'), 'utf8'))
-  expect(items.map((i: { cited: string[]; lost: boolean }) =>
-    [i.cited, i.lost])).toEqual([[['BDR-001'], false], [[], true]])
-})
+test('R3: worksheet: 0600 files, redacted text, a lost item, a skeleton',
+  () => {
+    const { p, work } = fixture(STORE)
+    expect(worksheet(work, p, NOW)).toBe(2)
+    const sheet = fs.readFileSync(path.join(work, 'worksheet.md'), 'utf8')
+    expect(sheet).toContain('design the reader gate')
+    expect(sheet).not.toContain('hunter2value')
+    expect(sheet).toContain('LOST')
+    for (const f of ['worksheet.md', 'items.json', 'labels-draft.tsv']) {
+      expect(fs.statSync(path.join(work, f)).mode & 0o777).toBe(0o600)
+    }
+    expect(fs.readFileSync(path.join(work, 'labels-draft.tsv'), 'utf8'))
+      .toContain('1\tBDR-001\t')
+    const items = JSON.parse(fs.readFileSync(
+      path.join(work, 'items.json'), 'utf8'))
+    expect(items.map((i: { cited: string[]; lost: boolean }) =>
+      [i.cited, i.lost])).toEqual([[['BDR-001'], false], [[], true]])
+  })
 
 test('R4: a bad draft refuses the whole apply, nothing written', () => {
   const { p, work } = fixture(STORE)
-  worksheet(work, p)
-  fs.writeFileSync(path.join(work, 'labels-draft.tsv'), '1\tBDR-001\tmaybe')
-  expect(() => apply(work, p, T0)).toThrow('draft refused')
+  worksheet(work, p, NOW)
+  draft(work, '1\tBDR-001\tmaybe')
+  expect(() => apply(work, p, NOW)).toThrow('draft refused')
   expect(fs.existsSync(p.out)).toBe(false)
 })
 
 test('R5: apply writes labels, state, FEEDBACK; a second apply refuses',
   () => {
     const { p, work } = fixture(STORE)
-    worksheet(work, p)
-    fs.writeFileSync(path.join(work, 'labels-draft.tsv'),
-      '1\tBDR-001\trelevant\n')
-    const fb = apply(work, p, T0 + 1)
+    worksheet(work, p, NOW)
+    draft(work, '1\tBDR-001\trelevant\n')
+    const fb = apply(work, p, NOW)
     expect(fb).toContain('Prompt gate: open (1/20)')
     expect(fb).toContain('Lost records: 1')
     expect(fb).not.toContain('design the reader gate')
     const labels = fs.readFileSync(path.join(p.out, 'labels.tsv'), 'utf8')
-    expect(labels).not.toContain('design the reader gate')
+    expect(labels).not.toContain('design')
     expect(labels).not.toContain('/repo/x')
+    expect(labels).toMatch(/\tx#[0-9a-f]{6}\t/)
     expect(JSON.parse(fs.readFileSync(path.join(p.out, 'state.json'),
-      'utf8')).lastRun).toBe(T0 + 1)
-    expect(() => apply(work, p, T0 + 2)).toThrow('already applied')
-    expect(worksheet(work, p)).toBe(0)
+      'utf8')).lastRun).toBe(NOW)
+    expect(() => apply(work, p, NOW + 1)).toThrow('already applied')
+    expect(worksheet(work, p, NOW + 2)).toBe(0)
   })
 
 test('R6: a first run with nothing to label records the run only', () => {
   const { p, work } = fixture({ 'l:/repo/x': [REC(T0, { cands: undefined })] })
-  expect(worksheet(work, p)).toBe(0)
+  expect(worksheet(work, p, NOW)).toBe(0)
   expect(fs.readFileSync(path.join(work, 'worksheet.md'), 'utf8'))
     .toContain('No unlabelled record')
-  expect(apply(work, p, T0)).toContain('Gate clock start: not started')
+  expect(apply(work, p, NOW)).toContain('Gate clock start: not started')
   expect(fs.existsSync(path.join(p.out, 'state.json'))).toBe(true)
+})
+
+test('R7: a gate verdict is NEW once, then recorded', () => {
+  const { p, work } = fixture(STORE)
+  const late = T0 + 36 * 86400000 // past the 5-week cap
+  worksheet(work, p, late)
+  draft(work, '1\tBDR-001\trelevant\n')
+  expect(apply(work, p, late)).toContain('NEW: prompt gate reached')
+  worksheet(work, p, late + 1)
+  draft(work, '')
+  const again = apply(work, p, late + 1)
+  expect(again).toContain('Prompt gate: reached')
+  expect(again).not.toContain('NEW:')
+})
+
+test('R8: the CLI refuses a dir inside a git work tree', () => {
+  const repo = mk('mf-repo-')
+  spawnSync('git', ['-C', repo, 'init', '-q'])
+  expect(checkDir(repo)).toContain('git work tree')
+  expect(checkDir('relative/dir')).not.toBe('')
+  expect(checkDir(mk('mf-ok-'))).toBe('')
+})
+
+test('R9: sample picks entry lines of the draft', () => {
+  const { p, work } = fixture(STORE)
+  worksheet(work, p, NOW)
+  draft(work, '1\tBDR-001\trelevant\n1\t-\tchecked\n')
+  expect(sample(work, 5)).toEqual(['1\tBDR-001\trelevant'])
 })
 ```
 
-- [ ] **Step 2: Write the suite entry `lib/tests/memory-feedback.test.sh`**
+- [ ] **Step 2: Run, see them fail**
 
-```bash
-#!/usr/bin/env bash
-# lib/tests/memory-feedback.test.sh — the bun unit suite of
-# lib/memory-feedback (phase 4d reader, labels, metrics, transcripts).
-# Fails when bun is absent: it never passes vacuously.
-set -u
-ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-command -v bun >/dev/null 2>&1 || { echo "FAIL bun not on PATH"; exit 1; }
-cd "$ROOT/lib/memory-feedback" || exit 1
-bun test 2>&1
-```
-
-Then `chmod +x lib/tests/memory-feedback.test.sh`.
-
-- [ ] **Step 3: Run, see the reader tests fail**
-
-Run: `systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" bash lib/tests/memory-feedback.test.sh </dev/null`
-Expected: FAIL, `Cannot find module './reader.ts'`; the 21 earlier tests
+Run: `systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" make test suite=lib/tests/memory-feedback.test.sh </dev/null`
+Expected: FAIL, `Cannot find module './reader.ts'`; the 24 earlier tests
 still pass.
 
-- [ ] **Step 4: Write `reader.ts`**
+- [ ] **Step 3: Write `reader.ts`**
 
 ```ts
 #!/usr/bin/env bun
 // lib/memory-feedback/reader.ts: phase 4d reader. `worksheet <dir>` joins
 // the unlabelled injection-log records to their transcripts; `apply <dir>`
 // validates the labeller's draft, appends labels.tsv and regenerates
-// FEEDBACK.md. Text only ever lands in <dir>, the session scratchpad.
+// FEEDBACK.md; `sample <dir>` picks entries for the spot check. Redacted
+// text only ever lands in <dir>, the session scratchpad.
+import { spawnSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import {
-  LOG_PREFIX, isLogRecord, type LogRecord,
+  LOG_PREFIX, MAX_LOG, isLogRecord, redact, type LogRecord,
 } from '../../mods/memory/hooks/register.ts'
 import {
-  keyOf, parseDraft, readRows, readState, rowsOf, writeRows, writeSafe,
-  writeState, type Item,
+  appendRows, keyOf, parseDraft, readRows, readState, rowsOf, skeleton,
+  tagOf, writeSafe, writeState, type Item, type State,
 } from './labels.ts'
-import { gateVerdict, metricsOf, renderFeedback } from './metrics.ts'
 import {
-  joinPrompt, joinTool, records, sessionFiles, type Rec,
+  clockStart, gateVerdict, metricsOf, renderFeedback, type Verdict,
+} from './metrics.ts'
+import {
+  joinPrompt, joinTool, records, sessionFiles, type Loaded,
 } from './transcripts.ts'
 
 export type Paths = { store: string; projects: string; out: string }
 export type Logged = { root: string; rec: LogRecord }
 type Base = Omit<Item, 'cited' | 'lost'>
 type Joined = { item: Item; text: string }
+type Load = (l: Logged) => Loaded
 
+const AGE_FLOOR_MS = 1800000 // a younger record may still be mid-turn
 const PROMPT_MAX = 600
 const REPLY_MAX = 800
 const DRAFT_HELP = [
-  'Write labels-draft.tsv next to this file, one TAB-separated line each:',
-  '`<item> <id> <label> [<cause>]`. Labels: `relevant` or `irrelevant` per',
-  'injected id; `test` per id, or `<item> - test` for a whole proof item;',
-  '`<item> <id> missed <cause>` (no-overlap, rank-over-30, declined,',
-  'not-triggered); `<item> - checked` for a sampled ask with no miss.',
+  'Fill the 3rd column of labels-draft.tsv: `relevant` or `irrelevant`.',
+  'A whole proof item: `<item> - test`. A miss: `<item> <id> missed',
+  '<cause>` with cause `no-overlap` or `overlap`; a searched ask with no',
+  'miss: `<item> - checked`. Lines are TAB separated.',
 ].join('\n')
 
 export function defaultPaths(): Paths {
@@ -1515,17 +1714,30 @@ export function readLogs(file: string): Logged[] {
   return out.sort((a, b) => a.rec.at - b.rec.at)
 }
 
-/** Records from the gate clock start on, not labelled yet (LRN-241). */
-export function population(logs: Logged[], done: Set<string>): Logged[] {
-  const starts = logs.filter(l => l.rec.cands !== undefined)
-    .map(l => l.rec.at)
-  if (starts.length === 0) return []
-  const start = Math.min(...starts)
-  return logs.filter(l => l.rec.at >= start && !done.has(keyOf(l.rec)))
+/** Unlabelled records from the clock start, AGE_FLOOR_MS old or more. */
+export function population(
+  logs: Logged[], done: Set<string>, start: number | undefined,
+  now: number,
+): Logged[] {
+  if (start === undefined) return []
+  return logs.filter(l => l.rec.at >= start &&
+    l.rec.at <= now - AGE_FLOOR_MS && !done.has(keyOf(l.rec)))
 }
 
-const cut = (s: string, n: number) =>
-  s.length <= n ? s : `${s.slice(0, n)}…`
+/** Roots at the log cap whose oldest record is newer than the last run. */
+function evictions(logs: Logged[], lastRun: number): string[] {
+  if (lastRun === 0) return []
+  const roots = [...new Set(logs.map(l => l.root))]
+  return roots.filter(root => {
+    const mine = logs.filter(l => l.root === root)
+    return mine.length >= MAX_LOG && (mine[0]?.rec.at ?? 0) > lastRun
+  }).map(tagOf)
+}
+
+const clip = (s: string, n: number) => {
+  const r = redact(s) // redact first: a secret straddling the cut escapes
+  return r.length <= n ? r : `${r.slice(0, n)}…`
+}
 const citedIn = (ids: string[], text: string) =>
   ids.filter(id => new RegExp(`\\b${id}\\b`).test(text))
 
@@ -1539,96 +1751,175 @@ function header(b: Base, lost: boolean): string {
 const lostItem = (b: Base): Joined =>
   ({ item: { ...b, cited: [], lost: true }, text: header(b, true) })
 
-function promptItem(b: Base, recs: Rec[], rec: LogRecord): Joined {
-  const j = joinPrompt(recs, rec)
+function promptItem(b: Base, l: Loaded, rec: LogRecord): Joined {
+  const j = joinPrompt(l.recs, rec)
   if (j === undefined) return lostItem(b)
   const cited = citedIn(b.ids, j.reply)
-  const text = [header(b, false), `Prompt: ${cut(j.prompt, PROMPT_MAX)}`,
-    `Injected:\n${j.injected || '-'}`, `Reply: ${cut(j.reply, REPLY_MAX)}`,
+  const text = [header(b, false), `Prompt: ${clip(j.prompt, PROMPT_MAX)}`,
+    `Injected:\n${redact(j.injected) || '-'}`,
+    `Reply: ${clip(j.reply, REPLY_MAX)}`,
     `Cited: ${cited.join(', ') || 'none'}`].join('\n\n')
   return { item: { ...b, cited, lost: false }, text }
 }
 
-function toolItem(b: Base, recs: Rec[], rec: LogRecord): Joined {
-  const j = joinTool(recs, rec)
+function toolItem(b: Base, l: Loaded, rec: LogRecord): Joined {
+  const j = joinTool(l.recs, rec)
   if (j === undefined) return lostItem(b)
   const next = j.next.map(f => f ? 'failed' : 'ok').join(', ') || 'none'
-  const text = [header(b, false), `Command: ${cut(j.command, PROMPT_MAX)}`,
-    `Known: ${j.known}`, `Next Bash results: ${next}`].join('\n\n')
+  const text = [header(b, false), `Command: ${clip(j.command, PROMPT_MAX)}`,
+    `Known: ${redact(j.known)}`, `Next Bash results: ${next}`]
+    .join('\n\n')
   return { item: { ...b, cited: [], lost: false }, text }
 }
 
-/** One worksheet item, joined across the session's transcript files. */
-function joinOne(l: Logged, n: number, projects: string): Joined {
-  const recs = sessionFiles(projects, l.root, l.rec.session)
-    .flatMap(records)
+/** A per-run transcript loader: each session read once (R8); sub-agent
+ * files only for sub-agent tool records. */
+function loaderFor(projects: string): Load {
+  const cache = new Map<string, Loaded>()
+  return (l: Logged) => {
+    const sub = l.rec.channel === 'tool' && l.rec.agent !== 'main'
+    const key = `${l.root}|${l.rec.session}|${sub}`
+    const hit = cache.get(key)
+    if (hit !== undefined) return hit
+    const loaded = sessionFiles(projects, l.root, l.rec.session, sub)
+      .map(records).reduce((a, b) => ({ recs: [...a.recs, ...b.recs],
+        torn: a.torn + b.torn }), { recs: [], torn: 0 } as Loaded)
+    cache.set(key, loaded)
+    return loaded
+  }
+}
+
+/** One worksheet item and its redacted text. */
+function joinOne(l: Logged, n: number, load: Load): Joined {
   const r = l.rec
-  const b: Base = { n, root: path.basename(l.root), session: r.session,
-    at: r.at, channel: r.channel, trigger: r.trigger ?? '',
-    outcome: r.outcome ?? '', cands: r.cands, ms: r.ms, ids: r.ids }
+  const b: Base = { n, root: tagOf(l.root), session: r.session, at: r.at,
+    channel: r.channel, trigger: r.trigger ?? '', outcome: r.outcome ?? '',
+    cands: r.cands, ms: r.ms, ids: r.ids }
+  const loaded = load(l)
   return r.channel === 'prompt'
-    ? promptItem(b, recs, r) : toolItem(b, recs, r)
+    ? promptItem(b, loaded, r) : toolItem(b, loaded, r)
 }
 
 const labelsOf = (p: Paths) => path.join(p.out, 'labels.tsv')
 const stateOf = (p: Paths) => path.join(p.out, 'state.json')
 
-/** Writes worksheet.md and items.json (0600) into `dir`; the count. */
-export function worksheet(dir: string, p: Paths): number {
-  const done = new Set(readRows(labelsOf(p)).map(keyOf))
-  const pop = population(readLogs(storeFile(p.store)), done)
-  const joined = pop.map((l, i) => joinOne(l, i + 1, p.projects))
-  const head = pop.length === 0
+/** The worksheet's first lines: counts, torn lines, possible evictions. */
+function sheetHead(n: number, torn: number, evicted: string[]): string {
+  const lines = [n === 0
     ? 'No unlabelled record since the gate clock start.'
-    : `${pop.length} records to label.`
+    : `${n} records to label.`]
+  if (torn > 0) lines.push(`Skipped ${torn} torn transcript lines.`)
+  if (evicted.length > 0) {
+    lines.push(`Possible eviction before labelling: ${evicted.join(', ')}`)
+  }
+  return lines.join('\n')
+}
+
+/** Writes worksheet.md, items.json, labels-draft.tsv (0600); the count. */
+export function worksheet(dir: string, p: Paths, now: number): number {
+  const rows = readRows(labelsOf(p))
+  const logs = readLogs(storeFile(p.store))
+  const logAts = logs.filter(l => l.rec.cands !== undefined)
+    .map(l => l.rec.at)
+  const pop = population(logs, new Set(rows.map(keyOf)),
+    clockStart(rows, logAts), now)
+  const load = loaderFor(p.projects)
+  const joined = pop.map((l, i) => joinOne(l, i + 1, load))
+  const torn = pop.reduce((t, l) => t + load(l).torn, 0)
+  const head = sheetHead(pop.length, torn,
+    evictions(logs, readState(stateOf(p)).lastRun))
   writeSafe(path.join(dir, 'worksheet.md'), ['# Memory feedback worksheet',
     head, DRAFT_HELP, ...joined.map(j => j.text)].join('\n\n') + '\n')
-  writeSafe(path.join(dir, 'items.json'),
-    JSON.stringify(joined.map(j => j.item)))
+  const items = joined.map(j => j.item)
+  writeSafe(path.join(dir, 'items.json'), JSON.stringify(items))
+  writeSafe(path.join(dir, 'labels-draft.tsv'), skeleton(items))
   return pop.length
 }
 
-function readDraft(dir: string): string {
+const draftOf = (dir: string) => {
   const f = path.join(dir, 'labels-draft.tsv')
   return fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : ''
 }
 
-/** Validates the draft, appends labels.tsv, saves state, FEEDBACK.md. */
+/** The state after this run, and a NEW line per gate first reached. */
+function nextState(st: State, v: Verdict, now: number) {
+  const news: string[] = []
+  let { promptAt, toolAt } = st
+  if (promptAt === undefined && v.prompt === 'reached') {
+    promptAt = now
+    news.push('NEW: prompt gate reached')
+  }
+  const toolDone = v.tool === 'reached' || v.tool === 'insufficient'
+  if (toolAt === undefined && toolDone) {
+    toolAt = now
+    news.push(`NEW: tool gate ${v.tool}`)
+  }
+  const closed = promptAt !== undefined && toolAt !== undefined
+  return { state: { lastRun: now, promptAt, toolAt, closed }, news }
+}
+
+/** Validates the draft; writes state, then labels, then FEEDBACK.md. */
 export function apply(dir: string, p: Paths, now: number): string {
   const items: Item[] = JSON.parse(
     fs.readFileSync(path.join(dir, 'items.json'), 'utf8'))
-  const drafts = parseDraft(readDraft(dir), items)
+  const drafts = parseDraft(draftOf(dir), items)
   if (typeof drafts === 'string') throw new Error(`draft refused: ${drafts}`)
   const old = readRows(labelsOf(p))
   const done = new Set(old.map(keyOf))
   if (items.some(i => done.has(keyOf(i)))) {
     throw new Error('items already applied: run worksheet again')
   }
-  const rows = [...old, ...items.flatMap(i => rowsOf(i, drafts))]
-  const st = readState(stateOf(p))
-  const m = metricsOf(rows)
-  const v = gateVerdict(m, now, st.toolExtended)
+  const fresh = items.flatMap(i => rowsOf(i, drafts))
+  const m = metricsOf([...old, ...fresh])
+  const v = gateVerdict(m, now)
+  const { state, news } = nextState(readState(stateOf(p)), v, now)
   const feedback = renderFeedback(m, v, now)
-  writeRows(labelsOf(p), rows)
-  writeState(stateOf(p),
-    { lastRun: now, toolExtended: st.toolExtended || v.extendTool })
+  writeState(stateOf(p), state)
+  if (fresh.length > 0) appendRows(labelsOf(p), fresh)
   writeSafe(path.join(p.out, 'FEEDBACK.md'), feedback)
-  return feedback
+  return feedback + news.map(n => n + '\n').join('')
+}
+
+/** Up to `n` entry lines of the draft, picked at random. */
+export function sample(dir: string, n: number): string[] {
+  const lines = draftOf(dir).split('\n')
+    .filter(l => /\t(relevant|irrelevant)$/.test(l))
+  for (let i = lines.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[lines[i], lines[j]] = [lines[j] as string, lines[i] as string]
+  }
+  return lines.slice(0, n)
+}
+
+/** '' for a usable dir; else why not (text must never reach a repo). */
+export function checkDir(dir: string | undefined): string {
+  if (dir === undefined || !path.isAbsolute(dir)) return 'not absolute'
+  if (!fs.existsSync(dir)) return 'does not exist'
+  const git = spawnSync('git', ['-C', dir, 'rev-parse',
+    '--is-inside-work-tree'], { encoding: 'utf8' })
+  return git.stdout.trim() === 'true' ? 'inside a git work tree' : ''
+}
+
+function run(cmd: string, dir: string): void {
+  const p = defaultPaths()
+  if (cmd === 'worksheet') {
+    const n = worksheet(dir, p, Date.now())
+    console.log(`${n} records to label: ${dir}/worksheet.md`)
+  } else if (cmd === 'apply') {
+    process.stdout.write(apply(dir, p, Date.now()))
+  } else console.log(sample(dir, 5).join('\n'))
 }
 
 function main(argv: string[]): number {
   const [cmd, dir] = argv
-  const ok = (cmd === 'worksheet' || cmd === 'apply') &&
-    dir !== undefined && path.isAbsolute(dir) && fs.existsSync(dir)
-  if (!ok) {
-    console.error('usage: reader.ts worksheet|apply <absolute existing dir>')
+  const why = checkDir(dir)
+  if (!['worksheet', 'apply', 'sample'].includes(cmd ?? '') || why !== '') {
+    console.error('usage: reader.ts worksheet|apply|sample <dir> ' +
+      `(absolute, outside any git work tree)${why ? `: ${why}` : ''}`)
     return 2
   }
   try {
-    if (cmd === 'worksheet') {
-      console.log(`${worksheet(dir, defaultPaths())} records to label: ` +
-        `${dir}/worksheet.md`)
-    } else process.stdout.write(apply(dir, defaultPaths(), Date.now()))
+    run(cmd as string, dir as string)
     return 0
   } catch (e) {
     console.error(`memory-feedback: ${(e as Error).message}`)
@@ -1639,19 +1930,20 @@ function main(argv: string[]): number {
 if (import.meta.main) process.exit(main(process.argv.slice(2)))
 ```
 
-- [ ] **Step 5: Run the whole suite, see it pass**
+- [ ] **Step 4: Run, see it pass, then the CLI usage path**
 
-Run: `systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" bash lib/tests/memory-feedback.test.sh </dev/null`
-Expected: 27 pass, 0 fail.
+Run: `systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" make test suite=lib/tests/memory-feedback.test.sh </dev/null`
+Expected: 33 pass, 0 fail.
 
-Then the usage path: `env PATH="$HOME/.bun/bin:$PATH" bun lib/memory-feedback/reader.ts; echo rc=$?`
-Expected: the usage line on stderr, `rc=2`.
+Then: `(cd lib/memory-feedback && env PATH="$HOME/.bun/bin:$PATH" bun reader.ts apply "$PWD"; echo rc=$?)`
+Expected: the usage line ending `: inside a git work tree` on stderr,
+`rc=2`.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add lib/memory-feedback/reader.ts lib/memory-feedback/reader.test.ts lib/tests/memory-feedback.test.sh
-git commit -m "feat(memory-feedback): worksheet and apply reader"
+git add lib/memory-feedback/reader.ts lib/memory-feedback/reader.test.ts
+git commit -m "feat(memory-feedback): worksheet, apply and sample reader"
 ```
 
 ---
@@ -1665,13 +1957,13 @@ exists).
 - Create: `lib/memory-feedback-remind.sh`
 - Test: `lib/tests/memory-feedback-remind.test.sh`
 - Modify: `hooks/session-start.sh:447-455` (inside the `_ss_digest` block,
-  before `_memory_digest`)
+  before `_ss_root=`)
 - Test: `lib/tests/session-digest.test.sh` (new case SD17 before SD15)
 
 **Interfaces:**
 - Produces: `bash lib/memory-feedback-remind.sh` prints one line or
-  nothing, always rc 0; reads `$HOME/.claude/plugins/store/memory_skills-dir-*.json`
-  and `$HOME/.claude/memory-feedback/state.json`.
+  nothing, always rc 0; reads `$HOME/.claude/plugins/store/memory_skills-dir-*.json`,
+  `$HOME/.claude/memory-feedback/state.json`, `$HOME/.claude/memory.json`.
 
 - [ ] **Step 1: Write the failing suite**
 
@@ -1681,45 +1973,51 @@ exists).
 #!/usr/bin/env bash
 # lib/tests/memory-feedback-remind.test.sh — the phase 4d banner line:
 # shown when /memory-feedback never ran, or ran 5+ days ago and the store
-# changed since; silent otherwise and on any error.
+# changed since; silent once both gates are recorded, with recall off, or
+# on any error.
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 LIB="$ROOT/lib/memory-feedback-remind.sh"
 WORK="$(mktemp -d)" || exit 1
-trap 'rm -rf "$WORK"' EXIT
+trap 'chmod -R u+rw "$WORK" 2>/dev/null; rm -rf "$WORK"' EXIT
 pass=0; fail=0
 check() { if [ "$2" = "$3" ]; then pass=$((pass+1)); else fail=$((fail+1));
   printf 'FAIL %s: got[%s] want[%s]\n' "$1" "$2" "$3"; fi; }
-# home <name>: a fixture HOME with the store and feedback dirs
+# home <name>: a fixture HOME with a store file (unless "nostore")
 home() {
   mkdir -p "$WORK/$1/.claude/plugins/store" "$WORK/$1/.claude/memory-feedback"
+  [ "$1" = nostore ] || : > "$WORK/$1/.claude/plugins/store/memory_skills-dir-a.json"
   echo "$WORK/$1"
 }
+OPEN='{"lastRun":1,"closed":false}'
+# old <home> <content>: a state.json last written on 2026-01-01
+old() {
+  printf '%s' "$2" > "$1/.claude/memory-feedback/state.json"
+  touch -t 202601010000 "$1/.claude/memory-feedback/state.json"
+}
 run() { HOME="$1" bash "$LIB" 2>&1; echo "rc=$?"; }
+DUE='memory feedback: last run 5+ d ago, transcripts expire at 7 → /memory-feedback'
 
-h=$(home none)
-check MR1-no-store "$(run "$h")" "rc=0"
-
-h=$(home never); : > "$h/.claude/plugins/store/memory_skills-dir-a.json"
-check MR2-never "$(run "$h")" "memory feedback: never run → /memory-feedback
+check MR1-no-store "$(run "$(home nostore)")" "rc=0"
+check MR2-never "$(run "$(home never)")" "memory feedback: never run → /memory-feedback
 rc=0"
-
-h=$(home due); S="$h/.claude/plugins/store/memory_skills-dir-a.json"
-: > "$h/.claude/memory-feedback/state.json"; : > "$S"
-touch -t 202601010000 "$h/.claude/memory-feedback/state.json"
-check MR3-due "$(run "$h" | grep -cE \
-  '^memory feedback: last run [0-9]+ d ago, transcripts expire at 7 → /memory-feedback$')" 1
-
-h=$(home quiet); S="$h/.claude/plugins/store/memory_skills-dir-a.json"
-: > "$h/.claude/memory-feedback/state.json"; : > "$S"
-touch -t 202601010000 "$h/.claude/memory-feedback/state.json"
-touch -t 202512010000 "$S"
+h=$(home due); old "$h" "$OPEN"
+check MR3-due "$(run "$h")" "$DUE
+rc=0"
+h=$(home quiet); old "$h" "$OPEN"
+touch -t 202512010000 "$h/.claude/plugins/store/memory_skills-dir-a.json"
 check MR4-store-unchanged "$(run "$h")" "rc=0"
-
-h=$(home fresh); S="$h/.claude/plugins/store/memory_skills-dir-a.json"
-: > "$h/.claude/memory-feedback/state.json"; : > "$S"
-touch -t 209901010000 "$S"
+h=$(home fresh)
+printf '%s' "$OPEN" > "$h/.claude/memory-feedback/state.json"
+touch -t 209901010000 "$h/.claude/plugins/store/memory_skills-dir-a.json"
 check MR5-ran-today "$(run "$h")" "rc=0"
+h=$(home closed); old "$h" '{"lastRun":1,"closed":true}'
+check MR6-closed "$(run "$h")" "rc=0"
+h=$(home off); old "$h" "$OPEN"; printf '{"recall": false}' > "$h/.claude/memory.json"
+check MR7-recall-off "$(run "$h")" "rc=0"
+h=$(home locked); old "$h" "$OPEN"
+chmod 000 "$h/.claude/memory-feedback/state.json"
+check MR8-unreadable-rc "$(run "$h" | tail -1)" "rc=0"
 
 printf 'memory-feedback-remind: %d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
@@ -1729,56 +2027,53 @@ printf 'memory-feedback-remind: %d passed, %d failed\n' "$pass" "$fail"
 
 - [ ] **Step 2: Run it, see it fail**
 
-Run: `bash lib/tests/memory-feedback-remind.test.sh`
-Expected: FAIL on MR2 and MR3 (the lib is absent, `bash` prints an error).
+Run: `systemd-run --user --scope -q -p TasksMax=256 make test suite=lib/tests/memory-feedback-remind.test.sh </dev/null`
+Expected: FAIL on all 8 cases (the lib is absent: `bash` prints
+`No such file or directory` and rc 127).
 
 - [ ] **Step 3: Write `lib/memory-feedback-remind.sh`**
 
 ```bash
 #!/usr/bin/env bash
 # lib/memory-feedback-remind.sh — the phase 4d reminder line of the
-# session-start banner. Prints one line when /memory-feedback never ran, or
-# ran REMIND_DAYS+ days ago and the memory store changed since (transcripts
-# live 7 days, BDR-057). Prints nothing otherwise; always rc 0.
-# bash 3.2 safe; no JSON parse at session start.
+# session-start banner (BDR-057: transcripts live 7 days). One line when
+# /memory-feedback never ran, or ran REMIND_DAYS+ days ago and the memory
+# store changed since. Silent once both gates are recorded ("closed":true),
+# with "recall": false, or on any error; always rc 0. bash 3.2 safe,
+# portable (find -mtime, no stat -c), no JSON parse.
 REMIND_DAYS=5
+state="$HOME/.claude/memory-feedback/state.json"
 
-_mf_mtime() { stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null; }
-
-_mf_store() {  # the newest memory store file, or nothing
-  local f store=""
-  for f in "$HOME"/.claude/plugins/store/memory_skills-dir-*.json; do
-    [ -f "$f" ] || continue
-    if [ -z "$store" ] || [ "$f" -nt "$store" ]; then store=$f; fi
-  done
-  printf '%s' "$store"
-}
-
-memory_feedback_line() {
-  local store state m age
-  store=$(_mf_store); [ -n "$store" ] || return 0
-  state="$HOME/.claude/memory-feedback/state.json"
-  if [ ! -f "$state" ]; then
-    echo "memory feedback: never run → /memory-feedback"; return 0
-  fi
-  [ "$store" -nt "$state" ] || return 0
-  m=$(_mf_mtime "$state"); [ -n "$m" ] || return 0
-  age=$(( ($(date +%s) - m) / 86400 ))
-  [ "$age" -ge "$REMIND_DAYS" ] || return 0
-  printf 'memory feedback: last run %s d ago, %s\n' "$age" \
-    "transcripts expire at 7 → /memory-feedback"
-}
-
-if [ "${BASH_SOURCE[0]}" = "$0" ]; then memory_feedback_line; fi
+store=""
+for f in "$HOME"/.claude/plugins/store/memory_skills-dir-*.json; do
+  [ -f "$f" ] || continue
+  if [ -z "$store" ] || [ "$f" -nt "$store" ]; then store=$f; fi
+done
+[ -n "$store" ] || exit 0
+# recall off: no record can come (the 4b capture still writes the store)
+grep -Eq '"recall"[[:space:]]*:[[:space:]]*false' \
+  "$HOME/.claude/memory.json" 2>/dev/null && exit 0
+if [ ! -f "$state" ]; then
+  echo "memory feedback: never run → /memory-feedback"
+  exit 0
+fi
+grep -q '"closed":true' "$state" 2>/dev/null && exit 0
+[ "$store" -nt "$state" ] || exit 0
+[ -n "$(find "$state" -mtime +$((REMIND_DAYS - 1)) 2>/dev/null)" ] || exit 0
+echo "memory feedback: last run ${REMIND_DAYS}+ d ago," \
+  "transcripts expire at 7 → /memory-feedback"
 exit 0
 ```
 
 `chmod +x lib/memory-feedback-remind.sh`.
 
-- [ ] **Step 4: Run, see it pass, lint**
+- [ ] **Step 4: Run, see it pass, lint, portability census**
 
-Run: `bash lib/tests/memory-feedback-remind.test.sh && shellcheck lib/memory-feedback-remind.sh lib/tests/memory-feedback-remind.test.sh`
-Expected: `memory-feedback-remind: 5 passed, 0 failed`, shellcheck clean.
+First `git add lib/memory-feedback-remind.sh lib/tests/memory-feedback-remind.test.sh`
+(the census scans tracked files). Run:
+`systemd-run --user --scope -q -p TasksMax=256 make test suite=lib/tests/memory-feedback-remind.test.sh </dev/null && systemd-run --user --scope -q -p TasksMax=256 make test suite=lib/tests/portability-census.test.sh </dev/null && shellcheck lib/memory-feedback-remind.sh lib/tests/memory-feedback-remind.test.sh`
+Expected: `memory-feedback-remind: 8 passed, 0 failed`; portability census
+green; shellcheck clean.
 
 - [ ] **Step 5: Wire it into the banner, test-first**
 
@@ -1790,18 +2085,19 @@ h17="$WORK/h17"; mkdir -p "$h17/.claude/plugins/store"
 : > "$h17/.claude/plugins/store/memory_skills-dir-a.json"
 p=$(mkproj sd17); blk "$p" 1 open "Seventeen"
 out17=$(cd "$p" && HOME="$h17" bash "$SS" <"$WORK/startup.json" 2>/dev/null)
-check SD17-line "$(printf '%s\n' "$out17" | grep -c '^memory feedback: never run')" 1
+check SD17-line "$(printf '%s\n' "$out17" \
+  | grep -c '^memory feedback: never run')" 1
 check SD17-before-digest "$(printf '%s\n' "$out17" \
   | grep -n -e '^memory feedback' -e '^memory digest' | cut -d: -f2 \
   | tr '\n' ' ')" "memory feedback memory digest "
 ```
 
-Run: `systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" bash lib/tests/session-digest.test.sh </dev/null`
+Run: `systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" make test suite=lib/tests/session-digest.test.sh </dev/null`
 Expected: FAIL `SD17-line: got[0] want[1]`.
 
 In `hooks/session-start.sh`, inside `if [ "$_ss_digest" = 1 ]; then`,
-first lines of the block (before `_ss_root=...`), in the file's own
-timeout convention (the registry-v1 block, lines ~319-322):
+first lines of the block (before `_ss_root=...`), in the file's timeout
+convention (the registry-v1 block, lines ~319-322):
 
 ```bash
   # phase 4d: the weekly /memory-feedback reminder, bounded, never fatal
@@ -1813,7 +2109,7 @@ timeout convention (the registry-v1 block, lines ~319-322):
 
 - [ ] **Step 6: Run, see it pass, lint**
 
-Run: `systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" bash lib/tests/session-digest.test.sh </dev/null && shellcheck hooks/session-start.sh lib/tests/session-digest.test.sh`
+Run: `systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" make test suite=lib/tests/session-digest.test.sh </dev/null && shellcheck hooks/session-start.sh lib/tests/session-digest.test.sh`
 Expected: `session-digest: 56 passed, 0 failed` (54 + 2), shellcheck clean.
 
 - [ ] **Step 7: Commit**
@@ -1828,7 +2124,8 @@ git commit -m "feat(hooks): memory feedback reminder in the banner"
 ### Task 7: `/memory-feedback` skill and its router row
 
 Implements spec §3 (skill steps). BDR-129 (registry writes through
-memory.sh), LRN-168 (spot check), LRN-073 (fictional IDs in examples).
+memory.sh, `-C` to this repo), LRN-168 (spot check), LRN-073 (fictional
+IDs in examples).
 
 **Files:**
 - Create: `skills/memory-feedback/SKILL.md`
@@ -1836,18 +2133,10 @@ memory.sh), LRN-168 (spot check), LRN-073 (fictional IDs in examples).
   `"reconcile": "apply",` ~line 130)
 
 **Interfaces:**
-- Consumes: Task 5 CLI `bun <repo>/lib/memory-feedback/reader.ts
-  worksheet|apply <dir>`; `lib/memory.sh add eval|decision`.
+- Consumes: Task 5 CLI `reader.ts worksheet|apply|sample <dir>`;
+  `lib/memory.sh -C <root> add eval|decision`; `lib/capitalize-commit.md`.
 
-- [ ] **Step 1: See the routing census fail on a new skill**
-
-Create `skills/memory-feedback/SKILL.md` with the content of Step 2, then
-run: `systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" bash lib/tests/effort-routing.test.sh </dev/null | grep memory-feedback`
-Expected: `FAIL skills/memory-feedback: no row in routing.json` (the file
-is untracked until `git add`; run `git add skills/memory-feedback/SKILL.md`
-first so `git ls-files` lists it).
-
-- [ ] **Step 2: The skill file**
+- [ ] **Step 1: Write the skill file**
 
 `skills/memory-feedback/SKILL.md`:
 
@@ -1855,83 +2144,95 @@ first so `git ls-files` lists it).
 ---
 name: memory-feedback
 effort: high
-description: Use when the session banner says "memory feedback" is due, or to measure whether memory recall injections help — labels each injected registry entry relevant or irrelevant from the transcript, samples misses, and reports precision and the phase 4d gates. Triggers: "memory feedback", "label recall", "recall precision", "is memory recall useful", "feedback mémoire". NOT registry curation (that is /prune-memory).
+description: Run only when the user asks for it ("memory feedback", "label recall", "recall precision", "is memory recall useful", "feedback mémoire", or after they mention the banner's memory feedback line). Labels each injected registry entry relevant or irrelevant from the transcript, samples misses, reports precision and the phase 4d gates. NOT registry curation (that is /prune-memory).
 ---
 
 # /memory-feedback — label recall injections, read the gates
 
 Phase 4d (BDR-125). The memory mod logs every recall ask; transcripts live
-7 days, so this runs weekly. Claude labels, the user spot-checks. Text
-stays in the scratchpad; `~/.claude/memory-feedback/` keeps IDs and enums
-only, never in git.
+7 days, so this runs weekly. Claude labels, the user spot-checks. Redacted
+text stays in the scratchpad; `~/.claude/memory-feedback/` keeps IDs, enums
+and repo tags only, never in git.
 
 ## STEP 1 — WORKSHEET
 
 ```bash
-MF="$(cd -P "$HOME/.claude/lib" && pwd)/memory-feedback/reader.ts"
-bun "$MF" worksheet "<scratchpad dir, absolute>"
+BUN="$(command -v bun || echo "$HOME/.bun/bin/bun")"
+MFD="$(cd -P "$HOME/.claude/lib" && pwd)/memory-feedback"
+CFG="$(cd -P "$HOME/.claude/lib/.." && pwd)"   # this config repo
+[ -x "$BUN" ] || echo "memory-feedback: bun not found"
+(cd "$MFD" && "$BUN" reader.ts worksheet "<scratchpad dir, absolute>")
 ```
 
-rc 1 → print the error and stop (a torn store file: retry once after a few
-seconds). `0 records` → go to STEP 5 (records the run, nothing to label).
+Any non-zero rc → print the message and stop (`store file unreadable`:
+retry once after a few seconds; `bun not found`: tell the user). Running
+from `$MFD` keeps the current repo's bun config out. `0 records` → go to
+STEP 5 (no spot check: it records the run only).
 
 ## STEP 2 — LABEL
 
-Read `<dir>/worksheet.md`. For each item, each injected id gets one line in
-`<dir>/labels-draft.tsv` (TAB separated):
+Read `<dir>/worksheet.md`. Fill the third column of the skeleton
+`<dir>/labels-draft.tsv` for every line:
 - `relevant`: the entry bears on what the prompt asked or what the reply
   did; `irrelevant` otherwise. Judge the entry against the ask, not the
   reply's quality.
-- `test`: the session was a proof, a bench or recall testing; `<item> - test`
-  marks the whole item.
-Lost items take no line.
+- A proof, bench or recall-testing session: replace that item's lines by
+  one `<item>	-	test` line.
+Lost items have no line.
 
 ## STEP 3 — SPOT CHECK
 
-Pick 5 labelled entries at random (`shuf -n 5` over the draft's entry
-lines). Show each to the user in one AskUserQuestion: the prompt gist in
-your own words (never a secret), the entry title, your label; the user
-confirms or flips. Apply the flips to the draft. A label is a claim
-(LRN-168).
+```bash
+(cd "$MFD" && "$BUN" reader.ts sample "<dir>")
+```
+
+Show the 5 picked entries to the user in one AskUserQuestion: the prompt
+gist in your own words (never a secret), the entry title, your label; the
+user confirms or flips each. Apply the flips to the draft (LRN-168).
 
 ## STEP 4 — MISSES
 
 On up to 5 prompt items whose outcome is injected or none, search the
-registries (`bash ~/.claude/lib/memory.sh index` + entry bodies) for live
-entries that bore on the ask and were not injected. Each one:
-`<item> <id> missed <cause>` with cause `no-overlap` (no word in common
-with the prompt), `rank-over-30`, `declined` (BM25 offered it, haiku did
-not pick it), `not-triggered`. A searched item with no miss:
-`<item> - checked`. Example line: `3	LRN-901	missed	no-overlap`.
+registries of that item's repo (`bash ~/.claude/lib/memory.sh -C <repo>
+index` + entry bodies) for live entries that bore on the ask and were not
+injected. Each one: `<item>	<id>	missed	<cause>`, cause `no-overlap` (no
+content word shared with the prompt) or `overlap`. A searched item with no
+miss: `<item>	-	checked`. Example line: `3	LRN-901	missed	no-overlap`.
 
 ## STEP 5 — APPLY
 
 ```bash
-bun "$MF" apply "<scratchpad dir>"
+(cd "$MFD" && "$BUN" reader.ts apply "<dir>")
 ```
 
 rc 1 `draft refused: <reason>` → fix the draft, rerun. It prints
 FEEDBACK.md: show the gate lines and the Actions list to the user.
 
-## STEP 6 — GATE REACHED
+## STEP 6 — A GATE REACHED FOR THE FIRST TIME
 
-Only when a gate line says `reached` or `insufficient`:
+Only when the output ends with a `NEW: …` line:
 1. Propose the verdict as an EVAL entry (counts and shares from
-   FEEDBACK.md, no prompt text) and each Action as a TODO line; the user
-   approves each.
-2. Write approved entries per `lib/capitalize-commit.md` § WRITE
-   (`memory.sh add eval …`; a decided action also gets `add decision`), and
-   commit through `lib/capitalize-commit.md` § DO.
+   FEEDBACK.md, no prompt text, no other repo's name) and each Action as a
+   TODO line of this config repo; the user approves each. Actions naming
+   another repo's tag (noisy, promotion) are shown to the user to run
+   /prune-memory there; they are never written here.
+2. Write approved entries per `lib/capitalize-commit.md` § WRITE into this
+   repo only: `bash "$CFG/lib/memory.sh" -C "$CFG" add eval …` (a decided
+   action also gets `add decision`), TODO lines in
+   `$CFG/.claude/tasks/TODO.md`, then commit per § DO run from `$CFG`.
 Thresholds live in `lib/memory-feedback/thresholds.ts`; never tune them
 here (BDR-100).
 
 ## RULES
 - Never paste prompt or reply text into a registry, the TODO or a commit.
-- Never commit `~/.claude/memory-feedback/`.
-- Never run apply without the spot check of STEP 3.
+- Never commit `~/.claude/memory-feedback/` or the scratchpad files.
+- Never run apply on labelled items without the spot check of STEP 3.
 ````
 
-- [ ] **Step 3: Add the router row**
+- [ ] **Step 2: See the routing census fail, then add the row**
+
+Run: `git add skills/memory-feedback/SKILL.md && systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" make test suite=lib/tests/effort-routing.test.sh </dev/null | grep memory-feedback`
+Expected: `FAIL skills/memory-feedback: no row in routing.json`.
 
 In `mods/model-router/routing.json`, inside the top-level `"skills"`
 object, after `"reconcile": "apply",` add:
@@ -1943,17 +2244,15 @@ object, after `"reconcile": "apply",` add:
 `reflect` is best tier at effort high: labelling is judgment (LRN-168);
 the frontmatter `effort: high` matches the row's floor.
 
-- [ ] **Step 4: Run the census suites**
+- [ ] **Step 3: Run the census suites**
 
-Run each, contained:
-`systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" bash lib/tests/effort-routing.test.sh </dev/null | tail -2`
-`systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" bash lib/tests/skill-routing-census.test.sh </dev/null | tail -2`
-`systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" bash skills/prune-memory/tests/run-deterministic.sh </dev/null | tail -2`
-Expected: all green; no `memory-feedback` collision line in the census; the
-`LRN-901` example is fictional (no such entry in learnings.md), so the
-RED-7 style lock stays green.
+Each, contained (`systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" make test suite=<path> </dev/null`):
+`lib/tests/effort-routing.test.sh`, `lib/tests/skill-routing-census.test.sh`,
+`lib/tests/model-routing.test.sh`, `skills/prune-memory/tests/run-deterministic.sh`.
+Expected: all green; no `memory-feedback` collision line; `LRN-901` is
+fictional (absent from learnings.md).
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 4: Commit**
 
 ```bash
 git add skills/memory-feedback/SKILL.md mods/model-router/routing.json
@@ -1970,20 +2269,21 @@ it touches the live store and asks the user.
 - [ ] **Step 1: Full test run, contained**
 
 Run: `systemd-run --user --scope -q -p TasksMax=512 env PATH="$HOME/.bun/bin:$PATH" make test </dev/null 2>&1 | tail -30`
-Expected: every suite green, including `memory-feedback`,
-`memory-feedback-remind`, `mods`, `session-digest`, `effort-routing`.
+Expected: `all suites green`, including `memory-feedback`,
+`memory-feedback-remind`, `mods`, `session-digest`, `effort-routing`,
+`portability-census`.
 
 - [ ] **Step 2: Live records carry the fields**
 
 After Task 1 is on disk, type one recall-triggering prompt in a session,
-then read field names only:
-`jq -c '[to_entries[] | select(.key|startswith("l:")) | .value[-1] | keys] | last' ~/.claude/plugins/store/memory_skills-dir-*.json`
+then read field names of the newest record only:
+`jq -c '[to_entries[] | select(.key|startswith("l:")) | .value[]] | sort_by(.at) | last | keys' ~/.claude/plugins/store/memory_skills-dir-*.json`
 Expected: the key list contains `cands` (and `ms` if a rerank ran).
 
-- [ ] **Step 3: One real `/memory-feedback` run**
+- [ ] **Step 3: One real `/memory-feedback` run, the skill text verbatim**
 
-Run the skill on the live log. Records of this build session are labelled
-`test`. Expected: worksheet written to the scratchpad, apply prints
-FEEDBACK.md with `Prompt gate: open`, `labels.tsv` and `state.json` exist
-with mode 0600, `grep -c` of any prompt word in `labels.tsv` is 0, and the
-banner of the next session shows no reminder.
+Run the skill as written (no PATH fix by hand). Records of this build
+session are labelled `test`. Expected: worksheet in the scratchpad,
+apply prints FEEDBACK.md with `Prompt gate: open`, `labels.tsv` and
+`state.json` exist with mode 0600, `labels.tsv` holds no prompt word and
+no full path, and the next session's banner shows no reminder line.
