@@ -426,8 +426,14 @@ _mem_add_locked() {  # <file> <PREFIX> <entry-file> <supersedes>
   return "$rc"
 }
 
+_mem_path_safe() {  # <path> → path, ./-prefixed when awk would take it for
+  # a `var=value` assignment operand and read stdin instead
+  if [[ "$1" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then printf '%s\n' "./$1"; else printf '%s\n' "$1"; fi
+}
+
 memory_add() {  # <kind> <title> <body-file> <status> <supersedes>
   local spec file entry rc v1=""
+  set -- "$1" "$2" "$(_mem_path_safe "$3")" "$4" "$5"
   spec=$(_mem_kind "$1") || return 2
   file=".claude/memory/${spec% *}"
   _mem_add_valid "${spec#* }" "$2" "$3" "$4" "$5" || return 2
@@ -491,6 +497,7 @@ memory_check() {  # [--staged] [<memory-dir>] → rc 2 on any culprit
   dir="${1:-.claude/memory}"
   [ $# -le 1 ] && [ "${dir#-}" = "$dir" ] || { echo "usage: memory.sh" \
     "check [--staged] [dir]" >&2; return 2; }
+  dir=$(_mem_path_safe "$dir")
   [ -n "$staged" ] || [ -d "$dir" ] \
     || { echo "memory: no memory dir: $dir" >&2; return 2; }
   case "$staged:$dir" in 1:/*|1:..|1:../*|1:*/../*|1:*/..)
@@ -867,6 +874,7 @@ _mem_upgrade_file() {  # <file> → rc 0 upgraded or already v2, rc 2 refused
 
 memory_upgrade() {  # [<memory-dir>] → every template-born registry to v2
   local dir="${1:-.claude/memory}" f rc=0
+  dir=$(_mem_path_safe "$dir")
   for f in $(_mem_names); do
     [ -f "$dir/$f.md" ] || continue
     _mem_locked _mem_upgrade_file "$dir/$f.md" || rc=2

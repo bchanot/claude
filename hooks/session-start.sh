@@ -316,12 +316,15 @@ fi
 # The lib names each v1 registry on stderr (`memory: v1: <file>`).
 _mem_lib="$(dirname "${BASH_SOURCE[0]}")/../lib/memory.sh"
 if [ -f "$_mem_lib" ] && [ -d .claude/memory ]; then
-  _v1=$(bash "$_mem_lib" check .claude/memory 2>&1 >/dev/null \
+  # a hung memory.sh must not stall every session start
+  _ss_tmo=()
+  command -v timeout >/dev/null 2>&1 && _ss_tmo=(timeout 2)
+  _v1=$("${_ss_tmo[@]}" bash "$_mem_lib" check .claude/memory 2>&1 >/dev/null \
     | grep -c '^memory: v1:' || true)
   if [ "${_v1:-0}" -gt 0 ]; then
     printf "│  ⚠️  %-44s│\n" "registry v1: ${_v1} file(s) (memory.sh check)"
   fi
-  unset _v1
+  unset _v1 _ss_tmo
 fi
 unset _mem_lib
 

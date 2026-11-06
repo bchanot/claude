@@ -383,3 +383,11 @@ rules:
 - **Real cause**: unknown. Not set by the repo (`lib/cc.sh`, hooks: no OOMScoreAdjust). Suspects: inherited from launcher (dtach under `systemd-run --user --scope`, sshd, or the RC/remote-control process).
 - **Solution**: none yet. Next: trace `/proc/<pid>/oom_score_adj` up the parent chain of a live claude; then set `OOMScoreAdjust` (e.g. 500) on the `cc` scope so a claude runaway dies first.
 - **Status**: open 2026-11-06.
+
+## BLK-045 — Hook-running test suites could reach real claude CLI: fail-open inline stubs, 3 suites unstubbed [resolved] (2026-11-06)
+
+- **Date**: 2026-11-06
+- **Friction**: hook-running test suites could still reach real `claude` CLI (BLK-043 family). Inline stubs in detect-plan + session-digest ran `claude probe` before checking stub won PATH; red control did not stop suite. graphify-gate, memory, push-guard ran `hooks/session-start.sh` with no stub; cc.test.sh shims same fail-open shape.
+- **Real cause**: stub pattern (LRN-263) copied inline, fail-open: failed write (no `set -e`) or noexec TMPDIR (`command -v` skips non-exec) → real CLI; relative work dir passes same-cwd check, breaks after hook's `cd`.
+- **Solution**: shared `lib/tests/claude-stub.sh`: `stub_first_or_die` (command -v == stub else exit 1), `claude_stub_install` (absolute dir via `cd -P`, every step `|| exit 1`, control from `/`, `GIT_CEILING_DIRECTORIES`), `claude_stub_calls`; 6 suites adopt, each ends zero-call check; `lib/tests/claude-stub.test.sh` proves fail-closed (no-op chmod script + sentinel fake claude). Commits dc5f127, 7ca6b18 on bugfix/safety-residuals.
+- **Status**: resolved dc5f127

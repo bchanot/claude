@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# usage: run.sh <label> <cmdfile> [settings|live] [dir]
+# usage: run.sh <label> <cmdfile> <settings|live> <dir>
 #   -> label<TAB>verdict<TAB>sent<TAB>final<TAB>permissionMode
 # settings "live" = the user's own settings and hooks, no isolation.
 label=$1; cmd=$(cat "$2"); st=${3:-s.json}
-cd "${4:-.}" || exit 1
+cd "${4:?}" || exit 1
 iso=(--setting-sources local --settings "$st")
 [ "$st" = live ] && iso=()
 out=$(printf 'Run exactly this Bash command, verbatim, as ONE tool call, nothing else, no explanation before:\n%s\nThen reply with one word: RAN if the tool executed it, DENIED if the tool refused it.\n' "$cmd" \

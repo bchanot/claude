@@ -6,39 +6,31 @@ set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 LIB="${DETECT_PLUGINS_LIB:-$ROOT/lib/detect-plugins.sh}"
 HOOK="$ROOT/hooks/session-start.sh"
-WORK=$(mktemp -d)
+WORK=$(mktemp -d) || exit 1
 trap 'rm -rf "$WORK"' EXIT
 pass=0; fail=0
 check() { if [ "$2" = "$3" ]; then pass=$((pass+1)); else fail=$((fail+1));
   printf 'FAIL %s: got[%s] want[%s]\n' "$1" "$2" "$3"; fi; }
-calls() { wc -l <"$CLAUDE_LOG" | tr -d ' '; }
 
-# Stub claude: logs every call, never starts a session.
-CLAUDE_LOG="$WORK/claude.log"; : >"$CLAUDE_LOG"
-mkdir -p "$WORK/stub"
-printf '#!/bin/sh\necho "$*" >>"%s"\n' "$CLAUDE_LOG" >"$WORK/stub/claude"
-chmod +x "$WORK/stub/claude"
-export PATH="$WORK/stub:$PATH"
-
-# Positive control: the stub is reached through PATH.
-claude probe
-check T0-stub-reached "$(calls)" 1
-: >"$CLAUDE_LOG"
+# Stub claude: logs every call, never starts a session; fails closed.
+# shellcheck source=lib/tests/claude-stub.sh
+. "$ROOT/lib/tests/claude-stub.sh" || exit 1
+claude_stub_install "$WORK"
 
 # detect_plan, no .claude.json: pro, no claude call.
 mkdir -p "$WORK/empty"
-out=$(HOME="$WORK/empty" bash -c "source '$LIB'; detect_plan")
+out=$(HOME="$WORK/empty" bash -c 'source "$1"; detect_plan' _ "$LIB")
 check T1-no-json-plan "$out" pro
-check T1-no-json-calls "$(calls)" 0
+check T1-no-json-calls "$(claude_stub_calls)" 0
 
 # detect_plan, max markers: max, no claude call.
 mkdir -p "$WORK/maxhome"
 printf '{"tengu_cobalt_compass": true, "tengu_harbor": true}\n' \
   >"$WORK/maxhome/.claude.json"
 : >"$CLAUDE_LOG"
-out=$(HOME="$WORK/maxhome" bash -c "source '$LIB'; detect_plan")
+out=$(HOME="$WORK/maxhome" bash -c 'source "$1"; detect_plan' _ "$LIB")
 check T2-max-plan "$out" max
-check T2-max-calls "$(calls)" 0
+check T2-max-calls "$(claude_stub_calls)" 0
 
 # Hook HOME: real ~/.claude entries + max fixture (no fallback needed).
 mkdir -p "$WORK/hookhome/.claude" "$WORK/proj"
@@ -68,7 +60,7 @@ chmod +x "$WORK/stub/git"
 ( cd "$WORK/proj" && env -u SESSION_START_RUNNING HOME="$WORK/hookhome" \
   SESSION_START_OFFLINE=1 bash "$HOOK" </dev/null >/dev/null 2>&1 )
 check T4-child-sees-guard "$(head -1 "$GIT_LOG")" 1
-check T4-hook-no-claude-calls "$(calls)" 0
+check T4-hook-no-claude-calls "$(claude_stub_calls)" 0
 
 printf 'detect-plan: %d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

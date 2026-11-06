@@ -13,14 +13,14 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=/dev/null
 source "$HERE/gitflow.sh"
 
-WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
+WORK="$(mktemp -d)" || exit 1; trap 'rm -rf "$WORK"' EXIT
 PASS=0; FAIL=0
 ok()   { PASS=$((PASS+1)); printf '  ok   %s\n' "$1"; }
 no()   { FAIL=$((FAIL+1)); printf '  FAIL %s\n' "$1"; }
 chk()  { if eval "$2"; then ok "$1"; else no "$1 [ $2 ]"; fi; }
-newrepo() { local d="$WORK/$1"; rm -rf "$d"; mkdir -p "$d"; cd "$d" || return 1; git init -q; \
-            git config user.email t@t; git config user.name t; \
-            git config core.hooksPath /dev/null; }   # hooks off during setup
+newrepo() { local d="$WORK/$1"; rm -rf "$d"; mkdir -p "$d"; cd "$d" || exit 1; git init -q && \
+            git config user.email t@t && git config user.name t && \
+            git config core.hooksPath /dev/null || exit 1; }   # hooks off during setup
 hookon() { git config --unset core.hooksPath 2>/dev/null || true; }  # use repo default .githooks
 
 echo "T1 — pure predicates"
@@ -89,7 +89,7 @@ echo x >> README.md; git add README.md
 chk "block direct code on main" '! git commit -q -m onmain 2>/dev/null'
 git restore --staged README.md 2>/dev/null; git checkout -q -- README.md
 mkdir -p .claude/memory; echo m > .claude/memory/decisions.md; git add .claude/memory/decisions.md
-chk "allow .claude/** on main"  'git commit -q -m "chore(memory)" 2>/dev/null'
+chk "allow .claude/memory on main" 'git commit -q -m "chore(memory)" 2>/dev/null'
 gitflow_start feature demo >/dev/null 2>&1
 echo f > feat.txt; git add feat.txt
 chk "allow code on feature"     'git commit -q -m "feat work" 2>/dev/null'
@@ -474,6 +474,29 @@ git config gitflow.protect false
 chk "T21c gitflow.protect=false → allowed"           '.githooks/pre-commit 2>/dev/null'
 git config --unset gitflow.protect
 git restore --staged code.txt .githooks/post-merge 2>/dev/null || true
+git reset -q; rm -f code.txt
+# allowlist (memory, tasks, audits, deploy, .githooks): any other .claude/ path blocks
+mkdir -p .claude/rules .claude/tasks .claude/memory .claude/audits .claude/deploy
+echo r > .claude/rules/x.md; echo '{}' > .claude/settings.json
+git add .claude/rules/x.md; git -c core.hooksPath=/dev/null commit -q -m "seed rules"
+echo r2 >> .claude/rules/x.md; git add .claude/rules/x.md
+chk "T21d .claude/rules-only on develop → blocked"    '! .githooks/pre-commit 2>/dev/null'
+git reset -q; git checkout -q -- .claude/rules/x.md
+git add .claude/settings.json
+chk "T21e .claude/settings.json-only on develop → blocked" '! .githooks/pre-commit 2>/dev/null'
+git reset -q
+git mv .claude/rules/x.md .claude/tasks/x.md
+chk "T21f rename rules→tasks on develop → blocked (--no-renames)" '! .githooks/pre-commit 2>/dev/null'
+git reset -q --hard
+for d in memory tasks audits deploy; do
+  echo "$d" > ".claude/$d/n.md"; git add ".claude/$d/n.md"
+  chk "T21g .claude/$d-only on develop → allowed" '.githooks/pre-commit 2>/dev/null'
+  git reset -q
+done
+echo m > .claude/memory/n.md; echo r3 >> .claude/rules/x.md
+git add .claude/memory/n.md .claude/rules/x.md
+chk "T21h memory + rules mix on develop → blocked" '! .githooks/pre-commit 2>/dev/null'
+git reset -q --hard
 
 echo "T22 — delete guard: never main/develop, never unmerged (premise: -d is dead once the upstream is in sync)"
 newrepo delguard; echo a>a; hookon; gitflow_init >/dev/null 2>&1

@@ -1503,3 +1503,12 @@ Supersedes [[BDR-030]].
 - **Alternatives rejected**: fine parser with carrier/wrapper lists (r2, endless holes); doctrine + soft_deny only (no deterministic refusal); ask (inert in headless sub-agents, BDR-090); folding into withheld guard-bash.sh (BLK-022 spec would turn red).
 - **Residuals**: destination built outside the text; old-style tar C letter, long-option abbreviations; tool names built by expansion; archive members escaping a safe destination; the cd-then-ssh FP; prose or a heredoc body quoting a complete extraction command into a system dir is refused too (it hit this memory write: memory bodies go through Write + --body-file, prose uses `<pkg> <dir>` placeholders).
 - **Gates**: verifier ECARTS(2) → CONFORME; security PASS ×2 (4 MEDIUM then 2 MEDIUM fixed: size cap, control-byte RS, obfuscated names, globs, cpio pass-through, busybox timing); 134+ tests under gawk/mawk/busybox awk; make test green. Commits 5507972..f02fd8a, settings 42e37cb via index, docs 8d5a7bd.
+
+## BDR-139 — Pre-commit exempts only .claude/{memory,tasks,audits,deploy}/ + .githooks/, --no-renames [accepted] (2026-11-06)
+
+- **Date**: 2026-11-06
+- **Status**: accepted
+- **Decision**: gitflow pre-commit exempts on main/develop only staged sets wholly under `.claude/memory/`, `.claude/tasks/`, `.claude/audits/`, `.claude/deploy/`, `.githooks/`; listed with `git diff --cached --name-only --no-renames`. `.claude/rules/`, `.claude/settings.json`, agents, skills = code for hook → branch first. Commit c5bd0f8; tests `lib/gitflow-test.sh` T21d-h; both hook copies regenerated; citers CLAUDE.global.md, gitflow-aiguillage.md, settings.json prose.
+- **Why**: `.claude/**` let project config read by every session (rules, settings) land on protected base unreviewed; `--name-only` printed only rename destination → `git mv .claude/rules/x .claude/tasks/x` hid deletion. Allowlist = exactly side-car paths skills commit (memory-commit, deploy-commit, /tour audits): no skill flow taxed. Develop history: 1 commit (858e7a7, `.claude/settings.json`) would now need branch.
+- **Alternatives rejected**: keep `.claude/**` (BDR-045 status quo, leak stays); also exempt `.claude/settings.json` (user picked no: config = reviewed change); size/heuristic narrowing (BDR-045 (D), fuzzy).
+- **Residual**: hook fails open if `git diff --cached` errors (pre-existing; Gitea protection backstop). Partly revises [[BDR-045]] (exemption narrowed, aiguillage unchanged). See [[LRN-084]].

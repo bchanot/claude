@@ -4,7 +4,7 @@
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SS="$ROOT/hooks/session-start.sh"
-WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
+WORK="$(mktemp -d)" || exit 1; trap 'rm -rf "$WORK"' EXIT
 export SESSION_START_OFFLINE=1
 pass=0; fail=0
 check() { if [ "$2" = "$3" ]; then pass=$((pass+1)); else fail=$((fail+1));
@@ -12,16 +12,9 @@ check() { if [ "$2" = "$3" ]; then pass=$((pass+1)); else fail=$((fail+1));
 
 # Stub claude (BLK-043): a hook run that calls the CLI logs a line here
 # instead of starting a session that re-runs this hook.
-CLAUDE_LOG="$WORK/claude.log"; : >"$CLAUDE_LOG"
-mkdir -p "$WORK/stub"
-printf '#!/bin/sh\necho "$*" >>"%s"\n' "$CLAUDE_LOG" >"$WORK/stub/claude"
-chmod +x "$WORK/stub/claude"
-export PATH="$WORK/stub:$PATH"
-calls() { wc -l <"$CLAUDE_LOG" | tr -d ' '; }
-# SD0: positive control, the stub is reached through PATH
-claude probe
-check SD0-stub-reached "$(calls)" 1
-: >"$CLAUDE_LOG"
+# shellcheck source=lib/tests/claude-stub.sh
+. "$ROOT/lib/tests/claude-stub.sh" || exit 1
+claude_stub_install "$WORK"
 
 # mkproj <name> -> path with an empty memory dir
 mkproj() {
@@ -195,6 +188,16 @@ check SD12-rc "$rc" 0
 check SD12-banner "$(printf '%s' "$out" | grep -c 'make doctor')" 1
 check SD12-no-digest "$(printf '%s' "$out" | grep -c 'memory digest:')" 0
 
+# SD16: a memory.sh whose `check` hangs costs under 3.5 s, exit 0
+printf '#!/usr/bin/env bash\ncase "$*" in *check*) sleep 10 ;; esac\n' \
+  > "$WORK/sd9/lib/memory.sh"
+p=$(mkproj sd16)
+t0=$(now_ms)
+out=$(run "$p" - "$S9"); rc=$?
+t1=$(now_ms)
+check SD16-hang-bounded "$([ $((t1 - t0)) -lt 3500 ] && echo yes || echo no)" yes
+check SD16-rc "$rc" 0
+
 # mkhome <name> [json]: a HOME that links the real ~/.claude entries and
 # holds the given memory.json (none when omitted); prints its path.
 mkhome() {
@@ -241,7 +244,7 @@ check SD14d-banner "$(run "$p" "$WORK/startup.json" | grep -c '^$')" \
   "$(run "$p" "$WORK/startup.json" | grep -c '^$')"
 
 # SD15: no hook run of this suite called the claude CLI (BLK-043)
-check SD15-no-claude-calls "$(calls)" 0
+check SD15-no-claude-calls "$(claude_stub_calls)" 0
 
 printf 'session-digest: %d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
