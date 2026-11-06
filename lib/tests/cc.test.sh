@@ -35,7 +35,7 @@ cat > "$FX/bin/claude" <<'EOT'
 EOT
 chmod +x "$FX/bin/"*
 # shellcheck source=lib/tests/claude-stub.sh
-. "$ROOT/lib/tests/claude-stub.sh"
+. "$ROOT/lib/tests/claude-stub.sh" || exit 1
 for c in claude systemd-run dtach; do
   PATH="$FX/bin:$PATH" stub_first_or_die "$c" "$FX/bin/$c"
 done

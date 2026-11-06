@@ -13,14 +13,14 @@ HERE="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=/dev/null
 source "$HERE/gitflow.sh"
 
-WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
+WORK="$(mktemp -d)" || exit 1; trap 'rm -rf "$WORK"' EXIT
 PASS=0; FAIL=0
 ok()   { PASS=$((PASS+1)); printf '  ok   %s\n' "$1"; }
 no()   { FAIL=$((FAIL+1)); printf '  FAIL %s\n' "$1"; }
 chk()  { if eval "$2"; then ok "$1"; else no "$1 [ $2 ]"; fi; }
-newrepo() { local d="$WORK/$1"; rm -rf "$d"; mkdir -p "$d"; cd "$d" || return 1; git init -q; \
-            git config user.email t@t; git config user.name t; \
-            git config core.hooksPath /dev/null; }   # hooks off during setup
+newrepo() { local d="$WORK/$1"; rm -rf "$d"; mkdir -p "$d"; cd "$d" || exit 1; git init -q && \
+            git config user.email t@t && git config user.name t && \
+            git config core.hooksPath /dev/null || exit 1; }   # hooks off during setup
 hookon() { git config --unset core.hooksPath 2>/dev/null || true; }  # use repo default .githooks
 
 echo "T1 — pure predicates"

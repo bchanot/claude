@@ -13,7 +13,7 @@ check() { if [ "$2" = "$3" ]; then pass=$((pass+1)); else fail=$((fail+1));
 # Stub claude (BLK-043): a hook run that calls the CLI logs a line here
 # instead of starting a session that re-runs this hook.
 # shellcheck source=lib/tests/claude-stub.sh
-. "$ROOT/lib/tests/claude-stub.sh"
+. "$ROOT/lib/tests/claude-stub.sh" || exit 1
 claude_stub_install "$WORK"
 
 # mkproj <name> -> path with an empty memory dir

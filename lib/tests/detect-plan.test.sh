@@ -14,7 +14,7 @@ check() { if [ "$2" = "$3" ]; then pass=$((pass+1)); else fail=$((fail+1));
 
 # Stub claude: logs every call, never starts a session; fails closed.
 # shellcheck source=lib/tests/claude-stub.sh
-. "$ROOT/lib/tests/claude-stub.sh"
+. "$ROOT/lib/tests/claude-stub.sh" || exit 1
 claude_stub_install "$WORK"
 
 # detect_plan, no .claude.json: pro, no claude call.

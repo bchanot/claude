@@ -689,7 +689,7 @@ done
 # Stub work dir outside $FIX: the fixture repo's `git add -A` must not
 # commit the stub. Installed here so earlier cases see the repo unceilinged.
 # shellcheck source=lib/tests/claude-stub.sh
-. "$ROOT/lib/tests/claude-stub.sh"
+. "$ROOT/lib/tests/claude-stub.sh" || exit 1
 CSW=$(mktemp -d) || exit 1; trap 'rm -rf "$FIX" "$CSW"' EXIT
 claude_stub_install "$CSW"
 banner() { (cd "$1" && SESSION_START_OFFLINE=1 bash "$ROOT/hooks/session-start.sh" \
@@ -722,9 +722,10 @@ check T19-assign-body-heading-rc "$?/$(cksum < .claude/memory/learnings.md)" "2/
 printf 'clean-eq-body\n' > 'x=1.md'
 bash "$MEM" add learning --title eq --body-file x=1.md </dev/null >/dev/null 2>&1
 check T19b-assign-body-written "$(grep -c '^clean-eq-body$' .claude/memory/learnings.md)" 1
-mkdir 'a=b' && printf '# Decisions\n\n## BDR-001 - legacy\n' > 'a=b/decisions.md'
+mkdir 'a=b'
+printf -- '---\nformat: 2\ntype: decisions_registry\nentry_prefix: BDR\n---\n\n# D\n\n## BDR-001 - bad\n' > 'a=b/decisions.md'
 err=$(bash "$MEM" check 'a=b' 2>&1 >/dev/null </dev/null)
-check T19c-assign-dir-read "$(printf '%s\n' "$err" | grep -c '^memory: v1: ./a=b/decisions.md$')" 1
+check T19c-assign-dir-read "$(printf '%s\n' "$err" | grep -c '^memory: ./a=b/decisions.md:9: heading shape: ## BDR-001 - bad$')" 1
 
 check no-claude-calls "$(claude_stub_calls)" 0
 echo "PASS=$pass FAIL=$fail"

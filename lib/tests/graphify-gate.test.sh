@@ -4,7 +4,8 @@ set -u
 LIB="$(cd "$(dirname "$0")/../.." && pwd)/lib/graphify-gate.sh"
 WORK="$(mktemp -d)" || exit 1; trap 'rm -rf "$WORK"' EXIT
 pass=0; fail=0
-. "$(dirname "$0")/claude-stub.sh"
+# shellcheck source=lib/tests/claude-stub.sh
+. "$(dirname "$0")/claude-stub.sh" || exit 1
 mkdir -p "$WORK/cs" || exit 1
 claude_stub_install "$WORK/cs"
 check() { if [ "$2" = "$3" ]; then pass=$((pass+1)); else fail=$((fail+1));

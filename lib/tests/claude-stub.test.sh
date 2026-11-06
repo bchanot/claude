@@ -2,7 +2,6 @@
 # lib/tests/claude-stub.test.sh
 # Regression for BLK-043 residuals: claude_stub_install must fail closed
 # (never leave the real claude CLI first on PATH) and survive a relative dir.
-# shellcheck disable=SC1090,SC2329  # HELPER override; chmod shadow is called by the helper
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 HELPER="${CLAUDE_STUB_LIB:-$ROOT/lib/tests/claude-stub.sh}"
@@ -17,8 +16,11 @@ check() { if [ "$2" = "$3" ]; then pass=$((pass+1)); else fail=$((fail+1));
 mkdir -p "$WORK/a/work" "$WORK/a/fake"
 printf '#!/bin/sh\ntouch "%s"\n' "$WORK/a/sentinel" >"$WORK/a/fake/claude"
 chmod +x "$WORK/a/fake/claude"
-err=$( ( chmod() { :; }; PATH="$WORK/a/fake:$PATH"
-  . "$HELPER"; claude_stub_install "$WORK/a/work" ) 2>&1 >/dev/null )
+mkdir -p "$WORK/a/noop"
+printf '#!/bin/sh\nexit 0\n' >"$WORK/a/noop/chmod"
+/usr/bin/chmod +x "$WORK/a/noop/chmod"
+err=$( PATH="$WORK/a/noop:$WORK/a/fake:$PATH" bash -c \
+  '. "$1"; claude_stub_install "$2"' _ "$HELPER" "$WORK/a/work" 2>&1 >/dev/null )
 rc=$?
 check Ta-rc "$rc" 1
 case "$err" in *"claude stub not first on PATH"*) m=yes ;; *) m=no ;; esac
@@ -27,12 +29,14 @@ check Ta-sentinel-absent "$([ -e "$WORK/a/sentinel" ] && echo yes || echo no)" n
 
 # (b) relative dir: the stub still resolves after a cd elsewhere.
 mkdir -p "$WORK/b/rel"
+# shellcheck source=lib/tests/claude-stub.sh
 got=$( cd "$WORK/b" && . "$HELPER" && claude_stub_install rel \
   && cd / && command -v claude )
 check Tb-relative-resolves "$got" "$WORK/b/rel/stub/claude"
 
 # (c) happy path
 mkdir -p "$WORK/c"
+# shellcheck source=lib/tests/claude-stub.sh
 out=$( . "$HELPER"; claude_stub_install "$WORK/c" && claude_stub_calls )
 check Tc-happy "$out" 0
 

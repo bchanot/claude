@@ -428,7 +428,7 @@ _mem_add_locked() {  # <file> <PREFIX> <entry-file> <supersedes>
 
 _mem_path_safe() {  # <path> → path, ./-prefixed when awk would take it for
   # a `var=value` assignment operand and read stdin instead
-  if [[ "$1" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then echo "./$1"; else echo "$1"; fi
+  if [[ "$1" =~ ^[A-Za-z_][A-Za-z0-9_]*= ]]; then printf '%s\n' "./$1"; else printf '%s\n' "$1"; fi
 }
 
 memory_add() {  # <kind> <title> <body-file> <status> <supersedes>

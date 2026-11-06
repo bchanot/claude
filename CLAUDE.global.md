@@ -172,8 +172,10 @@ protected base but commit in place on a working branch, never finishing
 memory-only `chore/*` they created this run), so they branch to `chore/*`
 via the aiguillage, not the hook allowlist.
 Deterministic backstops behind the doctrine: the pre-commit hook (blocks
-code commits on main/develop; exempts the `.claude/{memory,tasks,audits,
-deploy}/` allowlist, `.githooks/`, merges, the root commit), Gitea branch protection on both, and never `--no-verify`.
+code commits on main/develop; exempts the
+`.claude/{memory,tasks,audits,deploy}/` allowlist, `.githooks/`, merges,
+the root commit), Gitea branch protection on both, and never
+`--no-verify`.
 Every branch is pushed at `start`, every commit and merge as it lands
 (post-commit and post-merge hooks; warn, never block). A branch is deleted
 only by `finish` or `delete`, local and `origin/` copy alike: never

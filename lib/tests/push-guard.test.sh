@@ -353,7 +353,7 @@ check T43b-clearance "$(grep -c "does not clear it: the user types \`! git push\
 
 # ── session banner ──
 # shellcheck source=lib/tests/claude-stub.sh
-. "$ROOT/lib/tests/claude-stub.sh"
+. "$ROOT/lib/tests/claude-stub.sh" || exit 1
 mkdir -p "$WORK/cs" || exit 1
 claude_stub_install "$WORK/cs"
 banner() { # banner <dir>
