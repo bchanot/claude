@@ -25,7 +25,13 @@ if command -v timeout >/dev/null 2>&1 && command -v jq >/dev/null 2>&1; then
     _ss_source=$(printf '%s' "$_ss_in" | jq -r '.source // empty' 2>/dev/null)
   fi
   case "$_ss_source" in ""|startup|clear|compact) _ss_digest=1 ;; esac
-  unset _ss_in _ss_source
+  # The mod's switch: `"enabled": false` (a boolean) cuts the digest. An
+  # absent, unreadable or unparsable file, or any other value, keeps it.
+  # "recall" is the mod's own key and is ignored here.
+  _ss_off=$(jq -r 'if .enabled == false then "off" else "on" end' \
+    "$HOME/.claude/memory.json" 2>/dev/null)
+  [ "$_ss_off" = off ] && _ss_digest=0
+  unset _ss_in _ss_source _ss_off
 elif [ -t 0 ]; then
   _ss_digest=1
 fi
@@ -437,8 +443,11 @@ _memory_digest() {  # <project-root>
 }
 if [ "$_ss_digest" = 1 ]; then
   _ss_root=$(git rev-parse --show-toplevel 2>/dev/null) || _ss_root=$PWD
-  ( _memory_digest "$_ss_root" ) 2>/dev/null || true
-  unset _ss_root
+  # A foreign repository (`gitflow.protect` false) gets no digest.
+  _ss_protect=$(git -C "$_ss_root" config --get gitflow.protect 2>/dev/null)
+  [ "$_ss_protect" = false ] ||
+    ( _memory_digest "$_ss_root" ) 2>/dev/null || true
+  unset _ss_root _ss_protect
 fi
 unset _ss_digest
 

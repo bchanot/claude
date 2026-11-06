@@ -182,5 +182,50 @@ check SD12-rc "$rc" 0
 check SD12-banner "$(printf '%s' "$out" | grep -c 'make doctor')" 1
 check SD12-no-digest "$(printf '%s' "$out" | grep -c 'memory digest:')" 0
 
+# mkhome <name> [json]: a HOME that links the real ~/.claude entries and
+# holds the given memory.json (none when omitted); prints its path.
+mkhome() {
+  local h="$WORK/home-$1" f
+  mkdir -p "$h/.claude"
+  for f in "$HOME"/.claude/*; do
+    [ "$(basename "$f")" = memory.json ] || ln -sf "$f" "$h/.claude/"
+  done
+  [ $# -lt 2 ] || printf '%s' "$2" > "$h/.claude/memory.json"
+  echo "$h"
+}
+digests() { grep -c 'memory digest:'; }
+p=$(mkproj sd13); blk "$p" 1 open "Switched"
+
+# SD13: the memory switch. Only a boolean enabled:false cuts the digest.
+check SD13a-enabled-false "$(cd "$p" && HOME=$(mkhome a '{"enabled": false}') \
+  bash "$SS" <"$WORK/startup.json" 2>/dev/null | digests)" 0
+check SD13b-recall-false "$(cd "$p" && HOME=$(mkhome b '{"recall": false}') \
+  bash "$SS" <"$WORK/startup.json" 2>/dev/null | digests)" 1
+check SD13c-malformed "$(cd "$p" && HOME=$(mkhome c '{"enabled": fal') \
+  bash "$SS" <"$WORK/startup.json" 2>/dev/null | digests)" 1
+check SD13d-string-false "$(cd "$p" && HOME=$(mkhome d '{"enabled": "false"}') \
+  bash "$SS" <"$WORK/startup.json" 2>/dev/null | digests)" 1
+check SD13e-absent "$(cd "$p" && HOME=$(mkhome e) \
+  bash "$SS" <"$WORK/startup.json" 2>/dev/null | digests)" 1
+check SD13f-enabled-true "$(cd "$p" && HOME=$(mkhome f '{"enabled": true}') \
+  bash "$SS" <"$WORK/startup.json" 2>/dev/null | digests)" 1
+check SD13g-not-an-object "$(cd "$p" && HOME=$(mkhome g '[1]') \
+  bash "$SS" <"$WORK/startup.json" 2>/dev/null | digests)" 1
+# no jq: the switch is unreadable and the existing rule applies, no digest
+# from a hook (stdin is not a terminal)
+check SD13h-no-jq "$(cd "$p" && HOME=$(mkhome h '{"enabled": false}') \
+  PATH="$bin" bash "$SS" <"$WORK/startup.json" 2>/dev/null | digests)" 0
+
+# SD14: a foreign repository (gitflow.protect false) gets no digest
+p=$(mkproj sd14); blk "$p" 1 open "Foreign"
+git -C "$p" init -q
+check SD14a-unset "$(run "$p" "$WORK/startup.json" | digests)" 1
+git -C "$p" config gitflow.protect true
+check SD14b-true "$(run "$p" "$WORK/startup.json" | digests)" 1
+git -C "$p" config gitflow.protect false
+check SD14c-false "$(run "$p" "$WORK/startup.json" | digests)" 0
+check SD14d-banner "$(run "$p" "$WORK/startup.json" | grep -c '^$')" \
+  "$(run "$p" "$WORK/startup.json" | grep -c '^$')"
+
 printf 'session-digest: %d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
