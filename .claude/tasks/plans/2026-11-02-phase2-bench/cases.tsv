@@ -39,3 +39,8 @@ C1	deny	Bash(cat * .env*)	cat -n .env	DENIED
 C2	deny	Bash(cat * */.env*)	cat -n sub/.env	DENIED
 R1	deny	Bash(rtk read .env*)	rtk read .env	DENIED
 R2	deny	Bash(*/rtk read .env*)	/home/bchanot/.local/bin/rtk read .env --head-lines 3	DENIED
+R3	deny	Bash(rtk read * .env*)	rtk read -n .env	DENIED
+R4	deny	Bash(rtk read */.env*)	rtk read -n sub/.env	DENIED
+R5	deny	Bash(rtk read * .env*)	rtk read -n README.md	RAN
+R6	deny	Bash(*/rtk read * .env*)	/home/bchanot/.local/bin/rtk read -n .env	DENIED
+R7	deny	Bash(*/rtk read */.env*)	/home/bchanot/.local/bin/rtk read -n sub/.env	DENIED

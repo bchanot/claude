@@ -419,6 +419,8 @@ Bash(head * */.env*)
 Bash(tail * */.env*)
 Bash(cat * .env*)
 Bash(cat * */.env*)
+Bash(rtk read * .env*)
+Bash(*/rtk read * .env*)
 EOF
 check T63-phase2-rules-present "$missing" ""
 check T63b-no-root-glob "$(jq -r '(.permissions.ask + .permissions.deny)[]' \

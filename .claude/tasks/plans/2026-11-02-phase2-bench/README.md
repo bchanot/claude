@@ -20,7 +20,7 @@ Settings shape (auto mode, rule present):
      "skipAutoPermissionPrompt": true}
 
 A row whose `permissionMode` (from the stream-json `system init` event) is
-not `auto` is invalid. `run.sh <label> <cmdfile> live` drops the isolation
+not `auto` is invalid. `run.sh <label> <cmdfile> live <dir>` drops the isolation
 (user settings and hooks on).
 
 ## Verdicts

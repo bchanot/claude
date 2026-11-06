@@ -79,3 +79,12 @@ live	L3	DENIED	awk 'BEGIN{system("echo hi")}'	DENIED	auto
 live	L4	RAN	git stash list	RAN	auto
 live	L5	ASKED	git push --dry-run origin HEAD:refs/heads/nowhere	DENIED	auto
 live	L6	ASKED	bash "$HOME/nonexistent/lib/gitflow.sh" finish	DENIED	auto
+DENIED	R3	DENIED	rtk read -n .env	DENIED	auto
+control	R3-ctl	RAN	rtk read -n .env	RAN	auto
+DENIED	R4	DENIED	rtk read -n sub/.env	DENIED	auto
+control	R4-ctl	RAN	rtk read -n sub/.env	RAN	auto
+RAN	R5	RAN	rtk read -n README.md	RAN	auto
+DENIED	R6	DENIED	/home/bchanot/.local/bin/rtk read -n .env	DENIED	auto
+control	R6-ctl	RAN	/home/bchanot/.local/bin/rtk read -n .env	RAN	auto
+DENIED	R7	DENIED	/home/bchanot/.local/bin/rtk read -n sub/.env	DENIED	auto
+control	R7-ctl	RAN	/home/bchanot/.local/bin/rtk read -n sub/.env	RAN	auto

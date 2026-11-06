@@ -345,6 +345,8 @@
       "Bash(tail * */.env*)",
       "Bash(cat * .env*)",
       "Bash(cat * */.env*)",
+      "Bash(rtk read * .env*)",
+      "Bash(*/rtk read * .env*)",
       "Bash(rtk read */*.key*)",
       "Bash(*/rtk read */*.key*)",
       "Bash(rtk read */*.pem*)",

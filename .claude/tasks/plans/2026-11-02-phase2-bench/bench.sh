@@ -5,7 +5,8 @@
 # truncates: the last row per id wins. Harmless commands, fresh temp dir.
 set -u
 B="$(cd "$(dirname "$0")" && pwd)"
-W="$(mktemp -d)"; mkdir -p "$W/sub" && git -C "$W" init -q
+W="$(mktemp -d)" || exit 1
+mkdir -p "$W/sub" && git -C "$W" init -q
 printf 'X=1\n' > "$W/.env"; printf 'X=1\n' > "$W/sub/.env"
 settings() { # settings <kind|none> <rule> <file>
   jq -n --arg k "$1" --arg r "$2" '{permissions: ({allow: ["Bash(*)"],
