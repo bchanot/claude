@@ -1,4 +1,4 @@
-# Memory Feedback (phase 4d) Implementation Plan — r2
+# Memory Feedback (phase 4d) Implementation Plan — r3
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -68,6 +68,24 @@ CONCERNS(1 MAJOR). Named changes:
   C15: lost rows count in the late share and the ms p90. C17: unreadable
   state case. C18: jq on the newest record. C19: suites through
   `make test suite=…`. C8/C9: RED expectations corrected.
+## r3 changes (confirmation pass, correctness FATAL(4: 1 BLOCKER))
+
+- K1 BLOCKER: Task 1 updates IR11 (register.test.ts ~2572), whose strict
+  `toEqual` on the recall-written record breaks once it carries `cands`
+  and `ms`: it becomes `toMatchObject`.
+- K2: the skill cites `lib/capitalize-commit.md` § WRITE ( and § DO ( with
+  the label closed by a parenthesis (doctrine-citers census); Task 7 runs
+  that census.
+- K3: every skill shell block resolves BUN, MFD and CFG itself (a Bash
+  call is a fresh shell).
+- K4: the worksheet item header prints the absolute repo path next to the
+  tag (STEP 4 needs it; the worksheet is scratchpad-only; labels keep the
+  tag).
+- K5: the torn count is summed once per file. K6: a sub-agent tool record
+  loads only `subagents/agent-<agent>.jsonl`. K7: an unreadable
+  state.json keeps the reminder silent; MR8 asserts the whole output.
+- K8: the contract FILE SCOPE is enriched at the validation gate.
+
 - Deviations from the approved spec, surfaced at the gate: reader in
   `lib/memory-feedback/` (not `mods/memory/feedback/`: `claude plugin
   validate --strict` and `plugin test` must not see non-mod files); miss
@@ -125,7 +143,8 @@ edit), BDR-125 (no runtime cited flag), LRN-261 (exports for the reader).
 **Files:**
 - Modify: `mods/memory/hooks/register.ts:973-1003` (types, validator,
   exports), `:1700-1771` (`Picked`, `pickRecall`, `recallFor`)
-- Test: `mods/memory/hooks/register.test.ts` (after `LO7`, ~line 2420)
+- Test: `mods/memory/hooks/register.test.ts` (after `LO7`, ~line 2420;
+  `IR11` ~line 2572)
 
 **Interfaces:**
 - Produces: `export type LogRecord` with `cands?: number`, `ms?: number`;
@@ -137,7 +156,10 @@ edit), BDR-125 (no runtime cited flag), LRN-261 (exports for the reader).
 
 Add `isLogRecord` to the existing value import list from `./register` at
 the top of `register.test.ts`; `Engine` is already imported as a type
-(line 2). Add after the `LO7` test:
+(line 2). In `IR11` (~line 2572) the recall-written record is compared
+with a strict `.toEqual([{ at: 1000, session: 's1', … }])`: change that
+one `.toEqual([` to `.toMatchObject([` (the record now also carries
+`cands` and `ms`, which LF1-LF4 pin). Add after the `LO7` test:
 
 ```ts
 /** [outcome, cands, ms] of every logged ask, oldest first. */
@@ -1112,7 +1134,7 @@ LRN-261 (the mod's type imported).
   (Task 1).
 - Produces: `type Rec`; `type Loaded = { recs: Rec[]; torn: number }`;
   `JOIN_MS`; `slugOf(root: string): string`; `sessionFiles(projects:
-  string, root: string, session: string, withSub: boolean): string[]`;
+  string, root: string, session: string, agent: string): string[]`;
   `records(file: string): Loaded`; `composerText(r: Rec): string |
   undefined`; `type PromptJoin = { prompt: string; injected: string;
   reply: string }`; `joinPrompt(recs: Rec[], rec: LogRecord): PromptJoin |
@@ -1153,19 +1175,22 @@ const rec = (over: Partial<LogRecord>): LogRecord => ({ at: T0, session: 's',
   outcome: 'injected', ...over })
 const JOIN_LATE = 10001 // one ms past JOIN_MS
 
-test('X1: slug, files, sub-agent files on demand, torn lines counted', () => {
+test('X1: slug, the main or one sub-agent file, torn lines counted', () => {
   expect(slugOf('/home/a.b/c_d')).toBe('-home-a-b-c-d')
   const p = fs.mkdtempSync(path.join(os.tmpdir(), 'mf-'))
   dirs.push(p)
   const dir = path.join(p, slugOf('/r'))
-  fs.mkdirSync(path.join(dir, 's', 'subagents'), { recursive: true })
+  const sub = path.join(dir, 's', 'subagents')
+  fs.mkdirSync(sub, { recursive: true })
   fs.writeFileSync(path.join(dir, 's.jsonl'), '{"a":1}\n{"torn')
-  fs.writeFileSync(path.join(dir, 's', 'subagents', 'x.jsonl'), '{"b":2}\n')
-  const all = sessionFiles(p, '/r', 's', true)
-  expect(all.map(f => path.basename(f))).toEqual(['s.jsonl', 'x.jsonl'])
-  expect(sessionFiles(p, '/r', 's', false)).toHaveLength(1)
-  expect(records(all[0]!)).toEqual({ recs: [{ a: 1 }], torn: 1 })
-  expect(sessionFiles(p, '/r', 'gone', true)).toEqual([])
+  fs.writeFileSync(path.join(sub, 'agent-a1.jsonl'), '{"b":2}\n')
+  fs.writeFileSync(path.join(sub, 'agent-a2.jsonl'), '{"c":3}\n')
+  const main = sessionFiles(p, '/r', 's', 'main')
+  expect(main.map(f => path.basename(f))).toEqual(['s.jsonl'])
+  expect(sessionFiles(p, '/r', 's', 'a1').map(f => path.basename(f)))
+    .toEqual(['agent-a1.jsonl'])
+  expect(records(main[0]!)).toEqual({ recs: [{ a: 1 }], torn: 1 })
+  expect(sessionFiles(p, '/r', 'gone', 'main')).toEqual([])
 })
 
 test('X2: composer prompts only', () => {
@@ -1251,18 +1276,16 @@ const CONTEXT_SUFFIX = /-context$/ // tool.call attachments: <id>-context
 /** The transcript folder name of a project root. */
 export const slugOf = (root: string) => root.replace(/[^A-Za-z0-9]/g, '-')
 
-/** The main transcript of a session, then its sub-agent ones if asked. */
+/** The transcript of a session's main thread, or of one sub-agent
+ * (`subagents/agent-<id>.jsonl`, the id the log keeps in `agent`). */
 export function sessionFiles(
-  projects: string, root: string, session: string, withSub: boolean,
+  projects: string, root: string, session: string, agent: string,
 ): string[] {
   const dir = path.join(projects, slugOf(root))
-  const sub = path.join(dir, session, 'subagents')
-  const subs = withSub && fs.existsSync(sub)
-    ? fs.readdirSync(sub).filter(f => f.endsWith('.jsonl')).sort()
-      .map(f => path.join(sub, f))
-    : []
-  return [path.join(dir, `${session}.jsonl`), ...subs]
-    .filter(f => fs.existsSync(f))
+  const file = agent === 'main'
+    ? path.join(dir, `${session}.jsonl`)
+    : path.join(dir, session, 'subagents', `agent-${agent}.jsonl`)
+  return fs.existsSync(file) ? [file] : []
 }
 
 /** Parsed lines of a transcript; torn or partial lines are counted. */
@@ -1550,6 +1573,7 @@ test('R3: worksheet: 0600 files, redacted text, a lost item, a skeleton',
     expect(worksheet(work, p, NOW)).toBe(2)
     const sheet = fs.readFileSync(path.join(work, 'worksheet.md'), 'utf8')
     expect(sheet).toContain('design the reader gate')
+    expect(sheet).toContain('(/repo/x)')
     expect(sheet).not.toContain('hunter2value')
     expect(sheet).toContain('LOST')
     for (const f of ['worksheet.md', 'items.json', 'labels-draft.tsv']) {
@@ -1666,6 +1690,7 @@ export type Logged = { root: string; rec: LogRecord }
 type Base = Omit<Item, 'cited' | 'lost'>
 type Joined = { item: Item; text: string }
 type Load = (l: Logged) => Loaded
+type Loader = { load: Load; torn: () => number }
 
 const AGE_FLOOR_MS = 1800000 // a younger record may still be mid-turn
 const PROMPT_MAX = 600
@@ -1741,52 +1766,63 @@ const clip = (s: string, n: number) => {
 const citedIn = (ids: string[], text: string) =>
   ids.filter(id => new RegExp(`\\b${id}\\b`).test(text))
 
-function header(b: Base, lost: boolean): string {
+/** An item header; the absolute repo path is for STEP 4 (scratchpad
+ * only: labels.tsv keeps the tag). */
+function header(b: Base, repo: string, lost: boolean): string {
   const ids = b.ids.join(' ') || '-'
   return `## Item ${b.n}: ${b.channel}/${b.trigger}/${b.outcome}` +
-    ` · cands ${b.cands ?? '-'} · ms ${b.ms ?? '-'} · ${b.root}` +
+    ` · cands ${b.cands ?? '-'} · ms ${b.ms ?? '-'}` +
+    ` · ${b.root} (${repo})` +
     ` · ids ${ids}${lost ? ' · LOST (no transcript turn)' : ''}`
 }
 
-const lostItem = (b: Base): Joined =>
-  ({ item: { ...b, cited: [], lost: true }, text: header(b, true) })
+const lostItem = (b: Base, repo: string): Joined =>
+  ({ item: { ...b, cited: [], lost: true }, text: header(b, repo, true) })
 
-function promptItem(b: Base, l: Loaded, rec: LogRecord): Joined {
+function promptItem(
+  b: Base, repo: string, l: Loaded, rec: LogRecord,
+): Joined {
   const j = joinPrompt(l.recs, rec)
-  if (j === undefined) return lostItem(b)
+  if (j === undefined) return lostItem(b, repo)
   const cited = citedIn(b.ids, j.reply)
-  const text = [header(b, false), `Prompt: ${clip(j.prompt, PROMPT_MAX)}`,
+  const text = [header(b, repo, false),
+    `Prompt: ${clip(j.prompt, PROMPT_MAX)}`,
     `Injected:\n${redact(j.injected) || '-'}`,
     `Reply: ${clip(j.reply, REPLY_MAX)}`,
     `Cited: ${cited.join(', ') || 'none'}`].join('\n\n')
   return { item: { ...b, cited, lost: false }, text }
 }
 
-function toolItem(b: Base, l: Loaded, rec: LogRecord): Joined {
+function toolItem(
+  b: Base, repo: string, l: Loaded, rec: LogRecord,
+): Joined {
   const j = joinTool(l.recs, rec)
-  if (j === undefined) return lostItem(b)
+  if (j === undefined) return lostItem(b, repo)
   const next = j.next.map(f => f ? 'failed' : 'ok').join(', ') || 'none'
-  const text = [header(b, false), `Command: ${clip(j.command, PROMPT_MAX)}`,
+  const text = [header(b, repo, false),
+    `Command: ${clip(j.command, PROMPT_MAX)}`,
     `Known: ${redact(j.known)}`, `Next Bash results: ${next}`]
     .join('\n\n')
   return { item: { ...b, cited: [], lost: false }, text }
 }
 
-/** A per-run transcript loader: each session read once (R8); sub-agent
- * files only for sub-agent tool records. */
-function loaderFor(projects: string): Load {
-  const cache = new Map<string, Loaded>()
-  return (l: Logged) => {
-    const sub = l.rec.channel === 'tool' && l.rec.agent !== 'main'
-    const key = `${l.root}|${l.rec.session}|${sub}`
-    const hit = cache.get(key)
-    if (hit !== undefined) return hit
-    const loaded = sessionFiles(projects, l.root, l.rec.session, sub)
-      .map(records).reduce((a, b) => ({ recs: [...a.recs, ...b.recs],
-        torn: a.torn + b.torn }), { recs: [], torn: 0 } as Loaded)
-    cache.set(key, loaded)
-    return loaded
+/** A per-run transcript loader: each file read once (R8); a record
+ * reads its main thread or its own sub-agent file only; torn lines
+ * summed once per file. */
+function loaderFor(projects: string): Loader {
+  const files = new Map<string, Loaded>()
+  const read = (f: string) => {
+    const got = files.get(f) ?? records(f)
+    files.set(f, got)
+    return got
   }
+  const load = (l: Logged): Loaded => {
+    const r = l.rec
+    const fs_ = sessionFiles(projects, l.root, r.session, r.agent)
+    return { torn: 0, recs: fs_.flatMap(f => read(f).recs) }
+  }
+  const torn = () => [...files.values()].reduce((t, x) => t + x.torn, 0)
+  return { load, torn }
 }
 
 /** One worksheet item and its redacted text. */
@@ -1797,7 +1833,7 @@ function joinOne(l: Logged, n: number, load: Load): Joined {
     cands: r.cands, ms: r.ms, ids: r.ids }
   const loaded = load(l)
   return r.channel === 'prompt'
-    ? promptItem(b, loaded, r) : toolItem(b, loaded, r)
+    ? promptItem(b, l.root, loaded, r) : toolItem(b, l.root, loaded, r)
 }
 
 const labelsOf = (p: Paths) => path.join(p.out, 'labels.tsv')
@@ -1823,10 +1859,9 @@ export function worksheet(dir: string, p: Paths, now: number): number {
     .map(l => l.rec.at)
   const pop = population(logs, new Set(rows.map(keyOf)),
     clockStart(rows, logAts), now)
-  const load = loaderFor(p.projects)
-  const joined = pop.map((l, i) => joinOne(l, i + 1, load))
-  const torn = pop.reduce((t, l) => t + load(l).torn, 0)
-  const head = sheetHead(pop.length, torn,
+  const loader = loaderFor(p.projects)
+  const joined = pop.map((l, i) => joinOne(l, i + 1, loader.load))
+  const head = sheetHead(pop.length, loader.torn(),
     evictions(logs, readState(stateOf(p)).lastRun))
   writeSafe(path.join(dir, 'worksheet.md'), ['# Memory feedback worksheet',
     head, DRAFT_HELP, ...joined.map(j => j.text)].join('\n\n') + '\n')
@@ -2017,7 +2052,7 @@ h=$(home off); old "$h" "$OPEN"; printf '{"recall": false}' > "$h/.claude/memory
 check MR7-recall-off "$(run "$h")" "rc=0"
 h=$(home locked); old "$h" "$OPEN"
 chmod 000 "$h/.claude/memory-feedback/state.json"
-check MR8-unreadable-rc "$(run "$h" | tail -1)" "rc=0"
+check MR8-unreadable "$(run "$h")" "rc=0"
 
 printf 'memory-feedback-remind: %d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
@@ -2057,6 +2092,7 @@ if [ ! -f "$state" ]; then
   echo "memory feedback: never run → /memory-feedback"
   exit 0
 fi
+[ -r "$state" ] || exit 0
 grep -q '"closed":true' "$state" 2>/dev/null && exit 0
 [ "$store" -nt "$state" ] || exit 0
 [ -n "$(find "$state" -mtime +$((REMIND_DAYS - 1)) 2>/dev/null)" ] || exit 0
@@ -2183,9 +2219,12 @@ Lost items have no line.
 ## STEP 3 — SPOT CHECK
 
 ```bash
+BUN="$(command -v bun || echo "$HOME/.bun/bin/bun")"
+MFD="$(cd -P "$HOME/.claude/lib" && pwd)/memory-feedback"
 (cd "$MFD" && "$BUN" reader.ts sample "<dir>")
 ```
 
+Each shell block resolves its own paths: a Bash call is a fresh shell.
 Show the 5 picked entries to the user in one AskUserQuestion: the prompt
 gist in your own words (never a secret), the entry title, your label; the
 user confirms or flips each. Apply the flips to the draft (LRN-168).
@@ -2193,8 +2232,8 @@ user confirms or flips each. Apply the flips to the draft (LRN-168).
 ## STEP 4 — MISSES
 
 On up to 5 prompt items whose outcome is injected or none, search the
-registries of that item's repo (`bash ~/.claude/lib/memory.sh -C <repo>
-index` + entry bodies) for live entries that bore on the ask and were not
+registries of that item's repo, whose absolute path is in the item header
+(`bash ~/.claude/lib/memory.sh -C <path> index` + entry bodies) for live entries that bore on the ask and were not
 injected. Each one: `<item>	<id>	missed	<cause>`, cause `no-overlap` (no
 content word shared with the prompt) or `overlap`. A searched item with no
 miss: `<item>	-	checked`. Example line: `3	LRN-901	missed	no-overlap`.
@@ -2202,6 +2241,8 @@ miss: `<item>	-	checked`. Example line: `3	LRN-901	missed	no-overlap`.
 ## STEP 5 — APPLY
 
 ```bash
+BUN="$(command -v bun || echo "$HOME/.bun/bin/bun")"
+MFD="$(cd -P "$HOME/.claude/lib" && pwd)/memory-feedback"
 (cd "$MFD" && "$BUN" reader.ts apply "<dir>")
 ```
 
@@ -2216,10 +2257,12 @@ Only when the output ends with a `NEW: …` line:
    TODO line of this config repo; the user approves each. Actions naming
    another repo's tag (noisy, promotion) are shown to the user to run
    /prune-memory there; they are never written here.
-2. Write approved entries per `lib/capitalize-commit.md` § WRITE into this
-   repo only: `bash "$CFG/lib/memory.sh" -C "$CFG" add eval …` (a decided
-   action also gets `add decision`), TODO lines in
-   `$CFG/.claude/tasks/TODO.md`, then commit per § DO run from `$CFG`.
+2. Write approved entries per `lib/capitalize-commit.md` § WRITE (this
+   repo only), in one shell block:
+   `CFG="$(cd -P "$HOME/.claude/lib/.." && pwd)"`, then
+   `bash "$CFG/lib/memory.sh" -C "$CFG" add eval …` (a decided action also
+   gets `add decision`), TODO lines in `$CFG/.claude/tasks/TODO.md`; then
+   commit per `lib/capitalize-commit.md` § DO (run from `$CFG`).
 Thresholds live in `lib/memory-feedback/thresholds.ts`; never tune them
 here (BDR-100).
 
@@ -2248,9 +2291,11 @@ the frontmatter `effort: high` matches the row's floor.
 
 Each, contained (`systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" make test suite=<path> </dev/null`):
 `lib/tests/effort-routing.test.sh`, `lib/tests/skill-routing-census.test.sh`,
-`lib/tests/model-routing.test.sh`, `skills/prune-memory/tests/run-deterministic.sh`.
-Expected: all green; no `memory-feedback` collision line; `LRN-901` is
-fictional (absent from learnings.md).
+`lib/tests/model-routing.test.sh`, `lib/tests/doctrine-citers.test.sh`,
+`skills/prune-memory/tests/run-deterministic.sh`.
+Expected: all green; no `memory-feedback` collision line; no DANGLING
+citer for `skills/memory-feedback/SKILL.md`; `LRN-901` is fictional
+(absent from learnings.md).
 
 - [ ] **Step 4: Commit**
 
