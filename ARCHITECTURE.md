@@ -20,7 +20,7 @@ claude-config/
 ├── update-all.sh          # One-command update for all components
 ├── Makefile               # Unified entry point: make install / doctor / update / test (make help)
 ├── plugins.lock.json      # Version pinning for non-marketplace dependencies and vendored skills
-├── hooks/                 # Claude Code hooks: session start, statusline, RTK rewrite, ctx7 + design-toolchain reminders, attention notify, unpushed-work guard, manual-mode push guard, system-dir extraction guard, instruction-load log, memory digest at session start, code-limits line-width signal
+├── hooks/                 # Claude Code hooks: session start, statusline, RTK rewrite, ctx7 + design-toolchain reminders, attention notify, unpushed-work guard, manual-mode push guard, system-dir extraction guard, instruction-load log, memory digest and memory feedback reminder at session start, code-limits line-width signal
 ├── githooks/              # Generated git hooks (pre-commit, post-commit, post-merge, reference-transaction), git's global core.hooksPath
 ├── .githooks/             # This repo's own copy of the same hooks
 ├── .claude/rules/         # This repo's project path rules (paths: frontmatter), loaded on Read of a matching file
@@ -31,7 +31,7 @@ claude-config/
 ├── mods/                  # Claude Code mods (function-hooks plugins), loaded through the skills/<name> symlink
 ├── skills-external/       # Vendored skill packs: gstack submodule, design skills, superpowers, agent-skills, MengTo scroll skills, 21st and Higgsfield packs (machine-owned copies gitignored)
 ├── templates/             # Per-project templates (CLAUDE.md, settings, memory registries, path-rule skeletons, deploy runbook, gitignore)
-└── lib/                   # Shared libs: gitflow, memory registry writer, profiles (lib/profiles/*.json fragments, profile.sh, cc.sh), vendoring, route doctrine, gates, archetypes, architecture defaults, project-rule oracle, tests
+└── lib/                   # Shared libs: gitflow, memory registry writer, memory feedback reader (lib/memory-feedback/, bun), profiles (lib/profiles/*.json fragments, profile.sh, cc.sh), vendoring, route doctrine, gates, archetypes, architecture defaults, project-rule oracle, tests
 ```
 
 ## Architecture principles
