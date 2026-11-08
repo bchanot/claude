@@ -52,6 +52,7 @@ Q: spec deviations / A: reader in lib/memory-feedback/; miss causes no-overlap|o
 - skills/memory-feedback/SKILL.md, mods/model-router/routing.json
 - docs/superpowers/{specs,plans}/2026-11-06-memory-feedback* (transient, purged at finish)
 - public docs as patched by doc sync (STEP 8)
+- Orchestrator-only: .claude/tasks/**, .claude/memory/** [gated 2026-11-08]
 
 ## EXECUTION LOG (orchestrator)
 - Tasks 1-7 via SDD on feature/memory-feedback (21483dc..c00649f), each task review approved (rulings and deferred minors in the SDD ledger, workspace .superpowers/sdd/2026-11-06-memory-feedback/progress.md).
@@ -61,3 +62,4 @@ Q: spec deviations / A: reader in lib/memory-feedback/; miss causes no-overlap|o
 - Task 8 step 2: live record in the store (repo zenquality, 2026-11-08T17:59:41Z): channel prompt, trigger fresh, outcome none, cands 11, ms 1408.
 - Task 8 step 3: live /memory-feedback run 2026-11-08 ~18:35Z: worksheet 1 record (joined, not lost), labelled `1 - test` (proof prompt), apply rc 0, FEEDBACK clock start 2026-11-08, both gates open, ~/.claude/memory-feedback 700 with 3 files 600, labels.tsv holds no prompt word and no path, reminder silent after the run.
 - Merge: user signal "tu peux merge" given before GATE 1; merged dcb593a (develop), GATE 1 run after the merge.
+- GATE 1 (verifier, post-merge): 9/9 criteria MET, floor clean; ECARTS(5) were scope only (flow bookkeeping files), closed by the user's micro-gate 2026-11-08 adding the orchestrator-only line to FILE SCOPE. Not re-dispatched: the scope line was the only gap.
