@@ -52,3 +52,12 @@ Q: spec deviations / A: reader in lib/memory-feedback/; miss causes no-overlap|o
 - skills/memory-feedback/SKILL.md, mods/model-router/routing.json
 - docs/superpowers/{specs,plans}/2026-11-06-memory-feedback* (transient, purged at finish)
 - public docs as patched by doc sync (STEP 8)
+
+## EXECUTION LOG (orchestrator)
+- Tasks 1-7 via SDD on feature/memory-feedback (21483dc..c00649f), each task review approved (rulings and deferred minors in the SDD ledger, workspace .superpowers/sdd/2026-11-06-memory-feedback/progress.md).
+- Final whole-branch review (opus): with fixes → 2711725 (I1 locals, I2 per-trigger n, M1 labels before state, M3-M9); residual commit() locals fixed in 027e5b3.
+- GATE 2: PASS with 3 MEDIUM → 027e5b3 (checkDir fail-closed, items.json validated, session/agent charset, ID filter, skill data rule, out dir 0700); re-scan MEDIUM shell-safe path → 9ec5617 (safePath); final re-scan PASS, 0 findings.
+- Task 8 step 1: full `make test` (contained, TasksMax=512) rc 0, all suites green (at c00649f); suites re-run green after each fix round (memory-feedback 37/0 at 9ec5617).
+- Task 8 step 2: live record in the store (repo zenquality, 2026-11-08T17:59:41Z): channel prompt, trigger fresh, outcome none, cands 11, ms 1408.
+- Task 8 step 3: live /memory-feedback run 2026-11-08 ~18:35Z: worksheet 1 record (joined, not lost), labelled `1 - test` (proof prompt), apply rc 0, FEEDBACK clock start 2026-11-08, both gates open, ~/.claude/memory-feedback 700 with 3 files 600, labels.tsv holds no prompt word and no path, reminder silent after the run.
+- Merge: user signal "tu peux merge" given before GATE 1; merged dcb593a (develop), GATE 1 run after the merge.
