@@ -973,7 +973,8 @@ export type Outcome = 'injected' | 'none' | 'timeout' | 'refused' | 'paused'
 const TRIGGERS: string[] = ['fresh', 'idle', 'keyword', 'tool']
 const OUTCOMES: string[] = ['injected', 'none', 'timeout', 'refused', 'paused']
 
-// `trigger` and `outcome` are absent on records written before 4c's review.
+// `trigger` and `outcome` are absent on records written before 4c's
+// review; `cands` and `ms` on records written before 4d.1.
 export type LogRecord = {
   at: number
   session: string
@@ -982,16 +983,23 @@ export type LogRecord = {
   ids: string[]
   trigger?: Trigger
   outcome?: Outcome
+  cands?: number // prompt: BM25 candidates after the seen filter
+  ms?: number // prompt: rerank wall time, when a rerank ran
 }
 
 // shortcut: one `l:<root>` key per project (about 28 KiB at 200 records),
 // swept by `sweepLogs` against the engine's 4 MiB store cap, oldest key
 // first; upgrade path: one global log key, or a smaller per-root cap.
-const LOG_PREFIX = 'l:'
-const MAX_LOG = 200
+export const LOG_PREFIX = 'l:'
+export const MAX_LOG = 200
 const MAX_LOG_BYTES = 65536
 
-function isLogRecord(v: unknown): v is LogRecord {
+/** Absent, or a non-negative integer. */
+const isCount = (v: unknown) =>
+  v === undefined || (Number.isInteger(v) && (v as number) >= 0)
+
+/** A well-formed log record; the 4d reader imports it (LRN-261). */
+export function isLogRecord(v: unknown): v is LogRecord {
   const r = v as Partial<LogRecord> | null
   return typeof r === 'object' && r !== null &&
     typeof r.at === 'number' && typeof r.session === 'string' &&
@@ -999,7 +1007,8 @@ function isLogRecord(v: unknown): v is LogRecord {
     (r.channel === 'prompt' || r.channel === 'tool') &&
     Array.isArray(r.ids) && r.ids.every(i => typeof i === 'string') &&
     (r.trigger === undefined || TRIGGERS.includes(r.trigger)) &&
-    (r.outcome === undefined || OUTCOMES.includes(r.outcome))
+    (r.outcome === undefined || OUTCOMES.includes(r.outcome)) &&
+    isCount(r.cands) && isCount(r.ms)
 }
 
 const logKey = (root: string) => LOG_PREFIX + root.slice(0, MAX_ROOT)
@@ -1705,7 +1714,7 @@ function candidatesFor(
 }
 
 type Ask = { at: Where; text: string; trigger: Exclude<Trigger, 'tool'> }
-type Picked = { block: string; ids: string[]; outcome: Outcome }
+type Picked = { block: string; ids: string[]; outcome: Outcome; ms?: number }
 
 const nothing = (outcome: Outcome): Picked => ({ block: '', ids: [], outcome })
 
@@ -1736,14 +1745,16 @@ async function pickRecall(
   const now = await $.clock.now()
   if (now < st.rerank.until) return nothing('paused')
   const answer = await askRerank($, st, text, cands, now)
-  if (answer === undefined) return nothing('timeout')
+  // a clock step back must not make the record invalid (isCount)
+  const ms = Math.max(0, Math.round((await $.clock.now()) - now))
+  if (answer === undefined) return { ...nothing('timeout'), ms }
   const picked = picksOf(answer, cands)
-  if (picked.length === 0) return nothing('none')
+  if (picked.length === 0) return { ...nothing('none'), ms }
   const taken = claimPicks(st, key, picked)
   const block = recallBlock(
     picked.filter(e => taken.includes(e.id)).map(recallLine), RECALL_CAP)
-  if (block === '') return nothing('refused')
-  return { block, ids: taken, outcome: 'injected' }
+  if (block === '') return { ...nothing('refused'), ms }
+  return { block, ids: taken, outcome: 'injected', ms }
 }
 
 /**
@@ -1764,6 +1775,7 @@ async function recallFor(
   const record = {
     at: await $.clock.now(), session: ask.at.id, agent: 'main',
     ids: got.ids, trigger: ask.trigger, outcome: got.outcome,
+    cands: cands.length, ...(got.ms === undefined ? {} : { ms: got.ms }),
   }
   await appendLog($, st, ask.at.root, { ...record, channel: 'prompt' })
     .catch(() => undefined)
