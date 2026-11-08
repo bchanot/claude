@@ -190,6 +190,25 @@ if [ "$rc" -eq 6 ] && [ -z "$staged" ] && [ "$(printf '%s\n' "$err" | grep -cxF 
 if [ "$(printf '%s\n' "$err" | grep -c 'dropped on: .*TODO.md')" -eq 0 ]; then ok "a fully staged file is not listed"; else ko "fully staged TODO.md listed as a dropped partial stage"; fi
 rm -rf "$d"
 
+echo "== partial stages listed in any locale (sort/comm agree)"
+d="$(new_repo)"
+printf -- '---\nformat: 2\ntype: decisions_registry\nentry_prefix: BDR\n---\n\n## BDR-001 — kept (2026-10-27)\n- **Status**: accepted\n' \
+  > "$d/.claude/memory/decisions.md"
+mkdir -p "$d/.claude/tasks/contracts"
+printf 'a\n' > "$d/.claude/tasks/TODO.md"
+printf 'a\n' > "$d/.claude/tasks/contracts/x.md"
+git -C "$d" add -A && git -C "$d" commit -qm v2
+sed 's/kept/edited/' "$d/.claude/memory/decisions.md" > "$d/x.tmp"
+cat "$d/x.tmp" > "$d/.claude/memory/decisions.md"
+git -C "$d" add .claude/memory/decisions.md
+for f in .claude/tasks/TODO.md .claude/tasks/contracts/x.md; do
+  printf 'b\n' >> "$d/$f"; git -C "$d" add "$f"; printf 'c\n' >> "$d/$f"
+done
+err="$(cd "$d" && LC_ALL=en_US.UTF-8 bash "$HELPER" commit "chore(memory): locale" 2>&1 >/dev/null)"; rc=$?
+n="$(printf '%s\n' "$err" | grep -c 'partial stage dropped on: .claude/tasks/')"
+if [ "$rc" -eq 6 ] && [ "$n" -eq 2 ] && ! printf '%s\n' "$err" | grep -q 'sorted order'; then ok "both partial stages named, no sort-order warning (locale vs byte order)"; else ko "rc=$rc n=$n err=[$err]"; fi
+rm -rf "$d"
+
 echo
 printf 'RESULT: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]
