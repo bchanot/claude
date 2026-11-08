@@ -445,6 +445,11 @@ _memory_digest() {  # <project-root>
   _digest_assemble
 }
 if [ "$_ss_digest" = 1 ]; then
+  # phase 4d: the weekly /memory-feedback reminder, bounded, never fatal
+  _ss_mf="$(dirname "${BASH_SOURCE[0]}")/../lib/memory-feedback-remind.sh"
+  _ss_tmo=(); command -v timeout >/dev/null 2>&1 && _ss_tmo=(timeout 2)
+  [ -f "$_ss_mf" ] && { "${_ss_tmo[@]}" bash "$_ss_mf" 2>/dev/null || true; }
+  unset _ss_mf _ss_tmo
   _ss_root=$(git rev-parse --show-toplevel 2>/dev/null) || _ss_root=$PWD
   # A foreign repository (`gitflow.protect` false) gets no digest.
   _ss_protect=$(git -C "$_ss_root" config --get gitflow.protect 2>/dev/null)

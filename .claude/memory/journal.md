@@ -702,3 +702,6 @@ rules:
 - capitalize pre-compact: 2 learnings (hook never calls claude CLI; worktree ignored symlinks + diff3); TODO BLK-043 merge checked, Part B kept. 4c digest switch committed 4a7ce37.
 - 2026-11-06: BLK-043 Part B /hotfix 2f45452: session-digest suite stubs claude CLI (SD0 control, SD15 zero calls), 53/53 under TasksMax=256, security PASS (MEDIUM stub-first-on-PATH queued in TODO shortcut). 4c merge pending user.
 - 2026-11-06: 4c merged ddb04f4. /bugfix safety-residuals (bugfix/safety-residuals): 5 items 9b3961e d93f06c dc5f127 97c6afc c5bd0f8 + gate round 7ca6b18; plan r3 after 3 lenses + confirm (0 BLOCKER, 8 MAJOR folded); GATE 0 MET, verifier ECARTS(2) → CONFORME, security PASS x2. BLK-045, BDR-139, LRN-265/266. Merge on signal; 4d next.
+
+## 2026-11-08
+- 2026-11-08: 4d memory feedback built on feature/memory-feedback (8 tasks SDD; plan r1 FATAL(7) → r2 → confirm FATAL(4) → r3; final review I1 locals + I2 per-trigger n; gate 2 hardening x2: checkDir fail-closed, items.json validated, safe repo path). make test green, GATE 0 MET, security PASS 0 findings; live record zenquality cands 11 ms 1408. BDR-140, LRN-267/268. Merged on user signal before GATE 1; live run + verifier after.

@@ -9,7 +9,8 @@ import {
   parseIds, recallLine, recallBlock, failureKey,
   segments, suiteKeyOf, commitLabel, finishLabel,
   newState, switchOf, claim, onContextStart, resetContext, endContext,
-  appendLog, loadLog, RECALL_CAP, isTrigger, MIN_CONTENT_WORDS, promptContext,
+  appendLog, loadLog, isLogRecord, RECALL_CAP, isTrigger,
+  MIN_CONTENT_WORDS, promptContext,
   DESIGN_RULE, ANALYSIS_RULE, HAIKU, RERANK_MS, IDLE_MS,
 } from './register'
 import type { LogRecord } from './register'
@@ -2412,6 +2413,72 @@ test('LO7: a pick the ledger refuses logs refused', async ($, on) => {
     .toEqual(['injected', 'refused'])
 })
 
+/** [outcome, cands, ms] of every logged ask, oldest first. */
+async function askMeta(w: World) {
+  return (await loadLog(storeApi(w), ROOT))
+    .map(r => [r.outcome, r.cands, r.ms])
+}
+
+/** The single ask of a fresh world answered by `model`. */
+async function oneAsk($: Engine, on: On, model?: Model) {
+  const { w } = await bootRecall($, on)
+  if (model !== undefined) w.model = model
+  await start($)
+  await say($, GO)
+  return (await askMeta(w))[0] ?? []
+}
+
+test('LF1: an injected ask logs cands and ms', async ($, on) => {
+  const [outcome, cands, ms] = await oneAsk($, on)
+  expect(outcome).toBe('injected')
+  expect(typeof cands === 'number' && cands >= 1).toBe(true)
+  expect(ms).toBe(0) // the mock clock does not move during an answer
+})
+
+test('LF1b: a declined ask logs cands and ms', async ($, on) => {
+  const [outcome, cands, ms] = await oneAsk($, on, { text: 'none' })
+  expect(outcome).toBe('none')
+  expect(typeof cands === 'number' && cands >= 1).toBe(true)
+  expect(ms).toBe(0)
+})
+
+test('LF1c: an unanswered ask logs cands and ms', async ($, on) => {
+  const [outcome, cands, ms] = await oneAsk($, on, 'unanswered')
+  expect(outcome).toBe('timeout')
+  expect(typeof cands === 'number' && cands >= 1).toBe(true)
+  expect(ms).toBe(0)
+})
+
+test('LF2: no candidate logs cands 0 and no ms', async ($, on) => {
+  const { w } = await bootRecall($, on)
+  w.proc = { stdout: rowsOut([['BLK-001', 'x'], ['LRN-002', 'y']])
+    .replace(/open/g, 'superseded') }
+  await start($)
+  await say($, GO)
+  expect(await askMeta(w)).toEqual([['none', 0, undefined]])
+})
+
+test('LF3: a paused ask logs cands without ms', async ($, on) => {
+  const { w } = await bootRecall($, on)
+  w.model = 'unanswered'
+  await start($)
+  for (let i = 0; i < 4; i++) await say($, DESIGN)
+  const last = (await askMeta(w)).at(-1)
+  expect(last?.[0]).toBe('paused')
+  expect((last?.[1] as number) >= 1).toBe(true)
+  expect(last?.[2]).toBeUndefined()
+})
+
+test('LF4: cands and ms are optional counts', async ($, on) => {
+  const good = { ...REC(2), cands: 4, ms: 812 }
+  const neg = { ...REC(3), cands: -1 }
+  const frac = { ...REC(4), ms: 1.5 }
+  const seed = { [`l:${ROOT}`]: [REC(1), good, neg, frac] }
+  const w = await boot($, on, { seed })
+  expect(await loadLog(storeApi(w), ROOT)).toEqual([REC(1), good])
+  expect(isLogRecord(REC(1))).toBe(true)
+})
+
 test('IR1: the first prompt of a context asks and injects the block',
   async ($, on) => {
     const { w, seen } = await bootRecall($, on)
@@ -2569,7 +2636,7 @@ test('IR11: an injection leaves one log record; 205 keep 200', async (
   const { w } = await bootRecall($, on)
   await start($)
   await say($, GO)
-  expect(await loadLog(storeApi(w), ROOT)).toEqual([
+  expect(await loadLog(storeApi(w), ROOT)).toMatchObject([
     { at: 1000, session: 's1', agent: 'main', channel: 'prompt',
       ids: ['BLK-001'], trigger: 'fresh', outcome: 'injected' },
   ])

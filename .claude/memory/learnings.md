@@ -1978,3 +1978,15 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Pattern**: before adding a guard rule for a new form, bench whether EXISTING rule already covers it. Claude Code permission `*` spans spaces: `Bash(rtk read */.env*)` already denies `rtk read -n sub/.env` (`*` = `-n sub`); only root-level target escaped → 2 rules, not 20. Bench row must test old rule on new cmd (proves need), not new rule alone (proves only match). Also gate on `sent` column = intended cmd (model may reorder args). Path allowlists over git output: `--name-only` lists rename destination only → use `--no-renames` so source path is checked.
 - **Context**: bugfix/safety-residuals 2026-11-06: plan r1 had 20 deny lines, simplicity + correctness lenses cut to 2; bench R3-R7 (results.tsv). Pre-commit allowlist c5bd0f8 T21f rename case.
 - **Future use**: every deny/ask addition (BDR-136 bench) and every path-based guard: (1) row with existing rule × new form first, (2) rename case in allowlist tests.
+
+## LRN-267 — Claude Code transcript join facts: -context toolUseID, blob replays, agent-<id>.jsonl (2026-11-08)
+
+- **Pattern**: Claude Code transcript facts for joins: `tool.call` hook attachment `toolUseID` = `<tool_use id>-context` (strip suffix before matching tool_use/tool_result); `api-request-blob` records replay earlier tool_result blocks → read only `assistant`/`user` records, dedupe tool_result by id; sub-agent transcript = `<session>/subagents/agent-<agentId>.jsonl` (same id mod logs in `agent`); `prompt.submit` additional context lands as `attachment.type hook_additional_context`, ~0.1-3 s after hook time; composer prompts carry `origin.kind human`.
+- **Context**: phase 4d reader (lib/memory-feedback/transcripts.ts); r1 plan matched `toolUseID` verbatim → every tool item would join empty on real data, synthetic fixture passed.
+- **Future use**: any transcript reader/bench: check these shapes on real files (field names only) before writing the join; fixture uses `-context` ids and a blob replay.
+
+## LRN-268 — Assumed fixtures pass their own tests; plan constraints must copy the user's limits verbatim (2026-11-08)
+
+- **Pattern**: fixture built from assumption passes its own test → BLOCKERs hide until a challenger reads real data or existing tests. 4d: `-context` toolUseID (real transcripts) and IR11 strict toEqual (existing kit test) both caught only by challenge passes, not by plan TDD. Second: plan "Global Constraints" must copy the user's global limits verbatim; 4d plan dropped "5 locals" → executors complied with the plan, final review flagged I1, extra fix round.
+- **Context**: feature/memory-feedback 2026-11-06..08: r1 FATAL(7), r2 confirm FATAL(4), final review I1/I2, gate 2 three MEDIUM + one MEDIUM on re-scan.
+- **Future use**: plan challenge brief asks correctness lens to verify fixture shapes against real data and to grep existing tests asserting changed records; writing-plans Global Constraints = paste CLAUDE.md limits line verbatim.
