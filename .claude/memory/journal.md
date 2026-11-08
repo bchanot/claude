@@ -705,3 +705,4 @@ rules:
 
 ## 2026-11-08
 - 2026-11-08: 4d memory feedback built on feature/memory-feedback (8 tasks SDD; plan r1 FATAL(7) → r2 → confirm FATAL(4) → r3; final review I1 locals + I2 per-trigger n; gate 2 hardening x2: checkDir fail-closed, items.json validated, safe repo path). make test green, GATE 0 MET, security PASS 0 findings; live record zenquality cands 11 ms 1408. BDR-140, LRN-267/268. Merged on user signal before GATE 1; live run + verifier after.
+- 2026-11-08: /hotfix comm warning: uutils sort locale vs comm byte order in memory-commit _partial_stages; LC_ALL=C both, test red-before (sorted order) then 21/21; security PASS; 54bdfeb. LRN-269.
