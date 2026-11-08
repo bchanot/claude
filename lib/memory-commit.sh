@@ -59,9 +59,11 @@ _partial_stages() {
     read -r mode oid _ < <(git ls-files -s -- "$p")
     echo "memory-commit: partial stage dropped on: $p (blob $oid;" \
       "restore: git update-index --cacheinfo $mode,$oid,$p)"
-  done < <(comm -12 \
-    <(git -c core.quotepath=off diff --cached --name-only -- "$@" | sort) \
-    <(git -c core.quotepath=off diff --name-only -- "$@" | sort))
+  # C locale for both: a locale sort and a byte-order comm disagree (uutils)
+  done < <(LC_ALL=C comm -12 \
+    <(git -c core.quotepath=off diff --cached --name-only -- "$@" \
+      | LC_ALL=C sort) \
+    <(git -c core.quotepath=off diff --name-only -- "$@" | LC_ALL=C sort))
 }
 
 # Surgical commit of the scoped paths only. Returns 0 (ok or no-op), 3 (unsafe).

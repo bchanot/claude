@@ -1990,3 +1990,9 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Pattern**: fixture built from assumption passes its own test → BLOCKERs hide until a challenger reads real data or existing tests. 4d: `-context` toolUseID (real transcripts) and IR11 strict toEqual (existing kit test) both caught only by challenge passes, not by plan TDD. Second: plan "Global Constraints" must copy the user's global limits verbatim; 4d plan dropped "5 locals" → executors complied with the plan, final review flagged I1, extra fix round.
 - **Context**: feature/memory-feedback 2026-11-06..08: r1 FATAL(7), r2 confirm FATAL(4), final review I1/I2, gate 2 three MEDIUM + one MEDIUM on re-scan.
 - **Future use**: plan challenge brief asks correctness lens to verify fixture shapes against real data and to grep existing tests asserting changed records; writing-plans Global Constraints = paste CLAUDE.md limits line verbatim.
+
+## LRN-269 — uutils sort collates by locale, comm expects byte order: pin LC_ALL=C on both (2026-11-08)
+
+- **Pattern**: uutils coreutils 0.10.0 (Ubuntu 26.04 default `sort`/`comm`): `sort` collates by locale (en_US.UTF-8: `.claude/tasks/contracts/x` before `.claude/tasks/TODO.md`), `comm` expects byte order → `comm: file N is not in sorted order`, rc 1, common lines can be missed. Fix: `LC_ALL=C` on every link (`LC_ALL=C sort` + `LC_ALL=C comm`/`join`). Test discriminates only with `LC_ALL=en_US.UTF-8`; `LC_ALL=''` makes uutils fall back to byte order (bug hidden).
+- **Context**: `lib/memory-commit.sh` `_partial_stages`, warning seen on a memory commit; fix 54bdfeb, test in lib/tests/run-deterministic.sh.
+- **Future use**: any `sort | comm|join|uniq` pipeline in shell libs: pin C locale on both sides; grep `comm -`/`join -` in review.
