@@ -5,7 +5,8 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import { slugOf } from './transcripts.ts'
 import {
-  apply, checkDir, population, readLogs, sample, storeFile, worksheet,
+  apply, checkDir, population, readLogs, safePath, sample, storeFile,
+  worksheet,
   type Paths,
 } from './reader.ts'
 
@@ -172,4 +173,11 @@ test('R9: sample picks entry lines of the draft', () => {
   worksheet(work, p, NOW)
   draft(work, '1\tBDR-001\trelevant\n1\t-\tchecked\n')
   expect(sample(work, 5)).toEqual(['1\tBDR-001\trelevant'])
+})
+
+test('safePath keeps plain paths and withholds shell-active ones', () => {
+  const w = 'path withheld: unsafe characters'
+  expect(safePath('/home/u/repo.x')).toBe('/home/u/repo.x')
+  for (const bad of ['/tmp/$(id)', '/tmp/`id`', "/tmp/a'b", '/a/../b'])
+    expect(safePath(bad)).toBe(w)
 })

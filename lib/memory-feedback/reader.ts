@@ -107,6 +107,15 @@ const ENTRY_ID = /^(BDR|LRN|BLK)-\d{3,}$/
 const citedIn = (ids: string[], text: string) => ids.filter(id =>
   ENTRY_ID.test(id) && new RegExp(`\\b${id}\\b`).test(text))
 
+const WITHHELD = 'path withheld: unsafe characters'
+
+/** `p` if it is safe to paste inside single quotes in a shell command. */
+export function safePath(p: string): string {
+  const ok = /^\/[A-Za-z0-9._\/ -]*$/.test(p) &&
+    !p.split('/').includes('..')
+  return ok ? p : WITHHELD
+}
+
 /** An item header; the absolute repo path is for STEP 4 (scratchpad
  * only: labels.tsv keeps the tag). */
 function header(b: Base, repo: string, lost: boolean): string {
@@ -115,7 +124,7 @@ function header(b: Base, repo: string, lost: boolean): string {
     ` · cands ${b.cands ?? '-'} · ms ${b.ms ?? '-'}` +
     ` · s:${b.session.slice(0, 8)}` +
     ` · ${new Date(b.at).toISOString().slice(11, 16)} UTC` +
-    ` · ${b.root} (${repo})` +
+    ` · ${b.root} (${safePath(repo)})` +
     ` · ids ${ids}${lost ? ' · LOST (no transcript turn)' : ''}`
 }
 
