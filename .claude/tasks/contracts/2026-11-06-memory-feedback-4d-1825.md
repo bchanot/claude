@@ -26,19 +26,19 @@ Q: spec deviations / A: reader in lib/memory-feedback/; miss causes no-overlap|o
 4. [gated 2026-11-07] 4d.1: prompt records carry `cands` (every ask) and `ms` (when a rerank ran), old records still load, IR11 passes; mod kit and strict validation green.
    CHECK: cd /home/bchanot/Documents/claude && grep -q 'export function isLogRecord' mods/memory/hooks/register.ts && systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" make test suite=lib/tests/mods.test.sh </dev/null >/home/bchanot/.cache/claude-tmp/claude-1000/-home-bchanot-Documents-claude/049658c4-3f30-4849-8ba6-906177262d8a/scratchpad/g4.out 2>&1 && echo C4_MOD
    EXPECT: C4_MOD
-   EVIDENCE: PENDING
+   EVIDENCE: MET exit=0 marker-found :: C4_MOD
 5. [gated 2026-11-07] Reader, labels, metrics, transcripts: the bun suite is green (labels append-only and loud on damage, draft validation, redaction of the worksheet, -context tool join, lost/torn counting, gates, NEW-once verdict, git-tree refusal).
    CHECK: cd /home/bchanot/Documents/claude && systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" make test suite=lib/tests/memory-feedback.test.sh </dev/null >/home/bchanot/.cache/claude-tmp/claude-1000/-home-bchanot-Documents-claude/049658c4-3f30-4849-8ba6-906177262d8a/scratchpad/g5.out 2>&1 && grep -q ' 0 fail' /home/bchanot/.cache/claude-tmp/claude-1000/-home-bchanot-Documents-claude/049658c4-3f30-4849-8ba6-906177262d8a/scratchpad/g5.out && echo C5_READER
    EXPECT: C5_READER
-   EVIDENCE: PENDING
+   EVIDENCE: MET exit=0 marker-found :: C5_READER
 6. [gated 2026-11-07] Reminder: never-run, due, quiet, closed, recall-off, unreadable cases; printed before the digest; portable (census green).
    CHECK: cd /home/bchanot/Documents/claude && systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" make test suite=lib/tests/memory-feedback-remind.test.sh </dev/null >/home/bchanot/.cache/claude-tmp/claude-1000/-home-bchanot-Documents-claude/049658c4-3f30-4849-8ba6-906177262d8a/scratchpad/g6a.out 2>&1 && systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" make test suite=lib/tests/session-digest.test.sh </dev/null >/home/bchanot/.cache/claude-tmp/claude-1000/-home-bchanot-Documents-claude/049658c4-3f30-4849-8ba6-906177262d8a/scratchpad/g6b.out 2>&1 && systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" make test suite=lib/tests/portability-census.test.sh </dev/null >/home/bchanot/.cache/claude-tmp/claude-1000/-home-bchanot-Documents-claude/049658c4-3f30-4849-8ba6-906177262d8a/scratchpad/g6c.out 2>&1 && echo C6_REMIND
    EXPECT: C6_REMIND
-   EVIDENCE: PENDING
+   EVIDENCE: MET exit=0 marker-found :: C6_REMIND
 7. [gated 2026-11-07] Skill /memory-feedback routed (reflect, effort high), no routing collision, no dangling doctrine citer.
    CHECK: cd /home/bchanot/Documents/claude && test -f skills/memory-feedback/SKILL.md && for t in effort-routing skill-routing-census model-routing doctrine-citers; do systemd-run --user --scope -q -p TasksMax=256 env PATH="$HOME/.bun/bin:$PATH" make test suite=lib/tests/$t.test.sh </dev/null >/home/bchanot/.cache/claude-tmp/claude-1000/-home-bchanot-Documents-claude/049658c4-3f30-4849-8ba6-906177262d8a/scratchpad/g7-$t.out 2>&1 || exit 1; done && echo C7_SKILL
    EXPECT: C7_SKILL
-   EVIDENCE: PENDING
+   EVIDENCE: MET exit=0 marker-found :: C7_SKILL
 8. [gated 2026-11-07] No text, no secret and no full repo path reaches labels.tsv, state.json, FEEDBACK.md or a committed file; the skill writes registries only into this repo (-C).
    (judged by the verifier from the diff and the reader tests R3/R5/M9)
 9. [gated 2026-11-07] Full suite green, and the live proof of Task 8 done (a real record with cands; one real /memory-feedback run).
