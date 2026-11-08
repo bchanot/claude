@@ -243,6 +243,17 @@ check SD14c-false "$(run "$p" "$WORK/startup.json" | digests)" 0
 check SD14d-banner "$(run "$p" "$WORK/startup.json" | grep -c '^$')" \
   "$(run "$p" "$WORK/startup.json" | grep -c '^$')"
 
+# SD17: the 4d reminder line prints before the digest, never inside it
+h17="$WORK/h17"; mkdir -p "$h17/.claude/plugins/store"
+: > "$h17/.claude/plugins/store/memory_skills-dir-a.json"
+p=$(mkproj sd17); blk "$p" 1 open "Seventeen"
+out17=$(cd "$p" && HOME="$h17" bash "$SS" <"$WORK/startup.json" 2>/dev/null)
+check SD17-line "$(printf '%s\n' "$out17" \
+  | grep -c '^memory feedback: never run')" 1
+check SD17-before-digest "$(printf '%s\n' "$out17" \
+  | grep -n -e '^memory feedback' -e '^memory digest' | cut -d: -f2 \
+  | tr '\n' ' ')" "memory feedback memory digest "
+
 # SD15: no hook run of this suite called the claude CLI (BLK-043)
 check SD15-no-claude-calls "$(claude_stub_calls)" 0
 
