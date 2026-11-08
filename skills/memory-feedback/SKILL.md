@@ -33,8 +33,10 @@ Read `<dir>/worksheet.md`. Fill the third column of the skeleton
 - `relevant`: the entry bears on what the prompt asked or what the reply
   did; `irrelevant` otherwise. Judge the entry against the ask, not the
   reply's quality.
-- A proof, bench or recall-testing session: replace that item's lines by
-  one `<item>	-	test` line.
+- A proof, bench or recall-testing session: every item of that session,
+  with lines or not (none, timeout and paused items included), gets one
+  `<item>	-	test` line in place of its lines. The header's `s:` shows
+  the session, the time the order.
 Lost items have no line.
 
 ## STEP 3 — SPOT CHECK
@@ -54,8 +56,9 @@ user confirms or flips each. Apply the flips to the draft (LRN-168).
 
 On up to 5 prompt items whose outcome is injected or none, search the
 registries of that item's repo, whose absolute path is in the item header
-(`bash ~/.claude/lib/memory.sh -C <path> index` + entry bodies) for live entries that bore on the ask and were not
-injected. Each one: `<item>	<id>	missed	<cause>`, cause `no-overlap` (no
+(`bash ~/.claude/lib/memory.sh -C <path> index` + entry bodies) for
+live entries that bore on the ask and were not injected. Each one:
+`<item>	<id>	missed	<cause>`, cause `no-overlap` (no
 content word shared with the prompt) or `overlap`. A searched item with no
 miss: `<item>	-	checked`. Example line: `3	LRN-901	missed	no-overlap`.
 

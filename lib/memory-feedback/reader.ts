@@ -13,7 +13,8 @@ import {
 } from '../../mods/memory/hooks/register.ts'
 import {
   appendRows, keyOf, parseDraft, readRows, readState, rowsOf, skeleton,
-  tagOf, writeSafe, writeState, type Item, type State,
+  tagOf, writeSafe, writeState, type Draft, type Item, type Row,
+  type State,
 } from './labels.ts'
 import {
   clockStart, gateVerdict, metricsOf, renderFeedback, type Verdict,
@@ -56,8 +57,7 @@ export function storeFile(dir: string): string {
   return files.sort((a, b) => mtime(b) - mtime(a))[0] as string
 }
 
-/** Every valid log record of every root, oldest first. */
-export function readLogs(file: string): Logged[] {
+function readStore(file: string): object {
   let data: unknown
   try {
     data = JSON.parse(fs.readFileSync(file, 'utf8'))
@@ -67,13 +67,16 @@ export function readLogs(file: string): Logged[] {
   if (typeof data !== 'object' || data === null) {
     throw new Error(`store file is not an object: ${file}`)
   }
-  const out: Logged[] = []
-  for (const [k, v] of Object.entries(data)) {
-    if (!k.startsWith(LOG_PREFIX) || !Array.isArray(v)) continue
-    const root = k.slice(LOG_PREFIX.length)
-    for (const rec of v.filter(isLogRecord)) out.push({ root, rec })
-  }
-  return out.sort((a, b) => a.rec.at - b.rec.at)
+  return data
+}
+
+/** Every valid log record of every root, oldest first. */
+export function readLogs(file: string): Logged[] {
+  return Object.entries(readStore(file))
+    .filter(([k, v]) => k.startsWith(LOG_PREFIX) && Array.isArray(v))
+    .flatMap(([k, v]) => (v as unknown[]).filter(isLogRecord)
+      .map(rec => ({ root: k.slice(LOG_PREFIX.length), rec })))
+    .sort((a, b) => a.rec.at - b.rec.at)
 }
 
 /** Unlabelled records from the clock start, AGE_FLOOR_MS old or more. */
@@ -109,6 +112,8 @@ function header(b: Base, repo: string, lost: boolean): string {
   const ids = b.ids.join(' ') || '-'
   return `## Item ${b.n}: ${b.channel}/${b.trigger}/${b.outcome}` +
     ` · cands ${b.cands ?? '-'} · ms ${b.ms ?? '-'}` +
+    ` · s:${b.session.slice(0, 8)}` +
+    ` · ${new Date(b.at).toISOString().slice(11, 16)} UTC` +
     ` · ${b.root} (${repo})` +
     ` · ids ${ids}${lost ? ' · LOST (no transcript turn)' : ''}`
 }
@@ -188,24 +193,34 @@ function sheetHead(n: number, torn: number, evicted: string[]): string {
   return lines.join('\n')
 }
 
-/** Writes worksheet.md, items.json, labels-draft.tsv (0600); the count. */
-export function worksheet(dir: string, p: Paths, now: number): number {
+const logAtsOf = (logs: Logged[]) =>
+  logs.filter(l => l.rec.cands !== undefined).map(l => l.rec.at)
+
+/** Joins the unlabelled population to its transcripts. */
+function collect(p: Paths, now: number) {
   const rows = readRows(labelsOf(p))
   const logs = readLogs(storeFile(p.store))
-  const logAts = logs.filter(l => l.rec.cands !== undefined)
-    .map(l => l.rec.at)
   const pop = population(logs, new Set(rows.map(keyOf)),
-    clockStart(rows, logAts), now)
+    clockStart(rows, logAtsOf(logs)), now)
   const loader = loaderFor(p.projects)
   const joined = pop.map((l, i) => joinOne(l, i + 1, loader.load))
-  const head = sheetHead(pop.length, loader.torn(),
-    evictions(logs, readState(stateOf(p)).lastRun))
+  return { joined, head: sheetHead(pop.length, loader.torn(),
+    evictions(logs, readState(stateOf(p)).lastRun)) }
+}
+
+function writeSheet(dir: string, joined: Joined[], head: string): void {
   writeSafe(path.join(dir, 'worksheet.md'), ['# Memory feedback worksheet',
     head, DRAFT_HELP, ...joined.map(j => j.text)].join('\n\n') + '\n')
   const items = joined.map(j => j.item)
   writeSafe(path.join(dir, 'items.json'), JSON.stringify(items))
   writeSafe(path.join(dir, 'labels-draft.tsv'), skeleton(items))
-  return pop.length
+}
+
+/** Writes worksheet.md, items.json, labels-draft.tsv (0600); the count. */
+export function worksheet(dir: string, p: Paths, now: number): number {
+  const { joined, head } = collect(p, now)
+  writeSheet(dir, joined, head)
+  return joined.length
 }
 
 const draftOf = (dir: string) => {
@@ -230,26 +245,45 @@ function nextState(st: State, v: Verdict, now: number) {
   return { state: { lastRun: now, promptAt, toolAt, closed }, news }
 }
 
-/** Validates the draft; writes state, then labels, then FEEDBACK.md. */
+const assertFresh = (items: Item[], old: Row[]) => {
+  const done = new Set(old.map(keyOf))
+  if (items.some(i => done.has(keyOf(i)))) {
+    throw new Error('items already applied: run worksheet again')
+  }
+}
+
+/** The new rows, and the metrics and verdict once they are added. */
+function projected(
+  items: Item[], drafts: Draft[], old: Row[], now: number,
+) {
+  const fresh = items.flatMap(i => rowsOf(i, drafts))
+  const m = metricsOf([...old, ...fresh])
+  return { fresh, m, v: gateVerdict(m, now) }
+}
+
+/** Appends labels, then writes state, then FEEDBACK.md. */
+function commit(
+  p: Paths, items: Item[], drafts: Draft[], now: number,
+): string {
+  const old = readRows(labelsOf(p))
+  assertFresh(items, old)
+  const { fresh, m, v } = projected(items, drafts, old, now)
+  const next = nextState(readState(stateOf(p)), v, now)
+  const feedback = renderFeedback(m, v, now)
+  if (fresh.length > 0) appendRows(labelsOf(p), fresh)
+  writeState(stateOf(p), next.state)
+  writeSafe(path.join(p.out, 'FEEDBACK.md'), feedback)
+  return feedback + next.news.map(n => n + '\n').join('')
+}
+
+/** Validates the draft; appends labels, writes state, then FEEDBACK.md
+ * (a failed state write leaves the NEW line to print on the next run). */
 export function apply(dir: string, p: Paths, now: number): string {
   const items: Item[] = JSON.parse(
     fs.readFileSync(path.join(dir, 'items.json'), 'utf8'))
   const drafts = parseDraft(draftOf(dir), items)
   if (typeof drafts === 'string') throw new Error(`draft refused: ${drafts}`)
-  const old = readRows(labelsOf(p))
-  const done = new Set(old.map(keyOf))
-  if (items.some(i => done.has(keyOf(i)))) {
-    throw new Error('items already applied: run worksheet again')
-  }
-  const fresh = items.flatMap(i => rowsOf(i, drafts))
-  const m = metricsOf([...old, ...fresh])
-  const v = gateVerdict(m, now)
-  const { state, news } = nextState(readState(stateOf(p)), v, now)
-  const feedback = renderFeedback(m, v, now)
-  writeState(stateOf(p), state)
-  if (fresh.length > 0) appendRows(labelsOf(p), fresh)
-  writeSafe(path.join(p.out, 'FEEDBACK.md'), feedback)
-  return feedback + news.map(n => n + '\n').join('')
+  return commit(p, items, drafts, now)
 }
 
 /** Up to `n` entry lines of the draft, picked at random. */
@@ -269,6 +303,9 @@ export function checkDir(dir: string | undefined): string {
   if (!fs.existsSync(dir)) return 'does not exist'
   const git = spawnSync('git', ['-C', dir, 'rev-parse',
     '--is-inside-work-tree'], { encoding: 'utf8' })
+  if (git.error !== undefined || typeof git.stdout !== 'string') {
+    return 'git unavailable'
+  }
   return git.stdout.trim() === 'true' ? 'inside a git work tree' : ''
 }
 

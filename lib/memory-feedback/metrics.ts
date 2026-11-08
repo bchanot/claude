@@ -10,11 +10,13 @@ export type Gate = 'open' | 'reached'
 export type ToolGate = Gate | 'extended' | 'insufficient'
 export type Verdict = { prompt: Gate; tool: ToolGate }
 type Rate = number | undefined
+type Sized = { rate: Rate; n: number }
 export type Metrics = {
   start?: number; promptN: number; toolN: number; lost: number
-  precision: Rate; byTrigger: Record<string, Rate>; thirdPick: Rate
+  precision: Rate; byTrigger: Record<string, Sized>; thirdPick: Rate
   late: Rate; msP90: Rate; tool: Rate; missShare: Rate; sampled: number
   noisy: string[]; promote: string[]
+  n: { prompt: number; third: number; tool: number } // entries
 }
 
 const share = (k: number, n: number): Rate => n === 0 ? undefined : k / n
@@ -52,13 +54,21 @@ export function p90(values: number[]): Rate {
   return s[Math.ceil(0.9 * s.length) - 1]
 }
 
-function byTrigger(entries: Row[]): Record<string, Rate> {
-  const out: Record<string, Rate> = {}
+function byTrigger(entries: Row[]): Record<string, Sized> {
+  const out: Record<string, Sized> = {}
   for (const k of ['fresh', 'idle', 'keyword']) {
-    out[k] = precision(entries.filter(r => r.trigger === k))
+    const mine = entries.filter(r => r.trigger === k)
+    out[k] = { rate: precision(mine), n: mine.length }
   }
   return out
 }
+
+/** Entry counts behind the three channel precisions. */
+const countsOf = (entries: Row[]) => ({
+  prompt: entries.filter(r => r.channel === 'prompt').length,
+  third: entries.filter(r => r.channel === 'prompt' && r.pick === 3).length,
+  tool: entries.filter(r => r.channel === 'tool').length,
+})
 
 /** timeout + paused among asks (lost ones too) that had candidates. */
 function lateShare(asks: Row[]): Rate {
@@ -117,6 +127,7 @@ export function metricsOf(all: Row[]): Metrics {
     tool: precision(entries.filter(r => r.channel === 'tool')),
     missShare: miss.rate, sampled: miss.sampled,
     noisy: noisy(entries), promote: promote(entries),
+    n: countsOf(entries),
   }
 }
 
@@ -137,10 +148,10 @@ export function gateVerdict(m: Metrics, now: number): Verdict {
 }
 
 /** The worst trigger under the floor; ties go idle, keyword, fresh. */
-function worstTrigger(by: Record<string, Rate>): string | undefined {
+function worstTrigger(by: Record<string, Sized>): string | undefined {
   const low = ['idle', 'keyword', 'fresh']
-    .filter(k => under(by[k], T.triggerFloor))
-  low.sort((a, b) => (by[a] ?? 0) - (by[b] ?? 0))
+    .filter(k => under(by[k]?.rate, T.triggerFloor))
+  low.sort((a, b) => (by[a]?.rate ?? 0) - (by[b]?.rate ?? 0))
   return low[0]
 }
 
@@ -195,13 +206,13 @@ export function renderFeedback(m: Metrics, v: Verdict, now: number) {
     `Prompt gate: ${v.prompt} (${m.promptN}/${PROMPT_GATE_N})`,
     toolLine(m, v), `Lost records: ${m.lost}`, '',
     '| Signal | Value |', '|---|---|',
-    `| prompt precision | ${pct(m.precision)} |`,
+    `| prompt precision | ${pct(m.precision)} (n=${m.n.prompt}) |`,
     ...Object.entries(m.byTrigger).map(([k, x]) =>
-      `| precision, ${k} | ${pct(x)} |`),
-    `| 3rd pick precision | ${pct(m.thirdPick)} |`,
+      `| precision, ${k} | ${pct(x.rate)} (n=${x.n}) |`),
+    `| 3rd pick precision | ${pct(m.thirdPick)} (n=${m.n.third}) |`,
     `| timeout + paused | ${pct(m.late)} |`,
     `| rerank ms p90 | ${m.msP90 ?? 'n/a'} |`,
-    `| tool precision | ${pct(m.tool)} |`,
+    `| tool precision | ${pct(m.tool)} (n=${m.n.tool}) |`,
     `| asks with a miss | ${pct(m.missShare)} of ${m.sampled} |`, '',
     `Noisy: ${m.noisy.join(', ') || 'none'}`,
     `Promotion candidates: ${m.promote.join(', ') || 'none'}`, '',

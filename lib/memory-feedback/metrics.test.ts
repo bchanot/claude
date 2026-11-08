@@ -118,3 +118,14 @@ test('M9: FEEDBACK.md counts, no repo tag without a noisy entry', () => {
   expect(text).not.toContain('client#abcdef')
   expect(text).toContain('Prompt gate: open (1/20)')
 })
+
+test('M10: FEEDBACK.md shows n per channel and trigger', () => {
+  const rows = [...ask(['relevant', 'irrelevant']),
+    ...ask(['irrelevant'], { trigger: 'idle' })]
+  const mm = metricsOf(rows)
+  const text = renderFeedback(mm, gateVerdict(mm, 1), 0)
+  expect(text).toContain('| precision, idle | 0 % (n=1) |')
+  expect(text).toContain('| precision, fresh | 50 % (n=2) |')
+  expect(text).toContain('| prompt precision | 33 % (n=3) |')
+  expect(text).toContain('| tool precision | n/a (n=0) |')
+})

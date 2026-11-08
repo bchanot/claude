@@ -1734,6 +1734,22 @@ function claimPicks(st: State, key: string, picked: Entry[]): string[] {
   return taken
 }
 
+/** Claims the picks of a rerank answer; the block to inject. */
+function injectPicks(
+  st: State,
+  key: string,
+  answer: string,
+  cands: Entry[],
+): Picked {
+  const picked = picksOf(answer, cands)
+  if (picked.length === 0) return nothing('none')
+  const taken = claimPicks(st, key, picked)
+  const block = recallBlock(
+    picked.filter(e => taken.includes(e.id)).map(recallLine), RECALL_CAP)
+  if (block === '') return nothing('refused')
+  return { block, ids: taken, outcome: 'injected' }
+}
+
 /** Asks haiku among the candidates and claims its picks. */
 async function pickRecall(
   $: Api,
@@ -1748,13 +1764,7 @@ async function pickRecall(
   // a clock step back must not make the record invalid (isCount)
   const ms = Math.max(0, Math.round((await $.clock.now()) - now))
   if (answer === undefined) return { ...nothing('timeout'), ms }
-  const picked = picksOf(answer, cands)
-  if (picked.length === 0) return { ...nothing('none'), ms }
-  const taken = claimPicks(st, key, picked)
-  const block = recallBlock(
-    picked.filter(e => taken.includes(e.id)).map(recallLine), RECALL_CAP)
-  if (block === '') return { ...nothing('refused'), ms }
-  return { block, ids: taken, outcome: 'injected', ms }
+  return { ...injectPicks(st, key, answer, cands), ms }
 }
 
 /**

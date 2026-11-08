@@ -28,13 +28,19 @@ export function sessionFiles(
   return fs.existsSync(file) ? [file] : []
 }
 
-/** Parsed lines of a transcript; torn or partial lines are counted. */
+/** Parsed lines of a transcript; torn, partial or non-object lines
+ * (`null`, a number, an array) are counted as torn. */
 export function records(file: string): Loaded {
   const recs: Rec[] = []
   let torn = 0
   for (const raw of fs.readFileSync(file, 'utf8').split('\n')) {
     if (raw.trim() === '') continue
-    try { recs.push(JSON.parse(raw)) } catch { torn += 1 }
+    try {
+      const v = JSON.parse(raw)
+      if (v === null || typeof v !== 'object' || Array.isArray(v)) {
+        torn += 1
+      } else recs.push(v)
+    } catch { torn += 1 }
   }
   return { recs, torn }
 }
@@ -90,7 +96,8 @@ function promptNear(recs: Rec[], ts: number): Prompt | undefined {
   for (const r of recs) {
     const text = composerText(r)
     const t = tsOf(r)
-    if (text === undefined || Math.abs(t - ts) > NEAR_MS) continue
+    if (text === undefined || !Number.isFinite(t)) continue
+    if (Math.abs(t - ts) > NEAR_MS) continue
     if (best === undefined || Math.abs(t - ts) < Math.abs(best.t - ts)) {
       best = { t, text }
     }
@@ -108,22 +115,22 @@ function nextPromptAt(recs: Rec[], ts: number): number {
   return end
 }
 
+/** The [dedupe key, text] of each text block of an assistant record. */
+const textsOf = (r: Rec): [string, string][] => blocksOf(r)
+  .filter(b => b.type === 'text')
+  .map(b => [`${r.message?.id}:${b.text}`, String(b.text)]) // EVAL-037
+
 /** Main-thread assistant text after `ts` up to the next prompt. */
 function replyAfter(recs: Rec[], ts: number): string {
   const end = nextPromptAt(recs, ts)
   const seen = new Set<string>()
-  const parts: string[] = []
-  for (const r of recs) {
-    const t = tsOf(r)
-    if (r.type !== 'assistant' || r.isSidechain === true) continue
-    if (!(t > ts && t < end)) continue
-    for (const b of blocksOf(r).filter(b => b.type === 'text')) {
-      const key = `${r.message?.id}:${b.text}` // EVAL-037
-      if (!seen.has(key)) parts.push(String(b.text))
-      seen.add(key)
-    }
-  }
-  return parts.join('\n')
+  return recs
+    .filter(r => r.type === 'assistant' && r.isSidechain !== true)
+    .filter(r => tsOf(r) > ts && tsOf(r) < end)
+    .flatMap(textsOf)
+    .filter(([key]) => !seen.has(key) && !!seen.add(key))
+    .map(([, text]) => text)
+    .join('\n')
 }
 
 export type PromptJoin = { prompt: string; injected: string; reply: string }
@@ -178,7 +185,7 @@ export type ToolJoin = { command: string; known: string; next: boolean[] }
 
 /** The failure a known line answered and the next 3 Bash results. */
 export function joinTool(recs: Rec[], rec: LogRecord): ToolJoin | undefined {
-  const needle = KNOWN_HEAD + (rec.ids[0] ?? '')
+  const needle = `${KNOWN_HEAD}${rec.ids[0] ?? ''} ` // BLK-003 != BLK-0031
   const att = attachmentAfter(recs, rec.at, 'tool.call', needle)
   const raw = att?.attachment?.toolUseID
   if (att === undefined || typeof raw !== 'string') return undefined

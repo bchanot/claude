@@ -41,6 +41,9 @@ test('X1: slug, the main or one sub-agent file, torn lines counted', () => {
   expect(sessionFiles(p, '/r', 's', 'a1').map(f => path.basename(f)))
     .toEqual(['agent-a1.jsonl'])
   expect(records(main[0]!)).toEqual({ recs: [{ a: 1 }], torn: 1 })
+  fs.writeFileSync(path.join(dir, 'n.jsonl'), '{"a":1}\nnull\n[1]\n7\n')
+  expect(records(path.join(dir, 'n.jsonl')))
+    .toEqual({ recs: [{ a: 1 }], torn: 3 })
   expect(sessionFiles(p, '/r', 'gone', 'main')).toEqual([])
 })
 

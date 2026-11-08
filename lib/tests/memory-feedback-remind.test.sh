@@ -13,8 +13,10 @@ check() { if [ "$2" = "$3" ]; then pass=$((pass+1)); else fail=$((fail+1));
   printf 'FAIL %s: got[%s] want[%s]\n' "$1" "$2" "$3"; fi; }
 # home <name>: a fixture HOME with a store file (unless "nostore")
 home() {
-  mkdir -p "$WORK/$1/.claude/plugins/store" "$WORK/$1/.claude/memory-feedback"
-  [ "$1" = nostore ] || : > "$WORK/$1/.claude/plugins/store/memory_skills-dir-a.json"
+  mkdir -p "$WORK/$1/.claude/plugins/store" \
+    "$WORK/$1/.claude/memory-feedback"
+  [ "$1" = nostore ] ||
+    : > "$WORK/$1/.claude/plugins/store/memory_skills-dir-a.json"
   echo "$WORK/$1"
 }
 OPEN='{"lastRun":1,"closed":false}'
@@ -24,24 +26,29 @@ old() {
   touch -t 202601010000 "$1/.claude/memory-feedback/state.json"
 }
 run() { HOME="$1" bash "$LIB" 2>&1; echo "rc=$?"; }
-DUE='memory feedback: last run 5+ d ago, transcripts expire at 7 → /memory-feedback'
+DUE='memory feedback: last run 5+ d ago, '
+DUE+='transcripts expire at 7 → /memory-feedback'
 
 check MR1-no-store "$(run "$(home nostore)")" "rc=0"
-check MR2-never "$(run "$(home never)")" "memory feedback: never run → /memory-feedback
+NEVER='memory feedback: never run → /memory-feedback'
+check MR2-never "$(run "$(home never)")" "$NEVER
 rc=0"
 h=$(home due); old "$h" "$OPEN"
 check MR3-due "$(run "$h")" "$DUE
 rc=0"
 h=$(home quiet); old "$h" "$OPEN"
-touch -t 202512010000 "$h/.claude/plugins/store/memory_skills-dir-a.json"
+touch -t 202512010000 \
+  "$h/.claude/plugins/store/memory_skills-dir-a.json"
 check MR4-store-unchanged "$(run "$h")" "rc=0"
 h=$(home fresh)
 printf '%s' "$OPEN" > "$h/.claude/memory-feedback/state.json"
-touch -t 209901010000 "$h/.claude/plugins/store/memory_skills-dir-a.json"
+touch -t 209901010000 \
+  "$h/.claude/plugins/store/memory_skills-dir-a.json"
 check MR5-ran-today "$(run "$h")" "rc=0"
 h=$(home closed); old "$h" '{"lastRun":1,"closed":true}'
 check MR6-closed "$(run "$h")" "rc=0"
-h=$(home off); old "$h" "$OPEN"; printf '{"recall": false}' > "$h/.claude/memory.json"
+h=$(home off); old "$h" "$OPEN"
+printf '{"recall": false}' > "$h/.claude/memory.json"
 check MR7-recall-off "$(run "$h")" "rc=0"
 h=$(home locked); old "$h" "$OPEN"
 chmod 000 "$h/.claude/memory-feedback/state.json"
