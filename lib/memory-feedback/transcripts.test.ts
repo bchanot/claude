@@ -45,6 +45,9 @@ test('X1: slug, the main or one sub-agent file, torn lines counted', () => {
   expect(records(path.join(dir, 'n.jsonl')))
     .toEqual({ recs: [{ a: 1 }], torn: 3 })
   expect(sessionFiles(p, '/r', 'gone', 'main')).toEqual([])
+  fs.writeFileSync(path.join(p, 'x.jsonl'), '{}\n')
+  expect(sessionFiles(p, '/r', '../x', 'main')).toEqual([])
+  expect(sessionFiles(p, '/r', 's', '../a1')).toEqual([])
 })
 
 test('X2: composer prompts only', () => {

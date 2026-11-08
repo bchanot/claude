@@ -9,7 +9,7 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import {
-  LOG_PREFIX, MAX_LOG, isLogRecord, redact, type LogRecord,
+  LOG_PREFIX, MAX_LOG, OUTCOMES, TRIGGERS, isLogRecord, redact, type LogRecord,
 } from '../../mods/memory/hooks/register.ts'
 import {
   appendRows, keyOf, parseDraft, readRows, readState, rowsOf, skeleton,
@@ -103,8 +103,9 @@ const clip = (s: string, n: number) => {
   const r = redact(s) // redact first: a secret straddling the cut escapes
   return r.length <= n ? r : `${r.slice(0, n)}…`
 }
-const citedIn = (ids: string[], text: string) =>
-  ids.filter(id => new RegExp(`\\b${id}\\b`).test(text))
+const ENTRY_ID = /^(BDR|LRN|BLK)-\d{3,}$/
+const citedIn = (ids: string[], text: string) => ids.filter(id =>
+  ENTRY_ID.test(id) && new RegExp(`\\b${id}\\b`).test(text))
 
 /** An item header; the absolute repo path is for STEP 4 (scratchpad
  * only: labels.tsv keeps the tag). */
@@ -245,19 +246,17 @@ function nextState(st: State, v: Verdict, now: number) {
   return { state: { lastRun: now, promptAt, toolAt, closed }, news }
 }
 
-const assertFresh = (items: Item[], old: Row[]) => {
-  const done = new Set(old.map(keyOf))
+const assertFresh = (items: Item[], file: string) => {
+  const done = new Set(readRows(file).map(keyOf))
   if (items.some(i => done.has(keyOf(i)))) {
     throw new Error('items already applied: run worksheet again')
   }
 }
 
 /** The new rows, and the metrics and verdict once they are added. */
-function projected(
-  items: Item[], drafts: Draft[], old: Row[], now: number,
-) {
+function projected(items: Item[], drafts: Draft[], p: Paths, now: number) {
   const fresh = items.flatMap(i => rowsOf(i, drafts))
-  const m = metricsOf([...old, ...fresh])
+  const m = metricsOf([...readRows(labelsOf(p)), ...fresh])
   return { fresh, m, v: gateVerdict(m, now) }
 }
 
@@ -265,9 +264,8 @@ function projected(
 function commit(
   p: Paths, items: Item[], drafts: Draft[], now: number,
 ): string {
-  const old = readRows(labelsOf(p))
-  assertFresh(items, old)
-  const { fresh, m, v } = projected(items, drafts, old, now)
+  assertFresh(items, labelsOf(p))
+  const { fresh, m, v } = projected(items, drafts, p, now)
   const next = nextState(readState(stateOf(p)), v, now)
   const feedback = renderFeedback(m, v, now)
   if (fresh.length > 0) appendRows(labelsOf(p), fresh)
@@ -276,11 +274,52 @@ function commit(
   return feedback + next.news.map(n => n + '\n').join('')
 }
 
+const isCount = (v: unknown) =>
+  typeof v === 'number' && Number.isInteger(v) && v >= 0
+const optCount = (v: unknown) => v === undefined || isCount(v)
+const idsOk = (v: unknown): v is string[] => Array.isArray(v) &&
+  v.every(x => typeof x === 'string' && ENTRY_ID.test(x))
+const inEnum = (v: unknown, set: string[]) =>
+  v === '' || (typeof v === 'string' && set.includes(v))
+
+/** Why a parsed items.json element is unusable; '' when it is sound. */
+function itemError(raw: unknown): string {
+  const i = (typeof raw === 'object' && raw !== null ? raw : {}) as
+    Record<string, unknown>
+  const text = (v: unknown, re: RegExp) => typeof v === 'string' && re.test(v)
+  const checks: [string, boolean][] = [
+    ['root', text(i.root, /^[^\t\n/]+#[0-9a-f]{6}$/)],
+    ['session', text(i.session, /^[A-Za-z0-9_-]+$/)],
+    ['channel', i.channel === 'prompt' || i.channel === 'tool'],
+    ['trigger', inEnum(i.trigger, TRIGGERS)],
+    ['outcome', inEnum(i.outcome, OUTCOMES)],
+    ['ids', idsOk(i.ids)],
+    ['cited', idsOk(i.cited) && i.cited.every(c =>
+      (i.ids as string[]).includes(c))],
+    ['numbers', isCount(i.at) && isCount(i.n) && optCount(i.cands) &&
+      optCount(i.ms)],
+    ['lost', typeof i.lost === 'boolean'],
+  ]
+  return checks.find(([, ok]) => !ok)?.[0] ?? ''
+}
+
+/** The items.json content, every element validated (it is on disk in a
+ * shared scratchpad: treat it as untrusted input). */
+function readItems(dir: string): Item[] {
+  const items: unknown = JSON.parse(
+    fs.readFileSync(path.join(dir, 'items.json'), 'utf8'))
+  if (!Array.isArray(items)) throw new Error('items.json invalid: not a list')
+  for (const it of items) {
+    const bad = itemError(it)
+    if (bad !== '') throw new Error(`items.json invalid: bad ${bad}`)
+  }
+  return items as Item[]
+}
+
 /** Validates the draft; appends labels, writes state, then FEEDBACK.md
  * (a failed state write leaves the NEW line to print on the next run). */
 export function apply(dir: string, p: Paths, now: number): string {
-  const items: Item[] = JSON.parse(
-    fs.readFileSync(path.join(dir, 'items.json'), 'utf8'))
+  const items = readItems(dir)
   const drafts = parseDraft(draftOf(dir), items)
   if (typeof drafts === 'string') throw new Error(`draft refused: ${drafts}`)
   return commit(p, items, drafts, now)
@@ -297,16 +336,27 @@ export function sample(dir: string, n: number): string[] {
   return lines.slice(0, n)
 }
 
+/** '' only for a git answer of "outside a work tree": exit 0 and
+ * `false`, or exit 128 and `not a git repository`. Fails closed. */
+function gitVerdict(dir: string): string {
+  const git = spawnSync('git', ['-C', dir, 'rev-parse',
+    '--is-inside-work-tree'], { encoding: 'utf8' })
+  if (git.error !== undefined) return 'git unavailable'
+  if (git.status === 0 && String(git.stdout).trim() === 'false') return ''
+  if (git.status === 0) return 'inside a git work tree'
+  if (git.status === 128 &&
+    String(git.stderr).includes('not a git repository')) return ''
+  return 'git check inconclusive'
+}
+
 /** '' for a usable dir; else why not (text must never reach a repo). */
 export function checkDir(dir: string | undefined): string {
   if (dir === undefined || !path.isAbsolute(dir)) return 'not absolute'
   if (!fs.existsSync(dir)) return 'does not exist'
-  const git = spawnSync('git', ['-C', dir, 'rev-parse',
-    '--is-inside-work-tree'], { encoding: 'utf8' })
-  if (git.error !== undefined || typeof git.stdout !== 'string') {
-    return 'git unavailable'
-  }
-  return git.stdout.trim() === 'true' ? 'inside a git work tree' : ''
+  const st = fs.statSync(dir)
+  if (st.uid !== process.getuid?.()) return 'not owned by you'
+  if ((st.mode & 0o022) !== 0) return 'group or world writable'
+  return gitVerdict(dir)
 }
 
 function run(cmd: string, dir: string): void {

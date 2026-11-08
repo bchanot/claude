@@ -64,8 +64,11 @@ export function fromLine(line: string): Row | undefined {
   }
 }
 
-const mkdir = (file: string) =>
-  fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 })
+const mkdir = (file: string) => {
+  const dir = path.dirname(file)
+  fs.mkdirSync(dir, { recursive: true, mode: 0o700 })
+  fs.chmodSync(dir, 0o700) // an existing dir may have been looser
+}
 
 /** Writes through a 0600 temp file and a rename; the dir is made 0700. */
 export function writeSafe(file: string, text: string): void {

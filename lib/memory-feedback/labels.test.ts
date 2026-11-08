@@ -4,7 +4,7 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import {
   appendRows, fromLine, parseDraft, readRows, readState, rowsOf, skeleton,
-  tagOf, toLine, writeState, type Item, type Row,
+  tagOf, toLine, writeSafe, writeState, type Item, type Row,
 } from './labels.ts'
 
 const dirs: string[] = []
@@ -86,6 +86,14 @@ test('L7: append-only labels, a backup, a loud damaged line', () => {
   expect(readRows(`${file}.bak`)).toHaveLength(1)
   fs.appendFileSync(file, 'broken line\n')
   expect(() => readRows(file)).toThrow('labels.tsv.bak')
+})
+
+test('L7b: an existing loose out dir is tightened to 0700', () => {
+  const dir = path.join(tmp(), 'loose')
+  fs.mkdirSync(dir, { mode: 0o755 })
+  fs.chmodSync(dir, 0o755)
+  writeSafe(path.join(dir, 'f'), 'x')
+  expect(fs.statSync(dir).mode & 0o777).toBe(0o700)
 })
 
 test('L8: state defaults, round trip, a corrupt file throws', () => {

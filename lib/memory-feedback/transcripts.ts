@@ -16,11 +16,14 @@ const CONTEXT_SUFFIX = /-context$/ // tool.call attachments: <id>-context
 /** The transcript folder name of a project root. */
 export const slugOf = (root: string) => root.replace(/[^A-Za-z0-9]/g, '-')
 
+const SAFE_ID = /^[A-Za-z0-9_-]+$/
+
 /** The transcript of a session's main thread, or of one sub-agent
  * (`subagents/agent-<id>.jsonl`, the id the log keeps in `agent`). */
 export function sessionFiles(
   projects: string, root: string, session: string, agent: string,
 ): string[] {
+  if (!SAFE_ID.test(session) || !SAFE_ID.test(agent)) return []
   const dir = path.join(projects, slugOf(root))
   const file = agent === 'main'
     ? path.join(dir, `${session}.jsonl`)

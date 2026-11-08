@@ -144,7 +144,27 @@ test('R8: the CLI refuses a dir inside a git work tree', () => {
   spawnSync('git', ['-C', repo, 'init', '-q'])
   expect(checkDir(repo)).toContain('git work tree')
   expect(checkDir('relative/dir')).not.toBe('')
-  expect(checkDir(mk('mf-ok-'))).toBe('')
+  const ok = mk('mf-ok-')
+  fs.chmodSync(ok, 0o700)
+  expect(checkDir(ok)).toBe('')
+  const open = mk('mf-open-')
+  fs.chmodSync(open, 0o775)
+  expect(checkDir(open)).toContain('writable')
+})
+
+test('R10: a tampered items.json is refused, nothing written', () => {
+  for (const bad of [{ root: '/repo/x' }, { root: 'a\tb#abcdef' },
+    { session: '../s' }, { channel: 'x' }, { ids: ['../x'] },
+    { cited: ['BDR-999'] }, { at: -1 }, { lost: 'no' }]) {
+    const { p, work } = fixture(STORE)
+    worksheet(work, p, NOW)
+    const f = path.join(work, 'items.json')
+    const items = JSON.parse(fs.readFileSync(f, 'utf8'))
+    fs.writeFileSync(f, JSON.stringify([{ ...items[0], ...bad }, items[1]]))
+    draft(work, '1\tBDR-001\trelevant\n')
+    expect(() => apply(work, p, NOW)).toThrow('items.json invalid')
+    expect(fs.existsSync(p.out)).toBe(false)
+  }
 })
 
 test('R9: sample picks entry lines of the draft', () => {

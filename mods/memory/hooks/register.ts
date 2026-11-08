@@ -970,8 +970,8 @@ function queueWrite(st: State, job: () => Promise<void>): Promise<void> {
 export type Trigger = 'fresh' | 'idle' | 'keyword' | 'tool'
 export type Outcome = 'injected' | 'none' | 'timeout' | 'refused' | 'paused'
 
-const TRIGGERS: string[] = ['fresh', 'idle', 'keyword', 'tool']
-const OUTCOMES: string[] = ['injected', 'none', 'timeout', 'refused', 'paused']
+export const TRIGGERS: string[] = ['fresh', 'idle', 'keyword', 'tool']
+export const OUTCOMES: string[] = ['injected', 'none', 'timeout', 'refused', 'paused']
 
 // `trigger` and `outcome` are absent on records written before 4c's
 // review; `cands` and `ms` on records written before 4d.1.
