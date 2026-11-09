@@ -1470,6 +1470,7 @@ Branch feature/user-writing-web-rules, UNMERGED (human gate).
 - **Accepted risks**: `cc.sh` keeps `set -a; . ~/.claude/.env` (all secrets in the claude env, as `dtach_claude` did); `deniedMcpServers` union = `cc x web` on a `dev` project keeps the connectors denied (`set web` in the project fixes it).
 - **Branch**: feature/phase5-profiles-packs; spec docs/superpowers/specs/2026-11-01-phase5-profiles-packs-design.md; contract .claude/tasks/contracts/2026-11-01-phase5-profiles-packs-1300.md.
 Supersedes [[BDR-030]].
+- **Status (2026-11-09)**: accepted, amended 2026-11-09: higgsfield connector denies + census connector rule removed after claude.ai account removal (chore/connector-deny-cleanup); generic deniedMcpServers mechanism in profile.sh kept
 
 ## BDR-135 — model-router askTier: consent before Fable, tier-name choice stamped on turn and run slots, per-type spawn memory [accepted] (2026-11-02)
 - **Context**: user ask 2026-11-02: model-router must ask before routing main or a rowed spawn onto Fable. feature/router-ask-tier, contract `.claude/tasks/contracts/2026-11-02-router-ask-tier-1434.md`, plan r3 after 3 lenses + confirmation.

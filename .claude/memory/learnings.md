@@ -2006,3 +2006,13 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Pattern**: contract CHECK running `make test` here → NOT-MET `timeout=120s` under gates.sh default, and red memory/memory-feedback suites when `bun` not on PATH. Run gate as `GATES_TIMEOUT=600 PATH="$HOME/.bun/bin:$PATH" bash ~/.claude/lib/gates.sh run <contract>`.
 - **Context**: /feat claude-ai-skills-off 2026-11-09: feater reported criterion 3 red (bun), first GATE 0 NOT-MET on timeout though suite green (rc 0, all suites green).
 - **Future use**: every contract with a `make test` oracle in this repo: brief executor + gate run with both env vars; consider default timeout per contract.
+
+## LRN-272 — Revert hints name the --no-ff merge, never a commit count (2026-11-09)
+- **Pattern**: CHANGELOG/doc revert hint names the `--no-ff` merge (`git revert -m 1 <merge>`), never a commit count or per-commit list. Fix commits shift the count; reverting a commit whose line a later fix rewrote conflicts (`git merge-tree` rc 1).
+- **Context**: chore/connector-deny-cleanup 2026-11-09: hint "revert the chore(profiles) commit" → final review: misses docs commit → fix "two commits" → opus review: 3 commits now, conflict simulated → merge form. Two fix rounds for one sentence.
+- **Future use**: any "how to undo" line in CHANGELOG/MIGRATION: point at the merge gitflow finish creates (lib/gitflow.sh --no-ff).
+
+## LRN-273 — ship-feature on a chore branch: plan goes to .claude/tasks/plans (purge only on feature/bugfix) (2026-11-09)
+- **Pattern**: `gitflow finish` purges transient `docs/superpowers/{specs,plans}` only on feature/bugfix branches (BDR-065, `_gitflow_purge_transient`). /ship-feature on a `chore/*` branch (cleanup, no new behavior per gitflow doctrine) → write the plan to `.claude/tasks/plans/<date>-<slug>-<HHMM>.md` (durable, allowlisted), else transient plan lands on develop.
+- **Context**: 2026-11-09 connector-deny cleanup via /ship-feature: writing-plans default path docs/superpowers/plans; caught by the transient-artifacts path rule before commit, plan moved.
+- **Future use**: ship-feature STEP 4 says `start feature`; when doctrine says chore, also move the plan path. Candidate: ship-feature/writing-plans note.
