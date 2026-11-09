@@ -1522,3 +1522,10 @@ Supersedes [[BDR-030]].
 - **Alternatives rejected**: raise cleanupPeriodDays (reverses secret hygiene); cron job (machinery, background claude); labels committed (client names on Gitea); one joint gate (prompt waits on rare tool channel); Stop-hook cited flag (BDR-125).
 - **Deviations from spec (user-gated 2026-11-07)**: reader in lib/ not mods/ (plugin validate/test scope); miss causes no-overlap|overlap only; labels.tsv without cited; noisy/promotion lines carry repo tag.
 - **Reference**: feature/memory-feedback 21483dc..b44b19f; contract .claude/tasks/contracts/2026-11-06-memory-feedback-4d-1825.md. See [[BDR-125]], [[BDR-137]], [[BDR-100]].
+
+## BDR-141 — claude.ai-synced skills off via global skillOverrides, not sync flag or profiles [accepted] (2026-11-09)
+- **Decision**: claude.ai-synced skills (19: docx, pptx, xlsx, pdf, docs, computer-use, cv-*, veille-emploi…) turned off by top-level `skillOverrides` {name: "off"} in tracked user settings.json. Global so plain `claude` (no profile = full, user rule 2026-11-09) gets it. Project re-enables one: `{"skillOverrides":{"<name>":"on"}}` in `.claude/settings.local.json` (per-key merge proven). Budget stays 50000.
+- **Why**: measured `/context` full headless 32.2k → 28.5k (Skills 16.2k → 12.5k); budget 50000 paid mostly synced skills (0.5k → 3.7k), our 44 skills keep descriptions even at default budget. Synced skills irrelevant in coding sessions.
+- **Alternatives rejected**: `syncClaudeAiSkills: false` (moves synced skills to `~/.claude/skills/.trash/`, not reversible per project); skillOverrides in profile fragments (session without profile reads no fragment); lower budget (40000 = 50000 once synced off, no gain).
+- **Also 2026-11-09**: user removed Higgsfield + unused claude.ai connectors at account level → MCP instr 2.4k → 0.77k on full; profile `deniedMcpServers` now dead (cleanup queued). Full headless 32.2k → 26.9k total.
+- **Amends** [[BDR-134]] "nothing global": account-level noise cut globally, packs/profiles untouched. Ref: feature/claude-ai-skills-off 47438f4, contract .claude/tasks/contracts/2026-11-09-claude-ai-skills-off-1253.md. See [[BDR-125]].

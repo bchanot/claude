@@ -706,3 +706,6 @@ rules:
 ## 2026-11-08
 - 2026-11-08: 4d memory feedback built on feature/memory-feedback (8 tasks SDD; plan r1 FATAL(7) → r2 → confirm FATAL(4) → r3; final review I1 locals + I2 per-trigger n; gate 2 hardening x2: checkDir fail-closed, items.json validated, safe repo path). make test green, GATE 0 MET, security PASS 0 findings; live record zenquality cands 11 ms 1408. BDR-140, LRN-267/268. Merged on user signal before GATE 1; live run + verifier after.
 - 2026-11-08: /hotfix comm warning: uutils sort locale vs comm byte order in memory-commit _partial_stages; LC_ALL=C both, test red-before (sorted order) then 21/21; security PASS; 54bdfeb. LRN-269.
+
+## 2026-11-09
+- 2026-11-09: BDR-125 residual measured: 30.2k→40k = Skills +6.2k (budget paid claude.ai-synced skills) + System tools (unattributable). /feat claude-ai-skills-off: global skillOverrides 19 off, 47438f4 + 07406ce; GATE 0 MET, verifier ECARTS(1)→CONFORME, security PASS. User removed claude.ai connectors. BDR-141, LRN-270/271. Merge on signal; next: dead deniedMcpServers cleanup.
