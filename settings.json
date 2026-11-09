@@ -4,6 +4,27 @@
     "ENABLE_STOP_REVIEW": "0",
     "SLASH_COMMAND_TOOL_CHAR_BUDGET": "50000"
   },
+  "skillOverrides": {
+    "anthropic-skills:deep-research": "off",
+    "built-in-browser": "off",
+    "chrome-browser": "off",
+    "computer-use": "off",
+    "cv-diagnoser": "off",
+    "cv-rewriter": "off",
+    "docs": "off",
+    "docx": "off",
+    "dossier-location": "off",
+    "google-workspace": "off",
+    "import-memory": "off",
+    "morning": "off",
+    "pdf": "off",
+    "pptx": "off",
+    "prompt-engineer": "off",
+    "saas-concil": "off",
+    "skill-creator": "off",
+    "veille-emploi": "off",
+    "xlsx": "off"
+  },
   "attribution": {
     "commit": "",
     "pr": "",

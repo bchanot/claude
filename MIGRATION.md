@@ -302,3 +302,7 @@ To migrate, run `bash ~/.claude/lib/memory.sh -C <project> upgrade` on a clean `
 ## Auto memory off (2026-10-29)
 
 `settings.json` now sets `"autoMemoryEnabled": false`, so Claude Code no longer loads `~/.claude/projects/<slug>/memory/`. Anything left there is knowledge no session reads. `make doctor` (section "Auto memory") counts the project dirs that still hold files. For each one, move what is worth keeping into that project's registries with `bash ~/.claude/lib/memory.sh -C <project> add <kind> --title … --body-file …`, then delete the leftover dir by hand.
+
+## Claude.ai-synced skills off (2026-11-09)
+
+`settings.json` now sets the claude.ai-synced skills to `"off"` in `skillOverrides`. The change was measured on Claude Code 2.1.319: run `claude --version` on a machine before pulling it there. A project that uses one of those skills brings it back with `{"skillOverrides": {"<name>": "on"}}` in its `.claude/settings.local.json`.

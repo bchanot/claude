@@ -328,6 +328,8 @@ CLI flags               → session only
 
 DENY always wins over ALLOW at any level. `.claudeignore` applies independently.
 
+`settings.json` turns the claude.ai-synced skills off through `skillOverrides`, to cut their listing cost (measured on the full profile 2026-11-09: 32.2k to 28.5k tokens headless). The list is by name: a skill synced later stays listed until its name is added, and a same-named skill from another source is hidden too. A project brings one back with `{"skillOverrides": {"<name>": "on"}}` in its `.claude/settings.local.json`.
+
 Templates for per-project settings are in `templates/settings/`. Copy them with `/onboard` or manually:
 ```bash
 CONF="$(dirname "$(readlink ~/.claude/CLAUDE.md)")"
