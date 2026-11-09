@@ -54,8 +54,8 @@ for item in hooks githooks agents skills lib templates rules; do
   CHANGED=$((CHANGED + 1))
 done
 
-# GStack is exposed via per-skill symlinks under skills/ (browse,
-# canary, autoplan, design-review, …) created by gstack's own `./setup`,
+# GStack skills are tracked links under skills/pack-gstack-*/skills/<n>
+# -> skills-external/gstack/<n> (packs, BDR-134),
 # PLUS a shared helper tree at skills/gstack/ mirroring every asset the
 # skills hardcode (bin/, browse/dist/, ETHOS.md, …) that a per-skill
 # symlink never exposes — see lib/gstack-links.sh. The helper tree
