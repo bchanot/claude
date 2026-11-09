@@ -15,13 +15,5 @@
     "pr-review-toolkit@claude-code-plugins": true,
     "example-skills@anthropic-agent-skills": false,
     "brightdata-plugin@synced": false
-  },
-  "deniedMcpServers": [
-    {
-      "serverName": "claude.ai higgsfield"
-    },
-    {
-      "serverName": "claude.ai Higgsfield AI"
-    }
-  ]
+  }
 }
