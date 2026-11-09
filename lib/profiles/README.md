@@ -16,7 +16,7 @@ defaults = `full`.
 - **max**: everything on, pr-review-toolkit included; for a one-off session, not a project.
 - **minimal**: no pack, no design plugin; the smallest listing.
 - **dev**: gstack-dev only; backend or tooling work without UI.
-- **design**: design, scroll3d, gstack-design, gstack-browser, ui-ux-pro-max.
+- **design**: design, scroll3d, gstack-design, gstack-browser, ui-ux-pro-max; UI and visual design work.
 - **web**: design + scroll3d + web-validate + the three gstack packs + ui-ux-pro-max; public site work.
 - **seo**: seo, web-validate, gstack-browser, gstack-dev; audit and fixes on a live site.
 - **qa**: gstack-browser + web-validate; dogfooding and conformance only.

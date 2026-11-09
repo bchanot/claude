@@ -100,6 +100,10 @@ out="$(census)"; rc=$?
 check T13-same-rc "$rc" 1
 check_has T13-same "$out" "RED lib/profiles/dev.json and zdev.json are identical fragments"
 rm "$FX/lib/profiles/zdev.json"
+jq '. + {deniedMcpServers: [{serverName: "claude.ai Fictional"}]}' "$FX/lib/profiles/dev.json" > "$FX/lib/profiles/zdev.json"
+out="$(census)"
+check T13-deny-differs "$(grep -c 'zdev.json are identical fragments' <<<"$out")" 0
+rm "$FX/lib/profiles/zdev.json"
 sed 's/pack-beta@skills-dir": false/pack-beta@skills-dir": false, "pack-ghost@skills-dir": false/' "$FX/lib/profiles/dev.json" > "$FX/lib/profiles/ghost.json"
 out="$(census)"; rc=$?
 check_has T14-ghost "$out" "WARN lib/profiles/ghost.json: names pack-ghost with no skills/pack-ghost/"
