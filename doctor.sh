@@ -509,7 +509,8 @@ CLAUDE_MD_CHARS=$(wc -c < "$REPO/CLAUDE.global.md" 2>/dev/null || echo 0)
 CLAUDE_MD_TOKENS=$((CLAUDE_MD_CHARS / 4))
 
 # Skill descriptions across the whole live catalog — every SKILL.md
-# reachable through ~/.claude/skills/*/SKILL.md, symlinks included
+# reachable through ~/.claude/skills/*/SKILL.md and
+# ~/.claude/skills/pack-*/skills/*/SKILL.md, symlinks included
 # (lib/doctor-skills.sh; catches a `|`/`>` block-scalar description that
 # the old `grep '^description:' | head -1` counted as 0 chars, and a
 # symlinked skill dir that the old `find -maxdepth 2` without `-L` missed).
@@ -605,9 +606,10 @@ else
 fi
 
 # Check expected skills are present. Repo-owned skills only: gstack skills
-# (health, status, …) are OFF by default and toggled per profile — requiring
-# them here false-warns on a default install, and "run link.sh" cannot
-# restore them (they are profile-managed, not link.sh-managed).
+# ship in three packs (pack-gstack-dev/-browser/-design; on by manifest
+# default = full, off per project or conversation by a profile) and live
+# under skills/pack-gstack-*/skills/<n>, while the check below reads
+# $HOME/.claude/skills/<n>/SKILL.md, so they are excluded here.
 EXPECTED_SKILLS=(
   "analyze" "doc" "init-project" "onboard" "plugin-check"
   "refactor" "ship-feature" "status"

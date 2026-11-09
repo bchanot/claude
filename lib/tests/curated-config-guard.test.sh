@@ -6,7 +6,7 @@
 # single-occurrence + column-0 closing brace) so drift in install-plugins.sh
 # propagates into this test instead of testing a stale copy. GUARDED_CONFIGS,
 # CFG_SNAPSHOT, REPO and an info() stub are defined here — the array literal
-# at install-plugins.sh:43-44 is outside the extracted range.
+# GUARDED_CONFIGS array in install-plugins.sh is outside the extracted range.
 set -u
 INSTALL_SH="$(cd "$(dirname "$0")/../.." && pwd)/install-plugins.sh"
 pass=0; fail=0

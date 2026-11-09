@@ -25,22 +25,25 @@ else
   warn "Cannot write log to $REPO — continuing without log file"
 fi
 
-# Load shared detection library
-# shellcheck source=lib/detect-plugins.sh disable=SC1091
-source "$REPO/lib/detect-plugins.sh"
+# Load shared libraries
 # shellcheck source=lib/gstack-playwright.sh disable=SC1091
 source "$REPO/lib/gstack-playwright.sh"
 # shellcheck source=lib/gstack-links.sh disable=SC1091
 source "$REPO/lib/gstack-links.sh"
 
 # ── Guard hand-curated config against installer drift ────────
-# graphify's installer (Step 7) rewrites CLAUDE.md + .claude/settings.json
-# (clobbers the curated graphify section + injects aggressive MANDATORY
-# hooks), and `claude plugin install` (Step 5) flips enable-states in
-# settings.json. These 4 files are maintained by hand + commit, never by
-# the installer. Snapshot them now and restore on exit so a run leaves them
-# exactly as it found them. Pre-existing local edits are preserved; only the
-# installer's drift is undone. NOTE: this makes these files install-immutable
+# graphify's installer (Step 7) runs `graphify install` (appends a
+# `# graphify` block to ~/.claude/CLAUDE.md = CLAUDE.global.md, which holds
+# the curated `## graphify` section: it matches the heading and appends,
+# it does not clobber) and `graphify claude install` (writes CLAUDE.md and
+# .claude/settings.json in the caller's cwd, injecting aggressive MANDATORY
+# hooks). The EXIT trap restores the 4 $REPO files in GUARDED_CONFIGS
+# (fully effective when run from $REPO, e.g. `make plugin`). `claude plugin
+# install` (Step 5) flips enable-states in settings.json. These 4 files are
+# maintained by hand + commit, never by the installer. Snapshot them now and
+# restore on exit so a run leaves them exactly as it found them. Pre-existing
+# local edits are preserved; only the installer's drift is undone. NOTE: this
+# makes these files install-immutable
 # — anything the installer should add to them must be committed by hand.
 # CLAUDE.md = project memory (graphify's rewrite target); CLAUDE.global.md
 # = user-scope global memory (deployed as ~/.claude/CLAUDE.md).

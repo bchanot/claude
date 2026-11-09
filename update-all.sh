@@ -14,9 +14,7 @@ info() { echo -e "${BLUE}→${NC} $1"; }
 REPO="$(cd "$(dirname "$0")" && pwd)"
 VERSION=$(cat "$REPO/version.txt" 2>/dev/null || echo "unknown")
 
-# Load shared detection library
-# shellcheck source=lib/detect-plugins.sh disable=SC1091
-source "$REPO/lib/detect-plugins.sh"
+# Load shared libraries
 # shellcheck source=lib/gstack-playwright.sh disable=SC1091
 source "$REPO/lib/gstack-playwright.sh"
 # shellcheck source=lib/gstack-links.sh disable=SC1091

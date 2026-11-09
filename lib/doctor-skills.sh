@@ -3,7 +3,8 @@
 # lib/doctor-skills.sh — doctor.sh's skill-catalog stats
 #
 # `skill_catalog_stats <skills_dir>` counts every skill reachable
-# through <skills_dir>/*/SKILL.md (symlinks included — Python's
+# through <skills_dir>/*/SKILL.md and <skills_dir>/pack-*/skills/*/SKILL.md
+# (symlinks included — Python's
 # glob.glob follows them, verified: a symlinked skill dir matches the
 # pattern the same as a real one) and sums their description length,
 # reusing lib/skill-routing-census.py's extract_description() (handles
