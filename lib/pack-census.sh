@@ -11,8 +11,7 @@
 #      flat and in a pack; no retired gstack name (lib/gstack-removed.list).
 #   2. fragments lib/profiles/*.json: same key set as full.json; model-router
 #      + security-guidance true, example-skills + brightdata false
-#      everywhere; the two higgsfield connectors denied on exactly
-#      DENY_PROFILES; full.json packs = manifest defaults.
+#      everywhere; full.json packs = manifest defaults.
 #   3. no reader of the old layout left (scope and terms in check_citers).
 # Shared by make test (lib/tests/pack-census.test.sh) and doctor.sh.
 # Prints RED/WARN lines, then `PACKS OK <p> packs <s> skills` when no RED.
@@ -35,7 +34,6 @@ PROFILES="$REPO/lib/profiles"
 REMOVED="$REPO/lib/gstack-removed.list"
 HERE="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 FRAG_JQ="$HERE/pack-census-fragments.jq"
-DENY_PROFILES="audit dev minimal qa seo"   # spec § 2
 red=0; packs=0; skills=0
 declare -A seen
 red() { echo "RED $*"; red=1; }
@@ -75,7 +73,7 @@ check_entry() { # $1 pack dir, $2 entry path
 check_fragments() {
   local files=("$PROFILES"/*.json) full="$PROFILES/full.json" out
   [ -f "$full" ] || { red "lib/profiles/full.json missing"; return; }
-  out="$(jq -rn --arg deny "$DENY_PROFILES" --argjson m "$(manifests_json)" \
+  out="$(jq -rn --argjson m "$(manifests_json)" \
     -f "$FRAG_JQ" "${files[@]}")" \
     || { red "lib/profiles: a fragment is not JSON"; return; }
   [ -z "$out" ] || echo "$out"

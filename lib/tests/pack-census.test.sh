@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # lib/tests/pack-census.test.sh — lib/pack-census.sh: pack layout (manifest
 # name = folder, entries resolve, no skill twice, retired gstack names absent),
-# fragment invariants (same key set, fixed values, deny set, full = manifest
+# fragment invariants (same key set, fixed values, full = manifest
 # defaults), old-layout citers. Fixture cases, then the hermetic part of the
 # census on the real repo (dangling targets are WARN without --installed).
 set -u
@@ -26,11 +26,10 @@ mk_pack() { # name defaultEnabled skill...
 }
 mk_pack alpha true a1 a2
 mk_pack beta false b1
-frag() { # name alpha beta deny(yes|no) — the two real connector names
-  local d=""; [ "$4" = yes ] && d=', "deniedMcpServers": [{"serverName": "claude.ai higgsfield"}, {"serverName": "claude.ai Higgsfield AI"}]'
-  printf '{"enabledPlugins": {"model-router@skills-dir": true, "pack-alpha@skills-dir": %s, "pack-beta@skills-dir": %s, "security-guidance@claude-code-plugins": true, "example-skills@anthropic-agent-skills": false, "brightdata-plugin@synced": false}%s}\n' \
-    "$2" "$3" "$d" > "$FX/lib/profiles/$1.json"; }
-frag full true false no; frag dev false false yes
+frag() { # name alpha beta
+  printf '{"enabledPlugins": {"model-router@skills-dir": true, "pack-alpha@skills-dir": %s, "pack-beta@skills-dir": %s, "security-guidance@claude-code-plugins": true, "example-skills@anthropic-agent-skills": false, "brightdata-plugin@synced": false}}\n' \
+    "$2" "$3" > "$FX/lib/profiles/$1.json"; }
+frag full true false; frag dev false false
 census() { bash "$ROOT/lib/pack-census.sh" --repo "$FX" "$@" 2>&1; }
 
 out="$(census)"; rc=$?
@@ -86,10 +85,10 @@ printf '{"enabledPlugins": {"model-router@skills-dir": true, "pack-alpha@skills-
 out="$(census)"; rc=$?
 check T8-keyset-rc "$rc" 1; check_has T8-keyset "$out" "RED lib/profiles/short.json: key set differs from full.json"
 rm "$FX/lib/profiles/short.json"
-frag full true true no
+frag full true true
 out="$(census)"; rc=$?
 check T9-full-defaults-rc "$rc" 1; check_has T9-full-defaults "$out" "RED lib/profiles/full.json: pack-beta@skills-dir is true but the manifest default is false"
-frag full true false no
+frag full true false
 sed -i.bak 's/"security-guidance@claude-code-plugins": true/"security-guidance@claude-code-plugins": false/' "$FX/lib/profiles/dev.json"
 out="$(census)"; rc=$?
 check T10-fixed-rc "$rc" 1; check_has T10-fixed "$out" "RED lib/profiles/dev.json: security-guidance@claude-code-plugins must be true"
@@ -100,6 +99,10 @@ cp "$FX/lib/profiles/dev.json" "$FX/lib/profiles/zdev.json"
 out="$(census)"; rc=$?
 check T13-same-rc "$rc" 1
 check_has T13-same "$out" "RED lib/profiles/dev.json and zdev.json are identical fragments"
+rm "$FX/lib/profiles/zdev.json"
+jq '. + {deniedMcpServers: [{serverName: "claude.ai Fictional"}]}' "$FX/lib/profiles/dev.json" > "$FX/lib/profiles/zdev.json"
+out="$(census)"
+check T13-deny-differs "$(grep -c 'zdev.json are identical fragments' <<<"$out")" 0
 rm "$FX/lib/profiles/zdev.json"
 sed 's/pack-beta@skills-dir": false/pack-beta@skills-dir": false, "pack-ghost@skills-dir": false/' "$FX/lib/profiles/dev.json" > "$FX/lib/profiles/ghost.json"
 out="$(census)"; rc=$?

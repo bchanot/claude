@@ -23,8 +23,8 @@ output. With no argument, run `current` and then `list`.
 ## What a profile is
 
 `lib/profiles/<name>.json` holds `enabledPlugins` (every pack and managed
-plugin, explicit), optional `deniedMcpServers` (the two higgsfield claude.ai
-connectors) and optional `model`. Descriptions: `lib/profiles/README.md`.
+plugin, explicit), optional `deniedMcpServers` (claude.ai connectors to
+deny) and optional `model`. Descriptions: `lib/profiles/README.md`.
 
 - Per project: `set <name>` merges the fragment into
   `.claude/settings.local.json` (other keys kept). Then `/reload-plugins`
@@ -34,8 +34,7 @@ connectors) and optional `model`. Descriptions: `lib/profiles/README.md`.
   `claude --settings lib/profiles/<name>.json`. That conversation is frozen:
   editing the fragment or the local file changes nothing here, and a pack the
   fragment turns off cannot come back; start another `cc`.
-- No profile: the manifest defaults, which equal `full` with the connectors
-  present.
+- No profile: the manifest defaults, which equal `full`.
 
 ## Verbs
 
@@ -58,9 +57,6 @@ root (no `CLAUDE.md`, no `.git`), unreadable or invalid local JSON.
   plugins through the `claude plugin` CLI. A pack need found mid-skill is proposed to
   the user (`set <n>` or `enable <pack>` + `/reload-plugins`, or a relaunch
   under `--settings`), written only on consent (lib/plugin-gate.md).
-- `deniedMcpServers` is a union across settings files: a `cc x web` over a
-  project set to `dev` keeps the connectors denied; `set web` in the
-  project brings them back for the next session.
 - `max` turns on `pack-extras` (diagram, make-pdf, 21st-ai, 21st-ui-explore,
   21st-ui-review); `pack-higgsfield` is on in `max` only, else `enable
   higgsfield` for a named media ask.

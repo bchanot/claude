@@ -239,7 +239,7 @@ Hotfix/quick fix          → tout OFF (skills superpowers vendorisés, toujours
 
 **GSD v2** n'est pas un plugin Claude Code — c'est un CLI externe. Il ne consomme pas de tokens passifs. Tu le lances dans un terminal séparé avec `gsd`, puis `/gsd auto` pour le mode autonome.
 
-**Profils et packs.** Un profil se règle par projet (`/profile set web` puis `/reload-plugins`) ou par conversation (`cc <nom> web`, la conversation est figée: relance-la pour changer). Neuf profils: `full`, `max`, `minimal`, `dev`, `design`, `web`, `seo`, `qa`, `audit`. Sans profil, c'est `full`. Un `--settings` édité en cours de session reste sans effet. `cc x web` sur un projet en `dev` garde les connecteurs higgsfield refusés (union); `set web` dans le projet les rend. `cc` est une fonction de `lib/cc.sh`, à sourcer depuis `~/.bashrc` (`[ -f "$HOME/.claude/lib/cc.sh" ] && . "$HOME/.claude/lib/cc.sh"`) ; `make doctor` le signale tant qu'elle manque.
+**Profils et packs.** Un profil se règle par projet (`/profile set web` puis `/reload-plugins`) ou par conversation (`cc <nom> web`, la conversation est figée: relance-la pour changer). Neuf profils: `full`, `max`, `minimal`, `dev`, `design`, `web`, `seo`, `qa`, `audit`. Sans profil, c'est `full`. Un `--settings` édité en cours de session reste sans effet. `cc` est une fonction de `lib/cc.sh`, à sourcer depuis `~/.bashrc` (`[ -f "$HOME/.claude/lib/cc.sh" ] && . "$HOME/.claude/lib/cc.sh"`) ; `make doctor` le signale tant qu'elle manque.
 
 ---
 

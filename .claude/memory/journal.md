@@ -709,3 +709,4 @@ rules:
 
 ## 2026-11-09
 - 2026-11-09: BDR-125 residual measured: 30.2k→40k = Skills +6.2k (budget paid claude.ai-synced skills) + System tools (unattributable). /feat claude-ai-skills-off: global skillOverrides 19 off, 47438f4 + 07406ce; GATE 0 MET, verifier ECARTS(1)→CONFORME, security PASS. User removed claude.ai connectors. BDR-141, LRN-270/271. Merge on signal; next: dead deniedMcpServers cleanup.
+- 2026-11-09: /ship-feature connector-deny-cleanup (chore): dead higgsfield deniedMcpServers + census rule + prose citers removed, 12 files, T13 deny-set test; challenge 3x SOLID, verifier ECARTS x2 (revert hint) -> CONFORME, security PASS x3, opus review fixes. BDR-134 amended, LRN-272/273. Merge on signal.
