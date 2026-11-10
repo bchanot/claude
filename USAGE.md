@@ -245,7 +245,7 @@ Hotfix/quick fix          → tout OFF (skills superpowers vendorisés, toujours
 
 ## Patterns de workflow
 
-> **Budget Pro (~11k tokens/5h) :** un `/init-project` complet consomme 3000-5000t — laissant 6000-8000t pour les steps suivants. Adapter le choix de plugins actifs en conséquence. Les tokens sont indiqués à titre indicatif — varient selon la taille du projet et les plugins actifs.
+> **Coût indicatif :** un `/init-project` complet consomme 3000-5000t. Le coût passif des plugins actifs se mesure avec `make doctor`. Les tokens sont indiqués à titre indicatif et varient selon la taille du projet et les plugins actifs.
 
 ### Pattern A — Nouveau projet court (≤1 session) · ~3000-5000t
 

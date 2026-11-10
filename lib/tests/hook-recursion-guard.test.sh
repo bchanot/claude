@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# lib/tests/detect-plan.test.sh
-# Regression for BLK-043: detect_plan must never call the claude CLI
-# (a hook-launched claude re-enters session-start.sh: fork bomb).
+# lib/tests/hook-recursion-guard.test.sh
+# Regression for BLK-043: session-start.sh must guard against re-entry
+# and never call the claude CLI (a hook-launched claude re-enters the
+# hook: fork bomb).
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
-LIB="${DETECT_PLUGINS_LIB:-$ROOT/lib/detect-plugins.sh}"
 HOOK="$ROOT/hooks/session-start.sh"
 WORK=$(mktemp -d) || exit 1
 trap 'rm -rf "$WORK"' EXIT
@@ -17,27 +17,11 @@ check() { if [ "$2" = "$3" ]; then pass=$((pass+1)); else fail=$((fail+1));
 . "$ROOT/lib/tests/claude-stub.sh" || exit 1
 claude_stub_install "$WORK"
 
-# detect_plan, no .claude.json: pro, no claude call.
-mkdir -p "$WORK/empty"
-out=$(HOME="$WORK/empty" bash -c 'source "$1"; detect_plan' _ "$LIB")
-check T1-no-json-plan "$out" pro
-check T1-no-json-calls "$(claude_stub_calls)" 0
-
-# detect_plan, max markers: max, no claude call.
-mkdir -p "$WORK/maxhome"
-printf '{"tengu_cobalt_compass": true, "tengu_harbor": true}\n' \
-  >"$WORK/maxhome/.claude.json"
-: >"$CLAUDE_LOG"
-out=$(HOME="$WORK/maxhome" bash -c 'source "$1"; detect_plan' _ "$LIB")
-check T2-max-plan "$out" max
-check T2-max-calls "$(claude_stub_calls)" 0
-
-# Hook HOME: real ~/.claude entries + max fixture (no fallback needed).
+# Hook HOME: real ~/.claude entries.
 mkdir -p "$WORK/hookhome/.claude" "$WORK/proj"
 for e in "$HOME"/.claude/*; do
   ln -s "$e" "$WORK/hookhome/.claude/$(basename "$e")"
 done
-cp "$WORK/maxhome/.claude.json" "$WORK/hookhome/.claude.json"
 
 # Guard: hook exits 0 silently when already running.
 out=$(cd "$WORK/proj" && HOME="$WORK/hookhome" SESSION_START_RUNNING=1 \
@@ -62,5 +46,5 @@ chmod +x "$WORK/stub/git"
 check T4-child-sees-guard "$(head -1 "$GIT_LOG")" 1
 check T4-hook-no-claude-calls "$(claude_stub_calls)" 0
 
-printf 'detect-plan: %d passed, %d failed\n' "$pass" "$fail"
+printf 'hook-recursion-guard: %d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

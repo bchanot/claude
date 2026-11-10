@@ -1,6 +1,6 @@
 ---
 name: status-reporter
-description: Read-only project-status engine — dispatched by /status. Collects plugin roster + passive-cost estimate (doctor.sh constants), git state, build/tests, GSD milestone into one snapshot.
+description: Read-only project-status engine — dispatched by /status. Collects plugin roster (passive cost via make doctor), git state, build/tests, GSD milestone into one snapshot.
 tools: Read, Bash, Glob, Grep
 model: haiku
 effort: low
@@ -25,15 +25,9 @@ cat ~/.claude/lib/../version.txt 2>/dev/null || echo "unknown"  # lib symlink re
 bash "$HOME/.claude/lib/profile.sh" -C "$PWD" current --plain 2>/dev/null | grep -E '^(profile|pack-[a-z0-9-]+)=' || echo "profile-unavailable"
 command -v rtk &>/dev/null && echo "rtk: installed" || echo "rtk: missing"
 command -v gsd &>/dev/null && gsd --version 2>/dev/null | head -1 || echo "gsd: not installed"
-
-# Passive token cost — source of truth: doctor.sh's constants block
-# (PLUGIN_TOKENS + <n> per detect_* line). Read it, sum ONLY the plugins
-# found active above. Never invent a number outside these constants.
-grep -E 'PLUGIN_TOKENS \+ [0-9]+' "$(readlink -f "$HOME/.claude/lib")/../doctor.sh" 2>/dev/null
-# grep empty (doctor.sh missing/moved) → report the plugin count only and
-# defer cost to /plugin-check.
 ```
 
+The passive token cost is not computed here: `make doctor` measures it.
 `~/.claude/plugins/cache` = installed, not active. `Plugins ON:` = rtk (if present) + the names printed by `list_on_plugins` (part before `@`) + the `pack-*=on` packs.
 Check `~/.claude.json` for active MCP servers.
 
@@ -141,7 +135,7 @@ PROJECT STATUS
 
 CONFIG
   Version   : v<N>
-  Plugins ON: <list> (~<X>t passive — doctor.sh constants; full audit → /plugin-check)
+  Plugins ON: <list> (passive cost: make doctor; full audit → /plugin-check)
   GSD v2    : installed / not installed
 
 PROJECT

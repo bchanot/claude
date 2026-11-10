@@ -89,6 +89,10 @@ check SB3-toggle-on-uiux "$(has "$(row '🟢 ON' "$out")" ui-ux-pro-max)" 1
 ok="$(row '✅ ON' "$out")"
 check SB3-onrow-no-pr-review "$(has "$ok" pr-review-toolkit)" 0
 
+# SB9: no passive-cost row and no plan budget in the banner
+check SB9-no-cost-row "$(has "$out" 💰)" 0
+check SB9-no-budget "$(has "$out" budget)" 0
+
 # uiux <home> <proj>: exit status of detect_uiux_pro_max, PROFILE_PLAIN unset
 uiux() {
   (cd "$WORK/$2" && unset PROFILE_PLAIN && HOME="$WORK/$1" bash -c \
@@ -125,6 +129,20 @@ check SB7-empty-list-rtk-only "$ao" rtk
 
 # SB8: no hook run of this suite called the claude CLI (BLK-043)
 check SB8-no-claude-calls "$(claude_stub_calls)" 0
+
+# SB10: no hand-copied passive-cost figure or dead plan path left
+# gone <file> <regex> [filter]: 1 when no line (after the filter) matches
+gone() {
+  if grep -v "${3:-^\$}" "$ROOT/$1" | grep -qE -- "$2"; then echo 0
+  else echo 1; fi
+}
+check SB10-hook-costs "$(gone hooks/session-start.sh \
+  '_plugin_costs|TOKEN_WARN|detect_plan')" 1
+check SB10-lib-detect-plan "$(gone lib/detect-plugins.sh detect_plan)" 1
+check SB10-reporter-const "$(gone agents/status-reporter.md \
+  'PLUGIN_TOKENS|~[1-9][0-9-]*t')" 1
+check SB10-advisor-figures "$(gone agents/plugin-advisor.md \
+  '~[1-9][0-9-]*t' 'plan budget')" 1
 
 printf 'session-banner: %d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

@@ -104,7 +104,7 @@ PROFILE: [active skill profile — name + match%, or "<name> (default — not ap
 SIGNALS: [detected signals]
 COMPLEXITY: <score>% — <simple|moderate|complex|enterprise>
 PLAN: <Max|Pro|Free (echoed from REQUEST) | unknown (not provided)> (budget: ~<N>t | n/a)
-COST ESTIMATE: ~Xt passive tokens (all active plugins combined)
+COST ESTIMATE: run make doctor (measured; no per-plugin constants here)
 
 RECOMMENDATIONS:
   ✅ KEEP    : [plugin] — [reason]
@@ -147,9 +147,9 @@ ACTION REQUIRED? YES / NO
 | `multi-session` | gsd v2 CLI | — | Run `gsd` in terminal, not CC plugin |
 | `fast-libs` | context7 | — | Doc freshness critical |
 | `multi-agent` + `complex-arch` | gsd v2 CLI | — | GSD v2 preferred for multi-session coordination |
-| `simple` / single-session | — | gsd, gstack, ui-ux-pro-max | Saves ~3000-5000t |
+| `simple` / single-session | — | gsd, gstack, ui-ux-pro-max | Saves passive tokens |
 | `embedded` / firmware | — | all toggles (superpowers skills vendored, always on) | workflow: /analyze → /hotfix or /bugfix or /ship-feature |
-| backend/lib/CLI only | — | ui-ux-pro-max, gstack | ~3100t saved |
+| backend/lib/CLI only | — | ui-ux-pro-max, gstack | passive tokens saved |
 | small project / hotfix | — | gstack, gsd | Use /hotfix, /bugfix, or /feat |
 
 **GSD v2 note:** `gsd-pi` is a standalone CLI (Pi SDK), not a Claude Code plugin. Zero passive token cost in CC sessions. Recommend when: feature > 1 day, multiple isolated context windows needed, crash recovery, cost tracking, or parallel workers. Usage: `gsd` in terminal → `/gsd auto`.
@@ -190,17 +190,17 @@ When the plugin-advisor detects a `simple` or `hotfix` signal, suggest the appro
 
 ### Recommended sets by project type
 
-| Project type | Plugins ON | OFF | Passive cost |
-|---|---|---|---|
-| Backend API / microservice | (superpowers skills always on), context7 (if fast libs) | ui-ux-pro-max, gstack | ~0t |
-| Frontend SPA / SSR | (superpowers skills always on), ui-ux-pro-max, impeccable, design-motion-principles, context7 | gstack | ~600t |
-| Full-stack SaaS | (superpowers skills always on), gstack, ui-ux-pro-max, impeccable, design-motion-principles, context7 | — | ~3400t |
-| CLI tool / library | (superpowers skills always on) | all toggles | ~0t |
-| Multi-session large feature | (superpowers skills always on) + gsd v2 CLI (external) | — | ~0t CC |
-| Quick fix / hotfix | (superpowers skills always on) | all toggles | ~0t |
-| Design system / component lib | (superpowers skills always on), ui-ux-pro-max, impeccable, design-motion-principles | gstack, gsd | ~400t |
-| Fast-evolving libs (Next.js etc.) | (superpowers skills always on), context7 | — | ~200t |
-| Enterprise multi-agent orchestration | (superpowers skills always on) + gsd v2 (external) | plugin-dev | ~0t CC |
+| Project type | Plugins ON | OFF |
+|---|---|---|
+| Backend API / microservice | (superpowers skills always on), context7 (if fast libs) | ui-ux-pro-max, gstack |
+| Frontend SPA / SSR | (superpowers skills always on), ui-ux-pro-max, impeccable, design-motion-principles, context7 | gstack |
+| Full-stack SaaS | (superpowers skills always on), gstack, ui-ux-pro-max, impeccable, design-motion-principles, context7 | — |
+| CLI tool / library | (superpowers skills always on) | all toggles |
+| Multi-session large feature | (superpowers skills always on) + gsd v2 CLI (external) | — |
+| Quick fix / hotfix | (superpowers skills always on) | all toggles |
+| Design system / component lib | (superpowers skills always on), ui-ux-pro-max, impeccable, design-motion-principles | gstack, gsd |
+| Fast-evolving libs (Next.js etc.) | (superpowers skills always on), context7 | — |
+| Enterprise multi-agent orchestration | (superpowers skills always on) + gsd v2 (external) | plugin-dev |
 
 > rtk is always on at 0 context tokens; security-guidance is always on and
 > costs quota out of band (LLM reviews), not context — both omitted from
@@ -212,7 +212,7 @@ When the plugin-advisor detects a `simple` or `hotfix` signal, suggest the appro
 RULE: IF "mobile" signal (React Native/Expo/Flutter detected):
   → gstack OFF — no browser QA on mobile
   → Docker NOT relevant — no server-side containerization for mobile
-  → ui-ux-pro-max OPTIONAL (~400t) — only if design system complexity is high
+  → ui-ux-pro-max OPTIONAL — only if design system complexity is high
 
 RULE: IF "monorepo" signal detected:
   → scan each top-level package individually for frontend/deploy/fast-libs signals
@@ -222,25 +222,25 @@ RULE: IF "monorepo" signal detected:
   → passive cost estimate = highest-cost package profile (other packages add nothing)
 
 RULE: IF "frontend" signal OR .tsx/.jsx count > 0:
-  → ui-ux-pro-max ON if "design-system" signal (~400t)
+  → ui-ux-pro-max ON if "design-system" signal
   → impeccable ON (external skill, 0t passive — ~/.claude/skills/pack-design/skills/impeccable)
   → design-motion-principles ON if anim-lib-installed or description mentions animation/motion (external, 0t passive)
 
 RULE: IF "deploy" AND "browser-qa" signals:
-  → gstack ON (~2750t) — full-product workflow
+  → gstack ON — full-product workflow
 
 RULE: IF "multi-session" OR multi-day feature:
   → Recommend gsd v2 CLI: npm install -g gsd-pi → gsd → /gsd auto
   → Zero passive CC token cost
 
 RULE: IF "fast-libs" (Next.js/React 18+/Prisma/Supabase/Drizzle):
-  → context7 ON (~200t)
+  → context7 ON (CLI; its find-docs skill always loads)
 
 RULE: IF "multi-agent" AND "complex-arch":
   → gsd v2 CLI recommended (0t passive, multi-session coordination)
 
 RULE: IF "simple" OR "hotfix":
-  → Disable all toggles. ~800t base only.
+  → Disable all toggles, base only.
 
 RULE: IF "embedded" signal (firmware, bare-metal, microcontroller, or Makefile+C without Node/Rust/Go):
   → Disable ALL toggles including gstack, context7, plugin-dev
@@ -252,11 +252,11 @@ RULE: IF "embedded" signal (firmware, bare-metal, microcontroller, or Makefile+C
   → NOTE: print "embedded project detected — minimal plugin footprint recommended"
 
 RULE: IF plugin-dev ON AND no `skill-creation` signal detected:
-  → WARN: plugin-dev active but no skill-creation signal (~100t saved if disabled)
+  → WARN: plugin-dev active but no skill-creation signal (saves its passive tokens if disabled)
   → Disable unless you're actively building custom plugins or skills
 
 RULE: IF `skill-creation` signal:
-  → plugin-dev ON (~100t)
+  → plugin-dev ON
   → superpowers skills (vendored, always on): used for skill scaffolding (writing-skills)
 
 RULE: IF `browser-qa` signal (e2e tests, Playwright/Cypress/Puppeteer in deps):
@@ -264,7 +264,7 @@ RULE: IF `browser-qa` signal (e2e tests, Playwright/Cypress/Puppeteer in deps):
   → context7 OPTIONAL (depends on framework version)
 
 RULE: IF `design-system` signal (tokens, theme files, Storybook present):
-  → ui-ux-pro-max ON (~400t)
+  → ui-ux-pro-max ON
   → impeccable ON (external skill, 0t passive)
   → design-motion-principles ON (external skill, 0t passive)
   → WARN if all three OFF with this signal: significant design gap

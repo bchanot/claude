@@ -4,7 +4,7 @@
 # Sourced by: session-start.sh, doctor.sh, agents/status-reporter.md
 #
 # detect_* return 0 (detected) or 1 (not detected), silently — callers
-# handle messaging. detect_plan and list_on_plugins print to stdout.
+# handle messaging. list_on_plugins prints to stdout.
 # ============================================================
 
 # --- Always-on plugins ---
@@ -85,28 +85,4 @@ detect_context7() {
 detect_graphifyy() {
   # Graphifyy — codebase knowledge graph, installed via pipx
   command -v graphify &>/dev/null
-}
-
-
-# --- Plan detection ---
-
-detect_plan() {
-  # Detect Claude plan: max or pro.
-  # Never call the `claude` CLI here: it starts a session whose
-  # SessionStart hook calls detect_plan again (BLK-043).
-  # Checks ~/.claude.json for model access hints.
-  # Returns plan name on stdout, always exits 0.
-  local claude_json="$HOME/.claude.json"
-  if [ -f "$claude_json" ]; then
-    # Max plan: has opus model access or max flag
-    if grep -q '"planType".*"max"' "$claude_json" 2>/dev/null; then
-      echo "max"; return 0
-    fi
-    # Check cached features for max indicators
-    if grep -q '"tengu_cobalt_compass": true' "$claude_json" 2>/dev/null \
-       && grep -q '"tengu_harbor": true' "$claude_json" 2>/dev/null; then
-      echo "max"; return 0
-    fi
-  fi
-  echo "pro"
 }
