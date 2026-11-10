@@ -84,6 +84,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/) and this project 
 - `hooks/session-start.sh` bounds its `memory.sh check` with `timeout 2` when `timeout` is installed: a hung check no longer stalls every session start.
 - `lib/memory.sh` reads a path shaped like an awk assignment (`x=1.md`, `a=b`) as a file: `add --body-file`, `check` and `upgrade` prefix it with `./`, where awk took it for a `var=value` operand and read stdin. Tests: `lib/tests/memory.test.sh` T19, T19b, T19c.
 - Hook-running test suites source `lib/tests/claude-stub.sh`: a logging `claude` stub goes first on PATH and the suite exits if it is not the one resolved, so a hook run can no longer start a real session that re-runs the hook (fork bomb). Suite `lib/tests/claude-stub.test.sh`.
+- The session banner's ✅ row, `detect_uiux_pro_max` and `/status` `Plugins ON:` follow the effective profile of the project and conversation (`list_on_plugins` in `lib/detect-plugins.sh`). Ids that `lib/profiles` manages come from `profile.sh current --plain`; other ids come from the user-scope `settings.json`. Before, the row read the user-scope `settings.json` and the plugin cache. A `dev` project showed ui-ux-pro-max as on, an `audit` project hid pr-review-toolkit, and model-router (enabled through the profile) did not appear. `/status` no longer treats the plugin cache as active state (the cache means installed). The plugin advisor takes per-project state from PROFILE, not from `claude plugin list`.
 
 ## [2.0.0] — 2026-10-06
 
