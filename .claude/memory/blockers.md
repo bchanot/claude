@@ -397,3 +397,9 @@ rules:
 - **Friction**: session banner plugin rows showed user-scope state, not project's. dev project showed `ui-ux-pro-max` in `🟢 ON`; audit project hid `pr-review-toolkit`; /status read `~/.claude/plugins/cache` as active.
 - **Real cause**: `detect_uiux_pro_max` tested plugin cache only (installed = on); ✅ row grepped `"<id>": true` in user `~/.claude/settings.json`. PROFILE_PLAIN (`profile.sh current --plain`) already held effective state, unused there. Found by code-clean 2026-11-09 (G1, G4).
 - **Solution**: `list_on_plugins` in lib/detect-plugins.sh: profile `plugin:<id>=on` for managed ids, user-scope true for rest, awk set difference, `return 0`. ✅ row + detect_uiux_pro_max (cache AND enabled) + status-reporter read it; plugin-advisor INPUT names PROFILE. Test lib/tests/session-banner.test.sh SB1-SB8. Commit 556d0e6.
+
+## BLK-047 — Passive-cost constants stale in banner and advisor, budget row on wrong denominator [resolved 1971b8d] (2026-11-10)
+- **Date**: 2026-11-10
+- **Friction**: passive-cost figures disagreed: banner `_plugin_costs` (gstack 2750, ui-ux-pro-max 400, context7 200, graphify 300) and plugin-advisor `~Nt` vs doctor.sh (ui-ux 670 only). Banner 💰 row divided by per-plan "budget" (Pro 11000, Max 20000).
+- **Real cause**: hand-copied constants. 2026-09-28 skill-catalog prune re-measured doctor (ui-ux 400 → 670, gstack/context7/graphify dropped: skills already in catalog) but missed banner + advisor citers (BDR-100 class). Measured 2026-11-10: gstack 3 packs ~445t (~196/120/129), ui-ux ~666t, context7 = CLI, find-docs skill always loads.
+- **Solution**: user split. Bugfix removed constants, 💰 row, budget block, dead `detect_plan` (BLK-043 source); advisor + status-reporter point to `make doctor`; detect-plan.test.sh → hook-recursion-guard.test.sh; SB9/SB10. Commit 1971b8d. Measured-cost API = TODO feature (spec input: two challenge rounds in plan 2026-11-10-passive-cost-source-1330).

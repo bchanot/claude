@@ -2021,3 +2021,8 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Context**: `list_on_plugins` r2 draft = brace group piped into while loop, ending on `grep -vxF -f`; `detect_uiux_pro_max` = `list_on_plugins | grep -q`. doctor.sh runs `set -euo pipefail`. Grep selecting nothing exits 1; `grep -q` early exit gives SIGPIPE 141. Under pipefail both leak: detect reads OFF though match found. Challenger ran it: `list rc=1`, `detect rc=1`. Test suites run `set -u` only, so tests stayed green.
 - **Pattern**: lib function sourced by a pipefail caller: capture output into var, test with here-string (`grep -q x <<<"$(fn)"`); set difference in awk not `grep -v -f` (empty pattern file also non-portable); assignment fallbacks `|| var=""`; explicit `return 0` on printing functions.
 - **Future application**: any lib/*.sh sourced by doctor.sh or another `set -euo pipefail` script; add one test case run inside a `set -euo pipefail` subshell.
+
+## LRN-275 — Silenced git add with one missing pathspec stages nothing; check commit stat (2026-11-10)
+- **Context**: G2 commit. `git add a b lib/tests/detect-plan.test.sh 2>/dev/null` after `git mv` of that path: pathspec missing → git aborts WHOLE add, stderr silenced. Commit 63832fd landed with only pre-staged rename under full fix message; post-commit auto-push published it. Repair = amend + force push (user ran it: force push denied to Claude).
+- **Pattern**: never `2>/dev/null` on `git add`; one bad pathspec stages nothing. After any commit check `git show --stat HEAD` against intended file list before reporting.
+- **Future application**: every commit step in skills (bugfix, feat, hotfix, commit-change) after a rename/delete; stage renamed paths by new name only.
