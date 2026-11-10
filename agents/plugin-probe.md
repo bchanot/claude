@@ -19,7 +19,8 @@ Facts only — no signals, no recommendations, no complexity scoring.
 # project and conversation (lib/profile.sh, no claude call)
 bash "$HOME/.claude/lib/profile.sh" -C "$PWD" current --plain 2>/dev/null || echo "profile-unavailable"
 
-# Marketplace plugins actually installed (ids, enabled state)
+# Marketplace plugins installed; the enabled column may not reflect the
+# project profile or --settings: per-project state = PROFILE above
 claude plugin list 2>/dev/null || echo "plugin-list-unavailable"
 
 # Context7 CLI

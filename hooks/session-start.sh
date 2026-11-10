@@ -198,23 +198,22 @@ unset _passive_t _budget_pct _budget
 echo ""
 echo "┌─ Claude Code config ──────────────────────────────────┐"
 # "ALWAYS ON" row — actual state, not hardcoded. RTK is a binary on PATH;
-# the others are marketplace plugins whose state lives in
-# settings.json:enabledPlugins. Anything missing/disabled is omitted so
-# the user sees the real picture instead of a misleading literal.
+# the others come from list_on_plugins (lib/detect-plugins.sh, same source
+# as detect_uiux_pro_max and /status): the effective profile for the ids
+# lib/profiles manages, user-scope settings.json for the rest. A hardcoded
+# SET under-reports newly enabled plugins (pr-review-toolkit was enabled
+# yet invisible). LRN-005 class. Missing/disabled is omitted. Plugins owned
+# by the toggle row below are excluded (dual display).
 ALWAYS_ON=()
 detect_rtk &>/dev/null && ALWAYS_ON+=("rtk")
-# Derive the plugin list from settings.json:enabledPlugins (true entries)
-# instead of a hardcoded name pair — a hardcoded SET under-reports newly
-# enabled plugins (pr-review-toolkit was enabled yet invisible). LRN-005
-# class. Plugins owned by the toggle row below are excluded (dual display).
 _toggle_owned=" gstack ui-ux-pro-max plugin-dev context7 graphify "
 while IFS= read -r _pl; do
+  [ -n "$_pl" ] || continue
   case "$_toggle_owned" in
     *" $_pl "*) : ;;
     *) ALWAYS_ON+=("$_pl") ;;
   esac
-done < <(grep -oE '"[A-Za-z0-9_-]+@[A-Za-z0-9_-]+"[[:space:]]*:[[:space:]]*true' "$HOME/.claude/settings.json" 2>/dev/null \
-         | sed -E 's/^"([^@]+)@.*$/\1/')
+done < <(sed 's/@.*//' <<<"$(list_on_plugins)")
 unset _toggle_owned _pl
 ALWAYS_ON_STR="${ALWAYS_ON[*]:-none}"
 # Same 40-char-width split policy as the toggle row below — keeps the

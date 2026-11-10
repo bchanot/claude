@@ -20,7 +20,9 @@ No modifications. No design. No proposals. Facts only.
 # Config version
 cat ~/.claude/lib/../version.txt 2>/dev/null || echo "unknown"  # lib symlink resolves into the repo
 
-# Active plugins (from session-start detection)
+# Active plugins: enabled for THIS project (effective profile), not the cache
+. "$HOME/.claude/lib/detect-plugins.sh" && list_on_plugins || echo "plugins-unavailable"
+bash "$HOME/.claude/lib/profile.sh" -C "$PWD" current --plain 2>/dev/null | grep -E '^(profile|pack-[a-z0-9-]+)=' || echo "profile-unavailable"
 command -v rtk &>/dev/null && echo "rtk: installed" || echo "rtk: missing"
 command -v gsd &>/dev/null && gsd --version 2>/dev/null | head -1 || echo "gsd: not installed"
 
@@ -32,7 +34,7 @@ grep -E 'PLUGIN_TOKENS \+ [0-9]+' "$(readlink -f "$HOME/.claude/lib")/../doctor.
 # defer cost to /plugin-check.
 ```
 
-Check `~/.claude/plugins/cache` for active marketplace plugins.
+`~/.claude/plugins/cache` = installed, not active. `Plugins ON:` = rtk (if present) + the names printed by `list_on_plugins` (part before `@`) + the `pack-*=on` packs.
 Check `~/.claude.json` for active MCP servers.
 
 ---
@@ -178,7 +180,7 @@ The report is best-effort: a single failing data source must not abort the whole
 | Failure | Behavior |
 |---|---|
 | Permission denied on `git` (sandbox/CI without `.git` access) | Mark `Branch: N/A (permission denied)`, `Uncommitted: N/A`, `RECENT COMMITS: N/A`. Continue to PROJECT/GSD sections. |
-| Permission denied on `~/.claude/plugins/cache` or `~/.claude.json` | Mark `Plugins ON: unknown (cannot read cache)`. Continue. |
+| Permission denied on `~/.claude/plugins/cache` or `~/.claude.json` | Cache unreadable: no effect on `Plugins ON:`. `profile-unavailable` → `Plugins ON:` from `list_on_plugins` (user-scope fallback) with suffix `(profile.sh unavailable: user scope)`. `plugins-unavailable` → `Plugins ON: unknown (detect-plugins.sh unavailable)`. Continue. |
 | gsd CLI snapshot fails or `.gsd/` state unreadable (`gsd.db`, `STATE.md`, per-milestone `<ID>-ROADMAP.md` — post-ADR-013 layout) | Mark `Progress: N/A (gsd state unreadable)`, do NOT abort the section — still print `Status: initialized` and `Milestone: N/A`. |
 | `package.json` / `pyproject.toml` parse error | Mark `Tests: N/A (manifest parse error)`. Continue. |
 | `python3` not available in PATH | Skip the python parsing fallbacks; rely on log files + bash-only checks. Mark Tests as `unknown` if no log found. |

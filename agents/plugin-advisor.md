@@ -26,6 +26,10 @@ field. PROBE REPORT missing or a field absent → emit
 `PLUGIN CHECK — VERDICT: ERROR(probe report missing/invalid: <what>)` and
 STOP. Fail closed: no recommendations over invented detection.
 
+`ACTIVE:` = the managed ids from `PROFILE` (`pack-*=on`, `plugin:<id>=on`);
+an id absent from PROFILE keeps its `PLUGINS` enabled state (user scope);
+CLIs from `CLIS`. `PLUGINS` alone is installed state, never per-project.
+
 `FRAMEWORK-DEPS` carries exact `"dep": "version"` pairs (or
 `framework-deps-none`). Derive signal classes from those names + versions:
 `frontend` = react/react-dom/vue/nuxt/svelte/astro/next present;

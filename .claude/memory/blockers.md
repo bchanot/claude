@@ -391,3 +391,9 @@ rules:
 - **Real cause**: stub pattern (LRN-263) copied inline, fail-open: failed write (no `set -e`) or noexec TMPDIR (`command -v` skips non-exec) → real CLI; relative work dir passes same-cwd check, breaks after hook's `cd`.
 - **Solution**: shared `lib/tests/claude-stub.sh`: `stub_first_or_die` (command -v == stub else exit 1), `claude_stub_install` (absolute dir via `cd -P`, every step `|| exit 1`, control from `/`, `GIT_CEILING_DIRECTORIES`), `claude_stub_calls`; 6 suites adopt, each ends zero-call check; `lib/tests/claude-stub.test.sh` proves fail-closed (no-op chmod script + sentinel fake claude). Commits dc5f127, 7ca6b18 on bugfix/safety-residuals.
 - **Status**: resolved dc5f127
+
+## BLK-046 — Banner plugin rows showed user-scope state, not effective profile [resolved 556d0e6] (2026-11-10)
+- **Date**: 2026-11-10
+- **Friction**: session banner plugin rows showed user-scope state, not project's. dev project showed `ui-ux-pro-max` in `🟢 ON`; audit project hid `pr-review-toolkit`; /status read `~/.claude/plugins/cache` as active.
+- **Real cause**: `detect_uiux_pro_max` tested plugin cache only (installed = on); ✅ row grepped `"<id>": true` in user `~/.claude/settings.json`. PROFILE_PLAIN (`profile.sh current --plain`) already held effective state, unused there. Found by code-clean 2026-11-09 (G1, G4).
+- **Solution**: `list_on_plugins` in lib/detect-plugins.sh: profile `plugin:<id>=on` for managed ids, user-scope true for rest, awk set difference, `return 0`. ✅ row + detect_uiux_pro_max (cache AND enabled) + status-reporter read it; plugin-advisor INPUT names PROFILE. Test lib/tests/session-banner.test.sh SB1-SB8. Commit 556d0e6.
