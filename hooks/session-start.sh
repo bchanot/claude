@@ -159,42 +159,6 @@ if [ -n "${CLAUDE_CODE_EFFORT_LEVEL:-}" ]; then
   EFFORT_WARN="⚠️  CLAUDE_CODE_EFFORT_LEVEL=${CLAUDE_CODE_EFFORT_LEVEL} set: skill/agent effort pins ignored"
 fi
 
-# Detect plan and set passive token budget
-PLAN=$(detect_plan 2>/dev/null || echo "pro")
-case "$PLAN" in
-  max)  _budget=20000; PLAN_LABEL="Max" ;;
-  pro)  _budget=11000; PLAN_LABEL="Pro" ;;
-  *)    _budget=11000; PLAN_LABEL="Pro" ;;
-esac
-
-# Quick passive token cost estimate
-# Only count plugins that are ACTIVE (detected as ON), not just installed
-# superpowers dropped 2026-09-28 (tier 2 of the skill-catalog prune): its
-# 7 vendored skills are counted by the skill catalog, not a plugin cost.
-_passive_t=0
-
-# Token costs for toggle plugins — map display name to cost
-declare -A _plugin_costs=(
-  [gstack]=2750
-  [ui-ux-pro-max]=400
-  [plugin-dev]=100
-  [context7]=200
-  [graphify]=300
-)
-for _p in "${TOGGLE_ACTIVE[@]}"; do
-  _cost="${_plugin_costs[$_p]:-0}"
-  _passive_t=$((_passive_t + _cost))
-done
-_budget_pct=$((_passive_t * 100 / _budget))
-if [ "$_budget_pct" -gt 50 ]; then
-  TOKEN_WARN="⚠️  ~${_passive_t}t passif (${_budget_pct}% budget $PLAN_LABEL)"
-elif [ "$_budget_pct" -gt 25 ]; then
-  TOKEN_WARN="~${_passive_t}t passif (${_budget_pct}% budget $PLAN_LABEL)"
-else
-  TOKEN_WARN=""
-fi
-unset _passive_t _budget_pct _budget
-
 echo ""
 echo "┌─ Claude Code config ──────────────────────────────────┐"
 # "ALWAYS ON" row — actual state, not hardcoded. RTK is a binary on PATH;
@@ -267,7 +231,6 @@ else
 fi
 unset _active_count _inactive_count
 printf "│  🖥️  CLI : %-40s│\n" "$GSD_STATUS"
-[ -n "$TOKEN_WARN" ] && printf "│  💰 %-44s│\n" "${TOKEN_WARN:0:44}"
 printf "│  📦 v%-45s│\n" "$CONFIG_VERSION"
 if [ -n "$GF_REFRESHED" ]; then
   _gf_line="hooks refreshed: $GF_REFRESHED → commit .githooks/"
@@ -460,4 +423,4 @@ fi
 unset _ss_digest
 
 echo ""
-unset TOKEN_WARN PROFILE_PLAIN
+unset PROFILE_PLAIN
