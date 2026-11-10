@@ -254,6 +254,17 @@ check SD17-before-digest "$(printf '%s\n' "$out17" \
   | grep -n -e '^memory feedback' -e '^memory digest' | cut -d: -f2 \
   | tr '\n' ' ')" "memory feedback memory digest "
 
+# SD18: a journal born from the template prints no journal line (the
+# example bullets sit in an HTML comment); a real entry appended after the
+# comment is the one shown (G3, code-clean 2026-11-09)
+p=$(mkproj sd18)
+cp "$ROOT/templates/memory/journal.md" "$p/.claude/memory/journal.md"
+check SD18-template-no-journal "$(run "$p" "$WORK/startup.json" | digest | grep -c '^- journal:')" 0
+printf '\n## 2026-11-09\n\n- real entry\n' >> "$p/.claude/memory/journal.md"
+check SD18-real-entry "$(run "$p" "$WORK/startup.json" | digest | grep '^- journal:')" '- journal: real entry'
+printf -- '- note on `<!--` parser\n- newest\n' >> "$p/.claude/memory/journal.md"
+check SD18-inline-marker "$(run "$p" "$WORK/startup.json" | digest | grep '^- journal:')" '- journal: newest'
+
 # SD15: no hook run of this suite called the claude CLI (BLK-043)
 check SD15-no-claude-calls "$(claude_stub_calls)" 0
 

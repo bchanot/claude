@@ -403,7 +403,8 @@ _digest_todo() {  # <root> → first 3 unchecked Actionable items
 
 _digest_journal() {  # <root> → last journal bullet
   local last
-  last=$(grep '^- ' "$1/.claude/memory/journal.md" | tail -1)
+  last=$(awk '/^[ \t]*<!--/ { c = 1 } !c && /^- / { l = $0 } /-->/ { c = 0 }
+    END { if (!c) print l }' "$1/.claude/memory/journal.md")
   [ -n "$last" ] && echo "- journal: ${last#- }"
 }
 
