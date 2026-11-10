@@ -712,3 +712,6 @@ rules:
 - 2026-11-09: /ship-feature connector-deny-cleanup (chore): dead higgsfield deniedMcpServers + census rule + prose citers removed, 12 files, T13 deny-set test; challenge 3x SOLID, verifier ECARTS x2 (revert hint) -> CONFORME, security PASS x3, opus review fixes. BDR-134 amended, LRN-272/273. Merge on signal.
 - 2026-11-09: /code-clean BDR-125 obsolescence pass: phases 0/1/2 clean, 4a-4d code clean, 5 all declared artifacts gone; 2 dead sources + 5 stale comments fixed; challenge FATAL x3 on r1 (A2 bench importer, B9 unique security rules, prompt edits = behavior) -> r2; bugs G1-G5 logged, D1-D6 queued in TODO.
 - 2026-11-09: /hotfix G3 digest journal: _digest_journal awk skips <!-- --> blocks (opener anchored line start, END guard), SD18 3 checks; challenge MAJOR x2 (unanchored opener) folded; template untouched; security PASS.
+
+## 2026-11-10
+- 2026-11-10: /bugfix G1+G4 banner effective profile: list_on_plugins (profile managed ids, user scope rest) feeds ✅ row, detect_uiux_pro_max, /status; 2 challenge rounds (doctor pipefail BLOCKER r2), gates MET/CONFORME/PASS; 556d0e6, changelog 6cdc374.
