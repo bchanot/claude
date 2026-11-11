@@ -719,3 +719,4 @@ rules:
 
 ## 2026-11-11
 - 2026-11-11: /bugfix G5 handover blocker status: 2 challenge rounds -> r3 reconcile_blk_classify (open/closed/unreadable), STEP 9 rooted on PACKAGE root, mandatory SYNTH MEMORY line relayed to user; gates MET/CONFORME/PASS first pass; commit 93a8e19 + changelog; G6-G9 + 2 LOW logged in BUGS-FOUND; BLK-048, LRN-276.
+- 2026-11-11: G5 merged c0347eb. 3.0.0 scope set (D1-D6, dead denies, MIGRATION). /feat D2+D3 on feature/banner-drop-plugin-dev: 2 challenge rounds, RUN A banner (plugin-dev gone, OFF row hidden) 80f56ef, RUN B advisor packs vocabulary 9b12b12 after 2 verifier + 1 security rounds; docs; 6 follow-ups in BUGS-FOUND; BDR-142, LRN-277.
