@@ -2036,3 +2036,8 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Context**: D3 plan r2 had advisor print "turns off: <ids from profile.sh diff>"; advisor tools Read/Glob/Grep, no Bash. Two challengers caught it: list would be invented. Same run: sonnet executors left stdin-blocked background jobs 3x (`python3 -`, `cat >>`, empty heredoc), one holding a stale compound command.
 - **Pattern**: before assigning a computation to an agent, check its `tools:` frontmatter; shell-derived facts belong to the component that runs Bash (main-loop gate), the report-only agent names inputs only. Executor briefs forbid stdin readers without input (`cat` no file, `cat >>`, `python3 -`), require one simple foreground command per call; orchestrator TaskStops any leftover job named in the report before GATE 0.
 - **Future application**: any plan splitting work between a reasoner agent and a gate; every feater/bugfixer brief.
+
+## LRN-278 — probe a registry reader on every real project before planning the switch (2026-11-12)
+- **Pattern**: before plan swaps a registry reader, probe candidate reader read-only on real registries of every project (game, config, faunosteo, faunosteo-v1-2), count readable vs empty.
+- **Context**: D4 r1 assumed `memory.sh index decision` gives decision status. Probe: Status empty 107/107 game, 19/19 config, 76/80 faunosteo, 79/110 faunosteo-v1-2. Challenge correctness FATAL, plan r2-r3 needed.
+- **Apply**: STEP 0.6 / plan phase of any memory-reader change: run reader on all known project registries first, put counts in plan. Fixtures alone hide dialects.

@@ -1536,3 +1536,9 @@ Supersedes [[BDR-030]].
 - **Why**: `set` merges whole fragment (every managed key): a recommendation on a project with chosen packs or a custom state wiped them silently (web project told "backend → dev" lost 6 packs). Advisor has no Bash: lists it "computed" were invented; gate holds the shell. Bare `ui-ux-pro-max` id refused rc 2.
 - **Alternatives rejected**: set anytime with turns-off list (clobbers custom/chosen packs); hotfix → set minimal (task-scoped mass disable, persists project-wide); advisor printing full commands (unvalidated token reaches shell).
 - **Ref**: feature/banner-drop-plugin-dev 80f56ef + 9b12b12, plan .claude/tasks/plans/2026-11-11-advisor-packs-vocabulary-1000.md (r3, 2 challenge rounds, 4 exec rounds). Follow-ups in BUGS-FOUND (embedded keyword → SET minimal, extras metered pack, quoting). See [[BDR-134]].
+
+## BDR-143 — prune-memory reads statuses via one prefix classifier, unreadable info-only [accepted] (2026-11-12)
+- **Context**: /prune-memory STEP 1.A read raw `status:` prose + per-entry frontmatter; `memory.sh index decision` Status empty on game 107/107, config 19/19, faunosteo 76/80 (dialects, v1).
+- **Decision**: one classifier `reconcile_status_classify <file> <PREFIX>` (lib/reconcile.sh) for decisions + blockers: strict word v2, one-word status/statut label v1 (`RECONCILE_BDR_RE` widens v1 selector), never `## Index`. `reconcile_blk_classify` = BLK wrapper, output byte-identical. Unreadable status = one info-only count line per registry, outside "all", never written by skill, word from user per ID. User gated 2026-11-11.
+- **Alternatives**: `memory.sh index decision` (reads no status on dialect/v1 projects); one reader per registry (duplicate parsers, BDR-129 drift class); guess word from prose (false open/close).
+- **Consequences**: dialect projects (game, faunosteo) get no prune candidate until dialect migration (BUGS-FOUND follow-up). Commit 99f10b2, test RED-9.
