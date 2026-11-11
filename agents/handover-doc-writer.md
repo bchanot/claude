@@ -54,8 +54,7 @@ The parent dispatches this agent TWICE, with the FULL PACKAGE both times
   the chapters (§1-§6 full, §7/§8 stubs) into the RUN-SCOPED DRAFT
   `.audit/handover-draft-<RUNID>.md`, ending the file with the line
   `DRAFT COMPLETE — RUNID: <RUNID>`. Then emits a `SYNTH REPORT`
-  (`STATUS: DONE | BLOCKED`, RUNID, phase-cluster count, per-chapter word
-  counts) and STOPS — STEP 13-16, the final MD, HTML and PDF are NEVER
+  (template below, `MEMORY:` line mandatory on DONE) and STOPS — STEP 13-16, the final MD, HTML and PDF are NEVER
   this mode's job.
 - **`MODE: render`** — runs on its sonnet row (frontmatter = off-state floor). FIRST loads the
   draft: absent file, RUNID mismatch, or missing `DRAFT COMPLETE` sentinel
@@ -65,21 +64,48 @@ The parent dispatches this agent TWICE, with the FULL PACKAGE both times
   REPORT`. `OUTPUT = skip-write` → report `MD: skipped` and stop before
   rendering, as before.
 
+The synthesize mode ends with:
+
+```
+SYNTH REPORT
+STATUS: DONE | BLOCKED
+RUNID: <RUNID>
+PHASE CLUSTERS: <n>
+WORDS: §1=<n> §2=<n> §3=<n> §4=<n> §5=<n> §6=<n>
+MEMORY: unreadable BLK: <IDs comma-separated | none> | no blockers file | reader unavailable
+```
+
 ---
 
 ## STEP 9 — LOAD MEMORY REGISTRIES
 
 ```bash
-MEMORY_DIR=".claude/memory"
+ROOT="<PROJECT root from the PACKAGE>"
+MEMORY_DIR="$ROOT/.claude/memory"
 test -d "$MEMORY_DIR" || MEMORY_DIR=""
+# Blocker statuses through the shared reader (BDR-129): never parsed by hand.
+B="$MEMORY_DIR/blockers.md"
+if [ -z "$MEMORY_DIR" ] || [ ! -f "$B" ]; then echo "blockers: no-file"
+elif . "$HOME/.claude/lib/reconcile.sh"; then reconcile_blk_classify "$B"
+else echo "blockers: reader-unavailable"; fi
 ```
 
-If memory dir exists, read each file (full contents, parse manually):
+Rows `ID<TAB>open<TAB>word` are the open blockers for §5. Rows
+`ID<TAB>unreadable<TAB>…` are kept out of §5; their IDs go on the
+SYNTH REPORT `MEMORY:` line. `blockers: no-file` → no blocker in §5,
+`MEMORY: no blockers file`. `blockers: reader-unavailable` → no blocker
+in §5, `MEMORY: reader unavailable`.
+
+If memory dir exists, read each file in full for the narrative fields
+(titles, decisions, why, alternatives, cause, solution, journal
+summaries). A blocker's status is never taken from the file's prose,
+only from the reader above:
 
 - `decisions.md` → list of BDR-XXX entries (date, title, decision, why,
   alternatives, status)
 - `learnings.md` → LRN-XXX entries
-- `blockers.md` → BLK-XXX entries (open vs resolved)
+- `blockers.md` → BLK-XXX entries: open/unreadable from the reader
+  above, narrative from the file
 - `journal.md` → date headings + 3-5 line session summaries
 - `evals.md` → EVAL-XXX entries
 
@@ -315,7 +341,7 @@ End with two callouts:
 [Action-only checklist for the client. Pull from:
 **`.claude/audits/HUMAN-ACTIONS.md` FIRST when present** (the /seo//geo
 audit-end checklist — carry its automation notes, vulgarized), then open
-`blockers.md` entries, ongoing-monitoring items, external platforms to
+blockers from STEP 9 (unreadable ones excluded), ongoing-monitoring items, external platforms to
 claim, content updates only the client can make, deploy steps if
 self-hosted. If any axis passed via the code-ceiling rule, its
 unlocking user actions appear HERE with their expected score gain

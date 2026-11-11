@@ -31,6 +31,8 @@
 #                               parser on v2, legacy lexical reader on v1
 #   reconcile_blk_open        — blockers whose CURRENT status is not closed
 #                               (resolved | superseded | deprecated on v2)
+#   reconcile_blk_classify    — blockers for a client deliverable: open
+#                               (word) | unreadable, closed omitted
 #   reconcile_verdict         — pure kernel: declared checkbox × real fact
 #                               → verdict
 #   reconcile_deferrals       — lexical deferral sweep (honest limit)
@@ -104,6 +106,32 @@ reconcile_blk_open() {
     fi
     printf '%s\t%s\n' "$id" "$st"
   done
+}
+# blockers for a client deliverable → "id<TAB>open|unreadable<TAB>word or
+# line"; closed ones are omitted. A status no reader maps to exactly one
+# known word is unreadable, never open (BDR-129, BDR-133): v2 strict word,
+# v1 the single word of a status/statut label (_mem_v1_word: prose, mixed
+# or negated lines give none). Entries under a heading the enumerator
+# cannot see (`### BLK-`) are unreadable too.
+reconcile_blk_classify() {
+  local id st w v2=""
+  memory_is_v2 "$1" && v2=1
+  for id in $(reconcile_enumerate_ids "$1" BLK); do
+    st=$(reconcile_blk_current_status "$1" "$id")
+    if [ -n "$v2" ]; then w=$(memory_status_word "$st")
+    else w=$(_mem_v1_word "$st"); fi
+    [ -n "$st" ] || w=""
+    memory_closed "$w" && continue
+    case " $_MEM_WORDS " in
+      *" $w "*)
+        [ -n "$w" ] && { printf '%s\topen\t%s\n' "$id" "$w"; continue; } ;;
+    esac
+    printf '%s\tunreadable\t%s\n' "$id" "${st:0:80}"
+  done
+  MEM_GREP="$RECONCILE_GREP" _mem_heading_ids "$1" BLK | sort -u \
+    | comm -23 - <(reconcile_enumerate_ids "$1" BLK) \
+    | while read -r id; do printf '%s\tunreadable\theading level\n' "$id"; done
+  return 0
 }
 
 # --- pure reconciliation kernel: declared checkbox × real fact → verdict
