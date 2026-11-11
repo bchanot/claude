@@ -716,3 +716,6 @@ rules:
 ## 2026-11-10
 - 2026-11-10: /bugfix G1+G4 banner effective profile: list_on_plugins (profile managed ids, user scope rest) feeds ✅ row, detect_uiux_pro_max, /status; 2 challenge rounds (doctor pipefail BLOCKER r2), gates MET/CONFORME/PASS; 556d0e6, changelog 6cdc374.
 - 2026-11-10: /bugfix G2 passive-cost constants: 2 challenge rounds (FATAL r2) showed measured-cost API = feature; user split: constants, banner 💰 budget row, dead detect_plan removed, agents → make doctor; 1971b8d (amended, force push by user), docs 9777a47; API in TODO.
+
+## 2026-11-11
+- 2026-11-11: /bugfix G5 handover blocker status: 2 challenge rounds -> r3 reconcile_blk_classify (open/closed/unreadable), STEP 9 rooted on PACKAGE root, mandatory SYNTH MEMORY line relayed to user; gates MET/CONFORME/PASS first pass; commit 93a8e19 + changelog; G6-G9 + 2 LOW logged in BUGS-FOUND; BLK-048, LRN-276.
