@@ -155,8 +155,10 @@ Shared rules for every phase:
 - [ ] 6 dead deny entries (`Bash(docker run * -v /:*)`, `Bash(git push * :*)`, 4 `Write(...)`) kept by the push-guard T41/T42 non-weakening lock; drop them with a justified-removal list in T42 at the next release (working forms added 2026-10-23)
 
 ### Release 3.0.0
+Scope (user 2026-11-11) [gated]: D1-D6 + the 6 dead deny entries + MIGRATION/CHANGELOG land before the cut. Decisions: D1 digest + on-demand read (capitalize:375 aligned); D2 remove plugin-dev everywhere (OFF row disappears when empty); D3 advisor + USAGE rewritten to packs vocabulary, no budget/token claims, G2 add-ons included, SB10 fails on a missing file; D4 /prune-memory reads statuses through memory.sh (v1+v2), example IDs 9xx; D5 web-security keeps only its unique rules, points to secure-by-default, password = argon2id; D6 rule text names the CLAUDE.global.md append + install-plugins.sh runs the graphify step from $REPO. Runs: /feat D2+D3, /feat D4, /feat D1+D5+D6, /feat dead denies, docs, /release-candidate.
 - [ ] MIGRATION.md "Upgrading to 3.0.0" (CHANGELOG Unreleased says breaking: typed `/effort-*` removed; only the 2.0.0 section exists)
-- [ ] routing.json `confirmed` (15 agents, 11 phases, 3 skills) ships to every clone (by design: decisions travel); revisit at the 3.0.0 cut
+- [x] routing.json `confirmed` (15 agents, 11 phases, 6 skills) ships to every clone: kept as is (user 2026-11-11, decisions travel)
+- [ ] LOW security, logged in BUGS-FOUND 2026-11-11: forged `plugin:…=on` line via newline injection in profile-state.jq `jq -r` (display-only, pre-existing for detect_gstack); not in the 3.0.0 scope beyond the log
 - [ ] CHANGELOG [2.0.0] "Linux `make test` still to be done after 2.0.0" is stale: suite green on Linux (bchanot-server, 2026-10); note it under Unreleased
 - [x] BLK-018 decided 2026-11-02 (phase 2, option b): /release-candidate runs `gitflow.sh finish` and the tag in the main loop under the ask prompt; release-executor keeps prep only (536d39e)
 
