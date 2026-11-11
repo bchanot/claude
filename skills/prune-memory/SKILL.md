@@ -30,8 +30,8 @@ Operates on `.claude/memory/` in the current project (CWD). Curates the
 
 - **Git is the backup.** Skill writes in-place. PRECHECK refuses to run
   if working tree dirty on registry files.
-- **Append-only friendly.** Marks entries `status: superseded by <new-ID>`
-  or `status: deprecated` instead of deleting. Body of old entry stays
+- **Append-only friendly.** Marks entries with a `superseded by <ID>` or
+  `deprecated` status written by `memory.sh status` instead of deleting. Body of old entry stays
   for history.
 - **IDs stable.** Never renumber. Merges create a new ID; sources keep
   their ID with superseded status.
@@ -74,19 +74,47 @@ on a branch; on a working branch it proceeds in place. Never `gitflow finish`.
 
 For each target registry (filter by `$ARGUMENTS` or all 5):
 
+Current statuses come from one reader for decisions and blockers, run once:
+
+```bash
+# Current statuses: one reader for decisions and blockers (BDR-129:
+# strict word on v2, one status word on v1, never the ## Index, never a
+# word in prose). Rows: ID<TAB>open<TAB>word | ID<TAB>unreadable<TAB>line;
+# closed entries (resolved, superseded, deprecated) are omitted.
+for k in decisions:BDR blockers:BLK; do
+  f=".claude/memory/${k%%:*}.md"
+  [ -f "$f" ] || { echo "== $f: no-file"; continue; }
+  echo "== $f"
+  ( . "$HOME/.claude/lib/reconcile.sh" \
+      && reconcile_status_classify "$f" "${k#*:}" ) \
+    || echo "== $f: reader-unavailable"
+done
+```
+
+These rows are the ONLY status source of STEP 1.A: a status word in an
+entry's prose or title is never a status. With a `$ARGUMENTS` filter, use
+only the rows of the filtered registries. `reader-unavailable` → no
+status-based candidate for that registry this run (say so in STEP 2).
+`unreadable` rows → the `[Status unreadable]` count line (STEP 2), never
+an A candidate.
+
 Read file. Classify candidates into A/B/C/D below. Use today's date for
 age comparisons. Today's date is in the system context.
 
 ### A. Obsolete — mark-superseded candidates
-- Decisions `status: proposed` older than 90 days → propose
-  `status: deprecated` (no follow-up).
+- Decisions whose word is `proposed` and whose date is older than 90 days
+  → propose `memory.sh status <ID> "deprecated, no follow-up after 90
+  days"`. Date = the newer of the `memory.sh index decision` Date cell and
+  the date of the entry's last `- **Status (YYYY-MM-DD)**:` line; no date
+  → not a candidate (v1 dialect dates such as `| date |` headings or
+  `date: … ·` lines give none).
 - Decisions whose body names a successor ("superseded by <ID>",
-  "Supersedes [[<ID>]]" on the newer one) but whose current status
-  (`bash "$HOME/.claude/lib/memory.sh" index decision`) still reads
+  "Supersedes [[<ID>]]" on the newer one) but whose word is still
   `accepted` → propose `memory.sh status <ID> "superseded by <that-ID>"`.
-- Blockers `status: open` whose root cause matches a commit in last 30
-  days (grep `git log --since=30.days --grep=<keyword>`) → propose
-  `status: resolved` with commit ref.
+- Blockers whose word is exactly `open` (never upstream, accepted or any
+  other word) whose root cause matches a commit in last 30 days (grep
+  `git log --since=30.days --grep=<keyword>`) → propose
+  `memory.sh status <ID> "resolved <commit>"`.
 - Journal entries older than 180 days with zero cross-reference from
   later entries → propose collapse into 1-line month summary
   (`## YYYY-MM` heading replaces detail).
@@ -119,22 +147,35 @@ PRUNE PLAN — decisions.md (N entries → M after if approved)
  worked example cannot PRIME a real prune. Apply the same shapes to real IDs.)
 
 [A. Obsolete — mark superseded]
-  BDR-901 — example proposed decision — status: proposed since <90+ days ago>
-            → mark: status: deprecated (no follow-up after 90 days)
+  BDR-901 — example proposed decision — word proposed, dated <90+ days ago>
+            → memory.sh status BDR-901 "deprecated, no follow-up after 90 days"
   BDR-902 — example decision — body says superseded by BDR-903
             → memory.sh status BDR-902 "superseded by BDR-903"
 
 [B. Similar — merge]
   LRN-901 + LRN-902 — SAME concept (two notes on the identical bug)
-            → propose: merge into NEW LRN-904 with both bodies appended +
-              caveman pass; sources marked status: superseded by LRN-904
+            → propose: merge into NEW LRN-904 (learnings carry no status) with
+              both bodies appended + caveman pass; sources:
+              memory.sh status <ID> "superseded by LRN-904"
             (merge ONLY same-concept entries — complementary/different-angle stays split)
 
 [C. Bloated — inline caveman rewrite]
   BDR-902 — body 612 words, filler density 7.2% → ~380 expected (-38%)
 
+[Status unreadable — info only, never applied, not part of "all"]
+  decisions.md: 3 (BDR-905, BDR-906, BDR-907)
+  → you give the word per ID: memory.sh status <ID> "<word>"
+
 Approve per category? (all / a / b / c / edit <ID> / skip)
 ```
+
+A [B] merge of decisions, blockers or evals names the merged entry's
+status word on its line (default: the sources' common word; sources
+differ → ask in `edit <ID>`). The count line folds IDs (first 10, then
+`+N more`); the word always comes from the user, never from the entry
+text. On a v1 file the status text carries one status word only (else it
+stays unreadable). A row `heading level` needs its heading fixed to
+`## ID` first (`memory.sh status` cannot reach it).
 
 Wait for user input. Default = nothing applied.
 
@@ -151,13 +192,24 @@ Registry writes follow `lib/capitalize-commit.md` § WRITE (single writer).
    --body-file <file> --supersedes <first source>` (next-free ID, forward
    link, the first source marked superseded); each other source:
    `memory.sh status <ID> "superseded by <new-ID>"`. Source bodies stay
-   verbatim for history. Merged body:
+   verbatim for history. A STATUS LINE is any line of the entry that holds
+   (case-insensitive) `status`, `statut`, `resolved`, `reverted`,
+   `upstream`, `superseded`, `deprecated` or the word `open`, or a
+   `- **<label>**:` line whose label holds status/resolution/action/
+   update/final. Add `--status <word>` (decisions, blockers, evals; the
+   word shown on the [B] line; learnings none). Merged body:
    - Preserves all `**Reference**:` lines (dedupe identical paths).
    - Caveman pass on prose during merge.
-   - Keeps frontmatter fields: id (new), date (today), title, status
-     (accepted), references (union).
-3. **Inline caveman compression** — preserve frontmatter exactly (id,
-   date, title, status, references). Rewrite prose body to fragments:
+   - Drops the sources' labelled status lines (`- **Status…**:`, `Status:`
+     / `statut` lines, `- **Resolution|Action|Update|Final…**:`). The new
+     entry's status is the `--status` word (v2: heading tag; v1: a
+     `- **Status**:` body line, and a later prose STATUS LINE can make it
+     unreadable: it then shows in the count line).
+   - `memory.sh add` writes the heading (new ID, title, date) and the
+     status; the body keeps the union of `**Reference**:` lines.
+3. **Inline caveman compression** — keep VERBATIM the heading line, every
+   `- **Label**:` key and every STATUS LINE; rewrite only the other prose
+   to fragments:
    - **NEGATION GUARD (deterministic, overrides every rule below):** never
      rewrite a sentence containing a negation token (`not`, `never`, `no`,
      `cannot`, or any `*n't` contraction). Keep such sentences VERBATIM —
@@ -249,7 +301,7 @@ NEXT: review `git diff .claude/memory/`, then `/commit-change`
 
 - Journal entries < 30 days old.
 - Decisions / learnings with commit references < 14 days old.
-- Entries the user marked `status: accepted` in the current session.
+- Entries whose status the user set this session.
 - The current session's just-capitalized entries (read `journal.md`
   tail to identify them).
 
@@ -257,8 +309,8 @@ NEXT: review `git diff .claude/memory/`, then `/commit-change`
 
 | Mistake | Fix |
 |---------|-----|
-| Renumbering IDs after a merge | IDs are stable. Sources keep their ID + `status: superseded`. New merged entry gets next-free ID. |
-| Hard-deleting "obsolete" entries | Forbidden by append-only rule. Use `status: deprecated`. Body stays. |
+| Renumbering IDs after a merge | IDs are stable. Sources keep their ID + a `superseded by <ID>` status. New merged entry gets next-free ID. |
+| Hard-deleting "obsolete" entries | Forbidden by append-only rule. Use a `deprecated` status (`memory.sh status`). Body stays. |
 | Compressing code blocks / URLs / error messages | Caveman compression touches PROSE only. Code, URLs, IDs, error quotes stay verbatim. |
 | Running on a dirty working tree | PRECHECK blocks this. Commit first. |
 | Compressing the current session's journal entry | Excluded by "What NOT to prune" — current session capitalization is still useful. |
