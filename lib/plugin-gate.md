@@ -39,32 +39,62 @@ PROBE REPORT (ground truth — do not re-detect):
 
 ## 4. PRESENT + BLOCKING GATE (main loop)
 
-Show the returned PLUGIN CHECK block.
+Show the returned PLUGIN CHECK block. The advisor emits tokens only; the
+main loop builds every command from the fixed templates of step 5, never
+pastes the advisor's text into a shell. Before running ANY command (the
+step-4 diff included) check each token: a profile name is one of the advisor's own set
+(web, seo, dev, design, qa, audit, minimal; never `full`, `max` or a
+user-added profile) and matches `^[a-z0-9][a-z0-9-]*$` with an existing
+`$HOME/.claude/lib/profiles/<name>.json`;
+a pack is one of design, scroll3d, seo, web-validate, gstack-dev,
+gstack-browser, gstack-design, extras (`higgsfield` is never accepted from an
+advisor token: paid service, explicit user ask only); a plugin is one of the
+two managed full ids `ui-ux-pro-max@ui-ux-pro-max-skill`,
+`pr-review-toolkit@claude-code-plugins`. A token matching none is printed as
+rejected and skipped, never run.
+For a `↻ SET <profile>` line run
+`bash "$HOME/.claude/lib/profile.sh" -C "<PROJECT_ROOT>" diff "<profile>"` and
+print its `→ off` lines under it as "turns off" (none → "turns off: nothing")
+and its `→ on` lines as "turns on" (none → "turns on: nothing").
+The diff exits non-zero on a bad name, an unknown profile or a missing
+profiles dir: on any non-zero exit print "turns off: unknown" and continue.
 - `ACTION REQUIRED? YES` → offer: A) fix plugins B) type "force". STOP until
   answered.
 - OK → print `✅ Plugin check passed — [active plugins] — complexity: <score>%`.
 
 ## 5. APPLY GATE (main loop: only when the flow auto-activates)
 
-If any plugin has ⚡ ENABLE status:
-1. List the changes:
+Trigger: a `↻ SET`, `⚡ ENABLE` or `⚠️ DISABLE` line. Under `source=flag`
+(`PROFILE :` block) the advisor emits only `relaunch: cc <name> <profile>`:
+nothing is applied. Apply only when
+`git -C "<PROJECT_ROOT>" rev-parse --show-toplevel` equals PROJECT_ROOT;
+otherwise print the commands and apply nothing ("no git root yet: run them
+after git init").
+1. List the changes, saying they are project-wide and persist in
+   `<PROJECT_ROOT>/.claude/settings.local.json`:
    ```
-   PROPOSED CHANGES:
-     ⚡ Enable ui-ux-pro-max (frontend detected, complexity 65%)
-     ⚡ Pre-fetch ctx7 docs for next.js, prisma
+   PROPOSED CHANGES (project-wide, persisted in
+   <PROJECT_ROOT>/.claude/settings.local.json):
+     ↻ Set profile dev (backend detected) — turns off: <diff lines>
+     ⚡ Enable pack design (frontend detected, complexity 65%)
+     ⚡ Enable ui-ux-pro-max@ui-ux-pro-max-skill
    Apply these changes? (yes / no / customize)
    ```
-2. "yes" → run the advisor's commands in order, each one `bash
-   "$HOME/.claude/lib/profile.sh" -C <PROJECT_ROOT> set <name>` or `enable
-   <pack>`. Each call writes `.claude/settings.local.json` atomically or
-   refuses (rc 2, nothing written), so there is nothing to roll back: stop at
-   the first non-zero rc, print its stderr, and continue with the current
-   config. "customize" → user picks. "no" → proceed with current config.
+2. "yes" → run the changes in order, the SET first, then the deltas (after
+   "customize" too). Each one is
+   `bash "$HOME/.claude/lib/profile.sh" -C "<PROJECT_ROOT>" set "<name>"`,
+   `... enable "<pack | full plugin id>"` or
+   `... disable "<pack | full plugin id>"` (same prefix). Each call
+   writes `.claude/settings.local.json` atomically or refuses (rc 2, nothing
+   written): stop at the first non-zero rc, print its stderr, and continue
+   with the current config. "customize" → user picks. "no" → proceed with
+   current config.
 3. After a successful write print `✅ Applied N change(s): run
    /reload-plugins to load the packs in this session (connectors and model:
-   next session).` In a `--settings` conversation (`PROFILE :` block says
-   `source=flag`) the advisor emits no enable for a pack the flag turns off;
-   it says `relaunch: cc <name> <profile>` instead.
+   next session).` Say the change is project-wide and persists in
+   `<PROJECT_ROOT>/.claude/settings.local.json`. Print the undo: after a SET:
+   `bash "$HOME/.claude/lib/profile.sh" -C "<PROJECT_ROOT>" unset`, after
+   deltas the inverse enable / disable.
 
 **Never auto-activate without showing the list and getting confirmation.
 Never write the user scope.**
