@@ -244,7 +244,7 @@ a different package, ships its own conflicting `graphify` bin) — see
 | `/release-candidate` | Cut a versioned release — finalize version.txt + CHANGELOG, merge develop→main, tag, push (auto-push mode, tag on your go; manual push mode: one `! git push --atomic` command you run) |
 | `/deploy` | Compose the deploy checklist from a project's committed runbook (delta only); you run it, the skill resumes cold on your report |
 | `/graphify` | Codebase knowledge graph — navigation for large-scope tasks |
-| `/plugin-check` | Check active plugins vs project needs — recommend enable/disable |
+| `/plugin-check` | Check packs and plugins vs project needs: recommend a profile (project without one) and enable/disable deltas |
 | `/health` | Code quality dashboard (gstack) — setup diagnostic is `make doctor` |
 | `/status` | Consolidated project snapshot — plugins, git, GSD milestone |
 | `/skills-perso` | List personal (user-created) skills |
