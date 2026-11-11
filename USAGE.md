@@ -178,8 +178,8 @@ Tu veux...
 
 > Cette table couvre les skills personnels principaux. `/seo` et `/geo` (pack-seo)
 > et `/web-validate` (pack-web-validate) vivent dans des packs : un profil qui laisse
-> le pack éteint les masque (`/profile current`). Les plugins (gstack,
-> pr-review-toolkit…) et marketplaces externes en ajoutent beaucoup d'autres ;
+> le pack éteint les masque (`/profile current`). Les packs gstack-dev,
+> gstack-browser et gstack-design, les plugins (pr-review-toolkit…) et marketplaces externes en ajoutent beaucoup d'autres ;
 > `/skills-perso` liste tes skills personnels.
 
 ---
@@ -226,18 +226,18 @@ Le mod `mods/memory/` note les échecs Bash et les jalons de la session pour que
 ## Les plugins — décision rapide
 
 ```
-Toujours actifs (0 token) : security-guidance, rtk
+Toujours actifs : security-guidance, rtk
 
-Design élaboré/system     → ui-ux-pro-max ON
-Deploy + QA browser       → gstack ON
-Next.js/React/Prisma      → context7 ON (WARN si absent, pas BLOCK)
-Multi-session (>1 jour)   → gsd v2 CLI (gsd dans terminal)
+Design élaboré/system     → pack design + ui-ux-pro-max@ui-ux-pro-max-skill
+Deploy + QA browser       → packs gstack-dev + gstack-browser
+Next.js/React/Prisma      → CLI ctx7 installé (WARN si absent, pas BLOCK)
+Multi-session (>1 jour)   → gsd CLI (gsd dans terminal)
 
-Backend/CLI seulement     → tout OFF (skills superpowers vendorisés, toujours actifs, 0 t passif)
-Hotfix/quick fix          → tout OFF (skills superpowers vendorisés, toujours actifs, 0 t passif)
+Backend/CLI seulement     → profil dev (skills superpowers vendorisés, toujours actifs)
+Hotfix / script rapide    → aucun changement de profil (/hotfix ou /bugfix)
 ```
 
-**GSD v2** n'est pas un plugin Claude Code — c'est un CLI externe. Il ne consomme pas de tokens passifs. Tu le lances dans un terminal séparé avec `gsd`, puis `/gsd auto` pour le mode autonome.
+**GSD** est un CLI externe, rien ne se charge dans Claude Code. Tu le lances dans un terminal séparé avec `gsd`, puis `/gsd auto` pour le mode autonome.
 
 **Profils et packs.** Un profil se règle par projet (`/profile set web` puis `/reload-plugins`) ou par conversation (`cc <nom> web`, la conversation est figée: relance-la pour changer). Neuf profils: `full`, `max`, `minimal`, `dev`, `design`, `web`, `seo`, `qa`, `audit`. Sans profil, c'est `full`. Un `--settings` édité en cours de session reste sans effet. `cc` est une fonction de `lib/cc.sh`, à sourcer depuis `~/.bashrc` (`[ -f "$HOME/.claude/lib/cc.sh" ] && . "$HOME/.claude/lib/cc.sh"`) ; `make doctor` le signale tant qu'elle manque.
 
@@ -323,7 +323,7 @@ cd mon-projet-existant/
 | 5  | Analyze read-only (analyzer agent) | .onboard-audit/analyze.md |
 | 6  | Audits parallèles selon archétype : | .onboard-audit/*.md (9 fichiers max) |
 |    |   — dette tech (general-purpose, audit read-only) |
-|    |   — sécurité (cso si gstack ON, sinon OWASP fallback) |
+|    |   — sécurité (cso si le pack gstack-dev est actif, sinon OWASP fallback) |
 |    |   — docs drift (doc-syncer) |
 |    |   — SEO + GEO (si public) |
 |    |   — design UI/UX (si frontend) |
@@ -414,8 +414,10 @@ Ajouter un archétype : créer `~/.claude/lib/project-archetypes/<name>.md` (voi
 /plugin-check "App mobile React Native Expo liste de courses, offline-first, SQLite, notifications push"
 
 → SIGNALS: frontend (mobile), fast-libs (Expo SDK)
-→ WARN: context7 si Expo SDK 51+ utilisé (fast-libs)
-→ OFF: gstack (mobile, pas de browser QA), ui-ux-pro-max (optionnel)
+→ WARN: ctx7 CLI si Expo SDK 51+ utilisé (fast-libs)
+→ ↻ SET: dev (mobile)
+→ ⚡ ENABLE: pack design (frontend mobile, delta sur le profil dev)
+→ OPTIONAL: ui-ux-pro-max@ui-ux-pro-max-skill
 → BLOCKING: none
 ```
 
@@ -491,9 +493,9 @@ gsd
 /plugin-check "Site vitrine Next.js 14 studio photo, design élaboré, animations Framer Motion, galerie, dark mode, SEO"
 
 → SIGNALS: frontend, design-system, fast-libs(Next.js)
-→ ENABLE: ui-ux-pro-max (~400t) — "design élaboré" signal fort
-→ WARN: context7 non configuré → taper "force" pour continuer (ou configurer avant)
-→ OFF: gstack (vitrine statique, pas de deploy complexe)
+→ ↻ SET: web (site public)
+→ KEEP: pack design + ui-ux-pro-max@ui-ux-pro-max-skill — "design élaboré" signal fort
+→ WARN: ctx7 non configuré → taper "force" pour continuer (ou configurer avant)
 → COST: ~1600t passif (comfortable)
 ```
 
@@ -544,10 +546,9 @@ Sans ui-ux-pro-max : "Tailwind avec palette neutre, Inter". La différence est v
 /plugin-check "Jeu de puzzle web React + FastAPI + PostgreSQL. Auth JWT, collection de cartes, boutique in-app, leaderboard. Multi-session, dev sur plusieurs semaines."
 
 → SIGNALS: frontend, fast-libs(React), deploy, multi-session
-→ ENABLE: context7
-→ ENABLE: ui-ux-pro-max (cartes visuelles, cohérence design)
-→ CLI: gsd v2 RECOMMANDÉ (multi-session détecté)
-→ OPTIONAL: gstack si deploy CI + browser QA prévus
+→ KEEP: ctx7 CLI installé (find-docs, fast-libs React)
+→ KEEP: pack design + ui-ux-pro-max@ui-ux-pro-max-skill (cartes visuelles, cohérence design)
+→ CLI: gsd RECOMMANDÉ (multi-session détecté)
 → COST: ~1800t passif (avec context7)
 ```
 
@@ -644,8 +645,8 @@ ONBOARD COMPLETE: mycli
 /plugin-check "Rust CLI, pas de frontend, pas de deploy"
 
 → SIGNALS: none (CLI pur)
-→ DISABLE: ui-ux-pro-max, gstack, context7
-→ (skills superpowers vendorisés, toujours actifs, 0 t passif)
+→ ↻ SET: dev
+→ (skills superpowers vendorisés, toujours actifs)
 → COST: ~800t (minimal)
 → ACTION REQUIRED? NO
 ```
@@ -701,18 +702,18 @@ DO NOT TOUCH:
 
 **Contexte :** outil en ligne de commande, pas de frontend, pas de serveur, pas de Docker. Le cas le plus simple — illustre que le système fonctionne aussi bien sur les projets petits que complexes.
 
-**Setup plugins — zéro token inutile :**
+**Setup plugins — seulement ce que le projet demande :**
 ```
 /plugin-check "CLI Rust, convertisseur de fichiers JSON/CSV/TOML, pas de réseau, pas de frontend"
 
 → SIGNALS: none (CLI pur, pas de deploy, pas de frontend)
-→ (skills superpowers vendorisés, toujours actifs, 0 t passif)
-→ DISABLE: ui-ux-pro-max, gstack, context7
+→ (skills superpowers vendorisés, toujours actifs)
+→ ↻ SET: dev
 → COST: ~800t (base seulement)
 → ACTION REQUIRED? NO
 ```
 
-L'intérêt ici est de voir que `/plugin-check` est aussi utile pour confirmer qu'on n'a **rien** à activer, évitant de polluer le contexte avec 3000t de plugins inutiles.
+L'intérêt ici est de voir que `/plugin-check` est aussi utile pour confirmer qu'on n'a **rien** à activer, évitant de polluer le contexte avec des packs inutiles.
 
 **Prompt init (complet, pas de questions) :**
 ```
@@ -807,7 +808,7 @@ Simple à valider. L'architecture proposée est plate, pas de surprise.
 
 **Contexte :** module `services/payment_service.py` dans un projet FastAPI existant. Écrit il y a 2 ans, jamais refactorisé. Violations connues : fonctions de 80 lignes, global state, pas de tests unitaires, logique métier mélangée avec appels HTTP.
 
-**Setup :** projet déjà onboardé (CLAUDE.md présent), skills superpowers vendorisés (toujours actifs, 0 t passif), plugins inutiles désactivés.
+**Setup :** projet déjà onboardé (CLAUDE.md présent), skills superpowers vendorisés (toujours actifs), packs inutiles désactivés.
 
 #### Étape 1 — Analyse avant toute modification
 
@@ -920,7 +921,7 @@ PROJECT STATUS
 
 CONFIG
   Version   : v2.5.0
-  Plugins ON: context7 (~200t), skills superpowers vendorisés (toujours actifs, 0 t passif)
+  Plugins ON: ctx7 CLI, skills superpowers vendorisés (toujours actifs)
   GSD v2    : installed (3.0.0)
 
 PROJECT
@@ -1018,9 +1019,9 @@ SIGNALS: simple, CLI/embedded
 COST: ~0t (skills superpowers vendorisés, toujours actifs, 0 t passif)
 
 RECOMMENDATIONS:
-  DISABLE   : ui-ux-pro-max, gstack, context7
+  SET       : minimal (embedded : tous les packs éteints)
   NOTE      : skills superpowers (brainstorming, writing-plans...) restent
-              disponibles par nom bare sans coût passif, même pour un
+              disponibles par nom bare, même pour un
               firmware minimal.
 ```
 
@@ -1028,7 +1029,7 @@ RECOMMENDATIONS:
 
 ```
 # Pas de /init-project, pas de GSD ; skills superpowers vendorisés
-# (toujours actifs, 0 t passif) mais non invoqués ici
+# (toujours actifs) mais non invoqués ici
 
 # 1. Comprendre avant de modifier
 /analyze src/drivers/uart.c
@@ -1052,7 +1053,7 @@ OUTPUT:
 /ship-feature "Corriger l'accès non-atomique au ring_buffer_head dans l'ISR"
 
 STEP 0b — CLAUDE.md found
-STEP 0  — plugin check: skills superpowers vendorisés (toujours actifs, 0 t passif)
+STEP 0  — plugin check: skills superpowers vendorisés (toujours actifs)
 
 STEP 1 — BRAINSTORM (rapide, contexte déjà clair depuis /analyze):
   Design: protéger ring_buffer_head avec __disable_irq()/__enable_irq()
@@ -1075,7 +1076,7 @@ STEP 4 — IMPLEMENT (subagents légers, modifications chirurgicales)
 ```
 
 **Points clés :**
-- `/plugin-check` confirme qu'aucun plugin inutile n'est actif (skills superpowers vendorisés, toujours actifs, 0 t passif).
+- `/plugin-check` confirme qu'aucun pack inutile n'est actif (skills superpowers vendorisés, toujours actifs).
 - `/analyze` est particulièrement utile sur du code C bas-niveau : l'analyzer identifie les accès non-atomiques, les race conditions, les violations de normes, **sans proposer de fix**.
 - Pour un firmware, le workflow `analyze → ship-feature` peut se réduire à `analyze → edit direct` si la modification est triviale.
 - GSD v2 n'est jamais pertinent pour du firmware : les sessions sont courtes et les tâches atomiques.
@@ -1087,11 +1088,11 @@ STEP 4 — IMPLEMENT (subagents légers, modifications chirurgicales)
 Description contient...    →  Plugin
 ─────────────────────────────────────────────────────
 Next.js 13+ / App Router   →  context7 WARN
-Prisma / Supabase          →  context7 ON
-"design élaboré" / tokens  →  ui-ux-pro-max ON
-Docker + QA browser        →  gstack ON
-"plusieurs semaines"       →  gsd v2 CLI
-Rust / Python / Go / C     →  tout OFF (skills superpowers vendorisés, 0t)
-Mobile / Flutter / RN      →  gstack OFF
-Hotfix / script rapide     →  tout OFF (skills superpowers vendorisés, 0t)
+Prisma / Supabase          →  ctx7 installé
+"design élaboré" / tokens  →  pack design + ui-ux-pro-max@ui-ux-pro-max-skill
+Docker + QA browser        →  packs gstack-dev + gstack-browser
+"plusieurs semaines"       →  gsd CLI
+Rust / Python / Go / C     →  profil dev (skills superpowers vendorisés)
+Mobile / Flutter / RN      →  packs gstack-browser + gstack-design off
+Hotfix / script rapide     →  aucun changement de profil (/hotfix ou /bugfix)
 ```

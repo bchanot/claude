@@ -251,10 +251,13 @@ Pour chaque fast-lib détectée :
   ```
   ⚠️  ctx7 non installé — risque de code utilisant des APIs obsolètes
      sur : [liste fast-libs]
-     Install : `npm install -g ctx7 && ctx7 setup --claude`
+     Install : `npm install -g ctx7`
+     Version épinglée et find-docs : `make plugin` depuis le dépôt claude-config
      Ou continuer sans (non recommandé pour fast-libs).
   ```
   Demander : `yes install now / continue without / skip audit`.
+  `yes install now` lance uniquement `npm install -g ctx7` (jamais
+  `make plugin`, qui dépend du répertoire courant).
 
 - **Pas de fast-lib** → skip silencieusement.
 

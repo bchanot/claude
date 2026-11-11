@@ -103,12 +103,11 @@ export PROFILE_PLAIN
 TOGGLE_ACTIVE=()
 TOGGLE_INACTIVE=()
 
-for plugin in gstack uiux_pro_max plugin_dev context7 graphifyy; do
+for plugin in gstack uiux_pro_max context7 graphifyy; do
   # Map function name to display name. graphifyy = the pipx PACKAGE name
   # (pypi:graphifyy); the CLI and skill are 'graphify' — display that.
   case "$plugin" in
     uiux_pro_max)    display="ui-ux-pro-max" ;;
-    plugin_dev)      display="plugin-dev" ;;
     graphifyy)       display="graphify" ;;
     *)               display="$plugin" ;;
   esac
@@ -119,10 +118,6 @@ for plugin in gstack uiux_pro_max plugin_dev context7 graphifyy; do
     TOGGLE_INACTIVE+=("$display")
   fi
 done
-
-# --- Format output ---
-ACTIVE_STR="${TOGGLE_ACTIVE[*]:-none}"
-INACTIVE_STR="${TOGGLE_INACTIVE[*]:-none}"
 
 # Profile row: the project's local profile, the conversation's --settings
 # one, or none (manifest defaults = full) with the /plugin-check pointer.
@@ -170,7 +165,7 @@ echo "┌─ Claude Code config ────────────────
 # by the toggle row below are excluded (dual display).
 ALWAYS_ON=()
 detect_rtk &>/dev/null && ALWAYS_ON+=("rtk")
-_toggle_owned=" gstack ui-ux-pro-max plugin-dev context7 graphify "
+_toggle_owned=" gstack ui-ux-pro-max context7 graphify "
 while IFS= read -r _pl; do
   [ -n "$_pl" ] || continue
   case "$_toggle_owned" in
@@ -180,9 +175,8 @@ while IFS= read -r _pl; do
 done < <(sed 's/@.*//' <<<"$(list_on_plugins)")
 unset _toggle_owned _pl
 ALWAYS_ON_STR="${ALWAYS_ON[*]:-none}"
-# Same 40-char-width split policy as the toggle row below — keeps the
-# right border aligned on overflow. Greedy width-fill (not a fixed 3-name
-# cut: 3 long names overflowed line 1 and left line 2 empty).
+# 40-char width, greedy split: keeps the right border aligned on overflow
+# (not a fixed 3-name cut: 3 long names overflowed line 1, line 2 empty).
 if [ "${#ALWAYS_ON_STR}" -le 40 ]; then
   printf "│  ✅ ON  : %-40s│\n" "$ALWAYS_ON_STR"
 else
@@ -199,37 +193,12 @@ else
   unset _ao_l1 _ao_l2 _ao_e
 fi
 unset ALWAYS_ON ALWAYS_ON_STR
-# Plugin display — all plugins shown, split across 2 lines if >4
-_active_count=${#TOGGLE_ACTIVE[@]}
-_inactive_count=${#TOGGLE_INACTIVE[@]}
-
-if [ "$_active_count" -eq 0 ]; then
-  printf "│  🟢 ON  : %-40s│\n" "none"
-elif [ "$_active_count" -le 4 ]; then
-  printf "│  🟢 ON  : %-40s│\n" "$ACTIVE_STR"
-else
-  # Split: first 4 on line 1, rest on continuation line
-  _line1="${TOGGLE_ACTIVE[0]} ${TOGGLE_ACTIVE[1]} ${TOGGLE_ACTIVE[2]} ${TOGGLE_ACTIVE[3]}"
-  _rest=("${TOGGLE_ACTIVE[@]:4}")
-  _line2="${_rest[*]}"
-  printf "│  🟢 ON  : %-40s│\n" "$_line1"
-  printf "│             %-40s│\n" "$_line2"
-  unset _line1 _line2 _rest
+# Toggle rows: the four display names (38 chars) must fit the 40-char
+# field; a fifth toggle needs a split again. OFF prints only when non-empty.
+printf "│  🟢 ON  : %-40s│\n" "${TOGGLE_ACTIVE[*]:-none}"
+if [ ${#TOGGLE_INACTIVE[@]} -gt 0 ]; then
+  printf "│  ⚫ OFF : %-40s│\n" "${TOGGLE_INACTIVE[*]}"
 fi
-
-if [ "$_inactive_count" -eq 0 ]; then
-  printf "│  ⚫ OFF : %-40s│\n" "none"
-elif [ "$_inactive_count" -le 4 ]; then
-  printf "│  ⚫ OFF : %-40s│\n" "$INACTIVE_STR"
-else
-  _line1="${TOGGLE_INACTIVE[0]} ${TOGGLE_INACTIVE[1]} ${TOGGLE_INACTIVE[2]} ${TOGGLE_INACTIVE[3]}"
-  _rest=("${TOGGLE_INACTIVE[@]:4}")
-  _line2="${_rest[*]}"
-  printf "│  ⚫ OFF : %-40s│\n" "$_line1"
-  printf "│             %-40s│\n" "$_line2"
-  unset _line1 _line2 _rest
-fi
-unset _active_count _inactive_count
 printf "│  🖥️  CLI : %-40s│\n" "$GSD_STATUS"
 printf "│  📦 v%-45s│\n" "$CONFIG_VERSION"
 if [ -n "$GF_REFRESHED" ]; then
