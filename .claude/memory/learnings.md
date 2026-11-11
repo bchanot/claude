@@ -2026,3 +2026,8 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Context**: G2 commit. `git add a b lib/tests/detect-plan.test.sh 2>/dev/null` after `git mv` of that path: pathspec missing → git aborts WHOLE add, stderr silenced. Commit 63832fd landed with only pre-staged rename under full fix message; post-commit auto-push published it. Repair = amend + force push (user ran it: force push denied to Claude).
 - **Pattern**: never `2>/dev/null` on `git add`; one bad pathspec stages nothing. After any commit check `git show --stat HEAD` against intended file list before reporting.
 - **Future application**: every commit step in skills (bugfix, feat, hotfix, commit-change) after a rename/delete; stage renamed paths by new name only.
+
+## LRN-276 — Test the shipped prompt snippet, not a copy; status consumer has an unreadable bucket (2026-11-11)
+- **Context**: G5 handover fix. Agent prompt carries bash snippet (STEP 9). Census grep on tokens stays green when snippet logic breaks; retyped copy in test drifts from shipped one.
+- **Pattern**: test extracts shipped fenced block (awk: first ```bash fence under its heading), sed swaps placeholders (root, lib dir) for fixture paths, runs with `bash <file>`; negative control = HEAD block prints nothing. Status consumer classifies by ONE known word: closed → omit, known open word → list, anything else → unreadable bucket, flagged to user, never dropped, never substring close.
+- **Future application**: any agent/skill prompt holding shell (handover, reconcile, status-reporter); any new reader of registry status.

@@ -1150,7 +1150,12 @@ PACKAGE:
 
 Parse its `SYNTH REPORT`: `STATUS: BLOCKED` → surface verbatim, stop (do
 not patch the PACKAGE silently); malformed/mute → retry ONCE fresh, then
-escalate. `STATUS: DONE` → THEN render:
+escalate. `STATUS: DONE` with no `MEMORY:` line is malformed (same
+retry-once path); so is `MEMORY: no blockers file` or `MEMORY: reader
+unavailable` while `<root>/.claude/memory/blockers.md` exists (a
+mis-parsed root or a broken lib, never a quiet empty §5). Any `MEMORY:`
+value other than `unreadable BLK: none` is printed to the user before
+the render and repeated in 9.7. `STATUS: DONE` → THEN render:
 
 ```
 Agent(subagent_type="handover-doc-writer")
@@ -1190,6 +1195,12 @@ Parse the returned `HANDOVER-DOC REPORT`:
   markers left in NAP, deploy chapter included/skipped).
   Re-run PUSH STATE READ right before printing, then add the bullet:
   - Push: <state>
+  When the synthesize `MEMORY:` value was not `unreadable BLK: none`,
+  add the bullet:
+  - Memory: <value>
+  For unreadable IDs, give the remedy: `bash ~/.claude/lib/memory.sh -C
+  <root> status <ID> "<word>, …"` (a status word, e.g. resolved or
+  open), then re-run.
 - `STATUS: BLOCKED` → surface the report verbatim (including which
   PACKAGE field the doc-writer flagged) and stop — do not retry or
   patch the PACKAGE silently. Re-run PUSH STATE READ and add the same
