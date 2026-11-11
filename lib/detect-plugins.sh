@@ -64,12 +64,6 @@ detect_gsd() {
   command -v gsd &>/dev/null
 }
 
-detect_plugin_dev() {
-  # plugin-dev replaces the old "skill-creator" reference
-  local cache_dir="$HOME/.claude/plugins/cache"
-  [ -d "$cache_dir" ] && compgen -G "$cache_dir"/*plugin-dev* &>/dev/null
-}
-
 detect_uiux_pro_max() {
   # installed (cache) AND enabled for this project (here-string: no pipe)
   local cache_dir="$HOME/.claude/plugins/cache"

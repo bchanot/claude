@@ -20,7 +20,9 @@ has() { case "$1" in *"$2"*) echo 1 ;; *) echo 0 ;; esac; }
 claude_stub_install "$WORK"
 # rtk pinned present, whatever the machine has
 printf '#!/bin/sh\nexit 0\n' >"$WORK/stub/rtk" || exit 1
-chmod +x "$WORK/stub/rtk" || exit 1
+printf '#!/bin/sh\nexit 0\n' >"$WORK/stub/ctx7" || exit 1
+printf '#!/bin/sh\nexit 0\n' >"$WORK/stub/graphify" || exit 1
+chmod +x "$WORK/stub/rtk" "$WORK/stub/ctx7" "$WORK/stub/graphify" || exit 1
 
 UIUX='"ui-ux-pro-max@ui-ux-pro-max-skill":true'
 SEC='"security-guidance@claude-code-plugins":true'
@@ -89,6 +91,13 @@ check SB3-toggle-on-uiux "$(has "$(row '🟢 ON' "$out")" ui-ux-pro-max)" 1
 ok="$(row '✅ ON' "$out")"
 check SB3-onrow-no-pr-review "$(has "$ok" pr-review-toolkit)" 0
 
+# SB11: every toggle on: all four in the ON row, no OFF row (SB3 output)
+on="$(row '🟢 ON' "$out")"
+for w in gstack ui-ux-pro-max context7 graphify; do
+  check "SB11-on-$w" "$(has "$on" "$w")" 1
+done
+check SB11-no-off-row "$(row '⚫ OFF' "$out")" ""
+
 # SB9: no passive-cost row and no plan budget in the banner
 check SB9-no-cost-row "$(has "$out" 💰)" 0
 check SB9-no-budget "$(has "$out" budget)" 0
@@ -133,12 +142,16 @@ check SB8-no-claude-calls "$(claude_stub_calls)" 0
 # SB10: no hand-copied passive-cost figure or dead plan path left
 # gone <file> <regex> [filter]: 1 when no line (after the filter) matches
 gone() {
+  [ -f "$ROOT/$1" ] || { echo 0; return; }
   if grep -v "${3:-^\$}" "$ROOT/$1" | grep -qE -- "$2"; then echo 0
   else echo 1; fi
 }
 check SB10-hook-costs "$(gone hooks/session-start.sh \
   '_plugin_costs|TOKEN_WARN|detect_plan')" 1
 check SB10-lib-detect-plan "$(gone lib/detect-plugins.sh detect_plan)" 1
+check SB10-lib-plugin-dev "$(gone lib/detect-plugins.sh \
+  detect_plugin_dev)" 1
+check SB10-hook-plugin-dev "$(gone hooks/session-start.sh 'plugin.dev')" 1
 check SB10-reporter-const "$(gone agents/status-reporter.md \
   'PLUGIN_TOKENS|~[1-9][0-9-]*t')" 1
 check SB10-advisor-figures "$(gone agents/plugin-advisor.md \
