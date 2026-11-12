@@ -36,9 +36,11 @@ source "$REPO/lib/gstack-links.sh"
 # `# graphify` block to ~/.claude/CLAUDE.md = CLAUDE.global.md, which holds
 # the curated `## graphify` section: it matches the heading and appends,
 # it does not clobber) and `graphify claude install` (writes CLAUDE.md and
-# .claude/settings.json in the caller's cwd, injecting aggressive MANDATORY
+# .claude/settings.json in its own cwd, injecting aggressive MANDATORY
 # hooks). The EXIT trap restores the 4 $REPO files in GUARDED_CONFIGS
-# (fully effective when run from $REPO, e.g. `make plugin`). `claude plugin
+# (Step 7 runs `graphify claude install` from $REPO in a subshell, so the
+# trap covers its CLAUDE.md and .claude/settings.json writes whatever the
+# caller's cwd). `claude plugin
 # install` (Step 5) flips enable-states in settings.json. These 4 files are
 # maintained by hand + commit, never by the installer. Snapshot them now and
 # restore on exit so a run leaves them exactly as it found them. Pre-existing
@@ -688,7 +690,7 @@ if command -v graphify &>/dev/null; then
   info "Running graphify install (dependencies)..."
   graphify install 2>/dev/null || { warn "graphify install failed — run manually"; _graphify_ok=0; }
   info "Configuring Claude Code integration..."
-  graphify claude install 2>/dev/null || { warn "graphify claude install failed — run manually"; _graphify_ok=0; }
+  (cd "$REPO" && graphify claude install) 2>/dev/null || warn "graphify claude install failed"
   # Success message gated on the real outcome (LRN-071 class: an
   # unconditional ok after `|| warn` lies when a step failed).
   if [ "$_graphify_ok" -eq 1 ]; then

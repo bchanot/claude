@@ -372,7 +372,7 @@ CAPITALIZE COMPLETE — <YYYY-MM-DD>  (<pre-wipe flush | session-close>)
 Then the closing line — pick by the STEP 5C persist result (`<mode>` = `Context
 flushed` for pre-wipe, `Session closed` for ritual):
 
-- **auto-persisted (push mode `auto`, finish rc 0 AND `ahead` = 0)** → `✅ <mode> + persisted to origin/develop (<short>). Next session: read .claude/memory/ at startup.`
+- **auto-persisted (push mode `auto`, finish rc 0 AND `ahead` = 0)** → `✅ <mode> + persisted to origin/develop (<short>). Next session: TODO.md and the startup digest (open blockers, last journal line).`
 
 On the `--no-push` path ONLY read TWO facts first, each its own Bash call: `bash "$HOME/.claude/lib/gitflow.sh" push-mode` and `git rev-list --count origin/chore/<name>..chore/<name> 2>/dev/null || echo unknown` (`branch_ahead`). `<push mode>` below is the verb's word. The WORKING-branch and rc 3 paths have no `chore/<name>` and never use the mode.
 

@@ -50,9 +50,15 @@ code" wins. Repo-specific instructions override both.
   Hacky fix → rebuild clean, no over-engineering.
 
 ## Session start
-1. Read `.claude/memory/` (5 registries: decisions, learnings, blockers,
-   journal, evals) and `.claude/tasks/TODO.md`. Apply before touching anything.
-2. Either missing → create it first (templates: `~/.claude/templates/memory/`).
+1. Read `.claude/tasks/TODO.md`. The banner's `memory digest` lists open
+   blockers and the last journal line: apply both before touching
+   anything; a `+N` line → read those entries in `blockers.md`. No
+   digest (foreign repo, memory mod off) → list the open blockers
+   yourself.
+2. Read a registry (`.claude/memory/`: decisions, learnings, blockers,
+   journal, evals) when the task needs it; planning flows scan them per
+   `~/.claude/lib/analyze-before-plan.md`.
+3. Either missing → create it first (templates: `~/.claude/templates/memory/`).
 
 ## Workflow
 - Confirm the approach only when real trade-offs exist (several valid
