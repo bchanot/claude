@@ -16,8 +16,6 @@ RE="$RE|(^|[^a-z])/bin/grep"
 
 # file:line (or file:*) exempt from the scan, each with its reason.
 ALLOW=(
-  "lib/tests/guard-bash.test.sh:221"  # deny fixture: GNU spelling
-  "lib/tests/guard-bash.test.sh:225"  # deny fixture: GNU spelling
   "lib/tests/portability-census.test.sh:*"  # spells the idioms
 )
 
