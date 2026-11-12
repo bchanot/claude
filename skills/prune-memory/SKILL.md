@@ -137,6 +137,84 @@ age comparisons. Today's date is in the system context.
 - Detect filler density: count `\b(the|a|an|just|really|basically|actually|simply)\b`
   matches; if > 5% of word count → bloated.
 
+### D. Feedback — noisy and promotion (phase 4d.4)
+The recall feedback gate (`/memory-feedback`) writes
+`~/.claude/memory-feedback/FEEDBACK.md`. Its `Noisy:` and `Promotion
+candidates:` lines list `<repo tag> <ID>` items; this run reads the ones
+of the current repo only. The cutoffs live in
+`lib/memory-feedback/thresholds.ts` (`T.noisyHits`, `T.promoteHits`,
+`T.promoteSessions`): cite them, never restate a number.
+
+```bash
+# Feedback rows for THIS repo. Rows: tag<TAB>T, date<TAB>D, noisy<TAB>ID,
+# promote<TAB>ID, other<TAB>tag; or one word: no-git-root, no-feedback-run.
+# The tag is the reader's (lib/memory-feedback/labels.ts tagOf).
+fb="$HOME/.claude/memory-feedback/FEEDBACK.md"
+root=$(git rev-parse --show-toplevel 2>/dev/null) \
+  || { echo "no-git-root"; exit 0; }
+sum=$(printf '%s' "$root" | { sha1sum 2>/dev/null || shasum -a 1; } \
+  | cut -c1-6)
+tag="$(basename "$root")#$sum"
+[ -f "$fb" ] || { echo "no-feedback-run"; exit 0; }
+printf 'tag\t%s\n' "$tag"
+printf 'date\t%s\n' "$(sed -n '1s/^.*(\([^)]*\)).*$/\1/p' "$fb")"
+items() {  # $1 = line prefix -> one "<tag> <ID>" item per line
+  sed -n "s/^$1: //p" "$fb" | tr -d '\r' | awk '{ n = split($0, a, ", ")
+    for (i = 1; i <= n; i++) if (a[i] != "none") print a[i] }'
+}
+rows() {  # $1 = line prefix, $2 = row kind
+  items "$1" | while IFS= read -r it; do
+    id=${it##* }
+    case "$it" in
+      "$tag "*) [[ $id =~ ^(BDR|LRN|BLK)-[0-9]+$ ]] || continue
+                printf '%s\t%s\n' "$2" "$id" ;;
+      *) printf 'other\t%s\n' "${it% *}" ;;
+    esac
+  done
+}
+promoted() {  # $1 = ID: rc 0 when its entry holds a "promoted to" line
+  awk -v id="$1" '$0 ~ "^## " id "( |$)" { e = 1; next }
+    /^## / { e = 0 }
+    e && /^- \*\*Status \(.*promoted to/ { f = 1 }
+    END { exit !f }' "$root"/.claude/memory/*.md 2>/dev/null
+}
+noisy_done() {  # $1 = ID: rc 0 when a curation commit rewrote it
+  [ -n "$(git -C "$root" log -E --format=%s \
+    --grep="noisy-rewrite $1([^0-9]|\$)" -- .claude/memory 2>/dev/null)" ]
+}
+{ rows Noisy noisy; rows 'Promotion candidates' promote; } |
+  while IFS=$'\t' read -r kind id; do
+    case "$kind" in
+      noisy) noisy_done "$id" || printf 'noisy\t%s\n' "$id" ;;
+      promote) promoted "$id" || printf 'promote\t%s\n' "$id" ;;
+      *) printf 'other\t%s\n' "$id" ;;
+    esac
+  done | awk '!seen[$0]++'
+```
+
+Rules: the lines are matched anchored and case-sensitive (`Noisy: `,
+`Promotion candidates: `), the literal `none` is skipped, the Actions
+section is never parsed. An item is `<tag> <ID>`, the ID being its last
+field; a `, ` inside a repo basename would split an item (accepted limit).
+`other` rows name tags of other repos, for visibility only. A `promote`
+row is dropped once its entry holds a `promoted to` status line; a `noisy`
+row is dropped once a curation commit subject carries `noisy-rewrite <ID>`
+(STEP 3 item 4 names it). With a `$ARGUMENTS` filter, keep the rows whose ID
+prefix belongs to a filtered registry.
+- A `noisy` row → candidate: inline rewrite of the title and of the
+  lesson sentence, narrowed to the concrete trigger so BM25 and the
+  rerank stop picking it for unrelated prompts. The lesson sentence is the
+  one the recall line shows: the first sentence (up to 280 characters) of
+  the first labelled field, in the order BDR `Decision`; LRN `Apply`,
+  `Future application`, `Pattern`; BLK `Solution`, `Real cause`. A title
+  or sentence under the NEGATION GUARD (STEP 3.3) is skipped and reported
+  as a manual rewrite. Limit: the tool matcher reads the backtick spans
+  of the body, which this rewrite leaves alone.
+- A `promote` row → a BDR-100 proposal: name the mechanism (rule line,
+  hook, guard, test) in STEP 2; the user decides.
+- `no-feedback-run` → one line in STEP 2. No `noisy`/`promote` row (only
+  `tag`, `date`, `other`) → the `none for <tag>` line.
+
 ## STEP 2 — PRESENT PLAN ★ MANDATORY STOP
 
 Print one block per registry. Example:
@@ -166,8 +244,22 @@ PRUNE PLAN — decisions.md (N entries → M after if approved)
   decisions.md: 3 (BDR-905, BDR-906, BDR-907)
   → you give the word per ID: memory.sh status <ID> "<word>"
 
-Approve per category? (all / a / b / c / edit <ID> / skip)
+[D. Feedback — noisy rewrite / promotion]  (run-level, repo <tag>, <date>)
+  LRN-905 — noisy: picked for unrelated prompts
+            → inline rewrite: title + lesson narrowed to the concrete
+              trigger, "<narrowed title>" / "<narrowed lesson sentence>"
+  LRN-906 — promotion candidate (a mechanism, not a note)
+            → mechanism: <rule line | hook | guard | test>, a separate /feat
+            → on accept: memory.sh status LRN-906 "<current word>, promoted
+              to <mechanism>" (implemented when the entry has no word)
+
+Approve per category? (all / a / b / c / d / edit <ID> / skip)
 ```
+
+D is one run-level block after the per-registry ones. No feedback file
+prints `[D. Feedback] no feedback run (~/.claude/memory-feedback/FEEDBACK.md
+absent)`; no row for this repo prints `[D. Feedback] none for <tag>`;
+`no-git-root` prints `[D. Feedback] not in a git repo`.
 
 A [B] merge of decisions, blockers or evals names the merged entry's
 status word on its line (default: the sources' common word; sources
@@ -221,6 +313,15 @@ Registry writes follow `lib/capitalize-commit.md` § WRITE (single writer).
    - Short synonyms (`big` not `extensive`, `fix` not `implement a solution for`).
    - Keep code blocks, URLs, error messages, file paths VERBATIM.
    - Keep IDs (BDR-XXX, LRN-XXX, commit hashes) verbatim.
+4. **Feedback (D)** — a noisy rewrite changes only the title TEXT (the
+   `## <ID> — `, the `[status]` tag and the `(date)` stay verbatim) and
+   the one lesson sentence of STEP 1.D, under the same NEGATION GUARD as
+   item 3; it is an inline edit under the curation commit, never a status
+   line. A promotion is one line:
+   `bash "$HOME/.claude/lib/memory.sh" status <ID> "<current word>,
+   promoted to <mechanism>"`, the current word from `memory.sh index <kind>`
+   (`implemented` when none is readable), so a closed entry stays closed.
+   The mechanism itself is a separate /feat, named in the final report.
 
 ## STEP 4 — VERIFY
 
@@ -233,7 +334,7 @@ bash "$HOME/.claude/lib/memory.sh" check .claude/memory \
 # RED-5 fidelity guard (count-based, per-entry x per-category). STEP 0 ensured
 # a clean tree, so git HEAD is the pre-prune backup. Fails the run if any
 # negation/permanent token COUNT drops within an entry vs HEAD -- immune to the
-# line-sharing false positives a removed-line grep produces. The STEP 3.4
+# line-sharing false positives a removed-line grep produces. The STEP 3.3
 # NEGATION GUARD keeps negation sentences verbatim; this proves none slipped.
 # Journal entries are date-keyed and legitimately collapse, so the journal is
 # restricted to {never,always,permanent} -- the markers the STEP 1.A safety
@@ -296,6 +397,11 @@ PRUNE COMPLETE
 CHECK: OK
 NEXT: review `git diff .claude/memory/`, then `/commit-change`
 ```
+
+After a noisy rewrite (D), the report also prints the exact commit subject
+`chore(memory): noisy-rewrite <ID>[, <ID>…]` and says `/commit-change`
+keeps it verbatim: STEP 1.D finds the rewrite again through that token.
+After a promotion it names the mechanism to build as a separate `/feat`.
 
 ## What NOT to prune
 
