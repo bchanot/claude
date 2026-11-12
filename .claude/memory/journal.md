@@ -723,3 +723,4 @@ rules:
 
 ## 2026-11-12
 - 2026-11-12: /feat D4 done on feature/prune-memory-status-reader: 99f10b2 one status classifier for prune-memory (v1+v2), docs bd0687d. 3 challenge rounds (r1 FATAL: memory.sh index reads no status on 4 projects). Gates: floor MET, verifier CONFORME, security PASS (4 LOW). 5 follow-ups in BUGS-FOUND. Merge awaits user.
+- 2026-11-12: /feat D1+D5+D6 on feature/doctrine-rules-graphify: c69ce9c Session start TODO+digest, web-security deduped, graphify claude install from $REPO; docs a37df2f. 2 challenge rounds (r1 FATAL x2: D5 oracle clash, digest TODO only under ### Actionable -> D1 re-gated, D1b logged). Gates: floor MET, verifier CONFORME, security PASS. Merge awaits user.
