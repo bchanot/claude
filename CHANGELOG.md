@@ -11,6 +11,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/) and this project 
 
 ### Changed
 - **memory recall**: a prompt after 30 minutes idle now needs 8 content words, up from 5 (a context's first prompt or a design/analysis prompt still needs 5), and the haiku rerank keeps at most 2 entries, down from 3. Measured on the first feedback gate: idle precision 44 %, third pick 35 %.
+- **memory digest TODO lines**: with no `## Actionable` (or `### Actionable`) section, the digest now shows the TODO file's first 3 unchecked top-level items instead of none, and items inside HTML comments are ignored. When the 800-character cap drops TODO lines, a `- todo: +N not shown, read .claude/tasks/TODO.md` line counts them. `/init-project`, `/onboard` and `/capitalize` seed new TODO files with a `## Actionable` section. The session-start doctrine (`CLAUDE.global.md`) now trusts the digest and reads `.claude/tasks/TODO.md` only when no digest prints or the task needs it.
 
 ## [3.0.0] — 2026-11-12
 
