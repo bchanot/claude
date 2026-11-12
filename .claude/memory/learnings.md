@@ -2041,3 +2041,8 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Pattern**: before plan swaps a registry reader, probe candidate reader read-only on real registries of every project (game, config, faunosteo, faunosteo-v1-2), count readable vs empty.
 - **Context**: D4 r1 assumed `memory.sh index decision` gives decision status. Probe: Status empty 107/107 game, 19/19 config, 76/80 faunosteo, 79/110 faunosteo-v1-2. Challenge correctness FATAL, plan r2-r3 needed.
 - **Apply**: STEP 0.6 / plan phase of any memory-reader change: run reader on all known project registries first, put counts in plan. Fixtures alone hide dialects.
+
+## LRN-279 — graphify install appends to CLAUDE.global.md, claude install writes the cwd (2026-11-12)
+- **Pattern**: graphifyy 0.9.67 `graphify install` (default platform claude, install.py:691) copies skill into ~/.claude/skills AND appends H1 `# graphify` block at EOF of ~/.claude/CLAUDE.md = CLAUDE.global.md (exact-line marker, curated `## graphify` not matched). `graphify claude install` (install.py:1827) writes ./CLAUDE.md + ./.claude/settings.json (+ .graphify-bak) in cwd, never copies skill.
+- **Context**: LRN-154 said `graphify install --platform claude` "touches nothing else": wrong. install-plugins.sh ran `graphify claude install` in caller cwd -> polluted foreign project outside trap. Fixed c69ce9c: `(cd "$REPO" && graphify claude install)`.
+- **Apply**: run `graphify claude install` only from $REPO under guarded-config trap (`make plugin`). Manual recovery `graphify install --platform claude` -> delete trailing `# graphify` EOF hunk, never `git checkout` whole CLAUDE.global.md (loses uncommitted doctrine). Supersedes LRN-154 graphify specifics line.

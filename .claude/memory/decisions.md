@@ -1542,3 +1542,9 @@ Supersedes [[BDR-030]].
 - **Decision**: one classifier `reconcile_status_classify <file> <PREFIX>` (lib/reconcile.sh) for decisions + blockers: strict word v2, one-word status/statut label v1 (`RECONCILE_BDR_RE` widens v1 selector), never `## Index`. `reconcile_blk_classify` = BLK wrapper, output byte-identical. Unreadable status = one info-only count line per registry, outside "all", never written by skill, word from user per ID. User gated 2026-11-11.
 - **Alternatives**: `memory.sh index decision` (reads no status on dialect/v1 projects); one reader per registry (duplicate parsers, BDR-129 drift class); guess word from prose (false open/close).
 - **Consequences**: dialect projects (game, faunosteo) get no prune candidate until dialect migration (BUGS-FOUND follow-up). Commit 99f10b2, test RED-9.
+
+## BDR-144 — Session start reads TODO and the digest, registries on demand [accepted] (2026-11-12)
+- **Context**: CLAUDE.global.md Session start said read all 5 registries + TODO at every start; phase 4c digest (hooks/session-start.sh) already prints open BLK, Actionable TODO, last journal.
+- **Decision**: read `.claude/tasks/TODO.md` + apply banner `memory digest` (open BLK, last journal); `+N` count line -> read those BLK in blockers.md; no digest (foreign repo, memory mod off) -> list open BLK by hand. Registries read when task needs; planning flows scan per `lib/analyze-before-plan.md`. capitalize closing line aligned. User gated 2026-11-12 (2 re-gates after challenge).
+- **Alternatives**: digest only (rejected: `_digest_todo` reads only `### Actionable`, init-project/onboard TODOs lack it -> TODO unread in other projects); full 5-registry read each start (rejected: 78-357 KB files, cost 4a/4c removed).
+- **Consequences**: D1b follow-up makes every project TODO digest-readable. Commit c69ce9c.
