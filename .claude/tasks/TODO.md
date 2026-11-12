@@ -29,6 +29,11 @@ Shared rules for every phase:
   - [ ] BLK-044: trace origin of `oom_score_adj=-1000` on claude processes; set `OOMScoreAdjust` on the `cc` scope so a runaway claude dies first.
   - [ ] safety-residuals gate LOWs (2026-11-06, bugfix/safety-residuals): `rtk read -n server.key` / `rtk read id_rsa` at repo root pass (`.key`/`.pem`/`id_*` rtk denies all need `*/`; pre-existing, bench before adding); session-start `memory.sh check` and digest unbounded when `timeout` is absent (stock macOS); pre-commit allowlist fails open if `git diff --cached` errors (pre-existing, Gitea backstop); `lib/memory.sh` `_mem_path_safe` line > 80 chars; `claude-stub.sh` interpolates the mktemp log path into the generated stub (test-only).
   - Proof: recall precision on ≥20 real prompts and ≥10 real errors, target ≥ the 14/22 baseline; digest after a real compaction; redaction test on the ledger; `/context` delta; captured-failure demo: an error from session N recalled in session N+1.
+  - Gate 1 result (2026-11-12, EVAL-058): prompt precision 57 % (n=75), under the 64 % target; fresh 78 %, idle 44 %, keyword 55 %; tool gate 0 records.
+  - [ ] 4d gate 1 (2026-11-12, EVAL-058): idle trigger at 44 % precision: tighten (skip prompts under N words, or only after a real idle gap) or drop; decide before the next gate
+  - [ ] 4d gate 1: cap recall at 2 entries (3rd pick 35 %)
+  - [ ] 4d gate 1: tool channel logged 0 records in 4 days: check the PostToolUse error match actually fires (live error in a session, then memory-feedback)
+  - [ ] 4d gate 1: misses 4/7 no-overlap: BM25 over title+lesson cannot reach them; option = index body too, or accept
 
 ### BDR-125 residuals (after 3.0.0)
 Open children of the shipped phases (History 2026-11-12), text verbatim.
