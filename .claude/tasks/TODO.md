@@ -1,189 +1,355 @@
 # TODO
 
+## Open (reconciled 2026-11-12 before 3.0.0, /reconcile on the BDR-125 phases; full pass 2026-10-23)
+Done history before 2026-10-08 removed 2026-10-23 (git keeps it: `git log -p -- .claude/tasks/TODO.md`); decisions live in `.claude/memory/`.
+
+### BDR-125 close-out run (user 2026-11-12): no phase 0/0b/4a/1/5/2/4b/4c/4d line left in TODO or BUGS-FOUND
+Decisions at start (asked once): faunosteo memory v2 on `chore/memory-v2` off develop in a fresh worktree (split already on develop 7a75974, 11 rules); settings.json `npm -g` deny lines removed on the block E branch, classifier test = `npm install -g --dry-run cowsay`; 3.0.0 cut right after block A (/release-candidate), later blocks land under the next Unreleased; LRN-270 bisect = user-run interactive sessions, one `--settings` file per pack. Merge prompts (`gitflow finish` ask) = the human signal per block once gates are green.
+- [ ] A merge chore/memory-feedback-gate1 (b7505d1 + routing `confirmed` row) into develop
+- [ ] A' /release-candidate 3.0.0 (scope as ticked 2026-11-11)
+- [ ] B chore/phase4-proofs: known-error replay (`memory: known BLK-xxx` + tool record), live redaction (fake secret → ledger REDACTED), digest after a real /compact, `/context` full+dev delta vs the 2026-11-09 base; each = command + output + journal line; a failure → /bugfix
+- [ ] C /feat gate 1: idle trigger tightened (≥ 8 words AND a real idle gap), recall cap 2, body indexed for BM25 with p90 before/after (> 3 s → back to title+lesson, "accepted"), 4d.4 built (/prune-memory step D: noisy rewrite + BDR-100 promotion)
+- [ ] D /feat D1b: digest falls back on the first unchecked items when `### Actionable` is absent; init-project + onboard templates emit the heading; local repos' TODO migrated on `chore/*` (one per repo, merge on ask); Session-start step 1 "Read TODO.md" dropped from the doctrine, citers census
+- [ ] E phase 1 + 2 decisions: design hook DELETED (web-building.md loads by path); "Skill routing" lines → skills' `description:`; `npm -g` deny lines out + dry-run test; rtk `cat|head|tail *.env*` forms benched, every form kept without proof of obsolescence, T42 list updated; BLK-022 buried (phase 2 covers it): guard-bash.test.sh SKIP spec deleted, BLK-022 → superseded, TODO "Blocked" block removed
+- [ ] F faunosteo `chore/memory-v2`: `memory.sh upgrade`, `/context` before/after, /prune-memory there for BDR-080 (noisy) + LRN-080 (promotion); never merged by me
+- [ ] G BLK-044: trace `oom_score_adj` origin (unit, cc.sh), `OOMScoreAdjust` on the `cc` scope, proof via `/proc/<pid>/oom_score_adj`
+- [ ] H residuals in order: phase 0 (project-rules.sh emit/extract/`..`), 4a (BLK-038, MIGRATION.md:209), 5 (fragment key allowlist), 2 LOWs (awk, `mkdir -m 700`, `cat x.key`, doctor.sh:255), 4d follow-ups (transcripts per (root, session, agent), image prompts, threshold boundary tests, `tsc`, `l:<root>` one global key), BUGS-FOUND unfixed since 11-09, LRN-270 bisect (user-run), doctor skillOverrides residue; a residual NOT done = justified in the TODO line removal
+- [ ] I model-router live checks: W4-B AC9 + parentModel done from transcripts/logs; Fable-out-of-credits + StopFailure closed "not reproducible, reopen on incident"
+- [ ] J /reconcile, CHANGELOG (gate 1 at 57 % delivered + each block), 0 BDR-125 line left, EVAL of the run, /close
+
+### Context mod queue (BDR-125): one /ship-feature per phase, order (user 2026-10-25): 0 → 4a → 1 → 5 → 2 → 3 (conditional) → 4b-4d
+Re-challenged 2026-10-25 on Fable (4 lenses + native-features guide, synthesis in `.claude/tasks/plans/2026-10-25-context-mod-queue-challenge.md` § RE-CHALLENGE; user picks: native ask merge gate, phase 3 conditional, rest in block). The plan halves: native carriers and existing files first, a mod only where a measured gain has no native lever.
+Shared rules for every phase:
+- Baseline first: `claude -p "/context"` at repo root (2026-10-23: 30.2k always-on = memory files 11.6k, skills 10k, agents 2.6k, system 2.5k, MCP instr 2.2k, tools 1.1k). Same measure after; the delta is a phase criterion.
+- Proof budget: a moved path rule gets a STATIC check (frontmatter parses, each glob matches ≥1 `git ls-files` path per project) + one session logged by the InstructionsLoaded hook (`load_reason: path_glob_match`). Model canaries (bench `.claude/tasks/plans/2026-10-24-context-mod-probe/`) only for hook and mod levers; the path lever is proved three times already.
+- Subtract-only: source text stays in CLAUDE.global.md / rules / CLAUDE.md. A doctrine a mod replaces is jit-marked, never deleted (mod off = full text). Guards fail closed, injections fail open. Status model everywhere: ONE parser, "last status-bearing line wins", the entry's own header `[tag]` read first.
+- Never: forced continuation / Stop block (BDR-083, BDR-087), per-turn nag (BDR-037), forced skill invocation, hiding a dispatchable agent via `agent.offer` (breaks dispatch, proved), a `hard_deny` that names a path, file or source line (the auto classifier would refuse all mod maintenance): hard_deny names off switches only (`"enabled": false`, `enabledPlugins`, `disableAllHooks`) and "never edit `permissions.ask/deny` to pass a gate".
+- Cleanup is part of each phase: delete what the phase makes obsolete (scripts, hooks, tests, doctrine lines, Makefile targets, doctor checks), grep every citer and patch in the same branch (doctrine-citers census in `make test`).
+
+- [ ] **Phase 4b-4d, memory v2 capture, read, feedback** (shrunk 2026-10-25 to the measured channels)
+  - Measured recall (5 real FR prompts, 22 relevant entries): BM25 full text 9/22, haiku rerank of lexical top-30 14/22 (~8.5k chars). Error 4-gram match on real errors: BLK-030/031/034 exact, no false positive; 5 of 7 real errors of 2026-10-23 had NO entry: capture is the weak link.
+  - **4b capture (mod).** Failure ledger: tool results with isError, deny or non-zero exit carrying a distinctive error line → normalized + verbatim + command, REDACTED at capture (rtk-rewrite redaction + gitleaks patterns), bounded ring per session in `$.store` (4 MiB cap), matched against the registry error index; unmatched = new failure modes. Milestones: feat/fix commit, `gitflow finish`, a suite red then green. `memory_pending` tool returns unmatched failures + milestones; /capitalize, /close and every CAPITALIZE step call it first; one context note at the next prompt after a milestone, never per turn, never at Stop. "Proactive capitalization" paragraph KEPT. Writing always = model draft + user approval + lib/memory.sh.
+    - Built 2026-11-04 on feature/memory-capture (f1d4f9d..HEAD): mod `mods/memory`, kit 100+ cases, consumers wired, noise measured (NOISE.md); merged 2026-11-04 into develop (dfadf8a): GATE 0 MET, verifier criteria 1-15 met (9 proven live), security PASS ×4, BDR-137
+    - [x] shortcut (done in 4c, Task 1: the lexical reader is gone, statuses come from `memory.sh index`): `mods/memory/hooks/register.ts` `isSuperseded` is a lexical reader, not memory.sh's status parser; upgrade = share that parser when 4c needs it (final review M11)
+  - **4c read side (built 2026-11-05 on feature/memory-recall, merged 2026-11-06 ddb04f4).** Two channels only: intent recall at `prompt.submit` for classifier labels design/analysis or the first coding prompt after idle (BM25 top-30 over title + lesson + body → haiku keeps ≤3, bounded 3 s, fail open) and tool-error 4-gram match (PostToolUse; a classic hook is acceptable if the mod ledger is not needed). Session digest (open BLK via the status parser, actionable TODO, last journal line) in `hooks/session-start.sh` on `source: startup|compact|clear` (native matchers; the mod's `session.compact` only skips); a SubagentStart twin if sub-agents need it. Injection = ID + title + lesson line; superseded never injected; budget ~1.5k chars per turn; once per context. Deferred: Read path triggers, Bash command triggers, "critical → deny once", Tier 1, cross-repo scope=global index, `memory_search` tool.
+  - [x] 4c follow-up from the 4b live proof: `memory_pending` lists earlier-session milestones marked `(earlier session)` (done 78eff1c 2026-11-05, mods/memory/hooks/register.ts milestoneLines).
+  - **4d feedback (4d.1-4d.3 built 2026-11-08 on feature/memory-feedback, BDR-140, merged 2026-11-08 dcb593a).** Mod logs `cands`+`ms`; bun reader `lib/memory-feedback/`; `/memory-feedback` skill; banner reminder; two gates (prompt 20 or 35 d, tool 10 or 35 d +1 extension). Plan r3 `docs/superpowers/plans/2026-11-06-memory-feedback.md` (purged at finish; git keeps it), contract `.claude/tasks/contracts/2026-11-06-memory-feedback-4d-1825.md`. 4d.4 (/prune-memory step D, BDR-100 promotion) stays conditional: built only when a gate reports a noisy entry or a promotion candidate.
+  - [ ] 4d follow-ups (final review + task reviews 2026-11-08, non-blocking): transcript cache holds every parsed file per run (~1 GB at steady state: process per (root, session, agent) and drop); image prompts (array content) become `lost` (counted); no boundary tests for the threshold actions (3rd pick, late, tool, miss, noisy/promotion, idle tie-break), eviction note, torn count, toolItem; `replyAfter` hides `seen.add` in a filter; no `tsc` type check on lib/memory-feedback; kit test pinning the exact field set of a prompt log record (IR11 is toMatchObject since 4d.1, so a future text field would pass); labels.ts minors (fromLine checks column count only, readState accepts non-object JSON, .bak keeps one state, misleading error on an entry label with a cause).
+  - [ ] shortcut: the injection log lives under `l:<root>` store keys (about 28 KiB each, 200 records and 64 KiB at most); `sweepLogs` counts them with the `p:` keys and evicts the oldest log key (by its newest record, never the current root's) once the total nears the engine's 4 MiB store cap; upgrade = one global log key or a smaller per-root cap (`mods/memory/hooks/register.ts`).
+  - [x] residual: the pre-existing `memory.sh check` call in `hooks/session-start.sh` is not time-bounded (the digest's `memory.sh index blocker` call is); upgrade = wrap it in `timeout 2`. Done 2026-11-06 d93f06c (SD16).
+  - [x] BLK-043 hotfix merged 2026-11-06 (`bd5e661` main, `7e47bea` develop, back-merged into feature/memory-recall `3564e3e`, worktree removed).
+  - [x] BLK-043 Part B: suite-wide `claude` PATH stub + final empty-log check in `lib/tests/session-digest.test.sh` (SD0/SD15, done 2026-11-06 via /hotfix; security PASS, MEDIUM folded into the shortcut below).
+  - [x] shortcut (BLK-043 gate 2 LOWs): `lib/tests/detect-plan.test.sh` unchecked `mktemp -d` (empty WORK → real `claude probe`), `bash -c "source '$LIB'"` interpolation, no `GIT_CEILING_DIRECTORIES` on hook runs; and the memory, graphify-gate, push-guard suites run the hook with no `claude` stub. Upgrade = `|| exit 1` + `command -v claude` assert, positional args, ceiling dir, shared stub helper. Same gap in `lib/tests/session-digest.test.sh` SD0 (gate MEDIUM 2026-11-06): `claude probe` runs before any check that the stub is first on PATH (stub write failure or noexec TMPDIR → real CLI), a red SD0 does not stop the suite; LOW: log path interpolated into the generated stub unquoted. Done 2026-11-06 dc5f127 + 7ca6b18 (shared `lib/tests/claude-stub.sh`, 6 suites, BLK-045).
+  - [ ] BLK-044: trace origin of `oom_score_adj=-1000` on claude processes; set `OOMScoreAdjust` on the `cc` scope so a runaway claude dies first.
+  - [ ] safety-residuals gate LOWs (2026-11-06, bugfix/safety-residuals): `rtk read -n server.key` / `rtk read id_rsa` at repo root pass (`.key`/`.pem`/`id_*` rtk denies all need `*/`; pre-existing, bench before adding); session-start `memory.sh check` and digest unbounded when `timeout` is absent (stock macOS); pre-commit allowlist fails open if `git diff --cached` errors (pre-existing, Gitea backstop); `lib/memory.sh` `_mem_path_safe` line > 80 chars; `claude-stub.sh` interpolates the mktemp log path into the generated stub (test-only).
+  - Proof: recall precision on ≥20 real prompts and ≥10 real errors, target ≥ the 14/22 baseline; digest after a real compaction; redaction test on the ledger; `/context` delta; captured-failure demo: an error from session N recalled in session N+1.
+  - Gate 1 result (2026-11-12, EVAL-058): prompt precision 57 % (n=75), under the 64 % target; fresh 78 %, idle 44 %, keyword 55 %; tool gate 0 records.
+  - [ ] 4d gate 1 (2026-11-12, EVAL-058): idle trigger at 44 % precision: tighten (skip prompts under N words, or only after a real idle gap) or drop; decide before the next gate
+  - [ ] 4d gate 1: cap recall at 2 entries (3rd pick 35 %)
+  - [ ] 4d gate 1: tool channel logged 0 records in 4 days: check the PostToolUse error match actually fires (live error in a session, then memory-feedback)
+  - [ ] 4d gate 1: misses 4/7 no-overlap: BM25 over title+lesson cannot reach them; option = index body too, or accept
+
+### BDR-125 residuals (after 3.0.0)
+Open children of the shipped phases (History 2026-11-12), text verbatim.
+- Phase 0 / 0b leftovers (extract-hardening 14a93e3, lib/project-rules.sh):
+    - [ ] `emit`: reuse `_rules_out_path_ok` (today `-e` only, a dangling link at the target is followed) and check the `mkdir -p` and `> "$2"` rc (today "emitted" rc 0 on a failed write).
+    - [ ] `extract` rewrite failure mid-`cat` (ENOSPC/EIO after the truncation of `$src`): keep `$tmp` and name it on stderr instead of `rm -f` (today "$src not rewritten" can be false, the two copies gone; onboarder S1 rollback covers the split path, not direct lib use).
+    - [ ] shortcut `_rules_out_path_ok`: the `..` check is lexical, a symlinked parent component (`.claude` or `.claude/rules` pointing elsewhere) is not resolved; upgrade = `cd -P` on the parent dir, compare with `$PWD` (no portable `realpath -m`).
+- Phase 4a leftovers:
+    - [ ] faunosteo: NOT upgraded (V1-2 active in another session's worktree; user: no write to develop or the V1-2 worktree). Patch prepared off-repo from V1-2 587cbb2 (rc 0, 520 lines, open BLK-008/009 unchanged); at integration re-run `memory.sh -C <faunosteo> upgrade` on the branch the user names rather than applying the stale patch. Stale clone `/home/bchanot/faunosteo` (main, 2026-07-01): left alone, user to decide.
+  - [ ] BLK-038 residuals (gates 2026-10-30, non-blocking): v1 line echoed on stderr unfiltered (CWE-150 LOW, terminal control chars from a foreign registry; same as existing "upgrade lost" path); no fixture asserts the "wrote upgrade status" / "dated status line kept" messages; the real-data replay oracle lives in the session scratchpad (`up4a/realdata.sh`), not re-runnable: port to a `make` target over fixture copies if the upgrade is touched again; `memory.sh journal` leaves two blank lines before a new date heading on files ending with a blank line (commit-changer note).
+  - [ ] MIGRATION.md:209 shows `memory.sh -C <project> add … --body-file …` with no absolute-path note (same trap as § WRITE, parked by the docs-half challenge 2026-11-01): next doc pass.
+- Phase 1 leftovers:
+  - [ ] Deferred (gate 2026-10-29): "Skill routing" lines → our skills' `description:` (phase 3 bullet said phase 1 cleanup).
+    - [ ] Design hook false positives: the pointer is almost never followed, and it fires on non-design prompts (fired on the 2026-10-30 phase 4a memory-work prompt). Decide: tighten the trigger, or drop the hook now that web-building.md loads by path. User call, nothing coded.
+- Phase 5 leftovers:
+  - [ ] Follow-ups: `lib/pack-census.sh:67` `grep -qx` → `grep -qxF`; fragment top-level key allowlist in `lib/pack-census-fragments.jq` (today only `enabledPlugins` keys are compared). Done 2026-11-02: MIGRATION step 2 `$root` re-derivation + autostash-conflict note (0463583, 9cd9591).
+- Phase 2 leftovers:
+  - [ ] Phase 2 residuals (stated 2026-11-02): Bash write forms are outside the routing guard (the harness auto-mode "prefer Bash" path); a register.ts reload resets the skill latch; `.claude/worktrees/` writes are code; code-limits state dirs stay in TMPDIR; not caught by a static rule: `… | bash -s`, a sourced `gitflow_finish`, `git -C <dir> merge` (soft_deny prose only).
+  - [ ] Phase 2 security gate follow-ups (2026-11-02, non-blocking): MEDIUM `rtk read -n .env` / `rtk read a.txt .env` typed directly pass every static deny (rc 3 → passthrough, no rule) → bench `Bash(rtk read * .env*)`, `Bash(rtk read * */.env*)` + `*/rtk` twins and teach phase2.jq the `* <path>` shape; LOW code-limits state dir (`mkdir -m 700`, owner check); LOW awk evasions (`system (`, `awk -f`, `gawk`/`mawk`); LOW pre-existing `cat x.key` (no dir prefix) parity gap; doctor.sh:255 jq message should name code-limits and push-guard. MEDIUM rtk read part done 2026-11-06 97c6afc (2 rules, bench R3-R7, LRN-266); the LOWs stay open.
+  - [ ] rtk deny forms (user 2026-11-12, split from the line above): the 6 `rtk cat|head|tail *.env*` deny forms (`Bash(rtk cat *.env*)`, `Bash(*/rtk cat *.env*)`, head, tail) said obsolete; removing them needs a verified reason per form and reviewed rows in the push-guard T42 justified list, as its own run.
+- Context measure leftovers (2026-11-09, LRN-270):
+  - [ ] Open: dev System tools 11.3k vs full 7.7k (interactive) comes from some pack being off, not MCP; unattributable via `/context`. Bisect by toggling one pack at a time interactively if it matters.
+  - [ ] Follow-up candidate (accepted risk): doctor residue check covers `enabledPlugins` only; a UI write into user-scope `skillOverrides` would dirty tracked settings.json unseen.
+
+### Actionable
+- [x] BDR-125 obsolescence pass (2026-11-09, /code-clean merged db5bbe5; report `.claude/tasks/plans/2026-11-09-bdr125-obsolescence-clean-1650.md`): D1-D6, G1-G5 and the D3 add-ons done and merged by 2026-11-12; still open below: D1b and the G2 measured passive-cost feature.
+  - [x] D1 doctrine (done c69ce9c + docs a37df2f, feature/doctrine-rules-graphify; TODO.md stays read at start, see D1b): CLAUDE.global.md:52-54 "Session start 1. Read `.claude/memory/`" + skills/capitalize/SKILL.md:375, while the 4c digest delivers open BLK + TODO + last journal at start (4a meant to fix the "load every session" premise)
+  - [ ] D1b (user 2026-11-12, after D1 challenge): every project TODO readable by the session digest. `_digest_todo` (hooks/session-start.sh:329-333) reads only a `### Actionable` heading, which only this repo has; skills/init-project seeds `# TODO\n\n## <date>`, skills/onboard STEP 9 writes `## P0 — Critique`…. Options to choose at planning: templates/init-project/onboard emit the heading + migrate existing TODOs (game, faunosteo, zenquality…), and/or digest falls back to the first unchecked `- [ ]` items. Until then D1 keeps TODO.md read at session start.
+  - [x] D2 visible (done 80f56ef, feature/banner-drop-plugin-dev): banner "OFF : plugin-dev" (plugin dropped 2026-07-02): lib/detect-plugins.sh:43-47, hooks/session-start.sh:106,111,180,210, agents/plugin-advisor.md:59,181,199,242,250-255
+  - [x] D3 visible (done 9b12b12, BDR-142; follow-ups in BUGS-FOUND) (= docs backlog P34): packs vocabulary in agents/plugin-advisor.md (:99 PROFILE template in the old `profile.sh current` format, :126-129 rollback, gstack ON/OFF rules, context7 ON) and USAGE.md:181,232,233,1090,1092,1095
+  - [x] D4 skill behavior (done 99f10b2 + docs bd0687d, feature/prune-memory-status-reader; one classifier `reconcile_status_classify`, unreadable = info-only count; follow-ups in BUGS-FOUND): skills/prune-memory STEP 1.A/3 detection (per-entry frontmatter, raw `status:` lines) → read statuses via `memory.sh index` (v1 + v2); keep example IDs 9xx (RED-7)
+  - [x] D5 user rules (done c69ce9c; IDOR + RLS kept, service-key line dropped): rules/web-security.md vs rules/secure-by-default.md: strict duplicates (web-security :11, :19, "Login rate limiting," in :20) and password wording conflict ("bcrypt/argon2" vs "argon2id (bcrypt or scrypt otherwise)"); cookie flags, upload type/size, forced HTTPS, security headers are unique to web-security
+  - [x] G1+G4 fixed (bugfix/banner-effective-profile, merged a655b06); G3 fixed (merged 9f9821e); G2 hand figures removed (bugfix/passive-cost-source, plan `.claude/tasks/plans/2026-11-10-passive-cost-source-1330.md` r3); G5 fixed (bugfix/handover-memory-status, 93a8e19, plan `.claude/tasks/plans/2026-11-10-handover-memory-status-1600.md` r3); follow-ups G6-G9 + 2 LOW quoting in BUGS-FOUND
+  - [ ] feature (G2 split, user 2026-11-10): measured passive-cost API, one source for doctor / /status / plugin-advisor (probe COSTS field). Spec input = the two challenge rounds in the G2 plan: unit = pack or ON plugin (skills + agents + commands descriptions; pr-review-toolkit ~1550t, example-skills ~2350t), doctor counts OFF packs (higgsfield, extras), `detect_plugin_dev` globs the wrong cache level and ignores enabled state, `?` for not-installed or empty units, rc-0 sentinels (`costs-unavailable`/`unknown`) for doctor's `set -euo pipefail`, profile.sh failure → unknown, `python3 -I` (probe runs in the user's project), installPath from installed_plugins.json. Doctor keeps its measured ui-ux 670 until then.
+  - [x] D3 add-ons (done 9b12b12) from G2 (plugin-advisor.md): plan-budget WARN :317 (unreachable: plugin-gate never sends PLAN, detect_plan gone), :42 "absolute COST ESTIMATE still reported", :105 `(budget: ~<N>t | n/a)`, :222 "passive cost estimate = highest-cost package profile", "0t passive" claims for impeccable / design-motion-principles (:226 :227 :268 :269); USAGE.md :248 "Budget Pro (~11k tokens/5h)", :494 `(~400t)`, :923 `(~200t)`; session-banner.test.sh SB10 `gone()` passes on a missing file (add an existence check)
+  - [x] D6 project rule (done c69ce9c; lead paragraph fixed too, follow-ups in BUGS-FOUND): .claude/rules/graphify-vendored.md says `graphify install --platform claude` "touches nothing else", but graphifyy 0.9.67 appends a `# graphify` block to ~/.claude/CLAUDE.md (= CLAUDE.global.md); `graphify claude install` writes into the caller's cwd, so the install-plugins.sh trap protects $REPO only when run from $REPO
+- [ ] parked (code-clean 2026-11-09): hooks/rtk-rewrite.sh:84 no-op `[ "$CMD" = "$REWRITTEN" ] && REWRITTEN="$CMD"`: remove with the next real rtk-hook edit, re-pin `hooks/.rtk-hook.sha256` + rtk-rewrite.test.sh T13 in the same step
+- [ ] deferred (BDR-123): remap inline-writing best-tier skills (design Build stack, writing-skills, deprecation-and-migration, /tour single-project, /audit-delta 3d, /harden STEP 3); stale citers skills/feat/SKILL.md:6, skills/code-clean/SKILL.md:36; + impeccable row in routing.json (design Build stack has none; frontend-design has `reflect`; census test pins the table)
+- [ ] parked (GATE 2 LOW, 5a98c2c): probe table names not checked with `IDENT.fullmatch` per table (a `/` walks a path on the approved Supabase host); `printable` lets Unicode bidi/format controls (U+202E, U+2066…) through to the tty
+- [x] profile name charset check (done by phase 5: `NAME_RE='^[a-z0-9][a-z0-9-]*$'` lib/profile.sh:63 on every profile and session name; the old `read_profile()` is gone)
+- [ ] P22 `make new-skill` scaffold: agent stub lacks `effort:` pin, skill stub lacks entry level, body loads `.claude/agents/$(name).md` instead of `$HOME/.claude/agents/<name>.md` → /hotfix; also: no routing.json row reminder
+- [x] `lib/tests/design-tool-gate.test.sh` hermetic CLI_ABSENT case (done by the phase 5 rewrite: suite green 2026-11-02 with `~/.local/bin/21st` installed, `make test` all suites green on this machine)
+- [ ] post-run-D residuals (gates, 2026-10-07): settings.json soft_deny names only `gitflow.autopush false` → add "or an unparseable value" (restriction only, settings run); capitalize STEP 6: manual mode with `ahead` = 0 (user pushed by hand between merge and read) matches no closing line, and the 5C `ahead` = 0 bullet still says "(auto-push mode did it)"; release-executor:86 line > 80 cols; push-guard header line 4 > 80 cols (pre-existing); unpushed-guard Stop silence now also covers a missing lib (SessionStart names it) — accepted
+- [ ] gitflow LOW leftovers (run B, rest done in run D 472cccb): `--end-of-options`/`--` on refname args and `printf %q` in copy-paste hints; `gitflow_delete`: check `_gitflow_checkout_containing_base` rc (lib/gitflow.sh:270) before `--unset-upstream`
+
+- [ ] docker host-root mount spellings uncovered by deny (security gate 2026-10-23, pre-existing): `--volume /:/x`, `-v=/:/x`, `--mount type=bind,source=/,...`; prove each with a harmless analogue (`--settings` one-rule file) before adding. Not folded by phase 2 (2026-11-02): needs its own bench rows.
+- [x] 6 dead deny entries (done: test 79f1a3f, settings 12c3534, merged 29cb080) (`Bash(docker run * -v /:*)`, `Bash(git push * :*)`, 4 `Write(...)`) kept by the push-guard T41/T42 non-weakening lock; drop them with a justified-removal list in T42 at the next release (working forms added 2026-10-23)
+- [ ] after 3.0.0: the next version bump must empty the push-guard `removed-ok` list (lib/tests/push-guard.test.sh:330 `removed_ok_until=3.0.0`), or T42e goes red.
+- [ ] after 3.0.0: /bugfix the 2 D3 MEDIUM gate findings (plugin-gate accepts pack `extras`, 21st-ai credit-metered; REQUEST keywords alone trigger `embedded` → minimal), both in BUGS-FOUND (user 2026-11-12: after the cut)
+
+### Release 3.0.0
+Scope (user 2026-11-11) [gated]: D1-D6 + the 6 dead deny entries + MIGRATION/CHANGELOG land before the cut. Decisions: D1 digest + on-demand read (capitalize:375 aligned); D2 remove plugin-dev everywhere (OFF row disappears when empty); D3 advisor + USAGE rewritten to packs vocabulary, no budget/token claims, G2 add-ons included, SB10 fails on a missing file; D4 /prune-memory reads statuses through memory.sh (v1+v2), example IDs 9xx; D5 web-security keeps only its unique rules, points to secure-by-default, password = argon2id; D6 rule text names the CLAUDE.global.md append + install-plugins.sh runs the graphify step from $REPO. Runs: /feat D2+D3, /feat D4, /feat D1+D5+D6, /feat dead denies, docs, /release-candidate.
+- [x] MIGRATION.md "Upgrading to 3.0.0" (done ed67c52, chore/docs-3.0.0) (CHANGELOG Unreleased says breaking: typed `/effort-*` removed; only the 2.0.0 section exists)
+- [x] routing.json `confirmed` (15 agents, 11 phases, 6 skills) ships to every clone: kept as is (user 2026-11-11, decisions travel)
+- [x] LOW security logged in BUGS-FOUND 2026-11-11 (profile-state.jq newline forge, display-only); the fix is tracked there, not here
+- [x] CHANGELOG [2.0.0] (done ed67c52, fixed in place) "Linux `make test` still to be done after 2.0.0" is stale: suite green on Linux (bchanot-server, 2026-10); note it under Unreleased
+- [x] BLK-018 decided 2026-11-02 (phase 2, option b): /release-candidate runs `gitflow.sh finish` and the tag in the main loop under the ask prompt; release-executor keeps prep only (536d39e)
+- [x] CHANGELOG internal history headings renamed to `[internal X.Y.Z]` so the public [3.0.0] is unique (user 2026-11-12, chore/reconcile-pre-3.0.0)
+
+### Docs backlog (doc-sync 2026-10-06)
+- [ ] P17 README restructure to Standard-Readme (Install / Usage / Configuration / License); move inline reference parts to USAGE.md, CONFIGURE.md from settings.json + .env.example
+- [ ] P18 README Requirements line (Linux apt/dnf/pacman + macOS brew): Linux run done, write the line
+- [ ] P31 USAGE narrative: Exemple 9 "sans superpowers" (vendored, always on), "Edit tool" bypasses /hotfix, Pattern E + Exemple 9 route bugs to /ship-feature instead of /bugfix|/hotfix
+- [ ] P32 USAGE missing sections: design work (21st CLI, design stack, /site-motion), media generation (Higgsfield toggles), gitflow auto-push + global hooks
+- [ ] P33 USAGE per-pattern token figures have no source in code (USAGE.md:363,369,499,552,650,712,1019) — verify or drop; "Budget Pro ~11k" already dropped by the D3 add-ons (9b12b12)
+- [x] P34 done by D3 (9b12b12): 0 "gstack ON/OFF" / "context7 ON" left in USAGE.md and agents/plugin-advisor.md; onboard/tour leftovers logged in BUGS-FOUND
+- [x] P41 (2026-11-02): `ask` prompts under auto mode (bench + interactive check), so the template ask list is live, not inert; README and SETTINGS.md corrected (0bf4620)
+
+### User decisions and hand edits
+- [ ] user decision: pin a commit for higgsfield-ai/skills and a version for `@higgsfield/cli` (security gate, 2 MEDIUM, accepted as is)
+- [ ] user hand edit pending: remove the four `Bash(npm … -g|--global *)` lines from `permissions.deny` (they override the classifier); then the first global install is the live test of the entry
+
+### Blocked
+- [ ] G2 `hooks/guard-bash.sh` (BLK-022, safety classifier withheld the body): PreToolUse Bash, exit 2 + reason, `logger` trace, fail-closed without jq; spec `lib/tests/guard-bash.test.sh` (214 cases) SKIPs until it exists
+- [x] launch claude with `TMPDIR=$HOME/.cache/claude-tmp` (BLK-021 resolved by `lib/cc.sh`, phase 5; `.bashrc` swap done, ~/.bashrc:133)
+
+### Model-router live checks (opportunistic, need a real session or incident)
+- [ ] LIVE CHECK after `/reload-plugins`: best-tier phase w/ Fable out of credits → `/route show` lists fable down (probe), main on opus, effort bumped.
+- [ ] LIVE CHECK: does `parentModel` follow the turn.step rewrite or the session model? Read general-purpose's step-0 `message.model` in a transcript during a demoted turn (if it is already the session model, the pin is a harmless no-op).
+- [ ] W1-C live verification part 2 (needs a real incident): StopFailure vs turn.complete order; `PostModelSwitch` `auto` semantics and its `from_model` after a router upgrade; whether a router rewrite raises `auto`; `[1m]` carry validity on opus (only on a session whose steps carry it)
+- [ ] W4-B AC9: type a few plain prompts, read `route: classifier <phase>` (verbose line with `/route verbose on`), drop `bookkeeping` if it misfires
+- [ ] W3-A: a parallel same-agent dispatch answered after > 10 s; what an unanswered dialog resolves to on the terminal (must be Later or nothing written). T1 skill-row dialogs seen live (f8665b2, d3635b6)
+- [ ] cold-read cap on the opus session: a coding prompt → spinner `sonnet-5-5/medium`; above 120k cold read the skip line once; `/route show` cap text
+
+### Optional backlog (user call)
+- [ ] router: `/route set`, `/route confirm`, `(unconfirmed)` in show, dialog edits of phases, frontmatter auto-alignment, session-start warning when routing.json is dirty, per-machine `projects`.; step heuristics, quota-aware downgrade, A/B
+- [ ] gates.sh could refuse a CHECK holding `<<`
+- [ ] per-skill positive/negative prompt ranking (Tier 2 second half), not started
+- [ ] frame floor-guard snippets as data in the verifier step (LOW)
+- [ ] graphify pilot on robin_petier: graph + `.graphifyignore` + gitignore `graphify-out/` + `GRAPHIFY_FORCE=1 graphify update .` in the post-commit hook when a graph exists
+
+### Parked
+- [ ] Higgsfield parked (final review, rulings in BDR-109): remedy line ignores a pinned lock version (latent while `latest`); Step 8.6 spawns `higgsfield version` up to 3 times; rollback needs `npm uninstall -g @higgsfield/cli` + session removal + hand removal of `skills-external/higgsfield-*`
+- [ ] Higgsfield parked (per-task minors, none blocking): "rename" comment vs rm-then-mv; no `--` before the clone URL; ssh URL can prompt; no sweep of a stale `.higgsfield-stage.*`; timeout path itself untested; "pack not installed" when only unlisted skills are synced; doctor version read unbounded
+- Reticle pilot recipe: section "2026-09-27" below (trigger: first app-type project, BDR-103)
+
+### Known limits (accepted, no action)
+- model-router spawn path unprobed: 1st gate of an outage window dies once (seen live 2026-10-23, retry lands on the opus floor); tour/onboard/audit-delta no retry; onAutoSwitch with main on opus marks nothing if the engine auto-falls a gate off Fable
+- Residuals (accepted): explicit `Agent(model:"fable")` pins (client-handover) still fail w/o credits (BDR-115 kept); spawn path not probed; session model itself out of credits → CLOSED 2026-10-16 c11cd3b (kept cur probed too); no cross-session persistence → ≤8 s stall per new session; timed-out probe keeps retrying in engine (no cancel); `[1m]` gating unverified (bare id probed); no Esc regression test (kit cannot abort signal); probe sleep eats ~8 of 10 s `turn.step` budget.
+- Residuals left (accepted): TTL known only after the first PostModelSwitch of the process (no API exposes the account TTL; 60 min default before); hooks-below `context` and a dropped prompt leave the estimate conservative/stale; `onAutoSwitch` targets main's `lastPlan` even for a sub-agent's auto fallback (pre-existing); `agent_id: null` on a main switch (if the engine ever sends null) would freeze sessionModel/TTL updates.
+- W1-C accepted-by-design (security 2026-10-09, MEDIUM, not coded around;): (1) the model itself can raise the main loop to fable for the rest of a turn through the `route` tool (plan/reflect/escalate/judge) or a background dispatch (derived orchestrate = best tier) — bounded by the turn and `upgradeMaxTokens`, no sticky route is model-callable; (2) CLOSED by feat C 786ee13 (keywords, ultrathink and derived orchestrate set effort only). Residuals: `PostModelSwitch` `auto` covers "other programmatic change" (a healthy model could be marked 15 min); strikes never decay inside a session; a `[1m]` variant's `model_not_found` marks the base model until reload; classifier deferred to W2. 2026-10-23 feat C 786ee13: (1) derived-orchestrate part and (2) keyword/ultrathink part CLOSED (effort-only routes); (1) route-tool lift stays by design (sanctioned path)
+- W3-B residuals: SKILL.md symlink follow (LOW, kept: `skills/` itself is a symlink); `descs` cap and "(custom)" label untested. (security-auditor `changed` entry purged 2026-10-11.)
+- W4-B: W4-B residuals: `smallModelBusy` assumes the engine's small model is the `haiku` alias (`$.model.classify` takes no model: documented in code 2026-10-11, no fix possible); abort paths judged by reading only; the 3-s tests pin the upper bound only.
+- W3-A residuals (security LOW, accepted): non-atomic cross-process write (two sessions, crash mid-write → file reads as failed, previous config kept); `host/path` of a private remote in the tracked file; a persistent write failure re-asks every use (`asked.delete` in the catch); `out.length` vs byte size at the cap; `changePatch` scope 'project' with a vanished key writes Everywhere (cwd change mid-dialog).
+
+## History (2026-10-08 → 2026-11-12, done)
+## 2026-11-12 — BDR-125 context mod queue shipped (phases 0, 4a, 1, 5, 2 shipped; 3 closed; 4b-4d proof still open above)
+- [x] **Before phase 0: /feat `/model` scope dialog in model-router** (done 2026-10-25, 1fde5bb + docs 773fe17, BDR-126; merge on user signal; live check DONE 2026-10-29 (`/model opus` → scope question rendered → This project wrote settings.local.json); still unchecked: no PostModelSwitch/down mark after This project, gitignore of a created file). (user pick 2026-10-25). Fact (docs model-config): `/model <name>` always writes `model` to user settings.json (tracked here); picker key `s` = session only; project `model` honored at launch. Mod: `command.run` on `model` with args → `$.ui.ask` "This project / This conversation / Everywhere": project = `model` in `.claude/settings.local.json` + sticky route now; conversation = sticky route only (`/route model=`); everywhere = native passthrough. No args → native picker untouched; `-p` or no surface → passthrough. Files: register.ts, register.test.ts, lib/effort-shift.md. Doctor keeps the tracked ≠ opus warning.
+
+- [x] **/bugfix model-router haiku effort strip** (done 2026-10-25, 8e93507; merge on user signal) (BLK-035 residual, user pick 2026-10-25): Haiku 5.5 takes effort; drop 4.5-era "haiku takes no effort" (effortWord, step plan omission, isHaiku sites, census `lib/tests/effort-routing.test.sh:170`), so `mechanical` runs low.
+- [x] **/feat picker scope** (done 2026-10-25, 2202964 + docs 5d262d3, BDR-127; live check DONE 2026-10-29 (Sonnet 5.5 pick held by the hook, scope asked; same-model pick fires no hook → BLK-037, fixed by BDR-132 657e5cb); still unchecked: PostModelSwitch on a denied pick) (BLK-036, user ask 2026-10-25): bare `/model` → pick in native picker → ask project scope (`.claude/settings.local.json`) or user scope. First: engine types for a settings-write intercept; none → mod restores user settings.json = BDR-116 amendment, user decides before code.
+
+- [x] **Phase 0, no mod: split project CLAUDE.md** (this repo + the lever, feature/claude-md-split, 2026-10-26; merge on user signal). Four rules under `.claude/rules/` (rules-maintenance, graphify-vendored, mods, transient-artifacts `# static-check: skip`), `lib/project-rules.sh` check/matches/sections/extract/emit (`-C <dir>`) + suite, `hooks/instructions-loaded.sh` (log `~/.claude/logs/instructions-loaded.jsonl`, session + agent ids), `!.claude/rules/` here + socle, `/onboard split` + onboarder `MODE: split`, generators emit docker/testing/ci from `templates/project-rules/`. Baseline 2026-10-26 `/context`: 32.2k total, Memory files 11.6k, project CLAUDE.md 2.1k.
+  - [x] Proof, this repo (journal 2026-10-26: headless 17:00:07Z 4 Project `path_glob_match`, sub-agent 17:00:33Z loads rules too; `/context` after merge = the 2026-10-28 baseline 30.5k; verified 2026-11-02 /reconcile). Was: `/context` after the merge; one fresh session Reading one file per rule → 4 Project `path_glob_match` lines; one sub-agent Read → does a path rule load inside a sub-agent. Results in the journal.
+  - [x] User step: `claude mcp remove -s user higgsfield` (done: `~/.claude.json` mcpServers empty 2026-11-02; higgsfield is a claude.ai connector, denied per profile since phase 5).
+  - [x] Phase 2 folds: narrow the pre-commit `.claude/**` exemption so a rules-only commit cannot land on develop/main (deferred 2026-10-26; NOT done by phase 2 2026-11-02, still open: its own /feat on the generated pre-commit). Done 2026-11-06 c5bd0f8 (BDR-139): allowlist memory/tasks/audits/deploy + .githooks, --no-renames.
+- [x] **Phase 0b, per-repo pass** (2026-10-27: 10 repos classified; split on branches awaiting the user's merge: zenquality 1942dcf 4 rules 46%, game 527bdcc 2 rules, angelscar356 ab75ecd 1 rule; keep-everything verdict, no branch: config, integration_alphalink, robin_petier, trucks_at_work, bchanot-cv, for_you, nuit-folle (all sections always-on by the S4 rule); faunosteo 7a75974 11 rules on the user's feature branch, 31.9k → 27.2k; zenquality/game/angelscar356 merged 0ff05f1/d9be6b1/853b55b; proof per repo = the user's next session there) (after phase 0 merges; via `/onboard split`, one `chore/claude-md-split` per repo off develop, approval per repo, never an automatic merge; `/context` before/after in that repo's journal). Order by size: faunosteo 52,322 chars (on feature/v1-1-clients-animals with 5 dirty files: finish or stash first, S1 refuses otherwise), zenquality 23,378, game 14,918 (on feature/replay-hint), robin_petier 12,895, config 4,990, integration_alphalink 4,249. None has `.claude/rules/` yet; all use the `.claude/*` file form (BDR-003). Sections a sub-agent needs stay always-on unless the phase 0 sub-agent proof says path rules load there (proof 2026-10-26: they do; verify per repo).
+  - [x] Before faunosteo: `###` granularity shipped 2026-10-27 (feature/rules-h3-extract ab5049e: `extract '### title'`, `sections --depth 3`, split rows `### <title>`). Was: decide `###` granularity (STEP 6 review 2026-10-26).
+  - [x] /feat extract-hardening (2026-10-27, 14a93e3: `_rules_out_path_ok` refuses absolute, `..`, existing or dangling-link out; mkdir and rule-write rc checked before the source rewrite; S0.3 prose in the lib case order; 139 checks). Was: /hotfix after 0b, lib/project-rules.sh `extract` (security gate 2026-10-27, pre-existing, non-blocking): check the `> "$out"` group and `mkdir -p` rc before rewriting `$src` (today a failed rule write still removes the section, rc 0); `[ -e "$out" ] || [ -L "$out" ]` and refuse `..`/absolute `<out>`; onboarder S0.3 says `####x` is a bare title but the lib rejects it (align the prose). Its path-bound content (i18n, Schemas, Stores, PDF, Supabase, Storage, 12.6 KB) sits in `###` subsections of the always-on `## Project conventions`; `##`-only extract moves ~1.5% of the file. Option: `extract` accepts a `###` heading (section ends at the next heading of the same or higher level), `sections --depth 3`. User decides; `game` also has a `'` in `## 4. POINTS D'ATTENTION…` (S4 refuses it until renamed, or extract by index).
+
+- [x] **Phase 4a, memory v2 write side: shell, no mod** (shrunk 2026-10-25: the measured recall channels never read Meta; the measured status bug is a reconcile parser bug)
+  - Done 2026-10-28 on feature/memory-v2-write (a423594..aab9e4d, registries v2 9698473): BDR-129, LRN-236, LRN-237, EVAL-052. memory suite 202/0, make test green.
+  - [x] Phase 4a per-repo pass (2026-10-30/31): 12 repos v2 on `chore/memory-v2` (config, integration_alphalink, robin_petier, zenquality, game, trucks_at_work, bchanot-cv, game-deploy, gitea-deploy off develop; angelscar356 off main; for_you, nuit-folle off master). game: 16 headings demoted in place; trucks_at_work: 3 bullet Indexes dropped + BLK-001 resolved; robin_petier: BLK-013 resolved + BLK-015 superseded (closures only in the v1 Index). BLK-038 (upgrade cemented prose false-closed) fixed 2dae528 before game/zenquality; user statuses: game BLK-021 open, BLK-026 resolved, BLK-030 upstream, zenquality BLK-006 open. Replay oracle: the 10 earlier repos byte-identical under the fixed lib.
+  - [x] Phase 4a parked minors, code half (/feat memory-v2-minors 2026-11-01, e4fb8f7 + 48ade8f: negated status words, dead empty steal, body `## ` refused at add, `_mem_blob` rc 1/2, rc 6 names dropped partial stages, reflow; A2 Index comment-edge + A7 rc 6 upgrade wording dropped as moot, 0 `## Index` left outside faunosteo). Doc half still open, next line. Original ledger `.superpowers/sdd/2026-10-27-memory-v2-write/progress.md`: empty `memory.lock.steal` never stale (manual rm); `## Index` comment-edge mismatch; `upgrade` header doc lacks the non-table refusal; memory-commit rc 6 message misleading on a v1→v2 heading-rewrite upgrade; labelled "not resolved yet" reads resolved on v2; body `## ` line splits an entry (refuse at add); `-C` + relative `--body-file` (say absolute in § WRITE); tour/deploy/audit-delta § WRITE pointer; reconcile.sh:24-25 and :41-42 stale comments; `_mem_blob` → `git cat-file blob`; evals template "Later status" line; partial stage dropped on rc 6; 39 pre-existing >80-char lines in reconcile.sh / memory-commit.sh.
+  - [x] Phase 4a minors, doc half (/feat memory-v2-minors-docs 2026-11-01): § WRITE intro says every verb takes `-C` and `--body-file` is absolute; tour/deploy/audit-delta point at § WRITE; evals template `Later status` line; rc 6 text done by the code half's doc sync (18e6370).
+  - [x] memory.sh awk operand (security LOW 2026-11-01): a `--body-file` named `x=1.md` is read by awk as a variable assignment in `_mem_fence_open` and `_mem_body_heading` (stdin read, check bypassed; `cat` still inserts the body). Fix: `awk '…' < "$f"`. Also `_partial_stages` passes the path to `git ls-files -s --` as a glob pathspec (quote with `:(literal)`). Done 2026-11-06 9b3961e (`_mem_path_safe` at entry points, LRN-265).
+  - Facts 2026-10-24 (scratchpad memeval, 434 entries): registries ~1M chars, never in always-on context, read only by /feat /bugfix /ship-feature (analyze-before-plan); Index drift 6 rows; status in 3 places (title tag, body Status line, Index column) → reconcile false-open BLK-032..034; no single writer (Edit needs a Read of a 357k file, so real writes are ad hoc python/bash); 8 projects on this machine hold v1 registries. Verified 2026-10-25: `lib/reconcile.sh:60-67` drops the entry's OWN header while BLK-032..034 carry `[resolved]` there (the false-open); nothing machine-reads `## Index` (analyze-before-plan.md:42, reconcile.sh:9, test T1); 1 of 1,290 entries across the 8 projects above a 1% accent ratio.
+  - `lib/memory.sh` = single writer, like gitflow.sh: `add <kind> --title --body-file [--status --supersedes]` allocates next ID from headings (never the Index) under `flock` (concurrent conversations, phase 5), appends the entry; `status <ID> <new>` appends a dated status line (append-only); `journal "<line>"`; `index` prints the Index on demand from headings; `check [--staged]` = the validator (heading pattern, ID = max+1 and unique, no removed line from an existing entry outside a /prune-memory commit, new BLK quotes ≥1 error verbatim). The validator runs in `add` and `check` + make test, NOT in the generated pre-commit (undecidable there, and it exits 0 on working branches). No English check (doctrine stays).
+  - Status: `reconcile_blk_current_status` reads the own-header `[tag]` first, then "last status-bearing line wins" (one parser, shared by memory.sh status and reconcile). Fixes BLK-032..034 false-open; regression test on those three.
+  - Index: the four generated `## Index` blocks are REMOVED in one /prune-memory curation; Index steps dropped in capitalize, ship-feature, commit-changer, prune-memory § D; `memory.sh index` replaces them.
+  - Per-file v2 marker (first line) so the 8 v1 projects keep working untouched; doctor warns "registry v1".
+  - Dropped: Meta line, 434-entry backfill, scope/critical labels, triggers field (4c derives triggers at read time), Index == generated validator, English validator.
+  - Citers: capitalize, close, prune-memory, CAPITALIZE steps of feat/bugfix/hotfix/ship-feature/commit-change, lib/capitalize-commit.md, lib/analyze-before-plan.md, lib/reconcile.sh, templates/memory, onboard/init-project; doctrine-citers census. CLAUDE.global.md Memory registries: write only via lib/memory.sh; fix the false "load every session" premise (keep caveman: it keeps reads and injections small).
+  - Proof: writer round-trip, flock race test (two adds), status parser on the three false-open BLKs + fixtures, v1 project untouched, `make test` green.
+
+- [x] **Phase 1, native context diet: no mod** (redesigned 2026-10-24, shrunk 2026-10-25: one carrier per section, existing files first)
+  - Done 2026-10-29 on feature/context-diet (4bbb3c5..789a2b2): BDR-130, BDR-131, LRN-238..241, EVAL-053. `/context` 30.5k → 26.2k (own −2.8k). Verifier CONFORME 21/21, security PASS. Contract `.claude/tasks/contracts/2026-10-28-context-diet-1944.md` § PROOF.
+  - [x] User step: delete the auto-memory leftovers by hand (done: the three dirs are gone, every `~/.claude/projects/*/memory/` empty 2026-11-02).
+  - [x] Remove the dead `memory: project` field from agents/analyzer.md (/hotfix 7899670, 2026-10-31).
+  - [x] Census blind spots (2026-10-31, feature/citers-blind-spots 5bd0de4 → develop 4175401, T8a-T8h): nested `lib/<dir>/x.md § Y`, templates/ and .claude/rules/ outside doctrine-citers. Measured 2026-10-31: 0 real citations in all three today (preventive).
+  - [x] Measure the design hook's "Read … first" re-Read cost (2026-10-31, transcripts since 789a2b2): 59 hook fires, 0 Read-tool reads of web-building.md, 8 Bash mentions (repo maintenance). Re-read cost ≈ 0 → no "once per session" needed.
+  - [x] Probe Bash `sed -n` (2026-10-31, two `claude -p --model haiku` runs here, mods/model-router/.claude-plugin/plugin.json): Bash `sed -n` AND Read both log `path_glob_match` mods.md with that trigger file. Path rules load after a Bash read too; not isolated whether the harness or the rtk rewrite triggers it.
+  - [x] Minor: relative rule paths in interviewer.md / guardrails SKILL.md → `~/.claude/rules/` (/hotfix 40a993c).
+  - [x] Agent description losses (3330f0b): user pick 2026-10-31 = restore "(dispatcher applies)" on geo-analyzer + seo-analyzer only; the rest closed (bodies keep it).
+  - [x] robin_petier `chore/memory-lan-server` (BDR-075): merged 2026-10-29 (6877443).
+  - Facts 2026-10-24 (scratchpad pathtest, memtest): a `paths:` rule loads on Read of a matching file, NOT on Write of a new file; `"autoMemoryEnabled": false` removes the auto-memory system section; classic SessionStart / UserPromptSubmit hooks inject additionalContext; instruction files reload on compaction natively. `hooks/design-toolchain-reminder.sh` fired 2,131 times (16 to 210 per day); `brainstorming` is vendored and gitignored (.gitignore:78), an edit there does not persist.
+  - Section → carrier:
+    - auto-memory system section → `"autoMemoryEnabled": false` in settings.json. Before: migrate existing auto memories in faunosteo, jeux-deploy, robin_petier into their registries (user review), doctor warns when an auto-memory dir is non-empty.
+    - Design work (1.5k chars) → APPENDED to `rules/web-building.md` (same UI globs, one file); `hooks/design-toolchain-reminder.sh` keeps its one-liner, retargeted to "Read ~/.claude/rules/web-building.md § Design work" (covers new-file turns); never the full text per fire.
+    - graphify → one always-on threshold line stays ("graphify from 200 code files, never below"); the rest of the section → `hooks/session-start.sh` injects it only when `graphify-out/graph.json` exists.
+    - Public websites never SPA + default language + web APIs versioned (2.3k) → one `lib/architecture-defaults.md` Read by our own skills (init-project, ship-feature STEP 1, refactor whole-project, onboard; the lib/*.md reference pattern); Web APIs § merged into `rules/rest-api.md`; no empty-dir injection (init-project routes correctly in an empty dir, routing probe C1).
+    - secure-by-default: "Every API", hosting, injection, exposure, SMS/email stay always-on; Supabase and cloud functions keep ONE always-on line each (path rules fail open at scaffold/Write), their bodies move to path rules (`supabase/**`, `**/*.sql`, `**/migrations/**`; `functions/**`, `**/serverless.*`, `**/firebase.json`).
+    - Agent descriptions: trim `description:` in `agents/*.md` at the source (5,755 of 9,098 listing chars; names and files unchanged, dispatch cannot break). Replaces the phase 3 agent listing rewrite.
+    - Registry format → compressed in phase 4a; gitflow detail → compressed in phase 2 cleanup. Our-code-vs-foreign line: already injected by session-start.sh:240-251, nothing to do.
+  - Proof: static glob check per moved rule + logged session; hook tests (design-toolchain-reminder one-liner, session-start graph branch); the four skills Read the lib (grep census); `/context` delta.
+  - Cleanup: CLAUDE.global.md loses the moved sections (one pointer line each where needed), citers patched (doctrine-citers census); BDR-031 citers.
+
+- [x] **model-router: ask before routing to Fable** (done 2026-11-02: feature/router-ask-tier 9a24a62 + docs 789fd00, merged d4416fe; BDR-135, LRN-254; GATE 0 MET, verifier CONFORME 11/11, security PASS; contract `.claude/tasks/contracts/2026-11-02-router-ask-tier-1434.md`; live check pending: a typed best-tier skill from an opus session shows the question) (user ask 2026-11-02, after the phase 5 merge: both touch `mods/model-router/routing.json`). `/feat` on the mod: a `routing.json` key `askTier` (default `best`; `/route ask-tier on|off`) makes the router ask, once per span, BEFORE applying a route whose resolved model sits in that tier, with the reason (phase + its `about`, origin: skill row / `/route` / prompt rule / agent row) and the options `Fable` · `Opus instead (big tier)` · `stop asking this session`; no memory in `confirmed` (the existing first-use confirmation stays as is); never asks in `-p` (`askOr` already falls back to LATER). Files: mods/model-router/hooks/register.ts (+ register.test.ts), routing.json, USAGE.md (`/route` section).
+- [x] **Phase 5, per-project and per-conversation profiles, native packs** (redesigned 2026-10-25, shrunk the same day; shipped 2026-11-02 on feature/phase5-profiles-packs, merged 3cc4e0d: BDR-134, contract .claude/tasks/contracts/2026-11-01-phase5-profiles-packs-1300.md; spec and plan purged at finish (BDR-065), facts in LRN-248 and the contract; gates re-run 2026-11-02: 7/7 MET)
+  - [x] User steps (verified 2026-11-12: ~/.bashrc:133 sources lib/cc.sh, no `dtach_claude`/`alias cc`; `/context` full/dev/web recorded in phase 3 below): MIGRATION "Profiles and packs (2026-11)" step 4 `.bashrc`, then `/context` under `cc t full`, `cc t dev`, `cc t web`.
+  - Facts 2026-10-24/25 (scratch projects, fresh headless sessions, canaries, run concurrently, one shared ~/.claude): `.claude/settings.local.json` `enabledPlugins` per project works both ways and concurrently; `claude --settings '<json>'` gives two SIMULTANEOUS conversations in the SAME project different plugin sets; a skills-dir plugin obeys both; plugin skills keep their short name (`ui-styling` resolves) but verify `<plugin>:<name>` too (router rows must match both); plugin agents need the `plugin:` prefix; `permissions.deny Skill(x)` does not hide a skill; `skillOverrides` does not reach plugin skills (packs hide by disabling, guide); a user-scope MCP cannot be switched off per project by settings: project MCP belongs in a pack `.mcp.json`; claude.ai connectors do not load under `-p`.
+  - User answers 2026-10-25: profile per project and per conversation, never one for all; tracked `.claude/settings.json` keeps deny/allow only, profiles go local; a project without a profile gets a proposal once, written on accept; the global mode (skills/ ↔ skills-disabled/ symlinks + user-scope plugin toggling) is DELETED; core = everything except the heavy packs (design, seo/geo, web-validate, scroll/3d, higgsfield, gstack); agents stay global; a skill needing an off pack proposes to enable it then `/reload-plugins` (spike first); all 11 profiles kept as pack compositions.
+  - Packs: each heavy group becomes a skills-dir plugin `skills/pack-<name>/` (`.claude-plugin/plugin.json` + `skills/<skill>/SKILL.md`, + `.mcp.json` for higgsfield, + hooks if any). Spike first: nested skills load once as plugin skills; gstack (external installer, symlinks) as a pack.
+  - Model per project and per conversation (user ask 2026-10-25, measured headless the same day: project `.claude/settings.local.json` `"model": "haiku"` → haiku; `--settings '{"model":"sonnet"}'` on top → sonnet; nothing → the user settings model; scratchpad modeltest). A profile carries `model` beside `enabledPlugins`; `profile.sh set` writes both into `.claude/settings.local.json`; the conversation launcher passes both. `/model` writes the TRACKED user settings.json (seen 2026-10-25: fable landed there), so the doctrine says: `/model` only for a one-off turn, the project model goes through the profile; the tracked default stays `opus`; doctor warns when settings.json `model` differs from `opus`. Applied by hand today for this repo (local fable, tracked opus).
+  - Profile = `lib/profiles/<name>.json` (`{"enabledPlugins": {...}}`), the source of truth, reachable through the ~/.claude/lib link: no generator, no `~/.claude/profiles/`. Per project: `profile.sh set <name>` writes `enabledPlugins` into `.claude/settings.local.json` (never user scope). Per conversation: `claude --settings ~/.claude/lib/profiles/<name>.json` (shell function or make helper, named with the user).
+  - Detection: no fingerprint. When the project has no profile, session-start prints one line pointing at `/plugin-check`; the plugin-advisor maps its canonical profile to a pack profile (replaces the banner hint the cleanup deletes).
+  - Pack needed mid-skill: the orchestrators' existing gates (lib/design-gate.md + design-tool-gate.sh, lib/plugin-gate.md) check the required packs; off → propose enabling for THIS conversation (the `--settings` copy when the session was launched with one, else `.claude/settings.local.json`; never user scope) + `/reload-plugins`; spike that a settings change + `/reload-plugins` loads the pack mid-session.
+  - Listing budget (user pick: after the packs): 124 skills listed, 46 name-only at the default budget; `SLASH_COMMAND_TOOL_CHAR_BUDGET=60000` → 0 name-only (+~5.7k tokens). Once packs shrink the listing, set the budget in settings.json `env` to the smallest value that leaves 0 name-only in the full profile (ctxprobe bench), record the cost.
+  - Spikes: nested skills in a pack, `/reload-plugins` after a settings change, claude.ai connectors per project (interactive only), higgsfield MCP in a pack.
+  - Proof: two concurrent conversations in one project and two projects, canaries prove different listings, MCP and hooks per pack; `/context` per profile; nothing references `skills-disabled/` or `toggle-external.sh`.
+  - Cleanup: `lib/profile.sh` symlink toggling + `skills-disabled/` (24 entries), user-scope plugin toggling in `set|apply|reset`, `lib/toggle-external.sh` (retire or rewire to packs) + `lib/tests/higgsfield.test.sh` + the CLAUDE.global.md "toggle-external.sh enable higgsfield" lines, every writer of the old layout (install-plugins.sh, update-all.sh, gstack and 21st installers), Makefile `profile*` targets rewired, `/profile` skill rewritten for packs, plugin-gate prose tied to global toggling, banner hint "/plugin-check before starting a new project", doctor profile checks, profile tests rewritten; `lib/profiles/*.profile` → `.json`.
+
+- [x] **Phase 2, guards** (shipped 2026-11-02 on feature/phase2-guards, merge on user signal: bench `.claude/tasks/plans/2026-11-02-phase2-bench/` (16 ask, 7 deny approved; quoted finish rule, `gitflow_finish*`, `bash -s*` not approved), rtk rc 3 passthrough 60ee4a9, router write guard with a session skill latch 22ff57b + 9bbd1d5, code-limits hook f21e265, locks T62/T63 9887c14, settings 6899a72, release finish in the main loop 536d39e, doctrine 0bf4620, CHANGELOG c3a6977; contract `.claude/tasks/contracts/2026-11-02-phase2-guards-1545.md`) (redesigned 2026-10-25 after a 3-lens challenge, re-challenged the same day: native ask gate, guard hosted in model-router, interpreters in prose, commit-msg hook deferred)
+  - [x] User hand edit (done 12c3534, merged 29cb080; CHANGELOG :51 14 entries / "Edit of" + Fixed bullet :92 + "(98 checks)" dropped in ed67c52, merged 1b98170): the 6 dead deny entries removed from settings.json; push-guard T41/T42 lock prepared by feature/dead-deny-lock 79f1a3f.
+  - Killed by the challenges: the phrase-list merge gate; the `$.ui.ask` mod gate (its BDR-068 exception detector was never true: finish runs in the user's reply turn; a hard_deny naming mod sources was the robustness BLOCKER); G2 destructive guard (BLK-022, stays a user-driven task); whole-file code-limit reports (1498 lines > 80 cols across 92 files, over-fires); parsing commit text from Bash; Bash write-form detection in the routing guard (no measured Bash evasion, every inline write was Edit/Write).
+  - Merge gate = native `ask` rules in settings.json, no mod (user pick 2026-10-25; bench r3 G1-G7: all forms DENIED headless incl. `"$HOME"`, absolute path, after `source`; `start` RAN): `Bash(bash */gitflow.sh finish*)`, `Bash(gitflow_finish*)`, `Bash(git merge *)`; evaluate in the same bench `Bash(git pull *)` and `git push x:develop` forms before adding them. Trade-off accepted: the BDR-068 /close auto-finish gets one dialog click (ask beats allow, no exemption); release-executor finish prompts too (its dispatcher runs finish inline if a sub-agent cannot prompt, BLK-018 option b). hard_deny line: "never edit `permissions.ask` to skip the gate".
+  - Routing guard (user pick: "always through a skill") hosted in `mods/model-router` (owner of the only run signal; mod state is plugin-private, `runMain` is BEST-tier-only and never ends: wrong signal). `tool.call` on Edit/Write/NotebookEdit of a code file by the MAIN loop (no `agentId`) → deny with reason "route through /hotfix (≤2 files, obvious), /feat, /bugfix or /ship-feature" UNLESS this turn's `turnMain.source ∈ {skill, model}` or a `/route` sticky is in force (explicit escape hatch). Free: docs (.md), `.claude/**`, sub-agents, any write inside a skill run. Bash write forms deferred until a measured evasion. hard_deny gains "a guard redirect is not a refusal to route around: enter the skill". Doctrine: the ceiling bullet becomes "the main loop writes no code outside a skill run, whatever the model". Proof: routing bench cases (L3 must enter a skill), long-brief replay in a clone, false-deny fixtures (doc edits, executor edits, in-skill edits), guard-off = today.
+  - Shell deny hygiene (bench `.claude/tasks/plans/2026-10-25-bash-deny-probe/`; user pick: stay in `defaultMode: auto`). Facts: the native matcher sees through `&&` `;` `||` `|` newline `( )` `env` `command` `\cmd` `timeout` `nohup` `xargs` quoted command word and simple assignments; it misses `sh -c`, bare `bash`/`sh` + heredoc, `$(…)` in command position, absolute paths, interpreters and a quoted literal argument; under auto every miss was approved by the classifier; the rtk-rewrite hook runs BEFORE permission evaluation and deny is evaluated on the REWRITTEN command (`git push origin :feature` → rc=3 → `rtk git push …` bypasses deny `git push * :**` and ask `git push *`; rc=0 misses `cat */*.pem`); redirects into an Edit-denied path ARE denied; `ask` beats `allow`. Counted 2026-10-25 (14 days): 211 `python3 -c`, 450 `node -e`, 491 of them from sub-agents: a static ask on interpreters would prompt or deny hundreds of calls.
+    - rtk hook: rc=3 → pass through unchanged (no `updatedInput`), native deny/ask see the original; re-pin `hooks/.rtk-hook.sha256`; hook test with the `cat SECRET*` analogue hooks-on. rc=0 reads: census test that every `Bash(cat|head|tail <glob>)` deny has its `Bash(rtk read <glob>)` twin, twins added (alternative weighed and rejected for now: one case arm passing cat/head/tail through unrewritten loses rtk's read savings, unmeasured).
+    - settings.json `ask` += `Bash(sh -c *)`, `Bash(bash)`, `Bash(sh)`, `Bash(bash -s*)`, `Bash(bash <(*)`, `Bash(/bin/sh *)`, `Bash(/bin/bash *)`, `Bash(/usr/bin/env bash*)`, `Bash(/usr/bin/env sh*)` (NOT `Bash(/*)`: it would kill the `Bash(*/rtk …)` absolute-path twins the rtk heal relies on); `deny` += `Bash(awk *system(*`. Interpreters (`python3 -c`, `python -c`, `node -e`) go to the autoMode soft_deny prose, not static rules. Each pattern proven in the bench before landing. P41 (templates: "ask inert under auto") is contradicted by measurement: fix the item.
+    - Limits written down, one place: settings.json soft_deny note + README permissions: `$(…)` in command position, a quoted literal argument and interpreters have no static rule and rest on the classifier + prose; mode stays auto.
+    - Folds TODO Actionable "docker host-root mount spellings" and the T42 dead-entry drop list if the release lands first.
+    - Interim (accepted): until this lands, a `git push origin :ref` deletion rests on the classifier and rtk's registry.
+  - Commit message hook: DEFERRED (4 of 78 non-merge commits over 50 words since lib/commit-message.md landed e91dcb3; the generated hooks miss 6 of 7 repos on `core.hooksPath=.githooks`). Revisit if the overrun grows.
+  - Code limits: classic PostToolUse hook, added lines only (Edit new_string, Write content), our code only (`lib/code-origin.sh`), 80 columns only (462 of 19,161 added lines measured over), at most 5 reports, once per file per turn, `additionalContext`, never a deny.
+  - Proof: evasion matrix per rule (bench), the /close ritual finishes after one click, destructive commands never run live (plugin test with stubs only).
+  - Cleanup: compress the gitflow section only for the forms now enforced.
+
+- [x] **Phase 3, context mod: CONDITIONAL — CLOSED 2026-11-03, not built** (measured by the user, repo root, Opus 5.5, after phases 0/4a/1/5/2: full 40k = memory files 8.2k, skills 16.5k, system tools 7.6k, MCP instr 2.4k, agents 2.2k, system 2.2k; dev 38.4k = memory 8.2k, skills 12.7k, system tools 11.5k, MCP instr 0.7k; web 40k. Connector instructions already have a native lever (profile `deniedMcpServers`: 2.4k → 0.7k on dev); the jit-subtractable doctrine left in memory files is ~1-2k (3-5%), not worth a mod birth, canaries, off switch and doctor line.) (user pick 2026-10-25). Measure the always-on residual after phases 0, 4a, 1, 5 and 2 (`/context` at repo root + the two biggest projects). Build only if a mod can carry conditionally a residual worth its cost (birth, off switch, canaries, doctor line); otherwise close the item with the measurement.
+  - If built, scope = `prompt.compose` section deltas for doctrine a carrier already re-delivers (jit-marked, never deleted; mod off = full text; ledger in `$.state`, reset on compact/clear) + `mcp_instructions_delta` for connectors irrelevant in a coding repo. Shared infra (jit-marker subtraction, `$.state` ledger) lives here or in 4c, whichever ships first.
+  - Dropped by the re-challenge: skill listing filter + routing.json `contexts` + census (phase 5 packs + the budget env already give 0 name-only); routing-hint classifier (no measured miss outside code intents the phase 2 guard catches; the "Skill routing" table lines move into our own skills' `description:`, ≤3 lines for vendored aliases stay in CLAUDE.global.md, done in phase 1 cleanup); agent listing rewrite (phase 1 diet); higgsfield deltas (phase 0/5); project fingerprint. `prompt.attachment` kinds (`skill_listing`, `agent_listing_delta`…) exist in the 2.1.306 types but not in the docs text: re-verify at build time.
+
+- [x] Measure the 30.2k → 40k rise (2026-11-09, LRN-270): Skills +6.2k = budget 50000 paying mostly claude.ai-synced skills; System tools rise not attributable (`/context all` has no per-tool row). Tool-search threshold hypothesis disproved (`ENABLE_TOOL_SEARCH=true` changes nothing; Higgsfield deny on full keeps 7.7k). L1 shipped: feature/claude-ai-skills-off 47438f4 + 07406ce (BDR-141), full headless 32.2k → 28.5k; user removed Higgsfield + unused claude.ai connectors (full 26.9k headless). Merge on user signal.
+  - [x] Cleanup run (2026-11-09, /ship-feature on chore/connector-deny-cleanup b80da29..5413f40, 12 files): denies + census connector rule removed, prose citers rewritten, T13 deny-set variant added; gates MET / CONFORME (3rd pass) / PASS; BDR-134 amended, LRN-272/273. Merge on user signal. Not checked: work machine project settings.local.json (CHANGELOG says delete by hand).
+
+## 2026-10-19 — guardrails split: /a11y + injection/exposure (feature/a11y-split-inj-exp)
+- [x] run — SDD 9/9, gates 0/1/2 green, opus review Importants fixed (c0fdbec, 9275e0d, 63a88bc), capitalize BDR-122 LRN-219..221 BLK-032; merge = user go
+- [x] parked review Minors + GATE 2 residuals (probe `supabase.url`, redirects, `_nonempty_rows`, printable) → /bugfix 2026-10-21, 5a98c2c + 633faa2, BLK-033
+- [x] routing policy /feat (user 2026-10-19, BLK-032): settings model → Opus 5.5; `judge` split (security-auditor + verifier → Fable, plan-challenger/analyzer/code review → opus); executors stay sonnet, "what to write" on opus; ceiling rule: main on Fable never writes code beyond a hotfix edit → dispatched executor; BDR superseding part of BDR-066 / BDR-115.
+  - [x] feat A audit phase: d3635b6 (dialog writes, session model opus), a7d747c (audit row, opus floor, census, citers), dae142b (docs); gates 0/1/2 green, LRN-224
+  - [x] feat B (feature/routing-ceiling-rule): ceiling rule CLAUDE.global.md, README doctrine, challenge citers, deploy `effort: xhigh`, routing.json `changed` cleared; ef13713 + 887cf89, gates 0/1/2 green, BDR-123; merge = user go
+  - [x] feat C: cap the default keyword prompt rules (plan|design|architecture, why|review|audit|analyze, ultrathink) at the session model, effort only like the classifier; close BLK-032 after — DONE 2026-10-23 feature/router-keyword-cap: 786ee13 effort-only routes (keywords, ultrathink, derived orchestrate), d2d590f docs, gates green, BLK-032 resolved; merge = user go
+  - [x] bugfix lib/tests/mods.test.sh (bugfix/mods-validate-advisory): verdict = `--strict` rc, positive control warnfix/cleanfix; 801992a, gates green, BLK-034 LRN-225; merge = user go. Residual: 3 historical contracts keep the old scrape oracle (BLK-034)
+
+## 2026-10-18 — secure-by-default guardrails: 5 domains + /guardrails skill (feature/secure-by-default)
+User ask: hosting, a11y, Supabase, SMS/email consent, cloud functions must be baseline on every project, API and access secured systematically, plus a skill that tests all of it.
+Language call: scanner is Python stdlib, not Rust (default-language contraindication: skill scripts here are interpreted, no build step, same as explain-diff checker).
+- [x] T1 `rules/secure-by-default.md` always-on (no `paths:`, BDR-085 path: CLAUDE.global.md is at 320/320)
+- [x] T2 `skills/guardrails/scripts/` scanner: common, apis, hosting, a11y, supabase, messaging, functions + `scan.py` CLI (FAIL / WARN / MANUAL, exit 1 on FAIL)
+- [x] T3 `skills/guardrails/SKILL.md` + `references/checks.md` (rule catalogue, manual items, live Supabase queries) + `test-prompts.json`
+- [x] T4 `lib/tests/guardrails-scan.test.sh`: clean fixture passes, one mutant per FAIL rule
+- [x] T5 wiring: security-auditor checklist (+ scanner run), interviewer failure-mode row, init-project founding table
+- [x] T6 registration: profiles full/max/dev, routing.json row, README, USAGE x2, CHANGELOG
+- [x] T7 `make test` all green (70 guardrails checks), shellcheck clean, 25/80/5/5 limits met; calibrated on 8 real projects (game, faunosteo, zenquality, robin_petier, alphalink, game-deploy, config, explanations), 9 false-positive classes fixed and locked by benign tests. Journal done. BDR-120 accepted, merged bee377a.
+- [x] T8 passwords (user ask 2026-10-18): doctrine bullet in the rule (argon2id, no clear compare, no log, no literal, delegated auth), `checks/passwords.py` in the api domain (API-PASSWORD-PLAINTEXT / WEAK-HASH / LOGGED FAIL, LITERAL WARN), 8 mutants + 10 benign locks (89 checks), auditor maps PLAINTEXT to CRITICAL; calibrated on 7 projects: 0 hits after one FP fix (yaml volume mount `htpasswd:/etc/...`)
+- [x] T9 live probe (user ask 2026-10-18, "attaque de l'exterieur ?"): `skills/guardrails/scripts/probe.py` read-only (GET/HEAD/OPTIONS, `--authorized` gate, env secrets, same-host redirect only, request budget, 25-req burst cap). 5 probes: anon-read, cross-user, no-auth route, cors-reflect, rate-limit. Suite `lib/tests/guardrails-probe.test.sh` 16/16 vs a localhost http.server fixture. SKILL STEP 5 + checks.md section + CHANGELOG/README/USAGE. Redirect-guard unit test blocked by the auto-mode classifier (SSRF-shaped fixture), guard is code-reviewed.
+- Fix loop (user ask 2026-10-18): audit -> fix proposals (Fable via route plan) -> user accepts -> fixes applied -> re-pass proves all fixed. Reuse /bugfix circuit: contract with scanner oracles, bugfixer executor, lib/verify-secure-loop.md gates.
+- [x] T10 scan.py `--assert-absent RULE:path,...` (contract oracle: exit + marker reflect only the listed pairs, positive control = domain applies + files>0) and `--baseline <json>` (re-pass: fixed / remaining / new); tests incl. positive control
+- [x] T11 SKILL.md: model gate, STEP propose (grouped per rule+path, visible choices named, MANUAL = user steps), STEP approve (prose gate), STEP fix (gitflow aiguillage, contract + oracles, bugfixer, verify-secure-loop), STEP re-pass (baseline diff + probe re-run on go, max 2 rounds), commit gate
+- [x] T12 citers: verify-secure-loop header, contract-interview flow list, bugfixer description, model-routing census adds guardrails
+- [x] T13 docs: checks.md oracle section, CHANGELOG, README, USAGE, test-prompts
+- [x] T14 make test green (scan suite 106: check modes + gates.sh UNMET->MET), oracle calibrated read-only on game: real hit -> PRESENT rc1, self-baseline -> NO-NEW rc0
+
+## 2026-10-17 — /explain-diff skill: HTML explanation of a diff (feature/explain-diff)
+Source: geoffreylitt gist `explain-diff-html` (Notion variant dropped). Built through the skill-creator loop (draft, evals with/without skill, user review).
+- [x] T1 `skills/explain-diff/SKILL.md` (target resolution, understand, 4 sections, style, save outside repo, check, hand-over) + `test-prompts.json`
+- [x] T2 `assets/template.html` (self-contained skeleton: light/dark tokens, TOC, diagram primitives, diff + quiz JS) + `references/components.md`
+- [x] T3 `scripts/check_explanation.py` (deterministic floor: name, location, sections, TOC, 5-question quiz, code escaping, no ASCII art, no em-dash, self-contained) + `lib/tests/explain-diff-check.test.sh` (17 checks: valid page, raw template, one mutant per check)
+- [x] T4 registration: full/max/dev profiles, routing.json row `reflect`, README + USAGE x2 + CHANGELOG
+- [x] T5 skill-creator iteration 1 (runs on opus: Fable out of credits): 3 evals x (with skill, baseline), graded, pass rate 100% vs 45%; fixes faedb98 (arrow/edge class collision, bundled fill_template.py). Static viewer in session scratchpad. + iteration 2
+- [x] T6 `make test` all green, shellcheck clean, `impeccable detect` [] on the template, contrast >= 5.8:1 both themes; commits b353fac faedb98.
+
+## 2026-10-16 — impeccable = Build path for all UI (chore/impeccable-build-path)
+User validated: frontend-design overlaps impeccable 4.6; gate still blocked on frontend-design. Supersedes the 2026-07-05 "complementary, keep both" call.
+- [x] CLAUDE.global.md Build line: impeccable leads, frontend-design = light path only, rule count 45 -> 61
+- [x] design.profile GATE-BLOCK: frontend-design out, impeccable in (frontend-design stays installed, profile-listed)
+- [x] lib/design-gate.md: core-set prose + section 5 (impeccable now blocking, so only the PRODUCT.md check remains)
+- [x] agents/plugin-advisor.md: frontend/design-system rows, package rows, two RULE blocks
+- [x] 45 -> 61 detector rules: README, plugins.lock.json note, install-plugins.sh comment + echo
+- [x] BDR-119 + CHANGELOG Unreleased + journal
+- [x] make test: 1 red suite = known design-tool-gate precondition (21st CLI installed, see 2026-10-06 entry), shellcheck clean, impeccable resolves under skills/
+
+## 2026-10-15 — short commit messages (feature/short-commit-messages)
+- [x] `lib/commit-message.md`: lookup of a documented convention (README, CONTRIBUTING, CLAUDE.md, `.claude/` rules, commitlint, template), else 50 words max, medium technical level. Git log is not a convention.
+- [x] Citers patched: commit-changer, bugfix STEP 6, feat STEP 5, hotfix STEP 4, client-handover-writer, CLAUDE.global.md (1 line, 320-line budget).
+
+## 2026-10-15 — model-router: probe a move target before routing main to it (bugfix/router-probe-before-route)
+Contract `.claude/tasks/contracts/2026-10-14-router-probe-before-route-0005.md`, plan r3 `.claude/tasks/plans/2026-10-14-router-probe-before-route-0005.md`.
+- [x] /bugfix run: Fable out of credits routed (BLK-030, LRN-218); r1 → r3; 497 tests, verifier CONFORME 11/11, security PASS; commit 2cccc43 + docs.
+
+## 2026-10-13 — model-router: cold-read cap, switch on by default, classifier routes down (feature/router-downgrade-cap)
+Contract `.claude/tasks/contracts/2026-10-13-router-downgrade-cap-0013.md`, plan r3 `.claude/tasks/plans/2026-10-13-router-downgrade-cap-0013.md`.
+- [x] /feat run: 3 lenses (10 MAJOR) → r2; confirmation pass FATAL(7) (BLOCKER: served record only on routed steps) → r3; feater DONE (19 tests + 3 extra, 450 pass), GATE 0 MET 4/4, verifier CONFORME 10/10 first pass, security PASS. Commit 2ce203a.
+- [x] Residuals (1)-(3) closed 2026-10-13, commit 1be57a3 (contract `.claude/tasks/contracts/2026-10-13-router-cap-residuals-1902.md`, plan r3): session pin for built-in `general-purpose` spawned by main below the session model; prompt-size estimate (text + context + typed skill body, code points / 3) added to the cap's size at the first main step unless usage grew by half; `document` attachment = unknown = blocked; engine `cache_ttl` ('5m'|'1h') adopted from main's PostModelSwitch. 3 lenses (2 BLOCKER same finding: frontmatter model invisible to the hook) → r2; confirmation CONCERNS(3) → r3; feater DONE 472 tests; verifier CONFORME 7/7; security PASS. Residual (4) "model unknown to the table" not reproduced since (later route answers named claude-fable-5-1): closed as transient.
+
+## 2026-10-12 — code-clean whole repo (chore/code-clean)
+- [x] audit r1→r3 (3 lenses + confirmation), user approved all 14 non-deferred items, code-cleaner DONE, make test 47 green — plan `.claude/tasks/plans/2026-10-12-code-clean-0103.md`, scope `.claude/audits/CODE-CLEAN-SCOPE.md`
+- [x] fix BUGS-FOUND: toggle-external.sh usage() prints header 3-26, list ends at 32
+- [x] C4/C5 deferred dedupes via /refactor (tool_kind/tool_source + shared gstack_* in lib/gstack-removed.sh; 496-run golden identical) (tool list ×4, profile/toggle-external twins)
+- deferred: C1 gitflow-test.sh move (blocked: T19 drift lock), B13-B17 (no change by design)
+
+## 2026-10-08 — model-router mod: one mod routes model + effort per request (feature/model-router-mod)
+Plan `.claude/tasks/plans/2026-10-08-model-router-mod.md`. Decisions 2026-10-08: main-loop
+model switch spike-first then flag off; load via `CLAUDE_CODE_PLUGIN_DIRS` + link.sh;
+migration of shifters/pins/model-gate in wave 2 after proof; names model-router / route / /route.
+- [x] W0 spike in dev-mods (hot reload): facts a-d established 2026-10-08 (plan file § Spike facts); e moved to W1.10
+- [x] W1-A the mod in `mods/model-router/` (b721c94, contract `2026-10-08-model-router-w1a-1533`, plan r3): challenge 3 lenses + 1 confirmation (2 BLOCKER + 10 MAJOR closed by named changes), feater DONE first pass, GATE 0 MET 5/5, verifier CONFORME 6/6, security PASS (4 MEDIUM + 5 LOW reported, below)
+- [x] W1-A hardening (user go "oui durcis", contract criteria 7-11): `/route` composer-only; no agent model axis (effort only after spawn); pattern ≤ 200 / scan ≤ 4096 / phase keys `^[a-z][a-z0-9_-]{0,31}$` / config ≤ 64 KB / `additionalProperties: false` / `typeof e.skill`; `warnOnce` in all 14 catches + config-drop logs; `safely` around post-`next` bookkeeping. feater DONE, gap round (dead `Loop.frozen`, spawn returns `started` verbatim, tool description), GATE 0 MET 9/9, verifier CONFORME 11/11, security PASS.
+- [x] W1-A residuals CLOSED 2026-10-11 (bugfix/model-router-residuals): nested-quantifier patterns rejected (`NESTED_QUANT`); `stat.kind !== 'file'` → layer failed; rejected keys masked in logs (`keyWord`), alias keys `KEY_NAME`; route-tool catch text says the route may be partly applied. Left (accepted): `agentId` read from the flat tool event; closures without a kit test.
+- [x] W1-B1 floor precedence (contract `2026-10-08-model-router-floor-1835`, 2026-10-09): `ultrathink` + typed `/effort-<l>` = the main turn's default AND minimum (r2 after 3 lenses: a pure floor made /effort-low a no-op); one helper `mainEffort`; per-axis precedence; mid-turn prompt floors now + next turn; `"enabled": false` per machine, kept across /clear and failed reload; typed slash attested. 30 tests; verifier CONFORME 6/6 (after 1 gap round); security PASS ×2
+- [x] W1-B1 residuals CLOSED 2026-10-11: broken override at first load → router off (fail closed, logged); non-boolean `enabled` → off; `/route reload` answers `config unreadable; previous config kept`; `errWord` (name + code only) replaces every `String(err)` log. Superseded by W2-B: `skill.prompt` preload guard, `/effort-*` marker (bridge removed). Left (accepted): transient missing override lifts a config-set off (ENOENT must mean defaults on most machines); `/route show` display items (no defect named).
+- [x] W1-B2 wiring (contract `2026-10-08-model-router-wiring-1835`, 2026-10-09): tracked symlink `skills/model-router` → `../mods/model-router` loads as `model-router@skills-dir` (fresh-process `claude plugin list --json` proves it), `.gitignore` `mods/*/tsconfig.json`, `lib/tests/mods.test.sh` (4 checks, capability probe, bounded, SKIP), doctor `── Mods ──` fail-soft, CLAUDE.md `## mods/`. Plan r2 from 3 lenses (5 MAJOR), feater DONE, gap round (4b label + unbounded probe), verifier CONFORME 8/8, security PASS
+- [x] W1-B2 residuals CLOSED 2026-10-11: mods suite probe greps the `claude plugin test` usage line; doctor `plugin list --json` under `timeout 60`; update-all skips `@skills-dir` mods. Left (accepted): doctor `echo -e` helpers (tracked names only); fallback timeout guard orphans grandchildren without coreutils timeout.
+- [x] W1 close-out (2026-10-09): doc-sync opus audit SIGNIFICANT → user go all 10 → patched (README effort routing + Explore row + /route, USAGE, ARCHITECTURE mods/, CHANGELOG Unreleased) b22f894; hot-reload link removed from `~/.claude/dev-mods/<session>/`; BDR-115 amended (a6e2003). Pending user: `/reload-plugins` in this session (new sessions load the skills-dir copy by themselves); merge decision on feature/model-router-mod (`gitflow finish`, human signal)
+- [x] W1-C adaptive tiers (user 2026-10-09, contract `2026-10-09-model-router-tiers-1237`, plan r4 after 3 lenses + 2 confirmations: 6 BLOCKER + 29 MAJOR closed by named changes): phases name absolute tiers (best fable>opus>sonnet · big opus>fable>sonnet · work sonnet>opus · cheap haiku>sonnet); breaker fed by `classic.StopFailure` kinds rate_limit|overloaded|billing_error|model_not_found + `PostModelSwitch` auto (episode backoff 15→300 min, `/model` clears, `/clear` keeps, `/route reload` clears); fallback chain fable→opus→sonnet→haiku; main UPGRADE by default under `upgradeMaxTokens` 200k (fails closed on unknown usage), DOWNGRADE gated by `mainModelSwitch`; sticky `turnModel` per turn; derived `orchestrate` on background dispatches; prompt default rules (plan/reflect FR+EN, Unicode guards, skipped on `/…`, floor match, mid-turn). 58 tests; verifier CONFORME then 3 gap/hardening rounds; security PASS
+- [x] W1-C live verification part 1 (2026-10-09 after `/reload-plugins`, skills-dir copy loaded, 12 hooks): derived orchestrate on a real background Explore (main high → medium while it ran → high after its end); Explore on sonnet/medium; `route plan` → next request xhigh (engine record); `Skill(effort-low)` bridged → next request low (engine record); `/route show` resolves all 10 phases to full ids, `down: none`; steps arrive as bare `claude-fable-5-1` (no `[1m]`) so the suffix carry never fires on this session
+- [x] W2-A mod (2026-10-09, bb56f3e on feature/model-router-w2, contract `2026-10-09-model-router-w2a-1546`, plan r4 `2026-10-09-model-router-w2-1546`): user decisions — effort-* skills deleted (W2-B), pins REWORKED not deleted (rows = phases by role; frontmatter `model:`/`effort:` kept as census-locked off-state floor after a robustness BLOCKER), orchestrators declare phases, slim model gate. Phases `write` work/high + `apply` work/low; 56 skill rows, 21 agent rows; agents' model at spawn within tier, upward only, project-defined agents skipped (agent.offer); typed slash → name-bound marker (composer|sdk|bridge) + pending slot + idle fallback; best-tier rows in a `runMain` slot surviving turn end; unrowed skill leaves the route; route answer always names the id; `null` override rows. 3 lenses + 2 confirmations (1 BLOCKER each round closed), feater + 4 gap rounds, GATE 0 MET, verifier 3× ECARTS on coverage clauses only → user accepted at the cap, security PASS (2 MEDIUM pre-existing: first-load kill switch fails open, ReDoS size-bounded). Kit 58 → 88 tests. Doc-sync skipped for A (mod-only, docs at B).
+- [x] W2 gate A→B (2026-10-10, engine records): typed `/status` → main low then medium during the dispatch; analyzer opus/xhigh from step 0 (frontmatter high) = spawn bookkeeping first, row beats frontmatter; status-reporter haiku step 0. Probe 3 dropped (gate always calls route). Probe 4 (typed skill while a background agent is live: marker vs fallback) NOT observed → limit in `lib/effort-shift.md`; re-check in the records whenever the user types a skill with an agent alive.
+- [x] W2-B repo migration (2026-10-10, 1f2d33b, contract `2026-10-10-model-router-w2b-1045`): 15 citers → `mcp__model-router__route` per phase, `effort=` on built-in judgment dispatches + SDD sonnet implementers (`effort="medium"`), `lib/effort-shift.md` + `lib/model-gate.md` rewritten (witness = route answer, `/route on`), deletions (effort-*, effort-pins.*, model-check.sh, tests, installer blocks), bridge removed from the mod, census rewritten (140 checks, drift lock rows ↔ frontmatter), analyzer xhigh, CLAUDE.global.md Design-work line. Verifier ECARTS(7) → CONFORME 10/10, security PASS, full make test green (design-tool-gate env red). Docs P1-P8 user-approved; SemVer: breaking → next release 3.0.0 (MIGRATION section at release).
+- [x] W2-A residuals CLOSED 2026-10-11 (first load fail closed, nested quantifiers, `errWord`, alias keys, `offers` capped at 256, `__proto__`/`constructor` keys tested). Known limits (unchanged): `skillCalls`/`spawning` counters are global; offers keyed by name only; builtin `/effort` is not a lever inside a run.
+## 2026-10-10 — model-router wave 3-A: first-use route confirmation + decision memory (feature/model-router-confirm)
+Plan `.claude/tasks/plans/2026-10-10-model-router-w3a-confirm-1201.md` r4, contract `2026-10-10-model-router-w3a-confirm-1201`. User decisions 2026-10-10: tracked routing.json reached through the plugin dir (no new link); blocking `$.ui.ask` dialog at first use; per skill row, agent row, main phase.
+- [x] W3-A landed (22455c0, 2026-10-11): routing.json = phases + rows + decisions; T1/T2/T3 dialogs; project exceptions `projects[<normalized remote>]` in the tracked file (project-tree layer dropped: security); writers = dialog + `/route ask`; `/route pending`; census from the file with the `changed` WARN exemption; kit 86 → 190. Gates: 3 lenses + 1 confirmation (BLOCKER census), feater + 4 rounds, verifier CONFORME + re-verify, security BLOCK(1) credential leak fixed → PASS, full make test green (design-tool-gate env red). Live: T2 dialogs answered by the user (verifier Keep, feater Keep, security-auditor → implement then reset to verify on user go).
+- [x] W3-B dialog with context (2026-10-11, 604a6c4, contract `2026-10-11-model-router-w3b-dialog-1240`, plan r3): descriptions (skill frontmatter / agent.offer / phase `about`), real id + effort in the question, Later / Keep / Change, model → effort (derived from the phases of that model) → scope, rows stay phases, T3 Later/Keep. 3 lenses (2 BLOCKERs on my r1 avoided) + 1 confirmation, feater + 2 rounds, verifier CONFORME (3rd), security PASS (4 LOW: symlinked SKILL.md read, TOCTOU, raw key in a log, any plugin hooking AskUserQuestion could answer). Live decisions: security-auditor → judge (kept, floor aligned `model: opus`), plan-challenger → verify (reset on user go), orchestrate Keep (T3 live check done).
+- [x] "auto mode: use Bash/sed" block attributed to the mod: traced 2026-10-11 by reading, it is the harness's own auto-mode instruction rendered after the mod's MCP block; not in the mod source. Closed.
+- [x] W3-C `/route forget` (2026-10-11, cd8d72f, contract `2026-10-11-model-router-w3c-forget-1457`, plan r3): name/all/projects, guarded restore, confirmation dialog for all/projects, no-write paths, docs. 3 lenses + 1 confirmation, feater + 3 rounds (1 real defect: `ForgetPlan` typo), verifier at the cap on coverage (user accepted), security PASS. Kit 232 → 284. Live: orchestrate + escalate T3 Keeps seen.
+- [x] W3-C residuals closed in W4-A (68d7ea6). Live smoke of `/route forget` from the terminal still unseen.
+- [x] W4-A transition logs + residuals (2026-10-11, 68d7ea6, contract `2026-10-11-model-router-w4a-logs-residuals-1637`, plan r3): verbose = transitions only (main line, hand-off per dispatch, agent moves, answered-by anomaly), stream lines removed, host prefix respected; residuals of W3-A/B/C closed (a)-(g). 3 lenses (BLOCKER: agent moves decided at spawn) + 1 confirmation, feater + 4 rounds, verifier at the cap on coverage (user accepted), security PASS + 2 MEDIUM fixed. Kit 284 → 358.
+- [x] W4-A residuals CLOSED 2026-10-11: `errWord`; `logCall` → `tryLog`, `noteMain` refresh under `safely`.
+- [x] push-guard argv check (2026-10-11, bugfix/push-guard-argv): the text match is now a prefilter; the command is split into simple commands (awk tokenizer: quotes, escapes, separators, heredoc bodies) and a push must be git's own subcommand (`push`/`send-pack`; `subtree`, wrappers, assignments, no-awk keep the text verdict). grep/heredoc/`git log -S`/`git stash push` over-blocks closed; `"git" push` miss closed. Suite 98 → 124 checks.
+- [x] W4-B classifier (2026-10-11, e54a2b5, contract `2026-10-11-model-router-w4b-classifier-1858`, plan r3): `$.model.classify` on plain composer prompts with no route in force → turn effort only (design→plan, analysis→reflect, coding→implement, bookkeeping→apply, chat→nothing), 3-s race, abort not counted, 3 failures pause `cooldownMinutes`, no dialog, no file write, `classify` config key, `/route classify on|off`, status + verbose line. 3 lenses (BLOCKER: unbounded await) + 1 confirmation, feater + 1 round, verifier CONFORME (2nd), security PASS. Kit 358 → 428. Deviation from the TODO line: no first-use confirmation on classified phases (noise per prompt; T3 already confirms the phase).
+
+
 ## 2026-09-30 — Higgsfield pack: CLI + skills in the install process, off by default (feature/higgsfield-pack)
 Contract `.claude/tasks/contracts/2026-09-30-higgsfield-pack-1412.md`, spec + plan under
 `docs/superpowers/` (transient). Approved 2026-09-30: toggle pack off by default, two toggles,
 routing lines, complete scope, TTY fix on ctx7 + 21st (option A), deny aliases.
 - [x] /ship-feature run: 9 plan tasks, fix wave after the final review, doc sync, registries ([[BDR-109]])
-- [ ] parked (final review, rulings in BDR-109): remedy line ignores a pinned lock version (latent while `latest`); Step 8.6 spawns `higgsfield version` up to 3 times; rollback needs `npm uninstall -g @higgsfield/cli` + session removal + hand removal of `skills-external/higgsfield-*`
-- [ ] parked (per-task minors, none blocking): "rename" comment vs rm-then-mv; no `--` before the clone URL; ssh URL can prompt; no sweep of a stale `.higgsfield-stage.*`; timeout path itself untested; "pack not installed" when only unlisted skills are synced; doctor version read unbounded
 - [x] user decision: close the remaining npm global-install spellings in settings.json deny (`npm i <pkg> -g`, `npm add -g`, `npm -g i`) — pattern grammar for a mid-string wildcard unverified ([[BLK-025]]) — CLOSED 2026-10-06 (reconcile, user go: soft_deny settings.json:472 names `npm add -g` + flag-after-package)
-- [ ] user decision: pin a commit for higgsfield-ai/skills and a version for `@higgsfield/cli` (security gate, 2 MEDIUM, accepted as is)
 - feature/higgsfield-pack merged into develop 2026-09-30 (df6dbce, user go)
 - [x] soft_deny "Global npm installs" entry merged 2026-09-30 (chore/npm-global-soft-deny)
-- [ ] user hand edit pending: remove the four `Bash(npm … -g|--global *)` lines from `permissions.deny` (they override the classifier); then the first global install is the live test of the entry
 - [x] (was) user decision pending: npm global installs from `deny` to a prompt tier — `ask` does not prompt under `defaultMode: auto` ([[BDR-090]]); option = one `autoMode.soft_deny` entry (vet the package first), deny lines removed by the user by hand — DONE 2026-09-30 (soft_deny "Global npm installs", 95168c1; reconcile 2026-10-06)
-
-## 2026-09-29 — effort round: every skill carries a level next to its model pin (feature/effort-round)
-User table: low fix-a-line/run-a-script · medium day-to-day · high refactor/resisting bug ·
-xhigh architecture/audit before validation · max stuck. Approved 2026-09-29: design stack
-high uniform, hotfix stays high, all vendored externals of the table, docs in the same branch.
-Model pins stay aliases (latest of each tier is also the cheapest or same price); the
-quality/price trade-off is tier × effort, never version.
-- [x] S1 `lib/effort-pins.txt` (map) + `lib/effort-pins.sh` (idempotent re-apply) replacing the
-      hardcoded brainstorming/writing-plans loop; called after the last vendoring step of
-      install-plugins.sh AND update-all.sh (resync dropped the pins until the next make plugin)
-- [x] S2 repo skills: skills-perso low, pdf-translate medium, site-motion high
-- [x] S3 tests: `lib/tests/effort-pins.test.sh` (fixture: insert, keep, replace, skip, reject)
-      + effort-routing census map-driven + design-stack uniformity lock
-- [x] S4 `lib/effort-audit.py`: count records without output_tokens_details, print coverage
-      (sub-agent thinking was read as 0 on ~90 % of records: a gap, not a finding)
-- [x] S5 doctrine: Design work paired load + one level per stack (CLAUDE.global.md, lib/effort-shift.md)
-- [x] S6 docs: README effort section, USAGE niveau d'effort, CHANGELOG
-- [x] S7 contract + GATE 0 + fresh verifier + security gate, make test, shellcheck — GATE 0 MET, verifier ECARTS(3) → executor moved the resync re-apply after the 21st refresh (real gap), scope gated, directive authorized → CONFORME 7/7; security PASS (4 LOW on the helper, see journal); make test 44 suites rc 0
-- [x] S8 registries BDR-108, LRN-181, LRN-182, BLK-024, EVAL-038 (user go) + journal
-- [x] S9 hardening of lib/effort-pins.sh (4 LOW, user go): fresh executor, T11-T14, verifier CONFORME 9/9, security PASS
-- [x] parked LOW (security re-gate 2026-09-29, none exploitable; done on bugfix/effort-pins-low, user go "fais les cinq low restants"): no RETURN trap on the mktemp sibling (SIGINT during awk leaves `SKILL.md.XXXXXX`); T13 never reaches the post-write re-read branch (CRLF opener fails `_effort_pin_closed` first, fixture with LF delimiters + CRLF `name:` line would); T14 fails under root (chmod ignored); `WORK="$(mktemp -d)"` unguarded in the suite (`|| exit 1`); install-plugins.sh `err()` uses `echo -e` on the rejected map line
-- [ ] parked LOW round 2 (security gate on bugfix/effort-pins-low, none exploitable, diminishing returns): `%q` re-encodes real control bytes (ESC, CR) that the installer's `echo -e` err() would render (needs a malicious commit to the tracked map; strip `[[:cntrl:]]` before printing); INT/TERM trap installed after mktemp (microsecond window, install before with `tmp=""`); TERM exits 130 not 143; T15 fails closed when SIGINT is ignored at shell entry (nohup/async)
-- bugfix/effort-pins-low UNMERGED — human gate ("merge it")
-
-## 2026-09-28 — effort tiering: session high, agent pins, skill levels, phase shifts (feature/effort-tiering)
-Spec `docs/superpowers/specs/2026-09-28-effort-tiering-design.md`, plan
-`docs/superpowers/plans/2026-09-28-effort-tiering.md`. Approved 2026-09-28: session
-high, A+B+C, max on the main loop at the loop caps + ship-feature 4b, superpowers patch.
-- [x] W1 settings high + banner warning + statusline live level + 20 agent pins + census suite (Tasks 1-3)
-- [x] W2 28+2 skill entry levels + superpowers xhigh with resync re-apply (Tasks 4, 9)
-- [x] W3 five shifters + lib/effort-shift.md + orchestrator wiring + max at caps/4b + gate audit (Tasks 5-8)
-- [x] W4 BDR id + CHANGELOG + EVAL A/B + journal + audit script (Tasks 10-11)
-
-## 2026-09-28 — tier 2: vendor 7 superpowers skills, drop the plugin (feature/superpowers-vendored)
-User go "fais le tier 2" (decision 2026-09-28, batch 1). Contract
-`.claude/tasks/contracts/2026-09-28-superpowers-vendored-1357.md`.
-- [x] V1 plugins.lock.json `superpowers` entry (obra/superpowers @ 5bf4e78 = v6.4.1,
-      path skills, dict of 7 file lists); install-plugins.sh STEP 5 stops installing
-      the plugin, STEP 8e vendors it; update-all.sh refresh; link.sh EXTERNAL_SKILLS;
-      .gitignore; profile.sh PROTECTED_PLUGINS; detect-plugins/session-start/doctor
-      read the vendored dir, injection cost gone.
-- [x] V2 citers: `superpowers:<x>` → `<x>` in ship-feature, init-project, tour, deploy,
-      audit-delta, lib/analyze-before-plan, plugin-advisor; finishing-a-development-
-      branch prose in capitalize-commit/doc-commit/gitflow; CLAUDE.global.md routing
-      map for the 8 dropped skills; README/USAGE/plugin-advisor/profile SKILL.md;
-      CHANGELOG.
-- [x] V3 plan r1→r3 (3 challengers + confirmation), 2 feater DONE, live vendor + link
-      (VENDORED_LINKED), settings.json hand-edited, plugin + marketplace uninstalled,
-      GATE 0 MET 10/10, verifier CONFORME 12/12, security PASS; 18f8c89 ddea411; BDR-106.
-      Catalog 82 skills, passive plugins 670 t. MERGED → develop 65665a5. Other machines:
-      `make plugin` + `make link`, uninstall the cached plugin by hand. User: remove
-      `/tmp/tmp.PKDTRyaCw8` `/tmp/tmp.99Fu0dm8ll` (executor fixtures, rm refused).
-
-## 2026-09-28 — design gate asks for `21st login` and waits (feature/skill-catalog-prune)
-User: "si on veut l'utiliser, on demande à l'utilisateur de se log, plus simple que
-dire c'est pas logged on utilise pas… on demande de log si c'est pas fait et on
-attend". Contract `.claude/tasks/contracts/2026-09-28-21st-signin-gate-1215.md`.
-- [x] S1 three-state probe `twentyfirst_auth_state` INLINE in design-tool-gate.sh
-      (challenge r2 dropped the shared helper: install-plugins/toggle-external keep
-      their own semantics); `in` (TWENTYFIRST_TOKEN / API_KEY_21ST, or whoami
-      "Logged in as") / `out` (exact "Not logged in") / `unknown:whoami: rc=…`
-      → exit 11 with a CLI-specific remedy; exit 12 `SIGN-IN REQUIRED`;
-      `DESIGN_GATE_REPO_OVERRIDE`; hermetic suite 8/8 (stub control, in, out,
-      token, absent, INCOMPLETE wins, unknown ×2).
-- [x] S2 design-gate.md §3 branch 12: STOP, ask `! 21st login` (or any terminal
-      on this machine), END THE TURN, re-run on reply; explicit "proceed without
-      21st" = the only skip, stated visibly, not re-asked in the run; no in-session
-      token export; §4 resume path; feat/bugfix STEP 0.5 name SIGN-IN REQUIRED.
-- [x] S3 plan r1→r3 (3 challengers + confirmation), executor DONE, GATE 0 MET,
-      verifier CONFORME 7/7, security PASS. Live on this machine: gate exits 12
-      until `21st login`. Committed in place on feature/skill-catalog-prune.
-
-## 2026-09-28 — skill-catalog prune, tier 1 (feature/skill-catalog-prune)
-User go after the 5-agent duplicate audit (150 skills, 53.5k chars of descriptions,
-78 listed name-only in session = listing budget exceeded). Contract
-`.claude/tasks/contracts/2026-09-28-skill-catalog-prune-0554.md`, plan
-`.claude/tasks/plans/2026-09-28-skill-catalog-prune-0554.md`. Live already done:
-`claude plugin disable brightdata-plugin@synced`, `claude plugin uninstall
-frontend-design@claude-plugins-official` (byte-identical to the managed copy).
-- [x] K1 profiles: the 9 broken/doctrine-breaking gstack out of every profile
-      (ship trunk-based, land-and-deploy auto-merge+deploy, setup-deploy, autoplan
-      dead paths, context-save orphan, learn unused, careful/guard vacuous hooks,
-      design-shotgun needs OPENAI_API_KEY); make-pdf + diagram + 21st-ai/
-      ui-explore/ui-review parked out of `full` (trio out of web/web-full/design
-      too); user rule: full ⊇ every other profile, `max` (`# SUPERSET-OF: full`)
-      = full + parked; profile docs (SKILL.md, README, USAGE); hermetic
-      `lib/tests/profile-census.test.sh` (removed / parked / union invariants).
-- [x] K2 wiring: link.sh helper links make-pdf/dist + lib/diagram-render/dist
-      (+ freeze/bin if gated); doctor.sh counts symlinked skills + block-scalar
-      descriptions + synced bucket info line, plugin constants re-based.
-- [x] K3 docs/config: settings.json env `ENABLE_STOP_REVIEW=0` (security-guidance
-      Stop LLM review off, commit/push review kept); CLAUDE.global.md routing
-      (Ship/PR → ship-feature, gstack-off list); deploy/SKILL.md rows;
-      install-plugins.sh notes + summary "0 tokens" fix; plugin-advisor.md cost
-      text; CHANGELOG.
-- [x] K4 plan r1→r4 (3 challengers + 1 confirmation pass, FATAL(4) closed by
-      named changes), 4 feater parallel DONE, GATE 0 MET after moving 4 heredoc
-      oracles to `<contract>.oracles/*.py` (gates.sh CHECK is single-line),
-      verifier CONFORME at iteration 2 (floor-guard `xit(` false positive on
-      `sys.exit(` → restructure), security PASS, make test 41 suites green minus
-      2 pre-existing T16a, shellcheck clean. Live: `set full` applied, 75 skills
-      listed (was 89), 16 parked, doctor 75 / ~5.4k t.
-- [x] K5 registries written on user go (BDR-105, LRN-175..178, BLK-023, EVAL-034), merged
-      to develop on "merge le tout". Was: registries on user approval (BDR prune + full/max rule, LRN listing
-      budget, LRN gates.sh single-line CHECK, LRN gstack helper-tree class, BLK
-      floor-guard `xit(` pattern, EVAL challenge round), journal. UNMERGED — human
-      gate. After merge on any other machine: `make link` + `bash lib/profile.sh
-      set full` (NOT `apply`: additive). Follow-ups: floor-guard `xit(` → word
-      boundary (hotfix 0deb559, merged → develop c9f9b40);
-      gates.sh could refuse a CHECK holding `<<`; optional
-      doctor info line for the claude.ai synced bucket; `21st login`; claude.ai
-      skills useless in CLI off (built-in-browser, chrome-browser, computer-use,
-      skill-creator, import-memory). Tier 2 superpowers vendoring next.
-Tier 2 (decided, not started): vendor brainstorming, writing-plans,
-subagent-driven-development, test-driven-development, requesting-code-review,
-using-git-worktrees, writing-skills from obra/superpowers at 5bf4e78 via
-lib/vendor-skills.sh; drop the plugin (PROTECTED_PLUGINS, STEP 5, detect, banner,
-doctor constants); rename `superpowers:` citers (ship-feature ×4, init-project ×4,
-tour, deploy, audit-delta, lib/analyze-before-plan, lib/capitalize-commit,
-plugin-advisor). User side: `21st login` (CLI reports Not logged in); claude.ai
-skills useless in CLI (built-in-browser, chrome-browser, computer-use,
-skill-creator, import-memory) to switch off in claude.ai settings.
-
-## 2026-09-28 — make doctor checks the vendored externals (feature/doctor-vendored-skills)
-User go "ok ajoute le check doctor" after the install/update/link trace: doctor.sh only
-checked the gstack submodule; emil, frontend-design, motion and the 8 curl-vendored
-skills were invisible. Contract `.claude/tasks/contracts/2026-09-28-doctor-vendored-*`.
-- [x] D1 6394fa7 `lib/doctor-vendored.sh` `check_vendored_skills`: lock expectations (list /
-      dict / single-path), link.sh EXTERNAL_SKILLS, profile-aware symlink check,
-      hints `make plugin` / `make link`; doctor.sh section; README line; hermetic suite.
-- [x] D2 gates MET, verifier CONFORME ×2, security PASS ×2 (1 re-dispatch: malformed-lock
-      traceback → warn, allowlists), 37 suites green minus 2 T16a, CHANGELOG, BDR-104
-      amendment, journal. UNMERGED — human gate.
-
-## 2026-09-27 — case 7: MengTo motion pack → vendor 5 + build site-motion (feature/mengto-site-motion)
-User go "ok pour 1, l'hybride" after two analyzers read 22 skills. Contracts under
-`.claude/tasks/contracts/2026-09-27-{mengto-vendor,site-motion-skill}-*`, two feater
-executors in parallel, gates replayed (gates.sh → fresh verifier → security).
-- [x] M1 2a1ad17 vendor scroll-world-storytelling, build-threejs-scroll-worlds (+5 refs),
-      scroll-scrubbed-visual-sequence, scroll-scrubbed-word-reveal,
-      scroll-progress-timeline at pinned a965851 via a shared `lib/vendor-skills.sh`
-      (agent-skills moves onto it), design profiles, hermetic suite.
-- [x] M2 ba14b5e `skills/site-motion/SKILL.md` + test-prompts.json: distilled invariants
-      (gates, engine choice, Lenis sync, Astro ClientRouter lifecycle, numbered
-      recipes, upstream pitfalls), routing line in CLAUDE.global.md + design-gate.
-- [x] M3 gates MET ×2, verifiers CONFORME ×2 after 3 re-dispatches, security PASS ×2,
-      make test 36 suites green minus 2 pre-existing T16a, CHANGELOG, BDR-104 LRN-174
-      EVAL-033. UNMERGED — human gate. After merge: `make link` + `bash lib/profile.sh
-      apply full`; user removes `/tmp/mengto-verify`.
-- [x] M4 415b44e LOW hardening on user ask: `re.fullmatch` guard, `commit`/`source`/`path`
-      validated, 12-case suite; verifier CONFORME, security PASS.
-Skipped on purpose (analysis 2026-09-27): cinematic-gsap-lenis (reduced-motion bug),
-cinematic-scroll-storytelling (50 % duplicate), build-awwwards-quality-sites (0 code),
-animation-systems, gsap, threejs (⊂ ui-ux-pro-max threejs.csv), cobejs, matterjs,
-marquee-loop, masked-reveal (gate bug), animation-on-scroll (no-JS bug),
-progressive-blur, webgl-landing-steering, staggered-word-reveal (covered),
-gsap-scrolltrigger-storytelling (empty), optimize-web-animations (Codex machinery),
-performance-profiling (Xcode). Their invariants live in site-motion.
-
-## 2026-09-27 — case 5 of the 6-repo review: OmniRoute rejected (chore/six-repo-review-notes)
-Gateway to 357 providers via `ANTHROPIC_BASE_URL` → localhost:20128; needs provider
-API keys, a Claude Pro/Max subscription cannot go through it. No gap here: Claude-only
-workflow on subscription, codex second opinion already via gstack `codex` CLI, rtk
-native, caveman purged. Against: sits in the path of every prompt with 96 deps and
-a fail-open guardrail design (doctrine says fail closed); default JWT secret
-`omniroute-default-secret-change-me` = admin bypass if unchanged; npm 3.8.5 blocked
-by Socket.dev (May 2026, malware indicators), two real vulns closed in 3.8.6; JA3/JA4
-TLS fingerprint impersonation + 40 pooled free-tier keys = provider-ToS risk; no
-audit, SBOM or signing. Stars 70.6k in 7 months. Not to be re-evaluated unless a
-multi-provider need appears, and then a keyed gateway is still not the answer.
-- [x] R1 verdict recorded, nothing installed, nothing built.
 
 ## 2026-09-27 — case 4 of the 6-repo review: reticle parked with a pilot recipe (chore/six-repo-review-notes)
 User go "parquer avec la recette". Real gap (runtime store state, structured
@@ -207,1851 +373,3 @@ Sources read 2026-09-27: docs/what-is-recorded.md, telemetry.md,
 token-efficiency.md, enterprise.md (core verification free; SSO/SCIM/RBAC/
 policy gates under ee/), LICENSE split FSL-1.1-ALv2 server+init, Apache
 adapters/core/engine. Stars 898, created 2026-06-11, 2 551 commits.
-## 2026-09-27 — case 3 of the 6-repo review: ui-skills → web-building micro-rules (feature/web-building-microrules)
-User go after the analysis: 7 own skills + 36 third-party registry entries, all
-covered locally (impeccable, web-validate, /seo, emil, brightdata design-mirror)
-except a dozen stack-agnostic write-time micro-rules. Nothing installed.
-- [x] W1 rules/web-building.md § Write-time reflexes (+14 lines), CHANGELOG.
-UNMERGED — human gate.
-## 2026-09-27 — case 2 of the 6-repo review: borrow from agent-skills (feature/agent-skills-borrow)
-User go "ok pour les 4" after the analysis: plugin rejected (1.8k tok/session for
-20 % novelty, /spec /review /ship collide with gstack, trunk-based git and the
-one-version API rule contradict the doctrine, second router). Four independent
-chantiers, one contract each under `.claude/tasks/contracts/2026-09-27-*`,
-dispatched to feater executors; gates replayed by the orchestrator (gates.sh →
-fresh verifier → fresh security-auditor). Case 1 lives on feature/yagni-ladder.
-- [x] A1 d28c45e vendor observability-and-instrumentation, deprecation-and-migration,
-      ci-cd-and-automation (emil precedent, pinned commit 2686b620) — agent-skills-vendor
-- [x] A2 2b25cb4 `lib/floor-guard.sh` diff-scoped bar-weakening detector + verifier step
-      + suite — floor-guard
-- [x] A3 409db51 `lib/tests/skill-routing-census.test.sh` description-collision census
-      (measured: 120 skills, max 0.52 careful~guard, 0 >= 0.75) — skill-routing-census
-- [x] A4 1a8e6de `rules/rest-api.md` path-scoped rule from api-and-interface-design,
-      one-version rule dropped — rest-api-rule
-- [x] A5 gates MET ×4, verifiers CONFORME ×4 (2 re-dispatches), security PASS ×2,
-      make test 35 suites green minus 2 pre-existing T16a, shellcheck clean;
-      BDR-102 LRN-172 LRN-173 EVAL-032. UNMERGED — human gate.
-Follow-up (not started): per-skill positive/negative prompt ranking (Tier 2
-second half); `make link` after merge to symlink the 3 skills (user runs it);
-floor-guard waiver policy: user chose strict (CLARIFICATIONS ack outside
-test files, else gap) → applied in agents/verifier.md STEP 3 + loop doc;
-frame floor-guard snippets as data in the verifier step (LOW); `/tmp/tmp.AAyJzvufO6`
-scratch dir from an executor proof, `rm -rf` refused → user removes; contract
-skeleton must carry `EVIDENCE: pending` (LRN-173, check /feat's template).
-## 2026-09-27 — YAGNI ladder + shortcut marker in doctrine (feature/yagni-ladder)
-Case 1 of the 6-repo review (ponytail, chisle). Both rejected as plugins: per-turn
-and per-subagent injection, prose rules colliding with writing-style.md, caveman
-precedent (purged v3.5.0), rtk already covers the input axis. One net gain, the
-ordered decision ladder, borrowed into CLAUDE.global.md § Code style plus a
-`shortcut:` marker convention. 6 lines, 287 → 293, budget 320.
-- [x] L1 doctrine edit, doctrine-citers census, banner budget.
-UNMERGED — human gate. Cases 2-5 (agent-skills, ui-skills, reticle, OmniRoute)
-follow one by one.
-
-## 2026-09-25 — full profile +4 gstack web/doc skills (bugfix/full-profile-web-doc-skills)
-User go after the "why is gstack off under full?" answer (it was not: unapplied
-default). `scrape`, `skillify`, `diagram`, `make-pdf` join full.profile; the rest
-of the BDR-017 exclusion list stays out. /hotfix: smoke 4/4, suites 29 + 17 green,
-security PASS, bbe1087. Merged into develop db8c179 (user go 2026-09-25);
-`apply full` run, four skills linked. Follow-up done: `.gitignore` allowlist +
-`skills/diagram` (f363f11), merged into develop facd26d (user go 2026-09-27).
-
-## 2026-09-25 — default profile = full + magic-MCP residue scrub (feature/default-profile-full)
-User: "retirer l'API de magic 21st … mettre un profil par défaut … full". Live magic
-wiring already gone (BDR-093); residue = prose + one `MAGIC_API_KEY=` line in
-`~/.claude/.env` (deleted, user go). Plan + contract:
-`.claude/tasks/plans/2026-09-25-default-profile-full-1254.md`,
-`.claude/tasks/contracts/2026-09-25-default-profile-full-1254.md`.
-- [x] D1 chore commit e196328 (orchestrator): magic residue out of .env.example (unstaged: `git add .env*` denied, user stages),
-      .gitleaks.toml, install-plugins.sh 8.7 comment, plugins.lock.json note,
-      lib/profile.sh comments + usage NOTE, profile-set-managed.test.sh header,
-      README (one history sentence, bashrc-wrapper claim dropped).
-- [x] D2 feat 0d035fc + 1bbdad0 (feater executor, /feat gates): `DEFAULT_PROFILE="full"`,
-      `active_profile()`, `reset` = `set full`, `current` default line,
-      `gstack off` reads the default, statusline fallback, install Step 11
-      applies the default when none selected, SKILL.md + Makefile help,
-      `lib/tests/profile-default.test.sh`.
-- [x] D3 verify: gates.sh floor MET, verifier CONFORME 13/13, security PASS,
-      make test 236 green + 2 pre-existing T16a; doc sync 0926cc7 (README +
-      CHANGELOG, P1-P6 user-approved); BDR-101 LRN-170 LRN-171 EVAL-031.
-      UNMERGED — human gate.
-Merged into develop 1ee6cf6 (user go 2026-09-25); `.env.example` committed by
-the user (16fea11). Open for the user: first `bash lib/profile.sh reset` on
-this machine to make the live state = full (cache absent today), then a new
-session.
-Follow-up (LOW, security gate): charset-check the cached profile name /
-`<prof>` argument (`^[A-Za-z0-9_-]+$`) before it becomes a path in
-`read_profile()` and install Step 11 — pre-existing, not a blocker.
-
-## 2026-09-24 — root causes of the day's errors → mechanisms (feature/guardrail-evasion-citers)
-User: "détecte pourquoi tu as fait ces erreurs et corrige-les". Evidence: scratch
-`run-rc.sh` carries `GIT_CONFIG_GLOBAL=/dev/null` inline = the denied form my E2
-brief ordered ("exported first"); the 200-file rule and the density pass were
-patched from memory, never from a consumer grep. BDR-100, EVAL-030.
-- [x] R1 `settings.json` hard_deny "Routing around a guardrail" (wrapper/alias/
-      heredoc/Makefile target/env file/other shell/other agent = same action;
-      refusal → report + wait; brief ordering a refused form is wrong).
-- [x] R2 refusal clause in 14 agents (executors + reviewers) + CLAUDE.global.md
-      sub-agent rule; hermetic tests only via `make test [suite=]`.
-- [x] R3 Makefile `make test suite=<file>` — the export lives in the Makefile.
-- [x] R4 `lib/tests/doctrine-citers.test.sh`: CLAUDE.md "Section" / § Label
-      citations must resolve; flip-tested; first run fixed rest-api-node.md.
-- [x] R5 doctrine "After code changes" step 4: changed rule/heading/label/
-      threshold → grep every citer, same commit; thresholds in one lib file.
-- [x] R6 verify: census 5/5, make test 168/170 (T16a pre-existing), suite= OK,
-      shellcheck clean, CLAUDE.global.md 287 lines. UNMERGED — human gate.
-Residual: the content-aware PreToolUse guard (BLK-022) is still the missing
-deterministic floor for scripts run by a command; static deny stays string-based.
-
-## 2026-09-24 — C2 coherence: 30 doctrine/skill tensions resolved (feature/c2-coherence)
-Audit by 3 read-only analysts (doctrine+rules, skills A-H, skills I-W), 39 raw
-pairs → 30 unique, spot-checked by grep. User approved all four groups + G3 as
-recommended. C3 (superpowers) closed: no over-trigger in 29 sessions / 126 turns
-(2 brainstorming calls, both warranted), ~800 tok fixed/session → keep, re-measure
-in 30 days with the same transcript script.
-- [x] WP-A doctrine (CLAUDE.global.md): 3 compress-on-demand → via /prune-memory;
-      4 deploy → /deploy; 5 one ask policy; 12 BDR-068 exception clause; 13 memory
-      commit: exemption vs aiguillage, both written; 14 chore = maintenance without
-      new behaviour; 17 hotfix on develop → bugfix; 22 skill plan file satisfies the
-      planning rule; 23 mandated executors exempt from the delegation rule; 24
-      journal line exempt from the approval gate. Stay < 320 lines.
-- [x] WP-B lib bug (7): `_gitflow_init_existing` socle commit blocked on main by the
-      live global pre-commit → socle on `chore/gitflow-adopt` off main, merged
-      --no-ff (merge exempt), branch deleted; T2c with a simulated global hook.
-- [x] WP-C E1 gitflow-family skills: capitalize/close `--no-push` text (11), memory
-      missing → create (21), gitflow SKILL exception line (12), § Language ×5 (2),
-      hotfix aiguillage bugfix-on-develop (17) + design-gate skip (25), feat/bugfix/
-      hotfix executor wording (23), ship-feature .gsd/STATE.md (27), init-project
-      graphify gate (1) + memory bootstrap (21), aiguillage table rows (/doc,
-      /commit-change, seo/web-validate/refactor) (18,19), doc STEP 0 aiguillage
-      (19), commit-change asks branch type (14).
-- [x] WP-D E2: onboard graphify gate (1) + STEP 2.6 rewrite (7) + add gsd/continue
-      (28); tour push wording (10), BREAKING → needs decision (15), doc-syncer
-      two-mode (26); deploy push_deploy_tags (8); release-candidate tag-only push
-      gate + release-executor + its test (9).
-- [x] WP-E E3: client-handover gate + script path (16, 29); seo/web-validate/refactor
-      aiguillage step (18); pdf-translate sudo (30); verify-secure-loop inline-fix
-      removal under locks (20); design-gate.md extensions/impeccable/anim list (6).
-- [x] WP-F verify: make test, shellcheck, doctor, banner; review full diff; BDR-099
-      (C2 resolutions) + LRN-163? no: LRN-169 (audit method) + journal; C2/C3 ticked
-      in the 2026-08-25 block. Merge on user go.
-
-## 2026-09-24 — CLAUDE.global.md density pass (chore/claude-global-density)
-- [x] 352 → 270 lines, −15% words, compression only (BDR-031/062 principle),
-      headings verbatim, graphify § byte-identical (feature/graphify-threshold-banner
-      pending). Dropped on purpose: release-candidate / audit-delta /
-      init-project+onboard routing lines. Vocabulary diff audited: no rule lost.
-      make test unchanged, banner clean, doctor 0 errors. BDR-098. Merged into
-      develop abec66e (user go 2026-09-24).
-## 2026-09-24 — graphify threshold signal: inform from 200 code files, user decides (feature/graphify-threshold-banner)
-User: "graphify seulement à partir de 200 fichiers de code… tu informes, je décide".
-Grounded in LRN-162 measurements (robin_petier scratch copy: AST 2.3 s, 0 tokens,
-query 2-3k tokens, `.claude/` noise). Alternatives rejected in BDR-097.
-- [x] G1 `lib/graphify-gate.sh`: tracked code-file count (AST extension set,
-      vendored trees excluded), ≥ 200 + no graph → one banner-sized line, rc 0;
-      silent rc 1 otherwise. `GRAPHIFY_MIN_CODE_FILES` override.
-- [x] G2 `lib/tests/graphify-gate.test.sh` 11 checks: not-a-repo, 199/200,
-      graph present, vendored, untracked, override, subdirectory, non-code.
-- [x] G3 `hooks/session-start.sh`: compute after the gitflow reconcile, print
-      after the hooks-refreshed line: `🕸️ graphify? N code files ≥ 200, no graph`
-      + `→ /graphify (AST, seconds) — you decide`.
-- [x] G4 doctrine: CLAUDE.global.md § graphify threshold sentence; plugin-advisor
-      thresholds no longer pre-enable graphify; CHANGELOG.
-- [x] G5 BDR-097, LRN-162, journal. shellcheck clean. Live: this repo silent (74),
-      robin_petier fires (214). Merged into develop 10532e3 (user go 2026-09-24);
-      registry conflicts resolved keeping both sides.
-Pilot (not started, user's call): robin_petier graph + `.graphifyignore` +
-gitignore `graphify-out/` + `GRAPHIFY_FORCE=1 graphify update .` in the
-gitflow post-commit hook when a graph exists.
-
-## 2026-09-24 — branch deletion guard: never main/develop, never unmerged (feature/branch-delete-guard)
-User rule (after the 21/09 wipe, same family as BDR-095): auto-delete of a branch
-is accepted ONLY once it is merged into develop or main; main and develop are
-never deleted. Finding that motivates it: since BDR-095 `start` pushes `-u origin`,
-so `git branch -d` now checks "merged into its UPSTREAM" (origin/<br>, always in
-sync via post-commit) instead of "merged into HEAD" — its safety valve is dead.
-`_gitflow_delete` only survived because finish chains it after a successful merge.
-- [x] D1 `lib/gitflow-test.sh` T22 (lib): `-d` alone deletes an unmerged branch
-      whose upstream is in sync (premise proof); `gitflow_delete` refuses
-      main/develop (rc 6) and an unmerged branch (rc 5), deletes a merged one;
-      `gitflow_merged_into_base` predicate; T23 (hook): `git branch -D
-      develop|main`, `update-ref -d`, `branch -m develop` all BLOCKED from a
-      working branch; a merged feature deletes fine; `gitflow.protect false`
-      opt-out; `commit`/`checkout` unaffected; T19d/T20 iterate the 4 hooks.
-- [x] D2 `lib/gitflow.sh`: `gitflow_merged_into_base <br>` (ancestor of develop
-      OR main, fail closed when neither exists); `gitflow_delete` = protected
-      refusal + merged check + `git branch -d`; CLI verbs `delete <br>`,
-      `merged <br>`, `hooks`; 4th hook `reference-transaction` (refuses deletion
-      of refs/heads/main|develop in `prepared` state, sh, opt-out
-      gitflow.protect); hook names in one `GITFLOW_HOOKS` array (write, emit,
-      reconcile, T19d, doctor all read it).
-- [x] D3 `settings.json`: static deny `git branch -d|--delete|-dr|-rd *`,
-      `git branch -m|-M main|develop *`; hard_deny "branch deletion outside
-      `gitflow.sh delete/finish`, any deletion/rename of main/develop, local or
-      remote"; "Disarming" entry covers every hook file; `environment`
-      protected-branches line updated. `guard-bash.test.sh` T8w flips to deny.
-      Leave the user's uncommitted `feedbackDrafts` line out of the commit.
-- [x] D4 doctrine: `CLAUDE.global.md` gitflow section (delete only via the lib,
-      main/develop never, `-d` no longer protects); `skills/gitflow/SKILL.md`
-      table + `delete` op + failure rows rc 5/6.
-- [x] D5 `doctor.sh` hook loop reads `gitflow.sh hooks`; regenerate `.githooks/`
-      + `githooks/` (both tracked) with the 4th hook.
-- [x] D6 docs: `templates/settings/SETTINGS.md`, README line, CHANGELOG.
-- [x] D7 `make test`, shellcheck, doctor; BDR-096 + LRN + journal.
-      Verified 2026-09-24: gitflow-test 152/154 (2 pre-existing T16a),
-      T22 12/12 + T23 11/11, shellcheck clean incl. emitted hook, doctor
-      4/4 hooks match. Merged into develop b2e252e (user go 2026-09-24).
-      BDR-096, LRN-161.
-- [x] D8 (user go 2026-09-24, feature/remote-branch-cleanup) `_gitflow_delete_remote`:
-      after the local delete, remote tip read + re-checked against develop/main,
-      then `push origin --delete`; best effort (skip: no origin / NO_PUSH /
-      autopush=false; loud: unreachable, unmerged remote tip). T24 9/9, 161/163.
-      Live on the 2 stale merged remotes: origin/feature/branch-delete-guard +
-      origin/feature/destructive-guardrails removed by `gitflow.sh delete` (both
-      tips verified merged), bases untouched. Merged into develop 91859fe (user
-      go 2026-09-24); finish removed its own remote copy.
-
-## 2026-09-22 — destructive guardrails after the 21/09 wipe (feature/destructive-guardrails)
-Incident 2026-09-21 00:21 on the old server: a reviewer sub-agent (atlast SDD, opus)
-traced `lftp mirror --reverse --delete` against a local `file://` tree; the target
-resolved to a real path, `mirror --delete` did `rm -r` (ignores `--exclude`) on
-everything uid 1000 owned: home, `~/.claude`, NAS (uid=1000), 15 Gitea repos
-(Gitea ran as bchanot). The 17/09 classifier prose (hard_deny "deploy", soft_deny
-`rsync --delete`) named neither lftp nor a local trace; the orchestrator's brief
-authorized the trace; auto mode is inherited by sub-agents. 4 days of faunosteo
-never pushed. User decisions: Claude NEVER deploys (explains only), lftp has no
-use in session; layer A (OS, restic, NAS) and layer B (sandbox + managed
-settings) are the user's; this branch = layer C (config repo) + auto-push.
-- [x] G1 `lib/tests/guard-bash.test.sh` (214 cases, SKIPs while the hook is absent): transfer tools, mirror/sync
-      delete, recursive rm outside cwd/tmp or via variable, chmod/chown -R,
-      sudo, disk tools, docker privileged/system mounts/volume drops, git
-      history destruction, forbidden write zones, guardrail tampering,
-      nested forms (`bash -c`, `&&`, `docker compose run … lftp`), script
-      files run by the command; allow list of ordinary commands.
-- [ ] G2 BLOCKED (BLK-022, safety classifier withheld the body) `hooks/guard-bash.sh`: PreToolUse Bash, exit 2 + reason,
-      `logger` trace, fail-closed without jq.
-- [x] G3 `settings.json` (hook registration = unpushed-guard only, guard-bash pending): static `permissions.deny` (lftp/ftp/sftp, rsync
-      --delete, chmod/chown -R, sudo/doas/pkexec, dd/mkfs/shred/…, docker
-      prune/volume rm/down -v/--privileged/docker.sock, git push
-      --delete/--mirror/:ref, branch -D, filter-branch, reflog expire, stash
-      clear/drop, xargs rm, pipe-to-shell), hook registration, new
-      `hard_deny` (destructive tool against a local path, brief ≠ user
-      authority), `soft_deny` reworded (docker items promoted, discard of
-      uncommitted work), `environment` lines updated.
-- [x] G4 `lib/gitflow.sh` (+ post-merge: `git merge` skips post-commit, T18f) : `start` pushes the branch (`-u origin`),
-      post-commit hook emitted + installed with pre-commit (push every commit,
-      `--follow-tags`, timeout, `GITFLOW_NO_PUSH=1` opt-out, never fails the
-      commit), `install-hook`/`emit-hook` cover both; `.githooks/post-commit`
-      in this repo; `gitflow-test.sh` T18.
-- [x] G5 `hooks/unpushed-guard.sh` on SessionStart + Stop: warns when the
-      branch is ahead of origin or has no upstream; test.
-- [x] G6 doctrine: `CLAUDE.global.md` Security "Destructive tools & data
-      loss" + gitflow auto-push line; the 4 read-only agents get the
-      "trace by reading, never by running" clause.
-- [x] G7 docs: `templates/settings/SETTINGS.md` (hook tier, ask caveat),
-      CHANGELOG, BDR-095, LRN-160, journal. `make test` + shellcheck.
-- [x] G8 hooks everywhere, no per-project step (user go 2026-09-22): global
-      `core.hooksPath ~/.claude/githooks` set by `make link` from a generated
-      `githooks/`; `gitflow reconcile-hooks` at session start refreshes a
-      lagging `.githooks/`; opt-outs `gitflow.protect` / `gitflow.autopush`;
-      pre-commit exempts `.githooks/**`; doctor check; hermetic
-      `GIT_CONFIG_GLOBAL=/dev/null` in `make test` + 2 suites; deny on the
-      env bypass forms; T18h T19d T20 T21. Verified after the /tmp cleanup:
-      gitflow 127/129 (2 pre-existing T16a), review-guards G5 caught this
-      repo's stale `.githooks/` (refreshed via install-hook), shellcheck
-      clean, doctor "Scratchpad" check added. OPEN for the user: `make link`
-      (sets the global `core.hooksPath`; denied to the agent), and launch
-      claude with `TMPDIR=$HOME/.cache/claude-tmp` in `dtach_claude()`.
-      → `make link` DONE (global core.hooksPath = ~/.claude/githooks, reconcile
-      2026-09-24); TMPDIR in the launcher still open (BLK-021).
-Out of scope here (user's side): restic append-only, lxd group, NAS mount,
-managed-settings.json + sandbox, per-project accounts, docker rootless.
-
-## 2026-09-22 — impeccable install repaired: global scope + agents + rotted pin (feature/21st-cli-migration)
-User: `make plugin` never installs impeccable, it just prints "run it
-yourself"; running it by hand needs `--scope=global` to land right, and then
-`/impeccable init` is still required. Three separate defects, all confirmed:
-1. **Pin rotted.** `npx -y impeccable@3.2.0 skills install` → `Download
-   failed: invalid zip data`, rc 1. The CLI fetches its skill dist at install
-   time and that release's artifact is gone. 3.6.1 / 4.0.5 / 4.1.0 all work.
-   That rc 1 is the "run manually" warn the user sees.
-2. **Wrong scope + half the payload dropped.** The step staged
-   `--scope=project` in a tmpdir and `mv`'d only the skill dir, silently
-   discarding the 4 `impeccable-*` subagents the installer also writes.
-   `--scope=global` writes `~/.claude/skills/impeccable` +
-   `~/.claude/agents/impeccable-*.md`, and both are symlinks INTO this repo,
-   so a global install is the repo install. Verified in a sandbox HOME.
-3. **`/impeccable init` never surfaced.** It writes per-project PRODUCT.md
-   (design context the skill reads); it runs in the agent chat, so install
-   can only announce it and the design gate has to check it.
-
-- [x] T1 install-plugins.sh Step 8d rewritten: global scope, no staging,
-      pin→latest fallback with a loud bump-the-lock warn, park-aware
-      (profile may hold impeccable in skills-disabled), symlink precondition
-      guard, agent count + skill version reported, init hint printed.
-      Harness-tested against a fake HOME with repo-shaped symlinks: happy
-      path OK, park/restore OK. Caught + fixed there: `find` stops at the
-      `~/.claude/agents` symlink without `-L`, so the agent count read 0
-      while 4 agents were installed.
-- [x] T2 update-all.sh impeccable block: same shape. `bash -n` only, NOT
-      run end to end.
-- [x] T3 plugins.lock.json: 3.2.0 → 4.1.0 + honest note (pin covers the CLI
-      only; skill dist 4.3.1 and engine 0.1.5 have their own tracks).
-- [x] T4 .gitignore: `agents/impeccable-*.md` (machine-owned, tracked dir);
-      drop `skills-external/impeccable/`. link.sh: impeccable out of
-      EXTERNAL_SKILLS (nothing to symlink any more). `git check-ignore`
-      confirms both paths.
-- [x] T5 lib/design-gate.md §5: suggest-only PRODUCT.md / `/impeccable init`
-      check, same shape as the §4 animation-library check.
-- [x] T6 duplicate project-scope install: already gone at resume (user ran
-      `rm -rf .claude/skills .claude/agents` before restarting).
-- [x] T7 CHANGELOG (Added/Changed/Fixed) + BDR-094 + LRN-159 + BLK-021 +
-      journal. `make test` green except the 2 pre-existing gitflow T16a FAILs
-      (gitleaks binary absent on this host), shellcheck clean. Merged into
-      develop 2026-09-22 (33e0899, gitflow finish on user go), pushed.
-
-**Residual, probed and fixed (round 3)**: with a copy already installed a
-rotted pin DOES exit 0 ("Could not check for skill updates: invalid zip data
-… Existing skills were left unchanged"), and so does a genuine rerun of a
-good pin ("Skills are up to date (v4.3.1)"). Both leave SKILL.md
-byte-identical, so a before/after version compare cannot separate them.
-`imp_install` (Step 8d and update-all.sh) now captures the installer output
-and fails on `Download failed|Could not check for skill updates`, whatever
-the exit code. Harness on the extracted step, sandbox HOME, real installer:
-fresh install; rotted pin over a copy → fallback fires; same pin rerun → no
-false warn; parked copy + rotted pin → fallback, then returned to
-skills-disabled/. update-all.sh: `bash -n` + shellcheck only.
-
-OPEN for the user:
-- /tmp is a tmpfs with a per-user quota and the dead session's scratchpad
-  holds 5.9 GB of probe HOMEs. Writes to /tmp fail with EDQUOT: the likely
-  cause of the "every command exits 1" shell death (BLK-021). Free it:
-  `rm -rf /tmp/claude-1000/-home-bchanot-Documents-claude/fefd277c-e143-4d51-b589-a566641079b5`
-  (the agent's `rm -rf` under /tmp is denied). This round ran tests and the
-  harness with TMPDIR under ~/.cache.
-- `skills/synced/` (4.4 MB, untracked, not ignored): claude.ai's synced
-  skills, written through the ~/.claude/skills symlink. Decide whether to
-  gitignore it; not touched here.
-  → /tmp freed by the user 2026-09-22; skills/synced gitignored 87b2615
-  (reconcile 2026-09-24).
-
-## 2026-09-22 — 21st: magic MCP → CLI + skills (feature/21st-cli-migration)
-User: "remplacer pour 21st, il n'y a plus besoin de mcp / api, mais juste en
-cli". Upstream confirmed (`@21st-dev/cli` 1.17.1 README): the CLI supersedes
-`@21st-dev/magic`; auth is `21st login` (browser token in `~/.config/21st`),
-no API key; `21st install-skill` = alias of `21st skills install --global`.
-Gates answered by user: 5 design skills in profiles (registry + design-sync
-parked), `make plugin` auto-installs the CLI + offers login on TTY only,
-missing `21st` CLI trips the design gate (magic's old required-manual slot).
-
-Blocker found + solved: `21st skills install --global` REFUSES to write
-through a symlinked path (`assertNoSymlinkComponents`), and `~/.claude/skills`
-IS a symlink → repo/skills. Verified live: "Refusing to access symbolic link
-…/.claude/skills". → install into a staged HOME (mktemp), move each skill to
-`skills-external/21st-*/` (impeccable pattern), symlink from there.
-
-- [x] T1 install-plugins.sh STEP 8.7: magic block → 21st CLI (`npm i -g`,
-      pinned via plugins.lock.json) + staged `skills install` →
-      skills-external/21st-*, TTY-gated `21st login`, pack disabled by default.
-- [x] T2 lib/toggle-external.sh: managed tool `magic` (mcp) → `21st` (skill
-      pack, glob-derived from skills-external/21st-*), drop load_env.
-- [x] T3 profiles + profile.sh: `magic mcp` → 5 externals + `21st cli` in
-      design/web/web-full/full; GATE-BLOCK `21st 21st-ui-build`;
-      MANAGED_EXTERNALS += the 5; MANAGED_MCPS emptied (kept as a live
-      allowlist, mcp type machinery stays generic).
-- [x] T4 lib/design-tool-gate.sh + lib/design-gate.md: manual-step hint
-      magic/MAGIC_API_KEY → 21st/`npm i -g` + `21st login`; PATH repair
-      extended to the npm-global bin dir (21st lives in nvm's bin, the
-      existing repair only fires when `claude` itself is unresolvable).
-- [x] T5 doctrine + docs: CLAUDE.global.md design toolchain, README (drop the
-      magic callback-injection section + the MCP env-var worked example),
-      .env.example, link.sh MAGIC_API_KEY warning, .gitleaks.toml allowlist,
-      update-all.sh, .gitignore, settings.json (drop 4 mcp__magic__*; the
-      outward-facing verbs landed in autoMode.soft_deny, NOT ask — LRN-153
-      says ask is inert under auto mode).
-- [x] T6 lib/tests/profile-set-managed.test.sh retargeted (mcp fixture → 21st
-      external pack), `make test` + shellcheck green.
-- [x] T7 CHANGELOG + BDR-093 + LRN-158 + journal. Also cleaned along the way:
-      dead `magic` branches in profile.sh enable/disable_skill,
-      skills/profile/SKILL.md. OPEN for the user: `npm i -g @21st-dev/cli`
-      then `21st login` (`Bash(npm install -g *)` is denied to the agent).
-      Merged into develop 2026-09-22 (33e0899), pushed.
-      → 21st CLI installed (nvm bin; reconcile 2026-09-24); `21st login` state
-      not verifiable here.
-
-## 2026-09-17 — /deploy hand-back: one-line commands + post-deploy test list (feature/deploy-oneline-tests)
-User: commands in the /deploy checklist arrive broken across lines (cannot
-copy-paste), and the hand-back stops at the deploy steps — wants, after the
-checklist, a list of things to test by hand about THIS delta + suggestions.
-Evidence: zenquality runbook step 3 carries a `\`-continued psql; game runbook
-has 200-350 char command lines the model re-wraps at display (80-char code
-style pressure). Method: writing-skills RED/GREEN on a scratch fixture repo
-(4 fresh agents, skill body as instructions, gate pre-approved).
-- [x] D1 RED baseline: 4 runs on the current skill, record wrapped commands
-      + absence of a test list + rationalizations
-- [x] D2 SKILL.md: physical-line rule (checklist, bootstrap, learn patch;
-      join legacy `\` continuations at instantiation), post-deploy tests
-      recipe (manual checks + suggestions, derived from the delta), hand-back
-      order checklist → tests → report request; Rules / mistakes / red flags
-- [x] D3 templates/deploy/PROCEDURE.md style header + test-prompts.json
-- [x] D4 GREEN: re-run 4 fresh agents on the edited skill, compare shape
-- [x] D5 CHANGELOG [Unreleased] Changed; report; offer capitalize (EVAL + LRN)
-Milestone 2026-09-17: RED 4/4 (3 sonnet + 1 opus) reproduced the `\`
-continuation verbatim, no re-wrap of 200+ char lines, no test list; GREEN
-4/4 joined the continuation, kept long lines whole, printed the tests block
-in the recipe's shape (grant gap as a Suggestion, never patched). Branch
-feature/deploy-oneline-tests, uncommitted, awaiting user. Registries: EVAL +
-LRN drafts proposed, not written.
-
-## 2026-09-16 — docker + node framed by the classifier (feature/automode-docker-node)
-User: `docker exec -i supabase_db_game psql … -f - < supabase/verify/*.sql | tail`
-must run unprompted under auto mode; same for node/npm/npx when the package
-is declared and effects stay in the cwd; "ajoute du soft deny pour bien le
-cadrer". Findings: `ask` is inert under auto (LRN-146 re-verified on 2.1.273
-with a `node -e` probe; the docs claim otherwise for content-scoped rules);
-the real gate is the built-in `Remote Shell Writes` / `Production Reads`
-classifier rules; a static `Bash(node *)` allow rule is suspended under auto
-(wildcarded interpreter), so `autoMode.allow` prose is the only lever for
-node. User approved the design and the `ask` removal explicitly (S6 override
-for this change, diff reviewed on the branch).
-- [x] A1 `settings.json` — drop 4 docker + `node -e` from `ask`; new
-      `autoMode.allow` (`$defaults` + local dev containers + project-local
-      node); 2 `soft_deny` entries (docker data destruction, undeclared
-      node packages); `model` bump committed separately
-- [x] A2 `templates/settings/SETTINGS.md` — `autoMode.allow` tier row +
-      why a static interpreter allow rule cannot do it; LRN-146 re-verify note
-- [x] A3 CHANGELOG [Unreleased] Changed
-- [x] A4 verify (2026-09-16, all green; `critique` printed nothing): `jq`, `claude auto-mode config`,
-      `doctor.sh`, live `docker exec` in game
-- [x] A5 registries written 2026-09-17: LRN (doc vs observed `ask` under auto,
-      2.1.273; `autoMode.allow` = exception tier; wildcarded-interpreter
-      allow suspended), BDR-090 addendum
-## 2026-09-16 — ask, don't guess: orchestrators ask about open choices (feature/ask-dont-guess)
-User: the orchestrators (ship-feature, feat, hotfix, bugfix, init-project)
-settle choices they should ask about ("cet icône, plutôt à gauche ou à
-droite ?"), even mid-run. Diagnosis: contract-interview STEP 2 only fires on
-gaps (outcome / scope / constraints), so a taste choice never triggers a
-question; feat:153 and bugfix:165 tell the orchestrator to "make the
-decision HERE" on NEED-DECISION. Decisions (user, 2026-09-15/16): global
-rule changes for all work, hotfix included; classes VISIBLE / PUBLIC NAME /
-SCOPE ask, internal technical choices never. Spec:
-`docs/superpowers/specs/2026-09-16-ask-dont-guess-design.md`; plan:
-`docs/superpowers/plans/2026-09-16-ask-dont-guess.md` (9 tasks, lock-first).
-- [x] P1 `lib/contract-interview.md` — STEP 2 CLARIFY (pass A gaps, pass B
-      open choices), MID-RUN CLARIFICATION, HOW TO ASK; 9 locks in
-      `contract-verifier.test.sh`
-- [x] P2 `CLAUDE.global.md:51-55` — "Ask rather than guess" replaces the
-      one-question rule; bug line reconciled
-- [x] P3 `skills/feat/SKILL.md` — pass B at STEP 1, NEED-DECISION routed on class
-- [x] P4 `skills/bugfix/SKILL.md` — pass B at STEP 3, NEED-DECISION routed on class
-- [x] P5 `skills/hotfix/SKILL.md` — pass B at LOCATE, tagged BLOCKED relayed;
-      lock `loops-light.test.sh:84`
-- [x] P6 `skills/ship-feature` STEP 2 + `skills/init-project` contract §/STEP 3
-- [x] P7 `agents/interviewer.md` — visible/public/scope item never `(assumed)`
-- [x] P8 `agents/{feater,bugfixer,hotfixer}.md` — CLASS tag; 3 locks in `gates.test.sh`
-- [x] P9 `make test` green (2026-09-16), CHANGELOG, TODO tick; manual behavioral check still OPEN before merge
-- [x] P10 registries written 2026-09-17: BDR (supersedes the one-question rule),
-      LRN (taste is invisible to a gap-only trigger; fresh re-dispatch cost
-      favors plan-time questions)
-
-## 2026-09-15 — align config + deployment on the hand-edited settings.json (feature/automode-config-alignment)
-User edited global `settings.json` by hand: 4 destructive rules moved
-deny→ask (`rsync`, `kill -9`, `killall`, `pkill`), 4 removed from ask
-(`xargs`, `sed`, `cp`, `mv` — coherent with auto mode's Bash-first
-workflow; the `.env`-scoped `cp`/`mv`/`xargs` deny rules still stand),
-and an `autoMode.environment` block added. Two defects found:
-(1) the environment block describes **atlast** (`bin/deploy.sh` lftp/FTP
-to OVH, quote-request data, "no remote configured") but lives in the
-user-scope file symlinked to `~/.claude/settings.json` by `link.sh:21`
-— so every project gets atlast's facts; claude-config itself has a
-Gitea remote, contradicting the block. (2) no `"$defaults"` sentinel,
-so the built-in classifier environment entries are replaced, not
-extended. Third finding: LRN-146 records, verified in session, that
-`ask` rules raise no prompt under `defaultMode: auto` — the deny→ask
-move therefore traded a static block for a classifier decision.
-User decisions (2026-09-15): atlast block → atlast's own
-`settings.local.json`, global block rewritten machine-generic; the 4
-destructive rules → `autoMode.soft_deny` (the section that actually
-binds under auto mode) instead of `ask`.
-- [x] T1 global `settings.json` — machine-generic `autoMode.environment`
-      with `$defaults`; new `autoMode.soft_deny` with `$defaults` + the
-      4 destructive rules; drop those 4 from `permissions.ask`
-- [x] T2 `/home/bchanot/Documents/atlast/.claude/settings.local.json` —
-      receives the atlast-specific `autoMode.environment` (gitignored,
-      personal scope); verify project-scope `autoMode` is honored
-- [x] T3 `templates/settings/SETTINGS.md` — document the `autoMode`
-      block (environment / soft_deny / hard_deny / allow, `$defaults`
-      semantics, `classifyAllShell`) + the "ask ≠ prompt under auto"
-      caveat that makes soft_deny the right tier
-- [x] T4 `README.md` — magic-MCP paragraph claims the `ask` tier makes
-      every `mcp__magic__*` call "require a live confirmation and never
-      auto-execute"; false under auto mode per LRN-146. Correct the
-      claim, flag the soft_deny option to the user (don't decide it)
-- [x] T5 `doctor.sh` — permissions section is blind to `autoMode`, now a
-      live security surface. Add a check: block present, `$defaults`
-      inherited, no foreign absolute project path hardcoded
-- [x] T6a CHANGELOG (Added/Changed/Fixed under [Unreleased])
-- [x] T6b registries BDR-090 + LRN-153 + journal — drafted, awaiting user approval
-      → written: BDR-090 + LRN-153 present in the registry body (reconcile 2026-09-24).
-- [x] T7 verify: `make test`, `bash doctor.sh`, `shellcheck`
-NOT in scope: the 3 dirty `skills/graphify/*` files (pre-existing,
-unrelated) — never staged.
-
-### Second pass (2026-09-15, user decisions)
-User confirmed the `ask` removals were deliberate (`/permissions`), asked
-for the diff vs develop and for guards where the removals left a hole.
-Answered: writes outside cwd → soft_deny; in-place edits beyond one named
-file → soft_deny; inline interpreters + `xargs` → soft_deny when they
-delete or write outside cwd; hard_deny for secret exfiltration, prod
-deploy, disarming guardrails (history rewrite NOT retained, so a `rebase`
-then an ordinary push stays uncovered); extend the static deny family to
-the `.env` readers; `classifyAllShell` stays false; intent clears a soft
-block for the CURRENT TURN only.
-- [x] S1 `permissions.deny` +10 reader rules (sed awk cut tr sort uniq
-      diff od xxd strings vs `.env*`) — 6 of them were in `allow`
-- [x] S2 `autoMode.soft_deny` — 7 rules + the intent-scope line
-- [x] S3 `autoMode.hard_deny` — 3 rules, "adding a restriction is fine,
-      removing one is not"
-- [x] S4 `SETTINGS.md` — tier-choice table + scope-of-intent section
-- [x] S5 CHANGELOG — Changed rewritten, new Security block
-- [x] S6 CONSEQUENCE confirmed by user 2026-09-15: the hard_deny guardrail rule means I can
-      no longer edit a deny/soft_deny/hard_deny list to REMOVE an entry.
-      Tightening stays allowed. Future permission loosening goes through
-      `/permissions` or the user's own edit.
-
-### Third pass (2026-09-15) — F1-F3 done + graphify untracked
-Worst finding was not the duplication: local `deny` still carried
-`rsync` `kill -9` `killall` `pkill`, the four the user moved OUT of
-global deny. deny wins across sources, so `autoMode.soft_deny` was a
-dead letter in THIS repo. Local `allow` also held `sed *`, `cp *`,
-`python3 -` — an allow rule short-circuits the classifier, punching a
-hole through the same soft_deny rules.
-- [x] G1 `skills/graphify/{SKILL.md,references/,.graphify_version}`
-      gitignored + `git rm --cached`. Written by `graphify claude
-      install` since `~/.claude/skills` symlinks to `skills/`; a fresh
-      clone gets them from `make plugin`. `test-prompts.json` is
-      hand-written for darwin, stays tracked. Trade-off documented in
-      CLAUDE.md: an upstream release can now change the skill prompt
-      with no diff to review.
-- [x] G2 `.claude/settings.local.json` 14.6 KB -> 6.2 KB. deny + ask
-      dropped whole, allow 185 -> 98 (81 duplicates of the global, 6
-      policy conflicts: `sed *`, `cp *`, `python3 -`,
-      `Read(//home/bchanot/**)`, `WebSearch`, a leftover injection-test
-      payload). Every non-`permissions` key was a verbatim copy of the
-      global, `hooks` included. Backup: `.audit/settings.local.json.bak-*`
-      (gitignored, the file itself is not in git).
-
-### Follow-up found while doing this (fixed in the third pass above)
-`.claude/settings.local.json` (gitignored, 14.6 KB) is a near-complete
-shadow copy of the global `settings.json` at a HIGHER precedence tier:
-185 allow / 30 ask / 106 deny, plus its own `cleanupPeriodDays`,
-`attribution`, `statusLine`, `enabledPlugins`, `extraKnownMarketplaces`,
-`effortLevel`, `remoteControlAtStartup`, `inputNeededNotifEnabled`,
-`skipAutoPermissionPrompt` — all identical to the global today, so the
-duplication is invisible until the global drifts, which it just did
-(no `autoMode`, 106 deny vs 116). It defeats the config-guard premise
-(hand-curated `settings.json`) with a file nobody reviews.
-- [x] F1 `WebSearch` sits in global `ask` and in local `allow` — in this
-      repo it never reaches the ask tier. Intended or drift?
-- [x] F2 local `hooks` block registers `bash ~/.claude/hooks/config-protection.sh`
-      on PreToolUse/Bash. That script does not exist, in `hooks/` or in
-      `~/.claude/hooks/`. Dead hook firing on every Bash call here.
-- [x] F3 decide: prune the local file down to the session-accumulated
-      allow rules only, dropping every key that merely restates the
-      global, or keep the copy deliberately and document why.
-
-## 2026-08-25 — darwin fresh baseline: 32 skill-systems + 23 agents (feature/darwin-optimize-20260825)
-User: `/darwin-skill all skills and agents` (background). Fresh-from-zero
-(results.tsv wiped 2026-06-23, journal 2026-06-30). Scope per BDR-015/043 +
-LRN-070: personal skills only, external/gstack OUT. EVAL-004 applied: eval
-unit = skill+dispatched-agents SYSTEM, agents get own rows. LRN-018: judges
-emit per-dim scores, totals recomputed main-thread. v2.1 keep/revert =
-paired same-judge majority, absolute scores triage-only.
-- [x] T1 Phase 0+0.5: gitflow branch, results.tsv header, 7 new
-      test-prompts.json (capitalize deploy gitflow pdf-translate reconcile
-      release-candidate tour), runtime scan (2 minor hits). find-docs
-      EXCLUDED — machine-owned ctx7 (BDR-053, gitignored) → 31 systems.
-- [x] T2 Phase 0.5 gate PASSED: reuse prompts as-is; dim8 full_test on
-      candidates only (baseline dry_run); Phase 2 set = ALL units <80.
-- [x] T3 Phase 1 baseline DONE: 7 blind judges, 54 rows (31 skills + 23
-      agents), mean 83.4, 13 units <80, ~25 verified findings (hotfix
-      destructive restore, onboard/onboarder contract, init-project
-      allowed-tools, skills-perso 8/32 detection...).
-
-- [x] T4 Phase 1 gate PASSED: user picked the set — proven by Phase 2
-      running 13/13 units, 0 reverts (DARWIN-2026-08-26.md:23).
-      Ticked by reconcile 2026-09-01.
-- [x] T5 Phase 2 DONE: 13/13 units, 12 rounds kept 3-0, 0 reverts +
-      bug pass 8 commits kept 3-0 (2 skeptic residuals amended). make test
-      green.
-- [x] T6 Phase 3 DONE: report .claude/audits/DARWIN-2026-08-26.md + card
-      PNG (playwright fallback). Capitalize pending user approval. Branch
-      UNMERGED — human gate.
-      → both residuals stale: capitalized a15854a, merged 726464f
-        (reconcile 2026-09-01).
-
-## 2026-08-25 — user permanent rules: writing + web build + web security (feature/user-writing-web-rules)
-User supplied 4-block rule text (écris / site / code / vérification); asked:
-coverage check, conflict check, integrate. Verdict: security CORE already in
-CLAUDE.global.md §Security (parameterized queries, env-var secrets,
-AuthN/AuthZ, fail closed) — NOT duplicated. NEW: writing-style block, design
-anti-default list, site done-checklist, web-app specifics (RLS, service key,
-IDOR, cookie flags, rate limit, field minimization). Placement: global at
-308/320 budget → rules/ instead.
-- [x] R1 rules/writing-style.md — always-on (no paths:), scope carve-outs
-      (registries caveman, code comments, skill templates) + self-check
-- [x] R2 rules/web-building.md — paths: web globs; anti-defaults + done
-      checklist (report missing, never invent) + skill pointers
-- [x] R3 rules/web-security.md — paths: code globs; web-app specifics
-      extending §Security, zero dup of the core
-- [x] R4 CLAUDE.md (project) — amend always-on doctrine line (320-budget
-      exception → rules/), feeds C2 audit
-- [x] R5 capitalize BDR-085 + journal + CHANGELOG
-- [x] merge → develop 5ec7bfa — human gate passed (reconcile 2026-08-25)
-
-## 2026-07-30 — adapt config for Claude 5 family / Opus 5 (feature/opus5-config-tuning)
-User: Opus 5 "needs more freedom" → research (official migration guide +
-web + registres) confirms: over-delegates (inverts LRN-030 Opus 4.8 trait),
-over-verifies if told to verify, literal instruction following, scope
-expansion named regression, harness already injects anti-delegation on
-Opus 5 (#80988). Plan: .claude/tasks/plans/2026-07-30-opus5-config-tuning-1238.md
-— to be challenged by 3 blind plan-challengers (opus pins → Opus 5), then
-executed on feature branch. NO merge (human gate).
-Challenged 2026-07-30: correctness CONCERNS(4) · robustness FATAL(5, 1
-BLOCKER: symlink-live deployment) · simplicity CONCERNS(4) — all fixes
-adopted as prescribed (plan §5bis, v2 items below).
-- [x] W0 branch first (eab2a10 parent); hook regex validated on scratch copy
-      (bash -n + shellcheck + 5 replays, HOME sandboxed) before live write
-- [x] W1 delegation block v2 (when-guidance + gates carve-out + scoped don't-redo) — 0f7b565
-- [x] W2 "staff engineer" bar line deleted — 0f7b565
-- [x] W3 finish-whole-task folded into Deviations (+ gone-WRONG→STOP) — 0f7b565
-- [x] W4 deliverable-length rule — 0f7b565
-- [x] W5 line budget: 308/320
-- [x] W6 hook \bux\b dropped, \bui\b kept + F10 must-fire lock, D11 quiet row
-      flip-tested (fire before/quiet after) — eab2a10, suite 22/0
-- [x] W7 plan-challenger :82-83 reworded → [MINOR] routing, census row — c3d3f4d, 44/0
-- [x] W8 BDR-081 + LRN-139 + journal + CHANGELOG
-- [x] W9 final gate: make test full suite — green except known T6c
-      (darwin-skill residual → chantier 4 below), 2026-07-30
-- [x] W10 merged on explicit user signal — 709cf9b (2026-07-30 13:28),
-      branch deleted; confirmed post-merge this session
-
-## 2026-07-30 — Claude 5 follow-on chantiers (user directive, checkpoint between each)
-Order fixed, one branch per chantier, no merge without per-chantier signal.
-- [x] C1 dé-prescription seo-analyzer.md + geo-analyzer.md — DONE 2026-08-02.
-      Census-first 71 locks flip-proven (9681b46) → rewords under
-      audience×range invariant (adafa35 seo, c7646a9 geo) → controlled
-      before/after dogfood: judge-replay on frozen signals + templates +
-      fresh collects + e2e judge + blind reader = 42/42 both sets, zero
-      contract regression, recall improved. Plan challenged 4 passes
-      (FATAL/FATAL/CONCERNS + confirmation FATAL(9), all closed by name).
-      BDR-082 + LRN-140. Evidence .audit/dogfood-baseline/ (19 artifacts).
-      Branch feature/seo-geo-deprescription UNMERGED — human gate.
-      → merged 5488c48, branch deleted (reconcile 2026-08-25).
-      Residual for gate: §6bis dynamically-unverified list (FULL branches,
-      apply path — census-locked statically); FULL/aggressive dry-run = user
-      option; nested-CLI dogfood blocked by monthly spend limit (inline used).
-- [x] C2 self-contradiction audit CLAUDE.global.md + own skills: list rule
-      pairs in tension, propose resolution per pair, apply after user OK.
-      /doctor as assistant, not authority.
-      → DONE 2026-09-24: 30 pairs, all resolved on feature/c2-coherence (BDR-099).
-- [x] C3 superpowers: MEASURE first (skill-invocation log over sessions)
-      whether "1% chance → MUST invoke" over-triggers; if yes, options +
-      trade-offs (disable plugin / softer house rule / live with) — user decides.
-      → DONE 2026-09-24: measured 2/126 turns, both warranted → keep, re-measure in 30 days (LRN-169).
-- [x] C4 hygiene: reinstall darwin-skill — DONE (reconcile 2026-08-25:
-      ~/.agents/skills/darwin-skill present, T6c green, make test exit 0).
-
-## 2026-07-22 — auto-purge transient superpowers artifacts at finish (feature/gitflow-auto-purge-transient)
-User: transient planning artifacts (`docs/superpowers/{specs,plans}`) leak into
-develop; BDR-065 "post-merge cleanup" is DOCTRINE ONLY (no code) — manual chore,
-already missed once (655e364). Decision (user 2026-07-22, 2 recommended picks):
-keep committed-during-run (SDD worktree + reviewers read them), AUTOMATE the
-delete at `gitflow finish`. NO gitignore (would break superpowers' `git add` of
-the spec → no travel to SDD worktree). `.claude/tasks/{contracts,plans}` stay
-versioned (durable, referenced by decisions.md e.g. BDR-076). Universal via the
-`~/.claude/lib` → repo `lib` symlink: every project's finish gets it.
-- [x] lib/gitflow.sh: `_gitflow_purge_transient` (clean-precheck → git rm →
-      scoped commit `-- paths`; best-effort, NEVER aborts finish; opt-out
-      `GITFLOW_PURGE_TRANSIENT=0`) wired into finish `feature|bugfix` pre-merge;
-      `purge-transient` CLI verb.
-- [x] lib/gitflow-test.sh T17 a/b/c/d (purge+recover-from-history via
-      --full-history+`git show`, no-op when absent, opt-out keeps, chore scope).
-      Also fixed 2 pre-existing SC2034 warnings (T16 gl_out/noleaks_out).
-- [x] Gate: shellcheck lib/*.sh CLEAN + `make test` exit 0 (gitflow 106/0, full
-      suite green). Universal via ~/.claude/lib → repo lib symlink (verified).
-- [x] CLAUDE.md §Transient planning artifacts: → "AUTO-PURGED by gitflow finish".
-- [x] Capitalize: BDR-065 Amendment (2026-07-22) in body + LRN-138 present
-      (reconcile 2026-08-25).
-
-## 2026-07-20 — pending merge gates (reconcile)
-- [x] merge feature/profile-managed-externals → develop (BDR-079 profile
-      symmetry + /doc clean pass: README/USAGE/ARCHITECTURE.md) — 37c79f0
-- [x] merge chore/purge-transient-docs → develop (docs/ transient purge
-      655e364 + reconcile e75ea79) — reaches main at next release
-- [ ] Makefile help text: profile-list help lists 5/10 profiles (:57) — (re-verified OPEN 2026-10-06: 11 profiles, Makefile:62 lists 5)
-      1-line hotfix. (test glob :31 FIXED — has run-*.sh, reconcile 2026-08-25)
-      Re-verified OPEN 2026-09-01: lib/profiles/ has 10, Makefile:57 lists 5
-      (backend, full, seo, web-full, web missing).
-      Re-verified OPEN 2026-09-24: still 10 vs 5 (Makefile:60 now).
-
-## 2026-07-20 — profile ↔ toggle-external symmetry (feature/profile-managed-externals, BDR-079)
-Audit verdict: gstack on-demand + design enable already work; DISABLE side
-missing — `set backend` leaves emil/frontend-design/design-motion/impeccable
-active + magic registered. Doc claims auto-toggle both ways (only enable true).
-- [x] profile.sh: `MANAGED_EXTERNALS` (emil-design-eng, frontend-design,
-      design-motion-principles, impeccable — union of profile usage) +
-      `MANAGED_MCPS` (magic) allowlists; cmd_set refactored to 4 trim
-      helpers (disable_{gstack,plugins,externals,mcps}_not_in).
-- [x] profile.sh enable_skill external: from-source fallback
-      (`ln -sf skills-external/<name>`) mirroring toggle-external.
-- [x] Texts: cmd_set info line, usage() NOTE (stale "NOT toggled
-      automatically"), header; skills/profile/SKILL.md Mechanism+tradeoffs.
-- [x] Hermetic test lib/tests/profile-set-managed.test.sh — 16/0: gstack
-      on-demand, external from-source, park/restore round-trip, magic
-      add/remove via claude shim, non-managed untouched.
-- [x] Gate: shellcheck OK + make test exit 0 (review-guards 5/0). BDR-079 +
-      journal + CHANGELOG done. Merged 37c79f0 (2026-07-20).
-
-## 2026-07-20 — ctx7 coverage extension (feature/ctx7-coverage, BDR-078)
-Close the 4 gaps from the ctx7 coverage audit: /feat //bugfix + ad-hoc coding
-never consult ctx7; fast-libs list hardcoded 3×; zero deterministic backstop.
-- [x] (d) `lib/fast-libs.sh` — single source of truth: `detect` +
-      `cache-status` verbs; JS (package.json exact/scoped keys) + Python;
-      7-day cache freshness. LC_ALL=C sort (locale-independent order).
-- [x] (c) `hooks/ctx7-reminder.sh` — UserPromptSubmit, once-per-session
-      sentinel, fires only when fast-libs detected; settings.json
-      registration (2nd ctx7 surface, deliberate refinement of BDR-053).
-- [x] (a) find-docs description — before-writing-code trigger (fast-moving
-      libs, even without a doc question) + cache-first rule in body.
-- [x] (b) feater.md + bugfixer.md — fast-lib docs rule (read fresh cache,
-      else ctx7 fetch max 2 topics, else NOTES cache miss + proceed).
-- [x] consumers → lib: ship-feature STEP 0c, init-project STEP 5c, onboard
-      STEP 3.5 detection blocks point at fast-libs.sh.
-- [x] `lib/tests/fast-libs.test.sh` (lib verbs + hook fire/sentinel/quiet)
-      — 11/0, auto-discovered by the make test glob.
-- [x] Gate: shellcheck + make test green (review-guards 5/0). BDR-078 +
-      journal + CHANGELOG done. Merged 8ee7d19, shipped v1.2.0.
-
-## 2026-07-19 — Opus-pin dispatched judgment agents (branch feature/opus-pin-audit-agents)
-
-Goal: session model (Fable) = orchestration + inline reflection ONLY.
-Every DISPATCHED subagent pinned. Reverses BDR-066 "opus pins rejected"
-carve-out (context changed: session now Fable → inherit burns Fable quota
-on audits). User approved: opus for judgment agents, drop local opus pin.
-
-- [x] Pin `model: opus` — analyzer, plan-challenger, seo-analyzer,
-      geo-analyzer, validator-analyzer (5 dispatched judgment agents).
-      NOT interviewer / client-handover-writer (inline-load only → pin
-      inert; they ARE the main loop = Fable by design).
-- [x] `lib/challenge-plan.md` — rewrite MODEL note (was "do NOT pin").
-- [x] `agents/plan-challenger.md` — rewrite ORCHESTRATOR PROTOCOL model note.
-- [x] `skills/onboard/SKILL.md` — add `model="opus"` to the 6
-      general-purpose audit dispatches + table/description text.
-- [x] `skills/tour/SKILL.md` Phase B — text: analyzer opus-pinned /
-      general-purpose with model="opus".
-- [x] `skills/client-handover/SKILL.md` — text: pipeline inline on
-      SESSION model (writer inline-loaded, not dispatched).
-- [x] `lib/tests/model-routing.test.sh` — flip §F5 fm_lacks → has
-      'model: opus' (5 agents), keep fm_lacks on interviewer +
-      client-handover-writer, update comments (BDR-076).
-- [x] `.claude/settings.local.json` — drop `"model": "opus-4-8[1m]"`
-      (local, gitignored; Fable default from settings.json applies).
-- [x] Tests: model-routing + loops-light + shellcheck + make test.
-- [x] Memory: BDR-076 append + journal line. Commit (feat + chore);
-      merged 17fbe51, shipped v1.2.0 (reconcile 2026-07-20).
-
-## 2026-07-17 — STATUS seo/geo parity (branch bugfix/seo-geo-integrity — MERGED to develop, 92301fe; "UNMERGED" note was stale, corrected 2026-07-19 W0)
-PHASE 1 — integrity: **DONE 7/7**. I3 8b0c98c · I1 57c67f2 · I2 4ea2fb8 ·
-I5 64f175f · I4 e70e1d6 · I6 9da1dec · I8 acd452b. Plus 9cd7b51 (A1+A2, two
-process anomalies surfaced by dogfooding /harden at zenquality.fr from the
-wrong CWD).
-PHASE 2 — free wins: W3 fe93b79 · W1 a6d423b · **W2 DEFERRED** (see below).
-H1 DONE (url-guard 7d6aa09) · C1 DONE (sitemap verb, C1a/b/c). Branch MERGED
-to develop (92301fe), shipped in v1.2.0 (reconcile 2026-07-20).
-
-### Plan corrections made while executing (the plan was wrong 4×)
-- **B3 KILLED** — GSC Links API does not exist. Verified against the API
-  reference: Search Console v1 exposes exactly Search Analytics, Sitemaps,
-  Sites, URL Inspection. A subagent hallucinated it; I doubted it in the
-  plan and the doubt was right. (Its follow-on — "so Common Crawl is the
-  only free source, and the 70/100 cap is mandatory" — was ALSO wrong: see
-  B1/B2 KILLED below. Common Crawl is a 17 GB dead end, and Bing's
-  GetUrlLinks is the only viable free source, first-party only.)
-- **I1 was an over-correction** — "Off-page has ZERO data" was overstated
-  (relayed from a subagent, unverified). Brand mentions ARE gathered
-  (STEP 6). Narrowed the axis definition instead of N/A-ing it; weights
-  untouched to avoid churning historical scores twice.
-- **I6 framing was wrong** — I claimed 3× that the stats "drive axis
-  weights". They do not; weight tables carry no citations. They drive Tier
-  recommendations and, worse, land in CLIENT reports via the "Cite sources"
-  rule. Reality was worse than my false version.
-- **W1 was the wrong shape** — plan said "richresults verb"; a new verb
-  means a 2nd POST to the same endpoint for a payload already received.
-  Extended inspect() instead.
-- **H1 moved up** (was AXE 5) — it is a PREREQUISITE of C1, not a
-  follow-up. Today only $DOMAIN (user-typed) is interpolated. After C1, N
-  URLs from a REMOTE sitemap flow into shell commands and fetch targets.
-
-### B1/B2 (Common Crawl backlinks) — KILLED 2026-07-17, measured not assumed
-The plan said Common Crawl was the free backlink source and the 70/100 cap
-was therefore mandatory. Both premises are dead:
-- domain-edges.txt.gz = **17.3 GB gzipped** (+879 MB vertices, +2.3 GB
-  ranks), measured live via HEAD. Finding one domain's inbound links means
-  scanning all of it, per audit. Non-viable, and abusive toward a nonprofit.
-- The implementation everyone cites (claude-seo commoncrawl_graph.py:169)
-  caps at `500 MiB` = **2.9% of the edges file**, and reports what that
-  arbitrary slice held as a backlink profile. A random sample presented as a
-  measurement — the exact failure class this branch exists to remove. We
-  nearly copied it.
-- B2 dies with B1: nothing to cap.
-CONSEQUENCE: I1's narrowed Off-page axis (brand mentions only, backlinks +
-authority declared unauditable in §14) is the FINAL state, not a placeholder.
-Its §14 line was corrected — it used to point at Common Crawl as "nearest
-free source", which is a 17 GB dead end.
-RAISES W2's VALUE: Bing's GetUrlLinks is now the ONLY free viable backlink
-source. First-party only (never a competitor), still blocked on the client's
-Bing account.
-
-### W2 (Bing) — DEFERRED, blocked on a real-world test
-Killed after 4 challenge rounds. User's model: client sites live on CLIENT
-Bing accounts, so a per-user API key means one key per client account.
-OAuth is the right model but is a swamp:
-- Redirect URI rejects ALL local forms (http/https/127.0.0.1 — user tested)
-- Refresh tokens are **rotated + single-use**, self-described non-compliant
-  with OAuth 2.0 → store rewrite on every call, AND our parallel
-  seo/geo dispatch would race the rotation → invalid_grant, dead token
-- Undocumented "anti-forgery token" failure on refresh, unanswered on Q&A
-- MS's own advisor recommends falling back to the API key
-- Doc contradicts itself on grant_type and the token endpoint; no library
-REVIVAL CONDITION: a client already on Bing adds the user as a Read-Only
-user → test in ~10 min whether the single API key sees DELEGATED sites
-(undocumented, nobody knows). If yes → W2 is cheap and clean (one key,
-client-owned verification, revocable, read-only, zero OAuth). If no → dead.
-Value forgone meanwhile: Bing/DDG/Ecosia query stats + index status +
-first-party backlinks. Real but modest; C1 dwarfs it.
-
-## 2026-07-16 — PLAN seo/geo parity vs claude-seo (superseded by the STATUS above)
-Source: audit of github.com/AgriciDaniel/claude-seo (11.5k★, MIT, v2.2.0,
-5 mo old, 185/197 commits single author). Verdict: cherry-pick, never install
-(install.sh:49 overwrites our skills/seo/; uninstall.sh:45 glob `seo-*.md`
-deletes our seo-analyzer.md 42K it never installed; extensions/*/install.sh:42
-wipes settings.json on parse error; skills/seo/SKILL.md:119 injects Skool
-upsell footer into deliverables). Their code is real (render_page.py 428 l
-Playwright, url_safety.py 622 l SSRF, 326 tests, 320 pass) — adapt to our
-fetch.sh contract, do NOT copy wholesale (no fail-open, no tokenstore, no
-JSON shape).
-
-Framing: their plus-values map onto OUR integrity gaps — report claims more
-than it measured. Same bar we held their README to.
-Seam: `lib/seo-data/fetch.sh` verbs (accounts|crux|queries|inspect|forget)
-+ fail-open `{"status":"degraded"}` + fixtures + tests. Everything below lands
-as NEW VERBS. No new architecture.
-
-### AXE 0 — Integrity (no new deps, hours) — the score currently lies
-- [x] I1 Off-page axis scores 10-15% of FULL with ZERO data source (no API,
-      no index) → today fabricated, and it feeds /client-handover. Immediate
-      fix: extend existing LOCAL `N/A — requires FULL audit` pattern to FULL,
-      redistribute weights. Data upgrade later (AXE 3). Honesty now, data after.
-- [x] I2 VSI (Visual Stability Index) listed in CWV thresholds but NO path
-      retrieves it — neither CrUX nor PSI expose it. Phantom signal → remove
-      or source.
-- [x] I3 **SAFETY** /geo standalone: geo/SKILL.md (125 l) has no STEP 0, no
-      confirmed-NAP collection — but geo-analyzer OWNS JSON-LD NAP. Standalone
-      /geo on a local business can write unverified NAP with zero LRN-032
-      protection. Real bug, not cosmetic.
-- [x] I4 Security headers counted 3× (seo-analyzer STEP 4 scores them in
-      Technical axis; depth-matrix.md says drop unless indexability; /harden
-      re-audits /100 with 3 validators). Contradiction between dedup rule and
-      agent spec → pick one owner.
-- [x] I5 Report says "audit", measured 5-15 sampled pages. State coverage %
-      explicitly in §0 until AXE 2 lands.
-
-### AXE 1 — Free wins on auth we ALREADY have (fetch.sh verbs)
-- [x] W1 `richresults` verb — GSC URL Inspection already returns
-      `richResultsResult`; our OAuth already carries the scope. Programmatic
-      rich-results validation on real Google data. **BEATS claude-seo**: their
-      README:314 "dual validator (Rich Results Test + Markup Validator)" is
-      FALSE — grep of all .py = zero calls, they are hyperlinks a human clicks.
-      Today our JSON-LD validity is LLM-read only.
-- [x] W2 `bing` verb — Bing Webmaster API, free. Closes the Google/Bing
-      asymmetry (Google = full OAuth layer, Bing = manual checklist) while
-      /geo targets ChatGPT Search, which indexes via Bing. Strategic, not cosmetic.
-- [x] W3 `sameas` resolution check — trivial curl loop. entity-seo.md lists
-      "sameAs pointing to dead profiles" as a known error class and never
-      checks it. ~10 lines.
-
-### AXE 2 — Coverage (biggest lever: ~97% of a 500-page site unseen today)
-- [x] C1 `crawl` verb — sitemap-driven URL discovery (we ALREADY fetch
-      sitemap.xml) + deterministic sampling + coverage % reported. No Chromium,
-      no paid API. Turns "5-15 LLM-chosen pages" into measured coverage.
-      Tradeoff vs claude-seo's link-following 500-page crawl: cheaper, but
-      misses unlinked/unsitemapped pages — accept + disclose.
-- [x] C2 Dupe/cannibalization detection — becomes possible once N pages in
-      hand: compare titles/H1/canonicals across the set. Free, unblocked by C1.
-- [x] C3 Internal-link graph — orphan pages + 3-click depth are TODAY stated
-      as checks with no command to compute them. C1 unblocks real computation.
-
-### AXE 3 — Off-page real (upgrades I1) — SUPERSEDED, see B1/B2 KILLED above
-- [x] ~~B1 `backlinks` verb — Common Crawl hyperlinkgraph~~ KILLED: edges file
-      measured at 17.3 GB gzipped. Non-viable per audit; the reference impl
-      caps at 500 MiB = 2.9% of the graph and calls the remainder a backlink
-      profile.
-- [x] ~~B2 Honest cap at 70/100~~ KILLED with B1: nothing left to cap.
-      I1's narrowed axis is the final state.
-- [x] B3 VERIFY FIRST: GSC Links API. Subagent claimed "available, OAuth
-      already there" — I doubt it: Search Console API v3 has no links endpoint
-      (links report is UI-only AFAIK). Verify before planning on it. Do not
-      assert.
-
-### AXE 4 — SPA blindness (dep decision — needs arbitrage)
-- [x] R1 `render` verb — Playwright, GATED on SPA detection (STEP 2 already
-      detects framework + rendering mode). Auto-mode only pays Chromium when
-      hydration shell detected (ref: render_page.py:226 logic, adapt not copy).
-- [x] R2 ARBITRAGE: heavy dep (Chromium ~300MB) vs our bash+curl purity.
-      Cheaper honest alternative: on SPA, REFUSE to score on-page rather than
-      score it wrong (today: curl reads source, not hydrated DOM → every
-      meta/JSON-LD/heading/img grep is blind, compensated only by a §0 flag).
-
-### AXE 5 — Hardening + regression (lower priority)
-- [x] H1 SSRF guard on curl paths — both agents curl user-supplied domains.
-      Our own CLAUDE.md doctrine says "never trust user input". url_safety.py
-      (622 l, obfuscated-IPv4 decode, DNS pinning) is a solid reference.
-- [x] H2 `drift` baseline (SQLite) — SEO.md Historique keeps only date+score+
-      key changes. Their seo-drift is on-page regression detection, NOT rank
-      tracking (common misread). Optional.
-
-### NOT DOING (explicit, with reason)
-- Keyword volumes → Google Ads Tier 3 needs ACTIVE ad spend (~$150-300/mo);
-  without spend the API returns buckets ("1K-10K"). Their own detect_tier()
-  never even returns 3 (google_auth.py:642-724 caps at 2) + google-ads absent
-  from requirements.txt. Not worth it.
-- Real AI SoV (ChatGPT/Perplexity citation tracking) → paid everywhere
-  (SE Ranking/Profound/DataForSEO). Our current honest "not testable, here's
-  what we measured instead" disclosure BEATS faking it. Keep.
-- Installing the plugin / +33 skills namespace → see destructive paths above.
-
-### Keep (already beats claude-seo — do not regress)
-FR legal (LCEN/RGPD-ePrivacy/DGCCRF L121-1 — their whole repo: 2 hits, and
-dma-consent-mode-v2.md:27 tells the agent to stay out) · fix-bundle +
-ownership matrix + serial apply (their 18 agents are report-only, no
-ownership discipline) · trajectory-to-17/20 + honest code ceiling (theirs is
-flat 0-100, no legal axis) · llms.txt honest framing · NAP anti-dup-seed
-(LRN-032).
-
-## 2026-07-16 — /close auto-persist memory (feature/close-auto-persist, BDR-068)
-- [x] STEP 5C: auto-finish chore→develop + push when capitalize/close branched off develop
-- [x] --no-push escape hatch; WORKING-branch + rc-3 skip; graceful push-fail
-- [x] aiguillage exception note + BDR-068
-- [x] merge feature/close-auto-persist → develop (human gate)
-
-## 2026-07-16 — SHIPPED v1.0.0 first public release (BDR-067)
-- [x] versioning reset 4.0.0→1.0.0, CHANGELOG pre-release-history banner
-- [x] deleted v4.0.0 tag + stale release/1.0.0 branch (git-cherry: nothing orphaned)
-- [x] merged to main + develop, tagged v1.0.0, pushed origin (main=dc4f78b)
-- [x] USER: flip Gitea repo visibility to public (repo → Settings) — done (user confirmed)
-- [x] NEXT release continues from 1.0.0 (→ 1.0.1 / 1.1.0), NEVER back to 4.x (BDR-067)
-
-## 2026-07-16 — model-routing edge fixes (bugfix/model-routing-edge-fixes)
-Post-merge ronde (4 big-model audits: dispatch-graph INTACT, loops CLOSE,
-tiering CORRECT, data-flow client-handover wired). Fixing the edge findings
-the ronde surfaced. Branch off develop, unmerged — human gate.
-- [x] F1 (real bug) feater applier carve-out — /seo,/geo dispatch feater as
-      L1 applier with NO CONTRACT, but feater mandates "read CONTRACT FIRST"
-      (hotfixer has the carve-out, feater didn't) → mirror hotfixer.md:16-45.
-- [x] F5 (guard) census: lock the ABSENT model: pin on seo/geo/validator-
-      analyzer + client-handover-writer (stray sonnet pin would silently
-      downgrade a live audit, uncaught).
-- [x] F4 (cleanup) drop interviewer's inert `model: sonnet` (reflection role,
-      inline-loaded by gated init-project) + census guard.
-- [x] F2 (tier) /refactor inline-load → true-dispatch refactorer (sonnet pin
-      was inert). refactorer verified dispatch-safe (no Ask/Agent, input=target).
-- [x] F3 (gate) /analyze add MODEL GATE (inline-loads the analyzer reflection
-      agent, was ungated + undocumented). census: +analyze gated, +refactor excluded.
-- [x] verify: census 57/0, shellcheck clean (my files), full suite green; NO merge.
-
-## 2026-07-15 — model routing (feature/model-routing)
-Spec + plan in docs/superpowers/ (transient, BDR-065). BDR-066. Branch
-unmerged — human gate.
-- [x] gate lib/model-check.sh + lib/model-gate.md (flip-tested) wired ×12
-- [x] pins: hotfixer/feater sonnet, analyzer un-pinned; SDD model:"sonnet";
-      web-validate → hotfixer L1; census guard model-routing.test.sh
-- [x] /feat re-arch: reflection inline → feater sonnet executor (partial
-      supersede BDR-050)
-- [x] WAVE 2 (user directive): doc/status dispatch (sonnet/haiku pins
-      effective); /hotfix split like /feat (joins gated 12→13, hotfixer
-      dual-use executor); /commit-change → sonnet commit-changer
-      (propose/apply, gates relocated); /release-candidate → sonnet
-      release-executor (human gates + version decision kept in dispatcher);
-      census 36/0. Exclusion list now commit-change/doc/status/release-candidate.
-- [x] DOGFOOD (manual, next sessions): /feat live run — plan closes
-      decisions, dispatch carries sonnet, verify loop in main loop; gate
-      STOP on a sonnet session (LRN-079 class, not automatable here). Also
-      dogfood /hotfix split + /commit-change propose/apply + /release-candidate spans.
-- [x] Explore agent: kept as built-in (inherits session = opus/fable). User
-      call — search feeds reflection, silent-incompleteness risk → deserves the
-      big model. Custom sonnet Explore.md created then reverted (built-in already
-      inherits + no owned prompt).
-- [x] WAVE 3 (user directive): /bugfix split + /code-clean split → reflection
-      inline (behind existing gate), execution → sonnet executors. bugfixer =
-      pure fix+regression exec (BUGFIX-EXEC REPORT, no Agent/AskUserQuestion);
-      code-cleaner = PHASE-2 exec (refactor now runs on sonnet — inline-load pin
-      was inert). Both skills STAY gated. census wave-3 + loops-light repoint
-      (guarded). Supersedes BDR-050 bugfix carve-out.
-- [x] WAVE 4 — client-handover (branch feature/client-handover-dispatch, off
-      develop). Shape FLIPPED to REDACTION-ONLY (full read: nested audits must
-      run big either way since /seo,/harden,/web-validate are gated → whole-writer
-      buys ~0 extra sonnet work for ~7 extra gate-yields). Design: parent
-      (client-handover-writer, inline=big) keeps STEP 1-8 pipeline + ALL gates
-      native + builds a PACKAGE; new sonnet handover-doc-writer does STEP 9-16
-      pure write+render, gate-free. Tasks 19-22 in plan. + MODEL GATE on skill.
-
-## 2026-07-08 — full back-merge release/1.0.0→develop (chore/backmerge-release-full)
-Genèse : la revue avait porté ~5/19 commits ; back-merge complet demandé. Cherry-pick par
-catégorie, 1 commit atomique/item, make test après chaque code. Branche non mergée (gate humain).
-- [x] A CODE (5 cherry-picks, make test GREEN chacun) : 095d881 drop find-skills (5a1fff5),
-      a1093ca TTY-guard make-update (ce07e55, prouvé EOF exit1→exit0), 4c5e862 rtk version-guard
-      (3049250, complète le pont e58037c déjà porté — fichiers/concerns distincts), c76479f
-      design-motion sync (82ce02c), e65796f SC1091 lint (fcdb157, shellcheck 0 SC1091).
-- [x] B JOURNAL : cherry-pick direct conflicte (tails journal divergents) → STOP honoré,
-      fallback note consolidée sous journal 2026-07-08. TODO /deploy ca9fa8f skip (release-specific).
-- [x] C DÉCISION/DOUBLON tous skip vérifiés : 93e43c0 attribution + ae8ad86 model (opus[1m]=Opus4.8)
-      déjà sur develop ; a623514/74d3804/2b4e740 registres déjà backfillés (run revue) ;
-      188a9a7 docs → backlog /doc ci-dessous.
-- [x] D fork version 1eb5b08/eb93050 intouchés — version.txt reste 4.0.0.
-- [x] GATE FINAL : 23/23 commits release-only classifiés, 0 code orphelin, 0 entrée registre
-      manquante ; make test GREEN + review-guards 5/0. Capitalize [[LRN-117]] structurel.
-
-### Backlog (issu du back-merge)
-- [x] **/doc** — README develop ne documente pas semgrep / scan-secrets / verify+secure pipeline /
-      ctx7 (delta de 188a9a7, non porté car base README divergente job3 + CHANGELOG version-entangled).
-      Une passe /doc doit combler ces sujets sur le README réécrit de develop.
-- [x] **release-drift advisory** ([[LRN-117]]) — check qui liste les commits `develop..release/*`
-      touchant du CODE fonctionnel (exclut merges, `.claude/**`, version.txt/CHANGELOG) pour revue
-      de back-merge. Advisory, PAS un gate make-test dur : les cherry-picks landent avec de nouveaux
-      SHA → le commit source reste dans le range → équivalence "déjà porté ?" non fiable automatiquement
-      (faux positifs). Cible : étape release-finish ou /reconcile, pas run-review-guards.
-
-## 2026-07-08 — review remediation (chore/review-remediation)
-Genèse : `.audit/review-release-1.0.0.md` (revue adversariale des 9 jobs). GO user,
-ordre imposé. Déviation justifiée : 1 branche (pas 1/EP) car le gate fil-rouge (step 6)
-grep toute la surface et n'est vert qu'avec A1/A4/A5 déjà appliqués. Commits atomiques,
-branche non mergée (gate humain). EP-A3/A6 = décisions user tranchées (combler / option b).
-- [x] EP-A1 (BLOQUANT) trailer bugfixer/feater/hotfixer (56018df) + grep étendu = 0 autre
-- [x] EP-A2 (P0) hook réinstallé gitleaks (d4526e6) + 3 gates verts + root-cause (générateur édité, jamais réinstallé)
-- [x] EP-A4 quote YAML seo-analyzer:3 + security-auditor:3 (5a0fc16) + gate yaml.safe_load tous agents
-- [x] EP-A5 geo own-policy PERMISSIVE (f0111e1), user-approved, grep==0
-- [x] EP-A8 smoke /seo+/geo réel PROUVÉ — AUTO llms.txt + sitemap.xml atterrissent sur disque (no-op infirmé)
-- [x] FIL-ROUGE run-review-guards.sh 5 gardes (4e83f39), user-approved, à dents
-- [x] EP-A3 backfill LRN-098/101 (7cd82cf/a01250b) + EVAL-015 (38cc821) + BLK-016 (8e9ff33) + PORT rtk e58037c (416b68f) car fix absent+bug live sur develop
-- [x] EP-A6 (option b) seuil 280→320 + BDR-062 (1be9036)
-- [x] EP-A7 documentaire + M5 → EVAL-022 (capitalize cc4f161)
-- [x] Capitalize LRN-113/114/115/116 + BDR-062 + EVAL-021/022 + journal (cc4f161)
-- [x] GATE FINAL : make test GREEN (exit 0) + A2 secret BLOCKED (gitleaks) + A8 AUTO landed + review-guards 5/0
-- Branche chore/review-remediation NON mergée (gate humain). Résidu noté : e65796f (SC1091 lint) non back-mergé, hors scope.
-
-## 2026-07-08 — job9 sub-agent architecture corrections (chore/job9-agents)
-Genèse : `.audit/job9-report.md` (agents/*.md frontmatter+body, verify-loop,
-dispatch graph, read-only). Premise correction confirmed CC v2.1.203 : nesting
-SUPPORTED since v2.1.172, cap 5, `Agent` tool required in `tools:` to nest.
-User decision: **path b (version-robust)** for the version-floor. One commit/item.
-
-PART 1 — MISROUTED (trivial frontmatter):
-- [x] A — commit-changer: drop unused `Agent` from tools (0ede52c)
-- [x] B — verifier: pin `model: sonnet` (ea6c126)
-- [x] C — security-auditor: pin `model: sonnet` (1c270e6)
-- [x] D — plugin-advisor: `haiku` → `sonnet` (5ab6c21)
-- [x] GATE P1 — smoke green: verifier CONFORME, sec-auditor BLOCK(2), advisor
-      ACTION REQUIRED; verdict grammar intact, mode honored. No revert.
-
-PART 2 — VERSION-FLOOR (path b) — CONTRACT APPROVED, DONE:
-- [x] 5 — seo+geo analyzers → fix-bundle→L1 (a5a7b54/6df42e4); /seo STEP 1.5
-      (c498b93), /geo dispatch+apply (70fb3b4), dispatcher tier-tolerance
-      (212f9aa); /harden already path-b (untouched), /onboard audit-only
-      (untouched). GATE PASSED: make test green + 4 smokes (A bundle-no-edit,
-      B AUTO lands on disk no-confirm, C GATED withheld→applied post-accord,
-      D onboard report-only zero-fix).
-- [x] 6 — BDR-060 orchestration floor v2.1.172 supersedes implicit v2.1.83
-      premise (BDR-004:133 kept — auto-mode floor, append-only + factually
-      correct). BDR-061 path-b doctrine.
-PART 3 — IMPLICIT-HANDOFF (tight scope, 2 sites) — DONE:
-- [x] 7 — H2 INLINE-LOAD verb @ code-cleaner + scaffolder (87d63bf/af9656f),
-      drop unused Agent from code-cleaner
-- [x] 8 — H1 code-cleaner→refactorer named artifact .claude/audits/CODE-CLEAN-SCOPE.md
-
-Capitalize DONE: LRN-112 (nesting) + BDR-060 (floor) + BDR-061 (path-b) + journal.
-- [x] commit-changer template Co-Authored-By stripped (5a3de92, isolated) —
-      contradicted no-attribution ban since creation
-- [x] FOLLOW-UP next cycle: cross with J4-16 (lib-layer lock) — verify no other
-      agent/template carries a banned attribution trailer (Co-Authored-By/
-      Claude-Session/--trailer)
-Branch unmerged, human gate.
-
-## 2026-07-07 — job8 third-party security hardening (chore/job8-hardening)
-Genèse : `.audit/job8-report.md` (magic MCP/plugins/gstack/external skills/trust
-chain, read-only). A/B/C/D exécutés (3 commits), branche non mergée, gate humain.
-
-- [x] A — `permissions.ask` += 4 `mcp__magic__*` tools, allow reste vide (BDR-059)
-- [x] B — component_builder couvert par A ; risque documenté README + LRN-110
-- [x] C — darwin-skill réinstallé pinné (tree complet, HEAD détaché SHA
-      7c7b790), git-commit large-scope documenté comme risque accepté (pas de
-      patch sur code tiers pinné) — BDR-058, LRN-109
-- [x] D — pr-review-toolkit / example-skills inchangés, confirmé
-
-- [x] Re-audit surfaces C/D (ui-ux-pro-max, autres plugins) — single-observer
-      CLEAN sans passe verifier (Fable-5 épuisé mi-job8), à re-vérifier au
-      prochain cycle d'audit sécurité si le scope magic/darwin revient.
-- [x] MAGIC_API_KEY rotation toujours en attente (résiduel job7, non job8)
-
-## 2026-07-07 — job7 secrets: triage backstops (chore/job7-secrets)
-Genèse : `.audit/job7/ALL-REDACTED.json` (triage secrets multi-repo + ~/.claude).
-GITEA_TOKEN déjà rotaté (transcript 960bd2cf). MAGIC rotation prévue après (A).
-Fixtures git-game #5/#6 confirmées synthétiques (test-secret-*). Règle : jamais
-manipuler une valeur de secret — edits sur les mécanismes seulement.
-
-- [x] A.1 Provenance MAGIC_API_KEY dans `~/.claude.json` : confirmée —
-      seul writer = `lib/toggle-external.sh:191` (`claude mcp add magic --scope
-      user --env API_KEY="$MAGIC_API_KEY"`), appelé par `install-plugins.sh`
-      (jamais un `claude mcp add` direct). Aucun autre writer (grep repo-wide).
-- [x] A.2 Doc Claude Code (agent claude-code-guide) : `${VAR}` supporté dans
-      `env`/`command`/`args`/`url`/`headers` de mcpServers, y compris scope
-      user (`~/.claude.json`). Pas de `envFile`, pas de flag `mcp add` pour une
-      référence — édition manuelle requise. Voie SUPPORTÉE retenue.
-      Décision utilisateur : wiring `MAGIC_API_KEY` → wrapper `claude()` scopé
-      dans `~/.bashrc` (source `.env` en subshell, jamais exporté globalement)
-      plutôt qu'un export global (surface minimale, cohérent BDR-026).
-  - [x] `~/.bashrc` : fonction `claude()` wrapper (subshell source ~/.claude/.env,
-        exec — vérifié : la var n'atteint QUE le subshell/exec, jamais le shell
-        parent). Hors repo (dotfile perso).
-  - [x] `~/.claude.json` mcpServers.magic.env.API_KEY → `"${MAGIC_API_KEY}"`
-        (diff keys-only montré avant écriture ; jq surgical edit, jamais Read
-        direct — la valeur n'a jamais traversé mon contexte). Backup fait
-        pendant l'édition supprimé aussitôt vérifié (aurait été un 6e leak).
-  - [x] `lib/toggle-external.sh:191-192` — `--env 'API_KEY=${MAGIC_API_KEY}'`
-        (référence littérale, single-quoted). `claude mcp add` direct au flag
-        bloqué par le classifieur auto-mode (self-modification non sollicitée,
-        respecté) — non testé live ; `claude mcp list` confirme la syntaxe
-        est bien reconnue ("Missing environment variables: MAGIC_API_KEY" —
-        attendu, cette session a démarré avant le wrapper bashrc).
-  - [x] Doc README : section "Adding an MCP server that needs a secret" +
-        piège `--env` + pattern wrapper à copier
-  - [x] Vérif manuelle : `claude mcp list` (read-only) — magic reconnaît
-        `${MAGIC_API_KEY}`, encore connecté (session pré-existante) ; nécessite
-        un restart terminal (source ~/.bashrc) + Claude Code pour confirmer
-        end-to-end — **résiduel, à faire par l'utilisateur**
-- [x] A.3 Scrub backups `.claude.json.backup.*` — les 5 originaux (78af0e36 @
-      job7 triage) déjà auto-rotés (ring-buffer natif) ; des 5 COURANTS, 2
-      encore en clair (créés avant le fix, pendant cette session) → scrubbés
-      jq (mode 600 restauré, changé par erreur via mv). grep 78af0e36 : 0 hors
-      `.env` (backups + .claude.json confirmés propres).
-- [x] A.4 Signaler à l'utilisateur : rotation MAGIC maintenant (après commit A)
-- [x] B. Redaction dumps d'env — `hooks/rtk-rewrite.sh` étendu : pipeline simple
-      (pas de `;`/`&`/`||`) + `printenv`/`env` en tête sans `VAR=... cmd` derrière
-      → append `| sed -E 's/^([A-Za-z_]*(TOKEN|API_KEY|SECRET|PASSWORD|PASSWD)
-      [A-Za-z_]*)=.*/\1=REDACTED/'`. `env VAR=x cmd` intact. Compound bail
-      (`;`/`&`/`||`) — jamais de pipe attaché au mauvais segment.
-  - [x] `lib/tests/rtk-rewrite.test.sh` — 3 cas + garde compound
-  - [x] `make test` vert (96/96 gitflow-test + suite complète)
-- [x] C. Backstop gitleaks (8.30.1 confirmé installé — `protect` non listé
-      dans `--help` mais fonctionne encore ; `gitleaks git --staged` =
-      sous-commande documentée retenue à la place)
-  - [x] `.gitleaks.toml` racine — allowlist 3 classes job7 (vérifiées
-        empiriquement contre les vrais fichiers : marketplace.json sha
-        40-hex, ws-protocol nonce, test-secret-[0-9-]+) + 4e entrée
-        `(^|/)\.env$` (pas un faux positif — c'est le vault canonique
-        BDR-026 ; exclu du bruit, pas de la détection)
-  - [x] pre-commit gitflow (`lib/gitflow.sh` `_gitflow_emit_pre_commit`) —
-        `gitleaks git --staged` après guard root/merge, non-bloquant si absent
-  - [x] `lib/gitflow-test.sh` T16 — faux secret (AKIA random) sur feature
-        branch → bloqué ; commit propre passe ; PATH sans gitleaks → warn
-        + pass. 96/96 vert.
-  - [x] `make scan-secrets` — repo (git history) + dir ~/.claude, redacted
-        JSON → `.audit/` (`--redact` vérifié : Match/Secret redacted dans
-        le report, pas juste les logs). Repo : 0 (attendu). ~/.claude : 18
-        hits restants, 8 fichiers — voir D (5 déjà dans le triage job7,
-        3 NOUVEAUX non couverts par la spec initiale, à trancher)
-- [x] D. Purge (GO explicite par item) — état réel après `make scan-secrets` :
-  - [x] transcript 960bd2cf…jsonl (generic-api-key, GITEA déjà rotaté) — GO
-        utilisateur → rm fait
-  - [x] `ide/27929.lock` — déjà rotée toute seule (fichier absent, session
-        finie). REMPLACÉE par `ide/20429.lock` (NOUVEAU, session active en
-        cours) — NE PAS rm (verrou live) ; candidat allowlist de classe
-        (`ide/*.lock` structurel, pas un secret) si le pattern se confirme
-  - [x] `cleanupPeriodDays` — champ confirmé exact (agent claude-code-guide,
-        code.claude.com/docs/en/settings.md) : défaut 30, min 1, scope doc
-        = "session files" (transcripts + orphaned subagent worktrees) —
-        PAS explicitement backups/file-history/paste-cache (gap doc, donc
-        ne remplace pas les scrubs manuels A.3/D). Diff montré, confirmé
-        via AskUserQuestion (1er essai bloqué par le classifieur auto-mode :
-        diff affiché en texte ne vaut pas confirmation explicite — correct)
-        → `settings.json` 30→7 appliqué.
-  - [x] **NOUVEAU (hors spec initiale, découvert par `make scan-secrets`)** :
-        `paste-cache/7d48f52c7499c1a7.txt` (sourcegraph-access-token, 2) —
-        GO utilisateur ("Claude rm maintenant") → rm fait, jamais lu.
-        Transcript `f1c9c474-...jsonl` (generic-api-key, 8) — PAS choisi
-        par l'utilisateur parmi les options (auto-inspect / TODO / rm) →
-        **laissé intact, à trancher** ; ni lu ni caractérisé (règle job7).
-        [sans objet : transcript auto-roté (cleanupPeriodDays=7), absent
-        du disque — reconcile 2026-07-20]
-  - [x] **NOUVEAU (bruit, pas un item D)** : transcript de CETTE session
-        (`4b5c02a9-...jsonl`, aws-access-token, 2) = mes propres fixtures
-        synthétiques de test (AKIA random) loggées dans mon propre
-        transcript en validant le rule. Pas un vrai secret, rien à purger.
-- [x] Gate final : `make test` + `make scan-secrets` propre + table
-      étape/commit/gate + capitalize (BDR secrets-par-référence, MAJ BDR-026,
-      LRN piège `claude mcp add --env`). NOTE : `make scan-secrets` sur
-      ~/.claude ne sera pas "propre" tant que `f1c9c474-...jsonl` (8 hits,
-      non tranché) reste — résiduel connu, pas un échec du job.
-
-## 2026-07-05 — /deploy UX patch (feature/deploy-next-style)
-Feedback user au 1er run réel (bchanot-cv, [[EVAL-016]]) : NEXT.sh une commande
-par ligne (style session — ssh ouvre la box, la suite s'exécute dessus, local =
-"(from your machine)") + hand-back AFFICHE la checklist inline (aussi aux
-re-hand-back). Step = bloc (header + lignes jusqu'à ligne vide), @delta
-gouverne le bloc entier.
-- [x] skills/deploy/SKILL.md — grammaire bloc-étape + shape rule + print inline
-- [x] templates/deploy/PROCEDURE.md — restylé session
-- [x] bchanot-cv runbook restylé, committé, pushé (bd7f6e4, develop sync)
-- [x] settings.json +inputNeededNotifEnabled (layout committé inchangé)
-- [x] Capitalize EVAL-016 + journal
-- [x] Re-dogfood run 2 (résidus bchanot-cv) : le print inline AVANT
-      AskUserQuestion ne s'affichait PAS → leçon [[LRN-102]] (texte avant un
-      tool call peut ne jamais rendre ; le dernier texte du tour est le seul
-      affichage garanti)
-- [x] PASS 2 (feature/deploy-inline-checklist) : checklist DISPLAY-ONLY —
-      plus de fichier NEXT.sh du tout (jetable, PENDING+runbook régénèrent
-      partout) ; hand-back TERMINE le tour par la checklist, aucun tool call
-      après ; resume à froid = régénère + ré-affiche. Skill+template+CHANGELOG.
-- [x] Re-dogfood pass 2 VALIDÉ (deploy run 2, b24c58b marqué 2026-07-05-2) :
-      checklist copiée depuis la conversation, deploy OK, CSP hash live sans
-      unsafe-inline. Resume à froid + STEP 4 (learn) toujours vierges
-
-## 2026-07-05 — impeccable install chain (feature/impeccable-install)
-Décision (user a délégué) : COMPLÉMENTAIRES → les deux. frontend-design garde
-la direction esthétique au build ; impeccable (pbakaus, 43.6k⭐, Apache-2.0,
-actif) apporte l'UNIQUE manquant : 45 règles déterministes anti-slop (CLI
-`impeccable detect`, exit 0/2, --json — le semgrep du design, doctrine
-backstop-déterministe) + 23 verbes sous UN skill (/impeccable) + contexte
-design persistant (DESIGN.md/PRODUCT.md). Faits vérifiés : npm CLI 3.2.0
-(skill dist = track séparé), `skills install -y --providers=claude
---scope=project --no-hooks`, **Node ≥ 24 requis (hôte = 22.22)** → step
-fail-soft + décision bump Node à l'user. Classifier a bloqué npx (code tiers)
-→ dogfood via `make plugin` côté user.
-Pattern : ctx7/machine-owned (skills-external/impeccable gitignoré, synced
-par installeur, symlinké par link.sh EXTERNAL_SKILLS, profils type external).
-PAS en GATE-BLOCK design.profile tant que Node<24 + pas dogfoodé.
-- [x] plugins.lock.json — entry impeccable pin 3.2.0
-- [x] install-plugins.sh — Step 8d staged npx install → skills-external
-- [x] update-all.sh — step miroir pin-honored (Node<24 → skip, dist gardée)
-- [x] link.sh — EXTERNAL_SKILLS += impeccable
-- [x] .gitignore — skills/impeccable + skills-external/impeccable/
-- [x] profils design/web/web-full/full — impeccable external (show design →
-      « impeccable missing » = statut honnête pré-install)
-- [x] plugin-advisor.md + CLAUDE.md Design work + lib/design-gate.md
-- [x] README table + CHANGELOG Unreleased
-- [x] Verify — bash -n ×3 OK, shellcheck clean (SC1091 info only), lock JSON
-      valide, profile parse OK. Dogfood DIFFÉRÉ : classifier bloque npx code
-      tiers en auto-mode → user lance `make plugin` (une fois Node ≥ 24)
-- [x] Bump Node baseline 22→24 LTS (install-plugins Step 1, 24cce6a) — la
-      dépendance dure est résolue à l'install, plus une décision différée
-- [x] Follow-up (hors scope) : doctor.sh check (fichier gardé) ; GATE-BLOCK
-      promotion après dogfood ; dogfood réel = prochain `make plugin`
-
-## 2026-07-04 — skill /tour (tir groupé multi-projets, feature/tour-skill)
-Goal: 1 orchestrateur = clean-code + sécurité (security-auditor/semgrep [+cso si
-gstack ON]) + reconcile + doc, mode auto, sur 1..N projets. Boucle de convergence
-(fixes peuvent invalider l'audit précédent) BORNÉE 3× (LRN-083). Build via
-superpowers:writing-skills (TDD, pattern audit-delta/reconcile) + guidance
-skill-creator (structure, description trigger-pushy).
-Design verrouillé :
-- auto = fixes committés sur `chore/tour-<date>` par repo (gitflow lib), JAMAIS
-  finish/merge (signal humain only). Tree sale ou pas de develop → report-only.
-- ordre par repo : sécurité → clean → re-verify (checks projet, fail=revert
-  fail-closed) → reconcile (REPORT-ONLY, jamais d'auto-coche TODO) → doc
-  (mode silencieux doc-syncer) → re-audit convergence.
-- convergence = 1 passe complète à zéro finding nouveau + checks verts ;
-  sinon re-boucle, max 3 itérations, résidus rapportés honnêtement.
-- rapport `.claude/audits/TOUR.md` par repo + synthèse inline multi-repos.
-- registres : offre capitalize gatée en fin, jamais silencieux.
-- [x] RED : fixture repo → baseline SANS skill. 6 gaps : TODO cible ré-écrit
-      silencieusement ; registres écrits de façon autonome ; sécu = grep ad-hoc
-      sans semgrep ; zéro rapport persistant ; scope creep (.gitignore +
-      registres bootstrap) ; boucle sans borne déclarée. (Bien fait : branche
-      gitflow via lib, pas de merge, commits atomiques, convergence passe 2.)
-- [x] GREEN : skills/tour/SKILL.md — run avec skill sur fixture-green,
-      6/6 gaps fermés VÉRIFIÉS sur disque (TODO zero-diff, 0 registre,
-      semgrep chaque itération, TOUR.md committé 18 findings, 0 scope
-      creep, 3 it. bornées convergées, chore branch non mergée)
-- [x] REFACTOR : 2 trous du GREEN patchés (scratch semgrep non trackés →
-      auto-blocage du prochain run, STEP 3.2 cleanup ; fix sécu cassant
-      non signalé → tag BREAKING structurel dans template). Additions
-      template-structurelles NON re-testées par un 3e run complet (coût) —
-      re-test au premier usage réel.
-- [x] Routage CLAUDE.md (ligne « Grouped all-axes sweep → tour »)
-- [x] Commit branche + capitalize (BDR-052, LRN-099/100, EVAL-014, journal)
-- [x] GO user 2026-07-05 : merge develop + release/1.0.0 ; settings.json
-      restauré (Opus 4.8 1M défaut, backstop attribution conservé)
-
-## 2026-07-03 — verify loops + semgrep gate + contract (chantier orchestrateurs)
-Archi validée au gate (session 2026-07-03). Cible : contract sur DISQUE dès
-création (fichier de run, pattern DIAGNOSIS) + verifier frais (verdict structuré
-CONFORME/écarts, preuve-qu'il-a-regardé LRN-048, 2 échecs structurels = escalade
-humaine — verifier muet ≠ PASS) + gate sécu semgrep (rulesets ÉPINGLÉS
-p/security-audit + p/secrets — pas --config auto, classe LRN-077 ; BLOCK
-HIGH/CRITICAL only, LRN-047) + boucles bornées 3× décidées en boucle principale
-(LRN-083). cso = symlink submodule gstack → non modifiable → greffes locales
-(onboard cso-fallback, audit-delta, agent neuf ; complément semgrep même
-gstack ON). Verdicts user : dev inline conservé feat/bugfix/hotfix (verify+sécu
-= sous-agents frais) ; hotfix garde revert-escalade ; PIN version semgrep dans
-plugins.lock.json (gate bloquante — upgrade silencieux = nouveaux BLOCK sur code
-inchangé ; pattern gsd-pin, saut affiché par update-all).
-
-LOT 1 — feature/semgrep-install (GO)
-- [x] plugins.lock.json — pin semgrep 1.168.0 (pattern gsd, note gate bloquante)
-- [x] install-plugins.sh STEP 7.5 — pipx pinned, command -v guard + version echo, login guide-only (jamais auto)
-- [x] update-all.sh step 6.2 — pin-honored, affichage saut cur→pin, pipx install --force
-- [x] Dogfood — install réel 1.168.0 via bloc extrait + idempotence (re-run = skip) + pin-match + saut affiché (1.168.0→9.9.9 fake, warn propre, install intacte)
-- [x] Verify — bash -n OK, shellcheck clean (SC1091 info pré-existants only), lock JSON valide ; smoke rulesets : fetch anonyme 52 règles SANS login, subprocess-shell-true ERROR détecté. Limite notée pour LOT 3 : community tier rate SQLi %-format hors contexte API + tokens fake (choix rulesets à re-évaluer à l'agent)
-- [x] Commit scoped (settings.json dirty pré-existant JAMAIS stagé) + GATE lot 1
-
-LOT 2 — feature/contract-verifier : specs montrées AVANT écriture. lib/contract-interview.md + agents/verifier.md.
-LOT 3 — feature/security-auditor : agents/security-auditor.md + greffe audit-delta + onboard fallback + complément gstack-ON.
-LOT 4 — feature/loops-light : câblage feat/bugfix/hotfix.
-LOT 5 — feature/loops-heavy : câblage ship-feature + init-project + onboard.
-Rien poussé ; gate par lot ; suites après chaque lot.
-
-## 2026-07-03 — design-toolchain trigger fix (bugfix/design-toolchain-trigger)
-Root cause (NOT a kill-switch, per user): ed2408e (07-02) dropped ultra-generic
-tokens but left bare tokens common in non-UI talk → ~6× false-fire THIS session
-(design, dashboard via ecc_dashboard.py, component, frontend, theme, transition,
-palette). Fix = tighten the trigger only + a fire-log counter for measured
-re-fire decisions.
-
-- [x] hooks/design-toolchain-reminder.sh — drop bare design|component|composant|theme|thème|transition|frontend|front-end|palette; dashboard→\bdashboard\b; keep animation; add "front-?end design" bigram; + fire-log (time+token+excerpt)
-- [x] lib/tests/design-toolchain-reminder.test.sh — 8 dropped tokens quiet; button/navbar/landing/glassmorphism/redesign/"frontend design"/"admin dashboard"/animation fire; ecc_dashboard.py quiet; fire logged
-- [x] Verify — shellcheck + bash -n + test PASS + live dogfood (hook now quiet on session tokens)
-- [x] GATE before finish (user); sentinel one-shot to edit the now-guarded hook
-
-## 2026-07-03 — config-protection hook (feature/config-protection-hook)
-Goal: PreToolUse hook blocks Edit/Write to this config's quality-gate files
-(guardrails an agent must not weaken to make an error pass). Adaptation from ECC
-second-look (BDR-047 corrob, Opus 4.8 re-audit) — MY idiom (~15-line bash), NOT
-ECC's Node dispatcher. Extends config's own doctrine ("backstops déterministes
-car l'advisory s'oublie"). Guarded: settings.json (+ .claude/settings*.json),
-lib/gitflow.sh, .githooks/*, doctor.sh, lint configs (preemptive, absent today).
-Bypass: CONFIG_EDIT_OK="reason" (logged). Mid-session env caveat flagged at gate.
-
-- [x] hooks/config-protection.sh — case-match guarded path, exit 2 else 0; fail-open
-- [x] Guarded: settings.json(+.claude/settings*), lib/gitflow.sh, .githooks/*, doctor.sh, hooks/*.sh (self-guard), lib/tests/* (T6c/LRN-077), lint (preemptive)
-- [x] Bypass: one-shot sentinel .claude/.config-edit-ok (non-empty reason, logged+consumed) — NOT env-var (launch-time env = set-and-forget = garde mort)
-- [x] lib/tests/config-protection.test.sh — block/allow/self-guard/near-miss/fail-open/sentinel-one-shot/empty-refuse (17 checks)
-- [x] settings.json — register PreToolUse matcher Edit|Write|MultiEdit -> hook
-- [x] Verify — shellcheck clean + 17/17 PASS + bash -n + bootstrap-safe (hook fires on Edit/Write only, not shell cp/ln)
-- [x] GATE passed — guarded list +2 (hooks/, tests/), sentinel over env-var
-- [x] Capitalize (BDR-047 corrob + LRN-090 câblé>déclaratif) + finish this branch only
-
-## 2026-06-23 — install self-sufficient + gstack on-demand par profil
-Goal: `make install`/`make plugin`/`make update` installent TOUT sans étape
-manuelle. Plus le profil-driven gstack on-demand (option 1 user : gstack OFF
-par défaut, mais `set <profil>` qui a besoin de gstack l'active pour ce profil).
-Root causes trouvées (logs install-20260623-181416.log) :
-- Bug A : install.sh lance link.sh (étape 5) AVANT install-plugins.sh (étape 6),
-  qui n'a jamais re-lancé link.sh → symlinks npx/externes jamais créés au 1er run
-  (LRN-022 documentait déjà le trou). update-all.sh re-link déjà (L364).
-- Bug B : `npx skills add` + gstack ./setup résolvent leur cible relativement au
-  CWD (repo) → darwin-skill atterrit dans $REPO/.agents/skills + $REPO/.claude/skills
-  au lieu de $HOME/.agents/skills. Auto-entretenu une fois $REPO/.agents créé.
-- Bug C : profile.sh "missing — try: bash link.sh" trompeur (link.sh ne crée pas
-  les skills gstack) ; full.profile liste 35 skills gstack jamais posés dans skills/.
-
-- [x] Edit 1 — install-plugins.sh Step 8.5 : `npx skills add` depuis $HOME (subshell cd)
-- [x] Edit 2 — install-plugins.sh : cleanup parasites $REPO/.agents/skills + $REPO/.claude/skills (gitignorés)
-- [x] Edit 3 — install-plugins.sh : Step 10 final re-lance `bash "$REPO/link.sh"` (idempotent)
-- [x] Edit 4 — update-all.sh Step 7.5 : `npx skills add` depuis $HOME (même Bug B)
-- [x] Edit 5 — lib/profile.sh : GSTACK_SRC var + enable_skill gstack branche on-demand
-      (symlink skills/<name> → skills-external/gstack/<name>) + message honnête
-- [x] Verif — shellcheck/bash -n propres ; migré darwin → $HOME/.agents/skills + `bash link.sh`
-      (skills/darwin-skill OK) ; `profile.sh set full` → 0 "missing", 35 gstack on-demand ;
-      cycle minimal↔full OK ; git propre (symlinks gstack gitignorés) ; profil full restauré
-- [x] Cleanup machine courante : $REPO/.claude/skills/darwin-skill + .agents/skills VIDE
-      restent (rm bloqué par garde permission .claude/) → auto-nettoyés au prochain `make plugin`
-      [reconcile 2026-06-29 : TOUJOURS présents (fs-vérifié, darwin-skill 116K daté 23/06) — `make plugin` pas rejoué depuis. Reste différé, déclencheur = prochain install.]
-      [done 2026-06-30 : `make plugin` rejoué EXIT=0 (npm réparé via corepack, [[BLK-013]]) → Step 8.5 a retiré les deux ; fs-vérifié ABSENTS, vrai skills/ intact (36 entrées). Boucle fermée.]
-- [x] Capitalize — LRN-042 (Bug B CWD-relatif) + BDR-030 (gstack on-demand par profil) + journal 2026-06-23
-- [x] Commit (via /commit-change) — DONE (reconcile 2026-06-29 : working tree clean, travaux shippés)
-
-## profile.sh — verbe `gstack on|off`
-- [x] Extraire helper `enable_all_gstack()` (boucle de cmd_reset) — anti-duplication
-- [x] Extraire helper `disable_gstack_not_in(prof)` (boucle gstack de cmd_set) — anti-duplication
-- [x] Extraire helper `parked_gstack_count()` (réutilise pattern cmd_current)
-- [x] Refactor cmd_reset + cmd_set pour utiliser les helpers (comportement préservé)
-- [x] `cmd_gstack()` : `on` = enable tout gstack (garde label active-profile), `off` = disable gstack hors profil actif
-- [x] Wire main() dispatch `gstack)` + usage() + bloc header
-- [x] Doc : SKILL.md argument-hint + exemples + output-policy (Makefile générique suffit)
-- [x] shellcheck propre + tests (help/bad-action/none-error/on/off cycle) — état live restauré exact
-- [x] Investigué "fix" full.profile : PAS un bug — curation par design (BDR-017 caveat). Aucun fix code.
-- [x] FOLLOW-UP (BLK-007 résolu) : linké `spec` (symlink chirurgical) + ajouté à full/web-full ; iOS NON linké (Linux, besoin Mac+Tailscale) ; `.gitignore` allowlist gstack complété (12 ajouts + checkpoint stale retiré) → `gstack on` git-clean ; LRN-025 capitalisé
-- [x] Capitalize : BDR-018, LRN-024, BLK-007, EVAL-002, journal 2026-06-02 + backfill index (BDR-017, BLK-005/006)
-
-## README.md overhaul
-- [x] Plan
-- [x] Corriger section install ctx7 (retirer MCP, clarifier CLI + API key)
-- [x] Marquer ruflo comme désactivé
-- [x] Supprimer section Troubleshooting/bugs courants
-- [x] Simplifier stacks tierces (gstack, ruflo, ctx7, GSD) — juste description + lien
-- [x] Ajouter section skills personnels (skills-perso)
-- [x] Ajouter section système d'autogestion (plugin-advisor, tokens, synergies)
-- [x] Nettoyer section Updating (retirer instructions manuelles par outil)
-- [x] Nettoyer section Maintenance (retirer doublon updating)
-- [x] Mettre à jour table Plugins reference (ctx7 row, ruflo OFF)
-- [x] Corriger lien USAGE.md dans l'intro (retirer mention cas/erreurs)
-
-## USAGE.md cleanup
-- [x] Supprimer tous les "Cas de figure — corrections vX.X.X validées"
-- [x] Supprimer table "Erreurs fréquentes"
-- [x] Corriger `/readme` → `/doc` dans bonnes pratiques
-- [x] Supprimer séparateurs orphelins
-
-## Skill /doc
-- [x] Mettre à jour doc-syncer.md pour gérer ajouts/suppressions de features
-- [x] Mettre à jour SKILL.md description pour mentionner feature delta
-
-## Auto-activation ui-ux-pro-max sur détection design
-- [x] Créer `lib/design-gate.md` — snippet réutilisable (detect design signals + ask to activate ui-ux-pro-max)
-- [x] Intégrer dans feater.md — STEP 0.5 entre scope check et mini-plan
-- [x] Intégrer dans hotfixer.md — STEP 1.5 (si CSS/style/animation)
-- [x] Intégrer dans bugfixer.md — STEP 1.5 (si bug UI/style)
-- [x] Mettre à jour plugin-advisor.md — PHASE 4 : cohérence avec le design gate
-- [x] Mettre à jour CLAUDE.md skill routing — documenter le comportement auto
-
-## Refonte agents/seo-analyzer.md
-- [x] Lire agent actuel + plugin-advisor + interviewer + feater + hotfixer + analyzer
-- [x] Réécrire l'agent complet v1 (11 étapes)
-- [x] Ajouter orchestration sub-agents (hotfixer/feater) + triage par batches
-- [x] Déplacer plugin-advisor après détection stack (STEP 3 au lieu de STEP 0)
-- [x] Ajouter 2 niveaux d'audit (LOCAL code-only / FULL live+externe)
-- [x] Adapter scoring, legal, GEO aux deux niveaux
-- [x] Renumeroter proprement (0-14) + corriger toutes les refs internes
-- [x] Commit — DONE (reconcile 2026-06-29 : working tree clean, agent seo-analyzer live)
-
-## /onboard — cso archetype-aware
-Problème : prompt cso fallback est non-adaptatif — cherche XSS/SQLi/CORS même sur firmware.
-Objectif : charger `## Typical pain points` + `Surface sécurité` de l'archétype et les injecter dans le prompt cso.
-- [x] STEP 4.5 → ajouter extraction de archetype-context.md (pain points + Surface sécurité + category) — validé sur firmware-embedded / nextjs-app-router / library
-- [x] STEP 6 dispatch cso fallback → re-écrire prompt : universal checks + sections conditionnelles par category (web / embedded / library / cli / infra / data / desktop)
-- [x] STEP 6 dispatch cso gstack ON → passer `--archetype <name> --context-file .onboard-audit/archetype-context.md` dans args
-- [x] OUT-OF-SCOPE ce fix : étendre le pattern à analyze/code-clean/doc (déjà reçoivent `ARCHETYPE: <name>`, juste pas le context-file). À faire dans un 2e passage si besoin.
-
-## /validate — nouveau skill W3C + WCAG (option A)
-Scope : W3C HTML validity (validator.nu API) + W3C CSS validity (jigsaw API) + WCAG a11y (axe-core CLI / pa11y / WAVE API / fallback statique). Même pattern que /harden (audit par défaut, --fix avec confirmation A/B/C/D). Rapport = VALIDATE.md racine. Complémentaire à /onboard (qui audite a11y au setup initial — /validate est l'outil on-demand réutilisable).
-
-Design décisions :
-- **Agent dédié** : `agents/validator-analyzer.md` (nouveau). Pas de réutilisation de seo-analyzer — scope différent (validité syntaxique vs indexabilité).
-- **Depth** : LOCAL (fichiers HTML/CSS statiques, tools npm locaux si dispo) | FULL (URL live + APIs distantes W3C/WAVE).
-- **External validators** : validator.nu/?out=json (HTML), jigsaw.w3.org/css-validator (CSS), WAVE API optionnelle (quota gratuit ~100/mois), axe-cli local, pa11y-cli local.
-- **Tools fallback order** : npm tools locaux → APIs distantes → agent général statique (cas onboard). Aucun install forcé.
-- **--fix conservateur** : `alt=""` sur images décoratives évidentes, `lang` sur `<html>`, fermetures de tags manquantes, sauts de niveau heading renumérotés. PAS : labels forms, contraste couleurs, landmarks (demandent décision humaine).
-- **Out of scope** : meta tags/SEO → /seo ; JSON-LD → /geo ; security headers → /harden ; code linting générique (ESLint/Prettier) → hors scope web standards.
-
-Subtasks :
-- [x] Créer `agents/validator-analyzer.md` — spec 6 étapes (478 lignes)
-- [x] Créer `skills/validate/SKILL.md` — dispatcher (378 lignes)
-- [x] Ajouter routage `/validate` dans `~/.claude/CLAUDE.md` section "Skill routing"
-- [x] Mettre à jour `skills/harden/SKILL.md` — W3C/a11y redirigé vers /validate
-- [x] Mettre à jour `skills/seo/SKILL.md` — cross-ref /validate pour W3C/WCAG
-- [x] Grep cohérence : refs /validate correctes, skill détecté par la harness
-
-## Animation lib (`motion`) — install + détection
-
-Problème : `motion` (ex-`framer-motion`, rebrandé nov 2024) n'est ni installé par les scripts ni détecté par plugin-advisor / design-gate. Ajouter détection + install conditionnel.
-
-Décisions :
-- **Package** : `motion` (npm `motion`, import `motion/react`). `motion-v` pour Vue 3 (package séparé). Svelte/vanilla → `motion`.
-- **Éligibilité** : tout projet qui peut consommer l'API. ✅ React/Next/Remix/Astro+React, Vue3/Nuxt, Svelte. ❌ Backend, CLI, embedded, Flutter, WordPress/Drupal/Strapi, RN (réservé `react-native-reanimated`).
-- **init-project** STEP 5 : auto-install si éligible + absent (l'utilisateur a déjà validé scaffold).
-- **onboard** STEP 2.5 : propose + attendre OK (projet existant, opt-in).
-- **plugin-advisor** : read-only — détecte + reporte ("✅ motion installed" ou "ℹ️ eligible but absent — run /onboard").
-- **design-gate** : ajouter motion/motion-v/framer-motion (legacy) dans filesystem signals.
-
-Subtasks :
-- [x] Créer `lib/animation-lib-check.sh` — fonctions `detect_anim_eligibility()` + `is_anim_lib_installed()` + `recommend_anim_install_cmd()`
-- [x] Patcher `agents/scaffolder.md` PHASE 4 — note (le scaffolder n'installe PAS, l'orchestrateur init-project STEP 5e gère)
-- [x] Patcher `skills/init-project/SKILL.md` — STEP 5e ANIMATION LIB (auto-install si éligible)
-- [x] Patcher `skills/onboard/SKILL.md` — STEP 2.5 ANIMATION LIB (propose + attendre yes/skip)
-- [x] Patcher `agents/plugin-advisor.md` PHASE 1 (sourcing du helper) + PHASE 2 (signaux `anim-lib-eligible`/`anim-lib-installed`) + PHASE 3 (section ANIMATION LIB read-only)
-- [x] Patcher `lib/design-gate.md` — ajouter motion/motion-v/framer-motion + autres anim-libs dans filesystem signals
-- [x] Tester : shellcheck OK ; matrix React/Vue/RN/backend/with-motion/no-package/pnpm tous corrects
-
-## Helper `--help` / `help` sur tous les skills (option C) [WON'T-BUILD 2026-06-30 — mesuré non-rentable]
-> ⛔ WON'T-BUILD (2026-06-30) : ABANDON tranché après mesure. RED comportemental (6 reps, /web-validate + /harden, SANS instruction) → **6/6 rendent déjà une aide riche ET s'arrêtent sans dispatcher** (même /harden n'a pas lancé l'audit). Le comportement supposé absent est déjà spontané (convention universelle --help). Seule valeur résiduelle = cohérence de format (6 formats divergents) → ROI insuffisant pour ~5 lignes dans un CLAUDE.md compressé ([[BDR-031]]) sur repo mono-user. 3e état : NON "fait" (rien construit), NON "ouvert" (on ne le fera pas). L'option globale réalisait l'intention BDR-001 ; per-skill toujours rejeté. Voir [[BDR-001]] (won't-build), [[LRN-080]], [[LRN-075]]. Design + subtasks ci-dessous = historique, non actionnables.
-Problème : aucun skill ne gère `--help` aujourd'hui. `argument-hint` affiche juste la syntaxe en autocomplétion, pas de description/exemples. L'utilisateur doit lire le SKILL.md ou deviner.
-
-Objectif : `/<skill> --help` (ou `/<skill> help`) affiche un bloc standardisé (description, args, exemples, cross-refs) et exit SANS dispatcher l'agent ni modifier quoi que ce soit.
-
-Design :
-- **Lib partagée** : créer `skills/lib/help-handler.md` — snippet réutilisable "if $ARGUMENTS contains --help|help|-h, extract frontmatter fields (description, argument-hint, cross-refs) + afficher bloc d'aide standardisé + STOP".
-- **Format d'aide** standardisé :
-  ```
-  /<skill> — <titre court>
-
-  DESCRIPTION
-    <extrait de la frontmatter description, dépouillé des Triggers>
-
-  USAGE
-    /<skill> <argument-hint>
-
-  ARGUMENTS
-    <liste détaillée de chaque flag avec son effet — nouvelle section
-     dans les SKILL.md, ou parsée depuis STEP 0 arg parsing>
-
-  EXAMPLES
-    <3-4 exemples concrets>
-
-  SEE ALSO
-    <extrait des "For X → use /Y" de la frontmatter>
-  ```
-- **Intégration** : ajouter STEP 0.5 ("Handle --help") dans chaque SKILL.md juste après STEP 0 parsing args. Ordre : parse args → check --help → si oui afficher + exit → sinon continuer.
-- **Skills à patcher** : `~/Documents/claude/skills/` = ~20 skills persos + skills-perso list pour référence. Ne PAS toucher skills-external/gstack (ownership externe) ni example-skills.
-
-Subtasks :
-- [-] Créer `skills/lib/help-handler.md` — snippet réutilisable (détection + extraction + affichage)
-- [-] Définir format d'aide standard + section "ARGUMENTS" vs reuse de argument-hint
-- [-] Décider : sections ARGUMENTS/EXAMPLES doivent-elles être dans la frontmatter (nouveau champ YAML) ou dans le corps du SKILL.md (nouvelle section `## Help`) ?
-- [-] Patcher un skill pilote (`/validate`) — valider UX  _(désormais `/web-validate` — renommé e5e673a)_
-- [-] Patcher les skills perso restants : analyze, bugfix, code-clean, commit-change, doc, feat, geo, graphify, harden, hotfix, init-project, make-pdf, onboard, plan-tune, plugin-check, refactor, seo, ship-feature, skills-perso, status, benchmark-models, context-save, context-restore
-- [-] Mettre à jour `~/.claude/CLAUDE.md` — mentionner convention --help disponible sur tous les skills perso
-- [-] Note : skills-external/gstack ont leur propre convention, ne pas toucher
-
-## Skill profiles (partition gstack par usage)
-- [x] Plan
-- [x] `lib/profile.sh` — list/show/current/apply/set/reset/diff via symlink toggle
-- [x] `lib/profiles/{design,dev,qa,audit,minimal}.profile` — 5 profils
-- [x] `skills/profile/SKILL.md` — slash command `/profile`
-- [x] Wire `agents/plugin-advisor.md` — DETECT call profile.sh current + OUTPUT line PROFILE + nouvelle section "Skill profiles" dans TOGGLING EXTERNAL TOOLS
-- [x] Wire `lib/toggle-external.sh` — header pointer vers profile.sh
-- [x] `Makefile` — targets profile/profile-list/profile-current/profile-reset
-- [x] Tests : list/show/current/diff/set/reset/apply tous OK, shellcheck propre, symlinks bien restaurés après reset
-
-## Profile system v2 — extension plugins/MCPs/CLIs
-- [x] Inventaire complet : 7 plugins (4 ON / 3 OFF), 0 MCP local, 4 CLIs installés
-- [x] Définir `MANAGED_PLUGINS` (ui-ux-pro-max, plugin-dev, pr-review-toolkit) + `PROTECTED_PLUGINS` (caveman, security-guidance, superpowers)
-- [x] `profile.sh` étendu : nouveau type `plugin@<marketplace>` (auto-toggle via `claude plugin enable/disable`), `mcp` (delegate à toggle-external.sh pour magic), `cli` (advisory only)
-- [x] `cmd_set` désactive aussi les MANAGED_PLUGINS hors profil
-- [x] `cmd_reset` ne touche PAS aux plugins (info line explicite — re-enable manuel ou via apply)
-- [x] `cmd_current` : compte `enabled` + `installed`, tiebreaker = total le plus grand
-- [x] `cmd_show` : colonne TYPE élargie à 30 chars pour `plugin@ui-ux-pro-max-skill`
-- [x] 4 nouveaux profils : `web`, `seo`, `web-full`, `backend`
-- [x] Profils existants raffinés (design, dev, qa, audit) avec `plugin@<marketplace>` + `cli`
-- [x] `skills/profile/SKILL.md` : table profils mise à jour + table mécanisme par type
-- [x] `agents/plugin-advisor.md` : table de recommandations étendue avec web/seo/web-full/backend
-- [x] Tests : `set web` enable ui-ux-pro-max+magic, `set seo` disable ui-ux-pro-max, `set minimal` épargne always-on, `reset` restaure 64 skills
-- [x] Memoire : BDR-008 (v2 décision) + journal entry 2026-05-04
-- [x] Shellcheck propre
-
-## /audit-delta — skill audit incrémental multi-axes (2026-06-11)
-But : 1 skill, 4 axes cochables (conformité CLAUDE.md, erreurs/améliorations,
-code mort, sécurité), scope = diff depuis dernier run (marqueur SHA persistant,
-par axe), boucle par axe : audit → gate approbation → fix → re-vérification
-obligatoire avant axe suivant. Construit via superpowers:writing-skills (TDD).
-- [x] RED : baseline subagent sans skill (worktree isolé) — 7 gaps documentés
-      (boundary par date de fichier, checkpoint en prose, pas de marqueur par
-      axe, zéro gate, lint=verify, passe unique mélangée, registres auto-écrits)
-- [x] GREEN : skills/audit-delta/SKILL.md — pass sous pression (state file
-      utilisé, gate tenu malgré "fix tout + meeting", marqueurs par axe OK)
-- [x] REFACTOR : trou trouvé (premier run + user injoignable, aucune règle) →
-      patch : défaut full codebase report-only, jamais "from HEAD" ; re-test pass
-- [x] Vérif finale : skill découvrable (~/.claude/skills/audit-delta via symlink
-      skills/), frontmatter valide, worktrees de test nettoyés
-- [x] Capitalize : BDR-020 + LRN-027 + journal 2026-06-11
-- [x] Commit (via /commit-change quand prêt) — DONE (reconcile 2026-06-29 : working tree clean, skill audit-delta live)
-
-## 2026-06-11 — darwin eval: 4 confirmed bugs fix (branch auto-optimize/*-bugfixes)
-
-- [x] geo-analyzer.md: unreachable user → ALL file fixes report-only (STEP 12/13 triage gate)
-- [x] init-project SKILL.md: repoint readme-updater.md (absent) → doc-syncer.md x2
-- [x] analyzer.md: resolve "Update project memory" vs "Do not modify files" contradiction
-- [x] onboard SKILL.md: allowed-tools += Agent, Skill (workflow STEPs 5-7 need them)
-- [x] re-test geo fixture (unreachable) → expect zero source edits; 2 blind judges on geo-analyzer diff
-- [x] commit per fix, results.tsv rows, merge if green
-
-## 2026-06-19 — cleanup/caveman-always-on (full plugin purge)
-Goal: disable caveman plugin + delete every repo dep on it. Plugin.json
-self-declares always-on hooks → "enabled w/o always-on" impossible → full
-purge. Keep memory-registry terse-format rule (separate subsystem); only
-replace dead `/caveman:compress` cmd refs w/ "Legacy entries
-(pre-format-rule): compress manually or via claude.ai on demand."
-Version 3.4.0 → 3.5.0.
-- [x] RUNTIME (user, no TTY): plugin disable + uninstall caveman@caveman; mcp list check
-- [x] PHASE 2: settings.json (2 hook blocks + enabledPlugins + marketplace); hooks/ files delete; .gitignore block; session-start.sh L134
-- [x] PHASE 3: install-plugins.sh STEP 5.5; update-all.sh block; plugins.lock.json; doctor.sh; lib/detect-plugins.sh; lib/profile.sh; plugin-advisor.md; skills/profile/SKILL.md
-- [x] PHASE 4: README row; USAGE always-on line; CHANGELOG; CLAUDE.md cmd ref; skills/capitalize+prune-memory cmd refs; version.txt
-- [x] PHASE 5: shellcheck clean (SC1091 info only); full diff reviewed → committed + merged to master
-
-## 2026-06-26 — coupled-capitalize invariant v1 (Frame 2)
-Plan: [.claude/tasks/2026-06-26-coupled-capitalize-invariant.md](2026-06-26-coupled-capitalize-invariant.md)
-Goal: every dev flow commits its memory automatically (1 commit/flow) via shared
-include; ship-feature reordered (capitalize before FINISH = PR-bug fix). Hook v2,
-doc-sync twin chantier deferred. Safety in the pathspec, never `git add -A`.
-- [x] Task 1 — `lib/memory-commit.sh` + tests T1/T2/T2-bis/T3/T4/T5/T6/T7 (real exec, outputs reported) — 58cb91d + bbef41c
-- [x] Task 2 — `lib/capitalize-commit.md` include — b44791b
-- [x] Task 3 — wire feater/hotfixer/bugfixer/commit-changer — 2763678
-- [x] Task 4 — ship-feature reorder (capitalize before FINISH) — e8eff7e
-- [x] Task 5 — init-project founding-decisions capitalize (F5) — df60df6
-- [x] Task 6 — behavioral verify + shellcheck + CHANGELOG + BDR/LRN — this commit
-- [x] v2 — REJETÉ (pas différé) — BDR-037 (reconcile 2026-06-29) : aucun event CC ne supporte un nag de fin-de-session (Stop = par-tour, SessionEnd = debug-log only). Vrai manque = câblage, corrigé en wirant /capitalize+/close à l'include. Aucun code à écrire.
-- [x] twin chantier — doc-sync DONE (reconcile 2026-06-29) : chantier propre livré ci-dessous (2026-06-27, BDR-036). La note REFUTED était juste — doc-commit BÂTI, pas reorder-seul.
-
-## 2026-06-27 — doc-sync coupled (twin of coupled-capitalize)
-Plan: [.claude/tasks/2026-06-27-doc-sync-coupled.md](2026-06-27-doc-sync-coupled.md)
-Goal: orchestrators commit the docs doc-sync patched, on the branch, BEFORE FINISH.
-Same PR-bug class as memory, NOT same fix: doc-syncer commits nothing (proven) →
-reorder + CREATE doc-commit.sh/.md (mirror memory-commit, 4 deltas). Surface-don't-block.
-- [x] Task 1 — `lib/doc-commit.sh` + `lib/tests/run-doc-commit.sh` — 24/24 real-exec pass, shellcheck clean. T1a/b/c (guard catches .claude/+CLAUDE.md, mixed→refuse-all-loud) + T2 dynamic pathspec + T3/T4/T5/T6. Exit taxonomy 0/2/3/4 (4=scope violation).
-- [x] Task 2 — `lib/doc-commit.md` include — 4a54a65. 4-exit report table (rc 4 = loud upstream anomaly), visible surface w/ agent-composed summary (attribution locked 3×), 2 conscious acks.
-- [x] Task 3 — `agents/doc-syncer.md` `PATCHED_FILES:` OUTPUT — fb1f359. Newline (one path/line), both STEP 9 + AUTO A4; NONE silent. Separator contract aligned producer↔consumer, argv space-safe, T7 proves it (28/28). Additive, callers unaffected.
-- [x] Task 4 — ship-feature reorder — 636b491. DOC SYNC 9→8 (+doc-commit), FINISH 8→9, HTML comment deleted. Ref-coherence: 159/189 STEP 8→9 FINISH + README:152-153 illustration completed (stale since e8eff7e). Historical records left (append-only).
-- [x] Task 5 — init-project reorder — e81f629. SYNC README 12→10c (+doc-commit), GSD 13→12, /13→/12. Order 10b→10c→11→12. Ref-coherence: USAGE ×5 (table, illustration, 3 GSD refs) each verified post-swap. Latent-bug check: none (10b was non-shifting). BLK-011 record left (append-only), TODO locator→12.
-- [x] Task 6 — ref-sweep — clean (no old headers; live refs fixed in Task 4/5; historicals left; USAGE:256 non-ordering). Caught inline-flow gap → Task 6b.
-- [x] Task 6b — wire doc-commit into feat/bugfix/hotfix DOC SYNC — 1b01b95. commit-change exempt (no DOC SYNC); hotfix wired (include no-ops on empty).
-- [x] Task 7 — close: `run-doc-behavioral.md` + shellcheck clean + 28/28 + CHANGELOG + BDR-036 / LRN-058-060 / EVAL-008. surface-replaces-gate + partial-init + scope-expansion engraved honestly.
-- [x] RESOLVED 2026-06-29 — [[BLK-010]] closed by `gitflow_init` root commit (init-project STEP 5f): scaffold/README get a deterministic commit owner + HEAD born before the worktree step. Verified (mechanism + STEP 5f wiring + T2 test); blockers.md index+body updated.
-- [x] RESOLVED 2026-06-29 — [[BLK-011]] closed by REMOVAL: init-project STEP 12 (speculative gsd auto-bootstrap) deleted → orphan never created. Negative diff, not commit-plumbing ([[LRN-072]]). See chantier below.
-- [x] DONE 2026-06-29 — doc-sync MINOR gate strengthened: ① shape-oracle [[BDR-040]] + ② masked-commit fix [[LRN-071]] (③ branch-guard deferred). See chantier below.
-
-## 2026-06-29 — gitflow universal model + 6-repo migration (DONE)
-Goal: universal gitflow across all `bchanot/*` Gitea repos. Lib built across prior sessions; migrated + hardened + dogfooded this session.
-- [x] Lib hardened at ROOT — `gitflow_init` socle-commit made FATAL + identity precheck + `migrate_local` identity guard (BLK-012 → LRN-068); 57/57 green, abort-zero-mutation proven on identity-less repo
-- [x] `lib/gitflow-migrate.sh` — probe (rights, not just identity) / local / remote, reversible→irreversible ordering, delete-master LAST
-- [x] Migrated 6 repos (faunosteo, config, bchanot-cv, zenquality, game, claude): master→main, develop, Option-1 protection, master deleted — each delete behind eyeball+GO, ZERO loss, no force/`--no-verify`, settings intact
-- [x] claude SELF-APPLIED — own committed lib migrated it; chantier landed C1 feat `167ea96` + C2 memory `1254643` + socle `620071b`; hook now governs claude
-- [x] gstack submodule dirty (BLK-008 Playwright bump) excluded via `submodule.ignore=dirty` (LRN-070), NOT reset
-- [x] Deleted merged branches: `feat/deploy-skill` (local+remote) + `cleanup/caveman-always-on` (remote)
-- [x] Dogfood PROVEN: hook whitelists `.claude/**` on main + Option-1 lets owner push (commit `1620e5b`)
-- [x] Capitalize: BDR-039 (Option-1 protection), LRN-068/069/070, BLK-010 closed + BLK-012, journal 2026-06-29 — committed + pushed on main
-- [x] follow-up (a) — `submodule.gstack.ignore=dirty` committé dans `.gitmodules` — DONE (reconcile 2026-06-29 : commit `be1dcef` sur main, mergé via hotfix/gstack-ignore-gitmodules)
-- [x] follow-up (b) — zenquality `cleanup/post-smtp-fix` rename `<type>/<name>` ou finish+delete (AUTRE repo, optionnel)
-
-## 2026-06-29 — MINOR-gate strengthening (doc-syncer) [DONE — merged develop, branch deleted]
-Read-first cartography refuted the literal premise: "strengthen MINOR gate" = 3 problems;
-the literal one (blocking gate on MINOR) contradicts engraved [[BDR-036]]. Scope: ①+②, not B,
-③ deferred. Built test-first (Iron Law).
-- [x] ② fix masked commit failure — `doc-commit.sh` exit 5 fail-loud ([[LRN-071]], 3rd occurrence of the swallowed-commit pattern). RED T8 proved masking, GREEN 32/32 + taxonomy (sh header/funcdoc + `doc-commit.md` rc-5 row)
-- [x] ① MINOR-shape oracle — `lib/doc-shape.sh` ([[BDR-040]]) + `run-doc-shape.sh` 19/19 (boundary + env-override). Wired doc-syncer STEP A4 (escalate whole set → existing SIGNIFICANT gate; no=revert all, select=keep subset) + `doc-commit.md` ACKNOWLEDGMENTS coherence + behavioral Scenario C/D
-- [x] shellcheck clean (doc-commit.sh, doc-shape.sh, both test harnesses); coherence ref-sweep clean
-- [x] Capitalize — BDR-040 + LRN-071 + CHANGELOG (Added/Fixed) + journal 2026-06-29 (cont.)
-- [x] FINISH — merged feature/minor-gate-strengthening → develop (`0f0bd7f`) on explicit signal
-- [~] ③ branch-guard in doc-commit DEFERRED — duplicates protected-base predicate 3rd time (lib + hook + here); all migrated repos have the hook. Reconsider only for repos outside `gitflow init`
-
-## 2026-06-29 — BLK-011 GSD ROADMAP post-FINISH [DONE — merged develop ce4391a, branch deleted]
-User reframed: don't plumb a commit for the stranded ROADMAP — ask if gsd belongs at init at all.
-Read refuted both option-premises (gsd ≫ roadmap; TODO ≠ gsd ROADMAP) but conclusion A held for a
-stronger reason: speculative auto-bootstrap of an unused engine at creation is bad per se ([[LRN-072]]).
-- [x] Resolve by REMOVAL — deleted init-project STEP 12 (negative diff −26/+13), not a commit helper
-- [x] Ref-coherence sweep ("test" for a removal) — header 12→11-step, 10c note, 4 USAGE refs; zero dangling STEP-12 refs repo-wide
-- [x] Scope guardrails — deliberate gsd use KEPT (onboarder PHASE 6, plugin-advisor, status-reporter)
-- [x] Capitalize — [[BLK-011]] resolved (true reason + premise trace) + [[LRN-072]] + CHANGELOG Removed + journal 2026-06-29 (cont. 2)
-- [x] FINISH — merged bugfix/blk-011-gsd-roadmap → develop (`ce4391a`); develop pushed to origin (6 commits, SSH)
-
-## 2026-06-29 — prune-memory hardening (RED-7/8 + index backfill) [DONE — merged develop 73e12be, branch deleted]
-LAST of 3 chantiers. Read-first cartography confirmed RED-7/8 + measured 34-row index drift.
-- [x] RED-7 (example-priming) — fictionalized STEP-2 example to 9xx ids (live ids primed a wrong merge of complementary LRN-014/016); DETERMINISTIC test (run-deterministic.sh) per [[LRN-046]]. Caught its own ugrep false-green → /usr/bin/grep ([[LRN-074]]). [[LRN-073]]
-- [x] RED-8 (added-negation inversion) — consciously ACCEPTED as documented limit in BACKLOG ([[LRN-047]]); no fragile guard built
-- [x] Index backfill — 34 missing rows (decisions 11, learnings 21, blockers 2) composed + ID-sorted insert; drift 34→0, STEP-4 verify OK; moved pre-existing out-of-order LRN-021
-- [x] Capitalize — [[LRN-073]] + [[LRN-074]] + [[EVAL-010]] + journal 2026-06-29 (cont. 3)
-- [x] FINISH — merged bugfix/prune-memory-hardening → develop — DONE (reconcile 2026-06-29 : merge `73e12be`)
-- [x] PUSH — develop → origin — DONE (reconcile 2026-06-29 : develop == origin/develop, 0 commit en avance)
-
-## 2026-06-29 — skill /reconcile (RÉCONCILIATEUR file-ouverte ↔ réel) [SHIPPED 2026-06-30 — develop aede7af, pushed]
-Genèse : l'inventaire manuel du 2026-06-29 a prouvé que le TODO mentait (5 cases fait-mais-non-coché
-+ 1 "auto-nettoyé" qui ne l'était pas + 1 rejeté marqué "deferred"). Cet inventaire EST la spec du
-skill ET son cas de test de référence (résultat manuel connu-bon à reproduire).
-
-PRINCIPE NON NÉGOCIABLE — ce n'est PAS un grep des `[ ]` du TODO (ça reproduirait le mensonge : dirait
-"ouvert" sur du fait-mais-non-coché). C'est un RÉCONCILIATEUR : confronte les sources DÉCLARATIVES à
-l'état RÉEL et signale les ÉCARTS. Un lister-de-todos ne vaut rien (grep le fait) ; un "le TODO prétend
-X, le réel est Y" vaut beaucoup.
-- Sources DÉCLARATIVES : TODO.md ; BDR deferred/follow-ups/caveats ; BLK status=open|upstream ;
-  LRN caveats "revisit if / re-run if".
-- État RÉEL (oracles) : git (branche mergée/absente, commit existe, origin sync, working tree clean) ;
-  fichier live = committé (skill/agent présent + linké = shippé) ; statut registre.
-
-SORTIE = les 4 catégories de l'inventaire 2026-06-29 :
-  1. actionnable maintenant (non bloqué)
-  2. bloqué (condition externe — upstream)
-  3. différé (déclencheur conditionnel)
-  4. écart TODO↔réalité (fait-mais-non-coché / rejeté-marqué-deferred / "auto-fait" non vérifié)
-  + CONTRADICTIONS inter-registres (ex. BDR-001 accepted "pas de helper par SKILL.md" vs chantier
-    --help qui copie dans chaque SKILL.md).
-  + réconciliation TODO **GATED** : montre les écarts, DEMANDE avant cocher/requalifier
-    (modifie un fichier tracké → jamais silencieux).
-
-Subtasks (à détailler au lancement) :
-- [x] Spec : table oracle-par-source (commit existe / branche absente / tree clean / skill linké /
-      statut registre) — chaque "déclaré" a son test réel — DONE (lib/reconcile.sh : reconcile_oracle_*)
-- [x] Décider build : superpowers:writing-skills (TDD, RED = fixture TODO menteur reproduisant les 7 écarts) — DONE (RED a4872 miroir + RED-B Index-ignore à dents + GREEN comportemental a8404)
-- [x] `skills/reconcile/SKILL.md` — DONE (skill mince : orchestration + gate A/B/C + limites honnêtes)
-- [x] routage CLAUDE.md (triggers : "reconcile", "file vraiment vide ?",
-      "qu'est-ce qui reste ouvert", "inventaire chantiers") — DONE (CLAUDE.md "Skill routing" + link.sh)
-- [x] Détecteur de contradictions inter-registres (BDR accepted vs chantier qui le contredit) — DONE (reconcile_contradiction_candidates ; surface, n'asserte pas)
-- [x] Gate de réconciliation (diff TODO proposé, A/B/C confirm avant edit) — DONE (SKILL.md "The gate" ; registres read-only)
-- [x] Test final = reproduire l'inventaire 2026-06-29 (cat. 1-4 + contradiction BDR-001) comme oracle — DONE (run-reconcile.sh 20/20, fixtures neutres, RED prouvé rouge avant le vert)
-- SHIPPED 2026-06-30 : feat `82e6322` + mémoire `6b512be` → merge `aede7af` (feature/reconcile-skill supprimée) → poussé origin/develop. main intact. BDR-041 + LRN-075/076/077 + EVAL-011 capitalisés.
-
-## [SHIPPED 2026-06-30 — develop 0c0b748, released v4.0.0 (tag v4.0.0)] skill /release-candidate — orchestrateur gitflow release
-Pertinent maintenant : develop ahead de main, prochaine étape gitflow = release.
-VÉRIFIÉ dans lib/gitflow.sh (2026-06-30) — release CÂBLÉE, pas que hotfix :
-- start base=develop (`gitflow_base_for` L49) ; `gitflow start release <ver>` positionne sur la branche (L71).
-- finish fan-out (`gitflow_finish` L108-111) : merge main + merge-back develop + delete (locale, `_gitflow_delete` L96).
-- GAP CONFIRMÉ (grep clean) : AUCUN `git tag` ni bump version dans tout gitflow.sh → la mécanique merge mais ne tague PAS.
-
-Design (à la conception) : ORCHESTRATEUR au-dessus du gitflow existant — NE PAS réécrire la mécanique.
-- `gitflow start release <ver>` (depuis develop) → positionne.
-- prep sur la branche release : bump VERSION + CHANGELOG (Keep-a-Changelog) + RC fixes.
-- `gitflow finish` (merge main + merge-back develop + delete — déjà câblé).
-- FOURNIR le tag manquant : `git tag` sur main au merge-commit (le seul morceau absent de la lib).
-- push gaté (ASK, [[LRN-069]]) : main + develop + tag.
-
-Subtasks (à détailler au lancement) :
-- [x] Décider : tag fourni par le skill au-dessus de gitflow (mécanique non réécrite) — d3d6ced, [[BDR-042]]
-- [x] `skills/release-candidate/SKILL.md` — orchestration start→prep→finish→tag→push(gaté) + gate humain "WHEN to release" — présent (d3d6ced)
-- [x] routage CLAUDE.md — présent (~/.claude/CLAUDE.md "Cut a release → release-candidate")
-- [x] test — prouvé par la release réelle 4.0.0 : fan-out main (709facf) + develop (4a00a60) + tag v4.0.0
-
-## Auto-déclenchement des skills par intention [WON'T-BUILD 2026-06-30 — mesuré : Claude discrimine déjà (3 classes)]
-> ⛔ WON'T-BUILD (2026-06-30) : 3e moot de la série (après [[BDR-001]] --help + [[BDR-043]]/[[LRN-082]] darwin re-baseline). Cartographie : routing = STACK L0(design-hook)→L1(superpowers « 1%→MUST invoke », dominant)→L2(prose CLAUDE.md)→L3(frontmatter)→L4(BDR-019). L1 SUR-détermine déjà l'invocation → « auto-call ? » = déjà oui. Reframe C : la vraie question = DISCERNEMENT, risque inversé under→**OVER**-routing. Mesure en VRAIES sessions fraîches (8 prompts / 3 classes) : CLEAR→route ✓, AMBIGUË→demande (refuse de deviner, investigue pour une question utile) ✓, TRIVIALE→s'abstient ✓. Le sur-routing soupçonné (L1 vs règles Workflow) NE se matérialise PAS — le modèle équilibre. Prose de bornage L2 = valeur fantôme + risque de DÉGRADER un discernement déjà bon. Voir [[BDR-044]] (reframe + verdict), [[LRN-083]] (RED sous-agent invalide), [[LRN-080]] (mesure-first, corroboré 3-in-a-row). RED sous-agent initial (0/6) RETIRÉ comme non-discriminant (plancher artefact). Design + subtasks ci-dessous = historique, non actionnables.
-> ⏭️ (historique) NEXT, mais CADRÉ : **pas de design avant la mesure**. Jumeau méthodologique de [[BDR-001]] `--help` (won't-build après RED) — même piège architectural, même garde-fou [[LRN-080]] (mesurer avant d'instruire) + [[LRN-049]] (borner le bruit avant le marqueur). Les subtasks ci-dessous s'arrêtent à la mesure ; le design ne s'ouvre QUE si le RED valide la valeur.
-
-**Contrainte architecturale (établie pour `--help`, non négociable) :**
-Aucun mécanisme n'intercepte le message utilisateur pour *lancer* un skill. La harness ne route pas avant que le modèle réponde — un skill n'est invoqué QUE par le modèle (outil Skill). Donc « auto-call déterministe » = IMPOSSIBLE. Le seul levier sur l'invocation elle-même = instruire le MODÈLE à reconnaître l'intention et appeler le bon skill → **conformité-modèle, PAS déterminisme**. C'est une instruction de routage CLAUDE.md, pas un mécanisme.
-- Nuance (raffinement) : une couche déterministe existe *en amont* du call, pas *sur* le call — un hook `UserPromptSubmit` peut détecter un signal et INJECTER un rappel de routage (le `design-toolchain` hook fait déjà exactement ça pour l'UI ; le banner session-start aussi). Détection déterministe + injection advisory ; le modèle reste celui qui tire. MAIS sur des verbes d'intention (« corrige », « crée », « bug »), un hook keyword serait BRUYANT (ces mots sont partout) — le design-hook s'en sort car « design/UI » est un signal rare. Donc le levier hook est probablement non-viable pour le cas large → ce qui **renforce** le besoin de borner aux signaux rares/non-ambigus.
-
-**Substrat déjà en place :** [[BDR-019]] a retiré `disable-model-invocation` repo-wide → le modèle PEUT déjà self-router vers les skills (défaut = activé ; user l'avait vécu live : intention feature détectée, `ship-feature` voulu, jadis bloqué). Et la section « Skill routing » de CLAUDE.md existe déjà. Donc la **baseline du RED = le routage CLAUDE.md ACTUEL tel quel** ; le chantier n'a de valeur que si le RED prouve que cette prose SOUS-déclenche sur intention claire (exactement la logique --help : baseline = convention déjà là, question = est-ce qu'instruire en plus change quoi que ce soit).
-
-**Le chantier COMMENCE par (rien d'autre avant) :**
-- [x] (a) **Cartographier** le routage CLAUDE.md actuel — quels signaux → quels skills sont déjà censés router (« Skill routing » + « Design work » + descriptions de skills). État des lieux factuel, pas de jugement.
-- [x] (b) **RED comportemental** ([[LRN-080]]) — prompts d'intention IMPLICITE, naturalistes, SANS instruction renforcée : « il y a un bug, debug », « on va créer X », « corrige ceci », « refactor ce module », « cut a release »… → le modèle invoque-t-il le bon skill, ou fait-il la tâche à la main en ignorant le skill ? N reps, plusieurs intents distincts.
-  - Garde-fou RED : **ne PAS amorcer**. Sessions fraîches / sous-agents, prompts naturels, zéro mention de « skill » / « routage » / « test » dans le prompt mesuré (sinon le modèle route parce qu'il SAIT qu'on le teste — contamination). Le RED `--help` était mécanique donc peu sensible à l'amorçage ; l'intent-routing l'est beaucoup plus → rigueur supérieure requise.
-- [x] (c) **Décider selon le RED** :
-  - déjà bon (comme --help) → chantier MINCE, voire won't-build ; capitaliser le constat (3e état : mesuré non-rentable, ni fait ni ouvert).
-  - sous-déclenche → vraie valeur : renforcer la **prose de routage** (levier modèle) sur signaux CLAIRS uniquement — PAS un hook keyword (trop bruyant, cf. nuance ci-dessus).
-
-**Scope à border au cadrage — NE PAS faire « tout skill jugé pertinent » :**
-Tension réelle proactif vs intrusif. Auto-déclencher feat/bugfix sur intention CLAIRE et non-ambiguë = sain. « Déclenche tout skill jugé pertinent » = RISQUÉ (faux déclenchements, skills non sollicités, flux interrompus). Réglage cible ([[LRN-049]] borner le bruit) = déclencher sur signaux d'intention CLAIRS et non-ambigus ; **ambigu → DEMANDER, pas auto-déclencher**. À définir précisément SI (et seulement si) le RED valide : table `signal → skill` + la frontière exacte de l'ambiguïté.
-
-## 2026-06-30 — session-close follow-ups (promoted from BLK-013 / BDR-043)
-- [x] (a) Harden install-plugins.sh Step 1 — guarantee `npm` on apt-`nodejs` hosts (detect missing npm + `corepack enable npm`), not just check `node >=22`. Fix-forward for [[BLK-013]] — stops `make plugin` Error 127 recurring on any fresh apt machine.
-      [done 2026-07-01 : unconditional npm guard after Node block (corepack enable npm → distro `install npm` fallback → fatal exit 1 w/ clear msg). Catches node>=22-present-but-npm-absent (NODE_OK short-circuit). shellcheck clean, bash -n OK. Fresh-apt live validation pending (no npm-less host to hand). branch bugfix/install-plugins-npm-guard.]
-- [x] (b) Re-baseline darwin on the 5 ex-broken gstack skills (`benchmark-models`, `context-restore`, `context-save`, `make-pdf`, `plan-tune`) — now repaired and back in scope ([[BDR-043]], trigger cleared). Verify `results.tsv` still marks them `status=error` first. (Promoted from BDR-043's action-field — not an item the user authored.)
-      [resolved-MOOT 2026-06-30 : won't-run. BDR-043 cleared only motif (a) of BDR-015's TWO exclusion grounds (symlinks repaired ✅); motif (b) external-ownership INTACT — the 5 resolve to skills-external/gstack/ (submodule), darwin optimizes by EDITING SKILL.md → would dirty the submodule (forbidden [[LRN-070]]). Re-baseline = unactionable score. + results.tsv gone (wiped by 23/06 make-plugin reinstall) → not even a re-baseline, a fresh-from-zero one. Geometric trigger lifted, value trigger intact — twin of --help [[LRN-080]]. See [[LRN-082]]. Not "done", not "open": MOOT.]
-
-## 2026-07-03 — bugfix/gitflow-finish-args (contract fix + doctor false-warns)
-Root: audit 2026-07-02 residuals. `gitflow_finish` ignores its args (merges CHECKED-OUT
-branch) → LOT3 mis-merge trap; + 3 doctor false-warns (LRN-047 class).
-- [x] (1) lib/gitflow.sh gitflow_finish — optional <type> <name>; error rc2 if != current
-      branch ("operates on current branch X, you asked Y — checkout Y first"). No-args unchanged.
-      Commit d9fdd4c. [[BLK-015]] [[LRN-089]].
-- [x] (2) lib/gitflow-test.sh — T12 arg-guard: arg-mismatch → nonzero + message names both;
-      arg-match → merges as before. +7 assertions (71/71). T12 (not T6c — reconcile collision).
-- [x] (3) doctor.sh cargo line — false "(RTK unavailable)" → optional info (RTK prebuilt).
-- [x] (4) doctor.sh check_symlink — PASS iff canonical path under $REPO (direct OR via
-      symlinked ancestor dir); hooks/session-start.sh false-warn gone. Commit 6778b9f.
-- [x] (5) doctor.sh §2 gstack — counts 34 per-skill symlinks; mythical [ -L skills/gstack ] dropped.
-- [x] (6) doctor.sh token § — denominator 11000→CONTEXT_WINDOW=200000, thresholds 15/25,
-      comment anchored to measured ~11.4k (LRN-088). False "92% CRITICAL" → ~5% comfortable.
-- [x] Verify — suites green (71/13/32/19/20/13 + RC 5/5); doctor 0 false-warn; shellcheck clean.
-      +docs(changelog) Unreleased entry (706abff). Gate passed on GO 2026-07-03. Finish pending.
-
-## 2026-08-24 — contract gates: plancher déterministe (feature/contract-gates)
-Source: analyse du skill `unlazy` (Leonxlnx/unlazy, 2.1.0). Verdict: son
-architecture de vérification n'apprend rien (contrat+verifier frais+boucles
-bornées ⊂ déjà en place). Le trou réel: **entre l'exécuteur et GATE 1 il n'y a
-aucun plancher déterministe** — GATE 1 est un dispatch LLM, et `PROOF:` est une
-ligne que le verifier ÉCRIT (rien ne l'empêche structurellement de la produire
-sans rien exécuter). Palier 2 retenu (user, 2026-08-24).
-
-PRIS d'unlazy: critère porteur d'oracle exécutable (CHECK/EXPECT/EVIDENCE),
-fail-closed (exit 0 ET marqueur), evidence pending = NOT-MET, `ABANDON: <id>
-<raison>` comme handoff visible non supprimable, les 4 règles d'écriture de
-gates falsifiables, la discipline 4 passes.
-REFUSÉ: Stop hook `decision:"block"` (contredit "STOP + escalade humaine" et
-"merge sur signal humain"), approval store `~/.unlazy/approved` (résout
-l'exécution de ledgers hérités non fiables — pas notre menace), arbre
-`.unlazy/<scope>/` (4e arbre de bookkeeping ⇒ mort de la config), `tree N`
-(désavoué par ses propres docs), le checker Node 28k (stack lib = 100% bash,
-Health Stack = shellcheck).
-
-- [x] W0 branche feature/contract-gates depuis develop (via lib/gitflow.sh)
-- [x] W1 `lib/gates.sh` — parse ACCEPTANCE CRITERIA, exécute fail-closed
-      (exit 0 ET EXPECT), réécrit EVIDENCE dans le contrat. Sous-commandes
-      `run` (exécute+écrit) / `status` (parse seul, jamais d'exécution, jamais
-      d'écriture). rc 0=MET · 2=UNMET/malformé · 3=ABANDONED.
-- [x] W2 `lib/contract-interview.md` — STEP 3 gagne CHECK/EXPECT/EVIDENCE
-      optionnels par critère + les 4 règles de falsifiabilité; template mis à
-      jour; ABANDON dans Lifecycle; ligne de poids par flow.
-- [x] W3 `agents/verifier.md` — EVIDENCE fail-closed (coché+pending = NOT-MET),
-      bucket ABANDONED, verdict `CONFORME` impossible si abandon présent.
-- [x] W4 `lib/verify-secure-loop.md` — GATE 0 déterministe avant GATE 1
-      (rouge ⇒ re-dispatch exécuteur sans brûler un verifier).
-- [x] W5 `agents/feater.md` + `agents/bugfixer.md` — discipline 4 passes.
-- [x] W6 `lib/tests/gates.test.sh` — comportemental sur gates.sh (fail-closed,
-      exit≠0 avec marqueur = FAIL, pending, ABANDON, malformé, status
-      n'exécute pas) + locks de structure sur W2/W3/W4/W5.
-- [x] W7 shellcheck + bash -n + `make test` complet.
-- [x] W8 CHANGELOG + registres (BDR + LRN + journal).
-- [x] W10 restatements skills : bullet GATE 0 dans feat/bugfix/ship-feature/
-      init-project (+4 locks, flip-testé) ; ligne hotfix du tableau de poids
-      corrigée (aucun floor à ce poids). 2026-08-24.
-- [x] W11 RED comportemental : 16/16 runs frais non-amorcés conformes
-      (verifier ×9, feater ×2, orchestrateur ×5) → EVAL-027. 2026-08-24.
-- [x] W9 merge sur signal humain explicite (2026-08-24, "merge dans develop").
-
-**Won't-build-now — Palier 3 unlazy (OWNS/leases), trigger documenté :**
-Différé volontairement (BDR-083) : tous les dispatches parallèles actuels
-sont read-only — le problème (2 exécuteurs ÉCRIVAINS concurrents) n'existe
-pas. Pattern [[LRN-080]] : ne pas construire sans menace mesurée.
-TRIGGER = le jour où un flow dispatche ≥2 exécuteurs écrivains en parallèle :
-(1) FILE SCOPE du contrat = déclaration OWNS (champ existant, zéro format
-neuf) ; (2) ~40 l dans gates.sh ou lib/owns.sh — intersection CONSERVATRICE
-des FILE SCOPE des contrats actifs avant fan-out, conflit possible → refus +
-dispatch séquentiel (pas de locks disque tant que l'orchestrateur est
-unique) ; (3) locks + tests.
-
-## 2026-08-24 — tour multi-projets en parallèle (feature/tour-parallel)
-User (gate 2026-08-24): "tout paralléliser (option 2) mais bien garder la
-sélection des modèles — orchestrateur garde le modèle orchestrateur, les
-skills/agents suivent leurs orchestrateurs définis". Preuve mécanique
-préalable: probe imbriquée 3 sous-agents, fenêtres chevauchantes, 9.1s vs
-~18s séquentiel. Dérogation LRN-083 (boucle de fix par projet déplacée dans
-un runner dispatché) → à consigner BDR-084. Repos indépendants, branches
-chore par repo, report-as-approval-gate ⇒ rien de partagé n'est décidé
-dans un runner; capitalize reste main-loop.
-- [x] T1 skills/tour/SKILL.md — STEP 0 routé (1 projet = inline inchangé;
-      ≥2 = fan-out) + STEP 0b: un runner general-purpose par projet, TOUS
-      dans UN message, SANS pin modèle (hérite session, model-gate déjà
-      passé); agents internes gardent leurs tiers définis; runner mort =
-      ligne RUNNER FAILED, jamais absent silencieux; capitalize main-loop.
-- [x] T2 locks census §12 dans lib/tests/model-routing.test.sh (fan-out
-      présent, runner non-pinné, single message, capitalize main-loop).
-- [x] T3 BDR-084 + CHANGELOG + journal.
-- [x] T4 make test rc 0 + shellcheck clean (SC2016 silencé, littéral
-      voulu). Merge NON fait — gate humain.
-
-## macos-portability follow-ups (2026-10-06)
-- [ ] effort-pins re-red trigger: update-all.sh applies effort pins only at
-      ~:572, after every vendoring step; an abort upstream drops them from the
-      gitignored SKILL.md again (effort-routing red). Pin after each vendoring
-      step or flag in doctor.
-- [ ] [deferred] Linux `make test` run before the next release: every
-      portability replacement is meant to be GNU-identical, unverified here.
-
-## doc-sync 2026-10-06 deferred (global audit before 2.0.0, user: log)
-- [ ] P16 LICENSE file + README License section — SPDX pick is the user's (Standard-Readme requires one; clone URL now public Gitea)
-- [ ] P43 CHANGELOG Known residual says "Linux make test due before next release" while 2.0.0 is being cut — run it or reword at release resume
-- [ ] P17 README restructure to Standard-Readme (Install / Usage / Configuration / License); move inline reference parts to USAGE.md, CONFIGURE.md from settings.json + .env.example
-- [ ] P18 README Requirements line (Linux apt/dnf/pacman + macOS brew) once the Linux run is done
-- [ ] P22 `make new-skill` scaffold: agent stub lacks `effort:` pin, skill stub lacks entry level, body loads `.claude/agents/$(name).md` instead of `$HOME/.claude/agents/<name>.md` → /hotfix
-- [ ] P31 USAGE narrative: Exemple 9 "sans superpowers" (vendored, always on), "Edit tool" bypasses /hotfix, Pattern E + Exemple 9 route bugs to /ship-feature instead of /bugfix|/hotfix
-- [ ] P32 USAGE missing sections: design work (21st CLI, design stack, /site-motion), media generation (Higgsfield toggles), gitflow auto-push + global hooks
-- [ ] P33 USAGE token figures ("Budget Pro ~11k tokens/5h", per-pattern) have no source in code — verify or drop
-- [ ] P34 USAGE + agents/plugin-advisor.md "gstack ON/OFF", "context7 ON" vocabulary — gstack is per-profile, ctx7 is a CLI; move both together
-- [ ] P41 templates/settings/settings.json: `permissions.ask` entries (npx, docker rm, make deploy, psql…) inert under defaultMode auto → config fix, not doc

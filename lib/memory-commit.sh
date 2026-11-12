@@ -7,17 +7,21 @@
 # happens to be dirty or staged is NEVER embarked.
 #
 # Usage (CLI):
-#   memory-commit.sh commit "<message>"  # surgical commit; exit 0 ok/no-op, 3 unsafe state
+#   memory-commit.sh commit "<message>"
+#       # surgical commit; exit 0 ok/no-op, 3 unsafe state,
+#       # 5 commit rejected, 6 check refused
 #
 # Output contract for `commit`: diagnostics go to stderr; on a real commit the
-# short hash of the MEMORY commit is the ONLY thing on stdout (empty on no-op or
-# unsafe), so callers can capture it: `mem_hash=$(memory-commit.sh commit "msg")`.
+# short hash of the MEMORY commit is the ONLY thing on stdout (empty on no-op
+# or unsafe), so callers can capture it:
+# `mem_hash=$(memory-commit.sh commit "msg")`.
 #
 # Sourceable: `commit_memory`.
 
 set -uo pipefail
 
 MC_PATHS=(".claude/memory" ".claude/tasks")
+MC_MEMORY_SH="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)/memory.sh"
 
 _in_git_repo() { git rev-parse --git-dir >/dev/null 2>&1; }
 
@@ -46,8 +50,25 @@ _changed_paths() {
   done
 }
 
+# Paths staged differently from HEAD AND from the worktree: `git add` below
+# overwrites that staged blob, a refusal then resets it. One line per path,
+# with the blob id, so the dropped partial stage can be restored by hand.
+_partial_stages() {
+  local p mode oid
+  while IFS= read -r p; do
+    read -r mode oid _ < <(git ls-files -s -- "$p")
+    echo "memory-commit: partial stage dropped on: $p (blob $oid;" \
+      "restore: git update-index --cacheinfo $mode,$oid,$p)"
+  # C locale for both: a locale sort and a byte-order comm disagree (uutils)
+  done < <(LC_ALL=C comm -12 \
+    <(git -c core.quotepath=off diff --cached --name-only -- "$@" \
+      | LC_ALL=C sort) \
+    <(git -c core.quotepath=off diff --name-only -- "$@" | LC_ALL=C sort))
+}
+
 # Surgical commit of the scoped paths only. Returns 0 (ok or no-op), 3 (unsafe).
-# On a real commit, prints the memory-commit short hash to stdout (stderr = diag).
+# On a real commit, prints the memory-commit short hash to stdout (stderr =
+# diag).
 commit_memory() {
   local msg="${1:?commit message required}"
   _in_git_repo || {
@@ -55,19 +76,33 @@ commit_memory() {
     return 3
   }
   if _unsafe_state; then
-    echo "memory-commit: detached HEAD or merge/rebase in progress — skip (no commit)" >&2
+    echo "memory-commit: detached HEAD or merge/rebase in progress —" \
+      "skip (no commit)" >&2
     return 3
   fi
-  local changed
+  local changed partial
   mapfile -t changed < <(_changed_paths)
   if [ "${#changed[@]}" -eq 0 ]; then
     echo "memory-commit: nothing pending — no-op" >&2
     return 0
   fi
-  # Re-stage working-tree content of the scoped paths over any stale index entry,
-  # then commit ONLY those paths. The pathspec on `git commit` makes it a partial
-  # commit: other staged files (dangling code) are not recorded.
+  # Re-stage working-tree content of the scoped paths over any stale index
+  # entry, then commit ONLY those paths. The pathspec on `git commit` makes
+  # it a partial commit: other staged files (dangling code) are not recorded.
+  partial="$(_partial_stages "${changed[@]}")"
   git add -- "${changed[@]}"
+  # Chokepoint (BDR-125 phase 4a): a staged v2 registry may only grow and
+  # never gains a new culprit (duplicate ID, bad heading, open fence). v1
+  # registries are skipped. Unstage on refusal so no later plain commit
+  # sweeps the refused change in.
+  if [ -d .claude/memory ] \
+    && ! bash "$MC_MEMORY_SH" check --staged .claude/memory; then
+    git reset -q -- "${changed[@]}"
+    [ -z "$partial" ] || printf '%s\n' "$partial" >&2
+    echo "memory-commit: REFUSED — memory.sh check --staged failed (above);" \
+      "NOTHING committed, nothing left staged." >&2
+    return 6
+  fi
   if git diff --cached --quiet -- "${changed[@]}"; then
     echo "memory-commit: only ignored/no-op changes — no-op" >&2
     return 0
@@ -75,10 +110,11 @@ commit_memory() {
   # Contract: diagnostics go to stderr; on success ONLY the memory-commit short
   # hash goes to stdout, so a caller can do `mem_hash=$(... commit "msg")`.
   # FAIL-LOUD on the commit itself. With `set -uo pipefail` (no -e), a rejected
-  # commit (pre-commit hook on a protected branch, signing failure, …) would NOT
-  # abort: the line below would falsely claim "committed" and rev-parse would
-  # emit the PREVIOUS HEAD's hash with exit 0 — a silent masked failure. Reject
-  # → loud, NO hash on stdout, exit 5 (mirrors doc-commit.sh's rc 5).
+  # commit (pre-commit hook on a protected branch, signing failure, …) would
+  # NOT abort: the line below would falsely claim "committed" and rev-parse
+  # would emit the PREVIOUS HEAD's hash with exit 0 — a silent masked
+  # failure. Reject → loud, NO hash on stdout, exit 5 (mirrors doc-commit.sh's
+  # rc 5).
   if ! git commit -q -m "$msg" -- "${changed[@]}"; then
     {
       echo "memory-commit: COMMIT REJECTED — git commit exited non-zero" \

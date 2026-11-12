@@ -16,6 +16,7 @@ Deliver a buildable skeleton: structure + config + empty entry points. No featur
 2. Approved DESIGN (from brainstorming)
 3. `~/.claude/templates/project-CLAUDE.md`
 4. `~/.claude/CLAUDE.md`
+5. `~/.claude/lib/architecture-defaults.md`
 
 If any missing → STOP.
 
@@ -31,7 +32,7 @@ Store: `DOCKER_RELEVANT = true/false`. If true → Docker is additional, project
 
 ## PHASE 1 — GENERATE CLAUDE.md
 
-Read `~/.claude/templates/project-CLAUDE.md` and `~/.claude/CLAUDE.md`.
+Read `~/.claude/templates/project-CLAUDE.md`, `~/.claude/CLAUDE.md` and `~/.claude/lib/architecture-defaults.md`.
 Fill every section from BRIEF + DESIGN. No placeholders. Irrelevant sections → `N/A — <reason>`.
 Required: overview, stack+version, build/test/lint/docker commands (exact), folder tree, architecture, conventions, exceptions, deps, workflow.
 Write to `CLAUDE.md` at project root.
@@ -72,6 +73,25 @@ Empty structure only: imports + empty main/init. No logic.
 `docker-compose.yml`: app service (build, ports, env_file), db/redis only if actually needed, named volumes.
 `.dockerignore`: node_modules, .git, .env, dist/build/target, __pycache__.
 Add `COMPOSE_PROJECT_NAME=<slug>` to `.env.example`.
+
+## PHASE 3b — PATH-SCOPED RULES (born split)
+
+After PHASE 3 wrote the files and BEFORE PHASE 4 installs dependencies
+(installed packages must not match the globs). `<PROJECT_ROOT>` is the
+project root PHASE 1 wrote `CLAUDE.md` into, as a literal absolute path
+(`pwd` there; it is not an INPUT, the scaffold defines it). For each of
+`docker`, `testing`, `ci`, one uniform loop:
+```bash
+bash ~/.claude/lib/project-rules.sh -C <PROJECT_ROOT> emit ~/.claude/templates/project-rules/<name>.md .claude/rules/<name>.md
+```
+rc 0 → fill its stubs from the DESIGN (image, compose services, test
+layout, pipeline jobs), no placeholders left; rc 1 → nothing matched,
+skipped (a plain scaffold yields `docker.md` when Docker is relevant, and
+`testing.md` only when the stack scaffolds a test file). Then
+`bash ~/.claude/lib/project-rules.sh -C <PROJECT_ROOT> check` prints
+`N rule(s) ok`. The `.gitignore` negation `!.claude/rules/` comes from the
+gitflow socle at STEP 5f (`gitflow init` reconciles it before the root
+commit); do not add `.claude` lines to the stack `.gitignore` yourself.
 
 ---
 

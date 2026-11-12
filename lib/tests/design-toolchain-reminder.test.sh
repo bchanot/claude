@@ -2,6 +2,12 @@
 # lib/tests/design-toolchain-reminder.test.sh
 set -u
 H="$(cd "$(dirname "$0")/../.." && pwd)/hooks/design-toolchain-reminder.sh"
+# Every hook call runs under a throwaway HOME (the fire log is
+# $HOME/.claude/logs/design-toolchain-fires.log): the suite never writes the
+# real one (1,770 of 2,779 logged fires were this suite's prompts, 2026-10-28).
+T="$(mktemp -d)"; trap 'rm -rf "$T"' EXIT
+export HOME="$T"
+LINE='Design work detected → Read ~/.claude/rules/web-building.md § "Design work — full toolchain" first. Trivial (≤2 files, cosmetic) → /hotfix.'
 pass=0; fail=0
 check() { if [ "$2" = "$3" ]; then pass=$((pass+1)); else fail=$((fail+1));
   printf 'FAIL %s: got[%s] want[%s]\n' "$1" "$2" "$3"; fi; }
@@ -23,6 +29,7 @@ check D8-dash-file   "$(fire 'ecc_dashboard.py')"              quiet
 check D9-tasknotif   "$(fire '<task-notification> <task-id>x</task-id> add css header fonts')" quiet
 check D10-notif-file "$(fire '<task-notification> design-motion-principles keyframe done')"    quiet
 check D11-bare-ux    "$(fire 'changement ux vu de tes trouvailles')" quiet
+check D12-agent-msg  "$(fire '<agent-message from=a1> [Subagent hand-back] add css header fonts')" quiet
 
 # --- Real UI signals must still FIRE ---
 check F1-button      "$(fire 'add a button')"            fire
@@ -35,6 +42,12 @@ check F7-admin-dash  "$(fire 'admin dashboard screen')"  fire
 check F8-animation   "$(fire 'add an animation')"        fire
 check F9-designsys   "$(fire 'our design system')"       fire
 check F10-bare-ui    "$(fire 'revois l'\''ui du panneau admin')" fire
+check F11-pasted     "$(fire '<pasted_content> add a button')" fire
+
+# --- The one-liner is a contract (LRN-104): exact text ---
+check O1-exact-line "$(printf '{"prompt":"add a button"}' | bash "$H")" "$LINE"
+# the fires above landed in the throwaway HOME, positively (not a global count)
+check G1-fires-in-temp-home "$([ -s "$T/.claude/logs/design-toolchain-fires.log" ] && echo yes)" yes
 
 # --- Fire is logged (time + token + excerpt) ---
 tmp="$(mktemp -d)"

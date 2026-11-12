@@ -1,0 +1,46 @@
+# isolated: --setting-sources local, allow Bash(*), deny Bash(echo SECRET*)
+case	cmd	with-deny	no-deny
+V00_control	echo SECRET	DENIED	RAN
+V01_bash_c	bash -c 'echo SECRET'	RAN	RAN
+V02_sh_c	sh -c "echo SECRET"	RAN	RAN
+V03_cd_and	cd /tmp && echo SECRET	DENIED	RAN
+V04_semicolon	true; echo SECRET	DENIED	RAN
+V05_pipe	echo SECRET | cat	DENIED	RAN
+V06_eval	eval "echo SECRET"	RAN	RAN
+V07_env	env echo SECRET	DENIED	RAN
+V08_command	command echo SECRET	DENIED	RAN
+V09_backslash	\echo SECRET	DENIED	RAN
+V10_quotes_split	ec""ho SECRET	DENIED	RAN
+V11_heredoc	bash <<'EOF2'	RAN	RAN
+V12_var	x=echo; $x SECRET	DENIED	RAN
+V13_subst	$(echo echo) SECRET	RAN	RAN
+V14_dblspace	echo  SECRET	DENIED	RAN
+V15_quoted_cmd	"echo" SECRET	DENIED	RAN
+V16_abs_path	/bin/echo SECRET	RAN	RAN
+V17_subshell	(echo SECRET)	DENIED	RAN
+V18_timeout	timeout 5 echo SECRET	DENIED	RAN
+V19_xargs	echo SECRET | xargs echo	DENIED	RAN
+V20_nohup	nohup echo SECRET	DENIED	RAN
+V21_rtk	rtk echo SECRET	RAN	RAN
+V22_or	false || echo SECRET	DENIED	RAN
+V23_newline	true	DENIED	RAN
+V24_python	python3 -c 'import os; os.system("echo SECRET")'	RAN	RAN
+V25_arg_quoted	echo "SECRET"	RAN	RAN
+V26_arg_var	S=SECRET; echo $S	DENIED	RAN
+
+# real user settings (defaultMode auto, rtk hook): deny Bash(echo SECRET*), Bash(cat SECRET*), Edit(**/blocked.txt)
+case	cmd	with-deny	no-deny
+R00_cat_rewrite_deny	cat SECRET.txt	ERR:Exit code 1	ERR:Exit code 1
+R01_sh_c	sh -c "echo SECRET"	RAN	RAN
+R02_eval	eval "echo SECRET"	DENIED	DENIED
+R03_heredoc	bash <<'EOF2'	RAN	RAN
+R04_subst	$(echo echo) SECRET	RAN	RAN
+R05_abs_path	/bin/echo SECRET	RAN	RAN
+R06_python	python3 -c 'import os; os.system("echo SECRET")'	RAN	RAN
+R07_find_exec	find . -maxdepth 0 -exec echo SECRET \;	DENIED	DENIED
+R08_awk_system	awk 'BEGIN{system("echo SECRET")}'	RAN	RAN
+R09_cat_write	cat SECRET.txt > blocked.txt	DENIED	ERR:Exit code 1
+R10_echo_write	echo hi > blocked.txt	DENIED	RAN
+R11_tee_write	echo hi | tee blocked.txt	DENIED	RAN
+R12_cat_heredoc_write	cat > blocked.txt <<'EOF2'	DENIED	RAN
+R13_bash_c	bash -c 'echo SECRET'	ERR:Claude requested permissions to use Bash	ERR:Claude requested permissions to use Bash

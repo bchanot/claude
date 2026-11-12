@@ -29,7 +29,7 @@ Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
 judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
 gate prints the remedy; end the turn — no later step, no dispatch. Nominal
 (big) path is silent.
-EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-107): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
+ROUTING: follow $HOME/.claude/lib/effort-shift.md (phases via mcp__model-router__route).
 
 Audit only what changed since the last run, on the axes the user picks.
 Per axis: **audit → approval gate → fix → re-verify → marker update**,
@@ -170,7 +170,7 @@ Then show the user the same compact table inline.
 
 ### 3b-bis. CHALLENGE THE PROPOSALS (before the gate)
 
-`Skill(effort-xhigh)` first (effort-shift: own level before the challenge; send it in the same message as the challenger dispatch).
+`mcp__model-router__route(phase="plan")` first (route: own level before the challenge; send it with the challenger dispatch).
 This axis' findings + proposed fixes are a proposal set worth attacking before
 the human gate. Persist THIS axis' finding list (not the whole append-only
 report) to `.claude/tasks/plans/<date>-<axis>-<HHMM>.md`, then run
@@ -249,6 +249,7 @@ AUDIT-DELTA COMPLETE — 2026-06-11
 
 Then offer to capitalize (per CLAUDE.md): recurring finding patterns →
 `learnings.md`, audit verdicts → `evals.md`. Behind approval, never silent.
+Approved entries per `lib/capitalize-commit.md` § WRITE.
 
 ## Axis specs (subagent prompts)
 
@@ -256,7 +257,7 @@ Then offer to capitalize (per CLAUDE.md): recurring finding patterns →
   below on the same delta (the SAST is a deterministic floor, the reasoned
   pass covers what grep/rules miss):
   ```
-  Skill(effort-medium)   # effort-shift: dispatch span starts; send with the Agent call below in ONE message
+  mcp__model-router__route(phase="orchestrate")   # route: dispatch span starts; send with the Agent call below in ONE message
   Agent(subagent_type="security-auditor", description="audit-delta security — semgrep SAST",
     prompt="MODE: audit\nSCOPE: <delta file list>\nREPORT: .claude/audits/.audit-delta-semgrep.md\nFollow agents/security-auditor.md exactly. Pinned rulesets, no login. Write ONLY to REPORT. End with REPORT_WRITTEN: <path>.")
   ```
@@ -273,11 +274,14 @@ Then offer to capitalize (per CLAUDE.md): recurring finding patterns →
   errors, resource leaks (missing trap/close/finally). Improvements only
   when concrete and local: simplification, dedup against an existing
   helper, obvious perf.
-- **conformity** — read project `CLAUDE.md` (+ `~/.claude/CLAUDE.md`)
-  FIRST, then check changed code against those norms. This repo's:
+- **conformity** — read project `CLAUDE.md` (+ `~/.claude/CLAUDE.md` and
+  `~/.claude/lib/architecture-defaults.md`) FIRST, then check changed code
+  against those norms. This repo's:
   ≤25 logic lines/function, ≤80 chars/line, ≤5 params, ≤5 locals, no
   global state, intent-not-mechanics comments, explicit naming, versioned
-  APIs (`/api/v1/`), no-SPA-for-public-sites, security defaults.
+  APIs (`/api/v1/`), no-SPA-for-public-sites, security defaults. Foreign
+  code (`bash ~/.claude/lib/code-origin.sh` → foreign): measure consistency
+  with the existing style instead of the limits; security stays strict.
 - **deadcode** — dead/zombie introduced OR orphaned by the delta: unused
   functions/exports/imports/vars, unreachable branches, stale feature
   flags, commented-out blocks, references to deleted files/symbols

@@ -1,0 +1,213 @@
+{
+  "phases": {
+    "plan": {
+      "tier": "best",
+      "effort": "xhigh",
+      "about": "design and architecture: the deepest thinking, before any code exists"
+    },
+    "reflect": {
+      "tier": "best",
+      "effort": "high",
+      "about": "analysis, review and synthesis: reasoning about what already exists"
+    },
+    "orchestrate": {
+      "tier": "best",
+      "effort": "medium",
+      "about": "dispatching and coordinating sub-agents: mostly handing out work"
+    },
+    "escalate": {
+      "tier": "best",
+      "effort": "max",
+      "about": "a stuck problem or a judged need: maximum effort, diagnosis only"
+    },
+    "judge": {
+      "tier": "big",
+      "effort": "xhigh",
+      "about": "independent judgment of work: challenges, analyses and reviews"
+    },
+    "audit": {
+      "tier": "best",
+      "effort": "xhigh",
+      "about": "the fresh gates: contract verdict and security scan; dispatched agents, not a main-loop phase"
+    },
+    "implement": {
+      "tier": "work",
+      "effort": "medium",
+      "about": "writing the code of an already planned change"
+    },
+    "write": {
+      "tier": "work",
+      "effort": "high",
+      "about": "writing prose and docs, or a careful edit that needs polish"
+    },
+    "verify": {
+      "tier": "work",
+      "effort": "xhigh",
+      "about": "checking a result against its spec: tests and suites"
+    },
+    "explore": {
+      "tier": "work",
+      "effort": "medium",
+      "about": "reading and searching the codebase to answer a question"
+    },
+    "apply": {
+      "tier": "work",
+      "effort": "low",
+      "about": "bookkeeping: commits, memory entries and other small edits"
+    },
+    "mechanical": {
+      "tier": "cheap",
+      "effort": "low",
+      "about": "scripted or trivial work needing no judgment, on the cheapest model"
+    }
+  },
+  "skills": {
+    "ship-feature": "plan",
+    "init-project": "plan",
+    "onboard": "plan",
+    "tour": "plan",
+    "audit-delta": "plan",
+    "analyze": "plan",
+    "code-clean": "plan",
+    "client-handover": "plan",
+    "brainstorming": "plan",
+    "writing-plans": "plan",
+    "requesting-code-review": "plan",
+    "21st-ui-review": "plan",
+    "pack-extras:21st-ui-review": "plan",
+    "feat": "reflect",
+    "hotfix": "reflect",
+    "bugfix": "reflect",
+    "refactor": "reflect",
+    "explain-diff": "reflect",
+    "guardrails": "reflect",
+    "a11y": "reflect",
+    "web-validate": "reflect",
+    "pack-web-validate:web-validate": "reflect",
+    "harden": "reflect",
+    "seo": "reflect",
+    "pack-seo:seo": "reflect",
+    "geo": "reflect",
+    "pack-seo:geo": "reflect",
+    "site-motion": "reflect",
+    "pack-design:site-motion": "reflect",
+    "frontend-design": "reflect",
+    "pack-design:frontend-design": "reflect",
+    "emil-design-eng": "reflect",
+    "pack-design:emil-design-eng": "reflect",
+    "design-motion-principles": "reflect",
+    "pack-design:design-motion-principles": "reflect",
+    "21st-ui-build": "reflect",
+    "pack-design:21st-ui-build": "reflect",
+    "scroll-world-storytelling": "reflect",
+    "pack-scroll3d:scroll-world-storytelling": "reflect",
+    "build-threejs-scroll-worlds": "reflect",
+    "pack-scroll3d:build-threejs-scroll-worlds": "reflect",
+    "scroll-scrubbed-visual-sequence": "reflect",
+    "pack-scroll3d:scroll-scrubbed-visual-sequence": "reflect",
+    "scroll-scrubbed-word-reveal": "reflect",
+    "pack-scroll3d:scroll-scrubbed-word-reveal": "reflect",
+    "scroll-progress-timeline": "reflect",
+    "pack-scroll3d:scroll-progress-timeline": "reflect",
+    "subagent-driven-development": "reflect",
+    "writing-skills": "reflect",
+    "deprecation-and-migration": "reflect",
+    "21st-ai": "reflect",
+    "pack-extras:21st-ai": "reflect",
+    "21st-ui-explore": "reflect",
+    "pack-extras:21st-ui-explore": "reflect",
+    "gitflow": "implement",
+    "prune-memory": "implement",
+    "pdf-translate": "implement",
+    "ci-cd-and-automation": "implement",
+    "observability-and-instrumentation": "implement",
+    "test-driven-development": "implement",
+    "commit-change": "apply",
+    "release-candidate": "apply",
+    "doc": "apply",
+    "capitalize": "apply",
+    "close": "apply",
+    "reconcile": "apply",
+    "memory-feedback": "reflect",
+    "deploy": "verify",
+    "status": "mechanical",
+    "profile": "mechanical",
+    "plugin-check": "mechanical",
+    "skills-perso": "mechanical",
+    "using-git-worktrees": "mechanical",
+    "21st-cli-use": "mechanical",
+    "pack-design:21st-cli-use": "mechanical",
+    "21st-registry": "mechanical",
+    "21st-design-sync": "mechanical"
+  },
+  "agents": {
+    "Explore": "explore",
+    "Plan": "judge",
+    "plan-challenger": "judge",
+    "plugin-advisor": "judge",
+    "seo-analyzer": "judge",
+    "geo-analyzer": "judge",
+    "analyzer": "judge",
+    "feater": "implement",
+    "bugfixer": "implement",
+    "code-cleaner": "implement",
+    "scaffolder": "implement",
+    "onboarder": "implement",
+    "commit-changer": "write",
+    "doc-syncer": "write",
+    "handover-doc-writer": "write",
+    "refactorer": "write",
+    "hotfixer": "apply",
+    "release-executor": "apply",
+    "plugin-probe": "apply",
+    "validator-analyzer": "apply",
+    "verifier": "audit",
+    "security-auditor": "audit",
+    "status-reporter": "mechanical"
+  },
+  "projects": {},
+  "confirmed": {
+    "agents": {
+      "verifier": "audit",
+      "feater": "implement",
+      "doc-syncer": "write",
+      "security-auditor": "audit",
+      "plan-challenger": "judge",
+      "analyzer": "judge",
+      "hotfixer": "apply",
+      "code-cleaner": "implement",
+      "refactorer": "write",
+      "commit-changer": "write",
+      "bugfixer": "implement",
+      "plugin-probe": "apply",
+      "plugin-advisor": "judge",
+      "Explore": "explore",
+      "release-executor": "apply"
+    },
+    "phases": {
+      "verify": "verify",
+      "implement": "implement",
+      "write": "write",
+      "orchestrate": "orchestrate",
+      "escalate": "escalate",
+      "judge": "judge",
+      "reflect": "reflect",
+      "plan": "plan",
+      "apply": "apply",
+      "explore": "explore",
+      "audit": "audit"
+    },
+    "skills": {
+      "gitflow": "implement",
+      "ship-feature": "plan",
+      "deploy": "verify",
+      "feat": "reflect",
+      "bugfix": "reflect",
+      "capitalize": "apply",
+      "memory-feedback": "reflect"
+    }
+  },
+  "changed": {},
+  "ask": true,
+  "askTier": "best"
+}

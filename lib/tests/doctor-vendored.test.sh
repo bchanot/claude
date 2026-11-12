@@ -3,25 +3,20 @@
 # check_vendored_skills(): a fixture repo under mktemp with a fake
 # plugins.lock.json (single-path shape, list shape, dict shape with a
 # references/ file), a fake link.sh holding a multi-line
-# EXTERNAL_SKILLS=(...) array, a fake <claude_home>/skills dir and a fake
-# profile file. Cases: every file present + linked (ALL_PRESENT), a
+# EXTERNAL_SKILLS=(...) array and a fake <claude_home>/skills dir.
+# Cases: every file present + linked (ALL_PRESENT), a
 # list-shape skill missing its SKILL.md (FILE_MISSING), a dict-shape
 # skill missing one of two files — only that file is named
-# (DICT_FILES_COMPLETE), a profile-listed name with no symlink
+# (DICT_FILES_COMPLETE), a linked name with no symlink
 # (SYMLINK_MISSING_ACTIVE) or a symlink to the wrong target
-# (SYMLINK_WRONG_TARGET), a name absent from the profile reported parked
-# rather than failed (SYMLINK_PARKED), the same name treated as
-# expected-linked (fail, not parked) when no profile file is passed at
-# all (NO_PROFILE_EXPECTS_LINK), an unreadable lock file degrading to a
+# (SYMLINK_WRONG_TARGET), an unreadable lock file degrading to a
 # warn instead of a fail (LOCK_UNREADABLE, rc 0), a lock entry whose
 # "skills" is neither null/list/dict degrading the same way with no
 # Python traceback leaking (LOCK_MALFORMED_ENTRY, rc 0), the
-# profile-name allowlist rejecting a path-traversal value
-# (REJECTS_BAD_PROFILE_NAME), the item-name allowlist rejecting a
+# item-name allowlist rejecting a
 # link.sh entry with a ".." segment — warned and skipped, not failed
-# (REJECTS_BAD_NAME), and an "always_on": true lock entry's name, absent
-# from the profile and with no symlink, checked (and failed) instead of
-# reported parked (ALWAYS_ON_LINK_CHECKED).
+# (REJECTS_BAD_NAME), and an "always_on": true lock entry's name with no
+# symlink failing like any other (ALWAYS_ON_LINK_CHECKED).
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 LIB="$ROOT/lib/doctor-vendored.sh"
@@ -52,8 +47,7 @@ cat > "$REPO/plugins.lock.json" <<'JSON'
   "list-entry": {
     "managed_by": "curl",
     "skills": [
-      "missing-skill", "active-nolink-skill", "active-wronglink-skill",
-      "parked-skill", "noprofile-skill"
+      "missing-skill", "active-nolink-skill", "active-wronglink-skill"
     ]
   },
   "dict-entry": {
@@ -72,43 +66,28 @@ JSON
 cat > "$REPO/link.sh" <<'SH'
 #!/usr/bin/env bash
 EXTERNAL_SKILLS=(ok-skill missing-skill dict-skill
-  active-nolink-skill active-wronglink-skill
-  parked-skill noprofile-skill always-on-skill)
+  active-nolink-skill active-wronglink-skill always-on-skill)
 SH
 
 # ── skills-external/ tree: every name's SKILL.md present, except
 # missing-skill (nothing at all) and dict-skill's references/notes.md.
 # always-on-skill has its SKILL.md too — only its symlink is missing.
 for n in ok-skill dict-skill active-nolink-skill active-wronglink-skill \
-         parked-skill noprofile-skill always-on-skill; do
+         always-on-skill; do
   mkdir -p "$REPO/skills-external/$n"
   echo "v1" > "$REPO/skills-external/$n/SKILL.md"
 done
 
 # ── claude_home symlinks: ok-skill correct, active-wronglink-skill
-# points elsewhere, active-nolink-skill, noprofile-skill and
-# always-on-skill have none.
+# points elsewhere, active-nolink-skill and always-on-skill have none.
 ln -sf "$REPO/skills-external/ok-skill" "$CLAUDE_HOME/skills/ok-skill"
 mkdir -p "$WORK/elsewhere"
 ln -sf "$WORK/elsewhere" "$CLAUDE_HOME/skills/active-wronglink-skill"
 
-# ── active.profile: lists everything EXCEPT parked-skill,
-# noprofile-skill and always-on-skill (all three proven absent from it).
-cat > "$REPO/active.profile" <<'PROF'
-# DESC: fixture profile
-ok-skill                external
-missing-skill            external
-dict-skill               external
-active-nolink-skill      external
-active-wronglink-skill   external
-PROF
-
 # shellcheck source=../doctor-vendored.sh disable=SC1091
 source "$LIB"
 
-# ── With the active profile passed ──────────────────────────────────
-out1="$(check_vendored_skills "$REPO" "$CLAUDE_HOME" \
-  "$REPO/active.profile" 2>&1)"
+out1="$(check_vendored_skills "$REPO" "$CLAUDE_HOME" 2>&1)"
 
 check_bool ALL_PRESENT \
   "$(printf '%s' "$out1" | grep -qF 'ok-skill: vendored + linked' \
@@ -135,28 +114,9 @@ check_bool SYMLINK_WRONG_TARGET \
     grep -qF 'active-wronglink-skill: symlink missing/wrong' \
     && echo 1 || echo 0)"
 
-check_bool SYMLINK_PARKED \
-  "$(printf '%s' "$out1" | grep -qF 'parked-skill: parked by profile active' \
-    && ! printf '%s' "$out1" | \
-      grep -qF 'parked-skill: symlink missing/wrong' \
-    && echo 1 || echo 0)"
-
-# ── always-on-skill: absent from active.profile (same as parked-skill)
-# but its lock entry is "always_on": true — checked (and failed, no
-# symlink) instead of reported parked.
 check_bool ALWAYS_ON_LINK_CHECKED \
   "$(printf '%s' "$out1" | \
-    grep -qF 'always-on-skill: symlink missing/wrong' \
-    && ! printf '%s' "$out1" | \
-      grep -qF 'always-on-skill: parked by profile' \
-    && echo 1 || echo 0)"
-
-# ── No profile file passed at all: noprofile-skill (absent from
-# active.profile, parked above) must now be treated as expected-linked.
-out2="$(check_vendored_skills "$REPO" "$CLAUDE_HOME" 2>&1)"
-check_bool NO_PROFILE_EXPECTS_LINK \
-  "$(printf '%s' "$out2" | \
-    grep -qF 'noprofile-skill: symlink missing/wrong' && echo 1 || echo 0)"
+    grep -qF 'always-on-skill: symlink missing/wrong' && echo 1 || echo 0)"
 
 # ── LOCK_UNREADABLE — a second, minimal fixture with an invalid
 # plugins.lock.json: check_vendored_skills degrades to a warn (not a
@@ -202,14 +162,6 @@ check_bool LOCK_MALFORMED_ENTRY \
     && ! printf '%s' "$out4" | grep -qi 'traceback' \
     && ! printf '%s' "$out4" | grep -q 'Error:' \
     && echo 1 || echo 0)"
-
-# ── REJECTS_BAD_PROFILE_NAME — the profile-name allowlist helper
-# rejects a path-traversal value and accepts a plain one.
-check_bool REJECTS_BAD_PROFILE_NAME \
-  "$( { _dv_valid_profile_name "full" \
-      && ! _dv_valid_profile_name "../x" \
-      && ! _dv_valid_profile_name "a/b" \
-      && ! _dv_valid_profile_name "a.b"; } && echo 1 || echo 0)"
 
 # ── REJECTS_BAD_NAME — a link.sh EXTERNAL_SKILLS entry with a ".."
 # segment: warned and skipped, never reaches _dv_check_files/

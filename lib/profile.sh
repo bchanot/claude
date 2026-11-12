@@ -1,820 +1,303 @@
 #!/usr/bin/env bash
+# shellcheck disable=SC2016  # jq programs quote $vars on purpose
 # ============================================================
-# lib/profile.sh — Partition Claude skills + plugins + MCPs by purpose
+# lib/profile.sh — profiles as settings fragments for packs + connectors
 #
-# Profiles group skills (gstack + external + personal), plugins, MCPs,
-# and CLIs for a specific kind of work: web, seo, web-full, backend,
-# design, dev, qa, audit, minimal. Apply a profile to enable just the
-# relevant tools and disable the rest, instead of carrying every gstack
-# skill + every plugin in every session.
-#
-# Mechanism:
-#   - Skills (gstack/external/personal): symlink toggle skills/ ↔ skills-disabled/
-#   - Plugins: `claude plugin enable|disable <name>@<marketplace>`
-#   - MCPs: advisory (none managed since BDR-093 — MANAGED_MCPS is empty),
-#           advisory otherwise
-#   - CLIs: advisory only (rtk, gsd, ctx7, graphify — installed externally)
-#   - `set` is SYMMETRIC on managed items (BDR-079): plugins, external packs
-#     and MCPs in the MANAGED_* allowlists are disabled when the profile
-#     does not list them — nothing outside those lists is ever auto-toggled.
-#
-# Always-on plugins (never toggled by `set`): security-guidance + rtk
-# hook + .claude internal. superpowers is vendored skills now, not a
-# plugin (never in PROTECTED_PLUGINS, never in MANAGED_EXTERNALS — same
-# always-on class as darwin-skill). The script refuses to disable
-# anything in PROTECTED_PLUGINS.
+# A profile `lib/profiles/<name>.json` is a literal Claude Code settings
+# fragment: `enabledPlugins` (every pack `pack-<n>@skills-dir` and managed
+# plugin, explicit true/false), `deniedMcpServers` (claude.ai connector
+# names, optional) and `model` (optional). Per project, `set` merges it
+# into `.claude/settings.local.json`; per conversation, `cc <name>
+# <profile>` (lib/cc.sh) passes the file as `claude --settings`. Nothing
+# here writes the user scope, moves a symlink or calls `claude`.
 #
 # Usage:
-#   profile.sh list                  list available profiles
-#   profile.sh show <name>           show contents of a profile (grouped by type)
-#   profile.sh show <name> --plain   parsable type+name list (no status, no claude)
-#   profile.sh current               report the active profile (label + match)
-#   profile.sh apply <name>          enable items in profile (additive)
-#   profile.sh set <name>            enable only profile (disables rest)
-#   profile.sh reset                 go to the default profile (full): enable its
-#                                    list, park non-listed gstack/managed items
-#   profile.sh gstack on|off         toggle gstack, keeping active-profile label
-#   profile.sh diff <a> <b>          compare two profiles
+#   profile.sh [-C <dir>] list
+#   profile.sh [-C <dir>] show <name>
+#   profile.sh [-C <dir>] current [--plain]
+#   profile.sh [-C <dir>] set <name>
+#   profile.sh [-C <dir>] unset
+#   profile.sh [-C <dir>] enable|disable <pack | plugin id>
+#   profile.sh [-C <dir>] diff <name>
 #
-# Profile file format (lib/profiles/<name>.profile):
-#   # DESC: <one-line description>
-#   <skill-name>                          # type defaults to "gstack"
-#   <skill-name>     personal             # personal skill (skills/<x>/SKILL.md is real)
-#   <skill-name>     external             # symlinked into skills-external/
-#   <plugin-name>    plugin@<marketplace> # Claude plugin — auto-toggle
-#   <mcp-name>       mcp                  # MCP — advisory or via toggle-external
-#   <cli-name>       cli                  # standalone CLI — advisory only
+# <dir> (default: cwd) is the session dir. The project root, where the
+# local file lives, follows Claude Code: inside a git repo it is the parent
+# of the git common dir (a worktree resolves to the main checkout), unless
+# that is $HOME or above; otherwise the nearest ancestor holding .claude/,
+# CLAUDE.md or .git, below $HOME. The shared .claude/settings.json is read
+# from <dir> itself.
+# `current` = lib/profile-state.jq, ONE jq pass over: $CLAUDE_PROFILE_SETTINGS
+# (the --settings file lib/cc.sh exports), <root>/.claude/settings.local.json,
+# <root>/.claude/settings.json, ~/.claude/settings.json; a pack absent from
+# all takes its manifest `defaultEnabled` (absent key = on); a managed plugin
+# absent from all is off; `enabledPlugins` and `model` per key, highest wins;
+# `deniedMcpServers` = the UNION of every file; `disableClaudeAiConnectors`
+# any-source-true; then ~/.claude.json `projects[<root>].disabledMcpServers`.
+# `--plain` = one `key=value` per line: the single truth for gates, hooks
+# and the statusline (supersedes `show --plain`, BDR-024).
 #
+# Exit: 0 ok · 2 usage, unknown profile or pack, not a project root (no
+#       CLAUDE.md and no .git), unreadable or invalid local JSON; nothing
+#       is written on any refusal.
 # ============================================================
 set -euo pipefail
 
-REPO="${PROFILE_REPO_OVERRIDE:-$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-CLAUDE_BIN="${CLAUDE_BIN:-claude}"
-SKILLS_DIR="$REPO/skills"
-DISABLED_DIR="$REPO/skills-disabled"
-GSTACK_SRC="$REPO/skills-external/gstack"  # gstack submodule — source of truth for gstack skills
+REPO="${PROFILE_REPO_OVERRIDE:-$(cd -P "$(dirname "${BASH_SOURCE[0]}")/.." \
+  && pwd)}"
 PROFILES_DIR="$REPO/lib/profiles"
-ACTIVE_CACHE="$REPO/.active-profile"  # statusline reads this — keep fast (single-line file, profile name only)
-DEFAULT_PROFILE="full"  # profile in force when none is selected (cache absent, empty, or legacy "none")
+SKILLS_DIR="$REPO/skills"
+STATE_JQ="$(cd -P "$(dirname "${BASH_SOURCE[0]}")" && pwd)/profile-state.jq"
+USER_SETTINGS="${PROFILE_USER_SETTINGS:-$HOME/.claude/settings.json}"
+CLAUDE_JSON="${PROFILE_CLAUDE_JSON:-$HOME/.claude.json}"
+LOCAL_REL=".claude/settings.local.json"
+PROJECT="$PWD"      # the project root: local settings, ~/.claude.json key
+SESSION_DIR="$PWD"  # the -C dir: shared project settings
 
-# GSTACK_REMOVED + gstack_is_removed() — single source, honored by every
-# "bring gstack back" path below (enable_all_gstack, enable_skill).
-# shellcheck source=lib/gstack-removed.sh disable=SC1091
-source "$(dirname "${BASH_SOURCE[0]}")/gstack-removed.sh"
-
-# Plugins that are toggle-managed by `set`. Anything NOT in this list is
-# never auto-disabled — protects always-on plugins (security-guidance;
-# superpowers is vendored skills now, not a plugin) and unrelated user
-# plugins. Add a plugin here only when its enabled state is meaningfully
-# driven by task type.
-MANAGED_PLUGINS=(
-  "ui-ux-pro-max@ui-ux-pro-max-skill"
-  "plugin-dev@claude-code-plugins"
-  "pr-review-toolkit@claude-code-plugins"
-)
-
-# External skill packs that are toggle-managed by `set` — same allowlist
-# doctrine as MANAGED_PLUGINS: listed here only when the enabled state is
-# task-type-driven. `set` disables these when the profile does not list
-# them; anything else external (e.g. darwin-skill) is never auto-touched.
-MANAGED_EXTERNALS=(
-  emil-design-eng
-  frontend-design
-  design-motion-principles
-  impeccable
-  21st-ui-build
-  21st-ui-explore
-  21st-ui-review
-  21st-cli-use
-  21st-ai
-  observability-and-instrumentation
-  deprecation-and-migration
-  ci-cd-and-automation
-  scroll-world-storytelling
-  build-threejs-scroll-worlds
-  scroll-scrubbed-visual-sequence
-  scroll-scrubbed-word-reveal
-  scroll-progress-timeline
-)
-
-# MCP servers that are toggle-managed by `set`, both ways (enable AND
-# disable), delegated to lib/toggle-external.sh. Same allowlist doctrine.
-# Empty: no MCP server is managed today (the 21st design skills are managed
-# as externals above). The `mcp` type itself stays supported — a profile can
-# still list an MCP, it is then advisory rather than auto-toggled.
-MANAGED_MCPS=()
-
-# Plugins that MUST stay enabled — `set` will refuse to disable these even if
-# they're not in the profile. (Defensive: belt-and-suspenders alongside
-# MANAGED_PLUGINS allowlist.)
-PROTECTED_PLUGINS=(
-  "security-guidance@claude-code-plugins"
-)
-
-GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; BLUE='\033[0;34m'; NC='\033[0m'
-ok()   { echo -e "${GREEN}✓${NC} $1"; }
-warn() { echo -e "${YELLOW}⚠${NC}  $1"; }
-err()  { echo -e "${RED}✗${NC} $1" >&2; }
-info() { echo -e "${BLUE}ℹ${NC}  $1"; }
-
-# Persist active-profile name for fast statusline lookup (cmd_current is slow
-# — iterates every profile + every entry). Write profile name only; statusline
-# reads the file directly without re-invoking this script.
-write_active() {
-  local name="$1"
-  printf '%s\n' "$name" > "$ACTIVE_CACHE" 2>/dev/null || true
-}
-
-# First line of the cache, all whitespace stripped (tr -d, CRLF-proof).
-# Empty string when the cache is missing or empty. Never trips
-# `set -euo pipefail` (head's failure on a missing file is absorbed).
-read_cache() {
-  head -n1 "$ACTIVE_CACHE" 2>/dev/null | tr -d '[:space:]' || true
-}
-
-# The profile actually in force: the cached label, or DEFAULT_PROFILE when
-# the cache is absent, empty, or the legacy "none" sentinel. The ONE place
-# that resolves "no profile selected" — every reader of the cache goes
-# through this (or read_cache() when it needs the raw value).
-active_profile() {
-  local cached; cached="$(read_cache)"
-  if [ -z "$cached" ] || [ "$cached" = "none" ]; then
-    printf '%s' "$DEFAULT_PROFILE"
-  else
-    printf '%s' "$cached"
-  fi
-}
-
-# ── Profile parsing ────────────────────────────────────────
-
-# Read a profile file. Output one line per entry: "<skill>\t<type>"
-# Comments (#…) and blank lines are stripped. Default type is "gstack".
-read_profile() {
-  local prof="$1"
-  local file="$PROFILES_DIR/$prof.profile"
-  [ -f "$file" ] || { err "Profile not found: $prof (looked in $PROFILES_DIR)"; return 1; }
-  local skill type rest
-  while IFS= read -r line || [ -n "$line" ]; do
-    line="${line%%#*}"
-    # trim leading whitespace + tabs
-    while [[ "$line" =~ ^[[:space:]] ]]; do line="${line#?}"; done
-    # trim trailing whitespace + tabs
-    while [[ "$line" =~ [[:space:]]$ ]]; do line="${line%?}"; done
-    [ -z "$line" ] && continue
-    # split on first whitespace run
-    skill="${line%%[[:space:]]*}"
-    rest="${line#"$skill"}"
-    while [[ "$rest" =~ ^[[:space:]] ]]; do rest="${rest#?}"; done
-    type="${rest:-gstack}"
-    # Validate type. Accepted forms:
-    #   gstack | external | personal       — skill (symlink toggle)
-    #   plugin@<marketplace>               — Claude plugin (auto-toggle)
-    #   plugin                             — legacy/advisory (no marketplace known)
-    #   mcp                                — MCP server (advisory or via toggle-external)
-    #   cli                                — standalone CLI (advisory only)
-    case "$type" in
-      gstack|external|personal|plugin|mcp|cli) : ;;
-      plugin@*) : ;;
-      *) warn "unknown type '$type' for entry '$skill' in $prof — defaulting to gstack"; type=gstack ;;
-    esac
-    printf '%s\t%s\n' "$skill" "$type"
-  done < "$file"
-}
-
-# All skills bundled in skills-external/gstack/
-gstack_skills() {
-  local src="$REPO/skills-external/gstack"
-  [ -d "$src" ] || return 0
-  for d in "$src"/*/; do
-    [ -f "${d}SKILL.md" ] || continue
-    basename "$d"
-  done
-}
-
-# Profile description (line starting with "# DESC: …")
-profile_desc() {
-  local file="$1"
-  grep -m1 '^# DESC:' "$file" 2>/dev/null | sed 's/^# DESC:[[:space:]]*//' || true
-}
-
-# ── Counting & formatting helpers ─────────────────────────
-
-# Tally a profile's entries by category (claude-free, reads the .profile only).
-# Echo: "<skills> <plugins> <mcps> <clis>" — skills = gstack+external+personal.
-count_profile() {
-  local prof="$1" type
-  local g=0 e=0 p=0 pl=0 m=0 c=0
-  while IFS=$'\t' read -r _ type; do
-    case "$type" in
-      gstack)          g=$((g + 1)) ;;
-      external)        e=$((e + 1)) ;;
-      personal)        p=$((p + 1)) ;;
-      plugin@*|plugin) pl=$((pl + 1)) ;;
-      mcp)             m=$((m + 1)) ;;
-      cli)             c=$((c + 1)) ;;
-    esac
-  done < <(read_profile "$prof")
-  printf '%d %d %d %d\n' "$((g + e + p))" "$pl" "$m" "$c"
-}
-
-# "<n> <noun>" with a plural "s" when n != 1.
-_plur() {
-  if [ "$1" -eq 1 ]; then printf '%d %s' "$1" "$2"; else printf '%d %ss' "$1" "$2"; fi
-}
-
-# Format four category counts. style=compact -> "12s·1p·1m·1c";
-# style=long -> "12 skills · 1 plugin · 1 mcp · 1 cli". Zero categories are
-# skipped; all-zero -> "—".
-fmt_counts() {
-  local style="$1" skills="$2" pl="$3" m="$4" c="$5" out=""
-  if [ "$style" = compact ]; then
-    [ "$skills" -gt 0 ] && out="${skills}s"
-    [ "$pl" -gt 0 ] && out="${out:+$out·}${pl}p"
-    [ "$m" -gt 0 ]  && out="${out:+$out·}${m}m"
-    [ "$c" -gt 0 ]  && out="${out:+$out·}${c}c"
-  else
-    [ "$skills" -gt 0 ] && out="$(_plur "$skills" skill)"
-    [ "$pl" -gt 0 ] && out="${out:+$out · }$(_plur "$pl" plugin)"
-    [ "$m" -gt 0 ]  && out="${out:+$out · }$(_plur "$m" mcp)"
-    [ "$c" -gt 0 ]  && out="${out:+$out · }$(_plur "$c" cli)"
-  fi
-  printf '%s' "${out:-—}"
-}
-
-# Right-pad a string to display width $2 (character count, UTF-8 aware).
-rpad() {
-  local s="$1" w="$2" len=${#1}
-  if [ "$len" -lt "$w" ]; then printf '%s%*s' "$s" "$((w - len))" ''; else printf '%s' "$s"; fi
-}
-
-# ── Status detection ──────────────────────────────────────
-
-skill_status() {
-  local skill="$1" type="$2"
-  case "$type" in
-    gstack|external|personal)
-      if [ -e "$SKILLS_DIR/$skill" ]; then
-        echo "enabled"
-      elif [ -e "$DISABLED_DIR/gstack__$skill" ] || [ -e "$DISABLED_DIR/$skill" ]; then
-        echo "disabled"
-      else
-        echo "missing"
-      fi
-      ;;
-    plugin|plugin@*)
-      # `claude plugin list` is the source of truth — settings.json may be
-      # ahead of or behind reality if the user toggled outside this tool.
-      if command -v "$CLAUDE_BIN" >/dev/null 2>&1; then
-        # Match the plugin block by name then check Status line. List is
-        # captured first: an early-exit awk/grep -q in a pipe SIGPIPEs the
-        # producer (rc 141 under pipefail on macOS).
-        local plist
-        plist="$("$CLAUDE_BIN" plugin list 2>/dev/null)" || true
-        if grep -q "✔ enabled" < <(awk -v p="$skill" '
-               /^[[:space:]]*❯ '"$skill"'@/ { found=1; next }
-               found && /Status:/ { print; exit }
-             ' <<<"$plist"); then
-          echo "enabled"
-        else
-          echo "disabled"
-        fi
-      else
-        echo "unknown"
-      fi
-      ;;
-    mcp)
-      if command -v "$CLAUDE_BIN" >/dev/null 2>&1 && \
-         grep -q "^${skill}" <<<"$("$CLAUDE_BIN" mcp list 2>/dev/null)"; then
-        echo "enabled"
-      else
-        echo "disabled"
-      fi
-      ;;
-    cli)
-      command -v "$skill" >/dev/null 2>&1 && echo "installed" || echo "not-installed"
-      ;;
-    *) echo "unknown" ;;
-  esac
-}
-
-# How much of one profile is actually available right now. An item counts
-# as available when its status is "enabled" (skills, plugins, MCPs) or
-# "installed" (CLIs). Echo: "<available> <total>" — total 0 for an empty
-# profile. Used by cmd_current to score the ACTIVE label only (BDR-030:
-# scanning every profile for a best guess doesn't apply — gstack is off by
-# default, so a parked count says nothing about which profile is on).
-profile_match() {
-  local prof="$1" skill type status
-  local total=0 available=0
-  while IFS=$'\t' read -r skill type; do
-    total=$((total + 1))
-    status="$(skill_status "$skill" "$type")"
-    case "$status" in
-      enabled|installed) available=$((available + 1)) ;;
-    esac
-  done < <(read_profile "$prof")
-  printf '%d %d\n' "$available" "$total"
-}
-
-# ── Enable / disable ──────────────────────────────────────
-
-enable_skill() {
-  local skill="$1" type="$2"
-  case "$type" in
-    gstack)
-      if gstack_is_removed "$skill"; then
-        warn "refusing to enable removed skill: $skill (lib/gstack-removed.sh \
-— a profile census failure, not a crash)"
-        return 0
-      elif [ -e "$DISABLED_DIR/gstack__$skill" ]; then
-        rm -rf "${SKILLS_DIR:?}/${skill:?}"
-        mv "$DISABLED_DIR/gstack__$skill" "$SKILLS_DIR/$skill"
-        ok "enabled: $skill"
-      elif [ -e "$DISABLED_DIR/$skill" ]; then
-        rm -rf "${SKILLS_DIR:?}/${skill:?}"
-        mv "$DISABLED_DIR/$skill" "$SKILLS_DIR/$skill"
-        ok "enabled: $skill"
-      elif [ -e "$SKILLS_DIR/$skill" ]; then
-        : # already enabled — silent
-      elif [ -d "$GSTACK_SRC/$skill" ]; then
-        # gstack is OFF by default: its skills live only in the submodule,
-        # never pre-symlinked into skills/. A profile that lists this gstack
-        # skill activates it on demand by symlinking the submodule skill dir
-        # in. disable_gstack_not_in() parks it again when an unrelated profile
-        # is set. The gstack/bin + browse/dist infra it relies on is created
-        # by link.sh, independent of this.
-        ln -sf "$GSTACK_SRC/$skill" "$SKILLS_DIR/$skill"
-        ok "enabled: $skill (gstack on-demand)"
-      elif [ ! -d "$GSTACK_SRC" ]; then
-        warn "missing: $skill — gstack submodule absent, run: git submodule update --init"
-      else
-        warn "missing: $skill — not found in gstack submodule ($GSTACK_SRC)"
-      fi
-      ;;
-    external|personal)
-      if [ -e "$DISABLED_DIR/$skill" ]; then
-        rm -rf "${SKILLS_DIR:?}/${skill:?}"
-        mv "$DISABLED_DIR/$skill" "$SKILLS_DIR/$skill"
-        ok "enabled: $skill ($type)"
-      elif [ -e "$SKILLS_DIR/$skill" ]; then
-        :
-      elif [ "$type" = external ] && [ -d "$REPO/skills-external/$skill" ]; then
-        # Symlink never created (or hand-removed): recreate it from the
-        # vendored pack — mirrors toggle-external.sh's from-source path.
-        ln -sf "$REPO/skills-external/$skill" "$SKILLS_DIR/$skill"
-        ok "enabled: $skill (external, symlink created)"
-      else
-        warn "missing: $skill ($type)"
-      fi
-      ;;
-    plugin@*)
-      # type holds the marketplace: plugin@<marketplace>
-      local marketplace="${type#plugin@}"
-      if [ "$(skill_status "$skill" "$type")" = "enabled" ]; then
-        : # already on
-      elif command -v "$CLAUDE_BIN" >/dev/null 2>&1; then
-        # CLI call stays inside the condition: a failing CLI must not abort
-        if grep -qiE "enabled|already" \
-             <<<"$("$CLAUDE_BIN" plugin enable \
-               "${skill}@${marketplace}" 2>&1)"; then
-          ok "enabled plugin: ${skill}@${marketplace}"
-        else
-          warn "could not enable plugin: ${skill}@${marketplace}"
-        fi
-      else
-        info "claude CLI not in PATH — manual: claude plugin enable ${skill}@${marketplace}"
-      fi
-      ;;
-    plugin)
-      # No marketplace specified — purely advisory.
-      if [ "$(skill_status "$skill" plugin)" = "enabled" ]; then
-        : # already on
-      else
-        info "plugin '$skill' not enabled — run: claude plugin enable $skill@<marketplace>"
-      fi
-      ;;
-    mcp)
-      # Advisory only: MANAGED_MCPS is empty, nothing is auto-registered.
-      # Re-add a delegation branch here the day a profile owns an MCP server.
-      if [ "$(skill_status "$skill" mcp)" = "enabled" ]; then
-        : # already on
-      else
-        info "MCP '$skill' not registered — run: claude mcp add $skill -- <command>"
-      fi
-      ;;
-    cli)
-      # CLIs install externally; we never auto-install. Just report status.
-      if command -v "$skill" >/dev/null 2>&1; then
-        : # installed — silent
-      else
-        info "CLI '$skill' not installed — install separately (npm/cargo/pipx)"
-      fi
-      ;;
-  esac
-}
-
-disable_skill() {
-  local skill="$1" type="$2"
-  case "$type" in
-    gstack)
-      if [ -e "$SKILLS_DIR/$skill" ]; then
-        mkdir -p "$DISABLED_DIR"
-        rm -rf "$DISABLED_DIR/gstack__$skill"
-        mv "$SKILLS_DIR/$skill" "$DISABLED_DIR/gstack__$skill"
-        ok "disabled: $skill"
-      fi
-      ;;
-    external|personal)
-      if [ -e "$SKILLS_DIR/$skill" ]; then
-        mkdir -p "$DISABLED_DIR"
-        rm -rf "${DISABLED_DIR:?}/${skill:?}"
-        mv "$SKILLS_DIR/$skill" "$DISABLED_DIR/$skill"
-        ok "disabled: $skill ($type)"
-      fi
-      ;;
-    plugin@*)
-      local marketplace="${type#plugin@}"
-      local key="${skill}@${marketplace}"
-      # Defensive check against PROTECTED_PLUGINS (always-on).
-      local p
-      for p in "${PROTECTED_PLUGINS[@]}"; do
-        if [ "$key" = "$p" ]; then
-          warn "refusing to disable protected plugin: $key"
-          return 0
-        fi
-      done
-      if [ "$(skill_status "$skill" "$type")" = "disabled" ]; then
-        : # already off
-      elif command -v "$CLAUDE_BIN" >/dev/null 2>&1; then
-        if grep -qiE "disabled|already" \
-             <<<"$("$CLAUDE_BIN" plugin disable "$key" 2>&1)"; then
-          ok "disabled plugin: $key"
-        else
-          warn "could not disable plugin: $key"
-        fi
-      else
-        info "claude CLI not in PATH — manual: claude plugin disable $key"
-      fi
-      ;;
-    plugin)
-      info "plugin '$skill' — manual: claude plugin disable $skill@<marketplace>"
-      ;;
-    mcp)
-      info "MCP '$skill' — manual: claude mcp remove $skill"
-      ;;
-    cli)
-      : # never auto-uninstall CLIs
-      ;;
-  esac
-}
-
-# ── Shared gstack operations ──────────────────────────────
-
-# Re-enable every gstack skill parked in skills-disabled/ (move gstack__*
-# back into skills/), skipping a name lib/gstack-removed.sh denies (left
-# parked — the policy line goes to stderr). Shared by cmd_reset and
-# `gstack on`. Echoes the REAL restored count (skipped names excluded) on
-# stdout so the caller can report it accurately; per-skill confirmations
-# go to stderr so that count is the only thing captured with `$(...)`.
-enable_all_gstack() {
-  local entry name restored=0
-  [ -d "$DISABLED_DIR" ] || { echo 0; return 0; }
-  for entry in "$DISABLED_DIR"/gstack__*; do
-    [ -e "$entry" ] || continue
-    name="$(basename "$entry" | sed 's/^gstack__//')"
-    if gstack_is_removed "$name"; then
-      info "skipped (removed by policy, lib/gstack-removed.sh): $name" >&2
-      continue
-    fi
-    rm -rf "${SKILLS_DIR:?}/${name:?}"
-    mv "$entry" "$SKILLS_DIR/$name"
-    ok "re-enabled: $name" >&2
-    restored=$((restored + 1))
-  done
-  echo "$restored"
-}
-
-# Disable gstack-origin skills not listed in the given profile. Shared by
-# cmd_set and `gstack off`. Caller is responsible for validating the profile.
-disable_gstack_not_in() {
-  local prof="$1"
-  local keep_file name
-  keep_file="$(mktemp)"
-  read_profile "$prof" | cut -f1 | sort -u > "$keep_file"
-  while read -r name; do
-    [ -n "$name" ] || continue
-    grep -qx "$name" "$keep_file" || disable_skill "$name" gstack
-  done < <(gstack_skills | sort -u)
-  rm -f "$keep_file"
-}
-
-# Count gstack skills currently parked in skills-disabled/.
-parked_gstack_count() {
-  [ -d "$DISABLED_DIR" ] || { echo 0; return 0; }
-  find "$DISABLED_DIR" -maxdepth 1 -name 'gstack__*' 2>/dev/null | wc -l | tr -d ' '
-}
-
-# ── `set` trim helpers — one per managed category ─────────────
-# Each disables the managed items NOT listed in the given profile. Allowlist
-# doctrine: only MANAGED_* entries are ever auto-disabled.
-
-disable_plugins_not_in() {
-  local prof="$1" keep_file p plugin_name marketplace
-  keep_file="$(mktemp)"
-  read_profile "$prof" \
-    | awk -F'\t' '$2 ~ /^plugin@/ { sub(/^plugin@/, "", $2); print $1"@"$2 }' \
-    | sort -u > "$keep_file"
-  for p in "${MANAGED_PLUGINS[@]}"; do
-    if ! grep -qx "$p" "$keep_file"; then
-      plugin_name="${p%@*}"
-      marketplace="${p#*@}"
-      disable_skill "$plugin_name" "plugin@${marketplace}"
-    fi
-  done
-  rm -f "$keep_file"
-}
-
-disable_externals_not_in() {
-  local prof="$1" keep_file x
-  keep_file="$(mktemp)"
-  read_profile "$prof" | awk -F'\t' '$2 == "external" { print $1 }' \
-    | sort -u > "$keep_file"
-  for x in "${MANAGED_EXTERNALS[@]}"; do
-    grep -qx "$x" "$keep_file" || disable_skill "$x" external
-  done
-  rm -f "$keep_file"
-}
-
-disable_mcps_not_in() {
-  local prof="$1" keep_file s
-  keep_file="$(mktemp)"
-  read_profile "$prof" | awk -F'\t' '$2 == "mcp" { print $1 }' \
-    | sort -u > "$keep_file"
-  for s in "${MANAGED_MCPS[@]}"; do
-    grep -qx "$s" "$keep_file" || disable_skill "$s" mcp
-  done
-  rm -f "$keep_file"
-}
-
-# ── Commands ──────────────────────────────────────────────
-
-cmd_list() {
-  printf "%-9s %-13s %s\n" "PROFILE" "ITEMS" "DESCRIPTION"
-  printf "%-9s %-13s %s\n" "-------" "-----" "-----------"
-  local f name desc skills pl m c contents
-  for f in "$PROFILES_DIR"/*.profile; do
-    [ -f "$f" ] || continue
-    name="$(basename "$f" .profile)"
-    desc="$(profile_desc "$f")"
-    read -r skills pl m c <<<"$(count_profile "$name")"
-    contents="$(fmt_counts compact "$skills" "$pl" "$m" "$c")"
-    printf "%-9s %s %s\n" "$name" "$(rpad "$contents" 13)" "${desc:--}"
-  done
-}
-
-cmd_show() {
-  local prof="$1" plain=0
-  [ "${2:-}" = "--plain" ] && plain=1
-  local file="$PROFILES_DIR/$prof.profile"
-  [ -f "$file" ] || { err "Profile not found: $prof"; return 1; }
-
-  # Snapshot entries once (claude-free): "<cat><TAB><name>", canonical name.
-  # A plugin's marketplace (plugin@<mp>) collapses to category "plugin".
-  local entries=() skill type cat
-  while IFS=$'\t' read -r skill type; do
-    case "$type" in plugin@*|plugin) cat=plugin ;; *) cat="$type" ;; esac
-    entries+=("$cat"$'\t'"$skill")
-  done < <(read_profile "$prof")
-
-  # --plain: parsable contract for the design gate. One "<type><TAB><name>"
-  # per line, grouped by type, NO status, NO claude calls.
-  if [ "$plain" -eq 1 ]; then
-    local e
-    for cat in gstack external personal plugin mcp cli; do
-      for e in "${entries[@]}"; do
-        [ "${e%%$'\t'*}" = "$cat" ] && printf '%s\t%s\n' "$cat" "${e#*$'\t'}"
-      done
-    done
-    return 0
-  fi
-
-  echo "Profile: $prof"
-  local desc; desc="$(profile_desc "$file")"
-  [ -n "$desc" ] && echo "Description: $desc"
-  local skills pl m c total
-  read -r skills pl m c <<<"$(count_profile "$prof")"
-  total=$((skills + pl + m + c))
-  if [ "$total" -eq 0 ]; then
-    echo "Total: 0 items (empty — strips all gstack)"
-  else
-    echo "Total: $total items — $(fmt_counts long "$skills" "$pl" "$m" "$c")"
-  fi
-  echo ""
-
-  # Grouped by type, fixed order; empty groups skipped. Canonical name +
-  # runtime status (existing skill_status — degrades to disabled if no claude).
-  local e names status
-  for cat in gstack external personal plugin mcp cli; do
-    names=()
-    for e in "${entries[@]}"; do
-      [ "${e%%$'\t'*}" = "$cat" ] && names+=("${e#*$'\t'}")
-    done
-    [ "${#names[@]}" -eq 0 ] && continue
-    printf '%s (%d):\n' "$cat" "${#names[@]}"
-    for skill in "${names[@]}"; do
-      status="$(skill_status "$skill" "$cat")"
-      printf '  %-24s %s\n' "$skill" "$status"
-    done
-  done
-}
-
-cmd_apply() {
-  local prof="$1"
-  info "Applying profile: $prof (additive — leaves other skills alone)"
-  local skill type
-  while IFS=$'\t' read -r skill type; do
-    enable_skill "$skill" "$type"
-  done < <(read_profile "$prof")
-  write_active "$prof"
-}
-
-cmd_set() {
-  local prof="$1"
-  info "Setting profile: $prof (exclusive — disables non-listed gstack skills + managed plugins/externals/MCPs)"
-
-  # Disable gstack-origin skills not in profile.
-  disable_gstack_not_in "$prof"
-
-  # Disable managed plugins not in profile (PROTECTED_PLUGINS are excluded
-  # by disable_skill itself — belt and suspenders).
-  disable_plugins_not_in "$prof"
-
-  # Symmetry (BDR-079): a profile switch also parks the managed external
-  # packs and unregisters the managed MCPs the new profile does not need —
-  # design leftovers (emil, the 21st pack…) no longer survive a `set backend`.
-  disable_externals_not_in "$prof"
-  disable_mcps_not_in "$prof"
-
-  # Enable everything listed in the profile.
-  cmd_apply "$prof"
-}
-
-cmd_reset() {
-  info "Resetting to the default profile: $DEFAULT_PROFILE (exclusive — enables its list, parks any non-listed gstack or managed item currently on)"
-  cmd_set "$DEFAULT_PROFILE"
-}
-
-# gstack on|off — focused gstack-only toggle that keeps the active-profile
-# label intact (unlike reset, which switches to the default profile). Lets
-# the user layer all gstack on top of their current profile, or trim it
-# back down to just what the active profile needs.
-cmd_gstack() {
-  local action="${1:-}"
-  case "$action" in
-    on)
-      # Restore whatever is parked, but DON'T touch active-profile — the
-      # user is adding gstack on top of their current profile, not clearing it.
-      local parked restored
-      parked="$(parked_gstack_count)"
-      if [ "$parked" -eq 0 ]; then
-        info "nothing parked — gstack skills are linked per profile (set/apply/reset)"
-      else
-        restored="$(enable_all_gstack)"
-        ok "$restored parked gstack skills restored"
-      fi
-      ;;
-    off)
-      # Disable gstack skills not needed by the active profile. A cache
-      # naming a profile with no lib/profiles/<name>.profile still errors;
-      # absent/empty/"none" resolve to the default profile via
-      # active_profile() and no longer hit that error.
-      local active
-      active="$(active_profile)"
-      if [ ! -f "$PROFILES_DIR/$active.profile" ]; then
-        err "no active profile — 'gstack off' needs one to know what to keep"
-        info "run: bash lib/profile.sh set <name>   then: gstack off"
-        return 1
-      fi
-      info "Disabling gstack skills not in active profile: $active"
-      disable_gstack_not_in "$active"
-      ok "gstack trimmed to profile: $active"
-      ;;
-    ""|-h|--help|help)
-      cat <<'EOF'
-profile gstack on|off — toggle gstack without losing the active-profile label
-
-  on    re-enable ALL gstack skills (keeps active-profile label)
-  off   disable gstack skills not in the active profile
-EOF
-      ;;
-    *)
-      err "Unknown gstack action: '$action' (use: on | off)"; return 1 ;;
-  esac
-}
-
-cmd_current() {
-  # Label-driven (BDR-030): name active_profile() and score ONLY that
-  # profile — no cross-profile best-guess scan, no fast path keyed on the
-  # parked-gstack count (that count says nothing about which profile is on
-  # when gstack starts off, as it does on a real tree).
-  local label; label="$(active_profile)"
-  if [ ! -f "$PROFILES_DIR/$label.profile" ]; then
-    echo "$label (unknown profile — no lib/profiles/$label.profile; run: profile reset)"
-    return 0
-  fi
-
-  local available total pct
-  read -r available total <<<"$(profile_match "$label")"
-  pct=0
-  [ "$total" -gt 0 ] && pct=$((available * 100 / total))
-  local parked; parked="$(parked_gstack_count)"
-
-  local cached; cached="$(read_cache)"
-  if [ -z "$cached" ] || [ "$cached" = "none" ]; then
-    echo "$label (default — not applied yet, ${pct}% of its items enabled; run: profile reset)"
-  else
-    echo "$label (${pct}% match, $parked gstack skills disabled)"
-  fi
-}
-
-cmd_diff() {
-  local a="$1" b="$2"
-  local fa="$PROFILES_DIR/$a.profile" fb="$PROFILES_DIR/$b.profile"
-  [ -f "$fa" ] || { err "Profile not found: $a"; return 1; }
-  [ -f "$fb" ] || { err "Profile not found: $b"; return 1; }
-  local list_a list_b
-  list_a="$(mktemp)"; list_b="$(mktemp)"
-  read_profile "$a" | cut -f1 | sort -u > "$list_a"
-  read_profile "$b" | cut -f1 | sort -u > "$list_b"
-  echo "Only in $a:"; comm -23 "$list_a" "$list_b" | sed 's/^/  - /'
-  echo "Only in $b:"; comm -13 "$list_a" "$list_b" | sed 's/^/  + /'
-  echo "Common:"   ; comm -12 "$list_a" "$list_b" | sed 's/^/  = /'
-  rm -f "$list_a" "$list_b"
-}
-
+die() { echo "profile: $*" >&2; exit 2; }
 usage() {
-  cat <<EOF
-profile.sh — partition Claude skills by purpose
-
-USAGE:
-  profile list              list all available profiles
-  profile show <name>       show profile contents grouped by type + status
-  profile show <name> --plain  parsable type+name list (no status, no claude)
-  profile current           report the active profile (label + match)
-  profile apply <name>      enable skills in profile (additive)
-  profile set <name>        enable only listed skills (disables rest of gstack)
-  profile reset             go to the default profile (full): enable its list,
-                            park non-listed gstack/managed items
-  profile gstack on|off     toggle gstack only, keep active-profile label
-  profile diff <a> <b>      compare two profiles
-
-PROFILES (in $PROFILES_DIR):
-EOF
-  local f name desc
-  for f in "$PROFILES_DIR"/*.profile; do
-    [ -f "$f" ] || continue
-    name="$(basename "$f" .profile)"
-    desc="$(profile_desc "$f")"
-    printf "  %-10s %s\n" "$name" "${desc:--}"
-  done
-  cat <<EOF
-
-EXAMPLES:
-  bash lib/profile.sh list
-  bash lib/profile.sh show design
-  bash lib/profile.sh set design       # only design skills active
-  bash lib/profile.sh apply qa         # add QA skills on top
-  bash lib/profile.sh reset            # back to the default profile (full)
-
-NOTE:
-  "set" toggles the MANAGED items automatically, both ways: plugins
-  (ui-ux-pro-max, plugin-dev, pr-review-toolkit), external packs
-  (emil-design-eng, frontend-design, design-motion-principles, impeccable,
-  the five 21st design skills, the agent-skills trio
-  observability-and-instrumentation/deprecation-and-migration/
-  ci-cd-and-automation, the five Mengto scroll skills
-  scroll-world-storytelling/build-threejs-scroll-worlds/
-  scroll-scrubbed-visual-sequence/scroll-scrubbed-word-reveal/
-  scroll-progress-timeline). Anything outside those allowlists stays
-  advisory — run "claude plugin enable|disable" or
-  "bash lib/toggle-external.sh enable|disable <tool>" yourself.
-EOF
+  sed -n '/^# Usage:/,/^#$/p' "${BASH_SOURCE[0]}" | sed 's/^# \{0,2\}//' >&2
+  exit 2
 }
 
-main() {
-  local cmd="${1:-}"
-  case "$cmd" in
-    list)    cmd_list ;;
-    show)    [ $# -ge 2 ] || { usage; exit 1; }; cmd_show "$2" "${3:-}" ;;
-    current) cmd_current ;;
-    apply)   [ $# -ge 2 ] || { usage; exit 1; }; cmd_apply "$2" ;;
-    set)     [ $# -ge 2 ] || { usage; exit 1; }; cmd_set "$2" ;;
-    reset)   cmd_reset ;;
-    gstack)  cmd_gstack "${2:-}" ;;
-    diff)    [ $# -ge 3 ] || { usage; exit 1; }; cmd_diff "$2" "$3" ;;
-    ""|-h|--help|help) usage ;;
-    *) err "Unknown command: $cmd"; usage; exit 1 ;;
+# ---- project root ----------------------------------------------------------
+NAME_RE='^[a-z0-9][a-z0-9-]*$'
+PACK_RE='^[A-Za-z0-9][A-Za-z0-9@._:-]*$'
+require_name() { # $1 value, $2 regex, $3 label: refuse before any path use
+  [[ "$1" =~ $2 ]] || die "invalid $3 '$1'"
+}
+home_or_above() { # $1 dir
+  [ "$1" = / ] && return 0
+  case "$HOME/" in "$1"/*) return 0 ;; esac
+  return 1
+}
+git_root() { # $1 dir → parent of the git common dir, unless $HOME or above
+  local common root
+  common="$(git -C "$1" rev-parse --path-format=absolute --git-common-dir \
+    2>/dev/null)" || return 1
+  [ "$(basename "$common")" = .git ] || return 1
+  root="$(dirname "$common")"
+  home_or_above "$root" && return 1
+  echo "$root"
+}
+find_root() { # $1 dir → the project root (see header)
+  local d="$1"
+  git_root "$d" && return 0
+  while [ "$d" != / ] && [ "$d" != "$HOME" ]; do
+    if [ -d "$d/.claude" ] || [ -f "$d/CLAUDE.md" ] || [ -e "$d/.git" ]; then
+      echo "$d"; return 0
+    fi
+    d="$(dirname "$d")"
+  done
+  echo "$1"
+}
+require_project_root() {
+  [ -f "$PROJECT/CLAUDE.md" ] || [ -e "$PROJECT/.git" ] \
+    || die "not a project root (no CLAUDE.md and no .git): $PROJECT"
+}
+
+# ---- inputs ----------------------------------------------------------------
+profile_file() { echo "$PROFILES_DIR/$1.json"; }
+profile_names() {
+  local f
+  for f in "$PROFILES_DIR"/*.json; do [ -f "$f" ] && basename "$f" .json; done
+  return 0
+}
+profile_desc() { # the `- **name**: text` line of lib/profiles/README.md
+  sed -n "s/^- \*\*$1\*\*: //p" "$PROFILES_DIR/README.md" 2>/dev/null | head -1
+}
+managed_ids() {
+  jq -r '.enabledPlugins | keys[]' "$PROFILES_DIR"/*.json | sort -u
+}
+managed_connectors() {
+  jq -r '(.deniedMcpServers // [])[] | .serverName' "$PROFILES_DIR"/*.json \
+    | sort -u
+}
+as_json_list() { jq -Rn '[inputs]'; }   # stdin lines → JSON string array
+json_or_empty() { # $1 file → its JSON, {} when absent; rc 2 when invalid
+  [ -f "$1" ] || { echo '{}'; return 0; }
+  jq -c . "$1" 2>/dev/null || return 2
+}
+read_local() {
+  json_or_empty "$PROJECT/$LOCAL_REL" \
+    || die "$LOCAL_REL is not valid JSON, nothing written"
+}
+pack_default() { # $1 id → true | false | missing (manifest defaultEnabled)
+  local m="$SKILLS_DIR/${1%@skills-dir}/.claude-plugin/plugin.json"
+  [ -f "$m" ] || { echo missing; return 0; }
+  jq -r 'if .defaultEnabled == false then "false" else "true" end' "$m"
+}
+manifests_json() { # [{id, on}] for every pack manifest, [] when none
+  jq -cn '[inputs | {id: (.name + "@skills-dir"),
+                     on: (.defaultEnabled != false)}]' \
+    "$SKILLS_DIR"/pack-*/.claude-plugin/plugin.json 2>/dev/null || echo '[]'
+}
+have_flag() {
+  [ -n "${CLAUDE_PROFILE_SETTINGS:-}" ] && [ -f "$CLAUDE_PROFILE_SETTINGS" ]
+}
+raw_or_null() { # $1 file → the path, or /dev/null when absent or unset
+  if [ -n "$1" ] && [ -f "$1" ]; then echo "$1"; else echo /dev/null; fi
+}
+
+# ---- effective state: two jq calls -----------------------------------------
+state() { # $1 mode: plain | human | json
+  local hasflag=0; have_flag && hasflag=1
+  jq -rn --arg mode "$1" --arg proj "$PROJECT" --arg hasflag "$hasflag" \
+    --arg flagname "${CLAUDE_PROFILE:--}" \
+    --rawfile u "$(raw_or_null "$USER_SETTINGS")" \
+    --rawfile p "$(raw_or_null "$SESSION_DIR/.claude/settings.json")" \
+    --rawfile l "$(raw_or_null "$PROJECT/$LOCAL_REL")" \
+    --rawfile f "$(raw_or_null "${CLAUDE_PROFILE_SETTINGS:-}")" \
+    --rawfile cj "$(raw_or_null "$CLAUDE_JSON")" \
+    --argjson m "$(manifests_json)" -f "$STATE_JQ" "$PROFILES_DIR"/*.json
+}
+
+# ---- commands ---------------------------------------------------------------
+unknown_profile() {
+  echo "profile: unknown profile '$1'. Known:" >&2; cmd_list >&2; exit 2
+}
+cmd_list() {
+  local n d
+  for n in $(profile_names); do
+    d="$(profile_desc "$n")"
+    printf '%-10s %s\n' "$n" "${d:-(no line in lib/profiles/README.md)}"
+  done
+}
+cmd_show() {
+  local f id v tag
+  require_name "$1" "$NAME_RE" "profile name"
+  f="$(profile_file "$1")"; [ -f "$f" ] || unknown_profile "$1"
+  echo "profile $1: $(profile_desc "$1")"
+  for id in $(jq -r '.enabledPlugins | keys[]' "$f"); do
+    v="$(jq -r --arg k "$id" '.enabledPlugins[$k]
+          | if . then "on" else "off" end' "$f")"
+    tag=""
+    case "$id" in pack-*@skills-dir)
+      [ "$(pack_default "$id")" = missing ] \
+        && tag="  missing (no skills/${id%@skills-dir}/)" ;;
+    esac
+    printf '  %-42s %s%s\n' "$id" "$v" "$tag"
+  done
+  echo "  connectors denied: $(jq -r '(.deniedMcpServers // [])
+    | if length == 0 then "none" else map(.serverName) | join(", ") end' "$f")"
+  echo "  model: $(jq -r '.model // "-"' "$f")"
+}
+cmd_current() {
+  if [ "${1:-}" = "--plain" ]; then state plain; else state human; fi
+}
+write_local() { # $1 JSON → atomic replace of the local settings
+  local tmp
+  mkdir -p "$PROJECT/.claude"
+  tmp="$(mktemp "$PROJECT/.claude/.settings.local.XXXXXX")"
+  jq . <<<"$1" > "$tmp" && mv -f "$tmp" "$PROJECT/$LOCAL_REL"
+}
+after_write_hint() {
+  echo "next: /reload-plugins loads the packs in this session;" \
+    "connectors and model apply to the next session"
+  if have_flag; then
+    echo "note: this conversation runs --settings ${CLAUDE_PROFILE:-?}:" \
+      "the flag fragment fixes every managed key, so this write applies to" \
+      "other sessions only; relaunch: cc <name> <profile>"
+  fi
+}
+cmd_set() {
+  local f cur new
+  require_name "$1" "$NAME_RE" "profile name"
+  f="$(profile_file "$1")"; [ -f "$f" ] || unknown_profile "$1"
+  require_project_root; cur="$(read_local)"
+  new="$(jq --slurpfile p "$f" \
+    --argjson names "$(managed_connectors | as_json_list)" '
+    . as $cur | $p[0] as $p
+    | .enabledPlugins = (($cur.enabledPlugins // {}) + $p.enabledPlugins)
+    | .deniedMcpServers = ([($cur.deniedMcpServers // [])[]
+        | select(.serverName as $s | ($names | index($s)) == null)]
+        + ($p.deniedMcpServers // []))
+    | if (.deniedMcpServers | length) == 0 then del(.deniedMcpServers)
+      else . end
+    | if $p.model then .model = $p.model else . end' <<<"$cur")"
+  write_local "$new"
+  echo "profile $1 → $LOCAL_REL"; after_write_hint
+}
+cmd_unset() {
+  local cur name pm new
+  require_project_root; cur="$(read_local)"
+  name="$(CLAUDE_PROFILE_SETTINGS='' state json | jq -r .name)"
+  pm="-"
+  [ "$name" != custom ] \
+    && pm="$(jq -r '.model // "-"' "$(profile_file "$name")")"
+  new="$(jq --argjson ids "$(managed_ids | as_json_list)" \
+    --argjson names "$(managed_connectors | as_json_list)" --arg pm "$pm" '
+    .enabledPlugins = ((.enabledPlugins // {})
+        | with_entries(select(.key as $k | ($ids | index($k)) == null)))
+    | if (.enabledPlugins | length) == 0 then del(.enabledPlugins) else . end
+    | .deniedMcpServers = [(.deniedMcpServers // [])[]
+        | select(.serverName as $s | ($names | index($s)) == null)]
+    | if (.deniedMcpServers | length) == 0 then del(.deniedMcpServers)
+      else . end
+    | if $pm != "-" and .model == $pm then del(.model) else . end' <<<"$cur")"
+  if [ "$(jq -c . <<<"$new")" = "$cur" ]; then
+    echo "nothing to unset in $LOCAL_REL (was: $name)"; return 0
+  fi
+  write_local "$new"
+  echo "profile keys removed from $LOCAL_REL (was: $name)"; after_write_hint
+}
+resolve_id() { # design | pack-design | pack-design@skills-dir | <plugin id>
+  case "$1" in
+    *@*) echo "$1" ;;
+    pack-*) echo "$1@skills-dir" ;;
+    *) echo "pack-$1@skills-dir" ;;
   esac
 }
+cmd_toggle() { # $1 true|false, $2 pack or plugin spelling
+  local id cur new
+  require_name "$2" "$PACK_RE" "pack or plugin name"
+  id="$(resolve_id "$2")"
+  managed_ids | grep -qxF -- "$id" \
+    || die "unknown pack or plugin '$2' (known: $(managed_ids | tr '\n' ' '))"
+  require_project_root; cur="$(read_local)"
+  new="$(jq --arg id "$id" --argjson v "$1" \
+    '.enabledPlugins = ((.enabledPlugins // {}) + {($id): $v})' <<<"$cur")"
+  write_local "$new"
+  echo "$id=$1 → $LOCAL_REL"; after_write_hint
+}
+cmd_diff() {
+  local f out
+  require_name "$1" "$NAME_RE" "profile name"
+  f="$(profile_file "$1")"; [ -f "$f" ] || unknown_profile "$1"
+  out="$(jq -r --argjson e "$(state json)" '
+    def onoff: if . then "on" else "off" end;
+    (.enabledPlugins | to_entries[] | select($e.plugins[.key] != .value)
+     | .key + ": " + ($e.plugins[.key] | onoff) + " → " + (.value | onoff)),
+    (([(.deniedMcpServers // [])[] | .serverName] | sort) as $want
+     | ($e.managed_denied | sort) as $have
+     | if $want == $have then empty
+       else "connectors denied: " + ($have | join(", ")) + " → "
+            + ($want | join(", ")) end),
+    (if .model != null and .model != $e.model
+     then "model: " + $e.model + " → " + (.model // "-")
+     else empty end)' "$f")"
+  if [ -n "$out" ]; then echo "$out"; else echo "no difference from $1"; fi
+}
 
-main "$@"
+# ---- main --------------------------------------------------------------------
+command -v jq >/dev/null 2>&1 || die "jq is required"
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -C) [ -n "${2:-}" ] || usage
+        PROJECT="$(cd "$2" 2>/dev/null && pwd)" || die "no such dir: $2"
+        shift 2 ;;
+    *) break ;;
+  esac
+done
+SESSION_DIR="$PROJECT"
+PROJECT="$(find_root "$PROJECT")"
+case "${1:-}" in
+  list)    cmd_list ;;
+  show)    [ -n "${2:-}" ] || usage; cmd_show "$2" ;;
+  current) cmd_current "${2:-}" ;;
+  set)     [ -n "${2:-}" ] || usage; cmd_set "$2" ;;
+  unset)   cmd_unset ;;
+  enable)  [ -n "${2:-}" ] || usage; cmd_toggle true "$2" ;;
+  disable) [ -n "${2:-}" ] || usage; cmd_toggle false "$2" ;;
+  diff)    [ -n "${2:-}" ] || usage; cmd_diff "$2" ;;
+  *) usage ;;
+esac

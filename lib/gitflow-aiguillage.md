@@ -32,13 +32,13 @@ doc reconciliation & curation skills (+ `/refactor`), run OUTSIDE an assistance 
 `/bugfix` `/hotfix` `/ship-feature` a working branch already exists (this check
 returns WORKING) and the memory commit rides it. The aiguillage only fires when
 such a skill is invoked directly on `main`/`develop` — i.e. memory IS the work,
-with no code branch to follow. That is the leak it closes: the `.claude/**` hook
-exemption still lets a *manual* memory commit through on a protected base, but a
-skill-driven one now branches to `chore/*` first.
+with no code branch to follow. That is the leak it closes: the `.claude/`
+allowlist hook exemption still lets a *manual* memory commit through on a protected
+base, but a skill-driven one now branches to `chore/*` first.
 
 **Integration is human-gated by default** — these flows commit, they do not merge.
-EXCEPTION: `/capitalize` + `/close` auto-persist their memory-only commit (finish →
-develop + push) when THEY branched a `chore/*` off develop this run (BDR-068 — a
+EXCEPTION: `/capitalize` + `/close` auto-persist their memory-only commit (finish → develop; the lib pushes develop in auto-push mode only)
+when THEY branched a `chore/*` off develop this run (BDR-068 — a
 scoped [[LRN-069]] exception; see the capitalize skill's STEP 5C). `/prune-memory`
 + `/reconcile` stay fully human-gated: never run `gitflow finish` from them.
 

@@ -26,6 +26,8 @@ source "$REPO/lib/gstack-playwright.sh"
 source "$REPO/lib/doctor-vendored.sh"
 # shellcheck source=lib/doctor-skills.sh disable=SC1091
 source "$REPO/lib/doctor-skills.sh"
+# shellcheck source=lib/doctor-automem.sh disable=SC1091
+source "$REPO/lib/doctor-automem.sh"
 # shellcheck source=lib/higgsfield-skills.sh disable=SC1091
 source "$REPO/lib/higgsfield-skills.sh"
 
@@ -37,8 +39,8 @@ echo ""
 # 1. Core symlinks
 # ────────────────────────────────────────────────────────────
 echo "── Symlinks ──"
-# Expected: CLAUDE.md, settings.json, agents, skills, templates, hooks/session-start.sh
-_EXPECTED_LINKS=7
+# Expected: CLAUDE.md, settings.json, agents, skills, templates, lib, rules, hooks/session-start.sh
+_EXPECTED_LINKS=8
 _LINK_PASS=0
 
 check_symlink() {
@@ -73,7 +75,7 @@ check_symlink() {
 check_symlink "CLAUDE.md"
 # check_symlink only asserts the canonical path lands inside $REPO — after a
 # `git pull` without `link.sh`, ~/.claude/CLAUDE.md can still resolve inside
-# $REPO but at the wrong file (the 29-line project CLAUDE.md instead of
+# $REPO but at the wrong file (the project CLAUDE.md instead of
 # CLAUDE.global.md), passing green while the global doctrine is silently gone.
 _claude_md_target=$(readlink "$HOME/.claude/CLAUDE.md" 2>/dev/null || true)
 if [ "$_claude_md_target" != "$REPO/CLAUDE.global.md" ]; then
@@ -87,6 +89,7 @@ check_symlink "agents"
 check_symlink "skills"
 check_symlink "templates"
 check_symlink "lib"
+check_symlink "rules"
 check_symlink "hooks/session-start.sh"
 info "Symlinks: ${_LINK_PASS}/${_EXPECTED_LINKS} OK"
 unset _EXPECTED_LINKS _LINK_PASS
@@ -108,18 +111,16 @@ else
   warn "GStack submodule missing — run: git submodule update --init"
 fi
 
-# GStack skills are exposed as PER-SKILL symlinks directly under skills/ (browse,
-# cso, review, …) pointing into skills-external/gstack/ — there is NO single
-# skills/gstack symlink (link.sh deliberately removes it: it duplicated the
-# top-level gstack SKILL.md alongside the per-skill entries). The bin/ +
-# browse/dist/ helper links under skills/gstack/ are checked in §7 Consistency.
-# `|| true` guards pipefail if skills/ is unexpectedly absent (checked above).
-gstack_skill_links=$( { find "$HOME/.claude/skills/" -maxdepth 1 -type l -lname '*skills-external/gstack/*' 2>/dev/null || true; } | wc -l | tr -d ' ')
-if [ "${gstack_skill_links:-0}" -gt 0 ]; then
-  pass "GStack: ${gstack_skill_links} skills linked (per-skill symlinks)"
-else
-  warn "GStack skills not linked — run: cd skills-external/gstack && ./setup"
+echo "── Packs ──"
+_pc="$(bash "$REPO/lib/pack-census.sh" --installed 2>&1)" && _pc_rc=0 || _pc_rc=$?
+while read -r _w; do [ -n "$_w" ] && warn "${_w#WARN }"; done < <(grep '^WARN' <<<"$_pc" || true)
+while read -r _r; do [ -n "$_r" ] && fail "${_r#RED }"; done < <(grep '^RED' <<<"$_pc" || true)
+if [ "$_pc_rc" -eq 0 ]; then
+  pass "$(tail -1 <<<"$_pc")"
+elif ! grep -q '^RED' <<<"$_pc"; then
+  fail "pack census failed (rc=$_pc_rc)"
 fi
+unset _pc _pc_rc _w _r
 
 echo ""
 
@@ -129,29 +130,93 @@ echo ""
 # externals the GStack section above does not cover)
 # ────────────────────────────────────────────────────────────
 echo "── Vendored skills ──"
-# Mirrors lib/profile.sh's active_profile() (read_cache + the
-# blank/"none" -> DEFAULT_PROFILE fallback) without sourcing profile.sh
-# itself (its main() would run unconditionally) and without ever
-# invoking `claude`.
-_dv_active_profile=$(head -n1 "$REPO/.active-profile" 2>/dev/null \
-  | tr -d '[:space:]')
-[ -z "$_dv_active_profile" ] && _dv_active_profile="none"
-[ "$_dv_active_profile" = "none" ] && _dv_active_profile="full"
-# .active-profile's value is spliced into a lib/profiles/ path below —
-# reject anything outside the profile-name allowlist before that splice.
-if ! _dv_valid_profile_name "$_dv_active_profile"; then
-  warn ".active-profile has invalid value \"$_dv_active_profile\" — \
-falling back to profile full"
-  _dv_active_profile="full"
-fi
-_dv_profile_file="$REPO/lib/profiles/$_dv_active_profile.profile"
-if [ -f "$_dv_profile_file" ]; then
-  check_vendored_skills "$REPO" "$HOME/.claude" "$_dv_profile_file"
+check_vendored_skills "$REPO" "$HOME/.claude"
+
+echo ""
+echo "── Profiles ──"
+if grep -q 'lib/cc\.sh' "$HOME/.bashrc" 2>/dev/null; then
+  pass "\$HOME/.bashrc sources lib/cc.sh (cc <name> [profile])"
 else
-  # Active profile unresolved — every external is expected linked.
-  check_vendored_skills "$REPO" "$HOME/.claude"
+  warn "\$HOME/.bashrc does not source lib/cc.sh, add: [ -f \"\$HOME/.claude/lib/cc.sh\" ] && . \"\$HOME/.claude/lib/cc.sh\""
 fi
-unset _dv_active_profile _dv_profile_file
+if grep -Eq 'alias cc=|dtach_claude' "$HOME/.bashrc" 2>/dev/null; then
+  warn "\$HOME/.bashrc still has alias cc= or dtach_claude: remove them, the alias shadows cc()"
+fi
+_ep_head="$(git -C "$REPO" show HEAD:settings.json 2>/dev/null | jq -S .enabledPlugins 2>/dev/null || true)"
+_ep_work="$(jq -S .enabledPlugins "$REPO/settings.json" 2>/dev/null || true)"
+if [ -z "$_ep_head" ] || [ -z "$_ep_work" ]; then
+  warn "enabledPlugins check skipped (jq or git show failed)"
+elif [ "$_ep_head" = "$_ep_work" ]; then
+  pass "settings.json enabledPlugins matches HEAD (no user-scope residue)"
+else
+  warn "user-scope residue: $(diff <(echo "$_ep_head") <(echo "$_ep_work") | grep '^[<>]' | tr -s ' ' | tr '\n' ';'); restore per MIGRATION "Profiles and packs" step 1"
+fi
+_m="$(jq -r '.model // "-"' "$REPO/settings.json" 2>/dev/null || echo "-")"
+if [ "$_m" = opus ]; then pass "settings.json model is opus"
+else warn "settings.json model is $_m (tracked default is opus)"; fi
+unset _ep_head _ep_work _m
+
+echo ""
+
+# ────────────────────────────────────────────────────────────
+# 2c. Mods (mods/<name>/ plugins, loaded through the tracked
+# skills/<name> symlink as <name>@skills-dir). Fail-soft: a missing link
+# is info (the user may have removed it on purpose), never an error.
+# ────────────────────────────────────────────────────────────
+echo "── Mods ──"
+
+# Prints enabled|disabled|absent|unknown for $1 read from the JSON on stdin;
+# always exits 0 so a bad payload cannot abort doctor under set -e.
+mod_state() {
+  python3 -c '
+import json, sys
+try:
+    rows = json.load(sys.stdin)
+    row = [r for r in rows if r.get("id") == sys.argv[1] + "@skills-dir"]
+    print("absent" if not row else
+          "enabled" if row[0].get("enabled") is True else "disabled")
+except Exception:
+    print("unknown")
+' "$1" 2>/dev/null || true
+}
+
+_mods_list=""
+if command -v claude &>/dev/null; then
+  # Bounded: a hung CLI must not stall doctor (coreutils timeout; without
+  # it the call runs unbounded, as before).
+  _mods_timeout=""
+  command -v timeout >/dev/null 2>&1 && _mods_timeout="timeout 60"
+  if ! _mods_list=$($_mods_timeout claude plugin list --json 2>/dev/null); then
+    warn "mods: claude plugin list failed or timed out — load state not checked"
+    _mods_list=""
+  fi
+fi
+
+_mods_seen=0
+for _mod_manifest in "$REPO"/mods/*/.claude-plugin/plugin.json; do
+  [ -f "$_mod_manifest" ] || continue
+  _mods_seen=$((_mods_seen + 1))
+  _mod=$(basename "$(dirname "$(dirname "$_mod_manifest")")")
+  _mod_link="$HOME/.claude/skills/$_mod"
+  if ! { [ -L "$_mod_link" ] || [ -e "$_mod_link" ]; }; then
+    info "mod $_mod: not linked (skills/$_mod absent) — git checkout skills/$_mod if wanted"
+    continue
+  fi
+  if [ "$_mod_link" -ef "$REPO/mods/$_mod" ]; then
+    pass "mod $_mod: loading link ~/.claude/skills/$_mod"
+  else
+    warn "mod $_mod: ~/.claude/skills/$_mod does not resolve to $REPO/mods/$_mod"
+  fi
+  [ -n "$_mods_list" ] || continue
+  case "$(printf '%s' "$_mods_list" | mod_state "$_mod")" in
+    enabled) pass "mod $_mod: enabled as $_mod@skills-dir" ;;
+    disabled) warn "mod $_mod: disabled (\"$_mod@skills-dir\": false in enabledPlugins)" ;;
+    absent) warn "mod $_mod: not listed as @skills-dir — run: claude plugin validate mods/$_mod (policy, manifest or name conflict)" ;;
+    *) warn "mod $_mod: claude plugin list output not understood" ;;
+  esac
+done
+[ "$_mods_seen" -gt 0 ] || info "no mods"
+unset _mods_list _mods_seen _mod_manifest _mod _mod_link _mods_timeout
 
 echo ""
 
@@ -411,6 +476,25 @@ unset _sp _sp_fs _sp_opts
 echo ""
 
 # ────────────────────────────────────────────────────────────
+# 5d. Auto memory (BDR-125 phase 1): "autoMemoryEnabled": false, so a file
+# left under ~/.claude/projects/<slug>/memory/ is never loaded again.
+# ────────────────────────────────────────────────────────────
+echo "── Auto memory ──"
+if jq -e '.autoMemoryEnabled == false' "$REPO/settings.json" >/dev/null 2>&1; then
+  pass "settings.json: autoMemoryEnabled false"
+else
+  warn "settings.json: autoMemoryEnabled is not false — the auto-memory section loads every session (BDR-125 phase 1)"
+fi
+_am=$(automem_leftover_dirs "$HOME/.claude/projects")
+if [ "$_am" -gt 0 ]; then
+  warn "auto memory: $_am project dir(s) still hold files under ~/.claude/projects/*/memory/ (never loaded) — migrate them to the project registries, then remove them by hand"
+else
+  pass "auto memory: no leftover file under ~/.claude/projects/*/memory/"
+fi
+unset _am
+echo ""
+
+# ────────────────────────────────────────────────────────────
 # 6. Token budget estimate
 # ────────────────────────────────────────────────────────────
 echo "── Token budget estimate ──"
@@ -425,7 +509,8 @@ CLAUDE_MD_CHARS=$(wc -c < "$REPO/CLAUDE.global.md" 2>/dev/null || echo 0)
 CLAUDE_MD_TOKENS=$((CLAUDE_MD_CHARS / 4))
 
 # Skill descriptions across the whole live catalog — every SKILL.md
-# reachable through ~/.claude/skills/*/SKILL.md, symlinks included
+# reachable through ~/.claude/skills/*/SKILL.md and
+# ~/.claude/skills/pack-*/skills/*/SKILL.md, symlinks included
 # (lib/doctor-skills.sh; catches a `|`/`>` block-scalar description that
 # the old `grep '^description:' | head -1` counted as 0 chars, and a
 # symlinked skill dir that the old `find -maxdepth 2` without `-L` missed).
@@ -503,7 +588,7 @@ fi
 # every owned skill — permanent false-warn since. Inverted: warn if any
 # owned skill REintroduces the key (regression watch on BDR-019).
 PRESENT_DMI=()
-for f in "$HOME/.claude/skills/"*/SKILL.md; do
+for f in "$HOME/.claude/skills/"*/SKILL.md "$REPO"/skills/pack-*/skills/*/SKILL.md; do
   [ -f "$f" ] || continue
   dir=$(dirname "$f")
   # Skip external skills (symlinked directory or symlinked SKILL.md — not owned by this repo)
@@ -521,9 +606,10 @@ else
 fi
 
 # Check expected skills are present. Repo-owned skills only: gstack skills
-# (health, status, …) are OFF by default and toggled per profile — requiring
-# them here false-warns on a default install, and "run link.sh" cannot
-# restore them (they are profile-managed, not link.sh-managed).
+# ship in three packs (pack-gstack-dev/-browser/-design; on by manifest
+# default = full, off per project or conversation by a profile) and live
+# under skills/pack-gstack-*/skills/<n>, while the check below reads
+# $HOME/.claude/skills/<n>/SKILL.md, so they are excluded here.
 EXPECTED_SKILLS=(
   "analyze" "doc" "init-project" "onboard" "plugin-check"
   "refactor" "ship-feature" "status"
@@ -559,7 +645,7 @@ fi
 
 # Check CRLF — portable: grep -P not available on macOS BSD grep
 CRLF_FILES=()
-for f in "$REPO"/*.md "$REPO"/agents/*.md "$REPO"/skills/*/SKILL.md; do
+for f in "$REPO"/*.md "$REPO"/agents/*.md "$REPO"/skills/*/SKILL.md "$REPO"/skills/pack-*/skills/*/SKILL.md; do
   [ -f "$f" ] || continue
   if grep -c $'\r' "$f" 2>/dev/null | grep -q "^[^0]"; then
     CRLF_FILES+=("$(basename "$f")")

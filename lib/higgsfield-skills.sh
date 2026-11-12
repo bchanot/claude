@@ -4,9 +4,8 @@
 #
 # Sourced by install-plugins.sh (Step 8.6), update-all.sh (7.3b) and
 # doctor.sh. The pack is machine-owned: cloned from upstream and moved
-# into skills-external/higgsfield-* (gitignored), then linked on demand by
-# lib/toggle-external.sh. It is listed in neither link.sh nor any profile:
-# either would re-enable a parked pack on every run (BDR-093).
+# into skills-external/higgsfield-* (gitignored), then linked by
+# skills/pack-higgsfield (`profile.sh enable higgsfield`).
 # ============================================================
 
 # Upstream skills repo, single source for both installers. An env value
@@ -38,8 +37,8 @@ _higgsfield_adopt() {
 # The stage sits next to the destination, on the same filesystem, so each
 # replacement is a rename. Prints the number of skills synced. Returns 1,
 # existing copies untouched, when the clone fails or upstream holds no
-# higgsfield-*/SKILL.md. A parked skill (skills-disabled/<name>, a symlink
-# to the source path) stays parked. Known limit: a skill that upstream
+# higgsfield-*/SKILL.md. Linked by skills/pack-higgsfield (`profile.sh
+# enable higgsfield`), never touched here. Known limit: a skill that upstream
 # removes or renames keeps its last local copy.
 higgsfield_sync_skills() {
   local dest="$1/skills-external" stage count=0

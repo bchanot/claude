@@ -1,4 +1,5 @@
 ---
+format: 2
 type: learnings_registry
 entry_prefix: LRN
 schema:
@@ -16,18 +17,12 @@ rules:
 
 # Learnings registry (LRN)
 
-## Index
+<!-- Written only by `bash ~/.claude/lib/memory.sh add learning
+--title "<abstract pattern>" --body-file <file>` (it allocates the ID). Entry shape:
 
-| ID | Date | Pattern | Applies to |
-|----|------|---------|------------|
-
-<!-- Append entries below. Template:
-
-## LRN-XXX - <abstract pattern>
-
-- **Date**: YYYY-MM-DD
-- **Pattern**: <what was observed, phrased for reuse>
-- **Context**: <where and when, concrete>
-- **Future application**: <when to recall this>
+  ## LRN-NNN — <abstract pattern> (YYYY-MM-DD)
+  - **Pattern**: <what was observed, phrased for reuse>
+  - **Context**: <where and when, concrete>
+  - **Future application**: <when to recall this>
 
 -->

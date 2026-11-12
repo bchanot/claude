@@ -30,7 +30,7 @@ Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
 judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
 gate prints the remedy; end the turn — no later step, no dispatch. Nominal
 (big) path is silent.
-EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-107): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
+ROUTING: follow $HOME/.claude/lib/effort-shift.md (phases via mcp__model-router__route).
 
 One pipeline per project: **security → clean → re-verify → reconcile →
 doc → convergence re-audit**, looping until a full pass applies zero new
@@ -80,8 +80,8 @@ Model discipline (the user-fixed invariant behind this mode):
   carries this skill's reflection (fix decisions, convergence calls); it
   must never be pinned down to an executor tier.
 - Inside a runner, every dispatched agent keeps the tier this skill
-  already defines: security-auditor (sonnet frontmatter), the Phase B
-  audit (analyzer opus pin or `model="opus"`), doc-syncer (audit on
+  already defines: security-auditor (`audit` row: Fable, opus floor), the
+  Phase B audit (analyzer opus pin or `model="opus"`), doc-syncer (audit on
   `model="opus"`, patch on its sonnet frontmatter — BDR-077).
 
 Runner dispatch, one per project:
@@ -169,8 +169,8 @@ honestly in the summary. Never loop past 3.
 
 ### Phase B — CLEAN
 
-1. Dispatch a read-only cleanup audit (analyzer — opus-pinned, BDR-076 —
-   or general-purpose with `model="opus"`; NOT the sonnet code-cleaner,
+1. Dispatch a read-only cleanup audit (analyzer — opus row, BDR-076 —
+   or general-purpose with `model="opus"`, `effort="xhigh"`; NOT the sonnet code-cleaner,
    which is now a fix executor): dead code, unused imports/exports,
    commented-out blocks, stale flags, norm violations. Findings as
    `id | file:line | finding | proposed fix`.
@@ -237,6 +237,16 @@ order:
    and says so in the summary.
 4. Confirm `git status --porcelain` is clean (runtime junk the sandbox
    cannot delete, e.g. `__pycache__/`, becomes a report residual line).
+5. Push state, only when a branch exists (report-only, skipped or
+   dirty-tree projects have none: their row keeps `no branch`, no push
+   column). Two read-only calls, probe first:
+   `git -C "<abs project>" remote get-url origin >/dev/null 2>&1 || echo no-origin`
+   then
+   `git -C "<abs project>" rev-list --count <branch> --not --remotes=origin 2>/dev/null || echo unknown`
+   (`<branch>` = the name `gitflow start` returned, suffixed `-2`/`-3` on a
+   same-day re-run — never the bare `chore/tour-<date>`). 0 → `on origin`;
+   else `local only → ! git -C "<abs project>" push -u origin <branch>` (probe
+   printed `no-origin` → `local only (no origin remote)`).
 
 ```markdown
 ## Tour 2026-07-04 — branch chore/tour-2026-07-04 — 2 iterations — CONVERGED
@@ -255,8 +265,8 @@ any project line with contract-changing fixes left open for decision):
 
 ```
 TOUR COMPLETE — 2026-07-04
-  ~/proj/api    : CONVERGED (2 it.) — 3 fixed, 1 suggested | chore/tour-2026-07-04, 4 commits
-  ~/proj/site   : NOT CONVERGED (3 it.) — 2 open residuals  | chore/tour-2026-07-04, 6 commits
+  ~/proj/api    : CONVERGED (2 it.) — 3 fixed, 1 suggested | chore/tour-2026-07-04, 4 commits | on origin
+  ~/proj/site   : NOT CONVERGED (3 it.) — 2 open residuals  | chore/tour-2026-07-04, 6 commits | local only → ! git -C ~/proj/site push -u origin chore/tour-2026-07-04
   ~/proj/lib    : report-only (dirty tree)                  | no branch
   Branches left UNMERGED — review each, then `gitflow finish` on your GO.
   Reconcile suggestions pending — apply via /reconcile.
@@ -265,14 +275,16 @@ TOUR COMPLETE — 2026-07-04
 Then offer to capitalize (gated, per CLAUDE.md): recurring cross-project
 patterns → learnings, tour verdict → evals. Never write registries
 without that approval — neither this repo's nor any target project's.
+Approved entries per `lib/capitalize-commit.md` § WRITE.
 
 ## Rules
 
 - Branch via the gitflow lib; **never `gitflow finish`, never merge,
   never push `main`/`develop`** — "the tour is green" is not a signal.
-  The chore branch's own commits are pushed by the gitflow hooks
-  (BDR-095); a `push FAILED` hook warning is a report residual, fixed
-  with a plain `git push -u origin chore/tour-<date>`.
+  The gitflow hooks push the chore branch in auto-push mode only; when it
+  is not on origin (manual push mode, or a `push FAILED` warning) the USER
+  pushes it — `! git -C "<abs project>" push -u origin <branch>` — the tour
+  never pushes or retries.
 - Scoped pathspecs only; `git add -A` is forbidden.
 - Target TODO.md and target `.claude/memory/` are READ-ONLY. Reconcile
   produces suggestions, not edits.

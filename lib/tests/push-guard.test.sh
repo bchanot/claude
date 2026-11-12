@@ -1,0 +1,466 @@
+#!/usr/bin/env bash
+# lib/tests/push-guard.test.sh
+# hooks/push-guard.sh (BDR-111): denies `git push` in manual push mode,
+# silent otherwise. Also locks the settings.json wiring and the banner line.
+# shellcheck disable=SC2016  # single-quoted forms are the commands under test
+set -u
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+H="$ROOT/hooks/push-guard.sh"
+WORK=$(mktemp -d) || exit 1
+trap 'rm -rf "$WORK"' EXIT
+pass=0; fail=0
+check() { if [ "$2" = "$3" ]; then pass=$((pass+1)); else fail=$((fail+1));
+  printf 'FAIL %s: got[%s] want[%s]\n' "$1" "$2" "$3"; fi; }
+
+# ── fixtures ──
+mkrepo() { mkdir -p "$1" && git init -q "$1"; }
+mkdir -p "$WORK/plain"
+mkrepo "$WORK/auto"
+mkrepo "$WORK/manual"; git -C "$WORK/manual" config gitflow.autopush false
+mkdir -p "$WORK/manual/sub" "$WORK/manual/my dir"
+mkrepo "$WORK/bad"; git -C "$WORK/bad" config gitflow.autopush flase
+mkrepo "$WORK/manual2"; git -C "$WORK/manual2" config gitflow.autopush false
+printf '[gitflow]\n\tautopush = false\n' > "$WORK/gconf"
+mkdir -p "$WORK/shim"
+cat > "$WORK/shim/jq" <<EOF
+#!/bin/sh
+[ "\$1" = -cn ] && exit 1
+exec $(command -v jq) "\$@"
+EOF
+chmod +x "$WORK/shim/jq"
+
+# ── harness ──
+OUT=""; RC=0
+run() { # run <cmd> <cwd>
+  local payload
+  payload=$(jq -n --arg c "$1" --arg d "$2" \
+    '{hook_event_name:"PreToolUse",tool_name:"Bash",tool_input:{command:$c},cwd:$d}')
+  OUT=$(printf '%s' "$payload" | bash "$H" 2>/dev/null); RC=$?
+}
+verdict() {
+  if [ "$RC" -ne 0 ]; then echo "error:$RC"; return; fi
+  if [ -z "$OUT" ]; then echo allow; return; fi
+  if [ "$(jq -r '.hookSpecificOutput.permissionDecision' <<<"$OUT" 2>/dev/null)" = deny ]
+  then echo deny; else echo "error:badjson"; fi
+}
+fire() { run "$1" "$2"; verdict; }
+reason() { jq -r '.hookSpecificOutput.permissionDecisionReason' <<<"$OUT"; }
+
+M="$WORK/manual"
+
+# ── auto / none: silent ──
+check T1-plain-allow  "$(fire 'git push' "$WORK/plain")" allow
+check T2-auto-allow   "$(fire 'git push' "$WORK/auto")" allow
+check T3-auto-upstream "$(fire 'git push -u origin feature/x' "$WORK/auto")" allow
+
+# ── manual: deny ──
+run 'git push' "$M"
+check T4-push "$(verdict)" deny
+check T4b-one-line "$(printf '%s' "$OUT" | wc -l | tr -d ' ')" 0
+check T5-push-u "$(fire 'git push -u origin feature/x' "$M")" deny
+check T6-dash-C "$(fire "git -C \"$M\" push" "$WORK/plain")" deny
+check T7-cd-sub "$(fire 'cd sub && git push' "$M")" deny
+check T8-dry-run "$(fire 'git push --dry-run' "$M")" deny
+check T9-dash-c "$(fire 'git -c a=b push origin HEAD' "$M")" deny
+check T10-subshell "$(fire '(cd sub && git push)' "$M")" deny
+check T11-bash-c "$(fire "bash -c 'git push'" "$M")" deny
+check T12-semicolon "$(fire 'git push; echo done' "$M")" deny
+check T13-abs-git "$(fire '/usr/bin/git push' "$M")" deny
+check T14-no-pager "$(fire 'git --no-pager push' "$M")" deny
+check T15-quoted-dir "$(fire "cd \"$M/my dir\"; git push" "$WORK/plain")" deny
+check T16-amp "$(fire 'git push&&echo ok' "$M")" deny
+check T17-cd-dashdash "$(fire "cd -- $M && git push" "$WORK/plain")" deny
+check T18-backslash-nl "$(fire $'git \\\n  push' "$M")" deny
+check T19-pipe "$(fire 'git push|tee /dev/null' "$M")" deny
+check T20-subtree "$(fire 'git subtree push --prefix=x origin main' "$M")" deny
+check T21-cd-amp "$(fire "(cd $M&&git push)" "$WORK/plain")" deny
+check T22-alias "$(fire 'git -c alias.p=push p' "$M")" deny
+check T23-send-pack "$(fire 'git send-pack origin' "$M")" deny
+# T24/T25 were over-blocks until the argv check: a push must be git's own
+# subcommand, in a simple command whose argv[0] is git.
+check T24-grep-argv "$(fire 'grep -rn "git push" skills/' "$M")" allow
+check T25-config-argv "$(fire 'git config --get push.default' "$M")" allow
+
+# ── manual: allow ──
+check T26-commit-msg "$(fire 'git status && git commit -m "fix push guard"' "$M")" allow
+check T27-gitflow "$(fire 'bash ~/.claude/lib/gitflow.sh finish' "$M")" allow
+check T28-pushd "$(fire 'git pushd' "$M")" allow
+check T29-stash "$(fire 'git stash' "$M")" allow
+check T30-echo "$(fire 'echo pushed' "$M")" allow
+check T31-rg-C "$(fire 'rg -C 3 push src/' "$M")" allow
+check T32-branch "$(fire 'git branch --show-current' "$M")" allow
+
+# ── argv check: proven non-pushes allowed, unclear forms still denied ──
+check T59a-log-S "$(fire 'git log -S "git push" --oneline' "$M")" allow
+check T59b-stash-push "$(fire 'git stash push -m wip' "$M")" allow
+check T59c-help-push "$(fire 'git help push' "$M")" allow
+check T59d-add-file "$(fire 'git add push.sh' "$M")" allow
+check T59e-commit-msg "$(fire 'git commit -m "doc: git push flow"' "$M")" allow
+check T59f-heredoc "$(fire $'cat >> n.md <<EOF\n- run git push origin main\nEOF\ngit status' "$M")" allow
+check T59g-heredoc-tab "$(fire $'cat <<-EOF\n\tgit push\n\tEOF' "$M")" allow
+check T59h-herestring "$(fire 'grep -c push <<<"git push"' "$M")" allow
+check T59i-printf "$(fire 'printf "%s\n" "git push" > note.md' "$M")" allow
+check T59j-bash-c-grep "$(fire "bash -lc 'grep \"git push\" x'" "$M")" allow
+check T59k-rg "$(fire 'rg -n "git push" lib/' "$M")" allow
+check T60a-heredoc-then-push "$(fire $'cat <<EOF; git push\nx\nEOF' "$M")" deny
+check T60b-sudo "$(fire 'sudo git push' "$M")" deny
+check T60c-timeout "$(fire 'timeout 5 git push' "$M")" deny
+check T60d-eval-var "$(fire 'X="git push"; eval $X' "$M")" deny
+check T60e-backtick "$(fire 'echo `git push`' "$M")" deny
+check T60f-dollar-paren "$(fire 'echo $(git push)' "$M")" deny
+check T60g-redirect "$(fire 'git push 2>&1' "$M")" deny
+check T60h-if-bang "$(fire 'if ! git push; then echo no; fi' "$M")" deny
+check T60i-env-assign "$(fire 'GIT_TRACE=1 git push' "$M")" deny
+check T60j-global-opts "$(fire 'git -C /tmp -c x=y --no-pager push' "$M")" deny
+check T60k-quoted-argv0 "$(fire '"git" push origin main' "$M")" deny
+check T60l-sh-c-nested "$(fire "sh -c 'bash -c \"git push\"'" "$M")" deny
+check T60m-xargs "$(fire 'echo origin | xargs git push' "$M")" deny
+# T61: awk absent: the argv check is skipped, the text verdict stands.
+mkdir -p "$WORK/noawk"
+for tool in bash cat jq git grep sed sort head; do
+  real=$(command -v "$tool") || continue
+  case "$real" in /*) ln -sf "$real" "$WORK/noawk/$tool" ;; esac
+done
+payload61=$(jq -n --arg c 'grep -rn "git push" skills/' --arg d "$M" \
+  '{tool_input:{command:$c},cwd:$d}')
+out61=$(printf '%s' "$payload61" | PATH="$WORK/noawk" "$(command -v bash)" "$H" 2>/dev/null); rc61=$?
+check T61a-noawk-rc "$rc61" 0
+check T61b-noawk-text-verdict "$(jq -r '.hookSpecificOutput.permissionDecision' <<<"$out61")" deny
+
+# ── invalid value: fail closed ──
+run 'git push' "$WORK/bad"
+check T33-invalid "$(verdict)" deny
+R=$(reason)
+check T33b-not-boolean "$(grep -c 'not a boolean' <<<"$R")" 1
+check T33c-raw-value "$(grep -c 'flase' <<<"$R")" 1
+
+# ── global key ──
+g() { # g <cmd> <cwd>: run with the global config pointing at gconf
+  local saved=$GIT_CONFIG_GLOBAL
+  GIT_CONFIG_GLOBAL="$WORK/gconf"; fire "$1" "$2"
+  GIT_CONFIG_GLOBAL=$saved
+}
+check T34a-global-auto-cwd "$(g 'git push' "$WORK/auto")" deny
+check T34b-global-cd "$(g "cd \"$WORK/auto\" && git push" "$WORK/plain")" deny
+check T34c-control "$(fire 'git push' "$WORK/auto")" allow
+
+# ── toggle control ──
+check T35a-manual2 "$(fire 'git push' "$WORK/manual2")" deny
+git -C "$WORK/manual2" config --unset gitflow.autopush
+check T35b-unset "$(fire 'git push' "$WORK/manual2")" allow
+
+# ── fail closed on internal error ──
+# T36: a jq shim that fails on `jq -cn` makes the guard's deny path error.
+saved_path=$PATH; PATH="$WORK/shim:$PATH"
+run 'git push' "$M"
+PATH=$saved_path
+check T36-static-deny "$(verdict)" deny
+check T36b-internal "$(grep -c 'internal error' <<<"$(reason)")" 1
+check T36c-rc "$RC" 0
+run 'git push' "$M"
+R=$(reason)
+check T37a-bang "$(grep -c '! git push' <<<"$R")" 1
+check T37b-mode "$(grep -c 'manual push mode' <<<"$R")" 1
+
+# T47: jq absent from PATH: guard warns on stderr and stays inactive.
+mkdir -p "$WORK/nojq"
+for tool in bash cat git grep sed tr dirname basename mktemp; do
+  real=$(command -v "$tool") || continue
+  case "$real" in /*) ln -sf "$real" "$WORK/nojq/$tool" ;; esac
+done
+payload47=$(jq -n --arg c 'git push' --arg d "$M" \
+  '{tool_input:{command:$c},cwd:$d}')
+out47=$(cd "$M" && printf '%s' "$payload47" \
+  | PATH="$WORK/nojq" "$(command -v bash)" "$H" 2>"$WORK/nojq.err"); rc47=$?
+check T47a-rc "$rc47" 0
+check T47b-stdout-empty "$out47" ""
+check T47c-warn "$(grep -c 'jq missing' "$WORK/nojq.err")" 1
+
+# ── payload edge cases ──
+run_empty=$(printf '{}' | bash "$H" 2>/dev/null); rc=$?
+check T38-empty-stdout "$run_empty" ""
+check T38b-rc "$rc" 0
+nocwd=$(jq -n '{tool_input:{command:"git push"}}')
+out=$(cd "$M" && printf '%s' "$nocwd" | bash "$H" 2>/dev/null)
+check T39-no-cwd "$(jq -r '.hookSpecificOutput.permissionDecision' <<<"$out")" deny
+
+# ── hardening: candidate cap, git failure, quote-prefixed cd ──
+cmd48=""; for i in $(seq 1 25); do cmd48="${cmd48}cd /x$i;"; done
+run "$cmd48 git push" "$WORK/auto"
+check T48-cap-deny "$(verdict)" deny
+check T48-cap-reason "$(grep -c 'too many directory tokens' <<<"$(reason)")" 1
+cmd58=""; for i in $(seq 1 2000); do cmd58="${cmd58}cd /x$i;"; done
+t58=$SECONDS
+run "$cmd58 git push" "$WORK/auto"
+t58=$((SECONDS - t58))
+echo "T58 elapsed: ${t58}s"
+check T58-flood-deny "$(verdict)" deny
+check T58-flood-reason "$(grep -c 'too many directory tokens' <<<"$(reason)")" 1
+check T58-flood-fast "$([ "$t58" -lt 5 ] && echo yes || echo no)" yes
+cmd48b=""; for i in 1 2 3 4 5; do cmd48b="${cmd48b}cd \"$M\";"; done
+run "$cmd48b git push" "$WORK/plain"
+check T48b-dedup-detect "$(verdict)" deny
+check T48b-manual-reason "$(grep -c 'manual push mode' <<<"$(reason)")" 1
+
+# T49: git absent from PATH: the mode cannot be read, so deny (fail closed).
+mkdir -p "$WORK/nogit"
+for tool in bash cat grep sed tr jq dirname basename mktemp head sort wc; do
+  real=$(command -v "$tool") || continue
+  case "$real" in /*) ln -sf "$real" "$WORK/nogit/$tool" ;; esac
+done
+payload49=$(jq -n --arg c 'git push' --arg d "$M" \
+  '{tool_input:{command:$c},cwd:$d}')
+out49=$(printf '%s' "$payload49" | PATH="$WORK/nogit" "$(command -v bash)" "$H" 2>/dev/null); rc49=$?
+check T49-rc "$rc49" 0
+check T49-deny "$(jq -r '.hookSpecificOutput.permissionDecision' <<<"$out49")" deny
+check T49-reason "$(jq -r '.hookSpecificOutput.permissionDecisionReason' <<<"$out49" | grep -cE 'git|internal error')" 1
+
+# T49b: an existing but unenterable candidate dir fails closed.
+mkdir -p "$WORK/locked"; chmod 000 "$WORK/locked"
+if [ -r "$WORK/locked" ] || (cd "$WORK/locked" 2>/dev/null); then
+  echo "SKIP T49b-unreadable (chmod 000 ineffective for this user)"
+else
+  check T49b-unreadable "$(fire "cd \"$WORK/locked\" && git push" "$WORK/plain")" deny
+fi
+chmod 755 "$WORK/locked"
+
+# T50: a cd that follows a quote is still extracted.
+check T50-bash-c-cd "$(fire "bash -c 'cd \"$M\" && git push'" "$WORK/plain")" deny
+check T50b-unquoted-arg "$(fire "bash -c 'cd $M && git push'" "$WORK/plain")" deny
+
+# T51: a literal `true` is auto mode.
+mkrepo "$WORK/truerepo"; git -C "$WORK/truerepo" config gitflow.autopush true
+check T51-literal-true "$(fire 'git push' "$WORK/truerepo")" allow
+
+# T52: tokens that mix quoted and unquoted parts are refused, named.
+run "cd $WORK/auto'/../manual' && git push" "$WORK/plain"
+check T52-mixed-deny "$(verdict)" deny
+check T52-mixed-reason "$(grep -c 'mixes quoted and unquoted' <<<"$(reason)")" 1
+run "cd \"$WORK/manual/my dir\" && git push" "$WORK/plain"
+check T52b-quoted-deny "$(verdict)" deny
+check T52b-quoted-reason "$(grep -c 'manual push mode' <<<"$(reason)")" 1
+mkdir -p "$WORK/auto/bob's"
+check T52c-apostrophe-nopush "$(fire "cd \"$WORK/auto/bob's\" && git status" "$WORK/plain")" allow
+check T52c-apostrophe-auto "$(fire "cd \"$WORK/auto/bob's\" && git push" "$WORK/plain")" allow
+
+# T53: a backslash-escaped space is one word, unescaped and resolved.
+run "cd $WORK/manual/my\\ dir && git push" "$WORK/plain"
+check T53-escaped-space "$(verdict)" deny
+check T53-escaped-reason "$(grep -c 'manual push mode' <<<"$(reason)")" 1
+run "cd \"$WORK/manual\"/sub\"\" && git push" "$WORK/plain"
+check T53b-enclosed-mixed "$(verdict)" deny
+check T53b-mixed-reason "$(grep -c 'mixes quoted and unquoted' <<<"$(reason)")" 1
+
+# T54: a payload jq cannot parse (lone surrogate escape in cwd).
+bad54() { # bad54 <command-json-text>: broken payload on stdout
+  printf '{"tool_input":{"command":"%s"},"cwd":"\\ud800"}' "$1"
+}
+bad54 'git status' > "$WORK/bad.json"
+if jq -e . <"$WORK/bad.json" >/dev/null 2>&1; then
+  check T54-precondition-unparseable parsed unparsed
+fi
+out54=$(cd "$WORK/auto" && bad54 'git push' | bash "$H" 2>/dev/null); rc54=$?
+check T54-deny "$(jq -r '.hookSpecificOutput.permissionDecision' <<<"$out54")" deny
+check T54-internal "$(grep -c 'internal error' <<<"$out54")" 1
+check T54-rc "$rc54" 0
+out54=$(cd "$WORK/auto" && bad54 'git status' | bash "$H" 2>/dev/null)
+check T54b-no-push-allow "$out54" ""
+out54=$(cd "$WORK/auto" && bad54 'git add -A\ngit push' | bash "$H" 2>/dev/null)
+check T54c-escaped-newline "$(grep -c 'permissionDecision":"deny"' <<<"$out54")" 1
+out54=$(cd "$WORK/auto" \
+  && bad54 'git subtree push --prefix=x origin main' | bash "$H" 2>/dev/null)
+check T54d-loose "$(grep -c 'permissionDecision":"deny"' <<<"$out54")" 1
+
+# T55: a missing core tool (grep) warns on stderr and stays inactive.
+mkdir -p "$WORK/nogrep"
+for tool in bash cat jq git sed sort head; do
+  real=$(command -v "$tool") || continue
+  case "$real" in /*) ln -sf "$real" "$WORK/nogrep/$tool" ;; esac
+done
+out55=$(cd "$M" && printf '%s' "$payload47" \
+  | PATH="$WORK/nogrep" "$(command -v bash)" "$H" 2>"$WORK/nogrep.err"); rc55=$?
+check T55a-rc "$rc55" 0
+check T55b-stdout-empty "$out55" ""
+check T55c-warn "$(grep -c 'grep missing' "$WORK/nogrep.err")" 1
+
+# T56: lib missing (hook copied away from its lib/) denies, own reason.
+mkdir -p "$WORK/alone/hooks"; cp "$ROOT/hooks/push-guard.sh" "$WORK/alone/hooks/"
+saved_h=$H; H="$WORK/alone/hooks/push-guard.sh"
+run 'git push' "$M"
+H=$saved_h
+check T56-lib-missing "$(verdict)" deny
+check T56-reason "$(grep -c 'gitflow lib missing' <<<"$(reason)")" 1
+
+# ── settings.json wiring (file content only) ──
+S="$ROOT/settings.json"
+check T40-wiring "$(jq -e '.hooks.PreToolUse[]
+  | select(any(.hooks[]; .command=="bash ~/.claude/hooks/push-guard.sh"))
+  | .matcher=="Bash|Monitor" and .hooks[0].timeout==10' "$S" 2>&1)" true
+
+# Write twins of the 4 Edit lines dropped 2026-11-12: a Write(glob) deny never
+# blocks the Write tool, the Edit form does. The 2 Bash lines guard the
+# working forms.
+has_deny() { jq -e --arg e "$1" '.permissions.deny | index($e)' "$S" >/dev/null; }
+missing=""
+while IFS= read -r e; do
+  has_deny "$e" || missing="$missing [$e]"
+done <<'EOF'
+Bash(git *config *gitflow.*)
+Bash(git *config *remove-section*gitflow*)
+Bash(git *config *rename-section*gitflow*)
+Bash(git -c gitflow.*)
+Bash(git * -c gitflow.*)
+Bash(*--config-env*gitflow*)
+Bash(*GIT_CONFIG_PARAMETERS*)
+Bash(*GIT_CONFIG_COUNT*)
+Bash(* GIT_CONFIG_GLOBAL=*)
+Bash(* GIT_CONFIG_SYSTEM=*)
+Edit(**/.git/config)
+Edit(**/.gitconfig)
+Edit(~/.gitconfig)
+Edit(~/.config/git/config)
+Bash(docker run * -v /:/*)
+Bash(git push * :**)
+EOF
+check T41-new-deny-present "$missing" ""
+
+# Deny entries of the last release dropped on purpose, forgiven by T42 until
+# version.txt passes removed_ok_until (T42e): empty the list in that bump.
+removed_ok_until=3.0.0
+grep -v '^#' > "$WORK/removed-ok" <<'EOF'
+# mixed `* -v /:*` form never matches; `-v /:/*` kept (2026-10-23)
+Bash(docker run * -v /:*)
+# mixed `* :*` form never matches; ` :**` kept (2026-10-23)
+Bash(git push * :*)
+EOF
+cur=$(tr -d '[:space:]' < "$ROOT/version.txt")
+expired=""
+[ -n "$cur" ] || expired="version.txt unreadable"
+if [ -s "$WORK/removed-ok" ] && [ "$cur" != "$removed_ok_until" ] &&
+  [ "$(printf '%s\n' "$removed_ok_until" "$cur" | sort -V | tail -1)" = "$cur" ]
+then expired=$(tr '\n' ' ' < "$WORK/removed-ok"); fi
+check T42e-list-not-expired "$expired" ""
+
+# Nothing removed: every deny entry of the fresher of origin/main and main
+# (the last release) is still there, except the justified list above.
+# Neither ref resolves: SKIP, no count.
+rv() { git -C "$ROOT" rev-parse -q --verify "$1" >/dev/null 2>&1; }
+base=""
+if rv origin/main && rv main; then
+  if git -C "$ROOT" merge-base --is-ancestor main origin/main; then
+    base=origin/main; else base=main; fi
+elif rv origin/main; then base=origin/main
+elif rv main; then base=main
+fi
+deny_lost() {  # <settings file>: base deny entries missing, minus the list
+  git -C "$ROOT" show "$base:settings.json" 2>/dev/null \
+    | jq -r --slurpfile now "$1" '.permissions.deny[]
+      | select(. as $e | ($now[0].permissions.deny | index($e)) == null)' \
+    | grep -vxF -f "$WORK/removed-ok"
+}
+if [ -z "$base" ]; then
+  echo "SKIP T42 (no main ref)"
+else
+  echo "T42 base: $base"
+  basedeny=$(git -C "$ROOT" show "$base:settings.json" 2>/dev/null \
+    | jq -r '.permissions.deny[]' 2>/dev/null)
+  check T42-base-nonempty "$([ -n "$basedeny" ] && echo yes || echo no)" yes
+  lost=$(deny_lost "$S")
+  check T42-nothing-removed "$lost" ""
+  # T42c: the lock still bites on an entry that is not in the list
+  probe=$(printf '%s\n' "$basedeny" | grep -vxF -f "$WORK/removed-ok" | head -1)
+  jq --arg e "$probe" '.permissions.deny -= [$e]' "$S" > "$WORK/s-probe.json"
+  check T42c-lock-bites \
+    "$(deny_lost "$WORK/s-probe.json" | grep -cxF -- "$probe")" 1
+  # T42d: the user's hand edit (the 6 dead entries out) is forgiven
+  jq '.permissions.deny -= ["Bash(docker run * -v /:*)",
+    "Bash(git push * :*)", "Write(**/.git/config)", "Write(**/.gitconfig)",
+    "Write(~/.gitconfig)", "Write(~/.config/git/config)"]' "$S" \
+    > "$WORK/s-after.json"
+  check T42d-edit-forgiven "$(deny_lost "$WORK/s-after.json")" ""
+fi
+
+soft=$(jq -r '.autoMode.soft_deny[]' "$S")
+check T43a-soft-rule "$(grep -c 'manual-push mode' <<<"$soft" | tr -d ' ')" 1
+check T43b-clearance "$(grep -c "does not clear it: the user types \`! git push\`" <<<"$soft")" 1
+
+# ── session banner ──
+# shellcheck source=lib/tests/claude-stub.sh
+. "$ROOT/lib/tests/claude-stub.sh" || exit 1
+mkdir -p "$WORK/cs" || exit 1
+claude_stub_install "$WORK/cs"
+banner() { # banner <dir>
+  (cd "$1" && SESSION_START_OFFLINE=1 bash "$ROOT/hooks/session-start.sh" \
+    </dev/null 2>/dev/null)
+}
+out=$(banner "$M")
+check T44-banner-control "$(grep -c 'Claude Code config' <<<"$out")" 1
+check T45-banner-manual "$(grep -c 'push : manual (autopush=false)' <<<"$out")" 1
+out=$(banner "$WORK/auto")
+check T46a-auto-control "$(grep -c 'Claude Code config' <<<"$out")" 1
+check T46b-auto-silent "$(grep -c 'push : manual' <<<"$out")" 0
+out=$(banner "$WORK/bad")
+check T57-banner-invalid "$(grep -c 'push : manual (autopush bad)' <<<"$out")" 1
+
+# T62 rtk read twins: rtk rewrites cat/head/tail to `rtk read <path> [flags]`
+# (rc 0), so every Bash(cat|head|tail X) deny (X without a space) needs
+# Bash(rtk read X*) and the absolute Bash(*/rtk read X*). X keeps one *.
+twins_missing() { # twins_missing <settings> -> missing twin rules
+  local x t w
+  jq -r '.permissions.deny[]' "$1" \
+    | sed -nE 's/^Bash\((cat|head|tail) ([^ ]*)\)$/\2/p' | sort -u \
+    | while IFS= read -r x; do
+        t="rtk read ${x%\*}*"
+        for w in "Bash($t)" "Bash(*/$t)"; do
+          jq -e --arg w "$w" '.permissions.deny | index($w)' "$1" \
+            >/dev/null || echo "$w"
+        done
+      done
+}
+check T62-twins-present "$(twins_missing "$S")" ""
+T62F="$(mktemp)"
+jq '.permissions.deny += ["Bash(cat */ghost.key)"]' "$S" > "$T62F"
+check T62b-flip-missing-twin "$(twins_missing "$T62F" | /usr/bin/grep -F ghost.key | sort | paste -sd' ' -)" "Bash(*/rtk read */ghost.key*) Bash(rtk read */ghost.key*)"
+rm -f "$T62F"
+
+# T63 phase 2 rules present (adding is free; a removal is the user's edit)
+missing=""
+while IFS= read -r e; do
+  jq -e --arg e "$e" '(.permissions.ask + .permissions.deny) | index($e)' \
+    "$S" >/dev/null || missing="$missing [$e]"
+done <<'EOF'
+Bash(git merge *)
+Bash(bash *gitflow.sh finish*)
+Bash(sh *gitflow.sh finish*)
+Bash(sh -c *)
+Bash(sh -*c *)
+Bash(bash -*c *)
+Bash(dash -c *)
+Bash(bash)
+Bash(sh)
+Bash(bash <(*)
+Bash(/bin/sh *)
+Bash(/bin/bash *)
+Bash(/usr/bin/bash *)
+Bash(/usr/bin/sh *)
+Bash(/usr/bin/env bash*)
+Bash(/usr/bin/env sh*)
+Bash(awk *system(*)
+Bash(head * .env*)
+Bash(tail * .env*)
+Bash(head * */.env*)
+Bash(tail * */.env*)
+Bash(cat * .env*)
+Bash(cat * */.env*)
+Bash(rtk read * .env*)
+Bash(*/rtk read * .env*)
+EOF
+check T63-phase2-rules-present "$missing" ""
+check T63b-no-root-glob "$(jq -r '(.permissions.ask + .permissions.deny)[]' \
+  "$S" | grep -cxF 'Bash(/*)')" 0
+check T63c-parens-balanced "$(jq -r '(.permissions.ask + .permissions.deny)[]
+  | select(test("^[A-Za-z]+\\(") and (endswith(")") | not))' "$S")" ""
+
+check no-claude-calls "$(claude_stub_calls)" 0
+printf 'PASS=%s FAIL=%s\n' "$pass" "$fail"; [ "$fail" -eq 0 ]

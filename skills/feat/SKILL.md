@@ -26,7 +26,7 @@ allowed-tools:
 MODEL GATE (blocking): run `$HOME/.claude/lib/model-gate.md` BEFORE any
 step below. Verdict `small` → STOP — print the gate's remedy, end the
 turn, dispatch nothing.
-EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-107): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
+ROUTING: follow $HOME/.claude/lib/effort-shift.md (phases via mcp__model-router__route).
 
 ## REQUEST
 $ARGUMENTS
@@ -74,7 +74,7 @@ FEAT: <feature name> — rule <N>, ~<N> files, <brief approach>
 Follow `$HOME/.claude/lib/design-gate.md`:
 - Scan $ARGUMENTS and target files for design/UI/style signals.
 - If signals found → run `design-tool-gate.sh`; INCOMPLETE → tell the user
-  to run `/profile design`; SIGN-IN REQUIRED → design-gate.md §3 (ask
+  the remedy line it printed; SIGN-IN REQUIRED → design-gate.md §3 (ask
   `! 21st login`, wait) before proceeding.
 - If no signals → skip (zero overhead).
 
@@ -124,7 +124,7 @@ in the contract's CLARIFICATIONS `[gated]` and in the plan. A choice that
 surfaces only during execution comes back as `NEED-DECISION` (STEP 3).
 
 ## STEP 1b — CHALLENGE THE PLAN (before branching)
-`Skill(effort-high)` first (effort-shift: own level before the challenge; send it in the same message as the challenger dispatch).
+`mcp__model-router__route(phase="reflect")` first (route: own level before the challenge; send it with the challenger dispatch).
 The STEP 1 plan is a reflection worth attacking before a branch is spent on it.
 Persist it to `.claude/tasks/plans/<date>-<slug>-<HHMM>.md`, then run
 `$HOME/.claude/lib/challenge-plan.md` with `PLAN` = that file, `KIND` = `build-plan`,
@@ -143,10 +143,10 @@ branch it's a no-op (commit in place). Never `finish`.
 
 ## STEP 3 — DISPATCH EXECUTOR
 
-Dispatch the executor — sonnet by frontmatter pin, do not override:
+Dispatch the executor — sonnet by its row (frontmatter = off-state floor), do not override:
 
 ```
-Skill(effort-medium)   # effort-shift: dispatch span starts; send with the Agent call below in ONE message
+mcp__model-router__route(phase="orchestrate")   # route: dispatch span starts; send with the Agent call below in ONE message
 Agent(subagent_type="feater")
 prompt: "CONTRACT: <path from STEP 0.7>
 PLAN: <the STEP 1 checklist + approach bullets + edge cases, verbatim>
@@ -191,19 +191,16 @@ run + one verifier + one security dispatch.
 
 ## STEP 5 — COMMIT
 
-Commit using conventional format:
-```
-feat(<scope>): <what was added>
-
-<brief description of the feature>
-```
+Commit with the message per `$HOME/.claude/lib/commit-message.md`
+(project convention first, else short: what was added, at most two
+sentences of body).
 
 If the feature touched multiple concerns (e.g., feature + config +
 test), consider splitting into 2-3 atomic commits grouped by logical
 unit — or run `/commit-change` on the pending work (it dispatches the
 commit-changer (propose opus / apply sonnet, BDR-077); never inline-load the bare agent, it is now a
 propose/apply executor).
-Then `Skill(effort-high)` (effort-shift: nested commit-change loaded at low; reload feat's level, sent with the next tool call).
+Then `mcp__model-router__route(phase="reflect")` (route: nested commit-change loaded at apply; reload feat's level).
 
 Print summary:
 ```
@@ -235,6 +232,8 @@ it just commits the docs on the current branch (no ordering concern).
 
 ## STEP 7 — CAPITALIZE (memory registries)
 
+Call memory_pending first, per /capitalize STEP 1 "Captured first".
+
 A small feature may or may not involve a design choice. Scan the work for:
 
 - **Non-trivial design choice** (even small: a library pick, a naming convention, a data-model tradeoff) → propose `BDR-XXX` in `.claude/memory/decisions.md` with alternatives considered.
@@ -248,13 +247,13 @@ CAPITALIZE — proposé
 Valider ? (all / <IDs> / edit / skip)
 ```
 
-Always append a 1-line entry to today's heading in `.claude/memory/journal.md`.
+Approved entries and the always-written 1-line journal entry: per `lib/capitalize-commit.md` § WRITE (`memory.sh add` / `memory.sh journal`).
 
 **Language rule**: written entries are ALWAYS English AND caveman — fragments, articles dropped, code/IDs/quoted errors verbatim — per CLAUDE.md "Memory registries" (Always English, always caveman). The interactive gate may mirror the user's language; the appended entries must not.
 
 If no substantive capture candidate → skip with `CAPITALIZE: nothing to log`.
 
-`Skill(effort-low)` first (effort-shift: bookkeeping tail; send it in the same message as the memory-commit command).
+`mcp__model-router__route(phase="apply")` first (route: bookkeeping tail; send it with the memory-commit command).
 
 **Then commit the memory** — follow `$HOME/.claude/lib/capitalize-commit.md`: it
 surgically commits what capitalize just wrote (`.claude/memory` + `.claude/tasks`

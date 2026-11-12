@@ -22,7 +22,7 @@ Not for: curating/compressing registries → `/prune-memory`. The skill never ed
 **REQUIRED ENGINE:** `lib/reconcile.sh` does the mechanical truth-probing. A capable agent CAN reconcile by hand — but burns ~50k tokens, depends on the question being phrased well, and still hits traps (compound status, a disclaimer instead of a check). The engine is deterministic, cheap, repeatable. Source it, then:
 
 1. Enumerate registry entries from BODY headings (`reconcile_enumerate_ids`, never the Index).
-2. Per declared item, run the matching oracle (`reconcile_oracle_*`, `reconcile_blk_current_status` = last block wins) and apply `reconcile_verdict`.
+2. Per declared item, run the matching oracle (`reconcile_oracle_*`, `reconcile_blk_current_status` = last candidate wins: header `[tag]` or a labelled status line on a v2 registry via `lib/memory.sh`, today's lexical reader on v1) and apply `reconcile_verdict`.
 3. Classify into the four categories.
 4. **Gate the write-back** (below).
 
@@ -51,4 +51,4 @@ Reconciling the TODO edits a tracked file → never silent. Show the proposed di
 - Writing a disclaimer ("à vérifier si déjà fait") instead of verifying → the engine verifies, it never hedges-and-advances.
 
 ## Validation
-`bash lib/tests/run-reconcile.sh` → 25/25, shellcheck clean. Oracle of record = the 2026-06-29 inventory (7 gaps + 3 blocked + 5 deferred + 1 contradiction), fixtures frozen under neutral names in `lib/tests/fixtures/`.
+`bash lib/tests/run-reconcile.sh` → 29/29, shellcheck clean. Oracle of record = the 2026-06-29 inventory (7 gaps + 3 blocked + 5 deferred + 1 contradiction), fixtures frozen under neutral names in `lib/tests/fixtures/`.

@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 # lib/tests/url-guard.test.sh
+# shellcheck disable=SC2016  # single-quoted forms are the commands under test
 set -u
 G="$(cd "$(dirname "$0")/../.." && pwd)/lib/url-guard.sh"
 pass=0; fail=0

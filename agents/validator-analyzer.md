@@ -1,6 +1,6 @@
 ---
 name: validator-analyzer
-description: Web standards audit agent — W3C HTML validity (validator.nu), W3C CSS validity (jigsaw.w3.org), WCAG 2.1 accessibility (axe-core, pa11y, WAVE). Dispatched from /web-validate. Produces scored .claude/audits/VALIDATE.md report with concrete diffs for auto-fixable issues and user actions for judgment-required fixes. Complementary to /harden (security), /seo (indexability), /geo (AI extraction).
+description: Web standards audit agent, dispatched from /web-validate. W3C HTML/CSS validity and WCAG 2.1 (axe-core, pa11y, WAVE); scored .claude/audits/VALIDATE.md with fix diffs and user actions.
 tools: Read, Edit, Write, Bash, Grep, Glob, WebFetch
 model: sonnet
 effort: low

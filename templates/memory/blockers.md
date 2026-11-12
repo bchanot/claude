@@ -1,4 +1,5 @@
 ---
+format: 2
 type: blockers_registry
 entry_prefix: BLK
 schema:
@@ -17,19 +18,13 @@ rules:
 
 # Blockers registry (BLK)
 
-## Index
+<!-- Written only by `bash ~/.claude/lib/memory.sh add blocker --title "<friction>"
+--body-file <file> [--status open]` (it allocates the ID). Entry shape:
 
-| ID | Date | Friction | Status |
-|----|------|---------|--------|
+  ## BLK-NNN — <friction> [open] (YYYY-MM-DD)
+  - **Friction**: <what was blocked>
+  - **Real cause**: <root cause>
+  - **Solution**: <workaround or fix>
 
-<!-- Append entries below. Template:
-
-## BLK-XXX - <friction>
-
-- **Date**: YYYY-MM-DD
-- **Friction**: <what was blocked>
-- **Real cause**: <root cause>
-- **Solution**: <workaround or fix>
-- **Status**: open | resolved | upstream
-
+Later status: `bash ~/.claude/lib/memory.sh status BLK-NNN "resolved <hash>"`.
 -->

@@ -1,53 +1,30 @@
 # Model gate — reflection requires a big model (BLOCKING)
 
-Shared include. Runs FIRST in any orchestrator whose reflection —
-brainstorming, planning, contract, audit judgment, loop decisions —
-executes inline or in inherit-model subagents. Sonnet-pinned executors are
-not what this gate protects; it protects the thinking around them (BDR-066).
+Shared include, runs FIRST in an orchestrator whose reflection executes
+inline (BDR-066). The witness is the model-router mod's own route tool.
 
-## 1. Self-check
+## Entry call
+ALWAYS call `mcp__model-router__route` with `phase` = the skill's row phase
+(reflect or plan), no self-check shortcut. Tool not loaded (deferred) →
+`ToolSearch("select:mcp__model-router__route")` once per session, then
+call. The answer names the id main runs on next.
 
-Your system prompt names the model powering this session. Fable or Opus →
-big. Sonnet, Haiku, anything else → small.
+| answer | action |
+|---|---|
+| names a fable or opus id | proceed, SILENT |
+| names sonnet, haiku, anything else; "is off"; tool absent | **STOP** |
 
-## 2. Witness — deterministic check
+**STOP means**: print exactly `⛔ MODEL GATE — session on <model>.
+Reflection steps of this skill require Fable or Opus. Switch with /model,
+then relaunch the skill.` (mod off: say so, `/route on` resumes it), then
+end
+the turn. No later step runs, no agent is dispatched, nothing is edited.
 
-    bash "$HOME/.claude/lib/model-check.sh"
-
-Output `<class>:<raw>`; exit 0 = big, 2 = small, 3 = unknown. The witness
-reads the PERSISTED model (settings.json — the file `/model` rewrites,
-LRN-098). It can lag reality (session launched with `--model`, settings not
-yet rewritten) — that is why the self-check exists alongside it.
-
-## 3. Verdict
-
-| self-check | witness | action |
-|---|---|---|
-| big | big (0) | proceed, SILENT — the nominal path prints nothing |
-| small | any | **STOP** |
-| big | small (2) | disagreement — **STOP**, surface BOTH values; the user confirms or relaunches |
-| big | unknown (3) | fail-visible: print `model gate: witness unknown (<raw>) — self-check says <model>` and ask the user to confirm before continuing (BDR-025: unknown never silently passes) |
-
-**STOP means**: print exactly
-
-    ⛔ MODEL GATE — session on <model>. Reflection steps of this skill
-    require Fable or Opus. Switch with /model, then relaunch the skill.
-
-then end the turn. No later step runs, no agent is dispatched, nothing is
-edited.
-
-## 4. Dispatch tiers (BDR-077 — no inherit)
-
-The gate guards the MAIN loop only. Dispatched work NEVER inherits the
-session model: typed agents run on their frontmatter pin; built-ins
+## Dispatch tiers (BDR-077 — no inherit)
+The gate guards the MAIN loop only. Typed agents are routed by their
+model-router row (`model:` frontmatter = off-state floor). Built-ins
 (general-purpose / Explore / Plan) carry an explicit `model=` at every call
-site — `model: "fable"` when the child performs reflection/orchestration on
-the main loop's behalf (skill-runners), otherwise its complexity tier
-(opus = dispatched judgment, sonnet = execution/collection, haiku = short
-mechanical probes).
-
-Effort is the second axis of the same table (BDR-107): every typed agent
-carries an `effort:` pin next to `model:`, and the main loop shifts per phase
-through `lib/effort-shift.md`. No typed agent inherits either axis;
-built-ins inherit the effort in force at dispatch, so an orchestrator shifts
-before dispatching them (`lib/effort-shift.md`, wiring point 5).
+site: `model: "fable"` when the child reflects/orchestrates for the main
+loop (skill-runners), else its tier (opus = dispatched judgment, sonnet =
+execution, haiku = mechanical probes). A built-in judgment dispatch also
+carries an explicit `effort=` (`lib/effort-shift.md`).

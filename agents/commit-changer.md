@@ -10,7 +10,7 @@ effort: high
 
 > MODEL (BDR-077): `MODE: propose` is dispatched with `model="opus"` (the
 > call-site override — narrative reconstruction + capitalize routing are
-> judgment); `MODE: apply` runs on the sonnet frontmatter pin (mechanical
+> judgment); `MODE: apply` runs on its sonnet row (frontmatter = off-state floor; mechanical
 > staging/committing of an approved plan).
 
 Reconstruct the development narrative from a working directory. The goal
@@ -123,18 +123,9 @@ artificially split what was done as one action.
 
 ### Commit message format
 
-Follow Conventional Commits and match the repo's existing style:
-
-```
-<type>(<scope>): <short description>
-
-<optional body — what and why, not how>
-```
-
-Types: `feat`, `fix`, `refactor`, `chore`, `docs`, `test`, `style`, `perf`
-
-Keep the first line under 72 characters. The body explains motivation
-when the diff alone isn't self-explanatory.
+Follow `$HOME/.claude/lib/commit-message.md`: the project's documented
+convention if there is one, else a short message (50 words max, medium
+technical level). Run its lookup once for the whole plan.
 
 ### Capitalize candidates (draft only — decided later, written in `MODE: apply`)
 
@@ -155,6 +146,11 @@ articles dropped, code/IDs/quoted errors verbatim (CLAUDE.md "Memory
 registries", Always English, always caveman) — the dispatcher's approval exchange may mirror the
 user's language, but what you draft here is what gets written verbatim in
 `MODE: apply` if approved unedited.
+
+A `NEW` failure in the "Captured this session" block of the brief is a
+blocker candidate: quote it as data in the body only (`--body-file`, written
+through the `MEMCAP_EOF_<random>` quoted heredoc), never in a title or a
+shell argument.
 
 If every step is pure chore/docs/style with nothing to log, draft nothing.
 
@@ -226,10 +222,7 @@ Otherwise:
    hash and substitute `(ref step <n>)` → `(ref commit <hash>)` in every
    entry before writing. An entry that names no step (e.g. a pure LRN
    pattern) needs no ref.
-2. Append the resolved entries to their target registry file(s)
-   (`.claude/memory/decisions.md`, `blockers.md`, `learnings.md`) and
-   update each file's `## Index` table. Add a one-line summary of the
-   commit batch to today's heading in `.claude/memory/journal.md`.
+2. Write each resolved entry and one journal line for the batch per `$HOME/.claude/lib/capitalize-commit.md` § WRITE (`memory.sh -C <repo root> add …`, `memory.sh -C <repo root> journal …`; no Index to update).
 3. **Language rule**: written entries are ALWAYS in English and caveman,
    regardless of the language used in the dispatcher's approval exchange
    (CLAUDE.md "Memory registries", Always English, always caveman).

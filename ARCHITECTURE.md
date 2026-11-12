@@ -14,26 +14,30 @@ claude-config/
 ├── .env.example           # Placeholder template for ~/.claude/.env (secrets never committed)
 ├── settings.json          # Global permissions (deny / ask / allow) + autoMode classifier tiers
 ├── install.sh             # Bootstrap: Claude Code CLI + auth + submodules + link + plugins
-├── install-plugins.sh     # One-shot installer: prerequisites + all plugins + default profile
+├── install-plugins.sh     # One-shot installer: prerequisites + all plugins
 ├── link.sh                # Symlinks this repo into ~/.claude/, sets git's global core.hooksPath
 ├── doctor.sh              # Setup diagnostic
 ├── update-all.sh          # One-command update for all components
 ├── Makefile               # Unified entry point: make install / doctor / update / test (make help)
 ├── plugins.lock.json      # Version pinning for non-marketplace dependencies and vendored skills
-├── hooks/                 # Claude Code hooks: session start, statusline, RTK rewrite, ctx7 + design-toolchain reminders, attention notify, unpushed-work guard
+├── hooks/                 # Claude Code hooks: session start, statusline, RTK rewrite, ctx7 + design-toolchain reminders, attention notify, unpushed-work guard, manual-mode push guard, system-dir extraction guard, instruction-load log, memory digest and memory feedback reminder at session start, code-limits line-width signal
 ├── githooks/              # Generated git hooks (pre-commit, post-commit, post-merge, reference-transaction), git's global core.hooksPath
 ├── .githooks/             # This repo's own copy of the same hooks
+├── .claude/rules/         # This repo's project path rules (paths: frontmatter), loaded on Read of a matching file
 ├── rules/                 # Rule files deployed to ~/.claude/rules (path-scoped or always-on)
 ├── agents/                # Execution units called by skills (never invoked directly)
 ├── skills/                # Entry points invoked via /skill-name
+│   └── pack-<n>/          # Skills-dir packs: manifest + tracked symlinks into skills-external/ (seo, geo, web-validate, site-motion: real dirs)
+├── mods/                  # Claude Code mods (function-hooks plugins), loaded through the skills/<name> symlink
 ├── skills-external/       # Vendored skill packs: gstack submodule, design skills, superpowers, agent-skills, MengTo scroll skills, 21st and Higgsfield packs (machine-owned copies gitignored)
-├── templates/             # Per-project templates (CLAUDE.md, settings, memory registries, deploy runbook, gitignore)
-└── lib/                   # Shared libs: gitflow, profiles, vendoring, effort pins, gates, archetypes, tests
+├── templates/             # Per-project templates (CLAUDE.md, settings, memory registries, path-rule skeletons, deploy runbook, gitignore)
+└── lib/                   # Shared libs: gitflow, memory registry writer, memory feedback reader (lib/memory-feedback/, bun), profiles (lib/profiles/*.json fragments, profile.sh, cc.sh), vendoring, route doctrine, gates, archetypes, architecture defaults, project-rule oracle, tests
 ```
 
 ## Architecture principles
 
 - `skills/` = entry points you invoke via `/skill-name`
 - `agents/` = execution units called by skills (never invoked directly by user)
+- `mods/` = Claude Code mods (function-hooks plugins); each loads through the tracked symlink `skills/<name>` as `<name>@skills-dir`, live at the next session; `mods/model-router/routing.json` (tracked) holds the phase table (tier, effort and the `about` line the first-use dialog shows), every skill and agent row and the first-use decisions; the mod also redirects a main-loop code write made outside a skill run to a skill (README, "Write guard"); `mods/memory/` is the capture mod (Bash failures and milestones in the plugin store, read by `memory_pending`) that also recalls registry entries and known errors
 - `templates/` = symlinked to `~/.claude/templates/` — copy into projects via `/onboard` or manually
-- **Graphify** builds a knowledge graph of any codebase (`/graphify query`), producing a navigable wiki in `graphify-out/wiki/`. This map helps Claude understand project structure, find relevant code faster, and reason across files. Essential for large-scope tasks (multi-file features, complex bugs, architectural changes). Small tasks should skip it and read files directly. Proposed only from 200 tracked code files: the session-start banner informs, the user decides; nothing builds a graph without that go.
+- **Graphify** builds a knowledge graph of any codebase (`/graphify query`), producing a navigable wiki in `graphify-out/wiki/`. This map helps Claude understand project structure, find relevant code faster, and reason across files. Essential for large-scope tasks (multi-file features, complex bugs, architectural changes). Small tasks should skip it and read files directly. Proposed only from 200 tracked code files: the session-start banner informs, the user decides; nothing builds a graph without that go. Where `graphify-out/graph.json` exists, the session-start hook prints the graphify usage rules.

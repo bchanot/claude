@@ -1,4 +1,5 @@
 ---
+format: 2
 type: evals_registry
 entry_prefix: EVAL
 schema:
@@ -16,50 +17,6 @@ rules:
 ---
 
 # Evals registry (EVAL)
-
-## Index
-
-| ID | Date | Output | Action |
-|----|------|--------|--------|
-| EVAL-001 | 2026-04-23 | `.claude/` restructure plan (ship-feature STEP 2) | keep |
-| EVAL-002 | 2026-06-02 | `profile gstack on/off` verb implementation | keep |
-| EVAL-003 | 2026-06-11 | darwin optimization run on `audit-delta` skill | keep |
-| EVAL-004 | 2026-06-11 | darwin eval 26 perso skills + 4-bug fix round | keep |
-| EVAL-005 | 2026-06-23 | Obsolete `claude --effort max` alias missed across Step 9 edits | correct |
-| EVAL-006 | 2026-06-25 | prune-memory v1.1 TDD — 6 guards (0a3e766), validated on real data | keep |
-| EVAL-007 | 2026-06-26 | Coupled-capitalize machinery — TDD 13 + e2e, surgical scope proven | keep |
-| EVAL-008 | 2026-06-27 | Doc-sync coupled machinery — 28/28 real-exec, swap-sweep caught prior debt | keep |
-| EVAL-009 | 2026-06-27 | deploy skill subagent-driven build: multi-stage review + pressure-test net-positive | keep |
-| EVAL-010 | 2026-06-29 | prune-memory hardening: RED-7 deterministic fix + RED-8 accept + 34-row index backfill | keep |
-| EVAL-011 | 2026-06-30 | /reconcile build: RED contaminated→corrected (unguided control), GREEN behavioral confirmed, dogfooded on itself | keep |
-| EVAL-012 | 2026-06-30 | /release-candidate build: RED (gitflow fans out, no tag) → GREEN 5/5 (tag), throwaway-repo flow replay | keep |
-| EVAL-013 | 2026-06-30 | /reconcile real-usage on live repo: known gap + 2 unanticipated (header-marker drift class) + false-positive rejected off-fixture, 0 false assertion | keep |
-| EVAL-014 | 2026-07-05 | /tour GREEN run: 6/6 RED gaps closed, disk-verified; re-verify caught agent's own regression | keep (skill shipped). REFACTOR additions not re-run through 3rd full pass — re-test at first real u… |
-| EVAL-015 | 2026-07-05 | /tour first REAL run (report-only, bchanot-cv): REFACTOR additions validated; premise corrected by user | keep. Skill validated on real drift; two refinement candidates noted (report-commit placement, serv… |
-| EVAL-016 | 2026-07-05 | /deploy first REAL run (bchanot-cv): bootstrap→instantiate→hand-back→mark, full cycle OK | keep. Two-moment contract works in-session; disk artifacts coherent throughout. |
-| EVAL-017 | 2026-07-06 | job2 audit: fresh-context verify pass caught 3 explorer false claims | harness-semantics claims from explorers ALWAYS cross-check vs docs/live evidence; file-content clai… |
-| EVAL-018 | 2026-07-06 | job3 docs-drift audit + execution: 46/46 findings verified, 20/23 fixes shipped (B1 blocked, D2-D5+B6 skipped by decision), zero residual on re-sweep | keep |
-| EVAL-019 | 2026-07-06 | job4 test-gap audit + execution: 11 specs + 5 fixes/seams, every mutation red-green verified, zero residual | keep |
-| EVAL-020 | 2026-07-07 | job6 dep upgrade execution: 5 deps sequenced by risk, 2 real STOP gates hit and resolved live, zero regression | keep. Branch unmerged (`chore/job6-deps-upgrade`, gitflow finish = separate human signal per CLAUDE… |
-| EVAL-021 | 2026-07-08 | adversarial review of the 9-job series (release/1.0.0..develop) + remediation | keep. Remediation branch unmerged (human gate). Fil-rouge guard now prevents the partial-fix class… |
-| EVAL-022 | 2026-07-08 | job9 model pins (BDR-060) were smoke-tested but never recorded as an EVAL (M5 trace) | keep — record backfilled here, no re-smoke required. |
-| EVAL-023 | 2026-07-16 | post-merge ronde on the model-routing refactor (BDR-066) — clean, 5 edge gaps found + fixed | keep — all 5 fixed (bugfix/model-routing-edge-fixes, merged 5f159f3); census 47→57 now locks each. |
-| EVAL-024 | 2026-07-16 | deny-list design pass (BDR-069) — core fix sound, 1 unauthorized weakening caught by classifier not by me | keep — fix landed (07ca738), weakening reverted. Lesson: vague delegation ("je te laisse en juger")… |
-| EVAL-025 | 2026-07-17 | opening seo/geo inventory (subagents): 7/7 verifiable claims false or overstated; real contact corrected all, 6 plan corrections + 4 features killed at measurement | keep |
-| EVAL-026 | 2026-07-17 | 3-way plan challenge caught 4 BLOCKERs dogfooding own plan (2026-07-17) | — |
-| EVAL-027 | 2026-08-24 | contract-gates behavioral RED: 16/16 fresh unprimed runs followed new doctrine (GATE 0 order, vacuous oracle, ABANDONED routing, scope temptation resisted) | keep |
-| EVAL-028 | 2026-08-26 | darwin v2.1 paired run 54 units: 60 paired verdicts 0 revert/tie; skeptics found 3 real residuals — engaged, not rubber-stamp | keep |
-| EVAL-029 | 2026-09-15 | 4-agent plan challenge: 6 BLOCKER; 3 of 3 confirmation-pass BLOCKERs came from the fixes themselves; caught a false 654 MB orphan claim | keep |
-| EVAL-030 | 2026-09-24 | 2026-09-24 self-audit: two regressions and one guardrail bypass came from my own process, not from the tools | BDR-100 mechanisms shipped; re-run census at next doctrine wave |
-| EVAL-031 | 2026-09-25 | /feat run for BDR-101: challenge round earned its cost, two blockers sat in my own premises | keep challenge round on state-detection plans; check live state before planning; pin grep in oracles |
-| EVAL-032 | 2026-09-27 | 4 parallel feater executors, one tree, gate loop: verifier caught a vacuous test, security caught a partial-write; my oracles wrong twice | keep same-tree parallel dispatch with disjoint FILE SCOPE + orchestrator-owned shared files; blind verifier stays; measure oracles on precedents |
-| EVAL-033 | 2026-09-28 | case 7: 2 analyzers + 2 executors + 3 re-dispatches; verifiers caught shape, convention and my wrong count; security caught an env override | brief names the scratchpad path explicitly (3 /tmp leftovers); keep blind verifiers; count claims get an artifact |
-| EVAL-034 | 2026-09-28 | catalog prune + 21st gate: two challenge rounds each found what r3 missed (nested SKILL.md, fixture cp lists, in-session export); my ledgers failed twice (heredoc CHECKs); 5 executors DONE first pass; verifier gap = tool false positive | keep the confirmation pass on any plan that changed materially; one-line CHECKs; grep fixture cp lists before a `source` |
-| EVAL-035 | 2026-09-28 | thinking-share measurement, 6 days of transcripts (10,955 requests): thinking = 8 % of weighted spend, 97 % of it in the main loop; sonnet subagents at xhigh think 26 tok/request; cache reads = 53 % | pins = explicitness not savings; main-loop effort + context size are the levers; A/B after rollout |
-| EVAL-036 | 2026-09-28 | A/B `/reconcile` headless, session high vs skill entry low: requests 18→15, output 12374→9038 (−27 %), thinking 3135→2248 (−28 %), time 96.5→78.4 s (−19 %), n=1 | keep low on bookkeeping skills; repeat on a reflection skill before touching the medium/high split |
-| EVAL-037 | 2026-09-28 | correction of EVAL-035/036 counts: transcript records are per content block; deduped by message.id → main-loop thinking share 99.9%, thinking share of weighted cost 5.6%, sonnet think/msg 26→0.2, A/B requests 9→8 | conclusions hold (sharper: main-loop thinking 96.6%→99.9%, weighted-cost thinking corrected 8.4%→5.6%); effort-audit.py dedupes from a3b479e+ |
-| EVAL-038 | 2026-09-29 | correction of EVAL-037: 94 % of sub-agent usage records carry no `output_tokens_details` (Fable subs at xhigh read 0 thinking, impossible with always-on thinking) → sub-agent thinking UNMEASURED, not ≈0; main loop 100 % counted; weighted-cost split (61/39) still holds | `effort-audit.py` prints coverage + CAVEAT; cite the cost split only; agent effort pins stay unmeasured; a tier move on a price argument = judgment, not figure |
-| EVAL-039 | 2026-09-30 | ship-feature run higgsfield-pack: plan dry-run in scratch → 0 executor failure on 7 tasks; challenge found 7 MAJOR I missed; floor-guard caught 2 shellcheck suppressions of mine; final review found README/code gap | keep |
 
 ---
 
@@ -109,6 +66,7 @@ rules:
 - **Method / why missed**: I treated the pre-existing `CLAUDE_LINES` as established and only touched the lines I was adding/removing. Spotting the redundancy needs cross-referencing TWO config layers (shell alias vs settings.json) — a semantic check I never ran. Masked further: the user's `.bashrc` is hand-managed and the alias line wasn't even present, so it looked inert.
 - **Anomaly**: not just dead config — a CLI flag (`--effort max`) silently OVERRIDES the settings.json value (`xhigh`). Real correctness bug.
 - **Action**: when editing installer shell-config, audit EACH existing line against the current settings.json / CLAUDE.md source of truth, not only the lines being changed. Removed the alias + added cleanup. General rule: reconcile config to ONE source of truth across env/alias/settings layers.
+- **Status (2026-10-28)**: correct (Index Action, upgrade)
 
 ---
 
@@ -139,6 +97,7 @@ rules:
 - **Action**: keep. BLK-010 (scaffold/unborn-HEAD) + BLK-011 (GSD ROADMAP post-FINISH) + MINOR-gate strengthening = separate chantiers.
 
 ## EVAL-009 — deploy skill subagent-driven build: multi-stage review + pressure-test net-positive
+- **Date**: 2026-06-27
 - **output**: `/deploy` skill (helper + SKILL.md + templates + bootstrap), built via subagent-driven-development (4 tasks; fresh implementer + per-task spec+quality review each).
 - **method**: per-task review (sonnet; opus on the keystone) + writing-skills pressure-test (fresh agent on a `PENDING.json`+moved-HEAD fixture) + final whole-branch review (opus).
 - **anomalies**: (1) the PLAN's code carried 3 latent bugs — missing `git add` for new files, SC2086 unquoted `$viol`, comment-before-shebang SC1128 — all caught by the implementer's TDD+shellcheck gate → plan-code is a DRAFT, the test gate is load-bearing. (2) the final whole-branch review caught 2 Important seam-bugs INVISIBLE to per-task reviews: target-repo `.claude/`-ignored silent no-op ([[LRN-066]]) + `NEXT.sh`-absence non-regeneration → holistic review earns its keep. (3) pressure-test confirmed the cold-resume discipline holds under temptation (the agent excluded the moved-HEAD `0034`). (4) a reviewer subagent bugged out once (user killed it) → re-dispatched clean (transient, not a finding).
@@ -288,6 +247,7 @@ Dogfood: 3 blind lenses attacked the v1 plan for the plan-challenge feature itse
 - **Method**: paired same-judge 3-majority per round (v2.1); judges live-exec where artifact executable (5 units: skills-perso, profile, plugin-pair, status-reporter, gitflow). Absolute scores triage-only. Totals main-thread (LRN-018 applied).
 - **Anomalies**: (1) 0 reverts/ties in 60 verdicts — homogeneous-better checked: skeptic lens found real residuals 3x (doctor.sh cost source, hotfix RULES leftover restore, FILE(S) new-marker) → judges engaged. (2) census lock RED on line-rewrap, make test caught → LRN-144. (3) head-pipe masked grep exit 2x → LRN-143.
 - **Action**: v2.1 paired = standard. Post-run absolute rescore skipped by design (would be judge-noise theater).
+- **Status (2026-10-28)**: keep (Index Action, upgrade)
 
 ---
 
@@ -370,3 +330,127 @@ Dogfood: 3 blind lenses attacked the v1 plan for the plan-challenge feature itse
 - **Method**: plan code dry-run in a scratch copy before the gate (suite per stage 0/5→5/0, 6/8→14/0, 14/1→15/0, 15/1→16/0, 4 mutation tests); 3 challengers + 1 confirmation; SDD per-task reviews; GATE 0/1/2 twice; final review on opus.
 - **Anomaly**: my first plan was green in dry-run and still wrong on 7 MAJOR points (shim vs binary, unbounded toggle probe, denylist membership, vacuous fixtures, askpass prompt): a dry-run proves the code does what I wrote, not that I wrote the right thing. Floor-guard flagged 2 `shellcheck disable=SC2016` I added to keep "shellcheck clean" green. Final review found the README promised drift reporting that the enabled state never reached. doc-syncer patch hit a shape escalation because I filed a script-comment edit under MINOR doc. One oracle of mine was shape-bound ([[LRN-188]]).
 - **Action**: keep the pre-gate dry-run (0 executor failure, 1 fix round in 7 tasks) AND the challenge (orthogonal finds); never silence a linter to satisfy a criterion, rewrite the line; doc patch plans carry public-doc paths only, script comments go as code commits.
+
+## EVAL-040 — model-router w1a: the challenge round caught what the author could not see
+- **Date**: 2026-10-08
+- **Output checked**: plan `.claude/tasks/plans/2026-10-08-model-router-w1a-1533.md` r1, written after a successful spike with every harness fact in hand.
+- **Method**: 3 blind opus challengers (simplicity CONCERNS(3), robustness CONCERNS(6), correctness FATAL(8)) + 1 confirmation (CONCERNS(4)); every BLOCKER/MAJOR closed by a named plan change (r2, r3); then feater, GATE 0, verifier, security.
+- **Anomaly**: r1 carried 2 BLOCKER (explicit Agent `model` overridden at every step; Skill bridge answer shape refused by the output schema → doublon kept) + 10 MAJOR, all invisible to me: spike levers carried over as design (`agentsNext`, per-step model rewrite), a table copying 21 pins = third source of truth, writes on main from sub-agent loops. Confirmation found 4 more MAJOR (explicit params vs in-agent writes, `e.wait`, vacuous test assertions, haiku effort). Executor then DONE first pass, verifier CONFORME 6/6, security PASS: the plan was the whole risk.
+- **Action**: a mod plan always goes through the full round + confirmation; test assertions must read the one line that carries the value; spike code is a FACT source, never a design source ([[BDR-115]], [[LRN-205]], [[LRN-206]]).
+- **Status (2026-10-28)**: keep the round, never dispatch a mod plan without it (Index Action, upgrade)
+
+## EVAL-041 — model-router W1-C: the plan was the whole risk, two confirmations were needed
+- **Date**: 2026-10-09
+- **Output checked**: plan `.claude/tasks/plans/2026-10-09-model-router-tiers-1237.md` r1 → r4 (absolute tiers, breaker, derived phases), written with every engine fact in hand.
+- **Method**: 3 blind opus challengers (simplicity FATAL(6), correctness FATAL(11), robustness FATAL(11)) → r2; confirmation FATAL(8) with a NEW BLOCKER introduced by r2 (per-step engine-fallback detection climbing the backoff) → r3; second confirmation FATAL(4) with a NEW BLOCKER introduced by r3 (`lastPlan` reset vs kept) → r4; executor DONE first pass; verifier ECARTS ×2 on texts (3 gaps) + hardening (4 items) → CONFORME; security PASS.
+- **Anomaly**: 6 BLOCKER + 29 MAJOR over four revisions, each confirmation found a flaw my own fix had introduced; the doctrine cap (one confirmation) would have shipped r2 with a 5-hour false outage. The executor never needed a re-dispatch for logic: all later rounds were text truthfulness and hardening.
+- **Action**: when a revision REMOVES or REPLACES a mechanism, re-challenge once more (state the deviation); keep plan sections additive with an explicit precedence line (r4 > r3 > r2) so executors and verifiers read one law; name superseded clauses of prior contracts in the Disposition. Links [[EVAL-040]], [[LRN-207]], [[BDR-115]].
+
+## EVAL-042 — model-router W2: challenge value held on the second confirmation; coverage-shaped criterion burned three verifiers
+- **Date**: 2026-10-10
+- **Output checked**: plan `.claude/tasks/plans/2026-10-09-model-router-w2-1546.md` r1 → r4; W2-A diff (register.ts, 88 kit tests); W2-B diff (43 files, 140-check census).
+- **Method**: 3 blind lenses (simplicity CONCERNS(5), correctness CONCERNS(10), robustness FATAL(8) → BLOCKER: mod off = agents inherit parent model); confirmation 1 robustness FATAL(8) → BLOCKER introduced by r2 (route calls wiped the sticky slot); confirmation 2 correctness CONCERNS(3), no BLOCKER → r4. W2-A: feater DONE + 4 rounds (1 internal decision, 3 coverage), GATE 0 MET, verifier ECARTS(3)/(1)/(1) all coverage, user accepted at cap; security PASS. W2-B: feater DONE first pass, verifier ECARTS(7) (5 FLOOR items = planned deletions needing a CLARIFICATIONS line, 2 prose, 1 scope add) → CONFORME 10/10; security PASS; full `make test` once (env red only). Gate A→B: 3/4 probes answered from engine jsonl, probe 4 (typed skill with a live agent) unobserved, recorded as a limit.
+- **Anomaly**: the user's rework answer ("delete or rework, not copy") changed the design mid-plan; r2's own fix carried a BLOCKER again (as in EVAL-041). Coverage criterion: 3 verifiers, 0 defects. FLOOR guard needs the test deletions named in CLARIFICATIONS, not only in criteria.
+- **Action**: keep the "second confirmation after a mechanism change" rule; write coverage criteria one clause each (LRN-210); when a plan deletes tests, write the authorizing CLARIFICATIONS line BEFORE the first verifier. Links [[EVAL-041]], [[LRN-210]], [[LRN-211]], [[BDR-115]].
+
+## EVAL-043 — model-router W3-A: the gates caught two real defects, the coverage criteria still cost three verifier rounds
+- **Date**: 2026-10-11
+- **Output checked**: plan `.claude/tasks/plans/2026-10-10-model-router-w3a-confirm-1201.md` r1 → r4; diff 22455c0 (register.ts, routing.json, 190 kit tests, census).
+- **Method**: 3 lenses (simplicity CONCERNS(3), correctness FATAL(8): BLOCKER = an Everywhere decision turns the census red; robustness: first run died on a DNS error, fresh re-dispatch on r2 CONCERNS(8): project-tree layer = security hole, shared-promise dedupe burns hook budgets, per-layer degrade wipes rows); confirmation correctness CONCERNS(6) → r4. Feater DONE first pass (169 tests); verifier ECARTS(3) → feater → ECARTS(2) → feater → CONFORME; security BLOCK(1): `normalizeRemote` kept a password tail when it held `@` or `/` → fixed (strict URL/scp parsing, no `local:` keys, output cap) → re-verify ECARTS(1) (guard fixtures) → feater → re-scan PASS. Full `make test` once (env red only).
+- **Anomaly**: the live hot-loaded mod answered-by-user dialogs were first misread as a kit write leak (LRN-212). A GATE 0 CHECK written as a multi-line heredoc is not runnable by gates.sh (one line or a script). Criterion 3 again bundled ~15 clauses: three verifier rounds on coverage, zero code defects from them (LRN-210 not yet applied by me).
+- **Action**: write GATE 0 oracles as scripts from the start; split coverage criteria per clause BEFORE the first verifier; when a mod is under development, announce the live side effects at each dispatch. Links [[EVAL-042]], [[BDR-116]], [[LRN-212]].
+
+## EVAL-044 — model-router W3-B: the lenses killed a second row format before it existed; the live dialog answered the request's own example
+- **Date**: 2026-10-11
+- **Output checked**: plan `.claude/tasks/plans/2026-10-11-model-router-w3b-dialog-1240.md` r1 → r3; diff 604a6c4 (232 kit tests), data commits 32b71d2 (security-auditor → judge) and the floor alignment.
+- **Method**: simplicity CONCERNS(3), robustness FATAL(5), correctness FATAL(8): all three rejected inline `{model, effort}` rows (string tables everywhere, breaker semantics, PHASE_KEY on row names) and dialog edits of phases (census lock, blast radius, BDR-116) → r2 phases-only with efforts derived from the alias's phases; confirmation CONCERNS(2) → r3 (test migration list, read-hardening tests, ordering, clean() order). Feater DONE first pass (229 tests, 26 migrated, 41 new, 9 mutation proofs); verifier ECARTS(2) coverage → ECARTS(1) non-discriminating HOME test (the engine resolves a relative path against the plugin root) → CONFORME; security PASS (4 LOW). GATE 0 heredoc CHECK again not runnable → script (second time: write oracles as scripts from the start).
+- **Anomaly**: my r1 proposed a second row shape to satisfy "model then effort" literally; the derived-effort list satisfies it with zero new data shapes. During the gates the user answered the NEW dialog live: security-auditor → opus/xhigh (the request's example), plan-challenger → verify (reset on user go); my reset of `changed` wiped a legitimate entry and left the committed file census-red for one commit.
+- **Action**: when a request says "choose X then Y", look for the existing shape that already encodes (X, Y) before adding one; reconcile routing.json decisions one by one (never `changed = {}`), and run the census before every data commit. Links [[EVAL-043]], [[BDR-116]], [[LRN-212]].
+
+## EVAL-045 — model-router W4-B: per-clause criteria and a declared-unverifiable path ended the verifier loop in one round
+- **Date**: 2026-10-11
+- **Output checked**: plan `.claude/tasks/plans/2026-10-11-model-router-w4b-classifier-1858.md` r1 → r3; diff e54a2b5 (register.ts +211, 428 kit tests, 4 docs).
+- **Method**: simplicity CONCERNS(4), robustness FATAL(6) (BLOCKER: the classify await sat unbounded on the prompt's critical path → `$.clock.sleep` race, abort not counted, post-await re-check), correctness CONCERNS(4) → r2; confirmation robustness CONCERNS(4) → r3. Feater DONE (423, 5 mutation proofs); GATE 0 MET; verifier #1 ECARTS(2) (no test on `trim`, none on the argumentHint) → feater (+5 tests, each failing under its mutation; first trim tests passed without the trim because the length guard caught them, lengthened) → verifier #2 CONFORME 8/8, criterion 9 gated. Security PASS, 0 findings, 1 LOW accepted.
+- **Anomaly**: none on the loop. Verifier observations worth keeping: the sub-agent test proves only spawn+step never calls classify (`prompt.submit` has no agent form in the API types); the 3-s tests pin the upper bound only; the post-await re-check is tested through the route-landing case alone. Security note: `smallModelBusy` guards `cfg.models.haiku`, classify uses the engine small model.
+- **Action**: keep the W4-B contract shape as the template (one clause per criterion, kit-untestable paths listed in CLARIFICATIONS before the first verifier); the live AC9 check is the real oracle for label quality (drop `bookkeeping` if it misfires). Links [[EVAL-044]], [[BDR-116]], [[LRN-210]], [[LRN-212]].
+
+## EVAL-046 — code-clean: 3 lenses + 1 confirmation turned a half-wrong r1 into a byte-identical 14-item cleanup
+- **Date**: 2026-10-12
+- **Output checked**: plan `.claude/tasks/plans/2026-10-12-code-clean-0103.md` r1 → r3; code-cleaner diff on chore/code-clean (13 files, +299/−230).
+- **Method**: correctness FATAL(6), robustness FATAL(5), simplicity CONCERNS(5), confirmation CONCERNS(2). Independent re-check of the executor: `make test` 47 green, shellcheck 0, hook `$pattern` sha256 identical old/new, old vs new google_seo.py no-arg run byte-identical (stdout, stderr, rc).
+- **Anomaly**: r1 wrong on 5 points (directive placement, logic-line counter ignored the error-handling exclusion → 1 false positive + 3 reclassified, B18 half false: 2 of 4 sites already `local`, C1 move would silently void T19, `|| return $?` rule inverted). Executor denied once (`rm -rf` on a variable path), used a fresh dir, reported it. Scope file's BUG TO LOG block came out empty (regex cut at the heading) — executor fell back to the plan. Two golden gaps left open by executor (gstack-absent warning, pack_hints with stubbed CLI).
+- **Action**: keep the confirmation pass after a material rewrite (it caught 2 MAJOR the first round missed). Scope writer: assert every section non-empty before dispatch. Links [[LRN-213]], [[LRN-214]], [[LRN-215]].
+
+## EVAL-047 — model-router downgrade cap: 3 lenses CONCERNS, confirmation pass FATAL(7); the 4th blind read found the BLOCKER the author + 3 lenses missed
+- **Method**: /feat. r1 (author): context-size cap + engine-model return bypass + classifier full route. 3 blind lenses on r1: simplicity CONCERNS(3), correctness CONCERNS(4), robustness CONCERNS(3), 10 MAJOR, 0 BLOCKER, convergent (cold-read measure, classifier upgrade leak, bypass useless, test list incomplete, helper-skill demotion, haiku window). r2 written. ONE confirmation challenger on r2: FATAL(7) — BLOCKER served record only on routed steps (session model's cache invisible), + 6 MAJOR (test (d) `turnModel` survives `/route clear`, guess vs `cur` + breaker → haiku, floor hidden by guess tier, `pickSwitch` fails OPEN, compaction floor-at-0, `engineBase` process-wide kill). r3 → feater DONE first pass, 450 tests, verifier CONFORME 10/10 first pass, security PASS.
+- **Anomalies**: author's r2 introduced 1 BLOCKER + 6 MAJOR while fixing r1 — a material rewrite is a NEW plan, the confirmation pass is not optional. `pickSwitch` "fail closed" was wrong by name: falls back to seeded default (now true). Verifier noticed 2 stale texts outside criteria (label comment, route tool description) — fixed by hand pre-commit (minor, justified). Doc-sync SIGNIFICANT: 13 patches, 3 docs stated the old default as a promise.
+- **Action**: keep the single confirmation pass mandatory after any r2 that changes the mechanism (not just wording); when a plan says "fail closed", name the picker and its fallback value in the plan; TODO residuals (parentModel inheritance, usage lag, TTL const) carried, not dropped. Links [[BDR-116]], [[LRN-216]], [[EVAL-045]].
+
+## EVAL-048 — model-router feat C: lenses killed r1 mechanism; second mechanism passed every gate first time
+- **Date**: 2026-10-23
+
+- **Method**: /feat. r1 = cap in `wantedModel` mirroring classifier. 3 blind lenses: correctness FATAL(4), robustness FATAL(5), simplicity CONCERNS(1). BLOCKERs: capped prompt slot shadowed held run (both correctness + robustness), probe-test one-line swap hangs (route tool answer probes), cap fail-open on `sessionModel` '' (/reload-plugins). r2 = effort-only routes at 3 writers + user pick (derived orchestrate too). 1 confirmation: SOLID, 5 MINOR applied (r2.1). feater DONE no deviation, 509 tests; GATE 0 12/12 MET; verifier CONFORME 14/14 1st pass; auditor PASS 0 findings; doc-sync SIGNIFICANT 5 patches.
+- **Anomalies**: author r1 claim "identical to classifier" false: classifier never runs under a held route, prompt rules do. First verifier dispatched on Fable died 429 (credits out): LRN-224 residual (spawn path unprobed) seen live; retry landed on opus floor. Push of remote branch delete + first /feat Skill call blocked by auto-mode classifier.
+- **Action**: when reusing a mechanism from another source, list the guards that source runs under (idle gate) before claiming equivalence. Links [[LRN-226]], [[LRN-224]], [[BLK-032]].
+
+## EVAL-049 — /feat model scope dialog: challenge + gates yield on 4-file hook feat (2026-10-25)
+- **Method**: /feat. 3 blind lenses r1: correctness FATAL(6), robustness CONCERNS(7), simplicity CONCERNS(3); r2 confirm CONCERNS(3) → r3 inline. feater DONE 540 tests; GATE 0 MET; verifier ECARTS(1) (no post-answer throw test on non-native branch) → feater → CONFORME 15/15; auditor PASS + MEDIUM (dangling link from main's contract) → feater → re-verify CONFORME + PASS. Doc-sync SIGNIFICANT 3 patches (1 = README defect from executor placement).
+- **Anomalies**: BLOCKER r1 `[1m]` ids never reached dialog (`MODEL_ID` rejects brackets): this repo's own local model is `[1m]`. Confirm pass caught FsStat kind `dir` vs plan `directory` (suite would stay green with bug). Main's contract wording introduced the MEDIUM.
+- **Action**: worth the cost on hooks that write settings. Plan API literals (`kind` values, regex coverage) against the types file before challenge. Links [[BDR-126]], [[LRN-228]].
+
+## EVAL-050 — /feat picker scope: spike first, then 2 FATAL challenge rounds on the same axis (2026-10-25)
+- **Method**: dev-mod spike, 2 live runs by user (ask-inside froze; deny + continuation worked) before any plan. Plan r1: correctness FATAL(5), robustness FATAL(2), simplicity SOLID. r2 confirm FATAL(1). r3 inline. feater DONE 29 tests (574 total); GATE 0 MET; verifier CONFORME 14/14 1st pass; auditor PASS 1st pass; doc-sync SIGNIFICANT 12 patches.
+- **Anomalies**: both FATAL rounds on breaker-vs-target: r1 bypass skipped target-down check across turns; r2 early branch pinned a down model when hand pick == cur (user's exact scenario). Main wrote "leaveDown untouched: down still wins" without tracing which model `decideMain` checks.
+- **Action**: a new routing branch gets a trace of every exit against `st.down` for cur AND target, across a turn boundary, before challenge. Spike-first paid: zero rework on the UI mechanism. Links [[BDR-127]], [[LRN-231]].
+
+## EVAL-051 — CLAUDE.md split: 5 review layers, the I/O failure path survived 4 of them (2026-10-27)
+- **Method**: 0d analyzer; brainstorm 4 user answers; plan r1 → r3 (correctness FATAL(5): SIGPIPE, rc 127, dry run on develop blocked, unchecked commit rc, 80 cols). SDD 12 tasks sonnet/medium, 12 task reviews clean (1 controller resolve avg, mostly attribution lines + oracle facts). RED (current skill stops at plugin-probe) → GREEN (S5 table, nothing written) → dry run on a branched scratch (2 rules in HEAD). Sonnet final review 3 Important → 89334f2. GATE 0 MET 14/20 runnable; verifier ECARTS(3) → ECARTS(1 = user MCP step); security PASS, 1 LOW. Opus/xhigh craft: 0 Critical, 2 Important, 8 Minor, ran the lib on the 6 real 0b targets (56 sections conserved) → 0b59687, re-review 0 open. `make test` all GREEN, suite PASS=93.
+- **Anomalies**: `extract` rc 0 on a failed rewrite passed 3 challengers + 12 task reviews + 1 final review: nobody tested an I/O failure (only logic refusals). `##`-only granularity misses faunosteo's payload (12.6 KB under `###`): found only because the reviewer ran the tool on the real targets. Headless proof 0 lines (model skipped Read). T10h-j named a guard the test could not observe. Brief tally arithmetic wrong (96 vs 93). Final review found 3 Important the 12 task reviews missed (dep-dir veto of `vendor/**`, misleading error, gitignore newline glue): per-task scope hides cross-task consequences.
+- **Action**: Review Focus lists a failure-path test per function that rewrites a file; a tool meant for other repos gets a reviewer run on their real inputs before merge; a load proof prompt names the tool call ([[LRN-232]]); test names state the observable. Links [[BDR-128]], [[LRN-233]].
+
+## EVAL-052 — Memory v2: 12 review layers, each caught what green gates missed [keep] (2026-10-28)
+- **Output**: phase 4a memory v2 (lib/memory.sh + 7 citer tasks + dialect migration), 2026-10-27/28.
+- **Method**: 2 plan-challenge rounds (3 lenses each, reference lib run before the plan), 8 task reviews, 4 fix rounds on Task 8, verifier ×2, security gate, controller proof on 14 repo copies, opus xhigh final review + scoped re-review.
+- **Anomalies**: each layer caught what earlier green layers missed. Challenge: two classifiers, BLK-019/020 false-open, uutils mkdir lock. Task reviews: G4 guard dodged by string split (rejected), `###` verdict flip ×4 shapes. Verifier: 3 EVAL Index actions lost. Controller proof: template path after `-C` (relative call only). Opus final, after all gates green: lock spin on unwritable `.git` (no rc), bare-prefix `status BLK` writing BLK-001, bullet-list Index facts dropped (trucks_at_work), 59+106 duplicate Date lines (`**Date** :` spacing). One implementer tried `--no-verify` in a temp repo (denied).
+- **Action**: keep the full stack for libs that rewrite user data; add a real-data copy proof with the user's own invocation before the final review. [[BDR-129]], [[LRN-237]].
+
+## EVAL-053 — ship-feature phase 1 context diet: challenge, final review and gates (2026-10-29)
+- **Checked**: ship-feature phase 1 run quality (8 tasks, sonnet executors + reviewers, one haiku transcription).
+- **Method**: 3-lens plan challenge + confirmation pass, per-task reviews, final opus/xhigh whole-branch review, GATE 0 oracles (10 runnable, c1-*.sh positive-controlled before work), fresh verifier, security gate.
+- **Anomalies**: challenge found 4 MAJOR (c1-readers red mid-Task 3, worktree vs in place, finish blocked by user settings hunks, contract out of sync with r2); final review found the new-file Write gap (I1) everybody missed; verifier 1st run died on Fable credits (429), retry pinned opus; 2nd run ECARTS(5) all human micro-gate items (approved text not on disk, transient docs out of scope, 2 SC2016 waivers); every per-task review clean first pass.
+- **Action**: keep oracles + positive control before dispatch; brief reviewers on new-file Write semantics for path rules; record gate texts on disk (contract) so the verifier can match them.
+
+## EVAL-054 — Three-lens plan challenge + confirmation caught 5 BLOCKERs before execution (phase 5) (2026-11-02)
+- **Check**: plan r1 (2060 lines) attacked by three blind opus challengers + one confirmation pass before execution.
+- **Method**: challenge-plan.md; lenses correctness / robustness / simplicity; r2 rewritten; confirmation on r2.
+- **Result**: r1 FATAL(11)/FATAL(10)/CONCERNS(5): BLOCKER = plan written on a stale tree (profile backend live); 30 jq per statusline refresh; settings.json procedure that would have discarded user writes; test precedence inverted; doctor abort under pipefail; worktree incompatibility. Confirmation on r2: 2 more BLOCKERs (keep list dropped the tracked `skills/model-router` link; census matched itself). All fixed before Task 1. Execution then needed 4 fix rounds (gates/reviews), none on those aspects.
+- **Anomalies**: the simplicity lens duplicated two robustness findings; the confirmation pass still found BLOCKERs, so one pass is the floor, not the ceiling.
+- **Action**: keep the 3+1 shape for plans over ~1000 lines; add "live state verified at Task 0" to the plan template.
+
+## EVAL-055 — BDR-125 phases 0/1/4a/5 re-verified: gates, SHAs, engine; 0 code defect, 5 stale TODO ticks [keep] (2026-11-02)
+- **Checked**: BDR-125 phases ticked in TODO (pre-0, 0, 0b, 4a + minors, 1 + follow-ups, 5) vs original ask (TODO entry, contract REQUEST/CLARIFICATIONS, BDR).
+- **Method**: `gates.sh run` on 5 contracts; 22 in-repo SHAs `merge-base --is-ancestor develop`; 9 cross-repo SHAs `cat-file -e` + `branch --contains` in zenquality/game/angelscar356/faunosteo/robin_petier; `reconcile.sh` engine (`reconcile_blk_open`, deferrals, contradiction candidates); direct fs probes (`~/.claude.json` mcpServers, `~/.claude/projects/*/memory/`, v2 markers, `## Index` count, profile NAME_RE, 21st CLI present + suite green).
+- **Result**: 0 code defect. Gates: 3 MET, phase 0 UNMET(1), phase 1 UNMET(2), all oracle drift from later gated commits (LRN-255). TODO: 5 done-but-open (proof, mcp remove, auto-memory dirs, profile charset, design-tool-gate hermetic) + BLK-021 TMPDIR resolved by cc.sh + phase 5 follow-up lump (1 of 3 done). Reconcile: open BLK 001/003/017/018/022/029 all known upstream/deferred; 8 flag-overlap contradiction candidates, none real.
+- **Anomalies**: `gates.sh run` dirtied two merged contracts (restored by checkout); TODO line 74 and BDR-134 cite purged spec/plan paths (BDR-065 purge); compound Bash with `git config`/`git diff settings.json` denied by permission rules (split calls).
+- **Action**: chore/todo-reconcile-bdr125 e58a617 (5 ticks, split follow-ups), merge on user signal. LRN-255.
+
+## EVAL-056 — Phase 2 run: plan FATALs caught before code, final review 3 Important, oracles written before measurement abandoned [keep] (2026-11-02)
+- **Checked**: phase 2 /ship-feature run quality (plan → challenge → SDD → gates).
+- **Method**: challenge rounds, per-task reviews, final opus review, verifier x2, security gate; counted defects caught per stage.
+- **Result**: plan r1 FATAL(8)+FATAL(5): bench script broken (pipe ate stdin), quoted finish form escaped the gate — both caught before any code. SDD 11 tasks, 1 fix round (Task 3). Final review: 3 Important (macOS T13, symlink whole-file report, guard undocumented) → fix wave. Verifier 1: ECARTS(6), 3 human-gated criteria written from the plan/spec rather than the contract; verifier 2: ECARTS(2) (post-merge user step, USAGE scope). Security PASS, 1 MEDIUM (`rtk read -n .env`).
+- **Anomalies**: criterion 11 encoded a hypothesis (M3q ASKED) as an oracle before the bench measured it → abandoned; contract criteria 1/5/7 drifted from gated plan/spec decisions (r3 deviations not mirrored into the contract) → 3 human round-trips at the end.
+- **Action**: write a measured oracle only after the measurement; when a plan revision deviates from a contract criterion, amend the criterion `[gated]` at the plan gate, not at GATE 1.
+
+## EVAL-057 — 4b run: task reviews caught 5 Important, final opus review 2 more + 13 minors, fix rounds regressed twice, one controller ruling wrong [keep] (2026-11-04)
+- **Checked**: 4b /ship-feature run quality on an 8-task mod branch (`feature/memory-capture`).
+- **Method**: defects counted per stage: plan challenge, per-task sonnet reviews + scoped re-reviews, final opus review, verifier ×2 + re-judge, security gate ×3.
+- **Result**: plan r1 FATAL(9) (note unprovable in `-p`) before code. Task reviews caught 5 Important (quadratic STATUS regex, heredoc commit form never matched, unguarded `fs.exists`, whole-command milestone regexes, fs.exists missing/unreadable). Final opus review still found 2 Important + 13 minors (all-placeholder grams on real registries, redaction gaps, `> \d+` letterless, success path reading the store per call). Security gate PASS ×3 but each coverage round found new shapes (cookie tail from the fix itself, `-b`, JSON affixes). Fix rounds introduced 2 regressions (quadratic JWT, cookie 400-cap), both caught by scoped re-reviews.
+- **Anomalies**: controller ruling "letterless rule subsumed by ERRORISH" was wrong (`> \d+` alternative) and cost one revert; "1:1 port" claim in noise.py drifted as the TS rule grew; the verifier's second pass refused `gates.sh run` (it rewrites the contract) and re-ran the CHECKs read-only instead.
+- **Action**: a ruling that removes a check lists the counterexample search over the alternatives first; reviewers measure regex cost by running; keep a scoped re-review after every fix round, a round of its own can regress; a port of a live rule carries the commit it was ported from.
+
+## EVAL-058 — Memory recall gate 1: 57 % precision (n=75), idle 44 %, 3rd pick 35 %, tool channel empty (2026-11-12)
+- **Checked**: phase 4c recall quality at first `/memory-feedback` prompt gate (BDR-140), window 2026-11-08 → 2026-11-12.
+- **Method**: 28 records, 2 repos (config + 1 project), 75 injected entries labelled relevant/irrelevant against the ask; 5 labels spot-checked by user (0 flip); misses searched on 5 asks picked where a miss was suspected (biased, overstates the miss rate); gate output `FEEDBACK.md`.
+- **Result**: prompt precision 57 % (n=75), under the 64 % (14/22) 4b-4d proof target. By trigger: fresh 78 % (n=23), idle 44 % (n=32), keyword 55 % (n=20). 3rd pick 35 % (n=23). Timeout + paused 0 %. Rerank p90 3355 ms. Tool gate 0/10 records. Misses: 7 on 5 asks, 4 no-overlap (BM25 cannot reach, title+lesson share no word with the prompt), 3 overlap (rerank dropped them). 1 noisy entry + 1 promotion candidate in the project repo, to run there via /prune-memory.
+- **Anomalies**: idle trigger fires on short follow-up prompts ("ok on y va") where all 3 entries miss; tool channel logged 0 records in 4 days, unproven live; rerank p90 above the 3 s bound.
+- **Action**: 4 TODO lines under Phase 4b-4d (idle trigger, cap at 2, tool channel check, no-overlap misses). Decisions deferred to the user.

@@ -1,10 +1,12 @@
 #!/usr/bin/env bash
 # design-toolchain-reminder.sh
 #
-# UserPromptSubmit hook. When the prompt carries a UI/design signal, inject a
-# reminder to mobilize the full design toolchain (tiered by scope, per CLAUDE.global.md
-# "Design work — full toolchain"). A UserPromptSubmit hook's stdout is appended
-# to the model's context, so the cat block below becomes additional guidance.
+# UserPromptSubmit hook. When the prompt carries a UI/design signal, point the
+# model at the design toolchain section (tiered by scope). Since BDR-125
+# phase 1 it lives in rules/web-building.md § "Design work — full toolchain",
+# not in CLAUDE.global.md: it loads by itself on a UI file Read, and a
+# chat-only design request needs this pointer. A UserPromptSubmit hook's
+# stdout is appended to the model's context.
 #
 # This is a soft nudge: the tiered rule itself says trivial work uses NO
 # toolchain, so a false positive (e.g. "API design") costs only a reminder the
@@ -25,10 +27,11 @@ prompt="$(printf '%s' "$input" \
   2>/dev/null || true)"
 [ -z "$prompt" ] && prompt="$input"
 
-# Harness-generated turns (subagent/task notifications) are not user
-# requests — never fire on them (CLAUDE.global.md trigger = a design/UI *request*).
+# Harness-generated turns (task notifications, sub-agent hand-backs: 857 of
+# 2,779 logged fires on 2026-10-28) are not user requests — never fire on
+# them (the Design work trigger = a design/UI *request*).
 case "$prompt" in
-  '<task-notification>'*) exit 0 ;;
+  '<task-notification>'*|'<agent-message'*) exit 0 ;;
 esac
 
 lc="$(printf '%s' "$prompt" | tr '[:upper:]' '[:lower:]')"
@@ -48,7 +51,21 @@ lc="$(printf '%s' "$prompt" | tr '[:upper:]' '[:lower:]')"
 # French prose ("changement ux vu…"; 2 logged FPs, both FR). \bui\b KEPT
 # (zero logged FP, one logged true positive). NB: the log records only the
 # FIRST match per fire (head -1), so per-token FP rates aren't derivable.
-pattern='redesign|refonte|refont|ui/ux|ux/ui|\bui\b|ui kit|design system|design-system|front-?end design|\bnavbar\b|\bsidebar\b|\bmodal\b|\bbouton\b|\bbutton\b|formulaire|\bhero\b|\bheader\b|\bfooter\b|dropdown|tooltip|\bbadge\b|\bchart\b|graphique|accordion|carousel|\bslider\b|landing|\bdashboard\b|homepage|home page|\baccueil\b|\bécran\b|\becran\b|portfolio|maquette|mockup|wireframe|prototype|\bjoli\b|\bjolie\b|\bbeau\b|\bbelle\b|esth[eé]tique|aesthetic|\bvisuel\b|\bvisual\b|embellir|fignol|peaufin|polish|styliser|styling|stylesheet|\bskin\b|charte graphique|\bbrand\b|branding|\blogo\b|favicon|ic[oô]ne|\bicon\b|\bcss\b|tailwind|shadcn|couleur|gradient|d[eé]grad[eé]|\bombre\b|spacing|espacement|\bmarge\b|\bpadding\b|\bmargin\b|\bradius\b|arrondi|\bhover\b|dark mode|light mode|typograph|\bfont\b|\bfonts\b|font pairing|\bpolice\b|animation|\bmotion\b|micro-interaction|keyframe|glassmorph|neumorph|claymorph|skeuomorph|brutalis|bento|minimalis|responsive|figma'
+pattern='redesign|refonte|refont|ui/ux|ux/ui|\bui\b|ui kit|design system'
+pattern+='|design-system|front-?end design|\bnavbar\b|\bsidebar\b|\bmodal\b'
+pattern+='|\bbouton\b|\bbutton\b|formulaire|\bhero\b|\bheader\b|\bfooter\b'
+pattern+='|dropdown|tooltip|\bbadge\b|\bchart\b|graphique|accordion|carousel'
+pattern+='|\bslider\b|landing|\bdashboard\b|homepage|home page|\baccueil\b'
+pattern+='|\bécran\b|\becran\b|portfolio|maquette|mockup|wireframe|prototype'
+pattern+='|\bjoli\b|\bjolie\b|\bbeau\b|\bbelle\b|esth[eé]tique|aesthetic'
+pattern+='|\bvisuel\b|\bvisual\b|embellir|fignol|peaufin|polish|styliser'
+pattern+='|styling|stylesheet|\bskin\b|charte graphique|\bbrand\b|branding'
+pattern+='|\blogo\b|favicon|ic[oô]ne|\bicon\b|\bcss\b|tailwind|shadcn|couleur'
+pattern+='|gradient|d[eé]grad[eé]|\bombre\b|spacing|espacement|\bmarge\b'
+pattern+='|\bpadding\b|\bmargin\b|\bradius\b|arrondi|\bhover\b|dark mode'
+pattern+='|light mode|typograph|\bfont\b|\bfonts\b|font pairing|\bpolice\b'
+pattern+='|animation|\bmotion\b|micro-interaction|keyframe|glassmorph|neumorph'
+pattern+='|claymorph|skeuomorph|brutalis|bento|minimalis|responsive|figma'
 
 if printf '%s' "$lc" | grep -Eq "$pattern"; then
   # Counter: log the fire (time, matched token, excerpt) — best-effort, never blocks.
@@ -58,7 +75,7 @@ if printf '%s' "$lc" | grep -Eq "$pattern"; then
     "$(printf '%s' "$lc" | grep -oiE "$pattern" | head -1 || true)" \
     "$(printf '%s' "$prompt" | tr '\n\t' '  ' | cut -c1-100)" >> "$logf" 2>/dev/null || true
   cat <<'EOF'
-Design work detected → apply global CLAUDE.md section "Design work — full toolchain" (already in context). Trivial (≤2 files, cosmetic) → /hotfix.
+Design work detected → Read ~/.claude/rules/web-building.md § "Design work — full toolchain" first. Trivial (≤2 files, cosmetic) → /hotfix.
 EOF
 fi
 

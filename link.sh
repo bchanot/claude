@@ -54,8 +54,8 @@ for item in hooks githooks agents skills lib templates rules; do
   CHANGED=$((CHANGED + 1))
 done
 
-# GStack is exposed via per-skill symlinks under skills/ (browse,
-# canary, autoplan, design-review, …) created by gstack's own `./setup`,
+# GStack skills are tracked links under skills/pack-gstack-*/skills/<n>
+# -> skills-external/gstack/<n> (packs, BDR-134),
 # PLUS a shared helper tree at skills/gstack/ mirroring every asset the
 # skills hardcode (bin/, browse/dist/, ETHOS.md, …) that a per-skill
 # symlink never exposes — see lib/gstack-links.sh. The helper tree
@@ -72,14 +72,11 @@ else
   echo "⚠️  GStack submodule not found — run: git submodule update --init"
 fi
 
-# impeccable is NOT here: its installer writes the skill straight into
-# skills/ (and its agents into agents/) at --scope=global, so there is no
-# skills-external/ copy to symlink. See install-plugins.sh Step 8d.
-EXTERNAL_SKILLS=(emil-design-eng frontend-design design-motion-principles
-  observability-and-instrumentation deprecation-and-migration ci-cd-and-automation
-  scroll-world-storytelling build-threejs-scroll-worlds
-  scroll-scrubbed-visual-sequence scroll-scrubbed-word-reveal
-  scroll-progress-timeline brainstorming writing-plans
+# impeccable is NOT here: it lives in skills-external/impeccable (moved
+# there by install-plugins.sh Step 8d) and pack-design links it.
+# The design and scroll skills are pack symlinks now (skills/pack-*).
+EXTERNAL_SKILLS=(observability-and-instrumentation deprecation-and-migration
+  ci-cd-and-automation brainstorming writing-plans
   subagent-driven-development test-driven-development
   requesting-code-review using-git-worktrees writing-skills)
 for _ext_skill in "${EXTERNAL_SKILLS[@]}"; do

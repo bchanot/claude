@@ -77,18 +77,18 @@ machine. Project facts (this repo's deploy target, its secrets, its data)
 belong in that project's `.claude/settings.local.json`. A global block naming
 one repo feeds the classifier false facts in all the others.
 
-### `ask` is not a prompt under auto mode
+### `ask` prompts under auto mode
 
-Verified in-session (LRN-146, re-verified on 2.1.273 on 2026-09-16 with a
-`node -e` probe matching an `ask` rule): with `defaultMode: auto`, Bash rules
-in `permissions.ask` were auto-approved and raised no prompt. The auto-mode
-docs claim the opposite for "content-scoped" rules such as `Bash(git push *)`;
-the observed behavior wins until a probe shows a prompt. `deny` is the only
-tier the classifier cannot lift.
+Measured 2026-11-02 (headless bench under `defaultMode: auto`, then one
+interactive session): a Bash command matching `permissions.ask` raises a
+permission request; in `-p` it is refused. LRN-155 (2026-09-16, a `node -e`
+probe on 2.1.273: `ask` rules auto-approved interactively) is not
+reproduced; its cause is not established. `deny` is the only tier the
+classifier cannot lift.
 
-So for a destructive command you want gated but still reachable, `ask` is the
-wrong tier. Use `autoMode.soft_deny`: blocked until the user's intent clears
-it. Keep `deny` for what must never run at all.
+`ask` gates a command you approve per call; `soft_deny` gates one the
+classifier clears from your request. Keep `deny` for what must never run at
+all.
 
 ### Picking a tier
 
@@ -98,10 +98,8 @@ it. Keep `deny` for what must never run at all.
 | Never runs, and a pattern cannot express it (a read then a send, a prod target) | `autoMode.hard_deny` |
 | Runs when the user asks for it, blocked otherwise | `autoMode.soft_deny` |
 | Runs freely when a condition holds that only the classifier can judge (a local dev container, a package declared in the lockfile) | `autoMode.allow` |
+| Runs after you click, every time | `permissions.ask` |
 | Runs freely | `permissions.allow`, or nothing |
-
-`permissions.ask` is not on this list on purpose. Under `defaultMode: auto` it
-gates nothing.
 
 `autoMode.allow` is the exception tier: inside the classifier an `allow` entry
 overrides a matching `soft_deny`, built-in or yours, so word it as narrowly as
@@ -127,11 +125,11 @@ no separate setting for this.
 
 - `Read(**/.env)` only blocks the Read tool. `Bash(cat .env)` bypasses it unless separately denied.
   → Use `.claudeignore` for hard file exclusion regardless of tool.
+- This config denies `cat`, `head` and `tail` of `.env*` (flag forms included, e.g. `head -5 .env`) and the `rtk read` twin of every such deny; `lib/tests/push-guard.test.sh` (T62) fails when a twin is missing.
 - `disableBypassPermissionsMode: "disable"` prevents switching to bypass mode mid-session.
 - Prefer `autoMode.soft_deny` over `allow` for anything touching external systems.
 - `deny` in `~/.claude/settings.json` cannot be overridden by project-level `allow` — deny always wins.
-- Under `defaultMode: auto`, `ask` does not raise a prompt (see above). A destructive
-  command belongs in `deny` or in `autoMode.soft_deny`, not in `ask`.
+- Under `defaultMode: auto`, `ask` prompts; a command that must never run belongs in `deny`.
 
 ## Data-loss guardrails (BDR-095)
 
@@ -145,6 +143,10 @@ local trace, and the brief had authorized it. What holds now, by tier:
 | `chmod`/`chown -R`, `sudo`/`doas`/`pkexec`, disk tools (`dd`, `mkfs`, `shred`…), `chattr` | `permissions.deny` | The user runs them by hand. |
 | Docker volume drops, `system prune`, `compose down -v`, `--privileged`, the docker socket, `-v /:` | `permissions.deny` | Promoted from `soft_deny`: no in-session clearance for data drops. |
 | Git history destruction (`push --delete`/`--mirror`/`:ref`/`--force-with-lease`, `branch -D`, `filter-branch`, `reflog expire`, `stash clear`/`drop`, `clean -f`), `--no-verify`, `core.hooksPath` | `permissions.deny` | A remote is the backup; nothing rewrites or deletes what it holds. |
+| Writing the human-only `gitflow.*` toggles: any `git … config` spelling, section remove/rename, `git -c`, the git config env overrides, Edit/Write of git config files | `permissions.deny` | Claude never flips the mode that binds it. Side effect: the trailing glob also matches the bare read, so Claude cannot read `gitflow.autopush` through `git config`; hooks and `lib/gitflow.sh` still do, and skills read it through `gitflow.sh push-mode`. |
+| Merging: `git merge`, `bash`/`sh` `…gitflow.sh finish` | `permissions.ask` | `finish` runs only on an explicit human signal: one prompt per merge, and a declined prompt merges nothing. `git -C <dir> merge` and a sourced `gitflow_finish` escape the static rules; the sourced form falls to `autoMode.soft_deny` "Static rule blind spots". |
+| Pushing in manual-push mode (`gitflow.autopush false`, or any invalid value) | `hooks/push-guard.sh` (PreToolUse) + `autoMode.soft_deny` | An `ask` would prompt, and a click would push. The hook denies the direct forms; the soft_deny covers scripted, aliased, subshell and sub-agent pushes, and a request in the turn does not clear it: the user types `! git push`. |
+| Extracting or recursively copying a package or an archive into `/` or a system directory (`dpkg -x`, `dpkg-deb -x`/`-R`, `tar x`, `unzip`, `cpio -i`/`-p`, recursive `cp`), on this machine or on a VM through a quoted `ssh`, `vaas-cli ssh` or `bash -c` script | `hooks/extract-guard.sh` (PreToolUse) + `autoMode.soft_deny` | On usr-merge systems an archive carrying `/bin` or `/lib` replaces those symlinks with real directories. A static rule cannot read a destination inside a quoted remote script; the hook parses the command, re-scans every quoted script and refuses a destination it cannot resolve. The soft_deny covers what the text does not show (a script file, an alias, a variable set in an earlier call). |
 | Destructive tool against a local path (variable, `~`, `..`, wildcard, outside cwd/tmp), even as a trace or a rehearsal a brief allows | `autoMode.hard_deny` | A pattern cannot express "the target resolves outside the project"; the classifier can. A sub-agent brief carries no user authority. |
 | `docker rm -f`, bind mount outside cwd; discarding uncommitted work | `autoMode.soft_deny` | Recoverable or user-intended in the turn. |
 
@@ -152,7 +154,10 @@ Rules apply to sub-agents (auto mode is inherited) and to each segment of
 a compound command; a tool nested in another command (`docker compose run …
 lftp`) is not matched by a static rule. The PreToolUse guard hook that scans
 the whole command, its executable spec in `lib/tests/guard-bash.test.sh`,
-is not shipped yet (BLK-022).
+is not shipped yet (BLK-022). `hooks/push-guard.sh` scans the command text
+for `git push` only, in manual-push mode (see below), and
+`hooks/extract-guard.sh` for an extraction into a system directory only,
+quoted remote scripts included.
 
 Push discipline lives in `lib/gitflow.sh`: `start` pushes the branch,
 `finish` pushes each merge target, and the post-commit / post-merge hooks
@@ -167,12 +172,42 @@ fourth hook, `reference-transaction`, vetoes any deletion or rename of
 reach every repo two ways: `make link` generates `githooks/` from the lib
 and sets git's global `core.hooksPath` to `~/.claude/githooks` (a repo's own
 local `core.hooksPath` wins, by git's rules), and `hooks/session-start.sh`
-refreshes a repo's `.githooks/` when it lags the lib. Per-repo opt-outs for
-a foreign clone: `git config gitflow.protect false` (branch model) and
-`git config gitflow.autopush false` (push); `GITFLOW_NO_PUSH=1` for one
-command in a throwaway repo. `make doctor` checks the global setting and
-the generated dir. `hooks/unpushed-guard.sh` reports a branch ahead of its
-upstream at session start and at each turn end.
+refreshes a repo's `.githooks/` when it lags the lib. Per-repo opt-outs, set
+by a human: `git config gitflow.protect false` (branch model, foreign clone)
+and `git config gitflow.autopush false` (manual-push mode: the hooks,
+`start` and `finish` push nothing, and `delete` leaves the `origin/` copy in
+place, printing the command to remove it by hand); `GITFLOW_NO_PUSH=1` for
+one command in a throwaway repo. `start` and `finish` warn when a base is
+behind origin and cannot fast-forward. `make doctor` checks the global
+setting and the generated dir. `hooks/unpushed-guard.sh` reports a branch
+ahead of its upstream at session start and at each turn end; in manual-push
+mode it stays silent at turn end and gives one `ℹ manual push mode:` line at
+session start, counting unpushed commits across every local branch.
+In manual-push mode `hooks/push-guard.sh` (PreToolUse, `Bash|Monitor`) also
+refuses any `git push` Claude types, when the key reads false in the session
+cwd or in a literal `-C`/`cd` directory the command names (global config
+counts outside a repo). The refusal tells the user to run the push with
+`! git push`, and the session banner adds a `🔒 push : manual` line. The hook
+fails closed: an invalid value reads as manual, and a `cd`/`-C` directory
+token mixing quoted and unquoted parts, an unparseable payload that looks like
+a push, a missing `lib/gitflow.sh` or more than 20 directory tokens in one
+command refuses the push, in auto mode too. In manual mode it over-blocks any
+command where a `push` word follows a `git` token (`git stash push`, a grep
+for "git push").
+The misses listed in its header fall to an `autoMode.soft_deny` rule that no
+request in the turn clears. Skills read the mode through
+`bash ~/.claude/lib/gitflow.sh push-mode` (`auto`, `manual` or `invalid`,
+rc 0) and push nothing themselves, except the `/release-candidate` tag in
+auto-push mode on an explicit go. What they report as on origin or not
+pushed comes from `git rev-list --count origin/<br>..<br>` read afterwards,
+and a pending push is handed to the user as a complete `! git …` command.
+An invalid value (not a boolean, or a read that fails) is manual push mode
+for every reader: the hooks, `start`, `finish` and `delete` push nothing and
+say why on stderr, push-guard refuses, the banner shows
+`🔒 push : manual (autopush bad)` and the SessionStart line names the value.
+Exception: a repo with its own committed `.githooks/` runs its old hooks,
+which still push on an invalid value, until a session start refreshes them;
+commit the refresh.
 
 ## managed-settings.json (enterprise)
 

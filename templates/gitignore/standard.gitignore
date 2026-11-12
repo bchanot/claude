@@ -18,6 +18,7 @@ Thumbs.db
 !.claude/audits/
 !.claude/settings.json
 !.claude/deploy/
+!.claude/rules/
 # re-ignore transients inside the versioned subtrees (the PENDING.json trap)
 .claude/settings.local.json
 .claude/agent-memory/

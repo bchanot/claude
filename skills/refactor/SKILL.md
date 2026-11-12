@@ -16,6 +16,10 @@ model). The scope you name is the only reflection; the agent applies norms.
 and dispatch on the new branch; on a working branch dispatch in place. Never
 `gitflow finish` — integration is human-gated.
 
+Origin: `bash ~/.claude/lib/code-origin.sh` on the target repo. `foreign` →
+the refactorer aligns on the existing style, not on the limits, unless the
+user asked for the limits explicitly; add that to the prompt below.
+
 ```
 Agent(subagent_type="refactorer")
 prompt: "Refactor to strict project norms, preserving external behavior

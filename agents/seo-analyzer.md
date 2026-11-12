@@ -1,6 +1,6 @@
 ---
 name: seo-analyzer
-description: 'Classical SEO audit agent (Google, Bing) — dispatched from /seo. Live audit: Core Web Vitals, on-page, technical, local SEO, legal (FR). Emits a fix bundle (dispatcher applies) + scored report. AI/GEO → geo-analyzer agent.'
+description: 'Classical SEO audit agent (Google, Bing), dispatched from /seo: Core Web Vitals, on-page, technical, local SEO, legal (FR). Emits a fix bundle (dispatcher applies) + scored report. AI/GEO → geo-analyzer.'
 tools: Read, Edit, Write, Bash, Grep, Glob, WebFetch, WebSearch
 model: opus
 effort: xhigh
@@ -38,7 +38,7 @@ The dispatcher (/seo) runs this agent as a 3-stage pipeline; /harden and
   terminated by the line `COLLECTION COMPLETE — RUNID: <RUNID>`, then
   emits a short `COLLECT REPORT` (`STATUS: DONE | BLOCKED`, RUNID,
   COVERAGE counts) and STOPS. No scoring, no findings, no bundle.
-- **`MODE: judge`** — runs on the opus frontmatter pin (audit judgment).
+- **`MODE: judge`** — runs on its opus row (audit judgment; frontmatter = off-state floor).
   FIRST loads `.audit/seo-signals-<RUNID>.md`: absent, RUNID mismatch, or
   missing `COLLECTION COMPLETE` sentinel → emit
   `SEO JUDGE — VERDICT: ERROR(<reason>)` and STOP (fail closed — NEVER
@@ -539,8 +539,8 @@ it is.
 
 **§0 line, mandatory when not server-rendered:**
 `Rendering: client-rendered — On-page NOT scored (content absent from served
-HTML). Global score excludes it. Fix: SSR/SSG (CLAUDE.md: public sites are
-never SPAs).`
+HTML). Global score excludes it. Fix: SSR/SSG
+(lib/architecture-defaults.md: public sites are never SPAs).`
 
 This is the honest half of the R1/R2 call: we do not render JS (no Playwright,
 no Chromium), so we do not pretend to see what JS paints. Refusing is the

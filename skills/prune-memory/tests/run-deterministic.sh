@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
-# Deterministic RED suite for /prune-memory — RED-1, RED-2, RED-5, RED-6, RED-7.
+# Deterministic RED suite for /prune-memory — RED-1, RED-2, RED-5, RED-6, RED-7, RED-9.
 # Each MUST be red on the current (v1) skill. Pure mechanical oracles,
-# no LLM. Faithful: RED-2/RED-6 execute the REAL bash blocks extracted
+# no LLM. Faithful: RED-2/RED-6/RED-9 execute the REAL bash blocks extracted
 # from SKILL.md (no copy that could drift).
 #
 # Sandbox only (mktemp). NEVER touches real registries or the repo.
@@ -21,7 +21,7 @@ green() { printf 'RED-%s: GREEN (skill fixed) -- %s\n' "$1" "$2"; }
 # Verified by the extract-check before the suite was written.
 extract_block() {
   awk -v h="$1" '
-    $0 ~ "^## " h {f=1}
+    $0 ~ "^## " h "( |$)" {f=1}
     f && /^```bash/ {c=1; next}
     f && /^```/ && c {c=0; f=0; next}
     c {print}
@@ -71,16 +71,20 @@ else
   red 5 "STEP 4 certifies OK after a safety-critical line was deleted (no fidelity check)"
 fi
 
-# ---- RED-6: STEP 4 verify must not false-orphan a title-less heading --------
-S6="$SANDBOX/red6"; mkdir -p "$S6/.claude/memory"
-cp "$HERE/fixtures/red6-orphan/.claude/memory/decisions.md" \
+# ---- RED-6: STEP 4 verify runs memory.sh check (duplicate ID caught) --------
+# v2 registries carry no Index; the structural verify is `memory.sh check`
+# (heading shape, unique IDs). HOME is pinned to a sandbox whose .claude/lib
+# is this repo's lib, so the run never depends on the machine's ~/.claude.
+S6="$SANDBOX/red6"; mkdir -p "$S6/.claude/memory" "$S6/home/.claude"
+ln -s "$HERE/../../../lib" "$S6/home/.claude/lib"
+cp "$HERE/fixtures/red6-check/.claude/memory/decisions.md" \
    "$S6/.claude/memory/decisions.md"
 extract_block "STEP 4" > "$S6/step4.sh"
-out="$( cd "$S6" && bash step4.sh 2>/dev/null )"
-if printf '%s\n' "$out" | grep -qE '^ORPHAN INDEX: BDR-009'; then
-  red 6 "verify emits FALSE 'ORPHAN INDEX: BDR-009' (body exists; trailing-space bug)"
+out="$( cd "$S6" && HOME="$S6/home" bash step4.sh 2>&1 )"
+if printf '%s\n' "$out" | grep -qE 'duplicate BDR-009'; then
+  green 6 "verify runs memory.sh check and names the duplicate BDR-009"
 else
-  green 6 "verify does not false-orphan the title-less heading"
+  red 6 "verify misses the duplicate BDR-009 (no memory.sh check in STEP 4)"
 fi
 
 # ---- RED-7: STEP 2 plan example must use FICTIONAL ids, never live registry ids
@@ -96,6 +100,48 @@ if [ -n "${bad7// /}" ]; then
   red 7 "STEP 2 example uses LIVE-range ids (prime real-data ops): ${bad7% }"
 else
   green 7 "STEP 2 example uses only fictional (9xx) ids"
+fi
+
+# ---- RED-9: STEP 1 reads statuses through the classifier (v1 + v2) ---------
+# Runs the shipped STEP 1 block (LRN-276) on sandbox registries written with
+# printf; HOME pinned like RED-6. Rows asserted whole-line, fixed string.
+TAB=$'\t'
+S9A="$SANDBOX/red9a"; S9B="$SANDBOX/red9b"
+mkdir -p "$S9A/.claude/memory" "$S9B/.claude/memory"
+printf -- '---\nformat: 2\n---\n# Decisions\n\n' > "$S9A/.claude/memory/decisions.md"
+printf '## BDR-901 — old idea [proposed] (2026-01-01)\n- **Context**: resolved later\n\n' \
+  >> "$S9A/.claude/memory/decisions.md"
+printf '## BDR-902 — kept [accepted] (2026-02-01)\n- **Status (2026-03-01)**: superseded by BDR-903\n' \
+  >> "$S9A/.claude/memory/decisions.md"
+printf '## BLK-903 — c\n- **Status**: upstream\n' > "$S9A/.claude/memory/blockers.md"
+printf '## BDR-904 — x\ndate: 2026-01-01 · status: accepted\n\n' > "$S9B/.claude/memory/decisions.md"
+printf '## BDR-905 — y\nStatus: closed.\n\n' >> "$S9B/.claude/memory/decisions.md"
+printf '## BDR-906 — z\nStatus: proposed\n- **Statut** : accepted (2026-05-01)\n\n' \
+  >> "$S9B/.claude/memory/decisions.md"
+printf '## BDR-907 — w\n- Status: proposed\nSuperseded by BDR-911 (2026-05-01).\n' \
+  >> "$S9B/.claude/memory/decisions.md"
+extract_block "STEP 1" > "$SANDBOX/step1.sh"
+mkdir -p "$SANDBOX/home9/.claude"; ln -s "$HERE/../../../lib" "$SANDBOX/home9/.claude/lib"
+out9a="$( cd "$S9A" && HOME="$SANDBOX/home9" bash "$SANDBOX/step1.sh" 2>&1 )"
+out9b="$( cd "$S9B" && HOME="$SANDBOX/home9" bash "$SANDBOX/step1.sh" 2>&1 )"
+msg9=""
+has9() { printf '%s\n' "$1" | /usr/bin/grep -qxF "$2"; }
+has9 "$out9a" "BDR-901${TAB}open${TAB}proposed" || msg9="v2 BDR-901 row missing"
+printf '%s\n' "$out9a" | /usr/bin/grep -qF "BDR-902${TAB}" \
+  && msg9="${msg9:-v2 BDR-902 listed after superseded}"
+has9 "$out9a" "BLK-903${TAB}open${TAB}upstream" || msg9="${msg9:-BLK-903 row missing}"
+has9 "$out9b" "BDR-904${TAB}open${TAB}accepted" || msg9="${msg9:-v1 BDR-904 row missing}"
+printf '%s\n' "$out9b" | /usr/bin/grep -qF "BDR-905${TAB}unreadable${TAB}" \
+  || msg9="${msg9:-v1 BDR-905 not unreadable}"
+has9 "$out9b" "BDR-906${TAB}open${TAB}accepted" || msg9="${msg9:-v1 BDR-906 row missing}"
+printf '%s\n' "$out9b" | /usr/bin/grep -qF "BDR-907${TAB}open${TAB}" \
+  && msg9="${msg9:-v1 BDR-907 listed open}"
+[ "$(/usr/bin/grep -c 'status: ' "$SKILL")" = 0 ] || msg9="${msg9:-SKILL.md keeps a raw status: line}"
+[ "$(/usr/bin/grep -c 'frontmatter' "$SKILL")" = 0 ] || msg9="${msg9:-SKILL.md keeps frontmatter wording}"
+if [ -z "$msg9" ]; then
+  green 9 "STEP 1 block classifies v1 + v2 statuses, SKILL.md has no raw status wording"
+else
+  red 9 "$msg9"
 fi
 
 echo "----"

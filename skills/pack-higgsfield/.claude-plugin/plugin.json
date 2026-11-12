@@ -1,0 +1,7 @@
+{
+  "name": "pack-higgsfield",
+  "version": "1.0.0",
+  "description": "Higgsfield media generation skills (paid runs). OFF by default: profile.sh enable higgsfield.",
+  "author": { "name": "bchanot" },
+  "defaultEnabled": false
+}

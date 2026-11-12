@@ -1,0 +1,25 @@
+# The gstack skills this config never exposes: one name per line, read by
+# lib/pack-census.sh (grep -qx), so these comment lines never match.
+# A name listed is in no pack and no profile, `max` included. Pruned
+# 2026-09-28 (BDR-105); the helpers once housed in lib/gstack-removed.sh
+# are gone with the symlink toggling (BDR-117).
+# Why each name went:
+#   ship             base = origin/HEAD = main on Gitea, skips develop
+#   land-and-deploy  `gh pr merge --squash --delete-branch` then deploys
+#   setup-deploy     companion of land-and-deploy (Claude never deploys)
+#   autoplan         reads ~/.claude/skills/gstack/plan-*/ paths that do
+#                    not exist in this install
+#   context-save     its pair context-restore is not linked; never used
+#   learn            parallel JSONL store outside .claude/memory, unused
+#   careful, guard   hooks exit 127 (missing bin path), vacuous; the house
+#                    permissions.deny is stricter (BDR-095)
+#   design-shotgun   mockups need OPENAI_API_KEY, absent
+ship
+land-and-deploy
+setup-deploy
+autoplan
+context-save
+learn
+careful
+guard
+design-shotgun

@@ -2,8 +2,12 @@
 # lib/tests/graphify-gate.test.sh — "propose graphify" threshold signal (BDR-097).
 set -u
 LIB="$(cd "$(dirname "$0")/../.." && pwd)/lib/graphify-gate.sh"
-WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
+WORK="$(mktemp -d)" || exit 1; trap 'rm -rf "$WORK"' EXIT
 pass=0; fail=0
+# shellcheck source=lib/tests/claude-stub.sh
+. "$(dirname "$0")/claude-stub.sh" || exit 1
+mkdir -p "$WORK/cs" || exit 1
+claude_stub_install "$WORK/cs"
 check() { if [ "$2" = "$3" ]; then pass=$((pass+1)); else fail=$((fail+1));
   printf 'FAIL %s: got[%s] want[%s]\n' "$1" "$2" "$3"; fi; }
 # gate(dir) -> the signal line, or "silent"
@@ -55,6 +59,24 @@ d=$(mkrepo docs 10)
 for i in $(seq 1 300); do echo "# $i" > "$d/doc$i.md"; done
 git -C "$d" add -A; git -C "$d" commit -q -m docs
 check T9-non-code-not-counted "$(gate "$d")" silent
+
+# ── session-start prints the usage rules only where a graph exists
+#    (BDR-125 phase 1: the body left CLAUDE.global.md) ──
+SS="$(cd "$(dirname "$0")/../.." && pwd)/hooks/session-start.sh"
+banner() { (cd "$1" && SESSION_START_OFFLINE=1 bash "$SS" </dev/null 2>/dev/null); }
+d=$(mkrepo ss 1)
+out=$(banner "$d")
+check S1-banner-control "$(grep -c 'Claude Code config' <<<"$out")" 1
+check S1b-no-graph-silent "$(grep -c 'graphify query' <<<"$out")" 0
+mkdir -p "$d/graphify-out" "$d/app/sub"; echo '{}' > "$d/graphify-out/graph.json"
+out=$(banner "$d")
+check S2-graph-prints "$(grep -c 'graphify query' <<<"$out")" 1
+check S2b-update-rule "$(grep -c 'graphify update \.' <<<"$out")" 1
+check S3-from-subdir "$(banner "$d/app/sub" | grep -c 'graphify query')" 1
+out=$(banner "$WORK/plain")
+check S4-not-a-repo "$(grep -c 'graphify query' <<<"$out")/$(grep -c 'Claude Code config' <<<"$out")" 0/1
+
+check no-claude-calls "$(claude_stub_calls)" 0
 
 echo "PASS=$pass FAIL=$fail"
 [ "$fail" -eq 0 ]

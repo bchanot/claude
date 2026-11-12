@@ -6,20 +6,21 @@
 # (the chk helper EVALs its second arg; single-quoted assertion strings are
 #  intentional — they must not expand at definition time.)
 set -uo pipefail
+export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_SYSTEM=/dev/null
 HERE="$(cd "$(dirname "$0")" && pwd)"
 # Do NOT override GITFLOW_GITIGNORE_TEMPLATE: the lib self-resolves it from its
 # own location (../templates), which is correct in both the repo and installed.
 # shellcheck source=/dev/null
 source "$HERE/gitflow.sh"
 
-WORK="$(mktemp -d)"; trap 'rm -rf "$WORK"' EXIT
+WORK="$(mktemp -d)" || exit 1; trap 'rm -rf "$WORK"' EXIT
 PASS=0; FAIL=0
 ok()   { PASS=$((PASS+1)); printf '  ok   %s\n' "$1"; }
 no()   { FAIL=$((FAIL+1)); printf '  FAIL %s\n' "$1"; }
 chk()  { if eval "$2"; then ok "$1"; else no "$1 [ $2 ]"; fi; }
-newrepo() { local d="$WORK/$1"; rm -rf "$d"; mkdir -p "$d"; cd "$d" || return 1; git init -q; \
-            git config user.email t@t; git config user.name t; \
-            git config core.hooksPath /dev/null; }   # hooks off during setup
+newrepo() { local d="$WORK/$1"; rm -rf "$d"; mkdir -p "$d"; cd "$d" || exit 1; git init -q && \
+            git config user.email t@t && git config user.name t && \
+            git config core.hooksPath /dev/null || exit 1; }   # hooks off during setup
 hookon() { git config --unset core.hooksPath 2>/dev/null || true; }  # use repo default .githooks
 
 echo "T1 — pure predicates"
@@ -44,6 +45,7 @@ chk "develop exists"     'git rev-parse --verify -q refs/heads/develop >/dev/nul
 chk "root commit on main" '[ -n "$(git rev-parse -q --verify main)" ]'
 chk "gitignore created"  '[ -f .gitignore ]'
 chk "socle: !.claude/deploy/" 'grep -qxF "!.claude/deploy/" .gitignore'
+chk "socle: !.claude/rules/" 'grep -qxF "!.claude/rules/" .gitignore'
 chk "socle: re-ignore PENDING" 'grep -qxF ".claude/deploy/PENDING.json" .gitignore'
 chk "hook installed"     '[ -x .githooks/pre-commit ] && [ "$(git config core.hooksPath)" = .githooks ]'
 chk "tree CLEAN after init"  '[ -z "$(git status --porcelain)" ]'
@@ -87,7 +89,7 @@ echo x >> README.md; git add README.md
 chk "block direct code on main" '! git commit -q -m onmain 2>/dev/null'
 git restore --staged README.md 2>/dev/null; git checkout -q -- README.md
 mkdir -p .claude/memory; echo m > .claude/memory/decisions.md; git add .claude/memory/decisions.md
-chk "allow .claude/** on main"  'git commit -q -m "chore(memory)" 2>/dev/null'
+chk "allow .claude/memory on main" 'git commit -q -m "chore(memory)" 2>/dev/null'
 gitflow_start feature demo >/dev/null 2>&1
 echo f > feat.txt; git add feat.txt
 chk "allow code on feature"     'git commit -q -m "feat work" 2>/dev/null'
@@ -171,6 +173,22 @@ chk "cli start switched HEAD"  '[ "$(git symbolic-ref --short HEAD)" = feature/c
 if bash "$HERE/gitflow.sh" protected-base main;       then ok "cli protected-base main → rc0";    else no "cli protected-base main"; fi
 if bash "$HERE/gitflow.sh" protected-base feature/x;  then no "cli protected-base feature (rc0?)"; else ok "cli protected-base feature → rc1"; fi
 chk "cli base-for hotfix=main" '[ "$(bash "$HERE/gitflow.sh" base-for hotfix)" = main ]'
+
+echo "T11b — push-mode verb (the sanctioned reader for skills, BDR-112)"
+newrepo pm; echo a>a
+bash "$HERE/gitflow.sh" init >/dev/null 2>&1
+chk "cli push-mode default auto" '[ "$(bash "$HERE/gitflow.sh" push-mode)" = auto ]'
+git config gitflow.autopush true
+chk "cli push-mode true auto" '[ "$(bash "$HERE/gitflow.sh" push-mode)" = auto ]'
+git config gitflow.autopush false
+chk "cli push-mode manual" '[ "$(bash "$HERE/gitflow.sh" push-mode)" = manual ]'
+git config gitflow.autopush flase
+pm_out=$(bash "$HERE/gitflow.sh" push-mode 2>"$WORK/pm.err"); pm_rc=$?
+chk "cli push-mode invalid, rc 0, value on stderr" "[ $pm_rc -eq 0 ] && [ \"$pm_out\" = invalid ] && grep -q flase \"$WORK/pm.err\""
+printf '[gitflow\n' >> .git/config
+pm2_out=$(bash "$HERE/gitflow.sh" push-mode 2>/dev/null); pm2_rc=$?
+chk "cli push-mode corrupt config → invalid, rc 0" "[ $pm2_rc -eq 0 ] && [ \"$pm2_out\" = invalid ]"
+chk "cli usage lists push-mode" 'grep -q push-mode <<<"$(bash "$HERE/gitflow.sh" nope 2>&1)"'
 
 echo "T12 — finish arg-guard (named branch must equal current, else refuse)"
 newrepo finargs; echo a>a; hookon; gitflow_init >/dev/null 2>&1
@@ -354,6 +372,65 @@ gitflow_start feature nr >/dev/null 2>&1; echo w>w; git add w
 nr_out="$(git commit -q -m w 2>&1)"; nr_rc=$?
 chk "T18g no origin → silent, commit ok"            "[ $nr_rc -eq 0 ] && ! printf '%s' \"\$nr_out\" | grep -q FAILED"
 
+echo "T18m — manual-push mode: gitflow.autopush=false (human-set) → nothing pushed, finish still deletes"
+newrepo manual; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+bare="$WORK/manual.git"; git init -q --bare "$bare"; git remote add origin "$bare"
+git push -q -u origin main develop 2>/dev/null
+chk "T18m0 develop tracks origin/develop" "git rev-parse -q --verify 'develop@{u}' >/dev/null"
+git config gitflow.autopush false
+gitflow_start feature manual >/dev/null 2>&1
+chk "T18i start → branch local, no copy on origin" 'git rev-parse --verify -q refs/heads/feature/manual >/dev/null && ! git ls-remote --exit-code --heads origin feature/manual >/dev/null 2>&1'
+echo m>m.txt; git add m.txt; git commit -q -m m
+dev_remote_before=$(git -C "$bare" rev-parse develop)
+gitflow_finish >/dev/null 2>&1; fin_rc=$?
+chk "T18j finish → merged locally, origin develop unchanged, branch deleted" "[ $fin_rc -eq 0 ] && grep -q 'Merge feature/manual into develop' < <(git log develop --format=%s) && [ \"\$(git -C \"$bare\" rev-parse develop)\" = \"$dev_remote_before\" ] && ! git rev-parse --verify -q refs/heads/feature/manual >/dev/null"
+git config gitflow.autopush true; gitflow_start feature lag >/dev/null 2>&1
+git config gitflow.autopush false
+echo l>l.txt; git add l.txt; git commit -q -m l
+gitflow_finish >"$WORK/lag.out" 2>&1; lag_rc=$?
+chk "T18k lagging upstream → finish deletes, remote copy left in place" "[ $lag_rc -eq 0 ] && ! git rev-parse --verify -q refs/heads/feature/lag >/dev/null && [ \"\$(git -C \"$bare\" rev-parse develop)\" = \"$dev_remote_before\" ] && grep -q 'left in place' \"$WORK/lag.out\" && git ls-remote --exit-code --heads origin feature/lag >/dev/null 2>&1"
+git config gitflow.autopush true; gitflow_start feature np >/dev/null 2>&1
+git config gitflow.autopush false
+echo n>n.txt; git add n.txt; git commit -q -m n
+GITFLOW_NO_PUSH=1 gitflow_finish >"$WORK/np.out" 2>&1; np_rc=$?
+chk "T18o NO_PUSH → silent on the remote copy" "[ $np_rc -eq 0 ] && ! git rev-parse --verify -q refs/heads/feature/np >/dev/null && ! grep -q 'left in place' \"$WORK/np.out\" && git ls-remote --exit-code --heads origin feature/np >/dev/null 2>&1"
+git remote set-url origin /nonexistent/x.git
+gitflow_start feature off2 >"$WORK/off2.out" 2>&1
+chk "T18n offline, nothing recorded → silent, branch created" "! grep -q behind \"$WORK/off2.out\" && git rev-parse --verify -q refs/heads/feature/off2 >/dev/null"
+git remote set-url origin "$bare"; git checkout -q develop
+other="$WORK/manual-other"; git clone -q "$bare" "$other" 2>/dev/null
+( cd "$other" && git config user.email t@t && git config user.name t \
+  && git config core.hooksPath /dev/null && git checkout -q develop \
+  && echo o>o.txt && git add o.txt && git commit -q -m o \
+  && git push -q origin develop ) >/dev/null 2>&1
+div_err="$WORK/div.err"
+div_out=$(gitflow_start feature div 2>"$div_err")
+chk "T18l diverged base → warns on stderr, stdout stays the branch name" "[ \"$div_out\" = feature/div ] && grep -q 'behind origin/develop' \"$div_err\" && git rev-parse --verify -q refs/heads/feature/div >/dev/null"
+
+echo "T18q — fail closed: unparseable gitflow.autopush → nothing pushes, named (BDR-114)"
+newrepo badval; echo a>a; hookon; gitflow_init >/dev/null 2>&1
+bare="$WORK/badval.git"; git init -q --bare "$bare"; git remote add origin "$bare"
+git push -q -u origin main develop 2>/dev/null
+git config gitflow.autopush flase
+gitflow_start feature bad >/dev/null 2>"$WORK/q1.err"
+chk "T18q1 start → branch local, not on origin, value named" "git rev-parse --verify -q refs/heads/feature/bad >/dev/null && ! git ls-remote --exit-code --heads origin feature/bad >/dev/null 2>&1 && grep -q 'not a boolean' \"$WORK/q1.err\""
+echo b>b.txt; git add b.txt; git commit -q -m b 2>"$WORK/q2.err"
+chk "T18q2 commit → not pushed, hook says NOT pushed" "! git ls-remote --exit-code --heads origin feature/bad >/dev/null 2>&1 && grep -q 'NOT pushed' \"$WORK/q2.err\""
+dev_before=$(git -C "$bare" rev-parse develop)
+gitflow_finish >/dev/null 2>&1; q_rc=$?
+chk "T18q3 finish → merged locally, origin develop unchanged" "[ $q_rc -eq 0 ] && [ \"\$(git -C \"$bare\" rev-parse develop)\" = \"$dev_before\" ] && ! git rev-parse --verify -q refs/heads/feature/bad >/dev/null"
+git config gitflow.autopush true
+gitflow_start feature good >/dev/null 2>&1
+echo g>g.txt; git add g.txt; git commit -q -m g 2>/dev/null
+chk "T18q4 true → post-commit pushed (tips equal)" '[ "$(git rev-parse HEAD)" = "$(git -C "$bare" rev-parse feature/good)" ]'
+_gitflow_emit_push_hook post-commit > "$WORK/pc.sh"
+chk "T18q5a emitted hook carries the rc:value case" "[ -s \"$WORK/pc.sh\" ] && grep -qF 'case \"\$rc:\$v\"' \"$WORK/pc.sh\""
+if command -v shellcheck >/dev/null 2>&1; then
+  chk "T18q5 emitted hook is POSIX-clean" "shellcheck -s sh \"$WORK/pc.sh\""
+else
+  ok "T18q5 skipped (no shellcheck)"
+fi
+
 echo "T19 — installed hooks == emitted hooks in the config repo (LRN-114 drift gate)"
 if [ -d "$HERE/../.githooks" ]; then
   chk "T19a pre-commit installed == emitted"  'diff -q <(_gitflow_emit_pre_commit) "$HERE/../.githooks/pre-commit" >/dev/null'
@@ -397,6 +474,29 @@ git config gitflow.protect false
 chk "T21c gitflow.protect=false → allowed"           '.githooks/pre-commit 2>/dev/null'
 git config --unset gitflow.protect
 git restore --staged code.txt .githooks/post-merge 2>/dev/null || true
+git reset -q; rm -f code.txt
+# allowlist (memory, tasks, audits, deploy, .githooks): any other .claude/ path blocks
+mkdir -p .claude/rules .claude/tasks .claude/memory .claude/audits .claude/deploy
+echo r > .claude/rules/x.md; echo '{}' > .claude/settings.json
+git add .claude/rules/x.md; git -c core.hooksPath=/dev/null commit -q -m "seed rules"
+echo r2 >> .claude/rules/x.md; git add .claude/rules/x.md
+chk "T21d .claude/rules-only on develop → blocked"    '! .githooks/pre-commit 2>/dev/null'
+git reset -q; git checkout -q -- .claude/rules/x.md
+git add .claude/settings.json
+chk "T21e .claude/settings.json-only on develop → blocked" '! .githooks/pre-commit 2>/dev/null'
+git reset -q
+git mv .claude/rules/x.md .claude/tasks/x.md
+chk "T21f rename rules→tasks on develop → blocked (--no-renames)" '! .githooks/pre-commit 2>/dev/null'
+git reset -q --hard
+for d in memory tasks audits deploy; do
+  echo "$d" > ".claude/$d/n.md"; git add ".claude/$d/n.md"
+  chk "T21g .claude/$d-only on develop → allowed" '.githooks/pre-commit 2>/dev/null'
+  git reset -q
+done
+echo m > .claude/memory/n.md; echo r3 >> .claude/rules/x.md
+git add .claude/memory/n.md .claude/rules/x.md
+chk "T21h memory + rules mix on develop → blocked" '! .githooks/pre-commit 2>/dev/null'
+git reset -q --hard
 
 echo "T22 — delete guard: never main/develop, never unmerged (premise: -d is dead once the upstream is in sync)"
 newrepo delguard; echo a>a; hookon; gitflow_init >/dev/null 2>&1
@@ -498,6 +598,13 @@ git config gitflow.autopush false
 gitflow_delete feature/np >/dev/null 2>&1
 git config --unset gitflow.autopush
 chk "T24i gitflow.autopush=false → remote copy untouched" 'git ls-remote --exit-code --heads origin feature/np >/dev/null 2>&1'
+
+echo "T25 — CLI start outside a git repo fails"
+nogit="$WORK/nogit"; mkdir -p "$nogit"; cd "$nogit" || exit 1
+# shellcheck disable=SC2034  # read by the eval in chk
+nogit_out="$(bash "$HERE/gitflow.sh" start chore x 2>&1)"; nogit_rc=$?
+chk "T25a rc non-zero"       "[ $nogit_rc -ne 0 ]"
+chk "T25b names the missing base" 'printf "%s" "$nogit_out" | grep -q "base .develop. missing"'
 
 echo
 echo "==== RESULT: $PASS passed, $FAIL failed ===="

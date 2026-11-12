@@ -12,18 +12,17 @@ Agent(subagent_type="plugin-probe", description="plugin gate — probe",
       prompt="Run your probes from <PROJECT_ROOT>. Emit the PROBE REPORT.")
 ```
 
-## 2. VALIDATION CHECKPOINT (main loop — between probe and reasoner)
+## 2. VALIDATION CHECKPOINT (main loop: between probe and reasoner)
 
 Validate the PROBE REPORT before any reasoning:
-- `EXTERNAL` non-empty AND each listed plugin's directory appears under
-  `CHECKPOINT plugin-dirs`.
+- `PROFILE` block holds a `profile=` line.
 - At least one project signal present (MANIFESTS / FRAMEWORK-DEPS /
   TSX-JSX-COUNT > 0 / DOCKER-COUNT > 0 / EMBEDDED hits). Else print
-  `⚠️ No project signals detected — recommendations will be conservative.`
+  `⚠️ No project signals detected: recommendations will be conservative.`
   and continue.
-- `CHECKPOINT toggle-script=UNAVAILABLE` → print `⚠️ toggle script
-  unavailable — recommendations will be advisory only, no auto-activation.`
-  and SKIP step 5 (apply) entirely.
+- `CHECKPOINT profile-sh=UNAVAILABLE` → print `⚠️ profile.sh unavailable:
+  recommendations will be advisory only, no auto-activation.` and SKIP
+  step 5 (apply) entirely.
 - PROBE REPORT missing/unparsable → retry the probe ONCE fresh; a 2nd
   failure → STOP and surface (never reason over invented detection).
 
@@ -40,51 +39,62 @@ PROBE REPORT (ground truth — do not re-detect):
 
 ## 4. PRESENT + BLOCKING GATE (main loop)
 
-Show the returned PLUGIN CHECK block.
+Show the returned PLUGIN CHECK block. The advisor emits tokens only; the
+main loop builds every command from the fixed templates of step 5, never
+pastes the advisor's text into a shell. Before running ANY command (the
+step-4 diff included) check each token: a profile name is one of the advisor's own set
+(web, seo, dev, design, qa, audit, minimal; never `full`, `max` or a
+user-added profile) and matches `^[a-z0-9][a-z0-9-]*$` with an existing
+`$HOME/.claude/lib/profiles/<name>.json`;
+a pack is one of design, scroll3d, seo, web-validate, gstack-dev,
+gstack-browser, gstack-design, extras (`higgsfield` is never accepted from an
+advisor token: paid service, explicit user ask only); a plugin is one of the
+two managed full ids `ui-ux-pro-max@ui-ux-pro-max-skill`,
+`pr-review-toolkit@claude-code-plugins`. A token matching none is printed as
+rejected and skipped, never run.
+For a `↻ SET <profile>` line run
+`bash "$HOME/.claude/lib/profile.sh" -C "<PROJECT_ROOT>" diff "<profile>"` and
+print its `→ off` lines under it as "turns off" (none → "turns off: nothing")
+and its `→ on` lines as "turns on" (none → "turns on: nothing").
+The diff exits non-zero on a bad name, an unknown profile or a missing
+profiles dir: on any non-zero exit print "turns off: unknown" and continue.
 - `ACTION REQUIRED? YES` → offer: A) fix plugins B) type "force". STOP until
   answered.
 - OK → print `✅ Plugin check passed — [active plugins] — complexity: <score>%`.
 
-## 5. APPLY GATE (main loop — only when the flow auto-activates)
+## 5. APPLY GATE (main loop: only when the flow auto-activates)
 
-If any plugin has ⚡ ENABLE status:
-1. List the changes:
+Trigger: a `↻ SET`, `⚡ ENABLE` or `⚠️ DISABLE` line. Under `source=flag`
+(`PROFILE :` block) the advisor emits only `relaunch: cc <name> <profile>`:
+nothing is applied. Apply only when
+`git -C "<PROJECT_ROOT>" rev-parse --show-toplevel` equals PROJECT_ROOT;
+otherwise print the commands and apply nothing ("no git root yet: run them
+after git init").
+1. List the changes, saying they are project-wide and persist in
+   `<PROJECT_ROOT>/.claude/settings.local.json`:
    ```
-   PROPOSED CHANGES:
-     ⚡ Enable ui-ux-pro-max (frontend detected, complexity 65%)
-     ⚡ Pre-fetch ctx7 docs for next.js, prisma
+   PROPOSED CHANGES (project-wide, persisted in
+   <PROJECT_ROOT>/.claude/settings.local.json):
+     ↻ Set profile dev (backend detected) — turns off: <diff lines>
+     ⚡ Enable pack design (frontend detected, complexity 65%)
+     ⚡ Enable ui-ux-pro-max@ui-ux-pro-max-skill
    Apply these changes? (yes / no / customize)
    ```
-2. "yes" → apply via the exact commands the advisor emitted. "customize" →
-   user picks. "no" → proceed with current config.
+2. "yes" → run the changes in order, the SET first, then the deltas (after
+   "customize" too). Each one is
+   `bash "$HOME/.claude/lib/profile.sh" -C "<PROJECT_ROOT>" set "<name>"`,
+   `... enable "<pack | full plugin id>"` or
+   `... disable "<pack | full plugin id>"` (same prefix). Each call
+   writes `.claude/settings.local.json` atomically or refuses (rc 2, nothing
+   written): stop at the first non-zero rc, print its stderr, and continue
+   with the current config. "customize" → user picks. "no" → proceed with
+   current config.
+3. After a successful write print `✅ Applied N change(s): run
+   /reload-plugins to load the packs in this session (connectors and model:
+   next session).` Say the change is project-wide and persists in
+   `<PROJECT_ROOT>/.claude/settings.local.json`. Print the undo: after a SET:
+   `bash "$HOME/.claude/lib/profile.sh" -C "<PROJECT_ROOT>" unset`, after
+   deltas the inverse enable / disable.
 
-**Never auto-activate without showing the list and getting confirmation.**
-
-### Rollback on partial failure
-
-Track each toggle; roll back the partial set rather than leave a
-half-applied configuration:
-
-```bash
-applied=()
-for change in "${PROPOSED_CHANGES[@]}"; do
-  if bash "$HOME/.claude/lib/toggle-external.sh" enable "$change"; then
-    applied+=("$change")
-  else
-    echo "❌ failed to enable $change — rolling back ${#applied[@]} prior change(s)"
-    for prior in "${applied[@]}"; do
-      bash "$HOME/.claude/lib/toggle-external.sh" disable "$prior" \
-        || echo "⚠️ rollback of $prior also failed — manual cleanup required: see ~/.claude/plugins/cache"
-    done
-    exit 1
-  fi
-done
-```
-
-Surface: `✅ Applied N change(s).` — or on failure:
-
-```
-⚠️ Toggle failed at change <name>. Rolled back the N prior change(s).
-   To inspect manually: ls ~/.claude/plugins/cache; bash ~/.claude/lib/toggle-external.sh list
-   Re-run /plugin-check after fixing the underlying cause (e.g. permissions).
-```
+**Never auto-activate without showing the list and getting confirmation.
+Never write the user scope.**

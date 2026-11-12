@@ -1,6 +1,6 @@
 ---
 name: doc-syncer
-description: 'Two-mode public-doc sync agent — MODE: audit (dispatched model="opus" — drift detection, semantic analysis, drafts, PATCH PLAN, read-only) and MODE: patch (sonnet pin — applies the APPROVED plan, oracle-checked, emits CHANGE SUMMARY + PATCHED_FILES). The validation gate lives in the DISPATCHER (BDR-077). Convention-aware (Diátaxis, Keep a Changelog); never touches .claude/.'
+description: 'Two-mode public-doc sync agent. MODE: audit (opus, read-only: drift, drafts, PATCH PLAN); MODE: patch (sonnet: applies the approved plan, emits PATCHED_FILES). Never touches .claude/.'
 tools: Read, Write, Edit, Bash, Grep, Glob
 model: sonnet
 effort: high
@@ -60,8 +60,8 @@ audit, report, and patch.
 Parse `$ARGUMENTS`:
 
 - **`MODE: patch`** — the dispatcher approved a PATCH PLAN and re-dispatches
-  this agent to APPLY it. Jump to MODE: PATCH section. Runs on the sonnet
-  frontmatter pin.
+  this agent to APPLY it. Jump to MODE: PATCH section. Runs on its sonnet
+  row (frontmatter = off-state floor).
 - **`MODE: audit`** (or no explicit MODE — audit is the default) — analysis
   half, dispatched with `model: "opus"` (judgment tier; the call-site
   override takes precedence over the sonnet pin). **READ-ONLY: Write and

@@ -14,7 +14,7 @@ Run `$HOME/.claude/lib/model-gate.md`. Reflection here (planning, audit
 judgment, loop decisions) requires Fable/Opus. Verdict `small` → STOP: the
 gate prints the remedy; end the turn — no later step, no dispatch. Nominal
 (big) path is silent.
-EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-107): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
+ROUTING: follow $HOME/.claude/lib/effort-shift.md (phases via mcp__model-router__route).
 
 ## REQUEST
 $ARGUMENTS
@@ -71,6 +71,9 @@ Load `$HOME/.claude/agents/analyzer.md`. Analyze BRIEF: existing code, stack con
 
 ## STEP 3 — DESIGN
 Invoke `brainstorming` (vendored superpowers skill) with BRIEF + ANALYSIS REPORT.
+Read `~/.claude/lib/architecture-defaults.md` first and pass it as binding
+context: its defaults (Rust, never a SPA for a public site, `/api/v1/`) hold
+unless the BRIEF names otherwise.
 Produce DESIGN: stack+versions, full folder tree, module responsibilities, data flow, interfaces (signatures only), config+tooling, test strategy, resolved decisions, prereqs list.
 Then run pass B of `$HOME/.claude/lib/contract-interview.md` against the DESIGN
 (minus what the BRIEF and the brainstorm settled): one batch before STEP 4;
@@ -102,7 +105,8 @@ BDR-077 : le design est CLOS au gate #1, le scaffold est de l'exécution,
 plus jamais inline sur le modèle de session). Pass IN THE PROMPT (LRN-126 —
 every field the scaffolder consumes crosses the dispatch): BRIEF (verbatim)
 + DESIGN (verbatim) + paths `~/.claude/templates/project-CLAUDE.md` +
-`~/.claude/CLAUDE.md`. A STOP (missing input) comes back as its report —
+`~/.claude/CLAUDE.md` + `~/.claude/lib/architecture-defaults.md`. A STOP
+(missing input) comes back as its report —
 resolve here, re-dispatch. The ~30s liveness pings are THIS loop's job
 while waiting.
 Creates: CLAUDE.md, `.claude/settings.json`, `.claudeignore`, `.gitignore`, `.env.example`, empty entry points. NO README, NO features.
@@ -181,12 +185,12 @@ This is the deterministic scaffold commit owner (closes BLK-010). The MVP is
 implemented on a `feature/*` branch off `develop` (STEP 8).
 
 ## STEP 6 — PLAN
-`Skill(effort-xhigh)` first, sent with the next tool call (effort-shift: turn reset; gate #1 ended the turn and the vendored `writing-plans` pin applies only when the user invokes it).
+`mcp__model-router__route(phase="plan")` first (route: resumed turn; gate #1 ended the turn).
 Invoke `writing-plans` (vendored superpowers skill) with BRIEF + skeleton.
 Granular tasks (2-5 min each), exact file paths, TDD: tests before code.
 
 ## STEP 6b — CHALLENGE THE PLAN (before the gate)
-`Skill(effort-xhigh)` first (effort-shift: own level before the challenge; send it in the same message as the challenger dispatch).
+`mcp__model-router__route(phase="plan")` first (route: own level before the challenge; send it with the challenger dispatch).
 Before the human sees the implementation plan, harden it. Run
 `$HOME/.claude/lib/challenge-plan.md` with `PLAN` = the plan STEP 6 wrote under
 `docs/superpowers/plans/`, `KIND` = `build-plan`, `SCOPE` = the skeleton + task file
@@ -212,7 +216,7 @@ Approve and start? (yes / request changes)
 Changes → back to STEP 6. Approved → continue.
 
 ## STEP 8 — IMPLEMENT
-First: `Skill(effort-medium)` (effort-shift: dispatch span starts; send it in the same message as this step's first dispatch).
+First: `mcp__model-router__route(phase="orchestrate")` (route: dispatch span starts; send it with this step's first dispatch).
 Start the MVP feature branch off develop, then implement on it:
 ```bash
 bash "$HOME/.claude/lib/gitflow.sh" start feature mvp
@@ -224,7 +228,8 @@ Invoke `subagent-driven-development` (vendored superpowers skill) for the per-ta
 finishing-a-development-branch", stop and return.
 
 **Model routing (BDR-066):** every subagent dispatched under SDD — per-task
-implementers AND its reviewers — MUST carry `model: "sonnet"` in the Agent
+implementers AND its reviewers — MUST carry `model: "sonnet"` and
+`effort="medium"` (the `implement` level; a main route never reaches a child) in the Agent
 call. The plan is closed; execution and plan-conformity review are sonnet
 work. Reflection (task decomposition, review verdict arbitration) stays in
 this loop.
@@ -261,9 +266,8 @@ against the founding contract. Distinct axis from STEP 10 code review
 ([[LRN-095]]) — both run.
 
 ## STEP 10 — CODE REVIEW
-`Skill(effort-xhigh)` first, sent with the review dispatch (effort-shift: judgment dispatch; the reviewer is a built-in and inherits the level in force).
 Invoke `requesting-code-review` (vendored superpowers skill). **Model routing (BDR-077):** the
-review subagent it dispatches MUST carry `model: "opus"` in the Agent call —
+review subagent it dispatches MUST carry `model: "opus"` and `effort="xhigh"` in the Agent call —
 craft review is dispatched judgment, never inherited from the session. Fix
 all CRITICAL before proceeding.
 
@@ -277,9 +281,9 @@ Capture ONLY structuring decisions, not scaffold detail:
 
 | Capitalize — founding (BDR)                                  | Skip — scaffold detail            |
 |--------------------------------------------------------------|-----------------------------------|
-| Stack / framework choice + why (Astro vs Next)               | directory names, scaffolded files |
+| Stack / language choice + why (Rust default, Astro vs Next)  | directory names, scaffolded files |
 | Architecture pattern, data-flow shape                        | dev-tooling / formatter config    |
-| Doctrinal exclusions (public site = no SPA, API /v1 day one) | which template files were copied  |
+| Doctrinal exclusions (Rust default, no SPA, API /v1 day one) | which template files were copied  |
 | Security defaults adopted; conventions binding future code   | anything reversible / obvious     |
 
 Source the candidates from: the PROJECT BRIEF (STEP 1), the DESIGN's resolved
@@ -298,9 +302,7 @@ capitalizes NOTHING. Do NOT fabricate a BDR to fill the step. Print
    [ decisions.md ]  BDR-XXX — <decision> — <1-line why>
    Valider lesquels ? (all / <IDs> / edit / skip)
    ```
-3. Append approved entries to the existing registries (bootstrapped at STEP 5,
-   in the root commit) + update the Index. Append a journal line under today's
-   heading in `.claude/memory/journal.md`.
+3. Write approved entries to the registries bootstrapped at STEP 5 (in the root commit), and the journal line, per `lib/capitalize-commit.md` § WRITE.
 
 **Hash rule — founding decisions carry NO commit hash; use path + date only.**
 This is by nature, not an omission: a founding decision is made at DESIGN
@@ -316,7 +318,7 @@ articles dropped, code/IDs/quoted errors verbatim — per CLAUDE.md "Memory
 registries" (Always English, always caveman). The gate may mirror the user's
 language; entries must not.
 
-`Skill(effort-low)` first (effort-shift: bookkeeping tail; send it in the same message as the memory-commit command).
+`mcp__model-router__route(phase="apply")` first (route: bookkeeping tail; send it with the memory-commit command).
 
 **Then commit the memory** — follow `$HOME/.claude/lib/capitalize-commit.md`: it
 surgically commits the approved founding decisions (`.claude/memory` +

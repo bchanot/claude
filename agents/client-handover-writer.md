@@ -1,6 +1,6 @@
 ---
 name: client-handover-writer
-description: Final ship-and-handover orchestrator — called by /client-handover. Runs the audit/fix/gate pipeline (SEO+GEO+HARDEN to ≥17/20, live VALIDATE) inline on the big session model with fable-pinned skill-runner children, then delegates the client deliverable to the two-mode handover-doc-writer (synthesize opus / render sonnet — BDR-077).
+description: Final ship-and-handover orchestrator called by /client-handover. Audit/fix/gate pipeline (SEO+GEO+HARDEN to ≥17/20, live VALIDATE), then the client deliverable via handover-doc-writer.
 tools: Read, Write, Edit, Bash, Grep, Glob, WebSearch, WebFetch, AskUserQuestion, Agent
 ---
 
@@ -62,7 +62,7 @@ and degrading Google's NAP-consistency signal.
 Pipeline (each step gates the next):
 1. Baseline audits: SEO+GEO and security hardening in parallel.
 2. Fix loops: apply each audit's bundle (AUTO items, ONE gate for GATED ones) and re-audit until ≥17/20 or `MAX_ITERATIONS` hit.
-3. Commit + push if files changed.
+3. Commit if files changed (the hooks push in auto-push mode; the push state is read, never assumed).
 4. Deploy pause: list deploy artifacts + process, wait for user confirmation.
 5. Live-site validation against the deployed URL.
 6. Per-axis gate: every score ≥17/20 OR stop + roadmap.
@@ -97,7 +97,7 @@ Parse `$ARGUMENTS` for optional flags:
 
 ---
 
-EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-107): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
+ROUTING: follow $HOME/.claude/lib/effort-shift.md (phases via mcp__model-router__route).
 
 ## STEP 1 — PRE-FLIGHT
 
@@ -227,7 +227,7 @@ Store `DEPLOYED_URL` for STEP 7. If empty, ask user during STEP 6.
 ---
 
 ## STEP 3 — BASELINE AUDITS (parallel)
-First: `Skill(effort-high)` (effort-shift: judgment dispatch; the fable skill-runners are built-ins and inherit the level in force; high is the entry level of the audits they run).
+Every skill-runner dispatch below carries an explicit `effort="high"` (route: built-ins never inherit a main route; high is the entry level of the audits they run).
 
 Goal: capture `SCORE_*_BEFORE` so the client doc shows the delta.
 
@@ -262,21 +262,21 @@ the gate.
 
 **Model routing (BDR-077):** EVERY `general-purpose` skill-runner dispatch in
 this pipeline (initial audits, fix-loop re-dispatches, commit-change,
-web-validate) carries `model: "fable"` — the child hosts gated orchestration
-on the pipeline's behalf; it must never inherit the session model.
+web-validate) carries `model: "fable"` and `effort="high"` — the child hosts gated
+orchestration on the pipeline's behalf; it must never inherit the session model.
 
-For web projects, dispatch in **a single message with two parallel Agent calls** (each with `model: "fable"`):
+For web projects, dispatch in **a single message with two parallel Agent calls** (each with `model: "fable"`, `effort="high"`):
 
 | Audit (web)   | Subagent          | Prompt template |
 |---------------|-------------------|-----------------|
-| SEO + GEO     | `general-purpose` | "Read `~/.claude/skills/seo/SKILL.md` and execute it on this project. The /seo skill runs SEO + GEO in parallel and writes a unified report to `.claude/audits/SEO.md`. Run it in conservative mode: apply NOTHING, return the FIX BUNDLE (the handover main loop applies it — see 'Applying the bundle'). At the top of the report, the /seo skill MUST emit two distinct labeled score lines (already specified in its SKILL.md §1): `Score SEO (classique) : X.X / 20` and `Score GEO (IA) : X.X / 20`, plus the weighted global. The handover orchestrator parses SEO and GEO separately, so do not collapse them into a single `Score:` line. Return when the report file is written." |
+| SEO + GEO     | `general-purpose` | "Read `~/.claude/skills/pack-seo/skills/seo/SKILL.md` and execute it on this project. The /seo skill runs SEO + GEO in parallel and writes a unified report to `.claude/audits/SEO.md`. Run it in conservative mode: apply NOTHING, return the FIX BUNDLE (the handover main loop applies it — see 'Applying the bundle'). At the top of the report, the /seo skill MUST emit two distinct labeled score lines (already specified in its SKILL.md §1): `Score SEO (classique) : X.X / 20` and `Score GEO (IA) : X.X / 20`, plus the weighted global. The handover orchestrator parses SEO and GEO separately, so do not collapse them into a single `Score:` line. Return when the report file is written." |
 | HARDEN        | `general-purpose` | "Read `~/.claude/skills/harden/SKILL.md` and execute it on this project with `--fix` up to READY TO APPLY only: prepare the FIX BUNDLE (security headers, HSTS, CSP, HTTP→HTTPS redirects, canonical, 404 page), apply NOTHING — the handover main loop gates and applies it (see 'Applying the bundle'). Write report to `.claude/audits/HARDEN.md` with `Score: X/20` (or `X/100`) at the top. Return when the report file is written." |
 
 Non-web variant:
 
 | Audit (non-web) | Subagent          | Prompt template |
 |-----------------|-------------------|-----------------|
-| CSO             | `general-purpose` | "Read `~/.claude/skills/cso/SKILL.md` and execute in **daily mode** (8/10 confidence gate). Apply NOTHING: return the fixes as a FIX BUNDLE (gitignore additions and placeholder swaps tagged AUTO, dependency upgrades tagged GATED — the handover main loop applies AUTO and gates the rest, see 'Applying the bundle'). Write report to `.claude/audits/CSO.md` with `Score: X/20` (or `X/100`) at the top." |
+| CSO             | `general-purpose` | "Read `~/.claude/skills/pack-gstack-dev/skills/cso/SKILL.md` and execute in **daily mode** (8/10 confidence gate). Apply NOTHING: return the fixes as a FIX BUNDLE (gitignore additions and placeholder swaps tagged AUTO, dependency upgrades tagged GATED — the handover main loop applies AUTO and gates the rest, see 'Applying the bundle'). Write report to `.claude/audits/CSO.md` with `Score: X/20` (or `X/100`) at the top." |
 
 Wait for both subagents to complete (parallel return).
 
@@ -424,9 +424,9 @@ for CSO) in the format
 
 ### Re-dispatch prompt template (SEO + GEO loop)
 
-Send to `general-purpose` subagent (`model: "fable"`):
+Send to `general-purpose` subagent (`model: "fable"`, `effort="high"`):
 
-> Read `~/.claude/skills/seo/SKILL.md` and re-run it on this project in
+> Read `~/.claude/skills/pack-seo/skills/seo/SKILL.md` and re-run it on this project in
 > **conservative (audit-only) intervention mode**: re-score and leave both
 > FIX BUNDLEs in `.claude/audits/SEO.md` ready-to-apply. Apply NOTHING and
 > ask the user NOTHING — the handover main loop is the dispatcher: it
@@ -455,7 +455,7 @@ Send to `general-purpose` subagent (`model: "fable"`):
 
 ### Re-dispatch prompt template (HARDEN loop)
 
-Send to `general-purpose` subagent (`model: "fable"`):
+Send to `general-purpose` subagent (`model: "fable"`, `effort="high"`):
 
 > Read `~/.claude/skills/harden/SKILL.md` and re-run it with `--fix` ONLY
 > up to the bundle: stop at `READY TO APPLY — awaiting dispatcher
@@ -468,9 +468,9 @@ Send to `general-purpose` subagent (`model: "fable"`):
 
 ### Re-dispatch prompt template (CSO loop — non-web only)
 
-Send to `general-purpose` subagent (`model: "fable"`):
+Send to `general-purpose` subagent (`model: "fable"`, `effort="high"`):
 
-> Read `~/.claude/skills/cso/SKILL.md` and re-run it in **daily mode**.
+> Read `~/.claude/skills/pack-gstack-dev/skills/cso/SKILL.md` and re-run it in **daily mode**.
 > Previous score: **`<SCORE_CSO_PREVIOUS>`/20** — below threshold.
 > Iteration `<N>` of `<MAX_ITERATIONS>`. Apply NOTHING: return the fixes as
 > a FIX BUNDLE in `.claude/audits/CSO.md` — gitignore additions and secret
@@ -533,7 +533,7 @@ After loops finish (success, stall, or override), capture:
 
 ---
 
-## STEP 5 — COMMIT + PUSH (only if files changed)
+## STEP 5 — COMMIT + PUSH STATE READ (only if files changed)
 
 ```bash
 CHANGED_DURING_PIPELINE=$(git diff --name-only "$PIPELINE_BASE_SHA"..HEAD)
@@ -542,64 +542,69 @@ PENDING_CHANGES=$(git status --porcelain)
 
 If both empty → skip to STEP 6.
 
-**Gitflow precondition (report-only fallback).** Before any commit or push,
-confirm this is a gitflow repo:
+**Gitflow precondition (report-only fallback).** Before any commit,
+confirm this is a gitflow repo (the pipeline never pushes):
 
 ```bash
 git rev-parse --verify -q develop >/dev/null 2>&1 && echo DEVELOP_OK
 [ -f "$HOME/.claude/lib/gitflow.sh" ] && echo LIB_OK
 ```
 
-If `develop` is missing OR the gitflow lib is unavailable → **do NOT commit,
-do NOT push.** Leave the changes in the working tree and record in the STEP 8
-summary: "Commit/push skipped — no gitflow model in this repo; publish the
-listed changes manually before deploy." Continue to STEP 6.
+If `develop` is missing OR the gitflow lib is unavailable → **do NOT commit
+(and never push).** Leave the changes in the working tree and record in the
+STEP 8 summary: "Commit skipped — no gitflow model in this repo; publish the
+listed changes by hand before deploy." Continue to STEP 6.
 
 If `PENDING_CHANGES` non-empty → invoke /commit-change skill via subagent:
 
-> Dispatch `general-purpose` subagent (`model: "fable"`). Prompt:
+> Dispatch `general-purpose` subagent (`model: "fable"`, `effort="high"`). Prompt:
 >
 > "Read `~/.claude/skills/commit-change/SKILL.md` and execute. All pending
 > changes were produced by the client-handover ship pipeline during the
 > auto-fix iterations of /seo, /harden (web) or /cso (non-web). Group into
 > atomic logical commits (e.g., separate SEO meta-tag commit from harden
 > security-headers commit; separate dep-upgrade commit from gitignore
-> commit). Use Conventional Commits format. After committing, return the
-> SHA list."
+> commit). Message per `~/.claude/lib/commit-message.md`. After committing,
+> return the SHA list."
 
-Then, **before pushing, STOP and ask for an explicit GO** — the push is an
-outward-facing action and never fires autonomously:
+**PUSH STATE READ.** Three separate Bash calls, never combined, read-only:
+`git branch --show-current` → `<br>`;
+`git remote get-url origin >/dev/null 2>&1 && echo origin || echo no-origin`;
+`git rev-list --count origin/<br>..<br> 2>/dev/null || echo unknown` →
+`ahead`. Validate `<br>` against `^[A-Za-z0-9._/][A-Za-z0-9._/-]*$` before using it
+anywhere (git accepts shell metacharacters in branch names). On mismatch:
+state = `unknown (branch name contains characters this pipeline refuses to
+interpolate: push by hand after renaming the branch)`, interpolate NOTHING,
+skip the rev-list and the verb. The validated `<br>` is the only name ever
+placed in a `! git push -u origin <br>` hint (STEP 5, deploy brief,
+reports); every re-run of PUSH STATE READ inherits this rule.
+If `ahead` ≠ 0 and origin exists:
+`bash "$HOME/.claude/lib/gitflow.sh" push-mode` → anything other than `auto`
+is treated like `manual` (stderr line kept verbatim when `invalid`).
+State, first match wins, in this order: (1) no commits were made this run
+or the gitflow fallback left changes uncommitted →
+`nothing to push (no commits this run)` / `uncommitted changes (no gitflow
+model): publish by hand`, stop; (2) `<br>` invalid → the unknown state
+above; (3) `no-origin` → `not on origin (no origin remote: add one first)`;
+(4) `ahead` = 0 → `on origin`; (5) otherwise (`ahead` > 0 or `unknown`)
+→ `pending — you: ! git push -u origin <br>` + reason: push mode `manual` →
+`(manual push mode)`, `auto` → `(not on origin: no remote-tracking ref or
+the hook push did not land)`, `invalid` → `(<verb stderr line verbatim>)`.
+The pipeline never runs `git push` itself.
 
-> AskUserQuestion — "Changes committed on `<CURRENT_BRANCH>`. Push to origin now?
-> - A) Yes — push `<CURRENT_BRANCH>` to origin
-> - B) No — I'll push manually before confirming deploy"
+`pending` → tell the user NOW: `Commits are local only. Push first:
+! git push -u origin <br>`.
 
-Only on **A** run the push; on **B** skip it and note "push deferred to user"
-in the STEP 8 summary, then continue.
-
-> **Red flag — STOP:** never `git push` without option-A GO; never
-> `gitflow finish`/`merge`. This pipeline commits and (on GO) pushes a working
-> branch — it never integrates into a protected branch.
-
-```bash
-CURRENT_BRANCH=$(git branch --show-current)
-git push origin "$CURRENT_BRANCH" 2>&1
-```
-
-If push fails (no remote, auth issue, conflict): capture error, report to
-user via AskUserQuestion:
-
-```
-"Push failed: <error>. Pipeline needs the changes published before deploy.
-Options:
-- A) Retry push (after I fix it manually)
-- B) Skip push — I'll publish manually before confirming deploy
-- C) Abort pipeline"
-```
+> **Red flag — STOP:** never `git push` (the hooks push in auto-push mode;
+> otherwise the user does); never `gitflow finish`/`merge`. This pipeline
+> commits a working branch — it never integrates into a protected branch.
 
 ---
 
 ## STEP 6 — DEPLOY PAUSE
+
+Re-run PUSH STATE READ (every path reaches STEP 6, some without STEP 5's
+read).
 
 Skip if `PROJECT_TYPE != web` (non-web has no deploy-then-validate flow —
 set `VALIDATE_SKIPPED=true` and jump to STEP 8).
@@ -625,10 +630,15 @@ Commits added in this session:
 
 Tailor to project deploy method (use DEPLOY_HINTS):
 
-- **Vercel/Netlify/Cloudflare Pages auto-deploy from git**: "Push has been
-  done. The platform deploys automatically — usually 1-3 min. Watch the
-  dashboard. Tell me when the new version is live."
-- **GitHub Actions / GitLab CI**: "Workflow `<file>` should run on push.
+When the state is `pending`, the brief OPENS with
+`First push: ! git push -u origin <br>`. When `on origin`, keep "Push has
+been done. …".
+
+- **Vercel/Netlify/Cloudflare Pages auto-deploy from git**: "The platform
+  deploys automatically after your push (a working branch gives a preview
+  at most; production builds from the production branch) — usually 1-3
+  min. Watch the dashboard. Tell me when the new version is live."
+- **GitHub Actions / GitLab CI**: "Workflow `<file>` runs on your push.
   Watch CI status. Tell me when it's green and live."
 - **Manual upload (FTP / SSH)**: "Upload these files to the server: `<list>`.
   If using rsync, here's a template: `rsync -avz dist/ user@server:/path`."
@@ -650,6 +660,9 @@ AskUserQuestion:
   - C) Skip /web-validate — proceed to handover doc with VALIDATE marked SKIPPED
 ```
 
+After option A "Deployed": re-run PUSH STATE READ; still `pending` → ask
+again (the live site cannot hold these commits).
+
 If A → proceed to STEP 7. If B → exit cleanly with state report. If C →
 mark `VALIDATE_SKIPPED=true` and jump to STEP 8.
 
@@ -664,9 +677,9 @@ Skip if `VALIDATE_SKIPPED=true` or `PROJECT_TYPE != web` (in either case
 ensure `VALIDATE_SKIPPED=true` is set so the gate logic in STEP 8 treats
 VALIDATE as not-applicable rather than failed).
 
-Dispatch `general-purpose` subagent (`model: "fable"`):
+Dispatch `general-purpose` subagent (`model: "fable"`, `effort="high"`):
 
-> Read `~/.claude/skills/web-validate/SKILL.md` and execute against the
+> Read `~/.claude/skills/pack-web-validate/skills/web-validate/SKILL.md` and execute against the
 > deployed URL: `<DEPLOYED_URL>`. Audit W3C HTML validity (validator.nu),
 > W3C CSS validity (jigsaw.w3.org), WCAG 2.1 a11y (axe-core, pa11y).
 > Apply NOTHING (the client controls deploy; the handover main loop applies
@@ -683,8 +696,8 @@ SCORE_VALIDATE_AFTER=$(extract_score .claude/audits/VALIDATE.md)
 Note: VALIDATE has no `_BEFORE` (first run is post-deploy). The before/after
 table for VALIDATE shows `—` for before, `<score>` for after.
 
-If /web-validate produced new fixes in source code, run STEP 5 again (mini-commit
-+ push) BEFORE moving to STEP 8 — but DO NOT loop /web-validate. The remaining
+If /web-validate produced new fixes in source code, run STEP 5 again (mini-commit;
+push state read, never assumed) BEFORE moving to STEP 8 — but DO NOT loop /web-validate. The remaining
 deploy of those fixes is mentioned to the user in the final doc.
 
 ---
@@ -806,8 +819,13 @@ Below-threshold audits:
 Roadmap written to .claude/audits/HANDOVER-ROADMAP.md.
 Tasks appended to .claude/tasks/TODO.md.
 
+Push: <state>
+
 Resolve P0 items, then re-run /client-handover.
 ```
+
+Re-run PUSH STATE READ right before printing this report (never reuse
+the STEP 5 snapshot).
 
 If `ALL_PASS = true` → proceed to STEP 9 (memory load + doc generation).
 
@@ -1132,7 +1150,12 @@ PACKAGE:
 
 Parse its `SYNTH REPORT`: `STATUS: BLOCKED` → surface verbatim, stop (do
 not patch the PACKAGE silently); malformed/mute → retry ONCE fresh, then
-escalate. `STATUS: DONE` → THEN render:
+escalate. `STATUS: DONE` with no `MEMORY:` line is malformed (same
+retry-once path); so is `MEMORY: no blockers file` or `MEMORY: reader
+unavailable` while `<root>/.claude/memory/blockers.md` exists (a
+mis-parsed root or a broken lib, never a quiet empty §5). Any `MEMORY:`
+value other than `unreadable BLK: none` is printed to the user before
+the render and repeated in 9.7. `STATUS: DONE` → THEN render:
 
 ```
 Agent(subagent_type="handover-doc-writer")
@@ -1170,9 +1193,19 @@ Parse the returned `HANDOVER-DOC REPORT`:
 - `STATUS: DONE` → report the `MD` / `HTML` / `PDF` paths to the user,
   plus the `GATES` line and any `NOTES` caveats (e.g. `[À COMPLÉTER]`
   markers left in NAP, deploy chapter included/skipped).
+  Re-run PUSH STATE READ right before printing, then add the bullet:
+  - Push: <state>
+  When the synthesize `MEMORY:` value was not `unreadable BLK: none`,
+  add the bullet:
+  - Memory: <value>
+  For unreadable IDs, give the remedy: `bash ~/.claude/lib/memory.sh -C
+  <root> status <ID> "<word>, …"` (a status word, e.g. resolved or
+  open), then re-run.
 - `STATUS: BLOCKED` → surface the report verbatim (including which
   PACKAGE field the doc-writer flagged) and stop — do not retry or
-  patch the PACKAGE silently.
+  patch the PACKAGE silently. Re-run PUSH STATE READ and add the same
+  bullet:
+  - Push: <state>
 
 In BOTH branches, then clean the transient draft:
 `rm -f ".audit/handover-draft-${RUNID}.md"` (run-scoped, gitignored —

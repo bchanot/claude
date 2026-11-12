@@ -155,6 +155,60 @@ if [ -z "$OUT" ]; then ok "stdout empty on rejection (no stale hash)"; else ko "
 if [ "$BEFORE" = "$AFTER" ]; then ok "HEAD unmoved"; else ko "HEAD moved despite rejection"; fi
 rm -rf "$R"
 
+echo "== check --staged chokepoint (v2 registry, phase 4a)"
+d="$(new_repo)"
+printf -- '---\nformat: 2\ntype: decisions_registry\nentry_prefix: BDR\n---\n\n## BDR-001 — kept (2026-10-27)\n- **Status**: accepted\n' \
+  > "$d/.claude/memory/decisions.md"
+git -C "$d" add -A && git -C "$d" commit -qm v2
+head_before=$(git -C "$d" rev-parse HEAD)
+sed 's/kept/rewritten/' "$d/.claude/memory/decisions.md" > "$d/x.tmp" \
+  && cat "$d/x.tmp" > "$d/.claude/memory/decisions.md"
+out="$(cd "$d" && bash "$HELPER" commit "chore(memory): bad" 2>/dev/null)"; rc=$?
+staged="$(git -C "$d" diff --cached --name-only)"
+if [ "$rc" -eq 6 ] && [ -z "$out" ] && [ -z "$staged" ] && [ "$(git -C "$d" rev-parse HEAD)" = "$head_before" ]; then ok "in-place edit of a v2 entry → rc 6, nothing committed, nothing staged"; else ko "rc=$rc out=[$out] staged=[$staged] — in-place edit committed or left staged"; fi
+git -C "$d" checkout -q HEAD -- .claude/memory/decisions.md
+printf '\n## BDR-002 — added (2026-10-27)\nbody\n' >> "$d/.claude/memory/decisions.md"
+out="$(cd "$d" && bash "$HELPER" commit "chore(memory): BDR-002" 2>/dev/null)"; rc=$?
+if [ "$rc" -eq 0 ] && [ -n "$out" ]; then ok "append to a v2 registry → committed"; else ko "append refused rc=$rc"; fi
+
+echo "== rc 6 names the partial stage it drops"
+d="$(new_repo)"
+printf -- '---\nformat: 2\ntype: decisions_registry\nentry_prefix: BDR\n---\n\n## BDR-001 — kept (2026-10-27)\n- **Status**: accepted\n' \
+  > "$d/.claude/memory/decisions.md"
+git -C "$d" add -A && git -C "$d" commit -qm v2
+sed 's/kept/versionA/' "$d/.claude/memory/decisions.md" > "$d/x.tmp"
+cat "$d/x.tmp" > "$d/.claude/memory/decisions.md"
+git -C "$d" add .claude/memory/decisions.md
+oid="$(git -C "$d" rev-parse :.claude/memory/decisions.md)"
+sed 's/versionA/versionB/' "$d/x.tmp" > "$d/.claude/memory/decisions.md"
+printf -- '- [ ] task\n' > "$d/.claude/tasks/TODO.md"
+git -C "$d" add .claude/tasks/TODO.md
+err="$(cd "$d" && bash "$HELPER" commit "chore(memory): partial" 2>&1 >/dev/null)"; rc=$?
+staged="$(git -C "$d" diff --cached --name-only)"
+want="memory-commit: partial stage dropped on: .claude/memory/decisions.md (blob $oid; restore: git update-index --cacheinfo 100644,$oid,.claude/memory/decisions.md)"
+if [ "$rc" -eq 6 ] && [ -z "$staged" ] && [ "$(printf '%s\n' "$err" | grep -cxF "$want")" -eq 1 ]; then ok "rc 6 names a dropped partial stage (blob id), nothing left staged"; else ko "rc=$rc staged=[$staged] err=[$err]"; fi
+if [ "$(printf '%s\n' "$err" | grep -c 'dropped on: .*TODO.md')" -eq 0 ]; then ok "a fully staged file is not listed"; else ko "fully staged TODO.md listed as a dropped partial stage"; fi
+rm -rf "$d"
+
+echo "== partial stages listed in any locale (sort/comm agree)"
+d="$(new_repo)"
+printf -- '---\nformat: 2\ntype: decisions_registry\nentry_prefix: BDR\n---\n\n## BDR-001 — kept (2026-10-27)\n- **Status**: accepted\n' \
+  > "$d/.claude/memory/decisions.md"
+mkdir -p "$d/.claude/tasks/contracts"
+printf 'a\n' > "$d/.claude/tasks/TODO.md"
+printf 'a\n' > "$d/.claude/tasks/contracts/x.md"
+git -C "$d" add -A && git -C "$d" commit -qm v2
+sed 's/kept/edited/' "$d/.claude/memory/decisions.md" > "$d/x.tmp"
+cat "$d/x.tmp" > "$d/.claude/memory/decisions.md"
+git -C "$d" add .claude/memory/decisions.md
+for f in .claude/tasks/TODO.md .claude/tasks/contracts/x.md; do
+  printf 'b\n' >> "$d/$f"; git -C "$d" add "$f"; printf 'c\n' >> "$d/$f"
+done
+err="$(cd "$d" && LC_ALL=en_US.UTF-8 bash "$HELPER" commit "chore(memory): locale" 2>&1 >/dev/null)"; rc=$?
+n="$(printf '%s\n' "$err" | grep -c 'partial stage dropped on: .claude/tasks/')"
+if [ "$rc" -eq 6 ] && [ "$n" -eq 2 ] && ! printf '%s\n' "$err" | grep -q 'sorted order'; then ok "both partial stages named, no sort-order warning (locale vs byte order)"; else ko "rc=$rc n=$n err=[$err]"; fi
+rm -rf "$d"
+
 echo
 printf 'RESULT: %d passed, %d failed\n' "$PASS" "$FAIL"
 [ "$FAIL" -eq 0 ]

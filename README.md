@@ -14,12 +14,15 @@ Not a collection of prompts — an operating layer on top of Claude Code:
   full feature pipeline with validation gates.
 - **Agents** are the execution units skills dispatch to — each pinned to
   the cheapest model that can do the job (haiku collects, sonnet executes,
-  opus judges, the session model only reflects).
+  opus judges and runs the session, Fable plans and runs the merge gates).
 - **Hooks and permissions** are deterministic guardrails: gitflow enforced
   by a pre-commit hook in every repo (`make link` points git's global
   `core.hooksPath` at `~/.claude/githooks`), every commit pushed by
-  post-commit and post-merge hooks, `main`/`develop` undeletable by a reference-transaction hook,
-  deny-first permission rules, secrets kept in `~/.claude/.env` and
+  post-commit and post-merge hooks (nothing pushed in a repo the user puts
+  in manual-push mode, where a PreToolUse hook also refuses Claude's own
+  `git push`), `main`/`develop` undeletable by a reference-transaction hook,
+  package and archive extraction into system directories refused by a
+  PreToolUse hook (here or on a VM over ssh), deny-first permission rules, secrets kept in `~/.claude/.env` and
   never in config files.
 - **Templates and memory** seed every project with persistent registries
   (decisions, learnings, blockers, journal, evals) — what a session
@@ -67,26 +70,34 @@ commands, settings, secrets, maintenance.
 
 ## Agent model routing (model-tiering v2)
 
-Doctrine: the session model (Fable) does main-loop reflection ONLY —
-brainstorm, plan, contract, audit judgment, gates, loop decisions — enforced
-by a blocking gate (`lib/model-gate.md` + `lib/model-check.sh`) at the entry
-of the 15 reflection skills (the orchestrators plus `/analyze`). Nothing dispatched inherits silently:
-typed agents carry a frontmatter pin, built-ins get an explicit `model=` at
-every call site.
+Doctrine: the main loop runs on the `opus` session model; the model-router rows
+lift it to Fable for main-loop reflection ONLY: brainstorm, plan, contract,
+audit judgment, loop decisions. The main loop writes no code outside a skill run (the router's guard
+redirects it to a skill); the fresh gates run as dispatched agents on the `audit` row. The
+Fable/Opus model floor is enforced by a blocking gate (`lib/model-gate.md`) at
+the entry of the 17 reflection skills (the orchestrators, `/analyze`,
+`/guardrails` and `/a11y`): the skill calls the model-router `route` tool and
+its answer, which names the model id the main loop runs on, is the witness. A
+non-Fable/Opus id or the mod off stops the skill (`/route on` resumes the
+mod). Nothing dispatched inherits silently: typed agents run on their
+model-router row, their
+`model:` frontmatter being the off-state floor; built-ins get an explicit
+`model=` at every call site.
 
 | Agent | Model | Tier |
 |---|---|---|
 | feater, hotfixer, bugfixer | sonnet (pinned) | executors — code from a closed plan (feat), fix from a closed diagnosis (bugfix), fix-bundle appliers |
-| verifier, security-auditor | sonnet (pinned) | fresh gates (≤3×/loop) |
-| commit-changer, release-executor, code-cleaner | sonnet (pinned) | dispatched execution — grouping+commit / release spans / approved cleanup (audit + approval gates stay in the dispatcher) |
+| verifier | Fable (`audit` row: best/xhigh, opus frontmatter floor) | fresh gate (≤3×/loop) |
+| security-auditor | Fable (`audit` row: best/xhigh, opus frontmatter floor) | fresh gate (≤3×/loop) |
+| commit-changer, release-executor, code-cleaner | sonnet (pinned) | dispatched execution — grouping+commit / release prep span / approved cleanup (audit + approval gates stay in the dispatcher) |
 | onboarder, scaffolder, refactorer, validator-analyzer, plugin-probe | sonnet (pinned) | workers — config generation, scaffold, refactor, deterministic W3C/WCAG runner, mechanical plugin probe |
 | status-reporter | haiku (pinned) | mechanical collector |
 | analyzer, plan-challenger, plugin-advisor | opus (pinned) | dispatched judgment — pre-plan analysis, 3-lens adversarial plan challenge (`/ship-feature` STEP 2b), plugin-fit reasoning |
 | seo-analyzer, geo-analyzer | opus pin (judge mode); collect/template spans dispatched `model="sonnet"` | 3-mode audit pipelines — judgment fail-closed on opus, mechanical collect + templating on sonnet |
 | doc-syncer | sonnet pin; audit mode dispatched `model="opus"` | two-mode: audit (drift judgment, opus) / patch (mechanical apply, sonnet) |
 | handover-doc-writer | sonnet pin; synthesize mode dispatched `model="opus"` | two-mode: synthesize (opus) / render (sonnet) — client deliverable |
-| interviewer, client-handover-writer | unpinned (inline-load = session model) | they ARE the main loop — a frontmatter pin would be inert |
-| Explore (built-in) | inherit session (Fable/Opus) | search feeds reflection — kept on the big model, not pinned down |
+| interviewer, client-handover-writer | unpinned (inline-load = the main loop's model) | they ARE the main loop — a frontmatter pin would be inert |
+| Explore, Plan (built-in) | model-router mod: Explore → sonnet/medium, Plan → opus/xhigh, set at spawn; an explicit `model=` on the call wins; mod off: inherit session | built-ins routed per phase by the mod |
 
 The pure-execution skills `/doc`, `/status`, `/commit-change`,
 `/release-candidate` **dispatch** their agent (instead of inline-loading it)
@@ -98,19 +109,67 @@ children are dispatched `model:"fable"` (they carry reflection).
 ## Effort routing (BDR-107, BDR-108)
 
 Second axis of the same table: how hard each phase thinks. Session default
-`high`. Every typed agent carries an `effort:` pin next to its `model:` (low
-appliers, medium executors, high judgment, xhigh challengers and gates; none
-on haiku, which rejects the parameter). Every user-invoked skill carries an
-entry level (`/status` low … `/ship-feature` xhigh); the vendored externals
-(design stack, superpowers, agent-skills, MengTo scroll skills, 21st) get theirs from
-`lib/effort-pins.txt`, re-applied by `lib/effort-pins.sh` after every
-vendoring step. Orchestrators shift per phase through the `effort-low` …
-`effort-max` skills (`lib/effort-shift.md`, always sent with another tool
-call: a lone Skill call applies nothing). Model pins stay tier aliases
+`high`. The live source is `mods/model-router/routing.json`, tracked with the
+model-router mod (below): the phase table and one phase row per repo skill
+and agent, each phase naming a tier and an effort level
+(`plan` best/xhigh, `reflect` best/high, `orchestrate` best/medium,
+`escalate` best/max, `judge` big/xhigh, `audit` best/xhigh, `implement` work/medium, `write`
+work/high, `verify` work/xhigh, `explore` work/medium, `apply` work/low,
+`mechanical` cheap/low). The `model:` and `effort:` frontmatter of every
+typed agent and user-invoked skill stays as the off-state floor, kept equal
+to the rows by the census `lib/tests/effort-routing.test.sh` (a best-tier
+row floors on the tier's second alias, opus, since Fable is credit-gated; a
+row changed through the first-use dialog passes with a `WARN floor drift` line
+until its frontmatter follows): low
+appliers, medium executors, high writers, xhigh judgment and gates;
+`/status` low … `/ship-feature`
+xhigh. The vendored externals (design stack, superpowers, agent-skills,
+MengTo scroll skills, 21st) get their level from their row only.
+Orchestrators declare each phase through the `mcp__model-router__route`
+tool (`lib/effort-shift.md`): `orchestrate` at a dispatch span, `reflect`
+or `plan` when reflection resumes, `apply` at the bookkeeping tail,
+`escalate` at the verify-secure caps. Model pins stay tier aliases
 (`sonnet`, `opus`, `haiku`, `fable`): the latest version of a tier is also
-the cheapest or same-priced, so the quality/price trade-off is tier × effort,
-never version. Census `lib/tests/effort-routing.test.sh`; transcript audit
-`python3 lib/effort-audit.py`.
+the cheapest or same-priced, so the quality/price trade-off is tier ×
+effort, never version. Transcript audit `python3 lib/effort-audit.py`.
+
+### model-router mod
+
+`mods/model-router/` is a Claude Code mod (a function-hooks plugin) that applies this table per request. It loads in every session through the tracked symlink `skills/model-router`, as `model-router@skills-dir`.
+
+- Main loop: every request gets the route in force. A typed skill with a row routes the main loop to it; a best-tier row (`plan`, `reflect`, `orchestrate`, `escalate`; `audit` is an agent row, never typed) holds across turns in a run slot until `/route clear`, `/route off`, a user `/model` (typed with a name, bare, or picked in the `/model` picker, it asks the scope: this project, this conversation, everywhere) or a typed skill on a non-best row. A skill without a row leaves the route as it is. A rowed skill the model loads inside a best-tier run moves effort only when its row ranks below the run's model. Main routed onto a model whose context window the conversation outgrew returns to the session model. Before main runs on a model, the one it moves to or the one it keeps (the session's own model included), the mod probes it with one small completion bounded to 8 seconds; the step (and `/route show`, the route tool's answer) waits for it. A timeout or an error marks the model down (reason `probe`, held for `cooldownMinutes` like any breaker hold) and the decision is taken again once. A model already marked down is never probed, and a model that answered is not probed again, `/clear` included, until it is marked down. When a lower model stands in for its tier's head held down (Opus for Fable on a best-tier phase), the phase's own effort goes one notch up: `reflect` xhigh, `plan` max, `orchestrate` high, `escalate` stays max. An effort asked explicitly (`/route ... effort=`, the `route` tool's `effort`) or set by a floor is never raised. `/route show` and the route tool's answer print the level with `(opus stands in for fable)`; the verbose transition line names `stand-in` as a cause.
+- Sub-agents: a routed agent gets its row's model at spawn, within its tier and only upward from its frontmatter model, and the row's effort on every step. Explicit `model` / `effort` params on the Agent call win; a project-defined agent of the same name keeps its own definition. Built-ins: Explore runs on sonnet/medium, Plan on opus/xhigh. A built-in `general-purpose` agent that main spawns with no `model` param, while main runs below the session model (a downgrade or a breaker fallback), starts on the session model instead of inheriting the lower one; it is not pinned when the session model is marked down, for a fork, a workflow or a nested spawn, or when a project or user definition shadows the built-in. Other agent types are never pinned this way: the hook cannot see their frontmatter model.
+- Write guard: a main-loop Edit, Write or NotebookEdit of a code file is redirected with "model-router: code is written inside a skill run…" until a skill ran on the main loop in the session (typed or loaded by the model), a phase was declared this turn, or a typed `/route` holds. Free paths: `.md`, `.txt`, the project's `.claude/` except `worktrees/`, and `docs/`. Sub-agents write freely. `/route clear`, `/route off` and `/clear` re-arm the guard; `/route off` also turns it off, and `"enabled": false` in `~/.claude/model-router.json` turns the router and the guard off. A `/model` hand pick does not open it, and a `register.ts` reload resets it.
+- Levers inside a run: `ultrathink` in a prompt sets the turn's minimum effort; `/route effort=max` holds until `/route clear`. Keyword prompt rules (`plan`, `design`, `architecture`… take plan's effort; `why`, `review`, `audit`… reflect's), `ultrathink` and a main Agent dispatch (the derived `orchestrate` route, held until its background agents end) set the turn's effort only, never a model: they never lift main above the session model, and a held best-tier run keeps its model. Fable on main comes only from a skill row, the `route` tool, a typed `/route` or a hand pick (`/model`, picker). The built-in `/effort` is not a lever inside a run, rows and routes outrank it.
+- `/model` scope: a pick in the `/model` picker is held first (the engine prints that a hook blocked it), then the same question as `/model <name>` comes. A bare `/model` opens the router's model, variant and scope dialog: fable, opus or sonnet, then Standard or `[1m]`, then the scope, the current model included; `Other model (native picker)` opens the native picker (haiku goes through it or `/model haiku`) and Esc changes nothing. A pick while another dialog is open is refused with `answer the open dialog first`. The picker's Default, an unknown name or a headless run go native, no question. A model chosen in that dialog (a hand pick) always switches: no cold-read cap, no `mainUpgrade` or `mainModelSwitch` flag. A hand pick marked down keeps main where it is until it is back. A native switch (the `/config` Model row included) or `/clear` drops a hand pick; a typed `/route model=` keeps the caps.
+- Prompt classifier: a plain prompt typed in the composer (12 characters or more, not a slash command) that no keyword rule, skill, run slot, `/route` or floor covers is sent to the engine's small fast model, one call, bounded to 3 seconds (the prompt waits for it, typically under a second). The label (`design`, `analysis`, `coding`, `bookkeeping`, `chat`) maps to plan, reflect, implement or apply (`chat` routes nothing), and the turn takes that phase's route: its effort becomes the turn's default, and its model may move the main loop, never above the session model. A `coding` or `bookkeeping` guess moves main down only when `mainModelSwitch` is on and the cold read fits `downgradeMaxTokens`; an `ultrathink` floor in the same turn raises the effort only, the guess's model holds. No dialog opens and no file is written. The route is gone at the end of the turn, a later route call or typed skill replaces it, and a `/effort` you type between turns drops the guess for that turn only. A typed best-tier skill holds its run slot across turns, so nothing is classified there until `/route clear`. Long prompts are sampled (first 500 and last 1500 code points), so pasted text at the end can steer one turn's route. Three failures in a row pause it for `cooldownMinutes` (one toast, `classifier: paused` in the status line). Never in a sub-agent, mid-turn or under `-p`. Off per session with `/route classify off`, per machine with `"classify": false`. The status line reads `route: classifier <phase>`; `/route verbose on` adds the transition line.
+- `/route` (user command) shows or sets the route: `show`, `clear`, `off`, `on`, `reload`, `pending` (rows and phases not confirmed yet), `ask on|off` (first-use dialog on or off), `ask-tier on|off` (the ask before Fable, below), `forget <name|all|projects>` (takes decisions back: a changed row returns to its shipped phase; `all` and `projects` ask first), a phase name, `model=<alias|id> effort=<level>`, `switch on|off`, `classify on|off` (the prompt classifier, below), `verbose on|off` (logs transitions only: each change of model or effort, with a few words of cause). `/route show` names the run slot when one holds (`main: run <phase>`) and prints the switch with its cap and the prompt-cache TTL (`switch: on (downgrade, cap 120000 tokens cold, ttl 60 min)`) and `ask-tier:` (`best`, `best (paused this session)` or `off`). The model sets routes through a `route` tool.
+- First use: the first time a rowed skill is typed, a rowed agent is spawned or a phase is declared on the main loop through the `route` tool, the mod asks once whether the route is right. The question gives context: the skill's description (first sentence of its `SKILL.md` frontmatter) or the agent's, the phase with its `about` line, and the model id and effort the next step really runs on; a declared phase also says what uses it (rows, prompt rules). A row offers Later, Keep or Change; a declared phase offers Later or Keep. Change asks the model (fable, opus, sonnet, haiku, each shown with the tier it heads), then the effort among those the phases on that model use (shipped table: fable medium, high, xhigh or max; sonnet low, medium, high or xhigh; opus and haiku have one level each, so no question), then Everywhere or This project only. Rows stay phase names, so the pair maps to an existing phase: the row's current phase wins a tie and the same phase counts as Keep; a pair no phase offers needs a new phase added by hand in routing.json. Everywhere moves the row and records the shipped phase under `changed`; This project only stores an exception under `projects`, keyed by the origin remote reduced to `host/path` (no credentials, no local paths; a remote that cannot be read that way offers no project choice). Keep lands under `confirmed`; Later, a dismissed dialog or a free-text answer asks again next session. After a skill row changes, a toast names the model and effort that skill now runs on, plus a hint when the main loop holds back a downgrade: `/route switch on` when the switch is off, the cap hold (`held: downgrade skipped: cold read <n> tokens over <cap>`) when the cold read is over `downgradeMaxTokens`. One dialog at a time, never in a headless (`-p`) run, never inside a sub-agent.
+- Ask before Fable: before a route lifts the main loop, or sends a rowed agent, onto Fable from another model, the mod asks once per span. The question names the origin (a skill, typed or loaded by the model, an agent, the `route` tool or `/route`), the phase with its `about` line, and the model and effort the step would run on. `Fable` runs it; `Opus instead (big tier)` runs the span through the `big` tier at the phase's own effort, offered only while Opus is up so the label stays true; `Stop asking this session` pauses the question until `/clear`. A best-tier skill the model loads counts as a skill row, and an agent type gets one answer per session. Nothing is asked in a headless (`-p`) run or inside a sub-agent, a dismissed dialog runs Fable, and no answer is written (`confirmed` included). No question comes when the decision would not land on Fable (`mainUpgrade` off, a cold-read cap, the context window, Fable marked down); when such a Fable hold or cap lapses later, main upgrades without asking, as the breaker already does. `askTier` in routing.json (`best`, or `false` to turn it off) is set by `/route ask-tier on|off`, and the machine config wins.
+- Only a first-use dialog answer, `/route ask on|off`, `/route ask-tier on|off` or `/route forget` writes `routing.json`, never the model. Writes are serialized, capped at 64 KiB, and refused when the file is missing (it is never created). Each write leaves the config repo dirty; a toast reminds you to commit it from there. The one other write: `/model <name>`, the bare `/model` dialog or a `/model` picker pick → This project writes the full id as `model` into the session root's `.claude/settings.local.json` (created if absent, keep it gitignored; refused when `.claude` or the file is a link, or the file is over 64 KiB or not a JSON object). Remove its `model` key to undo.
+- The spinner suffix and the status line under the prompt show the route in force; the status line adds ` · switch off` when the downgrade switch is off.
+
+Config layers: `mods/model-router/routing.json` (tracked: phases with their tier, effort and `about` line, rows, decisions, `ask`, `askTier`), then the optional per-machine `~/.claude/model-router.json`, which wins. A `.claude/model-router.json` inside a project is never read. Machine keys: `models` (alias → full id), `windows` (context window per full id), `tiers` (ordered alias lists per tier: `best` fable>opus>sonnet, `big` opus>fable>sonnet, `work` sonnet>opus, `cheap` haiku>sonnet; the first alias not down is used), `fallback` (the rank order of the aliases, best first, used by the breaker), `cooldownMinutes` (how long a model stays marked down after an availability error, 15 by default, doubling per episode up to 300), `mainUpgrade` (default `true`: the main loop may move up to a phase's tier), `upgradeMaxTokens` (default 200000: the largest cold read a main-loop upgrade may cost), `downgradeMaxTokens` (default 120000: the same cap for a downgrade; the cold read is the context minus what the target model's prompt cache already holds, taken from main's last step on that model within the prompt-cache TTL, forgotten by `/clear` and `/route reload`. The TTL follows the engine's `cache_ttl` (5 or 60 minutes) carried by main's model-switch events, is 60 minutes until the first one and survives `/clear`. The context also counts the prompt just submitted, which the engine's usage may not include yet: code points / 3 of its text, its context entries and a typed skill's body, summed and added at the turn's first main step unless usage already grew by half of it. A `document` attachment makes the size unknown, and an unknown context size blocks the switch; the step, `/route show`, the first-use dialog and the toast read the same adjusted size), `phases`, `agents`, `skills`, `prompt` (rules), `mainModelSwitch` (default `true`: the main loop may move down to a cheaper model; a value that is not a boolean turns it off and says so), `classify` (default `true`; `false` stops the prompt classifier on that machine), `probe` (default `true`: the model main runs on, moved to or kept, is tried once, 8 seconds at most, before main is sent to it; `false` skips the probe on that machine; a non-boolean value is ignored and said; `/route show` prints `probe:`), `verbose` (default `false`; `true` logs transitions only, a non-boolean value falls back to `false`), `spinner` (default `true`), `enabled` (default `true`; `false` turns the mod off on that machine), `ask` (overrides routing.json's `ask` on that machine), `askTier` (overrides routing.json's `askTier` on that machine; `best` or `false`, any other value reads `best` and is said once). A `null` value in `agents` or `skills` drops a row. Edit phases and rows by hand in routing.json (a phase's `about`, 120 characters at most, is read from there only and shown in the dialog; a model and effort pair no phase offers needs a new phase there); without it the mod runs the code's default phases, with no rows and no dialog. `/route reload` re-reads both files.
+
+Limits: a main-loop switch re-reads cold the part of the context the target model's cache does not hold; a switch whose cold read is over its cap (`upgradeMaxTokens` up, `downgradeMaxTokens` down) is skipped (a `/model` hand pick is exempt) and main keeps its model, and a downgrade also needs `mainModelSwitch`. The prompt estimate is conservative (3 code points per token), so a long pasted prompt can hold back a switch that would have fit. The `/config` Model row still writes user `settings.json` with no scope question; a hand pick is dropped at `/clear`; a scope dialog never answered has no timeout. The hooks send full model ids, so the `models` table has to follow new model versions. A probe costs one small completion per model main runs on, the session's own model included, repeated only after that model is marked down, and holds that step up to 8 seconds when the model does not answer.
+
+### Memory capture (memory mod)
+
+`mods/memory/` is a second Claude Code mod. It watches Bash failures and milestones so that `/capitalize` starts from what really happened, not from recollection. Writing a registry stays a model draft, your approval and `lib/memory.sh`; the mod never writes one.
+
+- Records: a Bash result whose text starts `Exit code N` and whose last line (the first line and the rtk trailer dropped) is an error line. That line must hold a letter and an error-shaped word, else the failure is dropped (no earlier line is tried): a word such as error, fatal, cannot, No such, denied, failed, unexpected, traceback, or a shellcheck code (SC1234); otherwise nothing is stored. The entry is stored redacted: `KEY=value` secrets, Stripe, AWS, GitHub, Slack, SendGrid and Supabase keys, private key blocks, JWTs, Bearer and `Authorization: Basic|token` values, `user:pass@` URLs, `-u`/`--user user:pass` and `--password`; also the Anthropic, OpenAI, GitLab, Google and npm key prefixes and `github_pat_`, `--token`/`--api-key`/`--secret` flags, API-key headers (`X-Api-Key`, `api-key`, `apikey`, any name ending in `api-key` or `api_key`), `PRIVATE-TOKEN`, `Cookie` and `Set-Cookie` headers (to the end of the line), `--cookie` values and `curl -b` cookies, JSON and `key: value` password/token/secret/api-key pairs whose key may carry a prefix or suffix (`access_token`, `db_password`), and a 40-hex token as URL user. Residual: `user:p@ss@host` becomes `<redacted>@ss@host`, so the password's tail after its own `@` stays. Permission refusals, guard redirects and tool_use errors are never captured. A sub-agent failure is marked `(sub-agent)`.
+- Milestones: a successful `feat` or `fix` commit (plain `-m` or heredoc form), a `gitflow.sh finish` (not `finish chore`), a `make test ...` command red then green. Milestones are recorded on the main loop only: sub-agent commits and finishes are ignored.
+- Store: the plugin's `$.store`, keyed by project root: the 3 most recent sessions per project, 50 failures per session, 2 KiB per entry. Session keys (`p:<root>`) are swept at 1 MiB; log keys (`l:<root>`) hold about 28 KiB per project; both sit under the engine's 4 MiB cap for the whole store, and when the total nears it the oldest log key is evicted first (never the current project's). It survives `/clear`. The store is the plugin's JSON file under the Claude configuration directory (observed here as `~/.claude/plugins/store/memory_skills-dir-<hash>.json`, an engine layout, not fixed by this repo); delete it to wipe the captures.
+- Note: one context line, `memory: <kind> <label> — <n> new failure mode(s) this session; /capitalize when ready.`, at the first composer prompt after a milestone. Never per turn, never at Stop, never in a sub-agent.
+- Tool: `mcp__memory__memory_pending` (deferred: a skill loads it once with `ToolSearch("select:mcp__memory__memory_pending")`). `/capitalize`, `/close` and the CAPITALIZE steps of `/feat`, `/bugfix`, `/hotfix`, `/ship-feature` and `/commit-change` call it first. It lists the milestones of this session and of the earlier ones kept in the store, then the failures as `NEW` or `known <ID>` (word 4-grams matched against the backticked spans of BLK and LRN entries, superseded ones excluded through `lib/memory.sh index`; when that reader is unavailable every entry is matched and the `index:` line ends `status reader unavailable`), earlier sessions marked. Every text it returns is data. It never writes a registry; every call reads the statuses through `lib/memory.sh index`.
+- Recall: the mod hands registry entries back at the moment they matter. A prompt typed in the composer (never a slash command, at least 5 content words, stop words excluded) triggers it when it is the first of a context (start, `/clear`, `/compact`), comes after 30 minutes idle, or holds a design or analysis word (plan, architecture, design, why, explain, analyse, review, audit and their French forms). BM25 ranks the live BDR, LRN and BLK entries, one haiku call keeps at most 3, bounded to 5 seconds. The context block `memory recall:` carries one line per entry (ID, title, lesson), at most 1500 characters per turn, each entry once per context. Any failure or timeout injects nothing.
+- Known error: a Bash failure whose key matches a live BLK or LRN entry attaches `memory: known <ID> <title> — <lesson>` to the tool answer, once per ID per context, from the same 1500-character budget. Sub-agents get this channel only.
+- Digest: `hooks/session-start.sh` prints `memory digest:` on `startup`, `clear` and `compact` (never `resume`) in a project that has `.claude/memory/`: up to 3 open BLK from `memory.sh index blocker` (the rest counted, upstream ones counted), up to 3 unchecked Actionable TODO items, the last journal line, 800 characters at most. When the cap bites, TODO lines drop first, then nothing else. Without `timeout` and `jq` it prints only from a terminal.
+- Recall switch: `{"enabled": true, "recall": false}` in `~/.claude/memory.json` cuts the injections (recall and known-error line) and keeps capture. Every ask is logged under the `l:<root>` store key (last 200 records, 64 KiB), never shown: when, session, agent, channel, the IDs injected, the `trigger` (`fresh`, `idle`, `keyword`, `tool`) and the `outcome` (`injected`, `none`, `timeout`, `refused`, `paused`; an ask that injects nothing is logged with no IDs); a prompt ask also logs `cands` (BM25 candidates after the seen filter) and `ms` (rerank wall time, when a rerank ran). `/memory-feedback` reads it.
+- Recall residuals: measured on 14 days of this repo's transcripts, precision is 54 to 61 % against a 64 % bar, so recall ships on and switchable, and the log decides. The router's classifier label is not used. EVAL entries are not recalled. Each failing command that matches an entry spawns one `memory.sh index`. The haiku bound drops the recalls that answer slower than 5 seconds.
+- Feedback: `/memory-feedback` (phase 4d) labels each injected entry from its transcript, with a 5-label spot check by you, and reports precision, misses, noisy entries and promotion candidates against `lib/memory-feedback/thresholds.ts`. Two gates: prompt at 20 labelled asks or 35 days, tool at 10 injections (one 35-day extension, then closed). Data stays local in `~/.claude/memory-feedback/` (IDs, enums and repo tags only, never in git). The session banner prints `memory feedback: … → /memory-feedback` when a run is due, and goes silent once both gates are recorded or with `"recall": false`.
+- Off switch: `{"enabled": false}` in `~/.claude/memory.json`, read at the first event of a session, so it applies at the next session or after `/reload-plugins`. Off, the tool answers `memory capture is off (~/.claude/memory.json)`. A switch file that cannot be read, or whose `enabled` is not a boolean, keeps capture on and logs one line.
+- Residuals: cross-process writes are unverified (two concurrent sessions: last writer wins). Non-Bash failures are not captured. `-b` counts as curl's cookie flag only when `curl` opens its command segment, after optional env assignments, `sudo`, `rtk` or `$(`: `time curl -b …` keeps its cookies. 40-hex Gitea tokens are kept by design: they look like commit SHAs. A session root that moves with `/cd` or a worktree move hides earlier captures of the same repo from /capitalize. A bare `gitflow.sh finish` on a chore branch counts as a milestone. Measured at 83 % noise before the error-shaped filter over 14 days of this repo's transcripts; the filter keeps every useful sample and cuts captures by two thirds (`.claude/tasks/plans/2026-11-03-memory-capture-spike/NOISE.md`).
 
 ---
 
@@ -118,7 +177,7 @@ never version. Census `lib/tests/effort-routing.test.sh`; transcript audit
 
 All scripts use their own location to find the repo — run them from anywhere.
 The plugins step logs to `install-YYYYMMDD-HHMMSS.log`.
-The last step applies the default profile, `full`, when none is selected, and re-applies an existing selection.
+The installers fill `skills-external/`; the packs under `skills/pack-*/` link it, on or off per project (`bash ~/.claude/lib/profile.sh set <profile>` from the project, then `/reload-plugins`) or per conversation (`cc <name> <profile>`). `cc` is a shell function from `lib/cc.sh`: add `[ -f "$HOME/.claude/lib/cc.sh" ] && . "$HOME/.claude/lib/cc.sh"` to `~/.bashrc` (`make doctor` warns until it is there).
 
 **Optional — Context7** (fast doc lookup for React / Next.js / Prisma…): the plugins
 step installs the `ctx7` CLI and wires it into Claude Code. The doc-fetch surface is
@@ -139,7 +198,7 @@ ctx7 login                 # optional: OAuth / API key for higher rate limits
 | Component | Type | Description | Docs |
 |---|---|---|---|
 | **Superpowers skills** | Vendored (7, always on) | brainstorming, writing-plans, subagent-driven development, TDD, code review request, git worktrees, writing-skills — pinned v6.4.1 in plugins.lock.json, no plugin, no session injection | [obra/superpowers](https://github.com/obra/superpowers) |
-| **GStack** | Git submodule (per profile) | Product workflow skills: plan reviews, design, browser QA, security (`cso`), `health`. Linked per profile; 9 broken or doctrine-breaking skills are denylisted in `lib/gstack-removed.sh`. | [garrytan/gstack](https://github.com/garrytan/gstack) |
+| **GStack** | Git submodule (per profile) | Product workflow skills: plan reviews, design, browser QA, security (`cso`), `health`. Linked by pack-gstack-dev, pack-gstack-browser and pack-gstack-design; 9 broken or doctrine-breaking skills are denylisted in `lib/gstack-removed.list`. | [garrytan/gstack](https://github.com/garrytan/gstack) |
 | **GSD v2** | External CLI | Multi-session orchestration: crash recovery, cost tracking, parallel workers, context-fresh execution. | [gsd-build/gsd-2](https://github.com/gsd-build/gsd-2) |
 | **RTK** | CLI + hook (always on) | Rust Token Killer: the `hooks/rtk-rewrite.sh` PreToolUse hook rewrites Bash commands through `rtk` to cut output tokens. Zero passive cost. | [rtk-ai/rtk](https://github.com/rtk-ai/rtk) |
 | **security-guidance** | Plugin (always on) | Security hook. Regex layer and commit/push review on; the Stop-time diff review is off (`ENABLE_STOP_REVIEW=0`). | [anthropics/claude-code](https://github.com/anthropics/claude-code) |
@@ -147,10 +206,10 @@ ctx7 login                 # optional: OAuth / API key for higher rate limits
 | **Context7** | CLI (`ctx7`) | Doc lookup for fast-evolving libs (Next.js, React, Prisma...), used through the `find-docs` skill. Works anonymously; optional `ctx7 login` raises rate limits. | [context7.com](https://context7.com/) |
 | **pr-review-toolkit** | Plugin (toggle) | Multi-agent PR review. | [anthropics/claude-code](https://github.com/anthropics/claude-code) |
 | **Graphify** | Python CLI | Codebase → knowledge graph → navigable wiki. Helps Claude map and search projects efficiently. | [pypi: graphifyy](https://pypi.org/project/graphifyy/) |
-| **21st.dev** | External CLI + skill pack | Component catalog and UI generation (`21st`), browser login, no API key. 7 skills in `skills-external/21st-*`, linked per profile (see the 21st.dev CLI section). | [npm: @21st-dev/cli](https://www.npmjs.com/package/@21st-dev/cli) |
+| **21st.dev** | External CLI + skill pack | Component catalog and UI generation (`21st`), browser login, no API key. 8 skills in `skills-external/21st-*`, linked by pack-design and pack-extras (see the 21st.dev CLI section). | [npm: @21st-dev/cli](https://www.npmjs.com/package/@21st-dev/cli) |
 | **Higgsfield** | External CLI + skill pack (off by default) | Image, video, audio and brand media generation, metered credits (see the Higgsfield CLI section). | [higgsfield-ai/skills](https://github.com/higgsfield-ai/skills) |
 | **Semgrep** | Python CLI (pinned) | SAST engine behind the security gate (`security-auditor`). | [pypi: semgrep](https://pypi.org/project/semgrep/) |
-| **Impeccable** | npm CLI + skill (pinned) | Deterministic anti-slop detector (`npx impeccable detect`, 45 rules) and the `/impeccable` design verbs. | [npm: impeccable](https://www.npmjs.com/package/impeccable) |
+| **Impeccable** | npm CLI + skill (pinned) | Deterministic anti-slop detector (`npx impeccable detect`, 61 rules) and the `/impeccable` design verbs. | [npm: impeccable](https://www.npmjs.com/package/impeccable) |
 | **Design skills** | Vendored | `emil-design-eng`, `frontend-design` (Anthropic example-skills), `design-motion-principles`: UI polish, anti-slop build, motion. | [emilkowalski/skill](https://github.com/emilkowalski/skill) · [kylezantos/design-motion-principles](https://github.com/kylezantos/design-motion-principles) |
 | **agent-skills** | Vendored (commit-pinned) | `observability-and-instrumentation`, `deprecation-and-migration`, `ci-cd-and-automation`. | [addyosmani/agent-skills](https://github.com/addyosmani/agent-skills) |
 | **MengTo scroll skills** | Vendored (commit-pinned) | Five scroll-choreography skills: `scroll-world-storytelling`, `build-threejs-scroll-worlds`, `scroll-scrubbed-visual-sequence`, `scroll-scrubbed-word-reveal`, `scroll-progress-timeline`. | [MengTo/Skills](https://github.com/MengTo/Skills) |
@@ -170,7 +229,7 @@ a different package, ships its own conflicting `graphify` bin) — see
 |---|---|
 | `/init-project` | Initialize a complete project from scratch (full orchestrator, 12+ steps) |
 | `/ship-feature` | Ship a feature end-to-end with validation gates (full orchestrator) |
-| `/onboard` | Onboard an existing project: CLAUDE.md, settings, .claudeignore, archetype audits, report and a sequenced TODO backlog |
+| `/onboard` | Onboard an existing project: CLAUDE.md, settings, .claudeignore, path rules, archetype audits, report and a sequenced TODO backlog. `/onboard split` moves the path-bound sections of an existing CLAUDE.md into `.claude/rules/` (loaded on Read of a matching file) |
 | `/feat` | Small feature implementation (1-5 files, lightweight) |
 | `/bugfix` | Structured bug fix with root cause investigation |
 | `/hotfix` | Quick fix for superficial bugs (typos, CSS, config — max 2 files) |
@@ -182,31 +241,38 @@ a different package, ships its own conflicting `graphify` bin) — see
 | `/impeccable` | Design verbs (audit, polish, bolder…) + deterministic anti-slop detector (`npx impeccable detect`) |
 | `/commit-change` | Smart commit grouping from staged/unstaged changes |
 | `/gitflow` | Gitflow branch operations — bootstrap main+develop, start a typed branch, directed merge |
-| `/release-candidate` | Cut a versioned release — finalize version.txt + CHANGELOG, merge develop→main, tag, push |
+| `/release-candidate` | Cut a versioned release — finalize version.txt + CHANGELOG, merge develop→main, tag, push (auto-push mode, tag on your go; manual push mode: one `! git push --atomic` command you run) |
 | `/deploy` | Compose the deploy checklist from a project's committed runbook (delta only); you run it, the skill resumes cold on your report |
 | `/graphify` | Codebase knowledge graph — navigation for large-scope tasks |
-| `/plugin-check` | Check active plugins vs project needs — recommend enable/disable |
+| `/plugin-check` | Check packs and plugins vs project needs: recommend a profile (project without one) and enable/disable deltas |
 | `/health` | Code quality dashboard (gstack) — setup diagnostic is `make doctor` |
 | `/status` | Consolidated project snapshot — plugins, git, GSD milestone |
 | `/skills-perso` | List personal (user-created) skills |
 | `/audit-delta` | Recurring audit of changes since last run (norms, bugs, dead code, security) |
 | `/capitalize` | Flush uncapitalized context + reconcile TODO before /clear or /compact (`--ritual` adds the end-of-session reflection) |
 | `/prune-memory` | Curate and compress the .claude/memory/ registries |
+| `/memory-feedback` | Label the memory mod's recall injections relevant or irrelevant from the transcripts, spot-check 5 labels with you, report precision and the phase 4d gates in ~/.claude/memory-feedback/FEEDBACK.md. Run it weekly: transcripts live 7 days |
 | `/reconcile` | Confront declared status (TODO, registries) against real git/fs state — surface stale items |
 | `/pdf-translate` | Translate a PDF to another language, output as HTML (via Vision) |
+| `/explain-diff` | Explain a diff, commit, branch or PR as one self-contained HTML page (background, intuition, code walkthrough, 5-question quiz), saved outside the repo |
+| `/guardrails` | Audit the six baseline guardrails (hosting, Supabase RLS, SMS/email consent, cloud functions, injection, browser exposure) plus API hygiene (auth, CORS, secrets, password storage): deterministic scanner, then judgment, report in `.claude/audits/GUARDRAILS.md`. Then proposes fixes, applies the ones you accept and re-scans to prove each one. `--live <url you own>` adds a read-only probe that confirms a hole from outside (routes, CORS, rate limit, and against a production build: source maps served, error bodies, sensitive keys) |
+| `/a11y` | Accessibility baseline: keyboard reachability with a visible focus, an alt on every image, a label on every field. Deterministic scanner, Tab walk on `--live`, report in `.claude/audits/A11Y.md`, fixes proposed with the wording as your choice, applied on acceptance and re-scanned to prove them. Full WCAG → `/web-validate` |
 | `/close` | End-of-session ritual — alias for `/capitalize --ritual` (dedup + TODO reconcile + 3-question reflection) |
 | `/harden` | Web hardening audit — HTTPS/TLS, HSTS, CSP, security headers |
-| `/web-validate` | W3C HTML/CSS validity + WCAG 2.1 accessibility audit |
+| `/web-validate` | W3C HTML/CSS validity + WCAG 2.1 conformance audit (keyboard/alt/label basics → /a11y) |
 | `/geo` | GEO-only audit — AI-search visibility (ChatGPT, Perplexity, Claude, Gemini…) |
 | `/client-handover` | Final project delivery — audits + branded deliverable (Markdown / HTML / PDF) |
-| `/profile` | Activate a skill profile (web / seo / web-full / full / max / backend / design / dev / qa / audit / minimal) (default: full) |
+| `/profile` | Set this project's pack profile (`set <n>`, `enable <pack>`), show the effective one (`current`) |
 | `/tour` | Grouped all-axes sweep — cleanup + security + reconcile + doc, fix and loop until clean |
 | `/site-motion` | Site-level motion: scroll engine choice, page transitions, pin/scrub sequencing across a page or Astro route (design stack) |
-| `/effort-low` … `/effort-max` | Effort shifters the orchestrators send per phase; type `/effort-max` to re-run a stuck turn at maximum |
+| `/route` | model-router mod: show or set the main-loop route (show, clear, off, on, reload, pending, ask on\|off, <phase>, model=… effort=…, switch on\|off, classify on\|off, verbose on\|off: transitions only) |
 
-> This table lists personal skills. Gstack skills (investigate, review, retro,
-> office-hours, cso…) and marketplace plugins add many more — run
-> `/skills-perso` to list your hand-written skills, or browse `skills/`.
+> This table lists personal skills. `/seo` and `/geo` (pack-seo), `/web-validate`
+> (pack-web-validate) and `/site-motion` (pack-design) live in packs: a profile that
+> leaves the pack off hides them (`/profile current`). Gstack skills (investigate,
+> review, retro, office-hours, cso…) and marketplace plugins add many more; run
+> `/skills-perso` to list your hand-written skills, or browse `skills/` and
+> `skills/pack-*/skills/`.
 
 ---
 
@@ -261,6 +327,8 @@ CLI flags               → session only
 ```
 
 DENY always wins over ALLOW at any level. `.claudeignore` applies independently.
+
+`settings.json` turns the claude.ai-synced skills off through `skillOverrides`, to cut their listing cost (measured on the full profile 2026-11-09: 32.2k to 28.5k tokens headless). The list is by name: a skill synced later stays listed until its name is added, and a same-named skill from another source is hidden too. A project brings one back with `{"skillOverrides": {"<name>": "on"}}` in its `.claude/settings.local.json`.
 
 Templates for per-project settings are in `templates/settings/`. Copy them with `/onboard` or manually:
 ```bash
@@ -339,13 +407,12 @@ npm i -g @21st-dev/cli
 
 `make plugin` does both (Step 8.7 installs the CLI, then offers the login in
 an interactive terminal) and installs the skill pack that drives it:
-`21st-ui-build`, `-ui-explore`, `-ui-review`, `-cli-use`, `-ai`, plus the two
-publishing skills `-registry` and `-design-sync`. Of the five design skills, `21st-ui-build` and
-`21st-cli-use` follow the active profile: on under `full`, the default profile, and under `design`,
-`web` and `web-full`. The other three, `-ui-explore`, `-ui-review` and
-`-ai`, are on under `max` only. The two publishing skills,
-`-registry` and `-design-sync`, are in no profile and stay parked until
-`bash lib/toggle-external.sh enable 21st` turns on all seven.
+`21st-ui-build`, `-ui-explore`, `-ui-review`, `-cli-use`, `-ai`, plus the
+publishing skills `-registry`, `-design-sync` and `-video`. `21st-ui-build`
+and `21st-cli-use` sit in pack-design (on under `full`, `design` and
+`web`). `-ui-explore`, `-ui-review` and `-ai` sit in pack-extras (on
+under `max`, or after `bash ~/.claude/lib/profile.sh enable extras` in the project). `-registry`,
+`-design-sync` and `-video` stay unlinked in `skills-external/`.
 
 The pack is machine-owned and gitignored. It cannot be installed the way
 upstream documents it (`21st install-skill`, i.e. `21st skills install
@@ -353,15 +420,31 @@ upstream documents it (`21st install-skill`, i.e. `21st skills install
 follow a symlink anywhere on that path, while `~/.claude/skills` is itself a
 symlink to this repo's `skills/`. So the install runs under a throwaway `HOME`
 and the result is moved into `skills-external/21st-*`, where
-`toggle-external.sh` and `profile.sh` symlink it in on demand.
+the pack symlinks reach it.
 
 The permission gate is now one `autoMode.soft_deny` entry covering the
 outward-facing verbs (`21st publish*`, `submit`, `edit`, `delete`,
 `remove-from-catalog`, `profile set|upload`), because publishing a component
 puts it on a public listing under your account. That tier rather than `ask`:
-under `defaultMode: auto` (this config's default) `ask` rules were observed
-auto-approving with no prompt raised (LRN-153), so an `ask` entry would have
-declared an intent without gating anything.
+an ask prompt can be clicked through by reflex, and the soft_deny also covers
+scripted forms.
+
+### Static rule limits
+
+`ask` rules raise a permission prompt under `defaultMode: auto` (headless
+bench `.claude/tasks/plans/2026-11-02-phase2-bench/`, confirmed interactively
+on 2026-11-02). The matcher sees through `&&`, `;`, `|`, `env`, `timeout`,
+`xargs` and simple assignments. The phase 2 rules ask on `sh -c` and its flag
+forms (`sh -ec`, `bash -lc`, `dash -c`), a bare `bash` or `sh` fed by a
+heredoc, process substitution (`bash <(…)`) and the absolute shells `/bin/sh`,
+`/bin/bash`, `/usr/bin/sh`, `/usr/bin/bash`, `/usr/bin/env sh|bash`. A script
+piped into a shell (`… | bash -s`) is already refused by the deny
+`Bash(* | bash -*)`. A sourced `gitflow_finish` and `git -C <dir> merge`
+escape the static rules. The matcher cannot see `$(…)` in command position, a
+quoted literal argument or an inline interpreter: those rest on the
+auto-mode classifier (`autoMode.soft_deny`, "Static rule blind spots"). The
+rtk hook passes any command its registry asks about or denies through
+unrewritten, so the native rules judge it as typed.
 
 ### Higgsfield CLI
 
@@ -383,27 +466,21 @@ The copies are machine-owned and gitignored. They follow upstream `main`,
 so a prompt change arrives with no diff to review, and a skill that
 upstream removes keeps its last local copy.
 
-The pack is off by default and belongs to no profile. It costs nothing until
-you ask for it, and no `profile set` touches it:
+The pack is off by default and on in `max` only. It costs nothing until
+you ask for it:
 
 ```bash
-bash lib/toggle-external.sh enable higgsfield            # media skills
-bash lib/toggle-external.sh enable higgsfield-websites   # landing-page aid
-bash lib/toggle-external.sh disable higgsfield
-bash lib/toggle-external.sh disable higgsfield-websites
+bash ~/.claude/lib/profile.sh enable higgsfield    # from the project, then /reload-plugins
+bash ~/.claude/lib/profile.sh disable higgsfield
 ```
 
-`higgsfield` links a fixed list of seven media skills: generate, soul-id,
-product-photoshoot, brandkit, marketplace-cards, video-explainer and
-youtube-thumbnail. The list is `HIGGSFIELD_MEDIA_SKILLS` in
-`lib/toggle-external.sh`. A skill that upstream adds later is synced, and
-every `enable higgsfield` names it, the pack being on or not. It stays
-unlinked until it is added to the list.
+The pack (`skills/pack-higgsfield/skills/`) holds the 8 `higgsfield-*`
+skills.
 
-`higgsfield-websites` is kept apart. It helps with landing pages inside the
+`higgsfield-websites` is one of them. It helps with landing pages inside the
 design stack (assets, references), and `higgsfield website
-create|deploy|publish` stays unused. Claude enables either toggle itself on
-an explicit ask (Skill routing in `CLAUDE.global.md`) and checks the price
+create|deploy|publish` stays unused. Claude runs `bash ~/.claude/lib/profile.sh enable higgsfield` on
+a named media ask, then `/reload-plugins` (Skill routing in `CLAUDE.global.md`) and checks the price
 with `higgsfield generate cost` before a paid run.
 
 The skills are cloned, not installed with `npx skills add`: that installer
@@ -443,14 +520,13 @@ make scan-secrets [repos="…"]  # gitleaks sweep of this repo's history and ~/.
 make help                   # list make targets
 make onboard                # onboard an existing project (run from its dir)
 make seo-connect            # connect a Google account for /seo FULL (OAuth consent)
-make profile cmd="set X"    # activate a skill profile (web/seo/web-full/full/max/backend/design/dev/qa/audit/minimal)
+make profile cmd="set X" dir=/path/to/project    # activate a skill profile (web/seo/full/max/design/dev/qa/audit/minimal)
 make profile-list           # list skill profiles
-make profile-current        # show the active profile (full when none selected)
-make profile-reset          # go to the default profile (full)
+make profile-current dir=/path/to/project        # effective profile of this project and conversation
 make new-skill name=myskill # scaffold agent + skill files
 ```
 
-`doctor.sh` checks: symlinks, GStack submodule, vendored skills (curl-pinned externals in `plugins.lock.json` + `link.sh`'s `EXTERNAL_SKILLS`, per the active profile), Playwright browser cache, prerequisites (git, Node, Cargo, Python, Claude Code), plugins, permissions, token budget, config consistency, git hooks (global core.hooksPath + generated githooks/), scratchpad (TMPDIR quota), Higgsfield CLI and session, seo-data layer.
+`doctor.sh` checks: symlinks, GStack submodule, vendored skills (curl-pinned externals in `plugins.lock.json` + `link.sh`'s `EXTERNAL_SKILLS`), packs (census), profiles, Playwright browser cache, prerequisites (git, Node, Cargo, Python, Claude Code), plugins, permissions, token budget, config consistency, git hooks (global core.hooksPath + generated githooks/), mods (loading link and `@skills-dir` state), scratchpad (TMPDIR quota), Higgsfield CLI and session, seo-data layer, auto memory (`autoMemoryEnabled` false in `settings.json`, leftover files under `~/.claude/projects/*/memory/`).
 
 ---
 

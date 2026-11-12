@@ -81,6 +81,7 @@ Tu veux...
 ├─ Gérer la mémoire de session ?
 │    → /capitalize             ← flush contexte + réconcilie TODO avant /clear ou /compact
 │    → /prune-memory           ← curer / compresser les registres .claude/memory/
+│    → /memory-feedback        ← étiqueter le rappel mémoire, précision et gates 4d
 │
 └─ Quelque chose ne marche pas ?
      → make doctor   ← diagnostic d'installation (symlinks, plugins, permissions, hooks, token budget)
@@ -112,14 +113,19 @@ Tu veux...
 | Audit du delta (depuis dernier run) | `/audit-delta` |
 | Flush mémoire + TODO avant /clear | `/capitalize` |
 | Curer la mémoire | `/prune-memory` |
+| Mesurer l'utilité du rappel mémoire | `/memory-feedback` |
 | État réel du travail ouvert | `/reconcile` |
 | Fin de session (= /capitalize --ritual) | `/close` |
 | Audit web (TLS, CSP, headers) | `/harden` |
-| Validité HTML/CSS + a11y | `/web-validate` |
+| Validité HTML/CSS + conformité WCAG | `/web-validate` |
+| Accessibilité de base (clavier, alt, labels) puis corriger | `/a11y` |
 | Visibilité IA (GEO seul) | `/geo` |
 | Livraison client finale | `/client-handover` |
 | Traduire un PDF | `/pdf-translate` |
-| Changer profil skills | `/profile` |
+| Comprendre un changement pas suivi | `/explain-diff` |
+| Auditer garde-fous (RLS, consentement, fonctions, mots de passe, injection SQL, fuites navigateur) puis corriger | `/guardrails` |
+| Sonder le projet en direct (lecture seule, cible à toi) | `/guardrails --live <url>` |
+| Changer le profil de packs du projet (`set`), ou l'état effectif (`current`) | `/profile` |
 | Audit/polish design (anti-slop) | `/impeccable` |
 | Sweep groupé tous axes (nettoyage + sécu + reconcile + doc) | `/tour` |
 | Rien ne marche | `make doctor` (terminal) |
@@ -135,7 +141,7 @@ Tu veux...
 | `/feat` | Petite feature (1-5 fichiers) | Léger, pas d'orchestration lourde |
 | `/bugfix` | Bug avec investigation root cause | Hypothèses, diagnostic, fix minimal |
 | `/hotfix` | Bug superficiel (typo, CSS, config) | Max 2 fichiers, cause évidente |
-| `/onboard` | Projet existant non géré par ce config | Génère CLAUDE.md + settings |
+| `/onboard` | Projet existant non géré par ce config | Génère CLAUDE.md + settings ; `/onboard split` découpe un CLAUDE.md existant en règles `.claude/rules/` |
 | `/plugin-check` | Avant de démarrer tout travail | Aussi embarqué en STEP 0 des orchestrateurs |
 | `/analyze` | Comprendre du code avant de le modifier | Read-only, aucune solution proposée |
 | `/analyze` + erreur | Diagnostiquer un test/build qui échoue | Mode DEBUG : hypothèses ordonnées |
@@ -146,7 +152,7 @@ Tu veux...
 | `/geo` | Audit GEO uniquement (IA) | Visibilité ChatGPT, Perplexity, Claude, Gemini… |
 | `/commit-change` | Commits bien structurés | Groupe les changements par unité logique |
 | `/gitflow` | Opérations de branches gitflow | Bootstrap main+develop, branche typée, merge dirigé |
-| `/release-candidate` | Couper une release versionnée (develop en avance sur main) | Finalise version.txt + CHANGELOG, merge develop→main, tag, push |
+| `/release-candidate` | Couper une release versionnée (develop en avance sur main) | Finalise version.txt + CHANGELOG, merge develop→main, tag, push (mode auto-push, tag sur ton feu vert ; mode push manuel : une commande `! git push --atomic` que tu lances) |
 | `/deploy` | Déployer via le runbook du projet | Instancie le delta depuis le dernier deploy, reprend à froid ; tu exécutes la checklist, Claude ne déploie jamais |
 | `/graphify` | Navigation codebase large-scope | Knowledge graph, pour tâches multi-fichiers |
 | `/skills-perso` | Lister ses skills personnels | Skills créés dans ~/.claude/skills/ |
@@ -155,57 +161,91 @@ Tu veux...
 | `/audit-delta` | Audit récurrent du delta depuis le dernier run | Axes : conformité / bugs / dead code / sécurité |
 | `/capitalize` | Avant /clear ou /compact | Flush contexte non capitalisé + réconcilie .claude/tasks/TODO.md |
 | `/prune-memory` | Registres trop longs / bruyants | Curation : merge, superseded, compression |
+| `/memory-feedback` | Chaque semaine, ou quand la bannière le rappelle | Étiquette les injections du rappel mémoire depuis les transcripts, contrôle de 5 étiquettes avec toi, précision et gates de la phase 4d dans `~/.claude/memory-feedback/FEEDBACK.md` |
 | `/reconcile` | Connaître l'état réel du travail ouvert (TODO/registres douteux) | Confronte statut déclaré vs git/fs réel |
 | `/close` | Fin de session | Alias de /capitalize --ritual — dedup + TODO + réflexion 3 questions |
 | `/harden` | Audit sécurité web (SSL, CSP, HSTS) | Projet web avec config HTTP |
-| `/web-validate` | Audit W3C + WCAG a11y | Avant livraison projet web |
+| `/web-validate` | Audit W3C + conformité WCAG | Avant livraison projet web ; bases clavier/alt/labels → /a11y |
+| `/a11y` | Vérifier clavier, focus visible, alt, labels puis corriger | Scanner déterministe, parcours Tab sur `--live`, rapport `.claude/audits/A11Y.md`, propositions à valider (textes d'alt et de label = ton choix), re-passe qui prouve chaque correction |
 | `/client-handover` | Livraison client | Audits finaux + livrable brandé |
 | `/pdf-translate` | Traduire un PDF vers une autre langue | Sortie HTML fidèle (images, layout, style préservés) |
+| `/explain-diff` | Comprendre un commit, une branche ou une PR qu'on n'a pas suivis | Page HTML autonome hors du repo : contexte, intuition, code, quiz de 5 questions |
+| `/guardrails` | Vérifier hébergement, Supabase RLS, consentement SMS/email, fonctions cloud, stockage des mots de passe, injection SQL, exposition navigateur | Scanner déterministe, jugement, rapport `.claude/audits/GUARDRAILS.md`, propositions de correction à valider, re-passe qui prouve chaque correction ; `--live <url à toi>` sonde en lecture seule ; sonde `exposure` sur un build de production (source maps, corps d'erreur, clés sensibles) |
 | `/impeccable` | Audit/polish design + détecteur anti-slop déterministe | 23 verbes ; `npx impeccable detect` (exit 0/2) |
 | `/tour` | Sweep groupé sur un ou plusieurs projets | Sécu + nettoyage + reconcile + doc, boucle jusqu'à un pass propre |
-| `/profile` | Changer le profil de skills | web / seo / web-full / full / max / backend / design / dev / qa / audit / minimal |
+| `/route` | Voir ou fixer la route du mod model-router | show / clear / off / on / reload / pending / ask on\|off / ask-tier on\|off / <phase> / model=… effort=… / switch on\|off / classify on\|off (classifieur de prompt) / verbose on\|off (transitions seules) ; `clear`, `off` et `/clear` réarment le garde d'écriture (voir ci-dessous) |
+| `/profile` | Changer le profil de packs du projet (`set`), ou l'état effectif (`current`) | Profils dans `lib/profiles/*.json`, packs dans `skills/pack-*/` |
 
-> Cette table couvre les skills personnels principaux. Les plugins (gstack,
-> pr-review-toolkit…) et marketplaces externes en ajoutent beaucoup d'autres —
+> Cette table couvre les skills personnels principaux. `/seo` et `/geo` (pack-seo)
+> et `/web-validate` (pack-web-validate) vivent dans des packs : un profil qui laisse
+> le pack éteint les masque (`/profile current`). Les packs gstack-dev,
+> gstack-browser et gstack-design, les plugins (pr-review-toolkit…) et marketplaces externes en ajoutent beaucoup d'autres ;
 > `/skills-perso` liste tes skills personnels.
 
 ---
 
 ### Niveau d'effort
 
-Chaque commande démarre à un niveau de réflexion fixé dans son frontmatter
-(`effort:`) : low pour la tenue de registre (`/status`, `/close`,
+Chaque commande a une ligne de phase dans `mods/model-router/routing.json`,
+le fichier suivi du mod model-router (actif dans chaque session), qui fixe son niveau de
+réflexion : low pour la tenue de registre (`/status`, `/close`,
 `/commit-change`), medium pour le courant (`/gitflow`, `/prune-memory`),
-high pour un fix ou un refactor (`/feat`, `/hotfix`, `/bugfix`, `/refactor`,
-audits avec fix), xhigh pour l'architecture et l'audit avant validation
-(`/ship-feature`, `/onboard`, `/analyze`). Les orchestrateurs décalent
-ensuite le niveau par phase (`lib/effort-shift.md`), et `/effort-max` tapé à
-la main relance un tour bloqué au maximum. Les skills externes vendorés
-(pile design, superpowers, agent-skills, skills scroll MengTo, 21st) reçoivent leur niveau de
-`lib/effort-pins.txt`. Un skill chargé seul par Claude n'applique pas son
-niveau : il doit partir avec un autre appel d'outil dans le même message.
+high pour un fix ou un refactor (`/feat`, `/hotfix`, `/bugfix`,
+`/refactor`, audits avec fix), xhigh pour l'architecture et l'audit avant
+validation (`/ship-feature`, `/onboard`, `/analyze`). Le frontmatter
+(`model:`, `effort:`) garde les mêmes valeurs et sert de plancher quand le
+mod est coupé. Les orchestrateurs déclarent ensuite chaque phase via
+l'outil `mcp__model-router__route` (`lib/effort-shift.md`). Les skills
+externes vendorés (pile design, superpowers, agent-skills, skills scroll
+MengTo, 21st) ont aussi leur ligne.
+
+Taper un skill qui a une ligne route la boucle principale dessus. Une ligne du tier best (plan, reflect, orchestrate, escalate ; `audit` est une ligne d'agent, jamais tapée) tient d'un tour à l'autre pendant tout le run, jusqu'à `/route clear`, `/route off`, un `/model` tapé ou choisi dans le sélecteur, ou un skill d'un autre tier tapé. Un `/model <nom>` tapé, ou un choix dans le sélecteur `/model`, avec un modèle de la table demande sa portée (Échap ne change rien). Le changement du sélecteur est d'abord retenu (le moteur affiche qu'un hook l'a bloqué), puis la question vient ; un choix fait pendant qu'un autre dialogue est ouvert est refusé (`answer the open dialog first`) : This project écrit l'id complet dans `model` du `.claude/settings.local.json` du projet (créé s'il manque, à garder dans le `.gitignore`) et pose une route de modèle tenue ; This conversation pose la route seule, sans rien écrire ; Everywhere lance le `/model` natif (`settings.json` utilisateur, tous les projets). Default dans le sélecteur, sans argument, avec un nom inconnu, en headless (`-p`) ou mod coupé, le `/model` natif passe sans question. Un modèle choisi dans ce dialogue change toujours : ni plafond de relecture à froid, ni `mainUpgrade` ni `mainModelSwitch`. S'il est en panne, la boucle principale reste où elle est jusqu'à son retour. Un changement natif (ligne Model de `/config` comprise) ou `/clear` l'abandonne ; un `/route model=` tapé garde les plafonds. La ligne Model de `/config` écrit toujours le `settings.json` utilisateur, et un dialogue jamais répondu n'a pas de délai. Pour relancer un tour bloqué : `ultrathink` dans le prompt (plancher d'effort du tour) ou `/route effort=max` (tient jusqu'à `/route clear`). Le `/effort` intégré n'a pas d'effet dans un run : les lignes et les routes passent devant. Les règles de mots-clés du prompt (`plan`, `design`, `architecture`… prennent l'effort de plan ; `pourquoi`, `review`, `audit`… celui de reflect), `ultrathink` et un lancement d'agent par la boucle principale (route `orchestrate` dérivée, tenue jusqu'à la fin de ses agents en arrière-plan) ne fixent que le niveau d'effort du tour, jamais le modèle : ils ne font jamais monter la boucle principale au-dessus du modèle de la session, et un run best tenu garde son modèle. Fable n'arrive sur la boucle principale que par une ligne de skill, l'outil `route`, un `/route` tapé ou un choix à la main (`/model`, sélecteur). Un prompt tapé sans règle, skill ni route en cours passe par un classifieur (un appel au petit modèle, 3 secondes au plus) : le tour prend la route de la phase devinée : son niveau d'effort, et son modèle, jamais au-dessus de celui de la session. Une devinette `coding` ou `bookkeeping` fait descendre la boucle principale vers un modèle moins cher quand `mainModelSwitch` est actif (par défaut) et que la relecture à froid tient sous `downgradeMaxTokens` (120000 tokens par défaut). Cette relecture compte aussi le prompt qui vient d'être envoyé (un token pour 3 caractères), et un document joint bloque la descente pour cette étape. Le cache compte comme chaud pendant le TTL du moteur (`cache_ttl`, 5 ou 60 minutes), 60 minutes par défaut. `/route classify off` ou `"classify": false` dans la config machine le coupe, et un `/effort` tapé entre deux tours annule la devinette pour ce tour seulement. Avant d'envoyer la boucle principale sur un modèle, celui vers lequel elle se déplace comme celui qu'elle garde (le modèle de la session compris), le mod l'essaie une fois (un appel minimal, 8 secondes au plus) : sans réponse, ce modèle est marqué en panne (raison `probe`) et la décision est reprise une fois ; `"probe": false` dans la config machine coupe cet essai, et `/route show` affiche `probe:`. Quand un modèle inférieur remplace la tête de son tier en panne (Opus pour Fable), le niveau propre de la phase monte d'un cran (reflect xhigh, plan max, orchestrate high) ; un niveau demandé explicitement ou un plancher ne bouge jamais. Les sous-agents reçoivent le modèle de leur ligne au lancement (dans leur tier, jamais en dessous de leur frontmatter) et son niveau à chaque étape ; un `model` ou `effort` explicite sur l'appel gagne. Explore tourne en sonnet/medium, Plan en opus/xhigh. Un agent intégré `general-purpose` lancé par la boucle principale sans `model`, pendant que celle-ci tourne sous le modèle de la session (descente, ou repli quand un modèle est en panne), part sur le modèle de la session au lieu d'hériter du modèle inférieur ; les autres types d'agents ne sont jamais épinglés ainsi. `/route show` affiche la route en cours, slot de run compris (`main: run <phase>`), et le switch avec son plafond et ce TTL (`switch: on (downgrade, cap 120000 tokens cold, ttl 60 min)`). Première utilisation : la première fois qu'un skill avec ligne est tapé, qu'un agent avec ligne est lancé ou qu'une phase est déclarée sur la boucle principale via l'outil `route`, le mod demande une fois si la route convient. La question donne le contexte : la description du skill (première phrase du frontmatter de son `SKILL.md`) ou celle de l'agent, la phase avec sa ligne `about` (champ de la phase dans `routing.json`), puis le modèle et le niveau réels de l'étape suivante ; une phase déclarée dit aussi qui l'utilise. Pour une ligne : Later, Keep ou Change ; pour une phase déclarée : Later ou Keep. Change demande le modèle (fable, opus, sonnet, haiku, chacun avec son tier), puis le niveau parmi ceux des phases de ce modèle (fable : medium, high, xhigh ou max ; sonnet : low, medium, high ou xhigh ; opus et haiku n'en ont qu'un, la question est sautée), puis Everywhere ou This project only (exception rangée sous le remote origin du dépôt réduit à `host/path`, jamais d'identifiants). Une ligne reste un nom de phase : le couple modèle et niveau désigne une phase existante, et la même phase qu'avant vaut Keep. Un couple qu'aucune phase n'offre s'ajoute à la main comme nouvelle phase dans `routing.json`. Après un changement sur un skill, un toast donne le modèle et le niveau réels, et rappelle `/route switch on` quand le switch est coupé, ou nomme le plafond quand la relecture à froid bloque la descente. La réponse est écrite dans `routing.json` ; Later, un texte libre (Other) ou un dialogue fermé redemande à une session suivante. Un seul dialogue à la fois, jamais en headless (`-p`) ni dans un sous-agent, et le modèle n'écrit jamais ce fichier. Chaque réponse laisse le repo de config modifié : commite-le depuis ce repo. `/route pending` liste ce qui reste à confirmer, `/route ask off|on` coupe ou rallume le dialogue, `/route forget <nom|all|projects>` efface une décision (une ligne changée revient à la phase livrée ; `all` et `projects` demandent d'abord). Avant qu'une route envoie la boucle principale, ou un agent à ligne, sur Fable depuis un autre modèle, le mod pose une question une seule fois par portée (origine, phase et sa ligne `about`, modèle et niveau) : `Fable`, `Opus instead (big tier)` (Opus à la place : le tier big, niveau de la phase inchangé, le label reste vrai : l'option disparaît si Opus est en panne) ou `Stop asking this session` (ne plus demander cette session : rien n'est écrit, `/clear` la réarme). Un skill chargé par le modèle compte comme une ligne de skill ; un agent n'a qu'une réponse par type et par session ; jamais en headless (`-p`) ni dans un sous-agent ; un dialogue fermé lance Fable. Pas de question quand la décision ne tomberait pas sur Fable (`mainUpgrade` coupé, plafond de relecture, fenêtre, Fable en panne) : si la panne cesse plus tard, la boucle monte sans question, comme le disjoncteur le fait déjà. La clé `askTier` de `routing.json` (`best`, ou `false` pour couper) se règle par `/route ask-tier on|off`, la config machine gagne, et `/route show` affiche `ask-tier:`.
+
+Garde d'écriture : un Edit, Write ou NotebookEdit d'un fichier de code par la boucle principale est redirigé avec « model-router: code is written inside a skill run… » tant qu'aucun skill n'a tourné sur la boucle principale dans la session (tapé ou chargé par le modèle), qu'aucune phase n'a été déclarée ce tour, et qu'aucun `/route` tapé ne tient. Chemins libres : `.md`, `.txt`, le `.claude/` du projet sauf `worktrees/`, et `docs/`. Les sous-agents écrivent librement. `/route clear`, `/route off` et `/clear` réarment le garde ; `/route off` le coupe aussi, et `"enabled": false` dans `~/.claude/model-router.json` coupe le routeur et le garde. Un choix à la main avec `/model` ne l'ouvre pas, et un rechargement de `register.ts` le remet à zéro.
+
+La config par machine, optionnelle, vit dans `~/.claude/model-router.json` et passe devant `routing.json` ; `"enabled": false` y coupe le mod sur cette machine, `"ask": false` y coupe le dialogue, une ligne à `null` y retire une ligne. Un `.claude/model-router.json` dans un projet n'est jamais lu. Les phases et les lignes se modifient à la main dans `routing.json` ; `/route reload` relit les deux fichiers.
+
+### Capture mémoire (mod memory)
+
+Le mod `mods/memory/` note les échecs Bash et les jalons de la session pour que `/capitalize` parte des faits. Il n'écrit jamais un registre : un brouillon du modèle, ton accord et `lib/memory.sh` restent la seule voie.
+
+- Ce qu'il enregistre : un résultat Bash dont le texte commence par `Exit code N` et dont la dernière ligne (première ligne et trailer rtk écartés) est une ligne d'erreur. La dernière ligne doit contenir une lettre et un mot d'erreur (error, fatal, cannot, No such, denied, failed, unexpected, traceback, ou un code shellcheck SC1234), sinon l'échec est abandonné. Elle est stockée expurgée : `NOM=valeur` (TOKEN, API_KEY, SECRET, PASSWORD, PASSWD, chiffres admis), clés Stripe/AWS/GitHub/Slack/SendGrid/Supabase, bloc de clé privée, JWT, `Bearer`, `user:pass@` dans une URL, `-u`/`--user user:pass`, `--password`, `Authorization: Basic|Bearer|token`, préfixes Anthropic/OpenAI/GitLab/Google/npm et `github_pat_`, drapeaux `--token`/`--api-key`/`--secret`, en-têtes de clé d'API (`X-Api-Key`, `api-key`, `apikey`, tout nom finissant par `api-key` ou `api_key`), en-têtes `PRIVATE-TOKEN`, `Cookie` et `Set-Cookie` (jusqu'à la fin de la ligne), valeurs de `--cookie` et cookies passés à `curl -b`, paires JSON ou `clé: valeur` password/token/secret/api-key dont la clé peut porter un préfixe ou un suffixe (`access_token`, `db_password`), jeton de 40 hexadécimaux comme utilisateur d'URL. Résiduel : `user:p@ss@host` devient `<redacted>@ss@host`, donc la fin du mot de passe après son propre `@` reste. Refus de permission, redirections de garde et erreurs de tool_use ne sont jamais captés. Un échec de sous-agent est marqué `(sub-agent)`.
+- Jalons : un commit `feat` ou `fix` réussi (`-m` simple ou heredoc), un `gitflow.sh finish` (pas `finish chore`), une commande `make test ...` rouge puis verte. Les jalons ne sont notés que sur la boucle principale : commits et finish de sous-agents ignorés.
+- Stockage : le `$.store` du plugin, par racine de projet : 3 sessions les plus récentes par projet, 50 échecs par session, 2 Kio par entrée. Les clés de session (`p:<racine>`) sont purgées à 1 Mio ; les clés de journal (`l:<racine>`) pèsent environ 28 Kio par projet ; les deux restent sous le plafond de 4 Mio du moteur pour tout le store, et quand le total s'en approche la plus ancienne clé de journal part d'abord (jamais celle du projet courant). Il survit à `/clear`. Le store est le fichier JSON du plugin sous le dossier de configuration de Claude (observé ici en `~/.claude/plugins/store/memory_skills-dir-<hash>.json`, disposition du moteur, non fixée par ce dépôt) ; le supprimer efface les captures.
+- La note : une ligne de contexte, `memory: <kind> <label> — <n> new failure mode(s) this session; /capitalize when ready.`, au premier prompt tapé après un jalon. Jamais à chaque tour, jamais au Stop, jamais dans un sous-agent.
+- L'outil : `mcp__memory__memory_pending` (différé : un skill le charge une fois avec `ToolSearch("select:mcp__memory__memory_pending")`). `/capitalize`, `/close` et les étapes CAPITALIZE de `/feat`, `/bugfix`, `/hotfix`, `/ship-feature` et `/commit-change` l'appellent en premier. Il liste les jalons de la session et ceux des sessions précédentes gardés dans le store, puis les échecs `NEW` ou `known <ID>` (4-grammes de mots comparés aux passages entre accents graves des entrées BLK et LRN, les remplacées exclues via `lib/memory.sh index` ; si ce lecteur est indisponible, toutes les entrées sont comparées et la ligne `index:` finit par `status reader unavailable`), les sessions précédentes signalées. Chaque texte est une donnée. Il n'écrit aucun registre ; chaque appel lit les statuts via `lib/memory.sh index`.
+- Rappel : le mod ramène les entrées des registres au bon moment. Un prompt tapé dans le composer (jamais une commande slash, au moins 5 mots de contenu, mots vides exclus) le déclenche s'il est le premier d'un contexte (démarrage, `/clear`, `/compact`), s'il suit 30 minutes d'inactivité, ou s'il contient un mot de conception ou d'analyse (plan, architecture, design, pourquoi, explique, analyse, review, audit et leurs équivalents anglais). BM25 classe les entrées BDR, LRN et BLK vivantes, un appel haiku en garde 3 au plus, borné à 5 secondes. Le bloc de contexte `memory recall:` porte une ligne par entrée (ID, titre, leçon), 1500 caractères par tour au plus, chaque entrée une fois par contexte. Un échec ou un dépassement n'injecte rien.
+- Erreur connue : un échec Bash dont la clé correspond à une entrée BLK ou LRN vivante ajoute `memory: known <ID> <titre> — <leçon>` à la réponse de l'outil, une fois par ID et par contexte, sur le même budget de 1500 caractères. Les sous-agents n'ont que ce canal.
+- Digest : `hooks/session-start.sh` affiche `memory digest:` sur `startup`, `clear` et `compact` (jamais `resume`) dans un projet qui a `.claude/memory/` : jusqu'à 3 BLK ouverts issus de `memory.sh index blocker` (le reste compté, les « upstream » comptés), jusqu'à 3 items Actionable non cochés du TODO, la dernière ligne du journal, 800 caractères au plus. Quand le plafond mord, les lignes TODO tombent d'abord, rien d'autre. Sans `timeout` ni `jq`, il ne s'affiche que depuis un terminal.
+- Interrupteur du rappel : `{"enabled": true, "recall": false}` dans `~/.claude/memory.json` coupe les injections (rappel et ligne d'erreur connue) et garde la capture. Chaque demande est journalisée sous la clé de store `l:<racine>` (200 enregistrements, 64 Kio), jamais affichée : date, session, agent, canal, IDs injectés, `trigger` (`fresh`, `idle`, `keyword`, `tool`) et `outcome` (`injected`, `none`, `timeout`, `refused`, `paused` ; une demande qui n'injecte rien est journalisée sans ID) ; une demande sur prompt note aussi `cands` (candidats BM25 après le filtre des entrées déjà vues) et `ms` (durée du rerank, quand il a tourné). `/memory-feedback` la lit.
+- Limites du rappel : mesurée sur 14 jours de transcripts de ce dépôt, la précision est de 54 à 61 % pour une barre à 64 %, donc le rappel est livré actif et coupable, et le journal tranchera. L'étiquette du classifieur du routeur n'est pas utilisée. Les entrées EVAL ne sont pas rappelées. Chaque commande en échec qui correspond à une entrée lance un `memory.sh index`. La borne haiku écarte les rappels qui répondent après 5 secondes.
+- Retour d'usage : `/memory-feedback` (phase 4d) étiquette chaque entrée injectée depuis son transcript, avec un contrôle de 5 étiquettes par toi, et donne la précision, les manqués, les entrées bruyantes et les candidates à promotion face aux seuils de `lib/memory-feedback/thresholds.ts`. Deux gates : prompt à 20 demandes étiquetées ou 35 jours, outil à 10 injections (une prolongation de 35 jours, puis fermé). Les données restent locales dans `~/.claude/memory-feedback/` (IDs, enums et étiquettes de dépôt seulement, jamais dans git). La bannière de session affiche `memory feedback: … → /memory-feedback` quand un passage est dû, et se tait une fois les deux gates enregistrés ou avec `"recall": false`.
+- Interrupteur : `{"enabled": false}` dans `~/.claude/memory.json`, lu au premier événement d'une session : effet à la session suivante ou après `/reload-plugins`. Coupé, l'outil répond `memory capture is off (~/.claude/memory.json)`. Un fichier illisible, ou dont `enabled` n'est pas un booléen, laisse la capture active et journalise une ligne.
+- Limites connues : les écritures entre processus ne sont pas vérifiées (deux sessions simultanées : la dernière écrit). Les échecs hors Bash ne sont pas captés. `-b` ne vaut drapeau de cookies de curl que si `curl` ouvre son segment de commande, après d'éventuelles affectations de variables, `sudo`, `rtk` ou `$(` : `time curl -b …` garde ses cookies. Un jeton de 40 hexadécimaux nu est gardé à dessein : il ressemble à un SHA de commit (expurgé seulement comme utilisateur d'URL). Une racine de session qui bouge avec `/cd` ou un changement de worktree cache à /capitalize les captures précédentes du même dépôt. Un `gitflow.sh finish` nu sur une branche chore compte comme un jalon. Bruit mesuré à 83 % avant le filtre de forme d'erreur sur 14 jours de transcripts de ce dépôt ; le filtre garde tous les échantillons utiles et réduit les captures des deux tiers (`.claude/tasks/plans/2026-11-03-memory-capture-spike/NOISE.md`).
 
 ## Les plugins — décision rapide
 
 ```
-Toujours actifs (0 token) : security-guidance, rtk
+Toujours actifs : security-guidance, rtk
 
-Design élaboré/system     → ui-ux-pro-max ON
-Deploy + QA browser       → gstack ON
-Next.js/React/Prisma      → context7 ON (WARN si absent, pas BLOCK)
-Multi-session (>1 jour)   → gsd v2 CLI (gsd dans terminal)
+Design élaboré/system     → pack design + ui-ux-pro-max@ui-ux-pro-max-skill
+Deploy + QA browser       → packs gstack-dev + gstack-browser
+Next.js/React/Prisma      → CLI ctx7 installé (WARN si absent, pas BLOCK)
+Multi-session (>1 jour)   → gsd CLI (gsd dans terminal)
 
-Backend/CLI seulement     → tout OFF (skills superpowers vendorisés, toujours actifs, 0 t passif)
-Hotfix/quick fix          → tout OFF (skills superpowers vendorisés, toujours actifs, 0 t passif)
+Backend/CLI seulement     → profil dev (skills superpowers vendorisés, toujours actifs)
+Hotfix / script rapide    → aucun changement de profil (/hotfix ou /bugfix)
 ```
 
-**GSD v2** n'est pas un plugin Claude Code — c'est un CLI externe. Il ne consomme pas de tokens passifs. Tu le lances dans un terminal séparé avec `gsd`, puis `/gsd auto` pour le mode autonome.
+**GSD** est un CLI externe, rien ne se charge dans Claude Code. Tu le lances dans un terminal séparé avec `gsd`, puis `/gsd auto` pour le mode autonome.
+
+**Profils et packs.** Un profil se règle par projet (`/profile set web` puis `/reload-plugins`) ou par conversation (`cc <nom> web`, la conversation est figée: relance-la pour changer). Neuf profils: `full`, `max`, `minimal`, `dev`, `design`, `web`, `seo`, `qa`, `audit`. Sans profil, c'est `full`. Un `--settings` édité en cours de session reste sans effet. `cc` est une fonction de `lib/cc.sh`, à sourcer depuis `~/.bashrc` (`[ -f "$HOME/.claude/lib/cc.sh" ] && . "$HOME/.claude/lib/cc.sh"`) ; `make doctor` le signale tant qu'elle manque.
 
 ---
 
 ## Patterns de workflow
 
-> **Budget Pro (~11k tokens/5h) :** un `/init-project` complet consomme 3000-5000t — laissant 6000-8000t pour les steps suivants. Adapter le choix de plugins actifs en conséquence. Les tokens sont indiqués à titre indicatif — varient selon la taille du projet et les plugins actifs.
+> **Coût indicatif :** un `/init-project` complet consomme 3000-5000t. Le coût passif des plugins actifs se mesure avec `make doctor`. Les tokens sont indiqués à titre indicatif et varient selon la taille du projet et les plugins actifs.
 
 ### Pattern A — Nouveau projet court (≤1 session) · ~3000-5000t
 
@@ -273,7 +313,7 @@ cd mon-projet-existant/
 | 0  | plugin-advisor — détection signaux + activation plugins | recommandations plugins |
 | 1  | Archetype detection (scan ~/.claude/lib/project-archetypes/*.md) | archétype SELECTED + implications auto |
 | 1b | Gate monorepo (A/B/C si détecté) | mode choisi |
-| 2  | Config baseline (onboarder agent) | CLAUDE.md, settings.json, .claudeignore, .claude/tasks/ + .claude/memory/ + .claude/audits/ |
+| 2  | Config baseline (onboarder agent) | CLAUDE.md, settings.json, .claudeignore, .claude/tasks/ + .claude/memory/ + .claude/audits/ + .claude/rules/ (docker, testing, ci si un glob matche) |
 | 2.5| Lib d'animation (`motion`), proposée, opt-in | dépendance si acceptée |
 | 2.6| Gitflow init (main + develop, hooks) | branches + .githooks/ |
 | 3  | Interview deep = business minimum (users, deadlines, équipe, légal, perfs) + adaptative par archétype | brief enrichi |
@@ -283,7 +323,7 @@ cd mon-projet-existant/
 | 5  | Analyze read-only (analyzer agent) | .onboard-audit/analyze.md |
 | 6  | Audits parallèles selon archétype : | .onboard-audit/*.md (9 fichiers max) |
 |    |   — dette tech (general-purpose, audit read-only) |
-|    |   — sécurité (cso si gstack ON, sinon OWASP fallback) |
+|    |   — sécurité (cso si le pack gstack-dev est actif, sinon OWASP fallback) |
 |    |   — docs drift (doc-syncer) |
 |    |   — SEO + GEO (si public) |
 |    |   — design UI/UX (si frontend) |
@@ -298,6 +338,7 @@ cd mon-projet-existant/
 ```
 /onboard "Python FastAPI"              # hint stack
 /onboard force-archetype:wordpress     # override detection
+/onboard split                         # CLAUDE.md existant → règles .claude/rules/ (sections liées à un chemin)
 ```
 
 **Après /onboard :**
@@ -373,8 +414,10 @@ Ajouter un archétype : créer `~/.claude/lib/project-archetypes/<name>.md` (voi
 /plugin-check "App mobile React Native Expo liste de courses, offline-first, SQLite, notifications push"
 
 → SIGNALS: frontend (mobile), fast-libs (Expo SDK)
-→ WARN: context7 si Expo SDK 51+ utilisé (fast-libs)
-→ OFF: gstack (mobile, pas de browser QA), ui-ux-pro-max (optionnel)
+→ WARN: ctx7 CLI si Expo SDK 51+ utilisé (fast-libs)
+→ ↻ SET: dev (mobile)
+→ ⚡ ENABLE: pack design (frontend mobile, delta sur le profil dev)
+→ OPTIONAL: ui-ux-pro-max@ui-ux-pro-max-skill
 → BLOCKING: none
 ```
 
@@ -450,9 +493,9 @@ gsd
 /plugin-check "Site vitrine Next.js 14 studio photo, design élaboré, animations Framer Motion, galerie, dark mode, SEO"
 
 → SIGNALS: frontend, design-system, fast-libs(Next.js)
-→ ENABLE: ui-ux-pro-max (~400t) — "design élaboré" signal fort
-→ WARN: context7 non configuré → taper "force" pour continuer (ou configurer avant)
-→ OFF: gstack (vitrine statique, pas de deploy complexe)
+→ ↻ SET: web (site public)
+→ KEEP: pack design + ui-ux-pro-max@ui-ux-pro-max-skill — "design élaboré" signal fort
+→ WARN: ctx7 non configuré → taper "force" pour continuer (ou configurer avant)
 → COST: ~1600t passif (comfortable)
 ```
 
@@ -503,10 +546,9 @@ Sans ui-ux-pro-max : "Tailwind avec palette neutre, Inter". La différence est v
 /plugin-check "Jeu de puzzle web React + FastAPI + PostgreSQL. Auth JWT, collection de cartes, boutique in-app, leaderboard. Multi-session, dev sur plusieurs semaines."
 
 → SIGNALS: frontend, fast-libs(React), deploy, multi-session
-→ ENABLE: context7
-→ ENABLE: ui-ux-pro-max (cartes visuelles, cohérence design)
-→ CLI: gsd v2 RECOMMANDÉ (multi-session détecté)
-→ OPTIONAL: gstack si deploy CI + browser QA prévus
+→ KEEP: ctx7 CLI installé (find-docs, fast-libs React)
+→ KEEP: pack design + ui-ux-pro-max@ui-ux-pro-max-skill (cartes visuelles, cohérence design)
+→ CLI: gsd RECOMMANDÉ (multi-session détecté)
 → COST: ~1800t passif (avec context7)
 ```
 
@@ -603,8 +645,8 @@ ONBOARD COMPLETE: mycli
 /plugin-check "Rust CLI, pas de frontend, pas de deploy"
 
 → SIGNALS: none (CLI pur)
-→ DISABLE: ui-ux-pro-max, gstack, context7
-→ (skills superpowers vendorisés, toujours actifs, 0 t passif)
+→ ↻ SET: dev
+→ (skills superpowers vendorisés, toujours actifs)
 → COST: ~800t (minimal)
 → ACTION REQUIRED? NO
 ```
@@ -660,18 +702,18 @@ DO NOT TOUCH:
 
 **Contexte :** outil en ligne de commande, pas de frontend, pas de serveur, pas de Docker. Le cas le plus simple — illustre que le système fonctionne aussi bien sur les projets petits que complexes.
 
-**Setup plugins — zéro token inutile :**
+**Setup plugins — seulement ce que le projet demande :**
 ```
 /plugin-check "CLI Rust, convertisseur de fichiers JSON/CSV/TOML, pas de réseau, pas de frontend"
 
 → SIGNALS: none (CLI pur, pas de deploy, pas de frontend)
-→ (skills superpowers vendorisés, toujours actifs, 0 t passif)
-→ DISABLE: ui-ux-pro-max, gstack, context7
+→ (skills superpowers vendorisés, toujours actifs)
+→ ↻ SET: dev
 → COST: ~800t (base seulement)
 → ACTION REQUIRED? NO
 ```
 
-L'intérêt ici est de voir que `/plugin-check` est aussi utile pour confirmer qu'on n'a **rien** à activer, évitant de polluer le contexte avec 3000t de plugins inutiles.
+L'intérêt ici est de voir que `/plugin-check` est aussi utile pour confirmer qu'on n'a **rien** à activer, évitant de polluer le contexte avec des packs inutiles.
 
 **Prompt init (complet, pas de questions) :**
 ```
@@ -766,7 +808,7 @@ Simple à valider. L'architecture proposée est plate, pas de surprise.
 
 **Contexte :** module `services/payment_service.py` dans un projet FastAPI existant. Écrit il y a 2 ans, jamais refactorisé. Violations connues : fonctions de 80 lignes, global state, pas de tests unitaires, logique métier mélangée avec appels HTTP.
 
-**Setup :** projet déjà onboardé (CLAUDE.md présent), skills superpowers vendorisés (toujours actifs, 0 t passif), plugins inutiles désactivés.
+**Setup :** projet déjà onboardé (CLAUDE.md présent), skills superpowers vendorisés (toujours actifs), packs inutiles désactivés.
 
 #### Étape 1 — Analyse avant toute modification
 
@@ -879,7 +921,7 @@ PROJECT STATUS
 
 CONFIG
   Version   : v2.5.0
-  Plugins ON: context7 (~200t), skills superpowers vendorisés (toujours actifs, 0 t passif)
+  Plugins ON: ctx7 CLI, skills superpowers vendorisés (toujours actifs)
   GSD v2    : installed (3.0.0)
 
 PROJECT
@@ -977,9 +1019,9 @@ SIGNALS: simple, CLI/embedded
 COST: ~0t (skills superpowers vendorisés, toujours actifs, 0 t passif)
 
 RECOMMENDATIONS:
-  DISABLE   : ui-ux-pro-max, gstack, context7
+  SET       : minimal (embedded : tous les packs éteints)
   NOTE      : skills superpowers (brainstorming, writing-plans...) restent
-              disponibles par nom bare sans coût passif, même pour un
+              disponibles par nom bare, même pour un
               firmware minimal.
 ```
 
@@ -987,7 +1029,7 @@ RECOMMENDATIONS:
 
 ```
 # Pas de /init-project, pas de GSD ; skills superpowers vendorisés
-# (toujours actifs, 0 t passif) mais non invoqués ici
+# (toujours actifs) mais non invoqués ici
 
 # 1. Comprendre avant de modifier
 /analyze src/drivers/uart.c
@@ -1011,7 +1053,7 @@ OUTPUT:
 /ship-feature "Corriger l'accès non-atomique au ring_buffer_head dans l'ISR"
 
 STEP 0b — CLAUDE.md found
-STEP 0  — plugin check: skills superpowers vendorisés (toujours actifs, 0 t passif)
+STEP 0  — plugin check: skills superpowers vendorisés (toujours actifs)
 
 STEP 1 — BRAINSTORM (rapide, contexte déjà clair depuis /analyze):
   Design: protéger ring_buffer_head avec __disable_irq()/__enable_irq()
@@ -1034,7 +1076,7 @@ STEP 4 — IMPLEMENT (subagents légers, modifications chirurgicales)
 ```
 
 **Points clés :**
-- `/plugin-check` confirme qu'aucun plugin inutile n'est actif (skills superpowers vendorisés, toujours actifs, 0 t passif).
+- `/plugin-check` confirme qu'aucun pack inutile n'est actif (skills superpowers vendorisés, toujours actifs).
 - `/analyze` est particulièrement utile sur du code C bas-niveau : l'analyzer identifie les accès non-atomiques, les race conditions, les violations de normes, **sans proposer de fix**.
 - Pour un firmware, le workflow `analyze → ship-feature` peut se réduire à `analyze → edit direct` si la modification est triviale.
 - GSD v2 n'est jamais pertinent pour du firmware : les sessions sont courtes et les tâches atomiques.
@@ -1046,11 +1088,11 @@ STEP 4 — IMPLEMENT (subagents légers, modifications chirurgicales)
 Description contient...    →  Plugin
 ─────────────────────────────────────────────────────
 Next.js 13+ / App Router   →  context7 WARN
-Prisma / Supabase          →  context7 ON
-"design élaboré" / tokens  →  ui-ux-pro-max ON
-Docker + QA browser        →  gstack ON
-"plusieurs semaines"       →  gsd v2 CLI
-Rust / Python / Go / C     →  tout OFF (skills superpowers vendorisés, 0t)
-Mobile / Flutter / RN      →  gstack OFF
-Hotfix / script rapide     →  tout OFF (skills superpowers vendorisés, 0t)
+Prisma / Supabase          →  ctx7 installé
+"design élaboré" / tokens  →  pack design + ui-ux-pro-max@ui-ux-pro-max-skill
+Docker + QA browser        →  packs gstack-dev + gstack-browser
+"plusieurs semaines"       →  gsd CLI
+Rust / Python / Go / C     →  profil dev (skills superpowers vendorisés)
+Mobile / Flutter / RN      →  packs gstack-browser + gstack-design off
+Hotfix / script rapide     →  aucun changement de profil (/hotfix ou /bugfix)
 ```

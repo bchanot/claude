@@ -1,6 +1,6 @@
 ---
 name: plan-challenger
-description: Fresh independent plan challenger — reads a PLAN file from disk and adversarially attacks it through ONE assigned lens (correctness | robustness | simplicity), then renders structured findings + a verdict. Report-only, never fixes, never implements. Dispatched fresh; blind to the other lenses.
+description: Fresh plan challenger. Reads a PLAN file and attacks it through ONE lens (correctness | robustness | simplicity), then renders findings + a verdict. Report-only, blind to the other lenses.
 tools: Read, Grep, Glob, Bash
 model: opus
 effort: xhigh
@@ -106,11 +106,14 @@ the MAIN loop, never here):
 - Dispatch THREE fresh challengers IN PARALLEL, one per lens
   (correctness / robustness / simplicity), each blind to the others.
 - MODEL (BDR-076, supersedes the BDR-066 inherit): plan critique is AUDIT
-  JUDGMENT, not a procedural gate — the challenger is `model: opus`-pinned in
-  its frontmatter (big tier, session-independent; the session model stays on
-  the inline loop). Never `model: "sonnet"` — a silent judgment downgrade.
-  (Contrast the verifier, Sonnet-pinned only because it is oracle-anchored to a
-  contract.)
+  JUDGMENT, not a procedural gate — the challenger is routed to the `judge`
+  row (opus) by the model-router, the `model: opus` frontmatter being the
+  off-state floor (big tier; the main loop, on Fable through its best-tier
+  row, stays inline).
+  Never `model: "sonnet"` — a silent judgment downgrade. (Contrast the
+  executors on their `implement` row, sonnet, oracle-anchored to a contract;
+  the verifier and security-auditor sit on the `audit` row, Fable with an
+  opus floor.)
 - FAIL-SAFE — never fail open: a malformed/empty verdict, a missing `PROOF`, or
   a dead challenger → retry ONCE fresh; a 2nd failure → escalate to the human and
   NAME the lens. Never report "plan challenged" on a silently dropped lens (same

@@ -39,8 +39,7 @@ blocker already solved.
    no-match) → no-op naturally; only the ABSENT / no-file case needed the guard. The REGEX
    is the filter, not the file list: the glob also reads journal.md (date-keyed
    `## YYYY-MM-DD`) and any non-entry file, which contribute zero matches — no need to
-   exclude them. Do NOT read the `## Index` table: it drifts (entries land in the body, the
-   manual Index update lapses — measured 32-40% missing on a mature repo); headings cannot.
+   exclude them. Do NOT read a `## Index` table (v1 registries may still carry one; it drifted 32-40% on a mature repo; v2 has none); headings cannot drift.
 
 3. SELECT — IDs whose title bears on $REQUEST. Judge on titles (one dense line each), not
    on bodies. Over-inclusion is SAFE: an entry that proves non-binding costs one bare ref
@@ -97,9 +96,8 @@ is not the current flow having TREATED it as a constraint. Re-surfacing is the f
 
 ## HARD RULE — read-only
 
-Touches nothing. No write, no Index update, no memory mutation. Symmetric to
-capitalize-commit's surgical scope (there: stage ONLY memory; here: stage NOTHING). Index
-backfill, if ever wanted, is `/prune-memory` passe D — never this snippet.
+Touches nothing. No write, no memory mutation. Symmetric to
+capitalize-commit's surgical scope (there: stage ONLY memory; here: stage NOTHING). Registry writes go through `lib/memory.sh`, never this snippet.
 
 ## ORDERING (orchestrators only)
 

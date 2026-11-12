@@ -2,6 +2,7 @@
 # lib/tests/model-routing.test.sh — census: gate wiring + pins + executor shape (BDR-066, BDR-076)
 set -u
 R="$(cd "$(dirname "$0")/../.." && pwd)"
+skdir() { ls -d "$R"/skills/"$1" "$R"/skills/pack-*/skills/"$1" 2>/dev/null | head -1 | sed "s#^$R/##"; }
 pass=0; fail=0
 ok() { pass=$((pass+1)); }
 ko() { fail=$((fail+1)); printf 'FAIL %s\n' "$1"; }
@@ -9,19 +10,19 @@ has()   { if grep -qF "$2" "$R/$1"; then ok; else ko "$1 missing: $2"; fi; }
 lacks() { if grep -qF "$2" "$R/$1"; then ko "$1 must NOT contain: $2"; else ok; fi; }
 fm_lacks() { if awk 'NR<=10' "$R/$1" | grep -qF "$2"; then ko "$1 frontmatter must NOT contain: $2"; else ok; fi; }
 
-# 1) gate wired in the 15 reflection skills (orchestrators + /analyze)
-for s in ship-feature init-project feat bugfix onboard seo geo web-validate harden audit-delta tour code-clean hotfix client-handover analyze; do
-  has "skills/$s/SKILL.md" 'lib/model-gate.md'
+# 1) gate wired in the 17 reflection skills (orchestrators, /analyze, /guardrails, /a11y)
+for s in ship-feature init-project feat bugfix onboard seo geo web-validate harden audit-delta tour code-clean hotfix client-handover analyze guardrails a11y; do
+  has "$(skdir "$s")/SKILL.md" 'lib/model-gate.md'
 done
 # 2) gate NOT wired in the pure-execution/read-only skills (exclusion list)
 for s in commit-change doc status release-candidate refactor; do
-  lacks "skills/$s/SKILL.md" 'lib/model-gate.md'
+  lacks "$(skdir "$s")/SKILL.md" 'lib/model-gate.md'
 done
 # 3) executor + gate pins
 has "agents/feater.md"          'model: sonnet'
 has "agents/hotfixer.md"        'model: sonnet'
-has "agents/verifier.md"        'model: sonnet'
-has "agents/security-auditor.md" 'model: sonnet'
+has "agents/verifier.md"        'model: opus'  # audit row (best tier, opus = outage floor; BLK-032 policy 2026-10-21)
+has "agents/security-auditor.md" 'model: opus'  # audit row since 2026-10-21 (was judge since 2026-10-11)
 has "agents/analyzer.md"        'model: opus'
 # 4) /feat executor shape
 has "skills/feat/SKILL.md" 'subagent_type="feater"'
@@ -31,7 +32,7 @@ lacks "agents/feater.md" 'AskUserQuestion'
 has "skills/ship-feature/SKILL.md" 'model: "sonnet"'
 has "skills/init-project/SKILL.md" 'model: "sonnet"'
 # 6) web-validate applies via L1 applier
-has "skills/web-validate/SKILL.md" 'subagent_type="hotfixer"'
+has "skills/pack-web-validate/skills/web-validate/SKILL.md" 'subagent_type="hotfixer"'
 # 7) wave-2 — pure-execution skills dispatch their agent (pin takes effect, off the big session model)
 has "skills/doc/SKILL.md"               'subagent_type="doc-syncer"'
 has "skills/status/SKILL.md"            'subagent_type="status-reporter"'
@@ -105,9 +106,9 @@ lacks "agents/plugin-advisor.md"             'PHASE 1 — DETECT'
 has "lib/plugin-gate.md"                     'subagent_type="plugin-probe"'
 has "lib/plugin-gate.md"                     'subagent_type="plugin-advisor"'
 for s in plugin-check onboard init-project ship-feature; do
-  has "skills/$s/SKILL.md" 'lib/plugin-gate.md'
+  has "$(skdir "$s")/SKILL.md" 'lib/plugin-gate.md'
   # shellcheck disable=SC2016 # literal $HOME wanted: matching the exact inline-load string
-  lacks "skills/$s/SKILL.md" 'Load `$HOME/.claude/agents/plugin-advisor.md`'
+  lacks "$(skdir "$s")/SKILL.md" 'Load `$HOME/.claude/agents/plugin-advisor.md`'
 done
 # 14) BDR-077 W2/S2 — doc pipeline: ONE agent, TWO modes around the
 #     dispatcher's gate (audit = opus via call-site override — documented
@@ -124,10 +125,10 @@ has "skills/doc/SKILL.md"                    'model="opus"'
 has "skills/doc/SKILL.md"                    'MODE: patch'
 lacks "agents/scaffolder.md"                 'INLINE-LOAD'
 for s in bugfix hotfix feat ship-feature init-project; do
-  has "skills/$s/SKILL.md" 'MODE: audit'
-  has "skills/$s/SKILL.md" 'doc-syncer", model="opus"'
+  has "$(skdir "$s")/SKILL.md" 'MODE: audit'
+  has "$(skdir "$s")/SKILL.md" 'doc-syncer", model="opus"'
   # shellcheck disable=SC2016 # literal $HOME wanted: matching the exact inline-load string
-  lacks "skills/$s/SKILL.md" 'Load `$HOME/.claude/agents/doc-syncer.md`'
+  lacks "$(skdir "$s")/SKILL.md" 'Load `$HOME/.claude/agents/doc-syncer.md`'
 done
 # 15) BDR-077 W2 — last inline execution converted: scaffolder + onboarder
 #     are DISPATCHED (pins live); their gates/arbitration stay in the
@@ -166,14 +167,14 @@ has "agents/geo-analyzer.md"                 'MODE: collect'
 has "agents/geo-analyzer.md"                 'MODE: judge'
 has "agents/geo-analyzer.md"                 'MODE: template'
 has "agents/geo-analyzer.md"                 'COLLECTION COMPLETE'
-has "skills/seo/SKILL.md"                    'MODE: collect'
-has "skills/seo/SKILL.md"                    'seo-analyzer", model="sonnet"'
-has "skills/seo/SKILL.md"                    'never re-derive a score'
-has "skills/seo/SKILL.md"                    'DISPATCHER ERROR CONTRACT'
-has "skills/geo/SKILL.md"                    'MODE: collect'
-has "skills/geo/SKILL.md"                    'geo-analyzer", model="sonnet"'
-has "skills/geo/SKILL.md"                    'ERROR CONTRACT'
-has "skills/geo/SKILL.md"                    'never re-derive a score'
+has "skills/pack-seo/skills/seo/SKILL.md"                    'MODE: collect'
+has "skills/pack-seo/skills/seo/SKILL.md"                    'seo-analyzer", model="sonnet"'
+has "skills/pack-seo/skills/seo/SKILL.md"                    'never re-derive a score'
+has "skills/pack-seo/skills/seo/SKILL.md"                    'DISPATCHER ERROR CONTRACT'
+has "skills/pack-seo/skills/geo/SKILL.md"                    'MODE: collect'
+has "skills/pack-seo/skills/geo/SKILL.md"                    'geo-analyzer", model="sonnet"'
+has "skills/pack-seo/skills/geo/SKILL.md"                    'ERROR CONTRACT'
+has "skills/pack-seo/skills/geo/SKILL.md"                    'never re-derive a score'
 has "agents/handover-doc-writer.md"          'SYNTH REPORT'
 
 printf 'model-routing census: %d pass, %d fail\n' "$pass" "$fail"

@@ -1,0 +1,12 @@
+F1	/home/bchanot/Documents/faunosteo	feat|ship-feature	j'aimerais pouvoir exporter la liste des patients en CSV depuis le tableau de bord
+F2	/home/bchanot/Documents/faunosteo	bugfix	quand je valide le formulaire de rendez-vous ça plante avec une erreur 500
+F3	/home/bchanot/Documents/faunosteo	hotfix	il y a une faute dans le titre de la page d'accueil, Bienvenu au lieu de Bienvenue
+F4	/home/bchanot/Documents/faunosteo	ship-feature	je voudrais refaire complètement l'authentification avec OAuth Google et une gestion des rôles
+F5	/home/bchanot/Documents/faunosteo	analyze|bugfix|investigate|benchmark	le site est lent sur mobile, tu peux regarder pourquoi ?
+F6	/home/bchanot/Documents/faunosteo	reconcile	on fait le point, qu'est-ce qui reste à faire sur le projet ?
+F7	/home/bchanot/Documents/faunosteo	commit-change	commit tout ce que j'ai modifié
+F8	/home/bchanot/Documents/faunosteo	cso|guardrails	fais un audit sécu complet avant la mise en prod
+C1	<empty git dir>	init-project	je voudrais créer un nouveau projet from scratch : une API de suivi de dépenses
+C2	/home/bchanot/Documents/claude	close|capitalize	ferme la session, on a fini pour aujourd'hui
+C3	/home/bchanot/Documents/claude	analyze|none	explique-moi comment fonctionne le model-router
+C4	/home/bchanot/Documents/claude	feat	ajoute une option --dry-run au script lib/profile.sh

@@ -43,10 +43,12 @@ Agent(subagent_type="plan-challenger", description="challenge:<lens>", prompt=""
 ```
 
 **MODEL (BDR-076, supersedes the BDR-066 inherit):** plan critique is AUDIT
-JUDGMENT — the challengers are `model: opus`-pinned in their frontmatter: a big
-tier, session-independent, off the session model. The session model (Fable)
+JUDGMENT — the challengers are routed to the `judge` row (opus) by the model-router,
+the `model: opus` frontmatter being the off-state floor: a big tier, off
+the main loop. The main loop (Fable through its best-tier row)
 keeps only this loop — synthesis, RE-THINK, gate. Never sonnet: that would
-silently downgrade the judgment. (The executor gates stay sonnet.)
+silently downgrade the judgment. (The executors stay sonnet; the two merge
+gates sit on the `audit` row, Fable with an opus floor.)
 
 **Lens framing by `KIND`** (the agent's three lenses, read against the artifact):
 - `build-plan` — will it WORK / will it BREAK / is it needlessly COMPLEX.
@@ -59,8 +61,9 @@ silently downgrade the judgment. (The executor gates stay sonnet.)
 
 A challenger that returns a malformed/empty verdict, a missing `PROOF`, or dies →
 retry ONCE with a fresh challenger; a 2nd failure on that lens → STOP and escalate
-(the STOP text names the level reached, `$CLAUDE_EFFORT`, and suggests `/effort-max`
-for the relaunch; no shift here: a mute challenger is an infrastructure failure)
+(the STOP text names the level reached, `$CLAUDE_EFFORT`, and suggests relaunching with
+`ultrathink` in the prompt (turn floor) or `/route effort=max` (sticky,
+`/route clear` after); no shift here: a mute challenger is an infrastructure failure)
 to the human, NAMING the lens. Never carry "plan challenged" into the gate on a
 silently dropped lens (`verify-secure-loop.md`: "a mute verifier is NEVER a PASS").
 

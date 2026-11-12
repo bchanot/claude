@@ -1,9 +1,17 @@
 #!/usr/bin/env bash
-# lib/tests/effort-routing.test.sh — census: effort tiering (BDR-107)
-# agent pins, skill entry levels, shifter skills, orchestrator wiring, settings.
-# shellcheck disable=SC2015,SC2016  # A && ok || ko is deliberate (ok/ko never fail); '$REPO' locks are literal source text
+# lib/tests/effort-routing.test.sh — wave-2 census of the model-router rows.
+# Drift lock: every tracked skill/agent row of mods/model-router/routing.json
+# equals its frontmatter (the off-state floor), except a row the user changed
+# through the first-use dialog (WARN floor drift: the floor may lag a
+# confirmed decision); the D3 wiring markers sit in the orchestrators, no
+# shifter citer survives.
+# shellcheck disable=SC2015,SC2016  # A && ok || ko is deliberate (ok/ko never fail)
 set -u
 R="$(cd "$(dirname "$0")/../.." && pwd)"
+skdir() { ls -d "$R"/skills/"$1" "$R"/skills/pack-*/skills/"$1" 2>/dev/null | head -1 | sed "s#^$R/##"; }
+MOD="$R/mods/model-router"
+RJ="$MOD/routing.json"
+REG="$MOD/hooks/register.ts"
 pass=0; fail=0
 ok() { pass=$((pass+1)); }
 ko() { fail=$((fail+1)); printf 'FAIL %s\n' "$1"; }
@@ -11,120 +19,230 @@ has()   { if grep -qF "$2" "$R/$1"; then ok; else ko "$1 missing: $2"; fi; }
 lacks() { if grep -qF "$2" "$R/$1"; then ko "$1 must NOT contain: $2"; else ok; fi; }
 # frontmatter = the lines between the first two '---' lines
 fm() { awk 'NR==1&&/^---$/{p=1;next} p&&/^---$/{exit} p' "$1"; }
-fm_effort() { fm "$1" | grep -E '^effort: (low|medium|high|xhigh|max)$' | head -1 | cut -d' ' -f2; }
-fm_has_effort() {
-  got="$(fm_effort "$R/$1")"
-  if [ "$got" = "$2" ]; then ok; else ko "$1 frontmatter effort must be '$2', got '${got:-none}'"; fi
+fm_val() { fm "$1" | grep -E "^$2: [a-z]+$" | head -1 | cut -d' ' -f2; }
+
+# ── routing.json (rows, phases, decisions) and the tier heads ────────────
+# dump <routing.json> -> "skills|agents <name> <phase>", "phases <p> <tier>
+# <effort>", "changed <kind> <name> <from> <to>" lines
+dump() {
+  python3 -I - "$1" <<'PY'
+import json, sys
+d = json.load(open(sys.argv[1]))
+for kind in ("skills", "agents"):
+    for k, v in d.get(kind, {}).items():
+        print(kind, k, v)
+for k, v in d.get("phases", {}).items():
+    print("phases", k, v.get("tier", ""), v.get("effort", ""))
+for kind in ("skills", "agents"):
+    for k, v in d.get("changed", {}).get(kind, {}).items():
+        print("changed", kind, k, v["from"], v["to"])
+PY
 }
-fm_no_effort() { if fm "$R/$1" | grep -q '^effort:'; then ko "$1 must NOT pin effort"; else ok; fi; }
+# lookups on a dump text: row_of D kind name · phase_effort D phase ·
+# changed_of D kind name -> "from to"
+row_of()       { printf '%s\n' "$1" | awk -v k="$2" -v n="$3" '$1==k&&$2==n{print $3}'; }
+phase_effort() { printf '%s\n' "$1" | awk -v p="$2" '$1=="phases"&&$2==p{print $3, $4}'; }
+changed_of()   { printf '%s\n' "$1" | awk -v k="$2" -v n="$3" '$1=="changed"&&$2==k&&$3==n{print $4, $5}'; }
+# tier_head <file> <tier> -> first alias of the tier list
+tier_head() {
+  awk '/^  tiers: \{/{f=1;next} f&&/^  \},?$/{f=0} f' "$1" \
+    | sed -nE "s/^ *$2: \['([a-z]+)'.*$/\1/p"
+}
+# the fallback copy of the phases inside the mod's code: "<tier> <effort>"
+code_phase() {
+  awk '/^  phases: \{/{f=1;next} f&&/^  \},?$/{f=0} f' "$REG" \
+    | sed -nE "s/^ *$1: \{ tier: '([a-z]+)', effort: '([a-z]+)' \},?$/\1 \2/p"
+}
+# tier_floor <file> <tier> -> the model: floor of a tier's agents
+# a best-tier row floors on its 2nd alias: inTier keeps the frontmatter when the head is down (Fable credits, BLK-030); a fable floor would spawn the gates on a dead model
+tier_floor() {
+  if [ "$2" != best ]; then tier_head "$1" "$2"; return; fi
+  awk '/^  tiers: \{/{f=1;next} f&&/^  \},?$/{f=0} f' "$1" \
+    | sed -nE "s/^ *best: \['[a-z]+', '([a-z]+)'.*$/\1/p"
+}
+# field_of <dump> <phase> <effort|model> -> that phase's frontmatter value
+field_of() {
+  local pe tier
+  pe="$(phase_effort "$1" "$2")"
+  if [ "$3" = effort ]; then printf '%s\n' "${pe#* }"; return; fi
+  tier="${pe% *}"; tier_floor "$REG" "$tier"
+}
+# verdict <dump> <kind> <name> <effort|model> <got> <phase>: ok when the
+# frontmatter equals the row's phase; warn when the row was changed through
+# the dialog (changed.from is the shipped phase, changed.to the row) and the
+# frontmatter still holds the shipped value; fail otherwise (a Keep alone,
+# an empty or unknown value, a hand edit after a change)
+verdict() {
+  local D="$1" kind="$2" name="$3" field="$4" got="$5" phase="$6" ch from fromval
+  [ -n "$got" ] || { echo fail; return; }
+  [ "$got" = "$(field_of "$D" "$phase" "$field")" ] && { echo ok; return; }
+  ch="$(changed_of "$D" "$kind" "$name")"; from="${ch% *}"
+  [ -n "$ch" ] && [ "${ch#* }" = "$phase" ] || { echo fail; return; }
+  fromval="$(field_of "$D" "$from" "$field")"
+  [ -n "$fromval" ] && [ "$got" = "$fromval" ] && echo warn || echo fail
+}
+# floor_check <dump> <kind> <name> <effort|model> <got> <phase> <label>
+floor_check() {
+  case "$(verdict "$1" "$2" "$3" "$4" "$5" "$6")" in
+    ok) ok;;
+    warn) printf 'WARN floor drift: %s %s vs row %s (%s)\n' "$7" "$5" "$6" "$4"; ok;;
+    *) ko "$7: $4 '$5' != row $6 ($(field_of "$1" "$6" "$4"))";;
+  esac
+}
+RD="$(dump "$RJ")"
 
-# ── flip-test: the frontmatter reader must accept a valid level and reject an invalid one
+# ── flip-test: the readers parse a fixture and reject the wrong verdicts ──
 FIX="$(mktemp -d)"; trap 'rm -rf "$FIX"' EXIT
-printf -- '---\nname: good\neffort: xhigh\n---\nbody with effort: low in prose\n' > "$FIX/good.md"
-printf -- '---\nname: bad\neffort: turbo\n---\n' > "$FIX/bad.md"
-[ "$(fm_effort "$FIX/good.md")" = "xhigh" ] && ok || ko "flip: valid level not read"
-[ -z "$(fm_effort "$FIX/bad.md")" ] && ok || ko "flip: invalid level accepted"
-[ "$(fm "$FIX/good.md" | grep -c 'prose')" -eq 0 ] && ok || ko "flip: body leaked into frontmatter"
+cat > "$FIX/reg.ts" <<'FX'
+  tiers: {
+    best: ['fable', 'opus', 'sonnet'],
+    big: ['opus', 'fable'],
+  },
+FX
+cat > "$FIX/routing.json" <<'FX'
+{
+  "phases": {
+    "judge": { "tier": "big", "effort": "xhigh" },
+    "reflect": { "tier": "best", "effort": "high" },
+    "implement": { "tier": "work", "effort": "medium" }
+  },
+  "skills": { "feat": "implement", "doc": "reflect" },
+  "agents": { "Plan": "judge" },
+  "changed": { "skills": { "feat": { "from": "reflect", "to": "implement" } } },
+  "ask": true
+}
+FX
+FD="$(dump "$FIX/routing.json")"
+[ "$(row_of "$FD" agents Plan)" = judge ] && ok || ko "flip: agents row misread"
+[ "$(row_of "$FD" skills feat)" = implement ] && ok || ko "flip: skills row misread"
+[ -z "$(row_of "$FD" skills ghost)" ] && ok || ko "flip: ghost row"
+[ "$(phase_effort "$FD" judge)" = "big xhigh" ] && ok || ko "flip: phase"
+[ -z "$(phase_effort "$FD" nothere)" ] && ok || ko "flip: ghost phase"
+[ "$(tier_head "$FIX/reg.ts" big)" = "opus" ] && ok || ko "flip: tier head"
+[ "$(tier_floor "$FIX/reg.ts" best)" = opus ] && ok || ko "flip: best floors on its 2nd alias"
+[ "$(tier_floor "$FIX/reg.ts" big)" = opus ] && ok || ko "flip: big floors on its head"
+[ "$(changed_of "$FD" skills feat)" = "reflect implement" ] && ok || ko "flip: changed entry"
+[ -z "$(changed_of "$FD" skills doc)" ] && ok || ko "flip: ghost changed entry"
+# the drift verdicts (high = reflect's effort, medium = implement's)
+[ "$(verdict "$FD" skills doc effort high reflect)" = ok ] && ok || ko "flip: equal must pass"
+[ "$(verdict "$FD" skills doc effort medium reflect)" = fail ] && ok || ko "flip: a Keep-only drift must FAIL"
+[ "$(verdict "$FD" skills feat effort high implement)" = warn ] && ok || ko "flip: changed.from drift must WARN"
+[ "$(verdict "$FD" skills feat effort '' implement)" = fail ] && ok || ko "flip: an empty value must FAIL"
+[ "$(verdict "$FD" skills feat effort banana implement)" = fail ] && ok || ko "flip: an unknown value must FAIL"
+[ "$(verdict "$FD" skills feat effort low implement)" = fail ] && ok || ko "flip: a drift off the shipped value must FAIL"
+[ "$(verdict "$FD" skills feat effort high reflect)" = ok ] && ok || ko "flip: row back to its shipped phase passes"
+[ "$(verdict "$FD" skills feat effort high judge)" = fail ] && ok || ko "flip: a hand edit after a change must FAIL"
+[ "$(echo "$RD" | grep -c '^skills ')" -gt 40 ] && ok || ko "routing.json: skills rows not read"
+[ "$(echo "$RD" | grep -c '^agents ')" -gt 15 ] && ok || ko "routing.json: agents rows not read"
 
-# ── 1) session default (spec D1)
+# ── the code's fallback phases equal routing.json's (never a stale route) ─
+n_code="$(awk '/^  phases: \{/{f=1;next} f&&/^  \},?$/{f=0} f' "$REG" | grep -c "tier:")"
+n_json="$(echo "$RD" | grep -c '^phases ')"
+[ "$n_code" -eq "$n_json" ] && ok || ko "phases: $n_code in code vs $n_json in routing.json"
+while read -r _ p tier effort; do
+  [ "$(code_phase "$p")" = "$tier $effort" ] && ok \
+    || ko "phase $p: code '$(code_phase "$p")' != routing.json '$tier $effort'"
+done < <(echo "$RD" | grep '^phases ')
+
+# ── (b) tracked skills: row exists, frontmatter effort equals the row ────
+NO_ROW_SKILLS=" find-docs graphify impeccable model-router "
+check_skill() {
+  local f="$1" name phase
+  name="$(basename "$(dirname "$f")")"
+  case "$NO_ROW_SKILLS" in *" $name "*) return;; esac
+  phase="$(row_of "$RD" skills "$name")"
+  [ -n "$phase" ] || { ko "skills/$name: no row in routing.json"; return; }
+  [ -n "$(fm_val "$R/$f" effort)" ] || { ko "skills/$name: routed skill without effort:"; return; }
+  floor_check "$RD" skills "$name" effort "$(fm_val "$R/$f" effort)" "$phase" "skills/$name"
+}
+while IFS= read -r f; do check_skill "$f"; done < <(
+  cd "$R" && git ls-files 'skills/*/SKILL.md' 'skills-external/*/SKILL.md')
+
+# ── (b2) every skills row resolves to a skill (short, pack entry, parked) ─
+# Parked: written by `21st skills install` (install-plugins.sh Step 8.7),
+# in no pack, so absent from a fresh clone until that step ran.
+PARKED=" 21st-registry 21st-design-sync "
+ext_named() { # ext_named <k>: <k> is in link.sh EXTERNAL_SKILLS
+  sed -n '/^EXTERNAL_SKILLS=(/,/)/p' "$R/link.sh" | grep -qw -- "$1"
+}
+row_resolves() { # row_resolves <key>
+  local k="$1" n p
+  case "$k" in
+    pack-*:*) n="${k%%:*}"; p="$R/skills/$n/skills/${k#*:}"
+      [ -L "$p" ] || [ -e "$p/SKILL.md" ];;
+    *) case "$PARKED" in *" $k "*) return 0;; esac
+       [ -e "$R/skills/$k/SKILL.md" ] || ext_named "$k" \
+         || [ -L "$R/skills/$k" ] || [ -n "$(skdir "$k")" ] \
+         || [ -e "$R/skills-external/$k/SKILL.md" ];;
+  esac
+}
+[ -L "$R/skills/pack-seo/skills/seo" ] || [ -d "$R/skills/pack-seo/skills/seo" ] \
+  && ! row_resolves ghost-skill \
+  && ! row_resolves pack-seo:ghost && ! row_resolves pack-ghost:seo \
+  && ok || ko "row_resolves: flip-test (ghost rows must fail)"
+while read -r kind key _; do
+  [ "$kind" = skills ] || continue
+  row_resolves "$key" && ok || ko "routing.json: skills row '$key' resolves to no skill"
+done <<< "$RD"
+
+# ── (c) tracked agents with a row: tier floor == model:, effort == effort: ─
+NO_ROW_AGENTS=" interviewer client-handover-writer "
+check_agent() {
+  local f="$1" name phase
+  name="$(basename "$f" .md)"
+  case "$NO_ROW_AGENTS" in *" $name "*) return;; esac
+  case "$name" in impeccable-*) return;; esac
+  phase="$(row_of "$RD" agents "$name")"
+  [ -n "$phase" ] || { ko "agents/$name: no row in routing.json"; return; }
+  floor_check "$RD" agents "$name" model "$(fm_val "$R/$f" model)" "$phase" "agents/$name"
+  floor_check "$RD" agents "$name" effort "$(fm_val "$R/$f" effort)" "$phase" "agents/$name"
+}
+while IFS= read -r f; do check_agent "$f"; done < <(
+  cd "$R" && git ls-files 'agents/*.md' | grep -E '^agents/[^/]+\.md$' \
+    | grep -v '/README\.md$')
+
+# ── (d) no shifter citer in skills, agents, lib ──────────────────────────
+if (cd "$R" && git grep -qE 'Skill\(effort-|EFFORT SHIFT[S]:' -- skills agents lib ':!lib/tests'); then
+  ko "a shifter-skill or shift-header citer survives in skills/agents/lib"
+else ok; fi
+# paths split so this file itself matches no deleted-name grep
+for s in skills/effort-low skills/effort-max lib/effort-""pins.txt lib/model-""check.sh; do
+  [ ! -e "$R/$s" ] && ok || ko "$s must be deleted"
+done
+
+# ── (e) D3 wiring markers ────────────────────────────────────────────────
+mark() { # mark <phase> <skills...>
+  local ph="$1" s; shift
+  for s in "$@"; do has "$(skdir "$s")/SKILL.md" "route(phase=\"$ph\")"; done
+}
+mark orchestrate feat hotfix bugfix ship-feature init-project code-clean seo geo harden web-validate audit-delta
+mark apply feat hotfix bugfix ship-feature init-project
+mark reflect feat hotfix bugfix seo geo harden web-validate
+mark plan ship-feature init-project onboard code-clean audit-delta
+mark escalate ship-feature
+[ "$(grep -o 'route(phase="escalate")' "$R/lib/verify-secure-loop.md" | wc -l)" -eq 3 ] \
+  && ok || ko "verify-secure-loop.md: escalate route must appear 3 times"
+for s in ship-feature init-project; do has "$(skdir "$s")/SKILL.md" 'effort="xhigh"'; done
+has "skills/tour/SKILL.md" 'effort="xhigh"'
+n_opus="$(grep -c 'model="opus",$' "$R/skills/onboard/SKILL.md")"
+n_eff="$(grep -c 'effort="xhigh",$' "$R/skills/onboard/SKILL.md")"
+[ "$n_opus" -ge 7 ] && [ "$n_opus" -eq "$n_eff" ] && ok \
+  || ko "onboard: $n_opus model=\"opus\" dispatches vs $n_eff effort=\"xhigh\""
+bad="$(grep 'model: "fable"' "$R/agents/client-handover-writer.md" | grep -vc 'effort="high"')"
+[ "$bad" -eq 0 ] && ok || ko "client-handover-writer: $bad model: \"fable\" line(s) without effort=\"high\""
+for s in ship-feature init-project feat bugfix web-validate seo hotfix geo harden code-clean audit-delta tour onboard; do
+  has "$(skdir "$s")/SKILL.md" 'ROUTING: follow $HOME/.claude/lib/effort-shift.md'
+done
+has "agents/client-handover-writer.md" 'ROUTING: follow $HOME/.claude/lib/effort-shift.md'
+
+# ── (f) doctrine includes ────────────────────────────────────────────────
+has "lib/model-gate.md" 'mcp__model-router__route'
+has "lib/effort-shift.md" 'ToolSearch'
+has "rules/web-building.md" 'route to `reflect` (high) through their'
+
+# ── (g) session default and hooks (unchanged locks) ──────────────────────
 has "settings.json" '"effortLevel": "high"'
-
-# ── 2) hooks: env-var warning + live effort in the statusline (spec D1, D5)
 has "hooks/session-start.sh" 'CLAUDE_CODE_EFFORT_LEVEL'
 has "hooks/statusline.sh" 'CLAUDE_EFFORT'
 
-# ── 3) agent pins (spec D2): one effort per agent file, judgment mode wins on mode-based agents
-for a in hotfixer release-executor plugin-probe validator-analyzer; do fm_has_effort "agents/$a.md" low; done
-for a in feater bugfixer code-cleaner onboarder scaffolder; do fm_has_effort "agents/$a.md" medium; done
-for a in refactorer analyzer commit-changer doc-syncer handover-doc-writer; do fm_has_effort "agents/$a.md" high; done
-for a in plan-challenger plugin-advisor verifier security-auditor seo-analyzer geo-analyzer; do fm_has_effort "agents/$a.md" xhigh; done
-for a in interviewer client-handover-writer status-reporter; do fm_no_effort "agents/$a.md"; done
-has "skills/init-project/SKILL.md" 'pin sonnet, effort medium'
-
-# ── 4) skill entry levels (spec D3): the user's invocation sets the run's level
-for s in status commit-change release-candidate doc capitalize close reconcile deploy profile plugin-check; do fm_has_effort "skills/$s/SKILL.md" low; done
-for s in gitflow prune-memory; do fm_has_effort "skills/$s/SKILL.md" medium; done
-for s in feat hotfix bugfix refactor web-validate harden seo geo; do fm_has_effort "skills/$s/SKILL.md" high; done
-for s in ship-feature init-project onboard tour audit-delta analyze code-clean client-handover; do fm_has_effort "skills/$s/SKILL.md" xhigh; done
-# BDR-108 round: the three repo skills that had no level
-fm_has_effort "skills/skills-perso/SKILL.md" low
-fm_has_effort "skills/pdf-translate/SKILL.md" medium
-fm_has_effort "skills/site-motion/SKILL.md" high
-
-# ── 9) vendored externals carry the level of lib/effort-pins.txt (BDR-108). The files live in
-#      skills-external/ (gitignored, machine-owned): the durable artifact is the map + the re-apply
-#      after the last vendoring step of install-plugins.sh AND update-all.sh; a skill not vendored
-#      yet SKIPs visibly (fresh clone before make plugin).
-while read -r s lvl _; do
-  case "$s" in ''|'#'*) continue ;; esac
-  if [ -f "$R/skills-external/$s/SKILL.md" ]; then fm_has_effort "skills-external/$s/SKILL.md" "$lvl"
-  else printf 'SKIP skills-external/%s/SKILL.md not vendored yet (run make plugin)\n' "$s"; fi
-done < "$R/lib/effort-pins.txt"
-has "lib/effort-pins.txt" 'brainstorming xhigh'; has "lib/effort-pins.txt" 'writing-plans xhigh'
-has "install-plugins.sh" 'apply_effort_pins "$REPO"'; has "update-all.sh" 'apply_effort_pins "$REPO"'
-lacks "install-plugins.sh" 'for _s in brainstorming writing-plans; do'
-ln_last() { grep -n "$2" "$R/$1" | tail -1 | cut -d: -f1; }
-[ "$(ln_last install-plugins.sh 'apply_effort_pins "$REPO"')" -gt "$(ln_last install-plugins.sh 'rm -rf "$TFD_STAGE"')" ] \
-  && ok || ko "install-plugins.sh: effort pins must be re-applied after the 21st pack refresh"
-pins_ln=$(ln_last update-all.sh 'apply_effort_pins "$REPO"')
-[ "$pins_ln" -gt "$(ln_last update-all.sh 'skills-external/$_tfd_name')" ] \
-  && [ "$pins_ln" -gt "$(ln_last update-all.sh 'vendor_pinned_skills superpowers refresh')" ] \
-  && ok || ko "update-all.sh: effort pins must be re-applied after the last vendoring step (21st pack)"
-[ -x "$R/lib/effort-pins.sh" ] && ok || ko "lib/effort-pins.sh missing or not executable"
-# 9b) design stack = ONE level (last loaded wins); site-motion (repo skill) pins the same one
-stack_levels() { awk '/^# design stack/{f=1;next} f&&/^#$/{f=0} f&&!/^#/&&NF==2{print $2}' "$R/lib/effort-pins.txt" | sort -u; }
-[ "$(stack_levels | wc -l)" -eq 1 ] && ok || ko "design stack must share ONE level in lib/effort-pins.txt (got: $(stack_levels | tr '\n' ' '))"
-[ "$(stack_levels | wc -l)" -ge 1 ] && fm_has_effort "skills/site-motion/SKILL.md" "$(stack_levels | head -1)"
-has "lib/effort-shift.md" 'Stacked skills share one level'
-has "CLAUDE.global.md" 'lib/effort-pins.txt'
-
-# ── 5) shifter skills + include (spec D4)
-for l in low medium high xhigh max; do fm_has_effort "skills/effort-$l/SKILL.md" "$l"; has "skills/effort-$l/SKILL.md" "name: effort-$l"; done
-has "lib/effort-shift.md" 'Headless sessions'
-has "lib/effort-shift.md" 'Skill(effort-max)'
-has "lib/effort-shift.md" 'never inside a dispatched agent'
-has "lib/model-gate.md" 'lib/effort-shift.md'
-
-# ── 6) orchestrator wiring (spec D4)
-for s in feat hotfix bugfix ship-feature init-project onboard tour code-clean seo geo harden web-validate audit-delta; do
-  has "skills/$s/SKILL.md" 'lib/effort-shift.md'; has "skills/$s/SKILL.md" 'a lone Skill call is a no-op'; done
-for s in feat hotfix bugfix ship-feature init-project code-clean seo geo harden web-validate audit-delta; do
-  has "skills/$s/SKILL.md" 'Skill(effort-medium)'; done
-lacks "skills/onboard/SKILL.md" 'Skill(effort-medium)'; lacks "skills/tour/SKILL.md" 'Skill(effort-medium)'
-has "agents/client-handover-writer.md" 'lib/effort-shift.md'; lacks "agents/client-handover-writer.md" 'Skill(effort-medium)'; has "agents/client-handover-writer.md" 'Skill(effort-high)'
-for s in feat hotfix bugfix; do has "skills/$s/SKILL.md" 'Skill(effort-high)'; done
-for s in ship-feature init-project onboard code-clean audit-delta; do has "skills/$s/SKILL.md" 'Skill(effort-xhigh)'; done
-for s in seo geo harden web-validate; do has "skills/$s/SKILL.md" 'Skill(effort-high)'; done
-for s in feat hotfix bugfix ship-feature init-project; do has "skills/$s/SKILL.md" 'Skill(effort-low)'; done
-has "skills/feat/SKILL.md" 'effort-shift: nested commit-change'
-
-# ── 6b) pairing rule documented (R11)
-has "lib/effort-shift.md" 'lone Skill call is a no-op'
-has "lib/effort-shift.md" 're-applies its'
-[ "$(grep -c 'a lone Skill call is a no-op' "$R/skills/feat/SKILL.md")" -ge 1 ] && ok || ko "feat INC line must carry the pairing rule"
-
-# ── 7) escalation at max (spec D4)
-[ "$(grep -c 'Skill(effort-max)' "$R/lib/verify-secure-loop.md")" -eq 3 ] && ok || ko "verify-secure-loop.md must shift to max at its 3 caps"
-has "skills/ship-feature/SKILL.md" 'Skill(effort-max)'
-has "lib/challenge-plan.md" '/effort-max'
-has "lib/verify-secure-loop.md" '/effort-max'
-
-# ── 8) turn-reset re-assert after a prose gate followed by reflection
-has "skills/bugfix/SKILL.md" 'effort-shift: turn reset'
-
-# ── 11) audit tooling
-has "lib/effort-shift.md" 'effort-audit.py'
-[ -x "$R/lib/effort-audit.py" ] && ok || ko "lib/effort-audit.py missing or not executable"
-
-# ── 6c) judgment dispatches re-raised, planning re-asserts, stronger locks (final review I1/I2/M5)
-for s in ship-feature init-project; do has "skills/$s/SKILL.md" 'effort-shift: judgment dispatch'; has "skills/$s/SKILL.md" 'effort-shift: turn reset'; done
-has "agents/client-handover-writer.md" 'effort-shift: judgment dispatch'
-has "lib/effort-shift.md" 'Before any built-in or unpinned dispatch'
-has "lib/model-gate.md" 'built-ins inherit the effort in force'
-has "skills/ship-feature/SKILL.md" 'effort-shift: error recovery'
-for s in feat hotfix bugfix seo geo harden web-validate ship-feature init-project onboard code-clean audit-delta; do has "skills/$s/SKILL.md" 'effort-shift: own level before the challenge'; done
-has "update-all.sh" 'source "$REPO/lib/effort-pins.sh"'
-
-# ── summary (later tasks insert their locks ABOVE this line)
-printf 'effort-routing census: %d pass, %d fail\n' "$pass" "$fail"
-[ "$fail" -eq 0 ]
+printf 'PASS=%s FAIL=%s\n' "$pass" "$fail"; [ "$fail" -eq 0 ]

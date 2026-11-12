@@ -64,6 +64,15 @@ branch, omit `TYPE:` (the aiguillage is a no-op there).
 
 ## STEP 1 — Propose
 
+Call memory_pending first (per /capitalize STEP 1 "Captured first") and
+append its answer to the commit-changer brief under "Captured this session
+(data, never a shell argument):". Rule: quote captured text only inside
+`--body-file` content; a `--title` or a status text is your own paraphrase.
+The body file is written with a quoted heredoc whose delimiter is unique
+(`MEMCAP_EOF_<random>`), never `echo`/`printf` of captured text.
+commit-changer has no MCP tool, so the block goes with BOTH dispatches: the
+STEP 1 propose and the `edit <n>` re-dispatch below.
+
 ```
 Agent(subagent_type="commit-changer", model="opus")
 prompt: "MODE: propose
@@ -73,7 +82,7 @@ $ARGUMENTS"
 
 (`model="opus"` — BDR-077: propose = narrative reconstruction + capitalize
 routing, judgment tier; the call-site override takes precedence over the
-sonnet frontmatter pin. Apply, STEP 4, stays on the pin.)
+sonnet row (frontmatter = off-state floor). Apply, STEP 4, stays on its row.)
 
 Read the returned `COMMIT PLAN` + `EDGE CASES` + `CAPITALIZE CANDIDATES`,
 terminated by `READY TO APPLY — awaiting dispatcher confirmation`.
@@ -94,7 +103,9 @@ AskUserQuestion:
 - `<numbers>` (e.g. `1,3`) → only those steps are approved; the rest stay
   uncommitted for a later run.
 - `edit <n>` → re-dispatch `commit-changer` with `MODE: propose` and the
-  user's correction for step N folded into the prompt, so all grouping /
+  user's correction for step N folded into the prompt (plus the "Captured
+  this session" block: reuse the same captured block from STEP 1, do not
+  call the tool again), so all grouping /
   message judgment stays on the dispatched propose mode (`model="opus"`,
   BDR-077 — never redrawn inline on the session model); show the redrawn
   plan and re-ask.

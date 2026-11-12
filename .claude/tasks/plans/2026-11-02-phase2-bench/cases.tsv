@@ -1,0 +1,46 @@
+M1	ask	Bash(git merge *)	git merge -h	ASKED
+M1c	ask	Bash(git merge *)	true && git merge -h	ASKED
+M1n	ask	Bash(git merge *)	git merge-base --help >/dev/null	RAN
+M3	ask	Bash(bash *gitflow.sh finish*)	bash /nonexistent/lib/gitflow.sh finish	ASKED
+M3q	ask	Bash(bash "*gitflow.sh" finish*)	bash "$HOME/nonexistent/lib/gitflow.sh" finish	ASKED
+M3x	ask	Bash(bash *gitflow.sh finish*)	bash "$HOME/nonexistent/lib/gitflow.sh" finish	MEASURE
+M3t	ask	Bash(bash *gitflow.sh finish*)	bash ~/nonexistent/lib/gitflow.sh finish	ASKED
+M4	ask	Bash(sh *gitflow.sh finish*)	sh /nonexistent/gitflow.sh finish	ASKED
+M5	ask	Bash(gitflow_finish*)	source /nonexistent/gitflow.sh; gitflow_finish	ASKED
+M6	ask	Bash(bash *gitflow.sh finish*)	bash /nonexistent/gitflow.sh start feature x	RAN
+M6q	ask	Bash(bash "*gitflow.sh" finish*)	bash "$HOME/nonexistent/gitflow.sh" start feature x	RAN
+M7	ask	Bash(git merge *)	git -C /tmp log -1 --grep merge	RAN
+S1	ask	Bash(sh -c *)	sh -c 'echo hi'	ASKED
+S1l	ask	Bash(sh -*c *)	sh -ec 'echo hi'	ASKED
+S1b	ask	Bash(bash -*c *)	bash -lc 'echo hi'	ASKED
+S1d	ask	Bash(dash -c *)	dash -c 'echo hi'	ASKED
+S2	ask	Bash(bash)	bash <<'EOF'\necho hi\nEOF	ASKED
+S3	ask	Bash(sh)	sh <<'EOF'\necho hi\nEOF	ASKED
+S4	ask	Bash(bash -s*)	echo 'echo hi' | bash -s	ASKED
+S5	ask	Bash(bash <(*)	bash <(echo 'echo hi')	ASKED
+S6	ask	Bash(/bin/sh *)	/bin/sh -c 'echo hi'	ASKED
+S7	ask	Bash(/bin/bash *)	/bin/bash -c 'echo hi'	ASKED
+S7u	ask	Bash(/usr/bin/bash *)	/usr/bin/bash -c 'echo hi'	ASKED
+S7s	ask	Bash(/usr/bin/sh *)	/usr/bin/sh -c 'echo hi'	ASKED
+S8	ask	Bash(/usr/bin/env bash*)	/usr/bin/env bash -c 'echo hi'	ASKED
+S9	ask	Bash(/usr/bin/env sh*)	/usr/bin/env sh -c 'echo hi'	ASKED
+S10	ask	Bash(bash)	bash /nonexistent/x.sh	RAN
+S11	ask	Bash(bash -*c *)	bash /nonexistent/x.sh arg	RAN
+A1	deny	Bash(awk *system(*)	awk 'BEGIN{system("echo hi")}'	DENIED
+A1b	deny	Bash(awk *system*)	awk 'BEGIN{system("echo hi")}'	DENIED
+A2	deny	Bash(awk *system(*)	awk '{print}' /dev/null	RAN
+A2b	deny	Bash(awk *system*)	awk '{print}' /dev/null	RAN
+H0	deny	Bash(head .env)	head -5 .env	MEASURE
+H1	deny	Bash(head * .env*)	head -5 .env	DENIED
+H2	deny	Bash(tail * .env*)	tail -n 5 .env	DENIED
+H3	deny	Bash(head * */.env*)	head -5 sub/.env	DENIED
+H4	deny	Bash(tail * */.env*)	tail -n 5 sub/.env	DENIED
+C1	deny	Bash(cat * .env*)	cat -n .env	DENIED
+C2	deny	Bash(cat * */.env*)	cat -n sub/.env	DENIED
+R1	deny	Bash(rtk read .env*)	rtk read .env	DENIED
+R2	deny	Bash(*/rtk read .env*)	/home/bchanot/.local/bin/rtk read .env --head-lines 3	DENIED
+R3	deny	Bash(rtk read * .env*)	rtk read -n .env	DENIED
+R4	deny	Bash(rtk read */.env*)	rtk read -n sub/.env	DENIED
+R5	deny	Bash(rtk read * .env*)	rtk read -n README.md	RAN
+R6	deny	Bash(*/rtk read * .env*)	/home/bchanot/.local/bin/rtk read -n .env	DENIED
+R7	deny	Bash(*/rtk read */.env*)	/home/bchanot/.local/bin/rtk read -n sub/.env	DENIED

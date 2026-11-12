@@ -31,7 +31,7 @@ wait, or 202 + status URL. Retention outlives the longest retry
 path, dead-letter replay included.
 
 ## Naming
-Plural nouns for endpoints (`/api/tasks`), no verbs. camelCase query
+Plural nouns for endpoints (`/api/v1/tasks`), no verbs. camelCase query
 params and response fields. UPPER_SNAKE enum values. Boolean fields
 prefixed is/has/can.
 
@@ -40,4 +40,8 @@ Every observable behavior — undocumented quirks, error text, timing —
 becomes a de facto contract once someone depends on it.
 
 ## Versioning
-CLAUDE.md § Web APIs — always versioned. Not repeated here.
+Every endpoint versioned from day one: `/api/v1/...`, no bare `/api/`; the
+router mirrors it (`api/v1/routes/`). Breaking change → `v2`, the old
+version keeps working and clients migrate at their pace; non-breaking
+additions → current version. Each version is a self-contained contract,
+never bent to match a newer one.

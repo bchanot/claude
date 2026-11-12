@@ -26,7 +26,7 @@ allowed-tools:
 MODEL GATE (blocking): run `$HOME/.claude/lib/model-gate.md` BEFORE any
 step below. Verdict `small` → STOP — print the gate's remedy, end the
 turn, dispatch nothing.
-EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-107): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
+ROUTING: follow $HOME/.claude/lib/effort-shift.md (phases via mcp__model-router__route).
 
 ## TARGET
 $ARGUMENTS
@@ -122,7 +122,7 @@ TOTALS: <N blocking, N warn, N info>
 If no issues found: report clean state and stop.
 
 ## STEP 3b — CHALLENGE THE SCOPE (before approval)
-`Skill(effort-xhigh)` first (effort-shift: own level before the challenge; send it in the same message as the challenger dispatch).
+`mcp__model-router__route(phase="plan")` first (route: own level before the challenge; send it with the challenger dispatch).
 The STEP 3 report is the proposed cleanup scope — worth attacking before the
 human approves it. It is still inline, so FIRST persist it to
 `.claude/tasks/plans/<date>-<slug>-<HHMM>.md` (STEP 3 report format, one item
@@ -172,10 +172,10 @@ is approved, stop — no dispatch.
    severity — proposed fix`. This is the executor's scope-of-work on
    disk — named, auditable, the same contract discipline as the dev
    gates (verifier reads its contract from disk).
-2. **Dispatch the executor** — sonnet by frontmatter pin, do not override:
+2. **Dispatch the executor** — sonnet by its row (frontmatter = off-state floor), do not override:
 
    ```
-   Skill(effort-medium)   # effort-shift: dispatch span starts; send with the Agent call below in ONE message
+   mcp__model-router__route(phase="orchestrate")   # route: dispatch span starts; send with the Agent call below in ONE message
    Agent(subagent_type="code-cleaner")
    prompt: "SCOPE: .claude/audits/CODE-CLEAN-SCOPE.md
    APPROVED: <the approved item list, incl. any per-item exported-symbol clears>

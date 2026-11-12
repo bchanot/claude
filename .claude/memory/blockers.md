@@ -1,4 +1,5 @@
 ---
+format: 2
 type: blockers_registry
 entry_prefix: BLK
 schema:
@@ -15,39 +16,6 @@ rules:
 ---
 
 # Blockers registry (BLK)
-
-## Index
-
-| ID | Date | Friction | Status |
-|----|------|---------|--------|
-| BLK-001 | 2026-04-22 | `rtk curl` breaks JSON pipelines | upstream |
-| BLK-002 | 2026-04-23 | `rmdir` denied in sandbox on empty directory | resolved |
-| BLK-003 | 2026-05-12 | `scripts/screenshot.mjs` hardcoded macOS path blocks PNG cards on Linux | upstream |
-| BLK-004 | 2026-05-20 | `/ship-feature` wrapper at `~/.claude/commands/` points to deleted agent files post-refactor | resolved |
-| BLK-005 | 2026-05-21 | gstack submodule rename (checkpoint→context-save) breaks profile entries | resolved |
-| BLK-006 | 2026-05-21 | `profile.sh current` false-negative via `~/.claude` symlink (`cd` not `cd -P`) | resolved |
-| BLK-007 | 2026-06-02 | 6 gstack source skills (ios-*, spec) unlinked post-bump — invisible to profiles + `gstack on` | resolved |
-| BLK-008 | 2026-06-23 | gstack ./setup on Ubuntu 26.04: Playwright chromium unsupported → gstack browser (/browse, /qa, screenshots) silently dead | resolved (211c7d4) |
-| BLK-009 | 2026-06-25 | user-level path-scoped rules (`paths:` frontmatter in `~/.claude/rules/`) never inject — broken in CC 2.1.190 (#21858) | resolved (2026-07-06) |
-| BLK-010 | 2026-06-27 | init-project: scaffold (STEP 5) + bootstrap README (5b) have no deterministic commit owner; worktree `add -b` on unborn HEAD | resolved (uncommitted) |
-| BLK-011 | 2026-06-27 | init-project STEP 13 GSD post-FINISH creates ROADMAP.md → stranded doc (3rd post-FINISH artifact) | resolved (STEP 12 removed) |
-| BLK-012 | 2026-06-29 | gitflow_init half-applied: socle-commit failure swallowed → hook activated on partial run → re-run self-blocks | resolved |
-| BLK-013 | 2026-06-30 | `make plugin` Error 127 — npm absent on apt-`nodejs` host (Step 4 gsd-pi aborts, Steps 5-10 + residual cleanup never run) | resolved (env) |
-| BLK-014 | 2026-07-01 | `make install` aborts npm EEXIST on `~/.local/bin/claude` when claude already installed via native installer — no presence guard | resolved |
-| BLK-015 | 2026-07-03 | `gitflow_finish` ignored its `<type> <name>` args → merged the CHECKED-OUT branch not the one named → wrong-branch merge (audit LOT3) | resolved |
-| BLK-016 | 2026-07-04 | rtk compression PATH-dead 30 days — 6/5070 Bash commands compressed (~460K tokens missed); installer sources cargo env so its own check passes, Claude tool shell never gets ~/.cargo/bin | resolved |
-| BLK-017 | 2026-07-17 | Bing Webmaster API unusable for a multi-client agency: OAuth swamp (localhost redirect refused, rotated single-use refresh tokens race our parallel dispatch), API key = wrong model (client-owned sites) | open/deferred |
-| BLK-018 | 2026-07-20 | release-executor finish span blocked by permission classifier (human signal invisible to subagent) — 2026-07-… | open |
-| BLK-019 | 2026-09-01 | notify-attention bell silent, toast OK (VS Code client default) — 2026-09-01 | superseded by BLK-028 |
-| BLK-020 | 2026-09-02 | notify-attention: both channels dead on one VS Code client — 2026-09-02 | superseded by BLK-028 |
-| BLK-021 | 2026-09-22 | Bash tool dead mid-session ("every command exits 1"): /tmp usrquota blown by a dead session's probe HOMEs — 2… | open |
-| BLK-022 | 2026-09-22 | `hooks/guard-bash.sh` withheld by the safety classifier; executable spec shipped instead — 2026-09-22 | open |
-| BLK-023 | 2026-09-28 | floor-guard SKIP pattern `xit(` (Jasmine) matches any `exit(` in python/JS test helpers → false ECARTS; workaround: no `exit(` in inline python, bash derives rc from output — 2026-09-28 | resolved |
-| BLK-024 | 2026-09-29 | update-all.sh re-fetched vendored skills but never re-applied the effort pins (lost until next `make plugin`); my first fix placed the re-apply BEFORE the late 21st refresh — rtk-truncated grep read as complete — 2026-09-29 | resolved |
-| BLK-025 | 2026-09-30 | deny rule `Bash(npm install -g *)` bypassed unknowingly by the alias `npm i -g` (pasted user instruction ran as typed); deny patterns are literal prefixes — 2026-09-30 | resolved (partial) |
-| BLK-026 | 2026-10-06 | `make test` red on macOS: 13 suites, GNU-only idioms in suite + 7 libs (SIGPIPE under pipefail, `sed -i`, `wc` padding, `stat -c`, `realpath -m`, bare `timeout`, `grep -oP`) | resolved |
-| BLK-027 | 2026-10-06 | this machine never ran `make link`/`make plugin`: no global `core.hooksPath` → post-commit push never fired, branches landed ahead of upstream; 11 vendored skills + `~/.claude/.env` missing | resolved (link) / open (plugin) |
-| BLK-028 | 2026-10-06 | notify-attention on a VS Code client: bell + toast silent-degradation faults (merge of BLK-019 + BLK-020): terminalBell sound default off, ext hooks only terminals born after activation, Code muted in Windows mixer | resolved |
 
 ---
 
@@ -225,7 +193,9 @@ rules:
 - **Real cause**: gitflow doctrine "finish only on explicit human signal" lives in DISPATCHER transcript (user ask + STEP 4 AskUserQuestion go); subagent transcript starts fresh → classifier sees consequential merge with zero authorization evidence. Structural: any human-gated action dispatched to a subagent loses its gate evidence.
 - **Solution** (workaround): dispatcher ran `gitflow.sh finish` + tag inline after its own human gate — where the signal is real. Release completed clean (main `648bc6e`, tag v1.3.1).
 - **Status**: open. Candidate fixes: (a) quote gate evidence verbatim in span prompt — untested vs classifier; (b) move finish+tag span permanently inline in /release-candidate — keeps prep span dispatched, costs the sonnet pin on ~5 mechanical commands, cheap; (c) permission rule allowing subagent `gitflow.sh finish` — weakens the guard, refused. Decide at next release.
+- **Status (2026-10-23, reconcile)**: open. Did not recur at 2.0.0 (journal: release-executor finish passed), no fix applied (release-candidate SKILL.md:88-90 still dispatches `SPAN: finish`). Decide (a)/(b) at 3.0.0.
 - **Reference**: skill `release-candidate` STEP 5. Pattern adjacent [[LRN-089]] (ambient-state/context assumptions across boundaries). Journal 2026-07-20.
+- **Status (2026-11-02)**: resolved 536d39e: option b, /release-candidate runs gitflow.sh finish and the tag in the main loop under the ask prompt
 
 ## BLK-019 — notify-attention bell silent, toast OK (VS Code client default) — 2026-09-01
 - **Friction**: hook fired, Windows toast arrived, native bell never audible. User heard only Windows toast sound. Looked like half-broken hook.
@@ -233,6 +203,7 @@ rules:
 - **Solution**: `"accessibility.signals.terminalBell": { "sound": "on" }` in CLIENT-side user settings.json (`c:/Users/<u>/AppData/Roaming/Code/User/`). Unreachable from remote: real SSH remote, not WSL (no `/mnt/c`, `/proc/version` no Microsoft). User applied, retest → both channels OK.
 - **Status**: resolved (per-client-machine, not repo-portable).
 - **Reference**: `~/.claude/hooks/notify-attention.sh` header already documented the setting; never applied. New client machine → bell mute again while toast works. Silent-degradation class [[LRN-047]].
+- **Status (2026-10-28, upgrade)**: superseded by BLK-028
 
 ## BLK-020 — notify-attention: both channels dead on one VS Code client — 2026-09-02
 - **Friction**: client-side prereqs applied on Windows box (ext `wenbopan.vscode-terminal-osc-notifier` + `accessibility.signals.terminalBell` sound:on), window reloaded. AskUserQuestion → nothing. `idle_prompt` 90s wait → nothing. Direct write `\a\a` + OSC 777 to claude own pty (`/dev/pts/2`) → nothing. Second client machine, same SSH server, same hook, same registries → both channels OK.
@@ -253,6 +224,7 @@ rules:
 - **Status**: resolved (A: ext hooks only terminals born after activation → install ext THEN start/re-attach session; B: Code app volume 0 in Windows mixer).
 - **Lesson**: two independent client faults presented as one symptom ("nothing works"). Splitting probe = run signal in FRESH terminal + play VS Code's own sound preview. Preview bypasses terminal/BEL/hook/dtach/ext → isolates renderer audio in one step. Do that FIRST next time, before any server-side archaeology.
 - **Reference**: [[BLK-019]] bell-only variant (resolved differently — setting alone insufficient here), [[LRN-145]] terminalSequence-not-/dev/tty pattern. Silent-degradation class [[LRN-047]].
+- **Status (2026-10-28, upgrade)**: superseded by BLK-028
 
 ## BLK-021 — Bash tool dead mid-session ("every command exits 1"): /tmp usrquota blown by a dead session's probe HOMEs — 2026-09-22
 - **Friction**: previous session on `feature/21st-cli-migration` lost its shell before tests + commit: every Bash call, `echo` included, returned 1. Its harness file `imptest2/step8d-test.sh` landed as 0 bytes.
@@ -261,6 +233,7 @@ rules:
 - **Recurred same day**: this session's shell died the same way mid-G8 (BDR-095 amendment) while the 5.9 GB still sat there; recovered the moment the user deleted the dir. Mechanism now established, not inferred: stock `/usr/lib/systemd/system/tmp.mount` mounts /tmp with `x-systemd.graceful-option=usrquota` (no override, no fstab line on this machine) and systemd caps each user at 80% of the tmpfs → 0.8 × 7.4 GB = 5.9 GB, the exact volume observed. One quota for every session AND every sub-agent of the uid: multi-session is not the cause, the shared cap is.
 - **Durable fix**: (1) launch claude with `TMPDIR=$HOME/.cache/claude-tmp` (in `~/.bashrc` `dtach_claude()`, before `exec claude`; `mkdir -p` it) → Claude Code's scratchpad, tool outputs, `mktemp` and npm staging all leave the tmpfs; children inherit. (2) `~/.config/user-tmpfiles.d/claude-tmp.conf` with `e %h/.cache/claude-tmp - - - 3d` + the user `systemd-tmpfiles-clean.timer` so dead-session dirs age out. (3) `make doctor` "Scratchpad" section warns while TMPDIR sits on a quota'd tmpfs. Probe rule unchanged: HOMEs with npm payloads under `~/.cache/<probe>/`.
 - **Status**: cause established; open until the launcher exports TMPDIR (user's .bashrc, hand-managed). Links [[BDR-094]], [[BDR-095]], [[LRN-159]].
+- **Status (2026-11-02)**: resolved 2026-11-02: lib/cc.sh exports TMPDIR=$HOME/.cache/claude-tmp for every cc session (phase 5)
 
 ## BLK-022 — `hooks/guard-bash.sh` withheld by the safety classifier; executable spec shipped instead — 2026-09-22
 - **Friction**: layer C item G2 (PreToolUse Bash guard: whole-command scan incl. nested `bash -c`, `docker compose run … lftp`, scripts the command runs; exit 2 + reason + `logger` trace; fail-closed without jq). The response carrying the hook body was stopped by a safety classifier mid-write; content withheld, instruction not to regenerate it.
@@ -305,3 +278,133 @@ rules:
 - **Probe order (do FIRST, before server archaeology)**: fresh VS Code terminal, `printf '\a\a\033]777;notify;Test;hello\033\\'` → splits terminal path from client renderer; palette `Help: List Signal Sounds` → Terminal Bell preview bypasses terminal/BEL/hook/dtach/ext, isolates renderer audio in one step.
 - **Status**: resolved (BLK-019 2026-09-01, BLK-020 A+B 2026-09-02/03). Sources superseded by this entry; bodies kept for history.
 - **Reference**: `~/.claude/hooks/notify-attention.sh` header documents the setting; [[LRN-145]] terminalSequence-not-/dev/tty; silent-degradation class [[LRN-047]]; sources [[BLK-019]], [[BLK-020]].
+
+## BLK-029 — Mods: model alias set by a hook resolves to a stale id (`sonnet` → `claude-sonnet-5`, 404) — 2026-10-08
+- **Friction**: model-router spike. Sub-agent routed by `agent.spawn` or `tool.call Agent` rewrite with alias `sonnet`/`haiku` → "model_not_found HTTP 404, model sent to the API: claude-sonnet-5". Same alias typed by the model in the Agent tool param → `claude-sonnet-5-5`, OK.
+- **Real cause**: two alias tables in the CLI (2.1.294): the Agent tool's is current, the function-hooks path's is stale. Not an access issue (`/model` lists all four tiers; explicit haiku/sonnet dispatches answered).
+- **Solution**: hooks write full ids (`claude-sonnet-5-5`, `claude-haiku-4-5-20251001`, `claude-opus-5-5`, `claude-fable-5-1`) from the mod's own table; Agent tool param rewrite stays alias-only (schema enum) → the mod sets the model at `agent.spawn`, not at the param.
+- **Status**: upstream (report to anthropics/claude-code with the request id `req_011Cfppp7VFt8z2Pd3zJrpUi`); workaround in model-router.
+- **Reference**: [[LRN-203]], plan `.claude/tasks/plans/2026-10-08-model-router-mod.md`.
+
+## BLK-030 — model-router routes main to Fable out of usage credits; turn lost every session + hold lapse — 2026-10-15
+- **Friction**: Fable 5.1 out of credits. `route(reflect)` answered `claude-fable-5-1 (upgrade)` after hold lapse; next request died `<synthetic>` "You're out of usage credits", `apiError: model_requires_usage_credits`, `error: rate_limit`, HTTP 429. Holds 15→30→60 min, user typed "reprends" each time.
+- **Real cause**: availability learned only reactively. Breaker (`markDown`) fed by `classic.StopFailure` + `PostModelSwitch auto`, i.e. AFTER real request died. Hold in-memory w/ backoff; nothing checked move target before main sent there. 429 body generic (no credits marker) → no cheap typed signal.
+- **Solution**: 2cccc43 (bugfix/router-probe-before-route). `decideFor` decides first, then probes decided move target once: `$.model.complete` raced vs `PROBE_MS` 8000 via shared `raceTimeout`; timeout/reject → `markDown(..., 'probe')` + ONE re-decision, no further probe. `verified` set kept across `/clear`, cleared by `markDown`. Never probes cur or held id. Config `probe` (default true). Stand-in effort one notch up (reflect xhigh, plan max, orchestrate high) when lower model replaces held tier head where head would have run; explicit/floor effort never bumped. 497 tests.
+- **Status**: resolved. Residuals in TODO (explicit `Agent(model:"fable")` pins, spawn path, session model itself out of credits, ≤8 s stall per new session).
+- **Reference**: [[LRN-218]], [[BDR-116]], [[BDR-115]], [[LRN-207]], contract `.claude/tasks/contracts/2026-10-14-router-probe-before-route-0005.md`, plan r3 `.claude/tasks/plans/2026-10-14-router-probe-before-route-0005.md`.
+
+## BLK-031 — model-router: session ON Fable w/o credits still loses 1st turn; probe skipped kept model — 2026-10-16
+- **Friction**: session model fable, credits out. Log `main: fable/high → fable/medium (implement: classifier)` then "You're out of usage credits", then `claude-fable-5-1 unavailable (rate_limit) for 15 min`. User suspected bad redeploy; not cause.
+- **Real cause**: 2cccc43 `unprobed()` required `call.moved`: only move target probed. Session model = cur, kept by `decideMain` → never probed. New process (empty `verified`) + hold lapse (`markDown` drops `verified`, cur = session model again) → real request to dead model. Residual of [[BLK-030]], accepted then.
+- **Solution**: c11cd3b drops `!call.moved` guard: model decision lands on (moved or kept) probed once if table id, unverified, not held. Fail → markDown 'probe', one re-decision → leaveDown → opus, stand-in effort +1. Cost ~1.3 s healthy / ≤8 s dead, 1st decision per process. Test `probe: a session model that never answers leaves for opus on the first step`.
+- **Status**: resolved. Open: leaveDown follows classifier `wanted` (implement → sonnet), not opus; "context size unknown" likely document attachment → `promptSize` unknown.
+- **Reference**: [[BLK-030]], [[LRN-218]], contract `.claude/tasks/contracts/2026-10-16-router-probe-session-model-1850.md`.
+
+## BLK-032 — Main loop pinned on Fable in long sessions: session model Fable 1M + downgrade cap 120k + prompt rule `plan` → inline code on Fable xhigh [resolved]
+- **Date**: 2026-10-19
+- **Cause**: `~/.claude/settings.json` `"model": "claude-fable-5-1[1m]"` (every session starts on Fable); model-router never moves main above the session model, moves DOWN only under `downgradeMaxTokens` 120000 (LRN-204 cold read) → a long session (faunosteo R4.x, context > 120k) never reaches `implement`/sonnet; prompt rule `(plan|design|architecture…)` → phase plan = best/xhigh each turn ("plan §B.1.7"). No doctrine ceiling: CLAUDE.md allows inline work "doable in a few tool calls", BDR-115 "pin = default, never ceiling".
+- **User policy 2026-10-19**: session model Opus 5.5; sonnet writes, opus decides what to write; Fable only for orchestrator reflection/plans and the important audits (security, functional), other judges opus. → next `/feat`: settings model, `judge` split, ceiling rule in CLAUDE.md, BDR superseding part of BDR-066 / BDR-115. Links [[BDR-066]], [[BDR-107]], [[BDR-115]], [[LRN-204]].
+
+- **Solution (2026-10-23)**: feat A+B (BDR-123) + feat C 786ee13 (feature/router-keyword-cap): keyword prompt rules, `ultrathink` floor, derived `orchestrate` dispatch write effort-only routes (`effortRoute`, `belowRun` pattern) → never lift main above session model; held best-tier run keeps its model (per-axis fall-through); `mainModelSlot` drops `turnFloor`. Fable on main only via skill row, `route` tool, `/route`. Docs d2d590f. Links [[LRN-226]], [[EVAL-048]].
+
+## BLK-033 — Guardrails residuals: probe trusted plan `supabase.url`, redirects free of budget, unread bodies read CLOSED; rules 5 FP / 7 misses [resolved]
+- **Date**: 2026-10-21
+- **Friction**: GATE 2 of the a11y split (f586304) left a MEDIUM + 3 LOW on probe.py, opus review left Minors on the rules. Parked in TODO, fixed via `/bugfix` 2026-10-20/21.
+- **Cause**: `supabase.url` read from the plan w/o `_http_url` → planted SUPABASE_URL would receive GUARDRAILS_ANON_KEY / JWT2, `file://` read CLOSED; `_SameHost` redirector followed hops w/o charging `session.budget`; `_rows_state` collapsed non-200 / empty / >1 MB / non-JSON into CLOSED (unobserved = CLOSED, breaks LRN-220); plan r2 mapped budget exhaustion on `str(URLError)`, which wraps the reason → never matched. Rules: SENSITIVE_KEY on metadata names (`token_type`, `has_password`), 403 on first map candidate stopped the walk, hydrated scan read whole route file, NOSQL `$where` fired on GraphQL `_bool_exp`; misses: Go backtick Sprintf, `rf`/triple-quoted f-strings, `sql|db|trx.raw`, empty `.select()`, multi-line hidden input, Rust `{}` shell arg, `"sources"` map head.
+- **Solution**: 5a98c2c (`_BudgetExhausted(URLError)` + `BUDGET_EXHAUSTED` constant, `_SameHost(session)` charges per hop, `_rows_state` rows|empty|unreadable → SKIPPED, `_map_outcome` full candidate walk, `data:` OPEN w/o decoding, `printable` on remote strings, `_safe_text` in scanner, rule fixes + mutant per language variant) + 633faa2 (checks.md: `IN (…)` placeholder list flagged, judged by hand). Plan r3 after 2 challenge rounds, contract 22 oracles MET, verifier CONFORME, auditor PASS. Suites probe 84, scan 241.
+- **Residual** (LOW, parked in TODO): table names not `IDENT.fullmatch`-checked per table (`/` → path walk on the approved host); `printable` lets Unicode bidi/format controls through. Links [[LRN-219]], [[LRN-220]], [[LRN-222]], [[LRN-223]].
+
+## BLK-034 — mods.test.sh red on CLI 2.1.306: whole-output `warning` grep caught the advisory plugin-directory section [resolved]
+- **Date**: 2026-10-22
+- **Friction**: `make test suite=lib/tests/mods.test.sh` → `FAIL model-router: validate printed a warning`, pre-existing on develop (git archive baseline), surfaced as feat B criterion 8 (NEED-DECISION, BDR-123 run).
+- **Cause**: CLI 2.1.306 `claude plugin validate` prints "Plugin directory checks" section (submission catalogue): `⚠ Found 1 plugin directory warning:` ICON_MISSING, `--json` `directory.findings[].blocking: false`. mods.test.sh:57 grepped whole output for `warning` (also matched hooks notes quoting register.ts identifiers, checkout paths). Prose scraping of a CLI with an exit-code contract: `--strict` → per-file warnings rc 1, directory findings rc only under `--profile directory`.
+- **Solution**: 801992a (bugfix/mods-validate-advisory). Helper `validate_strict` = rc of `claude plugin validate --strict`; check_cli + positive control share it; control = scratch manifests `{"name":"warnfix"}` (rc 1) / cleanfix with version+description+author (rc 0) under script-level `mktemp -d`. Plan r3 after 3 lenses + 1 re-challenge (sed range on closing marker killed: CLI prints it only when findings > 0, fail-open to EOF). GATE 0 7/7, verifier ECARTS(2) = out-of-scope routing.json dialog write only, auditor PASS.
+- **Residual**: 3 historical contracts carry old scrape as CHECK oracle (`.claude/tasks/contracts/2026-10-08-model-router-w1a-1533.md:22`, `2026-10-08-model-router-floor-1835.md:22`, `2026-10-09-model-router-tiers-1237.md:23`), left unedited; re-run fails on ICON_MISSING, not a model-router regression. Unverified: whether `--strict` escalates `advice[]`. Links [[LRN-225]], [[BDR-123]].
+
+## BLK-035 — model-router: haiku session unrouted, table still on Haiku 4.5 [resolved]
+- **Friction**: integration_alphalink 2026-10-25T16:22:53Z `model-router: claude-haiku-5-5 unknown to the models table; no switch`. `/model haiku` → This project (BDR-126) would write stale id.
+- **Cause**: DEFAULT_CONFIG `haiku: 'claude-haiku-4-5-20251001'` + `windows` 200K entry; native alias moved to `claude-haiku-5-5` (1M, effort low–max) silently.
+- **Solution**: 2c39524 (feature/model-scope-dialog): haiku → `claude-haiku-5-5`, `windows: {}`; regression test + window test on explicit override. Negative control: revert → 20 tests red.
+- **Residual**: "haiku takes no effort" strip (effortWord, step plan, isHaiku sites, census `effort-routing.test.sh:170`) still 4.5-era → `mechanical` (low) runs haiku at default medium. Follow-up /bugfix. Links [[LRN-230]], [[BDR-126]].
+- **Status 2026-10-25**: residual resolved 8e93507 (bugfix/router-haiku-effort): no-effort guard scoped to Haiku 4.x, Haiku 5.x gets route effort; negative control (family prefix) → 6 tests red.
+
+## BLK-036 — bare `/model` picker writes tracked user settings for a per-project intent [resolved]
+- **Friction**: user picked haiku in native picker in integration_alphalink, wanted that project only → `"model": "haiku"` landed in tracked user settings.json (every project). Restored opus by hand; haiku pinned in alphalink `.claude/settings.local.json`.
+- **Cause**: BDR-126 dialog fires only on `/model <name>`; spec said "no args → native picker untouched". Picker = real usage path. Main applied spec without flagging gap.
+- **Next**: /feat picker scope: pick model in picker, then ask project vs user scope. Check engine types for a settings-write intercept first; else mod must restore user settings (BDR-116 amendment, user call). Links [[BDR-126]].
+- **Status 2026-10-25**: resolved for the picker, 2202964 (BDR-127: PreModelSwitch deny + deferred scope dialog, no user-settings write by the mod). Residual: `/config` Model row still native (source `command`).
+
+## BLK-037 — Same-model /model pick fires no PreModelSwitch: no scope question, project pin stays [resolved] (2026-10-29)
+- **Friction**: `/model` picker, pick = session's current model (Opus 5.5) → native "Set model to `Opus 5.5` and saved as your default… settings.local.json pins `Fable 5.1` — that applies on restart"; no scope question; project pin stays.
+- **Real cause**: engine fires no `PreModelSwitch` when the pick equals the session model (nothing to switch) → handlePicker (BDR-127) never runs. Proof 2026-10-29: user picked Sonnet 5.5 (different) → "Model switch to Sonnet 5.5 was blocked by a PreModelSwitch hook". First guess (gateway ids `anthropic/claude-opus-5.5`) was a logged-out OpenRouter session, not the bug (3 lenses FATAL).
+- **Solution**: bare `/model` opens router dialog in command.run (BDR-132), 657e5cb.
+
+## BLK-038 — memory.sh upgrade cements a v1 prose false-closed as an explicit resolved status line [open] (2026-10-30)
+- **Date**: 2026-10-30
+- **Friction**: phase 4a per-repo pass. `memory.sh upgrade` on orbistep wrote `- **Status (2026-10-30, upgrade)**: resolved` under BLK-021 (`status: open`, fix not decided) and BLK-030 (`status: code resolved (df5818c) · SMTP open (upstream OVH)`), twice under BLK-008. Oracle silent: "open BLK unchanged (14)".
+- **Real cause**: `_mem_upgrade_repair` copies the v1 legacy reader's closed verdict, never asks where it came from. Legacy reader = last line matching `status|resolved|…|open`, prose included ("another tab already resolved it"). v1 false-closed → explicit status line. Oracle shares that reader → blind ([[LRN-237]]). Duplicate: `_mem_verdict_diff` loops `_mem_heading_ids`, which lists `### BLK-008 UPDATE` sub-heading too.
+- **Measured**: 13 repos, 4 v1 closures without a labelled leading closed word: orbistep BLK-021 (really open), BLK-026 (prose addendum, really resolved), BLK-030 (mixed), bchanot-cv BLK-001 (strict already resolved, no effect). No lexical rule decides prose: BLK-021 and BLK-026 same shape, opposite truth.
+- **Solution**: /bugfix bugfix/memory-upgrade-prose-closure: repair only from a `Status`/`Statut` label whose leading word closes; else refuse file (rc 2), name ID + v1 line + remedy `memory.sh status`. Dedupe IDs. Committed repos audited clean; orbistep + zenquality redone after fix.
+- **Status (2026-10-31)**: resolved 2dae528: repair writes only a single closed Status word, prose/mixed refused and named, diff captured before inserts, one upgrade line per entry; orbistep + zenquality redone (144505f, b7edb9c)
+
+## BLK-039 — Nested heredoc executed plan text: settings.json committed, user's stash popped [resolved] (2026-11-02)
+- **Friction**: a Bash call holding a python heredoc that itself contained `<<'EOF'` blocks: the inner `EOF` closed the outer heredoc; the rest of the plan text ran as shell commands → `git stash push settings.json` (silently failed), `git commit` of settings.json WITH the UI writes (theme, switchModelsOnFlag), auto-pushed; `git stash pop` popped the USER's own stash `wip: settings+routing dirty (user)` (conflict, entry kept).
+- **Real cause**: heredoc nesting with the same delimiter; `rm -r`-class rules did not matter, the damage was git state.
+- **Solution**: tree restored (`git reset -q`, checkout of the three stash-touched files to HEAD, stash-brought spec removed), commit dropped with `git reset --soft HEAD~1` + `git push --force-with-lease=<branch>:<sha>` (user approved), user's stash untouched. Rule: plan/doc text via Write/Edit, never heredoc-in-heredoc; never `git stash pop` on a machine with the user's own stashes; settings.json only through the index recipe (LRN-253).
+- **Status**: resolved 2026-11-01.
+
+## BLK-040 — Permission rules and auto-mode classifier refuse destructive-shaped compound calls and dispatches [resolved] (2026-11-02)
+- **Friction**: phase 5 execution: the permission rules refused a compound Bash call holding a `trap` with `rm -f`/`rmdir` (Task 1 canary), a 53-name `rm … && rmdir && rm .active-profile` chain, and `rmdir` alone; the auto-mode classifier refused the whole Task 2 dispatch because its brief described removing ~70 symlinks, moving impeccable and rewriting settings.json.
+- **Real cause**: destructive-shaped text in one call or one brief; the classifier judges the dispatch prompt, the rules judge each command.
+- **Solution**: split build steps (implementer) from state steps (main loop, after the user's explicit approval); one `rm` of literal names per call; `mv` to the scratch dir instead of `rmdir`/`rm -r`; never retry a refused command through a wrapper. Cost: three extra user gates, no data loss.
+- **Status**: resolved 2026-11-02.
+
+## BLK-041 — gitleaks 8.16 pre-commit ignores .gitleaks.toml allowlists: secret-shaped fixtures built at runtime [resolved] (2026-11-04)
+- **Friction**: 4b spec quoted the fake AWS key and test fixtures held `AKIA…`-shaped literals; the pre-commit hook refused: `gitleaks` found leaks although `.gitleaks.toml` `[[allowlists]]` named them (gitleaks 8.16).
+- **Real cause**: the installed gitleaks does not honour the allowlist block under the hook's invocation (rules compiled in; allowlist silently ignored).
+- **Solution**: secret-shaped fixtures built at runtime by concatenation (`'AKIA' + 'I'.repeat(16)`, `'eyJ' + 'a'.repeat(20) + …`), expected strings stay literal (LRN-237); spec and NOISE.md quote shapes by reference, never a literal.
+- **Status**: resolved 2026-11-03.
+
+## BLK-042 — Package extracted into the root filesystem of a VM replaced usr-merge symlinks and overwrote system binaries [resolved] (2026-11-05)
+- **Friction**: on a VM (vaas-cli ssh, no package manager), a Debian package was extracted with `dpkg -x` into the root filesystem; system binaries overwritten, usr-merge symlinks (bin, sbin, lib, lib64) replaced by real directories carrying the archive's paths.
+- **Real cause**: no rule or guard named package/archive extraction into system dirs; the ssh deny rule did not cover vaas-cli ssh; extraction improvised instead of telling the user there was no package manager.
+- **Solution**: `hooks/extract-guard.sh` (deny before run, quoted remote scripts re-scanned) + soft_deny line + doctrine bullet (list first, extract into a literal mktemp -d path, PATH/PYTHONPATH, no package manager → tell the user). See the extract-guard BDR.
+- **Status**: resolved 2026-11-05.
+
+## BLK-043 — detect_plan CLI fallback forks claude from SessionStart hook: recursive fork bomb, OOM, reboot [open] (2026-11-06)
+- **Friction**: `make test suite=lib/tests/session-digest.test.sh` (uncommitted SD13 cases) ate 14 GiB in 45 s, 2026-11-05 23:49; earlyoom killed valheim, node, mariadb, docker, audio; kernel OOM; machine rebooted 23:55; all sessions + RC lost. OOM dump: 126 `claude`, 396 `bash`, 124 `sh`.
+- **Real cause**: `lib/detect-plugins.sh` `detect_plan` falls back to `claude config get planType` when `$HOME/.claude.json` lacks plan markers. claude 2.1.318 has no `config` subcommand → words read as prompt → full session → its SessionStart hook (`hooks/session-start.sh:158`) calls `detect_plan` again, same HOME → unbounded recursion. SD13 `mkhome` linked `~/.claude/*` but not `~/.claude.json`. Prod survives only via internal flags `tengu_cobalt_compass` + `tengu_harbor` in `~/.claude.json`; flag rename upstream → every session start recurses.
+- **Solution**: pending /bugfix (plan `.claude/tasks/plans/2026-11-06-detect-plan-fork-bomb-0030.md`): CLI fallback dropped (default pro), hook recursion guard env marker, suite-wide `claude` stub in PATH + regression cases.
+- **Status**: open 2026-11-06, fix in progress.
+- **Status (2026-11-06)**: resolved 49aa2ff (hotfix/detect-plan-fork-bomb): CLI fallback dropped, env guard SESSION_START_RUNNING, lib/tests/detect-plan.test.sh red on main lib, green after; merge pending user
+
+## BLK-044 — claude processes run with oom_score_adj -1000 of unknown origin: OOM killers spare a runaway claude [open] (2026-11-06)
+- **Friction**: during the detect_plan fork bomb (2026-11-05 23:49), every `claude`, `bash`, `grep` child carried `oom_score_adj=-1000`; earlyoom and kernel OOM could not kill the runaway, killed every other service instead (valheim, mariadb, docker, networkd, logind) until reboot. Live session 2026-11-06 still shows `-1000`.
+- **Real cause**: unknown. Not set by the repo (`lib/cc.sh`, hooks: no OOMScoreAdjust). Suspects: inherited from launcher (dtach under `systemd-run --user --scope`, sshd, or the RC/remote-control process).
+- **Solution**: none yet. Next: trace `/proc/<pid>/oom_score_adj` up the parent chain of a live claude; then set `OOMScoreAdjust` (e.g. 500) on the `cc` scope so a claude runaway dies first.
+- **Status**: open 2026-11-06.
+
+## BLK-045 — Hook-running test suites could reach real claude CLI: fail-open inline stubs, 3 suites unstubbed [resolved] (2026-11-06)
+
+- **Date**: 2026-11-06
+- **Friction**: hook-running test suites could still reach real `claude` CLI (BLK-043 family). Inline stubs in detect-plan + session-digest ran `claude probe` before checking stub won PATH; red control did not stop suite. graphify-gate, memory, push-guard ran `hooks/session-start.sh` with no stub; cc.test.sh shims same fail-open shape.
+- **Real cause**: stub pattern (LRN-263) copied inline, fail-open: failed write (no `set -e`) or noexec TMPDIR (`command -v` skips non-exec) → real CLI; relative work dir passes same-cwd check, breaks after hook's `cd`.
+- **Solution**: shared `lib/tests/claude-stub.sh`: `stub_first_or_die` (command -v == stub else exit 1), `claude_stub_install` (absolute dir via `cd -P`, every step `|| exit 1`, control from `/`, `GIT_CEILING_DIRECTORIES`), `claude_stub_calls`; 6 suites adopt, each ends zero-call check; `lib/tests/claude-stub.test.sh` proves fail-closed (no-op chmod script + sentinel fake claude). Commits dc5f127, 7ca6b18 on bugfix/safety-residuals.
+- **Status**: resolved dc5f127
+
+## BLK-046 — Banner plugin rows showed user-scope state, not effective profile [resolved 556d0e6] (2026-11-10)
+- **Date**: 2026-11-10
+- **Friction**: session banner plugin rows showed user-scope state, not project's. dev project showed `ui-ux-pro-max` in `🟢 ON`; audit project hid `pr-review-toolkit`; /status read `~/.claude/plugins/cache` as active.
+- **Real cause**: `detect_uiux_pro_max` tested plugin cache only (installed = on); ✅ row grepped `"<id>": true` in user `~/.claude/settings.json`. PROFILE_PLAIN (`profile.sh current --plain`) already held effective state, unused there. Found by code-clean 2026-11-09 (G1, G4).
+- **Solution**: `list_on_plugins` in lib/detect-plugins.sh: profile `plugin:<id>=on` for managed ids, user-scope true for rest, awk set difference, `return 0`. ✅ row + detect_uiux_pro_max (cache AND enabled) + status-reporter read it; plugin-advisor INPUT names PROFILE. Test lib/tests/session-banner.test.sh SB1-SB8. Commit 556d0e6.
+
+## BLK-047 — Passive-cost constants stale in banner and advisor, budget row on wrong denominator [resolved 1971b8d] (2026-11-10)
+- **Date**: 2026-11-10
+- **Friction**: passive-cost figures disagreed: banner `_plugin_costs` (gstack 2750, ui-ux-pro-max 400, context7 200, graphify 300) and plugin-advisor `~Nt` vs doctor.sh (ui-ux 670 only). Banner 💰 row divided by per-plan "budget" (Pro 11000, Max 20000).
+- **Real cause**: hand-copied constants. 2026-09-28 skill-catalog prune re-measured doctor (ui-ux 400 → 670, gstack/context7/graphify dropped: skills already in catalog) but missed banner + advisor citers (BDR-100 class). Measured 2026-11-10: gstack 3 packs ~445t (~196/120/129), ui-ux ~666t, context7 = CLI, find-docs skill always loads.
+- **Solution**: user split. Bugfix removed constants, 💰 row, budget block, dead `detect_plan` (BLK-043 source); advisor + status-reporter point to `make doctor`; detect-plan.test.sh → hook-recursion-guard.test.sh; SB9/SB10. Commit 1971b8d. Measured-cost API = TODO feature (spec input: two challenge rounds in plan 2026-11-10-passive-cost-source-1330).
+
+## BLK-048 — Handover STEP 9 parsed blocker status by hand, client section 5 could list closed or drop open [resolved 93a8e19] (2026-11-11)
+- **Friction**: handover-doc-writer STEP 9 said "parse manually", blocker status read from prose of cwd-relative `.claude/memory`. Client §5 could list closed blocker or drop open one (BLK-032..034 class).
+- **Real cause**: agent prompt bypassed shared readers. `reconcile_blk_open` not reusable as is: v1 branch closes on substring "resolved" (drops `unresolved`); v1 non-word lines (`closed`, prose) leak as open; `###` entries invisible to enumerator.
+- **Solution**: new `reconcile_blk_classify` (lib/reconcile.sh): strict word v2, `_mem_v1_word` v1, never `## Index`; closed omitted; empty/prose/mixed/`closed`/`###` = unreadable. STEP 9 rooted on PACKAGE root, `no-file` / `reader-unavailable` lines. Fenced SYNTH REPORT, mandatory `MEMORY:` line; orchestrator retries when missing or contradicted by existing blockers.md, relays unreadable IDs + `memory.sh status` remedy in 9.7. Test handover-memory-contract.test.sh HM1-HM3. Commit 93a8e19. Real data: game repo 14 unreadable (v1 `status:` lines left after upgrade). Follow-ups G6-G9 in BUGS-FOUND.

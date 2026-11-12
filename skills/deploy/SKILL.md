@@ -1,6 +1,6 @@
 ---
 name: deploy
-effort: low
+effort: xhigh
 description: |
   Use when deploying a project via its per-project runbook — instantiates the delta
   since last deploy, hands off for out-of-band execution, resumes cold, learns from errors.
@@ -448,6 +448,7 @@ The deploy succeeded. Lay the oracle and close out.
 7. Report: deployed SHA, tag (+ push result), state committed, any `DEP-NNN`
    learned this deploy. Then offer to capitalize per CLAUDE.md (recurring failure
    pattern → `learnings.md`; deploy verdict → `evals.md`), gated, never silent.
+   Approved entries per `lib/capitalize-commit.md` § WRITE.
 
 ---
 

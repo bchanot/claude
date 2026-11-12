@@ -1,0 +1,5 @@
+[
+  {"id": 1, "prompt": "Explique-moi le commit c11cd3b du mod model-router, j'ai pas suivi pourquoi il fallait sonder le modèle de session. Fais-moi une page HTML que je puisse relire.", "expected": "Resolves the sha, reads register.ts around the probe and its test, French page dated in ~/Documents/explanations/claude/, 4 sections with TOC, 5-question quiz, checker exit 0, reply gives path + one-line summary, no chat dump"},
+  {"id": 2, "prompt": "fais-moi une page html qui explique la branche bugfix/guest-hints mergée dans ~/Documents/game", "expected": "Merge resolved as first-parent diff of the branch; UI mock of the hint before (indice indisponible) and after; flow guest -> session -> hint RPC with toy data; tests explained; checker exit 0"},
+  {"id": 3, "prompt": "Explain commit 6371523 in ~/Documents/faunosteo, I want something I can read on my phone tonight", "expected": "English page; 24-file diff triaged and grouped by concern, not file order; config and doc files summarized; responsive layout; 5-question quiz; checker exit 0"}
+]

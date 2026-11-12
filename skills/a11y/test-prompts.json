@@ -1,0 +1,7 @@
+[
+  {"id": 1, "prompt": "vérifie l'accessibilité de base de ~/Documents/faunosteo : clavier, alt, labels", "expected": "Runs the a11y scanner on the path, reads each A11Y FAIL and WARN in context, marks the keyboard walk not done (no --live), writes .claude/audits/A11Y.md, proposes fixes with alt and label wording as visible choices, stops for approval"},
+  {"id": 2, "prompt": "il manque des alt sur les images du site, corrige", "expected": "Scans, confirms each A11Y-IMG-ALT hit, proposes one alt text per image (or alt=\"\" for decorative ones) as a named choice, applies only after acceptance on a bugfix branch with --assert-absent oracles, re-scans against the baseline"},
+  {"id": 3, "prompt": "Walk my app at http://localhost:3000 with the keyboard only and tell me where focus gets lost", "expected": "Static scan first, then the Tab walk through /browse on the named localhost target, records each stop with no visible focus or unreachable control, reports them next to the static findings, fixes nothing without approval"},
+  {"id": 4, "prompt": "est-ce que mon site passe les critères WCAG AA ?", "expected": "Routes to /web-validate for WCAG conformance; runs /a11y only if the user asks for the keyboard/alt/label baseline"},
+  {"id": 5, "prompt": "a11y --report-only sur ce projet", "expected": "Scan and judgment only, report written, counts and file:line in the reply, no proposal, no branch, no edit"}
+]

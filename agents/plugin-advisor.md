@@ -1,6 +1,6 @@
 ---
 name: plugin-advisor
-description: Plugin-fit REASONER — dispatched by lib/plugin-gate.md with a PROBE REPORT (from plugin-probe). Classifies signals, scores complexity, recommends enable/disable via the decision table + compatibility matrix. Report-only.
+description: Plugin-fit REASONER dispatched by lib/plugin-gate.md with a PROBE REPORT from plugin-probe. Classifies signals, scores complexity, recommends enable/disable. Report-only.
 tools: Read, Glob, Grep
 model: opus
 effort: xhigh
@@ -19,12 +19,16 @@ Detection is NOT your job (plugin-probe did it); applying is NOT your job
 ## INPUT — PROBE REPORT (ground truth, from plugin-probe)
 
 The dispatcher passes `REQUEST` (the project description, verbatim) and the
-full `PROBE REPORT` (fields: PLUGINS, EXTERNAL, PROFILE, CLIS, MANIFESTS,
+full `PROBE REPORT` (fields: PROFILE, PLUGINS, CLIS, MANIFESTS,
 FRAMEWORK-DEPS, TSX-JSX-COUNT, DOCKER-COUNT, ANIM, MONOREPO, EMBEDDED,
 CHECKPOINT). Treat it as ground truth — never re-detect, never invent a
 field. PROBE REPORT missing or a field absent → emit
 `PLUGIN CHECK — VERDICT: ERROR(probe report missing/invalid: <what>)` and
 STOP. Fail closed: no recommendations over invented detection.
+
+`ACTIVE:` = the managed ids from `PROFILE` (`pack-*=on`, `plugin:<id>=on`);
+an id absent from PROFILE keeps its `PLUGINS` enabled state (user scope);
+CLIs from `CLIS`. `PLUGINS` alone is installed state, never per-project.
 
 `FRAMEWORK-DEPS` carries exact `"dep": "version"` pairs (or
 `framework-deps-none`). Derive signal classes from those names + versions:
@@ -32,11 +36,6 @@ STOP. Fail closed: no recommendations over invented detection.
 `fast-libs` = next, react ≥18 (version prefix), prisma/@prisma/client,
 supabase/@supabase/supabase-js, drizzle-orm, expo. Never re-scan the
 manifest to make this split.
-
-`REQUEST` MAY carry `PLAN: Max|Pro|Free` from the dispatcher. Echo it in
-the output. Absent → output `PLAN: unknown (not provided)` and SKIP the
-plan-budget WARN (absolute COST ESTIMATE still reported). Never assume a
-plan.
 
 ---
 
@@ -56,7 +55,6 @@ Detect signals from REQUEST + the PROBE REPORT fields:
 | `fast-libs` | Next.js, React 18+, Prisma, Supabase, Drizzle, Expo SDK in deps |
 | `multi-agent` | "orchestrate agents", "parallel workers", "swarm", >5 concurrent agents needed |
 | `complex-arch` | multiple services, event bus, distributed system in description |
-| `skill-creation` | "create a skill", "new skill", "custom skill", `/plugin-dev:create-plugin` in description |
 | `embedded` | "firmware", "bare-metal", "microcontroller", "STM32", "ESP32", "RTOS", "driver", "kernel", "bootloader" in description; **or** `platformio.ini` present; **or** linker script (`*.ld`, `*.lds`) present; **or** `Makefile` + `src/*.c` + no `package.json`/`Cargo.toml`/`go.mod`/`setup.py`/`pyproject.toml` (C project without standard ecosystems). Note: `.c` files with a Rust/Node/Go manifest = FFI binding, NOT embedded. |
 | `simple` | single file, hotfix, quick script, no frontend, no deploy |
 | `anim-lib-eligible` | PROBE REPORT `ANIM` field: `eligibility=eligible|…` (React/Vue/Svelte stack) |
@@ -78,11 +76,11 @@ Factors (weighted):
 | Infra/deploy | 15% | Local only | Single deploy target | Multi-env, CI/CD, containers, monitoring |
 
 **Score thresholds:**
-- **0-30% (simple)**: superpowers skills only (vendored, always on). No gstack, no gsd, no ctx7, no graphify.
-  _Examples: site vitrine, landing page, script CLI, simple CRUD._
-- **30-60% (moderate)**: + context7 if fast-libs. graphify only once the codebase passes 200 tracked code files (session-start banner informs, the user decides — BDR-097), never at scaffold.
+- **0-30% (simple)**: superpowers skills always on (vendored). No gsd, no ctx7, no graphify.
+  _Examples: script CLI, simple CRUD._
+- **30-60% (moderate)**: ctx7 CLI if fast-libs. graphify only once the codebase passes 200 tracked code files (session-start banner informs, the user decides — BDR-097), never at scaffold.
   _Examples: blog with auth, dashboard with charts, API with validation._
-- **60-85% (complex)**: + gstack if browser-QA, + gsd if multi-session. graphify: same 200-file rule, likely reached — say so, do not pre-enable.
+- **60-85% (complex)**: + pack gstack-browser if browser-QA, + gsd CLI if multi-session. graphify: same 200-file rule, likely reached — say so, do not pre-enable.
   _Examples: SaaS with billing, game with social features, e-commerce._
 - **85-100% (enterprise)**: all tools justified.
   _Examples: multi-service platform, real-time collab app, marketplace._
@@ -95,19 +93,19 @@ Output: `COMPLEXITY: <score>% — <label>` with one-line justification.
 
 ```
 PLUGIN CHECK
-ACTIVE: [plugin — status, one line each]
-PROFILE: [active skill profile — name + match%, or "<name> (default — not applied yet …)"]
+ACTIVE: [pack, plugin id or CLI — status, one line each]
+PROFILE: <profile> (source=<local|flag|default>)
 SIGNALS: [detected signals]
 COMPLEXITY: <score>% — <simple|moderate|complex|enterprise>
-PLAN: <Max|Pro|Free (echoed from REQUEST) | unknown (not provided)> (budget: ~<N>t | n/a)
-COST ESTIMATE: ~Xt passive tokens (all active plugins combined)
+COST ESTIMATE: run make doctor (measured; no per-plugin constants here)
 
 RECOMMENDATIONS:
-  ✅ KEEP    : [plugin] — [reason]
-  ⚡ ENABLE  : [plugin] — [reason] — [install/enable cmd]
-  ⚠️  DISABLE : [plugin] — [token cost saved, not needed here]
-  ℹ️  OPTIONAL: [plugin] — [marginal benefit, low priority]
-  🖥️  CLI     : [gsd v2] — [run 'gsd' in terminal if multi-session]
+  ↻ SET     : <profile> — [reason]
+  ✅ KEEP    : [pack or plugin] — [reason]
+  ⚡ ENABLE  : [pack or plugin] — [reason] — enable <pack | full plugin id>
+  ⚠️  DISABLE : [pack or plugin] — [reason] — disable <pack | full plugin id>
+  ℹ️  OPTIONAL: [pack or plugin] — [marginal benefit, low priority]
+  🖥️  CLI     : [gsd] — [run 'gsd' in terminal if multi-session]
 
 ANIMATION LIB:
   ✅ <lib> installed                                     (anim-lib-installed)
@@ -119,36 +117,35 @@ BLOCKING: [issues] or none
 ACTION REQUIRED? YES / NO
 ```
 
+`↻ SET` is emitted ONLY when `source=default` AND `profile=full` AND the
+target profile differs from `full` (target = `full` → `✅ KEEP`, no SET). It
+names the profile only: the gate prints what the profile turns off. With a
+SET line, every ENABLE / DISABLE is a delta against the TARGET profile (a
+pack the target turns off but the project needs = ENABLE). `⚠️ DISABLE` comes
+only from project-level probe signals (manifests, deps, file counts), never
+from REQUEST-only signals (simple, hotfix, "this task"). Under `source=flag`
+no profile.sh command at all: only `relaunch: cc <name> <profile>` when a
+needed pack is off.
+
 > ANIMATION LIB is **read-only** in this report. The advisor never installs
 > packages itself — it just states the status. Installation happens in
 > `/init-project` STEP 5e (auto) or `/onboard` STEP 2.5 (opt-in).
 
-> **Apply, confirmation, and rollback are the DISPATCHER'S job** —
+> **Apply and confirmation are the DISPATCHER'S job** —
 > `lib/plugin-gate.md` steps 4-5 (main loop: present, ACTION-REQUIRED stop,
-> PROPOSED-CHANGES confirmation, toggle + rollback). This agent only
-> recommends and emits the EXACT toggle commands. It never applies, never
-> asks the user (it cannot — it is dispatched).
+> PROPOSED-CHANGES confirmation, profile.sh writes, atomic). This agent only
+> recommends and emits the token to apply (profile, pack or full plugin id);
+> the gate builds the profile.sh command from a fixed template. It never
+> applies, never asks the user (it cannot — it is dispatched).
 
 ---
 
-## DECISION TABLE
+## SIGNAL → RECOMMENDATION
 
-| Signal | Enable / Use | Disable / Skip | Notes |
-|---|---|---|---|
-| `frontend` | ui-ux-pro-max, frontend-design, design-motion-principles, impeccable | — | UI design + polish + motion. frontend-design = anti-AI-slop, design-motion-principles = motion/animation, impeccable = /impeccable verbs + deterministic detector (`npx impeccable detect`, 45 rules) — all external, symlinked |
-| `mobile` (React Native/Expo/Flutter) | — | gstack (no browser QA), Docker N/A | ui-ux-pro-max optional |
-| `monorepo` | per-package plugin recommendations | avoid recommending gstack for whole repo if only one package has browser QA | Specify which plugin applies to which package |
-| `design-system` | ui-ux-pro-max, frontend-design, design-motion-principles, impeccable | — | Design tokens, theme, Storybook, motion; impeccable init persists the design context (DESIGN.md/PRODUCT.md) |
-| `deploy` + `browser-qa` | gstack | — | Full-product workflow |
-| `multi-session` | gsd v2 CLI | — | Run `gsd` in terminal, not CC plugin |
-| `fast-libs` | context7 | — | Doc freshness critical |
-| `multi-agent` + `complex-arch` | gsd v2 CLI | — | GSD v2 preferred for multi-session coordination |
-| `simple` / single-session | — | gsd, gstack, ui-ux-pro-max | Saves ~3000-5000t |
-| `embedded` / firmware | — | all toggles (superpowers skills vendored, always on) | workflow: /analyze → /hotfix or /bugfix or /ship-feature |
-| backend/lib/CLI only | — | ui-ux-pro-max, gstack | ~3100t saved |
-| small project / hotfix | — | gstack, gsd | Use /hotfix, /bugfix, or /feat |
+The Conditional RULES below are the only source: each signal maps to packs,
+a profile, a managed plugin or a CLI.
 
-**GSD v2 note:** `gsd-pi` is a standalone CLI (Pi SDK), not a Claude Code plugin. Zero passive token cost in CC sessions. Recommend when: feature > 1 day, multiple isolated context windows needed, crash recovery, cost tracking, or parallel workers. Usage: `gsd` in terminal → `/gsd auto`.
+**GSD note:** `gsd-pi` is a standalone CLI (Pi SDK), not a Claude Code plugin: external CLI, nothing loads in Claude Code. Recommend when: feature > 1 day, multiple isolated context windows needed, crash recovery, cost tracking, or parallel workers. Usage: `gsd` in terminal → `/gsd auto`.
 
 ### Skill routing by task size
 
@@ -164,7 +161,7 @@ When the plugin-advisor detects a `simple` or `hotfix` signal, suggest the appro
 
 **Escalation path:** `/hotfix` → `/bugfix` → `/ship-feature` (bugs), `/feat` → `/ship-feature` (features). Each skill documents when to escalate to the next level.
 
-**Design gate:** `/feat`, `/hotfix`, and `/bugfix` include a lightweight design gate (`lib/design-gate.md`) that auto-detects UI/style signals and, if the design toolchain is incomplete, points the user at `/profile design`. This covers the gap where lightweight skills previously had no plugin awareness for design tasks.
+**Design gate:** `/feat`, `/hotfix`, and `/bugfix` include a lightweight design gate (`lib/design-gate.md`) that auto-detects UI/style signals and, if the design toolchain is incomplete, points the user at the remedy line it printed. This covers the gap where lightweight skills previously had no plugin awareness for design tasks.
 
 ---
 
@@ -174,171 +171,122 @@ When the plugin-advisor detects a `simple` or `hotfix` signal, suggest the appro
 
 | Pair | Relation | Verdict |
 |---|---|---|
-| gstack ↔ gsd v2 | ✅ Complementary | GStack = full-product CC workflow. GSD v2 = multi-session CLI. Different scopes, no conflict. |
-| superpowers ↔ gsd v2 | ✅ Complementary | superpowers skills (vendored) = single-session execution. GSD v2 = multi-session CLI orchestration. No conflict. |
-| superpowers ↔ gstack | ✅ Complementary | Used together in /init-project and /ship-feature. superpowers skills (vendored) = engine, GStack = full-product skills. |
+| gstack packs ↔ gsd | ✅ Complementary | gstack packs = full-product CC workflow. GSD = multi-session CLI. Different scopes, no conflict. |
+| superpowers ↔ gsd | ✅ Complementary | superpowers skills (vendored) = single-session execution. GSD = multi-session CLI orchestration. No conflict. |
+| superpowers ↔ gstack packs | ✅ Complementary | Used together in /init-project and /ship-feature. superpowers skills (vendored) = engine, gstack packs = full-product skills. |
 | context7 ↔ any | ✅ Independent | Doc lookup CLI (ctx7), no workflow overlap. Always safe to combine. |
-| plugin-dev ↔ superpowers | ⚠️ Minor overlap | superpowers skills (vendored) can create skills too (writing-skills). Keep plugin-dev only when actively building new plugins. |
-| ui-ux-pro-max ↔ gstack | ✅ Complementary | GStack = deploy/QA layer; ui-ux-pro-max = UI quality layer. Different concerns. |
+| ui-ux-pro-max ↔ gstack packs | ✅ Complementary | gstack packs = deploy/QA layer; ui-ux-pro-max = UI quality layer. Different concerns. |
 | pr-review-toolkit ↔ superpowers | ✅ Complementary | `requesting-code-review` (vendored superpowers skill) and /pr-review-toolkit:review-pr cover different review styles. |
 | rtk ↔ any | ✅ Independent | Hook-only token compression. Zero interaction with any plugin. |
 | security-guidance ↔ any | ✅ Independent | Hooks + out-of-band LLM reviews (agentic review on commit/push; Stop diff review disabled by ENABLE_STOP_REVIEW=0). No context injection unless a regex hits. |
-
-### Recommended sets by project type
-
-| Project type | Plugins ON | OFF | Passive cost |
-|---|---|---|---|
-| Backend API / microservice | (superpowers skills always on), context7 (if fast libs) | ui-ux-pro-max, gstack | ~0t |
-| Frontend SPA / SSR | (superpowers skills always on), ui-ux-pro-max, frontend-design, design-motion-principles, context7 | gstack | ~600t |
-| Full-stack SaaS | (superpowers skills always on), gstack, ui-ux-pro-max, frontend-design, design-motion-principles, context7 | — | ~3400t |
-| CLI tool / library | (superpowers skills always on) | all toggles | ~0t |
-| Multi-session large feature | (superpowers skills always on) + gsd v2 CLI (external) | — | ~0t CC |
-| Quick fix / hotfix | (superpowers skills always on) | all toggles | ~0t |
-| Design system / component lib | (superpowers skills always on), ui-ux-pro-max, frontend-design, design-motion-principles | gstack, gsd | ~400t |
-| Fast-evolving libs (Next.js etc.) | (superpowers skills always on), context7 | — | ~200t |
-| Enterprise multi-agent orchestration | (superpowers skills always on) + gsd v2 (external) | plugin-dev | ~0t CC |
-
-> rtk is always on at 0 context tokens; security-guidance is always on and
-> costs quota out of band (LLM reviews), not context — both omitted from
-> the estimates
 
 ### Conditional rules
 
 ```
 RULE: IF "mobile" signal (React Native/Expo/Flutter detected):
-  → gstack OFF — no browser QA on mobile
+  → packs gstack-browser + gstack-design off — no browser QA on mobile
   → Docker NOT relevant — no server-side containerization for mobile
-  → ui-ux-pro-max OPTIONAL (~400t) — only if design system complexity is high
+  → ui-ux-pro-max@ui-ux-pro-max-skill OPTIONAL — only if design system complexity is high
 
 RULE: IF "monorepo" signal detected:
-  → scan each top-level package individually for frontend/deploy/fast-libs signals
-  → recommend plugins per-package, NOT for the whole repo
-  → if only apps/api/ has deploy: gstack only if apps/api/ has browser QA too
-  → NOTE in output: "Plugin X recommended for apps/web/ — disable for apps/api/"
-  → passive cost estimate = highest-cost package profile (other packages add nothing)
+  → ONE profile for the whole repo (profile.sh writes at the git root)
+  → = the union of the packages' needs (frontend, deploy, fast-libs), plus enable deltas
+  → pack gstack-browser only if some package has browser QA
 
 RULE: IF "frontend" signal OR .tsx/.jsx count > 0:
-  → ui-ux-pro-max ON if "design-system" signal (~400t)
-  → frontend-design ON (external skill, 0t passive — symlink at ~/.claude/skills/frontend-design)
-  → design-motion-principles ON if anim-lib-installed or description mentions animation/motion (external, 0t passive)
+  → pack design ON (impeccable + design-motion-principles, external skills — ~/.claude/skills/pack-design/skills/impeccable)
+  → ui-ux-pro-max@ui-ux-pro-max-skill ON if "design-system" signal
 
 RULE: IF "deploy" AND "browser-qa" signals:
-  → gstack ON (~2750t) — full-product workflow
+  → packs gstack-dev + gstack-browser ON — full-product workflow
 
 RULE: IF "multi-session" OR multi-day feature:
-  → Recommend gsd v2 CLI: npm install -g gsd-pi → gsd → /gsd auto
-  → Zero passive CC token cost
+  → Recommend gsd CLI: npm install -g gsd-pi → gsd → /gsd auto
+  → external CLI, nothing loads in Claude Code
 
 RULE: IF "fast-libs" (Next.js/React 18+/Prisma/Supabase/Drizzle):
-  → context7 ON (~200t)
+  → ctx7 CLI installed (find-docs skill always loads); never ENABLE/DISABLE
 
 RULE: IF "multi-agent" AND "complex-arch":
-  → gsd v2 CLI recommended (0t passive, multi-session coordination)
+  → gsd CLI recommended (external CLI, nothing loads in Claude Code; multi-session coordination)
 
 RULE: IF "simple" OR "hotfix":
-  → Disable all toggles. ~800t base only.
+  → recommend the lightweight skill only (see Skill routing by task size); a REQUEST-only
+    signal drives no SET and no DISABLE (both are project-wide, persistent)
 
 RULE: IF "embedded" signal (firmware, bare-metal, microcontroller, or Makefile+C without Node/Rust/Go):
-  → Disable ALL toggles including gstack, context7, plugin-dev
+  → all packs off (profile `minimal`)
   → superpowers skills stay on (vendored, no toggle): useful for initial
     design brainstorm on complex drivers, unnecessary for single-function
     patches; just don't invoke them, no disable needed
-  → GSD v2 CLI: not recommended (sessions are short, tasks are atomic)
+  → GSD CLI: not recommended (sessions are short, tasks are atomic)
   → Recommend workflow: /analyze <file> → /hotfix (patch) or /bugfix (investigation) or /ship-feature (multi-file)
   → NOTE: print "embedded project detected — minimal plugin footprint recommended"
 
-RULE: IF plugin-dev ON AND no `skill-creation` signal detected:
-  → WARN: plugin-dev active but no skill-creation signal (~100t saved if disabled)
-  → Disable unless you're actively building custom plugins or skills
-
-RULE: IF `skill-creation` signal:
-  → plugin-dev ON (~100t)
-  → superpowers skills (vendored, always on): used for skill scaffolding (writing-skills)
-
 RULE: IF `browser-qa` signal (e2e tests, Playwright/Cypress/Puppeteer in deps):
-  → gstack ON — browser automation and QA
-  → context7 OPTIONAL (depends on framework version)
+  → pack gstack-browser ON — browser automation and QA
+  → ctx7 CLI OPTIONAL (depends on framework version)
 
 RULE: IF `design-system` signal (tokens, theme files, Storybook present):
-  → ui-ux-pro-max ON (~400t)
-  → frontend-design ON (external skill, 0t passive)
-  → design-motion-principles ON (external skill, 0t passive)
-  → WARN if all three OFF with this signal: significant design gap
+  → pack design ON (impeccable + design-motion-principles, external skills)
+  → ui-ux-pro-max@ui-ux-pro-max-skill ON
+  → WARN if pack design and ui-ux-pro-max@ui-ux-pro-max-skill are both off with this signal: significant design gap
 
 RULE: IF `complex-arch` signal (multiple services, event bus, distributed system):
-  → gsd v2 CLI recommended for multi-session coordination
+  → gsd CLI recommended for multi-session coordination
 ```
 
 ---
 
-## TOGGLING EXTERNAL TOOLS
+## WRITING A PROFILE OR A PACK
 
-Marketplace plugins toggle via `claude plugin enable|disable <name>@<marketplace>`.
-Non-marketplace tools (gstack per-skill symlinks, emil-design-eng, darwin-skill)
-toggle via `bash $HOME/.claude/lib/toggle-external.sh enable|disable <tool>`.
+Everything switches through `lib/profile.sh`, per project, never the user
+scope. Emit the token only (profile, pack or full plugin id); the gate builds
+the command. Never write files directly.
 
-When a recommendation flips the state of one of those tools, emit the exact
-command — never write files directly.
-
-```
-# Enable gstack for a browser-QA signal:
-bash $HOME/.claude/lib/toggle-external.sh enable gstack
-
-# Disable darwin-skill when passive cost is too high for a hotfix:
-bash $HOME/.claude/lib/toggle-external.sh disable darwin-skill
-```
-
-`higgsfield` / `higgsfield-websites`: never recommended from project signals.
-They drive a paid generation service; explicit user ask only (CLAUDE.md
-"Skill routing").
-
-### Skill profiles (fine-grained partitioning, with plugin + MCP toggle)
-
-For task-shaped activation (web only, seo only, backend only, design only,
-etc.) prefer `lib/profile.sh` over toggling all of gstack at once. Profiles
-activate a curated subset of skills + plugins + MCPs and disable the rest of
-gstack + managed plugins — sessions stay focused and passive token cost drops.
-
-`profile set <name>` actually toggles plugins (`claude plugin enable|disable`)
-and external skill packs (delegates to `lib/toggle-external.sh`) — not just
-advisory. No MCP server is auto-toggled today. Always-on plugins (`security-guidance`)
-and the vendored superpowers skills are never toggled by a profile. Managed
-plugins that `set` may toggle:
-`ui-ux-pro-max@ui-ux-pro-max-skill`, `plugin-dev@claude-code-plugins`,
-`pr-review-toolkit@claude-code-plugins`. Other plugins are never auto-toggled.
-
-When the project signal matches one of the canonical profiles, recommend the
-matching `profile set` command:
-
-| Signal | Recommended profile | Command |
+| Signal | Profile | Emitted line |
 |---|---|---|
-| `frontend` public website (no backend, no SEO focus) | `web` | `bash $HOME/.claude/lib/profile.sh set web` |
-| audit-only: SEO + GEO + W3C + WCAG | `seo` | `bash $HOME/.claude/lib/profile.sh set seo` |
-| public website end-to-end (build + audit) | `web-full` | `bash $HOME/.claude/lib/profile.sh set web-full` |
-| backend / API / system / library (no UI, no SEO) | `backend` | `bash $HOME/.claude/lib/profile.sh set backend` |
-| `design-system` (heavy UI work, no dev) | `design` | `bash $HOME/.claude/lib/profile.sh set design` |
-| `simple` / hotfix / typical dev session | `dev` | `bash $HOME/.claude/lib/profile.sh set dev` |
-| `browser-qa` (e2e tests, no design work) | `qa` | `bash $HOME/.claude/lib/profile.sh set qa` |
-| comprehensive audit (security + SEO + perf) | `audit` | `bash $HOME/.claude/lib/profile.sh set audit` |
-| narrow session, minimal noise | `minimal` | `bash $HOME/.claude/lib/profile.sh set minimal` |
+| public website, no SEO focus | `web` | `↻ SET : web` |
+| audit-only: SEO + GEO + W3C + WCAG | `seo` | `↻ SET : seo` |
+| public website end-to-end | `full` | `✅ KEEP` (no SET) |
+| backend / API / CLI / library, typical dev session (+ ctx7 if fast libs) | `dev` | `↻ SET : dev` |
+| frontend SPA / SSR, heavy UI, design system | `design` | `↻ SET : design` |
+| full-stack SaaS | `full` | `✅ KEEP` (no SET) |
+| browser QA only | `qa` | `↻ SET : qa` |
+| comprehensive audit | `audit` | `↻ SET : audit` |
+| narrow session (project-level) | `minimal` | `↻ SET : minimal` |
+| multi-session / enterprise | current profile, or `dev` + gsd CLI | `↻ SET : dev` |
+| one pack on top | — | `⚡ ENABLE : … — enable <pack or full plugin id>` |
+| one pack off | — | `⚠️ DISABLE : … — disable <pack or full plugin id>` |
 
-To go back to the default profile: `bash $HOME/.claude/lib/profile.sh reset`
-(= `set full`: enables full's list, parks non-listed gstack/managed items,
-toggles the managed plugins like any `set`).
+`<pack>` is one of design, scroll3d, seo, web-validate, gstack-dev,
+gstack-browser, gstack-design, higgsfield, extras. Managed plugins take
+their full id, never the bare name: `ui-ux-pro-max@ui-ux-pro-max-skill`,
+`pr-review-toolkit@claude-code-plugins`.
+
+Read `PROFILE :` first. `set` only when `source=default` AND `profile=full`
+(no project profile yet); any other state gets per-pack enable / disable
+deltas. `source=default` with another profile name = pack keys from shared
+or user scope: deltas only. Under `source=flag` a pack it turns off cannot
+be enabled in this conversation: recommend `relaunch: cc <name> <profile>`
+instead of any ENABLE / DISABLE / SET line. No profile = `full` (manifest
+defaults); `unset` returns to it. Every write needs `/reload-plugins` to
+load the packs; connectors and model apply to the next session.
+
+`higgsfield`: never recommended from project signals. It drives a paid
+generation service; explicit user ask only (CLAUDE.md "Skill routing").
 
 ## BLOCK if
 
 - Superpowers skills missing → `make plugin` (vendors them) then `make link`
-- Full-product (UI+deploy+QA) + gstack not installed
 
 ## WARN (no block)
 
-- Active toggle plugins not needed for this task (dead passive cost)
+- Active packs no project signal needs
 - Multi-session feature + `gsd` CLI not installed → `npm install -g gsd-pi`
-- Total passive cost > 50% of plan budget (Pro: ~5500t, Max: ~10000t, Free: ~2500t) — only when PLAN was provided; PLAN unknown → skip this WARN
 - **Next.js/React 18+/Prisma/Supabase detected + context7 not configured**
   → Risk: Claude may generate code using outdated APIs (App Router changes frequently)
-  → Fix: `npm install -g ctx7 && ctx7 setup --claude`
+  → Fix: `npm install -g ctx7` (`make plugin` from the claude-config repo pins the version and wires find-docs)
   → Or standalone: `ctx7 docs /vercel/next.js "middleware"`
   → Free higher rate limits: `ctx7 login` (OAuth) or API key from context7.com/dashboard
   → Type "force" to proceed without context7 (not recommended for fast-evolving libs)

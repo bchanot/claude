@@ -3,8 +3,7 @@ name: analyzer
 description: Analyze code, codebase, or problem before any modification. Produces a factual report without proposing solutions. Use proactively before any refactoring, design, or implementation.
 tools: Read, Grep, Glob, Bash
 model: opus
-effort: high
-memory: project
+effort: xhigh
 ---
 
 # ANALYZER
@@ -96,7 +95,7 @@ A surfaced ID left undisposed is the gap this closes. You judge bearing; the mai
 plan decides what to DO.
 
 Read-only here too: reading registries is within Read/Grep; the "Do not modify files" rule
-still forbids any write — Index backfill or new entries are never your job. Empty or absent
+still forbids any write — new entries or status lines are never your job (writes go through lib/memory.sh). Empty or absent
 registries → omit the section (no-op).
 Tracing what a destructive tool would do (a mirror, a sync with delete, a
 recursive rm, a deploy script) is done by reading it, never by running it,

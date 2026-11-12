@@ -6,7 +6,8 @@
 # assets (bin/, browse/dist/, design/dist/, lib/diagram-render/dist/,
 # ETHOS.md, scripts/jargon-list.json, freeze/bin/, */sections/*.md,
 # review/checklist.md + specialists/, …) that per-skill SKILL.md
-# symlinks never expose (BDR-030 links gstack skills individually).
+# symlinks never expose (BDR-030 links gstack skills individually
+# (superseded by BDR-134: packs)).
 # `link_gstack_helpers()` walks the submodule ONCE and mirrors every one
 # of those assets under <dst>, so make-pdf, diagram, the freeze hook,
 # cso/plan-*-review sections etc. actually resolve — before this, only

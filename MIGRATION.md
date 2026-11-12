@@ -60,8 +60,8 @@ for reg in decisions learnings blockers journal evals; do
   fi
 done
 
-# 5. If LESSONS.legacy.md had useful entries, convert them manually into
-#    .claude/memory/learnings.md (LRN-XXX format) then delete LESSONS.legacy.md
+# 5. If LESSONS.legacy.md had useful entries, convert each one with
+#    `bash ~/.claude/lib/memory.sh add learning --title … --body-file …`, then delete LESSONS.legacy.md
 
 # 6. Update .gitignore - see "Gitignore patch" section below
 #    (`bash ~/.claude/lib/gitflow.sh reconcile` appends only the missing
@@ -187,7 +187,7 @@ All four checks should be clean before committing the migration.
 
 ```bash
 git pull --recurse-submodules
-make plugin     # vendors the 7 superpowers skills (Step 8e), installs the Higgsfield and 21st CLIs (8.6, 8.7), re-runs link.sh (10), applies the default profile (11)
+make plugin     # vendors the 7 superpowers skills (Step 8e), installs the Higgsfield and 21st CLIs (8.6, 8.7), re-runs link.sh (10)
 claude plugin uninstall superpowers@superpowers-marketplace   # once, if the plugin is still cached
 make doctor
 ```
@@ -195,5 +195,128 @@ make doctor
 - **Superpowers**: the plugin is gone. Its 7 wired skills are vendored at v6.4.1 and always on. The 8 other skills and the session-start injection are not replaced.
 - **Magic MCP**: replaced by the `21st` CLI (`21st login`, no API key). If 1.x registered the `magic` server, remove it from `~/.claude.json` and drop `MAGIC_API_KEY` from `~/.claude/.env`. Nothing reads them any more.
 - **Git hooks in every repo**: `link.sh` sets git's global `core.hooksPath` to `~/.claude/githooks`. Every repo on the machine now gets the gitflow pre-commit guard and pushes each commit as it lands. For a foreign clone: `git config gitflow.protect false` and `git config gitflow.autopush false`.
-- **Default profile**: a machine with no profile selected now runs `full`. Check with `make profile-current`. Nine gstack skills (`ship`, `land-and-deploy`, `setup-deploy`, `autoplan`, `context-save`, `learn`, `careful`, `guard`, `design-shotgun`) left every profile and are denylisted.
+- **Default profile**: a project with no local profile runs the manifest defaults (= `full`). Check with `bash ~/.claude/lib/profile.sh current` from the project. Nine gstack skills (`ship`, `land-and-deploy`, `setup-deploy`, `autoplan`, `context-save`, `learn`, `careful`, `guard`, `design-shotgun`) left every profile and are denylisted.
 - **Higgsfield**: installed, off by default. Nothing to do until you enable it.
+
+### Profiles and packs (2026-11)
+
+Run on every machine that pulls this version (the live tree may still be in
+an old profile). Run steps 1 and 2 before any commit on that machine: the
+removed `.gitignore` lines expose the old links as untracked files. Step 3
+is the only one that removes a real directory (`make plugin` replaces
+`skills-external/impeccable` on a refresh); steps 1 and 2 use `mv`, never
+`rm -r`.
+
+1. From the clone root. `~/.claude` is a real directory of symlinks into
+   the clone, not the clone itself, so resolve the root first. `git pull
+   --autostash` (a plain `git pull` aborts when `settings.json` is modified
+   locally and the incoming commits touch it; autostash keeps your UI
+   writes), then restore the user-scope plugins the old `profile.sh` had
+   toggled. Never `git checkout -- settings.json`: it would drop your UI
+   writes.
+
+   ```bash
+   ep= next=
+   root="$(dirname "$(readlink -f ~/.claude/settings.json)")"
+   [ -n "$root" ] && [ -f "$root/lib/profile.sh" ] && cd "$root" \
+     || { echo "no clone root"; false; } \
+     && git pull --autostash \
+     && ep="$(mktemp)" \
+     && git show HEAD:settings.json | jq -e '.enabledPlugins | objects' \
+       > "$ep" \
+     && next="$(mktemp)" \
+     && jq --slurpfile ep "$ep" '.enabledPlugins = $ep[0]' settings.json \
+       > "$next" \
+     && jq -e . "$next" >/dev/null && [ -s "$next" ] \
+     && cp "$next" settings.json
+   rm -f "$ep" "$next"
+   ```
+
+   Every command is chained with `&&` so that a failed step never reaches
+   `cp`, which writes through the symlink into the live tracked
+   `settings.json`; a failure prints `no clone root` or stops the chain
+   without closing your shell. `ep= next=` comes first so the final `rm -f`
+   never removes a file an earlier run named. `jq -e '.enabledPlugins |
+   objects'` fails when HEAD holds no object (a null would wipe every
+   plugin). `jq -e .` and `[ -s ]` refuse an invalid or empty result (an
+   empty file would drop the plugins, the deny rules and the hooks).
+
+   If the autostash pop conflicts, `settings.json` holds conflict markers:
+   the second `jq` then fails closed and nothing is copied. Resolve the
+   markers (`git stash list` shows the kept stash) before re-running step 1.
+
+2. Old layout. List the flat links first, then remove the links of
+   `skills-disabled/` and the links of `skills/` that are not kept
+   (model-router, darwin-skill, the seven superpowers, the agent-skills
+   trio). If `skills/impeccable` or `skills-disabled/impeccable` is a real
+   directory, `mv` it to `skills-external/impeccable` (never `rm`). It
+   re-derives `$root`, so it also runs in a new shell; `mkdir -p
+   skills-disabled` lets a machine that never had that dir pass the same
+   chain, and `rmdir` removes it at the end. The trailing slash and
+   `-mindepth 1` keep `find` from matching the start point, which is itself
+   a symlink in `~/.claude`.
+
+   ```bash
+   root="$(dirname "$(readlink -f ~/.claude/settings.json)")"
+   [ -f "$root/lib/profile.sh" ] && cd "$root" \
+     || { echo "no clone root"; false; } \
+     && mkdir -p skills-disabled skills-external \
+     && find skills/ skills-disabled/ -mindepth 1 -maxdepth 1 -type l \
+     && for d in skills skills-disabled; do
+          if [ -d "$d/impeccable" ] && [ ! -L "$d/impeccable" ] \
+              && [ ! -e skills-external/impeccable ]; then
+            mv "$d/impeccable" skills-external/impeccable
+          fi
+        done \
+     && find skills-disabled/ -mindepth 1 -maxdepth 1 -type l -delete \
+     && find skills/ -mindepth 1 -maxdepth 1 -type l \
+          ! -name model-router ! -name darwin-skill \
+          ! -name observability-and-instrumentation \
+          ! -name deprecation-and-migration ! -name ci-cd-and-automation \
+          ! -name brainstorming ! -name writing-plans \
+          ! -name subagent-driven-development ! -name test-driven-development \
+          ! -name requesting-code-review ! -name using-git-worktrees \
+          ! -name writing-skills -delete \
+     && rmdir skills-disabled && rm -f .active-profile
+   ```
+
+3. From `$root`: `make link` (link.sh no longer links the design and scroll skills flat),
+   `make plugin` (fills `skills-external/`; impeccable ends in
+   `skills-external/impeccable`).
+4. `~/.bashrc`: delete `dtach_claude()` and `alias cc='dtach_claude'` (the
+   alias would shadow the function and drop the profile argument); add
+   `[ -f "$HOME/.claude/lib/cc.sh" ] && . "$HOME/.claude/lib/cc.sh"`. New
+   shell. `cc <name>` behaves as before; `cc <name> web` starts a conversation
+   under `lib/profiles/web.json`.
+5. Per project: `bash ~/.claude/lib/profile.sh set <profile>` then
+   `/reload-plugins`. `lib/toggle-external.sh` is gone (`profile.sh enable
+   higgsfield` replaces it).
+6. `make doctor` until no warn; `make test`.
+
+## Memory registries v2 (2026-10-28)
+
+A v2 registry is the same `.claude/memory/<name>.md` file, versioned and pushed with the code, with `format: 2` in its frontmatter and no `## Index`. The session banner line `registry v1: N file(s) (memory.sh check)` flags a project still on v1. v1 stays readable and writable (lenient), and the `check --staged` chokepoint skips it.
+
+To migrate, run `bash ~/.claude/lib/memory.sh -C <project> upgrade` on a clean `.claude/memory`, then commit through `/commit-change` when headings were rewritten (memory-commit refuses heading rewrites by design). `upgrade` refuses a registry with duplicate IDs or a non-table Index and leaves the file untouched: a human renumbers or converts first. A v1 blocker closure is carried over only from a `Status`/`Statut` label holding a single closed word that is not negated (`Status: not resolved yet` holds none). A blocker the v1 reader closed through prose, a mixed or a negated Status line is named with its v1 line and the whole run is refused (rc 2, file untouched). Record its real status with `bash ~/.claude/lib/memory.sh -C <project> status <ID> "<word>, …"` (the leading word decides), then re-run `upgrade`.
+
+## Auto memory off (2026-10-29)
+
+`settings.json` now sets `"autoMemoryEnabled": false`, so Claude Code no longer loads `~/.claude/projects/<slug>/memory/`. Anything left there is knowledge no session reads. `make doctor` (section "Auto memory") counts the project dirs that still hold files. For each one, move what is worth keeping into that project's registries with `bash ~/.claude/lib/memory.sh -C <project> add <kind> --title … --body-file …`, then delete the leftover dir by hand.
+
+## Claude.ai-synced skills off (2026-11-09)
+
+`settings.json` now sets the claude.ai-synced skills to `"off"` in `skillOverrides`. The change was measured on Claude Code 2.1.319: run `claude --version` on a machine before pulling it there. A project that uses one of those skills brings it back with `{"skillOverrides": {"<name>": "on"}}` in its `.claude/settings.local.json`.
+
+## Upgrading to 3.0.0
+
+3.0.0 removes the typed `/effort-*` commands and narrows what Claude runs without asking. Run the machine steps of "Profiles and packs (2026-11)" in the 2.0.0 section first: they cover the pull, `make link`, `make plugin` and `make doctor`. Then check the items below.
+
+- **Effort commands removed**: `/effort-low` through `/effort-max` no longer exist, nor do `lib/effort-pins.sh`, `lib/effort-pins.txt` and `lib/model-check.sh`. Type `ultrathink` in a prompt to raise one turn's effort, or `/route effort=max` to hold it until `/route clear`. The model-router rows now set each skill's model and effort. With the router off, a skill that goes through `lib/model-gate.md` stops and names `/route on`.
+- **Profiles**: `skills-disabled/`, `lib/toggle-external.sh`, the `.profile` files, `.active-profile` and `make profile-reset` are gone. A profile is now a `lib/profiles/<name>.json` settings fragment; `backend` became `dev` and `web-full` became `full`. Re-set each project with `bash ~/.claude/lib/profile.sh set <profile>`, and turn Higgsfield on with `bash ~/.claude/lib/profile.sh enable higgsfield`.
+- **Code edits run inside a skill**: model-router redirects a main-loop Edit or Write of a code file (config included) to `/hotfix`, `/feat`, `/bugfix` or `/ship-feature`. Markdown, `.txt`, `docs/` and the project's `.claude/` stay free, sub-agents write freely, and a typed `/route` lifts the redirect.
+- **Merges ask**: `gitflow.sh finish` and `git merge` raise a permission prompt every time, `/close` and `/capitalize` included. Declining stops the flow with "nothing merged, branch kept". `sh -c` and its flag forms (`bash -lc`, `dash -c`), a bare `bash` or `sh` fed by a heredoc, `bash <(…)` and `/bin/sh`, `/bin/bash`, `/usr/bin/env sh|bash` ask too.
+- **`gitflow.*` keys are yours alone**: Claude can no longer read or write them through `git config`, `git -c` or the git config env overrides, nor Edit `.git/config`, `.gitconfig` or `~/.config/git/config`. A custom skill that read `gitflow.autopush` through `git config` calls `bash ~/.claude/lib/gitflow.sh push-mode` instead; it prints `auto`, `manual` or `invalid`.
+- **Commits on `main` and `develop`**: the pre-commit exemption shrank from all of `.claude/**` to `.claude/memory/`, `.claude/tasks/`, `.claude/audits/`, `.claude/deploy/` and `.githooks/`. A commit there that touches `.claude/rules/`, `.claude/settings.json`, agents or skills is blocked: branch first. The global hooks update at `make link`, a project's own `.githooks/` at its next session start.
+- **Invalid `gitflow.autopush` value**: anything but unset, `true` or `false` now pushes nothing, where it used to push. `bash ~/.claude/lib/gitflow.sh push-mode` prints `invalid` in that case; fix the value by hand. A project with committed `.githooks/` keeps its old hooks until a session start rewrites them: commit that refresh so other clones get it.
+
+Also part of 3.0.0, each with its own section above: "Memory registries v2" (optional), "Auto memory off" and "Claude.ai-synced skills off" (check `claude --version` before pulling).

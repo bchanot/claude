@@ -14,6 +14,8 @@ BUG="$REPO/agents/bugfixer.md"
 BSK="$REPO/skills/bugfix/SKILL.md"
 HOT="$REPO/agents/hotfixer.md"
 HSK="$REPO/skills/hotfix/SKILL.md"
+GSK="$REPO/skills/guardrails/SKILL.md"
+ASK="$REPO/skills/a11y/SKILL.md"
 HSKL="$REPO/skills/hotfix/SKILL.md"
 PASS=0; FAIL=0
 
@@ -68,6 +70,24 @@ tf "bug fresh gates"            "$BSK" "the two fresh gates per"
 tf "bug uses shared include"    "$BSK" "lib/verify-secure-loop.md"
 tf "bug gate0 floor"            "$BSK" "GATE 0 — deterministic floor"
 tf "bug dispatches bugfixer"    "$BSK" 'subagent_type="bugfixer"'
+
+echo "── skills/guardrails/SKILL.md (fix loop reuses the bugfix circuit) ──"
+tf "guardrails contract include" "$GSK" "lib/contract-interview.md"
+tf "guardrails uses shared include" "$GSK" "lib/verify-secure-loop.md"
+tf "guardrails dispatches bugfixer" "$GSK" 'subagent_type="bugfixer"'
+tf "guardrails scanner is the oracle" "$GSK" "EXPECT: GUARDRAILS-CLEAR"
+tf "guardrails positive control" "$GSK" "Positive control"
+tf "guardrails approval gate" "$GSK" "Nothing is applied without the user's explicit acceptance"
+tf "guardrails re-pass baseline" "$GSK" "GUARDRAILS-NO-NEW"
+
+echo "── skills/a11y/SKILL.md (fix loop reuses the bugfix circuit) ──"
+tf "a11y contract include" "$ASK" "lib/contract-interview.md"
+tf "a11y uses shared include" "$ASK" "lib/verify-secure-loop.md"
+tf "a11y dispatches bugfixer" "$ASK" 'subagent_type="bugfixer"'
+tf "a11y scanner is the oracle" "$ASK" "EXPECT: A11Y-CLEAR"
+tf "a11y positive control" "$ASK" "Positive control"
+tf "a11y approval gate" "$ASK" "Nothing is applied without the user's explicit acceptance"
+tf "a11y re-pass baseline" "$ASK" "A11Y-NO-NEW"
 
 echo "── agents/bugfixer.md (bugfix executor — sonnet, no Agent) ──"
 tn "bugfixer lacks Agent tool"  "$BUG" "Agent"

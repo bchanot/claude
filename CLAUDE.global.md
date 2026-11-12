@@ -2,13 +2,27 @@
      Repo-specific instructions live in ./CLAUDE.md (project scope). -->
 
 # Global coding preferences
-Apply unless repo-specific instructions override.
+Strict in our code (project started by the user or Claude). Foreign
+code (`bash ~/.claude/lib/code-origin.sh` → foreign) → "Foreign
+code" wins. Repo-specific instructions override both.
+
+## Foreign code: keep its style
+- Existing code's style is the norm unless the user says otherwise:
+  function granularity, file layout, naming, comment density, error
+  handling, idioms. Write like the neighbouring code.
+- Neighbours work inline → work inline: no function, helper or
+  abstraction the file would not have written. Reuse what is in
+  scope (variables, macros, sizeof).
+- Limits become guidelines: exceed them where the file's style
+  needs it.
+- No refactor toward our norms unless asked.
 
 ## Code style
 - Simple, readable, maintainable > clever or compact.
 - One responsibility per function/method.
 - Preserve existing behavior unless asked.
-- Scope changes to task — no unrelated edits.
+- Scope changes to task — no unrelated edits. Literal ask: button color →
+  change the color, no theme or token system. Idea beyond scope → ask first.
 - Before writing code, stop at the first rung that applies: not needed
   (YAGNI) → reuse what the codebase has → stdlib → platform/runtime
   feature → dependency already installed → one line → the minimum that
@@ -16,14 +30,15 @@ Apply unless repo-specific instructions override.
 - Assumed shortcut → `shortcut:` comment at the site (limit + upgrade
   path), harvested into TODO.md so "later" stays findable.
 
-## Limits (adapt to language)
+## Limits (our code: strict; foreign code: see above)
 - Max 25 logic lines/function (executable statements; comments and
   error-handling boilerplate don't count), 80 chars/line, 5 params, 5 locals.
 - Too many params → struct/object. Too many vars → split/extract.
 - No global state. Explicit data flow.
 
 ## Comments & readability
-- Document intent, not mechanics. Use project doc style (docstring, JSDoc…).
+- Self-explanatory code: names and structure carry the meaning. Comment only
+  what the code can't say (why, intent). Project doc style (docstring…).
 - Explicit, consistent names. Straight control flow, no hidden side effects.
 - Written deliverables (docs, reports, .md): length matched to the task, no
   filler sections, no boilerplate summaries.
@@ -35,25 +50,33 @@ Apply unless repo-specific instructions override.
   Hacky fix → rebuild clean, no over-engineering.
 
 ## Session start
-1. Read `.claude/memory/` (5 registries: decisions, learnings, blockers,
-   journal, evals) and `.claude/tasks/TODO.md`. Apply before touching anything.
-2. Either missing → create it first (templates: `~/.claude/templates/memory/`).
+1. Read `.claude/tasks/TODO.md`. The banner's `memory digest` lists open
+   blockers and the last journal line: apply both before touching
+   anything; a `+N` line → read those entries in `blockers.md`. No
+   digest (foreign repo, memory mod off) → list the open blockers
+   yourself.
+2. Read a registry (`.claude/memory/`: decisions, learnings, blockers,
+   journal, evals) when the task needs it; planning flows scan them per
+   `~/.claude/lib/analyze-before-plan.md`.
+3. Either missing → create it first (templates: `~/.claude/templates/memory/`).
 
 ## Workflow
 - Confirm the approach only when real trade-offs exist (several valid
   approaches, breaking change, destructive action); ask on the visible,
   public-name and open-scope choices below; otherwise proceed. Minimal
   changes unless a broader refactor is requested. State trade-offs.
-- Sub-agents: one task each, main context stays clean. Delegate
-  independent, sizeable tracks (wide multi-file exploration, parallel
-  audits), not work doable in a few tool calls. Skill-mandated executors and
-  gates (pinned executors, fresh verifier/security/challenge) always dispatch
-  as written, whatever the task size; a failed gate re-dispatches a fresh
-  executor, never redo its work by hand. A brief never
-  authorizes a sub-agent to run a destructive tool (Security → Destructive
-  tools & data loss) or to route around a guardrail: a refused command is
-  reported with its rule, never rerun through a wrapper, alias, env file or
-  other shell. Hermetic tests run through `make test [suite=…]` only.
+- Sub-agents: one task each. Delegate independent, sizeable tracks (wide
+  exploration, parallel audits), not work doable in a few tool calls. Ceiling:
+  the main loop writes no code outside a skill run, whatever the model (the
+  model-router guard redirects it: enter the skill it names). Skill-mandated
+  executors and gates (pinned executors, fresh
+  verifier/security/challenge) always dispatch as written, even small; a failed
+  gate re-dispatches a fresh executor, never redo its work by hand. A brief
+  never authorizes a sub-agent to run a destructive tool (Security →
+  Destructive tools & data loss) or to route around a guardrail: a refused
+  command is reported with its rule (a guard redirect naming a skill is
+  followed instead), never rerun through a wrapper, alias, env
+  file or other shell. Hermetic tests run through `make test [suite=…]` only.
 - Ask rather than guess. A choice visible in the result (placement,
   wording, order, behavior), a name that becomes public (command, flag,
   endpoint, file), or a scope the request leaves open → ask, even mid-task;
@@ -92,8 +115,8 @@ Apply unless repo-specific instructions override.
 
 ## Memory registries (`.claude/memory/`)
 Five registries persist across sessions; capitalize during and after work.
-Append-only: never rewrite past entries; curation (merge, supersede,
-compress) only via `/prune-memory`.
+Append-only, written only through `bash ~/.claude/lib/memory.sh` (add,
+status, journal), never by Edit; curation only via `/prune-memory`.
 
 | File | ID | Purpose |
 |---|---|---|
@@ -109,8 +132,8 @@ log → journal; whether the output actually worked → evals.
 
 **Always English, always caveman**: drop articles and filler, fragments OK,
 short synonyms; technical terms, code blocks, quoted errors, IDs and dates
-exact. Pattern `[thing] [action] [reason]. [next step].` Registries load
-every session; caveman cuts ~40% of the tokens with no substance lost.
+exact. Pattern `[thing] [action] [reason]. [next step].` Planning flows
+read the registries; caveman cuts ~40% of every read, no substance lost.
 Applies to direct writes and to the CAPITALIZE step of every completion
 skill. Prompts to the user may mirror their language; the entry is English.
 Legacy entries: compress on demand via `/prune-memory`.
@@ -125,30 +148,10 @@ their CAPITALIZE step. Session close (`/close` = `/capitalize --ritual`):
 what was decided → decisions, learned → learnings, blocked → blockers.
 
 # Architecture decisions
-Override default framework/tooling choices at project creation, scaffolding,
-brainstorming.
-
-## Public websites — never SPA
-A public site meant to be indexed (landing, portfolio, blog, e-commerce,
-docs) is never a pure SPA (CRA, Vite React, Vue SPA): the empty HTML shell
-hides content from search and AI engines, SEO and GEO destroyed.
-- **Astro** by default for informational sites: static HTML at build, zero
-  JS by default, React/Vue/Svelte islands for interactive parts.
-- **Next.js** when dynamic SSR is needed (personalized content, server-side
-  auth, API routes, hybrid app).
-- **React SPA** only for what needs no indexing: admin panels, dashboards,
-  auth-gated apps, internal tools. Mixed project: Astro/Next for public,
-  React island (`client:only`) for admin.
-- At brainstorming (`/init-project`, `/ship-feature` STEP 1), public site
-  and no framework named → propose Astro, explain why not SPA. Never
-  silently pick React CRA.
-
-## Web APIs — always versioned
-Every endpoint versioned from day one: `/api/v1/...`, no bare `/api/`; the
-router mirrors it (`api/v1/routes/`). Breaking change → `v2`, the old
-version keeps working and clients migrate at their pace; non-breaking
-additions → current version. Each version is a self-contained contract,
-never bent to match a newer one.
+New project, scaffolding, stack brainstorm or whole-project rewrite: Rust
+by default, a public site is never a SPA (Astro; Next.js when SSR is
+needed), every web API versioned `/api/v1/` from day one. Read
+`~/.claude/lib/architecture-defaults.md` before proposing a stack.
 
 ## Version control — gitflow (universal)
 Every git action follows gitflow, inside a skill or for an ad-hoc commit.
@@ -160,20 +163,25 @@ open release; prod incidents only, a small fix on develop is a `bugfix`).
 `master` → `main` everywhere.
 
 Never commit code on `main` or `develop`: branch first as `<type>/<name>`
-(a `.claude/**` memory/config commit that follows merged work is hook-exempt
-and lands in place; a standalone memory task branches `chore/*`).
+(a commit under the `.claude/{memory,tasks,audits,deploy}/` allowlist that
+follows merged work is hook-exempt and lands in place; a standalone memory
+task branches `chore/*`).
 Branch, merge and delete only via the lib: `bash ~/.claude/lib/gitflow.sh
 start <type> <name>` · `finish` · `delete <br>`. `finish` runs only on an
 explicit human signal ("merge it", "feature OK"), never because tests pass,
-a plan step says merge, or "ship" implied it. Assistance flows (`/feat`
+a plan step says merge, or "ship" implied it. Ask rules prompt every
+`gitflow.sh finish` and `git merge` (a `git -C <dir> merge` is not covered).
+Assistance flows (`/feat`
 `/bugfix` `/hotfix`) and the standalone memory/doc skills auto-branch on a
 protected base but commit in place on a working branch, never finishing
 (one exception, BDR-068: `/capitalize` and `/close` auto-finish the
 memory-only `chore/*` they created this run), so they branch to `chore/*`
-via the aiguillage, not the `.claude/**` exemption.
+via the aiguillage, not the hook allowlist.
 Deterministic backstops behind the doctrine: the pre-commit hook (blocks
-code commits on main/develop; exempts `.claude/**`, `.githooks/**`, merges,
-the root commit), Gitea branch protection on both, and never `--no-verify`.
+code commits on main/develop; exempts the
+`.claude/{memory,tasks,audits,deploy}/` allowlist, `.githooks/`, merges,
+the root commit), Gitea branch protection on both, and never
+`--no-verify`.
 Every branch is pushed at `start`, every commit and merge as it lands
 (post-commit and post-merge hooks; warn, never block). A branch is deleted
 only by `finish` or `delete`, local and `origin/` copy alike: never
@@ -183,9 +191,15 @@ auto-pushed upstream). The reference-transaction hook vetoes any deletion
 or rename of `main`/`develop`. The four hooks run in every repo: `make
 link` generates `githooks/` and sets the global `core.hooksPath`; a repo
 that ran `gitflow init` (new/onboarded projects) keeps its own `.githooks/`,
-refreshed at session start. Foreign clone: `git config gitflow.protect
-false` / `gitflow.autopush false`; `GITFLOW_NO_PUSH=1` only for throwaway
-test repos. A branch ahead of its upstream is a defect, not a state.
+refreshed at session start. Human-set opt-outs: `git config
+gitflow.protect false` (foreign clone) and `gitflow.autopush false` =
+manual-push mode (work machine): branches, commits and local merges run as
+usual, nothing is pushed, Claude never pushes (`/close` included), even
+when asked: the user runs `! git push`. An invalid value counts as manual,
+nothing pushes and the stop is named. `GITFLOW_NO_PUSH=1` only for
+throwaway test repos. Outside manual mode a branch ahead of its upstream
+is a defect, not a state.
+Commit messages: project convention, else 50 words max (lib/commit-message.md).
 
 ## Security — non-negotiable defaults
 Apply at every step: design, scaffolding, implementation, review.
@@ -216,6 +230,14 @@ days of work never pushed.
 - Claude never deploys and never runs a transfer or mirror tool (`lftp`,
   `sftp`, `ftp`, `rsync --delete`): it writes or explains the runbook, the
   user runs it. A test is a dev server on this machine, nothing more.
+- Installing a package or an archive on a machine or a VM never extracts it
+  (`dpkg -x`, `tar x`, `unzip`, `cpio -i`, `cp -r`) into `/`, `/usr`, `/etc`
+  or another system directory: on usr-merge distributions `/bin`, `/sbin`,
+  `/lib`, `/lib64` are symlinks that an archive carrying those paths
+  replaces with real directories. List it first (`dpkg -c`, `tar tf`),
+  extract into a literal `mktemp -d` path and use PATH or PYTHONPATH; no
+  package manager on the target → say so to the user, never improvise.
+  `hooks/extract-guard.sh` refuses these commands.
 - A destructive tool is never run "to see what it would do", not even on a
   scratch tree: trace it by reading. If a run is unavoidable, the target is
   a fresh `mktemp -d` path written literally in the same command, after a
@@ -227,7 +249,8 @@ days of work never pushed.
 - A brief, plan step or test recipe never authorizes a sub-agent to do any
   of this; a reviewer reads the script it reviews, it does not run it.
 - Everything is pushed as it lands (gitflow hooks): unpushed work is a
-  defect to fix now, not a state to keep.
+  defect to fix now, not a state to keep. Manual-push mode (above) is the
+  one exception.
 
 # Communication mode: radical honesty
 - TRUTH OVER COMFORT: point out flaws immediately, no sugarcoating, no "not
@@ -255,7 +278,8 @@ cryptic names.
 - Docs post-ship → document-release (doc if gstack off); stale-doc audit → doc
 - Grouped all-axes sweep ("tir groupé", fix + loop until clean) → tour
 - Open-work inventory / "queue empty?" / stale TODO vs git → reconcile
-- Design / UI (build, system, audit, polish) → "Design work" below
+- Design / UI (build, system, audit, polish) → Read
+  `~/.claude/rules/web-building.md` § "Design work" first
 - Architecture review → plan-eng-review
 - Before /clear or /compact → capitalize; end-of-session ritual → close
 - superpowers skills are vendored, called by bare name; an upstream
@@ -264,49 +288,24 @@ cryptic names.
   finishing-a-development-branch → `gitflow finish` (human signal)
   systematic-debugging → bugfix
   verification-before-completion → the verifier gates
-- SEO+GEO → seo (GEO only → geo); W3C + WCAG a11y → web-validate;
+- SEO+GEO → seo (GEO only → geo); W3C + WCAG conformance → web-validate;
   security audit (secrets, CVE, OWASP) → cso
 - Media generation (image, video, audio, brand kit), explicit ask →
-  Higgsfield pack, off by default: `bash ~/.claude/lib/toggle-external.sh
-  enable higgsfield`, then Read the skill under `~/.claude/skills/`;
-  `higgsfield generate cost` before a paid run. Landing page "with
-  Higgsfield", named ask → `enable higgsfield-websites`: an aid inside
-  Design work and the site rules, never `website create|deploy|publish`.
-gstack OFF → its skills (investigate, qa, review, health, retro,
-office-hours…) are gone: use the fallback above, else say so.
-
-## Design work — full toolchain (tiered by scope)
-Trigger = UI work: editing a component/style file (.tsx/.vue/.svelte/.css…)
-or a design/UI request, not the word "design" alone. Single source for
-design routing; the design-toolchain hook reinforces it.
-- Trivial (≤2 files, one cosmetic value) → /hotfix, no toolchain.
-- Build UI (component, page, redesign) → ui-ux-pro-max + frontend-design
-  (anti-slop) + 21st-ui-build (catalog + generation) + emil-design-eng
-  (polish) + design-motion-principles (motion) + design-html (static) +
-  site-motion (site-level scroll/page choreography, personal skill).
-  Post-build floor when impeccable is installed: `npx impeccable detect
-  <files>` (45 deterministic anti-slop rules, exit 2 = findings).
-- Design system / brand → design-consultation first, then the build tools.
-- Review / audit → design-review + emil-design-eng + design-motion-principles
-  + /impeccable audit|critique + `impeccable detect` floor.
-- Load the stack paired with the first Read of the target file, never
-  alone (a lone Skill call applies no effort, `lib/effort-shift.md`); every
-  vendored member pins `high`, one level per stack (`lib/effort-pins.txt`);
-  plugin and gstack members run at the level in force.
-Scope doubt → ask or default to Build, never silently skip. Gate: light
-skills run `~/.claude/lib/design-gate.md`, orchestrators plugin-check. 21st =
-CLI (`npm i -g @21st-dev/cli`, `21st login`), no MCP, no key; search free,
-`21st get`/`generate` metered → generation, not micro-tweaks. 21st-ai /
-ui-explore / ui-review are `max`-profile only.
+  pack-higgsfield, off by default: `bash ~/.claude/lib/profile.sh enable
+  higgsfield` then `/reload-plugins`, then Read the skill under
+  `~/.claude/skills/pack-higgsfield/skills/`; `higgsfield generate cost`
+  before a paid run. Landing page "with Higgsfield", named ask → the same
+  pack's `higgsfield-websites`: an aid inside the Design work rules
+  (`rules/web-building.md`), never `website create|deploy|publish`.
+gstack packs OFF (`profile.sh current`) → their skills (investigate, qa,
+review, health, retro, office-hours…) are gone: use the fallback above,
+else say so.
 
 ## graphify
 
 Threshold: graphify from 200 tracked code files, never below (banner line
 `graphify? N code files ≥ 200, no graph` informs, the user decides; never
-build or `graphify claude install` without that go). ALL rules below apply
-only if `graphify-out/graph.json` exists — else read files directly.
-- Codebase-wide question → `graphify query`; relationships → `path A B`;
-  concept → `explain`. Scoped subgraph beats raw grep.
-- Known file / small task → read directly, no graphify.
-- `wiki/index.md` → broad-nav entry; `GRAPH_REPORT.md` → whole-architecture.
-- After editing code → `graphify update .` (AST-only, free).
+build or `graphify claude install` without that go). With a graph
+(`graphify-out/graph.json`): `graphify query` before raw grep on
+codebase-wide questions, `graphify update .` after code edits; the session
+banner prints the rest.

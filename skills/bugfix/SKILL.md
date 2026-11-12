@@ -26,7 +26,7 @@ allowed-tools:
 MODEL GATE (blocking): run `$HOME/.claude/lib/model-gate.md` BEFORE any
 step below. Verdict `small` → STOP — print the gate's remedy, end the
 turn, dispatch nothing.
-EFFORT SHIFTS: follow `$HOME/.claude/lib/effort-shift.md` (BDR-107): medium when a dispatch span starts, own level before challenge synthesis, low at the bookkeeping tail, max at escalation; every shift goes in the same message as the step's first tool call, a lone Skill call is a no-op.
+ROUTING: follow $HOME/.claude/lib/effort-shift.md (phases via mcp__model-router__route).
 
 ## REQUEST
 $ARGUMENTS
@@ -58,7 +58,7 @@ git log --oneline -20 --all -- <suspected files>
 Follow `$HOME/.claude/lib/design-gate.md`:
 - Scan $ARGUMENTS and target files for design/UI/style signals (CSS, component, layout, animation).
 - If signals found → run `design-tool-gate.sh`; INCOMPLETE → tell the user
-  to run `/profile design`; SIGN-IN REQUIRED → design-gate.md §3 (ask
+  the remedy line it printed; SIGN-IN REQUIRED → design-gate.md §3 (ask
   `! 21st login`, wait) before proceeding.
 - If no signals → skip (zero overhead).
 
@@ -119,14 +119,14 @@ RISK: <low/medium — what could go wrong>
   obvious fix.
 - If the fix is significant (>10 lines, multiple files,
   behavior change): wait for user approval.
-  On resume: `Skill(effort-high)` first, sent with the next tool call (effort-shift: turn reset).
+  On resume: `mcp__model-router__route(phase="reflect")` first (route: resumed turn).
 - Then run pass B of `$HOME/.claude/lib/contract-interview.md` against the
   FIX PLAN: every VISIBLE / PUBLIC NAME / SCOPE choice it settles that the
   bug report left open → one batch of questions, before STEP 3b. The trivial
   fast-path is not exempt: a 1-line fix with a visible choice still asks.
 
 ## STEP 3b — CHALLENGE THE FIX PLAN (before the contract)
-`Skill(effort-high)` first (effort-shift: own level before the challenge; send it in the same message as the challenger dispatch).
+`mcp__model-router__route(phase="reflect")` first (route: own level before the challenge; send it with the challenger dispatch).
 Unless the fix is the trivial 1-2 line case STEP 3 already fast-paths, the
 DIAGNOSIS + FIX PLAN is a reflection worth attacking before it hardens into a
 contract. Persist it to `.claude/tasks/plans/<date>-<slug>-<HHMM>.md`, then run
@@ -157,10 +157,10 @@ branch it's a no-op (commit in place). Never `finish`.
 
 ## STEP 5 — DISPATCH EXECUTOR
 
-Dispatch the executor — sonnet by frontmatter pin, do not override:
+Dispatch the executor — sonnet by its row (frontmatter = off-state floor), do not override:
 
 ```
-Skill(effort-medium)   # effort-shift: dispatch span starts; send with the Agent call below in ONE message
+mcp__model-router__route(phase="orchestrate")   # route: dispatch span starts; send with the Agent call below in ONE message
 Agent(subagent_type="bugfixer")
 prompt: "CONTRACT: <path from STEP 3.5>
 DIAGNOSIS: <ROOT CAUSE + EVIDENCE from STEP 3>
@@ -223,13 +223,9 @@ Parse the `BUGFIX-EXEC REPORT`:
    - `skip` → leave changes uncommitted, exit cleanly.
    - `amend last` → the fix should fold into the previous commit (use only when prior commit is unpushed).
 
-3. Commit using conventional format (after approval):
-   ```
-   fix(<scope>): <root cause description>
-
-   <what was wrong and why>
-   <what the fix does>
-   ```
+3. Commit after approval, message per `$HOME/.claude/lib/commit-message.md`
+   (project convention first, else short: root cause in the subject, at most
+   two sentences of body).
 4. Print summary:
    ```
    BUGFIX COMPLETE
@@ -261,6 +257,8 @@ it just commits the docs on the current branch (no ordering concern).
 
 ## STEP 8 — CAPITALIZE (memory registries)
 
+Call memory_pending first, per /capitalize STEP 1 "Captured first".
+
 A bugfix with an understood root cause is almost always worth one entry:
 
 1. Propose a `BLK-XXX` entry in `.claude/memory/blockers.md` pre-filled from STEP 3 diagnosis:
@@ -276,13 +274,13 @@ A bugfix with an understood root cause is almost always worth one entry:
      [LRN-XXX — <pattern>]   (optionnel)
    Valider ? (all / blockers-only / edit / skip)
    ```
-4. Append approved entries + update the Index. Add a line to today's heading in `.claude/memory/journal.md`.
+4. Write approved entries per `lib/capitalize-commit.md` § WRITE: a new blocker `add blocker … --status resolved`, an existing one now fixed `status <BLK-ID> "resolved <hash>"`, an LRN `add learning …` (no status); the journal line `memory.sh journal`.
 
 **Language rule**: written entries are ALWAYS English AND caveman — fragments, articles dropped, code/IDs/quoted errors verbatim — per CLAUDE.md "Memory registries" (Always English, always caveman). The interactive gate may mirror the user's language; the appended entries must not.
 
 If the bug was trivial and the root cause not transferable → skip with `CAPITALIZE: trivial, skip`.
 
-`Skill(effort-low)` first (effort-shift: bookkeeping tail; send it in the same message as the memory-commit command).
+`mcp__model-router__route(phase="apply")` first (route: bookkeeping tail; send it with the memory-commit command).
 
 **Then commit the memory** — follow `$HOME/.claude/lib/capitalize-commit.md`: it
 surgically commits what capitalize just wrote (`.claude/memory` + `.claude/tasks`

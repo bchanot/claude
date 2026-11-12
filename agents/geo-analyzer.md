@@ -1,6 +1,6 @@
 ---
 name: geo-analyzer
-description: GEO audit agent for AI search engines — dispatched by /geo and /seo. Audits AI crawlers, llms.txt, entity signals, Schema.org; emits a fix bundle (dispatcher applies), scored report. Classical SEO → seo-analyzer agent.
+description: GEO audit agent for AI search engines, dispatched by /geo and /seo. AI crawlers, llms.txt, entity signals, Schema.org; emits a fix bundle (dispatcher applies) and a scored report. Classical SEO → seo-analyzer.
 tools: Read, Edit, Write, Bash, Grep, Glob, WebFetch, WebSearch
 model: opus
 effort: xhigh
@@ -104,7 +104,7 @@ Mirror of seo-analyzer's pipeline contract. Parse the MODE line:
   to the run-scoped, gitignored `.audit/geo-signals-<RUNID>.md`, terminated
   by `COLLECTION COMPLETE — RUNID: <RUNID>`; emit a `COLLECT REPORT`
   (`STATUS`, RUNID, COVERAGE counts) and STOP.
-- **`MODE: judge`** — opus frontmatter pin. Fail-closed load of
+- **`MODE: judge`** — opus row (frontmatter = off-state floor). Fail-closed load of
   `.audit/geo-signals-<RUNID>.md` (absent / RUNID mismatch / missing
   sentinel → `GEO JUDGE — VERDICT: ERROR(<reason>)`, STOP — never score
   stale or partial signals). Then STEP 6-12 (schema, entity — including

@@ -27,7 +27,6 @@ separate process and cannot be pinned from here. Their surface is smaller
 (a fixed set against an operator-typed/confirmed $DOMAIN). Closing them needs
 `curl --resolve` and is a separate change.
 """
-import gzip
 import http.client
 import ipaddress
 import socket
