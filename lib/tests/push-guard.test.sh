@@ -298,6 +298,9 @@ check T40-wiring "$(jq -e '.hooks.PreToolUse[]
   | select(any(.hooks[]; .command=="bash ~/.claude/hooks/push-guard.sh"))
   | .matcher=="Bash|Monitor" and .hooks[0].timeout==10' "$S" 2>&1)" true
 
+# Write twins of the 4 Edit lines dropped 2026-11-12: a Write(glob) deny never
+# blocks the Write tool, the Edit form does. The 2 Bash lines guard the
+# working forms.
 has_deny() { jq -e --arg e "$1" '.permissions.deny | index($e)' "$S" >/dev/null; }
 missing=""
 while IFS= read -r e; do
@@ -314,18 +317,34 @@ Bash(*GIT_CONFIG_COUNT*)
 Bash(* GIT_CONFIG_GLOBAL=*)
 Bash(* GIT_CONFIG_SYSTEM=*)
 Edit(**/.git/config)
-Write(**/.git/config)
 Edit(**/.gitconfig)
-Write(**/.gitconfig)
 Edit(~/.gitconfig)
-Write(~/.gitconfig)
 Edit(~/.config/git/config)
-Write(~/.config/git/config)
+Bash(docker run * -v /:/*)
+Bash(git push * :**)
 EOF
 check T41-new-deny-present "$missing" ""
 
+# Deny entries of the last release dropped on purpose, forgiven by T42 until
+# version.txt passes removed_ok_until (T42e): empty the list in that bump.
+removed_ok_until=3.0.0
+grep -v '^#' > "$WORK/removed-ok" <<'EOF'
+# mixed `* -v /:*` form never matches; `-v /:/*` kept (2026-10-23)
+Bash(docker run * -v /:*)
+# mixed `* :*` form never matches; ` :**` kept (2026-10-23)
+Bash(git push * :*)
+EOF
+cur=$(tr -d '[:space:]' < "$ROOT/version.txt")
+expired=""
+[ -n "$cur" ] || expired="version.txt unreadable"
+if [ -s "$WORK/removed-ok" ] && [ "$cur" != "$removed_ok_until" ] &&
+  [ "$(printf '%s\n' "$removed_ok_until" "$cur" | sort -V | tail -1)" = "$cur" ]
+then expired=$(tr '\n' ' ' < "$WORK/removed-ok"); fi
+check T42e-list-not-expired "$expired" ""
+
 # Nothing removed: every deny entry of the fresher of origin/main and main
-# (the last release) is still there. Neither ref resolves: SKIP, no count.
+# (the last release) is still there, except the justified list above.
+# Neither ref resolves: SKIP, no count.
 rv() { git -C "$ROOT" rev-parse -q --verify "$1" >/dev/null 2>&1; }
 base=""
 if rv origin/main && rv main; then
@@ -334,6 +353,12 @@ if rv origin/main && rv main; then
 elif rv origin/main; then base=origin/main
 elif rv main; then base=main
 fi
+deny_lost() {  # <settings file>: base deny entries missing, minus the list
+  git -C "$ROOT" show "$base:settings.json" 2>/dev/null \
+    | jq -r --slurpfile now "$1" '.permissions.deny[]
+      | select(. as $e | ($now[0].permissions.deny | index($e)) == null)' \
+    | grep -vxF -f "$WORK/removed-ok"
+}
 if [ -z "$base" ]; then
   echo "SKIP T42 (no main ref)"
 else
@@ -341,10 +366,19 @@ else
   basedeny=$(git -C "$ROOT" show "$base:settings.json" 2>/dev/null \
     | jq -r '.permissions.deny[]' 2>/dev/null)
   check T42-base-nonempty "$([ -n "$basedeny" ] && echo yes || echo no)" yes
-  lost=$(git -C "$ROOT" show "$base:settings.json" 2>/dev/null \
-    | jq -r --slurpfile now "$S" \
-      '.permissions.deny[] | select(. as $e | ($now[0].permissions.deny | index($e)) == null)')
+  lost=$(deny_lost "$S")
   check T42-nothing-removed "$lost" ""
+  # T42c: the lock still bites on an entry that is not in the list
+  probe=$(printf '%s\n' "$basedeny" | grep -vxF -f "$WORK/removed-ok" | head -1)
+  jq --arg e "$probe" '.permissions.deny -= [$e]' "$S" > "$WORK/s-probe.json"
+  check T42c-lock-bites \
+    "$(deny_lost "$WORK/s-probe.json" | grep -cxF -- "$probe")" 1
+  # T42d: the user's hand edit (the 6 dead entries out) is forgiven
+  jq '.permissions.deny -= ["Bash(docker run * -v /:*)",
+    "Bash(git push * :*)", "Write(**/.git/config)", "Write(**/.gitconfig)",
+    "Write(~/.gitconfig)", "Write(~/.config/git/config)"]' "$S" \
+    > "$WORK/s-after.json"
+  check T42d-edit-forgiven "$(deny_lost "$WORK/s-after.json")" ""
 fi
 
 soft=$(jq -r '.autoMode.soft_deny[]' "$S")
