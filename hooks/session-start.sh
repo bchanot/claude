@@ -326,9 +326,21 @@ _digest_blockers() {  # <root> <memory.sh>
   [ -n "$more" ] && echo "- open: $more"
 }
 
-_digest_todo() {  # <root> → first 3 unchecked Actionable items
-  awk '/^### Actionable/ { on = 1; next } /^#/ { on = 0 }
-    on && sub(/^- \[ \] /, "") && n++ < 3 { print "- todo: " $0 }' \
+# <root> → first 3 unchecked Actionable items, else the file's first 3.
+# Comment blocks (as _digest_journal) hide headings and items; indented
+# items never count.
+_digest_todo() {
+  awk '/^[ \t]*<!--/ { c = 1 }
+    !c && /^###? Actionable([ \t\r]|$)/ { on = 1; next }
+    !c && /^#/ { on = 0 }
+    !c && /^- \[ \] / {
+      t = substr($0, 7)
+      if (on && a < 3) A[++a] = t
+      if (f < 3) F[++f] = t
+    }
+    /-->/ { c = 0 }
+    END { if (a) { n = a; for (i = 1; i <= n; i++) print "- todo: " A[i] }
+      else for (i = 1; i <= f; i++) print "- todo: " F[i] }' \
     "$1/.claude/tasks/TODO.md"
 }
 
@@ -339,22 +351,42 @@ _digest_journal() {  # <root> → last journal bullet
   [ -n "$last" ] && echo "- journal: ${last#- }"
 }
 
+# How many leading todo lines fit in <room> chars (newline included).
+_digest_fit() {  # <room>; reads the array todo of the caller
+  local line size=0 shown=0
+  for line in "${todo[@]}"; do
+    size=$((size + ${#line} + 1))
+    [ "$size" -le "$1" ] || break
+    shown=$((shown + 1))
+  done
+  echo "$shown"
+}
+
+_digest_marker() {  # <dropped count>
+  echo "- todo: +$1 not shown, read .claude/tasks/TODO.md"
+}
+
 # The block: header + open BLK lines + count line + todo lines + journal.
 # Todo lines are added in order while the block stays <= 800 chars, so the
-# last ones drop first; header, open BLK lines (3 x 160 max), count line and
-# journal always stay and always fit. The only loop is bounded by the todo
-# count (3). Stays bash 3.2 safe (checked by SD11).
+# last ones drop first; when one drops, room is reserved for a marker line
+# that counts the dropped ones. Header, open BLK lines (3 x 160 max), count
+# line, marker and journal always stay and always fit. The only loops are
+# bounded by the todo count (3). Stays bash 3.2 safe (checked by SD11).
 # Built in a variable and printed once, so a failure mid-way prints nothing.
 _digest_assemble() {  # reads the arrays blk, cnt, todo, jr of the caller
-  local head="memory digest:" tail="" body="" line size
-  for line in "${blk[@]}" "${cnt[@]}"; do head+=$'\n'"$line"; done
+  local out="memory digest:" tail="" line room shown
+  for line in "${blk[@]}" "${cnt[@]}"; do out+=$'\n'"$line"; done
   for line in "${jr[@]}"; do tail=$'\n'"$line"; done
-  size=$((${#head} + ${#tail}))
-  for line in "${todo[@]}"; do
-    [ $((size + ${#line} + 1)) -le 800 ] || break
-    body+=$'\n'"$line"; size=$((size + ${#line} + 1))
-  done
-  printf '%s%s%s\n' "$head" "$body" "$tail"
+  room=$((800 - ${#out} - ${#tail}))
+  shown=$(_digest_fit "$room")
+  if [ "$shown" -lt "${#todo[@]}" ]; then
+    line=$(_digest_marker 1)
+    shown=$(_digest_fit $((room - ${#line} - 1)))
+  fi
+  for line in "${todo[@]:0:shown}"; do out+=$'\n'"$line"; done
+  [ "$shown" -lt "${#todo[@]}" ] &&
+    out+=$'\n'"$(_digest_marker $((${#todo[@]} - shown)))"
+  printf '%s%s\n' "$out" "$tail"
 }
 
 _memory_digest() {  # <project-root>
