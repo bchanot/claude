@@ -306,3 +306,17 @@ To migrate, run `bash ~/.claude/lib/memory.sh -C <project> upgrade` on a clean `
 ## Claude.ai-synced skills off (2026-11-09)
 
 `settings.json` now sets the claude.ai-synced skills to `"off"` in `skillOverrides`. The change was measured on Claude Code 2.1.319: run `claude --version` on a machine before pulling it there. A project that uses one of those skills brings it back with `{"skillOverrides": {"<name>": "on"}}` in its `.claude/settings.local.json`.
+
+## Upgrading to 3.0.0
+
+3.0.0 removes the typed `/effort-*` commands and narrows what Claude runs without asking. Run the machine steps of "Profiles and packs (2026-11)" in the 2.0.0 section first: they cover the pull, `make link`, `make plugin` and `make doctor`. Then check the items below.
+
+- **Effort commands removed**: `/effort-low` through `/effort-max` no longer exist, nor do `lib/effort-pins.sh`, `lib/effort-pins.txt` and `lib/model-check.sh`. Type `ultrathink` in a prompt to raise one turn's effort, or `/route effort=max` to hold it until `/route clear`. The model-router rows now set each skill's model and effort. With the router off, a skill that goes through `lib/model-gate.md` stops and names `/route on`.
+- **Profiles**: `skills-disabled/`, `lib/toggle-external.sh`, the `.profile` files, `.active-profile` and `make profile-reset` are gone. A profile is now a `lib/profiles/<name>.json` settings fragment; `backend` became `dev` and `web-full` became `full`. Re-set each project with `bash ~/.claude/lib/profile.sh set <profile>`, and turn Higgsfield on with `bash ~/.claude/lib/profile.sh enable higgsfield`.
+- **Code edits run inside a skill**: model-router redirects a main-loop Edit or Write of a code file (config included) to `/hotfix`, `/feat`, `/bugfix` or `/ship-feature`. Markdown, `.txt`, `docs/` and the project's `.claude/` stay free, sub-agents write freely, and a typed `/route` lifts the redirect.
+- **Merges ask**: `gitflow.sh finish` and `git merge` raise a permission prompt every time, `/close` and `/capitalize` included. Declining stops the flow with "nothing merged, branch kept". `sh -c` and its flag forms (`bash -lc`, `dash -c`), a bare `bash` or `sh` fed by a heredoc, `bash <(…)` and `/bin/sh`, `/bin/bash`, `/usr/bin/env sh|bash` ask too.
+- **`gitflow.*` keys are yours alone**: Claude can no longer read or write them through `git config`, `git -c` or the git config env overrides, nor Edit `.git/config`, `.gitconfig` or `~/.config/git/config`. A custom skill that read `gitflow.autopush` through `git config` calls `bash ~/.claude/lib/gitflow.sh push-mode` instead; it prints `auto`, `manual` or `invalid`.
+- **Commits on `main` and `develop`**: the pre-commit exemption shrank from all of `.claude/**` to `.claude/memory/`, `.claude/tasks/`, `.claude/audits/`, `.claude/deploy/` and `.githooks/`. A commit there that touches `.claude/rules/`, `.claude/settings.json`, agents or skills is blocked: branch first. The global hooks update at `make link`, a project's own `.githooks/` at its next session start.
+- **Invalid `gitflow.autopush` value**: anything but unset, `true` or `false` now pushes nothing, where it used to push. `bash ~/.claude/lib/gitflow.sh push-mode` prints `invalid` in that case; fix the value by hand. A project with committed `.githooks/` keeps its old hooks until a session start rewrites them: commit that refresh so other clones get it.
+
+Also part of 3.0.0, each with its own section above: "Memory registries v2" (optional), "Auto memory off" and "Claude.ai-synced skills off" (check `claude --version` before pulling).
