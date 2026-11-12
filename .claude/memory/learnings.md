@@ -2046,3 +2046,9 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Pattern**: graphifyy 0.9.67 `graphify install` (default platform claude, install.py:691) copies skill into ~/.claude/skills AND appends H1 `# graphify` block at EOF of ~/.claude/CLAUDE.md = CLAUDE.global.md (exact-line marker, curated `## graphify` not matched). `graphify claude install` (install.py:1827) writes ./CLAUDE.md + ./.claude/settings.json (+ .graphify-bak) in cwd, never copies skill.
 - **Context**: LRN-154 said `graphify install --platform claude` "touches nothing else": wrong. install-plugins.sh ran `graphify claude install` in caller cwd -> polluted foreign project outside trap. Fixed c69ce9c: `(cd "$REPO" && graphify claude install)`.
 - **Apply**: run `graphify claude install` only from $REPO under guarded-config trap (`make plugin`). Manual recovery `graphify install --platform claude` -> delete trailing `# graphify` EOF hunk, never `git checkout` whole CLAUDE.global.md (loses uncommitted doctrine). Supersedes LRN-154 graphify specifics line.
+
+## LRN-280 — Expiry keyed on the release base ref has no green path, key it on version.txt (2026-11-12)
+- **Pattern**: freshness/expiry check keyed on release base ref (main/origin/main) flips at `gitflow finish`: release prep sees old base, post-merge sees new base -> both states cannot be green. Key expiry on tracked `version.txt` instead (bumped in release/hotfix prep commit).
+- **Gotcha**: GNU grep 3.12 `grep -c -f emptyfile` prints nothing (rc 1), not `0`: count comparisons break on empty pattern list. Compare named rows (`grep -vxF -f base list` expected "") so failures name the row.
+- **Context**: /feat dead-deny lock 2026-11-12, challenge round 2 FATAL(2) on plan r2 T42e.
+- **Apply**: any lock/allowlist with expiry in this repo -> version-keyed, fail-closed on unreadable version.

@@ -1548,3 +1548,9 @@ Supersedes [[BDR-030]].
 - **Decision**: read `.claude/tasks/TODO.md` + apply banner `memory digest` (open BLK, last journal); `+N` count line -> read those BLK in blockers.md; no digest (foreign repo, memory mod off) -> list open BLK by hand. Registries read when task needs; planning flows scan per `lib/analyze-before-plan.md`. capitalize closing line aligned. User gated 2026-11-12 (2 re-gates after challenge).
 - **Alternatives**: digest only (rejected: `_digest_todo` reads only `### Actionable`, init-project/onboard TODOs lack it -> TODO unread in other projects); full 5-registry read each start (rejected: 78-357 KB files, cost 4a/4c removed).
 - **Consequences**: D1b follow-up makes every project TODO digest-readable. Commit c69ce9c.
+
+## BDR-145 — Released deny removal via justified T42 list expiring by version [accepted] (2026-11-12)
+- **Context**: 6 dead deny entries in settings.json (2 mixed Bash forms never match, 4 Write(glob) never block Write) kept alive by push-guard T41/T42 non-weakening lock (BDR-111). User removes them by hand; test must stay green before and after.
+- **Decision**: removal of a released deny entry goes through a justified list in push-guard T42 (exact rows, `#` reason line each), forgiven until `removed_ok_until` (=3.0.0); T42e fails once version.txt passes it while list non-empty, list emptied in that bump. T42c proves unlisted removal still fails, T42d simulates exact hand edit. Write twins never shipped -> just leave T41. User gated 2026-11-12 (2 re-gates).
+- **Alternatives**: row-absent-from-base -> fail (no green path: base ref flips at finish; red on empty list); NOTE only (not fail-closed); Claude editing settings.json (rejected: own deny list = user hand edit).
+- **Consequences**: CHANGELOG entries land with the user's settings edit (TODO:92). Commit 79f1a3f.
