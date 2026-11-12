@@ -704,7 +704,7 @@ const MAX_QUERY = 2000
 const MAX_DOC = 65536
 const BM25_K1 = 1.2
 const BM25_B = 0.75
-const MAX_PICKS = 3
+const MAX_PICKS = 2
 
 /** Lowercase word runs (2-40 letters or digits) minus function words. */
 export function tokensOf(text: string): string[] {
@@ -1639,6 +1639,9 @@ export const ANALYSIS_RULE = wordRule(
 const MIN_PROMPT = 12 // code points
 // Measurement gate: fewer content words than this never asks for recall.
 export const MIN_CONTENT_WORDS = 5
+// Gate 1 (2026-11-12): idle precision was 44 % on short follow-ups, so an
+// idle prompt needs more words than a fresh or keyword one.
+export const IDLE_MIN_WORDS = 8
 const MAX_CANDS = 30
 const RERANK_FAILS = 3 // failed reranks in a row that pause it
 const RERANK_PAUSE_MS = 900000
@@ -1652,9 +1655,10 @@ export function triggerKind(
   if (text.startsWith('/') || Array.from(text).length < MIN_PROMPT) {
     return undefined
   }
-  if (tokensOf(text).length < MIN_CONTENT_WORDS) return undefined
+  const words = tokensOf(text).length
+  if (words < MIN_CONTENT_WORDS) return undefined
   if (fresh) return 'fresh'
-  if (idleMs >= IDLE_MS) return 'idle'
+  if (idleMs >= IDLE_MS && words >= IDLE_MIN_WORDS) return 'idle'
   const asked = cap(text, MAX_REGEX_INPUT)
   return DESIGN_RULE.test(asked) || ANALYSIS_RULE.test(asked)
     ? 'keyword'

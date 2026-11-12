@@ -2052,3 +2052,18 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Gotcha**: GNU grep 3.12 `grep -c -f emptyfile` prints nothing (rc 1), not `0`: count comparisons break on empty pattern list. Compare named rows (`grep -vxF -f base list` expected "") so failures name the row.
 - **Context**: /feat dead-deny lock 2026-11-12, challenge round 2 FATAL(2) on plan r2 T42e.
 - **Apply**: any lock/allowlist with expiry in this repo -> version-keyed, fail-closed on unreadable version.
+
+## LRN-281 — gates.sh EXPECT is a literal substring; runnable criterion needs EVIDENCE line; 120 s per CHECK (2026-11-12)
+- **Pattern**: `lib/gates.sh` EXPECT = literal substring of CHECK output (`[[ "$out" != *"$EXPECT"* ]]`, gates.sh:177); every runnable criterion needs `EVIDENCE: PENDING` line else ERROR; per-CHECK timeout 120 s (`make test` exceeds it). Prose EXPECT ("both counts ≥ 1") = NOT-MET forever.
+- **Context**: /feat recall-gate1-fixes 2026-11-12: contract first ran ERROR(8) (no EVIDENCE), then UNMET(7) (prose EXPECT), then `make test` criterion timed out.
+- **Apply**: write CHECK to print one stable token (`grep -c X | grep -c '^[1-9]'` → EXPECT `1`; suite tail line → EXPECT `SUITE: all GREEN`); add `EVIDENCE: PENDING` under each; whole `make test` = manual line with recorded run, or `make test suite=<file>`; bun suites need `PATH=$HOME/.bun/bin:$PATH` in CHECK.
+
+## LRN-282 — memory.sh status text must lead with a _MEM_WORDS word; a non-closing lead word reopens a closed entry (2026-11-12)
+- **Pattern**: `memory.sh status <ID> "<text>"` refuses text whose first word is not in `_MEM_WORDS` (lib/memory.sh:56-57, rc 2); leading word of last status line = entry's current status (`memory_entry_status`), so a non-closing word (`implemented`) on a resolved BLK or superseded BDR reopens it (reconcile, handover, recall liveness).
+- **Context**: /feat recall-gate1-fixes 2026-11-12, 4 challengers: "promoted to <mechanism>" refused (BLOCKER x3), then "implemented, promoted…" would reopen closed entries (confirmation MAJOR).
+- **Apply**: annotation status lines repeat entry's CURRENT word first (`resolved, promoted to …`); `implemented` only when no readable word; never invent a status verb without adding it to `_MEM_WORDS` + classifier tests.
+
+## LRN-283 — git log --since with a bare date uses the current time of day (2026-11-12)
+- **Pattern**: `git log --since=YYYY-MM-DD` reads bare date at CURRENT time of day: same-day commits earlier than now drop out. Use `--since="YYYY-MM-DD 00:00"`, or no window when an idempotence token in the subject does the job.
+- **Context**: /feat recall-gate1-fixes 2026-11-12 confirmation challenger: `git log --since=2026-11-12` at 19:01 returned nothing despite commits at 18:44.
+- **Apply**: any skill/test filtering commits by a FEEDBACK/report date; pin time explicitly.

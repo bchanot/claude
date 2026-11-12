@@ -1523,6 +1523,7 @@ Supersedes [[BDR-030]].
 - **Alternatives rejected**: raise cleanupPeriodDays (reverses secret hygiene); cron job (machinery, background claude); labels committed (client names on Gitea); one joint gate (prompt waits on rare tool channel); Stop-hook cited flag (BDR-125).
 - **Deviations from spec (user-gated 2026-11-07)**: reader in lib/ not mods/ (plugin validate/test scope); miss causes no-overlap|overlap only; labels.tsv without cited; noisy/promotion lines carry repo tag.
 - **Reference**: feature/memory-feedback 21483dc..b44b19f; contract .claude/tasks/contracts/2026-11-06-memory-feedback-4d-1825.md. See [[BDR-125]], [[BDR-137]], [[BDR-100]].
+- **Status (2026-11-12)**: accepted, 4d.4 built 2026-11-12 (BDR-146, feature/recall-gate1-fixes); later gate reads count only rows after 2026-11-12
 
 ## BDR-141 — claude.ai-synced skills off via global skillOverrides, not sync flag or profiles [accepted] (2026-11-09)
 - **Decision**: claude.ai-synced skills (19: docx, pptx, xlsx, pdf, docs, computer-use, cv-*, veille-emploi…) turned off by top-level `skillOverrides` {name: "off"} in tracked user settings.json. Global so plain `claude` (no profile = full, user rule 2026-11-09) gets it. Project re-enables one: `{"skillOverrides":{"<name>":"on"}}` in `.claude/settings.local.json` (per-key merge proven). Budget stays 50000.
@@ -1554,3 +1555,10 @@ Supersedes [[BDR-030]].
 - **Decision**: removal of a released deny entry goes through a justified list in push-guard T42 (exact rows, `#` reason line each), forgiven until `removed_ok_until` (=3.0.0); T42e fails once version.txt passes it while list non-empty, list emptied in that bump. T42c proves unlisted removal still fails, T42d simulates exact hand edit. Write twins never shipped -> just leave T41. User gated 2026-11-12 (2 re-gates).
 - **Alternatives**: row-absent-from-base -> fail (no green path: base ref flips at finish; red on empty list); NOTE only (not fail-closed); Claude editing settings.json (rejected: own deny list = user hand edit).
 - **Consequences**: CHANGELOG entries land with the user's settings edit (TODO:92). Commit 79f1a3f.
+
+## BDR-146 — Recall gate 1 fixes: idle needs 8 words, 2 picks, no-overlap misses accepted, 4d.4 prune step D [accepted] (2026-11-12)
+- **Decision**: gate 1 (EVAL-058) fixes: idle recall fires only at ≥ 8 content words (`IDLE_MIN_WORDS`, fresh/keyword stay 5, `IDLE_MS` unchanged); rerank keeps ≤ 2 picks (`MAX_PICKS` 2); no-overlap misses ACCEPTED (BM25 already indexes body, register.ts docOf; replay 2026-11-12: 4 misses rank 53-322 of 185/473 with body overlap, BM25 13-38 ms, p90 3355 ms = haiku rerank, not BM25); 4d.4 built: /prune-memory STEP 1.D reads FEEDBACK.md for repo tag, noisy → title + lesson sentence rewrite (commit subject `noisy-rewrite <ID>` = idempotence token), promotion → BDR-100 mechanism proposal + `memory.sh status <ID> "<current word>, promoted to <mechanism>"`.
+- **Why**: idle 44 % on short follow-ups ("ok on y va"); 3rd pick 35 %; user brief "resserrer, pas supprimer".
+- **Alternatives rejected**: drop idle (user: tighten); index body (already done); add `promoted` to `_MEM_WORDS` (classifier change for annotation only).
+- **Residual**: metricsOf has no fix-date split, pre-fix rows keep 3rd-pick + idle actions in later FEEDBACK.md (TODO); tool-channel noisy entries not fixed by title rewrite (body spans).
+- **Reference**: feature/recall-gate1-fixes 7e87d77 + 39f9790; contract .claude/tasks/contracts/2026-11-12-recall-gate1-fixes-1830.md; plan r3; gates: 3 lenses (BLOCKER x3) + confirmation, GATE 0 MET, verifier ECARTS(2)→CONFORME x2, security PASS x2. See [[BDR-140]], [[EVAL-058]], [[BDR-100]].

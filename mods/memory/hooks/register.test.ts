@@ -10,7 +10,7 @@ import {
   segments, suiteKeyOf, commitLabel, finishLabel,
   newState, switchOf, claim, onContextStart, resetContext, endContext,
   appendLog, loadLog, isLogRecord, RECALL_CAP, isTrigger,
-  MIN_CONTENT_WORDS, promptContext,
+  MIN_CONTENT_WORDS, IDLE_MIN_WORDS, triggerKind, promptContext,
   DESIGN_RULE, ANALYSIS_RULE, HAIKU, RERANK_MS, IDLE_MS,
 } from './register'
 import type { LogRecord } from './register'
@@ -1988,7 +1988,7 @@ test('RB4: rerankPrompt is the literal prompt', () => {
   const cands = [mk('LRN-1', 'T one', 'Do a.'), mk('BLK-2', 'T two', '')]
   expect(rerankPrompt('fix the heredoc', cands)).toBe(
     'Prompt: fix the heredoc\nCandidates:\nLRN-1 | T one | Do a.\n' +
-    'BLK-2 | T two | \nAnswer with at most 3 candidate IDs that would ' +
+    'BLK-2 | T two | \nAnswer with at most 2 candidate IDs that would ' +
     'help with this prompt, comma separated, or none.')
 })
 
@@ -2317,6 +2317,8 @@ const REC_INDEX = rowsOut([['BLK-001', 'mod design'],
 const GO = 'on va concevoir la suite du mod memory recall'
 const DESIGN = 'design the mod suite and tests please'
 const NOTES = 'write notes about the mod now'
+// 8 content words, no rule word: the shortest prompt an idle gap can ask on
+const NOTES8 = 'write some notes about the mod behaviour during session'
 
 /** Boots the notes world with recall fixtures; the model picks BLK-001. */
 async function bootRecall($: Engine, on: On, o: Opts = {}) {
@@ -2358,7 +2360,7 @@ test('LO2: idle and keyword triggers are told apart', async ($, on) => {
   await start($)
   await say($, GO)
   await w.clock.advance(1860000)
-  await say($, NOTES)
+  await say($, NOTES8)
   await say($, DESIGN)
   expect((await askLog(w)).map(r => r[0]))
     .toEqual(['fresh', 'idle', 'keyword'])
@@ -2497,13 +2499,22 @@ test('IR2 IR3: an ordinary prompt 1 min later is silent, 31 min asks',
     await start($)
     await say($, GO)
     await w.clock.advance(60000)
-    await say($, NOTES)
+    await say($, NOTES8)
     expect(w.asks).toHaveLength(1)
     expect(seen[1]).toBeUndefined()
     await w.clock.advance(1860000)
-    await say($, NOTES)
+    await say($, NOTES8)
     expect(w.asks).toHaveLength(2)
   })
+
+test('IR2b: a 5-word prompt after 31 min asks nothing', async ($, on) => {
+  const { w } = await bootRecall($, on)
+  await start($)
+  await say($, GO)
+  await w.clock.advance(1860000)
+  await say($, NOTES)
+  expect(w.asks).toHaveLength(1)
+})
 
 test('IR4: slash, mid-turn, sdk and short prompts never ask', async (
   $, on,
@@ -2726,11 +2737,27 @@ test('isTrigger: rules, fresh, idle, slash and length', () => {
   expect(isTrigger(long, false, 0)).toBe(true)
   expect(isTrigger(SUITE, false, 0)).toBe(false)
   expect(isTrigger(SUITE, true, 0)).toBe(true)
-  expect(isTrigger(SUITE, false, IDLE_MS)).toBe(true)
+  expect(isTrigger(SUITE, false, IDLE_MS)).toBe(false)
   expect(isTrigger('/feat design the thing', true, IDLE_MS)).toBe(false)
   expect(isTrigger('design note', true, 0)).toBe(false)
   expect(isTrigger('un-design-ed thing here', false, 0)).toBe(false)
   expect(HAIKU).toBe('claude-haiku-5-5')
+})
+
+test('isTrigger: idle needs IDLE_MIN_WORDS content words', () => {
+  const seven = 'write some notes about mod behaviour during'
+  expect(IDLE_MIN_WORDS).toBe(8)
+  expect(MIN_CONTENT_WORDS).toBe(5)
+  expect(triggerKind(seven, false, IDLE_MS)).toBeUndefined()
+  expect(triggerKind(`${seven} session`, false, IDLE_MS)).toBe('idle')
+  expect(triggerKind(seven, false, IDLE_MS - 1)).toBeUndefined()
+  expect(triggerKind(seven, true, 0)).toBe('fresh')
+  expect(triggerKind('please review this module and the new tests', false, 0))
+    .toBe('keyword')
+  // a rule word still fires on a short idle prompt, as a keyword
+  expect(triggerKind('please review this module and the new tests',
+    false, IDLE_MS)).toBe('keyword')
+  expect(triggerKind(`${NOTES8} and design`, false, IDLE_MS)).toBe('idle')
 })
 
 test('isTrigger: fewer than five content words never triggers', () => {
@@ -2804,13 +2831,14 @@ test('SP1: an ordinary prompt resets the main key spent budget', async (
   onContextStart(st, 's1')
   const [block] = await promptContext(api(), st,
     e('design alpha now, whole team'))
-  expect(block?.length).toBe(1160) // 14 header + 3 x (381 line + 1)
-  expect(st.spent.get('s1:main')).toBe(1160)
+  // 3 candidates, the answer lists 3, the cap keeps 2
+  expect(block?.length).toBe(778) // 14 header + 2 x (381 line + 1)
+  expect(st.spent.get('s1:main')).toBe(778)
   expect(await promptContext(api(), st, e('nothing special at all')))
     .toEqual([])
   expect(st.spent.has('s1:main')).toBe(false)
-  // a 400-char line fits after the reset; 1160 + 400 > 1500 would not
-  expect(claim(st, 's1:main', ['KNOWN-1'], [400])).toEqual(['KNOWN-1'])
+  // an 800-char line fits after the reset; 778 + 800 > 1500 would not
+  expect(claim(st, 's1:main', ['KNOWN-1'], [800])).toEqual(['KNOWN-1'])
 })
 
 test('SP2: a prompt without a known last prompt is not idle', async (
@@ -2820,7 +2848,7 @@ test('SP2: a prompt without a known last prompt is not idle', async (
   w.proc = { stdout: REC_INDEX }
   const api = () => fakeApi(w)
   const st = switchedOn()
-  const e = { text: NOTES, origin: { kind: 'composer' } }
+  const e = { text: NOTES8, origin: { kind: 'composer' } }
   expect(await promptContext(api(), st, e)).toEqual([])
   expect(w.asks).toEqual([])
   expect(st.lastPrompt.get('s1')).toBe(1000)
@@ -3001,22 +3029,27 @@ test('TE8: a failing known-line step returns the answer unchanged',
     expect(failuresOf(w)).toHaveLength(1)
   })
 
-test('TE9: a recall of ~1160 chars, an ordinary prompt, then a ~395 known ' +
-  'line is injected', async ($, on) => {
-  const span = 'fatal: alpha cluster is down'
-  const known = entryText('BLK-004', 't'.repeat(89) + '4', 'Solution',
-    'alpha '.repeat(50).slice(0, 279) + '.') + `seen: \`${span}\`\n`
+test('TE9: a recall of 778 chars, two known lines of ~395: the second ' +
+  'is refused until an ordinary prompt resets the budget', async ($, on) => {
+  const spans = ['fatal: alpha cluster is down', 'fatal: beta cluster is down']
+  const known = (n: number) => entryText(`BLK-00${n}`,
+    't'.repeat(89) + n, 'Solution', 'alpha '.repeat(50).slice(0, 279) + '.') +
+    `seen: \`${spans[n - 4]}\`\n`
   const { w, seen } = await bootNotes($, on, { files: { [BLK]:
-    [...[1, 2, 3].map(longEntry), known].join('\n') } })
-  w.proc = { stdout: rowsOut([1, 2, 3, 4].map((n): [string, string] =>
+    [...[1, 2, 3].map(longEntry), known(4), known(5)].join('\n') } })
+  w.proc = { stdout: rowsOut([1, 2, 3, 4, 5].map((n): [string, string] =>
     [`BLK-00${n}`, 't'.repeat(89) + n])) }
   w.model = { text: 'BLK-001, BLK-002, BLK-003' }
   await start($)
   await say($, 'design alpha now, whole team')
-  expect(seen[0]?.[0]?.length).toBe(1160) // 14 + 3 x (381 + 1)
+  expect(seen[0]?.[0]?.length).toBe(778) // 14 + 2 x (381 + 1)
+  const first = await failing($, w, EXIT1 + spans[0]) as
+    { context?: string[] }
+  expect(first.context?.[0]?.length).toBe(395) // 778 + 395 = 1173
+  // 1173 + 395 > 1500: refused until the per-prompt reset
+  expect(await failing($, w, EXIT1 + spans[1])).toEqual(w.answer)
   await say($, 'nothing special at all')
-  const out = await failing($, w, EXIT1 + span) as { context?: string[] }
-  // 1160 + 395 > 1500: only the per-prompt reset lets it through
+  const out = await failing($, w, EXIT1 + spans[1]) as { context?: string[] }
   expect(out.context?.[0]?.length).toBe(395)
 })
 
