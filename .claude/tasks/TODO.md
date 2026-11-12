@@ -122,7 +122,6 @@ Scope (user 2026-11-11) [gated]: D1-D6 + the 6 dead deny entries + MIGRATION/CHA
 - [ ] user hand edit pending: remove the four `Bash(npm … -g|--global *)` lines from `permissions.deny` (they override the classifier); then the first global install is the live test of the entry
 
 ### Blocked
-- [ ] G2 `hooks/guard-bash.sh` (BLK-022, safety classifier withheld the body): PreToolUse Bash, exit 2 + reason, `logger` trace, fail-closed without jq; spec `lib/tests/guard-bash.test.sh` (214 cases) SKIPs until it exists
 - [x] launch claude with `TMPDIR=$HOME/.cache/claude-tmp` (BLK-021 resolved by `lib/cc.sh`, phase 5; `.bashrc` swap done, ~/.bashrc:133)
 
 ### Model-router live checks (opportunistic, need a real session or incident)

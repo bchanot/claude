@@ -240,6 +240,7 @@ rules:
 - **Real cause**: the hook body is a dense list of destructive-command patterns (rm -r forms, disk tools, docker escapes, history rewrites); the classifier reads it as harmful capability regardless of the defensive frame.
 - **Solution**: `lib/tests/guard-bash.test.sh` (214 cases, deny/allow) stays as the spec and SKIPs while the hook is absent, so `make test` stays green. Options: user writes the hook against the spec (start from `/mnt/cloudpex/RECOVERY/01-prochain-systeme/claude-config/hooks/guard-bash.sh`, already on disk, then iterate to green); or a different design (allowlist of first words + path containment) requested explicitly. Until then: static deny (BDR-095) covers the direct forms; nested forms rely on the classifier prose.
 - **Status**: open. Links [[BDR-095]], [[LRN-160]].
+- **Status (2026-11-13)**: superseded by BDR-125 phase 2 (static deny/ask rules + model-router routing guard); spec lib/tests/guard-bash.test.sh deleted 2026-11-13 (user decision, block E)
 
 ## BLK-023 — floor-guard `xit(` substring flags every `exit(` — 2026-09-28
 - **Friction**: fresh verifier returned ECARTS(1) on a fully conform diff: `FLOOR SKIP lib/tests/profile-census.test.sh:116 sys.exit(1 if violations else 0)`. One re-dispatch spent on a tool artefact.
