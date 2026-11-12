@@ -933,7 +933,7 @@ development milestones predating the first public release. They are kept
 for provenance; the full detail lives in git history. Their numbering does
 not continue past the public 1.0.0 above.
 
-## [4.0.0] — 2026-06-30
+## [internal 4.0.0] — 2026-06-30
 
 ### Added
 - **Gitflow universal model** — `/gitflow` + `lib/gitflow.sh`: branch model (`main` / `develop` / `feature` / `bugfix` / `release` / `hotfix`) with directed `--no-ff` merges + hotfix fan-out (main + develop + open `release/*`); `start` / `finish` / `init` verbs. `lib/gitflow-migrate.sh` onboards an existing repo (`master`→`main`, seed `develop`, install the pre-commit hook, set Gitea Option-1 owner-pushable protection on `main`+`develop`), applied to all 6 repos. Wired into `/init-project` (STEP 5f `gitflow init` owns the scaffold root commit) + `/onboard` (STEP 2.6). See **BREAKING** under Changed
@@ -987,7 +987,7 @@ not continue past the public 1.0.0 above.
 - `lib/doc-commit.sh` no longer masks a rejected `git commit` as success: a pre-commit hook / protected branch / signing failure now fails loud with exit 5 and empty stdout (was: false "committed" + the previous HEAD's hash + exit 0, leaving docs silently uncommitted on a dirty tree)
 - Numerous skill/agent fixes across darwin optimization rounds (geo-analyzer, onboard, init-project, analyzer, plugin-check, prune-memory, …)
 
-## [3.4.0] — 2026-04-15
+## [internal 3.4.0] — 2026-04-15
 
 ### Added
 - **9 new skills**: `/bugfix`, `/code-clean`, `/commit-change`, `/doc`, `/feat`, `/graphify`, `/hotfix`, `/seo`, `/skills-perso`
@@ -1020,7 +1020,7 @@ not continue past the public 1.0.0 above.
 - `install-plugins.sh`: skill-creator install corrected to use `anthropics/skills` marketplace
 - GStack skill symlinks untracked from git — auto-created by `install-plugins.sh`
 
-## [3.3.0] — 2026-04-08
+## [internal 3.3.0] — 2026-04-08
 
 ### Fixed
 - `install-plugins.sh`: marketplace org was `anthropic` (missing 's') — corrected to `anthropics`
@@ -1036,7 +1036,7 @@ not continue past the public 1.0.0 above.
 - `USAGE.md`: all references to `skill-creator` → `plugin-dev`
 - `version.txt`: 3.2.1 → 3.3.0
 
-## [3.2.1] — 2026-04-07
+## [internal 3.2.1] — 2026-04-07
 
 ### Fixed
 - `agents/plugin-advisor.md`: 4 signals had entries in the signal table but no conditional rule — added rules for `skill-creation`, `browser-qa`, `design-system`, and `complex-arch`
@@ -1044,7 +1044,7 @@ not continue past the public 1.0.0 above.
 ### Changed
 - `version.txt`: 3.2.0 → 3.2.1
 
-## [3.2.0] — 2026-04-07
+## [internal 3.2.0] — 2026-04-07
 
 ### Fixed
 - `doctor.sh`: EXPECTED_SKILLS pass message uses `${#EXPECTED_SKILLS[@]}` (dynamic count) instead of hardcoded 9
@@ -1058,7 +1058,7 @@ not continue past the public 1.0.0 above.
 ### Changed
 - `version.txt`: 3.1.0 → 3.2.0
 
-## [3.1.0] — 2026-04-07
+## [internal 3.1.0] — 2026-04-07
 
 ### Fixed
 - `agents/plugin-advisor.md`: `Makefile` restored as embedded indicator — `Makefile` + `src/*.c` + no Node/Rust/Go manifest = embedded; `.c` files alone still not sufficient (Rust FFI counterindicated)
@@ -1072,7 +1072,7 @@ not continue past the public 1.0.0 above.
 ### Changed
 - `version.txt`: 3.0.0 → 3.1.0
 
-## [3.0.0] — 2026-04-07
+## [internal 3.0.0] — 2026-04-07
 
 ### Fixed
 - `agents/plugin-advisor.md`: embedded false positive removed — `src/*.c` alone no longer triggers embedded signal (Rust FFI projects have .c files); only `platformio.ini` or `*.ld`/`*.lds` linker scripts are reliable triggers
@@ -1089,7 +1089,7 @@ not continue past the public 1.0.0 above.
 ### Changed
 - `version.txt`: 2.9.0 → 3.0.0
 
-## [2.9.0] — 2026-04-07
+## [internal 2.9.0] — 2026-04-07
 
 ### Fixed
 - `agents/plugin-advisor.md`: PHASE 1 — filesystem embedded detection added (platformio.ini, *.ld linker scripts, src/*.c without package.json/Dockerfile); signal description updated
@@ -1103,7 +1103,7 @@ not continue past the public 1.0.0 above.
 ### Changed
 - `version.txt`: 2.8.0 → 2.9.0
 
-## [2.8.0] — 2026-04-07
+## [internal 2.8.0] — 2026-04-07
 
 ### Fixed
 - `agents/status-reporter.md`: awk milestone detection uses `index()` instead of regex negation — portable across macOS nawk and GNU awk
@@ -1118,7 +1118,7 @@ not continue past the public 1.0.0 above.
 ### Changed
 - `version.txt`: 2.7.0 → 2.8.0
 
-## [2.7.0] — 2026-04-07
+## [internal 2.7.0] — 2026-04-07
 
 ### Fixed
 - `agents/status-reporter.md`: milestone detection algorithm — uses `awk` to find first `##` heading with pending `###` slices (top-to-bottom scan), not `tail -5` of all `##` headings
@@ -1133,7 +1133,7 @@ not continue past the public 1.0.0 above.
 ### Changed
 - `version.txt`: 2.6.0 → 2.7.0
 
-## [2.6.0] — 2026-04-07
+## [internal 2.6.0] — 2026-04-07
 
 ### Fixed
 - `agents/status-reporter.md`: PHASE 3 now counts slices (### headings) not tasks (- [ ]) — correct progress metric matching GSD v2 dashboard
@@ -1147,7 +1147,7 @@ not continue past the public 1.0.0 above.
 ### Changed
 - `version.txt`: 2.5.0 → 2.6.0
 
-## [2.5.0] — 2026-04-07
+## [internal 2.5.0] — 2026-04-07
 
 ### Fixed
 - `skills/init-project/SKILL.md`: STEP 1 — checks both `CLAUDE.md` and `.claude/CLAUDE.md`; pre-fills interview from either location
@@ -1162,7 +1162,7 @@ not continue past the public 1.0.0 above.
 ### Changed
 - `version.txt`: 2.4.0 → 2.5.0
 
-## [2.4.0] — 2026-04-07
+## [internal 2.4.0] — 2026-04-07
 
 ### Fixed
 - `skills/init-project/SKILL.md`: STEP 1 — reads existing CLAUDE.md if present; pre-fills interview answers already documented; asks only genuinely missing fields
@@ -1179,7 +1179,7 @@ not continue past the public 1.0.0 above.
 ### Changed
 - `version.txt`: 2.3.0 → 2.4.0
 
-## [2.3.0] — 2026-04-07
+## [internal 2.3.0] — 2026-04-07
 
 ### Fixed
 - `skills/ship-feature/SKILL.md`: STEP 0b added — checks for CLAUDE.md before starting; blocks with `/onboard` instruction if missing
@@ -1195,7 +1195,7 @@ not continue past the public 1.0.0 above.
 ### Changed
 - `version.txt`: 2.2.0 → 2.3.0
 
-## [2.2.0] — 2026-04-07
+## [internal 2.2.0] — 2026-04-07
 
 ### Fixed (bugs identified via case study simulation)
 - `skills/init-project/SKILL.md`: STEP 13 — guard `command -v gsd` before running `gsd init`; prints install instructions if GSD v2 not in PATH instead of failing silently
@@ -1211,7 +1211,7 @@ not continue past the public 1.0.0 above.
 ### Changed
 - `version.txt`: 2.1.0 → 2.2.0
 
-## [2.1.0] — 2026-04-07
+## [internal 2.1.0] — 2026-04-07
 
 ### Added
 - `agents/scaffolder.md`: React Native/Expo + Flutter support — PHASE 0 (Docker exclusion), PHASE 3 (stack templates), PHASE 4 (install commands), PHASE 5 (verify commands per stack)
@@ -1230,7 +1230,7 @@ not continue past the public 1.0.0 above.
 ### Changed
 - `version.txt`: 2.0.0 → 2.1.0
 
-## [2.0.0] — 2026-04-06
+## [internal 2.0.0] — 2026-04-06
 
 ### Breaking
 - GSD v1 (`glittercowboy/get-shit-done-cc`) removed entirely
@@ -1276,7 +1276,7 @@ not continue past the public 1.0.0 above.
 - `agents/plugin-advisor.md`: GSD detection used `ls ~/.claude/skills/ | grep gsd` — broken for v2 (CLI not a skill)
 - `hooks/session-start.sh`: GSD v2 (standalone CLI) was in the CC plugin toggle loop — incorrect, moved to dedicated CLI line
 
-## [1.0.4] — 2026-04-05
+## [internal 1.0.4] — 2026-04-05
 
 ### Fixed
 - `skills/*/SKILL.md`: agent paths changed from `.claude/agents/` to `$HOME/.claude/agents/` — unambiguous user-scope resolution regardless of working directory
@@ -1294,7 +1294,7 @@ not continue past the public 1.0.0 above.
 - README: Makefile command list in Maintenance section now includes `make new-skill`
 - `lib/detect-plugins.sh`: `detect_context7()` no longer spawns `claude` CLI — reads `~/.claude.json` and `~/.mcp.json` directly (no subprocess overhead at session start)
 
-## [1.0.3] — 2026-04-05
+## [internal 1.0.3] — 2026-04-05
 
 ### Token savings (~57% reduction across agents/skills)
 - `CLAUDE.md`: 1414t → 418t (-70%) — rewritten as dense rule list, no prose padding
@@ -1319,7 +1319,7 @@ not continue past the public 1.0.0 above.
 - README: accurate progressive loading explanation (description only at startup, body on-demand)
 - `link.sh`: idempotent — reports "already up to date" or count of updated symlinks
 
-## [1.0.2] — 2026-04-04
+## [internal 1.0.2] — 2026-04-04
 
 ### Security
 - `Bash(git add .env*)` and `Bash(git add **/.env*)` added to deny — prevents staging secrets
@@ -1348,7 +1348,7 @@ not continue past the public 1.0.0 above.
 - `lib/detect-plugins.sh`: removed three never-called functions (`detect_security_guidance`, `detect_skill_creator`, `detect_pr_review_toolkit`)
 - `hooks/session-start.sh`: removed unreachable inline fallback — replaced with clean exit message
 
-## [1.0.1] — 2026-04-03
+## [internal 1.0.1] — 2026-04-03
 
 ### Security
 - `env` and `printenv *` moved from allow to deny — blocks secret exposure via process environment
@@ -1368,7 +1368,7 @@ not continue past the public 1.0.0 above.
 - `update-all.sh` GStack `./setup` now runs in a subshell — upstream setup failure no longer crashes the update script mid-execution under `set -euo pipefail`
 - `update-all.sh` guards `./setup` existence and executable bit before invoking it
 
-## [1.0.0] — 2025-04-03
+## [internal 1.0.0] — 2025-04-03
 
 ### Added
 - 6 custom agents: analyzer, interviewer, plugin-advisor, readme-updater, refactorer, scaffolder
