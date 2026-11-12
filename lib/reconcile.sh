@@ -31,8 +31,9 @@
 #                               parser on v2, legacy lexical reader on v1
 #   reconcile_blk_open        — blockers whose CURRENT status is not closed
 #                               (resolved | superseded | deprecated on v2)
-#   reconcile_blk_classify    — blockers for a client deliverable: open
+#   reconcile_status_classify — entries of any prefix (BLK, BDR): open
 #                               (word) | unreadable, closed omitted
+#   reconcile_blk_classify    — its BLK wrapper, for a client deliverable
 #   reconcile_verdict         — pure kernel: declared checkbox × real fact
 #                               → verdict
 #   reconcile_deferrals       — lexical deferral sweep (honest limit)
@@ -49,6 +50,9 @@ RECONCILE_GREP="${RECONCILE_GREP:-/usr/bin/grep}"
 RECONCILE_DEFER_RE='[Dd]efer|[Ff]ollow-?up|[Oo]ut.of.scope|OUT-OF-SCOPE'
 RECONCILE_DEFER_RE+='|[Rr]econsider|[Rr]evisit|2e passage|won.t.do'
 RECONCILE_DEFER_RE+='|optional\)|one-line ticket'
+# v1 decisions carry `**Statut** :` and `Superseded by …` lines the blocker
+# selector skips; an unlabelled winner stays unreadable (_mem_v1_word)
+RECONCILE_BDR_RE="$_MEM_LEGACY_RE|statut|superseded|deprecated"
 
 # --- recursive coherence: enumerate IDs from the BODY, never the ## Index ---
 # $1 registry file, $2 prefix (BDR|LRN|BLK|EVAL). Emits one id per line, unique.
@@ -107,17 +111,25 @@ reconcile_blk_open() {
     printf '%s\t%s\n' "$id" "$st"
   done
 }
-# blockers for a client deliverable → "id<TAB>open|unreadable<TAB>word or
-# line"; closed ones are omitted. A status no reader maps to exactly one
-# known word is unreadable, never open (BDR-129, BDR-133): v2 strict word,
-# v1 the single word of a status/statut label (_mem_v1_word: prose, mixed
-# or negated lines give none). Entries under a heading the enumerator
-# cannot see (`### BLK-`) are unreadable too.
-reconcile_blk_classify() {
+_reconcile_status() {  # <file> <ID> <PREFIX> → the current status line
+  [ "$3" = BLK ] && { reconcile_blk_current_status "$1" "$2"; return; }
+  if memory_is_v2 "$1"; then memory_entry_status "$1" "$2"; return; fi
+  MEM_GREP="$RECONCILE_GREP" MEM_LEGACY_RE="$RECONCILE_BDR_RE" \
+    memory_legacy_status "$1" "$2" "^##* *$3-[0-9]"
+}
+# entries of one prefix (BLK blockers, BDR decisions) → "id<TAB>open|
+# unreadable<TAB>word or line"; closed ones are omitted. A status no
+# reader maps to exactly one known word is unreadable, never open
+# (BDR-129, BDR-133): v2 strict word, v1 the single word of a
+# status/statut label (_mem_v1_word: prose, mixed or negated lines give
+# none). Entries under a heading the enumerator cannot see (`### BLK-`)
+# are unreadable too.
+# $1 file, $2 prefix. The status source: _reconcile_status.
+reconcile_status_classify() {
   local id st w v2=""
   memory_is_v2 "$1" && v2=1
-  for id in $(reconcile_enumerate_ids "$1" BLK); do
-    st=$(reconcile_blk_current_status "$1" "$id")
+  for id in $(reconcile_enumerate_ids "$1" "$2"); do
+    st=$(_reconcile_status "$1" "$id" "$2")
     if [ -n "$v2" ]; then w=$(memory_status_word "$st")
     else w=$(_mem_v1_word "$st"); fi
     [ -n "$st" ] || w=""
@@ -128,11 +140,12 @@ reconcile_blk_classify() {
     esac
     printf '%s\tunreadable\t%s\n' "$id" "${st:0:80}"
   done
-  MEM_GREP="$RECONCILE_GREP" _mem_heading_ids "$1" BLK | sort -u \
-    | comm -23 - <(reconcile_enumerate_ids "$1" BLK) \
+  MEM_GREP="$RECONCILE_GREP" _mem_heading_ids "$1" "$2" | sort -u \
+    | comm -23 - <(reconcile_enumerate_ids "$1" "$2") \
     | while read -r id; do printf '%s\tunreadable\theading level\n' "$id"; done
   return 0
 }
+reconcile_blk_classify() { reconcile_status_classify "$1" BLK; }
 
 # --- pure reconciliation kernel: declared checkbox × real fact → verdict
 # (no git, fully testable) ---
