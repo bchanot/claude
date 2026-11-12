@@ -80,7 +80,7 @@ ls .claude/tasks/TODO.md 2>/dev/null
   reconcile volet (STEP 2B) on it:
   ```bash
   mkdir -p .claude/tasks
-  printf '# TODO\n\n## %s\n' "$(date +%Y-%m-%d)" > .claude/tasks/TODO.md
+  [ -f .claude/tasks/TODO.md ] || printf '# TODO\n\n## Actionable\n<!-- next items; the session digest shows the first 3 unchecked (else the first 3 of the file) -->\n\n## %s\n' "$(date +%Y-%m-%d)" > .claude/tasks/TODO.md
   ```
 
 ## STEP 1 — SCAN THE CONVERSATION
@@ -372,7 +372,7 @@ CAPITALIZE COMPLETE — <YYYY-MM-DD>  (<pre-wipe flush | session-close>)
 Then the closing line — pick by the STEP 5C persist result (`<mode>` = `Context
 flushed` for pre-wipe, `Session closed` for ritual):
 
-- **auto-persisted (push mode `auto`, finish rc 0 AND `ahead` = 0)** → `✅ <mode> + persisted to origin/develop (<short>). Next session: TODO.md and the startup digest (open blockers, last journal line).`
+- **auto-persisted (push mode `auto`, finish rc 0 AND `ahead` = 0)** → `✅ <mode> + persisted to origin/develop (<short>). Next session: the startup digest (open blockers, actionable TODO, last journal line).`
 
 On the `--no-push` path ONLY read TWO facts first, each its own Bash call: `bash "$HOME/.claude/lib/gitflow.sh" push-mode` and `git rev-list --count origin/chore/<name>..chore/<name> 2>/dev/null || echo unknown` (`branch_ahead`). `<push mode>` below is the verb's word. The WORKING-branch and rc 3 paths have no `chore/<name>` and never use the mode.
 

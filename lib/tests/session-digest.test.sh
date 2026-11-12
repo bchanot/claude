@@ -71,12 +71,57 @@ check SD3-empty-source "$(run "$p" - | grep -c 'memory digest:')/$rc" 1/0
 mkdir -p "$WORK/sd4"
 check SD4-no-memory "$(run "$WORK/sd4" - | grep -c 'memory digest:')" 0
 
-# SD5: TODO without ### Actionable -> no todo line (others stay)
+# todos <proj> <text...>: write the project TODO.md fixture (\n expands)
+todos() {
+  local IFS= p=$1; shift
+  printf '%b' "$*" > "$p/.claude/tasks/TODO.md"
+}
+# todo_lines <proj>: the digest's todo lines, one per output line
+todo_lines() { run "$1" - | digest | grep '^- todo:'; }
+
+# SD5: TODO without Actionable -> fallback to the file's first item
 p=$(mkproj sd5)
 blk "$p" 1 open "Only blocker"
-printf '### Backlog\n- [ ] hidden\n' > "$p/.claude/tasks/TODO.md"
+todos "$p" '### Backlog\n- [ ] hidden\n'
 check SD5-no-actionable "$(run "$p" - | digest)" 'memory digest:
-- open: BLK-001 Only blocker'
+- open: BLK-001 Only blocker
+- todo: hidden'
+
+# SD5b: a `##` Actionable section wins over earlier items
+p=$(mkproj sd5b)
+todos "$p" '### Backlog\n- [ ] early\n## Actionable\n- [ ] act\n'
+check SD5b-section-wins "$(todo_lines "$p")" '- todo: act'
+
+# SD5c: empty section (only checked) -> fallback, capped at 3
+p=$(mkproj sd5c)
+todos "$p" '## Actionable\n- [x] done\n\n## Later\n' \
+  '- [ ] fb1\n- [ ] fb2\n- [ ] fb3\n- [ ] fb4\n'
+check SD5c-fallback-cap "$(todo_lines "$p")" '- todo: fb1
+- todo: fb2
+- todo: fb3'
+
+# SD5d: indented items never count, in the section nor in the fallback
+p=$(mkproj sd5d)
+todos "$p" '## Actionable\n- [ ] top\n  - [ ] sub\n'
+check SD5d-section "$(todo_lines "$p")" '- todo: top'
+todos "$p" '# T\n  - [ ] sub\n- [ ] top\n    - [ ] deep\n'
+check SD5d-fallback "$(todo_lines "$p")" '- todo: top'
+
+# SD5e: items and headings inside <!-- --> never count
+p=$(mkproj sd5e)
+todos "$p" '- [ ] first\n<!--\n- [ ] ghost\n### Actionable\n-->\n- [ ] real\n'
+check SD5e-fallback "$(todo_lines "$p")" '- todo: first
+- todo: real'
+todos "$p" '## Actionable\n<!--\n- [ ] ghost\n# x\n-->\n- [ ] real\n' \
+  '<!-- one line - [ ] no -->\n## Z\n- [ ] after\n'
+check SD5e-in-section "$(todo_lines "$p")" '- todo: real'
+
+# SD5f: `#### Actionable` and `### Actionables` are not sections
+p=$(mkproj sd5f)
+todos "$p" '- [ ] first\n#### Actionable\n- [ ] x\n### Actionables\n- [ ] y\n'
+check SD5f-not-sections "$(todo_lines "$p")" '- todo: first
+- todo: x
+- todo: y'
 
 # SD6: a 400-char journal line with an em dash, cut at 160, valid UTF-8
 p=$(mkproj sd6)
@@ -92,7 +137,8 @@ out=$(cd "$p" && LC_ALL=C.UTF-8 bash "$SS" </dev/null 2>/dev/null | digest | tai
 check SD6-len-160 "${#out}" 160
 
 # SD7: 3 open BLK + 3 long todos + a journal line over the 800 cap: todo
-# lines drop from the last, the journal and every BLK line stay
+# lines drop from the last, a marker counts them, the journal and every
+# BLK line stay
 rep() { printf "%$2s" '' | tr ' ' "$1"; }
 p=$(mkproj sd7)
 for i in 1 2 3; do blk "$p" "$i" open "$(rep b 100)"; done
@@ -104,11 +150,23 @@ want="memory digest:
 - open: BLK-002 $(rep b 100)
 - open: BLK-003 $(rep b 100)
 - todo: A$(rep x 150)…
-- todo: B$(rep x 150)…
+- todo: +2 not shown, read .claude/tasks/TODO.md
 - journal: $(rep j 100)"
 out=$(run "$p" - | digest)
 check SD7-drops-last-todo "$out" "$want"
 check SD7-le-800 "$([ "${#out}" -le 800 ] && echo yes || echo no)" yes
+
+# SD7c: 3 todos fit between 751 and 800 chars: all shown, no marker
+p=$(mkproj sd7c)
+for i in 1 2 3; do blk "$p" "$i" open "$(rep b 100)"; done
+printf '### Actionable\n- [ ] A%s\n- [ ] B%s\n- [ ] C%s\n' \
+  "$(rep x 91)" "$(rep x 91)" "$(rep x 91)" > "$p/.claude/tasks/TODO.md"
+printf '## d\n- %s\n' "$(rep j 100)" > "$p/.claude/memory/journal.md"
+out=$(run "$p" - | digest)
+check SD7c-3-todos "$(printf '%s\n' "$out" | grep -c '^- todo: [ABC]')" 3
+check SD7c-no-marker "$(printf '%s\n' "$out" | grep -c 'not shown')" 0
+check SD7c-size \
+  "$([ "${#out}" -gt 751 ] && [ "${#out}" -le 800 ] && echo ok)" ok
 
 # SD7b: the worst case (10 open BLK, long titles, 3 long todos, 160-char
 # journal): all todos drop, 3 BLK + count + journal stay, whole lines, <= 800
@@ -120,7 +178,9 @@ printf '### Actionable\n- [ ] %s\n- [ ] %s\n' "$(rep x 300)" "$(rep x 300)" \
 printf '## d\n- %s\n' "$(rep j 300)" > "$p/.claude/memory/journal.md"
 out=$(run "$p" - | digest)
 check SD7b-le-800 "$([ "${#out}" -le 800 ] && echo yes || echo no)" yes
-check SD7b-no-todo "$(printf '%s\n' "$out" | grep -c '^- todo:')" 0
+check SD7b-no-todo "$(printf '%s\n' "$out" | grep -c '^- todo: [x]')" 0
+check SD7b-marker "$(printf '%s\n' "$out" |
+  grep -c '^- todo: +2 not shown, read .claude/tasks/TODO.md$')" 1
 check SD7b-3-blk "$(printf '%s\n' "$out" | grep -c '^- open: BLK-')" 3
 check SD7b-count-line "$(printf '%s\n' "$out" | grep -x -- '- open: +7 more, +1 upstream')" '- open: +7 more, +1 upstream'
 check SD7b-journal "$(printf '%s\n' "$out" | tail -1)" "- journal: $(rep j 148)…"

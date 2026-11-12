@@ -50,14 +50,14 @@ code" wins. Repo-specific instructions override both.
   Hacky fix → rebuild clean, no over-engineering.
 
 ## Session start
-1. Read `.claude/tasks/TODO.md`. The banner's `memory digest` lists open
-   blockers and the last journal line: apply both before touching
-   anything; a `+N` line → read those entries in `blockers.md`. No
-   digest (foreign repo, memory mod off) → list the open blockers
-   yourself.
+1. The banner's `memory digest` lists open blockers, the first unchecked TODO
+   items (`## Actionable`, else the file's first) and the last journal line:
+   apply them before touching anything; a `- open: +N` line → read those
+   entries in `blockers.md`. No digest (foreign repo, memory mod off) → read
+   `.claude/tasks/TODO.md` and list the open blockers yourself.
 2. Read a registry (`.claude/memory/`: decisions, learnings, blockers,
-   journal, evals) when the task needs it; planning flows scan them per
-   `~/.claude/lib/analyze-before-plan.md`.
+   journal, evals) or `.claude/tasks/TODO.md` when the task needs it;
+   planning flows scan them per `~/.claude/lib/analyze-before-plan.md`.
 3. Either missing → create it first (templates: `~/.claude/templates/memory/`).
 
 ## Workflow

@@ -989,6 +989,9 @@ Format :
 ```
 # TODO — onboard backlog (<date>)
 
+## Actionable
+<!-- next items; the session digest shows the first 3 unchecked (else the first 3 of the file) -->
+
 <!-- Généré par /onboard — une entrée par proposition approuvée.
      Format: - [ ] [Priorité] [/skill] — description — fichiers estimés -->
 
@@ -1028,7 +1031,7 @@ Format :
 | Audit SEO/GEO à re-lancer après corrections | `/seo` ou `/geo` |
 | Audit docs à re-sync après changement | `/doc` |
 
-Ne PAS écraser `.claude/tasks/TODO.md` s'il contient déjà du contenu utilisateur : append avec un séparateur :
+Sans contenu utilisateur (le stub de l'onboarder compte pour aucun) : écrire le format complet, bloc `## Actionable` inclus. Avec contenu utilisateur : ne PAS écraser, append avec un séparateur et SANS second `## Actionable` :
 ```
 <contenu existant>
 

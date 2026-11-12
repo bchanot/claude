@@ -115,7 +115,7 @@ it (doctrine: registries + TODO exist from day one; STEP 10b appends to them):
 ```bash
 mkdir -p .claude/memory .claude/tasks
 cp -n ~/.claude/templates/memory/{decisions,learnings,blockers,evals,journal}.md .claude/memory/
-[ -f .claude/tasks/TODO.md ] || printf '# TODO\n\n## %s\n' "$(date +%Y-%m-%d)" > .claude/tasks/TODO.md
+[ -f .claude/tasks/TODO.md ] || printf '# TODO\n\n## Actionable\n<!-- next items; the session digest shows the first 3 unchecked (else the first 3 of the file) -->\n\n## %s\n' "$(date +%Y-%m-%d)" > .claude/tasks/TODO.md
 ```
 Verify: `git init` + build passes.
 
