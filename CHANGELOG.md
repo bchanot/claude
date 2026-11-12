@@ -6,6 +6,12 @@ Format follows [Keep a Changelog](https://keepachangelog.com/) and this project 
 
 ## [Unreleased]
 
+### Added
+- **/prune-memory feedback step (D)**: reads this repo's `Noisy:` and `Promotion candidates:` lines from `~/.claude/memory-feedback/FEEDBACK.md` (written by `/memory-feedback`). A noisy entry gets an inline rewrite of its title and lesson sentence, narrowed to its concrete trigger, committed as `chore(memory): noisy-rewrite <ID>`. A promotion candidate gets a mechanism proposal (rule line, hook, guard, test); on accept, a `<current status word>, promoted to <mechanism>` status line is recorded (a closed entry stays closed) and the mechanism is built in a separate `/feat`. Rows already rewritten or promoted are dropped. Cutoffs stay in `lib/memory-feedback/thresholds.ts`.
+
+### Changed
+- **memory recall**: a prompt after 30 minutes idle now needs 8 content words, up from 5 (a context's first prompt or a design/analysis prompt still needs 5), and the haiku rerank keeps at most 2 entries, down from 3. Measured on the first feedback gate: idle precision 44 %, third pick 35 %.
+
 ## [3.0.0] — 2026-11-12
 
 ### Added
