@@ -3,6 +3,20 @@
 ## Open (reconciled 2026-11-12 before 3.0.0, /reconcile on the BDR-125 phases; full pass 2026-10-23)
 Done history before 2026-10-08 removed 2026-10-23 (git keeps it: `git log -p -- .claude/tasks/TODO.md`); decisions live in `.claude/memory/`.
 
+### BDR-125 close-out run (user 2026-11-12): no phase 0/0b/4a/1/5/2/4b/4c/4d line left in TODO or BUGS-FOUND
+Decisions at start (asked once): faunosteo memory v2 on `chore/memory-v2` off develop in a fresh worktree (split already on develop 7a75974, 11 rules); settings.json `npm -g` deny lines removed on the block E branch, classifier test = `npm install -g --dry-run cowsay`; 3.0.0 cut right after block A (/release-candidate), later blocks land under the next Unreleased; LRN-270 bisect = user-run interactive sessions, one `--settings` file per pack. Merge prompts (`gitflow finish` ask) = the human signal per block once gates are green.
+- [ ] A merge chore/memory-feedback-gate1 (b7505d1 + routing `confirmed` row) into develop
+- [ ] A' /release-candidate 3.0.0 (scope as ticked 2026-11-11)
+- [ ] B chore/phase4-proofs: known-error replay (`memory: known BLK-xxx` + tool record), live redaction (fake secret → ledger REDACTED), digest after a real /compact, `/context` full+dev delta vs the 2026-11-09 base; each = command + output + journal line; a failure → /bugfix
+- [ ] C /feat gate 1: idle trigger tightened (≥ 8 words AND a real idle gap), recall cap 2, body indexed for BM25 with p90 before/after (> 3 s → back to title+lesson, "accepted"), 4d.4 built (/prune-memory step D: noisy rewrite + BDR-100 promotion)
+- [ ] D /feat D1b: digest falls back on the first unchecked items when `### Actionable` is absent; init-project + onboard templates emit the heading; local repos' TODO migrated on `chore/*` (one per repo, merge on ask); Session-start step 1 "Read TODO.md" dropped from the doctrine, citers census
+- [ ] E phase 1 + 2 decisions: design hook DELETED (web-building.md loads by path); "Skill routing" lines → skills' `description:`; `npm -g` deny lines out + dry-run test; rtk `cat|head|tail *.env*` forms benched, every form kept without proof of obsolescence, T42 list updated; BLK-022 buried (phase 2 covers it): guard-bash.test.sh SKIP spec deleted, BLK-022 → superseded, TODO "Blocked" block removed
+- [ ] F faunosteo `chore/memory-v2`: `memory.sh upgrade`, `/context` before/after, /prune-memory there for BDR-080 (noisy) + LRN-080 (promotion); never merged by me
+- [ ] G BLK-044: trace `oom_score_adj` origin (unit, cc.sh), `OOMScoreAdjust` on the `cc` scope, proof via `/proc/<pid>/oom_score_adj`
+- [ ] H residuals in order: phase 0 (project-rules.sh emit/extract/`..`), 4a (BLK-038, MIGRATION.md:209), 5 (fragment key allowlist), 2 LOWs (awk, `mkdir -m 700`, `cat x.key`, doctor.sh:255), 4d follow-ups (transcripts per (root, session, agent), image prompts, threshold boundary tests, `tsc`, `l:<root>` one global key), BUGS-FOUND unfixed since 11-09, LRN-270 bisect (user-run), doctor skillOverrides residue; a residual NOT done = justified in the TODO line removal
+- [ ] I model-router live checks: W4-B AC9 + parentModel done from transcripts/logs; Fable-out-of-credits + StopFailure closed "not reproducible, reopen on incident"
+- [ ] J /reconcile, CHANGELOG (gate 1 at 57 % delivered + each block), 0 BDR-125 line left, EVAL of the run, /close
+
 ### Context mod queue (BDR-125): one /ship-feature per phase, order (user 2026-10-25): 0 → 4a → 1 → 5 → 2 → 3 (conditional) → 4b-4d
 Re-challenged 2026-10-25 on Fable (4 lenses + native-features guide, synthesis in `.claude/tasks/plans/2026-10-25-context-mod-queue-challenge.md` § RE-CHALLENGE; user picks: native ask merge gate, phase 3 conditional, rest in block). The plan halves: native carriers and existing files first, a mod only where a measured gain has no native lever.
 Shared rules for every phase:

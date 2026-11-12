@@ -203,7 +203,8 @@
       "deploy": "verify",
       "feat": "reflect",
       "bugfix": "reflect",
-      "capitalize": "apply"
+      "capitalize": "apply",
+      "memory-feedback": "reflect"
     }
   },
   "changed": {},
