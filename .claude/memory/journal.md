@@ -734,3 +734,4 @@ rules:
 
 ## 2026-11-13
 - 2026-11-13: /hotfix blk022-burial (block E4): lib/tests/guard-bash.test.sh (SKIP-only, 214 cases) + 2 census ALLOW rows deleted; BLK-022 superseded by BDR-125 phase 2 (static rules + routing guard); security PASS (LOW: no executable destructive-command suite left, accepted).
+- /feat design-hook-removal (block E1): hooks/design-toolchain-reminder.sh + test + UserPromptSubmit entry deleted (9c038fd), T7c → T8i synthetic fixture, docs 19ec5b7 (CHANGELOG Removed wording = doc-syncer draft, user asked no mid-run questions). BDR-148. Gates 0 MET / 1 four oracles MET / 2 PASS, make test all green. Open sessions log one non-blocking hook error per prompt until restart.
