@@ -78,4 +78,10 @@ if grep -qi 'mktemp failed' "$ERR6"; then r6msg=yes; else r6msg=no; fi
 check T6-mktemp-failure-loud "$r6msg" yes
 rm -f "$ERR6" "$SUT2"
 
+# T7: Step 7 keeps `graphify claude install` inside the `(cd "$REPO" && …)`
+# subshell, so the guard's CLAUDE.md block lands in the repo it protects.
+if grep -qF "(cd \"\$REPO\" && graphify claude install)" "$INSTALL_SH"; then
+  r7=yes; else r7=no; fi
+check T7-step7-graphify-subshell-lock "$r7" yes
+
 printf 'PASS=%s FAIL=%s\n' "$pass" "$fail"; [ "$fail" -eq 0 ]

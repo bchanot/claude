@@ -316,7 +316,9 @@ _digest_cut() {
 
 # Open BLK (≤ 3 listed, the rest counted) and upstream count, as digest lines.
 _digest_blockers() {  # <root> <memory.sh>
-  local row line rest status title open=0 upstream=0 more=""
+  local row line rest status title open=0 upstream=0 more="" rows
+  rows=$("${_SS_TMO[@]}" bash "$2" -C "$1" index blocker 2>/dev/null) || {
+    echo "- open: unknown (memory.sh index failed)"; return 0; }
   while IFS= read -r row; do
     [[ "$row" == "| BLK-"* ]] || continue
     line="${row#| }"; line="${line% |}"
@@ -328,7 +330,8 @@ _digest_blockers() {  # <root> <memory.sh>
         [ "$open" -le 3 ] && echo "- open: ${line%% | *} $title" ;;
       upstream) upstream=$((upstream + 1)) ;;
     esac
-  done < <("${_SS_TMO[@]}" bash "$2" -C "$1" index blocker 2>/dev/null)
+  done <<< "$rows"
+  [ "$open" -eq 0 ] && echo "- open: none"
   [ "$open" -gt 3 ] && more="+$((open - 3)) more"
   [ "$upstream" -gt 0 ] && more="${more:+$more, }+${upstream} upstream"
   [ -n "$more" ] && echo "- open: $more"

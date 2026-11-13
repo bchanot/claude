@@ -358,6 +358,10 @@ deny_lost() {  # <settings file>: base deny entries missing, minus the list
     | jq -r --slurpfile now "$1" '.permissions.deny[]
       | select(. as $e | ($now[0].permissions.deny | index($e)) == null)' \
     | grep -vxF -f "$WORK/removed-ok"
+  local st=("${PIPESTATUS[@]}")
+  # grep rc 1 = nothing left to report; any other failure is a lost check
+  { [ "${st[0]}" -eq 0 ] && [ "${st[1]}" -eq 0 ] && [ "${st[2]}" -le 1 ]; } ||
+    echo "deny_lost: pipeline failed (rc ${st[*]})"
 }
 if [ -z "$base" ]; then
   echo "SKIP T42 (no main ref)"
@@ -371,6 +375,8 @@ else
   # T42c: the lock still bites on an entry that is not in the list
   probe=$(printf '%s\n' "$basedeny" | grep -vxF -f "$WORK/removed-ok" | head -1)
   jq --arg e "$probe" '.permissions.deny -= [$e]' "$S" > "$WORK/s-probe.json"
+  check T42c-probe-written "$(jq -e . "$WORK/s-probe.json" >/dev/null 2>&1 \
+    && echo ok || echo bad)" ok
   check T42c-lock-bites \
     "$(deny_lost "$WORK/s-probe.json" | grep -cxF -- "$probe")" 1
   # T42d: the user's hand edit (the 6 dead entries out) is forgiven
@@ -379,6 +385,9 @@ else
     "Write(~/.gitconfig)", "Write(~/.config/git/config)"]' "$S" \
     > "$WORK/s-after.json"
   check T42d-edit-forgiven "$(deny_lost "$WORK/s-after.json")" ""
+  # T42f: a missing settings file is a failed check, not an empty loss list
+  check T42f-jq-failure-reported \
+    "$(deny_lost "$WORK/absent.json" 2>/dev/null | grep -c 'pipeline failed')" 1
 fi
 
 soft=$(jq -r '.autoMode.soft_deny[]' "$S")
@@ -419,17 +428,22 @@ twins_missing() { # twins_missing <settings> -> missing twin rules
       done
 }
 check T62-twins-present "$(twins_missing "$S")" ""
-T62F="$(mktemp)"
+T62F="$WORK/s-twin.json"
 jq '.permissions.deny += ["Bash(cat */ghost.key)"]' "$S" > "$T62F"
 check T62b-flip-missing-twin "$(twins_missing "$T62F" | /usr/bin/grep -F ghost.key | sort | paste -sd' ' -)" "Bash(*/rtk read */ghost.key*) Bash(rtk read */ghost.key*)"
-rm -f "$T62F"
 
-# T63 phase 2 rules present (adding is free; a removal is the user's edit)
+# T63 phase 2 rules present (adding is free; a removal is the user's edit):
+# each row in the list where it sits today, so a deny row demoted to ask
+# (or the reverse) fails
 missing=""
-while IFS= read -r e; do
-  jq -e --arg e "$e" '(.permissions.ask + .permissions.deny) | index($e)' \
-    "$S" >/dev/null || missing="$missing [$e]"
-done <<'EOF'
+rules_present() { # rules_present <ask|deny>: stdin rows -> $missing
+  local e
+  while IFS= read -r e; do
+    jq -e --arg e "$e" --arg l "$1" '.permissions[$l] | index($e)' \
+      "$S" >/dev/null || missing="$missing [$1:$e]"
+  done
+}
+rules_present ask <<'EOF'
 Bash(git merge *)
 Bash(bash *gitflow.sh finish*)
 Bash(sh *gitflow.sh finish*)
@@ -446,6 +460,8 @@ Bash(/usr/bin/bash *)
 Bash(/usr/bin/sh *)
 Bash(/usr/bin/env bash*)
 Bash(/usr/bin/env sh*)
+EOF
+rules_present deny <<'EOF'
 Bash(awk *system(*)
 Bash(head * .env*)
 Bash(tail * .env*)
