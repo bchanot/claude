@@ -5,7 +5,9 @@
 // through unchanged: the mod may never break a tool call or a prompt.
 // It also recalls: registry entries on a qualifying prompt and a known-error
 // line on a Bash failure, both switchable with "recall": false.
-import type { EngineInterface, On, Register } from 'claude-code'
+import type {
+  EngineInterface, On, Register, ToolCallResult,
+} from 'claude-code'
 
 type Api = EngineInterface
 
@@ -1586,7 +1588,8 @@ function registerBash(on: On, st: State): void {
     await captureMilestones($, st, at, e, out as BashOut)
     const line = await knownContext($, st, at, e, f)
     if (line === '') return out
-    return { ...out, context: [...(out.context ?? []), line] }
+    return { ...out, context: [...(out.context ?? []), line] } as
+      ToolCallResult<'Bash'>
   }).catch(($, e, next) => {
     warnOnce(st, $, 'Bash', next.error.kind)
     return next(e)

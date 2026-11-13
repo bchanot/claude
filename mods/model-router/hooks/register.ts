@@ -4656,7 +4656,9 @@ function registerSpawn(on: On, st: State): void {
       const started = await next(wanted === undefined
         ? e
         : { ...e, model: wanted })
-      afterSpawn($, st, { e, started, route, wanted })
+      if (started.deny === undefined) {
+        afterSpawn($, st, { e, started, route, wanted })
+      }
       return started
     } finally {
       st.spawning = Math.max(0, st.spawning - 1)

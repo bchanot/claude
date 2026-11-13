@@ -186,7 +186,7 @@ async function boot($: Engine, on: On, o: Opts = {}): Promise<World> {
     }
     w.runs.push([...e.argv])
     if (w.proc === 'throw') throw new Error('spawn failed')
-    if (w.proc === 'hang') await new Promise(() => undefined)
+    if (w.proc === 'hang') return await new Promise<never>(() => undefined)
     const done = w.proc === 'exit2'
       ? { exitCode: 2, stdout: '' } : { exitCode: 0, stdout: w.proc.stdout }
     return { value: { ...done, stderr: '', isStdoutTruncated: false,
@@ -197,7 +197,7 @@ async function boot($: Engine, on: On, o: Opts = {}): Promise<World> {
     w.asks.push({ model: x.model, prompt: x.prompt, effort: x.effort,
       maxTokens: x.maxTokens, timeoutMs: x.timeoutMs })
     if (w.model === 'throw') throw new Error('api down')
-    if (w.model === 'hang') await new Promise(() => undefined)
+    if (w.model === 'hang') return await new Promise<never>(() => undefined)
     const usage = { input_tokens: 0, output_tokens: 0 }
     const done = w.model === 'unanswered'
       ? { isAnswered: false, reason: 'api-error', status: 500,
@@ -2802,7 +2802,7 @@ const fakeApi = (w: World): Api => ({
     w.asks.push(a)
     return { isAnswered: true, text: (w.model as { text: string }).text }
   } },
-  store: storeApi(w).store,
+  store: (storeApi(w) as unknown as { store: unknown }).store,
   ui: { log: () => undefined },
 }) as unknown as Api
 
