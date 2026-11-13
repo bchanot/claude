@@ -17,6 +17,9 @@ Format follows [Keep a Changelog](https://keepachangelog.com/) and this project 
 ### Removed
 - `hooks/design-toolchain-reminder.sh`, its `UserPromptSubmit` entry in `settings.json` (`ctx7-reminder` stays the only one) and its suite `lib/tests/design-toolchain-reminder.test.sh`. Measured 2026-10-31: 59 fires, 0 Reads of `rules/web-building.md`. Design routing stays with the `rules/web-building.md` path rule and the `CLAUDE.global.md` pointer. The fire log `~/.claude/logs/design-toolchain-fires.log` is left in place.
 
+### Fixed
+- `cc <name> [profile]` (lib/cc.sh) raises the session's `oom_score_adj` to 500 before `exec claude` (raise-only, silent if the write fails). sshd's systemd override `OOMScoreAdjust=-1000` was inherited through tmux and dtach by every claude started with `cc`, so the OOM killer never picked a runaway session; `systemd-run --scope` rejects that property, hence the write inside the session (BLK-044). Test: `lib/tests/cc.test.sh` T7-oom.
+
 ## [3.0.0] — 2026-11-12
 
 ### Added
