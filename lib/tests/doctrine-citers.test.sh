@@ -140,8 +140,8 @@ check T5d-quoted-label-whole "$(printf '%s\n' "$out" | grep -c 'full kit')" 1
 check T5b-missing-file-named "$(printf '%s\n' "$out" | grep -c 'rules/none.md')" 1
 check T5c-prefix-not-a-heading "$(printf '%s\n' "$out" | grep -c '"Version"')" 1
 
-# T8a-T8h: blind spots of the file-citation census (nested dirs, project
-# rules, home prefixes, left boundary, templates)
+# T8a-T8i: blind spots of the file-citation census (nested dirs, project
+# rules, home prefixes, left boundary, templates, quoted label kept whole)
 mkdir -p "$FIX/lib/sub" "$FIX/.claude/rules" "$FIX/templates/project-rules"
 printf '## Alpha\n' > "$FIX/lib/sub/x.md"
 printf 'nested: lib/sub/x.md § Alpha\n' > "$FIX/n1.md"
@@ -184,6 +184,9 @@ printf 'tpl: templates/project-rules/t.md § Zeta.\n' > "$FIX/t2.md"
 citers_check_files "$FIX" "$FIX/t1.md" >/dev/null; rc1=$?
 citers_check_files "$FIX" "$FIX/t2.md" >/dev/null
 check T8h-template-rules-path "$rc1|$?" "0|1"
+# the retired design hook's pointer shape: ~ prefix + quoted label
+printf '%s\n' '  ~/.claude/rules/web-building.md § "Design work — full toolchain"' > "$FIX/pointer.sh"
+check T8i-tilde-quoted-label-whole "$(_citers_extract_files "$FIX/pointer.sh" | cut -d: -f3-)" 'rules/web-building.md:Design work — full toolchain'
 
 # ── real census: the repo's own citers against CLAUDE.global.md ──────────────
 # (`impeccabl[e]` is a glob: the pack census must not read it as a citer.)
@@ -222,9 +225,6 @@ sed 's/^## Versioning$/## Version policy/' "$ROOT/rules/rest-api.md" > "$FIX/cop
 (cd "$ROOT" && citers_check_files "$FIX/copy" lib/architecture-defaults.md \
   lib/project-archetypes/rest-api-node.md) >/dev/null
 check T7b-real-rename-bites "$?" 2
-# the hook's pointer is checked whole, not as its "Design work" prefix
-check T7c-hook-label-whole "$(cd "$ROOT" && _citers_extract_files hooks/design-toolchain-reminder.sh \
-  | grep -c ':rules/web-building.md:Design work — full toolchain$')" 2
 
 echo "PASS=$pass FAIL=$fail"
 [ "$fail" -eq 0 ]
