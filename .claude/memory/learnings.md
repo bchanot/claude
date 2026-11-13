@@ -2067,3 +2067,8 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Pattern**: `git log --since=YYYY-MM-DD` reads bare date at CURRENT time of day: same-day commits earlier than now drop out. Use `--since="YYYY-MM-DD 00:00"`, or no window when an idempotence token in the subject does the job.
 - **Context**: /feat recall-gate1-fixes 2026-11-12 confirmation challenger: `git log --since=2026-11-12` at 19:01 returned nothing despite commits at 18:44.
 - **Apply**: any skill/test filtering commits by a FEEDBACK/report date; pin time explicitly.
+
+## LRN-284 — gates.sh criterion labels: integers only; a 1b. row clobbers the previous criterion's oracle (false MET) (2026-11-13)
+- **Context**: E2 contract 2026-11-13 wrote a criterion `1b.`; `gates.sh run` printed VERDICT MET; fresh verifier found criterion 1 EVIDENCE still PENDING.
+- **Pattern**: `lib/gates.sh` `_absorb` recognizes a criterion only as `^([0-9]+)\.` (gates.sh:88). A `1b.`/`2a.` row = continuation of the previous criterion: its CHECK/EXPECT overwrite that criterion's own (`_set_attr`, :71-79), its EVIDENCE lands on the wrong line. Result = false MET by ledger clobbering, the real oracle of criterion 1 never runs.
+- **Apply**: contract criteria = integer labels only; a sub-case gets the next integer (`6.`), never a letter suffix. Verifier re-running every CHECK by hand caught it: keep that habit. Candidate fix (TODO): gates.sh warns on `^[0-9]+[a-z]\.` rows.
