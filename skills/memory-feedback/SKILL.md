@@ -72,11 +72,13 @@ MFD="$(cd -P "$HOME/.claude/lib" && pwd)/memory-feedback"
 ```
 
 rc 1 `draft refused: <reason>` → fix the draft, rerun. It prints
-FEEDBACK.md: show the gate lines and the Actions list to the user.
+FEEDBACK.md: show the gate lines (`Post-fix prompt asks: k/20` included:
+actions wait for 20 post-fix asks) and the Actions list to the user.
 
 ## STEP 6 — A GATE REACHED FOR THE FIRST TIME
 
-Only when the output ends with a `NEW: …` line:
+Only when the output ends with a `NEW: …` line (a prompt gate, a tool gate
+or `NEW: post-fix prompt sample reached`):
 1. Propose the verdict as an EVAL entry (counts and shares from
    FEEDBACK.md, no prompt text, no other repo's name) and each Action as a
    TODO line of this config repo; the user approves each. Actions naming
