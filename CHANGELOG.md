@@ -19,6 +19,7 @@ Format follows [Keep a Changelog](https://keepachangelog.com/) and this project 
 
 ### Fixed
 - `cc <name> [profile]` (lib/cc.sh) raises the session's `oom_score_adj` to 500 before `exec claude` (raise-only, silent if the write fails). sshd's systemd override `OOMScoreAdjust=-1000` was inherited through tmux and dtach by every claude started with `cc`, so the OOM killer never picked a runaway session; `systemd-run --scope` rejects that property, hence the write inside the session (BLK-044). Test: `lib/tests/cc.test.sh` T7-oom.
+- `lib/project-rules.sh` (`extract`, `emit`): the out-path check resolves the rule file's first existing parent physically and refuses (rc 2, `must stay under the project`) a path a symlinked component sends outside the project; 3.0.0 checked `..` lexically only. `emit` goes through the same check and reports `cannot create` or `not written` (no partial file) with rc 2 where it printed `emitted`. An `extract` that wrote the rule but fails to rewrite CLAUDE.md keeps the rule file and the rewritten text in a temp file and names both on stderr with the command to complete or abort; it used to delete both. `/onboard` and `/init-project` keep an existing rule on an rc 2 ending in ` exists` and stop on any other rc 2. Tests: `lib/tests/project-rules.test.sh` T9h (re-asserted), T9z3 to T9z13.
 
 ## [3.0.0] — 2026-11-12
 
