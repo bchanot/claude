@@ -52,9 +52,9 @@ rules/context7.md
 graphify-out/
 .ctx7-cache/
 
-# graphify's vendored skill — written into the repo by `graphify claude
-# install` (install-plugins.sh STEP graphify), since ~/.claude/skills is a
-# symlink to skills/. Untracked so a tool upgrade stops dirtying the tree.
+# graphify's vendored skill — written by `graphify install` (install-plugins.sh
+# STEP graphify) into ~/.claude/skills, a symlink to skills/.
+# Untracked so a tool upgrade stops dirtying the tree.
 # test-prompts.json is hand-written for darwin and stays tracked.
 skills/graphify/SKILL.md
 skills/graphify/references/

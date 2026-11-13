@@ -176,11 +176,12 @@ Tu veux...
 | `/route` | Voir ou fixer la route du mod model-router | show / clear / off / on / reload / pending / ask on\|off / ask-tier on\|off / <phase> / model=… effort=… / switch on\|off / classify on\|off (classifieur de prompt) / verbose on\|off (transitions seules) ; `clear`, `off` et `/clear` réarment le garde d'écriture (voir ci-dessous) |
 | `/profile` | Changer le profil de packs du projet (`set`), ou l'état effectif (`current`) | Profils dans `lib/profiles/*.json`, packs dans `skills/pack-*/` |
 
-> Cette table couvre les skills personnels principaux. `/seo` et `/geo` (pack-seo)
-> et `/web-validate` (pack-web-validate) vivent dans des packs : un profil qui laisse
-> le pack éteint les masque (`/profile current`). Les packs gstack-dev,
-> gstack-browser et gstack-design, les plugins (pr-review-toolkit…) et marketplaces externes en ajoutent beaucoup d'autres ;
-> `/skills-perso` liste tes skills personnels.
+> Cette table couvre les skills personnels principaux. `/seo` et `/geo`
+> (pack-seo) et `/web-validate` (pack-web-validate) vivent dans des packs : un profil
+> qui laisse le pack éteint les masque (`/profile current`). Les packs
+> gstack-dev, gstack-browser et gstack-design, les plugins
+> (pr-review-toolkit…) et marketplaces externes en ajoutent beaucoup
+> d'autres ; `/skills-perso` liste tes skills personnels.
 
 ---
 
@@ -1019,7 +1020,7 @@ SIGNALS: simple, CLI/embedded
 COST: ~0t (skills superpowers vendorisés, toujours actifs, 0 t passif)
 
 RECOMMENDATIONS:
-  SET       : minimal (embedded : tous les packs éteints)
+  ↻ SET     : minimal (embedded : tous les packs éteints)
   NOTE      : skills superpowers (brainstorming, writing-plans...) restent
               disponibles par nom bare, même pour un
               firmware minimal.

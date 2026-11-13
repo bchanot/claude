@@ -178,6 +178,13 @@ check T26-home-rc "$rc" 0
 check T26-home-local "$([ -f "$H2/work/.claude/settings.local.json" ] && echo yes)" yes
 check T26-home-not-root "$([ -e "$H2/.claude" ] && echo leaked)" ""
 
+# a root that is $HOME (even through a symlink) is refused, rc 2, nothing written
+H3="$FX/home3"; mkdir -p "$H3"; printf '# h\n' > "$H3/CLAUDE.md"; ln -s "$H3" "$FX/home3-link"
+out="$(HOME="$FX/home3-link" PX "$H3" set devx 2>&1)"; rc=$?
+check T27-home-root-rc "$rc" 2
+check_has T27-home-root-msg "$out" "refusing \$HOME as the project root"
+check T27-home-root-nothing "$([ -e "$H3/.claude" ] && echo leaked)" ""
+
 # timing: two jq calls, under 100 ms here (spec target 50 ms, measured in Task 12)
 t0=$(date +%s%N); P current --plain >/dev/null; t1=$(date +%s%N)
 ms=$(( (t1 - t0) / 1000000 )); echo "current --plain: ${ms} ms"

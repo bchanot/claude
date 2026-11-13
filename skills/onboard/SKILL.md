@@ -252,7 +252,7 @@ Pour chaque fast-lib détectée :
   ⚠️  ctx7 non installé — risque de code utilisant des APIs obsolètes
      sur : [liste fast-libs]
      Install : `npm install -g ctx7`
-     Version épinglée et find-docs : `make plugin` depuis le dépôt claude-config
+     Installe ctx7 (latest, plugins.lock.json pin `latest`) et find-docs : `make plugin` depuis le dépôt claude-config
      Ou continuer sans (non recommandé pour fast-libs).
   ```
   Demander : `yes install now / continue without / skip audit`.
@@ -384,12 +384,12 @@ passer ce chemin dans chaque brief d'audit.
 |---|---|---|
 | `analyze` | Déjà fait en STEP 5 | L3a |
 | `code-clean` | Spawn subagent `general-purpose` (audit-only, `model="opus"`, `effort="xhigh"` — BDR-076: dispatched audits off the session model) | L3a |
-| `cso` | Si gstack ON → Skill(cso). Sinon → Agent general-purpose avec checklist OWASP + deps audit | L3a |
+| `cso` | Si `pack gstack-dev on` → Skill(cso). Sinon → Agent general-purpose avec checklist OWASP + deps audit | L3a |
 | `doc` | Spawn subagent `doc-syncer` (auto-mode OFF, report-only) | L3a |
 | `seo` | Subagents seo-analyzer + geo-analyzer en parallèle | L3b |
-| `design-review` | Si gstack ON → Skill design-review. Sinon → Agent ui-ux-pro-max context statique | L3b |
-| `perf` | Si gstack ON + URL → Lighthouse. Sinon → static bundle audit | L3b |
-| `a11y` | Si gstack ON + URL → axe-core. Sinon → Agent static a11y audit | L3b |
+| `design-review` | Si `pack gstack-design on` → Skill design-review. Sinon → Agent ui-ux-pro-max context statique | L3b |
+| `perf` | Si `pack gstack-browser on` + URL → Lighthouse. Sinon → static bundle audit | L3b |
+| `a11y` | Si `pack gstack-browser on` + URL → axe-core. Sinon → Agent static a11y audit | L3b |
 
 ### STEP 6 dispatch (L3a portion)
 
@@ -423,17 +423,17 @@ Agent(
 
 **Décision selon plugin state :**
 ```bash
-# gstack actif ?
+# pack gstack-dev actif ? (`profile.sh current`)
 bash $HOME/.claude/lib/profile.sh -C "$PWD" current --plain 2>/dev/null | grep -q '^pack-gstack-dev=on'
 ```
 
-- **gstack ON** → invoquer le skill cso via Skill tool en lui passant le contexte archétype :
+- **`pack gstack-dev on`** → invoquer le skill cso via Skill tool en lui passant le contexte archétype :
   ```
   Skill(skill="cso", args="comprehensive --report-only --output .onboard-audit/cso.md --archetype <archetype> --context-file .onboard-audit/archetype-context.md")
   ```
   Note : le skill cso écrit son rapport lui-même ; on redirige via `--output` si supporté, sinon on capture la sortie et on écrit `.onboard-audit/cso.md` dans le skill parent. Les flags `--archetype` / `--context-file` informent le skill même s'il ne les consomme pas nativement (lisibilité + compat future).
 
-- **gstack OFF** → fallback via Agent general-purpose, prompt **archetype-adaptive** :
+- **`pack gstack-dev off`** → fallback via Agent general-purpose, prompt **archetype-adaptive** :
   ```
   Agent(
     subagent_type="general-purpose",
@@ -530,7 +530,7 @@ bash $HOME/.claude/lib/profile.sh -C "$PWD" current --plain 2>/dev/null | grep -
 
 En complément de cso (ON) OU du fallback (OFF) — un moteur SAST déterministe
 à côté de l'audit grep/raisonné. cso est un submodule gstack non modifiable ;
-semgrep vit dans cet agent local. Lancé dans les DEUX branches gstack.
+semgrep vit dans cet agent local. Lancé dans les DEUX branches (pack gstack-dev on / off).
 
 ```
 Agent(
@@ -547,7 +547,8 @@ Agent(
 )
 ```
 Si semgrep absent → l'agent rend DEGRADED (checklist seule) + recommande
-`make plugin` ; NON bloquant en onboard (audit, pas gate).
+`make plugin` (dans ton checkout claude-config) ; NON bloquant en
+onboard (audit, pas gate).
 
 **Onboard n'a PAS de boucle verify→dev (`lib/verify-secure-loop.md`) — par
 conception.** onboard produit un RAPPORT d'audit, pas une modification à
@@ -607,8 +608,10 @@ Options :
 
 Pré-check ressources navigateur :
 ```bash
-# gstack actif ?
+# pack gstack-browser actif ?
 bash $HOME/.claude/lib/profile.sh -C "$PWD" current --plain 2>/dev/null | grep -q '^pack-gstack-browser=on'
+# pack gstack-design actif ? (condition du dispatch design-review)
+bash "$HOME"/.claude/lib/profile.sh -C "$PWD" current --plain 2>/dev/null | grep -q '^pack-gstack-design=on'
 # URL déployée fournie par l'utilisateur en STEP 3 ?
 echo "${BRIEF_deployed_url:-none}"
 # dev server launchable ?
@@ -636,7 +639,7 @@ Agent(
     - Core Web Vitals (estimé si pas d'URL live)
     - headings hierarchy, alt attrs, images formats
     - i18n / lang attribute
-  Si URL live fournie AND gstack actif: utiliser les outils live.
+  Si URL live fournie AND `pack gstack-browser on`: utiliser les outils live.
   Sinon: audit statique sur le code (HTML templates, Astro pages, Next Metadata API, etc.).
   Write report to `<PROJECT_ROOT>/.onboard-audit/seo.md`.
   Structure sections par catégorie, chaque issue cite fichier:ligne + sévérité.
@@ -670,7 +673,7 @@ Agent(
 
 #### Dispatch design-review (si `design-review` dans audit_stack)
 
-**Cas gstack ON + URL live OU dev server launchable :**
+**Cas `pack gstack-design on` + URL live OU dev server launchable :**
 ```
 Skill(
   skill="design-review",
@@ -679,7 +682,7 @@ Skill(
 ```
 Si le skill ne supporte pas `--output`, capturer la sortie et écrire à la main vers `.onboard-audit/design.md`.
 
-**Cas gstack OFF OU pas de site déployable (ex: react-spa sans dev server):**
+**Cas `pack gstack-design off` OU pas de site déployable (ex: react-spa sans dev server):**
 ```
 Agent(
   subagent_type="general-purpose",
@@ -703,7 +706,7 @@ Agent(
     8. Interactions : focus visible, hover states, disabled states
     9. Micro-interactions (billboard design ? transform scale(0.97) on :active ?)
   Write report to `<PROJECT_ROOT>/.onboard-audit/design.md`.
-  Note en haut : "STATIC MODE — gstack inactif ou pas de dev server ; audit limité au code."
+  Note en haut : "STATIC MODE — pack gstack-design off ou pas de dev server ; audit limité au code."
   Max 500 lignes. Cite fichier:ligne.
   """
 )
@@ -715,7 +718,7 @@ Agent(
 
 #### Dispatch perf (si `perf` dans audit_stack)
 
-**Cas gstack ON + URL live :**
+**Cas `pack gstack-browser on` + URL live :**
 ```
 Skill(
   skill="browse",
@@ -724,7 +727,7 @@ Skill(
 ```
 Puis parser le JSON Lighthouse (scores perf/a11y/bp/seo/pwa + top opportunities) → écrire `.onboard-audit/perf.md`.
 
-**Cas gstack OFF OU pas d'URL :**
+**Cas `pack gstack-browser off` OU pas d'URL :**
 ```
 Agent(
   subagent_type="general-purpose",
@@ -759,7 +762,7 @@ Agent(
 
 #### Dispatch a11y (si `a11y` dans audit_stack)
 
-**Cas gstack ON + URL live :**
+**Cas `pack gstack-browser on` + URL live :**
 ```
 Skill(
   skill="browse",

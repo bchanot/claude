@@ -152,8 +152,9 @@ honestly in the summary. Never loop past 3.
    ```
    semgrep ABSENT → DEGRADED (checklist only) is surfaced in the
    report, not a silent downgrade and not a blocker.
-2. gstack ON (`/cso` available) → **iteration 1 only**, dispatch a cso
-   posture audit (deps CVE, OWASP) in audit mode; fold its findings in.
+2. `pack gstack-dev on` (`profile.sh current`; `/cso` available) →
+   **iteration 1 only**, dispatch a cso posture audit (deps CVE, OWASP)
+   in audit mode; fold its findings in.
 3. Fix policy (skip in `--report-only`): CRITICAL/HIGH → fix now.
    MEDIUM/LOW → fix only if local and behavior-preserving, else leave
    `open`. Every fix minimal, CLAUDE.md security defaults apply.

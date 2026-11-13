@@ -687,16 +687,17 @@ else
 fi
 if command -v graphify &>/dev/null; then
   _graphify_ok=1
-  info "Running graphify install (dependencies)..."
+  info "Running graphify install (appends its block to ~/.claude/CLAUDE.md; the exit trap reverts the repo copy)..."
   graphify install 2>/dev/null || { warn "graphify install failed — run manually"; _graphify_ok=0; }
-  info "Configuring Claude Code integration..."
+  info "Running graphify claude install (CLAUDE.md block + PreToolUse hook; the exit trap reverts both)..."
   (cd "$REPO" && graphify claude install) 2>/dev/null || warn "graphify claude install failed"
-  # Success message gated on the real outcome (LRN-071 class: an
-  # unconditional ok after `|| warn` lies when a step failed).
+  # The message below is gated on `graphify install` only (LRN-071 class:
+  # an unconditional ok after `|| warn` lies when a step failed); `graphify
+  # claude install` just warns, the trap reverts what it wrote.
   if [ "$_graphify_ok" -eq 1 ]; then
-    ok "Graphify configured for Claude Code"
+    ok "Graphify installed (its CLAUDE.md block and hook reverted by the guard)"
   else
-    warn "Graphify NOT fully configured — re-run the failed step manually"
+    warn "Graphify install failed — re-run it manually"
   fi
 fi
 echo ""
@@ -1268,7 +1269,7 @@ echo "    🔄 gsd v2              — standalone CLI 'gsd' (gsd-pi, not a Claud
 echo "    🔄 pr-review-toolkit   — /review-pr + 6 PR agents (~2.2k tokens when enabled) [claude-code-plugins]"
 echo "    🔄 ui-ux-pro-max       — user scope (~780 tokens when enabled)"
 echo "    🔄 context7 CLI        — ctx7 (npm global, standalone or MCP setup)"
-echo "    🔄 graphifyy (CLI: graphify) — codebase knowledge graph (pipx, PreToolUse hook)"
+echo "    🔄 graphifyy (CLI: graphify) — codebase knowledge graph (pipx; its CLAUDE.md block and hook are reverted by the guard)"
 echo "    🔄 emil-design-eng     — UI polish, animations, component craft (curl → symlink)"
 echo "    🔄 frontend-design     — distinctive frontend interfaces, anti-AI-slop (anthropic-agent-skills)"
 echo "    🔄 impeccable          — /impeccable design verbs + 61-rule deterministic detector (npx impeccable detect)"
