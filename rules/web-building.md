@@ -47,7 +47,7 @@ with /seo, /harden, /web-validate.
 ## Design work — full toolchain (tiered by scope)
 Trigger = UI work: editing a component/style file (.tsx/.vue/.svelte/.css…)
 or a design/UI request, not the word "design" alone. Single source for
-design routing; the design-toolchain hook reinforces it.
+design routing.
 - Trivial (≤2 files, one cosmetic value) → /hotfix, no toolchain.
 - Build UI (component, page, redesign) → impeccable (build path: init,
   shape, new-work, craft floor, fresh finish reviewer) + ui-ux-pro-max +
