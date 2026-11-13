@@ -18,19 +18,19 @@ Fix the BUGS-FOUND entries unfixed since 2026-11-09 that live in scripts and tes
 1. Suites green: profile (or session-banner), session-digest, curated-config-guard, push-guard, prune-memory deterministic.
    CHECK: cd /home/bchanot/Documents/claude && PATH=$HOME/.bun/bin:$PATH make test suite=lib/tests/push-guard.test.sh 2>&1 | tail -1
    EXPECT: all suites green
-   EVIDENCE: PENDING
+   EVIDENCE: MET exit=0 marker-found :: all suites green
 2. session-digest green with the two new cases.
    CHECK: cd /home/bchanot/Documents/claude && echo $(grep -c 'open: none' hooks/session-start.sh lib/tests/session-digest.test.sh | grep -c ':[1-9]')$(PATH=$HOME/.bun/bin:$PATH make test suite=lib/tests/session-digest.test.sh 2>&1 | tail -1)
    EXPECT: 2all suites green
-   EVIDENCE: PENDING
+   EVIDENCE: MET exit=0 marker-found :: 2all suites green
 3. curated-config-guard and prune-memory suites green.
    CHECK: cd /home/bchanot/Documents/claude && PATH=$HOME/.bun/bin:$PATH make test suite="lib/tests/curated-config-guard.test.sh skills/prune-memory/tests/run-deterministic.sh" 2>&1 | tail -1
    EXPECT: all suites green
-   EVIDENCE: PENDING
+   EVIDENCE: MET exit=0 marker-found :: all suites green
 4. Forged-line test present and green.
    CHECK: cd /home/bchanot/Documents/claude && grep -rlc 'evil@' lib/tests/*.sh | wc -l
    EXPECT: 1
-   EVIDENCE: PENDING
+   EVIDENCE: MET exit=0 marker-found :: 1
 5. shellcheck -x clean on every changed .sh (no new directive); make test green (manual, bun on PATH).
 
 ## FILE SCOPE
