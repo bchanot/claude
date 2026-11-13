@@ -52,10 +52,7 @@ Shared rules for every phase:
 
 ### BDR-125 residuals (after 3.0.0)
 Open children of the shipped phases (History 2026-11-12), text verbatim.
-- Phase 0 / 0b leftovers (extract-hardening 14a93e3, lib/project-rules.sh):
-    - [ ] `emit`: reuse `_rules_out_path_ok` (today `-e` only, a dangling link at the target is followed) and check the `mkdir -p` and `> "$2"` rc (today "emitted" rc 0 on a failed write).
-    - [ ] `extract` rewrite failure mid-`cat` (ENOSPC/EIO after the truncation of `$src`): keep `$tmp` and name it on stderr instead of `rm -f` (today "$src not rewritten" can be false, the two copies gone; onboarder S1 rollback covers the split path, not direct lib use).
-    - [ ] shortcut `_rules_out_path_ok`: the `..` check is lexical, a symlinked parent component (`.claude` or `.claude/rules` pointing elsewhere) is not resolved; upgrade = `cd -P` on the parent dir, compare with `$PWD` (no portable `realpath -m`).
+- Phase 0 / 0b leftovers: done 2026-11-13 (block H1, bugfix/project-rules-residuals 9d5530a, LRN-286): emit via `_rules_out_path_ok` + mkdir/write rc, extract keeps `$tmp` and `$out` on a rewrite failure, physical parent check (`cd -P`, `pwd -P`).
 - Phase 4a leftovers:
     - [ ] faunosteo: NOT upgraded (V1-2 active in another session's worktree; user: no write to develop or the V1-2 worktree). Patch prepared off-repo from V1-2 587cbb2 (rc 0, 520 lines, open BLK-008/009 unchanged); at integration re-run `memory.sh -C <faunosteo> upgrade` on the branch the user names rather than applying the stale patch. Stale clone `/home/bchanot/faunosteo` (main, 2026-07-01): left alone, user to decide.
   - [ ] BLK-038 residuals (gates 2026-10-30, non-blocking): v1 line echoed on stderr unfiltered (CWE-150 LOW, terminal control chars from a foreign registry; same as existing "upgrade lost" path); no fixture asserts the "wrote upgrade status" / "dated status line kept" messages; the real-data replay oracle lives in the session scratchpad (`up4a/realdata.sh`), not re-runnable: port to a `make` target over fixture copies if the upgrade is touched again; `memory.sh journal` leaves two blank lines before a new date heading on files ending with a blank line (commit-changer note).
