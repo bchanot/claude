@@ -16,6 +16,8 @@
 # flag overrides; to change packs, start another `cc <name> <profile>`.
 # Without a profile: manifest defaults + local settings, as before.
 # TMPDIR goes to ~/.cache/claude-tmp either way (BLK-021).
+# oom_score_adj is raised to 500 inside the session (BLK-044: sshd's -1000
+# is inherited), raise-only.
 # ============================================================
 
 _cc_name_ok() { [[ "$1" =~ ^[a-z0-9][a-z0-9-]*$ ]]; }
@@ -45,6 +47,8 @@ cc() {
     dtach -c "$HOME/.dtach/${name}" -e '^\' \
       bash -c 'set -a; [ -f "$HOME/.claude/.env" ] && . "$HOME/.claude/.env"
                set +a
+               [ "$(cat /proc/self/oom_score_adj 2>/dev/null)" -lt 500 ] \
+                 2>/dev/null && echo 500 2>/dev/null > /proc/self/oom_score_adj
                if [ -n "$CLAUDE_PROFILE_SETTINGS" ]; then
                  exec claude --settings "$CLAUDE_PROFILE_SETTINGS"
                fi
