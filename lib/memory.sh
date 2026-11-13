@@ -21,6 +21,8 @@
 #                 a blocker the v1 reader closed but the strict one reads
 #                 open gets a `Status (…, upgrade)` line only when its v1
 #                 line is a Status/Statut label holding one closed word;
+#                 an Index-row blocker or decision with no strict word takes
+#                 its one-word v1 body label over the Index cell;
 #                 a prose or mixed closure is named and refused (record
 #                 it with `status`, re-run); a `## Index` that is not a
 #                 table is refused (rc 2); the oracle (IDs, check,
