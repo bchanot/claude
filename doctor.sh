@@ -252,7 +252,7 @@ fi
 if command -v jq &>/dev/null; then
   pass "jq $(jq --version 2>/dev/null | sed 's/^jq-//')"
 else
-  fail "jq not found — statusline & rtk-rewrite hooks require it"
+  fail "jq not found: statusline, rtk-rewrite, code-limits and push-guard hooks require it"
 fi
 
 if command -v cargo &>/dev/null; then
