@@ -384,6 +384,7 @@ rules:
 - **Real cause**: unknown. Not set by the repo (`lib/cc.sh`, hooks: no OOMScoreAdjust). Suspects: inherited from launcher (dtach under `systemd-run --user --scope`, sshd, or the RC/remote-control process).
 - **Solution**: none yet. Next: trace `/proc/<pid>/oom_score_adj` up the parent chain of a live claude; then set `OOMScoreAdjust` (e.g. 500) on the `cc` scope so a claude runaway dies first.
 - **Status**: open 2026-11-06.
+- **Status (2026-11-13)**: resolved 6c10d3a: origin = /etc/systemd/system/ssh.service.d/override.conf OOMScoreAdjust=-1000 (root, 2026-09-22) inherited sshd → tmux → dtach → claude; scopes reject the property; lib/cc.sh inner bash raises /proc/self/oom_score_adj to 500 raise-only before exec claude (T7-oom). Live proof = a fresh cc session (user); the sshd override stays (user's call)
 
 ## BLK-045 — Hook-running test suites could reach real claude CLI: fail-open inline stubs, 3 suites unstubbed [resolved] (2026-11-06)
 
