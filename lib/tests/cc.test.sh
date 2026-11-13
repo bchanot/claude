@@ -3,7 +3,8 @@
 # list + rc 2, no session; a profile → claude --settings <fragment> with
 # CLAUDE_PROFILE / CLAUDE_PROFILE_SETTINGS / TMPDIR exported through
 # systemd-run + dtach; no profile → plain claude, TMPDIR still set; .env
-# sourced. Hermetic: PATH shims, HOME in a fixture holding .claude/lib.
+# sourced; oom_score_adj raised to 500 (raise-only).
+# Hermetic: PATH shims, HOME in a fixture holding .claude/lib.
 set -u
 unset CLAUDE_PROFILE CLAUDE_PROFILE_SETTINGS
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -31,7 +32,8 @@ cat > "$FX/bin/claude" <<'EOT'
 #!/usr/bin/env bash
 { echo "claude argv: $*"; echo "CLAUDE_PROFILE=${CLAUDE_PROFILE-unset}"
   echo "CLAUDE_PROFILE_SETTINGS=${CLAUDE_PROFILE_SETTINGS-unset}"
-  echo "TMPDIR=${TMPDIR-unset}"; echo "canary=${CC_ENV_CANARY-unset}"; } >> "$CC_LOG"
+  echo "TMPDIR=${TMPDIR-unset}"; echo "canary=${CC_ENV_CANARY-unset}"
+  echo "oom=$(cat /proc/self/oom_score_adj 2>/dev/null)"; } >> "$CC_LOG"
 EOT
 chmod +x "$FX/bin/"*
 # shellcheck source=lib/tests/claude-stub.sh
@@ -72,5 +74,7 @@ done
 
 printf 'CC_ENV_CANARY=1\n' > "$FX/home/.claude/.env"
 : > "$CC_LOG"; cc s4 webx; check_has T4-env "$(cat "$CC_LOG")" "canary=1"
+want=$(cat /proc/self/oom_score_adj); [ "$want" -lt 500 ] && want=500
+check_has T7-oom "$(cat "$CC_LOG")" "oom=$want"
 check T5-shellcheck "$(shellcheck "$ROOT/lib/cc.sh" >/dev/null 2>&1 && echo ok)" ok
 printf 'PASS=%s FAIL=%s\n' "$pass" "$fail"; [ "$fail" -eq 0 ]
