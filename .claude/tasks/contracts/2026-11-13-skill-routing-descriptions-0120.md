@@ -15,24 +15,25 @@ E2 (user decision 2026-11-12, block E: "lignes « Skill routing » → `descript
 1. Dropped lines gone from CLAUDE.global.md (r3 text is final); the two kept lines present; line count lower than develop's.
    CHECK: cd /home/bchanot/Documents/claude && echo $(grep -c 'gstack investigate only on explicit ask\|W3C + WCAG → web-validate' CLAUDE.global.md)$( [ $(wc -l < CLAUDE.global.md) -lt $(git show develop:CLAUDE.global.md | wc -l) ] && echo LT)
    EXPECT: 2LT
-   EVIDENCE: PENDING
-1b. Dropped lines absent.
+   EVIDENCE: MET exit=0 marker-found :: 2LT
+6. Dropped lines absent (was 1b: gates.sh accepts integer labels only).
    CHECK: cd /home/bchanot/Documents/claude && echo $(grep -c 'distinguished by file count\|Grouped all-axes sweep\|Open-work inventory\|Before /clear or /compact\|Bug / error / 500' CLAUDE.global.md)
    EXPECT: 0
-   EVIDENCE: PENDING
+   EVIDENCE: MET exit=0 marker-found :: 0
 2. bugfix and ship-feature descriptions gain the r3 triggers.
    CHECK: cd /home/bchanot/Documents/claude && echo $(grep -c '"stack trace + fix"' skills/bugfix/SKILL.md)$(grep -c '"ship this feature"' skills/ship-feature/SKILL.md)
    EXPECT: 11
-   EVIDENCE: PENDING
+   EVIDENCE: MET exit=0 marker-found :: 11
 3. Census + skill frontmatter suites green.
    CHECK: cd /home/bchanot/Documents/claude && bash lib/tests/doctrine-citers.test.sh 2>&1 | tail -1
    EXPECT: FAIL=0
-   EVIDENCE: PENDING
+   EVIDENCE: MET exit=0 marker-found :: PASS=23 FAIL=0
 4. make test green (manual, bun on PATH); skill-routing-census no new WARN/FAIL.
+   (manual: run 2026-11-13 on the feater diff, `PATH=$HOME/.bun/bin:$PATH make test` → "SUITE: all GREEN / all suites green", rc=0; skill-routing-census PASS=6 FAIL=0, WARN count 136 = E1 baseline)
 5. Both frontmatters parse as YAML.
    CHECK: cd /home/bchanot/Documents/claude && python3 -I -c 'import yaml,sys; [yaml.safe_load(open(f).read().split("---")[1]) for f in sys.argv[1:]]; print("YAML-OK")' skills/bugfix/SKILL.md skills/ship-feature/SKILL.md
    EXPECT: YAML-OK
-   EVIDENCE: PENDING
+   EVIDENCE: MET exit=0 marker-found :: YAML-OK
 
 ## FILE SCOPE
 CLAUDE.global.md (§ Skill routing), skills/bugfix/SKILL.md (frontmatter), skills/ship-feature/SKILL.md (frontmatter). README/USAGE routing mirrors → STEP 6 doc sync.

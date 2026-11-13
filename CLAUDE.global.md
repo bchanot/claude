@@ -268,28 +268,23 @@ Skills route by name: match the request to the skill whose description
 fits. Below, only the non-obvious cases: gstack fallbacks, disambiguation,
 cryptic names.
 - Product idea, "worth building?" → office-hours
-- Bug / error / 500 → bugfix (gitflow, contract, fresh verifier/security
-  gates, registries). investigate only on explicit ask for the gstack
-  ecosystem (cross-project learnings, /freeze, long open-ended investigation)
-- feat / hotfix / bugfix distinguished by file count → see descriptions
-- Ship / PR → ship-feature (never gstack ship: it takes `origin/HEAD` =
-  main as base and skips develop); deploy → deploy (runbook, the user
-  runs it)
+- gstack investigate only on explicit ask: bug, error, 500 → bugfix (contract,
+  verifier and security gates, registries). gstack ship is retired (BDR-105):
+  ship / PR → ship-feature; deploy → deploy (runbook, the user runs it)
 - Docs post-ship → document-release (doc if gstack off); stale-doc audit → doc
-- Grouped all-axes sweep ("tir groupé", fix + loop until clean) → tour
-- Open-work inventory / "queue empty?" / stale TODO vs git → reconcile
 - Design / UI (build, system, audit, polish) → Read
   `~/.claude/rules/web-building.md` § "Design work" first
 - Architecture review → plan-eng-review
-- Before /clear or /compact → capitalize; end-of-session ritual → close
 - superpowers skills are vendored, called by bare name; an upstream
   `superpowers` prefix names the same skill. Not vendored here:
   executing-plans → subagent-driven-development
   finishing-a-development-branch → `gitflow finish` (human signal)
   systematic-debugging → bugfix
   verification-before-completion → the verifier gates
-- SEO+GEO → seo (GEO only → geo); W3C + WCAG conformance → web-validate;
-  security audit (secrets, CVE, OWASP) → cso
+- SEO+GEO → seo (GEO only → geo); W3C + WCAG → web-validate. Pack off →
+  propose `profile.sh enable seo` (seo, geo) or `enable web-validate`, the
+  user runs `/reload-plugins`; else say so. Security audit (secrets, CVE,
+  OWASP) → cso
 - Media generation (image, video, audio, brand kit), explicit ask →
   pack-higgsfield, off by default: `bash ~/.claude/lib/profile.sh enable
   higgsfield` then `/reload-plugins`, then Read the skill under
@@ -297,9 +292,9 @@ cryptic names.
   before a paid run. Landing page "with Higgsfield", named ask → the same
   pack's `higgsfield-websites`: an aid inside the Design work rules
   (`rules/web-building.md`), never `website create|deploy|publish`.
-gstack packs OFF (`profile.sh current`) → their skills (investigate, qa,
-review, health, retro, office-hours…) are gone: use the fallback above,
-else say so.
+gstack or other packs OFF (`profile.sh current`) → their skills (investigate,
+qa, review, health, retro, office-hours, seo, web-validate…) are gone: use the
+fallback our skills' descriptions or the lines above name, else say so.
 
 ## graphify
 
