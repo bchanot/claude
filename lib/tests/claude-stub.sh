@@ -14,7 +14,8 @@ stub_first_or_die() {
 }
 
 # claude_stub_install <work-dir>: stub in <work-dir>/stub, log in
-# <work-dir>/claude.log, PATH and GIT_CEILING_DIRECTORIES exported
+# <work-dir>/claude.log (path read by the stub from CLAUDE_STUB_LOG), PATH,
+# CLAUDE_STUB_LOG and GIT_CEILING_DIRECTORIES exported
 claude_stub_install() {
   local dir
   if [ -z "${1:-}" ] || [ ! -d "$1" ]; then
@@ -25,8 +26,11 @@ claude_stub_install() {
   CLAUDE_LOG="$dir/claude.log"
   : >"$CLAUDE_LOG" || exit 1
   mkdir -p "$dir/stub" || exit 1
-  printf '#!/bin/sh\necho "$*" >>"%s"\n' "$CLAUDE_LOG" \
-    >"$dir/stub/claude" || exit 1
+  export CLAUDE_STUB_LOG="$CLAUDE_LOG"
+  cat >"$dir/stub/claude" <<'EOF' || exit 1
+#!/bin/sh
+echo "$*" >>"$CLAUDE_STUB_LOG"
+EOF
   chmod +x "$dir/stub/claude" || exit 1
   export PATH="$dir/stub:$PATH"
   stub_first_or_die claude "$dir/stub/claude"

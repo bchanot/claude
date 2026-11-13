@@ -81,5 +81,25 @@ echo short >> "$WORK/ours/sub/t.sh"
 x="$(jq -n --arg c "$(cat "$WORK/ours/sub/t.sh")" '{content:$c}')"
 check T15-symlinked-dir-tracked "$(fire "$WORK/link/t.sh" s10 "$x")" ""
 
+# T16: state dir is 700; a pre-planted symlink dir gets no signal, no write
+(umask 022; fire "$WORK/ours/new.ts" s11 "$x" >/dev/null)
+check T16-dir-mode-700 "$(find "$TMPDIR/claude-code-limits-s11" \
+  -maxdepth 0 -type d -perm 700 | wc -l | tr -d ' ')" 1
+mkdir "$WORK/sink"
+ln -s "$WORK/sink" "$TMPDIR/claude-code-limits-s12"
+printf '%s\n' "$big" > "$WORK/ours/sym.ts"
+x="$(jq -n --arg c "$big" '{content:$c}')"
+check T16-symlink-dir-silent "$(fire "$WORK/ours/sym.ts" s12 "$x")" ""
+n="$(find "$WORK/sink" -mindepth 1 | wc -l | tr -d ' ')"
+check T16-symlink-no-write "$n" 0
+
+# a pre-existing 755 dir owned by us: no signal, no write
+mkdir "$TMPDIR/claude-code-limits-s13"
+chmod 755 "$TMPDIR/claude-code-limits-s13"
+printf '%s\n' "$big" > "$WORK/ours/open.ts"
+check T16-755-dir-silent "$(fire "$WORK/ours/open.ts" s13 "$x")" ""
+check T16-755-no-write "$(find "$TMPDIR/claude-code-limits-s13" \
+  -mindepth 1 | wc -l | tr -d ' ')" 0
+
 printf 'PASS=%d FAIL=%d\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
