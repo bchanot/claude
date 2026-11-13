@@ -24,7 +24,9 @@ $ARGUMENTS
 ## STEP 0 — PLUGIN CHECK + AUTO-ACTIVATE
 Run `$HOME/.claude/lib/plugin-gate.md`. Feed request (dispatch plugin-probe →
 checkpoint → dispatch plugin-advisor; gates stay in this loop — BDR-077).
-- ACTION REQUIRED → show RECOMMENDATIONS block, offer: A) fix plugins B) type "force". STOP.
+- ACTION REQUIRED → show RECOMMENDATIONS block, offer: A) fix plugins
+  (print "run `make plugin` in your claude-config checkout", run nothing)
+  B) type "force". STOP.
 - PROPOSED CHANGES exist → show list, ask "Apply? (yes / no / customize)". Apply on confirm.
 - OK → `✅ Plugin check passed — [active plugins] — complexity: <score>%`, continue.
 

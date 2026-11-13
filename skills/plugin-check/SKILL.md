@@ -13,9 +13,13 @@ dispatched, gates in this loop).
 
 /plugin-check is READ-ONLY advisory: SKIP the gate's step 5 (apply) — show
 the commands the main loop builds from the gate's step-5 templates (`set` /
-`enable` / `disable`, with `-C "<PROJECT_ROOT>"`), after the gate's token
-check, for the user instead. Never write: the user runs them (`lib/profile.sh` `set <profile>` / `enable <pack>` writes the
-project's `.claude/settings.local.json`, never the user scope).
+`enable` / `disable`, with `-C '<PROJECT_ROOT>'`), after the gate's token
+check, for the user instead. A PROJECT_ROOT holding `'`, a newline or a
+control character is never substituted: print the commands with the root shown as `'<root>'` and a warning that
+the user must quote it by hand, run nothing.
+Never write: the user runs them
+(`lib/profile.sh` `set <profile>` / `enable <pack>` writes the project's
+`.claude/settings.local.json`, never the user scope).
 
 If `$HOME/.claude/lib/plugin-gate.md` unreachable: emit `Plugin gate include
 missing.` and STOP.

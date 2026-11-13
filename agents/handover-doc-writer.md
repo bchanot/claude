@@ -18,6 +18,9 @@ parent already resolved:
 - `LANG` — output language (`fr` | `en`).
 - `PROJECT` — name, root, type, sub-type, `is_local_business`,
   `deployed_url`, period (first commit → last commit).
+- `PROJECT_ROOT` — the project root on its own line, `PROJECT_ROOT: <path>`.
+  Read it whole-line (a path may hold spaces); every git and file read
+  below is rooted on it.
 - `SCORES` — seo / geo / harden / validate (web) or cso (non-web) —
   before & after values, each with pass-status and any code-ceiling
   note. Source of truth for §2 — do not recompute.
@@ -52,8 +55,8 @@ The parent dispatches this agent TWICE, with the FULL PACKAGE both times
 - **`MODE: synthesize`** — dispatched with `model: "opus"` (judgment tier;
   call-site override over the sonnet pin). Runs STEP 9 → 10 → 12 and writes
   the chapters (§1-§6 full, §7/§8 stubs) into the RUN-SCOPED DRAFT
-  `.audit/handover-draft-<RUNID>.md`, ending the file with the line
-  `DRAFT COMPLETE — RUNID: <RUNID>`. Then emits a `SYNTH REPORT`
+  `"${ROOT:?}/.audit/handover-draft-<RUNID>.md"`, ending the file with
+  the line `DRAFT COMPLETE — RUNID: <RUNID>`. Then emits a `SYNTH REPORT`
   (template below, `MEMORY:` line mandatory on DONE) and STOPS — STEP 13-16, the final MD, HTML and PDF are NEVER
   this mode's job.
 - **`MODE: render`** — runs on its sonnet row (frontmatter = off-state floor). FIRST loads the
@@ -79,9 +82,23 @@ MEMORY: unreadable BLK: <IDs comma-separated | none> | no blockers file | reader
 
 ## STEP 9 — LOAD MEMORY REGISTRIES
 
+The PACKAGE `PROJECT_ROOT` value pasted between the markers below is
+exactly one line with no control character, checked BEFORE the paste: a
+value holding a newline or a control character → `STATUS: BLOCKED`
+before any Bash call (the block cannot see a newline, `read -r` keeps
+only the first line and a line equal to `ROOT_END` would close the
+heredoc).
+
 ```bash
-ROOT="<PROJECT root from the PACKAGE>"
-MEMORY_DIR="$ROOT/.claude/memory"
+# Whole-line read of the PACKAGE `PROJECT_ROOT: <path>` value (spaces kept,
+# nothing expanded): replace the placeholder line with the path, never
+# paste it into a double-quoted literal. This block opens EVERY Bash call
+# that uses $ROOT (the shell keeps no state between calls).
+IFS= read -r ROOT <<'ROOT_END'
+<PROJECT root from the PACKAGE>
+ROOT_END
+case "$ROOT" in *[[:cntrl:]]*) echo "ROOT_UNSAFE"; exit 1 ;; esac
+MEMORY_DIR="${ROOT:?}/.claude/memory"
 test -d "$MEMORY_DIR" || MEMORY_DIR=""
 # Blocker statuses through the shared reader (BDR-129): never parsed by hand.
 B="$MEMORY_DIR/blockers.md"
@@ -95,6 +112,21 @@ Rows `ID<TAB>open<TAB>word` are the open blockers for §5. Rows
 SYNTH REPORT `MEMORY:` line. `blockers: no-file` → no blocker in §5,
 `MEMORY: no blockers file`. `blockers: reader-unavailable` → no blocker
 in §5, `MEMORY: reader unavailable`.
+
+Decision statuses come from the same shared reader, never from the
+entry prose:
+
+```bash
+bash "$HOME/.claude/lib/memory.sh" -C "${ROOT:?}" index decision
+```
+
+Only BDRs whose current word is `accepted`, `implemented` or `proposed`
+feed §6.1; `superseded` and `deprecated` ones are left out. A decision
+whose word is empty is counted as unreadable, not dropped silently.
+
+A `ROOT_UNSAFE` print (the first line of the root holds a control
+character) or a pre-paste refusal (see above) → `STATUS: BLOCKED` naming
+the PACKAGE `PROJECT_ROOT` field.
 
 If memory dir exists, read each file in full for the narrative fields
 (titles, decisions, why, alternatives, cause, solution, journal
@@ -116,22 +148,29 @@ final report that memory was unavailable.
 
 ## STEP 10 — GIT HISTORY SUMMARY
 
+Every git command is rooted on the PACKAGE root (`$ROOT`, STEP 9), never
+on the working directory:
+
 ```bash
-git log --reverse --format='%h|%aI|%an|%s' | head -200
-git log --name-only --format='---COMMIT---' | grep -v '^---' | sort -u | head -50
+git -C "${ROOT:?}" log --reverse --format='%h|%aI|%an|%s' | head -200
+git -C "${ROOT:?}" log --name-only --format='---COMMIT---' \
+  | grep -v '^---' | sort -u | head -50
 
-git log --diff-filter=A --name-only --format='' | sort -u | wc -l   # added
-git log --diff-filter=M --name-only --format='' | sort -u | wc -l   # modified
-git log --diff-filter=D --name-only --format='' | sort -u | wc -l   # deleted
+git -C "${ROOT:?}" log --diff-filter=A --name-only --format='' \
+  | sort -u | wc -l   # added
+git -C "${ROOT:?}" log --diff-filter=M --name-only --format='' \
+  | sort -u | wc -l   # modified
+git -C "${ROOT:?}" log --diff-filter=D --name-only --format='' \
+  | sort -u | wc -l   # deleted
 
-git tag --sort=-creatordate | head -5
+git -C "${ROOT:?}" tag --sort=-creatordate | head -5
 ```
 
 Cluster commits into 3-7 chronological phases based on commit message
 themes. Do this **inline**, yourself — this agent has no `Agent` tool,
 so there is no sub-agent to delegate to, regardless of project size.
-For projects with 200+ commits, read the full `git log --reverse
---format='%h|%aI|%s'` output and group it by theme directly. For each
+For projects with 200+ commits, read the full `git -C "${ROOT:?}" log
+--reverse --format='%h|%aI|%s'` output and group it by theme directly. For each
 phase: name, commit count, 2-line summary. Do NOT include dates or date
 ranges — the client document does not render them.
 
@@ -339,7 +378,8 @@ End with two callouts:
 ## 5. Ce qui vous reste à faire
 
 [Action-only checklist for the client. Pull from:
-**`.claude/audits/HUMAN-ACTIONS.md` FIRST when present** (the /seo//geo
+**`"${ROOT:?}/.claude/audits/HUMAN-ACTIONS.md"` FIRST when present**
+(the /seo//geo
 audit-end checklist — carry its automation notes, vulgarized), then open
 blockers from STEP 9 (unreadable ones excluded), ongoing-monitoring items, external platforms to
 claim, content updates only the client can make, deploy steps if
@@ -419,10 +459,14 @@ visibilité."]
 
 ### 6.1 Choix techniques importants
 
-[Vulgarize 3–7 BDR entries. Design, framework, security, hosting
-decisions the client would care about. One paragraph each:
-what was chosen, why over the alternative, what it changes for the
-client. Drop entries the client cannot act on or care about.]
+[Vulgarize 3–7 BDR entries whose STEP 9 status is accepted,
+implemented or proposed (superseded and deprecated ones stay out).
+Design, framework, security, hosting decisions the client would care
+about. One paragraph each: what was chosen, why over the alternative,
+what it changes for the client. Drop entries the client cannot act on
+or care about. Close §6.1 with one method sentence: superseded and
+deprecated decisions are left out, and "status unreadable (n)" counts those with
+an empty status word.]
 
 ### 6.2 Comment on en est arrivé là (phases)
 
@@ -503,7 +547,7 @@ des audits de santé. Pour toute question, contactez [contact].*
 ---
 
 > **MODE BOUNDARY.** STEP 12 is the last synthesize-mode step: write the
-> drafted chapters to `.audit/handover-draft-<RUNID>.md` (+ the
+> drafted chapters to `"${ROOT:?}/.audit/handover-draft-<RUNID>.md"` (+ the
 > `DRAFT COMPLETE — RUNID: <RUNID>` terminal line), emit the SYNTH
 > REPORT, stop. Everything below (STEP 13-16) is `MODE: render` and
 > operates ON that draft.

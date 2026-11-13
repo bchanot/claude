@@ -214,14 +214,17 @@ RULE: IF "simple" OR "hotfix":
   → recommend the lightweight skill only (see Skill routing by task size); a REQUEST-only
     signal drives no SET and no DISABLE (both are project-wide, persistent)
 
-RULE: IF "embedded" signal (firmware, bare-metal, microcontroller, or Makefile+C without Node/Rust/Go):
-  → all packs off (profile `minimal`)
+RULE: IF "embedded" signal from a project-level probe (`platformio.ini`, linker script, or Makefile+C without Node/Rust/Go):
+  → all packs off (profile `minimal`, `↻ SET : minimal`)
   → superpowers skills stay on (vendored, no toggle): useful for initial
     design brainstorm on complex drivers, unnecessary for single-function
     patches; just don't invoke them, no disable needed
   → GSD CLI: not recommended (sessions are short, tasks are atomic)
   → Recommend workflow: /analyze <file> → /hotfix (patch) or /bugfix (investigation) or /ship-feature (multi-file)
   → NOTE: print "embedded project detected — minimal plugin footprint recommended"
+
+RULE: IF "embedded" keywords appear in the REQUEST only (firmware, bare-metal, microcontroller, driver, kernel…), no project-level probe:
+  → NOTE only, no SET and no DISABLE (both are project-wide, persistent)
 
 RULE: IF `browser-qa` signal (e2e tests, Playwright/Cypress/Puppeteer in deps):
   → pack gstack-browser ON — browser automation and QA
@@ -260,7 +263,7 @@ the command. Never write files directly.
 | one pack off | — | `⚠️ DISABLE : … — disable <pack or full plugin id>` |
 
 `<pack>` is one of design, scroll3d, seo, web-validate, gstack-dev,
-gstack-browser, gstack-design, higgsfield, extras. Managed plugins take
+gstack-browser, gstack-design, higgsfield. Managed plugins take
 their full id, never the bare name: `ui-ux-pro-max@ui-ux-pro-max-skill`,
 `pr-review-toolkit@claude-code-plugins`.
 
@@ -278,7 +281,7 @@ generation service; explicit user ask only (CLAUDE.md "Skill routing").
 
 ## BLOCK if
 
-- Superpowers skills missing → `make plugin` (vendors them) then `make link`
+- Superpowers skills missing → run `make plugin` in your claude-config checkout (vendors them) then `make link`
 
 ## WARN (no block)
 
@@ -286,7 +289,7 @@ generation service; explicit user ask only (CLAUDE.md "Skill routing").
 - Multi-session feature + `gsd` CLI not installed → `npm install -g gsd-pi`
 - **Next.js/React 18+/Prisma/Supabase detected + context7 not configured**
   → Risk: Claude may generate code using outdated APIs (App Router changes frequently)
-  → Fix: `npm install -g ctx7` (`make plugin` from the claude-config repo pins the version and wires find-docs)
+  → Fix: `npm install -g ctx7` (`make plugin` in your claude-config checkout installs ctx7 (latest, plugins.lock.json pins `latest`) and wires find-docs)
   → Or standalone: `ctx7 docs /vercel/next.js "middleware"`
   → Free higher rate limits: `ctx7 login` (OAuth) or API key from context7.com/dashboard
   → Type "force" to proceed without context7 (not recommended for fast-evolving libs)

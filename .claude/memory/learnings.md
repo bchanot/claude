@@ -1380,6 +1380,7 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Future application**: untracking any generated file — know regeneration command BEFORE merging, `ls` the path right after `finish`. If nothing regenerates it, keep it tracked.
 - **graphify specifics**: `graphify install --platform claude` copies the skill and touches nothing else. `graphify claude install` is a different command — it writes the CLAUDE.md section and the `.claude/settings.json` hooks, rewrites both guarded configs, and does NOT copy the skill. Confusing the two wastes a recovery attempt.
 - **Reference**: `CLAUDE.md` machine-owned section, commit 80ccdaf. Links [[BDR-090]].
+- **Status (2026-11-13)**: superseded in part 2026-11-13 (77041e5): graphifyy 0.9.67 'graphify install --platform claude' appends a # graphify block to ~/.claude/CLAUDE.md and a hook; install-plugins.sh's EXIT trap reverts both; 'touches nothing else' is wrong
 
 ## LRN-155 — `permissions.ask` under auto mode: the probe beats the doc
 - **Date**: 2026-09-16

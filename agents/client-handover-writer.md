@@ -106,7 +106,9 @@ ROUTING: follow $HOME/.claude/lib/effort-shift.md (phases via mcp__model-router_
 git rev-parse --is-inside-work-tree 2>/dev/null || { echo "NOT_GIT_REPO"; exit 1; }
 
 # Project root
-PROJECT_ROOT=$(git rev-parse --show-toplevel)
+# Sentinel keeps a trailing newline that $(...) would strip
+PROJECT_ROOT=$(git rev-parse --show-toplevel; printf x)
+PROJECT_ROOT=${PROJECT_ROOT%x}; PROJECT_ROOT=${PROJECT_ROOT%$'\n'}
 cd "$PROJECT_ROOT"
 
 # First commit (the start of the project)
@@ -123,6 +125,9 @@ PIPELINE_BASE_SHA=$(git rev-parse HEAD)
 ```
 
 If not in a git repo: stop and report `STATUS: BLOCKED — not a git repository`.
+A `PROJECT_ROOT` holding a newline or control character (`case
+"$PROJECT_ROOT" in *[[:cntrl:]]*`) → `STATUS: BLOCKED` before anything
+is written, the PACKAGE line cannot carry it.
 
 ---
 
@@ -1110,6 +1115,10 @@ it, don't recompute) or resolved in 9.1–9.5:
   `is_local_business` (`IS_LOCAL_BUSINESS`), `deployed_url`
   (`DEPLOYED_URL`), `period` (`FIRST_COMMIT_DATE` → `LAST_COMMIT_DATE`,
   reformatted DD/MM/YYYY).
+- `PROJECT_ROOT` — its own line `PROJECT_ROOT: <path>`, the STEP 1
+  `PROJECT_ROOT` verbatim (the `PROJECT` line is space-separated and
+  mis-parses a root holding a space; the doc-writer reads this line
+  whole).
 - `SCORES` — `SCORE_SEO_BEFORE/AFTER`, `SCORE_GEO_BEFORE/AFTER`,
   `SCORE_HARDEN_BEFORE/AFTER`, `SCORE_VALIDATE_AFTER` (web) or
   `SCORE_CSO_BEFORE/AFTER` (non-web), each with the pass-status and
@@ -1136,7 +1145,7 @@ contract.
 Dispatch the two-mode pipeline (BDR-077 — synthesis on opus, render on the
 sonnet pin, full PACKAGE both times per LRN-126). Mint a RUNID first
 (`RUNID=$(date +%s)`); the draft crosses via the run-scoped, gitignored
-`.audit/handover-draft-<RUNID>.md`; clean it after 9.7.
+`"${PROJECT_ROOT:?}/.audit/handover-draft-<RUNID>.md"`; clean it after 9.7.
 
 FIRST — synthesize:
 
@@ -1163,6 +1172,7 @@ prompt: "MODE: render
 RUNID: <RUNID>
 PACKAGE:
 LANG: <LANG>
+PROJECT_ROOT: <PROJECT_ROOT>
 PROJECT: name=<name> root=<root> type=<type> sub-type=<sub-type>
   is_local_business=<bool> deployed_url=<url> period=<first→last>
 SCORES: seo=<before→after,status> geo=<before→after,status>
@@ -1199,8 +1209,9 @@ Parse the returned `HANDOVER-DOC REPORT`:
   add the bullet:
   - Memory: <value>
   For unreadable IDs, give the remedy: `bash ~/.claude/lib/memory.sh -C
-  <root> status <ID> "<word>, …"` (a status word, e.g. resolved or
-  open), then re-run.
+  '<root>' status <ID> "<word>, …"` (a status word, e.g. resolved or
+  open), then re-run. A root holding `'` → print the remedy with a
+  warning that the path needs manual quoting, never run it.
 - `STATUS: BLOCKED` → surface the report verbatim (including which
   PACKAGE field the doc-writer flagged) and stop — do not retry or
   patch the PACKAGE silently. Re-run PUSH STATE READ and add the same
@@ -1208,5 +1219,5 @@ Parse the returned `HANDOVER-DOC REPORT`:
   - Push: <state>
 
 In BOTH branches, then clean the transient draft:
-`rm -f ".audit/handover-draft-${RUNID}.md"` (run-scoped, gitignored —
-cleanup keeps `.audit/` from accumulating stranded drafts).
+`rm -f "${PROJECT_ROOT:?}/.audit/handover-draft-${RUNID}.md"` (run-scoped,
+gitignored — cleanup keeps `.audit/` from accumulating stranded drafts).

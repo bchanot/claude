@@ -308,8 +308,9 @@ else
 fi
 # NOT updated here, deliberately (audit 2026-07-02):
 # - graphify Claude integration (`graphify claude install`): rewrites curated
-#   CLAUDE.md / .claude/settings.json (BDR-028 guard territory) — re-run
-#   MANUALLY only if a graphify upgrade changes its hook format.
+#   CLAUDE.md / .claude/settings.json (BDR-028 guard territory) — run
+#   `make plugin` in your claude-config checkout (its exit trap reverts the
+#   drift); never run `graphify claude install` by hand.
 # - gsd: pinned in plugins.lock.json — Step 4 reinstalls the PIN, it does not
 #   advance it. Bump the lock deliberately, then re-run.
 

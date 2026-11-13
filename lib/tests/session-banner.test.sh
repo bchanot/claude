@@ -163,8 +163,8 @@ check SB10-gate-vocab "$(gone lib/plugin-gate.md \
   'Pre-fetch ctx7|Enable ui-ux-pro-max \(')" 1
 gate="$(cat "$ROOT/lib/plugin-gate.md")"
 check SB10-gate-diff "$(has "$gate" 'profile.sh" -C')" 1
-check SB10-gate-diff2 "$(has "$gate" 'diff "<profile>"')" 1
-check SB10-gate-root "$(has "$gate" 'rev-parse --show-toplevel')" 1
+check SB10-gate-diff2 "$(has "$gate" "diff '<profile>'")" 1
+check SB10-gate-root "$(has "$gate" '--git-common-dir')" 1
 check SB10-gate-rejected "$(has "$gate" 'rejected')" 1
 check SB10-gate-quoted "$(gone lib/plugin-gate.md '-C <PROJECT_ROOT>')" 1
 check SB10-advisor-fullid "$(has "$(cat "$ROOT/agents/plugin-advisor.md")" \

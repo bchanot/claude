@@ -37,8 +37,8 @@
 # and the statusline (supersedes `show --plain`, BDR-024).
 #
 # Exit: 0 ok · 2 usage, unknown profile or pack, not a project root (no
-#       CLAUDE.md and no .git), unreadable or invalid local JSON; nothing
-#       is written on any refusal.
+#       CLAUDE.md and no .git), refusing $HOME as the project root,
+#       unreadable or invalid local JSON; nothing is written on any refusal.
 # ============================================================
 set -euo pipefail
 
@@ -70,6 +70,12 @@ home_or_above() { # $1 dir
   case "$HOME/" in "$1"/*) return 0 ;; esac
   return 1
 }
+is_home() { # $1 dir: same physical dir as $HOME (symlinks resolved)
+  local d h
+  d="$(cd -P "$1" 2>/dev/null && pwd -P)" || return 1
+  h="$(cd -P "$HOME" 2>/dev/null && pwd -P)" || return 1
+  [ "$d" = "$h" ]
+}
 git_root() { # $1 dir → parent of the git common dir, unless $HOME or above
   local common root
   common="$(git -C "$1" rev-parse --path-format=absolute --git-common-dir \
@@ -82,7 +88,7 @@ git_root() { # $1 dir → parent of the git common dir, unless $HOME or above
 find_root() { # $1 dir → the project root (see header)
   local d="$1"
   git_root "$d" && return 0
-  while [ "$d" != / ] && [ "$d" != "$HOME" ]; do
+  while [ "$d" != / ] && ! is_home "$d"; do
     if [ -d "$d/.claude" ] || [ -f "$d/CLAUDE.md" ] || [ -e "$d/.git" ]; then
       echo "$d"; return 0
     fi
@@ -91,6 +97,7 @@ find_root() { # $1 dir → the project root (see header)
   echo "$1"
 }
 require_project_root() {
+  is_home "$PROJECT" && die "refusing \$HOME as the project root: $PROJECT"
   [ -f "$PROJECT/CLAUDE.md" ] || [ -e "$PROJECT/.git" ] \
     || die "not a project root (no CLAUDE.md and no .git): $PROJECT"
 }

@@ -34,7 +34,7 @@
     "source": "pypi:graphifyy",
     "version": "latest",
     "managed_by": "pipx",
-    "note": "Codebase knowledge graph. CLI is 'graphify'. Install: pipx install graphifyy && graphify install && graphify claude install. Adds PreToolUse hook for Glob/Grep. pipx/PyPI ONLY — never npm/npx: a different publisher (rhanka/graphify) squats the same 'graphifyy' name on npm, a version-shadowing shim with its own conflicting 'graphify' bin."
+    "note": "Codebase knowledge graph. CLI is 'graphify'. Install: `make plugin` (pipx install graphifyy, then graphify install and graphify claude install; the installer's exit trap reverts the CLAUDE.md block and PreToolUse hook it writes into the repo). pipx/PyPI ONLY — never npm/npx: a different publisher (rhanka/graphify) squats the same 'graphifyy' name on npm, a version-shadowing shim with its own conflicting 'graphify' bin."
   },
   "semgrep": {
     "source": "pypi:semgrep",
