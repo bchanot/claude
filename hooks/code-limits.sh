@@ -88,7 +88,11 @@ main() {
   [ -n "$(field .tool_input.new_string)" ] && export CL_EDIT=1
   dir="${TMPDIR:-/tmp}/claude-code-limits-$sid"
   mark="$dir/$(hash16 "$file")"
-  [ "$mark" != "$dir/" ] && mkdir -p "$dir" 2>/dev/null || return 0
+  [ "$mark" != "$dir/" ] || return 0
+  # mkdir success is atomic proof the dir is ours; else accept only an
+  # owned 700 dir (find does not follow a symlink operand)
+  mkdir -m 700 "$dir" 2>/dev/null || [ -n "$(find "$dir" -maxdepth 0 \
+    -type d -user "$(id -u)" -perm 700 2>/dev/null)" ] || return 0
   [ -e "$mark" ] && return 0
   is_ours "$file" "$dir" || return 0
   hits="$(over_lines "$file")"

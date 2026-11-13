@@ -36,6 +36,17 @@ elif [ -t 0 ]; then
   _ss_digest=1
 fi
 
+# ── Bounded runner: timeout, else gtimeout, else perl alarm (stock macOS) ──
+# perl execs the command, so the child is the same process alarm kills.
+_SS_TMO=()
+for _ss_t in timeout gtimeout; do
+  command -v "$_ss_t" >/dev/null 2>&1 && { _SS_TMO=("$_ss_t" 2); break; }
+done
+if [ ${#_SS_TMO[@]} -eq 0 ] && command -v perl >/dev/null 2>&1; then
+  _SS_TMO=(perl -e "alarm shift; exec { \$ARGV[0] } @ARGV" 2)
+fi
+unset _ss_t
+
 # ── Quick health check (filesystem only, no subprocesses) ──
 BROKEN=()
 for f in CLAUDE.md settings.json agents skills rules; do
@@ -167,12 +178,13 @@ ALWAYS_ON=()
 detect_rtk &>/dev/null && ALWAYS_ON+=("rtk")
 _toggle_owned=" gstack ui-ux-pro-max context7 graphify "
 while IFS= read -r _pl; do
+  _pl="${_pl%%@*}"
   [ -n "$_pl" ] || continue
   case "$_toggle_owned" in
     *" $_pl "*) : ;;
     *) ALWAYS_ON+=("$_pl") ;;
   esac
-done < <(sed 's/@.*//' <<<"$(list_on_plugins)")
+done < <(list_on_plugins)
 unset _toggle_owned _pl
 ALWAYS_ON_STR="${ALWAYS_ON[*]:-none}"
 # 40-char width, greedy split: keeps the right border aligned on overflow
@@ -248,14 +260,12 @@ fi
 _mem_lib="$(dirname "${BASH_SOURCE[0]}")/../lib/memory.sh"
 if [ -f "$_mem_lib" ] && [ -d .claude/memory ]; then
   # a hung memory.sh must not stall every session start
-  _ss_tmo=()
-  command -v timeout >/dev/null 2>&1 && _ss_tmo=(timeout 2)
-  _v1=$("${_ss_tmo[@]}" bash "$_mem_lib" check .claude/memory 2>&1 >/dev/null \
+  _v1=$("${_SS_TMO[@]}" bash "$_mem_lib" check .claude/memory 2>&1 >/dev/null \
     | grep -c '^memory: v1:' || true)
   if [ "${_v1:-0}" -gt 0 ]; then
     printf "│  ⚠️  %-44s│\n" "registry v1: ${_v1} file(s) (memory.sh check)"
   fi
-  unset _v1 _ss_tmo
+  unset _v1
 fi
 unset _mem_lib
 
@@ -306,9 +316,7 @@ _digest_cut() {
 
 # Open BLK (≤ 3 listed, the rest counted) and upstream count, as digest lines.
 _digest_blockers() {  # <root> <memory.sh>
-  local row line rest status title open=0 upstream=0 more="" tmo=()
-  # a hung memory.sh must not stall every session start
-  command -v timeout >/dev/null 2>&1 && tmo=(timeout 2)
+  local row line rest status title open=0 upstream=0 more=""
   while IFS= read -r row; do
     [[ "$row" == "| BLK-"* ]] || continue
     line="${row#| }"; line="${line% |}"
@@ -320,7 +328,7 @@ _digest_blockers() {  # <root> <memory.sh>
         [ "$open" -le 3 ] && echo "- open: ${line%% | *} $title" ;;
       upstream) upstream=$((upstream + 1)) ;;
     esac
-  done < <("${tmo[@]}" bash "$2" -C "$1" index blocker 2>/dev/null)
+  done < <("${_SS_TMO[@]}" bash "$2" -C "$1" index blocker 2>/dev/null)
   [ "$open" -gt 3 ] && more="+$((open - 3)) more"
   [ "$upstream" -gt 0 ] && more="${more:+$more, }+${upstream} upstream"
   [ -n "$more" ] && echo "- open: $more"
@@ -411,9 +419,8 @@ _memory_digest() {  # <project-root>
 if [ "$_ss_digest" = 1 ]; then
   # phase 4d: the weekly /memory-feedback reminder, bounded, never fatal
   _ss_mf="$(dirname "${BASH_SOURCE[0]}")/../lib/memory-feedback-remind.sh"
-  _ss_tmo=(); command -v timeout >/dev/null 2>&1 && _ss_tmo=(timeout 2)
-  [ -f "$_ss_mf" ] && { "${_ss_tmo[@]}" bash "$_ss_mf" 2>/dev/null || true; }
-  unset _ss_mf _ss_tmo
+  [ -f "$_ss_mf" ] && { "${_SS_TMO[@]}" bash "$_ss_mf" 2>/dev/null || true; }
+  unset _ss_mf
   _ss_root=$(git rev-parse --show-toplevel 2>/dev/null) || _ss_root=$PWD
   # A foreign repository (`gitflow.protect` false) gets no digest.
   _ss_protect=$(git -C "$_ss_root" config --get gitflow.protect 2>/dev/null)

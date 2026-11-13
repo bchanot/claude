@@ -38,9 +38,17 @@ esac
 # .githooks/ (memory/doc/deploy helpers, the hooks themselves) — allow. Rules,
 # settings, agents, skills stay blocked. --no-renames lists a rename's source
 # too, so a git mv out of a blocked path cannot hide.
-if [ -z "$(git diff --cached --name-only --no-renames | grep -vE '^(\.claude/(memory|tasks|audits|deploy)|\.githooks)/' | head -1)" ]; then
-  exit 0
-fi
+staged=$(git diff --cached --name-only --no-renames) || {
+  echo "gitflow pre-commit: cannot list staged paths: BLOCKED" >&2
+  exit 1
+}
+[ -n "$staged" ] || exit 0
+printf '%s\n' "$staged" | grep -qvE '^(\.claude/(memory|tasks|audits|deploy)|\.githooks)/'
+case $? in
+  0) ;;
+  1) exit 0 ;;
+  *) echo "gitflow pre-commit: cannot filter staged paths: BLOCKED" >&2; exit 1 ;;
+esac
 
 echo "gitflow pre-commit: BLOCKED — direct commit on '$br'." >&2
 echo "  Branch from the right base (feature/bugfix->develop, hotfix->main), or merge." >&2

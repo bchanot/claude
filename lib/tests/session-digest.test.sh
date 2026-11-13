@@ -322,11 +322,30 @@ cp "$ROOT/templates/memory/journal.md" "$p/.claude/memory/journal.md"
 check SD18-template-no-journal "$(run "$p" "$WORK/startup.json" | digest | grep -c '^- journal:')" 0
 printf '\n## 2026-11-09\n\n- real entry\n' >> "$p/.claude/memory/journal.md"
 check SD18-real-entry "$(run "$p" "$WORK/startup.json" | digest | grep '^- journal:')" '- journal: real entry'
-printf -- '- note on `<!--` parser\n- newest\n' >> "$p/.claude/memory/journal.md"
+printf -- "- note on \`<!--\` parser\n- newest\n" >> "$p/.claude/memory/journal.md"
 check SD18-inline-marker "$(run "$p" "$WORK/startup.json" | digest | grep '^- journal:')" '- journal: newest'
 
 # SD15: no hook run of this suite called the claude CLI (BLK-043)
 check SD15-no-claude-calls "$(claude_stub_calls)" 0
+
+# SD19: no timeout and no gtimeout on PATH -> the perl alarm runner still
+# bounds a hung memory.sh (stock macOS)
+bin="$WORK/notmo"; mkdir -p "$bin"
+for c in bash git cat sed awk grep tail head cut dirname readlink wc tr \
+  sort uniq iconv env date basename mktemp find ls cp rm mkdir cmp stat id \
+  uname tee printf perl sleep jq; do
+  src=$(command -v "$c" 2>/dev/null) && ln -sf "$src" "$bin/$c"
+done
+cat > "$WORK/sd9/lib/memory.sh" <<'EOF'
+#!/usr/bin/env bash
+exec sleep 8
+EOF
+p=$(mkproj sd19)
+SECONDS=0
+(cd "$p" && PATH="$bin" bash "$S9" </dev/null >/dev/null 2>&1)
+check SD19-no-timeout-bin "$(PATH="$bin" command -v timeout gtimeout \
+  | wc -l | tr -d ' ')" 0
+check SD19-perl-bounds-hang "$([ "$SECONDS" -lt 6 ] && echo yes || echo no)" yes
 
 printf 'session-digest: %d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]
