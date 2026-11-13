@@ -53,13 +53,8 @@ Shared rules for every phase:
 ### BDR-125 residuals (after 3.0.0)
 Open children of the shipped phases (History 2026-11-12), text verbatim.
 - Phase 0 / 0b leftovers: done 2026-11-13 (block H1, bugfix/project-rules-residuals 9d5530a, LRN-286): emit via `_rules_out_path_ok` + mkdir/write rc, extract keeps `$tmp` and `$out` on a rewrite failure, physical parent check (`cd -P`, `pwd -P`).
-- Phase 4a leftovers:
-    - [ ] faunosteo: NOT upgraded (V1-2 active in another session's worktree; user: no write to develop or the V1-2 worktree). Patch prepared off-repo from V1-2 587cbb2 (rc 0, 520 lines, open BLK-008/009 unchanged); at integration re-run `memory.sh -C <faunosteo> upgrade` on the branch the user names rather than applying the stale patch. Stale clone `/home/bchanot/faunosteo` (main, 2026-07-01): left alone, user to decide.
-  - [ ] BLK-038 residuals (gates 2026-10-30, non-blocking): v1 line echoed on stderr unfiltered (CWE-150 LOW, terminal control chars from a foreign registry; same as existing "upgrade lost" path); no fixture asserts the "wrote upgrade status" / "dated status line kept" messages; the real-data replay oracle lives in the session scratchpad (`up4a/realdata.sh`), not re-runnable: port to a `make` target over fixture copies if the upgrade is touched again; `memory.sh journal` leaves two blank lines before a new date heading on files ending with a blank line (commit-changer note).
-  - [ ] MIGRATION.md:209 shows `memory.sh -C <project> add … --body-file …` with no absolute-path note (same trap as § WRITE, parked by the docs-half challenge 2026-11-01): next doc pass.
-- Phase 1 leftovers:
-  - [ ] Deferred (gate 2026-10-29): "Skill routing" lines → our skills' `description:` (phase 3 bullet said phase 1 cleanup).
-    - [ ] Design hook false positives: the pointer is almost never followed, and it fires on non-design prompts (fired on the 2026-10-30 phase 4a memory-work prompt). Decide: tighten the trigger, or drop the hook now that web-building.md loads by path. User call, nothing coded.
+- Phase 4a leftovers: done 2026-11-13. faunosteo upgraded in block F (chore/memory-v2 530af1b, user merges); BLK-038 residuals closed in block H2 (bugfix/memory-sh-residuals d8e62c1: stderr `?` for control chars, fixtures for the upgrade messages, journal one blank line; the real-data replay oracle is replaced by the fixture suite, its scratchpad script is gone); MIGRATION.md `--body-file` absolute-path note added (5e7a267). Remaining raw sinks, not phase-tied: reconcile.sh:141 stdout `${st:0:80}`, `check` "heading shape" line.
+- Phase 1 leftovers: done 2026-11-13 in block E (E1 design hook deleted, BDR-148; E2 Skill routing lines → descriptions, BDR-149).
 - Phase 5 leftovers:
   - [ ] Follow-ups: `lib/pack-census.sh:67` `grep -qx` → `grep -qxF`; fragment top-level key allowlist in `lib/pack-census-fragments.jq` (today only `enabledPlugins` keys are compared). Done 2026-11-02: MIGRATION step 2 `$root` re-derivation + autostash-conflict note (0463583, 9cd9591).
 - Phase 2 leftovers:
