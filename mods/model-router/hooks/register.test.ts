@@ -8,6 +8,12 @@ const SONNET = 'claude-sonnet-5-5'
 const HAIKU = 'claude-haiku-5-5'
 
 type Rec = Record<string, unknown>
+
+// the kit's type lib has neither the timers nor ES2024 strings: types only
+declare function setTimeout(fn: (...a: never[]) => void, ms: number): unknown
+declare global {
+  interface String { isWellFormed(): boolean }
+}
 type Asked = { text: string; options: string[]; header: string }
 
 const HOME = '/home/t'
@@ -309,7 +315,7 @@ async function boot(
   // the probe of the model main runs on: every model answers unless a test says not
   on('model.complete', async (_$, e) => {
     world.completions.push(e.model)
-    return { value: (await world.complete(e.model)) as string }
+    return { value: (await world.complete(e.model)) as string } as never
   })
   installWorld(on, world)
   if (tokens !== null) usageOf(on, tokens)
@@ -1198,6 +1204,7 @@ function recordLogs(on: On): string[] {
     } catch {
       // nothing implements ui.log below the recorder in the kit
     }
+    return undefined as never
   })
   return lines
 }
@@ -1380,7 +1387,7 @@ async function effortAfterSkill($: Engine, on: On, skill: string) {
   await $.agent.spawn(spawnOf('feater'))
   await loadSkill($, skill, 'a1')
   await runStep($, { ...highStep('a1'), model: SONNET })
-  return rig.seen[rig.seen.length - 1].effort
+  return rig.seen[rig.seen.length - 1]!.effort
 }
 
 test('agent skill: an unrowed one leaves the loop effort', async ($, on) => {
@@ -1595,7 +1602,7 @@ const queued = ($: Engine, kind: string, text: string) =>
   $.prompt.submit({
     text,
     wait: true,
-    origin: { kind },
+    origin: { kind } as never,
     turnId: 'u1',
   })
 
@@ -1614,7 +1621,7 @@ test('idle fallback: a mid-turn composer prompt promotes the allowance', async (
   await $.prompt.submit({
     text: 'hello',
     wait: false,
-    origin: { kind: 'channel' },
+    origin: { kind: 'channel' } as never,
   })
   await queued($, 'composer', 'hello')
   await endTurn($)
@@ -1644,6 +1651,7 @@ function recordToasts(on: On): string[] {
     } catch {
       // nothing implements ui.toast below the recorder in the kit
     }
+    return undefined as never
   })
   return lines
 }
@@ -4595,7 +4603,7 @@ const skillWorld = (): World => newWorld({ edit: f => {
 
 /** The name a line shows after `marker`, up to the closing char. */
 const nameAfter = (line: string, marker: string, end: string): string =>
-  line.slice(line.indexOf(marker) + marker.length).split(end)[0]
+  line.slice(line.indexOf(marker) + marker.length).split(end)[0]!
 
 test('logs: a hostile skill name is cleaned in the main line', async (
   $, on) => {
@@ -4668,6 +4676,7 @@ function recordStatus(on: On): string[] {
     } catch {
       // nothing implements ui.status below the recorder in the kit
     }
+    return undefined as never
   })
   return lines
 }
