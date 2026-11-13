@@ -87,7 +87,9 @@ bash ~/.claude/lib/project-rules.sh -C <PROJECT_ROOT> emit ~/.claude/templates/p
 rc 0 → fill its stubs from the DESIGN (image, compose services, test
 layout, pipeline jobs), no placeholders left; rc 1 → nothing matched,
 skipped (a plain scaffold yields `docker.md` when Docker is relevant, and
-`testing.md` only when the stack scaffolds a test file). Then
+`testing.md` only when the stack scaffolds a test file); rc 2 whose stderr
+line ends with ` exists` → keep the file, any other rc 2 → STOP, relay the
+lib's line. Then
 `bash ~/.claude/lib/project-rules.sh -C <PROJECT_ROOT> check` prints
 `N rule(s) ok`. The `.gitignore` negation `!.claude/rules/` comes from the
 gitflow socle at STEP 5f (`gitflow init` reconciles it before the root
