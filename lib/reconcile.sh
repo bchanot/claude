@@ -50,9 +50,6 @@ RECONCILE_GREP="${RECONCILE_GREP:-/usr/bin/grep}"
 RECONCILE_DEFER_RE='[Dd]efer|[Ff]ollow-?up|[Oo]ut.of.scope|OUT-OF-SCOPE'
 RECONCILE_DEFER_RE+='|[Rr]econsider|[Rr]evisit|2e passage|won.t.do'
 RECONCILE_DEFER_RE+='|optional\)|one-line ticket'
-# v1 decisions carry `**Statut** :` and `Superseded by …` lines the blocker
-# selector skips; an unlabelled winner stays unreadable (_mem_v1_word)
-RECONCILE_BDR_RE="$_MEM_LEGACY_RE|statut|superseded|deprecated"
 
 # --- recursive coherence: enumerate IDs from the BODY, never the ## Index ---
 # $1 registry file, $2 prefix (BDR|LRN|BLK|EVAL). Emits one id per line, unique.
@@ -94,7 +91,7 @@ reconcile_oracle_path_present() { [ -e "${1:?}" ]; }
 # cannot see it.
 reconcile_blk_current_status() {
   if memory_is_v2 "$1"; then memory_entry_status "$1" "$2"; return; fi
-  MEM_GREP="$RECONCILE_GREP" memory_legacy_status "$1" "$2"
+  memory_legacy_status "$1" "$2"
 }
 # blockers whose CURRENT status does not close them → "id<TAB>status".
 # v2: memory_closed (resolved | superseded | deprecated); v1: the substring.
@@ -114,8 +111,7 @@ reconcile_blk_open() {
 _reconcile_status() {  # <file> <ID> <PREFIX> → the current status line
   [ "$3" = BLK ] && { reconcile_blk_current_status "$1" "$2"; return; }
   if memory_is_v2 "$1"; then memory_entry_status "$1" "$2"; return; fi
-  MEM_GREP="$RECONCILE_GREP" MEM_LEGACY_RE="$RECONCILE_BDR_RE" \
-    memory_legacy_status "$1" "$2" "^##* *$3-[0-9]"
+  memory_legacy_status "$1" "$2" "$_MEM_LEGACY_BDR_RE"
 }
 # entries of one prefix (BLK blockers, BDR decisions) → "id<TAB>open|
 # unreadable<TAB>word or line"; closed ones are omitted. A status no

@@ -378,6 +378,17 @@ printf '\n## 2026-10-28 (cont. 1) — legacy\n- kept\n' >> "$J"
 MEMORY_DATE=2026-10-28 bash "$MEM" journal 'new day'
 check T14l-cont-not-matched "$(grep -c '^## 2026-10-28$' "$J")" 1
 check T14m-cont-untouched "$(sed -n '/(cont. 1)/{n;p;}' "$J")" '- kept'
+# one blank line before a new heading whatever the file's last bytes are
+# (none, a newline, a blank line); `tail -c1` is the final-newline probe
+gap() {  # <name> <printf format of the file> → blank lines before the heading
+  local f="j14/$1/.claude/memory/journal.md"
+  mkdir -p "$(dirname "$f")"; printf '%b' "$2" > "$f"
+  bash "$MEM" -C "j14/$1" journal x >/dev/null 2>&1
+  check "T14l-gap-$1-last" "$(tail -n1 "$f")" '- x'
+  check "T14l-gap-$1" "$(awk '/^## 2026-10-27$/ { print NR - p - 1 } NF { p = NR }' "$f")" 1; }
+gap nofinal '# J\n\n## 2026-10-20\n- a'
+gap newline '# J\n\n## 2026-10-20\n- a\n'
+gap blank '# J\n\n## 2026-10-20\n- a\n\n'
 bash "$MEM" check --staged /abs 2>/dev/null
 check T14n-staged-absolute "$?" 2
 bash "$MEM" status BLK-404 'open' 2>&1 >/dev/null | grep -c restored > rs
@@ -398,7 +409,7 @@ openset() { bash -c '. "$1/lib/reconcile.sh"; reconcile_blk_open "$2"' _ \
 dialect() {  # <name> <heading regex expected> — fixture already in d15/<name>
   local f="d15/$1/blockers.md" before
   before=$(openset "$f")
-  bash "$MEM" upgrade "d15/$1" >/dev/null 2>&1
+  bash "$MEM" upgrade "d15/$1" >/dev/null 2>"d15/$1/err"
   check "T15-$1-rc" "$?" 0
   check "T15-$1-v2" "$(sed -n 2p "$f")" 'format: 2'
   check "T15-$1-heading" "$(grep -c "$2" "$f")" 1
@@ -424,6 +435,7 @@ check T15-hashes-2-open "$(memory_word_of d15/hashes/blockers.md BLK-002)" open
 # probe d: a ### entry after a ## one must not leak its status into it
 v1blk d15/probed '## BLK-003 — three, open' 'Status: open' '' \
   '### BLK-001 — x' 'Status: resolved'
+check T15-probed-openset "$(openset d15/probed/blockers.md)" 'BLK-003 '
 bash "$MEM" upgrade d15/probed >/dev/null 2>&1
 check T15-probed-no-repair "$(grep -c 'upgrade)' d15/probed/blockers.md)" 0
 check T15-probed-open "$(memory_word_of d15/probed/blockers.md BLK-003)" open
@@ -456,7 +468,7 @@ v1blk d15/v1only '## BLK-001 — v1 file' 'Status: resolved'
 printf '#!/bin/sh\necho STUB >&2\nexec /usr/bin/grep "$@"\n' > gstub
 chmod +x gstub
 stubbed=$(RECONCILE_GREP="$PWD/gstub" bash -c \
-  '. "$1/lib/reconcile.sh"; reconcile_blk_current_status "$2" BLK-001' \
+  '. "$1/lib/reconcile.sh"; reconcile_blk_open "$2"' \
   _ "$ROOT" d15/v1only/blockers.md 2>&1 >/dev/null | grep -c STUB)
 check T15-reconcile-grep "$([ "$stubbed" -gt 0 ] && echo reached || echo missed)" reached
 v1blk d15/suffix '## BLK-001 — suffix — RESOLVED' 'Status: resolved in repo' \
@@ -468,9 +480,11 @@ v1blk d15/datestatus '## BLK-001 — one line' \
 dialect datestatus '^- \*\*Status ([0-9-]*, upgrade)\*\*: resolved$'
 check T15-datestatus-one-line "$(grep -c 'upgrade)' d15/datestatus/blockers.md)" 1
 check T15-datestatus-word "$(memory_word_of d15/datestatus/blockers.md BLK-001)" resolved
+check T15-datestatus-wrote "$(grep -c 'BLK-001: wrote upgrade status resolved' d15/datestatus/err)" 1
 v1blk d15/statut '## BLK-001 — fr' '- **Statut** : resolved' '' \
   '## BLK-002 — fr open' '- **Statut** : open'
 dialect statut '^- \*\*Status ([0-9-]*, upgrade)\*\*: resolved$'
+check T15-statut-wrote "$(grep -c 'BLK-001: wrote upgrade status resolved' d15/statut/err)" 1
 mkdir -p d15/nofm
 printf '# Blockers\n\n## BLK-001 | 2026-05-18 | no frontmatter\n%s\n' \
   '- **Statut** : resolved' > d15/nofm/blockers.md
@@ -541,8 +555,9 @@ remedy e '## BLK-001 — x' 'date: 2026-09-20 · status: open' \
   'prose: another tab already resolved it'
 bash "$MEM" -C d15/e status BLK-001 'upstream, SMTP OVH; code resolved (x)' >/dev/null 2>&1
 E=d15/e/.claude/memory/blockers.md
-bash "$MEM" -C d15/e upgrade >/dev/null 2>&1
+bash "$MEM" -C d15/e upgrade >/dev/null 2>d15/e/err
 check T15-remedy-roundtrip "$?/$(grep -c 'upgrade)' $E)/$(memory_word_of $E BLK-001)" 0/0/upstream
+check T15-remedy-roundtrip-kept "$(grep -c 'BLK-001: dated status line kept' d15/e/err)" 1
 remedy e2 '## BLK-001 — x' 'date: 2026-09-20 · status: open' \
   '### BLK-001 UPDATE 2026-10-01 (y)' 'prose: another tab already resolved it'
 bash "$MEM" -C d15/e2 status BLK-001 'upstream, SMTP OVH; code resolved (x)' >/dev/null 2>&1
@@ -565,6 +580,59 @@ err=$(bash -c '. "$1"; _mem_upgrade_repair() { local l
   _mem_insert "$2" BLK-001 "$l"; _mem_insert "$2" BLK-001 "$l"; }
   memory_upgrade "$2"' _ "$MEM" d15/dup 2>&1 >/dev/null)
 check T15-oracle-dup-refused "$?/$(printf '%s\n' "$err" | grep -c 'BLK-001:dup')" 2/1
+
+# T15 the body label beats a stale Index cell, by writing its word as the
+# dated upgrade line (BDR-129); one effective status for flush, Index-stated
+# and the oracle. Index-bearing v1 fixtures, one entry under a one-row Index
+idxreg() {  # <file name> <PREFIX> <dir> <ID> <cell> <body…>
+  local n="$1" p="$2" d="$3" id="$4" cell="$5"; shift 5
+  mkdir -p "$d"; { printf -- '---\ntype: registry\nentry_prefix: %s\n---\n\n' "$p"
+    printf '# R\n\n## Index\n\n| ID | Date | Title | Status |\n|---|---|---|---|\n'
+    printf '| %s | 2026-05-01 | x | %s |\n\n## %s — x\n' "$id" "$cell" "$id"
+    printf '%s\n' "$@"; } > "$d/$n.md"; }
+idxrun() {  # <dir> → stderr in <dir>/err, rc in <dir>/rc
+  bash "$MEM" upgrade "$1" >/dev/null 2>"$1/err"; echo $? > "$1/rc"; }
+idxreg blockers BLK d15/ix1 BLK-001 open '- **Statut** : resolved'
+idxrun d15/ix1
+check T15-statut-beats-index "$(cat d15/ix1/rc)/$(memory_word_of d15/ix1/blockers.md BLK-001)" 0/resolved
+check T15-statut-dropped-index "$(grep -c 'BLK-001: kept body resolved, dropped Index open' d15/ix1/err)" 1
+idxreg blockers BLK d15/ix2 BLK-001 resolved '- **Statut** : resolved'
+idxrun d15/ix2
+check T15-statut-agrees "$(cat d15/ix2/rc)/$(memory_word_of d15/ix2/blockers.md BLK-001)/$(grep -c 'dropped Index' d15/ix2/err)" 0/resolved/0
+idxreg decisions BDR d15/ix3 BDR-001 accepted '**Statut** : proposed'
+idxrun d15/ix3
+check T15-bdr-statut-beats-index "$(cat d15/ix3/rc)/$(memory_word_of d15/ix3/decisions.md BDR-001)" 0/proposed
+check T15-bdr-dropped-index "$(grep -c 'BDR-001: kept body proposed, dropped Index accepted' d15/ix3/err)" 1
+idxreg blockers BLK d15/ix4 BLK-001 open '- **Statut** : resolved (x), open (y)'
+refused ix4 BLK-001 T15-idx-mixed-statut-refused
+idxreg decisions BDR d15/ix5 BDR-001 'superseded by BDR-004' '**Statut** : accepted'
+idxrun d15/ix5
+check T15-bdr-superseded-index-wins "$(cat d15/ix5/rc)/$(memory_word_of d15/ix5/decisions.md BDR-001)" 0/superseded
+idxreg decisions BDR d15/ix6 BDR-001 accepted '**Statut** : accepted (x), proposed (y)'
+idxrun d15/ix6
+check T15-bdr-mixed-keeps-index "$(cat d15/ix6/rc)/$(memory_word_of d15/ix6/decisions.md BDR-001)" 0/accepted
+idxreg blockers BLK d15/ix7 BLK-001 resolved '- **Status**: closed'
+idxrun d15/ix7
+check T15-unknown-word-keeps-index "$(cat d15/ix7/rc)/$(memory_word_of d15/ix7/blockers.md BLK-001)" 0/resolved
+# control bytes of a foreign registry never reach the terminal: the v1 line
+# on the refusal, the Index cell on the flush echo and the written line
+esc=$(printf '\033')
+v1blk d15/ctl '## BLK-001 — x' "prose: ${esc}[31m already resolved"
+err=$(bash "$MEM" upgrade d15/ctl 2>&1 >/dev/null)
+check T15-ctl-v1-line-no-esc "$(printf '%s\n' "$err" | grep -c "$esc")" 0
+check T15-ctl-v1-line-qmark "$(printf '%s\n' "$err" | grep -c 'prose: ?\[31m already')" 1
+idxreg blockers BLK d15/ctl2 BLK-001 "${esc}[31m resolved" 'prose'
+idxrun d15/ctl2
+check T15-ctl-index-no-esc "$(cat d15/ctl2/rc)/$(grep -c "$esc" d15/ctl2/blockers.md)" 0/0
+check T15-ctl-index-qmark "$(grep -c 'upgrade)\*\*: ?\[31m resolved' d15/ctl2/blockers.md)" 1
+# the lexical range stops at a trailing ## Index and ignores the environment
+# (MEM_LEGACY_RE once widened every reader of `upgrade`)
+printf -- '---\ntype: d\nentry_prefix: BDR\n---\n\n## BDR-001 — a\n%s\n\n## BDR-002 — b\n%s\n\n## Index\n\n%s\n' \
+  '**Statut** : accepted' 'no label here' 'status: resolved row' > d15/dec.md
+legacy() { bash -c '. "$1"; memory_legacy_status "$2" "$3" "$_MEM_LEGACY_BDR_RE"' _ "$MEM" d15/dec.md "$1"; }
+check T15-trailing-index-not-read "$(legacy BDR-002)" ''
+check T15-first-entry-read "$(legacy BDR-001)" '**Statut** : accepted'
+check T15-env-selector-ignored "$(MEM_LEGACY_RE=open legacy BDR-001)" '**Statut** : accepted'
 
 # T16 final-review fixes
 # lock dir not writable: bounded, named, rc 2 (never a spin)
