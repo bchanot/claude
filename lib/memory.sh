@@ -97,6 +97,7 @@ function mem_key(line, key,   c) {
   if (index(line, "## " key) != 1) return 0
   c = substr(line, length(key) + 4, 1)
   return c == "" || c !~ /[0-9A-Za-z]/ }
+function mem_est(st, vw) { return (st != "" || vw == "mixed") ? st : vw }
 function mem_want(p, c, st,   w) {
   w = mem_word(c)
   if (w == "") return ""
@@ -346,9 +347,13 @@ memory_status() {  # <ID> <text>
 }
 
 _mem_journal_locked() {  # <file> <date> <line>
+  local sep=$'\n'  # exactly one blank line before a new heading
   _mem_insert "$1" "$2" "$3" exact
   case $? in
-    1) printf '\n## %s\n%s\n' "$2" "$3" >> "$1" ;;
+    1) [ -s "$1" ] || sep=''
+       [ -z "$(tail -c1 "$1")" ] || sep=$'\n\n'
+       [ -n "$(tail -n1 "$1")" ] || sep=''
+       printf '%s## %s\n%s\n' "$sep" "$2" "$3" >> "$1" ;;
     0) return 0 ;;
     *) return 2 ;;
   esac
@@ -602,15 +607,22 @@ _mem_index_table() {  # <file> → "ID<TAB>date<TAB>last column" per Index row
          print c[2] "\t" c[3] "\t" c[n - 1] }' "$1"
 }
 
-_mem_upgrade_text() {  # <rows> <file> <PREFIX> → the v2 text on stdout
+_mem_upgrade_text() {  # <rows> <file> <PREFIX> <old> → the v2 text on stdout
   awk -v p="$3" -v today="$(_mem_date)" -v MEMW="$_MEM_WORDS" "$_MEM_AWK"'
-    function flush(  i, s, w) {
-      w = mem_word(col[cur])
-      if (cur != "" && (s = mem_want(p, col[cur], st[cur])) != "")
-        print "- **Status (" today ", upgrade)**: " s
+    function clean(x) { gsub(/[[:cntrl:]]/, "?", x); return x }
+    function flush(  i, s, w, v) {
+      w = mem_word(col[cur]); v = vw[cur]
+      if (cur != "" &&
+          (s = mem_want(p, col[cur], mem_est(st[cur], v))) != "")
+        print "- **Status (" today ", upgrade)**: " clean(s)
+      else if (cur != "" && st[cur] == "" && v != "" && v != "mixed") {
+        print "- **Status (" today ", upgrade)**: " v
+        if (w != "" && w != v)
+          print "memory: " cur ": kept body " v ", dropped Index " \
+                clean(col[cur]) > "/dev/stderr" }
       else if (cur != "" && w != "" && p !~ /^(LRN|EVAL)$/ && w != st[cur])
         print "memory: " cur ": kept body " st[cur] ", dropped Index " \
-              col[cur] > "/dev/stderr"
+              clean(col[cur]) > "/dev/stderr"
       for (i = 1; i <= n; i++) print buf[i]
       n = 0 }
     FILENAME == ARGV[1] { split($0, r, "\t"); dt[r[1]] = r[2]
@@ -618,6 +630,7 @@ _mem_upgrade_text() {  # <rows> <file> <PREFIX> → the v2 text on stdout
     FILENAME == ARGV[2] { split($0, r, / \| /); sub(/^\| /, "", r[1])
                 sub(/ \|$/, "", r[4]); hd[r[1]] = r[2] != ""; st[r[1]] = r[4]
                 next }
+    FILENAME == ARGV[3] { split($0, r, "\t"); vw[r[1]] = r[2]; next }
     FNR == 1 { print; print "format: 2"; next }
     /^```/ { fence = !fence }
     $0 == "## Index" { skip = 1; next }
@@ -631,58 +644,82 @@ _mem_upgrade_text() {  # <rows> <file> <PREFIX> → the v2 text on stdout
       next }
     cur != "" && ($0 == "" || $0 == "---") { buf[++n] = $0; next }
     { for (i = 1; i <= n; i++) print buf[i]; n = 0; print }
-    END { flush() }' "$1" <(_mem_index_rows "$2" "$3") "$2"
+    END { flush() }' "$1" <(_mem_index_rows "$2" "$3") \
+    <(_mem_v1_words "$4" "$3") "$2"
 }
 
 _mem_heading_ids() {  # <file> <PREFIX> → the entry IDs, any heading level
   "$MEM_GREP" -oE "^#+ *$2-[0-9]+" "$1" | sed 's/^#* *//'
 }
 
-_MEM_LEGACY_RE='status|RESOLVED|REVERTED|upstream|resolved|[^a-z]open'
-memory_legacy_status() {  # <file> <ID> [<end>] → the v1 lexical status line
-  # (reconcile reads it on a v1 blockers file; `upgrade` proves its verdicts
-  # against it). Default range: `## ID` to the next `## BLK-`, reconcile's
-  # own. With <end> (ERE) the range is fence-aware: it stops at the next
-  # heading matching <end> outside a ``` fence, and that header is not read;
-  # a same-ID sub-heading (`### ID UPDATE`) continues the range, unread.
-  local end="${3:-}"
-  if [ -z "$end" ]; then
-    sed -n "/^## ${2} /,/^## BLK-/p" "$1" \
-      | "$MEM_GREP" -v '^## BLK-' \
-      | "$MEM_GREP" -iE "$_MEM_LEGACY_RE" \
-      | tail -1
-    return
-  fi
-  # callers may widen the selector (reconcile: the decisions range)
-  RE="${MEM_LEGACY_RE:-$_MEM_LEGACY_RE}" END_RE="$end" awk -v id="$2" '
+_MEM_LEGACY_BLK_RE='status|RESOLVED|REVERTED|upstream|resolved|[^a-z]open'
+# v1 decisions carry `**Statut** :` and `Superseded by …` lines the blocker
+# selector skips; an unlabelled winner stays unreadable (_mem_v1_word)
+_MEM_LEGACY_BDR_RE="$_MEM_LEGACY_BLK_RE|statut|superseded|deprecated"
+memory_legacy_status() {  # <file> <ID> [<re>] → the v1 lexical status line
+  # (reconcile reads it on a v1 file; `upgrade` proves its verdicts against
+  # it). <re> selects the line (default: the blocker selector). The range
+  # is fence-aware: from `## ID` to the next heading of another ID of the
+  # same prefix or to `## Index`, that heading not read; a same-ID
+  # sub-heading (`### ID UPDATE`) continues the range, unread.
+  local file
+  file=$(_mem_path_safe "$1")
+  RE="${3:-$_MEM_LEGACY_BLK_RE}" END_RE="^##* *${2%%-*}-[0-9]" \
+    awk -v id="$2" '
     /^```/ { fence = !fence; next }
     !fence && $0 ~ ("^#+ *" id "( |$)") && on { next }
+    !fence && $0 == "## Index" { on = 0 }
     !fence && $0 ~ ENVIRON["END_RE"] { on = 0 }
     !fence && $0 ~ "^## " id " " { on = 1; next }
     on && !fence && tolower($0) ~ tolower(ENVIRON["RE"]) { last = $0 }
-    END { if (last != "") print last }' "$1"
+    END { if (last != "") print last }' "$file"
 }
 
 _mem_legacy_open() {  # <old file> <ID> → rc 0 when reconcile's v1 reader
   local st           # lists the blocker open (its status is not RESOLVED);
   # upgrade reads the entry's own range, up to a heading of any level
-  st=$(memory_legacy_status "$1" "$2" '^##* *BLK-[0-9]')
+  st=$(memory_legacy_status "$1" "$2")
   case "$st" in *RESOLVED*|*resolved*) return 1 ;; esac
+}
+
+_mem_v1_words() {  # <old> <PREFIX> → "ID<TAB>word|mixed" for each Index ID
+  # the strict reader finds no word for, when a v1 status/statut label of
+  # its body (anchored: line start, ` · ` or `| `) is there; `mixed` =
+  # label without exactly one word. Blocker and decision selectors only.
+  local id re line word
+  case "$2" in
+    BLK) re=$_MEM_LEGACY_BLK_RE ;;
+    BDR) re=$_MEM_LEGACY_BDR_RE ;;
+    *) return 0 ;;
+  esac
+  while read -r id; do
+    line=$(memory_legacy_status "$1" "$id" "$re")
+    [[ "$line" =~ ^(-\ )?(\*\*)?[Ss]tatu[st]|(\ ·\ |\|\ )[Ss]tatu[st] ]] \
+      || continue
+    word=$(_mem_v1_word "$line")
+    printf '%s\t%s\n' "$id" "${word:-mixed}"
+  done < <(awk -F'\t' 'FILENAME == ARGV[1] { ix[$1] = 1; next }
+      { split($0, a, / \| /); sub(/^\| /, "", a[1]); sub(/ \|$/, "", a[4])
+        if (a[1] in ix && a[4] == "") print a[1] }' \
+      <(_mem_index_table "$1") <(_mem_index_rows "$1" "$2"))
 }
 
 _mem_index_stated() {  # <old> <PREFIX> → IDs whose Index status upgrade
   # writes into the body (mem_want): a fact the v1 reader never saw
   awk -F'\t' -v p="$2" -v MEMW="$_MEM_WORDS" "$_MEM_AWK"'
     FILENAME == ARGV[1] { col[$1] = $3; next }
+    FILENAME == ARGV[2] { vw[$1] = $2; next }
     { split($0, a, / \| /); id = a[1]; sub(/^\| /, "", id); s = a[4]
       sub(/ \|$/, "", s)
-      if (id in col && mem_want(p, col[id], s) != "") print id }' \
-    <(_mem_index_table "$1") <(_mem_index_rows "$1" "$2")
+      if (id in col && vw[id] != "mixed" &&
+          mem_want(p, col[id], mem_est(s, vw[id])) != "") print id }' \
+    <(_mem_index_table "$1") <(_mem_v1_words "$1" "$2") \
+    <(_mem_index_rows "$1" "$2")
 }
 
 _mem_explicit_status() {  # <old> <new> <ID> → rc 0 when the v1 line is a
   local v1 win      # dated status line written by `memory.sh status`, which
-  v1=$(memory_legacy_status "$1" "$3" '^##* *BLK-[0-9]')   # the strict
+  v1=$(memory_legacy_status "$1" "$3")   # the strict
   win=$(memory_entry_status "$2" "$3")                     # reader rightly wins
   [ "$v1" = "$win" ] || return 1
   printf '%s\n' "$v1" | "$MEM_GREP" -qE '^- \*\*Status \([0-9]' || return 1
@@ -719,8 +756,11 @@ _mem_v1_word() {  # <v1 line> → the one status word of its status/statut
 
 _mem_repair_one() {  # <old> <new> <ID> → write the v1 closure when its line
   local v1 word      # names one closed word, else name the ID and refuse
-  v1=$(memory_legacy_status "$1" "$3" '^##* *BLK-[0-9]')
+  v1=$(memory_legacy_status "$1" "$3")
   word=$(_mem_v1_word "$v1")
+  # foreign bytes never reach the terminal; under a C locale UTF-8 bytes
+  # are not printable either and degrade to `?` in this echo only
+  v1=${v1//[![:print:]]/?}
   if ! memory_closed "$word"; then
     echo "memory: $3: v1 closed by an unlabelled, mixed or negated line," \
       "status unknown: ${v1:0:100}" >&2
@@ -763,17 +803,19 @@ _mem_upgrade_oracle() {  # <old> <new> <PREFIX> → rc 2 on a lost fact
   awk -F'\t' -v p="$3" -v MEMW="$_MEM_WORDS" "$_MEM_AWK"'
     function f(s, k) { split(s, a, / \| /); return a[k] }
     FILENAME == ARGV[1] { dt[$1] = $2; col[$1] = $3; next }
+    FILENAME == ARGV[2] { vw[$1] = $2; next }
     { id = f($0, 1); sub(/^\| /, "", id) }
-    FILENAME == ARGV[2] { old[id] = f($0, 4); sub(/ \|$/, "", old[id]); next }
+    FILENAME == ARGV[3] { old[id] = f($0, 4); sub(/ \|$/, "", old[id]); next }
     !(id in col) { next }
     { d = f($0, 2); s = f($0, 4); sub(/ \|$/, "", s)
-      m = mem_want(p, col[id], old[id])
-      want = m != "" ? mem_word(m) : old[id]
+      e = mem_est(old[id], vw[id]); m = mem_want(p, col[id], e)
+      want = m != "" ? mem_word(m) : e
       if (dt[id] != "" && d == "") bad = bad " " id ":date"
       if (want != "" && p != "BLK" && s != want)
         bad = bad " " id ":" s "!=" want }
     END { if (bad != "") { print "memory: upgrade lost:" bad; exit 2 } }' \
-    <(_mem_index_table "$1") <(printf '%s\n' "$o") \
+    <(_mem_index_table "$1") <(_mem_v1_words "$1" "$3") \
+    <(printf '%s\n' "$o") \
     <(printf '%s\n' "$n") >&2 || return 2
   o=$(_mem_verdict_diff "$1" "$2" | awk -F'\t' '$2 == "resolved" \
     { printf "%s ", $1 }')
@@ -832,7 +874,7 @@ _mem_upgrade_build() {  # <file> <PREFIX> <out> → the v2 text, blocker
   { _mem_upgrade_front "$1" > "$front" \
       && _mem_upgrade_headings "$front" "$2" > "$src" \
       && _mem_index_table "$src" > "$rows" \
-      && _mem_upgrade_text "$rows" "$src" "$2" > "$3" \
+      && _mem_upgrade_text "$rows" "$src" "$2" "$1" > "$3" \
       && _mem_upgrade_repair "$1" "$3" "$2"; } || rc=2
   rm -f "$front" "$src" "$rows"
   return "$rc"
