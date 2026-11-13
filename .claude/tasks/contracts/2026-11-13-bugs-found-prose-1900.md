@@ -18,24 +18,38 @@ Fix the BUGS-FOUND entries unfixed since 2026-11-09 that live in agent, skill, l
   9. onboard SKILL.md:387-762 and tour SKILL.md:155 "gstack ON/OFF" → the packs vocabulary used since D3 (`pack gstack-dev on/off`, `profile.sh current`); rewrap plugin-check SKILL.md:17, plugin-gate.md:45, USAGE.md:182; USAGE.md:1022 transcript gains the ↻ glyph.
   10. graphify: .gitignore:54-56, plugins.lock.json:37, update-all.sh:310-312 (point at `make plugin`, no manual `graphify claude install`), install-plugins.sh:688/690/1269 labels and :694-695 comment say what the steps do now (the trap reverts the CLAUDE.md block and hook). LRN-154 gets a `memory.sh status` correction line in STEP 8 (registry append-only), not an edit.
 
+- [gated 2026-11-13, round 2: GATE 1 ECARTS(2) + GATE 2 MEDIUM/LOWs] FILE SCOPE += lib/tests/session-banner.test.sh (SB10 locks follow item 8: lock `diff '<profile>'` single-quoted and `--git-common-dir`), lib/profile.sh + lib/tests/profile.test.sh (deterministic refusal: `find_root`/`require_project_root` reject a root that resolves (`cd -P`) to `$HOME`, test included), skills/init-project/SKILL.md:43, skills/ship-feature/SKILL.md:27 (the "A) fix plugins" citers get the print-only definition).
+  R2-a plugin-gate + plugin-check: before any template, a PROJECT_ROOT holding `'` or a newline or control char is never substituted: print the commands and run nothing (one rule sentence); refusal text at :75-76 names the three causes (no git root, linked worktree/submodule, $HOME).
+  R2-b handover-doc-writer: the ROOT read block opens EVERY Bash call that uses $ROOT (say so once), uses `"${ROOT:?}"` at each use; :158-159 commits read rooted with `git -C "${ROOT:?}"`; draft/audit paths rooted (`"${ROOT:?}/.audit/…"`) in both agents; a root holding a newline or control char → `STATUS: BLOCKED` (client-handover-writer checks before writing the PACKAGE).
+  R2-c client-handover-writer remedy: `memory.sh -C '<root>' status …` single-quoted, plus the same "root holding `'` → print with a warning, never run" rule.
+  R2-d item 9 residue: plugin-gate.md:46 ≤ 80, tour SKILL.md:155 ≤ 80, onboard :673/:682/:706 consistent (the design-review fallback condition and its note name the SAME pack, the one the L3b probe at :610-611 actually reads, or add the gstack-design probe there), onboard :549-550 qualified `make plugin`, plugin-advisor :265-266 drops `extras` from pack values, USAGE.md:179 ≤ 80.
+  R2-e handover §6.1: decisions with an empty status word are listed separately as "status unreadable (n)" in the method sentence, not silently dropped; the sentence sits at the close of §6.1 (no method-note section exists).
+
+- [gated 2026-11-13, round 2 executor deviation accepted] the $HOME refusal sits in `require_project_root` (every mutating command); `find_root` still answers $HOME for read-only `current`/`diff`.
+
 ## ACCEPTANCE CRITERIA
 1. Each of the 10 items changed in its file (read check by the verifier, item by item).
    CHECK: cd /home/bchanot/Documents/claude && git diff --stat develop -- agents/handover-doc-writer.md agents/client-handover-writer.md agents/plugin-advisor.md lib/plugin-gate.md skills/onboard/SKILL.md skills/tour/SKILL.md skills/plugin-check/SKILL.md USAGE.md .gitignore plugins.lock.json update-all.sh install-plugins.sh | tail -1 | grep -c '12 files changed'
    EXPECT: 1
-   EVIDENCE: PENDING
+   EVIDENCE: MET exit=0 marker-found :: 1
 2. No "gstack ON/OFF" left in onboard/tour; no `extras` among plugin-gate's accepted tokens.
    CHECK: cd /home/bchanot/Documents/claude && echo $(grep -c 'gstack ON/OFF\|gstack ON\b' skills/onboard/SKILL.md skills/tour/SKILL.md | grep -vc ':0$')
    EXPECT: 0
-   EVIDENCE: PENDING
+   EVIDENCE: MET exit=0 marker-found :: 0
 3. plugins.lock.json valid JSON; shellcheck clean on update-all.sh and install-plugins.sh changes (no new finding vs develop).
    CHECK: cd /home/bchanot/Documents/claude && jq . plugins.lock.json >/dev/null && echo JSON-OK
    EXPECT: JSON-OK
-   EVIDENCE: PENDING
+   EVIDENCE: MET exit=0 marker-found :: JSON-OK
 4. Suites that read these files stay green: handover-memory-contract, doctrine-citers, skill-routing-census, curated-config-guard, portability-census.
    CHECK: cd /home/bchanot/Documents/claude && PATH=$HOME/.bun/bin:$PATH make test suite=lib/tests/handover-memory-contract.test.sh 2>&1 | tail -1
    EXPECT: all suites green
-   EVIDENCE: PENDING
+   EVIDENCE: MET exit=0 marker-found :: all suites green
+6. session-banner and profile suites green.
+   CHECK: cd /home/bchanot/Documents/claude && PATH=$HOME/.bun/bin:$PATH make test suite="lib/tests/session-banner.test.sh lib/tests/profile.test.sh" 2>&1 | tail -1
+   EXPECT: all suites green
+   EVIDENCE: MET exit=0 marker-found :: all suites green
 5. make test green (manual, bun on PATH).
+   (manual: full run by the round-2 executor 2026-11-13 → "SUITE: all GREEN / all suites green")
 
 ## FILE SCOPE
 agents/handover-doc-writer.md, agents/client-handover-writer.md, agents/plugin-advisor.md, lib/plugin-gate.md, skills/onboard/SKILL.md, skills/tour/SKILL.md, skills/plugin-check/SKILL.md, USAGE.md, .gitignore, plugins.lock.json, update-all.sh, install-plugins.sh. LRN-154 + BUGS-FOUND → STEP 8.
