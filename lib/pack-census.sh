@@ -9,7 +9,8 @@
 #   1. manifest parses, name = folder; every entry resolves (dangling =
 #      WARN; RED with --installed on a pack ON by manifest); no skill both
 #      flat and in a pack; no retired gstack name (lib/gstack-removed.list).
-#   2. fragments lib/profiles/*.json: same key set as full.json; model-router
+#   2. fragments lib/profiles/*.json: same key set as full.json, only the
+#      top-level keys profile.sh reads (allowlist); model-router
 #      + security-guidance true, example-skills + brightdata false
 #      everywhere; full.json packs = manifest defaults.
 #   3. no reader of the old layout left (scope and terms in check_citers).
@@ -62,7 +63,7 @@ check_entry() { # $1 pack dir, $2 entry path
       red "$n: $s target missing (pack ON)"
     else echo "WARN $n: $s target missing (installer not run)"; fi
   fi
-  [ -f "$REMOVED" ] && grep -qx -- "$s" "$REMOVED" \
+  [ -f "$REMOVED" ] && grep -qxF -- "$s" "$REMOVED" \
     && red "$n: $s is a retired gstack skill"
   if [ -n "${seen[$s]:-}" ]; then
     red "$s listed twice: ${seen[$s]} and $n; run: $(dup_remedy "$s")"

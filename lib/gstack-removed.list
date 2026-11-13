@@ -1,5 +1,5 @@
 # The gstack skills this config never exposes: one name per line, read by
-# lib/pack-census.sh (grep -qx), so these comment lines never match.
+# lib/pack-census.sh (grep -qxF), so these comment lines never match.
 # A name listed is in no pack and no profile, `max` included. Pruned
 # 2026-09-28 (BDR-105); the helpers once housed in lib/gstack-removed.sh
 # are gone with the symlink toggling (BDR-117).

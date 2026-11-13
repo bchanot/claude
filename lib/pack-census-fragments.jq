@@ -1,6 +1,7 @@
 # lib/pack-census-fragments.jq — fragment invariants (lib/pack-census.sh).
 # $m = manifests [{id,on}]; inputs = lib/profiles/*.json. Prints RED lines,
-# and WARN lines for a pack id with no manifest.
+# and WARN lines for a pack id with no manifest. A fragment may carry only
+# the top-level keys lib/profile.sh reads (an allowlist).
 def name_of: input_filename | sub(".*/"; "");
 def dn: [(.deniedMcpServers // [])[] | .serverName] | sort;
 [inputs | {f: name_of, frag: .}] as $all
@@ -17,6 +18,11 @@ def dn: [(.deniedMcpServers // [])[] | .serverName] | sort;
 | ( if ($g.enabledPlugins | keys) != $keys
     then "RED lib/profiles/\($f): key set differs from full.json"
     else empty end ),
+  ( ($g | keys)
+      - ["enabledPlugins", "deniedMcpServers", "disableClaudeAiConnectors",
+         "model"]
+    | select(length > 0)
+    | "RED lib/profiles/\($f): unknown top-level key(s) \(join(", "))" ),
   ( ["model-router@skills-dir", "security-guidance@claude-code-plugins"][]
     | select($g.enabledPlugins[.] != true)
     | "RED lib/profiles/\($f): \(.) must be true" ),
