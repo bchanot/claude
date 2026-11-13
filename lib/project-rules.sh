@@ -186,17 +186,33 @@ _rules_globs_all_match() {  # <globs-json> → rc 0 valid and every glob matches
   done <<< "$globs"
 }
 
-_rules_out_path_ok() {  # <out> → rc 2 when absolute, has a .. part, or exists
-  # shortcut: lexical only, a symlinked component is not resolved (no
-  # portable realpath -m); upgrade = resolve the parent dir with cd -P
-  case "$1" in
-    /*) echo "project-rules: out must be relative: $1" >&2; return 2 ;;
+_rules_out_path_ok() {  # <out> → rc 2 when absolute, has a .. part, exists,
+  # or resolves outside cwd
+  local out="$1" here parent phys
+  case "$out" in
+    /*) echo "project-rules: out must be relative: $out" >&2; return 2 ;;
     ..|../*|*/..|*/../*)
-      echo "project-rules: out must not contain ..: $1" >&2; return 2 ;;
+      echo "project-rules: out must not contain ..: $out" >&2; return 2 ;;
   esac
-  if [ -e "$1" ] || [ -L "$1" ]; then
-    echo "project-rules: $1 exists" >&2; return 2
+  if [ -e "$out" ] || [ -L "$out" ]; then
+    echo "project-rules: $out exists" >&2; return 2
   fi
+  here=$(pwd -P) && [ -n "$here" ] \
+    || { echo "project-rules: cannot resolve cwd" >&2; return 2; }
+  parent=$(dirname "$out")
+  while [ ! -d "$parent" ]; do parent=$(dirname "$parent"); done
+  phys=$(CDPATH='' cd -P -- "./$parent" 2>/dev/null && pwd -P) \
+    || { echo "project-rules: cannot resolve $parent" >&2; return 2; }
+  case "$phys" in
+    "${here%/}"|"${here%/}"/*) ;;
+    *) echo "project-rules: out must stay under the project: $out" >&2
+       return 2 ;;
+  esac
+}
+
+_rules_mkdir_parent() {  # <out> → rc 2 when its directory cannot be created
+  mkdir -p "$(dirname "$1")" 2>/dev/null \
+    || { echo "project-rules: cannot create $(dirname "$1")" >&2; return 2; }
 }
 
 project_rules_extract() {  # <file> <heading> <out.md> <globs-json>
@@ -207,20 +223,22 @@ project_rules_extract() {  # <file> <heading> <out.md> <globs-json>
     return 2; }
   _rules_out_path_ok "$out" || return 2
   _rules_globs_all_match "$globs" || return 2
-  mkdir -p "$(dirname "$out")" \
-    || { echo "project-rules: cannot create $(dirname "$out")" >&2; return 2; }
+  _rules_mkdir_parent "$out" || return 2
   tmp=$(mktemp) || { echo "project-rules: no temp file" >&2; return 2; }
   { printf -- '---\npaths: %s\n---\n\n# %s\n' "$globs" "${hline#* }" \
       && _rules_section_body "$src" "$hline"; } > "$out" \
     || { rm -f "$tmp" "$out"
          echo "project-rules: $out not written, $src untouched" >&2
          return 2; }
-  if ! { _rules_without_section "$src" "$hline" > "$tmp" \
-         && cat "$tmp" > "$src"; }; then
-    rm -f "$tmp" "$out"
-    echo "project-rules: $src not rewritten, $out removed" >&2
-    return 2
-  fi
+  _rules_without_section "$src" "$hline" > "$tmp" \
+    || { rm -f "$tmp" "$out"
+         echo "project-rules: $src untouched, $out removed" >&2
+         return 2; }
+  cat "$tmp" > "$src" || {
+    echo "project-rules: $src rewrite failed: rewritten text at $tmp," \
+      "section at $out. Complete with: cat $tmp > $src;" \
+      "or abort: rm $out when $src is intact" >&2
+    return 2; }
   rm -f "$tmp"
   echo "project-rules: moved '$hline' to $out"
 }
@@ -233,10 +251,11 @@ project_rules_emit() {  # <skeleton.md> <out.md> → the rule, matching globs on
     || { echo "project-rules: $1: no valid paths: array" >&2; return 2; }
   kept=$(_rules_matching "$globs") \
     || { echo "project-rules: $1: no glob matches, not emitted" >&2; return 1; }
-  [ -e "$2" ] && { echo "project-rules: $2 exists" >&2; return 2; }
-  mkdir -p "$(dirname "$2")"
+  _rules_out_path_ok "$2" || return 2
+  _rules_mkdir_parent "$2" || return 2
   { printf -- '---\npaths: %s\n---\n' "$kept"
-    awk 'body { print } NR > 1 && $0 == "---" { body = 1 }' "$1"; } > "$2"
+    awk 'body { print } NR > 1 && $0 == "---" { body = 1 }' "$1"; } > "$2" \
+    || { rm -f "$2"; echo "project-rules: $2 not written" >&2; return 2; }
   echo "project-rules: emitted $2 paths: $kept"
 }
 

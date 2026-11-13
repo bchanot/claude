@@ -141,7 +141,8 @@ bash ~/.claude/lib/project-rules.sh -C <PROJECT_ROOT> emit ~/.claude/templates/p
   `build_cmd`, `testing` layout from `test_cmd`); never duplicate the
   always-on Build/Test sections.
 - rc 1 → no match, nothing written, skip silently.
-- rc 2 → the file exists: keep it, never overwrite.
+- rc 2 whose stderr line ends with ` exists` → keep the file, never
+  overwrite; any other rc 2 → STOP, relay the lib's line.
 Then `bash ~/.claude/lib/project-rules.sh -C <PROJECT_ROOT> check` must print
 `N rule(s) ok`. The `!.claude/rules/` negation comes from the gitflow socle
 at /onboard STEP 2.6 (`gitflow init` reconciles it); PHASE 4 stays as is.
@@ -252,7 +253,8 @@ rc ≠ 0 (should not happen after S0) → ROLLBACK: `git -C <PROJECT_ROOT>
 reset -q`, `git -C <PROJECT_ROOT> checkout -- CLAUDE.md` (plus
 `.gitignore` when S0 appended to it), delete every
 `.claude/rules/<name>.md` this run wrote (literal paths, one `rm` per
-row), then STOP with the row and the lib's message.
+row; a row that failed at the rewrite step also leaves a tmp file named
+on stderr: delete it too), then STOP with the row and the lib's message.
 
 S2 — POINTER. If CLAUDE.md has no `## Path-scoped rules` section, append:
 ```markdown

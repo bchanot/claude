@@ -165,11 +165,18 @@ TMPDIR=/nonexistent bash "$PR" extract CLAUDE.md 'Beta' .claude/rules/beta.md '[
 check T9e-no-tmp-rc "$?" 2
 check T9f-no-tmp-nothing-written "$([ -e .claude/rules/beta.md ] && echo yes || echo no)" no
 check T9g-no-tmp-beta-still-there "$(grep -c '^## Beta' CLAUDE.md)" 1
+# a failed rewrite after the truncation keeps the rewritten text and the rule
+mkdir -p "$FIX/tmp"; cp CLAUDE.md "$FIX/src.before"
 chmod a-w CLAUDE.md
-bash "$PR" extract CLAUDE.md 'Beta' .claude/rules/beta.md '["src/**"]' 2>/dev/null
+err=$(TMPDIR="$FIX/tmp" bash "$PR" extract CLAUDE.md 'Beta' .claude/rules/beta.md '["src/**"]' 2>&1 >/dev/null)
 check T9h-unwritable-src-rc "$?" 2
-check T9i-unwritable-src-rule-removed "$([ -e .claude/rules/beta.md ] && echo yes || echo no)" no
+kept=$(printf '%s\n' "$err" | sed -n 's/.*rewritten text at \([^,]*\),.*/\1/p')
+check T9h2-unwritable-src-tmp-named "$(case "$kept" in "$FIX"/tmp/*) [ -e "$kept" ] && echo yes || echo no ;; *) echo no ;; esac)" yes
+check T9h3-unwritable-src-tmp-rewritten "$(grep -c '^## Beta' "$kept")" 0
+check T9i-unwritable-src-rule-kept "$([ -e .claude/rules/beta.md ] && echo yes || echo no)" yes
+check T9h4-unwritable-src-untouched "$(cmp -s CLAUDE.md "$FIX/src.before" && echo yes || echo no)" yes
 chmod u+w CLAUDE.md
+rm -f .claude/rules/beta.md "$FIX"/tmp/tmp.*
 check T9j-unwritable-src-beta-still-there "$(grep -c '^## Beta' CLAUDE.md)" 1
 
 # T9k a mid-file H1 ends the section (foreign CLAUDE.md with several parts)
@@ -228,6 +235,35 @@ check T9y-write-fails-rc "$?" 2
 check T9z-write-fails-beta-kept "$(grep -c '^## Beta' CLAUDE.md)" 1
 check T9z2-write-fails-no-rule "$([ -e .claude/rules/ro/beta.md ] && echo yes || echo no)" no
 chmod u+w .claude/rules/ro
+
+# T9z3 a symlinked .claude/rules resolving outside the project is refused by
+# extract and emit; a symlinked -C dir stays accepted
+mkdir -p "$FIX/p-esc/.claude" "$FIX/out-esc" "$FIX/p-esc/src"
+ln -s "$FIX/out-esc" "$FIX/p-esc/.claude/rules"
+cp CLAUDE.md "$FIX/p-esc/CLAUDE.md"; echo x > "$FIX/p-esc/src/a.c"
+echo x > "$FIX/p-esc/Dockerfile"
+cd "$FIX/p-esc" || exit 1
+err=$(bash "$PR" extract CLAUDE.md 'Beta' .claude/rules/beta.md '["src/**"]' 2>&1 >/dev/null)
+check T9z3-escape-extract-rc "$?" 2
+check T9z4-escape-extract-reason "$(printf '%s\n' "$err" | grep -c 'must stay under the project')" 1
+err=$(bash "$PR" emit "$ROOT/templates/project-rules/docker.md" .claude/rules/docker.md 2>&1 >/dev/null)
+check T9z5-escape-emit-rc "$?" 2
+check T9z6-escape-emit-reason "$(printf '%s\n' "$err" | grep -c 'must stay under the project')" 1
+check T9z7-escape-target-empty "$(find "$FIX/out-esc" -mindepth 1 | wc -l | tr -d ' ')" 0
+cd "$FIX" || exit 1
+mkdir -p "$FIX/p-ok" && echo x > "$FIX/p-ok/Dockerfile" && ln -s "$FIX/p-ok" "$FIX/link-esc"
+bash "$PR" -C "$FIX/link-esc" emit "$ROOT/templates/project-rules/docker.md" .claude/rules/docker.md >/dev/null
+check T9z8-symlinked-C-emit-rc "$?" 0
+cd "$FIX/p-ok" || exit 1
+mkdir -p .claude/rules && touch .claude/rules/notadir
+err=$(bash "$PR" emit "$ROOT/templates/project-rules/docker.md" .claude/rules/notadir/x.md 2>&1 >/dev/null)
+check T9z9-emit-mkdir-fails-rc "$?" 2
+check T9z10-emit-mkdir-fails-reason "$(printf '%s\n' "$err" | grep -c 'cannot create')" 1
+err=$(bash "$PR" emit "$ROOT/templates/project-rules/docker.md" .claude/rules/x.md/ 2>&1 >/dev/null)
+check T9z11-emit-write-fails-rc "$?" 2
+check T9z12-emit-write-fails-reason "$(printf '%s\n' "$err" | grep -c 'not written')" 1
+check T9z13-emit-write-fails-no-file "$([ -e .claude/rules/x.md ] && echo yes || echo no)" no
+cd "$FIX" || exit 1
 
 # T10 the hook appends one jq line, prints nothing, never fails
 HOOK="$ROOT/hooks/instructions-loaded.sh"
