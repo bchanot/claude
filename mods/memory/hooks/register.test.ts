@@ -2658,6 +2658,42 @@ test('IR11: an injection leaves one log record; 205 keep 200', async (
   expect(await loadLog(storeApi(w), ROOT)).toHaveLength(200)
 })
 
+/** The key set of a log record is pinned: a text field must fail. */
+const KEYS = ['agent', 'at', 'cands', 'channel', 'ids', 'ms', 'outcome',
+  'session', 'trigger']
+
+test('IR11b: an injected record holds exactly these keys', async (
+  $, on,
+) => {
+  const { w } = await bootRecall($, on)
+  await start($)
+  await say($, GO)
+  const log = await loadLog(storeApi(w), ROOT)
+  expect(log.map(r => Object.keys(r).sort())).toEqual([KEYS])
+})
+
+test('IR11c: a none record holds exactly these keys', async ($, on) => {
+  const { w } = await bootRecall($, on)
+  w.model = { text: 'none' }
+  await start($)
+  await say($, GO)
+  const log = await loadLog(storeApi(w), ROOT)
+  expect(log.map(r => Object.keys(r).sort())).toEqual([KEYS])
+})
+
+test('IR11d: a no-candidate record holds these keys, no ms', async (
+  $, on,
+) => {
+  const { w } = await bootRecall($, on)
+  w.proc = { stdout: rowsOut([['BLK-001', 'x'], ['LRN-002', 'y']])
+    .replace(/open/g, 'superseded') }
+  await start($)
+  await say($, GO)
+  const log = await loadLog(storeApi(w), ROOT)
+  expect(log.map(r => Object.keys(r).sort()))
+    .toEqual([KEYS.filter(k => k !== 'ms')])
+})
+
 test('IR12: a pending milestone and a trigger give [note, block]', async (
   $, on,
 ) => {

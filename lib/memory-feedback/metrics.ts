@@ -2,7 +2,7 @@
 // FEEDBACK.md text, computed from labels.tsv rows only (transcripts expire
 // at 7 days, the rows stay). Spec §4.
 import {
-  DAY_MS, GATE_DAYS, PROMPT_GATE_N, T, TOOL_GATE_N,
+  DAY_MS, GATE1_FIX_AT, GATE_DAYS, PROMPT_GATE_N, T, TOOL_GATE_N,
 } from './thresholds.ts'
 import { keyOf, type Row } from './labels.ts'
 
@@ -13,10 +13,12 @@ type Rate = number | undefined
 type Sized = { rate: Rate; n: number }
 export type Metrics = {
   start?: number; promptN: number; toolN: number; lost: number
-  precision: Rate; byTrigger: Record<string, Sized>; thirdPick: Rate
+  precision: Rate; byTrigger: Record<string, Sized>
   late: Rate; msP90: Rate; tool: Rate; missShare: Rate; sampled: number
   noisy: string[]; promote: string[]
-  n: { prompt: number; third: number; tool: number } // entries
+  n: { prompt: number; tool: number } // entries
+  postAsks: number // post-fix prompt asks labelled: the floor of the actions
+  preFix: number // pre-fix prompt entries left out of the prompt signals
 }
 
 const share = (k: number, n: number): Rate => n === 0 ? undefined : k / n
@@ -66,7 +68,6 @@ function byTrigger(entries: Row[]): Record<string, Sized> {
 /** Entry counts behind the three channel precisions. */
 const countsOf = (entries: Row[]) => ({
   prompt: entries.filter(r => r.channel === 'prompt').length,
-  third: entries.filter(r => r.channel === 'prompt' && r.pick === 3).length,
   tool: entries.filter(r => r.channel === 'tool').length,
 })
 
@@ -109,25 +110,29 @@ function promote(entries: Row[]): string[] {
 const itemsOf = (entries: Row[], ch: string) =>
   new Set(entries.filter(r => r.channel === ch).map(keyOf)).size
 
-/** Every 4d signal, from labels.tsv rows. */
+const postFix = (r: Row) => r.at >= GATE1_FIX_AT
+
+/** Every 4d signal, from labels.tsv rows. Prompt precision, triggers and
+ * the miss share read post-fix rows (BDR-146); the rest read all rows. */
 export function metricsOf(all: Row[]): Metrics {
   const rows = liveRows(all)
   const entries = rows.filter(isEntry)
-  const prompt = entries.filter(r => r.channel === 'prompt')
+  const recent = entries.filter(r => r.channel === 'prompt' && postFix(r))
   const asks = rows.filter(r => r.channel === 'prompt' &&
     (r.label === 'ask' || r.label === 'lost'))
-  const miss = misses(rows)
+  const miss = misses(rows.filter(postFix))
   return {
     start: clockStart(all, []),
     promptN: itemsOf(entries, 'prompt'), toolN: itemsOf(entries, 'tool'),
     lost: rows.filter(r => r.label === 'lost').length,
-    precision: precision(prompt), byTrigger: byTrigger(prompt),
-    thirdPick: precision(prompt.filter(r => r.pick === 3)),
+    precision: precision(recent), byTrigger: byTrigger(recent),
     late: lateShare(asks), msP90: p90(asks.flatMap(r => r.ms ?? [])),
     tool: precision(entries.filter(r => r.channel === 'tool')),
     missShare: miss.rate, sampled: miss.sampled,
     noisy: noisy(entries), promote: promote(entries),
-    n: countsOf(entries),
+    n: { ...countsOf(entries), prompt: recent.length },
+    postAsks: itemsOf(recent, 'prompt'),
+    preFix: countsOf(entries).prompt - recent.length,
   }
 }
 
@@ -158,12 +163,10 @@ function worstTrigger(by: Record<string, Sized>): string | undefined {
 function promptActions(m: Metrics): string[] {
   const out: string[] = []
   const worst = worstTrigger(m.byTrigger)
-  if (under(m.precision, T.promptKeep) && worst !== undefined) {
+  const floor = m.postAsks >= PROMPT_GATE_N
+  if (floor && under(m.precision, T.promptKeep) && worst !== undefined) {
     out.push(`prompt precision under ${pct(T.promptKeep)}: ` +
       `tighten or drop the ${worst} trigger`)
-  }
-  if (under(m.thirdPick, T.thirdPick)) {
-    out.push(`3rd pick under ${pct(T.thirdPick)}: cap recall at 2 entries`)
   }
   if ((m.late ?? 0) > T.lateShare) {
     out.push(`timeout + paused over ${pct(T.lateShare)}: ` +
@@ -172,7 +175,7 @@ function promptActions(m: Metrics): string[] {
   if (under(m.msP90, T.msP90)) {
     out.push(`rerank p90 under ${T.msP90} ms: lower RERANK_MS`)
   }
-  if ((m.missShare ?? 0) >= T.missShare) {
+  if (floor && (m.missShare ?? 0) >= T.missShare) {
     out.push('misses in 1 ask in 3 or more: diagnose by cause')
   }
   return out
@@ -197,6 +200,11 @@ function toolLine(m: Metrics, v: Verdict): string {
     : `Tool gate: ${v.tool} (${m.toolN}/${TOOL_GATE_N})`
 }
 
+const postFixLine = (m: Metrics) =>
+  `Post-fix prompt asks: ${m.postAsks}/${PROMPT_GATE_N} (since ` +
+  `${new Date(GATE1_FIX_AT).toISOString()}), pre-fix entries excluded: ` +
+  `${m.preFix}`
+
 /** FEEDBACK.md: counts and shares; repo tags only in the last lists. */
 export function renderFeedback(m: Metrics, v: Verdict, now: number) {
   const acts = actionsOf(m, v)
@@ -204,12 +212,11 @@ export function renderFeedback(m: Metrics, v: Verdict, now: number) {
     `# Memory feedback (${day(now)})`, '',
     `Gate clock start: ${m.start === undefined ? 'not started' : day(m.start)}`,
     `Prompt gate: ${v.prompt} (${m.promptN}/${PROMPT_GATE_N})`,
-    toolLine(m, v), `Lost records: ${m.lost}`, '',
+    toolLine(m, v), `Lost records: ${m.lost}`, postFixLine(m), '',
     '| Signal | Value |', '|---|---|',
     `| prompt precision | ${pct(m.precision)} (n=${m.n.prompt}) |`,
     ...Object.entries(m.byTrigger).map(([k, x]) =>
       `| precision, ${k} | ${pct(x.rate)} (n=${x.n}) |`),
-    `| 3rd pick precision | ${pct(m.thirdPick)} (n=${m.n.third}) |`,
     `| timeout + paused | ${pct(m.late)} |`,
     `| rerank ms p90 | ${m.msP90 ?? 'n/a'} |`,
     `| tool precision | ${pct(m.tool)} (n=${m.n.tool}) |`,

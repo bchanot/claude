@@ -16,8 +16,10 @@ import {
   tagOf, writeSafe, writeState, type Draft, type Item, type Row,
   type State,
 } from './labels.ts'
+import { PROMPT_GATE_N } from './thresholds.ts'
 import {
-  clockStart, gateVerdict, metricsOf, renderFeedback, type Verdict,
+  clockStart, gateVerdict, metricsOf, renderFeedback, type Metrics,
+  type Verdict,
 } from './metrics.ts'
 import {
   joinPrompt, joinTool, records, sessionFiles, type Loaded,
@@ -158,23 +160,39 @@ function toolItem(
   return { item: { ...b, cited: [], lost: false }, text }
 }
 
-/** A per-run transcript loader: each file read once (R8); a record
- * reads its main thread or its own sub-agent file only; torn lines
- * summed once per file. */
+const fileOf = (projects: string, l: Logged): string =>
+  sessionFiles(projects, l.root, l.rec.session, l.rec.agent)[0] ?? ''
+
+/** A per-run transcript loader with one slot: the work is sorted by file,
+ * so each file is parsed once and dropped when the next one loads (memory
+ * stays at one transcript); a record reads its main thread or its own
+ * sub-agent file only; torn lines are summed at each load. */
 function loaderFor(projects: string): Loader {
-  const files = new Map<string, Loaded>()
-  const read = (f: string) => {
-    const got = files.get(f) ?? records(f)
-    files.set(f, got)
-    return got
-  }
+  let slot: { file: string; got: Loaded } | undefined
+  let torn = 0
   const load = (l: Logged): Loaded => {
-    const r = l.rec
-    const fs_ = sessionFiles(projects, l.root, r.session, r.agent)
-    return { torn: 0, recs: fs_.flatMap(f => read(f).recs) }
+    const file = fileOf(projects, l)
+    if (file === '') return { torn: 0, recs: [] }
+    if (slot?.file !== file) {
+      slot = { file, got: records(file) }
+      torn += slot.got.torn
+    }
+    return slot.got
   }
-  const torn = () => [...files.values()].reduce((t, x) => t + x.torn, 0)
-  return { load, torn }
+  return { load, torn: () => torn }
+}
+
+const byFile = (a: { file: string; n: number }, b: typeof a) =>
+  a.file === b.file ? a.n - b.n : a.file < b.file ? -1 : 1
+
+/** Every record joined, file by file; the items come back in `n` order. */
+function joinAll(pop: Logged[], projects: string) {
+  const loader = loaderFor(projects)
+  const work = pop.map((l, i) =>
+    ({ l, n: i + 1, file: fileOf(projects, l) })).sort(byFile)
+  const joined = work.map(w => joinOne(w.l, w.n, loader.load))
+    .sort((a, b) => a.item.n - b.item.n)
+  return { joined, torn: loader.torn() }
 }
 
 /** One worksheet item and its redacted text. */
@@ -212,9 +230,8 @@ function collect(p: Paths, now: number) {
   const logs = readLogs(storeFile(p.store))
   const pop = population(logs, new Set(rows.map(keyOf)),
     clockStart(rows, logAtsOf(logs)), now)
-  const loader = loaderFor(p.projects)
-  const joined = pop.map((l, i) => joinOne(l, i + 1, loader.load))
-  return { joined, head: sheetHead(pop.length, loader.torn(),
+  const { joined, torn } = joinAll(pop, p.projects)
+  return { joined, head: sheetHead(pop.length, torn,
     evictions(logs, readState(stateOf(p)).lastRun)) }
 }
 
@@ -238,21 +255,29 @@ const draftOf = (dir: string) => {
   return fs.existsSync(f) ? fs.readFileSync(f, 'utf8') : ''
 }
 
-/** The state after this run, and a NEW line per gate first reached. */
-function nextState(st: State, v: Verdict, now: number) {
+/** The state after this run, and a NEW line per gate or floor first
+ * reached. */
+function nextState(st: State, m: Metrics, v: Verdict, now: number) {
   const news: string[] = []
-  let { promptAt, toolAt } = st
+  let { promptAt, toolAt, postFixAt } = st
   if (promptAt === undefined && v.prompt === 'reached') {
     promptAt = now
     news.push('NEW: prompt gate reached')
   }
-  const toolDone = v.tool === 'reached' || v.tool === 'insufficient'
-  if (toolAt === undefined && toolDone) {
+  if (toolAt === undefined &&
+    (v.tool === 'reached' || v.tool === 'insufficient')) {
     toolAt = now
     news.push(`NEW: tool gate ${v.tool}`)
   }
-  const closed = promptAt !== undefined && toolAt !== undefined
-  return { state: { lastRun: now, promptAt, toolAt, closed }, news }
+  if (postFixAt === undefined && m.postAsks >= PROMPT_GATE_N) {
+    postFixAt = now
+    news.push('NEW: post-fix prompt sample reached ' +
+      `(${m.postAsks}/${PROMPT_GATE_N} asks)`)
+  }
+  const closed = promptAt !== undefined && toolAt !== undefined &&
+    postFixAt !== undefined
+  return { state: { lastRun: now, promptAt, toolAt, postFixAt, closed },
+    news }
 }
 
 const assertFresh = (items: Item[], file: string) => {
@@ -275,7 +300,7 @@ function commit(
 ): string {
   assertFresh(items, labelsOf(p))
   const { fresh, m, v } = projected(items, drafts, p, now)
-  const next = nextState(readState(stateOf(p)), v, now)
+  const next = nextState(readState(stateOf(p)), m, v, now)
   const feedback = renderFeedback(m, v, now)
   if (fresh.length > 0) appendRows(labelsOf(p), fresh)
   writeState(stateOf(p), next.state)
@@ -285,6 +310,7 @@ function commit(
 
 const isCount = (v: unknown) =>
   typeof v === 'number' && Number.isInteger(v) && v >= 0
+const isSafeCount = (v: unknown) => isCount(v) && Number.isSafeInteger(v)
 const optCount = (v: unknown) => v === undefined || isCount(v)
 const idsOk = (v: unknown): v is string[] => Array.isArray(v) &&
   v.every(x => typeof x === 'string' && ENTRY_ID.test(x))
@@ -305,7 +331,7 @@ function itemError(raw: unknown): string {
     ['ids', idsOk(i.ids)],
     ['cited', idsOk(i.cited) && i.cited.every(c =>
       (i.ids as string[]).includes(c))],
-    ['numbers', isCount(i.at) && isCount(i.n) && optCount(i.cands) &&
+    ['numbers', isSafeCount(i.at) && isCount(i.n) && optCount(i.cands) &&
       optCount(i.ms)],
     ['lost', typeof i.lost === 'boolean'],
   ]

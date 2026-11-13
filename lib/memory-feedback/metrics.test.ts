@@ -1,12 +1,12 @@
 import { expect, test } from 'bun:test'
-import { DAY_MS, GATE_DAYS } from './thresholds.ts'
+import { DAY_MS, GATE1_FIX_AT, GATE_DAYS } from './thresholds.ts'
 import {
   actionsOf, clockStart, gateVerdict, metricsOf, p90, precision,
   renderFeedback, type Metrics,
 } from './metrics.ts'
 import type { Label, Row } from './labels.ts'
 
-let clock = 1000
+let clock = GATE1_FIX_AT + 1000 // every default row is post-fix
 /** A labels.tsv row; each call gets its own `at` unless given. */
 function row(over: Partial<Row> & { label: Label }): Row {
   clock += 1
@@ -128,4 +128,128 @@ test('M10: FEEDBACK.md shows n per channel and trigger', () => {
   expect(text).toContain('| precision, fresh | 50 % (n=2) |')
   expect(text).toContain('| prompt precision | 33 % (n=3) |')
   expect(text).toContain('| tool precision | n/a (n=0) |')
+})
+
+const shift = (rs: Row[], at: number) => rs.map(r => ({ ...r, at }))
+const PRE = Date.parse('2026-11-12T15:00:00Z')
+
+test('M11: the fix instant splits prompt precision, not noisy', () => {
+  const old = shift(ask(['irrelevant', 'irrelevant', 'irrelevant']), PRE)
+  const mm = metricsOf([...old, ...ask(['relevant'])])
+  expect(mm.precision).toBe(1)
+  expect(mm.n.prompt).toBe(1)
+  expect(mm.preFix).toBe(3)
+  expect(mm.promptN).toBe(2) // the gate count reads every row
+  const thrice = [1, 2, 3].flatMap(() => shift(ask(['irrelevant']), PRE))
+  expect(metricsOf(thrice).noisy).toEqual(['r#000000 LRN-001'])
+  const edge = [...shift(ask(['irrelevant']), GATE1_FIX_AT - 1),
+    ...shift(ask(['relevant']), GATE1_FIX_AT)]
+  expect(metricsOf(edge).precision).toBe(1)
+  expect(metricsOf(edge).n.prompt).toBe(1)
+})
+
+test('M12: the miss share reads post-fix asks only', () => {
+  const miss = (at: number) => [row({ at, id: '', label: 'ask' }),
+    row({ at, id: 'BDR-009', label: 'missed', cause: 'overlap' })]
+  const mm = metricsOf([...miss(GATE1_FIX_AT - 1), ...miss(GATE1_FIX_AT)])
+  expect(mm.sampled).toBe(1)
+  expect(mm.missShare).toBe(1)
+})
+
+/** Metrics whose every gate is reached, with `over` on top. */
+const reached = (over: Partial<Metrics>): Metrics => ({
+  ...metricsOf([]), start: 0, promptN: 20, toolN: 10, postAsks: 20, ...over,
+})
+const acts = (over: Partial<Metrics>) => {
+  const mm = reached(over)
+  return actionsOf(mm, gateVerdict(mm, 1))
+}
+const sized = (i: number, k: number, f: number) => ({
+  idle: { rate: i, n: 5 }, keyword: { rate: k, n: 5 },
+  fresh: { rate: f, n: 5 },
+})
+
+test('M13: each comparator at its threshold and one step past', () => {
+  const has = (over: Partial<Metrics>, part: string) =>
+    acts(over).some(a => a.includes(part))
+  expect(has({ late: 0.25 }, 'timeout + paused')).toBe(false)
+  expect(has({ late: 0.26 }, 'timeout + paused')).toBe(true)
+  expect(has({ msP90: 2500 }, 'rerank p90')).toBe(false)
+  expect(has({ msP90: 2499 }, 'rerank p90')).toBe(true)
+  expect(has({ tool: 0.5 }, 'tool precision')).toBe(false)
+  expect(has({ tool: 0.49 }, 'tool precision')).toBe(true)
+  expect(has({ missShare: 1 / 3 }, 'misses in 1 ask')).toBe(true)
+  expect(has({ missShare: 0.33 }, 'misses in 1 ask')).toBe(false)
+  const by = sized(0.4, 0.9, 0.9)
+  expect(has({ precision: 0.64, byTrigger: by }, 'prompt precision'))
+    .toBe(false)
+  expect(has({ precision: 0.63, byTrigger: by }, 'prompt precision'))
+    .toBe(true)
+  const low = (r: number) => sized(r, 0.9, 0.9)
+  expect(has({ precision: 0.5, byTrigger: low(0.5) }, 'prompt precision'))
+    .toBe(false)
+  expect(has({ precision: 0.5, byTrigger: low(0.49) }, 'prompt precision'))
+    .toBe(true)
+})
+
+test('M14: the worst trigger ties go idle, keyword, fresh', () => {
+  const pick = (by: ReturnType<typeof sized>) => acts({ precision: 0.3,
+    byTrigger: by }).find(a => a.startsWith('prompt precision'))
+  expect(pick(sized(0.25, 0.25, 0.25))).toContain('the idle trigger')
+  expect(pick(sized(0.9, 0.25, 0.25))).toContain('the keyword trigger')
+  expect(pick(sized(0.25, 0.2, 0.9))).toContain('the keyword trigger')
+  expect(pick(sized(0.9, 0.9, 0.1))).toContain('the fresh trigger')
+})
+
+test('M15: promotion needs 3 hits in 2 sessions, noisy 3 never hit', () => {
+  const rel = (s: string) => ask(['relevant'], { session: s })
+  expect(metricsOf([...rel('a'), ...rel('a'), ...rel('b')]).promote)
+    .toEqual(['r#000000 LRN-001'])
+  expect(metricsOf([...rel('a'), ...rel('b')]).promote).toEqual([])
+  const irr = () => ask(['irrelevant'])
+  expect(metricsOf([...irr(), ...irr(), ...irr()]).noisy).toHaveLength(1)
+  expect(metricsOf([...irr(), ...irr()]).noisy).toEqual([])
+})
+
+test('M16: the post-fix floor gates the prompt actions, 19 vs 20', () => {
+  const idle = (n: number) => Array.from({ length: n }, () =>
+    ask(['irrelevant'], { trigger: 'idle' })).flat()
+  const run = (n: number) => {
+    const mm = { ...metricsOf(idle(n)), start: 0, promptN: 20 }
+    return actionsOf(mm, gateVerdict(mm, 1))
+  }
+  expect(run(19).some(a => a.startsWith('prompt precision'))).toBe(false)
+  expect(run(20).some(a => a.startsWith('prompt precision'))).toBe(true)
+  const text = renderFeedback(metricsOf(idle(19)), gateVerdict(
+    metricsOf(idle(19)), 1), 0)
+  expect(text).toContain('Post-fix prompt asks: 19/20 (since ' +
+    '2026-11-12T19:53:59.000Z), pre-fix entries excluded: 0')
+})
+
+test('M17: below the floor the miss action waits, late and p90 fire', () => {
+  const asks = Array.from({ length: 19 }, () =>
+    ask(['irrelevant'], { trigger: 'idle', ms: 2000 })).flat()
+  const miss = row({ id: 'BDR-009', label: 'missed', cause: 'overlap',
+    at: asks[0]!.at })
+  const late = Array.from({ length: 8 }, () =>
+    row({ id: '', label: 'ask', outcome: 'timeout' }))
+  const mm = { ...metricsOf([...asks, miss, ...late]), start: 0, promptN: 20 }
+  expect(mm.missShare).toBeGreaterThanOrEqual(1 / 3)
+  const out = actionsOf(mm, gateVerdict(mm, 1))
+  expect(out.some(a => a.startsWith('misses in 1 ask'))).toBe(false)
+  expect(out.some(a => a.startsWith('timeout + paused'))).toBe(true)
+  expect(out.some(a => a.startsWith('rerank p90'))).toBe(true)
+})
+
+test('M18: an ask with 2 entries counts once toward the floor', () => {
+  const two = Array.from({ length: 19 }, () =>
+    ask(['relevant', 'relevant'])).flat()
+  expect(metricsOf(two).postAsks).toBe(19)
+  expect(metricsOf([...two, ...ask(['relevant'])]).postAsks).toBe(20)
+})
+
+test('M19: a pre-fix row still counts toward promote', () => {
+  const old = (s: string) => shift(ask(['relevant'], { session: s }), PRE)
+  expect(metricsOf([...old('a'), ...old('a'), ...old('b')]).promote)
+    .toEqual(['r#000000 LRN-001'])
 })

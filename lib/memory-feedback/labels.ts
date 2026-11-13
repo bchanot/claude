@@ -12,6 +12,8 @@ const DRAFT_LABELS = ['relevant', 'irrelevant', 'test', 'missed', 'checked']
 const ENTRY_LABELS = ['relevant', 'irrelevant']
 const CAUSES = ['no-overlap', 'overlap']
 const ID_RE = /^(BDR|LRN|BLK)-\d{3,}$/
+const ROW_LABELS = [...DRAFT_LABELS, 'ask', 'lost']
+const BARE_LABELS = ['ask', 'lost', 'test', 'checked'] // carry no entry id
 
 /** One worksheet item: a log record and what the join found. */
 export type Item = {
@@ -25,9 +27,11 @@ export type Row = {
   pick?: number; id: string; label: Label; cause: string
 }
 export type Draft = { item: number; id: string; label: Label; cause: string }
-/** promptAt/toolAt: when each gate verdict was first reached. */
+/** promptAt/toolAt/postFixAt: when each gate verdict or floor was first
+ * reached. */
 export type State = {
   lastRun: number; promptAt?: number; toolAt?: number; closed: boolean
+  postFixAt?: number // the post-fix prompt floor, first crossed (optional)
 }
 
 const COLS = ['at', 'root', 'session', 'channel', 'trigger', 'outcome',
@@ -52,10 +56,20 @@ export function toLine(r: Row): string {
     .join('\t')
 }
 
-/** A labels.tsv line as a row; the header or a short line: undefined. */
+/** Whether the fields hold a known label, its id shape, a channel and
+ * an integer `at`. */
+function sound(f: string[]): boolean {
+  const label = f[10] ?? ''
+  const id = f[9] ?? ''
+  const idOk = BARE_LABELS.includes(label) ? id === '' : ID_RE.test(id)
+  return ROW_LABELS.includes(label) && idOk &&
+    (f[3] === 'prompt' || f[3] === 'tool') && /^\d+$/.test(f[0] ?? '')
+}
+
+/** A labels.tsv line as a row; the header or a damaged line: undefined. */
 export function fromLine(line: string): Row | undefined {
   const f = line.split('\t')
-  if (f.length !== COLS.length || f[0] === 'at') return undefined
+  if (f.length !== COLS.length || !sound(f)) return undefined
   return {
     at: Number(f[0]), root: f[1] ?? '', session: f[2] ?? '',
     channel: f[3] as Channel, trigger: f[4] ?? '', outcome: f[5] ?? '',
@@ -87,11 +101,12 @@ export function readRows(file: string): Row[] {
     const r = fromLine(line)
     if (r !== undefined) return [r]
     throw new Error(`labels.tsv line ${i + 1} unreadable: fix it by hand ` +
-      'or restore labels.tsv.bak')
+      '(labels.tsv.bak holds the state before the last append)')
   })
 }
 
-/** Appends rows; the previous file is copied to labels.tsv.bak first. */
+/** Appends rows; the previous file is copied to labels.tsv.bak first (one
+ * state: the one before the last append). */
 export function appendRows(file: string, rows: Row[]): void {
   mkdir(file)
   if (fs.existsSync(file)) fs.copyFileSync(file, `${file}.bak`)
@@ -104,9 +119,17 @@ export function readState(file: string): State {
   if (!fs.existsSync(file)) return { lastRun: 0, closed: false }
   try {
     const s = JSON.parse(fs.readFileSync(file, 'utf8'))
+    if (typeof s !== 'object' || s === null || Array.isArray(s)) {
+      throw new Error('state.json is not an object')
+    }
     const at = (v: unknown) => typeof v === 'number' ? v : undefined
-    return { lastRun: Number(s.lastRun) || 0, promptAt: at(s.promptAt),
-      toolAt: at(s.toolAt), closed: s.closed === true }
+    const [promptAt, toolAt, postFixAt] =
+      [at(s.promptAt), at(s.toolAt), at(s.postFixAt)]
+    // closed is derived: a stored flag without all three marks reads open
+    const closed = promptAt !== undefined && toolAt !== undefined &&
+      postFixAt !== undefined
+    return { lastRun: Number(s.lastRun) || 0, promptAt, toolAt, postFixAt,
+      closed }
   } catch {
     throw new Error(`state.json unreadable (${file}): fix or delete it`)
   }
@@ -135,7 +158,8 @@ function fitError(d: Draft, it: Item | undefined): string {
       ? '' : `item ${d.item}: only checked or test take id -`
   }
   if (ENTRY_LABELS.includes(d.label)) {
-    return plain && it.ids.includes(d.id)
+    if (!plain) return `item ${d.item}: ${d.label} takes no cause`
+    return it.ids.includes(d.id)
       ? '' : `item ${d.item}: ${d.id} was not injected there`
   }
   const ok = d.label === 'missed' && it.channel === 'prompt' &&

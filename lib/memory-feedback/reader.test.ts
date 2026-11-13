@@ -3,6 +3,8 @@ import { spawnSync } from 'node:child_process'
 import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
+import { GATE1_FIX_AT } from './thresholds.ts'
+import { tagOf } from './labels.ts'
 import { slugOf } from './transcripts.ts'
 import {
   apply, checkDir, population, readLogs, safePath, sample, storeFile,
@@ -17,7 +19,7 @@ const mk = (pfx: string) => {
   dirs.push(d)
   return d
 }
-const T0 = Date.parse('2026-11-10T10:00:00.000Z')
+const T0 = GATE1_FIX_AT + 20 * 3600000 // post-fix: the floor counts it
 const NOW = T0 + 2 * 3600000 // every fixture record is 2 h old
 const iso = (ms: number) => new Date(T0 + ms).toISOString()
 // built at run time: no secret-shaped literal in the repo (BLK-041)
@@ -156,7 +158,7 @@ test('R8: the CLI refuses a dir inside a git work tree', () => {
 test('R10: a tampered items.json is refused, nothing written', () => {
   for (const bad of [{ root: '/repo/x' }, { root: 'a\tb#abcdef' },
     { session: '../s' }, { channel: 'x' }, { ids: ['../x'] },
-    { cited: ['BDR-999'] }, { at: -1 }, { lost: 'no' }]) {
+    { cited: ['BDR-999'] }, { at: -1 }, { at: 1e21 }, { lost: 'no' }]) {
     const { p, work } = fixture(STORE)
     worksheet(work, p, NOW)
     const f = path.join(work, 'items.json')
@@ -180,4 +182,136 @@ test('safePath keeps plain paths and withholds shell-active ones', () => {
   expect(safePath('/home/u/repo.x')).toBe('/home/u/repo.x')
   for (const bad of ['/tmp/$(id)', '/tmp/`id`', "/tmp/a'b", '/a/../b'])
     expect(safePath(bad)).toBe(w)
+})
+
+/** The 3 transcript records of the prompt asked at `T0 + ms`. */
+const turn = (ms: number, tag: string) => [
+  { type: 'user', timestamp: iso(ms - 50), origin: { kind: 'human' },
+    message: { content: `prompt-${tag}` } },
+  { type: 'attachment', timestamp: iso(ms + 400), attachment: {
+    type: 'hook_additional_context', hookName: 'prompt.submit',
+    content: ['memory recall:\nBDR-001 x'] } },
+  { type: 'assistant', timestamp: iso(ms + 900),
+    message: { id: `m${ms}`, content: [{ type: 'text', text: 'ok' }] } },
+]
+const jsonl = (recs: object[], torn = 0) => recs.map(r => JSON.stringify(r))
+  .concat(Array(torn).fill('{"torn')).join('\n') + '\n'
+const put = (p: Paths, session: string, text: string) => fs.writeFileSync(
+  path.join(p.projects, slugOf('/repo/x'), `${session}.jsonl`), text)
+const sheetOf = (work: string) =>
+  fs.readFileSync(path.join(work, 'worksheet.md'), 'utf8')
+
+const promptAt = (sheet: string, t: string) =>
+  sheet.indexOf(`Prompt: prompt-${t}`)
+const itemsOf = (work: string): { n: number }[] => JSON.parse(
+  fs.readFileSync(path.join(work, 'items.json'), 'utf8'))
+
+test('R11: A,B,A sessions: each file read once, order kept', () => {
+  const { p, work } = fixture({ 'l:/repo/x': [
+    REC(T0, { session: 'sA' }), REC(T0 + 60000, { session: 'sB' }),
+    REC(T0 + 120000, { session: 'sA' })] })
+  put(p, 'sA', jsonl([...turn(0, 'A1'), ...turn(120000, 'A2')], 1))
+  put(p, 'sB', jsonl(turn(60000, 'B1')))
+  expect(worksheet(work, p, NOW)).toBe(3)
+  const sheet = sheetOf(work)
+  expect(sheet).toContain('Skipped 1 torn transcript lines.')
+  const heads = sheet.split('\n').filter(l => l.startsWith('## Item'))
+  expect(heads.map(h => h.slice(0, 9))).toEqual(['## Item 1',
+    '## Item 2', '## Item 3'])
+  expect(heads.map(h => /s:(s.)/.exec(h)?.[1])).toEqual(['sA', 'sB', 'sA'])
+  expect(promptAt(sheet, 'A1')).toBeLessThan(promptAt(sheet, 'B1'))
+  expect(promptAt(sheet, 'B1')).toBeLessThan(promptAt(sheet, 'A2'))
+  expect(itemsOf(work).map(i => i.n)).toEqual([1, 2, 3])
+})
+
+test('R12: torn lines are summed across files', () => {
+  const { p, work } = fixture({ 'l:/repo/x': [
+    REC(T0, { session: 'sA' }), REC(T0 + 60000, { session: 'sB' })] })
+  put(p, 'sA', jsonl(turn(0, 'A'), 1))
+  put(p, 'sB', jsonl(turn(60000, 'B'), 2))
+  worksheet(work, p, NOW)
+  expect(sheetOf(work)).toContain('Skipped 3 torn transcript lines.')
+})
+
+test('R13: a root at the log cap, newer than the last run, is noted', () => {
+  const full = Array.from({ length: 200 }, (_, i) =>
+    REC(T0 + i * 1000, { ids: [], outcome: 'none' }))
+  const { p, work } = fixture({ 'l:/repo/x': full })
+  fs.mkdirSync(p.out)
+  fs.writeFileSync(path.join(p.out, 'state.json'),
+    JSON.stringify({ lastRun: T0 - 1, closed: false }))
+  worksheet(work, p, NOW)
+  expect(sheetOf(work)).toContain(
+    `Possible eviction before labelling: ${tagOf('/repo/x')}`)
+})
+
+const use = (ms: number, id: string, command: string) => ({
+  type: 'assistant', timestamp: iso(ms), message: { id: `a${id}`,
+    content: [{ type: 'tool_use', id, name: 'Bash',
+      input: { command } }] } })
+const result = (ms: number, id: string, err: boolean) => ({
+  type: 'user', timestamp: iso(ms), message: { content: [
+    { type: 'tool_result', tool_use_id: id, is_error: err }] } })
+const toolRec = (at: number, session: string) => REC(at, { session,
+  channel: 'tool', ids: ['BLK-003'], trigger: undefined,
+  outcome: undefined, cands: 1, ms: undefined })
+
+test('R14: a tool item shows command, known line, next results', () => {
+  const { p, work } = fixture({ 'l:/repo/x': [
+    toolRec(T0, 'sA'), toolRec(T0 + 60000, 'sB')] })
+  put(p, 'sA', jsonl([use(-100, 'u1', 'make test'), result(-50, 'u1', true),
+    { type: 'attachment', timestamp: iso(400), attachment: {
+      type: 'hook_additional_context', hookName: 'tool.call',
+      toolUseID: 'u1-context', content: ['memory: known BLK-003 x'] } },
+    use(500, 'u2', 'ls'), result(600, 'u2', false)]))
+  expect(worksheet(work, p, NOW)).toBe(2)
+  expect(sheetOf(work)).toContain('Command: make test')
+  expect(sheetOf(work)).toContain('Known: memory: known BLK-003 x')
+  expect(sheetOf(work)).toContain('Next Bash results: ok')
+  expect(sheetOf(work)).toContain('LOST') // sB has no transcript
+})
+
+test('R15: the post-fix floor is NEW once, state keeps postFixAt', () => {
+  const recs = Array.from({ length: 20 }, (_, i) =>
+    REC(T0 + i * 1000, { session: `s${i}`, ids: ['BDR-001'] }))
+  const { p, work } = fixture({ 'l:/repo/x': recs })
+  recs.forEach((r, i) => put(p, r.session, jsonl(turn(i * 1000, 'f'))))
+  worksheet(work, p, NOW)
+  draft(work, Array.from({ length: 20 }, (_, i) =>
+    `${i + 1}\tBDR-001\trelevant`).join('\n'))
+  const first = apply(work, p, NOW)
+  expect(first).toContain('NEW: post-fix prompt sample reached (20/20 asks)')
+  expect(first).toContain('Post-fix prompt asks: 20/20 (since ' +
+    '2026-11-12T19:53:59.000Z)')
+  const st = JSON.parse(fs.readFileSync(path.join(p.out, 'state.json'),
+    'utf8'))
+  expect(st.postFixAt).toBe(NOW)
+  worksheet(work, p, NOW + 1)
+  draft(work, '')
+  expect(apply(work, p, NOW + 1)).not.toContain('post-fix prompt sample')
+})
+
+/** Applies `n` relevant asks over an old state file: both gate-1 gates
+ * recorded, no postFixAt. Returns the state written. */
+function closedAfter(n: number, closed = false): { closed: boolean } {
+  const recs = Array.from({ length: n }, (_, i) =>
+    REC(T0 + i * 1000, { session: `s${i}`, ids: ['BDR-001'] }))
+  const { p, work } = fixture({ 'l:/repo/x': recs })
+  fs.mkdirSync(p.out)
+  fs.writeFileSync(path.join(p.out, 'state.json'), JSON.stringify(
+    { lastRun: T0 - 1, promptAt: T0 - 2, toolAt: T0 - 2, closed }))
+  recs.forEach((r, i) => put(p, r.session, jsonl(turn(i * 1000, 'f'))))
+  worksheet(work, p, NOW)
+  draft(work, recs.map((_, i) => `${i + 1}\tBDR-001\trelevant`).join('\n'))
+  apply(work, p, NOW)
+  return JSON.parse(fs.readFileSync(path.join(p.out, 'state.json'), 'utf8'))
+}
+
+test('R16: closed waits for the post-fix floor, old state included', () => {
+  expect(closedAfter(19).closed).toBe(false)
+  expect(closedAfter(20).closed).toBe(true)
+})
+
+test('R17: a legacy closed:true without postFixAt is rewritten open', () => {
+  expect(closedAfter(1, true).closed).toBe(false)
 })
