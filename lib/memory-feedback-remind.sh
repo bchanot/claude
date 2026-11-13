@@ -2,9 +2,10 @@
 # lib/memory-feedback-remind.sh — the phase 4d reminder line of the
 # session-start banner (BDR-057: transcripts live 7 days). One line when
 # /memory-feedback never ran, or ran REMIND_DAYS+ days ago and the memory
-# store changed since. Silent once both gates are recorded ("closed":true),
-# with "recall": false, or on any error; always rc 0. bash 3.2 safe,
-# portable (find -mtime, no stat -c), no JSON parse.
+# store changed since. Silent once all three gate marks (prompt, tool,
+# post-fix sample) are recorded ("closed":true), with "recall": false, or
+# on any error; always rc 0. bash 3.2 safe, portable (find -mtime, no
+# stat -c), no JSON parse.
 REMIND_DAYS=5
 state="$HOME/.claude/memory-feedback/state.json"
 

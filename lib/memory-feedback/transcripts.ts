@@ -126,14 +126,11 @@ const textsOf = (r: Rec): [string, string][] => blocksOf(r)
 /** Main-thread assistant text after `ts` up to the next prompt. */
 function replyAfter(recs: Rec[], ts: number): string {
   const end = nextPromptAt(recs, ts)
-  const seen = new Set<string>()
-  return recs
+  const texts = recs
     .filter(r => r.type === 'assistant' && r.isSidechain !== true)
     .filter(r => tsOf(r) > ts && tsOf(r) < end)
     .flatMap(textsOf)
-    .filter(([key]) => !seen.has(key) && !!seen.add(key))
-    .map(([, text]) => text)
-    .join('\n')
+  return [...new Map(texts).values()].join('\n') // first position kept; the value is derived from the key
 }
 
 export type PromptJoin = { prompt: string; injected: string; reply: string }

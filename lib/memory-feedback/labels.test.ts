@@ -105,6 +105,15 @@ test('L8: state defaults, round trip, a corrupt file throws', () => {
   expect(() => readState(f)).toThrow('state.json')
 })
 
+test('L8b: closed is derived from the three marks, not the stored flag', () => {
+  const f = path.join(tmp(), 'state.json')
+  fs.writeFileSync(f, '{"lastRun":1,"promptAt":1,"toolAt":1,"closed":true}')
+  expect(readState(f).closed).toBe(false)
+  fs.writeFileSync(f,
+    '{"lastRun":1,"promptAt":1,"toolAt":1,"postFixAt":1,"closed":false}')
+  expect(readState(f).closed).toBe(true)
+})
+
 test('L9: repo tags keep same-named repos apart', () => {
   expect(tagOf('/a/x')).toMatch(/^x#[0-9a-f]{6}$/)
   expect(tagOf('/a/x')).toBe(tagOf('/a/x'))
@@ -115,4 +124,55 @@ test('L10: the skeleton draft lists each injected id once', () => {
   const lines = skeleton([item(1), item(2, { ids: [] }),
     item(3, { lost: true })]).split('\n').filter(l => !l.startsWith('#'))
   expect(lines.filter(l => l !== '')).toEqual(['1\tBDR-001\t', '1\tLRN-002\t'])
+})
+
+test('L11: readRows round trips every label kind', () => {
+  const file = path.join(tmp(), 'mf', 'labels.tsv')
+  const full = item(1)
+  const drafts = parseDraft([OK, '2\tBDR-009\tmissed\tno-overlap',
+    '1\t-\tchecked', '2\t-\ttest'].join('\n'), [full,
+    item(2, { ids: [] })])
+  if (typeof drafts === 'string') throw new Error(drafts)
+  const rows = [...rowsOf(full, drafts), ...rowsOf(item(2, { ids: [] }),
+    drafts), ...rowsOf(item(3, { lost: true }), [])]
+  appendRows(file, rows)
+  expect(new Set(rows.map(r => r.label))).toEqual(new Set(['ask', 'lost',
+    'relevant', 'irrelevant', 'missed', 'checked', 'test']))
+  expect(readRows(file)).toEqual(rows)
+})
+
+test('L12: a line with a wrong id, label, channel or at is refused', () => {
+  const good: Row = { at: 5, root: 'r#000000', session: 's',
+    channel: 'prompt', trigger: 'fresh', outcome: 'injected', cands: 1,
+    ms: 2, pick: 1, id: 'BDR-001', label: 'relevant', cause: '' }
+  expect(fromLine(toLine(good))).toEqual(good)
+  const bad: Partial<Row>[] = [{ label: 'maybe' as never },
+    { id: 'BDR-1' }, { id: '' }, { label: 'ask' }, // ask carries no id
+    { channel: 'x' as never }, { at: Number.NaN }, { at: -5 },
+    { at: 1.5 }]
+  for (const b of bad) expect(fromLine(toLine({ ...good, ...b })))
+    .toBeUndefined()
+  expect(fromLine(toLine({ ...good, id: '', label: 'ask' }))).toBeDefined()
+})
+
+test('L13: a damaged line names itself and what the .bak holds', () => {
+  const file = path.join(tmp(), 'labels.tsv')
+  appendRows(file, rowsOf(item(1), []))
+  fs.appendFileSync(file, '1\tr\ts\tprompt\t\t\t\t\t\tNOPE\trelevant\t\n')
+  expect(() => readRows(file)).toThrow(/line 3 unreadable.*labels\.tsv\.bak/)
+})
+
+test('L14: state.json that is not an object is refused', () => {
+  const f = path.join(tmp(), 'state.json')
+  for (const raw of ['[1]', 'null', '7', '"x"']) {
+    fs.writeFileSync(f, raw)
+    expect(() => readState(f)).toThrow('state.json')
+  }
+  writeState(f, { lastRun: 3, postFixAt: 3, closed: false })
+  expect(readState(f).postFixAt).toBe(3)
+})
+
+test('L15: an entry label with a cause says it takes none', () => {
+  const d = parseDraft(`${OK}\n1\tBDR-001\trelevant\toverlap`, ITEMS)
+  expect(d).toContain('takes no cause')
 })

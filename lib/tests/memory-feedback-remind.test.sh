@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 # lib/tests/memory-feedback-remind.test.sh — the phase 4d banner line:
 # shown when /memory-feedback never ran, or ran 5+ days ago and the store
-# changed since; silent once both gates are recorded, with recall off, or
-# on any error.
+# changed since; silent once all three gate marks are recorded, with recall
+# off, or on any error.
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 LIB="$ROOT/lib/memory-feedback-remind.sh"
