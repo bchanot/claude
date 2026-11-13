@@ -291,7 +291,7 @@ const DEFAULT_CONFIG: Config = {
     haiku: 'claude-haiku-5-5',
     sonnet: 'claude-sonnet-5-5',
     opus: 'claude-opus-5-5',
-    fable: 'claude-fable-5-1',
+    fable: 'claude-fable-5-2',
   },
   windows: {},
   // A tier is an ordered alias list: the first one not down is used.

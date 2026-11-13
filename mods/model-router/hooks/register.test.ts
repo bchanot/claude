@@ -2,7 +2,7 @@ import { test, expect, mock } from 'claude-code/testing'
 import type { Engine, MockClock, Plugin } from 'claude-code/testing'
 import type { On, TurnStepInput } from 'claude-code'
 
-const FABLE = 'claude-fable-5-1'
+const FABLE = 'claude-fable-5-2'
 const OPUS = 'claude-opus-5-5'
 const SONNET = 'claude-sonnet-5-5'
 const HAIKU = 'claude-haiku-5-5'
@@ -346,7 +346,7 @@ const spawnInput = (model?: string) => ({
   description: 'd',
   subagentType: 'Explore',
   provider: { plugin: 'engine', tier: 'core' as const },
-  parentModel: 'claude-fable-5-1',
+  parentModel: 'claude-fable-5-2',
   background: false,
   fork: false,
   ...(model === undefined ? {} : { model }),
@@ -459,7 +459,7 @@ function recordSteps(on: On, seen: Seen[]): void {
 const stepInput = (agentId?: string) => ({
   turnId: 'u1',
   index: 0,
-  model: 'claude-fable-5-1',
+  model: 'claude-fable-5-2',
   effort: 'low' as const,
   messageCount: 1,
   ...(agentId === undefined ? {} : { agentId }),
@@ -484,7 +484,7 @@ test('the main step carries the routed effort, model untouched', async (
   await boot($, on)
   await $.tool.call({ tool: 'mcp__model-router__route', phase: 'plan' })
   await runStep($, stepInput())
-  expect(seen).toEqual([{ model: 'claude-fable-5-1', effort: 'xhigh' }])
+  expect(seen).toEqual([{ model: 'claude-fable-5-2', effort: 'xhigh' }])
 })
 
 test('a tabled agent steps at its table effort', async ($, on) => {
@@ -497,7 +497,7 @@ test('a tabled agent steps at its table effort', async ($, on) => {
   await boot($, on)
   await $.agent.spawn(spawnInput())
   await runStep($, stepInput('a1'))
-  expect(seen).toEqual([{ model: 'claude-fable-5-1', effort: 'medium' }])
+  expect(seen).toEqual([{ model: 'claude-fable-5-2', effort: 'medium' }])
 })
 
 test('/route from a non-composer origin is refused, state kept', async (
@@ -818,7 +818,7 @@ test('tier: show prints the resolved id of each phase and a down line', async (
   $, on) => {
   await bootRig($, on)
   const text = await route($, 'show')
-  expect(text).toContain('plan=best→claude-fable-5-1/xhigh')
+  expect(text).toContain('plan=best→claude-fable-5-2/xhigh')
   expect(text).toContain('judge=big→claude-opus-5-5/xhigh')
   expect(text).toContain('down: none')
 })
@@ -926,7 +926,7 @@ test('fallback: a rate limit on fable moves plan to opus max', async (
   await failWith($, 'rate_limit')
   // opus stands in for fable: plan's xhigh goes one notch up
   expect(await stepOn($, rig, FABLE)).toEqual({ model: OPUS, effort: 'max' })
-  expect(await route($, 'show')).toContain('claude-fable-5-1 for 15 min')
+  expect(await route($, 'show')).toContain('claude-fable-5-2 for 15 min')
   await route($, 'reload')
   expect((await stepOn($, rig, FABLE)).model).toBe(FABLE)
 })
@@ -960,7 +960,7 @@ test('breaker: the hold lapses with the clock, a second one doubles', async (
   await planRoute($)
   expect((await stepOn($, rig, FABLE)).model).toBe(FABLE)
   await failWith($, 'overloaded')
-  expect(await route($, 'show')).toContain('claude-fable-5-1 for 30 min')
+  expect(await route($, 'show')).toContain('claude-fable-5-2 for 30 min')
 })
 
 test('breaker: a /model command clears the mark of its target', async (
@@ -969,7 +969,7 @@ test('breaker: a /model command clears the mark of its target', async (
   await planRoute($)
   await stepOn($, rig, FABLE)
   await failWith($, 'rate_limit')
-  expect(await route($, 'show')).toContain('claude-fable-5-1 for')
+  expect(await route($, 'show')).toContain('claude-fable-5-2 for')
   await switchTo($, OPUS, FABLE, 'command')
   expect(await route($, 'show')).toContain('down: none')
   expect((await stepOn($, rig, FABLE)).model).toBe(FABLE)
@@ -989,12 +989,12 @@ test('engine fallback: an auto switch marks the model it left, once', async (
   const rig = await bootRig($, on)
   await switchTo($, FABLE, OPUS, 'auto')
   const first = await route($, 'show')
-  expect(first).toContain('claude-fable-5-1 for 15 min (engine fallback)')
+  expect(first).toContain('claude-fable-5-2 for 15 min (engine fallback)')
   await planRoute($)
   expect((await stepOn($, rig, OPUS)).model).toBe(OPUS)
   await rig.clock.advance(60000)
   await switchTo($, FABLE, OPUS, 'auto')
-  expect(await route($, 'show')).toContain('claude-fable-5-1 for 14 min')
+  expect(await route($, 'show')).toContain('claude-fable-5-2 for 14 min')
 })
 
 test('unknown: a session model absent from the table is never switched', async (
@@ -1733,7 +1733,7 @@ test('layers: an invalid routing.json phase falls back by name', async (
   })
   await bootRun($, on, FABLE, w)
   const text = await route($, 'show')
-  expect(text).toContain('reflect=best→claude-fable-5-1/high')
+  expect(text).toContain('reflect=best→claude-fable-5-2/high')
   expect(logs.join('\n')).toContain('config phases.reflect ignored')
 })
 
@@ -1752,7 +1752,7 @@ test('layers: a routing.json phase gone missing falls back, logged', async (
   const logs = recordLogs(on)
   const w = newWorld({ edit: f => { delete (f.phases as Rec).reflect } })
   await bootRun($, on, FABLE, w)
-  expect(await route($, 'show')).toContain('reflect=best→claude-fable-5-1/high')
+  expect(await route($, 'show')).toContain('reflect=best→claude-fable-5-2/high')
   expect(logs.filter(l => l.includes('lacks phases'))).toEqual([
     'model-router: routing.json lacks phases reflect; code defaults kept',
   ])
@@ -1847,7 +1847,7 @@ test('layers: routing.json unreadable at start means defaults, no rows', async (
   const w = newWorld({ routing: 'broken', ask: true })
   const rig = await bootRun($, on, FABLE, w)
   expect(await featerModel($, rig)).toBeUndefined()
-  expect(await route($, 'show')).toContain('plan=best→claude-fable-5-1/xhigh')
+  expect(await route($, 'show')).toContain('plan=best→claude-fable-5-2/xhigh')
   const said = logs.filter(l => l.includes('routing.json unreadable'))
   expect(said).toHaveLength(1)
 })
@@ -2021,7 +2021,7 @@ test('T1: a typed skill asks once, with the real id and effort', async (
   expect(w.asked).toHaveLength(1)
   const first = w.asked[0] as Asked
   expect(first.text).toContain('/feat')
-  expect(first.text).toContain('claude-fable-5-1 at high')
+  expect(first.text).toContain('claude-fable-5-2 at high')
   expect(first.options).toEqual(['Later', 'Keep', 'Change'])
   expect(first.header).toBe('model-router')
 })
@@ -2031,7 +2031,7 @@ test('T1: the question follows the model main will really run on', async (
   const w = asks(['Later'])
   await bootRun($, on, SONNET, w)
   await typeFeat($)
-  expect(w.asked[0]?.text).toContain('claude-fable-5-1 at high')
+  expect(w.asked[0]?.text).toContain('claude-fable-5-2 at high')
 })
 
 test('T1: Keep writes the row and its phase, then the skill never asks', async (
@@ -2652,7 +2652,7 @@ test('T3: a phase declared through the route tool asks Keep or Later', async (
   await $.tool.call({ tool: ROUTE_TOOL, phase: 'orchestrate' })
   const q = w.asked[0] as Asked
   expect(q.text).toContain('First use of orchestrate on the main loop')
-  expect(q.text).toContain('claude-fable-5-1 at medium')
+  expect(q.text).toContain('claude-fable-5-2 at medium')
   expect(q.options).toEqual(['Later', 'Keep'])
 })
 
@@ -2806,7 +2806,7 @@ test('layers: enabled:false in the override survives /clear', async (
 const skillPath = (name: string) => `${HOME}/.claude/skills/${name}/SKILL.md`
 const skillMd = (front: string, body = '# body') =>
   `---\nname: feat\n${front}\nallowed-tools: Read\n---\n${body}\n`
-const ROUTED = 'Routed to reflect: claude-fable-5-1 at high. OK?'
+const ROUTED = 'Routed to reflect: claude-fable-5-2 at high. OK?'
 
 /** A typed /feat with `md` served as its SKILL.md; the world after. */
 async function featWith(
@@ -2942,7 +2942,7 @@ test('text: the phase about shows in the skill question', async ($, on) => {
   const w = await featWith($, on, undefined,
     { edit: setPhase('reflect', { about: 'deep thinking' }) })
   expect(w.asked[0]?.text).toBe('First route for /feat. Routed to reflect ' +
-    '(deep thinking): claude-fable-5-1 at high. OK?')
+    '(deep thinking): claude-fable-5-2 at high. OK?')
 })
 
 test('text: the about is cleaned before it enters a question', async (
@@ -3009,7 +3009,7 @@ test('text: a phase question names its about and its consumers', async (
   await $.tool.call({ tool: ROUTE_TOOL, phase: 'orchestrate' })
   expect(w.asked[0]?.text).toBe('First use of orchestrate on the main loop — ' +
     'dispatch work; used by 0 rows, the derived route of dispatches: ' +
-    'claude-fable-5-1 at medium. OK?')
+    'claude-fable-5-2 at medium. OK?')
 })
 
 test('text: a phase question counts rows and prompt rules', async ($, on) => {
@@ -3017,7 +3017,7 @@ test('text: a phase question counts rows and prompt rules', async ($, on) => {
   await bootRun($, on, FABLE, w)
   await $.tool.call({ tool: ROUTE_TOOL, phase: 'reflect' })
   expect(w.asked[0]?.text).toBe('First use of reflect on the main loop — ' +
-    'used by 1 row, 1 prompt rule: claude-fable-5-1 at high. OK?')
+    'used by 1 row, 1 prompt rule: claude-fable-5-2 at high. OK?')
 })
 
 test('text: a phase question names its floor rule', async ($, on) => {
@@ -3025,7 +3025,7 @@ test('text: a phase question names its floor rule', async ($, on) => {
   await bootRun($, on, FABLE, w)
   await $.tool.call({ tool: ROUTE_TOOL, phase: 'escalate' })
   expect(w.asked[0]?.text).toBe('First use of escalate on the main loop — ' +
-    'used by 0 rows, 1 floor rule: claude-fable-5-1 at max. OK?')
+    'used by 0 rows, 1 floor rule: claude-fable-5-2 at max. OK?')
 })
 
 test('T3: a Change answer changes nothing and is said', async ($, on) => {
@@ -3141,7 +3141,7 @@ test('change: a downgrade names the real route and the switch', async (
   await route($, 'switch off')
   await typeFeat($)
   expect((routingOf(w).skills as Rec).feat).toBe('implement')
-  expect(toasts).toContain('/feat now runs claude-fable-5-1 at medium, ' +
+  expect(toasts).toContain('/feat now runs claude-fable-5-2 at medium, ' +
     'main moves up only: /route switch on allows a downgrade')
 })
 
@@ -3159,7 +3159,7 @@ test('change: an upgrade toast carries no hint', async ($, on) => {
   const w = asks(['Change', 'fable (best)', 'xhigh', 'Everywhere'])
   await bootRun($, on, SONNET, w)
   await typeFeat($)
-  expect(toasts).toContain('/feat now runs claude-fable-5-1 at xhigh')
+  expect(toasts).toContain('/feat now runs claude-fable-5-2 at xhigh')
 })
 
 test('change: an upgrade the config holds back carries no hint', async (
@@ -5411,7 +5411,7 @@ test('toast: a downgrade held by the cap says so', async ($, on) => {
   const w = asks([...TO_IMPLEMENT, 'Everywhere'])
   await bootRun($, on, FABLE, w, 300000)
   await typeFeat($)
-  expect(toasts).toContain('/feat now runs claude-fable-5-1 at medium, ' +
+  expect(toasts).toContain('/feat now runs claude-fable-5-2 at medium, ' +
     `held: ${SKIP}: cold read 300007 tokens over 120000`)
 })
 
@@ -6136,7 +6136,7 @@ test('model command: asks the three scopes, the full id, native not run', async 
   $, on) => {
   const m = await bootModel($, on, ['Later', 'Later'])
   await modelCmd($, 'fable')
-  await modelCmd($, 'claude-fable-5-1[1m]')
+  await modelCmd($, 'claude-fable-5-2[1m]')
   expect(m.w.asked.map(q => q.options)).toEqual([SCOPES, SCOPES])
   expect(m.w.asked.map(q => q.header)).toEqual(['model-router', 'model-router'])
   const [plain, long] = m.w.asked as [Asked, Asked]
@@ -6169,7 +6169,7 @@ test('model command: This project keeps [1m] verbatim in the file', async (
   const m = await bootModel($, on, ['This project', 'This project'])
   await modelCmd($, 'fable[1m]')
   expect(localOf(m.w).model).toBe(FABLE_1M)
-  await modelCmd($, 'claude-fable-5-1[1m]')
+  await modelCmd($, 'claude-fable-5-2[1m]')
   expect(localOf(m.w).model).toBe(FABLE_1M)
   expect((await stepOn($, m.rig, OPUS)).model).toBe(FABLE)
 })
@@ -6803,7 +6803,7 @@ test('picker: a pick clears the mark of its target', async ($, on) => {
   await route($, 'model=fable')
   await stepOn($, p.rig, FABLE)
   await failWith($, 'overloaded')
-  expect(await route($, 'show')).toContain('claude-fable-5-1 for')
+  expect(await route($, 'show')).toContain('claude-fable-5-2 for')
   await pickAndAnswer($, p, 'fable')
   expect(await route($, 'show')).toContain('down: none')
 })
@@ -6976,7 +6976,7 @@ test('TIER: a typed best skill from opus asks, with the reason', async (
   expect(w.asked).toHaveLength(1)
   const q = w.asked[0] as Asked
   expect(q.text).toContain('Skill /feat routes main to reflect (analysis): ' +
-    'claude-fable-5-1 at high. Run it on fable?')
+    'claude-fable-5-2 at high. Run it on fable?')
   expect(q.options).toEqual(TIER_OPTIONS)
 })
 
@@ -7166,7 +7166,7 @@ test('TIER: a rowed spawn asks once per type; Opus instead sticks', async (
   await $.agent.spawn(spawnOf('verifier'))
   expect(w.asked).toHaveLength(1)
   expect(w.asked[0]?.text).toContain('Agent verifier runs audit (gates) on ' +
-    'claude-fable-5-1 at xhigh')
+    'claude-fable-5-2 at xhigh')
   expect(w.asked[0]?.options).toEqual(TIER_OPTIONS)
   await $.agent.spawn(spawnOf('verifier'))
   expect(w.asked).toHaveLength(1)
