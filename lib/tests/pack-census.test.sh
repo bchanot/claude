@@ -104,6 +104,11 @@ jq '. + {deniedMcpServers: [{serverName: "claude.ai Fictional"}]}' "$FX/lib/prof
 out="$(census)"
 check T13-deny-differs "$(grep -c 'zdev.json are identical fragments' <<<"$out")" 0
 rm "$FX/lib/profiles/zdev.json"
+jq '. + {bogusKey: 1, model: "sonnet"}' "$FX/lib/profiles/dev.json" > "$FX/lib/profiles/zdev.json"
+out="$(census)"; rc=$?
+check T13-unknown-key-rc "$rc" 1
+check_has T13-unknown-key "$out" "RED lib/profiles/zdev.json: unknown top-level key(s) bogusKey"
+rm "$FX/lib/profiles/zdev.json"
 sed 's/pack-beta@skills-dir": false/pack-beta@skills-dir": false, "pack-ghost@skills-dir": false/' "$FX/lib/profiles/dev.json" > "$FX/lib/profiles/ghost.json"
 out="$(census)"; rc=$?
 check_has T14-ghost "$out" "WARN lib/profiles/ghost.json: names pack-ghost with no skills/pack-ghost/"

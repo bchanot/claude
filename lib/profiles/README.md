@@ -23,8 +23,9 @@ defaults = `full`.
 - **audit**: seo, web-validate, gstack-dev, gstack-browser, pr-review-toolkit; read-mostly audits.
 
 Invariants (checked by `lib/pack-census.sh`): the same key set in every
-fragment; `model-router@skills-dir` and `security-guidance@claude-code-plugins`
-true everywhere; `example-skills@anthropic-agent-skills` and
-`brightdata-plugin@synced` false everywhere; `full` equal to the manifest
-defaults.
+fragment; no top-level key other than `enabledPlugins`, `deniedMcpServers`,
+`disableClaudeAiConnectors` and `model`; `model-router@skills-dir` and
+`security-guidance@claude-code-plugins` true everywhere;
+`example-skills@anthropic-agent-skills` and `brightdata-plugin@synced` false
+everywhere; `full` equal to the manifest defaults.
 Add your own profile as another `<name>.json` with the same key set.
