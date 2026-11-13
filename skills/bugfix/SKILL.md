@@ -7,7 +7,8 @@ description: |
   requires careful analysis before fixing. Includes hypothesis-driven
   investigation and a fix plan.
   Trigger: "bugfix", "debug this", "fix this bug", "pourquoi ca marche pas",
-  "investigate and fix", "find and fix", "root cause + fix".
+  "investigate and fix", "find and fix", "root cause + fix", "error", "500",
+  "stack trace + fix".
   For obvious 1-2 file fixes → use /hotfix instead.
   For bugs that need investigation only (no fix) → use /analyze.
 argument-hint: <bug description, error message, or stack trace>
