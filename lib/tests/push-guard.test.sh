@@ -329,10 +329,11 @@ check T41-new-deny-present "$missing" ""
 # version.txt passes removed_ok_until (T42e): empty the list in that bump.
 removed_ok_until=3.0.0
 grep -v '^#' > "$WORK/removed-ok" <<'EOF'
-# mixed `* -v /:*` form never matches; `-v /:/*` kept (2026-10-23)
-Bash(docker run * -v /:*)
-# mixed `* :*` form never matches; ` :**` kept (2026-10-23)
-Bash(git push * :*)
+# soft_deny "Global npm installs" decides (user 2026-11-12)
+Bash(npm install -g *)
+Bash(npm i -g *)
+Bash(npm install --global *)
+Bash(npm i --global *)
 EOF
 cur=$(tr -d '[:space:]' < "$ROOT/version.txt")
 expired=""
