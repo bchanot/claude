@@ -142,12 +142,12 @@ fi
 if grep -Eq 'alias cc=|dtach_claude' "$HOME/.bashrc" 2>/dev/null; then
   warn "\$HOME/.bashrc still has alias cc= or dtach_claude: remove them, the alias shadows cc()"
 fi
-_ep_head="$(git -C "$REPO" show HEAD:settings.json 2>/dev/null | jq -S .enabledPlugins 2>/dev/null || true)"
-_ep_work="$(jq -S .enabledPlugins "$REPO/settings.json" 2>/dev/null || true)"
+_ep_head="$(git -C "$REPO" show HEAD:settings.json 2>/dev/null | jq -S '{enabledPlugins, skillOverrides}' 2>/dev/null || true)"
+_ep_work="$(jq -S '{enabledPlugins, skillOverrides}' "$REPO/settings.json" 2>/dev/null || true)"
 if [ -z "$_ep_head" ] || [ -z "$_ep_work" ]; then
-  warn "enabledPlugins check skipped (jq or git show failed)"
+  warn "enabledPlugins and skillOverrides check skipped (jq or git show failed)"
 elif [ "$_ep_head" = "$_ep_work" ]; then
-  pass "settings.json enabledPlugins matches HEAD (no user-scope residue)"
+  pass "settings.json enabledPlugins and skillOverrides match HEAD (no user-scope residue)"
 else
   warn "user-scope residue: $(diff <(echo "$_ep_head") <(echo "$_ep_work") | grep '^[<>]' | tr -s ' ' | tr '\n' ';'); restore per MIGRATION "Profiles and packs" step 1"
 fi
