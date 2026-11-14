@@ -344,14 +344,30 @@ for c in bash git cat sed awk grep tail head cut dirname readlink wc tr \
 done
 cat > "$WORK/sd9/lib/memory.sh" <<'EOF'
 #!/usr/bin/env bash
+echo "memory: v1: x" >&2
+( sleep 8 ) &
 exec sleep 8
 EOF
 p=$(mkproj sd19)
 SECONDS=0
-(cd "$p" && PATH="$bin" bash "$S9" </dev/null >/dev/null 2>&1)
+out=$(cd "$p" && PATH="$bin" bash "$S9" </dev/null 2>&1)
 check SD19-no-timeout-bin "$(PATH="$bin" command -v timeout gtimeout \
   | wc -l | tr -d ' ')" 0
 check SD19-perl-bounds-hang "$([ "$SECONDS" -lt 6 ] && echo yes || echo no)" yes
+check SD19-command-ran "$(printf '%s' "$out" | grep -c 'registry v1: 1 file(s)')" 1
+
+# SD19b: a background child outlives the command (straggler holding stderr)
+cat > "$WORK/sd9/lib/memory.sh" <<'EOF'
+#!/usr/bin/env bash
+echo "memory: v1: x" >&2
+( sleep 8 ) &
+exit 0
+EOF
+p=$(mkproj sd19b)
+SECONDS=0
+out=$(cd "$p" && PATH="$bin" bash "$S9" </dev/null 2>&1)
+check SD19b-perl-bounds-straggler "$([ "$SECONDS" -lt 6 ] && echo yes || echo no)" yes
+check SD19b-command-ran "$(printf '%s' "$out" | grep -c 'registry v1: 1 file(s)')" 1
 
 printf 'session-digest: %d passed, %d failed\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

@@ -88,3 +88,6 @@
 
 <!-- /hotfix doctor-skilloverrides-residue 2026-11-14: non-blocking gate finding, not BDR-125 -->
 - doctor.sh `warn`/`pass`/`fail` print through `echo -e`: jq's `\uXXXX` escapes in the residue diff (:153) come back as raw control bytes (ESC sequences) on the terminal. Source = the user's own tracked settings.json (no trust boundary). Fix direction: `printf '%s\n'` in the shared helpers. Severity: low. Discovered while: /hotfix doctor-skilloverrides-residue security gate. Not fixed.
+
+<!-- /bugfix perl-timeout-group 2026-11-14 (490ad83): non-blocking gate findings, not BDR-125 -->
+- hooks/session-start.sh perl runner sends KILL to the group at the deadline (timeout sends TERM): a WRITER later put under `_SS_TMO` would skip memory.sh's INT/TERM/HUP restore trap and leave `memory.lock` until the 30 s steal. Today's three callers are readers (check, index blocker, feedback remind). Severity: low. Discovered while: /bugfix perl-timeout-group security gate. Not fixed.
