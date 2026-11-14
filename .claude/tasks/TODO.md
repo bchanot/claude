@@ -111,7 +111,7 @@ Scope (user 2026-11-11) [gated]: D1-D6 + the 6 dead deny entries + MIGRATION/CHA
 
 ### User decisions and hand edits
 - [ ] user decision: pin a commit for higgsfield-ai/skills and a version for `@higgsfield/cli` (security gate, 2 MEDIUM, accepted as is)
-- [x] E3 done by the user (692e4a5, merged 98e1800): 4 `npm -g` deny rows removed, listed in push-guard removed-ok; live test `npm install -g --dry-run cowsay` in a new session pending (user).
+- [x] E3 done by the user (692e4a5, merged 98e1800): 4 `npm -g` deny rows removed, listed in push-guard removed-ok; live test 2026-11-14 OK: no hard deny, command ran; no ask because the user named the package (soft_deny clears that case, by design).
 
 ### Blocked
 - [x] launch claude with `TMPDIR=$HOME/.cache/claude-tmp` (BLK-021 resolved by `lib/cc.sh`, phase 5; `.bashrc` swap done, ~/.bashrc:133)
