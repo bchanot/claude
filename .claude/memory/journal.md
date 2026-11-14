@@ -752,3 +752,4 @@ rules:
 
 ## 2026-11-14
 - /hotfix doctor-skilloverrides-residue (block H7): doctor residue check compares {enabledPlugins, skillOverrides} HEAD vs work (9c9a024); doc audit caught MIGRATION step 1 restoring enabledPlugins only → extended to both keys (8dcee03). Security PASS, 1 LOW (echo -e escapes) in BUGS-FOUND. H + I TODO lines closed; LRN-270 bisect files moved to plans/2026-11-14-lrn270-bisect/ for the user.
+- /bugfix perl-timeout-group: perl fallback runner leads own process group, kills group at deadline, TERMs leftovers (490ad83); challenge r1 FATAL (digest assertion impossible without tty, single quotes = SC2016, timeout(1) misread) → r3; verifier CONFORME (flip red), security PASS. Phase 4b-4d closed: digest-after-compaction proven by this run's auto-compact. Residue TODO: design-tool-gate.sh:70 same idiom.
