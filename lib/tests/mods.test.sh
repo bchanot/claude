@@ -17,13 +17,15 @@ ko() { fail=$((fail+1)); echo "FAIL $1"; }
 check() { if [ "$2" = "$3" ]; then ok "$1"; else ko "$1: got[$2] want[$3]"; fi; }
 
 # bounded CMD...: stdout+stderr on stdout, rc 124 on timeout.
+# stdin from /dev/null: a CLI touching an inherited tty from timeout's
+# background group gets SIGTTOU, which stops timeout too.
 bounded() {
   local t
   t=$(command -v timeout || command -v gtimeout || true)
-  if [ -n "$t" ]; then "$t" "$CLI_TIMEOUT" "$@" 2>&1; return; fi
+  if [ -n "$t" ]; then "$t" "$CLI_TIMEOUT" "$@" </dev/null 2>&1; return; fi
   local out rc=0 pid i=0
   out=$(mktemp) || return 1
-  "$@" >"$out" 2>&1 & pid=$!
+  "$@" </dev/null >"$out" 2>&1 & pid=$!
   while kill -0 "$pid" 2>/dev/null && [ "$i" -lt "$CLI_TIMEOUT" ]; do
     sleep 1; i=$((i+1))
   done
