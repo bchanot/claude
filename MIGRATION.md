@@ -211,9 +211,9 @@ is the only one that removes a real directory (`make plugin` replaces
    the clone, not the clone itself, so resolve the root first. `git pull
    --autostash` (a plain `git pull` aborts when `settings.json` is modified
    locally and the incoming commits touch it; autostash keeps your UI
-   writes), then restore the user-scope plugins the old `profile.sh` had
-   toggled. Never `git checkout -- settings.json`: it would drop your UI
-   writes.
+   writes), then restore from HEAD the user-scope plugins the old
+   `profile.sh` had toggled (`enabledPlugins`) and `skillOverrides`. Never
+   `git checkout -- settings.json`: it would drop your UI writes.
 
    ```bash
    ep= next=
@@ -222,11 +222,14 @@ is the only one that removes a real directory (`make plugin` replaces
      || { echo "no clone root"; false; } \
      && git pull --autostash \
      && ep="$(mktemp)" \
-     && git show HEAD:settings.json | jq -e '.enabledPlugins | objects' \
-       > "$ep" \
+     && git show HEAD:settings.json \
+       | jq -e '{enabledPlugins, skillOverrides}
+         | select((.enabledPlugins | type) == "object")' > "$ep" \
      && next="$(mktemp)" \
-     && jq --slurpfile ep "$ep" '.enabledPlugins = $ep[0]' settings.json \
-       > "$next" \
+     && jq --slurpfile ep "$ep" '.enabledPlugins = $ep[0].enabledPlugins
+         | if $ep[0].skillOverrides == null then del(.skillOverrides)
+           else .skillOverrides = $ep[0].skillOverrides end' \
+       settings.json > "$next" \
      && jq -e . "$next" >/dev/null && [ -s "$next" ] \
      && cp "$next" settings.json
    rm -f "$ep" "$next"
@@ -236,10 +239,12 @@ is the only one that removes a real directory (`make plugin` replaces
    `cp`, which writes through the symlink into the live tracked
    `settings.json`; a failure prints `no clone root` or stops the chain
    without closing your shell. `ep= next=` comes first so the final `rm -f`
-   never removes a file an earlier run named. `jq -e '.enabledPlugins |
-   objects'` fails when HEAD holds no object (a null would wipe every
-   plugin). `jq -e .` and `[ -s ]` refuse an invalid or empty result (an
-   empty file would drop the plugins, the deny rules and the hooks).
+   never removes a file an earlier run named. The first `jq -e` produces
+   nothing, and fails, when HEAD's `enabledPlugins` is not an object (a
+   null would wipe every plugin); a HEAD without `skillOverrides` removes
+   the key instead of writing a null. `jq -e .` and `[ -s ]` refuse an
+   invalid or empty result (an empty file would drop the plugins, the deny
+   rules and the hooks).
 
    If the autostash pop conflicts, `settings.json` holds conflict markers:
    the second `jq` then fails closed and nothing is copied. Resolve the
