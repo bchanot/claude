@@ -15,7 +15,7 @@ Decisions at start (asked once): faunosteo memory v2 on `chore/memory-v2` off de
 - [x] G (2026-11-13): BLK-044 resolved, origin = sshd drop-in OOMScoreAdjust=-1000 inherited; lib/cc.sh raises oom_score_adj to 500 raise-only (6c10d3a, T7-oom, LRN-285); live proof `/proc/<pid>/oom_score_adj` = 500 needs a fresh `cc` session (user, this session predates the fix)
 - [x] H (2026-11-13/14): H1 project-rules 9d5530a, H2 memory.sh d8e62c1 (BLK-038 resolved), H3 pack-census 2fb9a2f, H4a deny rows a43ba1b, H4b safety LOWs 1f107c3, H5 feedback 9f9412a (not done, justified: tsc = no compiler, `l:<root>` 1.2 % of cap, image prompts 0 instances), H6a prose 77041e5, H6b scripts 9045a60, H7 doctor skillOverrides 9c9a024. BLK-049 strict types 08308a6; Fable 5.2 ca1dc9f. LRN-270 bisect handed to user (files in plans/2026-11-14-lrn270-bisect/). New pre-existing LOWs in BUGS-FOUND (not BDR-125).
 - [x] I (2026-11-14, from 240 subagent meta files): pins hold (sonnet executors, fable verifier/security 5.1→5.2, opus analyzer); parentModel = not in logs (meta has model + pickedEffortModel only), no unpinned spawn in a demoted turn → not reproducible from logs, reopen when one runs; W4-B AC9 = user step (`/route verbose on`, classifier line is UI-only); Fable-out-of-credits + StopFailure closed "not reproducible, reopen on incident".
-- [ ] J /reconcile, CHANGELOG (gate 1 at 57 % delivered + each block), 0 BDR-125 line left, EVAL of the run, /close
+- [x] J (2026-11-14): /reconcile (blocked BLK-017 + 3 upstream, tree clean, nothing unpushed), CHANGELOG BDR-125 delivered + gate 1 57 % + H6a + BLK-049 lines, 0 phase line open in TODO, BUGS-FOUND BDR-125 items fixed or closed with reason, EVAL-059, /close.
 
 ### Context mod queue (BDR-125): one /ship-feature per phase, order (user 2026-10-25): 0 → 4a → 1 → 5 → 2 → 3 (conditional) → 4b-4d
 Re-challenged 2026-10-25 on Fable (4 lenses + native-features guide, synthesis in `.claude/tasks/plans/2026-10-25-context-mod-queue-challenge.md` § RE-CHALLENGE; user picks: native ask merge gate, phase 3 conditional, rest in block). The plan halves: native carriers and existing files first, a mod only where a measured gain has no native lever.
@@ -111,16 +111,16 @@ Scope (user 2026-11-11) [gated]: D1-D6 + the 6 dead deny entries + MIGRATION/CHA
 
 ### User decisions and hand edits
 - [ ] user decision: pin a commit for higgsfield-ai/skills and a version for `@higgsfield/cli` (security gate, 2 MEDIUM, accepted as is)
-- [ ] user hand edit pending: remove the four `Bash(npm … -g|--global *)` lines from `permissions.deny` (they override the classifier); then the first global install is the live test of the entry
+- [ ] user hand edit (E3, classifier refused the sub-agent edit 2026-11-13): on branch bugfix/npm-global-deny (exists, empty) remove from settings.json `permissions.deny` `Bash(npm install -g *)`, `Bash(npm i -g *)`, `Bash(npm install --global *)`, `Bash(npm i --global *)`; add the 4 rows to the push-guard removed-ok heredoc (lib/tests/push-guard.test.sh) under `# soft_deny "Global npm installs" decides (user 2026-11-12)` and set `removed_ok_until=3.1.0`; live test `npm install -g --dry-run cowsay`.
 
 ### Blocked
 - [x] launch claude with `TMPDIR=$HOME/.cache/claude-tmp` (BLK-021 resolved by `lib/cc.sh`, phase 5; `.bashrc` swap done, ~/.bashrc:133)
 
 ### Model-router live checks (opportunistic, need a real session or incident)
-- [ ] LIVE CHECK after `/reload-plugins`: best-tier phase w/ Fable out of credits → `/route show` lists fable down (probe), main on opus, effort bumped.
-- [ ] LIVE CHECK: does `parentModel` follow the turn.step rewrite or the session model? Read general-purpose's step-0 `message.model` in a transcript during a demoted turn (if it is already the session model, the pin is a harmless no-op).
-- [ ] W1-C live verification part 2 (needs a real incident): StopFailure vs turn.complete order; `PostModelSwitch` `auto` semantics and its `from_model` after a router upgrade; whether a router rewrite raises `auto`; `[1m]` carry validity on opus (only on a session whose steps carry it)
-- [ ] W4-B AC9: type a few plain prompts, read `route: classifier <phase>` (verbose line with `/route verbose on`), drop `bookkeeping` if it misfires
+- [x] Fable out of credits: closed "not reproducible, reopen on incident" (block I 2026-11-14; Fable answered all session, 5.1 then 5.2).
+- [x] parentModel: not logged (subagent meta = `model` + `pickedEffortModel` only); 240 spawns this session all pinned, none unpinned in a demoted turn → not reproducible from logs, reopen when one runs (block I 2026-11-14).
+- [x] W1-C part 2 (StopFailure order, PostModelSwitch `auto`): closed "not reproducible, reopen on incident" (block I 2026-11-14, no incident in this run).
+- [x] W4-B AC9: user step, not Claude-runnable (the `route: classifier` line is UI-only, not persisted): `/route verbose on` + a few plain prompts; a misfiring `bookkeeping` → reopen (block I 2026-11-14).
 - [ ] W3-A: a parallel same-agent dispatch answered after > 10 s; what an unanswered dialog resolves to on the terminal (must be Later or nothing written). T1 skill-row dialogs seen live (f8665b2, d3635b6)
 - [ ] cold-read cap on the opus session: a coding prompt → spinner `sonnet-5-5/medium`; above 120k cold read the skip line once; `/route show` cap text
 
