@@ -37,13 +37,26 @@ elif [ -t 0 ]; then
 fi
 
 # ── Bounded runner: timeout, else gtimeout, else perl alarm (stock macOS) ──
-# perl execs the command, so the child is the same process alarm kills.
+# Each runner puts the command in its own process group and kills the group
+# at the deadline, so a child holding the pipe dies too. The perl runner also
+# TERMs leftovers after a normal exit (timeout does not; a leftover that
+# ignores TERM is unbounded, none of the callers starts one). Trade-off, as
+# timeout without --foreground: in a terminal run the command is a background
+# job of the tty (no stdin read; under `stty tostop` a tty write stops it
+# until the deadline).
 _SS_TMO=()
 for _ss_t in timeout gtimeout; do
   command -v "$_ss_t" >/dev/null 2>&1 && { _SS_TMO=("$_ss_t" 2); break; }
 done
 if [ ${#_SS_TMO[@]} -eq 0 ] && command -v perl >/dev/null 2>&1; then
-  _SS_TMO=(perl -e "alarm shift; exec { \$ARGV[0] } @ARGV" 2)
+  _SS_TMO=(perl -e "
+    my \$t = shift; \$SIG{CHLD} = 'DEFAULT'; setpgrp(0, 0);
+    my \$pid = fork; defined \$pid or exit 125;
+    if (!\$pid) { alarm(\$t + 1); exec { \$ARGV[0] } @ARGV; exit 127 }
+    \$SIG{ALRM} = sub { kill 'KILL', -\$\$ };
+    alarm \$t; my \$w = waitpid(\$pid, 0); my \$st = \$?; alarm 0;
+    \$SIG{TERM} = 'IGNORE'; kill 'TERM', -\$\$;
+    exit(\$w < 0 ? 125 : (\$st & 127) ? 128 + (\$st & 127) : \$st >> 8)" 2)
 fi
 unset _ss_t
 
