@@ -11,7 +11,8 @@ set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SKILL="${SKILL:-$HERE/../SKILL.md}"
-SANDBOX="$(mktemp -d "${TMPDIR:-/tmp}/prune-red.XXXXXX")"
+SANDBOX="$(mktemp -d "${TMPDIR:-/tmp}/prune-red.XXXXXX")" || exit 1
+[ -n "$SANDBOX" ] || exit 1
 trap 'rm -rf "$SANDBOX"' EXIT
 
 fail=0

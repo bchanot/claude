@@ -120,7 +120,7 @@ out="$(P diff fullx)"; check_has T17-diff-ui "$out" "ui@mk: off → on"
 check_has T17-diff-conn "$out" "connectors denied: claude.ai X, claude.ai Y → "
 out="$(P diff devx)"; check T17-nodiff "$out" "no difference from devx"
 
-# shellcheck + width
+# lint: shellcheck + width
 check T18-shellcheck "$(shellcheck "$ROOT/lib/profile.sh" >/dev/null 2>&1 && echo ok)" ok
 check T18-width "$(LC_ALL=C awk 'length($0) > 80' "$ROOT/lib/profile.sh" "$ROOT/lib/profile-state.jq" | wc -l | tr -d ' ')" 0
 
@@ -184,6 +184,17 @@ out="$(HOME="$FX/home3-link" PX "$H3" set devx 2>&1)"; rc=$?
 check T27-home-root-rc "$rc" 2
 check_has T27-home-root-msg "$out" "refusing \$HOME as the project root"
 check T27-home-root-nothing "$([ -e "$H3/.claude" ] && echo leaked)" ""
+
+# a newline in a settings value never starts a forged plain line
+printf '{"model": "opus\\nplugin:evil@x=on"}\n' > "$FX/proj/.claude/settings.json"
+out="$(P current --plain)"
+check T28-forge-no-line "$(printf '%s\n' "$out" | grep -c '^plugin:evil@')" 0
+check T28-forge-kept-inline "$(printf '%s\n' "$out" | grep -c '^model=opus plugin:evil@x=on$')" 1
+printf '{"enabledPlugins": {"ok@x\\n": true, "pack-a\\nb=on@skills-dir": true}}\n' > "$FX/lib/profiles/nlx.json"
+out="$(P current --plain)"
+check T28-nl-id-no-bare-on "$(printf '%s\n' "$out" | grep -c '^=on$')" 0
+check T28-nl-id-no-plugin-line "$(printf '%s\n' "$out" | grep -c '^plugin:ok@x')" 0
+rm "$FX/lib/profiles/nlx.json"
 
 # timing: two jq calls, under 100 ms here (spec target 50 ms, measured in Task 12)
 t0=$(date +%s%N); P current --plain >/dev/null; t1=$(date +%s%N)

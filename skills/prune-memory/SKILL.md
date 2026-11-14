@@ -31,8 +31,8 @@ Operates on `.claude/memory/` in the current project (CWD). Curates the
 - **Git is the backup.** Skill writes in-place. PRECHECK refuses to run
   if working tree dirty on registry files.
 - **Append-only friendly.** Marks entries with a `superseded by <ID>` or
-  `deprecated` status written by `memory.sh status` instead of deleting. Body of old entry stays
-  for history.
+  `deprecated` status written by `memory.sh status` instead of deleting.
+  Body of old entry stays for history.
 - **IDs stable.** Never renumber. Merges create a new ID; sources keep
   their ID with superseded status.
 - **Caveman style enforced.** Per CLAUDE.md memory rule, all writes are

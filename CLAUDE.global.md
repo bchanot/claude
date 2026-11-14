@@ -53,7 +53,8 @@ code" wins. Repo-specific instructions override both.
 1. The banner's `memory digest` lists open blockers, the first unchecked TODO
    items (`## Actionable`, else the file's first) and the last journal line:
    apply them before touching anything; a `- open: +N` line → read those
-   entries in `blockers.md`. No digest (foreign repo, memory mod off) → read
+   entries in `blockers.md`; `- open: unknown` → read `blockers.md`
+   yourself. No digest (foreign repo, memory mod off) → read
    `.claude/tasks/TODO.md` and list the open blockers yourself.
 2. Read a registry (`.claude/memory/`: decisions, learnings, blockers,
    journal, evals) or `.claude/tasks/TODO.md` when the task needs it;

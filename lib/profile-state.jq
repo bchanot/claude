@@ -14,6 +14,8 @@ def is_pack: startswith("pack-") and endswith("@skills-dir");
 def short: sub("@skills-dir$"; "");
 def src_word($s):
   if $s.source == "flag" then "conv \($s.flag)" else $s.source end;
+def clean: tostring | gsub("[\n\r]"; " ");
+def plugin_id: test("\\A[A-Za-z0-9._-]+@[A-Za-z0-9._-]+\\z");
 def listing($plugins; $on):
   [$plugins | to_entries[] | select(.value == $on) | .key | short]
   | if length == 0 then "none" else join(" ") end;
@@ -50,15 +52,17 @@ def listing($plugins; $on):
    model: $model, model_source: $msrc, mcp_off: $off} as $s
 | if $mode == "json" then $s
   elif $mode == "plain" then
-    ( ["profile=\($s.name)", "source=\($s.source)", "flag=\($s.flag)"]
+    ( ["profile=\($s.name | clean)", "source=\($s.source)",
+       "flag=\($s.flag | clean)"]
       + [$plugins | to_entries | sort_by(.key)[] | select(.key | is_pack)
-         | "\(.key | short)=\(.value | onoff)"]
+         | "\(.key | short | clean)=\(.value | onoff)"]
       + [$plugins | to_entries | sort_by(.key)[]
-         | select(.key | is_pack | not) | "plugin:\(.key)=\(.value | onoff)"]
-      + [$denied[] | "connector:\(.)=denied"]
+         | select(.key | is_pack | not) | select(.key | plugin_id)
+         | "plugin:\(.key)=\(.value | onoff)"]
+      + [$denied[] | "connector:\(. | clean)=denied"]
       + (if $all then ["connector:*=denied"] else [] end)
-      + ["model=\($s.model)", "model-source=\($s.model_source)",
-         "mcp-off=\($s.mcp_off)"] ) | .[]
+      + ["model=\($s.model | clean)", "model-source=\($s.model_source)",
+         "mcp-off=\($s.mcp_off | clean)"] ) | .[]
   else
     ( [ (if $s.mcp_off != "-"
          then "profile: custom (off: \($s.mcp_off)) [\(src_word($s))]"

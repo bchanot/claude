@@ -199,18 +199,24 @@ printf '#!/usr/bin/env bash\nexit 2\n' > "$WORK/sd9/lib/memory.sh"
 out=$(run "$p" - "$S9"); rc=$?
 check SD9a-exit2-rc "$rc" 0
 check SD9a-banner "$(printf '%s' "$out" | grep -c 'make doctor')" 1
-check SD9a-no-digest "$(printf '%s' "$out" | grep -c 'memory digest:')" 0
+check SD9a-unknown "$(printf '%s\n' "$out" | grep -c -x -- '- open: unknown (memory.sh index failed)')" 1
 printf '#!/usr/bin/env bash\nprintf "| BLK-1 |\\n| BLK-2 | x\\n| BLK-3 | d | t | weird |\\ngarbage\\n"\n' \
   > "$WORK/sd9/lib/memory.sh"
 out=$(run "$p" - "$S9"); rc=$?
 check SD9b-malformed-rc "$rc" 0
 check SD9b-banner "$(printf '%s' "$out" | grep -c 'make doctor')" 1
-check SD9b-no-digest "$(printf '%s' "$out" | grep -c 'memory digest:')" 0
+check SD9b-none "$(printf '%s\n' "$out" | grep -c -x -- '- open: none')" 1
 p=$(mkproj sd9d); mkdir "$p/.claude/memory/blockers.md"
 out=$(run "$p" -); rc=$?
 check SD9c-dir-rc "$rc" 0
 check SD9c-banner "$(printf '%s' "$out" | grep -c 'make doctor')" 1
-check SD9c-no-digest "$(printf '%s' "$out" | grep -c 'memory digest:')" 0
+check SD9c-none "$(printf '%s\n' "$out" | grep -c -x -- '- open: none')" 1
+
+# SD9d: a successful read with zero open rows says so
+p=$(mkproj sd9e); blk "$p" 1 resolved "Done"
+check SD9d-none "$(run "$p" - | digest | grep -c -x -- '- open: none')" 1
+blk "$p" 2 open "Now open"
+check SD9d-not-none "$(run "$p" - | digest | grep -c -x -- '- open: none')" 0
 
 # SD10: PATH without jq, piped resume -> no digest, banner intact
 bin="$WORK/nojq"; mkdir -p "$bin"
@@ -246,7 +252,7 @@ t1=$(now_ms)
 check SD12-hang-bounded "$([ $((t1 - t0)) -lt 3500 ] && echo yes || echo no)" yes
 check SD12-rc "$rc" 0
 check SD12-banner "$(printf '%s' "$out" | grep -c 'make doctor')" 1
-check SD12-no-digest "$(printf '%s' "$out" | grep -c 'memory digest:')" 0
+check SD12-unknown "$(printf '%s\n' "$out" | grep -c -x -- '- open: unknown (memory.sh index failed)')" 1
 
 # SD16: a memory.sh whose `check` hangs costs under 3.5 s, exit 0
 printf '#!/usr/bin/env bash\ncase "$*" in *check*) sleep 10 ;; esac\n' \
