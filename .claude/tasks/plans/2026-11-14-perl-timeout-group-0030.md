@@ -1,0 +1,11 @@
+# PLAN — perl-timeout-group (phase 4b-4d residual, GATE 2 LOW 2026-11-13) r1
+Scope: hooks/session-start.sh (:39-47), lib/tests/session-digest.test.sh (SD19 area).
+
+DIAGNOSIS: `_SS_TMO=(perl -e "alarm shift; exec { \$ARGV[0] } @ARGV" 2)` (fallback when neither timeout nor gtimeout is on PATH, stock macOS). alarm's SIGALRM kills the exec'd process only. A child of memory.sh (background job, subshell) inherits stdout/stderr; the callers capture them (:263 `$(… 2>&1 >/dev/null)` stderr, :320 `rows=$(…)` stdout), so the command substitution waits for EOF until that child exits: the 2 s bound does not hold. timeout(1) has the same single-process limit only without --kill-after... (GNU timeout signals the child only too, but runs it in its own foreground handling; out of scope: timeout/gtimeout paths unchanged). SD19 (`exec sleep 8` stub) passes because the hung process IS the exec'd one.
+RELATED MEMORY: none bears (no BLK/LRN on perl alarm or process groups); honors BDR-136 spirit (hooks fail open: digest prints `unknown` on rc 124).
+
+FIX PLAN:
+1. hooks/session-start.sh:45-46: perl runner forks; child `setpgrp(0,0)` then `exec { $ARGV[0] } @ARGV` (exit 127 on exec failure); parent `setpgrp($pid,$pid)` too (closes the race before the child's own call; failure after exec ignored), `$SIG{ALRM}` → `kill 'KILL', -$pid; exit 124`; `alarm $t; waitpid $pid, 0`; exit with the child's status (`$? & 127` → 128+signal, else `$? >> 8`); fork failure → exit 125. Single-quoted perl program (no `\$` escapes). Comment :39-40 updated: "perl forks the command into its own process group and kills the group, so a child holding the pipe dies too."
+2. lib/tests/session-digest.test.sh: new SD19b after SD19: memory.sh stub `sleep 8 & exec sleep 8`… no: `( sleep 8 ) &` then `sleep 8` (the background child keeps stdout/stderr open after the main process dies); same no-timeout PATH; assert run < 6 s and the digest shows `- open: unknown (memory.sh index failed)`. Flip: old runner → ≥ 8 s, red.
+3. SD19 unchanged (direct hang still bounded).
+RISK: low. KILL (not TERM) on the group: the bound is the goal, memory.sh read-only calls hold no lock state worth a graceful stop. Linux/macOS perl both have setpgrp/fork/kill negative pid.
