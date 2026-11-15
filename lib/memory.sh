@@ -9,7 +9,9 @@
 #   status <ID> <text>   append `- **Status (<date>)**: <text>` to the entry;
 #                 <text> starts with a status word ("open, reopened by …")
 #   journal <line>       append `- <line>` under today's `## YYYY-MM-DD`
-#   index [<kind>]       ID | Date | Title | Status, from headings and bodies
+#   index [<kind>]       ID | Date | Title | Status, from headings and bodies;
+#                 with a kind, an unreadable registry is rc 2; without, a
+#                 bad registry is skipped with a stderr line, rc 0
 #   check [--staged] [<memory-dir>]   heading shape, unique IDs, no Index,
 #                 no open fence in a v2 file (v1 reported, never failed);
 #                 --staged: only NEW culprits vs HEAD, no line removed
@@ -591,17 +593,42 @@ _mem_index_rows() {  # <file> <PREFIX> → "| ID | date | title | word |" rows
     END { row() }' "$1"
 }
 
+_mem_index_dir() {  # → 1 (stderr) when .claude/memory cannot be searched
+  local d=.claude/memory
+  if [ -e "$d" ] || [ -L "$d" ]; then
+    { [ -d "$d" ] && [ -x "$d" ]; } && return 0
+  else
+    [ ! -d .claude ] || [ -x .claude ] && return 0
+  fi
+  echo "memory: $d: not a searchable directory" >&2
+  return 1
+}
+
+_mem_index_one() {  # <file> <PREFIX> → 0 read or absent, 1 bad (stderr)
+  local file=$1 rows
+  [ -e "$file" ] || [ -L "$file" ] || return 0
+  if [ ! -f "$file" ] || ! rows=$(_mem_index_rows "$file" "$2"); then
+    echo "memory: $file: not a readable regular file" >&2
+    return 1
+  fi
+  printf '%s\n\n| ID | Date | Title | Status |\n|---|---|---|---|\n' "$file"
+  [ -n "$rows" ] && printf '%s\n' "$rows"
+  echo
+}
+
 memory_index() {  # [<kind>] → one table per registry
-  local kinds k spec file
+  local kinds k spec strict=${1:+1}
   kinds=${1:-$(awk '{ print $1 }' <<< "$_MEM_TABLE")}
+  if ! _mem_index_dir; then
+    [ -n "$strict" ] && return 2
+    return 0
+  fi
   for k in $kinds; do
     spec=$(_mem_kind "$k") || return 2
-    file=".claude/memory/${spec% *}"
-    [ -f "$file" ] || continue
-    printf '%s\n\n| ID | Date | Title | Status |\n|---|---|---|---|\n' "$file"
-    _mem_index_rows "$file" "${spec#* }"
-    echo
+    _mem_index_one ".claude/memory/${spec% *}" "${spec#* }" && continue
+    [ -n "$strict" ] && return 2
   done
+  return 0
 }
 
 _mem_index_table() {  # <file> → "ID<TAB>date<TAB>last column" per Index row

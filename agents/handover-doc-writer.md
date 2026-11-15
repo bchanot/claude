@@ -123,6 +123,8 @@ bash "$HOME/.claude/lib/memory.sh" -C "${ROOT:?}" index decision
 Only BDRs whose current word is `accepted`, `implemented` or `proposed`
 feed §6.1; `superseded` and `deprecated` ones are left out. A decision
 whose word is empty is counted as unreadable, not dropped silently.
+If `index decision` exits non-zero, write `MEMORY: decisions reader
+unavailable` instead of an empty §6.1.
 
 A `ROOT_UNSAFE` print (the first line of the root holds a control
 character) or a pre-paste refusal (see above) → `STATUS: BLOCKED` naming
