@@ -130,7 +130,8 @@ function replyAfter(recs: Rec[], ts: number): string {
     .filter(r => r.type === 'assistant' && r.isSidechain !== true)
     .filter(r => tsOf(r) > ts && tsOf(r) < end)
     .flatMap(textsOf)
-  return [...new Map(texts).values()].join('\n') // first position kept; the value is derived from the key
+  // first position kept; the value is derived from the key
+  return [...new Map(texts).values()].join('\n')
 }
 
 export type PromptJoin = { prompt: string; injected: string; reply: string }
