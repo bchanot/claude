@@ -1,0 +1,40 @@
+before	claude	3	docker run -v /:/x img	rtk docker run -v /:/x img
+before	claude	3	docker run --rm --volume /:/x img	rtk docker run --rm --volume /:/x img
+before	claude	3	docker run -v=/:/x img	rtk docker run -v=/:/x img
+before	claude	3	docker run --volume=/:/x img	rtk docker run --volume=/:/x img
+before	claude	3	docker run -v/:/x img	rtk docker run -v/:/x img
+before	claude	3	docker run --mount type=bind,source=/,target=/x img	rtk docker run --mount type=bind,source=/,target=/x img
+before	claude	3	docker run --mount=type=bind,src=/,dst=/x img	rtk docker run --mount=type=bind,src=/,dst=/x img
+before	claude	1	docker container run -v /:/x img	
+before	claude	1	docker create -v /:/x img	
+before	claude	1	docker compose up	
+before	faunosteo	0	docker run -v /:/x img	rtk docker run -v /:/x img
+before	faunosteo	0	docker run --rm --volume /:/x img	rtk docker run --rm --volume /:/x img
+before	faunosteo	0	docker run -v=/:/x img	rtk docker run -v=/:/x img
+before	faunosteo	0	docker run --volume=/:/x img	rtk docker run --volume=/:/x img
+before	faunosteo	0	docker run -v/:/x img	rtk docker run -v/:/x img
+before	faunosteo	0	docker run --mount type=bind,source=/,target=/x img	rtk docker run --mount type=bind,source=/,target=/x img
+before	faunosteo	0	docker run --mount=type=bind,src=/,dst=/x img	rtk docker run --mount=type=bind,src=/,dst=/x img
+before	faunosteo	1	docker container run -v /:/x img	
+before	faunosteo	1	docker create -v /:/x img	
+before	faunosteo	1	docker compose up	
+after	claude	2	docker run -v /:/x img	
+after	claude	2	docker run --rm --volume /:/x img	
+after	claude	2	docker run -v=/:/x img	
+after	claude	2	docker run --volume=/:/x img	
+after	claude	2	docker run -v/:/x img	
+after	claude	2	docker run --mount type=bind,source=/,target=/x img	
+after	claude	2	docker run --mount=type=bind,src=/,dst=/x img	
+after	claude	2	docker container run -v /:/x img	
+after	claude	2	docker create -v /:/x img	
+after	claude	1	docker compose up	
+after	faunosteo	2	docker run -v /:/x img	
+after	faunosteo	2	docker run --rm --volume /:/x img	
+after	faunosteo	2	docker run -v=/:/x img	
+after	faunosteo	2	docker run --volume=/:/x img	
+after	faunosteo	2	docker run -v/:/x img	
+after	faunosteo	2	docker run --mount type=bind,source=/,target=/x img	
+after	faunosteo	2	docker run --mount=type=bind,src=/,dst=/x img	
+after	faunosteo	2	docker container run -v /:/x img	
+after	faunosteo	2	docker create -v /:/x img	
+after	faunosteo	1	docker compose up	
