@@ -760,3 +760,4 @@ rules:
 
 ## 2026-11-15
 - Docker host-root mount deny shipped 0f73d7e: 28 rows (7 shapes x 4 prefixes), bench-proven echo analogue, verifier CONFORME, security PASS. Legacy rows dead, kept. Wrapper/podman residual added TODO:90. Docs committed.
+- A2 line width: 4 lines >80 cols re-wrapped (register.ts 591/683/3765, transcripts.ts 133; audit line numbers had drifted), no behavior change, make test green, security PASS.
