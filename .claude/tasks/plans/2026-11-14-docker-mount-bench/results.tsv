@@ -1,0 +1,117 @@
+DENIED	S1-p0	DENIED	echo run -v /:/x img	DENIED	auto
+control	S1-p0-ctl	RAN	echo run -v /:/x img	RAN	auto
+DENIED	S1-p1	DENIED	rtk echo run -v /:/x img	DENIED	auto
+control	S1-p1-ctl	RAN	rtk echo run -v /:/x img	RAN	auto
+DENIED	S1-p2	DENIED	/home/u/.local/bin/rtk echo run -v /:/x img	DENIED	auto
+control	S1-p2-ctl	RAN	/home/u/.local/bin/rtk echo run -v /:/x img	RAN	auto
+DENIED	S1-p3	DENIED	/usr/bin/echo run -v /:/x img	DENIED	auto
+control	S1-p3-ctl	RAN	/usr/bin/echo run -v /:/x img	RAN	auto
+DENIED	S2-p0	DENIED	echo run -v=/:/x img	DENIED	auto
+control	S2-p0-ctl	RAN	echo run -v=/:/x img	RAN	auto
+DENIED	S2-p1	DENIED	rtk echo run -v=/:/x img	DENIED	auto
+control	S2-p1-ctl	RAN	rtk echo run -v=/:/x img	RAN	auto
+DENIED	S2-p2	DENIED	/home/u/.local/bin/rtk echo run -v=/:/x img	DENIED	auto
+control	S2-p2-ctl	RAN	/home/u/.local/bin/rtk echo run -v=/:/x img	RAN	auto
+DENIED	S2-p3	DENIED	/usr/bin/echo run -v=/:/x img	DENIED	auto
+control	S2-p3-ctl	RAN	/usr/bin/echo run -v=/:/x img	RAN	auto
+DENIED	S3-p0	DENIED	echo run -v/:/x img	DENIED	auto
+control	S3-p0-ctl	RAN	echo run -v/:/x img	RAN	auto
+DENIED	S3-p1	DENIED	rtk echo run -v/:/x img	DENIED	auto
+control	S3-p1-ctl	RAN	rtk echo run -v/:/x img	RAN	auto
+DENIED	S3-p2	DENIED	/home/u/.local/bin/rtk echo run -v/:/x img	DENIED	auto
+control	S3-p2-ctl	RAN	/home/u/.local/bin/rtk echo run -v/:/x img	RAN	auto
+DENIED	S3-p3	DENIED	/usr/bin/echo run -v/:/x img	DENIED	auto
+control	S3-p3-ctl	RAN	/usr/bin/echo run -v/:/x img	RAN	auto
+DENIED	S4-p0	DENIED	echo run --mount type=bind,source=/,target=/x img	DENIED	auto
+control	S4-p0-ctl	RAN	echo run --mount type=bind,source=/,target=/x img	RAN	auto
+DENIED	S4-p1	DENIED	rtk echo run --mount type=bind,source=/,target=/x img	DENIED	auto
+control	S4-p1-ctl	RAN	rtk echo run --mount type=bind,source=/,target=/x img	RAN	auto
+DENIED	S4-p2	DENIED	/home/u/.local/bin/rtk echo run --mount type=bind,source=/,target=/x i	DENIED	auto
+control	S4-p2-ctl	RAN	/home/u/.local/bin/rtk echo run --mount type=bind,source=/,target=/x i	RAN	auto
+DENIED	S4-p3	DENIED	/usr/bin/echo run --mount type=bind,source=/,target=/x img	DENIED	auto
+control	S4-p3-ctl	RAN	/usr/bin/echo run --mount type=bind,source=/,target=/x img	RAN	auto
+DENIED	S5-p0	DENIED	echo run --mount type=bind,src=/,dst=/x img	DENIED	auto
+control	S5-p0-ctl	RAN	echo run --mount type=bind,src=/,dst=/x img	RAN	auto
+DENIED	S5-p1	DENIED	rtk echo run --mount type=bind,src=/,dst=/x img	DENIED	auto
+control	S5-p1-ctl	RAN	rtk echo run --mount type=bind,src=/,dst=/x img	RAN	auto
+DENIED	S5-p2	DENIED	/home/u/.local/bin/rtk echo run --mount type=bind,src=/,dst=/x img	DENIED	auto
+control	S5-p2-ctl	RAN	/home/u/.local/bin/rtk echo run --mount type=bind,src=/,dst=/x img	RAN  The command was not refused, but it did not succeed: th	auto
+DENIED	S5-p3	DENIED	/usr/bin/echo run --mount type=bind,src=/,dst=/x img	DENIED	auto
+control	S5-p3-ctl	RAN	/usr/bin/echo run --mount type=bind,src=/,dst=/x img	RAN	auto
+DENIED	S6-p0	DENIED	echo run --mount type=bind,target=/x,source=/ img	DENIED	auto
+control	S6-p0-ctl	RAN	echo run --mount type=bind,target=/x,source=/ img	RAN	auto
+DENIED	S6-p1	DENIED	rtk echo run --mount type=bind,target=/x,source=/ img	DENIED	auto
+control	S6-p1-ctl	RAN	rtk echo run --mount type=bind,target=/x,source=/ img	RAN	auto
+DENIED	S6-p2	DENIED	/home/u/.local/bin/rtk echo run --mount type=bind,target=/x,source=/ i	DENIED	auto
+control	S6-p2-ctl	RAN	/home/u/.local/bin/rtk echo run --mount type=bind,target=/x,source=/ i	RAN  The shell tried to run it, but `/home/u/.local/bin/rtk`	auto
+DENIED	S6-p3	DENIED	/usr/bin/echo run --mount type=bind,target=/x,source=/ img	DENIED	auto
+control	S6-p3-ctl	RAN	/usr/bin/echo run --mount type=bind,target=/x,source=/ img	RAN	auto
+DENIED	S7-p0	DENIED	echo run --mount type=bind,dst=/x,src=/ img	DENIED	auto
+control	S7-p0-ctl	RAN	echo run --mount type=bind,dst=/x,src=/ img	RAN	auto
+DENIED	S7-p1	DENIED	rtk echo run --mount type=bind,dst=/x,src=/ img	DENIED	auto
+control	S7-p1-ctl	RAN	rtk echo run --mount type=bind,dst=/x,src=/ img	RAN	auto
+DENIED	S7-p2	DENIED	/home/u/.local/bin/rtk echo run --mount type=bind,dst=/x,src=/ img	DENIED	auto
+control	S7-p2-ctl	RAN	/home/u/.local/bin/rtk echo run --mount type=bind,dst=/x,src=/ img	RAN	auto
+DENIED	S7-p3	DENIED	/usr/bin/echo run --mount type=bind,dst=/x,src=/ img	DENIED	auto
+control	S7-p3-ctl	RAN	/usr/bin/echo run --mount type=bind,dst=/x,src=/ img	RAN	auto
+DENIED	S1-volume	DENIED	echo run --rm --volume /:/x img	DENIED	auto
+control	S1-volume-ctl	RAN	echo run --rm --volume /:/x img	RAN	auto
+DENIED	S1-cluster	DENIED	echo container run -itv /:/x img	DENIED	auto
+control	S1-cluster-ctl	RAN	echo container run -itv /:/x img	RAN	auto
+DENIED	S1-create	DENIED	echo create -v /:/x img	DENIED	auto
+control	S1-create-ctl	RAN	echo create -v /:/x img	RAN	auto
+DENIED	S2-volume	DENIED	echo run --volume=/:/x img	DENIED	auto
+control	S2-volume-ctl	RAN	echo run --volume=/:/x img	RAN	auto
+DENIED	S4-mount=	DENIED	echo run --mount=type=bind,source=/,target=/x img	DENIED	auto
+control	S4-mount=-ctl	RAN	echo run --mount=type=bind,source=/,target=/x img	RAN	auto
+DENIED	S4-first	DENIED	echo run --mount source=/,target=/x img	DENIED	auto
+control	S4-first-ctl	RAN	echo run --mount source=/,target=/x img	RAN	auto
+DENIED	S5-first	DENIED	echo run --mount src=/,dst=/x img	DENIED	auto
+control	S5-first-ctl	RAN	echo run --mount src=/,dst=/x img	RAN	auto
+RAN	N1-p0	RAN	echo run -v /srv:/x img	RAN	auto
+RAN	N2-p0	RAN	echo run -v /srv/:/x img	RAN	auto
+RAN	N3-p0	RAN	echo run -v ~/dev/:/x img	RAN	auto
+RAN	N4-p0	RAN	echo run -v ~/dev/:/x img	RAN	auto
+RAN	N5-p0	RAN	echo run -v /srv/:/x img	RAN	auto
+RAN	N6-p0	RAN	echo run -v=/srv/:/x img	RAN	auto
+RAN	N1-p1	RAN	rtk echo run -v /srv:/x img	RAN	auto
+RAN	N2-p1	RAN	rtk echo run -v /srv/:/x img	RAN	auto
+RAN	N3-p1	RAN	rtk echo run -v ~/dev/:/x img	RAN	auto
+RAN	N4-p1	RAN	rtk echo run -v ~/dev/:/x img	RAN	auto
+RAN	N5-p1	RAN	rtk echo run -v /srv/:/x img	RAN	auto
+RAN	N6-p1	RAN	rtk echo run -v=/srv/:/x img	RAN	auto
+RAN	N1-p2	RAN	/home/u/.local/bin/rtk echo run -v /srv:/x img	RAN	auto
+RAN	N2-p2	RAN	/home/u/.local/bin/rtk echo run -v /srv/:/x img	RAN	auto
+RAN	N3-p2	RAN	/home/u/.local/bin/rtk echo run -v ~/dev/:/x img	RAN	auto
+RAN	N4-p2	RAN	/home/u/.local/bin/rtk echo run -v ~/dev/:/x img	RAN	auto
+RAN	N5-p2	RAN	/home/u/.local/bin/rtk echo run -v /srv/:/x img	RAN	auto
+RAN	N6-p2	RAN	/home/u/.local/bin/rtk echo run -v=/srv/:/x img	RAN	auto
+RAN	N1-p3	RAN	/usr/bin/echo run -v /srv:/x img	RAN	auto
+RAN	N2-p3	RAN	/usr/bin/echo run -v /srv/:/x img	RAN	auto
+RAN	N3-p3	RAN	/usr/bin/echo run -v ~/dev/:/x img	RAN	auto
+RAN	N4-p3	RAN	/usr/bin/echo run -v ~/dev/:/x img	RAN	auto
+RAN	N5-p3	RAN	/usr/bin/echo run -v /srv/:/x img	RAN	auto
+RAN	N6-p3	RAN	/usr/bin/echo run -v=/srv/:/x img	RAN	auto
+RAN	N7	RAN	echo run --rm --network none -v /opt/orbistep:/app:ro img	RAN	auto
+RAN	N8	RAN	echo exec -i c psql -v ON_ERROR_STOP=1 -f -	RAN	auto
+RAN	N9	RAN	echo exec -i c psql -v ON_ERROR_STOP=1 -f -	RAN	auto
+RAN	N10	RAN	echo exec -i c psql -v ON_ERROR_STOP=1 -f -	RAN	auto
+RAN	N11-S4	RAN	echo run --mount type=bind,source=/srv,target=/x img	RAN	auto
+RAN	N12-S4	RAN	echo run --mount type=bind,source=/srv/,target=/x img	RAN	auto
+RAN	N13-S4	RAN	echo run --mount type=bind,src=/srv/,dst=/x img	RAN	auto
+RAN	N11-S5	RAN	echo run --mount type=bind,source=/srv,target=/x img	RAN	auto
+RAN	N12-S5	RAN	echo run --mount type=bind,source=/srv/,target=/x img	RAN	auto
+RAN	N13-S5	RAN	echo run --mount type=bind,src=/srv/,dst=/x img	RAN	auto
+RAN	N11-S6	RAN	echo run --mount type=bind,source=/srv,target=/x img	RAN	auto
+RAN	N12-S6	RAN	echo run --mount type=bind,source=/srv/,target=/x img	RAN	auto
+RAN	N13-S6	RAN	echo run --mount type=bind,src=/srv/,dst=/x img	RAN	auto
+RAN	N11-S7	RAN	echo run --mount type=bind,source=/srv,target=/x img	RAN	auto
+RAN	N12-S7	RAN	echo run --mount type=bind,source=/srv/,target=/x img	RAN	auto
+RAN	N13-S7	RAN	echo run --mount type=bind,src=/srv/,dst=/x img	RAN	auto
+RAN	N14	RAN	grep -n 'echo run -v /:/x' f	RAN	auto
+MEASURE	M1	DENIED	echo run --rm \\n  -v /:/x \\n  img	DENIED	auto
+MEASURE	M2	DENIED	echo run --rm \\n  --mount type=bind,source=/,target=/x \\n  img	DENIED	auto
+MEASURE	M3	DENIED	echo run --mount "type=bind,source=/,target=/x" img	DENIED	auto
+MEASURE	M4	RAN	echo run -v /srv:/x img	RAN	auto
+MEASURE	M5	RAN	echo run -v /:/x img	RAN	auto
+MEASURE	M6	DENIED	echo run -v "/:/x" img	DENIED	auto

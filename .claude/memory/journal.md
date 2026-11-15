@@ -757,3 +757,6 @@ rules:
 - E3 npm -g deny rows removed by user (692e4a5, merged 98e1800); my step list sent user to a 69-commit-stale branch, rebased by stash+ff. mods.test.sh hangs in a tty: claude CLI under timeout = background pgrp, SIGTTOU stops whole group incl. timeout → hotfix next.
 - /hotfix mods-test-tty-hang: bounded() runs CLI with </dev/null (commit above); pty repro before T-state hang, after 52 s pass; security PASS; doc sync skipped (test-only, no doc names bounded).
 - Live proofs 2026-11-14: BLK-044 fix holds (new cc session pid 1935180 oom_score_adj 500; pre-fix sessions 2246880/40538 stay -1000 until restart, 40538 not via cc). E3: npm -g dry-run ran, no hard deny, no ask since user named package (soft_deny rule).
+
+## 2026-11-15
+- Docker host-root mount deny shipped 0f73d7e: 28 rows (7 shapes x 4 prefixes), bench-proven echo analogue, verifier CONFORME, security PASS. Legacy rows dead, kept. Wrapper/podman residual added TODO:90. Docs committed.

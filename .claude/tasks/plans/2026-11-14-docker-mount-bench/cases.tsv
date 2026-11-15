@@ -1,0 +1,82 @@
+S1-p0	deny	Bash(echo * /:/*)	echo run -v /:/x img	DENIED
+S1-p1	deny	Bash(rtk echo * /:/*)	rtk echo run -v /:/x img	DENIED
+S1-p2	deny	Bash(*/rtk echo * /:/*)	/home/u/.local/bin/rtk echo run -v /:/x img	DENIED
+S1-p3	deny	Bash(*/echo * /:/*)	/usr/bin/echo run -v /:/x img	DENIED
+S2-p0	deny	Bash(echo *=/:/*)	echo run -v=/:/x img	DENIED
+S2-p1	deny	Bash(rtk echo *=/:/*)	rtk echo run -v=/:/x img	DENIED
+S2-p2	deny	Bash(*/rtk echo *=/:/*)	/home/u/.local/bin/rtk echo run -v=/:/x img	DENIED
+S2-p3	deny	Bash(*/echo *=/:/*)	/usr/bin/echo run -v=/:/x img	DENIED
+S3-p0	deny	Bash(echo * -v/:/*)	echo run -v/:/x img	DENIED
+S3-p1	deny	Bash(rtk echo * -v/:/*)	rtk echo run -v/:/x img	DENIED
+S3-p2	deny	Bash(*/rtk echo * -v/:/*)	/home/u/.local/bin/rtk echo run -v/:/x img	DENIED
+S3-p3	deny	Bash(*/echo * -v/:/*)	/usr/bin/echo run -v/:/x img	DENIED
+S4-p0	deny	Bash(echo *source=/,*)	echo run --mount type=bind,source=/,target=/x img	DENIED
+S4-p1	deny	Bash(rtk echo *source=/,*)	rtk echo run --mount type=bind,source=/,target=/x img	DENIED
+S4-p2	deny	Bash(*/rtk echo *source=/,*)	/home/u/.local/bin/rtk echo run --mount type=bind,source=/,target=/x img	DENIED
+S4-p3	deny	Bash(*/echo *source=/,*)	/usr/bin/echo run --mount type=bind,source=/,target=/x img	DENIED
+S5-p0	deny	Bash(echo *src=/,*)	echo run --mount type=bind,src=/,dst=/x img	DENIED
+S5-p1	deny	Bash(rtk echo *src=/,*)	rtk echo run --mount type=bind,src=/,dst=/x img	DENIED
+S5-p2	deny	Bash(*/rtk echo *src=/,*)	/home/u/.local/bin/rtk echo run --mount type=bind,src=/,dst=/x img	DENIED
+S5-p3	deny	Bash(*/echo *src=/,*)	/usr/bin/echo run --mount type=bind,src=/,dst=/x img	DENIED
+S6-p0	deny	Bash(echo *source=/ *)	echo run --mount type=bind,target=/x,source=/ img	DENIED
+S6-p1	deny	Bash(rtk echo *source=/ *)	rtk echo run --mount type=bind,target=/x,source=/ img	DENIED
+S6-p2	deny	Bash(*/rtk echo *source=/ *)	/home/u/.local/bin/rtk echo run --mount type=bind,target=/x,source=/ img	DENIED
+S6-p3	deny	Bash(*/echo *source=/ *)	/usr/bin/echo run --mount type=bind,target=/x,source=/ img	DENIED
+S7-p0	deny	Bash(echo *src=/ *)	echo run --mount type=bind,dst=/x,src=/ img	DENIED
+S7-p1	deny	Bash(rtk echo *src=/ *)	rtk echo run --mount type=bind,dst=/x,src=/ img	DENIED
+S7-p2	deny	Bash(*/rtk echo *src=/ *)	/home/u/.local/bin/rtk echo run --mount type=bind,dst=/x,src=/ img	DENIED
+S7-p3	deny	Bash(*/echo *src=/ *)	/usr/bin/echo run --mount type=bind,dst=/x,src=/ img	DENIED
+S1-volume	deny	Bash(echo * /:/*)	echo run --rm --volume /:/x img	DENIED
+S1-cluster	deny	Bash(echo * /:/*)	echo container run -itv /:/x img	DENIED
+S1-create	deny	Bash(echo * /:/*)	echo create -v /:/x img	DENIED
+S2-volume	deny	Bash(echo *=/:/*)	echo run --volume=/:/x img	DENIED
+S4-mount=	deny	Bash(echo *source=/,*)	echo run --mount=type=bind,source=/,target=/x img	DENIED
+S4-first	deny	Bash(echo *source=/,*)	echo run --mount source=/,target=/x img	DENIED
+S5-first	deny	Bash(echo *src=/,*)	echo run --mount src=/,dst=/x img	DENIED
+N1-p0	deny	Bash(echo * /:/*)	echo run -v /srv:/x img	RAN
+N2-p0	deny	Bash(echo * /:/*)	echo run -v /srv/:/x img	RAN
+N3-p0	deny	Bash(echo * /:/*)	echo run -v ~/dev/:/x img	RAN
+N4-p0	deny	Bash(echo * -v/:/*)	echo run -v ~/dev/:/x img	RAN
+N5-p0	deny	Bash(echo * -v/:/*)	echo run -v /srv/:/x img	RAN
+N6-p0	deny	Bash(echo *=/:/*)	echo run -v=/srv/:/x img	RAN
+N1-p1	deny	Bash(rtk echo * /:/*)	rtk echo run -v /srv:/x img	RAN
+N2-p1	deny	Bash(rtk echo * /:/*)	rtk echo run -v /srv/:/x img	RAN
+N3-p1	deny	Bash(rtk echo * /:/*)	rtk echo run -v ~/dev/:/x img	RAN
+N4-p1	deny	Bash(rtk echo * -v/:/*)	rtk echo run -v ~/dev/:/x img	RAN
+N5-p1	deny	Bash(rtk echo * -v/:/*)	rtk echo run -v /srv/:/x img	RAN
+N6-p1	deny	Bash(rtk echo *=/:/*)	rtk echo run -v=/srv/:/x img	RAN
+N1-p2	deny	Bash(*/rtk echo * /:/*)	/home/u/.local/bin/rtk echo run -v /srv:/x img	RAN
+N2-p2	deny	Bash(*/rtk echo * /:/*)	/home/u/.local/bin/rtk echo run -v /srv/:/x img	RAN
+N3-p2	deny	Bash(*/rtk echo * /:/*)	/home/u/.local/bin/rtk echo run -v ~/dev/:/x img	RAN
+N4-p2	deny	Bash(*/rtk echo * -v/:/*)	/home/u/.local/bin/rtk echo run -v ~/dev/:/x img	RAN
+N5-p2	deny	Bash(*/rtk echo * -v/:/*)	/home/u/.local/bin/rtk echo run -v /srv/:/x img	RAN
+N6-p2	deny	Bash(*/rtk echo *=/:/*)	/home/u/.local/bin/rtk echo run -v=/srv/:/x img	RAN
+N1-p3	deny	Bash(*/echo * /:/*)	/usr/bin/echo run -v /srv:/x img	RAN
+N2-p3	deny	Bash(*/echo * /:/*)	/usr/bin/echo run -v /srv/:/x img	RAN
+N3-p3	deny	Bash(*/echo * /:/*)	/usr/bin/echo run -v ~/dev/:/x img	RAN
+N4-p3	deny	Bash(*/echo * -v/:/*)	/usr/bin/echo run -v ~/dev/:/x img	RAN
+N5-p3	deny	Bash(*/echo * -v/:/*)	/usr/bin/echo run -v /srv/:/x img	RAN
+N6-p3	deny	Bash(*/echo *=/:/*)	/usr/bin/echo run -v=/srv/:/x img	RAN
+N7	deny	Bash(echo * /:/*)	echo run --rm --network none -v /opt/orbistep:/app:ro img	RAN
+N8	deny	Bash(echo * /:/*)	echo exec -i c psql -v ON_ERROR_STOP=1 -f -	RAN
+N9	deny	Bash(echo *=/:/*)	echo exec -i c psql -v ON_ERROR_STOP=1 -f -	RAN
+N10	deny	Bash(echo * -v/:/*)	echo exec -i c psql -v ON_ERROR_STOP=1 -f -	RAN
+N11-S4	deny	Bash(echo *source=/,*)	echo run --mount type=bind,source=/srv,target=/x img	RAN
+N12-S4	deny	Bash(echo *source=/,*)	echo run --mount type=bind,source=/srv/,target=/x img	RAN
+N13-S4	deny	Bash(echo *source=/,*)	echo run --mount type=bind,src=/srv/,dst=/x img	RAN
+N11-S5	deny	Bash(echo *src=/,*)	echo run --mount type=bind,source=/srv,target=/x img	RAN
+N12-S5	deny	Bash(echo *src=/,*)	echo run --mount type=bind,source=/srv/,target=/x img	RAN
+N13-S5	deny	Bash(echo *src=/,*)	echo run --mount type=bind,src=/srv/,dst=/x img	RAN
+N11-S6	deny	Bash(echo *source=/ *)	echo run --mount type=bind,source=/srv,target=/x img	RAN
+N12-S6	deny	Bash(echo *source=/ *)	echo run --mount type=bind,source=/srv/,target=/x img	RAN
+N13-S6	deny	Bash(echo *source=/ *)	echo run --mount type=bind,src=/srv/,dst=/x img	RAN
+N11-S7	deny	Bash(echo *src=/ *)	echo run --mount type=bind,source=/srv,target=/x img	RAN
+N12-S7	deny	Bash(echo *src=/ *)	echo run --mount type=bind,source=/srv/,target=/x img	RAN
+N13-S7	deny	Bash(echo *src=/ *)	echo run --mount type=bind,src=/srv/,dst=/x img	RAN
+N14	deny	Bash(echo * /:/*)	grep -n 'echo run -v /:/x' f	RAN
+M1	deny	Bash(echo * /:/*)	echo run --rm \\\n  -v /:/x \\\n  img	MEASURE
+M2	deny	Bash(echo *source=/,*)	echo run --rm \\\n  --mount type=bind,source=/,target=/x \\\n  img	MEASURE
+M3	deny	Bash(echo *source=/,*)	echo run --mount "type=bind,source=/,target=/x" img	MEASURE
+M4	deny	Bash(echo run -v /:*)	echo run -v /srv:/x img	MEASURE
+M5	deny	Bash(echo run -v /:*)	echo run -v /:/x img	MEASURE
+M6	deny	Bash(echo * /:/*)	echo run -v "/:/x" img	MEASURE
