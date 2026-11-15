@@ -876,6 +876,7 @@ check T13d-banner-flips-off "$(banner "$FIX/v1h")" 0
 cat v1h.bak > "$FIX/v1h/.claude/memory/blockers.md"
 # T18 the mod's entriesOf reads the same IDs as memory.sh index on this repo's
 # registries (parseIndex lists no EVAL row); FAILS when they are absent
+if command -v bun >/dev/null 2>&1; then
 parity=$(R="$ROOT" OUT="$(bash "$MEM" -C "$ROOT" index 2>/dev/null)" \
   bun -e '
 import { readFileSync } from "node:fs"
@@ -889,6 +890,9 @@ const diff = [...a].filter(x => !b.has(x)).concat([...b].filter(x => !a.has(x)))
 console.log(a.size > 0 && diff.length === 0 ? "same" : `differ ${diff}`)
 ' 2>&1)
 check T18-entriesOf-vs-index-ids "$parity" same
+else
+  echo "SKIP T18-entriesOf-vs-index-ids (bun not on PATH)"
+fi
 # T19 a path that looks like an awk assignment (x=1.md) is a file, not stdin
 printf 'x\n## sneaky\n' > 'x=1.md'
 sum=$(cksum < .claude/memory/learnings.md)
