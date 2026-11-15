@@ -2108,3 +2108,9 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Pattern**: `timeout N cmd` (no --foreground) puts cmd in own process group = background of the tty. Interactive CLI (claude, anything Ink/readline) inheriting tty stdin sets terminal modes → SIGTTOU to whole group → cmd AND timeout stopped (state T), alarm never fires, hang forever. Only in a terminal; non-tty runs (Claude sessions, CI) pass, so tests stay green while user's `make test` hangs.
 - **Context**: lib/tests/mods.test.sh `bounded()` around `claude plugin validate --strict`, user report 2026-11-14 (4h30 in T). Reproduced under util-linux `script -qec` pty: before T from 2 s, after 52 s pass.
 - **Apply**: any CLI under timeout/perl group runner in tests or hooks → `</dev/null` (and capture stdout/stderr). Prove tty behaviour with `script -qec '<cmd>' /dev/null`, not only headless runs.
+
+## LRN-292 — Validator replaying an allocator: same reading, same dialect gate, replay real commits (2026-11-15)
+- **Pattern**: validator that checks what an allocator produced must read inputs exactly as allocator reads them, and run only where allocator's assumptions hold. Else it refuses valid output.
+- **Context**: A4 `check --staged` next-ID rule (e0311f4). r1 counted body ID lines as entries → valid `add` refused. r2 ran on v1 HEAD → `upgrade` commit refused (`### BDR-n` → `## BDR-n` read as new); replay of trucks_at_work 17536ce: rc 0 today, rc 2 under r2, remedy would have steered to renumbering.
+- **Apply**: replay allocator in same order (line order, any level, fenced or not); gate on dialect it assumes (v2 HEAD, ≥1 shape-valid entry, no open fence); before trusting, replay rule on real historical commits of each workflow (add, upgrade, merge, import). Tests must bite: mutate each gate clause, test must go red.
+- **Reference**: lib/memory.sh `_mem_check_next_ids`, `_mem_next_id`; lib/tests/memory.test.sh T8f-T8o
