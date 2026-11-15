@@ -588,7 +588,8 @@ function pickSwitch(
 function pickEnabled(v: unknown, fallback: boolean, log: Log): boolean {
   if (v === undefined) return fallback
   if (typeof v === 'boolean') return v
-  log('model-router: config "enabled" is not a boolean; router off (fail closed)')
+  log('model-router: config "enabled" is not a boolean; ' +
+    'router off (fail closed)')
   return false
 }
 
@@ -680,7 +681,8 @@ function mergeConfig(
     mainModelSwitch: pickModelSwitch(
       user.mainModelSwitch, base.mainModelSwitch, log),
     verbose: pickSwitch(
-      'config "verbose" is not a boolean; ignored', user.verbose, base.verbose, log),
+      'config "verbose" is not a boolean; ignored',
+      user.verbose, base.verbose, log),
     classify: pickSwitch(
       'model-router: config "classify" is not a boolean; ignored',
       user.classify, base.classify, log),
@@ -3762,7 +3764,8 @@ function onSkillLoad(st: State, skill: string, agentId: string | undefined) {
     if (row) routeMainBySkill(st, skill, row, false)
     return
   }
-  if (row) writeLoop(loopOf(st, agentId), row.route, `skill ${clean(skill, NAME_CAP)}`)
+  if (row) writeLoop(
+    loopOf(st, agentId), row.route, `skill ${clean(skill, NAME_CAP)}`)
 }
 
 type TypedPath = 'typed-marker' | 'typed-fallback'
