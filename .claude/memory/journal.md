@@ -763,3 +763,6 @@ rules:
 - A2 line width: 4 lines >80 cols re-wrapped (register.ts 591/683/3765, transcripts.ts 133; audit line numbers had drifted), no behavior change, make test green, security PASS.
 - A3 index fail-closed: memory_index rc 2 on non-regular/unreadable registry with kind, lax skip+stderr without kind (register.ts recall keeps rc 0); digest unknown on unparsable BLK row; SD9b/c re-pinned, SD9f/g/h + T20* added (87aecc1). Residuals BUGS-FOUND 07f9a7f. Next A4.
 - A4 staged next-ID: check --staged refuses new ## entry not = max+1 (line-order replay of _mem_next_id, body IDs feed max only); runs on v2 HEAD with entries + no open fence, so upgrade/first commit/template import pass (e0311f4). Challenge r2 caught upgrade false refusal (trucks_at_work 17536ce replay). Residuals BUGS-FOUND 074cdde. Next A5.
+
+## 2026-11-16
+- A5 T18 bun guard: memory.test.sh T18 entriesOf/index parity prints SKIP when bun absent instead of FAIL (b9f2d81); no prior bun-skip convention (memory-feedback.test.sh still hard-fails). settings.json left dirty by user choice (/model opus[1m] save). Next A6.
