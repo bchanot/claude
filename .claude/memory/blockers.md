@@ -418,3 +418,9 @@ rules:
 - **Real cause**: mods/memory/hooks/register.test.ts:191,205,2805 TS2339 (unions `{stdout} | "hang"`, `{text} | "hang"`, `store` on `never`: test helpers never narrow the `"hang"` arm); mods/model-router: 13 warnings of the same validator. Pre-existing code, new validator.
 - **Solution**: pending: narrow the three test sites (type guard on the `"hang"` arm) and read the 13 model-router warnings (`claude plugin validate --strict mods/model-router`), as its own /bugfix (block H item). Until then every `make test` reports that one suite red; the other 59 suites decide.
 - **Status (2026-11-13)**: resolved 6433e4d: the failing warnings were TS errors (17 sites incl. register.ts memory:1579 and model-router:4659), not the .catch info lines; narrowed, both mods pass validate --strict, make test all green
+
+## BLK-050 — memory_index silent on non-regular blockers.md, digest false open: none [resolved] (2026-11-15)
+- **Friction**: session digest printed `- open: none` when blockers.md was dir, FIFO, dangling symlink or unreadable. False all-clear hides open blockers.
+- **Real cause**: lib/memory.sh `memory_index` `[ -f "$file" ] || continue` treated present non-regular registry as absent; awk rc of `_mem_index_rows` dropped (fn rc = trailing echo). hooks/session-start.sh `_digest_blockers` skipped unparsable `| BLK-` rows.
+- **Solution**: 87aecc1. Kind named (strict) → rc 2 + stderr `memory: <file>: not a readable regular file`; no kind (lax, mods/memory register.ts recall) → skip bad registry + stderr, rc 0. Rows captured before print, healthy output byte-identical. Digest prints `- open: unknown (memory.sh index failed)` on unparsable row. Tests SD9b/c re-pinned, SD9f/g/h, T20*. Residuals BUGS-FOUND 07f9a7f.
+- **Reference**: lib/memory.sh, hooks/session-start.sh, lib/tests/memory.test.sh, lib/tests/session-digest.test.sh
