@@ -9,7 +9,8 @@ MEM="$ROOT/lib/memory.sh"
 pass=0; fail=0
 check() { if [ "$2" = "$3" ]; then pass=$((pass+1)); else fail=$((fail+1));
   printf 'FAIL %s: got[%s] want[%s]\n' "$1" "$2" "$3"; fi; }
-FIX=$(mktemp -d) || exit 1; trap 'rm -rf "$FIX"' EXIT
+FIX=$(mktemp -d) || exit 1
+trap 'chmod 700 "$FIX/ix20b/.claude/memory" 2>/dev/null; rm -rf "$FIX"' EXIT
 cd "$FIX" || exit 1
 git init -q . && git config user.email t@t && git config user.name t
 export MEMORY_DATE=2026-10-27
@@ -36,6 +37,23 @@ check T1c-body-trimmed "$(tail -1 "$B")" '- **Cause**: x'
 check T1d-second-id "$(bash "$MEM" add blocker --title 'two' --body-file body.md)" BLK-002
 check T1e-check-green "$(bash "$MEM" check; echo $?)" 0
 check T1f-index-row "$(bash "$MEM" index blocker | grep -c '^| BLK-001 | 2026-10-27 | make red | open |$')" 1
+
+# T1g index healthy: rc 0 and a byte-identical full table (pre-fix capture)
+want_ix=$(printf '%s\n' \
+  '.claude/memory/decisions.md' '' '| ID | Date | Title | Status |' \
+  '|---|---|---|---|' '' '.claude/memory/learnings.md' '' \
+  '| ID | Date | Title | Status |' '|---|---|---|---|' '' \
+  '.claude/memory/blockers.md' '' '| ID | Date | Title | Status |' \
+  '|---|---|---|---|' \
+  '| BLK-001 | 2026-10-27 | make red | open |' \
+  '| BLK-002 | 2026-10-27 | two |  |' '' \
+  '.claude/memory/evals.md' '' '| ID | Date | Title | Status |' \
+  '|---|---|---|---|' '')
+check T1g-index-bytes "$(bash "$MEM" index)" "$want_ix"
+bash "$MEM" index blocker >/dev/null 2>&1
+check T1h-index-kind-rc "$?" 0
+bash "$MEM" index >/dev/null 2>&1
+check T1i-index-all-rc "$?" 0
 
 # T2 add refuses, rc 2, registry unchanged
 sum=$(cksum < "$B")
@@ -758,7 +776,9 @@ done
 # commit the stub. Installed here so earlier cases see the repo unceilinged.
 # shellcheck source=lib/tests/claude-stub.sh
 . "$ROOT/lib/tests/claude-stub.sh" || exit 1
-CSW=$(mktemp -d) || exit 1; trap 'rm -rf "$FIX" "$CSW"' EXIT
+CSW=$(mktemp -d) || exit 1
+trap 'chmod 700 "$FIX/ix20b/.claude/memory" 2>/dev/null
+  rm -rf "$FIX" "$CSW"' EXIT
 claude_stub_install "$CSW"
 banner() { (cd "$1" && SESSION_START_OFFLINE=1 bash "$ROOT/hooks/session-start.sh" \
   </dev/null 2>/dev/null) | grep -c "${2:-registry v1}"; }
@@ -794,6 +814,52 @@ mkdir 'a=b'
 printf -- '---\nformat: 2\ntype: decisions_registry\nentry_prefix: BDR\n---\n\n# D\n\n## BDR-001 - bad\n' > 'a=b/decisions.md'
 err=$(bash "$MEM" check 'a=b' 2>&1 >/dev/null </dev/null)
 check T19c-assign-dir-read "$(printf '%s\n' "$err" | grep -c '^memory: ./a=b/decisions.md:9: heading shape: ## BDR-001 - bad$')" 1
+
+# T20 index fails closed (BDR-125 A3): own subtree, shared $FIX untouched
+cd "$FIX" || exit 1
+mkdir -p ix20/.claude/memory
+reg20() {  # <file> <type> <PREFIX> <entry heading>
+  printf -- '---\nformat: 2\ntype: %s\nentry_prefix: %s\n---\n\n%s\n' \
+    "$2" "$3" "$4" > "ix20/.claude/memory/$1"; }
+reg20 learnings.md learnings_registry LRN '## LRN-001 — kept (2026-10-27)'
+mkdir ix20/.claude/memory/blockers.md
+err=$(bash "$MEM" -C ix20 index blocker 2>&1 >/dev/null); rc=$?
+check T20-dir-strict-rc "$rc" 2
+check T20-dir-strict-names "$(printf '%s\n' "$err" | grep -c 'blockers.md')" 1
+out=$(bash "$MEM" -C ix20 index 2>ix20/err); rc=$?
+check T20b-dir-lax-rc "$rc" 0
+check T20b-dir-lax-warns "$(grep -c 'blockers.md' ix20/err)" 1
+check T20b-dir-lax-keeps-lrn "$(printf '%s\n' "$out" | grep -c '^| LRN-001 |')" 1
+rmdir ix20/.claude/memory/blockers.md
+mkfifo ix20/.claude/memory/blockers.md
+timeout 5 bash "$MEM" -C ix20 index blocker >/dev/null 2>&1 </dev/null
+check T20c-fifo-strict-rc "$?" 2
+rm ix20/.claude/memory/blockers.md
+ln -s "$FIX/nowhere" ix20/.claude/memory/blockers.md
+bash "$MEM" -C ix20 index blocker >/dev/null 2>&1
+check T20d-dangling-strict-rc "$?" 2
+rm ix20/.claude/memory/blockers.md
+reg20 blockers.md blockers_registry BLK '## BLK-001 — mode (2026-10-27) [open]'
+chmod 000 ix20/.claude/memory/blockers.md
+if [ -r ix20/.claude/memory/blockers.md ]; then
+  echo "SKIP T20e-unreadable (chmod 000 ineffective for this user)"
+else
+  out=$(bash "$MEM" -C ix20 index blocker 2>/dev/null); rc=$?
+  check T20e-unreadable-strict-rc "$rc" 2
+  check T20e-no-partial-table "$(printf '%s' "$out" | grep -c .)" 0
+fi
+chmod 600 ix20/.claude/memory/blockers.md
+mkdir -p ix20b/.claude/memory
+chmod 600 ix20b/.claude/memory
+if [ -x ix20b/.claude/memory ]; then
+  echo "SKIP T20f-unsearchable (chmod 600 ineffective for this user)"
+else
+  bash "$MEM" -C ix20b index blocker >/dev/null 2>&1
+  check T20f-unsearchable-strict-rc "$?" 2
+  bash "$MEM" -C ix20b index >/dev/null 2>&1
+  check T20f-unsearchable-lax-rc "$?" 0
+fi
+chmod 700 ix20b/.claude/memory
 
 check no-claude-calls "$(claude_stub_calls)" 0
 echo "PASS=$pass FAIL=$fail"

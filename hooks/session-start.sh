@@ -336,7 +336,8 @@ _digest_blockers() {  # <root> <memory.sh>
     [[ "$row" == "| BLK-"* ]] || continue
     line="${row#| }"; line="${line% |}"
     rest="${line#* | }"; rest="${rest#* | }"
-    [[ "$rest" == *" | "* ]] || continue
+    [[ "$rest" == *" | "* ]] || {
+      echo "- open: unknown (memory.sh index failed)"; return 0; }
     status="${rest##* | }"; title="${rest% | *}"
     case "$status" in
       open) open=$((open + 1))

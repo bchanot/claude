@@ -4,7 +4,8 @@
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 SS="$ROOT/hooks/session-start.sh"
-WORK="$(mktemp -d)" || exit 1; trap 'rm -rf "$WORK"' EXIT
+WORK="$(mktemp -d)" || exit 1; SD9H_DIR=
+trap '[ -z "$SD9H_DIR" ] || chmod 700 "$SD9H_DIR"; rm -rf "$WORK"' EXIT
 export SESSION_START_OFFLINE=1
 pass=0; fail=0
 check() { if [ "$2" = "$3" ]; then pass=$((pass+1)); else fail=$((fail+1));
@@ -205,12 +206,46 @@ printf '#!/usr/bin/env bash\nprintf "| BLK-1 |\\n| BLK-2 | x\\n| BLK-3 | d | t |
 out=$(run "$p" - "$S9"); rc=$?
 check SD9b-malformed-rc "$rc" 0
 check SD9b-banner "$(printf '%s' "$out" | grep -c 'make doctor')" 1
-check SD9b-none "$(printf '%s\n' "$out" | grep -c -x -- '- open: none')" 1
+check SD9b-unknown "$(printf '%s\n' "$out" | grep -c -x -- '- open: unknown (memory.sh index failed)')" 1
+check SD9b-not-none "$(printf '%s\n' "$out" | grep -c -x -- '- open: none')" 0
 p=$(mkproj sd9d); mkdir "$p/.claude/memory/blockers.md"
 out=$(run "$p" -); rc=$?
 check SD9c-dir-rc "$rc" 0
 check SD9c-banner "$(printf '%s' "$out" | grep -c 'make doctor')" 1
-check SD9c-none "$(printf '%s\n' "$out" | grep -c -x -- '- open: none')" 1
+check SD9c-unknown "$(printf '%s\n' "$out" | grep -c -x -- '- open: unknown (memory.sh index failed)')" 1
+check SD9c-not-none "$(printf '%s\n' "$out" | grep -c -x -- '- open: none')" 0
+
+# SD9f: a dangling-symlink blockers.md fails closed
+p=$(mkproj sd9f); ln -s "$WORK/nowhere" "$p/.claude/memory/blockers.md"
+out=$(run "$p" -); rc=$?
+check SD9f-rc "$rc" 0
+check SD9f-unknown "$(printf '%s\n' "$out" | grep -c -x -- '- open: unknown (memory.sh index failed)')" 1
+check SD9f-not-none "$(printf '%s\n' "$out" | grep -c -x -- '- open: none')" 0
+
+# SD9g: an unreadable (mode 000) blockers.md fails closed
+p=$(mkproj sd9g); blk "$p" 1 open "Hidden"
+chmod 000 "$p/.claude/memory/blockers.md"
+if [ -r "$p/.claude/memory/blockers.md" ]; then
+  echo "SKIP SD9g-unreadable (chmod 000 ineffective for this user)"
+else
+  out=$(run "$p" -)
+  check SD9g-unknown "$(printf '%s\n' "$out" | grep -c -x -- '- open: unknown (memory.sh index failed)')" 1
+  check SD9g-not-none "$(printf '%s\n' "$out" | grep -c -x -- '- open: none')" 0
+fi
+
+# SD9h: a non-searchable .claude/memory fails closed, mode restored after
+p=$(mkproj sd9h); blk "$p" 1 open "Hidden"
+SD9H_DIR="$p/.claude/memory"
+chmod 600 "$SD9H_DIR"
+if [ -x "$SD9H_DIR" ]; then
+  echo "SKIP SD9h-unsearchable (chmod 600 ineffective for this user)"
+else
+  out=$(run "$p" -)
+  chmod 700 "$SD9H_DIR" || true
+  check SD9h-unknown "$(printf '%s\n' "$out" | grep -c -x -- '- open: unknown (memory.sh index failed)')" 1
+  check SD9h-not-none "$(printf '%s\n' "$out" | grep -c -x -- '- open: none')" 0
+fi
+chmod 700 "$SD9H_DIR" || true
 
 # SD9d: a successful read with zero open rows says so
 p=$(mkproj sd9e); blk "$p" 1 resolved "Done"
