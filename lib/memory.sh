@@ -15,7 +15,8 @@
 #   check [--staged] [<memory-dir>]   heading shape, unique IDs, no Index,
 #                 no open fence in a v2 file (v1 reported, never failed);
 #                 --staged: only NEW culprits vs HEAD, no line removed
-#                 inside an entry, no v2 registry deleted or downgraded
+#                 inside an entry, no v2 registry deleted or downgraded,
+#                 a new entry's ID is the next free ID (registry in HEAD)
 #   upgrade [<memory-dir>]   v1 → v2: Index-only dates and statuses become
 #                 body lines, `format: 2`, `## Index` removed; a missing
 #                 frontmatter comes from the template, ` - ` / ` | date | `
@@ -161,8 +162,11 @@ _mem_has_id() {  # <file> <ID> → rc 0 when a heading carries the ID
 }
 
 _mem_next_id() {  # <file> <PREFIX> → max heading ID + 1, zero-padded
-  # every heading level, fenced or not: a gap is harmless, a duplicate is
-  # not (trucks_at_work writes `### BDR-001`; a stray fence hides headings)
+  # every heading level, fenced or not (trucks_at_work writes `### BDR-001`;
+  # a stray fence hides headings). check --staged replays this max in line
+  # order on a v2 HEAD: a new `## ` entry must be this max + 1. Holds when
+  # memory.sh appends the entries; a hand-inserted ID line above a new entry,
+  # or an ID line removed above the first entry, can refuse a valid add
   awk -v p="$2" '
     match($0, "^#+ *" p "-[0-9]+") {
       n = substr($0, RSTART, RLENGTH); sub(/^#+ *[A-Z]+-/, "", n)
@@ -533,6 +537,30 @@ _mem_blob() {  # <rev:path> <out file> → rc 1 when absent, rc 2 when
   git cat-file blob "$1" > "$2" 2>/dev/null || { : > "$2"; return 2; }
 }
 
+_mem_check_next_ids() {  # <name> <PREFIX> <HEAD copy> <staged copy> → rc 2
+  # when an unfenced new `## P-n` entry is not 1 + the max ID seen so far
+  # (HEAD, then the staged file above it; every level, fenced or not)
+  awk -v f="$1" -v p="$2" '
+    FNR == 1 { fence = 0 }
+    /^```/ { fence = !fence }
+    FILENAME == ARGV[1] {
+      if (!fence && match($0, "^## " p "-[0-9][0-9][0-9]+ — .")) {
+        match($0, "^## " p "-[0-9]+"); entry[substr($0, 4, RLENGTH - 3)] = 1
+        known = 1 }
+      if (match($0, "^#+ *" p "-[0-9]+")) bump()
+      next }
+    !known { exit 0 }
+    !fence && match($0, "^## " p "-[0-9]+") {
+      tok = substr($0, 4, RLENGTH - 3); n = tok; sub(/^[A-Z]+-/, "", n)
+      if (!(tok in entry) && n + 0 != top + 1) {
+        printf "memory: %s:%d: new entry %s is not the next free ID " \
+          "%s-%03d\n", f, FNR, tok, p, top + 1; exit 2 } }
+    match($0, "^#+ *" p "-[0-9]+") { bump() }
+    function bump(   n) {
+      n = substr($0, RSTART, RLENGTH); sub(/^#+ *[A-Z]+-/, "", n)
+      if (n + 0 > top) top = n + 0 }' "$3" "$4" >&2
+}
+
 _mem_check_staged() {  # <file> → rc 2 on a new culprit or a lost v2 file
   local h s rc=0 hrc src
   h=$(mktemp) || { echo "memory: no temp file" >&2; return 2; }
@@ -549,6 +577,8 @@ _mem_check_staged() {  # <file> → rc 2 on a new culprit or a lost v2 file
   elif [ -s "$s" ] && memory_is_v2 "$s"; then
     memory_check_file "$s" "$(_mem_prefix "$1")" "$h" "$1" || rc=2
     _mem_removed_lines "$1" "$h" || rc=2
+    [ "$hrc" = 0 ] && memory_is_v2 "$h" && ! _mem_fence_open "$h" \
+      && { _mem_check_next_ids "$1" "$(_mem_prefix "$1")" "$h" "$s" || rc=2; }
   fi
   rm -f "$h" "$s"
   return "$rc"

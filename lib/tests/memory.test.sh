@@ -198,6 +198,93 @@ git rm -q --cached "$B"
 check T8e-deletion-refused "$(bash "$MEM" check --staged >/dev/null 2>&1; echo $?)" 2
 git reset -q && cat b.keep > "$B"
 
+# T8f.. next free ID: new `## ` entries must replay `add` (max + 1)
+bash "$MEM" add blocker --title four --body-file body.md >/dev/null
+bash "$MEM" add blocker --title five --body-file body.md >/dev/null
+git add "$B"
+check T8f-two-adds-pass "$(bash "$MEM" check --staged >/dev/null 2>&1; echo $?)" 0
+git reset -q && cat b.keep > "$B"
+printf '\n## BLK-005 — skip (2026-10-27)\nx\n' >> "$B"
+git add "$B"
+err=$(bash "$MEM" check --staged 2>&1 >/dev/null); rc=$?
+check T8g-skip-refused-rc "$rc" 2
+check T8g-skip-named "$(printf '%s\n' "$err" | grep -c 'not the next free ID BLK-004')" 1
+git reset -q && cat b.keep > "$B"
+printf '\n## BLK-002 — again (2026-10-27)\nx\n' >> "$B"
+git add "$B"
+err=$(bash "$MEM" check --staged 2>&1 >/dev/null); rc=$?
+check T8h-reuse-rc "$rc" 2
+check T8h-reuse-dup "$(printf '%s\n' "$err" | grep -c 'duplicate BLK-002')" 1
+check T8h-reuse-not-seq "$(printf '%s\n' "$err" | grep -c 'next free ID')" 0
+git reset -q && cat b.keep > "$B"
+printf -- '- **Friction**: x\n\n### BLK-099 note\n\n```\n## BLK-001 — quoted\n```\n' > body2.md
+bash "$MEM" add blocker --title quoting --body-file body2.md >/dev/null
+bash "$MEM" add blocker --title after --body-file body.md >/dev/null
+git add "$B"
+check T8i-body-ids-pass "$(bash "$MEM" check --staged >/dev/null 2>&1; echo $?)" 0
+check T8i-second-is-100 "$(grep -c '^## BLK-100 — after' "$B")" 1
+git reset -q && cat b.keep > "$B"
+
+# T8j.. each in its own repo: never reg from $FIX (it rewrites the fixture)
+seq=$FIX/seq; mkdir -p "$seq/.claude/memory"
+(
+  pass=0; fail=0
+  cd "$seq" && git init -q . && git config user.email t@t \
+    && git config user.name t || exit 1
+  reg blockers.md blockers_registry BLK 'Blockers registry (BLK)'
+  printf '\n## BLK-001 — a (2026-10-27)\nx\n\n## BLK-003 — c (2026-10-27)\nx\n' \
+    >> "$B"
+  git add -A
+  bash "$MEM" check --staged >/dev/null 2>&1
+  check T8j-first-commit-holes-pass "$?" 0
+  git commit -qm holes
+  printf '\n## BLK-002 — fill (2026-10-27)\nx\n' >> "$B"
+  git add -A
+  err=$(bash "$MEM" check --staged 2>&1 >/dev/null); rc=$?
+  check T8k-gap-fill-rc "$rc" 2
+  check T8k-gap-fill-named "$(printf '%s\n' "$err" | grep -c 'not the next free ID BLK-004')" 1
+  git reset -q && git checkout -- .
+  printf '\n- see\n\n### BLK-010 note\n' >> "$B"
+  git add -A && git commit -qm body
+  printf '\n## BLK-010 — x (2026-10-27)\nx\n' >> "$B"
+  git add -A
+  err=$(bash "$MEM" check --staged 2>&1 >/dev/null); rc=$?
+  check T8l-body-only-reuse-rc "$rc" 2
+  check T8l-body-only-reuse-named "$(printf '%s\n' "$err" | grep -c 'not the next free ID BLK-011')" 1
+  # T8m: a v1 HEAD upgraded in place keeps its IDs, nothing is new
+  mkdir -p "$FIX/upg/.claude/memory" && cd "$FIX/upg" && git init -q . \
+    && git config user.email t@t && git config user.name t || exit 1
+  printf -- '---\ntype: blockers_registry\nentry_prefix: BLK\n---\n\n# Blockers\n\n### BLK-001 - a\nx\n\n## BLK-002 — b\nx\n' > "$B"
+  git add -A && git commit -qm v1
+  bash "$MEM" upgrade >/dev/null 2>&1
+  git add -A
+  check T8m-upgrade-rewrote "$(grep -c '^## BLK-00[12] — ' "$B")" 2
+  bash "$MEM" check --staged >/dev/null 2>&1
+  check T8m-upgrade-pass "$?" 0
+  # T8n: import onto a committed template with ID holes
+  mkdir -p "$FIX/tpl/.claude/memory" && cd "$FIX/tpl" && git init -q . \
+    && git config user.email t@t && git config user.name t || exit 1
+  reg blockers.md blockers_registry BLK 'Blockers registry (BLK)'
+  git add -A && git commit -qm tpl
+  printf '\n## BLK-001 — a (2026-10-27)\nx\n\n## BLK-005 — b (2026-10-27)\nx\n' >> "$B"
+  git add -A
+  bash "$MEM" check --staged >/dev/null 2>&1
+  check T8n-template-import-pass "$?" 0
+  # T8o: a HEAD left in an open fence skips the sequence rule
+  mkdir -p "$FIX/fen/.claude/memory" && cd "$FIX/fen" && git init -q . \
+    && git config user.email t@t && git config user.name t || exit 1
+  reg blockers.md blockers_registry BLK 'Blockers registry (BLK)'
+  printf '\n## BLK-001 — a (2026-10-27)\n```\nx\n' >> "$B"
+  git add -A && git commit -qm fence
+  printf '```\n\n## BLK-005 — skip (2026-10-27)\nx\n' >> "$B"
+  git add -A
+  err=$(bash "$MEM" check --staged 2>&1 >/dev/null)
+  check T8o-open-fence-head-skips "$(printf '%s\n' "$err" | grep -c 'not the next free ID')" 0
+  printf '%s\n' "$pass $fail" > "$FIX/seq.counts"
+)
+# the subshell counted on its own copy of the counters: fold them back
+read -r sp sf < "$FIX/seq.counts"; pass=$((pass+sp)); fail=$((fail+sf))
+
 # T9 upgrade: Index-only dates and statuses become body lines, the marker
 # lands, the Index goes, headings untouched; idempotent; refusals keep the file
 mkdir -p up/.claude/memory && cd up || exit 1

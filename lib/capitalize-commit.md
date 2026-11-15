@@ -80,8 +80,16 @@ never a shell argument.
                                 committed, nothing left staged. Causes,
                                 named on stderr: a line removed inside an
                                 existing v2 entry (only appends pass), a NEW
-                                culprit (duplicate ID, heading shape), or a
-                                HEAD or staged blob git cannot read; an open
+                                culprit (duplicate ID, heading shape), a new
+                                entry whose ID is not the next free ID
+                                (stderr names the expected one; a committed
+                                ID is never renamed: fix only the uncommitted
+                                new heading and every uncommitted mention of
+                                its ID, the `superseded by` line `add
+                                --supersedes` wrote, the journal line, or
+                                drop the new entry and that line and re-add
+                                it with memory.sh add), or a HEAD or staged
+                                blob git cannot read; an open
                                 code fence counts even when it predates the
                                 commit. A path staged apart from its working
                                 tree loses that stage: stderr names it with
