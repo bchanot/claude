@@ -51,6 +51,7 @@ type World = {
   onAsk: (() => void) | undefined // called when a dialog opens
   onWrite: (() => void) | undefined // called when an fs.write starts
   repo: { root: string; remote: string | null } | null | 'fail'
+  root: 'fail' | undefined // session.root throws (the guard's own failure)
   env: string | undefined // HOME as env.get answers it (undefined = unset)
   kinds: Map<string, 'file' | 'dir' | 'other'> // per-path stat kind override
   dirs: Map<string, {
@@ -146,6 +147,7 @@ function newWorld(fx: Fixture = {}): World {
     onAsk: undefined,
     onWrite: undefined,
     repo: fx.repo === undefined ? { root: ROOT, remote: REMOTE } : fx.repo,
+    root: undefined,
     env: fx.noHome ? undefined : HOME,
     kinds: new Map(),
     dirs: new Map(),
@@ -206,7 +208,10 @@ function installWorld(on: On, w: World): void {
     return { value: text }
   })
   installWrite(on, w)
-  on('session.root', () => ({ value: ROOT }))
+  on('session.root', () => {
+    if (w.root === 'fail') throw new Error('no root')
+    return { value: ROOT }
+  })
   on('session.surfaces', () => ({ value: w.surfaces as never }))
   on('session.repo', () => {
     if (w.repo === 'fail') throw new Error('no repo')
@@ -7464,6 +7469,82 @@ test('GUARD: a deny-free Skill answer latches, the skill loads once', async (
 test('GUARD: a denied Skill answer leaves the latch closed', async (
   $, on) => {
   on('tool.call', { tool: 'Skill' }, () => ({ deny: 'no such skill' }))
+  writeBottoms(on)
+  await bootRig($, on, OPUS, 1000, newWorld())
+  await $.tool.call({ tool: 'Skill', skill: 'diagram' } as never)
+  expect(denied(await write($, `${ROOT}/src/a.ts`))).toContain(GUARD)
+})
+
+// the guard's own failure (session.root throws) holds a main code write
+
+const HELD = 'the write guard failed ('
+
+const rootFails = async ($: Engine, on: On) => {
+  const w = newWorld()
+  await guardRig($, on, w)
+  w.root = 'fail'
+  return w
+}
+
+test('GUARD: a failing guard holds Write, Edit and NotebookEdit', async (
+  $, on) => {
+  await rootFails($, on)
+  const nb = await $.tool.call({ tool: 'NotebookEdit',
+    notebook_path: `${ROOT}/n.ipynb`, new_source: 'x' } as never)
+  const ed = await $.tool.call({ tool: 'Edit', file_path: `${ROOT}/a.py`,
+    old_string: 'a', new_string: 'b' } as never)
+  for (const out of [await write($, `${ROOT}/src/a.ts`), ed, nb]) {
+    expect(denied(out)).toContain(HELD)
+    expect(denied(out)).toContain('so this write is held')
+  }
+})
+
+test('GUARD: a failing guard still passes docs and sub-agents', async (
+  $, on) => {
+  await rootFails($, on)
+  expect(denied(await write($, `${ROOT}/README.md`))).toBe('')
+  expect(denied(await write($, `${ROOT}/src/a.ts`, { agentId: 'a1' })))
+    .toBe('')
+})
+
+test('GUARD: a failing guard still passes an in-run write', async (
+  $, on) => {
+  const w = await rootFails($, on)
+  w.root = undefined
+  await typeFeat($)
+  await endTurn($)
+  w.root = 'fail'
+  expect(denied(await write($, `${ROOT}/src/a.ts`))).toBe('')
+})
+
+test('GUARD: a downstream tool failure is never turned into a hold', async (
+  $, on) => {
+  on('tool.call', { tool: 'Write' }, () => {
+    throw new Error('disk full')
+  })
+  await bootRun($, on, OPUS, newWorld())
+  const out = await $.tool.call({ tool: 'Write',
+    file_path: `${ROOT}/README.md`, content: 'x' } as never)
+    .catch((err: unknown) => ({ thrown: String(err) }))
+  expect(denied(out)).not.toContain(HELD)
+  expect(JSON.stringify(out)).not.toContain(HELD)
+  // the kit rejects with HooksError ("no implementation for tool.call")
+  expect((out as { thrown?: string }).thrown).toContain('HooksError')
+})
+
+test('GUARD: a model Skill call frees a held write', async ($, on) => {
+  await rootFails($, on)
+  expect(denied(await write($, `${ROOT}/src/a.ts`))).toContain(HELD)
+  await $.tool.call({ tool: 'Skill', skill: 'diagram' } as never)
+  expect(denied(await write($, `${ROOT}/src/a.ts`))).toBe('')
+})
+
+test('GUARD: an isError Skill answer leaves the latch closed', async (
+  $, on) => {
+  on('tool.call', { tool: 'Skill' }, () => ({
+    result: { success: false } as never, isError: true,
+    text: 'unknown skill',
+  }) as never)
   writeBottoms(on)
   await bootRig($, on, OPUS, 1000, newWorld())
   await $.tool.call({ tool: 'Skill', skill: 'diagram' } as never)

@@ -766,3 +766,4 @@ rules:
 
 ## 2026-11-16
 - A5 T18 bun guard: memory.test.sh T18 entriesOf/index parity prints SKIP when bun absent instead of FAIL (b9f2d81); no prior bun-skip convention (memory-feedback.test.sh still hard-fails). settings.json left dirty by user choice (/model opus[1m] save). Next A6.
+- A6 router write guard fail-closed: .catch uses next.called (called → replay next(e); not called → hold main-loop out-of-run non-doc write with user-chosen deny); Skill latch ignores isError answers (BDR-137 shape, was one-call bypass) (859e504). BDR-136 (4) amended. 3 plan rounds: r1/r2 latches unreachable, engine-documented pattern won. gates.sh 120s timeout < make test ~135s: GATES_TIMEOUT=400. Next A7.
