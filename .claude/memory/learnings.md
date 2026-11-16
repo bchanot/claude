@@ -1387,6 +1387,7 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Pattern**: `auto-mode-config` + `permissions` docs say a content-scoped `ask` rule (`Bash(git push *)`) is evaluated BEFORE the classifier and always prompts, even in auto mode. Probe on 2.1.273: `node -e 'console.log(...)'` matching `Bash(node -e *)` in `ask` ran, no prompt, exit 0. [[LRN-146]] holds. Either the doc describes a later build or "content-scoped" means something narrower; observed wins.
 - **Future application**: before reasoning about a permission tier, probe it with a benign command matching the rule; re-probe after every Claude Code upgrade — the day `ask` starts prompting, every leftover `ask` entry becomes a nag for things meant to run free.
 - **Reference**: [[BDR-092]], `templates/settings/SETTINGS.md` "ask is not a prompt" §.
+- **Status (2026-11-16)**: superseded by LRN-256: ask prompts under auto on CLI 2.1.316 (interactive), headless sub-agent ask never runs; probe-before-trust method carried by LRN-256/257 bench
 
 ## LRN-156 — Conditional permissions live in classifier prose, not static rules
 - **Date**: 2026-09-16

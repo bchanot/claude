@@ -92,6 +92,9 @@ Open children of the shipped phases (History 2026-11-12), text verbatim.
 - [x] 6 dead deny entries (done: test 79f1a3f, settings 12c3534, merged 29cb080) (`Bash(docker run * -v /:*)`, `Bash(git push * :*)`, 4 `Write(...)`) kept by the push-guard T41/T42 non-weakening lock; drop them with a justified-removal list in T42 at the next release (working forms added 2026-10-23)
 - [ ] after 3.0.0: the next version bump must empty the push-guard `removed-ok` list (lib/tests/push-guard.test.sh:330 `removed_ok_until=3.0.0`), or T42e goes red.
 - [ ] after 3.0.0: /bugfix the 2 D3 MEDIUM gate findings (plugin-gate accepts pack `extras`, 21st-ai credit-metered; REQUEST keywords alone trigger `embedded` → minimal), both in BUGS-FOUND (user 2026-11-12: after the cut)
+- [ ] lib/tests/project-rules.test.sh:296 T11b hardcodes '4 rule(s) ok': a 5th .claude/rules/*.md turns it red (BDR-128 residual)
+- [ ] MIGRATION.md: one sentence that hooks/instructions-loaded.sh needs a CLI emitting InstructionsLoaded (older CLI: no log, no path-rule load proof); check claude --version on the work machine (BDR-128 residual)
+- [ ] raw registry text to the terminal (TODO:57 leftover, not phase-tied): lib/reconcile.sh:137 prints ${st:0:80} of an unreadable status line, lib/memory.sh:493 check prints the bad heading $0; control chars pass (upgrade's clean() maps them to ?, these two do not)
 
 ### Release 3.0.0
 Scope (user 2026-11-11) [gated]: D1-D6 + the 6 dead deny entries + MIGRATION/CHANGELOG land before the cut. Decisions: D1 digest + on-demand read (capitalize:375 aligned); D2 remove plugin-dev everywhere (OFF row disappears when empty); D3 advisor + USAGE rewritten to packs vocabulary, no budget/token claims, G2 add-ons included, SB10 fails on a missing file; D4 /prune-memory reads statuses through memory.sh (v1+v2), example IDs 9xx; D5 web-security keeps only its unique rules, points to secure-by-default, password = argon2id; D6 rule text names the CLAUDE.global.md append + install-plugins.sh runs the graphify step from $REPO. Runs: /feat D2+D3, /feat D4, /feat D1+D5+D6, /feat dead denies, docs, /release-candidate.
@@ -114,6 +117,7 @@ Scope (user 2026-11-11) [gated]: D1-D6 + the 6 dead deny entries + MIGRATION/CHA
 ### User decisions and hand edits
 - [ ] user decision: pin a commit for higgsfield-ai/skills and a version for `@higgsfield/cli` (security gate, 2 MEDIUM, accepted as is)
 - [x] E3 done by the user (692e4a5, merged 98e1800): 4 `npm -g` deny rows removed, listed in push-guard removed-ok; live test 2026-11-14 OK: no hard deny, command ran; no ask because the user named the package (soft_deny clears that case, by design).
+- [ ] user step (BUGS-FOUND:48, close-out J 2026-11-14): game decisions.md is format: 2 in the v1 `date: … · status:` dialect, 80+ BDRs read [Status unreadable]; run /prune-memory there and give each listed ID its word (memory.sh status <ID> "<word>") once the other session's uncommitted work in game is committed
 
 ### Blocked
 - [x] launch claude with `TMPDIR=$HOME/.cache/claude-tmp` (BLK-021 resolved by `lib/cc.sh`, phase 5; `.bashrc` swap done, ~/.bashrc:133)
@@ -137,6 +141,9 @@ Scope (user 2026-11-11) [gated]: D1-D6 + the 6 dead deny entries + MIGRATION/CHA
 - [ ] Higgsfield parked (final review, rulings in BDR-109): remedy line ignores a pinned lock version (latent while `latest`); Step 8.6 spawns `higgsfield version` up to 3 times; rollback needs `npm uninstall -g @higgsfield/cli` + session removal + hand removal of `skills-external/higgsfield-*`
 - [ ] Higgsfield parked (per-task minors, none blocking): "rename" comment vs rm-then-mv; no `--` before the clone URL; ssh URL can prompt; no sweep of a stale `.higgsfield-stage.*`; timeout path itself untested; "pack not installed" when only unlisted skills are synced; doctor version read unbounded
 - Reticle pilot recipe: section "2026-09-27" below (trigger: first app-type project, BDR-103)
+- [ ] deferred (BDR-125 4c, re-challenge 2026-10-25): Read path triggers, Bash command triggers, memory_search tool for skills (analyze-before-plan pass 1); reopen when a /memory-feedback gate shows misses the prompt and error channels cannot reach (no triggers= field: 4a shipped without Meta, BDR-125 Am.7)
+- [ ] conditional (BDR-146 residual): a noisy entry on the tool channel survives the /prune-memory title + lesson rewrite (the 4-gram matcher reads body backtick spans, SKILL.md STEP 1.D limit); act when a tool-gate FEEDBACK.md lists one (gate 1 2026-11-12: 0 tool records)
+- [ ] deferred (BDR-125 Am.7, phase 2): commit-msg hook for the 50-word cap; revisit when overruns grow (4/78 on 2026-10-25; 17/530 ≈ 3 % on 2026-11-16 recount, the gap audit's 21/526 not reproducible)
 
 ### Known limits (accepted, no action)
 - model-router spawn path unprobed: 1st gate of an outage window dies once (seen live 2026-10-23, retry lands on the opus floor); tour/onboard/audit-delta no retry; onAutoSwitch with main on opus marks nothing if the engine auto-falls a gate off Fable
@@ -146,6 +153,9 @@ Scope (user 2026-11-11) [gated]: D1-D6 + the 6 dead deny entries + MIGRATION/CHA
 - W3-B residuals: SKILL.md symlink follow (LOW, kept: `skills/` itself is a symlink); `descs` cap and "(custom)" label untested. (security-auditor `changed` entry purged 2026-10-11.)
 - W4-B: W4-B residuals: `smallModelBusy` assumes the engine's small model is the `haiku` alias (`$.model.classify` takes no model: documented in code 2026-10-11, no fix possible); abort paths judged by reading only; the 3-s tests pin the upper bound only.
 - W3-A residuals (security LOW, accepted): non-atomic cross-process write (two sessions, crash mid-write → file reads as failed, previous config kept); `host/path` of a private remote in the tracked file; a persistent write failure re-asks every use (`asked.delete` in the catch); `out.length` vs byte size at the cap; `changePatch` scope 'project' with a vanished key writes Everywhere (cwd change mid-dialog).
+- [x] dropped 2026-11-16 (BDR-125 gap C3): 4c Tier 1 always-on lessons, critical → deny once, cross-repo scope=global index: their critical/scope labels were dropped 2026-10-25 (challenge plan :158, 0 Meta lines in registries); a lesson that must block goes the BDR-100 promotion path (/prune-memory STEP 1.D, BDR-146)
+- [x] dropped 2026-11-16 (BDR-128 residual): project-rules extract -n dry run; 0b pass done 2026-10-27, /onboard split preflights with sections + matches + S0 check, extract keeps tmp+out on a failed rewrite (9d5530a)
+- [x] dropped 2026-11-16 (BDR-125 gap C3), 4b-4d spec items never built: gitleaks in memory.sh add (staged registry writes still pass the pre-commit gitleaks scan; BDR-137 rejected gitleaks as capture redaction engine); recall successor and see-also lines (recallLine = ID + title + lesson; superseded entries leave the index, the successor is a live entry; cap 2 picks, BDR-146); never-recalled list in /prune-memory (STEP 1.D reads noisy + promotion only, BDR-146)
 
 ## History (2026-10-08 → 2026-11-12, done)
 ## 2026-11-12 — BDR-125 context mod queue shipped (phases 0, 4a, 1, 5, 2 shipped; 3 closed; 4b-4d proof still open above)
