@@ -267,10 +267,10 @@ the gate.
 
 **Model routing (BDR-077):** EVERY `general-purpose` skill-runner dispatch in
 this pipeline (initial audits, fix-loop re-dispatches, commit-change,
-web-validate) carries `model: "fable"` and `effort="high"` — the child hosts gated
+web-validate) carries `model: "opus"` and `effort="high"` — the child hosts gated
 orchestration on the pipeline's behalf; it must never inherit the session model.
 
-For web projects, dispatch in **a single message with two parallel Agent calls** (each with `model: "fable"`, `effort="high"`):
+For web projects, dispatch in **a single message with two parallel Agent calls** (each with `model: "opus"`, `effort="high"`):
 
 | Audit (web)   | Subagent          | Prompt template |
 |---------------|-------------------|-----------------|
@@ -429,7 +429,7 @@ for CSO) in the format
 
 ### Re-dispatch prompt template (SEO + GEO loop)
 
-Send to `general-purpose` subagent (`model: "fable"`, `effort="high"`):
+Send to `general-purpose` subagent (`model: "opus"`, `effort="high"`):
 
 > Read `~/.claude/skills/pack-seo/skills/seo/SKILL.md` and re-run it on this project in
 > **conservative (audit-only) intervention mode**: re-score and leave both
@@ -460,7 +460,7 @@ Send to `general-purpose` subagent (`model: "fable"`, `effort="high"`):
 
 ### Re-dispatch prompt template (HARDEN loop)
 
-Send to `general-purpose` subagent (`model: "fable"`, `effort="high"`):
+Send to `general-purpose` subagent (`model: "opus"`, `effort="high"`):
 
 > Read `~/.claude/skills/harden/SKILL.md` and re-run it with `--fix` ONLY
 > up to the bundle: stop at `READY TO APPLY — awaiting dispatcher
@@ -473,7 +473,7 @@ Send to `general-purpose` subagent (`model: "fable"`, `effort="high"`):
 
 ### Re-dispatch prompt template (CSO loop — non-web only)
 
-Send to `general-purpose` subagent (`model: "fable"`, `effort="high"`):
+Send to `general-purpose` subagent (`model: "opus"`, `effort="high"`):
 
 > Read `~/.claude/skills/pack-gstack-dev/skills/cso/SKILL.md` and re-run it in **daily mode**.
 > Previous score: **`<SCORE_CSO_PREVIOUS>`/20** — below threshold.
@@ -562,7 +562,7 @@ listed changes by hand before deploy." Continue to STEP 6.
 
 If `PENDING_CHANGES` non-empty → invoke /commit-change skill via subagent:
 
-> Dispatch `general-purpose` subagent (`model: "fable"`, `effort="high"`). Prompt:
+> Dispatch `general-purpose` subagent (`model: "opus"`, `effort="high"`). Prompt:
 >
 > "Read `~/.claude/skills/commit-change/SKILL.md` and execute. All pending
 > changes were produced by the client-handover ship pipeline during the
@@ -682,7 +682,7 @@ Skip if `VALIDATE_SKIPPED=true` or `PROJECT_TYPE != web` (in either case
 ensure `VALIDATE_SKIPPED=true` is set so the gate logic in STEP 8 treats
 VALIDATE as not-applicable rather than failed).
 
-Dispatch `general-purpose` subagent (`model: "fable"`, `effort="high"`):
+Dispatch `general-purpose` subagent (`model: "opus"`, `effort="high"`):
 
 > Read `~/.claude/skills/pack-web-validate/skills/web-validate/SKILL.md` and execute against the
 > deployed URL: `<DEPLOYED_URL>`. Audit W3C HTML validity (validator.nu),

@@ -85,14 +85,16 @@ lacks "skills/tour/SKILL.md" 'description="tour runner", model='
 has "skills/onboard/SKILL.md"                'model="opus"'
 has "skills/tour/SKILL.md"                   'model="opus"'
 has "lib/challenge-plan.md"                  'BDR-076'
-# 12) BDR-077 W1 — no-inherit: skill-runner children pinned fable at every
-#     call site; code-review dispatches carry opus; doctrine in model-gate.
-#     (fable dispatch alias spike-verified 2026-07-19: resolves
-#     claude-fable-5, enum-validated, loud failure — never silent fallback)
-has "agents/client-handover-writer.md"       'model: "fable"'
+# 12) BDR-077 W1 — no-inherit: skill-runner children pinned opus since
+#     BDR-150 (Fable is the advisor, never a dispatch target); code-review
+#     dispatches carry opus; doctrine in model-gate.
+has "agents/client-handover-writer.md"       'model: "opus"'
 has "skills/ship-feature/SKILL.md"           'model: "opus"'
 has "skills/init-project/SKILL.md"           'model: "opus"'
-has "lib/model-gate.md"                      'model: "fable"'
+has "lib/model-gate.md"                      'model: "opus"'
+has "lib/model-gate.md"                      'fixed at spawn'
+hits="$(git -C "$R" grep -nE 'model ?[:=] ?"fable"' -- agents skills lib ':!lib/tests')"
+[ -z "$hits" ] && ok || ko "fable dispatch pin left: $hits"
 lacks "lib/model-gate.md"                    'model: "sonnet" in the Agent call'
 # 13) BDR-077 W2 — plugin split: probe (sonnet, facts only) + advisor
 #     reasoner (opus, PROBE REPORT is ground truth, fail-closed); gate

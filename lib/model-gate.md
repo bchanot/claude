@@ -12,6 +12,7 @@ call. The answer names the id main runs on next.
 | answer | action |
 |---|---|
 | names a fable or opus id | proceed, SILENT |
+| says the model is `fixed at spawn` (sub-agent) | proceed, SILENT |
 | names sonnet, haiku, anything else; "is off"; tool absent | **STOP** |
 
 **STOP means**: print exactly `⛔ MODEL GATE — session on <model>.
@@ -24,7 +25,7 @@ the turn. No later step runs, no agent is dispatched, nothing is edited.
 The gate guards the MAIN loop only. Typed agents are routed by their
 model-router row (`model:` frontmatter = off-state floor). Built-ins
 (general-purpose / Explore / Plan) carry an explicit `model=` at every call
-site: `model: "fable"` when the child reflects/orchestrates for the main
-loop (skill-runners), else its tier (opus = dispatched judgment, sonnet =
-execution, haiku = mechanical probes). A built-in judgment dispatch also
-carries an explicit `effort=` (`lib/effort-shift.md`).
+site, its tier: `model: "opus"` = skill-runners (the child reflects or
+orchestrates for the main loop) and dispatched judgment, sonnet = execution,
+haiku = mechanical probes; never fable (BDR-150, the advisor). A built-in
+judgment dispatch also carries an explicit `effort=` (`lib/effort-shift.md`).
