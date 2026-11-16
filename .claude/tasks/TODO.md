@@ -144,6 +144,7 @@ Scope (user 2026-11-11) [gated]: D1-D6 + the 6 dead deny entries + MIGRATION/CHA
 - [ ] deferred (BDR-125 4c, re-challenge 2026-10-25): Read path triggers, Bash command triggers, memory_search tool for skills (analyze-before-plan pass 1); reopen when a /memory-feedback gate shows misses the prompt and error channels cannot reach (no triggers= field: 4a shipped without Meta, BDR-125 Am.7)
 - [ ] conditional (BDR-146 residual): a noisy entry on the tool channel survives the /prune-memory title + lesson rewrite (the 4-gram matcher reads body backtick spans, SKILL.md STEP 1.D limit); act when a tool-gate FEEDBACK.md lists one (gate 1 2026-11-12: 0 tool records)
 - [ ] deferred (BDR-125 Am.7, phase 2): commit-msg hook for the 50-word cap; revisit when overruns grow (4/78 on 2026-10-25; 17/530 ≈ 3 % on 2026-11-16 recount, the gap audit's 21/526 not reproducible)
+- [ ] shortcut (register.ts TIER_HEAD, BDR-150): the ask-before-Fable dialog (askTier, BDR-135) is inert while no tier is headed by fable; remove the feature (TIER_HEAD, INSTEAD_TIER, tier ask paths and their LEGACY tests) if Fable never returns to a tier
 
 ### Known limits (accepted, no action)
 - model-router spawn path unprobed: 1st gate of an outage window dies once (seen live 2026-10-23, retry lands on the opus floor); tour/onboard/audit-delta no retry; onAutoSwitch with main on opus marks nothing if the engine auto-falls a gate off Fable

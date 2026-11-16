@@ -204,7 +204,11 @@ const KEEP = 'Keep'
 const CHANGE = 'Change'
 const EVERYWHERE = 'Everywhere'
 // Tier ask: the answers; INSTEAD_TIER is the tier "Opus instead" resolves by.
+// shortcut: the ask-before-Fable dialog only runs when an override heads
+// `best` with fable (BLK-030 credit guard), hence the hardcoded label; remove
+// the feature if Fable never returns to a tier.
 const TIER_HEAD = 'Fable'
+const TIER_HEAD_ALIAS = 'fable'
 const TIER_INSTEAD = 'Opus instead (big tier)'
 const TIER_STOP = 'Stop asking this session'
 const INSTEAD_TIER = 'big'
@@ -223,7 +227,7 @@ const BARE_ALIASES: readonly string[] = ['fable', 'opus', 'sonnet']
 const STANDARD = 'Standard'
 const LONG = '[1m]'
 const LOCAL_SETTINGS = '.claude/settings.local.json'
-const CHOICE_ALIASES: readonly string[] = ['fable', 'opus', 'sonnet', 'haiku']
+const CHOICE_ALIASES: readonly string[] = ['opus', 'sonnet', 'haiku']
 const MAX_DESC = 140 // chars of a skill or agent description in a question
 const MAX_ABOUT = 120 // chars of a phase `about`
 const MAX_DESCS = 256 // agent descriptions kept (oldest dropped)
@@ -294,10 +298,12 @@ const DEFAULT_CONFIG: Config = {
     fable: 'claude-fable-5-2',
   },
   windows: {},
-  // A tier is an ordered alias list: the first one not down is used.
+  // A tier is an ordered alias list: the first one not down is used. Fable is
+  // ranked (hand picks, the advisor model) but never an auto-route target
+  // (user 2026-11-16); a machine override may put it back in a tier.
   tiers: {
-    best: ['fable', 'opus', 'sonnet'],
-    big: ['opus', 'fable', 'sonnet'],
+    best: ['opus', 'sonnet'],
+    big: ['opus', 'sonnet'],
     work: ['sonnet', 'opus'],
     cheap: ['haiku', 'sonnet'],
   },
@@ -615,10 +621,6 @@ function mergeRouting(
   const tiers = mergeTable(
     base.tiers, user.tiers, 'tiers', acceptTier(models, log), log)
   const fallback = pickFallback(user.fallback, base.fallback, models, log)
-  if (tiers.best?.[0] !== fallback[0]) {
-    log('model-router: tiers.best does not lead the fallback chain; rank ' +
-      'comes from the fallback list alone')
-  }
   return {
     tiers,
     fallback,
@@ -1148,7 +1150,7 @@ function availableIn(st: State, aliases: readonly string[]) {
 function nextAvailable(st: State, after: string | undefined) {
   const { fallback, models } = st.cfg
   const at = fallback.findIndex(alias => models[alias] === after)
-  return availableIn(st, fallback.slice(at + 1))
+  return at < 0 ? undefined : availableIn(st, fallback.slice(at + 1))
 }
 
 /**
@@ -1171,14 +1173,27 @@ function headId(st: State): string | undefined {
   return alias === undefined ? undefined : st.cfg.models[alias]
 }
 
+/** The ask-before-Fable dialog is fable-specific: best must be headed by it. */
+function fableHeadsBest(st: State): boolean {
+  const list = hasKey(st.cfg.tiers, BEST) ? st.cfg.tiers[BEST] : undefined
+  return list?.[0] === TIER_HEAD_ALIAS
+}
+
 /**
  * The head a route is asked about before it applies; undefined = off. The
  * machine override wins; an absent key reads best, so does any other value
- * (asking is the safe side, `warnAskTier` says so once).
+ * (asking is the safe side, `warnAskTier` says so once). Inert (undefined)
+ * unless the head of `best` is fable.
  */
 function tierHead(st: State): string | undefined {
   const value = st.mem.askTierLocal ?? st.mem.askTier
-  return value === false ? undefined : headId(st)
+  return value === false || !fableHeadsBest(st) ? undefined : headId(st)
+}
+
+/** The ask is on by config but best is not headed by fable: nothing asks. */
+function tierInert(st: State): boolean {
+  const value = st.mem.askTierLocal ?? st.mem.askTier
+  return value !== false && !fableHeadsBest(st)
 }
 
 /** The `big` tier's models, the head left out, in order. */
@@ -1605,7 +1620,8 @@ type Verdict = {
  */
 function wantedModel(st: State, cur: string): string | undefined {
   const slot = mainModelSlot(st)
-  const instead = slot?.tierChoice === 'big' && slot.route.tier === BEST
+  const instead = slot?.tierChoice === 'big' && slot.route.tier === BEST &&
+    fableHeadsBest(st)
   const name = instead ? insteadName(st) ?? routeName(slot.route)
     : routeName(slot?.route)
   if (name === undefined) return undefined
@@ -1992,6 +2008,7 @@ async function snapshot($: Api, st: State) {
 
 /** `/route show`: the tier ask's state, a Stop answer included. */
 function askTierWord(st: State): string {
+  if (tierInert(st)) return 'inert'
   if (tierHead(st) === undefined) return 'off'
   return st.tierPaused ? 'best (paused this session)' : BEST
 }
@@ -2799,7 +2816,7 @@ function headAlias(cfg: Config, route: Route): string | undefined {
     : aliasOf(cfg, canonical(cfg, route.model))
 }
 
-/** "fable (best)": the alias and the tier it heads ("custom" if none). */
+/** "opus (best)": the alias and the tier it heads ("custom" if none). */
 function modelLabel(cfg: Config, alias: string): string {
   const tier = Object.keys(cfg.tiers).find(t => cfg.tiers[t]?.[0] === alias)
   return `${alias} (${tier ?? 'custom'})`
@@ -3244,7 +3261,9 @@ async function spawnTier(
 ) {
   if (route === undefined || route.tier !== BEST) return route
   if (!st.tierSpawn.has(e.subagentType)) await spawnTierAsk($, st, e, route)
-  return st.tierSpawn.get(e.subagentType) === 'big'
+  const instead = st.tierSpawn.get(e.subagentType) === 'big' &&
+    fableHeadsBest(st)
+  return instead
     ? insteadRoute(st, route)
     : route
 }
@@ -3309,7 +3328,9 @@ async function flagCommand(
   const local = flag.local(st.mem)
   const note = local === undefined ? '' : `; ~/${OVERRIDE} sets ${key} ${
     local === false ? 'off' : 'on'} and wins here`
-  return `${word} ${arg}${note}`
+  const inert = flag === ASK_TIER_FLAG && arg === 'on' && tierInert(st)
+  return `${word} ${arg}${note}${
+    inert ? ' (inert: best is not headed by fable)' : ''}`
 }
 
 // ---- /route forget: the user takes decisions back -------------------------

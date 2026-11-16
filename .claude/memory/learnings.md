@@ -1771,6 +1771,7 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Date**: 2026-10-21
 - **Context**: feat A (routing policy BLK-032) moved verifier + security-auditor to new `audit` phase (best = fable>opus>sonnet). Plan r1 set frontmatter `model: fable` (census rule floor = tier head) and claimed "Fable down → falls to opus". False: `inTier` (register.ts) writes a model only if it is the head or ranks above it, else logs "tier … down, frontmatter model kept" → fable frontmatter = gates spawn on dead Fable every credit outage (BLK-030/031). Lower tiers never hit it (head sonnet/opus always has a higher alias). Caught by correctness + robustness lenses r1, not by plan author.
 - **Apply**: an agent on a best-tier row keeps opus frontmatter; router lifts to Fable when up. Census `tier_floor` (effort-routing.test.sh) locks 2nd alias for best. Residual: spawn path unprobed → first gate of an outage window still dies once, retry lands on floor (register.test.ts audit-row case b). Links [[BLK-030]], [[BLK-032]], [[LRN-204]].
+- **Status (2026-11-16)**: superseded by BDR-150: best and big headed by opus, agents floor on tier head for every tier (2nd-alias rule gone)
 
 ## LRN-225 — Gate on the tool's own exit-code contract, never on its prose; control through the gate's own helper on a clean/dirty pair
 - **Date**: 2026-10-22

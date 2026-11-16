@@ -53,19 +53,13 @@ code_phase() {
   awk '/^  phases: \{/{f=1;next} f&&/^  \},?$/{f=0} f' "$REG" \
     | sed -nE "s/^ *$1: \{ tier: '([a-z]+)', effort: '([a-z]+)' \},?$/\1 \2/p"
 }
-# tier_floor <file> <tier> -> the model: floor of a tier's agents
-# a best-tier row floors on its 2nd alias: inTier keeps the frontmatter when the head is down (Fable credits, BLK-030); a fable floor would spawn the gates on a dead model
-tier_floor() {
-  if [ "$2" != best ]; then tier_head "$1" "$2"; return; fi
-  awk '/^  tiers: \{/{f=1;next} f&&/^  \},?$/{f=0} f' "$1" \
-    | sed -nE "s/^ *best: \['[a-z]+', '([a-z]+)'.*$/\1/p"
-}
 # field_of <dump> <phase> <effort|model> -> that phase's frontmatter value
+# best is headed by opus since 2026-11-16: the floor is the tier head
 field_of() {
   local pe tier
   pe="$(phase_effort "$1" "$2")"
   if [ "$3" = effort ]; then printf '%s\n' "${pe#* }"; return; fi
-  tier="${pe% *}"; tier_floor "$REG" "$tier"
+  tier="${pe% *}"; tier_head "$REG" "$tier"
 }
 # verdict <dump> <kind> <name> <effort|model> <got> <phase>: ok when the
 # frontmatter equals the row's phase; warn when the row was changed through
@@ -119,8 +113,7 @@ FD="$(dump "$FIX/routing.json")"
 [ "$(phase_effort "$FD" judge)" = "big xhigh" ] && ok || ko "flip: phase"
 [ -z "$(phase_effort "$FD" nothere)" ] && ok || ko "flip: ghost phase"
 [ "$(tier_head "$FIX/reg.ts" big)" = "opus" ] && ok || ko "flip: tier head"
-[ "$(tier_floor "$FIX/reg.ts" best)" = opus ] && ok || ko "flip: best floors on its 2nd alias"
-[ "$(tier_floor "$FIX/reg.ts" big)" = opus ] && ok || ko "flip: big floors on its head"
+[ "$(tier_head "$FIX/reg.ts" best)" = fable ] && ok || ko "flip: best head"
 [ "$(changed_of "$FD" skills feat)" = "reflect implement" ] && ok || ko "flip: changed entry"
 [ -z "$(changed_of "$FD" skills doc)" ] && ok || ko "flip: ghost changed entry"
 # the drift verdicts (high = reflect's effort, medium = implement's)
