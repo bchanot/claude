@@ -38,6 +38,7 @@ The BDR-125 context queue is delivered: phases 0, 0b, 4a, 1, 5, 2 and 4b-4d ship
 - Agents and skills (77041e5): client-handover reads the project root through a quoted heredoc and refuses a root with control characters; `lib/plugin-gate.md` prints single-quoted remedies, never runs an unsafe root, checks against the git common dir and refuses `$HOME` (as `lib/profile.sh` now does); plugin-advisor recommends `minimal` only from project signals; onboard and tour use the packs vocabulary; graphify labels match the install trap.
 - `mods/` type-check under `claude plugin validate --strict` (CLI 2.1.323 started type-checking mods): 17 sites narrowed, failure behaviour unchanged (6433e4d, BLK-049); the write guard has since moved to fail-closed (see Changed).
 - model-router: a Skill call whose answer carries `isError` (refused or unknown skill) no longer opens the write guard for the rest of the session. Test: `mods/model-router/hooks/register.test.ts` (GUARD: an isError Skill answer leaves the latch closed).
+- `settings.json`: the `autoMode.hard_deny` entry "Disarming the guardrails" now names turning a mod off as disarming: `"enabled": false` in `~/.claude/<mod>.json`, a mod's `enabledPlugins` entry set to false, or `profile.sh disable` of a mod. These switches turn off the model-router write guard and the memory mod; the user still sets them by hand.
 
 ## [3.0.0] — 2026-11-12
 
