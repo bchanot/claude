@@ -2114,3 +2114,9 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Context**: A4 `check --staged` next-ID rule (e0311f4). r1 counted body ID lines as entries → valid `add` refused. r2 ran on v1 HEAD → `upgrade` commit refused (`### BDR-n` → `## BDR-n` read as new); replay of trucks_at_work 17536ce: rc 0 today, rc 2 under r2, remedy would have steered to renumbering.
 - **Apply**: replay allocator in same order (line order, any level, fenced or not); gate on dialect it assumes (v2 HEAD, ≥1 shape-valid entry, no open fence); before trusting, replay rule on real historical commits of each workflow (add, upgrade, merge, import). Tests must bite: mutate each gate clause, test must go red.
 - **Reference**: lib/memory.sh `_mem_check_next_ids`, `_mem_next_id`; lib/tests/memory.test.sh T8f-T8o
+
+## LRN-293 — Mod hook failure handling: read engine API remarks first (next.called guard idiom) (2026-11-16)
+- **Pattern**: before designing failure handling for a mod hook, read the engine API remarks for that event; the engine may already document the pattern.
+- **Context**: A6 router write guard fail-closed (859e504). r1 try/catch around guardWrite, r2 cfgErr hold + `.catch` latches: challengers found latches unreachable (no ensureConfig throw source), typed-skill latch unable to fire. claude-code.d.ts tool.call remark already prescribes `.catch(($, e, next) => next.called ? next(e) : { deny })`; Caught.called splits guard failure from downstream error, next(e) replays without re-run. r3 used it: guardWrite unchanged, 3 `.catch` blocks only.
+- **Apply**: grep `~/.claude/plugins/marketplaces/claude-code-plugins/mods/types/claude-code.d.ts` for the event + `@remarks` before planning; prefer documented idiom over hand-built try/catch. Engine refusals reach hooks as `isError`, not `deny` (BDR-137): latch/success predicates test both.
+- **Reference**: mods/model-router/hooks/register.ts guardCaught, guardPasses; BDR-136 amended
