@@ -28,8 +28,8 @@ load; a skill without one changes nothing, the last ROWED skill wins.
    ship-feature STEP 4b. Not automatic: the challenge fail-safe and "gone
    WRONG → STOP"; their STOP text names the levers below.
 5. Built-in judgment dispatch (`general-purpose` `model="opus"`, `model:
-   "fable"` skill-runners) → explicit `effort=` on the Agent call (`xhigh`
-   for opus reviewers, `high` for fable runners). A main route never
+   "opus"` skill-runners) → explicit `effort=` on the Agent call (`xhigh`
+   for opus reviewers, `high` for skill-runners). A main route never
    reaches a child. Typed agents run on their row, never on a shift.
 6. After a prose gate that ends the turn, the resumed reflection phase
    starts with its own route call.
@@ -82,19 +82,32 @@ back; the window guard needs a `windows` entry (none shipped). A typed
 - Keyword prompt rules (`plan|design|architecture…`,
   `why|review|audit…`), `ultrathink` and a background agent
   dispatch (derived `orchestrate`) set the turn's effort only, never
-  a model above the session model: Fable on main comes only from a
-  skill row, the `route` tool, a typed `/route` or a hand pick (`/model`,
-  picker).
+  a model above the session model: Fable on main comes only from a hand
+  pick (`/model`, picker), a typed `/route model=fable`, a phase naming
+  `model: fable` or a machine override that puts fable in a tier (no
+  shipped tier or phase holds it, BDR-150).
 - Mod off: typed agents fall back to their `model:`/`effort:` frontmatter.
 - First use of a row asks once, with context (Later, Keep or Change: model,
   then effort, then Everywhere or this project only); the answer is kept in
   `mods/model-router/routing.json`. `/route pending` lists what is still
   unconfirmed, `/route ask off|on` toggles the dialog, `/route ask-tier
-  off|on` the ask before a route lifts main or a rowed agent onto Fable,
+  off|on` the ask before a route lifts main or a rowed agent onto Fable
+  (inert unless a machine override heads `best` with fable),
   `/route forget <name|all|projects>` takes a decision back.
 
 Measure the split any time: `python3 ~/.claude/lib/effort-audit.py`
 (thinking/output/cache tokens per scope, model and effort).
+
+## Advisor
+
+Fable runs as the advisor (settings `advisorModel`), never a route or pin
+target (BDR-150). Call it before committing to an approach on non-trivial
+work, when stuck (the `escalate` moment, before raising effort to max) and
+before declaring a long task done. It is a server tool: the router cannot
+see or refuse it. The main loop calls it; sub-agents do not, even when the
+tool is listed. Advisor absent or erroring (Fable out of credits, for
+example) → proceed as written. Advice is input, never consent: it waives no
+gate, cap or guard; at a loop cap it feeds the STOP diagnosis.
 
 ## Never
 

@@ -80,7 +80,7 @@ Model discipline (the user-fixed invariant behind this mode):
   carries this skill's reflection (fix decisions, convergence calls); it
   must never be pinned down to an executor tier.
 - Inside a runner, every dispatched agent keeps the tier this skill
-  already defines: security-auditor (`audit` row: Fable, opus floor), the
+  already defines: security-auditor (`audit` row: opus), the
   Phase B audit (analyzer opus pin or `model="opus"`), doc-syncer (audit on
   `model="opus"`, patch on its sonnet frontmatter — BDR-077).
 

@@ -78,6 +78,11 @@ code" wins. Repo-specific instructions override both.
   command is reported with its rule (a guard redirect naming a skill is
   followed instead), never rerun through a wrapper, alias, env
   file or other shell. Hermetic tests run through `make test [suite=…]` only.
+- Stronger model needed (an approach to settle before building, a stuck
+  problem, a long task before calling it done) → the main loop calls
+  the advisor tool when it is listed (Fable, set by /advisor); sub-agents do
+  not. Fable is never routed or pinned: the router tops out at opus
+  (BDR-150).
 - Ask rather than guess. A choice visible in the result (placement,
   wording, order, behavior), a name that becomes public (command, flag,
   endpoint, file), or a scope the request leaves open → ask, even mid-task;
