@@ -31,7 +31,7 @@ Load and follow strictly:
 
 Execute the CLIENT HANDOVER WRITER agent on this project. It runs the
 audit/fix/gate pipeline INLINE on the big session model (gated above), its
-skill-runner children dispatched `model: "fable"`, then delegates the
+skill-runner children dispatched `model: "opus"`, then delegates the
 client deliverable to the two-mode `handover-doc-writer` subagent —
 synthesize on opus, render (Markdown + branded HTML + PDF) on the sonnet
 pin (BDR-077).

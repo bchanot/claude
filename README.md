@@ -81,10 +81,10 @@ the entry of the 17 reflection skills (the orchestrators, `/analyze`,
 `/guardrails` and `/a11y`): the skill calls the model-router `route` tool and
 its answer, which names the model id the main loop runs on, is the witness. A
 non-Fable/Opus id or the mod off stops the skill (`/route on` resumes the
-mod). Nothing dispatched inherits silently: typed agents run on their
-model-router row, their
-`model:` frontmatter being the off-state floor; built-ins get an explicit
-`model=` at every call site.
+mod). Inside a sub-agent the answer says the model is `fixed at spawn`, and
+the skill proceeds. Nothing dispatched inherits silently: typed agents run on
+their model-router row, their `model:` frontmatter being the off-state floor;
+built-ins get an explicit `model=` at every call site.
 
 | Agent | Model | Tier |
 |---|---|---|
@@ -106,7 +106,7 @@ The pure-execution skills `/doc`, `/status`, `/commit-change`,
 so the pin takes effect and the work leaves the big session model; `/hotfix`
 was split like `/feat` (reflection inline + gate, `hotfixer` executor) and so
 joins the gated group; `/client-handover`'s nested skill-runner
-children are dispatched `model:"fable"` (they carry reflection).
+children are dispatched `model:"opus"` (they carry reflection).
 
 ## Effort routing (BDR-107, BDR-108)
 
@@ -131,7 +131,7 @@ Orchestrators declare each phase through the `mcp__model-router__route`
 tool (`lib/effort-shift.md`): `orchestrate` at a dispatch span, `reflect`
 or `plan` when reflection resumes, `apply` at the bookkeeping tail,
 `escalate` at the verify-secure caps. Model pins stay tier aliases
-(`sonnet`, `opus`, `haiku`, `fable`): the latest version of a tier is also
+(`sonnet`, `opus`, `haiku`): the latest version of a tier is also
 the cheapest or same-priced, so the quality/price trade-off is tier ×
 effort, never version. Transcript audit `python3 lib/effort-audit.py`.
 

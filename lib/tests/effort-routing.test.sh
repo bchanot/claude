@@ -221,8 +221,10 @@ n_opus="$(grep -c 'model="opus",$' "$R/skills/onboard/SKILL.md")"
 n_eff="$(grep -c 'effort="xhigh",$' "$R/skills/onboard/SKILL.md")"
 [ "$n_opus" -ge 7 ] && [ "$n_opus" -eq "$n_eff" ] && ok \
   || ko "onboard: $n_opus model=\"opus\" dispatches vs $n_eff effort=\"xhigh\""
-bad="$(grep 'model: "fable"' "$R/agents/client-handover-writer.md" | grep -vc 'effort="high"')"
-[ "$bad" -eq 0 ] && ok || ko "client-handover-writer: $bad model: \"fable\" line(s) without effort=\"high\""
+n_opus="$(grep -c 'model: "opus"' "$R/agents/client-handover-writer.md")"
+n_eff="$(grep 'model: "opus"' "$R/agents/client-handover-writer.md" | grep -c 'effort="high"')"
+[ "$n_opus" -eq 7 ] && [ "$n_opus" -eq "$n_eff" ] && ok \
+  || ko "client-handover-writer: $n_opus model: \"opus\" lines vs $n_eff with effort=\"high\" (want 7/7)"
 for s in ship-feature init-project feat bugfix web-validate seo hotfix geo harden code-clean audit-delta tour onboard; do
   has "$(skdir "$s")/SKILL.md" 'ROUTING: follow $HOME/.claude/lib/effort-shift.md'
 done
