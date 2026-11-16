@@ -4399,15 +4399,25 @@ async function onModelSwitch($: Api, st: State, e: SwitchIn): Promise<void> {
 // A main-loop Edit/Write/NotebookEdit of a code file is redirected until a
 // skill ran on main this session, a phase was declared this turn, or a typed
 // /route holds. Docs, <root>/.claude/ (worktrees excepted), <root>/docs/ and
-// sub-agents pass. Fail-open like every hook here. Limit: an unrowed typed
-// skill latches through the typed-fallback path (typedPath) only when no
-// sub-agent is live; the model's own Skill call latches it anyway.
+// sub-agents pass. The guard's own failure holds a main-loop code write
+// outside a skill run (fail closed via next.called, BDR-125 phase 2 rule,
+// amends BDR-136 (4)); sub-agents, skill runs and doc files still pass; a
+// downstream tool error is replayed as before. Residual: if the config load
+// keeps throwing, nothing latches in-session, so main-loop code writes stay
+// held while sub-agents (skill executors) still write; no throw source known.
+// Limit: an unrowed typed skill latches through the typed-fallback path
+// (typedPath) only when no sub-agent is live; the model's own Skill call
+// latches it anyway.
 
 const DOC_FILE = /\.(md|txt)$/i
 const GUARD_REASON = 'model-router: code is written inside a skill run. ' +
   'Enter /hotfix (≤2 files, obvious fix), /feat, /bugfix or /ship-feature, ' +
   'or re-enter the skill you were running, then make this edit. This is a ' +
   'redirect, not a refusal.'
+const GUARD_FAIL = (kind: string): string =>
+  `model-router: the write guard failed (${kind}), so this write is held. ` +
+  'Enter /hotfix, /feat, /bugfix or /ship-feature, or re-enter the skill ' +
+  'you were running, then make this edit.'
 
 /** The path a write tool targets, from its own argument name. */
 function writtenPath(e: Rec): string | undefined {
@@ -4439,28 +4449,52 @@ async function guardWrite($: Api, st: State, e: Rec): Promise<boolean> {
   return path !== undefined && !isFreePath(path, await $.session.root())
 }
 
+type GuardNext = ((e: never) => unknown) & {
+  readonly called: boolean
+  readonly error: { readonly kind: string }
+}
+
+/** Writes the guard never holds: sub-agents, skill runs, doc files. */
+function guardPasses(st: State, e: Rec): boolean {
+  const path = writtenPath(e)
+  const doc = path === undefined ||
+    (DOC_FILE.test(path) && !path.includes('/../') && !path.endsWith('/..'))
+  return e.agentId !== undefined || inRun(st) || doc
+}
+
+/** The guard hook failed: replay a downstream error, else hold the write. */
+function guardCaught(
+  st: State,
+  $: Api,
+  e: Rec,
+  next: GuardNext,
+  hook: string,
+) {
+  if (next.called || guardPasses(st, e)) {
+    warnOnce(st, $, hook, next.error.kind)
+    return next(e as never) as never
+  }
+  if (!st.warned.has('write guard held')) {
+    st.warned.add('write guard held')
+    tryLog($, `model-router: write guard failed (${next.error.kind}): ` +
+      'main-loop code writes are held until a skill runs')
+  }
+  return { deny: GUARD_FAIL(next.error.kind) } as never
+}
+
 function registerGuard(on: On, st: State): void {
   on('tool.call', { tool: 'Edit' }, async ($, e, next) => {
     if (await guardWrite($, st, e)) return { deny: GUARD_REASON } as never
     return next(e)
-  }).catch(($, e, next) => {
-    warnOnce(st, $, 'Edit guard', next.error.kind)
-    return next(e)
-  })
+  }).catch(($, e, next) => guardCaught(st, $, e, next, 'Edit guard'))
   on('tool.call', { tool: 'Write' }, async ($, e, next) => {
     if (await guardWrite($, st, e)) return { deny: GUARD_REASON } as never
     return next(e)
-  }).catch(($, e, next) => {
-    warnOnce(st, $, 'Write guard', next.error.kind)
-    return next(e)
-  })
+  }).catch(($, e, next) => guardCaught(st, $, e, next, 'Write guard'))
   on('tool.call', { tool: 'NotebookEdit' }, async ($, e, next) => {
     if (await guardWrite($, st, e)) return { deny: GUARD_REASON } as never
     return next(e)
-  }).catch(($, e, next) => {
-    warnOnce(st, $, 'NotebookEdit guard', next.error.kind)
-    return next(e)
-  })
+  }).catch(($, e, next) => guardCaught(st, $, e, next, 'NotebookEdit guard'))
 }
 
 // ---- registration ----------------------------------------------------
@@ -4574,8 +4608,8 @@ function registerSkills(on: On, st: State): void {
         await tierAsk($, st, st.turnMain, `Skill /${clean(skill, NAME_CAP)}`)
       }
       const out = await next(e)
-      const refused = typeof out === 'object' && out !== null &&
-        'deny' in out
+      const refused = typeof out !== 'object' || out === null ||
+        'deny' in out || (out as { isError?: unknown }).isError === true
       if (e.agentId === undefined && !refused) st.skillRun = true
       return out
     } finally {
