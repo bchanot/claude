@@ -237,6 +237,11 @@ fix commits land inside it and get re-audited — safe overlap, by design.
 
 ## STEP 4 — FINAL SUMMARY
 
+When the run applied a fix, before the summary, the main loop makes its
+end-of-run advisor call (`lib/effort-shift.md` § Advisor); its answer
+goes into the summary as an `Advisor:` line, and a fix it calls for
+waits for a new run.
+
 ```
 AUDIT-DELTA COMPLETE — 2026-06-11
   security   : 3 findings → 2 fixed, 1 declined   | marker → fbf3e26

@@ -249,6 +249,10 @@ against the contract. It is a DISTINCT axis from STEP 6 code review (contract
 conformity + security vs. craft/design) — both run, neither subsumes the
 other ([[LRN-095]]).
 
+Stuck: a gate loop fails twice with no main-loop advisor call since GATE 0
+first ran → the main loop calls the advisor per `lib/verify-secure-loop.md`
+(`lib/effort-shift.md` § Advisor); the answer never enters an executor brief.
+
 ## STEP 6 — CODE REVIEW
 Invoke `requesting-code-review` (vendored superpowers skill). **Model routing (BDR-077):** the
 review subagent it dispatches MUST carry `model: "opus"` and `effort="xhigh"` in the Agent call —
@@ -315,6 +319,11 @@ surfaced a forbidden path), not a silent skip. It runs BEFORE FINISH so the doc 
 on the branch FINISH integrates.
 
 ## STEP 9 — FINISH
+`mcp__model-router__route(phase="plan")` first (route: end-of-run review).
+Before proposing the finish, the main loop makes its
+end-of-run advisor call (`lib/effort-shift.md` § Advisor); its answer
+goes with the proposal as an `Advisor:` line.
+
 Tests pass, build clean. Integrate the feature into develop — **only on the
 user's explicit go** (the `gitflow` finish gate):
 ```bash

@@ -92,7 +92,8 @@ Agent(subagent_type="general-purpose",
   prompt="Read ~/.claude/skills/tour/SKILL.md and execute STEP 1 → STEP 3
     for EXACTLY ONE project: <absolute path>. Flags: <--report-only|none>.
     Skip STEP 0/0b (routing) and the global summary — the dispatcher owns
-    them. Every rule of the skill applies unchanged: max 3 iterations,
+    them; never call the advisor. Every rule of the skill applies
+    unchanged: max 3 iterations,
     never merge/finish/push main|develop, scoped commits, report appended to that
     project's own .claude/audits/TOUR.md. Return EXACTLY: the project's
     one-line global-summary row (STEP 3 format), then BRANCH: <name|no
@@ -104,7 +105,9 @@ The main loop then:
 1. Collects each runner's summary row. A dead or mute runner becomes the
    row `<path> : RUNNER FAILED — <reason> | no report` — never a silent
    absence (a mute runner is NEVER a pass).
-2. Prints the global summary (STEP 3 format) once ALL runners returned.
+2. Once ALL runners returned: when any row reports a fix, makes the
+   STEP 3 end-of-run advisor call; then prints the global summary (STEP 3
+   format).
 3. Runs the gated capitalize offer — MAIN LOOP ONLY, never inside a
    runner: registries are shared state, and gate decisions stay here
    (LRN-083).
@@ -260,6 +263,12 @@ order:
 | DOC-1 | doc | README.md | - | phantom /status endpoint | fixed |
 Checks: pytest PASS, ruff PASS. Residuals: SEC-2 (needs decision). Commits: 4. BREAKING: 1 (SEC-2).
 ```
+
+Main loop only, never a runner: when the tour applied any fix, before
+the global summary, the main loop makes its
+end-of-run advisor call (`lib/effort-shift.md` § Advisor); its answer
+goes into the summary as an `Advisor:` line, and a fix it calls for
+waits for a new run.
 
 Global summary inline, one line per project (append `BREAKING: n` to
 any project line with contract-changing fixes left open for decision):

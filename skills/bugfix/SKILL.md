@@ -200,6 +200,10 @@ Parse the `BUGFIX-EXEC REPORT`:
      re-dispatch a FRESH bugfixer with the BLOCKING list + the CONTRACT
      path; re-verify the request THEN re-scan, max 3 → escalate.
 
+   Stuck: a gate loop fails twice with no main-loop advisor call since GATE 0
+   first ran → the main loop calls the advisor per `lib/verify-secure-loop.md`
+   (`lib/effort-shift.md` § Advisor); the answer never enters an executor brief.
+
    Loop decisions stay HERE, in the main loop (LRN-083). Nominal = one
    executor + a free floor run + one verifier + one security dispatch.
 
@@ -227,6 +231,9 @@ Parse the `BUGFIX-EXEC REPORT`:
 3. Commit after approval, message per `$HOME/.claude/lib/commit-message.md`
    (project convention first, else short: root cause in the subject, at most
    two sentences of body).
+   Before the summary, the main loop makes its
+   end-of-run advisor call (`lib/effort-shift.md` § Advisor); its answer
+   goes into the summary as an `Advisor:` line.
 4. Print summary:
    ```
    BUGFIX COMPLETE

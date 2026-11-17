@@ -162,6 +162,9 @@ file before anything else. Accepted set empty → stop.
    GATE 0 runs every scanner oracle (the per-fix proof), GATE 1 a fresh
    verifier, GATE 2 a fresh security-auditor. Loop caps and escalation are
    the include's; loop decisions stay in this main loop.
+   Stuck: a gate loop fails twice with no main-loop advisor call since GATE 0
+   first ran → the main loop calls the advisor per `lib/verify-secure-loop.md`
+   (`lib/effort-shift.md` § Advisor); the answer never enters an executor brief.
 
 ## STEP 9: Re-pass (prove it all)
 
@@ -194,6 +197,9 @@ open and say so plainly. Never report a fix the re-pass did not prove.
    ```
    Then `git add <files touched>` (never `-A`, never the baseline file) and
    commit, project convention else 50 words at most.
+   Before the reply, the main loop makes its
+   end-of-run advisor call (`lib/effort-shift.md` § Advisor); its answer
+   goes into the reply as an `Advisor:` line.
 2. `mcp__model-router__route(phase="apply")` for the tail. Reply with: fixed
    and proven (proposal, rule, file), still open and why, the walk's result,
    the branch name. Merge waits for the user's explicit signal.

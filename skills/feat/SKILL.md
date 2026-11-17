@@ -185,6 +185,10 @@ produced, `TEST` = the suite named in its report:
   STEP 5. BLOCK → re-dispatch a FRESH feater with the BLOCKING list + the
   CONTRACT path; re-verify the request THEN re-scan, max 3 → escalate.
 
+Stuck: a gate loop fails twice with no main-loop advisor call since GATE 0
+first ran → the main loop calls the advisor per `lib/verify-secure-loop.md`
+(`lib/effort-shift.md` § Advisor); the answer never enters an executor brief.
+
 Loop decisions stay HERE, in the main loop (LRN-083). Nominal (clear
 request, conform first pass, clean diff) = one executor + a free floor
 run + one verifier + one security dispatch.
@@ -201,6 +205,10 @@ unit — or run `/commit-change` on the pending work (it dispatches the
 commit-changer (propose opus / apply sonnet, BDR-077); never inline-load the bare agent, it is now a
 propose/apply executor).
 Then `mcp__model-router__route(phase="reflect")` (route: nested commit-change loaded at apply; reload feat's level).
+
+Before the summary, the main loop makes its
+end-of-run advisor call (`lib/effort-shift.md` § Advisor); its answer
+goes into the summary as an `Advisor:` line.
 
 Print summary:
 ```

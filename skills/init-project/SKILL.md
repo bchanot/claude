@@ -267,6 +267,10 @@ deferred to a later /onboard) and turns the informal analyze into a verdict
 against the founding contract. Distinct axis from STEP 10 code review
 ([[LRN-095]]) — both run.
 
+Stuck: a gate loop fails twice with no main-loop advisor call since GATE 0
+first ran → the main loop calls the advisor per `lib/verify-secure-loop.md`
+(`lib/effort-shift.md` § Advisor); the answer never enters an executor brief.
+
 ## STEP 10 — CODE REVIEW
 Invoke `requesting-code-review` (vendored superpowers skill). **Model routing (BDR-077):** the
 review subagent it dispatches MUST carry `model: "opus"` and `effort="xhigh"` in the Agent call —
@@ -351,6 +355,11 @@ patched. Report per its rc table — rc 4 = a LOUD upstream BDR-022 anomaly, not
 > patched docs on the MVP feature branch so they reach the merge.
 
 ## STEP 11 — FINISH
+`mcp__model-router__route(phase="plan")` first (route: end-of-run review).
+Before proposing the finish, the main loop makes its
+end-of-run advisor call (`lib/effort-shift.md` § Advisor); its answer
+goes with the proposal as an `Advisor:` line.
+
 Tests pass, build clean, no placeholders. Integrate the MVP feature into develop
 — **only on the user's explicit go** (the `gitflow` finish gate):
 ```bash
