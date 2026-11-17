@@ -36,6 +36,10 @@ single `GATES — VERDICT:` line:
   nothing else; re-run GATE 0. **No verifier is dispatched** — a red build or
   a red suite is not a judgement call, and paying an LLM to discover it is
   waste. **Max 3 floor iterations** → `mcp__model-router__route(phase="escalate")` (route: cap reached, diagnose at max before escalating; send it with the first tool call that gathers the escalation evidence), then STOP + human escalation with the rows.
+  A second UNMET with no main-loop advisor call since GATE 0 first ran →
+  the main loop calls it before the re-dispatch
+  (`lib/effort-shift.md` § Advisor); the answer stays here, never
+  in the dev brief.
 - `ABANDONED(n)` → floor green but a handoff stands. Continue to GATE 1; the
   verifier surfaces it and its `ABANDONED(n)` verdict routes to the human
   gate.
@@ -76,6 +80,10 @@ Parse its single `VERIFY — VERDICT:` line:
   re-dispatch a FRESH verifier. Repeat.
   **Max 3 conformity iterations** → `mcp__model-router__route(phase="escalate")` (route: cap reached, diagnose at max before escalating; send it with the first tool call that gathers the escalation evidence), then STOP + human escalation with the
   CRITERIA table (the contract-vs-realized diff).
+  A second ECARTS with no main-loop advisor call since GATE 0 first ran →
+  the main loop calls it before the re-dispatch
+  (`lib/effort-shift.md` § Advisor); the answer stays here, never
+  in the dev brief.
 - `ABANDONED(n)` → direct human gate, never a dev loop (a dev cannot close
   what was proven impossible). The human lifts the abandonment or accepts
   the partial delivery; either way the run is never reported as fully
@@ -89,6 +97,9 @@ Parse its single `VERIFY — VERDICT:` line:
   unparsable, crash, `CONFORME` without `PROOF` or without `FLOOR`) → retry
   ONCE with a fresh verifier; a 2nd structural failure → human escalation.
   A mute verifier is NEVER a PASS.
+  A 2nd structural failure with no main-loop advisor call since GATE 0
+  first ran → the main loop calls it before escalating
+  (`lib/effort-shift.md` § Advisor).
 
 ## GATE 2 — SECURITY (fresh security-auditor)
 
@@ -108,11 +119,22 @@ Parse its single `SECURITY — VERDICT:` line:
   BLOCKING table. Every STOP text names the level reached (`$CLAUDE_EFFORT`)
   and suggests relaunching with `ultrathink` in the prompt (turn floor) or
   `/route effort=max` (sticky, `/route clear` after).
+  A second BLOCK with no main-loop advisor call since GATE 0 first ran →
+  the main loop calls it before the re-dispatch
+  (`lib/effort-shift.md` § Advisor); the answer stays here, never
+  in the dev brief.
 - `DEGRADED` (semgrep absent) → does NOT block on the tool's absence; surface
   the checklist result + recommend `make plugin`. A DEGRADED run that still
   BLOCKs (grep-caught secret/injection) blocks like any other.
 - Structural failure → retry ONCE fresh; 2nd → human escalation. A mute
   auditor is NEVER a PASS.
+  A 2nd structural failure with no main-loop advisor call since GATE 0
+  first ran → the main loop calls it before escalating
+  (`lib/effort-shift.md` § Advisor).
+
+Every cap or escalation STOP above: when the main loop consulted the advisor
+since GATE 0 first ran, the STOP carries its answer and says whether it
+predates the last iteration.
 
 ## Order invariant
 
