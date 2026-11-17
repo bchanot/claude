@@ -81,10 +81,10 @@ verify-secure run at the first gate loop to fail twice (the advice stays in
 the main loop, never in an executor brief; a cap or escalation STOP carries
 it), before proposing a merge or calling a long task done, and before
 recommending a change to the doctrine, the architecture or a public interface.
-plan-challenger, verifier, security-auditor and `analyzer` may call it once,
-before their verdict or report: advice can add a finding or raise its
-severity, never drop, lower or clear one. Other sub-agents do not, even when
-the tool is listed. An absent or
+plan-challenger, verifier, security-auditor and `analyzer` may call it once
+when dispatched as a sub-agent, before their verdict or report: advice can
+add a finding or raise its severity, never drop, lower or clear one. Other
+sub-agents do not, even when the tool is listed. An absent or
 failing advisor changes nothing, and its advice waives no gate, cap or guard
 (`lib/effort-shift.md` § Advisor). The main loop writes no
 code outside a skill run (the router's guard redirects it to a skill); the fresh
