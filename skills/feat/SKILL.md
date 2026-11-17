@@ -206,9 +206,10 @@ commit-changer (propose opus / apply sonnet, BDR-077); never inline-load the bar
 propose/apply executor).
 Then `mcp__model-router__route(phase="reflect")` (route: nested commit-change loaded at apply; reload feat's level).
 
-Before the summary, the main loop makes its
+Before the summary, the main loop prints the run's diff stat, then makes its
 end-of-run advisor call (`lib/effort-shift.md` § Advisor); its answer
-goes into the summary as an `Advisor:` line.
+goes into the summary as an `Advisor:` line, and a fix it drives goes
+back through the gates.
 
 Print summary:
 ```

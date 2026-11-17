@@ -231,9 +231,11 @@ Parse the `BUGFIX-EXEC REPORT`:
 3. Commit after approval, message per `$HOME/.claude/lib/commit-message.md`
    (project convention first, else short: root cause in the subject, at most
    two sentences of body).
-   Before the summary, the main loop makes its
+   `mcp__model-router__route(phase="reflect")` first (route: end-of-run review).
+   Before the summary, the main loop prints the run's diff stat, then makes its
    end-of-run advisor call (`lib/effort-shift.md` § Advisor); its answer
-   goes into the summary as an `Advisor:` line.
+   goes into the summary as an `Advisor:` line, and a fix it drives goes
+   back through the gates.
 4. Print summary:
    ```
    BUGFIX COMPLETE

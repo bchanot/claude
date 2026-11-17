@@ -197,9 +197,10 @@ open and say so plainly. Never report a fix the re-pass did not prove.
    ```
    Then `git add <files touched>` (never `-A`, never the baseline file) and
    commit, project convention else 50 words at most.
-   Before the reply, the main loop makes its
+   Before the reply, the main loop prints the run's diff stat, then makes its
    end-of-run advisor call (`lib/effort-shift.md` § Advisor); its answer
-   goes into the reply as an `Advisor:` line.
+   goes into the reply as an `Advisor:` line, and a fix it drives goes
+   back through the gates.
 2. `mcp__model-router__route(phase="apply")` for the tail. Reply with: fixed
    and proven (proposal, rule, file), still open and why, the walk's result,
    the branch name. Merge waits for the user's explicit signal.

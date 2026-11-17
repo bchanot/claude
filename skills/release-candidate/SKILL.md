@@ -79,7 +79,8 @@ Parse the `RELEASE-EXEC REPORT`:
 `mcp__model-router__route(phase="reflect")` first (route: end-of-run review).
 Before the ask, the main loop makes its
 end-of-run advisor call (`lib/effort-shift.md` § Advisor); its answer
-goes with the ask as an `Advisor:` line; a fix it calls for means hold.
+goes with the ask as an `Advisor:` line, and a fix it calls for makes
+hold the recommended answer.
 
 STOP. Show the prep report's `TESTS` result, then:
 ```

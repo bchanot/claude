@@ -356,9 +356,10 @@ patched. Report per its rc table — rc 4 = a LOUD upstream BDR-022 anomaly, not
 
 ## STEP 11 — FINISH
 `mcp__model-router__route(phase="plan")` first (route: end-of-run review).
-Before proposing the finish, the main loop makes its
-end-of-run advisor call (`lib/effort-shift.md` § Advisor); its answer
-goes with the proposal as an `Advisor:` line.
+Before proposing the finish, the main loop prints the run's diff stat,
+then makes its end-of-run advisor call (`lib/effort-shift.md` § Advisor);
+its answer goes with the proposal as an `Advisor:` line, and a fix it
+drives goes back through the gates.
 
 Tests pass, build clean, no placeholders. Integrate the MVP feature into develop
 — **only on the user's explicit go** (the `gitflow` finish gate):
