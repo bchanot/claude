@@ -74,10 +74,15 @@ Doctrine: the main loop runs on the `opus` session model; the model-router rows
 route main-loop reflection (brainstorm, plan, contract, audit judgment, loop
 decisions) to the `best` tier, opus at the phase's effort. Fable is never
 auto-routed: it is the advisor (`advisorModel` in settings.json) and a hand
-pick. The main loop calls the advisor before settling an approach, when stuck
-and before calling a long task done; sub-agents do not, even when the tool is
-listed. An absent or failing advisor changes nothing, and its advice waives no
-gate, cap or guard (`lib/effort-shift.md` § Advisor). The main loop writes no
+pick. The main loop calls the advisor at least before writing a skill's plan
+(`/feat`, `/bugfix`, `/ship-feature`), once per verify-secure run at the first
+gate loop to fail twice (the advice stays in the main loop, never in an
+executor brief), and before proposing a merge or calling a long task done.
+plan-challenger, verifier and security-auditor may call it once, before their
+verdict: advice can add a finding or raise its severity, never drop, lower or
+clear one. Other sub-agents do not, even when the tool is listed. An absent or
+failing advisor changes nothing, and its advice waives no gate, cap or guard
+(`lib/effort-shift.md` § Advisor). The main loop writes no
 code outside a skill run (the router's guard redirects it to a skill); the fresh
 gates run as dispatched agents on the `audit` row. The Fable/Opus model floor is
 enforced by a blocking gate (`lib/model-gate.md`) at the entry of the 17
