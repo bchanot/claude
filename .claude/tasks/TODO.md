@@ -4,8 +4,8 @@
 Done history before 2026-10-08 removed 2026-10-23 (git keeps it: `git log -p -- .claude/tasks/TODO.md`); decisions live in `.claude/memory/`.
 
 ### Advisor call points (user 2026-11-17: "oui 1 et 2, et le 3 aussi"; amends BDR-150)
-- [x] Run A DONE 6ef3069 (docs + memory below) /feat feature/advisor-call-points: CLAUDE.global § Workflow + lib/effort-shift.md § Advisor + plan-challenger/verifier/security-auditor one-call rule (contract .claude/tasks/contracts/2026-11-17-advisor-call-points-1130.md)
-- [ ] Run B /feat: inline advisor call lines at the step sites (plan step of skills/feat, bugfix, ship-feature; second-failure + cap sites in lib/verify-secure-loop.md; merge proposal), citing `lib/effort-shift.md § Advisor`
+- [x] Run A DONE 6ef3069, merged fc2d84d (docs 09277f5, audits c1a0c32, memory 78a6942) /feat feature/advisor-call-points: CLAUDE.global § Workflow + lib/effort-shift.md § Advisor + plan-challenger/verifier/security-auditor one-call rule (contract .claude/tasks/contracts/2026-11-17-advisor-call-points-1130.md)
+- [ ] Run B /feat: inline advisor call lines at the step sites (plan step of skills/feat, bugfix, ship-feature; second-failure + cap sites in lib/verify-secure-loop.md; merge proposal), citing `lib/effort-shift.md § Advisor`; + agents/security-auditor.md advisor bullet: severity applies only when higher, closing sentence "Advice never removes…" (BUGS-FOUND LOW, c1a0c32) = 5 files. Plan notes: test each citation line against the census regex (per line; word after `§ Label` joins the heading); fast oracle `bash lib/tests/doctrine-citers.test.sh` before full make test; settle the merge-proposal site first (/feat and /bugfix never finish); read run B challengers' notes for one late advisor call (first live test of block C)
 - [ ] Run C /feat: advisor usage section in /memory-feedback (main loop vs sub-agents, model served, input tokens; dedupe usage rows by message.id, model from the `advisor_message` iteration)
 - [x] Stale citers after A: README/USAGE/CHANGELOG patched, BUGS-FOUND residual superseded + LOW logged, BDR-150 status, LRN-295 (LRN-294 kept: its lesson holds)
 
