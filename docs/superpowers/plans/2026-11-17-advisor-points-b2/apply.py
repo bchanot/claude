@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Apply run B2 blocks to a repo root.
 
-Usage: apply.py <plan.md> <repo root> <skills|agents>
+Usage: apply.py <plan.md> <repo root> <skills|agents|review1>
 Blocks are read from the plan (### Block <name> + fenced body). Every anchor
 must occur exactly once in its file; any miss aborts before writing anything.
 """
@@ -61,7 +61,8 @@ def end_edits(b):
     return [
         ("skills/feat/SKILL.md", feat, "\n" + b["end-report"] + feat),
         ("skills/bugfix/SKILL.md", bug,
-         bug.replace("\n4. ", "\n" + indent(b["end-report"], 3) + "4. ")),
+         bug.replace("\n4. ", "\n" + indent(b["route-reflect"] + b["end-report"], 3)
+                     + "4. ")),
         ("skills/ship-feature/SKILL.md", step9, step9 + b["end-finish"] + "\n"),
         ("skills/init-project/SKILL.md", step11, step11 + b["end-finish"] + "\n"),
         ("skills/a11y/SKILL.md", item1, item1.replace("\n2. ", "\n" + ho + "2. ")),
@@ -119,7 +120,45 @@ def agents_edits(b):
     ]
 
 
-GROUPS = {"skills": skills_edits, "agents": agents_edits}
+OLD_END_REPORT = (
+    "Before the summary, the main loop makes its\n"
+    "end-of-run advisor call (`lib/effort-shift.md` \u00a7 Advisor); its answer\n"
+    "goes into the summary as an `Advisor:` line.\n")
+OLD_END_FINISH = (
+    "`mcp__model-router__route(phase=\"plan\")` first (route: end-of-run review).\n"
+    "Before proposing the finish, the main loop makes its\n"
+    "end-of-run advisor call (`lib/effort-shift.md` \u00a7 Advisor); its answer\n"
+    "goes with the proposal as an `Advisor:` line.\n")
+OLD_END_HANDOVER = (
+    "Before the reply, the main loop makes its\n"
+    "end-of-run advisor call (`lib/effort-shift.md` \u00a7 Advisor); its answer\n"
+    "goes into the reply as an `Advisor:` line.\n")
+OLD_END_RELEASE = (
+    "`mcp__model-router__route(phase=\"reflect\")` first (route: end-of-run review).\n"
+    "Before the ask, the main loop makes its\n"
+    "end-of-run advisor call (`lib/effort-shift.md` \u00a7 Advisor); its answer\n"
+    "goes with the ask as an `Advisor:` line; a fix it calls for means hold.\n")
+
+
+def review1_edits(b):
+    """STEP 6 code-review fix, applied on top of HEAD 24354d9."""
+    report = b["end-report"]
+    return [
+        ("skills/feat/SKILL.md", OLD_END_REPORT, report),
+        ("skills/bugfix/SKILL.md", indent(OLD_END_REPORT, 3),
+         indent(b["route-reflect"] + report, 3)),
+        ("skills/ship-feature/SKILL.md", OLD_END_FINISH, b["end-finish"]),
+        ("skills/init-project/SKILL.md", OLD_END_FINISH, b["end-finish"]),
+        ("skills/a11y/SKILL.md", indent(OLD_END_HANDOVER, 3),
+         indent(b["end-handover"], 3)),
+        ("skills/guardrails/SKILL.md", indent(OLD_END_HANDOVER, 3),
+         indent(b["end-handover"], 3)),
+        ("skills/release-candidate/SKILL.md", OLD_END_RELEASE, b["end-release"]),
+    ]
+
+
+GROUPS = {"skills": skills_edits, "agents": agents_edits,
+          "review1": review1_edits}
 
 
 def main():

@@ -1,4 +1,4 @@
-# Advisor call points, run B2 — Implementation Plan (r3)
+# Advisor call points, run B2 — Implementation Plan (r3 + STEP 6 review fix)
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -41,7 +41,7 @@
 | E4 | skills/init-project/SKILL.md | `([[LRN-095]]) — both run.\n\n## STEP 10 — CODE REVIEW` (end of STEP 9) | insert Block stuck + blank line before the heading |
 | E5 | skills/a11y/SKILL.md, skills/guardrails/SKILL.md | `   the include's; loop decisions stay in this main loop.\n` (end of item 6 Gates) | append Block stuck (3-space indent) inside item 6 |
 | E6 | skills/feat/SKILL.md | `\nPrint summary:\n```\nFEAT COMPLETE` (STEP 5, after the commit and the reflect route) | insert Block end-report + blank line before `Print summary:` |
-| E7 | skills/bugfix/SKILL.md | `   two sentences of body).\n4. Print summary:` (STEP 6, after the commit) | append Block end-report (3-space indent) to item 3 |
+| E7 | skills/bugfix/SKILL.md | `   two sentences of body).\n4. Print summary:` (STEP 6, after the commit) | append Block route-reflect + Block end-report (3-space indent) to item 3 |
 | E8 | skills/ship-feature/SKILL.md (`## STEP 9 — FINISH\n`), skills/init-project/SKILL.md (`## STEP 11 — FINISH\n`) | heading line | insert Block end-finish + blank line after the heading |
 | E9 | skills/a11y/SKILL.md, skills/guardrails/SKILL.md | `   commit, project convention else 50 words at most.\n2. \`mcp__model-router__route` | append Block end-handover (3-space indent) to item 1, before the apply route |
 | E10 | skills/audit-delta/SKILL.md | `## STEP 4 — FINAL SUMMARY\n\n` | insert Block end-audit + blank line after |
@@ -57,6 +57,10 @@
 | E20 | lib/effort-shift.md | `3. Before proposing a merge (\`gitflow finish\`) or calling a long task\n   done.\n` | replace with Block item3 (ends with a blank line before block I) |
 
 Groups: `skills` = E1-E14 (17 edits), `agents` = E15-E20 (6 edits).
+`review1` (STEP 6 code-review fix, from HEAD 24354d9): rewrites the end-report,
+end-finish and end-handover blocks in the six gate flows (diff stat, fix back
+through the gates), end-release ("makes hold the recommended answer"), and adds
+Block route-reflect before the bugfix end call (7 edits).
 
 ## Contract additions at STEP 3 (`[gated 2026-11-17]`)
 
@@ -142,24 +146,32 @@ first ran → the main loop calls the advisor per `lib/verify-secure-loop.md`
 
 ### Block end-report
 ```
-Before the summary, the main loop makes its
+Before the summary, the main loop prints the run's diff stat, then makes its
 end-of-run advisor call (`lib/effort-shift.md` § Advisor); its answer
-goes into the summary as an `Advisor:` line.
+goes into the summary as an `Advisor:` line, and a fix it drives goes
+back through the gates.
+```
+
+### Block route-reflect
+```
+`mcp__model-router__route(phase="reflect")` first (route: end-of-run review).
 ```
 
 ### Block end-finish
 ```
 `mcp__model-router__route(phase="plan")` first (route: end-of-run review).
-Before proposing the finish, the main loop makes its
-end-of-run advisor call (`lib/effort-shift.md` § Advisor); its answer
-goes with the proposal as an `Advisor:` line.
+Before proposing the finish, the main loop prints the run's diff stat,
+then makes its end-of-run advisor call (`lib/effort-shift.md` § Advisor);
+its answer goes with the proposal as an `Advisor:` line, and a fix it
+drives goes back through the gates.
 ```
 
 ### Block end-handover
 ```
-Before the reply, the main loop makes its
+Before the reply, the main loop prints the run's diff stat, then makes its
 end-of-run advisor call (`lib/effort-shift.md` § Advisor); its answer
-goes into the reply as an `Advisor:` line.
+goes into the reply as an `Advisor:` line, and a fix it drives goes
+back through the gates.
 ```
 
 ### Block end-audit
@@ -198,7 +210,8 @@ waits for a new run.
 `mcp__model-router__route(phase="reflect")` first (route: end-of-run review).
 Before the ask, the main loop makes its
 end-of-run advisor call (`lib/effort-shift.md` § Advisor); its answer
-goes with the ask as an `Advisor:` line; a fix it calls for means hold.
+goes with the ask as an `Advisor:` line, and a fix it calls for makes
+hold the recommended answer.
 ```
 
 ### Block verifier-head
