@@ -1609,3 +1609,4 @@ Supersedes [[BDR-030]].
 - **Gates**: r1 3 lenses CONCERNS → r2 → re-challenge CONCERNS → r3; feater DONE 661 tests; GATE 0 MET; verifier CONFORME; security PASS (MEDIUM fixed: stored answer survives ask-tier off); commits 24b0f35, docs 42385d2.
 - **Refs**: amends [[BDR-123]], [[BDR-135]]; supersedes [[LRN-224]]; [[BLK-030]], [[BDR-077]] (Fable dispatch pins: separate run).
 - **Status (2026-11-17)**: accepted, completed: pins opus beebfe2 (gate row 'fixed at spawn' passes a pinned sub-agent), doctrine c3507ea (main loop calls advisor, sub-agents do not, absent advisor -> proceed, advice waives no gate)
+- **Status (2026-11-17)**: accepted, amended 6ef3069: main loop named call points (before a skill's plan, once per verify-secure run at first gate loop failing twice, before merge); plan-challenger/verifier/security-auditor at most one call before verdict, advice add-only (security: STEP 3 class severity, no class -> REPORTED LOW); other sub-agents do not

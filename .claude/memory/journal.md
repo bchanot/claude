@@ -774,3 +774,4 @@ rules:
 
 ## 2026-11-17
 - Advisor doctrine (c3507ea, docs): CLAUDE.global § Workflow + effort-shift § Advisor: main loop calls Fable advisor (approach, stuck, before done), sub-agents do not (they have tool listed: prose-only, residual), absent → proceed, advice waives no gate/cap/guard. Stale Fable prose → opus (effort-shift, challenge-plan, plan-challenger, tour). BDR-150 change complete: router 24b0f35, pins beebfe2, doctrine c3507ea.
+- Advisor call points run A (6ef3069): transcript count showed main loop 2 calls on Opus (409k/680k uncached) vs 18/20 opus sub-agents on Fable (~70k); doctrine now names main-loop points (plan, first gate loop failing twice, merge) + judgment agents once, advice add-only; 2 challenge rounds, gates found block E double count, fixed r5. Runs B, C next.
