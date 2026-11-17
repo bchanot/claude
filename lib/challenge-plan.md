@@ -27,8 +27,21 @@ explicitly deferred for the human.
 Nominal path is cheap for a small, clean plan: three parallel challengers return
 SOLID, synthesis is a no-op. It only costs more when a lens lands a real finding
 — which is the point.
+The main loop's advisor call before the dispatch (below) is the costliest
+single item: once per skill run.
 
 ## DISPATCH — three fresh challengers, in parallel, blind
+
+**Advisor first (main loop).** Before the first dispatch, with no main-loop
+advisor call since the skill run started (so at most once per skill run, not
+before a re-challenge), the main loop reads the `PLAN` file unless its full
+text is already in this conversation, then calls the advisor when the tool
+is listed (`lib/effort-shift.md` § Advisor). An answer that lands a real
+flaw revises the `PLAN` file on disk before the dispatch, as plain plan
+text: no advisor attribution, no "changes after review" section; the
+summary's `Advisor:` row carries it (OUTPUT below). Absent or erroring →
+dispatch as written.
+The advice never enters a challenger brief: they stay blind.
 
 Dispatch THREE fresh `plan-challenger` subagents IN PARALLEL, one per LENS, each
 blind to the others and to this conversation:
@@ -87,6 +100,9 @@ Parse each `CHALLENGE — LENS: … — VERDICT:` line and merge the FINDINGS:
 Feed the orchestrator's gate:
 - the REVISED plan, and
 - a CHALLENGE SUMMARY: each BLOCKER raised → the named change that closed it;
-  anything `[deferred]`; and any lens that failed to return.
+  anything `[deferred]`; any lens that failed to return; and an `Advisor:`
+  row, added to whatever summary template the caller prints: each plan
+  change an advisor answer drove, `called, no change`, or
+  `not called (absent | error | already called this run)`.
 
 The human remains the decider.

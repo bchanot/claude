@@ -105,21 +105,25 @@ target (BDR-150). It is a server tool: the router cannot see or refuse it.
 
 Main loop, at least at these points (for work outside them, see the
 triggers in CLAUDE.global.md § Workflow):
-1. Before settling an approach: ahead of writing a skill's plan (`/feat`,
-   `/bugfix`, `/ship-feature`).
+1. Before settling an approach: on the written plan, before the
+   challengers see it (`lib/challenge-plan.md`), at most once per skill run.
 2. When stuck: once per verify-secure run, at the first gate loop to fail
    twice (floor, conformity, security, or a second structural failure),
    before re-dispatching or escalating. At a cap the STOP diagnosis
-   reuses that advice and says it predates the last iteration. The
+   reuses that advice and says whether it predates the last iteration. The
    advice stays in the main loop: it feeds the main loop's own decision
    (a contract micro-gate, an early escalation, the STOP diagnosis) and
    never enters an executor brief.
 3. Before proposing a merge (`gitflow finish`) or calling a long task
    done.
+Inside a skill run, the points above also cover the triggers of
+CLAUDE.global.md § Workflow; no second call for the same recommendation.
 
-Sub-agents: plan-challenger, verifier and security-auditor call it at most
-once per dispatch, before their verdict; executors and every other
-sub-agent do not, even when the tool is listed.
+Sub-agents, when dispatched: plan-challenger, verifier, security-auditor
+and `analyzer` call it at most once per dispatch, before their verdict or
+report; executors and every other sub-agent do not, even when the tool is
+listed. The analyzer file loaded inline by the main loop follows the
+main-loop points.
 
 Advisor absent or erroring (Fable out of credits, for example) → proceed
 as written. Advice is input, never consent: it waives no gate, cap or
