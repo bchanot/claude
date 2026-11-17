@@ -89,6 +89,17 @@ GATES_TIMEOUT=1 gate "timeout = UNMET" run "GATES — VERDICT: UNMET(1)" 2 <<'EO
 EOF
 has "timeout recorded" "NOT-MET timeout=1s"
 
+# The default must outlast the full suite (~135 s on 2026-11-16): at 120 s
+# a "full make test green" criterion went NOT-MET on the timeout alone.
+LAST="$WORK/default-timeout.md"
+printf '## ACCEPTANCE CRITERIA\n1. manual\n' > "$LAST"
+out="$(env -u GATES_TIMEOUT bash "$GATES" status "$LAST" 2>&1)"
+if [[ "$out" == *"timeout 600s"* ]]; then
+  ok "default timeout 600s"
+else
+  bad "default timeout 600s" "status did not print timeout 600s"
+fi
+
 gate "manual-only contract passes through" run "RUNNABLE: 0 of 2" 0 <<'EOF'
 ## ACCEPTANCE CRITERIA
 1. a human reads the copy
@@ -198,6 +209,59 @@ gate "duplicate orphans what follows" run "belongs to no criterion" 2 <<'EOF'
    EXPECT: x
    EVIDENCE: pending
 1. duplicate
+   CHECK: echo y
+   EXPECT: y
+   EVIDENCE: pending
+EOF
+
+# An oracle under a label the parser does not read as `N. text` must never
+# overwrite the previous criterion's: criterion 1 fails, the stray oracle
+# passes, a false MET (LRN-284). A digit-led label is rejected by name;
+# any other shape trips the second-attribute guard when the previous
+# criterion already has that attribute (after a manual one it does not).
+gate "1b. label rejected" run "malformed criterion label at line 6" 2 <<'EOF'
+## ACCEPTANCE CRITERIA
+1. real
+   CHECK: exit 1
+   EXPECT: x
+   EVIDENCE: pending
+1b. sub
+   CHECK: echo y
+   EXPECT: y
+   EVIDENCE: pending
+EOF
+
+gate "1.1 label rejected" run "malformed criterion label at line 3" 2 <<'EOF'
+## ACCEPTANCE CRITERIA
+1. first
+1.1 dotted
+   EVIDENCE: pending
+EOF
+
+gate "no valid label" run "malformed criterion label at line 2" 2 <<'EOF'
+## ACCEPTANCE CRITERIA
+2) paren
+EOF
+
+gate "indented label: second CHECK" run "second CHECK: at line 7" 2 <<'EOF'
+## ACCEPTANCE CRITERIA
+1. real
+   CHECK: exit 1
+   EXPECT: x
+   EVIDENCE: pending
+   2. sub
+   CHECK: echo y
+   EXPECT: y
+   EVIDENCE: pending
+EOF
+
+gate "bullet label: second EVIDENCE" run "second EVIDENCE: at line 9" 2 <<'EOF'
+## ACCEPTANCE CRITERIA
+1. real
+   CHECK: exit 1
+   EXPECT: x
+   EVIDENCE: pending
+- sub
    CHECK: echo y
    EXPECT: y
    EVIDENCE: pending

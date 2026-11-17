@@ -29,7 +29,10 @@
 # lib/url-guard.sh first.
 set -uo pipefail
 
-TIMEOUT="${GATES_TIMEOUT:-120}"
+# TIMEOUT is per CHECK and a run lasts their sum: the caller's own limit (a
+# foreground tool call stops at 600 s) must cover it, else run it in the
+# background. A killed run writes nothing back; the floor stays PENDING.
+TIMEOUT="${GATES_TIMEOUT:-600}"
 EVIDENCE_CAP=140
 
 # Module-level parse tables, index-aligned. Bash has no record type; threading
@@ -68,9 +71,21 @@ _new_crit() { # _new_crit <id> <text>
   _CUR=$((${#_ID[@]} - 1))
 }
 
+# A second attribute on one criterion is an error, never an overwrite: it
+# is what an oracle under a label the parser missed looks like (LRN-284).
 _set_attr() { # _set_attr <CHECK|EXPECT|EVIDENCE> <value> <lineno>
   if [ "$_CUR" -lt 0 ]; then
     _err "$1 at line $3 belongs to no criterion"
+    return 0
+  fi
+  local seen=""
+  case "$1" in
+    CHECK)    seen="${_CHECK[_CUR]}" ;;
+    EXPECT)   seen="${_EXPECT[_CUR]}" ;;
+    EVIDENCE) [ "${_EVLINE[_CUR]}" = 0 ] || seen=yes ;;
+  esac
+  if [ -n "$seen" ]; then
+    _err "second $1: at line $3 in criterion ${_ID[_CUR]}"
     return 0
   fi
   case "$1" in
@@ -82,11 +97,16 @@ _set_attr() { # _set_attr <CHECK|EXPECT|EVIDENCE> <value> <lineno>
 
 # An UNINDENTED attribute is diagnosed, never absorbed: silently ignoring it
 # would demote a runnable criterion to a manual one, which is the one parse
-# bug that turns this checker into a rubber stamp.
+# bug that turns this checker into a rubber stamp. A digit-led line that is
+# not `N. text` (`1b.`, `1.1`, `2)`) is rejected and orphans what follows, like
+# a duplicate id.
 _absorb() { # _absorb <raw-line> <lineno>
   local body
   if [[ "$1" =~ ^([0-9]+)\.[[:space:]]+(.*)$ ]]; then
     _new_crit "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}"
+  elif [[ "$1" =~ ^[0-9] ]]; then
+    _err "malformed criterion label at line $2 (want \`N. text\`)"
+    _CUR=-1
   elif [[ "$1" =~ ^ABANDON:[[:space:]]*([0-9]+)?[[:space:]]*(.*)$ ]]; then
     _ABANDON_ID+=("${BASH_REMATCH[1]}"); _ABANDON_WHY+=("${BASH_REMATCH[2]}")
   elif [[ "$1" =~ ^(CHECK|EXPECT|EVIDENCE): ]]; then
@@ -300,11 +320,13 @@ _runnable_count() {
 # ── entry point ─────────────────────────────────────────────────────────────
 
 main() { # main <status|run> <contract>
-  local mode="$1" file="$2"
+  local mode="$1" file="$2" first
   [ -r "$file" ] || _die "contract unreadable: $file"
   _parse "$file"
-  [ "${#_ID[@]}" -gt 0 ] ||
-    _die "no numbered criteria under ## ACCEPTANCE CRITERIA"
+  if [ "${#_ID[@]}" -eq 0 ]; then
+    first="${_ERRORS[0]:+; ${_ERRORS[0]}}"
+    _die "no numbered criteria under ## ACCEPTANCE CRITERIA$first"
+  fi
   _validate_oracles
   _validate_abandons
   if [ "$mode" = "run" ] && [ "${#_ERRORS[@]}" -eq 0 ]; then
