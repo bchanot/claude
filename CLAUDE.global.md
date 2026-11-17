@@ -80,9 +80,12 @@ code" wins. Repo-specific instructions override both.
   file or other shell. Hermetic tests run through `make test [suite=…]` only.
 - Stronger model needed (an approach to settle before building, a stuck
   problem, a long task before calling it done) → the main loop calls
-  the advisor tool when it is listed (Fable, set by /advisor); sub-agents do
-  not. Fable is never routed or pinned: the router tops out at opus
-  (BDR-150).
+  the advisor tool when it is listed (settings `advisorModel`, Fable,
+  set by /advisor), at least at the points of
+  `~/.claude/lib/effort-shift.md` § Advisor; plan-challenger, verifier
+  and security-auditor at most once, before the verdict; other
+  sub-agents do not. Fable is never routed or pinned: the router tops
+  out at opus (BDR-150).
 - Ask rather than guess. A choice visible in the result (placement,
   wording, order, behavior), a name that becomes public (command, flag,
   endpoint, file), or a scope the request leaves open → ask, even mid-task;

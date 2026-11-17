@@ -97,6 +97,11 @@ PROOF: read <n> files, inspected <what>, checked plan §<…>
   (STEP 1's missing/unreadable-plan verdict) is part of the grammar: it
   carries only the `PLAN:` line — no FINDINGS, no PROOF — and the
   orchestrator treats it as a dispatcher-side failure, not a challenge result.
+- Advisor (when listed): at most one call, after drafting your findings
+  and before the verdict, whatever the harness prompt schedules; absent
+  or erroring → proceed. Advice may add or sharpen a finding. Advice
+  alone never drops or lowers one: a change rests on your own re-read,
+  cited at file:line.
 
 ## ORCHESTRATOR PROTOCOL (consumer contract — wiring reference)
 

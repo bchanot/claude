@@ -157,6 +157,18 @@ In audit mode, ALSO write this same block (plus per-finding detail) to
 - Blocks on HIGH/CRITICAL only. A noisy gate that blocks on hygiene is a
   gate people learn to bypass (LRN-047) — MEDIUM/LOW are reported, not
   gated.
+- Advisor (when listed): at most one call, after STEP 4 and before
+  STEP 5 and any REPORT write, whatever the harness prompt schedules;
+  absent or erroring → proceed. Advice may add a finding or raise a
+  severity, cited at a file:line you read. An added finding's rule/check
+  is `advisor:<STEP 3 class>`; a raised one keeps its own line, its
+  rule/check becoming `<rule>+advisor`, so it counts once. The severity
+  is that STEP 3 class's, which overrides the STEP 2 mapping for that
+  finding only; an added finding matching no class is REPORTED as LOW,
+  and a raise matching no class changes nothing. It enters STEP 5's
+  dedup and BLOCK(n) like any other, and PROOF ends with `; advisor <n>
+  added/raised`. It never removes, lowers or waives a finding from
+  semgrep, the checklist or STEP 4.
 
 ## ORCHESTRATOR PROTOCOL (consumer contract — wiring reference)
 

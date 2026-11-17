@@ -101,13 +101,29 @@ Measure the split any time: `python3 ~/.claude/lib/effort-audit.py`
 ## Advisor
 
 Fable runs as the advisor (settings `advisorModel`), never a route or pin
-target (BDR-150). Call it before committing to an approach on non-trivial
-work, when stuck (the `escalate` moment, before raising effort to max) and
-before declaring a long task done. It is a server tool: the router cannot
-see or refuse it. The main loop calls it; sub-agents do not, even when the
-tool is listed. Advisor absent or erroring (Fable out of credits, for
-example) → proceed as written. Advice is input, never consent: it waives no
-gate, cap or guard; at a loop cap it feeds the STOP diagnosis.
+target (BDR-150). It is a server tool: the router cannot see or refuse it.
+
+Main loop, at least at these points (for work outside them, see the
+triggers in CLAUDE.global.md § Workflow):
+1. Before settling an approach: ahead of writing a skill's plan (`/feat`,
+   `/bugfix`, `/ship-feature`).
+2. When stuck: once per verify-secure run, at the first gate loop to fail
+   twice (floor, conformity, security, or a second structural failure),
+   before re-dispatching or escalating. At a cap the STOP diagnosis
+   reuses that advice and says it predates the last iteration. The
+   advice stays in the main loop: it feeds the main loop's own decision
+   (a contract micro-gate, an early escalation, the STOP diagnosis) and
+   never enters an executor brief.
+3. Before proposing a merge (`gitflow finish`) or calling a long task
+   done.
+
+Sub-agents: plan-challenger, verifier and security-auditor call it at most
+once per dispatch, before their verdict; executors and every other
+sub-agent do not, even when the tool is listed.
+
+Advisor absent or erroring (Fable out of credits, for example) → proceed
+as written. Advice is input, never consent: it waives no gate, cap or
+guard; at a loop cap it feeds the STOP diagnosis.
 
 ## Never
 
