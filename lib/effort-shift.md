@@ -115,7 +115,16 @@ triggers in CLAUDE.global.md § Workflow):
    (a contract micro-gate, an early escalation, the STOP diagnosis) and
    never enters an executor brief.
 3. Before proposing a merge (`gitflow finish`) or calling a long task
-   done.
+   done. Wired at the end step of feat, bugfix, ship-feature,
+   init-project, a11y, guardrails, audit-delta and tour, and at the
+   release gate of release-candidate: one end-of-run call per skill
+   run, never skipped for an earlier plan or stuck call; audit-delta
+   and tour skip it when the run applied no fix. In the six flows that
+   run the gates, the main loop first prints the run's diff stat, a fix
+   the answer drives goes back through the gates, and a later proposal
+   reuses the answer and says it predates the newer commits. Elsewhere
+   the answer is reported only and a fix it calls for is a new run.
+
 Inside a skill run, the points above also cover the triggers of
 CLAUDE.global.md § Workflow; no second call for the same recommendation.
 

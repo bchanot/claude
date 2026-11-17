@@ -2140,3 +2140,15 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Context**: 2026-11-17 advisor runs A and B1. Markers broke three times: phrase wrapped across two lines (grep per line, count 0); awk `/X/{a=NR}` kept LAST match after a later block mentioned "X"; census extractor read word after `§ Label` as part of heading ("§ Workflow names"). Each would have cost a floor loop. Also `Nb.` criterion label absorbed by gates.sh (LRN-284). Simulation of B1 (apply.py on mktemp copy) passed 5/5 CHECKs; executor then got MET first run.
 - **Apply**: any /feat or /bugfix whose oracles are grep/awk markers on prose: write blocks to files, applier script with exact-once asserts, run CHECKs with `cd` swapped to the scratch copy; anchor awk on line start (`/^\*\*Label/`); keep each marker and each `§ Label` citation on one line followed by `)`/`;`. Give the executor the applier.
 - **Reference**: lib/gates.sh, lib/tests/doctrine-citers.test.sh, .claude/tasks/plans/2026-11-17-advisor-points-b1-1500.md, LRN-284
+
+## LRN-297 — Single-source doctrine holds only where acting step loads cited lib (2026-11-17)
+- **Pattern**: rule kept once in lib + skills citing it works only if step that acts loads that lib. Citation alone not read at act time.
+- **Context**: 2026-11-17 run B2 STEP 6, 2 reviewers (sonnet SDD final, opus craft). Stuck lines fine: gate step loads `lib/verify-secure-loop.md`. End-of-run lines cited `lib/effort-shift.md` § Advisor, loaded only via ROUTING line, never at end step → diff stat + fix path (item 3) unseen; 3 of 9 lines already restated own path, 6 silent read as "report only". Parked ruling withdrawn, clause restated at 6 sites (6022b9d).
+- **Apply**: before keeping a procedure only in a lib, check acting step reads that lib (include it loads, not ROUTING line); else one clause at site, lib keeps full rule. Uneven restatement across sibling sites = misread by contrast.
+- **Reference**: lib/effort-shift.md § Advisor item 3, lib/verify-secure-loop.md, BDR-150, LRN-296
+
+## LRN-298 — Marker oracles prove presence, not placement semantics (2026-11-17)
+- **Pattern**: marker oracles prove text present at position, not placement semantics. Need read of flow's own sequence: who executes site, when run is declared done, can condition be false.
+- **Context**: 2026-11-17 run B2: scratch-clone simulation 15/15 MET, yet challengers found end call after FEAT COMPLETE (done already printed), tour runners (sub-agents) execute STEP 3 holding main-loop call, skip "fixed or committed anything" always true (tour commits report each run). Fixed in plan r2/r3 before dispatch.
+- **Apply**: anchor position oracles on flow's done/merge moment (summary or finish line), not nearby heading; per site list executor (main loop vs runner/sub-agent) and falsifiable condition. Non-idempotent applier fix after commit: delta group from HEAD + byte-compare with fresh apply from base (review1 == fresh).
+- **Reference**: docs plan 2026-11-17-advisor-points-b2 (purged at finish, git keeps), LRN-296, LRN-284
