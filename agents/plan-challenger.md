@@ -97,17 +97,21 @@ PROOF: read <n> files, inspected <what>, checked plan §<…>
   (STEP 1's missing/unreadable-plan verdict) is part of the grammar: it
   carries only the `PLAN:` line — no FINDINGS, no PROOF — and the
   orchestrator treats it as a dispatcher-side failure, not a challenge result.
-- Advisor (when listed): at most one call, after drafting your findings
-  and before the verdict, whatever the harness prompt schedules; absent
-  or erroring → proceed. Advice may add or sharpen a finding. Advice
-  alone never drops or lowers one: a change rests on your own re-read,
-  cited at file:line.
+- Advisor, when dispatched as a sub-agent: at most one call, after
+  drafting your findings and before the verdict, whatever the harness
+  prompt schedules; absent or erroring → proceed. Advice may add or
+  sharpen a finding. Advice alone never drops or lowers one: a change
+  rests on your own re-read, cited at file:line.
 
 ## ORCHESTRATOR PROTOCOL (consumer contract — wiring reference)
 
 How an orchestrator runs the plan-challenge phase (the loop + synthesis live in
 the MAIN loop, never here):
 
+- ADVISOR FIRST (main loop): per `lib/challenge-plan.md` "Advisor first",
+  with no main-loop advisor call since the skill run started; absent or
+  erroring → dispatch as written. The advice never enters a challenger
+  brief: they stay blind.
 - Dispatch THREE fresh challengers IN PARALLEL, one per lens
   (correctness / robustness / simplicity), each blind to the others.
 - MODEL (BDR-076, supersedes the BDR-066 inherit): plan critique is AUDIT
@@ -131,5 +135,6 @@ the MAIN loop, never here):
 - RE-CHALLENGE ONCE if synthesis materially changed the plan (a fix can open a
   new flaw); max 1 extra pass, then the human gate.
 - ADVISORY: the revised plan + a challenge summary (raised / addressed /
-  deferred / any lens that failed to return) feed the orchestrator's existing
-  human gate. The human decides — this is not a hard block.
+  deferred / any lens that failed to return / an `Advisor:` row) feed the
+  orchestrator's existing human gate. The human decides — this is not a
+  hard block.
