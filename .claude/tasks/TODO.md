@@ -3,6 +3,12 @@
 ## Open (reconciled 2026-11-12 before 3.0.0, /reconcile on the BDR-125 phases; full pass 2026-10-23)
 Done history before 2026-10-08 removed 2026-10-23 (git keeps it: `git log -p -- .claude/tasks/TODO.md`); decisions live in `.claude/memory/`.
 
+### Advisor call points (user 2026-11-17: "oui 1 et 2, et le 3 aussi"; amends BDR-150)
+- [x] Run A DONE 6ef3069 (docs + memory below) /feat feature/advisor-call-points: CLAUDE.global § Workflow + lib/effort-shift.md § Advisor + plan-challenger/verifier/security-auditor one-call rule (contract .claude/tasks/contracts/2026-11-17-advisor-call-points-1130.md)
+- [ ] Run B /feat: inline advisor call lines at the step sites (plan step of skills/feat, bugfix, ship-feature; second-failure + cap sites in lib/verify-secure-loop.md; merge proposal), citing `lib/effort-shift.md § Advisor`
+- [ ] Run C /feat: advisor usage section in /memory-feedback (main loop vs sub-agents, model served, input tokens; dedupe usage rows by message.id, model from the `advisor_message` iteration)
+- [x] Stale citers after A: README/USAGE/CHANGELOG patched, BUGS-FOUND residual superseded + LOW logged, BDR-150 status, LRN-295 (LRN-294 kept: its lesson holds)
+
 ### BDR-125 close-out run (user 2026-11-12): no phase 0/0b/4a/1/5/2/4b/4c/4d line left in TODO or BUGS-FOUND
 Decisions at start (asked once): faunosteo memory v2 on `chore/memory-v2` off develop in a fresh worktree (split already on develop 7a75974, 11 rules); settings.json `npm -g` deny lines removed on the block E branch, classifier test = `npm install -g --dry-run cowsay`; 3.0.0 cut right after block A (/release-candidate), later blocks land under the next Unreleased; LRN-270 bisect = user-run interactive sessions, one `--settings` file per pack. Merge prompts (`gitflow finish` ask) = the human signal per block once gates are green.
 - [x] A merged 1b82a25 (routing `confirmed` row a2f352e)
