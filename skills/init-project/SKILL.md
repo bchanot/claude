@@ -192,7 +192,7 @@ Invoke `writing-plans` (vendored superpowers skill) with BRIEF + skeleton.
 Granular tasks (2-5 min each), exact file paths, TDD: tests before code.
 
 ## STEP 6b — CHALLENGE THE PLAN (before the gate)
-`mcp__model-router__route(phase="plan")` first (route: own level before the challenge; send it with the challenger dispatch).
+`mcp__model-router__route(phase="plan")` first (route: own level before the challenge; send it with the first tool call of lib/challenge-plan.md, the advisor call when one is due).
 Before the human sees the implementation plan, harden it. Run
 `$HOME/.claude/lib/challenge-plan.md` with `PLAN` = the plan STEP 6 wrote under
 `docs/superpowers/plans/`, `KIND` = `build-plan`, `SCOPE` = the skeleton + task file
@@ -213,6 +213,7 @@ CHALLENGE SUMMARY (STEP 6b — 3 lenses):
   BLOCKERs addressed : <n> — <finding → the named plan change that closes it>
   Deferred (human-ack): <list | none>
   Lenses returned    : correctness / robustness / simplicity (NAME any that failed to return)
+  Advisor            : <the plan change it drove | called, no change | not called (absent | error | already called this run)>
 Approve and start? (yes / request changes)
 ```
 Changes → back to STEP 6. Approved → continue.

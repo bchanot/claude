@@ -124,7 +124,7 @@ in the contract's CLARIFICATIONS `[gated]` and in the plan. A choice that
 surfaces only during execution comes back as `NEED-DECISION` (STEP 3).
 
 ## STEP 1b — CHALLENGE THE PLAN (before branching)
-`mcp__model-router__route(phase="reflect")` first (route: own level before the challenge; send it with the challenger dispatch).
+`mcp__model-router__route(phase="reflect")` first (route: own level before the challenge; send it with the first tool call of lib/challenge-plan.md, the advisor call when one is due).
 The STEP 1 plan is a reflection worth attacking before a branch is spent on it.
 Persist it to `.claude/tasks/plans/<date>-<slug>-<HHMM>.md`, then run
 `$HOME/.claude/lib/challenge-plan.md` with `PLAN` = that file, `KIND` = `build-plan`,
@@ -132,8 +132,8 @@ Persist it to `.claude/tasks/plans/<date>-<slug>-<HHMM>.md`, then run
 Three blind challengers attack it; RE-THINK every aspect a BLOCKER lands (a named
 plan change, or `[deferred]`), re-challenge once if the plan materially changed. The
 STEP 3 executor receives the REVISED plan. Before dispatch, print a CHALLENGE SUMMARY
-(BLOCKERs addressed / deferred / lenses returned), surfacing any deferred BLOCKER in
-the STEP 1 pass B batch.
+(BLOCKERs addressed / deferred / lenses returned / advisor), surfacing any
+deferred BLOCKER in the STEP 1 pass B batch.
 
 ## STEP 2 — BRANCH
 
@@ -207,9 +207,12 @@ propose/apply executor).
 Then `mcp__model-router__route(phase="reflect")` (route: nested commit-change loaded at apply; reload feat's level).
 
 Before the summary, the main loop prints the run's diff stat, then makes its
-end-of-run advisor call (`lib/effort-shift.md` § Advisor); its answer
-goes into the summary as an `Advisor:` line, and a fix it drives goes
-back through the gates.
+end-of-run advisor call (`lib/effort-shift.md` § Advisor), skipped when
+GATE 0 said MET, the verifier CONFORME and security PASS (not DEGRADED),
+each on its first attempt; any other verdict, a retry, a loop iteration or
+a verdict no longer in view runs the call. The answer, or the skip, goes
+into the summary's `ADVISOR` field, and a fix it drives goes back through
+the gates.
 
 Print summary:
 ```
@@ -218,6 +221,7 @@ FEATURE  : <name>
 FILE(S)  : <created/modified files>
 TEST(S)  : <added tests>
 VERIFIED : <what was checked>
+ADVISOR  : <one-line answer | skipped (gates clean on first pass) | not called (absent | error)>
 ```
 
 ## STEP 6 — DOC SYNC (automatic)

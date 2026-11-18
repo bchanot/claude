@@ -94,7 +94,7 @@ point. Run it ONLY when the settled fix touches control flow or behaviour — an
 off-by-one, a wrong operator/variable, a behaviour-changing config value, or a
 missing import that alters execution. In doubt → it is probably a `/bugfix`.
 
-`mcp__model-router__route(phase="reflect")` first (route: own level before the challenge; send it with the challenger dispatch).
+`mcp__model-router__route(phase="reflect")` first (route: own level before the challenge; send it with the first tool call of lib/challenge-plan.md, the advisor call when one is due).
 For a logic fix: persist the STEP 1 located fix (root cause + the exact edit) to
 `.claude/tasks/plans/<date>-<slug>-<HHMM>.md`, then run
 `$HOME/.claude/lib/challenge-plan.md` with `PLAN` = that file, `KIND` =
@@ -102,8 +102,8 @@ For a logic fix: persist the STEP 1 located fix (root cause + the exact edit) to
 contract's acceptance criteria. Three blind challengers attack the fix; the main
 loop RE-THINKS any aspect a BLOCKER lands (a named change to the fix, or
 `[deferred]`) and re-challenges once if it materially changed. Print a
-CHALLENGE SUMMARY (BLOCKERs addressed / deferred / lenses returned). A BLOCKER
-that shows the fix is wrong or incomplete means this was never
+CHALLENGE SUMMARY (BLOCKERs addressed / deferred / lenses returned / advisor).
+A BLOCKER that shows the fix is wrong or incomplete means this was never
 a hotfix — escalate to `/bugfix` (its STEP 3b runs the same phase under the full
 verify+secure loop).
 

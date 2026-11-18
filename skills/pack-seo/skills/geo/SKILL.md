@@ -86,7 +86,7 @@ your bundle."
 ```
 
 ## STEP 1b — CHALLENGE THE FIX BUNDLE (advisory, before apply)
-`mcp__model-router__route(phase="reflect")` first (route: own level before the challenge; send it with the challenger dispatch).
+`mcp__model-router__route(phase="reflect")` first (route: own level before the challenge; send it with the first tool call of lib/challenge-plan.md, the advisor call when one is due).
 The analyzer returned a `## FIX BUNDLE` — worth attacking before any edit lands.
 **Skip if intervention mode = conservative** (nothing is applied). Else persist the
 bundle verbatim to `.claude/tasks/plans/<date>-<slug>-<HHMM>.md`, then run
@@ -138,6 +138,7 @@ CHALLENGE SUMMARY (STEP 1b — 3 lenses):
   BLOCKERs addressed : <n> — <finding → the named bundle change that closes it>
   Deferred (human-ack): <list | none>
   Lenses returned    : correctness / robustness / simplicity (NAME any that failed to return)
+  Advisor            : <the bundle change it drove | called, no change | not called (absent | error | already called this run)>
 Approve all / select (ids) / skip all?
 ```
 

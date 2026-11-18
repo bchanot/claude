@@ -170,7 +170,7 @@ Then show the user the same compact table inline.
 
 ### 3b-bis. CHALLENGE THE PROPOSALS (before the gate)
 
-`mcp__model-router__route(phase="plan")` first (route: own level before the challenge; send it with the challenger dispatch).
+`mcp__model-router__route(phase="plan")` first (route: own level before the challenge; send it with the first tool call of lib/challenge-plan.md, the advisor call when one is due).
 This axis' findings + proposed fixes are a proposal set worth attacking before
 the human gate. Persist THIS axis' finding list (not the whole append-only
 report) to `.claude/tasks/plans/<date>-<axis>-<HHMM>.md`, then run
@@ -192,6 +192,7 @@ CHALLENGE SUMMARY (3b-bis — 3 lenses):
   BLOCKERs addressed : <n> — <finding → the named finding-set change that closes it>
   Deferred (human-ack): <list | none>
   Lenses returned    : correctness / robustness / simplicity (NAME any that failed to return)
+  Advisor            : <the finding-set change it drove | called, no change | not called (absent | error | already called this run)>
 ```
 
 - "Fix what you find" said **in the invocation** does NOT skip this gate:

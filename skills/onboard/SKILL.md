@@ -917,7 +917,7 @@ Vérifier que les 4 fichiers `.claude/audits/ONBOARD_REPORT.md`, `.claude/audits
 ---
 
 ## STEP 7b — CHALLENGE THE PROPOSALS (before the human gate)
-`mcp__model-router__route(phase="plan")` first (route: own level before the challenge; send it with the challenger dispatch).
+`mcp__model-router__route(phase="plan")` first (route: own level before the challenge; send it with the first tool call of lib/challenge-plan.md, the advisor call when one is due).
 The 4 audit files are on disk; `AUDIT_PROPOSALS.md` is the artifact worth
 attacking before the human spends a gate on it. Run
 `$HOME/.claude/lib/challenge-plan.md` with `PLAN` =
@@ -961,6 +961,7 @@ CHALLENGE SUMMARY (STEP 7b — 3 lenses):
   BLOCKERs addressed : <n> — <finding → the named proposals change that closes it>
   Deferred (human-ack): <list | none>
   Lenses returned    : correctness / robustness / simplicity (NAME any that failed to return)
+  Advisor            : <the proposals change it drove | called, no change | not called (absent | error | already called this run)>
 
 Prochaine étape : générer .claude/tasks/TODO.md depuis .claude/audits/AUDIT_PROPOSALS.md approuvé.
 

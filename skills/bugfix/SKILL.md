@@ -127,7 +127,7 @@ RISK: <low/medium — what could go wrong>
   fast-path is not exempt: a 1-line fix with a visible choice still asks.
 
 ## STEP 3b — CHALLENGE THE FIX PLAN (before the contract)
-`mcp__model-router__route(phase="reflect")` first (route: own level before the challenge; send it with the challenger dispatch).
+`mcp__model-router__route(phase="reflect")` first (route: own level before the challenge; send it with the first tool call of lib/challenge-plan.md, the advisor call when one is due).
 Unless the fix is the trivial 1-2 line case STEP 3 already fast-paths, the
 DIAGNOSIS + FIX PLAN is a reflection worth attacking before it hardens into a
 contract. Persist it to `.claude/tasks/plans/<date>-<slug>-<HHMM>.md`, then run
@@ -137,8 +137,8 @@ dispositions. Three blind challengers attack it (correctness = is the root cause
 right; robustness = blast radius / regressions; simplicity = is the fix minimal);
 RE-THINK every aspect a BLOCKER lands, re-challenge once if the plan materially
 changed. STEP 3.5 writes the contract from the REVISED plan. Print a CHALLENGE SUMMARY
-(BLOCKERs addressed / deferred / lenses returned), folding any deferred BLOCKER into
-the STEP 3 approval gate.
+(BLOCKERs addressed / deferred / lenses returned / advisor), folding any
+deferred BLOCKER into the STEP 3 approval gate.
 
 ## STEP 3.5 — CONTRACT
 
@@ -233,9 +233,12 @@ Parse the `BUGFIX-EXEC REPORT`:
    two sentences of body).
    `mcp__model-router__route(phase="reflect")` first (route: end-of-run review).
    Before the summary, the main loop prints the run's diff stat, then makes its
-   end-of-run advisor call (`lib/effort-shift.md` § Advisor); its answer
-   goes into the summary as an `Advisor:` line, and a fix it drives goes
-   back through the gates.
+   end-of-run advisor call (`lib/effort-shift.md` § Advisor), skipped when
+   GATE 0 said MET, the verifier CONFORME and security PASS (not DEGRADED),
+   each on its first attempt; any other verdict, a retry, a loop iteration or
+   a verdict no longer in view runs the call. The answer, or the skip, goes
+   into the summary's `ADVISOR` field, and a fix it drives goes back through
+   the gates.
 4. Print summary:
    ```
    BUGFIX COMPLETE
@@ -244,6 +247,7 @@ Parse the `BUGFIX-EXEC REPORT`:
    FILE(S)    : <changed files>
    TEST(S)    : <added/updated tests, or "none — verified manually">
    REGRESSION : <checked areas>
+   ADVISOR    : <one-line answer | skipped (gates clean on first pass) | not called (absent | error)>
    ```
 
 ## STEP 7 — DOC SYNC (automatic)
