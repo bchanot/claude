@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Apply run B3 blocks to a repo root.
 
-Usage: apply.py <plan.md> <repo root> <skills|lib|all>
+Usage: apply.py <plan.md> <repo root> <skills|lib|all|review1>
 Blocks are read from the plan (### Block <name> + fenced body). Every anchor
 must occur exactly once in its file; any miss aborts before writing anything.
 """
@@ -118,11 +118,23 @@ def lib_edits(b):
     ]
 
 
+def review1_edits(b):
+    """STEP 6 review fix, applied on top of 55edd0a."""
+    old, new = b["end-tail-old"], b["end-tail-new"]
+    return [
+        ("skills/feat/SKILL.md", old, new),
+        ("skills/bugfix/SKILL.md", indent(old, 3), indent(new, 3)),
+        ("CHANGELOG.md", "except that feat and bugfix skip it when",
+         inline(b["cl-skips"])),
+    ]
+
+
 def all_edits(b):
     return skills_edits(b) + lib_edits(b)
 
 
-GROUPS = {"skills": skills_edits, "lib": lib_edits, "all": all_edits}
+GROUPS = {"skills": skills_edits, "lib": lib_edits, "all": all_edits,
+          "review1": review1_edits}
 
 
 def main():

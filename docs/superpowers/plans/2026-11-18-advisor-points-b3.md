@@ -221,3 +221,46 @@ Expected: six lines `all suites green`.
 cd /home/bchanot/Documents/claude && git add skills/feat/SKILL.md skills/bugfix/SKILL.md skills/hotfix/SKILL.md skills/ship-feature/SKILL.md skills/init-project/SKILL.md skills/audit-delta/SKILL.md skills/code-clean/SKILL.md skills/onboard/SKILL.md skills/harden/SKILL.md skills/pack-seo/skills/seo/SKILL.md skills/pack-seo/skills/geo/SKILL.md skills/pack-web-validate/skills/web-validate/SKILL.md lib/effort-shift.md CHANGELOG.md && git commit -m "docs(doctrine): challenge route rides the first challenge call; summary Advisor row; feat/bugfix skip the end call on clean gates" && git status --short
 ```
 Expected: no modified tracked file left.
+
+---
+
+## Review fix (STEP 6 opus review, applied on top of 55edd0a)
+
+Important 1: the security auditor prints `SECURITY — VERDICT: PASS` on a DEGRADED scan (DEGRADED shows on its `TOOL:` line only), while lib/verify-secure-loop.md teaches reading DEGRADED off the VERDICT line, so "(not DEGRADED)" can be checked against the wrong line. Minor 1: the "skip settles the global trigger" clause lives only in the lib, which feat and bugfix do not load. Minor 3: the CHANGELOG reads as if feat and bugfix were the only skip. The root fix of Important 1 (verify-secure-loop.md and the auditor protocol) is out of scope: BUGS-FOUND.
+
+| # | File(s) | Anchor (exact, once) | Action |
+|---|---------|----------------------|--------|
+| R1 | skills/feat/SKILL.md | Block end-tail-old | replace with Block end-tail-new |
+| R2 | skills/bugfix/SKILL.md | Block end-tail-old, 3-space indent | replace with Block end-tail-new, 3-space indent |
+| R3 | CHANGELOG.md | `except that feat and bugfix skip it when` | replace with Block cl-skips |
+
+Group `review1` = R1-R3 (3 edits). Criteria 6 and 7 keep their needles whole (the new text sits after "runs the call." and before "`ADVISOR` field, and a fix it drives goes back through the gates.").
+
+### Block end-tail-old
+```
+a verdict no longer in view runs the call. The answer, or the skip, goes
+into the summary's `ADVISOR` field, and a fix it drives goes back through
+the gates.
+```
+
+### Block end-tail-new
+```
+a verdict no longer in view runs the call. DEGRADED shows on the
+auditor's `TOOL:` line, beside a PASS. A skip also settles the global
+"long task before calling it done" trigger. The answer, or the skip,
+goes into the summary's `ADVISOR` field, and a fix it drives goes back
+through the gates.
+```
+
+### Block cl-skips
+```
+except that audit-delta and tour skip it when the run applied no fix and feat and bugfix skip it when
+```
+
+### Task R: apply the review fix, one commit
+
+Stop rule as Task 1 (restore `skills/feat/SKILL.md skills/bugfix/SKILL.md CHANGELOG.md` first on any red step).
+
+- [ ] **Step 1:** `cd /home/bchanot/Documents/claude && python3 docs/superpowers/plans/2026-11-18-advisor-points-b3/apply.py docs/superpowers/plans/2026-11-18-advisor-points-b3.md . review1` → `applied 3 edits (review1)`.
+- [ ] **Step 2:** run the CHECK of contract criteria 6 and 7 → FEAT-BUGFIX-SKIP, CHANGELOG-OK; then `for s in loops-light doctrine-citers; do make test suite=lib/tests/$s.test.sh 2>&1 | tail -1; done` → two lines `all suites green`.
+- [ ] **Step 3:** `git add skills/feat/SKILL.md skills/bugfix/SKILL.md CHANGELOG.md && git commit -m "docs(doctrine): feat/bugfix skip names where DEGRADED shows and the global trigger; changelog names both skips"`
