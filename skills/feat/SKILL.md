@@ -210,9 +210,11 @@ Before the summary, the main loop prints the run's diff stat, then makes its
 end-of-run advisor call (`lib/effort-shift.md` § Advisor), skipped when
 GATE 0 said MET, the verifier CONFORME and security PASS (not DEGRADED),
 each on its first attempt; any other verdict, a retry, a loop iteration or
-a verdict no longer in view runs the call. The answer, or the skip, goes
-into the summary's `ADVISOR` field, and a fix it drives goes back through
-the gates.
+a verdict no longer in view runs the call. DEGRADED shows on the
+auditor's `TOOL:` line, beside a PASS. A skip also settles the global
+"long task before calling it done" trigger. The answer, or the skip,
+goes into the summary's `ADVISOR` field, and a fix it drives goes back
+through the gates.
 
 Print summary:
 ```
