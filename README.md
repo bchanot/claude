@@ -79,7 +79,11 @@ plan challengers see it (`lib/challenge-plan.md`, once per skill run; the
 CHALLENGE SUMMARY's `Advisor:` row records what it changed), once per
 verify-secure run at the first gate loop to fail twice (the advice stays in
 the main loop, never in an executor brief; a cap or escalation STOP carries
-it), before proposing a merge or calling a long task done, and before
+it), before proposing a merge or calling a long task done (two skips:
+`/feat` and `/bugfix` when GATE 0 said MET, the verifier CONFORME and
+security PASS, not DEGRADED, each on its first attempt, their summary's
+`ADVISOR` field then reading `skipped (gates clean on first pass)`;
+`/audit-delta` and `/tour` when the run applied no fix), and before
 recommending a change to the doctrine, the architecture or a public interface.
 plan-challenger, verifier, security-auditor and `analyzer` may call it once
 when dispatched as a sub-agent, before their verdict or report: advice can
