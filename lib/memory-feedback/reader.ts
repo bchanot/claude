@@ -16,6 +16,7 @@ import {
   tagOf, writeSafe, writeState, type Draft, type Item, type Row,
   type State,
 } from './labels.ts'
+import { advisorSection } from './advisor.ts'
 import { PROMPT_GATE_N } from './thresholds.ts'
 import {
   clockStart, gateVerdict, metricsOf, renderFeedback, type Metrics,
@@ -301,7 +302,8 @@ function commit(
   assertFresh(items, labelsOf(p))
   const { fresh, m, v } = projected(items, drafts, p, now)
   const next = nextState(readState(stateOf(p)), m, v, now)
-  const feedback = renderFeedback(m, v, now)
+  const feedback = renderFeedback(m, v, now) + '\n' +
+    advisorSection(p.projects, readState(stateOf(p)).lastRun, now)
   if (fresh.length > 0) appendRows(labelsOf(p), fresh)
   writeState(stateOf(p), next.state)
   writeSafe(path.join(p.out, 'FEEDBACK.md'), feedback)
