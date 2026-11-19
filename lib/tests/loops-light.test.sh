@@ -19,6 +19,8 @@ ASK="$REPO/skills/a11y/SKILL.md"
 HSKL="$REPO/skills/hotfix/SKILL.md"
 AUD="$REPO/agents/security-auditor.md"
 EFF="$REPO/lib/effort-shift.md"
+SFK="$REPO/skills/ship-feature/SKILL.md"
+ISK="$REPO/skills/init-project/SKILL.md"
 PASS=0; FAIL=0
 
 tf() { # tf <label> <file> <fixed-string>
@@ -127,6 +129,15 @@ for f in "$INC" "$AUD" "$HSKL"; do
   tf "$n structural (below)"  "$f" "structural failure (below)"
   tn "$n DEGRADED no verdict" "$f" "\`DEGRADED\`"
   tn "$n DEGRADED no branch"  "$f" "DEGRADED (semgrep absent) →"
+done
+
+echo "── end-of-run merge reuse at the site (TODO:14, LRN-297) ──"
+tf "effort-shift merge reuse"  "$EFF" "reuses the last run's answer, or its skip, and names any code commit"
+for f in "$ASK" "$GSK" "$SFK" "$ISK"; do
+  n=$(basename "$(dirname "$f")")
+  tf "$n merge reuses answer"  "$f" "the gates. A later merge proposal reuses this"
+  tf "$n names later commits"  "$f" "names any code commit made after it"
+  tf "$n doc/memory excepted"  "$f" "commits excepted)."
 done
 
 echo ""
