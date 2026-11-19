@@ -190,12 +190,15 @@ test('12: shape drift is counted and replaces the plain zero', () => {
   expect(s).not.toContain('No advisor call')
 })
 
-test('13: the retention note appears past 7 days only', () => {
+test('13: the retention note appears past 7 calendar days only', () => {
   const t: Tally = { uses: [], unparsed: 0, files: 1 }
   expect(renderAdvisor(t, TO - 10 * DAY, TO)).toContain(
     'Transcripts kept 7 d: calls before 2026-01-04 may be missing.')
   expect(renderAdvisor(t, TO - 3 * DAY, TO)).not.toContain('Transcripts kept')
   expect(renderAdvisor(t, 0, TO)).not.toContain('Transcripts kept')
+  const to = TO + 17 * 3600000 // a weekly run lands mid-day, not at 00:00
+  expect(renderAdvisor(t, to - 7 * DAY - 5 * 3600000, to))
+    .not.toContain('Transcripts kept')
 })
 
 test('14: an unreadable sub-directory is skipped, the rest counts', () => {

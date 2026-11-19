@@ -188,9 +188,10 @@ function bodyOf(t: Tally, from: number): string {
 /** The `## Advisor usage` markdown section, ending with a newline. */
 export function renderAdvisor(t: Tally, from: number, to: number): string {
   const blocks = [heading(from, to)]
-  if (from > 0 && to - from > RETENTION_DAYS * DAY_MS) {
+  const cut = day(to - RETENTION_DAYS * DAY_MS)
+  if (from > 0 && cut > day(from)) {
     blocks.push(`Transcripts kept ${RETENTION_DAYS} d: calls before ` +
-      `${day(to - RETENTION_DAYS * DAY_MS)} may be missing.`)
+      `${cut} may be missing.`)
   }
   blocks.push(bodyOf(t, from))
   return blocks.join('\n\n') + '\n'

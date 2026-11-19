@@ -8,8 +8,8 @@ description: Run only when the user asks for it ("memory feedback", "label recal
 
 Phase 4d (BDR-125). The memory mod logs every recall ask; transcripts live
 7 days, so this runs weekly. Claude labels, the user spot-checks. Redacted
-text stays in the scratchpad; `~/.claude/memory-feedback/` keeps IDs, enums
-and repo tags only, never in git.
+text stays in the scratchpad; `~/.claude/memory-feedback/` keeps IDs, enums,
+repo tags and advisor call counts only, never in git.
 
 ## STEP 1 — WORKSHEET
 
