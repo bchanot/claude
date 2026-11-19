@@ -2162,3 +2162,15 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 **Context**: advisor run B3 (2b7aeb8, 51f343f). feat/bugfix skip end-of-run advisor call when security PASS "(not DEGRADED)". security-auditor prints `SECURITY — VERDICT: PASS` on DEGRADED scan; DEGRADED only on `TOOL:` line (agents/security-auditor.md OUTPUT), while lib/verify-secure-loop.md teaches reading DEGRADED off VERDICT line → reader checks wrong line, wrong skip. 3 lenses + re-challenge missed it; opus STEP 6 caught it.
 **Pattern**: rule keyed on gate verdict must name the line its qualifier prints on. Agent OUTPUT format = source of truth, not the doctrine paraphrasing it.
 **Apply**: before writing a condition on an agent's verdict, grep that agent's OUTPUT block for where each qualifier prints; state the line at the site.
+
+## LRN-301 — Advisor call = served advisor_message iteration, not request block; reconcile usage table vs independent probe (2026-11-19)
+- **Pattern**: advisor call = served `advisor_message` iteration in `message.usage.iterations[]`, not `server_tool_use` block named `advisor`. Block without iteration = request never run (sent beside client tool_use, re-issued next message) or `advisor_tool_result_error`. Count iterations, dedupe by `message.id`. Usage table built from transcripts: reconcile row by row against independent probe (other language, same window, same instant) before calling it right; gates re-running same code prove nothing about real numbers.
+- **Context**: 2026-11-19 Run C (/memory-feedback advisor usage, c6f2dad). Real transcripts: 147 blocks vs 141 iterations (5 unrun, 1 error). Python probe vs bun table: 8 rows identical, 156 calls 21.7M input tok. First table exposed leak: general-purpose sub-agents 30 calls / 7.1M (16 after 6ef3069 rule), doc-syncer 4.
+- **Apply**: any advisor cost/usage count: iterations not blocks; corrects LRN-295 call definition. Report generator on real data: independent probe + timing before FEAT COMPLETE.
+- **Reference**: lib/memory-feedback/advisor.ts, LRN-295, BDR-150, TODO advisor doctrine leak
+
+## LRN-302 — Scratch clone -b lacks local develop: create ref before simulating develop-based oracles (2026-11-19)
+- **Pattern**: `git clone -q -b <branch> . <scratch>` scratch copy has no local `develop` (only `origin/develop`): oracles naming `develop` (`git diff --quiet develop -- …`, floor-guard) fail `fatal: bad revision 'develop'` on scratch, pass in real repo. Before simulating contract CHECKs on clone: `git -C <scratch> branch develop origin/develop`.
+- **Context**: 2026-11-19 merge-reuse run 2 simulation (LRN-296 method): criterion 3 SKIP-INTACT failed only on scratch clone; fixed by creating ref.
+- **Apply**: every LRN-296 scratch simulation from a non-develop branch: create local develop ref first, else false red.
+- **Reference**: LRN-296, .claude/tasks/contracts/2026-11-19-merge-reuse-feat-bugfix-1450.md
