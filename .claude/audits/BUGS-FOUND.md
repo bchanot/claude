@@ -141,3 +141,6 @@
 
 <!-- /feat merge-reuse-clause 2026-11-19 (af846d6): executor report -->
 - Run 1 feater: first full `make test` exited `make: *** [Makefile:36: test] Error 1`, suite unknown (only the tail captured); rerun green, GATE 0 + verifier make test green, no stray process after. Possibly a flaky suite or overlap with the scratch-clone `make test` running at the same time (the scratch run's only red was run-reconcile T6c = darwin-skill path absent in a fresh clone, environment). Next red: keep the full log, name the suite. Severity: low. Discovered while: /feat merge-reuse-clause STEP 3.
+
+<!-- /feat advisor-usage 2026-11-19 (c6f2dad): GATE 0 first run -->
+- lib/tests/mods.test.sh: `FAIL model-router: plugin test timed out after 120s` in a full make test at load avg ~30; the suite alone took 121 s (CLI_TIMEOUT=120 at :12) and passed. Probable cause of the run 1 feater's unexplained red (entry above). Fix direction: raise CLI_TIMEOUT for the plugin test or cut its runtime. Severity: low. Discovered while: /feat advisor-usage GATE 0.
