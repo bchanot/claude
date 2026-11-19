@@ -256,7 +256,7 @@ grep -c '^### \[Critique\]' .claude/audits/VALIDATE.md
 ---
 
 ## STEP 2b — CHALLENGE THE FIX BUNDLE (MODE=fix only, advisory)
-`mcp__model-router__route(phase="reflect")` first (route: own level before the challenge; send it with the challenger dispatch).
+`mcp__model-router__route(phase="reflect")` first (route: own level before the challenge; send it with the first tool call of lib/challenge-plan.md, the advisor call when one is due).
 Skip if MODE=audit (no bundle exists). Else, before the STEP 3 gate, harden the bundle:
 extract the `## 5. Fix bundle` section from VALIDATE.md to
 `.claude/tasks/plans/<date>-<slug>-<HHMM>.md` (a clean, blind-judgeable artifact), then run
@@ -296,6 +296,7 @@ CHALLENGE SUMMARY (STEP 2b — 3 lenses) :
   BLOCKERs addressed : <n> — <finding → the named bundle change that closes it>
   Deferred (human-ack): <list | none>
   Lenses returned    : correctness / robustness / simplicity (NAME any that failed to return)
+  Advisor            : <the bundle change it drove | called, no change | not called (absent | error | already called this run)>
 
 Options :
   A) Apply all

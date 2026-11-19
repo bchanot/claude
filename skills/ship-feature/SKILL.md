@@ -133,7 +133,7 @@ request nor the STEP 1 brainstorm settled (check the contract's CLARIFICATIONS
 first) → one batch before STEP 2b; answers append to the contract `[gated]`.
 
 ## STEP 2b — CHALLENGE THE PLAN (adversarial, before the gate)
-`mcp__model-router__route(phase="plan")` first (route: own level before the challenge; send it with the challenger dispatch).
+`mcp__model-router__route(phase="plan")` first (route: own level before the challenge; send it with the first tool call of lib/challenge-plan.md, the advisor call when one is due).
 Before the human sees the plan, harden it. Run `$HOME/.claude/lib/challenge-plan.md`:
 - `PLAN` = the plan STEP 2 wrote under `docs/superpowers/plans/`
 - `KIND` = `build-plan`
@@ -163,6 +163,7 @@ CHALLENGE SUMMARY (STEP 2b — 3 lenses):
   BLOCKERs addressed : <n> — <finding → the named plan change that closes it>
   Deferred (human-ack): <list | none>
   Lenses returned    : correctness / robustness / simplicity (NAME any that failed to return)
+  Advisor            : <the plan change it drove | called, no change | not called (absent | error | already called this run)>
 Approve and execute? (yes / request changes)
 ```
 This block EXPOSES each in-force item with the plan's CLAIMED disposition, for human

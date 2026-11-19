@@ -122,7 +122,7 @@ TOTALS: <N blocking, N warn, N info>
 If no issues found: report clean state and stop.
 
 ## STEP 3b — CHALLENGE THE SCOPE (before approval)
-`mcp__model-router__route(phase="plan")` first (route: own level before the challenge; send it with the challenger dispatch).
+`mcp__model-router__route(phase="plan")` first (route: own level before the challenge; send it with the first tool call of lib/challenge-plan.md, the advisor call when one is due).
 The STEP 3 report is the proposed cleanup scope — worth attacking before the
 human approves it. It is still inline, so FIRST persist it to
 `.claude/tasks/plans/<date>-<slug>-<HHMM>.md` (STEP 3 report format, one item
@@ -144,6 +144,7 @@ CHALLENGE SUMMARY (STEP 3b — 3 lenses):
   BLOCKERs addressed : <n> — <finding → the named scope change that closes it>
   Deferred (human-ack): <list | none>
   Lenses returned    : correctness / robustness / simplicity (NAME any that failed to return)
+  Advisor            : <the scope change it drove | called, no change | not called (absent | error | already called this run)>
 
 AskUserQuestion:
   Approve which items for execution? (all / <item numbers> / clarify <item>)
