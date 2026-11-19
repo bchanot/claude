@@ -73,7 +73,9 @@ MFD="$(cd -P "$HOME/.claude/lib" && pwd)/memory-feedback"
 
 rc 1 `draft refused: <reason>` → fix the draft, rerun. It prints
 FEEDBACK.md: show the gate lines (`Post-fix prompt asks: k/20` included:
-actions wait for 20 post-fix asks) and the Actions list to the user.
+actions wait for 20 post-fix asks), the Actions list and the
+`## Advisor usage` table (advisor calls since the last run per caller and
+served model) to the user.
 
 ## STEP 6 — A GATE REACHED FOR THE FIRST TIME
 
