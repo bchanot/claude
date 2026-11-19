@@ -136,7 +136,13 @@ tf "effort-shift merge reuse"  "$EFF" "reuses the last run's answer, or its skip
 for f in "$ASK" "$GSK" "$SFK" "$ISK"; do
   n=$(basename "$(dirname "$f")")
   tf "$n merge reuses answer"  "$f" "the gates. A later merge proposal reuses this"
-  tf "$n names later commits"  "$f" "names any code commit made after it"
+  tf "$n names later commits"  "$f" "names any code commit made after it (doc and memory"
+  tf "$n doc/memory excepted"  "$f" "commits excepted)."
+done
+for f in "$FSK" "$BSK"; do
+  n=$(basename "$(dirname "$f")")
+  tf "$n merge reuses answer"  "$f" "the gates. A later merge proposal reuses the last run's answer,"
+  tf "$n reuse covers skip"    "$f" "or its skip, and names any code commit made after it (doc and memory"
   tf "$n doc/memory excepted"  "$f" "commits excepted)."
 done
 
