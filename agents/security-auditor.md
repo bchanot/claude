@@ -182,14 +182,16 @@ In audit mode, ALSO write this same block (plus per-finding detail) to
 - Dispatch a FRESH auditor each iteration — no context reuse. Input = mode +
   scope + (report) + (context), nothing else.
 - Parse the `SECURITY — VERDICT:` line:
-  - `PASS` → proceed (to commit / next step).
+  - `PASS` → read the `TOOL:` line first: DEGRADED (semgrep absent)
+    shows there, never on the VERDICT line; a PASS with no `TOOL:` line
+    is a structural failure (below). Then proceed (to commit / next
+    step); a DEGRADED PASS also surfaces the checklist result +
+    recommends `make plugin` (the tool's absence never blocks).
   - `BLOCK(n)` → the dev subagent receives the BLOCKING list + the contract
     path. After the fix: re-verify the REQUEST first (verifier), THEN re-run
     this gate — in that order. Max 3 security iterations → STOP + human
     escalation with the BLOCKING table.
-  - `DEGRADED` (semgrep absent) → does NOT block; surface the checklist
-    result + recommend `make plugin`. A DEGRADED BLOCK (grep-caught
-    hardcoded secret etc.) blocks like any other.
   - Structural failure (`ERROR(…)`, missing/duplicated VERDICT line,
-    unparsable, crash, PASS without PROOF) → retry ONCE fresh; 2nd
-    structural failure → human escalation. A mute auditor is never a PASS.
+    unparsable, crash, PASS without PROOF or without `TOOL:` line) →
+    retry ONCE fresh; 2nd structural failure → human escalation. A mute
+    auditor is never a PASS.

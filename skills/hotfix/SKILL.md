@@ -180,16 +180,20 @@ Parse the `HOTFIX-EXEC REPORT`:
    fresh dispatch, never inline-load: the repo convention and the FRESH
    requirement both forbid it) with `MODE: gate`, `SCOPE:` the working-tree
    diff vs `$PRE`. Parse its `SECURITY — VERDICT:` line:
-   - `PASS` (or `DEGRADED` with no BLOCK) → proceed to commit.
+   - `PASS` → read the `TOOL:` line first: DEGRADED (semgrep absent)
+     shows there, never on the VERDICT line; a PASS with no `TOOL:` line
+     is a structural failure (below). Then proceed to commit; a DEGRADED
+     PASS sets the summary's SECURITY field to `DEGRADED (checklist only)`.
    - `BLOCK(n)` → this is hotfix: do NOT loop. Revert ONLY the executor's
      files (`git restore --source=$PRE -- <FILE(S)>` + delete report-listed
      NEW files), print the `BLOCKING` list, and STOP:
      `"Hotfix introduced a security finding. Reverted. Escalate to /bugfix
      for a fix under the full verify+security loop."` The hotfix model is
      one attempt; any gate failure (smoke OR security) reverts and escalates.
-   - Structural failure (mute / unparsable / no VERDICT line) → treat as a
-     failed gate: retry ONCE fresh; a 2nd structural failure → revert +
-     escalate. A mute auditor is never a PASS.
+   - Structural failure (mute / unparsable / no VERDICT line / PASS with
+     no `TOOL:` line) → treat as a failed gate: retry ONCE fresh; a 2nd
+     structural failure → revert + escalate. A mute auditor is never a
+     PASS.
 3. Commit only after smoke AND security pass, message per
    `$HOME/.claude/lib/commit-message.md` (no convention: one subject line,
    `fix(<scope>): <what was wrong>`).

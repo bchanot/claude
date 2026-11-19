@@ -124,7 +124,8 @@ triggers in CLAUDE.global.md § Workflow):
    security PASS (not DEGRADED), each on its first attempt (any other
    verdict, a retry, a loop iteration or a verdict no longer in view
    runs the call), their summary then reading
-   `skipped (gates clean on first pass)`. A skipped call discharges
+   `skipped (gates clean on first pass)`; DEGRADED shows on the
+   auditor's `TOOL:` line. A skipped call discharges
    its point and the trigger it covers. In the six flows that run the
    gates (feat, bugfix, ship-feature, init-project, a11y, guardrails),
    the main loop first prints the run's diff stat, a fix the answer

@@ -110,7 +110,11 @@ stdout-only, no Write).
 
 Parse its single `SECURITY — VERDICT:` line:
 
-- `PASS` → done, proceed to commit.
+- `PASS` → read the `TOOL:` line first: DEGRADED (semgrep absent) shows
+  there, never on the VERDICT line; a PASS with no `TOOL:` line is a
+  structural failure (below). Then done, proceed to commit; a DEGRADED
+  PASS also surfaces the checklist result + recommends `make plugin`
+  (the tool's absence never blocks).
 - `BLOCK(n)` → hand the dev the `BLOCKING` list + the CONTRACT path
   (re-dispatch a FRESH executor, never fix by hand). Then re-run GATE 0, then
   **re-verify the REQUEST first** (GATE 1, fresh verifier) — a security fix
@@ -123,9 +127,6 @@ Parse its single `SECURITY — VERDICT:` line:
   the main loop calls it before the re-dispatch
   (`lib/effort-shift.md` § Advisor); the answer stays here, never
   in the dev brief.
-- `DEGRADED` (semgrep absent) → does NOT block on the tool's absence; surface
-  the checklist result + recommend `make plugin`. A DEGRADED run that still
-  BLOCKs (grep-caught secret/injection) blocks like any other.
 - Structural failure → retry ONCE fresh; 2nd → human escalation. A mute
   auditor is NEVER a PASS.
   A 2nd structural failure with no main-loop advisor call since GATE 0

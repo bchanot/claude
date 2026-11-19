@@ -781,3 +781,6 @@ rules:
 ## 2026-11-18
 - gates.sh hotfix c25a7ea (bugfix/gates-label-timeout): digit label not `N. text` = parse error; 2nd CHECK/EXPECT/EVIDENCE on one criterion = error (indented/bullet/bold labels gave same false MET, advisor caught it); no-criteria die names first parse error; default timeout 120 -> 600. GATE 0 MET 5/5 incl full make test at default, security PASS, 3 challengers SOLID. ABANDON-id aliasing + verify-secure-loop cause list -> TODO.
 - Advisor run B3 (/ship-feature, 2b7aeb8 51f343f): 12 callers route rides first challenge-plan call + summary Advisor row; feat/bugfix skip end call on strict clean gates (MET, CONFORME, PASS not DEGRADED, first attempt), ADVISOR field; item 3 commit step + reuse names later code commits. 3 lenses + re-challenge (3 MAJOR fixed), opus STEP 6 caught DEGRADED on TOOL line (LRN-300). Gates clean x2.
+
+## 2026-11-19
+- /bugfix degraded-tool-line 9814720: 3 security readers read DEGRADED off TOOL line (BLK-051), BUGS-FOUND:134 FIXED, TODO:13 done, 2 pre-existing minors logged; CHANGELOG Fixed entry.
