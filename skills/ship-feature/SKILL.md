@@ -324,7 +324,9 @@ on the branch FINISH integrates.
 Before proposing the finish, the main loop prints the run's diff stat,
 then makes its end-of-run advisor call (`lib/effort-shift.md` § Advisor);
 its answer goes with the proposal as an `Advisor:` line, and a fix it
-drives goes back through the gates.
+drives goes back through the gates. A later merge proposal reuses this
+answer and names any code commit made after it (doc and memory
+commits excepted).
 
 Tests pass, build clean. Integrate the feature into develop — **only on the
 user's explicit go** (the `gitflow` finish gate):

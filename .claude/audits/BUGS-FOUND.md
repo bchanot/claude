@@ -138,3 +138,6 @@
 <!-- /bugfix degraded-tool-line 2026-11-19 (9814720): confirmation-pass minors, pre-existing, not fixed -->
 - A DEGRADED scan that BLOCKs and hits the cap: the STOP/escalation text (lib/verify-secure-loop.md, agents/security-auditor.md) does not name the missing semgrep or `make plugin`, so the human sees a checklist-only BLOCK without the remedy. Severity: low. Discovered while: /bugfix degraded-tool-line STEP 3b.
 - DEGRADED is read by word presence on the `TOOL:` line: a garbled `TOOL:` line (no `semgrep <ver>`, no DEGRADED) reads as a full scan. Fix direction: allowlist `TOOL: semgrep <ver>` as the only full-scan shape, anything else DEGRADED or structural. Severity: low. Discovered while: same.
+
+<!-- /feat merge-reuse-clause 2026-11-19 (af846d6): executor report -->
+- Run 1 feater: first full `make test` exited `make: *** [Makefile:36: test] Error 1`, suite unknown (only the tail captured); rerun green, GATE 0 + verifier make test green, no stray process after. Possibly a flaky suite or overlap with the scratch-clone `make test` running at the same time (the scratch run's only red was run-reconcile T6c = darwin-skill path absent in a fresh clone, environment). Next red: keep the full log, name the suite. Severity: low. Discovered while: /feat merge-reuse-clause STEP 3.

@@ -784,3 +784,4 @@ rules:
 
 ## 2026-11-19
 - /bugfix degraded-tool-line 9814720: 3 security readers read DEGRADED off TOOL line (BLK-051), BUGS-FOUND:134 FIXED, TODO:13 done, 2 pre-existing minors logged; CHANGELOG Fixed entry.
+- /feat x2 merge-reuse (af846d6, 87566e2, feature/advisor-merge-reuse): 6 gate-flow end lines restate effort-shift item 3 merge-reuse clause, loops-light 97; TODO:14 done, 3 follow-ups logged; run 1 GATE 0 ERROR = contract without EVIDENCE: pending (LRN-173 again).

@@ -200,7 +200,8 @@ open and say so plainly. Never report a fix the re-pass did not prove.
    Before the reply, the main loop prints the run's diff stat, then makes its
    end-of-run advisor call (`lib/effort-shift.md` § Advisor); its answer
    goes into the reply as an `Advisor:` line, and a fix it drives goes
-   back through the gates.
+   back through the gates. A later merge proposal reuses this answer and
+   names any code commit made after it (doc and memory commits excepted).
 2. `mcp__model-router__route(phase="apply")` for the tail. Reply with: fixed
    and proven (proposal, rule, file), still open and why, the walk's result,
    the branch name. Merge waits for the user's explicit signal.
