@@ -17,6 +17,8 @@ HSK="$REPO/skills/hotfix/SKILL.md"
 GSK="$REPO/skills/guardrails/SKILL.md"
 ASK="$REPO/skills/a11y/SKILL.md"
 HSKL="$REPO/skills/hotfix/SKILL.md"
+AUD="$REPO/agents/security-auditor.md"
+EFF="$REPO/lib/effort-shift.md"
 PASS=0; FAIL=0
 
 tf() { # tf <label> <file> <fixed-string>
@@ -107,6 +109,25 @@ tf "hotfix block reverts"       "$HSKL" "failure REVERTS, never loops"
 tf "hotfix no verifier"         "$HSKL" "No verifier is dispatched at hotfix weight"
 tf "hotfix skill has Agent"     "$HSK" "  - Agent"
 tf "hotfix dispatches hotfixer" "$HSKL" 'subagent_type="hotfixer"'
+
+echo "── DEGRADED on the TOOL line, feat/bugfix skip (BUGS-FOUND:134) ──"
+for f in "$FSK" "$BSK"; do
+  n=$(basename "$(dirname "$f")")
+  tf "$n skip not DEGRADED"   "$f" "security PASS (not DEGRADED),"
+  tf "$n skip first attempt"  "$f" "each on its first attempt;"
+  tf "$n skip out of view"    "$f" "a verdict no longer in view runs the call."
+  tf "$n skip names TOOL"     "$f" "auditor's \`TOOL:\` line, beside a PASS."
+done
+tf "effort-shift names TOOL"  "$EFF" "auditor's \`TOOL:\` line. A skipped call"
+for f in "$INC" "$AUD" "$HSKL"; do
+  n=$(basename "$(dirname "$f")")/$(basename "$f")
+  tf "$n PASS reads TOOL"     "$f" "\`PASS\` → read the \`TOOL:\` line first"
+  tf "$n DEGRADED off VERDICT" "$f" "never on the VERDICT line;"
+  tf "$n no TOOL structural"  "$f" "a PASS with no \`TOOL:\` line"
+  tf "$n structural (below)"  "$f" "structural failure (below)"
+  tn "$n DEGRADED no verdict" "$f" "\`DEGRADED\`"
+  tn "$n DEGRADED no branch"  "$f" "DEGRADED (semgrep absent) →"
+done
 
 echo ""
 echo "loops-light structure locks: $PASS pass, $FAIL fail"
