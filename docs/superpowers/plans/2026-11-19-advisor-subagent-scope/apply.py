@@ -90,12 +90,30 @@ def rest():
     create('hooks/subagent-advisor.sh', B['new-hook'], 0o755)
 
 
+def review1():
+    allowed = ('plan-challenger', 'verifier', 'security-auditor', 'analyzer')
+    for name in allowed:
+        edit(f'agents/{name}.md', B['r1-allow-old'].rstrip('\n'),
+             B['r1-allow-new'].rstrip('\n'))
+    edit('CLAUDE.global.md', B['r1-global-old'], B['r1-global-new'])
+    edit('agents/plan-challenger.md', B['r1-pc-old'], B['r1-pc-new'])
+    edit('lib/effort-shift.md', B['r1-effort-old'], B['r1-effort-new'])
+    for name in H1:
+        edit(f'agents/{name}.md', B['r1-agent-old'], B['r1-agent-new'])
+    test = 'lib/tests/subagent-advisor.test.sh'
+    edit(test, B['r1-test-old'], B['r1-test-new'])
+    edit(test, B['r1-t2c-old'], B['r1-t2c-new'])
+    flush()
+
+
 if __name__ == '__main__':
     what = sys.argv[1] if len(sys.argv) > 1 else ''
     if what == 'test':
         create('lib/tests/subagent-advisor.test.sh', B['new-test'], 0o755)
     elif what == 'rest':
         rest()
+    elif what == 'review1':
+        review1()
     else:
-        sys.exit('usage: apply.py test | rest [ROOT]')
+        sys.exit('usage: apply.py test | rest | review1 [ROOT]')
     print('applied', what)

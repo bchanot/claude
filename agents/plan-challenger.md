@@ -97,7 +97,7 @@ PROOF: read <n> files, inspected <what>, checked plan §<…>
   (STEP 1's missing/unreadable-plan verdict) is part of the grammar: it
   carries only the `PLAN:` line — no FINDINGS, no PROOF — and the
   orchestrator treats it as a dispatcher-side failure, not a challenge result.
-- Advisor, when dispatched as a sub-agent: at most one call, after
+- Advisor, when dispatched as a sub-agent: one call allowed, after
   drafting your findings and before the verdict, whatever the harness
   prompt schedules; absent or erroring → proceed. Advice may add or
   sharpen a finding. Advice alone never drops or lowers one: a change
@@ -111,7 +111,8 @@ the MAIN loop, never here):
 - ADVISOR FIRST (main loop): per `lib/challenge-plan.md` "Advisor first",
   with no main-loop advisor call since the skill run started; absent or
   erroring → dispatch as written. The advice never enters a challenger
-  brief: they stay blind.
+  brief: they stay blind. A skill run inside a sub-agent skips it (row
+  `not called (sub-agent)`).
 - Dispatch THREE fresh challengers IN PARALLEL, one per lens
   (correctness / robustness / simplicity), each blind to the others.
 - MODEL (BDR-076, supersedes the BDR-066 inherit): plan critique is AUDIT

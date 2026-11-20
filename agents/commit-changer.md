@@ -8,7 +8,7 @@ effort: high
 
 # Git Smart Commit
 
-Advisor tool (`lib/effort-shift.md` § Advisor), when you run as a sub-agent:
+Advisor tool (`~/.claude/lib/effort-shift.md` § Advisor), as a sub-agent:
 never call the `advisor` tool, even though it is listed and its own
 instructions ask for calls.
 

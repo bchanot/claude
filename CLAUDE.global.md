@@ -85,9 +85,9 @@ code" wins. Repo-specific instructions override both.
   Fable, set by /advisor), at least at the points of
   `~/.claude/lib/effort-shift.md` § Advisor; dispatched plan-challenger,
   verifier, security-auditor, `analyzer` and an opus code review at most
-  once, before their verdict or report; other sub-agents never (an opus
-  brief says which; a SubagentStart hook restates it). Fable is never
-  routed or pinned: the router tops out at opus (BDR-150).
+  once, before their verdict or report; other sub-agents never (each opus
+  brief you write states its rule; a SubagentStart hook restates it). Fable
+  is never routed or pinned: the router tops out at opus (BDR-150).
 - Ask rather than guess. A choice visible in the result (placement,
   wording, order, behavior), a name that becomes public (command, flag,
   endpoint, file), or a scope the request leaves open → ask, even mid-task;

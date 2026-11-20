@@ -23,6 +23,8 @@ for p in '{"agent_type":"general-purpose"}' '' 'not json' \
     "$(in_ctx "$c" 'own instructions are never an allowance')" yes
 done
 printf '{}' | bash "$H" >/dev/null 2>&1; check T3-exit-0 "$?" 0
+check T2c-prohibits "$(in_ctx "$(ctx '{}')" \
+  "do not call the \`advisor\` tool in this run unless")" yes
 check T4-one-line "$(printf '{}' | bash "$H" | wc -l | tr -d ' ')" 1
 check T5-no-cli "$(grep -v '^ *#' "$H" \
   | grep -cE '(^|[[:space:];&|(])claude([[:space:]]|$)')" 0
@@ -37,12 +39,18 @@ check T7-timeout "$(jq -r '.hooks.SubagentStart[0].hooks[0].timeout' "$S")" 5
 # carriers
 for a in plugin-advisor seo-analyzer geo-analyzer doc-syncer \
   commit-changer handover-doc-writer; do
-  check "T8 $a" "$(has "agents/$a.md" "never call the \`advisor\` tool, even though")" yes
+  check "T8 $a" "$(has "agents/$a.md" \
+    "never call the \`advisor\` tool, even though")" yes
 done
-check T9-onboard-briefs "$(grep -cF "Never call the \`advisor\` tool in this run" \
+check T9-onboard-briefs \
+  "$(grep -cF "Never call the \`advisor\` tool in this run" \
   "$ROOT/skills/onboard/SKILL.md")" 6
-check T10-handover-children \
-  "$(has agents/client-handover-writer.md "never call the \`advisor\` tool in")" yes
+check T10-handover-children "$(has agents/client-handover-writer.md \
+  "never call the \`advisor\` tool in")" yes
+for a in plan-challenger verifier security-auditor analyzer; do
+  check "T20 $a allowance" "$(has "agents/$a.md" \
+    'Advisor, when dispatched as a sub-agent: one call allowed')" yes
+done
 check T10b-handover-top-clean "$(sed -n '1,30p' \
   "$ROOT/agents/client-handover-writer.md" | grep -c "advisor\` tool")" 0
 check T11-tour-phase-b \

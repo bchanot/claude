@@ -143,7 +143,7 @@ STEP 10, a standalone subagent-driven-development final review) call it
 at most once per dispatch, before their verdict or report; executors and
 every other sub-agent never call it, even when the tool is listed. The
 rule rides each sub-agent's own text: the allowed agents' prompts, a
-`never call` line in the opus-served agents and in the opus briefs we
+`never call` line in the other opus-served agents and the opus briefs we
 write (a brief sending a general-purpose agent to opus says which rule
 applies; a code review's says it may call once), and, for every spawn
 including built-ins such as `Plan`, the SubagentStart hook

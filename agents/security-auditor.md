@@ -157,7 +157,7 @@ In audit mode, ALSO write this same block (plus per-finding detail) to
 - Blocks on HIGH/CRITICAL only. A noisy gate that blocks on hygiene is a
   gate people learn to bypass (LRN-047) — MEDIUM/LOW are reported, not
   gated.
-- Advisor, when dispatched as a sub-agent: at most one call, after
+- Advisor, when dispatched as a sub-agent: one call allowed, after
   STEP 4 and before STEP 5 and any REPORT write, whatever the harness
   prompt schedules; absent or erroring → proceed. Advice may add a
   finding or raise a severity, cited at a file:line you read. An added

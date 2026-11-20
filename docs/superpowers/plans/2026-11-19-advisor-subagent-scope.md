@@ -325,3 +325,97 @@ Add to its brief: "you may call the `advisor` tool once, before your
 verdict" (code review, BDR-150). Fix all CRITICAL before proceeding.
 ```
 (same block in skills/ship-feature/SKILL.md and skills/init-project/SKILL.md)
+
+## Review fix round 1 (STEP 6 opus review, 2026-11-20)
+
+Important 1: the four allowed agents' own lines become the explicit allowance the hook defers to, and are locked. Important 2: the CLAUDE.global.md parenthetical reads plainly. Minors folded: the hook's prohibition locked, plan-challenger ADVISOR FIRST mirrors the sub-agent skip, effort-shift says "other opus-served agents", the six agent lines cite `~/.claude/lib/effort-shift.md`, three test lines rewrapped to ≤ 80 columns. Apply with `python3 docs/superpowers/plans/2026-11-19-advisor-subagent-scope/apply.py review1`. Suite after: `subagent-advisor: 38 pass, 0 fail`.
+
+### Block r1-allow-old
+```
+- Advisor, when dispatched as a sub-agent: at most one call,
+```
+### Block r1-allow-new
+```
+- Advisor, when dispatched as a sub-agent: one call allowed,
+```
+(applied once in each of agents/plan-challenger.md, agents/verifier.md, agents/security-auditor.md, agents/analyzer.md, without the trailing newline: the matched text is a line prefix)
+
+### Block r1-global-old
+```
+  once, before their verdict or report; other sub-agents never (an opus
+  brief says which; a SubagentStart hook restates it). Fable is never
+  routed or pinned: the router tops out at opus (BDR-150).
+```
+### Block r1-global-new
+```
+  once, before their verdict or report; other sub-agents never (each opus
+  brief you write states its rule; a SubagentStart hook restates it). Fable
+  is never routed or pinned: the router tops out at opus (BDR-150).
+```
+
+### Block r1-pc-old
+```
+  erroring → dispatch as written. The advice never enters a challenger
+  brief: they stay blind.
+```
+### Block r1-pc-new
+```
+  erroring → dispatch as written. The advice never enters a challenger
+  brief: they stay blind. A skill run inside a sub-agent skips it (row
+  `not called (sub-agent)`).
+```
+
+### Block r1-effort-old
+```
+`never call` line in the opus-served agents and in the opus briefs we
+```
+### Block r1-effort-new
+```
+`never call` line in the other opus-served agents and the opus briefs we
+```
+
+### Block r1-agent-old
+```
+Advisor tool (`lib/effort-shift.md` § Advisor), when you run as a sub-agent:
+```
+### Block r1-agent-new
+```
+Advisor tool (`~/.claude/lib/effort-shift.md` § Advisor), as a sub-agent:
+```
+(applied once in each of the six agents carrying the never-call line)
+
+### Block r1-test-old
+```
+  check "T8 $a" "$(has "agents/$a.md" "never call the \`advisor\` tool, even though")" yes
+done
+check T9-onboard-briefs "$(grep -cF "Never call the \`advisor\` tool in this run" \
+  "$ROOT/skills/onboard/SKILL.md")" 6
+check T10-handover-children \
+  "$(has agents/client-handover-writer.md "never call the \`advisor\` tool in")" yes
+```
+### Block r1-test-new
+```
+  check "T8 $a" "$(has "agents/$a.md" \
+    "never call the \`advisor\` tool, even though")" yes
+done
+check T9-onboard-briefs \
+  "$(grep -cF "Never call the \`advisor\` tool in this run" \
+  "$ROOT/skills/onboard/SKILL.md")" 6
+check T10-handover-children "$(has agents/client-handover-writer.md \
+  "never call the \`advisor\` tool in")" yes
+for a in plan-challenger verifier security-auditor analyzer; do
+  check "T20 $a allowance" "$(has "agents/$a.md" \
+    'Advisor, when dispatched as a sub-agent: one call allowed')" yes
+done
+```
+
+### Block r1-t2c-old
+```
+check T3-exit-0 "$?" 0
+```
+### Block r1-t2c-new
+```
+check T3-exit-0 "$?" 0
+check T2c-prohibits "$(in_ctx "$(ctx '{}')" \
+  "do not call the \`advisor\` tool in this run unless")" yes
+```
