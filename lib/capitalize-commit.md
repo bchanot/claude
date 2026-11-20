@@ -63,14 +63,30 @@ never a shell argument.
    - `chore(memory): BLK-010 resolved — bugfix profile path`
    - `chore(memory): journal — hotfix copy typo`   (journal-only, nothing else)
 
+   Then, still before step 2, count the run's TODO movement as `<todo>`:
+   `TODO +n / -m`, the open TODO items the run added and removed (closed or
+   dropped); a reworded open item counts on both sides. `run_base` is a SHA,
+   never the gitflow base branch: the contract's `- run-base:` line
+   (`lib/verify-secure-loop.md` § BEFORE THE FIRST DISPATCH), else
+   `git rev-parse HEAD` now (shortcut: without a contract only the pending
+   TODO edits count; edits committed earlier in the run are missed). A
+   failing `git diff` → `TODO n/a`, never a silent `+0 / -0`.
+
+       if d=$(git diff --no-color --no-ext-diff "$run_base" \
+           -- ':/.claude/tasks/TODO.md' 2>/dev/null); then
+         n=$(printf '%s\n' "$d" | grep -c '^+ *- \[ \]')
+         m=$(printf '%s\n' "$d" | grep -c '^- *- \[ \]')
+         todo="TODO +$n / -$m"
+       else todo="TODO n/a"; fi
+
 2. Commit surgically via the helper, capturing the memory-commit hash it prints:
 
        mem_hash=$(bash "$HOME/.claude/lib/memory-commit.sh" commit "<message>")
        rc=$?
 
-3. Report by (rc, mem_hash):
-   - rc 0, mem_hash non-empty → `✅ mémoire committée <mem_hash>`
-   - rc 0, mem_hash empty     → `CAPITALIZE: rien à committer` (helper no-op)
+3. Report by (rc, mem_hash). Every report line ends with `· <todo>` (step 1):
+   - rc 0, mem_hash non-empty → `✅ mémoire committée <mem_hash> · <todo>`
+   - rc 0, mem_hash empty     → `CAPITALIZE: rien à committer · <todo>` (helper no-op)
    - rc 3                     → unsafe git state (detached / merge in progress);
                                 memory stays in the working tree for a manual
                                 commit — surface the helper's stderr.

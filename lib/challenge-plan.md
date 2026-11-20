@@ -30,6 +30,27 @@ SOLID, synthesis is a no-op. It only costs more when a lens lands a real finding
 The main loop's advisor call before the dispatch (below) is the costliest
 single item: once per skill run.
 
+## SKIP: a placed decision
+
+A run that only places a decision the user already made skips this phase:
+no challengers and no plan advisor call. Three conditions, all required:
+the exact text or change is dictated by that decision (no new design); the
+decision's text is the user's own words, or was challenged in the run that
+wrote it; and the caller runs `lib/verify-secure-loop.md` after its
+dispatch, so the gates still run. The test is whether the run settles an
+open choice of its own (a mechanism, a condition, a threshold, wording the
+user did not dictate), never code versus text; in doubt, challenge. The
+skip is this include's own path (user decision 2026-11-20): a skill's
+challenge step that reads this section runs as written, and the skip
+discharges the plan point (`lib/effort-shift.md` § Advisor). The caller prints
+`Challenge: skipped (placed decision: <the user's decision, date>)` in
+place of its CHALLENGE SUMMARY.
+
+Challenged or skipped: when the flow wrote a contract with `CHECK:` lines,
+before the executor dispatch the main loop records `- run-base:` in the
+contract and runs `gates.sh run` on a `mktemp -d` copy of it
+(`lib/verify-secure-loop.md` § BEFORE THE FIRST DISPATCH).
+
 ## DISPATCH — three fresh challengers, in parallel, blind
 
 **Advisor first (main loop).** Before the first dispatch, with no main-loop
@@ -88,6 +109,10 @@ Parse each `CHALLENGE — LENS: … — VERDICT:` line and merge the FINDINGS:
 - **Severity-driven, not consensus.** Any `[BLOCKER]` from ANY single lens is
   must-address — the lenses are orthogonal, so a lone security/rollback finding
   is real, never outvoted by lens-count. Cross-lens agreement only RANKS the MINORs.
+  Each MINOR is folded into the plan now or dropped: a drop is one
+  `MINOR dropped: <finding>` line in the report and the plan file, nothing
+  in TODO.md or a registry; a security finding goes to the user
+  (`lib/verify-secure-loop.md` § MINOR triage).
 - **RE-THINK the aspect the challenge pointed at.** For each BLOCKER (and each
   MAJOR you accept): revise the plan on THAT aspect — a NAMED, diffable change to
   the plan, never a self-authored "addressed" line. A BLOCKER you consciously keep

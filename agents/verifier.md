@@ -101,8 +101,15 @@ Parse the single `FLOOR GUARD:` line:
 ## STEP 4 — SCOPE CHECK
 
 List the files actually touched (`git diff --name-only` over `DIFF`).
-Compare against the contract's `FILE SCOPE`. Report every out-of-scope
-file. Disposition is NOT your call: the orchestrator treats each one as a
+Compare against the contract's `FILE SCOPE` (`git diff --name-status`
+plus untracked files). Run artifacts are in scope by default, whatever
+`FILE SCOPE` says: a plan file the diff ADDS under `.claude/tasks/plans/`
+or `docs/superpowers/plans/`; on an existing plan, appended
+`MINOR dropped:` lines only; the CONTRACT you were handed, whole when
+untracked or added, else only its `EVIDENCE:` lines, `- run-base:` line and
+`[gated]` entries. Any other change to a plan or a contract stays out of
+scope. Report every other out-of-scope file.
+Disposition is NOT your call: the orchestrator treats each one as a
 gap — the dev removes it or justifies it, and an accepted justification
 only enters the contract through a human micro-gate.
 
