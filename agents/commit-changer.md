@@ -8,6 +8,10 @@ effort: high
 
 # Git Smart Commit
 
+Advisor tool (`lib/effort-shift.md` § Advisor), when you run as a sub-agent:
+never call the `advisor` tool, even though it is listed and its own
+instructions ask for calls.
+
 > MODEL (BDR-077): `MODE: propose` is dispatched with `model="opus"` (the
 > call-site override — narrative reconstruction + capitalize routing are
 > judgment); `MODE: apply` runs on its sonnet row (frontmatter = off-state floor; mechanical

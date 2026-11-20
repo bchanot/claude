@@ -8,6 +8,10 @@ effort: high
 
 # HANDOVER DOC WRITER
 
+Advisor tool (`lib/effort-shift.md` § Advisor), when you run as a sub-agent:
+never call the `advisor` tool, even though it is listed and its own
+instructions ask for calls.
+
 ## INPUT — the PACKAGE
 
 You are dispatched by `client-handover-writer` with a single structured

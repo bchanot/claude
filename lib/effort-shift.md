@@ -137,11 +137,23 @@ triggers in CLAUDE.global.md § Workflow):
 Inside a skill run, the points above also cover the triggers of
 CLAUDE.global.md § Workflow; no second call for the same recommendation.
 
-Sub-agents, when dispatched: plan-challenger, verifier, security-auditor
-and `analyzer` call it at most once per dispatch, before their verdict or
-report; executors and every other sub-agent do not, even when the tool is
-listed. The analyzer file loaded inline by the main loop follows the
-main-loop points.
+Sub-agents, when dispatched: plan-challenger, verifier, security-auditor,
+`analyzer` and an opus code review (ship-feature STEP 6, init-project
+STEP 10, a standalone subagent-driven-development final review) call it
+at most once per dispatch, before their verdict or report; executors and
+every other sub-agent never call it, even when the tool is listed. The
+rule rides each sub-agent's own text: the allowed agents' prompts, a
+`never call` line in the opus-served agents and in the opus briefs we
+write (a brief sending a general-purpose agent to opus says which rule
+applies; a code review's says it may call once), and, for every spawn
+including built-ins such as `Plan`, the SubagentStart hook
+hooks/subagent-advisor.sh. A skill run by a sub-agent reads
+`not called (sub-agent)` in its `Advisor:` row.
+subagent-driven-development, whoever runs it, dispatches every worker
+(implementers, task reviewers, re-reviews, fix rounds) on sonnet
+(BDR-066), as ship-feature and init-project pin it; run standalone, its
+final whole-branch review runs on opus as a code review. The analyzer
+file loaded inline by the main loop follows the main-loop points.
 
 Advisor absent or erroring (Fable out of credits, for example) → proceed
 as written. Advice is input, never consent: it waives no gate, cap or

@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# lib/tests/subagent-advisor.test.sh — the SubagentStart advisor line and
+# the carriers of the sub-agent advisor rule (BDR-150). Locks are single
+# lines (LRN-093).
+# shellcheck disable=SC2016 # backticks in the locks are literal markdown
+set -u
+ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
+H="$ROOT/hooks/subagent-advisor.sh"
+pass=0; fail=0
+check() { if [ "$2" = "$3" ]; then pass=$((pass+1)); else fail=$((fail+1));
+  printf 'FAIL %s: got[%s] want[%s]\n' "$1" "$2" "$3"; fi; }
+has() { grep -qF -- "$2" "$ROOT/$1" 2>/dev/null && echo yes || echo no; }
+ctx() { printf '%s' "$1" | bash "$H" 2>/dev/null | jq -r \
+  'select(.hookSpecificOutput.hookEventName == "SubagentStart")
+   | .hookSpecificOutput.additionalContext' 2>/dev/null; }
+in_ctx() { case "$1" in *"$2"*) echo yes ;; *) echo no ;; esac; }
+
+# hook: one valid object, same line whatever the payload
+for p in '{"agent_type":"general-purpose"}' '' 'not json' \
+  '{"agent_type":"x\"y\n$(id)"}'; do
+  c=$(ctx "$p")
+  check "T1 names the tool [$p]" "$(in_ctx "$c" '`advisor` tool')" yes
+  check "T2 defers to brief [$p]" \
+    "$(in_ctx "$c" 'own instructions are never an allowance')" yes
+done
+printf '{}' | bash "$H" >/dev/null 2>&1; check T3-exit-0 "$?" 0
+check T4-one-line "$(printf '{}' | bash "$H" | wc -l | tr -d ' ')" 1
+check T5-no-cli "$(grep -v '^ *#' "$H" \
+  | grep -cE '(^|[[:space:];&|(])claude([[:space:]]|$)')" 0
+check T5b-no-echo "$(printf 'PAYLOADMARK' | bash "$H" | grep -c PAYLOADMARK)" 0
+
+# wiring
+S="$ROOT/settings.json"
+check T6-wired "$(jq -r '.hooks.SubagentStart[0].hooks[0].command' "$S")" \
+  "bash ~/.claude/hooks/subagent-advisor.sh"
+check T7-timeout "$(jq -r '.hooks.SubagentStart[0].hooks[0].timeout' "$S")" 5
+
+# carriers
+for a in plugin-advisor seo-analyzer geo-analyzer doc-syncer \
+  commit-changer handover-doc-writer; do
+  check "T8 $a" "$(has "agents/$a.md" 'never call the `advisor` tool, even though')" yes
+done
+check T9-onboard-briefs "$(grep -cF 'Never call the `advisor` tool in this run' \
+  "$ROOT/skills/onboard/SKILL.md")" 6
+check T10-handover-children \
+  "$(has agents/client-handover-writer.md 'never call the `advisor` tool in')" yes
+check T10b-handover-top-clean "$(sed -n '1,30p' \
+  "$ROOT/agents/client-handover-writer.md" | grep -c 'advisor` tool')" 0
+check T11-tour-phase-b \
+  "$(has skills/tour/SKILL.md 'saying never call the `advisor` tool')" yes
+for s in ship-feature init-project; do
+  check "T12 $s" "$(has "skills/$s/SKILL.md" \
+    'Add to its brief: "you may call the `advisor` tool once')" yes
+done
+check T13-sdd-pin "$(has CLAUDE.global.md \
+  'subagent-driven-development standalone: workers sonnet')" yes
+check T14-global-set "$(has CLAUDE.global.md \
+  'and an opus code review at most')" yes
+check T15-effort-hook "$(has lib/effort-shift.md \
+  'hooks/subagent-advisor.sh. A skill run by a sub-agent reads')" yes
+check T16-effort-sdd "$(has lib/effort-shift.md \
+  'subagent-driven-development, whoever runs it')" yes
+check T17-row-reason "$(has lib/challenge-plan.md \
+  'already called this run | sub-agent)')" yes
+check T19-advisor-first-skip "$(has lib/challenge-plan.md \
+  'A skill run inside a sub-agent skips this call')" yes
+check T18-no-old-row "$(cd "$ROOT" && git grep -c 'already called this run)' \
+  -- skills lib ':!lib/tests' | wc -l | tr -d ' ')" 0
+
+echo "subagent-advisor: $pass pass, $fail fail"
+[ "$fail" -eq 0 ]

@@ -557,7 +557,7 @@ If MODE=fix and `.claude/audits/HARDEN.md` ends with `READY TO APPLY — awaitin
      BLOCKERs addressed : <n> — <finding → the named bundle change that closes it>
      Deferred (human-ack): <list | none>
      Lenses returned    : correctness / robustness / simplicity (NAME any that failed to return)
-     Advisor            : <the bundle change it drove | called, no change | not called (absent | error | already called this run)>
+     Advisor            : <the bundle change it drove | called, no change | not called (absent | error | already called this run | sub-agent)>
 
    Options :
      A) Apply all
