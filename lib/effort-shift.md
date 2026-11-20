@@ -106,7 +106,8 @@ target (BDR-150). It is a server tool: the router cannot see or refuse it.
 Main loop, at least at these points (for work outside them, see the
 triggers in CLAUDE.global.md § Workflow):
 1. Before settling an approach: on the written plan, before the
-   challengers see it (`lib/challenge-plan.md`), at most once per skill run.
+   challengers see it (`lib/challenge-plan.md`), at most once per skill run;
+   skipped with the challenge for a placed decision (`lib/challenge-plan.md` § SKIP).
 2. When stuck: once per verify-secure run, at the first gate loop to fail
    twice (floor, conformity, security, or a second structural failure),
    before re-dispatching or escalating. At a cap the STOP diagnosis
