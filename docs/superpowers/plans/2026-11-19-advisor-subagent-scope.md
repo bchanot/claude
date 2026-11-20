@@ -93,7 +93,6 @@ exit 0
 # lib/tests/subagent-advisor.test.sh — the SubagentStart advisor line and
 # the carriers of the sub-agent advisor rule (BDR-150). Locks are single
 # lines (LRN-093).
-# shellcheck disable=SC2016 # backticks in the locks are literal markdown
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 H="$ROOT/hooks/subagent-advisor.sh"
@@ -108,9 +107,9 @@ in_ctx() { case "$1" in *"$2"*) echo yes ;; *) echo no ;; esac; }
 
 # hook: one valid object, same line whatever the payload
 for p in '{"agent_type":"general-purpose"}' '' 'not json' \
-  '{"agent_type":"x\"y\n$(id)"}'; do
+  "{\"agent_type\":\"x\\\"y\\n\$(id)\"}"; do
   c=$(ctx "$p")
-  check "T1 names the tool [$p]" "$(in_ctx "$c" '`advisor` tool')" yes
+  check "T1 names the tool [$p]" "$(in_ctx "$c" "\`advisor\` tool")" yes
   check "T2 defers to brief [$p]" \
     "$(in_ctx "$c" 'own instructions are never an allowance')" yes
 done
@@ -129,19 +128,19 @@ check T7-timeout "$(jq -r '.hooks.SubagentStart[0].hooks[0].timeout' "$S")" 5
 # carriers
 for a in plugin-advisor seo-analyzer geo-analyzer doc-syncer \
   commit-changer handover-doc-writer; do
-  check "T8 $a" "$(has "agents/$a.md" 'never call the `advisor` tool, even though')" yes
+  check "T8 $a" "$(has "agents/$a.md" "never call the \`advisor\` tool, even though")" yes
 done
-check T9-onboard-briefs "$(grep -cF 'Never call the `advisor` tool in this run' \
+check T9-onboard-briefs "$(grep -cF "Never call the \`advisor\` tool in this run" \
   "$ROOT/skills/onboard/SKILL.md")" 6
 check T10-handover-children \
-  "$(has agents/client-handover-writer.md 'never call the `advisor` tool in')" yes
+  "$(has agents/client-handover-writer.md "never call the \`advisor\` tool in")" yes
 check T10b-handover-top-clean "$(sed -n '1,30p' \
-  "$ROOT/agents/client-handover-writer.md" | grep -c 'advisor` tool')" 0
+  "$ROOT/agents/client-handover-writer.md" | grep -c "advisor\` tool")" 0
 check T11-tour-phase-b \
-  "$(has skills/tour/SKILL.md 'saying never call the `advisor` tool')" yes
+  "$(has skills/tour/SKILL.md "saying never call the \`advisor\` tool")" yes
 for s in ship-feature init-project; do
   check "T12 $s" "$(has "skills/$s/SKILL.md" \
-    'Add to its brief: "you may call the `advisor` tool once')" yes
+    "Add to its brief: \"you may call the \`advisor\` tool once")" yes
 done
 check T13-sdd-pin "$(has CLAUDE.global.md \
   'subagent-driven-development standalone: workers sonnet')" yes
