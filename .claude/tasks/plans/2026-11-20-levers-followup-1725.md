@@ -218,3 +218,5 @@ index 81ae90a..4996778 100644
  
  ---
 ```
+
+MINOR dropped: ship-feature STEP 6 loop-back table outcome cell still reads "if still CRITICAL, escalate" (verifier GATE 1 note); the row header carries the evidence rule.
