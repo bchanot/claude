@@ -192,7 +192,7 @@ CHALLENGE SUMMARY (3b-bis — 3 lenses):
   BLOCKERs addressed : <n> — <finding → the named finding-set change that closes it>
   Deferred (human-ack): <list | none>
   Lenses returned    : correctness / robustness / simplicity (NAME any that failed to return)
-  Advisor            : <the finding-set change it drove | called, no change | not called (absent | error | already called this run)>
+  Advisor            : <the finding-set change it drove | called, no change | not called (absent | error | already called this run | sub-agent)>
 ```
 
 - "Fix what you find" said **in the invocation** does NOT skip this gate:

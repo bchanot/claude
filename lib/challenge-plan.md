@@ -40,7 +40,8 @@ is listed (`lib/effort-shift.md` § Advisor). An answer that lands a real
 flaw revises the `PLAN` file on disk before the dispatch, as plain plan
 text: no advisor attribution, no "changes after review" section; the
 summary's `Advisor:` row carries it (OUTPUT below). Absent or erroring →
-dispatch as written.
+dispatch as written. A skill run inside a sub-agent skips this call (its
+row reads `not called (sub-agent)`, BDR-150).
 The advice never enters a challenger brief: they stay blind.
 
 Dispatch THREE fresh `plan-challenger` subagents IN PARALLEL, one per LENS, each
@@ -103,6 +104,6 @@ Feed the orchestrator's gate:
   anything `[deferred]`; any lens that failed to return; and an `Advisor:`
   row, added to whatever summary template the caller prints: each plan
   change an advisor answer drove, `called, no change`, or
-  `not called (absent | error | already called this run)`.
+  `not called (absent | error | already called this run | sub-agent)`.
 
 The human remains the decider.

@@ -786,3 +786,6 @@ rules:
 - /bugfix degraded-tool-line 9814720: 3 security readers read DEGRADED off TOOL line (BLK-051), BUGS-FOUND:134 FIXED, TODO:13 done, 2 pre-existing minors logged; CHANGELOG Fixed entry.
 - /feat x2 merge-reuse (af846d6, 87566e2, feature/advisor-merge-reuse): 6 gate-flow end lines restate effort-shift item 3 merge-reuse clause, loops-light 97; TODO:14 done, 3 follow-ups logged; run 1 GATE 0 ERROR = contract without EVIDENCE: pending (LRN-173 again).
 - Run C /feat advisor-usage (c6f2dad + retention fix, feature/advisor-usage): FEEDBACK.md advisor usage table per caller/model, reconciled vs probe (156 calls, 21.7M); found general-purpose sub-agent advisor leak (30 calls, 7.1M) → TODO; LRN-301 (call = served iteration), LRN-302 (scratch develop ref); mods.test.sh timeout under load → BUGS-FOUND.
+
+## 2026-11-20
+- /ship-feature advisor-subagent-scope (7979b9b 6be0669 b71db28): leak root cause = advisor server tool on every sub-agent, no filter, opus ignores CLAUDE.md attachment; rule moved into agent defs/briefs + SubagentStart hook + SDD sonnet pin; LRN-303; behavioural proof pending next usage table.

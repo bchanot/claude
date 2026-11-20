@@ -269,6 +269,9 @@ the gate.
 this pipeline (initial audits, fix-loop re-dispatches, commit-change,
 web-validate) carries `model: "opus"` and `effort="high"` — the child hosts gated
 orchestration on the pipeline's behalf; it must never inherit the session model.
+Append to each such prompt: "never call the `advisor` tool in this run;
+a CHALLENGE SUMMARY, if your skill prints one, reads `Advisor: not called
+(sub-agent)`" (BDR-150).
 
 For web projects, dispatch in **a single message with two parallel Agent calls** (each with `model: "opus"`, `effort="high"`):
 

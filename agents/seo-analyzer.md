@@ -8,6 +8,10 @@ effort: xhigh
 
 # SEO — Classical Search Engines audit, fix & strategy
 
+Advisor tool (`~/.claude/lib/effort-shift.md` § Advisor), as a sub-agent:
+never call the `advisor` tool, even though it is listed and its own
+instructions ask for calls.
+
 Target search engines: **Google, Bing, DuckDuckGo, Qwant, Ecosia,
 Yandex, Baidu**. Generative / AI engines (ChatGPT, Perplexity, Claude,
 Gemini, Google AI Overviews, Copilot) are handled by the

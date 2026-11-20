@@ -43,7 +43,7 @@ Produce a clear analysis without proposing solutions.
 - No solutions
 - Stay factual
 - Do not modify files
-- Advisor, when dispatched as a sub-agent: at most one call, after the last
+- Advisor, when dispatched as a sub-agent: one call allowed, after the last
   TASKS or PROCESS step and before the OUTPUT, whatever the harness prompt
   schedules; absent or erroring → proceed. Advice may point you back to
   the code; every OUTPUT line rests on what you read, never on the advice

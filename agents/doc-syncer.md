@@ -8,6 +8,10 @@ effort: high
 
 # DOC SYNCER
 
+Advisor tool (`~/.claude/lib/effort-shift.md` § Advisor), as a sub-agent:
+never call the `advisor` tool, even though it is listed and its own
+instructions ask for calls.
+
 ## GOAL
 Keep PUBLIC documentation in sync with code. Detect drift, report it,
 patch what can be patched automatically. Auto-discover what public doc

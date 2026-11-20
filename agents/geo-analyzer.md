@@ -8,6 +8,10 @@ effort: xhigh
 
 # GEO — Generative Engine Optimization audit, fix & strategy
 
+Advisor tool (`~/.claude/lib/effort-shift.md` § Advisor), as a sub-agent:
+never call the `advisor` tool, even though it is listed and its own
+instructions ask for calls.
+
 Target search engines: **ChatGPT Search, Perplexity, Claude, Gemini,
 Google AI Overviews, Microsoft Copilot, Brave AI, DuckAssist, You.com,
 Apple Intelligence**. Google classical search is handled by the

@@ -2174,3 +2174,9 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Context**: 2026-11-19 merge-reuse run 2 simulation (LRN-296 method): criterion 3 SKIP-INTACT failed only on scratch clone; fixed by creating ref.
 - **Apply**: every LRN-296 scratch simulation from a non-develop branch: create local develop ref first, else false red.
 - **Reference**: LRN-296, .claude/tasks/contracts/2026-11-19-merge-reuse-feat-bugfix-1450.md
+
+## LRN-303 — Server tool scope per sub-agent: no filter removes advisor; rule must ride agent definition or brief, hook is backstop (2026-11-20)
+- **Pattern**: server-side advisor tool attached to every sub-agent (sonnet too); no tool filter removes it: `tools` allowlist, agent `disallowedTools: ["advisor"]`, `--disallowedTools advisor` all probed 2026-11-19, still listed. Opus sub-agents ignored CLAUDE.global rule delivered as `instructions` attachment (18/25 called); agents carrying rule in own definition (system prompt) obeyed (≤1 call per dispatch, 89 dispatches). Sonnet never called (0/~450). SubagentStart `additionalContext` reaches sub-agent before first turn (nonce probe) = attachment channel too.
+- **Context**: 2026-11-19/20 advisor leak (Run C table: general-purpose 30 calls 7.1M tok, 29 from standalone SDD on opus in another repo). Fix 7979b9b..b71db28: rule in each agent definition/brief, SDD workers sonnet, hook backstop.
+- **Apply**: to scope any harness-listed server tool per sub-agent: put rule in agent definition or dispatcher brief, not CLAUDE.md; word allowance as explicit permission ("one call allowed"); hook = backstop only; behavioural proof = transcript tally, not delivery.
+- **Reference**: hooks/subagent-advisor.sh, lib/effort-shift.md § Advisor, LRN-294, LRN-295, LRN-301, BDR-150

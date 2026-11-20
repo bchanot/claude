@@ -144,7 +144,7 @@ CHALLENGE SUMMARY (STEP 3b — 3 lenses):
   BLOCKERs addressed : <n> — <finding → the named scope change that closes it>
   Deferred (human-ack): <list | none>
   Lenses returned    : correctness / robustness / simplicity (NAME any that failed to return)
-  Advisor            : <the scope change it drove | called, no change | not called (absent | error | already called this run)>
+  Advisor            : <the scope change it drove | called, no change | not called (absent | error | already called this run | sub-agent)>
 
 AskUserQuestion:
   Approve which items for execution? (all / <item numbers> / clarify <item>)

@@ -213,7 +213,7 @@ CHALLENGE SUMMARY (STEP 6b — 3 lenses):
   BLOCKERs addressed : <n> — <finding → the named plan change that closes it>
   Deferred (human-ack): <list | none>
   Lenses returned    : correctness / robustness / simplicity (NAME any that failed to return)
-  Advisor            : <the plan change it drove | called, no change | not called (absent | error | already called this run)>
+  Advisor            : <the plan change it drove | called, no change | not called (absent | error | already called this run | sub-agent)>
 Approve and start? (yes / request changes)
 ```
 Changes → back to STEP 6. Approved → continue.
@@ -275,8 +275,9 @@ first ran → the main loop calls the advisor per `lib/verify-secure-loop.md`
 ## STEP 10 — CODE REVIEW
 Invoke `requesting-code-review` (vendored superpowers skill). **Model routing (BDR-077):** the
 review subagent it dispatches MUST carry `model: "opus"` and `effort="xhigh"` in the Agent call —
-craft review is dispatched judgment, never inherited from the session. Fix
-all CRITICAL before proceeding.
+craft review is dispatched judgment, never inherited from the session.
+Add to its brief: "you may call the `advisor` tool once, before your
+verdict" (code review, BDR-150). Fix all CRITICAL before proceeding.
 
 ## STEP 10b — CAPITALIZE FOUNDING DECISIONS (memory registries)
 A greenfield's founding architecture decisions are the highest-value BDRs — the

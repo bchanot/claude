@@ -403,6 +403,7 @@ Agent(
   effort="xhigh",
   description="Onboard — code-clean audit only (read-only, opus)",
   prompt="""
+  Never call the `advisor` tool in this run (sub-agent, BDR-150).
   AUDIT-ONLY mode — NO fixes, NO refactoring, NO file modifications.
   Target: <PROJECT_ROOT>. ARCHETYPE: <archetype>.
   Produce a report covering:
@@ -441,6 +442,7 @@ bash $HOME/.claude/lib/profile.sh -C "$PWD" current --plain 2>/dev/null | grep -
     effort="xhigh",
     description="Onboard — security audit fallback (archetype-adaptive)",
     prompt="""
+    Never call the `advisor` tool in this run (sub-agent, BDR-150).
     READ-ONLY security audit. No file modifications.
     Target: <PROJECT_ROOT>. ARCHETYPE: <archetype>. Category: <category>. Stack: <stack>.
 
@@ -690,6 +692,7 @@ Agent(
   effort="xhigh",
   description="Onboard — static design review fallback",
   prompt="""
+  Never call the `advisor` tool in this run (sub-agent, BDR-150).
   AUDIT-ONLY mode — NO edits. Static design review du code UI.
   Target: <PROJECT_ROOT>. Archetype: <archetype>.
   Context: ui-ux-pro-max plugin state = <active/inactive>.
@@ -735,6 +738,7 @@ Agent(
   effort="xhigh",
   description="Onboard — static perf audit",
   prompt="""
+  Never call the `advisor` tool in this run (sub-agent, BDR-150).
   AUDIT-ONLY mode — NO edits.
   Target: <PROJECT_ROOT>. Archetype: <archetype>.
   Static perf audit (pas de browser) :
@@ -779,6 +783,7 @@ Agent(
   effort="xhigh",
   description="Onboard — static a11y audit",
   prompt="""
+  Never call the `advisor` tool in this run (sub-agent, BDR-150).
   AUDIT-ONLY mode — NO edits.
   Target: <PROJECT_ROOT>. Archetype: <archetype>.
   Static a11y audit (WCAG 2.1 AA + RGAA 4.1 France) :
@@ -826,6 +831,7 @@ Agent(
   effort="xhigh",
   description="Onboard — synthèse vers .claude/audits/",
   prompt="""
+  Never call the `advisor` tool in this run (sub-agent, BDR-150).
   Lire tous les fichiers de <PROJECT_ROOT>/.onboard-audit/ :
     - analyze.md, code-clean.md, cso.md, doc.md (toujours)
     - seo.md, geo.md, design.md, perf.md, a11y.md (si présents)
@@ -961,7 +967,7 @@ CHALLENGE SUMMARY (STEP 7b — 3 lenses):
   BLOCKERs addressed : <n> — <finding → the named proposals change that closes it>
   Deferred (human-ack): <list | none>
   Lenses returned    : correctness / robustness / simplicity (NAME any that failed to return)
-  Advisor            : <the proposals change it drove | called, no change | not called (absent | error | already called this run)>
+  Advisor            : <the proposals change it drove | called, no change | not called (absent | error | already called this run | sub-agent)>
 
 Prochaine étape : générer .claude/tasks/TODO.md depuis .claude/audits/AUDIT_PROPOSALS.md approuvé.
 
