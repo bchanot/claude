@@ -2180,3 +2180,9 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Context**: 2026-11-19/20 advisor leak (Run C table: general-purpose 30 calls 7.1M tok, 29 from standalone SDD on opus in another repo). Fix 7979b9b..b71db28: rule in each agent definition/brief, SDD workers sonnet, hook backstop.
 - **Apply**: to scope any harness-listed server tool per sub-agent: put rule in agent definition or dispatcher brief, not CLAUDE.md; word allowance as explicit permission ("one call allowed"); hook = backstop only; behavioural proof = transcript tally, not delivery.
 - **Reference**: hooks/subagent-advisor.sh, lib/effort-shift.md § Advisor, LRN-294, LRN-295, LRN-301, BDR-150
+
+## LRN-304 — Run-movement counter must run before the commit step; after it the diff is a silent +0 (2026-11-20)
+- **Pattern**: snippet measuring a run's working-tree movement must run BEFORE the step that commits it. Read after `memory-commit.sh commit` (stages `.claude/tasks`), tree == HEAD, `git diff HEAD` empty rc 0 → silent `+0 / -0`. Fixture must cover the committed case, not only uncommitted.
+- **Context**: 2026-11-20 /feat done-triage-levers, lever 6 `TODO +n / -m`. r1 put count in DO step 3 ("taken before step 2" in prose, but placed after). Contract CHECK ran on uncommitted fixture → green. r2 confirmation challenger traced step order → MAJOR. Fix: count in DO step 1, run-base SHA from contract, root pathspec `:/` (subdir cwd = silent 0 too), `--no-color --no-ext-diff`.
+- **Apply**: any "report what the run changed" counter: place it before the commit step in the doc's own numbering; base = SHA recorded at run start, never a branch name; fixture rows: uncommitted, committed, subdir cwd, bad SHA → n/a.
+- **Reference**: lib/capitalize-commit.md DO step 1, lib/memory-commit.sh MC_PATHS, LRN-298 (placement semantics), LRN-193
