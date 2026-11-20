@@ -3,6 +3,9 @@
 ## Open (reconciled 2026-11-12 before 3.0.0, /reconcile on the BDR-125 phases; full pass 2026-10-23)
 Done history before 2026-10-08 removed 2026-10-23 (git keeps it: `git log -p -- .claude/tasks/TODO.md`); decisions live in `.claude/memory/`.
 
+### Done, triage and loop levers (user 2026-11-20: "oui lance une session neuve avec les six leviers")
+- [ ] NEXT, fresh session: /feat the six levers in .claude/tasks/plans/2026-11-20-done-and-triage-levers.md (done = oracles green, reopen only on reproducible evidence; MINOR fixed before dispatch or dropped; no challenge on a placed decision; loop on a frozen list; contract dry run + plan artifacts in scope; `TODO +n / -m` in summaries). 5 files: lib/verify-secure-loop.md, lib/challenge-plan.md, CLAUDE.global.md (1 line), lib/capitalize-commit.md, agents/verifier.md
+
 ### Advisor call points (user 2026-11-17: "oui 1 et 2, et le 3 aussi"; amends BDR-150)
 - [x] Run A DONE 6ef3069, merged fc2d84d (docs 09277f5, audits c1a0c32, memory 78a6942) /feat feature/advisor-call-points: CLAUDE.global § Workflow + lib/effort-shift.md § Advisor + plan-challenger/verifier/security-auditor one-call rule (contract .claude/tasks/contracts/2026-11-17-advisor-call-points-1130.md)
 - [x] Run B1 DONE 58a5273, merged eb1f594 (docs 47e5ee8, audits 9033b4a, memory d55f491) /feat feature/advisor-points-b1 (user 2026-11-17 "oui a, b et c"): (a) main-loop plan point in lib/challenge-plan.md (before first dispatch), (b) analyzer joins judgment agents (CLAUDE.global, effort-shift, agents/analyzer.md), (c) trigger "before recommending a change to the doctrine, the architecture or a public interface", stuck call lines in lib/verify-secure-loop.md (contract .claude/tasks/contracts/2026-11-17-advisor-points-b1-1500.md)
