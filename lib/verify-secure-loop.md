@@ -1,6 +1,7 @@
 # Verify + secure loop — shared orchestrator include (feat, bugfix, guardrails, a11y)
 
-Runs in the ORCHESTRATOR MAIN LOOP after the dev step completes. Turns a
+Runs in the ORCHESTRATOR MAIN LOOP after the dev step completes (its first
+section runs before the dev step is dispatched). Turns a
 finished diff into a verified, security-cleared change through two fresh
 gates and bounded loops. Loop decisions live here, in the main loop
 (LRN-083: subagents = execution + report). The dev step is a dispatched
@@ -16,6 +17,26 @@ Inputs the caller must have ready:
 Nominal path is cheap — a free floor run, then
 one verifier dispatch + one security dispatch, done. The loop only costs
 more when it actually loops.
+
+## BEFORE THE FIRST DISPATCH: contract dry run (main loop)
+
+When the flow wrote a contract with `CHECK:` lines, the main loop does two
+things before the dev step is dispatched:
+
+1. Records the run's start commit in the contract header, once:
+   `- run-base: <git rev-parse HEAD>` (a SHA, never a branch name;
+   `lib/capitalize-commit.md` counts the run's TODO movement from it).
+2. Copies the contract to a `mktemp -d` path and, from the project root,
+   runs `bash ~/.claude/lib/gates.sh run <copy>`, so the real ledger stays
+   `pending`. Expected: no `ERROR(n)` (malformed ledger: fix it here),
+   NOT-MET rows only where the work is not done yet, each failing for that
+   reason and not for a syntax error, a missing tool or a wrong path. A row
+   already MET is valid only when the work must keep it green (a suite, a
+   line cap); any other is vacuous. A marker that can never match fails
+   like undone work: for oracles that grep prose, apply the planned text
+   to a scratch copy of the repo and run the CHECKs there (LRN-296).
+
+A bad oracle is fixed in the contract here, before any floor loop.
 
 ## GATE 0 — DETERMINISTIC FLOOR (no dispatch, no model)
 
@@ -92,7 +113,8 @@ Parse its single `VERIFY — VERDICT:` line:
   cannot fix unverifiability); do not spend a loop on it.
 - Out-of-scope files: a dev justification is accepted ONLY through the human
   micro-gate that appends `[gated <date>]` to the contract's FILE SCOPE;
-  otherwise the dev removes the file.
+  otherwise the dev removes the file. Run artifacts are in scope by
+  default (`agents/verifier.md`, STEP 4).
 - Structural failure (`ERROR(…)`, missing/duplicated VERDICT line,
   unparsable, crash, `CONFORME` without `PROOF` or without `FLOOR`) → retry
   ONCE with a fresh verifier; a 2nd structural failure → human escalation.
@@ -147,3 +169,31 @@ verifier's verdict meaningless. REQUEST conformity is
 always re-checked BEFORE security on any re-loop — a security fix that breaks
 the feature must not slip through because only the security gate re-ran.
 Never the reverse order.
+
+## DONE: oracles green, reopened only on evidence
+
+A run is done when its oracles are green: GATE 0 MET (the suite criterion
+included), GATE 1 CONFORME and GATE 2 PASS on the same diff. After done, a
+review (the end-of-run advisor call, a code review, a re-read) reopens the
+run only with reproducible evidence: a command that fails on HEAD, or real
+output shown wrong. A plausible scenario alone does not reopen the run:
+the main loop tries once to turn it into a failing command, and if it
+cannot, the finding is a MINOR (below). A behavioural claim ("agents obey
+the rule") is done at its locks green, one live probe and one dated
+measurement: a TODO line that carries the date and the tripwires that
+would reopen it.
+
+## MINOR triage: fold before dispatch, or drop
+
+A MINOR finding on the run's plan or diff (from a challenger, a review, an
+advisor) is either folded into the plan before the dispatch or dropped. No
+fix round after the gates for a MINOR: it costs a full gate cycle. A drop
+is one line, `MINOR dropped: <finding>`, in the run report and appended to
+the run's plan file; nothing goes to TODO.md, BUGS-FOUND.md or any
+registry. The backlog takes only findings with reproducible evidence, or
+what the user asks for. Never a droppable MINOR: a security finding (a
+GATE 2 `REPORTED` item, a secret, an injection, authorization or exposure
+issue from any review) goes to the user, who decides fix or record.
+Untouched by this triage: doc-syncer's `[MINOR]` patch class, the safety
+guardrails, every gate, and the user's questions on visible, public-name
+and scope choices.

@@ -76,7 +76,10 @@ decisions) to the `best` tier, opus at the phase's effort. Fable is never
 auto-routed: it is the advisor (`advisorModel` in settings.json) and a hand
 pick. The main loop calls the advisor at least on the written plan before the
 plan challengers see it (`lib/challenge-plan.md`, once per skill run; the
-CHALLENGE SUMMARY's `Advisor:` row records what it changed), once per
+CHALLENGE SUMMARY's `Advisor:` row records what it changed; skipped with
+the challenge when the run only places a decision the user already made,
+`Challenge: skipped (placed decision: …)` standing in for the summary),
+once per
 verify-secure run at the first gate loop to fail twice (the advice stays in
 the main loop, never in an executor brief; a cap or escalation STOP carries
 it), before proposing a merge or calling a long task done (two skips:

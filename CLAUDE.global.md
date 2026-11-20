@@ -113,7 +113,8 @@ code" wins. Repo-specific instructions override both.
 - Once it qualifies: plan before code → one subtask = one coherent change
   → check off as you go → high-level note at each milestone. A plan a skill
   persists (`.claude/tasks/plans/`, contract) satisfies the rule; TODO.md
-  then carries one line per run.
+  then carries one line per run. A TODO loop notes its start SHA in TODO.md,
+  runs that list + user adds; new items: report, run if one breaks its work.
 
 ## After code changes
 1. Run tests, lint, build, type-check if available. Report what was
