@@ -85,10 +85,13 @@ security PASS, not DEGRADED, each on its first attempt, their summary's
 `ADVISOR` field then reading `skipped (gates clean on first pass)`;
 `/audit-delta` and `/tour` when the run applied no fix), and before
 recommending a change to the doctrine, the architecture or a public interface.
-plan-challenger, verifier, security-auditor and `analyzer` may call it once
-when dispatched as a sub-agent, before their verdict or report: advice can
-add a finding or raise its severity, never drop, lower or clear one. Other
-sub-agents do not, even when the tool is listed. An absent or
+plan-challenger, verifier, security-auditor, `analyzer` and an opus code
+review (`/ship-feature` STEP 6, `/init-project` STEP 10, a standalone
+subagent-driven-development final review) may call it once when dispatched
+as a sub-agent, before their verdict or report: advice can add a finding or
+raise its severity, never drop, lower or clear one. Other sub-agents never
+call it, even when the tool is listed; the SubagentStart hook
+`hooks/subagent-advisor.sh` restates the rule in every sub-agent at spawn. An absent or
 failing advisor changes nothing, and its advice waives no gate, cap or guard
 (`lib/effort-shift.md` § Advisor). The main loop writes no
 code outside a skill run (the router's guard redirects it to a skill); the fresh
