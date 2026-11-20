@@ -224,6 +224,9 @@ Start the MVP feature branch off develop, then implement on it:
 ```bash
 bash "$HOME/.claude/lib/gitflow.sh" start feature mvp
 ```
+Then, before the first dispatch, the contract dry run on this branch
+(`lib/contract-interview.md` STEP 4;
+`lib/verify-secure-loop.md` § BEFORE THE FIRST DISPATCH).
 Invoke `subagent-driven-development` (vendored superpowers skill) for the per-task implement loop
 **and** the final whole-branch review **only**. Do NOT run its terminal
 `finishing-a-development-branch` step — this orchestrator owns integration via
@@ -277,7 +280,12 @@ Invoke `requesting-code-review` (vendored superpowers skill). **Model routing (B
 review subagent it dispatches MUST carry `model: "opus"` and `effort="xhigh"` in the Agent call —
 craft review is dispatched judgment, never inherited from the session.
 Add to its brief: "you may call the `advisor` tool once, before your
-verdict" (code review, BDR-150). Fix all CRITICAL before proceeding.
+verdict" (code review, BDR-150). Fix every CRITICAL or Important finding
+that carries reproducible evidence (a command that fails on HEAD, or real
+output shown wrong) before proceeding. Without it, one attempt at a failing
+command, else it is a MINOR; a security finding goes to the user
+(`lib/verify-secure-loop.md` § DONE;
+`lib/verify-secure-loop.md` § MINOR triage).
 
 ## STEP 10b — CAPITALIZE FOUNDING DECISIONS (memory registries)
 A greenfield's founding architecture decisions are the highest-value BDRs — the
@@ -379,7 +387,8 @@ bash "$HOME/.claude/lib/gitflow.sh" finish   # feature/mvp → develop
 - Scaffolder = skeleton only, zero logic.
 - Features → subagent pipeline only.
 - Broken build = unacceptable output.
-- Fix all CRITICAL review issues before proceeding.
+- Fix every CRITICAL or Important review issue that carries
+  reproducible evidence before proceeding (STEP 10).
 - Stop if requirements unclear at any step.
 
 ---
