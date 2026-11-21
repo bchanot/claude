@@ -798,3 +798,4 @@ rules:
 - BDR-125 phases audit 2026-11-21: all phases shipped, residual blocks done, F faunosteo verified done on its develop (530af1b, fa41bc2e); TODO F closed. Only open phase-adjacent: release (develop 235 ahead of main v3.0.0).
 - /hotfix doctor-model-default: doctor passes on opus[1m], tracked default per user 2026-11-21 (BDR-125 status amended).
 - /hotfix deferred-stop: [deferred] point stops run once at end of challenge step (keep/cut/reopen, answers bind via contract [gated] + later CONSTRAINTS, /hotfix asks itself, no re-challenge after cut/reopen unless asked). r2 confirmation 5 MAJORs deferred → user answered batch (rule dogfooded). TODO decision closed.
+- /feat deferred-citers (first placed-decision challenge skip): feat/bugfix/hotfix point at challenge-plan § OUTPUT deferred stop. Gates first pass (MET, CONFORME, PASS). Docs a732c6c (README/USAGE/CHANGELOG).
