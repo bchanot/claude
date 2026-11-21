@@ -70,9 +70,9 @@ commands, settings, secrets, maintenance.
 
 ## Agent model routing (model-tiering v2)
 
-Doctrine: the main loop runs on the `opus` session model; the model-router rows
-route main-loop reflection (brainstorm, plan, contract, audit judgment, loop
-decisions) to the `best` tier, opus at the phase's effort. Fable is never
+Doctrine: the main loop runs on the `opus[1m]` session model; the model-router
+rows route main-loop reflection (brainstorm, plan, contract, audit judgment,
+loop decisions) to the `best` tier, opus at the phase's effort. Fable is never
 auto-routed: it is the advisor (`advisorModel` in settings.json) and a hand
 pick. The main loop calls the advisor at least on the written plan before the
 plan challengers see it (`lib/challenge-plan.md`, once per skill run; the
@@ -326,7 +326,7 @@ cd my-existing-project/
 /ship-feature "feature description"
 # → STEP 0: plugin check, project context, contract
 # → STEP 1-2: brainstorm + plan (vendored superpowers skills)
-# → STEP 2b: adversarial plan-challenge (3 lenses, report-only)
+# → STEP 2b: adversarial plan-challenge (3 lenses, report-only; a `[deferred]` point stops once: keep / cut / reopen)
 # → STEP 3: validation gate — user approval required
 # → STEP 4: implement (TDD)
 # → STEP 5: verify + secure (fresh verifier and security-auditor gates)
