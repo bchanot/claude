@@ -387,7 +387,7 @@ Ajouter un archétype : créer `~/.claude/lib/project-archetypes/<name>.md` (voi
 # Feature simple, pas d'orchestration lourde
 /feat "ajouter un endpoint GET /api/v1/users/:id/stats"
 # → plan + challenge, exécuteur `feater`, gates fraîches verifier + sécurité
-# Pas de brainstorming superpowers, pas de gate de validation
+# Pas de brainstorming superpowers, pas de gate de validation (seul un point `[deferred]` du challenge arrête le run, une fois : garder / couper / rouvrir)
 ```
 
 **Choisir entre /ship-feature et /feat :**
