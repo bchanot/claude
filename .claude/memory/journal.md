@@ -790,3 +790,6 @@ rules:
 ## 2026-11-20
 - /ship-feature advisor-subagent-scope (7979b9b 6be0669 b71db28): leak root cause = advisor server tool on every sub-agent, no filter, opus ignores CLAUDE.md attachment; rule moved into agent defs/briefs + SubagentStart hook + SDD sonnet pin; LRN-303; behavioural proof pending next usage table.
 - /feat done-triage-levers (19dfe7e 39cf9dd, docs e8c061e): six levers in verify-secure-loop/challenge-plan/capitalize-commit/verifier/CLAUDE.global + effort-shift citer. r1 3 lenses 9 MAJOR (unrecorded base), r2 2 MAJOR in r1 fixes; gates first pass. BDR-151 LRN-304 EVAL-060. Follow-up /feat (5 files) + MEASURE line in TODO. Branch UNMERGED.
+
+## 2026-11-21
+- /hotfix gates-abandon-id (5bba6ce, bugfix/gates-abandon-id UNMERGED): ABANDON regex anchored to numeric id, catch-all malformed ERROR, leading whitespace accepted (robustness challenger: game ledger indented handoff silently MET). 3 lenses + 1 confirmation, security PASS.
