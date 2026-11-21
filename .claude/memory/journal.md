@@ -794,3 +794,4 @@ rules:
 
 ## 2026-11-21
 - /hotfix gates-abandon-id (5bba6ce, bugfix/gates-abandon-id UNMERGED): ABANDON regex anchored to numeric id, catch-all malformed ERROR, leading whitespace accepted (robustness challenger: game ledger indented handoff silently MET). 3 lenses + 1 confirmation, security PASS.
+- /hotfix challenge-cutoff (343ccc2): confirmation BLOCKER/MAJOR on revised point not revised again, [deferred] for human; memory commit carries · TODO +n/-m. Rule applied to own run: r2 additions (stop-before-dispatch, hotfix escape) deferred to user. TODO triage: 28 dropped (no evidence/date/user ask), 51 → 24 open, list in .claude/tasks/plans/2026-11-21-todo-triage.md. MEASURE re-anchored 343ccc2.
