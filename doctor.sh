@@ -152,8 +152,8 @@ else
   warn "user-scope residue: $(diff <(echo "$_ep_head") <(echo "$_ep_work") | grep '^[<>]' | tr -s ' ' | tr '\n' ';'); restore per MIGRATION "Profiles and packs" step 1"
 fi
 _m="$(jq -r '.model // "-"' "$REPO/settings.json" 2>/dev/null || echo "-")"
-if [ "$_m" = opus ]; then pass "settings.json model is opus"
-else warn "settings.json model is $_m (tracked default is opus)"; fi
+if [ "$_m" = "opus[1m]" ]; then pass "settings.json model is opus[1m]"
+else warn "settings.json model is $_m (tracked default is opus[1m])"; fi
 unset _ep_head _ep_work _m
 
 echo ""
