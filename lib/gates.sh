@@ -107,8 +107,10 @@ _absorb() { # _absorb <raw-line> <lineno>
   elif [[ "$1" =~ ^[0-9] ]]; then
     _err "malformed criterion label at line $2 (want \`N. text\`)"
     _CUR=-1
-  elif [[ "$1" =~ ^ABANDON:[[:space:]]*([0-9]+)?[[:space:]]*(.*)$ ]]; then
-    _ABANDON_ID+=("${BASH_REMATCH[1]}"); _ABANDON_WHY+=("${BASH_REMATCH[2]}")
+  elif [[ "$1" =~ ^[[:space:]]*ABANDON:[[:space:]]*([0-9]+)([[:space:]]+(.*))?$ ]]; then
+    _ABANDON_ID+=("${BASH_REMATCH[1]}"); _ABANDON_WHY+=("${BASH_REMATCH[3]}")
+  elif [[ "$1" =~ ^[[:space:]]*ABANDON: ]]; then
+    _err "malformed ABANDON at line $2 (want \`ABANDON: N reason\`)"
   elif [[ "$1" =~ ^(CHECK|EXPECT|EVIDENCE): ]]; then
     _err "unindented ${BASH_REMATCH[1]}: at line $2"
   elif [[ "$1" =~ ^[[:space:]]+(CHECK|EXPECT|EVIDENCE):(.*)$ ]]; then

@@ -302,6 +302,61 @@ gate "abandonment naming nothing" run "unknown criterion" 2 <<'EOF'
 ABANDON: 9 names a criterion that does not exist
 EOF
 
+gate "abandonment id 1b is malformed" run "malformed ABANDON" 2 <<'EOF'
+## ACCEPTANCE CRITERIA
+1. green
+   CHECK: echo "M"
+   EXPECT: M
+   EVIDENCE: pending
+2. manual
+
+ABANDON: 1b moved after renumber
+EOF
+
+gate "abandonment id 1.1 is malformed" run "malformed ABANDON" 2 <<'EOF'
+## ACCEPTANCE CRITERIA
+1. green
+   CHECK: echo "M"
+   EXPECT: M
+   EVIDENCE: pending
+2. manual
+
+ABANDON: 1.1 moved after renumber
+EOF
+
+gate "abandonment without id is malformed" run "malformed ABANDON" 2 <<'EOF'
+## ACCEPTANCE CRITERIA
+1. green
+   CHECK: echo "M"
+   EXPECT: M
+   EVIDENCE: pending
+2. manual
+
+ABANDON: upstream offline
+EOF
+
+gate "indented malformed abandonment" run "malformed ABANDON" 2 <<'EOF'
+## ACCEPTANCE CRITERIA
+1. green
+   CHECK: echo "M"
+   EXPECT: M
+   EVIDENCE: pending
+2. manual
+
+   ABANDON: 1b moved
+EOF
+
+gate "indented abandonment counts" run "GATES — VERDICT: ABANDONED(1)" 3 <<'EOF'
+## ACCEPTANCE CRITERIA
+1. green
+   CHECK: echo "M"
+   EXPECT: M
+   EVIDENCE: pending
+2. manual
+
+   ABANDON: 2 upstream offline
+EOF
+
 echo "── usage ──"
 
 # usage <label> <expected-substring> <argv...>
