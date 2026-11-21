@@ -141,6 +141,17 @@ Q: <question> / A: <answer>   (pass B and mid-run entries: [gated <YYYY-MM-DD>])
 Print one line to the user, then continue the flow:
 `CONTRACT: <path> — <n> criteria, scope <files|repo-wide>, <q> questions asked`
 
+Before the first dev-step dispatch, after the flow's branch step, a
+contract with `CHECK:` lines gets its dry run: the main loop records
+`- run-base:` (the run's start SHA, for the TODO count of
+`lib/capitalize-commit.md`; a value written before the branch step is
+replaced by `git rev-parse HEAD` right after it) and, from the project
+root, runs `bash ~/.claude/lib/gates.sh run` on a `mktemp -d` copy of the
+contract (`lib/verify-secure-loop.md` § BEFORE THE FIRST DISPATCH). Every
+flow that writes such a contract does this, whether or not it challenges
+its plan; a flow's own positive control on the unfixed tree counts as the
+`gates.sh` half, and `- run-base:` is still recorded.
+
 ## MID-RUN CLARIFICATION (the channel executors halt into)
 
 An executor cannot talk to the human. It halts with `NEED-DECISION`, the

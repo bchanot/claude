@@ -186,6 +186,9 @@ Start the feature branch off develop, then implement on it:
 ```bash
 bash "$HOME/.claude/lib/gitflow.sh" start feature <name>
 ```
+Then, before the first dispatch, the contract dry run on this branch
+(`lib/contract-interview.md` STEP 4;
+`lib/verify-secure-loop.md` § BEFORE THE FIRST DISPATCH).
 Invoke `subagent-driven-development` (vendored superpowers skill) for the per-task implement loop
 **and** the final whole-branch review **only**. Do NOT run its terminal
 `finishing-a-development-branch` step — this orchestrator owns integration via
@@ -259,7 +262,12 @@ Invoke `requesting-code-review` (vendored superpowers skill). **Model routing (B
 review subagent it dispatches MUST carry `model: "opus"` and `effort="xhigh"` in the Agent call —
 craft review is dispatched judgment, never inherited from the session.
 Add to its brief: "you may call the `advisor` tool once, before your
-verdict" (code review, BDR-150). Fix all CRITICAL before proceeding.
+verdict" (code review, BDR-150). Fix every CRITICAL or Important finding
+that carries reproducible evidence (a command that fails on HEAD, or real
+output shown wrong) before proceeding. Without it, one attempt at a failing
+command, else it is a MINOR; a security finding goes to the user
+(`lib/verify-secure-loop.md` § DONE;
+`lib/verify-secure-loop.md` § MINOR triage).
 
 ## STEP 7 — CAPITALIZE (memory registries)
 Call memory_pending first, per /capitalize STEP 1 "Captured first".
@@ -341,7 +349,8 @@ bash "$HOME/.claude/lib/gitflow.sh" finish   # feature/<name> → develop
 - No skipping steps. No merged agent responsibilities.
 - No implement without user approval at STEP 3.
 - Subagents isolated — no shared context between tasks.
-- Fix all CRITICAL review issues before proceeding.
+- Fix every CRITICAL or Important review issue that carries
+  reproducible evidence before proceeding (STEP 6).
 - Stop if requirements unclear at any step.
 - STEP 4 errors → STEP 4b gate required before any fix. Never auto-patch a failing subagent.
 
@@ -361,7 +370,7 @@ The pipeline must handle these without aborting silently:
 | STEP 3 — user replies "request changes" | Loop back to STEP 2 with user's notes. Cap at 3 iterations; on the 3rd "request changes" without approval, ask "Pause and rescope this feature?" |
 | STEP 4 — subagent crashes (tool error, not test failure) | Treat as STEP 4b error path, present hypothesis-led gate. |
 | STEP 4b — option A retried 2× still failing | Force fall-through to B or C. Do not loop a 3rd time. |
-| STEP 6 — review returns CRITICAL items | Loop back to STEP 4 for those items only. Cap at 2 review-cycle iterations; if still CRITICAL, escalate. |
+| STEP 6 — review returns CRITICAL or Important items with reproducible evidence | Loop back to STEP 4 for those items only. Cap at 2 review-cycle iterations; if still CRITICAL, escalate. |
 | STEP 7 — `.claude/memory/` missing | Create the registry files from `~/.claude/templates/memory/` first, then proceed. |
 
 ---

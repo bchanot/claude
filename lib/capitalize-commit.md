@@ -70,9 +70,11 @@ never a shell argument.
    (`lib/verify-secure-loop.md` § BEFORE THE FIRST DISPATCH), else
    `git rev-parse HEAD` now (shortcut: without a contract only the pending
    TODO edits count; edits committed earlier in the run are missed). A
-   failing `git diff` → `TODO n/a`, never a silent `+0 / -0`.
+   `run_base` that is not a 7-40 hex SHA, or a failing `git diff` →
+   `TODO n/a`, never a silent `+0 / -0`.
 
-       if d=$(git diff --no-color --no-ext-diff "$run_base" \
+       if [[ $run_base =~ ^[0-9a-f]{7,40}$ ]] && d=$(git diff --no-color \
+           --no-ext-diff --end-of-options "$run_base" \
            -- ':/.claude/tasks/TODO.md' 2>/dev/null); then
          n=$(printf '%s\n' "$d" | grep -c '^+ *- \[ \]')
          m=$(printf '%s\n' "$d" | grep -c '^- *- \[ \]')
