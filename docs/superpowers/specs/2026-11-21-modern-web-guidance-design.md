@@ -65,32 +65,37 @@ Callers: `install-plugins.sh` Step 8e (`vendor_pinned_tree modern-web-guidance`)
 
 ### 2. Our skill `skills/modern-web-guidance/` (tracked, ours, always on)
 
-- `SKILL.md` with `name`, `effort: medium` (the `explore` row floor), `description` (front-end triggers; not backend,
-  infra, tooling), `allowed-tools: Read, Grep, Glob`.
+- `SKILL.md` with `name`, `description` (front-end triggers; not backend, infra, tooling;
+  at most 400 characters, listing budget), `allowed-tools: Read`. No `effort:` and no
+  `routing.json` row: a rowed skill reroutes the main loop on load ("last rowed skill
+  wins"), which would pull design work off `reflect`; listed in `NO_ROW_SKILLS` like
+  `find-docs`. `allowed-tools` only pre-approves Read for the invoking turn, it restricts
+  nothing (Claude Code skills docs); the no-npx guarantee rests on the skill's text and
+  the settings soft-deny on undeclared `npx <pkg>`.
 - Tracked relative symlinks: `guides -> ../../skills-external/mwg/guides`,
   `INDEX.md -> ../../skills-external/mwg/INDEX.md`, `NOTICE.md -> ../../skills-external/mwg/NOTICE.md`.
 - Workflow in the body:
-  1. Grep `INDEX.md` for 1-3 terms of the capability (dialog, popover, table, form
-     validation, view transition, LCP…); fall back to Grep over `guides/`.
-  2. Read the matching guide(s) and the discipline guide when one applies (html, css,
-     forms, accessibility, performance, security).
+  1. Read `INDEX.md` whole (210 lines, ~14 KB) and pick the guides by title (Grep and
+     Glob are absent in some sessions, Read always exists); a body search only when a
+     text-search tool is at hand.
+  2. Read the matching guide(s) and the discipline guide of each category touched (id =
+     category: html, css, js, forms, accessibility, performance, security, privacy).
   3. Apply them, keeping the guide's fallbacks and Baseline notes. A guide line
-     `npx … retrieve "<id>"` means: Read `guides/*/<id>.md` locally. Never run npx or any
-     network command for this skill.
+     `npx … retrieve "<id>"` means: find `<id>` in `INDEX.md`, Read
+     `guides/<category>/<id>.md`. Never run npx or any network command for this skill.
   4. Where a guide and a rule of `rules/web-building.md` disagree on how to use the
      platform, the guide wins.
   5. End the answer that delivers the front-end change with one line:
      `Modern Web Guidance: <id>, <id>` (or `Modern Web Guidance: checked <topics>, none
      applied`). No quotes.
 - Guides missing (dangling links): say so, remedy `make update`; continue without them.
-- `test-prompts.json` (darwin convention), a `routing.json` row (`modern-web-guidance`,
-  phase `explore`).
+- `test-prompts.json` (darwin convention).
 
 ### 3. chrome-extensions (vendored, always on, as is)
 
 Added to `link.sh` `EXTERNAL_SKILLS` (always-on flat link, the superpowers class;
 BDR-093 forbids only default-off packs there). Its `CHROMEWEBSTORE.md` behaviour is kept.
-A routing row is added if the effort-routing census requires one for linked externals.
+No routing row (untracked linked external; a row would reroute the main loop on load).
 
 ### 4. Wiring
 
@@ -105,15 +110,20 @@ A routing row is added if the effort-routing census requires one for linked exte
 - `CLAUDE.global.md` unchanged (320/320); its design pointer already sends design work to
   `web-building.md`.
 - Known: the path rule also loads inside sub-agents (LRN-232), so front agents see it too.
+  The executors (feater, bugfixer, hotfixer) have no Skill tool in their `tools:`, so the
+  rule adds: without the Skill tool, Read `~/.claude/skills/modern-web-guidance/SKILL.md`
+  and follow it. The relative links resolve through the `~/.claude/skills` link (checked
+  on a fixture). Limit: a Write of a new file loads no path rule (LRN-238).
 
 ### 5. Checks and docs
 
 - `lib/doctor-vendored.sh` (or `doctor.sh`): `skills-external/mwg/INDEX.md` present and
   its `.vendored-commit` equals the lock commit; `chrome-extensions` link present.
-- `lib/tests/mwg.test.sh` on a local git fixture: fetch at the pinned commit, refuse a
-  mismatching commit, whitelist only (no upstream SKILL.md), INDEX generation, prune of a
-  dropped guide on refresh, install of an absent copy in refresh mode, path validation,
-  and our `SKILL.md` contains no `npx` command to run.
+- `lib/tests/vendor-tree.test.sh` on a local git fixture: fetch at the pinned commit,
+  refuse a mismatching commit, whitelist only (no upstream SKILL.md), INDEX generation,
+  prune of a dropped guide on refresh, install of an absent copy in refresh mode, path
+  validation. `lib/tests/mwg-skill.test.sh`: our `SKILL.md` contains no `npx` command to
+  run, Read only, no row, links, disclosure, and the rule wiring.
 - README, USAGE, CHANGELOG; BDR recording the decisions, including the fixed pin as an
   assumed exception to BDR-056.
 

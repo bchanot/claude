@@ -4,7 +4,7 @@
 
 **Goal:** Vendor Google's Modern Web Guidance (guides + chrome-extensions) at a pinned commit and make every front-end task consult it through our own local, network-free skill.
 
-**Architecture:** A new `vendor_pinned_tree` helper in `lib/vendor-skills.sh` fetches one pinned commit with git, copies an allowlist of upstream paths into `skills-external/<dest>/`, generates `INDEX.md` / `NOTICE.md` / `.vendored-commit`, and swaps the result in. Our tracked skill `skills/modern-web-guidance/` reaches the guides through relative symlinks and only uses Read/Grep/Glob. `rules/web-building.md` and `site-motion` send front-end work to the skill.
+**Architecture:** A new `vendor_pinned_tree` helper in `lib/vendor-skills.sh` fetches one pinned commit with git, copies an allowlist of upstream paths into `skills-external/<dest>/`, generates `INDEX.md` / `NOTICE.md` / `.vendored-commit`, and swaps the result in. Our tracked skill `skills/modern-web-guidance/` reaches the guides through relative symlinks and needs only Read (Grep and Glob are absent in some sessions). `rules/web-building.md` and `site-motion` send front-end work to the skill; a sub-agent without the Skill tool Reads its `SKILL.md` by path.
 
 **Tech Stack:** bash, python3 (lock parsing, argv only), git, markdown.
 
@@ -16,7 +16,9 @@ Out of this plan, done by `/ship-feature` itself: README / USAGE / CHANGELOG (ST
 ## Global Constraints
 
 - Pin: tag `v1.0.1`, commit `64a6d708f5a43f2cd3fde5d4d7db3905ba1bdf65`, source `https://github.com/GoogleChrome/modern-web-guidance`.
-- No path of this feature runs `npx`, `pnpx` or the `modern-web-guidance` CLI; the skill's `allowed-tools` is `Read, Grep, Glob` only.
+- No path of this feature runs `npx`, `pnpx` or the `modern-web-guidance` CLI. The skill's `allowed-tools` is `Read`: it only pre-approves Read for the invoking turn, it does not restrict tools (Claude Code skills docs). The no-npx guarantee rests on the skill's "Never run npx" sentence, the absence of any command in it, and the settings soft-deny on undeclared `npx <pkg>`.
+- No `routing.json` row and no `effort:` frontmatter for `modern-web-guidance` or `chrome-extensions`: a rowed skill reroutes the main loop on load ("last rowed skill wins", `mods/model-router/hooks/register.ts` onSkillLoad), which would pull design work off `reflect`. `modern-web-guidance` joins `NO_ROW_SKILLS` in `lib/tests/effort-routing.test.sh` (precedent: `find-docs`); `chrome-extensions` is an untracked linked external, the census does not ask for a row.
+- Skill description at most 400 characters (listing budget `SLASH_COMMAND_TOOL_CHAR_BUDGET=50000`, ~34.5k already used by flat + pack descriptions).
 - The upstream `skills/modern-web-guidance/SKILL.md` is never copied into `skills-external/`.
 - Vendored text is never edited (BDR-104/106).
 - `CLAUDE.global.md`, `settings.json`, `CLAUDE.md` are not modified (BDR-028, 320-line budget).
@@ -31,6 +33,18 @@ Out of this plan, done by `/ship-feature` itself: README / USAGE / CHANGELOG (ST
 3. A machine that never ran `make plugin` → `make update` (refresh mode) installs the copy instead of skipping it.
 4. A lock entry with `..`, an absolute path or a bad dest name → rejected before any fetch.
 5. Fresh clone before install → our skill's symlinks dangle; the skill says "run `make update`" and doctor warns (no error).
+6. A sub-agent executor (feater, bugfixer, hotfixer: no Skill tool in their `tools:`) Reads a front file → the path rule tells it to Read `~/.claude/skills/modern-web-guidance/SKILL.md` and follow it; the relative links resolve through the `~/.claude/skills` link (checked on a fixture: kernel resolves `../..` from the link's real directory).
+
+## Contract oracles (draft, written into the contract at STEP 3 with `- run-base:`)
+
+1. Pin + install wiring + local copy at the pin, 210 guides, no upstream SKILL.md:
+   CHECK: `python3 -c "import json;e=json.load(open('plugins.lock.json'))['modern-web-guidance'];assert e['commit']=='64a6d708f5a43f2cd3fde5d4d7db3905ba1bdf65' and e['tag']=='v1.0.1'" && grep -q '^vendor_pinned_tree modern-web-guidance$' install-plugins.sh && grep -q '^vendor_pinned_tree modern-web-guidance refresh$' update-all.sh && [ "$(cat skills-external/mwg/.vendored-commit)" = 64a6d708f5a43f2cd3fde5d4d7db3905ba1bdf65 ] && [ "$(grep -c '^- ' skills-external/mwg/INDEX.md)" -eq 210 ] && [ -f skills-external/chrome-extensions/SKILL.md ] && [ ! -e skills-external/mwg/SKILL.md ] && make test suite=lib/tests/vendor-tree.test.sh 2>&1 | tail -1` → EXPECT `all suites green`
+2. Our skill, local read only, disclosure: CHECK `make test suite=lib/tests/mwg-skill.test.sh 2>&1 | tail -1` → EXPECT `all suites green`
+3. Rule wiring: CHECK `grep -qx '## Modern Web Guidance first' rules/web-building.md && grep -q '~/.claude/skills/modern-web-guidance/SKILL.md' rules/web-building.md && grep -q 'consult `modern-web-guidance` first' rules/web-building.md && echo WIRED` → EXPECT `WIRED`
+4. Upstream SKILL.md not linked: CHECK `! grep -l 'modern-web-guidance@latest search' ~/.claude/skills/*/SKILL.md 2>/dev/null | grep -q . && [ -L ~/.claude/skills/chrome-extensions ] && echo NOT_LINKED` → EXPECT `NOT_LINKED`
+5. Suite and doctor: CHECK `make test 2>&1 | tail -1` → EXPECT `all suites green`; CHECK `bash doctor.sh 2>&1 | grep -q 'No errors' && echo DOCTOR_OK` → EXPECT `DOCTOR_OK` (baseline 2026-11-22: "No errors, 2 warning(s)").
+
+Oracles 1, 4 and 5 need the live copy: Task 5 runs after Task 4 and before the STEP 5 gates.
 
 ---
 
@@ -103,11 +117,12 @@ write_lock() { # write_lock <commit> [extra-tree-json]
 }
 JSON
 }
-run() { # run <args…> — sources the lib in a subshell against the fixture
-  ( export VENDOR_SKILLS_REPO_OVERRIDE="$REPO" VENDOR_BASE_URL="file://$UP"
-    # shellcheck disable=SC1090
-    source "$LIB"; vendor_pinned_tree "$@" ) >"$WORK/out" 2>&1
-}
+# Same pattern as vendor-skills.test.sh: export once, source once (the lib
+# reads VENDOR_SKILLS_REPO_OVERRIDE at source time), override per call.
+export VENDOR_SKILLS_REPO_OVERRIDE="$REPO" VENDOR_BASE_URL="file://$UP"
+# shellcheck source=../vendor-skills.sh disable=SC1091
+source "$LIB"
+run() { vendor_pinned_tree "$@" >"$WORK/out" 2>&1; }
 
 # T1 install: allowlisted copy, generated files, no upstream SKILL.md.
 write_lock "$SHA1"; run mwg-key; rc=$?
@@ -121,11 +136,10 @@ check_bool T1-index-count "$([ "$(grep -c '^- ' "$M/INDEX.md")" -eq 3 ] && echo 
 check_bool T1-notice "$(grep -q "$SHA1" "$M/NOTICE.md" && grep -q 'CC-BY 4.0' "$M/NOTICE.md" && echo 1)"
 check_bool T1-marker "$([ "$(cat "$M/.vendored-commit")" = "$SHA1" ] && echo 1)"
 check_bool T1-ce-contents "$([ -f "$C/SKILL.md" ] && [ -f "$C/references/extensions/api.md" ] && echo 1)"
-check_bool T1-no-stage-left "$([ -z "$(ls -A "$REPO/skills-external" | grep '^\.vendor-stage')" ] && echo 1)"
+check_bool T1-no-stage-left "$(compgen -G "$REPO/skills-external/.vendor-stage.*" >/dev/null || echo 1)"
 
 # T2 install mode at the pin: skip, no fetch (source made unreachable).
-( export VENDOR_SKILLS_REPO_OVERRIDE="$REPO" VENDOR_BASE_URL="file://$WORK/nowhere"
-  source "$LIB"; vendor_pinned_tree mwg-key ) >"$WORK/out" 2>&1; rc=$?
+VENDOR_BASE_URL="file://$WORK/nowhere" vendor_pinned_tree mwg-key >"$WORK/out" 2>&1; rc=$?
 check_bool T2-skip-rc "$([ $rc -eq 0 ] && grep -q 'already at pin' "$WORK/out" && echo 1)"
 
 # T3 refresh after an upstream drop: old-guide disappears locally.
@@ -161,8 +175,7 @@ check_bool T8-missing-path "$([ $rc -eq 1 ] && [ ! -e "$REPO/skills-external/gho
 
 # T9 a non-file:// VENDOR_BASE_URL is ignored with a warn.
 write_lock "$SHA2"
-( export VENDOR_SKILLS_REPO_OVERRIDE="$REPO" VENDOR_BASE_URL="https://evil.example"
-  source "$LIB"; vendor_pinned_tree mwg-key ) >"$WORK/out" 2>&1
+VENDOR_BASE_URL="https://evil.example" vendor_pinned_tree mwg-key >"$WORK/out" 2>&1
 check_bool T9-override-ignored "$(grep -q 'VENDOR_BASE_URL ignored' "$WORK/out" && echo 1)"
 
 echo "vendor-tree: $pass pass, $fail fail"
@@ -289,8 +302,12 @@ _vendor_tree_index() {
   local dir="$1" f id category title
   [ -d "$dir/guides" ] || return 0
   {
-    printf '# Guide index\n\nOne line per guide: `id | category | title`.'
-    printf ' Read `guides/<category>/<id>.md`.\n\n'
+    cat <<'EOF'
+# Guide index
+
+One line per guide: `id | category | title`. Read `guides/<category>/<id>.md`.
+
+EOF
     find "$dir/guides" -type f -name '*.md' | LC_ALL=C sort \
       | while IFS= read -r f; do
         id="$(basename "$f" .md)"
@@ -392,8 +409,8 @@ Swap failure note: `_vendor_tree_swap` moves dests one by one; a failure after t
 - [ ] **Step 4: Run the suite**
 
 Run: `make test suite=lib/tests/vendor-tree.test.sh`
-Expected: every line `PASS …`, `vendor-tree: 21 pass, 0 fail`, `all suites green`.
-Then: `shellcheck lib/vendor-skills.sh lib/tests/vendor-tree.test.sh` → no output.
+Expected: every line `PASS …`, `vendor-tree: 21 pass, 0 fail`, `all suites green` (simulated on a scratch clone 2026-11-22: 21/21).
+Then: `shellcheck lib/vendor-skills.sh lib/tests/vendor-tree.test.sh` → no output (simulated: clean).
 Then the old suite still green: `make test suite=lib/tests/vendor-skills.test.sh` → `all suites green`.
 
 - [ ] **Step 5: Commit**
@@ -572,12 +589,12 @@ git commit -m "feat(vendor): pin Modern Web Guidance v1.0.1 and chrome-extension
 
 ---
 
-### Task 3: Our `modern-web-guidance` skill + routing rows
+### Task 3: Our `modern-web-guidance` skill (no routing row)
 
 **Files:**
 - Create: `skills/modern-web-guidance/SKILL.md`, `skills/modern-web-guidance/test-prompts.json`
 - Create (tracked symlinks): `skills/modern-web-guidance/guides`, `skills/modern-web-guidance/INDEX.md`, `skills/modern-web-guidance/NOTICE.md`
-- Modify: `mods/model-router/routing.json` (`skills` object)
+- Modify: `lib/tests/effort-routing.test.sh:141` (`NO_ROW_SKILLS` gains `modern-web-guidance`)
 - Test: `lib/tests/mwg-skill.test.sh`
 
 **Interfaces:**
@@ -588,28 +605,33 @@ git commit -m "feat(vendor): pin Modern Web Guidance v1.0.1 and chrome-extension
 
 ```bash
 #!/usr/bin/env bash
-# lib/tests/mwg-skill.test.sh — skills/modern-web-guidance: read-only
-# tools, no npx or network command anywhere in a fenced block, the three
-# relative links into skills-external/mwg, the disclosure format, and a
-# routing.json row.
+# lib/tests/mwg-skill.test.sh — skills/modern-web-guidance: Read is the
+# only pre-approved tool, no effort pin and no routing.json row (a row
+# reroutes the main loop on load), no npx or network command in a fenced
+# block, the three relative links into skills-external/mwg, the
+# disclosure format, a description within the listing budget.
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 S="$ROOT/skills/modern-web-guidance"
 pass=0; fail=0
 check() { if [ "$2" = 1 ]; then pass=$((pass+1)); echo "PASS $1"; else fail=$((fail+1)); echo "FAIL $1"; fi; }
+fm() { awk '/^---$/{n++; next} n==1' "$S/SKILL.md"; }
 check exists "$([ -f "$S/SKILL.md" ] && echo 1)"
-check tools "$(grep -qx 'allowed-tools: Read, Grep, Glob' "$S/SKILL.md" && echo 1)"
-check no-bash "$(grep -q '^allowed-tools:.*Bash' "$S/SKILL.md" || echo 1)"
-fenced_npx="$(awk '/^```/{f=!f; next} f' "$S/SKILL.md" | grep -c 'npx\|pnpx\|curl\|wget')"
-check no-fenced-network "$([ "$fenced_npx" -eq 0 ] && echo 1)"
+check tools "$(fm | grep -qx 'allowed-tools: Read' && echo 1)"
+check no-effort "$(fm | grep -q '^effort:' || echo 1)"
+desc_len="$(fm | awk '/^description:/{f=1; next} /^[a-z-]+:/{f=0} f' | tr -s ' \n' ' ' | wc -c)"
+check desc-budget "$([ "$desc_len" -gt 100 ] && [ "$desc_len" -le 400 ] && echo 1)"
+fenced="$(awk '/^```/{f=!f; next} f' "$S/SKILL.md" | grep -c 'npx\|pnpx\|curl\|wget')"
+check no-fenced-network "$([ "$fenced" -eq 0 ] && echo 1)"
 check never-run "$(grep -q 'Never run npx' "$S/SKILL.md" && echo 1)"
+check read-index "$(grep -q 'Read `INDEX.md` whole' "$S/SKILL.md" && echo 1)"
 check disclosure "$(grep -q '`Modern Web Guidance: <id>, <id>`' "$S/SKILL.md" && echo 1)"
 for l in guides:../../skills-external/mwg/guides INDEX.md:../../skills-external/mwg/INDEX.md NOTICE.md:../../skills-external/mwg/NOTICE.md; do
   check "link-${l%%:*}" "$([ -L "$S/${l%%:*}" ] && [ "$(readlink "$S/${l%%:*}")" = "${l#*:}" ] && echo 1)"
 done
 check tracked-links "$([ "$(cd "$ROOT" && git ls-files skills/modern-web-guidance | grep -c 'guides$\|INDEX.md$\|NOTICE.md$')" -eq 3 ] && echo 1)"
-row="$(python3 -c "import json,sys;print(json.load(open(sys.argv[1]))['skills'].get('modern-web-guidance',''))" "$ROOT/mods/model-router/routing.json")"
-check routing-row "$([ "$row" = explore ] && echo 1)"
+check no-routing-row "$(grep -q '"modern-web-guidance"\|"chrome-extensions"' "$ROOT/mods/model-router/routing.json" || echo 1)"
+check no-row-listed "$(grep -q '^NO_ROW_SKILLS=".* modern-web-guidance ' "$ROOT/lib/tests/effort-routing.test.sh" && echo 1)"
 check prompts "$(python3 -c "import json,sys;d=json.load(open(sys.argv[1]));sys.exit(0 if len(d)>=3 else 1)" "$S/test-prompts.json" && echo 1)"
 echo "mwg-skill: $pass pass, $fail fail"
 [ "$fail" -eq 0 ]
@@ -626,49 +648,46 @@ Run: `make test suite=lib/tests/mwg-skill.test.sh` → `FAIL exists` etc.
 ````markdown
 ---
 name: modern-web-guidance
-effort: medium
-description: |
-  Current web-platform practice from Google's Modern Web Guidance (Chrome,
-  Edge, Firefox and MDN teams), read from a pinned local copy. Run it FIRST,
-  before writing or changing front-end code: HTML, CSS, client-side JS, UI
-  components in any framework. Covers dialogs, popovers, forms and
-  validation, tables, dark mode, container queries, anchor positioning, view
-  transitions, scroll-driven animation, Core Web Vitals (LCP, INP, CLS),
-  images, passkeys, sanitization, web components, dates and time zones,
-  built-in AI. Not for backend, infra, build tooling or tests.
-allowed-tools: Read, Grep, Glob
+description: >-
+  Current web-platform practice from Google's Modern Web Guidance, read
+  from a pinned local copy. Use FIRST, before writing or changing
+  front-end code: HTML, CSS, client-side JS, UI components, forms,
+  dialogs, layout, motion, Core Web Vitals, images, accessibility. Not
+  for backend, infra, build tooling or tests.
+allowed-tools: Read
 ---
 
 # Modern Web Guidance (local, pinned)
 
-The guides sit in this skill's folder: `INDEX.md` (one line per guide,
-`id | category | title`) and `guides/<category>/<id>.md`. They are a copy
-of GoogleChrome/modern-web-guidance pinned in `plugins.lock.json`
-(`NOTICE.md` names the commit and the licenses). Nothing here touches the
-network.
+This folder (`~/.claude/skills/modern-web-guidance/`) holds `INDEX.md`, one
+line per guide (`- <id> | <category> | <title>`), and the guides at
+`guides/<category>/<id>.md`. They are a copy of
+GoogleChrome/modern-web-guidance pinned in `plugins.lock.json`; `NOTICE.md`
+names the commit and the licenses. Read is the only tool needed, nothing
+here touches the network.
 
 ## Steps
 
-1. Search: Grep `INDEX.md`, case-insensitive, for one capability at a
-   time, in 1-3 words naming the UI pattern or platform feature
-   (`dialog`, `popover`, `table`, `validation`, `view transition`, `LCP`).
-   No hit: rephrase once with a synonym, then Grep the bodies under
-   `guides/`. Nothing relevant: go on without a guide.
-2. Read: open each matching guide, plus the discipline guide of the task
-   when one exists (`html`, `css`, `forms`, `accessibility`, `performance`,
-   `security`).
+1. Pick: Read `INDEX.md` whole (about 210 short lines) and choose the
+   guides whose title matches a platform feature or UI pattern the task
+   uses (a modal is `dialog`, a tooltip a popover, a slow first paint
+   LCP). No title fits a feature: search the guide bodies under `guides/`
+   once with the text-search tool at hand, else go on without a guide.
+2. Read each chosen guide, plus the discipline guide of each category
+   touched: the guide whose id equals its category (`html`, `css`, `js`,
+   `forms`, `accessibility`, `performance`, `security`, `privacy`).
 3. Cross-references: a guide line `npx -y modern-web-guidance@latest
-   retrieve "<id>"` points at another guide. Glob `guides/*/<id>.md` and
-   Read it instead. Never run npx, the guidance CLI or any network command
-   for this skill.
+   retrieve "<id>"` names another guide. Find `<id>` in `INDEX.md` for its
+   category and Read `guides/<category>/<id>.md`. Never run npx, the
+   guidance CLI or any network command for this skill.
 4. Apply: follow the guide, its fallbacks and its Baseline notes, without
    adding features the task did not ask for. Where a guide and a rule of
    `rules/web-building.md` disagree on how to use the platform, the guide
    wins.
-5. Disclose: end the answer that delivers the front-end change with one
-   line, `Modern Web Guidance: <id>, <id>`. Guides checked and none
-   applied: `Modern Web Guidance: checked <topics>, none applied`. No
-   quotes.
+5. Disclose: end the answer that delivers the front-end change (a
+   sub-agent: its report) with one line, `Modern Web Guidance: <id>, <id>`.
+   Guides checked and none applied: `Modern Web Guidance: checked <topics>,
+   none applied`. No quotes.
 
 ## Missing copy
 
@@ -689,24 +708,30 @@ ln -s ../../skills-external/mwg/NOTICE.md skills/modern-web-guidance/NOTICE.md
 
 ```json
 [
-  {"id": 1, "prompt": "Add a confirmation modal before deleting an item", "expected": "Grep INDEX.md for dialog, Read the dialog guide (+ html/accessibility), build on <dialog> per the guide, end with `Modern Web Guidance: <ids>`"},
+  {"id": 1, "prompt": "Add a confirmation modal before deleting an item", "expected": "Read INDEX.md, pick dialog, Read the dialog guide (+ html/accessibility), build on <dialog> per the guide, end with `Modern Web Guidance: <ids>`"},
   {"id": 2, "prompt": "Make this table usable on mobile", "expected": "Search table/responsive, Read the matching guide, apply its pattern and fallback, disclosure line"},
   {"id": 3, "prompt": "Améliore le LCP de la page d'accueil", "expected": "FR trigger: search LCP, Read the performance guides, apply fetchpriority/image guidance, disclosure line"},
   {"id": 4, "prompt": "Write a SQL migration for the orders table", "expected": "Does not trigger: backend task"}
 ]
 ```
 
-`mods/model-router/routing.json`, inside `"skills"`: add `"modern-web-guidance": "explore"` and `"chrome-extensions": "implement"` (keep the object's existing formatting; place them alphabetically if the object is sorted, else at the end).
+`lib/tests/effort-routing.test.sh:141`: the line becomes
+
+```bash
+NO_ROW_SKILLS=" find-docs graphify impeccable model-router modern-web-guidance "
+```
+
+No `routing.json` edit: neither `modern-web-guidance` nor `chrome-extensions` gets a row (Global Constraints).
 
 - [ ] **Step 4: Run tests**
 
 Run: `make test suite="lib/tests/mwg-skill.test.sh lib/tests/effort-routing.test.sh lib/tests/model-routing.test.sh lib/tests/pack-census.test.sh lib/tests/skill-routing-census.test.sh"`
-Expected: `all suites green`. If `skill-routing-census` reports a pair ≥ 0.75 involving `modern-web-guidance`, reword the description's trigger list (keep the first sentence) and re-run; a WARN (≥ 0.50) is acceptable and is reported.
+Expected: `all suites green`. If `skill-routing-census` reports a pair ≥ 0.75 involving `modern-web-guidance`, reword the description's list of front-end areas (keep the first sentence, stay within 400 characters) and re-run; a WARN (≥ 0.50) is acceptable and is reported.
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add skills/modern-web-guidance mods/model-router/routing.json lib/tests/mwg-skill.test.sh
+git add skills/modern-web-guidance lib/tests/effort-routing.test.sh lib/tests/mwg-skill.test.sh
 git commit -m "feat(skills): modern-web-guidance reads the pinned guides locally"
 ```
 
@@ -729,6 +754,7 @@ W="$ROOT/rules/web-building.md"
 check rule-section "$(grep -qx '## Modern Web Guidance first' "$W" && echo 1)"
 check rule-before-design "$([ "$(grep -n '^## Modern Web Guidance first' "$W" | cut -d: -f1)" -lt "$(grep -n '^## Design work' "$W" | cut -d: -f1)" ] && echo 1)"
 check rule-guide-wins "$(grep -q 'platform, the guide wins' "$W" && echo 1)"
+check rule-subagent-path "$(grep -q 'Read `~/.claude/skills/modern-web-guidance/SKILL.md`' "$W" && echo 1)"
 check motion-line "$(grep -q '^- Motion: transform and opacity for continuous or scroll-linked motion,$' "$W" && echo 1)"
 check motion-old-gone "$(grep -q 'transform and opacity only' "$W" || echo 1)"
 check design-build "$(awk '/^## Design work/{p=1} /^## /&&!/Design work/{p=0} p' "$W" | grep -q 'consult `modern-web-guidance` first' && echo 1)"
@@ -747,9 +773,10 @@ check site-motion "$(grep -q '`modern-web-guidance`' "$ROOT/skills/pack-design/s
 ## Modern Web Guidance first
 Before writing or changing front-end code (markup, styles, client-side JS,
 components), run the `modern-web-guidance` skill: it reads Google's pinned
-guides locally. Where a guide and a line below disagree on how to use the
-platform, the guide wins. End the answer with the skill's one-line
-disclosure.
+guides locally. Without the Skill tool (a sub-agent), Read
+`~/.claude/skills/modern-web-guidance/SKILL.md` and follow it. Where a
+guide and a line below disagree on how to use the platform, the guide
+wins. End the answer with the skill's one-line disclosure.
 
 ```
 
@@ -801,9 +828,9 @@ git commit -m "feat(rules): front-end work consults modern-web-guidance first"
 
 ---
 
-### Task 5 (main loop, after the gates): live install and doctor
+### Task 5 (main loop, after Task 4, before the STEP 5 gates): live install and doctor
 
-Not an executor task (network fetch on this machine, link refresh):
+Not an executor task (network fetch on this machine, link refresh). Contract oracles 1, 4 and 5 read its result, so it runs before GATE 0:
 
 - `source lib/vendor-skills.sh && vendor_pinned_tree modern-web-guidance` → `modern-web-guidance vendored (pinned @ 64a6d70): chrome-extensions mwg`.
 - `bash link.sh` → `chrome-extensions` linked.
