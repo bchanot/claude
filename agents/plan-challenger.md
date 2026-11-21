@@ -131,11 +131,13 @@ the MAIN loop, never here):
   must-address — the lenses are orthogonal, so a lone security/rollback finding
   is real, never outvoted by lens-count. Cross-lens agreement only RANKS the MINORs.
 - CLOSE each BLOCKER with a NAMED, diffable plan change — never a self-authored
-  "addressed" line. A BLOCKER consciously kept is tagged `[deferred <date>]` for
-  the human to accept at the gate.
+  "addressed" line. A BLOCKER consciously kept is tagged `[deferred <date>]`;
+  every `[deferred]` point stops the run once, at the end of the challenge step,
+  for the human to keep, cut or reopen it (`lib/challenge-plan.md` § OUTPUT).
 - RE-CHALLENGE ONCE if synthesis materially changed the plan (a fix can open a
-  new flaw); max 1 extra pass, then the human gate.
+  new flaw); max 1 extra pass, then the human gate. A BLOCKER or MAJOR that
+  pass still lands on a revised point is deferred, not revised again.
 - ADVISORY: the revised plan + a challenge summary (raised / addressed /
   deferred / any lens that failed to return / an `Advisor:` row) feed the
   orchestrator's existing human gate. The human decides — this is not a
-  hard block.
+  hard block, except the deferred stop above.

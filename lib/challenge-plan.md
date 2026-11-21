@@ -8,9 +8,9 @@ on the big model; `verify-secure-loop.md`: fresh blind gates, decisions in the
 loop). It never merges, executes, or edits code — it hardens the plan and hands
 it to the orchestrator's existing human gate.
 
-The challenge is ADVISORY into that gate — no new hard block — but a BLOCKER is
-never silently carried past: it is either closed by a NAMED plan change or
-explicitly deferred for the human.
+The challenge is ADVISORY into that gate (its one hard stop is the deferred
+stop of OUTPUT below), but a BLOCKER is never silently carried past: it is
+either closed by a NAMED plan change or explicitly deferred for the human.
 
 ## Inputs the caller must have ready
 
@@ -116,13 +116,13 @@ Parse each `CHALLENGE — LENS: … — VERDICT:` line and merge the FINDINGS:
 - **RE-THINK the aspect the challenge pointed at.** For each BLOCKER (and each
   MAJOR you accept): revise the plan on THAT aspect — a NAMED, diffable change to
   the plan, never a self-authored "addressed" line. A BLOCKER you consciously keep
-  is tagged `[deferred <date>]` for the human to accept at the gate.
+  is tagged `[deferred <date>]`, handled per OUTPUT below.
 - **Re-challenge once if the plan materially changed** — a fix can open a new
   flaw. Re-persist the revised `PLAN`, dispatch ONE fresh confirmation challenger,
   max 1 extra pass, then the gate. A BLOCKER or MAJOR that confirmation pass
   still lands on a point the revision touched is not revised again: it is
-  tagged `[deferred <date>]` with the finding quoted, for the human to
-  accept at the gate.
+  tagged `[deferred <date>]` with the finding quoted, handled per OUTPUT
+  below.
 
 ## OUTPUT — into the existing human gate
 
@@ -135,3 +135,20 @@ Feed the orchestrator's gate:
   `not called (absent | error | already called this run | sub-agent)`.
 
 The human remains the decider.
+
+Every `[deferred]` point, from any pass, stops the run once, at the end of
+the challenge step (after any confirmation pass) and before the caller's
+next step, whatever gate the caller holds later: one batched question to
+the human, each finding quoted and each option's effect stated. Per
+point: keep (the plan runs as written), cut (the item leaves the plan,
+and the report or envelope the caller applies from when it applies from
+one) or reopen (the main loop revises it). After a cut or a reopen the run
+goes on with no further challenge unless the human asks for one (then one
+confirmation challenger, whose deferred points are asked once, with no
+challenger after them). A keep or cut answer binds the rest of the run:
+it is appended to the contract's CLARIFICATIONS as `[gated <date>]`, with
+every criterion that requires a cut item amended in the same entry, and
+it joins the CONSTRAINTS of every later challenge, so it is never
+re-asked. /hotfix asks the same question itself, with no escalation. No
+human reachable (a sub-agent run, headless): stop and hand the points
+back. No `[deferred]` point, no extra stop.
