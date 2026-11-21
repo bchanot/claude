@@ -119,7 +119,10 @@ Parse each `CHALLENGE — LENS: … — VERDICT:` line and merge the FINDINGS:
   is tagged `[deferred <date>]` for the human to accept at the gate.
 - **Re-challenge once if the plan materially changed** — a fix can open a new
   flaw. Re-persist the revised `PLAN`, dispatch ONE fresh confirmation challenger,
-  max 1 extra pass, then the gate.
+  max 1 extra pass, then the gate. A BLOCKER or MAJOR that confirmation pass
+  still lands on a point the revision touched is not revised again: it is
+  tagged `[deferred <date>]` with the finding quoted, for the human to
+  accept at the gate.
 
 ## OUTPUT — into the existing human gate
 

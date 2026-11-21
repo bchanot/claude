@@ -58,10 +58,10 @@ never a shell argument.
 ## DO
 
 1. Compose the message from the IDs just written + the flow, matching repo style
-   `chore(memory): <IDs> — <flow> <short>`. Examples:
-   - `chore(memory): BDR-034 + LRN-051 — feat dark-mode toggle`
-   - `chore(memory): BLK-010 resolved — bugfix profile path`
-   - `chore(memory): journal — hotfix copy typo`   (journal-only, nothing else)
+   `chore(memory): <IDs> — <flow> <short> · <todo>`. Examples:
+   - `chore(memory): BDR-034 + LRN-051 — feat dark-mode toggle · TODO +1 / -0`
+   - `chore(memory): BLK-010 resolved — bugfix profile path · TODO +0 / -1`
+   - `chore(memory): journal — hotfix copy typo · TODO +0 / -0`   (journal-only)
 
    Then, still before step 2, count the run's TODO movement as `<todo>`:
    `TODO +n / -m`, the open TODO items the run added and removed (closed or
@@ -80,6 +80,9 @@ never a shell argument.
          m=$(printf '%s\n' "$d" | grep -c '^- *- \[ \]')
          todo="TODO +$n / -$m"
        else todo="TODO n/a"; fi
+
+   The message composed above ends with ` · <todo>`, as in the examples, so
+   each run's movement reads in `git log --oneline --grep '· TODO'`.
 
 2. Commit surgically via the helper, capturing the memory-commit hash it prints:
 
