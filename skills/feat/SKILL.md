@@ -132,8 +132,8 @@ Persist it to `.claude/tasks/plans/<date>-<slug>-<HHMM>.md`, then run
 Three blind challengers attack it; RE-THINK every aspect a BLOCKER lands (a named
 plan change, or `[deferred]`), re-challenge once if the plan materially changed. The
 STEP 3 executor receives the REVISED plan. Before dispatch, print a CHALLENGE SUMMARY
-(BLOCKERs addressed / deferred / lenses returned / advisor), surfacing any
-deferred BLOCKER in the STEP 1 pass B batch.
+(BLOCKERs addressed / deferred / lenses returned / advisor), and stop once on any
+`[deferred]` point (keep / cut / reopen, `lib/challenge-plan.md` § OUTPUT).
 
 ## STEP 2 — BRANCH
 

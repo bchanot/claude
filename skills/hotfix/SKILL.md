@@ -103,7 +103,8 @@ contract's acceptance criteria. Three blind challengers attack the fix; the main
 loop RE-THINKS any aspect a BLOCKER lands (a named change to the fix, or
 `[deferred]`) and re-challenges once if it materially changed. Print a
 CHALLENGE SUMMARY (BLOCKERs addressed / deferred / lenses returned / advisor).
-A BLOCKER that shows the fix is wrong or incomplete means this was never
+A `[deferred]` point: /hotfix asks keep / cut / reopen itself
+(`lib/challenge-plan.md` § OUTPUT). A BLOCKER that shows the fix is wrong or incomplete means this was never
 a hotfix — escalate to `/bugfix` (its STEP 3b runs the same phase under the full
 verify+secure loop).
 

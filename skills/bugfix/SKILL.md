@@ -137,8 +137,8 @@ dispositions. Three blind challengers attack it (correctness = is the root cause
 right; robustness = blast radius / regressions; simplicity = is the fix minimal);
 RE-THINK every aspect a BLOCKER lands, re-challenge once if the plan materially
 changed. STEP 3.5 writes the contract from the REVISED plan. Print a CHALLENGE SUMMARY
-(BLOCKERs addressed / deferred / lenses returned / advisor), folding any
-deferred BLOCKER into the STEP 3 approval gate.
+(BLOCKERs addressed / deferred / lenses returned / advisor), and stop once on any
+`[deferred]` point (keep / cut / reopen, `lib/challenge-plan.md` § OUTPUT).
 
 ## STEP 3.5 — CONTRACT
 
