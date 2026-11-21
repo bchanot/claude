@@ -65,7 +65,7 @@ Callers: `install-plugins.sh` Step 8e (`vendor_pinned_tree modern-web-guidance`)
 
 ### 2. Our skill `skills/modern-web-guidance/` (tracked, ours, always on)
 
-- `SKILL.md` with `name`, `effort: low`, `description` (front-end triggers; not backend,
+- `SKILL.md` with `name`, `effort: medium` (the `explore` row floor), `description` (front-end triggers; not backend,
   infra, tooling), `allowed-tools: Read, Grep, Glob`.
 - Tracked relative symlinks: `guides -> ../../skills-external/mwg/guides`,
   `INDEX.md -> ../../skills-external/mwg/INDEX.md`, `NOTICE.md -> ../../skills-external/mwg/NOTICE.md`.
