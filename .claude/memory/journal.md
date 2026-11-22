@@ -803,3 +803,4 @@ rules:
 
 ## 2026-11-22
 - ship-feature modern-web-guidance: MWG v1.0.1 git-tree pin + own Read-only skill + web-building wiring + router reference-skill exemption. Gates CONFORME/PASS, review Yes, docs synced. BDR-152, BDR-153, LRN-305. Finish awaits user go.
+- doctor fix 14bee52 (git-tree copy missing = warn), feature/modern-web-guidance merged 127ac3d; BDR-154 capitalized, GATE 2 LOW lock-key parked TODO.
