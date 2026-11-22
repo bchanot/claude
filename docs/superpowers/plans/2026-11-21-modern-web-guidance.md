@@ -4,9 +4,9 @@
 
 **Goal:** Vendor Google's Modern Web Guidance (guides + chrome-extensions) at a pinned commit and make every front-end task consult it through our own local, network-free skill.
 
-**Architecture:** A new `vendor_pinned_tree` helper in `lib/vendor-skills.sh` fetches one pinned commit with git, copies an allowlist of upstream paths into `skills-external/<dest>/`, generates `INDEX.md` (one line per guide, the upstream README's one-sentence description) / `NOTICE.md` / `.vendored-commit`, and swaps the result in. Our tracked skill `skills/modern-web-guidance/` reaches the copy through one relative symlink `mwg` and needs only Read (Grep and Glob are absent in some sessions). `rules/web-building.md` and `site-motion` send front-end work to the skill; a sub-agent without the Skill tool Reads its `SKILL.md` by path.
+**Architecture:** A new `vendor_pinned_tree` helper in `lib/vendor-skills.sh` fetches one pinned commit with git, copies an allowlist of upstream paths into `skills-external/<dest>/`, generates `INDEX.md` (one line per guide, the upstream README's one-sentence description) / `NOTICE.md` / `.vendored-commit`, and swaps the result in. Our tracked skill `skills/modern-web-guidance/` reaches the copy through one relative symlink `mwg` and needs only Read (Grep and Glob are absent in some sessions). `rules/web-building.md` and `site-motion` send front-end work to the skill; a sub-agent without the Skill tool Reads its `SKILL.md` by path. model-router learns a short list of reference skills (`modern-web-guidance`, `find-docs`) whose loading never opens its main-loop write guard.
 
-**Tech Stack:** bash, python3 (lock parsing, argv only), git, markdown.
+**Tech Stack:** bash, python3 (lock parsing, argv only), git, markdown, TypeScript (model-router mod, `claude plugin test`).
 
 **Spec:** `docs/superpowers/specs/2026-11-21-modern-web-guidance-design.md`
 **Contract:** `.claude/tasks/contracts/2026-11-21-modern-web-guidance-2314.md`
@@ -23,7 +23,7 @@ Out of this plan, done by `/ship-feature` itself: README / USAGE / CHANGELOG (ST
 
 - Pin: tag `v1.0.1`, commit `64a6d708f5a43f2cd3fde5d4d7db3905ba1bdf65`, source `https://github.com/GoogleChrome/modern-web-guidance`.
 - No path of this feature runs `npx`, `pnpx` or the `modern-web-guidance` CLI. The skill's `allowed-tools` is `Read`: it only pre-approves Read for the invoking turn, it does not restrict tools (Claude Code skills docs). The no-npx guarantee rests on the skill's "Never run npx" sentence, the absence of any command in it, and the settings soft-deny on undeclared `npx <pkg>`.
-- No `routing.json` row and no `effort:` frontmatter for `modern-web-guidance` or `chrome-extensions`: a rowed skill reroutes the main loop on load ("last rowed skill wins", `mods/model-router/hooks/register.ts` onSkillLoad), which would pull design work off `reflect`. `modern-web-guidance` joins `NO_ROW_SKILLS` in `lib/tests/effort-routing.test.sh` (precedent: `find-docs`); `chrome-extensions` is an untracked linked external, the census does not ask for a row.
+- No `routing.json` row and no `effort:` frontmatter for `modern-web-guidance` or `chrome-extensions`: a rowed skill reroutes the main loop on load ("last rowed skill wins", `mods/model-router/hooks/register.ts` onSkillLoad), which would pull design work off `reflect`. `modern-web-guidance` joins `NO_ROW_SKILLS` in `lib/tests/effort-routing.test.sh` (precedent: `find-docs`); `chrome-extensions` is an untracked linked external, the census does not ask for a row. No row is not no side effect: any main-loop Skill call sets `st.skillRun` (register.ts:4634), which opens the write guard for the session; Task 5 exempts reference skills (user decision 2026-11-22, contract CLARIFICATIONS).
 - Skill description at most 400 characters (listing budget `SLASH_COMMAND_TOOL_CHAR_BUDGET=50000`, ~34.5k already used by flat + pack descriptions).
 - The upstream `skills/modern-web-guidance/SKILL.md` is never copied into `skills-external/`.
 - Vendored text is never edited (BDR-104/106); `INDEX.md` and `NOTICE.md` are generated beside it.
@@ -41,17 +41,19 @@ Out of this plan, done by `/ship-feature` itself: README / USAGE / CHANGELOG (ST
 4. A lock entry with `..`, an absolute path or a bad dest name, a dest dir owned by someone else, or a symlink in the fetched content → rejected, nothing replaced.
 5. Fresh clone before install → the skill's `mwg` link dangles; the skill says "run `make update`". Doctor warns for `mwg`; a missing `chrome-extensions` copy is the existing `check_vendored_skills` error, like every other external; doctor reaches its summary either way.
 6. A sub-agent executor (feater, bugfixer, hotfixer: no Skill tool in their `tools:`) Reads a front file → the path rule tells it to Read `~/.claude/skills/modern-web-guidance/SKILL.md`; the relative link resolves through the `~/.claude/skills` link (checked on a fixture: the kernel resolves `../..` from the link's real directory). A closed plan that contradicts a guide is reported as an open choice, never overridden silently.
+7. A direct front-end request with no code skill running ("change the button color in Header.tsx") → the main loop runs `modern-web-guidance`, then its code write is still redirected to /hotfix or /feat (the reference skill does not open the guard); inside a /feat run the guard stays open.
 
 ## Contract oracles (draft, written into the contract at STEP 3 with `- run-base:`)
 
 1. Pin + install wiring + local copy at the pin, 210 guides, no upstream SKILL.md:
-   CHECK: `python3 -c "import json;e=json.load(open('plugins.lock.json'))['modern-web-guidance'];assert e['commit']=='64a6d708f5a43f2cd3fde5d4d7db3905ba1bdf65' and e['tag']=='v1.0.1'" && grep -q 'if ! vendor_pinned_tree modern-web-guidance; then' install-plugins.sh && grep -q 'if ! vendor_pinned_tree modern-web-guidance; then' update-all.sh && [ "$(cat skills-external/mwg/.vendored-commit)" = 64a6d708f5a43f2cd3fde5d4d7db3905ba1bdf65 ] && [ "$(grep -c '^- ' skills-external/mwg/INDEX.md)" -eq 210 ] && [ -f skills-external/chrome-extensions/SKILL.md ] && [ ! -e skills-external/mwg/SKILL.md ] && make test suite=lib/tests/vendor-tree.test.sh 2>&1 | tail -1` → EXPECT `all suites green`
+   CHECK: `python3 -c "import json;e=json.load(open('plugins.lock.json'))['modern-web-guidance'];assert e['commit']=='64a6d708f5a43f2cd3fde5d4d7db3905ba1bdf65' and e['tag']=='v1.0.1'" && grep -q 'if ! vendor_pinned_tree modern-web-guidance; then' install-plugins.sh && grep -q 'if ! vendor_pinned_tree modern-web-guidance; then' update-all.sh && [ "$(cat skills-external/mwg/.vendored-commit)" = 64a6d708f5a43f2cd3fde5d4d7db3905ba1bdf65 ] && [ "$(grep -c '^- ' skills-external/mwg/INDEX.md)" -eq "$(find skills-external/mwg/guides -name '*.md' | wc -l)" ] && [ -f skills-external/chrome-extensions/SKILL.md ] && [ ! -e skills-external/mwg/SKILL.md ] && make test suite=lib/tests/vendor-tree.test.sh 2>&1 | tail -1` → EXPECT `all suites green`
 2. Our skill, local read only, disclosure: CHECK `make test suite=lib/tests/mwg-skill.test.sh 2>&1 | tail -1` → EXPECT `all suites green`
 3. Rule wiring: CHECK `grep -qx '## Modern Web Guidance first' rules/web-building.md && grep -q 'Read `~/.claude/skills/modern-web-guidance/SKILL.md` and follow it.' rules/web-building.md && grep -q '`modern-web-guidance` first for the platform features it uses.' rules/web-building.md && echo WIRED` → EXPECT `WIRED`
 4. Upstream SKILL.md not linked, chrome-extensions linked: CHECK `! grep -l 'modern-web-guidance@latest search' ~/.claude/skills/*/SKILL.md 2>/dev/null | grep -q . && [ -L ~/.claude/skills/chrome-extensions ] && echo NOT_LINKED` → EXPECT `NOT_LINKED`
-5. Suite and doctor: CHECK `make test 2>&1 | tail -1` → EXPECT `all suites green`; CHECK `bash doctor.sh 2>&1 | grep -q 'No errors' && echo DOCTOR_OK` → EXPECT `DOCTOR_OK` (baseline 2026-11-22: "No errors, 2 warning(s)").
+5. Suite and doctor (one CHECK): `make test 2>&1 | tail -1 | grep -qx 'all suites green' && bash doctor.sh 2>&1 | grep -q 'No errors' && echo SUITE_DOCTOR_OK` → EXPECT `SUITE_DOCTOR_OK` (doctor baseline 2026-11-22: "No errors, 2 warning(s)").
+6. Reference skills keep the write guard: CHECK `grep -q "'modern-web-guidance', 'find-docs'," mods/model-router/hooks/register.ts && make test suite=lib/tests/mods.test.sh 2>&1 | tail -1` → EXPECT `all suites green`
 
-Oracles 1, 4 and 5 need the live copy: Task 5 runs after Task 4 and before the STEP 5 gates.
+Oracles 1, 4 and 5 need the live copy: Task 6 runs after Task 5 and before the STEP 5 gates.
 
 ---
 
@@ -64,7 +66,7 @@ Oracles 1, 4 and 5 need the live copy: Task 5 runs after Task 4 and before the S
 **Interfaces:**
 - Produces: `vendor_pinned_tree <lock-key>` (rc 0 when every dest is at the pin, already or after the fetch; rc 1 on any failure, no dest half-replaced); `_vendor_read_tree_lock <lockfile> <key>` (stdout lines: source, commit, tag, license, then `<dest>\t<target>\t<repo-path>`); lock entry shape:
   `{"source","commit","tag","license","trees":{"<dest>":{"<target>|.":"<repo-path>"}},"managed_by":"git-tree","always_on":true}`.
-- Writes per dest: `skills-external/<dest>/.vendored-commit` (the commit), `NOTICE.md`, and `INDEX.md` when the dest holds `guides/` (summary from the dest's `README.md` when present, else the guide's H1).
+- Writes per dest: `skills-external/<dest>/.vendored-commit` (the commit), `.vendored-spec` (the dest's allowlist lines, so an allowlist edit at the same commit re-fetches), `NOTICE.md`, and `INDEX.md` when the dest holds `guides/` (summary from the dest's `README.md` when present, else the guide's H1).
 
 - [ ] **Step 1: Write the failing test** — create `lib/tests/vendor-tree.test.sh`:
 
@@ -76,8 +78,9 @@ Oracles 1, 4 and 5 need the live copy: Task 5 runs after Task 4 and before the S
 # upstream SKILL.md never copied, skip at the pin, a pin bump prunes a
 # guide dropped upstream, an absent copy is installed, a commit not
 # upstream is refused with nothing written, unsafe lock paths rejected
-# before any fetch, a dest owned by someone else never replaced, a
-# symlink in the fetched content refused.
+# before any fetch, an allowlist edit at the same commit re-fetched, a
+# dest owned by someone else never replaced, a symlink in the fetched
+# content or a listed path leaving the checkout refused.
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 LIB="$ROOT/lib/vendor-skills.sh"
@@ -168,6 +171,14 @@ rm -rf "$REPO/skills-external/chrome-extensions"
 run mwg-key; rc=$?
 check_bool T4-installs-absent "$([ $rc -eq 0 ] && [ -f "$C/SKILL.md" ] && echo 1)"
 
+# T12 an allowlist edit at the same commit is applied (README dropped:
+# the dialog line falls back to its H1), then restored.
+sed 's/, "README.md": "README.md"//' "$REPO/plugins.lock.json" > "$WORK/lock"
+cp "$WORK/lock" "$REPO/plugins.lock.json"; run mwg-key; rc=$?
+check_bool T12-spec-refetch "$([ $rc -eq 0 ] && [ ! -e "$M/README.md" ] && grep -qx -- '- dialog | html | Dialog' "$M/INDEX.md" && echo 1)"
+write_lock "$SHA2"; run mwg-key; rc=$?
+check_bool T12-spec-restored "$([ $rc -eq 0 ] && [ -f "$M/README.md" ] && grep -q 'README.md' "$M/.vendored-spec" && echo 1)"
+
 # T5 commit not in upstream: rc 1, existing copy untouched.
 BAD="0123456789abcdef0123456789abcdef01234567"
 write_lock "$BAD"; run mwg-key; rc=$?
@@ -203,6 +214,14 @@ SHA3="$(git -C "$UP" rev-parse HEAD)"
 write_lock "$SHA3"; run mwg-key; rc=$?
 check_bool T11-symlink "$([ $rc -eq 1 ] && [ ! -L "$C/references/link.md" ] && [ "$(cat "$C/.vendored-commit")" = "$SHA2" ] && echo 1)"
 
+# T13 a listed path that resolves outside the checkout is refused.
+g rm -q skills/chrome-extensions/references/link.md
+mkdir -p "$WORK/outside"; printf 'x\n' > "$WORK/outside/f"
+ln -s "$WORK/outside" "$UP/skills/escape"; g add -A; g commit -qm four
+SHA4="$(git -C "$UP" rev-parse HEAD)"
+write_lock "$SHA4" ', "esc": {".": "skills/escape"}'; run mwg-key; rc=$?
+check_bool T13-escape "$([ $rc -eq 1 ] && grep -q 'leaves the checkout' "$WORK/out" && [ ! -e "$REPO/skills-external/esc" ] && echo 1)"
+
 echo "vendor-tree: $pass pass, $fail fail"
 [ "$fail" -eq 0 ]
 ```
@@ -232,11 +251,14 @@ Expected: FAIL lines (`vendor_pinned_tree: command not found` in `$WORK/out`), l
 # the pin or nothing is written. Every dest is staged complete under a
 # mktemp dir in skills-external/, then swapped in whole, so a file
 # dropped upstream disappears on a pin bump. Per dest it writes
-# .vendored-commit, NOTICE.md, and INDEX.md when the dest holds guides/.
-# One mode: skip when every dest is at the pin, else fetch (a pin bump,
-# a missing or partial copy). A dest that exists without .vendored-commit
-# belongs to someone else and is never replaced; a symlink in the fetched
-# content aborts the run.
+# .vendored-commit, .vendored-spec (its lines of the trees allowlist),
+# NOTICE.md, and INDEX.md when the dest holds guides/. One mode: skip when
+# every dest holds the pinned commit and the current allowlist, else fetch
+# (a pin bump, an allowlist edit, a missing copy). A hand-damaged copy
+# with intact markers is not detected: delete the dest and rerun. A dest
+# that exists without .vendored-commit belongs to someone else and is
+# never replaced; a listed path that resolves outside the checkout, or a
+# symlink in the copied content, aborts the run.
 
 # _vendor_read_tree_lock <lockfile> <key> — prints source, commit, tag,
 # license, then one "<dest>\t<target>\t<path>" line per item (sorted).
@@ -303,15 +325,18 @@ for dest, target, path in sorted(rows):
 PY
 }
 
-# _vendor_tree_current <root> <sha> <dests> — rc 0 when every dest
-# (newline-separated) holds a .vendored-commit equal to <sha>.
+# _vendor_tree_current <root> <sha> <items> — rc 0 when every dest of
+# <items> holds a .vendored-commit equal to <sha> and a .vendored-spec
+# equal to its own "<dest>\t<target>\t<path>" lines.
 _vendor_tree_current() {
-  local root="$1" sha="$2" dest
+  local root="$1" sha="$2" items="$3" dest
   while IFS= read -r dest; do
     [ -n "$dest" ] || continue
     [ "$(cat "$root/$dest/.vendored-commit" 2>/dev/null)" = "$sha" ] \
       || return 1
-  done <<<"$3"
+    [ "$(cat "$root/$dest/.vendored-spec" 2>/dev/null)" \
+      = "$(awk -F'\t' -v d="$dest" '$1 == d' <<<"$items")" ] || return 1
+  done < <(cut -f1 <<<"$items" | sort -u)
 }
 
 # _vendor_tree_owned <root> <dests> — rc 1 (err names it) when a dest
@@ -383,8 +408,9 @@ EOF
 
 # _vendor_tree_stage <src> <stage> <items> — copies every
 # "<dest>\t<target>\t<path>" item from the checkout <src> into
-# <stage>/<dest>/; rc 1 (err names the path) when a path is missing or
-# the copied content holds a symlink.
+# <stage>/<dest>/ and records each dest's lines in .vendored-spec; rc 1
+# (err names the path) when a path is missing, resolves outside the
+# checkout, or the copied content holds a symlink.
 _vendor_tree_stage() {
   local src="$1" stage="$2" dest target path
   while IFS=$'\t' read -r dest target path; do
@@ -394,6 +420,11 @@ _vendor_tree_stage() {
       err "upstream path missing at the pin: $path"
       return 1
     fi
+    case "$(realpath -e -- "$src/$path")" in
+      "$(realpath -e -- "$src")"/*) ;;
+      *) err "upstream path leaves the checkout through a symlink: $path"
+         return 1 ;;
+    esac
     if [ "$target" = "." ]; then
       cp -R "$src/$path/." "$stage/$dest/" || return 1
     else
@@ -404,6 +435,8 @@ _vendor_tree_stage() {
     err "upstream content holds a symlink at the pin — refusing"
     return 1
   fi
+  awk -F'\t' -v s="$stage" 'NF { print > (s "/" $1 "/.vendored-spec") }' \
+    <<<"$3"
 }
 
 # _vendor_tree_finish <stage> <dests> <source> <sha> <tag> <note> —
@@ -440,7 +473,8 @@ _vendor_tree_swap() {
 }
 
 # vendor_pinned_tree <lock-key> — see the block comment above. rc 0 when
-# every dest is at the pin (already or after the fetch), rc 1 otherwise.
+# every dest is at the pin and allowlist (already or after the fetch),
+# rc 1 otherwise.
 vendor_pinned_tree() {
   local key="$1" out root="$VENDOR_REPO/skills-external"
   local base="${VENDOR_BASE_URL:-}"
@@ -456,7 +490,7 @@ vendor_pinned_tree() {
   { read -r source; read -r sha; read -r tag; read -r note; } <<<"$out"
   items="$(tail -n +5 <<<"$out")"
   dests="$(cut -f1 <<<"$items" | sort -u)"
-  if _vendor_tree_current "$root" "$sha" "$dests"; then
+  if _vendor_tree_current "$root" "$sha" "$items"; then
     ok "$key already at pin ${sha:0:7}"
     return 0
   fi
@@ -485,7 +519,7 @@ Swap failure note: `_vendor_tree_swap` moves dests one by one. When putting a de
 - [ ] **Step 4: Run the suite**
 
 Run: `make test suite=lib/tests/vendor-tree.test.sh`
-Expected: every line `PASS …`, `vendor-tree: 24 pass, 0 fail`, `all suites green` (simulated on a scratch clone 2026-11-22: 24/24).
+Expected: every line `PASS …`, `vendor-tree: 27 pass, 0 fail`, `all suites green` (simulated on a scratch clone 2026-11-22: 27/27).
 Then: `shellcheck lib/vendor-skills.sh lib/tests/vendor-tree.test.sh` → no output (simulated: clean).
 Then the old suite still green: `make test suite=lib/tests/vendor-skills.test.sh` → `all suites green`.
 
@@ -533,7 +567,9 @@ out_t="$(check_vendored_trees "$TR" 2>&1)"
 printf '%s\n' "$out_t" | grep -q 't: at-pin at pin 1111111' && R1=1 || R1=0
 printf '%s\n' "$out_t" | grep -q 't: skills-external/stale at 2222222, pin 1111111' && R2=1 || R2=0
 printf '%s\n' "$out_t" | grep -q 't: skills-external/absent missing' && R3=1 || R3=0
-printf '%s\n' "$out_t" | grep -q '✗' && R4=0 || R4=1
+# Positive control first: the three lines above must exist.
+[ "$R1$R2$R3" = 111 ] && ! printf '%s\n' "$out_t" | grep -q '✗' \
+  && R4=1 || R4=0
 # doctor.sh runs under `set -euo pipefail`: a missing tree dest and a
 # missing external copy are reported and doctor goes on to its summary.
 # shellcheck disable=SC2016
@@ -553,7 +589,7 @@ check_bool TREES_ERREXIT_SURVIVES "$R5"
 - [ ] **Step 2: Run it to verify it fails**
 
 Run: `make test suite=lib/tests/doctor-vendored.test.sh`
-Expected: the five new checks FAIL (`check_vendored_trees: command not found`; TREES_ERREXIT_SURVIVES also fails on the current `_dv_check_name` call).
+Expected: the five new checks FAIL (`check_vendored_trees: command not found`; TREES_NEVER_FAIL needs the three lines above it; TREES_ERREXIT_SURVIVES also fails on the current `_dv_check_name` call).
 
 - [ ] **Step 3: Implement**
 
@@ -821,7 +857,7 @@ No `routing.json` edit: neither `modern-web-guidance` nor `chrome-extensions` ge
 - [ ] **Step 4: Run tests**
 
 Run: `make test suite="lib/tests/mwg-skill.test.sh lib/tests/effort-routing.test.sh lib/tests/model-routing.test.sh lib/tests/pack-census.test.sh"`
-Expected: `all suites green`. (The description-collision census runs on the live catalog, which holds neither skill before Task 5: its check moves to Task 5.)
+Expected: `all suites green`. (The description-collision census reads the live catalog, `~/.claude/skills` → this checkout's `skills/`: it holds our skill as soon as Task 3 lands here, `chrome-extensions` only after Task 6's link.sh. The census runs in Task 6, with both present.)
 
 - [ ] **Step 5: Commit**
 
@@ -929,13 +965,98 @@ git commit -m "feat(rules): front-end work consults modern-web-guidance first"
 
 ---
 
-### Task 5 (main loop, after Task 4, before the STEP 5 gates): live install, census, doctor
+### Task 5: model-router, reference skills never open the write guard
+
+User decision 2026-11-22 (contract CLARIFICATIONS): a main-loop call of a reference skill (`modern-web-guidance`, `find-docs`) no longer sets `st.skillRun`, so a direct front-end request still meets the guard's redirect to /hotfix or /feat. Every other skill, rowed or not, keeps opening it.
+
+**Files:**
+- Modify: `mods/model-router/hooks/register.ts` (constant after `INHERITING_AGENTS` ≈ :189; `armTypedSkill` ≈ :3817; `registerSkills` ≈ :4634; the GUARD header comment ≈ :4431)
+- Test: `mods/model-router/hooks/register.test.ts` (GUARD block, before `test('GUARD: a Skill call inside a sub-agent does not open it'`)
+
+- [ ] **Step 1: Write the failing tests** — in `register.test.ts`, insert right before `test('GUARD: a Skill call inside a sub-agent does not open it', async (`:
+
+```ts
+for (const ref of ['modern-web-guidance', 'find-docs']) {
+  test(`GUARD: the reference skill ${ref} does not open it`, async (
+    $, on) => {
+    await guardRig($, on)
+    await $.tool.call({ tool: 'Skill', skill: ref } as never)
+    await endTurn($)
+    expect(denied(await write($, `${ROOT}/src/a.ts`))).toContain(GUARD)
+  })
+}
+
+test('GUARD: a typed reference skill does not open it', async ($, on) => {
+  await guardRig($, on)
+  await typed($, '/modern-web-guidance dialog')
+  await skillPrompt($, 'modern-web-guidance')
+  await endTurn($)
+  expect(denied(await write($, `${ROOT}/src/a.ts`))).toContain(GUARD)
+})
+
+test('GUARD: a reference skill inside a run keeps it open', async ($, on) => {
+  await guardRig($, on)
+  await typeFeat($)
+  await $.tool.call({ tool: 'Skill', skill: 'modern-web-guidance' } as never)
+  await endTurn($)
+  expect(denied(await write($, `${ROOT}/src/a.ts`))).toBe('')
+})
+```
+
+- [ ] **Step 2: Run them to verify they fail**
+
+Run: `make test suite=lib/tests/mods.test.sh`
+Expected: `FAIL model-router: plugin test rc=1: … 3 fail` (simulated 2026-11-22: 663 pass, 3 fail; the "inside a run" test is the positive control and passes either way).
+
+- [ ] **Step 3: Implement** — in `register.ts`:
+
+After `const INHERITING_AGENTS: ReadonlySet<string> = new Set(['general-purpose'])` add:
+
+```ts
+// Reference skills read docs (pinned web guides, library docs) and write no
+// code: loading one never opens the write guard (user decision 2026-11-22).
+const REFERENCE_SKILLS: ReadonlySet<string> = new Set([
+  'modern-web-guidance', 'find-docs',
+])
+```
+
+In `armTypedSkill`, the line `  if (typed) st.skillRun = true // unrowed too: its body is the user's` becomes:
+
+```ts
+  // Unrowed too: its body is the user's. A reference skill writes no code.
+  if (typed && !REFERENCE_SKILLS.has(skill)) st.skillRun = true
+```
+
+In `registerSkills`, the line `      if (e.agentId === undefined && !refused) st.skillRun = true` becomes:
+
+```ts
+      if (e.agentId === undefined && !refused &&
+        !REFERENCE_SKILLS.has(skill)) st.skillRun = true
+```
+
+In the GUARD header comment, the line `// latches it anyway.` becomes `// latches it anyway. A reference skill (REFERENCE_SKILLS) never latches.`
+
+- [ ] **Step 4: Run tests**
+
+Run: `make test suite="lib/tests/mods.test.sh lib/tests/model-routing.test.sh lib/tests/effort-routing.test.sh"`
+Expected: `all suites green` (simulated: `model-router: plugin test passed`, 666 tests).
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add mods/model-router/hooks/register.ts mods/model-router/hooks/register.test.ts
+git commit -m "feat(model-router): reference skills never open the main-loop write guard"
+```
+
+---
+
+### Task 6 (main loop, after Task 5, before the STEP 5 gates): live install, census, doctor
 
 Not an executor task (network fetch on this machine, link refresh). Contract oracles 1, 4 and 5 read its result, so it runs before GATE 0:
 
 - `bash -c 'source lib/vendor-skills.sh && vendor_pinned_tree modern-web-guidance'` → `modern-web-guidance vendored (pinned @ 64a6d70): chrome-extensions mwg`.
 - `bash link.sh` → `chrome-extensions` linked.
-- `ls skills/modern-web-guidance/mwg/INDEX.md` resolves; `grep -c '^- ' skills-external/mwg/INDEX.md` → 210; 204 lines carry a README description, 6 fall back to the H1.
+- `ls skills/modern-web-guidance/mwg/INDEX.md` resolves; `grep -c '^- ' skills-external/mwg/INDEX.md` equals the guide count (210 at v1.0.1); 204 lines carry a README description, 6 fall back to the H1.
 - `make test suite=lib/tests/skill-routing-census.test.sh`: a pair ≥ 0.75 involving `modern-web-guidance` or `chrome-extensions` → reword our description's list of front-end areas (keep the first sentence, within 400 characters; chrome-extensions is vendored, never reworded) through a fresh executor, re-run. A WARN (≥ 0.50) is reported, not fixed.
 - `make doctor` → no new error; `check_vendored_trees` passes both dests.
 - Full `make test` (bun on PATH) → green.
@@ -946,3 +1067,5 @@ Rollback (if the feature is reverted): `rm ~/.claude/skills/chrome-extensions` (
 
 - MINOR dropped: shared Python validators across `_vendor_read_tree_lock`, `_vendor_read_lock` and `_dv_tree_expectations` (three heredocs, no shared module; the neighbouring code repeats them too).
 - MINOR dropped: INT/TERM trap in `vendor_pinned_tree` (see the swap failure note).
+- MINOR dropped: repair of a hand-damaged copy whose markers are intact (delete the dest and rerun; stated in the block comment).
+- Confirmation MAJOR (write guard opened by any skill call) → `[deferred 2026-11-22]`, user answer: reopen → Task 5.

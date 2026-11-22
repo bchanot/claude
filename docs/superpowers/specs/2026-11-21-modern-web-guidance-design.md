@@ -114,6 +114,10 @@ No routing row (untracked linked external; a row would reroute the main loop on 
   rule adds: without the Skill tool, Read `~/.claude/skills/modern-web-guidance/SKILL.md`
   and follow it. The relative links resolve through the `~/.claude/skills` link (checked
   on a fixture). Limit: a Write of a new file loads no path rule (LRN-238).
+- model-router: any main-loop Skill call opens the write guard for the session
+  (`st.skillRun`). A reference-skill list (`modern-web-guidance`, `find-docs`) never
+  opens it, so a direct front-end request still gets redirected to /hotfix or /feat
+  (user decision 2026-11-22).
 
 ### 5. Checks and docs
 
