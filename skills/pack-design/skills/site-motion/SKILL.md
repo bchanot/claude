@@ -28,6 +28,10 @@ scroll library the project already runs (LRN-141). Defaults follow
 `rules/web-building.md`; this skill only adds the site-level layer on
 top of it.
 
+Platform features (scroll-driven animation, view transitions, animating to
+intrinsic sizes, reduced motion) come from the `modern-web-guidance` skill
+first: read its guide before choosing a library or a technique.
+
 ## When to use this, not the component skills
 
 - One component's hover, tap feedback, or enter/exit → the target feels

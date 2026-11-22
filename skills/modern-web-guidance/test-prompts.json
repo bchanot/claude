@@ -1,0 +1,6 @@
+[
+  {"id": 1, "prompt": "Add a confirmation modal before deleting an item", "expected": "Read mwg/INDEX.md, pick dialog, Read the dialog guide, build on <dialog> per the guide, end with `Modern Web Guidance: <ids>`"},
+  {"id": 2, "prompt": "Make this accordion open smoothly", "expected": "Pick animate-to-intrinsic-sizes from its summary, Read it, apply its technique and fallback, disclosure line"},
+  {"id": 3, "prompt": "Améliore le LCP de la page d'accueil", "expected": "FR trigger: pick the LCP guides, Read them, apply fetchpriority/image guidance, disclosure line"},
+  {"id": 4, "prompt": "Write a SQL migration for the orders table", "expected": "Does not trigger: backend task"}
+]

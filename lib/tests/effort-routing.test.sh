@@ -138,7 +138,7 @@ while read -r _ p tier effort; do
 done < <(echo "$RD" | grep '^phases ')
 
 # ── (b) tracked skills: row exists, frontmatter effort equals the row ────
-NO_ROW_SKILLS=" find-docs graphify impeccable model-router "
+NO_ROW_SKILLS=" find-docs graphify impeccable model-router modern-web-guidance "
 check_skill() {
   local f="$1" name phase
   name="$(basename "$(dirname "$f")")"

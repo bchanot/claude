@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 # ============================================================
 # lib/doctor-vendored.sh — doctor.sh check for the externally vendored
-# skills (curl-pinned externals in plugins.lock.json + link.sh's
-# EXTERNAL_SKILLS array). doctor.sh's "GStack submodule" section only
-# covers the gstack submodule — this covers the OTHER external skill
-# packs (the agent-skills trio, the seven superpowers skills, and any
-# name link.sh links with no lock entry at all).
+# skills (curl-pinned and git-tree externals in plugins.lock.json +
+# link.sh's EXTERNAL_SKILLS array). doctor.sh's "GStack submodule"
+# section only covers the gstack submodule — this covers the OTHER
+# external skill packs (the agent-skills trio, the seven superpowers
+# skills, and any name link.sh links with no lock entry at all).
 #
-# One entry point, `check_vendored_skills <repo> <claude_home>`, sourced
-# and called by doctor.sh. Two things checked
+# Two entry points, sourced and called by doctor.sh:
+# `check_vendored_trees <repo>` checks the git-tree lock entries (each
+# dest's .vendored-commit against the pin; warning only, never an error),
+# and `check_vendored_skills <repo> <claude_home>` checks two things
 # per name in link.sh's EXTERNAL_SKILLS array:
 #   1. its file(s) exist under skills-external/<name>/ — expected file
 #      list comes from the matching plugins.lock.json entry (list shape
@@ -18,6 +20,9 @@
 #      defaults to ["SKILL.md"].
 #   2. the <claude_home>/skills/<name> symlink points at
 #      <repo>/skills-external/<name>.
+# A name that is a git-tree dest skips check 1 (check_vendored_trees warns
+# on a missing or stale copy) and gets check 2 only once its copy exists,
+# since link.sh links it only then.
 #
 # Lock parsing via python3 argv (never string-spliced) — same pattern as
 # lib/vendor-skills.sh's _vendor_read_lock. link.sh's EXTERNAL_SKILLS
@@ -200,12 +205,13 @@ _dv_check_name() {
 # file header. Either the lock or link.sh being unreadable (or a
 # malformed lock entry — _dv_lock_expectations rc 1) is a warn, never a
 # fail; link.sh unreadable skips the whole check (there is nothing to
-# iterate). Each <name> from link.sh is checked against the item-name
+# iterate). A git-tree dest is left to check_vendored_trees unless its copy
+# exists. Each <name> from link.sh is checked against the item-name
 # allowlist before it is spliced into a path — a rejected one is
 # warned and skipped, not failed.
 check_vendored_skills() {
   local repo="$1" claude_home="$2"
-  local lock_out names name
+  local lock_out names name tree_names
 
   if ! lock_out="$(_dv_lock_expectations "$repo/plugins.lock.json")"; then
     warn "plugins.lock.json unreadable or malformed (missing, invalid \
@@ -213,6 +219,10 @@ JSON, or an entry with a bad \"skills\"/\"path\" shape) — \
 vendored-skills file check falls back to SKILL.md-only defaults"
     lock_out=""
   fi
+
+  # git-tree dests: check_vendored_trees owns their presence and pin.
+  tree_names="$(_dv_tree_expectations "$repo/plugins.lock.json" \
+    | cut -f2)" || tree_names=""
 
   if ! names="$(_dv_link_names "$repo/link.sh")" || [ -z "$names" ]; then
     warn "link.sh EXTERNAL_SKILLS array unreadable — vendored-skills \
@@ -227,6 +237,58 @@ check skipped"
 item-name allowlist — skipped"
       continue
     fi
-    _dv_check_name "$repo" "$claude_home" "$name" "$lock_out"
+    if grep -qxF -- "$name" <<<"$tree_names"; then
+      # A git-tree copy: a missing one is check_vendored_trees' warn;
+      # link.sh links it only once the copy exists.
+      [ -d "$repo/skills-external/$name" ] || continue
+      _dv_check_link "$claude_home" "$repo" "$name" || true
+      continue
+    fi
+    # fail() reports a miss; doctor.sh (set -e) still reaches its summary.
+    _dv_check_name "$repo" "$claude_home" "$name" "$lock_out" || true
   done <<< "$names"
+}
+
+# _dv_tree_expectations <lockfile> — prints "<key>\t<dest>\t<commit>" for
+# every "managed_by": "git-tree" entry; dest and commit format-checked,
+# an invalid one skipped. Lockfile via argv, stderr discarded.
+_dv_tree_expectations() {
+  python3 - "$1" 2>/dev/null <<'PY'
+import json, re, sys
+NAME = re.compile(r'^[A-Za-z0-9_-][A-Za-z0-9._-]*$')
+COMMIT = re.compile(r'^[0-9a-f]{40}$')
+with open(sys.argv[1]) as f:
+    data = json.load(f)
+for key, entry in sorted(data.items()):
+    if not isinstance(entry, dict) or entry.get("managed_by") != "git-tree":
+        continue
+    sha = entry.get("commit", "")
+    trees = entry.get("trees", {})
+    if not COMMIT.fullmatch(sha) or not isinstance(trees, dict):
+        continue
+    for dest in sorted(trees):
+        if NAME.fullmatch(dest):
+            print(f"{key}\t{dest}\t{sha}")
+PY
+}
+
+# check_vendored_trees <repo> — every git-tree dest exists under
+# skills-external/ with a .vendored-commit equal to its pin. Never fails
+# and never trips doctor.sh's errexit: a missing or stale copy is a warn
+# naming `make plugin`.
+check_vendored_trees() {
+  local repo="$1" key dest sha got
+  while IFS=$'\t' read -r key dest sha; do
+    [ -n "$key" ] || continue
+    got="$(cat "$repo/skills-external/$dest/.vendored-commit" \
+      2>/dev/null || true)"
+    if [ -z "$got" ]; then
+      warn "$key: skills-external/$dest missing — run: make plugin"
+    elif [ "$got" != "$sha" ]; then
+      warn "$key: skills-external/$dest at ${got:0:7}, pin ${sha:0:7} \
+— run: make plugin"
+    else
+      pass "$key: $dest at pin ${sha:0:7}"
+    fi
+  done < <(_dv_tree_expectations "$repo/plugins.lock.json")
 }

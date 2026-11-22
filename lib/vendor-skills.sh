@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
 # ============================================================
-# lib/vendor-skills.sh — shared curl-vendoring for commit-pinned skills
+# lib/vendor-skills.sh — shared vendoring for commit-pinned skills
 #
 # One helper, `vendor_pinned_skills <lock-key> [refresh]`, replaces the
 # inline curl loops install-plugins.sh (Step 8e) and update-all.sh (7.3)
 # used to carry separately for the addyosmani/agent-skills trio. Both
 # scripts source this file and call it once per plugins.lock.json entry
 # ("agent-skills", "mengto-skills", …) — no sha ever hardcoded here.
+#
+# A second helper, `vendor_pinned_tree <lock-key>`, handles the
+# "managed_by": "git-tree" entries (modern-web-guidance). One shallow git
+# fetch at the pinned commit, an allowlist copied per dest, INDEX.md and
+# NOTICE.md written for mwg, each dest swapped into skills-external/<dest>.
 #
 # Lock entry shape (plugins.lock.json):
 #   "<key>": {
@@ -233,4 +238,284 @@ vendor_pinned_skills() {
       err "$skill: not all files landed (see the download-failed lines above)"
     fi
   done < <(tail -n +3 <<<"$lock_out")
+}
+
+# ============================================================
+# vendor_pinned_tree — whole upstream trees at one pinned commit, by git
+# ============================================================
+# Lock entry shape (plugins.lock.json, "managed_by": "git-tree"):
+#   "<key>": {
+#     "source": "https://github.com/<owner>/<repo>",
+#     "commit": "<40-hex sha>", "tag": "<tag name, informational>",
+#     "license": "<one-line license note>",
+#     "trees": { "<dest>": { "<target>" | ".": "<repo path>", ... }, ... }
+#   }
+# Each <dest> becomes skills-external/<dest>/. "<target>": "<path>" copies
+# the repo path as <dest>/<target>; ".": "<path>" copies the path's
+# contents into <dest>/. Only listed paths are copied (allowlist). The
+# fetch is one `git fetch --depth 1 <source> <commit>`; HEAD must equal
+# the pin or nothing is written. Every dest is staged complete under a
+# mktemp dir in skills-external/, then swapped in whole, so a file
+# dropped upstream disappears on a pin bump. Per dest it writes
+# .vendored-commit, .vendored-spec (its lines of the trees allowlist),
+# NOTICE.md, and INDEX.md when the dest holds guides/. One mode: skip when
+# every dest holds the pinned commit and the current allowlist, else fetch
+# (a pin bump, an allowlist edit, a missing copy). A hand-damaged copy
+# with intact markers is not detected: delete the dest and rerun. A dest
+# that exists without .vendored-commit belongs to someone else and is
+# never replaced; a listed path that resolves outside the checkout, or a
+# symlink in the copied content, aborts the run.
+
+# _vendor_read_tree_lock <lockfile> <key> — prints source, commit, tag,
+# license, then one "<dest>\t<target>\t<path>" line per item (sorted).
+# rc 1 silent when the entry is absent or incomplete; rc 1 with one
+# "INVALID\t<field>=<value>" or "INVALID\t<value>" line on a bad field.
+# Only values that reach a path or a URL are allowlisted; tag and license
+# are free text without control characters.
+_vendor_read_tree_lock() {
+  python3 - "$1" "$2" <<'PY'
+import json, re, sys
+
+SAFE = re.compile(r'^[A-Za-z0-9._/-]+$')
+NAME = re.compile(r'^[A-Za-z0-9_-][A-Za-z0-9._-]*$')
+COMMIT_RE = re.compile(r'^[0-9a-f]{40}$')
+SOURCE_RE = re.compile(
+    r'^https://github\.com/[A-Za-z0-9._-]+/[A-Za-z0-9._-]+/?$')
+
+
+def unsafe(value):
+    return ".." in value or value.startswith("/") or not SAFE.fullmatch(value)
+
+
+def free_text_bad(value):
+    return not isinstance(value, str) or any(ord(c) < 32 for c in value)
+
+
+def bad(text):
+    print(f"INVALID\t{text}")
+    sys.exit(1)
+
+
+lockfile, key = sys.argv[1], sys.argv[2]
+with open(lockfile) as f:
+    entry = json.load(f).get(key, {})
+source, sha = entry.get("source", ""), entry.get("commit", "")
+tag, note = entry.get("tag", ""), entry.get("license", "")
+trees = entry.get("trees", {})
+if not source or not sha or not isinstance(trees, dict) or not trees:
+    sys.exit(1)
+if not COMMIT_RE.fullmatch(sha):
+    bad(f"commit={sha}")
+if not SOURCE_RE.fullmatch(source):
+    bad(f"source={source}")
+if free_text_bad(tag):
+    bad("tag")
+if free_text_bad(note):
+    bad("license")
+rows = []
+for dest, items in trees.items():
+    if not NAME.fullmatch(dest) or not isinstance(items, dict) or not items:
+        bad(f"dest={dest}")
+    for target, path in items.items():
+        if target != "." and not NAME.fullmatch(target):
+            bad(target)
+        if not isinstance(path, str) or unsafe(path):
+            bad(str(path))
+        rows.append((dest, target, path))
+print(source)
+print(sha)
+print(tag)
+print(note)
+for dest, target, path in sorted(rows):
+    print(f"{dest}\t{target}\t{path}")
+PY
+}
+
+# _vendor_tree_current <root> <sha> <items> — rc 0 when every dest of
+# <items> holds a .vendored-commit equal to <sha> and a .vendored-spec
+# equal to its own "<dest>\t<target>\t<path>" lines.
+_vendor_tree_current() {
+  local root="$1" sha="$2" items="$3" dest
+  while IFS= read -r dest; do
+    [ -n "$dest" ] || continue
+    [ "$(cat "$root/$dest/.vendored-commit" 2>/dev/null)" = "$sha" ] \
+      || return 1
+    [ "$(cat "$root/$dest/.vendored-spec" 2>/dev/null)" \
+      = "$(awk -F'\t' -v d="$dest" '$1 == d' <<<"$items")" ] || return 1
+  done < <(cut -f1 <<<"$items" | sort -u)
+}
+
+# _vendor_tree_owned <root> <dests> — rc 1 (err names it) when a dest
+# exists without .vendored-commit: a directory another installer or the
+# repo owns is never replaced.
+_vendor_tree_owned() {
+  local root="$1" dest
+  while IFS= read -r dest; do
+    [ -n "$dest" ] || continue
+    if [ -e "$root/$dest" ] && [ ! -f "$root/$dest/.vendored-commit" ]; then
+      err "skills-external/$dest exists without .vendored-commit — \
+not vendored here, refusing to replace it"
+      return 1
+    fi
+  done <<<"$2"
+}
+
+# _vendor_tree_checkout <dir> <url> <sha> — shallow fetch of <sha> into a
+# fresh repo at <dir>; rc 0 only when the checked-out HEAD is <sha>.
+_vendor_tree_checkout() {
+  local dir="$1" url="$2" sha="$3"
+  git init -q "$dir" >/dev/null 2>&1 || return 1
+  # No credential prompt of any kind (same flags as
+  # lib/higgsfield-skills.sh): a private or deleted upstream fails at
+  # once, not on a terminal, an askpass program or a credential helper.
+  GIT_TERMINAL_PROMPT=0 GIT_ASKPASS='' SSH_ASKPASS='' \
+    git -C "$dir" -c credential.helper= -c core.askPass= \
+    fetch -q --depth 1 -- "$url" "$sha" </dev/null >/dev/null 2>&1 \
+    || return 1
+  git -C "$dir" -c advice.detachedHead=false checkout -q FETCH_HEAD \
+    >/dev/null 2>&1 || return 1
+  [ "$(git -C "$dir" rev-parse HEAD 2>/dev/null)" = "$sha" ]
+}
+
+# _vendor_tree_summary <readme> <id> — the upstream README's one-line
+# description of guide <id> (`- **[<id>](…)**: <text>`), empty when the
+# README or the line is absent.
+_vendor_tree_summary() {
+  [ -f "$1" ] || return 0
+  grep -m1 -F -- "- **[$2](" "$1" \
+    | sed -n 's/^- \*\*\[[^]]*\]([^)]*)\*\*: //p' || true
+}
+
+# _vendor_tree_index <dest_dir> — writes <dest_dir>/INDEX.md, one
+# "- <id> | <category> | <summary>" line per guides/<category>/<id>.md;
+# the summary is the README description, else the guide's H1 title.
+_vendor_tree_index() {
+  local dir="$1" f id category summary
+  [ -d "$dir/guides" ] || return 0
+  {
+    cat <<'EOF'
+# Guide index
+
+One line per guide: `id | category | summary` (the upstream README's
+description, else the guide's title). Read `guides/<category>/<id>.md`.
+
+EOF
+    find "$dir/guides" -type f -name '*.md' | LC_ALL=C sort \
+      | while IFS= read -r f; do
+        id="$(basename "$f" .md)"
+        category="$(basename "$(dirname "$f")")"
+        summary="$(_vendor_tree_summary "$dir/README.md" "$id")"
+        [ -n "$summary" ] \
+          || summary="$(grep -m1 '^# ' "$f" | sed 's/^# //')"
+        printf -- '- %s | %s | %s\n' "$id" "$category" "${summary:-$id}"
+      done
+  } > "$dir/INDEX.md" || return 1
+}
+
+# _vendor_tree_stage <src> <stage> <items> — copies every
+# "<dest>\t<target>\t<path>" item from the checkout <src> into
+# <stage>/<dest>/ and records each dest's lines in .vendored-spec; rc 1
+# (err names the path) when a path is missing, resolves outside the
+# checkout, or the copied content holds a symlink.
+_vendor_tree_stage() {
+  local src="$1" stage="$2" dest target path
+  while IFS=$'\t' read -r dest target path; do
+    [ -n "$dest" ] || continue
+    mkdir -p "$stage/$dest"
+    if [ ! -e "$src/$path" ]; then
+      err "upstream path missing at the pin: $path"
+      return 1
+    fi
+    case "$(realpath -e -- "$src/$path")" in
+      "$(realpath -e -- "$src")"/*) ;;
+      *) err "upstream path leaves the checkout through a symlink: $path"
+         return 1 ;;
+    esac
+    if [ "$target" = "." ]; then
+      cp -R "$src/$path/." "$stage/$dest/" || return 1
+    else
+      cp -R "$src/$path" "$stage/$dest/$target" || return 1
+    fi
+  done <<<"$3"
+  if [ -n "$(find "$stage" -type l -print -quit)" ]; then
+    err "upstream content holds a symlink at the pin — refusing"
+    return 1
+  fi
+  awk -F'\t' -v s="$stage" 'NF { print > (s "/" $1 "/.vendored-spec") }' \
+    <<<"$3"
+}
+
+# _vendor_tree_finish <stage> <dests> <source> <sha> <tag> <note> —
+# writes INDEX.md, NOTICE.md and .vendored-commit into each staged dest.
+_vendor_tree_finish() {
+  local stage="$1" dest
+  while IFS= read -r dest; do
+    [ -n "$dest" ] || continue
+    _vendor_tree_index "$stage/$dest" || return 1
+    printf '# Vendored content\n\nSource: %s (tag %s, commit %s).\n' \
+      "$3" "${5:-none}" "$4" > "$stage/$dest/NOTICE.md" || return 1
+    printf 'Fetched by lib/vendor-skills.sh vendor_pinned_tree;' \
+      >> "$stage/$dest/NOTICE.md" || return 1
+    printf ' never edited here. License: %s.\n' "$6" \
+      >> "$stage/$dest/NOTICE.md" || return 1
+    printf '%s\n' "$4" > "$stage/$dest/.vendored-commit" || return 1
+  done <<<"$2"
+}
+
+# _vendor_tree_swap <root> <stage> <dests> — moves each staged dest into
+# <root>/<dest>, the previous copy parked under <stage>/.old-<dest> and
+# moved back when the new one cannot be put in place.
+_vendor_tree_swap() {
+  local root="$1" stage="$2" dest
+  while IFS= read -r dest; do
+    [ -n "$dest" ] || continue
+    if [ -e "$root/$dest" ]; then
+      mv "$root/$dest" "$stage/.old-$dest" || return 1
+    fi
+    if ! mv "$stage/$dest" "$root/$dest"; then
+      [ ! -e "$stage/.old-$dest" ] || mv "$stage/.old-$dest" "$root/$dest"
+      return 1
+    fi
+  done <<<"$3"
+}
+
+# vendor_pinned_tree <lock-key> — see the block comment above. rc 0 when
+# every dest is at the pin and allowlist (already or after the fetch),
+# rc 1 otherwise.
+vendor_pinned_tree() {
+  local key="$1" out root="$VENDOR_REPO/skills-external"
+  local base="${VENDOR_BASE_URL:-}"
+  if [ -n "$base" ] && [[ "$base" != file://* ]]; then
+    warn "VENDOR_BASE_URL ignored (must start with file://): $base"
+    base=""
+  fi
+  if ! out="$(_vendor_read_tree_lock "$VENDOR_REPO/plugins.lock.json" "$key")"; then
+    _vendor_report_lock_error "$key" "$out"
+    return 1
+  fi
+  local source sha tag note items dests
+  { read -r source; read -r sha; read -r tag; read -r note; } <<<"$out"
+  items="$(tail -n +5 <<<"$out")"
+  dests="$(cut -f1 <<<"$items" | sort -u)"
+  if _vendor_tree_current "$root" "$sha" "$items"; then
+    ok "$key already at pin ${sha:0:7}"
+    return 0
+  fi
+  _vendor_tree_owned "$root" "$dests" || return 1
+  local tmp stage
+  mkdir -p "$root" && tmp="$(mktemp -d)" || return 1
+  stage="$(mktemp -d "$root/.vendor-stage.XXXXXX")" \
+    || { rm -rf "${tmp:?}"; return 1; }
+  if _vendor_tree_checkout "$tmp/src" "${base:-$source}" "$sha" \
+    && _vendor_tree_stage "$tmp/src" "$stage" "$items" \
+    && _vendor_tree_finish "$stage" "$dests" "$source" "$sha" "$tag" "$note" \
+    && _vendor_tree_swap "$root" "$stage" "$dests"; then
+    ok "$key vendored (pinned @ ${sha:0:7}): $(tr '\n' ' ' <<<"$dests")"
+    rm -rf "${tmp:?}" "${stage:?}"
+    return 0
+  fi
+  err "$key: fetch, stage or swap failed at ${sha:0:7}; a dest not \
+swapped keeps its previous copy (doctor names any not at the pin)"
+  rm -rf "${tmp:?}" "${stage:?}"
+  return 1
 }

@@ -381,6 +381,11 @@ vendor_pinned_skills mengto-skills refresh
 echo ""
 echo "── Updating superpowers skills (obra/superpowers)..."
 vendor_pinned_skills superpowers refresh
+echo ""
+echo "── Updating Modern Web Guidance (GoogleChrome/modern-web-guidance)..."
+if ! vendor_pinned_tree modern-web-guidance; then
+  warn "Modern Web Guidance not vendored (previous copy kept, if any) — rerun: make update"
+fi
 
 # ── Impeccable (design detector + skill + subagents) ──
 # Global scope: the installer writes through the ~/.claude/{skills,agents}

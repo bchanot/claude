@@ -29,7 +29,7 @@ claude-config/
 ├── skills/                # Entry points invoked via /skill-name
 │   └── pack-<n>/          # Skills-dir packs: manifest + tracked symlinks into skills-external/ (seo, geo, web-validate, site-motion: real dirs)
 ├── mods/                  # Claude Code mods (function-hooks plugins), loaded through the skills/<name> symlink
-├── skills-external/       # Vendored skill packs: gstack submodule, design skills, superpowers, agent-skills, MengTo scroll skills, 21st and Higgsfield packs (machine-owned copies gitignored)
+├── skills-external/       # Vendored skill packs: gstack submodule, design skills, superpowers, agent-skills, MengTo scroll skills, Modern Web Guidance (mwg, chrome-extensions), 21st and Higgsfield packs (machine-owned copies gitignored)
 ├── templates/             # Per-project templates (CLAUDE.md, settings, memory registries, path-rule skeletons, deploy runbook, gitignore)
 └── lib/                   # Shared libs: gitflow, memory registry writer, memory feedback reader (lib/memory-feedback/, bun), profiles (lib/profiles/*.json fragments, profile.sh, cc.sh), vendoring, route doctrine, gates, archetypes, architecture defaults, project-rule oracle, tests
 ```
