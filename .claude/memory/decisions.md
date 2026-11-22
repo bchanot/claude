@@ -1633,3 +1633,9 @@ Supersedes [[BDR-030]].
 - **Why**: web rule makes main loop call `modern-web-guidance` before front-end code. Any main-loop Skill call latched `skillRun` → guard open for session → main loop could write front code outside /feat or /hotfix (find-docs already did). Reopened [deferred] confirmation MAJOR, user 2026-11-22 "Rouvrir : exemption".
 - **Alternatives rejected**: keep latch (doctrine "no code outside a skill run" defeated by a reference read); clear `skillRun` after reference skill (could close a real run).
 - **Reference**: 49d8811; contract .claude/tasks/contracts/2026-11-21-modern-web-guidance-2314.md criterion 11. Known gap: future routing row for a reference skill reopens guard via typed route. GUARD_REASON text "re-enter the skill you were running" may point at a reference skill (review Minor, dropped).
+
+## BDR-154 — doctor never errors on git-tree copy not fetched yet, warn only [accepted] (2026-11-22)
+- **Decision**: doctor `check_vendored_skills` skips files check for link.sh EXTERNAL_SKILLS name that is git-tree dest; symlink checked only once `skills-external/<name>` exists (link.sh links only then). `check_vendored_trees` keeps `make plugin` warn. `tree_names` from `_dv_tree_expectations | cut -f2` guarded `|| tree_names=""` (doctor runs `set -euo pipefail`).
+- **Why**: machine pulled before fetch → chrome-extensions SKILL.md missing = doctor FAIL → `make update` (ends on doctor.sh) exits 1. User chose warn only 2026-11-22.
+- **Alternatives rejected**: keep FAIL (update red until `make plugin`).
+- **Reference**: 14bee52; tests TREE_OWNED_* + TREE_NAMES_ERREXIT_BROKEN_LOCK in lib/tests/doctor-vendored.test.sh; open LOW: lock key unvalidated in `_dv_tree_expectations` (TODO, 7e29279).
