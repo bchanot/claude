@@ -2186,3 +2186,9 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Context**: 2026-11-20 /feat done-triage-levers, lever 6 `TODO +n / -m`. r1 put count in DO step 3 ("taken before step 2" in prose, but placed after). Contract CHECK ran on uncommitted fixture → green. r2 confirmation challenger traced step order → MAJOR. Fix: count in DO step 1, run-base SHA from contract, root pathspec `:/` (subdir cwd = silent 0 too), `--no-color --no-ext-diff`.
 - **Apply**: any "report what the run changed" counter: place it before the commit step in the doc's own numbering; base = SHA recorded at run start, never a branch name; fixture rows: uncommitted, committed, subdir cwd, bad SHA → n/a.
 - **Reference**: lib/capitalize-commit.md DO step 1, lib/memory-commit.sh MC_PATHS, LRN-298 (placement semantics), LRN-193
+
+## LRN-305 — Contract dry run while an executor edits the tree gives false reds (2026-11-22)
+- **Pattern**: contract dry run (`gates.sh run` on mktemp copy of working tree) taken while a dispatched executor still edits → copy holds half-applied state → oracle rows red that turn green once executor reports.
+- **Context**: 2026-11-21/22 ship-feature modern-web-guidance. Dry run overlapped running executor → false reds; re-run after report = MET. Separate real red same run: row 10 `FAIL bun not on PATH` (see learnings line ~2009, fixed by `PATH="$HOME/.bun/bin:$PATH"` in oracle).
+- **Apply**: dry run only with no live executor (before first dispatch, or after its report). Red dry run during a dispatch → re-run after report before acting on it.
+- **Reference**: lib/verify-secure-loop.md § BEFORE THE FIRST DISPATCH; BDR-151 lever 4 (contract dry run).
