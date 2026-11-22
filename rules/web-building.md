@@ -4,6 +4,18 @@ paths: ["**/*.html", "**/*.astro", "**/*.css", "**/*.scss", "**/*.tsx", "**/*.js
 
 # Web building — no default reflexes + done checklist
 
+## Modern Web Guidance first
+Before writing or changing front-end code (markup, styles, client-side
+JS, components), run the `modern-web-guidance` skill: it reads Google's
+pinned guides locally. No Skill tool (a sub-agent):
+Read `~/.claude/skills/modern-web-guidance/SKILL.md` and follow it.
+Planning front-end work runs it before the plan closes.
+Where a guide and a line below disagree on how to use
+the platform, the guide wins. An executor whose closed plan contradicts a guide
+reports it as an open choice, never overrides it silently.
+An answer that delivers a front-end change ends with
+the skill's one-line disclosure.
+
 ## Avoid unless the user asks for them
 - Purple gradient, purple/black, neon, washed-out pastels, rainbow.
 - Drop shadow on everything; the same border-radius on every element.
@@ -24,9 +36,11 @@ paths: ["**/*.html", "**/*.astro", "**/*.css", "**/*.scss", "**/*.tsx", "**/*.js
 - Numbers: `tabular-nums`. Headings `text-wrap: balance`, body `pretty`.
   Long labels: truncate or line-clamp, never overflow.
 - One z-index scale from tokens, no arbitrary values.
-- Motion: transform and opacity only; feedback under 200 ms, ease-out on
-  entrances, never from scale(0); `will-change` only during an active
-  animation; pause loops off-screen; honor `prefers-reduced-motion`.
+- Motion: transform and opacity for continuous or scroll-linked motion,
+  other transitions per the Modern Web Guidance guides; feedback under
+  200 ms, ease-out on entrances, never from scale(0); `will-change` only
+  during an active animation; pause loops off-screen; honor
+  `prefers-reduced-motion`.
 - Touch targets 44 px minimum; keyboard and focus per `rules/a11y.md`; status never
   by color alone, add text or an icon.
 - Errors next to the field; empty state = one clear action; destructive
@@ -55,6 +69,8 @@ design routing.
   design-motion-principles (motion) + design-html (static) + site-motion.
   Floor: `impeccable detect <files>` (61 rules, exit 2). frontend-design
   only for a one-off visual with no project context, not beside impeccable.
+- Every Build, polish, motion and scroll step above consults
+  `modern-web-guidance` first for the platform features it uses.
 - Design system / brand → design-consultation first, then the build tools.
 - Review / audit → design-review + emil-design-eng + design-motion-principles
   + /impeccable audit|critique + `impeccable detect` floor.
