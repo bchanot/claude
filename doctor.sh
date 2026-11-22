@@ -125,9 +125,10 @@ unset _pc _pc_rc _w _r
 echo ""
 
 # ────────────────────────────────────────────────────────────
-# 2b. Vendored skills (curl-pinned externals: plugins.lock.json's
-# managed_by:curl entries + link.sh's EXTERNAL_SKILLS array — the OTHER
-# externals the GStack section above does not cover)
+# 2b. Vendored skills (pinned externals: plugins.lock.json's
+# managed_by:curl entries, git-tree entries via check_vendored_trees +
+# link.sh's EXTERNAL_SKILLS array — the OTHER externals the GStack
+# section above does not cover)
 # ────────────────────────────────────────────────────────────
 echo "── Vendored skills ──"
 check_vendored_skills "$REPO" "$HOME/.claude"

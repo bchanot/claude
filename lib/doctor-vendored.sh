@@ -1,14 +1,16 @@
 #!/usr/bin/env bash
 # ============================================================
 # lib/doctor-vendored.sh — doctor.sh check for the externally vendored
-# skills (curl-pinned externals in plugins.lock.json + link.sh's
-# EXTERNAL_SKILLS array). doctor.sh's "GStack submodule" section only
-# covers the gstack submodule — this covers the OTHER external skill
-# packs (the agent-skills trio, the seven superpowers skills, and any
-# name link.sh links with no lock entry at all).
+# skills (curl-pinned and git-tree externals in plugins.lock.json +
+# link.sh's EXTERNAL_SKILLS array). doctor.sh's "GStack submodule"
+# section only covers the gstack submodule — this covers the OTHER
+# external skill packs (the agent-skills trio, the seven superpowers
+# skills, and any name link.sh links with no lock entry at all).
 #
-# One entry point, `check_vendored_skills <repo> <claude_home>`, sourced
-# and called by doctor.sh. Two things checked
+# Two entry points, sourced and called by doctor.sh:
+# `check_vendored_trees <repo>` checks the git-tree lock entries (each
+# dest's .vendored-commit against the pin; warning only, never an error),
+# and `check_vendored_skills <repo> <claude_home>` checks two things
 # per name in link.sh's EXTERNAL_SKILLS array:
 #   1. its file(s) exist under skills-external/<name>/ — expected file
 #      list comes from the matching plugins.lock.json entry (list shape

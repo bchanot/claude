@@ -914,10 +914,12 @@ echo ""
 # skills (MengTo/Skills) + superpowers (obra/superpowers) — all
 # commit-pinned, vendored the emil-design-eng way (curl →
 # skills-external/<name>/, symlinked by link.sh) through the shared
-# lib/vendor-skills.sh helper. Shas/paths/file-lists live in
-# plugins.lock.json ("agent-skills" / "mengto-skills" / "superpowers"
-# entries), never hardcoded here.
-echo "── Step 8e: Agent Skills + Mengto scroll skills + superpowers (pinned commit) ──"
+# lib/vendor-skills.sh helper — plus Modern Web Guidance and
+# chrome-extensions (GoogleChrome/modern-web-guidance), vendored as a
+# git-tree pin (shallow git fetch, not curl). Shas/paths/file-lists live
+# in plugins.lock.json ("agent-skills" / "mengto-skills" / "superpowers"
+# / "modern-web-guidance" entries), never hardcoded here.
+echo "── Step 8e: Agent Skills + Mengto scroll skills + superpowers + Modern Web Guidance (pinned commit) ──"
 echo ""
 # shellcheck source=lib/vendor-skills.sh disable=SC1091
 source "$REPO/lib/vendor-skills.sh"
@@ -1279,6 +1281,7 @@ echo "    🔄 impeccable          — /impeccable design verbs + 61-rule determ
 echo "    🔄 design-motion-principles — motion/animation design, 3-designer lens (kylezantos)"
 echo "    🔄 agent-skills trio   — observability-and-instrumentation, deprecation-and-migration, ci-cd-and-automation (curl → symlink, pinned commit)"
 echo "    🔄 mengto scroll skills — scroll-world-storytelling, build-threejs-scroll-worlds, scroll-scrubbed-visual-sequence, scroll-scrubbed-word-reveal, scroll-progress-timeline (curl → symlink, pinned commit)"
+echo "    🔄 modern-web-guidance — Modern Web Guidance v1.0.1 guides (git-tree pin → skills-external/mwg, read by our modern-web-guidance skill) + chrome-extensions (symlink)"
 echo "    🔄 darwin-skill        — autonomous skill optimizer (npx skills, ~/.agents/skills/)"
 echo "    🔄 21st skill pack     — 21st.dev CLI skills; linked by skills/pack-design and skills/pack-extras (bash lib/profile.sh set <profile> | enable <pack>, then /reload-plugins)"
 echo "    🔄 higgsfield pack     — Higgsfield CLI media skills (image, video, audio, brand), OFF by default (bash lib/profile.sh enable higgsfield, then /reload-plugins; landing-page aid: \`higgsfield-websites\` ships in pack-higgsfield)"

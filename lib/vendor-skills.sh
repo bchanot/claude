@@ -1,12 +1,17 @@
 #!/usr/bin/env bash
 # ============================================================
-# lib/vendor-skills.sh — shared curl-vendoring for commit-pinned skills
+# lib/vendor-skills.sh — shared vendoring for commit-pinned skills
 #
 # One helper, `vendor_pinned_skills <lock-key> [refresh]`, replaces the
 # inline curl loops install-plugins.sh (Step 8e) and update-all.sh (7.3)
 # used to carry separately for the addyosmani/agent-skills trio. Both
 # scripts source this file and call it once per plugins.lock.json entry
 # ("agent-skills", "mengto-skills", …) — no sha ever hardcoded here.
+#
+# A second helper, `vendor_pinned_tree <lock-key>`, handles the
+# "managed_by": "git-tree" entries (modern-web-guidance). One shallow git
+# fetch at the pinned commit, an allowlist copied per dest, INDEX.md and
+# NOTICE.md written for mwg, each dest swapped into skills-external/<dest>.
 #
 # Lock entry shape (plugins.lock.json):
 #   "<key>": {
