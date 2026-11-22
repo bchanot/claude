@@ -205,10 +205,12 @@ printf '%s\n' "$out_t" | grep -q 't: skills-external/absent missing' && R3=1 || 
   && R4=1 || R4=0
 # doctor.sh runs under `set -euo pipefail`: a missing tree dest and a
 # missing external copy are reported and doctor goes on to its summary.
-# shellcheck disable=SC2016
-out_e="$(bash -c 'set -euo pipefail; source "$1"
-  check_vendored_trees "$2"; check_vendored_skills "$2" "$2/home"
-  echo DOCTOR_GOES_ON' _ "$LIB" "$TR" 2>&1)"
+cat > "$WORK/errexit.sh" <<'SH'
+set -euo pipefail; source "$1"
+check_vendored_trees "$2"; check_vendored_skills "$2" "$2/home"
+echo DOCTOR_GOES_ON
+SH
+out_e="$(bash "$WORK/errexit.sh" "$LIB" "$TR" 2>&1)"
 printf '%s\n' "$out_e" | grep -qx 'DOCTOR_GOES_ON' \
   && printf '%s\n' "$out_e" | grep -q 'ghost-ext: skills-external/ghost-ext/SKILL.md missing' \
   && R5=1 || R5=0
