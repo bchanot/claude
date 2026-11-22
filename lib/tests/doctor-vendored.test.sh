@@ -183,5 +183,40 @@ check_bool REJECTS_BAD_NAME \
     && ! printf '%s' "$out5" | grep -qF '../evil: symlink' \
     && echo 1 || echo 0)"
 
+# ── check_vendored_trees: git-tree lock entries; doctor survives errexit ──
+TR="$WORK/trees"
+mkdir -p "$TR/skills-external/at-pin" "$TR/skills-external/stale"
+printf '%s\n' 1111111111111111111111111111111111111111 \
+  > "$TR/skills-external/at-pin/.vendored-commit"
+printf '%s\n' 2222222222222222222222222222222222222222 \
+  > "$TR/skills-external/stale/.vendored-commit"
+cat > "$TR/plugins.lock.json" <<'JSON'
+{"t": {"managed_by": "git-tree", "commit": "1111111111111111111111111111111111111111",
+       "trees": {"at-pin": {"x": "a"}, "stale": {"x": "a"}, "absent": {"x": "a"}}},
+ "c": {"managed_by": "curl", "commit": "1111111111111111111111111111111111111111", "skills": ["s"]}}
+JSON
+printf 'EXTERNAL_SKILLS=(\n  ghost-ext\n)\n' > "$TR/link.sh"
+out_t="$(check_vendored_trees "$TR" 2>&1)"
+printf '%s\n' "$out_t" | grep -q 't: at-pin at pin 1111111' && R1=1 || R1=0
+printf '%s\n' "$out_t" | grep -q 't: skills-external/stale at 2222222, pin 1111111' && R2=1 || R2=0
+printf '%s\n' "$out_t" | grep -q 't: skills-external/absent missing' && R3=1 || R3=0
+# Positive control first: the three lines above must exist.
+[ "$R1$R2$R3" = 111 ] && ! printf '%s\n' "$out_t" | grep -q '✗' \
+  && R4=1 || R4=0
+# doctor.sh runs under `set -euo pipefail`: a missing tree dest and a
+# missing external copy are reported and doctor goes on to its summary.
+# shellcheck disable=SC2016
+out_e="$(bash -c 'set -euo pipefail; source "$1"
+  check_vendored_trees "$2"; check_vendored_skills "$2" "$2/home"
+  echo DOCTOR_GOES_ON' _ "$LIB" "$TR" 2>&1)"
+printf '%s\n' "$out_e" | grep -qx 'DOCTOR_GOES_ON' \
+  && printf '%s\n' "$out_e" | grep -q 'ghost-ext: skills-external/ghost-ext/SKILL.md missing' \
+  && R5=1 || R5=0
+check_bool TREES_AT_PIN "$R1"
+check_bool TREES_STALE_WARN "$R2"
+check_bool TREES_MISSING_WARN "$R3"
+check_bool TREES_NEVER_FAIL "$R4"
+check_bool TREES_ERREXIT_SURVIVES "$R5"
+
 echo "PASS=$pass FAIL=$fail"
 [ "$fail" -eq 0 ]

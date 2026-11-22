@@ -12,6 +12,7 @@ skills/test-driven-development
 skills/requesting-code-review
 skills/using-git-worktrees
 skills/writing-skills
+skills/chrome-extensions
 
 # Impeccable — `impeccable skills install --scope=global` writes
 # impeccable/ into the skills dir through the ~/.claude/skills symlink; install-plugins.sh
@@ -149,6 +150,14 @@ skills-external/test-driven-development/
 skills-external/requesting-code-review/
 skills-external/using-git-worktrees/
 skills-external/writing-skills/
+
+# Modern Web Guidance, vendored (plugins.lock.json 'modern-web-guidance',
+# managed_by git-tree) — machine-owned, fetched at the pinned commit by
+# install-plugins.sh Step 8e and update-all.sh 7.3 through
+# lib/vendor-skills.sh vendor_pinned_tree. Bump the commit deliberately.
+skills-external/mwg/
+skills-external/chrome-extensions/
+skills-external/.vendor-stage.*/
 
 # 21st.dev skill pack — machine-owned: `21st skills install` output, staged by
 # install-plugins.sh Step 8.7 (the installer refuses to write through the

@@ -131,6 +131,7 @@ echo ""
 # ────────────────────────────────────────────────────────────
 echo "── Vendored skills ──"
 check_vendored_skills "$REPO" "$HOME/.claude"
+check_vendored_trees "$REPO"
 
 echo ""
 echo "── Profiles ──"

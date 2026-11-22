@@ -78,7 +78,7 @@ fi
 EXTERNAL_SKILLS=(observability-and-instrumentation deprecation-and-migration
   ci-cd-and-automation brainstorming writing-plans
   subagent-driven-development test-driven-development
-  requesting-code-review using-git-worktrees writing-skills)
+  requesting-code-review using-git-worktrees writing-skills chrome-extensions)
 for _ext_skill in "${EXTERNAL_SKILLS[@]}"; do
   if [ -d "$REPO/skills-external/$_ext_skill" ]; then
     if [ -L "$CLAUDE/skills/$_ext_skill" ] && [ "$(readlink "$CLAUDE/skills/$_ext_skill")" = "$REPO/skills-external/$_ext_skill" ]; then

@@ -227,6 +227,51 @@ check skipped"
 item-name allowlist — skipped"
       continue
     fi
-    _dv_check_name "$repo" "$claude_home" "$name" "$lock_out"
+    # fail() reports a miss; doctor.sh (set -e) still reaches its summary.
+    _dv_check_name "$repo" "$claude_home" "$name" "$lock_out" || true
   done <<< "$names"
+}
+
+# _dv_tree_expectations <lockfile> — prints "<key>\t<dest>\t<commit>" for
+# every "managed_by": "git-tree" entry; dest and commit format-checked,
+# an invalid one skipped. Lockfile via argv, stderr discarded.
+_dv_tree_expectations() {
+  python3 - "$1" 2>/dev/null <<'PY'
+import json, re, sys
+NAME = re.compile(r'^[A-Za-z0-9_-][A-Za-z0-9._-]*$')
+COMMIT = re.compile(r'^[0-9a-f]{40}$')
+with open(sys.argv[1]) as f:
+    data = json.load(f)
+for key, entry in sorted(data.items()):
+    if not isinstance(entry, dict) or entry.get("managed_by") != "git-tree":
+        continue
+    sha = entry.get("commit", "")
+    trees = entry.get("trees", {})
+    if not COMMIT.fullmatch(sha) or not isinstance(trees, dict):
+        continue
+    for dest in sorted(trees):
+        if NAME.fullmatch(dest):
+            print(f"{key}\t{dest}\t{sha}")
+PY
+}
+
+# check_vendored_trees <repo> — every git-tree dest exists under
+# skills-external/ with a .vendored-commit equal to its pin. Never fails
+# and never trips doctor.sh's errexit: a missing or stale copy is a warn
+# naming `make plugin`.
+check_vendored_trees() {
+  local repo="$1" key dest sha got
+  while IFS=$'\t' read -r key dest sha; do
+    [ -n "$key" ] || continue
+    got="$(cat "$repo/skills-external/$dest/.vendored-commit" \
+      2>/dev/null || true)"
+    if [ -z "$got" ]; then
+      warn "$key: skills-external/$dest missing — run: make plugin"
+    elif [ "$got" != "$sha" ]; then
+      warn "$key: skills-external/$dest at ${got:0:7}, pin ${sha:0:7} \
+— run: make plugin"
+    else
+      pass "$key: $dest at pin ${sha:0:7}"
+    fi
+  done < <(_dv_tree_expectations "$repo/plugins.lock.json")
 }

@@ -926,10 +926,13 @@ EXT_SKILL_NAMES=(observability-and-instrumentation deprecation-and-migration
   scroll-scrubbed-visual-sequence scroll-scrubbed-word-reveal
   scroll-progress-timeline brainstorming writing-plans
   subagent-driven-development test-driven-development
-  requesting-code-review using-git-worktrees writing-skills)
+  requesting-code-review using-git-worktrees writing-skills chrome-extensions)
 vendor_pinned_skills agent-skills
 vendor_pinned_skills mengto-skills
 vendor_pinned_skills superpowers
+if ! vendor_pinned_tree modern-web-guidance; then
+  warn "Modern Web Guidance not vendored (previous copy kept, if any) — rerun: make plugin"
+fi
 for _ext_skill in "${EXT_SKILL_NAMES[@]}"; do
   if [ -L "$HOME/.claude/skills/$_ext_skill" ]; then
     ok "$_ext_skill symlink OK"
