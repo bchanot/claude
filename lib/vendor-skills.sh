@@ -404,7 +404,7 @@ EOF
           || summary="$(grep -m1 '^# ' "$f" | sed 's/^# //')"
         printf -- '- %s | %s | %s\n' "$id" "$category" "${summary:-$id}"
       done
-  } > "$dir/INDEX.md"
+  } > "$dir/INDEX.md" || return 1
 }
 
 # _vendor_tree_stage <src> <stage> <items> — copies every
@@ -446,13 +446,14 @@ _vendor_tree_finish() {
   local stage="$1" dest
   while IFS= read -r dest; do
     [ -n "$dest" ] || continue
-    _vendor_tree_index "$stage/$dest"
+    _vendor_tree_index "$stage/$dest" || return 1
     printf '# Vendored content\n\nSource: %s (tag %s, commit %s).\n' \
-      "$3" "${5:-none}" "$4" > "$stage/$dest/NOTICE.md"
+      "$3" "${5:-none}" "$4" > "$stage/$dest/NOTICE.md" || return 1
     printf 'Fetched by lib/vendor-skills.sh vendor_pinned_tree;' \
-      >> "$stage/$dest/NOTICE.md"
-    printf ' never edited here. License: %s.\n' "$6" >> "$stage/$dest/NOTICE.md"
-    printf '%s\n' "$4" > "$stage/$dest/.vendored-commit"
+      >> "$stage/$dest/NOTICE.md" || return 1
+    printf ' never edited here. License: %s.\n' "$6" \
+      >> "$stage/$dest/NOTICE.md" || return 1
+    printf '%s\n' "$4" > "$stage/$dest/.vendored-commit" || return 1
   done <<<"$2"
 }
 
