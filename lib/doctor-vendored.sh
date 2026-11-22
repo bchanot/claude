@@ -20,6 +20,9 @@
 #      defaults to ["SKILL.md"].
 #   2. the <claude_home>/skills/<name> symlink points at
 #      <repo>/skills-external/<name>.
+# A name that is a git-tree dest skips check 1 (check_vendored_trees warns
+# on a missing or stale copy) and gets check 2 only once its copy exists,
+# since link.sh links it only then.
 #
 # Lock parsing via python3 argv (never string-spliced) — same pattern as
 # lib/vendor-skills.sh's _vendor_read_lock. link.sh's EXTERNAL_SKILLS
@@ -202,12 +205,13 @@ _dv_check_name() {
 # file header. Either the lock or link.sh being unreadable (or a
 # malformed lock entry — _dv_lock_expectations rc 1) is a warn, never a
 # fail; link.sh unreadable skips the whole check (there is nothing to
-# iterate). Each <name> from link.sh is checked against the item-name
+# iterate). A git-tree dest is left to check_vendored_trees unless its copy
+# exists. Each <name> from link.sh is checked against the item-name
 # allowlist before it is spliced into a path — a rejected one is
 # warned and skipped, not failed.
 check_vendored_skills() {
   local repo="$1" claude_home="$2"
-  local lock_out names name
+  local lock_out names name tree_names
 
   if ! lock_out="$(_dv_lock_expectations "$repo/plugins.lock.json")"; then
     warn "plugins.lock.json unreadable or malformed (missing, invalid \
@@ -215,6 +219,10 @@ JSON, or an entry with a bad \"skills\"/\"path\" shape) — \
 vendored-skills file check falls back to SKILL.md-only defaults"
     lock_out=""
   fi
+
+  # git-tree dests: check_vendored_trees owns their presence and pin.
+  tree_names="$(_dv_tree_expectations "$repo/plugins.lock.json" \
+    | cut -f2)" || tree_names=""
 
   if ! names="$(_dv_link_names "$repo/link.sh")" || [ -z "$names" ]; then
     warn "link.sh EXTERNAL_SKILLS array unreadable — vendored-skills \
@@ -227,6 +235,13 @@ check skipped"
     if ! _dv_valid_item_name "$name"; then
       warn "link.sh EXTERNAL_SKILLS entry \"$name\" rejected by the \
 item-name allowlist — skipped"
+      continue
+    fi
+    if grep -qxF -- "$name" <<<"$tree_names"; then
+      # A git-tree copy: a missing one is check_vendored_trees' warn;
+      # link.sh links it only once the copy exists.
+      [ -d "$repo/skills-external/$name" ] || continue
+      _dv_check_link "$claude_home" "$repo" "$name" || true
       continue
     fi
     # fail() reports a miss; doctor.sh (set -e) still reaches its summary.

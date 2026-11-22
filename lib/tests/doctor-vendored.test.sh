@@ -16,7 +16,12 @@
 # item-name allowlist rejecting a
 # link.sh entry with a ".." segment — warned and skipped, not failed
 # (REJECTS_BAD_NAME), and an "always_on": true lock entry's name with no
-# symlink failing like any other (ALWAYS_ON_LINK_CHECKED).
+# symlink failing like any other (ALWAYS_ON_LINK_CHECKED). Git-tree
+# dests in link.sh: an absent one only warns via check_vendored_trees
+# (TREE_OWNED_ABSENT_WARN_ONLY), a present one skips the file check
+# (TREE_OWNED_FILES_SKIPPED) but has its symlink checked
+# (TREE_OWNED_LINK_CHECKED), and a broken lock never trips errexit
+# (TREE_NAMES_ERREXIT_BROKEN_LOCK).
 set -u
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 LIB="$ROOT/lib/doctor-vendored.sh"
@@ -219,6 +224,40 @@ check_bool TREES_STALE_WARN "$R2"
 check_bool TREES_MISSING_WARN "$R3"
 check_bool TREES_NEVER_FAIL "$R4"
 check_bool TREES_ERREXIT_SURVIVES "$R5"
+
+# ── git-tree dests named in link.sh: presence is check_vendored_trees' job
+OWN="$WORK/owned"
+mkdir -p "$OWN/skills-external/own-present" "$WORK/owned_home/skills"
+printf '%s\n' 1111111111111111111111111111111111111111 \
+  > "$OWN/skills-external/own-present/.vendored-commit"
+cat > "$OWN/plugins.lock.json" <<'JSON'
+{"g": {"managed_by": "git-tree", "commit": "1111111111111111111111111111111111111111", "trees": {"own-present": {".": "x"}, "own-absent": {".": "x"}}}}
+JSON
+printf 'EXTERNAL_SKILLS=(own-present own-absent plain-missing)\n' \
+  > "$OWN/link.sh"
+out_o1="$(check_vendored_skills "$OWN" "$WORK/owned_home" 2>&1)"
+out_ot="$(check_vendored_trees "$OWN" 2>&1)"
+ln -s "$OWN/skills-external/own-present" "$WORK/owned_home/skills/own-present"
+out_o2="$(check_vendored_skills "$OWN" "$WORK/owned_home" 2>&1)"
+out_eb="$(bash "$WORK/errexit.sh" "$LIB" "$BROKEN" 2>&1)"
+check_bool TREE_OWNED_ABSENT_WARN_ONLY \
+  "$(! printf '%s' "$out_o1" | grep -qF 'own-absent' \
+    && printf '%s' "$out_ot" | grep -qF \
+      'g: skills-external/own-absent missing — run: make plugin' \
+    && printf '%s' "$out_o1" | grep -qF \
+      'plain-missing: skills-external/plain-missing/SKILL.md missing' \
+    && echo 1 || echo 0)"
+check_bool TREE_OWNED_FILES_SKIPPED \
+  "$(! printf '%s' "$out_o1" | grep -qF \
+    'own-present: skills-external/own-present/SKILL.md missing' \
+    && echo 1 || echo 0)"
+check_bool TREE_OWNED_LINK_CHECKED \
+  "$(printf '%s' "$out_o1" | grep -qF 'own-present: symlink missing/wrong' \
+    && printf '%s' "$out_o2" | grep -qF 'own-present: vendored + linked' \
+    && echo 1 || echo 0)"
+check_bool TREE_NAMES_ERREXIT_BROKEN_LOCK \
+  "$(printf '%s\n' "$out_eb" | grep -qx 'DOCTOR_GOES_ON' \
+    && echo 1 || echo 0)"
 
 echo "PASS=$pass FAIL=$fail"
 [ "$fail" -eq 0 ]

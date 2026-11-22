@@ -17,6 +17,7 @@ Q: path rule globs / A: unchanged (no .js/.mjs/.ts); plain client JS relies on t
 Q: chrome-extensions placement / A: always on, as is (its CHROMEWEBSTORE.md behaviour accepted, it only triggers on extension work) [gated 2026-11-21]
 Q: plugin gate, switch this repo to the dev profile / A: no, keep full [gated 2026-11-21]
 Q: challenge deferred point (confirmation MAJOR): any main-loop Skill call sets model-router `st.skillRun` (register.ts:4634) and opens the write guard for the session, so the rule's skill call would let the main loop write front code outside a code skill (find-docs already does) / A: reopen — model-router gets a reference-skill list (`modern-web-guidance`, `find-docs`) that never opens the guard, with tests; FILE SCOPE gains mods/model-router/hooks/register.ts and register.test.ts [gated 2026-11-22]
+Q: final review Minor 1: a machine without the chrome-extensions copy gets a doctor FAIL (files check), so `make update` exits 1 / A: warning only — check_vendored_skills skips the files check for a link.sh name that is a git-tree dest, checks its symlink only once the copy exists; check_vendored_trees keeps the `make plugin` warn [gated 2026-11-22]
 
 ## ACCEPTANCE CRITERIA
 1. The Modern Web Guidance guides of tag v1.0.1 (commit 64a6d708f5a43f2cd3fde5d4d7db3905ba1bdf65) and the chrome-extensions skill are vendored, pinned by that commit in plugins.lock.json, installed by `make plugin` and refreshed at the pin by `make update`; no install or use path runs `npx modern-web-guidance` or reaches the network at use time.
@@ -51,6 +52,10 @@ Q: challenge deferred point (confirmation MAJOR): any main-loop Skill call sets 
    EVIDENCE: MET exit=0 marker-found :: all suites green
 12. [gated 2026-11-22] Doctor: check_vendored_trees warns (never errors) on a missing or stale vendored tree with the remedy `make plugin`, and a missing vendored copy no longer stops doctor under `set -euo pipefail`.
 13. [gated 2026-11-22] vendor_pinned_tree refuses before writing anything: a commit not upstream, unsafe lock paths, a dest it did not create (no marker), a symlink in the fetched content or a listed path leaving the checkout; a failed swap restores the previous copy.
+14. [gated 2026-11-22] A link.sh EXTERNAL_SKILLS name that is a git-tree dest never gets a doctor error for a missing copy: check_vendored_skills skips its files check and checks its symlink only when skills-external/<name> exists; a non-tree name keeps the files FAIL; a malformed lock never stops doctor under `set -euo pipefail`; CHANGELOG states it.
+   CHECK: grep -q 'TREE_OWNED_ABSENT_WARN_ONLY' lib/tests/doctor-vendored.test.sh && grep -q 'TREE_OWNED_LINK_CHECKED' lib/tests/doctor-vendored.test.sh && grep -q 'TREE_NAMES_ERREXIT_BROKEN_LOCK' lib/tests/doctor-vendored.test.sh && make test suite=lib/tests/doctor-vendored.test.sh 2>&1 | tail -1
+   EXPECT: all suites green
+   EVIDENCE: MET exit=0 marker-found :: all suites green
 
 ## FILE SCOPE
 [gated 2026-11-22, STEP 3 approved plan docs/superpowers/plans/2026-11-21-modern-web-guidance.md]
