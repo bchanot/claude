@@ -7544,6 +7544,32 @@ test('GUARD: a model-loaded skill, rowed or not, opens it', async (
   expect(denied(await write($, `${ROOT}/src/a.ts`))).toBe('')
 })
 
+for (const ref of ['modern-web-guidance', 'find-docs']) {
+  test(`GUARD: the reference skill ${ref} does not open it`, async (
+    $, on) => {
+    await guardRig($, on)
+    await $.tool.call({ tool: 'Skill', skill: ref } as never)
+    await endTurn($)
+    expect(denied(await write($, `${ROOT}/src/a.ts`))).toContain(GUARD)
+  })
+}
+
+test('GUARD: a typed reference skill does not open it', async ($, on) => {
+  await guardRig($, on)
+  await typed($, '/modern-web-guidance dialog')
+  await skillPrompt($, 'modern-web-guidance')
+  await endTurn($)
+  expect(denied(await write($, `${ROOT}/src/a.ts`))).toContain(GUARD)
+})
+
+test('GUARD: a reference skill inside a run keeps it open', async ($, on) => {
+  await guardRig($, on)
+  await typeFeat($)
+  await $.tool.call({ tool: 'Skill', skill: 'modern-web-guidance' } as never)
+  await endTurn($)
+  expect(denied(await write($, `${ROOT}/src/a.ts`))).toBe('')
+})
+
 test('GUARD: a Skill call inside a sub-agent does not open it', async (
   $, on) => {
   await guardRig($, on)

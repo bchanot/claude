@@ -187,6 +187,11 @@ const PROJECT_SOURCES: ReadonlySet<string> = new Set([
 // shortcut: the frontmatter model of other types is invisible to the hook;
 // widen the set when the engine exposes it on agent.offer.
 const INHERITING_AGENTS: ReadonlySet<string> = new Set(['general-purpose'])
+// Reference skills read docs (pinned web guides, library docs) and write no
+// code: loading one never opens the write guard (user decision 2026-11-22).
+const REFERENCE_SKILLS: ReadonlySet<string> = new Set([
+  'modern-web-guidance', 'find-docs',
+])
 // PostModelSwitch sources a person chose (auto and resume are not).
 const USER_SWITCH: ReadonlySet<string> = new Set([
   'command', 'picker', 'sdk',
@@ -3814,7 +3819,8 @@ type Armed = { row: Picked | undefined; typed: boolean }
 function armTypedSkill($: Api, st: State, skill: string): Armed {
   const row = skillRow(st, skill)
   const typed = typedPath(st, skill) !== undefined
-  if (typed) st.skillRun = true // unrowed too: its body is the user's
+  // Unrowed too: its body is the user's. A reference skill writes no code.
+  if (typed && !REFERENCE_SKILLS.has(skill)) st.skillRun = true
   if (row === undefined || !typed) return { row: undefined, typed }
   routeMainBySkill(st, skill, row, true)
   refresh($, st)
@@ -4428,7 +4434,7 @@ async function onModelSwitch($: Api, st: State, e: SwitchIn): Promise<void> {
 // held while sub-agents (skill executors) still write; no throw source known.
 // Limit: an unrowed typed skill latches through the typed-fallback path
 // (typedPath) only when no sub-agent is live; the model's own Skill call
-// latches it anyway.
+// latches it anyway. A reference skill (REFERENCE_SKILLS) never latches.
 
 const DOC_FILE = /\.(md|txt)$/i
 const GUARD_REASON = 'model-router: code is written inside a skill run. ' +
@@ -4631,7 +4637,8 @@ function registerSkills(on: On, st: State): void {
       const out = await next(e)
       const refused = typeof out !== 'object' || out === null ||
         'deny' in out || (out as { isError?: unknown }).isError === true
-      if (e.agentId === undefined && !refused) st.skillRun = true
+      if (e.agentId === undefined && !refused &&
+        !REFERENCE_SKILLS.has(skill)) st.skillRun = true
       return out
     } finally {
       st.skillCalls -= 1
