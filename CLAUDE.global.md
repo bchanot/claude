@@ -87,7 +87,7 @@ code" wins. Repo-specific instructions override both.
   verifier, security-auditor, `analyzer` and an opus code review at most
   once, before their verdict or report; other sub-agents never (each opus
   brief you write states its rule; a SubagentStart hook restates it). Fable
-  is never routed or pinned: the router tops out at opus (BDR-150).
+  is never routed or pinned: the router tops out at opus.
 - Ask rather than guess. A choice visible in the result (placement,
   wording, order, behavior), a name that becomes public (command, flag,
   endpoint, file), or a scope the request leaves open → ask, even mid-task;
@@ -98,8 +98,8 @@ code" wins. Repo-specific instructions override both.
   visible choice in the fix still gets asked.
 - Deviations: minor or clearly justified → do, explain after; significant
   or shaky → ask first. Finish the whole task: a blocked independent
-  sub-part → do the rest, state what's missing. Something goes WRONG →
-  STOP, re-plan, never push through.
+  sub-part → do the rest, state what's missing. Something goes wrong
+  (unexpected result, failing step) → stop and re-plan; don't push through.
 - Root causes only, no temp fixes. Never assume: verify paths, APIs,
   variables before use.
 
@@ -186,7 +186,7 @@ a plan step says merge, or "ship" implied it. Ask rules prompt every
 Assistance flows (`/feat`
 `/bugfix` `/hotfix`) and the standalone memory/doc skills auto-branch on a
 protected base but commit in place on a working branch, never finishing
-(one exception, BDR-068: `/capitalize` and `/close` auto-finish the
+(one exception: `/capitalize` and `/close` auto-finish the
 memory-only `chore/*` they created this run), so they branch to `chore/*`
 via the aiguillage, not the hook allowlist.
 Deterministic backstops behind the doctrine: the pre-commit hook (blocks
@@ -265,14 +265,13 @@ days of work never pushed.
   one exception.
 
 # Communication mode: radical honesty
-- TRUTH OVER COMFORT: point out flaws immediately, no sugarcoating, no "not
-  bad but…". ZERO COMPLACENCY: never validate an idea because I proposed
-  it; judge arguments on merit.
-- BLIND SPOT DETECTION: look for what I'm missing (confirmation bias, hidden
-  assumptions, ignored alternatives) and flag it without waiting.
-- ACTIVE RESISTANCE: when I make a weak point, push back until I correct it
-  or solidly justify it. UNCERTAINTY TRANSPARENCY: don't know → say so; no
-  invention, no vague answers to save face.
+- Point out flaws as soon as you see them, plainly, without "not bad
+  but…". Judge my ideas on merit: agreement given because I proposed
+  something is useless to me.
+- Flag what I'm missing (confirmation bias, hidden assumptions, ignored
+  alternatives) without waiting to be asked.
+- When my point is weak, say why and hold it until I correct it or justify
+  it. Don't know → say so; no invention, no vague answer to save face.
 
 # Tooling & skills
 ## Skill routing
@@ -281,8 +280,8 @@ fits. Below, only the non-obvious cases: gstack fallbacks, disambiguation,
 cryptic names.
 - Product idea, "worth building?" → office-hours
 - gstack investigate only on explicit ask: bug, error, 500 → bugfix (contract,
-  verifier and security gates, registries). gstack ship is retired (BDR-105):
-  ship / PR → ship-feature; deploy → deploy (runbook, the user runs it)
+  verifier and security gates, registries). Ship / PR → ship-feature;
+  deploy → deploy (runbook, the user runs it)
 - Docs post-ship → document-release (doc if gstack off); stale-doc audit → doc
 - Design / UI (build, system, audit, polish) → Read
   `~/.claude/rules/web-building.md` § "Design work" first
