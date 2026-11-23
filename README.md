@@ -86,8 +86,10 @@ it), before proposing a merge or calling a long task done (two skips:
 `/feat` and `/bugfix` when GATE 0 said MET, the verifier CONFORME and
 security PASS, not DEGRADED, each on its first attempt, their summary's
 `ADVISOR` field then reading `skipped (gates clean on first pass)`;
-`/audit-delta` and `/tour` when the run applied no fix), and before
-recommending a change to the doctrine, the architecture or a public interface.
+`/audit-delta` and `/tour` when the run applied no fix), before
+recommending a change to the doctrine, the architecture or a public interface,
+and before handing the user a root-cause diagnosis or commands to run on
+their machine.
 plan-challenger, verifier, security-auditor, `analyzer` and an opus code
 review (`/ship-feature` STEP 6, `/init-project` STEP 10, a standalone
 subagent-driven-development final review) may call it once when dispatched

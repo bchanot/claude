@@ -807,3 +807,4 @@ rules:
 
 ## 2026-11-23
 - prompt-audit Opus 5.5: always-on ~14k tok (doctor), 5 small edits CLAUDE.global merged 38be889; olmind not found; slim gitflow/memory text = BDR-125 candidate.
+- advisor trigger before root-cause diagnosis / user-run commands (7b63507). Measured: unserved advisor blocks beside tool_use all re-served next msg, no lost calls; lever dropped.
