@@ -2192,3 +2192,8 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Context**: 2026-11-21/22 ship-feature modern-web-guidance. Dry run overlapped running executor → false reds; re-run after report = MET. Separate real red same run: row 10 `FAIL bun not on PATH` (see learnings line ~2009, fixed by `PATH="$HOME/.bun/bin:$PATH"` in oracle).
 - **Apply**: dry run only with no live executor (before first dispatch, or after its report). Red dry run during a dispatch → re-run after report before acting on it.
 - **Reference**: lib/verify-secure-loop.md § BEFORE THE FIRST DISPATCH; BDR-151 lever 4 (contract dry run).
+
+## LRN-306 — doctrine-citers captures unquoted section label over following words; close label with paren (2026-11-24)
+**Pattern**: doctrine-citers T6 (lib/tests/doctrine-citers.test.sh:78) captures unquoted `§ <Label>` greedily over following words: "`lib/challenge-plan.md` § SKIP and point 3's skips" → label "SKIP and point", no heading starts with it → dangling cite, suite red.
+**Context**: /feat advisor per-run note 2026-11-24, effort-shift point 4; executor reworded.
+**Apply**: in .md doctrine, end a § label at clause end or close it with ")": "(`lib/challenge-plan.md` § SKIP)". Dry-run planned prose through doctrine-citers before dispatch (LRN-296 scratch-copy pattern).

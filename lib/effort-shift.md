@@ -134,6 +134,18 @@ triggers in CLAUDE.global.md § Workflow):
    reuses the last run's answer, or its skip, and names any code commit
    made after it (doc and memory commits excepted). Elsewhere the
    answer is reported only and a fix it calls for is a new run.
+4. **Per run.** A main-loop run of a skill whose model-router row is
+   `plan` or `reflect` (the rows that put main on Fable before BDR-150)
+   makes one call on its settled plan, diagnosis or fix, before it
+   executes or reports (at load when it starts from a settled plan). A
+   call this run made at point 1, 2 or 3 counts as this one. Only the
+   placed-decision skip (`lib/challenge-plan.md` § SKIP) and point 3's
+   skips waive it; any other skipped challenge step (hotfix's cosmetic
+   guard, an audit-only or conservative mode, a clean stop) gets the
+   call where that step would have run. A skill loaded inside a
+   plan/reflect skill's run makes none; under another row or none, it
+   calls. The model-router mod prepends this rule to the skill body on a
+   main-loop load, never on a sub-agent's.
 
 Inside a skill run, the points above also cover the triggers of
 CLAUDE.global.md § Workflow; no second call for the same recommendation.
