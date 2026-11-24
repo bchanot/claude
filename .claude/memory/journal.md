@@ -808,3 +808,6 @@ rules:
 ## 2026-11-23
 - prompt-audit Opus 5.5: always-on ~14k tok (doctor), 5 small edits CLAUDE.global merged 38be889; olmind not found; slim gitflow/memory text = BDR-125 candidate.
 - advisor trigger before root-cause diagnosis / user-run commands (7b63507). Measured: unserved advisor blocks beside tool_use all re-served next msg, no lost calls; lever dropped.
+
+## 2026-11-24
+- advisor per-run note (d9f0f42, docs 1d69fce): mod prepends one-call rule on main plan/reflect skill loads; gates MET, sec PASS, verifier ECARTS(1)=AC6 live check pending /reload-plugins. BDR-155, LRN-306.
