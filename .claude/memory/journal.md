@@ -811,3 +811,6 @@ rules:
 
 ## 2026-11-24
 - advisor per-run note (d9f0f42, docs 1d69fce): mod prepends one-call rule on main plan/reflect skill loads; gates MET, sec PASS, verifier ECARTS(1)=AC6 live check pending /reload-plugins. BDR-155, LRN-306.
+
+## 2026-11-25
+- close: advisor per-run note merged (26527a4), AC6 verified live; routing.json close→apply merged (a20f083). Nothing new to capitalize; re-measure TODO skipped by user.
