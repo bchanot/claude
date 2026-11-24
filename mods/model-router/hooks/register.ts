@@ -95,6 +95,7 @@ type State = {
   loops: Map<string, Loop> // agentId -> that loop's routing
   explicitEffort: Map<string, Level> // Agent tool_use_id -> effort param
   skillCalls: number // Skill tool calls in flight
+  advisorSkill: string | null // main-loop Skill load awaiting its note
   off: boolean // /route off or config: every hook passes through
   offConfig: boolean // `off` comes from the config key `enabled`
   spinner: string // "model/effort" of the last main step of this turn
@@ -192,6 +193,18 @@ const INHERITING_AGENTS: ReadonlySet<string> = new Set(['general-purpose'])
 const REFERENCE_SKILLS: ReadonlySet<string> = new Set([
   'modern-web-guidance', 'find-docs',
 ])
+// Rows whose skill run makes one main-loop advisor call (effort-shift.md
+// § Advisor, point 4); ADVISOR_NOTE is the rule, prepended to the body.
+const ADVISOR_PHASES: ReadonlySet<string> = new Set(['plan', 'reflect'])
+const ADVISOR_NOTE =
+  'Advisor (`~/.claude/lib/effort-shift.md` § Advisor, **Per run**): when ' +
+  'the `advisor` tool is listed, this skill run makes one main-loop ' +
+  'advisor call on its settled plan, diagnosis or fix, before it executes ' +
+  'or reports. A call this run already made at an advisor point counts. ' +
+  'Only `~/.claude/lib/challenge-plan.md` § SKIP and the end-of-run skips ' +
+  'waive it; any other skipped challenge step still gets the call where ' +
+  'it would have run. Loaded inside another plan/reflect skill\'s run: no ' +
+  'call of its own.\n\n'
 // PostModelSwitch sources a person chose (auto and resume are not).
 const USER_SWITCH: ReadonlySet<string> = new Set([
   'command', 'picker', 'sdk',
@@ -1026,6 +1039,7 @@ function newState(cfg: Config, source: string): State {
     loops: new Map(),
     explicitEffort: new Map(),
     skillCalls: 0,
+    advisorSkill: null,
     off: false,
     offConfig: false,
     spinner: '',
@@ -3754,6 +3768,12 @@ function skillRow(st: State, skill: string): Picked | undefined {
   return phase !== undefined && route ? { phase, route } : undefined
 }
 
+/** Whether a skill's row phase owes its run one advisor call. */
+function advisorDue(st: State, skill: string): boolean {
+  const phase = skillRow(st, skill)?.phase
+  return phase !== undefined && ADVISOR_PHASES.has(phase)
+}
+
 /** The run slot's model outranks the route's: a helper moves effort only. */
 function belowRun(st: State, route: Route): boolean {
   const mine = resolveRoute(st, route)
@@ -4634,6 +4654,13 @@ function registerSkills(on: On, st: State): void {
       if (e.agentId === undefined && skillRow(st, skill)) {
         await tierAsk($, st, st.turnMain, `Skill /${clean(skill, NAME_CAP)}`)
       }
+      // shortcut: one marker, so accepted gaps: a same-name sub-agent load
+      // during a main call takes the note (the main load loses it); two
+      // concurrent main calls keep the last marker. skill.prompt has no
+      // agentId. Upgrade path: key the marker by tool_use_id.
+      if (e.agentId === undefined && advisorDue(st, skill)) {
+        st.advisorSkill = skill
+      }
       const out = await next(e)
       const refused = typeof out !== 'object' || out === null ||
         'deny' in out || (out as { isError?: unknown }).isError === true
@@ -4642,6 +4669,7 @@ function registerSkills(on: On, st: State): void {
       return out
     } finally {
       st.skillCalls -= 1
+      if (e.agentId === undefined) st.advisorSkill = null
     }
   }).catch(($, e, next) => {
     warnOnce(st, $, 'Skill', next.error.kind)
@@ -4649,14 +4677,24 @@ function registerSkills(on: On, st: State): void {
   })
   on('skill.prompt', async ($, e, next) => {
     await ensureConfig($, st)
-    if (st.off || st.skillCalls > 0) return next(e)
+    if (st.off) return next(e)
+    if (st.skillCalls > 0) {
+      const out = await next(e)
+      if (st.advisorSkill !== e.skill) return out
+      st.advisorSkill = null
+      return { ...out, text: ADVISOR_NOTE + out.text }
+    }
     const { row, typed } = armed($, st, e.skill)
     if (typed) {
       const size = { points: pointsOf([e.text]), unknown: false }
       await addEstimate($, st, size, false)
     }
     if (row) await confirmSkill($, st, e.skill, row)
-    return next(e)
+    const out = await next(e)
+    // shortcut: a typed slash landing while a Skill call is in flight
+    // takes the in-call branch above and loses its note.
+    if (!typed || !advisorDue(st, e.skill)) return out
+    return { ...out, text: ADVISOR_NOTE + out.text }
   }).catch(($, e, next) => {
     warnOnce(st, $, 'skill.prompt', next.error.kind)
     return next(e)

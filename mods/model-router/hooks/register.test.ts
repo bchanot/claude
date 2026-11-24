@@ -7744,3 +7744,110 @@ test('GUARD: an isError Skill answer leaves the latch closed', async (
   await $.tool.call({ tool: 'Skill', skill: 'diagram' } as never)
   expect(denied(await write($, `${ROOT}/src/a.ts`))).toContain(GUARD)
 })
+
+// ---- advisor note: one main-loop advisor call per plan/reflect run ------
+
+// duplicated on purpose: register.ts exports no constant
+const NOTE = 'Advisor (`~/.claude/lib/effort-shift.md` § Advisor, **Per run**)'
+
+const noteWorld = () => newWorld({
+  edit: f => {
+    Object.assign(f.skills as Rec, {
+      'writing-plans': 'plan',
+      'pack-design:frontend-design': 'reflect',
+      capitalize: 'apply',
+    })
+  },
+})
+
+/**
+ * A rig whose bottom Skill tool loads the skill body through skill.prompt,
+ * as the engine does, and answers the loaded text as `commandName`.
+ */
+async function noteRig($: Engine, on: On, gate?: Promise<void>) {
+  on('tool.call', { tool: 'Skill' }, async (_api, e) => {
+    if (e.agentId === undefined) await gate
+    const out = await $.skill.prompt({ skill: String(e.skill), text: 'BODY' })
+    return { result: { success: true, commandName: out.text } }
+  })
+  await bootRig($, on, FABLE, 1000, noteWorld())
+}
+
+/** The body a Skill call loaded, as the bottom tool answered it. */
+async function bodyOf(
+  $: Engine,
+  skill: string,
+  agentId?: string,
+): Promise<string> {
+  const out = await loadSkill($, skill, agentId)
+  return (out as unknown as { result: { commandName: string } })
+    .result.commandName
+}
+
+test('advisor note: a main feat load carries it', async ($, on) => {
+  await noteRig($, on)
+  const body = await bodyOf($, 'feat')
+  expect(body.startsWith(NOTE)).toBe(true)
+  expect(body.endsWith('\n\nBODY')).toBe(true)
+})
+
+test('advisor note: a main plan row carries it', async ($, on) => {
+  await noteRig($, on)
+  expect(await bodyOf($, 'writing-plans')).toContain(NOTE)
+})
+
+test('advisor note: a prefixed reflect row carries it', async ($, on) => {
+  await noteRig($, on)
+  expect(await bodyOf($, 'pack-design:frontend-design')).toContain(NOTE)
+})
+
+test('advisor note: a sub-agent load carries none', async ($, on) => {
+  await noteRig($, on)
+  expect(await bodyOf($, 'feat', 'a1')).toBe('BODY')
+})
+
+test('advisor note: a preload carries none', async ($, on) => {
+  await noteRig($, on)
+  await $.agent.spawn(spawnOf('feater'))
+  expect((await skillPrompt($, 'feat')).text).toBe('x')
+})
+
+test('advisor note: an apply row carries none', async ($, on) => {
+  await noteRig($, on)
+  expect(await bodyOf($, 'capitalize')).toBe('BODY')
+})
+
+test('advisor note: a mechanical row carries none', async ($, on) => {
+  await noteRig($, on)
+  expect(await bodyOf($, 'status')).toBe('BODY')
+})
+
+test('advisor note: an unrowed skill carries none', async ($, on) => {
+  await noteRig($, on)
+  expect(await bodyOf($, 'diagram')).toBe('BODY')
+})
+
+test('advisor note: /route off carries none', async ($, on) => {
+  await noteRig($, on)
+  await route($, 'off')
+  expect(await bodyOf($, 'feat')).toBe('BODY')
+})
+
+test('advisor note: a typed /feat carries it', async ($, on) => {
+  await noteRig($, on)
+  await typed($, '/feat add a thing')
+  const out = await skillPrompt($, 'feat')
+  expect(out.text.startsWith(NOTE)).toBe(true)
+  expect(out.text.endsWith('\n\nx')).toBe(true)
+})
+
+test('advisor note: a sub-agent load ending mid-call keeps the main one', async (
+  $, on) => {
+  let release: () => void = () => undefined
+  const gate = new Promise<void>(resolve => { release = resolve })
+  await noteRig($, on, gate)
+  const main = bodyOf($, 'feat')
+  expect(await bodyOf($, 'status', 'a1')).toBe('BODY')
+  release()
+  expect(await main).toContain(NOTE)
+})
