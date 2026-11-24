@@ -204,7 +204,8 @@
       "feat": "reflect",
       "bugfix": "reflect",
       "capitalize": "apply",
-      "memory-feedback": "reflect"
+      "memory-feedback": "reflect",
+      "close": "apply"
     }
   },
   "changed": {},
