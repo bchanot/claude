@@ -54,6 +54,9 @@ skips = "Les garder"; sub-agents = "Rien ne change".
    runs /reload-plugins, with a background sub-agent live (typed fallback
    off), a main-loop Skill load of one reflect row and one pack row shows
    the note; until then reported "not verified live".
+   LIVE 2026-11-24: MET. Background sub-agent live; main-loop Skill loads of
+   writing-plans (plan) and pack-design:frontend-design (reflect) both began
+   with the ADVISOR_NOTE line.
 
 ## FILE SCOPE
 - mods/model-router/hooks/register.ts
