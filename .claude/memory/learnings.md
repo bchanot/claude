@@ -2197,3 +2197,21 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 **Pattern**: doctrine-citers T6 (lib/tests/doctrine-citers.test.sh:78) captures unquoted `§ <Label>` greedily over following words: "`lib/challenge-plan.md` § SKIP and point 3's skips" → label "SKIP and point", no heading starts with it → dangling cite, suite red.
 **Context**: /feat advisor per-run note 2026-11-24, effort-shift point 4; executor reworded.
 **Apply**: in .md doctrine, end a § label at clause end or close it with ")": "(`lib/challenge-plan.md` § SKIP)". Dry-run planned prose through doctrine-citers before dispatch (LRN-296 scratch-copy pattern).
+
+## LRN-307 — Security-gate brief must name the scanner's allowed network use (2026-11-25)
+- **Pattern**: brief to security-auditor banning network commands made classifier refuse gate's own semgrep rule download → gate ERROR, no scan.
+- **Context**: 2026-11-25 /feat deepseek-delegate GATE 2. Brief said "run no network command" (meant: no tool run against target). Re-dispatch with semgrep download allowed → PASS (79 rules, 0 findings).
+- **Apply**: security-gate brief names the gate's allowed network use (semgrep rules fetch) beside any network ban; ban scope = target code, not the scanner.
+- **Reference**: lib/verify-secure-loop.md GATE 2, agents/security-auditor
+
+## LRN-308 — kill with defaulted pid: guard -gt 0, 0 = own group, -1 = everything (2026-11-25)
+- **Pattern**: `kill -TERM "${PID:-0}"` kills own process group when PID unset (0); `-1` signals every process the user may signal. Guard `[ "${PID:-0}" -gt 0 ]` before any kill on a defaulted pid.
+- **Context**: 2026-11-25 deepseek-delegate round-2 executor wrote unguarded default, caught by reading diff; round 3 guard + tests. Test `T1-negative-pid` runs trap handler with -1: if guard regresses, `make test` kills all user processes (TODO, fix before merge).
+- **Apply**: test harness records kill args via stub/function, never real signal on edge pids; review every `kill` with variable pid for 0 and negative values.
+- **Reference**: lib/deepseek-delegate.sh trap, lib/tests/deepseek-delegate.test.sh
+
+## LRN-309 — Verify an executor's claim against code before relaying it (2026-11-25)
+- **Pattern**: executor claim about its own code relayed to user unverified was false (claimed `_` rejected in command path; code allowed it). Same run: I overstated telemetry risk.
+- **Context**: 2026-11-25 deepseek-delegate. Both corrected to user after reading the line / harness docs.
+- **Apply**: before relaying an executor's or doc's claim about behaviour, read the line or source that decides it; state unverified claims as such.
+- **Reference**: lib/deepseek-delegate.sh command validation
