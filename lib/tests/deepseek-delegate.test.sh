@@ -229,12 +229,22 @@ usage_case U3-no-kind run "$TASK"
 usage_case U4-bad-kind run --kind write "$TASK"
 usage_case U5-no-verb
 
-# --- trap handler: no runner pid recorded -> no group signal ---
+# --- trap handler: no runner pid recorded -> no kill ---
+# Edge pids (empty, 0, -1) run the trap action only inside a recorder where
+# a shell function kill shadows the builtin. They run only after the action,
+# given a pid the test owns, recorded exactly one -TERM <pid> in the shadow
+# AND that pid is still alive (no real signal reached it). The real-signal
+# harness runs behind the same gate.
 # The harness leads its own process group (perl setpgrp), so a group
 # signal can never reach the suite; a sentinel in that group is the probe.
 trapcmd="$(sed -n "/^  trap '\[ /,/TERM INT HUP\$/p" "$E" \
   | sed -e "s/ TERM INT HUP\$//" -e "s/^  trap //")"
-check T1-trap-extracted "$(printf '%s' "$trapcmd" | grep -c 'kill -TERM')" 1
+ext="$(printf '%s' "$trapcmd" | grep -c 'kill -TERM')"
+check T1-trap-extracted "$ext" 1
+owned_alive() { # owned_alive <pid>: alive and not a zombie
+  local st; st="$(ps -o stat= -p "$1" 2>/dev/null | tr -d ' ')"
+  [ -n "$st" ] && [ "${st#Z}" = "$st" ]
+}
 cat > "$tmp/harness.sh" <<'HEOF'
 RUNNER_PID="$2"
 sleep 30 & echo $! > "$1/sentinel"
@@ -243,17 +253,37 @@ kill -TERM $$; sleep 1
 kill -0 "$(cat "$1/sentinel")" 2>/dev/null && echo sentinel-alive
 kill "$(cat "$1/sentinel")" 2>/dev/null
 HEOF
-group_run() { # group_run <runner pid value> <trap action> -> stdout
-  mkdir -p "$tmp/g"; rm -f "$tmp/g/sentinel"
+isolated_run() { # isolated_run <script> <dir> <pid> <action> -> stdout
+  mkdir -p "$2"; rm -f "$2/sentinel" "$2/kills"
   perl -e 'use POSIX; setpgrp(0,0) or die; exec @ARGV' \
-    bash "$tmp/harness.sh" "$tmp/g" "$1" "$2" 2>/dev/null
+    bash "$1" "$2" "$3" "$4" 2>/dev/null
 }
-check T1-control-group-kill "$(group_run "" "'kill -TERM 0; :'")" ""
-check T1-empty-pid "$(group_run "" "$trapcmd")" sentinel-alive
-check T1-zero-pid "$(group_run 0 "$trapcmd")" sentinel-alive
-check T1-negative-pid "$(group_run -1 "$trapcmd")" sentinel-alive
+cat > "$tmp/recorder.sh" <<'REOF'
+rec="$1/kills"
+RUNNER_PID="$2"
+kill() { printf '%s\n' "$*" >> "$rec"; }
+eval "action=$3"
+eval "$action"
+if [ -s "$rec" ]; then cat "$rec"; else echo no-kill; fi
+REOF
 sleep 30 & spid=$!
-group_run "$spid" "$trapcmd" >/dev/null
-wait "$spid"; check T1-recorded-pid-term "$?" 143
+ctl="$(isolated_run "$tmp/recorder.sh" "$tmp/r" -1 "'kill -0 \"\$RUNNER_PID\"'")"
+check T1-control-recorder "$ctl" "-0 -1"
+pos="$(isolated_run "$tmp/recorder.sh" "$tmp/r" "$spid" "$trapcmd")"
+check T1-positive-pid-recorded "$pos" "-TERM $spid"
+sleep 0.2   # let a leaked real signal land before the liveness check
+if [ "$ext" = 1 ] && [ "$ctl" = "-0 -1" ] \
+  && [ "$pos" = "-TERM $spid" ] && owned_alive "$spid"; then
+  check T1-empty-pid "$(isolated_run "$tmp/recorder.sh" "$tmp/r" "" "$trapcmd")" no-kill
+  check T1-zero-pid "$(isolated_run "$tmp/recorder.sh" "$tmp/r" 0 "$trapcmd")" no-kill
+  check T1-negative-pid "$(isolated_run "$tmp/recorder.sh" "$tmp/r" -1 "$trapcmd")" no-kill
+  check T1-control-group-kill "$(isolated_run "$tmp/harness.sh" "$tmp/g" "" "'kill -TERM 0; :'")" ""
+  check T1-recorded-pid-group-safe "$(isolated_run "$tmp/harness.sh" "$tmp/g" "$spid" "$trapcmd")" sentinel-alive
+  wait "$spid"; check T1-recorded-pid-term "$?" 143
+else
+  check T1-recorder-gate closed open
+  owned_alive "$spid" && kill "$spid" 2>/dev/null
+  wait "$spid" 2>/dev/null
+fi
 
 printf 'PASS=%s FAIL=%s\n' "$pass" "$fail"; [ "$fail" -eq 0 ]
