@@ -814,3 +814,5 @@ rules:
 
 ## 2026-11-25
 - close: advisor per-run note merged (26527a4), AC6 verified live; routing.json close→apply merged (a20f083). Nothing new to capitalize; re-measure TODO skipped by user.
+- feat deepseek-delegate: read-only DeepSeek delegation skill + engine on feature/deepseek-delegate (401aa71, docs 0ab73ec). Gates: plan 3 lenses + confirmation reopened, 4 executor rounds, verifier CONFORME, security PASS. Not verified live, no merge; findings parked in TODO.
+- hotfix T1-negative-pid: deepseek-delegate edge-pid trap tests run through kill-shadowing recorder, gated on signal-0 control + owned live pid (1aa3568). Challenge: 3 lenses + confirmation MAJOR reopened by user (liveness check). Gates MET, security PASS, 2 LOW parked in TODO.
