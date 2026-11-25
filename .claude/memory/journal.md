@@ -814,3 +814,4 @@ rules:
 
 ## 2026-11-25
 - close: advisor per-run note merged (26527a4), AC6 verified live; routing.json close→apply merged (a20f083). Nothing new to capitalize; re-measure TODO skipped by user.
+- feat deepseek-delegate: read-only DeepSeek delegation skill + engine on feature/deepseek-delegate (401aa71, docs 0ab73ec). Gates: plan 3 lenses + confirmation reopened, 4 executor rounds, verifier CONFORME, security PASS. Not verified live, no merge; findings parked in TODO.
