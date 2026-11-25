@@ -78,6 +78,9 @@ Tu veux...
 ├─ Auditer les changements depuis le dernier audit ?
 │    → /audit-delta            ← conformité / bugs / dead code / sécurité (scope = delta)
 │
+├─ Un second avis ou une exploration en lecture seule par DeepSeek ?
+│    → /deepseek-delegate "tâche"   ← seulement sur demande explicite ; pas vérifié en conditions réelles
+│
 ├─ Gérer la mémoire de session ?
 │    → /capitalize             ← flush contexte + réconcilie TODO avant /clear ou /compact
 │    → /prune-memory           ← curer / compresser les registres .claude/memory/
@@ -170,6 +173,7 @@ Tu veux...
 | `/client-handover` | Livraison client | Audits finaux + livrable brandé |
 | `/pdf-translate` | Traduire un PDF vers une autre langue | Sortie HTML fidèle (images, layout, style préservés) |
 | `/explain-diff` | Comprendre un commit, une branche ou une PR qu'on n'a pas suivis | Page HTML autonome hors du repo : contexte, intuition, code, quiz de 5 questions |
+| `/deepseek-delegate` | Confier une tâche en lecture seule à DeepSeek (exploration, second avis, vérification) | Seulement quand tu nommes DeepSeek. Une tâche autonome, dans un process séparé, via une commande wrapper locale (`dsh-deepseek` par défaut) : drapeaux lecture seule forcés, dossier de travail vide, environnement filtré, durée bornée (600 s par défaut). Dans le worker, hooks et règles de permission ne s'appliquent pas et le réseau est ouvert : ce qu'il lit part vers l'endpoint du wrapper. Sa réponse est vérifiée contre le code avant d'être relayée. Interrupteur par machine `~/.claude/deepseek-delegate.json` (`enabled`, `command`, `timeoutSeconds`, `passEnv`) ; éteint ou wrapper absent, Claude fait la tâche lui-même. Pas vérifié en conditions réelles : jamais lancé contre un vrai wrapper, voir la checklist de premier lancement du skill |
 | `/guardrails` | Vérifier hébergement, Supabase RLS, consentement SMS/email, fonctions cloud, stockage des mots de passe, injection SQL, exposition navigateur | Scanner déterministe, jugement, rapport `.claude/audits/GUARDRAILS.md`, propositions de correction à valider, re-passe qui prouve chaque correction ; `--live <url à toi>` sonde en lecture seule ; sonde `exposure` sur un build de production (source maps, corps d'erreur, clés sensibles) |
 | `/impeccable` | Audit/polish design + détecteur anti-slop déterministe | 23 verbes ; `npx impeccable detect` (exit 0/2) |
 | `/tour` | Sweep groupé sur un ou plusieurs projets | Sécu + nettoyage + reconcile + doc, boucle jusqu'à un pass propre |
