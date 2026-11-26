@@ -49,7 +49,7 @@ check T10-handover-children "$(has agents/client-handover-writer.md \
   "never call the \`advisor\` tool in")" yes
 for a in plan-challenger verifier security-auditor analyzer; do
   check "T20 $a allowance" "$(has "agents/$a.md" \
-    'Advisor, when dispatched as a sub-agent: one call allowed')" yes
+    'Advisor, when dispatched as a sub-agent: exactly one call when')" yes
 done
 check T10b-handover-top-clean "$(sed -n '1,30p' \
   "$ROOT/agents/client-handover-writer.md" | grep -c "advisor\` tool")" 0
@@ -57,12 +57,12 @@ check T11-tour-phase-b \
   "$(has skills/tour/SKILL.md "saying never call the \`advisor\` tool")" yes
 for s in ship-feature init-project; do
   check "T12 $s" "$(has "skills/$s/SKILL.md" \
-    "Add to its brief: \"you may call the \`advisor\` tool once")" yes
+    "Add to its brief: \"make exactly one \`advisor\` call when the tool is")" yes
 done
 check T13-sdd-pin "$(has CLAUDE.global.md \
   'subagent-driven-development standalone: workers sonnet')" yes
 check T14-global-set "$(has CLAUDE.global.md \
-  'and an opus code review at most')" yes
+  'and an opus code review exactly')" yes
 check T15-effort-hook "$(has lib/effort-shift.md \
   'hooks/subagent-advisor.sh. A skill run by a sub-agent reads')" yes
 check T16-effort-sdd "$(has lib/effort-shift.md \
@@ -73,6 +73,35 @@ check T19-advisor-first-skip "$(has lib/challenge-plan.md \
   'A skill run inside a sub-agent skips this call')" yes
 check T18-no-old-row "$(cd "$ROOT" && git grep -c 'already called this run)' \
   -- skills lib ':!lib/tests' | wc -l | tr -d ' ')" 0
+
+# exactly one call and its effect line (user decision 2026-11-26)
+check T21-hook-exactly "$(in_ctx "$(ctx '{}')" \
+  'When allowed: exactly one call, before your verdict or report.')" yes
+for a in plan-challenger verifier security-auditor analyzer; do
+  check "T22 $a effect line" "$(has "agents/$a.md" \
+    'ADVISOR: changed: <what> | no change | not called (absent | error)')" yes
+  check "T22b $a no retry" "$(has "agents/$a.md" \
+    'erroring → proceed, no retry.')" yes
+done
+check T22c-effect-grammar "$(has lib/effort-shift.md \
+  "grammar: \`changed: <what>\` | \`no change\` | \`not called (<reason>)\`.")" yes
+check T23-sec-report-clean "$(has agents/security-auditor.md \
+  "this same block without its \`ADVISOR:\` line")" yes
+check T23c-report-written-last "$(has agents/security-auditor.md \
+  "\`REPORT_WRITTEN: <path>\`, after the \`ADVISOR:\` line.")" yes
+check T23b-error-none "$(has agents/plan-challenger.md \
+  "verdict carries no \`ADVISOR:\` line.")" yes
+old_re='at most once, before|at most once per dispatch|one call allowed'
+old_re="$old_re|tool once, before|may call once|allowing one"
+joined() { tr '\n' ' ' < "$ROOT/$1" | tr -s ' '; }
+check T24-control \
+  "$(printf 'x at most once, before y' | grep -cE "$old_re")" 1
+for f in CLAUDE.global.md lib/effort-shift.md agents/plan-challenger.md \
+  agents/verifier.md agents/security-auditor.md agents/analyzer.md \
+  skills/ship-feature/SKILL.md skills/init-project/SKILL.md; do
+  check "T24 $f" "$(joined "$f" | grep -cE "$old_re")" 0
+done
+check T24-hook "$(ctx '{}' | grep -cE "$old_re")" 0
 
 echo "subagent-advisor: $pass pass, $fail fail"
 [ "$fail" -eq 0 ]

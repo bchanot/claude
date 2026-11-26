@@ -144,6 +144,7 @@ SCOPE: in-scope <n> files; out-of-scope: <list | none>
 FLOOR: clean | <n> finding(s) (<m> waived) — <FLOOR lines, or the
   CLARIFICATIONS sentence that authorizes each one | none>
 PROOF: read <n> files, ran <cmd → result | nothing>, checked <n>/<n> criteria
+ADVISOR: changed: <what> | no change | not called (absent | error)
 ```
 
 ## RULES
@@ -165,9 +166,10 @@ PROOF: read <n> files, ran <cmd → result | nothing>, checked <n>/<n> criteria
   missing `PROOF` — the run was skipped, not the diff clean.
 - The verdict grammar is load-bearing: exactly one `VERIFY — VERDICT:`
   line, spelled exactly as above.
-- Advisor, when dispatched as a sub-agent: one call allowed, after STEP 4
-  and before STEP 5, whatever the harness prompt schedules; absent or
-  erroring → proceed. Advice may send you back to a criterion: a
+- Advisor, when dispatched as a sub-agent: exactly one call when the
+  `advisor` tool is listed, after STEP 4 and before STEP 5, whatever the
+  harness prompt schedules; tool not listed or call
+  erroring → proceed, no retry. Advice may send you back to a criterion: a
   resulting NOT-MET cites the file:line you read, ends with
   `(advisor-prompted)` and counts in STEP 5 like any other. Advice adds
   no gap outside the contract's criteria. Advice alone never clears a

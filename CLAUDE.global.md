@@ -85,7 +85,7 @@ code" wins. Repo-specific instructions override both.
   the main loop calls the advisor tool when it is listed (settings
   `advisorModel`, Fable, set by /advisor), at least at the points of
   `~/.claude/lib/effort-shift.md` § Advisor; dispatched plan-challenger,
-  verifier, security-auditor, `analyzer` and an opus code review at most
+  verifier, security-auditor, `analyzer` and an opus code review exactly
   once, before their verdict or report; other sub-agents never (each opus
   brief you write states its rule; a SubagentStart hook restates it). Fable
   is never routed or pinned: the router tops out at opus.
@@ -293,8 +293,8 @@ cryptic names.
   finishing-a-development-branch → `gitflow finish` (human signal)
   systematic-debugging → bugfix
   verification-before-completion → the verifier gates
-- subagent-driven-development standalone: workers sonnet (task reviews and
-  fix rounds too); final review opus, its brief allowing one `advisor` call
+- subagent-driven-development standalone: workers sonnet (task reviews, fix
+  rounds); final review opus, brief asks one `advisor` call + `ADVISOR:` line
 - SEO+GEO → seo (GEO only → geo); W3C + WCAG → web-validate. Pack off →
   propose `profile.sh enable seo` (seo, geo) or `enable web-validate`, the
   user runs `/reload-plugins`; else say so. Security audit (secrets, CVE,

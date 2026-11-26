@@ -279,8 +279,10 @@ first ran → the main loop calls the advisor per `lib/verify-secure-loop.md`
 Invoke `requesting-code-review` (vendored superpowers skill). **Model routing (BDR-077):** the
 review subagent it dispatches MUST carry `model: "opus"` and `effort="xhigh"` in the Agent call —
 craft review is dispatched judgment, never inherited from the session.
-Add to its brief: "you may call the `advisor` tool once, before your
-verdict" (code review, BDR-150). Fix every CRITICAL or Important finding
+Add to its brief: "make exactly one `advisor` call when the tool is
+listed, before your verdict, and end your report with one line:
+`ADVISOR: changed: <what> | no change | not called (absent | error)`"
+(code review, BDR-150). Fix every CRITICAL or Important finding
 that carries reproducible evidence (a command that fails on HEAD, or real
 output shown wrong) before proceeding. Without it, one attempt at a failing
 command, else it is a MINOR; a security finding goes to the user
