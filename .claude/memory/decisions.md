@@ -1652,3 +1652,10 @@ Supersedes [[BDR-030]].
 **Alternatives rejected**: API gateway routing (unsupported, LiteLLM supply-chain compromises); in-mod http.fetch redirect; opencode export (no per-request provider switch); multi-provider router now (v2, blocked on first live run).
 **Consequences**: not verified live (no dsh on Linux box), first run on Mac per skill First-run checklist. Open: worker runs with real HOME + open network (TODO MEDIUM); `T1-negative-pid` test must be fixed before merge. v2 = effort per run, model per kind, auto calls.
 **Reference**: 401aa71 0ab73ec e033892; contract .claude/tasks/contracts/2026-11-25-deepseek-delegate-1651.md
+
+## BDR-157 — gstack Playwright bump: any OS below 1.60 floor, exact pinned version [accepted] (2026-11-26)
+**Context**: BDR-029 bump fired only on Ubuntu newer than pinned Playwright supports. 2026-11-26: macOS install freeze, hypothesis Playwright 1.58.2 extraction hang on Node 24.16+ (BLK entry same date, open). Security gate MEDIUM: `bun add playwright@latest` unpinned, widened to every host.
+**Decision**: `gstack_bump_playwright_if_unsupported` bumps on any OS when installed playwright-core < `_GSPW_EXTRACT_FIX_MIN` (1.60.0) OR OS tag unsupported. Bump installs exact `_GSPW_BUMP_VERSION` (1.65.0, what upstream gstack pins) via `bun add --exact`; never `latest`; raise constant by hand review. Unknown/unparsable/oversized version -> no bump. Every path prints outcome. Amends BDR-029, honors BDR-088 (lib never touches submodule tree beyond bump).
+**Alternatives rejected**: move submodule pointer (upstream main dropped `cso` + `investigate`, 1100 commits, = migration); Node-version gate (runtime bunx picks unknown); manual-discard hint in update-all.sh (hands out path to that upstream); time bound on `./setup` (later, after Mac result).
+**Consequences**: package.json + bun.lock locally modified in submodule on every bumped host -> `git submodule update --remote` refused there until discarded by hand. Pinned bump can downgrade once submodule passes 1.65.0 (TODO LOW). Not verified on macOS.
+**Reference**: bb133d8, 11b6fef, 868dad4; lib/gstack-playwright.sh; tests T18-T28

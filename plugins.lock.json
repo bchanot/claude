@@ -13,7 +13,7 @@
   "gstack": {
     "source": "https://github.com/garrytan/gstack.git",
     "managed_by": "git submodule",
-    "note": "Version controlled by submodule pointer in .gitmodules. Update: git submodule update --remote. Pinned at 11de390 (v1.58.5.0, job6): pulled deliberately for the #1911 fail-open security-guard fix (careful/guard/freeze/data-loss guards) after human review of #2047 (gbrowser stealth, accepted). Local playwright bump (BDR-029, BLK-008) is reset by every submodule update and re-applied by install-plugins.sh's gstack_bump_playwright_if_unsupported()."
+    "note": "Version controlled by submodule pointer in .gitmodules. Update: git submodule update --remote. Pinned at 11de390 (v1.58.5.0, job6): pulled deliberately for the #1911 fail-open security-guard fix (careful/guard/freeze/data-loss guards) after human review of #2047 (gbrowser stealth, accepted). Local playwright bump (BDR-029, BLK-008): gstack_bump_playwright_if_unsupported() (install-plugins.sh, and update-all.sh after a successful submodule update) installs playwright 1.65.0 exactly in the submodule when the pinned one lacks a build for this OS or is below 1.60.0 on any OS. It leaves package.json and bun.lock modified there, which blocks git submodule update --remote until that edit is discarded by hand; re-run make plugin afterwards."
   },
   "ctx7": {
     "source": "npm:ctx7",

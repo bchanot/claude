@@ -343,10 +343,13 @@ if [ -d "$GSTACK_DIR" ]; then
     ok "bun $(bun --version)"
   fi
 
-  # On a distro newer than gstack's pinned Playwright supports, bump Playwright
-  # BEFORE ./setup so its frozen-lockfile install picks up the new version and
-  # the browse binary is rebuilt against it (avoids the "does not support
-  # chromium" fail). Non-fatal if it can't — gstack packs follow the profile (full = on).
+  # Bump gstack's Playwright BEFORE ./setup when the pinned one lacks a build
+  # for this OS or is older than the extraction fix (1.60.0), on any OS: its
+  # frozen-lockfile install then picks up the new version and the browse
+  # binary is rebuilt against it. Leaves package.json and bun.lock modified
+  # in the submodule, which blocks a later `git submodule update --remote`
+  # until that edit is discarded by hand (BDR-029, BDR-088). Non-fatal if it
+  # can't — gstack packs follow the profile (full = on).
   # See BLK-008 / LRN-040 / BDR-029; logic lives in lib/gstack-playwright.sh.
   gstack_bump_playwright_if_unsupported "$GSTACK_DIR"
 

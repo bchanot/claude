@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # ============================================================
-# lib/gstack-playwright.sh — gstack's Playwright: OS-support bump +
-# read-only browser-cache report.
+# lib/gstack-playwright.sh — gstack's Playwright: local bump (OS
+# support, extraction-fix floor) + read-only browser-cache report.
 #
 # Sourced by: install-plugins.sh, update-all.sh, doctor.sh — all three run
 # `set -euo pipefail`. gstack_bump_playwright_if_unsupported and
@@ -20,6 +20,15 @@
 
 _GSPW_GREEN='\033[0;32m'; _GSPW_YELLOW='\033[1;33m'; _GSPW_BLUE='\033[0;34m'
 _GSPW_NC='\033[0m'
+
+# Playwright below this hangs at browser-archive extraction on
+# Node 24.16+ (gstack issue #1703). The one place for the threshold.
+_GSPW_EXTRACT_FIX_MIN="1.60.0"
+
+# The exact Playwright the bump installs. Reviewed by hand: raise it
+# here, never `latest` (an unreviewed release would reach every
+# machine). 1.65.0 = the version upstream gstack pins.
+_GSPW_BUMP_VERSION="1.65.0"
 
 _gspw_ok()   { echo -e "  ${_GSPW_GREEN}✓${_GSPW_NC} $1"; }
 _gspw_warn() { echo -e "  ${_GSPW_YELLOW}⚠${_GSPW_NC}  $1"; }
@@ -50,6 +59,33 @@ gstack_pw_supports() {
   grep -rqs "$ostag" "$pwlib" 2>/dev/null
 }
 
+# gstack_pw_version <playwright_core_path> — installed version
+# ("1.58.2"), empty when unreadable. Always returns 0.
+gstack_pw_version() {
+  local v
+  v=$(awk -F'"' '$2 == "version" { print $4; exit }' \
+    "$1/package.json" 2>/dev/null) || true
+  printf '%s' "$v"
+  return 0
+}
+
+# gstack_pw_extract_safe <version> — 0 when major.minor is at or
+# above _GSPW_EXTRACT_FIX_MIN, 1 when older. Empty, dotless or
+# non-numeric -> 0: never edit the submodule on a guess. Called
+# only from an `if` / `&&` context.
+gstack_pw_extract_safe() {
+  local maj mnr min_maj min_mnr
+  maj="${1%%.*}"; mnr="${1#*.}"; mnr="${mnr%%.*}"
+  min_maj="${_GSPW_EXTRACT_FIX_MIN%%.*}"
+  min_mnr="${_GSPW_EXTRACT_FIX_MIN#*.}"; min_mnr="${min_mnr%%.*}"
+  case "$1" in *.*) ;; *) return 0 ;; esac
+  case "$maj" in ''|*[!0-9]*|???????*) return 0 ;; esac
+  case "$mnr" in ''|*[!0-9]*|???????*) return 0 ;; esac
+  [ "$maj" -gt "$min_maj" ] && return 0
+  [ "$maj" -lt "$min_maj" ] && return 1
+  [ "$mnr" -ge "$min_mnr" ]
+}
+
 # _gspw_run_timeout <dir> <cmd...> — runs <cmd> in <dir>, under `timeout 300`
 # when available (absent on stock macOS). Exit 124 = the wrapped command was
 # killed by the timeout. Callers MUST invoke this via `cmd || rc=$?` (never
@@ -64,8 +100,8 @@ _gspw_run_timeout() {
 }
 
 # _gspw_bump_install <gstack_dir> — populate node_modules at the pinned
-# version so its support list can be read. 0 proceed, 1 give up silently
-# (both installs failed, matches the pre-existing silent behavior), 2 give
+# version so its support list can be read. 0 proceed, 1 both installs
+# failed (the caller warns), 2 give
 # up loud (a timeout truncated node_modules — the support grep would then
 # read a half-written tree).
 _gspw_bump_install() {
@@ -88,50 +124,91 @@ _gspw_bump_install() {
   return 1
 }
 
-# _gspw_bump_add_latest <gstack_dir> — 0 ran (support re-checked by caller
+# _gspw_bump_add <gstack_dir> — 0 ran (support re-checked by caller
 # regardless of bun's own exit code, exactly as the pre-existing code did),
 # 2 timed out (node_modules left half-written — caller must NOT re-check).
-_gspw_bump_add_latest() {
+_gspw_bump_add() {
   local dir="$1" rc=0
-  _gspw_run_timeout "$dir" bun add playwright@latest || rc=$?
+  _gspw_run_timeout "$dir" bun add --exact \
+    "playwright@$_GSPW_BUMP_VERSION" || rc=$?
   if [ "$rc" -eq 124 ]; then
-    _gspw_warn "bun add playwright@latest timed out — skipping Playwright bump"
+    _gspw_warn "bun add playwright@$_GSPW_BUMP_VERSION timed out — \
+skipping Playwright bump"
     return 2
   fi
   return 0
 }
 
-# gstack_bump_playwright_if_unsupported <gstack_dir> — BDR-029: bump
-# gstack's pinned Playwright when it lacks a build for this OS, so
-# `./setup` rebuilds the browse binary against a version that has one.
-# OS-gated, idempotent, non-fatal — `return 0` on every path.
+# _gspw_bump_reason <gstack_dir> <ostag> — why the installed
+# Playwright must be bumped; prints nothing when it need not.
+# Always returns 0.
+_gspw_bump_reason() {
+  local pw="$1/node_modules/playwright-core" v
+  if [ -n "$2" ] && ! gstack_pw_supports "$pw/lib" "$2"; then
+    printf 'lacks %s support' "$2"
+    return 0
+  fi
+  v="$(gstack_pw_version "$pw")"
+  if ! gstack_pw_extract_safe "$v"; then
+    printf '%s hangs at browser extraction (fixed in %s)' \
+      "$v" "$_GSPW_EXTRACT_FIX_MIN"
+  fi
+  return 0
+}
+
+# _gspw_bump_report <gstack_dir> <ostag> — outcome line after a
+# bump. Always returns 0.
+_gspw_bump_report() {
+  local why v
+  why="$(_gspw_bump_reason "$1" "$2")"
+  v="$(gstack_pw_version "$1/node_modules/playwright-core")"
+  if [ -z "$why" ]; then
+    _gspw_ok "gstack Playwright bumped to ${v:-?}"
+    return 0
+  fi
+  _gspw_warn "Playwright bump left it: $why — gstack browser may \
+stay unavailable"
+  case "$why" in *hangs*)
+    _gspw_warn "./setup is expected to freeze at 'Installing \
+Playwright Chromium' — Ctrl-C it, check the npm registry access, \
+re-run: make plugin" ;;
+  esac
+  return 0
+}
+
+# gstack_bump_playwright_if_unsupported <gstack_dir> — bumps gstack's
+# pinned Playwright when it lacks a build for this OS (BDR-029) or is
+# older than the extraction fix, on any OS, so `./setup` rebuilds the
+# browse binary against a good version. Idempotent, non-fatal,
+# `return 0` on every path.
 gstack_bump_playwright_if_unsupported() {
-  local gstack_dir="$1" ostag pwlib rc=0
-  [ -d "$gstack_dir" ] && [ -r /etc/os-release ] || return 0
+  local gstack_dir="$1" ostag why v rc=0
+  [ -d "$gstack_dir" ] || return 0
   ostag="$(gstack_pw_ostag)"
-  [ -n "$ostag" ] || return 0
   if ! command -v bun >/dev/null 2>&1; then
     export PATH="$HOME/.bun/bin:$PATH"
   fi
-  pwlib="$gstack_dir/node_modules/playwright-core/lib"
-  _gspw_info "checking gstack's Playwright OS support ($ostag)..."
+  _gspw_info "checking gstack's Playwright (OS support, \
+extraction fix)..."
   _gspw_bump_install "$gstack_dir" || rc=$?
+  if [ "$rc" -eq 1 ]; then
+    _gspw_warn "bun install failed in gstack — Playwright not \
+checked (run 'bun install' in $gstack_dir to see why)"
+  fi
   [ "$rc" -eq 0 ] || return 0
-  if gstack_pw_supports "$pwlib" "$ostag"; then
+  why="$(_gspw_bump_reason "$gstack_dir" "$ostag")"
+  if [ -z "$why" ]; then
+    v="$(gstack_pw_version "$gstack_dir/node_modules/playwright-core")"
+    _gspw_info "gstack Playwright ${v:-(version unreadable)}: \
+no bump needed"
     return 0
   fi
-  _gspw_info "gstack's Playwright lacks $ostag support — bumping to \
-latest (local submodule edit)..."
+  _gspw_info "gstack's Playwright $why — bumping to $_GSPW_BUMP_VERSION (local \
+submodule edit)..."
   rc=0
-  _gspw_bump_add_latest "$gstack_dir" || rc=$?
+  _gspw_bump_add "$gstack_dir" || rc=$?
   [ "$rc" -eq 0 ] || return 0
-  if gstack_pw_supports "$pwlib" "$ostag"; then
-    _gspw_ok "gstack Playwright bumped — now supports $ostag (browse \
-binary rebuilt by ./setup)"
-  else
-    _gspw_warn "Playwright bump didn't add $ostag support — gstack \
-browser may stay unavailable"
-  fi
+  _gspw_bump_report "$gstack_dir" "$ostag"
   return 0
 }
 
@@ -207,8 +284,7 @@ _gspw_browser_name_known() {
 _gspw_install_label() {
   local pw_path="$1" parent version
   parent=$(basename "$(dirname "$(dirname "$pw_path")")")
-  version=$(awk -F'"' '$2 == "version" { print $4; exit }' \
-    "$pw_path/package.json" 2>/dev/null) || true
+  version=$(gstack_pw_version "$pw_path")
   printf '%s %s' "$parent" "${version:-?}"
 }
 
@@ -285,7 +361,7 @@ gstack_browsers_report() {
 
 # ── CLI dispatch (only when executed, not sourced) — browsers-report ONLY.
 # The write functions (the bump, the submodule update) stay sourced-only: a
-# CLI verb would expose `bun add playwright@latest` as a command-line entry
+# CLI verb would expose `bun add playwright@<pin>` as a command-line entry
 # point. ────────────────────────────────────────────────────────────────
 if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
   case "${1:-}" in
