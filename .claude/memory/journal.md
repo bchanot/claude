@@ -820,3 +820,4 @@ rules:
 ## 2026-11-26
 - bugfix gstack Chromium freeze on Mac: diagnosis only, no code. Hypothesis Playwright 1.58.2 extraction hang on Node 24.16+ (gstack #1703), unconfirmed (log stops at 90%). Challenge 3 lenses: local bump dirties submodule, blocks updates; upstream already ^1.65. User: test make update on Mac first. Plan parked, TODO +1.
 - bugfix gstack Playwright bump: any OS when < 1.60, exact pin 1.65.0 (bb133d8, 11b6fef, docs 868dad4) on bugfix/gstack-playwright-extract-hang. Cause hypothesis, fix unverified on real run; Mac retest before merge. Retracted make update + y advice (upstream dropped cso, investigate). Gates: plan 3 lenses + confirmation, verifier ECARTS(1) = Mac criterion only x2, security PASS x2.
+- finish bugfix/gstack-playwright-extract-hang -> develop f336707 on user signal; fix still unverified on Mac (BLK-052 open).
