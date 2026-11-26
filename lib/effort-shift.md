@@ -168,9 +168,11 @@ hooks/subagent-advisor.sh. A skill run by a sub-agent reads
 `not called (sub-agent)` in its `Advisor:` row.
 subagent-driven-development, whoever runs it, dispatches every worker
 (implementers, task reviewers, re-reviews, fix rounds) on sonnet
-(BDR-066), as ship-feature and init-project pin it; run standalone, its
-final whole-branch review runs on opus as a code review. The analyzer
-file loaded inline by the main loop follows the main-loop points.
+(BDR-066), as ship-feature and init-project pin it;
+under ship-feature and init-project the final whole-branch review is one
+of those sonnet workers (their own opus code review follows); run
+standalone, its final whole-branch review runs on opus as a code review.
+The analyzer file loaded inline by the main loop follows the main-loop points.
 
 Effect line. An advisor trace says what the call changed, in one
 grammar: `changed: <what>` | `no change` | `not called (<reason>)`.
@@ -184,6 +186,10 @@ values; the CHALLENGE SUMMARY row keeps its own (`lib/challenge-plan.md`).
 Advisor absent or erroring (Fable out of credits, for example) → proceed
 as written. Advice is input, never consent: it waives no gate, cap or
 guard; at a loop cap it feeds the STOP diagnosis.
+
+A session opened before the `advisorModel` setting may never call the
+Fable advisor: in the one case observed (2026-11-26) such a session made
+no call in 4,390 requests. Type `/advisor` in such a session, or relaunch it.
 
 ## Never
 

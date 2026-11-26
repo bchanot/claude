@@ -127,6 +127,9 @@ The first step of every turn after a user reply is `mcp__model-router__route(pha
 Invoke `writing-plans` (vendored superpowers skill) with the validated design AND the 0d digest: every task
 must be consistent with the in-force constraints; where a task implements or affects one,
 note the ID inline. Break design into tasks (2-5 min each). Each task: exact file paths, full code, verification steps.
+The plan's design choices are settled here, in the main loop. A delegated
+draft or prototype of plan tasks is a general-purpose dispatch with
+`model: "sonnet"` and a brief whose decisions are closed (`lib/model-gate.md`).
 Then run pass B of `$HOME/.claude/lib/contract-interview.md` against the plan:
 every VISIBLE / PUBLIC NAME / SCOPE choice the plan settles that neither the
 request nor the STEP 1 brainstorm settled (check the contract's CLARIFICATIONS
@@ -201,6 +204,10 @@ implementers AND its reviewers — MUST carry `model: "sonnet"` and
 call. The plan is closed; execution and plan-conformity review are sonnet
 work. Reflection (task decomposition, review verdict arbitration) stays in
 this loop.
+This includes SDD's final whole-branch review, its re-reviews and its fix
+rounds at any round: dispatch them on sonnet too, whatever the SDD skill's
+Model Selection says about the most capable model or a tier above; the
+opus craft review is STEP 6.
 
 ## STEP 4b — ERROR RECOVERY (if STEP 4 fails)
 If a subagent returns a build error, failing test, or type error:

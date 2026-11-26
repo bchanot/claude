@@ -142,5 +142,8 @@ check T31b-no-old-answer "$(cd "$ROOT" && git grep -c 'Advisor); its answer' \
 check T32-router-note "$(has mods/model-router/hooks/register.ts \
   'a challenge step makes its own calls')" yes
 
+check T33-session-note "$(has lib/effort-shift.md \
+  "Type \`/advisor\` in such a session, or relaunch it.")" yes
+
 echo "subagent-advisor: $pass pass, $fail fail"
 [ "$fail" -eq 0 ]

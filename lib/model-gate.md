@@ -25,7 +25,14 @@ the turn. No later step runs, no agent is dispatched, nothing is edited.
 The gate guards the MAIN loop only. Typed agents are routed by their
 model-router row (`model:` frontmatter = off-state floor). Built-ins
 (general-purpose / Explore / Plan) carry an explicit `model=` at every call
-site, its tier: `model: "opus"` = skill-runners (the child reflects or
-orchestrates for the main loop) and dispatched judgment, sonnet = execution,
-haiku = mechanical probes; never fable (BDR-150, the advisor). A built-in
-judgment dispatch also carries an explicit `effort=` (`lib/effort-shift.md`).
+site, chosen by the nature of the work, never by the session model:
+- `model: "opus"` = skill-runners (the child reflects or orchestrates for
+  the main loop) and dispatched judgment (review, verification, diagnosis);
+- sonnet = execution: fixes, HTML mockups, writing, plan drafting or
+  prototyping from a brief whose decisions are closed, collection;
+- haiku = mechanical probes;
+- never fable (BDR-150, the advisor).
+
+One exception: the tour multi-project runner carries no model (BDR-084).
+An SDD worker follows its orchestrator's pin (`lib/effort-shift.md` § Advisor).
+A built-in judgment dispatch also carries an explicit `effort=` (`lib/effort-shift.md`).

@@ -239,6 +239,10 @@ implementers AND its reviewers — MUST carry `model: "sonnet"` and
 call. The plan is closed; execution and plan-conformity review are sonnet
 work. Reflection (task decomposition, review verdict arbitration) stays in
 this loop.
+This includes SDD's final whole-branch review, its re-reviews and its fix
+rounds at any round: dispatch them on sonnet too, whatever the SDD skill's
+Model Selection says about the most capable model or a tier above; the
+opus craft review is STEP 10.
 
 ## STEP 8b — GRAPHIFY SIGNAL (after implementation — BDR-097)
 graphify is proposed only from 200 tracked code files, and the USER decides —
