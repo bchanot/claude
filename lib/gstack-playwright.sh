@@ -25,6 +25,11 @@ _GSPW_NC='\033[0m'
 # Node 24.16+ (gstack issue #1703). The one place for the threshold.
 _GSPW_EXTRACT_FIX_MIN="1.60.0"
 
+# The exact Playwright the bump installs. Reviewed by hand: raise it
+# here, never `latest` (an unreviewed release would reach every
+# machine). 1.65.0 = the version upstream gstack pins.
+_GSPW_BUMP_VERSION="1.65.0"
+
 _gspw_ok()   { echo -e "  ${_GSPW_GREEN}✓${_GSPW_NC} $1"; }
 _gspw_warn() { echo -e "  ${_GSPW_YELLOW}⚠${_GSPW_NC}  $1"; }
 _gspw_info() { echo -e "  ${_GSPW_BLUE}→${_GSPW_NC} $1"; }
@@ -74,8 +79,8 @@ gstack_pw_extract_safe() {
   min_maj="${_GSPW_EXTRACT_FIX_MIN%%.*}"
   min_mnr="${_GSPW_EXTRACT_FIX_MIN#*.}"; min_mnr="${min_mnr%%.*}"
   case "$1" in *.*) ;; *) return 0 ;; esac
-  case "$maj" in ''|*[!0-9]*) return 0 ;; esac
-  case "$mnr" in ''|*[!0-9]*) return 0 ;; esac
+  case "$maj" in ''|*[!0-9]*|???????*) return 0 ;; esac
+  case "$mnr" in ''|*[!0-9]*|???????*) return 0 ;; esac
   [ "$maj" -gt "$min_maj" ] && return 0
   [ "$maj" -lt "$min_maj" ] && return 1
   [ "$mnr" -ge "$min_mnr" ]
@@ -119,14 +124,16 @@ _gspw_bump_install() {
   return 1
 }
 
-# _gspw_bump_add_latest <gstack_dir> — 0 ran (support re-checked by caller
+# _gspw_bump_add <gstack_dir> — 0 ran (support re-checked by caller
 # regardless of bun's own exit code, exactly as the pre-existing code did),
 # 2 timed out (node_modules left half-written — caller must NOT re-check).
-_gspw_bump_add_latest() {
+_gspw_bump_add() {
   local dir="$1" rc=0
-  _gspw_run_timeout "$dir" bun add playwright@latest || rc=$?
+  _gspw_run_timeout "$dir" bun add --exact \
+    "playwright@$_GSPW_BUMP_VERSION" || rc=$?
   if [ "$rc" -eq 124 ]; then
-    _gspw_warn "bun add playwright@latest timed out — skipping Playwright bump"
+    _gspw_warn "bun add playwright@$_GSPW_BUMP_VERSION timed out — \
+skipping Playwright bump"
     return 2
   fi
   return 0
@@ -196,10 +203,10 @@ checked (run 'bun install' in $gstack_dir to see why)"
 no bump needed"
     return 0
   fi
-  _gspw_info "gstack's Playwright $why — bumping to latest (local \
+  _gspw_info "gstack's Playwright $why — bumping to $_GSPW_BUMP_VERSION (local \
 submodule edit)..."
   rc=0
-  _gspw_bump_add_latest "$gstack_dir" || rc=$?
+  _gspw_bump_add "$gstack_dir" || rc=$?
   [ "$rc" -eq 0 ] || return 0
   _gspw_bump_report "$gstack_dir" "$ostag"
   return 0
@@ -354,7 +361,7 @@ gstack_browsers_report() {
 
 # ── CLI dispatch (only when executed, not sourced) — browsers-report ONLY.
 # The write functions (the bump, the submodule update) stay sourced-only: a
-# CLI verb would expose `bun add playwright@latest` as a command-line entry
+# CLI verb would expose `bun add playwright@<pin>` as a command-line entry
 # point. ────────────────────────────────────────────────────────────────
 if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
   case "${1:-}" in

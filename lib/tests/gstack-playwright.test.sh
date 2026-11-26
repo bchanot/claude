@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# lib/tests/gstack-playwright.test.sh — lib/gstack-playwright.sh (T1..T27)
+# lib/tests/gstack-playwright.test.sh — lib/gstack-playwright.sh (T1..T28)
 #
 # git 2.53 defaults protocol.file to "user", which blocks submodule clone
 # and fetch. The fixture git calls alone are not enough: the
@@ -212,7 +212,7 @@ out17="$(bash -c "source '$L'; :" 2>&1)"
 check T17-source-safe "[$out17]" "[]"
 
 # ── T18-T27 — the bump: version floor on any OS, OS reason kept ──────────
-# Stub bun: logs "$*" to $BUN_LOG; `add playwright@latest` rewrites the
+# Stub bun: logs "$*" to $BUN_LOG; `add ... playwright@<ver>` rewrites the
 # fixture version ($BUN_ADD_SETS) and lib text ($BUN_ADD_LIB) when set;
 # `install` fails when $BUN_FAIL_INSTALL=1.
 mkdir -p "$tmp/stubbin"
@@ -222,7 +222,9 @@ printf '%s\n' "$*" >> "${BUN_LOG:-/dev/null}"
 if [ "${BUN_FAIL_INSTALL:-}" = 1 ] && [ "${1:-}" = install ]; then
   exit 1
 fi
-if [ "${1:-}" = add ] && [ "${2:-}" = playwright@latest ]; then
+bump=N
+for a in "$@"; do case "$a" in playwright@*) bump=Y ;; esac; done
+if [ "${1:-}" = add ] && [ "$bump" = Y ]; then
   pw=node_modules/playwright-core
   if [ -n "${BUN_ADD_SETS:-}" ]; then
     printf '{\n  "name": "playwright-core",\n  "version": "%s"\n}\n' \
@@ -269,15 +271,16 @@ check T18-version-unreadable \
   "$(gstack_pw_version "$tmp/g18-empty")" ""
 
 t19=""
-for v in 1.58.2 1.59.1 1.60.0 1.63.0 2.0.0 "" garbage; do
+for v in 1.58.2 1.59.1 1.60.0 1.63.0 2.0.0 "" garbage \
+  99999999999999999999999.1; do
   t19_rc=0; gstack_pw_extract_safe "$v" || t19_rc=$?
   t19="$t19$t19_rc"
 done
-check T19-extract-safe-floor "$t19" 1100000
+check T19-extract-safe-floor "$t19" 11000000
 
 mk_gstack "$tmp/g20" 1.58.2 "x"
 out="$(run_bump "$tmp/g20" "" 1.65.0)"
-check T20-no-os-release-bumps "$(log_has 'add playwright@latest')\
+check T20-no-os-release-bumps "$(log_has 'add --exact playwright@1.65.0')\
 $(out_has 'bumped to 1.65.0')$(out_has 'rc=0')" YYY
 
 mk_gstack "$tmp/g21" 1.63.0 "x"
@@ -338,5 +341,10 @@ out="$(bash "$tmp/t27.sh" 2>&1)"
 t27_add=$(grep -q '^add' "$tmp/bun27.log" && echo Y || echo N)
 check T27-errexit-safe-bump "$(out_has REACHED1)$(out_has REACHED2)\
 $(out_has REACHED3)$t27_add" YYYY
+
+# T28 — the bump never pulls an unpinned release
+t28=OK
+grep -q 'playwright@latest' < <(sed 's/#.*//' "$L") && t28=BAD
+check T28-no-latest-bump "$t28" OK
 
 printf 'PASS=%s FAIL=%s\n' "$pass" "$fail"; [ "$fail" -eq 0 ]
