@@ -2215,3 +2215,9 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Context**: 2026-11-25 deepseek-delegate. Both corrected to user after reading the line / harness docs.
 - **Apply**: before relaying an executor's or doc's claim about behaviour, read the line or source that decides it; state unverified claims as such.
 - **Reference**: lib/deepseek-delegate.sh command validation
+
+## LRN-310 — Vendored bug: check upstream fix and update path before widening a local workaround (2026-11-26)
+- **Pattern**: before widening local workaround on vendored code, check (1) upstream already fixed it, (2) normal update path already delivers fix. Local edit to submodule files (package.json, bun.lock) makes `git submodule update --remote` refuse later updates on that host.
+- **Context**: 2026-11-26 /bugfix gstack Chromium install freeze on Mac. Planned fix = widen BDR-029 Playwright bump to any OS when version < 1.60. Robustness + correctness challengers: bump dirties submodule on every host, blocks update toward upstream main that already pins `^1.65` (gstack #1703 closed). `make update` + y at gstack prompt already delivers it. User chose test first, no code. Cause unconfirmed (log stops at 90%, known bug hangs after 100%).
+- **Apply**: diagnosis step on vendored/submodule bug: fetch upstream manifest at main + read repo's update script before planning code. Present zero-code path first. Unconfirmed cause on unreachable host -> give user confirm test, do not build on hypothesis.
+- **Reference**: .claude/tasks/plans/2026-11-26-gstack-playwright-extract-hang-1211.md, BDR-029, BDR-088, BLK-008, lib/gstack-playwright.sh:148
