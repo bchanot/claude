@@ -139,6 +139,15 @@ the MAIN loop, never here):
   "addressed" line. A BLOCKER consciously kept is tagged `[deferred <date>]`;
   every `[deferred]` point stops the run once, at the end of the challenge step,
   for the human to keep, cut or reopen it (`lib/challenge-plan.md` § OUTPUT).
+- ADVISOR ON THE SYNTHESIS (main loop): when a lens returned a BLOCKER or
+  a MAJOR, once the first synthesis is done the main loop calls the advisor
+  once more, when the tool is listed, before any confirmation challenger;
+  none after the confirmation pass; absent or erroring → go on. The advice
+  never enters a challenger brief. A skill run inside a sub-agent skips it
+  (`lib/challenge-plan.md`, SYNTHESIZE step).
+- THE SYNTHESIS STAYS IN THE LOOP: accepting, dropping or deferring a
+  finding, and the plan change that closes it, are never handed to another
+  agent (`lib/challenge-plan.md`, SYNTHESIZE step).
 - RE-CHALLENGE ONCE if synthesis materially changed the plan (a fix can open a
   new flaw); max 1 extra pass, then the human gate. A BLOCKER or MAJOR that
   pass still lands on a revised point is deferred, not revised again.

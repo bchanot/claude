@@ -267,8 +267,9 @@ Checks: pytest PASS, ruff PASS. Residuals: SEC-2 (needs decision). Commits: 4. B
 
 Main loop only, never a runner: when the tour applied any fix, before
 the global summary, the main loop makes its
-end-of-run advisor call (`lib/effort-shift.md` § Advisor); its answer
-goes into the summary as an `Advisor:` line, and a fix it calls for
+end-of-run advisor call (`lib/effort-shift.md` § Advisor); its effect
+(`changed: <what>`, `no change` or `not called (<reason>)`) goes
+into the summary as an `Advisor:` line, and a fix it calls for
 waits for a new run.
 
 Global summary inline, one line per project (append `BREAKING: n` to

@@ -83,7 +83,7 @@ code" wins. Repo-specific instructions override both.
   to the doctrine, the architecture or a public interface, before handing
   the user a root-cause diagnosis or commands to run on their machine) →
   the main loop calls the advisor tool when it is listed (settings
-  `advisorModel`, Fable, set by /advisor), at least at the points of
+  `advisorModel`, Fable, set by /advisor), at every point of
   `~/.claude/lib/effort-shift.md` § Advisor; dispatched plan-challenger,
   verifier, security-auditor, `analyzer` and an opus code review exactly
   once, before their verdict or report; other sub-agents never (each opus

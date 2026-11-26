@@ -103,10 +103,12 @@ Measure the split any time: `python3 ~/.claude/lib/effort-audit.py`
 Fable runs as the advisor (settings `advisorModel`), never a route or pin
 target (BDR-150). It is a server tool: the router cannot see or refuse it.
 
-Main loop, at least at these points (for work outside them, see the
-triggers in CLAUDE.global.md § Workflow):
+Main loop, a call at each of these points when the tool is listed (for
+work outside them, see the triggers in CLAUDE.global.md § Workflow):
 1. Before settling an approach: on the written plan, before the
-   challengers see it (`lib/challenge-plan.md`), at most once per skill run;
+   challengers see it, and on the plan after the first synthesis
+   when a lens returned a BLOCKER or a MAJOR (`lib/challenge-plan.md`);
+   none after the confirmation pass; both
    skipped with the challenge for a placed decision (`lib/challenge-plan.md` § SKIP).
 2. When stuck: once per verify-secure run, at the first gate loop to fail
    twice (floor, conformity, security, or a second structural failure),
@@ -175,7 +177,9 @@ grammar: `changed: <what>` | `no change` | `not called (<reason>)`.
 A sub-agent's report carries
 `ADVISOR: changed: <what> | no change | not called (absent | error)`;
 the line is a trace for the transcript tally, never a gate: a report
-without it stands.
+without it stands. The main loop's `ADVISOR` fields and end-of-run
+`Advisor:` lines use the same grammar, plus their `skipped (<reason>)`
+values; the CHALLENGE SUMMARY row keeps its own (`lib/challenge-plan.md`).
 
 Advisor absent or erroring (Fable out of credits, for example) → proceed
 as written. Advice is input, never consent: it waives no gate, cap or

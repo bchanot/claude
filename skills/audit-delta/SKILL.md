@@ -239,8 +239,9 @@ fix commits land inside it and get re-audited — safe overlap, by design.
 ## STEP 4 — FINAL SUMMARY
 
 When the run applied a fix, before the summary, the main loop makes its
-end-of-run advisor call (`lib/effort-shift.md` § Advisor); its answer
-goes into the summary as an `Advisor:` line, and a fix it calls for
+end-of-run advisor call (`lib/effort-shift.md` § Advisor); its effect
+(`changed: <what>`, `no change` or `not called (<reason>)`) goes
+into the summary as an `Advisor:` line, and a fix it calls for
 waits for a new run.
 
 ```

@@ -70,7 +70,7 @@ check T16-effort-sdd "$(has lib/effort-shift.md \
 check T17-row-reason "$(has lib/challenge-plan.md \
   'already called this run | sub-agent)')" yes
 check T19-advisor-first-skip "$(has lib/challenge-plan.md \
-  'A skill run inside a sub-agent skips this call')" yes
+  'A skill run inside a sub-agent skips both calls')" yes
 check T18-no-old-row "$(cd "$ROOT" && git grep -c 'already called this run)' \
   -- skills lib ':!lib/tests' | wc -l | tr -d ' ')" 0
 
@@ -102,6 +102,45 @@ for f in CLAUDE.global.md lib/effort-shift.md agents/plan-challenger.md \
   check "T24 $f" "$(joined "$f" | grep -cE "$old_re")" 0
 done
 check T24-hook "$(ctx '{}' | grep -cE "$old_re")" 0
+
+# two main-loop calls per challenge, synthesis kept in the loop, effect
+# on every main-loop line (user decisions 2026-11-26)
+check T25-synthesis-call "$(has lib/challenge-plan.md \
+  '**Advisor on the first synthesis (main loop).**')" yes
+check T25b-none-after "$(has lib/challenge-plan.md \
+  'No call after the confirmation pass.')" yes
+check T26-no-handoff "$(has lib/challenge-plan.md \
+  'or deferred, and the named change that closes it, are never handed to')" yes
+check T27-mirror "$(has agents/plan-challenger.md \
+  'ADVISOR ON THE SYNTHESIS (main loop)')" yes
+check T27b-mirror-skip "$(has agents/plan-challenger.md \
+  'never enters a challenger brief. A skill run inside a sub-agent skips it')" yes
+check T25c-due-anyway "$(has lib/challenge-plan.md \
+  'This call is due whatever earlier call the run made.')" yes
+check T25d-two-part-row "$(has lib/challenge-plan.md \
+  "two parts, \`plan: <value>; synthesis: <value>\`.")" yes
+check T28-effort-point1 "$(has lib/effort-shift.md \
+  'challengers see it, and on the plan after the first synthesis')" yes
+check T28b-every-point "$(has CLAUDE.global.md 'at every point of')" yes
+check T28c-effort-header "$(has lib/effort-shift.md \
+  'Main loop, a call at each of these points when the tool is listed')" yes
+check T29-hotfix-field "$(has skills/hotfix/SKILL.md \
+  'ADVISOR : <changed: <what> | no change | not called (absent | error)>')" yes
+check T29b-hotfix-cosmetic "$(has skills/hotfix/SKILL.md \
+  "A skipped challenge still makes the run's advisor call here")" yes
+for s in feat bugfix; do
+  check "T30 $s field" "$(has "skills/$s/SKILL.md" \
+    ': <changed: <what> | no change | skipped (gates clean on first pass) | not called (absent | error)>')" yes
+done
+for s in a11y guardrails ship-feature init-project audit-delta tour \
+  release-candidate; do
+  check "T31 $s effect" "$(has "skills/$s/SKILL.md" \
+    "\`no change\` or \`not called (<reason>)\`) goes")" yes
+done
+check T31b-no-old-answer "$(cd "$ROOT" && git grep -c 'Advisor); its answer' \
+  -- skills | wc -l | tr -d ' ')" 0
+check T32-router-note "$(has mods/model-router/hooks/register.ts \
+  'a challenge step makes its own calls')" yes
 
 echo "subagent-advisor: $pass pass, $fail fail"
 [ "$fail" -eq 0 ]

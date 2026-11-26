@@ -334,7 +334,8 @@ on the branch FINISH integrates.
 `mcp__model-router__route(phase="plan")` first (route: end-of-run review).
 Before proposing the finish, the main loop prints the run's diff stat,
 then makes its end-of-run advisor call (`lib/effort-shift.md` § Advisor);
-its answer goes with the proposal as an `Advisor:` line, and a fix it
+its effect (`changed: <what>`, `no change` or `not called (<reason>)`) goes
+with the proposal as an `Advisor:` line, and a fix it
 drives goes back through the gates. A later merge proposal reuses this
 answer and names any code commit made after it (doc and memory
 commits excepted).

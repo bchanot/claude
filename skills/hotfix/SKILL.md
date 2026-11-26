@@ -93,6 +93,10 @@ broken link): there is nothing for three lenses to bite on, and speed is the
 point. Run it ONLY when the settled fix touches control flow or behaviour — an
 off-by-one, a wrong operator/variable, a behaviour-changing config value, or a
 missing import that alters execution. In doubt → it is probably a `/bugfix`.
+A skipped challenge still makes the run's advisor call here, on the located
+fix, when the tool is listed (`lib/effort-shift.md` § Advisor). The
+summary's `ADVISOR` field carries each call of the run (a challenged fix
+prints `plan: …; synthesis: …`).
 
 `mcp__model-router__route(phase="reflect")` first (route: own level before the challenge; send it with the first tool call of lib/challenge-plan.md, the advisor call when one is due).
 For a logic fix: persist the STEP 1 located fix (root cause + the exact edit) to
@@ -205,6 +209,7 @@ Parse the `HOTFIX-EXEC REPORT`:
    FIX     : <one-line description>
    VERIFIED: <test name or smoke check that passed>
    SECURITY: <PASS | DEGRADED (checklist only)>
+   ADVISOR : <changed: <what> | no change | not called (absent | error)>
    ```
 
 ## STEP 5 — DOC SYNC (automatic)
