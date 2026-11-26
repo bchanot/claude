@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# lib/tests/gstack-playwright.test.sh — lib/gstack-playwright.sh (T1..T17)
+# lib/tests/gstack-playwright.test.sh — lib/gstack-playwright.sh (T1..T27)
 #
 # git 2.53 defaults protocol.file to "user", which blocks submodule clone
 # and fetch. The fixture git calls alone are not enough: the
@@ -210,5 +210,133 @@ check T16-report-browsers-path-zero "$rc16:[$err16]" "0:[]"
 # ── T17 — sourcing emits nothing ──────────────────────────────────────────
 out17="$(bash -c "source '$L'; :" 2>&1)"
 check T17-source-safe "[$out17]" "[]"
+
+# ── T18-T27 — the bump: version floor on any OS, OS reason kept ──────────
+# Stub bun: logs "$*" to $BUN_LOG; `add playwright@latest` rewrites the
+# fixture version ($BUN_ADD_SETS) and lib text ($BUN_ADD_LIB) when set;
+# `install` fails when $BUN_FAIL_INSTALL=1.
+mkdir -p "$tmp/stubbin"
+cat > "$tmp/stubbin/bun" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >> "${BUN_LOG:-/dev/null}"
+if [ "${BUN_FAIL_INSTALL:-}" = 1 ] && [ "${1:-}" = install ]; then
+  exit 1
+fi
+if [ "${1:-}" = add ] && [ "${2:-}" = playwright@latest ]; then
+  pw=node_modules/playwright-core
+  if [ -n "${BUN_ADD_SETS:-}" ]; then
+    printf '{\n  "name": "playwright-core",\n  "version": "%s"\n}\n' \
+      "$BUN_ADD_SETS" > "$pw/package.json"
+  fi
+  if [ -n "${BUN_ADD_LIB:-}" ]; then
+    printf '%s\n' "$BUN_ADD_LIB" > "$pw/lib/index.js"
+  fi
+fi
+exit 0
+EOF
+chmod +x "$tmp/stubbin/bun"
+BUN_LOG="$tmp/bun.log"
+
+# mk_gstack <dir> <version> <lib text>
+mk_gstack() {
+  mkdir -p "$1/node_modules/playwright-core/lib"
+  printf '{\n  "name": "playwright-core",\n  "version": "%s"\n}\n' "$2" \
+    > "$1/node_modules/playwright-core/package.json"
+  printf '%s\n' "$3" > "$1/node_modules/playwright-core/lib/index.js"
+}
+
+# run_bump <dir> <ostag> <add sets> [add lib] [fail install]
+run_bump() {
+  (
+    _t_os="$2"
+    gstack_pw_ostag() { printf '%s' "$_t_os"; }
+    BUN_ADD_SETS="$3"; BUN_ADD_LIB="${4:-}"; BUN_FAIL_INSTALL="${5:-}"
+    export BUN_LOG BUN_ADD_SETS BUN_ADD_LIB BUN_FAIL_INSTALL
+    PATH="$tmp/stubbin:$PATH"
+    : > "$BUN_LOG"
+    gstack_bump_playwright_if_unsupported "$1"
+    echo "rc=$?"
+  ) 2>&1
+}
+log_has() { grep -q -- "$1" "$BUN_LOG" && echo Y || echo N; }
+out_has() { printf '%s\n' "$out" | grep -qF -- "$1" && echo Y || echo N; }
+
+mk_gstack "$tmp/g18" 1.58.2 "x"
+mkdir -p "$tmp/g18-empty"
+check T18-version-read \
+  "$(gstack_pw_version "$tmp/g18/node_modules/playwright-core")" 1.58.2
+check T18-version-unreadable \
+  "$(gstack_pw_version "$tmp/g18-empty")" ""
+
+t19=""
+for v in 1.58.2 1.59.1 1.60.0 1.63.0 2.0.0 "" garbage; do
+  t19_rc=0; gstack_pw_extract_safe "$v" || t19_rc=$?
+  t19="$t19$t19_rc"
+done
+check T19-extract-safe-floor "$t19" 1100000
+
+mk_gstack "$tmp/g20" 1.58.2 "x"
+out="$(run_bump "$tmp/g20" "" 1.65.0)"
+check T20-no-os-release-bumps "$(log_has 'add playwright@latest')\
+$(out_has 'bumped to 1.65.0')$(out_has 'rc=0')" YYY
+
+mk_gstack "$tmp/g21" 1.63.0 "x"
+out="$(run_bump "$tmp/g21" "" "")"
+t21_add=$(grep -q '^add' "$BUN_LOG" && echo Y || echo N)
+check T21-safe-version-no-bump "$(log_has '^install')$t21_add\
+$(out_has '1.63.0: no bump needed')$(out_has 'rc=0')" YNYY
+
+mk_gstack "$tmp/g22" 1.58.2 "supports ubuntu24.04"
+out="$(run_bump "$tmp/g22" ubuntu24.04 1.65.0)"
+check T22-version-reason-on-supported-os "$(log_has '^add')" Y
+
+mk_gstack "$tmp/g23" 1.63.0 "supports nothing"
+out="$(run_bump "$tmp/g23" ubuntu26.04 "" "")"
+check T23-os-reason-left "$(log_has '^add')\
+$(out_has 'bump left it: lacks ubuntu26.04 support')\
+$(out_has 'expected to freeze')" YYN
+
+mk_gstack "$tmp/g24" 1.63.0 "supports nothing"
+out="$(run_bump "$tmp/g24" ubuntu26.04 "" "supports ubuntu26.04")"
+check T24-os-reason-bumped "$(log_has '^add')$(out_has 'bumped to 1.63.0')" YY
+
+mk_gstack "$tmp/g25" 1.58.2 "x"
+out="$(run_bump "$tmp/g25" "" "")"
+check T25-failed-bump-warns-freeze \
+  "$(out_has 'bump left it: 1.58.2 hangs at browser extraction')\
+$(out_has 'expected to freeze')$(out_has 'rc=0')" YYY
+
+mk_gstack "$tmp/g26" 1.58.2 "x"
+out="$(run_bump "$tmp/g26" "" "" "" 1)"
+t26_add=$(grep -q '^add' "$BUN_LOG" && echo Y || echo N)
+check T26-install-failure-warned "$(out_has 'bun install failed in gstack')\
+$t26_add$(out_has 'rc=0')" YNY
+
+# T27 — errexit safety: bare calls under set -euo pipefail, three paths
+mkdir -p "$tmp/g27-empty"
+mk_gstack "$tmp/g27b" 1.58.2 "x"
+mk_gstack "$tmp/g27c" 1.58.2 "x"
+cat > "$tmp/t27.sh" <<EOF
+#!/usr/bin/env bash
+set -euo pipefail
+source "$L"
+gstack_pw_ostag() { :; }
+PATH="$tmp/stubbin:\$PATH"
+BUN_LOG="$tmp/bun27.log"; BUN_ADD_LIB=""; BUN_FAIL_INSTALL=""
+export BUN_LOG BUN_ADD_LIB BUN_FAIL_INSTALL
+BUN_ADD_SETS=""; export BUN_ADD_SETS
+gstack_bump_playwright_if_unsupported "$tmp/g27-empty"
+echo REACHED1
+BUN_ADD_SETS=1.65.0
+gstack_bump_playwright_if_unsupported "$tmp/g27b"
+echo REACHED2
+BUN_ADD_SETS=""
+gstack_bump_playwright_if_unsupported "$tmp/g27c"
+echo REACHED3
+EOF
+out="$(bash "$tmp/t27.sh" 2>&1)"
+t27_add=$(grep -q '^add' "$tmp/bun27.log" && echo Y || echo N)
+check T27-errexit-safe-bump "$(out_has REACHED1)$(out_has REACHED2)\
+$(out_has REACHED3)$t27_add" YYYY
 
 printf 'PASS=%s FAIL=%s\n' "$pass" "$fail"; [ "$fail" -eq 0 ]
