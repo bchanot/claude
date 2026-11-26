@@ -105,9 +105,11 @@ target (BDR-150). It is a server tool: the router cannot see or refuse it.
 
 Main loop, a call at each of these points when the tool is listed (for
 work outside them, see the triggers in CLAUDE.global.md § Workflow):
-1. Before settling an approach: on the written plan, before the
+1. Before settling an approach: on the written plan, when the run has
+   made no main-loop advisor call yet, before the
    challengers see it, and on the plan after the first synthesis
-   when a lens returned a BLOCKER or a MAJOR (`lib/challenge-plan.md`);
+   when a lens returned a BLOCKER or a MAJOR, whatever earlier call the
+   run made (`lib/challenge-plan.md`);
    none after the confirmation pass; both
    skipped with the challenge for a placed decision (`lib/challenge-plan.md` § SKIP).
 2. When stuck: once per verify-secure run, at the first gate loop to fail

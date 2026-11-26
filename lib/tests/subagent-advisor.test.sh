@@ -151,5 +151,8 @@ check T32-router-note "$(has mods/model-router/hooks/register.ts \
 check T33-session-note "$(has lib/effort-shift.md \
   "Type \`/advisor\` in such a session, or relaunch it.")" yes
 
+check T28d-effort-plan-bound "$(has lib/effort-shift.md \
+  'made no main-loop advisor call yet, before the')" yes
+
 echo "subagent-advisor: $pass pass, $fail fail"
 [ "$fail" -eq 0 ]

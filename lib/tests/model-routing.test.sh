@@ -186,8 +186,7 @@ has "lib/model-gate.md" 'fixes, HTML mockups, writing, plan drafting'
 has "lib/model-gate.md" 'the tour multi-project runner carries no model'
 has "CLAUDE.global.md" "Untyped dispatch (general-purpose, bar /tour's runner): explicit"
 has "CLAUDE.global.md" 'judgment opus; fixes, mockups, writing, collection sonnet; probes haiku'
-# shellcheck disable=SC2016  # literal backticks — no expansion intended
-has "skills/audit-delta/SKILL.md" 'else general-purpose with `model: "opus"`'
+has "skills/audit-delta/SKILL.md" "else general-purpose with \`model: \"opus\"\`"
 for s in ship-feature init-project; do
   has "skills/$s/SKILL.md" "This includes SDD's final whole-branch review"
 done
