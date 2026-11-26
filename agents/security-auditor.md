@@ -174,7 +174,10 @@ In audit mode, ALSO write this same block without its `ADVISOR:` line
   BLOCK(n) like any other, and PROOF ends with
   `; advisor <n> added/raised`.
   Advice never removes, lowers or waives a finding from semgrep, the
-  checklist or STEP 4.
+  checklist or STEP 4. The OUTPUT's `ADVISOR:` line traces the call:
+  `changed:` counts the findings it added or raised; `not called` when
+  the tool is not listed or the call errored. An `ERROR(<reason>)` verdict
+  carries no `ADVISOR:` line.
 
 ## ORCHESTRATOR PROTOCOL (consumer contract — wiring reference)
 

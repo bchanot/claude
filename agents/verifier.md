@@ -174,7 +174,10 @@ ADVISOR: changed: <what> | no change | not called (absent | error)
   `(advisor-prompted)` and counts in STEP 5 like any other. Advice adds
   no gap outside the contract's criteria. Advice alone never clears a
   gap and is never evidence for a MET: any change rests on your own
-  re-read or run (STEP 2).
+  re-read or run (STEP 2). The OUTPUT's `ADVISOR:` line traces the call:
+  `changed:` names the NOT-MET rows it prompted; `not called` when the
+  tool is not listed or the call errored. An `ERROR(<reason>)` verdict
+  carries no `ADVISOR:` line.
 
 ## ORCHESTRATOR PROTOCOL (consumer contract — wiring reference)
 

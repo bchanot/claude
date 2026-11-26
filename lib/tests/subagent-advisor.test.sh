@@ -91,6 +91,12 @@ check T23c-report-written-last "$(has agents/security-auditor.md \
   "\`REPORT_WRITTEN: <path>\`, after the \`ADVISOR:\` line.")" yes
 check T23b-error-none "$(has agents/plan-challenger.md \
   "verdict carries no \`ADVISOR:\` line.")" yes
+for a in verifier security-auditor; do
+  check "T23d $a error none" "$(has "agents/$a.md" \
+    "carries no \`ADVISOR:\` line.")" yes
+  check "T23e $a trace" "$(has "agents/$a.md" \
+    "The OUTPUT's \`ADVISOR:\` line traces the call:")" yes
+done
 old_re='at most once, before|at most once per dispatch|one call allowed'
 old_re="$old_re|tool once, before|may call once|allowing one"
 joined() { tr '\n' ' ' < "$ROOT/$1" | tr -s ' '; }
