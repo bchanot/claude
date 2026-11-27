@@ -135,6 +135,7 @@
     "profile": "mechanical",
     "plugin-check": "mechanical",
     "skills-perso": "mechanical",
+    "disk-clean": "mechanical",
     "using-git-worktrees": "mechanical",
     "21st-cli-use": "mechanical",
     "pack-design:21st-cli-use": "mechanical",

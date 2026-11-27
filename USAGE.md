@@ -112,6 +112,7 @@ Tu veux...
 | Déployer via runbook | `/deploy` |
 | Navigation codebase large | `/graphify` |
 | Lister ses skills | `/skills-perso` |
+| Disque plein, libérer de l'espace | `/disk-clean` |
 | Plugins OK ? | `/plugin-check` |
 | Audit du delta (depuis dernier run) | `/audit-delta` |
 | Flush mémoire + TODO avant /clear | `/capitalize` |
@@ -159,6 +160,7 @@ Tu veux...
 | `/deploy` | Déployer via le runbook du projet | Instancie le delta depuis le dernier deploy, reprend à froid ; tu exécutes la checklist, Claude ne déploie jamais |
 | `/graphify` | Navigation codebase large-scope | Knowledge graph, pour tâches multi-fichiers |
 | `/skills-perso` | Lister ses skills personnels | Skills créés dans ~/.claude/skills/ |
+| `/disk-clean` | Disque plein : trouver et supprimer les résidus | Scan en lecture seule, tableau, validation avant toute suppression ; Claude lance seulement `cargo clean --profile dev` et `docker builder prune`, le reste t'est donné en commandes `!` |
 | `/health` | Tableau de bord qualité du code (gstack) | Le diagnostic d'installation est `make doctor` |
 | `/status` | Reprendre après une pause | Snapshot : plugins, git, GSD milestone |
 | `/audit-delta` | Audit récurrent du delta depuis le dernier run | Axes : conformité / bugs / dead code / sécurité |
