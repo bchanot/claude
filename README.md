@@ -74,35 +74,45 @@ Doctrine: the main loop runs on the `opus[1m]` session model; the model-router
 rows route main-loop reflection (brainstorm, plan, contract, audit judgment,
 loop decisions) to the `best` tier, opus at the phase's effort. Fable is never
 auto-routed: it is the advisor (`advisorModel` in settings.json) and a hand
-pick. The main loop calls the advisor at least on the written plan before the
-plan challengers see it (`lib/challenge-plan.md`, once per skill run; the
-CHALLENGE SUMMARY's `Advisor:` row records what it changed; skipped with
-the challenge when the run only places a decision the user already made,
-`Challenge: skipped (placed decision: …)` standing in for the summary),
-once per
-verify-secure run at the first gate loop to fail twice (the advice stays in
-the main loop, never in an executor brief; a cap or escalation STOP carries
-it), before proposing a merge or calling a long task done (two skips:
-`/feat` and `/bugfix` when GATE 0 said MET, the verifier CONFORME and
-security PASS, not DEGRADED, each on its first attempt, their summary's
-`ADVISOR` field then reading `skipped (gates clean on first pass)`;
-`/audit-delta` and `/tour` when the run applied no fix), before
+pick. The main loop calls the advisor when the tool is listed. A challenged
+plan gets two calls (`lib/challenge-plan.md`): one on the written plan before
+the plan challengers see it, when the run has made no main-loop advisor call
+yet, and one on the plan after the first synthesis when a lens returned a
+BLOCKER or a MAJOR, whatever earlier call the run made; none after the
+confirmation pass. The synthesis itself never leaves the main loop. The
+CHALLENGE SUMMARY's `Advisor:` row prints both calls, `plan: …; synthesis: …`.
+Both are skipped with the challenge when the run only places a decision the
+user already made, `Challenge: skipped (placed decision: …)` standing in for
+the summary. The main loop also calls it once per verify-secure run at the
+first gate loop to fail twice (the advice stays in the main loop, never in an
+executor brief; a cap or escalation STOP carries it), before proposing a merge
+or calling a long task done (two skips: `/feat` and `/bugfix` when GATE 0 said
+MET, the verifier CONFORME and security PASS, not DEGRADED, each on its first
+attempt, their summary's `ADVISOR` field then reading `skipped (gates clean on
+first pass)`; `/audit-delta` and `/tour` when the run applied no fix), before
 recommending a change to the doctrine, the architecture or a public interface,
-before handing the user a root-cause diagnosis or commands to run on
-their machine, and once per main-loop run of a skill whose router row is
-`plan` or `reflect`, on its settled plan, diagnosis or fix before it
-executes or reports (a call made at another point counts; only the
-placed-decision skip and the end-of-run skips waive it; a skill loaded
-inside such a run makes none).
-plan-challenger, verifier, security-auditor, `analyzer` and an opus code
-review (`/ship-feature` STEP 6, `/init-project` STEP 10, a standalone
-subagent-driven-development final review) may call it once when dispatched
-as a sub-agent, before their verdict or report: advice can add a finding or
-raise its severity, never drop, lower or clear one. Other sub-agents never
-call it, even when the tool is listed; the SubagentStart hook
-`hooks/subagent-advisor.sh` restates the rule in every sub-agent at spawn. An absent or
-failing advisor changes nothing, and its advice waives no gate, cap or guard
-(`lib/effort-shift.md` § Advisor). The main loop writes no
+before handing the user a root-cause diagnosis or commands to run on their
+machine, and once per main-loop run of a skill whose router row is `plan` or
+`reflect`, on its settled plan, diagnosis or fix before it executes or reports
+(a call made at another point counts; only the placed-decision skip and the
+end-of-run skips waive it; a skill loaded inside such a run makes none).
+`/hotfix` calls it on every run, on the located fix when the challenge is
+skipped, and prints an `ADVISOR` field. End-of-run `Advisor:` lines and
+`ADVISOR` fields state the effect: `changed: <what>`, `no change`, `not called
+(<reason>)` or `skipped (<reason>)`.
+plan-challenger, verifier, security-auditor, `analyzer` and an opus code review
+(`/ship-feature` STEP 6, `/init-project` STEP 10, a standalone
+subagent-driven-development final review) make exactly one call per dispatch
+when the tool is listed, before their verdict or report (a call that errors:
+proceed, no retry), and end that report with `ADVISOR: changed: <what> | no
+change | not called (absent | error)`, a trace for the transcript tally, never
+a gate. Advice can add a finding or raise its severity, never drop, lower or
+clear one. Other sub-agents never call it, even when the tool is listed; the
+SubagentStart hook `hooks/subagent-advisor.sh` restates the rule in every
+sub-agent at spawn. An absent or failing advisor changes nothing, and its
+advice waives no gate, cap or guard (`lib/effort-shift.md` § Advisor). A
+session opened before the `advisorModel` setting may never list the tool: type
+`/advisor` in that session, or relaunch it. The main loop writes no
 code outside a skill run (the router's guard redirects it to a skill); the fresh
 gates run as dispatched agents on the `audit` row. The Fable/Opus model floor is
 enforced by a blocking gate (`lib/model-gate.md`) at the entry of the 17
@@ -113,7 +123,13 @@ off stops the skill (`/route on` resumes the mod). Inside a sub-agent the answer
 says the model is `fixed at spawn`, and the skill proceeds. Nothing dispatched
 inherits silently: typed agents run on their model-router row, their `model:`
 frontmatter being the off-state floor; built-ins get an explicit `model=` at
-every call site.
+every call site, chosen by the nature of the work, never by the session model:
+judgment opus; fixes, HTML mockups, writing, plan drafting from a closed brief
+and collection sonnet; mechanical probes haiku; never fable. The `/tour`
+multi-project runner is the one exception. Under `/ship-feature` and
+`/init-project` the subagent-driven-development final whole-branch review, its
+re-reviews and its fix rounds run on sonnet; the opus code review (STEP 6, STEP
+10) follows.
 
 | Agent | Model | Tier |
 |---|---|---|
