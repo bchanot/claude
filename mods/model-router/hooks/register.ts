@@ -200,7 +200,9 @@ const ADVISOR_NOTE =
   'Advisor (`~/.claude/lib/effort-shift.md` § Advisor, **Per run**): when ' +
   'the `advisor` tool is listed, this skill run makes one main-loop ' +
   'advisor call on its settled plan, diagnosis or fix, before it executes ' +
-  'or reports. A call this run already made at an advisor point counts. ' +
+  'or reports. A call this run already made at an advisor point counts; ' +
+  'a challenge step makes its own calls ' +
+  '(`~/.claude/lib/challenge-plan.md`). ' +
   'Only `~/.claude/lib/challenge-plan.md` § SKIP and the end-of-run skips ' +
   'waive it; any other skipped challenge step still gets the call where ' +
   'it would have run. Loaded inside another plan/reflect skill\'s run: no ' +

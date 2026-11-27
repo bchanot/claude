@@ -27,8 +27,8 @@ either closed by a NAMED plan change or explicitly deferred for the human.
 Nominal path is cheap for a small, clean plan: three parallel challengers return
 SOLID, synthesis is a no-op. It only costs more when a lens lands a real finding
 — which is the point.
-The main loop's advisor call before the dispatch (below) is the costliest
-single item: once per skill run.
+The main loop's advisor calls (below) are the costliest items: one before
+the dispatch, one on the first synthesis when a lens found a BLOCKER or MAJOR.
 
 ## SKIP: a placed decision
 
@@ -54,14 +54,14 @@ contract and runs `gates.sh run` on a `mktemp -d` copy of it
 ## DISPATCH — three fresh challengers, in parallel, blind
 
 **Advisor first (main loop).** Before the first dispatch, with no main-loop
-advisor call since the skill run started (so at most once per skill run, not
+advisor call since the skill run started (never
 before a re-challenge), the main loop reads the `PLAN` file unless its full
 text is already in this conversation, then calls the advisor when the tool
 is listed (`lib/effort-shift.md` § Advisor). An answer that lands a real
 flaw revises the `PLAN` file on disk before the dispatch, as plain plan
 text: no advisor attribution, no "changes after review" section; the
 summary's `Advisor:` row carries it (OUTPUT below). Absent or erroring →
-dispatch as written. A skill run inside a sub-agent skips this call (its
+dispatch as written. A skill run inside a sub-agent skips both calls (its
 row reads `not called (sub-agent)`, BDR-150).
 The advice never enters a challenger brief: they stay blind.
 
@@ -117,6 +117,15 @@ Parse each `CHALLENGE — LENS: … — VERDICT:` line and merge the FINDINGS:
   MAJOR you accept): revise the plan on THAT aspect — a NAMED, diffable change to
   the plan, never a self-authored "addressed" line. A BLOCKER you consciously keep
   is tagged `[deferred <date>]`, handled per OUTPUT below.
+- **Advisor on the first synthesis (main loop).** When any lens of the
+  first pass returned a BLOCKER or a MAJOR, once every finding is accepted,
+  dropped or deferred (the `PLAN` revised and re-persisted where a change
+  was accepted) and before any confirmation challenger, the main loop calls
+  the advisor on the plan and its synthesis decisions, when the tool is
+  listed. This call is due whatever earlier call the run made. An answer
+  that lands a real flaw revises the `PLAN` again, as plain plan text. All
+  lenses SOLID: no call. No call after the confirmation pass. Absent or
+  erroring → go on. The advice never enters a challenger brief.
 - **Re-challenge once if the plan materially changed** — a fix can open a new
   flaw. Re-persist the revised `PLAN`, dispatch ONE fresh confirmation challenger,
   max 1 extra pass, then the gate. A BLOCKER or MAJOR that confirmation pass
@@ -124,15 +133,26 @@ Parse each `CHALLENGE — LENS: … — VERDICT:` line and merge the FINDINGS:
   tagged `[deferred <date>]` with the finding quoted, handled per OUTPUT
   below.
 
+The synthesis is this loop's own work. Which finding is accepted, dropped
+or deferred, and the named change that closes it, are never handed to
+another agent. Applying changes already decided to a long plan file may be
+dispatched as drafting: general-purpose, `model: "sonnet"`, a brief that
+lists each decided change (`lib/model-gate.md`, dispatch tiers); the loop
+then re-reads each decided change in the file before the next step.
+
 ## OUTPUT — into the existing human gate
 
 Feed the orchestrator's gate:
 - the REVISED plan, and
 - a CHALLENGE SUMMARY: each BLOCKER raised → the named change that closed it;
   anything `[deferred]`; any lens that failed to return; and an `Advisor:`
-  row, added to whatever summary template the caller prints: each plan
-  change an advisor answer drove, `called, no change`, or
-  `not called (absent | error | already called this run | sub-agent)`.
+  row, added to whatever summary template the caller prints, covering both
+  calls (plan, synthesis): each plan change an advisor answer drove and
+  which call drove it, `called, no change`, or
+  `not called (absent | error | already called this run | sub-agent)`;
+  a synthesis call that was not due reads `not called (all SOLID)`.
+  Whatever single slot a caller's template shows, the row is printed in
+  two parts, `plan: <value>; synthesis: <value>`.
 
 The human remains the decider.
 

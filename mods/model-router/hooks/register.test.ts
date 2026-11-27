@@ -7788,6 +7788,7 @@ test('advisor note: a main feat load carries it', async ($, on) => {
   await noteRig($, on)
   const body = await bodyOf($, 'feat')
   expect(body.startsWith(NOTE)).toBe(true)
+  expect(body).toContain('a challenge step makes its own calls')
   expect(body.endsWith('\n\nBODY')).toBe(true)
 })
 

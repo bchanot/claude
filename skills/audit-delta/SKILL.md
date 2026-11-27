@@ -148,7 +148,7 @@ are done and their markers are saved).
 
 ### 3a. AUDIT (read-only)
 
-Dispatch a subagent (analyzer type if available, else general) with the
+Dispatch a subagent (analyzer type if available, else general-purpose with `model: "opus"` and `effort="xhigh"`, its brief saying never call the `advisor` tool: an audit is judgment) with the
 axis prompt from "Axis specs" below + the audit set + the commit list.
 Instruct it explicitly: **read-only, modify nothing, report findings as a
 list**: `id | file:line | severity (high/med/low) | finding | proposed fix
@@ -239,8 +239,9 @@ fix commits land inside it and get re-audited — safe overlap, by design.
 ## STEP 4 — FINAL SUMMARY
 
 When the run applied a fix, before the summary, the main loop makes its
-end-of-run advisor call (`lib/effort-shift.md` § Advisor); its answer
-goes into the summary as an `Advisor:` line, and a fix it calls for
+end-of-run advisor call (`lib/effort-shift.md` § Advisor); its effect
+(`changed: <what>`, `no change` or `not called (<reason>)`) goes
+into the summary as an `Advisor:` line, and a fix it calls for
 waits for a new run.
 
 ```

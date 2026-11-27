@@ -179,5 +179,19 @@ has "skills/pack-seo/skills/geo/SKILL.md"                    'ERROR CONTRACT'
 has "skills/pack-seo/skills/geo/SKILL.md"                    'never re-derive a score'
 has "agents/handover-doc-writer.md"          'SYNTH REPORT'
 
+# 14) untyped dispatch by nature; SDD final review on sonnet under an
+#     orchestrator (user decisions 2026-11-26; BDR-084 exception kept)
+has "lib/model-gate.md" 'chosen by the nature of the work, never by the session model'
+has "lib/model-gate.md" 'fixes, HTML mockups, writing, plan drafting'
+has "lib/model-gate.md" 'the tour multi-project runner carries no model'
+has "CLAUDE.global.md" "Untyped dispatch (general-purpose, bar /tour's runner): explicit"
+has "CLAUDE.global.md" 'judgment opus; fixes, mockups, writing, collection sonnet; probes haiku'
+has "skills/audit-delta/SKILL.md" "else general-purpose with \`model: \"opus\"\`"
+for s in ship-feature init-project; do
+  has "skills/$s/SKILL.md" "This includes SDD's final whole-branch review"
+done
+has "skills/ship-feature/SKILL.md" 'draft or prototype of plan tasks is a general-purpose dispatch'
+has "lib/effort-shift.md" 'under ship-feature and init-project the final whole-branch review is one'
+
 printf 'model-routing census: %d pass, %d fail\n' "$pass" "$fail"
 [ "$fail" -eq 0 ]

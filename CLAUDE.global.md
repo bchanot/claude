@@ -78,17 +78,17 @@ code" wins. Repo-specific instructions override both.
   command is reported with its rule (a guard redirect naming a skill is
   followed instead), never rerun through a wrapper, alias, env
   file or other shell. Hermetic tests run through `make test [suite=…]` only.
+- Untyped dispatch (general-purpose, bar /tour's runner): explicit `model`:
+  judgment opus; fixes, mockups, writing, collection sonnet; probes haiku
 - Stronger model needed (an approach to settle before building, a stuck
   problem, a long task before calling it done, before recommending a change
   to the doctrine, the architecture or a public interface, before handing
   the user a root-cause diagnosis or commands to run on their machine) →
-  the main loop calls the advisor tool when it is listed (settings
-  `advisorModel`, Fable, set by /advisor), at least at the points of
+  the main loop calls the advisor tool when it is listed, at every point of
   `~/.claude/lib/effort-shift.md` § Advisor; dispatched plan-challenger,
-  verifier, security-auditor, `analyzer` and an opus code review at most
+  verifier, security-auditor, `analyzer` and an opus code review exactly
   once, before their verdict or report; other sub-agents never (each opus
-  brief you write states its rule; a SubagentStart hook restates it). Fable
-  is never routed or pinned: the router tops out at opus.
+  brief you write states its rule). Fable is never routed or pinned.
 - Ask rather than guess. A choice visible in the result (placement,
   wording, order, behavior), a name that becomes public (command, flag,
   endpoint, file), or a scope the request leaves open → ask, even mid-task;
@@ -293,8 +293,8 @@ cryptic names.
   finishing-a-development-branch → `gitflow finish` (human signal)
   systematic-debugging → bugfix
   verification-before-completion → the verifier gates
-- subagent-driven-development standalone: workers sonnet (task reviews and
-  fix rounds too); final review opus, its brief allowing one `advisor` call
+- subagent-driven-development standalone: workers sonnet (task reviews, fix
+  rounds); final review opus, brief asks one `advisor` call + `ADVISOR:` line
 - SEO+GEO → seo (GEO only → geo); W3C + WCAG → web-validate. Pack off →
   propose `profile.sh enable seo` (seo, geo) or `enable web-validate`, the
   user runs `/reload-plugins`; else say so. Security audit (secrets, CVE,

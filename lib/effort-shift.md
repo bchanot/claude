@@ -103,10 +103,14 @@ Measure the split any time: `python3 ~/.claude/lib/effort-audit.py`
 Fable runs as the advisor (settings `advisorModel`), never a route or pin
 target (BDR-150). It is a server tool: the router cannot see or refuse it.
 
-Main loop, at least at these points (for work outside them, see the
-triggers in CLAUDE.global.md § Workflow):
-1. Before settling an approach: on the written plan, before the
-   challengers see it (`lib/challenge-plan.md`), at most once per skill run;
+Main loop, a call at each of these points when the tool is listed (for
+work outside them, see the triggers in CLAUDE.global.md § Workflow):
+1. Before settling an approach: on the written plan, when the run has
+   made no main-loop advisor call yet, before the
+   challengers see it, and on the plan after the first synthesis
+   when a lens returned a BLOCKER or a MAJOR, whatever earlier call the
+   run made (`lib/challenge-plan.md`);
+   none after the confirmation pass; both
    skipped with the challenge for a placed decision (`lib/challenge-plan.md` § SKIP).
 2. When stuck: once per verify-secure run, at the first gate loop to fail
    twice (floor, conformity, security, or a second structural failure),
@@ -152,25 +156,44 @@ CLAUDE.global.md § Workflow; no second call for the same recommendation.
 
 Sub-agents, when dispatched: plan-challenger, verifier, security-auditor,
 `analyzer` and an opus code review (ship-feature STEP 6, init-project
-STEP 10, a standalone subagent-driven-development final review) call it
-at most once per dispatch, before their verdict or report; executors and
-every other sub-agent never call it, even when the tool is listed. The
-rule rides each sub-agent's own text: the allowed agents' prompts, a
-`never call` line in the other opus-served agents and the opus briefs we
-write (a brief sending a general-purpose agent to opus says which rule
-applies; a code review's says it may call once), and, for every spawn
-including built-ins such as `Plan`, the SubagentStart hook
+STEP 10, a standalone subagent-driven-development final review) make
+exactly one call per dispatch when the tool is listed, before their
+verdict or report, and put an `ADVISOR:` effect line in that report;
+executors and every other sub-agent never call it, even when the tool is
+listed. The rule rides each sub-agent's own text: the allowed agents'
+prompts, a `never call` line in the other opus-served agents and the
+opus briefs we write (a brief sending a general-purpose agent to opus
+says which rule applies; a code review's asks for the one call and the
+line), and, for every spawn including built-ins such as `Plan`, the
+SubagentStart hook
 hooks/subagent-advisor.sh. A skill run by a sub-agent reads
 `not called (sub-agent)` in its `Advisor:` row.
 subagent-driven-development, whoever runs it, dispatches every worker
 (implementers, task reviewers, re-reviews, fix rounds) on sonnet
-(BDR-066), as ship-feature and init-project pin it; run standalone, its
-final whole-branch review runs on opus as a code review. The analyzer
-file loaded inline by the main loop follows the main-loop points.
+(BDR-066), as ship-feature and init-project pin it;
+under ship-feature and init-project the final whole-branch review is one
+of those sonnet workers (their own opus code review follows); run
+standalone, its final whole-branch review runs on opus as a code review.
+The analyzer file loaded inline by the main loop follows the main-loop points.
+
+Effect line. An advisor trace says what the call changed, in one
+grammar: `changed: <what>` | `no change` | `not called (<reason>)`.
+A sub-agent's report carries
+`ADVISOR: changed: <what> | no change | not called (absent | error)`;
+the line is a trace for the transcript tally, never a gate: a report
+without it stands. The main loop's `ADVISOR` fields and end-of-run
+`Advisor:` lines use the same grammar, plus their `skipped (<reason>)`
+values; the CHALLENGE SUMMARY row keeps its own (`lib/challenge-plan.md`).
 
 Advisor absent or erroring (Fable out of credits, for example) → proceed
 as written. Advice is input, never consent: it waives no gate, cap or
 guard; at a loop cap it feeds the STOP diagnosis.
+
+A session opened before the `advisorModel` setting may never call the
+Fable advisor: in the one case observed (2026-11-26) such a session made
+no call in 4,390 requests. Advisor tool not listed while settings set
+`advisorModel` → the main loop tells the user to type `/advisor` in that
+session, or to relaunch it.
 
 ## Never
 

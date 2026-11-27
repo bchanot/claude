@@ -238,7 +238,7 @@ Parse the `BUGFIX-EXEC REPORT`:
    each on its first attempt; any other verdict, a retry, a loop iteration or
    a verdict no longer in view runs the call. DEGRADED shows on the
    auditor's `TOOL:` line, beside a PASS. A skip also settles the global
-   "long task before calling it done" trigger. The answer, or the skip,
+   "long task before calling it done" trigger. What it changed, or the skip,
    goes into the summary's `ADVISOR` field, and a fix it drives goes back
    through the gates. A later merge proposal reuses the last run's answer,
    or its skip, and names any code commit made after it (doc and memory
@@ -251,7 +251,7 @@ Parse the `BUGFIX-EXEC REPORT`:
    FILE(S)    : <changed files>
    TEST(S)    : <added/updated tests, or "none — verified manually">
    REGRESSION : <checked areas>
-   ADVISOR    : <one-line answer | skipped (gates clean on first pass) | not called (absent | error)>
+   ADVISOR    : <changed: <what> | no change | skipped (gates clean on first pass) | not called (absent | error)>
    ```
 
 ## STEP 7 — DOC SYNC (automatic)

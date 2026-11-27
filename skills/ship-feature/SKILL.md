@@ -127,6 +127,9 @@ The first step of every turn after a user reply is `mcp__model-router__route(pha
 Invoke `writing-plans` (vendored superpowers skill) with the validated design AND the 0d digest: every task
 must be consistent with the in-force constraints; where a task implements or affects one,
 note the ID inline. Break design into tasks (2-5 min each). Each task: exact file paths, full code, verification steps.
+The plan's design choices are settled here, in the main loop. A delegated
+draft or prototype of plan tasks is a general-purpose dispatch with
+`model: "sonnet"` and a brief whose decisions are closed (`lib/model-gate.md`).
 Then run pass B of `$HOME/.claude/lib/contract-interview.md` against the plan:
 every VISIBLE / PUBLIC NAME / SCOPE choice the plan settles that neither the
 request nor the STEP 1 brainstorm settled (check the contract's CLARIFICATIONS
@@ -201,6 +204,10 @@ implementers AND its reviewers — MUST carry `model: "sonnet"` and
 call. The plan is closed; execution and plan-conformity review are sonnet
 work. Reflection (task decomposition, review verdict arbitration) stays in
 this loop.
+This includes SDD's final whole-branch review, its re-reviews and its fix
+rounds at any round: dispatch them on sonnet too, whatever the SDD skill's
+Model Selection says about the most capable model or a tier above; the
+opus craft review is STEP 6.
 
 ## STEP 4b — ERROR RECOVERY (if STEP 4 fails)
 If a subagent returns a build error, failing test, or type error:
@@ -261,8 +268,11 @@ first ran → the main loop calls the advisor per `lib/verify-secure-loop.md`
 Invoke `requesting-code-review` (vendored superpowers skill). **Model routing (BDR-077):** the
 review subagent it dispatches MUST carry `model: "opus"` and `effort="xhigh"` in the Agent call —
 craft review is dispatched judgment, never inherited from the session.
-Add to its brief: "you may call the `advisor` tool once, before your
-verdict" (code review, BDR-150). Fix every CRITICAL or Important finding
+Add to its brief: "make exactly one `advisor` call when the tool is
+listed, before your verdict (tool not listed or call erroring → proceed,
+no retry), and end your report with one line:
+`ADVISOR: changed: <what> | no change | not called (absent | error)`"
+(code review, BDR-150). Fix every CRITICAL or Important finding
 that carries reproducible evidence (a command that fails on HEAD, or real
 output shown wrong) before proceeding. Without it, one attempt at a failing
 command, else it is a MINOR; a security finding goes to the user
@@ -332,7 +342,8 @@ on the branch FINISH integrates.
 `mcp__model-router__route(phase="plan")` first (route: end-of-run review).
 Before proposing the finish, the main loop prints the run's diff stat,
 then makes its end-of-run advisor call (`lib/effort-shift.md` § Advisor);
-its answer goes with the proposal as an `Advisor:` line, and a fix it
+its effect (`changed: <what>`, `no change` or `not called (<reason>)`) goes
+with the proposal as an `Advisor:` line, and a fix it
 drives goes back through the gates. A later merge proposal reuses this
 answer and names any code commit made after it (doc and memory
 commits excepted).

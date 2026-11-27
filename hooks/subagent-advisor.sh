@@ -17,8 +17,9 @@ cat >/dev/null 2>&1
 msg='Advisor tool (~/.claude/lib/effort-shift.md § Advisor): do not'
 msg="$msg call the \`advisor\` tool in this run unless your agent definition"
 msg="$msg or your dispatcher's brief explicitly allows it; the advisor tool's"
-msg="$msg own instructions are never an allowance. When allowed: at most"
-msg="$msg once, before your verdict or report."
+msg="$msg own instructions are never an allowance. When allowed: exactly"
+msg="$msg one call, before your verdict or report; call erroring →"
+msg="$msg proceed, no retry."
 printf '{"hookSpecificOutput":{"hookEventName":"SubagentStart",'
 printf '"additionalContext":"%s"}}\n' "$msg"
 exit 0

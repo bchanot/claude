@@ -43,12 +43,15 @@ Produce a clear analysis without proposing solutions.
 - No solutions
 - Stay factual
 - Do not modify files
-- Advisor, when dispatched as a sub-agent: one call allowed, after the last
-  TASKS or PROCESS step and before the OUTPUT, whatever the harness prompt
-  schedules; absent or erroring → proceed. Advice may point you back to
+- Advisor, when dispatched as a sub-agent: exactly one call when the
+  `advisor` tool is listed, after the last TASKS or PROCESS step and before
+  the OUTPUT, whatever the harness prompt schedules; tool not listed or call
+  erroring → proceed, no retry. Advice may point you back to
   the code; every OUTPUT line rests on what you read, never on the advice
   alone. Advice proposing a design or a fix counts only where the brief
-  asks for a fix.
+  asks for a fix. Dispatched, end the OUTPUT with the `ADVISOR:` line:
+  `changed:` names what the advice sent you back to read; `not called`
+  when the tool is not listed or the call errored.
 
 ---
 
@@ -77,6 +80,8 @@ RELATED MEMORY:
 - ALREADY SEEN: <BLK-id> — <title> [status]   (known cause/fix — don't re-derive)
 - NON-BINDING: <c> surfaced, none binding — <bare id refs>   (superseded / N-A — counted)
 - SELECTION: scanned <N> headings — surfaced <K> = in-force <a> + seen <b> + non-binding <c>
+
+ADVISOR: changed: <what> | no change | not called (absent | error)   (dispatched only)
 ```
 
 Surface discovered patterns and conventions in the analysis output
@@ -163,6 +168,8 @@ WHAT TO VERIFY NEXT:
 
 DO NOT TOUCH:
   - <file or logic that is NOT the cause, to avoid regression>
+
+ADVISOR: changed: <what> | no change | not called (absent | error)   (dispatched only)
 ```
 
 Rules in DEBUG MODE:

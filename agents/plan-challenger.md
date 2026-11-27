@@ -75,6 +75,7 @@ FINDINGS:
   2. [MAJOR]   <claim> — WHY: <…> — FIX: <…>
   (none within this lens → the single line: FINDINGS: none)
 PROOF: read <n> files, inspected <what>, checked plan §<…>
+ADVISOR: changed: <what> | no change | not called (absent | error)
 ```
 
 `FATAL(n)` if ANY `[BLOCKER]` (n = count of BLOCKER + MAJOR). `CONCERNS(n)` if
@@ -97,11 +98,15 @@ PROOF: read <n> files, inspected <what>, checked plan §<…>
   (STEP 1's missing/unreadable-plan verdict) is part of the grammar: it
   carries only the `PLAN:` line — no FINDINGS, no PROOF — and the
   orchestrator treats it as a dispatcher-side failure, not a challenge result.
-- Advisor, when dispatched as a sub-agent: one call allowed, after
-  drafting your findings and before the verdict, whatever the harness
-  prompt schedules; absent or erroring → proceed. Advice may add or
-  sharpen a finding. Advice alone never drops or lowers one: a change
-  rests on your own re-read, cited at file:line.
+- Advisor, when dispatched as a sub-agent: exactly one call when the
+  `advisor` tool is listed, after drafting your findings and before the
+  verdict, whatever the harness prompt schedules; tool not listed or call
+  erroring → proceed, no retry. Advice may add or sharpen a finding.
+  Advice alone never drops or lowers one: a change rests on your own
+  re-read, cited at file:line. The OUTPUT's `ADVISOR:` line traces the
+  call: `changed:` names the findings it added or sharpened; `not called`
+  when the tool is not listed or the call errored. An `ERROR(<reason>)`
+  verdict carries no `ADVISOR:` line.
 
 ## ORCHESTRATOR PROTOCOL (consumer contract — wiring reference)
 
@@ -134,6 +139,15 @@ the MAIN loop, never here):
   "addressed" line. A BLOCKER consciously kept is tagged `[deferred <date>]`;
   every `[deferred]` point stops the run once, at the end of the challenge step,
   for the human to keep, cut or reopen it (`lib/challenge-plan.md` § OUTPUT).
+- ADVISOR ON THE SYNTHESIS (main loop): when a lens returned a BLOCKER or
+  a MAJOR, once the first synthesis is done the main loop calls the advisor
+  once more, when the tool is listed, before any confirmation challenger;
+  none after the confirmation pass; absent or erroring → go on. The advice
+  never enters a challenger brief. A skill run inside a sub-agent skips it
+  (`lib/challenge-plan.md`, SYNTHESIZE step).
+- THE SYNTHESIS STAYS IN THE LOOP: accepting, dropping or deferring a
+  finding, and the plan change that closes it, are never handed to another
+  agent (`lib/challenge-plan.md`, SYNTHESIZE step).
 - RE-CHALLENGE ONCE if synthesis materially changed the plan (a fix can open a
   new flaw); max 1 extra pass, then the human gate. A BLOCKER or MAJOR that
   pass still lands on a revised point is deferred, not revised again.

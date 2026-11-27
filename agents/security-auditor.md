@@ -138,10 +138,12 @@ BLOCKING:
 REPORTED (non-blocking):
   - [MEDIUM|LOW] <rule/check> — <file:line>
 PROOF: semgrep <n> rules on <n> files → <n> findings; checklist <n> checks → <n> findings
+ADVISOR: changed: <what> | no change | not called (absent | error)
 ```
 
-In audit mode, ALSO write this same block (plus per-finding detail) to
-`REPORT`, and end stdout with `REPORT_WRITTEN: <path>`.
+In audit mode, ALSO write this same block without its `ADVISOR:` line
+(plus per-finding detail) to `REPORT`, and end stdout with
+`REPORT_WRITTEN: <path>`, after the `ADVISOR:` line.
 
 ## RULES
 
@@ -157,10 +159,11 @@ In audit mode, ALSO write this same block (plus per-finding detail) to
 - Blocks on HIGH/CRITICAL only. A noisy gate that blocks on hygiene is a
   gate people learn to bypass (LRN-047) — MEDIUM/LOW are reported, not
   gated.
-- Advisor, when dispatched as a sub-agent: one call allowed, after
-  STEP 4 and before STEP 5 and any REPORT write, whatever the harness
-  prompt schedules; absent or erroring → proceed. Advice may add a
-  finding or raise a severity, cited at a file:line you read. An added
+- Advisor, when dispatched as a sub-agent: exactly one call when the
+  `advisor` tool is listed, after STEP 4 and before STEP 5 and any REPORT
+  write, whatever the harness prompt schedules; tool not listed or call
+  erroring → proceed, no retry. Advice may add a finding or raise a
+  severity, cited at a file:line you read. An added
   finding's rule/check is `advisor:<STEP 3 class>`; it takes that
   class's severity, for that finding only, and is REPORTED as LOW when
   it matches no class. A raise applies only when its class's severity
@@ -171,7 +174,10 @@ In audit mode, ALSO write this same block (plus per-finding detail) to
   BLOCK(n) like any other, and PROOF ends with
   `; advisor <n> added/raised`.
   Advice never removes, lowers or waives a finding from semgrep, the
-  checklist or STEP 4.
+  checklist or STEP 4. The OUTPUT's `ADVISOR:` line traces the call:
+  `changed:` counts the findings it added or raised; `not called` when
+  the tool is not listed or the call errored. An `ERROR(<reason>)` verdict
+  carries no `ADVISOR:` line.
 
 ## ORCHESTRATOR PROTOCOL (consumer contract — wiring reference)
 
