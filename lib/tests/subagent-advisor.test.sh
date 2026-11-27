@@ -76,7 +76,7 @@ check T18-no-old-row "$(cd "$ROOT" && git grep -c 'already called this run)' \
 
 # exactly one call and its effect line (user decision 2026-11-26)
 check T21-hook-exactly "$(in_ctx "$(ctx '{}')" \
-  'When allowed: exactly one call, before your verdict or report.')" yes
+  'When allowed: exactly one call, before your verdict or report; call erroring → proceed, no retry.')" yes
 for a in plan-challenger verifier security-auditor analyzer; do
   check "T22 $a effect line" "$(has "agents/$a.md" \
     'ADVISOR: changed: <what> | no change | not called (absent | error)')" yes
@@ -149,10 +149,31 @@ check T32-router-note "$(has mods/model-router/hooks/register.ts \
   'a challenge step makes its own calls')" yes
 
 check T33-session-note "$(has lib/effort-shift.md \
-  "Type \`/advisor\` in such a session, or relaunch it.")" yes
+  "the main loop tells the user to type \`/advisor\` in that")" yes
 
 check T28d-effort-plan-bound "$(has lib/effort-shift.md \
   'made no main-loop advisor call yet, before the')" yes
+
+# code-review carriers carry the error exit; conditions locked on joined
+# text (STEP 6 review, 2026-11-27)
+for s in ship-feature init-project; do
+  check "T22e $s brief exit" "$(has "skills/$s/SKILL.md" \
+    'listed, before your verdict (tool not listed or call erroring → proceed,')" yes
+done
+check T22f-analyzer-both-blocks "$(grep -cF \
+  'not called (absent | error)   (dispatched only)' "$ROOT/agents/analyzer.md")" 2
+check T28e-effort-condition "$(joined lib/effort-shift.md | grep -cF \
+  'on the plan after the first synthesis when a lens returned a BLOCKER or a MAJOR')" 1
+check T28f-plan-condition "$(joined lib/challenge-plan.md | grep -cF \
+  'When any lens of the first pass returned a BLOCKER or a MAJOR')" 1
+check T28g-all-solid "$(joined lib/challenge-plan.md | grep -cF \
+  'All lenses SOLID: no call.')" 1
+check T28h-mirror-condition "$(joined agents/plan-challenger.md | grep -cF \
+  'when a lens returned a BLOCKER or a MAJOR, once the first synthesis is done')" 1
+check T29c-hotfix-two-parts "$(has skills/hotfix/SKILL.md \
+  "prints the CHALLENGE SUMMARY row's two parts and values")" yes
+check T32b-router-path "$(has mods/model-router/hooks/register.ts \
+  "'(\`~/.claude/lib/challenge-plan.md\`). ' +")" yes
 
 echo "subagent-advisor: $pass pass, $fail fail"
 [ "$fail" -eq 0 ]

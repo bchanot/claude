@@ -269,7 +269,8 @@ Invoke `requesting-code-review` (vendored superpowers skill). **Model routing (B
 review subagent it dispatches MUST carry `model: "opus"` and `effort="xhigh"` in the Agent call —
 craft review is dispatched judgment, never inherited from the session.
 Add to its brief: "make exactly one `advisor` call when the tool is
-listed, before your verdict, and end your report with one line:
+listed, before your verdict (tool not listed or call erroring → proceed,
+no retry), and end your report with one line:
 `ADVISOR: changed: <what> | no change | not called (absent | error)`"
 (code review, BDR-150). Fix every CRITICAL or Important finding
 that carries reproducible evidence (a command that fails on HEAD, or real

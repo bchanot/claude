@@ -191,7 +191,9 @@ guard; at a loop cap it feeds the STOP diagnosis.
 
 A session opened before the `advisorModel` setting may never call the
 Fable advisor: in the one case observed (2026-11-26) such a session made
-no call in 4,390 requests. Type `/advisor` in such a session, or relaunch it.
+no call in 4,390 requests. Advisor tool not listed while settings set
+`advisorModel` → the main loop tells the user to type `/advisor` in that
+session, or to relaunch it.
 
 ## Never
 

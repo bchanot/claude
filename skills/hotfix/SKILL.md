@@ -95,8 +95,9 @@ off-by-one, a wrong operator/variable, a behaviour-changing config value, or a
 missing import that alters execution. In doubt → it is probably a `/bugfix`.
 A skipped challenge still makes the run's advisor call here, on the located
 fix, when the tool is listed (`lib/effort-shift.md` § Advisor). The
-summary's `ADVISOR` field carries each call of the run (a challenged fix
-prints `plan: …; synthesis: …`).
+summary's `ADVISOR` field carries each call of the run: a challenged fix
+prints the CHALLENGE SUMMARY row's two parts and values
+(`lib/challenge-plan.md` § OUTPUT), `plan: …; synthesis: …`.
 
 `mcp__model-router__route(phase="reflect")` first (route: own level before the challenge; send it with the first tool call of lib/challenge-plan.md, the advisor call when one is due).
 For a logic fix: persist the STEP 1 located fix (root cause + the exact edit) to
