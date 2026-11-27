@@ -19,7 +19,15 @@ age_days() {
   echo $(( ($(date +%s) - mtime) / 86400 ))
 }
 
-row() { printf '%s\t%s\t%s\t%s\t%s\n' "$@"; }
+# row <category> <size> <age> <path> <note>; a path holding a control
+# character (tab, newline) would forge fields or rows: skipped, warned.
+row() {
+  case "$4" in *[[:cntrl:]]*)
+    echo "scan.sh: skipped path with control char under $ROOT" >&2
+    return ;;
+  esac
+  printf '%s\t%s\t%s\t%s\t%s\n' "$@"
+}
 
 # busy_note <project dir> -> "busy" when a cargo/rustc runs inside it
 busy_note() {
@@ -36,8 +44,8 @@ scan_cargo() {
   local manifest dir
   find "$ROOT" -maxdepth 5 \( -name target -o -name node_modules \
       -o -name '.rustup' -o -name '.cargo' -o -name '.git' \) -prune \
-      -o -name Cargo.toml -print 2>/dev/null |
-  while read -r manifest; do
+      -o -name Cargo.toml -print0 2>/dev/null |
+  while IFS= read -r -d '' manifest; do
     dir=$(dirname "$manifest")
     [ -d "$dir/target/debug" ] || continue
     row cargo "$(size_of "$dir/target/debug")" \
@@ -48,15 +56,16 @@ scan_cargo() {
 # node_modules of projects outside hidden dirs; age = package.json mtime.
 scan_node_modules() {
   local nm
-  find "$ROOT" -maxdepth 5 -path '*/.*' -prune \
-      -o -type d -name node_modules -print -prune 2>/dev/null |
-  while read -r nm; do
+  find "$ROOT" -mindepth 1 -maxdepth 5 -name '.*' -prune \
+      -o -type d -name node_modules -print0 -prune 2>/dev/null |
+  while IFS= read -r -d '' nm; do
     row node_modules "$(size_of "$nm")" \
       "$(age_days "$(dirname "$nm")/package.json")" "$nm" "-"
   done
 }
 
-# Playwright: every browser dir but the highest revision of its kind.
+# Playwright: every browser dir but the highest revision of its kind
+# (an installed Playwright may still pin an older one: the user decides).
 scan_playwright() {
   local base="$ROOT/.cache/ms-playwright" kind dir newest
   [ -d "$base" ] || return 0
@@ -66,20 +75,32 @@ scan_playwright() {
     for dir in "$base/$kind"-[0-9]*; do
       [ "$dir" = "$newest" ] && continue
       row playwright "$(size_of "$dir")" "$(age_days "$dir")" "$dir" \
-        "superseded by $(basename "$newest")"
+        "older revision than $(basename "$newest")"
     done
   done
 }
 
 # Orphan tmp dirs of past Claude sessions.
 scan_claude_tmp() {
-  local base="$ROOT/.cache/claude-tmp" count
+  local base="$ROOT/.cache/claude-tmp" count size
   [ -d "$base" ] || return 0
   count=$(find "$base" -maxdepth 1 -name 'tmp.*' \
     -mtime +"$TMP_MIN_AGE_DAYS" | wc -l)
   [ "$count" -gt 0 ] || return 0
-  row claude_tmp "$(size_of "$base")" "-" "$base" \
-    "$count tmp.* dirs older than ${TMP_MIN_AGE_DAYS}d"
+  size=$(find "$base" -maxdepth 1 -name 'tmp.*' -mtime +"$TMP_MIN_AGE_DAYS" \
+    -print0 | du -shc --files0-from=- 2>/dev/null | tail -1 | cut -f1)
+  row claude_tmp "$size" "-" "$base" \
+    "$count tmp.* dirs, -mtime +$TMP_MIN_AGE_DAYS"
+}
+
+# Subagent-driven-development work dirs (.superpowers/sdd) of projects.
+scan_superpowers() {
+  local sdd
+  find "$ROOT" -maxdepth 4 -type d -path '*/.superpowers/sdd' \
+      -print0 -prune 2>/dev/null |
+  while IFS= read -r -d '' sdd; do
+    row superpowers "$(size_of "$sdd")" "$(age_days "$sdd")" "$sdd" "-"
+  done
 }
 
 # Docker: the reclaimable column of `docker system df`.
@@ -88,6 +109,7 @@ scan_docker() {
   "$DOCKER" system df --format '{{.Type}}\t{{.Reclaimable}}' \
       2>/dev/null |
   while IFS=$'\t' read -r type reclaimable; do
+    [ "$type" = "Containers" ] && continue   # live containers: not residue
     row docker "$reclaimable" "-" "$type" "reclaimable"
   done
 }
@@ -98,4 +120,5 @@ scan_cargo
 scan_node_modules
 scan_playwright
 scan_claude_tmp
+scan_superpowers
 scan_docker

@@ -297,7 +297,7 @@ a different package, ships its own conflicting `graphify` bin) — see
 | `/health` | Code quality dashboard (gstack) — setup diagnostic is `make doctor` |
 | `/status` | Consolidated project snapshot — plugins, git, GSD milestone |
 | `/skills-perso` | List personal (user-created) skills |
-| `/disk-clean` | Find rebuildable disk residue (Rust target/debug, docker build cache, old Playwright browsers, tmp, node_modules), ask, then reclaim; only `cargo clean` and `docker builder prune` run unattended, the rest is a `!` command you run |
+| `/disk-clean` | Find rebuildable disk residue (Rust target/debug, docker build cache, old Playwright browsers, tmp, node_modules), nothing goes before you pick it; Claude then runs only `cargo clean` and `docker builder prune`, the rest is a `!` command you run |
 | `/audit-delta` | Recurring audit of changes since last run (norms, bugs, dead code, security) |
 | `/capitalize` | Flush uncapitalized context + reconcile TODO before /clear or /compact (`--ritual` adds the end-of-session reflection) |
 | `/prune-memory` | Curate and compress the .claude/memory/ registries; rewrite noisy recall entries and propose promotions from `/memory-feedback` |
