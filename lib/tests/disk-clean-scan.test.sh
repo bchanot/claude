@@ -20,7 +20,7 @@ pw="$H/.cache/ms-playwright"
 mkdir -p "$pw/chromium-1243" "$pw/chromium-1255" "$pw/ffmpeg-1011"
 mkdir -p "$H/.cache/claude-tmp/tmp.old" "$H/.cache/claude-tmp/tmp.new"
 mkdir -p "$H/p/js/.superpowers/sdd" "$H/p/bad
-name/node_modules"   # newline in a path: never emitted as a row
+name/node_modules" "$H/p/bad'q/node_modules"   # newline, quote: no row
 touch -t 200001010000 "$H/.cache/claude-tmp/tmp.old"
 
 # Docker stub: fixed `system df` output, records any other verb.

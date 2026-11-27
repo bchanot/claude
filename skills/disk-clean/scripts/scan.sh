@@ -21,10 +21,11 @@ age_days() {
 }
 
 # row <category> <size> <age> <path> <note>; a path holding a control
-# character (tab, newline) would forge fields or rows: skipped, warned.
+# character (forged fields or rows) or a shell quote/expansion character
+# (breaks out of the single quotes /disk-clean wraps it in): skipped.
 row() {
-  case "$4" in *[[:cntrl:]]*)
-    echo "scan.sh: skipped path with control char under $ROOT" >&2
+  case "$4" in *[[:cntrl:]\'\"\$\`\\]*)
+    echo "scan.sh: skipped unsafe path under $ROOT" >&2
     return ;;
   esac
   printf '%s\t%s\t%s\t%s\t%s\n' "$@"
