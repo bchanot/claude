@@ -3,6 +3,12 @@
 ## Open (reconciled 2026-11-12 before 3.0.0, /reconcile on the BDR-125 phases; full pass 2026-10-23)
 Done history before 2026-10-08 removed 2026-10-23 (git keeps it: `git log -p -- .claude/tasks/TODO.md`); decisions live in `.claude/memory/`.
 
+### /disk-clean skill (user 2026-11-27: "/disk-clean, demander de valider avant de supprimer")
+- [x] skills/disk-clean/scripts/scan.sh: read-only residue report (root param, cargo targets via discovery, docker df, playwright versions, tmp orphans, node_modules age); no delete code
+- [x] skills/disk-clean/SKILL.md: scan → table → AskUserQuestion gate (empty/dismissed = nothing) → closed allowlist (cargo clean --manifest-path --profile dev after per-project pgrep gate, docker builder prune) → rest printed as `! cmd`
+- [x] lib/tests/disk-clean-scan.test.sh on mktemp fixture, docker stubbed; routing.json mechanical row; README/USAGE/CHANGELOG rows
+- [x] RED = this session's ungated cleanup; GREEN = answer-only subagent scenario (no Bash)
+
 ### Done, triage and loop levers (user 2026-11-20: "oui lance une session neuve avec les six leviers")
 - [x] DONE 19dfe7e + 39cf9dd (docs e8c061e), merged 1c9289a (memory b58d885) /feat feature/done-triage-levers: /feat the six levers in .claude/tasks/plans/2026-11-20-done-and-triage-levers.md (done = oracles green, reopen only on reproducible evidence; MINOR fixed before dispatch or dropped; no challenge on a placed decision; loop on a frozen list; contract dry run + plan artifacts in scope; `TODO +n / -m` in summaries). 5 files: lib/verify-secure-loop.md, lib/challenge-plan.md, CLAUDE.global.md (1 line), lib/capitalize-commit.md, agents/verifier.md (contract .claude/tasks/contracts/2026-11-20-done-triage-levers-1413.md)
 - [x] DONE 0db885e, merged cef1754 (user accepted the partial delivery 2026-11-21, criterion 4 deferred): follow-up /feat, 4 of 5 files: lib/contract-interview.md STEP 4 (dry run + `- run-base:` from every contract-writing flow: guardrails, a11y, ship-feature, init-project, bugfix fast path, hotfix); skills/ship-feature STEP 6 (:262/:344) and skills/init-project STEP 10 (:280/:382) "Fix all CRITICAL" bound by lever 1 (reopen only on reproducible evidence); lib/capitalize-commit.md:75 `git diff --end-of-options` + `^[0-9a-f]{7,40}$` check on `run_base` (GATE 2 LOW); agents/verifier.md STEP 4 `[gated]` lines in scope only on an untracked contract (GATE 2 design note) (contract .claude/tasks/contracts/2026-11-20-levers-followup-1725.md)
