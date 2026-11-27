@@ -3,6 +3,7 @@
 # Usage: bash scan.sh [root]   (default: $HOME)
 # Output: one TSV row per candidate:
 #   category <TAB> size <TAB> age_days <TAB> path <TAB> note
+# Busy detection reads /proc (Linux); elsewhere every row reads "-".
 # Deletes nothing: /disk-clean shows the rows, asks, then acts.
 # DISK_CLEAN_DOCKER overrides the docker binary (tests stub it).
 set -u
@@ -15,7 +16,7 @@ size_of() { du -sh "$1" 2>/dev/null | cut -f1; }
 
 age_days() {
   local mtime
-  mtime=$(stat -c %Y "$1" 2>/dev/null) || { echo "?"; return; }
+  mtime=$(date -r "$1" +%s 2>/dev/null) || { echo "?"; return; }
   echo $(( ($(date +%s) - mtime) / 86400 ))
 }
 
@@ -69,8 +70,8 @@ scan_node_modules() {
 scan_playwright() {
   local base="$ROOT/.cache/ms-playwright" kind dir newest
   [ -d "$base" ] || return 0
-  for kind in $(find "$base" -mindepth 1 -maxdepth 1 -printf '%f\n' |
-      sed -n 's/-[0-9]*$//p' | sort -u); do
+  for kind in $(for dir in "$base"/*; do echo "${dir##*/}"; done |
+      sed -n 's/-[0-9][0-9]*$//p' | sort -u); do
     newest=$(printf '%s\n' "$base/$kind"-[0-9]* | sort -V | tail -1)
     for dir in "$base/$kind"-[0-9]*; do
       [ "$dir" = "$newest" ] && continue
@@ -88,7 +89,7 @@ scan_claude_tmp() {
     -mtime +"$TMP_MIN_AGE_DAYS" | wc -l)
   [ "$count" -gt 0 ] || return 0
   size=$(find "$base" -maxdepth 1 -name 'tmp.*' -mtime +"$TMP_MIN_AGE_DAYS" \
-    -print0 | du -shc --files0-from=- 2>/dev/null | tail -1 | cut -f1)
+    -exec du -sk {} + 2>/dev/null | awk '{k += $1} END {print int(k/1024) "M"}')
   row claude_tmp "$size" "-" "$base" \
     "$count tmp.* dirs, -mtime +$TMP_MIN_AGE_DAYS"
 }

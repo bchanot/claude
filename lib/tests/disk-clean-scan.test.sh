@@ -21,7 +21,7 @@ mkdir -p "$pw/chromium-1243" "$pw/chromium-1255" "$pw/ffmpeg-1011"
 mkdir -p "$H/.cache/claude-tmp/tmp.old" "$H/.cache/claude-tmp/tmp.new"
 mkdir -p "$H/p/js/.superpowers/sdd" "$H/p/bad
 name/node_modules"   # newline in a path: never emitted as a row
-touch -d '10 days ago' "$H/.cache/claude-tmp/tmp.old"
+touch -t 200001010000 "$H/.cache/claude-tmp/tmp.old"
 
 # Docker stub: fixed `system df` output, records any other verb.
 cat > "$tmp/docker" <<EOF
