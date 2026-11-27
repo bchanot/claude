@@ -2244,3 +2244,8 @@ Supersedes [[LRN-310]].
 - **Context**: 14-day transcript tally 2026-11-26: session game ab44600c opened 14/11, before `advisorModel: fable` (16/11), never relaunched: 0 advisor attempts in 4 390 requests (main + sub). Its records' `advisorModel` field followed the session's `/model` (fable 14-15/11, opus 16-25/11, fable 26/11); all other sessions read fable with opus loop. `/advisor` typed 16/11 in 4ba4524e, which called afterwards.
 - **Pattern**: settings `advisorModel` change does not reach a live older session; mechanism not established (one case, not tested live).
 - **Application**: advisor tool missing while settings set `advisorModel` → tell user to type `/advisor` or relaunch (lib/effort-shift.md § Advisor note). Exclude such sessions from advisor tallies.
+
+## LRN-315 — Disk cleanup ran before asking; pgrep chained with ; gates nothing (2026-11-27)
+**Context**: home 85%, user asked "fais le ménage". Claude ran `cargo clean` x3 + `docker builder prune` (~135G) with no confirm; `pgrep … ;` chained before cleans, so busy check gated nothing (cargo test was running elsewhere, luck only).
+**Lesson**: disk cleanup = destructive even when rebuildable. Measure, show table, ask per category, then act. A guard chained with `;` is a print, not a gate: test its output, skip on match.
+**Apply**: use /disk-clean (scan.sh read-only, AskUserQuestion gate, Claude runs only cargo clean --profile dev + docker builder prune, rest as `!` cmds). Any ad-hoc cleanup: ask first.
