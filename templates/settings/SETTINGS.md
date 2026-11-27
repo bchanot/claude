@@ -152,12 +152,13 @@ local trace, and the brief had authorized it. What holds now, by tier:
 
 Rules apply to sub-agents (auto mode is inherited) and to each segment of
 a compound command; a tool nested in another command (`docker compose run …
-lftp`) is not matched by a static rule. The PreToolUse guard hook that scans
-the whole command, its executable spec in `lib/tests/guard-bash.test.sh`,
-is not shipped yet (BLK-022). `hooks/push-guard.sh` scans the command text
-for `git push` only, in manual-push mode (see below), and
-`hooks/extract-guard.sh` for an extraction into a system directory only,
-quoted remote scripts included.
+lftp`) is not matched by a static rule. No hook scans the whole command:
+the planned one (BLK-022) was dropped for static deny and ask rules.
+`hooks/push-guard.sh` scans the command text for `git push` only, in
+manual-push mode (see below), `hooks/extract-guard.sh` for an extraction
+into a system directory only, quoted remote scripts included, and
+`hooks/poll-guard.sh` (Bash and Monitor) for an until/while + `sleep` poll
+loop with no time bound, or `pgrep`/`pkill -f` in a loop or a Monitor command.
 
 Push discipline lives in `lib/gitflow.sh`: `start` pushes the branch,
 `finish` pushes each merge target, and the post-commit / post-merge hooks
