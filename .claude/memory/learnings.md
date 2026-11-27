@@ -2249,3 +2249,8 @@ Supersedes [[LRN-310]].
 **Context**: home 85%, user asked "fais le ménage". Claude ran `cargo clean` x3 + `docker builder prune` (~135G) with no confirm; `pgrep … ;` chained before cleans, so busy check gated nothing (cargo test was running elsewhere, luck only).
 **Lesson**: disk cleanup = destructive even when rebuildable. Measure, show table, ask per category, then act. A guard chained with `;` is a print, not a gate: test its output, skip on match.
 **Apply**: use /disk-clean (scan.sh read-only, AskUserQuestion gate, Claude runs only cargo clean --profile dev + docker builder prune, rest as `!` cmds). Any ad-hoc cleanup: ask first.
+
+## LRN-316 — pgrep -f in a Bash call matches its own shell and sibling loops (2026-11-27)
+**Context**: Bash tool runs each command as `bash -c '... eval <text> ...'`, so the shell argv holds the full command text.
+**Lesson**: `pgrep -f <pat>` inside a Bash call always matches its own shell. `-A` (ignore ancestors) drops self only: a sibling loop holding the same pattern still matches (tested). `pgrep -x <name>` misleads for scripts run via interpreter (comm = bash).
+**Apply**: wait on the job's own end: completion notification, or exit marker (`cmd >out 2>&1; echo "rc=$?" >>out`) polled with a `$SECONDS` bound. Never an unbounded wait loop: foreground calls outlive the tool timeout.
