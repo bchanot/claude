@@ -527,6 +527,16 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "matcher": "Bash|Monitor",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/hooks/poll-guard.sh",
+            "timeout": 10
+          }
+        ]
       }
     ],
     "Notification": [
