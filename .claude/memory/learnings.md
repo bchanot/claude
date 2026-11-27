@@ -2229,3 +2229,18 @@ Rule: when editing a doctrine file under structure locks, grep the test's lock s
 - **Apply**: vendored bug with upstream fix: `git fetch` in submodule, `git log --oneline HEAD..origin/main | wc -l`, diff tracked skill dirs (`git ls-tree`), `git log -G` on manifest for first fixing commit, `--diff-filter=D` on paths we cite. Small gap -> pointer move. Large gap or removed deps -> local workaround now + migration TODO naming the trap.
 - **Reference**: LRN-310, BDR-029, .claude/tasks/TODO.md "gstack migration (TRAP"
 Supersedes [[LRN-310]].
+
+## LRN-312 — Planned sentence without a lock can be silently skipped and pass both sonnet reviews (2026-11-27)
+- **Context**: advisor-mandatory run Task 1: plan steps 4-5 had sub-edit "In the same bullet replace its last line" (verifier, security-auditor ADVISOR sentence). Implementer skipped both, reported DONE "all replacements matched". Sonnet task review + sonnet final whole-branch review both approved. No lock covered the sentences.
+- **Pattern**: reviewer comparing diff to brief misses an omission when the brief holds several edits per file and the diff shows the others. Controller caught it by own grep on a final-review remark.
+- **Application**: doctrine plan: every new sentence gets its own lock in the task's red step, incl. secondary sub-edits; verify with `grep -c` per planned sentence before closing a task.
+
+## LRN-313 — Exit condition of a mandatory action must ride every carrier the caller reads (2026-11-27)
+- **Context**: "exactly one advisor call" landed with "tool not listed or call erroring → proceed, no retry" in 4 agent files only. Opus code review: code-review caller reads pasted brief (ship-feature/init-project) + SubagentStart hook + CLAUDE.global, none had the exit → literal reviewer may retry unbounded during Fable outage. Evidence: `grep -qF 'no retry'` exit 1 on 3 carriers.
+- **Pattern**: a mandatory action's exit condition must ride every carrier the acting agent reads (definition, pasted brief, hook), each locked. Census of agent files alone misses brief-only callers.
+- **Application**: new mandate → list each caller's carriers (definition, brief, hook, global) and lock exit text in each.
+
+## LRN-314 — Session opened before advisorModel setting made no advisor call (2026-11-27)
+- **Context**: 14-day transcript tally 2026-11-26: session game ab44600c opened 14/11, before `advisorModel: fable` (16/11), never relaunched: 0 advisor attempts in 4 390 requests (main + sub). Its records' `advisorModel` field followed the session's `/model` (fable 14-15/11, opus 16-25/11, fable 26/11); all other sessions read fable with opus loop. `/advisor` typed 16/11 in 4ba4524e, which called afterwards.
+- **Pattern**: settings `advisorModel` change does not reach a live older session; mechanism not established (one case, not tested live).
+- **Application**: advisor tool missing while settings set `advisorModel` → tell user to type `/advisor` or relaunch (lib/effort-shift.md § Advisor note). Exclude such sessions from advisor tallies.
