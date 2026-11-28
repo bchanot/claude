@@ -826,3 +826,4 @@ rules:
 - 2026-11-27: /ship-feature advisor-mandatory-gp-routing: advisor exactly one call for 5 allowed callers + ADVISOR effect line, 2 main-loop calls per challenged plan, untyped dispatch by nature, SDD final review sonnet under orchestrators. Gates CONFORME/PASS after 3 verifier iterations; BDR-158, LRN-312..314, EVAL-061. Awaiting merge go.
 - 2026-11-27: finish feature/advisor-mandatory-gp-routing -> develop 4f5cc89 on user signal; behavioural advisor check pending in a fresh session (TODO:24).
 - 2026-11-27: home 85%->31% (cargo debug ~105G, docker build cache 30G); shipped /disk-clean (scan + validation gate), merged 190830f; session-start disk alert left open.
+- 2026-11-27: bugfix/poll-guard 6879ccf + docs 95ab6e6: hook denies unbounded poll loops and pgrep -f waits; 5 stuck loops killed; merge and hard_deny exception pending user.
