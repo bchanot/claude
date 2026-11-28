@@ -827,3 +827,6 @@ rules:
 - 2026-11-27: finish feature/advisor-mandatory-gp-routing -> develop 4f5cc89 on user signal; behavioural advisor check pending in a fresh session (TODO:24).
 - 2026-11-27: home 85%->31% (cargo debug ~105G, docker build cache 30G); shipped /disk-clean (scan + validation gate), merged 190830f; session-start disk alert left open.
 - 2026-11-27: bugfix/poll-guard 6879ccf + docs 95ab6e6: hook denies unbounded poll loops and pgrep -f waits; 5 stuck loops killed; merge and hard_deny exception pending user.
+
+## 2026-11-28
+- 2026-11-28: merged bugfix/poll-guard d3143a8 (hook + doctrine exception f018b3b + user hard_deny exception 2dd3550); behavioural test: refused unbounded wait, agent ran corrected bounded form once, finished.
