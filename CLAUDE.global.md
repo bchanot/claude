@@ -70,13 +70,13 @@ code" wins. Repo-specific instructions override both.
   exploration, parallel audits), not work doable in a few tool calls. Ceiling:
   the main loop writes no code outside a skill run, whatever the model (the
   model-router guard redirects it: enter the skill it names). Skill-mandated
-  executors and gates (pinned executors, fresh
-  verifier/security/challenge) always dispatch as written, even small; a failed
-  gate re-dispatches a fresh executor, never redo its work by hand. A brief
-  never authorizes a sub-agent to run a destructive tool (Security →
-  Destructive tools & data loss) or to route around a guardrail: a refused
-  command is reported with its rule (a guard redirect naming a skill is
-  followed instead), never rerun through a wrapper, alias, env
+  executors and gates (pinned executors, fresh verifier/security/challenge)
+  always dispatch as written, even small; a failed gate re-dispatches a fresh
+  executor, never redo its work by hand. A brief never authorizes a sub-agent to
+  run a destructive tool (Security → Destructive tools & data loss) or to route
+  around a guardrail: a refused command is reported with its rule (a redirect
+  naming a skill, or the corrected command a hook refusal names, run once via
+  the same tool, is followed instead), never rerun through a wrapper, alias, env
   file or other shell. Hermetic tests run through `make test [suite=…]` only.
 - Untyped dispatch (general-purpose, bar /tour's runner): explicit `model`:
   judgment opus; fixes, mockups, writing, collection sonnet; probes haiku
